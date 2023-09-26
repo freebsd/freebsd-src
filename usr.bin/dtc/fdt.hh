@@ -71,7 +71,7 @@ typedef std::shared_ptr<property> property_ptr;
 /**
  * Owning pointer to a node.
  */
-typedef std::unique_ptr<node> node_ptr;
+typedef std::shared_ptr<node> node_ptr;
 /**
  * Map from macros to property pointers.
  */
@@ -663,7 +663,7 @@ class node
 	/**
 	 * Deletes any children from this node.
 	 */
-	inline void delete_children_if(bool (*predicate)(node_ptr &))
+	inline void delete_children_if(std::function<bool(node_ptr &)> predicate)
 	{
 		children.erase(std::remove_if(children.begin(), children.end(), predicate), children.end());
 	}
@@ -761,7 +761,11 @@ class device_tree
 	 * Mapping from names to nodes.  Only unambiguous names are recorded,
 	 * duplicate names are stored as (node*)-1.
 	 */
-	std::unordered_map<std::string, node*> node_names;
+	std::unordered_map<std::string, node_ptr> node_names;
+	/**
+	 * Mapping from names to the nodes that contain them.
+	 */
+	std::unordered_map<std::string, node_ptr> node_name_parents;
 	/**
 	 * A map from labels to node paths.  When resolving cross references,
 	 * we look up referenced nodes in this and replace the cross reference
@@ -779,6 +783,10 @@ class device_tree
 	 * These should be expanded to the full path of their targets.
 	 */
 	std::vector<property_value*> cross_references;
+	/**
+	 * Labels collected from top-level /delete-node/ directives.
+	 */
+	std::vector<std::string> deletions;
 	/**
 	 * The location of something requiring a fixup entry.
 	 */
@@ -827,7 +835,7 @@ class device_tree
 	 * find phandles that were provided by the user explicitly when we are
 	 * doing checking.
 	 */
-	std::unordered_map<uint32_t, node*> used_phandles;
+	std::unordered_map<uint32_t, node_ptr> used_phandles;
 	/**
 	 * Paths to search for include files.  This contains a set of
 	 * nul-terminated strings, which are not owned by this class and so
@@ -864,19 +872,19 @@ class device_tree
 	 * used in resolving cross references.  Also collects phandle
 	 * properties that have been explicitly added.  
 	 */
-	void collect_names_recursive(node_ptr &n, node_path &path);
+	void collect_names_recursive(node_ptr parent, node_ptr n, node_path &path);
 	/**
 	 * Assign a phandle property to a single node.  The next parameter
 	 * holds the phandle to be assigned, and will be incremented upon
 	 * assignment.
 	 */
-	property_ptr assign_phandle(node *n, uint32_t &next);
+	property_ptr assign_phandle(node_ptr n, uint32_t &next);
 	/**
 	 * Assign phandle properties to all nodes that have been referenced and
 	 * require one.  This method will recursively visit the tree starting at
 	 * the node that it is passed.
 	 */
-	void assign_phandles(node_ptr &n, uint32_t &next);
+	void assign_phandles(node_ptr n, uint32_t &next);
 	/**
 	 * Calls the recursive version of this method on every root node.
 	 */
@@ -925,7 +933,7 @@ class device_tree
 	 * is in source form, then we have a string that we can use to index
 	 * the cross_references array and so we can just look that up.  
 	 */
-	node *referenced_node(property_value &v);
+	node_ptr referenced_node(property_value &v);
 	/**
 	 * Writes this FDT as a DTB to the specified output.
 	 */

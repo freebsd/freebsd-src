@@ -861,7 +861,15 @@ node::node(const string &n,
 node_ptr node::create_special_node(const string &name,
                                    const std::vector<property_ptr> &props)
 {
-	node_ptr n(new node(name, props));
+	// Work around for the fact that we can't call make_shared on something
+	// with a private constructor.  Instead create a subclass with a public
+	// constructor that is visible only in this function and construct that
+	// instead.
+	struct constructable_node : public node
+	{
+		constructable_node(const string &n, const std::vector<property_ptr> &p) : node(n, p) {}
+	};
+	node_ptr n{std::make_shared<constructable_node>(name, props)};
 	return n;
 }
 
@@ -1035,12 +1043,31 @@ node::parse(text_input_buffer &input,
             string &&address,
             define_map *defines)
 {
-	node_ptr n(new node(input,
-	                    tree,
-	                    std::move(name),
-	                    std::move(label),
-	                    std::move(address),
-	                    defines));
+	// Work around for the fact that we can't call make_shared on something
+	// with a private constructor.  Instead create a subclass with a public
+	// constructor that is visible only in this function and construct that
+	// instead.
+	struct constructable_node : public node
+	{
+		constructable_node(text_input_buffer &input,
+	                       device_tree &tree,
+	                       std::string &&n,
+	                       std::unordered_set<std::string> &&l,
+	                       std::string &&a,
+	                       define_map*m) : node(input,
+	                                            tree,
+	                                            std::move(n),
+	                                            std::move(l),
+	                                            std::move(a),
+	                                            m)
+		{}
+	};
+	node_ptr n{std::make_shared<constructable_node>(input,
+	                                                tree,
+	                                                std::move(name),
+	                                                std::move(label),
+	                                                std::move(address),
+	                                                defines)};
 	if (!n->valid)
 	{
 		n = 0;
@@ -1208,7 +1235,7 @@ node::write_dts(FILE *file, int indent)
 }
 
 void
-device_tree::collect_names_recursive(node_ptr &n, node_path &path)
+device_tree::collect_names_recursive(node_ptr parent, node_ptr n, node_path &path)
 {
 	path.push_back(std::make_pair(n->name, n->unit_address));
 	for (const string &name : n->labels)
@@ -1218,9 +1245,13 @@ device_tree::collect_names_recursive(node_ptr &n, node_path &path)
 			auto iter = node_names.find(name);
 			if (iter == node_names.end())
 			{
-				node_names.insert(std::make_pair(name, n.get()));
+				node_names.insert(std::make_pair(name, n));
 				node_paths.insert(std::make_pair(name, path));
 				ordered_node_paths.push_back({name, path});
+				if (parent)
+				{
+					node_name_parents.insert({name, parent});
+				}
 			}
 			else
 			{
@@ -1236,7 +1267,7 @@ device_tree::collect_names_recursive(node_ptr &n, node_path &path)
 	}
 	for (auto &c : n->child_nodes())
 	{
-		collect_names_recursive(c, path);
+		collect_names_recursive(n, c, path);
 	}
 	// Now we collect the phandles and properties that reference
 	// other nodes.
@@ -1264,7 +1295,7 @@ device_tree::collect_names_recursive(node_ptr &n, node_path &path)
 			else
 			{
 				uint32_t phandle = p->begin()->get_as_uint32();
-				used_phandles.insert(std::make_pair(phandle, n.get()));
+				used_phandles.insert(std::make_pair(phandle, n));
 			}
 		}
 	}
@@ -1280,11 +1311,11 @@ device_tree::collect_names()
 	ordered_node_paths.clear();
 	cross_references.clear();
 	fixups.clear();
-	collect_names_recursive(root, p);
+	collect_names_recursive(nullptr, root, p);
 }
 
 property_ptr
-device_tree::assign_phandle(node *n, uint32_t &phandle)
+device_tree::assign_phandle(node_ptr n, uint32_t &phandle)
 {
 	// If there is an existing phandle, use it
 	property_ptr p = n->get_property("phandle");
@@ -1329,11 +1360,11 @@ device_tree::assign_phandle(node *n, uint32_t &phandle)
 }
 
 void
-device_tree::assign_phandles(node_ptr &n, uint32_t &next)
+device_tree::assign_phandles(node_ptr n, uint32_t &next)
 {
 	if (!n->labels.empty())
 	{
-		assign_phandle(n.get(), next);
+		assign_phandle(n, next);
 	}
 
 	for (auto &c : n->child_nodes())
@@ -1391,14 +1422,14 @@ device_tree::resolve_cross_references(uint32_t &phandle)
 	for (auto &i : sorted_phandles)
 	{
 		string target_name = i.get().val.string_data;
-		node *target = nullptr;
+		node_ptr target;
 		string possible;
 		// If the node name is a path, then look it up by following the path,
 		// otherwise jump directly to the named node.
 		if (target_name[0] == '/')
 		{
 			string path;
-			target = root.get();
+			target = root;
 			std::istringstream ss(target_name);
 			string path_element;
 			// Read the leading /
@@ -1412,14 +1443,14 @@ device_tree::resolve_cross_references(uint32_t &phandle)
 				string node_name, node_address;
 				std::getline(nss, node_name, '@');
 				std::getline(nss, node_address, '@');
-				node *next = nullptr;
+				node_ptr next;
 				for (auto &c : target->child_nodes())
 				{
 					if (c->name == node_name)
 					{
 						if (c->unit_address == node_address)
 						{
-							next = c.get();
+							next = c;
 							break;
 						}
 						else
@@ -1478,8 +1509,8 @@ device_tree::resolve_cross_references(uint32_t &phandle)
 bool
 device_tree::garbage_collect_marked_nodes()
 {
-	std::unordered_set<node*> previously_referenced_nodes;
-	std::unordered_set<node*> newly_referenced_nodes;
+	std::unordered_set<node_ptr> previously_referenced_nodes;
+	std::unordered_set<node_ptr> newly_referenced_nodes;
 
 	auto mark_referenced_nodes_used = [&](node &n)
 	{
@@ -1489,7 +1520,7 @@ device_tree::garbage_collect_marked_nodes()
 			{
 				if (v.is_phandle())
 				{
-					node *nx = node_names[v.string_data];
+					node_ptr nx = node_names[v.string_data];
 					if (nx == nullptr)
 					{
 						// Try it again, but as a path
@@ -1534,8 +1565,9 @@ device_tree::garbage_collect_marked_nodes()
 
 	while (!newly_referenced_nodes.empty())
 	{
-			previously_referenced_nodes = std::move(newly_referenced_nodes);
-			for (auto *n : previously_referenced_nodes)
+			previously_referenced_nodes = newly_referenced_nodes;
+			newly_referenced_nodes.clear();
+			for (auto &n : previously_referenced_nodes)
 			{
 				mark_referenced_nodes_used(*n);
 			}
@@ -1617,7 +1649,38 @@ device_tree::parse_file(text_input_buffer &input,
 	while (valid && !input.finished())
 	{
 		node_ptr n;
-		if (input.consume('/'))
+		if (input.consume("/delete-node/"))
+		{
+			// Top-level /delete-node/ directives refer to references that must
+			// be deleted later.
+			input.next_token();
+			auto expect = [&](auto token, const char *msg)
+			{
+				if (!input.consume(token))
+				{
+					input.parse_error(msg);
+					valid = false;
+				}
+				input.next_token();
+				return valid;
+			};
+			if (expect('&', "Expected reference after top-level /delete-node/."))
+			{
+				string ref = input.parse_node_name();
+				if (ref == string())
+				{
+					input.parse_error("Expected label name for top-level /delete-node/.");
+					valid = false;
+				}
+				else
+				{
+					deletions.push_back(std::move(ref));
+				}
+				expect(';', "Missing semicolon.");
+			}
+			continue;
+		}
+		else if (input.consume('/'))
 		{
 			input.next_token();
 			n = node::parse(input, *this, string(), string_set(), string(), &defines);
@@ -1732,7 +1795,7 @@ device_tree::write(int fd)
 	strings_writer.write_to_file(fd);
 }
 
-node*
+node_ptr
 device_tree::referenced_node(property_value &v)
 {
 	if (v.is_phandle())
@@ -2032,6 +2095,19 @@ device_tree::parse_dts(const string &fn, FILE *depfile)
 		}
 	}
 	collect_names();
+	for (auto &ref : deletions)
+	{
+		auto parent = node_name_parents[ref];
+		auto node = node_names[ref];
+		if (!parent)
+		{
+			fprintf(stderr, "Top-level /delete-node/ directive refers to label %s, which is not found.\n", ref.c_str());
+		}
+		else
+		{
+			parent->delete_children_if([&](node_ptr &child) { return child == node; });
+		}
+	}
 	// Return value indicates whether we've dirtied the tree or not and need to
 	// recollect names
 	if (garbage_collect && garbage_collect_marked_nodes())
@@ -2127,7 +2203,7 @@ device_tree::parse_dts(const string &fn, FILE *depfile)
 			{
 				continue;
 			}
-			node *n = local_fixups.get();
+			node_ptr n = local_fixups;
 			for (auto &p : i.path)
 			{
 				// Skip the implicit root
@@ -2142,7 +2218,7 @@ device_tree::parse_dts(const string &fn, FILE *depfile)
 					{
 						if (c->unit_address == p.second)
 						{
-							n = c.get();
+							n = c;
 							found = true;
 							break;
 						}
@@ -2157,7 +2233,7 @@ device_tree::parse_dts(const string &fn, FILE *depfile)
 						path += p.second;
 					}
 					n->add_child(node::create_special_node(path, symbols));
-					n = (--n->child_end())->get();
+					n = *(--(n->child_end()));
 				}
 			}
 			assert(n);
