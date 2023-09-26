@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2011 David Chisnall
+ * Copyright (c) 2023 Klara, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,44 +28,35 @@
  */
 
 #include <sys/types.h>
-#include <machine/atomic.h>
+
+#include <stdatomic.h>
 #include <stdlib.h>
-#include <pthread.h>
 
 /**
- * Linked list of quick exit handlers.  This is simpler than the atexit()
- * version, because it is not required to support C++ destructors or
- * DSO-specific cleanups.
+ * Linked list of quick exit handlers.  These will be invoked in reverse
+ * order of insertion when quick_exit() is called.  This is simpler than
+ * the atexit() version, because it is not required to support C++
+ * destructors or DSO-specific cleanups.
  */
 struct quick_exit_handler {
 	struct quick_exit_handler *next;
 	void (*cleanup)(void);
 };
 
-/**
- * Lock protecting the handlers list.
- */
-static pthread_mutex_t atexit_mutex = PTHREAD_MUTEX_INITIALIZER;
-/**
- * Stack of cleanup handlers.  These will be invoked in reverse order when 
- */
-static struct quick_exit_handler *handlers;
+static _Atomic(struct quick_exit_handler *) handlers;
 
 int
 at_quick_exit(void (*func)(void))
 {
 	struct quick_exit_handler *h;
-	
-	h = malloc(sizeof(*h));
 
-	if (NULL == h)
-		return (1);
+	if ((h = calloc(1, sizeof(*h))) == NULL) {
+		return (-1);
+	}
 	h->cleanup = func;
-	pthread_mutex_lock(&atexit_mutex);
-	h->next = handlers;
-	__compiler_membar();
-	handlers = h;
-	pthread_mutex_unlock(&atexit_mutex);
+	while (!atomic_compare_exchange_strong(&handlers, &h->next, h)) {
+		/* nothing */ ;
+	}
 	return (0);
 }
 
@@ -77,8 +69,8 @@ quick_exit(int status)
 	 * XXX: The C++ spec requires us to call std::terminate if there is an
 	 * exception here.
 	 */
-	for (h = handlers; NULL != h; h = h->next) {
-		__compiler_membar();
+	for (h = atomic_load_explicit(&handlers, memory_order_acquire);
+	     h != NULL; h = h->next) {
 		h->cleanup();
 	}
 	_Exit(status);
