@@ -175,11 +175,11 @@ intr_irq_init(void *dummy __unused)
 
 	/*
 	 * - 2 counters for each I/O interrupt.
-	 * - MAXCPU counters for each IPI counters for SMP.
+	 * - mp_maxid + 1 counters for each IPI counters for SMP.
 	 */
 	nintrcnt = intr_nirq * 2;
 #ifdef SMP
-	nintrcnt += INTR_IPI_COUNT * MAXCPU;
+	nintrcnt += INTR_IPI_COUNT * (mp_maxid + 1);
 #endif
 
 	intrcnt = mallocarray(nintrcnt, sizeof(u_long), M_INTRNG,
@@ -312,18 +312,18 @@ intr_ipi_setup_counters(const char *name)
 	mtx_lock(&isrc_table_lock);
 
 	/*
-	 * We should never have a problem finding MAXCPU contiguous counters,
-	 * in practice. Interrupts will be allocated sequentially during boot,
-	 * so the array should fill from low to high index. Once reserved, the
-	 * IPI counters will never be released. Similarly, we will not need to
-	 * allocate more IPIs once the system is running.
+	 * We should never have a problem finding mp_maxid + 1 contiguous
+	 * counters, in practice. Interrupts will be allocated sequentially
+	 * during boot, so the array should fill from low to high index. Once
+	 * reserved, the IPI counters will never be released. Similarly, we
+	 * will not need to allocate more IPIs once the system is running.
 	 */
-	bit_ffc_area(intrcnt_bitmap, nintrcnt, MAXCPU, &index);
+	bit_ffc_area(intrcnt_bitmap, nintrcnt, mp_maxid + 1, &index);
 	if (index == -1)
 		panic("Failed to allocate %d counters. Array exhausted?",
-		    MAXCPU);
-	bit_nset(intrcnt_bitmap, index, index + MAXCPU - 1);
-	for (i = 0; i < MAXCPU; i++) {
+		    mp_maxid + 1);
+	bit_nset(intrcnt_bitmap, index, index + mp_maxid);
+	for (i = 0; i < mp_maxid + 1; i++) {
 		snprintf(str, INTRNAME_LEN, "cpu%d:%s", i, name);
 		intrcnt_setname(str, index + i);
 	}
