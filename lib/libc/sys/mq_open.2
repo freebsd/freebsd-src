@@ -35,7 +35,7 @@
 .\" the referee document.  The original Standard can be obtained online at
 .\"	http://www.opengroup.org/unix/online.html.
 .\"
-.Dd September 28, 2019
+.Dd September 26, 2023
 .Dt MQ_OPEN 2
 .Os
 .Sh NAME
@@ -226,6 +226,18 @@ Please see the
 .Xr mqueuefs 5
 man page for instructions on loading the module or compiling the service into
 the kernel.
+.Pp
+The number of queues available, the maximum number of messages per queue
+and the maximum message size are tunable
+.Xr sysctl 8
+parameters.
+Their defaults are as follows.
+.Bl -column kern.mqueue.maxmsgsize integerxxx
+.It Sy "Name	Type	Default"
+.It "kern.mqueue.maxmq	integer	100"
+.It "kern.mqueue.maxmsgsize	integer	16384"
+.It "kern.mqueue.maxmsg	integer	100"
+.El
 .Sh RETURN VALUES
 Upon successful completion, the function returns a message queue
 descriptor; otherwise, the function returns
