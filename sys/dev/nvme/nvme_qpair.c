@@ -1104,13 +1104,20 @@ nvme_qpair_timeout(void *arg)
 		nvme_printf(ctrlr, "Resetting controller due to a timeout%s.\n",
 		    (csts == 0xffffffff) ? " and possible hot unplug" :
 		    (cfs ? " and fatal error status" : ""));
-		nvme_printf(ctrlr, "RECOVERY_WAITING\n");
 		qpair->recovery_state = RECOVERY_WAITING;
 		nvme_ctrlr_reset(ctrlr);
 		idle = false;			/* We want to keep polling */
 		break;
 	case RECOVERY_WAITING:
-		nvme_printf(ctrlr, "Waiting for reset to complete\n");
+		/*
+		 * These messages aren't interesting while we're suspended. We
+		 * put the queues into waiting state while
+		 * suspending. Suspending takes a while, so we'll see these
+		 * during that time and they aren't diagnostic. At other times,
+		 * they indicate a problem that's worth complaining about.
+		 */
+		if (!device_is_suspended(ctrlr->dev))
+			nvme_printf(ctrlr, "Waiting for reset to complete\n");
 		idle = false;		/* We want to keep polling */
 		break;
 	case RECOVERY_FAILED:
