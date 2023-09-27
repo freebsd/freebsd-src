@@ -419,8 +419,7 @@ err:		rval = 1;
  * PUBLIC: void v_end(GS *);
  */
 void
-v_end(gp)
-	GS *gp;
+v_end(GS *gp)
 {
 	MSGS *mp;
 	SCR *sp;
