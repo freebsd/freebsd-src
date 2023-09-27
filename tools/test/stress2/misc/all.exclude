@@ -51,7 +51,6 @@ pmc8.sh			panic: [pmc,2749] (ri21, rc1) waiting too long for pmc to ...	20210621
 rename14.sh		https://people.freebsd.org/~pho/stress/log/log0433.txt		20230409
 sctp2.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 sctp3.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
-sendfile25.sh		WiP								20200611
 signal.sh		Timing issues. Needs fixing					20171116
 snap8.sh		https://people.freebsd.org/~pho/stress/log/log0123.txt		20211008
 suj12.sh		Waiting for fix							20230319
@@ -66,7 +65,6 @@ systrace2.sh		WiP								20200227
 syzkaller16.sh		zonelimit issue							20210722
 syzkaller28.sh		panic: About to free ctl:0x... so:0x... and its in 1		20201120
 syzkaller31.sh		panic: Bad tailq NEXT(0xfffffe01a0899430->tqh_last) != NULL	20220420
-syzkaller55.sh		panic: Counter goes negative					20220525
 syzkaller59.sh		Page fault							20220625
 syzkaller65.sh		panic: in_pcblookup_hash_locked: invalid local address		20230318
 syzkaller66.sh		panic: in_pcbconnect: inp is already connected			20230621
@@ -75,7 +73,6 @@ truss3.sh		WiP								20200915
 
 # Test not to run for other reasons:
 
-fuzz.sh			A know issue
 marcus3.sh		OK, but runs for a long time
 statfs.sh		Not very interesting
 vunref.sh		No problems ever seen
