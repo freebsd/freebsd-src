@@ -311,9 +311,11 @@ fi
 
 vers_content_new=$(cat << EOF
 $COPYRIGHT
+#define SCCSSTR "@(#)${VERINFO}"
 #define VERSTR "${VERSTR}"
 #define RELSTR "${RELEASE}"
 
+char sccs[sizeof(SCCSSTR) > 128 ? sizeof(SCCSSTR) : 128] = SCCSSTR;
 char version[sizeof(VERSTR) > 256 ? sizeof(VERSTR) : 256] = VERSTR;
 char compiler_version[] = "${compiler_v}";
 char ostype[] = "${TYPE}";
