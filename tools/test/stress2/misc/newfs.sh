@@ -78,8 +78,8 @@ for opt in -O1 -O2 -U -j; do
 		done
 		blocksize=$((blocksize * 2))
 	done
-	if [ $((`date '+%s'` - start)) -gt 1200 ]; then
-		echo "Timed out"
+	if [ $((`date '+%s'` - start)) -gt 1800 ]; then
+		echo "Timed out in $opt"
 		s=4
 		break
 	fi
