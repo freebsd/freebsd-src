@@ -1825,6 +1825,7 @@ dev/iicbus/rtc/isl12xx.c	optional isl12xx
 dev/iicbus/rtc/nxprtc.c		optional nxprtc | pcf8563
 dev/iicbus/rtc/pcf85063.c	optional pcf85063 iicbus fdt
 dev/iicbus/rtc/rtc8583.c	optional rtc8583
+dev/iicbus/rtc/rv3032.c		optional rv3032 iicbus fdt
 dev/iicbus/rtc/rx8803.c		optional rx8803 iicbus fdt
 dev/iicbus/rtc/s35390a.c	optional s35390a
 dev/iicbus/sensor/htu21.c	optional htu21
