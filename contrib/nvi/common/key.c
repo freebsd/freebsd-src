@@ -31,6 +31,7 @@ static int	v_event_grow(SCR *, int);
 static int	v_key_cmp(const void *, const void *);
 static void	v_keyval(SCR *, int, scr_keyval_t);
 static void	v_sync(SCR *, int);
+static const char *alt_key_notation(int ch);
 
 /*
  * !!!
@@ -252,6 +253,10 @@ v_key_name(SCR *sp, ARG_CHAR_T ach)
 	 * followed by the character offset from the '@' character in the ASCII
 	 * character set.  Del (0x7f) is represented as '^' followed by '?'.
 	 *
+	 * If set O_ALTNOTATION, control characters less than 0x20 are
+	 * represented in <C-char> notations.  Carriage feed, escape, and
+	 * delete are marked as <Enter>, <Esc>, and <Del>, respectively.
+	 *
 	 * XXX
 	 * The following code depends on the current locale being identical to
 	 * the ASCII map from 0x40 to 0x5f (since 0x1f + 0x40 == 0x5f).  I'm
@@ -264,9 +269,14 @@ v_key_name(SCR *sp, ARG_CHAR_T ach)
 	if (CAN_PRINT(sp, ach))
 		goto done;
 nopr:	if (iscntrl(ch) && (ch < 0x20 || ch == 0x7f)) {
-		sp->cname[0] = '^';
-		sp->cname[1] = ch == 0x7f ? '?' : '@' + ch;
-		len = 2;
+		if (O_ISSET(sp, O_ALTNOTATION)) {
+			const char *notation = alt_key_notation(ch);
+			len = strlcpy(sp->cname, notation, sizeof(sp->cname));
+		} else {
+			sp->cname[0] = '^';
+			sp->cname[1] = ch == 0x7f ? '?' : '@' + ch;
+			len = 2;
+		}
 		goto done;
 	}
 #ifdef USE_WIDECHAR
@@ -743,6 +753,85 @@ v_sync(SCR *sp, int flags)
 		rcv_sync(sp, flags);
 	TAILQ_FOREACH(sp, gp->hq, q)
 		rcv_sync(sp, flags);
+}
+
+/*
+ * alt_key_notation --
+ *	Lookup for alternative notations of control characters.
+ */
+static const char*
+alt_key_notation(int ch)
+{
+	switch (ch) {
+	case 0x00:
+		return "<C-@>";
+	case 0x01:
+		return "<C-a>";
+	case 0x02:
+		return "<C-b>";
+	case 0x03:
+		return "<C-c>";
+	case 0x04:
+		return "<C-d>";
+	case 0x05:
+		return "<C-e>";
+	case 0x06:
+		return "<C-f>";
+	case 0x07:
+		return "<C-g>";
+	case 0x08:
+		return "<C-h>";
+	case 0x09:
+		return "<Tab>";
+	case 0x0A:
+		return "<NL>";
+	case 0x0B:
+		return "<C-k>";
+	case 0x0C:
+		return "<C-l>";
+	case 0x0D:
+		return "<Enter>";
+	case 0x0E:
+		return "<C-n>";
+	case 0x0F:
+		return "<C-o>";
+	case 0x10:
+		return "<C-p>";
+	case 0x11:
+		return "<C-q>";
+	case 0x12:
+		return "<C-r>";
+	case 0x13:
+		return "<C-s>";
+	case 0x14:
+		return "<C-t>";
+	case 0x15:
+		return "<C-u>";
+	case 0x16:
+		return "<C-v>";
+	case 0x17:
+		return "<C-w>";
+	case 0x18:
+		return "<C-x>";
+	case 0x19:
+		return "<C-y>";
+	case 0x1A:
+		return "<C-z>";
+	case 0x1B:
+		return "<Esc>";
+	case 0x1C:
+		return "<C-\\>";
+	case 0x1D:
+		return "<C-]>";
+	case 0x1E:
+		return "<C-^>";
+	case 0x1F:
+		return "<C-_>";
+	case 0x7f:
+		return "<Del>";
+	default:
+		__builtin_unreachable();
+	}
 }
 
 /*

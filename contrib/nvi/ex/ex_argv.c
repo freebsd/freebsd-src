@@ -764,11 +764,11 @@ err:		if (ifp != NULL)
 	 * shell that does that is broken.
 	 */
 	for (p = bp, len = 0, ch = EOF;
-	    (ch = GETC(ifp)) != EOF; *p++ = ch, blen-=sizeof(CHAR_T), ++len)
+	    (ch = GETC(ifp)) != EOF; *p++ = ch, blen -= sizeof(CHAR_T), ++len)
 		if (blen < 5) {
-			ADD_SPACE_GOTOW(sp, bp, *blenp, *blenp * 2);
+			ADD_SPACE_GOTO(sp, CHAR_T, bp, *blenp, *blenp * 2);
 			p = bp + len;
-			blen = *blenp - len;
+			blen = *blenp - len * sizeof(CHAR_T);
 		}
 
 	/* Delete the final newline, nul terminate the string. */

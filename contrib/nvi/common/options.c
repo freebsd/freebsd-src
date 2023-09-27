@@ -46,6 +46,8 @@ static int	 	 opts_print(SCR *, OPTLIST const *);
  * VI and EX Text Editors", 1990.
  */
 OPTLIST const optlist[] = {
+/* O_ALTNOTATION */
+	{L("altnotation"),	f_print,	OPT_0BOOL,	0},
 /* O_ALTWERASE	  4.4BSD */
 	{L("altwerase"),	f_altwerase,	OPT_0BOOL,	0},
 /* O_AUTOINDENT	    4BSD */

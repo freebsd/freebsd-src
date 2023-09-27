@@ -1,4 +1,4 @@
-This is version 2.2.0 (2020-08-01) of nex/nvi, a reimplementation of the ex/vi
+This is version 2.2.1 (2023-09-25) of nex/nvi, a reimplementation of the ex/vi
 text editors originally distributed as part of the Fourth Berkeley
 Software Distribution (4BSD), by the University of California, Berkeley.
 
@@ -23,6 +23,30 @@ o Nvi was written by Keith Bostic, and the last version is 1.79.  After that,
 
 	Jun-ichiro itojun Hagino developed the file encoding detection
 	techniques in his nvi-m17n.
+
+o In nvi2, Zhihao Yuan incorporated the multibyte encoding support onto DB1.
+
+	It was not possible without great support from Alexander Leidinger,
+	Peter Wemm, and the FreeBSD community.
+
+	Last but not least, money from Google Summer of Code.
+
+o Since then,
+
+	Todd C. Miller and Craig Leres adopted and refined the NetBSD-style
+	expandtab option.
+
+	Yamamoto Takashi, Matija Skala, and Jessica Clarke ported the
+	software to macOS and Linux.
+
+	Anthony J. Bentley made heroic efforts to modernize the code base
+	and documentation, leveraging experience from OpenBSD to improve the
+	quality of the project.
+
+	...and many others, including Michael McConville, Marc Simpson,
+	Jeffrey H. Johnson, Bosco García, Anton Konyahin, Walter Alejandro
+	Iglesias, and those who tried hard to keep anonymous on GitHub :)
+	Their insights render the software usable, secure, and sustainable.
 
 The following acknowledgments were written by Keith Bostic:
 

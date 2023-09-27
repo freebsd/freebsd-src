@@ -29,5 +29,6 @@
 int
 v_redraw(SCR *sp, VICMD *vp)
 {
+	F_SET(sp, SC_SCR_REFORMAT);
 	return (sp->gp->scr_refresh(sp, 1));
 }
