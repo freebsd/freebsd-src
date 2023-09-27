@@ -46,14 +46,14 @@ mycc -o radix -Wall -Wextra radix.c || exit 1
 rm -f radix.c
 cd $odir
 
-set -e
+set -u
 trap "rm -f rendezvous" EXIT INT
 parallel=1
 usermem=`sysctl hw.usermem | sed 's/.* //'`
 pagesize=`pagesize`
 start=`date +%s`
 while true; do
-	timeout 2m /tmp/radix $parallel > $log; s=$?
+	timeout 20m /tmp/radix $parallel > $log; s=$?
 	[ $s -eq 124 ] && { echo "Timed out"; break; }
 	[ $s -ne 0 ] && cat $log
 	used=`awk '{print $4}' < $log`
@@ -63,7 +63,7 @@ while true; do
 	[ $parallel -eq 1 ] &&
 	    parallel=$((usermem / pagesize / used))
 	parallel=$((parallel + 1))
-	echo "`date +%T` parallel=$parallel" # XXX
+	[ $parallel -gt 10 ] && parallel=10
 done
 cat /tmp/radix.log
 
