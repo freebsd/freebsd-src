@@ -51,7 +51,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 2023xxxx
+# 20230925
 OLD_FILES+=usr/share/examples/diskless/ME
 OLD_FILES+=usr/share/examples/diskless/README.BOOTP
 OLD_FILES+=usr/share/examples/diskless/README.TEMPLATING
