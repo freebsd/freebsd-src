@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2023 The FreeBSD Foundation
 #
-# This software was developed1 by Yan-Hao Wang <bses30074@gmail.com>
+# This software was developed by Yan-Hao Wang <bses30074@gmail.com>
 # under sponsorship from the FreeBSD Foundation.
 #
 # Redistribution and use in source and binary forms, with or without
