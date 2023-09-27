@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20230927:
+	The EARLY_AP_STARTUP kernel option is mandatory on x86.  The option
+	has been added to DEFAULTS, so it should automatically be included in
+	custom kernel configurations without any additional change.
+
 20230922:
 	A new loader tunable net.pf.default_to_drop allows pf(4)’s default
 	behaviour to be changed from pass to drop. Previously this required
