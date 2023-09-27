@@ -54,6 +54,7 @@ close_test_client(void *arg)
 
 		ATF_REQUIRE(close(s) == 0);
 	}
+	free(buf);
 
 	return (NULL);
 }
