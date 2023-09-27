@@ -121,6 +121,7 @@ _objset_write(zfs_opt_t *zfs, zfs_objset_t *os, struct dnode_cursor *c,
 	STAILQ_FOREACH_SAFE(chunk, &os->dnodechunks, next, tmp) {
 		unsigned int i;
 
+		assert(chunk->nextfree > 0);
 		assert(chunk->nextfree <= os->dnodecount);
 		assert(chunk->nextfree <= DNODES_PER_CHUNK);
 
@@ -149,8 +150,8 @@ _objset_write(zfs_opt_t *zfs, zfs_objset_t *os, struct dnode_cursor *c,
 	 * Write the object set itself.  The saved block pointer will be copied
 	 * into the referencing DSL dataset or the uberblocks.
 	 */
-	vdev_pwrite_data(zfs, DMU_OT_OBJSET, ZIO_CHECKSUM_FLETCHER_4, 0, 1,
-	    os->phys, os->osblksz, os->osloc, &os->osbp);
+	vdev_pwrite_data(zfs, DMU_OT_OBJSET, ZIO_CHECKSUM_FLETCHER_4, 0,
+	    os->dnodecount - 1, os->phys, os->osblksz, os->osloc, &os->osbp);
 }
 
 void
