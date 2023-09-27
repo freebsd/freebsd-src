@@ -172,7 +172,9 @@ VNET_DEFINE_STATIC(u_long, mfchash);
 	  ((g).s_addr >> 20) ^ ((g).s_addr >> 10) ^ (g).s_addr) & V_mfchash)
 #define	MFCHASHSIZE	256
 
-static u_long mfchashsize;			/* Hash size */
+static u_long mfchashsize = MFCHASHSIZE;	/* Hash size */
+SYSCTL_ULONG(_net_inet_ip, OID_AUTO, mfchashsize, CTLFLAG_RDTUN,
+    &mfchashsize, 0, "IPv4 Multicast Forwarding Table hash size");
 VNET_DEFINE_STATIC(u_char *, nexpire);		/* 0..mfchashsize-1 */
 #define	V_nexpire		VNET(nexpire)
 VNET_DEFINE_STATIC(LIST_HEAD(mfchashhdr, mfc)*, mfchashtbl);
@@ -226,7 +228,7 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_pim, PIMCTL_STATS, stats, struct pimstat,
     pimstat, "PIM Statistics (struct pimstat, netinet/pim_var.h)");
 
 static u_long	pim_squelch_wholepkt = 0;
-SYSCTL_ULONG(_net_inet_pim, OID_AUTO, squelch_wholepkt, CTLFLAG_RW,
+SYSCTL_ULONG(_net_inet_pim, OID_AUTO, squelch_wholepkt, CTLFLAG_RWTUN,
     &pim_squelch_wholepkt, 0,
     "Disable IGMP_WHOLEPKT notifications if rendezvous point is unspecified");
 
@@ -2817,17 +2819,11 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 			return (EINVAL);
 		}
 
-		mfchashsize = MFCHASHSIZE;
-		if (TUNABLE_ULONG_FETCH("net.inet.ip.mfchashsize", &mfchashsize) &&
-				!powerof2(mfchashsize)) {
+		if (!powerof2(mfchashsize)) {
 			printf("WARNING: %s not a power of 2; using default\n",
 					"net.inet.ip.mfchashsize");
 			mfchashsize = MFCHASHSIZE;
 		}
-
-		pim_squelch_wholepkt = 0;
-		TUNABLE_ULONG_FETCH("net.inet.pim.squelch_wholepkt",
-				&pim_squelch_wholepkt);
 
 		pim_encap_cookie = ip_encap_attach(&ipv4_encap_cfg, NULL, M_WAITOK);
 
