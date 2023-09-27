@@ -1272,9 +1272,6 @@ hdac_attach(device_t dev)
 	result = hdac_mem_alloc(sc);
 	if (result != 0)
 		goto hdac_attach_fail;
-	result = hdac_irq_alloc(sc);
-	if (result != 0)
-		goto hdac_attach_fail;
 
 	/* Get Capabilities */
 	result = hdac_get_capabilities(sc);
@@ -1346,6 +1343,10 @@ hdac_attach(device_t dev)
 	/* Initialize the CORB and RIRB */
 	hdac_corb_init(sc);
 	hdac_rirb_init(sc);
+
+	result = hdac_irq_alloc(sc);
+	if (result != 0)
+		goto hdac_attach_fail;
 
 	/* Defer remaining of initialization until interrupts are enabled */
 	sc->intrhook.ich_func = hdac_attach2;
