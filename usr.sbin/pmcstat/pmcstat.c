@@ -713,8 +713,16 @@ main(int argc, char **argv)
 				errx(EX_SOFTWARE, "ERROR: Out of memory.");
 			(void) strncpy(ev->ev_name, optarg, c);
 			*(ev->ev_name + c) = '\0';
+
 			libpmc_initialize(&npmc);
+
 			if (args.pa_flags & FLAG_HAS_SYSTEM_PMCS) {
+				/*
+				 * We need to check the capabilities of the
+				 * desired event to determine if it should be
+				 * allocated on every CPU, or only a subset of
+				 * them. This requires allocating a PMC now.
+				 */
 				if (pmc_allocate(ev->ev_spec, ev->ev_mode,
 				    ev->ev_flags, ev->ev_cpu, &ev->ev_pmcid,
 				    ev->ev_count) < 0)
@@ -726,8 +734,14 @@ main(int argc, char **argv)
 					err(EX_OSERR, "ERROR: Cannot get pmc "
 					    "capabilities");
 				}
-			}
 
+				/*
+				 * Release the PMC now that we have caps; we
+				 * will reallocate shortly.
+				 */
+				pmc_release(ev->ev_pmcid);
+				ev->ev_pmcid = PMC_ID_INVALID;
+			}
 
 			STAILQ_INSERT_TAIL(&args.pa_events, ev, ev_next);
 
@@ -751,10 +765,7 @@ main(int argc, char **argv)
 			}
 			if (option == 's' || option == 'S') {
 				CPU_CLR(ev->ev_cpu, &cpumask);
-				pmc_id_t saved_pmcid = ev->ev_pmcid;
-				ev->ev_pmcid = PMC_ID_INVALID;
 				pmcstat_clone_event_descriptor(ev, &cpumask, &args);
-				ev->ev_pmcid = saved_pmcid;
 				CPU_SET(ev->ev_cpu, &cpumask);
 			}
 
