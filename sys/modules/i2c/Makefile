@@ -28,7 +28,8 @@ SUBDIR = \
 	smbus \
 
 .if !empty(OPT_FDT)
-SUBDIR += rx8803 \
+SUBDIR += rv3032 \
+	  rx8803 \
 	  tca64xx \
 	  tmp461
 .endif
