@@ -56,6 +56,8 @@ import_image()
 {
 	atf_check -e empty -o save:$TEST_MD_DEVICE_FILE -s exit:0 \
 	    mdconfig -a -f $TEST_IMAGE
+	atf_check -o ignore -e empty -s exit:0 \
+            zdb -e -p /dev/$(cat $TEST_MD_DEVICE_FILE) -mmm -ddddd $ZFS_POOL_NAME
 	atf_check zpool import -R $TEST_MOUNT_DIR $ZFS_POOL_NAME
 	echo "$ZFS_POOL_NAME" > $TEST_ZFS_POOL_NAME
 }
