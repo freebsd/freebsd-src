@@ -551,8 +551,6 @@ fs_populate_file(fsnode *cur, struct fs_populate_arg *arg)
 
 		/*
 		 * Fill up our buffer, handling partial reads.
-		 *
-		 * It might be profitable to use copy_file_range(2) here.
 		 */
 		sofar = 0;
 		target = MIN(size - foff, (off_t)bufsz);
