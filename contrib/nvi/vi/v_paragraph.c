@@ -39,15 +39,20 @@
 	if (p[0] == '\014') {						\
 		if (!--cnt)						\
 			goto found;					\
+		if (pstate == P_INTEXT && !--cnt)			\
+			goto found;					\
 		continue;						\
 	}								\
 	if (p[0] != '.' || len < 2)					\
 		continue;						\
 	for (lp = VIP(sp)->ps; *lp != '\0'; lp += 2)			\
 		if (lp[0] == p[1] &&					\
-		    (lp[1] == ' ' && len == 2 || lp[1] == p[2]) &&	\
-		    !--cnt)						\
-			goto found;					\
+		    (lp[1] == ' ' && len == 2 || lp[1] == p[2])) {	\
+			if (!--cnt)					\
+				goto found;				\
+			if (pstate == P_INTEXT && !--cnt)		\
+				goto found;				\
+		}							\
 } while (0)
 
 /*

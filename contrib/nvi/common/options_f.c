@@ -147,7 +147,7 @@ f_print(SCR *sp, OPTION *op, char *str, u_long *valp)
 	int offset = op - sp->opts;
 
 	/* Preset the value, needed for reinitialization of lookup table. */
-	if (offset == O_OCTAL) {
+	if (offset == O_OCTAL || offset == O_ALTNOTATION) {
 		if (*valp)
 			O_SET(sp, offset);
 		else

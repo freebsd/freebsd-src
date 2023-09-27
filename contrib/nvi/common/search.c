@@ -103,9 +103,14 @@ prev:			if (sp->re == NULL) {
 					++p;
 				break;
 			}
-			if (plen > 1 && p[0] == '\\' && p[1] == delim) {
-				++p;
-				--plen;
+			if (plen > 1 && p[0] == '\\') {
+				if (p[1] == delim) {
+					++p;
+					--plen;
+				} else if ( p[1] == '\\') {
+					*t++ = *p++;
+					--plen;
+				}
 			}
 		}
 		if (epp != NULL)

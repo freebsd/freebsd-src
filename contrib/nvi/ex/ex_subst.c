@@ -643,7 +643,9 @@ nextmatch:	match[0].rm_so = 0;
 					goto lquit;
 				}
 			} else {
-				if (ex_print(sp, cmdp, &from, &to, 0) ||
+				const int flags =
+				    O_ISSET(sp, O_NUMBER) ? E_C_HASH : 0;
+				if (ex_print(sp, cmdp, &from, &to, flags) ||
 				    ex_scprint(sp, &from, &to))
 					goto lquit;
 				if (ex_txt(sp, tiq, 0, TXT_CR))
@@ -1195,7 +1197,8 @@ re_tag_conv(SCR *sp, CHAR_T **ptrnp, size_t *plenp, int *replacedp)
 	for (; len > 0; --len) {
 		if (p[0] == '\\' && (p[1] == '/' || p[1] == '?')) {
 			++p;
-			--len;
+			if (len > 1)
+				--len;
 		} else if (STRCHR(L("^.[]$*"), p[0]))
 			*t++ = '\\';
 		*t++ = *p++;
