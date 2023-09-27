@@ -401,7 +401,7 @@ xctrl_on_watch_event(struct xs_watch *watch, const char **vec, unsigned int len)
  * \param parent  The NewBus parent device for any devices this method adds.
  */
 static void
-xctrl_identify(driver_t *driver __unused, device_t parent)
+xctrl_identify(driver_t *driver, device_t parent)
 {
 	/*
 	 * A single device instance for our driver is always present
