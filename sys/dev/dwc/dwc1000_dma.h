@@ -149,12 +149,6 @@ void dma1000_stop(struct dwc_softc *sc);
 int dma1000_setup_txbuf(struct dwc_softc *sc, int idx, struct mbuf **mp);
 void dma1000_txfinish_locked(struct dwc_softc *sc);
 void dma1000_rxfinish_locked(struct dwc_softc *sc);
-
-static inline uint32_t
-next_txidx(struct dwc_softc *sc, uint32_t curidx)
-{
-
-	return ((curidx + 1) % TX_DESC_COUNT);
-}
+void dma1000_txstart(struct dwc_softc *sc);
 
 #endif	/* __DWC1000_DMA_H__ */
