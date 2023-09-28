@@ -515,7 +515,7 @@ fs_populate_file(fsnode *cur, struct fs_populate_arg *arg)
 	uint64_t dnid;
 	ssize_t n;
 	size_t bufsz;
-	off_t size, target;
+	off_t nbytes, reqbytes, size;
 	int fd;
 
 	assert(cur->type == S_IFREG);
@@ -546,29 +546,30 @@ fs_populate_file(fsnode *cur, struct fs_populate_arg *arg)
 	bufsz = sizeof(zfs->filebuf);
 	size = cur->inode->st.st_size;
 	c = dnode_cursor_init(zfs, arg->fs->os, dnode, size, 0);
-	for (off_t foff = 0; foff < size; foff += target) {
+	for (off_t foff = 0; foff < size; foff += nbytes) {
 		off_t loc, sofar;
 
 		/*
 		 * Fill up our buffer, handling partial reads.
 		 */
 		sofar = 0;
-		target = MIN(size - foff, (off_t)bufsz);
+		nbytes = MIN(size - foff, (off_t)bufsz);
 		do {
-			n = read(fd, buf + sofar, target);
+			n = read(fd, buf + sofar, nbytes);
 			if (n < 0)
 				err(1, "reading from '%s'", cur->name);
 			if (n == 0)
 				errx(1, "unexpected EOF reading '%s'",
 				    cur->name);
 			sofar += n;
-		} while (sofar < target);
+		} while (sofar < nbytes);
 
-		if (target < (off_t)bufsz)
-			memset(buf + target, 0, bufsz - target);
+		if (nbytes < (off_t)bufsz)
+			memset(buf + nbytes, 0, bufsz - nbytes);
 
-		loc = objset_space_alloc(zfs, arg->fs->os, &target);
-		vdev_pwrite_dnode_indir(zfs, dnode, 0, 1, buf, target, loc,
+		reqbytes = foff == 0 ? nbytes : MAXBLOCKSIZE;
+		loc = objset_space_alloc(zfs, arg->fs->os, &reqbytes);
+		vdev_pwrite_dnode_indir(zfs, dnode, 0, 1, buf, reqbytes, loc,
 		    dnode_cursor_next(zfs, c, foff));
 	}
 	eclose(fd);
