@@ -6876,6 +6876,9 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 
 	PF_RULES_RLOCK();
 
+	h = mtod(m, struct ip *);
+	off = h->ip_hl << 2;
+
 	if (__predict_false(ip_divert_ptr != NULL) &&
 	    ((ipfwtag = m_tag_locate(m, MTAG_IPFW_RULE, 0, NULL)) != NULL)) {
 		struct ipfw_rule_ref *rr = (struct ipfw_rule_ref *)(ipfwtag+1);
@@ -7356,6 +7359,9 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 
 	PF_RULES_RLOCK();
 
+	h = mtod(m, struct ip6_hdr *);
+	off = ((caddr_t)h - m->m_data) + sizeof(struct ip6_hdr);
+
 	/* We do IP header normalization and packet reassembly here */
 	if (pf_normalize_ip6(m0, dir, kif, &reason, &pd) != PF_PASS) {
 		action = PF_DROP;
@@ -7363,6 +7369,7 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 	}
 	m = *m0;	/* pf_normalize messes with m0 */
 	h = mtod(m, struct ip6_hdr *);
+	off = ((caddr_t)h - m->m_data) + sizeof(struct ip6_hdr);
 
 	/*
 	 * we do not support jumbogram.  if we keep going, zero ip6_plen
@@ -7386,7 +7393,6 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 	pd.tos = IPV6_DSCP(h);
 	pd.tot_len = ntohs(h->ip6_plen) + sizeof(struct ip6_hdr);
 
-	off = ((caddr_t)h - m->m_data) + sizeof(struct ip6_hdr);
 	pd.proto = h->ip6_nxt;
 	do {
 		switch (pd.proto) {
