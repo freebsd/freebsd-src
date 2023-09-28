@@ -71,6 +71,11 @@
 
 #include "if_dwc_if.h"
 
+struct dwc_hash_maddr_ctx {
+	struct dwc_softc *sc;
+	uint32_t hash[8];
+};
+
 #define	STATS_HARVEST_INTERVAL	2
 
 /* Pause time field in the transmitted control frame */
