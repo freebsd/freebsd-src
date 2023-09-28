@@ -79,7 +79,6 @@
 #include "miibus_if.h"
 
 #define	MAC_RESET_TIMEOUT	100
-#define	WATCHDOG_TIMEOUT_SECS	5
 
 static struct resource_spec dwc_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
@@ -139,8 +138,6 @@ static void
 dwc_txstart_locked(struct dwc_softc *sc)
 {
 	if_t ifp;
-	struct mbuf *m;
-	int enqueued;
 
 	DWC_ASSERT_LOCKED(sc);
 
@@ -152,38 +149,7 @@ dwc_txstart_locked(struct dwc_softc *sc)
 	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
-
-	enqueued = 0;
-
-	for (;;) {
-		if (sc->tx_desccount > (TX_DESC_COUNT - TX_MAP_MAX_SEGS  + 1)) {
-			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
-			break;
-		}
-
-		if (sc->tx_mapcount == (TX_MAP_COUNT - 1)) {
-			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
-			break;
-		}
-
-		m = if_dequeue(ifp);
-		if (m == NULL)
-			break;
-		if (dma1000_setup_txbuf(sc, sc->tx_map_head, &m) != 0) {
-			if_sendq_prepend(ifp, m);
-			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
-			break;
-		}
-		bpf_mtap_if(ifp, m);
-		sc->tx_map_head = next_txidx(sc, sc->tx_map_head);
-		sc->tx_mapcount++;
-		++enqueued;
-	}
-
-	if (enqueued != 0) {
-		WRITE4(sc, TRANSMIT_POLL_DEMAND, 0x1);
-		sc->tx_watchdog_count = WATCHDOG_TIMEOUT_SECS;
-	}
+	dma1000_txstart(sc);
 }
 
 static void

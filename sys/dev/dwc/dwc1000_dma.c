@@ -60,6 +60,15 @@
 #include <dev/dwc/dwc1000_reg.h>
 #include <dev/dwc/dwc1000_dma.h>
 
+#define	WATCHDOG_TIMEOUT_SECS	5
+
+static inline uint32_t
+next_txidx(struct dwc_softc *sc, uint32_t curidx)
+{
+
+	return ((curidx + 1) % TX_DESC_COUNT);
+}
+
 static inline uint32_t
 next_rxidx(struct dwc_softc *sc, uint32_t curidx)
 {
@@ -369,6 +378,45 @@ dma1000_txfinish_locked(struct dwc_softc *sc)
 	/* If there are no buffers outstanding, muzzle the watchdog. */
 	if (sc->tx_desc_tail == sc->tx_desc_head) {
 		sc->tx_watchdog_count = 0;
+	}
+}
+
+void
+dma1000_txstart(struct dwc_softc *sc)
+{
+	int enqueued;
+	struct mbuf *m;
+
+	enqueued = 0;
+
+	for (;;) {
+		if (sc->tx_desccount > (TX_DESC_COUNT - TX_MAP_MAX_SEGS  + 1)) {
+			if_setdrvflagbits(sc->ifp, IFF_DRV_OACTIVE, 0);
+			break;
+		}
+
+		if (sc->tx_mapcount == (TX_MAP_COUNT - 1)) {
+			if_setdrvflagbits(sc->ifp, IFF_DRV_OACTIVE, 0);
+			break;
+		}
+
+		m = if_dequeue(sc->ifp);
+		if (m == NULL)
+			break;
+		if (dma1000_setup_txbuf(sc, sc->tx_map_head, &m) != 0) {
+			if_sendq_prepend(sc->ifp, m);
+			if_setdrvflagbits(sc->ifp, IFF_DRV_OACTIVE, 0);
+			break;
+		}
+		bpf_mtap_if(sc->ifp, m);
+		sc->tx_map_head = next_txidx(sc, sc->tx_map_head);
+		sc->tx_mapcount++;
+		++enqueued;
+	}
+
+	if (enqueued != 0) {
+		WRITE4(sc, TRANSMIT_POLL_DEMAND, 0x1);
+		sc->tx_watchdog_count = WATCHDOG_TIMEOUT_SECS;
 	}
 }
 
