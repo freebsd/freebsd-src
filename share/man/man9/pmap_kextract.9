@@ -45,13 +45,15 @@ function will return the physical address
 .Pq Vt vm_paddr_t
 associated with the kernel virtual address
 .Fa va .
-In case of failure,
+.Pp
 .Fn pmap_kextract
-will
+generally does not fail.
+However, if supplied with an illegitimate value for
+.Fa va
+it will return 0 on arm64, and
 .Xr panic 9
-on armv6 and riscv, where most other platforms would
-.Xr KASSERT 9 .
-The function will return 0 on arm64.
+on armv6 and riscv.
+Note that such platform dependent behaviours are subject to change.
 .Sh SEE ALSO
 .Xr pmap 9
 .Sh AUTHORS
