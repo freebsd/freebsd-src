@@ -1,5 +1,5 @@
 .\"
-.Dd April 25, 2023
+.Dd September 28, 2023
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -3761,6 +3761,16 @@ or
 .Xr kenv 1
 before ipfw module gets loaded.
 .Bl -tag -width indent
+.It Va net.inet.ip.fw.enable : No 1
+Enables the firewall.
+Setting this variable to 0 lets you run your machine without
+firewall even if compiled in.
+.It Va net.inet6.ip6.fw.enable : No 1
+provides the same functionality as above for the IPv6 case.
+.It Va net.link.ether.ipfw : No 0
+Controls whether layer2 packets are passed to
+.Nm .
+Default is no.
 .It Va net.inet.ip.fw.default_to_accept : No 0
 Defines ipfw last rule behavior.
 This value overrides
@@ -4154,12 +4164,6 @@ Keep dynamic states on rule/set deletion.
 States are relinked to default rule (65535).
 This can be handly for ruleset reload.
 Turned off by default.
-.It Va net.inet.ip.fw.enable : No 1
-Enables the firewall.
-Setting this variable to 0 lets you run your machine without
-firewall even if compiled in.
-.It Va net.inet6.ip6.fw.enable : No 1
-provides the same functionality as above for the IPv6 case.
 .It Va net.inet.ip.fw.one_pass : No 1
 When set, the packet exiting from the
 .Nm dummynet
@@ -4176,10 +4180,6 @@ Enables verbose messages.
 Limits the number of messages produced by a verbose firewall.
 .It Va net.inet6.ip6.fw.deny_unknown_exthdrs : No 1
 If enabled packets with unknown IPv6 Extension Headers will be denied.
-.It Va net.link.ether.ipfw : No 0
-Controls whether layer2 packets are passed to
-.Nm .
-Default is no.
 .It Va net.link.bridge.ipfw : No 0
 Controls whether bridged packets are passed to
 .Nm .
