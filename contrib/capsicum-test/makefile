@@ -1,5 +1,5 @@
 all: capsicum-test smoketest mini-me mini-me.noexec mini-me.setuid $(EXTRA_PROGS)
-OBJECTS=capsicum-test-main.o capsicum-test.o capability-fd.o fexecve.o procdesc.o capmode.o fcntl.o ioctl.o openat.o sysctl.o select.o mqueue.o socket.o sctp.o capability-fd-pair.o linux.o overhead.o rename.o
+OBJECTS=capsicum-test-main.o capsicum-test.o capability-fd.o copy_file_range.o fexecve.o procdesc.o capmode.o fcntl.o ioctl.o openat.o sysctl.o select.o mqueue.o socket.o sctp.o capability-fd-pair.o linux.o overhead.o rename.o
 
 GTEST_DIR=gtest-1.10.0
 GTEST_INCS=-I$(GTEST_DIR)/include -I$(GTEST_DIR)
