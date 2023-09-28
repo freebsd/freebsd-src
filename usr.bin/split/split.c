@@ -115,7 +115,12 @@ main(int argc, char **argv)
 				errx(EX_USAGE, "%s: suffix length is %s",
 				    optarg, errstr);
 			}
-			autosfx = false;
+			if (sufflen == 0) {
+				sufflen = 2;
+				autosfx = true;
+			} else {
+				autosfx = false;
+			}
 			break;
 		case 'b':		/* Byte count. */
 			if (expand_number(optarg, &bytecnt) != 0) {
