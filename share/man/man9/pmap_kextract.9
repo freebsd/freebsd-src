@@ -12,7 +12,7 @@
 .Sh NAME
 .Nm pmap_kextract ,
 .Nm vtophys
-.Nd extract from kernel page table to a physical address
+.Nd extract a physical address from the kernel page table
 .Sh SYNOPSIS
 .In sys/param.h
 .In vm/vm.h
@@ -28,17 +28,23 @@
 .Sh DESCRIPTION
 The
 .Fn pmap_kextract
-function, and its alias
-.Fn vtophys ,
-map a kernel virtual address to a physical page.
+function retrieves the underlying physical memory address corresponding to the given kernel virtual address
+.Fa va .
+The value of
+.Fa va
+must correlate to an active mapping in the kernel address space.
+.Pp
+.Fn vtophys
+is an alias for
+.Fn pmap_kextract
+and behaves identically.
 .Sh RETURN VALUES
 The
 .Fn pmap_kextract
-function will return the physical page address
-.Ft ( vm_paddr_t )
+function will return the physical address
+.Pq Vt vm_paddr_t
 associated with the kernel virtual address
-.Fa va
-inside the physical map of the address space.
+.Fa va .
 In case of failure,
 .Fn pmap_kextract
 will
