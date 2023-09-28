@@ -1582,7 +1582,7 @@ apic_alloc_vectors(u_int apic_id, u_int *irqs, u_int count, u_int align)
 
 		/* Start a new run if run == 0 and vector is aligned. */
 		if (run == 0) {
-			if ((vector & (align - 1)) != 0)
+			if (((vector + APIC_IO_INTS) & (align - 1)) != 0)
 				continue;
 			first = vector;
 		}
