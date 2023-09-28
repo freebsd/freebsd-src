@@ -105,4 +105,14 @@ struct dwc_softc {
 	int			tx_mapcount;
 };
 
+#define	READ4(_sc, _reg) \
+	bus_read_4((_sc)->res[0], _reg)
+#define	WRITE4(_sc, _reg, _val) \
+	bus_write_4((_sc)->res[0], _reg, _val)
+
+#define	DWC_LOCK(sc)			mtx_lock(&(sc)->mtx)
+#define	DWC_UNLOCK(sc)			mtx_unlock(&(sc)->mtx)
+#define	DWC_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->mtx, MA_OWNED)
+#define	DWC_ASSERT_UNLOCKED(sc)		mtx_assert(&(sc)->mtx, MA_NOTOWNED)
+
 #endif	/* __IF_DWCVAR_H__ */

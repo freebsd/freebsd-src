@@ -1,0 +1,668 @@
+/*-
+ * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#include <sys/cdefs.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/rman.h>
+#include <sys/socket.h>
+
+#include <net/bpf.h>
+#include <net/if.h>
+#include <net/ethernet.h>
+#include <net/if_dl.h>
+#include <net/if_media.h>
+#include <net/if_types.h>
+#include <net/if_var.h>
+
+#include <machine/bus.h>
+
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
+
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
+#include <dev/dwc/if_dwcvar.h>
+#include <dev/dwc/dwc1000_reg.h>
+#include <dev/dwc/dwc1000_dma.h>
+
+static inline uint32_t
+next_rxidx(struct dwc_softc *sc, uint32_t curidx)
+{
+
+	return ((curidx + 1) % RX_DESC_COUNT);
+}
+
+static void
+dwc_get1paddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+{
+
+	if (error != 0)
+		return;
+	*(bus_addr_t *)arg = segs[0].ds_addr;
+}
+
+inline static void
+dwc_set_owner(struct dwc_softc *sc, int idx)
+{
+	wmb();
+	sc->txdesc_ring[idx].desc0 |= TDESC0_OWN;
+	wmb();
+}
+
+inline static void
+dwc_setup_txdesc(struct dwc_softc *sc, int idx, bus_addr_t paddr,
+  uint32_t len, uint32_t flags, bool first, bool last)
+{
+	uint32_t desc0, desc1;
+
+	/* Addr/len 0 means we're clearing the descriptor after xmit done. */
+	if (paddr == 0 || len == 0) {
+		desc0 = 0;
+		desc1 = 0;
+		--sc->tx_desccount;
+	} else {
+		if (sc->mactype != DWC_GMAC_EXT_DESC) {
+			desc0 = 0;
+			desc1 = NTDESC1_TCH | len | flags;
+			if (first)
+				desc1 |=  NTDESC1_FS;
+			if (last)
+				desc1 |= NTDESC1_LS | NTDESC1_IC;
+		} else {
+			desc0 = ETDESC0_TCH | flags;
+			if (first)
+				desc0 |= ETDESC0_FS;
+			if (last)
+				desc0 |= ETDESC0_LS | ETDESC0_IC;
+			desc1 = len;
+		}
+		++sc->tx_desccount;
+	}
+
+	sc->txdesc_ring[idx].addr1 = (uint32_t)(paddr);
+	sc->txdesc_ring[idx].desc0 = desc0;
+	sc->txdesc_ring[idx].desc1 = desc1;
+}
+
+inline static uint32_t
+dwc_setup_rxdesc(struct dwc_softc *sc, int idx, bus_addr_t paddr)
+{
+	uint32_t nidx;
+
+	sc->rxdesc_ring[idx].addr1 = (uint32_t)paddr;
+	nidx = next_rxidx(sc, idx);
+	sc->rxdesc_ring[idx].addr2 = sc->rxdesc_ring_paddr +
+	    (nidx * sizeof(struct dwc_hwdesc));
+	if (sc->mactype != DWC_GMAC_EXT_DESC)
+		sc->rxdesc_ring[idx].desc1 = NRDESC1_RCH |
+		    MIN(MCLBYTES, NRDESC1_RBS1_MASK);
+	else
+		sc->rxdesc_ring[idx].desc1 = ERDESC1_RCH |
+		    MIN(MCLBYTES, ERDESC1_RBS1_MASK);
+
+	wmb();
+	sc->rxdesc_ring[idx].desc0 = RDESC0_OWN;
+	wmb();
+	return (nidx);
+}
+
+int
+dma1000_setup_txbuf(struct dwc_softc *sc, int idx, struct mbuf **mp)
+{
+	struct bus_dma_segment segs[TX_MAP_MAX_SEGS];
+	int error, nsegs;
+	struct mbuf * m;
+	uint32_t flags = 0;
+	int i;
+	int first, last;
+
+	error = bus_dmamap_load_mbuf_sg(sc->txbuf_tag, sc->txbuf_map[idx].map,
+	    *mp, segs, &nsegs, 0);
+	if (error == EFBIG) {
+		/*
+		 * The map may be partially mapped from the first call.
+		 * Make sure to reset it.
+		 */
+		bus_dmamap_unload(sc->txbuf_tag, sc->txbuf_map[idx].map);
+		if ((m = m_defrag(*mp, M_NOWAIT)) == NULL)
+			return (ENOMEM);
+		*mp = m;
+		error = bus_dmamap_load_mbuf_sg(sc->txbuf_tag, sc->txbuf_map[idx].map,
+		    *mp, segs, &nsegs, 0);
+	}
+	if (error != 0)
+		return (ENOMEM);
+
+	if (sc->tx_desccount + nsegs > TX_DESC_COUNT) {
+		bus_dmamap_unload(sc->txbuf_tag, sc->txbuf_map[idx].map);
+		return (ENOMEM);
+	}
+
+	m = *mp;
+
+	if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0) {
+		if ((m->m_pkthdr.csum_flags & (CSUM_TCP|CSUM_UDP)) != 0) {
+			if (sc->mactype != DWC_GMAC_EXT_DESC)
+				flags = NTDESC1_CIC_FULL;
+			else
+				flags = ETDESC0_CIC_FULL;
+		} else {
+			if (sc->mactype != DWC_GMAC_EXT_DESC)
+				flags = NTDESC1_CIC_HDR;
+			else
+				flags = ETDESC0_CIC_HDR;
+		}
+	}
+
+	bus_dmamap_sync(sc->txbuf_tag, sc->txbuf_map[idx].map,
+	    BUS_DMASYNC_PREWRITE);
+
+	sc->txbuf_map[idx].mbuf = m;
+
+	first = sc->tx_desc_head;
+	for (i = 0; i < nsegs; i++) {
+		dwc_setup_txdesc(sc, sc->tx_desc_head,
+		    segs[i].ds_addr, segs[i].ds_len,
+		    (i == 0) ? flags : 0, /* only first desc needs flags */
+		    (i == 0),
+		    (i == nsegs - 1));
+		if (i > 0)
+			dwc_set_owner(sc, sc->tx_desc_head);
+		last = sc->tx_desc_head;
+		sc->tx_desc_head = next_txidx(sc, sc->tx_desc_head);
+	}
+
+	sc->txbuf_map[idx].last_desc_idx = last;
+
+	dwc_set_owner(sc, first);
+
+	return (0);
+}
+
+static int
+dma1000_setup_rxbuf(struct dwc_softc *sc, int idx, struct mbuf *m)
+{
+	struct bus_dma_segment seg;
+	int error, nsegs;
+
+	m_adj(m, ETHER_ALIGN);
+
+	error = bus_dmamap_load_mbuf_sg(sc->rxbuf_tag, sc->rxbuf_map[idx].map,
+	    m, &seg, &nsegs, 0);
+	if (error != 0)
+		return (error);
+
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
+
+	bus_dmamap_sync(sc->rxbuf_tag, sc->rxbuf_map[idx].map,
+	    BUS_DMASYNC_PREREAD);
+
+	sc->rxbuf_map[idx].mbuf = m;
+	dwc_setup_rxdesc(sc, idx, seg.ds_addr);
+
+	return (0);
+}
+
+static struct mbuf *
+dwc_alloc_mbufcl(struct dwc_softc *sc)
+{
+	struct mbuf *m;
+
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	if (m != NULL)
+		m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
+
+	return (m);
+}
+
+static struct mbuf *
+dwc_rxfinish_one(struct dwc_softc *sc, struct dwc_hwdesc *desc,
+    struct dwc_bufmap *map)
+{
+	if_t ifp;
+	struct mbuf *m, *m0;
+	int len;
+	uint32_t rdesc0;
+
+	m = map->mbuf;
+	ifp = sc->ifp;
+	rdesc0 = desc ->desc0;
+
+	if ((rdesc0 & (RDESC0_FS | RDESC0_LS)) !=
+		    (RDESC0_FS | RDESC0_LS)) {
+		/*
+		 * Something very wrong happens. The whole packet should be
+		 * recevied in one descriptr. Report problem.
+		 */
+		device_printf(sc->dev,
+		    "%s: RX descriptor without FIRST and LAST bit set: 0x%08X",
+		    __func__, rdesc0);
+		return (NULL);
+	}
+
+	len = (rdesc0 >> RDESC0_FL_SHIFT) & RDESC0_FL_MASK;
+	if (len < 64) {
+		/*
+		 * Lenght is invalid, recycle old mbuf
+		 * Probably impossible case
+		 */
+		return (NULL);
+	}
+
+	/* Allocate new buffer */
+	m0 = dwc_alloc_mbufcl(sc);
+	if (m0 == NULL) {
+		/* no new mbuf available, recycle old */
+		if_inc_counter(sc->ifp, IFCOUNTER_IQDROPS, 1);
+		return (NULL);
+	}
+	/* Do dmasync for newly received packet */
+	bus_dmamap_sync(sc->rxbuf_tag, map->map, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_unload(sc->rxbuf_tag, map->map);
+
+	/* Received packet is valid, process it */
+	m->m_pkthdr.rcvif = ifp;
+	m->m_pkthdr.len = len;
+	m->m_len = len;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+
+	if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0 &&
+	  (rdesc0 & RDESC0_FT) != 0) {
+		m->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
+		if ((rdesc0 & RDESC0_ICE) == 0)
+			m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+		if ((rdesc0 & RDESC0_PCE) == 0) {
+			m->m_pkthdr.csum_flags |=
+				CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+			m->m_pkthdr.csum_data = 0xffff;
+		}
+	}
+
+	/* Remove trailing FCS */
+	m_adj(m, -ETHER_CRC_LEN);
+
+	DWC_UNLOCK(sc);
+	if_input(ifp, m);
+	DWC_LOCK(sc);
+	return (m0);
+}
+
+void
+dma1000_txfinish_locked(struct dwc_softc *sc)
+{
+	struct dwc_bufmap *bmap;
+	struct dwc_hwdesc *desc;
+	if_t ifp;
+	int idx, last_idx;
+	bool map_finished;
+
+	DWC_ASSERT_LOCKED(sc);
+
+	ifp = sc->ifp;
+	/* check if all descriptors of the map are done */
+	while (sc->tx_map_tail != sc->tx_map_head) {
+		map_finished = true;
+		bmap = &sc->txbuf_map[sc->tx_map_tail];
+		idx = sc->tx_desc_tail;
+		last_idx = next_txidx(sc, bmap->last_desc_idx);
+		while (idx != last_idx) {
+			desc = &sc->txdesc_ring[idx];
+			if ((desc->desc0 & TDESC0_OWN) != 0) {
+				map_finished = false;
+				break;
+			}
+			idx = next_txidx(sc, idx);
+		}
+
+		if (!map_finished)
+			break;
+		bus_dmamap_sync(sc->txbuf_tag, bmap->map,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(sc->txbuf_tag, bmap->map);
+		m_freem(bmap->mbuf);
+		bmap->mbuf = NULL;
+		sc->tx_mapcount--;
+		while (sc->tx_desc_tail != last_idx) {
+			dwc_setup_txdesc(sc, sc->tx_desc_tail, 0, 0, 0, false, false);
+			sc->tx_desc_tail = next_txidx(sc, sc->tx_desc_tail);
+		}
+		sc->tx_map_tail = next_txidx(sc, sc->tx_map_tail);
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+	}
+
+	/* If there are no buffers outstanding, muzzle the watchdog. */
+	if (sc->tx_desc_tail == sc->tx_desc_head) {
+		sc->tx_watchdog_count = 0;
+	}
+}
+
+void
+dma1000_rxfinish_locked(struct dwc_softc *sc)
+{
+	struct mbuf *m;
+	int error, idx;
+	struct dwc_hwdesc *desc;
+
+	DWC_ASSERT_LOCKED(sc);
+	for (;;) {
+		idx = sc->rx_idx;
+		desc = sc->rxdesc_ring + idx;
+		if ((desc->desc0 & RDESC0_OWN) != 0)
+			break;
+
+		m = dwc_rxfinish_one(sc, desc, sc->rxbuf_map + idx);
+		if (m == NULL) {
+			wmb();
+			desc->desc0 = RDESC0_OWN;
+			wmb();
+		} else {
+			/* We cannot create hole in RX ring */
+			error = dma1000_setup_rxbuf(sc, idx, m);
+			if (error != 0)
+				panic("dma1000_setup_rxbuf failed:  error %d\n",
+				    error);
+
+		}
+		sc->rx_idx = next_rxidx(sc, sc->rx_idx);
+	}
+}
+
+/*
+ * Start the DMA controller
+ */
+void
+dma1000_start(struct dwc_softc *sc)
+{
+	uint32_t reg;
+
+	DWC_ASSERT_LOCKED(sc);
+
+	/* Initializa DMA and enable transmitters */
+	reg = READ4(sc, OPERATION_MODE);
+	reg |= (MODE_TSF | MODE_OSF | MODE_FUF);
+	reg &= ~(MODE_RSF);
+	reg |= (MODE_RTC_LEV32 << MODE_RTC_SHIFT);
+	WRITE4(sc, OPERATION_MODE, reg);
+
+	WRITE4(sc, INTERRUPT_ENABLE, INT_EN_DEFAULT);
+
+	/* Start DMA */
+	reg = READ4(sc, OPERATION_MODE);
+	reg |= (MODE_ST | MODE_SR);
+	WRITE4(sc, OPERATION_MODE, reg);
+}
+
+/*
+ * Stop the DMA controller
+ */
+void
+dma1000_stop(struct dwc_softc *sc)
+{
+	uint32_t reg;
+
+	DWC_ASSERT_LOCKED(sc);
+
+	/* Stop DMA TX */
+	reg = READ4(sc, OPERATION_MODE);
+	reg &= ~(MODE_ST);
+	WRITE4(sc, OPERATION_MODE, reg);
+
+	/* Flush TX */
+	reg = READ4(sc, OPERATION_MODE);
+	reg |= (MODE_FTF);
+	WRITE4(sc, OPERATION_MODE, reg);
+
+	/* Stop DMA RX */
+	reg = READ4(sc, OPERATION_MODE);
+	reg &= ~(MODE_SR);
+	WRITE4(sc, OPERATION_MODE, reg);
+}
+
+/*
+ * Create the bus_dma resources
+ */
+int
+dma1000_init(struct dwc_softc *sc)
+{
+	struct mbuf *m;
+	int error;
+	int nidx;
+	int idx;
+
+	/*
+	 * Set up TX descriptor ring, descriptors, and dma maps.
+	 */
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->dev),	/* Parent tag. */
+	    DWC_DESC_RING_ALIGN, 0,	/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    TX_DESC_SIZE, 1, 		/* maxsize, nsegments */
+	    TX_DESC_SIZE,		/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->txdesc_tag);
+	if (error != 0) {
+		device_printf(sc->dev,
+		    "could not create TX ring DMA tag.\n");
+		goto out;
+	}
+
+	error = bus_dmamem_alloc(sc->txdesc_tag, (void**)&sc->txdesc_ring,
+	    BUS_DMA_COHERENT | BUS_DMA_WAITOK | BUS_DMA_ZERO,
+	    &sc->txdesc_map);
+	if (error != 0) {
+		device_printf(sc->dev,
+		    "could not allocate TX descriptor ring.\n");
+		goto out;
+	}
+
+	error = bus_dmamap_load(sc->txdesc_tag, sc->txdesc_map,
+	    sc->txdesc_ring, TX_DESC_SIZE, dwc_get1paddr,
+	    &sc->txdesc_ring_paddr, 0);
+	if (error != 0) {
+		device_printf(sc->dev,
+		    "could not load TX descriptor ring map.\n");
+		goto out;
+	}
+
+	for (idx = 0; idx < TX_DESC_COUNT; idx++) {
+		nidx = next_txidx(sc, idx);
+		sc->txdesc_ring[idx].addr2 = sc->txdesc_ring_paddr +
+		    (nidx * sizeof(struct dwc_hwdesc));
+	}
+
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->dev),	/* Parent tag. */
+	    1, 0,			/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    MCLBYTES*TX_MAP_MAX_SEGS,	/* maxsize */
+	    TX_MAP_MAX_SEGS,		/* nsegments */
+	    MCLBYTES,			/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->txbuf_tag);
+	if (error != 0) {
+		device_printf(sc->dev,
+		    "could not create TX ring DMA tag.\n");
+		goto out;
+	}
+
+	for (idx = 0; idx < TX_MAP_COUNT; idx++) {
+		error = bus_dmamap_create(sc->txbuf_tag, BUS_DMA_COHERENT,
+		    &sc->txbuf_map[idx].map);
+		if (error != 0) {
+			device_printf(sc->dev,
+			    "could not create TX buffer DMA map.\n");
+			goto out;
+		}
+	}
+
+	for (idx = 0; idx < TX_DESC_COUNT; idx++)
+		dwc_setup_txdesc(sc, idx, 0, 0, 0, false, false);
+
+	/*
+	 * Set up RX descriptor ring, descriptors, dma maps, and mbufs.
+	 */
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->dev),	/* Parent tag. */
+	    DWC_DESC_RING_ALIGN, 0,	/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    RX_DESC_SIZE, 1, 		/* maxsize, nsegments */
+	    RX_DESC_SIZE,		/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->rxdesc_tag);
+	if (error != 0) {
+		device_printf(sc->dev,
+		    "could not create RX ring DMA tag.\n");
+		goto out;
+	}
+
+	error = bus_dmamem_alloc(sc->rxdesc_tag, (void **)&sc->rxdesc_ring,
+	    BUS_DMA_COHERENT | BUS_DMA_WAITOK | BUS_DMA_ZERO,
+	    &sc->rxdesc_map);
+	if (error != 0) {
+		device_printf(sc->dev,
+		    "could not allocate RX descriptor ring.\n");
+		goto out;
+	}
+
+	error = bus_dmamap_load(sc->rxdesc_tag, sc->rxdesc_map,
+	    sc->rxdesc_ring, RX_DESC_SIZE, dwc_get1paddr,
+	    &sc->rxdesc_ring_paddr, 0);
+	if (error != 0) {
+		device_printf(sc->dev,
+		    "could not load RX descriptor ring map.\n");
+		goto out;
+	}
+
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->dev),	/* Parent tag. */
+	    1, 0,			/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    MCLBYTES, 1, 		/* maxsize, nsegments */
+	    MCLBYTES,			/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->rxbuf_tag);
+	if (error != 0) {
+		device_printf(sc->dev,
+		    "could not create RX buf DMA tag.\n");
+		goto out;
+	}
+
+	for (idx = 0; idx < RX_DESC_COUNT; idx++) {
+		error = bus_dmamap_create(sc->rxbuf_tag, BUS_DMA_COHERENT,
+		    &sc->rxbuf_map[idx].map);
+		if (error != 0) {
+			device_printf(sc->dev,
+			    "could not create RX buffer DMA map.\n");
+			goto out;
+		}
+		if ((m = dwc_alloc_mbufcl(sc)) == NULL) {
+			device_printf(sc->dev, "Could not alloc mbuf\n");
+			error = ENOMEM;
+			goto out;
+		}
+		if ((error = dma1000_setup_rxbuf(sc, idx, m)) != 0) {
+			device_printf(sc->dev,
+			    "could not create new RX buffer.\n");
+			goto out;
+		}
+	}
+
+out:
+	if (error != 0)
+		return (ENXIO);
+
+	return (0);
+}
+
+/*
+ * Free the bus_dma resources
+ */
+void
+dma1000_free(struct dwc_softc *sc)
+{
+	bus_dmamap_t map;
+	int idx;
+
+	/* Clean up RX DMA resources and free mbufs. */
+	for (idx = 0; idx < RX_DESC_COUNT; ++idx) {
+		if ((map = sc->rxbuf_map[idx].map) != NULL) {
+			bus_dmamap_unload(sc->rxbuf_tag, map);
+			bus_dmamap_destroy(sc->rxbuf_tag, map);
+			m_freem(sc->rxbuf_map[idx].mbuf);
+		}
+	}
+	if (sc->rxbuf_tag != NULL)
+		bus_dma_tag_destroy(sc->rxbuf_tag);
+	if (sc->rxdesc_map != NULL) {
+		bus_dmamap_unload(sc->rxdesc_tag, sc->rxdesc_map);
+		bus_dmamem_free(sc->rxdesc_tag, sc->rxdesc_ring,
+		    sc->rxdesc_map);
+	}
+	if (sc->rxdesc_tag != NULL)
+		bus_dma_tag_destroy(sc->rxdesc_tag);
+
+	/* Clean up TX DMA resources. */
+	for (idx = 0; idx < TX_DESC_COUNT; ++idx) {
+		if ((map = sc->txbuf_map[idx].map) != NULL) {
+			/* TX maps are already unloaded. */
+			bus_dmamap_destroy(sc->txbuf_tag, map);
+		}
+	}
+	if (sc->txbuf_tag != NULL)
+		bus_dma_tag_destroy(sc->txbuf_tag);
+	if (sc->txdesc_map != NULL) {
+		bus_dmamap_unload(sc->txdesc_tag, sc->txdesc_map);
+		bus_dmamem_free(sc->txdesc_tag, sc->txdesc_ring,
+		    sc->txdesc_map);
+	}
+	if (sc->txdesc_tag != NULL)
+		bus_dma_tag_destroy(sc->txdesc_tag);
+}
