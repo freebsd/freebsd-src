@@ -209,6 +209,23 @@ autoextend_body()
 	atf_check -o inline:"$((26*25+1))\n" cat xzaaa
 }
 
+atf_test_case noautoextend
+noautoextend_body()
+{
+	seq $((26*26)) >input
+	atf_check split -a2 -l1 input
+	atf_check -o inline:"$((26*26))\n" cat xzz
+}
+
+atf_test_case reautoextend
+reautoextend_body()
+{
+	seq $((26*25+1)) >input
+	atf_check split -a2 -a0 -l1 input
+	atf_check -o inline:"$((26*25))\n" cat xyz
+	atf_check -o inline:"$((26*25+1))\n" cat xzaaa
+}
+
 atf_test_case continue
 continue_body()
 {
@@ -249,6 +266,8 @@ atf_init_test_cases()
 	atf_add_test_case larger_suffix_length
 	atf_add_test_case pattern
 	atf_add_test_case autoextend
+	atf_add_test_case noautoextend
+	atf_add_test_case reautoextend
 	atf_add_test_case continue
 	atf_add_test_case undocumented_kludge
 	atf_add_test_case duplicate_linecount
