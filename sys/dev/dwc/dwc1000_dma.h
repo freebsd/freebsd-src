@@ -131,11 +131,6 @@ struct dwc_hwdesc
 	uint32_t addr2;		/* ptr to next descriptor / second buffer data*/
 };
 
-struct dwc_hash_maddr_ctx {
-	struct dwc_softc *sc;
-	uint32_t hash[8];
-};
-
 /*
  * The hardware imposes alignment restrictions on various objects involved in
  * DMA transfers.  These values are expressed in bytes (not bits).
