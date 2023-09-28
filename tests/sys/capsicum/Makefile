@@ -19,6 +19,7 @@ SRCS.capsicum-test+=	\
 	capsicum-test-main.cc \
 	capsicum-test.cc \
 	capability-fd.cc \
+	copy_file_range.cc \
 	fexecve.cc \
 	procdesc.cc \
 	capmode.cc \
