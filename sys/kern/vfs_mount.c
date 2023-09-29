@@ -1313,9 +1313,10 @@ vfs_domount_update(
 	struct vnode *rootvp;
 	void *bufp;
 	struct mount *mp;
-	int error, export_error, i, len;
+	int error, export_error, i, len, fsid_up_len;
 	uint64_t flag;
 	gid_t *grps;
+	fsid_t *fsid_up;
 	bool vfs_suser_failed;
 
 	ASSERT_VOP_ELOCKED(vp, __func__);
@@ -1378,10 +1379,24 @@ vfs_domount_update(
 	VI_UNLOCK(vp);
 	VOP_UNLOCK(vp);
 
+	rootvp = NULL;
+
+	if (vfs_getopt(*optlist, "fsid", (void **)&fsid_up,
+	    &fsid_up_len) == 0) {
+		if (fsid_up_len != sizeof(*fsid_up)) {
+			error = EINVAL;
+			goto end;
+		}
+		if (fsidcmp(&fsid_up, &mp->mnt_stat.f_fsid) != 0) {
+			error = ENOENT;
+			goto end;
+		}
+		vfs_deleteopt(*optlist, "fsid");
+	}
+
 	vfs_op_enter(mp);
 	vn_seqc_write_begin(vp);
 
-	rootvp = NULL;
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0) {
 		MNT_IUNLOCK(mp);
