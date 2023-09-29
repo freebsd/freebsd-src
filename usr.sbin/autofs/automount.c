@@ -229,7 +229,7 @@ mount_unmount(struct node *root)
 }
 
 static void
-flush_autofs(const char *fspath)
+flush_autofs(const char *fspath, const fsid_t *fsid)
 {
 	struct iovec *iov = NULL;
 	char errmsg[255];
@@ -242,6 +242,8 @@ flush_autofs(const char *fspath)
 	    __DECONST(void *, "autofs"), (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath",
 	    __DECONST(void *, fspath), (size_t)-1);
+	build_iovec(&iov, &iovlen, "fsid",
+	    __DECONST(void *, fsid), sizeof(*fsid));
 	build_iovec(&iov, &iovlen, "errmsg",
 	    errmsg, sizeof(errmsg));
 
@@ -291,7 +293,7 @@ flush_caches(void)
 			continue;
 		}
 
-		flush_autofs(mntbuf[i].f_mntonname);
+		flush_autofs(mntbuf[i].f_mntonname, &statbuf.f_fsid);
 	}
 }
 
