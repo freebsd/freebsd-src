@@ -3196,6 +3196,11 @@ rollback_setup_rollback () {
 
 # Install old files, delete new files, and update linker.hints
 rollback_files () {
+	# Create directories first.  They may be needed by files we will
+	# install in subsequent steps (PR273950).
+	awk -F \| '{if ($2 == "d") print }' $1/INDEX-OLD > INDEX-OLD
+	install_from_index INDEX-OLD || return 1
+
 	# Install old shared library files which don't have the same path as
 	# a new shared library file.
 	grep -vE '^/boot/' $1/INDEX-NEW |
