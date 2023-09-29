@@ -3,13 +3,8 @@
 
 .PATH:		${CLANG_SRCS}/lib/Headers
 
-INCSGROUPS=	INCS CUDA HLSL OMP ORC PPC
+INCSGROUPS+=	INCS
 INCSDIR=	${LIBDIR}/clang/17/include
-CUDADIR=	${INCSDIR}/cuda_wrappers
-HLSLDIR=	${INCSDIR}/hlsl
-OMPDIR=		${INCSDIR}/openmp_wrappers
-PPCDIR=		${INCSDIR}/ppc_wrappers
-
 INCS+=		__clang_cuda_builtin_vars.h
 INCS+=		__clang_cuda_cmath.h
 INCS+=		__clang_cuda_complex_builtins.h
@@ -185,15 +180,26 @@ INCS+=		unwind.h
 INCS+=		varargs.h
 .endif # INSTALL_CONFLICTING_CLANG_HEADERS
 
+INCSGROUPS+=	CUDA
+CUDADIR=	${INCSDIR}/cuda_wrappers
 CUDA+=		cuda_wrappers/algorithm
-CUDA+=		cuda_wrappers/bits/shared_ptr_base.h
 CUDA+=		cuda_wrappers/cmath
 CUDA+=		cuda_wrappers/complex
 CUDA+=		cuda_wrappers/new
 
+INCSGROUPS+=	CUDB
+CUDBDIR=	${INCSDIR}/cuda_wrappers/bits
+CUDB+=		cuda_wrappers/bits/basic_string.h
+CUDB+=		cuda_wrappers/bits/basic_string.tcc
+CUDB+=		cuda_wrappers/bits/shared_ptr_base.h
+
+INCSGROUPS+=	HLSL
+HLSLDIR=	${INCSDIR}/hlsl
 HLSL+=		hlsl/hlsl_basic_types.h
 HLSL+=		hlsl/hlsl_intrinsics.h
 
+INCSGROUPS+=	OMP
+OMPDIR=		${INCSDIR}/openmp_wrappers
 OMP+=		openmp_wrappers/__clang_openmp_device_functions.h
 OMP+=		openmp_wrappers/cmath
 OMP+=		openmp_wrappers/complex
@@ -202,6 +208,8 @@ OMP+=		openmp_wrappers/complex_cmath.h
 OMP+=		openmp_wrappers/math.h
 OMP+=		openmp_wrappers/new
 
+INCSGROUPS+=	PPC
+PPCDIR=		${INCSDIR}/ppc_wrappers
 PPC+=		ppc_wrappers/bmi2intrin.h
 PPC+=		ppc_wrappers/bmiintrin.h
 PPC+=		ppc_wrappers/emmintrin.h
