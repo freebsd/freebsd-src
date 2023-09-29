@@ -225,19 +225,25 @@ static void
 external_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
     uint64_t far, int lower)
 {
+	if (lower) {
+		call_trapsignal(td, SIGBUS, BUS_OBJERR, (void *)far,
+		    ESR_ELx_EXCEPTION(frame->tf_esr));
+		userret(td, frame);
+		return;
+	}
 
 	/*
 	 * Try to handle synchronous external aborts caused by
 	 * bus_space_peek() and/or bus_space_poke() functions.
 	 */
-	if (!lower && test_bs_fault((void *)frame->tf_elr)) {
+	if (test_bs_fault((void *)frame->tf_elr)) {
 		frame->tf_elr = (uint64_t)generic_bs_fault;
 		return;
 	}
 
 	print_registers(frame);
 	print_gp_register("far", far);
-	panic("Unhandled EL%d external data abort", lower ? 0: 1);
+	panic("Unhandled external data abort");
 }
 
 /*
