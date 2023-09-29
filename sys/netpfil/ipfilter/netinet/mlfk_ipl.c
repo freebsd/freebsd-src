@@ -134,7 +134,7 @@ SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_running, CTLFLAG_RD,
 	   &VNET_NAME(ipfmain.ipf_running), 0, "IPF is running");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_chksrc, CTLFLAG_RW, &VNET_NAME(ipfmain.ipf_chksrc), 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_minttl, CTLFLAG_RW, &VNET_NAME(ipfmain.ipf_minttl), 0, "");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, large_nat, CTLFLAG_RD, &VNET_NAME(ipfmain.ipf_large_nat), 0, "large_nat");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, large_nat, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &VNET_NAME(ipfmain.ipf_large_nat), 0, "large_nat");
 
 #define CDEV_MAJOR 79
 #include <sys/poll.h>
