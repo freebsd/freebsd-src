@@ -310,7 +310,7 @@ static int		 pf_test_state_icmp(struct pf_kstate **,
 			    struct pfi_kkif *, struct mbuf *, int,
 			    void *, struct pf_pdesc *, u_short *);
 static void		 pf_sctp_multihome_delayed(struct pf_pdesc *, int,
-			    struct pfi_kkif *, struct pf_kstate *);
+			    struct pfi_kkif *, struct pf_kstate *, int);
 static int		 pf_test_state_sctp(struct pf_kstate **,
 			    struct pfi_kkif *, struct mbuf *, int,
 			    void *, struct pf_pdesc *, u_short *);
@@ -5921,10 +5921,10 @@ pf_test_state_sctp(struct pf_kstate **state, struct pfi_kkif *kif,
 
 static void
 pf_sctp_multihome_delayed(struct pf_pdesc *pd, int off, struct pfi_kkif *kif,
-    struct pf_kstate *s)
+    struct pf_kstate *s, int action)
 {
 	struct pf_sctp_multihome_job	*j, *tmp;
-	int			 action;;
+	int			 ret __unused;;
 	struct pf_kstate	*sm = NULL;
 	struct pf_krule		*ra = NULL;
 	struct pf_krule		*r = &V_pf_default_rule;
@@ -5933,11 +5933,14 @@ pf_sctp_multihome_delayed(struct pf_pdesc *pd, int off, struct pfi_kkif *kif,
 	PF_RULES_RLOCK_TRACKER;
 
 	TAILQ_FOREACH_SAFE(j, &pd->sctp_multihome_jobs, next, tmp) {
+		if (s == NULL || action != PF_PASS)
+			goto free;
+
 		switch (j->op) {
 		case  SCTP_ADD_IP_ADDRESS: {
 			j->pd.sctp_flags |= PFDESC_SCTP_ADD_IP;
 			PF_RULES_RLOCK();
-			action = pf_test_rule(&r, &sm, kif,
+			ret = pf_test_rule(&r, &sm, kif,
 			    j->m, off, &j->pd, &ra, &rs, NULL);
 			PF_RULES_RUNLOCK();
 			SDT_PROBE4(pf, sctp, multihome, test, kif, r, j->m, action);
@@ -5986,6 +5989,7 @@ pf_sctp_multihome_delayed(struct pf_pdesc *pd, int off, struct pfi_kkif *kif,
 		}
 		}
 
+free:
 		free(j, M_PFTEMP);
 	}
 }
@@ -8154,7 +8158,7 @@ done:
 		PF_STATE_UNLOCK(s);
 
 out:
-	pf_sctp_multihome_delayed(&pd, off, kif, s);
+	pf_sctp_multihome_delayed(&pd, off, kif, s, action);
 
 	return (action);
 }
@@ -8711,7 +8715,7 @@ done:
 out:
 	SDT_PROBE4(pf, ip, test6, done, action, reason, r, s);
 
-	pf_sctp_multihome_delayed(&pd, off, kif, s);
+	pf_sctp_multihome_delayed(&pd, off, kif, s, action);
 
 	return (action);
 }
