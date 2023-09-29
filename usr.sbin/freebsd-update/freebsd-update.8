@@ -23,7 +23,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 10, 2022
+.Dd October 4, 2023
 .Dt FREEBSD-UPDATE 8
 .Os
 .Sh NAME
@@ -251,7 +251,11 @@ configuration file.
 .It Pa /var/db/freebsd-update/
 Default location where
 .Nm
-stores temporary files and downloaded updates.
+stores temporary files, downloaded updates, and files required for rollback.
+All files under
+.Pa /var/db/freebsd-update/
+may be deleted if an upgrade is not in progress and rollback will not be
+required.
 .El
 .Sh SEE ALSO
 .Xr freebsd-version 1 ,
