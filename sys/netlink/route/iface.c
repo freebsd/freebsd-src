@@ -292,6 +292,7 @@ static bool
 dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
     int if_flags_mask)
 {
+	struct epoch_tracker et;
         struct ifinfomsg *ifinfo;
 
         NL_LOG(LOG_DEBUG3, "dumping interface %s data", if_name(ifp));
@@ -321,11 +322,15 @@ dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
         nlattr_add_u8(nw, IFLA_PROTO_DOWN, val);
         nlattr_add_u8(nw, IFLA_LINKMODE, val);
 */
-        if (if_getaddrlen(ifp) != 0) {
-		struct ifaddr *ifa = if_getifaddr(ifp);
+	if (if_getaddrlen(ifp) != 0) {
+		struct ifaddr *ifa;
 
-                dump_sa(nw, IFLA_ADDRESS, ifa->ifa_addr);
-        }
+		NET_EPOCH_ENTER(et);
+		ifa = CK_STAILQ_FIRST(&ifp->if_addrhead);
+		if (ifa != NULL)
+			dump_sa(nw, IFLA_ADDRESS, ifa->ifa_addr);
+		NET_EPOCH_EXIT(et);
+	}
 
         if ((if_getbroadcastaddr(ifp) != NULL)) {
 		nlattr_add(nw, IFLA_BROADCAST, if_getaddrlen(ifp),
