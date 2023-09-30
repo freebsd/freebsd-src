@@ -2424,10 +2424,17 @@ lkpi_ic_vap_delete(struct ieee80211vap *vap)
 	LKPI_80211_LHW_LVIF_LOCK(lhw);
 	TAILQ_REMOVE(&lhw->lvif_head, lvif, lvif_entry);
 	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
-	lkpi_80211_mo_remove_interface(hw, vif);
 
 	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
+
+	IMPROVE("clear up other bits in this state");
+
+	lkpi_80211_mo_remove_interface(hw, vif);
+
+	/* Single VAP, so we can do this here. */
+	lkpi_80211_mo_stop(hw);
+
 	mtx_destroy(&lvif->mtx);
 	free(lvif, M_80211_VAP);
 }
