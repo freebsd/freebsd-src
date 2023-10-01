@@ -2015,6 +2015,10 @@ OLD_DIRS+=usr/share/examples/uefisign
 OLD_DIRS+=usr/share/examples/ypldap
 .endif
 
+.if ${MK_FDT} == no
+OLD_FILES+=usr/share/man/man8/ofwdump.8.gz
+.endif
+
 .if ${MK_FINGER} == no
 OLD_FILES+=usr/bin/finger
 OLD_FILES+=usr/share/man/man1/finger.1.gz
