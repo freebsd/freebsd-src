@@ -288,7 +288,7 @@ ath_txfrag_setup(struct ath_softc *sc, ath_bufhead *frags,
 			ath_txfrag_cleanup(sc, frags, ni);
 			break;
 		}
-		ieee80211_node_incref(ni);
+		(void) ieee80211_ref_node(ni);
 		TAILQ_INSERT_TAIL(frags, bf, bf_list);
 	}
 	ATH_TXBUF_UNLOCK(sc);
