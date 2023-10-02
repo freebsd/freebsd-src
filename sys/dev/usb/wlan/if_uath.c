@@ -1657,7 +1657,7 @@ uath_txfrag_setup(struct uath_softc *sc, uath_datahead *frags,
 			uath_txfrag_cleanup(sc, frags, ni);
 			break;
 		}
-		ieee80211_node_incref(ni);
+		(void) ieee80211_ref_node(ni);
 		STAILQ_INSERT_TAIL(frags, bf, next);
 	}
 
