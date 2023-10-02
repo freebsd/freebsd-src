@@ -191,6 +191,8 @@ vkbd_dev_clone(void *arg, struct ucred *cred, char *name, int namelen,
 		*dev = make_dev_credf(MAKEDEV_REF, &vkbd_dev_cdevsw, unit,
 			cred, UID_ROOT, GID_WHEEL, 0600, DEVICE_NAME "%d",
 			unit);
+	else
+		dev_ref(*dev);
 }
 
 /* Open device */
