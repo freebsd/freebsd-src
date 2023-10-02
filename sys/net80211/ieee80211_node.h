@@ -319,13 +319,6 @@ MALLOC_DECLARE(M_80211_NODE_IE);
 #define	IEEE80211_RSSI_GET(x) \
 	IEEE80211_RSSI_EP_RND(x, IEEE80211_RSSI_EP_MULTIPLIER)
 
-static __inline struct ieee80211_node *
-ieee80211_ref_node(struct ieee80211_node *ni)
-{
-	ieee80211_node_incref(ni);
-	return ni;
-}
-
 void	ieee80211_node_attach(struct ieee80211com *);
 void	ieee80211_node_lateattach(struct ieee80211com *);
 void	ieee80211_node_detach(struct ieee80211com *);
@@ -397,6 +390,8 @@ struct ieee80211_node *ieee80211_node_create_wds(struct ieee80211vap *,
 		struct ieee80211_channel *);
 
 /* These functions are taking __func__, __LINE__ for IEEE80211_DEBUG_REFCNT */
+struct ieee80211_node *_ieee80211_ref_node(struct ieee80211_node *,
+		const char *func, int line);
 void	_ieee80211_free_node(struct ieee80211_node *,
 		const char *func, int line);
 struct ieee80211_node *_ieee80211_find_node_locked(
@@ -426,6 +421,8 @@ struct ieee80211_node *_ieee80211_find_rxnode_withkey(
 struct ieee80211_node *_ieee80211_find_txnode(struct ieee80211vap *,
 		const uint8_t macaddr[IEEE80211_ADDR_LEN],
 		const char *func, int line);
+#define	ieee80211_ref_node(ni) \
+	_ieee80211_ref_node(ni, __func__, __LINE__)
 #define	ieee80211_free_node(ni) \
 	_ieee80211_free_node(ni, __func__, __LINE__)
 #define	ieee80211_find_node_locked(nt, mac) \
