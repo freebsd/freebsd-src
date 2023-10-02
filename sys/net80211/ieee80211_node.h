@@ -319,13 +319,6 @@ MALLOC_DECLARE(M_80211_NODE_IE);
 #define	IEEE80211_RSSI_GET(x) \
 	IEEE80211_RSSI_EP_RND(x, IEEE80211_RSSI_EP_MULTIPLIER)
 
-static __inline void
-ieee80211_unref_node(struct ieee80211_node **ni)
-{
-	ieee80211_node_decref(*ni);
-	*ni = NULL;			/* guard against use */
-}
-
 void	ieee80211_node_attach(struct ieee80211com *);
 void	ieee80211_node_lateattach(struct ieee80211com *);
 void	ieee80211_node_detach(struct ieee80211com *);
