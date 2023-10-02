@@ -1212,8 +1212,7 @@ MLINKS+=ieee80211_node.9 ieee80211_dump_node.9 \
 	ieee80211_node.9 ieee80211_find_rxnode_withkey.9 \
 	ieee80211_node.9 ieee80211_free_node.9 \
 	ieee80211_node.9 ieee80211_iterate_nodes.9 \
-	ieee80211_node.9 ieee80211_ref_node.9 \
-	ieee80211_node.9 ieee80211_unref_node.9
+	ieee80211_node.9 ieee80211_ref_node.9
 MLINKS+=ieee80211_output.9 ieee80211_process_callback.9 \
 	ieee80211_output.9 M_SEQNO_GET.9 \
 	ieee80211_output.9 M_WME_GETAC.9
