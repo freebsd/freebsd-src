@@ -2056,6 +2056,20 @@ _ieee80211_find_txnode(struct ieee80211vap *vap,
 	return ni;
 }
 
+struct ieee80211_node *
+_ieee80211_ref_node(struct ieee80211_node *ni,
+    const char *func __debrefcnt_used, int line __debrefcnt_used)
+{
+
+#ifdef IEEE80211_DEBUG_REFCNT
+	IEEE80211_DPRINTF(ni->ni_vap, IEEE80211_MSG_NODE,
+	    "%s (%s:%u) %p<%s> refcnt %d\n", __func__, func, line, ni,
+	    ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni)+1);
+#endif
+	ieee80211_node_incref(ni);
+	return (ni);
+}
+
 static void
 __ieee80211_free_node(struct ieee80211_node *ni)
 {
