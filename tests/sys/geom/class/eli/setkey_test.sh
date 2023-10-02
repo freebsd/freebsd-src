@@ -108,9 +108,9 @@ setkey_passphrase_body()
 	atf_check dd if=/dev/random of=rnd bs=512 count=${sectors} status=none
 	hash1=`dd if=rnd bs=512 count=${sectors} status=none | md5`
 	atf_check_equal 0 $?
-	atf_check dd if=/dev/random of=pass1 bs=512 count=32 status=none
-	atf_check dd if=/dev/random of=pass2 bs=512 count=32 status=none
-	atf_check dd if=/dev/random of=pass3 bs=512 count=32 status=none
+	atf_check dd if=/dev/random of=pass1 bs=512 count=1 status=none
+	atf_check dd if=/dev/random of=pass2 bs=512 count=1 status=none
+	atf_check dd if=/dev/random of=pass3 bs=512 count=1 status=none
 
 	atf_check geli init -B none -J pass1 ${md}
 	atf_check geli attach -j pass1 ${md}
