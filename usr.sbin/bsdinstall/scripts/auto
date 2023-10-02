@@ -370,60 +370,8 @@ fi
     "Would you like to add users to the installed system now?" 0 0 && \
     bsdinstall adduser
 
-finalconfig() {
-	exec 5>&1
-	REVISIT=$(bsddialog --backtitle "$OSNAME Installer" \
-	    --title "Final Configuration" --no-cancel --menu \
-	    "Setup of your $OSNAME system is nearly complete. You can now modify your configuration choices. After this screen, you will have an opportunity to make more complex changes using a shell." 0 0 0 \
-		"Exit" "Apply configuration and exit installer" \
-		"Add User" "Add a user to the system" \
-		"Root Password" "Change root password" \
-		"Hostname" "Set system hostname" \
-		"Network" "Networking configuration" \
-		"Services" "Set daemons to run on startup" \
-		"System Hardening" "Set security options" \
-		"Time Zone" "Set system timezone" \
-		"Handbook" "Install $OSNAME Handbook (requires network)" 2>&1 1>&5)
-	exec 5>&-
-
-	case "$REVISIT" in
-	"Add User")
-		bsdinstall adduser
-		finalconfig
-		;;
-	"Root Password")
-		bsdinstall rootpass
-		finalconfig
-		;;
-	"Hostname")
-		bsdinstall hostname
-		finalconfig
-		;;
-	"Network")
-		bsdinstall netconfig
-		finalconfig
-		;;
-	"Services")
-		bsdinstall services
-		finalconfig
-		;;
-	"System Hardening")
-		bsdinstall hardening
-		finalconfig
-		;;
-	"Time Zone")
-		bsdinstall time
-		finalconfig
-		;;
-	"Handbook")
-		bsdinstall docsinstall
-		finalconfig
-		;;
-	esac
-}
-
 # Allow user to change his mind
-[ -z "$BSDINSTALL_SKIP_FINALCONFIG" ] && finalconfig
+[ -z "$BSDINSTALL_SKIP_FINALCONFIG" ] && bsdinstall finalconfig
 
 trap error SIGINT	# SIGINT is bad again
 bsdinstall config  || error "Failed to save config"
