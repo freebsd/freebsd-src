@@ -7,6 +7,7 @@ SCRIPTS=auto \
 	docsinstall \
 	entropy \
 	fetchmissingdists \
+	finalconfig \
 	hardening \
 	hostname \
 	jail \
