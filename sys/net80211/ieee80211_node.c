@@ -1402,7 +1402,7 @@ ieee80211_del_node_nt(struct ieee80211_node_table *nt,
 	ni->ni_table = NULL;
 }
 
-struct ieee80211_node *
+static struct ieee80211_node *
 ieee80211_alloc_node(struct ieee80211_node_table *nt,
 	struct ieee80211vap *vap, const uint8_t macaddr[IEEE80211_ADDR_LEN],
 	const char *func __debrefcnt_used, int line __debrefcnt_used)

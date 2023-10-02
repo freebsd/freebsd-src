@@ -395,9 +395,6 @@ struct ieee80211_node_table {
 	int			nt_inact_init;	/* initial node inact setting */
 };
 
-struct ieee80211_node *ieee80211_alloc_node(struct ieee80211_node_table *,
-		struct ieee80211vap *,
-		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
 struct ieee80211_node *ieee80211_tmp_node(struct ieee80211vap *,
 		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
 struct ieee80211_node *ieee80211_dup_bss(struct ieee80211vap *,
