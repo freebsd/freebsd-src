@@ -1104,7 +1104,7 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 	if (vap->iv_state == IEEE80211_S_CAC) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_OUTPUT | IEEE80211_MSG_DOTH,
 		    ni, "block %s frame in CAC state", "null data");
-		ieee80211_unref_node(&ni);
+		ieee80211_node_decref(ni);
 		vap->iv_stats.is_tx_badstate++;
 		return EIO;		/* XXX */
 	}
@@ -1122,7 +1122,7 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 	m = ieee80211_getmgtframe(&frm, ic->ic_headroom + hdrlen, 0);
 	if (m == NULL) {
 		/* XXX debug msg */
-		ieee80211_unref_node(&ni);
+		ieee80211_node_decref(ni);
 		vap->iv_stats.is_tx_nobuf++;
 		return ENOMEM;
 	}

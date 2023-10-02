@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20231005: Remove man page link for now gone net80211 function.
+OLD_FILES+=usr/share/man/man9/ieee80211_unref_node.9.gz
+
 # 20231005: bsdconfig remove support for floppy and ftp
 OLD_FILES+=usr/share/bsdconfig/media/floppy.subr
 OLD_FILES+=usr/share/bsdconfig/media/ftp.subr
