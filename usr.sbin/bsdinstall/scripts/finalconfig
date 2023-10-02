@@ -35,9 +35,9 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 while true; do
 	exec 5>&1
 	REVISIT=$(bsddialog --backtitle "$OSNAME Installer" \
-	    --title "Final Configuration" --no-cancel --menu \
+	    --title "Final Configuration" --ok-label "Select" \
+	    --cancel-label "Finish" --default-no --menu \
 	    "Setup of your $OSNAME system is nearly complete. You can now modify your configuration choices. After this screen, you will have an opportunity to make more complex changes using a shell." 0 0 0 \
-		"Exit" "Apply configuration and exit installer" \
 		"Add User" "Add a user to the system" \
 		"Root Password" "Change root password" \
 		"Hostname" "Set system hostname" \
@@ -48,6 +48,10 @@ while true; do
 		"Handbook" "Install $OSNAME Handbook (requires network)" 2>&1 1>&5)
 	retval=$?
 	exec 5>&-
+
+	if [ $retval -ne $BSDDIALOG_OK ]; then
+		break
+	fi
 
 	case "$REVISIT" in
 	"Add User")
@@ -73,9 +77,6 @@ while true; do
 		;;
 	"Handbook")
 		bsdinstall docsinstall
-		;;
-	*)
-		break
 		;;
 	esac
 done
