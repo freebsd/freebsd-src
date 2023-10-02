@@ -82,6 +82,9 @@ CTASSERT((IEEE80211_NODE_HASHSIZE & (IEEE80211_NODE_HASHSIZE-1)) == 0);
 
 static int ieee80211_sta_join1(struct ieee80211_node *);
 
+static struct ieee80211_node *ieee80211_alloc_node(
+	struct ieee80211_node_table *, struct ieee80211vap *,
+	const uint8_t macaddr[IEEE80211_ADDR_LEN]);
 static struct ieee80211_node *node_alloc(struct ieee80211vap *,
 	const uint8_t [IEEE80211_ADDR_LEN]);
 static int node_init(struct ieee80211_node *);
@@ -1396,7 +1399,7 @@ ieee80211_del_node_nt(struct ieee80211_node_table *nt,
 	ni->ni_table = NULL;
 }
 
-struct ieee80211_node *
+static struct ieee80211_node *
 ieee80211_alloc_node(struct ieee80211_node_table *nt,
 	struct ieee80211vap *vap, const uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
