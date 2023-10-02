@@ -48,6 +48,7 @@
 #include <net/vnet.h>
 
 #include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_ratectl.h>
 #ifdef IEEE80211_SUPPORT_TDMA
 #include <net80211/ieee80211_tdma.h>
 #endif
@@ -327,6 +328,31 @@ _db_show_sta(const struct ieee80211_node *ni)
 	    ni->ni_vht_pad1, ni->ni_vht_spare[0], ni->ni_vht_spare[1],
 	    ni->ni_vht_spare[2], ni->ni_vht_spare[3], ni->ni_vht_spare[4],
 	    ni->ni_vht_spare[5], ni->ni_vht_spare[6], ni->ni_vht_spare[7]);
+
+	db_printf("\tni_tx_superg[] = {");
+	for (i = 0; i < WME_NUM_TID; i++)
+		db_printf(" %p%s", ni->ni_tx_superg[i], (i == 0) ? "" : ",");
+	db_printf(" }\n");
+
+	db_printf("\tni_rctls = %p", ni->ni_rctls);
+	db_printf("\tni_drv_data = %p", ni->ni_drv_data);
+	db_printf("\n");
+
+	db_printf("\tni_spare[3] = { %#jx %#jx %#jx }",
+	    ni->ni_spare[0], ni->ni_spare[1], ni->ni_spare[2]);
+	db_printf("\n");
+
+#ifdef __notyet__
+	struct ieee80211_psq	ni_psq;		/* power save queue */
+	struct ieee80211_nodestats ni_stats;	/* per-node statistics */
+
+	/* quiet time IE state for the given node */
+	uint32_t		ni_quiet_ie_set;	/* Quiet time IE was seen */
+	struct			ieee80211_quiet_ie ni_quiet_ie;	/* last seen quiet IE */
+
+	/* U-APSD */
+	uint8_t			ni_uapsd;	/* U-APSD per-node flags matching WMM STA QoS Info field */
+#endif
 }
 
 #ifdef IEEE80211_SUPPORT_TDMA
@@ -401,6 +427,31 @@ _db_show_scan(const struct ieee80211_scan_state *ss, int showprocs)
 	db_printf("\tss_next %u ss_last %u ss_mindwell %lu ss_maxdwell %lu",
 	    ss->ss_next, ss->ss_last, ss->ss_mindwell, ss->ss_maxdwell);
 	db_printf("\n");
+}
+
+static void
+_db_show_rate(const struct ieee80211_ratectl *rate, const void *rs,
+    const int showprocs)
+{
+
+	db_printf("\tiv_rate %p", rate);
+	db_printf(" iv_rs %p", rs);
+	db_printf("\n");
+	if (showprocs) {
+		db_printf("\t  ir_name %s", rate->ir_name);
+		db_printf("\n");
+		DB_PRINTSYM("\t  ", "ir_attach", rate->ir_attach);
+		DB_PRINTSYM("\t  ", "ir_detach", rate->ir_detach);
+		DB_PRINTSYM("\t  ", "ir_init", rate->ir_init);
+		DB_PRINTSYM("\t  ", "ir_deinit", rate->ir_deinit);
+		DB_PRINTSYM("\t  ", "ir_node_init", rate->ir_node_init);
+		DB_PRINTSYM("\t  ", "ir_node_deinit", rate->ir_node_deinit);
+		DB_PRINTSYM("\t  ", "ir_rate", rate->ir_rate);
+		DB_PRINTSYM("\t  ", "ir_tx_complete", rate->ir_tx_complete);
+		DB_PRINTSYM("\t  ", "ir_tx_update", rate->ir_tx_update);
+		DB_PRINTSYM("\t  ", "ir_setinterval", rate->ir_setinterval);
+		DB_PRINTSYM("\t  ", "ir_node_stats", rate->ir_node_stats);
+	}
 }
 
 static void
@@ -569,6 +620,8 @@ _db_show_vap(const struct ieee80211vap *vap, int showmesh, int showprocs)
 	db_printf(" lastnonerp %d", vap->iv_lastnonerp);
 	db_printf(" lastnonht %d", vap->iv_lastnonht);
 	db_printf("\n");
+	if (vap->iv_rate != NULL)
+		_db_show_rate(vap->iv_rate, vap->iv_rs, showprocs);
 
 	if (showprocs) {
 		DB_PRINTSYM("\t", "iv_key_alloc", vap->iv_key_alloc);
