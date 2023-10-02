@@ -1203,10 +1203,11 @@ static const struct snl_hdr_parser *all_parsers[] = {
 };
 
 static int
-pfctl_get_states_nl(struct snl_state *ss, struct pfctl_states *states)
+pfctl_get_states_nl(struct snl_state *ss, pfctl_get_state_fn f, void *arg)
 {
 	SNL_VERIFY_PARSERS(all_parsers);
 	int family_id = snl_get_genl_family(ss, PFNL_FAMILY_NAME);
+	int ret;
 
 	struct nlmsghdr *hdr;
 	struct snl_writer nw;
@@ -1219,25 +1220,50 @@ pfctl_get_states_nl(struct snl_state *ss, struct pfctl_states *states)
 
 	snl_send_message(ss, hdr);
 
-	bzero(states, sizeof(*states));
-	TAILQ_INIT(&states->states);
-
 	struct snl_errmsg_data e = {};
 	while ((hdr = snl_read_reply_multi(ss, seq_id, &e)) != NULL) {
-		struct pfctl_state *s = malloc(sizeof(*s));
-		bzero(s, sizeof(*s));
-		if (s == NULL) {
-			pfctl_free_states(states);
-			return (ENOMEM);
-		}
-		if (!snl_parse_nlmsg(ss, hdr, &state_parser, s))
+		struct pfctl_state s;
+		bzero(&s, sizeof(s));
+		if (!snl_parse_nlmsg(ss, hdr, &state_parser, &s))
 			continue;
 
-		s->key[1].af = s->key[0].af;
-		s->key[1].proto = s->key[0].proto;
+		s.key[1].af = s.key[0].af;
+		s.key[1].proto = s.key[0].proto;
 
-		TAILQ_INSERT_TAIL(&states->states, s, entry);
+		ret = f(&s, arg);
+		if (ret != 0)
+			return (ret);
 	}
+
+	return (0);
+}
+
+int
+pfctl_get_states_iter(pfctl_get_state_fn f, void *arg)
+{
+	struct snl_state ss = {};
+	int error;
+
+	snl_init(&ss, NETLINK_GENERIC);
+	error = pfctl_get_states_nl(&ss, f, arg);
+	snl_free(&ss);
+
+	return (error);
+}
+
+static int
+pfctl_append_states(struct pfctl_state *s, void *arg)
+{
+	struct pfctl_state *new;
+	struct pfctl_states *states = (struct pfctl_states *)arg;
+
+	new = malloc(sizeof(*s));
+	if (new == NULL)
+		return (ENOMEM);
+
+	memcpy(new, s, sizeof(*s));
+
+	TAILQ_INSERT_TAIL(&states->states, s, entry);
 
 	return (0);
 }
@@ -1245,14 +1271,18 @@ pfctl_get_states_nl(struct snl_state *ss, struct pfctl_states *states)
 int
 pfctl_get_states(int dev __unused, struct pfctl_states *states)
 {
-	struct snl_state ss = {};
-	int error;
+	int ret;
 
-	snl_init(&ss, NETLINK_GENERIC);
-	error = pfctl_get_states_nl(&ss, states);
-	snl_free(&ss);
+	bzero(states, sizeof(*states));
+	TAILQ_INIT(&states->states);
 
-	return (error);
+	ret = pfctl_get_states_iter(pfctl_append_states, states);
+	if (ret != 0) {
+		pfctl_free_states(states);
+		return (ret);
+	}
+
+	return (0);
 }
 
 void

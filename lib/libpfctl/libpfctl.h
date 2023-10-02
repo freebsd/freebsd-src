@@ -413,6 +413,8 @@ int	pfctl_add_rule(int dev, const struct pfctl_rule *r,
 	    const char *anchor, const char *anchor_call, uint32_t ticket,
 	    uint32_t pool_ticket);
 int	pfctl_set_keepcounters(int dev, bool keep);
+typedef int (*pfctl_get_state_fn)(struct pfctl_state *, void *);
+int pfctl_get_states_iter(pfctl_get_state_fn f, void *arg);
 int	pfctl_get_states(int dev, struct pfctl_states *states);
 void	pfctl_free_states(struct pfctl_states *states);
 int	pfctl_clear_states(int dev, const struct pfctl_kill *kill,
