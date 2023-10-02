@@ -1890,8 +1890,8 @@ swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object)
 			if (rv != VM_PAGER_OK)
 				panic("%s: read from swap failed: %d",
 				    __func__, rv);
-			vm_object_pip_wakeupn(object, 1);
 			VM_OBJECT_WLOCK(object);
+			vm_object_pip_wakeupn(object, 1);
 			vm_page_xunbusy(m);
 
 			/*
