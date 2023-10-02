@@ -218,15 +218,6 @@ for dir in /usr/bin /usr/local/bin; do
 	fi
 done
 
-if [ -z "${svnversion}" ] && [ -x /usr/bin/svnliteversion ] ; then
-	/usr/bin/svnliteversion $(realpath ${0}) >/dev/null 2>&1
-	if [ $? -eq 0 ]; then
-		svnversion=/usr/bin/svnliteversion
-	else
-		svnversion=
-	fi
-fi
-
 if findvcs .git; then
 	for dir in /usr/bin /usr/local/bin; do
 		if [ -x "${dir}/git" ] ; then
