@@ -32,13 +32,9 @@
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <compat/linux/linux_sysproto.h>
 #include <compat/freebsd32/freebsd32_util.h>
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_proto.h>
-
-; Isn't pretty, but there seems to be no other way to trap nosys
-#define	nosys	linux_nosys
 
 0	AUE_NULL	UNIMPL	setup
 1	AUE_EXIT	STD {
@@ -2616,6 +2612,5 @@
 452	AUE_NULL		STD {
 		int linux_fchmodat2(void);
 	}
- ; please, keep this line at the end.
-453	AUE_NULL        UNIMPL  nosys
+
  ; vim: syntax=off
