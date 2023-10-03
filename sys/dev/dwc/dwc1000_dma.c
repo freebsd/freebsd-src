@@ -810,3 +810,38 @@ dma1000_free(struct dwc_softc *sc)
 	if (sc->txdesc_tag != NULL)
 		bus_dma_tag_destroy(sc->txdesc_tag);
 }
+
+/*
+ * Interrupt function
+ */
+
+int
+dma1000_intr(struct dwc_softc *sc)
+{
+	uint32_t reg;
+	int rv;
+
+	DWC_ASSERT_LOCKED(sc);
+
+	rv = 0;
+	reg = READ4(sc, DMA_STATUS);
+	if (reg & DMA_STATUS_NIS) {
+		if (reg & DMA_STATUS_RI)
+			dma1000_rxfinish_locked(sc);
+
+		if (reg & DMA_STATUS_TI) {
+			dma1000_txfinish_locked(sc);
+			dma1000_txstart(sc);
+		}
+	}
+
+	if (reg & DMA_STATUS_AIS) {
+		if (reg & DMA_STATUS_FBI) {
+			/* Fatal bus error */
+			rv = EIO;
+		}
+	}
+
+	WRITE4(sc, DMA_STATUS, reg & DMA_STATUS_INTR_MASK);
+	return (rv);
+}

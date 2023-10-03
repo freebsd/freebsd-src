@@ -300,38 +300,18 @@ static void
 dwc_intr(void *arg)
 {
 	struct dwc_softc *sc;
-	uint32_t reg;
+	int rv;
 
 	sc = arg;
-
 	DWC_LOCK(sc);
-
-	reg = READ4(sc, INTERRUPT_STATUS);
-	if (reg)
-		READ4(sc, SGMII_RGMII_SMII_CTRL_STATUS);
-
-	reg = READ4(sc, DMA_STATUS);
-	if (reg & DMA_STATUS_NIS) {
-		if (reg & DMA_STATUS_RI)
-			dma1000_rxfinish_locked(sc);
-
-		if (reg & DMA_STATUS_TI) {
-			dma1000_txfinish_locked(sc);
-			dwc_txstart_locked(sc);
-		}
+	dwc1000_intr(sc);
+	rv = dma1000_intr(sc);
+	if (rv == EIO) {
+		device_printf(sc->dev,
+		  "Ethernet DMA error, restarting controller.\n");
+		dwc_stop_locked(sc);
+		dwc_init_locked(sc);
 	}
-
-	if (reg & DMA_STATUS_AIS) {
-		if (reg & DMA_STATUS_FBI) {
-			/* Fatal bus error */
-			device_printf(sc->dev,
-			    "Ethernet DMA error, restarting controller.\n");
-			dwc_stop_locked(sc);
-			dwc_init_locked(sc);
-		}
-	}
-
-	WRITE4(sc, DMA_STATUS, reg & DMA_STATUS_INTR_MASK);
 	DWC_UNLOCK(sc);
 }
 
@@ -706,7 +686,7 @@ dwc_detach(device_t dev)
 	 * Disable and tear down interrupts before anything else, so we don't
 	 * race with the handler.
 	 */
-	WRITE4(sc, INTERRUPT_ENABLE, 0);
+	dwc1000_intr_disable(sc);
 	if (sc->intr_cookie != NULL) {
 		bus_teardown_intr(dev, sc->res[1], sc->intr_cookie);
 	}
