@@ -384,10 +384,8 @@ detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 		return (EINVAL);
 	}
 
-	if (dep->de_FileSize < length) {
-		vnode_pager_setsize(DETOV(dep), length);
+	if (dep->de_FileSize < length)
 		return (deextend(dep, length, cred));
-	}
 
 	/*
 	 * If the desired length is 0 then remember the starting cluster of
@@ -496,13 +494,16 @@ int
 deextend(struct denode *dep, u_long length, struct ucred *cred)
 {
 	struct msdosfsmount *pmp = dep->de_pmp;
+	struct vnode *vp = DETOV(dep);
+	struct buf *bp;
+	off_t eof_clusteroff;
 	u_long count;
 	int error;
 
 	/*
 	 * The root of a DOS filesystem cannot be extended.
 	 */
-	if ((DETOV(dep)->v_vflag & VV_ROOT) && !FAT32(pmp))
+	if ((vp->v_vflag & VV_ROOT) != 0 && !FAT32(pmp))
 		return (EINVAL);
 
 	/*
@@ -522,15 +523,47 @@ deextend(struct denode *dep, u_long length, struct ucred *cred)
 		if (count > pmp->pm_freeclustercount)
 			return (ENOSPC);
 		error = extendfile(dep, count, NULL, NULL, DE_CLEAR);
-		if (error) {
-			/* truncate the added clusters away again */
-			(void) detrunc(dep, dep->de_FileSize, 0, cred);
-			return (error);
-		}
+		if (error != 0)
+			goto rewind;
 	}
+
+	/*
+	 * For the case of cluster size larger than the page size, we
+	 * need to ensure that the possibly dirty partial buffer at
+	 * the old end of file is not filled with invalid pages by
+	 * extension.  Otherwise it has a contradictory state of
+	 * B_CACHE | B_DELWRI but with invalid pages, and cannot be
+	 * neither written out nor validated.
+	 *
+	 * Fix it by proactively clearing extended pages.  Need to do
+	 * both vfs_bio_clrbuf() to mark pages valid, and to zero
+	 * actual buffer content which might exist in the tail of the
+	 * already valid cluster.
+	 */
+	error = bread(vp, de_cluster(pmp, dep->de_FileSize), pmp->pm_bpcluster,
+	    NOCRED, &bp);
+	if (error != 0)
+		goto rewind;
+	vfs_bio_clrbuf(bp);
+	eof_clusteroff = de_cn2off(pmp, de_cluster(pmp, dep->de_FileSize));
+	vfs_bio_bzero_buf(bp, dep->de_FileSize - eof_clusteroff,
+	    pmp->pm_bpcluster - dep->de_FileSize + eof_clusteroff);
+	if (!DOINGASYNC(vp))
+		(void)bwrite(bp);
+	else if (vm_page_count_severe() || buf_dirty_count_severe())
+		bawrite(bp);
+	else
+		bdwrite(bp);
+
+	vnode_pager_setsize(vp, length);
 	dep->de_FileSize = length;
 	dep->de_flag |= DE_UPDATE | DE_MODIFIED;
-	return (deupdat(dep, !DOINGASYNC(DETOV(dep))));
+	return (deupdat(dep, !DOINGASYNC(vp)));
+
+rewind:
+	/* truncate the added clusters away again */
+	(void)detrunc(dep, dep->de_FileSize, 0, cred);
+	return (error);
 }
 
 /*
