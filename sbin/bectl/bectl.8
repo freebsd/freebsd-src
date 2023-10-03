@@ -13,7 +13,7 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\"
 .\"
-.Dd March 18, 2024
+.Dd April 9, 2024
 .Dt BECTL 8
 .Os
 .Sh NAME
@@ -201,7 +201,7 @@ Destroy the given
 boot environment or
 .Ar beName Ns Cm @ Ns Ar snapshot
 snapshot without confirmation, unlike in
-.Xr beadm 1 .
+.Xr beadm 8 .
 Specifying
 .Fl F
 will automatically unmount without confirmation.
@@ -492,20 +492,28 @@ flags.
 .Xr zpool 8
 .Sh HISTORY
 .Nm
-is based on
-.Xr beadm 1
-and was implemented as a project for the 2017 Summer of Code, along with
-.Xr libbe 3 .
-.Sh AUTHORS
+and
+.Xr libbe 3
+were written by
+.An Kyle Kneitinger (kneitinger) Aq Mt kyle@kneit.in
+as a 2017 Google Summer of Code project, with
+.An Allan Jude (allanjude) Aq Mt allanjude@freebsd.org
+as mentor.
+.Pp
 .Nm
-was written by
-.An Kyle Kneitinger (kneitinger) Aq Mt kyle@kneit.in .
-.Pp
-.Xr beadm 1
-was written and is maintained by
-.An Slawomir Wojciech Wojtczak (vermaden) Aq Mt vermaden@interia.pl .
-.Pp
+was based on
+.Xr beadm 8 .
+.Sh AUTHORS
+.An Slawomir Wojciech Wojtczak (vermaden) Aq Mt vermaden@interia.pl
+is the creator and maintainer of
+.Xr beadm 8 ; 
 .An Bryan Drewery (bdrewery) Aq Mt bryan@shatow.net
-wrote the original
-.Xr beadm 1
-manual page that this one is derived from.
+contributed child dataset fixes, and wrote its manual page.
+.Pp
+This manual page derived from the page for 
+.Xr beadm 8 .
+.Pp
+Most subsequent changes to
+.Nm
+and this page were written by
+.An Kyle Evans (kevans) Aq Mt kevans@freebsd.org .
