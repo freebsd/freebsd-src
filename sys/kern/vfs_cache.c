@@ -4036,7 +4036,7 @@ syscal_vfs_cache_fast_lookup(SYSCTL_HANDLER_ARGS)
 		cache_fast_lookup_enabled_recalc();
 	return (error);
 }
-SYSCTL_PROC(_vfs, OID_AUTO, cache_fast_lookup, CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_MPSAFE,
+SYSCTL_PROC(_vfs_cache_param, OID_AUTO, fast_lookup, CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_MPSAFE,
     &cache_fast_lookup, 0, syscal_vfs_cache_fast_lookup, "IU", "");
 
 /*
