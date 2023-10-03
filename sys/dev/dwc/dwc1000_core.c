@@ -419,3 +419,22 @@ dwc1000_harvest_stats(struct dwc_softc *sc)
 
 	dwc1000_clear_stats(sc);
 }
+
+void
+dwc1000_intr(struct dwc_softc *sc)
+{
+	uint32_t reg;
+
+	DWC_ASSERT_LOCKED(sc);
+
+	reg = READ4(sc, INTERRUPT_STATUS);
+	if (reg)
+		READ4(sc, SGMII_RGMII_SMII_CTRL_STATUS);
+}
+
+void
+dwc1000_intr_disable(struct dwc_softc *sc)
+{
+
+	WRITE4(sc, INTERRUPT_ENABLE, 0);
+}
