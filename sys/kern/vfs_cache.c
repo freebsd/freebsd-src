@@ -197,10 +197,85 @@
  * - vnodes are subject to being recycled even if target inode is left in memory,
  *   which loses the name cache entries when it perhaps should not. in case of tmpfs
  *   names get duplicated -- kept by filesystem itself and namecache separately
- * - struct namecache has a fixed size and comes in 2 variants, often wasting space.
- *   now hard to replace with malloc due to dependence on SMR.
+ * - struct namecache has a fixed size and comes in 2 variants, often wasting
+ *   space.  now hard to replace with malloc due to dependence on SMR, which
+ *   requires UMA zones to opt in
  * - lack of better integration with the kernel also turns nullfs into a layered
  *   filesystem instead of something which can take advantage of caching
+ *
+ * Appendix A: where is the time lost, expanding on paragraph III
+ *
+ * While some care went into optimizing lookups, there is still plenty of
+ * performance left on the table, most notably from single-threaded standpoint.
+ * Below is a woefully incomplete list of changes which can help.  Ideas are
+ * mostly sketched out, no claim is made all kinks or prerequisites are laid
+ * out.
+ *
+ * Note there is performance lost all over VFS.
+ *
+ * === SMR-only lookup
+ *
+ * For commonly used ops like stat(2), when the terminal vnode *is* cached,
+ * lockless lookup could refrain from refing/locking the found vnode and
+ * instead return while within the SMR section. Then a call to, say,
+ * vop_stat_smr could do the work (or fail with EAGAIN), finally the result
+ * would be validated with seqc not changing. This would be faster
+ * single-threaded as it dodges atomics and would provide full scalability for
+ * multicore uses. This would *not* work for open(2) or other calls which need
+ * the vnode to hang around for the long haul, but would work for aforementioned
+ * stat(2) but also access(2), readlink(2), realpathat(2) and probably more.
+ *
+ * === hotpatching for sdt probes
+ *
+ * They result in *tons* of branches all over with rather regrettable codegen
+ * at times. Removing sdt probes altogether gives over 2% boost in lookup rate.
+ * Reworking the code to patch itself at runtime with asm goto would solve it.
+ * asm goto is fully supported by gcc and clang.
+ *
+ * === copyinstr
+ *
+ * On all architectures it operates one byte at a time, while it could be
+ * word-sized instead thanks to the Mycroft trick.
+ *
+ * API itself is rather pessimal for path lookup, accepting arbitrary sizes and
+ * *optionally* filling in the length parameter.
+ *
+ * Instead a new routine (copyinpath?) could be introduced, demanding a buffer
+ * size which is a multiply of the word (and never zero), with the length
+ * always returned. On top of it the routine could be allowed to transform the
+ * buffer in arbitrary ways, most notably writing past the found length (not to
+ * be confused with writing past buffer size) -- this would allow word-sized
+ * movs while checking for '\0' later.
+ *
+ * === detour through namei
+ *
+ * Currently one suffers being called from namei, which then has to check if
+ * things worked out locklessly. Instead the lockless lookup could be the
+ * actual entry point which calls what is currently namei as a fallback.
+ *
+ * === avoidable branches in cache_can_fplookup
+ *
+ * The cache_fast_lookup_enabled flag check could be hotpatchable (in fact if
+ * this is off, none of fplookup code should execute).
+ *
+ * Both audit and capsicum branches can be combined into one, but it requires
+ * paying off a lot of tech debt first.
+ *
+ * ni_startdir could be indicated with a flag in cn_flags, eliminating the
+ * branch.
+ *
+ * === mount stacks
+ *
+ * Crossing a mount requires checking if perhaps something is mounted on top.
+ * Instead, an additional entry could be added to struct mount with a pointer
+ * to the final mount on the stack. This would be recalculated on each
+ * mount/unmount.
+ *
+ * === root vnodes
+ *
+ * It could become part of the API contract to *always* have a rootvnode set in
+ * mnt_rootvnode. Such vnodes are annotated with VV_ROOT and vnlru would have
+ * to be modified to always skip them.
  */
 
 static SYSCTL_NODE(_vfs, OID_AUTO, cache, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
