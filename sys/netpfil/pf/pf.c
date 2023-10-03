@@ -6737,7 +6737,7 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 			} else {
 				ifp = s->rt_kif ? s->rt_kif->pfik_ifp : NULL;
 				/* If pfsync'd */
-				if (ifp == NULL)
+				if (ifp == NULL && r->rpool.cur != NULL)
 					ifp = r->rpool.cur->kif ?
 					    r->rpool.cur->kif->pfik_ifp : NULL;
 				PF_STATE_UNLOCK(s);
@@ -6794,9 +6794,10 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 			    s->rt_addr.v4.s_addr;
 		ifp = s->rt_kif ? s->rt_kif->pfik_ifp : NULL;
 		/* If pfsync'd */
-		if (ifp == NULL)
+		if (ifp == NULL && r->rpool.cur != NULL) {
 			ifp = r->rpool.cur->kif ?
 			    r->rpool.cur->kif->pfik_ifp : NULL;
+		}
 		PF_STATE_UNLOCK(s);
 	}
 
@@ -6950,7 +6951,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 			} else {
 				ifp = s->rt_kif ? s->rt_kif->pfik_ifp : NULL;
 				/* If pfsync'd */
-				if (ifp == NULL)
+				if (ifp == NULL && r->rpool.cur != NULL)
 					ifp = r->rpool.cur->kif ?
 					    r->rpool.cur->kif->pfik_ifp : NULL;
 				PF_STATE_UNLOCK(s);
@@ -7008,7 +7009,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 			    &s->rt_addr, AF_INET6);
 		ifp = s->rt_kif ? s->rt_kif->pfik_ifp : NULL;
 		/* If pfsync'd */
-		if (ifp == NULL)
+		if (ifp == NULL && r->rpool.cur != NULL)
 			ifp = r->rpool.cur->kif ?
 			    r->rpool.cur->kif->pfik_ifp : NULL;
 	}
