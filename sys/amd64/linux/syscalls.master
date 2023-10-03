@@ -32,12 +32,8 @@
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <compat/linux/linux_sysproto.h>
 #include <amd64/linux/linux.h>
 #include <amd64/linux/linux_proto.h>
-
-; Isn't pretty, but there seems to be no other way to trap nosys
-#define	nosys	linux_nosys
 
 0	AUE_NULL	NOPROTO {
 		int read(
@@ -2191,6 +2187,5 @@
 453	AUE_NULL		STD {
 		int linux_map_shadow_stack(void);
 	}
-; please, keep this line at the end.
-454	AUE_NULL        UNIMPL  nosys
+
 ; vim: syntax=off
