@@ -12,6 +12,20 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20231003:
+	13.2-RELEASE-p4 FreeBSD-EN-23:12.freebsd-update
+			FreeBSD-SA-23:12.msdosfs
+			FreeBSD-SA-23:13.capsicum
+			FreeBSD-SA-23:14.smccc
+
+	freebsd-update to 14.0 fails [EN-23:12.freebsd-update]
+
+	Fix msdosfs data disclosure [SA-23:12.msdosfs]
+
+	copy_file_range insufficient capability rights check [SA-23:13.capsicum]
+
+	arm64 boot CPUs may lack speculative execution protections [SA-23:14.smccc]
+
 20230906:
 	13.2-RELEASE-p3 FreeBSD-EN-23:09.freebsd-update
 			FreeBSD-EN-23:10.pci
