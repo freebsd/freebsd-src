@@ -605,9 +605,17 @@ int
 dma1000_init(struct dwc_softc *sc)
 {
 	struct mbuf *m;
+	uint32_t reg;
 	int error;
 	int nidx;
 	int idx;
+
+	/*
+	 * DMA must be stop while changing descriptor list addresses.
+	 */
+	reg = READ4(sc, OPERATION_MODE);
+	reg &= ~(MODE_ST | MODE_SR);
+	WRITE4(sc, OPERATION_MODE, reg);
 
 	/*
 	 * Set up TX descriptor ring, descriptors, and dma maps.
@@ -684,6 +692,8 @@ dma1000_init(struct dwc_softc *sc)
 	for (idx = 0; idx < TX_DESC_COUNT; idx++)
 		dwc_setup_txdesc(sc, idx, 0, 0, 0, false, false);
 
+	WRITE4(sc, TX_DESCR_LIST_ADDR, sc->txdesc_ring_paddr);
+
 	/*
 	 * Set up RX descriptor ring, descriptors, dma maps, and mbufs.
 	 */
@@ -758,6 +768,7 @@ dma1000_init(struct dwc_softc *sc)
 			goto out;
 		}
 	}
+	WRITE4(sc, RX_DESCR_LIST_ADDR, sc->rxdesc_ring_paddr);
 
 out:
 	if (error != 0)
