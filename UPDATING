@@ -17,6 +17,17 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20231003:
+	12.4-RELEASE-p6 FreeBSD-EN-23:09.freebsd-update
+			FreeBSD-EN-23:12.freebsd-update
+			FreeBSD-SA-23:12.msdosfs
+
+	freebsd-update incorrectly merges files on upgrade [EN-23:09.freebsd-update]
+
+	freebsd-update to 14.0 fails [EN-23:12.freebsd-update]
+
+	Fix msdosfs data disclosure [SA-23:12.msdosfs]
+
 20230906:
 	12.4-RELEASE-p5 FreeBSD-SA-23:10.pf
 			FreeBSD-SA-23:11.wifi
