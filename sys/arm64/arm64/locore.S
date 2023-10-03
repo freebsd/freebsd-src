@@ -112,6 +112,8 @@ ENTRY(_start)
 	br	x15
 
 virtdone:
+	BTI_J
+
 	/* Set up the stack */
 	adrp	x25, initstack_end
 	add	x25, x25, :lo12:initstack_end
@@ -230,6 +232,8 @@ ENTRY(mpentry)
 	br	x15
 
 mp_virtdone:
+	BTI_J
+
 	/* Start using the AP boot stack */
 	ldr	x4, =bootstack
 	ldr	x4, [x4]
