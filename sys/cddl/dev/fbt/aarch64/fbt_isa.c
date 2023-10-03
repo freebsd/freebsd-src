@@ -90,7 +90,6 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	uint32_t *instr, *limit;
 	const char *name;
 	char *modname;
-	bool found;
 	int offs;
 
 	modname = opaque;
@@ -119,16 +118,16 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	if ((*instr & BTI_MASK) == BTI_INSTR)
 		instr++;
 
-	/* Look for stp (pre-indexed) operation */
-	found = false;
 	/*
 	 * If the first instruction is a nop it's a specially marked
 	 * asm function. We only support a nop first as it's not a normal
 	 * part of the function prologue.
 	 */
 	if (*instr == NOP_INSTR)
-		found = true;
-	for (; !found && instr < limit; instr++) {
+		goto found;
+
+	/* Look for stp (pre-indexed) or sub operation */
+	for (; instr < limit; instr++) {
 		/*
 		 * Functions start with "stp xt1, xt2, [xn, <const>]!" or
 		 * "sub sp, sp, <const>".
@@ -142,14 +141,14 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 			 * past the function prologue.
 			 */
 			if (((*instr >> ADDR_SHIFT) & ADDR_MASK) == 31)
-				found = true;
+				break;
 		} else if ((*instr & SUB_MASK) == SUB_INSTR &&
 		    ((*instr >> SUB_RD_SHIFT) & SUB_R_MASK) == 31 &&
 		    ((*instr >> SUB_RN_SHIFT) & SUB_R_MASK) == 31)
-			found = true;
+			break;
 	}
-
-	if (!found)
+found:
+	if (instr >= limit)
 		return (0);
 
 	fbt = malloc(sizeof (fbt_probe_t), M_FBT, M_WAITOK | M_ZERO);
