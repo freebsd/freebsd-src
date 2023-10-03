@@ -65,7 +65,6 @@
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_signal.h>
-#include <compat/linux/linux_sysproto.h>
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_vdso.h>
 
