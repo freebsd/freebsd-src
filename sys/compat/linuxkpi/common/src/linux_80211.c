@@ -2481,6 +2481,9 @@ lkpi_ic_vap_delete(struct ieee80211vap *vap)
 
 	lkpi_80211_mo_remove_interface(hw, vif);
 
+	/* Single VAP, so we can do this here. */
+	lkpi_80211_mo_stop(hw);
+
 	mtx_destroy(&lvif->mtx);
 	free(lvif, M_80211_VAP);
 }
