@@ -610,21 +610,10 @@ dwc_attach(device_t dev)
 
 	WRITE4(sc, BUS_MODE, reg);
 
-	/*
-	 * DMA must be stop while changing descriptor list addresses.
-	 */
-	reg = READ4(sc, OPERATION_MODE);
-	reg &= ~(MODE_ST | MODE_SR);
-	WRITE4(sc, OPERATION_MODE, reg);
-
 	if (dma1000_init(sc)) {
 		bus_release_resources(dev, dwc_spec, sc->res);
 		return (ENXIO);
 	}
-
-	/* Setup addresses */
-	WRITE4(sc, RX_DESCR_LIST_ADDR, sc->rxdesc_ring_paddr);
-	WRITE4(sc, TX_DESCR_LIST_ADDR, sc->txdesc_ring_paddr);
 
 	mtx_init(&sc->mtx, device_get_nameunit(sc->dev),
 	    MTX_NETWORK_LOCK, MTX_DEF);
