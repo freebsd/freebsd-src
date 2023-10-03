@@ -1055,8 +1055,6 @@ fetch_ssl_setup_transport_layer(SSL_CTX *ctx, int verbose)
 /*
  * Configure peer verification based on environment.
  */
-#define LOCAL_CERT_FILE	_PATH_LOCALBASE "/etc/ssl/cert.pem"
-#define BASE_CERT_FILE	"/etc/ssl/cert.pem"
 static int
 fetch_ssl_setup_peer_verification(SSL_CTX *ctx, int verbose)
 {
@@ -1066,12 +1064,6 @@ fetch_ssl_setup_peer_verification(SSL_CTX *ctx, int verbose)
 
 	if (getenv("SSL_NO_VERIFY_PEER") == NULL) {
 		ca_cert_file = getenv("SSL_CA_CERT_FILE");
-		if (ca_cert_file == NULL &&
-		    access(LOCAL_CERT_FILE, R_OK) == 0)
-			ca_cert_file = LOCAL_CERT_FILE;
-		if (ca_cert_file == NULL &&
-		    access(BASE_CERT_FILE, R_OK) == 0)
-			ca_cert_file = BASE_CERT_FILE;
 		ca_cert_path = getenv("SSL_CA_CERT_PATH");
 		if (verbose) {
 			fetch_info("Peer verification enabled");
