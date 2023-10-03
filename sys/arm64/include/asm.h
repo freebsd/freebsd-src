@@ -48,7 +48,7 @@
 
 #define	LENTRY(sym)						\
 	.text; .align 2; .type sym,#function; sym:		\
-	.cfi_startproc; DTRACE_NOP
+	.cfi_startproc; BTI_C; DTRACE_NOP
 #define	ENTRY(sym)						\
 	.globl sym; LENTRY(sym)
 #define	EENTRY(sym)						\
@@ -113,6 +113,34 @@
 	eret;								\
 	dsb	sy;							\
 	isb
+
+/*
+ * When a CPU that implements FEAT_BTI uses a BR/BLR instruction (or the
+ * pointer authentication variants, e.g. BLRAA) and the target location
+ * has the GP attribute in its page table, then the target of the BR/BLR
+ * needs to be a valid BTI landing pad.
+ *
+ * BTI_C should be used at the start of a function and is used in the
+ * ENTRY macro. It can be replaced by PACIASP or PACIBSP, however these
+ * also need an appropriate authenticate instruction before returning.
+ *
+ * BTI_J should be used as the target instruction when branching with a
+ * BR instruction within a function.
+ *
+ * When using a BR to branch to a new function, e.g. a tail call, then
+ * the target register should be x16 or x17 so it is compatible with
+ * the BRI_C instruction.
+ *
+ * As these instructions are in the hint space they are a NOP when
+ * the CPU doesn't implement FEAT_BTI so are safe to use.
+ */
+#ifdef __ARM_FEATURE_BTI_DEFAULT
+#define	BTI_C	hint	#34
+#define	BTI_J	hint	#36
+#else
+#define	BTI_C
+#define	BTI_J
+#endif
 
 #endif /* _MACHINE_ASM_H_ */
 
