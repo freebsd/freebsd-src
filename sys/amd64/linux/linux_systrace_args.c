@@ -11,7 +11,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	int64_t *iarg = (int64_t *)uarg;
 	int a = 0;
 	switch (sysnum) {
-#define	nosys	linux_nosys
 	/* read */
 	case 0: {
 		struct read_args *p = params;
@@ -2816,7 +2815,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 {
 	const char *p = NULL;
 	switch (sysnum) {
-#define	nosys	linux_nosys
 	/* read */
 	case 0:
 		switch (ndx) {
@@ -7280,7 +7278,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 {
 	const char *p = NULL;
 	switch (sysnum) {
-#define	nosys	linux_nosys
 	/* read */
 	case 0:
 		if (ndx == 0 || ndx == 1)

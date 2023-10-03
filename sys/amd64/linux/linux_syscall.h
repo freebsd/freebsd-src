@@ -354,4 +354,4 @@
 #define	LINUX_SYS_linux_cachestat	451
 #define	LINUX_SYS_linux_fchmodat2	452
 #define	LINUX_SYS_linux_map_shadow_stack	453
-#define	LINUX_SYS_MAXSYSCALL	455
+#define	LINUX_SYS_MAXSYSCALL	454

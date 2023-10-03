@@ -5,7 +5,6 @@
  */
 
 const char *linux_syscallnames[] = {
-#define	nosys	linux_nosys
 	"#0",			/* 0 = setup */
 	"linux_exit",			/* 1 = linux_exit */
 	"linux_fork",			/* 2 = linux_fork */
@@ -459,5 +458,4 @@ const char *linux_syscallnames[] = {
 	"linux_set_mempolicy_home_node",			/* 450 = linux_set_mempolicy_home_node */
 	"linux_cachestat",			/* 451 = linux_cachestat */
 	"linux_fchmodat2",			/* 452 = linux_fchmodat2 */
-	"#453",			/* 453 = nosys */
 };
