@@ -223,7 +223,7 @@ struct syscall_module_data {
 	.sy_return = 0,						\
 	.sy_flags = 0,						\
 	.sy_thrcnt = 0						\
-}							
+}
 
 #define	MAKE_SYSENT(syscallname)				\
 static struct sysent syscallname##_sysent = SYSENT_INIT_VALS(syscallname);
