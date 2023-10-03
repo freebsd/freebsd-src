@@ -413,4 +413,4 @@
 #define	LINUX32_SYS_linux_set_mempolicy_home_node	450
 #define	LINUX32_SYS_linux_cachestat	451
 #define	LINUX32_SYS_linux_fchmodat2	452
-#define	LINUX32_SYS_MAXSYSCALL	454
+#define	LINUX32_SYS_MAXSYSCALL	453

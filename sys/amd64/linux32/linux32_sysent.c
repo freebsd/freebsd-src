@@ -7,7 +7,6 @@
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <compat/linux/linux_sysproto.h>
 #include <compat/freebsd32/freebsd32_util.h>
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_proto.h>
@@ -16,7 +15,6 @@
 
 /* The casts are bogus but will do for now. */
 struct sysent linux32_sysent[] = {
-#define	nosys	linux_nosys
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 0 = setup */
 	{ .sy_narg = AS(linux_exit_args), .sy_call = (sy_call_t *)linux_exit, .sy_auevent = AUE_EXIT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 1 = linux_exit */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_fork, .sy_auevent = AUE_FORK, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 2 = linux_fork */
@@ -470,5 +468,4 @@ struct sysent linux32_sysent[] = {
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_set_mempolicy_home_node, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 450 = linux_set_mempolicy_home_node */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_cachestat, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 451 = linux_cachestat */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_fchmodat2, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 452 = linux_fchmodat2 */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 453 = nosys */
 };

@@ -33,7 +33,6 @@ struct thread;
 #define	PADR_(t)	0
 #endif
 
-#define	nosys	linux_nosys
 struct linux_exit_args {
 	char rval_l_[PADL_(int)]; int rval; char rval_r_[PADR_(int)];
 };
@@ -1730,7 +1729,6 @@ struct linux_cachestat_args {
 struct linux_fchmodat2_args {
 	syscallarg_t dummy;
 };
-#define	nosys	linux_nosys
 int	linux_exit(struct thread *, struct linux_exit_args *);
 int	linux_fork(struct thread *, struct linux_fork_args *);
 int	linux_write(struct thread *, struct linux_write_args *);

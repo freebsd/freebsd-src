@@ -33,7 +33,6 @@ struct thread;
 #define	PADR_(t)	0
 #endif
 
-#define	nosys	linux_nosys
 struct linux_write_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
@@ -1438,7 +1437,6 @@ struct linux_fchmodat2_args {
 struct linux_map_shadow_stack_args {
 	syscallarg_t dummy;
 };
-#define	nosys	linux_nosys
 int	linux_write(struct thread *, struct linux_write_args *);
 int	linux_open(struct thread *, struct linux_open_args *);
 int	linux_newstat(struct thread *, struct linux_newstat_args *);

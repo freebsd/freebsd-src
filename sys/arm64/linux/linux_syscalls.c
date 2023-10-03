@@ -5,7 +5,6 @@
  */
 
 const char *linux_syscallnames[] = {
-#define	nosys	linux_nosys
 	"#0",			/* 0 = linux_io_setup */
 	"#1",			/* 1 = linux_io_destroy */
 	"#2",			/* 2 = linux_io_submit */
@@ -459,5 +458,4 @@ const char *linux_syscallnames[] = {
 	"linux_set_mempolicy_home_node",			/* 450 = linux_set_mempolicy_home_node */
 	"linux_cachestat",			/* 451 = linux_cachestat */
 	"linux_fchmodat2",			/* 452 = linux_fchmodat2 */
-	"#453",			/* 453 = nosys */
 };

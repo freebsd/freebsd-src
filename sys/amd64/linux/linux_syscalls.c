@@ -5,7 +5,6 @@
  */
 
 const char *linux_syscallnames[] = {
-#define	nosys	linux_nosys
 	"read",			/* 0 = read */
 	"linux_write",			/* 1 = linux_write */
 	"linux_open",			/* 2 = linux_open */
@@ -460,5 +459,4 @@ const char *linux_syscallnames[] = {
 	"linux_cachestat",			/* 451 = linux_cachestat */
 	"linux_fchmodat2",			/* 452 = linux_fchmodat2 */
 	"linux_map_shadow_stack",			/* 453 = linux_map_shadow_stack */
-	"#454",			/* 454 = nosys */
 };

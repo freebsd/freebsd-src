@@ -11,7 +11,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	int64_t *iarg = (int64_t *)uarg;
 	int a = 0;
 	switch (sysnum) {
-#define	nosys	linux_nosys
 	/* linux_setxattr */
 	case 5: {
 		struct linux_setxattr_args *p = params;
@@ -2433,7 +2432,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 {
 	const char *p = NULL;
 	switch (sysnum) {
-#define	nosys	linux_nosys
 	/* linux_setxattr */
 	case 5:
 		switch (ndx) {
@@ -6347,7 +6345,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 {
 	const char *p = NULL;
 	switch (sysnum) {
-#define	nosys	linux_nosys
 	/* linux_setxattr */
 	case 5:
 		if (ndx == 0 || ndx == 1)
