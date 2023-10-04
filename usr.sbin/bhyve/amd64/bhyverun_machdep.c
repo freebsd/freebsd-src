@@ -33,9 +33,21 @@
 
 #include <vmmapi.h>
 
+#include "acpi.h"
+#include "atkbdc.h"
 #include "bhyverun.h"
 #include "config.h"
+#include "e820.h"
+#include "fwctl.h"
+#include "ioapic.h"
+#include "inout.h"
+#include "kernemu_dev.h"
+#include "mptbl.h"
+#include "pci_irq.h"
 #include "pci_lpc.h"
+#include "rtc.h"
+#include "smbiostbl.h"
+#include "xmsr.h"
 
 void
 bhyve_init_config(void)
@@ -122,4 +134,54 @@ bhyve_start_vcpu(struct vcpu *vcpu, bool bsp)
 	}
 
 	fbsdrun_addcpu(vcpu_id(vcpu));
+}
+
+int
+bhyve_init_platform(struct vmctx *ctx, struct vcpu *bsp __unused)
+{
+	int error;
+
+	error = init_msr();
+	if (error != 0)
+		return (error);
+	init_inout();
+	kernemu_dev_init();
+	atkbdc_init(ctx);
+	pci_irq_init(ctx);
+	ioapic_init(ctx);
+	rtc_init(ctx);
+	sci_init(ctx);
+	error = e820_init(ctx);
+	if (error != 0)
+		return (error);
+
+	return (0);
+}
+
+int
+bhyve_init_platform_late(struct vmctx *ctx, struct vcpu *bsp __unused)
+{
+	int error;
+
+	if (get_config_bool_default("x86.mptable", true)) {
+		error = mptable_build(ctx, guest_ncpus);
+		if (error != 0)
+			return (error);
+	}
+	error = smbios_build(ctx);
+	if (error != 0)
+		return (error);
+	error = e820_finalize();
+	if (error != 0)
+		return (error);
+
+	if (lpc_bootrom() && strcmp(lpc_fwcfg(), "bhyve") == 0)
+		fwctl_init();
+
+	if (get_config_bool("acpi_tables")) {
+		error = acpi_build(ctx, guest_ncpus);
+		assert(error == 0);
+	}
+
+	return (0);
 }
