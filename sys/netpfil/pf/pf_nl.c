@@ -247,6 +247,30 @@ handle_getstate(struct nlpcb *nlp, struct nl_parsed_state *attrs,
 }
 
 static int
+dump_creatorid(struct nlpcb *nlp, const struct nlmsghdr *hdr, uint32_t creator,
+    struct nl_pstate *npt)
+{
+	struct nl_writer *nw = npt->nw;
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		goto enomem;
+
+	struct genlmsghdr *ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_GETCREATORS;
+	ghdr_new->version = 0;
+	ghdr_new->reserved = 0;
+
+	nlattr_add_u32(nw, PF_ST_CREATORID, htonl(creator));
+
+	if (nlmsg_end(nw))
+		return (0);
+
+enomem:
+	nlmsg_abort(nw);
+	return (ENOMEM);
+}
+
+static int
 pf_handle_getstates(struct nlmsghdr *hdr, struct nl_pstate *npt)
 {
 	int error;
@@ -264,6 +288,56 @@ pf_handle_getstates(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (error);
 }
 
+static int
+pf_handle_getcreators(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	uint32_t creators[16];
+	int error = 0;
+
+	bzero(creators, sizeof(creators));
+
+	for (int i = 0; i < pf_hashmask; i++) {
+		struct pf_idhash *ih = &V_pf_idhash[i];
+		struct pf_kstate *s;
+
+		if (LIST_EMPTY(&ih->states))
+			continue;
+
+		PF_HASHROW_LOCK(ih);
+		LIST_FOREACH(s, &ih->states, entry) {
+			int j;
+			if (s->timeout == PFTM_UNLINKED)
+				continue;
+
+			for (j = 0; j < nitems(creators); j++) {
+				if (creators[j] == s->creatorid)
+					break;
+				if (creators[j] == 0) {
+					creators[j] = s->creatorid;
+					break;
+				}
+			}
+			if (j == nitems(creators))
+				printf("Warning: too many creators!\n");
+		}
+		PF_HASHROW_UNLOCK(ih);
+	}
+
+	hdr->nlmsg_flags |= NLM_F_MULTI;
+	for (int i = 0; i < nitems(creators); i++) {
+		if (creators[i] == 0)
+			break;
+		error = dump_creatorid(npt->nlp, hdr, creators[i], npt);
+	}
+
+	if (!nlmsg_end_dump(npt->nw, error, hdr)) {
+		NL_LOG(LOG_DEBUG, "Unable to finalize the dump");
+		return (ENOMEM);
+	}
+
+	return (error);
+}
+
 static const struct nlhdr_parser *all_parsers[] = { &state_parser };
 
 static int family_id;
@@ -273,6 +347,12 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_num = PFNL_CMD_GETSTATES,
 		.cmd_name = "GETSTATES",
 		.cmd_cb = pf_handle_getstates,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+	},
+	{
+		.cmd_num = PFNL_CMD_GETCREATORS,
+		.cmd_name = "GETCREATORS",
+		.cmd_cb = pf_handle_getcreators,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 	},
 };
