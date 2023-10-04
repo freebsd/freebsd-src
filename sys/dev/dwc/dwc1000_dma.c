@@ -632,6 +632,20 @@ dma1000_init(struct dwc_softc *sc)
 	int nidx;
 	int idx;
 
+	reg = BUS_MODE_USP;
+	if (!sc->nopblx8)
+		reg |= BUS_MODE_EIGHTXPBL;
+	reg |= (sc->txpbl << BUS_MODE_PBL_SHIFT);
+	reg |= (sc->rxpbl << BUS_MODE_RPBL_SHIFT);
+	if (sc->fixed_burst)
+		reg |= BUS_MODE_FIXEDBURST;
+	if (sc->mixed_burst)
+		reg |= BUS_MODE_MIXEDBURST;
+	if (sc->aal)
+		reg |= BUS_MODE_AAL;
+
+	WRITE4(sc, BUS_MODE, reg);
+
 	/*
 	 * DMA must be stop while changing descriptor list addresses.
 	 */

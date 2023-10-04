@@ -498,12 +498,7 @@ dwc_attach(device_t dev)
 	struct dwc_softc *sc;
 	if_t ifp;
 	int error;
-	uint32_t reg;
-	uint32_t txpbl, rxpbl, pbl;
-	bool nopblx8 = false;
-	bool fixed_burst = false;
-	bool mixed_burst = false;
-	bool aal = false;
+	uint32_t pbl;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -534,18 +529,18 @@ dwc_attach(device_t dev)
 
 	if (OF_getencprop(sc->node, "snps,pbl", &pbl, sizeof(uint32_t)) <= 0)
 		pbl = BUS_MODE_DEFAULT_PBL;
-	if (OF_getencprop(sc->node, "snps,txpbl", &txpbl, sizeof(uint32_t)) <= 0)
-		txpbl = pbl;
-	if (OF_getencprop(sc->node, "snps,rxpbl", &rxpbl, sizeof(uint32_t)) <= 0)
-		rxpbl = pbl;
+	if (OF_getencprop(sc->node, "snps,txpbl", &sc->txpbl, sizeof(uint32_t)) <= 0)
+		sc->txpbl = pbl;
+	if (OF_getencprop(sc->node, "snps,rxpbl", &sc->rxpbl, sizeof(uint32_t)) <= 0)
+		sc->rxpbl = pbl;
 	if (OF_hasprop(sc->node, "snps,no-pbl-x8") == 1)
-		nopblx8 = true;
+		sc->nopblx8 = true;
 	if (OF_hasprop(sc->node, "snps,fixed-burst") == 1)
-		fixed_burst = true;
+		sc->fixed_burst = true;
 	if (OF_hasprop(sc->node, "snps,mixed-burst") == 1)
-		mixed_burst = true;
+		sc->mixed_burst = true;
 	if (OF_hasprop(sc->node, "snps,aal") == 1)
-		aal = true;
+		sc->aal = true;
 
 	error = clk_set_assigned(dev, ofw_bus_get_node(dev));
 	if (error != 0) {
@@ -584,20 +579,6 @@ dwc_attach(device_t dev)
 		bus_release_resources(sc->dev, dwc_spec, sc->res);
 		return (error);
 	}
-
-	reg = BUS_MODE_USP;
-	if (!nopblx8)
-		reg |= BUS_MODE_EIGHTXPBL;
-	reg |= (txpbl << BUS_MODE_PBL_SHIFT);
-	reg |= (rxpbl << BUS_MODE_RPBL_SHIFT);
-	if (fixed_burst)
-		reg |= BUS_MODE_FIXEDBURST;
-	if (mixed_burst)
-		reg |= BUS_MODE_MIXEDBURST;
-	if (aal)
-		reg |= BUS_MODE_AAL;
-
-	WRITE4(sc, BUS_MODE, reg);
 
 	if (dma1000_init(sc)) {
 		bus_release_resources(dev, dwc_spec, sc->res);
