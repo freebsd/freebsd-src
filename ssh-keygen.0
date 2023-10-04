@@ -46,7 +46,7 @@ DESCRIPTION
      ssh(1).  ssh-keygen can create keys for use by SSH protocol version 2.
 
      The type of key to be generated is specified with the -t option.  If
-     invoked without any arguments, ssh-keygen will generate an RSA key.
+     invoked without any arguments, ssh-keygen will generate an Ed25519 key.
 
      ssh-keygen is also used to generate groups for use in Diffie-Hellman
      group exchange (DH-GEX).  See the MODULI GENERATION section for details.
@@ -907,4 +907,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.3                      July 23, 2023                     OpenBSD 7.3
+OpenBSD 7.3                    September 4, 2023                   OpenBSD 7.3

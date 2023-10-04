@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.185 2023/08/04 06:32:40 dtucker Exp $ */
+/* $OpenBSD: misc.c,v 1.187 2023/08/28 03:31:16 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005-2020 Damien Miller.  All rights reserved.
@@ -313,20 +313,38 @@ set_sock_tos(int fd, int tos)
  * Returns 0 if fd ready or -1 on timeout or error (see errno).
  */
 static int
-waitfd(int fd, int *timeoutp, short events)
+waitfd(int fd, int *timeoutp, short events, volatile sig_atomic_t *stop)
 {
 	struct pollfd pfd;
-	struct timeval t_start;
-	int oerrno, r, have_timeout = (*timeoutp >= 0);
+	struct timespec timeout;
+	int oerrno, r;
+	sigset_t nsigset, osigset;
 
+	if (timeoutp && *timeoutp == -1)
+		timeoutp = NULL;
 	pfd.fd = fd;
 	pfd.events = events;
-	for (; !have_timeout || *timeoutp >= 0;) {
-		monotime_tv(&t_start);
-		r = poll(&pfd, 1, *timeoutp);
+	ptimeout_init(&timeout);
+	if (timeoutp != NULL)
+		ptimeout_deadline_ms(&timeout, *timeoutp);
+	if (stop != NULL)
+		sigfillset(&nsigset);
+	for (; timeoutp == NULL || *timeoutp >= 0;) {
+		if (stop != NULL) {
+			sigprocmask(SIG_BLOCK, &nsigset, &osigset);
+			if (*stop) {
+				sigprocmask(SIG_SETMASK, &osigset, NULL);
+				errno = EINTR;
+				return -1;
+			}
+		}
+		r = ppoll(&pfd, 1, ptimeout_get_tsp(&timeout),
+		    stop != NULL ? &osigset : NULL);
 		oerrno = errno;
-		if (have_timeout)
-			ms_subtract_diff(&t_start, timeoutp);
+		if (stop != NULL)
+			sigprocmask(SIG_SETMASK, &osigset, NULL);
+		if (timeoutp)
+			*timeoutp = ptimeout_get_ms(&timeout);
 		errno = oerrno;
 		if (r > 0)
 			return 0;
@@ -346,8 +364,8 @@ waitfd(int fd, int *timeoutp, short events)
  * Returns 0 if fd ready or -1 on timeout or error (see errno).
  */
 int
-waitrfd(int fd, int *timeoutp) {
-	return waitfd(fd, timeoutp, POLLIN);
+waitrfd(int fd, int *timeoutp, volatile sig_atomic_t *stop) {
+	return waitfd(fd, timeoutp, POLLIN, stop);
 }
 
 /*
@@ -381,7 +399,7 @@ timeout_connect(int sockfd, const struct sockaddr *serv_addr,
 		break;
 	}
 
-	if (waitfd(sockfd, timeoutp, POLLIN | POLLOUT) == -1)
+	if (waitfd(sockfd, timeoutp, POLLIN | POLLOUT, NULL) == -1)
 		return -1;
 
 	/* Completed or failed */
@@ -2883,22 +2901,33 @@ ptimeout_deadline_ms(struct timespec *pt, long ms)
 	ptimeout_deadline_tsp(pt, &p);
 }
 
+/* Specify a poll/ppoll deadline at wall clock monotime 'when' (timespec) */
+void
+ptimeout_deadline_monotime_tsp(struct timespec *pt, struct timespec *when)
+{
+	struct timespec now, t;
+
+	monotime_ts(&now);
+
+	if (timespeccmp(&now, when, >=)) {
+		/* 'when' is now or in the past. Timeout ASAP */
+		pt->tv_sec = 0;
+		pt->tv_nsec = 0;
+	} else {
+		timespecsub(when, &now, &t);
+		ptimeout_deadline_tsp(pt, &t);
+	}
+}
+
 /* Specify a poll/ppoll deadline at wall clock monotime 'when' */
 void
 ptimeout_deadline_monotime(struct timespec *pt, time_t when)
 {
-	struct timespec now, t;
+	struct timespec t;
 
 	t.tv_sec = when;
 	t.tv_nsec = 0;
-	monotime_ts(&now);
-
-	if (timespeccmp(&now, &t, >=))
-		ptimeout_deadline_sec(pt, 0);
-	else {
-		timespecsub(&t, &now, &t);
-		ptimeout_deadline_tsp(pt, &t);
-	}
+	ptimeout_deadline_monotime_tsp(pt, &t);
 }
 
 /* Get a poll(2) timeout value in milliseconds */

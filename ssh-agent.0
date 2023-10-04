@@ -48,7 +48,7 @@ DESCRIPTION
              only local clients may perform this operation.  Note that
              signalling that an ssh-agent client is remote is performed by
              ssh(1), and use of other tools to forward access to the agent
-             socket, may circumvent this restriction.
+             socket may circumvent this restriction.
 
              The no-restrict-websafe option instructs ssh-agent to permit
              signatures using FIDO keys that might be web authentication
@@ -66,7 +66,7 @@ DESCRIPTION
              used with the -S or -s options to ssh-add(1).  Libraries that do
              not match the pattern list will be refused.  See PATTERNS in
              ssh_config(5) for a description of pattern-list syntax.  The
-             default list is M-bM-^@M-^\/usr/lib/*,/usr/local/lib/*M-bM-^@M-^].
+             default list is M-bM-^@M-^\usr/lib*/*,/usr/local/lib*/*M-bM-^@M-^].
 
      -s      Generate Bourne shell commands on stdout.  This is the default if
              SHELL does not look like it's a csh style of shell.
@@ -137,4 +137,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.3                      July 23, 2023                     OpenBSD 7.3
+OpenBSD 7.3                     August 10, 2023                    OpenBSD 7.3

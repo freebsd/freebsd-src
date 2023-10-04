@@ -805,6 +805,18 @@ DESCRIPTION
              Specifies the number of password prompts before giving up.  The
              argument to this keyword must be an integer.  The default is 3.
 
+     ObscureKeystrokeTiming
+             Specifies whether ssh(1) should try to obscure inter-keystroke
+             timings from passive observers of network traffic.  If enabled,
+             then for interactive sessions, ssh(1) will send keystrokes at
+             fixed intervals of a few tens of milliseconds and will send fake
+             keystroke packets for some time after typing ceases.  The
+             argument to this keyword must be yes, no or an interval specifier
+             of the form interval:milliseconds (e.g. interval:80 for 80
+             milliseconds).  The default is to obscure keystrokes using a 20ms
+             packet interval.  Note that smaller intervals will result in
+             higher fake keystroke packet rates.
+
      PasswordAuthentication
              Specifies whether to use password authentication.  The argument
              to this keyword must be yes (the default) or no.
@@ -1306,6 +1318,13 @@ TOKENS
 
      ProxyCommand and ProxyJump accept the tokens %%, %h, %n, %p, and %r.
 
+     Note that some of these directives build commands for execution via the
+     shell.  Because ssh(1) performs no filtering or escaping of characters
+     that have special meaning in shell commands (e.g. quotes), it is the
+     user's reposibility to ensure that the arguments passed to ssh(1) do not
+     contain such characters and that tokens are appropriately quoted when
+     used.
+
 ENVIRONMENT VARIABLES
      Arguments to some keywords can be expanded at runtime from environment
      variables on the client by enclosing them in ${}, for example
@@ -1341,4 +1360,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.3                      July 17, 2023                     OpenBSD 7.3
+OpenBSD 7.3                     October 4, 2023                    OpenBSD 7.3

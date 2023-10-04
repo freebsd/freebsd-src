@@ -6083,7 +6083,13 @@ printf "%s\n" "$GCC_VER" >&6; }
 
 	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking clang version" >&5
 printf %s "checking clang version... " >&6; }
-	CLANG_VER=`$CC -v 2>&1 | $AWK '/clang version /{print $3}'`
+	ver="`$CC -v 2>&1`"
+	if echo "$ver" | grep "Apple" >/dev/null; then
+		CLANG_VER="apple-`echo "$ver" | \
+		    awk '/Apple LLVM/ {print $4"-"$5}'`"
+	else
+		CLANG_VER=`echo "$ver" | $AWK '/clang version /{print $3}'`
+	fi
 	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $CLANG_VER" >&5
 printf "%s\n" "$CLANG_VER" >&6; }
 
@@ -7492,7 +7498,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam \
 	# https://bugzilla.mindrot.org/show_bug.cgi?id=3475 and
 	# https://github.com/llvm/llvm-project/issues/59242
 	case "$CLANG_VER" in
-	15.*) {
+	15.*|apple*) {
 	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -fzero-call-used-regs=used" >&5
 printf %s "checking if $CC supports compile flag -fzero-call-used-regs=used... " >&6; }
 	saved_CFLAGS="$CFLAGS"
@@ -10889,7 +10895,7 @@ main (void)
 
 	int a=0, b=0, c=0, d=0, n, v;
 	n = sscanf(ZLIB_VERSION, "%d.%d.%d.%d", &a, &b, &c, &d);
-	if (n != 3 && n != 4)
+	if (n < 1)
 		exit(1);
 	v = a*1000000 + b*10000 + c*100 + d;
 	fprintf(stderr, "found zlib version %s (%d)\n", ZLIB_VERSION, v);
