@@ -1,3 +1,5 @@
+BHYVE_GDB_SUPPORT=
+
 SRCS+=	\
 	atkbdc.c	\
 	e820.c		\
