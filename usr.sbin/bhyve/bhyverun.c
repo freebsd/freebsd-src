@@ -103,7 +103,9 @@
 #include "snapshot.h"
 #endif
 #include "tpm_device.h"
-#include "rtc.h"
+#ifdef __amd64__
+#include "amd64/rtc.h"
+#endif
 #include "vmgenc.h"
 #include "vmexit.h"
 #ifdef __amd64__
@@ -899,9 +901,11 @@ main(int argc, char *argv[])
 		case 'e':
 			set_config_bool("x86.strictio", true);
 			break;
+#ifdef __amd64__
 		case 'u':
 			set_config_bool("rtc.use_localtime", false);
 			break;
+#endif
 		case 'U':
 			set_config_value("uuid", optarg);
 			break;
@@ -1033,7 +1037,9 @@ main(int argc, char *argv[])
 	pci_irq_init(ctx);
 	ioapic_init(ctx);
 
+#ifdef __amd64__
 	rtc_init(ctx);
+#endif
 	sci_init(ctx);
 
 	if (qemu_fwcfg_init(ctx) != 0) {
