@@ -71,52 +71,27 @@
 
 #include <vmmapi.h>
 
-#include "bhyverun.h"
 #include "acpi.h"
-#ifdef __amd64__
-#include "amd64/atkbdc.h"
-#endif
+#include "bhyverun.h"
 #include "bootrom.h"
 #include "config.h"
-#ifdef __amd64__
-#include "amd64/inout.h"
-#endif
 #include "debug.h"
-#ifdef __amd64__
-#include "amd64/e820.h"
-#include "amd64/fwctl.h"
-#endif
 #ifdef BHYVE_GDB
 #include "gdb.h"
 #endif
-#ifdef __amd64__
-#include "amd64/ioapic.h"
-#include "amd64/kernemu_dev.h"
-#endif
 #include "mem.h"
 #include "mevent.h"
-#ifdef __amd64__
-#include "amd64/mptbl.h"
-#endif
 #include "pci_emul.h"
 #ifdef __amd64__
-#include "amd64/pci_irq.h"
 #include "amd64/pci_lpc.h"
 #endif
 #include "qemu_fwcfg.h"
-#include "smbiostbl.h"
 #ifdef BHYVE_SNAPSHOT
 #include "snapshot.h"
 #endif
 #include "tpm_device.h"
-#ifdef __amd64__
-#include "amd64/rtc.h"
-#endif
 #include "vmgenc.h"
 #include "vmexit.h"
-#ifdef __amd64__
-#include "amd64/xmsr.h"
-#endif
 
 #define MB		(1024UL * 1024)
 #define GB		(1024UL * MB)
@@ -966,30 +941,10 @@ main(int argc, char *argv[])
 		exit(4);
 	}
 
-#ifdef __amd64__
-	error = init_msr();
-	if (error) {
-		fprintf(stderr, "init_msr error %d", error);
-		exit(4);
-	}
-#endif
-
 	init_mem(guest_ncpus);
-#ifdef __amd64__
-	init_inout();
-	kernemu_dev_init();
-#endif
 	init_bootrom(ctx);
-#ifdef __amd64__
-	atkbdc_init(ctx);
-	pci_irq_init(ctx);
-	ioapic_init(ctx);
-#endif
-
-#ifdef __amd64__
-	rtc_init(ctx);
-	sci_init(ctx);
-#endif
+	if (bhyve_init_platform(ctx, bsp) != 0)
+		exit(4);
 
 	if (qemu_fwcfg_init(ctx) != 0) {
 		fprintf(stderr, "qemu fwcfg initialization error");
@@ -1001,13 +956,6 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Could not add qemu fwcfg opt/bhyve/hw.ncpu");
 		exit(4);
 	}
-
-#ifdef __amd64__
-	if (e820_init(ctx) != 0) {
-		fprintf(stderr, "Unable to setup E820");
-		exit(4);
-	}
-#endif
 
 	/*
 	 * Exit if a device emulation finds an error in its initialization
@@ -1072,36 +1020,8 @@ main(int argc, char *argv[])
 	}
 #endif
 
-#ifdef __amd64__
-	if (get_config_bool_default("x86.mptable", true)) {
-		error = mptable_build(ctx, guest_ncpus);
-		if (error) {
-			perror("error to build the guest tables");
-			exit(4);
-		}
-	}
-#endif
-
-	error = smbios_build(ctx);
-	if (error != 0)
+	if (bhyve_init_platform_late(ctx, bsp) != 0)
 		exit(4);
-
-	if (get_config_bool("acpi_tables")) {
-		error = acpi_build(ctx, guest_ncpus);
-		assert(error == 0);
-	}
-
-#ifdef __amd64__
-	error = e820_finalize();
-	if (error != 0)
-		exit(4);
-#endif
-
-#ifdef __amd64__
-	if (lpc_bootrom() && strcmp(lpc_fwcfg(), "bhyve") == 0) {
-		fwctl_init();
-	}
-#endif
 
 	/*
 	 * Change the proc title to include the VM name.
