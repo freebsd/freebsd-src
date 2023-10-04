@@ -10,6 +10,7 @@ SRCS+=	\
 	ps2kbd.c	\
 	ps2mouse.c	\
 	rtc.c		\
+	spinup_ap.c	\
 	task_switch.c	\
 	xmsr.c
 
