@@ -509,18 +509,14 @@ dwc_attach(device_t dev)
 	sc->mactype = IF_DWC_MAC_TYPE(dev);
 
 	sc->node = ofw_bus_get_node(dev);
-	switch (mii_fdt_get_contype(sc->node)) {
+	sc->phy_mode = mii_fdt_get_contype(sc->node);
+	switch (sc->phy_mode) {
 	case MII_CONTYPE_RGMII:
 	case MII_CONTYPE_RGMII_ID:
 	case MII_CONTYPE_RGMII_RXID:
 	case MII_CONTYPE_RGMII_TXID:
-		sc->phy_mode = PHY_MODE_RGMII;
-		break;
 	case MII_CONTYPE_RMII:
-		sc->phy_mode = PHY_MODE_RMII;
-		break;
 	case MII_CONTYPE_MII:
-		sc->phy_mode = PHY_MODE_MII;
 		break;
 	default:
 		device_printf(dev, "Unsupported MII type\n");
