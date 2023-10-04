@@ -86,7 +86,9 @@
 #include "amd64/e820.h"
 #include "amd64/fwctl.h"
 #endif
+#ifdef BHYVE_GDB
 #include "gdb.h"
+#endif
 #ifdef __amd64__
 #include "amd64/ioapic.h"
 #include "amd64/kernemu_dev.h"
@@ -463,7 +465,9 @@ fbsdrun_start_thread(void *param)
 #ifdef BHYVE_SNAPSHOT
 	checkpoint_cpu_add(vi->vcpuid);
 #endif
+#ifdef BHYVE_GDB
 	gdb_cpu_add(vi->vcpu);
+#endif
 
 	vm_loop(vi->ctx, vi->vcpu);
 
@@ -757,6 +761,7 @@ parse_simple_config_file(const char *path)
 	fclose(fp);
 }
 
+#ifdef BHYVE_GDB
 static void
 parse_gdb_options(const char *opt)
 {
@@ -780,6 +785,7 @@ parse_gdb_options(const char *opt)
 
 	set_config_value("gdb.port", sport);
 }
+#endif
 
 static void
 set_defaults(void)
@@ -852,9 +858,11 @@ main(int argc, char *argv[])
 			    errx(EX_USAGE, "invalid fwcfg item '%s'", optarg);
 			}
 			break;
+#ifdef BHYVE_GDB
 		case 'G':
 			parse_gdb_options(optarg);
 			break;
+#endif
 		case 'k':
 			parse_simple_config_file(optarg);
 			break;
@@ -1091,7 +1099,9 @@ main(int argc, char *argv[])
 	if (get_config_bool("acpi_tables"))
 		vmgenc_init(ctx);
 
+#ifdef BHYVE_GDB
 	init_gdb(ctx);
+#endif
 
 #ifdef __amd64__
 	if (lpc_bootrom()) {
