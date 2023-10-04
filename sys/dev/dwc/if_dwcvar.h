@@ -48,6 +48,8 @@
 #define	TX_DESC_SIZE	(sizeof(struct dwc_hwdesc) * TX_DESC_COUNT)
 #define	TX_MAP_MAX_SEGS	32
 
+#define	DMA_DEFAULT_PBL	8
+
 struct dwc_bufmap {
 	bus_dmamap_t		map;
 	struct mbuf		*mbuf;
