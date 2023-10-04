@@ -75,7 +75,9 @@
 
 #include "bhyverun.h"
 #include "acpi.h"
-#include "atkbdc.h"
+#ifdef __amd64__
+#include "amd64/atkbdc.h"
+#endif
 #include "debug.h"
 #include "inout.h"
 #include "ipc.h"
@@ -892,7 +894,12 @@ vm_restore_devices(struct restore_state *rstate)
 			return (ret);
 	}
 
-	return (vm_restore_device(rstate, atkbdc_snapshot, "atkbdc", NULL));
+#ifdef __amd64__
+	ret = vm_restore_device(rstate, atkbdc_snapshot, "atkbdc", NULL);
+#else
+	ret = 0;
+#endif
+	return (ret);
 }
 
 int
@@ -1131,8 +1138,12 @@ vm_snapshot_devices(int data_fd, xo_handle_t *xop)
 			goto snapshot_err;
 	}
 
+#ifdef __amd64__
 	ret = vm_snapshot_device(atkbdc_snapshot, "atkbdc", NULL,
 	    data_fd, xop, meta, &offset);
+#else
+	ret = 0;
+#endif
 
 	xo_close_list_h(xop, JSON_DEV_ARR_KEY);
 
