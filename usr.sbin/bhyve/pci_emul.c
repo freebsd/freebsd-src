@@ -52,11 +52,15 @@
 #include "config.h"
 #include "debug.h"
 #include "inout.h"
-#include "ioapic.h"
+#ifdef __amd64__
+#include "amd64/ioapic.h"
+#endif
 #include "mem.h"
 #include "pci_emul.h"
-#include "pci_irq.h"
-#include "pci_lpc.h"
+#ifdef __amd64__
+#include "amd64/pci_irq.h"
+#include "amd64/pci_lpc.h"
+#endif
 #include "pci_passthru.h"
 #include "qemu_fwcfg.h"
 
@@ -143,9 +147,12 @@ SYSRES_MEM(PCI_EMUL_ECFG_BASE, PCI_EMUL_ECFG_SIZE);
 #define	PCI_EMUL_MEMLIMIT32	PCI_EMUL_ECFG_BASE
 #define PCI_EMUL_MEMSIZE64	(32*GB)
 
-static struct pci_devemu *pci_emul_finddev(const char *name);
+#ifdef __amd64__
 static void pci_lintr_route(struct pci_devinst *pi);
 static void pci_lintr_update(struct pci_devinst *pi);
+#endif
+
+static struct pci_devemu *pci_emul_finddev(const char *name);
 static void pci_cfgrw(int in, int bus, int slot, int func, int coff,
     int bytes, uint32_t *val);
 
@@ -1061,11 +1068,13 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int bus, int slot,
 	pdi->pi_bus = bus;
 	pdi->pi_slot = slot;
 	pdi->pi_func = func;
+#ifdef __amd64__
 	pthread_mutex_init(&pdi->pi_lintr.lock, NULL);
 	pdi->pi_lintr.pin = 0;
 	pdi->pi_lintr.state = IDLE;
 	pdi->pi_lintr.pirq_pin = 0;
 	pdi->pi_lintr.ioapic_irq = 0;
+#endif
 	pdi->pi_d = pde;
 	snprintf(pdi->pi_name, PI_NAMESZ, "%s@pci.%d.%d.%d", pde->pe_emu, bus,
 	    slot, func);
@@ -1203,7 +1212,9 @@ msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 
 		pi->pi_msix.enabled = val & PCIM_MSIXCTRL_MSIX_ENABLE;
 		pi->pi_msix.function_mask = val & PCIM_MSIXCTRL_FUNCTION_MASK;
+#ifdef __amd64__
 		pci_lintr_update(pi);
+#endif
 	}
 
 	CFGWRITE(pi, offset, val, bytes);
@@ -1245,7 +1256,9 @@ msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 	} else {
 		pi->pi_msi.maxmsgnum = 0;
 	}
+#ifdef __amd64__
 	pci_lintr_update(pi);
+#endif
 }
 
 static void
@@ -1538,6 +1551,7 @@ init_pci(struct vmctx *ctx)
 		bi->memlimit64 = pci_emul_membase64;
 	}
 
+#ifdef __amd64__
 	/*
 	 * PCI backends are initialized before routing INTx interrupts
 	 * so that LPC devices are able to reserve ISA IRQs before
@@ -1558,6 +1572,7 @@ init_pci(struct vmctx *ctx)
 		}
 	}
 	lpc_pirq_routed();
+#endif
 
 	if ((error = init_bootorder()) != 0) {
 		warnx("%s: Unable to init bootorder", __func__);
@@ -1601,6 +1616,7 @@ init_pci(struct vmctx *ctx)
 	return (0);
 }
 
+#ifdef __amd64__
 static void
 pci_apic_prt_entry(int bus __unused, int slot, int pin, int pirq_pin __unused,
     int ioapic_irq, void *arg __unused)
@@ -1633,6 +1649,7 @@ pci_pirq_prt_entry(int bus __unused, int slot, int pin, int pirq_pin,
 	dsdt_line("  },");
 	free(name);
 }
+#endif
 
 /*
  * A bhyve virtual machine has a flat PCI hierarchy with a root port
@@ -1644,7 +1661,7 @@ pci_bus_write_dsdt(int bus)
 	struct businfo *bi;
 	struct slotinfo *si;
 	struct pci_devinst *pi;
-	int count, func, slot;
+	int func, slot;
 
 	/*
 	 * If there are no devices on this 'bus' then just return.
@@ -1747,8 +1764,8 @@ pci_bus_write_dsdt(int bus)
 	dsdt_line("        ,, , AddressRangeMemory, TypeStatic)");
 	dsdt_line("    })");
 
-	count = pci_count_lintr(bus);
-	if (count != 0) {
+#ifdef __amd64__
+	if (pci_count_lintr(bus) != 0) {
 		dsdt_indent(2);
 		dsdt_line("Name (PPRT, Package ()");
 		dsdt_line("{");
@@ -1771,6 +1788,7 @@ pci_bus_write_dsdt(int bus)
 		dsdt_line("}");
 		dsdt_unindent(2);
 	}
+#endif
 
 	dsdt_indent(2);
 	for (slot = 0; slot < MAXSLOTS; slot++) {
@@ -1866,6 +1884,7 @@ pci_generate_msi(struct pci_devinst *pi, int index)
 	}
 }
 
+#ifdef __amd64__
 static bool
 pci_lintr_permitted(struct pci_devinst *pi)
 {
@@ -2026,6 +2045,7 @@ pci_walk_lintr(int bus, pci_lintr_cb cb, void *arg)
 		}
 	}
 }
+#endif /* __amd64__ */
 
 /*
  * Return 1 if the emulated device in 'slot' is a multi-function device.
@@ -2130,11 +2150,13 @@ pci_emul_cmd_changed(struct pci_devinst *pi, uint16_t old)
 		}
 	}
 
+#ifdef __amd64__
 	/*
 	 * If INTx has been unmasked and is pending, assert the
 	 * interrupt.
 	 */
 	pci_lintr_update(pi);
+#endif
 }
 
 static void

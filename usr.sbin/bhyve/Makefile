@@ -31,7 +31,6 @@ SRCS=	\
 	gdb.c			\
 	hda_codec.c		\
 	inout.c			\
-	ioapic.c		\
 	iov.c			\
 	mem.c			\
 	mevent.c		\
@@ -40,8 +39,6 @@ SRCS=	\
 	pci_emul.c		\
 	pci_fbuf.c		\
 	pci_hostbridge.c	\
-	pci_irq.c		\
-	pci_lpc.c		\
 	pci_nvme.c		\
 	pci_passthru.c		\
 	pci_virtio_9p.c		\

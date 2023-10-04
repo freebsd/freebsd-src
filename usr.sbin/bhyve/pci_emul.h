@@ -115,12 +115,6 @@ struct msix_table_entry {
 #define MAX_MSIX_TABLE_ENTRIES	2048
 #define	PBA_SIZE(msgnum)	(roundup2((msgnum), 64) / 8)
 
-enum lintr_stat {
-	IDLE,
-	ASSERTED,
-	PENDING
-};
-
 struct pci_devinst {
 	struct pci_devemu *pi_d;
 	struct vmctx *pi_vmctx;
@@ -130,13 +124,19 @@ struct pci_devinst {
 	int	  pi_prevcap;
 	int	  pi_capend;
 
+#ifdef __amd64__
 	struct {
 		int8_t    	pin;
-		enum lintr_stat	state;
+		enum {
+			IDLE,
+			ASSERTED,
+			PENDING,
+		} state;
 		int		pirq_pin;
 		int	  	ioapic_irq;
 		pthread_mutex_t	lock;
 	} pi_lintr;
+#endif
 
 	struct {
 		int		enabled;
@@ -221,8 +221,15 @@ struct pciecap {
 } __packed;
 static_assert(sizeof(struct pciecap) == 60, "compile-time assertion failed");
 
+#ifdef __amd64__
 typedef void (*pci_lintr_cb)(int b, int s, int pin, int pirq_pin,
     int ioapic_irq, void *arg);
+void	pci_lintr_assert(struct pci_devinst *pi);
+void	pci_lintr_deassert(struct pci_devinst *pi);
+void	pci_lintr_request(struct pci_devinst *pi);
+int	pci_count_lintr(int bus);
+void	pci_walk_lintr(int bus, pci_lintr_cb cb, void *arg);
+#endif
 
 int	init_pci(struct vmctx *ctx);
 void	pci_callback(void);
@@ -241,9 +248,6 @@ void	pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes,
 void	pci_emul_cmd_changed(struct pci_devinst *pi, uint16_t old);
 void	pci_generate_msi(struct pci_devinst *pi, int msgnum);
 void	pci_generate_msix(struct pci_devinst *pi, int msgnum);
-void	pci_lintr_assert(struct pci_devinst *pi);
-void	pci_lintr_deassert(struct pci_devinst *pi);
-void	pci_lintr_request(struct pci_devinst *pi);
 int	pci_msi_enabled(struct pci_devinst *pi);
 int	pci_msix_enabled(struct pci_devinst *pi);
 int	pci_msix_table_bar(struct pci_devinst *pi);
@@ -257,11 +261,10 @@ int	pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum);
 int	pci_emul_msix_twrite(struct pci_devinst *pi, uint64_t offset, int size,
 			     uint64_t value);
 uint64_t pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size);
-int	pci_count_lintr(int bus);
-void	pci_walk_lintr(int bus, pci_lintr_cb cb, void *arg);
 void	pci_write_dsdt(void);
 uint64_t pci_ecfg_base(void);
 int	pci_bus_configured(int bus);
+
 #ifdef BHYVE_SNAPSHOT
 struct pci_devinst *pci_next(const struct pci_devinst *cursor);
 int	pci_snapshot(struct vm_snapshot_meta *meta);
