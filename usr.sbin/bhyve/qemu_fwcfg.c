@@ -23,7 +23,9 @@
 #include "acpi_device.h"
 #include "bhyverun.h"
 #include "inout.h"
-#include "pci_lpc.h"
+#ifdef __amd64__
+#include "amd64/pci_lpc.h"
+#endif
 #include "qemu_fwcfg.h"
 
 #define QEMU_FWCFG_ACPI_DEVICE_NAME "FWCF"
@@ -423,6 +425,18 @@ int
 qemu_fwcfg_init(struct vmctx *const ctx)
 {
 	int error;
+	bool fwcfg_enabled;
+
+	/*
+	 * The fwcfg implementation currently only provides an I/O port
+	 * interface and thus is amd64-specific for now.  An MMIO interface is
+	 * required for other platforms.
+	 */
+#ifdef __amd64__
+	fwcfg_enabled = strcmp(lpc_fwcfg(), "qemu") == 0;
+#else
+	fwcfg_enabled = false;
+#endif
 
 	/*
 	 * Bhyve supports fwctl (bhyve) and fwcfg (qemu) as firmware interfaces.
@@ -430,7 +444,7 @@ qemu_fwcfg_init(struct vmctx *const ctx)
 	 * interfaces at the same time to the guest. Therefore, only create acpi
 	 * tables and register io ports for fwcfg, if it's used.
 	 */
-	if (strcmp(lpc_fwcfg(), "qemu") == 0) {
+	if (fwcfg_enabled) {
 		error = acpi_device_create(&fwcfg_sc.acpi_dev, &fwcfg_sc, ctx,
 		    &qemu_fwcfg_acpi_device_emul);
 		if (error) {
