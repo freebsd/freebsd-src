@@ -26,31 +26,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_FBSDRUN_H_
-#define	_FBSDRUN_H_
+#ifndef _VMEXIT_H_
+#define	_VMEXIT_H_
 
-#define	VMEXIT_CONTINUE		(0)
-#define	VMEXIT_ABORT		(-1)
+extern const vmexit_handler_t vmexit_handlers[VM_EXITCODE_MAX];
 
-extern int guest_ncpus;
-extern uint16_t cpu_cores, cpu_sockets, cpu_threads;
-
-struct vcpu;
-struct vmctx;
-struct vm_run;
-
-void *paddr_guest2host(struct vmctx *ctx, uintptr_t addr, size_t len);
-#ifdef BHYVE_SNAPSHOT
-uintptr_t paddr_host2guest(struct vmctx *ctx, void *addr);
-#endif
-
-struct vcpu;
-struct vcpu *fbsdrun_vcpu(int vcpuid);
-void fbsdrun_deletecpu(int vcpuid);
-int fbsdrun_suspendcpu(int vcpuid);
-
-int  fbsdrun_virtio_msix(void);
-
-typedef int (*vmexit_handler_t)(struct vmctx *, struct vcpu *, struct vm_run *);
-
-#endif
+#endif /* !_VMEXIT_H_ */

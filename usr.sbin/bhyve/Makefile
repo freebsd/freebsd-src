@@ -75,6 +75,7 @@ SRCS=	\
 	usb_mouse.c		\
 	vga.c			\
 	virtio.c		\
+	vmexit.c		\
 	vmgenc.c		\
 	xmsr.c
 
