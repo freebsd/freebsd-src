@@ -2879,6 +2879,14 @@ bpfdetach(struct ifnet *ifp)
 	BPF_UNLOCK();
 }
 
+bool
+bpf_peers_present_if(struct ifnet *ifp)
+{
+	struct bpf_if *bp = ifp->if_bpf;
+
+	return (bpf_peers_present(bp) > 0);
+}
+
 /*
  * Get a list of available data link type of the interface.
  */
@@ -3160,6 +3168,12 @@ bpfattach2(struct ifnet *ifp, u_int dlt, u_int hdrlen, struct bpf_if **driverp)
 void
 bpfdetach(struct ifnet *ifp)
 {
+}
+
+bool
+bpf_peers_present_if(struct ifnet *ifp)
+{
+	return (false);
 }
 
 u_int
