@@ -106,7 +106,9 @@
 #include "rtc.h"
 #include "vmgenc.h"
 #include "vmexit.h"
-#include "xmsr.h"
+#ifdef __amd64__
+#include "amd64/xmsr.h"
+#endif
 
 #define MB		(1024UL * 1024)
 #define GB		(1024UL * MB)
@@ -1011,11 +1013,13 @@ main(int argc, char *argv[])
 		exit(4);
 	}
 
+#ifdef __amd64__
 	error = init_msr();
 	if (error) {
 		fprintf(stderr, "init_msr error %d", error);
 		exit(4);
 	}
+#endif
 
 	init_mem(guest_ncpus);
 	init_inout();
