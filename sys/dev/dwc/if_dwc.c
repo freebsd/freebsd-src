@@ -78,8 +78,6 @@
 #include "gpio_if.h"
 #include "miibus_if.h"
 
-#define	MAC_RESET_TIMEOUT	100
-
 static struct resource_spec dwc_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
@@ -499,7 +497,7 @@ dwc_attach(device_t dev)
 	uint8_t macaddr[ETHER_ADDR_LEN];
 	struct dwc_softc *sc;
 	if_t ifp;
-	int error, i;
+	int error;
 	uint32_t reg;
 	uint32_t txpbl, rxpbl, pbl;
 	bool nopblx8 = false;
@@ -581,19 +579,10 @@ dwc_attach(device_t dev)
 	}
 
 	/* Reset */
-	reg = READ4(sc, BUS_MODE);
-	reg |= (BUS_MODE_SWR);
-	WRITE4(sc, BUS_MODE, reg);
-
-	for (i = 0; i < MAC_RESET_TIMEOUT; i++) {
-		if ((READ4(sc, BUS_MODE) & BUS_MODE_SWR) == 0)
-			break;
-		DELAY(10);
-	}
-	if (i >= MAC_RESET_TIMEOUT) {
-		device_printf(sc->dev, "Can't reset DWC.\n");
-		bus_release_resources(dev, dwc_spec, sc->res);
-		return (ENXIO);
+	if ((error = dma1000_reset(sc)) != 0) {
+		device_printf(sc->dev, "Can't reset DMA controller.\n");
+		bus_release_resources(sc->dev, dwc_spec, sc->res);
+		return (error);
 	}
 
 	reg = BUS_MODE_USP;

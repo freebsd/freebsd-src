@@ -34,6 +34,7 @@ int dwc1000_miibus_read_reg(device_t dev, int phy, int reg);
 int dwc1000_miibus_write_reg(device_t dev, int phy, int reg, int val);
 void dwc1000_miibus_statchg(device_t dev);
 void dwc1000_core_setup(struct dwc_softc *sc);
+int dwc1000_core_reset(struct dwc_softc *sc);
 void dwc1000_enable_mac(struct dwc_softc *sc, bool enable);
 void dwc1000_enable_csum_offload(struct dwc_softc *sc);
 void dwc1000_setup_rxfilter(struct dwc_softc *sc);

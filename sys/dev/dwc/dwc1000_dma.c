@@ -61,7 +61,7 @@
 #include <dev/dwc/dwc1000_dma.h>
 
 #define	WATCHDOG_TIMEOUT_SECS	5
-
+#define	DMA_RESET_TIMEOUT	100
 
 /* TX descriptors - TDESC0 is almost unified */
 #define	TDESC0_OWN		(1U << 31)
@@ -596,6 +596,28 @@ dma1000_stop(struct dwc_softc *sc)
 	reg = READ4(sc, OPERATION_MODE);
 	reg &= ~(MODE_SR);
 	WRITE4(sc, OPERATION_MODE, reg);
+}
+
+int
+dma1000_reset(struct dwc_softc *sc)
+{
+	uint32_t reg;
+	int i;
+
+	reg = READ4(sc, BUS_MODE);
+	reg |= (BUS_MODE_SWR);
+	WRITE4(sc, BUS_MODE, reg);
+
+	for (i = 0; i < DMA_RESET_TIMEOUT; i++) {
+		if ((READ4(sc, BUS_MODE) & BUS_MODE_SWR) == 0)
+			break;
+		DELAY(10);
+	}
+	if (i >= DMA_RESET_TIMEOUT) {
+		return (ENXIO);
+	}
+
+	return (0);
 }
 
 /*
