@@ -95,7 +95,9 @@
 #endif
 #include "gdb.h"
 #include "ioapic.h"
-#include "kernemu_dev.h"
+#ifdef __amd64__
+#include "amd64/kernemu_dev.h"
+#endif
 #include "mem.h"
 #include "mevent.h"
 #ifdef __amd64__
@@ -1453,7 +1455,9 @@ main(int argc, char *argv[])
 
 	init_mem(guest_ncpus);
 	init_inout();
+#ifdef __amd64__
 	kernemu_dev_init();
+#endif
 	init_bootrom(ctx);
 #ifdef __amd64__
 	atkbdc_init(ctx);
