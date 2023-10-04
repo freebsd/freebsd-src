@@ -1152,7 +1152,7 @@ my_rxeof(struct my_softc * sc)
 		 * broadcast packet, multicast packet, matches our ethernet
 		 * address or the interface is in promiscuous mode.
 		 */
-		if (bpf_peers_present(if_getbpf(ifp))) {
+		if (bpf_peers_present_if(ifp)) {
 			bpf_mtap_if(ifp, m);
 			if (if_getflags(ifp) & IFF_PROMISC &&
 			    (bcmp(eh->ether_dhost, if_getlladdr(sc->my_ifp),
