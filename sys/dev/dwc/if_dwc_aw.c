@@ -123,13 +123,6 @@ a20_if_dwc_init(device_t dev)
 }
 
 static int
-a20_if_dwc_mac_type(device_t dev)
-{
-
-	return (DWC_GMAC_NORMAL_DESC);
-}
-
-static int
 a20_if_dwc_mii_clk(device_t dev)
 {
 
@@ -140,7 +133,6 @@ static device_method_t a20_dwc_methods[] = {
 	DEVMETHOD(device_probe,		a20_if_dwc_probe),
 
 	DEVMETHOD(if_dwc_init,		a20_if_dwc_init),
-	DEVMETHOD(if_dwc_mac_type,	a20_if_dwc_mac_type),
 	DEVMETHOD(if_dwc_mii_clk,	a20_if_dwc_mii_clk),
 
 	DEVMETHOD_END

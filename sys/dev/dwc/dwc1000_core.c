@@ -281,7 +281,11 @@ dwc_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 	crc = ether_crc32_le(LLADDR(sdl), ETHER_ADDR_LEN);
 	/* Take lower 8 bits and reverse it */
 	val = bitreverse(~crc & 0xff);
-	if (ctx->sc->mactype != DWC_GMAC_EXT_DESC)
+	/*
+	 * TODO: There is probably a HW_FEATURES bit which isn't
+	 * related to the extended descriptors that describe this
+	 */
+	if (!ctx->sc->dma_ext_desc)
 		val >>= 2; /* Only need lower 6 bits */
 	hashreg = (val >> 5);
 	hashbit = (val & 31);
@@ -302,7 +306,11 @@ dwc1000_setup_rxfilter(struct dwc_softc *sc)
 	DWC_ASSERT_LOCKED(sc);
 
 	ifp = sc->ifp;
-	nhash = sc->mactype != DWC_GMAC_EXT_DESC ? 2 : 8;
+	/*
+	 * TODO: There is probably a HW_FEATURES bit which isn't
+	 * related to the extended descriptors that describe this
+	 */
+	nhash = sc->dma_ext_desc == false ? 2 : 8;
 
 	/*
 	 * Set the multicast (group) filter hash.
@@ -335,7 +343,7 @@ dwc1000_setup_rxfilter(struct dwc_softc *sc)
 	WRITE4(sc, MAC_ADDRESS_LOW(0), lo);
 	WRITE4(sc, MAC_ADDRESS_HIGH(0), hi);
 	WRITE4(sc, MAC_FRAME_FILTER, ffval);
-	if (sc->mactype != DWC_GMAC_EXT_DESC) {
+	if (!sc->dma_ext_desc) {
 		WRITE4(sc, GMAC_MAC_HTLOW, ctx.hash[0]);
 		WRITE4(sc, GMAC_MAC_HTHIGH, ctx.hash[1]);
 	} else {

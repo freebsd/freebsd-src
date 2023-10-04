@@ -579,13 +579,6 @@ if_dwc_rk_init(device_t dev)
 }
 
 static int
-if_dwc_rk_mac_type(device_t dev)
-{
-
-	return (DWC_GMAC_NORMAL_DESC);
-}
-
-static int
 if_dwc_rk_mii_clk(device_t dev)
 {
 
@@ -610,7 +603,6 @@ static device_method_t if_dwc_rk_methods[] = {
 	DEVMETHOD(device_probe,		if_dwc_rk_probe),
 
 	DEVMETHOD(if_dwc_init,		if_dwc_rk_init),
-	DEVMETHOD(if_dwc_mac_type,	if_dwc_rk_mac_type),
 	DEVMETHOD(if_dwc_mii_clk,	if_dwc_rk_mii_clk),
 	DEVMETHOD(if_dwc_set_speed,	if_dwc_rk_set_speed),
 

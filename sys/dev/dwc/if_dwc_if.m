@@ -37,12 +37,6 @@ CODE {
 	}
 
 	static int
-	if_dwc_default_mac_type(device_t dev)
-	{
-		return (DWC_GMAC_EXT_DESC);
-	}
-
-	static int
 	if_dwc_default_mii_clk(device_t dev)
 	{
 		return (GMAC_MII_CLK_25_35M_DIV16);
@@ -64,13 +58,6 @@ HEADER {
 METHOD int init {
 	device_t dev;
 } DEFAULT if_dwc_default_init;
-
-#
-# Return the DWC MAC type (descriptor type).
-#
-METHOD int mac_type {
-	device_t dev;
-} DEFAULT if_dwc_default_mac_type;
 
 #
 # Return the DWC MII clock for a specific hardware.
