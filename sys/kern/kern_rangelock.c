@@ -160,13 +160,17 @@ rl_e_is_rlock(const struct rl_q_entry *e)
 static void
 rangelock_unlock_int(struct rangelock *lock, struct rl_q_entry *e)
 {
+	bool sleepers;
+
 	MPASS(lock != NULL && e != NULL);
 	MPASS(!rl_e_is_marked(rl_q_load(&e->rl_q_next)));
 	MPASS(e->rl_q_owner == curthread);
 
 	rl_e_mark(e);
+	sleepers = lock->sleepers;
 	lock->sleepers = false;
-	sleepq_broadcast(&lock->sleepers, SLEEPQ_SLEEP, 0, 0);
+	if (sleepers)
+		sleepq_broadcast(&lock->sleepers, SLEEPQ_SLEEP, 0, 0);
 }
 
 void
