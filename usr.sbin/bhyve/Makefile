@@ -30,7 +30,6 @@ SRCS=	\
 	ctl_util.c		\
 	gdb.c			\
 	hda_codec.c		\
-	inout.c			\
 	iov.c			\
 	mem.c			\
 	mevent.c		\
