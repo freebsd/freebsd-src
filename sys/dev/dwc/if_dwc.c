@@ -505,7 +505,6 @@ dwc_attach(device_t dev)
 	sc->tx_desccount = TX_DESC_COUNT;
 	sc->tx_mapcount = 0;
 	sc->mii_clk = IF_DWC_MII_CLK(dev);
-	sc->mactype = IF_DWC_MAC_TYPE(dev);
 
 	sc->node = ofw_bus_get_node(dev);
 	sc->phy_mode = mii_fdt_get_contype(sc->node);

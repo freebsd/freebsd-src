@@ -201,7 +201,7 @@ dwc_setup_txdesc(struct dwc_softc *sc, int idx, bus_addr_t paddr,
 		desc1 = 0;
 		--sc->tx_desccount;
 	} else {
-		if (sc->mactype != DWC_GMAC_EXT_DESC) {
+		if (!sc->dma_ext_desc) {
 			desc0 = 0;
 			desc1 = NTDESC1_TCH | len | flags;
 			if (first)
@@ -233,7 +233,7 @@ dwc_setup_rxdesc(struct dwc_softc *sc, int idx, bus_addr_t paddr)
 	nidx = next_rxidx(sc, idx);
 	sc->rxdesc_ring[idx].addr2 = sc->rxdesc_ring_paddr +
 	    (nidx * sizeof(struct dwc_hwdesc));
-	if (sc->mactype != DWC_GMAC_EXT_DESC)
+	if (!sc->dma_ext_desc)
 		sc->rxdesc_ring[idx].desc1 = NRDESC1_RCH |
 		    MIN(MCLBYTES, NRDESC1_RBS1_MASK);
 	else
@@ -282,12 +282,12 @@ dma1000_setup_txbuf(struct dwc_softc *sc, int idx, struct mbuf **mp)
 
 	if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0) {
 		if ((m->m_pkthdr.csum_flags & (CSUM_TCP|CSUM_UDP)) != 0) {
-			if (sc->mactype != DWC_GMAC_EXT_DESC)
+			if (!sc->dma_ext_desc)
 				flags = NTDESC1_CIC_FULL;
 			else
 				flags = ETDESC0_CIC_FULL;
 		} else {
-			if (sc->mactype != DWC_GMAC_EXT_DESC)
+			if (!sc->dma_ext_desc)
 				flags = NTDESC1_CIC_HDR;
 			else
 				flags = ETDESC0_CIC_HDR;
@@ -645,6 +645,10 @@ dma1000_init(struct dwc_softc *sc)
 		reg |= BUS_MODE_AAL;
 
 	WRITE4(sc, BUS_MODE, reg);
+
+	reg = READ4(sc, HW_FEATURE);
+	if (reg & HW_FEATURE_EXT_DESCRIPTOR)
+		sc->dma_ext_desc = true;
 
 	/*
 	 * DMA must be stop while changing descriptor list addresses.

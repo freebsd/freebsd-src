@@ -61,7 +61,6 @@ struct dwc_softc {
 	struct resource		*res[2];
 	device_t		dev;
 	phandle_t		node;
-	int			mactype;
 	int			mii_clk;
 	device_t		miibus;
 	struct mii_data *	mii_softc;
@@ -90,6 +89,7 @@ struct dwc_softc {
 	bool			fixed_burst;
 	bool			mixed_burst;
 	bool			aal;
+	bool			dma_ext_desc;
 
 	/* RX */
 	bus_dma_tag_t		rxdesc_tag;
