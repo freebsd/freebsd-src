@@ -476,17 +476,20 @@ fbsdrun_start_thread(void *param)
 	return (NULL);
 }
 
-static void
-fbsdrun_addcpu(struct vcpu_info *vi)
+void
+fbsdrun_addcpu(int vcpuid)
 {
+	struct vcpu_info *vi;
 	pthread_t thr;
 	int error;
+
+	vi = &vcpu_info[vcpuid];
 
 	error = vm_activate_cpu(vi->vcpu);
 	if (error != 0)
 		err(EX_OSERR, "could not activate CPU %d", vi->vcpuid);
 
-	CPU_SET_ATOMIC(vi->vcpuid, &cpumask);
+	CPU_SET_ATOMIC(vcpuid, &cpumask);
 
 	vm_suspend_cpu(vi->vcpu);
 
@@ -590,49 +593,6 @@ num_vcpus_allowed(struct vmctx *ctx, struct vcpu *vcpu)
 		return (1);
 }
 
-static void
-fbsdrun_set_capabilities(struct vcpu *vcpu)
-{
-	int err, tmp;
-
-	if (get_config_bool_default("x86.vmexit_on_hlt", false)) {
-		err = vm_get_capability(vcpu, VM_CAP_HALT_EXIT, &tmp);
-		if (err < 0) {
-			fprintf(stderr, "VM exit on HLT not supported\n");
-			exit(4);
-		}
-		vm_set_capability(vcpu, VM_CAP_HALT_EXIT, 1);
-	}
-
-	if (get_config_bool_default("x86.vmexit_on_pause", false)) {
-		/*
-		 * pause exit support required for this mode
-		 */
-		err = vm_get_capability(vcpu, VM_CAP_PAUSE_EXIT, &tmp);
-		if (err < 0) {
-			fprintf(stderr,
-			    "SMP mux requested, no pause support\n");
-			exit(4);
-		}
-		vm_set_capability(vcpu, VM_CAP_PAUSE_EXIT, 1);
-	}
-
-	if (get_config_bool_default("x86.x2apic", false))
-		err = vm_set_x2apic_state(vcpu, X2APIC_ENABLED);
-	else
-		err = vm_set_x2apic_state(vcpu, X2APIC_DISABLED);
-
-	if (err) {
-		fprintf(stderr, "Unable to set x2apic state (%d)\n", err);
-		exit(4);
-	}
-
-	vm_set_capability(vcpu, VM_CAP_ENABLE_INVPCID, 1);
-
-	err = vm_set_capability(vcpu, VM_CAP_IPI_EXIT, 1);
-	assert(err == 0);
-}
-
 static struct vmctx *
 do_open(const char *vmname)
 {
@@ -695,26 +655,6 @@ do_open(const char *vmname)
 	if (error)
 		errx(EX_OSERR, "vm_set_topology");
 	return (ctx);
-}
-
-static void
-spinup_vcpu(struct vcpu_info *vi, bool bsp)
-{
-	int error;
-
-	if (!bsp) {
-		fbsdrun_set_capabilities(vi->vcpu);
-
-		/*
-		 * Enable the 'unrestricted guest' mode for APs.
-		 *
-		 * APs startup in power-on 16-bit mode.
-		 */
-		error = vm_set_capability(vi->vcpu, VM_CAP_UNRESTRICTED_GUEST, 1);
-		assert(error == 0);
-	}
-
-	fbsdrun_addcpu(vi);
 }
 
 static bool
@@ -787,17 +727,6 @@ parse_gdb_options(const char *opt)
 }
 #endif
 
-static void
-set_defaults(void)
-{
-
-	set_config_bool("acpi_tables", true);
-	set_config_bool("acpi_tables_in_memory", true);
-	set_config_value("memory.size", "256M");
-	set_config_bool("x86.strictmsr", true);
-	set_config_value("lpc.fwcfg", "bhyve");
-}
-
 int
 main(int argc, char *argv[])
 {
@@ -814,8 +743,8 @@ main(int argc, char *argv[])
 	restore_file = NULL;
 #endif
 
-	init_config();
-	set_defaults();
+	bhyve_init_config();
+
 	progname = basename(argv[0]);
 
 #ifdef BHYVE_SNAPSHOT
@@ -825,9 +754,11 @@ main(int argc, char *argv[])
 #endif
 	while ((c = getopt(argc, argv, optstr)) != -1) {
 		switch (c) {
+#ifdef __amd64__
 		case 'a':
 			set_config_bool("x86.x2apic", false);
 			break;
+#endif
 		case 'A':
 			/*
 			 * NOP. For backward compatibility. Most systems don't
@@ -903,6 +834,7 @@ main(int argc, char *argv[])
 			if (!parse_config_option(optarg))
 				errx(EX_USAGE, "invalid configuration option '%s'", optarg);
 			break;
+#ifdef __amd64__
 		case 'H':
 			set_config_bool("x86.vmexit_on_hlt", true);
 			break;
@@ -921,7 +853,6 @@ main(int argc, char *argv[])
 		case 'e':
 			set_config_bool("x86.strictio", true);
 			break;
-#ifdef __amd64__
 		case 'u':
 			set_config_bool("rtc.use_localtime", false);
 			break;
@@ -929,16 +860,18 @@ main(int argc, char *argv[])
 		case 'U':
 			set_config_value("uuid", optarg);
 			break;
+#ifdef __amd64__
 		case 'w':
 			set_config_bool("x86.strictmsr", false);
 			break;
+#endif
 		case 'W':
 			set_config_bool("virtio_msix", false);
 			break;
+#ifdef __amd64__
 		case 'x':
 			set_config_bool("x86.x2apic", true);
 			break;
-#ifdef __amd64__
 		case 'Y':
 			set_config_bool("x86.mptable", false);
 			break;
@@ -1012,7 +945,7 @@ main(int argc, char *argv[])
 		exit(4);
 	}
 
-	fbsdrun_set_capabilities(bsp);
+	bhyve_init_vcpu(bsp);
 
 	/* Allocate per-VCPU resources. */
 	vcpu_info = calloc(guest_ncpus, sizeof(*vcpu_info));
@@ -1103,23 +1036,11 @@ main(int argc, char *argv[])
 	init_gdb(ctx);
 #endif
 
-#ifdef __amd64__
-	if (lpc_bootrom()) {
-		if (vm_set_capability(bsp, VM_CAP_UNRESTRICTED_GUEST, 1)) {
-			fprintf(stderr, "ROM boot failed: unrestricted guest "
-			    "capability not available\n");
-			exit(4);
-		}
-		error = vcpu_reset(bsp);
-		assert(error == 0);
-	}
-#endif
-
 	/*
 	 * Add all vCPUs.
 	 */
 	for (int vcpuid = 0; vcpuid < guest_ncpus; vcpuid++)
-		spinup_vcpu(&vcpu_info[vcpuid], vcpuid == BSP);
+		bhyve_start_vcpu(vcpu_info[vcpuid].vcpu, vcpuid == BSP);
 
 #ifdef BHYVE_SNAPSHOT
 	if (restore_file != NULL) {
