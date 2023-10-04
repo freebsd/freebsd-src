@@ -10,7 +10,6 @@
 
 #include <bsddialog.h>
 #include <stdio.h>
-#include <string.h>
 
 int main()
 {
@@ -28,26 +27,19 @@ int main()
 		printf("Error: %s\n", bsddialog_geterror());
 		return (1);
 	}
-
 	bsddialog_initconf(&conf);
 	conf.title = "radiolist";
-	output = bsddialog_radiolist(&conf, "Example", 15, 30, 5, 5, items, NULL);
-
+	output = bsddialog_radiolist(&conf, "Example", 15, 30, 5, 5, items,
+	    NULL);
 	bsddialog_end();
-
 	if (output == BSDDIALOG_ERROR) {
 		printf("Error: %s\n", bsddialog_geterror());
 		return (1);
-	}
-
-	if (output == BSDDIALOG_CANCEL) {
-		printf("Cancel\n");
-		return (0);
 	}
 
 	printf("Radiolist:\n");
 	for (i = 0; i < 5; i++)
 		printf(" (%c) %s\n", items[i].on ? '*' : ' ', items[i].name);
 
-	return (output);
+	return (0);
 }

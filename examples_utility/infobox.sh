@@ -9,4 +9,4 @@
 # worldwide. This software is distributed without any warranty, see:
 #	<http://creativecommons.org/publicdomain/zero/1.0/>.
 
-./bsddialog --sleep 3 --title " infobox " --infobox "Hello World!\n3 secs" 6 20
+./bsddialog --normal-screen --title " infobox " --infobox "Hello World!" 6 20

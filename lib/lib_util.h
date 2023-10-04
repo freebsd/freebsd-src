@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021-2022 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2023 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,117 +28,136 @@
 #ifndef _LIBBSDDIALOG_UTIL_H_
 #define _LIBBSDDIALOG_UTIL_H_
 
-#define HBORDERS	2
-#define VBORDERS	2
+#define BORDER          1
+#define BORDERS         (BORDER + BORDER)
 #define TEXTHMARGIN     1
 #define TEXTHMARGINS    (TEXTHMARGIN + TEXTHMARGIN)
+#define HBUTTONS        2
+#define OK_LABEL        "OK"
+#define CANCEL_LABEL    "Cancel"
 
-/* theme utils */
+/* theme util */
 extern struct bsddialog_theme t;
 extern bool hastermcolors;
 
+#define	MIN(a,b) (((a)<(b))?(a):(b))
+#define	MAX(a,b) (((a)>(b))?(a):(b))
 /* debug */
-#define BSDDIALOG_DEBUG(y,x,fmt, ...) do {	\
-	mvprintw(y, x, fmt, __VA_ARGS__);	\
-	refresh();				\
+#define BSDDIALOG_DEBUG(y,x,fmt, ...) do {                                     \
+	mvprintw(y, x, fmt, __VA_ARGS__);                                      \
+	refresh();                                                             \
+} while (0)
+/* error and diagnostic */
+#define RETURN_ERROR(str) do {                                                 \
+	set_error_string(str);                                                 \
+	return (BSDDIALOG_ERROR);                                              \
+} while (0)
+#define RETURN_FMTERROR(fmt, ...) do {                                         \
+	set_fmt_error_string(fmt, __VA_ARGS__);                                \
+	return (BSDDIALOG_ERROR);                                              \
+} while (0)
+/* check ptr */
+#define CHECK_PTR(p) do {                                                      \
+	if (p == NULL)                                                         \
+		RETURN_ERROR("*" #p " is NULL");                               \
+} while (0)
+#define CHECK_ARRAY(nitem, a) do {                                             \
+	if(nitem > 0 && a == NULL)                                             \
+		RETURN_FMTERROR(#nitem " is %d but *" #a " is NULL", nitem);   \
+} while (0)
+/* widget utils */
+#define TEXTPAD(d, downnotext) rtextpad(d, 0, 0, 0, downnotext)
+#define SCREENLINES (getmaxy(stdscr))
+#define SCREENCOLS  (getmaxx(stdscr))
+#define CHECK_STR(s) (s == NULL ? "" : s)
+#define DRAW_BUTTONS(d) do {                                                   \
+	draw_buttons(&d);                                                      \
+	wnoutrefresh(d.widget);                                                \
 } while (0)
 
-/* date */
-#define ISLEAP(year) ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0)
+/* internal types */
+enum elevation { RAISED, LOWERED };
 
-/* unicode */
+struct buttons {
+	unsigned int nbuttons;
+#define MAXBUTTONS 10 /* 3left + ok + extra + cancel + help + 3 right */
+	const char *label[MAXBUTTONS];
+	bool shortcut;
+	wchar_t first[MAXBUTTONS];
+	int value[MAXBUTTONS];
+	int curr;
+#define BUTTONVALUE(bs) bs.value[bs.curr]
+	unsigned int sizebutton; /* including left and right delimiters */
+};
+
+struct dialog {
+	bool built;         /* true after the first draw_dialog() */
+	struct bsddialog_conf *conf;  /* Checked API conf */
+	WINDOW *widget;     /* Size and position refer to widget */
+	int y, x;           /* Current position, API conf.[y|x]: -1, >=0 */
+	int rows, cols;     /* API rows and cols: -1, 0, >0 */
+	int h, w;           /* Current height and width */
+	const char *text;   /* Checked API text, at least "" */
+	WINDOW *textpad;    /* Fake for textbox */
+	struct buttons bs;  /* bs.nbuttons = 0 for no buttons */
+	WINDOW *shadow;
+};
+
+/* error and diagnostic */
+const char *get_error_string(void);
+void set_error_string(const char *string);
+void set_fmt_error_string(const char *fmt, ...);
+
+/* multicolumn character string */
 unsigned int strcols(const char *mbstring);
 int str_props(const char *mbstring, unsigned int *cols, bool *has_multi_col);
 void mvwaddwch(WINDOW *w, int y, int x, wchar_t wch);
 wchar_t* alloc_mbstows(const char *mbstring);
 
-/* error buffer */
-const char *get_error_string(void);
-void set_error_string(const char *string);
-
-#define RETURN_ERROR(str) do {			\
-	set_error_string(str);			\
-	return (BSDDIALOG_ERROR);		\
-} while (0)
-
 /* buttons */
-struct buttons {
-	unsigned int nbuttons;
-#define MAXBUTTONS 6 /* ok + extra + cancel + help + 2 generics */
-	const char *label[MAXBUTTONS];
-	wchar_t first[MAXBUTTONS];
-	int value[MAXBUTTONS];
-	int curr;
-	unsigned int sizebutton; /* including left and right delimiters */
-};
-
-#define BUTTON_OK_LABEL      "OK"
-#define BUTTON_CANCEL_LABEL  "Cancel"
 void
-get_buttons(struct bsddialog_conf *conf, struct buttons *bs,
-    const char *yesoklabel, const char *nocancellabel);
-
-void
-draw_buttons(WINDOW *window, struct buttons bs, bool shortcut);
-
-int buttons_min_width(struct buttons bs);
+set_buttons(struct dialog *d, bool shortcut, const char *oklabel,
+    const char *canclabel);
+void draw_buttons(struct dialog *d);
 bool shortcut_buttons(wint_t key, struct buttons *bs);
 
-/* help window with F1 key */
-int f1help(struct bsddialog_conf *conf);
+/* widget utils */
+int hide_dialog(struct dialog *d);
+int f1help_dialog(struct bsddialog_conf *conf);
 
-/* cleaner */
-int hide_widget(int y, int x, int h, int w, bool withshadow);
+void
+draw_borders(struct bsddialog_conf *conf, WINDOW *win, enum elevation elev);
 
-/* (auto) size and (auto) position */
-#define SCREENLINES (getmaxy(stdscr))
-#define SCREENCOLS  (getmaxx(stdscr))
+void
+update_box(struct bsddialog_conf *conf, WINDOW *win, int y, int x, int h, int w,
+    enum elevation elev);
 
-int
-text_size(struct bsddialog_conf *conf, int rows, int cols, const char *text,
-    struct buttons *bs, int rowsnotext, int startwtext, int *htext, int *wtext);
+void
+rtextpad(struct dialog *d, int ytext, int xtext, int upnotext, int downnotext);
 
-int widget_max_height(struct bsddialog_conf *conf);
-int widget_max_width(struct bsddialog_conf *conf);
-
-int
-widget_min_height(struct bsddialog_conf *conf, int htext, int minwidget,
-    bool withbuttons);
-
-int
-widget_min_width(struct bsddialog_conf *conf, int wtext, int minwidget,
-    struct buttons *bs);
-
+/* (auto) sizing and (auto) position */
 int
 set_widget_size(struct bsddialog_conf *conf, int rows, int cols, int *h,
     int *w);
 
 int
+set_widget_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h,
+    int *w, const char *text, int *rowstext, struct buttons *bs, int hnotext,
+    int minw);
+
+int widget_checksize(int h, int w, struct buttons *bs, int hnotext, int minw);
+
+int
 set_widget_position(struct bsddialog_conf *conf, int *y, int *x, int h, int w);
 
-/* widget builders */
-enum elevation { RAISED, LOWERED };
+int dialog_size_position(struct dialog *d, int hnotext, int minw, int *htext);
 
-void
-draw_borders(struct bsddialog_conf *conf, WINDOW *win, int rows, int cols,
-    enum elevation elev);
-
-WINDOW *
-new_boxed_window(struct bsddialog_conf *conf, int y, int x, int rows, int cols,
-    enum elevation elev);
+/* dialog */
+void end_dialog(struct dialog *d);
+int draw_dialog(struct dialog *d);
 
 int
-new_dialog(struct bsddialog_conf *conf, WINDOW **shadow, WINDOW **widget, int y,
-    int x, int h, int w, WINDOW **textpad, const char *text, struct buttons *bs,
-    bool shortcutbuttons);
-
-int
-update_dialog(struct bsddialog_conf *conf, WINDOW *shadow, WINDOW *widget,
-    int y, int x, int h, int w, WINDOW *textpad, const char *text,
-    struct buttons *bs, bool shortcutbuttons);
-
-void
-end_dialog(struct bsddialog_conf *conf, WINDOW *shadow, WINDOW *widget,
-    WINDOW *textpad);
+prepare_dialog(struct bsddialog_conf *conf, const char *text, int rows,
+    int cols, struct dialog *d);
 
 #endif

@@ -32,8 +32,6 @@ case $? in
 		echo "[Cancel]"
 	;;
 	$BSDDIALOG_OK )
-		echo "[OK]"
+		echo "[OK] $FORMS"
 	;;
 esac
-
-echo "$FORMS"
