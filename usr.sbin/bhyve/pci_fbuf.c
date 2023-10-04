@@ -46,10 +46,11 @@
 #include "config.h"
 #include "debug.h"
 #include "console.h"
-#include "inout.h"
 #include "pci_emul.h"
 #include "rfb.h"
-#include "vga.h"
+#ifdef __amd64__
+#include "amd64/vga.h"
+#endif
 
 /*
  * bhyve Framebuffer device emulation.
