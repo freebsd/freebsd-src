@@ -76,8 +76,7 @@ SRCS=	\
 	vga.c			\
 	virtio.c		\
 	vmexit.c		\
-	vmgenc.c		\
-	xmsr.c
+	vmgenc.c
 
 .if ${MK_BHYVE_SNAPSHOT} != "no"
 SRCS+=	snapshot.c
