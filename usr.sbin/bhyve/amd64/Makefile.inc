@@ -4,6 +4,7 @@ SRCS+=	\
 	fwctl.c		\
 	kernemu_dev.c	\
 	mptbl.c		\
+	pci_gvt-d.c	\
 	pm.c		\
 	post.c		\
 	ps2kbd.c	\
