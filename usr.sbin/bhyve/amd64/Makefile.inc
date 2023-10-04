@@ -7,6 +7,7 @@ SRCS+=	\
 	post.c		\
 	ps2kbd.c	\
 	ps2mouse.c	\
+	rtc.c		\
 	task_switch.c	\
 	xmsr.c
 
