@@ -123,7 +123,7 @@ main(int argc, const char **argv)
 
 	/* Show the part editor either immediately, or to confirm wizard */
 	while (prompt != NULL) {
-		bsddialog_clearterminal();
+		bsddialog_clear(0);
 		if (!sade_mode)
 			bsddialog_backtitle(&conf, "FreeBSD Installer");
 

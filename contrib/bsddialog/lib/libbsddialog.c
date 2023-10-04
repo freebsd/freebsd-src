@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021-2022 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2023 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,15 +26,15 @@
  */
 
 #include <curses.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "bsddialog.h"
 #include "bsddialog_theme.h"
 #include "lib_util.h"
 
-#define COLSPERROW  10   /* Default conf.text.columns_per_row */
+#define DEFAULT_COLS_PER_ROW  10   /* Default conf.text.columns_per_row */
+
+static bool in_bsddialog_mode = false;
 
 int bsddialog_init_notheme(void)
 {
@@ -55,6 +55,7 @@ int bsddialog_init_notheme(void)
 		bsddialog_end();
 		RETURN_ERROR("Cannot init curses (keypad and cursor)");
 	}
+	in_bsddialog_mode = true;
 
 	c = 1;
 	error += start_color();
@@ -83,6 +84,7 @@ int bsddialog_init(void)
 
 	if (bsddialog_set_default_theme(theme) != 0) {
 		bsddialog_end();
+		in_bsddialog_mode = false;
 		return (BSDDIALOG_ERROR);
 	}
 
@@ -93,15 +95,18 @@ int bsddialog_end(void)
 {
 	if (endwin() != OK)
 		RETURN_ERROR("Cannot end curses (endwin)");
+	in_bsddialog_mode = false;
 
 	return (BSDDIALOG_OK);
 }
 
 int bsddialog_backtitle(struct bsddialog_conf *conf, const char *backtitle)
 {
+	CHECK_PTR(conf);
+
 	move(0, 1);
 	clrtoeol();
-	addstr(backtitle);
+	addstr(CHECK_STR(backtitle));
 	if (conf->no_lines != true)
 		mvhline(1, 1, conf->ascii_lines ? '-' : ACS_HLINE,
 		    SCREENCOLS - 2);
@@ -111,6 +116,11 @@ int bsddialog_backtitle(struct bsddialog_conf *conf, const char *backtitle)
 	return (BSDDIALOG_OK);
 }
 
+bool bsddialog_inmode(void)
+{
+	return (in_bsddialog_mode);
+}
+
 const char *bsddialog_geterror(void)
 {
 	return (get_error_string());
@@ -118,25 +128,25 @@ const char *bsddialog_geterror(void)
 
 int bsddialog_initconf(struct bsddialog_conf *conf)
 {
-	if (conf == NULL)
-		RETURN_ERROR("conf is NULL");
-	if (sizeof(*conf) != sizeof(struct bsddialog_conf))
-		RETURN_ERROR("Bad conf size");
+	CHECK_PTR(conf);
 
 	memset(conf, 0, sizeof(struct bsddialog_conf));
 	conf->y = BSDDIALOG_CENTER;
 	conf->x = BSDDIALOG_CENTER;
 	conf->shadow = true;
-	conf->text.cols_per_row = COLSPERROW;
+	conf->text.cols_per_row = DEFAULT_COLS_PER_ROW;
 
 	return (BSDDIALOG_OK);
 }
 
-int bsddialog_clearterminal(void)
+void bsddialog_refresh(void)
 {
-	if (clear() != OK)
-		RETURN_ERROR("Cannot clear the terminal");
 	refresh();
+}
 
-	return (BSDDIALOG_OK);
+void bsddialog_clear(unsigned int y)
+{
+	move(y, 0);
+	clrtobot();
+	refresh();
 }
