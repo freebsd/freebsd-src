@@ -79,7 +79,6 @@
 #include "debug.h"
 #include "inout.h"
 #include "ipc.h"
-#include "fwctl.h"
 #include "ioapic.h"
 #include "mem.h"
 #include "mevent.h"
