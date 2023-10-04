@@ -4831,15 +4831,18 @@ linuxkpi_ieee80211_stop_queue(struct ieee80211_hw *hw, int qnum)
 		for (ac = 0; ac < ac_count; ac++) {
 			IMPROVE_TXQ("LOCKING");
 			if (qnum == vif->hw_queue[ac]) {
+#ifdef LINUXKPI_DEBUG_80211
 				/*
 				 * For now log this to better understand
 				 * how this is supposed to work.
 				 */
-				if (lvif->hw_queue_stopped[ac])
+				if (lvif->hw_queue_stopped[ac] &&
+				    (linuxkpi_debug_80211 & D80211_IMPROVE_TXQ) != 0)
 					ic_printf(lhw->ic, "%s:%d: lhw %p hw %p "
 					    "lvif %p vif %p ac %d qnum %d already "
 					    "stopped\n", __func__, __LINE__,
 					    lhw, hw, lvif, vif, ac, qnum);
+#endif
 				lvif->hw_queue_stopped[ac] = true;
 			}
 		}
@@ -4886,15 +4889,18 @@ lkpi_ieee80211_wake_queues(struct ieee80211_hw *hw, int hwq)
 
 				/* XXX-BZ what about software scan? */
 
+#ifdef LINUXKPI_DEBUG_80211
 				/*
 				 * For now log this to better understand
 				 * how this is supposed to work.
 				 */
-				if (!lvif->hw_queue_stopped[ac])
+				if (!lvif->hw_queue_stopped[ac] &&
+				    (linuxkpi_debug_80211 & D80211_IMPROVE_TXQ) != 0)
 					ic_printf(lhw->ic, "%s:%d: lhw %p hw %p "
 					    "lvif %p vif %p ac %d hw_q not stopped\n",
 					    __func__, __LINE__,
 					    lhw, hw, lvif, vif, ac);
+#endif
 				lvif->hw_queue_stopped[ac] = false;
 
 				LKPI_80211_LVIF_LOCK(lvif);
