@@ -88,7 +88,9 @@
 #include "inout.h"
 #include "debug.h"
 #include "e820.h"
-#include "fwctl.h"
+#ifdef __amd64__
+#include "amd64/fwctl.h"
+#endif
 #include "gdb.h"
 #include "ioapic.h"
 #include "kernemu_dev.h"
@@ -921,6 +923,8 @@ vmexit_ipi(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
 	return (error);
 }
 
+int vmexit_task_switch(struct vmctx *, struct vcpu *, struct vm_run *);
+
 static const vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_INOUT]  = vmexit_inout,
 	[VM_EXITCODE_INOUT_STR]  = vmexit_inout,
@@ -1576,9 +1580,11 @@ main(int argc, char *argv[])
 	}
 	free(e820_fwcfg_item);
 
+#ifdef __amd64__
 	if (lpc_bootrom() && strcmp(lpc_fwcfg(), "bhyve") == 0) {
 		fwctl_init();
 	}
+#endif
 
 	/*
 	 * Change the proc title to include the VM name.

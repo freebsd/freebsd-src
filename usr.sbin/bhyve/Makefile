@@ -2,9 +2,6 @@
 #
 
 .include <src.opts.mk>
-CFLAGS+=-I${.CURDIR}/../../contrib/lib9p
-CFLAGS+=-I${SRCTOP}/sys
-.PATH:  ${SRCTOP}/sys/libkern ${SRCTOP}/sys/cam/ctl
 
 PROG=	bhyve
 PACKAGE=	bhyve
@@ -12,6 +9,10 @@ PACKAGE=	bhyve
 MAN=	bhyve.8 bhyve_config.5
 
 BHYVE_SYSDIR?=${SRCTOP}
+
+.PATH:	${.CURDIR}/${MACHINE_CPUARCH}	\
+	${SRCTOP}/sys/libkern		\
+	${SRCTOP}/sys/cam/ctl
 
 SRCS=	\
 	acpi.c			\
@@ -29,7 +30,6 @@ SRCS=	\
 	ctl_scsi_all.c		\
 	ctl_util.c		\
 	e820.c			\
-	fwctl.c			\
 	gdb.c			\
 	hda_codec.c		\
 	inout.c			\
@@ -73,7 +73,6 @@ SRCS=	\
 	smbiostbl.c		\
 	sockstream.c		\
 	spinup_ap.c		\
-	task_switch.c		\
 	tpm_device.c		\
 	tpm_emul_passthru.c	\
 	tpm_intf_crb.c		\
@@ -90,10 +89,13 @@ SRCS=	\
 SRCS+=	snapshot.c
 .endif
 
+.include "${MACHINE_CPUARCH}/Makefile.inc"
+
 CFLAGS.kernemu_dev.c+=	-I${SRCTOP}/sys/amd64
 
-.PATH:  ${BHYVE_SYSDIR}/sys/amd64/vmm
-SRCS+=	vmm_instruction_emul.c
+CFLAGS+=-I${.CURDIR}		\
+	-I${.CURDIR}/../../contrib/lib9p \
+	-I${SRCTOP}/sys
 
 LIBADD=	vmmapi md nv pthread z util sbuf cam 9p
 
