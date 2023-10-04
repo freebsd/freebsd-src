@@ -36,6 +36,8 @@
 
 #include <machine/bus.h>
 
+#include <dev/mii/miivar.h>
+
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -76,10 +78,13 @@ a20_if_dwc_init(device_t dev)
 
 	/* Configure PHY for MII or RGMII mode */
 	switch(sc->phy_mode) {
-	case PHY_MODE_RGMII:
+	case MII_CONTYPE_RGMII:
+	case MII_CONTYPE_RGMII_ID:
+	case MII_CONTYPE_RGMII_RXID:
+	case MII_CONTYPE_RGMII_TXID:
 		tx_parent_name = "gmac_int_tx";
 		break;
-	case PHY_MODE_MII:
+	case MII_CONTYPE_MII:
 		tx_parent_name = "mii_phy_tx";
 		break;
 	default:

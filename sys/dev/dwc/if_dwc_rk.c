@@ -38,6 +38,8 @@
 #include <net/if.h>
 #include <net/if_media.h>
 
+#include <dev/mii/miivar.h>
+
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -175,7 +177,7 @@ rk3328_set_delays(struct if_dwc_rk_softc *sc)
 	uint32_t reg;
 	uint32_t tx, rx;
 
-	if (sc->base.phy_mode != PHY_MODE_RGMII)
+	if (!mii_contype_is_rgmii(sc->base.phy_mode))
 		return;
 
 	reg = SYSCON_READ_4(sc->grf, RK3328_GRF_MAC_CON0);
@@ -210,7 +212,10 @@ rk3328_set_speed(struct if_dwc_rk_softc *sc, int speed)
 	uint32_t reg;
 
 	switch (sc->base.phy_mode) {
-	case PHY_MODE_RGMII:
+	case MII_CONTYPE_RGMII:
+	case MII_CONTYPE_RGMII_ID:
+	case MII_CONTYPE_RGMII_RXID:
+	case MII_CONTYPE_RGMII_TXID:
 		switch (speed) {
 		case IFM_1000_T:
 		case IFM_1000_SX:
@@ -230,7 +235,7 @@ rk3328_set_speed(struct if_dwc_rk_softc *sc, int speed)
 		SYSCON_WRITE_4(sc->grf, RK3328_GRF_MAC_CON1,
 		    ((MAC_CON1_GMAC2IO_GMII_CLK_SEL_MASK << 16) | reg));
 		break;
-	case PHY_MODE_RMII:
+	case MII_CONTYPE_RMII:
 		switch (speed) {
 		case IFM_100_TX:
 			reg = MAC_CON1_GMAC2IO_RMII_CLK_SEL_25 |
@@ -260,12 +265,15 @@ rk3328_set_phy_mode(struct if_dwc_rk_softc *sc)
 {
 
 	switch (sc->base.phy_mode) {
-	case PHY_MODE_RGMII:
+	case MII_CONTYPE_RGMII:
+	case MII_CONTYPE_RGMII_ID:
+	case MII_CONTYPE_RGMII_RXID:
+	case MII_CONTYPE_RGMII_TXID:
 		SYSCON_WRITE_4(sc->grf, RK3328_GRF_MAC_CON1,
 		    ((MAC_CON1_GMAC2IO_INTF_SEL_MASK | MAC_CON1_GMAC2IO_RMII_MODE_MASK) << 16) |
 		    MAC_CON1_GMAC2IO_INTF_RGMII);
 		break;
-	case PHY_MODE_RMII:
+	case MII_CONTYPE_RMII:
 		SYSCON_WRITE_4(sc->grf, sc->integrated_phy ? RK3328_GRF_MAC_CON2 : RK3328_GRF_MAC_CON1,
 		    ((MAC_CON1_GMAC2IO_INTF_SEL_MASK | MAC_CON1_GMAC2IO_RMII_MODE_MASK) << 16) |
 		    MAC_CON1_GMAC2IO_INTF_RMII | MAC_CON1_GMAC2IO_RMII_MODE);
@@ -286,7 +294,7 @@ rk3399_set_delays(struct if_dwc_rk_softc *sc)
 {
 	uint32_t reg, tx, rx;
 
-	if (sc->base.phy_mode != PHY_MODE_RGMII)
+	if (!mii_contype_is_rgmii(sc->base.phy_mode))
 		return;
 
 	reg = SYSCON_READ_4(sc->grf, RK3399_GRF_SOC_CON6);
@@ -416,7 +424,7 @@ if_dwc_rk_init_clocks(device_t dev)
 	/* Optional clock */
 	clk_get_by_ofw_name(dev, 0, "clk_mac_speed", &sc->clk_mac_speed);
 
-	if (sc->base.phy_mode == PHY_MODE_RMII) {
+	if (sc->base.phy_mode == MII_CONTYPE_RMII) {
 		if (clk_get_by_ofw_name(dev, 0, "mac_clk_rx", &sc->mac_clk_rx) != 0) {
 			device_printf(sc->base.dev, "could not get mac_clk_rx clock\n");
 			sc->mac_clk_rx = NULL;
@@ -448,7 +456,7 @@ if_dwc_rk_init_clocks(device_t dev)
 		}
 	}
 
-	if (sc->base.phy_mode == PHY_MODE_RMII) {
+	if (sc->base.phy_mode == MII_CONTYPE_RMII) {
 		if (sc->mac_clk_rx)
 			clk_enable(sc->mac_clk_rx);
 		if (sc->clk_mac_ref)
