@@ -233,7 +233,7 @@ static const char * const clearopt_list[] = {
 static const char * const showopt_list[] = {
 	"ether", "nat", "queue", "rules", "Anchors", "Sources", "states",
 	"info", "Interfaces", "labels", "timeouts", "memory", "Tables",
-	"osfp", "Running", "all", NULL
+	"osfp", "Running", "all", "creatorids", NULL
 };
 
 static const char * const tblcmdopt_list[] = {
@@ -1637,6 +1637,22 @@ pfctl_show_limits(int dev, int opts)
 			printf("hard limit %8u\n", pl.limit);
 	}
 	return (0);
+}
+
+void
+pfctl_show_creators(int opts)
+{
+	int ret;
+	uint32_t creators[16];
+	size_t count = nitems(creators);
+
+	ret = pfctl_get_creatorids(creators, &count);
+	if (ret != 0)
+		errx(ret, "Failed to retrieve creators");
+
+	printf("Creator IDs:\n");
+	for (size_t i = 0; i < count; i++)
+		printf("%08x\n", creators[i]);
 }
 
 /* callbacks for rule/nat/rdr/addr */
@@ -3120,6 +3136,9 @@ main(int argc, char *argv[])
 			break;
 		case 'I':
 			pfctl_show_ifaces(ifaceopt, opts);
+			break;
+		case 'c':
+			pfctl_show_creators(opts);
 			break;
 		}
 	}

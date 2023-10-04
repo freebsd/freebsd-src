@@ -1106,6 +1106,71 @@ pfctl_set_keepcounters(int dev, bool keep)
 	return (ret);
 }
 
+struct pfctl_creator {
+	uint32_t id;
+};
+#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
+#define	_OUT(_field)	offsetof(struct pfctl_creator, _field)
+static struct snl_attr_parser ap_creators[] = {
+	{ .type = PF_ST_CREATORID, .off = _OUT(id), .cb = snl_attr_get_uint32 },
+};
+static struct snl_field_parser fp_creators[] = {
+};
+#undef _IN
+#undef _OUT
+SNL_DECLARE_PARSER(creator_parser, struct genlmsghdr, fp_creators, ap_creators);
+
+static int
+pfctl_get_creators_nl(struct snl_state *ss, uint32_t *creators, size_t *len)
+{
+
+	int family_id = snl_get_genl_family(ss, PFNL_FAMILY_NAME);
+	size_t i = 0;
+
+	struct nlmsghdr *hdr;
+	struct snl_writer nw;
+
+	snl_init_writer(ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GETCREATORS);
+	hdr->nlmsg_flags |= NLM_F_DUMP;
+	snl_finalize_msg(&nw);
+	uint32_t seq_id = hdr->nlmsg_seq;
+
+	snl_send_message(ss, hdr);
+
+	struct snl_errmsg_data e = {};
+	while ((hdr = snl_read_reply_multi(ss, seq_id, &e)) != NULL) {
+		struct pfctl_creator c;
+		bzero(&c, sizeof(c));
+
+		if (!snl_parse_nlmsg(ss, hdr, &creator_parser, &c))
+			continue;
+
+		creators[i] = c.id;
+		i++;
+		if (i > *len)
+			return (E2BIG);
+	}
+
+	*len = i;
+
+	return (0);
+}
+
+int
+pfctl_get_creatorids(uint32_t *creators, size_t *len)
+{
+	struct snl_state ss = {};
+	int error;
+
+	snl_init(&ss, NETLINK_GENERIC);
+	error = pfctl_get_creators_nl(&ss, creators, len);
+	snl_free(&ss);
+
+	return (error);
+
+}
+
 static void
 pfctl_nv_add_state_cmp(nvlist_t *nvl, const char *name,
     const struct pfctl_state_cmp *cmp)
@@ -1199,7 +1264,8 @@ static struct snl_field_parser fp_state[] = {
 SNL_DECLARE_PARSER(state_parser, struct genlmsghdr, fp_state, ap_state);
 
 static const struct snl_hdr_parser *all_parsers[] = {
-	&state_parser, &skey_parser, &speer_parser
+	&state_parser, &skey_parser, &speer_parser,
+	&creator_parser,
 };
 
 static int
