@@ -46,6 +46,7 @@ int dma1000_init(struct dwc_softc *sc);
 void dma1000_free(struct dwc_softc *sc);
 void dma1000_start(struct dwc_softc *sc);
 void dma1000_stop(struct dwc_softc *sc);
+int dma1000_reset(struct dwc_softc *sc);
 int dma1000_setup_txbuf(struct dwc_softc *sc, int idx, struct mbuf **mp);
 void dma1000_txfinish_locked(struct dwc_softc *sc);
 void dma1000_rxfinish_locked(struct dwc_softc *sc);
