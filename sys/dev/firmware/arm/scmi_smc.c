@@ -1,0 +1,131 @@
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2022 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2023 Arm Ltd
+ *
+ * This work was supported by Innovate UK project 105694, "Digital Security
+ * by Design (DSbD) Technology Platform Prototype".
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#include <sys/cdefs.h>
+
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/cpu.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+
+#include <dev/fdt/simplebus.h>
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
+#include <dev/psci/smccc.h>
+
+#include "scmi.h"
+#include "scmi_protocols.h"
+
+struct scmi_smc_softc {
+	struct scmi_softc	base;
+	uint32_t		smc_id;
+};
+
+static int
+scmi_smc_xfer_msg(device_t dev)
+{
+	struct scmi_smc_softc *sc;
+
+	sc = device_get_softc(dev);
+	SCMI_ASSERT_LOCKED(&sc->base);
+
+	arm_smccc_smc(sc->smc_id, 0, 0, 0, 0, 0, 0, 0, NULL);
+
+	return (0);
+}
+
+static int
+scmi_smc_probe(device_t dev)
+{
+
+	if (!ofw_bus_is_compatible(dev, "arm,scmi-smc"))
+		return (ENXIO);
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	device_set_desc(dev, "ARM SCMI SCM interface driver");
+
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+scmi_smc_attach(device_t dev)
+{
+	struct scmi_smc_softc *sc;
+	phandle_t node;
+	ssize_t len;
+
+	sc = device_get_softc(dev);
+
+	node = ofw_bus_get_node(dev);
+	len = OF_getencprop(node, "arm,smc-id", &sc->smc_id,
+	    sizeof(sc->smc_id));
+	if (len <= 0) {
+		device_printf(dev, "No SMC ID found\n");
+		return (EINVAL);
+	}
+
+	device_printf(dev, "smc id %x\n", sc->smc_id);
+
+	return (scmi_attach(dev));
+}
+
+static int
+scmi_smc_detach(device_t dev)
+{
+
+	return (0);
+}
+
+static device_method_t scmi_smc_methods[] = {
+	DEVMETHOD(device_probe,		scmi_smc_probe),
+	DEVMETHOD(device_attach,	scmi_smc_attach),
+	DEVMETHOD(device_detach,	scmi_smc_detach),
+
+	/* SCMI interface */
+	DEVMETHOD(scmi_xfer_msg,	scmi_smc_xfer_msg),
+
+	DEVMETHOD_END
+};
+
+DEFINE_CLASS_1(scmi_smc, scmi_smc_driver, scmi_smc_methods,
+    sizeof(struct scmi_smc_softc), scmi_driver);
+
+/* Needs to be after the mmio_sram driver */
+EARLY_DRIVER_MODULE(scmi_smc, simplebus, scmi_smc_driver, 0, 0,
+    BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_LATE);
+MODULE_VERSION(scmi_smc, 1);
