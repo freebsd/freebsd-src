@@ -33,7 +33,6 @@ SRCS=	\
 	inout.c			\
 	ioapic.c		\
 	iov.c			\
-	kernemu_dev.c		\
 	mem.c			\
 	mevent.c		\
 	net_backends.c		\
@@ -84,8 +83,6 @@ SRCS+=	snapshot.c
 .endif
 
 .include "${MACHINE_CPUARCH}/Makefile.inc"
-
-CFLAGS.kernemu_dev.c+=	-I${SRCTOP}/sys/amd64
 
 CFLAGS+=-I${.CURDIR}		\
 	-I${.CURDIR}/../../contrib/lib9p \
