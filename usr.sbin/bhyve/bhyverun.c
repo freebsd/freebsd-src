@@ -1039,8 +1039,8 @@ main(int argc, char *argv[])
 
 #ifdef __amd64__
 	rtc_init(ctx);
-#endif
 	sci_init(ctx);
+#endif
 
 	if (qemu_fwcfg_init(ctx) != 0) {
 		fprintf(stderr, "qemu fwcfg initialization error");
