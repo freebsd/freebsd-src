@@ -485,15 +485,16 @@ pci_lpc_get_sel(struct pcisel *const sel)
 		sel->pc_dev = slot;
 		sel->pc_func = 0;
 
-		if (read_config(sel, PCIR_HDRTYPE, 1) & PCIM_MFDEV)
+		if (pci_host_read_config(sel, PCIR_HDRTYPE, 1) & PCIM_MFDEV)
 			max_func = PCI_FUNCMAX;
 
 		for (uint8_t func = 0; func <= max_func; ++func) {
 			sel->pc_func = func;
 
-			if ((read_config(sel, PCIR_CLASS, 1) == PCIC_BRIDGE) &&
-			    (read_config(sel, PCIR_SUBCLASS, 1) ==
-				PCIS_BRIDGE_ISA)) {
+			if (pci_host_read_config(sel, PCIR_CLASS, 1) ==
+			    PCIC_BRIDGE &&
+			    pci_host_read_config(sel, PCIR_SUBCLASS, 1) ==
+			    PCIS_BRIDGE_ISA) {
 				return (0);
 			}
 		}
