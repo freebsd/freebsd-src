@@ -37,7 +37,6 @@ SRCS=	\
 	net_backends.c		\
 	net_utils.c		\
 	pci_emul.c		\
-	pci_fbuf.c		\
 	pci_hostbridge.c	\
 	pci_nvme.c		\
 	pci_passthru.c		\
@@ -50,7 +49,6 @@ SRCS=	\
 	pci_virtio_scsi.c	\
 	qemu_fwcfg.c		\
 	qemu_loader.c		\
-	rfb.c			\
 	smbiostbl.c		\
 	sockstream.c		\
 	tpm_device.c		\
@@ -60,7 +58,6 @@ SRCS=	\
 	uart_emul.c		\
 	usb_emul.c		\
 	usb_mouse.c		\
-	vga.c			\
 	virtio.c		\
 	vmexit.c		\
 	vmgenc.c
