@@ -62,7 +62,6 @@ SRCS=	\
 	rfb.c			\
 	smbiostbl.c		\
 	sockstream.c		\
-	spinup_ap.c		\
 	tpm_device.c		\
 	tpm_emul_passthru.c	\
 	tpm_intf_crb.c		\
