@@ -17,7 +17,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "e820.h"
+#include "amd64/e820.h"
 #include "pci_gvt-d-opregion.h"
 #include "pci_passthru.h"
 

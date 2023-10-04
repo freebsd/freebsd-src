@@ -84,7 +84,6 @@
 #include "ioapic.h"
 #include "mem.h"
 #include "mevent.h"
-#include "mptbl.h"
 #include "pci_emul.h"
 #include "pci_irq.h"
 #include "pci_lpc.h"
