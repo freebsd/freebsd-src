@@ -31,11 +31,20 @@
 #ifndef	_ARM64_SCMI_SCMI_H_
 #define	_ARM64_SCMI_SCMI_H_
 
+#include "scmi_if.h"
+
 #define	SCMI_LOCK(sc)		mtx_lock(&(sc)->mtx)
 #define	SCMI_UNLOCK(sc)		mtx_unlock(&(sc)->mtx)
 #define	SCMI_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->mtx, MA_OWNED)
 
 #define dprintf(fmt, ...)
+
+struct scmi_softc {
+	struct simplebus_softc	simplebus_sc;
+	device_t		dev;
+	device_t		tx_shmem;
+	struct mtx		mtx;
+};
 
 /* Shared Memory Transfer. */
 struct scmi_smt_header {
@@ -71,7 +80,11 @@ struct scmi_req {
 	uint32_t out_size;
 };
 
+DECLARE_CLASS(scmi_driver);
+
+int scmi_attach(device_t dev);
 int scmi_request(device_t dev, struct scmi_req *req);
+
 void scmi_shmem_read(device_t dev, bus_size_t offset, void *buf,
     bus_size_t len);
 void scmi_shmem_write(device_t dev, bus_size_t offset, const void *buf,
