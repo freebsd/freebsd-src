@@ -12342,8 +12342,8 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (SEQ_GT(tp->snd_una, tp->snd_recover))
 		tp->snd_recover = tp->snd_una;
 
-	if (SEQ_LT(tp->snd_nxt, tp->snd_una)) {
-		tp->snd_nxt = tp->snd_una;
+	if (SEQ_LT(tp->snd_nxt, tp->snd_max)) {
+		tp->snd_nxt = tp->snd_max;
 	}
 	if (under_pacing &&
 	    (rack->use_fixed_rate == 0) &&
@@ -16363,8 +16363,8 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 		/* Send recover and snd_nxt must be dragged along */
 		if (SEQ_GT(tp->snd_una, tp->snd_recover))
 			tp->snd_recover = tp->snd_una;
-		if (SEQ_LT(tp->snd_nxt, tp->snd_una))
-			tp->snd_nxt = tp->snd_una;
+		if (SEQ_LT(tp->snd_nxt, tp->snd_max))
+			tp->snd_nxt = tp->snd_max;
 		/*
 		 * If the RXT timer is running we want to
 		 * stop it, so we can restart a TLP (or new RXT).
@@ -19112,6 +19112,8 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 		lgb->tlb_errno = error;
 		lgb = NULL;
 	}
+	/* Move snd_nxt to snd_max so we don't have false retransmissions */
+	tp->snd_nxt = tp->snd_max;
 	if (error) {
 		goto failed;
 	} else if (rack->rc_hw_nobuf && (ip_sendflag != IP_NO_SND_TAG_RL)) {
