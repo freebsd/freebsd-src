@@ -2007,6 +2007,13 @@ fuse_vnop_readlink(struct vop_readlink_args *ap)
 	if (err) {
 		goto out;
 	}
+	if (strnlen(fdi.answ, fdi.iosize) + 1 < fdi.iosize) {
+		struct fuse_data *data = fuse_get_mpdata(vnode_mount(vp));
+		fuse_warn(data, FSESS_WARN_READLINK_EMBEDDED_NUL,
+				"Returned an embedded NUL from FUSE_READLINK.");
+		err = EIO;
+		goto out;
+	}
 	if (((char *)fdi.answ)[0] == '/' &&
 	    fuse_get_mpdata(vnode_mount(vp))->dataflags & FSESS_PUSH_SYMLINKS_IN) {
 		char *mpth = vnode_mount(vp)->mnt_stat.f_mntonname;

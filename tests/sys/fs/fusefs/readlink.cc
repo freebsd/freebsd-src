@@ -79,6 +79,45 @@ TEST_F(Readlink, eloop)
 	EXPECT_EQ(ELOOP, errno);
 }
 
+/*
+ * If a malicious or buggy server returns a NUL in the FUSE_READLINK result, it
+ * should be handled gracefully.
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=274268
+ */
+TEST_F(Readlink, embedded_nul)
+{
+	const char FULLPATH[] = "mountpoint/src";
+	const char RELPATH[] = "src";
+	const char dst[] = "dst\0stuff";
+	char buf[80];
+	const uint64_t ino = 42;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFLNK | 0777;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_READLINK &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		memcpy(out.body.str, dst, sizeof(dst));
+		out.header.len = sizeof(out.header) + sizeof(dst) + 1;
+	})));
+
+	EXPECT_EQ(-1, readlink(FULLPATH, buf, sizeof(buf)));
+	EXPECT_EQ(EIO, errno);
+	EXPECT_EQ(-1, access(FULLPATH, R_OK));
+	EXPECT_EQ(EIO, errno);
+}
+
 TEST_F(Readlink, ok)
 {
 	const char FULLPATH[] = "mountpoint/src";
