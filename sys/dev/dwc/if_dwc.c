@@ -70,7 +70,6 @@
 #include <dev/mii/mii_fdt.h>
 
 #include <dev/dwc/if_dwcvar.h>
-#include <dev/dwc/dwc1000_reg.h>
 #include <dev/dwc/dwc1000_core.h>
 #include <dev/dwc/dwc1000_dma.h>
 
@@ -524,7 +523,7 @@ dwc_attach(device_t dev)
 	}
 
 	if (OF_getencprop(sc->node, "snps,pbl", &pbl, sizeof(uint32_t)) <= 0)
-		pbl = BUS_MODE_DEFAULT_PBL;
+		pbl = DMA_DEFAULT_PBL;
 	if (OF_getencprop(sc->node, "snps,txpbl", &sc->txpbl, sizeof(uint32_t)) <= 0)
 		sc->txpbl = pbl;
 	if (OF_getencprop(sc->node, "snps,rxpbl", &sc->rxpbl, sizeof(uint32_t)) <= 0)
