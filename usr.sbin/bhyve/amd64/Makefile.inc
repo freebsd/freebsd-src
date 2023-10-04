@@ -4,7 +4,13 @@ SRCS+=	\
 	fwctl.c		\
 	kernemu_dev.c	\
 	mptbl.c		\
+	pci_ahci.c	\
+	pci_e82545.c	\
 	pci_gvt-d.c	\
+	pci_hda.c	\
+	pci_uart.c	\
+	pci_xhci.c	\
+	pctestdev.c	\
 	pm.c		\
 	post.c		\
 	ps2kbd.c	\
