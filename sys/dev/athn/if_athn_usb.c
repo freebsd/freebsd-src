@@ -399,11 +399,11 @@ athn_usb_match(device_t self)
 static int
 athn_usb_attach(device_t self)
 {
-//	struct athn_usb_softc *usc = (struct athn_usb_softc *)self;
-//	struct athn_softc *sc = &usc->sc_sc;
-//	struct usb_attach_arg *uaa = aux;
-//
-//	usc->sc_udev = uaa->device;
+	struct usb_attach_arg *uaa = device_get_ivars(self);
+	struct athn_usb_softc *usc = device_get_softc(self);
+
+	usc->sc_udev = uaa->device;
+	
 //	usc->sc_iface = uaa->iface;
 //
 //	usc->flags = athn_usb_lookup(uaa->vendor, uaa->product)->flags;

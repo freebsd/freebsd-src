@@ -36,6 +36,7 @@
 
 static const struct firmware *fware = NULL;
 
+extern int tsleep_nsec(const void *ident, int priority, const char *wmesg, uint64_t nsecs);
 
 void
 athn_usb_unload_firmware()
@@ -74,48 +75,49 @@ athn_usb_get_firmware(struct athn_usb_softc *usc)
 		printf("Firmware name: %s:\n", fware->name);
 		printf("Firmware version: %u:\n", fware->version);
 		printf("Firmware size: %zu:\n", fware->datasize);
-		return (error);
+		return 0;
 	}
 }
 
 
 
 int
-athn_usb_load_firmware(struct athn_usb_softc *usc)
+athn_usb_transfer_firmware(struct athn_usb_softc *usc)
 {
 	usb_device_request_t req;
 	const char *name;
-	u_char *fw, *ptr;
+	void *ptr;
 	size_t fwsize, size;
 	uint32_t addr;
 	int s, mlen;
-	int error = ENXIO;
-	
-	error = athn_usb_get_firmware(usc);
-	return error;
-
-	/* Load firmware image. */
-	ptr = fw;
+	int error = 0;
+/* Load firmware image. */
+	ptr = (void *)fware->data;
 	addr = AR9271_FIRMWARE >> 8;
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = AR_FW_DOWNLOAD;
 	USETW(req.wIndex, 0);
-	size = fwsize;
+	size = fware->datasize;
 	while (size > 0) {
+		printf("Uploading %zu bytes\n", size);
 		mlen = MIN(size, 4096);
 
 		USETW(req.wValue, addr);
 		USETW(req.wLength, mlen);
-//		error = usbd_do_request(usc->sc_udev, &req, ptr);
+
+		error = usbd_do_request(usc->sc_udev, NULL, &req, ptr);
 		if (error != 0) {
-			free(fw, M_DEVBUF, fwsize);
+			athn_usb_unload_firmware();
 			return (error);
 		}
 		addr += mlen >> 8;
 		ptr  += mlen;
 		size -= mlen;
 	}
-	free(fw, M_DEVBUF, fwsize);
+
+	/* TODO:
+	 * do we want to unload (athn_usb_unload_firmware) here or in detach ?
+	 */
 
 	/* Start firmware. */
 	if (usc->flags & ATHN_USB_FLAG_AR7010)
@@ -127,14 +129,46 @@ athn_usb_load_firmware(struct athn_usb_softc *usc)
 	USETW(req.wIndex, 0);
 	USETW(req.wValue, addr);
 	USETW(req.wLength, 0);
-//	s = splusb();
+
+	/* TODO:
+	 * splnet / splx is deprecated, use mutexes
+	 */
+	s = splnet();
 	usc->wait_msg_id = AR_HTC_MSG_READY;
-//	error = usbd_do_request(usc->sc_udev, &req, NULL);
+	
+	printf("Send AR_HTC_MSG_READY message\n");
+	error = usbd_do_request(usc->sc_udev, NULL, &req, NULL);
 	/* Wait at most 1 second for firmware to boot. */
-//	if (error == 0 && usc->wait_msg_id != 0)
-//		error = tsleep_nsec(&usc->wait_msg_id, 0, "athnfw",
-//		    SEC_TO_NSEC(1));
+	if (error == 0 && usc->wait_msg_id != 0) {
+		error = tsleep_nsec(&usc->wait_msg_id, 0, "athnfw",
+		    SEC_TO_NSEC(1));
+	}
 	usc->wait_msg_id = 0;
 	splx(s);
+	if (error) {
+		printf("Error waiting message, errno: %d\n", error);
+	} else {
+		printf("Successfully transfered firmware, errno: %d\n", error);
+	}
+	
 	return (error);
+}
+
+int
+athn_usb_load_firmware(struct athn_usb_softc *usc)
+{
+	int error = 0;
+	
+	error = athn_usb_get_firmware(usc);
+	if (error) {
+		printf("Failed to get firmware\n");
+		return error;
+	}
+
+	error = athn_usb_transfer_firmware(usc);
+	if (error) {
+		printf("Failed to transfer firmware to the device\n");
+	}
+
+	return error;
 }
