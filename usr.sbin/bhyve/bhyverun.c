@@ -85,8 +85,8 @@
 #include "amd64/fwctl.h"
 #endif
 #include "gdb.h"
-#include "ioapic.h"
 #ifdef __amd64__
+#include "amd64/ioapic.h"
 #include "amd64/kernemu_dev.h"
 #endif
 #include "mem.h"
@@ -95,8 +95,10 @@
 #include "amd64/mptbl.h"
 #endif
 #include "pci_emul.h"
-#include "pci_irq.h"
-#include "pci_lpc.h"
+#ifdef __amd64__
+#include "amd64/pci_irq.h"
+#include "amd64/pci_lpc.h"
+#endif
 #include "qemu_fwcfg.h"
 #include "smbiostbl.h"
 #ifdef BHYVE_SNAPSHOT
@@ -634,8 +636,10 @@ do_open(const char *vmname)
 
 	reinit = romboot = false;
 
+#ifdef __amd64__
 	if (lpc_bootrom())
 		romboot = true;
+#endif
 
 	error = vm_create(vmname);
 	if (error) {
@@ -855,6 +859,7 @@ main(int argc, char *argv[])
 		case 'K':
 			set_config_value("keyboard.layout", optarg);
 			break;
+#ifdef __amd64__
 		case 'l':
 			if (strncmp(optarg, "help", strlen(optarg)) == 0) {
 				lpc_print_supported_devices();
@@ -864,6 +869,7 @@ main(int argc, char *argv[])
 				    "configuration '%s'", optarg);
 			}
 			break;
+#endif
 #ifdef BHYVE_SNAPSHOT
 		case 'r':
 			restore_file = optarg;
@@ -1037,9 +1043,9 @@ main(int argc, char *argv[])
 	init_bootrom(ctx);
 #ifdef __amd64__
 	atkbdc_init(ctx);
-#endif
 	pci_irq_init(ctx);
 	ioapic_init(ctx);
+#endif
 
 #ifdef __amd64__
 	rtc_init(ctx);
@@ -1085,6 +1091,7 @@ main(int argc, char *argv[])
 
 	init_gdb(ctx);
 
+#ifdef __amd64__
 	if (lpc_bootrom()) {
 		if (vm_set_capability(bsp, VM_CAP_UNRESTRICTED_GUEST, 1)) {
 			fprintf(stderr, "ROM boot failed: unrestricted guest "
@@ -1094,6 +1101,7 @@ main(int argc, char *argv[])
 		error = vcpu_reset(bsp);
 		assert(error == 0);
 	}
+#endif
 
 	/*
 	 * Add all vCPUs.

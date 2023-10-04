@@ -2,12 +2,15 @@ SRCS+=	\
 	atkbdc.c	\
 	e820.c		\
 	fwctl.c		\
+	ioapic.c	\
 	kernemu_dev.c	\
 	mptbl.c		\
 	pci_ahci.c	\
 	pci_e82545.c	\
 	pci_gvt-d.c	\
 	pci_hda.c	\
+	pci_irq.c	\
+	pci_lpc.c	\
 	pci_uart.c	\
 	pci_xhci.c	\
 	pctestdev.c	\
