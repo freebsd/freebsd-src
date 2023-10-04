@@ -10,7 +10,6 @@
 
 #include <bsddialog.h>
 #include <stdio.h>
-#include <string.h>
 
 int main()
 {
@@ -40,32 +39,24 @@ int main()
 	    { "",  false, 0, "Name 5", "Desc 5", "Bottom Desc 5" }
 	};
 	struct bsddialog_menugroup group[4] = {
-	    { BSDDIALOG_SEPARATOR, 1, sep1  },
-	    { BSDDIALOG_CHECKLIST, 5, check },
-	    { BSDDIALOG_SEPARATOR, 2, sep2  },
-	    { BSDDIALOG_RADIOLIST, 5, radio }
+	    { BSDDIALOG_SEPARATOR, 1, sep1,  0 },
+	    { BSDDIALOG_CHECKLIST, 5, check, 0 },
+	    { BSDDIALOG_SEPARATOR, 2, sep2,  0 },
+	    { BSDDIALOG_RADIOLIST, 5, radio, 0 }
 	};
 
 	if (bsddialog_init() == BSDDIALOG_ERROR) {
 		printf("Error: %s\n", bsddialog_geterror());
 		return (1);
 	}
-
 	bsddialog_initconf(&conf);
 	conf.title = "mixedlist";
 	output = bsddialog_mixedlist(&conf, "Example", 20, 0, 13, 4, group,
 	    NULL, NULL);
-
 	bsddialog_end();
-
 	if (output == BSDDIALOG_ERROR) {
 		printf("Error: %s\n", bsddialog_geterror());
 		return (1);
-	}
-
-	if (output == BSDDIALOG_CANCEL) {
-		printf("Cancel\n");
-		return (0);
 	}
 
 	printf("Mixedlist:\n");
@@ -83,5 +74,5 @@ int main()
 		}
 	}
 
-	return (output);
+	return (0);
 }

@@ -73,7 +73,7 @@ startwizard:
 		return (1);
 	}
 
-	bsddialog_clearterminal();
+	bsddialog_clear(0);
 	bsddialog_backtitle(&conf, "FreeBSD Installer");
 	schemeroot = wizard_partition(&mesh, disk);
 	free(disk);
@@ -81,7 +81,7 @@ startwizard:
 	if (schemeroot == NULL)
 		return (1);
 
-	bsddialog_clearterminal();
+	bsddialog_clear(0);
 	bsddialog_backtitle(&conf, "FreeBSD Installer");
 	error = geom_gettree(&mesh);
 	if (error != 0) {

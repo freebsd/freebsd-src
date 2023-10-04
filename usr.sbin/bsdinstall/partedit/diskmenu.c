@@ -62,7 +62,7 @@ diskmenu_show(const char *title, const char *text, struct partedit_item *items,
 	bsddialog_initconf(&conf);
 	conf.title = title;
 	conf.menu.align_left = true;
-	conf.text.highlight = true;
+	conf.text.escape = true;
 	conf.key.f1_message="[\\Z1\\ZbC\\Znreate]: a new partition.\n"
 		"[\\Z1\\ZbD\\Znelete]: selected partition(s).\n"
 		"[\\Z1\\ZbC\\Znhange]: partition type or mountpoint.\n"
@@ -76,8 +76,8 @@ diskmenu_show(const char *title, const char *text, struct partedit_item *items,
 	conf.button.cancel_label   = "Modify";
 	conf.button.with_help      = true;
 	conf.button.help_label     = "Revert";
-	conf.button.generic1_label = "Auto";
-	conf.button.generic2_label = "Finish";
+	conf.button.right1_label = "Auto";
+	conf.button.right2_label = "Finish";
 	conf.button.default_label  = "Finish";
 	output = bsddialog_menu(&conf, text, 20, 0, 10, nitems, bsditems,
 	    focusitem);

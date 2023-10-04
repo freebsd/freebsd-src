@@ -1,3 +1,173 @@
+2023-08-01 Version 1.0
+
+	Utility:
+	* add: comments to --save-theme output file.
+	* add: blink, halfbright, highlight to --save-theme and --load-theme.
+	* add: theme.menu.[f_]prefixcolor to --save-theme and --load-theme.
+	* add: --datebox-format <d/m/y|m/d/y|y/m/d> to set --datebox UI.
+	* add: --help-print-items (--help-status becomes alias).
+	* add: --text-escape (--colors becomes alias).
+	* add: new escapes \Zd, \Zk, \Zs, \ZD, \ZK, \ZS, for --text-escape.
+	* add: env NO_COLOR, to set blackwhite theme.
+	* add: $HOME/.bsddialog.conf startup theme file.
+	* add: env BSDDIALOG_THEMEFILE startup theme file.
+	* add: --left1-button <label>.
+	* add: --left2-button <label>.
+	* add: --left3-button <label>.
+	* add: --right1-button <label>.
+	* add: --right2-button <label>.
+	* add: --right3-button <label>.
+	* add: dynamic exit codes.
+	    - add: --error-exit-code.
+	    - add: --ok-exit-code.
+	    - add: --cancel-exit-code.
+	    - add: --help-exit-code.
+	    - add: --extra-exit-code.
+	    - add: --timeout-exit-code.
+	    - add: --esc-exit-code.
+	    - add: --left1-exit-code.
+	    - add: --left2-exit-code.
+	    - add: --left3-exit-code.
+	    - add: --right1-exit-code.
+	    - add: --right2-exit-code.
+	    - add: --right3-exit-code.
+	    - add: env BSDDIALOG_ERROR.
+	    - add: env BSDDIALOG_OK.
+	    - add: env BSDDIALOG_CANCEL.
+	    - add: env BSDDIALOG_HELP.
+	    - add: env BSDDIALOG_EXTRA.
+	    - add: env BSDDIALOG_TIMEOUT.
+	    - add: env BSDDIALOG_ESC.
+	    - add: env BSDDIALOG_LEFT1.
+	    - add: env BSDDIALOG_LEFT2.
+	    - add: env BSDDIALOG_LEFT3.
+	    - add: env BSDDIALOG_RIGHT1.
+	    - add: env BSDDIALOG_RIGHT2.
+	    - add: env BSDDIALOG_RIGHT3.
+	* add: undocumented envs for bsdconfig(8) compatibility.
+	    - env BSDDIALOG_COMPATRC for use_shadow setting.
+	    - env BSDDIALOG_ITEM_HELP to add/set exit code.
+	* change: rename themes --theme <3d|blackwhite|flat>.
+	* change: --no-names and --no-descriptions mutually exclusive (via lia).
+	* change: quote only checklist output items if necessary. Previously
+	    also radiolist item.
+	* change: dialogs with user input print always values except with ERROR,
+	    ESC, Cancel. Previously the situation was quite heterogeneous.
+	* improve: DIAGNOSTIC messages adding fmt string errors.
+	* improve: disable theme setting (opt and env) with no-color terminals.
+	* improve: menus on|off status (strcasecmp, diagnostic, real off check).
+	* improve: --bikeshed with button delimiter and --date-format.
+	* improve: --textbox accepts button options.
+	* improve: Forms with Help button.
+	    - print "HELP" (like menus).
+	    - accept --help-list-items.
+	    - accept --help-print-name.
+	* fix: --load-theme attributes.
+	* fix: --clear-screen with --and-dialog.
+	* delete: --theme <bsddialog> (partially implemented).
+	* delete: --esc-return-cancel (replaced by new env and option).
+	* delete: --generic-button1 (replaced by --right1-button).
+	* delete: --generic-button2 (replaced by --right2-button).
+	* refactor: modularize in more files (main, cli, builders, theme).
+
+	Library:
+	* add: bsddialog_inmode().
+	* add: bsddialog_clear(y) for utility --clear-screen.
+	* add: bsddialog_refresh() for utility terminal mode options.
+	* add: conf.date.format="d/m/y"|"m/d/y"|"y/m/d" to customize
+	    bsddialog_datebox() UI (boxes) with a date format.
+	* add: 'const char *end' to bsddialog_gauge().
+	* add: draw focus on the shortcut-key-selected button at exit.
+	* add: escapes for conf.text.highlight \Zd, \Zk, \Zs, \ZD, \ZK, \ZS.
+	* add: other theme flags.
+	    - BSDDIALOG_BLINK.
+	    - BSDDIALOG_HALFBRIGHT.
+	    - BSDDIALOG_HIGHLIGHT.
+	* add: generic buttons.
+	    - conf.button.left1_label, BSDDIALOG_LEFT1 return value.
+	    - conf.button.left2_label, BSDDIALOG_LEFT2 return value.
+	    - conf.button.left3_label, BSDDIALOG_LEFT3 return value.
+	    - conf.button.right1.label, BSDDIALOG_RIGHT1 return value.
+	    - conf.button.right2.label, BSDDIALOG_RIGHT2 return value.
+	    - conf.button.right3.label, BSDDIALOG_RIGHT3 return value.
+	* add: unused bsddialog_menugroup.min_on for future features.
+	* add: theme.menu.f_prefixcolor and theme.menu.prefixcolor.
+	* improve: check (when possible) API pointers.
+	* improve: circolar buttons with left and right keys for msgbox, yesno,
+	    menus, rangebox and pause.
+	* improve: bsddialog_textbox() handles conf.buttons.
+	* improve: bsddialog_datebox() a box change affects the others as well.
+	* improve: bsddialog_geterror() with fmt strings.
+	* change: API NULL strings handled like "", except gauge *sep and *end.
+	* change: menus and form less restrictive with text, hide text with
+	    little screens (same behavior as other dialogs).
+	* change: mixedgauge BSDDIALOG_MG_BLANK does not draw minibar but prints
+	    minilabel. The change allows mixedgauge to add sections. To restore
+	    the previous behavior setting minilabel to "".
+	* change: check/set bsddialog_gauge() perc max 100.
+	* change: check/set bsddialog_mixedgauge() mainperc max 100.
+	* change: conf.menu.no_name and conf.menu.no_desc mutually exclusive.
+	* change: bsddialog_pause() sec -> *sec to know remaining time at exit.
+	* change: add *focusitem to bsddialog_form() like menus.
+	* change: "pointer" values are always set except when BSDDIALOG_ERROR
+	    occurs. Examples *yy/*mm/*ss, rangebox *value.
+	    - delete conf.menu.on_without_ok.
+	    - delete conf.form.value_without_ok.
+	* rename: conf.text.highlight -> conf.text.escape.
+	* rename: theme.menu.namesepcolor -> theme.menu.sepnamecolor.
+	* rename: theme.menu.descsepcolor -> theme.menu.sepdesccolor.
+	* fix: bsddialog_pause() elevation bar after resize.
+	* fix: bsddialog_textbox() key '0'.
+	* fix: timebox.c checksize (boxes width).
+	* fix: extend menurows after shrink and enlarge.
+	* fix: menu pad and form pad "re-expansion" after shrink and enlarge.
+	* fix: shadow top-left corner (trick wresize() before wmove()).
+	* fix: increment bsddialog_total_progview size for more general use.
+	* delete: BSDDIALOG_THEME_BSDDIALOG (partially implemented).
+	* delete: conf.button.generic1_label (for new conf.button.right1_label).
+	* delete: BSDDIALOG_GENERIC1 return value (new BSDDIALOG_RIGHT1).
+	* delete: conf.button.generic2_label (for new conf.button.right2_label).
+	* delete: BSDDIALOG_GENERIC2 return value (new BSDDIALOG_RIGHT2).
+	* delete: bsddialog_clearterminal(), replaced by bsddialog_clear(y).
+	* refactor: internal implementation.
+	    - add: internal structures to represent components.
+	    - merge: (when possible) dialogs autosize.
+	    - merge: (when possible) dialogs checksize.
+	    - merge: for each dialog "build" with "update" -> <dialog>_redraw().
+	    - merge: new_dialog() with update_dialog() -> draw_dialog().
+	    - merge: infobox.c with messagebox.c (delete infobox.c)
+	    - merge: bsddialog_datebox() + bsddialog_calendar() -> datebox.c
+	    - change: flat and blackwhite real themes, 3d adapted from flat.
+	    - improve: replace wrefresh() -> wnoutrefresh()/doupdate().
+	    - improve: replace prefresh() -> pnoutrefresh()/doupdate().
+	    - improve: menu split code to build private items.
+	    - improve: form split code to build private items.
+	    - delete: -Wno-implicit-fallthrough.
+
+
+2023-06-12 Version 0.4.2
+
+	Library:
+	* fix: compile error with aarch64-gcc12 for "\Z[0-7]" check;
+	    https://gitlab.com/alfix/bsddialog/-/issues/5.
+	* fix: BSDDIALOG_FIELDCURSOREND with multiple items
+	    (warning aarch64-gcc12).
+
+
+2023-01-02 Version 0.4.1
+
+	Utility:
+	* fix: default space separator menus output, except if --separator " ".
+	* rename: GNUMakefile to GNUmakefile to simplify linux build.
+	    Thanks to https://gitlab.com/alfix/bsddialog/-/merge_requests/2.
+
+	Library:
+	* fix: t.dialog.linelowercolor no bold-black, some terminal draws grey.
+	* fix: text wrapping (actual string length) with --colors.
+	* rename: GNUMakefile to GNUmakefile to simplify linux build.
+	    Thanks to https://gitlab.com/alfix/bsddialog/-/merge_requests/2.
+
+
 2022-09-24 Version 0.4
 
 	Utility:
@@ -6,19 +176,19 @@
 	* add: --keep-tite as --alternate-screen alias.
 	* add: --and-dialog to build other dialogs.
 	* add: --and-widget as --and-dialog alias.
-	* add: --no-names (--no-tags becames its alias).
-	* add: --no-descriptions (--no-items becames its alias).
-	* add: --help-print-name (--help-tags becames its alias).
-	* add: --item-bottom-desc (--item-help becames its alias).
+	* add: --no-names (--no-tags becomes alias).
+	* add: --no-descriptions (--no-items becomes alias).
+	* add: --help-print-name (--help-tags becomes alias).
+	* add: --item-bottom-desc (--item-help becomes alias).
 	* add: --cr-wrap (was partially implemented) to keep '\n' with "\n".
 	* add: --text-unchanged to avoid default modification.
-	* add: --tab-escape enables "\t" in text.
+	* add: --tab-escape to enable "\t" in text.
 	* add: --clear-screen to clear the screen.
 	* add: --clear-dialog to clear the dialog (was --clear).
 	* add: --calendar dialog to select a date.
 	* add: DIAGNOSTICS messages for bad arguments number.
 	* add: DIAGNOSTICS messages for missing and unexpected options.
-	* change: --clear becames alias for --clear-screen.
+	* change: --clear becomes alias for --clear-screen.
 	* change: --print-maxsize format output.
 	* change: --menu, --radiolist, --checklist and --treeview output.
 	    - no printed items with Cancel or ESC.
@@ -41,9 +211,9 @@
 	* add: bsddialog_menu() SPACE key (equivalent to ENTER).
 	* add: bsddialog_calendar() to select a date.
 	* change: rename enum bsddialog_grouptype -> enum bsddialog_menutype.
-	* change: fixed-menurows becames at most menurows (depending on text).
-	* change: fixed-rows becames at most rows, min(rows, screenH - shadow).
-	* change: fixed-cols becames at most cols, min(cols, screenW - shadow).
+	* change: fixed-menurows becomes at most menurows (depending on text).
+	* change: fixed-rows becomes at most rows, min(rows, screenH - shadow).
+	* change: fixed-cols becomes at most cols, min(cols, screenW - shadow).
 	* delete: undocumented internal bsddialog_menuitem.depth factor (was 2).
 
 
@@ -55,9 +225,9 @@
 	* add: --load-theme to read and set a custom theme at runtime.
 	* add: --save-theme to save current theme.
 	* add: --bikeshed for random settings.
-	* add: --switch-buttons enables focus switching: buttons / input
-	       components. Available for: --form, --inputbox, --mixedform,
-	       --passwordform, --passwordbox, --timebox and --datebox.
+	* add: --switch-buttons to enable buttons/input widgets focus switching.
+	       Available for: --form, --inputbox, --mixedform, --passwordform,
+	       --passwordbox, --timebox and --datebox.
 	* change: rename --esc-cancelvalue to --esc-return-cancel.
 	* change: form field value is printed like multibyte charachter string,
 	          previously widechar string.

@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021-2022 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2023 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,14 +36,14 @@
 
 extern bool bsddialog_interruptprogview;
 extern bool bsddialog_abortprogview;
-extern int  bsddialog_total_progview;
+extern long long int bsddialog_total_progview;
 
 struct bsddialog_fileminibar {
 	const char *path;
 	const char *label;
 	int status; /* next if BSDDIALOG_MG_DONE or BSDDIALOG_MG_FAILED */
-	long long size;
-	long long read;
+	long long int size;
+	long long int read;
 };
 
 struct bsddialog_progviewconf {
