@@ -2,6 +2,7 @@ SRCS+=	\
 	atkbdc.c	\
 	e820.c		\
 	fwctl.c		\
+	inout.c		\
 	ioapic.c	\
 	kernemu_dev.c	\
 	mptbl.c		\

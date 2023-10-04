@@ -43,7 +43,9 @@
 #include <vmmapi.h>
 
 #include "debug.h"
-#include "inout.h"
+#ifdef __amd64__
+#include "amd64/inout.h"
+#endif
 #include "mem.h"
 #include "pctestdev.h"
 

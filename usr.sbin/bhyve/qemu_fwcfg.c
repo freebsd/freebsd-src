@@ -22,8 +22,8 @@
 
 #include "acpi_device.h"
 #include "bhyverun.h"
-#include "inout.h"
 #ifdef __amd64__
+#include "amd64/inout.h"
 #include "amd64/pci_lpc.h"
 #endif
 #include "qemu_fwcfg.h"
@@ -114,6 +114,7 @@ struct qemu_fwcfg_user_file {
 static STAILQ_HEAD(qemu_fwcfg_user_file_list,
     qemu_fwcfg_user_file) user_files = STAILQ_HEAD_INITIALIZER(user_files);
 
+#ifdef __amd64__
 static int
 qemu_fwcfg_selector_port_handler(struct vmctx *const ctx __unused, const int in,
     const int port __unused, const int bytes, uint32_t *const eax,
@@ -181,6 +182,7 @@ qemu_fwcfg_data_port_handler(struct vmctx *const ctx __unused, const int in,
 
 	return (0);
 }
+#endif
 
 static int
 qemu_fwcfg_add_item(const uint16_t architecture, const uint16_t index,
@@ -295,6 +297,7 @@ qemu_fwcfg_add_item_signature(void)
 	    (uint8_t *)fwcfg_signature));
 }
 
+#ifdef __amd64__
 static int
 qemu_fwcfg_register_port(const char *const name, const int port, const int size,
     const int flags, const inout_func_t handler)
@@ -310,6 +313,7 @@ qemu_fwcfg_register_port(const char *const name, const int port, const int size,
 
 	return (register_inout(&iop));
 }
+#endif
 
 int
 qemu_fwcfg_add_file(const char *name, const uint32_t size, void *const data)
@@ -461,7 +465,7 @@ qemu_fwcfg_init(struct vmctx *const ctx)
 			goto done;
 		}
 
-		/* add handlers for fwcfg ports */
+#ifdef __amd64__
 		if ((error = qemu_fwcfg_register_port("qemu_fwcfg_selector",
 		    QEMU_FWCFG_SELECTOR_PORT_NUMBER,
 		    QEMU_FWCFG_SELECTOR_PORT_SIZE,
@@ -481,6 +485,7 @@ qemu_fwcfg_init(struct vmctx *const ctx)
 			    __func__, QEMU_FWCFG_DATA_PORT_NUMBER);
 			goto done;
 		}
+#endif
 	}
 
 	/* add common fwcfg items */

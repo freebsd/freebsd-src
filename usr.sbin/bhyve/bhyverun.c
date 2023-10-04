@@ -78,7 +78,9 @@
 #endif
 #include "bootrom.h"
 #include "config.h"
-#include "inout.h"
+#ifdef __amd64__
+#include "amd64/inout.h"
+#endif
 #include "debug.h"
 #ifdef __amd64__
 #include "amd64/e820.h"
@@ -1036,8 +1038,8 @@ main(int argc, char *argv[])
 #endif
 
 	init_mem(guest_ncpus);
-	init_inout();
 #ifdef __amd64__
+	init_inout();
 	kernemu_dev_init();
 #endif
 	init_bootrom(ctx);
