@@ -105,7 +105,7 @@ e820_dump_table(void)
 	}
 }
 
-struct qemu_fwcfg_item *
+static struct qemu_fwcfg_item *
 e820_get_fwcfg_item(void)
 {
 	struct qemu_fwcfg_item *fwcfg_item;
@@ -463,6 +463,28 @@ e820_init(struct vmctx *const ctx)
 		warnx("%s: Could not add ROM area", __func__);
 		return (error);
 	}
+
+	return (0);
+}
+
+int
+e820_finalize(void)
+{
+	struct qemu_fwcfg_item *e820_fwcfg_item;
+	int error;
+
+	e820_fwcfg_item = e820_get_fwcfg_item();
+	if (e820_fwcfg_item == NULL) {
+		warnx("invalid e820 table");
+		return (ENOMEM);
+	}
+	error = qemu_fwcfg_add_file("etc/e820",
+	    e820_fwcfg_item->size, e820_fwcfg_item->data);
+	if (error != 0) {
+		warnx("could not add qemu fwcfg etc/e820");
+		return (error);
+	}
+	free(e820_fwcfg_item);
 
 	return (0);
 }

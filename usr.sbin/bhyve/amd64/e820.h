@@ -41,5 +41,5 @@ uint64_t e820_alloc(const uint64_t address, const uint64_t length,
     const uint64_t alignment, const enum e820_memory_type type,
     const enum e820_allocation_strategy strategy);
 void e820_dump_table(void);
-struct qemu_fwcfg_item *e820_get_fwcfg_item(void);
 int e820_init(struct vmctx *const ctx);
+int e820_finalize(void);

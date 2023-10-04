@@ -89,8 +89,8 @@
 #include "config.h"
 #include "inout.h"
 #include "debug.h"
-#include "e820.h"
 #ifdef __amd64__
+#include "amd64/e820.h"
 #include "amd64/fwctl.h"
 #endif
 #include "gdb.h"
@@ -98,7 +98,9 @@
 #include "kernemu_dev.h"
 #include "mem.h"
 #include "mevent.h"
-#include "mptbl.h"
+#ifdef __amd64__
+#include "amd64/mptbl.h"
+#endif
 #include "pci_emul.h"
 #include "pci_irq.h"
 #include "pci_lpc.h"
@@ -1221,7 +1223,6 @@ main(int argc, char *argv[])
 	int max_vcpus, memflags;
 	struct vcpu *bsp;
 	struct vmctx *ctx;
-	struct qemu_fwcfg_item *e820_fwcfg_item;
 	size_t memsize;
 	const char *optstr, *value, *vmname;
 #ifdef BHYVE_SNAPSHOT
@@ -1349,9 +1350,11 @@ main(int argc, char *argv[])
 		case 'x':
 			set_config_bool("x86.x2apic", true);
 			break;
+#ifdef __amd64__
 		case 'Y':
 			set_config_bool("x86.mptable", false);
 			break;
+#endif
 		case 'h':
 			usage(0);
 		default:
@@ -1476,10 +1479,12 @@ main(int argc, char *argv[])
 		exit(4);
 	}
 
+#ifdef __amd64__
 	if (e820_init(ctx) != 0) {
 		fprintf(stderr, "Unable to setup E820");
 		exit(4);
 	}
+#endif
 
 	/*
 	 * Exit if a device emulation finds an error in its initialization
@@ -1552,9 +1557,7 @@ main(int argc, char *argv[])
 	}
 #endif
 
-	/*
-	 * build the guest tables, MP etc.
-	 */
+#ifdef __amd64__
 	if (get_config_bool_default("x86.mptable", true)) {
 		error = mptable_build(ctx, guest_ncpus);
 		if (error) {
@@ -1562,6 +1565,7 @@ main(int argc, char *argv[])
 			exit(4);
 		}
 	}
+#endif
 
 	error = smbios_build(ctx);
 	if (error != 0)
@@ -1572,17 +1576,11 @@ main(int argc, char *argv[])
 		assert(error == 0);
 	}
 
-	e820_fwcfg_item = e820_get_fwcfg_item();
-	if (e820_fwcfg_item == NULL) {
-	    fprintf(stderr, "invalid e820 table");
+#ifdef __amd64__
+	error = e820_finalize();
+	if (error != 0)
 		exit(4);
-	}
-	if (qemu_fwcfg_add_file("etc/e820", e820_fwcfg_item->size,
-		e820_fwcfg_item->data) != 0) {
-		fprintf(stderr, "could not add qemu fwcfg etc/e820");
-		exit(4);
-	}
-	free(e820_fwcfg_item);
+#endif
 
 #ifdef __amd64__
 	if (lpc_bootrom() && strcmp(lpc_fwcfg(), "bhyve") == 0) {
