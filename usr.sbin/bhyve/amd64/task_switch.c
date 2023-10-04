@@ -700,6 +700,8 @@ push_errcode(struct vcpu *vcpu, struct vm_guest_paging *paging,
 			return (VMEXIT_CONTINUE);			\
 	} while (0)
 
+int vmexit_task_switch(struct vmctx *, struct vcpu *, struct vm_run *);
+
 int
 vmexit_task_switch(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 {
