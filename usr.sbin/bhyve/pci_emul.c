@@ -51,8 +51,8 @@
 #include "bhyverun.h"
 #include "config.h"
 #include "debug.h"
-#include "inout.h"
 #ifdef __amd64__
+#include "amd64/inout.h"
 #include "amd64/ioapic.h"
 #endif
 #include "mem.h"
@@ -502,6 +502,7 @@ pci_msix_pba_bar(struct pci_devinst *pi)
 		return (-1);
 }
 
+#ifdef __amd64__
 static int
 pci_emul_io_handler(struct vmctx *ctx __unused, int in, int port,
     int bytes, uint32_t *eax, void *arg)
@@ -530,6 +531,31 @@ pci_emul_io_handler(struct vmctx *ctx __unused, int in, int port,
 	}
 	return (-1);
 }
+#else
+static int
+pci_emul_iomem_handler(struct vcpu *vcpu __unused, int dir,
+    uint64_t addr, int size, uint64_t *val, void *arg1, long arg2)
+{
+	struct pci_devinst *pdi = arg1;
+	struct pci_devemu *pe = pdi->pi_d;
+	uint64_t offset;
+	int bidx = (int)arg2;
+
+	assert(bidx <= PCI_BARMAX);
+	assert(pdi->pi_bar[bidx].type == PCIBAR_IO);
+	assert(addr >= pdi->pi_bar[bidx].addr &&
+	       addr + size <= pdi->pi_bar[bidx].addr + pdi->pi_bar[bidx].size);
+	assert(size == 1 || size == 2 || size == 4);
+
+	offset = addr - pdi->pi_bar[bidx].addr;
+	if (dir == MEM_F_READ)
+		*val = (*pe->pe_barread)(pdi, bidx, offset, size);
+	else
+		(*pe->pe_barwrite)(pdi, bidx, offset, size, *val);
+
+	return (0);
+}
+#endif /* !__amd64__ */
 
 static int
 pci_emul_mem_handler(struct vcpu *vcpu __unused, int dir,
@@ -538,7 +564,7 @@ pci_emul_mem_handler(struct vcpu *vcpu __unused, int dir,
 	struct pci_devinst *pdi = arg1;
 	struct pci_devemu *pe = pdi->pi_d;
 	uint64_t offset;
-	int bidx = (int) arg2;
+	int bidx = (int)arg2;
 
 	assert(bidx <= PCI_BARMAX);
 	assert(pdi->pi_bar[bidx].type == PCIBAR_MEM32 ||
@@ -601,12 +627,16 @@ modify_bar_registration(struct pci_devinst *pi, int idx, int registration)
 {
 	struct pci_devemu *pe;
 	int error;
-	struct inout_port iop;
-	struct mem_range mr;
+	enum pcibar_type type;
 
 	pe = pi->pi_d;
-	switch (pi->pi_bar[idx].type) {
+	type = pi->pi_bar[idx].type;
+	switch (type) {
 	case PCIBAR_IO:
+	{
+#ifdef __amd64__
+		struct inout_port iop;
+
 		bzero(&iop, sizeof(struct inout_port));
 		iop.name = pi->pi_name;
 		iop.port = pi->pi_bar[idx].addr;
@@ -618,9 +648,29 @@ modify_bar_registration(struct pci_devinst *pi, int idx, int registration)
 			error = register_inout(&iop);
 		} else
 			error = unregister_inout(&iop);
+#else
+		struct mem_range mr;
+
+		bzero(&mr, sizeof(struct mem_range));
+		mr.name = pi->pi_name;
+		mr.base = pi->pi_bar[idx].addr;
+		mr.size = pi->pi_bar[idx].size;
+		if (registration) {
+			mr.flags = MEM_F_RW;
+			mr.handler = pci_emul_iomem_handler;
+			mr.arg1 = pi;
+			mr.arg2 = idx;
+			error = register_mem(&mr);
+		} else
+			error = unregister_mem(&mr);
+#endif
 		break;
+	}
 	case PCIBAR_MEM32:
 	case PCIBAR_MEM64:
+	{
+		struct mem_range mr;
+
 		bzero(&mr, sizeof(struct mem_range));
 		mr.name = pi->pi_name;
 		mr.base = pi->pi_bar[idx].addr;
@@ -634,6 +684,7 @@ modify_bar_registration(struct pci_devinst *pi, int idx, int registration)
 		} else
 			error = unregister_mem(&mr);
 		break;
+	}
 	case PCIBAR_ROM:
 		error = 0;
 		break;
@@ -2346,6 +2397,7 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 	}
 }
 
+#ifdef __amd64__
 static int cfgenable, cfgbus, cfgslot, cfgfunc, cfgoff;
 
 static int
@@ -2401,6 +2453,7 @@ INOUT_PORT(pci_cfgdata, CONF1_DATA_PORT+0, IOPORT_F_INOUT, pci_emul_cfgdata);
 INOUT_PORT(pci_cfgdata, CONF1_DATA_PORT+1, IOPORT_F_INOUT, pci_emul_cfgdata);
 INOUT_PORT(pci_cfgdata, CONF1_DATA_PORT+2, IOPORT_F_INOUT, pci_emul_cfgdata);
 INOUT_PORT(pci_cfgdata, CONF1_DATA_PORT+3, IOPORT_F_INOUT, pci_emul_cfgdata);
+#endif
 
 #ifdef BHYVE_SNAPSHOT
 /*
