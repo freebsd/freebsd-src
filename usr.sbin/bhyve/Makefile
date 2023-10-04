@@ -62,7 +62,6 @@ SRCS=	\
 	qemu_fwcfg.c		\
 	qemu_loader.c		\
 	rfb.c			\
-	rtc.c			\
 	smbiostbl.c		\
 	sockstream.c		\
 	spinup_ap.c		\
