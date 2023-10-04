@@ -10,7 +10,6 @@
 
 #include <bsddialog.h>
 #include <stdio.h>
-#include <string.h>
 #include <time.h>
 
 int main()
@@ -31,25 +30,16 @@ int main()
 		printf("Error: %s\n", bsddialog_geterror());
 		return (1);
 	}
-
 	bsddialog_initconf(&conf);
 	conf.title = "calendar";
 	output = bsddialog_calendar(&conf, "Example", 18, 40, &yy, &mm, &dd);
-
 	bsddialog_end();
-
-	switch (output) {
-	case BSDDIALOG_OK:
-		printf("Date: %u/%u/%u", yy, mm, dd);
-		break;
-	case BSDDIALOG_CANCEL:
-		printf("Cancel");
-		break;
-	case BSDDIALOG_ERROR:
-		printf("Error: %s", bsddialog_geterror());
-		break;
+	if (output == BSDDIALOG_ERROR) {
+		printf("Error: %s\n", bsddialog_geterror());
+		return (1);
 	}
-	printf("\n");
 
-	return (output);
+	printf("Date: %u/%u/%u\n", yy, mm, dd);
+
+	return (0);
 }

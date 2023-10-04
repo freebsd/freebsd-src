@@ -10,7 +10,6 @@
 
 #include <bsddialog.h>
 #include <stdio.h>
-#include <string.h>
 #include <time.h>
 
 int main()
@@ -31,24 +30,15 @@ int main()
 		printf("Error: %s\n", bsddialog_geterror());
 		return (1);
 	}
-
 	bsddialog_initconf(&conf);
 	conf.title = "timebox";
 	output = bsddialog_timebox(&conf, "Example", 9, 35, &hh, &mm, &ss);
-
 	bsddialog_end();
-
-	switch (output) {
-	case BSDDIALOG_OK:
-		printf("Time: [%u:%u:%u]\n", hh, mm, ss);
-		break;
-	case BSDDIALOG_CANCEL:
-		printf("Cancel\n");
-		break;
-	case BSDDIALOG_ERROR:
+	if (output == BSDDIALOG_ERROR) {
 		printf("Error: %s\n", bsddialog_geterror());
-		break;
+		return (1);
 	}
+	printf("Time: %u:%u:%u\n", hh, mm, ss);
 
-	return (output);
+	return (0);
 }

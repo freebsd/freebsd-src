@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021-2022 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2023 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,209 +25,165 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
-
 #include <curses.h>
-#include <string.h>
 
 #include "bsddialog.h"
 #include "bsddialog_theme.h"
 #include "lib_util.h"
 
-static int
-message_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h,
-    int *w, const char *text, bool *hastext, struct buttons bs)
+struct scroll {
+	int ypad;      /* y scrollable pad */
+	int htext;     /* real h text to draw, to use with htextpad */
+	int htextpad;  /* h textpad, draw_dialog() set at least 1 */
+	int printrows; /* h - BORDER - HBUTTONS - BORDER */
+};
+
+static void textupdate(struct dialog *d, struct scroll *s)
 {
-	int htext, wtext;
-
-	if (cols == BSDDIALOG_AUTOSIZE || rows == BSDDIALOG_AUTOSIZE ||
-	    hastext != NULL) {
-		if (text_size(conf, rows, cols, text, &bs, 0, 1, &htext,
-		    &wtext) != 0)
-			return (BSDDIALOG_ERROR);
-		if (hastext != NULL)
-			*hastext = htext > 0 ? true : false;
+	if (s->htext > 0 && s->htextpad > s->printrows) {
+		wattron(d->widget, t.dialog.arrowcolor);
+		mvwprintw(d->widget, d->h - HBUTTONS - BORDER,
+		    d->w - 4 - TEXTHMARGIN - BORDER,
+		    "%3d%%", 100 * (s->ypad + s->printrows) / s->htextpad);
+		wattroff(d->widget, t.dialog.arrowcolor);
+		wnoutrefresh(d->widget);
 	}
+	rtextpad(d, s->ypad, 0, 0, HBUTTONS);
+}
 
-	if (cols == BSDDIALOG_AUTOSIZE)
-		*w = widget_min_width(conf, wtext, 0, &bs);
+static int message_size_position(struct dialog *d, int *htext)
+{
+	int minw;
 
-	if (rows == BSDDIALOG_AUTOSIZE)
-		*h = widget_min_height(conf, htext, 0, true);
+	if (set_widget_size(d->conf, d->rows, d->cols, &d->h, &d->w) != 0)
+		return (BSDDIALOG_ERROR);
+	if (set_widget_autosize(d->conf, d->rows, d->cols, &d->h, &d->w,
+	    d->text, (*htext < 0) ? htext : NULL, &d->bs, 0, 0) != 0)
+		return (BSDDIALOG_ERROR);
+	minw = (*htext > 0) ? 1 + TEXTHMARGINS : 0 ;
+	if (widget_checksize(d->h, d->w, &d->bs, MIN(*htext, 1), minw) != 0)
+		return (BSDDIALOG_ERROR);
+	if (set_widget_position(d->conf, &d->y, &d->x, d->h, d->w) != 0)
+		return (BSDDIALOG_ERROR);
 
 	return (0);
 }
 
-static int
-message_checksize(int rows, int cols, bool hastext, struct buttons bs)
+static int message_draw(struct dialog *d, struct scroll *s)
 {
-	int mincols;
+	int unused;
 
-	mincols = VBORDERS;
-	mincols += buttons_min_width(bs);
+	if (d->built) {
+		hide_dialog(d);
+		refresh(); /* Important for decreasing screen */
+	}
+	if (message_size_position(d, &s->htext) != 0)
+		return (BSDDIALOG_ERROR);
+	if (draw_dialog(d) != 0)
+		return (BSDDIALOG_ERROR);
+	if (d->built)
+		refresh(); /* Important to fix grey lines expanding screen */
 
-	if (cols < mincols)
-		RETURN_ERROR("Few cols, Msgbox and Yesno need at least width "
-		    "for borders, buttons and spaces between buttons");
-
-	if (rows < HBORDERS + 2 /* buttons */)
-		RETURN_ERROR("Msgbox and Yesno need at least 4 rows");
-	if (hastext && rows < HBORDERS + 2 /*buttons*/ + 1 /* text row */)
-		RETURN_ERROR("Msgbox and Yesno with text need at least 5 rows");
+	s->printrows = d->h - BORDER - HBUTTONS - BORDER;
+	s->ypad = 0;
+	getmaxyx(d->textpad, s->htextpad, unused);
+	unused++; /* fix unused error */
 
 	return (0);
-}
-
-static void
-textupdate(WINDOW *widget, WINDOW *textpad, int htextpad, int ytextpad,
-    bool hastext)
-{
-	int y, x, h, w;
-
-	getbegyx(widget, y, x);
-	getmaxyx(widget, h, w);
-
-	if (hastext && htextpad > h - 4) {
-		wattron(widget, t.dialog.arrowcolor);
-		mvwprintw(widget, h-3, w-6, "%3d%%",
-		    100 * (ytextpad+h-4)/ htextpad);
-		wattroff(widget, t.dialog.arrowcolor);
-		wnoutrefresh(widget);
-	}
-
-	pnoutrefresh(textpad, ytextpad, 0, y+1, x+2, y+h-4, x+w-2);
 }
 
 static int
 do_message(struct bsddialog_conf *conf, const char *text, int rows, int cols,
-    struct buttons bs)
+    const char *oklabel, const char *cancellabel)
 {
-	bool hastext, loop;
-	int y, x, h, w, retval, ytextpad, htextpad, printrows, unused;
-	WINDOW *widget, *textpad, *shadow;
+	bool loop;
+	int retval;
 	wint_t input;
+	struct scroll s;
+	struct dialog d;
 
-	if (set_widget_size(conf, rows, cols, &h, &w) != 0)
+	if (prepare_dialog(conf, text, rows, cols, &d) != 0)
 		return (BSDDIALOG_ERROR);
-	if (message_autosize(conf, rows, cols, &h, &w, text, &hastext, bs) != 0)
-		return (BSDDIALOG_ERROR);
-	if (message_checksize(h, w, hastext, bs) != 0)
-		return (BSDDIALOG_ERROR);
-	if (set_widget_position(conf, &y, &x, h, w) != 0)
-		return (BSDDIALOG_ERROR);
-
-	if (new_dialog(conf, &shadow, &widget, y, x, h, w, &textpad, text, &bs,
-	    true) != 0)
+	set_buttons(&d, true, oklabel, cancellabel);
+	s.htext = -1;
+	if(message_draw(&d, &s) != 0)
 		return (BSDDIALOG_ERROR);
 
-	printrows = h - 4;
-	ytextpad = 0;
-	getmaxyx(textpad, htextpad, unused);
-	unused++; /* fix unused error */
 	loop = true;
 	while (loop) {
-		textupdate(widget, textpad, htextpad, ytextpad, hastext);
+		textupdate(&d, &s);
 		doupdate();
 		if (get_wch(&input) == ERR)
 			continue;
 		switch (input) {
 		case KEY_ENTER:
 		case 10: /* Enter */
-			retval = bs.value[bs.curr];
+			retval = BUTTONVALUE(d.bs);
 			loop = false;
 			break;
 		case 27: /* Esc */
-			if (conf->key.enable_esc) {
+			if (d.conf->key.enable_esc) {
 				retval = BSDDIALOG_ESC;
 				loop = false;
 			}
 			break;
 		case '\t': /* TAB */
-			bs.curr = (bs.curr + 1) % bs.nbuttons;
-			draw_buttons(widget, bs, true);
-			wnoutrefresh(widget);
+		case KEY_RIGHT:
+			d.bs.curr = (d.bs.curr + 1) % d.bs.nbuttons;
+			DRAW_BUTTONS(d);
 			break;
 		case KEY_LEFT:
-			if (bs.curr > 0) {
-				bs.curr--;
-				draw_buttons(widget, bs, true);
-				wnoutrefresh(widget);
-			}
-			break;
-		case KEY_RIGHT:
-			if (bs.curr < (int)bs.nbuttons - 1) {
-				bs.curr++;
-				draw_buttons(widget, bs, true);
-				wnoutrefresh(widget);
-			}
+			d.bs.curr--;
+			if (d.bs.curr < 0)
+				 d.bs.curr = d.bs.nbuttons - 1;
+			DRAW_BUTTONS(d);
 			break;
 		case KEY_UP:
-			if (ytextpad > 0)
-				ytextpad--;
+			if (s.ypad > 0)
+				s.ypad--;
 			break;
 		case KEY_DOWN:
-			if (ytextpad + printrows < htextpad)
-				ytextpad++;
+			if (s.ypad + s.printrows < s.htextpad)
+				s.ypad++;
 			break;
 		case KEY_HOME:
-			ytextpad = 0;
+			s.ypad = 0;
 			break;
 		case KEY_END:
-			ytextpad = htextpad - printrows;
-			ytextpad = ytextpad < 0 ? 0 : ytextpad;
+			s.ypad = MAX(s.htextpad - s.printrows, 0);
 			break;
 		case KEY_PPAGE:
-			ytextpad -= printrows;
-			ytextpad = ytextpad < 0 ? 0 : ytextpad;
+			s.ypad = MAX(s.ypad - s.printrows, 0);
 			break;
 		case KEY_NPAGE:
-			ytextpad += printrows;
-			if (ytextpad + printrows > htextpad)
-				ytextpad = htextpad - printrows;
+			s.ypad += s.printrows;
+			if (s.ypad + s.printrows > s.htextpad)
+				s.ypad = s.htextpad - s.printrows;
 			break;
 		case KEY_F(1):
-			if (conf->key.f1_file == NULL &&
-			    conf->key.f1_message == NULL)
+			if (d.conf->key.f1_file == NULL &&
+			    d.conf->key.f1_message == NULL)
 				break;
-			if (f1help(conf) != 0)
+			if (f1help_dialog(d.conf) != 0)
 				return (BSDDIALOG_ERROR);
-			/* No break, screen size can change */
+			if(message_draw(&d, &s) != 0)
+				return (BSDDIALOG_ERROR);
+			break;
 		case KEY_RESIZE:
-			/* Important for decreasing screen */
-			hide_widget(y, x, h, w, conf->shadow);
-			refresh();
-
-			if (set_widget_size(conf, rows, cols, &h, &w) != 0)
+			if(message_draw(&d, &s) != 0)
 				return (BSDDIALOG_ERROR);
-			if (message_autosize(conf, rows, cols, &h, &w, text,
-			    NULL, bs) != 0)
-				return (BSDDIALOG_ERROR);
-			if (message_checksize(h, w, hastext, bs) != 0)
-				return (BSDDIALOG_ERROR);
-			if (set_widget_position(conf, &y, &x, h, w) != 0)
-				return (BSDDIALOG_ERROR);
-
-			if (update_dialog(conf, shadow, widget, y, x, h, w,
-			    textpad, text, &bs, true) != 0)
-				return (BSDDIALOG_ERROR);
-
-			printrows = h - 4;
-			getmaxyx(textpad, htextpad, unused);
-			ytextpad = 0;
-			textupdate(widget, textpad, htextpad, ytextpad, hastext);
-
-			/* Important to fix grey lines expanding screen */
-			refresh();
 			break;
 		default:
-			if (shortcut_buttons(input, &bs)) {
-				retval = bs.value[bs.curr];
+			if (shortcut_buttons(input, &d.bs)) {
+				DRAW_BUTTONS(d);
+				doupdate();
+				retval = BUTTONVALUE(d.bs);
 				loop = false;
 			}
 		}
 	}
 
-	end_dialog(conf, shadow, widget, textpad);
+	end_dialog(&d);
 
 	return (retval);
 }
@@ -237,20 +193,34 @@ int
 bsddialog_msgbox(struct bsddialog_conf *conf, const char *text, int rows,
     int cols)
 {
-	struct buttons bs;
-
-	get_buttons(conf, &bs, BUTTON_OK_LABEL, NULL);
-
-	return (do_message(conf, text, rows, cols, bs));
+	return (do_message(conf, text, rows, cols, OK_LABEL, NULL));
 }
 
 int
 bsddialog_yesno(struct bsddialog_conf *conf, const char *text, int rows,
     int cols)
 {
-	struct buttons bs;
+	return (do_message(conf, text, rows, cols, "Yes", "No"));
+}
 
-	get_buttons(conf, &bs, "Yes", "No");
+int
+bsddialog_infobox(struct bsddialog_conf *conf, const char *text, int rows,
+    int cols)
+{
+	int htext;
+	struct dialog d;
 
-	return (do_message(conf, text, rows, cols, bs));
+	if (prepare_dialog(conf, text, rows, cols, &d) != 0)
+		return (BSDDIALOG_ERROR);
+	htext = -1;
+	if (message_size_position(&d, &htext) != 0)
+		return (BSDDIALOG_ERROR);
+	if (draw_dialog(&d) != 0)
+		return (BSDDIALOG_ERROR);
+	TEXTPAD(&d, 0);
+	doupdate();
+
+	end_dialog(&d);
+
+	return (BSDDIALOG_OK);
 }

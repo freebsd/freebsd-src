@@ -12,7 +12,6 @@
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define H   BSDDIALOG_FIELDHIDDEN
 #define RO  BSDDIALOG_FIELDREADONLY
@@ -37,17 +36,11 @@ int main()
 	bsddialog_initconf(&conf);
 	conf.title = "form";
 	conf.form.securech = '*';
-	output = bsddialog_form(&conf, "Example", 10, 50, 3, 3, items);
+	output = bsddialog_form(&conf, "Example", 10, 50, 3, 3, items, NULL);
 	bsddialog_end();
-
 	if (output == BSDDIALOG_ERROR) {
 		printf("Error: %s", bsddialog_geterror());
 		return (1);
-	}
-
-	if (output == BSDDIALOG_CANCEL) {
-		printf("Cancel\n");
-		return (0);
 	}
 
 	for (i = 0; i < 3; i++) {
@@ -55,5 +48,5 @@ int main()
 		free(items[i].value);
 	}
 
-	return (output);
+	return (0);
 }

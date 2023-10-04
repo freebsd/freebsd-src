@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021-2022 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2023 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,9 +29,12 @@
 #define _LIBBSDDIALOG_THEME_H_
 
 /* color flags */
-#define BSDDIALOG_BOLD         1U
-#define BSDDIALOG_REVERSE      2U
-#define BSDDIALOG_UNDERLINE    4U
+#define BSDDIALOG_BLINK       1U
+#define BSDDIALOG_BOLD        2U
+#define BSDDIALOG_HALFBRIGHT  4U
+#define BSDDIALOG_HIGHLIGHT   8U
+#define BSDDIALOG_REVERSE    16U
+#define BSDDIALOG_UNDERLINE  32U
 
 struct bsddialog_theme {
 	struct {
@@ -52,17 +55,19 @@ struct bsddialog_theme {
 		int  arrowcolor;
 	} dialog;
 	struct {
+		int f_prefixcolor;
+		int prefixcolor;
 		int f_selectorcolor;
 		int selectorcolor;
 		int f_namecolor;
 		int namecolor;
 		int f_desccolor;
 		int desccolor;
-		int namesepcolor;
-		int descsepcolor;
 		int f_shortcutcolor;
 		int shortcutcolor;
 		int bottomdesccolor;
+		int sepnamecolor;
+		int sepdesccolor;
 	} menu;
 	struct {
 		int f_fieldcolor;
@@ -79,20 +84,19 @@ struct bsddialog_theme {
 		unsigned int maxmargin;
 		char leftdelim;
 		char rightdelim;
-		int delimcolor;
 		int f_delimcolor;
-		int color;
+		int delimcolor;
 		int f_color;
-		int shortcutcolor;
+		int color;
 		int f_shortcutcolor;
+		int shortcutcolor;
 	} button;
 };
 
 enum bsddialog_default_theme {
+	BSDDIALOG_THEME_3D,
 	BSDDIALOG_THEME_BLACKWHITE,
-	BSDDIALOG_THEME_BSDDIALOG,
-	BSDDIALOG_THEME_FLAT,
-	BSDDIALOG_THEME_DIALOG
+	BSDDIALOG_THEME_FLAT
 };
 
 enum bsddialog_color {

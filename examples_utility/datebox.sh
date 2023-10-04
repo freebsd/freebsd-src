@@ -2,7 +2,7 @@
 #-
 # SPDX-License-Identifier: CC0-1.0
 #
-# Written in 2021 by Alfonso Sabato Siciliano.
+# Written in 2023 by Alfonso Sabato Siciliano.
 #
 # To the extent possible under law, the author has dedicated all copyright
 # and related and neighboring rights to this software to the public domain
@@ -14,12 +14,8 @@
 : ${BSDDIALOG_CANCEL=1}
 : ${BSDDIALOG_ESC=5}
 
-ITEM=$(./bsddialog --title " radiolist " --radiolist "Hello World!" 15 30 5 \
-	"1 Name"  "DESC 1 xyz"  off \
-	"2 Name"  "DESC 2 xyz"  off \
-	"3 Name"  "DESC 3 xyz"  on  \
-	"4 Name"  "DESC 4 xyz"  off \
-	"5 Name"  "DESC 5 xyz"  off \
+DATE=$(./bsddialog --title " datebox " --date-format "%x" \
+	--datebox "Hello World!" 9 30 \
 3>&1 1>&2 2>&3 3>&-)
 
 case $? in
@@ -33,6 +29,6 @@ case $? in
 		echo "[Cancel]"
 	;;
 	$BSDDIALOG_OK )
-		echo "[OK] $ITEM"
+		echo "[OK] $DATE"
 	;;
 esac
