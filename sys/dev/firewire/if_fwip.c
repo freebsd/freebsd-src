@@ -778,7 +778,7 @@ fwip_stream_input(struct fw_xferq *xferq)
 		 * Record the sender ID for possible BPF usage.
 		 */
 		src = ntohl(p[1]) >> 16;
-		if (bpf_peers_present(if_getbpf(ifp))) {
+		if (bpf_peers_present_if(ifp)) {
 			mtag = m_tag_alloc(MTAG_FIREWIRE,
 			    MTAG_FIREWIRE_SENDER_EUID,
 			    2*sizeof(uint32_t), M_NOWAIT);
@@ -878,7 +878,7 @@ fwip_unicast_input(struct fw_xfer *xfer)
 		goto done;
 	}
 
-	if (bpf_peers_present(if_getbpf(ifp))) {
+	if (bpf_peers_present_if(ifp)) {
 		/*
 		 * Record the sender ID for possible BPF usage.
 		 */

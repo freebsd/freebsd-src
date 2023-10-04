@@ -402,9 +402,7 @@ usbpf_xfertap(struct usb_xfer *xfer, int type)
 	bus = xfer->xroot->bus;
 
 	/* sanity checks */
-	if (bus->ifp == NULL || if_getbpf(bus->ifp) == NULL)
-		return;
-	if (!bpf_peers_present(if_getbpf(bus->ifp)))
+	if (bus->ifp == NULL || !bpf_peers_present_if(bus->ifp))
 		return;
 
 	totlen = usbpf_xfer_precompute_size(xfer, type);

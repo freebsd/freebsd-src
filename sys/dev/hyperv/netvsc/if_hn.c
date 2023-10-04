@@ -3263,7 +3263,7 @@ hn_txpkt(if_t ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd)
 	int error, send_failed = 0, has_bpf;
 
 again:
-	has_bpf = bpf_peers_present(if_getbpf(ifp));
+	has_bpf = bpf_peers_present_if(ifp);
 	if (has_bpf) {
 		/*
 		 * Make sure that this txd and any aggregated txds are not
@@ -5973,7 +5973,7 @@ hn_transmit(if_t ifp, struct mbuf *m)
 			omcast = (m->m_flags & M_MCAST) != 0;
 
 			if (sc->hn_xvf_flags & HN_XVFFLAG_ACCBPF) {
-				if (bpf_peers_present(if_getbpf(ifp))) {
+				if (bpf_peers_present_if(ifp)) {
 					m_bpf = m_copypacket(m, M_NOWAIT);
 					if (m_bpf == NULL) {
 						/*
