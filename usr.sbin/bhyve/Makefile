@@ -28,7 +28,6 @@ SRCS=	\
 	crc16.c			\
 	ctl_scsi_all.c		\
 	ctl_util.c		\
-	e820.c			\
 	gdb.c			\
 	hda_codec.c		\
 	inout.c			\
@@ -37,7 +36,6 @@ SRCS=	\
 	kernemu_dev.c		\
 	mem.c			\
 	mevent.c		\
-	mptbl.c			\
 	net_backends.c		\
 	net_utils.c		\
 	pci_ahci.c		\

@@ -1,6 +1,8 @@
 SRCS+=	\
 	atkbdc.c	\
+	e820.c		\
 	fwctl.c		\
+	mptbl.c		\
 	post.c		\
 	ps2kbd.c	\
 	ps2mouse.c	\
