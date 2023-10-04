@@ -81,6 +81,14 @@ struct dwc_softc {
 	hwreset_t		rst_stmmaceth;
 	hwreset_t		rst_ahb;
 
+	/* DMA config */
+	uint32_t		txpbl;	/* TX Burst lenght */
+	uint32_t		rxpbl;	/* RX Burst lenght */
+	bool			nopblx8;
+	bool			fixed_burst;
+	bool			mixed_burst;
+	bool			aal;
+
 	/* RX */
 	bus_dma_tag_t		rxdesc_tag;
 	bus_dmamap_t		rxdesc_map;
