@@ -44,8 +44,6 @@
 #include <sys/time.h>
 #include <sys/un.h>
 
-#include <machine/atomic.h>
-
 #ifndef WITHOUT_CAPSICUM
 #include <capsicum_helpers.h>
 #endif
@@ -79,19 +77,10 @@
 #include "amd64/atkbdc.h"
 #endif
 #include "debug.h"
-#include "inout.h"
 #include "ipc.h"
-#include "ioapic.h"
 #include "mem.h"
-#include "mevent.h"
 #include "pci_emul.h"
-#include "pci_irq.h"
-#include "pci_lpc.h"
-#include "smbiostbl.h"
 #include "snapshot.h"
-#include "xmsr.h"
-#include "spinup_ap.h"
-#include "rtc.h"
 
 #include <libxo/xo.h>
 #include <ucl.h>
