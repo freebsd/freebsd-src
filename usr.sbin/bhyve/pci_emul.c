@@ -375,7 +375,7 @@ pci_config_read_reg(const struct pcisel *const host_sel, nvlist_t *nvl,
 	if (config == NULL) {
 		return def;
 	} else if (host_sel != NULL && strcmp(config, "host") == 0) {
-		return read_config(host_sel, reg, size);
+		return pci_host_read_config(host_sel, reg, size);
 	} else {
 		return strtol(config, NULL, 16);
 	}
