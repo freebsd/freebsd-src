@@ -82,7 +82,9 @@
 
 #include "bhyverun.h"
 #include "acpi.h"
-#include "atkbdc.h"
+#ifdef __amd64__
+#include "amd64/atkbdc.h"
+#endif
 #include "bootrom.h"
 #include "config.h"
 #include "inout.h"
@@ -1454,7 +1456,9 @@ main(int argc, char *argv[])
 	init_inout();
 	kernemu_dev_init();
 	init_bootrom(ctx);
+#ifdef __amd64__
 	atkbdc_init(ctx);
+#endif
 	pci_irq_init(ctx);
 	ioapic_init(ctx);
 

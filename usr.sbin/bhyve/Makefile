@@ -17,7 +17,6 @@ BHYVE_SYSDIR?=${SRCTOP}
 SRCS=	\
 	acpi.c			\
 	acpi_device.c		\
-	atkbdc.c		\
 	audio.c			\
 	basl.c			\
 	bhyvegc.c		\
@@ -63,9 +62,6 @@ SRCS=	\
 	pci_xhci.c		\
 	pctestdev.c		\
 	pm.c			\
-	post.c			\
-	ps2kbd.c		\
-	ps2mouse.c		\
 	qemu_fwcfg.c		\
 	qemu_loader.c		\
 	rfb.c			\
@@ -137,7 +133,5 @@ CFLAGS+=-DGDB_LOG
 NO_WTHREAD_SAFETY=
 
 NO_WCAST_ALIGN=
-
-SUBDIR=	kbdlayout
 
 .include <bsd.prog.mk>
