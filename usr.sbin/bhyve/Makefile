@@ -21,6 +21,7 @@ SRCS=	\
 	basl.c			\
 	bhyvegc.c		\
 	bhyverun.c		\
+	bhyverun_machdep.c	\
 	block_if.c		\
 	bootrom.c		\
 	config.c		\
