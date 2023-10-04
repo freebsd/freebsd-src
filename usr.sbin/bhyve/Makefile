@@ -28,7 +28,6 @@ SRCS=	\
 	crc16.c			\
 	ctl_scsi_all.c		\
 	ctl_util.c		\
-	gdb.c			\
 	hda_codec.c		\
 	iov.c			\
 	mem.c			\
@@ -67,6 +66,14 @@ SRCS+=	snapshot.c
 
 .include "${MACHINE_CPUARCH}/Makefile.inc"
 
+.if defined(BHYVE_GDB_SUPPORT)
+SRCS+=	gdb.c
+CFLAGS+= -DBHYVE_GDB
+.ifdef GDB_LOG
+CFLAGS+=-DGDB_LOG
+.endif
+.endif
+
 CFLAGS+=-I${.CURDIR}		\
 	-I${.CURDIR}/../../contrib/lib9p \
 	-I${SRCTOP}/sys
@@ -100,10 +107,6 @@ CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/usb/controller
 .if ${MK_BHYVE_SNAPSHOT} != "no"
 CFLAGS+= -I${SRCTOP}/contrib/libucl/include
 CFLAGS+= -DBHYVE_SNAPSHOT
-.endif
-
-.ifdef GDB_LOG
-CFLAGS+=-DGDB_LOG
 .endif
 
 # Disable thread safety analysis since it only finds very simple bugs and
