@@ -58,7 +58,6 @@ SRCS=	\
 	pci_virtio_scsi.c	\
 	pci_xhci.c		\
 	pctestdev.c		\
-	pm.c			\
 	qemu_fwcfg.c		\
 	qemu_loader.c		\
 	rfb.c			\
