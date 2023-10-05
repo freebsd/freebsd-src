@@ -171,7 +171,6 @@ f_resword_new mediaGetType	f_media_get_type         # media/any.subr
 f_resword_new mediaSetCDROM	f_media_set_cdrom        # media/cdrom.subr
 f_resword_new mediaSetDOS	f_media_set_dos          # media/dos.subr
 f_resword_new mediaSetDirectory	f_media_set_directory    # media/directory.subr
-f_resword_new mediaSetFloppy	f_media_set_floppy       # media/floppy.subr
 f_resword_new mediaSetNFS	f_media_set_nfs          # media/nfs.subr
 f_resword_new mediaSetUFS	f_media_set_ufs          # media/ufs.subr
 f_resword_new mediaSetUSB	f_media_set_usb          # media/usb.subr

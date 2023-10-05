@@ -16,13 +16,6 @@ You can install from the following types of media:
             get the distribution files from there.
 
 
-   Floppy   Get distribution files from one or more DOS or UFS
-            formatted floppies.  Such floppies are assumed to
-            contain the appropriate distribution pieces - see
-            ABOUT.TXT for more information about making floppy
-            distribution media.
-
-
    FTP      Get the distribution files from an anonymous ftp server
             (you will be presented with a list).  Please note that
             you may invoke FTP in "Active"/"Passive" auto-mode, or

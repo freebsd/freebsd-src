@@ -77,7 +77,6 @@ f_struct_define DEVICE_INFO \
 setvar DEVICE_TYPE_ANY		"any"		# Any
 setvar DEVICE_TYPE_NONE		"NONE"		# Unknown
 setvar DEVICE_TYPE_DISK		"DISK"		# GEOM `DISK'
-setvar DEVICE_TYPE_FLOPPY	"FD"		# GEOM `FD'
 setvar DEVICE_TYPE_FTP		"FTP"		# Dynamic network device
 setvar DEVICE_TYPE_NETWORK	"NETWORK"	# See f_device_get_all_network
 setvar DEVICE_TYPE_CDROM	"CDROM"		# GEOM `DISK'
@@ -439,14 +438,6 @@ f_device_probe_geom()
 			retval=$SUCCESS
 
 		return $retval
-		;;
-	$GEOM_CLASS_FD)
-		f_dprintf "Found floppy device named %s" "$devname"
-		debug= f_device_register device "$devname" "$desc" \
-			"/dev/$devname" $DEVICE_TYPE_FLOPPY 1 \
-			f_media_init_floppy f_media_get_floppy \
-			f_media_shutdown_floppy "" "$capacity"
-		return $?
 		;;
 	$GEOM_CLASS_LABEL)
 		: fall through to below section # reduces indentation level
@@ -936,7 +927,6 @@ f_device_desc()
 	case "$__type" in
 	$DEVICE_TYPE_CDROM)   __cp="<unknown cdrom device type>" ;;
 	$DEVICE_TYPE_DISK)    __cp="<unknown disk device type>" ;;
-	$DEVICE_TYPE_FLOPPY)  __cp="<unknown floppy device type>" ;;
 	$DEVICE_TYPE_USB)     __cp="<unknown USB storage device type>" ;;
 	$DEVICE_TYPE_NETWORK) __cp="<unknown network interface type>" ;;
 	*)
@@ -1247,7 +1237,6 @@ f_device_menu()
 #
 f_cdrom()   { f_device_catalog_set $DEVICE_TYPE_CDROM   "$1" "$2"; }
 f_disk()    { f_device_catalog_set $DEVICE_TYPE_DISK    "$1" "$2"; }
-f_floppy()  { f_device_catalog_set $DEVICE_TYPE_FLOPPY  "$1" "$2"; }
 f_usb()     { f_device_catalog_set $DEVICE_TYPE_USB     "$1" "$2"; }
 f_network() { f_device_catalog_set $DEVICE_TYPE_NETWORK "$1" "$2"; }
 
@@ -1262,7 +1251,7 @@ f_network() { f_device_catalog_set $DEVICE_TYPE_NETWORK "$1" "$2"; }
 
 DEVICE_CATALOG_APPEND_ONLY=1 # Make initial loading faster
 
-# CDROM, Disk, Floppy, and USB devices/names
+# CDROM, Disk, and USB devices/names
 f_cdrom  "cd%d"   "SCSI CDROM drive"
 f_cdrom  "mcd%d"  "Mitsumi (old model) CDROM drive"
 f_cdrom  "scd%d"  "Sony CDROM drive - CDU31/33A type"
@@ -1277,7 +1266,6 @@ f_disk   "mfid%d" "LSI MegaRAID SAS array"
 f_disk   "mlxd%d" "Mylex RAID disk"
 f_disk   "twed%d" "3ware ATA RAID array"
 f_disk   "vtbd%d" "VirtIO Block Device"
-f_floppy "fd%d"   "Floppy Drive unit A"
 f_usb    "da%da"  "USB Mass Storage Device"
 
 # Network interfaces/names
