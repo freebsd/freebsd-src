@@ -19,6 +19,7 @@ MAN=	arch.7 \
 	hostname.7 \
 	intro.7 \
 	maclabel.7 \
+	mitigations.7 \
 	operator.7 \
 	orders.7 \
 	ports.7 \
