@@ -321,6 +321,50 @@ TEST_F(Readdir, nodots)
 	leakdir(dir);
 }
 
+/*
+ * FUSE_READDIR returns a path with an embedded NUL. Obviously illegal, but
+ * nothing bad should happen.
+ */
+TEST_F(Readdir, nul)
+{
+	const char FULLPATH[] = "mountpoint/some_dir";
+	const char RELPATH[] = "some_dir";
+	uint64_t ino = 42;
+	DIR *dir;
+	struct dirent *de;
+	vector<struct dirent> ents(1);
+	vector<struct dirent> empty_ents(0);
+	const char nul[] = "foo\0bar";
+
+	expect_lookup(RELPATH, ino);
+	expect_opendir(ino);
+	ents[0].d_fileno = 4;
+	ents[0].d_off = 4000;
+	ents[0].d_namlen = sizeof(nul);
+	ents[0].d_type = DT_REG;
+	strncpy(ents[0].d_name, nul, ents[0].d_namlen);
+	expect_readdir(ino, 0, ents);
+	expect_readdir(ino, 4000, empty_ents);
+
+	errno = 0;
+	dir = opendir(FULLPATH);
+	ASSERT_NE(nullptr, dir) << strerror(errno);
+
+	errno = 0;
+	de = readdir(dir);
+	ASSERT_NE(nullptr, de) << strerror(errno);
+	EXPECT_EQ(4ul, de->d_fileno);
+	EXPECT_EQ(DT_REG, de->d_type);
+	EXPECT_EQ(sizeof(nul), de->d_namlen);
+	EXPECT_EQ(0, strcmp(nul, de->d_name));
+
+	ASSERT_EQ(nullptr, readdir(dir));
+	ASSERT_EQ(0, errno);
+
+	leakdir(dir);
+}
+
+
 /* telldir(3) and seekdir(3) should work with fuse */
 TEST_F(Readdir, seekdir)
 {
@@ -393,6 +437,49 @@ TEST_F(Readdir, seekdir)
 	de = readdir(dir);
 	ASSERT_NE(nullptr, de) << strerror(errno);
 	EXPECT_EQ(130ul, de->d_fileno);
+
+	leakdir(dir);
+}
+
+/*
+ * FUSE_READDIR returns a path with an embedded /. Obviously illegal, but
+ * nothing bad should happen.
+ */
+TEST_F(Readdir, slash)
+{
+	const char FULLPATH[] = "mountpoint/some_dir";
+	const char RELPATH[] = "some_dir";
+	uint64_t ino = 42;
+	DIR *dir;
+	struct dirent *de;
+	vector<struct dirent> ents(1);
+	vector<struct dirent> empty_ents(0);
+	const char foobar[] = "foo/bar";
+
+	expect_lookup(RELPATH, ino);
+	expect_opendir(ino);
+	ents[0].d_fileno = 4;
+	ents[0].d_off = 4000;
+	ents[0].d_namlen = sizeof(foobar);
+	ents[0].d_type = DT_REG;
+	strncpy(ents[0].d_name, foobar, ents[0].d_namlen);
+	expect_readdir(ino, 0, ents);
+	expect_readdir(ino, 4000, empty_ents);
+
+	errno = 0;
+	dir = opendir(FULLPATH);
+	ASSERT_NE(nullptr, dir) << strerror(errno);
+
+	errno = 0;
+	de = readdir(dir);
+	ASSERT_NE(nullptr, de) << strerror(errno);
+	EXPECT_EQ(4ul, de->d_fileno);
+	EXPECT_EQ(DT_REG, de->d_type);
+	EXPECT_EQ(sizeof(foobar), de->d_namlen);
+	EXPECT_EQ(0, strcmp(foobar, de->d_name));
+
+	ASSERT_EQ(nullptr, readdir(dir));
+	ASSERT_EQ(0, errno);
 
 	leakdir(dir);
 }
