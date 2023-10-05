@@ -76,7 +76,6 @@ f_dialog_menu_media_http()
 	f_dialog_title_restore
 	local prompt="$msg_please_select_the_site_closest_to_you_or_other"
 	local menu_list="
-		'dist $msg_main_site' 'ftp.freebsd.org'
 		'pkg $msg_main_site'  'pkg.freebsd.org'
 		'URL'                 '$msg_specify_some_other_http_site'
 	" # END-QUOTE
