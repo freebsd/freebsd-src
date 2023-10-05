@@ -1822,6 +1822,15 @@ retry_dotdot:
 		return (1);
 	}
 
+	/*
+	 * XXX note that access here is completely unlocked with no provisions
+	 * to keep the hash allocated. If one is sufficiently unlucky a
+	 * parallel cache resize can reallocate the hash, unmap backing pages
+	 * and cause the empty check below to fault.
+	 *
+	 * Fixing this has epsilon priority, but can be done with no overhead
+	 * for this codepath with sufficient effort.
+	 */
 	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
 	blp = HASH2BUCKETLOCK(hash);
 retry:
