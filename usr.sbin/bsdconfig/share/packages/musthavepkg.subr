@@ -44,26 +44,16 @@ f_include $BSDCFG_SHARE/mustberoot.subr
 f_musthavepkg_init()
 {
 	local funcname=f_musthavepkg_init
-	local pkg_abi_awk=' # BEGIN-AWK
-		$1 ~ /^ABI/ && $0 = $NF, sub(/^"/, "") && sub(/".*/, "") {
-			print; found = 1; exit
-		} END { exit ! found }
-	' # END-AWK
 
-	if [ "$PKG_ABI" ]; then # Already set
-		f_dprintf "PKG_ABI=[%s]" "$PKG_ABI"
-		export PKG_ABI
-		f_quietly pkg -N -vv # return status (pkg(8) functional?)
-		return $?
-	fi
-
-	# Attempt to get PKG_ABI without prematurely bootstrapping pkg(8)
-	if f_eval_catch -k PKG_ABI $funcname pkg \
-		"pkg -N -vv | awk '%s'" "$pkg_abi_awk"
-	then
-		f_dprintf "PKG_ABI=[%s]" "$PKG_ABI"
-		export PKG_ABI
-		return $SUCCESS
+	if f_quietly pkg -N; then
+		if [ -n "$PKG_ABI" ]; then
+			export PKG_ABI
+			return $SUCCESS
+		fi
+		if f_eval_catch -k PKG_ABI $funcname pkg "pkg config abi"; then
+			export PKG_ABI
+			return $SUCCESS
+		fi
 	fi
 
 	# pkg(8) not yet bootstrapped; ask for permission unless nonInteractive
@@ -74,10 +64,10 @@ f_musthavepkg_init()
 
 	# Bootstrap pkg(8)
 	f_dialog_info "$msg_bootstrapping_pkg"
-	f_eval_catch -k PKG_ABI $funcname pkg \
-		"ASSUME_ALWAYS_YES=1 pkg -vv | awk '%s'" "$pkg_abi_awk" ||
+	f_eval_catch $funcname pkg \
+		"pkg bootstrap -y" ||
 		f_die 1 "$msg_must_have_pkg_to_execute" "$pgm"
-
+	f_eval_catch -k PKG_ABI $funcname pkg "pkg config abi"
 	f_dprintf "PKG_ABI=[%s]" "$PKG_ABI"
 	export PKG_ABI
 	return $SUCCESS
