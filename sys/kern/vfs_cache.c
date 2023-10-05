@@ -276,6 +276,20 @@
  * It could become part of the API contract to *always* have a rootvnode set in
  * mnt_rootvnode. Such vnodes are annotated with VV_ROOT and vnlru would have
  * to be modified to always skip them.
+ *
+ * === inactive on v_usecount reaching 0
+ *
+ * VOP_NEED_INACTIVE should not exist. Filesystems would indicate need for such
+ * processing with a bit in usecount.
+ *
+ * === v_holdcnt
+ *
+ * Hold count should probably get eliminated, but one can argue it is a useful
+ * feature. Even if so, handling of v_usecount could be decoupled from it --
+ * vnlru et al would consider the vnode not-freeable if has either hold or
+ * usecount on it.
+ *
+ * This would eliminate 2 atomics.
  */
 
 static SYSCTL_NODE(_vfs, OID_AUTO, cache, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
