@@ -31,7 +31,6 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." media/httpproxy.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/media/ftp.subr
 f_include $BSDCFG_SHARE/media/tcpip.subr
 f_include $BSDCFG_SHARE/variable.subr
 
