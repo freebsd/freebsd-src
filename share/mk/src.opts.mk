@@ -404,10 +404,6 @@ MK_KERBEROS:=	no
 MK_KERBEROS_SUPPORT:=	no
 .endif
 
-.if ${MK_DIALOG} == "no"
-MK_BSDINSTALL:=	no
-.endif
-
 .if ${MK_DTRACE} == "no"
 MK_CTF:=	no
 .endif
