@@ -51,7 +51,7 @@ f_include_lang $BSDCFG_LIBE/include/messages.subr
 # Default name of dialog(1) utility
 # NOTE: This is changed to "Xdialog" by the optional `-X' argument
 #
-DIALOG="dialog"
+DIALOG="bsddialog"
 
 #
 # Default dialog(1) title and backtitle text
@@ -79,9 +79,15 @@ DIALOG_OK=${SUCCESS:-0}
 DIALOG_CANCEL=${FAILURE:-1}
 DIALOG_HELP=2
 DIALOG_EXTRA=3
-DIALOG_ITEM_HELP=4
-export DIALOG_ERROR=254 # sh(1) can't handle the default of `-1'
-DIALOG_ESC=255
+if [ $DIALOG = "bsddialog" ]; then
+	DIALOG_ITEM_HELP=2
+	DIALOG_ERROR=255
+	DIALOG_ESC=5
+else
+	DIALOG_ITEM_HELP=4
+	export DIALOG_ERROR=254 # sh(1) can't handle the default of `-1'
+	DIALOG_ESC=255
+fi
 
 #
 # Default behavior is to call f_dialog_init() automatically when loaded.
@@ -2221,7 +2227,14 @@ f_dialog_init()
 	#
 	# Process `-X' command-line option
 	#
-	[ "$USE_XDIALOG" ] && DIALOG=Xdialog USE_DIALOG=
+	if [ "$USE_XDIALOG" ]; then
+		if [ $DIALOG = "bsddialog" ]; then
+			DIALOG_ESC=255
+			# else it is already 255 like dialog(1)
+		fi
+		DIALOG=Xdialog
+		USE_DIALOG=
+	fi
 
 	#
 	# Sanity check, or die gracefully
@@ -2229,7 +2242,7 @@ f_dialog_init()
 	if ! f_have $DIALOG; then
 		unset USE_XDIALOG
 		local failed_dialog="$DIALOG"
-		DIALOG=dialog
+		DIALOG=bsddialog
 		f_die 1 "$msg_no_such_file_or_directory" "$pgm" "$failed_dialog"
 	fi
 
@@ -2261,7 +2274,7 @@ f_dialog_init()
 		if ! f_have xauth; then
 			# Die gracefully, as we [likely] can't use Xdialog(1)
 			unset USE_XDIALOG
-			DIALOG=dialog
+			DIALOG=bsddialog
 			f_die 1 "$msg_no_such_file_or_directory" "$pgm" "xauth"
 		fi
 		HOSTNAME=$( hostname )
@@ -2283,12 +2296,13 @@ f_dialog_init()
 		then
 			# Xdialog(1) failed, fall back to dialog(1)
 			unset USE_XDIALOG
+			DIALOG=bsddialog
 
 			# Display the error message produced by Xdialog(1)
 			local height width
 			f_dialog_buttonbox_size height width \
 				"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$maxsize"
-			dialog \
+			$DIALOG \
 				--title "$DIALOG_TITLE"         \
 				--backtitle "$DIALOG_BACKTITLE" \
 				--ok-label "$msg_ok"            \
