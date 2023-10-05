@@ -147,7 +147,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	 */
 	fscs = (struct csum *)calloc((size_t)1, (size_t)sblock.fs_cssize);
 	if (fscs == NULL)
-		errx(1, "calloc failed");
+		errx(3, "calloc failed");
 	memcpy(fscs, osblock.fs_csp, osblock.fs_cssize);
 	free(osblock.fs_csp);
 	osblock.fs_csp = NULL;
@@ -259,7 +259,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	 * and all the alternates back to disk.
 	 */
 	if (!Nflag && sbput(fso, &sblock, sblock.fs_ncg) != 0)
-		errc(2, EIO, "could not write updated superblock");
+		errc(3, EIO, "could not write updated superblock");
 	DBG_PRINT0("fscs written\n");
 
 #ifdef FS_DEBUG
@@ -1339,7 +1339,7 @@ main(int argc, char **argv)
 				size <<= 30;
 				size <<= 10;
 			} else
-				errx(1, "unknown suffix on -s argument");
+				errx(2, "unknown suffix on -s argument");
 			break;
 		case 'v': /* for compatibility to newfs */
 			break;
@@ -1364,23 +1364,23 @@ main(int argc, char **argv)
 	statfsp = getmntpoint(*argv);
 	device = getdev(*argv, statfsp);
 	if (device == NULL)
-		errx(1, "cannot find special device for %s", *argv);
+		errx(2, "cannot find special device for %s", *argv);
 
 	fsi = open(device, O_RDONLY);
 	if (fsi < 0)
-		err(1, "%s", device);
+		err(3, "%s", device);
 
 	/*
 	 * Try to guess the slice size if not specified.
 	 */
 	if (ioctl(fsi, DIOCGMEDIASIZE, &mediasize) == -1)
-		err(1,"DIOCGMEDIASIZE");
+		err(3,"DIOCGMEDIASIZE");
 
 	/*
 	 * Check if that partition is suitable for growing a file system.
 	 */
 	if (mediasize < 1)
-		errx(1, "partition is unavailable");
+		errx(2, "partition is unavailable");
 
 	/*
 	 * Read the current superblock, and take a backup.
@@ -1388,16 +1388,16 @@ main(int argc, char **argv)
 	if ((ret = sbget(fsi, &fs, UFS_STDSB, 0)) != 0) {
 		switch (ret) {
 		case ENOENT:
-			errx(1, "superblock not recognized");
+			errx(2, "superblock not recognized");
 		default:
-			errc(1, ret, "unable to read superblock");
+			errc(3, ret, "unable to read superblock");
 		}
 	}
 	/*
 	 * Check for filesystem that was unclean at mount time.
 	 */
 	if ((fs->fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) != 0)
-		errx(1, "%s is not clean - run fsck.\n", *argv);
+		errx(2, "%s is not clean - run fsck.\n", *argv);
 	memcpy(&osblock, fs, fs->fs_sbsize);
 	free(fs);
 	memcpy((void *)&fsun1, (void *)&fsun2, osblock.fs_sbsize);
@@ -1418,7 +1418,7 @@ main(int argc, char **argv)
 			    mediasize,
 			    "B", HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 
-			errx(1, "requested size %s is larger "
+			errx(2, "requested size %s is larger "
 			    "than the available %s", oldsizebuf, newsizebuf);
 		}
 	}
@@ -1439,7 +1439,7 @@ main(int argc, char **argv)
 		if (size == (uint64_t)(osblock.fs_size * osblock.fs_fsize))
 			errx(0, "requested size %s is equal to the current "
 			    "filesystem size %s", newsizebuf, oldsizebuf);
-		errx(1, "requested size %s is smaller than the current "
+		errx(2, "requested size %s is smaller than the current "
 		   "filesystem size %s", newsizebuf, oldsizebuf);
 	}
 
@@ -1451,7 +1451,7 @@ main(int argc, char **argv)
 	 * Are we really growing?
 	 */
 	if (osblock.fs_size >= sblock.fs_size) {
-		errx(1, "we are not growing (%jd->%jd)",
+		errx(3, "we are not growing (%jd->%jd)",
 		    (intmax_t)osblock.fs_size, (intmax_t)sblock.fs_size);
 	}
 
@@ -1461,7 +1461,7 @@ main(int argc, char **argv)
 	if (yflag == 0) {
 		for (j = 0; j < FSMAXSNAP; j++) {
 			if (sblock.fs_snapinum[j]) {
-				errx(1, "active snapshot found in file system; "
+				errx(2, "active snapshot found in file system; "
 				    "please remove all snapshots before "
 				    "using growfs");
 			}
@@ -1506,14 +1506,14 @@ main(int argc, char **argv)
 		if (statfsp != NULL && (statfsp->f_flags & MNT_RDONLY) == 0) {
 			fso = open(_PATH_UFSSUSPEND, O_RDWR);
 			if (fso == -1)
-				err(1, "unable to open %s", _PATH_UFSSUSPEND);
+				err(3, "unable to open %s", _PATH_UFSSUSPEND);
 			error = ioctl(fso, UFSSUSPEND, &statfsp->f_fsid);
 			if (error != 0)
-				err(1, "UFSSUSPEND");
+				err(3, "UFSSUSPEND");
 		} else {
 			fso = open(device, O_WRONLY);
 			if (fso < 0)
-				err(1, "%s", device);
+				err(3, "%s", device);
 		}
 	}
 
@@ -1522,7 +1522,7 @@ main(int argc, char **argv)
 	 */
 	testbuf = malloc(sblock.fs_fsize);
 	if (testbuf == NULL)
-		err(1, "malloc");
+		err(3, "malloc");
 	rdfs((ufs2_daddr_t)((size - sblock.fs_fsize) / DEV_BSIZE),
 	    sblock.fs_fsize, testbuf, fsi);
 	wtfs((ufs2_daddr_t)((size - sblock.fs_fsize) / DEV_BSIZE),
@@ -1577,7 +1577,7 @@ main(int argc, char **argv)
 	    fragroundup(&sblock, sblock.fs_ncg * sizeof(struct csum));
 
 	if (osblock.fs_size >= sblock.fs_size)
-		errx(1, "not enough new space");
+		errx(3, "not enough new space");
 
 	DBG_PRINT0("sblock calculated\n");
 
@@ -1591,11 +1591,11 @@ main(int argc, char **argv)
 		if (statfsp != NULL && (statfsp->f_flags & MNT_RDONLY) == 0) {
 			error = ioctl(fso, UFSRESUME);
 			if (error != 0)
-				err(1, "UFSRESUME");
+				err(3, "UFSRESUME");
 		}
 		error = close(fso);
 		if (error != 0)
-			err(1, "close");
+			err(3, "close");
 		if (statfsp != NULL && (statfsp->f_flags & MNT_RDONLY) != 0 &&
 		    chkdoreload(statfsp, warn) != 0)
 			exit(9);
