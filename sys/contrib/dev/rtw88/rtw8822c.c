@@ -2204,7 +2204,11 @@ static void rtw8822c_set_channel_rf(struct rtw_dev *rtwdev, u8 channel, u8 bw)
 	u32 rf_reg18 = 0;
 	u32 rf_rxbb = 0;
 
+#if defined(__linux__)
 	rf_reg18 = rtw_read_rf(rtwdev, RF_PATH_A, 0x18, RFREG_MASK);
+#elif defined(__FreeBSD__)
+	rf_reg18 = rtw_read_rf(rtwdev, RF_PATH_A, RF_CFGCH, RFREG_MASK);
+#endif
 
 	rf_reg18 &= ~(RF18_BAND_MASK | RF18_CHANNEL_MASK | RF18_RFSI_MASK |
 		      RF18_BW_MASK);
@@ -3277,7 +3281,11 @@ static void rtw8822c_dpk_information(struct rtw_dev *rtwdev)
 	u32  reg;
 	u8 band_shift;
 
+#if defined(__linux__)
 	reg = rtw_read_rf(rtwdev, RF_PATH_A, 0x18, RFREG_MASK);
+#elif defined(__FreeBSD__)
+	reg = rtw_read_rf(rtwdev, RF_PATH_A, RF_CFGCH, RFREG_MASK);
+#endif
 
 	band_shift = FIELD_GET(BIT(16), reg);
 	dpk_info->dpk_band = 1 << band_shift;
@@ -4158,7 +4166,11 @@ static bool rtw8822c_dpk_reload(struct rtw_dev *rtwdev)
 
 	dpk_info->is_reload = false;
 
+#if defined(__linux__)
 	channel = (u8)(rtw_read_rf(rtwdev, RF_PATH_A, 0x18, RFREG_MASK) & 0xff);
+#elif defined(__FreeBSD__)
+	channel = (u8)(rtw_read_rf(rtwdev, RF_PATH_A, RF_CFGCH, RFREG_MASK) & 0xff);
+#endif
 
 	if (channel == dpk_info->dpk_ch) {
 		rtw_dbg(rtwdev, RTW_DBG_RFK,
