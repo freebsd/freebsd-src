@@ -27,17 +27,40 @@
 
 #include <sys/param.h>
 #include <sys/module.h>
+#include <sys/socket.h>
 
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <err.h>
 #include <stdio.h>
+#include <poll.h>
 
 #include <netlink/netlink.h>
 #include <netlink/netlink_generic.h>
 #include <netlink/netlink_snl.h>
 #include <netlink/netlink_snl_generic.h>
+
+static int monitor_mcast(int argc, char **argv);
+static int list_families(int argc, char **argv);
+static void parser_nlctrl_notify(struct snl_state *ss, struct nlmsghdr *hdr);
+static void parser_fallback(struct snl_state *ss, struct nlmsghdr *hdr);
+
+static struct commands {
+	const char *name;
+	const char *usage;
+	int (*cmd)(int argc, char **argv);
+} cmds[] = {
+	{ "monitor", "monitor <family> <multicast group>", monitor_mcast },
+	{ "list", "list", list_families },
+};
+
+static struct mcast_parsers {
+	const char *family;
+	void (*parser)(struct snl_state *ss, struct nlmsghdr *hdr);
+} mcast_parsers [] = {
+	{ "nlctrl", parser_nlctrl_notify },
+};
 
 struct genl_ctrl_op {
 	uint32_t id;
@@ -131,6 +154,13 @@ dump_mcast_groups( struct snl_genl_ctrl_mcast_groups *mcast_groups)
 		    mcast_groups->groups[i]->mcast_grp_name);
 }
 
+static void
+usage(void)
+{
+	fprintf(stderr, "Usage: %s\n", getprogname());
+	for (size_t i = 0; i < nitems(cmds); i++)
+		fprintf(stderr, "       %s %s\n", getprogname(), cmds[i].usage);
+}
 
 static void
 dump_family(struct genl_family *family)
@@ -143,8 +173,87 @@ dump_family(struct genl_family *family)
 	dump_mcast_groups(&family->mcast_groups);
 }
 
+void
+parser_nlctrl_notify(struct snl_state *ss, struct nlmsghdr *hdr)
+{
+	struct genl_family family = {};
+
+	if (snl_parse_nlmsg(ss, hdr, &genl_family_parser,
+				&family))
+		dump_family(&family);
+}
+
+void
+parser_fallback(struct snl_state *ss __unused, struct nlmsghdr *hdr __unused)
+{
+	printf("New unknown message\n");
+}
+
 int
-main(int argc, char **argv __unused)
+monitor_mcast(int argc __unused, char **argv)
+{
+	struct snl_state ss;
+	struct nlmsghdr *hdr;
+	struct _getfamily_attrs attrs;
+	struct pollfd pfd;
+	bool found = false;
+	void (*parser)(struct snl_state *ss, struct nlmsghdr *hdr);
+
+	parser = parser_fallback;
+
+	if (!snl_init(&ss, NETLINK_GENERIC))
+		err(EXIT_FAILURE, "snl_init()");
+
+	if (argc != 2) {
+		usage();
+		return (EXIT_FAILURE);
+	}
+	if (!snl_get_genl_family_info(&ss, argv[0], &attrs))
+		errx(EXIT_FAILURE, "Unknown family '%s'", argv[0]);
+	for (uint32_t i = 0; i < attrs.mcast_groups.num_groups; i++) {
+		if (strcmp(attrs.mcast_groups.groups[i]->mcast_grp_name,
+		    argv[1]) == 0) {
+			found = true;
+			if (setsockopt(ss.fd, SOL_NETLINK,
+			    NETLINK_ADD_MEMBERSHIP,
+			    (void *)&attrs.mcast_groups.groups[i]->mcast_grp_id,
+			    sizeof(attrs.mcast_groups.groups[i]->mcast_grp_id))
+			    == -1)
+				err(EXIT_FAILURE, "Cannot subscribe to command "
+				    "notify");
+			break;
+		}
+	}
+	if (!found)
+		errx(EXIT_FAILURE, "No such multicat group '%s'"
+		    " in family '%s'", argv[1], argv[0]);
+	for (size_t i= 0; i < nitems(mcast_parsers); i++) {
+		if (strcmp(mcast_parsers[i].family, argv[0]) == 0) {
+			parser = mcast_parsers[i].parser;
+			break;
+		}
+	}
+	memset(&pfd, 0, sizeof(pfd));
+	pfd.fd = ss.fd;
+	pfd.events = POLLIN | POLLERR;
+	while (true) {
+		pfd.revents = 0;
+		if (poll(&pfd, 1, -1) == -1) {
+			if (errno == EINTR)
+				continue;
+			err(EXIT_FAILURE, "poll()");
+		}
+		hdr = snl_read_message(&ss);
+		if (hdr != NULL && hdr->nlmsg_type != NLMSG_ERROR)
+			parser(&ss, hdr);
+
+	}
+
+	return (EXIT_SUCCESS);
+}
+
+int
+list_families(int argc, char **argv __unused)
 {
 	struct snl_state ss;
 	struct snl_writer nw;
@@ -152,16 +261,16 @@ main(int argc, char **argv __unused)
 	struct snl_errmsg_data e = {};
 	uint32_t seq_id;
 
-	if (argc > 1)
-		errx(EXIT_FAILURE, "usage: genl does not accept any argument");
-	if (modfind("netlink") == -1)
-		err(EXIT_FAILURE, "require netlink module to be loaded");
-
+	if (argc != 0) {
+		usage();
+		return (EXIT_FAILURE);
+	}
 	if (!snl_init(&ss, NETLINK_GENERIC))
 		err(EXIT_FAILURE, "snl_init()");
 
 	snl_init_writer(&ss, &nw);
-	hdr = snl_create_genl_msg_request(&nw, GENL_ID_CTRL, CTRL_CMD_GETFAMILY);
+	hdr = snl_create_genl_msg_request(&nw, GENL_ID_CTRL,
+	    CTRL_CMD_GETFAMILY);
 	if ((hdr = snl_finalize_msg(&nw)) == NULL)
 		err(EXIT_FAILURE, "snl_finalize_msg");
 	seq_id = hdr->nlmsg_seq;
@@ -178,4 +287,22 @@ main(int argc, char **argv __unused)
 	}
 
 	return (EXIT_SUCCESS);
+}
+
+int
+main(int argc, char **argv)
+{
+	if (modfind("netlink") == -1)
+		err(EXIT_FAILURE, "require netlink module to be loaded");
+
+	if (argc == 1)
+		return (list_families(0, NULL));
+
+	for (size_t i = 0; i < nitems(cmds); i++) {
+		if (strcmp(argv[1], cmds[i].name) == 0)
+			return (cmds[i].cmd(argc - 2, argv + 2));
+	}
+	usage();
+
+	return (EXIT_FAILURE);
 }
