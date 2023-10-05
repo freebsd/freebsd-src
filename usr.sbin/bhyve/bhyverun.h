@@ -26,8 +26,10 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_FBSDRUN_H_
-#define	_FBSDRUN_H_
+#ifndef	_BHYVERUN_H_
+#define	_BHYVERUN_H_
+
+#include <stdbool.h>
 
 #define	VMEXIT_CONTINUE		(0)
 #define	VMEXIT_ABORT		(-1)
@@ -44,8 +46,21 @@ void *paddr_guest2host(struct vmctx *ctx, uintptr_t addr, size_t len);
 uintptr_t paddr_host2guest(struct vmctx *ctx, void *addr);
 #endif
 
+struct vcpu;
+struct vcpu *fbsdrun_vcpu(int vcpuid);
+void fbsdrun_addcpu(int vcpuid);
+void fbsdrun_deletecpu(int vcpuid);
+int fbsdrun_suspendcpu(int vcpuid);
+
 int  fbsdrun_virtio_msix(void);
 
-int vmexit_task_switch(struct vmctx *, struct vcpu *, struct vm_run *);
+typedef int (*vmexit_handler_t)(struct vmctx *, struct vcpu *, struct vm_run *);
+
+/* Interfaces implemented by machine-dependent code. */
+void bhyve_init_config(void);
+void bhyve_init_vcpu(struct vcpu *vcpu);
+void bhyve_start_vcpu(struct vcpu *vcpu, bool bsp);
+int bhyve_init_platform(struct vmctx *ctx, struct vcpu *bsp);
+int bhyve_init_platform_late(struct vmctx *ctx, struct vcpu *bsp);
 
 #endif

@@ -10,7 +10,6 @@
 
 #include <bsddialog.h>
 #include <stdio.h>
-#include <string.h>
 
 int main()
 {
@@ -21,18 +20,15 @@ int main()
 		printf("Error: %s\n", bsddialog_geterror());
 		return (1);
 	}
-
 	bsddialog_initconf(&conf);
 	conf.title = "infobox";
 	conf.sleep = 3;
 	output = bsddialog_infobox(&conf, "Example\n(3 seconds)", 7, 20);
-
 	bsddialog_end();
-
 	if (output == BSDDIALOG_ERROR) {
 		printf("Error: %s\n", bsddialog_geterror());
 		return (1);
 	}
 
-	return (output);
+	return (0);
 }

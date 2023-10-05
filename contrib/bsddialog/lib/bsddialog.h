@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021-2022 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2023 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,9 +30,9 @@
 
 #include <stdbool.h>
 
-#define LIBBSDDIALOG_VERSION     "0.4"
+#define LIBBSDDIALOG_VERSION     "1.0"
 
-/* Exit status */
+/* Return values */
 #define BSDDIALOG_ERROR          -1
 #define BSDDIALOG_OK              0
 #define BSDDIALOG_YES             BSDDIALOG_OK
@@ -42,8 +42,12 @@
 #define BSDDIALOG_EXTRA           3
 #define BSDDIALOG_TIMEOUT         4
 #define BSDDIALOG_ESC             5
-#define BSDDIALOG_GENERIC1        6
-#define BSDDIALOG_GENERIC2        7
+#define BSDDIALOG_LEFT1           6
+#define BSDDIALOG_LEFT2           7
+#define BSDDIALOG_LEFT3           8
+#define BSDDIALOG_RIGHT1          9
+#define BSDDIALOG_RIGHT2          10
+#define BSDDIALOG_RIGHT3          11
 
 /* Size and position */
 #define BSDDIALOG_FULLSCREEN     -1
@@ -94,24 +98,28 @@ struct bsddialog_conf {
 	} key;
 	struct {
 		unsigned int cols_per_row;
-		bool highlight;
+		bool escape;
 		unsigned int tablen;
 	} text;
 	struct {
 		bool align_left;
 		bool no_desc;
 		bool no_name;
-		bool on_without_ok;
 		bool shortcut_buttons;
 	} menu;
 	struct {
 		char securech;
 		char *securembch;
 		bool value_wchar;
-		bool value_without_ok;
 	} form;
 	struct {
+		const char *format;
+	} date;
+	struct {
 		bool always_active;
+		const char *left1_label;
+		const char *left2_label;
+		const char *left3_label;
 		bool without_ok;
 		const char *ok_label;
 		bool with_extra;
@@ -121,8 +129,9 @@ struct bsddialog_conf {
 		bool default_cancel;
 		bool with_help;
 		const char *help_label;
-		const char *generic1_label;
-		const char *generic2_label;
+		const char *right1_label;
+		const char *right2_label;
+		const char *right3_label;
 		const char *default_label;
 	} button;
 };
@@ -146,6 +155,7 @@ struct bsddialog_menugroup {
 	enum bsddialog_menutype type;
 	unsigned int nitems;
 	struct bsddialog_menuitem *items;
+	unsigned int min_on; /* unused for now */
 };
 
 struct bsddialog_formitem {
@@ -166,16 +176,18 @@ struct bsddialog_formitem {
 
 int bsddialog_init(void);
 int bsddialog_init_notheme(void);
+bool bsddialog_inmode(void);
 int bsddialog_end(void);
 int bsddialog_backtitle(struct bsddialog_conf *conf, const char *backtitle);
 int bsddialog_initconf(struct bsddialog_conf *conf);
-int bsddialog_clearterminal(void);
+void bsddialog_clear(unsigned int y);
+void bsddialog_refresh(void);
 const char *bsddialog_geterror(void);
 
 /* Dialogs */
 int
 bsddialog_calendar(struct bsddialog_conf *conf, const char *text, int rows,
-    int cols, unsigned int *yy, unsigned int *mm, unsigned int *dd);
+    int cols, unsigned int *year, unsigned int *month, unsigned int *day);
 
 int
 bsddialog_checklist(struct bsddialog_conf *conf, const char *text, int rows,
@@ -184,16 +196,16 @@ bsddialog_checklist(struct bsddialog_conf *conf, const char *text, int rows,
 
 int
 bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
-    int cols, unsigned int *yy, unsigned int *mm, unsigned int *dd);
+    int cols, unsigned int *year, unsigned int *month, unsigned int *day);
 
 int
 bsddialog_form(struct bsddialog_conf *conf, const char *text, int rows,
     int cols, unsigned int formheight, unsigned int nitems,
-    struct bsddialog_formitem *items);
+    struct bsddialog_formitem *items, int *focusitem);
 
 int
 bsddialog_gauge(struct bsddialog_conf *conf, const char *text, int rows,
-    int cols, unsigned int perc, int fd, const char *sep);
+    int cols, unsigned int perc, int fd, const char *sep, const char *end);
 
 int
 bsddialog_infobox(struct bsddialog_conf *conf, const char *text, int rows,
@@ -220,7 +232,7 @@ bsddialog_msgbox(struct bsddialog_conf *conf, const char *text, int rows,
 
 int
 bsddialog_pause(struct bsddialog_conf *conf, const char *text, int rows,
-    int cols, unsigned int seconds);
+    int cols, unsigned int *seconds);
 
 int
 bsddialog_radiolist(struct bsddialog_conf *conf, const char *text, int rows,

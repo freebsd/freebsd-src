@@ -17,7 +17,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "e820.h"
+#include "amd64/e820.h"
 #include "pci_gvt-d-opregion.h"
 #include "pci_passthru.h"
 
@@ -49,11 +49,11 @@ gvt_d_probe(struct pci_devinst *const pi)
 
 	sc = pi->pi_arg;
 
-	vendor = read_config(passthru_get_sel(sc), PCIR_VENDOR, 0x02);
+	vendor = pci_host_read_config(passthru_get_sel(sc), PCIR_VENDOR, 0x02);
 	if (vendor != PCI_VENDOR_INTEL)
 		return (ENXIO);
 
-	class = read_config(passthru_get_sel(sc), PCIR_CLASS, 0x01);
+	class = pci_host_read_config(passthru_get_sel(sc), PCIR_CLASS, 0x01);
 	if (class != PCIC_DISPLAY)
 		return (ENXIO);
 
@@ -169,7 +169,7 @@ gvt_d_setup_gsm(struct pci_devinst *const pi)
 		    "Warning: Unable to reuse host address of Graphics Stolen Memory. GPU passthrough might not work properly.");
 	}
 
-	bdsm = read_config(passthru_get_sel(sc), PCIR_BDSM, 4);
+	bdsm = pci_host_read_config(passthru_get_sel(sc), PCIR_BDSM, 4);
 	pci_set_cfgdata32(pi, PCIR_BDSM,
 	    gsm->gpa | (bdsm & (PCIM_BDSM_GSM_ALIGNMENT - 1)));
 
@@ -201,7 +201,7 @@ gvt_d_setup_opregion(struct pci_devinst *const pi)
 		return (-1);
 	}
 
-	asls = read_config(passthru_get_sel(sc), PCIR_ASLS_CTL, 4);
+	asls = pci_host_read_config(passthru_get_sel(sc), PCIR_ASLS_CTL, 4);
 
 	header = mmap(NULL, sizeof(*header), PROT_READ, MAP_SHARED, memfd,
 	    asls);

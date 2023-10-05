@@ -10,7 +10,6 @@
 
 #include <bsddialog.h>
 #include <stdio.h>
-#include <string.h>
 
 int main()
 {
@@ -21,20 +20,16 @@ int main()
 		printf("Error: %s\n", bsddialog_geterror());
 		return (1);
 	}
-
 	bsddialog_initconf(&conf);
 	conf.title = "rangebox";
 	value = 5;
 	output = bsddialog_rangebox(&conf, "Example", 8, 50, 0, 10, &value);
-
 	bsddialog_end();
-
 	if (output == BSDDIALOG_ERROR) {
 		printf("Error: %s\n", bsddialog_geterror());
 		return (1);
 	}
-
 	printf("Value: %d\n", value);
 
-	return (output);
+	return (0);
 }

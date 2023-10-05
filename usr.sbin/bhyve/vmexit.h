@@ -1,7 +1,8 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2022 Alfonso Sabato Siciliano
+ * Copyright (c) 2011 NetApp, Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,10 +13,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY NETAPP, INC ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL NETAPP, INC OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -25,12 +26,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _BSDDIALOG_UTILITY_THEME_H_
-#define _BSDDIALOG_UTILITY_THEME_H_
+#ifndef _VMEXIT_H_
+#define	_VMEXIT_H_
 
-void savetheme(const char *file, const char *version);
-void loadtheme(const char *file);
-void setdeftheme(enum bsddialog_default_theme theme);
-void bikeshed(struct bsddialog_conf *conf);
+extern const vmexit_handler_t vmexit_handlers[VM_EXITCODE_MAX];
 
-#endif
+#endif /* !_VMEXIT_H_ */

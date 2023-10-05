@@ -15,11 +15,11 @@
 : ${BSDDIALOG_ESC=5}
 
 ITEM=$(./bsddialog --title " radiolist " --radiolist "Hello World!" 15 30 5 \
-	"Tag 1"  "DESC 1 xyz"  off \
-	"Tag 2"  "DESC 2 xyz"  off \
-	"Tag 3"  "DESC 3 xyz"  on  \
-	"Tag 4"  "DESC 4 xyz"  off \
-	"Tag 5"  "DESC 5 xyz"  off \
+	"1 Name"  "DESC 1 xyz"  off \
+	"2 Name"  "DESC 2 xyz"  off \
+	"3 Name"  "DESC 3 xyz"  on  \
+	"4 Name"  "DESC 4 xyz"  off \
+	"5 Name"  "DESC 5 xyz"  off \
 3>&1 1>&2 2>&3 3>&-)
 
 case $? in
@@ -27,14 +27,12 @@ case $? in
 		exit 1
 	;;
 	$BSDDIALOG_ESC )
-		echo "[ESC] focus "
+		echo "[ESC]"
 	;;
 	$BSDDIALOG_CANCEL )
-		echo "[Cancel] focus "
+		echo "[Cancel]"
 	;;
 	$BSDDIALOG_OK )
-		echo "[OK]"
+		echo "[OK] $ITEM"
 	;;
 esac
-
-echo "$ITEM"

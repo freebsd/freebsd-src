@@ -532,14 +532,25 @@ void lkpi_arch_phys_wc_del(int);
 static inline int
 arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size)
 {
+	vm_offset_t va;
 
-	return (set_memory_wc(start, size >> PAGE_SHIFT));
+	va = PHYS_TO_DMAP(start);
+
+#ifdef VM_MEMATTR_WRITE_COMBINING
+	return (-pmap_change_attr(va, size, VM_MEMATTR_WRITE_COMBINING));
+#else
+	return (-pmap_change_attr(va, size, VM_MEMATTR_UNCACHEABLE));
+#endif
 }
 
 static inline void
 arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
 {
-	set_memory_wb(start, size >> PAGE_SHIFT);
+	vm_offset_t va;
+
+	va = PHYS_TO_DMAP(start);
+
+	pmap_change_attr(va, size, VM_MEMATTR_WRITE_BACK);
 }
 #endif
 
