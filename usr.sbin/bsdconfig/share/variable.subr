@@ -111,8 +111,6 @@ f_variable_set_defaults()
 	# Initialize various user-edittable values to their defaults
 	#
 	setvar $VAR_EDITOR		"${EDITOR:-/usr/bin/ee}"
-	setvar $VAR_FTP_STATE		"auto"
-	setvar $VAR_FTP_USER		"ftp"
 	setvar $VAR_HOSTNAME		"$( hostname )"
 	setvar $VAR_MEDIA_TIMEOUT	"300"
 	setvar $VAR_NFS_SECURE		"NO"
@@ -128,8 +126,6 @@ f_variable_set_defaults()
 		local var
 		for var in \
 			$VAR_EDITOR		\
-			$VAR_FTP_STATE		\
-			$VAR_FTP_USER		\
 			$VAR_HOSTNAME		\
 			$VAR_MEDIA_TIMEOUT	\
 			$VAR_NFS_SECURE		\
@@ -232,13 +228,6 @@ f_variable_new VAR_DIRECTORY_PATH	_directoryPath
 f_variable_new VAR_DOMAINNAME		domainname
 f_variable_new VAR_EDITOR		editor
 f_variable_new VAR_EXTRAS		ifconfig_
-f_variable_new VAR_FTP_DIR		ftpDirectory
-f_variable_new VAR_FTP_HOST		ftpHost
-f_variable_new VAR_FTP_PASS		ftpPass
-f_variable_new VAR_FTP_PATH		_ftpPath
-f_variable_new VAR_FTP_PORT		ftpPort
-f_variable_new VAR_FTP_STATE		ftpState
-f_variable_new VAR_FTP_USER		ftpUser
 f_variable_new VAR_GATEWAY		defaultrouter
 f_variable_new VAR_GROUP		group
 f_variable_new VAR_GROUP_GID		groupGid

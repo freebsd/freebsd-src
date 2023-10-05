@@ -51,8 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20231005: bsdconfig remove support for floppy
+# 20231005: bsdconfig remove support for floppy and ftp
 OLD_FILES+=usr/share/bsdconfig/media/floppy.subr
+OLD_FILES+=usr/share/bsdconfig/media/ftp.subr
 
 # 20230927: Man pages renamed to match the actual functions
 OLD_FILES+=usr/share/man/man9/cr_seeothergids.9.gz

@@ -32,7 +32,6 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 f_dprintf "%s: loading includes..." media/options.subr
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/media/any.subr
-f_include $BSDCFG_SHARE/media/ftp.subr
 f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/variable.subr
 
@@ -138,11 +137,6 @@ f_media_options_menu()
 			    '$msg_attempt_ipv6_configuration_of_interfaces'"
 		fi
 
-		f_getvar $VAR_FTP_USER cp
-		menu_list="$menu_list
-			' $msg_ftp_username' '$cp'
-			    '$msg_username_and_password_to_use'"
-
 		f_getvar $VAR_EDITOR cp
 		menu_list="$menu_list
 			' $msg_editor' '$cp' '$msg_which_text_editor_to_use'"
@@ -158,7 +152,6 @@ f_media_options_menu()
 			$DEVICE_TYPE_UFS|$DEVICE_TYPE_DISK)
 				cp="$msg_file_system" ;;
 			$DEVICE_TYPE_DIRECTORY)  cp="$msg_directory"   ;;
-			$DEVICE_TYPE_FTP)        cp="$msg_ftp"         ;;
 			$DEVICE_TYPE_HTTP_PROXY) cp="$msg_http_proxy"  ;;
 			$DEVICE_TYPE_HTTP)       cp="$msg_http_direct" ;;
 			$DEVICE_TYPE_CDROM)      cp="$msg_cdrom"       ;;
@@ -284,8 +277,6 @@ f_media_options_menu()
 			else
 				export $VAR_TRY_RTSOL="YES"
 			fi ;;
-		" $msg_ftp_username")
-			f_media_set_ftp_userpass ;;
 		" $msg_editor")
 			f_variable_get_value $VAR_EDITOR \
 			    "$msg_please_specify_the_name_of_the_text_editor"
