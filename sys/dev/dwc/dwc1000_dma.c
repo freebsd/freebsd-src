@@ -182,50 +182,47 @@ dwc_get1paddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 }
 
 inline static void
-dwc_set_owner(struct dwc_softc *sc, int idx)
+txdesc_clear(struct dwc_softc *sc, int idx)
 {
+
+	sc->tx_desccount--;
+	sc->txdesc_ring[idx].addr1 = (uint32_t)(0);
+	sc->txdesc_ring[idx].desc0 = 0;
+	sc->txdesc_ring[idx].desc1 = 0;
+}
+
+inline static void
+txdesc_setup(struct dwc_softc *sc, int idx, bus_addr_t paddr,
+  uint32_t len, uint32_t flags, bool first, bool last)
+{
+	uint32_t desc0, desc1;
+
+	if (!sc->dma_ext_desc) {
+		desc0 = 0;
+		desc1 = NTDESC1_TCH | len | flags;
+		if (first)
+			desc1 |=  NTDESC1_FS;
+		if (last)
+			desc1 |= NTDESC1_LS | NTDESC1_IC;
+	} else {
+		desc0 = ETDESC0_TCH | flags;
+		if (first)
+			desc0 |= ETDESC0_FS;
+		if (last)
+			desc0 |= ETDESC0_LS | ETDESC0_IC;
+		desc1 = len;
+	}
+	++sc->tx_desccount;
+	sc->txdesc_ring[idx].addr1 = (uint32_t)(paddr);
+	sc->txdesc_ring[idx].desc0 = desc0;
+	sc->txdesc_ring[idx].desc1 = desc1;
 	wmb();
 	sc->txdesc_ring[idx].desc0 |= TDESC0_OWN;
 	wmb();
 }
 
-inline static void
-dwc_setup_txdesc(struct dwc_softc *sc, int idx, bus_addr_t paddr,
-  uint32_t len, uint32_t flags, bool first, bool last)
-{
-	uint32_t desc0, desc1;
-
-	/* Addr/len 0 means we're clearing the descriptor after xmit done. */
-	if (paddr == 0 || len == 0) {
-		desc0 = 0;
-		desc1 = 0;
-		--sc->tx_desccount;
-	} else {
-		if (!sc->dma_ext_desc) {
-			desc0 = 0;
-			desc1 = NTDESC1_TCH | len | flags;
-			if (first)
-				desc1 |=  NTDESC1_FS;
-			if (last)
-				desc1 |= NTDESC1_LS | NTDESC1_IC;
-		} else {
-			desc0 = ETDESC0_TCH | flags;
-			if (first)
-				desc0 |= ETDESC0_FS;
-			if (last)
-				desc0 |= ETDESC0_LS | ETDESC0_IC;
-			desc1 = len;
-		}
-		++sc->tx_desccount;
-	}
-
-	sc->txdesc_ring[idx].addr1 = (uint32_t)(paddr);
-	sc->txdesc_ring[idx].desc0 = desc0;
-	sc->txdesc_ring[idx].desc1 = desc1;
-}
-
 inline static uint32_t
-dwc_setup_rxdesc(struct dwc_softc *sc, int idx, bus_addr_t paddr)
+rxdesc_setup(struct dwc_softc *sc, int idx, bus_addr_t paddr)
 {
 	uint32_t nidx;
 
@@ -254,7 +251,7 @@ dma1000_setup_txbuf(struct dwc_softc *sc, int idx, struct mbuf **mp)
 	struct mbuf * m;
 	uint32_t flags = 0;
 	int i;
-	int first, last;
+	int last;
 
 	error = bus_dmamap_load_mbuf_sg(sc->txbuf_tag, sc->txbuf_map[idx].map,
 	    *mp, segs, &nsegs, 0);
@@ -299,22 +296,17 @@ dma1000_setup_txbuf(struct dwc_softc *sc, int idx, struct mbuf **mp)
 
 	sc->txbuf_map[idx].mbuf = m;
 
-	first = sc->tx_desc_head;
 	for (i = 0; i < nsegs; i++) {
-		dwc_setup_txdesc(sc, sc->tx_desc_head,
+		txdesc_setup(sc, sc->tx_desc_head,
 		    segs[i].ds_addr, segs[i].ds_len,
 		    (i == 0) ? flags : 0, /* only first desc needs flags */
 		    (i == 0),
 		    (i == nsegs - 1));
-		if (i > 0)
-			dwc_set_owner(sc, sc->tx_desc_head);
 		last = sc->tx_desc_head;
 		sc->tx_desc_head = next_txidx(sc, sc->tx_desc_head);
 	}
 
 	sc->txbuf_map[idx].last_desc_idx = last;
-
-	dwc_set_owner(sc, first);
 
 	return (0);
 }
@@ -338,7 +330,7 @@ dma1000_setup_rxbuf(struct dwc_softc *sc, int idx, struct mbuf *m)
 	    BUS_DMASYNC_PREREAD);
 
 	sc->rxbuf_map[idx].mbuf = m;
-	dwc_setup_rxdesc(sc, idx, seg.ds_addr);
+	rxdesc_setup(sc, idx, seg.ds_addr);
 
 	return (0);
 }
@@ -463,7 +455,7 @@ dma1000_txfinish_locked(struct dwc_softc *sc)
 		bmap->mbuf = NULL;
 		sc->tx_mapcount--;
 		while (sc->tx_desc_tail != last_idx) {
-			dwc_setup_txdesc(sc, sc->tx_desc_tail, 0, 0, 0, false, false);
+			txdesc_clear(sc, sc->tx_desc_tail);
 			sc->tx_desc_tail = next_txidx(sc, sc->tx_desc_tail);
 		}
 		sc->tx_map_tail = next_txidx(sc, sc->tx_map_tail);
@@ -730,7 +722,7 @@ dma1000_init(struct dwc_softc *sc)
 	}
 
 	for (idx = 0; idx < TX_DESC_COUNT; idx++)
-		dwc_setup_txdesc(sc, idx, 0, 0, 0, false, false);
+		txdesc_clear(sc, idx);
 
 	WRITE4(sc, TX_DESCR_LIST_ADDR, sc->txdesc_ring_paddr);
 
