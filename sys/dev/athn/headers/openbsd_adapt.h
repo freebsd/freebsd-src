@@ -35,8 +35,26 @@
 #ifndef _OPENBSD_ADAPT_H_
 #define _OPENBSD_ADAPT_H_
 
-#define M_USBDEV	0
+/*
+ * Set to 1 to 'uncomment' (enable)
+ * parts of the code that depend on the USB OpenBSD API
+ */
+#define OpenBSD_IEEE80211_API 0
 
+/*
+ * Set to 1 to 'uncomment' (enable)
+ * parts of the code that depend on the USB OpenBSD API
+ */
+#define OpenBSD_USB_API 0
+
+/*
+ * Code makred by this macro
+ * needs a OpenBSD equivalent function or complete rework
+ * Set to 1 to 'uncomment' (enable)
+ */
+#define OpenBSD_ONLY 0
+
+#include <sys/endian.h>
 // map OpenBSD endian conversion macro names to FreeBSD
 #define betoh16 be16toh
 #define betoh32 be32toh
@@ -87,5 +105,7 @@ ifq_set_oactive()
 {
 	ifq_oactive = 1;
 }
+
+static __inline intrmask_t	splusb(void)		{ return 0; }
 
 #endif /* _OPENBSD_ADAPT_H_ */

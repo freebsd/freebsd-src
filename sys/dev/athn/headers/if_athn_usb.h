@@ -393,19 +393,19 @@ struct athn_usb_rx_stream {
 struct athn_usb_rx_data {
 	struct athn_usb_softc	*sc;
 	struct usb_xfer	*xfer;
-	uint8_t			*buf;
+	char			*buf;
 };
 
 struct athn_usb_tx_data {
 	struct athn_usb_softc		*sc;
 	struct usb_xfer		*xfer;
-	uint8_t				*buf;
+	char				*buf;
 	TAILQ_ENTRY(athn_usb_tx_data)	next;
 };
 
 struct athn_usb_host_cmd {
 	void	(*cb)(struct athn_usb_softc *, void *);
-	uint8_t	data[256];
+	char	data[256];
 };
 
 struct athn_usb_cmd_newstate {
@@ -419,8 +419,8 @@ struct athn_usb_cmd_key {
 };
 
 struct athn_usb_aggr_cmd {
-	uint8_t	sta_index;
-	uint8_t	tid;
+	int8_t	sta_index;
+	int8_t	tid;
 };
 
 struct athn_usb_host_cmd_ring {
@@ -438,17 +438,22 @@ struct athn_usb_softc {
 	/* USB specific goo. */
 	struct usb_device		*sc_udev;
 	struct usb_interface	*sc_iface;
-//	struct usb_task			sc_task;
+#if OpenBSD_USB_API
+	struct usb_task			sc_task;
+#endif
+
+	struct mtx		sc_mtx;
 
 	u_int				flags;
 #define ATHN_USB_FLAG_AR7010	0x01
 
 	struct athn_usb_rx_stream	rx_stream;
-
+#if OpenBSD_USB_API
 	struct usbd_pipe		*tx_data_pipe;
 	struct usbd_pipe		*rx_data_pipe;
 	struct usbd_pipe		*rx_intr_pipe;
 	struct usbd_pipe		*tx_intr_pipe;
+#endif
 	uint8_t 			*ibuf;
 	size_t				ibuflen;
 
@@ -473,7 +478,7 @@ struct athn_usb_softc {
 	uint8_t				ep_cab;
 	uint8_t				ep_uapsd;
 	uint8_t				ep_mgmt;
-	uint8_t				ep_data[EDCA_NUM_AC];
+	uint8_t				ep_data[WME_NUM_AC];
 
 	/* 
 	 * Firmware cannot handle more than 8 STAs.

@@ -21,45 +21,30 @@
  * Driver for Atheros 802.11a/g/n chipsets.
  */
 
-// #include "athn_usb.h"
-// #include "bpfilter.h"
-
 #include <sys/param.h>
 #include <sys/sockio.h>
-//#include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
-//#include <sys/timeout.h>
 #include <sys/conf.h>
-//#include <linux/device.h>
 #include <sys/stdint.h>	/* uintptr_t */
 #include <sys/endian.h>
-#include <openbsd/openbsd_mbuf.h>
 #include <machine/bus.h>
-//#include <machine/intr.h>
 
 // #if NBPFILTER > 0
 // #include <net/bpf.h>
 // #endif
 #include <net/if.h>
-#include <net/if_dl.h>
+#include <net/if_var.h>
+#include <net/ethernet.h>
 #include <net/if_media.h>
 
-#include <netinet/in.h>
-//#include <netinet/if_ether.h>
-
-// #include <linux/ieee80211.h>
-#include <net/if_arp.h>
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_amrr.h>
-#include <net80211/ieee80211_ra.h>
 #include <net80211/ieee80211_radiotap.h>
 
-// #include <dev/ic/athnreg.h>
-// #include <dev/ic/athnvar.h>
 #include "athnreg.h"
 #include "athnvar.h"
 #include "openbsd_adapt.h"
@@ -363,10 +348,10 @@ athn_attach(struct athn_softc *sc)
 		//     athn_get_rf_name(sc), sc->ntxchains, sc->nrxchains,
 		//     sc->eep_rev, ether_sprintf(ic->ic_myaddr));
 	}
-
-//	timeout_set(&sc->scan_to, athn_next_scan, sc);
-//	timeout_set(&sc->calib_to, athn_calib_to, sc);
-
+#if OpenBSD_ONLY
+	timeout_set(&sc->scan_to, athn_next_scan, sc);
+	timeout_set(&sc->calib_to, athn_calib_to, sc);
+#endif
 	sc->amrr.amrr_min_success_threshold =  1;
 	sc->amrr.amrr_max_success_threshold = 15;
 
@@ -424,11 +409,12 @@ athn_attach(struct athn_softc *sc)
 	/* IBSS channel undefined for now. */
 	// TODO missing 'ic_ibss_chan' in 'struct ieee80211com'
 	// ic->ic_ibss_chan = &ic->ic_channels[0];
-
+#if OpenBSD_IEEE80211_API
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = athn_ioctl;
 	ifp->if_start = athn_start;
+#endif
 	// TODO
 	// ifp->if_watchdog = athn_watchdog;
 	// TOTO missing field 'dv_xname' in 'struct device'
@@ -463,10 +449,10 @@ athn_detach(struct athn_softc *sc)
 	// struct ifnet *ifp = &sc->sc_ic.ic_if;
 	struct ifnet *ifp = NULL;
 	int qid;
-
-//	timeout_del(&sc->scan_to);
-//	timeout_del(&sc->calib_to);
-
+#if OpenBSD_ONLY
+	timeout_del(&sc->scan_to);
+	timeout_del(&sc->calib_to);
+#endif
 	if (!(sc->flags & ATHN_FLAG_USB)) {
 		for (qid = 0; qid < ATHN_QID_COUNT; qid++)
 			athn_tx_reclaim(sc, qid);
@@ -481,7 +467,9 @@ athn_detach(struct athn_softc *sc)
 
 	// TODO
 	// ieee80211_ifdetach(ifp);
+#if OpenBSD_IEEE80211_API
 	if_detach(ifp);
+#endif
 }
 
 #if NBPFILTER > 0
@@ -514,8 +502,8 @@ athn_get_chanlist(struct athn_softc *sc)
 	if (sc->flags & ATHN_FLAG_11G) {
 		for (i = 1; i <= 14; i++) {
 			chan = i;
-//			ic->ic_channels[chan].ic_freq =
-//			    ieee80211_ieee2mhz(chan, IEEE80211_CHAN_2GHZ);
+			ic->ic_channels[chan].ic_freq =
+			    ieee80211_ieee2mhz(chan, IEEE80211_CHAN_2GHZ);
 			ic->ic_channels[chan].ic_flags =
 			    IEEE80211_CHAN_CCK | IEEE80211_CHAN_OFDM |
 			    IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ;
@@ -527,8 +515,8 @@ athn_get_chanlist(struct athn_softc *sc)
 	if (sc->flags & ATHN_FLAG_11A) {
 		for (i = 0; i < nitems(athn_5ghz_chans); i++) {
 			chan = athn_5ghz_chans[i];
-//			ic->ic_channels[chan].ic_freq =
-//			    ieee80211_ieee2mhz(chan, IEEE80211_CHAN_5GHZ);
+			ic->ic_channels[chan].ic_freq =
+			    ieee80211_ieee2mhz(chan, IEEE80211_CHAN_5GHZ);
 			ic->ic_channels[chan].ic_flags = IEEE80211_CHAN_A;
 			if (sc->flags & ATHN_FLAG_11N)
 				ic->ic_channels[chan].ic_flags |=
@@ -619,11 +607,11 @@ athn_intr(void *xsc)
 	// TODO no member named 'ic_if' in 'struct ieee80211com'
 	// struct ifnet *ifp = &sc->sc_ic.ic_if;
 	struct ifnet *ifp = NULL;
-
+#if OpenBSD_IEEE80211_API
 	if ((ifp->if_flags & (IFF_UP | IFF_DRV_RUNNING)) !=
 	    (IFF_UP | IFF_DRV_RUNNING))
 		return (0);
-
+#endif
 	return (sc->ops.intr(sc));
 }
 
@@ -1480,7 +1468,9 @@ athn_calib_to(void *arg)
 	// 	else
 	// 		ieee80211_iterate_nodes(ic, athn_iter_calib, sc);
 	// }
-//	timeout_add_msec(&sc->calib_to, 500);
+#if OpenBSD_ONLY
+	timeout_add_msec(&sc->calib_to, 500);
+#endif
 	splx(s);
 }
 
@@ -2565,11 +2555,13 @@ athn_node_alloc(struct ieee80211com *ic)
 
 	// TODO missing macro in ieee80211_var.h
 	#define    IEEE80211_F_HTON        0x02000000      /* CONF: HT enabled */
-
+#if OpenBSD_IEEE80211_API
 	an = malloc(sizeof(struct athn_node), M_DEVBUF, M_NOWAIT | M_ZERO);
-//	if (an && (ic->ic_flags & IEEE80211_F_HTON))
-//		ieee80211_ra_node_init(&an->rn);
+	if (an && (ic->ic_flags & IEEE80211_F_HTON))
+		ieee80211_ra_node_init(&an->rn);
 	return (struct ieee80211_node *)an;
+#endif
+	return NULL;
 }
 
 void
@@ -2582,10 +2574,12 @@ athn_newassoc(struct ieee80211com *ic, struct ieee80211_node *ni, int isnew)
 	int ridx, i, j;
 
 	// TODO implicit declaration of function 'ieee80211_amrr_node_init'
-//	 if ((ni->ni_flags & IEEE80211_NODE_HT) == 0)
-//	 	ieee80211_amrr_node_init(&sc->amrr, &an->amn);
-//	else if (ic->ic_opmode == IEEE80211_M_STA)
-//		ieee80211_ra_node_init(&an->rn);
+#if OpenBSD_IEEE80211_API
+	 if ((ni->ni_flags & IEEE80211_NODE_HT) == 0)
+	 	ieee80211_amrr_node_init(&sc->amrr, &an->amn);
+	else if (ic->ic_opmode == IEEE80211_M_STA)
+		ieee80211_ra_node_init(&an->rn);
+#endif
 
 	/* Start at lowest available bit-rate, AMRR will raise. */
 	ni->ni_txrate = 0;
@@ -2633,8 +2627,10 @@ athn_newassoc(struct ieee80211com *ic, struct ieee80211_node *ni, int isnew)
 			/* Other MCS fall back to next supported lower MCS. */
 			an->fallback[ridx] = ATHN_NUM_LEGACY_RATES + i;
 			for (j = i - 1; j >= 0; j--) {
+#if OpenBSD_IEEE80211_API
 				if (!isset(ni->ni_rxmcs, j))
 					continue;
+#endif
 				an->fallback[ridx] = ATHN_NUM_LEGACY_RATES + j;
 				break;
 			}
@@ -2651,10 +2647,10 @@ athn_media_change(struct ifnet *ifp)
 	uint8_t rate, ridx;
 	int error;
 
-//	error = ieee80211_media_change(ifp);
+	error = ieee80211_media_change(ifp);
 	if (error != ENETRESET)
 		return (error);
-
+#if OpenBSD_IEEE80211_API
 	if (ic->ic_fixed_rate != -1) {
 		rate = ic->ic_sup_rates[ic->ic_curmode].
 		    rs_rates[ic->ic_fixed_rate] & IEEE80211_RATE_VAL;
@@ -2664,6 +2660,7 @@ athn_media_change(struct ifnet *ifp)
 				break;
 		sc->fixed_ridx = ridx;
 	}
+#endif
 	if ((ifp->if_flags & (IFF_UP | IFF_DRV_RUNNING)) ==
 	    (IFF_UP | IFF_DRV_RUNNING)) {
 		athn_stop(ifp, 0);
@@ -2680,20 +2677,23 @@ athn_next_scan(void *arg)
 	int s;
 
 	s = splnet();
-//	if (ic->ic_state == IEEE80211_S_SCAN)
-//		ieee80211_next_scan(&ic->ic_if);
+#if OpenBSD_IEEE80211_API
+	if (ic->ic_state == IEEE80211_S_SCAN)
+		ieee80211_next_scan(&ic->ic_if);
+#endif
 	splx(s);
 }
 
 int
 athn_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 {
+#if OpenBSD_IEEE80211_API
 	struct ifnet *ifp = &ic->ic_if;
 	struct athn_softc *sc = ifp->if_softc;
 	uint32_t reg;
 	int error = 0;
 
-//	timeout_del(&sc->calib_to);
+	timeout_del(&sc->calib_to);
 
 	switch (nstate) {
 	case IEEE80211_S_INIT:
@@ -2703,15 +2703,15 @@ athn_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		/* Make the LED blink while scanning. */
 		athn_set_led(sc, !sc->led_state);
 		// TODO no member named 'ic_bss' in 'struct ieee80211com'
-		// error = athn_switch_chan(sc, ic->ic_bss->ni_chan, NULL);
+		error = athn_switch_chan(sc, ic->ic_bss->ni_chan, NULL);
 		if (error != 0)
 			return (error);
-//		timeout_add_msec(&sc->scan_to, 200);
+		timeout_add_msec(&sc->scan_to, 200);
 		break;
 	case IEEE80211_S_AUTH:
 		athn_set_led(sc, 0);
 		// TODO no member named 'ic_bss' in 'struct ieee80211com'
-		// error = athn_switch_chan(sc, ic->ic_bss->ni_chan, NULL);
+		error = athn_switch_chan(sc, ic->ic_bss->ni_chan, NULL);
 		if (error != 0)
 			return (error);
 		break;
@@ -2721,13 +2721,13 @@ athn_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		athn_set_led(sc, 1);
 #ifndef IEEE80211_STA_ONLY
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
-			// error = athn_switch_chan(sc, ic->ic_bss->ni_chan, NULL);
+			 error = athn_switch_chan(sc, ic->ic_bss->ni_chan, NULL);
 			if (error != 0)
 				return (error);
 		} else
 #endif
 		if (ic->ic_opmode == IEEE80211_M_MONITOR) {
-			// error = athn_switch_chan(sc, ic->ic_ibss_chan, NULL);
+			 error = athn_switch_chan(sc, ic->ic_ibss_chan, NULL);
 			if (error != 0)
 				return (error);
 			break;
@@ -2735,9 +2735,9 @@ athn_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 
 		/* Fake a join to initialize the Tx rate. */
 		// TODO no member named 'ic_bss' in 'struct ieee80211com'
-		// athn_newassoc(ic, ic->ic_bss, 1);
+		 athn_newassoc(ic, ic->ic_bss, 1);
 
-		// athn_set_bss(sc, ic->ic_bss);
+		 athn_set_bss(sc, ic->ic_bss);
 		athn_disable_interrupts(sc);
 #ifndef IEEE80211_STA_ONLY
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
@@ -2768,11 +2768,13 @@ athn_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		/* XXX Start ANI. */
 
 		athn_start_noisefloor_calib(sc, 1);
-//		timeout_add_msec(&sc->calib_to, 500);
+		timeout_add_msec(&sc->calib_to, 500);
 		break;
 	}
 
 	return (sc->sc_newstate(ic, nstate, arg));
+#endif
+	return 0;
 }
 
 void
@@ -2782,8 +2784,8 @@ athn_updateedca(struct ieee80211com *ic)
 	struct athn_softc *sc = ic->ic_softc;
 	const struct ieee80211_edca_ac_params *ac;
 	int aci, qid;
-
-	for (aci = 0; aci < EDCA_NUM_AC; aci++) {
+#if OpenBSD_IEEE80211_API
+	for (aci = 0; aci < WME_NUM_AC; aci++) {
 		ac = &ic->ic_edca_ac[aci];
 		qid = athn_ac2qid[aci];
 
@@ -2801,6 +2803,7 @@ athn_updateedca(struct ieee80211com *ic)
 	}
 	AR_WRITE_BARRIER(sc);
 #undef ATHN_EXP2
+#endif
 }
 
 int
@@ -2808,7 +2811,7 @@ athn_clock_rate(struct athn_softc *sc)
 {
 	__attribute__((unused)) struct ieee80211com *ic = &sc->sc_ic;
 	int clockrate;	/* MHz. */
-
+#if OpenBSD_IEEE80211_API
 	/*
 	 * AR9287 v1.3+ MAC runs at 117MHz (instead of 88/44MHz) when
 	 * ASYNC FIFO is enabled.
@@ -2816,13 +2819,13 @@ athn_clock_rate(struct athn_softc *sc)
 	if (AR_SREV_9287_13_OR_LATER(sc) && !AR_SREV_9380_10_OR_LATER(sc))
 		clockrate = 117;
 	// TODO no member named 'ic_bss' in 'struct ieee80211com'
-	/*else if (ic->ic_bss->ni_chan != IEEE80211_CHAN_ANYC &&
+	else if (ic->ic_bss->ni_chan != IEEE80211_CHAN_ANYC &&
 	    IEEE80211_IS_CHAN_5GHZ(ic->ic_bss->ni_chan)) {
 		if (sc->flags & ATHN_FLAG_FAST_PLL_CLOCK)
 			clockrate = AR_CLOCK_RATE_FAST_5GHZ_OFDM;
 		else
 			clockrate = AR_CLOCK_RATE_5GHZ_OFDM;
-	}*/ else if (ic->ic_curmode == IEEE80211_MODE_11B) {
+	} else if (ic->ic_curmode == IEEE80211_MODE_11B) {
 		clockrate = AR_CLOCK_RATE_CCK;
 	} else
 		clockrate = AR_CLOCK_RATE_2GHZ_OFDM;
@@ -2830,6 +2833,8 @@ athn_clock_rate(struct athn_softc *sc)
 		clockrate *= 2;
 
 	return (clockrate);
+#endif
+	return 0;
 }
 
 int
@@ -2901,6 +2906,7 @@ athn_updateslot(struct ieee80211com *ic)
 	struct athn_softc *sc = ic->ic_softc;
 	int slot;
 
+#if OpenBSD_IEEE80211_API
 	slot = (ic->ic_flags & IEEE80211_F_SHSLOT) ?
 	    IEEE80211_DUR_DS_SHSLOT : IEEE80211_DUR_DS_SLOT;
 	AR_WRITE(sc, AR_D_GBL_IFS_SLOT, slot * athn_clock_rate(sc));
@@ -2909,6 +2915,7 @@ athn_updateslot(struct ieee80211com *ic)
 	// TODO no member named 'ic_bss' in 'struct ieee80211com'
 	// athn_setacktimeout(sc, ic->ic_bss->ni_chan, slot);
 	// athn_setctstimeout(sc, ic->ic_bss->ni_chan, slot);
+#endif
 }
 
 void
@@ -2922,6 +2929,7 @@ athn_start(struct ifnet *ifp)
 	if (!(ifp->if_flags & IFF_DRV_RUNNING) || ifq_is_oactive())
 		return;
 
+#if OpenBSD_IEEE80211_API
 	for (;;) {
 		if (SIMPLEQ_EMPTY(&sc->txbufs)) {
 			ifq_set_oactive();
@@ -2956,20 +2964,21 @@ athn_start(struct ifnet *ifp)
 		if (ifp->if_bpf != NULL)
 			bpf_mtap(ifp->if_bpf, m, BPF_DIRECTION_OUT);
 #endif
-//		if ((m = ieee80211_encap(ifp, m, &ni)) == NULL)
-//			continue;
+		if ((m = ieee80211_encap(ifp, m, &ni)) == NULL)
+			continue;
  sendit:
 #if NBPFILTER > 0
 		if (ic->ic_rawbpf != NULL)
 			bpf_mtap(ic->ic_rawbpf, m, BPF_DIRECTION_OUT);
 #endif
 		if (sc->ops.tx(sc, m, ni, 0) != 0) {
-//			ieee80211_release_node(ic, ni);
+			ieee80211_release_node(ic, ni);
 			continue;
 		}
 
 		sc->sc_tx_timer = 5;
 	}
+#endif
 }
 
 void
@@ -2987,13 +2996,15 @@ athn_watchdog(struct ifnet *ifp)
 			return;
 		}
 	}
-
-//	ieee80211_watchdog(ifp);
+#if OpenBSD_IEEE80211_API
+	ieee80211_watchdog(ifp);
+#endif
 }
 
 void
 athn_set_multi(struct athn_softc *sc)
 {
+#if OpenBSD_IEEE80211_API
 	struct arpcom *ac = &sc->sc_ic.ic_ac;
 	struct ifnet *ifp = &ac->ac_if;
 	struct ether_multi *enm;
@@ -3029,6 +3040,7 @@ athn_set_multi(struct athn_softc *sc)
 	AR_WRITE(sc, AR_MCAST_FIL0, lo);
 	AR_WRITE(sc, AR_MCAST_FIL1, hi);
 	AR_WRITE_BARRIER(sc);
+#endif
 }
 
 int
@@ -3063,17 +3075,20 @@ athn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		ifr = (struct ifreq *)data;
-//		error = (cmd == SIOCADDMULTI) ?
-//		    ether_addmulti(ifr, &ic->ic_ac) :
-//		    ether_delmulti(ifr, &ic->ic_ac);
+#if OpenBSD_IEEE80211_API
+		error = (cmd == SIOCADDMULTI) ?
+		    ether_addmulti(ifr, &ic->ic_ac) :
+		    ether_delmulti(ifr, &ic->ic_ac);
+
 		if (error == ENETRESET) {
 			athn_set_multi(sc);
 			error = 0;
 		}
+#endif
 		break;
-
+#if OpenBSD_IEEE80211_API
 	case SIOCS80211CHANNEL:
-//		error = ieee80211_ioctl(ifp, cmd, data);
+		error = ieee80211_ioctl(ifp, cmd, data);
 		if (error == ENETRESET &&
 		    ic->ic_opmode == IEEE80211_M_MONITOR) {
 			if ((ifp->if_flags & (IFF_UP | IFF_DRV_RUNNING)) ==
@@ -3082,9 +3097,9 @@ athn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			error = 0;
 		}
 		break;
-
-//	default:
-//		error = ieee80211_ioctl(ifp, cmd, data);
+#endif
+	default:
+		error = ieee80211_ioctl(ifp, cmd, data);
 	}
 
 	if (error == ENETRESET) {
@@ -3114,8 +3129,9 @@ athn_init(struct ifnet *ifp)
 	extc = NULL;
 
 	/* In case a new MAC address has been configured. */
+#if OpenBSD_IEEE80211_API
 	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
-
+#endif
 	/* For CardBus, power on the socket. */
 	if (sc->sc_enable != NULL) {
 		if ((error = sc->sc_enable(sc)) != 0) {
@@ -3186,11 +3202,12 @@ athn_init(struct ifnet *ifp)
 			athn_set_key(ic, NULL, &ic->ic_nw_keys[i]);
 	}
 #endif
-//	if (ic->ic_opmode == IEEE80211_M_MONITOR)
-//		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
-//	else
-//		ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
-
+#if OpenBSD_IEEE80211_API
+	if (ic->ic_opmode == IEEE80211_M_MONITOR)
+		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
+	else
+		ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
+#endif
 	return (0);
  fail:
 	athn_stop(ifp, 1);
@@ -3259,17 +3276,21 @@ athn_stop(struct ifnet *ifp, int disable)
 void
 athn_suspend(struct athn_softc *sc)
 {
+#if OpenBSD_IEEE80211_API
 	struct ifnet *ifp = &sc->sc_ic.ic_if;
 
 	if (ifp->if_flags & IFF_DRV_RUNNING)
 		athn_stop(ifp, 1);
+#endif
 }
 
 void
 athn_wakeup(struct athn_softc *sc)
 {
+#if OpenBSD_IEEE80211_API
 	struct ifnet *ifp = &sc->sc_ic.ic_if;
 
 	if (ifp->if_flags & IFF_UP)
 		athn_init(ifp);
+#endif
 }
