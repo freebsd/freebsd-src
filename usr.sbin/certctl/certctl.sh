@@ -32,7 +32,6 @@ set -u
 
 : ${DESTDIR:=}
 : ${DISTBASE:=}
-: ${FILEPAT:="\.pem$|\.crt$|\.cer$|\.crl$"}
 
 ############################################################ GLOBALS
 
@@ -61,6 +60,20 @@ perform()
 	if ! "${NOOP}" ; then
 		"$@"
 	fi
+}
+
+cert_files_in()
+{
+	find -L "$@" -type f \( \
+	     -name '*.pem' -or \
+	     -name '*.crt' -or \
+	     -name '*.cer' \
+	\) 2>/dev/null
+}
+
+eolcvt()
+{
+	cat "$@" | tr -s '\r' '\n'
 }
 
 do_hash()
@@ -93,23 +106,32 @@ get_decimal()
 	return 0
 }
 
-create_trusted_link()
+create_trusted()
 {
 	local hash certhash otherfile otherhash
 	local suffix
+	local link=${2:+-lrs}
 
 	hash=$(do_hash "$1") || return
 	certhash=$(openssl x509 -sha1 -in "$1" -noout -fingerprint)
 	for otherfile in $(find $UNTRUSTDESTDIR -name "$hash.*") ; do
 		otherhash=$(openssl x509 -sha1 -in "$otherfile" -noout -fingerprint)
 		if [ "$certhash" = "$otherhash" ] ; then
-			info "Skipping untrusted certificate $1 ($otherfile)"
-			return 1
+			info "Skipping untrusted certificate $hash ($otherfile)"
+			return 0
+		fi
+	done
+	for otherfile in $(find $CERTDESTDIR -name "$hash.*") ; do
+		otherhash=$(openssl x509 -sha1 -in "$otherfile" -noout -fingerprint)
+		if [ "$certhash" = "$otherhash" ] ; then
+			verbose "Skipping duplicate entry for certificate $hash"
+			return 0
 		fi
 	done
 	suffix=$(get_decimal "$CERTDESTDIR" "$hash")
 	verbose "Adding $hash.$suffix to trust store"
-	perform install ${INSTALLFLAGS} -lrs "$(realpath "$1")" "$CERTDESTDIR/$hash.$suffix"
+	perform install ${INSTALLFLAGS} -m 0444 ${link} \
+		"$(realpath "$1")" "$CERTDESTDIR/$hash.$suffix"
 }
 
 # Accepts either dot-hash form from `certctl list` or a path to a valid cert.
@@ -137,6 +159,7 @@ resolve_certname()
 create_untrusted()
 {
 	local srcfile filename
+	local link=${2:+-lrs}
 
 	set -- $(resolve_certname "$1")
 	srcfile=$1
@@ -147,12 +170,13 @@ create_untrusted()
 	fi
 
 	verbose "Adding $filename to untrusted list"
-	perform install ${INSTALLFLAGS} -lrs "$srcfile" "$UNTRUSTDESTDIR/$filename"
+	perform install ${INSTALLFLAGS} -m 0444 ${link} \
+		"$srcfile" "$UNTRUSTDESTDIR/$filename"
 }
 
 do_scan()
 {
-	local CFUNC CSEARCH CPATH CFILE
+	local CFUNC CSEARCH CPATH CFILE CERT SPLITDIR
 	local oldIFS="$IFS"
 	CFUNC="$1"
 	CSEARCH="$2"
@@ -160,14 +184,25 @@ do_scan()
 	IFS=:
 	set -- $CSEARCH
 	IFS="$oldIFS"
-	for CPATH in "$@"; do
-		[ -d "$CPATH" ] || continue
-		info "Scanning $CPATH for certificates..."
-		for CFILE in $(ls -1 "${CPATH}" | grep -Ee "${FILEPAT}") ; do
-			[ -e "$CPATH/$CFILE" ] || continue
-			verbose "Reading $CFILE"
-			"$CFUNC" "$CPATH/$CFILE"
-		done
+	for CFILE in $(cert_files_in "$@") ; do
+		verbose "Reading $CFILE"
+		case $(eolcvt "$CFILE" | egrep -c '^-+BEGIN CERTIFICATE-+$') in
+		0)
+			;;
+		1)
+			"$CFUNC" "$CFILE" link
+			;;
+		*)
+			verbose "Multiple certificates found, splitting..."
+			SPLITDIR=$(mktemp -d)
+			eolcvt "$CFILE" | egrep '^(---|[0-9A-Za-z/+=]+$)' | \
+				split -p '^-+BEGIN CERTIFICATE-+$' - "$SPLITDIR/x"
+			for CERT in $(find "$SPLITDIR" -type f) ; do
+				"$CFUNC" "$CERT"
+			done
+			rm -rf "$SPLITDIR"
+			;;
+		esac
 	done
 }
 
@@ -175,43 +210,39 @@ do_list()
 {
 	local CFILE subject
 
-	if [ -e "$1" ] ; then
-		cd "$1"
-		for CFILE in *.[0-9] ; do
-			if [ ! -s "$CFILE" ] ; then
-				info "Unable to read $CFILE"
-				ERRORS=$((ERRORS + 1))
-				continue
-			fi
-			subject=
-			if [ $VERBOSE -eq 0 ] ; then
-				subject=$(openssl x509 -noout -subject -nameopt multiline -in "$CFILE" |
-				    sed -n '/commonName/s/.*= //p')
-			fi
-			[ "$subject" ] ||
-			    subject=$(openssl x509 -noout -subject -in "$CFILE")
-			printf "%s\t%s\n" "$CFILE" "$subject"
-		done
-		cd -
-	fi
+	for CFILE in $(find "$@" \( -type f -or -type l \) -name '*.[0-9]') ; do
+		if [ ! -s "$CFILE" ] ; then
+			info "Unable to read $CFILE"
+			ERRORS=$((ERRORS + 1))
+			continue
+		fi
+		subject=
+		if ! "$VERBOSE" ; then
+			subject=$(openssl x509 -noout -subject -nameopt multiline -in "$CFILE" | sed -n '/commonName/s/.*= //p')
+		fi
+		if [ -z "$subject" ] ; then
+			subject=$(openssl x509 -noout -subject -in "$CFILE")
+		fi
+		printf "%s\t%s\n" "${CFILE##*/}" "$subject"
+	done
 }
 
 cmd_rehash()
 {
 
 	if [ -e "$CERTDESTDIR" ] ; then
-		perform find "$CERTDESTDIR" -type link -delete
+		perform find "$CERTDESTDIR" \( -type f -or -type l \) -delete
 	else
 		perform install -d -m 0755 "$CERTDESTDIR"
 	fi
 	if [ -e "$UNTRUSTDESTDIR" ] ; then
-		perform find "$UNTRUSTDESTDIR" -type link -delete
+		perform find "$UNTRUSTDESTDIR" \( -type f -or -type l \) -delete
 	else
 		perform install -d -m 0755 "$UNTRUSTDESTDIR"
 	fi
 
 	do_scan create_untrusted "$UNTRUSTPATH"
-	do_scan create_trusted_link "$TRUSTPATH"
+	do_scan create_trusted "$TRUSTPATH"
 }
 
 cmd_list()
