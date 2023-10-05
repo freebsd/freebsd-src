@@ -5943,7 +5943,7 @@ pf_sctp_multihome_delayed(struct pf_pdesc *pd, int off, struct pfi_kkif *kif,
 			ret = pf_test_rule(&r, &sm, kif,
 			    j->m, off, &j->pd, &ra, &rs, NULL);
 			PF_RULES_RUNLOCK();
-			SDT_PROBE4(pf, sctp, multihome, test, kif, r, j->m, action);
+			SDT_PROBE4(pf, sctp, multihome, test, kif, r, j->m, ret);
 			if (sm) {
 				/* Inherit v_tag values. */
 				sm->src.scrub->pfss_v_tag = s->src.scrub->pfss_flags;
