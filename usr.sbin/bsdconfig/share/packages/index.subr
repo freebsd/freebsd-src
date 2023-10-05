@@ -90,9 +90,6 @@ f_index_initialize()
 	case "$__type" in
 	$DEVICE_TYPE_DIRECTORY)
 		__site="file://$__data/packages/$PKG_ABI" ;;
-	$DEVICE_TYPE_FTP)
-		f_getvar $VAR_FTP_PATH __site
-		__site="$__site/packages/$PKG_ABI" ;;
 	$DEVICE_TYPE_HTTP)
 		f_getvar $VAR_HTTP_PATH __site
 		__site="$__site/$PKG_ABI/latest" ;;
