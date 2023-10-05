@@ -36,7 +36,7 @@
 .\"
 .\" $TSHeader: src/sbin/growfs/growfs.8,v 1.3 2000/12/12 19:31:00 tomsoft Exp $
 .\"
-.Dd December 13, 2017
+.Dd October 3, 2023
 .Dt GROWFS 8
 .Os
 .Sh NAME
@@ -88,6 +88,10 @@ This value defaults to the size of the raw partition specified in
 .Nm
 will enlarge the file system to the size of the entire partition).
 .El
+.Sh EXIT STATUS
+Exit status is 0 on success, and >= 1 on errors.
+Errors recoverable by user action are indicated by 2.
+OS errors, which are usually not recoverable, are indicated by 3 or greater.
 .Sh EXAMPLES
 Expand root file system to fill up available space:
 .Dl growfs /
