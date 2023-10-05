@@ -833,7 +833,7 @@ $ sysctl -n hw.pagesize
 To establish a serial connection to anything including a USB device,
 nothing more than cu(1) is needed:
 
-$ cu -s 9600 -l /dev/ttyU0
+$ cu -s 115200 -l /dev/ttyU0
 
 		-- Daniel Ebdrup Jensen <debdrup@FreeBSD.org>
 %
