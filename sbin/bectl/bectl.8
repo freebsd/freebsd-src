@@ -15,7 +15,7 @@
 .\"
 .\"     @(#)be.1
 .\"
-.Dd June 28, 2023
+.Dd October 5, 2023
 .Dt BECTL 8
 .Os
 .Sh NAME
@@ -114,12 +114,12 @@ For instance, booting into the recovery media and manually importing a pool from
 one of the system's resident disks will require the
 .Fl r
 flag to work.
-.Pp
 .Ss Supported Subcommands and Flags
 .Bl -tag -width activate
 .It Xo
 .Fl h |
 .Fl \&?
+.Xc
 Print usage information.
 .It Xo
 .Cm activate
@@ -396,7 +396,6 @@ will force the unmount if busy.
 .Pp
 Unmount will not remove the mount point.
 .El
-.Pp
 .Ss Boot Environment Structures
 The traditional
 .Fx
@@ -481,11 +480,11 @@ A future version of
 may default to handling both styles and deprecate the various
 .Fl r
 flags.
-\" .Sh EXAMPLES
-\" .Bl -bullet
-\" .It
-\" To fill in with jail upgrade example when behavior is firm.
-\" .El
+.\" .Sh EXAMPLES
+.\" .Bl -bullet
+.\" .It
+.\" To fill in with jail upgrade example when behavior is firm.
+.\" .El
 .Sh SEE ALSO
 .Xr libbe 3 ,
 .Xr zfsprops 7 ,
