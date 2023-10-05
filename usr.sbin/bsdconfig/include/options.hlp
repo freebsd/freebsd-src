@@ -85,9 +85,7 @@ Release Name:  Which release to attempt to load from installation media.
 
     You should only change this option if you're really sure you know
     what you are doing!  This will change the release name used by
-    bsdconfig when fetching components of any distributions, and
-    is a useful way of using a more recent installation boot floppy
-    with an older release (say, on CDROM).
+    bsdconfig when fetching components of any distributions.
 
 
 Media Type:   Which media type is being used.
