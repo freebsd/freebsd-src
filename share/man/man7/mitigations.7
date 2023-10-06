@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 5, 2023
+.Dd October 6, 2023
 .Dt MITIGATIONS 7
 .Os
 .Sh NAME
@@ -50,10 +50,10 @@ Position Independent Executable (PIE)
 Write XOR Execute page protection policy
 .It
 .Dv PROT_MAX
-".It
-"Read-Only Relocation (RELRO)
-.\".It
-.\"Bind Now
+.It
+Relocation Read-Only (RELRO)
+.It
+Bind Now
 .\".It
 .\"Stack Smashing Protection (SSP)
 .\".It
@@ -192,8 +192,25 @@ may be made writable by a future
 .Xr mprotect
 call, but may not be made executable.
 .\"
-.\".Ss Read-Only Relocation (RELRO)
-.\"
+.Ss Relocation Read-Only (RELRO)
+Relocation Read-Only (RELRO) is a mitigation tool that makes certain portions
+of a program's address space that contain ELF metadata read-only, after
+relocation processing by
+.Xr rtld 1 .
+.Pp
+When enabled in isolation the RELRO option provides
+.Em partial RELRO
+support.
+In this case the Procedure Linkage Table (PLT)-related part of the
+Global Offset Table (GOT) (in the section typically named .got.plt) remains
+writable.
+.Pp
+RELRO is enabled by default.
+The
+.Xr src.conf 5
+build-time option
+.Va WITHOUT_RELRO
+may be used to disable it.
 .Ss BIND_NOW
 The
 .Va WITH_BIND_NOW
@@ -205,11 +222,12 @@ The run-time loader
 .Xr rtld 1
 will then perform all relocation processing when the process starts, instead of
 on demand (on the first access to each symbol).
+.Pp
 When enabled in combination with
 .Dv RELRO
 (which is enabled by default) this provides
-.Qt full
-RELRO, the entire GOT (.got and .got.plt) are made read-only at program startup,
+.Em full RELRO .
+The entire GOT (.got and .got.plt) are made read-only at program startup,
 preventing attacks on the relocation table.
 Note that this results in a nonstandard Application Binary Interface (ABI),
 and it is possible that some applications may not function correctly.
