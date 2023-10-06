@@ -2349,10 +2349,10 @@ summary(void)
 		/* Only display average to microseconds */
 		double num = nreceived + nrepeats;
 		double avg = tsum / num;
-		double dev = sqrt(tsumsq / num - avg * avg);
+		double stddev = sqrt(fmax(0, tsumsq / num - avg * avg));
 		(void)printf(
 		    "round-trip min/avg/max/std-dev = %.3f/%.3f/%.3f/%.3f ms\n",
-		    tmin, avg, tmax, dev);
+		    tmin, avg, tmax, stddev);
 		(void)fflush(stdout);
 	}
 	(void)fflush(stdout);
