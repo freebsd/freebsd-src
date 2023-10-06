@@ -1521,10 +1521,10 @@ finish(void)
 	if (nreceived && timing) {
 		double n = nreceived + nrepeats;
 		double avg = tsum / n;
-		double vari = tsumsq / n - avg * avg;
+		double stddev = sqrt(fmax(0, tsumsq / n - avg * avg));
 		(void)printf(
 		    "round-trip min/avg/max/stddev = %.3f/%.3f/%.3f/%.3f ms\n",
-		    tmin, avg, tmax, sqrt(vari));
+		    tmin, avg, tmax, stddev);
 	}
 
 	if (nreceived)
