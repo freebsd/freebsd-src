@@ -32,6 +32,7 @@ extern "C" {
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <semaphore.h>
 }
 
 #include "mockfs.hh"
@@ -255,14 +256,18 @@ TEST_F(Mknod, parent_inode)
 	const char RELPATH[] = "some_node";
 	mode_t mode = S_IFSOCK | 0755;
 	struct sockaddr_un sa;
+	sem_t sem;
 	int fd;
 	dev_t rdev = -1;	/* Really it's a don't care */
 	uint64_t ino = 42;
+
+	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
 
 	expect_lookup(PPATH, ino, S_IFDIR | 0755, 0, 1);
 	EXPECT_LOOKUP(ino, RELPATH)
 	.WillOnce(Invoke(ReturnErrno(ENOENT)));
 	expect_mknod(ino, RELPATH, ino, mode, rdev);
+	expect_forget(ino, 1, &sem);
 
 	fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -273,6 +278,8 @@ TEST_F(Mknod, parent_inode)
 	ASSERT_EQ(EIO, errno);
 
 	leak(fd);
+	sem_wait(&sem);
+	sem_destroy(&sem);
 }
 
 /* 
