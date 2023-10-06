@@ -581,9 +581,29 @@ if_dwc_rk_init(device_t dev)
 static int
 if_dwc_rk_mii_clk(device_t dev)
 {
+	struct if_dwc_rk_softc *sc;
+	uint64_t freq;
+	int rv;
 
-	/* Should be calculated from the clock */
-	return (GMAC_MII_CLK_150_250M_DIV102);
+	sc = device_get_softc(dev);
+	if ((rv = clk_get_freq(sc->pclk_mac, &freq)) != 0)
+		return (-rv);
+	freq = freq / 1000 / 1000;
+
+	if (freq >= 60 && freq <= 100)
+		return (GMAC_MII_CLK_60_100M_DIV42);
+	else if (freq >= 100 && freq <= 150)
+		return (GMAC_MII_CLK_100_150M_DIV62);
+	else if (freq >= 20 && freq <= 35)
+		return (GMAC_MII_CLK_25_35M_DIV16);
+	else if (freq >= 35 && freq <= 60)
+		return (GMAC_MII_CLK_35_60M_DIV26);
+	else if (freq >= 150 && freq <= 250)
+		return (GMAC_MII_CLK_150_250M_DIV102);
+	else if (freq >= 250 && freq <= 300)
+		return (GMAC_MII_CLK_250_300M_DIV124);
+
+	return (-ERANGE);
 }
 
 static int
