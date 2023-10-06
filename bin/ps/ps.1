@@ -28,7 +28,7 @@
 .\"
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\"
-.Dd August 24, 2023
+.Dd October 6, 2023
 .Dt PS 1
 .Os
 .Sh NAME
@@ -238,6 +238,11 @@ So the header texts for multiple keywords can be changed.
 If all keywords have empty header texts, no header line is written.
 .It Fl p
 Display information about processes which match the specified process IDs.
+It implies the use of
+.Fl x .
+When combined with
+.Fl d ,
+all descendent processes are included.
 .It Fl r
 Sort by current CPU usage, instead of the combination of controlling
 terminal and process ID.
