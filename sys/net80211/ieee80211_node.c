@@ -82,6 +82,9 @@ CTASSERT((IEEE80211_NODE_HASHSIZE & (IEEE80211_NODE_HASHSIZE-1)) == 0);
 
 static int ieee80211_sta_join1(struct ieee80211_node *);
 
+static struct ieee80211_node *ieee80211_alloc_node(
+	struct ieee80211_node_table *, struct ieee80211vap *,
+	const uint8_t macaddr[IEEE80211_ADDR_LEN], const char *, int);
 static struct ieee80211_node *node_alloc(struct ieee80211vap *,
 	const uint8_t [IEEE80211_ADDR_LEN]);
 static int node_init(struct ieee80211_node *);
@@ -345,7 +348,8 @@ ieee80211_create_ibss(struct ieee80211vap* vap, struct ieee80211_channel *chan)
 		ieee80211_channel_type_char(chan),
 		chan->ic_flags);
 
-	ni = ieee80211_alloc_node(&ic->ic_sta, vap, vap->iv_myaddr);
+	ni = ieee80211_alloc_node(&ic->ic_sta, vap, vap->iv_myaddr,
+	    __func__, __LINE__);
 	if (ni == NULL) {
 		/* XXX recovery? */
 		return;
@@ -455,7 +459,8 @@ ieee80211_reset_bss(struct ieee80211vap *vap)
 	/* XXX multi-bss: wrong */
 	ieee80211_vap_reset_erp(vap);
 
-	ni = ieee80211_alloc_node(&ic->ic_sta, vap, vap->iv_myaddr);
+	ni = ieee80211_alloc_node(&ic->ic_sta, vap, vap->iv_myaddr,
+	    __func__, __LINE__);
 	KASSERT(ni != NULL, ("unable to setup initial BSS node"));
 	obss = vap->iv_update_bss(vap, ieee80211_ref_node(ni));
 	if (obss != NULL) {
@@ -918,7 +923,8 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 	struct ieee80211_node *ni;
 	int do_ht = 0;
 
-	ni = ieee80211_alloc_node(&ic->ic_sta, vap, se->se_macaddr);
+	ni = ieee80211_alloc_node(&ic->ic_sta, vap, se->se_macaddr,
+	    __func__, __LINE__);
 	if (ni == NULL) {
 		/* XXX msg */
 		return 0;
@@ -1398,7 +1404,8 @@ ieee80211_del_node_nt(struct ieee80211_node_table *nt,
 
 struct ieee80211_node *
 ieee80211_alloc_node(struct ieee80211_node_table *nt,
-	struct ieee80211vap *vap, const uint8_t macaddr[IEEE80211_ADDR_LEN])
+	struct ieee80211vap *vap, const uint8_t macaddr[IEEE80211_ADDR_LEN],
+	const char *func __debrefcnt_used, int line __debrefcnt_used)
 {
 	struct ieee80211com *ic = nt->nt_ic;
 	struct ieee80211_node *ni;
@@ -1415,6 +1422,11 @@ ieee80211_alloc_node(struct ieee80211_node_table *nt,
 
 	IEEE80211_ADDR_COPY(ni->ni_macaddr, macaddr);
 	ieee80211_node_initref(ni);		/* mark referenced */
+#ifdef IEEE80211_DEBUG_REFCNT
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
+	    "%s (%s:%u) %p<%s> refcnt %d\n", __func__, func, line, ni,
+	    ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni));
+#endif
 	ni->ni_chan = IEEE80211_CHAN_ANYC;
 	ni->ni_authmode = IEEE80211_AUTH_OPEN;
 	ni->ni_txpower = ic->ic_txpowlimit;	/* max power */
@@ -1477,6 +1489,12 @@ ieee80211_tmp_node(struct ieee80211vap *vap,
 		IEEE80211_ADDR_COPY(ni->ni_macaddr, macaddr);
 		IEEE80211_ADDR_COPY(ni->ni_bssid, bss->ni_bssid);
 		ieee80211_node_initref(ni);		/* mark referenced */
+#ifdef IEEE80211_DEBUG_REFCNT
+		/* Only one caller so we skip func/line passing into the func. */
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
+		    "%s (%s:%u) %p<%s> refcnt %d\n", __func__, "", -1, ni,
+		    ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni));
+#endif
 		/* NB: required by ieee80211_fix_rate */
 		ieee80211_node_set_chan(ni, bss->ni_chan);
 		ieee80211_crypto_resetkey(vap, &ni->ni_ucastkey,
@@ -1510,7 +1528,7 @@ ieee80211_dup_bss(struct ieee80211vap *vap,
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_node *ni;
 
-	ni = ieee80211_alloc_node(&ic->ic_sta, vap, macaddr);
+	ni = ieee80211_alloc_node(&ic->ic_sta, vap, macaddr, __func__, __LINE__);
 	if (ni != NULL) {
 		struct ieee80211_node *bss = vap->iv_bss;
 		/*
@@ -1538,7 +1556,7 @@ ieee80211_node_create_wds(struct ieee80211vap *vap,
 	struct ieee80211_node *ni;
 
 	/* XXX check if node already in sta table? */
-	ni = ieee80211_alloc_node(&ic->ic_sta, vap, bssid);
+	ni = ieee80211_alloc_node(&ic->ic_sta, vap, bssid, __func__, __LINE__);
 	if (ni != NULL) {
 		ni->ni_wdsvap = vap;
 		IEEE80211_ADDR_COPY(ni->ni_bssid, bssid);
