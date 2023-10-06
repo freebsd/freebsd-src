@@ -241,7 +241,6 @@ TEST_F(Mkdir, parent_inode)
 
 	ASSERT_EQ(-1, mkdir(FULLPATH, mode));
 	ASSERT_EQ(EIO, errno);
-	usleep(100000);
 }
 
 TEST_F(Mkdir_7_8, ok)
