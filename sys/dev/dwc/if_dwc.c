@@ -504,7 +504,6 @@ dwc_attach(device_t dev)
 	sc->rx_idx = 0;
 	sc->tx_desccount = TX_DESC_COUNT;
 	sc->tx_mapcount = 0;
-	sc->mii_clk = IF_DWC_MII_CLK(dev);
 
 	sc->node = ofw_bus_get_node(dev);
 	sc->phy_mode = mii_fdt_get_contype(sc->node);
@@ -551,6 +550,11 @@ dwc_attach(device_t dev)
 
 	if (IF_DWC_INIT(dev) != 0)
 		return (ENXIO);
+
+	if ((sc->mii_clk = IF_DWC_MII_CLK(dev)) < 0) {
+		device_printf(dev, "Cannot get mii clock value %d\n", -sc->mii_clk);
+		return (ENXIO);
+	}
 
 	if (bus_alloc_resources(dev, dwc_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
