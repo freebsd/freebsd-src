@@ -71,6 +71,7 @@ options 	GEOM_LABEL		# Provides labelization
 options         COMPAT_FREEBSD11        # Compatible with FreeBSD11 (required by ports)
 options         COMPAT_FREEBSD12        # Compatible with FreeBSD12 (required by ports)
 options 	COMPAT_FREEBSD13	# Compatible with FreeBSD13
+options 	COMPAT_FREEBSD14	# Compatible with FreeBSD14
 
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI 
 options 	KTRACE			# ktrace(1) syscall trace support

@@ -63,6 +63,7 @@ options 	COMPAT_FREEBSD10
 options 	COMPAT_FREEBSD11
 options 	COMPAT_FREEBSD12
 options 	COMPAT_FREEBSD13
+options 	COMPAT_FREEBSD14	# Compatible with FreeBSD14
 options 	HWPMC_HOOKS
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	DDB_CTF			# Kernel ELF linker loads CTF data
