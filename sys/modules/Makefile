@@ -565,7 +565,7 @@ _iwlwifi=	iwlwifi
 _iwlwififw=	iwlwififw
 .endif
 _ossl=		ossl
-#_rtw88=		rtw88
+_rtw88=		rtw88
 _vmware=	vmware
 .endif
 
