@@ -2365,8 +2365,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCCLRSTATUS:
 		case DIOCNATLOOK:
 		case DIOCSETDEBUG:
+#ifdef COMPAT_FREEBSD14
 		case DIOCGETSTATES:
 		case DIOCGETSTATESV2:
+#endif
 		case DIOCGETTIMEOUT:
 		case DIOCCLRRULECTRS:
 		case DIOCGETLIMIT:
@@ -2423,8 +2425,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCGETSTATE:
 		case DIOCGETSTATENV:
 		case DIOCGETSTATUSNV:
+#ifdef COMPAT_FREEBSD14
 		case DIOCGETSTATES:
 		case DIOCGETSTATESV2:
+#endif
 		case DIOCGETTIMEOUT:
 		case DIOCGETLIMIT:
 		case DIOCGETALTQSV0:
@@ -3546,6 +3550,7 @@ DIOCCHANGERULE_error:
 		break;
 	}
 
+#ifdef COMPAT_FREEBSD14
 	case DIOCGETSTATES: {
 		struct pfioc_states	*ps = (struct pfioc_states *)addr;
 		struct pf_kstate	*s;
@@ -3697,7 +3702,7 @@ DIOCGETSTATESV2_full:
 
 		break;
 	}
-
+#endif
 	case DIOCGETSTATUSNV: {
 		error = pf_getstatus((struct pfioc_nv *)addr);
 		break;
