@@ -120,12 +120,61 @@ pending_delete_if_cleanup() {
 }
 
 
+atf_test_case "arp_lookup_host" "cleanup"
+arp_lookup_host_head() {
+	atf_set descr 'Test looking up a specific host'
+	atf_set require.user root
+}
+
+arp_lookup_host_body() {
+
+	vnet_init
+
+	jname="v4t-arp_lookup_host"
+
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname}a ${epair0}a
+	vnet_mkjail ${jname}b ${epair0}b
+
+	ipa=198.51.100.1
+	ipb=198.51.100.2
+
+	atf_check -o ignore \
+		  ifconfig -j ${jname}a ${epair0}a inet ${ipa}/24
+	atf_check -o ignore \
+		  ifconfig -j ${jname}b ${epair0}b inet ${ipb}/24
+
+	# get jail b's MAC address
+	eth="$(ifconfig -j ${jname}b ${epair0}b |
+		sed -nE "s/^\tether ([0-9a-f:]*)$/\1/p")"
+
+	# no entry yet
+	atf_check -s exit:1 -o match:"\(${ipb}\) -- no entry" \
+		  jexec ${jname}a arp -n ${ipb}
+
+	# now ping jail b from jail a
+	atf_check -o ignore \
+		  jexec ${jname}a ping -c1 ${ipb}
+
+	# should be populated
+	atf_check -o match:"\(${ipb}\) at $eth on ${epair0}a" \
+		  jexec ${jname}a arp -n ${ipb}
+
+}
+
+arp_lookup_host_cleanup() {
+	vnet_cleanup
+}
+
+
 atf_init_test_cases()
 {
 
 	atf_add_test_case "arp_add_success"
 	atf_add_test_case "arp_del_success"
 	atf_add_test_case "pending_delete_if"
+	atf_add_test_case "arp_lookup_host"
 }
 
 # end
