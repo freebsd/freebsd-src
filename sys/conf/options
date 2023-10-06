@@ -99,6 +99,7 @@ COMPAT_FREEBSD10	opt_global.h
 COMPAT_FREEBSD11	opt_global.h
 COMPAT_FREEBSD12	opt_global.h
 COMPAT_FREEBSD13	opt_global.h
+COMPAT_FREEBSD14	opt_global.h
 COMPAT_LINUXKPI	opt_dontuse.h
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
