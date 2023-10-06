@@ -32,7 +32,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 26, 2023
+.Dd October 6, 2023
 .Dt GEOM 4
 .Os
 .Sh NAME
@@ -226,6 +226,12 @@ Examine the rank number of the provider's geom.
 .It
 Examine the method name of the provider's geom.
 .El
+.Pp
+Tasting is controlled by the
+.Va kern.geom.notaste
+sysctl.
+To disable tasting, set the sysctl to 1, to
+re-enable tasting, set the sysctl to 0.
 .It Em ORPHANIZATION
 is the process by which a provider is removed while
 it potentially is still being used.
