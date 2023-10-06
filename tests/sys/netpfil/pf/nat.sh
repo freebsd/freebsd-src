@@ -61,8 +61,8 @@ exhaust_body()
 	# Sanity check
 	atf_check -s exit:0 -o ignore ping -c 3 198.51.100.2
 
-	echo "foo" | nc -N 198.51.100.2 7
-	echo "foo" | nc -N 198.51.100.2 7
+	atf_check -s exit:0 -o match:foo* echo "foo" | nc -N 198.51.100.2 7
+	atf_check -s exit:0 -o match:foo* echo "foo" | nc -N 198.51.100.2 7
 
 	# This one will fail, but that's expected
 	echo "foo" | nc -N 198.51.100.2 7 &
