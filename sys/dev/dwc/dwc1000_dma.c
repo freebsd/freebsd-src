@@ -216,7 +216,6 @@ txdesc_setup(struct dwc_softc *sc, int idx, bus_addr_t paddr,
 	sc->txdesc_ring[idx].addr1 = (uint32_t)(paddr);
 	sc->txdesc_ring[idx].desc0 = desc0;
 	sc->txdesc_ring[idx].desc1 = desc1;
-	wmb();
 	sc->txdesc_ring[idx].desc0 |= TDESC0_OWN;
 	wmb();
 }
@@ -237,7 +236,6 @@ rxdesc_setup(struct dwc_softc *sc, int idx, bus_addr_t paddr)
 		sc->rxdesc_ring[idx].desc1 = ERDESC1_RCH |
 		    MIN(MCLBYTES, ERDESC1_RBS1_MASK);
 
-	wmb();
 	sc->rxdesc_ring[idx].desc0 = RDESC0_OWN;
 	wmb();
 	return (nidx);
@@ -524,7 +522,6 @@ dma1000_rxfinish_locked(struct dwc_softc *sc)
 
 		m = dwc_rxfinish_one(sc, desc, sc->rxbuf_map + idx);
 		if (m == NULL) {
-			wmb();
 			desc->desc0 = RDESC0_OWN;
 			wmb();
 		} else {
