@@ -79,7 +79,7 @@ vnet_ifrename_jail()
 	ifname=$2
 	ifnewname=$3
 
-	jexec ${jailname} ifconfig $ifname name $ifnewname
+	ifconfig -j ${jailname} $ifname name $ifnewname
 	sed -i "" "/^${jailname}/s/${ifname}/${ifnewname}/" created_jails.lst
 }
 
@@ -88,7 +88,7 @@ vnet_cleanup()
 	if [ -f created_jails.lst ]; then
 		while read jailname ifnames; do
 			for ifname in ${ifnames}; do
-				jexec ${jailname} ifconfig ${ifname} destroy
+				ifconfig -j ${jailname} ${ifname} destroy
 			done
 			jail -r ${jailname}
 		done < created_jails.lst
@@ -96,10 +96,9 @@ vnet_cleanup()
 	fi
 
 	if [ -f created_interfaces.lst ]; then
-		for ifname in `cat created_interfaces.lst`
-		do
+		while read ifname; do
 			ifconfig ${ifname} destroy
-		done
+		done < created_interfaces.lst
 		rm created_interfaces.lst
 	fi
 }
