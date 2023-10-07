@@ -127,6 +127,7 @@ print(struct termios *tp, struct winsize *wp, int ldisc, enum FMT fmt)
 	put("-inpck", INPCK, 0);
 	put("-ignpar", IGNPAR, 0);
 	put("-parmrk", PARMRK, 0);
+	put("-iutf8", IUTF8, 1);
 
 	/* output flags */
 	tmp = tp->c_oflag;
