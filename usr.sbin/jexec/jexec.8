@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 24, 2016
+.Dd October 7, 2023
 .Dt JEXEC 8
 .Os
 .Sh NAME
@@ -65,6 +65,44 @@ The user name from jailed environment as whom the
 .Ar command
 should run.
 .El
+.Sh EXAMPLES
+.Ss Example 1 : Open a shell in a jail
+The following command specifies a jail by its name and utilizes the current
+user's shell:
+.Pp
+.Dl # jexec name
+.Pp
+It is also possible to specify a jail by its jid:
+.Pp
+.Dl # jexec JID
+.Ss Example 2 : Run a single command without opening a shell
+The following command runs
+.Ql uname -a
+in a jail called
+.Dq name .
+Since a command is specified explicitly,
+.Nm
+does not spawn an interactive shell.
+Instead,
+.Nm
+executes the specified command directly.
+.Pp
+.Dl # jexec name uname -a
+.Ss Example 3 : Open a shell in a jail with a clean environment
+The following command opens a
+.Xr sh 1
+shell in a jail with a clean environment:
+.Pp
+.Dl # jexec -l name sh
+.Ss Example 4 : Open a shell in a jail with the login command
+The following command utilizes
+.Xr login 1
+to access the jail, submitting an audit record, and displaying the
+user's last login, system copyright, and
+.Xr motd 5
+message:
+.Pp
+.Dl # jexec -l name login -f root
 .Sh SEE ALSO
 .Xr jail_attach 2 ,
 .Xr jail 8 ,
