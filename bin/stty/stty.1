@@ -224,6 +224,9 @@ if
 .Cm imaxbel
 is unset and the input queue is full, the next input character causes
 the entire input and output queues to be discarded.
+.It Cm iutf8 Pq Fl iutf8
+Assume that input characters are UTF-8 encoded. Setting this flag
+causes backspace to properly delete multibyte characters in canonical mode.
 .El
 .Ss Output Modes:
 This corresponds to the c_oflag of the termios structure.
