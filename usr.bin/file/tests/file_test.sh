@@ -40,8 +40,7 @@ contrib_file_tests_body() {
 		# The result files were created in UTC.
 		TZ=Z atf_check -o save:actual_output file ${file_args} \
 		    --brief "$testfile"
-		atf_check -o save:trimmed_output tr -d '\012' < actual_output
-		atf_check cmp trimmed_output "$result_file"
+		atf_check cmp actual_output "$result_file"
 	done
 }
 
