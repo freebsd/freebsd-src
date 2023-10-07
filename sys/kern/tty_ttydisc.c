@@ -43,6 +43,9 @@
 #include <sys/uio.h>
 #include <sys/vnode.h>
 
+#include <teken/teken.h>
+#include <teken/teken_wcwidth.h>
+
 /*
  * Standard TTYDISC `termios' line discipline.
  */
@@ -78,8 +81,13 @@ SYSCTL_ULONG(_kern, OID_AUTO, tty_nout, CTLFLAG_RD,
 /* Character is alphanumeric. */
 #define CTL_ALNUM(c)	(((c) >= '0' && (c) <= '9') || \
     ((c) >= 'a' && (c) <= 'z') || ((c) >= 'A' && (c) <= 'Z'))
+/* Character is UTF8-encoded. */
+#define CTL_UTF8(c) (!!((c) & 0x80))
+/* Character is a UTF8 continuation byte. */
+#define CTL_UTF8_CONT(c) (((c) & 0xc0) == 0x80)
 
 #define	TTY_STACKBUF	256
+#define UTF8_STACKBUF 4
 
 void
 ttydisc_open(struct tty *tp)
@@ -800,6 +808,72 @@ ttydisc_rubchar(struct tty *tp)
 				ttyoutq_write_nofrag(&tp->t_outq,
 				    "\b\b\b\b\b\b\b\b", tablen);
 				return (0);
+			} else if ((tp->t_termios.c_iflag & IUTF8) != 0 &&
+			    CTL_UTF8(c)) {
+				uint8_t bytes[UTF8_STACKBUF] = { 0 };
+				int curidx = UTF8_STACKBUF - 1, cwidth = 1,
+				    nb = 0;
+				teken_char_t codepoint;
+
+				/* Save current byte. */
+				bytes[curidx] = c;
+				curidx--;
+				nb++;
+				/* Loop back through inq until we hit the
+				 * leading byte. */
+				while (CTL_UTF8_CONT(c) && nb < UTF8_STACKBUF) {
+					ttyinq_peekchar(&tp->t_inq, &c, &quote);
+					ttyinq_unputchar(&tp->t_inq);
+					bytes[curidx] = c;
+					curidx--;
+					nb++;
+				}
+				/*
+				 * Shift array so that the leading
+				 * byte ends up at idx 0.
+				 */
+				if (nb < UTF8_STACKBUF)
+					memmove(&bytes[0], &bytes[curidx + 1],
+					    nb * sizeof(uint8_t));
+				/* Check for malformed UTF8 characters. */
+				if (nb == UTF8_STACKBUF &&
+				    CTL_UTF8_CONT(bytes[0])) {
+					/*
+					 * Place all bytes back into the inq and
+					 * delete the last byte only.
+					 */
+					ttyinq_write(&tp->t_inq, bytes,
+					    UTF8_STACKBUF, 0);
+				} else {
+					/* Find codepoint and width. */
+					codepoint =
+					    teken_utf8_bytes_to_codepoint(bytes,
+						nb);
+					if (codepoint !=
+					    TEKEN_UTF8_INVALID_CODEPOINT) {
+						cwidth = teken_wcwidth(
+						    codepoint);
+					} else {
+						/*
+						 * Place all bytes back into the
+						 * inq and fall back to
+						 * default behaviour.
+						 */
+						ttyinq_write(&tp->t_inq, bytes,
+						    nb, 0);
+					}
+				}
+				tp->t_column -= cwidth;
+				/*
+				 * Delete character by punching
+				 * 'cwidth' spaces over it.
+				 */
+				if (cwidth == 1)
+					ttyoutq_write_nofrag(&tp->t_outq,
+					    "\b \b", 3);
+				else if (cwidth == 2)
+					ttyoutq_write_nofrag(&tp->t_outq,
+					    "\b\b  \b\b", 6);
 			} else {
 				/*
 				 * Remove a regular character by

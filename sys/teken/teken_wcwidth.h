@@ -8,6 +8,8 @@
  * Latest version: http://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c
  */
 
+#define TEKEN_UTF8_INVALID_CODEPOINT -1
+
 struct interval {
   teken_char_t first;
   teken_char_t last;
@@ -115,4 +117,32 @@ static int teken_wcwidth(teken_char_t ucs)
       (ucs >= 0xffe0 && ucs <= 0xffe6) ||
       (ucs >= 0x20000 && ucs <= 0x2fffd) ||
       (ucs >= 0x30000 && ucs <= 0x3fffd)));
+}
+
+/*
+ * Converts an UTF-8 byte sequence to a codepoint as specified in
+ * https://datatracker.ietf.org/doc/html/rfc3629#section-3 . The function
+ * expects the 'bytes' array to start with the leading character.
+ */
+static teken_char_t
+teken_utf8_bytes_to_codepoint(uint8_t bytes[4], int nbytes)
+{
+
+  /* Check for malformed characters. */
+  if (bitcount(bytes[0] & 0xf0) != nbytes)
+    return (TEKEN_UTF8_INVALID_CODEPOINT);
+
+  switch (nbytes) {
+  case 1:
+    return (bytes[0] & 0x7f);
+  case 2:
+    return (bytes[0] & 0xf) << 6 | (bytes[1] & 0x3f);
+  case 3:
+    return (bytes[0] & 0xf) << 12 | (bytes[1] & 0x3f) << 6 | (bytes[2] & 0x3f);
+  case 4:
+    return (bytes[0] & 0x7) << 18 | (bytes[1] & 0x3f) << 12 |
+	(bytes[2] & 0x3f) << 6 | (bytes[3] & 0x3f);
+  default:
+    return (TEKEN_UTF8_INVALID_CODEPOINT);
+  }
 }
