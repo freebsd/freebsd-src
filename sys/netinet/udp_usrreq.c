@@ -1050,7 +1050,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	int cscov_partial = 0;
 	int ipflags = 0;
 	u_short fport, lport;
-	u_char tos;
+	u_char tos, vflagsav;
 	uint8_t pr;
 	uint16_t cscov = 0;
 	uint32_t flowid = 0;
@@ -1092,7 +1092,8 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	 * pcb hash.
 	 */
 	if (sin == NULL ||
-	    (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0))
+	    (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0) ||
+	    (flags & PRUS_IPV6) != 0)
 		INP_WLOCK(inp);
 	else
 		INP_RLOCK(inp);
@@ -1203,10 +1204,17 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 			error = EINVAL;
 			goto release;
 		}
+		if ((flags & PRUS_IPV6) != 0) {
+			vflagsav = inp->inp_vflag;
+			inp->inp_vflag |= INP_IPV4;
+			inp->inp_vflag &= ~INP_IPV6;
+		}
 		INP_HASH_WLOCK(pcbinfo);
 		error = in_pcbbind_setup(inp, &src, &laddr.s_addr, &lport,
 		    td->td_ucred);
 		INP_HASH_WUNLOCK(pcbinfo);
+		if ((flags & PRUS_IPV6) != 0)
+			inp->inp_vflag = vflagsav;
 		if (error)
 			goto release;
 	}
@@ -1249,9 +1257,16 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		    inp->inp_lport == 0 ||
 		    sin->sin_addr.s_addr == INADDR_ANY ||
 		    sin->sin_addr.s_addr == INADDR_BROADCAST) {
+			if ((flags & PRUS_IPV6) != 0) {
+				vflagsav = inp->inp_vflag;
+				inp->inp_vflag |= INP_IPV4;
+				inp->inp_vflag &= ~INP_IPV6;
+			}
 			INP_HASH_WLOCK(pcbinfo);
 			error = in_pcbconnect_setup(inp, sin, &laddr.s_addr,
 			    &lport, &faddr.s_addr, &fport, td->td_ucred);
+			if ((flags & PRUS_IPV6) != 0)
+				inp->inp_vflag = vflagsav;
 			if (error) {
 				INP_HASH_WUNLOCK(pcbinfo);
 				goto release;
