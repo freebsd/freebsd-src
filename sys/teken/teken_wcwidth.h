@@ -129,7 +129,7 @@ teken_utf8_bytes_to_codepoint(uint8_t bytes[4], int nbytes)
 {
 
   /* Check for malformed characters. */
-  if (bitcount(bytes[0] & 0xf0) != nbytes)
+  if (__bitcount(bytes[0] & 0xf0) != nbytes)
     return (TEKEN_UTF8_INVALID_CODEPOINT);
 
   switch (nbytes) {
