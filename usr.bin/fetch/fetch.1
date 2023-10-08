@@ -28,7 +28,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 29, 2020
+.Dd October 7, 2023
 .Dt FETCH 1
 .Os
 .Sh NAME
@@ -131,18 +131,8 @@ only.
 .It Fl -ca-cert= Ns Ar file
 [SSL]
 Path to certificate bundle containing trusted CA certificates.
-If not specified,
-.Pa /usr/local/etc/ssl/cert.pem
-is used.
-If this file does not exist,
-.Pa /etc/ssl/cert.pem
-is used instead.
-If neither file exists and no CA path has been configured,
+Otherwise,
 OpenSSL's default CA cert and path settings apply.
-The certificate bundle can contain multiple CA certificates.
-The
-.Pa security/ca_root_nss
-port is a common source of a current CA bundle.
 .It Fl -ca-path= Ns Ar dir
 [SSL]
 The directory
