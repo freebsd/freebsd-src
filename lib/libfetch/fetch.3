@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 24, 2020
+.Dd October 7, 2023
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -409,19 +409,6 @@ library,
 is currently unimplemented.
 .Sh HTTPS SCHEME
 Based on HTTP SCHEME.
-By default the peer is verified using the CA bundle located in
-.Pa /usr/local/etc/ssl/cert.pem .
-If this file does not exist,
-.Pa /etc/ssl/cert.pem
-is used instead.
-If neither file exists, and
-.Ev SSL_CA_CERT_PATH
-has not been set,
-OpenSSL's default CA cert and path settings apply.
-The certificate bundle can contain multiple CA certificates.
-A common source of a current CA bundle is
-.Pa \%security/ca_root_nss .
-.Pp
 The CA bundle used for peer verification can be changed by setting the
 environment variables
 .Ev SSL_CA_CERT_FILE
