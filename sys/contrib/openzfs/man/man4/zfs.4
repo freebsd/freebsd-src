@@ -402,6 +402,12 @@ Practical upper limit of total metaslabs per top-level vdev.
 .It Sy metaslab_preload_enabled Ns = Ns Sy 1 Ns | Ns 0 Pq int
 Enable metaslab group preloading.
 .
+.It Sy metaslab_preload_limit Ns = Ns Sy 10 Pq uint
+Maximum number of metaslabs per group to preload
+.
+.It Sy metaslab_preload_pct Ns = Ns Sy 50 Pq uint
+Percentage of CPUs to run a metaslab preload taskq
+.
 .It Sy metaslab_lba_weighting_enabled Ns = Ns Sy 1 Ns | Ns 0 Pq int
 Give more weight to metaslabs with lower LBAs,
 assuming they have greater bandwidth,
@@ -2143,6 +2149,11 @@ This sets the maximum block size used by the ZIL.
 On very fragmented pools, lowering this
 .Pq typically to Sy 36 KiB
 can improve performance.
+.
+.It Sy zil_maxcopied Ns = Ns Sy 7680 Ns B Po 7.5 KiB Pc Pq uint
+This sets the maximum number of write bytes logged via WR_COPIED.
+It tunes a tradeoff between additional memory copy and possibly worse log
+space efficiency vs additional range lock/unlock.
 .
 .It Sy zil_min_commit_timeout Ns = Ns Sy 5000 Pq u64
 This sets the minimum delay in nanoseconds ZIL care to delay block commit,
