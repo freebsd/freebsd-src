@@ -4048,7 +4048,8 @@ tcp_compute_pipe(struct tcpcb *tp)
 	if (tp->t_fb->tfb_compute_pipe == NULL) {
 		return (tp->snd_max - tp->snd_una +
 			tp->sackhint.sack_bytes_rexmit -
-			tp->sackhint.sacked_bytes);
+			tp->sackhint.sacked_bytes -
+			tp->sackhint.lost_bytes);
 	} else {
 		return((*tp->t_fb->tfb_compute_pipe)(tp));
 	}
