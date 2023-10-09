@@ -73,6 +73,7 @@ jobs:
           - { target: ubuntu-latest, config: openssl-3.1.0 }
           - { target: ubuntu-latest, config: openssl-1.1.1_stable }
           - { target: ubuntu-latest, config: openssl-3.0 }  # stable branch
+          - { target: ubuntu-latest, config: zlib-develop }
           - { target: ubuntu-22.04, config: pam }
           - { target: ubuntu-22.04, config: krb5 }
           - { target: ubuntu-22.04, config: heimdal }

@@ -133,6 +133,8 @@ for TARGET in $TARGETS; do
     valgrind*)
        PACKAGES="$PACKAGES valgrind"
        ;;
+    zlib-*)
+       ;;
     *) echo "Invalid option '${TARGET}'"
         exit 1
         ;;
@@ -213,4 +215,10 @@ if [ ! -z "${INSTALL_BORINGSSL}" ]; then
      mkdir -p /opt/boringssl/lib &&
      cp ${HOME}/boringssl/build/crypto/libcrypto.a /opt/boringssl/lib &&
      cp -r ${HOME}/boringssl/include /opt/boringssl)
+fi
+
+if [ ! -z "${INSTALL_ZLIB}" ]; then
+    (cd ${HOME} && git clone https://github.com/madler/zlib.git &&
+     cd ${HOME}/zlib && ./configure && make &&
+     sudo make install prefix=/opt/zlib)
 fi

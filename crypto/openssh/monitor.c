@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.236 2023/05/10 10:04:20 dtucker Exp $ */
+/* $OpenBSD: monitor.c,v 1.237 2023/08/16 16:14:11 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -341,6 +341,11 @@ monitor_child_preauth(struct ssh *ssh, struct monitor *pmonitor)
 				auth2_update_session_info(authctxt,
 				    auth_method, auth_submethod);
 			}
+		}
+		if (authctxt->failures > options.max_authtries) {
+			/* Shouldn't happen */
+			fatal_f("privsep child made too many authentication "
+			    "attempts");
 		}
 	}
 

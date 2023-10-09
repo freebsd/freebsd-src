@@ -1,4 +1,4 @@
-#	$OpenBSD: scp.sh,v 1.18 2023/01/13 04:47:34 dtucker Exp $
+#	$OpenBSD: scp.sh,v 1.19 2023/09/08 05:50:57 djm Exp $
 #	Placed in the Public Domain.
 
 tid="scp"
@@ -30,13 +30,25 @@ scpclean() {
 	chmod 755 ${DIR} ${DIR2} ${DIR3}
 }
 
+# Create directory structure for recursive copy tests.
+forest() {
+	scpclean
+	rm -rf ${DIR2}
+	cp ${DATA} ${DIR}/copy
+	ln -s ${DIR}/copy ${DIR}/copy-sym
+	mkdir ${DIR}/subdir
+	cp ${DATA} ${DIR}/subdir/copy
+	ln -s ${DIR}/subdir ${DIR}/subdir-sym
+}
+
 for mode in scp sftp ; do
 	tag="$tid: $mode mode"
 	if test $mode = scp ; then
 		scpopts="-O -q -S ${OBJ}/scp-ssh-wrapper.scp"
 	else
-		scpopts="-s -D ${SFTPSERVER}"
+		scpopts="-qs -D ${SFTPSERVER}"
 	fi
+
 	verbose "$tag: simple copy local file to local file"
 	scpclean
 	$SCP $scpopts ${DATA} ${COPY} || fail "copy failed"
@@ -96,21 +108,19 @@ for mode in scp sftp ; do
 	cmp ${COPY} ${DIR}/copy || fail "corrupted copy"
 
 	verbose "$tag: recursive local dir to remote dir"
-	scpclean
-	rm -rf ${DIR2}
-	cp ${DATA} ${DIR}/copy
+	forest
 	$SCP $scpopts -r ${DIR} somehost:${DIR2} || fail "copy failed"
 	diff ${DIFFOPT} ${DIR} ${DIR2} || fail "corrupted copy"
 
 	verbose "$tag: recursive local dir to local dir"
-	scpclean
+	forest
 	rm -rf ${DIR2}
 	cp ${DATA} ${DIR}/copy
 	$SCP $scpopts -r ${DIR} ${DIR2} || fail "copy failed"
 	diff ${DIFFOPT} ${DIR} ${DIR2} || fail "corrupted copy"
 
 	verbose "$tag: recursive remote dir to local dir"
-	scpclean
+	forest
 	rm -rf ${DIR2}
 	cp ${DATA} ${DIR}/copy
 	$SCP $scpopts -r somehost:${DIR} ${DIR2} || fail "copy failed"

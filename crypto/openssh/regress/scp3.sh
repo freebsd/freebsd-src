@@ -1,9 +1,7 @@
-#	$OpenBSD: scp3.sh,v 1.4 2023/01/13 04:47:34 dtucker Exp $
+#	$OpenBSD: scp3.sh,v 1.5 2023/09/08 06:10:57 djm Exp $
 #	Placed in the Public Domain.
 
 tid="scp3"
-
-set -x
 
 COPY2=${OBJ}/copy2
 DIR=${COPY}.dd
@@ -20,6 +18,17 @@ scpclean() {
 	rm -rf ${COPY} ${COPY2} ${DIR} ${DIR2}
 	mkdir ${DIR} ${DIR2}
 	chmod 755 ${DIR} ${DIR2}
+}
+
+# Create directory structure for recursive copy tests.
+forest() {
+	scpclean
+	rm -rf ${DIR2}
+	cp ${DATA} ${DIR}/copy
+	ln -s ${DIR}/copy ${DIR}/copy-sym
+	mkdir ${DIR}/subdir
+	cp ${DATA} ${DIR}/subdir/copy
+	ln -s ${DIR}/subdir ${DIR}/subdir-sym
 }
 
 for mode in scp sftp ; do
@@ -43,9 +52,7 @@ for mode in scp sftp ; do
 	cmp ${COPY} ${DIR}/copy || fail "corrupted copy"
 
 	verbose "$tag: recursive remote dir to remote dir"
-	scpclean
-	rm -rf ${DIR2}
-	cp ${DATA} ${DIR}/copy
+	forest
 	$SCP $scpopts -3r hostA:${DIR} hostB:${DIR2} || fail "copy failed"
 	diff -r ${DIR} ${DIR2} || fail "corrupted copy"
 	diff -r ${DIR2} ${DIR} || fail "corrupted copy"
