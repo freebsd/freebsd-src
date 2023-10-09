@@ -867,6 +867,14 @@ sctp_sysctl_handle_trace_log_clear(SYSCTL_HANDLER_ARGS)
 #endif
 
 #define SCTP_UINT_SYSCTL(mib_name, var_name, prefix)			\
+	SCTP_UINT_SYSCTL_FLAG(mib_name, var_name, prefix,		\
+	    CTLFLAG_VNET|CTLTYPE_UINT|CTLFLAG_RW);
+
+#define SCTP_UINT_SYSCTL_TUN(mib_name, var_name, prefix)		\
+	SCTP_UINT_SYSCTL_FLAG(mib_name, var_name, prefix,		\
+	    CTLFLAG_VNET|CTLTYPE_UINT|CTLFLAG_RWTUN|CTLFLAG_NOFETCH);
+
+#define SCTP_UINT_SYSCTL_FLAG(mib_name, var_name, prefix, flags)	\
 	static int							\
 	sctp_sysctl_handle_##mib_name(SYSCTL_HANDLER_ARGS)		\
 	{								\
@@ -885,9 +893,13 @@ sctp_sysctl_handle_trace_log_clear(SYSCTL_HANDLER_ARGS)
 		}							\
 		return (error);						\
 	}								\
-	SYSCTL_PROC(_net_inet_sctp, OID_AUTO, mib_name,			\
-	                 CTLFLAG_VNET|CTLTYPE_UINT|CTLFLAG_RW, NULL, 0,	\
-	                 sctp_sysctl_handle_##mib_name, "UI", prefix##_DESC);
+	SYSCTL_PROC(_net_inet_sctp, OID_AUTO, mib_name, flags,		\
+	    NULL, 0, sctp_sysctl_handle_##mib_name, "UI", prefix##_DESC)
+
+#define SCTP_UINT_SYSCTL_RDTUN(mib_name, var_name, prefix)		\
+	SYSCTL_UINT(_net_inet_sctp, OID_AUTO, mib_name,			\
+	    CTLFLAG_VNET|CTLFLAG_RDTUN|CTLFLAG_NOFETCH,			\
+	    &VNET_NAME(system_base_info.sctpsysctl.var_name), 0, prefix##_DESC);
 
 /*
  * sysctl definitions
@@ -909,10 +921,10 @@ SCTP_UINT_SYSCTL(peer_chkoh, sctp_peer_chunk_oh, SCTPCTL_PEER_CHKOH)
 SCTP_UINT_SYSCTL(maxburst, sctp_max_burst_default, SCTPCTL_MAXBURST)
 SCTP_UINT_SYSCTL(fr_maxburst, sctp_fr_max_burst_default, SCTPCTL_FRMAXBURST)
 SCTP_UINT_SYSCTL(maxchunks, sctp_max_chunks_on_queue, SCTPCTL_MAXCHUNKS)
-SCTP_UINT_SYSCTL(tcbhashsize, sctp_hashtblsize, SCTPCTL_TCBHASHSIZE)
-SCTP_UINT_SYSCTL(pcbhashsize, sctp_pcbtblsize, SCTPCTL_PCBHASHSIZE)
+SCTP_UINT_SYSCTL_RDTUN(tcbhashsize, sctp_hashtblsize, SCTPCTL_TCBHASHSIZE)
+SCTP_UINT_SYSCTL_TUN(pcbhashsize, sctp_pcbtblsize, SCTPCTL_PCBHASHSIZE)
 SCTP_UINT_SYSCTL(min_split_point, sctp_min_split_point, SCTPCTL_MIN_SPLIT_POINT)
-SCTP_UINT_SYSCTL(chunkscale, sctp_chunkscale, SCTPCTL_CHUNKSCALE)
+SCTP_UINT_SYSCTL_RDTUN(chunkscale, sctp_chunkscale, SCTPCTL_CHUNKSCALE)
 SCTP_UINT_SYSCTL(delayed_sack_time, sctp_delayed_sack_time_default, SCTPCTL_DELAYED_SACK_TIME)
 SCTP_UINT_SYSCTL(sack_freq, sctp_sack_freq_default, SCTPCTL_SACK_FREQ)
 SCTP_UINT_SYSCTL(sys_resource, sctp_system_free_resc_limit, SCTPCTL_SYS_RESOURCE)
