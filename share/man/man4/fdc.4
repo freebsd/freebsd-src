@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 7, 2017
+.Dd October 10, 2023
 .Dt FDC 4
 .Os
 .Sh NAME
@@ -310,6 +310,61 @@ Third argument is a pointer to
 .Vt "enum fd_drivetype" .
 This type is the same as being used in the per-drive configuration
 flags, or in the CMOS configuration data or ACPI namespace on IA32 systems.
+.El
+.Sh SYSCTL VARIABLES
+.Bl -tag -width "debug.fdc.debugflags"
+.It Dv debug.fdc.debugflags
+Selectively enable debugging by setting one or more flags.
+.Bl -tag -width "0x40"
+.It Dv 0x01
+Dump device registers on reset.
+.It Dv 0x02
+When an IO operation completes, print the number of retries
+when that number is greater than zero.
+.It Dv 0x04
+Print when the number of retries exceeds
+.Dv debug.fdc.retries
+.Pq Dv EIO .
+Print when the option
+.Dv FDOPT_NOERROR
+is set and an error would have returned from a write operation.
+.It Dv 0x08
+Print detailed IO command information.
+.It Dv 0x10
+Print status registers.
+.It Dv 0x20
+Print detailed status registers when interrupts complete.
+Print the source code line number close to the source of a
+non-zero return from a thread worker operation.
+.It Dv 0x40
+Print when the disk appears to be lost.
+Print cylinder, head, sector, and sector shift information
+after a request to read an ID field.
+Notify whether a disk probe resulted in finding a disk.
+When detecting the density of media present, indicate whether
+the autosensing was successful, and if so, the size of the
+medium in kilobytes.
+Print detailed type information when setting the drive type.
+.It Dv 0x80
+Print when an unknown IOCTL is used.
+.El
+.It Dv debug.fdc.fifo
+For enhanced controllers, allows a non-default FIFO
+threshold setting. The default is 8 bytes.
+.It Dv debug.fdc.retries
+Maximum number of retries to attempt. The default is 10.
+.It Dv debug.fdc.spec1
+Specification byte one (step-rate + head unload).
+The default step rate is 6 ms. The default head unload
+time is 240 ms.
+.It Dv debug.fdc.spec2
+Specification byte two (head load time + no-dma).
+The default head load time is 16 ms, and no-dma is 0
+.Pq disabled .
+.It Dv debug.fdc.settle
+Head settling time in
+.Sy settle
+/ hz seconds. The default value is set during device attach.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/fd*" -compact
