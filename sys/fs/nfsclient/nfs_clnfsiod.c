@@ -123,8 +123,8 @@ out:
 	return (0);
 }
 SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmin,
-    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof (nfs_iodmin),
-    sysctl_iodmin, "IU",
+    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE,
+    0, sizeof (nfs_iodmin), sysctl_iodmin, "IU",
     "Min number of nfsiod kthreads to keep as spares");
 
 static int
