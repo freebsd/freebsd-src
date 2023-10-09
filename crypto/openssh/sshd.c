@@ -1763,7 +1763,7 @@ main(int ac, char **av)
 			break;
 		case 'V':
 			fprintf(stderr, "%s, %s\n",
-			    SSH_VERSION, SSH_OPENSSL_VERSION);
+			    SSH_RELEASE, SSH_OPENSSL_VERSION);
 			exit(0);
 		default:
 			usage();

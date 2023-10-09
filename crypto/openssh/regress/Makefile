@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.125 2023/05/17 05:52:01 djm Exp $
+#	$OpenBSD: Makefile,v 1.126 2023/09/06 23:36:09 djm Exp $
 
 tests:		prep file-tests t-exec unit
 
@@ -103,7 +103,8 @@ LTESTS= 	connect \
 		agent-restrict \
 		hostbased \
 		channel-timeout \
-		connection-timeout
+		connection-timeout \
+		match-subsystem
 
 INTEROP_TESTS=	putty-transfer putty-ciphers putty-kex conch-ciphers
 #INTEROP_TESTS+=ssh-com ssh-com-client ssh-com-keygen ssh-com-sftp

@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.h,v 1.94 2022/01/22 00:49:34 djm Exp $ */
+/* $OpenBSD: packet.h,v 1.95 2023/08/28 03:31:16 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -145,6 +145,7 @@ int	 ssh_packet_write_poll(struct ssh *);
 int	 ssh_packet_write_wait(struct ssh *);
 int      ssh_packet_have_data_to_write(struct ssh *);
 int      ssh_packet_not_very_much_data_to_write(struct ssh *);
+int	 ssh_packet_interactive_data_to_write(struct ssh *);
 
 int	 ssh_packet_connection_is_on_socket(struct ssh *);
 int	 ssh_packet_remaining(struct ssh *);

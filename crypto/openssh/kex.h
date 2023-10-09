@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.h,v 1.118 2023/03/06 12:14:48 dtucker Exp $ */
+/* $OpenBSD: kex.h,v 1.119 2023/08/28 03:28:43 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -111,6 +111,7 @@ enum kex_exchange {
 #define KEX_HAS_PUBKEY_HOSTBOUND	0x0004
 #define KEX_RSA_SHA2_256_SUPPORTED 	0x0008 /* only set in server for now */
 #define KEX_RSA_SHA2_512_SUPPORTED 	0x0010 /* only set in server for now */
+#define KEX_HAS_PING		 	0x0020
 
 struct sshenc {
 	char	*name;
