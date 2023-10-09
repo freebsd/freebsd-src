@@ -366,7 +366,8 @@ sysctl_maxsockets(SYSCTL_HANDLER_ARGS)
 	}
 	return (error);
 }
-SYSCTL_PROC(_kern_ipc, OID_AUTO, maxsockets, CTLTYPE_INT|CTLFLAG_RW,
+SYSCTL_PROC(_kern_ipc, OID_AUTO, maxsockets,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
     &maxsockets, 0, sysctl_maxsockets, "IU",
     "Maximum number of sockets available");
 
