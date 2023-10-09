@@ -130,7 +130,7 @@ virtdone:
 	sub	sp, sp, #BOOTPARAMS_SIZE
 	mov	x0, sp
 
-	/* Degate the delda so it is VA -> PA */
+	/* Negate the delta so it is VA -> PA */
 	neg	x29, x29
 
 	str	x1,  [x0, #BP_MODULEP]
