@@ -124,8 +124,9 @@ out:
 	NFSUNLOCKIOD();	
 	return (0);
 }
-SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmin, CTLTYPE_UINT | CTLFLAG_RW, 0,
-    sizeof (nfs_iodmin), sysctl_iodmin, "IU",
+SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmin,
+    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
+    0, sizeof (nfs_iodmin), sysctl_iodmin, "IU",
     "Min number of nfsiod kthreads to keep as spares");
 
 static int
