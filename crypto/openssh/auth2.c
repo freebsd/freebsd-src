@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.166 2023/03/08 04:43:12 guenther Exp $ */
+/* $OpenBSD: auth2.c,v 1.167 2023/08/28 09:48:11 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -219,6 +219,7 @@ input_service_request(int type, u_int32_t seq, struct ssh *ssh)
 }
 
 #define MIN_FAIL_DELAY_SECONDS 0.005
+#define MAX_FAIL_DELAY_SECONDS 5.0
 static double
 user_specific_delay(const char *user)
 {
@@ -243,6 +244,12 @@ ensure_minimum_time_since(double start, double seconds)
 {
 	struct timespec ts;
 	double elapsed = monotime_double() - start, req = seconds, remain;
+
+	if (elapsed > MAX_FAIL_DELAY_SECONDS) {
+		debug3_f("elapsed %0.3lfms exceeded the max delay "
+		    "requested %0.3lfms)", elapsed*1000, req*1000);
+		return;
+	}
 
 	/* if we've already passed the requested time, scale up */
 	while ((remain = seconds - elapsed) < 0.0)
@@ -335,7 +342,7 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 		debug2("input_userauth_request: try method %s", method);
 		authenticated =	m->userauth(ssh, method);
 	}
-	if (!authctxt->authenticated)
+	if (!authctxt->authenticated && strcmp(method, "none") != 0)
 		ensure_minimum_time_since(tstart,
 		    user_specific_delay(authctxt->user));
 	userauth_finish(ssh, authenticated, method, NULL);

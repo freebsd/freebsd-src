@@ -30,6 +30,13 @@ case "$config" in
     default|sol64)
 	;;
     c89)
+	# If we don't have LLONG_MAX, configure will figure out that it can
+	# get it by setting -std=gnu99, at which point we won't be testing
+	# C89 any more.  To avoid this, feed it in via CFLAGS.
+	llong_max=`gcc -E -dM - </dev/null | \
+	    awk '$2=="__LONG_LONG_MAX__"{print $3}'`
+	CPPFLAGS="-DLLONG_MAX=${llong_max}"
+
 	CC="gcc"
 	CFLAGS="-Wall -std=c89 -pedantic -Werror=vla"
 	CONFIGFLAGS="--without-zlib"
@@ -204,6 +211,10 @@ case "$config" in
 		TEST_TARGET="unit USE_VALGRIND=1"
 		;;
 	esac
+	;;
+    zlib-develop)
+	INSTALL_ZLIB=develop
+	CONFIGFLAGS="--with-zlib=/opt/zlib --with-rpath=-Wl,-rpath,"
 	;;
     *)
 	echo "Unknown configuration $config"

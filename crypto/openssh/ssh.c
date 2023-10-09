@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.593 2023/07/26 23:06:00 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.594 2023/09/03 23:59:32 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -2160,7 +2160,7 @@ ssh_session2_open(struct ssh *ssh)
 static int
 ssh_session2(struct ssh *ssh, const struct ssh_conn_info *cinfo)
 {
-	int r, id = -1;
+	int r, interactive, id = -1;
 	char *cp, *tun_fwd_ifname = NULL;
 
 	/* XXX should be pre-session */
@@ -2217,8 +2217,11 @@ ssh_session2(struct ssh *ssh, const struct ssh_conn_info *cinfo)
 	if (options.session_type != SESSION_TYPE_NONE)
 		id = ssh_session2_open(ssh);
 	else {
-		ssh_packet_set_interactive(ssh,
-		    options.control_master == SSHCTL_MASTER_NO,
+		interactive = options.control_master == SSHCTL_MASTER_NO;
+		/* ControlPersist may have clobbered ControlMaster, so check */
+		if (need_controlpersist_detach)
+			interactive = otty_flag != 0;
+		ssh_packet_set_interactive(ssh, interactive,
 		    options.ip_qos_interactive, options.ip_qos_bulk);
 	}
 

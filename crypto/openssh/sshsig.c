@@ -1,4 +1,4 @@
-/* $OpenBSD: sshsig.c,v 1.32 2023/04/06 03:56:02 djm Exp $ */
+/* $OpenBSD: sshsig.c,v 1.33 2023/09/06 23:18:15 djm Exp $ */
 /*
  * Copyright (c) 2019 Google LLC
  *
@@ -38,7 +38,7 @@
 #define SIG_VERSION		0x01
 #define MAGIC_PREAMBLE		"SSHSIG"
 #define MAGIC_PREAMBLE_LEN	(sizeof(MAGIC_PREAMBLE) - 1)
-#define BEGIN_SIGNATURE		"-----BEGIN SSH SIGNATURE-----\n"
+#define BEGIN_SIGNATURE		"-----BEGIN SSH SIGNATURE-----"
 #define END_SIGNATURE		"-----END SSH SIGNATURE-----"
 #define RSA_SIGN_ALG		"rsa-sha2-512" /* XXX maybe make configurable */
 #define RSA_SIGN_ALLOWED	"rsa-sha2-512,rsa-sha2-256"
@@ -59,8 +59,7 @@ sshsig_armor(const struct sshbuf *blob, struct sshbuf **out)
 		goto out;
 	}
 
-	if ((r = sshbuf_put(buf, BEGIN_SIGNATURE,
-	    sizeof(BEGIN_SIGNATURE)-1)) != 0) {
+	if ((r = sshbuf_putf(buf, "%s\n", BEGIN_SIGNATURE)) != 0) {
 		error_fr(r, "sshbuf_putf");
 		goto out;
 	}
@@ -99,23 +98,35 @@ sshsig_dearmor(struct sshbuf *sig, struct sshbuf **out)
 		return SSH_ERR_ALLOC_FAIL;
 	}
 
+	/* Expect and consume preamble + lf/crlf */
 	if ((r = sshbuf_cmp(sbuf, 0,
 	    BEGIN_SIGNATURE, sizeof(BEGIN_SIGNATURE)-1)) != 0) {
 		error("Couldn't parse signature: missing header");
 		goto done;
 	}
-
 	if ((r = sshbuf_consume(sbuf, sizeof(BEGIN_SIGNATURE)-1)) != 0) {
 		error_fr(r, "consume");
 		goto done;
 	}
-
+	if ((r = sshbuf_cmp(sbuf, 0, "\r\n", 2)) == 0)
+		eoffset = 2;
+	else if ((r = sshbuf_cmp(sbuf, 0, "\n", 1)) == 0)
+		eoffset = 1;
+	else {
+		r = SSH_ERR_INVALID_FORMAT;
+		error_f("no header eol");
+		goto done;
+	}
+	if ((r = sshbuf_consume(sbuf, eoffset)) != 0) {
+		error_fr(r, "consume eol");
+		goto done;
+	}
+	/* Find and consume lf + suffix (any prior cr would be ignored) */
 	if ((r = sshbuf_find(sbuf, 0, "\n" END_SIGNATURE,
-	    sizeof("\n" END_SIGNATURE)-1, &eoffset)) != 0) {
+	    sizeof(END_SIGNATURE), &eoffset)) != 0) {
 		error("Couldn't parse signature: missing footer");
 		goto done;
 	}
-
 	if ((r = sshbuf_consume_end(sbuf, sshbuf_len(sbuf)-eoffset)) != 0) {
 		error_fr(r, "consume");
 		goto done;

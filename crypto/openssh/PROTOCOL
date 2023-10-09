@@ -104,6 +104,39 @@ http://git.libssh.org/users/aris/libssh.git/plain/doc/curve25519-sha256@libssh.o
 
 This is identical to curve25519-sha256 as later published in RFC8731.
 
+1.9 transport: ping facility
+
+OpenSSH implements a transport level ping message SSH2_MSG_PING
+and a corresponding SSH2_MSG_PONG reply.
+
+#define SSH2_MSG_PING	192
+#define SSH2_MSG_PONG	193
+
+The ping message is simply:
+
+	byte		SSH_MSG_PING
+	string		data
+
+The reply copies the data (which may be the empty string) from the
+ping:
+
+	byte		SSH_MSG_PONG
+	string		data
+
+Replies are sent in order. They are sent immediately except when rekeying
+is in progress, in which case they are queued until rekeying completes.
+
+The server advertises support for these messages using the
+SSH2_MSG_EXT_INFO mechanism (RFC8308), with the following message:
+
+	string		"ping@openssh.com"
+	string		"0" (version)
+
+The ping/reply message is implemented at the transport layer rather
+than as a named global or channel request to allow pings with very
+short packet lengths, which would not be possible with other
+approaches.
+
 2. Connection protocol changes
 
 2.1. connection: Channel write close extension "eow@openssh.com"
@@ -712,4 +745,4 @@ master instance and later clients.
 OpenSSH extends the usual agent protocol. These changes are documented
 in the PROTOCOL.agent file.
 
-$OpenBSD: PROTOCOL,v 1.48 2022/11/07 01:53:01 dtucker Exp $
+$OpenBSD: PROTOCOL,v 1.49 2023/08/28 03:28:43 djm Exp $

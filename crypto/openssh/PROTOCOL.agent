@@ -1,5 +1,5 @@
 The SSH agent protocol is described in
-https://tools.ietf.org/html/draft-miller-ssh-agent-04
+https://tools.ietf.org/html/draft-miller-ssh-agent
 
 This file documents OpenSSH's extensions to the agent protocol.
 
@@ -81,4 +81,4 @@ the constraint is:
 
 This option is only valid for XMSS keys.
 
-$OpenBSD: PROTOCOL.agent,v 1.19 2023/04/12 08:53:54 jsg Exp $
+$OpenBSD: PROTOCOL.agent,v 1.20 2023/10/03 23:56:10 djm Exp $

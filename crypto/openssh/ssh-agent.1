@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-agent.1,v 1.78 2023/07/23 20:04:45 naddy Exp $
+.\" $OpenBSD: ssh-agent.1,v 1.79 2023/08/10 14:37:32 naddy Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: July 23 2023 $
+.Dd $Mdocdate: August 10 2023 $
 .Dt SSH-AGENT 1
 .Os
 .Sh NAME
@@ -122,7 +122,7 @@ Note that signalling that an
 .Nm
 client is remote is performed by
 .Xr ssh 1 ,
-and use of other tools to forward access to the agent socket, may circumvent
+and use of other tools to forward access to the agent socket may circumvent
 this restriction.
 .Pp
 The
@@ -156,7 +156,7 @@ See PATTERNS in
 .Xr ssh_config 5
 for a description of pattern-list syntax.
 The default list is
-.Dq /usr/lib/*,/usr/local/lib/* .
+.Dq usr/lib*/*,/usr/local/lib*/* .
 .It Fl s
 Generate Bourne shell commands on
 .Dv stdout .

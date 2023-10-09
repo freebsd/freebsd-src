@@ -187,7 +187,13 @@ if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 	AC_MSG_RESULT([$GCC_VER])
 
 	AC_MSG_CHECKING([clang version])
-	CLANG_VER=`$CC -v 2>&1 | $AWK '/clang version /{print $3}'`
+	ver="`$CC -v 2>&1`"
+	if echo "$ver" | grep "Apple" >/dev/null; then
+		CLANG_VER="apple-`echo "$ver" | \
+		    awk '/Apple LLVM/ {print $4"-"$5}'`"
+	else
+		CLANG_VER=`echo "$ver" | $AWK '/clang version /{print $3}'`
+	fi
 	AC_MSG_RESULT([$CLANG_VER])
 
 	OSSH_CHECK_CFLAG_COMPILE([-pipe])
@@ -225,7 +231,7 @@ if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 	# https://bugzilla.mindrot.org/show_bug.cgi?id=3475 and
 	# https://github.com/llvm/llvm-project/issues/59242
 	case "$CLANG_VER" in
-	15.*) OSSH_CHECK_CFLAG_COMPILE([-fzero-call-used-regs=used]) ;;
+	15.*|apple*) OSSH_CHECK_CFLAG_COMPILE([-fzero-call-used-regs=used]) ;;
 	*)    OSSH_CHECK_CFLAG_COMPILE([-fzero-call-used-regs=all]) ;;
 	esac
 	OSSH_CHECK_CFLAG_COMPILE([-ftrivial-auto-var-init=zero])
@@ -1465,7 +1471,7 @@ else
 	[[
 	int a=0, b=0, c=0, d=0, n, v;
 	n = sscanf(ZLIB_VERSION, "%d.%d.%d.%d", &a, &b, &c, &d);
-	if (n != 3 && n != 4)
+	if (n < 1)
 		exit(1);
 	v = a*1000000 + b*10000 + c*100 + d;
 	fprintf(stderr, "found zlib version %s (%d)\n", ZLIB_VERSION, v);

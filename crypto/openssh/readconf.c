@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.380 2023/07/17 06:16:33 djm Exp $ */
+/* $OpenBSD: readconf.c,v 1.381 2023/08/28 03:31:16 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -178,7 +178,7 @@ typedef enum {
 	oFingerprintHash, oUpdateHostkeys, oHostbasedAcceptedAlgorithms,
 	oPubkeyAcceptedAlgorithms, oCASignatureAlgorithms, oProxyJump,
 	oSecurityKeyProvider, oKnownHostsCommand, oRequiredRSASize,
-	oEnableEscapeCommandline,
+	oEnableEscapeCommandline, oObscureKeystrokeTiming,
 	oIgnore, oIgnoredUnknownOption, oDeprecated, oUnsupported
 } OpCodes;
 
@@ -327,6 +327,7 @@ static struct {
 	{ "knownhostscommand", oKnownHostsCommand },
 	{ "requiredrsasize", oRequiredRSASize },
 	{ "enableescapecommandline", oEnableEscapeCommandline },
+	{ "obscurekeystroketiming", oObscureKeystrokeTiming },
 
 	/* Client VersionAddendum - retired in bffe60ead024 */
 	{ "versionaddendum", oDeprecated },
@@ -2283,6 +2284,48 @@ parse_pubkey_algos:
 		intptr = &options->required_rsa_size;
 		goto parse_int;
 
+	case oObscureKeystrokeTiming:
+		value = -1;
+		while ((arg = argv_next(&ac, &av)) != NULL) {
+			if (value != -1) {
+				error("%s line %d: invalid arguments",
+				    filename, linenum);
+				goto out;
+			}
+			if (strcmp(arg, "yes") == 0 ||
+			    strcmp(arg, "true") == 0)
+				value = SSH_KEYSTROKE_DEFAULT_INTERVAL_MS;
+			else if (strcmp(arg, "no") == 0 ||
+			    strcmp(arg, "false") == 0)
+				value = 0;
+			else if (strncmp(arg, "interval:", 9) == 0) {
+				if ((errstr = atoi_err(arg + 9,
+				    &value)) != NULL) {
+					error("%s line %d: integer value %s.",
+					    filename, linenum, errstr);
+					goto out;
+				}
+				if (value <= 0 || value > 1000) {
+					error("%s line %d: value out of range.",
+					    filename, linenum);
+					goto out;
+				}
+			} else {
+				error("%s line %d: unsupported argument \"%s\"",
+				    filename, linenum, arg);
+				goto out;
+			}
+		}
+		if (value == -1) {
+			error("%s line %d: missing argument",
+			    filename, linenum);
+			goto out;
+		}
+		intptr = &options->obscure_keystroke_timing_interval;
+		if (*activep && *intptr == -1)
+			*intptr = value;
+		break;
+
 	case oDeprecated:
 		debug("%s line %d: Deprecated option \"%s\"",
 		    filename, linenum, keyword);
@@ -2533,6 +2576,7 @@ initialize_options(Options * options)
 	options->known_hosts_command = NULL;
 	options->required_rsa_size = -1;
 	options->enable_escape_commandline = -1;
+	options->obscure_keystroke_timing_interval = -1;
 	options->tag = NULL;
 }
 
@@ -2734,6 +2778,10 @@ fill_default_options(Options * options)
 		options->required_rsa_size = SSH_RSA_MINIMUM_MODULUS_SIZE;
 	if (options->enable_escape_commandline == -1)
 		options->enable_escape_commandline = 0;
+	if (options->obscure_keystroke_timing_interval == -1) {
+		options->obscure_keystroke_timing_interval =
+		    SSH_KEYSTROKE_DEFAULT_INTERVAL_MS;
+	}
 
 	/* Expand KEX name lists */
 	all_cipher = cipher_alg_list(',', 0);
@@ -3276,6 +3324,16 @@ lookup_opcode_name(OpCodes code)
 static void
 dump_cfg_int(OpCodes code, int val)
 {
+	if (code == oObscureKeystrokeTiming) {
+		if (val == 0) {
+			printf("%s no\n", lookup_opcode_name(code));
+			return;
+		} else if (val == SSH_KEYSTROKE_DEFAULT_INTERVAL_MS) {
+			printf("%s yes\n", lookup_opcode_name(code));
+			return;
+		}
+		/* FALLTHROUGH */
+	}
 	printf("%s %d\n", lookup_opcode_name(code), val);
 }
 
@@ -3426,6 +3484,8 @@ dump_client_config(Options *o, const char *host)
 	dump_cfg_int(oServerAliveCountMax, o->server_alive_count_max);
 	dump_cfg_int(oServerAliveInterval, o->server_alive_interval);
 	dump_cfg_int(oRequiredRSASize, o->required_rsa_size);
+	dump_cfg_int(oObscureKeystrokeTiming,
+	    o->obscure_keystroke_timing_interval);
 
 	/* String options */
 	dump_cfg_string(oBindAddress, o->bind_address);

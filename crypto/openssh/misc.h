@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.h,v 1.104 2023/08/18 01:37:41 djm Exp $ */
+/* $OpenBSD: misc.h,v 1.105 2023/08/28 03:31:16 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -214,6 +214,7 @@ struct timespec;
 void ptimeout_init(struct timespec *pt);
 void ptimeout_deadline_sec(struct timespec *pt, long sec);
 void ptimeout_deadline_ms(struct timespec *pt, long ms);
+void ptimeout_deadline_monotime_tsp(struct timespec *pt, struct timespec *when);
 void ptimeout_deadline_monotime(struct timespec *pt, time_t when);
 int ptimeout_get_ms(struct timespec *pt);
 struct timespec *ptimeout_get_tsp(struct timespec *pt);

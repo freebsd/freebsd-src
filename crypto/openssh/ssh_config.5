@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.383 2023/07/17 05:36:14 jsg Exp $
-.Dd $Mdocdate: July 17 2023 $
+.\" $OpenBSD: ssh_config.5,v 1.387 2023/10/04 04:03:50 djm Exp $
+.Dd $Mdocdate: October 4 2023 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -1360,6 +1360,25 @@ or
 Specifies the number of password prompts before giving up.
 The argument to this keyword must be an integer.
 The default is 3.
+.It Cm ObscureKeystrokeTiming
+Specifies whether
+.Xr ssh 1
+should try to obscure inter-keystroke timings from passive observers of
+network traffic.
+If enabled, then for interactive sessions,
+.Xr ssh 1
+will send keystrokes at fixed intervals of a few tens of milliseconds
+and will send fake keystroke packets for some time after typing ceases.
+The argument to this keyword must be
+.Cm yes ,
+.Cm no
+or an interval specifier of the form
+.Cm interval:milliseconds
+(e.g.\&
+.Cm interval:80
+for 80 milliseconds).
+The default is to obscure keystrokes using a 20ms packet interval.
+Note that smaller intervals will result in higher fake keystroke packet rates.
 .It Cm PasswordAuthentication
 Specifies whether to use password authentication.
 The argument to this keyword must be
@@ -2189,6 +2208,16 @@ accepts all tokens.
 and
 .Cm ProxyJump
 accept the tokens %%, %h, %n, %p, and %r.
+.Pp
+Note that some of these directives build commands for execution via the shell.
+Because
+.Xr ssh 1
+performs no filtering or escaping of characters that have special meaning in
+shell commands (e.g. quotes), it is the user's reposibility to ensure that
+the arguments passed to
+.Xr ssh 1
+do not contain such characters and that tokens are appropriately quoted
+when used.
 .Sh ENVIRONMENT VARIABLES
 Arguments to some keywords can be expanded at runtime from environment
 variables on the client by enclosing them in

@@ -1,4 +1,4 @@
-/* $OpenBSD: serverloop.c,v 1.236 2023/03/08 04:43:12 guenther Exp $ */
+/* $OpenBSD: serverloop.c,v 1.237 2023/08/21 04:59:54 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -253,7 +253,7 @@ wait_until_can_do_something(struct ssh *ssh,
 	/* ClientAliveInterval probing */
 	if (client_alive_scheduled) {
 		if (ret == 0 &&
-		    now > last_client_time + options.client_alive_interval) {
+		    now >= last_client_time + options.client_alive_interval) {
 			/* ppoll timed out and we're due to probe */
 			client_alive_check(ssh);
 			last_client_time = now;

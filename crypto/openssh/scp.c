@@ -1,4 +1,4 @@
-/* $OpenBSD: scp.c,v 1.257 2023/07/14 05:31:44 djm Exp $ */
+/* $OpenBSD: scp.c,v 1.259 2023/09/10 23:12:32 djm Exp $ */
 /*
  * scp - secure remote copy.  This is basically patched BSD rcp which
  * uses ssh to do the data transfer (instead of using rcmd).
@@ -186,7 +186,7 @@ size_t sftp_nrequests;
 /* Needed for sftp */
 volatile sig_atomic_t interrupted = 0;
 
-int remote_glob(struct sftp_conn *, const char *, int,
+int sftp_glob(struct sftp_conn *, const char *, int,
     int (*)(const char *, int), glob_t *); /* proto for sftp-glob.c */
 
 static void
@@ -1028,7 +1028,7 @@ do_sftp_connect(char *host, char *user, int port, char *sftp_direct,
 		    reminp, remoutp, pidp) < 0)
 			return NULL;
 	}
-	return do_init(*reminp, *remoutp,
+	return sftp_init(*reminp, *remoutp,
 	    sftp_copy_buflen, sftp_nrequests, limit_kbps);
 }
 
@@ -1324,8 +1324,8 @@ prepare_remote_path(struct sftp_conn *conn, const char *path)
 			return xstrdup(".");
 		return xstrdup(path + 2 + nslash);
 	}
-	if (can_expand_path(conn))
-		return do_expand_path(conn, path);
+	if (sftp_can_expand_path(conn))
+		return sftp_expand_path(conn, path);
 	/* No protocol extension */
 	error("server expand-path extension is required "
 	    "for ~user paths in SFTP mode");
@@ -1353,17 +1353,17 @@ source_sftp(int argc, char *src, char *targ, struct sftp_conn *conn)
 	 */
 	if ((target = prepare_remote_path(conn, targ)) == NULL)
 		cleanup_exit(255);
-	target_is_dir = remote_is_dir(conn, target);
+	target_is_dir = sftp_remote_is_dir(conn, target);
 	if (targetshouldbedirectory && !target_is_dir) {
 		debug("target directory \"%s\" does not exist", target);
 		a.flags = SSH2_FILEXFER_ATTR_PERMISSIONS;
 		a.perm = st.st_mode | 0700; /* ensure writable */
-		if (do_mkdir(conn, target, &a, 1) != 0)
+		if (sftp_mkdir(conn, target, &a, 1) != 0)
 			cleanup_exit(255); /* error already logged */
 		target_is_dir = 1;
 	}
 	if (target_is_dir)
-		abs_dst = path_append(target, filename);
+		abs_dst = sftp_path_append(target, filename);
 	else {
 		abs_dst = target;
 		target = NULL;
@@ -1371,12 +1371,12 @@ source_sftp(int argc, char *src, char *targ, struct sftp_conn *conn)
 	debug3_f("copying local %s to remote %s", src, abs_dst);
 
 	if (src_is_dir && iamrecursive) {
-		if (upload_dir(conn, src, abs_dst, pflag,
+		if (sftp_upload_dir(conn, src, abs_dst, pflag,
 		    SFTP_PROGRESS_ONLY, 0, 0, 1, 1) != 0) {
 			error("failed to upload directory %s to %s", src, targ);
 			errs = 1;
 		}
-	} else if (do_upload(conn, src, abs_dst, pflag, 0, 0, 1) != 0) {
+	} else if (sftp_upload(conn, src, abs_dst, pflag, 0, 0, 1) != 0) {
 		error("failed to upload file %s to %s", src, targ);
 		errs = 1;
 	}
@@ -1568,7 +1568,7 @@ sink_sftp(int argc, char *dst, const char *src, struct sftp_conn *conn)
 	}
 
 	debug3_f("copying remote %s to local %s", abs_src, dst);
-	if ((r = remote_glob(conn, abs_src, GLOB_NOCHECK|GLOB_MARK,
+	if ((r = sftp_glob(conn, abs_src, GLOB_NOCHECK|GLOB_MARK,
 	    NULL, &g)) != 0) {
 		if (r == GLOB_NOSPACE)
 			error("%s: too many glob matches", src);
@@ -1585,7 +1585,7 @@ sink_sftp(int argc, char *dst, const char *src, struct sftp_conn *conn)
 		 * a GLOB_NOCHECK result. Check whether the unglobbed path
 		 * exists so we can give a nice error message early.
 		 */
-		if (do_stat(conn, g.gl_pathv[0], 1) == NULL) {
+		if (sftp_stat(conn, g.gl_pathv[0], 1, NULL) != 0) {
 			error("%s: %s", src, strerror(ENOENT));
 			err = -1;
 			goto out;
@@ -1621,17 +1621,17 @@ sink_sftp(int argc, char *dst, const char *src, struct sftp_conn *conn)
 		}
 
 		if (dst_is_dir)
-			abs_dst = path_append(dst, filename);
+			abs_dst = sftp_path_append(dst, filename);
 		else
 			abs_dst = xstrdup(dst);
 
 		debug("Fetching %s to %s\n", g.gl_pathv[i], abs_dst);
-		if (globpath_is_dir(g.gl_pathv[i]) && iamrecursive) {
-			if (download_dir(conn, g.gl_pathv[i], abs_dst, NULL,
-			    pflag, SFTP_PROGRESS_ONLY, 0, 0, 1, 1) == -1)
+		if (sftp_globpath_is_dir(g.gl_pathv[i]) && iamrecursive) {
+			if (sftp_download_dir(conn, g.gl_pathv[i], abs_dst,
+			    NULL, pflag, SFTP_PROGRESS_ONLY, 0, 0, 1, 1) == -1)
 				err = -1;
 		} else {
-			if (do_download(conn, g.gl_pathv[i], abs_dst, NULL,
+			if (sftp_download(conn, g.gl_pathv[i], abs_dst, NULL,
 			    pflag, 0, 0, 1) == -1)
 				err = -1;
 		}
@@ -1993,7 +1993,7 @@ throughlocal_sftp(struct sftp_conn *from, struct sftp_conn *to,
 		cleanup_exit(255);
 	memset(&g, 0, sizeof(g));
 
-	targetisdir = remote_is_dir(to, target);
+	targetisdir = sftp_remote_is_dir(to, target);
 	if (!targetisdir && targetshouldbedirectory) {
 		error("%s: destination is not a directory", targ);
 		err = -1;
@@ -2001,7 +2001,7 @@ throughlocal_sftp(struct sftp_conn *from, struct sftp_conn *to,
 	}
 
 	debug3_f("copying remote %s to remote %s", abs_src, target);
-	if ((r = remote_glob(from, abs_src, GLOB_NOCHECK|GLOB_MARK,
+	if ((r = sftp_glob(from, abs_src, GLOB_NOCHECK|GLOB_MARK,
 	    NULL, &g)) != 0) {
 		if (r == GLOB_NOSPACE)
 			error("%s: too many glob matches", src);
@@ -2018,7 +2018,7 @@ throughlocal_sftp(struct sftp_conn *from, struct sftp_conn *to,
 		 * a GLOB_NOCHECK result. Check whether the unglobbed path
 		 * exists so we can give a nice error message early.
 		 */
-		if (do_stat(from, g.gl_pathv[0], 1) == NULL) {
+		if (sftp_stat(from, g.gl_pathv[0], 1, NULL) != 0) {
 			error("%s: %s", src, strerror(ENOENT));
 			err = -1;
 			goto out;
@@ -2034,18 +2034,18 @@ throughlocal_sftp(struct sftp_conn *from, struct sftp_conn *to,
 		}
 
 		if (targetisdir)
-			abs_dst = path_append(target, filename);
+			abs_dst = sftp_path_append(target, filename);
 		else
 			abs_dst = xstrdup(target);
 
 		debug("Fetching %s to %s\n", g.gl_pathv[i], abs_dst);
-		if (globpath_is_dir(g.gl_pathv[i]) && iamrecursive) {
-			if (crossload_dir(from, to, g.gl_pathv[i], abs_dst,
+		if (sftp_globpath_is_dir(g.gl_pathv[i]) && iamrecursive) {
+			if (sftp_crossload_dir(from, to, g.gl_pathv[i], abs_dst,
 			    NULL, pflag, SFTP_PROGRESS_ONLY, 1) == -1)
 				err = -1;
 		} else {
-			if (do_crossload(from, to, g.gl_pathv[i], abs_dst, NULL,
-			    pflag) == -1)
+			if (sftp_crossload(from, to, g.gl_pathv[i], abs_dst,
+			    NULL, pflag) == -1)
 				err = -1;
 		}
 		free(abs_dst);
