@@ -1199,9 +1199,10 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	if (WARN_ONCE(txq_id == IWL_MVM_INVALID_QUEUE, "Invalid TXQ id")) {
 #if defined(__FreeBSD__)
-		IWL_DEBUG_TX(mvm, "fc %#06x tid %u txq_id %u mvm %p "
-		    "skb %p { len %u } info %p sta %p\n", fc,
-		    tid, txq_id, mvm, skb, skb->len, info, sta);
+		printf("%s:%d: fc %#06x tid %u txq_id %u mvm %p "
+		    "skb %p { len %u } info %p sta %p (if you see this please "
+		    "report to PR 274382)\n", __func__, __LINE__,
+		    fc, tid, txq_id, mvm, skb, skb->len, info, sta);
 #endif
 		iwl_trans_free_tx_cmd(mvm->trans, dev_cmd);
 		spin_unlock(&mvmsta->lock);
