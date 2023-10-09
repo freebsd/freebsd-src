@@ -165,8 +165,8 @@ sysctl_debug_ddb_capture_bufsize(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_debug_ddb_capture, OID_AUTO, bufsize,
-    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
-    sysctl_debug_ddb_capture_bufsize, "IU",
+    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE,
+    0, 0, sysctl_debug_ddb_capture_bufsize, "IU",
     "Size of DDB capture buffer");
 
 /*
