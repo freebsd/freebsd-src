@@ -1012,6 +1012,8 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 			vif->bss_conf.chandef.center_freq2 =
 			    conf->def.center_freq2;
 		} else {
+			ic_printf(vap->iv_ic, "%s:%d: mo_add_chanctx "
+			    "failed: %d\n", __func__, __LINE__, error);
 			goto out;
 		}
 
@@ -1024,6 +1026,8 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		if (error == EOPNOTSUPP)
 			error = 0;
 		if (error != 0) {
+			ic_printf(vap->iv_ic, "%s:%d: mo_assign_vif_chanctx "
+			    "failed: %d\n", __func__, __LINE__, error);
 			lkpi_80211_mo_remove_chanctx(hw, conf);
 			lchanctx = CHANCTX_CONF_TO_LCHANCTX(conf);
 			free(lchanctx, M_LKPI80211);
@@ -1049,6 +1053,8 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		lsta = lkpi_lsta_alloc(vap, ni->ni_macaddr, hw, ni);
 		if (lsta == NULL) {
 			error = ENOMEM;
+			ic_printf(vap->iv_ic, "%s:%d: lkpi_lsta_alloc "
+			    "failed: %d\n", __func__, __LINE__, error);
 			goto out;
 		}
 		lsta->ni = ieee80211_ref_node(ni);
@@ -1068,6 +1074,8 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_NONE);
 	if (error != 0) {
 		IMPROVE("do we need to undo the chan ctx?");
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(NONE) "
+		    "failed: %d\n", __func__, __LINE__, error);
 		goto out;
 	}
 #if 0
@@ -1169,6 +1177,8 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_NOTEXIST);
 	if (error != 0) {
 		IMPROVE("do we need to undo the chan ctx?");
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(NOTEXIST) "
+		    "failed: %d\n", __func__, __LINE__, error);
 		goto out;
 	}
 #if 0
@@ -1247,8 +1257,11 @@ lkpi_sta_auth_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, in
 	KASSERT(lsta->state == IEEE80211_STA_NONE, ("%s: lsta %p state not "
 	    "NONE: %#x\n", __func__, lsta, lsta->state));
 	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_AUTH);
-	if (error != 0)
+	if (error != 0) {
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(AUTH) "
+		    "failed: %d\n", __func__, __LINE__, error);
 		goto out;
+	}
 
 	/* End mgd_complete_tx. */
 	if (lsta->in_mgd) {
@@ -1386,8 +1399,11 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 
 	/* Call iv_newstate first so we get potential DISASSOC packet out. */
 	error = lvif->iv_newstate(vap, nstate, arg);
-	if (error != 0)
+	if (error != 0) {
+		ic_printf(vap->iv_ic, "%s:%d: iv_newstate(%p, %d, %d) "
+		    "failed: %d\n", __func__, __LINE__, vap, nstate, arg, error);
 		goto outni;
+	}
 
 	IEEE80211_UNLOCK(vap->iv_ic);
 	LKPI_80211_LHW_LOCK(lhw);
@@ -1421,8 +1437,11 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 	KASSERT(lsta->state == IEEE80211_STA_AUTH, ("%s: lsta %p state not "
 	    "AUTH: %#x\n", __func__, lsta, lsta->state));
 	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_NONE);
-	if (error != 0)
+	if (error != 0) {
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(NONE) "
+		    "failed: %d\n", __func__, __LINE__, error);
 		goto out;
+	}
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
@@ -1442,6 +1461,8 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_NOTEXIST);
 	if (error != 0) {
 		IMPROVE("do we need to undo the chan ctx?");
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(NOTEXIST) "
+		    "failed: %d\n", __func__, __LINE__, error);
 		goto out;
 	}
 
@@ -1559,8 +1580,11 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		sta->wme = true;
 #endif
 	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_ASSOC);
-	if (error != 0)
+	if (error != 0) {
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(ASSOC) "
+		    "failed: %d\n", __func__, __LINE__, error);
 		goto out;
+	}
 
 	IMPROVE("wme / conf_tx [all]");
 
@@ -1634,6 +1658,8 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_AUTHORIZED);
 	if (error != 0) {
 		IMPROVE("undo some changes?");
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(AUTHORIZED) "
+		    "failed: %d\n", __func__, __LINE__, error);
 		goto out;
 	}
 
@@ -1716,8 +1742,11 @@ lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	/* Call iv_newstate first so we get potential DISASSOC packet out. */
 	error = lvif->iv_newstate(vap, nstate, arg);
-	if (error != 0)
+	if (error != 0) {
+		ic_printf(vap->iv_ic, "%s:%d: iv_newstate(%p, %d, %d) "
+		    "failed: %d\n", __func__, __LINE__, vap, nstate, arg, error);
 		goto outni;
+	}
 
 	IEEE80211_UNLOCK(vap->iv_ic);
 	LKPI_80211_LHW_LOCK(lhw);
@@ -1753,8 +1782,11 @@ lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	KASSERT(lsta->state == IEEE80211_STA_AUTHORIZED, ("%s: lsta %p state not "
 	    "AUTHORIZED: %#x\n", __func__, lsta, lsta->state));
 	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_ASSOC);
-	if (error != 0)
+	if (error != 0) {
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(ASSOC) "
+		    "failed: %d\n", __func__, __LINE__, error);
 		goto out;
+	}
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
@@ -1763,8 +1795,11 @@ lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	KASSERT(lsta->state == IEEE80211_STA_ASSOC, ("%s: lsta %p state not "
 	    "ASSOC: %#x\n", __func__, lsta, lsta->state));
 	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_AUTH);
-	if (error != 0)
+	if (error != 0) {
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(AUTH) "
+		    "failed: %d\n", __func__, __LINE__, error);
 		goto out;
+	}
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
@@ -1829,8 +1864,11 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 
 	/* Call iv_newstate first so we get potential DISASSOC packet out. */
 	error = lvif->iv_newstate(vap, nstate, arg);
-	if (error != 0)
+	if (error != 0) {
+		ic_printf(vap->iv_ic, "%s:%d: iv_newstate(%p, %d, %d) "
+		    "failed: %d\n", __func__, __LINE__, vap, nstate, arg, error);
 		goto outni;
+	}
 
 	IEEE80211_UNLOCK(vap->iv_ic);
 	LKPI_80211_LHW_LOCK(lhw);
@@ -1864,8 +1902,11 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 	KASSERT(lsta->state == IEEE80211_STA_AUTHORIZED, ("%s: lsta %p state not "
 	    "AUTHORIZED: %#x\n", __func__, lsta, lsta->state));
 	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_ASSOC);
-	if (error != 0)
+	if (error != 0) {
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(ASSOC) "
+		    "failed: %d\n", __func__, __LINE__, error);
 		goto out;
+	}
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
@@ -1874,8 +1915,11 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 	KASSERT(lsta->state == IEEE80211_STA_ASSOC, ("%s: lsta %p state not "
 	    "ASSOC: %#x\n", __func__, lsta, lsta->state));
 	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_AUTH);
-	if (error != 0)
+	if (error != 0) {
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(AUTH) "
+		    "failed: %d\n", __func__, __LINE__, error);
 		goto out;
+	}
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
@@ -1884,8 +1928,11 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 	KASSERT(lsta->state == IEEE80211_STA_AUTH, ("%s: lsta %p state not "
 	    "AUTH: %#x\n", __func__, lsta, lsta->state));
 	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_NONE);
-	if (error != 0)
+	if (error != 0) {
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(NONE) "
+		    "failed: %d\n", __func__, __LINE__, error);
 		goto out;
+	}
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
@@ -1903,6 +1950,8 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 	error = lkpi_80211_mo_sta_state(hw, vif, lsta, IEEE80211_STA_NOTEXIST);
 	if (error != 0) {
 		IMPROVE("do we need to undo the chan ctx?");
+		ic_printf(vap->iv_ic, "%s:%d: mo_sta_state(NOTEXIST) "
+		    "failed: %d\n", __func__, __LINE__, error);
 		goto out;
 	}
 
@@ -4859,10 +4908,8 @@ linuxkpi_ieee80211_connection_loss(struct ieee80211_vif *vif)
 	nstate = IEEE80211_S_INIT;
 	arg = 0;	/* Not a valid reason. */
 
-#ifdef LINUXKPI_DEBUG_80211
-	if (linuxkpi_debug_80211 & D80211_TRACE)
-		ic_printf(vap->iv_ic, "%s: vif %p\n", __func__, vif);
-#endif
+	ic_printf(vap->iv_ic, "%s: vif %p vap %p state %s\n", __func__,
+	    vif, vap, ieee80211_state_name[vap->iv_state]);
 	ieee80211_new_state(vap, nstate, arg);
 }
 
@@ -4875,11 +4922,8 @@ linuxkpi_ieee80211_beacon_loss(struct ieee80211_vif *vif)
 	lvif = VIF_TO_LVIF(vif);
 	vap = LVIF_TO_VAP(lvif);
 
-#ifdef LINUXKPI_DEBUG_80211
-	if (linuxkpi_debug_80211 & D80211_TRACE || vap->iv_state != IEEE80211_S_RUN)
-		ic_printf(vap->iv_ic, "%s: vif %p vap %p state %s\n", __func__,
-		    vif, vap, ieee80211_state_name[vap->iv_state]);
-#endif
+	ic_printf(vap->iv_ic, "%s: vif %p vap %p state %s\n", __func__,
+	    vif, vap, ieee80211_state_name[vap->iv_state]);
 	ieee80211_beacon_miss(vap->iv_ic);
 }
 
