@@ -32,14 +32,26 @@ contrib_file_tests_body() {
 	for testfile in "${srcdir}"/*.testfile; do
 		test_name="${testfile%.testfile}"
 		result_file="${test_name}.result"
-		magic_file="${test_name}.magic"
 		file_args=
-		if [ -e "${magic_file}" ]; then
-			file_args="${file_args} --magic-file ${magic_file}"
+		magic_files=
+		for magic_file in ${test_name}*.magic; do
+			if [ -f "${magic_file}" ]; then
+				if [ -z "${magic_files}" ]; then
+					magic_files="${magic_file}"
+				else
+					magic_files="${magic_files}:${magic_file}"
+				fi
+			fi
+		done
+		if [ -z "${magic_files}" ]; then
+			magic_files=/usr/share/misc/magic
+		fi
+		if [ -f "${test_name}.flags" ]; then
+			file_args="${file_args} -$(cat "${test_name}.flags")"
 		fi
 		# The result files were created in UTC.
-		TZ=Z atf_check -o save:actual_output file ${file_args} \
-		    --brief "$testfile"
+		atf_check -o save:actual_output -e ignore env TZ=Z MAGIC="${magic_files}" \
+			file ${file_args} --brief "$testfile"
 		atf_check cmp actual_output "$result_file"
 	done
 }
