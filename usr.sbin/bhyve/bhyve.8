@@ -193,8 +193,11 @@ Specify the keyboard layout.
 The value that can be specified sets the file name in
 .Ar /usr/share/bhyve/kbdlayout .
 This specification only works when loaded with UEFI mode for VNC.
-When using a VNC client that supports QEMU Extended Key Event Message (e.g. TigerVNC), this option isn't needed.
-When using a VNC client that doesn't support QEMU Extended Key Event Message (e.g. tightVNC), the layout defaults to the US keyboard unless specified otherwise.
+When using a VNC client that supports QEMU Extended Key Event Message (e.g.
+TigerVNC), this option isn't needed.
+When using a VNC client that doesn't support QEMU Extended Key Event Message
+(e.g. tightVNC), the layout defaults to the US keyboard unless specified
+otherwise.
 .Pq Sq = ,
 and a value.
 No spaces are permitted between the variable name, equals sign, or
@@ -274,9 +277,9 @@ The guest memory contents are restored from
 and the guest device and vCPU state are restored from the file
 .Dq Ar file Ns .kern .
 .Pp
-Note that the current snapshot file format requires that the configuration of
-devices in the new VM match the VM from which the snapshot was taken by specifying the
-same
+Note that the current snapshot file format requires that the
+configuration of devices in the new VM match the VM from which the
+snapshot was taken by specifying the same
 .Fl s
 and
 .Fl l
@@ -579,7 +582,8 @@ to that file.
 Fwcfg types:
 .Bl -tag -width 10n
 .It Ar fwcfg
-The fwcfg interface is used to pass information such as the CPU count or ACPI tables to the guest firmware.
+The fwcfg interface is used to pass information such as the CPU count
+or ACPI tables to the guest firmware.
 Supported values are
 .Ql bhyve
 and
@@ -594,9 +598,12 @@ It currently reports only the CPU count to the guest firmware.
 The
 .Ql qemu
 option uses QEMU's fwcfg interface.
-This interface is widely used and allows user-defined information to be passed to the guest.
-It is used for passing the CPU count, ACPI tables, a boot order and many other things to the guest.
-Some operating systems such as Fedora CoreOS can be configured by qemu's fwcfg interface as well.
+This interface is widely used and allows user-defined information to
+be passed to the guest.
+It is used for passing the CPU count, ACPI tables, a boot order and
+many other things to the guest.
+Some operating systems such as Fedora CoreOS can be configured by
+qemu's fwcfg interface as well.
 .El
 .Pp
 Pass-through device backends:
@@ -630,7 +637,8 @@ are:
 Add
 .Ar romfile
 as option ROM to the PCI device.
-The ROM will be loaded by firmware and should be capable of initializing the device.
+The ROM will be loaded by firmware and should be capable of
+initializing the device.
 .It Li bootindex= Ns Ar index
 Add the device to the bootorder at
 .Ar index .
@@ -949,9 +957,10 @@ Each virtual CPU is exposed to the debugger as a thread.
 General purpose registers can be queried for each virtual CPU, but other
 registers such as floating-point and system registers cannot be queried.
 .Ss Memory
-Memory (including memory mapped I/O regions) can be read and written by the debugger.
-Memory operations use virtual addresses that are resolved to physical addresses
-via the current virtual CPU's active address translation.
+Memory (including memory mapped I/O regions) can be read and written
+by the debugger.
+Memory operations use virtual addresses that are resolved to physical
+addresses via the current virtual CPU's active address translation.
 .Ss Control
 The running guest can be interrupted by the debugger at any time
 .Pq for example, by pressing Ctrl-C in the debugger .
