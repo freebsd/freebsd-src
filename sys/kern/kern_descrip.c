@@ -5090,10 +5090,11 @@ DB_SHOW_COMMAND_FLAGS(files, db_show_files, DB_CMD_MEMSAFE)
 }
 #endif
 
-SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc, CTLFLAG_RW,
+SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc,
+    CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
     &maxfilesperproc, 0, "Maximum files allowed open per process");
 
-SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW,
+SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
     &maxfiles, 0, "Maximum number of files");
 
 SYSCTL_INT(_kern, OID_AUTO, openfiles, CTLFLAG_RD,
