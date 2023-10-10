@@ -378,6 +378,7 @@ f_package_index_get_page()
 #
 f_package_menu_select()
 {
+	local __funcname=f_package_menu_deselect
 	local category="$1" page="${2:-1}"
 	local prompt= # Calculated below
 	local menu_list # Calculated below
@@ -424,8 +425,15 @@ f_package_menu_select()
 			next_page="$next_page*"
 	fi
 
-	local index_page
-	f_package_index_get_page "$category" $page index_page
+	local index_page __index
+	if [ "$category" = "$msg_all" ]; then
+		f_eval_catch -k __index $__funcname pkg \
+			"pkg rquery -a '%s'"  "%n|%o||%c"
+	else
+		f_eval_catch -k __index $__funcname pkg \
+			"pkg rquery -g '%s' '%s/\*'"  "%n|%o||%c" "$category"
+	fi
+	f_package_index_get_page "$category" $page index_page __index
 
 	menu_list="
 		${add_prev:+'> $previous_page' '' ${SHOW_DESC:+''}}
