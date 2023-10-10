@@ -135,21 +135,34 @@ ping_46_body()
 	require_ipv4
 	require_ipv6
 	atf_check -s exit:1 \
-	    -e match:"-4 and -6 cannot be used simultaneously" \
+	    -e match:"illegal option -- 6" \
 	    ping -4 -6 localhost
 }
 
-ping6_46_head()
+ping_64_head()
 {
 	atf_set "descr" "-4 and -6 cannot be used simultaneously"
 }
-ping6_46_body()
+ping_64_body()
 {
 	require_ipv4
 	require_ipv6
 	atf_check -s exit:1 \
-	    -e match:"-4 and -6 cannot be used simultaneously" \
-	    ping6 -4 -6 localhost
+	    -e match:"illegal option -- 4" \
+	    ping -6 -4 localhost
+}
+
+ping6_4_head()
+{
+	atf_set "descr" "ping6 does not accept -4"
+}
+ping6_4_body()
+{
+	require_ipv4
+	require_ipv6
+	atf_check -s exit:1 \
+	    -e match:"illegal option -- 4" \
+	    ping6 -4 localhost
 }
 
 atf_test_case "inject_opts" "cleanup"
@@ -212,7 +225,8 @@ atf_init_test_cases()
 	atf_add_test_case ping_c1t6
 	atf_add_test_case ping6_c1t4
 	atf_add_test_case ping_46
-	atf_add_test_case ping6_46
+	atf_add_test_case ping_64
+	atf_add_test_case ping6_4
 	atf_add_test_case inject_opts
 	atf_add_test_case inject_pip
 	atf_add_test_case inject_reply
