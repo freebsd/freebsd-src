@@ -1133,11 +1133,6 @@ nvme_ctrlr_start_config_hook(void *arg)
 
 	TSENTER();
 
-	/*
-	 * Don't call pre/post reset here. We've not yet created the qpairs,
-	 * haven't setup the ISRs, so there's no need to 'drain' them or
-	 * 'exclude' them.
-	 */
 	if (nvme_ctrlr_hw_reset(ctrlr) != 0) {
 fail:
 		nvme_ctrlr_fail(ctrlr);
