@@ -1327,7 +1327,6 @@ PSARGS_ACTION=$( cat <&9 )
  * SUCH DAMAGE.
  *
  * $TITLE dtrace(1) script to log process(es) triggering $PROBE $
- * \$FreeBSD$
  */
 
 $( echo "$DTRACE_PRAGMA" | awk '
