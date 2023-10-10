@@ -27,6 +27,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20231010:
+	dialog(1) has been replaced in base by bsddialog(1), while most of the
+	time replacing a dialog(1) call by a bsddialog(1) call works out of the
+	box, bsddialog(1) is not considered as a drop-in replacement dialog(1).
+
+	If you do depend on dialog(1) functionnality, please install cdialog
+	from ports:
+
+	pkg install cdialog
+
 20230927:
 	The EARLY_AP_STARTUP kernel option is mandatory on x86.  The option
 	has been added to DEFAULTS, so it should automatically be included in
