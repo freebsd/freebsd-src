@@ -1027,6 +1027,18 @@ nvme_qpair_timeout(void *arg)
 
 	mtx_assert(&qpair->recovery, MA_OWNED);
 
+	/*
+	 * If the controller is failed, then stop polling. This ensures that any
+	 * failure processing that races with the qpair timeout will fail
+	 * safely.
+	 */
+	if (qpair->ctrlr->is_failed) {
+		nvme_printf(qpair->ctrlr,
+		    "Failed controller, stopping watchdog timeout.\n");
+		qpair->timer_armed = false;
+		return;
+	}
+
 	switch (qpair->recovery_state) {
 	case RECOVERY_NONE:
 		/*
@@ -1119,11 +1131,6 @@ nvme_qpair_timeout(void *arg)
 		if (!device_is_suspended(ctrlr->dev))
 			nvme_printf(ctrlr, "Waiting for reset to complete\n");
 		idle = false;		/* We want to keep polling */
-		break;
-	case RECOVERY_FAILED:
-		KASSERT(qpair->ctrlr->is_failed,
-		    ("Recovery state failed w/o failed controller\n"));
-		idle = true;			/* nothing to monitor */
 		break;
 	}
 
@@ -1244,11 +1251,21 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 	if (tr == NULL || qpair->recovery_state != RECOVERY_NONE) {
 		/*
 		 * No tracker is available, or the qpair is disabled due to an
-		 * in-progress controller-level reset or controller failure. If
-		 * we lose the race with recovery_state, then we may add an
-		 * extra request to the queue which will be resubmitted later.
-		 * We only set recovery_state to NONE with qpair->lock also
-		 * held.
+		 * in-progress controller-level reset. If we lose the race with
+		 * recovery_state, then we may add an extra request to the queue
+		 * which will be resubmitted later.  We only set recovery_state
+		 * to NONE with qpair->lock also held, so if we observe that the
+		 * state is not NONE, we know it can't transition to NONE below
+		 * when we've submitted the request to hardware.
+		 *
+		 * Also, as part of the failure process, we set recovery_state
+		 * to RECOVERY_WAITING, so we check here to see if we've failed
+		 * the controller. We set it before we call the qpair_fail
+		 * functions, which take out the lock lock before messing with
+		 * queued_req. Since we hold that lock, we know it's safe to
+		 * either fail directly, or queue the failure should is_failed
+		 * be stale. If we lose the race reading is_failed, then
+		 * nvme_qpair_fail will fail the queued request.
 		 */
 
 		if (qpair->ctrlr->is_failed) {
@@ -1314,7 +1331,7 @@ nvme_qpair_enable(struct nvme_qpair *qpair)
 		mtx_assert(&qpair->recovery, MA_OWNED);
 	if (mtx_initialized(&qpair->lock))
 		mtx_assert(&qpair->lock, MA_OWNED);
-	KASSERT(qpair->recovery_state != RECOVERY_FAILED,
+	KASSERT(!qpair->ctrlr->is_failed,
 	    ("Enabling a failed qpair\n"));
 
 	qpair->recovery_state = RECOVERY_NONE;
@@ -1470,10 +1487,6 @@ nvme_qpair_fail(struct nvme_qpair *qpair)
 
 	if (!mtx_initialized(&qpair->lock))
 		return;
-
-	mtx_lock(&qpair->recovery);
-	qpair->recovery_state = RECOVERY_FAILED;
-	mtx_unlock(&qpair->recovery);
 
 	mtx_lock(&qpair->lock);
 
