@@ -21,8 +21,6 @@
 " THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 " (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 " THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"
-" $FreeBSD$
 
 " This is a plugin for Vim (tested with Vim v7.1) to follow the FreeBSD style(9)
 " indentation.  It registers a macro (see below) for changing a buffer's

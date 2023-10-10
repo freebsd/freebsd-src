@@ -1,5 +1,3 @@
-# $FreeBSD$
-
 DEVATH12KDIR=	${SRCTOP}/sys/contrib/dev/athk/ath12k
 
 .PATH: ${DEVATH12KDIR}
