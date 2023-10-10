@@ -1691,7 +1691,12 @@ vnlru_proc(void)
 		target = target / 10 + 1;
 		done = vlrureclaim(reclaim_nc_src, trigger, target);
 		mtx_unlock(&vnode_list_mtx);
-		if (onumvnodes > desiredvnodes && numvnodes <= desiredvnodes)
+		/*
+		 * Total number of vnodes can transiently go slightly above the
+		 * limit (see vn_alloc_hard), no need to call uma_reclaim if
+		 * this happens.
+		 */
+		if (onumvnodes + 1000 > desiredvnodes && numvnodes <= desiredvnodes)
 			uma_reclaim(UMA_RECLAIM_DRAIN);
 		if (done == 0) {
 			if (force == 0 || force == 1) {
