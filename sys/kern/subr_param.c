@@ -170,9 +170,13 @@ init_param1(void)
 {
 
 	TSENTER();
-#if !defined(__arm64__)
+
+	/*
+	 * arm64 and riscv currently hard-code the thread0 kstack size
+	 * to KSTACK_PAGES, ignoring the tunable.
+	 */
 	TUNABLE_INT_FETCH("kern.kstack_pages", &kstack_pages);
-#endif
+
 	hz = -1;
 	TUNABLE_INT_FETCH("kern.hz", &hz);
 	if (hz == -1)
