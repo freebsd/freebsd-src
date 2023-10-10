@@ -2,6 +2,8 @@
 BLACKLIST_DIR=${SRCTOP}/contrib/blacklist
 .PATH: ${BLACKLIST_DIR}/bin ${BLACKLIST_DIR}/port
 
+PACKAGE=	blocklist
+
 PROG=	blacklistctl
 SRCS=	blacklistctl.c conf.c state.c support.c internal.c \
 	sockaddr_snprintf.c pidfile.c strtoi.c popenve.c
