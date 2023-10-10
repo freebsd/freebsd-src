@@ -336,6 +336,18 @@ pf_handle_getcreators(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (error);
 }
 
+static int
+pf_handle_start(struct nlmsghdr *hdr __unused, struct nl_pstate *npt __unused)
+{
+	return (pf_start());
+}
+
+static int
+pf_handle_stop(struct nlmsghdr *hdr __unused, struct nl_pstate *npt __unused)
+{
+	return (pf_stop());
+}
+
 static const struct nlhdr_parser *all_parsers[] = { &state_parser };
 
 static int family_id;
@@ -352,6 +364,18 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_name = "GETCREATORS",
 		.cmd_cb = pf_handle_getcreators,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+	},
+	{
+		.cmd_num = PFNL_CMD_START,
+		.cmd_name = "START",
+		.cmd_cb = pf_handle_start,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+	},
+	{
+		.cmd_num = PFNL_CMD_STOP,
+		.cmd_name = "STOP",
+		.cmd_cb = pf_handle_stop,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
 	},
 };
 

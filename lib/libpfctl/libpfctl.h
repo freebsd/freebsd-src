@@ -384,6 +384,7 @@ struct pfctl_syncookies {
 	uint8_t				lowwater;	/* Percent */
 };
 
+int	pfctl_startstop(int start);
 struct pfctl_status* pfctl_get_status(int dev);
 uint64_t pfctl_status_counter(struct pfctl_status *status, int id);
 uint64_t pfctl_status_fcounter(struct pfctl_status *status, int id);

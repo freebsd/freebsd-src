@@ -177,6 +177,34 @@ pf_nvuint_64_array(const nvlist_t *nvl, const char *name, size_t maxelems,
 		*nelems = elems;
 }
 
+int
+pfctl_startstop(int start)
+{
+	struct snl_state ss = {};
+	struct snl_errmsg_data e = {};
+	struct snl_writer nw;
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	int family_id;
+
+	snl_init(&ss, NETLINK_GENERIC);
+	family_id = snl_get_genl_family(&ss, PFNL_FAMILY_NAME);
+
+	snl_init_writer(&ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id,
+	    start ? PFNL_CMD_START : PFNL_CMD_STOP);
+
+	snl_finalize_msg(&nw);
+	seq_id = hdr->nlmsg_seq;
+
+	snl_send_message(&ss, hdr);
+
+	while ((hdr = snl_read_reply_multi(&ss, seq_id, &e)) != NULL) {
+	}
+
+	return (e.error);
+}
+
 static void
 _pfctl_get_status_counters(const nvlist_t *nvl,
     struct pfctl_status_counters *counters)
