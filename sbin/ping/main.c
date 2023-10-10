@@ -39,6 +39,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "main.h"
@@ -62,112 +63,102 @@
 int
 main(int argc, char *argv[])
 {
-#if defined(INET) && defined(INET6)
+#if defined(INET)
 	struct in_addr a;
+#endif
+#if defined(INET6)
 	struct in6_addr a6;
 #endif
-#if defined(INET) || defined(INET6)
-	struct addrinfo hints;
+#if defined(INET) && defined(INET6)
+	struct addrinfo hints, *res, *ai;
+	const char *target;
+	int error;
 #endif
-	int ch;
-#ifdef INET
-	bool ipv4 = false;
-#endif
+	int opt;
+
 #ifdef INET6
-	bool ipv6 = false;
-
 	if (strcmp(getprogname(), "ping6") == 0)
-		ipv6 = true;
+		return ping6(argc, argv);
 #endif
 
-	while ((ch = getopt(argc, argv, ":" OPTSTR)) != -1) {
-		switch(ch) {
+	while ((opt = getopt(argc, argv, ":" OPTSTR)) != -1) {
+		switch (opt) {
 #ifdef INET
 		case '4':
-			ipv4 = true;
-			break;
+			goto ping4;
 #endif
 #ifdef INET6
 		case '6':
-			ipv6 = true;
-			break;
+			goto ping6;
 #endif
-#if defined(INET) && defined(INET6)
 		case 'S':
 			/*
 			 * If -S is given with a numeric parameter,
 			 * force use of the corresponding version.
 			 */
+#ifdef INET
 			if (inet_pton(AF_INET, optarg, &a) == 1)
-				ipv4 = true;
-			else if (inet_pton(AF_INET6, optarg, &a6) == 1)
-				ipv6 = true;
-			break;
+				goto ping4;
 #endif
+#ifdef INET6
+			if (inet_pton(AF_INET6, optarg, &a6) == 1)
+				goto ping6;
+#endif
+			break;
 		default:
 			break;
 		}
 	}
 
+	/*
+	 * For IPv4, only one positional argument, the target, is allowed.
+	 * For IPv6, multiple positional argument are allowed; the last
+	 * one is the target, and preceding ones are intermediate hops.
+	 * This nuance is lost here, but the only case where it matters is
+	 * an error.
+	 */
 	if (optind >= argc)
 		usage();
 
-	optreset = 1;
-	optind = 1;
 #if defined(INET) && defined(INET6)
-	if (ipv4 && ipv6)
-		errx(1, "-4 and -6 cannot be used simultaneously");
-#endif
-
-#if defined(INET) && defined(INET6)
-	if (inet_pton(AF_INET, argv[argc - 1], &a) == 1) {
-		if (ipv6)
-			errx(1, "IPv6 requested but IPv4 target address "
-			    "provided");
+	target = argv[argc - 1];
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_socktype = SOCK_RAW;
+	if (feature_present("inet") && !feature_present("inet6"))
 		hints.ai_family = AF_INET;
-	}
-	else if (inet_pton(AF_INET6, argv[argc - 1], &a6) == 1) {
-		if (ipv4)
-			errx(1, "IPv4 requested but IPv6 target address "
-			    "provided");
+	if (feature_present("inet6") && !feature_present("inet"))
 		hints.ai_family = AF_INET6;
-	} else if (ipv6)
-		hints.ai_family = AF_INET6;
-	else if (ipv4)
-		hints.ai_family = AF_INET;
-	else {
-		if (!feature_present("inet6"))
-			hints.ai_family = AF_INET;
-		else if (!feature_present("inet"))
-			hints.ai_family = AF_INET6;
-		else {
-			struct addrinfo *res;
-
-			memset(&hints, 0, sizeof(hints));
-			hints.ai_socktype = SOCK_RAW;
-			hints.ai_family = AF_UNSPEC;
-			getaddrinfo(argv[argc - 1], NULL, &hints, &res);
-			if (res != NULL) {
-				hints.ai_family = res[0].ai_family;
-				freeaddrinfo(res);
-			}
+	else
+		hints.ai_family = AF_UNSPEC;
+	error = getaddrinfo(target, NULL, &hints, &res);
+	if (res == NULL)
+		errx(EX_NOHOST, "cannot resolve %s: %s",
+		    target, gai_strerror(error));
+	for (ai = res; ai != NULL; ai = ai->ai_next) {
+		if (ai->ai_family == AF_INET) {
+			freeaddrinfo(res);
+			goto ping4;
+		}
+		if (ai->ai_family == AF_INET6) {
+			freeaddrinfo(res);
+			goto ping6;
 		}
 	}
-#elif defined(INET)
-	hints.ai_family = AF_INET;
-#elif defined(INET6)
-	hints.ai_family = AF_INET6;
+	freeaddrinfo(res);
+	errx(EX_NOHOST, "cannot resolve %s", target);
 #endif
-
 #ifdef INET
-	if (hints.ai_family == AF_INET)
-		return ping(argc, argv);
-#endif /* INET */
+ping4:
+	optreset = 1;
+	optind = 1;
+	return ping(argc, argv);
+#endif
 #ifdef INET6
-	if (hints.ai_family == AF_INET6)
-		return ping6(argc, argv);
-#endif /* INET6 */
-	errx(1, "Unknown host");
+ping6:
+	optreset = 1;
+	optind = 1;
+	return ping6(argc, argv);
+#endif
 }
 
 void

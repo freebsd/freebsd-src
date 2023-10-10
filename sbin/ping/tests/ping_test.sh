@@ -106,6 +106,7 @@ ping6_c1_s8_t1_body()
 	check_ping_statistics std.out $(atf_get_srcdir)/ping_6_c1_s8_t1.out
 }
 
+atf_test_case ping_c1t6
 ping_c1t6_head()
 {
 	atf_set "descr" "-t6 is not interpreted as -t -6 by ping"
@@ -116,6 +117,7 @@ ping_c1t6_body()
 	atf_check -s exit:0 -o ignore -e empty ping -c1 -t6 127.0.0.1
 }
 
+atf_test_case ping_c1t4
 ping6_c1t4_head()
 {
 	atf_set "descr" "-t4 is not interpreted as -t -4 by ping6"
@@ -126,6 +128,7 @@ ping6_c1t4_body()
 	atf_check -s exit:0 -o ignore -e empty ping6 -c1 -t4 ::1
 }
 
+atf_test_case ping_46
 ping_46_head()
 {
 	atf_set "descr" "-4 and -6 cannot be used simultaneously"
@@ -135,21 +138,69 @@ ping_46_body()
 	require_ipv4
 	require_ipv6
 	atf_check -s exit:1 \
-	    -e match:"-4 and -6 cannot be used simultaneously" \
+	    -e match:"illegal option -- 6" \
 	    ping -4 -6 localhost
 }
 
-ping6_46_head()
+atf_test_case ping_64
+ping_64_head()
 {
 	atf_set "descr" "-4 and -6 cannot be used simultaneously"
 }
-ping6_46_body()
+ping_64_body()
 {
 	require_ipv4
 	require_ipv6
 	atf_check -s exit:1 \
-	    -e match:"-4 and -6 cannot be used simultaneously" \
-	    ping6 -4 -6 localhost
+	    -e match:"illegal option -- 4" \
+	    ping -6 -4 localhost
+}
+
+atf_test_case ping6_4
+ping6_4_head()
+{
+	atf_set "descr" "ping6 does not accept -4"
+}
+ping6_4_body()
+{
+	require_ipv4
+	require_ipv6
+	atf_check -s exit:1 \
+	    -e match:"illegal option -- 4" \
+	    ping6 -4 localhost
+}
+
+atf_test_case ping_nohost
+ping_nohost_head()
+{
+	atf_set "descr" "ping a nonexistent host"
+}
+ping_nohost_body()
+{
+	atf_check -s exit:68 -e match:"cannot resolve" \
+	    ping nonexistent.in-addr.arpa.
+}
+
+atf_test_case ping4_nohost
+ping4_nohost_head()
+{
+	atf_set "descr" "ping -4 a nonexistent host"
+}
+ping4_nohost_body()
+{
+	atf_check -s exit:68 -e match:"cannot resolve" \
+	    ping -4 nonexistent.in-addr.arpa.
+}
+
+atf_test_case ping6_nohost
+ping6_nohost_head()
+{
+	atf_set "descr" "ping -6 a nonexistent host"
+}
+ping6_nohost_body()
+{
+	atf_check -s exit:68 -e match:"cannot resolve" \
+	    ping -6 nonexistent.in-addr.arpa.
 }
 
 atf_test_case "inject_opts" "cleanup"
@@ -212,7 +263,11 @@ atf_init_test_cases()
 	atf_add_test_case ping_c1t6
 	atf_add_test_case ping6_c1t4
 	atf_add_test_case ping_46
-	atf_add_test_case ping6_46
+	atf_add_test_case ping_64
+	atf_add_test_case ping6_4
+	atf_add_test_case ping_nohost
+	atf_add_test_case ping4_nohost
+	atf_add_test_case ping6_nohost
 	atf_add_test_case inject_opts
 	atf_add_test_case inject_pip
 	atf_add_test_case inject_reply
