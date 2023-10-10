@@ -727,6 +727,10 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	mtx_init(&qpair->lock, "nvme qpair lock", NULL, MTX_DEF);
 	mtx_init(&qpair->recovery, "nvme qpair recovery", NULL, MTX_DEF);
 
+	callout_init_mtx(&qpair->timer, &qpair->recovery, 0);
+	qpair->timer_armed = false;
+	qpair->recovery_state = RECOVERY_WAITING;
+
 	/* Note: NVMe PRP format is restricted to 4-byte alignment. */
 	err = bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
 	    4, ctrlr->page_size, BUS_SPACE_MAXADDR,
@@ -791,10 +795,6 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	qpair->cmd_bus_addr = queuemem_phys;
 	qpair->cpl_bus_addr = queuemem_phys + cmdsz;
 	prpmem_phys = queuemem_phys + cmdsz + cplsz;
-
-	callout_init_mtx(&qpair->timer, &qpair->recovery, 0);
-	qpair->timer_armed = false;
-	qpair->recovery_state = RECOVERY_WAITING;
 
 	/*
 	 * Calcuate the stride of the doorbell register. Many emulators set this
@@ -891,6 +891,9 @@ nvme_qpair_destroy(struct nvme_qpair *qpair)
 {
 	struct nvme_tracker	*tr;
 
+	mtx_lock(&qpair->recovery);
+	qpair->timer_armed = false;
+	mtx_unlock(&qpair->recovery);
 	callout_drain(&qpair->timer);
 
 	if (qpair->tag) {
@@ -1036,6 +1039,19 @@ nvme_qpair_timeout(void *arg)
 		nvme_printf(qpair->ctrlr,
 		    "Failed controller, stopping watchdog timeout.\n");
 		qpair->timer_armed = false;
+		return;
+	}
+
+	/*
+	 * Shutdown condition: We set qpair->timer_armed to false in
+	 * nvme_qpair_destroy before calling callout_drain. When we call that,
+	 * this routine might get called one last time. Exit w/o setting a
+	 * timeout. None of the watchdog stuff needs to be done since we're
+	 * destroying the qpair.
+	 */
+	if (!qpair->timer_armed) {
+		nvme_printf(qpair->ctrlr,
+		    "Timeout fired during nvme_qpair_destroy\n");
 		return;
 	}
 
