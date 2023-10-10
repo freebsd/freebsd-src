@@ -11,7 +11,7 @@ newline.  Entries should be separated by a newline.
 Changes to this file should not be MFCed.
 
 ff01d71e48d4:
-	dialog(1) has been replace by bsddialog(1)
+	dialog(1) has been replaced by bsddialog(1)
 
 41582f28ddf7:
 	FreeBSD 15.0 will not include support for 32-bit platforms.
