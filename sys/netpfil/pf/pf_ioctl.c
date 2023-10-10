@@ -2337,6 +2337,49 @@ relock_DIOCKILLSTATES:
 	return (killed);
 }
 
+int
+pf_start(void)
+{
+	int error = 0;
+
+	sx_xlock(&V_pf_ioctl_lock);
+	if (V_pf_status.running)
+		error = EEXIST;
+	else {
+		hook_pf();
+		if (! TAILQ_EMPTY(V_pf_keth->active.rules))
+			hook_pf_eth();
+		V_pf_status.running = 1;
+		V_pf_status.since = time_second;
+		new_unrhdr64(&V_pf_stateid, time_second);
+
+		DPFPRINTF(PF_DEBUG_MISC, ("pf: started\n"));
+	}
+	sx_xunlock(&V_pf_ioctl_lock);
+
+	return (error);
+}
+
+int
+pf_stop(void)
+{
+	int error = 0;
+
+	sx_xlock(&V_pf_ioctl_lock);
+	if (!V_pf_status.running)
+		error = ENOENT;
+	else {
+		V_pf_status.running = 0;
+		dehook_pf();
+		dehook_pf_eth();
+		V_pf_status.since = time_second;
+		DPFPRINTF(PF_DEBUG_MISC, ("pf: stopped\n"));
+	}
+	sx_xunlock(&V_pf_ioctl_lock);
+
+	return (error);
+}
+
 static int
 pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
@@ -2479,34 +2522,15 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 	CURVNET_SET(TD_TO_VNET(td));
 
 	switch (cmd) {
+#ifdef COMPAT_FREEBSD14
 	case DIOCSTART:
-		sx_xlock(&V_pf_ioctl_lock);
-		if (V_pf_status.running)
-			error = EEXIST;
-		else {
-			hook_pf();
-			if (! TAILQ_EMPTY(V_pf_keth->active.rules))
-				hook_pf_eth();
-			V_pf_status.running = 1;
-			V_pf_status.since = time_second;
-			new_unrhdr64(&V_pf_stateid, time_second);
-
-			DPFPRINTF(PF_DEBUG_MISC, ("pf: started\n"));
-		}
+		error = pf_start();
 		break;
 
 	case DIOCSTOP:
-		sx_xlock(&V_pf_ioctl_lock);
-		if (!V_pf_status.running)
-			error = ENOENT;
-		else {
-			V_pf_status.running = 0;
-			dehook_pf();
-			dehook_pf_eth();
-			V_pf_status.since = time_second;
-			DPFPRINTF(PF_DEBUG_MISC, ("pf: stopped\n"));
-		}
+		error = pf_stop();
 		break;
+#endif
 
 	case DIOCGETETHRULES: {
 		struct pfioc_nv		*nv = (struct pfioc_nv *)addr;
@@ -5416,8 +5440,6 @@ DIOCCHANGEADDR_error:
 		break;
 	}
 fail:
-	if (sx_xlocked(&V_pf_ioctl_lock))
-		sx_xunlock(&V_pf_ioctl_lock);
 	CURVNET_RESTORE();
 
 #undef ERROUT_IOCTL

@@ -310,10 +310,12 @@ pfctl_proto2name(int proto)
 int
 pfctl_enable(int dev, int opts)
 {
-	if (ioctl(dev, DIOCSTART)) {
-		if (errno == EEXIST)
+	int ret;
+
+	if ((ret = pfctl_startstop(1)) != 0) {
+		if (ret == EEXIST)
 			errx(1, "pf already enabled");
-		else if (errno == ESRCH)
+		else if (ret == ESRCH)
 			errx(1, "pfil registeration failed");
 		else
 			err(1, "DIOCSTART");
@@ -331,8 +333,10 @@ pfctl_enable(int dev, int opts)
 int
 pfctl_disable(int dev, int opts)
 {
-	if (ioctl(dev, DIOCSTOP)) {
-		if (errno == ENOENT)
+	int ret;
+
+	if ((ret = pfctl_startstop(0)) != 0) {
+		if (ret == ENOENT)
 			errx(1, "pf not enabled");
 		else
 			err(1, "DIOCSTOP");
