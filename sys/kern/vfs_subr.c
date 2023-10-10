@@ -1584,6 +1584,9 @@ static void
 vnlru_kick_cond(void)
 {
 
+	if (vnlru_read_freevnodes() > wantfreevnodes)
+		return;
+
 	if (vnlruproc_sig)
 		return;
 	mtx_lock(&vnode_list_mtx);
@@ -1849,9 +1852,8 @@ vn_alloc_hard(struct mount *mp)
 	}
 alloc:
 	mtx_assert(&vnode_list_mtx, MA_NOTOWNED);
-	rnumvnodes = atomic_fetchadd_long(&numvnodes, 1) + 1;
-	if (vnlru_under(rnumvnodes, vlowat))
-		vnlru_kick_cond();
+	atomic_add_long(&numvnodes, 1);
+	vnlru_kick_cond();
 	return (uma_zalloc_smr(vnode_zone, M_WAITOK));
 }
 
