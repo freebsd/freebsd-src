@@ -1145,18 +1145,6 @@ fail:
 		return;
 	}
 
-#ifdef NVME_2X_RESET
-	/*
-	 * Reset controller twice to ensure we do a transition from cc.en==1 to
-	 * cc.en==0.  This is because we don't really know what status the
-	 * controller was left in when boot handed off to OS.  Linux doesn't do
-	 * this, however, and when the controller is in state cc.en == 0, no
-	 * I/O can happen.
-	 */
-	if (nvme_ctrlr_hw_reset(ctrlr) != 0)
-		goto fail;
-#endif
-
 	nvme_qpair_reset(&ctrlr->adminq);
 	nvme_admin_qpair_enable(&ctrlr->adminq);
 
