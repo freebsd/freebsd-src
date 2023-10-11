@@ -1711,6 +1711,10 @@ vnlru_proc_light(void)
 	return (true);
 }
 
+static u_long uma_reclaim_calls;
+SYSCTL_ULONG(_vfs_vnode_vnlru, OID_AUTO, uma_reclaim_calls, CTLFLAG_RD | CTLFLAG_STATS,
+    &uma_reclaim_calls, 0, "Number of calls to uma_reclaim");
+
 static void
 vnlru_proc(void)
 {
@@ -1801,8 +1805,10 @@ vnlru_proc(void)
 		 * this happens.
 		 */
 		if (onumvnodes + VNLRU_COUNT_SLOP + 1000 > desiredvnodes &&
-		    numvnodes <= desiredvnodes)
+		    numvnodes <= desiredvnodes) {
+			uma_reclaim_calls++;
 			uma_reclaim(UMA_RECLAIM_DRAIN);
+		}
 		if (done == 0) {
 			if (force == 0 || force == 1) {
 				force = 2;
