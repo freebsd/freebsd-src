@@ -396,7 +396,7 @@ dialog_menu_main()
 		--default-item \"\$defaultitem\" \
 		--menu \"\$prompt\"              \
 		$height $width $rows             \
-		$menu_list                       \
+		${USE_DIALOG:+--} $menu_list     \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
