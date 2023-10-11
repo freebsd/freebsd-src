@@ -1656,8 +1656,12 @@ vnlru_proc_light_pick(void)
 	/*
 	 * vnode limit might have changed and now we may be at a significant
 	 * excess. Bail if we can't sort it out with free vnodes.
+	 *
+	 * Due to atomic updates the count can legitimately go above
+	 * the limit for a short period, don't bother doing anything in
+	 * that case.
 	 */
-	if (rnumvnodes > desiredvnodes) {
+	if (rnumvnodes > desiredvnodes + 10) {
 		if (rnumvnodes - rfreevnodes >= desiredvnodes ||
 		    rfreevnodes <= wantfreevnodes) {
 			return (-1);
@@ -1734,7 +1738,7 @@ vnlru_proc(void)
 		 * adjusted using its sysctl, or emergency growth), first
 		 * try to reduce it by discarding from the free list.
 		 */
-		if (rnumvnodes > desiredvnodes) {
+		if (rnumvnodes > desiredvnodes + 10) {
 			vnlru_free_locked(rnumvnodes - desiredvnodes);
 			mtx_lock(&vnode_list_mtx);
 			rnumvnodes = atomic_load_long(&numvnodes);
