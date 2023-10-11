@@ -160,7 +160,7 @@ if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
 
 	if [ -n "$DISTMENU" ]; then
 		exec 5>&1
-		EXTRA_DISTS=$( eval dialog \
+		EXTRA_DISTS=$( eval bsddialog \
 		    --backtitle \"$OSNAME Installer\" \
 		    --title \"Distribution Select\" --nocancel --separate-output \
 		    --checklist \"Choose optional system components to install:\" \
@@ -180,7 +180,7 @@ for dist in $DISTRIBUTIONS; do
 done
 
 if [ -n "$FETCH_DISTRIBUTIONS" -a -n "$BSDINSTALL_CONFIGCURRENT" ]; then
-	dialog --backtitle "$OSNAME Installer" --title "Network Installation" --msgbox "Some installation files were not found on the boot volume. The next few screens will allow you to configure networking so that they can be downloaded from the Internet." 0 0
+	bsddialog --backtitle "$OSNAME Installer" --title "Network Installation" --msgbox "Some installation files were not found on the boot volume. The next few screens will allow you to configure networking so that they can be downloaded from the Internet." 0 0
 	bsdinstall netconfig || error
 	NETCONFIG_DONE=yes
 fi
@@ -302,7 +302,7 @@ case $CURARCH in
 esac
 
 exec 5>&1
-PARTMODE=`echo $PMODES | xargs dialog --backtitle "$OSNAME Installer" \
+PARTMODE=`echo $PMODES | xargs -o bsddialog --backtitle "$OSNAME Installer" \
 	--title "Partitioning" \
 	--item-help \
 	--menu "How would you like to partition your disk?" \
@@ -365,14 +365,14 @@ fi
 [ -z "$BSDINSTALL_SKIP_SERVICES" ] && bsdinstall services
 [ -z "$BSDINSTALL_SKIP_HARDENING" ] && bsdinstall hardening
 
-[ -z "$BSDINSTALL_SKIP_USERS" ] && dialog --backtitle "$OSNAME Installer" \
+[ -z "$BSDINSTALL_SKIP_USERS" ] && bsddialog --backtitle "$OSNAME Installer" \
 	--title "Add User Accounts" --yesno \
     "Would you like to add users to the installed system now?" 0 0 && \
     bsdinstall adduser
 
 finalconfig() {
 	exec 5>&1
-	REVISIT=$(dialog --backtitle "$OSNAME Installer" \
+	REVISIT=$(bsddialog --backtitle "$OSNAME Installer" \
 	    --title "Final Configuration" --no-cancel --menu \
 	    "Setup of your $OSNAME system is nearly complete. You can now modify your configuration choices. After this screen, you will have an opportunity to make more complex changes using a shell." 0 0 0 \
 		"Exit" "Apply configuration and exit installer" \
@@ -435,8 +435,8 @@ fi
 [ -f /usr/libexec/bsdinstall/local.post-configure ] && f_dprintf "Running local.post-configure" && sh /usr/libexec/bsdinstall/local.post-configure "$BSDINSTALL_CHROOT"
 
 if [ -z "$BSDINSTALL_SKIP_MANUAL" ]; then
-	dialog --backtitle "$OSNAME Installer" --title "Manual Configuration" \
-		--default-button no --yesno \
+	bsddialog --backtitle "$OSNAME Installer" --title "Manual Configuration" \
+		--default-no --yesno \
 		"The installation is now finished. Before exiting the installer, would you like to open a shell in the new system to make any final manual modifications?" 0 0
 	if [ $? -eq 0 ]; then
 		clear
