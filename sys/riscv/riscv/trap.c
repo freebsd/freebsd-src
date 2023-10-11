@@ -299,7 +299,7 @@ fatal:
 			return;
 	}
 #endif
-	panic("Fatal page fault at %#lx: %#016lx", frame->tf_sepc, stval);
+	panic("Fatal page fault at %#lx: %#lx", frame->tf_sepc, stval);
 }
 
 void
@@ -326,7 +326,7 @@ do_trap_supervisor(struct trapframe *frame)
 		return;
 #endif
 
-	CTR4(KTR_TRAP, "%s: exception=%lu, sepc=%lx, stval=%lx", __func__,
+	CTR4(KTR_TRAP, "%s: exception=%lu, sepc=%#lx, stval=%#lx", __func__,
 	    exception, frame->tf_sepc, frame->tf_stval);
 
 	switch (exception) {
@@ -334,13 +334,14 @@ do_trap_supervisor(struct trapframe *frame)
 	case SCAUSE_STORE_ACCESS_FAULT:
 	case SCAUSE_INST_ACCESS_FAULT:
 		dump_regs(frame);
-		panic("Memory access exception at 0x%016lx\n", frame->tf_sepc);
+		panic("Memory access exception at %#lx: %#lx",
+		    frame->tf_sepc, frame->tf_stval);
 		break;
 	case SCAUSE_LOAD_MISALIGNED:
 	case SCAUSE_STORE_MISALIGNED:
 	case SCAUSE_INST_MISALIGNED:
 		dump_regs(frame);
-		panic("Misaligned address exception at %#016lx: %#016lx\n",
+		panic("Misaligned address exception at %#lx: %#lx",
 		    frame->tf_sepc, frame->tf_stval);
 		break;
 	case SCAUSE_STORE_PAGE_FAULT:
@@ -358,16 +359,18 @@ do_trap_supervisor(struct trapframe *frame)
 		kdb_trap(exception, 0, frame);
 #else
 		dump_regs(frame);
-		panic("No debugger in kernel.\n");
+		panic("No debugger in kernel.");
 #endif
 		break;
 	case SCAUSE_ILLEGAL_INSTRUCTION:
 		dump_regs(frame);
-		panic("Illegal instruction at 0x%016lx\n", frame->tf_sepc);
+		panic("Illegal instruction 0x%0*lx at %#lx",
+		    (frame->tf_stval & 0x3) != 0x3 ? 4 : 8,
+		    frame->tf_stval, frame->tf_sepc);
 		break;
 	default:
 		dump_regs(frame);
-		panic("Unknown kernel exception %lx trap value %lx\n",
+		panic("Unknown kernel exception %#lx trap value %#lx",
 		    exception, frame->tf_stval);
 	}
 }
@@ -400,7 +403,7 @@ do_trap_user(struct trapframe *frame)
 	}
 	intr_enable();
 
-	CTR4(KTR_TRAP, "%s: exception=%lu, sepc=%lx, stval=%lx", __func__,
+	CTR4(KTR_TRAP, "%s: exception=%lu, sepc=%#lx, stval=%#lx", __func__,
 	    exception, frame->tf_sepc, frame->tf_stval);
 
 	switch (exception) {
@@ -450,7 +453,7 @@ do_trap_user(struct trapframe *frame)
 		break;
 	default:
 		dump_regs(frame);
-		panic("Unknown userland exception %lx, trap value %lx\n",
+		panic("Unknown userland exception %#lx, trap value %#lx",
 		    exception, frame->tf_stval);
 	}
 }
