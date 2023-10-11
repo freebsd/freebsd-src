@@ -776,6 +776,7 @@ vendor ARDUINO		0x2341	Arduino SA
 vendor TPLINK		0x2357	TP-Link
 vendor WESTMOUNTAIN	0x2405	West Mountain Radio
 vendor TRIPPLITE	0x2478	Tripp-Lite
+vendor NORELSYS	0x2537	NOREL Systems Ltd.
 vendor TENDA2		0x2604	Tenda
 vendor HIROSE		0x2631	Hirose Electric
 vendor NHJ		0x2770	NHJ
@@ -3500,6 +3501,9 @@ product NOVATECH RTL8188CU	0x9071	RTL8188CU
 /* Nokia products */
 product NOKIA N958GB		0x0070	Nokia N95 8GBc
 product NOKIA2 CA42		0x1234	CA-42 cable
+
+/* NOREL Systems Ltd. products */
+product NORELSYS NS1081	0x1081	NS1081 USB 3.0 Flash Card Reader
 
 /* Novatel Wireless products */
 product NOVATEL V640		0x1100	Merlin V620
