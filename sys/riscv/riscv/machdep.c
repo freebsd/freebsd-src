@@ -599,6 +599,10 @@ initriscv(struct riscv_bootparams *rvbp)
 
 	early_boot = 0;
 
+	if (bootverbose && kstack_pages != KSTACK_PAGES)
+		printf("kern.kstack_pages = %d ignored for thread0\n",
+		    kstack_pages);
+
 	TSEXIT();
 }
 
