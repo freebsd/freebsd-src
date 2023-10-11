@@ -131,7 +131,7 @@ reader(void) {
 	if ((buf = malloc(MX)) == NULL)
 			err(1, "malloc(%d), %s:%d", MX, __FILE__, __LINE__);
 	setproctitle("reader");
-	for (i = 4096; i < MX; i += 1024) {
+	for (i = sysconf(_SC_PAGESIZE); i < MX; i += 1024) {
 		alarm(TIMEOUT);
 		if ((n = recvfrom(msgsock, buf, i, MSG_WAITALL, NULL,
 		    NULL)) < 0) {
