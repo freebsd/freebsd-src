@@ -123,9 +123,6 @@ xsaveopt(char *addr, uint64_t mask)
 	    "memory");
 }
 
-#define	start_emulating()	load_cr0(rcr0() | CR0_TS)
-#define	stop_emulating()	clts()
-
 #define GET_FPU_CW(thread) \
 	(cpu_fxsr ? \
 		(thread)->td_pcb->pcb_save->sv_xmm.sv_env.en_cw : \
@@ -224,7 +221,7 @@ npx_probe(void)
 	/*
 	 * Don't trap while we're probing.
 	 */
-	stop_emulating();
+	fpu_enable();
 
 	/*
 	 * Finish resetting the coprocessor, if any.  If there is an error
@@ -413,7 +410,7 @@ npxinit(bool bsp)
 	 * It is too early for critical_enter() to work on AP.
 	 */
 	saveintr = intr_disable();
-	stop_emulating();
+	fpu_enable();
 	if (cpu_fxsr)
 		fninit();
 	else
@@ -424,7 +421,7 @@ npxinit(bool bsp)
 		mxcsr = __INITIAL_MXCSR__;
 		ldmxcsr(mxcsr);
 	}
-	start_emulating();
+	fpu_disable();
 	intr_restore(saveintr);
 }
 
@@ -458,7 +455,7 @@ npxinitstate(void *arg __unused)
 	}
 
 	saveintr = intr_disable();
-	stop_emulating();
+	fpu_enable();
 
 	if (cpu_fxsr)
 		fpusave_fxsave(npx_initialstate);
@@ -515,7 +512,7 @@ npxinitstate(void *arg __unused)
 		}
 	}
 
-	start_emulating();
+	fpu_disable();
 	intr_restore(saveintr);
 }
 SYSINIT(npxinitstate, SI_SUB_CPU, SI_ORDER_ANY, npxinitstate, NULL);
@@ -529,9 +526,9 @@ npxexit(struct thread *td)
 
 	critical_enter();
 	if (curthread == PCPU_GET(fpcurthread)) {
-		stop_emulating();
+		fpu_enable();
 		fpusave(curpcb->pcb_save);
-		start_emulating();
+		fpu_disable();
 		PCPU_SET(fpcurthread, NULL);
 	}
 	critical_exit();
@@ -810,7 +807,7 @@ restore_npx_curthread(struct thread *td, struct pcb *pcb)
 	 */
 	PCPU_SET(fpcurthread, td);
 
-	stop_emulating();
+	fpu_enable();
 	if (cpu_fxsr)
 		fpu_clean_state();
 
@@ -863,7 +860,7 @@ npxdna(void)
 		 * regardless of the eager/lazy FPU context switch
 		 * mode.
 		 */
-		stop_emulating();
+		fpu_enable();
 	} else {
 		if (__predict_false(PCPU_GET(fpcurthread) != NULL)) {
 			printf(
@@ -891,7 +888,7 @@ void
 npxsave(union savefpu *addr)
 {
 
-	stop_emulating();
+	fpu_enable();
 	fpusave(addr);
 }
 
@@ -902,7 +899,7 @@ npxswitch(struct thread *td, struct pcb *pcb)
 
 	if (lazy_fpu_switch || (td->td_pflags & TDP_KTHREAD) != 0 ||
 	    !PCB_USER_FPU(pcb)) {
-		start_emulating();
+		fpu_disable();
 		PCPU_SET(fpcurthread, NULL);
 	} else if (PCPU_GET(fpcurthread) != td) {
 		restore_npx_curthread(td, pcb);
@@ -925,7 +922,7 @@ npxsuspend(union savefpu *addr)
 		return;
 	}
 	cr0 = rcr0();
-	stop_emulating();
+	fpu_enable();
 	fpusave(addr);
 	load_cr0(cr0);
 }
@@ -940,7 +937,7 @@ npxresume(union savefpu *addr)
 
 	cr0 = rcr0();
 	npxinit(false);
-	stop_emulating();
+	fpu_enable();
 	fpurstor(addr);
 	load_cr0(cr0);
 }
@@ -962,7 +959,7 @@ npxdrop(void)
 	CRITICAL_ASSERT(td);
 	PCPU_SET(fpcurthread, NULL);
 	td->td_pcb->pcb_flags &= ~PCB_NPXINITDONE;
-	start_emulating();
+	fpu_disable();
 }
 
 /*
@@ -1397,7 +1394,7 @@ fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 
 	if ((flags & FPU_KERN_NOCTX) != 0) {
 		critical_enter();
-		stop_emulating();
+		fpu_enable();
 		if (curthread == PCPU_GET(fpcurthread)) {
 			fpusave(curpcb->pcb_save);
 			PCPU_SET(fpcurthread, NULL);
@@ -1448,7 +1445,7 @@ fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 		CRITICAL_ASSERT(td);
 
 		pcb->pcb_flags &= ~(PCB_NPXNOSAVE | PCB_NPXINITDONE);
-		start_emulating();
+		fpu_disable();
 	} else {
 		KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) != 0,
 		    ("leaving not inuse ctx"));
