@@ -49,12 +49,12 @@ associated with the kernel virtual address
 .Fn pmap_kextract
 generally does not fail.
 However, if supplied with an illegitimate value for
-.Fa va
-it will return 0 on arm64, and
-.Xr panic 9
-on arm and riscv.
+.Fa va ,
+the function may return zero, an invalid non-zero value, or call
+.Xr panic 9 .
 .Sh SEE ALSO
-.Xr pmap 9
+.Xr pmap 9 ,
+.Xr pmap_extract 9
 .Sh AUTHORS
 .An -nosplit
 This manual page was written by
