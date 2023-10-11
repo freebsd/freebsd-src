@@ -1296,9 +1296,11 @@ next_iter:
 	return (done);
 }
 
-static int max_vnlru_free = 10000; /* limit on vnode free requests per call */
-SYSCTL_INT(_debug, OID_AUTO, max_vnlru_free, CTLFLAG_RW, &max_vnlru_free,
-    0,
+static int max_free_per_call = 10000;
+SYSCTL_INT(_debug, OID_AUTO, max_vnlru_free, CTLFLAG_RW, &max_free_per_call, 0,
+    "limit on vnode free requests per call to the vnlru_free routine (legacy)");
+SYSCTL_INT(_vfs_vnode_vnlru, OID_AUTO, max_free_per_call, CTLFLAG_RW,
+    &max_free_per_call, 0,
     "limit on vnode free requests per call to the vnlru_free routine");
 
 /*
@@ -1313,8 +1315,8 @@ vnlru_free_impl(int count, struct vfsops *mnt_op, struct vnode *mvp)
 	bool retried;
 
 	mtx_assert(&vnode_list_mtx, MA_OWNED);
-	if (count > max_vnlru_free)
-		count = max_vnlru_free;
+	if (count > max_free_per_call)
+		count = max_free_per_call;
 	if (count == 0) {
 		mtx_unlock(&vnode_list_mtx);
 		return (0);
