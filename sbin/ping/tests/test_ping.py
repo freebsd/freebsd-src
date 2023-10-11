@@ -723,6 +723,7 @@ PING(56=40+8+8 bytes) 2001:db8::1 --> 2001:db8::2
     ]
 
     @pytest.mark.parametrize("expected", testdata)
+    @pytest.mark.require_user("root")
     def test_ping(self, expected):
         """Test ping"""
         ping = subprocess.run(
@@ -751,6 +752,7 @@ PING(56=40+8+8 bytes) 2001:db8::1 --> 2001:db8::2
     ]
 
     @pytest.mark.parametrize("expected", ping46_testdata)
+    @pytest.mark.require_user("root")
     def test_ping_46(self, expected):
         """Test ping -4/ping -6"""
         for version in [4, 6]:
