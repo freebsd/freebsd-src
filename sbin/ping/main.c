@@ -41,6 +41,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "main.h"
@@ -94,6 +95,7 @@ main(int argc, char *argv[])
 #endif
 #if defined(INET) && defined(INET6)
 	struct addrinfo hints, *res, *ai;
+	const char *target;
 	int error;
 #endif
 	int opt;
@@ -143,6 +145,7 @@ main(int argc, char *argv[])
 		usage();
 
 #if defined(INET) && defined(INET6)
+	target = argv[argc - 1];
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_socktype = SOCK_RAW;
 	if (feature_present("inet") && !feature_present("inet6"))
@@ -151,9 +154,10 @@ main(int argc, char *argv[])
 		hints.ai_family = AF_INET6;
 	else
 		hints.ai_family = AF_UNSPEC;
-	error = getaddrinfo(argv[argc - 1], NULL, &hints, &res);
+	error = getaddrinfo(target, NULL, &hints, &res);
 	if (res == NULL)
-		errx(1, "%s", gai_strerror(error));
+		errx(EX_NOHOST, "cannot resolve %s: %s",
+		    target, gai_strerror(error));
 	for (ai = res; ai != NULL; ai = ai->ai_next) {
 		if (ai->ai_family == AF_INET) {
 			freeaddrinfo(res);
@@ -165,7 +169,7 @@ main(int argc, char *argv[])
 		}
 	}
 	freeaddrinfo(res);
-	errx(1, "Unknown host");
+	errx(EX_NOHOST, "cannot resolve %s", target);
 #endif
 #ifdef INET
 ping4:
