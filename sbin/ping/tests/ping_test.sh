@@ -165,6 +165,39 @@ ping6_4_body()
 	    ping6 -4 localhost
 }
 
+atf_test_case ping_nohost
+ping_nohost_head()
+{
+	atf_set "descr" "ping a nonexistent host"
+}
+ping_nohost_body()
+{
+	atf_check -s exit:68 -e match:"cannot resolve" \
+	    ping nonexistent.in-addr.arpa.
+}
+
+atf_test_case ping4_nohost
+ping4_nohost_head()
+{
+	atf_set "descr" "ping -4 a nonexistent host"
+}
+ping4_nohost_body()
+{
+	atf_check -s exit:68 -e match:"cannot resolve" \
+	    ping -4 nonexistent.in-addr.arpa.
+}
+
+atf_test_case ping6_nohost
+ping6_nohost_head()
+{
+	atf_set "descr" "ping -6 a nonexistent host"
+}
+ping6_nohost_body()
+{
+	atf_check -s exit:68 -e match:"cannot resolve" \
+	    ping -6 nonexistent.in-addr.arpa.
+}
+
 atf_test_case "inject_opts" "cleanup"
 inject_opts_head()
 {
@@ -227,6 +260,9 @@ atf_init_test_cases()
 	atf_add_test_case ping_46
 	atf_add_test_case ping_64
 	atf_add_test_case ping6_4
+	atf_add_test_case ping_nohost
+	atf_add_test_case ping4_nohost
+	atf_add_test_case ping6_nohost
 	atf_add_test_case inject_opts
 	atf_add_test_case inject_pip
 	atf_add_test_case inject_reply
