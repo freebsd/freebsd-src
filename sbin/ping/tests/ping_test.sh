@@ -106,6 +106,7 @@ ping6_c1_s8_t1_body()
 	check_ping_statistics std.out $(atf_get_srcdir)/ping_6_c1_s8_t1.out
 }
 
+atf_test_case ping_c1t6
 ping_c1t6_head()
 {
 	atf_set "descr" "-t6 is not interpreted as -t -6 by ping"
@@ -116,6 +117,7 @@ ping_c1t6_body()
 	atf_check -s exit:0 -o ignore -e empty ping -c1 -t6 127.0.0.1
 }
 
+atf_test_case ping_c1t4
 ping6_c1t4_head()
 {
 	atf_set "descr" "-t4 is not interpreted as -t -4 by ping6"
@@ -126,6 +128,7 @@ ping6_c1t4_body()
 	atf_check -s exit:0 -o ignore -e empty ping6 -c1 -t4 ::1
 }
 
+atf_test_case ping_46
 ping_46_head()
 {
 	atf_set "descr" "-4 and -6 cannot be used simultaneously"
@@ -139,6 +142,7 @@ ping_46_body()
 	    ping -4 -6 localhost
 }
 
+atf_test_case ping_64
 ping_64_head()
 {
 	atf_set "descr" "-4 and -6 cannot be used simultaneously"
@@ -152,6 +156,7 @@ ping_64_body()
 	    ping -6 -4 localhost
 }
 
+atf_test_case ping6_4
 ping6_4_head()
 {
 	atf_set "descr" "ping6 does not accept -4"
