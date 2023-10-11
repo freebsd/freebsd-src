@@ -44,7 +44,7 @@ DATE=$(bsddialog --backtitle "$OSNAME Installer" \
 	--cancel-label 'Skip' \
 	--default-no \
 	--date-format '%Y%m%d%H%M.%S' \
-	--datebox '' 0 40 \
+	--calendar '' 0 40 \
 2>&1 1>&5) && date $DATE
 exec 5>&-
 
