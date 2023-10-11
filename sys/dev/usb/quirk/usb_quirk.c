@@ -630,6 +630,9 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 
 	/* Holtek USB gaming keyboard */
 	USB_QUIRK(HOLTEK, F85, 0x0000, 0xffff, UQ_KBD_BOOTPROTO),
+
+	/* This works much better with if_cdce than if_ure */
+	USB_QUIRK(LENOVO, TBT3LAN,  0x0000, 0xffff, UQ_CFG_INDEX_1),
 };
 #undef USB_QUIRK_VP
 #undef USB_QUIRK
