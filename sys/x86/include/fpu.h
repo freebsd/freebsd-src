@@ -213,4 +213,13 @@ struct savefpu_ymm {
  */
 #define	X86_XSTATE_XCR0_OFFSET	464
 
+#ifdef _KERNEL
+/*
+ * CR0_MP and CR0_EM are always set.  Use CR0_TS to force traps when
+ * FPU access is disabled.
+ */
+#define	fpu_enable()	clts()
+#define	fpu_disable()	load_cr0(rcr0() | CR0_TS)
+#endif
+
 #endif /* !_X86_FPU_H_ */

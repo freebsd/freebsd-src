@@ -256,9 +256,6 @@ DEFINE_VMMOPS_IFUNC(int, vcpu_snapshot, (void *vcpui,
 DEFINE_VMMOPS_IFUNC(int, restore_tsc, (void *vcpui, uint64_t now))
 #endif
 
-#define	fpu_start_emulating()	load_cr0(rcr0() | CR0_TS)
-#define	fpu_stop_emulating()	clts()
-
 SDT_PROVIDER_DEFINE(vmm);
 
 static MALLOC_DEFINE(M_VM, "vm", "vm");
@@ -1291,7 +1288,7 @@ restore_guest_fpustate(struct vcpu *vcpu)
 	fpuexit(curthread);
 
 	/* restore guest FPU state */
-	fpu_stop_emulating();
+	fpu_enable();
 	fpurestore(vcpu->guestfpu);
 
 	/* restore guest XCR0 if XSAVE is enabled in the host */
@@ -1299,10 +1296,10 @@ restore_guest_fpustate(struct vcpu *vcpu)
 		load_xcr(0, vcpu->guest_xcr0);
 
 	/*
-	 * The FPU is now "dirty" with the guest's state so turn on emulation
-	 * to trap any access to the FPU by the host.
+	 * The FPU is now "dirty" with the guest's state so disable
+	 * the FPU to trap any access by the host.
 	 */
-	fpu_start_emulating();
+	fpu_disable();
 }
 
 static void
@@ -1319,9 +1316,9 @@ save_guest_fpustate(struct vcpu *vcpu)
 	}
 
 	/* save guest FPU state */
-	fpu_stop_emulating();
+	fpu_enable();
 	fpusave(vcpu->guestfpu);
-	fpu_start_emulating();
+	fpu_disable();
 }
 
 static VMM_STAT(VCPU_IDLE_TICKS, "number of ticks vcpu was idle");
