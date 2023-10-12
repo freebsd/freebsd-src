@@ -44,7 +44,7 @@
  * not include the padding.
  */
 
-#ifndef LOCORE
+#if !defined(LOCORE) && !defined(__ASSEMBLER__)
 typedef struct {
 	u_int32_t	n_namesz;	/* Length of name. */
 	u_int32_t	n_descsz;	/* Length of descriptor. */
@@ -112,7 +112,7 @@ typedef Elf_Note Elf_Nhdr;
  * The header for GNU-style hash sections.
  */
 
-#ifndef LOCORE
+#if !defined(LOCORE) && !defined(__ASSEMBLER__)
 typedef struct {
 	u_int32_t	gh_nbuckets;	/* Number of hash buckets. */
 	u_int32_t	gh_symndx;	/* First visible symbol in .dynsym. */
