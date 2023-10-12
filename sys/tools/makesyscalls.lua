@@ -865,18 +865,15 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 
 	local protoflags = get_mask({"NOPROTO", "NODEF"})
 	if flags & protoflags == 0 then
+		local sys_prefix = "sys_"
 		if funcname == "nosys" or funcname == "lkmnosys" or
 		    funcname == "sysarch" or funcname:find("^freebsd") or
 		    funcname:find("^linux") then
-			write_line("sysdcl", string.format(
-			    "%s\t%s(struct thread *, struct %s *)",
-			    rettype, funcname, argalias))
-		else
-			write_line("sysdcl", string.format(
-			    "%s\tsys_%s(struct thread *, struct %s *)",
-			    rettype, funcname, argalias))
+			sys_prefix = ""
 		end
-		write_line("sysdcl", ";\n")
+		write_line("sysdcl", string.format(
+		    "%s\t%s%s(struct thread *, struct %s *);\n",
+		    rettype, sys_prefix, funcname, argalias))
 		write_line("sysaue", string.format("#define\t%sAUE_%s\t%s\n",
 		    config.syscallprefix, funcalias, auditev))
 	end
