@@ -30,9 +30,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 20231010:
 	dialog(1) has been replaced in base by bsddialog(1), while most of the
 	time replacing a dialog(1) call by a bsddialog(1) call works out of the
-	box, bsddialog(1) is not considered as a drop-in replacement dialog(1).
+	box, bsddialog(1) is not considered as a drop-in replacement for
+	dialog(1).
 
-	If you do depend on dialog(1) functionnality, please install cdialog
+	If you do depend on dialog(1) functionality, please install cdialog
 	from ports:
 
 	pkg install cdialog
