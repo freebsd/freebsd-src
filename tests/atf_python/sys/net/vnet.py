@@ -225,10 +225,10 @@ class VnetInstance(object):
         self.pipe = None
         self.subprocess = None
 
-    def run_vnet_cmd(self, cmd):
+    def run_vnet_cmd(self, cmd, verbose=True):
         if not self.attached:
             cmd = "/usr/sbin/jexec {} {}".format(self.name, cmd)
-        return run_cmd(cmd)
+        return run_cmd(cmd, verbose)
 
     def disable_dad(self):
         self.run_vnet_cmd("/sbin/sysctl net.inet6.ip6.dad_count=0")
