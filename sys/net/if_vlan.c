@@ -46,7 +46,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_kern_tls.h"
-#include "opt_netlink.h"
 #include "opt_vlan.h"
 #include "opt_ratelimit.h"
 
