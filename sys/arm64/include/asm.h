@@ -143,6 +143,28 @@
 #endif
 
 /*
+ * To help protect against ROP attacks we can use Pointer Authentication
+ * to sign the return address before pushing it to the stack.
+ *
+ * PAC_LR_SIGN can be used at the start of a function to sign the link
+ * register with the stack pointer as the modifier. As this is in the hint
+ * space it is safe to use on CPUs that don't implement pointer
+ * authentication. It can be used in place of the BTI_C instruction above as
+ * a valid BTI landing pad instruction.
+ *
+ * PAC_LR_AUTH is used to authenticate the link register using the stack
+ * pointer as the modifier. It should be used in any function that uses
+ * PAC_LR_SIGN. The stack pointer must be identical in each case.
+ */
+#ifdef __ARM_FEATURE_PAC_DEFAULT
+#define	PAC_LR_SIGN	hint	#25	/* paciasp */
+#define	PAC_LR_AUTH	hint	#29	/* autiasp */
+#else
+#define	PAC_LR_SIGN
+#define	PAC_LR_AUTH
+#endif
+
+/*
  * GNU_PROPERTY_AARCH64_FEATURE_1_NOTE can be used to insert a note that
  * the current assembly file is built with Pointer Authentication (PAC) or
  * Branch Target Identification support (BTI). As the linker requires all
