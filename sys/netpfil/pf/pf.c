@@ -4731,6 +4731,11 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 			return (action);
 		}
 	} else {
+		while ((ri = SLIST_FIRST(&match_rules))) {
+			SLIST_REMOVE_HEAD(&match_rules, entry);
+			free(ri, M_PF_RULE_ITEM);
+		}
+
 		uma_zfree(V_pf_state_key_z, sk);
 		uma_zfree(V_pf_state_key_z, nk);
 	}
@@ -4776,6 +4781,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	struct tcphdr		*th = &pd->hdr.tcp;
 	u_int16_t		 mss = V_tcp_mssdflt;
 	u_short			 reason, sn_reason;
+	struct pf_krule_item	*ri;
 
 	/* check maximums */
 	if (r->max_states &&
@@ -4986,6 +4992,11 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	return (PF_PASS);
 
 csfailed:
+	while ((ri = SLIST_FIRST(match_rules))) {
+		SLIST_REMOVE_HEAD(match_rules, entry);
+		free(ri, M_PF_RULE_ITEM);
+	}
+
 	uma_zfree(V_pf_state_key_z, sk);
 	uma_zfree(V_pf_state_key_z, nk);
 
