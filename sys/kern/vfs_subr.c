@@ -110,7 +110,7 @@ static void	delmntque(struct vnode *vp);
 static int	flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo,
 		    int slpflag, int slptimeo);
 static void	syncer_shutdown(void *arg, int howto);
-static int	vtryrecycle(struct vnode *vp);
+static int	vtryrecycle(struct vnode *vp, bool isvnlru);
 static void	v_init_counters(struct vnode *);
 static void	vn_seqc_init(struct vnode *);
 static void	vn_seqc_write_end_free(struct vnode *vp);
@@ -210,6 +210,11 @@ SYSCTL_COUNTER_U64(_vfs, OID_AUTO, recycles_free, CTLFLAG_RD, &recycles_free_cou
     "Number of free vnodes recycled to meet vnode cache targets (legacy)");
 SYSCTL_COUNTER_U64(_vfs_vnode_vnlru, OID_AUTO, recycles_free, CTLFLAG_RD, &recycles_free_count,
     "Number of free vnodes recycled to meet vnode cache targets");
+
+static counter_u64_t direct_recycles_free_count;
+SYSCTL_COUNTER_U64(_vfs_vnode_vnlru, OID_AUTO, direct_recycles_free, CTLFLAG_RD,
+    &direct_recycles_free_count,
+    "Number of free vnodes recycled by vn_alloc callers to meet vnode cache targets");
 
 static counter_u64_t vnode_skipped_requeues;
 SYSCTL_COUNTER_U64(_vfs_vnode_stats, OID_AUTO, skipped_requeues, CTLFLAG_RD, &vnode_skipped_requeues,
@@ -771,6 +776,7 @@ vntblinit(void *dummy __unused)
 	vnodes_created = counter_u64_alloc(M_WAITOK);
 	recycles_count = counter_u64_alloc(M_WAITOK);
 	recycles_free_count = counter_u64_alloc(M_WAITOK);
+	direct_recycles_free_count = counter_u64_alloc(M_WAITOK);
 	vnode_skipped_requeues = counter_u64_alloc(M_WAITOK);
 
 	/*
@@ -1317,7 +1323,7 @@ SYSCTL_INT(_vfs_vnode_vnlru, OID_AUTO, max_free_per_call, CTLFLAG_RW,
  * Attempt to reduce the free list by the requested amount.
  */
 static int
-vnlru_free_impl(int count, struct vfsops *mnt_op, struct vnode *mvp)
+vnlru_free_impl(int count, struct vfsops *mnt_op, struct vnode *mvp, bool isvnlru)
 {
 	struct vnode *vp;
 	struct mount *mp;
@@ -1403,7 +1409,7 @@ vnlru_free_impl(int count, struct vfsops *mnt_op, struct vnode *mvp)
 		 *
 		 * Check nullfs for one example (null_getwritemount).
 		 */
-		vtryrecycle(vp);
+		vtryrecycle(vp, isvnlru);
 		count--;
 		if (count == 0) {
 			break;
@@ -1419,22 +1425,33 @@ vnlru_free_impl(int count, struct vfsops *mnt_op, struct vnode *mvp)
  * XXX: returns without vnode_list_mtx locked!
  */
 static int
-vnlru_free_locked(int count)
+vnlru_free_locked_direct(int count)
 {
 	int ret;
 
 	mtx_assert(&vnode_list_mtx, MA_OWNED);
-	ret = vnlru_free_impl(count, NULL, vnode_list_free_marker);
+	ret = vnlru_free_impl(count, NULL, vnode_list_free_marker, false);
 	mtx_assert(&vnode_list_mtx, MA_NOTOWNED);
 	return (ret);
 }
 
 static int
-vnlru_free(int count)
+vnlru_free_locked_vnlru(int count)
+{
+	int ret;
+
+	mtx_assert(&vnode_list_mtx, MA_OWNED);
+	ret = vnlru_free_impl(count, NULL, vnode_list_free_marker, true);
+	mtx_assert(&vnode_list_mtx, MA_NOTOWNED);
+	return (ret);
+}
+
+static int
+vnlru_free_vnlru(int count)
 {
 
 	mtx_lock(&vnode_list_mtx);
-	return (vnlru_free_locked(count));
+	return (vnlru_free_locked_vnlru(count));
 }
 
 void
@@ -1445,7 +1462,7 @@ vnlru_free_vfsops(int count, struct vfsops *mnt_op, struct vnode *mvp)
 	MPASS(mvp != NULL);
 	VNPASS(mvp->v_type == VMARKER, mvp);
 	mtx_lock(&vnode_list_mtx);
-	vnlru_free_impl(count, mnt_op, mvp);
+	vnlru_free_impl(count, mnt_op, mvp, true);
 	mtx_assert(&vnode_list_mtx, MA_NOTOWNED);
 }
 
@@ -1702,7 +1719,7 @@ vnlru_proc_light(void)
 		return (false);
 
 	if (freecount != 0) {
-		vnlru_free(freecount);
+		vnlru_free_vnlru(freecount);
 	}
 
 	mtx_lock(&vnode_list_mtx);
@@ -1748,7 +1765,7 @@ vnlru_proc(void)
 		 * try to reduce it by discarding from the free list.
 		 */
 		if (rnumvnodes > desiredvnodes + 10) {
-			vnlru_free_locked(rnumvnodes - desiredvnodes);
+			vnlru_free_locked_vnlru(rnumvnodes - desiredvnodes);
 			mtx_lock(&vnode_list_mtx);
 			rnumvnodes = atomic_load_long(&numvnodes);
 		}
@@ -1848,7 +1865,7 @@ SYSINIT(vnlru, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start,
  * through vgone().
  */
 static int
-vtryrecycle(struct vnode *vp)
+vtryrecycle(struct vnode *vp, bool isvnlru)
 {
 	struct mount *vnmp;
 
@@ -1893,7 +1910,10 @@ vtryrecycle(struct vnode *vp)
 		return (EBUSY);
 	}
 	if (!VN_IS_DOOMED(vp)) {
-		counter_u64_add(recycles_free_count, 1);
+		if (isvnlru)
+			counter_u64_add(recycles_free_count, 1);
+		else
+			counter_u64_add(direct_recycles_free_count, 1);
 		vgonel(vp);
 	}
 	VOP_UNLOCK(vp);
@@ -1966,7 +1986,7 @@ vn_alloc_hard(struct mount *mp, u_long rnumvnodes, bool bumped)
 	 * should be chosen so that we never wait or even reclaim from
 	 * the free list to below its target minimum.
 	 */
-	if (vnlru_free_locked(1) > 0)
+	if (vnlru_free_locked_direct(1) > 0)
 		goto alloc;
 	mtx_assert(&vnode_list_mtx, MA_NOTOWNED);
 	if (mp == NULL || (mp->mnt_kern_flag & MNTK_SUSPEND) == 0) {
@@ -1983,7 +2003,7 @@ vn_alloc_hard(struct mount *mp, u_long rnumvnodes, bool bumped)
 		msleep(&vnlruproc_sig, &vnode_list_mtx, PVFS, "vlruwk", hz);
 		if (atomic_load_long(&numvnodes) + 1 > desiredvnodes &&
 		    vnlru_read_freevnodes() > 1)
-			vnlru_free_locked(1);
+			vnlru_free_locked_direct(1);
 		else
 			mtx_unlock(&vnode_list_mtx);
 	}
