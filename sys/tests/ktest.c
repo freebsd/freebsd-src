@@ -25,8 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_netlink.h"
-
 #include <sys/param.h>
 #include <sys/refcount.h>
 #include <sys/types.h>

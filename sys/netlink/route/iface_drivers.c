@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_netlink.h"
 #include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
