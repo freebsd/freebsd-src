@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 19, 2013
+.Dd October 12, 2023
 .Dt VMM 4
 .Os
 .Sh NAME
@@ -79,6 +79,16 @@ The
 and
 .Va pptdevs3
 variables can be used for additional entries.
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.vmm.maxcpu
+Maximum number of virtual CPUs.
+The default is the number of physical CPUs in the system.
+.El
 .Sh EXAMPLES
 Reserve three PCI devices for use by the hypervisor: bus 10 slot 0 function 0,
 bus 6 slot 5 function 0, and bus 6 slot 5 function 1.
