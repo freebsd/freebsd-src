@@ -198,6 +198,11 @@ vm_page_init(void *dummy)
 	bogus_page = vm_page_alloc_noobj(VM_ALLOC_WIRED);
 }
 
+static int pgcache_zone_max_pcpu;
+SYSCTL_INT(_vm, OID_AUTO, pgcache_zone_max_pcpu,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &pgcache_zone_max_pcpu, 0,
+    "Per-CPU page cache size");
+
 /*
  * The cache page zone is initialized later since we need to be able to allocate
  * pages before UMA is fully initialized.
@@ -209,9 +214,8 @@ vm_page_init_cache_zones(void *dummy __unused)
 	struct vm_pgcache *pgcache;
 	int cache, domain, maxcache, pool;
 
-	maxcache = 0;
-	TUNABLE_INT_FETCH("vm.pgcache_zone_max_pcpu", &maxcache);
-	maxcache *= mp_ncpus;
+	TUNABLE_INT_FETCH("vm.pgcache_zone_max_pcpu", &pgcache_zone_max_pcpu);
+	maxcache = pgcache_zone_max_pcpu * mp_ncpus;
 	for (domain = 0; domain < vm_ndomains; domain++) {
 		vmd = VM_DOMAIN(domain);
 		for (pool = 0; pool < VM_NFREEPOOL; pool++) {
