@@ -183,7 +183,6 @@ zynqmp_reset_assert(device_t dev, intptr_t id, bool reset)
 	if (id > ZYNQMP_RESET_MAX)
 		return (EINVAL);
 	sc = device_get_softc(dev);
-	device_printf(dev, "%s called for id = %ld, reset =%d\n", __func__, id, reset);
 	rv = ZYNQMP_FIRMWARE_RESET_ASSERT(sc->parent, id, reset);
 	return (rv);
 }
@@ -197,7 +196,6 @@ zynqmp_reset_is_asserted(device_t dev, intptr_t id, bool *reset)
 	if (id > ZYNQMP_RESET_MAX)
 		return (EINVAL);
 	sc = device_get_softc(dev);
-	device_printf(dev, "%s called for id = %ld\n", __func__, id);
 	rv = ZYNQMP_FIRMWARE_RESET_GET_STATUS(sc->parent, id, reset);
 
 	return (rv);
