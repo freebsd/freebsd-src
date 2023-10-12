@@ -30,6 +30,7 @@
 
 #include <machine/asm.h>
 #include <machine/setjmp.h>
+#include <sys/elf_common.h>
 
 ENTRY(_setjmp)
 	/* Store the magic value and stack pointer */
@@ -101,3 +102,5 @@ botch:
 	bl	_C_LABEL(abort)
 #endif
 END(_longjmp)
+
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)

@@ -25,6 +25,8 @@
  */
 
 #include <machine/asm.h>
+#include <sys/elf_common.h>
+
 ENTRY(cerror)
 	.hidden	cerror
 	sub	sp, sp, #16
@@ -37,3 +39,5 @@ ENTRY(cerror)
 	add	sp, sp, #16
 	ret
 END(cerror)
+
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
