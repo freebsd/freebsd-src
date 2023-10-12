@@ -82,13 +82,9 @@ class VnetInterface(object):
     def set_jailed(self, jailed: bool):
         self.jailed = jailed
 
-    def run_cmd(
-        self,
-        cmd,
-        verbose=False,
-    ):
+    def run_cmd(self, cmd, verbose=False):
         if self.vnet_name and not self.jailed:
-            cmd = "jexec {} {}".format(self.vnet_name, cmd)
+            cmd = "/usr/sbin/jexec {} {}".format(self.vnet_name, cmd)
         return run_cmd(cmd, verbose)
 
     @classmethod
@@ -189,7 +185,7 @@ class IfaceFactory(object):
     def cleanup_vnet_interfaces(self, vnet_name: str) -> List[str]:
         """Destroys"""
         ifaces_lst = ToolsHelper.get_output(
-            "/usr/sbin/jexec {} ifconfig -l".format(vnet_name)
+            "/usr/sbin/jexec {} /sbin/ifconfig -l".format(vnet_name)
         )
         for iface_name in ifaces_lst.split():
             if not self.is_autodeleted(iface_name):
@@ -197,7 +193,7 @@ class IfaceFactory(object):
                     print("Skipping interface {}:{}".format(vnet_name, iface_name))
                     continue
             run_cmd(
-                "/usr/sbin/jexec {} ifconfig {} destroy".format(vnet_name, iface_name)
+                "/usr/sbin/jexec {} /sbin/ifconfig {} destroy".format(vnet_name, iface_name)
             )
 
     def cleanup(self):
@@ -231,7 +227,7 @@ class VnetInstance(object):
 
     def run_vnet_cmd(self, cmd):
         if not self.attached:
-            cmd = "jexec {} {}".format(self.name, cmd)
+            cmd = "/usr/sbin/jexec {} {}".format(self.name, cmd)
         return run_cmd(cmd)
 
     def disable_dad(self):
@@ -269,7 +265,7 @@ class VnetFactory(object):
 
     @staticmethod
     def _wait_interfaces(vnet_name: str, ifaces: List[str]) -> List[str]:
-        cmd = "jexec {} /sbin/ifconfig -l".format(vnet_name)
+        cmd = "/usr/sbin/jexec {} /sbin/ifconfig -l".format(vnet_name)
         not_matched: List[str] = []
         for i in range(50):
             vnet_ifaces = run_cmd(cmd).strip().split(" ")
