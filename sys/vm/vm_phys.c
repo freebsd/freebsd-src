@@ -76,6 +76,12 @@ _Static_assert(sizeof(long long) >= sizeof(vm_paddr_t),
 #ifdef NUMA
 struct mem_affinity __read_mostly *mem_affinity;
 int __read_mostly *mem_locality;
+
+static int numa_disabled;
+static SYSCTL_NODE(_vm, OID_AUTO, numa, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "NUMA options");
+SYSCTL_INT(_vm_numa, OID_AUTO, disabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &numa_disabled, 0, "NUMA-awareness in the allocators is disabled");
 #endif
 
 int __read_mostly vm_ndomains = 1;
@@ -627,15 +633,14 @@ vm_phys_register_domains(int ndomains, struct mem_affinity *affinity,
     int *locality)
 {
 #ifdef NUMA
-	int d, i;
+	int i;
 
 	/*
 	 * For now the only override value that we support is 1, which
 	 * effectively disables NUMA-awareness in the allocators.
 	 */
-	d = 0;
-	TUNABLE_INT_FETCH("vm.numa.disabled", &d);
-	if (d)
+	TUNABLE_INT_FETCH("vm.numa.disabled", &numa_disabled);
+	if (numa_disabled)
 		ndomains = 1;
 
 	if (ndomains > 1) {
