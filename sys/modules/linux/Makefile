@@ -70,8 +70,7 @@ SRCS+=	imgact_linux.c \
 	linux_vdso_selector_x86.c \
 	linux_x86.c \
 	linux_copyout.c \
-	linux_netlink.c \
-	opt_netlink.h
+	linux_netlink.c
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"
