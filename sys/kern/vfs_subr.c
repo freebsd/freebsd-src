@@ -199,16 +199,19 @@ static long wantfreevnodes;
 static long __exclusive_cache_line freevnodes;
 static long freevnodes_old;
 
-static counter_u64_t recycles_count;
-SYSCTL_COUNTER_U64(_vfs, OID_AUTO, recycles, CTLFLAG_RD, &recycles_count,
+static u_long recycles_count;
+SYSCTL_ULONG(_vfs, OID_AUTO, recycles, CTLFLAG_RD | CTLFLAG_STATS, &recycles_count, 0,
     "Number of vnodes recycled to meet vnode cache targets (legacy)");
-SYSCTL_COUNTER_U64(_vfs_vnode_vnlru, OID_AUTO, recycles, CTLFLAG_RD, &recycles_count,
+SYSCTL_ULONG(_vfs_vnode_vnlru, OID_AUTO, recycles, CTLFLAG_RD | CTLFLAG_STATS,
+    &recycles_count, 0,
     "Number of vnodes recycled to meet vnode cache targets");
 
-static counter_u64_t recycles_free_count;
-SYSCTL_COUNTER_U64(_vfs, OID_AUTO, recycles_free, CTLFLAG_RD, &recycles_free_count,
+static u_long recycles_free_count;
+SYSCTL_ULONG(_vfs, OID_AUTO, recycles_free, CTLFLAG_RD | CTLFLAG_STATS,
+    &recycles_free_count, 0,
     "Number of free vnodes recycled to meet vnode cache targets (legacy)");
-SYSCTL_COUNTER_U64(_vfs_vnode_vnlru, OID_AUTO, recycles_free, CTLFLAG_RD, &recycles_free_count,
+SYSCTL_ULONG(_vfs_vnode_vnlru, OID_AUTO, recycles_free, CTLFLAG_RD | CTLFLAG_STATS,
+    &recycles_free_count, 0,
     "Number of free vnodes recycled to meet vnode cache targets");
 
 static counter_u64_t direct_recycles_free_count;
@@ -458,7 +461,6 @@ sysctl_try_reclaim_vnode(SYSCTL_HANDLER_ARGS)
 		goto putvnode;
 	}
 
-	counter_u64_add(recycles_count, 1);
 	vgone(vp);
 putvnode:
 	vput(vp);
@@ -492,7 +494,6 @@ sysctl_ftry_reclaim_vnode(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		goto drop;
 
-	counter_u64_add(recycles_count, 1);
 	vgone(vp);
 	VOP_UNLOCK(vp);
 drop:
@@ -774,8 +775,6 @@ vntblinit(void *dummy __unused)
 	uma_prealloc(buf_trie_zone, nbuf);
 
 	vnodes_created = counter_u64_alloc(M_WAITOK);
-	recycles_count = counter_u64_alloc(M_WAITOK);
-	recycles_free_count = counter_u64_alloc(M_WAITOK);
 	direct_recycles_free_count = counter_u64_alloc(M_WAITOK);
 	vnode_skipped_requeues = counter_u64_alloc(M_WAITOK);
 
@@ -1282,7 +1281,7 @@ restart:
 			vn_finished_write(mp);
 			goto next_iter_unlocked;
 		}
-		counter_u64_add(recycles_count, 1);
+		recycles_count++;
 		vgonel(vp);
 		VOP_UNLOCK(vp);
 		vdropl_recycle(vp);
@@ -1911,7 +1910,7 @@ vtryrecycle(struct vnode *vp, bool isvnlru)
 	}
 	if (!VN_IS_DOOMED(vp)) {
 		if (isvnlru)
-			counter_u64_add(recycles_free_count, 1);
+			recycles_free_count++;
 		else
 			counter_u64_add(direct_recycles_free_count, 1);
 		vgonel(vp);
