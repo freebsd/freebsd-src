@@ -2,6 +2,8 @@
 
 .PATH:	${.CURDIR}
 
+PACKAGE=	tests
+
 FILES=	__init__.py atf_pytest.py ktest.py utils.py
 SUBDIR=	sys
 
