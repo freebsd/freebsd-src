@@ -108,15 +108,13 @@ static uint8_t msan_dummy_shad[PAGE_SIZE] __aligned(PAGE_SIZE);
 static uint8_t msan_dummy_write_shad[PAGE_SIZE] __aligned(PAGE_SIZE);
 static uint8_t msan_dummy_orig[PAGE_SIZE] __aligned(PAGE_SIZE);
 static msan_td_t msan_thread0;
-static bool kmsan_enabled __read_mostly;
-
 static bool kmsan_reporting = false;
 
 /*
  * Avoid clobbering any thread-local state before we panic.
  */
 #define	kmsan_panic(f, ...) do {			\
-	kmsan_enabled = false;				\
+	kmsan_disabled = true;				\
 	panic(f, __VA_ARGS__);				\
 } while (0)
 
@@ -141,6 +139,11 @@ static bool panic_on_violation = 1;
 SYSCTL_BOOL(_debug_kmsan, OID_AUTO, panic_on_violation, CTLFLAG_RWTUN,
     &panic_on_violation, 0,
     "Panic if an invalid access is detected");
+
+static bool kmsan_disabled __read_mostly = true;
+#define kmsan_enabled (!kmsan_disabled)
+SYSCTL_BOOL(_debug_kmsan, OID_AUTO, disabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &kmsan_disabled, 0, "KMSAN is disabled");
 
 static MALLOC_DEFINE(M_KMSAN, "kmsan", "Kernel memory sanitizer");
 
@@ -599,7 +602,7 @@ kmsan_init(void)
 	thread0.td_kmsan = &msan_thread0;
 
 	/* Now officially enabled. */
-	kmsan_enabled = true;
+	kmsan_disabled = false;
 }
 
 /* -------------------------------------------------------------------------- */
