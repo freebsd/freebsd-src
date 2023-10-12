@@ -489,7 +489,7 @@ class VnetTestTemplate(BaseTest):
         # pytest test id: file::class::test_name
         topology_id = get_topology_id(self.test_id)
 
-        print("==== vnet cleanup ===")
+        print("============= vnet cleanup =============")
         print("# topology_id: '{}'".format(topology_id))
         VnetFactory(topology_id).cleanup()
         IfaceFactory().cleanup()
