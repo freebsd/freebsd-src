@@ -16,11 +16,20 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <openbsd/openbsd_queue.h>
+//#include <openbsd/openbsd_queue.h>
 #include <sys/bus.h>
 #include <sys/bus_dma.h>
 #include "../../../../crypto/openssh/openbsd-compat/sys-queue.h"
+#include "openbsd_adapt.h"
 //#include <openbsd_device.h>
+
+#include <net/if.h>
+#include <net/ethernet.h>
+#include <net/if_media.h>
+
+#include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_amrr.h>
 
 #define NBPFILTER 0
 
@@ -238,11 +247,11 @@ struct athn_serdes {
 #define ATHN_QID_COUNT		8
 
 /* Map Access Category to Tx queue Id. */
-static const uint8_t athn_ac2qid[EDCA_NUM_AC] = {
-	ATHN_QID_AC_BE,	/* EDCA_AC_BE */
-	ATHN_QID_AC_BK,	/* EDCA_AC_BK */
-	ATHN_QID_AC_VI,	/* EDCA_AC_VI */
-	ATHN_QID_AC_VO	/* EDCA_AC_VO */
+static const uint8_t athn_ac2qid[WME_NUM_AC] = {
+	ATHN_QID_AC_BE,	/* WME_AC_BE */
+	ATHN_QID_AC_BK,	/* WME_AC_BK */
+	ATHN_QID_AC_VI,	/* WME_AC_VI */
+	ATHN_QID_AC_VO	/* WME_AC_VO */
 };
 
 static const uint8_t athn_5ghz_chans[] = {
@@ -307,7 +316,7 @@ static const uint16_t ar_mcs_ndbps[][2] = {
 struct athn_node {
 	struct ieee80211_node		ni;
 	struct ieee80211_amrr_node	amn;
-	struct ieee80211_ra_node	rn;
+//	struct ieee80211_ra_node	rn;
 	uint8_t				ridx[ATHN_NUM_RATES];
 	uint8_t				fallback[ATHN_NUM_RATES];
 	uint8_t				sta_index;
@@ -452,8 +461,10 @@ struct athn_softc {
 
 	bus_dma_tag_t			sc_dmat;
 
+#if OpenBSD_ONLY
 	struct timeout			scan_to;
 	struct timeout			calib_to;
+#endif
 	struct ieee80211_amrr		amrr;
 
 	u_int				flags;
@@ -530,6 +541,8 @@ struct athn_softc {
 
 	struct athn_rxq			rxq[2];
 	struct athn_txq			txq[31];
+
+	struct mtx		sc_mtx;
 
 	void				*descs;
 	bus_dmamap_t			map;

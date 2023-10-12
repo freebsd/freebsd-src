@@ -1,40 +1,26 @@
 #include <sys/param.h>
 #include <sys/sockio.h>
-//#include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
-//#include <sys/timeout.h>
 #include <sys/conf.h>
-//#include <linux/device.h>
 #include <sys/stdint.h>	/* uintptr_t */
 #include <sys/endian.h>
-#include <openbsd/openbsd_mbuf.h>
 
-// #if NBPFILTER > 0
-// #include <net/bpf.h>
-// #endif
 #include <net/if.h>
-#include <net/if_dl.h>
+#include <net/if_var.h>
+#include <net/ethernet.h>
 #include <net/if_media.h>
 
-#include <netinet/in.h>
-//#include <netinet/if_ether.h>
-
-// #include <linux/ieee80211.h>
-#include <net/if_arp.h>
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_amrr.h>
-#include <net80211/ieee80211_ra.h>
 #include <net80211/ieee80211_radiotap.h>
 
-// #include <dev/ic/athnreg.h>
-// #include <dev/ic/athnvar.h>
 #include "athnreg.h"
 #include "athnvar.h"
-#include "openbsd_adapt.h"
+
 
 int		ar5416_attach(struct athn_softc *sc)
 {
