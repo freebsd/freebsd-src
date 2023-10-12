@@ -68,6 +68,62 @@
 // if the number of arguments is 2 - do nothing
 #define free(addr,type,...)	free(addr,type)
 
+#define IEEE80211_HT_NUM_MCS            77
+#define IEEE80211_DUR_DS_SHSLOT         9
+#define MBUF_LIST_INITIALIZER() { NULL, NULL, 0 }
+
+
+struct mbuf_list {
+        struct mbuf             *ml_head;
+        struct mbuf             *ml_tail;
+        u_int                   ml_len;
+};
+
+enum ieee80211_edca_ac {
+        EDCA_AC_BK  = 1,        /* Background */
+        EDCA_AC_BE  = 0,        /* Best Effort */
+        EDCA_AC_VI  = 2,        /* Video */
+        EDCA_AC_VO  = 3         /* Voice */
+};
+
+
+
+// TODO: try remove these defines, use proper include instead
+
+#define SIMPLEQ_ENTRY(type)                                             \
+struct {                                                                \
+         struct type *sqe_next;  /* next element */                     \
+}
+
+#define SIMPLEQ_FIRST(head)         ((head)->sqh_first)
+#define SIMPLEQ_END(head)           NULL
+#define SIMPLEQ_EMPTY(head)         (SIMPLEQ_FIRST(head) == SIMPLEQ_END(head))
+#define SIMPLEQ_NEXT(elm, field)    ((elm)->field.sqe_next)
+
+
+#define SIMPLEQ_HEAD(name, type)                                        \
+struct name {                                                           \
+        struct type *sqh_first; /* first element */                     \
+        struct type **sqh_last; /* addr of last next element */         \
+}
+
+#define SIMPLEQ_REMOVE_HEAD(head, field) do {                   \
+        if (((head)->sqh_first = (head)->sqh_first->field.sqe_next) == NULL) \
+                (head)->sqh_last = &(head)->sqh_first;                  \
+} while (0)
+
+#define SIMPLEQ_INSERT_TAIL(head, elm, field) do {                      \
+        (elm)->field.sqe_next = NULL;                                   \
+        *(head)->sqh_last = (elm);                                      \
+        (head)->sqh_last = &(elm)->field.sqe_next;                      \
+} while (0)
+
+#define SIMPLEQ_INIT(head) do {                                         \
+        (head)->sqh_first = NULL;                                       \
+        (head)->sqh_last = &(head)->sqh_first;                          \
+} while (0)
+
+
 static inline uint64_t
 SEC_TO_NSEC(uint64_t seconds)
 {

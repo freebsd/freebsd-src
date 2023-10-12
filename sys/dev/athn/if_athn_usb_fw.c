@@ -3,7 +3,6 @@
 #include <sys/module.h>
 #include <sys/firmware.h>
 #include <sys/sockio.h>
-#include <openbsd/openbsd_mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/endian.h>
@@ -17,10 +16,14 @@
 #include <net/if_arp.h>
 #include <netinet/in.h>
 
-#include <openbsd/net80211/ieee80211_var.h>
-#include <openbsd/net80211/ieee80211_amrr.h>
-#include <openbsd/net80211/ieee80211_ra.h>
-#include <openbsd/net80211/ieee80211_radiotap.h>
+#include <net/ethernet.h>
+#include <net80211/ieee80211_freebsd.h>
+#include <net80211/ieee80211_power.h>
+#include <net80211/ieee80211_node.h>
+#include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_amrr.h>
+#include <net80211/ieee80211_radiotap.h>
+#include <openbsd_adapt.h>
 
 #include "athnreg.h"
 #include "ar5008reg.h"
@@ -31,7 +34,6 @@
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 
-#include "openbsd_adapt.h"
 #include "if_athn_usb.h"
 
 static const struct firmware *fware = NULL;
@@ -91,6 +93,9 @@ athn_usb_transfer_firmware(struct athn_usb_softc *usc)
 	uint32_t addr;
 	int s, mlen;
 	int error = 0;
+
+	mtx_lock(&usc->sc_sc.sc_mtx);
+
 /* Load firmware image. */
 	ptr = (void *)fware->data;
 	addr = AR9271_FIRMWARE >> 8;
@@ -105,7 +110,7 @@ athn_usb_transfer_firmware(struct athn_usb_softc *usc)
 		USETW(req.wValue, addr);
 		USETW(req.wLength, mlen);
 
-		error = usbd_do_request(usc->sc_udev, NULL, &req, ptr);
+		error = usbd_do_request(usc->sc_udev, &usc->sc_sc.sc_mtx, &req, ptr);
 		if (error != 0) {
 			athn_usb_unload_firmware();
 			return (error);
@@ -133,24 +138,15 @@ athn_usb_transfer_firmware(struct athn_usb_softc *usc)
 	/* TODO:
 	 * splnet / splx is deprecated, use mutexes
 	 */
-	s = splnet();
+//	s = splnet();
 	usc->wait_msg_id = AR_HTC_MSG_READY;
 	
 	printf("Send AR_HTC_MSG_READY message\n");
-	error = usbd_do_request(usc->sc_udev, NULL, &req, NULL);
-	/* Wait at most 1 second for firmware to boot. */
-	if (error == 0 && usc->wait_msg_id != 0) {
-		error = tsleep_nsec(&usc->wait_msg_id, 0, "athnfw",
-		    SEC_TO_NSEC(1));
-	}
-	usc->wait_msg_id = 0;
-	splx(s);
-	if (error) {
-		printf("Error waiting message, errno: %d\n", error);
-	} else {
-		printf("Successfully transfered firmware, errno: %d\n", error);
-	}
-	
+
+	error = usbd_do_request(usc->sc_udev, &usc->sc_sc.sc_mtx, &req, NULL);
+
+	mtx_unlock(&usc->sc_sc.sc_mtx);
+//	splx(s);
 	return (error);
 }
 

@@ -18,10 +18,13 @@ SRCS+=  opt_inet.h opt_inet6.h opt_route.h opt_netlink.h
 SRCS+=	${LINUXKPI_GENSRCS}
 
 CFLAGS+=        -ferror-limit=0
-#CFLAGS+=	${LINUXKPI_INCLUDES}
+# CFLAGS+=	${LINUXKPI_INCLUDES}
 CFLAGS+=	-I${INCDIR}
 CFLAGS+= 	-I${SRCTOP}/sys/dev/athn/headers
-#CFLAGS+=	-I${SRCTOP}/sys/compat/linuxkpi/dummy/include/openbsd
+# CFLAGS+=	-I${SRCTOP}/sys/compat/linuxkpi/dummy/include/openbsd
+
+DEBUG_FLAGS+= -O0 -g
+
 # CFLAGS+= 	-I${SRCTOP}/sys/dev/athn/include/amd64
 # CFLAGS+= 	-I${SRCTOP}/sys/dev/athn/include/sys
 # CFLAGS+= 	-I${SRCTOP}/sys/dev/athn/include/net80211
