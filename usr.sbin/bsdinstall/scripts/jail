@@ -49,6 +49,7 @@ error() {
 	if [ $? -ne $BSDDIALOG_OK ]; then
 		exit
 	else
+		[ -z "$MIRROR_BUTTON" ] || unset BSDINSTALL_DISTSITE
 		exec $0 $BSDINSTALL_CHROOT
 	fi
 }
