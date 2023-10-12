@@ -158,6 +158,10 @@ SYSCTL_INT(_kern_boottrace, OID_AUTO, shutdown_trace_threshold, CTLFLAG_RWTUN,
    &shutdown_trace_threshold, 0,
    "Tracing threshold (ms) below which tracing is ignored");
 
+SYSCTL_UINT(_kern_boottrace, OID_AUTO, table_size,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &bt.size, 0,
+    "Boot-time tracing table size");
+
 /*
  * Dump a trace to buffer or if buffer is NULL to console.
  *
