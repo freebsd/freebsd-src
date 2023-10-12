@@ -516,6 +516,7 @@ static void
 pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 {
 	struct nvme_controller_data *cd = &sc->ctrldata;
+	int ret;
 
 	cd->vid = 0xFB5D;
 	cd->ssvid = 0x0000;
@@ -585,6 +586,13 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 	    NVME_CTRLR_DATA_FNA_FORMAT_ALL_SHIFT;
 
 	cd->vwc = NVME_CTRLR_DATA_VWC_ALL_NO << NVME_CTRLR_DATA_VWC_ALL_SHIFT;
+
+	ret = snprintf(cd->subnqn, sizeof(cd->subnqn),
+	    "nqn.2013-12.org.freebsd:bhyve-%s-%u-%u-%u",
+	    get_config_value("name"), sc->nsc_pi->pi_bus,
+	    sc->nsc_pi->pi_slot, sc->nsc_pi->pi_func);
+	if ((ret < 0) || ((unsigned)ret > sizeof(cd->subnqn)))
+		EPRINTLN("%s: error setting subnqn (%d)", __func__, ret);
 }
 
 /*
@@ -3361,7 +3369,6 @@ pci_nvme_init(struct pci_devinst *pi, nvlist_t *nvl)
 	pci_nvme_aen_init(sc);
 
 	pci_nvme_reset(sc);
-
 done:
 	return (error);
 }
