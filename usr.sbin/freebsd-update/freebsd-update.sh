@@ -916,7 +916,7 @@ install_create_be () {
 			echo -n "Creating snapshot of existing boot environment... "
 			VERSION=`freebsd-version -ku | sort -V | tail -n 1`
 			TIMESTAMP=`date +"%Y-%m-%d_%H%M%S"`
-			bectl create ${VERSION}_${TIMESTAMP}
+			bectl create -r ${VERSION}_${TIMESTAMP}
 			if [ $? -eq 0 ]; then
 				echo "done.";
 			else
