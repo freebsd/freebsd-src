@@ -21,7 +21,7 @@ INCS=	bsddialog.h \
 	bsddialog_progressview.h
 MAN=	bsddialog.3
 
-LIBADD=	ncursesw tinfow formw
+LIBADD=	ncursesw tinfow
 CFLAGS+=	-D_XOPEN_SOURCE_EXTENDED
 
 .include <bsd.lib.mk>
