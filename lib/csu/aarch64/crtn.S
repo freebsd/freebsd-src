@@ -28,13 +28,19 @@
  */
 
 #include <machine/asm.h>
+#include <sys/elf_common.h>
+
 	.section .init,"ax",@progbits
 	ldp	x29, x30, [sp], #16
+	PAC_LR_AUTH
 	ret
 
 
 	.section .fini,"ax",@progbits
 	ldp	x29, x30, [sp], #16
+	PAC_LR_AUTH
 	ret
 
 	.section .note.GNU-stack,"",%progbits
+
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)

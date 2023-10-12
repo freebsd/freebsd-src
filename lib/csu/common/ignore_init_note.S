@@ -41,3 +41,8 @@
 4:
 
 	.section .note.GNU-stack,"",%progbits
+
+#ifdef __aarch64__
+/* This is needed in all objects for BTI to be used in the linked elf file */
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
+#endif
