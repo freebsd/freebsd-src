@@ -27,9 +27,13 @@
  */
 
 #include <machine/asm.h>
+#include <sys/elf_common.h>
+
 ENTRY(_ctx_start)
 	blr	x19		/* Call func from makecontext */
 	mov	x0, x20		/* Load ucp saved in makecontext */
 	bl	_C_LABEL(ctx_done)
 	bl	_C_LABEL(abort)
 END(_ctx_start)
+
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
