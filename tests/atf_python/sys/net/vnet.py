@@ -19,7 +19,8 @@ from atf_python.utils import libc
 
 
 def run_cmd(cmd: str, verbose=True) -> str:
-    print("run: '{}'".format(cmd))
+    if verbose:
+        print("run: '{}'".format(cmd))
     return os.popen(cmd).read()
 
 
