@@ -32,8 +32,6 @@
  *	@(#)if.c	8.5 (Berkeley) 1/9/95
  */
 
-#include "opt_netlink.h"
-
 #include <sys/param.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>

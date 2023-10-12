@@ -28,8 +28,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "opt_netlink.h"
-
 #include <sys/cdefs.h>
 #include "opt_bpf.h"
 #include "opt_inet.h"

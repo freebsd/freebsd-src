@@ -30,7 +30,6 @@
  * This file contains socket and protocol bindings for netlink.
  */
 
-#include "opt_netlink.h"
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>

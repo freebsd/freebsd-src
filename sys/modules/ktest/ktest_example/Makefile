@@ -8,6 +8,5 @@ SYSDIR?=${SRCTOP}/sys
 
 KMOD=	ktest_example
 SRCS=	ktest_example.c
-SRCS+=	opt_netlink.h
 
 .include <bsd.kmod.mk>
