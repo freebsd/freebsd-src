@@ -73,7 +73,7 @@ while : ; do
 				continue
 			fi
 		fi
-		echo ifconfig_${INTERFACE}_ipv6=\"inet6 accept_rtadv\" >> $BSDINSTALL_TMPETC/._rc.conf.net
+		sysrc -f $BSDINSTALL_TMPETC/._rc.conf.net ifconfig_${INTERFACE}_ipv6 "inet6 accept_rtadv"
 		exit 0
 	else
 		break

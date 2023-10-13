@@ -81,7 +81,7 @@ exec 5>&-
 IFCONFIG_PREFIX=""
 if is_wireless_if $INTERFACE; then
 	NEXT_WLAN_IFACE=wlan0	# XXX
-	echo wlans_$INTERFACE=\"$NEXT_WLAN_IFACE\" >> $BSDINSTALL_TMPETC/._rc.conf.net
+	sysrc -f $BSDINSTALL_TMPETC/._rc.conf.net wlans_$INTERFACE "$NEXT_WLAN_IFACE"
 	IFCONFIG_PREFIX="WPA "
 	if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
 		ifconfig $NEXT_WLAN_IFACE create wlandev $INTERFACE
@@ -115,7 +115,7 @@ fi
 # In case wlanconfig left an option and we do not support IPv4 we need to write
 # it out on its own.  We cannot write it out with IPv6 as that suffix.
 if [ ${IPV4_AVAIL} -eq 0 -a -n ${IFCONFIG_PREFIX} ]; then
-	echo ifconfig_${INTERFACE}=\"${IFCONFIG_PREFIX}\" >> $BSDINSTALL_TMPETC/._rc.conf.net
+	sysrc -f $BSDINSTALL_TMPETC/._rc.conf.net ifconfig_$INTERFACE "${IFCONFIG_PREFIX}"
 fi
 if [ ${IPV6_AVAIL} -eq 1 ]; then
 	bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' \
