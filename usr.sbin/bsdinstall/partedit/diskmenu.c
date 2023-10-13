@@ -65,7 +65,7 @@ diskmenu_show(const char *title, const char *text, struct partedit_item *items,
 	conf.text.escape = true;
 	conf.key.f1_message="[\\Z1\\ZbC\\Znreate]: a new partition.\n"
 		"[\\Z1\\ZbD\\Znelete]: selected partition(s).\n"
-		"[\\Z1\\ZbC\\Znhange]: partition type or mountpoint.\n"
+		"[\\Z1\\ZbM\\Znodify]: partition type or mountpoint.\n"
 		"[\\Z1\\ZbR\\Znevert]: changes to disk setup.\n"
 		"[\\Z1\\ZbA\\Znuto]:   guided partitioning tool.\n"
 		"[\\Z1\\ZbF\\Zninish]: will ask to apply changes.";
