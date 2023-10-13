@@ -351,7 +351,7 @@ dma_max_mapping_size(struct device *dev)
 #define	dma_unmap_len(p, name)			((p)->name)
 #define	dma_unmap_len_set(p, name, v)		(((p)->name) = (v))
 
-#define	dma_get_cache_alignment()	uma_get_cache_align_mask()
+#define	dma_get_cache_alignment()	(uma_get_cache_align_mask() + 1)
 
 
 static inline int
