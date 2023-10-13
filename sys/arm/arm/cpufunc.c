@@ -172,7 +172,6 @@ get_cachetype_cp15(void)
 				    : "=r" (csize));
 				arm_dcache_align = 1 <<
 				    (CPUV7_CT_xSIZE_LEN(csize) + 4);
-				arm_dcache_align_mask = arm_dcache_align - 1;
 			}
 			if (type == CACHE_ICACHE || type == CACHE_SEP_CACHE) {
 				sel = (i << 1) | 1;
@@ -195,10 +194,10 @@ get_cachetype_cp15(void)
 			if (dsize & CPU_CT_xSIZE_M)
 				arm_dcache_align = 0; /* not present */
 		}
-
-	out:
-		arm_dcache_align_mask = arm_dcache_align - 1;
 	}
+
+out:
+	arm_dcache_align_mask = arm_dcache_align - 1;
 }
 
 /*
