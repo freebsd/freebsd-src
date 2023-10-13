@@ -402,7 +402,7 @@ setbridge_static(if_ctx *ctx, const char *val, const char *mac)
 
 	memcpy(req.ifba_dst, ea->octet, sizeof(req.ifba_dst));
 	req.ifba_flags = IFBAF_STATIC;
-	req.ifba_vlan = 1; /* XXX allow user to specify */
+	req.ifba_vlan = 0; /* XXX allow user to specify */
 
 	if (do_cmd(ctx, BRDGSADDR, &req, sizeof(req), 1) < 0)
 		err(1, "BRDGSADDR %s",  val);
