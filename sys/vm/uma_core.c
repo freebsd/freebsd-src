@@ -3188,19 +3188,31 @@ uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit, uma_fini fini,
 	return (zone_alloc_item(kegs, &args, UMA_ANYDOMAIN, M_WAITOK));
 }
 
-/* Public functions */
-/* See uma.h */
-void
-uma_set_cache_align_mask(unsigned int mask)
+
+static void
+check_align_mask(unsigned int mask)
 {
 
+	KASSERT(powerof2(mask + 1),
+	    ("UMA: %s: Not the mask of a power of 2 (%#x)", __func__, mask));
 	/*
 	 * Make sure the stored align mask doesn't have its highest bit set,
 	 * which would cause implementation-defined behavior when passing it as
 	 * the 'align' argument of uma_zcreate().  Such very large alignments do
 	 * not make sense anyway.
 	 */
-	uma_cache_align_mask = mask & ~(1U << 31);
+	KASSERT(mask <= INT_MAX,
+	    ("UMA: %s: Mask too big (%#x)", __func__, mask));
+}
+
+/* Public functions */
+/* See uma.h */
+void
+uma_set_cache_align_mask(unsigned int mask)
+{
+
+	check_align_mask(mask);
+	uma_cache_align_mask = mask;
 }
 
 /* Returns the alignment mask to use to request cache alignment. */
@@ -3219,8 +3231,7 @@ uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 	struct uma_zctor_args args;
 	uma_zone_t res;
 
-	KASSERT(powerof2(align + 1), ("invalid zone alignment %d for \"%s\"",
-	    align, name));
+	check_align_mask(align);
 
 	/* This stuff is essential for the zone ctor */
 	memset(&args, 0, sizeof(args));
