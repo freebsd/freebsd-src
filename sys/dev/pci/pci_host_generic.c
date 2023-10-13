@@ -83,7 +83,7 @@ pci_host_generic_core_attach(device_t dev)
 	uint64_t phys_base;
 	uint64_t pci_base;
 	uint64_t size;
-	int error;
+	int domain, error;
 	int rid, tuple;
 
 	sc = device_get_softc(dev);
@@ -103,6 +103,13 @@ pci_host_generic_core_attach(device_t dev)
 	    &sc->dmat);
 	if (error != 0)
 		return (error);
+
+	/*
+	 * Attempt to set the domain. If it's missing, or we are unable to
+	 * set it then memory allocations may be placed in the wrong domain.
+	 */
+	if (bus_get_domain(dev, &domain) == 0)
+		(void)bus_dma_tag_set_domain(sc->dmat, domain);
 
 	if ((sc->quirks & PCIE_CUSTOM_CONFIG_SPACE_QUIRK) == 0) {
 		rid = 0;
