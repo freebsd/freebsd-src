@@ -63,8 +63,7 @@
  * Back-end state-machine
  */
 static enum state {
-	IDENT_WAIT,
-	IDENT_SEND,
+	IDENT,
 	REQ,
 	RESP
 } be_state;
@@ -75,7 +74,7 @@ static u_int ident_idx;
 struct op_info {
 	int op;
 	int  (*op_start)(uint32_t len);
-	void (*op_data)(uint32_t data, uint32_t len);
+	void (*op_data)(uint32_t data);
 	int  (*op_result)(struct iovec **data);
 	void (*op_done)(struct iovec *data);
 };
@@ -120,7 +119,7 @@ errop_start(uint32_t len __unused)
 }
 
 static void
-errop_data(uint32_t data __unused, uint32_t len __unused)
+errop_data(uint32_t data __unused)
 {
 
 	/* ignore */
@@ -192,7 +191,7 @@ fget_start(uint32_t len)
 }
 
 static void
-fget_data(uint32_t data, uint32_t len __unused)
+fget_data(uint32_t data)
 {
 
 	assert(fget_cnt + sizeof(uint32_t) <= sizeof(fget_str));
@@ -347,7 +346,7 @@ fwctl_request_data(uint32_t value)
 	else
 		rinfo.req_size -= sizeof(uint32_t);
 
-	(*rinfo.req_op->op_data)(value, rinfo.req_size);
+	(*rinfo.req_op->op_data)(value);
 
 	if (rinfo.req_size < sizeof(uint32_t)) {
 		fwctl_request_done();
@@ -360,7 +359,6 @@ fwctl_request_data(uint32_t value)
 static int
 fwctl_request(uint32_t value)
 {
-
 	int ret;
 
 	ret = 0;
@@ -451,12 +449,11 @@ fwctl_reset(void)
 		/* Discard partially-received request. */
 		memset(&rinfo, 0, sizeof(rinfo));
 		break;
-	case IDENT_WAIT:
-	case IDENT_SEND:
+	case IDENT:
 		break;
 	}
 
-	be_state = IDENT_SEND;
+	be_state = IDENT;
 	ident_idx = 0;
 }
 
@@ -472,7 +469,7 @@ fwctl_inb(void)
 	retval = 0xff;
 
 	switch (be_state) {
-	case IDENT_SEND:
+	case IDENT:
 		retval = sig[ident_idx++];
 		if (ident_idx >= sizeof(sig))
 			be_state = REQ;
@@ -580,5 +577,5 @@ fwctl_init(void)
 	ops[OP_GET_LEN] = &fgetlen_info;
 	ops[OP_GET]     = &fgetval_info;
 
-	be_state = IDENT_WAIT;
+	be_state = IDENT;
 }
