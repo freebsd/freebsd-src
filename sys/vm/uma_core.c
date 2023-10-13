@@ -150,7 +150,7 @@ static uma_zone_t slabzones[2];
 static uma_zone_t hashzone;
 
 /* The boot-time adjusted value for cache line alignment. */
-static int uma_cache_align_mask = 64 - 1;
+static unsigned int uma_cache_align_mask = 64 - 1;
 
 static MALLOC_DEFINE(M_UMAHASH, "UMAHash", "UMA Hash Buckets");
 static MALLOC_DEFINE(M_UMA, "UMA", "UMA Misc");
@@ -3252,15 +3252,20 @@ uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit, uma_fini fini,
 /* Public functions */
 /* See uma.h */
 void
-uma_set_cache_align_mask(int mask)
+uma_set_cache_align_mask(unsigned int mask)
 {
 
-	if (mask >= 0)
-		uma_cache_align_mask = mask;
+	/*
+	 * Make sure the stored align mask doesn't have its highest bit set,
+	 * which would cause implementation-defined behavior when passing it as
+	 * the 'align' argument of uma_zcreate().  Such very large alignments do
+	 * not make sense anyway.
+	 */
+	uma_cache_align_mask = mask & ~(1U << 31);
 }
 
 /* Returns the alignment mask to use to request cache alignment. */
-int
+unsigned int
 uma_get_cache_align_mask(void)
 {
 	return (uma_cache_align_mask);
