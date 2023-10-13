@@ -301,7 +301,7 @@ uma_zone_t uma_zcache_create(const char *name, int size, uma_ctor ctor,
 #define UMA_ALIGN_INT	(sizeof(int) - 1)	/* "" int */
 #define UMA_ALIGN_SHORT	(sizeof(short) - 1)	/* "" short */
 #define UMA_ALIGN_CHAR	(sizeof(char) - 1)	/* "" char */
-#define UMA_ALIGN_CACHE	(0 - 1)			/* Cache line size align */
+#define UMA_ALIGN_CACHE	(uma_get_cache_align_mask()) /* Cache line size align */
 #define	UMA_ALIGNOF(type) (_Alignof(type) - 1)	/* Alignment fit for 'type' */
 
 #define	UMA_ANYDOMAIN	-1	/* Special value for domain search. */

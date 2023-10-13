@@ -3243,7 +3243,7 @@ uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit, uma_fini fini,
 	args.size = size;
 	args.uminit = uminit;
 	args.fini = fini;
-	args.align = (align == UMA_ALIGN_CACHE) ? uma_cache_align_mask : align;
+	args.align = align;
 	args.flags = flags;
 	args.zone = zone;
 	return (zone_alloc_item(kegs, &args, UMA_ANYDOMAIN, M_WAITOK));
@@ -3256,7 +3256,6 @@ uma_set_cache_align_mask(int mask)
 {
 
 	if (mask >= 0)
-		/* UMA_ALIGN_CACHE is also not permitted here. */
 		uma_cache_align_mask = mask;
 }
 
