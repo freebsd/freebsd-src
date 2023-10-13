@@ -254,7 +254,7 @@ set_cpufuncs(void)
 	panic("No support for this CPU type (%08x) in kernel", cputype);
 	return(ARCHITECTURE_NOT_PRESENT);
 out:
-	uma_set_align(arm_dcache_align_mask);
+	uma_set_cache_align_mask(arm_dcache_align_mask);
 	return (0);
 }
 
