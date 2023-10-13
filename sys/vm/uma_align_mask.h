@@ -31,6 +31,6 @@
 #ifndef _VM_UMA_ALIGN_MASK_H_
 #define _VM_UMA_ALIGN_MASK_H_
 
-int uma_get_cache_align_mask(void) __pure;
+unsigned int uma_get_cache_align_mask(void) __pure;
 
 #endif /* !_VM_UMA_ALIGN_MASK_H_ */

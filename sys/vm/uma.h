@@ -475,7 +475,7 @@ void uma_zone_reclaim_domain(uma_zone_t, int req, int domain);
  * Returns:
  *	Nothing
  */
-void uma_set_cache_align_mask(int mask);
+void uma_set_cache_align_mask(unsigned int mask);
 
 #include <vm/uma_align_mask.h>
 
