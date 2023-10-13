@@ -470,12 +470,14 @@ void uma_zone_reclaim_domain(uma_zone_t, int req, int domain);
  * alignment.  Should be called by MD boot code prior to starting VM/UMA.
  *
  * Arguments:
- *	align The alignment mask
+ *	mask The alignment mask
  *
  * Returns:
  *	Nothing
  */
-void uma_set_align(int align);
+void uma_set_cache_align_mask(int mask);
+
+#include <vm/uma_align_mask.h>
 
 /*
  * Set a reserved number of items to hold for M_USE_RESERVE allocations.  All
