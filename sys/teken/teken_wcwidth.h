@@ -128,15 +128,32 @@ static inline teken_char_t
 teken_utf8_bytes_to_codepoint(uint8_t bytes[4], int nbytes)
 {
 
-  /* Check for malformed characters. */
-  if (__bitcount(bytes[0] & 0xf0) != nbytes)
+ /*
+  * Check for malformed characters by comparing 'nbytes'
+  * to the byte length of the character.
+  *
+  * The table in section 3 of RFC 3629 defines 4 different
+  * values indicating the length of a UTF-8 byte sequence.
+  *
+  * 0xxxxxxx -> 1 byte
+  * 110xxxxx -> 2 bytes
+  * 1110xxxx -> 3 bytes
+  * 11110xxx -> 4 bytes
+  *
+  * The length is determined by the higher-order bits in
+  * the leading octet (except in the first case, where an MSB
+  * of 0 means a byte length of 1). Here we flip the 4 upper
+  * bits and count the leading zeros using __builtin_clz()
+  * to determine the number of bytes.
+  */
+  if (__builtin_clz(~(bytes[0] & 0xf0) << 24) != nbytes)
     return (TEKEN_UTF8_INVALID_CODEPOINT);
 
   switch (nbytes) {
   case 1:
     return (bytes[0] & 0x7f);
   case 2:
-    return (bytes[0] & 0xf) << 6 | (bytes[1] & 0x3f);
+    return (bytes[0] & 0x1f) << 6 | (bytes[1] & 0x3f);
   case 3:
     return (bytes[0] & 0xf) << 12 | (bytes[1] & 0x3f) << 6 | (bytes[2] & 0x3f);
   case 4:

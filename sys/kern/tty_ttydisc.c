@@ -844,23 +844,25 @@ ttydisc_rubchar(struct tty *tp)
 					 */
 					ttyinq_write(&tp->t_inq, bytes,
 					    UTF8_STACKBUF, 0);
+					ttyinq_unputchar(&tp->t_inq);
 				} else {
 					/* Find codepoint and width. */
 					codepoint =
 					    teken_utf8_bytes_to_codepoint(bytes,
 						nb);
-					if (codepoint !=
-					    TEKEN_UTF8_INVALID_CODEPOINT) {
-						cwidth = teken_wcwidth(
-						    codepoint);
-					} else {
+					if (codepoint ==
+						TEKEN_UTF8_INVALID_CODEPOINT ||
+					    (cwidth = teken_wcwidth(
+						 codepoint)) == -1) {
 						/*
 						 * Place all bytes back into the
 						 * inq and fall back to
 						 * default behaviour.
 						 */
+						cwidth = 1;
 						ttyinq_write(&tp->t_inq, bytes,
 						    nb, 0);
+						ttyinq_unputchar(&tp->t_inq);
 					}
 				}
 				tp->t_column -= cwidth;
