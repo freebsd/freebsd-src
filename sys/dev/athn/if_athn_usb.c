@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
+#include <dev/usb/usb_core.h>
 #include <dev/usb/usbdi_util.h>
 
 #include "openbsd_adapt.h"
@@ -74,7 +75,6 @@ __FBSDID("$FreeBSD$");
 
 unsigned int ifq_oactive = 0;
 
-// MichalP: I moved the flags to the driver_info field.
 static const STRUCT_USB_HOST_ID athn_usb_devs[] = {
 	{ USB_VP(USB_VENDOR_ATHEROS2, USB_PRODUCT_ATHEROS2_AR9271_1) },
 	{ USB_VP(USB_VENDOR_ATHEROS2, USB_PRODUCT_ATHEROS2_AR9271_2) },
@@ -121,10 +121,6 @@ ar9271_load_ani(struct athn_softc *sc)
 	AR_WRITE_BARRIER(sc);
 #endif	/* NATHN_USB */
 }
-
-// Might be needed some devices have this defined in FreeBSD and Linux version
-//static device_suspend_t	rtwn_usb_suspend;
-//static device_resume_t	rtwn_usb_resume;
 
 void		athn_usb_attachhook(device_t self);
 int		athn_usb_open_pipes(struct athn_usb_softc *);
@@ -250,55 +246,47 @@ int		athn_hw_reset(struct athn_softc *, struct ieee80211_channel *,
 void		athn_updateedca(struct ieee80211com *);
 void		athn_updateslot(struct ieee80211com *);
 
-// OpenBSD struct
-//const struct cfattach athn_usb_ca = {
-//	sizeof(struct athn_usb_softc),
-//	athn_usb_match,
-//	athn_usb_attach,
-//	athn_usb_detach
-//};
-
-
 static void athn_if_intr_rx_callback(struct usb_xfer *xfer, usb_error_t error);
 static void athn_if_intr_tx_callback(struct usb_xfer *xfer, usb_error_t error);
 static void athn_if_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error);
 static void athn_if_bulk_tx_callback(struct usb_xfer *xfer, usb_error_t error);
 
-static struct usb_config athn_if_config[4] = {
-        [0] = {
-                .type = UE_BULK,
-                .endpoint = AR_PIPE_RX_DATA,
-                .direction = UE_DIR_IN,
-                .bufsize = 512,           /* TODO use wMaxPacketSize */
-                .flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-                .callback = &athn_if_bulk_rx_callback,
-				.if_index = 0,
-        },
-        [1] = {
+static struct usb_config athn_if_config[ATHN_N_XFER] = {
+        [ATHN_BULK_TX] = {
                 .type = UE_BULK,
                 .endpoint = AR_PIPE_TX_DATA,
-                .direction = UE_DIR_OUT, // .direction = UE_DIR_IN,
+                .direction = UE_DIR_OUT,
+                .bufsize = 512,           /* TODO use wMaxPacketSize */
+                .flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+                .callback = athn_if_bulk_tx_callback,
+				.if_index = 0,
+				.timeout = 5000
+        },
+        [ATHN_BULK_RX] = {
+                .type = UE_BULK,
+                .endpoint = AR_PIPE_RX_DATA,
+                .direction = UE_DIR_IN, // .direction = UE_DIR_IN,
                 .bufsize = 512,
-                //.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-                .callback = &athn_if_bulk_tx_callback,
+                .flags = {.ext_buffer=1,.pipe_bof = 1,.short_xfer_ok = 1,},
+                .callback = athn_if_bulk_rx_callback,
 				.if_index = 1,
         },
-        [2] = {
+        [ATHN_BULK_IRQ] = {
                 .type = UE_INTERRUPT,
                 .endpoint = AR_PIPE_RX_INTR,
                 .direction = UE_DIR_IN,
                 .bufsize = 64,
                 .flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-                .callback = &athn_if_intr_rx_callback,
+                .callback = athn_if_intr_rx_callback,
 				.if_index = 1,
         },
-		[3] = {
+		[ATHN_BULK_CMD] = {
                 .type = UE_INTERRUPT,
                 .endpoint = AR_PIPE_TX_INTR,
                 .direction = UE_DIR_OUT,
                 .bufsize = 64,
                 .flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-                .callback = &athn_if_intr_tx_callback,
+                .callback = athn_if_intr_tx_callback,
 				.if_index = 2,
         }
 };
@@ -354,8 +342,9 @@ athn_if_intr_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	switch(state) {
 		case USB_ST_SETUP:
-	 		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
-        	usbd_transfer_submit(xfer);
+//	 		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+//        	usbd_transfer_submit(xfer);
+			printf("USB_ST_SETUP called\n");
 			break;
 		case USB_ST_TRANSFERRED:
 		{
@@ -472,8 +461,9 @@ athn_if_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	switch(state) {
 		case USB_ST_SETUP:
-	 		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
-        	usbd_transfer_submit(xfer);
+//	 		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+//        	usbd_transfer_submit(xfer);
+		printf("USB_ST_SETUP called\n");
 			break;
 		case USB_ST_TRANSFERRED:
 			break;
@@ -552,20 +542,17 @@ tsleep_nsec(const void *ident, int priority, const char *wmesg,
 }
 
 static device_method_t athn_usb_methods[] = {
-	/* Device interface */
 	DEVMETHOD(device_probe,		athn_usb_match),
 	DEVMETHOD(device_attach,	athn_usb_attach),
 	DEVMETHOD(device_detach,	athn_usb_detach),
-	//DEVMETHOD(device_suspend,	athn_usb_suspend), <-- missing in OpenBSD could be needed
-	//DEVMETHOD(device_resume,	athn_usb_resume), <-- missing in OpenBSD could be needed
 
 	DEVMETHOD_END
 };
 
 static driver_t athn_usb_driver = {
-	"athn",
-	athn_usb_methods,
-	sizeof(struct athn_usb_softc)
+	.name = "athn",
+	.methods = athn_usb_methods,
+	.size = sizeof(struct athn_usb_softc)
 };
 
 /* Temporary to nofiy that the module was loaded */
@@ -588,11 +575,10 @@ athn_usb_load(struct module *m, int what, void *arg)
 	return(error);
 }
 
-// MichalP: Defined in bus.h
 DRIVER_MODULE(athn_usb, uhub, athn_usb_driver, athn_usb_load, NULL);
-MODULE_VERSION(athn_usb, 1);
 MODULE_DEPEND(athn_usb, usb, 1, 1, 1);
 MODULE_DEPEND(athn_usb, wlan, 1, 1, 1);
+MODULE_VERSION(athn_usb, 1);
 USB_PNP_HOST_INFO(athn_usb_devs);
 
 static int
@@ -626,18 +612,12 @@ athn_usb_match(device_t self)
 static int
 athn_usb_attach(device_t self)
 {
-	struct athn_usb_softc *usc = (struct athn_usb_softc *)self;
+	struct usb_attach_arg *uaa = device_get_ivars(self);
+	struct athn_usb_softc *usc =  device_get_softc(self);
 	struct athn_softc *sc = &usc->sc_sc;
-	struct usb_endpoint *ep, *ep_end;
+	usb_error_t error;
 
 	usc->sc_udev = uaa->device;
-	ep = usc->sc_udev->endpoints;
-	ep_end = ep + usc->sc_udev->endpoints_max;
-
-	mtx_init(&sc->sc_mtx, "athn lock", MTX_NETWORK_LOCK, MTX_DEF);
-
-	usc->flags = uaa->driver_info;
-	sc->flags |= ATHN_FLAG_USB;
 #ifdef notyet
 	/* Check if it is a combo WiFi+Bluetooth (WB193) device. */
 	if (strncmp(product, "wb193", 5) == 0)
@@ -646,6 +626,13 @@ athn_usb_attach(device_t self)
 
 	mtx_init(&sc->sc_mtx, "mtx_name", MTX_NETWORK_LOCK, MTX_DEF);
 
+	usc->flags = uaa->driver_info;
+	sc->flags |= ATHN_FLAG_USB;
+#ifdef notyet
+	/* Check if it is a combo WiFi+Bluetooth (WB193) device. */
+	if (strncmp(product, "wb193", 5) == 0)
+		sc->flags |= ATHN_FLAG_BTCOEX3WIRE;
+#endif
 #if OpenBSD_USB_API
 	sc->ops.read = athn_usb_read;
 	sc->ops.write = athn_usb_write;
@@ -654,33 +641,14 @@ athn_usb_attach(device_t self)
 	usb_init_task(&usc->sc_task, athn_usb_task, sc, USB_TASK_TYPE_GENERIC);
 
 	if (athn_usb_open_pipes(usc) != 0)
-		return;
+		return error;
 
-	usc->flags = uaa->driver_info;
-	sc->flags |= ATHN_FLAG_USB;
-#ifdef notyet
-	/* Check if it is a combo WiFi+Bluetooth (WB193) device. */
-	if (strncmp(product, "wb193", 5) == 0)
-		sc->flags |= ATHN_FLAG_BTCOEX3WIRE;
+	/* Allocate xfer for firmware commands. */
+	if (athn_usb_alloc_tx_cmd(usc) != 0)
+		return error;
 #endif
 
-	sc->ops.read = athn_usb_read;
-	sc->ops.write = athn_usb_write;
-	sc->ops.write_barrier = athn_usb_write_barrier;
-//
-////	usb_init_task(&usc->sc_task, athn_usb_task, sc, USB_TASK_TYPE_GENERIC);
-//
-//	if (athn_usb_open_pipes(usc) != 0)
-//		return;
-//
-//	/* Allocate xfer for firmware commands. */
-//	if (athn_usb_alloc_tx_cmd(usc) != 0)
-//		return;
-//
-	athn_usb_attachhook(self);
-
-
-	/* 
+	/*
 	 * TODO:
 	 *		- code below should be placed in between athn_usb_load_firmware 
 	 *     	  and athn_usb_htc_setup from athn_usb_attachhook
@@ -688,47 +656,33 @@ athn_usb_attach(device_t self)
 	 *        only rx interrupt is needed here
 	 */
 	error = usbd_transfer_setup(uaa->device,
-                              &uaa->info.bIfaceIndex, sc->if_sc_xfer, athn_if_config,
-                             4 /* config size*/, usc, &sc->sc_mtx);
+                              &uaa->info.bIfaceIndex, usc->sc_xfer, athn_if_config,
+								ATHN_N_XFER, usc, &sc->sc_mtx);
 
 	printf("TTTT: Tranfer setup return code = %d\n", error);
-	if (sc->if_sc_xfer[0] == NULL) {
+	if (usc->sc_xfer[0] == NULL) {
 		printf("MP: Xfer is empty\n");
 		return (ENXIO);
 	} else {
-		printf("MP: Endpoint 0 number =  %d\n", sc->if_sc_xfer[0]->endpointno);
+		printf("MP: Endpoint 0 number =  %d\n", usc->sc_xfer[0]->endpointno);
 	}
 
+	// Michalp TODO Move to openpipes functions
 	mtx_lock(&sc->sc_mtx);
-	usbd_transfer_start(sc->if_sc_xfer[0]);
-	usbd_transfer_start(sc->if_sc_xfer[1]);
-	usbd_transfer_start(sc->if_sc_xfer[2]);
-	usbd_transfer_start(sc->if_sc_xfer[3]);
+	usbd_transfer_start(usc->sc_xfer[ATHN_BULK_RX]);
+	usbd_transfer_start(usc->sc_xfer[ATHN_BULK_IRQ]);
 	mtx_unlock(&sc->sc_mtx);
 
+	athn_usb_attachhook(self);
+
 	printf("TTTT: athn_usb_attach\n");
-
-	/* Wait at most 1 second for firmware to boot. */
-	if (error == 0 && usc->wait_msg_id != 0) {
-		error = tsleep_nsec(&usc->wait_msg_id, 0, "athnfw",
-		    SEC_TO_NSEC(1));
-	}
-	usc->wait_msg_id = 0;
-
-	if (error) {
-		printf("Error waiting message, errno: %d\n", error);
-	} else {
-		printf("Successfully transfered firmware, errno: %d\n", error);
-	}
-
-	printf("athn_usb_attach called \n");
 	return 0;
 }
 
 static int
 athn_usb_detach(device_t self)
 {
-	struct athn_usb_softc *usc = (struct athn_usb_softc *)self;
+	struct athn_usb_softc *usc = device_get_softc(self);
 	struct athn_softc *sc = &usc->sc_sc;
 
 	if (usc->sc_athn_attached)
@@ -771,7 +725,7 @@ athn_usb_attachhook(device_t self)
 		printf("Could not load firmware\n");
 		return;
 	}
-
+#ifdef notyet
 	/* Setup the host transport communication interface. */
 	error = athn_usb_htc_setup(usc);
 	if (error != 0)
@@ -784,6 +738,7 @@ athn_usb_attachhook(device_t self)
 		splx(s);
 		return;
 	}
+#endif
 	usc->sc_athn_attached = 1;
 #ifdef notyet
 	/* Override some operations for USB. */
@@ -814,6 +769,7 @@ athn_usb_attachhook(device_t self)
 #if OpenBSD_ONLY
 	timeout_set(&sc->scan_to, athn_usb_next_scan, usc);
 #endif
+#ifdef notyet
 	ops->rx_enable = athn_usb_rx_enable;
 	splx(s);
 
@@ -822,14 +778,16 @@ athn_usb_attachhook(device_t self)
 		athn_reset_key(sc, i);
 
 	ops->enable_antenna_diversity(sc);
-
+#endif
 #ifdef ATHN_BT_COEXISTENCE
 	/* Configure bluetooth coexistence for combo chips. */
 	if (sc->flags & ATHN_FLAG_BTCOEX)
 		athn_btcoex_init(sc);
 #endif
 	/* Configure LED. */
+#ifdef notyet
 	athn_led_init(sc);
+#endif
 }
 
 int

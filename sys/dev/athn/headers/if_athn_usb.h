@@ -366,6 +366,14 @@ struct ar_rx_status {
 /*
  * Driver definitions.
  */
+enum {
+	ATHN_BULK_TX,
+	ATHN_BULK_RX,
+	ATHN_BULK_IRQ,
+	ATHN_BULK_CMD,
+	ATHN_N_XFER
+};
+
 #define ATHN_USB_RX_LIST_COUNT	1
 #define ATHN_USB_TX_LIST_COUNT	(8 + 1)		/* NB: +1 for beacons. */
 
@@ -441,8 +449,8 @@ struct athn_usb_softc {
 #if OpenBSD_USB_API
 	struct usb_task			sc_task;
 #endif
-
 	struct mtx		sc_mtx;
+	struct usb_xfer	*sc_xfer[ATHN_N_XFER];
 
 	u_int				flags;
 #define ATHN_USB_FLAG_AR7010	0x01

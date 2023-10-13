@@ -53,7 +53,6 @@ athn_usb_unload_firmware()
 	return;
 }
 
-
 int
 athn_usb_get_firmware(struct athn_usb_softc *usc)
 {
@@ -81,8 +80,6 @@ athn_usb_get_firmware(struct athn_usb_softc *usc)
 	}
 }
 
-
-
 int
 athn_usb_transfer_firmware(struct athn_usb_softc *usc)
 {
@@ -94,8 +91,6 @@ athn_usb_transfer_firmware(struct athn_usb_softc *usc)
 	int s, mlen;
 	int error = 0;
 
-	mtx_lock(&usc->sc_sc.sc_mtx);
-
 /* Load firmware image. */
 	ptr = (void *)fware->data;
 	addr = AR9271_FIRMWARE >> 8;
@@ -103,6 +98,9 @@ athn_usb_transfer_firmware(struct athn_usb_softc *usc)
 	req.bRequest = AR_FW_DOWNLOAD;
 	USETW(req.wIndex, 0);
 	size = fware->datasize;
+
+	mtx_lock(&usc->sc_sc.sc_mtx);
+
 	while (size > 0) {
 		printf("Uploading %zu bytes\n", size);
 		mlen = MIN(size, 4096);
@@ -120,9 +118,12 @@ athn_usb_transfer_firmware(struct athn_usb_softc *usc)
 		size -= mlen;
 	}
 
+	mtx_unlock(&usc->sc_sc.sc_mtx);
+
 	/* TODO:
 	 * do we want to unload (athn_usb_unload_firmware) here or in detach ?
 	 */
+	DELAY(1000);
 
 	/* Start firmware. */
 	if (usc->flags & ATHN_USB_FLAG_AR7010)
@@ -139,11 +140,19 @@ athn_usb_transfer_firmware(struct athn_usb_softc *usc)
 	 * splnet / splx is deprecated, use mutexes
 	 */
 //	s = splnet();
-	usc->wait_msg_id = AR_HTC_MSG_READY;
+//	usc->wait_msg_id = AR_HTC_MSG_READY;
 	
 	printf("Send AR_HTC_MSG_READY message\n");
 
+	mtx_lock(&usc->sc_sc.sc_mtx);
 	error = usbd_do_request(usc->sc_udev, &usc->sc_sc.sc_mtx, &req, NULL);
+	if (error != 0) {
+		device_printf(usc->sc_sc.sc_dev,
+					  "could not send download complete, err=%s\n",
+					  usbd_errstr(error));
+		athn_usb_unload_firmware();
+		return (error);
+	}
 
 	mtx_unlock(&usc->sc_sc.sc_mtx);
 //	splx(s);
