@@ -525,9 +525,15 @@ threadinit(void)
 	 */
 	flags |= UMA_ZONE_CONTIG;
 #endif
+	/*
+	 * Thread structures are specially aligned so that (at least) the
+	 * 5 lower bits of a pointer to 'struct thead' must be 0.  These bits
+	 * are used by synchronization primitives to store flags in pointers to
+	 * such structures.
+	 */
 	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
-	    32 - 1, flags);
+	    UMA_ALIGN_CACHE_AND_MASK(32 - 1), flags);
 	tidhashtbl = hashinit(maxproc / 2, M_TIDHASH, &tidhash);
 	tidhashlock = (tidhash + 1) / 64;
 	if (tidhashlock > 0)
