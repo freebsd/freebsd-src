@@ -61,8 +61,8 @@
 
 /* PRIMARY CACHE VARIABLES */
 
-int	arm_dcache_align;
-int	arm_dcache_align_mask;
+unsigned int	arm_dcache_align;
+unsigned int	arm_dcache_align_mask;
 
 #ifdef CPU_MV_PJ4B
 static void pj4bv7_setup(void);
@@ -170,7 +170,7 @@ get_cachetype_cp15(void)
 				    : : "r" (sel));
 				__asm __volatile("mrc p15, 1, %0, c0, c0, 0"
 				    : "=r" (csize));
-				arm_dcache_align = 1 <<
+				arm_dcache_align = 1U <<
 				    (CPUV7_CT_xSIZE_LEN(csize) + 4);
 			}
 			if (type == CACHE_ICACHE || type == CACHE_SEP_CACHE) {
