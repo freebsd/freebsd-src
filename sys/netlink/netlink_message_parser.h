@@ -289,6 +289,14 @@ nl_verify_parsers(const struct nlhdr_parser **parser, int count)
 		for (int j = 0; j < p->np_size; j++) {
 			MPASS(p->np[j].type > attr_type);
 			attr_type = p->np[j].type;
+
+			/* Recurse into nested objects. */
+			if (p->np[j].cb == nlattr_get_nested ||
+			    p->np[j].cb == nlattr_get_nested_ptr) {
+				const struct nlhdr_parser *np =
+				    (const struct nlhdr_parser *)p->np[j].arg;
+				nl_verify_parsers(&np, 1);
+			}
 		}
 	}
 #endif
