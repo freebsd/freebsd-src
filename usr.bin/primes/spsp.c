@@ -76,13 +76,11 @@ spsp(uint64_t n, uint64_t p)
 {
 	uint64_t x;
 	uint64_t r = n - 1;
-	int k = 0;
+	unsigned int k;
 
 	/* Compute n - 1 = 2^k * r. */
-	while ((r & 1) == 0) {
-		k++;
-		r >>= 1;
-	}
+	k = __builtin_ctzll(r);
+	r >>= k;
 
 	/* Compute x = p^r mod n.  If x = 1, n is a p-spsp. */
 	x = powmod(p, r, n);

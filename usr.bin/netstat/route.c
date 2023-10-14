@@ -108,7 +108,7 @@ static const char *netname6(struct sockaddr_in6 *, struct sockaddr_in6 *);
 static void p_rtable_sysctl(int, int);
 static void p_rtentry_sysctl(const char *name, struct rt_msghdr *);
 #endif
-static void domask(char *, size_t, u_long);
+static void domask(char *, size_t, in_addr_t);
 
 const uint32_t rt_default_weight = RT_DEFAULT_WEIGHT;
 
@@ -527,31 +527,21 @@ routename(struct sockaddr *sa, int flags)
 	0)
 
 static void
-domask(char *dst, size_t buflen, u_long mask)
+domask(char *dst, size_t buflen, in_addr_t mask)
 {
-	int b, i;
+	int i;
 
 	if (mask == 0) {
 		*dst = '\0';
 		return;
 	}
-	i = 0;
-	for (b = 0; b < 32; b++)
-		if (mask & (1 << b)) {
-			int bb;
+	i = __builtin_ctz(mask);
 
-			i = b;
-			for (bb = b+1; bb < 32; bb++)
-				if (!(mask & (1 << bb))) {
-					i = -1;	/* noncontig */
-					break;
-				}
-			break;
-		}
-	if (i == -1)
-		snprintf(dst, buflen, "&0x%lx", mask);
+	/* Are the rest of the from the trailing zeros set? */
+	if (mask == (~0 << i))
+		snprintf(dst, buflen, "/%d", 32-i); /* Yes */
 	else
-		snprintf(dst, buflen, "/%d", 32-i);
+		snprintf(dst, buflen, "&0x%x", mask); /* No */
 }
 
 /*

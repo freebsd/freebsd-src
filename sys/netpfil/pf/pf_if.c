@@ -981,17 +981,16 @@ static int
 pfi_unmask(void *addr)
 {
 	struct pf_addr *m = addr;
-	int i = 31, j = 0, b = 0;
+	int i = 0, b = 0;
 	u_int32_t tmp;
 
-	while (j < 4 && m->addr32[j] == 0xffffffff) {
+	while (i < 4 && m->addr32[i] == 0xffffffff) {
 		b += 32;
-		j++;
+		i++;
 	}
-	if (j < 4) {
-		tmp = ntohl(m->addr32[j]);
-		for (i = 31; tmp & (1 << i); --i)
-			b++;
+	if (i < 4) {
+		tmp = ntohl(m->addr32[i]);
+		b += __buitlin_clz(tmp);
 	}
 	return (b);
 }

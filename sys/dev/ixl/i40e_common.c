@@ -3800,7 +3800,7 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 				     enum i40e_admin_queue_opc list_type_opc)
 {
 	struct i40e_aqc_list_capabilities_element_resp *cap;
-	u32 valid_functions, num_functions;
+	u32 num_functions;
 	u32 number, logical_id, phys_id;
 	struct i40e_hw_capabilities *p;
 	enum i40e_status_code status;
@@ -4124,13 +4124,7 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 		}
 	}
 
-	valid_functions = p->valid_functions;
-	num_functions = 0;
-	while (valid_functions) {
-		if (valid_functions & 1)
-			num_functions++;
-		valid_functions >>= 1;
-	}
+	num_functions = bitcount32(p->valid_functions);
 
 	/* partition id is 1-based, and functions are evenly spread
 	 * across the ports as partitions

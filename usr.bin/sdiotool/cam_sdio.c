@@ -172,7 +172,7 @@ sdio_read_bool_for_func(struct cam_device *dev, uint32_t addr, uint8_t func_numb
 	if (ret < 0)
 		return ret;
 
-	*is_enab = (resp & (1 << func_number)) > 0 ? 1 : 0;
+	*is_enab = (resp >> func_number) & 1;
 
 	return (0);
 }
@@ -186,9 +186,9 @@ sdio_set_bool_for_func(struct cam_device *dev, uint32_t addr, uint8_t func_numbe
 	ret = sdio_rw_direct(dev, 0, addr, 0, NULL, &resp);
 	if (ret != 0)
 		return ret;
+	is_enabled = (resp >> func_number) & 1;
 
-	is_enabled = resp & (1 << func_number);
-	if ((is_enabled !=0 && enable == 1) || (is_enabled == 0 && enable == 0))
+	if (is_enabled == enable) // Are the two equal?
 		return 0;
 
 	if (enable)

@@ -768,10 +768,7 @@ aw_gpio_pin_toggle(device_t dev, uint32_t pin)
 
 	AW_GPIO_LOCK(sc);
 	data = AW_GPIO_READ(sc, AW_GPIO_GP_DAT(bank));
-	if (data & (1 << pin))
-		data &= ~(1 << pin);
-	else
-		data |= (1 << pin);
+	data ^= (1 << pin);
 	AW_GPIO_WRITE(sc, AW_GPIO_GP_DAT(bank), data);
 	AW_GPIO_UNLOCK(sc);
 
