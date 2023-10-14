@@ -187,13 +187,19 @@ int nlattr_get_ifpz(struct nlattr *nla, struct nl_pstate *npt,
     const void *arg, void *target);
 int nlattr_get_ipvia(struct nlattr *nla, struct nl_pstate *npt,
     const void *arg, void *target);
+int nlattr_get_chara(struct nlattr *nla, struct nl_pstate *npt,
+    const void *arg, void *target);
 int nlattr_get_string(struct nlattr *nla, struct nl_pstate *npt,
     const void *arg, void *target);
 int nlattr_get_stringn(struct nlattr *nla, struct nl_pstate *npt,
     const void *arg, void *target);
+int nlattr_get_bytes(struct nlattr *nla, struct nl_pstate *npt,
+    const void *arg, void *target);
 int nlattr_get_nla(struct nlattr *nla, struct nl_pstate *npt,
     const void *arg, void *target);
 int nlattr_get_nested(struct nlattr *nla, struct nl_pstate *npt,
+    const void *arg, void *target);
+int nlattr_get_nested_ptr(struct nlattr *nla, struct nl_pstate *npt,
     const void *arg, void *target);
 
 bool nlmsg_report_err_msg(struct nl_pstate *npt, const char *fmt, ...);
