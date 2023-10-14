@@ -71,7 +71,7 @@ and place these in for examle $jail/root
 
 Chroot to /var/tmp/jail /bin/sh
 
-1) Install wine. For example by "UNAME_m=i386 pkg-add -r wine"
+1) Install wine. For example by "UNAME_m=i386 pkg-install -r wine"
 3) Run wine on the Firefox installer.
 
 The mplayer test:
