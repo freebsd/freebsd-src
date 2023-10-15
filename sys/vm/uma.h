@@ -637,7 +637,7 @@ void uma_zone_set_smr(uma_zone_t zone, smr_t smr);
 smr_t uma_zone_get_smr(uma_zone_t zone);
 
 /*
- * These flags are setable in the allocf and visible in the freef.
+ * These flags are settable in the allocf and visible in the freef.
  */
 #define UMA_SLAB_BOOT	0x01		/* Slab alloced from boot pages */
 #define UMA_SLAB_KERNEL	0x04		/* Slab alloced from kmem */
