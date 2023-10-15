@@ -3053,9 +3053,6 @@ parse_action(const char *p, struct filed *f)
 				f->f_type = F_TTY;
 			(void)strlcpy(f->fu_fname, p + sizeof(_PATH_DEV) - 1,
 			    sizeof(f->fu_fname));
-			/* This will be reopened by ttymsg(). */
-			close(f->f_file);
-			f->f_file = -1;
 		} else {
 			(void)strlcpy(f->fu_fname, p, sizeof(f->fu_fname));
 			f->f_type = F_FILE;
