@@ -1101,8 +1101,11 @@ main(int argc, char *argv[])
 	/*
 	 * find_dev can operate without any efi variables
 	 */
-	if (!efi_variables_supported() && !opts.find_dev)
-		errx(1, "efi variables not supported on this system. root? kldload efirt?");
+	if (!efi_variables_supported() && !opts.find_dev) {
+		if (errno == EACCES && geteuid() != 0)
+			errx(1, "must be run as root");
+		errx(1, "efi variables not supported on this system. kldload efirt?");
+	}
 
 	read_vars();
 
