@@ -1,4 +1,3 @@
-
 MDSRCS+= \
 	amd64_archlevel.c \
 	bcmp.S \
@@ -16,4 +15,5 @@ MDSRCS+= \
 	strlen.S \
 	strnlen.c \
 	strspn.S \
-	timingsafe_bcmp.S
+	timingsafe_bcmp.S \
+	timingsafe_memcmp.S
