@@ -323,7 +323,7 @@ int main(int argc, char *argv[])
 		case 'm' :
 			filter = parseipfexpr(optarg, NULL);
 			if (filter == NULL) {
-				fprintf(stderr, "Error parseing '%s'\n",
+				fprintf(stderr, "Error parsing '%s'\n",
 					optarg);
 				exit(1);
 			}

@@ -31,7 +31,7 @@ address patterns or "all" to match any address information
 .SS Long lines
 .PP
 For rules lines that are particularly long, it is possible to split
-them over multiple lines implicity like this:
+them over multiple lines implicitly like this:
 .PP
 .nf
 pass in on bgeo proto tcp from 1.1.1.1 port > 1000
@@ -536,7 +536,7 @@ URG - this bit is set to indicate that the packet contains urgent data
 .HP
 R
 RST - this bit is set only in packets that are a reply to another
-that has been received but is not targetted at any open port
+that has been received but is not targeted at any open port
 .HP
 C
 CWN
@@ -686,7 +686,7 @@ Once a TCP connection has reached the established state, the default
 timeout allows for it to be idle for 5 days before it is removed from
 the state table. The timeouts for the other TCP connection states
 vary from 240 seconds to 30 seconds.
-Both UDP and ICMP state entries have asymetric timeouts where the timeout
+Both UDP and ICMP state entries have asymmetric timeouts where the timeout
 set upon seeing packets in the forward direction is much larger than
 for the reverse direction. For UDP the default timeouts are 120 and
 12 seconds, for ICMP 60 and 6 seconds. This is a reflection of the
@@ -890,8 +890,8 @@ construction of filter rules easier, it is possible to place them in groups.
 A rule can be both a member of a group and the head of a new group.
 .PP
 Using filter groups requires at least two rules: one to be in the group
-one one to send matchign packets to the group. If a packet matches a
-filtre rule that is a group head but does not match any of the rules
+one one to send matching packets to the group. If a packet matches a
+filter rule that is a group head but does not match any of the rules
 in that group, then the packet is considered to have matched the head
 rule.
 .PP
@@ -1037,7 +1037,7 @@ pass in on bge0 to bge1:1.1.1.1 reply-to hme1:2.1.1.2 \\
 .PP
 The design for IPv4 allows for the header to be upto 64 bytes long,
 however most traffic only uses the basic header which is 20 bytes long.
-The other 44 bytes can be uesd to store IP options. These options are
+The other 44 bytes can be used to store IP options. These options are
 generally not necessary for proper interaction and function on the
 Internet today. For most people it is sufficient to block and drop
 all packets that have any options set. This can be achieved with this
@@ -1090,7 +1090,7 @@ some of the nodes the packet must go through, with the ssrr option,
 every next hop router must be specified.
 .PP
 The complete list of IPv4 options that can be matched on is:
-addext (Address Extention),
+addext (Address Extension),
 cipso (Classical IP Security Option),
 dps (Dynamic Packet State),
 e-sec (Extended Security),
@@ -1357,7 +1357,7 @@ A list of the currently available variables inside IPFilter that may
 be tuned from ipf.conf are as follows:
 .HP
 active
-set through -s command line switch of ipf(8). See ipf(8) for detals.
+set through -s command line switch of ipf(8). See ipf(8) for details.
 .HP
 chksrc
 when set, enables reverse path verification on source addresses and
@@ -1430,7 +1430,7 @@ sets the size of the in-kernel log buffer in bytes.
 log_suppress
 when set, IPFilter will check to see if the packet it is logging is
 similar to the one it previously logged and if so, increases
-the occurance count for that packet. The previously logged packet
+the occurrence count for that packet. The previously logged packet
 must not have yet been read by ipmon(8).
 .HP
 min_ttl
@@ -1467,8 +1467,8 @@ when the fill percentage of the NAT table exceeds this mark, more
 aggressive flushing is enabled.
 .HP
 nat_table_wm_low
-this sets the percentage at which the NAT table's agressive flushing
-will turn itself off at.
+this sets the percentage at which the NAT table's aggressive flushing
+will turn itself off.
 .HP
 rdr_rules_size
 size of the hash table to store rdr rules.
@@ -1492,7 +1492,7 @@ state_size
 size of the hash table used for stateful filtering
 .HP
 state_wm_freq
-this controls how often the agressive flushing should be run once the
+this controls how often the aggressive flushing should be run once the
 state table exceeds state_wm_high in percentage full.
 .HP
 state_wm_high
@@ -1500,7 +1500,7 @@ when the fill percentage of the state table exceeds this mark, more
 aggressive flushing is enabled.
 .HP
 state_wm_low
-this sets the percentage at which the state table's agressive flushing
+this sets the percentage at which the state table's aggressive flushing
 will turn itself off at.
 .HP
 tcp_close_wait
