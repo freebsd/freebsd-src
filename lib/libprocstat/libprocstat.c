@@ -2414,7 +2414,6 @@ procstat_getauxv32_sysctl(pid_t pid, unsigned int *cntp)
 {
 	Elf_Auxinfo *auxv;
 	Elf32_Auxinfo *auxv32;
-	void *ptr;
 	size_t len;
 	unsigned int i, count;
 	int name[4];
@@ -2448,8 +2447,17 @@ procstat_getauxv32_sysctl(pid_t pid, unsigned int *cntp)
 		 * necessarily true.
 		 */
 		auxv[i].a_type = auxv32[i].a_type;
-		ptr = &auxv32[i].a_un;
-		auxv[i].a_un.a_val = *((uint32_t *)ptr);
+		/*
+		 * Don't sign extend values.  Existing entries are positive
+		 * integers or pointers.  Under freebsd32, programs typically
+		 * have a full [0, 2^32) address space (perhaps minus the last
+		 * page) and treating this as a signed integer would be
+		 * confusing since these are not kernel pointers.
+		 *
+		 * XXX: A more complete translation would be ABI and
+		 * type-aware.
+		 */
+		auxv[i].a_un.a_val = (uint32_t)auxv32[i].a_un.a_val;
 	}
 	*cntp = count;
 out:
