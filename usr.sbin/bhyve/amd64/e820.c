@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "debug.h"
 #include "e820.h"
 #include "qemu_fwcfg.h"
 
@@ -93,11 +94,11 @@ e820_dump_table(void)
 	struct e820_element *element;
 	uint64_t i;
 
-	fprintf(stderr, "E820 map:\n");
+	EPRINTLN("E820 map:");
 	
 	i = 0;
 	TAILQ_FOREACH(element, &e820_table, chain) {
-		fprintf(stderr, "  (%4lu) [%16lx, %16lx] %s\n", i,
+		EPRINTLN("  (%4lu) [%16lx, %16lx] %s", i,
 		    element->base, element->end,
 		    e820_get_type_name(element->type));
 

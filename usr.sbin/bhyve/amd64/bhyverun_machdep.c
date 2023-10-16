@@ -37,6 +37,7 @@
 #include "atkbdc.h"
 #include "bhyverun.h"
 #include "config.h"
+#include "debug.h"
 #include "e820.h"
 #include "fwctl.h"
 #include "ioapic.h"
@@ -70,7 +71,7 @@ bhyve_init_vcpu(struct vcpu *vcpu)
 	if (get_config_bool_default("x86.vmexit_on_hlt", false)) {
 		err = vm_get_capability(vcpu, VM_CAP_HALT_EXIT, &tmp);
 		if (err < 0) {
-			fprintf(stderr, "VM exit on HLT not supported\n");
+			EPRINTLN("VM exit on HLT not supported");
 			exit(4);
 		}
 		vm_set_capability(vcpu, VM_CAP_HALT_EXIT, 1);
@@ -82,8 +83,7 @@ bhyve_init_vcpu(struct vcpu *vcpu)
 		 */
 		err = vm_get_capability(vcpu, VM_CAP_PAUSE_EXIT, &tmp);
 		if (err < 0) {
-			fprintf(stderr,
-			    "SMP mux requested, no pause support\n");
+			EPRINTLN("SMP mux requested, no pause support");
 			exit(4);
 		}
 		vm_set_capability(vcpu, VM_CAP_PAUSE_EXIT, 1);
@@ -95,7 +95,7 @@ bhyve_init_vcpu(struct vcpu *vcpu)
 		err = vm_set_x2apic_state(vcpu, X2APIC_DISABLED);
 
 	if (err) {
-		fprintf(stderr, "Unable to set x2apic state (%d)\n", err);
+		EPRINTLN("Unable to set x2apic state (%d)", err);
 		exit(4);
 	}
 

@@ -83,7 +83,7 @@ vmexit_inout(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 
 	error = emulate_inout(ctx, vcpu, vme);
 	if (error) {
-		fprintf(stderr, "Unhandled %s%c 0x%04x at 0x%lx\n",
+		EPRINTLN("Unhandled %s%c 0x%04x at 0x%lx",
 		    in ? "in" : "out",
 		    bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'),
 		    port, vme->rip);
@@ -107,7 +107,7 @@ vmexit_rdmsr(struct vmctx *ctx __unused, struct vcpu *vcpu,
 	val = 0;
 	error = emulate_rdmsr(vcpu, vme->u.msr.code, &val);
 	if (error != 0) {
-		fprintf(stderr, "rdmsr to register %#x on vcpu %d\n",
+		EPRINTLN("rdmsr to register %#x on vcpu %d",
 		    vme->u.msr.code, vcpu_id(vcpu));
 		if (get_config_bool("x86.strictmsr")) {
 			vm_inject_gp(vcpu);
@@ -137,7 +137,7 @@ vmexit_wrmsr(struct vmctx *ctx __unused, struct vcpu *vcpu,
 
 	error = emulate_wrmsr(vcpu, vme->u.msr.code, vme->u.msr.wval);
 	if (error != 0) {
-		fprintf(stderr, "wrmsr to register %#x(%#lx) on vcpu %d\n",
+		EPRINTLN("wrmsr to register %#x(%#lx) on vcpu %d",
 		    vme->u.msr.code, vme->u.msr.wval, vcpu_id(vcpu));
 		if (get_config_bool("x86.strictmsr")) {
 			vm_inject_gp(vcpu);
@@ -239,17 +239,17 @@ vmexit_vmx(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 
 	vme = vmrun->vm_exit;
 
-	fprintf(stderr, "vm exit[%d]\n", vcpu_id(vcpu));
-	fprintf(stderr, "\treason\t\tVMX\n");
-	fprintf(stderr, "\trip\t\t0x%016lx\n", vme->rip);
-	fprintf(stderr, "\tinst_length\t%d\n", vme->inst_length);
-	fprintf(stderr, "\tstatus\t\t%d\n", vme->u.vmx.status);
-	fprintf(stderr, "\texit_reason\t%u (%s)\n", vme->u.vmx.exit_reason,
+	EPRINTLN("vm exit[%d]", vcpu_id(vcpu));
+	EPRINTLN("\treason\t\tVMX");
+	EPRINTLN("\trip\t\t0x%016lx", vme->rip);
+	EPRINTLN("\tinst_length\t%d", vme->inst_length);
+	EPRINTLN("\tstatus\t\t%d", vme->u.vmx.status);
+	EPRINTLN("\texit_reason\t%u (%s)", vme->u.vmx.exit_reason,
 	    vmexit_vmx_desc(vme->u.vmx.exit_reason));
-	fprintf(stderr, "\tqualification\t0x%016lx\n",
+	EPRINTLN("\tqualification\t0x%016lx",
 	    vme->u.vmx.exit_qualification);
-	fprintf(stderr, "\tinst_type\t\t%d\n", vme->u.vmx.inst_type);
-	fprintf(stderr, "\tinst_error\t\t%d\n", vme->u.vmx.inst_error);
+	EPRINTLN("\tinst_type\t\t%d", vme->u.vmx.inst_type);
+	EPRINTLN("\tinst_error\t\t%d", vme->u.vmx.inst_error);
 #ifdef DEBUG_EPT_MISCONFIG
 	if (vme->u.vmx.exit_reason == EXIT_REASON_EPT_MISCONFIG) {
 		vm_get_register(vcpu,
@@ -257,9 +257,9 @@ vmexit_vmx(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 		    &ept_misconfig_gpa);
 		vm_get_gpa_pmap(ctx, ept_misconfig_gpa, ept_misconfig_pte,
 		    &ept_misconfig_ptenum);
-		fprintf(stderr, "\tEPT misconfiguration:\n");
-		fprintf(stderr, "\t\tGPA: %#lx\n", ept_misconfig_gpa);
-		fprintf(stderr, "\t\tPTE(%d): %#lx %#lx %#lx %#lx\n",
+		EPRINTLN("\tEPT misconfiguration:");
+		EPRINTLN("\t\tGPA: %#lx", ept_misconfig_gpa);
+		EPRINTLN("\t\tPTE(%d): %#lx %#lx %#lx %#lx",
 		    ept_misconfig_ptenum, ept_misconfig_pte[0],
 		    ept_misconfig_pte[1], ept_misconfig_pte[2],
 		    ept_misconfig_pte[3]);
@@ -275,13 +275,13 @@ vmexit_svm(struct vmctx *ctx __unused, struct vcpu *vcpu, struct vm_run *vmrun)
 
 	vme = vmrun->vm_exit;
 
-	fprintf(stderr, "vm exit[%d]\n", vcpu_id(vcpu));
-	fprintf(stderr, "\treason\t\tSVM\n");
-	fprintf(stderr, "\trip\t\t0x%016lx\n", vme->rip);
-	fprintf(stderr, "\tinst_length\t%d\n", vme->inst_length);
-	fprintf(stderr, "\texitcode\t%#lx\n", vme->u.svm.exitcode);
-	fprintf(stderr, "\texitinfo1\t%#lx\n", vme->u.svm.exitinfo1);
-	fprintf(stderr, "\texitinfo2\t%#lx\n", vme->u.svm.exitinfo2);
+	EPRINTLN("vm exit[%d]", vcpu_id(vcpu));
+	EPRINTLN("\treason\t\tSVM");
+	EPRINTLN("\trip\t\t0x%016lx", vme->rip);
+	EPRINTLN("\tinst_length\t%d", vme->inst_length);
+	EPRINTLN("\texitcode\t%#lx", vme->u.svm.exitcode);
+	EPRINTLN("\texitinfo1\t%#lx", vme->u.svm.exitinfo1);
+	EPRINTLN("\texitinfo2\t%#lx", vme->u.svm.exitinfo2);
 	return (VMEXIT_ABORT);
 }
 
@@ -413,7 +413,7 @@ vmexit_suspend(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 	case VM_SUSPEND_TRIPLEFAULT:
 		exit(3);
 	default:
-		fprintf(stderr, "vmexit_suspend: invalid reason %d\n", how);
+		EPRINTLN("vmexit_suspend: invalid reason %d", how);
 		exit(100);
 	}
 	return (0);	/* NOTREACHED */
