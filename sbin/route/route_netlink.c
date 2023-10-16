@@ -266,7 +266,7 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib, int rtm_addrs
 	if (rt_metrics->rmx_weight > 0)
 		snl_add_msg_attr_u32(&nw, NL_RTA_WEIGHT, rt_metrics->rmx_weight);
 
-	if (snl_finalize_msg(&nw) && snl_send_message(ss, hdr)) {
+	if ((hdr = snl_finalize_msg(&nw)) && snl_send_message(ss, hdr)) {
 		struct snl_errmsg_data e = {};
 
 		hdr = snl_read_reply(ss, hdr->nlmsg_seq);
@@ -319,7 +319,7 @@ get_ifdata(struct nl_helper *h, uint32_t ifindex, struct snl_parsed_link_simple 
 	struct ifinfomsg *ifmsg = snl_reserve_msg_object(&nw, struct ifinfomsg);
 	if (ifmsg != NULL)
 		ifmsg->ifi_index = ifindex;
-	if (!snl_finalize_msg(&nw) || !snl_send_message(ss, hdr))
+	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(ss, hdr))
 		return;
 
 	hdr = snl_read_reply(ss, hdr->nlmsg_seq);
@@ -822,7 +822,7 @@ flushroute_one(struct nl_helper *h, struct snl_parsed_route *r)
 	snl_add_msg_attr_u32(&nw, RTA_TABLE, r->rta_table);
 	snl_add_msg_attr_ip(&nw, RTA_DST, r->rta_dst);
 
-	if (!snl_finalize_msg(&nw) || !snl_send_message(ss, hdr))
+	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(ss, hdr))
 		return (ENOMEM);
 
 	if (!snl_read_reply_code(ss, hdr->nlmsg_seq, &e)) {
@@ -869,7 +869,7 @@ flushroutes_fib_nl(int fib, int af)
 	rtm->rtm_family = af;
 	snl_add_msg_attr_u32(&nw, RTA_TABLE, fib);
 
-	if (!snl_finalize_msg(&nw) || !snl_send_message(&ss, hdr)) {
+	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(&ss, hdr)) {
 		snl_free(&ss);
 		return (EINVAL);
 	}

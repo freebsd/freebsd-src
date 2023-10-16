@@ -194,7 +194,7 @@ pfctl_startstop(int start)
 	hdr = snl_create_genl_msg_request(&nw, family_id,
 	    start ? PFNL_CMD_START : PFNL_CMD_STOP);
 
-	snl_finalize_msg(&nw);
+	hdr = snl_finalize_msg(&nw);
 	seq_id = hdr->nlmsg_seq;
 
 	snl_send_message(&ss, hdr);
@@ -1161,7 +1161,7 @@ pfctl_get_creators_nl(struct snl_state *ss, uint32_t *creators, size_t *len)
 	snl_init_writer(ss, &nw);
 	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GETCREATORS);
 	hdr->nlmsg_flags |= NLM_F_DUMP;
-	snl_finalize_msg(&nw);
+	hdr = snl_finalize_msg(&nw);
 	uint32_t seq_id = hdr->nlmsg_seq;
 
 	snl_send_message(ss, hdr);
@@ -1309,7 +1309,7 @@ pfctl_get_states_nl(struct snl_state *ss, pfctl_get_state_fn f, void *arg)
 	snl_init_writer(ss, &nw);
 	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GETSTATES);
 	hdr->nlmsg_flags |= NLM_F_DUMP;
-	snl_finalize_msg(&nw);
+	hdr = snl_finalize_msg(&nw);
 	uint32_t seq_id = hdr->nlmsg_seq;
 
 	snl_send_message(ss, hdr);

@@ -171,7 +171,7 @@ prepare_ifmap(struct snl_state *ss)
 	hdr->nlmsg_flags |= NLM_F_DUMP;
 	snl_reserve_msg_object(&nw, struct ifinfomsg);
 
-	if (!snl_finalize_msg(&nw) || !snl_send_message(ss, hdr))
+	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(ss, hdr))
 		return (NULL);
 
 	uint32_t nlmsg_seq = hdr->nlmsg_seq;
@@ -212,7 +212,7 @@ if_nametoindex_nl(struct snl_state *ss, const char *ifname)
 	snl_reserve_msg_object(&nw, struct ifinfomsg);
 	snl_add_msg_attr_string(&nw, IFLA_IFNAME, ifname);
 
-	if (!snl_finalize_msg(&nw) || !snl_send_message(ss, hdr))
+	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(ss, hdr))
 		return (0);
 
 	hdr = snl_read_reply(ss, hdr->nlmsg_seq);
@@ -247,7 +247,7 @@ prepare_ifaddrs(struct snl_state *ss, struct ifmap *ifmap)
 	hdr->nlmsg_flags |= NLM_F_DUMP;
 	snl_reserve_msg_object(&nw, struct ifaddrmsg);
 
-	if (!snl_finalize_msg(&nw) || !snl_send_message(ss, hdr))
+	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(ss, hdr))
 		return;
 
 	uint32_t nlmsg_seq = hdr->nlmsg_seq;

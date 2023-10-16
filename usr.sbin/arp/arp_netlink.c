@@ -63,7 +63,7 @@ get_link_info(struct snl_state *ss, uint32_t ifindex,
 	struct ifinfomsg *ifmsg = snl_reserve_msg_object(&nw, struct ifinfomsg);
 	if (ifmsg != NULL)
 		ifmsg->ifi_index = ifindex;
-	if (!snl_finalize_msg(&nw) || !snl_send_message(ss, hdr))
+	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(ss, hdr))
 		return (false);
 
 	hdr = snl_read_reply(ss, hdr->nlmsg_seq);
@@ -116,7 +116,7 @@ guess_ifindex(struct snl_state *ss, uint32_t fibnum, struct in_addr addr)
 	snl_add_msg_attr_ip(&nw, RTA_DST, (struct sockaddr *)&dst);
 	snl_add_msg_attr_u32(&nw, RTA_TABLE, fibnum);
 
-	if (!snl_finalize_msg(&nw) || !snl_send_message(ss, hdr))
+	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(ss, hdr))
 		return (0);
 
 	hdr = snl_read_reply(ss, hdr->nlmsg_seq);
@@ -148,7 +148,7 @@ guess_ifindex(struct snl_state *ss, uint32_t fibnum, struct in_addr addr)
 	snl_add_msg_attr_u32(&nw, NHAF_TABLE, fibnum);
 	snl_end_attr_nested(&nw, off);
 
-	if (!snl_finalize_msg(&nw) || !snl_send_message(ss, hdr))
+	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(ss, hdr))
 		return (0);
 
 	hdr = snl_read_reply(ss, hdr->nlmsg_seq);
@@ -285,7 +285,7 @@ print_entries_nl(uint32_t ifindex, struct in_addr addr)
 		ndmsg->ndm_ifindex = ifindex;
 	}
 
-	if (!snl_finalize_msg(&nw) || !snl_send_message(&ss_req, hdr)) {
+	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(&ss_req, hdr)) {
 		snl_free(&ss_req);
 		return (0);
 	}
@@ -355,7 +355,7 @@ delete_nl(uint32_t ifindex, char *host)
 	}
 	snl_add_msg_attr_ip(&nw, NDA_DST, (struct sockaddr *)dst);
 
-	if (!snl_finalize_msg(&nw) || !snl_send_message(&ss, hdr)) {
+	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(&ss, hdr)) {
 		snl_free(&ss);
 		return (1);
 	}
@@ -422,7 +422,7 @@ set_nl(uint32_t ifindex, struct sockaddr_in *dst, struct sockaddr_dl *sdl, char 
 		snl_end_attr_nested(&nw, off);
 	}
 
-	if (!snl_finalize_msg(&nw) || !snl_send_message(&ss, hdr)) {
+	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(&ss, hdr)) {
 		snl_free(&ss);
 		return (1);
 	}
