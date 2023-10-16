@@ -24,7 +24,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 13, 2022
+.Dd October 10, 2023
 .Dt CERTCTL 8
 .Os
 .Sh NAME
@@ -98,18 +98,22 @@ Remove the specified file from the untrusted list.
 Alternate destination directory to operate on.
 .It Ev DISTBASE
 Additional path component to include when operating on certificate directories.
+.It Ev LOCALBASE
+Location for local programs.
+Defaults to the value of the user.localbase sysctl which is usually
+.Pa /usr/local .
 .It Ev TRUSTPATH
 List of paths to search for trusted certificates.
 Default:
 .Pa <DESTDIR><DISTBASE>/usr/share/certs/trusted
 .Pa <DESTDIR><DISTBASE>/usr/local/share/certs
-.Pa <DESTDIR><DISTBASE>/usr/local/etc/ssl/certs
+.Pa <DESTDIR><DISTBASE><LOCALBASE>/etc/ssl/certs
 .It Ev UNTRUSTPATH
 List of paths to search for untrusted certificates.
 Default:
 .Pa <DESTDIR><DISTBASE>/usr/share/certs/untrusted
-.Pa <DESTDIR><DISTBASE>/usr/local/etc/ssl/untrusted
-.Pa <DESTDIR><DISTBASE>/usr/local/etc/ssl/blacklisted
+.Pa <DESTDIR><DISTBASE><LOCALBASE>/etc/ssl/untrusted
+.Pa <DESTDIR><DISTBASE><LOCALBASE>/etc/ssl/blacklisted
 .It Ev CERTDESTDIR
 Destination directory for symbolic links to trusted certificates.
 Default:
