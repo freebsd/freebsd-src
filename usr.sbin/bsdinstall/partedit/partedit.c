@@ -345,6 +345,7 @@ apply_changes(struct gmesh *mesh)
 	const char **minilabel;
 	const char *fstab_path;
 	FILE *fstab;
+	char *command;
 	struct bsddialog_conf conf;
 
 	nitems = 1; /* Partition table changes */
@@ -387,10 +388,11 @@ apply_changes(struct gmesh *mesh)
 			bsddialog_mixedgauge(&conf,
 			    "Initializing file systems. Please wait.", 0, 0,
 			    i * 100 / nitems, nitems, minilabel, miniperc);
-			sprintf(message, "(echo %s; %s) >>%s 2>>%s",
+			asprintf(&command, "(echo %s; %s) >>%s 2>>%s",
 			    md->newfs, md->newfs, getenv("BSDINSTALL_LOG"),
 			    getenv("BSDINSTALL_LOG"));
-			error = system(message);
+			error = system(command);
+			free(command);
 			miniperc[i] = (error == 0) ?
 			    BSDDIALOG_MG_COMPLETED : BSDDIALOG_MG_FAILED;
 			i++;
