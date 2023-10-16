@@ -180,13 +180,13 @@ strcat_extension(const char *base_str, const char *ext)
 	ext_len = strnlen(ext, NAME_MAX);
 
 	if (base_len + ext_len > NAME_MAX) {
-		fprintf(stderr, "Filename exceeds maximum length.\n");
+		EPRINTLN("Filename exceeds maximum length.");
 		return (NULL);
 	}
 
 	res = malloc(base_len + ext_len + 1);
 	if (res == NULL) {
-		perror("Failed to allocate memory.");
+		EPRINTLN("Failed to allocate memory: %s", strerror(errno));
 		return (NULL);
 	}
 
@@ -201,7 +201,7 @@ void
 destroy_restore_state(struct restore_state *rstate)
 {
 	if (rstate == NULL) {
-		fprintf(stderr, "Attempting to destroy NULL restore struct.\n");
+		EPRINTLN("Attempting to destroy NULL restore struct.");
 		return;
 	}
 

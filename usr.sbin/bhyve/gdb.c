@@ -59,6 +59,7 @@
 
 #include "bhyverun.h"
 #include "config.h"
+#include "debug.h"
 #include "gdb.h"
 #include "mem.h"
 #include "mevent.h"
@@ -882,7 +883,7 @@ gdb_cpu_breakpoint(int vcpu, struct vm_exit *vmexit)
 	int error;
 
 	if (!gdb_active) {
-		fprintf(stderr, "vm_loop: unexpected VMEXIT_DEBUG\n");
+		EPRINTLN("vm_loop: unexpected VMEXIT_DEBUG");
 		exit(4);
 	}
 	pthread_mutex_lock(&gdb_lock);
