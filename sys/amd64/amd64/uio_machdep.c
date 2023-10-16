@@ -71,10 +71,16 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 	    ("uiomove_fromphys: mode"));
 	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_td == curthread,
 	    ("uiomove_fromphys proc"));
+	KASSERT(uio->uio_resid >= 0,
+	    ("%s: uio %p resid underflow", __func__, uio));
+
 	save = td->td_pflags & TDP_DEADLKTREAT;
 	td->td_pflags |= TDP_DEADLKTREAT;
 	mapped = false;
 	while (n > 0 && uio->uio_resid) {
+		KASSERT(uio->uio_iovcnt > 0,
+		    ("%s: uio %p iovcnt underflow", __func__, uio));
+
 		iov = uio->uio_iov;
 		cnt = iov->iov_len;
 		if (cnt == 0) {
