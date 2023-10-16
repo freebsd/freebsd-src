@@ -436,7 +436,8 @@ apply_changes(struct gmesh *mesh)
 		fstab_path = "/etc/fstab";
 	fstab = fopen(fstab_path, "w+");
 	if (fstab == NULL) {
-		sprintf(message, "Cannot open fstab file %s for writing (%s)\n",
+		snprintf(message, sizeof(message),
+		    "Cannot open fstab file %s for writing (%s)\n",
 		    getenv("PATH_FSTAB"), strerror(errno));
 		conf.title = "Error";
 		bsddialog_msgbox(&conf, message, 0, 0);
