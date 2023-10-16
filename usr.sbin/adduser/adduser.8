@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 15, 2012
+.Dd January 19, 2024
 .Dt ADDUSER 8
 .Os
 .Sh NAME
@@ -32,7 +32,7 @@
 .Nd command for adding new users
 .Sh SYNOPSIS
 .Nm
-.Op Fl CDENShq
+.Op Fl CDENSZhq
 .Op Fl G Ar groups
 .Op Fl L Ar login_class
 .Op Fl M Ar mode
@@ -52,6 +52,10 @@ utility is a shell script, implemented around the
 command, for adding new users.
 It creates passwd/group entries, a home directory,
 copies dotfiles and sends the new user a welcome message.
+On systems where the parent of home directory is a ZFS dataset,
+.Nm
+will create the home directory as a ZFS dataset by default,
+unless the system administrator specified otherwise.
 It supports two modes of operation.
 It may be used interactively
 at the command line to add one user at a time, or it may be directed
@@ -295,6 +299,8 @@ In addition, it will be available for inclusion in the message file in the
 .Va randompass
 variable.
 .El
+.It Fl Z
+Do not attempt to create ZFS home dataset.
 .El
 .Sh FORMAT
 When the
