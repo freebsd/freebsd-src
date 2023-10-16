@@ -218,6 +218,7 @@ txdesc_setup(struct dwc_softc *sc, int idx, bus_addr_t paddr,
 	sc->txdesc_ring[idx].desc1 = desc1;
 	wmb();
 	sc->txdesc_ring[idx].desc0 |= TDESC0_OWN;
+	wmb();
 }
 
 inline static uint32_t
@@ -238,6 +239,7 @@ rxdesc_setup(struct dwc_softc *sc, int idx, bus_addr_t paddr)
 
 	wmb();
 	sc->rxdesc_ring[idx].desc0 = RDESC0_OWN;
+	wmb();
 	return (nidx);
 }
 
@@ -524,6 +526,7 @@ dma1000_rxfinish_locked(struct dwc_softc *sc)
 		if (m == NULL) {
 			wmb();
 			desc->desc0 = RDESC0_OWN;
+			wmb();
 		} else {
 			/* We cannot create hole in RX ring */
 			error = dma1000_setup_rxbuf(sc, idx, m);
