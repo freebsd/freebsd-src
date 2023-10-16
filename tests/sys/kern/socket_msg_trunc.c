@@ -25,143 +25,169 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+
 #include <netinet/in.h>
+
 #include <poll.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include <atf-c.h>
 
 static void
-check_recvmsg(const char *test_name)
+check_recvmsg(int cs, int ss, struct sockaddr *sa, const size_t sizes[],
+    size_t nsizes)
 {
-	int ss, cs, rc;
-	struct sockaddr *sa;
-	struct sockaddr_in sin;
-	struct sockaddr_in6 sin6;
-	struct sockaddr_un saun;
-	int *sizes, sizes_count;
-	int one = 1;
-
-
-	if (!strcmp(test_name, "udp")) {
-		ss = socket(PF_INET, SOCK_DGRAM, 0);
-		ATF_CHECK(ss >= 0);
-		rc = setsockopt(ss, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one));
-		ATF_CHECK_EQ(0, rc);
-		bzero(&sin, sizeof(sin));
-		sin.sin_family = AF_INET;
-		sin.sin_len = sizeof(sin);
-		sin.sin_port = htons(6666);
-		sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-		sa = (struct sockaddr *)&sin;
-		rc = bind(ss, sa, sa->sa_len);
-		ATF_CHECK_EQ(0, rc);
-
-		cs = socket(PF_INET, SOCK_DGRAM, 0);
-		ATF_CHECK(cs >= 0);
-		int inet_sizes[] = {80, 255, 256, 1024, 4096, 9000};
-		sizes_count = sizeof(inet_sizes) / sizeof(int);
-		sizes = malloc(sizeof(inet_sizes));
-		memcpy(sizes, inet_sizes, sizeof(inet_sizes));
-
-	} else if (!strcmp(test_name, "udp6")) {
-		ss = socket(PF_INET6, SOCK_DGRAM, 0);
-		ATF_CHECK(ss >= 0);
-		rc = setsockopt(ss, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one));
-		ATF_CHECK_EQ(0, rc);
-		bzero(&sin6, sizeof(sin6));
-		sin6.sin6_family = AF_INET6;
-		sin6.sin6_len = sizeof(sin6);
-		sin6.sin6_port = htons(6666);
-		const struct in6_addr in6loopback = IN6ADDR_LOOPBACK_INIT;
-		sin6.sin6_addr = in6loopback;
-		sa = (struct sockaddr *)&sin6;
-		rc = bind(ss, sa, sa->sa_len);
-		ATF_CHECK_EQ(0, rc);
-
-		cs = socket(PF_INET6, SOCK_DGRAM, 0);
-		ATF_CHECK(cs >= 0);
-		int inet_sizes[] = {80, 255, 256, 1024, 4096, 9000};
-		sizes_count = sizeof(inet_sizes) / sizeof(int);
-		sizes = malloc(sizeof(inet_sizes));
-		memcpy(sizes, inet_sizes, sizeof(inet_sizes));
-
-	} else if (!strcmp(test_name, "unix")) {
-		const char *PATH = "/tmp/test_check_recvmsg_socket";
-		ss = socket(PF_UNIX, SOCK_DGRAM, 0);
-		ATF_CHECK(ss >= 0);
-		rc = setsockopt(ss, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one));
-		ATF_CHECK_EQ(0, rc);
-		bzero(&saun, sizeof(saun));
-		saun.sun_family = AF_UNIX;
-		strcpy(saun.sun_path, PATH);
-		saun.sun_len = sizeof(saun);
-		sa = (struct sockaddr *)&saun;
-		unlink(PATH);
-		rc = bind(ss, sa, sa->sa_len);
-		ATF_CHECK_EQ(0, rc);
-
-		cs = socket(PF_UNIX, SOCK_DGRAM, 0);
-		ATF_CHECK(cs >= 0);
-		int unix_sizes[] = {80, 255, 256, 1024, 2000};
-		sizes_count = sizeof(unix_sizes) / sizeof(int);
-		sizes = malloc(sizeof(unix_sizes));
-		memcpy(sizes, unix_sizes, sizeof(unix_sizes));
-	} else
-		return;
-
 	char buf[4096];
+
 	memset(buf, 0xFF, sizeof(buf));
-	for (int i = 0; i < sizes_count; i++) {
-		int sz = sizes[i];
+	for (size_t i = 0; i < nsizes; i++) {
+		ssize_t rc;
+		size_t sz = sizes[i];
 		char tbuf[1];
+
 		rc = sendto(cs, buf, sz, 0, sa, sa->sa_len);
-		ATF_REQUIRE_EQ(rc, sz);
+		ATF_REQUIRE_MSG(rc != -1, "sendto failed: %s", strerror(errno));
+		ATF_REQUIRE((size_t)rc == sz);
 
 		rc = recv(ss, NULL, 0, MSG_PEEK | MSG_TRUNC);
-		ATF_CHECK_EQ(rc, sz);
+		ATF_REQUIRE_MSG(rc >= 0, "recv failed: %s", strerror(errno));
+		ATF_REQUIRE((size_t)rc == sz);
 
 		rc = recv(ss, tbuf, sizeof(tbuf), MSG_PEEK | MSG_TRUNC);
-		ATF_CHECK_EQ(rc, sz);
+		ATF_REQUIRE_MSG(rc >= 0, "recv failed: %s", strerror(errno));
+		ATF_REQUIRE((size_t)rc == sz);
 
 		rc = recv(ss, tbuf, sizeof(tbuf), MSG_TRUNC);
-		ATF_CHECK_EQ(rc, sz);
+		ATF_REQUIRE_MSG(rc >= 0, "recv failed: %s", strerror(errno));
+		ATF_REQUIRE((size_t)rc == sz);
 	}
 
-	close(ss);
-	close(cs);
+	ATF_REQUIRE(close(cs) == 0);
+	ATF_REQUIRE(close(ss) == 0);
 }
 
-ATF_TC_WITHOUT_HEAD(socket_afinet_udp_recv_trunc);
-ATF_TC_BODY(socket_afinet_udp_recv_trunc, tc)
+ATF_TC_WITHOUT_HEAD(recv_trunc_afinet_udp);
+ATF_TC_BODY(recv_trunc_afinet_udp, tc)
 {
-	check_recvmsg("udp");
+	struct sockaddr_in sin;
+	struct sockaddr *sa;
+	int ss, cs, rc;
+
+	ss = socket(PF_INET, SOCK_DGRAM, 0);
+	ATF_REQUIRE(ss >= 0);
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_len = sizeof(sin);
+	sin.sin_port = htons(6666);
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	sa = (struct sockaddr *)&sin;
+	rc = bind(ss, sa, sa->sa_len);
+	ATF_REQUIRE_MSG(rc == 0, "bind failed: %s", strerror(errno));
+
+	cs = socket(PF_INET, SOCK_DGRAM, 0);
+	ATF_REQUIRE(cs >= 0);
+
+	size_t sizes[] = {80, 255, 256, 1024, 4096, 9000};
+	check_recvmsg(cs, ss, sa, sizes, nitems(sizes));
 }
 
-ATF_TC_WITHOUT_HEAD(socket_afinet6_udp_recv_trunc);
-ATF_TC_BODY(socket_afinet6_udp_recv_trunc, tc)
+ATF_TC_WITHOUT_HEAD(recv_trunc_afinet6_udp);
+ATF_TC_BODY(recv_trunc_afinet6_udp, tc)
 {
-	check_recvmsg("udp6");
+	struct sockaddr_in6 sin6;
+	struct sockaddr *sa;
+	int cs, ss, rc;
+
+	ss = socket(PF_INET6, SOCK_DGRAM, 0);
+	ATF_REQUIRE(ss >= 0);
+
+	memset(&sin6, 0, sizeof(sin6));
+	sin6.sin6_family = AF_INET6;
+	sin6.sin6_len = sizeof(sin6);
+	sin6.sin6_port = htons(6666);
+	const struct in6_addr in6loopback = IN6ADDR_LOOPBACK_INIT;
+	sin6.sin6_addr = in6loopback;
+	sa = (struct sockaddr *)&sin6;
+	rc = bind(ss, sa, sa->sa_len);
+	ATF_REQUIRE_MSG(rc == 0, "bind failed: %s", strerror(errno));
+
+	cs = socket(PF_INET6, SOCK_DGRAM, 0);
+	ATF_REQUIRE(cs >= 0);
+
+	size_t sizes[] = {80, 255, 256, 1024, 4096, 9000};
+	check_recvmsg(cs, ss, sa, sizes, nitems(sizes));
 }
 
-ATF_TC_WITHOUT_HEAD(socket_afunix_recv_trunc);
-ATF_TC_BODY(socket_afunix_recv_trunc, tc)
+ATF_TC_WITHOUT_HEAD(recv_trunc_afunix_dgram);
+ATF_TC_BODY(recv_trunc_afunix_dgram, tc)
 {
-	check_recvmsg("unix");
+	struct sockaddr_un sun;
+	struct sockaddr *sa;
+	int ss, cs, rc;
+
+	ss = socket(PF_UNIX, SOCK_DGRAM, 0);
+	ATF_REQUIRE(ss >= 0);
+
+	bzero(&sun, sizeof(sun));
+	sun.sun_family = AF_UNIX;
+	strlcpy(sun.sun_path, "test_check_recvmsg_socket", sizeof(sun.sun_path));
+	sun.sun_len = sizeof(sun);
+	sa = (struct sockaddr *)&sun;
+	rc = bind(ss, sa, sa->sa_len);
+	ATF_REQUIRE_MSG(rc == 0, "bind failed: %s", strerror(errno));
+
+	cs = socket(PF_UNIX, SOCK_DGRAM, 0);
+	ATF_REQUIRE(cs >= 0);
+
+	size_t sizes[] = {80, 255, 256, 1024, 2000};
+	check_recvmsg(cs, ss, sa, sizes, nitems(sizes));
 }
 
+ATF_TC_WITHOUT_HEAD(recv_trunc_afunix_seqpacket);
+ATF_TC_BODY(recv_trunc_afunix_seqpacket, tc)
+{
+	struct sockaddr_un sun;
+	struct sockaddr *sa;
+	int ss, nss, cs, rc;
+
+	ss = socket(PF_UNIX, SOCK_SEQPACKET, 0);
+	ATF_REQUIRE(ss >= 0);
+
+	bzero(&sun, sizeof(sun));
+	sun.sun_family = AF_UNIX;
+	strlcpy(sun.sun_path, "test_check_recvmsg_socket", sizeof(sun.sun_path));
+	sun.sun_len = sizeof(sun);
+	sa = (struct sockaddr *)&sun;
+	rc = bind(ss, sa, sa->sa_len);
+	ATF_REQUIRE_MSG(rc == 0, "bind failed: %s", strerror(errno));
+	rc = listen(ss, 1);
+	ATF_REQUIRE_MSG(rc == 0, "listen failed: %s", strerror(errno));
+
+	cs = socket(PF_UNIX, SOCK_SEQPACKET, 0);
+	ATF_REQUIRE(cs >= 0);
+	rc = connect(cs, sa, sa->sa_len);
+	ATF_REQUIRE_MSG(rc == 0, "connect failed: %s", strerror(errno));
+	nss = accept(ss, NULL, NULL);
+	ATF_REQUIRE(nss >= 0);
+
+	size_t sizes[] = {80, 255, 256, 1024, 2000};
+	check_recvmsg(cs, nss, sa, sizes, nitems(sizes));
+
+	ATF_REQUIRE(close(ss) == 0);
+}
 
 ATF_TP_ADD_TCS(tp)
 {
+	ATF_TP_ADD_TC(tp, recv_trunc_afinet_udp);
+	ATF_TP_ADD_TC(tp, recv_trunc_afinet6_udp);
+	ATF_TP_ADD_TC(tp, recv_trunc_afunix_dgram);
+	ATF_TP_ADD_TC(tp, recv_trunc_afunix_seqpacket);
 
-	ATF_TP_ADD_TC(tp, socket_afinet_udp_recv_trunc);
-	ATF_TP_ADD_TC(tp, socket_afinet6_udp_recv_trunc);
-	ATF_TP_ADD_TC(tp, socket_afunix_recv_trunc);
-
-	return atf_no_error();
+	return (atf_no_error());
 }
