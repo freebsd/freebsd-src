@@ -86,12 +86,16 @@ scheme_supports_labels(const char *scheme)
 	return (0);
 }
 
-static void
-newfs_command(const char *fstype, char *command, int use_default)
+static char *
+newfs_command(const char *fstype, int use_default)
 {
 	struct bsddialog_conf conf;
+	FILE *fp;
+	char *buf;
+	size_t len;
 
 	bsddialog_initconf(&conf);
+	fp = open_memstream(&buf, &len);
 
 	if (strcmp(fstype, "freebsd-ufs") == 0) {
 		int i;
@@ -115,21 +119,21 @@ newfs_command(const char *fstype, char *command, int use_default)
 			choice = bsddialog_checklist(&conf, "", 0, 0, 0,
 			    nitems(items), items, NULL);
 			if (choice == BSDDIALOG_CANCEL)
-				return;
+				goto out;
 		}
 
-		strcpy(command, "newfs ");
+		fputs("newfs ", fp);
 		for (i = 0; i < (int)nitems(items); i++) {
 			if (items[i].on == false)
 				continue;
 			if (strcmp(items[i].name, "UFS1") == 0)
-				strcat(command, "-O1 ");
+				fputs("-O1 ", fp);
 			else if (strcmp(items[i].name, "SU") == 0)
-				strcat(command, "-U ");
+				fputs("-U ", fp);
 			else if (strcmp(items[i].name, "SUJ") == 0)
-				strcat(command, "-j ");
+				fputs("-j ", fp);
 			else if (strcmp(items[i].name, "TRIM") == 0)
-				strcat(command, "-t ");
+				fputs("-t ", fp);
 		}
 	} else if (strcmp(fstype, "freebsd-zfs") == 0) {
 		int i;
@@ -153,30 +157,31 @@ newfs_command(const char *fstype, char *command, int use_default)
 			choice = bsddialog_checklist(&conf, "", 0, 0, 0,
 			    nitems(items), items, NULL);
 			if (choice == BSDDIALOG_CANCEL)
-				return;
+				goto out;
 		}
 
-		strcpy(command, "zpool create -f -m none ");
+		fputs("zpool create -f -m none ", fp);
 		if (getenv("BSDINSTALL_TMPBOOT") != NULL) {
 			char zfsboot_path[MAXPATHLEN];
+
 			snprintf(zfsboot_path, sizeof(zfsboot_path), "%s/zfs",
 			    getenv("BSDINSTALL_TMPBOOT"));
 			mkdir(zfsboot_path, S_IRWXU | S_IRGRP | S_IXGRP |
 			    S_IROTH | S_IXOTH);
-			sprintf(command, "%s -o cachefile=%s/zpool.cache ",
-			    command, zfsboot_path);
+			fprintf(fp, " -o cachefile=%s/zpool.cache ",
+			    zfsboot_path);
 		}
 		for (i = 0; i < (int)nitems(items); i++) {
 			if (items[i].on == false)
 				continue;
 			if (strcmp(items[i].name, "fletcher4") == 0)
-				strcat(command, "-O checksum=fletcher4 ");
+				fputs("-O checksum=fletcher4 ", fp);
 			else if (strcmp(items[i].name, "fletcher2") == 0)
-				strcat(command, "-O checksum=fletcher2 ");
+				fputs("-O checksum=fletcher2 ", fp);
 			else if (strcmp(items[i].name, "sha256") == 0)
-				strcat(command, "-O checksum=sha256 ");
+				fputs("-O checksum=sha256 ", fp);
 			else if (strcmp(items[i].name, "atime") == 0)
-				strcat(command, "-O atime=off ");
+				fputs("-O atime=off ", fp);
 		}
 	} else if (strcmp(fstype, "fat32") == 0 || strcmp(fstype, "efi") == 0 ||
 	     strcmp(fstype, "ms-basic-data") == 0) {
@@ -196,19 +201,19 @@ newfs_command(const char *fstype, char *command, int use_default)
 			choice = bsddialog_radiolist(&conf, "", 0, 0, 0,
 			    nitems(items), items, NULL);
 			if (choice == BSDDIALOG_CANCEL)
-				return;
+				goto out;
 		}
 
-		strcpy(command, "newfs_msdos ");
+		fputs("newfs_msdos ", fp);
 		for (i = 0; i < (int)nitems(items); i++) {
 			if (items[i].on == false)
 				continue;
 			if (strcmp(items[i].name, "FAT32") == 0)
-				strcat(command, "-F 32 -c 1");
+				fputs("-F 32 -c 1", fp);
 			else if (strcmp(items[i].name, "FAT16") == 0)
-				strcat(command, "-F 16 ");
+				fputs("-F 16 ", fp);
 			else if (strcmp(items[i].name, "FAT12") == 0)
-				strcat(command, "-F 12 ");
+				fputs("-F 12 ", fp);
 		}
 	} else {
 		if (!use_default) {
@@ -216,8 +221,11 @@ newfs_command(const char *fstype, char *command, int use_default)
 			bsddialog_msgbox(&conf, "No configurable options exist "
 			    "for this filesystem.", 0, 0);
 		}
-		command[0] = '\0';
 	}
+
+out:
+	fclose(fp);
+	return (buf);
 }
 
 const char *
@@ -539,7 +547,7 @@ gpart_edit(struct gprovider *pp)
 	const char *errstr, *oldtype, *scheme;
 	struct partition_metadata *md;
 	char sizestr[32];
-	char newfs[255];
+	char *newfs;
 	intmax_t idx;
 	int hadlabel, choice, nitems;
 	unsigned i;
@@ -687,10 +695,11 @@ editpart:
 	}
 	gctl_free(r);
 
-	newfs_command(items[0].value, newfs, 1);
+	newfs = newfs_command(items[0].value, 1);
 	set_default_part_metadata(pp->lg_name, scheme, items[0].value,
 	    items[2].value, (strcmp(oldtype, items[0].value) != 0) ?
 	    newfs : NULL);
+	free(newfs);
 
 endedit:
 	if (strcmp(oldtype, items[0].value) != 0 && cp != NULL)
@@ -1022,7 +1031,7 @@ gpart_create(struct gprovider *pp, const char *default_type,
 	struct ggeom *geom;
 	const char *errstr, *scheme;
 	char sizestr[32], startstr[32], output[64], *newpartname;
-	char newfs[255], options_fstype[64];
+	char *newfs, options_fstype[64];
 	intmax_t maxsize, size, sector, firstfree, stripe;
 	uint64_t bytes;
 	int nitems, choice, junk;
@@ -1123,7 +1132,7 @@ gpart_create(struct gprovider *pp, const char *default_type,
 	/* Default options */
 	strncpy(options_fstype, items[0].init,
 	    sizeof(options_fstype));
-	newfs_command(options_fstype, newfs, 1);
+	newfs = newfs_command(options_fstype, 1);
 
 	init_allocated = false;
 addpartform:
@@ -1142,9 +1151,10 @@ addpartform:
 		case BSDDIALOG_CANCEL:
 			return;
 		case BSDDIALOG_EXTRA: /* Options */
+			free(newfs);
 			strncpy(options_fstype, items[0].value,
 			    sizeof(options_fstype));
-			newfs_command(options_fstype, newfs, 0);
+			newfs = newfs_command(options_fstype, 0);
 			for (i = 0; i < nitems(items); i++) {
 				if (init_allocated)
 					free((char*)items[i].init);
@@ -1166,8 +1176,9 @@ addpartform:
 	 * their choices in favor of the new filesystem's defaults.
 	 */
 	if (strcmp(options_fstype, items[0].value) != 0) {
+		free(newfs);
 		strncpy(options_fstype, items[0].value, sizeof(options_fstype));
-		newfs_command(options_fstype, newfs, 1);
+		newfs = newfs_command(options_fstype, 1);
 	}
 
 	size = maxsize;
@@ -1319,6 +1330,7 @@ addpartform:
 	else
 		set_default_part_metadata(newpartname, scheme,
 		    items[0].value, items[2].value, newfs);
+	free(newfs);
 
 	for (i = 0; i < nitems(items); i++) {
 		if (items[i].value != NULL) {
