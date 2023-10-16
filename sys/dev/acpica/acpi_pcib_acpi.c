@@ -291,7 +291,8 @@ acpi_pcib_producer_handler(ACPI_RESOURCE *res, void *context)
 
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 static int
-first_decoded_bus(struct acpi_hpcib_softc *sc, rman_res_t *startp)
+decoded_bus_range(struct acpi_hpcib_softc *sc, rman_res_t *startp,
+    rman_res_t *endp)
 {
 	struct resource_list_entry *rle;
 
@@ -299,6 +300,7 @@ first_decoded_bus(struct acpi_hpcib_softc *sc, rman_res_t *startp)
 	if (rle == NULL)
 		return (ENXIO);
 	*startp = rle->start;
+	*endp = rle->end;
 	return (0);
 }
 #endif
@@ -368,7 +370,7 @@ acpi_pcib_acpi_attach(device_t dev)
     u_int slot, func, busok;
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
     struct resource *bus_res;
-    rman_res_t start;
+    rman_res_t end, start;
     int rid;
 #endif
     int error, domain;
@@ -496,7 +498,7 @@ acpi_pcib_acpi_attach(device_t dev)
 	     * If we have a region of bus numbers, use the first
 	     * number for our bus.
 	     */
-	    if (first_decoded_bus(sc, &start) == 0)
+	    if (decoded_bus_range(sc, &start, &end) == 0)
 		    sc->ap_bus = start;
 	    else {
 		    rid = 0;
@@ -513,15 +515,21 @@ acpi_pcib_acpi_attach(device_t dev)
 	    }
     } else {
 	    /*
-	     * Require the bus number from _BBN to match the start of any
-	     * decoded range.
+	     * If there is a decoded bus range, assume the bus number is
+	     * the first value in the range.  Warn if _BBN doesn't match.
 	     */
-	    if (first_decoded_bus(sc, &start) == 0 && sc->ap_bus != start) {
-		    device_printf(dev,
-		"bus number %d does not match start of decoded range %ju\n",
-			sc->ap_bus, (uintmax_t)start);
-		    pcib_host_res_free(dev, &sc->ap_host_res);
-		    return (ENXIO);
+	    if (decoded_bus_range(sc, &start, &end) == 0) {
+		    if (sc->ap_bus != start) {
+			    device_printf(dev,
+				"WARNING: BIOS configured bus number (%d) is "
+				"not within decoded bus number range "
+				"(%ju - %ju).\n",
+				sc->ap_bus, (uintmax_t)start, (uintmax_t)end);
+			    device_printf(dev,
+				"Using range start (%ju) as bus number.\n",
+				(uintmax_t)start);
+			    sc->ap_bus = start;
+		    }
 	    }
     }
 #else
