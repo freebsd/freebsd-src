@@ -488,7 +488,7 @@ in6_exec_nl(if_ctx *ctx, unsigned long action, void *data)
 		snl_add_msg_attr_u32(&nw, IFAF_VHID, pdata->vhid);
 	snl_end_attr_nested(&nw, off);
 
-	if (!snl_finalize_msg(&nw) || !snl_send_message(ctx->io_ss, hdr))
+	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(ctx->io_ss, hdr))
 		return (0);
 
 	struct snl_errmsg_data e = {};

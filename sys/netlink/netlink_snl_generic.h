@@ -106,7 +106,7 @@ snl_get_genl_family_info(struct snl_state *ss, const char *family_name,
 	snl_init_writer(ss, &nw);
 	hdr = snl_create_genl_msg_request(&nw, GENL_ID_CTRL, CTRL_CMD_GETFAMILY);
 	snl_add_msg_attr_string(&nw, CTRL_ATTR_FAMILY_NAME, family_name);
-	if (snl_finalize_msg(&nw) == NULL || !snl_send_message(ss, hdr))
+	if ((hdr = snl_finalize_msg(&nw)) == NULL || !snl_send_message(ss, hdr))
 		return (false);
 
 	hdr = snl_read_reply(ss, hdr->nlmsg_seq);

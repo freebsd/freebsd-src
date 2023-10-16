@@ -355,7 +355,7 @@ in_delete_first_nl(if_ctx *ctx)
 	ifahdr->ifa_family = AF_INET;
 	ifahdr->ifa_index = ifindex;
 
-	if (!snl_finalize_msg(&nw) || !snl_send_message(ss, hdr))
+	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(ss, hdr))
 		return (EINVAL);
 
 	nlmsg_seq = hdr->nlmsg_seq;
@@ -386,7 +386,7 @@ in_delete_first_nl(if_ctx *ctx)
 	ifahdr->ifa_index = ifindex;
 	snl_add_msg_attr_ip4(&nw, IFA_LOCAL, &addr);
 
-	if (!snl_finalize_msg(&nw) || !snl_send_message(ss, hdr))
+	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(ss, hdr))
 		return (EINVAL);
 	memset(&e, 0, sizeof(e));
 	snl_read_reply_code(ss, hdr->nlmsg_seq, &e);
@@ -426,7 +426,7 @@ in_exec_nl(if_ctx *ctx, unsigned long action, void *data)
 		snl_add_msg_attr_u32(&nw, IFAF_VHID, pdata->vhid);
 	snl_end_attr_nested(&nw, off);
 
-	if (!snl_finalize_msg(&nw) || !snl_send_message(ctx->io_ss, hdr))
+	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(ctx->io_ss, hdr))
 		return (0);
 
 	struct snl_errmsg_data e = {};
