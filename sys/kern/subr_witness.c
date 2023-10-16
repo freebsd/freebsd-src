@@ -2362,6 +2362,10 @@ witness_save(struct lock_object *lock, const char **filep, int *linep)
 	struct lock_instance *instance;
 	struct lock_class *class;
 
+	/* Initialize for KMSAN's benefit. */
+	*filep = NULL;
+	*linep = 0;
+
 	/*
 	 * This function is used independently in locking code to deal with
 	 * Giant, SCHEDULER_STOPPED() check can be removed here after Giant
