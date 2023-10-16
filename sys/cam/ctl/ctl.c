@@ -13035,25 +13035,7 @@ ctl_process_done(union ctl_io *io)
 		ctl_scsi_path_string(io, path_str, sizeof(path_str));
 		sbuf_new(&sb, str, sizeof(str), SBUF_FIXEDLEN);
 
-		sbuf_cat(&sb, path_str);
-		switch (io->io_hdr.io_type) {
-		case CTL_IO_SCSI:
-			ctl_scsi_command_string(&io->scsiio, NULL, &sb);
-			sbuf_printf(&sb, "\n");
-			sbuf_cat(&sb, path_str);
-			sbuf_printf(&sb, "Tag: 0x%jx/%d, Prio: %d\n",
-				    io->scsiio.tag_num, io->scsiio.tag_type,
-				    io->scsiio.priority);
-			break;
-		case CTL_IO_TASK:
-			sbuf_printf(&sb, "Task Action: %d Tag: 0x%jx/%d\n",
-				    io->taskio.task_action,
-				    io->taskio.tag_num, io->taskio.tag_type);
-			break;
-		default:
-			panic("%s: Invalid CTL I/O type %d\n",
-			    __func__, io->io_hdr.io_type);
-		}
+		ctl_io_sbuf(io, &sb);
 		sbuf_cat(&sb, path_str);
 		sbuf_printf(&sb, "ctl_process_done: %jd seconds\n",
 			    (intmax_t)time_uptime - io->io_hdr.start_time);
