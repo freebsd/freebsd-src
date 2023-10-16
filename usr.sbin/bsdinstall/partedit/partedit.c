@@ -336,6 +336,7 @@ apply_changes(struct gmesh *mesh)
 	const char **items;
 	const char *fstab_path;
 	FILE *fstab;
+	char *command;
 
 	nitems = 1; /* Partition table changes */
 	TAILQ_FOREACH(md, &part_metadata, metadata) {
@@ -374,10 +375,11 @@ apply_changes(struct gmesh *mesh)
 			dialog_mixedgauge("Initializing",
 			    "Initializing file systems. Please wait.", 0, 0,
 			    i*100/nitems, nitems, __DECONST(char **, items));
-			sprintf(message, "(echo %s; %s) >>%s 2>>%s",
+			asprintf(&command, "(echo %s; %s) >>%s 2>>%s",
 			    md->newfs, md->newfs, getenv("BSDINSTALL_LOG"),
 			    getenv("BSDINSTALL_LOG"));
-			error = system(message);
+			error = system(command);
+			free(command);
 			items[i*2 + 1] = (error == 0) ? "3" : "1";
 			i++;
 		}
