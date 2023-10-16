@@ -97,6 +97,8 @@ enum pfstate_type_t {
 	PF_ST_SYNC_FLAGS	= 26, /* u8 */
 	PF_ST_UPDATES		= 27, /* u8 */
 	PF_ST_VERSION		= 28, /* u64 */
+	PF_ST_FILTER_ADDR	= 29, /* in6_addr */
+	PF_ST_FILTER_MASK	= 30, /* in6_addr */
 };
 
 enum pf_addr_type_t {
