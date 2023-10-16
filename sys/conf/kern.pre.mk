@@ -122,8 +122,11 @@ SAN_CFLAGS+=	-DSAN_NEEDS_INTERCEPTORS -DSAN_INTERCEPTOR_PREFIX=kcsan \
 
 KMSAN_ENABLED!= grep KMSAN opt_global.h || true ; echo
 .if !empty(KMSAN_ENABLED)
+# Disable -fno-sanitize-memory-param-retval until interceptors have been
+# updated to work properly with it.
 SAN_CFLAGS+=	-DSAN_NEEDS_INTERCEPTORS -DSAN_INTERCEPTOR_PREFIX=kmsan \
-		-fsanitize=kernel-memory
+		-fsanitize=kernel-memory \
+		-fno-sanitize-memory-param-retval
 .endif
 
 KUBSAN_ENABLED!=	grep KUBSAN opt_global.h || true ; echo
