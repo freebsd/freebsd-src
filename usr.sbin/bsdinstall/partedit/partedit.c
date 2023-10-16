@@ -210,7 +210,7 @@ main(int argc, const char **argv)
 	
 	if (prompt == NULL) {
 		error = geom_gettree(&mesh);
-		if (error != 0) {
+		if (error == 0) {
 			if (validate_setup()) {
 				error = apply_changes(&mesh);
 			} else {
