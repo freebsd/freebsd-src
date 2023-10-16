@@ -697,18 +697,16 @@ set_default_part_metadata(const char *name, const char *scheme,
 		}
 
 		if (newfs != NULL && newfs[0] != '\0') {
-			md->newfs = malloc(strlen(newfs) + strlen(" /dev/") +
-			    strlen(mountpoint) + 5 + strlen(name) + 1);
 			if (strcmp("freebsd-zfs", type) == 0) {
 				zpool_name = strdup((strlen(mountpoint) == 1) ?
 				    "root" : &mountpoint[1]);
 				for (i = 0; zpool_name[i] != 0; i++)
 					if (!isalnum(zpool_name[i]))
 						zpool_name[i] = '_';
-				sprintf(md->newfs, "%s %s /dev/%s", newfs,
+				asprintf(&md->newfs, "%s %s /dev/%s", newfs,
 				    zpool_name, name);
 			} else {
-				sprintf(md->newfs, "%s /dev/%s", newfs, name);
+				asprintf(&md->newfs, "%s /dev/%s", newfs, name);
 			}
 		}
 	}
@@ -745,9 +743,7 @@ set_default_part_metadata(const char *name, const char *scheme,
 		if (strcmp("freebsd-zfs", type) == 0) {
 			md->fstab->fs_spec = strdup(zpool_name);
 		} else {
-			md->fstab->fs_spec = malloc(strlen(name) +
-			    strlen("/dev/") + 1);
-			sprintf(md->fstab->fs_spec, "/dev/%s", name);
+			asprintf(&md->fstab->fs_spec, "/dev/%s", name);
 		}
 		md->fstab->fs_file = strdup(mountpoint);
 		/* Get VFS from text after freebsd-, if possible */
