@@ -639,8 +639,10 @@ gpart_edit(struct gprovider *pp)
 	items[1].init = sizestr;
 
 editpart:
+	conf.button.always_active = true;
 	conf.title = "Edit Partition";
 	choice = bsddialog_form(&conf, "", 0, 0, 0, nitems, items, NULL);
+	conf.button.always_active = false;
 
 	if (choice == BSDDIALOG_CANCEL)
 		goto endedit;
@@ -1128,10 +1130,12 @@ addpartform:
 	if (interactive) {
 		conf.button.with_extra = true;
 		conf.button.extra_label = "Options";
+		conf.button.always_active = true;
 		conf.title = "Add Partition";
 		choice = bsddialog_form(&conf, "", 0, 0, 0, nitems, items, NULL);
 		conf.button.with_extra = false;
 		conf.button.extra_label = NULL;
+		conf.button.always_active = false;
 		switch (choice) {
 		case BSDDIALOG_OK:
 			break;
