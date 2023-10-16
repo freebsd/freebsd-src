@@ -118,8 +118,7 @@ do {										\
 	    (RNULL), (META));							\
 	if ((RES) != 0) {							\
 		if ((RES) == EFAULT)						\
-			fprintf(stderr, "%s: invalid address: %s\r\n",		\
-				__func__, #ADDR);				\
+			EPRINTLN("%s: invalid address: %s", __func__, #ADDR);	\
 		goto LABEL;							\
 	}									\
 } while (0)
