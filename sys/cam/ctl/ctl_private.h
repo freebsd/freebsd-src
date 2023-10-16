@@ -41,6 +41,7 @@
 #ifndef	_CTL_PRIVATE_H_
 #define	_CTL_PRIVATE_H_
 
+#include <sys/sysctl.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_cd.h>
 #include <cam/scsi/scsi_da.h>
