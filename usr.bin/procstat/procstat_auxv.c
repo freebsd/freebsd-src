@@ -53,16 +53,16 @@ procstat_auxv(struct procstat *procstat, struct kinfo_proc *kipp)
 	static char prefix[256];
 
 	if ((procstat_opts & PS_OPT_NOHEADER) == 0)
-		xo_emit("{T:/%5s %-16s %-16s %-16s}\n", "PID", "COMM", "AUXV",
+		xo_emit("{T:/%5s %-19s %-16s %-16s}\n", "PID", "COMM", "AUXV",
 		    "VALUE");
 
 	auxv = procstat_getauxv(procstat, kipp, &count);
 	if (auxv == NULL)
 		return;
-        snprintf(prefix, sizeof(prefix), "%5d %-16s", kipp->ki_pid,
-            kipp->ki_comm);
+	snprintf(prefix, sizeof(prefix), "%5d %-19s", kipp->ki_pid,
+	    kipp->ki_comm);
 
-	xo_emit("{e:process_id/%5d/%d}{e:command/%-16s/%s}", kipp->ki_pid,
+	xo_emit("{e:process_id/%5d/%d}{e:command/%-19s/%s}", kipp->ki_pid,
 	    kipp->ki_comm);
 
 	for (i = 0; i < count; i++) {
