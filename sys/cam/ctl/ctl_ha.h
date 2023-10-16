@@ -37,6 +37,8 @@
 #ifndef _CTL_HA_H_
 #define	_CTL_HA_H_
 
+#include <sys/queue.h>
+
 /*
  * CTL High Availability Modes:
  *
