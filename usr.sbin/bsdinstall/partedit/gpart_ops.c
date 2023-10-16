@@ -62,12 +62,13 @@ gpart_show_error(const char *title, const char *explanation, const char *errstr)
 		while (errmsg[0] == ' ')
 			errmsg++;
 		if (errmsg[0] != '\0')
-			sprintf(message, "%s%s. %s", explanation,
-			    strerror(error), errmsg);
+			snprintf(message, sizeof(message), "%s%s. %s",
+			    explanation, strerror(error), errmsg);
 		else
-			sprintf(message, "%s%s", explanation, strerror(error));
+			snprintf(message, sizeof(message), "%s%s", explanation,
+			    strerror(error));
 	} else {
-		sprintf(message, "%s%s", explanation, errmsg);
+		snprintf(message, sizeof(message), "%s%s", explanation, errmsg);
 	}
 
 	bsddialog_initconf(&conf);
@@ -263,7 +264,9 @@ parttypemenu:
 
 	if (!is_scheme_bootable(items[choice].name)) {
 		char message[512];
-		sprintf(message, "This partition scheme (%s) is not "
+
+		snprintf(message, sizeof(message),
+		    "This partition scheme (%s) is not "
 		    "bootable on this platform. Are you sure you want "
 		    "to proceed?", items[choice].name);
 		conf.button.default_cancel = true;
@@ -298,7 +301,9 @@ schememenu:
 
 		if (!is_scheme_bootable(scheme)) {
 			char message[512];
-			sprintf(message, "This partition scheme (%s) is not "
+
+			snprintf(message, sizeof(message),
+			    "This partition scheme (%s) is not "
 			    "bootable on this platform. Are you sure you want "
 			    "to proceed?", scheme);
 			conf.button.default_cancel = true;
@@ -484,10 +489,11 @@ gpart_partcode(struct gprovider *pp, const char *fstype)
 	}
 
 	/* Shell out to gpart for partcode for now */
-	sprintf(command, "gpart bootcode -p %s -i %s %s",
+	snprintf(command, sizeof(command), "gpart bootcode -p %s -i %s %s",
 	    partcode_path(scheme, fstype), indexstr, pp->lg_geom->lg_name);
 	if (system(command) != 0) {
-		sprintf(message, "Error installing partcode on partition %s",
+		snprintf(message, sizeof(message),
+		    "Error installing partcode on partition %s",
 		    pp->lg_name);
 		bsddialog_initconf(&conf);
 		conf.title = "Error";
@@ -659,7 +665,9 @@ editpart:
 	if (strcmp(items[2].value, "/") == 0 && !is_fs_bootable(scheme,
 	    items[0].value)) {
 		char message[512];
-		sprintf(message, "This file system (%s) is not bootable "
+
+		snprintf(message, sizeof(message),
+		    "This file system (%s) is not bootable "
 		    "on this system. Are you sure you want to proceed?",
 		    items[0].value);
 		conf.button.default_cancel = true;
@@ -1182,7 +1190,8 @@ addpartform:
 		if (expand_number(items[1].value, &bytes) != 0) {
 			char error[512];
 
-			sprintf(error, "Invalid size: %s\n", strerror(errno));
+			snprintf(error, sizeof(error), "Invalid size: %s\n",
+			    strerror(errno));
 			conf.title = "Error";
 			bsddialog_msgbox(&conf, error, 0, 0);
 			goto addpartform;
@@ -1234,7 +1243,9 @@ addpartform:
 	/* If this is the root partition, check that this scheme is bootable */
 	if (strcmp(items[2].value, "/") == 0 && !is_scheme_bootable(scheme)) {
 		char message[512];
-		sprintf(message, "This partition scheme (%s) is not bootable "
+
+		snprintf(message, sizeof(message),
+		    "This partition scheme (%s) is not bootable "
 		    "on this platform. Are you sure you want to proceed?",
 		    scheme);
 		conf.button.default_cancel = true;
@@ -1249,7 +1260,9 @@ addpartform:
 	if (strcmp(items[2].value, "/") == 0 && !is_fs_bootable(scheme,
 	    items[0].value)) {
 		char message[512];
-		sprintf(message, "This file system (%s) is not bootable "
+
+		snprintf(message, sizeof(message),
+		    "This file system (%s) is not bootable "
 		    "on this system. Are you sure you want to proceed?",
 		    items[0].value);
 		conf.button.default_cancel = true;
