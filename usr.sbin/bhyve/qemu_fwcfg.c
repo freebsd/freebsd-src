@@ -365,7 +365,7 @@ qemu_fwcfg_add_file(const char *name, const uint32_t size, void *const data)
 		/* copy files above file_index to directory */
 		memcpy(&new_directory->files[file_index + 1],
 		    &fwcfg_sc.directory->files[file_index],
-		    (count - file_index) * sizeof(struct qemu_fwcfg_file));
+		    (count - file_index - 1) * sizeof(struct qemu_fwcfg_file));
 
 		/* free old directory */
 		free(fwcfg_sc.directory);
