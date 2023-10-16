@@ -45,6 +45,9 @@
 #include <stdbool.h>
 #endif
 
+#include <sys/queue.h>
+#include <cam/scsi/scsi_all.h>
+
 #define	CTL_MAX_CDBLEN	32
 /*
  * Uncomment this next line to enable printing out times for I/Os
