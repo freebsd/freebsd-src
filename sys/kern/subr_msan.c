@@ -452,7 +452,7 @@ kmsan_thread_alloc(struct thread *td)
 		    sizeof(int));
 		mtd = malloc(sizeof(*mtd), M_KMSAN, M_WAITOK);
 	}
-	kmsan_memset(mtd, 0, sizeof(*mtd));
+	__builtin_memset(mtd, 0, sizeof(*mtd));
 	mtd->ctx = 0;
 
 	if (td->td_kstack != 0)
