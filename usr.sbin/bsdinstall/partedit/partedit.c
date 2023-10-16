@@ -360,8 +360,8 @@ apply_changes(struct gmesh *mesh)
 	TAILQ_FOREACH(md, &part_metadata, metadata) {
 		if (md->newfs != NULL) {
 			char *item;
-			item = malloc(255);
-			sprintf(item, "Initializing %s", md->name);
+
+			asprintf(&item, "Initializing %s", md->name);
 			minilabel[i] = item;
 			miniperc[i]  = BSDDIALOG_MG_PENDING;
 			i++;
