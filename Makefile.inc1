@@ -3459,7 +3459,7 @@ check-old-files: .PHONY
 list-old-libs: .PHONY
 	@cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V "OLD_LIBS:ts\n" -V "MOVED_LIBS:ts\n" \
+	    -V "OLD_LIBS:ts\n" \
 	    ${_ALL_libcompats:@v@-V "OLD_LIBS:Mlib/*:S,^lib,usr/lib$v,:ts\n"@} \
 	    ${_ALL_libcompats:@v@-V "OLD_LIBS:Musr/lib/*:S,^usr/lib,usr/lib$v,:ts\n"@} \
 	    ${_ALL_libcompats:@v@-V "OLD_LIBS:Mlib/casper/*:S,^lib/casper,usr/lib$v,:ts\n"@} | \
