@@ -2381,7 +2381,7 @@ procstat_getosrel(struct procstat *procstat, struct kinfo_proc *kp, int *osrelp)
 
 #define PROC_AUXV_MAX	256
 
-#if __ELF_WORD_SIZE == 64
+#ifdef PS_ARCH_HAS_FREEBSD32
 static const char *elf32_sv_names[] = {
 	"Linux ELF32",
 	"FreeBSD ELF32",
@@ -2464,7 +2464,7 @@ out:
 	free(auxv32);
 	return (auxv);
 }
-#endif /* __ELF_WORD_SIZE == 64 */
+#endif /* PS_ARCH_HAS_FREEBSD32 */
 
 static Elf_Auxinfo *
 procstat_getauxv_sysctl(pid_t pid, unsigned int *cntp)
@@ -2473,7 +2473,7 @@ procstat_getauxv_sysctl(pid_t pid, unsigned int *cntp)
 	int name[4];
 	size_t len;
 
-#if __ELF_WORD_SIZE == 64
+#ifdef PS_ARCH_HAS_FREEBSD32
 	if (is_elf32_sysctl(pid))
 		return (procstat_getauxv32_sysctl(pid, cntp));
 #endif
