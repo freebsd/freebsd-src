@@ -52,6 +52,11 @@ struct nl_parsed_state {
 	uint8_t		version;
 	uint32_t	id;
 	uint32_t	creatorid;
+	char		ifname[IFNAMSIZ];
+	uint16_t	proto;
+	sa_family_t	af;
+	struct pf_addr	addr;
+	struct pf_addr	mask;
 };
 
 #define	_IN(_field)	offsetof(struct genlmsghdr, _field)
@@ -59,6 +64,11 @@ struct nl_parsed_state {
 static const struct nlattr_parser nla_p_state[] = {
 	{ .type = PF_ST_ID, .off = _OUT(id), .cb = nlattr_get_uint32 },
 	{ .type = PF_ST_CREATORID, .off = _OUT(creatorid), .cb = nlattr_get_uint32 },
+	{ .type = PF_ST_IFNAME, .arg = (const void *)IFNAMSIZ, .off = _OUT(ifname), .cb = nlattr_get_chara },
+	{ .type = PF_ST_AF, .off = _OUT(proto), .cb = nlattr_get_uint8 },
+	{ .type = PF_ST_PROTO, .off = _OUT(proto), .cb = nlattr_get_uint16 },
+	{ .type = PF_ST_FILTER_ADDR, .off = _OUT(addr), .cb = nlattr_get_in6_addr },
+	{ .type = PF_ST_FILTER_MASK, .off = _OUT(mask), .cb = nlattr_get_in6_addr },
 };
 static const struct nlfield_parser nlf_p_generic[] = {
 	{ .off_in = _IN(version), .off_out = _OUT(version), .cb = nlf_get_u8 },
@@ -217,11 +227,34 @@ handle_dumpstates(struct nlpcb *nlp, struct nl_parsed_state *attrs,
 
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
-			if (s->timeout != PFTM_UNLINKED) {
-				error = dump_state(nlp, hdr, s, npt);
-				if (error != 0)
-					break;
-			}
+			sa_family_t af = s->key[PF_SK_WIRE]->af;
+
+			if (s->timeout == PFTM_UNLINKED)
+				continue;
+
+			/* Filter */
+			if (attrs->creatorid != 0 && s->creatorid != attrs->creatorid)
+				continue;
+			if (attrs->ifname[0] != 0 &&
+			    strncmp(attrs->ifname, s->kif->pfik_name, IFNAMSIZ) != 0)
+				continue;
+			if (attrs->proto != 0 && s->key[PF_SK_WIRE]->proto != attrs->proto)
+				continue;
+			if (attrs->af != 0 && af != attrs->af)
+				continue;
+			if (pf_match_addr(1, &s->key[PF_SK_WIRE]->addr[0],
+			    &attrs->mask, &attrs->addr, af) &&
+			    pf_match_addr(1, &s->key[PF_SK_WIRE]->addr[1],
+			    &attrs->mask, &attrs->addr, af) &&
+			    pf_match_addr(1, &s->key[PF_SK_STACK]->addr[0],
+			    &attrs->mask, &attrs->addr, af) &&
+			    pf_match_addr(1, &s->key[PF_SK_STACK]->addr[1],
+			    &attrs->mask, &attrs->addr, af))
+				continue;
+
+			error = dump_state(nlp, hdr, s, npt);
+			if (error != 0)
+				break;
 		}
 		PF_HASHROW_UNLOCK(ih);
 	}

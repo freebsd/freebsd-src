@@ -1342,7 +1342,7 @@ static const struct snl_hdr_parser *all_parsers[] = {
 };
 
 static int
-pfctl_get_states_nl(struct snl_state *ss, pfctl_get_state_fn f, void *arg)
+pfctl_get_states_nl(struct pfctl_state_filter *filter, struct snl_state *ss, pfctl_get_state_fn f, void *arg)
 {
 	SNL_VERIFY_PARSERS(all_parsers);
 	int family_id = snl_get_genl_family(ss, PFNL_FAMILY_NAME);
@@ -1354,7 +1354,14 @@ pfctl_get_states_nl(struct snl_state *ss, pfctl_get_state_fn f, void *arg)
 	snl_init_writer(ss, &nw);
 	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GETSTATES);
 	hdr->nlmsg_flags |= NLM_F_DUMP;
+	snl_add_msg_attr_string(&nw, PF_ST_IFNAME, filter->ifname);
+	snl_add_msg_attr_u16(&nw, PF_ST_PROTO, filter->proto);
+	snl_add_msg_attr_u8(&nw, PF_ST_AF, filter->af);
+	snl_add_msg_attr_ip6(&nw, PF_ST_FILTER_ADDR, &filter->addr.v6);
+	snl_add_msg_attr_ip6(&nw, PF_ST_FILTER_MASK, &filter->mask.v6);
+
 	hdr = snl_finalize_msg(&nw);
+
 	uint32_t seq_id = hdr->nlmsg_seq;
 
 	snl_send_message(ss, hdr);
@@ -1380,11 +1387,18 @@ pfctl_get_states_nl(struct snl_state *ss, pfctl_get_state_fn f, void *arg)
 int
 pfctl_get_states_iter(pfctl_get_state_fn f, void *arg)
 {
+	struct pfctl_state_filter filter = {};
+	return (pfctl_get_filtered_states_iter(&filter, f, arg));
+}
+
+int
+pfctl_get_filtered_states_iter(struct pfctl_state_filter *filter, pfctl_get_state_fn f, void *arg)
+{
 	struct snl_state ss = {};
 	int error;
 
 	snl_init(&ss, NETLINK_GENERIC);
-	error = pfctl_get_states_nl(&ss, f, arg);
+	error = pfctl_get_states_nl(filter, &ss, f, arg);
 	snl_free(&ss);
 
 	return (error);
