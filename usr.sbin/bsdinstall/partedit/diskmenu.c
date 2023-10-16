@@ -48,14 +48,14 @@ diskmenu_show(const char *title, const char *text, struct partedit_item *items,
 	for (i = 0; i < nitems; i++) {
 		bsditems[i].prefix = "";
 		bsditems[i].on = false;
-		bsditems[i].depth = items[i].indentation;
+		bsditems[i].depth = 2 * items[i].indentation;
 		/* old menu sets max namelen to 10 */
 		bsditems[i].name = items[i].name;
 		humanize_number(size, 7, items[i].size, "B",
 		    HN_AUTOSCALE, HN_DECIMAL);
 		mp = items[i].mountpoint != NULL ? items[i].mountpoint : "";
-		asprintf(__DECONST(char**, &bsditems[i].desc), "%s %-15s %-10s",
-		    size, items[i].type, mp);
+		asprintf(__DECONST(char**, &bsditems[i].desc),
+		    "  %-9s %-15s %s", size, items[i].type, mp);
 		bsditems[i].bottomdesc = "";
 	}
 
@@ -86,5 +86,5 @@ diskmenu_show(const char *title, const char *text, struct partedit_item *items,
 		free((char *)bsditems[i].desc);
 	free(bsditems);
 
-	return output;
+	return (output);
 }
