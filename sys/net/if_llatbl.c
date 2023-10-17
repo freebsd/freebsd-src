@@ -1065,18 +1065,13 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 }
 
 #ifdef DDB
-struct llentry_sa {
-	struct llentry		base;
-	struct sockaddr		l3_addr;
-};
-
 static void
-llatbl_lle_show(struct llentry_sa *la)
+llatbl_lle_show(struct llentry *lle)
 {
-	struct llentry *lle;
 	uint8_t octet[6];
+	sa_family_t af = AF_UNSPEC;
+	char l3_addr_fmt[] = " l3_addr=%s (af=%d)\n";
 
-	lle = &la->base;
 	db_printf("lle=%p\n", lle);
 	db_printf(" lle_next=%p\n", lle->lle_next.cle_next);
 	db_printf(" lle_lock=%p\n", &lle->lle_lock);
@@ -1097,33 +1092,37 @@ llatbl_lle_show(struct llentry_sa *la)
 	    octet[0], octet[1], octet[2], octet[3], octet[4], octet[5]);
 	db_printf(" lle_timer=%p\n", &lle->lle_timer);
 
-	switch (la->l3_addr.sa_family) {
+	if (lle->lle_tbl) {
+		af = lle->lle_tbl->llt_af;
+	}
+
+	switch (af) {
 #ifdef INET
 	case AF_INET:
 	{
-		struct sockaddr_in *sin;
+		struct sockaddr_in sin;
 		char l3s[INET_ADDRSTRLEN];
 
-		sin = (struct sockaddr_in *)&la->l3_addr;
-		inet_ntoa_r(sin->sin_addr, l3s);
-		db_printf(" l3_addr=%s\n", l3s);
+		lltable_fill_sa_entry(lle, (struct sockaddr *)&sin);
+		(void) inet_ntop(af, &sin.sin_addr, l3s, sizeof(l3s));
+		db_printf(l3_addr_fmt, l3s, af);
 		break;
 	}
 #endif
 #ifdef INET6
 	case AF_INET6:
 	{
-		struct sockaddr_in6 *sin6;
+		struct sockaddr_in6 sin6;
 		char l3s[INET6_ADDRSTRLEN];
 
-		sin6 = (struct sockaddr_in6 *)&la->l3_addr;
-		ip6_sprintf(l3s, &sin6->sin6_addr);
-		db_printf(" l3_addr=%s\n", l3s);
+		lltable_fill_sa_entry(lle, (struct sockaddr *)&sin6);
+		(void) inet_ntop(af, &sin6.sin6_addr, l3s, sizeof(l3s));
+		db_printf(l3_addr_fmt, l3s, af);
 		break;
 	}
 #endif
 	default:
-		db_printf(" l3_addr=N/A (af=%d)\n", la->l3_addr.sa_family);
+		db_printf(l3_addr_fmt, "N/A", af);
 		break;
 	}
 }
@@ -1136,7 +1135,7 @@ DB_SHOW_COMMAND(llentry, db_show_llentry)
 		return;
 	}
 
-	llatbl_lle_show((struct llentry_sa *)addr);
+	llatbl_lle_show((struct llentry *)addr);
 }
 
 static void
@@ -1150,7 +1149,7 @@ llatbl_llt_show(struct lltable *llt)
 
 	for (i = 0; i < llt->llt_hsize; i++) {
 		CK_LIST_FOREACH(lle, &llt->lle_head[i], lle_next) {
-			llatbl_lle_show((struct llentry_sa *)lle);
+			llatbl_lle_show(lle);
 			if (db_pager_quit)
 				return;
 		}
