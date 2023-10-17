@@ -79,13 +79,13 @@ struct TCPAevent {
 	u_int32_t	event_type;
 	u_int8_t	pcr_value[20];
 	u_int32_t	event_size;
-	u_int8_t	event_data[0];
+	u_int8_t	event_data[];
 };
 
 struct TCPApc_event {
 	u_int32_t	event_id;
 	u_int32_t	event_size;
-	u_int8_t	event_data[0];
+	u_int8_t	event_data[];
 };
 
 enum TCPAevent_types {
