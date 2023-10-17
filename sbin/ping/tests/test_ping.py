@@ -51,7 +51,7 @@ def build_response_packet(echo, ip, icmp, oip_ihl, special):
         # Build a package with a timestamp of INT_MAX
         # (time-warped package)
         payload_no_timestamp = sc.bytes_hex(load)[16:]
-        load = (b"\xff" * 8) + sc.hex_bytes(payload_no_timestamp)
+        load = b"\x7f" + (b"\xff" * 7) + sc.hex_bytes(payload_no_timestamp)
     if special == "wrong":
         # Build a package with a wrong last byte
         payload_no_last_byte = sc.bytes_hex(load)[:-2]
