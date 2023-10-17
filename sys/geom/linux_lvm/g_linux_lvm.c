@@ -512,7 +512,6 @@ g_llvm_free_vg(struct g_llvm_vg *vg)
 		LIST_REMOVE(lv, lv_next);
 		free(lv, M_GLLVM);
 	}
-	LIST_REMOVE(vg, vg_next);
 	free(vg, M_GLLVM);
 }
 
@@ -596,7 +595,8 @@ g_llvm_destroy(struct g_llvm_vg *vg, int force)
 		}
 	}
 
-	g_llvm_free_vg(gp->softc);
+	LIST_REMOVE(vg, vg_next);
+	g_llvm_free_vg(vg);
 	gp->softc = NULL;
 	g_wither_geom(gp, ENXIO);
 	return (0);
