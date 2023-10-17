@@ -1016,9 +1016,6 @@ main(int argc, char *argv[])
 	setproctitle("%s", vmname);
 
 #ifdef BHYVE_SNAPSHOT
-	/* initialize mutex/cond variables */
-	init_snapshot();
-
 	/*
 	 * checkpointing thread for communication with bhyvectl
 	 */

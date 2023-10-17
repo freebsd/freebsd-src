@@ -137,8 +137,9 @@ static const struct vm_snapshot_kern_info snapshot_kern_structs[] = {
 };
 
 static cpuset_t vcpus_active, vcpus_suspended;
-static pthread_mutex_t vcpu_lock;
-static pthread_cond_t vcpus_idle, vcpus_can_run;
+static pthread_mutex_t vcpu_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t vcpus_idle = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t vcpus_can_run = PTHREAD_COND_INITIALIZER;
 static bool checkpoint_active;
 
 /*
@@ -1394,22 +1395,6 @@ vm_do_checkpoint(struct vmctx *ctx, const nvlist_t *nvl)
 	return (error);
 }
 IPC_COMMAND(ipc_cmd_set, checkpoint, vm_do_checkpoint);
-
-void
-init_snapshot(void)
-{
-	int err;
-
-	err = pthread_mutex_init(&vcpu_lock, NULL);
-	if (err != 0)
-		errc(1, err, "checkpoint mutex init");
-	err = pthread_cond_init(&vcpus_idle, NULL);
-	if (err != 0)
-		errc(1, err, "checkpoint cv init (vcpus_idle)");
-	err = pthread_cond_init(&vcpus_can_run, NULL);
-	if (err != 0)
-		errc(1, err, "checkpoint cv init (vcpus_can_run)");
-}
 
 /*
  * Create the listening socket for IPC with bhyvectl
