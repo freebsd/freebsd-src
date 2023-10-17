@@ -82,6 +82,13 @@ struct gpt_hdr {
 CTASSERT(offsetof(struct gpt_hdr, padding) == 92);
 #endif
 
+/*
+ * The GPT standard (section 5.3 of UEFI standard version 2.10) requires
+ * we reserve at least 16k after the PMBR and the GPT header for the GPT
+ * Array Entries.
+ */
+#define GPT_MIN_RESERVED	16384
+
 struct gpt_ent {
 	gpt_uuid_t	ent_type;
 	gpt_uuid_t	ent_uuid;
