@@ -1585,6 +1585,8 @@ pf_normalize_sctp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 		return (1);
 	}
 
+	dst->scrub->pfss_v_tag = pd->sctp_initiate_tag;
+
 	return (0);
 }
 
