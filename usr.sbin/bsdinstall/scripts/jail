@@ -36,7 +36,6 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 : ${BSDDIALOG_OK=0}
 
 f_dprintf "Began Installation at %s" "$( date )"
-export BSDINSTALL_CHROOT=$1
 
 error() {
 	local msg
@@ -53,6 +52,11 @@ error() {
 		exec $0 $BSDINSTALL_CHROOT
 	fi
 }
+
+if [ -z "$1" ]; then
+	error "Directory can not be empty\n\nUsage:\nbsdinstall jail directory"
+fi
+export BSDINSTALL_CHROOT=$1
 
 rm -rf $BSDINSTALL_TMPETC
 mkdir $BSDINSTALL_TMPETC
