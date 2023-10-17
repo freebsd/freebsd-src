@@ -27,7 +27,7 @@
 .\"
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\"
-.Dd June 20, 2023
+.Dd October 17, 2023
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2886,6 +2886,11 @@ acknowledged that the associated state has been inserted.
 .It Fl defer
 Do not defer the first packet in a state.
 This is the default.
+.It Fl version Ar n
+Configure message format for compatibility with older versions of FreeBSD.
+Refer to
+.Xr pfsync 4
+for details.
 .El
 .Ss VLAN Parameters
 The following parameters are specific to

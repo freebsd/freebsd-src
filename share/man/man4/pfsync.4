@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 6, 2018
+.Dd October 17, 2023
 .Dt PFSYNC 4
 .Os
 .Sh NAME
@@ -112,6 +112,32 @@ Either run the pfsync protocol on a trusted network \- ideally a network
 dedicated to pfsync messages such as a crossover cable between two firewalls,
 or specify a peer address and protect the traffic with
 .Xr ipsec 4 .
+.Pp
+When new features are introduced to
+.Xr pf 4
+the format of messages used by
+.Nm
+might change.
+.Nm
+will by default use the latest format.
+If synchronization with a peer running an older version of FreeBSD is needed the
+.Ar version
+parameter can be used.
+E.g.:
+.Bd -literal -offset indent
+# ifconfig pfsync0 version 1301
+.Ed
+.Pp
+.Bd
+Currently the following versions are supported:
+.Bl -tag -width indent
+.It Cm 1301
+FreeBSD releases 13.2 and older.
+Compatibility with FreeBSD 13.1 has been verified.
+.It Cm 1400
+FreeBSD release 14.0.
+.El
+.Ed
 .Pp
 .Nm
 has the following
