@@ -1544,7 +1544,7 @@ ts_print(const struct timeval *tvp)
 
 	/* Default */
 	sec = (tvp->tv_sec + thiszone) % 86400;
-	xo_emit("{:tv_sec/%lld}{:tv_usec/%lld}%02d:%02d:%02d.%06u ",
+	xo_emit("{e:tv_sec/%lld}{e:tv_usec/%lld}{d:/%02d:%02d:%02d.%06u} ",
 	    tvp->tv_sec, tvp->tv_usec,
 	    sec / 3600, (sec % 3600) / 60, sec % 60, (u_int32_t)tvp->tv_usec);
 }
