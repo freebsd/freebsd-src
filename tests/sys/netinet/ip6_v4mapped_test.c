@@ -194,17 +194,15 @@ restore_portrange(void)
 		    "failed while restoring value");
 }
 
-ATF_TC_WITH_CLEANUP(v4mapped);
-ATF_TC_HEAD(v4mapped, tc)
+ATF_TC_WITH_CLEANUP(tcp_v4mapped_bind);
+ATF_TC_HEAD(tcp_v4mapped_bind, tc)
 {
-
 	/* root is only required for sysctls (setup and cleanup). */
 	atf_tc_set_md_var(tc, "require.user", "root");
 	atf_tc_set_md_var(tc, "require.config", "allow_sysctl_side_effects");
 	atf_tc_set_md_var(tc, "descr",
 	    "Check local port assignment with bind and mapped V4 addresses");
 }
-
 /*
  * Create a listening IPv4 socket, then connect to it repeatedly using a
  * bound IPv6 socket using a v4 mapped address.  With a small port range,
@@ -213,7 +211,7 @@ ATF_TC_HEAD(v4mapped, tc)
  * and then the connect would fail with EADDRINUSE.  Make sure we get
  * the right error.
  */
-ATF_TC_BODY(v4mapped, tc)
+ATF_TC_BODY(tcp_v4mapped_bind, tc)
 {
 	union {
 		struct sockaddr saddr;
@@ -315,17 +313,82 @@ ATF_TC_BODY(v4mapped, tc)
 	ATF_REQUIRE_MSG(i >= 1, "No successful connections");
 	ATF_REQUIRE_MSG(got_bind_error == true, "No expected bind error");
 }
-
-ATF_TC_CLEANUP(v4mapped, tc)
+ATF_TC_CLEANUP(tcp_v4mapped_bind, tc)
 {
-
 	restore_portrange();
+}
+
+ATF_TC(udp_v4mapped_sendto);
+ATF_TC_HEAD(udp_v4mapped_sendto, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Validate sendto() with a v4-mapped address and a v6-only socket");
+}
+ATF_TC_BODY(udp_v4mapped_sendto, tc)
+{
+	struct addrinfo ai_hint, *aip;
+	struct sockaddr_in sin;
+	struct sockaddr_in6 sin6;
+	ssize_t n;
+	socklen_t salen;
+	int error, ls, s, zero;
+	short port;
+	char ch;
+
+	ls = socket(PF_INET, SOCK_DGRAM, 0);
+	ATF_REQUIRE(ls >= 0);
+
+	memset(&ai_hint, 0, sizeof(ai_hint));
+	ai_hint.ai_family = AF_INET;
+	ai_hint.ai_flags = AI_NUMERICHOST;
+	error = getaddrinfo("127.0.0.1", NULL, &ai_hint, &aip);
+	ATF_REQUIRE_MSG(error == 0, "getaddrinfo: %s", gai_strerror(error));
+	memcpy(&sin, aip->ai_addr, sizeof(sin));
+
+	error = bind(ls, (struct sockaddr *)&sin, sizeof(sin));
+	ATF_REQUIRE_MSG(error == 0, "bind: %s", strerror(errno));
+	salen = sizeof(sin);
+	error = getsockname(ls, (struct sockaddr *)&sin, &salen);
+	ATF_REQUIRE_MSG(error == 0,
+	    "getsockname() for listen socket failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(salen == sizeof(struct sockaddr_in),
+	    "unexpected sockaddr size");
+	port = sin.sin_port;
+
+	s = socket(PF_INET6, SOCK_DGRAM, 0);
+	ATF_REQUIRE(s >= 0);
+
+	memset(&ai_hint, 0, sizeof(ai_hint));
+	ai_hint.ai_family = AF_INET6;
+	ai_hint.ai_flags = AI_NUMERICHOST | AI_V4MAPPED;
+	error = getaddrinfo("127.0.0.1", NULL, &ai_hint, &aip);
+	ATF_REQUIRE_MSG(error == 0, "getaddrinfo: %s", gai_strerror(error));
+	memcpy(&sin6, aip->ai_addr, sizeof(sin6));
+	sin6.sin6_port = port;
+
+	ch = 0x42;
+	n = sendto(s, &ch, 1, 0, (struct sockaddr *)&sin6, sizeof(sin6));
+	ATF_REQUIRE_ERRNO(EINVAL, n == -1);
+
+	zero = 0;
+	error = setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &zero, sizeof(zero));
+	ATF_REQUIRE_MSG(error == 0,
+	    "setsockopt(IPV6_V6ONLY) failed: %s", strerror(errno));
+
+	ch = 0x42;
+	n = sendto(s, &ch, 1, 0, (struct sockaddr *)&sin6, sizeof(sin6));
+	ATF_REQUIRE_MSG(n == 1, "sendto() failed: %s", strerror(errno));
+
+	ch = 0;
+	n = recv(ls, &ch, 1, 0);
+	ATF_REQUIRE_MSG(n == 1, "recv() failed: %s", strerror(errno));
+	ATF_REQUIRE(ch == 0x42);
 }
 
 ATF_TP_ADD_TCS(tp)
 {
-	ATF_TP_ADD_TC(tp, v4mapped);
+	ATF_TP_ADD_TC(tp, tcp_v4mapped_bind);
+	ATF_TP_ADD_TC(tp, udp_v4mapped_sendto);
 
 	return (atf_no_error());
 }
-
