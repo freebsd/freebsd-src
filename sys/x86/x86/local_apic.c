@@ -493,7 +493,7 @@ lapic_init(vm_paddr_t addr)
 		    (cpu_feature2 & CPUID2_TSCDLT) != 0 &&
 		    tsc_is_invariant && tsc_freq != 0) {
 			lapic_timer_tsc_deadline = 1;
-			TUNABLE_INT_FETCH("hw.lapic_tsc_deadline",
+			TUNABLE_INT_FETCH("hw.apic.timer_tsc_deadline",
 			    &lapic_timer_tsc_deadline);
 		}
 
@@ -526,7 +526,7 @@ lapic_init(vm_paddr_t addr)
 		       "KVM -- disabling lapic eoi suppression\n");
 			lapic_eoi_suppression = 0;
 		}
-		TUNABLE_INT_FETCH("hw.lapic_eoi_suppression",
+		TUNABLE_INT_FETCH("hw.apic.eoi_suppression",
 		    &lapic_eoi_suppression);
 	}
 
