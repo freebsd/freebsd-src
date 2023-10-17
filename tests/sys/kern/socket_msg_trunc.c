@@ -231,7 +231,7 @@ ATF_TC_BODY(recvmsg_trunc_ktrace_uio, tc)
 	nbytes = read(fd, &ktr, sizeof(ktr));
 	ATF_REQUIRE_MSG(nbytes >= 0, "read failed: %s", strerror(errno));
 	ATF_REQUIRE((size_t)nbytes == sizeof(ktr));
-	ATF_REQUIRE_MSG((ktr.ktr_type & ~KTR_TYPE) == KTR_GENIO);
+	ATF_REQUIRE((ktr.ktr_type & ~KTR_TYPE) == KTR_GENIO);
 
 	ATF_REQUIRE(close(fd) == 0);
 	ATF_REQUIRE(close(sd[0]) == 0);
