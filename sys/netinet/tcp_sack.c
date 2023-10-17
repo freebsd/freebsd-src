@@ -888,10 +888,10 @@ tcp_free_sackholes(struct tcpcb *tp)
 	while ((q = TAILQ_FIRST(&tp->snd_holes)) != NULL)
 		tcp_sackhole_remove(tp, q);
 	tp->sackhint.sack_bytes_rexmit = 0;
-	tp->sackhint.sacked_bytes = 0;
 	tp->sackhint.delivered_data = 0;
-	tp->sackhint.lost_bytes = 0;
+	tp->sackhint.sacked_bytes = 0;
 	tp->sackhint.hole_bytes = 0;
+	tp->sackhint.lost_bytes = 0;
 
 	KASSERT(tp->snd_numholes == 0, ("tp->snd_numholes == 0"));
 	KASSERT(tp->sackhint.nexthole == NULL,
