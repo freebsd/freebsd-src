@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20231006: rename tcp6_v4unmapped_bind_test
+OLD_FILES+=usr/tests/sys/netinet/tcp6_v4unmapped_bind_test
+
 # 20231013: Man pages renamed to match the actual functions
 OLD_FILES+=usr/share/man/man9/cr_seeothergids.9.gz
 OLD_FILES+=usr/share/man/man9/cr_seeotheruids.9.gz
