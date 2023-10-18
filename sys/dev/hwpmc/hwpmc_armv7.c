@@ -535,5 +535,9 @@ pmc_armv7_finalize(struct pmc_mdep *md)
 {
 	PMCDBG0(MDP, INI, 1, "armv7-finalize");
 
+	for (int i = 0; i < pmc_cpu_max(); i++)
+		KASSERT(armv7_pcpu[i] == NULL,
+		    ("[armv7,%d] non-null pcpu cpu %d", __LINE__, i));
+
 	free(armv7_pcpu, M_PMC);
 }

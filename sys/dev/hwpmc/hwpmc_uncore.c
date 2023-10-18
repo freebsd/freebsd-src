@@ -758,6 +758,10 @@ pmc_uncore_finalize(struct pmc_mdep *md)
 {
 	PMCDBG0(MDP,INI,1, "uncore-finalize");
 
+	for (int i = 0; i < pmc_cpu_max(); i++)
+		KASSERT(uncore_pcpu[i] == NULL,
+		    ("[uncore,%d] non-null pcpu cpu %d", __LINE__, i));
+
 	free(uncore_pcpu, M_PMC);
 	uncore_pcpu = NULL;
 }

@@ -1173,37 +1173,13 @@ pmc_amd_initialize(void)
 void
 pmc_amd_finalize(struct pmc_mdep *md)
 {
-#if	defined(INVARIANTS)
-	int classindex, i, ncpus, pmcclass;
-#endif
+	PMCDBG0(MDP, INI, 1, "amd-finalize");
 
 	pmc_tsc_finalize(md);
 
-	KASSERT(amd_pcpu != NULL, ("[amd,%d] NULL per-cpu array pointer",
-	    __LINE__));
-
-#if	defined(INVARIANTS)
-	switch (md->pmd_cputype) {
-#if	defined(__i386__)
-	case PMC_CPU_AMD_K7:
-		classindex = PMC_MDEP_CLASS_INDEX_K7;
-		pmcclass = PMC_CLASS_K7;
-		break;
-#endif
-	default:
-		classindex = PMC_MDEP_CLASS_INDEX_K8;
-		pmcclass = PMC_CLASS_K8;
-	}
-
-	KASSERT(md->pmd_classdep[classindex].pcd_class == pmcclass,
-	    ("[amd,%d] pmc class mismatch", __LINE__));
-
-	ncpus = pmc_cpu_max();
-
-	for (i = 0; i < ncpus; i++)
-		KASSERT(amd_pcpu[i] == NULL, ("[amd,%d] non-null pcpu",
-		    __LINE__));
-#endif
+	for (int i = 0; i < pmc_cpu_max(); i++)
+		KASSERT(amd_pcpu[i] == NULL,
+		    ("[amd,%d] non-null pcpu cpu %d", __LINE__, i));
 
 	free(amd_pcpu, M_PMC);
 	amd_pcpu = NULL;
