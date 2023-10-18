@@ -89,6 +89,7 @@ EOF
 
 static u_int32_t r[N];
 static void *p;
+static int debug; /* set to 1 for debug output */
 
 static unsigned long
 makearg(void)
@@ -176,11 +177,9 @@ tmlock(void *arg __unused)
 			if (munlock(makeptr(), len) == 0)
 				n++;
 	}
-#if defined(DEBUG)
-	if (n < 10)
+	if (debug != 0 && n < 10)
 		fprintf(stderr, "Note: tmlock() only succeeded %d "
 		    "times.\n", n);
-#endif
 
 	return (NULL);
 }
@@ -202,11 +201,9 @@ tmprotect(void *arg __unused)
 			n++;
 		usleep(1000);
 	}
-#if defined(DEBUG)
-	if (n < 10)
+	if (debug != 0 && n < 10)
 		fprintf(stderr, "Note: tmprotect() only succeeded %d "
 		    "times.\n", n);
-#endif
 
 	return (NULL);
 }
@@ -226,11 +223,9 @@ tmlockall(void *arg __unused)
 		munlockall();
 		usleep(1000);
 	}
-#if defined(DEBUG)
-	if (n < 10)
+	if (debug != 0 && n < 10)
 		fprintf(stderr, "Note: tmlockall() only succeeded %d "
 		    "times.\n", n);
-#endif
 
 	return (NULL);
 }

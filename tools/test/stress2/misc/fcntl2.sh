@@ -150,6 +150,8 @@ test(void)
 	}
 	close(fd);
 	unlink(file);
+	if (success == 0)
+		fprintf(stderr, "No calls to fcntl() succeeded.\n");
 
 	_exit(0);
 }

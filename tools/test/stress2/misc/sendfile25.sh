@@ -105,7 +105,7 @@ reader(void) {
 	int on;
 	socklen_t len;
 	struct sockaddr_in inetaddr, inetpeer;
-	int n, t, *buf, fd;
+	int n, *buf, fd;
 
 	on = 1;
 	if ((tcpsock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -132,7 +132,6 @@ reader(void) {
 	    (struct sockaddr *)&inetpeer, &len)) < 0)
 		err(1, "accept(), %s:%d", __FILE__, __LINE__);
 
-	t = 0;
 	if ((buf = malloc(bufsize)) == NULL)
 		err(1, "malloc(%d), %s:%d", bufsize, __FILE__, __LINE__);
 
@@ -142,7 +141,6 @@ reader(void) {
 	for (;;) {
 		if ((n = read(msgsock, buf, bufsize)) < 0)
 			err(1, "read(), %s:%d", __FILE__, __LINE__);
-		t += n;
 		if (n == 0)
 			break;
 

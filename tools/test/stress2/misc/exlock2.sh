@@ -68,6 +68,7 @@ EOF
 #include <unistd.h>
 
 static _Atomic(int) *share;
+static int debug; /* Set to "1" for debug output */
 static int quit;
 static char file[80];
 
@@ -101,9 +102,8 @@ test1(void)
 			;	/* wait for test2 to signal "done" */
 		close(fd);
 	}
-#if defined(DEBUG)
-	fprintf(stderr, "%s: n = %d\n", __func__, n);
-#endif
+	if (debug != 0)
+		fprintf(stderr, "%s: n = %d\n", __func__, n);
 
 	_exit(0);
 }
@@ -114,17 +114,15 @@ test2(void)
 	struct flock fl;
 	struct stat st;
 	time_t start;
-	int e, fd, n;
+	int e, fd;
 
 	e = 0;
 	fd = 0;
-	n = 0;
 	start = time(NULL);
 	while (time(NULL) - start < RUNTIME) {
 		share[SYNC] = 1;
 		if ((fd = open(file, O_RDWR)) == -1)
 			goto out;
-		n++;
 		memset(&fl, 0, sizeof(fl));
 		fl.l_start = 0;
 		fl.l_len = 0;
@@ -151,12 +149,9 @@ out:
 		share[SYNC] = 0;
 		usleep(100);
 	}
-#if defined(DEBUG)
-	if (e != 0) {
+	if (debug != 0 && e != 0)
 		system("ps -Uroot | grep -v grep | grep  /tmp/exlock2 | "\
 		    "awk '{print $1}' | xargs procstat -f");
-	}
-#endif
 	share[SYNC] = 0;
 
 	_exit(e);

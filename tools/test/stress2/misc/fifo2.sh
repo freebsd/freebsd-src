@@ -96,6 +96,7 @@ EOF
 #include <unistd.h>
 
 #define N (128 * 1024 / (int)sizeof(u_int32_t))
+static int debug; /* Set to 1 for debug output */
 u_int32_t r[N];
 
 static void
@@ -143,11 +144,10 @@ calls(void *arg __unused)
 		arg6 = makearg();
 		arg7 = makearg();
 
-#if 0
-		fprintf(stderr, "%2d : syscall(%3d, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
-			i, SYS_open, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+		if (debug != 0)
+			fprintf(stderr, "%2d : syscall(%3d, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
+			    i, SYS_open, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 		usleep(100000);
-#endif
 		alarm(1);
 		syscall(SYS_open, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 	}
