@@ -167,6 +167,7 @@ MLINKS+=	bindresvport.3 bindresvport_sa.3 \
 		rpc_soc.3 svc_fds.3 \
 		rpc_soc.3 svc_fdset.3 \
 		rpc_soc.3 svc_getcaller.3 \
+		rpc_soc.3 svc_getreq.3 \
 		rpc_soc.3 svc_register.3 \
 		rpc_soc.3 svc_unregister.3 \
 		rpc_soc.3 svcfd_create.3 \
@@ -175,5 +176,6 @@ MLINKS+=	bindresvport.3 bindresvport_sa.3 \
 		rpc_soc.3 svctcp_create.3 \
 		rpc_soc.3 svcudp_bufcreate.3 \
 		rpc_soc.3 svcunix_create.3 \
+		rpc_soc.3 xdr_authunix_parms.3 \
 		rpc_soc.3 xdr_pmap.3 \
 		rpc_soc.3 xdr_pmaplist.3
