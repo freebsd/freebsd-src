@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20231018:
+	Commit 57ce37f9dcd0 changed the internal KAPI between the
+	nfscommon and nfscl modules.  Both must be rebuilt from sources.
+
 20231010:
 	dialog(1) has been replaced in base by bsddialog(1), while most of the
 	time replacing a dialog(1) call by a bsddialog(1) call works out of the
