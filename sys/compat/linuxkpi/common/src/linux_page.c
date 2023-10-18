@@ -193,7 +193,7 @@ linux_alloc_kmem(gfp_t flags, unsigned int order)
 void
 linux_free_kmem(vm_offset_t addr, unsigned int order)
 {
-	KASSERT((addr & PAGE_MASK) == 0,
+	KASSERT((addr & ~PAGE_MASK) == 0,
 	    ("%s: addr %p is not page aligned", __func__, (void *)addr));
 
 	if (addr >= VM_MIN_KERNEL_ADDRESS && addr < VM_MAX_KERNEL_ADDRESS) {
