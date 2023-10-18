@@ -469,6 +469,7 @@ MLINKS+=sched_get_priority_max.2 sched_get_priority_min.2 \
 	sched_get_priority_max.2 sched_rr_get_interval.2
 MLINKS+=sched_setparam.2 sched_getparam.2
 MLINKS+=sched_setscheduler.2 sched_getscheduler.2
+MLINKS+=sctp_generic_sendmsg.2 sctp_generic_sendmsg_iov.2
 MLINKS+=select.2 FD_CLR.3 \
 	select.2 FD_ISSET.3 \
 	select.2 FD_SET.3 \

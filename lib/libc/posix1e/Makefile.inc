@@ -95,23 +95,27 @@ MAN+=	acl.3				\
 	posix1e.3
 
 MLINKS+=acl_create_entry.3 acl_create_entry_np.3\
+	acl_cmp_np.3 acl_cmp.3			\
 	acl_delete.3 acl_delete_def_file.3	\
-	acl_delete.3 acl_delete_file_np.3	\
+	acl_delete.3 acl_delete_def_link_np.3	\
 	acl_delete.3 acl_delete_fd_np.3		\
+	acl_delete.3 acl_delete_file_np.3	\
+	acl_delete.3 acl_delete_link_np.3	\
 	acl_delete_entry.3 acl_delete_entry_np.3\
 	acl_extended_file_np.3 acl_extended_file_nofollow_np.3 \
 	acl_extended_file_np.3 acl_extended_link_np.3 \
-	acl_get.3 acl_get_file.3		\
 	acl_get.3 acl_get_fd.3			\
 	acl_get.3 acl_get_fd_np.3		\
+	acl_get.3 acl_get_file.3		\
 	acl_get.3 acl_get_link_np.3		\
-	acl_set.3 acl_set_file.3		\
 	acl_set.3 acl_set_fd.3			\
 	acl_set.3 acl_set_fd_np.3		\
+	acl_set.3 acl_set_file.3		\
 	acl_set.3 acl_set_link_np.3		\
 	acl_to_text.3 acl_to_text_np.3		\
-	acl_valid.3 acl_valid_file_np.3		\
 	acl_valid.3 acl_valid_fd_np.3		\
+	acl_valid.3 acl_valid_file_np.3		\
+	acl_valid.3 acl_valid_link_np.3		\
 	extattr.3 extattr_namespace_to_string.3	\
 	extattr.3 extattr_string_to_namespace.3 \
 	mac_get.3 mac_get_fd.3			\
