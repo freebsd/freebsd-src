@@ -30,6 +30,7 @@
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_amrr.h>
+#include <sys/taskqueue.h>
 
 #define NBPFILTER 0
 
@@ -448,6 +449,11 @@ struct athn_ops {
 struct athn_softc {
 	device_t	    sc_dev;
 	struct ieee80211com		sc_ic;
+	struct mbufq		sc_snd;
+
+	struct task			sc_task;
+	struct timeout_task	scan_to;
+	struct timeout_task	calib_to;
 
 	int				(*sc_enable)(struct athn_softc *);
 	void				(*sc_disable)(struct athn_softc *);
@@ -461,10 +467,6 @@ struct athn_softc {
 
 	bus_dma_tag_t			sc_dmat;
 
-#if OpenBSD_ONLY
-	struct timeout			scan_to;
-	struct timeout			calib_to;
-#endif
 	struct ieee80211_amrr		amrr;
 
 	u_int				flags;

@@ -404,11 +404,20 @@ struct athn_usb_rx_data {
 	char			*buf;
 };
 
+#if OpenBSD_ONLY
 struct athn_usb_tx_data {
 	struct athn_usb_softc		*sc;
 	struct usb_xfer		*xfer;
 	char				*buf;
 	TAILQ_ENTRY(athn_usb_tx_data)	next;
+};
+#endif
+struct athn_usb_data {
+	struct athn_usb_softc *usc;
+	struct usb_xfer		*xfer;
+	char *buf;
+	usb_frlength_t buflen;
+	STAILQ_ENTRY(athn_usb_data) next;
 };
 
 struct athn_usb_host_cmd {
@@ -446,22 +455,12 @@ struct athn_usb_softc {
 	/* USB specific goo. */
 	struct usb_device		*sc_udev;
 	struct usb_interface	*sc_iface;
-#if OpenBSD_USB_API
-	struct usb_task			sc_task;
-#endif
-	struct mtx		sc_mtx;
-	struct usb_xfer	*sc_xfer[ATHN_N_XFER];
 
 	u_int				flags;
 #define ATHN_USB_FLAG_AR7010	0x01
 
 	struct athn_usb_rx_stream	rx_stream;
-#if OpenBSD_USB_API
-	struct usbd_pipe		*tx_data_pipe;
-	struct usbd_pipe		*rx_data_pipe;
-	struct usbd_pipe		*rx_intr_pipe;
-	struct usbd_pipe		*tx_intr_pipe;
-#endif
+
 	uint8_t 			*ibuf;
 	size_t				ibuflen;
 
@@ -474,19 +473,35 @@ struct athn_usb_softc {
 	void				*obuf;
 	struct ar_htc_msg_conn_svc_rsp	*msg_conn_svc_rsp;
 
-	struct athn_usb_host_cmd_ring	cmdq;
-	struct athn_usb_rx_data		rx_data[ATHN_USB_RX_LIST_COUNT];
-	struct athn_usb_tx_data		tx_data[ATHN_USB_TX_LIST_COUNT];
-	TAILQ_HEAD(, athn_usb_tx_data)	tx_free_list;
-	struct athn_usb_tx_data		tx_cmd;
-	struct athn_usb_tx_data		*tx_bcn;
+	struct usb_xfer	*sc_xfer[ATHN_N_XFER];
+
+//	struct athn_usb_host_cmd_ring	cmdq;
+	struct athn_usb_data		rx_data[ATHN_USB_RX_LIST_COUNT];
+	struct athn_usb_data		tx_data[ATHN_USB_TX_LIST_COUNT];
+	struct athn_usb_data		tx_cmd[ATHN_USB_HOST_CMD_RING_COUNT];
+//	TAILQ_HEAD(, athn_usb_tx_data)	tx_free_list;
+//	struct athn_usb_host_cmd		tx_cmd;
+//	struct athn_usb_host_cmd		*tx_bcn;
+
+	int				sc_tx_n_active;
+
+	STAILQ_HEAD(, athn_usb_data)	sc_rx_active;
+	STAILQ_HEAD(, athn_usb_data)	sc_rx_inactive;
+	STAILQ_HEAD(, athn_usb_data)	sc_tx_active[ATHN_N_XFER];
+	STAILQ_HEAD(, athn_usb_data)	sc_tx_inactive;
+	STAILQ_HEAD(, athn_usb_data)	sc_tx_pending[ATHN_N_XFER];
+
+	STAILQ_HEAD(, athn_usb_data)	sc_cmd_active;
+	STAILQ_HEAD(, athn_usb_data)	sc_cmd_inactive;
+	STAILQ_HEAD(, athn_usb_data)	sc_cmd_pending;
+	STAILQ_HEAD(, athn_usb_data)	sc_cmd_waiting;
 
 	uint8_t				ep_ctrl;
 	uint8_t				ep_bcn;
 	uint8_t				ep_cab;
 	uint8_t				ep_uapsd;
 	uint8_t				ep_mgmt;
-	uint8_t				ep_data[WME_NUM_AC];
+	uint8_t				ep_data[ATHN_N_XFER];
 
 	/* 
 	 * Firmware cannot handle more than 8 STAs.

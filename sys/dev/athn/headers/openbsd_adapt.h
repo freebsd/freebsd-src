@@ -42,14 +42,9 @@
 #define OpenBSD_IEEE80211_API 0
 
 /*
- * Set to 1 to 'uncomment' (enable)
- * parts of the code that depend on the USB OpenBSD API
- */
-#define OpenBSD_USB_API 0
-
-/*
- * Code makred by this macro
+ * Code marked by this macro
  * needs a OpenBSD equivalent function or complete rework
+ * Some might not be needed.
  * Set to 1 to 'uncomment' (enable)
  */
 #define OpenBSD_ONLY 0
