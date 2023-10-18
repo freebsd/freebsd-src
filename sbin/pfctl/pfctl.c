@@ -607,7 +607,7 @@ pfctl_kill_src_nodes(int dev, const char *iface, int opts)
 	struct pfioc_src_node_kill psnk;
 	struct addrinfo *res[2], *resp[2];
 	struct sockaddr last_src, last_dst;
-	int killed, sources, dests;
+	u_int killed, sources, dests;
 	int ret_ga;
 
 	killed = sources = dests = 0;
@@ -699,7 +699,7 @@ pfctl_kill_src_nodes(int dev, const char *iface, int opts)
 	freeaddrinfo(res[0]);
 
 	if ((opts & PF_OPT_QUIET) == 0)
-		fprintf(stderr, "killed %d src nodes from %d sources and %d "
+		fprintf(stderr, "killed %u src nodes from %u sources and %u "
 		    "destinations\n", killed, sources, dests);
 	return (0);
 }
@@ -1037,7 +1037,7 @@ pfctl_print_rule_counters(struct pfctl_rule *rule, int opts)
 	if (opts & PF_OPT_DEBUG) {
 		const char *t[PF_SKIP_COUNT] = { "i", "d", "f",
 		    "p", "sa", "sp", "da", "dp" };
-		int i;
+		unsigned int i;
 
 		printf("  [ Skip steps: ");
 		for (i = 0; i < PF_SKIP_COUNT; ++i) {
@@ -1099,7 +1099,7 @@ pfctl_show_eth_rules(int dev, char *path, int opts, enum pfctl_show format,
 	struct pfctl_eth_rule rule;
 	int brace;
 	int dotitle = opts & PF_OPT_SHOWALL;
-	int len = strlen(path);
+	size_t len = strlen(path);
 	char *npath, *p;
 
 	/*
@@ -1177,8 +1177,8 @@ pfctl_show_eth_rules(int dev, char *path, int opts, enum pfctl_show format,
 		   (p == anchor_call ||
 		   *(--p) == '/')) || (opts & PF_OPT_RECURSE))) {
 			brace++;
-			int aclen = strlen(anchor_call);
-			if (anchor_call[aclen - 1] == '*')
+			size_t aclen = strlen(anchor_call);
+			if (aclen > 1 && anchor_call[aclen - 1] == '*')
 				anchor_call[aclen - 2] = '\0';
 		}
 		p = &anchor_call[0];
@@ -1215,7 +1215,8 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 	u_int32_t nr, header = 0;
 	int rule_numbers = opts & (PF_OPT_VERBOSE2 | PF_OPT_DEBUG);
 	int numeric = opts & PF_OPT_NUMERIC;
-	int len = strlen(path), ret = 0;
+	size_t len = strlen(path);
+	int ret = 0;
 	char *npath, *p;
 
 	/*
@@ -1340,7 +1341,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		switch (format) {
 		case PFCTL_SHOW_LABELS: {
 			bool show = false;
-			int i = 0;
+			size_t i = 0;
 
 			while (rule.label[i][0]) {
 				printf("%s ", rule.label[i++]);
@@ -1409,7 +1410,8 @@ pfctl_show_nat(int dev, char *path, int opts, char *anchorname, int depth)
 	char anchor_call[MAXPATHLEN];
 	u_int32_t nr;
 	static int nattype[3] = { PF_NAT, PF_RDR, PF_BINAT };
-	int i, dotitle = opts & PF_OPT_SHOWALL;
+	size_t i,
+	int dotitle = opts & PF_OPT_SHOWALL;
 	int brace, ret;
 	int len = strlen(path);
 	char *p;
@@ -1479,7 +1481,7 @@ pfctl_show_src_nodes(int dev, int opts)
 	struct pfioc_src_nodes psn;
 	struct pf_src_node *p;
 	char *inbuf = NULL, *newinbuf = NULL;
-	unsigned int len = 0;
+	int len = 0;
 	int i;
 
 	memset(&psn, 0, sizeof(psn));
@@ -1600,7 +1602,7 @@ int
 pfctl_show_timeouts(int dev, int opts)
 {
 	struct pfioc_tm pt;
-	int i;
+	size_t i;
 
 	if (opts & PF_OPT_SHOWALL)
 		pfctl_print_title("TIMEOUTS:");
@@ -1625,7 +1627,7 @@ int
 pfctl_show_limits(int dev, int opts)
 {
 	struct pfioc_limit pl;
-	int i;
+	size_t i;
 
 	if (opts & PF_OPT_SHOWALL)
 		pfctl_print_title("LIMITS:");
@@ -1825,7 +1827,8 @@ pfctl_load_eth_ruleset(struct pfctl *pf, char *path,
     struct pfctl_eth_ruleset *rs, int depth)
 {
 	struct pfctl_eth_rule	*r;
-	int	error, len = strlen(path);
+	int	error;
+	size_t len = strlen(path);
 	int	brace = 0;
 
 	pf->eanchor = rs->anchor;
@@ -1883,7 +1886,7 @@ pfctl_load_eth_rule(struct pfctl *pf, char *path, struct pfctl_eth_rule *r,
 {
 	char			*name;
 	char			anchor[PF_ANCHOR_NAME_SIZE];
-	int			len = strlen(path);
+	size_t			len = strlen(path);
 
 	if (strlcpy(anchor, path, sizeof(anchor)) >= sizeof(anchor))
 		errx(1, "pfctl_load_eth_rule: strlcpy");
@@ -1956,7 +1959,7 @@ pfctl_load_ruleset(struct pfctl *pf, char *path, struct pfctl_ruleset *rs,
 	while ((r = TAILQ_FIRST(rs->rules[rs_num].active.ptr)) != NULL) {
 		TAILQ_REMOVE(rs->rules[rs_num].active.ptr, r, entries);
 
-		for (int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++)
+		for (unsigned int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++)
 			expand_label(r->label[i], PF_RULE_LABEL_SIZE, r);
 		expand_label(r->tagname, PF_TAG_NAME_SIZE, r);
 		expand_label(r->match_tagname, PF_TAG_NAME_SIZE, r);
@@ -2474,7 +2477,8 @@ int
 pfctl_set_optimization(struct pfctl *pf, const char *opt)
 {
 	const struct pf_hint *hint;
-	int i, r;
+	size_t i;
+	int r;
 
 	if ((loadopt & PFCTL_FLAG_OPTION) == 0)
 		return (0);

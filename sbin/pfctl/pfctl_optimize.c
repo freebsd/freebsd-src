@@ -1525,7 +1525,7 @@ interface_group(const char *ifname)
 void
 comparable_rule(struct pfctl_rule *dst, const struct pfctl_rule *src, int type)
 {
-	int i;
+	size_t i;
 	/*
 	 * To simplify the comparison, we just zero out the fields that are
 	 * allowed to be different and then do a simple memcmp()

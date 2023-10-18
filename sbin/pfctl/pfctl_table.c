@@ -607,7 +607,7 @@ void
 print_iface(struct pfi_kif *p, int opts)
 {
 	time_t	tzero = p->pfik_tzero;
-	int	i, af, dir, act;
+	unsigned int	i, af, dir, act;
 
 	printf("%s", p->pfik_name);
 	if (opts & PF_OPT_VERBOSE) {

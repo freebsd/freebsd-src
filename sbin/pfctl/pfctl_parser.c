@@ -224,7 +224,7 @@ pfctl_parser_init(void)
 const struct icmptypeent *
 geticmptypebynumber(u_int8_t type, sa_family_t af)
 {
-	unsigned int	i;
+	size_t	i;
 
 	if (af != AF_INET6) {
 		for (i=0; i < nitems(icmp_type); i++) {
@@ -243,7 +243,7 @@ geticmptypebynumber(u_int8_t type, sa_family_t af)
 const struct icmptypeent *
 geticmptypebyname(char *w, sa_family_t af)
 {
-	unsigned int	i;
+	size_t	i;
 
 	if (af != AF_INET6) {
 		for (i=0; i < nitems(icmp_type); i++) {
@@ -262,7 +262,7 @@ geticmptypebyname(char *w, sa_family_t af)
 const struct icmpcodeent *
 geticmpcodebynumber(u_int8_t type, u_int8_t code, sa_family_t af)
 {
-	unsigned int	i;
+	size_t	i;
 
 	if (af != AF_INET6) {
 		for (i=0; i < nitems(icmp_code); i++) {
@@ -283,7 +283,7 @@ geticmpcodebynumber(u_int8_t type, u_int8_t code, sa_family_t af)
 const struct icmpcodeent *
 geticmpcodebyname(u_long type, char *w, sa_family_t af)
 {
-	unsigned int	i;
+	size_t	i;
 
 	if (af != AF_INET6) {
 		for (i=0; i < nitems(icmp_code); i++) {
@@ -362,7 +362,7 @@ print_ugid(u_int8_t op, unsigned u1, unsigned u2, const char *t, unsigned umax)
 void
 print_flags(u_int8_t f)
 {
-	int	i;
+	unsigned int	i;
 
 	for (i = 0; tcpflags[i]; ++i)
 		if (f & (1 << i))
@@ -700,7 +700,7 @@ print_src_node(struct pf_src_node *sn, int opts)
 static void
 print_eth_addr(const struct pfctl_eth_addr *a)
 {
-	int i, masklen = ETHER_ADDR_LEN * 8;
+	size_t i, masklen = ETHER_ADDR_LEN * 8;
 	bool seen_unset = false;
 
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
@@ -737,7 +737,7 @@ print_eth_addr(const struct pfctl_eth_addr *a)
 		return;
 
 	if (i == (ETHER_ADDR_LEN * 8)) {
-		printf("/%d", masklen);
+		printf("/%zu", masklen);
 		return;
 	}
 
