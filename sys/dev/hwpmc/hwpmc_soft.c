@@ -456,17 +456,12 @@ pmc_soft_initialize(struct pmc_mdep *md)
 void
 pmc_soft_finalize(struct pmc_mdep *md)
 {
-#ifdef	INVARIANTS
-	int i, ncpus;
+	PMCDBG0(MDP, INI, 1, "soft-finalize");
 
-	ncpus = pmc_cpu_max();
-	for (i = 0; i < ncpus; i++)
+	for (int i = 0; i < pmc_cpu_max(); i++)
 		KASSERT(soft_pcpu[i] == NULL, ("[soft,%d] non-null pcpu cpu %d",
 		    __LINE__, i));
 
-	KASSERT(md->pmd_classdep[PMC_CLASS_INDEX_SOFT].pcd_class ==
-	    PMC_CLASS_SOFT, ("[soft,%d] class mismatch", __LINE__));
-#endif
 	ast_deregister(TDA_HWPMC);
 	free(soft_pcpu, M_PMC);
 	soft_pcpu = NULL;

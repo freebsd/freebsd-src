@@ -611,5 +611,9 @@ pmc_arm64_finalize(struct pmc_mdep *md)
 {
 	PMCDBG0(MDP, INI, 1, "arm64-finalize");
 
+	for (int i = 0; i < pmc_cpu_max(); i++)
+		KASSERT(arm64_pcpu[i] == NULL,
+		    ("[arm64,%d] non-null pcpu cpu %d", __LINE__, i));
+
 	free(arm64_pcpu, M_PMC);
 }
