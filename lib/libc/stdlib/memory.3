@@ -27,50 +27,79 @@
 .\"
 .\"     @(#)memory.3	8.1 (Berkeley) 6/4/93
 .\"
-.Dd June 4, 1993
+.Dd October 18, 2023
 .Dt MEMORY 3
 .Os
 .Sh NAME
-.Nm malloc ,
-.Nm free ,
-.Nm realloc ,
-.Nm calloc ,
+.Nm aligned_alloc ,
 .Nm alloca ,
-.Nm mmap
-.Nd general memory allocation operations
+.Nm calloc ,
+.Nm free ,
+.Nm malloc ,
+.Nm posix_memalign ,
+.Nm realloc ,
+.Nm reallocf ,
+.Nm valloc ,
+.Nm mmap ,
+.Nm munmap
+.Nd memory management functions
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In stdlib.h
 .Ft void *
-.Fn malloc "size_t size"
+.Fn aligned_alloc "size_t alignment" "size_t size"
+.Ft void *
+.Fn alloca "size_t size"
+.Ft void *
+.Fn calloc "size_t nelem" "size_t elsize"
 .Ft void
 .Fn free "void *ptr"
 .Ft void *
+.Fn malloc "size_t size"
+.Ft int
+.Fn posix_memalign "void **ptr" "size_t alignment" "size_t size"
+.Ft void *
 .Fn realloc "void *ptr" "size_t size"
 .Ft void *
-.Fn calloc "size_t nelem" "size_t elsize"
+.Fn reallocf "void *ptr" "size_t size"
 .Ft void *
-.Fn alloca "size_t size"
+.Fn valloc "size_t size"
 .In sys/types.h
 .In sys/mman.h
 .Ft void *
 .Fn mmap "void * addr" "size_t len" "int prot" "int flags" "int fd" "off_t offset"
+.Ft int
+.Fn munmap "void *addr" "size_t len"
 .Sh DESCRIPTION
 These functions allocate and free memory for the calling process.
 They are described in the
 individual manual pages.
 .Sh SEE ALSO
 .Xr mmap 2 ,
+.Xr aligned_alloc 3 ,
 .Xr alloca 3 ,
 .Xr calloc 3 ,
 .Xr free 3 ,
 .Xr malloc 3 ,
-.Xr realloc 3
+.Xr posix_memalign 3 ,
+.Xr realloc 3 ,
+.Xr reallocf 3 ,
+.Xr valloc 3 ,
 .Sh STANDARDS
-These functions, with the exception of
-.Fn alloca
+The
+.Fn calloc ,
+.Fn free ,
+.Fn malloc ,
 and
-.Fn mmap
-conform to
+.Fn realloc
+functions conform to
 .St -isoC .
+.Pp
+The
+.Fn mmap ,
+.Fn munmap ,
+and
+.Fn posix_memalign
+functions conform to
+.St -p1003.1-2001 .
