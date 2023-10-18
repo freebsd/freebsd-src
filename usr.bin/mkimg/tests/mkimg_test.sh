@@ -86,9 +86,7 @@ mkimg_rebase()
     fi
 
     if test $update = yes; then
-	# Prevent keyword expansion when writing the keyword.
-	(echo -n '# $'; echo -n FreeBSD; echo '$') > $baseline
-	cat $result >> $baseline
+	cat $result > $baseline
     fi
 
     rm $image $result _tmp-*
