@@ -86,6 +86,7 @@ EOF
 #include <time.h>
 #include <unistd.h>
 
+static int debug; /* set to 1 for debug output */
 static volatile u_int *share;
 
 #define PARALLEL 128
@@ -165,6 +166,8 @@ bad:
 		if (waitpid(pid, NULL, 0) != pid)
 			err(1, "waitpid(%d)", pid);
 	}
+	if (debug != 0 && success == 0)
+		fprintf(stderr, "No calls to connect() succeded.\n");
 
 	_exit(0);
 }

@@ -62,6 +62,7 @@ EOF
 #include <unistd.h>
 
 #define N 4096
+static int debug; /* set to 1 for debug output */
 static uint32_t r[N];
 
 static unsigned long
@@ -133,10 +134,8 @@ fuzz(int arg, void *addr, size_t len, int prot, int flags, int fd,
 			n++;
 		}
 	}
-#if defined(DEBUG)
-	if (n == 0 && arg != 5)
+	if (debug != 0 &&n == 0 && arg != 5)
 		fprintf(stderr, "%s(%d) failed\n", __func__, arg);
-#endif
 	exit(0);
 }
 

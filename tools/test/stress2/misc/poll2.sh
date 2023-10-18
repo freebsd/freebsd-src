@@ -136,11 +136,11 @@ static void *
 pl(void *data __unused)
 {
 	struct pollfd pfd;
-	int i, r;
+	int r;
 
 	pfd.fd = fds[0];
 	pfd.events = POLLIN;
-	for (i = 0; done == 0; i++) {
+	while (done == 0) {
 		pfd.fd = fds[0];
 		pfd.events = POLLIN;
 		pthread_set_name_np(pthread_self(), "pl-idle");

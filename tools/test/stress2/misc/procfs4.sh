@@ -68,6 +68,7 @@ EOF
 #define MAXRUN 1200
 #define PARALLEL 10
 
+static int debug; /* Set to 1 for debug output */
 char *files[] = {
 	"cmdline",
 	"ctl",
@@ -116,10 +117,8 @@ test(void)
 			close(fd);
 		}
 		kill(p, SIGHUP);
-#if 0
-		if (opens < 1)
-			fprintf(stderr, "Warn %d open(s) for pid %d\n", opens, getpid());
-#endif
+		if (debug != 0 && opens == 0)
+			fprintf(stderr, "No ioctl() calls succeeded.\n");
 	}
 
 	for (i = 0; i < 64; i++)
