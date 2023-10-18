@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 1, 2020
+.Dd October 18, 2023
 .Dt DEVFS 8
 .Os
 .Sh NAME
@@ -248,7 +248,7 @@ will return the same information regardless of the mount-point specified with
 The mount-point is only relevant when changing what its current ruleset is
 or when using one of the apply commands.
 .Sh FILES
-.Bl -tag -width "Pa /usr/share/examples/etc/devfs.conf" -compact
+.Bl -tag -width "Pa /etc/defaults/devfs.rules" -compact
 .It Pa /etc/defaults/devfs.rules
 Default
 .Nm
@@ -262,10 +262,6 @@ Rulesets in here override those in
 with the same ruleset number, otherwise the two files are effectively merged.
 .It Pa /etc/devfs.conf
 Boot-time
-.Nm
-configuration file.
-.It Pa /usr/share/examples/etc/devfs.conf
-Example boot-time
 .Nm
 configuration file.
 .El
