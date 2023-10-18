@@ -6810,7 +6810,6 @@ OLD_FILES+=usr/share/man/man3/pmc.haswellxeon.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.iaf.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.ivybridge.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.ivybridgexeon.3.gz
-OLD_FILES+=usr/share/man/man3/pmc.k7.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.k8.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.sandybridge.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.sandybridgeuc.3.gz
