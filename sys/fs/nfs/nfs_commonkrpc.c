@@ -1300,7 +1300,8 @@ tryagain:
 			     nd->nd_procnum != NFSPROC_LOCKU))) ||
 			    (nd->nd_repstat == NFSERR_DELAY &&
 			     (nd->nd_flag & ND_NFSV4) == 0) ||
-			    nd->nd_repstat == NFSERR_RESOURCE) {
+			    nd->nd_repstat == NFSERR_RESOURCE ||
+			    nd->nd_repstat == NFSERR_RETRYUNCACHEDREP) {
 				/* Clip at NFS_TRYLATERDEL. */
 				if (timespeccmp(&trylater_delay,
 				    &nfs_trylater_max, >))
