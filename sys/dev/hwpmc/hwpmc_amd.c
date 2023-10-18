@@ -63,184 +63,37 @@ struct amd_descr {
 	uint32_t	pm_perfctr; /* address of PERFCTR register */
 };
 
-static  struct amd_descr amd_pmcdesc[AMD_NPMCS] =
+/* Counter hardware. */
+#define	PMCDESC(evsel, perfctr)						\
+	{								\
+		.pm_descr = {						\
+			.pd_name  = "",					\
+			.pd_class = -1,					\
+			.pd_caps  = AMD_PMC_CAPS,			\
+			.pd_width = 48					\
+		},							\
+		.pm_evsel   = (evsel),					\
+		.pm_perfctr = (perfctr)					\
+	}
+
+static struct amd_descr amd_pmcdesc[AMD_NPMCS] =
 {
-    {
-	.pm_descr =
-	{
-		.pd_name  = "",
-		.pd_class = -1,
-		.pd_caps  = AMD_PMC_CAPS,
-		.pd_width = 48
-	},
-	.pm_evsel   = AMD_PMC_EVSEL_0,
-	.pm_perfctr = AMD_PMC_PERFCTR_0
-    },
-    {
-	.pm_descr =
-	{
-		.pd_name  = "",
-		.pd_class = -1,
-		.pd_caps  = AMD_PMC_CAPS,
-		.pd_width = 48
-	},
-	.pm_evsel   = AMD_PMC_EVSEL_1,
-	.pm_perfctr = AMD_PMC_PERFCTR_1
-    },
-    {
-	.pm_descr =
-	{
-		.pd_name  = "",
-		.pd_class = -1,
-		.pd_caps  = AMD_PMC_CAPS,
-		.pd_width = 48
-	},
-	.pm_evsel   = AMD_PMC_EVSEL_2,
-	.pm_perfctr = AMD_PMC_PERFCTR_2
-    },
-    {
-	.pm_descr =
-	{
-		.pd_name  = "",
-		.pd_class = -1,
-		.pd_caps  = AMD_PMC_CAPS,
-		.pd_width = 48
-	},
-	.pm_evsel   = AMD_PMC_EVSEL_3,
-	.pm_perfctr = AMD_PMC_PERFCTR_3
-     },
-    {
-	.pm_descr =
-	{
-		.pd_name  = "",
-		.pd_class = -1,
-		.pd_caps  = AMD_PMC_CAPS,
-		.pd_width = 48
-	},
-	.pm_evsel   = AMD_PMC_EVSEL_4,
-	.pm_perfctr = AMD_PMC_PERFCTR_4
-    },
-    {
-	.pm_descr =
-	{
-		.pd_name  = "",
-		.pd_class = -1,
-		.pd_caps  = AMD_PMC_CAPS,
-		.pd_width = 48
-	},
-	.pm_evsel   = AMD_PMC_EVSEL_5,
-	.pm_perfctr = AMD_PMC_PERFCTR_5
-    },
-    {
-	.pm_descr =
-	{
-		.pd_name  = "",
-		.pd_class = -1,
-		.pd_caps  = AMD_PMC_CAPS,
-		.pd_width = 48
-	},
-	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_0,
-	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_0
-    },
-    {
-	.pm_descr =
-	{
-		.pd_name  = "",
-		.pd_class = -1,
-		.pd_caps  = AMD_PMC_CAPS,
-		.pd_width = 48
-	},
-	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_1,
-	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_1
-    },
-    {
-	.pm_descr =
-	{
-		.pd_name  = "",
-		.pd_class = -1,
-		.pd_caps  = AMD_PMC_CAPS,
-		.pd_width = 48
-	},
-	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_2,
-	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_2
-    },
-    {
-	.pm_descr =
-	{
-		.pd_name  = "",
-		.pd_class = -1,
-		.pd_caps  = AMD_PMC_CAPS,
-		.pd_width = 48
-	},
-	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_3,
-	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_3
-    },
-    {
-	.pm_descr =
-	{
-		.pd_name  = "",
-		.pd_class = -1,
-		.pd_caps  = AMD_PMC_CAPS,
-		.pd_width = 48
-	},
-	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_4,
-	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_4
-    },
-    {
-	.pm_descr =
-	{
-		.pd_name  = "",
-		.pd_class = -1,
-		.pd_caps  = AMD_PMC_CAPS,
-		.pd_width = 48
-	},
-	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_5,
-	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_5
-    },
-    {
-	.pm_descr =
-	{
-		.pd_name  = "",
-		.pd_class = -1,
-		.pd_caps  = AMD_PMC_CAPS,
-		.pd_width = 48
-	},
-	.pm_evsel   = AMD_PMC_EVSEL_EP_DF_0,
-	.pm_perfctr = AMD_PMC_PERFCTR_EP_DF_0
-    },
-    {
-	.pm_descr =
-	{
-		.pd_name  = "",
-		.pd_class = -1,
-		.pd_caps  = AMD_PMC_CAPS,
-		.pd_width = 48
-	},
-	.pm_evsel   = AMD_PMC_EVSEL_EP_DF_1,
-	.pm_perfctr = AMD_PMC_PERFCTR_EP_DF_1
-    },
-    {
-	.pm_descr =
-	{
-		.pd_name  = "",
-		.pd_class = -1,
-		.pd_caps  = AMD_PMC_CAPS,
-		.pd_width = 48
-	},
-	.pm_evsel   = AMD_PMC_EVSEL_EP_DF_2,
-	.pm_perfctr = AMD_PMC_PERFCTR_EP_DF_2
-    },
-    {
-	.pm_descr =
-	{
-		.pd_name  = "",
-		.pd_class = -1,
-		.pd_caps  = AMD_PMC_CAPS,
-		.pd_width = 48
-	},
-	.pm_evsel   = AMD_PMC_EVSEL_EP_DF_3,
-	.pm_perfctr = AMD_PMC_PERFCTR_EP_DF_3
-     }
+	PMCDESC(AMD_PMC_EVSEL_0,	AMD_PMC_PERFCTR_0),
+	PMCDESC(AMD_PMC_EVSEL_1,	AMD_PMC_PERFCTR_1),
+	PMCDESC(AMD_PMC_EVSEL_2,	AMD_PMC_PERFCTR_2),
+	PMCDESC(AMD_PMC_EVSEL_3,	AMD_PMC_PERFCTR_3),
+	PMCDESC(AMD_PMC_EVSEL_4,	AMD_PMC_PERFCTR_4),
+	PMCDESC(AMD_PMC_EVSEL_5,	AMD_PMC_PERFCTR_5),
+	PMCDESC(AMD_PMC_EVSEL_EP_L3_0,	AMD_PMC_PERFCTR_EP_L3_0),
+	PMCDESC(AMD_PMC_EVSEL_EP_L3_1,	AMD_PMC_PERFCTR_EP_L3_1),
+	PMCDESC(AMD_PMC_EVSEL_EP_L3_2,	AMD_PMC_PERFCTR_EP_L3_2),
+	PMCDESC(AMD_PMC_EVSEL_EP_L3_3,	AMD_PMC_PERFCTR_EP_L3_3),
+	PMCDESC(AMD_PMC_EVSEL_EP_L3_4,	AMD_PMC_PERFCTR_EP_L3_4),
+	PMCDESC(AMD_PMC_EVSEL_EP_L3_5,	AMD_PMC_PERFCTR_EP_L3_5),
+	PMCDESC(AMD_PMC_EVSEL_EP_DF_0,	AMD_PMC_PERFCTR_EP_DF_0),
+	PMCDESC(AMD_PMC_EVSEL_EP_DF_1,	AMD_PMC_PERFCTR_EP_DF_1),
+	PMCDESC(AMD_PMC_EVSEL_EP_DF_2,	AMD_PMC_PERFCTR_EP_DF_2),
+	PMCDESC(AMD_PMC_EVSEL_EP_DF_3,	AMD_PMC_PERFCTR_EP_DF_3)
 };
 
 struct amd_event_code_map {
