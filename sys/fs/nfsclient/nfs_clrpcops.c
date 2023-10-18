@@ -8617,6 +8617,7 @@ nfsrpc_copyrpc(vnode_t invp, off_t inoff, vnode_t outvp, off_t outoff,
 	struct nfsrv_descript *nd = &nfsd;
 	struct nfsmount *nmp;
 	nfsattrbit_t attrbits;
+	struct vattr va;
 	uint64_t len;
 
 	nmp = VFSTONFS(outvp->v_mount);
@@ -8627,14 +8628,35 @@ nfsrpc_copyrpc(vnode_t invp, off_t inoff, vnode_t outvp, off_t outoff,
 	if (len > nfs_maxcopyrange)
 		len = nfs_maxcopyrange;
 	NFSCL_REQSTART(nd, NFSPROC_COPY, invp, cred);
+	/*
+	 * First do a Setattr of atime to the server's clock
+	 * time.  The FreeBSD "collective" was of the opinion
+	 * that setting atime was necessary for this syscall.
+	 * Do the Setattr before the Copy, so that it can be
+	 * handled well if the server replies NFSERR_DELAY to
+	 * the Setattr operation.
+	 */
+	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+	*tl = txdr_unsigned(NFSV4OP_SETATTR);
+	nfsm_stateidtom(nd, instateidp, NFSSTATEID_PUTSTATEID);
+	VATTR_NULL(&va);
+	va.va_atime.tv_sec = va.va_atime.tv_nsec = 0;
+	va.va_vaflags = VA_UTIMES_NULL;
+	nfscl_fillsattr(nd, &va, invp, 0, 0);
+
+	/* Now Getattr the invp attributes. */
 	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(NFSV4OP_GETATTR);
 	NFSGETATTR_ATTRBIT(&attrbits);
 	nfsrv_putattrbit(nd, &attrbits);
+
+	/* Set outvp. */
 	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(NFSV4OP_PUTFH);
 	(void)nfsm_fhtom(nmp, nd, VTONFS(outvp)->n_fhp->nfh_fh,
 	    VTONFS(outvp)->n_fhp->nfh_len, 0);
+
+	/* Do the Copy. */
 	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(NFSV4OP_COPY);
 	nfsm_stateidtom(nd, instateidp, NFSSTATEID_PUTSTATEID);
@@ -8649,12 +8671,25 @@ nfsrpc_copyrpc(vnode_t invp, off_t inoff, vnode_t outvp, off_t outoff,
 		*tl++ = newnfs_false;
 	*tl++ = newnfs_true;
 	*tl++ = 0;
+
+	/* Get the outvp attributes. */
 	*tl = txdr_unsigned(NFSV4OP_GETATTR);
 	NFSWRITEGETATTR_ATTRBIT(&attrbits);
 	nfsrv_putattrbit(nd, &attrbits);
+
 	error = nfscl_request(nd, invp, p, cred);
 	if (error != 0)
 		return (error);
+	/* Skip over the Setattr reply. */
+	if ((nd->nd_flag & ND_NOMOREDATA) == 0) {
+		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+		if (*(tl + 1) == 0) {
+			error = nfsrv_getattrbits(nd, &attrbits, NULL, NULL);
+			if (error != 0)
+				goto nfsmout;
+		} else
+			nd->nd_flag |= ND_NOMOREDATA;
+	}
 	if ((nd->nd_flag & ND_NOMOREDATA) == 0) {
 		/* Get the input file's attributes. */
 		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
