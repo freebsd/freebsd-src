@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20231018: pmc.k7(3) removed
+OLD_FILES+=usr/share/man/man3/pmc.k7.3.gz
+
 # 20231018: Remove misspelled man page link
 OLD_FILES+=usr/share/man/man3/dbm_dirnfo.3.gz
 
