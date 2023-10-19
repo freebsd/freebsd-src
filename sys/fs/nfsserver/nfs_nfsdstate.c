@@ -2555,6 +2555,10 @@ tryagain:
 	    /*
 	     * For Delegate_Cur, search for the matching Delegation,
 	     * which indicates no conflict.
+	     * For NFSv4.1/4.2 Claim_Deleg_Cur_FH only provides
+	     * the clientid, which is the first two "other" elements
+	     * for the stateid.  This should be sufficient, since there
+	     * is only one delegation per client and file.
 	     * An old delegation should have been recovered by the
 	     * client doing a Claim_DELEGATE_Prev, so I won't let
 	     * it match and return NFSERR_EXPIRED. Should I let it
@@ -2565,8 +2569,8 @@ tryagain:
 		    (((nd->nd_flag & ND_NFSV41) != 0 &&
 		    stateidp->seqid == 0) ||
 		    stateidp->seqid == stp->ls_stateid.seqid) &&
-		    !NFSBCMP(stateidp->other, stp->ls_stateid.other,
-			  NFSX_STATEIDOTHER))
+		    stateidp->other[0] == stp->ls_stateid.other[0] &&
+		    stateidp->other[1] == stp->ls_stateid.other[1])
 			break;
 	    }
 	    if (stp == LIST_END(&lfp->lf_deleg) ||
@@ -2817,6 +2821,10 @@ tryagain:
 	    /*
 	     * For Delegate_Cur, search for the matching Delegation,
 	     * which indicates no conflict.
+	     * For NFSv4.1/4.2 Claim_Deleg_Cur_FH only provides
+	     * the clientid, which is the first two "other" elements
+	     * for the stateid.  This should be sufficient, since there
+	     * is only one delegation per client and file.
 	     * An old delegation should have been recovered by the
 	     * client doing a Claim_DELEGATE_Prev, so I won't let
 	     * it match and return NFSERR_EXPIRED. Should I let it
@@ -2827,8 +2835,8 @@ tryagain:
 		    (((nd->nd_flag & ND_NFSV41) != 0 &&
 		    stateidp->seqid == 0) ||
 		    stateidp->seqid == stp->ls_stateid.seqid) &&
-		    !NFSBCMP(stateidp->other, stp->ls_stateid.other,
-			NFSX_STATEIDOTHER))
+		    stateidp->other[0] == stp->ls_stateid.other[0] &&
+		    stateidp->other[1] == stp->ls_stateid.other[1])
 			break;
 	    }
 	    if (stp == LIST_END(&lfp->lf_deleg) ||
