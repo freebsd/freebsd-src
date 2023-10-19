@@ -307,6 +307,7 @@ static void
 mpi3mr_ich_startup(void *arg)
 {
 	struct mpi3mr_softc *sc;
+	int error;
 
 	sc = (struct mpi3mr_softc *)arg;
 	mpi3mr_dprint(sc, MPI3MR_XINFO, "%s entry\n", __func__);
@@ -314,7 +315,15 @@ mpi3mr_ich_startup(void *arg)
 	mtx_lock(&sc->mpi3mr_mtx);
 	
 	mpi3mr_startup(sc);
+
 	mtx_unlock(&sc->mpi3mr_mtx);
+
+	error = mpi3mr_kproc_create(mpi3mr_watchdog_thread, sc,
+	    &sc->watchdog_thread, 0, 0, "mpi3mr_watchdog%d",
+	    device_get_unit(sc->mpi3mr_dev));
+
+	if (error)
+		device_printf(sc->mpi3mr_dev, "Error %d starting OCR thread\n", error);
 
 	mpi3mr_dprint(sc, MPI3MR_XINFO, "disestablish config intrhook\n");
 	config_intrhook_disestablish(&sc->mpi3mr_ich);
@@ -440,14 +449,6 @@ mpi3mr_pci_attach(device_t dev)
 
 	if ((error = mpi3mr_cam_attach(sc)) != 0) {
 		mpi3mr_dprint(sc, MPI3MR_ERROR, "CAM attach failed\n");
-		goto load_failed;
-	}
-	
-	error = mpi3mr_kproc_create(mpi3mr_watchdog_thread, sc,
-	    &sc->watchdog_thread, 0, 0, "mpi3mr_watchdog%d",
-	    device_get_unit(sc->mpi3mr_dev));
-	if (error) {
-		device_printf(sc->mpi3mr_dev, "Error %d starting OCR thread\n", error);
 		goto load_failed;
 	}
 	
