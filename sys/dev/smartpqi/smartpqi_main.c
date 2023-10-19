@@ -629,8 +629,8 @@ smartpqi_attach(device_t dev)
          * Create DMA tag for mapping buffers into controller-addressable space.
          */
         if (bus_dma_tag_create(softs->os_specific.pqi_parent_dmat,/* parent */
-				PAGE_SIZE, 0,		/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR,/* lowaddr */
+				1, 0,			/* algnmnt, boundary */
+				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
 				(bus_size_t)softs->pqi_cap.max_sg_elem*PAGE_SIZE,/* maxsize */
