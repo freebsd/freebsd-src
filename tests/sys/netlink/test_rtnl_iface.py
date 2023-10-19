@@ -317,6 +317,7 @@ class TestRtNlIface(NetlinkTestTemplate, SingleVnetTestTemplate):
     @pytest.mark.require_user("root")
     def test_create_vlan_plain(self):
         """Creates 802.1Q VLAN interface in vlanXX and ifX fashion"""
+        self.require_module("if_vlan")
         os_ifname = self.vnet.iface_alias_map["if1"].name
         ifindex = socket.if_nametoindex(os_ifname)
 
