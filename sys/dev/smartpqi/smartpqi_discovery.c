@@ -1460,10 +1460,9 @@ pqisrc_free_device(pqisrc_softstate_t * softs,pqi_scsi_dev_t *device)
 
 	softs->device_list[device->target][device->lun] = NULL;
 
-	pqisrc_device_mem_free(softs, device);
-
 	OS_RELEASE_SPINLOCK(&softs->devlist_lock);
 
+	pqisrc_device_mem_free(softs, device);
 }
 
 /* Update the newly added devices to the device list */
