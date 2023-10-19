@@ -7628,7 +7628,7 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 	u_short			 action, reason = 0;
 	struct mbuf		*m = *m0;
 	struct ip		*h = NULL;
-	struct m_tag		*ipfwtag;
+	struct m_tag		*mtag;
 	struct pf_krule		*a = NULL, *r = &V_pf_default_rule, *tr, *nr;
 	struct pf_kstate	*s = NULL;
 	struct pf_kruleset	*ruleset = NULL;
@@ -7718,21 +7718,26 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 	off = h->ip_hl << 2;
 
 	if (__predict_false(ip_divert_ptr != NULL) &&
-	    ((ipfwtag = m_tag_locate(m, MTAG_IPFW_RULE, 0, NULL)) != NULL)) {
-		struct ipfw_rule_ref *rr = (struct ipfw_rule_ref *)(ipfwtag+1);
-		if (rr->info & IPFW_IS_DIVERT && rr->rulenum == 0) {
+	    ((mtag = m_tag_locate(m, MTAG_PF_DIVERT, 0, NULL)) != NULL)) {
+		struct pf_divert_mtag *dt = (struct pf_divert_mtag *)(mtag+1);
+		if ((dt->idir == PF_DIVERT_MTAG_DIR_IN && dir == PF_IN) ||
+		    (dt->idir == PF_DIVERT_MTAG_DIR_OUT && dir == PF_OUT)) {
 			if (pd.pf_mtag == NULL &&
 			    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
 				action = PF_DROP;
 				goto done;
 			}
 			pd.pf_mtag->flags |= PF_MTAG_FLAG_PACKET_LOOPED;
-			m_tag_delete(m, ipfwtag);
 		}
 		if (pd.pf_mtag && pd.pf_mtag->flags & PF_MTAG_FLAG_FASTFWD_OURS_PRESENT) {
 			m->m_flags |= M_FASTFWD_OURS;
 			pd.pf_mtag->flags &= ~PF_MTAG_FLAG_FASTFWD_OURS_PRESENT;
 		}
+		m_tag_delete(m, mtag);
+
+		mtag = m_tag_locate(m, MTAG_IPFW_RULE, 0, NULL);
+		if (mtag != NULL)
+			m_tag_delete(m, mtag);
 	} else if (pf_normalize_ip(m0, kif, &reason, &pd) != PF_PASS) {
 		/* We do IP header normalization and packet reassembly here */
 		action = PF_DROP;
@@ -8014,17 +8019,19 @@ done:
 
 	if (__predict_false(ip_divert_ptr != NULL) && action == PF_PASS &&
 	    r->divert.port && !PACKET_LOOPED(&pd)) {
-		ipfwtag = m_tag_alloc(MTAG_IPFW_RULE, 0,
-		    sizeof(struct ipfw_rule_ref), M_NOWAIT | M_ZERO);
-		if (ipfwtag != NULL) {
-			((struct ipfw_rule_ref *)(ipfwtag+1))->info =
+		mtag = m_tag_alloc(MTAG_PF_DIVERT, 0,
+		    sizeof(struct pf_divert_mtag), M_NOWAIT | M_ZERO);
+		if (mtag != NULL) {
+			((struct pf_divert_mtag *)(mtag+1))->ndir =
 			    ntohs(r->divert.port);
-			((struct ipfw_rule_ref *)(ipfwtag+1))->rulenum = dir;
+			((struct pf_divert_mtag *)(mtag+1))->idir =
+			    (dir == PF_IN) ? PF_DIVERT_MTAG_DIR_IN :
+			    PF_DIVERT_MTAG_DIR_OUT;
 
 			if (s)
 				PF_STATE_UNLOCK(s);
 
-			m_tag_prepend(m, ipfwtag);
+			m_tag_prepend(m, mtag);
 			if (m->m_flags & M_FASTFWD_OURS) {
 				if (pd.pf_mtag == NULL &&
 				    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
@@ -8052,6 +8059,9 @@ done:
 			    ("pf: failed to allocate divert tag\n"));
 		}
 	}
+	/* this flag will need revising if the pkt is forwarded */
+	if (pd.pf_mtag)
+		pd.pf_mtag->flags &= ~PF_MTAG_FLAG_PACKET_LOOPED;
 
 	if (pd.act.log) {
 		struct pf_krule		*lr;
