@@ -53,7 +53,7 @@ gce-do-login:
 	@true
 
 .for _FS in ${GCE_FSLIST}
-GCE_IMG_${FS}=		${.OBJDIR}/gce.${_FS}.raw
+GCE_IMG_${_FS}=		${.OBJDIR}/gce.${_FS}.raw
 # Really?  Uppercase characters are not allowed?  Sigh...
 # And don't even get me started on the '.'.
 GCE_TARGET_${_FS}=	${OSRELEASE:S,.raw,,:tl:S,.,-,g}-${_FS}${SNAPSHOT_DATE}
