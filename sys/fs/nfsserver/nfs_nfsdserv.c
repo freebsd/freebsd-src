@@ -3000,11 +3000,17 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	 */
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	claim = fxdr_unsigned(int, *tl);
-	if (claim == NFSV4OPEN_CLAIMDELEGATECUR || claim ==
-	    NFSV4OPEN_CLAIMDELEGATECURFH) {
+	if (claim == NFSV4OPEN_CLAIMDELEGATECUR) {
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_STATEID);
 		stateid.seqid = fxdr_unsigned(u_int32_t, *tl++);
 		NFSBCOPY((caddr_t)tl,(caddr_t)stateid.other,NFSX_STATEIDOTHER);
+		stp->ls_flags |= NFSLCK_DELEGCUR;
+	} else if (claim == NFSV4OPEN_CLAIMDELEGATECURFH) {
+		/* Fill in most of the stateid from the clientid. */
+		stateid.seqid = 0;
+		stateid.other[0] = clientid.lval[0];
+		stateid.other[1] = clientid.lval[1];
+		stateid.other[2] = 0;
 		stp->ls_flags |= NFSLCK_DELEGCUR;
 	} else if (claim == NFSV4OPEN_CLAIMDELEGATEPREV || claim ==
 	    NFSV4OPEN_CLAIMDELEGATEPREVFH) {
