@@ -1067,7 +1067,7 @@ mmu_booke_init()
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
 	pv_entry_max = shpgperproc * maxproc + vm_cnt.v_page_count;
 
-	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
+	TUNABLE_INT_FETCH("vm.pmap.pv_entry_max", &pv_entry_max);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 
 	uma_zone_reserve_kva(pvzone, pv_entry_max);
