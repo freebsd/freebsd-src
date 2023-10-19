@@ -1486,7 +1486,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	TUNABLE_INT_FETCH("hw.spec_store_bypass_disable", &hw_ssb_disable);
 	TUNABLE_INT_FETCH("machdep.mitigations.ssb.disable", &hw_ssb_disable);
 
-	TUNABLE_INT_FETCH("machdep.syscall_ret_l1d_flush",
+	TUNABLE_INT_FETCH("machdep.syscall_ret_flush_l1d",
 	    &syscall_ret_l1d_flush_mode);
 
 	TUNABLE_INT_FETCH("hw.mds_disable", &hw_mds_disable);
@@ -1494,7 +1494,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	TUNABLE_INT_FETCH("machdep.mitigations.taa.enable", &x86_taa_enable);
 
-	TUNABLE_INT_FETCH("machdep.mitigations.rndgs.enable",
+	TUNABLE_INT_FETCH("machdep.mitigations.rngds.enable",
 	    &x86_rngds_mitg_enable);
 
 	finishidentcpu();	/* Final stage of CPU initialization */
