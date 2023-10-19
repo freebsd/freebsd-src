@@ -30,7 +30,10 @@ common_dir=$(atf_get_srcdir)/../common
 
 find_state()
 {
-	jexec alcatraz pfctl -ss | grep icmp | grep 192.0.2.2
+	jail=${1:-alcatraz}
+	ip=${2:-192.0.2.2}
+
+	jexec ${jail} pfctl -ss | grep icmp | grep ${ip}
 }
 
 find_state_v6()
@@ -571,6 +574,75 @@ id_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "nat" "cleanup"
+nat_head()
+{
+	atf_set descr 'Test killing states by their NAT-ed IP address'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+nat_body()
+{
+	pft_init
+	j="killstate:nat"
+
+	epair_c=$(vnet_mkepair)
+	epair_srv=$(vnet_mkepair)
+
+	vnet_mkjail ${j}c ${epair_c}a
+	ifconfig -j ${j}c ${epair_c}a inet 192.0.2.2/24 up
+	jexec ${j}c route add default 192.0.2.1
+
+	vnet_mkjail ${j}srv ${epair_srv}a
+	ifconfig -j ${j}srv ${epair_srv}a inet 198.51.100.2/24 up
+
+	vnet_mkjail ${j}r ${epair_c}b ${epair_srv}b
+	ifconfig -j ${j}r ${epair_c}b inet 192.0.2.1/24 up
+	ifconfig -j ${j}r ${epair_srv}b inet 198.51.100.1/24 up
+	jexec ${j}r sysctl net.inet.ip.forwarding=1
+
+	jexec ${j}r pfctl -e
+	pft_set_rules ${j}r \
+		"nat on ${epair_srv}b inet from 192.0.2.0/24 to any -> (${epair_srv}b)"
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    jexec ${j}c ping -c 1 192.0.2.1
+	atf_check -s exit:0 -o ignore \
+	    jexec ${j}srv ping -c 1 198.51.100.1
+	atf_check -s exit:0 -o ignore \
+	    jexec ${j}c ping -c 1 198.51.100.2
+
+	# Establish state
+	# Note: use pft_ping so we always use the same ID, so pf considers all
+	# echo requests part of the same flow.
+	atf_check -s exit:0 -o ignore jexec ${j}c ${common_dir}/pft_ping.py \
+		--sendif ${epair_c}a \
+		--to 198.51.100.1 \
+		--replyif ${epair_c}a
+
+	# There's NAT here, so the source IP will be 198.51.100.1
+	if ! find_state ${j}r 198.51.100.1;
+	then
+		atf_fail "Expected state not found"
+	fi
+
+	# By NAT-ed address?
+	jexec ${j}r pfctl -k nat -k 192.0.2.2
+
+	if find_state ${j}r 198.51.100.1;
+	then
+		jexec ${j}r pfctl -ss -v
+		atf_fail "Failed to remove state"
+	fi
+}
+
+nat_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
@@ -581,4 +653,5 @@ atf_init_test_cases()
 	atf_add_test_case "match"
 	atf_add_test_case "interface"
 	atf_add_test_case "id"
+	atf_add_test_case "nat"
 }
