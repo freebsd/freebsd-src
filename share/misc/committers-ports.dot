@@ -240,6 +240,7 @@ mat [label="Mathieu Arnold\nmat@FreeBSD.org\n2003/08/15"]
 matthew [label="Matthew Seaman\nmatthew@FreeBSD.org\n2012/02/07"]
 meta [label="Koichiro Iwao\nmeta@FreeBSD.org\n2018/03/19"]
 mfechner [label="Matthias Fechner\nmfechner@FreeBSD.org\n2018/03/01"]
+michaelo [label="Michael Osipov\nmichaelo@FreeBSD.org\n2023/10/16"]
 mikael [label="Mikael Urankar\nmikael@FreeBSD.org\n2020/01/16"]
 milki [label="Jonathan Chu\nmilki@FreeBSD.org\n2013/12/15"]
 misha [label="Mikhail Pchelin\nmisha@FreeBSD.org\n2016/11/15"]
@@ -533,6 +534,7 @@ joneum -> kai
 
 jrm -> dch
 jrm -> jwb
+jrm -> michaelo
 
 junovitch -> tz
 
@@ -677,6 +679,8 @@ olivier -> pizzamig
 
 osa -> otis
 osa -> vg
+
+otis -> michaelo
 
 pat -> adamw
 
