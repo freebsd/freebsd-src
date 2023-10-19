@@ -1671,11 +1671,11 @@ pqisrc_free_device(pqisrc_softstate_t * softs, pqi_scsi_dev_t *device)
 		pqisrc_delete_softs_entry(softs, device);
 		DBG_NOTE("Removed memory for device : B %d: T %d: L %d\n",
 			device->bus, device->target, device->lun);
+		OS_RELEASE_SPINLOCK(&softs->devlist_lock);
 		pqisrc_device_mem_free(softs, device);
+	} else {
+		OS_RELEASE_SPINLOCK(&softs->devlist_lock);
 	}
-
-	OS_RELEASE_SPINLOCK(&softs->devlist_lock);
-
 }
 
 
