@@ -5426,12 +5426,14 @@ cache_fplookup_symlink(struct cache_fpl *fpl)
 	struct nameidata *ndp;
 	struct componentname *cnp;
 	struct vnode *dvp, *tvp;
+	struct pwd *pwd;
 	int error;
 
 	ndp = fpl->ndp;
 	cnp = fpl->cnp;
 	dvp = fpl->dvp;
 	tvp = fpl->tvp;
+	pwd = *(fpl->pwd);
 
 	if (cache_fpl_islastcn(ndp)) {
 		if ((cnp->cn_flags & FOLLOW) == 0) {
@@ -5486,6 +5488,9 @@ cache_fplookup_symlink(struct cache_fpl *fpl)
 		if (!cache_fplookup_mp_supported(mp)) {
 			cache_fpl_checkpoint(fpl);
 			return (cache_fpl_partial(fpl));
+		}
+		if (__predict_false(pwd->pwd_adir != pwd->pwd_rdir)) {
+			return (cache_fpl_aborted(fpl));
 		}
 	}
 	return (0);

@@ -21,7 +21,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 16, 2023
+.Dd June 23, 2023
 .Dt PMC 3
 .Os
 .Sh NAME
@@ -130,9 +130,6 @@ enumeration.
 Supported CPUs include:
 .Pp
 .Bl -tag -width "Li PMC_CPU_ARMV7_CORTEX_A15" -compact
-.It Li PMC_CPU_AMD_K7
-.Tn "AMD Athlon"
-CPUs.
 .It Li PMC_CPU_AMD_K8
 .Tn "AMD Athlon64"
 CPUs.
@@ -227,10 +224,6 @@ performance measurement architecture version 2 and later.
 Programmable hardware counters present in CPUs conforming to the
 .Tn Intel
 performance measurement architecture version 1 and later.
-.It Li PMC_CLASS_K7
-Programmable hardware counters present in
-.Tn "AMD Athlon"
-CPUs.
 .It Li PMC_CLASS_K8
 Programmable hardware counters present in
 .Tn "AMD Athlon64"
@@ -498,8 +491,7 @@ following manual pages:
 .It Em "PMC Class"      Ta Em "Manual Page"
 .It Li PMC_CLASS_IAF    Ta Xr pmc.iaf 3
 .It Li PMC_CLASS_IAP    Ta Xr pmc.atom 3 , Xr pmc.core 3 , Xr pmc.core2 3
-.It Li PMC_CLASS_K7     Ta Xr pmc.k7 3
-.It Li PMC_CLASS_K8     Ta Xr pmc.k8 3
+.It Li PMC_CLASS_K8     Ta Xr pmc.amd 3
 .It Li PMC_CLASS_TSC    Ta Xr pmc.tsc 3
 .El
 .Ss Event Name Aliases
@@ -542,6 +534,7 @@ driver, applications are urged to dynamically link with the
 library.
 Doing otherwise is unsupported.
 .Sh SEE ALSO
+.Xr pmc.amd 3 ,
 .Xr pmc.atom 3 ,
 .Xr pmc.core 3 ,
 .Xr pmc.core2 3 ,
@@ -551,8 +544,6 @@ Doing otherwise is unsupported.
 .Xr pmc.iaf 3 ,
 .Xr pmc.ivybridge 3 ,
 .Xr pmc.ivybridgexeon 3 ,
-.Xr pmc.k7 3 ,
-.Xr pmc.k8 3 ,
 .Xr pmc.sandybridge 3 ,
 .Xr pmc.sandybridgeuc 3 ,
 .Xr pmc.sandybridgexeon 3 ,

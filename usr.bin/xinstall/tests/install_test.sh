@@ -481,6 +481,21 @@ set_owner_group_mode_unpriv_body() {
 	atf_check_equal "$u:$g:10$cM" "$(stat -f"%u:%g:%p" testc)"
 }
 
+atf_test_case set_optional_exec
+set_optional_exec_head() {
+	atf_set "require.user" "unprivileged"
+}
+set_optional_exec_body()
+{
+	echo "abc" > testfile.src
+
+	atf_check install -d -m ug+rX testdir
+	atf_check test -x testdir
+
+	atf_check install -m ug+rX testfile.src testfile
+	atf_check test ! -x testfile
+}
+
 atf_init_test_cases() {
 	atf_add_test_case copy_to_nonexistent
 	atf_add_test_case copy_to_nonexistent_safe
@@ -523,4 +538,5 @@ atf_init_test_cases() {
 	atf_add_test_case mkdir_simple
 	atf_add_test_case set_owner_group_mode
 	atf_add_test_case set_owner_group_mode_unpriv
+	atf_add_test_case set_optional_exec
 }

@@ -3889,7 +3889,7 @@ nfs_copy_file_range(struct vop_copy_file_range_args *ap)
 	struct vnode *outvp = ap->a_outvp;
 	struct mount *mp;
 	struct nfsvattr innfsva, outnfsva;
-	struct vattr *vap;
+	struct vattr va, *vap;
 	struct uio io;
 	struct nfsmount *nmp;
 	size_t len, len2;
@@ -3998,10 +3998,25 @@ generic_copy:
 			 * will not reply NFSERR_INVAL.
 			 * Setting "len == 0" for the RPC would be preferred,
 			 * but some Linux servers do not support that.
+			 * If the len is being set to 0, do a Setattr RPC to
+			 * set the server's atime.  This behaviour was the
+			 * preferred one for the FreeBSD "collective".
 			 */
-			if (inoff >= vap->va_size)
+			if (inoff >= vap->va_size) {
 				*ap->a_lenp = len = 0;
-			else if (inoff + len > vap->va_size)
+				VATTR_NULL(&va);
+				va.va_atime.tv_sec = va.va_atime.tv_nsec = 0;
+				va.va_vaflags = VA_UTIMES_NULL;
+				inattrflag = 0;
+				error = nfsrpc_setattr(invp, &va, NULL,
+				    ap->a_incred, curthread, &innfsva,
+				    &inattrflag);
+				if (inattrflag != 0)
+					ret = nfscl_loadattrcache(&invp,
+					    &innfsva, NULL, 0, 1);
+				if (error == 0 && ret != 0)
+					error = ret;
+			} else if (inoff + len > vap->va_size)
 				*ap->a_lenp = len = vap->va_size - inoff;
 		} else
 			error = 0;
