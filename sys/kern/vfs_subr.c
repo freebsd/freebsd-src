@@ -1506,7 +1506,7 @@ static int vnlruproc_sig;
 static u_long vnlruproc_kicks;
 
 SYSCTL_ULONG(_vfs_vnode_vnlru, OID_AUTO, kicks, CTLFLAG_RD, &vnlruproc_kicks, 0,
-    "Number of times vnlru got woken up due to vnode shortage");
+    "Number of times vnlru awakened due to vnode shortage");
 
 #define VNLRU_COUNT_SLOP 100
 
