@@ -50,6 +50,7 @@
 #define VIRTIO_ID_FS		26
 #define VIRTIO_ID_PMEM		27
 #define VIRTIO_ID_RPMB		28
+#define VIRTIO_ID_SCMI		32
 #define VIRTIO_ID_GPIO		41
 
 #endif /* _VIRTIO_IDS_H_ */
