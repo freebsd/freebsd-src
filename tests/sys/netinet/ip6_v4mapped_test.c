@@ -294,8 +294,7 @@ ATF_TC_BODY(tcp_v4mapped_bind, tc)
 		error = connect(csock, &su_mapped.saddr, su_mapped.saddr.sa_len);
 		if (error != 0 && errno == EADDRINUSE) {
 			/* This is the specific error we were looking for. */
-			ATF_REQUIRE_MSG(error == 0,
-			    "client connect %d failed, "
+			atf_tc_fail("client connect %d failed, "
 			    " client had duplicate port: %s",
 			    i, strerror(errno));
 		}
@@ -312,6 +311,8 @@ ATF_TC_BODY(tcp_v4mapped_bind, tc)
 	}
 	ATF_REQUIRE_MSG(i >= 1, "No successful connections");
 	ATF_REQUIRE_MSG(got_bind_error == true, "No expected bind error");
+
+	ATF_REQUIRE(close(lsock) == 0);
 }
 ATF_TC_CLEANUP(tcp_v4mapped_bind, tc)
 {
@@ -365,6 +366,7 @@ ATF_TC_BODY(udp_v4mapped_sendto, tc)
 	ATF_REQUIRE_MSG(error == 0, "getaddrinfo: %s", gai_strerror(error));
 	memcpy(&sin6, aip->ai_addr, sizeof(sin6));
 	sin6.sin6_port = port;
+	freeaddrinfo(aip);
 
 	ch = 0x42;
 	n = sendto(s, &ch, 1, 0, (struct sockaddr *)&sin6, sizeof(sin6));
@@ -383,6 +385,9 @@ ATF_TC_BODY(udp_v4mapped_sendto, tc)
 	n = recv(ls, &ch, 1, 0);
 	ATF_REQUIRE_MSG(n == 1, "recv() failed: %s", strerror(errno));
 	ATF_REQUIRE(ch == 0x42);
+
+	ATF_REQUIRE(close(s) == 0);
+	ATF_REQUIRE(close(ls) == 0);
 }
 
 ATF_TP_ADD_TCS(tp)
