@@ -873,6 +873,9 @@ pf_nvstate_kill_to_kstate_kill(const nvlist_t *nvl,
 	    sizeof(kill->psk_label)));
 	PFNV_CHK(pf_nvbool(nvl, "kill_match", &kill->psk_kill_match));
 
+	if (nvlist_exists_bool(nvl, "nat"))
+		PFNV_CHK(pf_nvbool(nvl, "nat", &kill->psk_nat));
+
 errout:
 	return (error);
 }

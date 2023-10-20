@@ -1770,6 +1770,7 @@ struct pf_kstate_kill {
 	char			psk_label[PF_RULE_LABEL_SIZE];
 	u_int			psk_killed;
 	bool			psk_kill_match;
+	bool			psk_nat;
 };
 #endif
 

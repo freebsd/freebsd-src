@@ -1468,6 +1468,7 @@ _pfctl_clear_states(int dev, const struct pfctl_kill *kill,
 	nvlist_add_string(nvl, "ifname", kill->ifname);
 	nvlist_add_string(nvl, "label", kill->label);
 	nvlist_add_bool(nvl, "kill_match", kill->kill_match);
+	nvlist_add_bool(nvl, "nat", kill->nat);
 
 	if ((ret = pfctl_do_ioctl(dev, ioctlval, 1024, &nvl)) != 0)
 		return (ret);
