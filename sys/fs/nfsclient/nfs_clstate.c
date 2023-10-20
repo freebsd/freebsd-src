@@ -4383,9 +4383,15 @@ nfscl_moveopen(vnode_t vp, struct nfsclclient *clp, struct nfsmount *nmp,
 	nfscl_newopen(clp, NULL, &owp, NULL, &op, &nop, owp->nfsow_owner,
 	    lop->nfso_fh, lop->nfso_fhlen, cred, &newone);
 	ndp = dp;
-	error = nfscl_tryopen(nmp, vp, np->n_v4->n4_data, np->n_v4->n4_fhlen,
-	    lop->nfso_fh, lop->nfso_fhlen, lop->nfso_mode, op,
-	    NFS4NODENAME(np->n_v4), np->n_v4->n4_namelen, &ndp, 0, 0, cred, p);
+	if (NFSHASNFSV4N(nmp))
+		error = nfscl_tryopen(nmp, vp, lop->nfso_fh, lop->nfso_fhlen,
+		    lop->nfso_fh, lop->nfso_fhlen, lop->nfso_mode, op,
+		    NULL, 0, &ndp, 0, 0, cred, p);
+	else
+		error = nfscl_tryopen(nmp, vp, np->n_v4->n4_data,
+		    np->n_v4->n4_fhlen, lop->nfso_fh, lop->nfso_fhlen,
+		    lop->nfso_mode, op, NFS4NODENAME(np->n_v4),
+		    np->n_v4->n4_namelen, &ndp, 0, 0, cred, p);
 	if (error) {
 		if (newone)
 			nfscl_freeopen(op, 0, true);
@@ -4476,14 +4482,16 @@ nfsrpc_reopen(struct nfsmount *nmp, u_int8_t *fhp, int fhlen,
 	if (error)
 		return (error);
 	vp = NFSTOV(np);
-	if (np->n_v4 != NULL) {
+	if (NFSHASNFSV4N(nmp))
+		error = nfscl_tryopen(nmp, vp, fhp, fhlen, fhp, fhlen, mode, op,
+		    NULL, 0, dpp, 0, 0, cred, p);
+	else if (np->n_v4 != NULL)
 		error = nfscl_tryopen(nmp, vp, np->n_v4->n4_data,
 		    np->n_v4->n4_fhlen, fhp, fhlen, mode, op,
 		    NFS4NODENAME(np->n_v4), np->n_v4->n4_namelen, dpp, 0, 0,
 		    cred, p);
-	} else {
+	else
 		error = EINVAL;
-	}
 	vrele(vp);
 	return (error);
 }
@@ -4500,18 +4508,43 @@ nfscl_tryopen(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
     int reclaim, u_int32_t delegtype, struct ucred *cred, NFSPROC_T *p)
 {
 	int error;
+	struct nfscldeleg *dp;
+	bool try_busted_xdr;
 
+	dp = *ndpp;
 	do {
+		*ndpp = dp;	/* *ndpp needs to be set for retries. */
 		error = nfsrpc_openrpc(nmp, vp, fhp, fhlen, newfhp, newfhlen,
 		    mode, op, name, namelen, ndpp, reclaim, delegtype, cred, p,
 		    0, 0);
+		try_busted_xdr = false;
 		if (error == NFSERR_DELAY)
 			(void) nfs_catnap(PZERO, error, "nfstryop");
-	} while (error == NFSERR_DELAY);
+		else if (error == NFSERR_EXPIRED && NFSHASNFSV4N(nmp) &&
+		    reclaim == 0 && dp != NULL) {
+			/* This case is a Claim_Deleg_Cur_FH Open. */
+			NFSLOCKMNT(nmp);
+			if ((nmp->nm_privflag & NFSMNTP_BUGGYFBSDSRV) == 0) {
+				/*
+				 * Old FreeBSD NFSv4.1/4.2 servers erroneously
+				 * expect a stateID argument for Open
+				 * Claim_Deleg_Cur_FH and interpret the
+				 * Getattr reply as a stateID.  This results
+				 * in an NFSERR_EXPIRED failure.
+				 * Setting NFSMNTP_BUGGYFBSDSRV makes the Open
+				 * send a stateID, in violation of RFC8881.
+				 */
+				try_busted_xdr = true;
+				nmp->nm_privflag |= NFSMNTP_BUGGYFBSDSRV;
+			}
+			NFSUNLOCKMNT(nmp);
+		}
+	} while (error == NFSERR_DELAY || try_busted_xdr);
 	if (error == EAUTH || error == EACCES) {
 		/* Try again using system credentials */
 		newnfs_setroot(cred);
 		do {
+		    *ndpp = dp;	/* *ndpp needs to be set for retries. */
 		    error = nfsrpc_openrpc(nmp, vp, fhp, fhlen, newfhp,
 			newfhlen, mode, op, name, namelen, ndpp, reclaim,
 			delegtype, cred, p, 1, 0);
