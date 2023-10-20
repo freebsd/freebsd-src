@@ -111,39 +111,19 @@ ${_T}: ${ATF_TESTS_KSH93_SRC_${_T}}
 .endif
 
 .if !empty(ATF_TESTS_PYTEST)
-# bsd.prog.mk SCRIPTS interface removes file extension unless
-# SCRIPTSNAME is set, which is not possible to do here.
-# Workaround this by appending another extension (.xtmp) to the
-# file name. Use separate loop to avoid dealing with explicitly
-# stating expansion for each and every variable.
-#
-# ATF_TESTS_PYTEST -> contains list of files as is (test_something.py ..)
-# _ATF_TESTS_PYTEST -> (test_something.py.xtmp ..)
-#
-# Former array is iterated to construct Kyuafile, where original file
-#  names need to be written.
-# Latter array is iterated to enable bsd.prog.mk scripts framework -
-#  namely, installing scripts without .xtmp prefix. Note: this allows to
-#  not bother about the fact that make target needs to be different from
-#  the source file.
-_TESTS+= ${ATF_TESTS_PYTEST}
-_ATF_TESTS_PYTEST=
+SCRIPTS+= ${ATF_TESTS_PYTEST}
 .for _T in ${ATF_TESTS_PYTEST}
-_ATF_TESTS_PYTEST += ${_T}.xtmp
+SCRIPTSDIR_${_T}= ${TESTSDIR}
+SCRIPTSNAME_${_T}= ${_T}
 TEST_INTERFACE.${_T}= atf
 TEST_METADATA.${_T}+= required_programs="pytest"
-.endfor
-
-SCRIPTS+= ${_ATF_TESTS_PYTEST}
-.for _T in ${_ATF_TESTS_PYTEST}
-SCRIPTSDIR_${_T}= ${TESTSDIR}
 CLEANFILES+= ${_T} ${_T}.tmp
 # TODO(jmmv): It seems to me that this SED and SRC functionality should
 # exist in bsd.prog.mk along the support for SCRIPTS.  Move it there if
 # this proves to be useful within the tests.
 ATF_TESTS_PYTEST_SED_${_T}?= # empty
-ATF_TESTS_PYTEST_SRC_${_T}?= ${.CURDIR}/${_T:S,.xtmp$,,}
-${_T}:
+ATF_TESTS_PYTEST_SRC_${_T}?= ${.CURDIR}/${_T}
+${_T}:	${.CURDIR}/${_T}
 	echo "#! /usr/libexec/atf_pytest_wrapper -P ${TESTSBASE}" > ${.TARGET}.tmp
 .if empty(ATF_TESTS_PYTEST_SED_${_T})
 	cat ${ATF_TESTS_PYTEST_SRC_${_T}}  >>${.TARGET}.tmp
