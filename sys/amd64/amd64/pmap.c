@@ -1847,7 +1847,10 @@ pmap_allow_2m_x_ept_recalculate(void)
 	    CPUID_TO_MODEL(cpu_id) == 0x57 ||	/* Knights */
 	    CPUID_TO_MODEL(cpu_id) == 0x85))))
 		pmap_allow_2m_x_ept = 1;
+#ifndef BURN_BRIDGES
 	TUNABLE_INT_FETCH("hw.allow_2m_x_ept", &pmap_allow_2m_x_ept);
+#endif
+	TUNABLE_INT_FETCH("vm.pmap.allow_2m_x_ept", &pmap_allow_2m_x_ept);
 }
 
 static bool
