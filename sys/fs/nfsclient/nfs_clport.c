@@ -264,10 +264,10 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 
 	np->n_fhp = nfhp;
 	/*
-	 * For NFSv4, we have to attach the directory file handle and
+	 * For NFSv4.0, we have to attach the directory file handle and
 	 * file name, so that Open Ops can be done later.
 	 */
-	if (nmp->nm_flag & NFSMNT_NFSV4) {
+	if (NFSHASNFSV4(nmp) && !NFSHASNFSV4N(nmp)) {
 		np->n_v4 = malloc(sizeof (struct nfsv4node)
 		    + dnp->n_fhp->nfh_len + cnp->cn_namelen - 1, M_NFSV4NODE,
 		    M_WAITOK);
