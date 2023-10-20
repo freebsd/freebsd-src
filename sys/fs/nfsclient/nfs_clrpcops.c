@@ -392,16 +392,6 @@ nfsrpc_open(vnode_t vp, int amode, struct ucred *cred, NFSPROC_T *p)
 	nfhp = np->n_fhp;
 
 	retrycnt = 0;
-#ifdef notdef
-{ char name[100]; int namel;
-namel = (np->n_v4->n4_namelen < 100) ? np->n_v4->n4_namelen : 99;
-bcopy(NFS4NODENAME(np->n_v4), name, namel);
-name[namel] = '\0';
-printf("rpcopen p=0x%x name=%s",p->p_pid,name);
-if (nfhp->nfh_len > 0) printf(" fh=0x%x\n",nfhp->nfh_fh[12]);
-else printf(" fhl=0\n");
-}
-#endif
 	do {
 	    dp = NULL;
 	    error = nfscl_open(vp, nfhp->nfh_fh, nfhp->nfh_len, mode, 1,
@@ -436,6 +426,39 @@ else printf(" fhl=0\n");
 				    np->n_fhp->nfh_len, mode, op,
 				    NFS4NODENAME(np->n_v4),
 				    np->n_v4->n4_namelen, &dp, cred, p);
+			if (dp != NULL) {
+				NFSLOCKNODE(np);
+				np->n_flag &= ~NDELEGMOD;
+				/*
+				 * Invalidate the attribute cache, so that
+				 * attributes that pre-date the issue of a
+				 * delegation are not cached, since the
+				 * cached attributes will remain valid while
+				 * the delegation is held.
+				 */
+				NFSINVALATTRCACHE(np);
+				NFSUNLOCKNODE(np);
+				(void) nfscl_deleg(nmp->nm_mountp,
+				    op->nfso_own->nfsow_clp,
+				    nfhp->nfh_fh, nfhp->nfh_len, cred, p, &dp);
+			}
+		} else if (NFSHASNFSV4N(nmp)) {
+			/*
+			 * For the first attempt, try and get a layout, if
+			 * pNFS is enabled for the mount.
+			 */
+			if (!NFSHASPNFS(nmp) || nfscl_enablecallb == 0 ||
+			    nfs_numnfscbd == 0 ||
+			    (np->n_flag & NNOLAYOUT) != 0 || retrycnt > 0)
+				error = nfsrpc_openrpc(nmp, vp, nfhp->nfh_fh,
+				    nfhp->nfh_len, nfhp->nfh_fh, nfhp->nfh_len,
+				    mode, op, NULL, 0, &dp, 0, 0x0, cred, p, 0,
+				    0);
+			else
+				error = nfsrpc_getopenlayout(nmp, vp,
+				    nfhp->nfh_fh, nfhp->nfh_len, nfhp->nfh_fh,
+				    nfhp->nfh_len, mode, op, NULL, 0, &dp,
+				    cred, p);
 			if (dp != NULL) {
 				NFSLOCKNODE(np);
 				np->n_flag &= ~NDELEGMOD;
@@ -538,19 +561,40 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 		*tl = txdr_unsigned(delegtype);
 	} else {
 		if (dp != NULL) {
-			*tl = txdr_unsigned(NFSV4OPEN_CLAIMDELEGATECUR);
-			NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID);
-			if (NFSHASNFSV4N(nmp))
-				*tl++ = 0;
-			else
+			if (NFSHASNFSV4N(nmp)) {
+				*tl = txdr_unsigned(
+				    NFSV4OPEN_CLAIMDELEGATECURFH);
+				NFSLOCKMNT(nmp);
+				if ((nmp->nm_privflag & NFSMNTP_BUGGYFBSDSRV) !=
+				    0) {
+					NFSUNLOCKMNT(nmp);
+					/*
+					 * Add a stateID argument to make old
+					 * broken FreeBSD NFSv4.1/4.2 servers
+					 * happy.
+					 */
+					NFSM_BUILD(tl, uint32_t *,NFSX_STATEID);
+					*tl++ = 0;
+					*tl++ = dp->nfsdl_stateid.other[0];
+					*tl++ = dp->nfsdl_stateid.other[1];
+					*tl = dp->nfsdl_stateid.other[2];
+				} else
+					NFSUNLOCKMNT(nmp);
+			} else {
+				*tl = txdr_unsigned(NFSV4OPEN_CLAIMDELEGATECUR);
+				NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID);
 				*tl++ = dp->nfsdl_stateid.seqid;
-			*tl++ = dp->nfsdl_stateid.other[0];
-			*tl++ = dp->nfsdl_stateid.other[1];
-			*tl = dp->nfsdl_stateid.other[2];
+				*tl++ = dp->nfsdl_stateid.other[0];
+				*tl++ = dp->nfsdl_stateid.other[1];
+				*tl = dp->nfsdl_stateid.other[2];
+				(void)nfsm_strtom(nd, name, namelen);
+			}
+		} else if (NFSHASNFSV4N(nmp)) {
+			*tl = txdr_unsigned(NFSV4OPEN_CLAIMFH);
 		} else {
 			*tl = txdr_unsigned(NFSV4OPEN_CLAIMNULL);
+			(void)nfsm_strtom(nd, name, namelen);
 		}
-		(void) nfsm_strtom(nd, name, namelen);
 	}
 	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(NFSV4OP_GETATTR);
@@ -2713,6 +2757,8 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		if ((rflags & NFSV4OPEN_RESULTCONFIRM) &&
 		    (owp->nfsow_clp->nfsc_flags & NFSCLFLAGS_GOTDELEG) &&
 		    !error && dp == NULL) {
+		    KASSERT(!NFSHASNFSV4N(nmp),
+			("nfsrpc_createv4: result confirm"));
 		    do {
 			ret = nfsrpc_openrpc(VFSTONFS(dvp->v_mount), dvp,
 			    np->n_fhp->nfh_fh, np->n_fhp->nfh_len,
@@ -8009,8 +8055,12 @@ nfsrpc_openlayoutrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp,
 	nfsm_strtom(nd, op->nfso_own->nfsow_owner, NFSV4CL_LOCKNAMELEN);
 	NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(NFSV4OPEN_NOCREATE);
-	*tl = txdr_unsigned(NFSV4OPEN_CLAIMNULL);
-	nfsm_strtom(nd, name, namelen);
+	if (NFSHASNFSV4N(nmp)) {
+		*tl = txdr_unsigned(NFSV4OPEN_CLAIMFH);
+	} else {
+		*tl = txdr_unsigned(NFSV4OPEN_CLAIMNULL);
+		nfsm_strtom(nd, name, namelen);
+	}
 	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(NFSV4OP_GETATTR);
 	NFSZERO_ATTRBIT(&attrbits);
