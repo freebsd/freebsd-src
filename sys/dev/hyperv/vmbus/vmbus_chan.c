@@ -1205,6 +1205,7 @@ vmbus_chan_recv(struct vmbus_channel *chan, void *data, int *dlen0,
 {
 	struct vmbus_chanpkt_hdr pkt;
 	int error, dlen, hlen;
+	boolean_t sig_event;
 
 	error = vmbus_rxbr_peek(&chan->ch_rxbr, &pkt, sizeof(pkt));
 	if (error)
@@ -1235,8 +1236,11 @@ vmbus_chan_recv(struct vmbus_channel *chan, void *data, int *dlen0,
 	*dlen0 = dlen;
 
 	/* Skip packet header */
-	error = vmbus_rxbr_read(&chan->ch_rxbr, data, dlen, hlen);
+	error = vmbus_rxbr_read(&chan->ch_rxbr, data, dlen, hlen, &sig_event);
 	KASSERT(!error, ("vmbus_rxbr_read failed"));
+
+	if (!error && sig_event)
+		vmbus_chan_signal_rx(chan);
 
 	return (0);
 }
@@ -1246,6 +1250,7 @@ vmbus_chan_recv_pkt(struct vmbus_channel *chan,
     struct vmbus_chanpkt_hdr *pkt, int *pktlen0)
 {
 	int error, pktlen, pkt_hlen;
+	boolean_t sig_event;
 
 	pkt_hlen = sizeof(*pkt);
 	error = vmbus_rxbr_peek(&chan->ch_rxbr, pkt, pkt_hlen);
@@ -1277,8 +1282,11 @@ vmbus_chan_recv_pkt(struct vmbus_channel *chan,
 	 * by the above vmbus_rxbr_peek().
 	 */
 	error = vmbus_rxbr_read(&chan->ch_rxbr, pkt + 1,
-	    pktlen - pkt_hlen, pkt_hlen);
+	    pktlen - pkt_hlen, pkt_hlen, &sig_event);
 	KASSERT(!error, ("vmbus_rxbr_read failed"));
+
+	if (!error && sig_event)
+		vmbus_chan_signal_rx(chan);
 
 	return (0);
 }
