@@ -8022,7 +8022,7 @@ done:
 		mtag = m_tag_alloc(MTAG_PF_DIVERT, 0,
 		    sizeof(struct pf_divert_mtag), M_NOWAIT | M_ZERO);
 		if (mtag != NULL) {
-			((struct pf_divert_mtag *)(mtag+1))->ndir =
+			((struct pf_divert_mtag *)(mtag+1))->port =
 			    ntohs(r->divert.port);
 			((struct pf_divert_mtag *)(mtag+1))->idir =
 			    (dir == PF_IN) ? PF_DIVERT_MTAG_DIR_IN :
