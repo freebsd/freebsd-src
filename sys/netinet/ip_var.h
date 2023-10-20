@@ -328,11 +328,17 @@ extern int	(*ip_dn_ctl_ptr)(struct sockopt *);
 extern int	(*ip_dn_io_ptr)(struct mbuf **, struct ip_fw_args *);
 
 /* pf specific mtag for divert(4) support */
-enum { PF_DIVERT_MTAG_DIR_IN=1, PF_DIVERT_MTAG_DIR_OUT=2 };
+__enum_uint8_decl(pf_mtag_dir) {
+	PF_DIVERT_MTAG_DIR_IN = 1,
+	PF_DIVERT_MTAG_DIR_OUT = 2
+};
 struct pf_divert_mtag {
-	uint16_t idir;	// initial pkt direction
-	uint16_t ndir;	// a) divert(4) port upon initial diversion
-			// b) new direction upon pkt re-enter
+	__enum_uint8(pf_mtag_dir) idir;	// initial pkt direction
+	union {
+		__enum_uint8(pf_mtag_dir) ndir;	// a) divert(4) port upon initial diversion
+				// b) new direction upon pkt re-enter
+		uint16_t port;	/* Initial divert(4) port */
+	};
 };
 #define MTAG_PF_DIVERT	1262273569
 
