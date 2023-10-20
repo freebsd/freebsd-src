@@ -109,3 +109,6 @@ NO_LEGACY_PCIB		opt_cpu.h
 
 # Compatibility with Linux MP table bugs.
 MPTABLE_LINUX_BUG_COMPAT
+
+# x86 specific uart options
+UART_NS8250_EARLY_PORT	opt_uart.h
