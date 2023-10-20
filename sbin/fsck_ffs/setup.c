@@ -299,6 +299,8 @@ checksnapinfo(struct inode *snapip)
 	size = fragroundup(fs,
 	    DIP(snapip->i_dp, di_size) - lblktosize(fs, lbn));
 	bp = getdatablk(idesc.id_parent, size, BT_DATA);
+	if (bp->b_errs != 0)
+		return (0);
 	snapblklist = (daddr_t *)bp->b_un.b_buf;
 	/*
 	 * snapblklist[0] is the size of the list
