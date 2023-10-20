@@ -182,7 +182,7 @@ divert_packet(struct mbuf *m, bool incoming)
 		    (((struct ipfw_rule_ref *)(mtag+1))->info));
 	} else if ((mtag = m_tag_locate(m, MTAG_PF_DIVERT, 0, NULL)) != NULL) {
 		cookie = ((struct pf_divert_mtag *)(mtag+1))->idir;
-		nport = htons(((struct pf_divert_mtag *)(mtag+1))->ndir);
+		nport = htons(((struct pf_divert_mtag *)(mtag+1))->port);
 	} else {
 		m_freem(m);
 		return;
