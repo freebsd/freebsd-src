@@ -129,7 +129,7 @@ void		vmbus_rxbr_deinit(struct vmbus_rxbr *rbr);
 void		vmbus_rxbr_setup(struct vmbus_rxbr *rbr, void *buf, int blen);
 int		vmbus_rxbr_peek(struct vmbus_rxbr *rbr, void *data, int dlen);
 int		vmbus_rxbr_read(struct vmbus_rxbr *rbr, void *data, int dlen,
-		    uint32_t skip);
+		    uint32_t skip, boolean_t *need_sig);
 int		vmbus_rxbr_idxadv(struct vmbus_rxbr *rbr, uint32_t idx_adv,
 		    boolean_t *need_sig);
 int		vmbus_rxbr_idxadv_peek(struct vmbus_rxbr *rbr, void *data,
