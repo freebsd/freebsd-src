@@ -120,6 +120,7 @@ struct msi_intsrc {
 	u_int msi_cpu;			/* Local APIC ID. (g) */
 	u_int msi_count:8;		/* Messages in this group. (g) */
 	u_int msi_maxcount:8;		/* Alignment for this group. (g) */
+	u_int msi_enabled:8;		/* Enabled messages in this group. (g) */
 	u_int *msi_irqs;		/* Group's IRQ list. (g) */
 	u_int msi_remap_cookie;
 };
@@ -204,7 +205,12 @@ msi_enable_intr(struct intsrc *isrc)
 {
 	struct msi_intsrc *msi = (struct msi_intsrc *)isrc;
 
-	apic_enable_vector(msi->msi_cpu, msi->msi_vector);
+	msi = msi->msi_first;
+	if (msi->msi_enabled == 0) {
+		for (u_int i = 0; i < msi->msi_count; i++)
+			apic_enable_vector(msi->msi_cpu, msi->msi_vector + i);
+	}
+	msi->msi_enabled++;
 }
 
 static void
@@ -212,7 +218,12 @@ msi_disable_intr(struct intsrc *isrc)
 {
 	struct msi_intsrc *msi = (struct msi_intsrc *)isrc;
 
-	apic_disable_vector(msi->msi_cpu, msi->msi_vector);
+	msi = msi->msi_first;
+	msi->msi_enabled--;
+	if (msi->msi_enabled == 0) {
+		for (u_int i = 0; i < msi->msi_count; i++)
+			apic_disable_vector(msi->msi_cpu, msi->msi_vector + i);
+	}
 }
 
 static int
@@ -277,11 +288,8 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	/* Must be set before BUS_REMAP_INTR as it may call back into MSI. */
 	msi->msi_cpu = apic_id;
 	msi->msi_vector = vector;
-	if (msi->msi_intsrc.is_handlers > 0)
-		apic_enable_vector(msi->msi_cpu, msi->msi_vector);
-	for (i = 1; i < msi->msi_count; i++) {
-		sib = (struct msi_intsrc *)intr_lookup_source(msi->msi_irqs[i]);
-		if (sib->msi_intsrc.is_handlers > 0)
+	if (msi->msi_enabled > 0) {
+		for (i = 0; i < msi->msi_count; i++)
 			apic_enable_vector(apic_id, vector + i);
 	}
 	error = BUS_REMAP_INTR(device_get_parent(msi->msi_dev), msi->msi_dev,
@@ -317,15 +325,13 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	 * to prevent races where we could miss an interrupt.  If BUS_REMAP_INTR
 	 * failed then we disable and free the new, unused vector(s).
 	 */
-	if (msi->msi_intsrc.is_handlers > 0)
-		apic_disable_vector(old_id, old_vector);
-	apic_free_vector(old_id, old_vector, msi->msi_irq);
-	for (i = 1; i < msi->msi_count; i++) {
-		sib = (struct msi_intsrc *)intr_lookup_source(msi->msi_irqs[i]);
-		if (sib->msi_intsrc.is_handlers > 0)
+	if (msi->msi_enabled > 0) {
+		for (i = 0; i < msi->msi_count; i++)
 			apic_disable_vector(old_id, old_vector + i);
-		apic_free_vector(old_id, old_vector + i, msi->msi_irqs[i]);
 	}
+	apic_free_vector(old_id, old_vector, msi->msi_irq);
+	for (i = 1; i < msi->msi_count; i++)
+		apic_free_vector(old_id, old_vector + i, msi->msi_irqs[i]);
 	return (error);
 }
 
