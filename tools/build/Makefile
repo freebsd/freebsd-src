@@ -196,9 +196,15 @@ SRCS+=	strtonum.c merge.c heapsort.c reallocf.c
 SRCS+=	rpmatch.c
 
 .if ${.MAKE.OS} == "Linux"
-# On Linux, glibc does not provide strlcpy,strlcat or strmode.
+# On Linux, glibc does not provide strmode. It only provides strlcpy
+# and strlcat from glibc 2.38.
 .PATH: ${LIBC_SRCTOP}/string
-SRCS+=	strlcpy.c strlcat.c strmode.c
+SRCS+=	strmode.c
+# Assume if strlcpy exists so does strlcat
+_WITH_EXPLICIT_STRLCPY!= cat ${HOST_INCLUDE_ROOT}/strings.h ${HOST_INCLUDE_ROOT}/string.h | grep -c strlcpy || true
+.if ${_WITH_EXPLICIT_STRLCPY} == 0
+SRCS+=	strlcpy.c strlcat.c
+.endif
 # On Linux, glibc provides ffs* but not fls*
 SRCS+=	fls.c flsl.c flsll.c
 # Compile the fgetln/fgetwln/closefrom fallback code from libbsd:
