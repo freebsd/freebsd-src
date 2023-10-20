@@ -71,6 +71,7 @@ static struct virtio_ident {
 	{ VIRTIO_ID_FS,			"Filesystem"			},
 	{ VIRTIO_ID_PMEM,		"Persistent Memory"		},
 	{ VIRTIO_ID_RPMB,		"RPMB"				},
+	{ VIRTIO_ID_SCMI,		"SCMI"				},
 	{ VIRTIO_ID_GPIO,		"GPIO"				},
 
 	{ 0, NULL }

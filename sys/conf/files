@@ -3422,6 +3422,7 @@ dev/virtio/gpu/virtio_gpu.c		optional	virtio_gpu
 dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi
 dev/virtio/random/virtio_random.c	optional	virtio_random
 dev/virtio/console/virtio_console.c	optional	virtio_console
+dev/virtio/scmi/virtio_scmi.c		optional	virtio_scmi
 dev/vkbd/vkbd.c			optional vkbd
 dev/vmgenc/vmgenc_acpi.c	optional acpi
 dev/vmware/vmxnet3/if_vmx.c		optional vmx
