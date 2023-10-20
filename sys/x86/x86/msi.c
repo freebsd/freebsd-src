@@ -114,15 +114,15 @@ struct msi_intsrc {
 	struct intsrc msi_intsrc;
 	device_t msi_dev;		/* Owning device. (g) */
 	struct msi_intsrc *msi_first;	/* First source in group. */
+	u_int *msi_irqs;		/* Group's IRQ list. (g) */
 	u_int msi_irq;			/* IRQ cookie. */
-	u_int msi_msix;			/* MSI-X message. */
-	u_int msi_vector:8;		/* IDT vector. */
 	u_int msi_cpu;			/* Local APIC ID. (g) */
+	u_int msi_remap_cookie;		/* IOMMU cookie. */
+	u_int msi_vector:8;		/* IDT vector. */
 	u_int msi_count:8;		/* Messages in this group. (g) */
 	u_int msi_maxcount:8;		/* Alignment for this group. (g) */
 	u_int msi_enabled:8;		/* Enabled messages in this group. (g) */
-	u_int *msi_irqs;		/* Group's IRQ list. (g) */
-	u_int msi_remap_cookie;
+	bool msi_msix;			/* MSI-X message. */
 };
 
 static void	msi_create_source(void);
@@ -277,7 +277,7 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 
 	/* Allocate IDT vectors on this cpu. */
 	if (msi->msi_count > 1) {
-		KASSERT(msi->msi_msix == 0, ("MSI-X message group"));
+		KASSERT(!msi->msi_msix, ("MSI-X message group"));
 		vector = apic_alloc_vectors(apic_id, msi->msi_irqs,
 		    msi->msi_count, msi->msi_maxcount);
 	} else
@@ -733,7 +733,7 @@ again:
 	msi->msi_cpu = cpu;
 	msi->msi_first = msi;
 	msi->msi_vector = vector;
-	msi->msi_msix = 1;
+	msi->msi_msix = true;
 	msi->msi_count = 1;
 	msi->msi_maxcount = 1;
 	msi->msi_irqs = NULL;
@@ -775,7 +775,7 @@ msix_release(int irq)
 	msi->msi_dev = NULL;
 	apic_free_vector(msi->msi_cpu, msi->msi_vector, msi->msi_irq);
 	msi->msi_vector = 0;
-	msi->msi_msix = 0;
+	msi->msi_msix = false;
 	msi->msi_count = 0;
 	msi->msi_maxcount = 0;
 
