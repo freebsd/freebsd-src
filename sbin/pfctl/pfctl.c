@@ -725,6 +725,12 @@ pfctl_net_kill_states(int dev, const char *iface, int opts)
 	    sizeof(kill.ifname)) >= sizeof(kill.ifname))
 		errx(1, "invalid interface: %s", iface);
 
+	if (state_killers == 2 && (strcmp(state_kill[0], "nat") == 0)) {
+		kill.nat = true;
+		state_kill[0] = state_kill[1];
+		state_killers = 1;
+	}
+
 	pfctl_addrprefix(state_kill[0], &kill.src.addr.v.a.mask);
 
 	if (opts & PF_OPT_KILLMATCH)
