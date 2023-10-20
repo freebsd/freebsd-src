@@ -79,6 +79,27 @@ SYSCTL_INT(_hw, OID_AUTO, broken_txfifo, CTLFLAG_RWTUN,
 	&broken_txfifo, 0, "UART FIFO has QEMU emulation bug");
 
 /*
+ * To use early printf on x86, add the following to your kernel config:
+ *
+ * options UART_NS8250_EARLY_PORT=0x3f8
+ * options EARLY_PRINTF
+*/
+#if defined(EARLY_PRINTF) && (defined(__amd64__) || defined(__i386__))
+static void
+uart_ns8250_early_putc(int c)
+{
+	u_int stat = UART_NS8250_EARLY_PORT + REG_LSR;
+	u_int tx = UART_NS8250_EARLY_PORT + REG_DATA;
+	int limit = 10000; /* 10ms is plenty of time */
+
+	while ((inb(stat) & LSR_THRE) == 0 && --limit > 0)
+		continue;
+	outb(tx, c);
+}
+early_putc_t *early_putc = uart_ns8250_early_putc;
+#endif /* EARLY_PRINTF */
+
+/*
  * Clear pending interrupts. THRE is cleared by reading IIR. Data
  * that may have been received gets lost here.
  */
