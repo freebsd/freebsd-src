@@ -36,6 +36,10 @@ empty_head() {
 	atf_set "require.user" "root"
 }
 empty_body() {
+	# Begin FreeBSD
+	atf_expect_fail "Incorrect atime on FreeBSD: PR274615"
+	# End FreeBSD
+
 	test_mount
 
 	atf_check -s eq:0 -o empty -e empty touch a
