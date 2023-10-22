@@ -141,7 +141,7 @@ STAGE_DIR.man${_page:T:E}?= ${STAGE_OBJTOP}${MANDIR}${_page:T:E}${MANSUBDIR}
 .if !empty(MLINKS)
 STAGE_SETS+= mlinks
 STAGE_TARGETS+= stage_links
-STAGE_LINKS.mlinks:= ${MLINKS:@f@${f:S,^,${MANDIR}${f:E}${MANSUBDIR}/,}@}
+STAGE_LINKS.mlinks:= ${MLINKS:M*.[1-9]:@f@${f:S,^,${MANDIR}${f:E}${MANSUBDIR}/,}@}
 stage_links.mlinks: ${_mansets:@s@stage_files.$s@}
 .endif
 .endif
