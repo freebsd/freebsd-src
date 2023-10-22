@@ -609,7 +609,8 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 	if (error)
 		return (error);
 	NFSCL_INCRSEQID(op->nfso_own->nfsow_seqid, nd);
-	if (!nd->nd_repstat) {
+	if (nd->nd_repstat == 0 || (nd->nd_repstat == NFSERR_DELAY &&
+	    reclaim != 0 && (nd->nd_flag & ND_NOMOREDATA) == 0)) {
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_STATEID +
 		    6 * NFSX_UNSIGNED);
 		op->nfso_stateid.seqid = *tl++;
@@ -681,16 +682,29 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 			goto nfsmout;
 		}
 		NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-		error = nfsv4_loadattr(nd, NULL, &nfsva, NULL,
-		    NULL, 0, NULL, NULL, NULL, NULL, NULL, 0,
-		    NULL, NULL, NULL, p, cred);
-		if (error)
-			goto nfsmout;
-		if (ndp != NULL) {
-			ndp->nfsdl_change = nfsva.na_filerev;
-			ndp->nfsdl_modtime = nfsva.na_mtime;
-			ndp->nfsdl_flags |= NFSCLDL_MODTIMESET;
+		/* If the 2nd element == NFS_OK, the Getattr succeeded. */
+		if (*++tl == 0) {
+			KASSERT(nd->nd_repstat == 0,
+			    ("nfsrpc_openrpc: Getattr repstat"));
+			error = nfsv4_loadattr(nd, NULL, &nfsva, NULL,
+			    NULL, 0, NULL, NULL, NULL, NULL, NULL, 0,
+			    NULL, NULL, NULL, p, cred);
+			if (error)
+				goto nfsmout;
 		}
+		if (ndp != NULL) {
+			if (reclaim != 0 && dp != NULL) {
+				ndp->nfsdl_change = dp->nfsdl_change;
+				ndp->nfsdl_modtime = dp->nfsdl_modtime;
+				ndp->nfsdl_flags |= NFSCLDL_MODTIMESET;
+			} else if (nd->nd_repstat == 0) {
+				ndp->nfsdl_change = nfsva.na_filerev;
+				ndp->nfsdl_modtime = nfsva.na_mtime;
+				ndp->nfsdl_flags |= NFSCLDL_MODTIMESET;
+			} else
+				ndp->nfsdl_flags |= NFSCLDL_RECALL;
+		}
+		nd->nd_repstat = 0;
 		if (!reclaim && (rflags & NFSV4OPEN_RESULTCONFIRM)) {
 		    do {
 			ret = nfsrpc_openconfirm(vp, newfhp, newfhlen, op,
