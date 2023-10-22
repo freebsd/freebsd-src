@@ -574,6 +574,8 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
 		    m->lock_object.lo_name, (void *)m->mtx_lock, file, line);
 
+	THREAD_CONTENDS_ON_LOCK(&m->lock_object);
+
 	for (;;) {
 		if (v == MTX_UNOWNED) {
 			if (_mtx_obtain_lock_fetch(m, &v, tid))
@@ -670,6 +672,7 @@ retry_turnstile:
 #endif
 		v = MTX_READ_VALUE(m);
 	}
+	THREAD_CONTENTION_DONE(&m->lock_object);
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
 	if (__predict_true(!doing_lockprof))
 		return;
