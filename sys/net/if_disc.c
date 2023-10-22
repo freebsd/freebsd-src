@@ -180,7 +180,7 @@ discoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	M_ASSERTPKTHDR(m);
 
 	/* BPF writes need to be handled specially. */
-	if (dst->sa_family == AF_UNSPEC)
+	if (dst->sa_family == AF_UNSPEC || dst->sa_family == pseudo_AF_HDRCMPLT)
 		bcopy(dst->sa_data, &af, sizeof(af));
 	else
 		af = RO_GET_FAMILY(ro, dst);

@@ -2196,7 +2196,8 @@ wg_output(if_t ifp, struct mbuf *m, const struct sockaddr *dst, struct route *ro
 	int ret;
 	struct mbuf *defragged;
 
-	if (dst->sa_family == AF_UNSPEC)
+	/* BPF writes need to be handled specially. */
+	if (dst->sa_family == AF_UNSPEC || dst->sa_family == pseudo_AF_HDRCMPLT)
 		memcpy(&af, dst->sa_data, sizeof(af));
 	else
 		af = dst->sa_family;
