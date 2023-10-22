@@ -314,8 +314,8 @@ struct thread {
 	struct osd	td_osd;		/* (k) Object specific data. */
 	struct vm_map_entry *td_map_def_user; /* (k) Deferred entries. */
 	pid_t		td_dbg_forked;	/* (c) Child pid for debugger. */
-	struct vnode	*td_vp_reserved;/* (k) Preallocated vnode. */
 	u_int		td_no_sleeping;	/* (k) Sleeping disabled count. */
+	struct vnode	*td_vp_reserved;/* (k) Preallocated vnode. */
 	void		*td_su;		/* (k) FFS SU private */
 	sbintime_t	td_sleeptimo;	/* (t) Sleep timeout. */
 	int		td_rtcgen;	/* (s) rtc_generation of abs. sleep */
