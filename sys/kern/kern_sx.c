@@ -653,6 +653,8 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 	GIANT_SAVE(extra_work);
 #endif
 
+	THREAD_CONTENDS_ON_LOCK(&sx->lock_object);
+
 	for (;;) {
 		if (x == SX_LOCK_UNLOCKED) {
 			if (atomic_fcmpset_acq_ptr(&sx->sx_lock, &x, tid))
@@ -872,6 +874,7 @@ retry_sleepq:
 			    __func__, sx);
 		x = SX_READ_VALUE(sx);
 	}
+	THREAD_CONTENTION_DONE(&sx->lock_object);
 	if (__predict_true(!extra_work))
 		return (error);
 #ifdef ADAPTIVE_SX
@@ -1074,6 +1077,8 @@ _sx_slock_hard(struct sx *sx, int opts, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 	GIANT_SAVE(extra_work);
 #endif
 
+	THREAD_CONTENDS_ON_LOCK(&sx->lock_object);
+
 	/*
 	 * As with rwlocks, we don't make any attempt to try to block
 	 * shared locks once there is an exclusive waiter.
@@ -1224,6 +1229,7 @@ retry_sleepq:
 			    __func__, sx);
 		x = SX_READ_VALUE(sx);
 	}
+	THREAD_CONTENTION_DONE(&sx->lock_object);
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
 	if (__predict_true(!extra_work))
 		return (error);
