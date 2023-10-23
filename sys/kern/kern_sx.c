@@ -864,7 +864,7 @@ retry_sleepq:
 			sleepq_wait(&sx->lock_object, 0);
 		else
 			error = sleepq_wait_sig(&sx->lock_object, 0);
-		THREAD_CONTENTION_DONE(&sx->lock_object);
+		THREAD_CONTENDS_ON_LOCK(&sx->lock_object);
 #ifdef KDTRACE_HOOKS
 		sleep_time += lockstat_nsecs(&sx->lock_object);
 		sleep_cnt++;
