@@ -484,10 +484,19 @@ scmi_process_response(struct scmi_softc *sc, uint32_t hdr)
 
 	mtx_lock_spin(&req->mtx);
 	req->done = true;
-	if (!req->timed_out)
-		wakeup(req);
-	else
+	if (!req->timed_out) {
+		/*
+		 * Consider the case in which a polled message is picked
+		 * by chance on the IRQ path on another CPU: setting poll_done
+		 * will terminate the other poll loop.
+		 */
+		if (!req->msg.polling)
+			wakeup(req);
+		else
+			atomic_store_rel_int(&req->msg.poll_done, 1);
+	} else {
 		timed_out = true;
+	}
 	mtx_unlock_spin(&req->mtx);
 
 	if (timed_out)

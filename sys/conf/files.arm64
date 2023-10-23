@@ -275,6 +275,7 @@ dev/firmware/arm/scmi_clk.c			optional fdt scmi
 dev/firmware/arm/scmi_if.m			optional fdt scmi
 dev/firmware/arm/scmi_mailbox.c			optional fdt scmi
 dev/firmware/arm/scmi_smc.c			optional fdt scmi
+dev/firmware/arm/scmi_virtio.c			optional fdt scmi
 dev/firmware/arm/scmi_shmem.c			optional fdt scmi
 
 dev/gpio/pl061.c				optional pl061 gpio
