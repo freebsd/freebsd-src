@@ -184,6 +184,8 @@ typedef bool_t	rpc_gss_get_principal_name_ftype(rpc_gss_principal_t *principal,
 typedef int	rpc_gss_svc_max_data_length_ftype(struct svc_req *req,
 		    int max_tp_unit_len);
 typedef void	rpc_gss_refresh_auth_ftype(AUTH *auth);
+typedef bool_t	rpc_gss_ip_to_srv_principal_ftype(char *ip_addr,
+		    const char *srv_name, char *dns_name);
 
 struct rpc_gss_entries {
 	rpc_gss_secfind_ftype		*rpc_gss_secfind;
@@ -206,6 +208,7 @@ struct rpc_gss_entries {
 	rpc_gss_get_principal_name_ftype *rpc_gss_get_principal_name;
 	rpc_gss_svc_max_data_length_ftype *rpc_gss_svc_max_data_length;
 	rpc_gss_refresh_auth_ftype	*rpc_gss_refresh_auth;
+	rpc_gss_ip_to_srv_principal_ftype *rpc_gss_ip_to_srv_principal;
 };
 extern struct rpc_gss_entries	rpc_gss_entries;
 
@@ -417,6 +420,18 @@ rpc_gss_refresh_auth_call(AUTH *auth)
 		(*rpc_gss_entries.rpc_gss_refresh_auth)(auth);
 }
 
+static __inline bool_t
+rpc_gss_ip_to_srv_principal_call(char *ip_addr, const char *srv_name,
+    char *dns_name)
+{
+	bool_t ret = FALSE;
+
+	if (rpc_gss_entries.rpc_gss_ip_to_srv_principal != NULL)
+		ret = (*rpc_gss_entries.rpc_gss_ip_to_srv_principal)(ip_addr,
+		    srv_name, dns_name);
+	return (ret);
+}
+
 AUTH	*rpc_gss_secfind(CLIENT *clnt, struct ucred *cred,
     const char *principal, gss_OID mech_oid, rpc_gss_service_t service);
 void	rpc_gss_secpurge(CLIENT *clnt);
@@ -455,6 +470,8 @@ void rpc_gss_clear_callback(rpc_gss_callback_t *cb);
 bool_t	rpc_gss_get_principal_name(rpc_gss_principal_t *principal,
     const char *mech, const char *name, const char *node, const char *domain);
 int	rpc_gss_svc_max_data_length(struct svc_req *req, int max_tp_unit_len);
+bool_t	rpc_gss_ip_to_srv_principal(char *ip_addr, const char *srv_name,
+    char *dns_name);
 
 /*
  * Internal interface from the RPC implementation.

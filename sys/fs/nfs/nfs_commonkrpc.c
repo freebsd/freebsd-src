@@ -599,10 +599,14 @@ nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
 		else
 			svc = rpc_gss_svc_privacy;
 
-		if (clnt_principal == NULL)
+		if (clnt_principal == NULL) {
+			NFSCL_DEBUG(1, "nfs_getauth: clnt princ=NULL, "
+			    "srv princ=%s\n", srv_principal);
 			auth = rpc_gss_secfind_call(nrp->nr_client, cred,
 			    srv_principal, mech_oid, svc);
-		else {
+		} else {
+			NFSCL_DEBUG(1, "nfs_getauth: clnt princ=%s "
+			    "srv princ=%s\n", clnt_principal, srv_principal);
 			auth = rpc_gss_seccreate_call(nrp->nr_client, cred,
 			    clnt_principal, srv_principal, "kerberosv5",
 			    svc, NULL, NULL, NULL);
@@ -799,7 +803,10 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 			secflavour = RPCSEC_GSS_KRB5P;
 		else
 			secflavour = RPCSEC_GSS_KRB5;
-		srv_principal = NFSMNT_SRVKRBNAME(nmp);
+		if (nrp->nr_srvprinc[0] == '\0')
+			srv_principal = NFSMNT_SRVKRBNAME(nmp);
+		else
+			srv_principal = nrp->nr_srvprinc;
 	} else if (nmp != NULL && (!NFSHASKERB(nmp) || NFSHASSYSKRB5(nmp)) &&
 	    nd->nd_procnum != NFSPROC_NULL &&
 	    (nd->nd_flag & ND_USEGSSNAME) != 0) {

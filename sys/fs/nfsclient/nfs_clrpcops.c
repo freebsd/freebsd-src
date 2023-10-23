@@ -6014,7 +6014,27 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_in *sin,
 		sad->sin_family = AF_INET;
 		sad->sin_port = sin->sin_port;
 		sad->sin_addr.s_addr = sin->sin_addr.s_addr;
-		nrp = malloc(sizeof(*nrp), M_NFSSOCKREQ, M_WAITOK | M_ZERO);
+		if (NFSHASPNFS(nmp) && NFSHASKERB(nmp)) {
+			/* For pNFS, a separate server principal is needed. */
+			nrp = malloc(sizeof(*nrp) + NI_MAXSERV + NI_MAXHOST,
+			    M_NFSSOCKREQ, M_WAITOK | M_ZERO);
+			/*
+			 * Use the latter part of nr_srvprinc as a temporary
+			 * buffer for the IP address.
+			 */
+			inet_ntoa_r(sad->sin_addr,
+			    &nrp->nr_srvprinc[NI_MAXSERV]);
+			NFSCL_DEBUG(1, "nfsrpc_fillsa: DS IP=%s\n",
+			    &nrp->nr_srvprinc[NI_MAXSERV]);
+			if (!rpc_gss_ip_to_srv_principal_call(
+			    &nrp->nr_srvprinc[NI_MAXSERV], "nfs",
+			    nrp->nr_srvprinc))
+				nrp->nr_srvprinc[0] = '\0';
+			NFSCL_DEBUG(1, "nfsrpc_fillsa: srv principal=%s\n",
+			    nrp->nr_srvprinc);
+		} else
+			nrp = malloc(sizeof(*nrp), M_NFSSOCKREQ,
+			    M_WAITOK | M_ZERO);
 		nrp->nr_nam = (struct sockaddr *)sad;
 	} else if (af == AF_INET6) {
 		NFSLOCKMNT(nmp);
@@ -6053,7 +6073,27 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_in *sin,
 		sad6->sin6_port = sin6->sin6_port;
 		NFSBCOPY(&sin6->sin6_addr, &sad6->sin6_addr,
 		    sizeof(struct in6_addr));
-		nrp = malloc(sizeof(*nrp), M_NFSSOCKREQ, M_WAITOK | M_ZERO);
+		if (NFSHASPNFS(nmp) && NFSHASKERB(nmp)) {
+			/* For pNFS, a separate server principal is needed. */
+			nrp = malloc(sizeof(*nrp) + NI_MAXSERV + NI_MAXHOST,
+			    M_NFSSOCKREQ, M_WAITOK | M_ZERO);
+			/*
+			 * Use the latter part of nr_srvprinc as a temporary
+			 * buffer for the IP address.
+			 */
+			inet_ntop(AF_INET6, &sad6->sin6_addr,
+			    &nrp->nr_srvprinc[NI_MAXSERV], NI_MAXHOST);
+			NFSCL_DEBUG(1, "nfsrpc_fillsa: DS IP=%s\n",
+			    &nrp->nr_srvprinc[NI_MAXSERV]);
+			if (!rpc_gss_ip_to_srv_principal_call(
+			    &nrp->nr_srvprinc[NI_MAXSERV], "nfs",
+			    nrp->nr_srvprinc))
+				nrp->nr_srvprinc[0] = '\0';
+			NFSCL_DEBUG(1, "nfsrpc_fillsa: srv principal=%s\n",
+			    nrp->nr_srvprinc);
+		} else
+			nrp = malloc(sizeof(*nrp), M_NFSSOCKREQ,
+			    M_WAITOK | M_ZERO);
 		nrp->nr_nam = (struct sockaddr *)sad6;
 	} else
 		return (EPERM);

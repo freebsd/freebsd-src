@@ -338,6 +338,8 @@ kgssapi_modevent(module_t mod, int type, void *data)
 		    rpc_gss_get_principal_name;
 		rpc_gss_entries.rpc_gss_svc_max_data_length =
 		    rpc_gss_svc_max_data_length;
+		rpc_gss_entries.rpc_gss_ip_to_srv_principal =
+		    rpc_gss_ip_to_srv_principal;
 		mtx_init(&kgss_gssd_lock, "kgss_gssd_lock", NULL, MTX_DEF);
 		error = kgss_load();
 		break;

@@ -32,6 +32,7 @@
 %#include <kgssapi/gssapi.h>
 %#else
 %#include <gssapi/gssapi.h>
+%#include <netdb.h>
 %#endif
 
 %extern bool_t xdr_gss_buffer_desc(XDR *xdrs, gss_buffer_desc *buf);
@@ -218,6 +219,16 @@ struct display_status_args {
        uint32_t		message_context;
 };
 
+struct ip_to_dns_res {
+	uint32_t	major_status;
+	uint32_t	minor_status;
+	char		dns_name<NI_MAXHOST>;
+};
+
+struct ip_to_dns_args {
+	char		ip_addr<NI_MAXHOST>;
+};
+
 program GSSD {
 	version GSSDVERS {
 		void GSSD_NULL(void) = 0;
@@ -260,5 +271,8 @@ program GSSD {
 
 		display_status_res
 		GSSD_DISPLAY_STATUS(display_status_args) = 13;
+
+		ip_to_dns_res
+		GSSD_IP_TO_DNS(ip_to_dns_args) = 14;
 	} = 1;
 } = 0x40677373;
