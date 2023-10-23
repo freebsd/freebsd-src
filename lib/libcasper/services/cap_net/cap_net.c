@@ -1232,7 +1232,7 @@ verify_name2addr_newlimits(const nvlist_t *oldlimits,
 	oldfunclimits = NULL;
 	if (oldlimits != NULL) {
 		oldfunclimits = dnvlist_get_nvlist(oldlimits,
-		    LIMIT_NV_ADDR2NAME, NULL);
+		    LIMIT_NV_NAME2ADDR, NULL);
 	}
 
 	cookie = NULL;
