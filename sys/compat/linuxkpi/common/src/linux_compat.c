@@ -142,7 +142,8 @@ static void linux_cdev_deref(struct linux_cdev *ldev);
 static struct vm_area_struct *linux_cdev_handle_find(void *handle);
 
 cpumask_t cpu_online_mask;
-static cpumask_t static_single_cpu_mask[MAXCPU];
+static cpumask_t **static_single_cpu_mask;
+static cpumask_t *static_single_cpu_mask_lcs;
 struct kobject linux_class_root;
 struct device linux_root_device;
 struct class linux_class_misc;
@@ -2594,17 +2595,19 @@ io_mapping_create_wc(resource_size_t base, unsigned long size)
 #if defined(__i386__) || defined(__amd64__)
 bool linux_cpu_has_clflush;
 struct cpuinfo_x86 boot_cpu_data;
-struct cpuinfo_x86 __cpu_data[MAXCPU];
+struct cpuinfo_x86 *__cpu_data;
 #endif
 
 cpumask_t *
 lkpi_get_static_single_cpu_mask(int cpuid)
 {
 
-	KASSERT((cpuid >= 0 && cpuid < MAXCPU), ("%s: invalid cpuid %d\n",
+	KASSERT((cpuid >= 0 && cpuid <= mp_maxid), ("%s: invalid cpuid %d\n",
+	    __func__, cpuid));
+	KASSERT(!CPU_ABSENT(cpuid), ("%s: cpu with cpuid %d is absent\n",
 	    __func__, cpuid));
 
-	return (&static_single_cpu_mask[cpuid]);
+	return (static_single_cpu_mask[cpuid]);
 }
 
 bool
@@ -2659,7 +2662,9 @@ linux_compat_init(void *arg)
 	boot_cpu_data.x86_model = CPUID_TO_MODEL(cpu_id);
 	boot_cpu_data.x86_vendor = x86_vendor;
 
-	for (i = 0; i < MAXCPU; i++) {
+	__cpu_data = mallocarray(mp_maxid + 1,
+	    sizeof(*__cpu_data), M_KMALLOC, M_WAITOK | M_ZERO);
+	CPU_FOREACH(i) {
 		__cpu_data[i].x86_clflush_size = cpu_clflush_line_size;
 		__cpu_data[i].x86_max_cores = mp_ncpus;
 		__cpu_data[i].x86 = CPUID_TO_FAMILY(cpu_id);
@@ -2695,13 +2700,92 @@ linux_compat_init(void *arg)
 	CPU_COPY(&all_cpus, &cpu_online_mask);
 	/*
 	 * Generate a single-CPU cpumask_t for each CPU (possibly) in the system.
-	 * CPUs are indexed from 0..(MAXCPU-1).  The entry for cpuid 0 will only
+	 * CPUs are indexed from 0..(mp_maxid).  The entry for cpuid 0 will only
 	 * have itself in the cpumask, cupid 1 only itself on entry 1, and so on.
 	 * This is used by cpumask_of() (and possibly others in the future) for,
 	 * e.g., drivers to pass hints to irq_set_affinity_hint().
 	 */
-	for (i = 0; i < MAXCPU; i++)
-		CPU_SET(i, &static_single_cpu_mask[i]);
+	static_single_cpu_mask = mallocarray(mp_maxid + 1,
+	    sizeof(static_single_cpu_mask), M_KMALLOC, M_WAITOK | M_ZERO);
+
+	/*
+	 * When the number of CPUs reach a threshold, we start to save memory
+	 * given the sets are static by overlapping those having their single
+	 * bit set at same position in a bitset word.  Asymptotically, this
+	 * regular scheme is in O(n²) whereas the overlapping one is in O(n)
+	 * only with n being the maximum number of CPUs, so the gain will become
+	 * huge quite quickly.  The threshold for 64-bit architectures is 128
+	 * CPUs.
+	 */
+	if (mp_ncpus < (2 * _BITSET_BITS)) {
+		cpumask_t *sscm_ptr;
+
+		/*
+		 * This represents 'mp_ncpus * __bitset_words(CPU_SETSIZE) *
+		 * (_BITSET_BITS / 8)' bytes (for comparison with the
+		 * overlapping scheme).
+		 */
+		static_single_cpu_mask_lcs = mallocarray(mp_ncpus,
+		    sizeof(*static_single_cpu_mask_lcs),
+		    M_KMALLOC, M_WAITOK | M_ZERO);
+
+		sscm_ptr = static_single_cpu_mask_lcs;
+		CPU_FOREACH(i) {
+			static_single_cpu_mask[i] = sscm_ptr++;
+			CPU_SET(i, static_single_cpu_mask[i]);
+		}
+	} else {
+		/* Pointer to a bitset word. */
+		__typeof(((cpuset_t *)NULL)->__bits[0]) *bwp;
+
+		/*
+		 * Allocate memory for (static) spans of 'cpumask_t' ('cpuset_t'
+		 * really) with a single bit set that can be reused for all
+		 * single CPU masks by making them start at different offsets.
+		 * We need '__bitset_words(CPU_SETSIZE) - 1' bitset words before
+		 * the word having its single bit set, and the same amount
+		 * after.
+		 */
+		static_single_cpu_mask_lcs = mallocarray(_BITSET_BITS,
+		    (2 * __bitset_words(CPU_SETSIZE) - 1) * (_BITSET_BITS / 8),
+		    M_KMALLOC, M_WAITOK | M_ZERO);
+
+		/*
+		 * We rely below on cpuset_t and the bitset generic
+		 * implementation assigning words in the '__bits' array in the
+		 * same order of bits (i.e., little-endian ordering, not to be
+		 * confused with machine endianness, which concerns bits in
+		 * words and other integers).  This is an imperfect test, but it
+		 * will detect a change to big-endian ordering.
+		 */
+		_Static_assert(
+		    __bitset_word(_BITSET_BITS + 1, _BITSET_BITS) == 1,
+		    "Assumes a bitset implementation that is little-endian "
+		    "on its words");
+
+		/* Initialize the single bit of each static span. */
+		bwp = (__typeof(bwp))static_single_cpu_mask_lcs +
+		    (__bitset_words(CPU_SETSIZE) - 1);
+		for (i = 0; i < _BITSET_BITS; i++) {
+			CPU_SET(i, (cpuset_t *)bwp);
+			bwp += (2 * __bitset_words(CPU_SETSIZE) - 1);
+		}
+
+		/*
+		 * Finally set all CPU masks to the proper word in their
+		 * relevant span.
+		 */
+		CPU_FOREACH(i) {
+			bwp = (__typeof(bwp))static_single_cpu_mask_lcs;
+			/* Find the non-zero word of the relevant span. */
+			bwp += (2 * __bitset_words(CPU_SETSIZE) - 1) *
+			    (i % _BITSET_BITS) +
+			    __bitset_words(CPU_SETSIZE) - 1;
+			/* Shift to find the CPU mask start. */
+			bwp -= (i / _BITSET_BITS);
+			static_single_cpu_mask[i] = (cpuset_t *)bwp;
+		}
+	}
 
 	strlcpy(init_uts_ns.name.release, osrelease, sizeof(init_uts_ns.name.release));
 }
@@ -2713,6 +2797,12 @@ linux_compat_uninit(void *arg)
 	linux_kobject_kfree_name(&linux_class_root);
 	linux_kobject_kfree_name(&linux_root_device.kobj);
 	linux_kobject_kfree_name(&linux_class_misc.kobj);
+
+	free(static_single_cpu_mask_lcs, M_KMALLOC);
+	free(static_single_cpu_mask, M_KMALLOC);
+#if defined(__i386__) || defined(__amd64__)
+	free(__cpu_data, M_KMALLOC);
+#endif
 
 	mtx_destroy(&vmmaplock);
 	spin_lock_destroy(&pci_lock);

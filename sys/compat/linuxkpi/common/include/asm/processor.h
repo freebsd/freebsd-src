@@ -54,7 +54,7 @@ struct cpuinfo_x86 {
 };
 
 extern struct cpuinfo_x86	boot_cpu_data;
-extern struct cpuinfo_x86	__cpu_data[];
+extern struct cpuinfo_x86	*__cpu_data;
 #define	cpu_data(cpu)	__cpu_data[cpu]
 #endif
 
