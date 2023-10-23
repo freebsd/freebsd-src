@@ -854,10 +854,17 @@ retry_sleepq:
 		sleepq_add(&sx->lock_object, NULL, sx->lock_object.lo_name,
 		    SLEEPQ_SX | ((opts & SX_INTERRUPTIBLE) ?
 		    SLEEPQ_INTERRUPTIBLE : 0), SQ_EXCLUSIVE_QUEUE);
+		/*
+		 * Hack: this can land in thread_suspend_check which will
+		 * conditionally take a mutex, tripping over an assert if a
+		 * lock we are waiting for is set.
+		 */
+		THREAD_CONTENTION_DONE(&sx->lock_object);
 		if (!(opts & SX_INTERRUPTIBLE))
 			sleepq_wait(&sx->lock_object, 0);
 		else
 			error = sleepq_wait_sig(&sx->lock_object, 0);
+		THREAD_CONTENTION_DONE(&sx->lock_object);
 #ifdef KDTRACE_HOOKS
 		sleep_time += lockstat_nsecs(&sx->lock_object);
 		sleep_cnt++;
@@ -1209,10 +1216,17 @@ retry_sleepq:
 		sleepq_add(&sx->lock_object, NULL, sx->lock_object.lo_name,
 		    SLEEPQ_SX | ((opts & SX_INTERRUPTIBLE) ?
 		    SLEEPQ_INTERRUPTIBLE : 0), SQ_SHARED_QUEUE);
+		/*
+		 * Hack: this can land in thread_suspend_check which will
+		 * conditionally take a mutex, tripping over an assert if a
+		 * lock we are waiting for is set.
+		 */
+		THREAD_CONTENTION_DONE(&sx->lock_object);
 		if (!(opts & SX_INTERRUPTIBLE))
 			sleepq_wait(&sx->lock_object, 0);
 		else
 			error = sleepq_wait_sig(&sx->lock_object, 0);
+		THREAD_CONTENDS_ON_LOCK(&sx->lock_object);
 #ifdef KDTRACE_HOOKS
 		sleep_time += lockstat_nsecs(&sx->lock_object);
 		sleep_cnt++;
