@@ -27,12 +27,11 @@
  *
  */
 
-#include <sys/cdefs.h>
-
 #include <sys/param.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/ucred.h>
 
 #include <net/pfvar.h>
 
