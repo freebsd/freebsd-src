@@ -423,12 +423,25 @@ dsl_dir_alloc(zfs_opt_t *zfs, const char *name)
 	return (dir);
 }
 
-void
+static void
 dsl_dir_size_add(zfs_dsl_dir_t *dir, uint64_t bytes)
 {
 	dir->phys->dd_used_bytes += bytes;
 	dir->phys->dd_compressed_bytes += bytes;
 	dir->phys->dd_uncompressed_bytes += bytes;
+}
+
+/*
+ * See dsl_dir_root_finalize().
+ */
+void
+dsl_dir_root_finalize(zfs_opt_t *zfs, uint64_t bytes)
+{
+	dsl_dir_size_add(zfs->mosdsldir, bytes);
+	zfs->mosdsldir->phys->dd_used_breakdown[DD_USED_HEAD] += bytes;
+
+	dsl_dir_size_add(zfs->rootdsldir, bytes);
+	zfs->rootdsldir->phys->dd_used_breakdown[DD_USED_CHILD] += bytes;
 }
 
 /*
@@ -520,7 +533,8 @@ dsl_dir_finalize(zfs_opt_t *zfs, zfs_dsl_dir_t *dir, void *arg __unused)
 		 * The root directory needs a special case: the amount of
 		 * space used for the MOS isn't known until everything else is
 		 * finalized, so it can't be accounted in the MOS directory's
-		 * parent until then.
+		 * parent until then, at which point dsl_dir_root_finalize() is
+		 * called.
 		 */
 		if (dir == zfs->rootdsldir && cdir == zfs->mosdsldir)
 			continue;
