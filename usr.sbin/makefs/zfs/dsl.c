@@ -482,7 +482,7 @@ dsl_dir_finalize(zfs_opt_t *zfs, zfs_dsl_dir_t *dir, void *arg __unused)
 	dnode_phys_t *snapnames;
 	zfs_dsl_dataset_t *headds;
 	zfs_objset_t *os;
-	uint64_t bytes, snapnamesid;
+	uint64_t bytes, childbytes, snapnamesid;
 
 	dsl_dir_finalize_props(dir);
 	zap_write(zfs, dir->propszap);
@@ -514,6 +514,7 @@ dsl_dir_finalize(zfs_opt_t *zfs, zfs_dsl_dir_t *dir, void *arg __unused)
 	headds->phys->ds_uncompressed_bytes = bytes;
 	headds->phys->ds_compressed_bytes = bytes;
 
+	childbytes = 0;
 	STAILQ_FOREACH(cdir, &dir->children, next) {
 		/*
 		 * The root directory needs a special case: the amount of
@@ -523,9 +524,13 @@ dsl_dir_finalize(zfs_opt_t *zfs, zfs_dsl_dir_t *dir, void *arg __unused)
 		 */
 		if (dir == zfs->rootdsldir && cdir == zfs->mosdsldir)
 			continue;
-		bytes += cdir->phys->dd_used_bytes;
+		childbytes += cdir->phys->dd_used_bytes;
 	}
-	dsl_dir_size_add(dir, bytes);
+	dsl_dir_size_add(dir, bytes + childbytes);
+
+	dir->phys->dd_flags |= DD_FLAG_USED_BREAKDOWN;
+	dir->phys->dd_used_breakdown[DD_USED_HEAD] = bytes;
+	dir->phys->dd_used_breakdown[DD_USED_CHILD] = childbytes;
 }
 
 void
