@@ -51,7 +51,7 @@ f_include_lang $BSDCFG_LIBE/include/messages.subr
 # Default name of dialog(1) utility
 # NOTE: This is changed to "Xdialog" by the optional `-X' argument
 #
-DIALOG="dialog"
+DIALOG="bsddialog"
 
 #
 # Default dialog(1) title and backtitle text
@@ -82,6 +82,15 @@ DIALOG_EXTRA=3
 DIALOG_ITEM_HELP=4
 export DIALOG_ERROR=254 # sh(1) can't handle the default of `-1'
 DIALOG_ESC=255
+
+#
+# Set bsddialog(1) compatibility with dialog(1): exit codes and use_shadow
+#
+export BSDDIALOG_TIMEOUT=0
+export BSDDIALOG_ITEM_HELP=4
+export BSDDIALOG_ERROR=254
+export BSDDIALOG_ESC=255
+export BSDDIALOG_COMPATRC=".dialogrc"
 
 #
 # Default behavior is to call f_dialog_init() automatically when loaded.
@@ -2229,7 +2238,7 @@ f_dialog_init()
 	if ! f_have $DIALOG; then
 		unset USE_XDIALOG
 		local failed_dialog="$DIALOG"
-		DIALOG=dialog
+		DIALOG=bsddialog
 		f_die 1 "$msg_no_such_file_or_directory" "$pgm" "$failed_dialog"
 	fi
 
@@ -2261,7 +2270,7 @@ f_dialog_init()
 		if ! f_have xauth; then
 			# Die gracefully, as we [likely] can't use Xdialog(1)
 			unset USE_XDIALOG
-			DIALOG=dialog
+			DIALOG=bsddialog
 			f_die 1 "$msg_no_such_file_or_directory" "$pgm" "xauth"
 		fi
 		HOSTNAME=$( hostname )
@@ -2288,7 +2297,7 @@ f_dialog_init()
 			local height width
 			f_dialog_buttonbox_size height width \
 				"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$maxsize"
-			dialog \
+			bsddialog \
 				--title "$DIALOG_TITLE"         \
 				--backtitle "$DIALOG_BACKTITLE" \
 				--ok-label "$msg_ok"            \

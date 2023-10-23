@@ -369,7 +369,7 @@ f_show_info()
 	if f_have f_dialog_info; then
 		f_dialog_info "$msg"
 	else
-		dialog --infobox "$msg" 0 0
+		bsddialog --infobox "$msg" 0 0
 	fi
 }
 
@@ -390,7 +390,7 @@ f_show_msg()
 	if f_have f_dialog_msgbox; then
 		f_dialog_msgbox "$msg"
 	else
-		dialog --msgbox "$msg" 0 0
+		bsddialog --msgbox "$msg" 0 0
 	fi
 }
 
@@ -433,7 +433,7 @@ f_yesno()
 	if f_have f_dialog_yesno; then
 		f_dialog_yesno "$msg"
 	else
-		dialog --yesno "$msg" 0 0
+		bsddialog --yesno "$msg" 0 0
 	fi
 }
 
@@ -455,7 +455,7 @@ f_noyes()
 	if f_have f_dialog_noyes; then
 		f_dialog_noyes "$msg"
 	else
-		dialog --defaultno --yesno "$msg" 0 0
+		bsddialog --defaultno --yesno "$msg" 0 0
 	fi
 }
 
@@ -486,7 +486,7 @@ f_show_help()
 	if f_have f_dialog_textbox; then
 		f_dialog_textbox "$file"
 	else
-		dialog --msgbox "$( cat "$file" 2>&1 )" 0 0
+		bsddialog --msgbox "$( cat "$file" 2>&1 )" 0 0
 	fi
 }
 
