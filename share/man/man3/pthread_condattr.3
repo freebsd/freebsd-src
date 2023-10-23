@@ -24,7 +24,7 @@
 .\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 .\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd May 31, 2016
+.Dd October 27, 2023
 .Dt PTHREAD_CONDATTR 3
 .Os
 .Sh NAME
@@ -112,6 +112,10 @@ threads in the same process as the one that created the object.
 The condition variable it is attached to may be accessed by
 threads in processes other than the one that created the object.
 .El
+See
+.Xr libthr 3
+for details of the implementation of shared condition variables,
+and their limitations.
 .Sh RETURN VALUES
 If successful, these functions return 0.
 Otherwise, an error number is returned to indicate the error.
@@ -153,6 +157,7 @@ The value specified in
 is not one of the allowed values.
 .El
 .Sh SEE ALSO
+.Xr libthr 3 ,
 .Xr pthread_cond_init 3 ,
 .Xr pthread_cond_timedwait 3
 .Sh STANDARDS
