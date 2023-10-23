@@ -132,6 +132,26 @@ all threads waiting on any mutex owned by this thread.
 .El
 .Pp
 The
+.Fn pthread_mutexattr_setpshared
+function sets the process-shared attribute of
+.Fa attr
+to the value specified in
+.Fa pshared .
+The argument
+.Fa pshared
+may have one of the following values:
+.Bl -tag -width ".Dv PTHREAD_PROCESS_PRIVATE"
+.It Dv PTHREAD_PROCESS_PRIVATE
+The mutex may only be used by threads in the same process as the one
+that created the object.
+.It Dv PTHREAD_PROCESS_SHARED
+The mutex may be used by
+threads in processes other than the one that created the object,
+assuming other processes share access to the memory where the mutex
+was allocated.
+.El
+.Pp
+The
 .Fn pthread_mutexattr_setrobust
 function specifies robustness attribute of the mutex.
 Possible values for the
