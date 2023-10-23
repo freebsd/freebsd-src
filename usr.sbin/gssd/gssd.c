@@ -33,6 +33,7 @@
 #include <sys/linker.h>
 #include <sys/module.h>
 #include <sys/queue.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <ctype.h>
@@ -42,6 +43,7 @@
 #ifndef WITHOUT_KERBEROS
 #include <krb5.h>
 #endif
+#include <netdb.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -49,6 +51,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <gssapi/gssapi.h>
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
@@ -624,6 +628,51 @@ gssd_import_name_1_svc(import_name_args *argp, import_name_res *result, struct s
 	return (TRUE);
 }
 
+/*
+ * If the name is a numeric IP host address, do a DNS lookup on it and
+ * return the DNS name in a malloc'd string.
+ */
+static char *
+gssd_conv_ip_to_dns(int len, char *name)
+{
+	struct sockaddr_in sin;
+	struct sockaddr_in6 sin6;
+	char *retcp;
+
+	retcp = NULL;
+	if (len > 0) {
+		retcp = mem_alloc(NI_MAXHOST);
+		memcpy(retcp, name, len);
+		retcp[len] = '\0';
+		if (inet_pton(AF_INET, retcp, &sin.sin_addr) != 0) {
+			sin.sin_family = AF_INET;
+			sin.sin_len = sizeof(sin);
+			sin.sin_port = 0;
+			if (getnameinfo((struct sockaddr *)&sin,
+			    sizeof(sin), retcp, NI_MAXHOST,
+			    NULL, 0, NI_NAMEREQD) != 0) {
+				mem_free(retcp, NI_MAXHOST);
+				return (NULL);
+			}
+		} else if (inet_pton(AF_INET6, retcp, &sin6.sin6_addr) != 0) {
+			sin6.sin6_family = AF_INET6;
+			sin6.sin6_len = sizeof(sin6);
+			sin6.sin6_port = 0;
+			if (getnameinfo((struct sockaddr *)&sin6,
+			    sizeof(sin6), retcp, NI_MAXHOST,
+			    NULL, 0, NI_NAMEREQD) != 0) {
+				mem_free(retcp, NI_MAXHOST);
+				return (NULL);
+			}
+		} else {
+			mem_free(retcp, NI_MAXHOST);
+			return (NULL);
+		}
+		gssd_verbose_out("gssd_conv_ip_to_dns: %s\n", retcp);
+	}
+	return (retcp);
+}
+
 bool_t
 gssd_canonicalize_name_1_svc(canonicalize_name_args *argp, canonicalize_name_res *result, struct svc_req *rqstp)
 {
@@ -930,6 +979,25 @@ gssd_display_status_1_svc(display_status_args *argp, display_status_res *result,
 	gssd_verbose_out("gssd_display_status: done major=0x%x minor=%d\n",
 	    (unsigned int)result->major_status, (int)result->minor_status);
 
+	return (TRUE);
+}
+
+bool_t
+gssd_ip_to_dns_1_svc(ip_to_dns_args *argp, ip_to_dns_res *result, struct svc_req *rqstp)
+{
+	char *host;
+
+	memset(result, 0, sizeof(*result));
+	/* Check to see if the name is actually an IP address. */
+	host = gssd_conv_ip_to_dns(argp->ip_addr.ip_addr_len,
+	    argp->ip_addr.ip_addr_val);
+	if (host != NULL) {
+		result->major_status = GSS_S_COMPLETE;
+		result->dns_name.dns_name_len = strlen(host);
+		result->dns_name.dns_name_val = host;
+		return (TRUE);
+	}
+	result->major_status = GSS_S_FAILURE;
 	return (TRUE);
 }
 
