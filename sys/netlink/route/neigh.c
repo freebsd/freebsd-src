@@ -436,17 +436,18 @@ rtnl_handle_newneigh(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *
 	struct llentry *lle_tmp = lla_lookup(llt, LLE_EXCLUSIVE, attrs.nda_dst);
 	if (lle_tmp != NULL) {
 		error = EEXIST;
-		if (hdr->nlmsg_flags & NLM_F_EXCL) {
-			LLE_WUNLOCK(lle_tmp);
-			lle_tmp = NULL;
-		} else if (hdr->nlmsg_flags & NLM_F_REPLACE) {
+		if (hdr->nlmsg_flags & NLM_F_REPLACE) {
+			error = EPERM;
 			if ((lle_tmp->la_flags & LLE_IFADDR) == 0) {
+				error = 0; /* success */
 				lltable_unlink_entry(llt, lle_tmp);
+				llentry_free(lle_tmp);
+				lle_tmp = NULL;
 				lltable_link_entry(llt, lle);
-				error = 0;
-			} else
-				error = EPERM;
+			}
 		}
+		if (lle_tmp)
+			LLE_WUNLOCK(lle_tmp);
 	} else {
 		if (hdr->nlmsg_flags & NLM_F_CREATE)
 			lltable_link_entry(llt, lle);
@@ -456,13 +457,10 @@ rtnl_handle_newneigh(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *
 	IF_AFDATA_WUNLOCK(attrs.nda_ifp);
 
 	if (error != 0) {
-		if (lle != NULL)
-			llentry_free(lle);
+		/* throw away the newly allocated llentry */
+		llentry_free(lle);
 		return (error);
 	}
-
-	if (lle_tmp != NULL)
-		llentry_free(lle_tmp);
 
 	/* XXX: We're inside epoch */
 	EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_RESOLVED);
