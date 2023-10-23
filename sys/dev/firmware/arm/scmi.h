@@ -62,12 +62,14 @@ struct scmi_softc {
 
 struct scmi_msg {
 	bool		polling;
+	int		poll_done;
 	uint32_t	tx_len;
 	uint32_t	rx_len;
 #define SCMI_MSG_HDR_SIZE	(sizeof(uint32_t))
 	uint32_t	hdr;
 	uint8_t		payld[];
 };
+#define hdr_to_msg(h)	__containerof((h), struct scmi_msg, hdr)
 
 void *scmi_buf_get(device_t dev, uint8_t protocol_id, uint8_t message_id,
 		   int tx_payd_sz, int rx_payld_sz);
