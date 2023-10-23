@@ -3983,6 +3983,7 @@ kgssapi/gss_get_mic.c		optional kgssapi
 kgssapi/gss_init_sec_context.c	optional kgssapi
 kgssapi/gss_impl.c		optional kgssapi
 kgssapi/gss_import_name.c	optional kgssapi
+kgssapi/gss_ip_to_dns.c		optional kgssapi
 kgssapi/gss_names.c		optional kgssapi
 kgssapi/gss_pname_to_uid.c	optional kgssapi
 kgssapi/gss_release_buffer.c	optional kgssapi
