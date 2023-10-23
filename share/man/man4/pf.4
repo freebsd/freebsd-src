@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 22, 2023
+.Dd October 20, 2023
 .Dt PF 4
 .Os
 .Sh NAME
@@ -428,65 +428,60 @@ Set the debug level.
 enum	{ PF_DEBUG_NONE, PF_DEBUG_URGENT, PF_DEBUG_MISC,
 	  PF_DEBUG_NOISY };
 .Ed
-.It Dv DIOCGETSTATESNV Fa "struct pfioc_nv *nv"
+.It Dv DIOCGETSTATESV2 Fa "struct pfioc_states_v2 *ps"
 Get state table entries.
 .Bd -literal
-nvlist pf_state_key {
-	nvlist pf_addr	addr[2];
-	number		port[2];
-	number		af;
-	number		proto;
+struct pfioc_states_v2 {
+	int		ps_len;
+	uint64_t	ps_req_version;
+	union {
+		void			*ps_buf;
+		struct pf_state_export	*ps_states;
+	};
 };
 
-nvlist pf_state_scrub {
-	bool	timestamp;
-	number	ttl;
-	number	ts_mod;
-};
-
-nvlist pf_state_peer {
-	nvlist pf_state_scrub	scrub;
-	number			seqlo;
-	number			seqhi;
-	number			seqdiff;
-	number			max_win;
-	number			mss;
-	number			state;
-	number			wscale;
-};
-
-nvlist pf_state {
-	number			id;
-	string			ifname;
-	nvlist pf_state_key	stack_key;
-	nvlist pf_state_key	wire_key;
-	nvlist pf_state_peer	src;
-	nvlist pf_state_peer	dst;
-	nvlist pf_addr		rt_addr;
-	number			rule;
-	number			anchor;
-	number			nat_rule;
-	number			expire;
-	number			packets[2];
-	number			bytes[2];
-	number			creatorid;
-	number			direction;
-	number			log;
-	number			state_flags;
-	number			timeout;
-	number			sync_flags;
-};
-
-nvlist pf_states {
-	number		count;
-	nvlist pf_state	states[];
+struct pf_state_export {
+	uint64_t	 version;
+	uint64_t	 id;
+	char		 ifname[IFNAMSIZ];
+	char		 orig_ifname[IFNAMSIZ];
+	struct pf_state_key_export	 key[2];
+	struct pf_state_peer_export	 src;
+	struct pf_state_peer_export	 dst;
+	struct pf_addr	 rt_addr;
+	uint32_t	 rule;
+	uint32_t	 anchor;
+	uint32_t	 nat_rule;
+	uint32_t	 creation;
+	uint32_t	 expire;
+	uint32_t	 spare0;
+	uint64_t	 packets[2];
+	uint64_t	 bytes[2];
+	uint32_t	 creatorid;
+	uint32_t	 spare1;
+	sa_family_t	 af;
+	uint8_t		 proto;
+	uint8_t		 direction;
+	uint8_t		 log;
+	uint8_t		 state_flags_compat;
+	uint8_t		 timeout;
+	uint8_t		 sync_flags;
+	uint8_t		 updates;
+	uint16_t	 state_flags;
+	uint16_t	 qid;
+	uint16_t	 pqid;
+	uint16_t	 dnpipe;
+	uint16_t	 dnrpipe;
+	int32_t		 rtableid;
+	uint8_t		 min_ttl;
+	uint8_t		 set_tos;
+	uint16_t	 max_mss;
+	uint8_t		 set_prio[2];
+	uint8_t		 rt;
+	char		 rt_ifname[IFNAMSIZ];
+	uint8_t		 spare[72];
 };
 .Ed
-.Pp
-If
-.Va pfioc_nv.size
-is insufficiently large, as many states as possible that can fit into this
-size will be copied into the supplied buffer.
 .It Dv DIOCCHANGERULE Fa "struct pfioc_rule *pcr"
 Add or remove the
 .Va rule
