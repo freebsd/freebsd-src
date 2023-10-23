@@ -196,6 +196,8 @@ pfctl_startstop(int start)
 	    start ? PFNL_CMD_START : PFNL_CMD_STOP);
 
 	hdr = snl_finalize_msg(&nw);
+	if (hdr == NULL)
+		return (ENOMEM);
 	seq_id = hdr->nlmsg_seq;
 
 	snl_send_message(&ss, hdr);
@@ -730,6 +732,8 @@ pfctl_get_eth_ruleset(int dev, const char *path, int nr,
 	strlcpy(ri->name, nvlist_get_string(nvl, "name"),
 	    PF_ANCHOR_NAME_SIZE);
 
+	nvlist_destroy(nvl);
+
 	return (0);
 }
 
@@ -828,8 +832,8 @@ pfctl_add_eth_rule(int dev, const struct pfctl_eth_rule *r, const char *anchor,
 	pfctl_nv_add_rule_addr(nvl, "ipdst", &r->ipdst);
 
 	labelcount = 0;
-	while (r->label[labelcount][0] != 0 &&
-	    labelcount < PF_RULE_MAX_LABEL_COUNT) {
+	while (labelcount < PF_RULE_MAX_LABEL_COUNT &&
+	    r->label[labelcount][0] != 0) {
 		nvlist_append_string_array(nvl, "labels",
 		    r->label[labelcount]);
 		labelcount++;
@@ -1208,6 +1212,8 @@ pfctl_get_creators_nl(struct snl_state *ss, uint32_t *creators, size_t *len)
 	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GETCREATORS);
 	hdr->nlmsg_flags |= NLM_F_DUMP;
 	hdr = snl_finalize_msg(&nw);
+	if (hdr == NULL)
+		return (ENOMEM);
 	uint32_t seq_id = hdr->nlmsg_seq;
 
 	snl_send_message(ss, hdr);
@@ -1362,6 +1368,8 @@ pfctl_get_states_nl(struct pfctl_state_filter *filter, struct snl_state *ss, pfc
 	snl_add_msg_attr_ip6(&nw, PF_ST_FILTER_MASK, &filter->mask.v6);
 
 	hdr = snl_finalize_msg(&nw);
+	if (hdr == NULL)
+		return (ENOMEM);
 
 	uint32_t seq_id = hdr->nlmsg_seq;
 
@@ -1417,7 +1425,7 @@ pfctl_append_states(struct pfctl_state *s, void *arg)
 
 	memcpy(new, s, sizeof(*s));
 
-	TAILQ_INSERT_TAIL(&states->states, s, entry);
+	TAILQ_INSERT_TAIL(&states->states, new, entry);
 
 	return (0);
 }
