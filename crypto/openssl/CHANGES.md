@@ -28,6 +28,14 @@ breaking changes, and mappings for the large list of deprecated functions.
 
 [Migration guide]: https://github.com/openssl/openssl/tree/master/doc/man7/migration_guide.pod
 
+### Changes between 3.0.11 and 3.0.12 [24 Oct 2023]
+
+ * Fix incorrect key and IV resizing issues when calling EVP_EncryptInit_ex2(),
+   EVP_DecryptInit_ex2() or EVP_CipherInit_ex2() with OSSL_PARAM parameters
+   that alter the key or IV length ([CVE-2023-5363]).
+
+   *Paul Dale*
+
 ### Changes between 3.0.10 and 3.0.11 [19 Sep 2023]
 
  * Fix POLY1305 MAC implementation corrupting XMM registers on Windows.
@@ -19732,6 +19740,7 @@ ndif
 
 <!-- Links -->
 
+[CVE-2023-5363]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-5363
 [CVE-2023-4807]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-4807
 [CVE-2023-3817]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-3817
 [CVE-2023-3446]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-3446
