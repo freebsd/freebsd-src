@@ -120,7 +120,7 @@ Reserve the legacy
 .Xr sbrk 2
 region for compatibility with older binaries.
 .It Va kern.elf32.aslr.stack
-If ASLR is enabled for a process, also randomize the stack location.
+Randomize the stack location for 32-bit ELF binaries.
 .El
 .Pp
 Global controls for 64-bit processes:
@@ -135,7 +135,7 @@ Reserve the legacy
 .Xr sbrk 2
 region for compatibility with older binaries.
 .It Va kern.elf64.aslr.stack
-If ASLR is enabled for a process, also randomize the stack location.
+Randomize the stack location for 64-bit ELF binaries.
 .El
 .Pp
 To execute a command with ASLR enabled or disabled:
