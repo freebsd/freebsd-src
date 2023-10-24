@@ -1065,8 +1065,7 @@ position-independent (PIE) 32-bit binaries.
 Makes ASLR less aggressive and more compatible with old binaries
 relying on the sbrk area.
 .It Dv kern.elf32.aslr.stack
-If ASLR is enabled for a binary, a non-zero value enables randomization
-of the stack.
+Enable randomization of the stack for 32-bit binaries.
 Otherwise, the stack is mapped at a fixed location determined by the
 process ABI.
 .It Dv kern.elf64.aslr.enable
