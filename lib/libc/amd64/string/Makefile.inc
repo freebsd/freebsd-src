@@ -17,6 +17,7 @@ MDSRCS+= \
 	strnlen.c \
 	strpbrk.c \
 	strrchr.S \
+	strsep.c \
 	strspn.S \
 	timingsafe_bcmp.S \
 	timingsafe_memcmp.S
