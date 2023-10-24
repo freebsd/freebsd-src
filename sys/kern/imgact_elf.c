@@ -200,7 +200,7 @@ SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, honor_sbrk, CTLFLAG_RW,
     &__elfN(aslr_honor_sbrk), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) ": assume sbrk is used");
 
-static int __elfN(aslr_stack) = 1;
+static int __elfN(aslr_stack) = __ELF_WORD_SIZE == 64;
 SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, stack, CTLFLAG_RWTUN,
     &__elfN(aslr_stack), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
