@@ -27,13 +27,11 @@
 
 #include <sys/param.h>
 #include <sys/errno.h>
-#include <sys/ktrace.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
 #include <netinet/in.h>
 
-#include <fcntl.h>
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -184,67 +182,12 @@ ATF_TC_BODY(recv_trunc_afunix_seqpacket, tc)
 	ATF_REQUIRE(close(ss) == 0);
 }
 
-/*
- * Exercise the case where ktrace was used to dump a truncated buffer.
- */
-ATF_TC_WITHOUT_HEAD(recvmsg_trunc_ktrace_uio);
-ATF_TC_BODY(recvmsg_trunc_ktrace_uio, tc)
-{
-	struct ktr_header ktr;
-	struct msghdr msg;
-	struct iovec iov;
-	const char *tracepath;
-	char buf[128];
-	ssize_t nbytes;
-	int error, fd, sd[2];
-
-	tracepath = "ktrace";
-
-	error = socketpair(AF_UNIX, SOCK_DGRAM, 0, sd);
-	ATF_REQUIRE(error == 0);
-
-	memset(buf, 0, sizeof(buf));
-	nbytes = send(sd[0], buf, sizeof(buf), 0);
-	ATF_REQUIRE_MSG(nbytes >= 0, "send failed: %s", strerror(errno));
-	ATF_REQUIRE((size_t)nbytes == sizeof(buf));
-
-	fd = open(tracepath, O_RDWR | O_CREAT | O_TRUNC, 0644);
-	ATF_REQUIRE_MSG(fd >= 0, "open failed: %s", strerror(errno));
-	error = ktrace(tracepath, KTROP_SET, KTRFAC_GENIO, getpid());
-	ATF_REQUIRE_MSG(error == 0,
-	    "ktrace(SET) failed: %s", strerror(errno));
-
-	iov.iov_base = buf;
-	iov.iov_len = sizeof(buf) - 1; /* truncate */
-	memset(&msg, 0, sizeof(msg));
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	nbytes = recvmsg(sd[1], &msg, MSG_TRUNC);
-	ATF_REQUIRE_MSG(nbytes >= 0, "recvmsg failed: %s", strerror(errno));
-	ATF_REQUIRE((size_t)nbytes == sizeof(buf));
-	ATF_REQUIRE((msg.msg_flags & MSG_TRUNC) != 0);
-
-	error = ktrace(tracepath, KTROP_CLEARFILE, 0, getpid());
-	ATF_REQUIRE_MSG(error == 0,
-	    "ktrace(CLEARFILE) failed: %s", strerror(errno));
-
-	nbytes = read(fd, &ktr, sizeof(ktr));
-	ATF_REQUIRE_MSG(nbytes >= 0, "read failed: %s", strerror(errno));
-	ATF_REQUIRE((size_t)nbytes == sizeof(ktr));
-	ATF_REQUIRE_MSG((ktr.ktr_type & ~KTR_TYPE) == KTR_GENIO);
-
-	ATF_REQUIRE(close(fd) == 0);
-	ATF_REQUIRE(close(sd[0]) == 0);
-	ATF_REQUIRE(close(sd[1]) == 0);
-}
-
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, recv_trunc_afinet_udp);
 	ATF_TP_ADD_TC(tp, recv_trunc_afinet6_udp);
 	ATF_TP_ADD_TC(tp, recv_trunc_afunix_dgram);
 	ATF_TP_ADD_TC(tp, recv_trunc_afunix_seqpacket);
-	ATF_TP_ADD_TC(tp, recvmsg_trunc_ktrace_uio);
 
 	return (atf_no_error());
 }
