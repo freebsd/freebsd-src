@@ -104,7 +104,7 @@ gcm_gmult_v8:
 	movi	v19.16b,#0xe1
 	ld1	{v20.2d,v21.2d},[x1]	//load twisted H, ...
 	shl	v19.2d,v19.2d,#57
-#ifndef __ARMEB__
+#ifndef __AARCH64EB__
 	rev64	v17.16b,v17.16b
 #endif
 	ext	v3.16b,v17.16b,v17.16b,#8
@@ -129,7 +129,7 @@ gcm_gmult_v8:
 	eor	v18.16b,v18.16b,v2.16b
 	eor	v0.16b,v0.16b,v18.16b
 
-#ifndef __ARMEB__
+#ifndef __AARCH64EB__
 	rev64	v0.16b,v0.16b
 #endif
 	ext	v0.16b,v0.16b,v0.16b,#8
@@ -167,14 +167,14 @@ gcm_ghash_v8:
 	ext	v0.16b,v0.16b,v0.16b,#8		//rotate Xi
 	ld1	{v16.2d},[x2],#16	//load [rotated] I[0]
 	shl	v19.2d,v19.2d,#57		//compose 0xc2.0 constant
-#ifndef __ARMEB__
+#ifndef __AARCH64EB__
 	rev64	v16.16b,v16.16b
 	rev64	v0.16b,v0.16b
 #endif
 	ext	v3.16b,v16.16b,v16.16b,#8		//rotate I[0]
 	b.lo	.Lodd_tail_v8		//x3 was less than 32
 	ld1	{v17.2d},[x2],x12	//load [rotated] I[1]
-#ifndef __ARMEB__
+#ifndef __AARCH64EB__
 	rev64	v17.16b,v17.16b
 #endif
 	ext	v7.16b,v17.16b,v17.16b,#8
@@ -206,13 +206,13 @@ gcm_ghash_v8:
 	eor	v18.16b,v0.16b,v2.16b
 	eor	v1.16b,v1.16b,v17.16b
 	ld1	{v17.2d},[x2],x12	//load [rotated] I[i+3]
-#ifndef __ARMEB__
+#ifndef __AARCH64EB__
 	rev64	v16.16b,v16.16b
 #endif
 	eor	v1.16b,v1.16b,v18.16b
 	pmull	v18.1q,v0.1d,v19.1d		//1st phase of reduction
 
-#ifndef __ARMEB__
+#ifndef __AARCH64EB__
 	rev64	v17.16b,v17.16b
 #endif
 	ins	v2.d[0],v1.d[1]
@@ -262,7 +262,7 @@ gcm_ghash_v8:
 	eor	v0.16b,v0.16b,v18.16b
 
 .Ldone_v8:
-#ifndef __ARMEB__
+#ifndef __AARCH64EB__
 	rev64	v0.16b,v0.16b
 #endif
 	ext	v0.16b,v0.16b,v0.16b,#8
@@ -281,7 +281,7 @@ gcm_ghash_v8_4x:
 	shl	v19.2d,v19.2d,#57		//compose 0xc2.0 constant
 
 	ld1	{v4.2d,v5.2d,v6.2d,v7.2d},[x2],#64
-#ifndef __ARMEB__
+#ifndef __AARCH64EB__
 	rev64	v0.16b,v0.16b
 	rev64	v5.16b,v5.16b
 	rev64	v6.16b,v6.16b
@@ -325,7 +325,7 @@ gcm_ghash_v8_4x:
 	eor	v16.16b,v4.16b,v0.16b
 	ld1	{v4.2d,v5.2d,v6.2d,v7.2d},[x2],#64
 	ext	v3.16b,v16.16b,v16.16b,#8
-#ifndef __ARMEB__
+#ifndef __AARCH64EB__
 	rev64	v5.16b,v5.16b
 	rev64	v6.16b,v6.16b
 	rev64	v7.16b,v7.16b
@@ -408,7 +408,7 @@ gcm_ghash_v8_4x:
 	eor	v1.16b,v1.16b,v17.16b
 	ld1	{v4.2d,v5.2d,v6.2d},[x2]
 	eor	v1.16b,v1.16b,v18.16b
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev64	v5.16b,v5.16b
 	rev64	v6.16b,v6.16b
 	rev64	v4.16b,v4.16b
@@ -460,7 +460,7 @@ gcm_ghash_v8_4x:
 	eor	v1.16b,v1.16b,v17.16b
 	ld1	{v4.2d,v5.2d},[x2]
 	eor	v1.16b,v1.16b,v18.16b
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev64	v5.16b,v5.16b
 	rev64	v4.16b,v4.16b
 #endif
@@ -503,7 +503,7 @@ gcm_ghash_v8_4x:
 	eor	v1.16b,v1.16b,v17.16b
 	ld1	{v4.2d},[x2]
 	eor	v1.16b,v1.16b,v18.16b
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev64	v4.16b,v4.16b
 #endif
 
@@ -543,7 +543,7 @@ gcm_ghash_v8_4x:
 	eor	v0.16b,v0.16b,v18.16b
 	ext	v0.16b,v0.16b,v0.16b,#8
 
-#ifndef __ARMEB__
+#ifndef __AARCH64EB__
 	rev64	v0.16b,v0.16b
 #endif
 	st1	{v0.2d},[x0]		//write out Xi
