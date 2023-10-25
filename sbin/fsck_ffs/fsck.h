@@ -376,7 +376,6 @@ extern long secsize;		/* actual disk sector size */
 extern char skipclean;		/* skip clean file systems if preening */
 extern int snapcnt;		/* number of active snapshots */
 extern struct inode snaplist[FSMAXSNAP + 1]; /* list of active snapshots */
-extern char snapname[BUFSIZ];	/* when doing snapshots, the name of the file */
 extern int sujrecovery;		/* 1 => doing check using the journal */
 extern int surrender;		/* Give up if reads fail */
 extern char usedsoftdep;	/* just fix soft dependency inconsistencies */
