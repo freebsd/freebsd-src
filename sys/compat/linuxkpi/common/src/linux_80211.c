@@ -2137,12 +2137,11 @@ lkpi_iv_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	}
 
 	if (error != 0) {
-		/* XXX-BZ currently expected so ignore. */
 		ic_printf(vap->iv_ic, "%s: error %d during state transition "
 		    "%d (%s) -> %d (%s)\n", __func__, error,
 		    ostate, ieee80211_state_name[ostate],
 		    nstate, ieee80211_state_name[nstate]);
-		/* return (error); */
+		return (error);
 	}
 
 #ifdef LINUXKPI_DEBUG_80211
