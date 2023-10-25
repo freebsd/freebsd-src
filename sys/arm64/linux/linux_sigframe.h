@@ -76,7 +76,6 @@ struct l_sigframe {
 	/* frame_record */
 	uint64_t	fp;
 	uint64_t	lr;
-	ucontext_t	uc;
 };
 
 #define	LINUX_MINSIGSTKSZ	roundup(sizeof(struct l_sigframe), 16)
