@@ -1827,50 +1827,52 @@ struct mrs_user_reg {
 	u_int		reg;
 	u_int		CRm;
 	u_int		Op2;
+	bool		is64bit;
 	size_t		offset;
 	const struct mrs_field *fields;
 };
 
-#define	USER_REG(name, field_name)					\
+#define	USER_REG(name, field_name, _is64bit)				\
 	{								\
 		.reg = name,						\
 		.CRm = name##_CRm,					\
 		.Op2 = name##_op2,					\
 		.offset = __offsetof(struct cpu_desc, field_name),	\
 		.fields = field_name##_fields,				\
+		.is64bit = _is64bit,					\
 	}
 static const struct mrs_user_reg user_regs[] = {
-	USER_REG(ID_AA64AFR0_EL1, id_aa64afr0),
-	USER_REG(ID_AA64AFR1_EL1, id_aa64afr1),
+	USER_REG(ID_AA64AFR0_EL1, id_aa64afr0, true),
+	USER_REG(ID_AA64AFR1_EL1, id_aa64afr1, true),
 
-	USER_REG(ID_AA64DFR0_EL1, id_aa64dfr0),
-	USER_REG(ID_AA64DFR1_EL1, id_aa64dfr1),
+	USER_REG(ID_AA64DFR0_EL1, id_aa64dfr0, true),
+	USER_REG(ID_AA64DFR1_EL1, id_aa64dfr1, true),
 
-	USER_REG(ID_AA64ISAR0_EL1, id_aa64isar0),
-	USER_REG(ID_AA64ISAR1_EL1, id_aa64isar1),
-	USER_REG(ID_AA64ISAR2_EL1, id_aa64isar2),
+	USER_REG(ID_AA64ISAR0_EL1, id_aa64isar0, true),
+	USER_REG(ID_AA64ISAR1_EL1, id_aa64isar1, true),
+	USER_REG(ID_AA64ISAR2_EL1, id_aa64isar2, true),
 
-	USER_REG(ID_AA64MMFR0_EL1, id_aa64mmfr0),
-	USER_REG(ID_AA64MMFR1_EL1, id_aa64mmfr1),
-	USER_REG(ID_AA64MMFR2_EL1, id_aa64mmfr2),
+	USER_REG(ID_AA64MMFR0_EL1, id_aa64mmfr0, true),
+	USER_REG(ID_AA64MMFR1_EL1, id_aa64mmfr1, true),
+	USER_REG(ID_AA64MMFR2_EL1, id_aa64mmfr2, true),
 #ifdef NOTYET
-	USER_REG(ID_AA64MMFR3_EL1, id_aa64mmfr3),
-	USER_REG(ID_AA64MMFR4_EL1, id_aa64mmfr4),
+	USER_REG(ID_AA64MMFR3_EL1, id_aa64mmfr3, true),
+	USER_REG(ID_AA64MMFR4_EL1, id_aa64mmfr4, true),
 #endif
 
-	USER_REG(ID_AA64PFR0_EL1, id_aa64pfr0),
-	USER_REG(ID_AA64PFR1_EL1, id_aa64pfr1),
+	USER_REG(ID_AA64PFR0_EL1, id_aa64pfr0, true),
+	USER_REG(ID_AA64PFR1_EL1, id_aa64pfr1, true),
 #ifdef NOTYET
-	USER_REG(ID_AA64PFR2_EL1, id_aa64pfr2),
+	USER_REG(ID_AA64PFR2_EL1, id_aa64pfr2, true),
 #endif
 
-	USER_REG(ID_AA64ZFR0_EL1, id_aa64zfr0),
+	USER_REG(ID_AA64ZFR0_EL1, id_aa64zfr0, true),
 
 #ifdef COMPAT_FREEBSD32
-	USER_REG(ID_ISAR5_EL1, id_isar5),
+	USER_REG(ID_ISAR5_EL1, id_isar5, false),
 
-	USER_REG(MVFR0_EL1, mvfr0),
-	USER_REG(MVFR1_EL1, mvfr1),
+	USER_REG(MVFR0_EL1, mvfr0, false),
+	USER_REG(MVFR1_EL1, mvfr1, false),
 #endif /* COMPAT_FREEBSD32 */
 };
 
