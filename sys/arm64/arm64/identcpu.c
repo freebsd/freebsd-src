@@ -1723,6 +1723,7 @@ static const struct mrs_field_value mvfr0_fpdp[] = {
 static const struct mrs_field_hwcap mvfr0_fpdp_caps[] = {
 	MRS_HWCAP(&elf32_hwcap, HWCAP32_VFP, MVFR0_FPDP_VFP_v2),
 	MRS_HWCAP(&elf32_hwcap, HWCAP32_VFPv3, MVFR0_FPDP_VFP_v3_v4),
+	MRS_HWCAP_END
 };
 
 static const struct mrs_field_value mvfr0_fpsp[] = {
