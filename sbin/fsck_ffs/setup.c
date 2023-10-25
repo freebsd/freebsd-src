@@ -399,14 +399,14 @@ openfilesys(char *dev)
 	if ((statb.st_mode & S_IFMT) != S_IFCHR &&
 	    (statb.st_mode & S_IFMT) != S_IFBLK) {
 		if (bkgrdflag != 0 && (statb.st_flags & SF_SNAPSHOT) == 0) {
-			pfatal("BACKGROUND FSCK LACKS A SNAPSHOT\n");
-			exit(EEXIT);
+			pwarn("BACKGROUND FSCK LACKS A SNAPSHOT\n");
+			return (0);
 		}
 		if (bkgrdflag != 0) {
 			cursnapshot = statb.st_ino;
 		} else {
-			pfatal("%s IS NOT A DISK DEVICE\n", dev);
-			if (reply("CONTINUE") == 0)
+			pwarn("%s IS NOT A DISK DEVICE\n", dev);
+			if (preen || reply("CONTINUE") == 0)
 				return (0);
 		}
 	}

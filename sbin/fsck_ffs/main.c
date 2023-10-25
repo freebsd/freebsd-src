@@ -68,7 +68,8 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
 
 #include "fsck.h"
 
-static int	restarts;
+static int  restarts;
+static char snapname[BUFSIZ];	/* when doing snapshots, the name of the file */
 
 static void usage(void) __dead2;
 static intmax_t argtoimax(int flag, const char *req, const char *str, int base);
@@ -664,8 +665,7 @@ setup_bkgrdchk(struct statfs *mntp, int sbreadfailed, char **filesys)
 		    "SUPPORT\n");
 	}
 	/* Find or create the snapshot directory */
-	snprintf(snapname, sizeof snapname, "%s/.snap",
-	    mntp->f_mntonname);
+	snprintf(snapname, sizeof snapname, "%s/.snap", mntp->f_mntonname);
 	if (stat(snapname, &snapdir) < 0) {
 		if (errno != ENOENT) {
 			pwarn("CANNOT FIND SNAPSHOT DIRECTORY %s: %s, CANNOT "
@@ -713,6 +713,8 @@ setup_bkgrdchk(struct statfs *mntp, int sbreadfailed, char **filesys)
 		    "BACKGROUND\n", snapname, strerror(errno));
 		return (0);
 	}
+	/* Immediately unlink snapshot so that it will be deleted when closed */
+	unlink(snapname);
 	free(sblock.fs_csp);
 	free(sblock.fs_si);
 	havesb = 0;

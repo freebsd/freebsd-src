@@ -615,7 +615,6 @@ ckfini(int markclean)
 	int ofsmodified, cnt, cg;
 
 	if (bkgrdflag) {
-		unlink(snapname);
 		if ((!(sblock.fs_flags & FS_UNCLEAN)) != markclean) {
 			cmd.value = FS_UNCLEAN;
 			cmd.size = markclean ? -1 : 1;
