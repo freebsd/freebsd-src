@@ -33,10 +33,12 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/pcpu.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/systm.h>
 
 #include <machine/atomic.h>
@@ -162,6 +164,7 @@ static struct cpu_desc cpu_desc0;
 static struct cpu_desc *cpu_desc;
 static struct cpu_desc kern_cpu_desc;
 static struct cpu_desc user_cpu_desc;
+static struct cpu_desc l_user_cpu_desc;
 
 static struct cpu_desc *
 get_cpu_desc(u_int cpu)
@@ -275,10 +278,12 @@ const struct cpu_implementers cpu_implementers[] = {
 };
 
 #define	MRS_TYPE_MASK		0xf
+#define	MRS_TYPE_FBSD_SHIFT	0
+#define	MRS_TYPE_LNX_SHIFT	8
 #define	MRS_INVALID		0
 #define	MRS_EXACT		1
 #define	MRS_EXACT_VAL(x)	(MRS_EXACT | ((x) << 4))
-#define	MRS_EXACT_FIELD(x)	((x) >> 4)
+#define	MRS_EXACT_FIELD(x)	(((x) >> 4) & 0xf)
 #define	MRS_LOWER		2
 
 struct mrs_field_value {
@@ -341,16 +346,22 @@ struct mrs_field {
 	u_int		shift;
 };
 
-#define	MRS_FIELD_HWCAP(_register, _name, _sign, _type, _values, _hwcap) \
+#define	MRS_FIELD_HWCAP_SPLIT(_register, _name, _sign, _fbsd_type,	\
+    _lnx_type, _values, _hwcap)						\
 	{								\
 		.name = #_name,						\
 		.sign = (_sign),					\
-		.type = (_type),					\
+		.type = ((_fbsd_type) << MRS_TYPE_FBSD_SHIFT) |		\
+		    ((_lnx_type) << MRS_TYPE_LNX_SHIFT),		\
 		.shift = _register ## _ ## _name ## _SHIFT,		\
 		.mask = _register ## _ ## _name ## _MASK,		\
 		.values = (_values),					\
 		.hwcaps = (_hwcap),					\
 	}
+
+#define	MRS_FIELD_HWCAP(_register, _name, _sign, _type, _values, _hwcap) \
+	MRS_FIELD_HWCAP_SPLIT(_register, _name, _sign, _type, _type,	\
+	    _values, _hwcap)
 
 #define	MRS_FIELD(_register, _name, _sign, _type, _values)		\
 	MRS_FIELD_HWCAP(_register, _name, _sign, _type, _values, NULL)
@@ -1911,7 +1922,10 @@ user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 
 	for (i = 0; i < nitems(user_regs); i++) {
 		if (user_regs[i].CRm == CRm && user_regs[i].Op2 == Op2) {
-			value = CPU_DESC_FIELD(user_cpu_desc, i);
+			if (SV_CURPROC_ABI() == SV_ABI_FREEBSD)
+				value = CPU_DESC_FIELD(user_cpu_desc, i);
+			else
+				value = CPU_DESC_FIELD(l_user_cpu_desc, i);
 			break;
 		}
 	}
@@ -2064,12 +2078,32 @@ get_kernel_reg_masked(u_int reg, uint64_t *valp, uint64_t mask)
 	return (false);
 }
 
+static uint64_t
+update_special_reg_field(uint64_t user_reg, u_int type, uint64_t value,
+    u_int shift, bool sign)
+{
+	switch (type & MRS_TYPE_MASK) {
+	case MRS_EXACT:
+		user_reg &= ~(0xful << shift);
+		user_reg |= (uint64_t)MRS_EXACT_FIELD(type) << shift;
+		break;
+	case MRS_LOWER:
+		user_reg = update_lower_register(user_reg, value, shift, 4,
+		    sign);
+		break;
+	default:
+		panic("Invalid field type: %d", type);
+	}
+
+	return (user_reg);
+}
+
 void
 update_special_regs(u_int cpu)
 {
 	struct cpu_desc *desc;
 	const struct mrs_field *fields;
-	uint64_t user_reg, kern_reg, value;
+	uint64_t l_user_reg, user_reg, kern_reg, value;
 	int i, j;
 
 	if (cpu == 0) {
@@ -2080,6 +2114,8 @@ update_special_regs(u_int cpu)
 		    ID_AA64PFR0_FP_NONE | ID_AA64PFR0_EL1_64 |
 		    ID_AA64PFR0_EL0_64;
 		user_cpu_desc.id_aa64dfr0 = ID_AA64DFR0_DebugVer_8;
+		/* Create the Linux user visible cpu description */
+		memcpy(&l_user_cpu_desc, &user_cpu_desc, sizeof(user_cpu_desc));
 	}
 
 	desc = get_cpu_desc(cpu);
@@ -2088,33 +2124,33 @@ update_special_regs(u_int cpu)
 		if (cpu == 0) {
 			kern_reg = value;
 			user_reg = value;
+			l_user_reg = value;
 		} else {
 			kern_reg = CPU_DESC_FIELD(kern_cpu_desc, i);
 			user_reg = CPU_DESC_FIELD(user_cpu_desc, i);
+			l_user_reg = CPU_DESC_FIELD(l_user_cpu_desc, i);
 		}
 
 		fields = user_regs[i].fields;
 		for (j = 0; fields[j].type != 0; j++) {
-			switch (fields[j].type & MRS_TYPE_MASK) {
-			case MRS_EXACT:
-				user_reg &= ~(0xful << fields[j].shift);
-				user_reg |=
-				    (uint64_t)MRS_EXACT_FIELD(fields[j].type) <<
-				    fields[j].shift;
-				break;
-			case MRS_LOWER:
-				user_reg = update_lower_register(user_reg,
-				    value, fields[j].shift, 4, fields[j].sign);
-				break;
-			default:
-				panic("Invalid field type: %d", fields[j].type);
-			}
+			/* Update the FreeBSD userspace ID register view */
+			user_reg = update_special_reg_field(user_reg,
+			    fields[j].type >> MRS_TYPE_FBSD_SHIFT, value,
+			    fields[j].shift, fields[j].sign);
+
+			/* Update the Linux userspace ID register view */
+			l_user_reg = update_special_reg_field(l_user_reg,
+			    fields[j].type >> MRS_TYPE_LNX_SHIFT, value,
+			    fields[j].shift, fields[j].sign);
+
+			/* Update the kernel ID register view */
 			kern_reg = update_lower_register(kern_reg, value,
 			    fields[j].shift, 4, fields[j].sign);
 		}
 
 		CPU_DESC_FIELD(kern_cpu_desc, i) = kern_reg;
 		CPU_DESC_FIELD(user_cpu_desc, i) = user_reg;
+		CPU_DESC_FIELD(l_user_cpu_desc, i) = l_user_reg;
 	}
 }
 
@@ -2148,7 +2184,8 @@ int64_t idcache_line_size;	/* The minimum cache line size */
  * Find the values to export to userspace as AT_HWCAP and AT_HWCAP2.
  */
 static void
-parse_cpu_features(bool is64bit, u_long *hwcap, u_long *hwcap2)
+parse_cpu_features(bool is64bit, struct cpu_desc *cpu_desc, u_long *hwcap,
+    u_long *hwcap2)
 {
 	const struct mrs_field_hwcap *hwcaps;
 	const struct mrs_field *fields;
@@ -2160,7 +2197,7 @@ parse_cpu_features(bool is64bit, u_long *hwcap, u_long *hwcap2)
 		if (user_regs[i].is64bit != is64bit)
 			continue;
 
-		reg = CPU_DESC_FIELD(user_cpu_desc, i);
+		reg = CPU_DESC_FIELD(*cpu_desc, i);
 		fields = user_regs[i].fields;
 		for (j = 0; fields[j].type != 0; j++) {
 			hwcaps = fields[j].hwcaps;
@@ -2216,13 +2253,16 @@ identify_cpu_sysinit(void *dummy __unused)
 	}
 
 	/* Find the values to export to userspace as AT_HWCAP and AT_HWCAP2 */
-	parse_cpu_features(true, &elf_hwcap, &elf_hwcap2);
+	parse_cpu_features(true, &user_cpu_desc, &elf_hwcap, &elf_hwcap2);
+	parse_cpu_features(true, &l_user_cpu_desc, &linux_elf_hwcap,
+	    &linux_elf_hwcap2);
 #ifdef COMPAT_FREEBSD32
-	parse_cpu_features(false, &elf32_hwcap, &elf32_hwcap2);
+	parse_cpu_features(false, &user_cpu_desc, &elf32_hwcap, &elf32_hwcap2);
 #endif
 
 	/* We export the CPUID registers */
 	elf_hwcap |= HWCAP_CPUID;
+	linux_elf_hwcap |= HWCAP_CPUID;
 
 #ifdef COMPAT_FREEBSD32
 	/* Set the default caps and any that need to check multiple fields */
