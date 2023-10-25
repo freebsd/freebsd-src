@@ -1,7 +1,7 @@
 #-
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2022 The FreeBSD Foundation
+# Copyright (c) 2022-2023 The FreeBSD Foundation
 #
 # This software was developed by Mark Johnston under sponsorship from
 # the FreeBSD Foundation.
@@ -57,7 +57,7 @@ import_image()
 	atf_check -e empty -o save:$TEST_MD_DEVICE_FILE -s exit:0 \
 	    mdconfig -a -f $TEST_IMAGE
 	atf_check -o ignore -e empty -s exit:0 \
-            zdb -e -p /dev/$(cat $TEST_MD_DEVICE_FILE) -mmm -ddddd $ZFS_POOL_NAME
+	    zdb -e -p /dev/$(cat $TEST_MD_DEVICE_FILE) -mmm -ddddd $ZFS_POOL_NAME
 	atf_check zpool import -R $TEST_MOUNT_DIR $ZFS_POOL_NAME
 	echo "$ZFS_POOL_NAME" > $TEST_ZFS_POOL_NAME
 }
@@ -726,6 +726,74 @@ root_props_cleanup()
 	common_cleanup
 }
 
+#
+# Verify that usedds and usedchild props are set properly.
+#
+atf_test_case used_space_props cleanup
+used_space_props_body()
+{
+	local used usedds usedchild
+	local rootmb childmb totalmb fudge
+	local status
+
+	create_test_dirs
+	cd $TEST_INPUTS_DIR
+	mkdir dir
+
+	rootmb=17
+	childmb=39
+	totalmb=$(($rootmb + $childmb))
+	fudge=$((2 * 1024 * 1024))
+
+	atf_check -e ignore dd if=/dev/random of=foo bs=1M count=$rootmb
+	atf_check -e ignore dd if=/dev/random of=dir/bar bs=1M count=$childmb
+
+	cd -
+
+	atf_check $MAKEFS -s 1g -o rootpath=/ -o poolname=$ZFS_POOL_NAME \
+	    -o fs=${ZFS_POOL_NAME}/dir \
+	    $TEST_IMAGE $TEST_INPUTS_DIR
+
+	import_image
+
+	# Make sure that each dataset's space usage is no more than 2MB larger
+	# than their files.  This number is magic and might need to change
+	# someday.
+	usedds=$(zfs list -o usedds -Hp ${ZFS_POOL_NAME})
+	atf_check test $usedds -gt $(($rootmb * 1024 * 1024)) -a \
+	    $usedds -le $(($rootmb * 1024 * 1024 + $fudge))
+	usedds=$(zfs list -o usedds -Hp ${ZFS_POOL_NAME}/dir)
+	atf_check test $usedds -gt $(($childmb * 1024 * 1024)) -a \
+	    $usedds -le $(($childmb * 1024 * 1024 + $fudge))
+
+	# Make sure that the usedchild property value makes sense: the parent's
+	# value corresponds to the size of the child, and the child has no
+	# children.
+	usedchild=$(zfs list -o usedchild -Hp ${ZFS_POOL_NAME})
+	atf_check test $usedchild -gt $(($childmb * 1024 * 1024)) -a \
+	    $usedchild -le $(($childmb * 1024 * 1024 + $fudge))
+	atf_check -o inline:'0\n' \
+	    zfs list -Hp -o usedchild ${ZFS_POOL_NAME}/dir
+
+	# Make sure that the used property value makes sense: the parent's
+	# value is the sum of the two sizes, and the child's value is the
+	# same as its usedds value, which has already been checked.
+	used=$(zfs list -o used -Hp ${ZFS_POOL_NAME})
+	atf_check test $used -gt $(($totalmb * 1024 * 1024)) -a \
+	    $used -le $(($totalmb * 1024 * 1024 + 2 * $fudge))
+	used=$(zfs list -o used -Hp ${ZFS_POOL_NAME}/dir)
+	atf_check -o inline:$used'\n' \
+	    zfs list -Hp -o usedds ${ZFS_POOL_NAME}/dir
+
+	# Both datasets do not have snapshots.
+	atf_check -o inline:'0\n' zfs list -Hp -o usedsnap ${ZFS_POOL_NAME}
+	atf_check -o inline:'0\n' zfs list -Hp -o usedsnap ${ZFS_POOL_NAME}/dir
+}
+used_space_props_cleanup()
+{
+	common_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case autoexpand
@@ -748,6 +816,7 @@ atf_init_test_cases()
 	atf_add_test_case snapshot
 	atf_add_test_case soft_links
 	atf_add_test_case root_props
+	atf_add_test_case used_space_props
 
 	# XXXMJ tests:
 	# - test with different ashifts (at least, 9 and 12), different image sizes

@@ -326,6 +326,22 @@ extern void	(*ip_divert_ptr)(struct mbuf *m, bool incoming);
 extern int	(*ng_ipfw_input_p)(struct mbuf **, struct ip_fw_args *, bool);
 extern int	(*ip_dn_ctl_ptr)(struct sockopt *);
 extern int	(*ip_dn_io_ptr)(struct mbuf **, struct ip_fw_args *);
+
+/* pf specific mtag for divert(4) support */
+__enum_uint8_decl(pf_mtag_dir) {
+	PF_DIVERT_MTAG_DIR_IN = 1,
+	PF_DIVERT_MTAG_DIR_OUT = 2
+};
+struct pf_divert_mtag {
+	__enum_uint8(pf_mtag_dir) idir;	// initial pkt direction
+	union {
+		__enum_uint8(pf_mtag_dir) ndir;	// a) divert(4) port upon initial diversion
+				// b) new direction upon pkt re-enter
+		uint16_t port;	/* Initial divert(4) port */
+	};
+};
+#define MTAG_PF_DIVERT	1262273569
+
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IP_VAR_H_ */

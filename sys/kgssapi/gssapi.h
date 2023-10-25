@@ -372,6 +372,18 @@ extern gss_OID GSS_KRB5_NT_STRING_UID_NAME;
 #define GSS_S_GAP_TOKEN \
 	 (1ul << (GSS_C_SUPPLEMENTARY_OFFSET + 4))
 
+/*
+ * NI_MAXSERV and NI_MAXHOST.  The srv_principal argument for
+ * rpc_gss_ip_to_srv_principal should point to at least
+ * NI_MAXSERV + NI_MAXHOST + 1 bytes of storage. The "+ 1" is for the '@'.
+ * The NI_MAXHOST limit is checked for gss_ip_to_dns().
+ * These should be set to the same value as they are in <netdb.h>.
+ */
+#ifndef NI_MAXHOST
+#define	NI_MAXSERV	32
+#define	NI_MAXHOST	1025
+#endif
+
 __BEGIN_DECLS
 
 /*
@@ -566,6 +578,12 @@ OM_uint32 gss_pname_to_unix_cred
 	       gid_t *gidp,		/* pointer to GID for result */
 	       int *numgroups,		/* number of groups */
 	       gid_t *groups		/* pointer to group list */
+	      );
+
+OM_uint32 gss_ip_to_dns
+	      (OM_uint32 *,		/* minor status */
+	       char *ip_addr,	/* IP host address string */
+	       char *dns_name		/* pointer to dns_name for result */
 	      );
 
 /*

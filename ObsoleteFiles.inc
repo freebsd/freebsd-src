@@ -2779,6 +2779,11 @@ OLD_FILES+=usr/share/man/man4/ng_h4.4.gz
 # 20210923: rename boot(9) to kern_reboot(9)
 OLD_FILES+=usr/share/man/man9/boot.9.gz
 
+# 20210922: Old mixer(8) tests removed
+OLD_FILES+=usr/tests/usr.sbin/mixer/Kyuafile
+OLD_FILES+=usr/tests/usr.sbin/mixer/mixer_test
+OLD_DIRS+=usr/tests/usr.sbin/mixer
+
 # 20210921: remove cloudabi
 OLD_FILES+=usr/share/man/man4/cloudabi.4.gz
 OLD_FILES+=usr/share/man/man4/cloudabi32.4.gz

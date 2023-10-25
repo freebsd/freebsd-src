@@ -180,7 +180,7 @@ guess_ifindex(struct snl_state *ss, uint32_t fibnum, const struct sockaddr_in6 *
 
 	int off = snl_add_msg_attr_nested(&nw, NHA_FREEBSD);
 	snl_add_msg_attr_u32(&nw, NHAF_KID, r.rta_knh_id);
-	snl_add_msg_attr_u8(&nw, NHAF_FAMILY, AF_INET);
+	snl_add_msg_attr_u8(&nw, NHAF_FAMILY, AF_INET6);
 	snl_add_msg_attr_u32(&nw, NHAF_TABLE, fibnum);
 	snl_end_attr_nested(&nw, off);
 
@@ -372,13 +372,14 @@ print_entries_nl(uint32_t ifindex, struct sockaddr_in6 *addr, bool cflag)
 				continue;
 		}
 
-		print_entry(&neigh, &link);
 		if (cflag) {
 			char dst_str[INET6_ADDRSTRLEN];
 
 			inet_ntop(AF_INET6, &dst->sin6_addr, dst_str, sizeof(dst_str));
-			delete_nl(neigh.nda_ifindex, dst_str);
-		}
+			delete_nl(neigh.nda_ifindex, dst_str, false); /* no warn */
+		} else
+			print_entry(&neigh, &link);
+
 		count++;
 		snl_clear_lb(&ss_req);
 	}
@@ -391,8 +392,9 @@ print_entries_nl(uint32_t ifindex, struct sockaddr_in6 *addr, bool cflag)
 }
 
 int
-delete_nl(uint32_t ifindex, char *host)
+delete_nl(uint32_t ifindex, char *host, bool warn)
 {
+#define xo_warnx(...) do { if (warn) { xo_warnx(__VA_ARGS__); } } while(0)
 	struct snl_state ss = {};
 	struct snl_writer nw;
 	struct sockaddr_in6 dst;
@@ -458,6 +460,7 @@ delete_nl(uint32_t ifindex, char *host)
 	snl_free(&ss);
 
 	return (e.error != 0);
+#undef xo_warnx /* see above */
 }
 
 int

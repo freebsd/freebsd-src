@@ -310,6 +310,7 @@ struct pfctl_kill {
 	char			ifname[IFNAMSIZ];
 	char			label[PF_RULE_LABEL_SIZE];
 	bool			kill_match;
+	bool			nat;
 };
 
 struct pfctl_state_peer {
@@ -415,8 +416,17 @@ int	pfctl_add_rule(int dev, const struct pfctl_rule *r,
 	    uint32_t pool_ticket);
 int	pfctl_set_keepcounters(int dev, bool keep);
 int	pfctl_get_creatorids(uint32_t *creators, size_t *len);
+
+struct pfctl_state_filter {
+	char			ifname[IFNAMSIZ];
+	uint16_t		proto;
+	sa_family_t		af;
+	struct pf_addr		addr;
+	struct pf_addr		mask;
+};
 typedef int (*pfctl_get_state_fn)(struct pfctl_state *, void *);
 int pfctl_get_states_iter(pfctl_get_state_fn f, void *arg);
+int pfctl_get_filtered_states_iter(struct pfctl_state_filter *filter, pfctl_get_state_fn f, void *arg);
 int	pfctl_get_states(int dev, struct pfctl_states *states);
 void	pfctl_free_states(struct pfctl_states *states);
 int	pfctl_clear_states(int dev, const struct pfctl_kill *kill,

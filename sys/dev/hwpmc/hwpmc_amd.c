@@ -451,7 +451,6 @@ amd_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
 static int
 amd_release_pmc(int cpu, int ri, struct pmc *pmc __unused)
 {
-	const struct amd_descr *pd __pmcdbg_used;
 	struct pmc_hw *phw __diagused;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),

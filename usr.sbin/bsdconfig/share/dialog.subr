@@ -79,15 +79,18 @@ DIALOG_OK=${SUCCESS:-0}
 DIALOG_CANCEL=${FAILURE:-1}
 DIALOG_HELP=2
 DIALOG_EXTRA=3
-if [ $DIALOG = "bsddialog" ]; then
-	DIALOG_ITEM_HELP=2
-	DIALOG_ERROR=255
-	DIALOG_ESC=5
-else
-	DIALOG_ITEM_HELP=4
-	export DIALOG_ERROR=254 # sh(1) can't handle the default of `-1'
-	DIALOG_ESC=255
-fi
+DIALOG_ITEM_HELP=4
+export DIALOG_ERROR=254 # sh(1) can't handle the default of `-1'
+DIALOG_ESC=255
+
+#
+# Set bsddialog(1) compatibility with dialog(1): exit codes and use_shadow
+#
+export BSDDIALOG_TIMEOUT=0
+export BSDDIALOG_ITEM_HELP=4
+export BSDDIALOG_ERROR=254
+export BSDDIALOG_ESC=255
+export BSDDIALOG_COMPATRC=".dialogrc"
 
 #
 # Default behavior is to call f_dialog_init() automatically when loaded.
@@ -2227,14 +2230,7 @@ f_dialog_init()
 	#
 	# Process `-X' command-line option
 	#
-	if [ "$USE_XDIALOG" ]; then
-		if [ $DIALOG = "bsddialog" ]; then
-			DIALOG_ESC=255
-			# else it is already 255 like dialog(1)
-		fi
-		DIALOG=Xdialog
-		USE_DIALOG=
-	fi
+	[ "$USE_XDIALOG" ] && DIALOG=Xdialog USE_DIALOG=
 
 	#
 	# Sanity check, or die gracefully
@@ -2296,13 +2292,12 @@ f_dialog_init()
 		then
 			# Xdialog(1) failed, fall back to dialog(1)
 			unset USE_XDIALOG
-			DIALOG=bsddialog
 
 			# Display the error message produced by Xdialog(1)
 			local height width
 			f_dialog_buttonbox_size height width \
 				"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$maxsize"
-			$DIALOG \
+			bsddialog \
 				--title "$DIALOG_TITLE"         \
 				--backtitle "$DIALOG_BACKTITLE" \
 				--ok-label "$msg_ok"            \

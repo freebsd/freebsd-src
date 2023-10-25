@@ -725,6 +725,12 @@ pfctl_net_kill_states(int dev, const char *iface, int opts)
 	    sizeof(kill.ifname)) >= sizeof(kill.ifname))
 		errx(1, "invalid interface: %s", iface);
 
+	if (state_killers == 2 && (strcmp(state_kill[0], "nat") == 0)) {
+		kill.nat = true;
+		state_kill[0] = state_kill[1];
+		state_killers = 1;
+	}
+
 	pfctl_addrprefix(state_kill[0], &kill.src.addr.v.a.mask);
 
 	if (opts & PF_OPT_KILLMATCH)
@@ -1529,9 +1535,6 @@ pfctl_show_state(struct pfctl_state *s, void *arg)
 {
 	struct pfctl_show_state_arg *a = (struct pfctl_show_state_arg *)arg;
 
-	if (a->iface != NULL && strcmp(s->ifname, a->iface))
-		return (0);
-
 	if (a->dotitle) {
 		pfctl_print_title("STATES:");
 		a->dotitle = 0;
@@ -1545,12 +1548,16 @@ int
 pfctl_show_states(int dev, const char *iface, int opts)
 {
 	struct pfctl_show_state_arg arg;
+	struct pfctl_state_filter filter = {};
+
+	if (iface != NULL)
+		strncpy(filter.ifname, iface, IFNAMSIZ);
 
 	arg.opts = opts;
 	arg.dotitle = opts & PF_OPT_SHOWALL;
 	arg.iface = iface;
 
-	if (pfctl_get_states_iter(pfctl_show_state, &arg))
+	if (pfctl_get_filtered_states_iter(&filter, pfctl_show_state, &arg))
 		return (-1);
 
 	return (0);

@@ -2016,10 +2016,10 @@ pf_rule_to_krule(const struct pf_rule *rule, struct pf_krule *krule)
 	return (0);
 }
 
-static int
+int
 pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
     uint32_t pool_ticket, const char *anchor, const char *anchor_call,
-    struct thread *td)
+    uid_t uid, pid_t pid)
 {
 	struct pf_kruleset	*ruleset;
 	struct pf_krule		*tail;
@@ -2045,8 +2045,8 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	rule->states_cur = counter_u64_alloc(M_WAITOK);
 	rule->states_tot = counter_u64_alloc(M_WAITOK);
 	rule->src_nodes = counter_u64_alloc(M_WAITOK);
-	rule->cuid = td->td_ucred->cr_ruid;
-	rule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
+	rule->cuid = uid;
+	rule->cpid = pid;
 	TAILQ_INIT(&rule->rpool.list);
 
 	PF_CONFIG_LOCK();
@@ -2249,7 +2249,7 @@ relock_DIOCKILLSTATES:
 		/* For floating states look at the original kif. */
 		kif = s->kif == V_pfi_all ? s->orig_kif : s->kif;
 
-		sk = s->key[PF_SK_WIRE];
+		sk = s->key[psk->psk_nat ? PF_SK_STACK : PF_SK_WIRE];
 		if (s->direction == PF_OUT) {
 			srcaddr = &sk->addr[1];
 			dstaddr = &sk->addr[0];
@@ -2308,10 +2308,10 @@ relock_DIOCKILLSTATES:
 
 			if (s->direction == PF_OUT) {
 				dir = PF_IN;
-				idx = PF_SK_STACK;
+				idx = psk->psk_nat ? PF_SK_WIRE : PF_SK_STACK;
 			} else {
 				dir = PF_OUT;
-				idx = PF_SK_WIRE;
+				idx = psk->psk_nat ? PF_SK_STACK : PF_SK_WIRE;
 			}
 
 			match_key.af = s->key[idx]->af;
@@ -3076,7 +3076,8 @@ DIOCGETETHRULESET_error:
 
 		/* Frees rule on error */
 		error = pf_ioctl_addrule(rule, ticket, pool_ticket, anchor,
-		    anchor_call, td);
+		    anchor_call, td->td_ucred->cr_ruid,
+		    td->td_proc ? td->td_proc->p_pid : 0);
 
 		nvlist_destroy(nvl);
 		free(nvlpacked, M_NVLIST);
@@ -3104,7 +3105,8 @@ DIOCADDRULENV_error:
 
 		/* Frees rule on error */
 		error = pf_ioctl_addrule(rule, pr->ticket, pr->pool_ticket,
-		    pr->anchor, pr->anchor_call, td);
+		    pr->anchor, pr->anchor_call, td->td_ucred->cr_ruid,
+		    td->td_proc ? td->td_proc->p_pid : 0);
 		break;
 	}
 

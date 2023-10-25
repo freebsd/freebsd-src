@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd February 22, 2021
+.Dd October 20, 2023
 .Dt PFCTL 8
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Op Fl K Ar host | network
 .Xo
 .Oo Fl k
-.Ar host | network | label | id | gateway
+.Ar host | network | label | id | gateway | nat
 .Oc Xc
 .Op Fl o Ar level
 .Op Fl p Ar device
@@ -256,15 +256,16 @@ option may be specified, which will kill all the source tracking
 entries from the first host/network to the second.
 .It Xo
 .Fl k
-.Ar host | network | label | id | gateway
+.Ar host | network | label | id | gateway | nat
 .Xc
 Kill all of the state entries matching the specified
 .Ar host ,
 .Ar network ,
 .Ar label ,
 .Ar id ,
+.Ar gateway,
 or
-.Ar gateway.
+.Ar nat.
 .Pp
 For example, to kill all of the state entries originating from
 .Dq host :
@@ -331,6 +332,10 @@ A network prefix length can also be specified.
 To kill all states using a gateway in 192.168.0.0/24:
 .Pp
 .Dl # pfctl -k gateway -k 192.168.0.0/24
+.Pp
+States can also be killed based on their pre-NAT address:
+.Pp
+.Dl # pfctl -k nat -k 192.168.0.1
 .Pp
 .It Fl M
 Kill matching states in the opposite direction (on other interfaces) when

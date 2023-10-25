@@ -79,7 +79,6 @@ pfctl_do_ioctl(int dev, uint cmd, size_t size, nvlist_t **nvl)
 retry:
 	nv.data = malloc(size);
 	memcpy(nv.data, data, nvlen);
-	free(data);
 
 	nv.len = nvlen;
 	nv.size = size;
@@ -97,13 +96,15 @@ retry:
 	if (ret == 0) {
 		*nvl = nvlist_unpack(nv.data, nv.len, 0);
 		if (*nvl == NULL) {
-			free(nv.data);
-			return (EIO);
+			ret = EIO;
+			goto out;
 		}
 	} else {
 		ret = errno;
 	}
 
+out:
+	free(data);
 	free(nv.data);
 
 	return (ret);
@@ -195,6 +196,8 @@ pfctl_startstop(int start)
 	    start ? PFNL_CMD_START : PFNL_CMD_STOP);
 
 	hdr = snl_finalize_msg(&nw);
+	if (hdr == NULL)
+		return (ENOMEM);
 	seq_id = hdr->nlmsg_seq;
 
 	snl_send_message(&ss, hdr);
@@ -439,40 +442,6 @@ pf_nvrule_addr_to_rule_addr(const nvlist_t *nvl, struct pf_rule_addr *addr)
 }
 
 static void
-pfctl_nv_add_mape(nvlist_t *nvparent, const char *name,
-    const struct pf_mape_portset *mape)
-{
-	nvlist_t *nvl = nvlist_create(0);
-
-	nvlist_add_number(nvl, "offset", mape->offset);
-	nvlist_add_number(nvl, "psidlen", mape->psidlen);
-	nvlist_add_number(nvl, "psid", mape->psid);
-	nvlist_add_nvlist(nvparent, name, nvl);
-	nvlist_destroy(nvl);
-}
-
-static void
-pfctl_nv_add_pool(nvlist_t *nvparent, const char *name,
-    const struct pfctl_pool *pool)
-{
-	uint64_t ports[2];
-	nvlist_t *nvl = nvlist_create(0);
-
-	nvlist_add_binary(nvl, "key", &pool->key, sizeof(pool->key));
-	pfctl_nv_add_addr(nvl, "counter", &pool->counter);
-	nvlist_add_number(nvl, "tblidx", pool->tblidx);
-
-	ports[0] = pool->proxy_port[0];
-	ports[1] = pool->proxy_port[1];
-	nvlist_add_number_array(nvl, "proxy_port", ports, 2);
-	nvlist_add_number(nvl, "opts", pool->opts);
-	pfctl_nv_add_mape(nvl, "mape", &pool->mape);
-
-	nvlist_add_nvlist(nvparent, name, nvl);
-	nvlist_destroy(nvl);
-}
-
-static void
 pf_nvmape_to_mape(const nvlist_t *nvl, struct pf_mape_portset *mape)
 {
 	mape->offset = nvlist_get_number(nvl, "offset");
@@ -501,39 +470,10 @@ pf_nvpool_to_pool(const nvlist_t *nvl, struct pfctl_pool *pool)
 }
 
 static void
-pfctl_nv_add_uid(nvlist_t *nvparent, const char *name,
-    const struct pf_rule_uid *uid)
-{
-	uint64_t uids[2];
-	nvlist_t *nvl = nvlist_create(0);
-
-	uids[0] = uid->uid[0];
-	uids[1] = uid->uid[1];
-	nvlist_add_number_array(nvl, "uid", uids, 2);
-	nvlist_add_number(nvl, "op", uid->op);
-
-	nvlist_add_nvlist(nvparent, name, nvl);
-	nvlist_destroy(nvl);
-}
-
-static void
 pf_nvrule_uid_to_rule_uid(const nvlist_t *nvl, struct pf_rule_uid *uid)
 {
 	pf_nvuint_32_array(nvl, "uid", 2, uid->uid, NULL);
 	uid->op = nvlist_get_number(nvl, "op");
-}
-
-static void
-pfctl_nv_add_divert(nvlist_t *nvparent, const char *name,
-    const struct pfctl_rule *r)
-{
-	nvlist_t *nvl = nvlist_create(0);
-
-	pfctl_nv_add_addr(nvl, "addr", &r->divert.addr);
-	nvlist_add_number(nvl, "port", r->divert.port);
-
-	nvlist_add_nvlist(nvparent, name, nvl);
-	nvlist_destroy(nvl);
 }
 
 static void
@@ -792,6 +732,8 @@ pfctl_get_eth_ruleset(int dev, const char *path, int nr,
 	strlcpy(ri->name, nvlist_get_string(nvl, "name"),
 	    PF_ANCHOR_NAME_SIZE);
 
+	nvlist_destroy(nvl);
+
 	return (0);
 }
 
@@ -890,8 +832,8 @@ pfctl_add_eth_rule(int dev, const struct pfctl_eth_rule *r, const char *anchor,
 	pfctl_nv_add_rule_addr(nvl, "ipdst", &r->ipdst);
 
 	labelcount = 0;
-	while (r->label[labelcount][0] != 0 &&
-	    labelcount < PF_RULE_MAX_LABEL_COUNT) {
+	while (labelcount < PF_RULE_MAX_LABEL_COUNT &&
+	    r->label[labelcount][0] != 0) {
 		nvlist_append_string_array(nvl, "labels",
 		    r->label[labelcount]);
 		labelcount++;
@@ -926,127 +868,235 @@ pfctl_add_eth_rule(int dev, const struct pfctl_eth_rule *r, const char *anchor,
 	return (error);
 }
 
+static void
+snl_add_msg_attr_addr_wrap(struct snl_writer *nw, uint32_t type, const struct pf_addr_wrap *addr)
+{
+	int off;
+
+	off = snl_add_msg_attr_nested(nw, type);
+
+	snl_add_msg_attr_ip6(nw, PF_AT_ADDR, &addr->v.a.addr.v6);
+	snl_add_msg_attr_ip6(nw, PF_AT_MASK, &addr->v.a.mask.v6);
+
+	if (addr->type == PF_ADDR_DYNIFTL)
+		snl_add_msg_attr_string(nw, PF_AT_IFNAME, addr->v.ifname);
+	if (addr->type == PF_ADDR_TABLE)
+		snl_add_msg_attr_string(nw, PF_AT_TABLENAME, addr->v.tblname);
+	snl_add_msg_attr_u8(nw, PF_AT_TYPE, addr->type);
+	snl_add_msg_attr_u8(nw, PF_AT_IFLAGS, addr->iflags);
+
+	snl_end_attr_nested(nw, off);
+}
+
+static void
+snl_add_msg_attr_rule_addr(struct snl_writer *nw, uint32_t type, const struct pf_rule_addr *addr)
+{
+	int off;
+
+	off = snl_add_msg_attr_nested(nw, type);
+
+	snl_add_msg_attr_addr_wrap(nw, PF_RAT_ADDR, &addr->addr);
+	snl_add_msg_attr_u16(nw, PF_RAT_SRC_PORT, addr->port[0]);
+	snl_add_msg_attr_u16(nw, PF_RAT_DST_PORT, addr->port[1]);
+	snl_add_msg_attr_u8(nw, PF_RAT_NEG, addr->neg);
+	snl_add_msg_attr_u8(nw, PF_RAT_OP, addr->port_op);
+
+	snl_end_attr_nested(nw, off);
+}
+
+static void
+snl_add_msg_attr_rule_labels(struct snl_writer *nw, uint32_t type, const char labels[PF_RULE_MAX_LABEL_COUNT][PF_RULE_LABEL_SIZE])
+{
+	int off, i = 0;
+
+	off = snl_add_msg_attr_nested(nw, type);
+
+	while (labels[i][0] != 0 &&
+	    i < PF_RULE_MAX_LABEL_COUNT) {
+		snl_add_msg_attr_string(nw, PF_LT_LABEL, labels[i]);
+		i++;
+	}
+
+	snl_end_attr_nested(nw, off);
+}
+
+static void
+snl_add_msg_attr_mape(struct snl_writer *nw, uint32_t type, const struct pf_mape_portset *me)
+{
+	int off;
+
+	off = snl_add_msg_attr_nested(nw, type);
+
+	snl_add_msg_attr_u8(nw, PF_MET_OFFSET, me->offset);
+	snl_add_msg_attr_u8(nw, PF_MET_PSID_LEN, me->psidlen);
+	snl_add_msg_attr_u16(nw, PF_MET_PSID, me->psid);
+
+	snl_end_attr_nested(nw, off);
+}
+
+static void
+snl_add_msg_attr_rpool(struct snl_writer *nw, uint32_t type, const struct pfctl_pool *pool)
+{
+	int off;
+
+	off = snl_add_msg_attr_nested(nw, type);
+
+	snl_add_msg_attr(nw, PF_PT_KEY, sizeof(pool->key), &pool->key);
+	snl_add_msg_attr_ip6(nw, PF_PT_COUNTER, &pool->counter.v6);
+	snl_add_msg_attr_u32(nw, PF_PT_TBLIDX, pool->tblidx);
+	snl_add_msg_attr_u16(nw, PF_PT_PROXY_SRC_PORT, pool->proxy_port[0]);
+	snl_add_msg_attr_u16(nw, PF_PT_PROXY_DST_PORT, pool->proxy_port[1]);
+	snl_add_msg_attr_u8(nw, PF_PT_OPTS, pool->opts);
+	snl_add_msg_attr_mape(nw, PF_PT_MAPE, &pool->mape);
+
+	snl_end_attr_nested(nw, off);
+}
+
+static void
+snl_add_msg_attr_timeouts(struct snl_writer *nw, uint32_t type, const uint32_t *timeouts)
+{
+	int off;
+
+	off = snl_add_msg_attr_nested(nw, type);
+
+	for (int i = 0; i < PFTM_MAX; i++)
+		snl_add_msg_attr_u32(nw, PF_TT_TIMEOUT, timeouts[i]);
+
+	snl_end_attr_nested(nw, off);
+}
+
+static void
+snl_add_msg_attr_uid(struct snl_writer *nw, uint32_t type, const struct pf_rule_uid *uid)
+{
+	int off;
+
+	off = snl_add_msg_attr_nested(nw, type);
+
+	snl_add_msg_attr_u32(nw, PF_RUT_UID_LOW, uid->uid[0]);
+	snl_add_msg_attr_u32(nw, PF_RUT_UID_HIGH, uid->uid[1]);
+	snl_add_msg_attr_u8(nw, PF_RUT_OP, uid->op);
+
+	snl_end_attr_nested(nw, off);
+}
+
+static void
+snl_add_msg_attr_pf_rule(struct snl_writer *nw, uint32_t type, const struct pfctl_rule *r)
+{
+	int off;
+
+	off = snl_add_msg_attr_nested(nw, type);
+
+	snl_add_msg_attr_rule_addr(nw, PF_RT_SRC, &r->src);
+	snl_add_msg_attr_rule_addr(nw, PF_RT_DST, &r->dst);
+	snl_add_msg_attr_rule_labels(nw, PF_RT_LABELS, r->label);
+	snl_add_msg_attr_u32(nw, PF_RT_RIDENTIFIER, r->ridentifier);
+	snl_add_msg_attr_string(nw, PF_RT_IFNAME, r->ifname);
+	snl_add_msg_attr_string(nw, PF_RT_QNAME, r->qname);
+	snl_add_msg_attr_string(nw, PF_RT_PQNAME, r->pqname);
+	snl_add_msg_attr_string(nw, PF_RT_TAGNAME, r->tagname);
+	snl_add_msg_attr_string(nw, PF_RT_MATCH_TAGNAME, r->match_tagname);
+	snl_add_msg_attr_string(nw, PF_RT_OVERLOAD_TBLNAME, r->overload_tblname);
+	snl_add_msg_attr_rpool(nw, PF_RT_RPOOL, &r->rpool);
+	snl_add_msg_attr_u32(nw, PF_RT_OS_FINGERPRINT, r->os_fingerprint);
+	snl_add_msg_attr_u32(nw, PF_RT_RTABLEID, r->rtableid);
+	snl_add_msg_attr_timeouts(nw, PF_RT_TIMEOUT, r->timeout);
+	snl_add_msg_attr_u32(nw, PF_RT_MAX_STATES, r->max_states);
+	snl_add_msg_attr_u32(nw, PF_RT_MAX_SRC_NODES, r->max_src_nodes);
+	snl_add_msg_attr_u32(nw, PF_RT_MAX_SRC_STATES, r->max_src_states);
+	snl_add_msg_attr_u32(nw, PF_RT_MAX_SRC_CONN_RATE_LIMIT, r->max_src_conn_rate.limit);
+	snl_add_msg_attr_u32(nw, PF_RT_MAX_SRC_CONN_RATE_SECS, r->max_src_conn_rate.seconds);
+
+	snl_add_msg_attr_u16(nw, PF_RT_DNPIPE, r->dnpipe);
+	snl_add_msg_attr_u16(nw, PF_RT_DNRPIPE, r->dnrpipe);
+	snl_add_msg_attr_u32(nw, PF_RT_DNFLAGS, r->free_flags);
+
+	snl_add_msg_attr_u32(nw, PF_RT_NR, r->nr);
+	snl_add_msg_attr_u32(nw, PF_RT_PROB, r->prob);
+	snl_add_msg_attr_u32(nw, PF_RT_CUID, r->cuid);
+	snl_add_msg_attr_u32(nw, PF_RT_CPID, r->cpid);
+
+	snl_add_msg_attr_u16(nw, PF_RT_RETURN_ICMP, r->return_icmp);
+	snl_add_msg_attr_u16(nw, PF_RT_RETURN_ICMP6, r->return_icmp6);
+	snl_add_msg_attr_u16(nw, PF_RT_MAX_MSS, r->max_mss);
+	snl_add_msg_attr_u16(nw, PF_RT_SCRUB_FLAGS, r->scrub_flags);
+
+	snl_add_msg_attr_uid(nw, PF_RT_UID, &r->uid);
+	snl_add_msg_attr_uid(nw, PF_RT_GID, (const struct pf_rule_uid *)&r->gid);
+
+	snl_add_msg_attr_u32(nw, PF_RT_RULE_FLAG, r->rule_flag);
+	snl_add_msg_attr_u8(nw, PF_RT_ACTION, r->action);
+	snl_add_msg_attr_u8(nw, PF_RT_DIRECTION, r->direction);
+	snl_add_msg_attr_u8(nw, PF_RT_LOG, r->log);
+	snl_add_msg_attr_u8(nw, PF_RT_LOGIF, r->logif);
+	snl_add_msg_attr_u8(nw, PF_RT_QUICK, r->quick);
+	snl_add_msg_attr_u8(nw, PF_RT_IF_NOT, r->ifnot);
+	snl_add_msg_attr_u8(nw, PF_RT_MATCH_TAG_NOT, r->match_tag_not);
+	snl_add_msg_attr_u8(nw, PF_RT_NATPASS, r->natpass);
+	snl_add_msg_attr_u8(nw, PF_RT_KEEP_STATE, r->keep_state);
+	snl_add_msg_attr_u8(nw, PF_RT_AF, r->af);
+	snl_add_msg_attr_u8(nw, PF_RT_PROTO, r->proto);
+	snl_add_msg_attr_u8(nw, PF_RT_TYPE, r->type);
+	snl_add_msg_attr_u8(nw, PF_RT_CODE, r->code);
+	snl_add_msg_attr_u8(nw, PF_RT_FLAGS, r->flags);
+	snl_add_msg_attr_u8(nw, PF_RT_FLAGSET, r->flagset);
+	snl_add_msg_attr_u8(nw, PF_RT_MIN_TTL, r->min_ttl);
+	snl_add_msg_attr_u8(nw, PF_RT_ALLOW_OPTS, r->allow_opts);
+	snl_add_msg_attr_u8(nw, PF_RT_RT, r->rt);
+	snl_add_msg_attr_u8(nw, PF_RT_RETURN_TTL, r->return_ttl);
+	snl_add_msg_attr_u8(nw, PF_RT_TOS, r->tos);
+	snl_add_msg_attr_u8(nw, PF_RT_SET_TOS, r->set_tos);
+
+	snl_add_msg_attr_u8(nw, PF_RT_ANCHOR_RELATIVE, r->anchor_relative);
+	snl_add_msg_attr_u8(nw, PF_RT_ANCHOR_WILDCARD, r->anchor_wildcard);
+	snl_add_msg_attr_u8(nw, PF_RT_FLUSH, r->flush);
+	snl_add_msg_attr_u8(nw, PF_RT_PRIO, r->prio);
+	snl_add_msg_attr_u8(nw, PF_RT_SET_PRIO, r->set_prio[0]);
+	snl_add_msg_attr_u8(nw, PF_RT_SET_PRIO_REPLY, r->set_prio[1]);
+
+	snl_add_msg_attr_ip6(nw, PF_RT_DIVERT_ADDRESS, &r->divert.addr.v6);
+	snl_add_msg_attr_u16(nw, PF_RT_DIVERT_PORT, r->divert.port);
+
+	snl_end_attr_nested(nw, off);
+}
+
 int
-pfctl_add_rule(int dev, const struct pfctl_rule *r, const char *anchor,
+pfctl_add_rule(int dev __unused, const struct pfctl_rule *r, const char *anchor,
     const char *anchor_call, uint32_t ticket, uint32_t pool_ticket)
 {
-	struct pfioc_nv nv;
-	uint64_t timeouts[PFTM_MAX];
-	uint64_t set_prio[2];
-	nvlist_t *nvl, *nvlr;
-	size_t labelcount;
-	int ret;
+	struct snl_writer nw;
+	struct snl_state ss = {};
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	int family_id;
 
-	nvl = nvlist_create(0);
-	nvlr = nvlist_create(0);
+	snl_init(&ss, NETLINK_GENERIC);
+	family_id = snl_get_genl_family(&ss, PFNL_FAMILY_NAME);
 
-	nvlist_add_number(nvl, "ticket", ticket);
-	nvlist_add_number(nvl, "pool_ticket", pool_ticket);
-	nvlist_add_string(nvl, "anchor", anchor);
-	nvlist_add_string(nvl, "anchor_call", anchor_call);
+	snl_init_writer(&ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_ADDRULE);
+	hdr->nlmsg_flags |= NLM_F_DUMP;
+	snl_add_msg_attr_u32(&nw, PF_ART_TICKET, ticket);
+	snl_add_msg_attr_u32(&nw, PF_ART_POOL_TICKET, pool_ticket);
+	snl_add_msg_attr_string(&nw, PF_ART_ANCHOR, anchor);
+	snl_add_msg_attr_string(&nw, PF_ART_ANCHOR_CALL, anchor_call);
 
-	nvlist_add_number(nvlr, "nr", r->nr);
-	pfctl_nv_add_rule_addr(nvlr, "src", &r->src);
-	pfctl_nv_add_rule_addr(nvlr, "dst", &r->dst);
+	snl_add_msg_attr_pf_rule(&nw, PF_ART_RULE, r);
 
-	labelcount = 0;
-	while (r->label[labelcount][0] != 0 &&
-	    labelcount < PF_RULE_MAX_LABEL_COUNT) {
-		nvlist_append_string_array(nvlr, "labels",
-		    r->label[labelcount]);
-		labelcount++;
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&ss, hdr)) {
+		printf("Send failed\n");
+		return (ENXIO);
 	}
-	nvlist_add_number(nvlr, "ridentifier", r->ridentifier);
 
-	nvlist_add_string(nvlr, "ifname", r->ifname);
-	nvlist_add_string(nvlr, "qname", r->qname);
-	nvlist_add_string(nvlr, "pqname", r->pqname);
-	nvlist_add_string(nvlr, "tagname", r->tagname);
-	nvlist_add_string(nvlr, "match_tagname", r->match_tagname);
-	nvlist_add_string(nvlr, "overload_tblname", r->overload_tblname);
+	while ((hdr = snl_read_reply_multi(&ss, seq_id, &e)) != NULL) {
+	}
 
-	pfctl_nv_add_pool(nvlr, "rpool", &r->rpool);
-
-	nvlist_add_number(nvlr, "os_fingerprint", r->os_fingerprint);
-
-	nvlist_add_number(nvlr, "rtableid", r->rtableid);
-	for (int i = 0; i < PFTM_MAX; i++)
-		timeouts[i] = r->timeout[i];
-	nvlist_add_number_array(nvlr, "timeout", timeouts, PFTM_MAX);
-	nvlist_add_number(nvlr, "max_states", r->max_states);
-	nvlist_add_number(nvlr, "max_src_nodes", r->max_src_nodes);
-	nvlist_add_number(nvlr, "max_src_states", r->max_src_states);
-	nvlist_add_number(nvlr, "max_src_conn", r->max_src_conn);
-	nvlist_add_number(nvlr, "max_src_conn_rate.limit",
-	    r->max_src_conn_rate.limit);
-	nvlist_add_number(nvlr, "max_src_conn_rate.seconds",
-	    r->max_src_conn_rate.seconds);
-	nvlist_add_number(nvlr, "dnpipe", r->dnpipe);
-	nvlist_add_number(nvlr, "dnrpipe", r->dnrpipe);
-	nvlist_add_number(nvlr, "dnflags", r->free_flags);
-	nvlist_add_number(nvlr, "prob", r->prob);
-	nvlist_add_number(nvlr, "cuid", r->cuid);
-	nvlist_add_number(nvlr, "cpid", r->cpid);
-
-	nvlist_add_number(nvlr, "return_icmp", r->return_icmp);
-	nvlist_add_number(nvlr, "return_icmp6", r->return_icmp6);
-
-	nvlist_add_number(nvlr, "max_mss", r->max_mss);
-	nvlist_add_number(nvlr, "scrub_flags", r->scrub_flags);
-
-	pfctl_nv_add_uid(nvlr, "uid", &r->uid);
-	pfctl_nv_add_uid(nvlr, "gid", (const struct pf_rule_uid *)&r->gid);
-
-	nvlist_add_number(nvlr, "rule_flag", r->rule_flag);
-	nvlist_add_number(nvlr, "action", r->action);
-	nvlist_add_number(nvlr, "direction", r->direction);
-	nvlist_add_number(nvlr, "log", r->log);
-	nvlist_add_number(nvlr, "logif", r->logif);
-	nvlist_add_number(nvlr, "quick", r->quick);
-	nvlist_add_number(nvlr, "ifnot", r->ifnot);
-	nvlist_add_number(nvlr, "match_tag_not", r->match_tag_not);
-	nvlist_add_number(nvlr, "natpass", r->natpass);
-
-	nvlist_add_number(nvlr, "keep_state", r->keep_state);
-	nvlist_add_number(nvlr, "af", r->af);
-	nvlist_add_number(nvlr, "proto", r->proto);
-	nvlist_add_number(nvlr, "type", r->type);
-	nvlist_add_number(nvlr, "code", r->code);
-	nvlist_add_number(nvlr, "flags", r->flags);
-	nvlist_add_number(nvlr, "flagset", r->flagset);
-	nvlist_add_number(nvlr, "min_ttl", r->min_ttl);
-	nvlist_add_number(nvlr, "allow_opts", r->allow_opts);
-	nvlist_add_number(nvlr, "rt", r->rt);
-	nvlist_add_number(nvlr, "return_ttl", r->return_ttl);
-	nvlist_add_number(nvlr, "tos", r->tos);
-	nvlist_add_number(nvlr, "set_tos", r->set_tos);
-	nvlist_add_number(nvlr, "anchor_relative", r->anchor_relative);
-	nvlist_add_number(nvlr, "anchor_wildcard", r->anchor_wildcard);
-
-	nvlist_add_number(nvlr, "flush", r->flush);
-
-	nvlist_add_number(nvlr, "prio", r->prio);
-	set_prio[0] = r->set_prio[0];
-	set_prio[1] = r->set_prio[1];
-	nvlist_add_number_array(nvlr, "set_prio", set_prio, 2);
-
-	pfctl_nv_add_divert(nvlr, "divert", r);
-
-	nvlist_add_nvlist(nvl, "rule", nvlr);
-	nvlist_destroy(nvlr);
-
-	/* Now do the call. */
-	nv.data = nvlist_pack(nvl, &nv.len);
-	nv.size = nv.len;
-
-	ret = ioctl(dev, DIOCADDRULENV, &nv);
-	if (ret == -1)
-		ret = errno;
-
-	free(nv.data);
-	nvlist_destroy(nvl);
-
-	return (ret);
+	return (e.error);
 }
 
 int
@@ -1162,6 +1212,8 @@ pfctl_get_creators_nl(struct snl_state *ss, uint32_t *creators, size_t *len)
 	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GETCREATORS);
 	hdr->nlmsg_flags |= NLM_F_DUMP;
 	hdr = snl_finalize_msg(&nw);
+	if (hdr == NULL)
+		return (ENOMEM);
 	uint32_t seq_id = hdr->nlmsg_seq;
 
 	snl_send_message(ss, hdr);
@@ -1297,7 +1349,7 @@ static const struct snl_hdr_parser *all_parsers[] = {
 };
 
 static int
-pfctl_get_states_nl(struct snl_state *ss, pfctl_get_state_fn f, void *arg)
+pfctl_get_states_nl(struct pfctl_state_filter *filter, struct snl_state *ss, pfctl_get_state_fn f, void *arg)
 {
 	SNL_VERIFY_PARSERS(all_parsers);
 	int family_id = snl_get_genl_family(ss, PFNL_FAMILY_NAME);
@@ -1309,7 +1361,16 @@ pfctl_get_states_nl(struct snl_state *ss, pfctl_get_state_fn f, void *arg)
 	snl_init_writer(ss, &nw);
 	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GETSTATES);
 	hdr->nlmsg_flags |= NLM_F_DUMP;
+	snl_add_msg_attr_string(&nw, PF_ST_IFNAME, filter->ifname);
+	snl_add_msg_attr_u16(&nw, PF_ST_PROTO, filter->proto);
+	snl_add_msg_attr_u8(&nw, PF_ST_AF, filter->af);
+	snl_add_msg_attr_ip6(&nw, PF_ST_FILTER_ADDR, &filter->addr.v6);
+	snl_add_msg_attr_ip6(&nw, PF_ST_FILTER_MASK, &filter->mask.v6);
+
 	hdr = snl_finalize_msg(&nw);
+	if (hdr == NULL)
+		return (ENOMEM);
+
 	uint32_t seq_id = hdr->nlmsg_seq;
 
 	snl_send_message(ss, hdr);
@@ -1335,11 +1396,18 @@ pfctl_get_states_nl(struct snl_state *ss, pfctl_get_state_fn f, void *arg)
 int
 pfctl_get_states_iter(pfctl_get_state_fn f, void *arg)
 {
+	struct pfctl_state_filter filter = {};
+	return (pfctl_get_filtered_states_iter(&filter, f, arg));
+}
+
+int
+pfctl_get_filtered_states_iter(struct pfctl_state_filter *filter, pfctl_get_state_fn f, void *arg)
+{
 	struct snl_state ss = {};
 	int error;
 
 	snl_init(&ss, NETLINK_GENERIC);
-	error = pfctl_get_states_nl(&ss, f, arg);
+	error = pfctl_get_states_nl(filter, &ss, f, arg);
 	snl_free(&ss);
 
 	return (error);
@@ -1357,7 +1425,7 @@ pfctl_append_states(struct pfctl_state *s, void *arg)
 
 	memcpy(new, s, sizeof(*s));
 
-	TAILQ_INSERT_TAIL(&states->states, s, entry);
+	TAILQ_INSERT_TAIL(&states->states, new, entry);
 
 	return (0);
 }
@@ -1409,6 +1477,7 @@ _pfctl_clear_states(int dev, const struct pfctl_kill *kill,
 	nvlist_add_string(nvl, "ifname", kill->ifname);
 	nvlist_add_string(nvl, "label", kill->label);
 	nvlist_add_bool(nvl, "kill_match", kill->kill_match);
+	nvlist_add_bool(nvl, "nat", kill->nat);
 
 	if ((ret = pfctl_do_ioctl(dev, ioctlval, 1024, &nvl)) != 0)
 		return (ret);

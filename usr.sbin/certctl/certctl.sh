@@ -67,8 +67,7 @@ cert_files_in()
 	find -L "$@" -type f \( \
 	     -name '*.pem' -or \
 	     -name '*.crt' -or \
-	     -name '*.cer' -or \
-	     -name '*.crl' \
+	     -name '*.cer' \
 	\) 2>/dev/null
 }
 
@@ -114,7 +113,7 @@ create_trusted()
 		otherhash=$(openssl x509 -sha1 -in "$otherfile" -noout -fingerprint)
 		if [ "$certhash" = "$otherhash" ] ; then
 			info "Skipping untrusted certificate $hash ($otherfile)"
-			return 1
+			return 0
 		fi
 	done
 	for otherfile in $(find $CERTDESTDIR -name "$hash.*") ; do
@@ -182,7 +181,7 @@ do_scan()
 	IFS="$oldIFS"
 	for CFILE in $(cert_files_in "$@") ; do
 		verbose "Reading $CFILE"
-		case $(grep -c '^Certificate:$' "$CFILE") in
+		case $(egrep -c '^-+BEGIN CERTIFICATE-+$' "$CFILE") in
 		0)
 			;;
 		1)
@@ -191,8 +190,8 @@ do_scan()
 		*)
 			verbose "Multiple certificates found, splitting..."
 			SPLITDIR=$(mktemp -d)
-			egrep '^[^#]' "$CFILE" | \
-				split -p '^Certificate:$' - "$SPLITDIR/x"
+			egrep '^(---|[0-9A-Za-z/+=]+$)' "$CFILE" | \
+				split -p '^-+BEGIN CERTIFICATE-+$' - "$SPLITDIR/x"
 			for CERT in $(find "$SPLITDIR" -type f) ; do
 				"$CFUNC" "$CERT"
 			done
