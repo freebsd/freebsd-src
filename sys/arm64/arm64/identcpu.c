@@ -1530,13 +1530,10 @@ static const struct mrs_field_value id_aa64pfr1_bt[] = {
 	MRS_FIELD_VALUE_END,
 };
 
-#if 0
-/* Enable when we add BTI support */
 static const struct mrs_field_hwcap id_aa64pfr1_bt_caps[] = {
 	MRS_HWCAP(2, HWCAP2_BTI, ID_AA64PFR1_BT_IMPL),
 	MRS_HWCAP_END
 };
-#endif
 
 static const struct mrs_field id_aa64pfr1_fields[] = {
 	MRS_FIELD(ID_AA64PFR1, NMI, false, MRS_EXACT, id_aa64pfr1_nmi),
@@ -1552,7 +1549,8 @@ static const struct mrs_field id_aa64pfr1_fields[] = {
 	MRS_FIELD(ID_AA64PFR1, MTE, false, MRS_EXACT, id_aa64pfr1_mte),
 	MRS_FIELD_HWCAP(ID_AA64PFR1, SSBS, false, MRS_LOWER, id_aa64pfr1_ssbs,
 	    id_aa64pfr1_ssbs_caps),
-	MRS_FIELD(ID_AA64PFR1, BT, false, MRS_EXACT, id_aa64pfr1_bt),
+	MRS_FIELD_HWCAP_SPLIT(ID_AA64PFR1, BT, false, MRS_LOWER, MRS_EXACT,
+	    id_aa64pfr1_bt, id_aa64pfr1_bt_caps),
 	MRS_FIELD_END,
 };
 
