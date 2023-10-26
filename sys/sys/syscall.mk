@@ -424,4 +424,5 @@ MIASM =  \
 	aio_readv.o \
 	sched_getcpu.o \
 	swapoff.o \
-	kqueuex.o
+	kqueuex.o \
+	membarrier.o
