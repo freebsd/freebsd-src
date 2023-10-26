@@ -53,7 +53,6 @@ if [ -z "$FETCH_DISTRIBUTIONS" ]; then
 	exit 0
 fi
 
-ALL_DISTRIBUTIONS="$DISTRIBUTIONS"
 WANT_DEBUG=
 
 # Download to a directory in the new system as scratch space
@@ -75,10 +74,8 @@ export FTP_PASSIVE_MODE=YES
 
 if [ -f "$BSDINSTALL_DISTDIR_ORIG/MANIFEST" ]; then
 	cp "$BSDINSTALL_DISTDIR_ORIG/MANIFEST" "$BSDINSTALL_DISTDIR/MANIFEST"
-	VERIFY_MANIFEST_SIG=0
 else
 	FETCH_DISTRIBUTIONS="MANIFEST $FETCH_DISTRIBUTIONS"
-	VERIFY_MANIFEST_SIG=1
 
 	# XXX actually verify signature on manifest
 	bsddialog --backtitle "$OSNAME Installer" --title "Warning" --msgbox "Manifest not found on local disk and will be fetched from an unverified source. This is a potential security risk. If you do not wish to proceed, press control-C now." 0 0
