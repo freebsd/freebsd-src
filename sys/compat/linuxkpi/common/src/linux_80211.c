@@ -3527,7 +3527,7 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 			error = ieee80211_add_channel_cbw(c, maxchan, n,
 			    channels[i].hw_value, channels[i].center_freq,
 			    channels[i].max_power,
-			    nflags, bands, chan_flags);
+			    nflags, bands, cflags);
 			/* net80211::ENOBUFS: *n >= maxchans */
 			if (error != 0 && error != ENOBUFS)
 				ic_printf(ic, "%s: Adding chan %u/%u/%#x/%#x/%#x/%#x "
@@ -3597,7 +3597,7 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 			error = ieee80211_add_channel_cbw(c, maxchan, n,
 			    channels[i].hw_value, channels[i].center_freq,
 			    channels[i].max_power,
-			    nflags, bands, chan_flags);
+			    nflags, bands, cflags);
 			/* net80211::ENOBUFS: *n >= maxchans */
 			if (error != 0 && error != ENOBUFS)
 				ic_printf(ic, "%s: Adding chan %u/%u/%#x/%#x/%#x/%#x "
