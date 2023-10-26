@@ -30,7 +30,7 @@ import scapy.all as sp
 import sys
 
 class Sniffer(threading.Thread):
-	def __init__(self, args, check_function, recvif, timeout=3):
+	def __init__(self, args, check_function, recvif, timeout=3, defrag=False):
 		threading.Thread.__init__(self)
 
 		self._sem = threading.Semaphore(0)
@@ -38,6 +38,7 @@ class Sniffer(threading.Thread):
 		self._timeout = timeout
 		self._recvif = recvif
 		self._check_function = check_function
+		self._defrag = defrag
 		self.correctPackets = 0
 
 		self.start()
@@ -55,6 +56,15 @@ class Sniffer(threading.Thread):
 
 	def run(self):
 		self.packets = []
-		self.packets = sp.sniff(iface=self._recvif,
-			stop_filter=self._checkPacket, timeout=self._timeout,
-			started_callback=self._startedCb)
+		if self._defrag:
+			# With fragment reassembly we can't stop the sniffer after catching
+			# the good packets, as those have not been reassembled. We must
+			#  wait for sniffer to finish and check returned packets instead.
+			self.packets = sp.sniff(session=sp.IPSession, iface=self._recvif,
+				timeout=self._timeout, started_callback=self._startedCb)
+			for p in self.packets:
+				self._checkPacket(p)
+		else:
+			self.packets = sp.sniff(iface=self._recvif,
+				stop_filter=self._checkPacket, timeout=self._timeout,
+				started_callback=self._startedCb)
