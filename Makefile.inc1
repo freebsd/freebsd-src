@@ -1944,7 +1944,7 @@ PORTSDIR?=	/usr/ports
 WSTAGEDIR?=	${OBJTOP}/worldstage
 KSTAGEDIR?=	${OBJTOP}/kernelstage
 REPODIR?=	${OBJROOT}repo
-PKG_FORMAT?=	txz
+PKG_FORMAT?=	tzst
 PKG_REPO_SIGNING_KEY?=	# empty
 PKG_OUTPUT_DIR?=	${PKG_VERSION}
 
