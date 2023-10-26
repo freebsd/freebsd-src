@@ -2395,7 +2395,7 @@ is_elf32_sysctl(pid_t pid)
 {
 	int error, name[4];
 	size_t len, i;
-	static char sv_name[256];
+	char sv_name[32];
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
