@@ -707,6 +707,33 @@ ieee80211_add_vhtcap(uint8_t *frm, struct ieee80211_node *ni)
 	return (frm);
 }
 
+/*
+ * Non-associated probe requests.  Add VHT capabilities based on
+ * the current channel configuration.  No BSS yet.
+ */
+uint8_t *
+ieee80211_add_vhtcap_ch(uint8_t *frm, struct ieee80211vap *vap,
+    struct ieee80211_channel *c)
+{
+	struct ieee80211_vht_cap *vhtcap;
+
+	memset(frm, 0, 2 + sizeof(*vhtcap));
+	frm[0] = IEEE80211_ELEMID_VHT_CAP;
+	frm[1] = sizeof(*vhtcap);
+	frm += 2;
+
+	/* 32-bit VHT capability */
+	ADDWORD(frm, vap->iv_vht_cap.vht_cap_info);
+
+	/* supp_mcs */
+	ADDSHORT(frm, vap->iv_vht_cap.supp_mcs.rx_mcs_map);
+	ADDSHORT(frm, vap->iv_vht_cap.supp_mcs.rx_highest);
+	ADDSHORT(frm, vap->iv_vht_cap.supp_mcs.tx_mcs_map);
+	ADDSHORT(frm, vap->iv_vht_cap.supp_mcs.tx_highest);
+
+	return (frm);
+}
+
 static uint8_t
 ieee80211_vht_get_chwidth_ie(struct ieee80211_channel *c)
 {
