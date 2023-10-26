@@ -238,7 +238,7 @@ tap_init(struct net_backend *be, const char *devname,
 		goto error;
 	}
 
-	if (ioctl(be->fd, VMIO_SIOCSIFFLAGS, &up)) {
+	if (ioctl(be->fd, VMIO_SIOCSIFFLAGS, up)) {
 		WPRINTF(("tap device link up failed"));
 		goto error;
 	}
