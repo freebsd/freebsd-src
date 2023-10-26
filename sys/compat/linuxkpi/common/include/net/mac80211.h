@@ -175,11 +175,13 @@ struct ieee80211_sta;
 #define	IEEE80211_HT_AMPDU_PARM_DENSITY		(0x7 << IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT)
 
 struct ieee80211_ampdu_params {
-	/* TODO FIXME */
 	struct ieee80211_sta			*sta;
-	uint8_t					tid;
+	enum ieee80211_ampdu_mlme_action	action;
+	uint16_t				buf_size;
+	uint16_t				timeout;
 	uint16_t				ssn;
-	int		action, amsdu, buf_size, timeout;
+	uint8_t					tid;
+	bool					amsdu;
 };
 
 struct ieee80211_bar {
@@ -452,7 +454,6 @@ struct ieee80211_hw {
 	struct wiphy			*wiphy;
 
 	/* TODO FIXME */
-	int		max_rx_aggregation_subframes, max_tx_aggregation_subframes;
 	int		extra_tx_headroom, weight_multiplier;
 	int		max_rate_tries, max_rates, max_report_rates;
 	struct ieee80211_cipher_scheme	*cipher_schemes;
@@ -472,6 +473,8 @@ struct ieee80211_hw {
 	uint16_t			offchannel_tx_hw_queue;
 	uint16_t			uapsd_max_sp_len;
 	uint16_t			uapsd_queues;
+	uint16_t			max_rx_aggregation_subframes;
+	uint16_t			max_tx_aggregation_subframes;
 	uint16_t			max_tx_fragments;
 	uint16_t			max_listen_interval;
 	uint32_t			extra_beacon_tailroom;

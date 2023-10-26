@@ -696,3 +696,25 @@ lkpi_80211_mo_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 out:
 	return (error);
 }
+
+int
+lkpi_80211_mo_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_ampdu_params *params)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->ampdu_action == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	LKPI_80211_TRACE_MO("hw %p vif %p params %p { %p, %d, %u, %u, %u, %u, %d }",
+	    hw, vif, params, params->sta, params->action, params->buf_size,
+	    params->timeout, params->ssn, params->tid, params->amsdu);
+	error = lhw->ops->ampdu_action(hw, vif, params);
+
+out:
+	return (error);
+}
