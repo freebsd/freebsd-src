@@ -350,7 +350,7 @@ struct filestat_list *
 procstat_getfiles(struct procstat *procstat, struct kinfo_proc *kp, int mmapped)
 {
 
-	switch(procstat->type) {
+	switch (procstat->type) {
 	case PROCSTAT_KVM:
 		return (procstat_getfiles_kvm(procstat, kp, mmapped));
 	case PROCSTAT_SYSCTL:
@@ -1530,7 +1530,7 @@ procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
 	/*
 	 * Protocol specific data.
 	 */
-	switch(dom.dom_family) {
+	switch (dom.dom_family) {
 	case AF_INET:
 	case AF_INET6:
 		if (proto.pr_protocol == IPPROTO_TCP) {
@@ -1603,7 +1603,7 @@ procstat_get_socket_info_sysctl(struct filestat *fst, struct sockstat *sock,
 	/*
 	 * Protocol specific data.
 	 */
-	switch(sock->dom_family) {
+	switch (sock->dom_family) {
 	case AF_INET:
 	case AF_INET6:
 		if (sock->proto == IPPROTO_TCP) {
@@ -1964,7 +1964,7 @@ procstat_getvmmap(struct procstat *procstat, struct kinfo_proc *kp,
     unsigned int *cntp)
 {
 
-	switch(procstat->type) {
+	switch (procstat->type) {
 	case PROCSTAT_KVM:
 		warnx("kvm method is not supported");
 		return (NULL);
@@ -2069,7 +2069,7 @@ gid_t *
 procstat_getgroups(struct procstat *procstat, struct kinfo_proc *kp,
     unsigned int *cntp)
 {
-	switch(procstat->type) {
+	switch (procstat->type) {
 	case PROCSTAT_KVM:
 		return (procstat_getgroups_kvm(procstat->kd, kp, cntp));
 	case PROCSTAT_SYSCTL:
@@ -2147,7 +2147,7 @@ int
 procstat_getumask(struct procstat *procstat, struct kinfo_proc *kp,
     unsigned short *maskp)
 {
-	switch(procstat->type) {
+	switch (procstat->type) {
 	case PROCSTAT_KVM:
 		return (procstat_getumask_kvm(procstat->kd, kp, maskp));
 	case PROCSTAT_SYSCTL:
@@ -2237,7 +2237,7 @@ int
 procstat_getrlimit(struct procstat *procstat, struct kinfo_proc *kp, int which,
     struct rlimit* rlimit)
 {
-	switch(procstat->type) {
+	switch (procstat->type) {
 	case PROCSTAT_KVM:
 		return (procstat_getrlimit_kvm(procstat->kd, kp, which,
 		    rlimit));
@@ -2296,7 +2296,7 @@ int
 procstat_getpathname(struct procstat *procstat, struct kinfo_proc *kp,
     char *pathname, size_t maxlen)
 {
-	switch(procstat->type) {
+	switch (procstat->type) {
 	case PROCSTAT_KVM:
 		/* XXX: Return empty string. */
 		if (maxlen > 0)
@@ -2369,7 +2369,7 @@ procstat_getosrel_core(struct procstat_core *core, int *osrelp)
 int
 procstat_getosrel(struct procstat *procstat, struct kinfo_proc *kp, int *osrelp)
 {
-	switch(procstat->type) {
+	switch (procstat->type) {
 	case PROCSTAT_KVM:
 		return (procstat_getosrel_kvm(procstat->kd, kp, osrelp));
 	case PROCSTAT_SYSCTL:
@@ -2509,7 +2509,7 @@ Elf_Auxinfo *
 procstat_getauxv(struct procstat *procstat, struct kinfo_proc *kp,
     unsigned int *cntp)
 {
-	switch(procstat->type) {
+	switch (procstat->type) {
 	case PROCSTAT_KVM:
 		warnx("kvm method is not supported");
 		return (NULL);
@@ -2623,7 +2623,7 @@ struct kinfo_kstack *
 procstat_getkstack(struct procstat *procstat, struct kinfo_proc *kp,
     unsigned int *cntp)
 {
-	switch(procstat->type) {
+	switch (procstat->type) {
 	case PROCSTAT_KVM:
 		warnx("kvm method is not supported");
 		return (NULL);
@@ -2752,7 +2752,7 @@ fail:
 struct advlock_list *
 procstat_getadvlock(struct procstat *procstat)
 {
-	switch(procstat->type) {
+	switch (procstat->type) {
 	case PROCSTAT_KVM:
 		warnx("kvm method is not supported");
 		return (NULL);
