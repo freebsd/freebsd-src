@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 15, 2023
+.Dd October 26, 2023
 .Dt PROCCTL 2
 .Os
 .Sh NAME
@@ -85,8 +85,8 @@ Controls the Address Space Layout Randomization (ASLR) in the program
 images created
 by
 .Xr execve 2
-in the specified process or its descendants that did not changed
-the control nor modified it by other means.
+in the specified process or its descendants that do not either change
+the control or modify it by other means.
 The
 .Fa data
 parameter must point to the integer variable holding one of the following
