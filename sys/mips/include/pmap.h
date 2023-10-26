@@ -161,6 +161,8 @@ extern vm_paddr_t physmem_desc[PHYS_AVAIL_COUNT];
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
+#define	PMAP_WANT_ACTIVE_CPUS_NAIVE
+
 #define	pmap_page_get_memattr(m) (((m)->md.pv_flags & PV_MEMATTR_MASK) >> PV_MEMATTR_SHIFT)
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 #define	pmap_page_is_write_mapped(m)	(((m)->a.flags & PGA_WRITEABLE) != 0)

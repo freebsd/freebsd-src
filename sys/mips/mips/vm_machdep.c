@@ -470,6 +470,11 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 	return (0);
 }
 
+void
+cpu_sync_core(void)
+{
+}
+
 #ifdef DDB
 #include <ddb/ddb.h>
 
