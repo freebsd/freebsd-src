@@ -2437,8 +2437,8 @@ procstat_getauxv32_sysctl(pid_t pid, unsigned int *cntp)
 			warn("sysctl: kern.proc.auxv: %d: %d", pid, errno);
 		goto out;
 	}
-	count = len / sizeof(Elf_Auxinfo);
-	auxv = malloc(count  * sizeof(Elf_Auxinfo));
+	count = len / sizeof(Elf32_Auxinfo);
+	auxv = malloc(count * sizeof(Elf_Auxinfo));
 	if (auxv == NULL) {
 		warn("malloc(%zu)", count * sizeof(Elf_Auxinfo));
 		goto out;
