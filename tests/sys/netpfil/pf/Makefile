@@ -13,6 +13,7 @@ ATF_TESTS_SH+=	altq \
 		forward \
 		fragmentation_compat \
 		fragmentation_pass \
+		fragmentation_no_reassembly \
 		get_state \
 		icmp \
 		killstate \
