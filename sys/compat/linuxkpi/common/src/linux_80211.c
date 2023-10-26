@@ -62,6 +62,7 @@
 #include <net80211/ieee80211_proto.h>
 #include <net80211/ieee80211_ratectl.h>
 #include <net80211/ieee80211_radiotap.h>
+#include <net80211/ieee80211_vht.h>
 
 #define	LINUXKPI_NET80211
 #include <net/mac80211.h>
@@ -71,6 +72,11 @@
 
 #define	LKPI_80211_WME
 /* #define	LKPI_80211_HW_CRYPTO */
+/* #define	LKPI_80211_VHT */
+/* #define	LKPI_80211_HT */
+#if defined(LKPI_80211_VHT) && !defined(LKPI_80211_HT)
+#define	LKPI_80211_HT
+#endif
 
 static MALLOC_DEFINE(M_LKPI80211, "lkpi80211", "LinuxKPI 80211 compat");
 
@@ -144,6 +150,79 @@ static void lkpi_ieee80211_free_skb_mbuf(void *);
 static int lkpi_wme_update(struct lkpi_hw *, struct ieee80211vap *, bool);
 #endif
 
+#if defined(LKPI_80211_HT)
+static void
+lkpi_sta_sync_ht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni, int *ht_rx_nss)
+{
+	struct ieee80211vap *vap;
+	uint8_t *ie;
+	struct ieee80211_ht_cap *htcap;
+	int i, rx_nss;
+
+	if ((ni->ni_flags & IEEE80211_NODE_HT) == 0)
+		return;
+
+	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) &&
+	    IEEE80211_IS_CHAN_HT40(ni->ni_chan))
+		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_40;
+
+	sta->deflink.ht_cap.ht_supported = true;
+
+	/* htcap->ampdu_params_info */
+	vap = ni->ni_vap;
+	sta->deflink.ht_cap.ampdu_density = _IEEE80211_MASKSHIFT(ni->ni_htparam, IEEE80211_HTCAP_MPDUDENSITY);
+	if (sta->deflink.ht_cap.ampdu_density > vap->iv_ampdu_density)
+		sta->deflink.ht_cap.ampdu_density = vap->iv_ampdu_density;
+	sta->deflink.ht_cap.ampdu_factor = _IEEE80211_MASKSHIFT(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU);
+	if (sta->deflink.ht_cap.ampdu_factor > vap->iv_ampdu_rxmax)
+		sta->deflink.ht_cap.ampdu_factor = vap->iv_ampdu_rxmax;
+
+	ie = ni->ni_ies.htcap_ie;
+	KASSERT(ie != NULL, ("%s: HT but no htcap_ie on ni %p\n", __func__, ni));
+	if (ie[0] == IEEE80211_ELEMID_VENDOR)
+		ie += 4;
+	ie += 2;
+	htcap = (struct ieee80211_ht_cap *)ie;
+	sta->deflink.ht_cap.cap = htcap->cap_info;
+	sta->deflink.ht_cap.mcs = htcap->mcs;
+
+	rx_nss = 0;
+	for (i = 0; i < nitems(htcap->mcs.rx_mask); i++) {
+		if (htcap->mcs.rx_mask[i])
+			rx_nss++;
+	}
+	if (ht_rx_nss != NULL)
+		*ht_rx_nss = rx_nss;
+
+	IMPROVE("sta->wme, sta->deflink.agg.max*");
+}
+#endif
+
+#if defined(LKPI_80211_VHT)
+static void
+lkpi_sta_sync_vht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni, int *vht_rx_nss)
+{
+
+	if ((ni->ni_flags & IEEE80211_NODE_VHT) == 0)
+		return;
+
+	if (IEEE80211_IS_CHAN_VHT(ni->ni_chan)) {
+#ifdef __notyet__
+		if (IEEE80211_IS_CHAN_VHT80P80(ni->ni_chan)) {
+			sta->deflink.bandwidth = IEEE80211_STA_RX_BW_160; /* XXX? */
+		} else
+#endif
+		if (IEEE80211_IS_CHAN_VHT160(ni->ni_chan))
+			sta->deflink.bandwidth = IEEE80211_STA_RX_BW_160;
+		else if (IEEE80211_IS_CHAN_VHT80(ni->ni_chan))
+			sta->deflink.bandwidth = IEEE80211_STA_RX_BW_80;
+	}
+
+	IMPROVE("VHT sync ni to sta");
+	return;
+}
+#endif
+
 static void
 lkpi_lsta_dump(struct lkpi_sta *lsta, struct ieee80211_node *ni,
     const char *_f, int _l)
@@ -198,6 +277,8 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 	struct ieee80211_vif *vif;
 	struct ieee80211_sta *sta;
 	int band, i, tid;
+	int ht_rx_nss;
+	int vht_rx_nss;
 
 	lsta = malloc(sizeof(*lsta) + hw->sta_data_size, M_LKPI80211,
 	    M_NOWAIT | M_ZERO);
@@ -267,9 +348,23 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 			sta->deflink.supp_rates[band] |= BIT(i);
 		}
 	}
+
 	sta->deflink.smps_mode = IEEE80211_SMPS_OFF;
-	IMPROVE("ht, vht, he, ... bandwidth, smps_mode, ..");
-	/* bandwidth = IEEE80211_STA_RX_... */
+	sta->deflink.bandwidth = IEEE80211_STA_RX_BW_20;
+	sta->deflink.rx_nss = 0;
+
+	ht_rx_nss = 0;
+#if defined(LKPI_80211_HT)
+	lkpi_sta_sync_ht_from_ni(sta, ni, &ht_rx_nss);
+#endif
+	vht_rx_nss = 0;
+#if defined(LKPI_80211_VHT)
+	lkpi_sta_sync_vht_from_ni(sta, ni, &vht_rx_nss);
+#endif
+
+	sta->deflink.rx_nss = MAX(ht_rx_nss, sta->deflink.rx_nss);
+	sta->deflink.rx_nss = MAX(vht_rx_nss, sta->deflink.rx_nss);
+	IMPROVE("he, ... smps_mode, ..");
 
 	/* Link configuration. */
 	IEEE80211_ADDR_COPY(sta->deflink.addr, sta->addr);
@@ -971,12 +1066,35 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	conf->def.width = NL80211_CHAN_WIDTH_20_NOHT;
 	conf->def.center_freq1 = chan->center_freq;
 	conf->def.center_freq2 = 0;
+	IMPROVE("Check vht_cap from band not just chan?");
+#ifdef LKPI_80211_HT
+	if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
+		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
+			conf->def.width = NL80211_CHAN_WIDTH_40;
+		} else
+			conf->def.width = NL80211_CHAN_WIDTH_20;
+	}
+#endif
+#ifdef LKPI_80211_VHT
+	if (IEEE80211_IS_CHAN_VHT(ni->ni_chan)) {
+#ifdef __notyet__
+		if (IEEE80211_IS_CHAN_VHT80P80(ni->ni_chan)) {
+			conf->def.width = NL80211_CHAN_WIDTH_80P80;
+			conf->def.center_freq2 = 0;	/* XXX */
+		} else
+#endif
+		if (IEEE80211_IS_CHAN_VHT160(ni->ni_chan))
+			conf->def.width = NL80211_CHAN_WIDTH_160;
+		else if (IEEE80211_IS_CHAN_VHT80(ni->ni_chan))
+			conf->def.width = NL80211_CHAN_WIDTH_80;
+	}
+#endif
 	/* Responder ... */
 	conf->min_def.chan = chan;
 	conf->min_def.width = NL80211_CHAN_WIDTH_20_NOHT;
 	conf->min_def.center_freq1 = chan->center_freq;
 	conf->min_def.center_freq2 = 0;
-	IMPROVE("currently 20_NOHT only");
+	IMPROVE("currently 20_NOHT min_def only");
 
 	/* Set bss info (bss_info_changed). */
 	bss_changed = 0;
@@ -1009,6 +1127,15 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 			vif->bss_conf.chandef.width = conf->def.width;
 			vif->bss_conf.chandef.center_freq1 =
 			    conf->def.center_freq1;
+#ifdef LKPI_80211_HT
+			if (vif->bss_conf.chandef.width == NL80211_CHAN_WIDTH_40) {
+				/* Note: it is 10 not 20. */
+				if (IEEE80211_IS_CHAN_HT40U(ni->ni_chan))
+					vif->bss_conf.chandef.center_freq1 += 10;
+				else if (IEEE80211_IS_CHAN_HT40D(ni->ni_chan))
+					vif->bss_conf.chandef.center_freq1 -= 10;
+			}
+#endif
 			vif->bss_conf.chandef.center_freq2 =
 			    conf->def.center_freq2;
 		} else {
@@ -1650,6 +1777,11 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	if (!ieee80211_node_is_authorized(ni)) {
 		IMPROVE("net80211 does not consider node authorized");
 	}
+
+#if defined(LKPI_80211_HT)
+	IMPROVE("Is this the right spot, has net80211 done all updates already?");
+	lkpi_sta_sync_ht_from_ni(sta, ni, NULL);
+#endif
 
 	/* Update sta_state (ASSOC to AUTHORIZED). */
 	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
@@ -2464,6 +2596,10 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 #endif
 	}
 
+#ifdef LKPI_80211_HT
+	/* Stay with the iv_ampdu_rxmax,limit / iv_ampdu_density defaults until later. */
+#endif
+
 	ieee80211_ratectl_init(vap);
 
 	/* Complete setup. */
@@ -3075,6 +3211,9 @@ lkpi_ic_set_channel(struct ieee80211com *ic)
 
 	hw = LHW_TO_HW(lhw);
 	cfg80211_chandef_create(&hw->conf.chandef, chan,
+#ifdef LKPI_80211_HT
+	    (ic->ic_htcaps & IEEE80211_HTC_HT) ? 0 :
+#endif
 	    NL80211_CHAN_NO_HT);
 
 	error = lkpi_80211_mo_config(hw, IEEE80211_CONF_CHANGE_CHANNEL);
@@ -3363,6 +3502,13 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 		info->control.flags |= IEEE80211_TX_CTRL_PORT_CTRL_PROTO;
 	info->control.vif = vif;
 	/* XXX-BZ info->control.rates */
+#ifdef __notyet__
+#ifdef LKPI_80211_HT
+	info->control.rts_cts_rate_idx=
+	info->control.use_rts= /* RTS */
+	info->control.use_cts_prot= /* RTS/CTS*/
+#endif
+#endif
 
 	lsta = lkpi_find_lsta_by_ni(lvif, ni);
 	if (lsta != NULL) {
@@ -3469,6 +3615,291 @@ lkpi_ic_transmit(struct ieee80211com *ic, struct mbuf *m)
 	return (lkpi_ic_raw_xmit(ni, m, NULL));
 }
 
+#ifdef LKPI_80211_HT
+static int
+lkpi_ic_recv_action(struct ieee80211_node *ni, const struct ieee80211_frame *wh,
+    const uint8_t *frm, const uint8_t *efrm)
+{
+	struct ieee80211com *ic;
+	struct lkpi_hw *lhw;
+
+	ic = ni->ni_ic;
+	lhw = ic->ic_softc;
+
+	IMPROVE_HT();
+
+	return (lhw->ic_recv_action(ni, wh, frm, efrm));
+}
+
+static int
+lkpi_ic_send_action(struct ieee80211_node *ni, int category, int action, void *sa)
+{
+	struct ieee80211com *ic;
+	struct lkpi_hw *lhw;
+
+	ic = ni->ni_ic;
+	lhw = ic->ic_softc;
+
+	IMPROVE_HT();
+
+	return (lhw->ic_send_action(ni, category, action, sa));
+}
+
+
+static int
+lkpi_ic_ampdu_enable(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
+{
+	struct ieee80211com *ic;
+	struct lkpi_hw *lhw;
+
+	ic = ni->ni_ic;
+	lhw = ic->ic_softc;
+
+	IMPROVE_HT();
+
+	return (lhw->ic_ampdu_enable(ni, tap));
+}
+
+static int
+lkpi_ic_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
+    int dialogtoken, int baparamset, int batimeout)
+{
+	struct ieee80211com *ic;
+	struct lkpi_hw *lhw;
+
+	ic = ni->ni_ic;
+	lhw = ic->ic_softc;
+
+	IMPROVE_HT();
+
+	return (lhw->ic_addba_request(ni, tap, dialogtoken, baparamset, batimeout));
+}
+
+static int
+lkpi_ic_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
+    int status, int baparamset, int batimeout)
+{
+	struct ieee80211com *ic;
+	struct lkpi_hw *lhw;
+
+	ic = ni->ni_ic;
+	lhw = ic->ic_softc;
+
+	IMPROVE_HT();
+
+	return (lhw->ic_addba_response(ni, tap, status, baparamset, batimeout));
+}
+
+static void
+lkpi_ic_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
+{
+	struct ieee80211com *ic;
+	struct lkpi_hw *lhw;
+
+	ic = ni->ni_ic;
+	lhw = ic->ic_softc;
+
+	IMPROVE_HT();
+
+	lhw->ic_addba_stop(ni, tap);
+}
+
+static void
+lkpi_ic_addba_response_timeout(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
+{
+	struct ieee80211com *ic;
+	struct lkpi_hw *lhw;
+
+	ic = ni->ni_ic;
+	lhw = ic->ic_softc;
+
+	IMPROVE_HT();
+
+	lhw->ic_addba_response_timeout(ni, tap);
+}
+
+static void
+lkpi_ic_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
+    int status)
+{
+	struct ieee80211com *ic;
+	struct lkpi_hw *lhw;
+
+	ic = ni->ni_ic;
+	lhw = ic->ic_softc;
+
+	IMPROVE_HT();
+
+	lhw->ic_bar_response(ni, tap, status);
+}
+
+static int
+lkpi_ic_ampdu_rx_start(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap,
+    int baparamset, int batimeout, int baseqctl)
+{
+	struct ieee80211com *ic;
+	struct lkpi_hw *lhw;
+	struct ieee80211_hw *hw;
+	struct ieee80211vap *vap;
+	struct lkpi_vif *lvif;
+	struct ieee80211_vif *vif;
+	struct lkpi_sta *lsta;
+        struct ieee80211_sta *sta;
+	struct ieee80211_ampdu_params params;
+	int error;
+
+	ic = ni->ni_ic;
+	lhw = ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+	vap = ni->ni_vap;
+	lvif = VAP_TO_LVIF(vap);
+	vif = LVIF_TO_VIF(lvif);
+	lsta = ni->ni_drv_data;
+	sta = LSTA_TO_STA(lsta);
+
+	params.sta = sta;
+	params.action = IEEE80211_AMPDU_RX_START;
+	params.buf_size = _IEEE80211_MASKSHIFT(le16toh(baparamset), IEEE80211_BAPS_BUFSIZ);
+	if (params.buf_size == 0)
+		params.buf_size = IEEE80211_MAX_AMPDU_BUF_HT;
+	else
+		params.buf_size = min(params.buf_size, IEEE80211_MAX_AMPDU_BUF_HT);
+	if (params.buf_size > hw->max_rx_aggregation_subframes)
+		params.buf_size = hw->max_rx_aggregation_subframes;
+	params.timeout = le16toh(batimeout);
+	params.ssn = _IEEE80211_MASKSHIFT(le16toh(baseqctl), IEEE80211_BASEQ_START);
+	params.tid = _IEEE80211_MASKSHIFT(le16toh(baparamset), IEEE80211_BAPS_TID);
+	params.amsdu = false;
+
+	IMPROVE_HT("Do we need to distinguish based on SUPPORTS_REORDERING_BUFFER?");
+
+	/* This may call kalloc.  Make sure we can sleep. */
+	error = lkpi_80211_mo_ampdu_action(hw, vif, &params);
+	if (error != 0) {
+		ic_printf(ic, "%s: mo_ampdu_action returned %d. ni %p rap %p\n",
+		    __func__, error, ni, rap);
+		return (error);
+	}
+	IMPROVE_HT("net80211 is missing the error check on return and assumes success");
+
+	error = lhw->ic_ampdu_rx_start(ni, rap, baparamset, batimeout, baseqctl);
+	return (error);
+}
+
+static void
+lkpi_ic_ampdu_rx_stop(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap)
+{
+	struct ieee80211com *ic;
+	struct lkpi_hw *lhw;
+	struct ieee80211_hw *hw;
+	struct ieee80211vap *vap;
+	struct lkpi_vif *lvif;
+	struct ieee80211_vif *vif;
+	struct lkpi_sta *lsta;
+        struct ieee80211_sta *sta;
+	struct ieee80211_ampdu_params params;
+	int error;
+	uint8_t tid;
+
+	ic = ni->ni_ic;
+	lhw = ic->ic_softc;
+
+	/*
+	 * We should not (cannot) call into mac80211 ops with AMPDU_RX_STOP if
+	 * we did not START.  Some drivers pass it down to firmware which will
+	 * simply barf and net80211 calls ieee80211_ht_node_cleanup() from
+	 * ieee80211_ht_node_init() amongst others which will iterate over all
+	 * tid and call ic_ampdu_rx_stop() unconditionally.
+	 * XXX net80211 should probably be more "gentle" in these cases and
+	 * track some state itself.
+	 */
+	if ((rap->rxa_flags & IEEE80211_AGGR_RUNNING) == 0)
+		goto net80211_only;
+
+	hw = LHW_TO_HW(lhw);
+	vap = ni->ni_vap;
+	lvif = VAP_TO_LVIF(vap);
+	vif = LVIF_TO_VIF(lvif);
+	lsta = ni->ni_drv_data;
+	sta = LSTA_TO_STA(lsta);
+
+	IMPROVE_HT("This really should be passed from ht_recv_action_ba_delba.");
+	for (tid = 0; tid < WME_NUM_TID; tid++) {
+		if (&ni->ni_rx_ampdu[tid] == rap)
+			break;
+	}
+
+	params.sta = sta;
+	params.action = IEEE80211_AMPDU_RX_STOP;
+	params.buf_size = 0;
+	params.timeout = 0;
+	params.ssn = 0;
+	params.tid = tid;
+	params.amsdu = false;
+
+	error = lkpi_80211_mo_ampdu_action(hw, vif, &params);
+	if (error != 0)
+		ic_printf(ic, "%s: mo_ampdu_action returned %d. ni %p rap %p\n",
+		    __func__, error, ni, rap);
+
+net80211_only:
+	lhw->ic_ampdu_rx_stop(ni, rap);
+}
+#endif
+
+static void
+lkpi_ic_getradiocaps_ht(struct ieee80211com *ic, struct ieee80211_hw *hw,
+    uint8_t *bands, int *chan_flags, enum nl80211_band band)
+{
+#ifdef LKPI_80211_HT
+	struct ieee80211_sta_ht_cap *ht_cap;
+
+	ht_cap = &hw->wiphy->bands[band]->ht_cap;
+	if (!ht_cap->ht_supported)
+		return;
+
+	switch (band) {
+	case NL80211_BAND_2GHZ:
+		setbit(bands, IEEE80211_MODE_11NG);
+		break;
+	case NL80211_BAND_5GHZ:
+		setbit(bands, IEEE80211_MODE_11NA);
+		break;
+	default:
+		IMPROVE("Unsupported band %d", band);
+		return;
+	}
+
+	ic->ic_htcaps = IEEE80211_HTC_HT;	/* HT operation */
+
+	/*
+	 * Rather than manually checking each flag and
+	 * translating IEEE80211_HT_CAP_ to IEEE80211_HTCAP_,
+	 * simply copy the 16bits.
+	 */
+	ic->ic_htcaps |= ht_cap->cap;
+
+	/* Then deal with the other flags. */
+	if (ieee80211_hw_check(hw, AMPDU_AGGREGATION))
+		ic->ic_htcaps |= IEEE80211_HTC_AMPDU;
+#ifdef __notyet__
+	if (ieee80211_hw_check(hw, TX_AMSDU))
+		ic->ic_htcaps |= IEEE80211_HTC_AMSDU;
+	if (ieee80211_hw_check(hw, SUPPORTS_AMSDU_IN_AMPDU))
+		ic->ic_htcaps |= (IEEE80211_HTC_RX_AMSDU_AMPDU |
+		    IEEE80211_HTC_TX_AMSDU_AMPDU);
+#endif
+
+	IMPROVE("PS, ampdu_*, ht_cap.mcs.tx_params, ...");
+	ic->ic_htcaps |= IEEE80211_HTCAP_SMPS_OFF;
+
+	/* Only add HT40 channels if supported. */
+	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) != 0 &&
+	    chan_flags != NULL)
+		*chan_flags |= NET80211_CBW_FLAG_HT40;
+#endif
+}
+
 static void
 lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
     int *n, struct ieee80211_channel *c)
@@ -3492,13 +3923,12 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 		chan_flags = 0;
 		setbit(bands, IEEE80211_MODE_11B);
 		/* XXX-BZ unclear how to check for 11g. */
+
+		IMPROVE("the bitrates may have flags?");
 		setbit(bands, IEEE80211_MODE_11G);
-#ifdef __notyet__
-		if (hw->wiphy->bands[NL80211_BAND_2GHZ]->ht_cap.ht_supported) {
-			setbit(bands, IEEE80211_MODE_11NG);
-			chan_flags |= NET80211_CBW_FLAG_HT40;
-		}
-#endif
+
+		lkpi_ic_getradiocaps_ht(ic, hw, bands, &chan_flags,
+		    NL80211_BAND_2GHZ);
 
 		channels = hw->wiphy->bands[NL80211_BAND_2GHZ]->channels;
 		for (i = 0; i < nchans && *n < maxchan; i++) {
@@ -3548,11 +3978,11 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 		memset(bands, 0, sizeof(bands));
 		chan_flags = 0;
 		setbit(bands, IEEE80211_MODE_11A);
-#ifdef __not_yet__
-		if (hw->wiphy->bands[NL80211_BAND_5GHZ]->ht_cap.ht_supported) {
-			setbit(bands, IEEE80211_MODE_11NA);
-			chan_flags |= NET80211_CBW_FLAG_HT40;
-		}
+
+		lkpi_ic_getradiocaps_ht(ic, hw, bands, &chan_flags,
+		    NL80211_BAND_5GHZ);
+
+#ifdef LKPI_80211_VHT
 		if (hw->wiphy->bands[NL80211_BAND_5GHZ]->vht_cap.vht_supported){
 
 			ic->ic_flags_ext |= IEEE80211_FEXT_VHT;
@@ -3793,18 +4223,6 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 		lhw->scan_flags |= LKPI_LHW_SCAN_HW;
 	}
 
-#ifdef __notyet__
-	ic->ic_htcaps = IEEE80211_HTC_HT        /* HT operation */
-		    | IEEE80211_HTC_AMPDU       /* A-MPDU tx/rx */
-		    | IEEE80211_HTC_AMSDU       /* A-MSDU tx/rx */
-		    | IEEE80211_HTCAP_MAXAMSDU_3839
-						/* max A-MSDU length */
-		    | IEEE80211_HTCAP_SMPS_OFF; /* SM power save off */
-	ic->ic_htcaps |= IEEE80211_HTCAP_SHORTGI20;
-	ic->ic_htcaps |= IEEE80211_HTCAP_CHWIDTH40 | IEEE80211_HTCAP_SHORTGI40;
-	ic->ic_htcaps |= IEEE80211_HTCAP_TXSTBC;
-#endif
-
 	/*
 	 * The wiphy variables report bitmasks of avail antennas.
 	 * (*get_antenna) get the current bitmask sets which can be
@@ -3863,6 +4281,33 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	lhw->ic_node_free = ic->ic_node_free;
 	ic->ic_node_free = lkpi_ic_node_free;
 
+#ifdef LKPI_80211_HT
+	lhw->ic_recv_action = ic->ic_recv_action;
+	ic->ic_recv_action = lkpi_ic_recv_action;
+	lhw->ic_send_action = ic->ic_send_action;
+	ic->ic_send_action = lkpi_ic_send_action;
+
+	lhw->ic_ampdu_enable = ic->ic_ampdu_enable;
+	ic->ic_ampdu_enable = lkpi_ic_ampdu_enable;
+
+	lhw->ic_addba_request = ic->ic_addba_request;
+	ic->ic_addba_request = lkpi_ic_addba_request;
+	lhw->ic_addba_response = ic->ic_addba_response;
+	ic->ic_addba_response = lkpi_ic_addba_response;
+	lhw->ic_addba_stop = ic->ic_addba_stop;
+	ic->ic_addba_stop = lkpi_ic_addba_stop;
+	lhw->ic_addba_response_timeout = ic->ic_addba_response_timeout;
+	ic->ic_addba_response_timeout = lkpi_ic_addba_response_timeout;
+
+	lhw->ic_bar_response = ic->ic_bar_response;
+	ic->ic_bar_response = lkpi_ic_bar_response;
+
+	lhw->ic_ampdu_rx_start = ic->ic_ampdu_rx_start;
+	ic->ic_ampdu_rx_start = lkpi_ic_ampdu_rx_start;
+	lhw->ic_ampdu_rx_stop = ic->ic_ampdu_rx_stop;
+	ic->ic_ampdu_rx_stop = lkpi_ic_ampdu_rx_stop;
+#endif
+
 	lkpi_radiotap_attach(lhw);
 
 	/*
@@ -3894,6 +4339,9 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 				continue;
 
 			cfg80211_chandef_create(&hw->conf.chandef, &channels[i],
+#ifdef LKPI_80211_HT
+			    (ic->ic_htcaps & IEEE80211_HTC_HT) ? 0 :
+#endif
 			    NL80211_CHAN_NO_HT);
 			break;
 		}
@@ -3911,7 +4359,6 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	/*
 	 * The maximum supported bitrates on any band + size for
 	 * DSSS Parameter Set give our per-band IE size.
-	 * XXX-BZ FIXME add HT VHT ... later
 	 * SSID is the responsibility of the driver and goes on the side.
 	 * The user specified bits coming from the vap go into the
 	 * "common ies" fields.
@@ -3928,6 +4375,15 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 		 */
 		lhw->scan_ie_len += 2 + 1;
 	}
+
+#if defined(LKPI_80211_HT)
+	if ((ic->ic_htcaps & IEEE80211_HTC_HT) != 0)
+		lhw->scan_ie_len += sizeof(struct ieee80211_ie_htcap);
+#endif
+#if defined(LKPI_80211_VHT)
+	if ((ic->ic_flags_ext & IEEE80211_FEXT_VHT) != 0)
+		lhw->scan_ie_len += 2 + sizeof(struct ieee80211_vht_cap);
+#endif
 
 	/* Reduce the max_scan_ie_len "left" by the amount we consume already. */
 	if (hw->wiphy->max_scan_ie_len > 0) {
@@ -4327,8 +4783,9 @@ no_trace_beacons:
 		 * net80211 should take care of the other information (sync_tsf,
 		 * sync_dtim_count) as otherwise we need to parse the beacon.
 		 */
-	}
 skip_device_ts:
+		;
+	}
 
 	if (vap != NULL && vap->iv_state > IEEE80211_S_INIT &&
 	    ieee80211_radiotap_active_vap(vap)) {
