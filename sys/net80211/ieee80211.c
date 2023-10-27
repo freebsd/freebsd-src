@@ -553,7 +553,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	vap->iv_htextcaps = ic->ic_htextcaps;
 
 	/* 11ac capabilities - XXX methodize */
-	vap->iv_vhtcaps = ic->ic_vhtcaps;
+	vap->iv_vht_cap.vht_cap_info = ic->ic_vhtcaps;
 	vap->iv_vhtextcaps = ic->ic_vhtextcaps;
 
 	vap->iv_opmode = opmode;

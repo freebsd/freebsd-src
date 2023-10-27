@@ -490,7 +490,7 @@ _db_show_vap(const struct ieee80211vap *vap, int showmesh, int showprocs)
 	db_printf("\tflags_ven=%b\n", vap->iv_flags_ven, IEEE80211_FVEN_BITS);
 	db_printf("\tcaps=%b\n", vap->iv_caps, IEEE80211_C_BITS);
 	db_printf("\thtcaps=%b\n", vap->iv_htcaps, IEEE80211_C_HTCAP_BITS);
-	db_printf("\tvhtcaps=%b\n", vap->iv_vhtcaps, IEEE80211_VHTCAP_BITS);
+	db_printf("\tvhtcap=%b\n", vap->iv_vht_cap.vht_cap_info, IEEE80211_VHTCAP_BITS);
 
 	_db_show_stats(&vap->iv_stats);
 
