@@ -41,14 +41,15 @@
 #define MBOX_NO_OP			0x0000
 #define MBOX_LOAD_RAM			0x0001
 #define MBOX_EXEC_FIRMWARE		0x0002
-#define MBOX_DUMP_RAM			0x0003
+#define	MBOX_LOAD_FLASH_FIRMWARE	0x0003
 #define MBOX_WRITE_RAM_WORD		0x0004
 #define MBOX_READ_RAM_WORD		0x0005
 #define MBOX_MAILBOX_REG_TEST		0x0006
 #define MBOX_VERIFY_CHECKSUM		0x0007
 #define MBOX_ABOUT_FIRMWARE		0x0008
 #define	MBOX_LOAD_RISC_RAM_2100		0x0009
-					/*   a */
+#define	MBOX_DUMP_RISC_RAM_2100		0x000a
+#define	MBOX_SECURE_FLASH_UPDATE	0x000a	/* Secure Flash Update(28xx) */
 #define	MBOX_LOAD_RISC_RAM		0x000b
 #define	MBOX_DUMP_RISC_RAM		0x000c
 #define MBOX_WRITE_RAM_WORD_EXTENDED	0x000d
@@ -124,7 +125,6 @@
 #define	MBOX_GET_TARGET_STATUS		0x0056
 
 /* These are for the ISP2X00 FC cards */
-#define	MBOX_LOAD_FLASH_FIRMWARE	0x0003
 #define	MBOX_WRITE_FC_SERDES_REG	0x0003	/* FC only */
 #define	MBOX_READ_FC_SERDES_REG		0x0004	/* FC only */
 #define	MBOX_GET_IO_STATUS		0x0012
@@ -554,39 +554,47 @@ typedef struct {
 /*
  * About Firmware returns an 'attribute' word.
  */
-#define	ISP2400_FW_ATTR_CLASS2	0x0001
-#define	ISP2400_FW_ATTR_IP	0x0002
-#define	ISP2400_FW_ATTR_MULTIID	0x0004
-#define	ISP2400_FW_ATTR_SB2	0x0008
-#define	ISP2400_FW_ATTR_T10CRC	0x0010
-#define	ISP2400_FW_ATTR_VI	0x0020
-#define	ISP2400_FW_ATTR_MQ	0x0040
-#define	ISP2400_FW_ATTR_MSIX	0x0080
-#define	ISP2400_FW_ATTR_FCOE	0x0800
-#define	ISP2400_FW_ATTR_VP0	0x1000
-#define	ISP2400_FW_ATTR_EXPFW	0x2000
-#define	ISP2400_FW_ATTR_HOTFW	0x4000
-#define	ISP2400_FW_ATTR_EXTNDED	0x8000
-#define	ISP2400_FW_ATTR_EXTVP	0x00010000
-#define	ISP2400_FW_ATTR_VN2VN	0x00040000
-#define	ISP2400_FW_ATTR_EXMOFF	0x00080000
-#define	ISP2400_FW_ATTR_NPMOFF	0x00100000
-#define	ISP2400_FW_ATTR_DIFCHOP	0x00400000
-#define	ISP2400_FW_ATTR_SRIOV	0x02000000
-#define	ISP2400_FW_ATTR_ASICTMP	0x0200000000
-#define	ISP2400_FW_ATTR_ATIOMQ	0x0400000000
+#define	ISP_FW_ATTR_CLASS2	0x0001
+#define	ISP_FW_ATTR_IP		0x0002
+#define	ISP_FW_ATTR_MULTIID	0x0004
+#define	ISP_FW_ATTR_SB2		0x0008
+#define	ISP_FW_ATTR_T10CRC	0x0010
+#define	ISP_FW_ATTR_VI		0x0020
+#define	ISP_FW_ATTR_MQ		0x0040
+#define	ISP_FW_ATTR_MSIX	0x0080
+#define	ISP_FW_ATTR_FCOE	0x0800
+#define	ISP_FW_ATTR_VP0		0x1000
+#define	ISP_FW_ATTR_EXPFW	0x2000
+#define	ISP_FW_ATTR_HOTFW	0x4000
+#define	ISP_FW_ATTR_EXTNDED	0x8000
+
+#define	ISP_FW_ATTR_H_EXTVP	0x0001
+#define	ISP_FW_ATTR_H_NVME_FB	0x0002	/* NVMe first burst */
+#define	ISP_FW_ATTR_H_VN2VN	0x0004	/* Extended login */
+#define	ISP_FW_ATTR_H_EXMOFF	0x0008	/* Exchange offload */
+#define	ISP_FW_ATTR_H_NPMOFF	0x0010
+#define	ISP_FW_ATTR_H_DIFCHOP	0x0040
+#define	ISP_FW_ATTR_H_SRIOV	0x0200
+#define	ISP_FW_ATTR_H_NVME	0x0400	/* FC-NVMe */
+#define	ISP_FW_ATTR_H_NVME_UP	0x4000	/* FC-NVMe updated */
+
+#define	ISP_FW_ATTR_E0_ASICTMP	0x0002
+#define	ISP_FW_ATTR_E0_ATIOMQ	0x0004
+#define ISP_FW_ATTR_E0_EDIF	0x0020	/* Encryption of data in flight */
+#define ISP_FW_ATTR_E0_SCM	0x1000	/* Simplified Configuration and Management */
+#define ISP_FW_ATTR_E0_NVME2	0x2000	/* NVMe2 */
 
 /*
  * This is only true for 24XX cards with this f/w attribute
  */
 #define	ISP_CAP_MULTI_ID(isp)	\
-	(isp->isp_fwattr & ISP2400_FW_ATTR_MULTIID)
+	(isp->isp_fwattr & ISP_FW_ATTR_MULTIID)
 #define	ISP_GET_VPIDX(isp, tag) \
 	(ISP_CAP_MULTI_ID(isp) ? tag : 0)
 #define	ISP_CAP_MSIX(isp)	\
-	(isp->isp_fwattr & ISP2400_FW_ATTR_MSIX)
+	(isp->isp_fwattr & ISP_FW_ATTR_MSIX)
 #define	ISP_CAP_VP0(isp)	\
-	(isp->isp_fwattr & ISP2400_FW_ATTR_VP0)
+	(isp->isp_fwattr & ISP_FW_ATTR_VP0)
 
 #define	ISP_FCTAPE_ENABLED(isp, chan)	\
 	((FCPARAM(isp, chan)->isp_xfwoptions & ICB2400_OPT2_FCTAPE) != 0)
