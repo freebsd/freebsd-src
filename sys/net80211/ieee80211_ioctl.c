@@ -711,7 +711,7 @@ ieee80211_ioctl_getdevcaps(struct ieee80211com *ic,
 	dc->dc_drivercaps = ic->ic_caps;
 	dc->dc_cryptocaps = ic->ic_cryptocaps;
 	dc->dc_htcaps = ic->ic_htcaps;
-	dc->dc_vhtcaps = ic->ic_vhtcaps;
+	dc->dc_vhtcaps = ic->ic_vht_cap.vht_cap_info;
 	ci = &dc->dc_chaninfo;
 	ic->ic_getradiocaps(ic, maxchans, &ci->ic_nchans, ci->ic_chans);
 	KASSERT(ci->ic_nchans <= maxchans,
