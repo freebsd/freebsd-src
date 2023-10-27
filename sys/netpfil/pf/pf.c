@@ -4336,7 +4336,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	case IPPROTO_SCTP:
 		pf_set_protostate(s, PF_PEER_SRC, SCTP_COOKIE_WAIT);
 		pf_set_protostate(s, PF_PEER_DST, SCTP_CLOSED);
-		s->timeout = PFTM_TCP_FIRST_PACKET;
+		s->timeout = PFTM_SCTP_FIRST_PACKET;
 		break;
 	case IPPROTO_ICMP:
 #ifdef INET6
@@ -5326,7 +5326,7 @@ pf_test_state_sctp(struct pf_kstate **state, struct pfi_kkif *kif,
 	if (pd->sctp_flags & PFDESC_SCTP_INIT) {
 		if (src->state < SCTP_COOKIE_WAIT) {
 			pf_set_protostate(*state, psrc, SCTP_COOKIE_WAIT);
-			(*state)->timeout = PFTM_TCP_OPENING;
+			(*state)->timeout = PFTM_SCTP_OPENING;
 		}
 	}
 	if (pd->sctp_flags & PFDESC_SCTP_INIT_ACK) {
@@ -5338,15 +5338,19 @@ pf_test_state_sctp(struct pf_kstate **state, struct pfi_kkif *kif,
 	if (pd->sctp_flags & PFDESC_SCTP_COOKIE) {
 		if (src->state < SCTP_ESTABLISHED) {
 			pf_set_protostate(*state, psrc, SCTP_ESTABLISHED);
-			(*state)->timeout = PFTM_TCP_ESTABLISHED;
+			(*state)->timeout = PFTM_SCTP_ESTABLISHED;
 		}
 	}
 	if (pd->sctp_flags & (PFDESC_SCTP_SHUTDOWN | PFDESC_SCTP_ABORT |
 	    PFDESC_SCTP_SHUTDOWN_COMPLETE)) {
 		if (src->state < SCTP_SHUTDOWN_PENDING) {
 			pf_set_protostate(*state, psrc, SCTP_SHUTDOWN_PENDING);
-			(*state)->timeout = PFTM_TCP_CLOSING;
+			(*state)->timeout = PFTM_SCTP_CLOSING;
 		}
+	}
+	if (pd->sctp_flags & (PFDESC_SCTP_SHUTDOWN_COMPLETE)) {
+		pf_set_protostate(*state, psrc, SCTP_CLOSED);
+		(*state)->timeout = PFTM_SCTP_CLOSED;
 	}
 
 	if (src->scrub != NULL) {
@@ -5627,7 +5631,7 @@ again:
 					psrc = PF_PEER_DST;
 				}
 				pf_set_protostate(sm, psrc, SCTP_SHUTDOWN_PENDING);
-				sm->timeout = PFTM_TCP_CLOSING;
+				sm->timeout = PFTM_SCTP_CLOSING;
 				PF_STATE_UNLOCK(sm);
 			}
 			break;
