@@ -152,9 +152,8 @@ pf_nvuint_32_array(const nvlist_t *nvl, const char *name, size_t maxelems,
 	size_t elems;
 
 	tmp = nvlist_get_number_array(nvl, name, &elems);
-	assert(elems <= maxelems);
 
-	for (size_t i = 0; i < elems; i++)
+	for (size_t i = 0; i < elems && i < maxelems; i++)
 		numbers[i] = tmp[i];
 
 	if (nelems)
