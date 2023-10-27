@@ -1,0 +1,8 @@
+Generate and install kernel.bin from kernel as part of the normal build and
+install processes for the kernel. Available only on arm and arm64.
+
+Usually this will be added to the kernel config file with:
+
+makeoptions	WITH_KERNEL_BIN=1
+
+though it can also be used on the command line.

@@ -466,4 +466,13 @@ embedfs_${MFS_IMAGE:T:R}.o: ${MFS_IMAGE} $S/dev/md/embedfs.S
 .endif
 .endif
 
+# Generate the .bin (booti images) kernel as an extra build output.
+# The targets and rules to generate these appear in Makefile.$MACHINE
+# if the platform supports it.
+.if ${MK_KERNEL_BIN} != "no"
+KERNEL_EXTRA+= ${KERNEL_KO}.bin
+KERNEL_EXTRA_INSTALL+= ${KERNEL_KO}.bin
+CLEAN+=	${KERNEL_KO}.bin
+.endif
+
 .include "kern.mk"

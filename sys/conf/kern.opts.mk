@@ -56,18 +56,18 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     BHYVE_SNAPSHOT \
+    KERNEL_BIN \
     KERNEL_RETPOLINE \
     RATELIMIT \
     REPRODUCIBLE_BUILD \
     VERIEXEC
 
-# Some options are totally broken on some architectures. We disable
-# them. If you need to enable them on an experimental basis, you
-# must change this code.
-# Note: These only apply to the list of modules we build by default
-# and sometimes what is in the opt_*.h files by default.
-# Kernel config files are unaffected, though some targets can be
-# affected by KERNEL_SYMBOLS, FORMAT_EXTENSIONS, CTF and SSP.
+# Some options are totally broken on some architectures. We disable them. If you
+# need to enable them on an experimental basis, you must change this code.
+# Note: These only apply to the list of modules we build by default and
+# sometimes what is in the opt_*.h files by default.  Kernel config files are
+# unaffected, though some targets can be affected by KERNEL_BIN, KERNEL_SYMBOLS,
+# FORMAT_EXTENSIONS, CTF and SSP.
 
 # Broken on 32-bit arm, kernel module compile errors
 .if ${MACHINE_CPUARCH} == "arm"
@@ -82,6 +82,11 @@ BROKEN_OPTIONS+= KERNEL_RETPOLINE
 # EFI doesn't exist on powerpc or riscv and is broken on i386
 .if ${MACHINE:Mpowerpc} || ${MACHINE:Mriscv} || ${MACHINE} == "i386"
 BROKEN_OPTIONS+=EFI
+.endif
+
+# We only generate kernel.bin on arm and arm64, otherwise they break the build.
+.if ${MACHINE} != "arm" && ${MACHINE} != "arm64"
+BROKEN_OPTIONS+=KERNEL_BIN
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
