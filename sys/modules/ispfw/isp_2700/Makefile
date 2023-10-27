@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2006 by Matthew Jacob
+# Copyright (c) 2009 by Matthew Jacob
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,11 +25,11 @@
 #
 
 
-SUBDIR = ispfw
-SUBDIR += isp_2400
-SUBDIR += isp_2500
-SUBDIR += isp_2600
-SUBDIR += isp_2700
-SUBDIR += isp_2800
+.PATH: ${SRCTOP}/sys/dev/ispfw
 
-.include <bsd.subdir.mk>
+KMOD=	isp_2700
+SRCS=	ispfw.c
+
+CFLAGS += -DISP_2700 -DMODULE_NAME=\"${KMOD}\"
+
+.include <bsd.kmod.mk>

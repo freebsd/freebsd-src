@@ -39,6 +39,9 @@
 #if	defined(ISP_ALL) || !defined(KLD_MODULE) 
 #define	ISP_2400	1
 #define	ISP_2500	1
+#define	ISP_2600	1
+#define	ISP_2700	1
+#define	ISP_2800	1
 #endif
 
 #ifndef MODULE_NAME
@@ -51,12 +54,30 @@
 #if	defined(ISP_2500)
 #include <dev/ispfw/asm_2500.h>
 #endif
+#if	defined(ISP_2600)
+#include <dev/ispfw/asm_2600.h>
+#endif
+#if	defined(ISP_2700)
+#include <dev/ispfw/asm_2700.h>
+#endif
+#if	defined(ISP_2800)
+#include <dev/ispfw/asm_2800.h>
+#endif
 
 #if	defined(ISP_2400)
 static int	isp_2400_loaded;
 #endif
 #if	defined(ISP_2500)
 static int	isp_2500_loaded;
+#endif
+#if	defined(ISP_2600)
+static int	isp_2600_loaded;
+#endif
+#if	defined(ISP_2700)
+static int	isp_2700_loaded;
+#endif
+#if	defined(ISP_2800)
+static int	isp_2800_loaded;
 #endif
 
 #define	ISPFW_VERSION	1
@@ -91,6 +112,15 @@ do_load_fw(void)
 #if	defined(ISP_2500)
 	RMACRO(isp_2500);
 #endif
+#if	defined(ISP_2600)
+	RMACRO(isp_2600);
+#endif
+#if	defined(ISP_2700)
+	RMACRO(isp_2700);
+#endif
+#if	defined(ISP_2800)
+	RMACRO(isp_2800);
+#endif
 	return (0);
 }
 
@@ -104,6 +134,15 @@ do_unload_fw(void)
 #endif
 #if	defined(ISP_2500)
 	UMACRO(isp_2500);
+#endif
+#if	defined(ISP_2600)
+	UMACRO(isp_2600);
+#endif
+#if	defined(ISP_2700)
+	UMACRO(isp_2700);
+#endif
+#if	defined(ISP_2800)
+	UMACRO(isp_2800);
 #endif
 	return (error);
 }
@@ -129,6 +168,12 @@ DECLARE_MODULE(ispfw, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 DECLARE_MODULE(isp_2400, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_2500)
 DECLARE_MODULE(isp_2500, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
+#elif	defined(ISP_2600)
+DECLARE_MODULE(isp_2600, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
+#elif	defined(ISP_2700)
+DECLARE_MODULE(isp_2700, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
+#elif	defined(ISP_2800)
+DECLARE_MODULE(isp_2800, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #else
 #error	"firmware not specified"
 #endif
