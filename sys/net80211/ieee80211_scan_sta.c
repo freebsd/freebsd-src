@@ -1680,7 +1680,7 @@ notfound:
 				chan = ieee80211_ht_adjust_channel(ic,
 				    chan, vap->iv_flags_ht);
 				chan = ieee80211_vht_adjust_channel(ic,
-				    chan, vap->iv_flags_vht);
+				    chan, vap->iv_vht_flags);
 				ieee80211_create_ibss(vap, chan);
 				return 1;
 			}
@@ -1713,7 +1713,7 @@ notfound:
 	chan = ieee80211_ht_adjust_channel(ic,
 	    chan, vap->iv_flags_ht);
 	chan = ieee80211_vht_adjust_channel(ic,
-	    chan, vap->iv_flags_vht);
+	    chan, vap->iv_vht_flags);
 	if (!ieee80211_sta_join(vap, chan, &selbs->base))
 		goto notfound;
 	return 1;				/* terminate scan */
@@ -1866,7 +1866,7 @@ ap_end(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 		return 1;
 	}
 	chan = ieee80211_ht_adjust_channel(ic, bestchan, vap->iv_flags_ht);
-	chan = ieee80211_vht_adjust_channel(ic, chan, vap->iv_flags_vht);
+	chan = ieee80211_vht_adjust_channel(ic, chan, vap->iv_vht_flags);
 	ieee80211_create_ibss(vap, chan);
 
 	return 1;
@@ -1946,7 +1946,7 @@ notfound:
 					chan = ieee80211_ht_adjust_channel(ic,
 					    chan, vap->iv_flags_ht);
 					chan = ieee80211_vht_adjust_channel(ic,
-					    chan, vap->iv_flags_vht);
+					    chan, vap->iv_vht_flags);
 					}
 			} else
 				chan = vap->iv_des_chan;
