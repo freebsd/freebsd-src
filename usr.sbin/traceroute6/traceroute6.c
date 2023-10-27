@@ -342,7 +342,7 @@ static u_long nprobes = 3;
 static u_long first_hop = 1;
 static u_long max_hops = 30;
 static u_int16_t srcport;
-static u_int16_t port = 32768+666;	/* start udp dest port # for probe packets */
+static u_int16_t port = 32768 + 666;	/* start udp dest port # for probe packets */
 static u_int16_t ident;
 static int tclass = -1;
 static int options;			/* socket options */
@@ -385,7 +385,7 @@ main(int argc, char *argv[])
 	}
 
 	size = sizeof(i);
-	(void) sysctl(mib, sizeof(mib)/sizeof(mib[0]), &i, &size, NULL, 0);
+	(void) sysctl(mib, sizeof(mib) / sizeof(mib[0]), &i, &size, NULL, 0);
 	max_hops = i;
 
 	/* specify to tell receiving interface */
@@ -693,7 +693,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 	if ((useproto == IPPROTO_SCTP) && (datalen & 3)) {
-		fprintf(stderr, 
+		fprintf(stderr,
 		    "traceroute6: packet size must be a multiple of 4.\n");
 		exit(1);
 	}
@@ -1054,7 +1054,7 @@ wait_for_reply(int sock, struct msghdr *mhdr)
 	FD_SET(sock, fdsp);
 	wait.tv_sec = waittime; wait.tv_usec = 0;
 
-	if (select(sock+1, fdsp, (fd_set *)0, (fd_set *)0, &wait) > 0)
+	if (select(sock + 1, fdsp, (fd_set *)0, (fd_set *)0, &wait) > 0)
 		cc = recvmsg(rcvsock, mhdr, 0);
 
 	free(fdsp);
@@ -1071,14 +1071,14 @@ setpolicy(int so, char *policy)
 	buf = ipsec_set_policy(policy, strlen(policy));
 	if (buf == NULL) {
 		warnx("%s", ipsec_strerror());
-		return -1;
+		return (-1);
 	}
 	(void)setsockopt(so, IPPROTO_IPV6, IPV6_IPSEC_POLICY,
 	    buf, ipsec_get_policylen(buf));
 
 	free(buf);
 
-	return 0;
+	return (0);
 }
 #endif
 
@@ -1115,7 +1115,7 @@ send_probe(int seq, u_long hops)
 	case IPPROTO_UDP:
 		outudp = (struct udphdr *) outpacket;
 		outudp->uh_sport = htons(ident);
-		outudp->uh_dport = htons(port+seq);
+		outudp->uh_dport = htons(port + seq);
 		outudp->uh_ulen = htons(datalen);
 		outudp->uh_sum = 0;
 		outudp->uh_sum = udp_cksum(&Src, &Dst, outpacket, datalen);
@@ -1205,7 +1205,7 @@ send_probe(int seq, u_long hops)
 		fprintf(stderr, "Unknown probe protocol %d.\n", useproto);
 		exit(1);
 	}
-	
+
 	i = send(sndsock, (char *)outpacket, datalen, 0);
 	if (i < 0 || (u_long)i != datalen)  {
 		if (i < 0)
@@ -1298,7 +1298,7 @@ pr_type(int t0)
 		cp = "Unknown";
 		break;
 	}
-	return cp;
+	return (cp);
 }
 
 int
@@ -1366,8 +1366,7 @@ packet_ok(struct msghdr *mhdr, int cc, int seq, u_char *type, u_char *code)
 #else
 		rcvhlim = 0;	/*XXX*/
 #endif
-	}
-	else
+	} else
 		rcvhlim = *hlimp;
 
 	*type = icp->icmp6_type;
@@ -1452,7 +1451,7 @@ packet_ok(struct msghdr *mhdr, int cc, int seq, u_char *type, u_char *code)
 			return (1);
 	}
 	if (verbose) {
-		char sbuf[NI_MAXHOST+1], dbuf[INET6_ADDRSTRLEN];
+		char sbuf[NI_MAXHOST + 1], dbuf[INET6_ADDRSTRLEN];
 		u_int8_t *p;
 		int i;
 
@@ -1614,19 +1613,19 @@ inetname(struct sockaddr *sa)
 		}
 	}
 	if (cp)
-		return cp;
+		return (cp);
 
 	if (cap_getnameinfo(capdns, sa, sa->sa_len, line, sizeof(line), NULL, 0,
 	    NI_NUMERICHOST) != 0)
 		strlcpy(line, "invalid", sizeof(line));
-	return line;
+	return (line);
 }
 
 /*
  * CRC32C routine for the Stream Control Transmission Protocol
  */
 
-#define CRC32C(c, d) (c = (c>>8) ^ crc_c[(c^(d))&0xFF])
+#define CRC32C(c, d) (c = (c >> 8) ^ crc_c[(c ^ (d)) & 0xFF])
 
 static u_int32_t crc_c[256] = {
 	0x00000000, 0xF26B8303, 0xE13B70F7, 0x1350F3F4,
@@ -1707,11 +1706,11 @@ sctp_crc32c(void *pack, u_int32_t len)
 		CRC32C(crc32c, buf[i]);
 	crc32c = ~crc32c;
 	byte0  = crc32c & 0xff;
-	byte1  = (crc32c>>8) & 0xff;
-	byte2  = (crc32c>>16) & 0xff;
-	byte3  = (crc32c>>24) & 0xff;
+	byte1  = (crc32c >> 8) & 0xff;
+	byte2  = (crc32c >> 16) & 0xff;
+	byte3  = (crc32c >> 24) & 0xff;
 	crc32c = ((byte0 << 24) | (byte1 << 16) | (byte2 << 8) | byte3);
-	return htonl(crc32c);
+	return (htonl(crc32c));
 }
 
 u_int16_t
