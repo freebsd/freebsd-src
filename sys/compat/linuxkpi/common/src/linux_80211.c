@@ -3919,20 +3919,30 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	lhw->scan_ie_len = 2 + IEEE80211_RATE_SIZE;
 	if (lhw->max_rates > IEEE80211_RATE_SIZE)
 		lhw->scan_ie_len += 2 + (lhw->max_rates - IEEE80211_RATE_SIZE);
-	/*
-	 * net80211 does not seem to support the DSSS Parameter Set but some of
-	 * the drivers insert it so calculate the extra fixed space in.
-	 */
-	lhw->scan_ie_len += 2 + 1;
+
+	if (hw->wiphy->features & NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES) {
+		/*
+		 * net80211 does not seem to support the DSSS Parameter Set but
+		 * some of the drivers insert it so calculate the extra fixed
+		 * space in.
+		 */
+		lhw->scan_ie_len += 2 + 1;
+	}
 
 	/* Reduce the max_scan_ie_len "left" by the amount we consume already. */
-	if (hw->wiphy->max_scan_ie_len > 0)
+	if (hw->wiphy->max_scan_ie_len > 0) {
+		if (lhw->scan_ie_len > hw->wiphy->max_scan_ie_len)
+			goto err;
 		hw->wiphy->max_scan_ie_len -= lhw->scan_ie_len;
+	}
 
 	if (bootverbose)
 		ieee80211_announce(ic);
 
 	return (0);
+err:
+	IMPROVE("TODO FIXME CLEANUP");
+	return (-EAGAIN);
 }
 
 void
