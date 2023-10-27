@@ -148,14 +148,14 @@ ieee80211_vht_vattach(struct ieee80211vap *vap)
 	vap->iv_vhtextcaps = ic->ic_vhtextcaps;
 
 	/* XXX assume VHT80 support; should really check vhtcaps */
-	vap->iv_flags_vht =
+	vap->iv_vht_flags =
 	    IEEE80211_FVHT_VHT
 	    | IEEE80211_FVHT_USEVHT40
 	    | IEEE80211_FVHT_USEVHT80;
 	if (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160MHZ(vap->iv_vhtcaps))
-		vap->iv_flags_vht |= IEEE80211_FVHT_USEVHT160;
+		vap->iv_vht_flags |= IEEE80211_FVHT_USEVHT160;
 	if (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160_80P80MHZ(vap->iv_vhtcaps))
-		vap->iv_flags_vht |= IEEE80211_FVHT_USEVHT80P80;
+		vap->iv_vht_flags |= IEEE80211_FVHT_USEVHT80P80;
 
 	memcpy(&vap->iv_vht_mcsinfo, &ic->ic_vht_mcsinfo,
 	    sizeof(struct ieee80211_vht_mcs_info));
@@ -383,10 +383,10 @@ ieee80211_vht_get_vhtcap_ie(struct ieee80211_node *ni,
 		    IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK);
 	}
 	if ((val2 == 2) &&
-	    ((vap->iv_flags_vht & IEEE80211_FVHT_USEVHT80P80) == 0))
+	    ((vap->iv_vht_flags & IEEE80211_FVHT_USEVHT80P80) == 0))
 		val2 = 1;
 	if ((val2 == 1) &&
-	    ((vap->iv_flags_vht & IEEE80211_FVHT_USEVHT160) == 0))
+	    ((vap->iv_vht_flags & IEEE80211_FVHT_USEVHT160) == 0))
 		val2 = 0;
 	val = MIN(val1, val2);
 	new_vhtcap |= _IEEE80211_SHIFTMASK(val,
