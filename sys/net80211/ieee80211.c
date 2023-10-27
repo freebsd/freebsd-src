@@ -939,7 +939,7 @@ ieee80211_syncflag_vht_locked(struct ieee80211com *ic, int flag)
 
 	bit = 0;
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
-		if (vap->iv_flags_vht & flag) {
+		if (vap->iv_vht_flags & flag) {
 			bit = 1;
 			break;
 		}
@@ -957,9 +957,9 @@ ieee80211_syncflag_vht(struct ieee80211vap *vap, int flag)
 	IEEE80211_LOCK(ic);
 	if (flag < 0) {
 		flag = -flag;
-		vap->iv_flags_vht &= ~flag;
+		vap->iv_vht_flags &= ~flag;
 	} else
-		vap->iv_flags_vht |= flag;
+		vap->iv_vht_flags |= flag;
 	ieee80211_syncflag_vht_locked(ic, flag);
 	IEEE80211_UNLOCK(ic);
 }
