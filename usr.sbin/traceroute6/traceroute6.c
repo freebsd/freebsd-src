@@ -262,6 +262,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
 #include <netinet/sctp.h>
@@ -294,7 +295,7 @@ void	capdns_open(void);
 int	get_hoplim(struct msghdr *);
 double	deltaT(struct timeval *, struct timeval *);
 const char *pr_type(int);
-int	packet_ok(struct msghdr *, int, int, u_char *, u_char *);
+int	packet_ok(struct msghdr *, int, int, u_char *, u_char *, u_char *);
 void	print(struct msghdr *, int);
 const char *inetname(struct sockaddr *);
 u_int32_t sctp_crc32c(void *, u_int32_t);
@@ -340,6 +341,7 @@ static int nflag;			/* print addresses numerically */
 static int useproto = IPPROTO_UDP;	/* protocol to use to send packet */
 static int lflag;			/* print both numerical address & hostname */
 static int as_path;			/* print as numbers for each hop */
+static int ecnflag;			/* ECN bleaching detection flag */
 static char *as_server = NULL;
 static void *asn;
 
@@ -355,7 +357,7 @@ main(int argc, char *argv[])
 	struct hostent *hp;
 	size_t size, minlen;
 	uid_t uid;
-	u_char type, code;
+	u_char type, code, ecn;
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 	char ipsec_inpolicy[] = "in bypass";
 	char ipsec_outpolicy[] = "out bypass";
@@ -401,7 +403,7 @@ main(int argc, char *argv[])
 	seq = 0;
 	ident = htons(getpid() & 0xffff); /* same as ping6 */
 
-	while ((ch = getopt(argc, argv, "aA:df:g:Ilm:nNp:q:rs:St:TUvw:")) != -1)
+	while ((ch = getopt(argc, argv, "aA:dEf:g:Ilm:nNp:q:rs:St:TUvw:")) != -1)
 		switch (ch) {
 		case 'a':
 			as_path = 1;
@@ -412,6 +414,9 @@ main(int argc, char *argv[])
 			break;
 		case 'd':
 			options |= SO_DEBUG;
+			break;
+		case 'E':
+			ecnflag = 1;
 			break;
 		case 'f':
 			ep = NULL;
@@ -582,6 +587,15 @@ main(int argc, char *argv[])
 		fprintf(stderr,
 		    "traceroute6: max hoplimit must be larger than first hoplimit.\n");
 		exit(1);
+	}
+
+	if (ecnflag) {
+		if (tclass != -1) {
+			tclass &= ~IPTOS_ECN_MASK;
+		} else {
+			tclass = 0;
+		}
+		tclass |= IPTOS_ECN_ECT1;
 	}
 
 	/* revoke privs */
@@ -948,7 +962,7 @@ main(int argc, char *argv[])
 			send_probe(++seq, hops);
 			while ((cc = wait_for_reply(rcvsock, &rcvmhdr))) {
 				(void) gettimeofday(&t2, NULL);
-				if (packet_ok(&rcvmhdr, cc, seq, &type, &code)) {
+				if (packet_ok(&rcvmhdr, cc, seq, &type, &code, &ecn)) {
 					if (!IN6_ARE_ADDR_EQUAL(&Rcv.sin6_addr,
 					    &lastaddr)) {
 						if (probe > 0)
@@ -957,6 +971,22 @@ main(int argc, char *argv[])
 						lastaddr = Rcv.sin6_addr;
 					}
 					printf("  %.3f ms", deltaT(&t1, &t2));
+					if (ecnflag) {
+						switch (ecn) {
+						case IPTOS_ECN_ECT1:
+							printf(" (ecn=passed)");
+							break;
+						case IPTOS_ECN_NOTECT:
+							printf(" (ecn=bleached)");
+							break;
+						case IPTOS_ECN_CE:
+							printf(" (ecn=congested)");
+							break;
+						default:
+							printf(" (ecn=mangled)");
+							break;
+						}
+					}
 					if (type == ICMP6_DST_UNREACH) {
 						switch (code) {
 						case ICMP6_DST_UNREACH_NOROUTE:
@@ -1290,7 +1320,8 @@ pr_type(int t0)
 }
 
 int
-packet_ok(struct msghdr *mhdr, int cc, int seq, u_char *type, u_char *code)
+packet_ok(struct msghdr *mhdr, int cc, int seq, u_char *type, u_char *code,
+    u_char *ecn)
 {
 	struct icmp6_hdr *icp;
 	struct sockaddr_in6 *from = (struct sockaddr_in6 *)mhdr->msg_name;
@@ -1373,6 +1404,7 @@ packet_ok(struct msghdr *mhdr, int cc, int seq, u_char *type, u_char *code)
 		void *up;
 
 		hip = (struct ip6_hdr *)(icp + 1);
+		*ecn = ntohl(hip->ip6_flow & IPV6_ECN_MASK) >> 20;
 		if ((up = get_uphdr(hip, (u_char *)(buf + cc))) == NULL) {
 			if (verbose)
 				warnx("failed to get upper layer header");
@@ -1792,7 +1824,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-"usage: traceroute6 [-adIlnNrSTUv] [-A as_server] [-f firsthop] [-g gateway]\n"
+"usage: traceroute6 [-adEIlnNrSTUv] [-A as_server] [-f firsthop] [-g gateway]\n"
 "       [-m hoplimit] [-p port] [-q probes] [-s src] [-w waittime] target\n"
 "       [datalen]\n");
 	exit(1);
