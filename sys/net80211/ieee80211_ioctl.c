@@ -1155,7 +1155,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 			ireq->i_val = 1;
 		break;
 	case IEEE80211_IOC_VHTCONF:
-		ireq->i_val = vap->iv_flags_vht & IEEE80211_FVHT_MASK;
+		ireq->i_val = vap->iv_vht_flags & IEEE80211_FVHT_MASK;
 		break;
 	default:
 		error = ieee80211_ioctl_getdefault(vap, ireq);
