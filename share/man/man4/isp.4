@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 19, 2020
+.Dd October 27, 2023
 .Dt ISP 4
 .Os
 .Sh NAME
@@ -80,12 +80,15 @@ FC-Tape is automatically enabled when connecting controller that supports
 it to a target that supports it.
 It may be disabled using configuration and hint options described below.
 .Sh FIRMWARE
-Firmware loading is supported if the
+Firmware loading is supported and handled by
+.Xr firmware 9 .
+The correct firmware is either loaded automatically, if available for this
+type of adapter, or by manually loading the
 .Xr ispfw 4
-module is loaded.
+module.
 It is strongly recommended that you use the firmware available from
 .Xr ispfw 4
-as it is the most likely to have been tested with this driver.
+as it is the one that most likely has been tested with this driver.
 .Sh HARDWARE
 Cards supported by the
 .Nm
@@ -128,7 +131,7 @@ Limit on number of Message Signaled Interrupts (MSI) to be used.
 .It Va hint.isp. Ns Ar N Ns Va .msix
 Limit on number of Extended Message Signaled Interrupts (MSI-X) to be used.
 .It Va hint.isp. Ns Ar N Ns Va .fwload_disable
-A hint value to disable loading of firmware
+A hint value to disable loading of firmware provided by
 .Xr ispfw 4 .
 .It Va hint.isp. Ns Ar N Ns Va .ignore_nvram
 A hint value to ignore board NVRAM settings for.
@@ -202,6 +205,14 @@ The default is 1 (enabled).
 This is the readonly World Wide Node Name value for this port.
 .It Va dev.isp. Ns Ar N Ns Va .wwpn
 This is the readonly World Wide Port Name value for this port.
+.It Va dev.isp. Ns Ar N Ns Va .fw_version_flash
+The readonly flash firmware version value in the active region of the
+controller.
+.It Va dev.isp. Ns Ar N Ns Va .fw_version_ispfw
+The readonly firmware version value provided by
+.Xr ispfw 4 .
+.It Va dev.isp. Ns Ar N Ns Va .fw_version_run
+The readonly firmware version value currently executed on the controller.
 .El
 .Sh SEE ALSO
 .Xr da 4 ,
