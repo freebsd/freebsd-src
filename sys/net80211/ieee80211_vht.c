@@ -144,7 +144,7 @@ ieee80211_vht_vattach(struct ieee80211vap *vap)
 	if (! IEEE80211_CONF_VHT(ic))
 		return;
 
-	vap->iv_vht_cap.vht_cap_info = ic->ic_vhtcaps;
+	vap->iv_vht_cap.vht_cap_info = ic->ic_vht_cap.vht_cap_info;
 	vap->iv_vhtextcaps = ic->ic_vhtextcaps;
 
 	/* XXX assume VHT80 support; should really check vhtcaps */
@@ -157,7 +157,7 @@ ieee80211_vht_vattach(struct ieee80211vap *vap)
 	if (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160_80P80MHZ(vap->iv_vht_cap.vht_cap_info))
 		vap->iv_vht_flags |= IEEE80211_FVHT_USEVHT80P80;
 
-	memcpy(&vap->iv_vht_cap.supp_mcs, &ic->ic_vht_mcsinfo,
+	memcpy(&vap->iv_vht_cap.supp_mcs, &ic->ic_vht_cap.supp_mcs,
 	    sizeof(struct ieee80211_vht_mcs_info));
 }
 
@@ -199,19 +199,19 @@ ieee80211_vht_announce(struct ieee80211com *ic)
 
 	/* Channel width */
 	ic_printf(ic, "[VHT] Channel Widths: 20MHz, 40MHz, 80MHz%s%s\n",
-	    (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160MHZ(ic->ic_vhtcaps)) ?
+	    (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160MHZ(ic->ic_vht_cap.vht_cap_info)) ?
 		", 160MHz" : "",
-	    (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160_80P80MHZ(ic->ic_vhtcaps)) ?
+	    (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160_80P80MHZ(ic->ic_vht_cap.vht_cap_info)) ?
 		 ", 80+80MHz" : "");
 	/* Features */
-	ic_printf(ic, "[VHT] Features: %b\n", ic->ic_vhtcaps,
+	ic_printf(ic, "[VHT] Features: %b\n", ic->ic_vht_cap.vht_cap_info,
 	    IEEE80211_VHTCAP_BITS);
 
 	/* For now, just 5GHz VHT.  Worry about 2GHz VHT later */
 	for (i = 0; i < 8; i++) {
 		/* Each stream is 2 bits */
-		tx = (ic->ic_vht_mcsinfo.tx_mcs_map >> (2*i)) & 0x3;
-		rx = (ic->ic_vht_mcsinfo.rx_mcs_map >> (2*i)) & 0x3;
+		tx = (ic->ic_vht_cap.supp_mcs.tx_mcs_map >> (2*i)) & 0x3;
+		rx = (ic->ic_vht_cap.supp_mcs.rx_mcs_map >> (2*i)) & 0x3;
 		if (tx == 3 && rx == 3)
 			continue;
 		ic_printf(ic, "[VHT] NSS %d: TX MCS 0..%d, RX MCS 0..%d\n",

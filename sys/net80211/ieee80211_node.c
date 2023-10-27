@@ -809,7 +809,7 @@ ieee80211_setupcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
 	 * based on what HT has done; it may further promote the
 	 * channel to VHT80 or above.
 	 */
-	if (ic->ic_vhtcaps != 0) {
+	if (ic->ic_vht_cap.vht_cap_info != 0) {
 		int flags = getvhtadjustflags(ic);
 		if (flags > ieee80211_vhtchanflags(c))
 			c = ieee80211_vht_adjust_channel(ic, c, flags);

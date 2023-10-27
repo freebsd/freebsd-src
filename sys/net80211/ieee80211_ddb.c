@@ -672,7 +672,7 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta,
 	db_printf("\tcryptocaps=%b\n",
 	    ic->ic_cryptocaps, IEEE80211_CRYPTO_BITS);
 	db_printf("\thtcaps=%b\n", ic->ic_htcaps, IEEE80211_HTCAP_BITS);
-	db_printf("\tvhtcaps=%b\n", ic->ic_vhtcaps, IEEE80211_VHTCAP_BITS);
+	db_printf("\tvhtcaps=%b\n", ic->ic_vht_cap.vht_cap_info, IEEE80211_VHTCAP_BITS);
 
 #if 0
 	uint8_t			ic_modecaps[2];	/* set of mode capabilities */
