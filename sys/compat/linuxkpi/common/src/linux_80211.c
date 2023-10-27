@@ -3556,16 +3556,16 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 		if (hw->wiphy->bands[NL80211_BAND_5GHZ]->vht_cap.vht_supported){
 
 			ic->ic_flags_ext |= IEEE80211_FEXT_VHT;
-			ic->ic_vhtcaps =
+			ic->ic_vht_cap.vht_cap_info =
 			    hw->wiphy->bands[NL80211_BAND_5GHZ]->vht_cap.cap;
 
 			setbit(bands, IEEE80211_MODE_VHT_5GHZ);
 			chan_flags |= NET80211_CBW_FLAG_VHT80;
 			if (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160MHZ(
-			    ic->ic_vhtcaps))
+			    ic->ic_vht_cap.vht_cap_info))
 				chan_flags |= NET80211_CBW_FLAG_VHT160;
 			if (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160_80P80MHZ(
-			    ic->ic_vhtcaps))
+			    ic->ic_vht_cap.vht_cap_info))
 				chan_flags |= NET80211_CBW_FLAG_VHT80P80;
 		}
 #endif
