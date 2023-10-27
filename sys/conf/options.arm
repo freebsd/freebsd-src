@@ -36,8 +36,6 @@ SOC_ALTERA_CYCLONE5	opt_global.h
 SOC_BCM2835		opt_global.h
 SOC_BCM2836		opt_global.h
 SOC_BRCM_BCM2837	opt_global.h
-SOC_IMX51		opt_global.h
-SOC_IMX53		opt_global.h
 SOC_IMX6		opt_global.h
 SOC_MV_ARMADAXP		opt_global.h
 SOC_MV_ARMADA38X	opt_global.h
