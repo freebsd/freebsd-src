@@ -149,10 +149,10 @@ ieee80211_init_channels(struct ieee80211com *ic,
 	if (isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
 		cbw_flags |= NET80211_CBW_FLAG_HT40;  /* Make sure this is set; or assert?  */
 		cbw_flags |= NET80211_CBW_FLAG_VHT80;
-		if (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160MHZ(ic->ic_vhtcaps))
+		if (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160MHZ(ic->ic_vht_cap.vht_cap_info))
 			cbw_flags |= NET80211_CBW_FLAG_VHT160;
 		if (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160_80P80MHZ(
-		    ic->ic_vhtcaps))
+		    ic->ic_vht_cap.vht_cap_info))
 			cbw_flags |= NET80211_CBW_FLAG_VHT80P80;
 		ieee80211_add_channel_list_5ghz(chans, IEEE80211_CHAN_MAX,
 		    nchans, def_chan_5ghz_band1, nitems(def_chan_5ghz_band1),
