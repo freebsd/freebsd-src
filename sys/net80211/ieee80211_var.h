@@ -424,9 +424,8 @@ struct ieee80211vap {
 
 	/* VHT flags */
 	uint32_t		iv_vht_flags;	/* VHT state flags */
-	uint32_t		iv_vhtcaps;	/* VHT capabilities */
+	struct ieee80211_vht_cap iv_vht_cap;	/* VHT capabilities + MCS info */
 	uint32_t		iv_vhtextcaps;	/* VHT extended capabilities (TODO) */
-	struct ieee80211_vht_mcs_info	iv_vht_mcsinfo;
 	uint32_t		iv_vht_spare[4];
 
 	int			iv_des_nssid;	/* # desired ssids */
