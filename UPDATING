@@ -109,6 +109,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	for out of tree changes. The SIMs were not updated since most of
 	the old u_intXX_t uses weren't due to CAM interfaces.
 
+20230713:
+	stable/14 branch created.
+
 20230629:
 	The heuristic for detecting old chromebooks with an EC bug that requires
 	atkbdc driver workarounds has changed. There should be no functional
@@ -485,6 +488,9 @@ https://lists.freebsd.org/archives/freebsd-current/2021-June/000153.html
 	Various LinuxKPI functionality was added which conflicts with DRM.
 	Please update your drm-kmod port to after the __FreeBSD_version 1400003
 	update.
+
+20210121:
+	stable/13 branch created.
 
 20210108:
 	PC Card attachments for all devices have been removed. In the case of
@@ -1020,6 +1026,9 @@ https://lists.freebsd.org/archives/freebsd-current/2021-June/000153.html
 	this naming convention. You can verify which configuration files are
 	being included using the command:
 		$ newsyslog -Nrv
+
+20181019:
+	Stable/12 was branched created.
 
 20181015:
 	Ports for the DRM modules have been simplified. Now, amd64 users should

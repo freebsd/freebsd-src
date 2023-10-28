@@ -354,17 +354,8 @@ ng_xxx_rcvdata(hook_p hook, item_p item )
 				NG_FREE_M(m);
 				return (ENETUNREACH);
 			}
-			/* If we were called at splnet, use the following:
-			 * NG_SEND_DATA_ONLY(error, otherhook, m); if this
-			 * node is running at some SPL other than SPLNET
-			 * then you should use instead: error =
-			 * ng_queueit(otherhook, m, NULL); m = NULL;
-			 * This queues the data using the standard NETISR
-			 * system and schedules the data to be picked
-			 * up again once the system has moved to SPLNET and
-			 * the processing of the data can continue. After
-			 * these are run 'm' should be considered
-			 * as invalid and NG_SEND_DATA actually zaps them. */
+			/* After this are run 'm' should be considered
+			 * as invalid. */
 			NG_FWD_NEW_DATA(error, item,
 				xxxp->channel[chan].hook, m);
 			xxxp->packets_in++;

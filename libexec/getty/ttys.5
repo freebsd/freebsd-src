@@ -27,7 +27,7 @@
 .\"
 .\"     from: @(#)ttys.5	8.1 (Berkeley) 6/4/93
 .\" "
-.Dd June 1, 2021
+.Dd October 26, 2023
 .Dt TTYS 5
 .Os
 .Sh NAME
@@ -111,8 +111,9 @@ path.
 Otherwise, it is considered a path relative to
 .Pa /dev .
 The flag ``secure'' (if the console is enabled) allows users with a
-uid of 0 to login on
-this line.
+uid of 0 to login on this line.
+The flag ``insecure'' as well as the absence of the ``secure'' flag
+disallows users with uid of 0 to login on this line.
 The flag ``dialup'' indicates that a tty entry describes a dialin
 line, and ``network'' is obsolete and does nothing.
 Either of these strings may also be specified in the terminal type

@@ -202,6 +202,7 @@ static void
 parse_args(int argc, char *argv[])
 {
 	int ch;
+	const char *arg;
 
 	while ((ch = getopt_long(argc, argv, "AaBb:C:cdDe:EFfhk:L:l:NnOo:pTt:v",
 		    lopts, NULL)) != -1) {
@@ -214,7 +215,10 @@ parse_args(int argc, char *argv[])
 			break;
 		case 'b':
 			opts.has_bootnum = true;
-			opts.bootnum = strtoul(optarg, NULL, 16);
+			arg = optarg;
+			if (strncasecmp(arg, "boot", 4) == 0)
+				arg += 4;
+			opts.bootnum = strtoul(arg, NULL, 16);
 			break;
 		case 'B':
 			opts.delete = true;
@@ -222,6 +226,8 @@ parse_args(int argc, char *argv[])
 		case 'C':
 			opts.copy = true;
 			opts.cp_src = strtoul(optarg, NULL, 16);
+			errx(1, "Copy not implemented");
+			break;
 		case 'c':
 			opts.create = true;
 			break;

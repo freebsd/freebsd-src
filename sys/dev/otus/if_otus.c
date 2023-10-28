@@ -3059,17 +3059,14 @@ otus_calibrate_to(void *arg, int pending)
 	device_printf(sc->sc_dev, "%s: called\n", __func__);
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni;
-	int s;
 
 	if (usbd_is_dying(sc->sc_udev))
 		return;
 
 	usbd_ref_incr(sc->sc_udev);
 
-	s = splnet();
 	ni = ic->ic_bss;
 	ieee80211_amrr_choose(&sc->amrr, ni, &((struct otus_node *)ni)->amn);
-	splx(s);
 
 	if (!usbd_is_dying(sc->sc_udev))
 		timeout_add_sec(&sc->calib_to, 1);

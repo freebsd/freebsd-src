@@ -29,7 +29,7 @@
 .\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 .\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd October 1, 2021
+.Dd October 27, 2023
 .Dt PTHREAD_MUTEXATTR 3
 .Os
 .Sh NAME
@@ -130,6 +130,30 @@ Request priority-inheritance protocol, where the thread owning the mutex
 is executed at highest priority among priorities or priority ceilings of
 all threads waiting on any mutex owned by this thread.
 .El
+.Pp
+The
+.Fn pthread_mutexattr_setpshared
+function sets the process-shared attribute of
+.Fa attr
+to the value specified in
+.Fa pshared .
+The argument
+.Fa pshared
+may have one of the following values:
+.Bl -tag -width ".Dv PTHREAD_PROCESS_PRIVATE"
+.It Dv PTHREAD_PROCESS_PRIVATE
+The mutex may only be used by threads in the same process as the one
+that created the object.
+.It Dv PTHREAD_PROCESS_SHARED
+The mutex may be used by
+threads in processes other than the one that created the object,
+assuming other processes share access to the memory where the mutex
+was allocated.
+.El
+See
+.Xr libthr 3
+for details of the implementation of the shared mutexes,
+and their limitations.
 .Pp
 The
 .Fn pthread_mutexattr_setrobust
@@ -314,6 +338,7 @@ Invalid value for
 .Fa attr .
 .El
 .Sh SEE ALSO
+.Xr libthr 3 ,
 .Xr pthread_mutex_init 3
 .Sh STANDARDS
 The

@@ -2529,7 +2529,6 @@ mwl_ext_free(struct mbuf *m)
 	/*
 	 * If we were previously blocked by a lack of rx dma buffers
 	 * check if we now have enough to restart rx interrupt handling.
-	 * NB: we know we are called at splvm which is above splnet.
 	 */
 	if (sc->sc_rxblocked && sc->sc_nrxfree > mwl_rxdmalow) {
 		sc->sc_rxblocked = 0;

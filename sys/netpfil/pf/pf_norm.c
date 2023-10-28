@@ -1043,14 +1043,22 @@ pf_normalize_ip(struct mbuf **m0, struct pfi_kkif *kif, u_short *reason,
 	int			 ip_len;
 	int			 tag = -1;
 	int			 verdict;
-	int			 srs;
+	bool			 scrub_compat;
 
 	PF_RULES_RASSERT();
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
-	/* Check if there any scrub rules. Lack of scrub rules means enforced
-	 * packet normalization operation just like in OpenBSD. */
-	srs = (r != NULL);
+	/*
+	 * Check if there are any scrub rules, matching or not.
+	 * Lack of scrub rules means:
+	 *  - enforced packet normalization operation just like in OpenBSD
+	 *  - fragment reassembly depends on V_pf_status.reass
+	 * With scrub rules:
+	 *  - packet normalization is performed if there is a matching scrub rule
+	 *  - fragment reassembly is performed if the matching rule has no
+	 *    PFRULE_FRAGMENT_NOREASS flag
+	 */
+	scrub_compat = (r != NULL);
 	while (r != NULL) {
 		pf_counter_u64_add(&r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
@@ -1076,7 +1084,7 @@ pf_normalize_ip(struct mbuf **m0, struct pfi_kkif *kif, u_short *reason,
 			break;
 	}
 
-	if (srs) {
+	if (scrub_compat) {
 		/* With scrub rules present IPv4 normalization happens only
 		 * if one of rules has matched and it's not a "no scrub" rule */
 		if (r == NULL || r->action == PF_NOSCRUB)
@@ -1087,12 +1095,6 @@ pf_normalize_ip(struct mbuf **m0, struct pfi_kkif *kif, u_short *reason,
 		pf_counter_u64_add_protected(&r->bytes[pd->dir == PF_OUT], pd->tot_len);
 		pf_counter_u64_critical_exit();
 		pf_rule_to_actions(r, &pd->act);
-	} else if ((!V_pf_status.reass && (h->ip_off & htons(IP_MF | IP_OFFMASK)))) {
-		/* With no scrub rules IPv4 fragment reassembly depends on the
-		 * global switch. Fragments can be dropped early if reassembly
-		 * is disabled. */
-		REASON_SET(reason, PFRES_NORM);
-		goto drop;
 	}
 
 	/* Check for illegal packets */
@@ -1107,9 +1109,10 @@ pf_normalize_ip(struct mbuf **m0, struct pfi_kkif *kif, u_short *reason,
 	}
 
 	/* Clear IP_DF if the rule uses the no-df option or we're in no-df mode */
-	if ((((r && r->rule_flag & PFRULE_NODF) ||
-	    (V_pf_status.reass & PF_REASS_NODF)) && h->ip_off & htons(IP_DF)
-	)) {
+	if (((!scrub_compat && V_pf_status.reass & PF_REASS_NODF) ||
+	    (r != NULL && r->rule_flag & PFRULE_NODF)) &&
+	    (h->ip_off & htons(IP_DF))
+	) {
 		u_int16_t ip_off = h->ip_off;
 
 		h->ip_off &= htons(~IP_DF);
@@ -1143,7 +1146,9 @@ pf_normalize_ip(struct mbuf **m0, struct pfi_kkif *kif, u_short *reason,
 		goto bad;
 	}
 
-	if (r==NULL || !(r->rule_flag & PFRULE_FRAGMENT_NOREASS)) {
+	if ((!scrub_compat && V_pf_status.reass) ||
+	    (r != NULL && !(r->rule_flag & PFRULE_FRAGMENT_NOREASS))
+	) {
 		max = fragoff + ip_len;
 
 		/* Fully buffer all of the fragments
@@ -1203,14 +1208,20 @@ pf_normalize_ip6(struct mbuf **m0, struct pfi_kkif *kif,
 	int			 ooff;
 	u_int8_t		 proto;
 	int			 terminal;
-	int			 srs;
+	bool			 scrub_compat;
 
 	PF_RULES_RASSERT();
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
-	/* Check if there any scrub rules. Lack of scrub rules means enforced
-	 * packet normalization operation just like in OpenBSD. */
-	srs = (r != NULL);
+	/*
+	 * Check if there are any scrub rules, matching or not.
+	 * Lack of scrub rules means:
+	 *  - enforced packet normalization operation just like in OpenBSD
+	 * With scrub rules:
+	 *  - packet normalization is performed if there is a matching scrub rule
+	 * XXX: Fragment reassembly always performed for IPv6!
+	 */
+	scrub_compat = (r != NULL);
 	while (r != NULL) {
 		pf_counter_u64_add(&r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
@@ -1235,7 +1246,7 @@ pf_normalize_ip6(struct mbuf **m0, struct pfi_kkif *kif,
 			break;
 	}
 
-	if (srs) {
+	if (scrub_compat) {
 		/* With scrub rules present IPv6 normalization happens only
 		 * if one of rules has matched and it's not a "no scrub" rule */
 		if (r == NULL || r->action == PF_NOSCRUB)

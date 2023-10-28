@@ -1,7 +1,7 @@
 
 .include <src.opts.mk>
 
-WARNS?= 3
+WARNS?= 6
 PACKAGE=devd
 CONFGROUPS=	CONFS DEVD
 CONFS=	devd.conf

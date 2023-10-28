@@ -57,17 +57,17 @@ crypt_nthash(const char *pw, const char *salt __unused, char *buffer)
 	u_char hash[MD4_SIZE];
 	const char *s;
 	MD4_CTX	ctx;
-  
-	bzero(unipw, sizeof(unipw)); 
+
+	bzero(unipw, sizeof(unipw));
 	/* convert to unicode (thanx Archie) */
 	unipwLen = 0;
 	for (s = pw; unipwLen < sizeof(unipw) / 2 && *s; s++)
 		unipw[unipwLen++] = htons(*s << 8);
-        
+
 	/* Compute MD4 of Unicode password */
- 	MD4Init(&ctx);
+	MD4Init(&ctx);
 	MD4Update(&ctx, (u_char *)unipw, unipwLen*sizeof(u_int16_t));
-	MD4Final(hash, &ctx);  
+	MD4Final(hash, &ctx);
 
 	buffer = stpcpy(buffer, magic);
 	*buffer++ = '$';
