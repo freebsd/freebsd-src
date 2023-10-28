@@ -365,6 +365,7 @@ int doipcksum = 1;		/* calculate ip checksums by default */
 int optlen;			/* length of ip options */
 int fixedPort = 0;		/* Use fixed destination port for TCP and UDP */
 int printdiff = 0;		/* Print the difference between sent and quoted */
+int ecnflag = 0;		/* ECN bleaching detection flag */
 
 extern int optind;
 extern int opterr;
@@ -597,7 +598,7 @@ main(int argc, char **argv)
 		prog = argv[0];
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "aA:edDFInrSvxf:g:i:M:m:P:p:q:s:t:w:z:")) != EOF)
+	while ((op = getopt(argc, argv, "aA:eEdDFInrSvxf:g:i:M:m:P:p:q:s:t:w:z:")) != EOF)
 		switch (op) {
 		case 'a':
 			as_path = 1;
@@ -618,6 +619,10 @@ main(int argc, char **argv)
 
 		case 'e':
 			fixedPort = 1;
+			break;
+
+		case 'E':
+			ecnflag = 1;
 			break;
 
 		case 'f':
@@ -784,6 +789,10 @@ main(int argc, char **argv)
 	outip->ip_v = IPVERSION;
 	if (settos)
 		outip->ip_tos = tos;
+	if (ecnflag) {
+		outip->ip_tos &= ~IPTOS_ECN_MASK;
+		outip->ip_tos |= IPTOS_ECN_ECT1;
+	}
 #ifdef BYTESWAP_IP_HDR
 	outip->ip_len = htons(packlen);
 	outip->ip_off = htons(off);
@@ -1122,6 +1131,23 @@ main(int argc, char **argv)
 #endif
 					precis = 3;
 				Printf("  %.*f ms", precis, T);
+				if (ecnflag) {
+					u_char ecn = hip->ip_tos & IPTOS_ECN_MASK;
+					switch (ecn) {
+					case IPTOS_ECN_ECT1:
+						Printf(" (ecn=passed)");
+						break;
+					case IPTOS_ECN_NOTECT:
+						Printf(" (ecn=bleached)");
+						break;
+					case IPTOS_ECN_CE:
+						Printf(" (ecn=congested)");
+						break;
+					default:
+						Printf(" (ecn=mangled)");
+						break;
+					}
+				}
 				if (printdiff) {
 					Printf("\n");
 					Printf("%*.*s%s\n",
@@ -2126,7 +2152,7 @@ usage(void)
 
 	Fprintf(stderr, "Version %s\n", version);
 	Fprintf(stderr,
-	    "Usage: %s [-adDeFInrSvx] [-f first_ttl] [-g gateway] [-i iface]\n"
+	    "Usage: %s [-adDeEFInrSvx] [-f first_ttl] [-g gateway] [-i iface]\n"
 	    "\t[-m max_ttl] [-p port] [-P proto] [-q nqueries] [-s src_addr]\n"
 	    "\t[-t tos] [-w waittime] [-A as_server] [-z pausemsecs] host [packetlen]\n", prog);
 	exit(1);
