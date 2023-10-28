@@ -1975,7 +1975,7 @@ static int parse_flow_attr(u32 *match_c, u32 *match_v,
 		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
 			 ethertype, 0xffff);
 		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
-			 ethertype, IPPROTO_IPV6);
+			 ethertype, ETH_P_IPV6);
 
 		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_c,
 				    src_ipv4_src_ipv6.ipv6_layout.ipv6),
