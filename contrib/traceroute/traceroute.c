@@ -539,7 +539,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 	/*
-	 * Do the setuid-required stuff first, then lose priveleges ASAP.
+	 * Do the setuid-required stuff first, then lose privileges ASAP.
 	 * Do error checking for these two calls where they appeared in
 	 * the original code.
 	 */
@@ -762,7 +762,7 @@ main(int argc, char **argv)
 	}
 
 #ifdef HAVE_SETLINEBUF
-	setlinebuf (stdout);
+	setlinebuf(stdout);
 #else
 	setvbuf(stdout, NULL, _IOLBF, 0);
 #endif
@@ -988,7 +988,7 @@ main(int argc, char **argv)
 	if (bind(sndsock, (struct sockaddr *)from, sizeof(*from)) < 0) {
 		Fprintf(stderr, "%s: bind: %s\n",
 		    prog, strerror(errno));
-		exit (1);
+		exit(1);
 	}
 
 	if (as_path) {
@@ -1104,7 +1104,8 @@ main(int argc, char **argv)
 					continue;
 				if (!gotlastaddr ||
 				    from->sin_addr.s_addr != lastaddr) {
-					if (gotlastaddr) printf("\n   ");
+					if (gotlastaddr)
+						printf("\n   ");
 					print(packet, cc, from);
 					lastaddr = from->sin_addr.s_addr;
 					++gotlastaddr;
@@ -1292,7 +1293,7 @@ wait_for_reply(register int sock, register struct sockaddr_in *fromp,
 			    (struct sockaddr *)fromp, &fromlen);
 
 	free(fdsp);
-	return(cc);
+	return (cc);
 }
 
 void
@@ -1354,14 +1355,14 @@ setpolicy(int so, char *policy)
 	buf = ipsec_set_policy(policy, strlen(policy));
 	if (buf == NULL) {
 		warnx("%s", ipsec_strerror());
-		return -1;
+		return (-1);
 	}
 	(void)setsockopt(so, IPPROTO_IP, IP_IPSEC_POLICY,
 		buf, ipsec_get_policylen(buf));
 
 	free(buf);
 
-	return 0;
+	return (0);
 }
 #endif
 
@@ -1390,9 +1391,9 @@ pr_type(register u_char t)
 	};
 
 	if (t > 16)
-		return("OUT-OF-RANGE");
+		return ("OUT-OF-RANGE");
 
-	return(ttab[t]);
+	return (ttab[t]);
 }
 
 int
@@ -1433,7 +1434,7 @@ packet_ok(register u_char *buf, int cc, register struct sockaddr_in *from,
 	if (type == ICMP_ECHOREPLY
 	    && proto->num == IPPROTO_ICMP
 	    && (*proto->check)((u_char *)icp, (u_char)seq))
-		return -2;
+		return (-2);
 	if ((type == ICMP_TIMXCEED && code == ICMP_TIMXCEED_INTRANS) ||
 	    type == ICMP_UNREACH) {
 		u_char *inner;
@@ -1459,7 +1460,7 @@ packet_ok(register u_char *buf, int cc, register struct sockaddr_in *from,
 			Printf("%2d: %8.8x\n", i, ntohl(*lp++));
 	}
 #endif
-	return(0);
+	return (0);
 }
 
 void
@@ -1495,7 +1496,7 @@ udp_prep(struct outdata *outdata)
 	outudp->uh_ulen = htons((u_short)protlen);
 	outudp->uh_sum = 0;
 	if (doipcksum) {
-	    u_short sum = p_cksum(outip, (u_short*)outudp, protlen, protlen);
+	    u_short sum = p_cksum(outip, (u_short *)outudp, protlen, protlen);
 	    outudp->uh_sum = (sum) ? sum : 0xffff;
 	}
 
@@ -1521,7 +1522,7 @@ udplite_prep(struct outdata *outdata)
 	outudp->uh_ulen = htons(8);
 	outudp->uh_sum = 0;
 	if (doipcksum) {
-	    u_short sum = p_cksum(outip, (u_short*)outudp, protlen, 8);
+	    u_short sum = p_cksum(outip, (u_short *)outudp, protlen, 8);
 	    outudp->uh_sum = (sum) ? sum : 0xffff;
 	}
 
@@ -1551,7 +1552,7 @@ tcp_prep(struct outdata *outdata)
 	tcp->th_sum = 0;
 
 	if (doipcksum)
-	    tcp->th_sum = p_cksum(outip, (u_short*)tcp, protlen, protlen);
+	    tcp->th_sum = p_cksum(outip, (u_short *)tcp, protlen, protlen);
 }
 
 int
@@ -1676,7 +1677,7 @@ gre_check(const u_char *data, int seq)
 {
 	struct grehdr *const gre = (struct grehdr *) data;
 
-	return(ntohs(gre->proto) == port
+	return (ntohs(gre->proto) == port
 	    && ntohs(gre->callId) == ident + seq);
 }
 
@@ -1694,7 +1695,7 @@ gen_check(const u_char *data, int seq)
 {
 	u_int16_t *const ptr = (u_int16_t *) data;
 
-	return(ntohs(ptr[0]) == ident
+	return (ntohs(ptr[0]) == ident
 	    && ntohs(ptr[1]) == port + seq);
 }
 
@@ -1720,7 +1721,7 @@ print(register u_char *buf, register int cc, register struct sockaddr_in *from)
 		Printf(" %s (%s)", inetname(from->sin_addr), addr);
 
 	if (verbose)
-		Printf(" %d bytes to %s", cc, inet_ntoa (ip->ip_dst));
+		Printf(" %d bytes to %s", cc, inet_ntoa(ip->ip_dst));
 }
 
 /*
@@ -1737,10 +1738,10 @@ p_cksum(struct ip *ip, u_short *data, int len, int cov)
 	ipo.ih_src = ip->ip_src;
 	ipo.ih_dst = ip->ip_dst;
 
-	sum[1] = in_cksum((u_short*)&ipo, sizeof(ipo)); /* pseudo ip hdr cksum */
-	sum[0] = in_cksum(data, cov);                   /* payload data cksum */
+	sum[1] = in_cksum((u_short *)&ipo, sizeof(ipo)); /* pseudo ip hdr cksum */
+	sum[0] = in_cksum(data, cov);                    /* payload data cksum */
 
-	return ~in_cksum(sum, sizeof(sum));
+	return (~in_cksum(sum, sizeof(sum)));
 }
 
 /*
@@ -1782,7 +1783,7 @@ in_cksum(register u_short *addr, register int len)
  * CRC32C routine for the Stream Control Transmission Protocol
  */
 
-#define CRC32C(c, d) (c = (c>>8) ^ crc_c[(c^(d))&0xFF])
+#define CRC32C(c, d) (c = (c >> 8) ^ crc_c[(c ^ (d)) & 0xFF])
 
 static u_int32_t crc_c[256] = {
 	0x00000000, 0xF26B8303, 0xE13B70F7, 0x1350F3F4,
@@ -1863,11 +1864,11 @@ sctp_crc32c(const void *packet, u_int32_t len)
 		CRC32C(crc32c, buf[i]);
 	crc32c = ~crc32c;
 	byte0  = crc32c & 0xff;
-	byte1  = (crc32c>>8) & 0xff;
-	byte2  = (crc32c>>16) & 0xff;
-	byte3  = (crc32c>>24) & 0xff;
+	byte1  = (crc32c >> 8) & 0xff;
+	byte2  = (crc32c >> 16) & 0xff;
+	byte3  = (crc32c >> 24) & 0xff;
 	crc32c = ((byte0 << 24) | (byte1 << 16) | (byte2 << 8) | byte3);
-	return htonl(crc32c);
+	return (htonl(crc32c));
 }
 
 /*
@@ -2052,7 +2053,7 @@ str2val(register const char *str, register const char *what,
 	} else
 		val = (int)strtol(str, &ep, 10);
 	if (*ep != '\0') {
-		Fprintf(stderr, "%s: \"%s\" bad value for %s \n",
+		Fprintf(stderr, "%s: \"%s\" bad value for %s\n",
 		    prog, str, what);
 		exit(1);
 	}
@@ -2095,7 +2096,7 @@ setproto(char *pname)
 			pnum = str2val(optarg, "proto number", 1, 255);
 		proto->num = pnum;
 	}
-	return proto;
+	return (proto);
 }
 
 void
