@@ -95,10 +95,12 @@ struct ip6_hdr {
 #if BYTE_ORDER == BIG_ENDIAN
 #define IPV6_FLOWINFO_MASK	0x0fffffff	/* flow info (28 bits) */
 #define IPV6_FLOWLABEL_MASK	0x000fffff	/* flow label (20 bits) */
+#define IPV6_ECN_MASK		0x00300000	/* ECN code point (2 bits) */
 #else
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define IPV6_FLOWINFO_MASK	0xffffff0f	/* flow info (28 bits) */
 #define IPV6_FLOWLABEL_MASK	0xffff0f00	/* flow label (20 bits) */
+#define IPV6_ECN_MASK		0x00003000	/* ECN code point (2 bits) */
 #endif /* LITTLE_ENDIAN */
 #endif
 #define IPV6_FLOWLABEL_LEN	20
