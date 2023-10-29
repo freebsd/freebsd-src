@@ -955,7 +955,6 @@ rt2661_tx_dma_intr(struct rt2661_softc *sc, struct rt2661_tx_ring *txq)
 static void
 rt2661_rx_intr(struct rt2661_softc *sc)
 {
-	struct epoch_tracker et;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct rt2661_rx_desc *desc;
 	struct rt2661_rx_data *data;
@@ -1072,13 +1071,11 @@ rt2661_rx_intr(struct rt2661_softc *sc)
 		/* send the frame to the 802.11 layer */
 		ni = ieee80211_find_rxnode(ic,
 		    (struct ieee80211_frame_min *)wh);
-		NET_EPOCH_ENTER(et);
 		if (ni != NULL) {
 			(void) ieee80211_input(ni, m, rssi, nf);
 			ieee80211_free_node(ni);
 		} else
 			(void) ieee80211_input_all(ic, m, rssi, nf);
-		NET_EPOCH_EXIT(et);
 
 		RAL_LOCK(sc);
 		sc->sc_flags &= ~RAL_INPUT_RUNNING;

@@ -273,6 +273,7 @@ void
 ieee80211_deliver_data(struct ieee80211vap *vap,
 	struct ieee80211_node *ni, struct mbuf *m)
 {
+	struct epoch_tracker et;
 	struct ether_header *eh = mtod(m, struct ether_header *);
 	struct ifnet *ifp = vap->iv_ifp;
 
@@ -303,7 +304,9 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 		m->m_pkthdr.ether_vtag = ni->ni_vlan;
 		m->m_flags |= M_VLANTAG;
 	}
+	NET_EPOCH_ENTER(et);
 	ifp->if_input(ifp, m);
+	NET_EPOCH_EXIT(et);
 }
 
 struct mbuf *

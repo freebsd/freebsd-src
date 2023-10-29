@@ -2604,7 +2604,6 @@ cvtrssi(uint8_t ssi)
 static void
 mwl_rx_proc(void *arg, int npending)
 {
-	struct epoch_tracker et;
 	struct mwl_softc *sc = arg;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct mwl_rxbuf *bf;
@@ -2793,8 +2792,6 @@ mwl_rx_proc(void *arg, int npending)
 		/* dispatch */
 		ni = ieee80211_find_rxnode(ic,
 		    (const struct ieee80211_frame_min *) wh);
-
-		NET_EPOCH_ENTER(et);
 		if (ni != NULL) {
 			mn = MWL_NODE(ni);
 #ifdef MWL_ANT_INFO_SUPPORT
@@ -2810,7 +2807,6 @@ mwl_rx_proc(void *arg, int npending)
 			ieee80211_free_node(ni);
 		} else
 			(void) ieee80211_input_all(ic, m, rssi, nf);
-		NET_EPOCH_EXIT(et);
 rx_next:
 		/* NB: ignore ENOMEM so we process more descriptors */
 		(void) mwl_rxbuf_init(sc, bf);
