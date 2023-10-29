@@ -4155,7 +4155,6 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
     struct ieee80211_sta *sta, struct napi_struct *napi __unused,
     struct list_head *list __unused)
 {
-	struct epoch_tracker et;
 	struct lkpi_hw *lhw;
 	struct ieee80211com *ic;
 	struct mbuf *m;
@@ -4372,7 +4371,6 @@ skip_device_ts:
 	}
 #endif
 
-	NET_EPOCH_ENTER(et);
 	if (ni != NULL) {
 		ok = ieee80211_input_mimo(ni, m);
 		ieee80211_free_node(ni);
@@ -4382,7 +4380,6 @@ skip_device_ts:
 		ok = ieee80211_input_mimo_all(ic, m);
 		/* mbuf got consumed. */
 	}
-	NET_EPOCH_EXIT(et);
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_RX)
