@@ -50,6 +50,7 @@ extern size_t tls_last_size;
 extern size_t tls_static_space;
 extern Elf_Addr tls_dtv_generation;
 extern int tls_max_index;
+extern size_t ld_static_tls_extra;
 
 extern int npagesizes;
 extern size_t *pagesizes;

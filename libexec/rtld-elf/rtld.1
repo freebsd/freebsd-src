@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 10, 2022
+.Dd October 29, 2023
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -320,6 +320,12 @@ If set, causes
 .Nm
 to dump content of the aux vector to standard output, before passing
 control to any user code.
+.It Ev LD_STATIC_TLS_EXTRA
+If the variable is specified and has a numeric value,
+.Nm
+will set the size of the static TLS extra space to the specified number
+of bytes. The static TLS extra space is used when loading objects with
+dlopen. The minimum value that can be specified is \'128\'.
 .El
 .Sh DIRECT EXECUTION MODE
 .Nm
