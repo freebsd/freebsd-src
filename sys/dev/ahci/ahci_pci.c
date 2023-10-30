@@ -127,6 +127,7 @@ static const struct {
 	{0x292f8086, 0x00, "Intel ICH9M",	0},
 	{0x294d8086, 0x00, "Intel ICH9",	0},
 	{0x294e8086, 0x00, "Intel ICH9M",	0},
+	{0x3a028086, 0x00, "Intel ICH10",	0},
 	{0x3a058086, 0x00, "Intel ICH10 (RAID)",	0},
 	{0x3a228086, 0x00, "Intel ICH10",	0},
 	{0x3a258086, 0x00, "Intel ICH10 (RAID)",	0},
