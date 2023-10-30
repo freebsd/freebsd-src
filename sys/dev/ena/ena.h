@@ -69,6 +69,7 @@
 #define ENA_DEFAULT_RING_SIZE		1024
 #define ENA_MIN_RING_SIZE		256
 
+#define ENA_BASE_CPU_UNSPECIFIED 	-1
 /*
  * Refill Rx queue when number of required descriptors is above
  * QUEUE_SIZE / ENA_RX_REFILL_THRESH_DIVIDER or ENA_RX_REFILL_THRESH_PACKET
@@ -201,9 +202,7 @@ struct ena_irq {
 	void *cookie;
 	unsigned int vector;
 	bool requested;
-#ifdef RSS
 	int cpu;
-#endif
 	char name[ENA_IRQNAME_SIZE];
 };
 
@@ -216,10 +215,8 @@ struct ena_que {
 	struct taskqueue *cleanup_tq;
 
 	uint32_t id;
-#ifdef RSS
 	int cpu;
 	cpuset_t cpu_mask;
-#endif
 	int domain;
 	struct sysctl_oid *oid;
 };
@@ -448,6 +445,12 @@ struct ena_adapter {
 
 	ena_state_t flags;
 
+	/* IRQ CPU affinity */
+	int irq_cpu_base;
+	uint32_t irq_cpu_stride;
+
+	uint8_t rss_enabled;
+
 	/* Queue will represent one TX and one RX ring */
 	struct ena_que que[ENA_MAX_NUM_IO_QUEUES]
 	    __aligned(CACHE_LINE_SIZE);
@@ -524,7 +527,8 @@ int	ena_update_buf_ring_size(struct ena_adapter *adapter,
 int	ena_update_queue_size(struct ena_adapter *adapter, uint32_t new_tx_size,
     uint32_t new_rx_size);
 int	ena_update_io_queue_nb(struct ena_adapter *adapter, uint32_t new_num);
-
+int     ena_update_base_cpu(struct ena_adapter *adapter, int new_num);
+int     ena_update_cpu_stride(struct ena_adapter *adapter, uint32_t new_num);
 static inline int
 ena_mbuf_count(struct mbuf *mbuf)
 {

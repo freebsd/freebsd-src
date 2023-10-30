@@ -38,6 +38,7 @@ static void ena_sysctl_add_wd(struct ena_adapter *);
 static void ena_sysctl_add_stats(struct ena_adapter *);
 static void ena_sysctl_add_eni_metrics(struct ena_adapter *);
 static void ena_sysctl_add_tuneables(struct ena_adapter *);
+static void ena_sysctl_add_irq_affinity(struct ena_adapter *);
 /* Kernel option RSS prevents manipulation of key hash and indirection table. */
 #ifndef RSS
 static void ena_sysctl_add_rss(struct ena_adapter *);
@@ -45,6 +46,8 @@ static void ena_sysctl_add_rss(struct ena_adapter *);
 static int ena_sysctl_buf_ring_size(SYSCTL_HANDLER_ARGS);
 static int ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS);
 static int ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS);
+static int ena_sysctl_irq_base_cpu(SYSCTL_HANDLER_ARGS);
+static int ena_sysctl_irq_cpu_stride(SYSCTL_HANDLER_ARGS);
 static int ena_sysctl_eni_metrics_interval(SYSCTL_HANDLER_ARGS);
 #ifndef RSS
 static int ena_sysctl_rss_key(SYSCTL_HANDLER_ARGS);
@@ -102,6 +105,7 @@ ena_sysctl_add_nodes(struct ena_adapter *adapter)
 	ena_sysctl_add_stats(adapter);
 	ena_sysctl_add_eni_metrics(adapter);
 	ena_sysctl_add_tuneables(adapter);
+	ena_sysctl_add_irq_affinity(adapter);
 #ifndef RSS
 	ena_sysctl_add_rss(adapter);
 #endif
@@ -448,6 +452,36 @@ ena_sysctl_add_rss(struct ena_adapter *adapter)
 }
 #endif /* RSS */
 
+static void
+ena_sysctl_add_irq_affinity(struct ena_adapter *adapter)
+{
+	device_t dev;
+
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
+	struct sysctl_oid_list *child;
+
+	dev = adapter->pdev;
+
+	ctx = device_get_sysctl_ctx(dev);
+	tree = device_get_sysctl_tree(dev);
+	child = SYSCTL_CHILDREN(tree);
+
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "irq_affinity",
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, "Decide base CPU and stride for irqs affinity.");
+	child = SYSCTL_CHILDREN(tree);
+
+	/* Add base cpu leaf */
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "base_cpu",
+	    CTLTYPE_S32 | CTLFLAG_RW | CTLFLAG_MPSAFE, adapter, 0,
+	    ena_sysctl_irq_base_cpu, "I", "Base cpu index for setting irq affinity.");
+
+	/* Add cpu stride leaf */
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "cpu_stride",
+	    CTLTYPE_S32 | CTLFLAG_RW | CTLFLAG_MPSAFE, adapter, 0,
+	    ena_sysctl_irq_cpu_stride, "I", "Distance between irqs when setting affinity.");
+}
+
 
 /*
  * ena_sysctl_update_queue_node_nb - Register/unregister sysctl queue nodes.
@@ -705,6 +739,117 @@ unlock:
 	ENA_LOCK_UNLOCK();
 
 	return (0);
+}
+
+static int
+ena_sysctl_irq_base_cpu(SYSCTL_HANDLER_ARGS)
+{
+	struct ena_adapter *adapter = arg1;
+	int irq_base_cpu = 0;
+	int error;
+
+	ENA_LOCK_LOCK();
+	if (unlikely(!ENA_FLAG_ISSET(ENA_FLAG_DEVICE_RUNNING, adapter))) {
+		error = ENODEV;
+		goto unlock;
+	}
+
+	error = sysctl_wire_old_buffer(req, sizeof(irq_base_cpu));
+	if (error == 0) {
+		irq_base_cpu = adapter->irq_cpu_base;
+		error = sysctl_handle_int(oidp, &irq_base_cpu, 0, req);
+	}
+	if (error != 0 || req->newptr == NULL)
+		goto unlock;
+
+	if (irq_base_cpu <= ENA_BASE_CPU_UNSPECIFIED) {
+		ena_log(adapter->pdev, ERR,
+		    "Requested base CPU is less than zero.\n");
+		error = EINVAL;
+		goto unlock;
+	}
+
+	if (irq_base_cpu > mp_ncpus) {
+		ena_log(adapter->pdev, INFO,
+		    "Requested base CPU is larger than the number of available CPUs. \n");
+		error = EINVAL;
+		goto unlock;
+
+	}
+
+	if (irq_base_cpu == adapter->irq_cpu_base) {
+		ena_log(adapter->pdev, INFO,
+		    "Requested IRQ base CPU is equal to current value "
+		    "(%d)\n",
+		    adapter->irq_cpu_base);
+		goto unlock;
+	}
+
+	ena_log(adapter->pdev, INFO,
+	    "Requested new IRQ base CPU: %d, current value: %d\n",
+	    irq_base_cpu, adapter->irq_cpu_base);
+
+	error = ena_update_base_cpu(adapter, irq_base_cpu);
+
+unlock:
+	ENA_LOCK_UNLOCK();
+
+	return (error);
+}
+
+static int
+ena_sysctl_irq_cpu_stride(SYSCTL_HANDLER_ARGS)
+{
+	struct ena_adapter *adapter = arg1;
+	int32_t irq_cpu_stride = 0;
+	int error;
+
+	ENA_LOCK_LOCK();
+	if (unlikely(!ENA_FLAG_ISSET(ENA_FLAG_DEVICE_RUNNING, adapter))) {
+		error = ENODEV;
+		goto unlock;
+	}
+
+	error = sysctl_wire_old_buffer(req, sizeof(irq_cpu_stride));
+	if (error == 0) {
+		irq_cpu_stride = adapter->irq_cpu_stride;
+		error = sysctl_handle_int(oidp, &irq_cpu_stride, 0, req);
+	}
+	if (error != 0 || req->newptr == NULL)
+		goto unlock;
+
+	if (irq_cpu_stride < 0) {
+		ena_log(adapter->pdev, ERR,
+		    "Requested IRQ stride is less than zero.\n");
+		error = EINVAL;
+		goto unlock;
+	}
+
+	if (irq_cpu_stride > mp_ncpus) {
+		ena_log(adapter->pdev, INFO,
+		    "Warning: Requested IRQ stride is larger than the number of available CPUs.\n");
+	}
+
+	if (irq_cpu_stride == adapter->irq_cpu_stride) {
+		ena_log(adapter->pdev, INFO,
+		    "Requested IRQ CPU stride is equal to current value "
+		    "(%u)\n",
+		    adapter->irq_cpu_stride);
+		goto unlock;
+	}
+
+	ena_log(adapter->pdev, INFO,
+	    "Requested new IRQ CPU stride: %u, current value: %u\n",
+	    irq_cpu_stride, adapter->irq_cpu_stride);
+
+	error = ena_update_cpu_stride(adapter, irq_cpu_stride);
+	if (error != 0)
+		goto unlock;
+
+unlock:
+	ENA_LOCK_UNLOCK();
+
+	return (error);
 }
 
 #ifndef RSS
