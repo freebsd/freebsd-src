@@ -1237,6 +1237,84 @@ ena_update_io_rings(struct ena_adapter *adapter, uint32_t num)
 	ena_init_io_rings(adapter);
 }
 
+int
+ena_update_base_cpu(struct ena_adapter *adapter, int new_num)
+{
+	int old_num;
+	int rc = 0;
+	bool dev_was_up;
+
+	dev_was_up = ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, adapter);
+	old_num = adapter->irq_cpu_base;
+
+	ena_down(adapter);
+
+	adapter->irq_cpu_base = new_num;
+
+	if (dev_was_up) {
+		rc = ena_up(adapter);
+		if (unlikely(rc != 0)) {
+			ena_log(adapter->pdev, ERR,
+			    "Failed to configure device %d IRQ base CPU. "
+			    "Reverting to previous value: %d\n",
+			    new_num, old_num);
+
+			adapter->irq_cpu_base = old_num;
+
+			rc = ena_up(adapter);
+			if (unlikely(rc != 0)) {
+				ena_log(adapter->pdev, ERR,
+				    "Failed to revert to previous setup."
+				    "Triggering device reset.\n");
+				ENA_FLAG_SET_ATOMIC(
+				    ENA_FLAG_DEV_UP_BEFORE_RESET, adapter);
+				ena_trigger_reset(adapter,
+				    ENA_REGS_RESET_OS_TRIGGER);
+			}
+		}
+	}
+	return (rc);
+}
+
+int
+ena_update_cpu_stride(struct ena_adapter *adapter, uint32_t new_num)
+{
+	uint32_t old_num;
+	int rc = 0;
+	bool dev_was_up;
+
+	dev_was_up = ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, adapter);
+	old_num = adapter->irq_cpu_stride;
+
+	ena_down(adapter);
+
+	adapter->irq_cpu_stride = new_num;
+
+	if (dev_was_up) {
+		rc = ena_up(adapter);
+		if (unlikely(rc != 0)) {
+			ena_log(adapter->pdev, ERR,
+			    "Failed to configure device %d IRQ CPU stride. "
+			    "Reverting to previous value: %d\n",
+			    new_num, old_num);
+
+			adapter->irq_cpu_stride = old_num;
+
+			rc = ena_up(adapter);
+			if (unlikely(rc != 0)) {
+				ena_log(adapter->pdev, ERR,
+				    "Failed to revert to previous setup."
+				    "Triggering device reset.\n");
+				ENA_FLAG_SET_ATOMIC(
+				    ENA_FLAG_DEV_UP_BEFORE_RESET, adapter);
+				ena_trigger_reset(adapter,
+				    ENA_REGS_RESET_OS_TRIGGER);
+			}
+		}
+	}
+	return (rc);
+}
+
 /* Caller should sanitize new_num */
 int
 ena_update_io_queue_nb(struct ena_adapter *adapter, uint32_t new_num)
@@ -1683,6 +1761,13 @@ ena_setup_io_intr(struct ena_adapter *adapter)
 		ena_log(adapter->pdev, DBG, "ena_setup_io_intr vector: %d\n",
 		    adapter->msix_entries[irq_idx].vector);
 
+		if (adapter->irq_cpu_base > ENA_BASE_CPU_UNSPECIFIED) {
+			adapter->que[i].cpu = adapter->irq_tbl[irq_idx].cpu =
+			    (unsigned)(adapter->irq_cpu_base +
+			    i * adapter->irq_cpu_stride) % (unsigned)mp_ncpus;
+			CPU_SETOF(adapter->que[i].cpu, &adapter->que[i].cpu_mask);
+		}
+
 #ifdef RSS
 		adapter->que[i].cpu = adapter->irq_tbl[irq_idx].cpu =
 		    rss_getcpu(cur_bind);
@@ -1790,20 +1875,19 @@ ena_request_io_irq(struct ena_adapter *adapter)
 		}
 		irq->requested = true;
 
-#ifdef RSS
-		rc = bus_bind_intr(adapter->pdev, irq->res, irq->cpu);
-		if (unlikely(rc != 0)) {
-			ena_log(pdev, ERR,
-			    "failed to bind interrupt handler for irq %ju to cpu %d: %d\n",
-			    rman_get_start(irq->res), irq->cpu, rc);
-			goto err;
+		if (adapter->rss_enabled || adapter->irq_cpu_base > ENA_BASE_CPU_UNSPECIFIED) {
+			rc = bus_bind_intr(adapter->pdev, irq->res, irq->cpu);
+			if (unlikely(rc != 0)) {
+				ena_log(pdev, ERR,
+				    "failed to bind interrupt handler for irq %ju to cpu %d: %d\n",
+				    rman_get_start(irq->res), irq->cpu, rc);
+				goto err;
+			}
+
+			ena_log(pdev, INFO, "queue %d - cpu %d\n",
+			    i - ENA_IO_IRQ_FIRST_IDX, irq->cpu);
 		}
-
-		ena_log(pdev, INFO, "queue %d - cpu %d\n",
-		    i - ENA_IO_IRQ_FIRST_IDX, irq->cpu);
-#endif
 	}
-
 	return (rc);
 
 err:
@@ -1814,13 +1898,14 @@ err:
 
 		/* Once we entered err: section and irq->requested is true we
 		   free both intr and resources */
-		if (irq->requested)
+		if (irq->requested) {
 			rcc = bus_teardown_intr(adapter->pdev, irq->res,
 			    irq->cookie);
-		if (unlikely(rcc != 0))
-			ena_log(pdev, ERR,
-			    "could not release irq: %d, error: %d\n",
-			    irq->vector, rcc);
+			if (unlikely(rcc != 0))
+				ena_log(pdev, ERR,
+				    "could not release irq: %d, error: %d\n",
+				    irq->vector, rcc);
+		}
 
 		/* If we entered err: section without irq->requested set we know
 		   it was bus_alloc_resource_any() that needs cleanup, provided
@@ -3522,6 +3607,13 @@ ena_attach(device_t pdev)
 	adapter->missing_tx_timeout = ENA_DEFAULT_TX_CMP_TO;
 	adapter->missing_tx_max_queues = ENA_DEFAULT_TX_MONITORED_QUEUES;
 	adapter->missing_tx_threshold = ENA_DEFAULT_TX_CMP_THRESHOLD;
+
+	adapter->irq_cpu_base = ENA_BASE_CPU_UNSPECIFIED;
+	adapter->irq_cpu_stride = 0;
+
+#ifdef RSS
+	adapter->rss_enabled = 1;
+#endif
 
 	if (version_printed++ == 0)
 		ena_log(pdev, INFO, "%s\n", ena_version);
