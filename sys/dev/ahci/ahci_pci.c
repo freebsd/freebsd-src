@@ -99,6 +99,8 @@ static const struct {
 	{0x11651b21, 0x00, "ASMedia ASM116x",	0},
 	{0x11661b21, 0x00, "ASMedia ASM116x",	0},
 	{0x79011d94, 0x00, "Hygon KERNCZ",	0},
+	{0x0f228086, 0x00, "Intel BayTrail",	0},
+	{0x0f238086, 0x00, "Intel BayTrail",	0},
 	{0x26528086, 0x00, "Intel ICH6",	AHCI_Q_NOFORCE},
 	{0x26538086, 0x00, "Intel ICH6M",	AHCI_Q_NOFORCE},
 	{0x26818086, 0x00, "Intel ESB2",	0},
