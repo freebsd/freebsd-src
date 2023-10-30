@@ -214,7 +214,7 @@ bc_vm_sigaction(void)
 	struct sigaction sa;
 
 	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = 0;
+	sa.sa_flags = BC_ENABLE_EDITLINE ? 0 : SA_NODEFER;
 
 	// This mess is to silence a warning on Clang with regards to glibc's
 	// sigaction handler, which activates the warning here.
