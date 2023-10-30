@@ -173,10 +173,6 @@ typedef struct BcHistory
 #include <vector.h>
 #include <read.h>
 
-#if BC_DEBUG_CODE
-#include <file.h>
-#endif // BC_DEBUG_CODE
-
 /// Default columns.
 #define BC_HIST_DEF_COLS (80)
 
