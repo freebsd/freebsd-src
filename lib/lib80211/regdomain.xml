@@ -47,42 +47,42 @@
   <netband mode="11b">
     <band>
       <freqband ref="F1_2412_2462"/>
-      <maxpower>30</maxpower>
+      <maxpower>40</maxpower>
       <flags>IEEE80211_CHAN_B</flags>
     </band>
   </netband>
   <netband mode="11g">
     <band>
       <freqband ref="F1_2412_2462"/>
-      <maxpower>30</maxpower>
+      <maxpower>40</maxpower>
       <flags>IEEE80211_CHAN_G</flags>
     </band>
   </netband>
   <netband mode="11a">
     <band>
       <freqband ref="F1_5180_5240"/>
-      <maxpower>17</maxpower>
+      <maxpower>40</maxpower>
     </band>
     <band>
       <freqband ref="F1_5745_5805"/>
-      <maxpower>23</maxpower>
+      <maxpower>40</maxpower>
     </band>
     <band>
       <freqband ref="F1_5825_5825"/>
-      <maxpower>23</maxpower>
+      <maxpower>40</maxpower>
       <flags>IEEE80211_CHAN_PASSIVE</flags>
     </band>
   </netband>
   <netband mode="11ng">
     <band>
       <freqband ref="F1_2412_2462"/>
-      <maxpower>30</maxpower>
+      <maxpower>40</maxpower>
       <flags>IEEE80211_CHAN_G</flags>
       <flags>IEEE80211_CHAN_HT20</flags>
     </band>
     <band>
       <freqband ref="H4_2412_2462"/>
-      <maxpower>30</maxpower>
+      <maxpower>40</maxpower>
       <flags>IEEE80211_CHAN_G</flags>
       <flags>IEEE80211_CHAN_HT40</flags>
     </band>
@@ -90,59 +90,59 @@
   <netband mode="11na">
     <band>
       <freqband ref="F1_5180_5240"/>
-      <maxpower>17</maxpower>
+      <maxpower>40</maxpower>
       <flags>IEEE80211_CHAN_HT20</flags>
     </band>
     <band>
       <freqband ref="H4_5180_5240"/>
-      <maxpower>17</maxpower>
+      <maxpower>40</maxpower>
       <flags>IEEE80211_CHAN_HT40</flags>
     </band>
     <band>
       <freqband ref="F1_5745_5805"/>
-      <maxpower>23</maxpower>
+      <maxpower>40</maxpower>
       <flags>IEEE80211_CHAN_HT20</flags>
     </band>
     <band>
       <freqband ref="H4_5745_5805"/>
-      <maxpower>23</maxpower>
+      <maxpower>40</maxpower>
       <flags>IEEE80211_CHAN_HT40</flags>
     </band>
   </netband>
   <netband mode="11ac">
     <band>
       <freqband ref="AC1_5180_5240_20"/>
-      <maxpower>17</maxpower>
+      <maxpower>40</maxpower>
       <flags>IEEE80211_CHAN_HT20</flags>
       <flags>IEEE80211_CHAN_VHT20</flags>
     </band>
     <band>
       <freqband ref="AC1_5180_5240_40"/>
-      <maxpower>17</maxpower>
+      <maxpower>40</maxpower>
       <flags>IEEE80211_CHAN_HT40</flags>
       <flags>IEEE80211_CHAN_VHT40</flags>
     </band>
     <band>
       <freqband ref="AC1_5180_5240_80"/>
-      <maxpower>17</maxpower>
+      <maxpower>40</maxpower>
       <flags>IEEE80211_CHAN_HT40</flags>
       <flags>IEEE80211_CHAN_VHT80</flags>
     </band>
     <band>
       <freqband ref="AC1_5745_5805_20"/>
-      <maxpower>17</maxpower>
+      <maxpower>40</maxpower>
       <flags>IEEE80211_CHAN_HT20</flags>
       <flags>IEEE80211_CHAN_VHT20</flags>
     </band>
     <band>
       <freqband ref="AC1_5745_5805_40"/>
-      <maxpower>17</maxpower>
+      <maxpower>40</maxpower>
       <flags>IEEE80211_CHAN_HT40</flags>
       <flags>IEEE80211_CHAN_VHT40</flags>
     </band>
     <band>
       <freqband ref="AC1_5745_5805_80"/>
-      <maxpower>17</maxpower>
+      <maxpower>40</maxpower>
       <flags>IEEE80211_CHAN_HT40</flags>
       <flags>IEEE80211_CHAN_VHT80</flags>
     </band>
