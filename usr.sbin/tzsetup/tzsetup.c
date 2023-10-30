@@ -171,6 +171,7 @@ static struct continent_names {
 	const char	*name;
 	struct continent *continent;
 } continent_names[] = {
+	{ "UTC",	&utc },
 	{ "Africa",	&africa },
 	{ "America",	&america },
 	{ "Antarctica",	&antarctica },
@@ -181,13 +182,13 @@ static struct continent_names {
 	{ "Europe",	&europe },
 	{ "Indian",	&indian },
 	{ "Pacific",	&pacific },
-	{ "UTC",	&utc }
 };
 
 static struct continent_items {
 	char		prompt[3];
 	char		title[30];
 } continent_items[] = {
+	{ "0",	"UTC" },
 	{ "1",	"Africa" },
 	{ "2",	"America -- North and South" },
 	{ "3",	"Antarctica" },
@@ -198,14 +199,13 @@ static struct continent_items {
 	{ "8",	"Europe" },
 	{ "9",	"Indian Ocean" },
 	{ "10",	"Pacific Ocean" },
-	{ "11",	"UTC" }
 };
 
 #define	NCONTINENTS	\
     (int)((sizeof(continent_items)) / (sizeof(continent_items[0])))
 static dialogMenuItem continents[NCONTINENTS];
 
-#define	OCEANP(x)	((x) == 3 || (x) == 5 || (x) == 8 || (x) == 9)
+#define	OCEANP(x)	((x) == 4 || (x) == 6 || (x) == 9 || (x) == 10)
 
 static int
 continent_country_menu(dialogMenuItem *continent)
