@@ -1357,8 +1357,7 @@ Any non-string expression in a print statement shall be assigned to
 \f[B]last\f[R], like any other expression that is printed.
 .SS Stream Statement
 .PP
-The \[lq]expressions in a \f[B]stream\f[R] statement may also be
-strings.
+The expressions in a \f[B]stream\f[R] statement may also be strings.
 .PP
 If a \f[B]stream\f[R] statement is given a string, it prints the string
 as though the string had appeared as its own statement.
@@ -1579,6 +1578,14 @@ the rounding mode round away from \f[B]0\f[R]
 \f[B]f(x)\f[R]
 Returns the factorial of the truncated absolute value of \f[B]x\f[R].
 .TP
+\f[B]max(a, b)\f[R]
+Returns \f[B]a\f[R] if \f[B]a\f[R] is greater than \f[B]b\f[R];
+otherwise, returns \f[B]b\f[R].
+.TP
+\f[B]min(a, b)\f[R]
+Returns \f[B]a\f[R] if \f[B]a\f[R] is less than \f[B]b\f[R]; otherwise,
+returns \f[B]b\f[R].
+.TP
 \f[B]perm(n, k)\f[R]
 Returns the permutation of the truncated absolute value of \f[B]n\f[R]
 of the truncated absolute value of \f[B]k\f[R], if \f[B]k <= n\f[R].
@@ -1588,6 +1595,10 @@ If not, it returns \f[B]0\f[R].
 Returns the combination of the truncated absolute value of \f[B]n\f[R]
 of the truncated absolute value of \f[B]k\f[R], if \f[B]k <= n\f[R].
 If not, it returns \f[B]0\f[R].
+.TP
+\f[B]fib(n)\f[R]
+Returns the Fibonacci number of the truncated absolute value of
+\f[B]n\f[R].
 .TP
 \f[B]l2(x)\f[R]
 Returns the logarithm base \f[B]2\f[R] of \f[B]x\f[R].
@@ -1759,7 +1770,7 @@ Functions\f[R] subsection below).
 .RE
 .TP
 \f[B]frand(p)\f[R]
-Generates a pseudo-random number between \f[B]0\f[R] (inclusive) and
+Generates a pseudo-random integer between \f[B]0\f[R] (inclusive) and
 \f[B]1\f[R] (exclusive) with the number of decimal digits after the
 decimal point equal to the truncated absolute value of \f[B]p\f[R].
 If \f[B]p\f[R] is not \f[B]0\f[R], then calling this function will
@@ -1768,14 +1779,22 @@ If \f[B]p\f[R] is \f[B]0\f[R], then \f[B]0\f[R] is returned, and
 \f[B]seed\f[R] is \f[I]not\f[R] changed.
 .TP
 \f[B]ifrand(i, p)\f[R]
-Generates a pseudo-random number that is between \f[B]0\f[R] (inclusive)
-and the truncated absolute value of \f[B]i\f[R] (exclusive) with the
-number of decimal digits after the decimal point equal to the truncated
-absolute value of \f[B]p\f[R].
+Generates a pseudo-random integer that is between \f[B]0\f[R]
+(inclusive) and the truncated absolute value of \f[B]i\f[R] (exclusive)
+with the number of decimal digits after the decimal point equal to the
+truncated absolute value of \f[B]p\f[R].
 If the absolute value of \f[B]i\f[R] is greater than or equal to
 \f[B]2\f[R], and \f[B]p\f[R] is not \f[B]0\f[R], then calling this
 function will change the value of \f[B]seed\f[R]; otherwise, \f[B]0\f[R]
-is returned and \f[B]seed\f[R] is not changed.
+is returned, and \f[B]seed\f[R] is not changed.
+.TP
+\f[B]i2rand(a, b)\f[R]
+Takes the truncated value of \f[B]a\f[R] and \f[B]b\f[R] and uses them
+as inclusive bounds to enerate a pseudo-random integer.
+If the difference of the truncated values of \f[B]a\f[R] and \f[B]b\f[R]
+is \f[B]0\f[R], then the truncated value is returned, and \f[B]seed\f[R]
+is \f[I]not\f[R] changed.
+Otherwise, this function will change the value of \f[B]seed\f[R].
 .TP
 \f[B]srand(x)\f[R]
 Returns \f[B]x\f[R] with its sign flipped with probability

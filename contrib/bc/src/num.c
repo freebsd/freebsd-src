@@ -2929,14 +2929,14 @@ exit:
 #endif // BC_ENABLE_EXTRA_MATH
 
 /**
- * Converts a number from limbs with base BC_BASE_POW to base @a pow, where
- * @a pow is obase^N.
+ * Takes a number with limbs with base BC_BASE_POW and converts the limb at the
+ * given index to base @a pow, where @a pow is obase^N.
  * @param n    The number to convert.
  * @param rem  BC_BASE_POW - @a pow.
  * @param pow  The power of obase we will convert the number to.
  * @param idx  The index of the number to start converting at. Doing the
  *             conversion is O(n^2); we have to sweep through starting at the
- *             least significant limb
+ *             least significant limb.
  */
 static void
 bc_num_printFixup(BcNum* restrict n, BcBigDig rem, BcBigDig pow, size_t idx)
@@ -2998,8 +2998,8 @@ bc_num_printFixup(BcNum* restrict n, BcBigDig rem, BcBigDig pow, size_t idx)
 }
 
 /**
- * Prepares a number for printing in a base that is not a divisor of
- * BC_BASE_POW. This basically converts the number from having limbs of base
+ * Prepares a number for printing in a base that does not have BC_BASE_POW as a
+ * power. This basically converts the number from having limbs of base
  * BC_BASE_POW to limbs of pow, where pow is obase^N.
  * @param n    The number to prepare for printing.
  * @param rem  The remainder of BC_BASE_POW when divided by a power of the base.

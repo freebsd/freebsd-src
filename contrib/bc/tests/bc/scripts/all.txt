@@ -19,3 +19,4 @@ strings2.bc
 ifs.bc
 ifs2.bc
 afl1.bc
+i2rand.bc

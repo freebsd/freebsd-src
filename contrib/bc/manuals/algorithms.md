@@ -193,6 +193,74 @@ The algorithm used is to use the formula `e(y*l(x))`.
 
 It has a complexity of `O(n^3)` because both `e()` and `l()` do.
 
+However, there are details to this algorithm, described by the author,
+TediusTimmy, in GitHub issue [#69][12].
+
+First, check if the exponent is 0. If it is, return 1 at the appropriate
+`scale`.
+
+Next, check if the number is 0. If so, check if the exponent is greater than
+zero; if it is, return 0. If the exponent is less than 0, error (with a divide
+by 0) because that is undefined.
+
+Next, check if the exponent is actually an integer, and if it is, use the
+exponentiation operator.
+
+At the `z=0` line is the start of the meat of the new code.
+
+`z` is set to zero as a flag and as a value. What I mean by that will be clear
+later.
+
+Then we check if the number is less than 0. If it is, we negate the exponent
+(and the integer version of the exponent, which we calculated earlier to check
+if it was an integer). We also save the number in `z`; being non-zero is a flag
+for later and a value to be used. Then we store the reciprocal of the number in
+itself.
+
+All of the above paragraph will not make sense unless you remember the
+relationship `l(x) == -l(1/x)`; we negated the exponent, which is equivalent to
+the negative sign in that relationship, and we took the reciprocal of the
+number, which is equivalent to the reciprocal in the relationship.
+
+But what if the number is negative? We ignore that for now because we eventually
+call `l(x)`, which will raise an error if `x` is negative.
+
+Now, we can keep going.
+
+If at this point, the exponent is negative, we need to use the original formula
+(`e(y * l(x))`) and return that result because the result will go to zero
+anyway.
+
+But if we did *not* return, we know the exponent is *not* negative, so we can
+get clever.
+
+We then compute the integral portion of the power by computing the number to
+power of the integral portion of the exponent.
+
+Then we have the most clever trick: we add the length of that integer power (and
+a little extra) to the `scale`. Why? Because this will ensure that the next part
+is calculated to at least as many digits as should be in the integer *plus* any
+extra `scale` that was wanted.
+
+Then we check `z`, which, if it is not zero, is the original value of the
+number. If it is not zero, we need to take the take the reciprocal *again*
+because now we have the correct `scale`. And we *also* have to calculate the
+integer portion of the power again.
+
+Then we need to calculate the fractional portion of the number. We do this by
+using the original formula, but we instead of calculating `e(y * l(x))`, we
+calculate `e((y - a) * l(x))`, where `a` is the integer portion of `y`. It's
+easy to see that `y - a` will be just the fractional portion of `y` (the
+exponent), so this makes sense.
+
+But then we *multiply* it into the integer portion of the power. Why? Because
+remember: we're dealing with an exponent and a power; the relationship is
+`x^(y+z) == (x^y)*(x^z)`.
+
+So we multiply it into the integer portion of the power.
+
+Finally, we set the result to the `scale`.
+
 ### Rounding (`bc` Math Library 2 Only)
 
 This is implemented in the function `r(x,p)`.
@@ -327,3 +395,4 @@ It has a complexity of `O(n^3)` because of arctangent.
 [9]: https://en.wikipedia.org/wiki/Root-finding_algorithms#Newton's_method_(and_similar_derivative-based_methods)
 [10]: https://en.wikipedia.org/wiki/Euclidean_algorithm
 [11]: https://en.wikipedia.org/wiki/Atan2#Definition_and_computation
+[12]: https://github.com/gavinhoward/bc/issues/69

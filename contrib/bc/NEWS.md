@@ -1,5 +1,27 @@
 # News
 
+## 6.7.2
+
+This is a production release to remove some debugging code that I accidentally
+committed.
+
+## 6.7.1
+
+This is a production release with a bug fix for `SIGINT` only being handled
+once.
+
+## 6.7.0
+
+This is a production release with three new functions in the [extended math
+library][16]: `min()`, `max()`, and `i2rand()`.
+
+## 6.6.1
+
+This is a production release with an improved `p()` function in the [extended
+math library][16].
+
+Users who don't care do not need to upgrade.
+
 ## 6.6.0
 
 This is a production release with two bug fixes and one change.
