@@ -224,6 +224,18 @@ uhci_pci_match(device_t self)
 		return ("Intel 82801JI (ICH10) USB controller USB-E");
 	case 0x3a398086:
 		return ("Intel 82801JI (ICH10) USB controller USB-F");
+	case 0x3a678086:
+		return ("Intel 82801JD (ICH10) USB controller USB-A");
+	case 0x3a688086:
+		return ("Intel 82801JD (ICH10) USB controller USB-B");
+	case 0x3a698086:
+		return ("Intel 82801JD (ICH10) USB controller USB-C");
+	case 0x3a648086:
+		return ("Intel 82801JD (ICH10) USB controller USB-D");
+	case 0x3a658086:
+		return ("Intel 82801JD (ICH10) USB controller USB-E");
+	case 0x3a668086:
+		return ("Intel 82801JD (ICH10) USB controller USB-F");
 
 	case 0x719a8086:
 		return ("Intel 82443MX USB controller");
