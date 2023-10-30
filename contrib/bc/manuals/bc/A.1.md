@@ -1068,7 +1068,7 @@ like any other expression that is printed.
 
 ## Stream Statement
 
-The "expressions in a **stream** statement may also be strings.
+The expressions in a **stream** statement may also be strings.
 
 If a **stream** statement is given a string, it prints the string as though the
 string had appeared as its own statement. In other words, the **stream**
@@ -1259,6 +1259,14 @@ The extended library is a **non-portable extension**.
 
 :   Returns the factorial of the truncated absolute value of **x**.
 
+**max(a, b)**
+
+:   Returns **a** if **a** is greater than **b**; otherwise, returns **b**.
+
+**min(a, b)**
+
+:   Returns **a** if **a** is less than **b**; otherwise, returns **b**.
+
 **perm(n, k)**
 
 :   Returns the permutation of the truncated absolute value of **n** of the
@@ -1268,6 +1276,10 @@ The extended library is a **non-portable extension**.
 
 :   Returns the combination of the truncated absolute value of **n** of the
     truncated absolute value of **k**, if **k \<= n**. If not, it returns **0**.
+
+**fib(n)**
+
+:   Returns the Fibonacci number of the truncated absolute value of **n**.
 
 **l2(x)**
 
@@ -1418,7 +1430,7 @@ The extended library is a **non-portable extension**.
 
 **frand(p)**
 
-:   Generates a pseudo-random number between **0** (inclusive) and **1**
+:   Generates a pseudo-random integer between **0** (inclusive) and **1**
     (exclusive) with the number of decimal digits after the decimal point equal
     to the truncated absolute value of **p**. If **p** is not **0**, then
     calling this function will change the value of **seed**. If **p** is **0**,
@@ -1426,12 +1438,20 @@ The extended library is a **non-portable extension**.
 
 **ifrand(i, p)**
 
-:   Generates a pseudo-random number that is between **0** (inclusive) and the
+:   Generates a pseudo-random integer that is between **0** (inclusive) and the
     truncated absolute value of **i** (exclusive) with the number of decimal
     digits after the decimal point equal to the truncated absolute value of
     **p**. If the absolute value of **i** is greater than or equal to **2**, and
     **p** is not **0**, then calling this function will change the value of
-    **seed**; otherwise, **0** is returned and **seed** is not changed.
+    **seed**; otherwise, **0** is returned, and **seed** is not changed.
+
+**i2rand(a, b)**
+
+:   Takes the truncated value of **a** and **b** and uses them as inclusive
+    bounds to enerate a pseudo-random integer. If the difference of the
+    truncated values of **a** and **b** is **0**, then the truncated value is
+    returned, and **seed** is *not* changed. Otherwise, this function will
+    change the value of **seed**.
 
 **srand(x)**
 
