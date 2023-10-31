@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 27, 2023
+.Dd October 31, 2023
 .Dt SETKEY 8
 .Os
 .\"
@@ -472,27 +472,43 @@ is expressed in one of the following three formats:
 .Xc
 .El
 .Pp
-The direction of a policy must be specified as
-one of:
+.Bl -tag -compact -width "policy level"
+.It Ar direction
+The
+.Ar direction
+of a policy must be specified as one of:
 .Li out
 or
 .Li in .
+.It Ar policy level
 The direction is followed by one of the following policy levels:
 .Li discard ,
 .Li none ,
 or
 .Li ipsec .
+.Bl -compact -bullet
+.It
 The
 .Li discard
-policylevel means that packets matching the supplied indices will
-be discarded while
+policy level means that packets matching the supplied indices will
+be discarded.
+.It
+The
 .Li none
-means that IPsec operations will not take place on the packet and
+policy level means that IPsec operations will not take place on
+the packet.
+.It
+The
 .Li ipsec
-means that IPsec operation will take place onto the packet.
+policy level means that IPsec operation will take place onto
+the packet.
+.El
+.It Ar protocol/mode/src-dst/level
 The
 .Ar protocol/mode/src-dst/level
 statement gives the rule for how to process the packet.
+.Bl -compact -bullet
+.It
 The
 .Ar protocol
 is specified as
@@ -500,12 +516,15 @@ is specified as
 .Li esp
 or
 .Li ipcomp .
+.It
 The
 .Ar mode
 is either
 .Li transport
 or
 .Li tunnel .
+.El
+.Pp
 If
 .Ar mode
 is
@@ -517,6 +536,7 @@ and
 with a dash,
 .Sq - ,
 between the addresses.
+.Pp
 If
 .Ar mode
 is
@@ -526,6 +546,7 @@ both
 and
 .Ar dst
 can be omitted.
+.Pp
 The
 .Ar level
 is one of the following:
@@ -534,25 +555,32 @@ or
 .Li unique .
 If the SA is not available in every level, the kernel will request
 the SA from the key exchange daemon.
+.Pp
+.Bl -compact -bullet
+.It
 A value of
 .Li default
 tells the kernel to use the system wide default protocol
 e.g.,\& the one from the
 .Li esp_trans_deflev
 sysctl variable, when the kernel processes the packet.
+.It
 A value of
 .Li use
 means that the kernel will use an SA if it is available,
 otherwise the kernel will pass the packet as it would normally.
+.It
 A value of
 .Li require
 means that an SA is required whenever the kernel sends a packet matched
 that matches the policy.
+.It
 The
 .Li unique
 level is the same as
 .Li require
 but, in addition, it allows the policy to bind with the unique out-bound SA.
+.Pp
 For example, if you specify the policy level
 .Li unique ,
 .Xr racoon 8 Pq Pa ports/security/ipsec-tools
@@ -570,6 +598,8 @@ must be between 1 and 32767,
 which corresponds to
 .Ar extensions Fl u
 of manual SA configuration.
+.El
+.El
 .Pp
 When you want to use an SA bundle, you can define multiple rules.
 For
