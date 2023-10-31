@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20231027:
+	Forward compatibility (running the new code on old kernels) for the
+	"ino64" project have been removed. The need for it has passed long ago.
+
 20231018:
 	Commit 57ce37f9dcd0 changed the internal KAPI between the
 	nfscommon and nfscl modules.  Both must be rebuilt from sources.
@@ -1572,6 +1576,14 @@ https://lists.freebsd.org/archives/freebsd-current/2021-June/000153.html
 20170620:
 	Switch back to the BSDL dtc (Device Tree Compiler). Set WITH_GPL_DTC
 	if you require the GPL compiler.
+
+20170619:
+	Forward compatibility for the "ino64" project have been committed. This
+	will allow most new binaries to run on older kernels in a limited
+	fashion.  This prevents many of the common foot-shooting actions in the
+	upgrade as well as the limited ability to roll back the kernel across
+	the ino64 upgrade. Complicated use cases may not work properly, though
+	enough simpler ones work to allow recovery in most situations.
 
 20170618:
 	The internal ABI used for communication between the NFS kernel modules
