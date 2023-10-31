@@ -38,14 +38,6 @@ SRCS+= getdents.c lstat.c mknod.c stat.c
 NOASM+=  sched_getcpu.o
 PSEUDO+= _sched_getcpu.o
 
-SRCS+= fstat.c fstatat.c fstatfs.c getfsstat.c statfs.c
-NOASM+= fstat.o fstatat.o fstatfs.o getfsstat.o statfs.o
-PSEUDO+= _fstat.o _fstatat.o _fstatfs.o _getfsstat.o _statfs.o
-
-SRCS+= getdirentries.c
-NOASM+= getdirentries.o
-PSEUDO+= _getdirentries.o
-
 SRCS+= brk.c
 SRCS+= closefrom.c
 SRCS+= pipe.c

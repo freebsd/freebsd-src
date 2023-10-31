@@ -34,11 +34,6 @@
 ssize_t
 getdents(int fd, char *buf, size_t nbytes)
 {
-	/*
-	 * _getdirentries knows how to call the right thing and
-	 * return it in the new format. It assumes that the entire
-	 * libc expecting the new format.
-	 */
 
-	return (_getdirentries(fd, buf, nbytes, NULL));
+	return (__sys_getdirentries(fd, buf, nbytes, NULL));
 }
