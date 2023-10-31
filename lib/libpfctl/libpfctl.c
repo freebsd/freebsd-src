@@ -310,6 +310,12 @@ pfctl_status_counter(struct pfctl_status *status, int id)
 }
 
 uint64_t
+pfctl_status_lcounter(struct pfctl_status *status, int id)
+{
+	return (_pfctl_status_counter(&status->lcounters, id));
+}
+
+uint64_t
 pfctl_status_fcounter(struct pfctl_status *status, int id)
 {
 	return (_pfctl_status_counter(&status->fcounters, id));
