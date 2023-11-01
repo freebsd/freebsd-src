@@ -69,7 +69,7 @@ bringing together a solid, state of the art development environment.
 
 Thanks to the FreeBSD guys; Rod Grimes, Nate Williams and Jordan
 Hubbard; and to Bruce Evans, for immediate and detailed feedback on
-crunch 0.1, and for pressing me to make the prototype more useable.
+crunch 0.1, and for pressing me to make the prototype more usable.
 
 Crunch was written for the Maruti Hard Real-Time Operating System
 project at the University of Maryland, to help make for better install
