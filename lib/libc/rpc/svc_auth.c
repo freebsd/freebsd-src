@@ -37,7 +37,6 @@
 #ident	"@(#)svc_auth.c	1.16	94/04/24 SMI"
 static char sccsid[] = "@(#)svc_auth.c 1.26 89/02/07 Copyr 1984 Sun Micro";
 #endif
-#include <sys/cdefs.h>
 /*
  * svc_auth.c, Server-side rpc authenticator interface.
  *

@@ -37,7 +37,6 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 #ident	"@(#)svc_dg.c	1.17	94/04/24 SMI"
 #endif
-#include <sys/cdefs.h>
 /*
  * svc_dg.c, Server side for connectionless RPC.
  *

@@ -28,7 +28,6 @@
  * Limited test program for nftw() as specified by IEEE Std. 1003.1-2008.
  */
 
-#include <sys/cdefs.h>
 #include <sys/wait.h>
 #include <err.h>
 #include <errno.h>

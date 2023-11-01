@@ -39,7 +39,6 @@
  * routines used with the rpcbind stats facility.
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>

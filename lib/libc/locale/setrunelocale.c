@@ -37,7 +37,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #define	__RUNETYPE_INTERNAL 1
 
 #include <runetype.h>

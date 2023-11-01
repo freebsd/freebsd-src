@@ -35,7 +35,6 @@
 #ifndef _GLOB_COMPAT11_H_
 #define	_GLOB_COMPAT11_H_
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <glob.h>
 

@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <inttypes.h>
 
 /* See comments in div.c for implementation details. */

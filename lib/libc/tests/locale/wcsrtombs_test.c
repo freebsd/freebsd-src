@@ -32,7 +32,6 @@
  * "ja_JP.eucJP". Other encodings are not tested.
  */
 
-#include <sys/cdefs.h>
 #include <errno.h>
 #include <limits.h>
 #include <locale.h>

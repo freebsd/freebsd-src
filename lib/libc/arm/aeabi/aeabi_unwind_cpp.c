@@ -34,7 +34,6 @@
  * check this.
  */
 
-#include <sys/cdefs.h>
 #include <stdlib.h>
 
 void __aeabi_unwind_cpp_pr0(void) __hidden;

@@ -29,7 +29,6 @@
  */
 
 #include "namespace.h"
-#include <sys/cdefs.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
