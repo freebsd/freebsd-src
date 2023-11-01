@@ -1246,7 +1246,7 @@ handle_symbolic_link () {
   esac
 }
 
-# Compare symblic links
+# Compare symbolic links
 for COMPSYMLINK in `find . -type l | sort`; do
   if [ ! -L "${DESTDIR}${COMPSYMLINK#.}" ]; then
     if [ -n "${AUTO_RUN}" -a -z "${AUTO_INSTALL}" ]; then
