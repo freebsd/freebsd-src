@@ -36,7 +36,7 @@
 # manctl: 
 #	a utility for manipulating manual pages
 # functions:
-#	compress uncompressed man pages (elliminating .so's)
+#	compress uncompressed man pages (eliminating .so's)
 #		this is now two-pass.  If possible, .so's
 #		are replaced with hard links
 #	uncompress compressed man pages
