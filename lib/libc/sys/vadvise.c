@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/errno.h>
 
 int vadvise(int);

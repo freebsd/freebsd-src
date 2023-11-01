@@ -28,7 +28,6 @@ SUCH DAMAGE.
  * a FILE * retrieved using fmemopen()
  */
 
-#include <sys/cdefs.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>

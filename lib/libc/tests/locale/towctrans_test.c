@@ -31,7 +31,6 @@
  * The functions are tested in the "C" and "ja_JP.eucJP" locales.
  */
 
-#include <sys/cdefs.h>
 #include <locale.h>
 #include <stdio.h>
 #include <string.h>

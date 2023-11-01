@@ -30,7 +30,6 @@
  * From: $OpenBSD: fts.c,v 1.22 1999/10/03 19:22:22 millert Exp $
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <sys/param.h>
 #define	_WANT_FREEBSD11_STATFS

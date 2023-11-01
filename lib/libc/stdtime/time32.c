@@ -11,7 +11,6 @@
  * base of the source tree.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <timeconv.h>
 

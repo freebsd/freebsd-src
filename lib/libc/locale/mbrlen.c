@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <wchar.h>
 #include "mblocal.h"
 

@@ -29,7 +29,6 @@
  * acl_equiv_mode_np: Check if an ACL can be represented as a mode_t.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/errno.h>

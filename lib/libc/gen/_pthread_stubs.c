@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <signal.h>
 #include <pthread.h>
 #include <stdlib.h>

@@ -29,7 +29,6 @@
  * TrustedBSD: Utility functions for extended attributes.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/extattr.h>
 

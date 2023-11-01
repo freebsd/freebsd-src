@@ -23,7 +23,6 @@
  * ChaCha based random number generator for OpenBSD.
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #if defined(__FreeBSD__)
 #include <assert.h>

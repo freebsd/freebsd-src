@@ -27,7 +27,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #define _NS_PRIVATE
 #include <nsswitch.h>

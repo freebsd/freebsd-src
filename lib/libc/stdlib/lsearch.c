@@ -7,7 +7,6 @@
  * unchanged, you can do what ever you want with this file. 
  */
 #include <sys/types.h>
-#include <sys/cdefs.h>
 #define	_SEARCH_PRIVATE
 #include <search.h>
 #include <stdint.h>	/* for uint8_t */

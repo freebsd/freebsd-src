@@ -31,7 +31,6 @@
  * try-and-error for region size.
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <sys/types.h>
 #include <sys/ioctl.h>

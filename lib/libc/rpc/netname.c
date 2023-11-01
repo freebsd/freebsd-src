@@ -31,7 +31,6 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)netname.c 1.8 91/03/11 Copyr 1986 Sun Micro";
 #endif
-#include <sys/cdefs.h>
 /*
  * netname utility routines
  * convert from unix names to network names and vice-versa

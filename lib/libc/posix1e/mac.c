@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>

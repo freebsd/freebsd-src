@@ -34,7 +34,6 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
