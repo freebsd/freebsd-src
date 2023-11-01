@@ -28,7 +28,6 @@
  * Tests for basic and miscellaneous printf() formats.
  */
 
-#include <sys/cdefs.h>
 #include <err.h>
 #include <limits.h>
 #include <locale.h>

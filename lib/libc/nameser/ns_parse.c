@@ -20,7 +20,6 @@
 #ifndef lint
 static const char rcsid[] = "$Id: ns_parse.c,v 1.10 2009/01/23 19:59:16 each Exp $";
 #endif
-#include <sys/cdefs.h>
 /* Import. */
 
 #include "port_before.h"

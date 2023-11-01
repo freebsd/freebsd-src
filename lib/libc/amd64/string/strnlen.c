@@ -26,7 +26,6 @@
  * SUCH DAMAGE
  */
 
-#include <sys/cdefs.h>
 #include <string.h>
 
 char *__memchr(const void *, int, size_t);

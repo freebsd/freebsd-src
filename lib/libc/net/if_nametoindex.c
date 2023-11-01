@@ -27,7 +27,6 @@
  *	BSDI Id: if_nametoindex.c,v 2.3 2000/04/17 22:38:05 dab Exp
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <sys/types.h>
 #include <sys/socket.h>

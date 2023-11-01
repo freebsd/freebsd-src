@@ -17,7 +17,6 @@
  *	$OpenBSD: strtonum.c,v 1.7 2013/04/17 18:40:58 tedu Exp $
  */
 
-#include <sys/cdefs.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdlib.h>

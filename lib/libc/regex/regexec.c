@@ -38,7 +38,6 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)regexec.c	8.3 (Berkeley) 3/20/94";
 #endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
 /*
  * the outer shell of regexec()
  *

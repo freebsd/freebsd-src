@@ -29,7 +29,6 @@
  * Test for clearenv(3) routine.
  */
 
-#include <sys/cdefs.h>
 #include <atf-c.h>
 
 #include <stdio.h>

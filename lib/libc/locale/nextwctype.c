@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <runetype.h>
 #include <wchar.h>
 #include <wctype.h>

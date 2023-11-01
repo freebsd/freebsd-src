@@ -2,7 +2,6 @@
  * Public domain.
  */
 
-#include <sys/cdefs.h>
 #include <string.h>
 
 void

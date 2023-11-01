@@ -29,7 +29,6 @@
  * acl_from_text: Convert a text-form ACL from a string to an acl_t.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include "namespace.h"
 #include <sys/acl.h>

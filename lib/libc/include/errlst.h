@@ -29,7 +29,6 @@
 #ifndef __ERRLST_H__
 #define __ERRLST_H__
 
-#include <sys/cdefs.h>
 
 #ifdef PIC
 /* If the main executable imports these, do not use its copy from libc.so. */

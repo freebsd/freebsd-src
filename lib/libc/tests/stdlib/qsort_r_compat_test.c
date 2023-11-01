@@ -29,7 +29,6 @@
  * Test for historical qsort_r(3) routine.
  */
 
-#include <sys/cdefs.h>
 #include <stdio.h>
 #include <stdlib.h>
 

@@ -20,7 +20,6 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[] = "$Id: nsap_addr.c,v 1.5 2005/07/28 06:51:48 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
 #include "port_before.h"
 
 #include <sys/param.h>

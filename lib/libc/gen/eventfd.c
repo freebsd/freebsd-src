@@ -24,7 +24,6 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <sys/eventfd.h>
 #include <sys/specialfd.h>

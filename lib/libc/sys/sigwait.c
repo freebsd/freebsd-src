@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <errno.h>
 #include <signal.h>
 #include "libc_private.h"

@@ -27,7 +27,6 @@
  *	needed to deal with TCP connections.
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <stdio.h>
 #include <syslog.h>

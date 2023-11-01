@@ -26,7 +26,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <db.h>
 #include <mpool.h>
 

@@ -31,7 +31,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <inttypes.h>

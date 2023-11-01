@@ -37,7 +37,6 @@
  * uses quad precision, such as aarch64 or riscv.
  */
 
-#include <sys/cdefs.h>
 #include <float.h>
 
 #include "gdtoaimp.h"

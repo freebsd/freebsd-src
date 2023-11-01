@@ -25,7 +25,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <arpa/inet.h>
 #include <rpc/rpc.h>
 #include <errno.h>

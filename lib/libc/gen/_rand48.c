@@ -11,7 +11,6 @@
  * to anyone/anything when using this software.
  */
 
-#include <sys/cdefs.h>
 #include "rand48.h"
 
 unsigned short _rand48_seed[3] = {

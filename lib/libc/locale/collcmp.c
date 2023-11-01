@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <string.h>
 #include <wchar.h>
 #include "collate.h"

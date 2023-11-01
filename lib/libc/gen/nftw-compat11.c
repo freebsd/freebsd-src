@@ -21,7 +21,6 @@
  * From: FreeBSD: head/lib/libc/gen/nftw.c 239160 2012-08-09 22:05:40Z jilles
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>

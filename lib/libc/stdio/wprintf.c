@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <wchar.h>

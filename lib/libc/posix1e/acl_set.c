@@ -31,7 +31,6 @@
  * acl_set_file -- set a file/directory ACL by name
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include "namespace.h"
 #include <sys/acl.h>

@@ -33,7 +33,6 @@
  * $NetBSD: arm_initfini.c,v 1.2 2013/01/31 06:47:55 matt Exp $
  */
 
-#include <sys/cdefs.h>
 /*
  * To properly implement setjmp/longjmp for the ARM AAPCS ABI, it has to be
  * aware of whether there is a FPU is present or not.  Regardless of whether

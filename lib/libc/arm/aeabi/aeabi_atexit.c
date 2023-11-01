@@ -27,7 +27,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 int __cxa_atexit(void (*)(void *), void *, void *);
 
 int

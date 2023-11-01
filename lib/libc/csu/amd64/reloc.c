@@ -23,7 +23,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <machine/specialreg.h>
 #include <machine/cpufunc.h>
 

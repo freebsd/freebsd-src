@@ -10,7 +10,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * modf(double x, double *iptr)
  * return fraction part of x, and return x's integral part in *iptr.

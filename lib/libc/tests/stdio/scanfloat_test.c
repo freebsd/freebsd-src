@@ -28,7 +28,6 @@
  * Test for scanf() floating point formats.
  */
 
-#include <sys/cdefs.h>
 #include <fenv.h>
 #include <float.h>
 #include <locale.h>

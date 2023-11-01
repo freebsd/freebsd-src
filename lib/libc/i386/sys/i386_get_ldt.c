@@ -29,7 +29,6 @@
  */
 
 #include <sys/cdefs.h>
-#include <sys/cdefs.h>
 #include <machine/segments.h>
 #include <machine/sysarch.h>
 

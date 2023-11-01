@@ -33,7 +33,6 @@
  *
  * Compatibility shims for the GNU C Library-style nsswitch interface.
  */
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <sys/param.h>
 #include <errno.h>

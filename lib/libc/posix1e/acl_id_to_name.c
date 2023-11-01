@@ -30,7 +30,6 @@
  * These calls are intended only to be called within the library.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include "namespace.h"
 #include <sys/acl.h>

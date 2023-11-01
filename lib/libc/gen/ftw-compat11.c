@@ -22,7 +22,6 @@
  * From: FreeBSD: head/lib/libc/gen/ftw.c 239151 2012-08-09 15:11:38Z jilles
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>

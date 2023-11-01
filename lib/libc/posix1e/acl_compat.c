@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/acl.h>
 
 int __oldacl_get_perm_np(acl_permset_t, oldacl_perm_t);

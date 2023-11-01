@@ -27,7 +27,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include "softfloat-for-gcc.h"
 #include "milieu.h"
 #include "softfloat.h"

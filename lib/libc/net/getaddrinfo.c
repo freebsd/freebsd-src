@@ -53,7 +53,6 @@
  * - FreeBSD supported $GAI.  The code does not.
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/socket.h>

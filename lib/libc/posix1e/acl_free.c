@@ -29,7 +29,6 @@
  * acl_free -- free ACL objects from user memory
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include "namespace.h"
 #include <sys/acl.h>

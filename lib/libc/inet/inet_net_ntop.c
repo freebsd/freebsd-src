@@ -20,7 +20,6 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[] = "$Id: inet_net_ntop.c,v 1.5 2006/06/20 02:50:14 marka Exp $";
 #endif
-#include <sys/cdefs.h>
 #include "port_before.h"
 
 #include <sys/types.h>

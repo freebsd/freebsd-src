@@ -21,7 +21,6 @@
  * Materiel Command, USAF, under agreement number F39502-99-1-0512.
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <ctype.h>
 #include <errno.h>

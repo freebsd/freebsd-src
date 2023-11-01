@@ -40,7 +40,6 @@
  * acl_get_tag_type() returns the tag type for the ACL entry entry_d
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include "namespace.h"
 #include <sys/acl.h>

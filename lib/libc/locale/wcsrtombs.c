@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>

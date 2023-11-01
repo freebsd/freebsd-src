@@ -31,7 +31,6 @@
  * From: @(#)uname.c	8.1 (Berkeley) 1/4/94
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/utsname.h>

@@ -30,7 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #define _WANT_P_OSREL
 #include <sys/param.h>
 #include <machine/cpufunc.h>

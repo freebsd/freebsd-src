@@ -36,7 +36,6 @@
 /*
  * fabs(x) returns the absolute value of x.
  */
-#include <sys/cdefs.h>
 double
 fabs(double x)
 {

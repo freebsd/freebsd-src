@@ -26,7 +26,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/endian.h>
 #define _BYTEORDER_FUNC_DEFINED
 #include <arpa/inet.h>

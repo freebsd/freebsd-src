@@ -35,7 +35,6 @@
  *	@(#)engine.c	8.5 (Berkeley) 3/20/94
  */
 
-#include <sys/cdefs.h>
 #include <stdbool.h>
 
 /*

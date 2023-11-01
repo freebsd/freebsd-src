@@ -1,4 +1,3 @@
-#include <sys/cdefs.h>
 #include <port_before.h>
 #ifdef DO_PTHREADS
 #include <pthread.h>

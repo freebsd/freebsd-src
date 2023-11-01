@@ -31,7 +31,6 @@
  * acl_delete_def_file -- remove a default acl from a file
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include "namespace.h"
 #include <sys/acl.h>
