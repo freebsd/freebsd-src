@@ -100,6 +100,7 @@ __ElfType(Brandinfo);
 
 #define	MAX_BRANDS		8
 #define	FREEBSD_ABI_VENDOR	"FreeBSD"
+#define	GNU_ABI_VENDOR		"GNU"
 
 typedef void (*outfunc_t)(void *, struct sbuf *, size_t *);
 
