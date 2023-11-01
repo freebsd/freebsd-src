@@ -1408,8 +1408,12 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	 * into network format.
 	 */
 	ui = mtod(m, struct udpiphdr *);
-	bzero(ui->ui_x1, sizeof(ui->ui_x1));	/* XXX still needed? */
-	ui->ui_v = IPVERSION << 4;
+	/*
+	 * Filling only those fields of udpiphdr that participate in the
+	 * checksum calculation. The rest must be zeroed and will be filled
+	 * later.
+	 */
+	bzero(ui->ui_x1, sizeof(ui->ui_x1));
 	ui->ui_pr = pr;
 	ui->ui_src = laddr;
 	ui->ui_dst = faddr;
@@ -1432,16 +1436,6 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		 * the entire UDPLite packet is covered by the checksum.
 		 */
 		cscov_partial = (cscov == 0) ? 0 : 1;
-	}
-
-	/*
-	 * Set the Don't Fragment bit in the IP header.
-	 */
-	if (inp->inp_flags & INP_DONTFRAG) {
-		struct ip *ip;
-
-		ip = (struct ip *)&ui->ui_i;
-		ip->ip_off |= htons(IP_DF);
 	}
 
 	if (inp->inp_socket->so_options & SO_DONTROUTE)
@@ -1477,9 +1471,16 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		m->m_pkthdr.csum_flags = CSUM_UDP;
 		m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
 	}
+	/*
+	 * After finishing the checksum computation, fill the remaining fields
+	 * of udpiphdr.
+	 */
+	((struct ip *)ui)->ip_v = IPVERSION;
+	((struct ip *)ui)->ip_tos = tos;
 	((struct ip *)ui)->ip_len = htons(sizeof(struct udpiphdr) + len);
-	((struct ip *)ui)->ip_ttl = inp->inp_ip_ttl;	/* XXX */
-	((struct ip *)ui)->ip_tos = tos;		/* XXX */
+	if (inp->inp_flags & INP_DONTFRAG)
+		((struct ip *)ui)->ip_off |= htons(IP_DF);
+	((struct ip *)ui)->ip_ttl = inp->inp_ip_ttl;
 	UDPSTAT_INC(udps_opackets);
 
 	/*
