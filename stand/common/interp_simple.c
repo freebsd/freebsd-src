@@ -76,7 +76,7 @@ struct includeline
 	int			line;
 #define SL_QUIET	(1<<0)
 #define SL_IGNOREERR	(1<<1)
-	char			text[0];
+	char			text[];
 };
 
 int
