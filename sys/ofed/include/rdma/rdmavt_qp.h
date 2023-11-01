@@ -168,7 +168,7 @@ struct rvt_swqe {
 	u32 lpsn;               /* last packet sequence number */
 	u32 ssn;                /* send sequence number */
 	u32 length;             /* total length of data in sg_list */
-	struct rvt_sge sg_list[0];
+	struct rvt_sge sg_list[];
 };
 
 /*
@@ -179,7 +179,7 @@ struct rvt_swqe {
 struct rvt_rwqe {
 	u64 wr_id;
 	u8 num_sge;
-	struct ib_sge sg_list[0];
+	struct ib_sge sg_list0[];
 };
 
 /*
@@ -193,7 +193,7 @@ struct rvt_rwqe {
 struct rvt_rwq {
 	u32 head;               /* new work requests posted to the head */
 	u32 tail;               /* receives pull requests from here. */
-	struct rvt_rwqe wq[0];
+	struct rvt_rwqe wq[];
 };
 
 struct rvt_rq {

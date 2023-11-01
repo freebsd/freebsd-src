@@ -654,7 +654,7 @@ struct uverbs_attr_bundle {
 	struct ib_uverbs_file *ufile;
 	struct ib_ucontext *context;
 	DECLARE_BITMAP(attr_present, UVERBS_API_ATTR_BKEY_LEN);
-	struct uverbs_attr attrs[0];
+	struct uverbs_attr attrs[];
 };
 
 static inline bool uverbs_attr_is_valid(const struct uverbs_attr_bundle *attrs_bundle,
