@@ -320,7 +320,7 @@ struct scsi_per_res_key
 struct scsi_per_res_in_keys
 {
 	struct scsi_per_res_in_header header;
-	struct scsi_per_res_key keys[0];
+	struct scsi_per_res_key keys[];
 };
 
 struct scsi_per_res_cap
@@ -853,7 +853,7 @@ struct scsi_logical_block_provisioning_page {
 	uint8_t flags;
 #define	SLBPP_SITUA		0x01
 	uint8_t reserved[11];
-	struct scsi_logical_block_provisioning_page_descr descr[0];
+	struct scsi_logical_block_provisioning_page_descr descr[];
 };
 
 /*
@@ -1101,7 +1101,7 @@ struct scsi_write_attribute
 struct scsi_read_attribute_values
 {
 	uint8_t length[4];
-	uint8_t attribute_0[0];
+	uint8_t attribute_0[];
 };
 
 struct scsi_mam_attribute_header
@@ -1191,12 +1191,12 @@ struct scsi_mam_attribute_header
 #define	SMA_FORMAT_MASK		0x03
 #define	SMA_READ_ONLY		0x80
 	uint8_t length[2];
-	uint8_t attribute[0];
+	uint8_t attribute[];
 };
 
 struct scsi_attrib_list_header {
 	uint8_t length[4];
-	uint8_t first_attr_0[0];
+	uint8_t first_attr_0[];
 };
 
 struct scsi_attrib_lv_list {
@@ -1548,13 +1548,13 @@ struct scsi_report_supported_opcodes_descr
 #define RSO_CDLP_A		0x04
 #define RSO_CDLP_B		0x08
 	uint8_t  cdb_length[2];
-	struct scsi_report_supported_opcodes_timeout timeout[0];
+	struct scsi_report_supported_opcodes_timeout timeout[];
 };
 
 struct scsi_report_supported_opcodes_all
 {
 	uint8_t  length[4];
-	struct scsi_report_supported_opcodes_descr descr[0];
+	struct scsi_report_supported_opcodes_descr descr[];
 };
 
 struct scsi_report_supported_opcodes_one
@@ -1776,7 +1776,7 @@ struct scsi_receive_copy_operating_parameters_data
 	uint8_t  held_data_granularity;
 	uint8_t  reserved3[3];
 	uint8_t  implemented_descriptor_list_length;
-	uint8_t  list_of_implemented_descriptor_type_codes[0];
+	uint8_t  list_of_implemented_descriptor_type_codes[];
 };
 
 struct scsi_extended_copy
@@ -2006,7 +2006,7 @@ struct scsi_token
 #define ROD_TYPE_BLOCK_ZERO	0xFFFF0001
 	uint8_t  reserved[2];
 	uint8_t  length[2];
-	uint8_t  body[0];
+	uint8_t  body[];
 };
 
 struct scsi_report_all_rod_tokens
@@ -2365,7 +2365,7 @@ struct scsi_vpd_supported_pages
 	uint8_t reserved;
 #define	SVPD_SUPPORTED_PAGES	0x00
 	uint8_t length;
-	uint8_t page_list[0];
+	uint8_t page_list[];
 };
 
 struct scsi_vpd_unit_serial_number
@@ -2430,7 +2430,7 @@ struct scsi_vpd_id_descriptor
 struct scsi_vpd_id_t10
 {
 	uint8_t	vendor[8];
-	uint8_t	vendor_spec_id[0];
+	uint8_t	vendor_spec_id[];
 };
 
 struct scsi_vpd_id_eui64
@@ -2627,14 +2627,14 @@ struct scsi_vpd_mode_page_policy
 	uint8_t page_code;
 #define	SVPD_MODE_PAGE_POLICY	0x87
 	uint8_t page_length[2];
-	struct scsi_vpd_mode_page_policy_descr descr[0];
+	struct scsi_vpd_mode_page_policy_descr descr[];
 };
 
 struct scsi_diag_page {
 	uint8_t page_code;
 	uint8_t page_specific_flags;
 	uint8_t length[2];
-	uint8_t params[0];
+	uint8_t params[];
 };
 
 struct scsi_vpd_port_designation
@@ -2643,14 +2643,14 @@ struct scsi_vpd_port_designation
 	uint8_t relative_port_id[2];
 	uint8_t reserved2[2];
 	uint8_t initiator_transportid_length[2];
-	uint8_t initiator_transportid[0];
+	uint8_t initiator_transportid[];
 };
 
 struct scsi_vpd_port_designation_cont
 {
 	uint8_t reserved[2];
 	uint8_t target_port_descriptors_length[2];
-	struct scsi_vpd_id_descriptor target_port_descriptors[0];
+	struct scsi_vpd_id_descriptor target_port_descriptors[];
 };
 
 struct scsi_vpd_scsi_ports
@@ -2692,7 +2692,7 @@ struct scsi_vpd_tpc_descriptor_sc_descr
 {
 	uint8_t opcode;
 	uint8_t sa_length;
-	uint8_t supported_service_actions[0];
+	uint8_t supported_service_actions[];
 };
 
 struct scsi_vpd_tpc_descriptor_sc
@@ -2762,7 +2762,7 @@ struct scsi_vpd_tpc_descriptor_rtf
 	uint8_t maximum_token_inactivity_timeout[4];
 	uint8_t reserved2[18];
 	uint8_t type_specific_features_length[2];
-	uint8_t type_specific_features[0];
+	uint8_t type_specific_features[];
 };
 
 struct scsi_vpd_tpc_descriptor_srtd
@@ -2784,7 +2784,7 @@ struct scsi_vpd_tpc_descriptor_srt
 	uint8_t desc_length[2];
 	uint8_t reserved[2];
 	uint8_t rod_type_descriptors_length[2];
-	uint8_t rod_type_descriptors[0];
+	uint8_t rod_type_descriptors[];
 };
 
 struct scsi_vpd_tpc_descriptor_gco
@@ -3065,7 +3065,7 @@ struct scsi_report_luns_data {
 	/*
 	 * LUN inventory- we only support the type zero form for now.
 	 */
-	struct scsi_report_luns_lundata luns[0];
+	struct scsi_report_luns_lundata luns[];
 };
 
 /*
@@ -3367,7 +3367,7 @@ struct scsi_sense_data_desc
 	 * must be less than or equal to 244.
 	 */
 	uint8_t	extra_len;
-	uint8_t	sense_desc[0];
+	uint8_t	sense_desc[];
 #define	SSD_DESC_IS_PRESENT(sense, length, field) 			\
 	((length >= (offsetof(struct scsi_sense_data_desc, field) +	\
 	sizeof(sense->field))) ? 1 :0)
@@ -3595,7 +3595,7 @@ struct scsi_sense_osd_attr_id
 #define	SSD_DESC_OSD_ATTR_ID	0x08
 	uint8_t	length;
 	uint8_t	reserved[2];
-	uint8_t	attr_desc[0];
+	uint8_t	attr_desc[];
 };
 
 /*
@@ -3668,7 +3668,7 @@ struct scsi_sense_vendor
 #define	SSD_DESC_VENDOR_MIN	0x80
 #define	SSD_DESC_VENDOR_MAX	0xff
 	uint8_t length;
-	uint8_t	data[0];
+	uint8_t	data[];
 };
 
 struct scsi_mode_header_6
