@@ -5,3 +5,4 @@
 *.py   diff=python
 . svn-properties=svn:keywords=tools/build/options/WITHOUT_LOADER_ZFS
 .clang-format svn-properties=svn:keywords=FreeBSD=%H
+contrib/one-true-awk/bugs-fixed/unicode-null-match.bad binary
