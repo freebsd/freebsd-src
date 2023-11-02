@@ -173,16 +173,6 @@
 #define	NUL1E		(Ln_ENTRIES * NUL0E)
 #define	NUL2E		(Ln_ENTRIES * NUL1E)
 
-#if !defined(DIAGNOSTIC)
-#ifdef __GNUC_GNU_INLINE__
-#define PMAP_INLINE	__attribute__((__gnu_inline__)) inline
-#else
-#define PMAP_INLINE	extern inline
-#endif
-#else
-#define PMAP_INLINE
-#endif
-
 #ifdef PV_STATS
 #define PV_STAT(x)	do { x ; } while (0)
 #define	__pv_stat_used
@@ -1054,7 +1044,7 @@ pmap_kenter_device(vm_offset_t sva, vm_size_t size, vm_paddr_t pa)
  * Remove a page from the kernel pagetables.
  * Note: not SMP coherent.
  */
-PMAP_INLINE void
+void
 pmap_kremove(vm_offset_t va)
 {
 	pt_entry_t *l3;
