@@ -3399,6 +3399,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	    ("pmap_enter_quick_locked: managed mapping within the clean submap"));
 	rw_assert(&pvh_global_lock, RA_LOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	l2 = NULL;
 
 	CTR2(KTR_PMAP, "pmap_enter_quick_locked: %p %lx", pmap, va);
 	/*
@@ -3496,6 +3497,26 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pmap_sync_icache(pmap, va, PAGE_SIZE);
 
 	pmap_store(l3, newl3);
+
+#if VM_NRESERVLEVEL > 0
+	/*
+	 * If both the PTP and the reservation are fully populated, then attempt
+	 * promotion.
+	 */
+	if ((mpte == NULL || mpte->ref_count == Ln_ENTRIES) &&
+	    (m->flags & PG_FICTITIOUS) == 0 &&
+	    vm_reserv_level_iffullpop(m) == 0) {
+		if (l2 == NULL)
+			l2 = pmap_l2(pmap, va);
+
+		/*
+		 * If promotion succeeds, then the next call to this function
+		 * should not be given the unmapped PTP as a hint.
+		 */
+		if (pmap_promote_l2(pmap, l2, va, mpte, lockp))
+			mpte = NULL;
+	}
+#endif
 
 	pmap_invalidate_page(pmap, va);
 	return (mpte);
