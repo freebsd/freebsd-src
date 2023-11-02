@@ -3712,18 +3712,18 @@ xpt_print_path(struct cam_path *path)
 	sbuf_delete(&sb);
 }
 
-void
-xpt_print_device(struct cam_ed *device)
+static void
+xpt_device_sbuf(struct cam_ed *device, struct sbuf *sb)
 {
-
 	if (device == NULL)
-		printf("(nopath): ");
+		sbuf_printf(sb, "(nopath): ");
 	else {
-		printf("(noperiph:%s%d:%d:%d:%jx): ", device->sim->sim_name,
-		       device->sim->unit_number,
-		       device->sim->bus_id,
-		       device->target->target_id,
-		       (uintmax_t)device->lun_id);
+		sbuf_printf(sb, "(noperiph:%s%d:%d:%d:%jx): ",
+		    device->sim->sim_name,
+		    device->sim->unit_number,
+		    device->sim->bus_id,
+		    device->target->target_id,
+		    (uintmax_t)device->lun_id);
 	}
 }
 
@@ -5542,4 +5542,61 @@ xpt_action_name(uint32_t action)
 
 	snprintf(buffer, sizeof(buffer), "%#x", action);
 	return (buffer);
+}
+
+void
+xpt_cam_path_debug(struct cam_path *path, const char *fmt, ...)
+{
+	struct sbuf sbuf;
+	char buf[XPT_PRINT_LEN]; /* balance to not eat too much stack */
+	struct sbuf *sb = sbuf_new(&sbuf, buf, sizeof(buf), SBUF_FIXEDLEN);
+	va_list ap;
+
+	sbuf_set_drain(sb, sbuf_printf_drain, NULL);
+	xpt_path_sbuf(path, sb);
+	va_start(ap, fmt);
+	sbuf_vprintf(sb, fmt, ap);
+	va_end(ap);
+	sbuf_finish(sb);
+	sbuf_delete(sb);
+	if (cam_debug_delay != 0)
+		DELAY(cam_debug_delay);
+}
+
+void
+xpt_cam_dev_debug(struct cam_ed *dev, const char *fmt, ...)
+{
+	struct sbuf sbuf;
+	char buf[XPT_PRINT_LEN]; /* balance to not eat too much stack */
+	struct sbuf *sb = sbuf_new(&sbuf, buf, sizeof(buf), SBUF_FIXEDLEN);
+	va_list ap;
+
+	sbuf_set_drain(sb, sbuf_printf_drain, NULL);
+	xpt_device_sbuf(dev, sb);
+	va_start(ap, fmt);
+	sbuf_vprintf(sb, fmt, ap);
+	va_end(ap);
+	sbuf_finish(sb);
+	sbuf_delete(sb);
+	if (cam_debug_delay != 0)
+		DELAY(cam_debug_delay);
+}
+
+void
+xpt_cam_debug(const char *fmt, ...)
+{
+	struct sbuf sbuf;
+	char buf[XPT_PRINT_LEN]; /* balance to not eat too much stack */
+	struct sbuf *sb = sbuf_new(&sbuf, buf, sizeof(buf), SBUF_FIXEDLEN);
+	va_list ap;
+
+	sbuf_set_drain(sb, sbuf_printf_drain, NULL);
+	sbuf_printf(sb, "cam_debug: ");
+	va_start(ap, fmt);
+	sbuf_vprintf(sb, fmt, ap);
+	va_end(ap);
+	sbuf_finish(sb);
+	sbuf_delete(sb);
+	if (cam_debug_delay != 0)
+		DELAY(cam_debug_delay);
 }
