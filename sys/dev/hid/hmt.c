@@ -744,14 +744,13 @@ hmt_hid_parse(struct hmt_softc *sc, const void *d_ptr, hid_size_t d_len,
 			else
 				break;
 
-			if (hi.collevel == 1 && left_btn == 2 &&
+			if (left_btn == 2 &&
 			    hi.usage == HID_USAGE2(HUP_BUTTON, 1)) {
 				has_int_button = true;
 				sc->int_btn_loc = hi.loc;
 				break;
 			}
-			if (hi.collevel == 1 &&
-			    hi.usage >= HID_USAGE2(HUP_BUTTON, left_btn) &&
+			if (hi.usage >= HID_USAGE2(HUP_BUTTON, left_btn) &&
 			    hi.usage <= HID_USAGE2(HUP_BUTTON, HMT_BTN_MAX)) {
 				btn = (hi.usage & 0xFFFF) - left_btn;
 				setbit(sc->buttons, btn);
@@ -760,13 +759,13 @@ hmt_hid_parse(struct hmt_softc *sc, const void *d_ptr, hid_size_t d_len,
 					sc->max_button = btn + 1;
 				break;
 			}
-			if (hi.collevel == 1 && hi.usage ==
+			if (hi.usage ==
 			    HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACTCOUNT)) {
 				cont_count_found = true;
 				sc->cont_count_loc = hi.loc;
 				break;
 			}
-			if (hi.collevel == 1 && hi.usage ==
+			if (hi.usage ==
 			    HID_USAGE2(HUP_DIGITIZERS, HUD_SCAN_TIME)) {
 				scan_time_found = true;
 				sc->scan_time_loc = hi.loc;
