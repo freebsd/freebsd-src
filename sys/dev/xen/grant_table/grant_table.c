@@ -610,20 +610,12 @@ static int
 granttable_attach(device_t dev)
 {
 	int i;
-	unsigned int max_nr_glist_frames;
 	unsigned int nr_init_grefs;
 
 	nr_grant_frames = 1;
 	boot_max_nr_grant_frames = __max_nr_grant_frames();
 
-	/* Determine the maximum number of frames required for the
-	 * grant reference free list on the current hypervisor.
-	 */
-	max_nr_glist_frames = (boot_max_nr_grant_frames *
-			       GREFS_PER_GRANT_FRAME /
-			       (PAGE_SIZE / sizeof(grant_ref_t)));
-
-	gnttab_list = malloc(max_nr_glist_frames * sizeof(grant_ref_t *),
+	gnttab_list = malloc(boot_max_nr_grant_frames * sizeof(grant_ref_t *),
 	    M_DEVBUF, M_NOWAIT);
 
 	if (gnttab_list == NULL)
