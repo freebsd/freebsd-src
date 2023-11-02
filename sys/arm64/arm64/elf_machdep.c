@@ -46,7 +46,9 @@
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
+#include <vm/pmap.h>
 #include <vm/vm_param.h>
+#include <vm/vm_map.h>
 
 #include <machine/elf.h>
 #include <machine/md_var.h>
@@ -60,6 +62,8 @@ u_long __read_frequently linux_elf_hwcap;
 u_long __read_frequently linux_elf_hwcap2;
 
 struct arm64_addr_mask elf64_addr_mask;
+
+static void arm64_exec_protect(struct image_params *, int);
 
 static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
@@ -98,6 +102,7 @@ static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_hwcap	= &elf_hwcap,
 	.sv_hwcap2	= &elf_hwcap2,
 	.sv_onexec_old	= exec_onexec_old,
+	.sv_protect	= arm64_exec_protect,
 	.sv_onexit	= exit_onexit,
 	.sv_regset_begin = SET_BEGIN(__elfN(regset)),
 	.sv_regset_end	= SET_LIMIT(__elfN(regset)),
@@ -310,4 +315,72 @@ elf_cpu_parse_dynamic(caddr_t loadbase __unused, Elf_Dyn *dynamic __unused)
 {
 
 	return (0);
+}
+
+static Elf_Note gnu_property_note = {
+	.n_namesz = sizeof(GNU_ABI_VENDOR),
+	.n_descsz = 16,
+	.n_type = NT_GNU_PROPERTY_TYPE_0,
+};
+
+static bool
+gnu_property_cb(const Elf_Note *note, void *arg0, bool *res)
+{
+	const uint32_t *data;
+	uintptr_t p;
+
+	*res = false;
+	p = (uintptr_t)(note + 1);
+	p += roundup2(note->n_namesz, 4);
+	data = (const uint32_t *)p;
+	if (data[0] != GNU_PROPERTY_AARCH64_FEATURE_1_AND)
+		return (false);
+	/*
+	 * The data length should be at least the size of a uint32, and be
+	 * a multiple of uint32_t's
+	 */
+	if (data[1] < sizeof(uint32_t) || (data[1] % sizeof(uint32_t)) != 0)
+		return (false);
+	if ((data[2] & GNU_PROPERTY_AARCH64_FEATURE_1_BTI) != 0)
+		*res = true;
+
+	return (true);
+}
+
+static void
+arm64_exec_protect(struct image_params *imgp, int flags __unused)
+{
+	const Elf_Ehdr *hdr;
+	const Elf_Phdr *phdr;
+	vm_offset_t sva, eva;
+	int i;
+	bool found;
+
+	/* Skip if BTI is not supported */
+	if ((elf_hwcap2 & HWCAP2_BTI) == 0)
+		return;
+
+	hdr = (const Elf_Ehdr *)imgp->image_header;
+	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
+
+	found = false;
+	for (i = 0; i < hdr->e_phnum; i++) {
+		if (phdr[i].p_type == PT_NOTE && __elfN(parse_notes)(imgp,
+		    &gnu_property_note, GNU_ABI_VENDOR, &phdr[i],
+		    gnu_property_cb, NULL)) {
+			found = true;
+			break;
+		}
+	}
+	if (!found)
+		return;
+
+	for (i = 0; i < hdr->e_phnum; i++) {
+		if (phdr[i].p_type != PT_LOAD || phdr[i].p_memsz == 0)
+			continue;
+
+		sva = phdr[i].p_vaddr + imgp->et_dyn_addr;
+		eva = sva + phdr[i].p_memsz;
+		pmap_bti_set(vmspace_pmap(imgp->proc->p_vmspace), sva, eva);
+	}
 }
