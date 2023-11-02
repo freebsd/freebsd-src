@@ -862,6 +862,9 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	if (error != 0)
 		goto fail;
 
+	if (p->p_sysent->sv_protect != NULL)
+		p->p_sysent->sv_protect(imgp, SVP_INTERP);
+
 	*addr = base_addr;
 	*entry = (unsigned long)hdr->e_entry + rbase;
 
@@ -1368,6 +1371,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 	entry = (u_long)hdr->e_entry + imgp->et_dyn_addr;
 	imgp->entry_addr = entry;
+
+	if (sv->sv_protect != NULL)
+		sv->sv_protect(imgp, SVP_IMAGE);
 
 	if (interp != NULL) {
 		VOP_UNLOCK(imgp->vp);
