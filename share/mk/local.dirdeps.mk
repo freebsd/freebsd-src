@@ -5,6 +5,10 @@
 .include "${SRCTOP}/share/mk/src.opts.mk"
 .endif
 
+# Machine-specific MK settings needed for Makefile.dirdeps.options usage
+MK_FDT.i386 = no
+MK_FDT.amd64 = no
+
 # making universe is special
 .if defined(UNIVERSE_GUARD)
 # these should be done by now
