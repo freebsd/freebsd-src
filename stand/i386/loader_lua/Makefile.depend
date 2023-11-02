@@ -2,7 +2,6 @@
 
 DIRDEPS = \
 	include \
-	include/xlocale \
 
 
 .include <dirdeps.mk>
