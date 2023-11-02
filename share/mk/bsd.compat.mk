@@ -20,8 +20,6 @@ COMPAT_ARCH=	${MACHINE_ARCH}
 .for _LIBCOMPAT in ${_ALL_LIBCOMPATS}
 LIB${_LIBCOMPAT}CPUTYPE=	${CPUTYPE}
 .endfor
-.include <bsd.compiler.mk>
-COMPAT_COMPILER_TYPE=${COMPILER_TYPE}
 .endif
 
 # -------------------------------------------------------------------
@@ -33,10 +31,7 @@ LIB32CPUFLAGS=	-march=i686 -mmmx -msse -msse2
 .else
 LIB32CPUFLAGS=	-march=${LIB32CPUTYPE}
 .endif
-.if ${COMPAT_COMPILER_TYPE} == gcc
-.else
-LIB32CPUFLAGS+=	-target x86_64-unknown-freebsd${OS_REVISION}
-.endif
+LIB32CPUFLAGS.clang+=	-target x86_64-unknown-freebsd${OS_REVISION}
 LIB32CPUFLAGS+=	-m32
 LIB32_MACHINE=	i386
 LIB32_MACHINE_ARCH=	i386
@@ -52,11 +47,8 @@ LIB32CPUFLAGS=	-mcpu=powerpc
 LIB32CPUFLAGS=	-mcpu=${LIB32CPUTYPE}
 .endif
 
-.if ${COMPAT_COMPILER_TYPE} == "gcc"
-LIB32CPUFLAGS+=	-m32
-.else
-LIB32CPUFLAGS+=	-target powerpc-unknown-freebsd${OS_REVISION}
-.endif
+LIB32CPUFLAGS.gcc+=	-m32
+LIB32CPUFLAGS.clang+=	-target powerpc-unknown-freebsd${OS_REVISION}
 
 LIB32_MACHINE=	powerpc
 LIB32_MACHINE_ARCH=	powerpc
@@ -72,10 +64,7 @@ LIB32CPUFLAGS=	-mcpu=${LIB32CPUTYPE}
 .endif
 
 LIB32CPUFLAGS+=	-m32
-.if ${COMPAT_COMPILER_TYPE} == "gcc"
-.else
-LIB32CPUFLAGS+=	-target armv7-unknown-freebsd${OS_REVISION}-gnueabihf
-.endif
+LIB32CPUFLAGS.clang+=	-target armv7-unknown-freebsd${OS_REVISION}-gnueabihf
 
 LIB32_MACHINE=	arm
 LIB32_MACHINE_ARCH=	armv7
@@ -121,6 +110,25 @@ _LIBCOMPATS=	${USE_COMPAT}
 
 libcompats=	${_LIBCOMPATS:tl}
 
+# Update MACHINE and MACHINE_ARCH so they can be used in bsd.opts.mk via
+# bsd.compiler.mk
+.if defined(USE_COMPAT)
+_LIBCOMPAT_MAKEVARS=	_MACHINE _MACHINE_ARCH
+.for _var in ${_LIBCOMPAT_MAKEVARS}
+.if !empty(LIB${USE_COMPAT}${_var})
+LIBCOMPAT${_var}?=	${LIB${USE_COMPAT}${_var}}
+.endif
+.endfor
+
+MACHINE=	${LIBCOMPAT_MACHINE}
+MACHINE_ARCH=	${LIBCOMPAT_MACHINE_ARCH}
+.endif
+
+.if !defined(COMPAT_COMPILER_TYPE)
+.include <bsd.compiler.mk>
+COMPAT_COMPILER_TYPE=${COMPILER_TYPE}
+.endif
+
 # -------------------------------------------------------------------
 # Generic code for each type.
 # Set defaults based on type.
@@ -131,6 +139,7 @@ WORLDTMP?=		${SYSROOT}
 LIB${_LIBCOMPAT}_OBJTOP?=	${OBJTOP}/obj-lib${_libcompat}
 
 LIB${_LIBCOMPAT}CFLAGS+=	${LIB${_LIBCOMPAT}CPUFLAGS} \
+				${LIB${_LIBCOMPAT}CPUFLAGS.${COMPAT_COMPILER_TYPE}} \
 				-DCOMPAT_LIBCOMPAT=\"${_LIBCOMPAT}\" \
 				-DCOMPAT_libcompat=\"${_libcompat}\" \
 				-DCOMPAT_LIB${_LIBCOMPAT} \
@@ -150,10 +159,12 @@ LIB${_LIBCOMPAT}CFLAGS+=	-B${WORLDTMP}/usr/lib${_libcompat}
 .endfor
 
 .if defined(USE_COMPAT)
+LIB${USE_COMPAT}CPUFLAGS+= ${LIB${USE_COMPAT}CPUFLAGS.${COMPAT_COMPILER_TYPE}}
+
 libcompat=	${USE_COMPAT:tl}
 
 _LIBCOMPAT_MAKEVARS=	_OBJTOP TMP CPUFLAGS CFLAGS CXXFLAGS LDFLAGS \
-			_MACHINE _MACHINE_ARCH _MACHINE_ABI \
+			_MACHINE_ABI \
 			WMAKEENV WMAKEFLAGS WMAKE WORLDTMP
 .for _var in ${_LIBCOMPAT_MAKEVARS}
 .if !empty(LIB${USE_COMPAT}${_var})
@@ -166,8 +177,6 @@ LIBDATADIR:=	/usr/lib${libcompat}
 _LIB_OBJTOP=	${LIBCOMPAT_OBJTOP}
 CFLAGS+=	${LIBCOMPATCFLAGS}
 LDFLAGS+=	${CFLAGS} ${LIBCOMPATLDFLAGS}
-MACHINE=	${LIBCOMPAT_MACHINE}
-MACHINE_ARCH=	${LIBCOMPAT_MACHINE_ARCH}
 .endif
 
 .endif
