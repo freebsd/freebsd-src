@@ -78,6 +78,9 @@ static CLIENT		*rpctls_connect_cl = NULL;
 static struct mtx	rpctls_server_lock;
 static struct opaque_auth rpctls_null_verf;
 
+KRPC_VNET_DECLARE(uint64_t, svc_vc_tls_handshake_success);
+KRPC_VNET_DECLARE(uint64_t, svc_vc_tls_handshake_failed);
+
 KRPC_VNET_DEFINE_STATIC(CLIENT **, rpctls_server_handle);
 KRPC_VNET_DEFINE_STATIC(struct socket *, rpctls_server_so) = NULL;
 KRPC_VNET_DEFINE_STATIC(SVCXPRT *, rpctls_server_xprt) = NULL;
@@ -748,25 +751,33 @@ _svcauth_rpcsec_tls(struct svc_req *rqst, struct rpc_msg *msg)
 	u_int maxlen;
 #endif
 	
+	KRPC_CURVNET_SET_QUIET(KRPC_TD_TO_VNET(curthread));
+	KRPC_VNET(svc_vc_tls_handshake_failed)++;
 	/* Initialize reply. */
 	rqst->rq_verf = rpctls_null_verf;
 
 	/* Check client credentials. */
 	if (rqst->rq_cred.oa_length != 0 ||
 	    msg->rm_call.cb_verf.oa_length != 0 ||
-	    msg->rm_call.cb_verf.oa_flavor != AUTH_NULL)
+	    msg->rm_call.cb_verf.oa_flavor != AUTH_NULL) {
+		KRPC_CURVNET_RESTORE();
 		return (AUTH_BADCRED);
+	}
 	
-	if (rqst->rq_proc != NULLPROC)
+	if (rqst->rq_proc != NULLPROC) {
+		KRPC_CURVNET_RESTORE();
 		return (AUTH_REJECTEDCRED);
+	}
 
 	call_stat = FALSE;
 #ifdef KERN_TLS
 	if (rpctls_getinfo(&maxlen, false, true))
 		call_stat = TRUE;
 #endif
-	if (!call_stat)
+	if (!call_stat) {
+		KRPC_CURVNET_RESTORE();
 		return (AUTH_REJECTEDCRED);
+	}
 
 	/*
 	 * Disable reception for the krpc so that the TLS handshake can
@@ -787,6 +798,7 @@ _svcauth_rpcsec_tls(struct svc_req *rqst, struct rpc_msg *msg)
 		xprt->xp_dontrcv = FALSE;
 		sx_xunlock(&xprt->xp_lock);
 		xprt_active(xprt);	/* Harmless if already active. */
+		KRPC_CURVNET_RESTORE();
 		return (AUTH_REJECTEDCRED);
 	}
 
@@ -809,9 +821,12 @@ _svcauth_rpcsec_tls(struct svc_req *rqst, struct rpc_msg *msg)
 			xprt->xp_uid = uid;
 			xprt->xp_gidp = gidp;
 		}
+		KRPC_VNET(svc_vc_tls_handshake_failed)--;
+		KRPC_VNET(svc_vc_tls_handshake_success)++;
 	}
 	sx_xunlock(&xprt->xp_lock);
 	xprt_active(xprt);		/* Harmless if already active. */
+	KRPC_CURVNET_RESTORE();
 
 	return (RPCSEC_GSS_NODISPATCH);
 }
