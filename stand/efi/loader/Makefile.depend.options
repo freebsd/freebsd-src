@@ -1,0 +1,7 @@
+# options that impact our dependencies
+DIRDEPS_OPTIONS = LOADER_LUA
+
+DIRDEPS.LOADER_LUA.yes += \
+	stand/liblua \
+
+.include <dirdeps-options.mk>

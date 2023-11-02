@@ -2,6 +2,7 @@
 
 DIRDEPS = \
 	stand/libsa \
+	usr.bin/awk.host \
 
 
 .include <dirdeps.mk>
