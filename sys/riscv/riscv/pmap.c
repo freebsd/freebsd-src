@@ -1188,14 +1188,26 @@ pmap_add_delayed_free_list(vm_page_t m, struct spglist *free,
  * for mapping a distinct range of virtual addresses.  The pmap's collection is
  * ordered by this virtual address range.
  *
- * If "promoted" is false, then the page table page "ml3" must be zero filled.
+ * If "promoted" is false, then the page table page "mpte" must be zero filled;
+ * "mpte"'s valid field will be set to 0.
+ *
+ * If "promoted" is true and "all_l3e_PTE_A_set" is false, then "mpte" must
+ * contain valid mappings with identical attributes except for PTE_A;
+ * "mpte"'s valid field will be set to 1.
+ *
+ * If "promoted" and "all_l3e_PTE_A_set" are both true, then "mpte" must contain
+ * valid mappings with identical attributes including PTE_A; "mpte"'s valid
+ * field will be set to VM_PAGE_BITS_ALL.
  */
 static __inline int
-pmap_insert_pt_page(pmap_t pmap, vm_page_t ml3, bool promoted)
+pmap_insert_pt_page(pmap_t pmap, vm_page_t ml3, bool promoted,
+    bool all_l3e_PTE_A_set)
 {
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	ml3->valid = promoted ? VM_PAGE_BITS_ALL : 0;
+	KASSERT(promoted || !all_l3e_PTE_A_set,
+	    ("a zero-filled PTP can't have PTE_A set in every PTE"));
+	ml3->valid = promoted ? (all_l3e_PTE_A_set ? VM_PAGE_BITS_ALL : 1) : 0;
 	return (vm_radix_insert(&pmap->pm_root, ml3));
 }
 
@@ -2163,7 +2175,7 @@ pmap_remove_kernel_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t va)
 	 * If this page table page was unmapped by a promotion, then it
 	 * contains valid mappings.  Zero it to invalidate those mappings.
 	 */
-	if (ml3->valid != 0)
+	if (vm_page_any_valid(ml3))
 		pagezero((void *)PHYS_TO_DMAP(ml3pa));
 
 	/*
@@ -2224,7 +2236,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 	} else {
 		ml3 = pmap_remove_pt_page(pmap, sva);
 		if (ml3 != NULL) {
-			KASSERT(ml3->valid == VM_PAGE_BITS_ALL,
+			KASSERT(vm_page_any_valid(ml3),
 			    ("pmap_remove_l2: l3 page not promoted"));
 			pmap_resident_count_dec(pmap, 1);
 			KASSERT(ml3->ref_count == Ln_ENTRIES,
@@ -2697,7 +2709,7 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 	 * If the page table page is not leftover from an earlier promotion,
 	 * initialize it.
 	 */
-	if (mpte->valid == 0) {
+	if (!vm_page_all_valid(mpte)) {
 		for (i = 0; i < Ln_ENTRIES; i++)
 			pmap_store(firstl3 + i, newl3 + (i << PTE_PPN0_S));
 	}
@@ -2706,8 +2718,7 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 	    "addresses"));
 
 	/*
-	 * If the mapping has changed attributes, update the page table
-	 * entries.
+	 * If the mapping has changed attributes, update the PTEs.
 	 */
 	if ((pmap_load(firstl3) & PTE_PROMOTE) != (newl3 & PTE_PROMOTE))
 		for (i = 0; i < Ln_ENTRIES; i++)
@@ -2746,7 +2757,7 @@ static void
 pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3,
     struct rwlock **lockp)
 {
-	pt_entry_t *firstl3, firstl3e, *l3, l3e;
+	pt_entry_t all_l3e_PTE_A, *firstl3, firstl3e, *l3, l3e;
 	vm_paddr_t pa;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -2754,6 +2765,11 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3,
 	KASSERT((pmap_load(l2) & PTE_RWX) == 0,
 	    ("pmap_promote_l2: invalid l2 entry %p", l2));
 
+	/*
+	 * Examine the first L3E in the specified PTP.  Abort if this L3E is
+	 * ineligible for promotion or does not map the first 4KB physical page
+	 * within a 2MB page.
+	 */
 	firstl3 = (pt_entry_t *)PHYS_TO_DMAP(PTE_TO_PHYS(pmap_load(l2)));
 	firstl3e = pmap_load(firstl3);
 	pa = PTE_TO_PHYS(firstl3e);
@@ -2781,8 +2797,14 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3,
 		}
 	}
 
-	pa += PAGE_SIZE;
-	for (l3 = firstl3 + 1; l3 < firstl3 + Ln_ENTRIES; l3++) {
+	/*
+	 * Examine each of the other PTEs in the specified PTP.  Abort if this
+	 * PTE maps an unexpected 4KB physical page or does not have identical
+	 * characteristics to the first PTE.
+	 */
+	all_l3e_PTE_A = firstl3e & PTE_A;
+	pa += L2_SIZE - PAGE_SIZE;
+	for (l3 = firstl3 + Ln_ENTRIES - 1; l3 > firstl3; l3--) {
 		l3e = pmap_load(l3);
 		if (PTE_TO_PHYS(l3e) != pa) {
 			CTR2(KTR_PMAP,
@@ -2804,14 +2826,28 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3,
 			atomic_add_long(&pmap_l2_p_failures, 1);
 			return;
 		}
-		pa += PAGE_SIZE;
+		all_l3e_PTE_A &= l3e;
+		pa -= PAGE_SIZE;
 	}
 
+	/*
+	 * Unless all PTEs have PTE_A set, clear it from the superpage
+	 * mapping, so that promotions triggered by speculative mappings,
+	 * such as pmap_enter_quick(), don't automatically mark the
+	 * underlying pages as referenced.
+	 */
+	firstl3e &= ~PTE_A | all_l3e_PTE_A;
+
+	/*
+	 * Save the page table page in its current state until the L2
+	 * mapping the superpage is demoted by pmap_demote_l2() or
+	 * destroyed by pmap_remove_l3().
+	 */
 	if (ml3 == NULL)
 		ml3 = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
 	KASSERT(ml3->pindex == pmap_l2_pindex(va),
 	    ("pmap_promote_l2: page table page's pindex is wrong"));
-	if (pmap_insert_pt_page(pmap, ml3, true)) {
+	if (pmap_insert_pt_page(pmap, ml3, true, all_l3e_PTE_A != 0)) {
 		CTR2(KTR_PMAP, "pmap_promote_l2: failure for va %#lx pmap %p",
 		    va, pmap);
 		atomic_add_long(&pmap_l2_p_failures, 1);
@@ -3223,7 +3259,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 			 * leave the kernel page table page zero filled.
 			 */
 			mt = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
-			if (pmap_insert_pt_page(pmap, mt, false))
+			if (pmap_insert_pt_page(pmap, mt, false, false))
 				panic("pmap_enter_l2: trie insert failed");
 		} else
 			KASSERT(pmap_load(l2) == 0,
@@ -3841,7 +3877,7 @@ pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
 		}
 		mpte = pmap_remove_pt_page(pmap, pv->pv_va);
 		if (mpte != NULL) {
-			KASSERT(mpte->valid == VM_PAGE_BITS_ALL,
+			KASSERT(vm_page_any_valid(mpte),
 			    ("pmap_remove_pages: pte page not promoted"));
 			pmap_resident_count_dec(pmap, 1);
 			KASSERT(mpte->ref_count == Ln_ENTRIES,
