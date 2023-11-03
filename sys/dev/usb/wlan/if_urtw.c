@@ -4040,7 +4040,6 @@ urtw_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct urtw_softc *sc = usbd_xfer_softc(xfer);
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni;
-	struct epoch_tracker et;
 	struct mbuf *m = NULL;
 	struct urtw_data *data;
 	int8_t nf = -95;
@@ -4084,14 +4083,12 @@ setup:
 			} else
 				ni = NULL;
 
-			NET_EPOCH_ENTER(et);
 			if (ni != NULL) {
 				(void) ieee80211_input(ni, m, rssi, nf);
 				/* node is no longer needed */
 				ieee80211_free_node(ni);
 			} else
 				(void) ieee80211_input_all(ic, m, rssi, nf);
-			NET_EPOCH_EXIT(et);
 			m = NULL;
 		}
 		URTW_LOCK(sc);
