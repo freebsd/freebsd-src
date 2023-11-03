@@ -2219,7 +2219,6 @@ zyd_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct zyd_softc *sc = usbd_xfer_softc(xfer);
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni;
-	struct epoch_tracker et;
 	struct zyd_rx_desc desc;
 	struct mbuf *m;
 	struct usb_page_cache *pc;
@@ -2275,7 +2274,6 @@ tr_setup:
 		 * "ieee80211_input" here, and not some lines up!
 		 */
 		ZYD_UNLOCK(sc);
-		NET_EPOCH_ENTER(et);
 		for (i = 0; i < sc->sc_rx_count; i++) {
 			rssi = sc->sc_rx_data[i].rssi;
 			m = sc->sc_rx_data[i].m;
@@ -2291,7 +2289,6 @@ tr_setup:
 			} else
 				(void)ieee80211_input_all(ic, m, rssi, nf);
 		}
-		NET_EPOCH_EXIT(et);
 		ZYD_LOCK(sc);
 		zyd_start(sc);
 		break;
