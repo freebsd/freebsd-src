@@ -431,7 +431,6 @@ rr_command_input(int len, struct icmp6_router_renum *rr,
 
     failed:
 	syslog(LOG_ERR, "<%s> received RR was invalid", __func__);
-	return;
 }
 
 void
@@ -499,6 +498,4 @@ rr_input(int len, struct icmp6_router_renum *rr, struct in6_pktinfo *pi,
 		break;
 
 	}
-
-	return;
 }

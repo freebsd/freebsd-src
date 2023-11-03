@@ -704,8 +704,6 @@ rtmsg_input(struct sockinfo *s)
 			set_short_delay(ifi);
 		}
 	}
-
-	return;
 }
 
 void
@@ -897,8 +895,6 @@ rtadvd_input(struct sockinfo *s)
 		syslog(LOG_ERR, "invalid icmp type(%d)", icp->icmp6_type);
 		return;
 	}
-
-	return;
 }
 
 static void
@@ -990,7 +986,6 @@ rs_input(int len, struct nd_router_solicit *rs,
 
   done:
 	free_ndopts(&ndopts);
-	return;
 }
 
 static void
@@ -1220,7 +1215,6 @@ ra_input(int len, struct nd_router_advert *nra,
 
   done:
 	free_ndopts(&ndopts);
-	return;
 }
 
 static uint32_t
@@ -1612,8 +1606,6 @@ sock_open(struct sockinfo *s)
 	sndmhdr.msg_iovlen = 1;
 	sndmhdr.msg_control = (caddr_t)sndcmsgbuf;
 	sndmhdr.msg_controllen = sndcmsgbuflen;
-
-	return;
 }
 
 /* open a routing socket to watch the routing table */
@@ -1915,6 +1907,4 @@ ra_timer_update(void *arg, struct timespec *tm)
 	    "<%s> RA timer on %s is set to %ld:%ld",
 	    __func__, ifi->ifi_ifname,
 	    (long int)tm->tv_sec, (long int)tm->tv_nsec / 1000);
-
-	return;
 }
