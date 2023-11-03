@@ -704,7 +704,6 @@ keyprogram(struct svc_req *rqstp, SVCXPRT *transp)
 			"unable to free arguments\n");
 		exit(1);
 	}
-	return;
 }
 
 static int
