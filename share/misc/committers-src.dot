@@ -212,6 +212,7 @@ jch [label="Julien Charbon\njch@FreeBSD.org\n2014/09/24"]
 jchandra [label="Jayachandran C.\njchandra@FreeBSD.org\n2010/05/19"]
 jeb [label="Jeb Cramer\njeb@FreeBSD.org\n2018/01/25"]
 jeff [label="Jeff Roberson\njeff@FreeBSD.org\n2002/02/21"]
+jfree [label="Jake Freeland\njfree@FreeBSD.org\n2023/11/03"]
 jh [label="Jaakko Heinonen\njh@FreeBSD.org\n2009/10/02"]
 jhb [label="John Baldwin\njhb@FreeBSD.org\n1999/08/23"]
 jhibbits [label="Justin Hibbits\njhibbits@FreeBSD.org\n2011/11/30"]
@@ -590,6 +591,7 @@ imp -> chuck
 imp -> dmlb
 imp -> emax
 imp -> furuta
+imp -> jfree
 imp -> joe
 imp -> johalun
 imp -> jon
@@ -742,6 +744,7 @@ marcel -> sjg
 markj -> cem
 markj -> christos
 markj -> dougm
+markj -> jfree
 markj -> lwhsu
 markj -> mhorne
 markj -> rlibby
