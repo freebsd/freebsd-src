@@ -1206,15 +1206,15 @@ pmap_add_delayed_free_list(vm_page_t m, struct spglist *free,
  * field will be set to VM_PAGE_BITS_ALL.
  */
 static __inline int
-pmap_insert_pt_page(pmap_t pmap, vm_page_t ml3, bool promoted,
+pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte, bool promoted,
     bool all_l3e_PTE_A_set)
 {
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT(promoted || !all_l3e_PTE_A_set,
 	    ("a zero-filled PTP can't have PTE_A set in every PTE"));
-	ml3->valid = promoted ? (all_l3e_PTE_A_set ? VM_PAGE_BITS_ALL : 1) : 0;
-	return (vm_radix_insert(&pmap->pm_root, ml3));
+	mpte->valid = promoted ? (all_l3e_PTE_A_set ? VM_PAGE_BITS_ALL : 1) : 0;
+	return (vm_radix_insert(&pmap->pm_root, mpte));
 }
 
 /*
