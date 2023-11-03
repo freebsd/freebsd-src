@@ -152,7 +152,7 @@ typedef struct {
 	uint8_t		rspnid_reserved;
 	uint8_t		rspnid_portid[3];
 	uint8_t		rspnid_length;
-	uint8_t		rspnid_name[0];
+	uint8_t		rspnid_name[];
 } rspn_id_t;
 
 /*
@@ -178,7 +178,7 @@ typedef struct {
 	ct_hdr_t	rsnnnn_hdr;
 	uint8_t		rsnnnn_nodename[8];
 	uint8_t		rsnnnn_length;
-	uint8_t		rsnnnn_name[0];
+	uint8_t		rsnnnn_name[];
 } rsnn_nn_t;
 
 /*
@@ -199,7 +199,7 @@ typedef struct {
 	 * FCP SENSE INFO (if any)
 	 * FCP BIDIRECTIONAL READ RESID (if any)
 	 */
-	uint8_t		fcp_rsp_extra[0];
+	uint8_t		fcp_rsp_extra[];
 } fcp_rsp_iu_t;
 #define	MIN_FCP_RESPONSE_SIZE		24
 
