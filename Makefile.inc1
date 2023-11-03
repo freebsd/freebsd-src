@@ -2994,6 +2994,7 @@ _prereq_libs+= lib/libssp_nonshared
 _prereq_libs+=	lib/libclang_rt/asan
 _prereq_libs+=	lib/libclang_rt/asan-preinit
 _prereq_libs+=	lib/libclang_rt/asan_cxx
+_prereq_libs+=	lib/libclang_rt/asan_static
 .endif
 .if ${MK_UBSAN} != "no"
 _prereq_libs+=	lib/libclang_rt/ubsan_minimal
