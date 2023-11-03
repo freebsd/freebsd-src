@@ -758,7 +758,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(sc->sc_dev));
 
-	NET_TASK_INIT(&sc->sc_rxtask, 0, sc->sc_rx.recv_tasklet, sc);
+	TASK_INIT(&sc->sc_rxtask, 0, sc->sc_rx.recv_tasklet, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_tsfoortask, 0, ath_tsfoor_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
