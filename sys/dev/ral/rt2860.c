@@ -1176,7 +1176,6 @@ rt2860_maxrssi_chain(struct rt2860_softc *sc, const struct rt2860_rxwi *rxwi)
 static void
 rt2860_rx_intr(struct rt2860_softc *sc)
 {
-	struct epoch_tracker et;
 	struct rt2860_rx_radiotap_header *tap;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame *wh;
@@ -1324,13 +1323,11 @@ rt2860_rx_intr(struct rt2860_softc *sc)
 		/* send the frame to the 802.11 layer */
 		ni = ieee80211_find_rxnode(ic,
 		    (struct ieee80211_frame_min *)wh);
-		NET_EPOCH_ENTER(et);
 		if (ni != NULL) {
 			(void)ieee80211_input(ni, m, rssi - nf, nf);
 			ieee80211_free_node(ni);
 		} else
 			(void)ieee80211_input_all(ic, m, rssi - nf, nf);
-		NET_EPOCH_EXIT(et);
 
 		RAL_LOCK(sc);
 
