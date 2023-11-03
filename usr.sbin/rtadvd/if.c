@@ -143,8 +143,6 @@ lladdropt_fill(struct sockaddr_dl *sdl, struct nd_opt_hdr *ndopt)
 		    __func__, sdl->sdl_type);
 		exit(1);
 	}
-
-	return;
 }
 
 int
