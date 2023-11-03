@@ -1802,7 +1802,6 @@ otus_rxeof(struct usb_xfer *xfer, struct otus_data *data, struct mbufq *rxq)
 static void
 otus_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct epoch_tracker et;
 	struct otus_softc *sc = usbd_xfer_softc(xfer);
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame *wh;
@@ -1853,7 +1852,6 @@ tr_setup:
 		 * callback and safe to unlock.
 		 */
 		OTUS_UNLOCK(sc);
-		NET_EPOCH_ENTER(et);
 		while ((m = mbufq_dequeue(&scrx)) != NULL) {
 			wh = mtod(m, struct ieee80211_frame *);
 			ni = ieee80211_find_rxnode(ic,
@@ -1866,7 +1864,6 @@ tr_setup:
 			} else
 				(void)ieee80211_input_mimo_all(ic, m);
 		}
-		NET_EPOCH_EXIT(et);
 #ifdef	IEEE80211_SUPPORT_SUPERG
 		ieee80211_ff_age_all(ic, 100);
 #endif
