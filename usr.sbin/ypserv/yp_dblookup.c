@@ -91,7 +91,6 @@ void
 yp_init_dbs(void)
 {
 	TAILQ_INIT(&qhead);
-	return;
 }
 
 /*
@@ -153,8 +152,6 @@ yp_free_qent(struct circleq_entry *q)
 	 */
 	free(q);
 	q = NULL;
-
-	return;
 }
 
 /*
@@ -171,8 +168,6 @@ yp_flush(void)
 	TAILQ_REMOVE(&qhead, qptr, links);
 	yp_free_qent(qptr);
 	numdbs--;
-
-	return;
 }
 
 /*
@@ -190,7 +185,6 @@ yp_flush_all(void)
 	}
 	numdbs = 0;
 
-	return;
 }
 
 static char *inter_string = "YP_INTERDOMAIN";
