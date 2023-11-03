@@ -105,6 +105,8 @@ SYSCTL_PROC(_security_mac_veriexec, OID_AUTO, db,
 static int mac_veriexec_slot;
 
 static int mac_veriexec_block_unlink;
+SYSCTL_INT(_security_mac_veriexec, OID_AUTO, block_unlink, CTLFLAG_RDTUN,
+    &mac_veriexec_block_unlink, 0, "Veriexec unlink protection");
 
 MALLOC_DEFINE(M_VERIEXEC, "veriexec", "Verified execution data");
 
@@ -796,12 +798,6 @@ mac_veriexec_init(struct mac_policy_conf *mpc __unused)
 	    EVENTHANDLER_PRI_FIRST);
 	EVENTHANDLER_REGISTER(vfs_unmounted, mac_veriexec_vfs_unmounted, NULL,
 	    EVENTHANDLER_PRI_LAST);
-
-	/* Fetch tunable value in kernel env and define a corresponding read-only sysctl */
-	mac_veriexec_block_unlink = 0;
-	TUNABLE_INT_FETCH("security.mac.veriexec.block_unlink", &mac_veriexec_block_unlink);
-	SYSCTL_INT(_security_mac_veriexec, OID_AUTO, block_unlink,
-	    CTLFLAG_RDTUN, &mac_veriexec_block_unlink, 0, "Veriexec unlink protection");
 
 	/* Check if unlink control is activated via tunable value */
 	if (!mac_veriexec_block_unlink)
