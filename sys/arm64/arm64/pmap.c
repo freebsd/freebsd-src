@@ -7832,14 +7832,11 @@ pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
 }
 
 #if defined(KASAN)
-static vm_paddr_t	pmap_san_early_kernstart;
 static pd_entry_t	*pmap_san_early_l2;
 
 void __nosanitizeaddress
 pmap_san_bootstrap(struct arm64_bootparams *abp)
 {
-
-	pmap_san_early_kernstart = KERNBASE - abp->kern_delta;
 	kasan_init_early(abp->kern_stack, KSTACK_PAGES * PAGE_SIZE);
 }
 
