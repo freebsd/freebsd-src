@@ -267,7 +267,7 @@ typedef struct _HPT_IOCTL_TRANSFER_PARAM
 {
 	ULONG nInBufferSize;
 	ULONG nOutBufferSize;
-	UCHAR buffer[0];
+	UCHAR buffer[];
 }HPT_IOCTL_TRANSFER_PARAM, *PHPT_IOCTL_TRANSFER_PARAM;
 
 typedef struct _HPT_SET_STATE_PARAM
@@ -306,7 +306,7 @@ typedef struct _HPT_DEVICE_IO
 	int			cmd;
 	ULONG		lba;
 	DWORD		nSector;
-	UCHAR		buffer[0];
+	UCHAR		buffer[];
 } HPT_DEVICE_IO, *PHPT_DEVICE_IO;
 
 int check_VDevice_valid(PVDevice);
