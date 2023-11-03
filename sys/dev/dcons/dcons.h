@@ -60,7 +60,7 @@ struct dcons_buf {
 #define DCONS_POS_MASK	((1<< DCONS_GEN_SHIFT) - 1)
 	V u_int32_t optr[DCONS_NPORT];
 	V u_int32_t iptr[DCONS_NPORT];
-	V char buf[0];
+	V char buf[];
 };
 
 #define DCONS_CSR_VAL_VER	0x64636f /* "dco" */
