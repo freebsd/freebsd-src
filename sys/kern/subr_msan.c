@@ -375,7 +375,7 @@ kmsan_shadow_check(uintptr_t addr, size_t size, const char *hook)
 	for (i = 0; i < size; i++) {
 		if (__predict_true(shad[i] == 0))
 			continue;
-		orig = (msan_orig_t *)kmsan_md_addr_to_orig((vm_offset_t)&shad[i]);
+		orig = (msan_orig_t *)kmsan_md_addr_to_orig(addr + i);
 		orig = (msan_orig_t *)((uintptr_t)orig & MSAN_ORIG_MASK);
 		kmsan_report_hook((const char *)addr + i, orig, size, i, hook);
 		break;
