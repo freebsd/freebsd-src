@@ -215,7 +215,6 @@ static void
 handler(int sig)
 {
 	yppush_exit (1);
-	return;
 }
 
 /*
