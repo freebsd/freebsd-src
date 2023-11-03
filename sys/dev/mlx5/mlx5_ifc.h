@@ -1594,7 +1594,7 @@ struct mlx5_ifc_wq_bits {
 
 	u8         reserved_9[0x4c0];
 
-	struct mlx5_ifc_cmd_pas_bits pas[0];
+	struct mlx5_ifc_cmd_pas_bits pas[];
 };
 
 struct mlx5_ifc_rq_num_bits {
@@ -1789,7 +1789,7 @@ struct mlx5_ifc_dcbx_app_reg_bits {
 
 	u8         reserved_3[0x40];
 
-	struct mlx5_ifc_application_prio_entry_bits app_prio[0];
+	struct mlx5_ifc_application_prio_entry_bits app_prio[];
 };
 
 struct mlx5_ifc_dcbx_param_reg_bits {
@@ -2346,7 +2346,7 @@ struct mlx5_ifc_flow_context_bits {
 
 	u8         reserved_7[0x600];
 
-	union mlx5_ifc_dest_format_struct_flow_counter_list_auto_bits destination[0];
+	union mlx5_ifc_dest_format_struct_flow_counter_list_auto_bits destination[];
 };
 
 enum {
@@ -2702,7 +2702,7 @@ struct mlx5_ifc_rqtc_bits {
 
 	u8         reserved_3[0x6a0];
 
-	struct mlx5_ifc_rq_num_bits rq_num[0];
+	struct mlx5_ifc_rq_num_bits rq_num[];
 };
 
 enum {
@@ -3857,7 +3857,7 @@ struct mlx5_ifc_set_rdb_in_bits {
 	u8         reserved_3[0x18];
 	u8         rdb_list_size[0x8];
 
-	struct mlx5_ifc_rdbc_bits rdb_context[0];
+	struct mlx5_ifc_rdbc_bits rdb_context[];
 };
 
 struct mlx5_ifc_set_mad_demux_out_bits {
@@ -4684,7 +4684,7 @@ struct mlx5_ifc_query_rdb_out_bits {
 	u8         reserved_2[0x18];
 	u8         rdb_list_size[0x8];
 
-	struct mlx5_ifc_rdbc_bits rdb_context[0];
+	struct mlx5_ifc_rdbc_bits rdb_context[];
 };
 
 struct mlx5_ifc_query_rdb_in_bits {
@@ -4984,7 +4984,7 @@ struct mlx5_ifc_query_hca_vport_pkey_out_bits {
 
 	u8         reserved_1[0x40];
 
-	struct mlx5_ifc_pkey_bits pkey[0];
+	struct mlx5_ifc_pkey_bits pkey[];
 };
 
 struct mlx5_ifc_query_hca_vport_pkey_in_bits {
@@ -5014,7 +5014,7 @@ struct mlx5_ifc_query_hca_vport_gid_out_bits {
 	u8         gids_num[0x10];
 	u8         reserved_2[0x10];
 
-	struct mlx5_ifc_array128_auto_bits gid[0];
+	struct mlx5_ifc_array128_auto_bits gid[];
 };
 
 struct mlx5_ifc_query_hca_vport_gid_in_bits {
@@ -5212,7 +5212,7 @@ struct mlx5_ifc_query_flow_counter_out_bits {
 
 	u8         reserved_at_40[0x40];
 
-	struct mlx5_ifc_traffic_counter_bits flow_statistics[0];
+	struct mlx5_ifc_traffic_counter_bits flow_statistics[];
 };
 
 struct mlx5_ifc_query_flow_counter_in_bits {
@@ -5510,7 +5510,7 @@ struct mlx5_ifc_query_packet_reformat_context_out_bits {
 
 	u8         reserved_at_40[0xa0];
 
-	struct mlx5_ifc_packet_reformat_context_in_bits packet_reformat_context[0];
+	struct mlx5_ifc_packet_reformat_context_in_bits packet_reformat_context[];
 };
 
 struct mlx5_ifc_query_packet_reformat_context_in_bits {
@@ -7333,7 +7333,7 @@ struct mlx5_ifc_diagnostic_params_context_bits {
 
 	u8         reserved_4[0x80];
 
-	struct mlx5_ifc_counter_id_bits counter_id[0];
+	struct mlx5_ifc_counter_id_bits counter_id[];
 };
 
 struct mlx5_ifc_query_diagnostic_params_in_bits {
@@ -7406,7 +7406,7 @@ struct mlx5_ifc_query_diagnostic_counters_out_bits {
 
 	u8         reserved_1[0x40];
 
-	struct mlx5_ifc_diagnostic_counter_bits diag_counter[0];
+	struct mlx5_ifc_diagnostic_counter_bits diag_counter[];
 };
 
 struct mlx5_ifc_dealloc_q_counter_in_bits {
@@ -11493,7 +11493,7 @@ struct mlx5_ifc_umem_bits {
 
 	u8         num_of_mtt[0x40];
 
-	struct mlx5_ifc_mtt_bits  mtt[0];
+	struct mlx5_ifc_mtt_bits  mtt[];
 };
 
 struct mlx5_ifc_uctx_bits {
@@ -11581,7 +11581,7 @@ struct mlx5_ifc_mtrc_stdb_bits {
 	u8         reserved_at_4[0x4];
 	u8         read_size[0x18];
 	u8         start_offset[0x20];
-	u8         string_db_data[0];
+	u8         string_db_data[];
 };
 
 struct mlx5_ifc_mtrc_ctrl_bits {
