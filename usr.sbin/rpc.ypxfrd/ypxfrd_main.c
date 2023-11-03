@@ -182,7 +182,6 @@ static void reaper(int sig)
 	}
 
 	errno = saved_errno;
-	return;
 }
 
 void
