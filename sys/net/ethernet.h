@@ -448,6 +448,7 @@ struct mbuf  *ether_vlanencap_proto(struct mbuf *, uint16_t, uint16_t);
 bool	ether_8021q_frame(struct mbuf **mp, struct ifnet *ife,
 		struct ifnet *p, const struct ether_8021q_tag *);
 void	ether_gen_addr(struct ifnet *ifp, struct ether_addr *hwaddr);
+void	ether_gen_addr_byname(const char *nameunit, struct ether_addr *hwaddr);
 
 static __inline struct mbuf *ether_vlanencap(struct mbuf *m, uint16_t tag)
 {

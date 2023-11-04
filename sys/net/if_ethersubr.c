@@ -1487,7 +1487,7 @@ ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
  * allocate non-locally-administered addresses.
  */
 void
-ether_gen_addr(struct ifnet *ifp, struct ether_addr *hwaddr)
+ether_gen_addr_byname(const char *nameunit, struct ether_addr *hwaddr)
 {
 	SHA1_CTX ctx;
 	char *buf;
@@ -1506,7 +1506,7 @@ ether_gen_addr(struct ifnet *ifp, struct ether_addr *hwaddr)
 	/* If each (vnet) jail would also have a unique hostuuid this would not
 	 * be necessary. */
 	getjailname(curthread->td_ucred, jailname, sizeof(jailname));
-	sz = asprintf(&buf, M_TEMP, "%s-%s-%s", uuid, if_name(ifp),
+	sz = asprintf(&buf, M_TEMP, "%s-%s-%s", uuid, nameunit,
 	    jailname);
 	if (sz < 0) {
 		/* Fall back to a random mac address. */
@@ -1533,6 +1533,12 @@ rando:
 	hwaddr->octet[0] &= 0xFE;
 	/* Locally administered. */
 	hwaddr->octet[0] |= 0x02;
+}
+
+void
+ether_gen_addr(struct ifnet *ifp, struct ether_addr *hwaddr)
+{
+	ether_gen_addr_byname(if_name(ifp), hwaddr);
 }
 
 DECLARE_MODULE(ether, ether_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);
