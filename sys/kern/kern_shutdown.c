@@ -471,7 +471,7 @@ kern_reboot(int howto)
 	 * deadlock than to lock against code that won't ever
 	 * continue.
 	 */
-	while (mtx_owned(&Giant))
+	while (!SCHEDULER_STOPPED() && mtx_owned(&Giant))
 		mtx_unlock(&Giant);
 
 #if defined(SMP)
