@@ -1777,6 +1777,7 @@ pfsync_sendout(int schedswi, int c)
 	struct pf_kstate *st, *st_next;
 	struct pfsync_upd_req_item *ur;
 	struct pfsync_bucket *b = &sc->sc_buckets[c];
+	size_t len;
 	int aflen, offset, count = 0;
 	enum pfsync_q_id q;
 
@@ -1797,7 +1798,9 @@ pfsync_sendout(int schedswi, int c)
 		return;
 	}
 	m->m_data += max_linkhdr;
-	m->m_len = m->m_pkthdr.len = b->b_len;
+	bzero(m->m_data, b->b_len);
+
+	len = b->b_len;
 
 	/* build the ip header */
 	switch (sc->sc_sync_peer.ss_family) {
@@ -1810,7 +1813,8 @@ pfsync_sendout(int schedswi, int c)
 		bcopy(&sc->sc_template.ipv4, ip, sizeof(*ip));
 		aflen = offset = sizeof(*ip);
 
-		ip->ip_len = htons(m->m_pkthdr.len);
+		len -= sizeof(union inet_template) - sizeof(struct ip);
+		ip->ip_len = htons(len);
 		ip_fillid(ip);
 		break;
 	    }
@@ -1824,7 +1828,8 @@ pfsync_sendout(int schedswi, int c)
 		bcopy(&sc->sc_template.ipv6, ip6, sizeof(*ip6));
 		aflen = offset = sizeof(*ip6);
 
-		ip6->ip6_plen = htons(m->m_pkthdr.len);
+		len -= sizeof(union inet_template) - sizeof(struct ip6_hdr);
+		ip6->ip6_plen = htons(len);
 		break;
 		}
 #endif
@@ -1832,14 +1837,14 @@ pfsync_sendout(int schedswi, int c)
 		m_freem(m);
 		return;
 	}
+	m->m_len = m->m_pkthdr.len = len;
 
 	/* build the pfsync header */
 	ph = (struct pfsync_header *)(m->m_data + offset);
-	bzero(ph, sizeof(*ph));
 	offset += sizeof(*ph);
 
 	ph->version = PFSYNC_VERSION;
-	ph->len = htons(b->b_len - aflen);
+	ph->len = htons(len - aflen);
 	bcopy(V_pf_status.pf_chksum, ph->pfcksum, PF_MD5_DIGEST_LENGTH);
 
 	/* walk the queues */
@@ -1867,7 +1872,6 @@ pfsync_sendout(int schedswi, int c)
 		}
 		TAILQ_INIT(&b->b_qs[q]);
 
-		bzero(subh, sizeof(*subh));
 		subh->action = pfsync_qs[q].action;
 		subh->count = htons(count);
 		V_pfsyncstats.pfsyncs_oacts[pfsync_qs[q].action] += count;
@@ -1888,7 +1892,6 @@ pfsync_sendout(int schedswi, int c)
 			count++;
 		}
 
-		bzero(subh, sizeof(*subh));
 		subh->action = PFSYNC_ACT_UPD_REQ;
 		subh->count = htons(count);
 		V_pfsyncstats.pfsyncs_oacts[PFSYNC_ACT_UPD_REQ] += count;
@@ -1905,7 +1908,6 @@ pfsync_sendout(int schedswi, int c)
 	subh = (struct pfsync_subheader *)(m->m_data + offset);
 	offset += sizeof(*subh);
 
-	bzero(subh, sizeof(*subh));
 	subh->action = PFSYNC_ACT_EOF;
 	subh->count = htons(1);
 	V_pfsyncstats.pfsyncs_oacts[PFSYNC_ACT_EOF]++;
@@ -1913,10 +1915,10 @@ pfsync_sendout(int schedswi, int c)
 	/* we're done, let's put it on the wire */
 	if (ifp->if_bpf) {
 		m->m_data += aflen;
-		m->m_len = m->m_pkthdr.len = b->b_len - aflen;
+		m->m_len = m->m_pkthdr.len = len - aflen;
 		BPF_MTAP(ifp, m);
 		m->m_data -= aflen;
-		m->m_len = m->m_pkthdr.len = b->b_len;
+		m->m_len = m->m_pkthdr.len = len;
 	}
 
 	if (sc->sc_sync_if == NULL) {
