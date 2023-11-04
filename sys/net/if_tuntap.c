@@ -1406,8 +1406,7 @@ tunoutput(struct ifnet *ifp, struct mbuf *m0, const struct sockaddr *dst,
 	else
 		af = RO_GET_FAMILY(ro, dst);
 
-	if (bpf_peers_present(ifp->if_bpf))
-		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m0);
+	BPF_MTAP2(ifp, &af, sizeof(af), m0);
 
 	/* prepend sockaddr? this may abort if the mbuf allocation fails */
 	if (cached_tun_flags & TUN_LMODE) {
