@@ -1,4 +1,4 @@
-# $Id: gendirdeps.mk,v 1.49 2023/04/20 17:45:03 sjg Exp $
+# $Id: gendirdeps.mk,v 1.50 2023/11/04 16:47:34 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -102,6 +102,10 @@ _DEPENDFILE := ${_CURDIR}/${.MAKE.DEPENDFILE:T}
 
 # caller should have set this
 META_FILES ?= ${.MAKE.META.FILES}
+# this sometimes needs to be passed separately
+.if !empty(META_XTRAS)
+META_FILES += ${META_XTRAS:N\*.meta}
+.endif
 
 .if !empty(META_FILES)
 
