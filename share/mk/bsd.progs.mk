@@ -64,6 +64,8 @@ all: ${PROGS}
 .endif
 
 META_XTRAS+=	${cat ${PROGS:S/$/*.meta_files/} 2>/dev/null || true:L:sh}
+# the above does no use unless we pass it on to gendirdeps.mk
+GENDIRDEPS_ENV += META_XTRAS='${META_XTRAS}'
 
 .if ${MK_STAGING} != "no" && !empty(PROGS)
 # Stage from parent while respecting PROGNAME and BINDIR overrides.
@@ -88,7 +90,6 @@ $v =
 .endfor
 .endif
 
-# handle being called [bsd.]progs.mk
 .include <bsd.prog.mk>
 
 .if !defined(_SKIP_BUILD)
