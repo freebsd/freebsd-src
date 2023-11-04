@@ -125,7 +125,6 @@ static const char *features_for_read[] = {
 	"com.delphix:extensible_dataset",
 	"com.delphix:head_errlog",
 	"com.delphix:hole_birth",
-	"com.delphix:spacemap_v2",
 	"com.joyent:multi_vdev_crash_dump",
 	"com.klarasystems:vdev_zaps_v2",
 	"org.freebsd:zstd_compress",
