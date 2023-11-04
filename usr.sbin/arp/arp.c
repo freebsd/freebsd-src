@@ -831,7 +831,7 @@ doit:
 
 /*
  * get_ether_addr - get the hardware address of an interface on the
- * the same subnet as ipaddr.
+ * same subnet as ipaddr.
  */
 static int
 get_ether_addr(in_addr_t ipaddr, struct ether_addr *hwaddr)

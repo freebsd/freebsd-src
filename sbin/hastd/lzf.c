@@ -118,7 +118,7 @@ lzf_compress (const void *const in_data, unsigned int in_len,
   /* off requires a type wide enough to hold a general pointer difference.
    * ISO C doesn't have that (size_t might not be enough and ptrdiff_t only
    * works for differences within a single object). We also assume that no
-   * no bit pattern traps. Since the only platform that is both non-POSIX
+   * bit pattern traps. Since the only platform that is both non-POSIX
    * and fails to support both assumptions is windows 64 bit, we make a
    * special workaround for it.
    */
