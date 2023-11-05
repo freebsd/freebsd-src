@@ -120,7 +120,6 @@ rack_ts_to_msec(uint64_t ts)
 }
 
 
-RB_HEAD(rack_rb_tree_head, rack_sendmap);
 TAILQ_HEAD(rack_head, rack_sendmap);
 TAILQ_HEAD(def_opt_head, deferred_opt_list);
 
