@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <fmtmsg.h>
 #include <stdio.h>
 #include <stdlib.h>

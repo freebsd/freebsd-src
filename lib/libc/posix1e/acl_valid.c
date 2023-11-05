@@ -31,7 +31,6 @@
  * acl_valid -- POSIX.1e ACL check routine
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include "namespace.h"
 #include <sys/acl.h>

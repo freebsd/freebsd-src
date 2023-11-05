@@ -24,25 +24,17 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <sys/param.h>
+#include <sys/fcntl.h>
 #include <sys/syscall.h>
-#include "compat-ino64.h"
+#include <sys/stat.h>
 #include <unistd.h>
-
 #include "libc_private.h"
 
 int
 stat(const char *path, struct stat *sb)
 {
-	struct freebsd11_stat stat11;
-	int rv;
 
-	if (__getosreldate() >= INO64_FIRST)
-		return (__sys_fstatat(AT_FDCWD, path, sb, 0));
-	rv = syscall(SYS_freebsd11_stat, path, &stat11);
-	if (rv == 0)
-		__stat11_to_stat(&stat11, sb);
-	return (rv);
+	return (__sys_fstatat(AT_FDCWD, path, sb, 0));
 }

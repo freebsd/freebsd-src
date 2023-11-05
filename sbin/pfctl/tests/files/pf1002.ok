@@ -1,1 +1,6 @@
 set timeout interval 10
+set timeout sctp.first 11
+set timeout sctp.opening 12
+set timeout sctp.established 13
+set timeout sctp.closing 14
+set timeout sctp.closed 15

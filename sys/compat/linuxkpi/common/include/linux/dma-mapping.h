@@ -43,6 +43,7 @@
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
+#include <vm/uma_align_mask.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
@@ -350,8 +351,7 @@ dma_max_mapping_size(struct device *dev)
 #define	dma_unmap_len(p, name)			((p)->name)
 #define	dma_unmap_len_set(p, name, v)		(((p)->name) = (v))
 
-extern int uma_align_cache;
-#define	dma_get_cache_alignment()	uma_align_cache
+#define	dma_get_cache_alignment()	(uma_get_cache_align_mask() + 1)
 
 
 static inline int

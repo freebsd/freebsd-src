@@ -510,7 +510,7 @@ allocate_initial_tls(Obj_Entry *objs)
      * offset allocated so far and adding a bit for dynamic modules to
      * use.
      */
-    tls_static_space = tls_last_offset + RTLD_STATIC_TLS_EXTRA;
+    tls_static_space = tls_last_offset + ld_static_tls_extra;
     tls = allocate_tls(objs, NULL, TLS_TCB_SIZE, TLS_TCB_ALIGN);
     _tcb_set(tls);
 }

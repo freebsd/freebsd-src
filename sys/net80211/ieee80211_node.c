@@ -809,7 +809,7 @@ ieee80211_setupcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
 	 * based on what HT has done; it may further promote the
 	 * channel to VHT80 or above.
 	 */
-	if (ic->ic_vhtcaps != 0) {
+	if (ic->ic_vht_cap.vht_cap_info != 0) {
 		int flags = getvhtadjustflags(ic);
 		if (flags > ieee80211_vhtchanflags(c))
 			c = ieee80211_vht_adjust_channel(ic, c, flags);
@@ -1015,7 +1015,7 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 	 */
 	if (ni->ni_ies.vhtopmode_ie != NULL &&
 	    ni->ni_ies.vhtcap_ie != NULL &&
-	    vap->iv_flags_vht & IEEE80211_FVHT_VHT) {
+	    vap->iv_vht_flags & IEEE80211_FVHT_VHT) {
 		if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan)) {
 			printf("%s: BSS %6D: 2GHz channel, VHT info; ignoring\n",
 			    __func__,
@@ -1589,7 +1589,7 @@ ieee80211_node_create_wds(struct ieee80211vap *vap,
 			 * ni_chan will be adjusted to an HT channel.
 			 */
 			ieee80211_ht_wds_init(ni);
-			if (vap->iv_flags_vht & IEEE80211_FVHT_VHT) {
+			if (vap->iv_vht_flags & IEEE80211_FVHT_VHT) {
 				printf("%s: TODO: vht_wds_init\n", __func__);
 			}
 		} else {
@@ -1824,7 +1824,7 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 
 		if ((ni->ni_ies.vhtcap_ie != NULL) &&
 		    (ni->ni_ies.vhtopmode_ie != NULL) &&
-		    (ni->ni_vap->iv_flags_vht & IEEE80211_FVHT_VHT)) {
+		    (ni->ni_vap->iv_vht_flags & IEEE80211_FVHT_VHT)) {
 			do_vht_setup = 1;
 		}
 	}

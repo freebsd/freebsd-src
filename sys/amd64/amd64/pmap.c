@@ -338,16 +338,6 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 		return (FALSE);
 }
 
-#if !defined(DIAGNOSTIC)
-#ifdef __GNUC_GNU_INLINE__
-#define PMAP_INLINE	__attribute__((__gnu_inline__)) inline
-#else
-#define PMAP_INLINE	extern inline
-#endif
-#else
-#define PMAP_INLINE
-#endif
-
 #ifdef PV_STATS
 #define PV_STAT(x)	do { x ; } while (0)
 #else
@@ -1560,7 +1550,7 @@ pt_entry_t vtoptem __read_mostly = ((1ul << (NPTEPGSHIFT + NPDEPGSHIFT +
     NPDPEPGSHIFT + NPML4EPGSHIFT)) - 1) << 3;
 vm_offset_t PTmap __read_mostly = (vm_offset_t)P4Tmap;
 
-PMAP_INLINE pt_entry_t *
+pt_entry_t *
 vtopte(vm_offset_t va)
 {
 	KASSERT(va >= VM_MAXUSER_ADDRESS, ("vtopte on a uva/gpa 0x%0lx", va));
@@ -3623,7 +3613,7 @@ pmap_invalidate_all(pmap_t pmap)
 	}
 }
 
-PMAP_INLINE void
+void
 pmap_invalidate_cache(void)
 {
 
@@ -3980,7 +3970,7 @@ pmap_kextract(vm_offset_t va)
  * Add a wired page to the kva.
  * Note: not SMP coherent.
  */
-PMAP_INLINE void 
+void
 pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 {
 	pt_entry_t *pte;
@@ -4006,7 +3996,7 @@ pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode)
  * Remove a page from the kernel pagetables.
  * Note: not SMP coherent.
  */
-PMAP_INLINE void
+void
 pmap_kremove(vm_offset_t va)
 {
 	pt_entry_t *pte;

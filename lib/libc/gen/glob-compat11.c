@@ -38,7 +38,6 @@
  * From: FreeBSD: head/lib/libc/gen/glob.c 317913 2017-05-07 19:52:56Z jilles
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #define	_WANT_FREEBSD11_STAT
 #include <sys/stat.h>

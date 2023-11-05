@@ -37,7 +37,6 @@
  * is an IEEE extended precision number.
  */
 
-#include <sys/cdefs.h>
 #include <float.h>
 
 #include "gdtoaimp.h"

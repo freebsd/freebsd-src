@@ -1952,7 +1952,9 @@ struct pfioc_iface {
 #define DIOCCLRSTATUS	_IO  ('D', 22)
 #define DIOCNATLOOK	_IOWR('D', 23, struct pfioc_natlook)
 #define DIOCSETDEBUG	_IOWR('D', 24, u_int32_t)
+#ifdef COMPAT_FREEBSD14
 #define DIOCGETSTATES	_IOWR('D', 25, struct pfioc_states)
+#endif
 #define DIOCCHANGERULE	_IOWR('D', 26, struct pfioc_rule)
 /* XXX cut 26 - 28 */
 #define DIOCSETTIMEOUT	_IOWR('D', 29, struct pfioc_tm)
@@ -2013,7 +2015,9 @@ struct pfioc_iface {
 #define	DIOCKILLSRCNODES	_IOWR('D', 91, struct pfioc_src_node_kill)
 #define	DIOCGIFSPEEDV0	_IOWR('D', 92, struct pf_ifspeed_v0)
 #define	DIOCGIFSPEEDV1	_IOWR('D', 92, struct pf_ifspeed_v1)
+#ifdef COMPAT_FREEBSD14
 #define DIOCGETSTATESV2	_IOWR('D', 93, struct pfioc_states_v2)
+#endif
 #define	DIOCGETSYNCOOKIES	_IOWR('D', 94, struct pfioc_nv)
 #define	DIOCSETSYNCOOKIES	_IOWR('D', 95, struct pfioc_nv)
 #define	DIOCKEEPCOUNTERS	_IOWR('D', 96, struct pfioc_nv)

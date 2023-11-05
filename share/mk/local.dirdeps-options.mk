@@ -24,4 +24,6 @@ DIRDEPS.OPENSSL.no+= lib/libmd
 DIRDEPS.PAM_SUPPORT.yes+= lib/libpam/libpam
 DIRDEPS.TCP_WRAPPERS.yes+= lib/libwrap
 
+MK_FDT.${DEP_MACHINE} ?= yes
+
 .-include <site.dirdeps-options.mk>

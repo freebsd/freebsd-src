@@ -387,7 +387,7 @@ zvol_discard(zv_request_t *zvr)
 	if (error != 0) {
 		dmu_tx_abort(tx);
 	} else {
-		zvol_log_truncate(zv, tx, start, size, B_TRUE);
+		zvol_log_truncate(zv, tx, start, size);
 		dmu_tx_commit(tx);
 		error = dmu_free_long_range(zv->zv_objset,
 		    ZVOL_OBJ, start, size);
@@ -512,7 +512,7 @@ zvol_request_impl(zvol_state_t *zv, struct bio *bio, struct request *rq,
 	uint64_t size = io_size(bio, rq);
 	int rw = io_data_dir(bio, rq);
 
-	if (zvol_request_sync)
+	if (zvol_request_sync || zv->zv_threading == B_FALSE)
 		force_sync = 1;
 
 	zv_request_t zvr = {
@@ -1304,6 +1304,7 @@ zvol_os_create_minor(const char *name)
 	int error = 0;
 	int idx;
 	uint64_t hash = zvol_name_hash(name);
+	uint64_t volthreading;
 	bool replayed_zil = B_FALSE;
 
 	if (zvol_inhibit_dev)
@@ -1349,6 +1350,12 @@ zvol_os_create_minor(const char *name)
 	zv->zv_volblocksize = doi->doi_data_block_size;
 	zv->zv_volsize = volsize;
 	zv->zv_objset = os;
+
+	/* Default */
+	zv->zv_threading = B_TRUE;
+	if (dsl_prop_get_integer(name, "volthreading", &volthreading, NULL)
+	    == 0)
+		zv->zv_threading = volthreading;
 
 	set_capacity(zv->zv_zso->zvo_disk, zv->zv_volsize >> 9);
 
@@ -1625,6 +1632,18 @@ MODULE_PARM_DESC(zvol_prefetch_bytes, "Prefetch N bytes at zvol start+end");
 
 module_param(zvol_volmode, uint, 0644);
 MODULE_PARM_DESC(zvol_volmode, "Default volmode property value");
+
+#ifdef HAVE_BLK_MQ
+module_param(zvol_blk_mq_queue_depth, uint, 0644);
+MODULE_PARM_DESC(zvol_blk_mq_queue_depth, "Default blk-mq queue depth");
+
+module_param(zvol_use_blk_mq, uint, 0644);
+MODULE_PARM_DESC(zvol_use_blk_mq, "Use the blk-mq API for zvols");
+
+module_param(zvol_blk_mq_blocks_per_thread, uint, 0644);
+MODULE_PARM_DESC(zvol_blk_mq_blocks_per_thread,
+    "Process volblocksize blocks per thread");
+#endif
 
 #ifndef HAVE_BLKDEV_GET_ERESTARTSYS
 module_param(zvol_open_timeout_ms, uint, 0644);

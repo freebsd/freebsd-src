@@ -219,6 +219,7 @@ struct g_raid3_softc {
 	int		sc_idle;	/* DIRTY flags removed. */
 	time_t		sc_last_write;
 	u_int		sc_writes;
+	u_int		sc_refcnt;	/* Number of softc references. */
 
 	TAILQ_HEAD(, g_raid3_event) sc_events;
 	struct mtx	sc_events_mtx;

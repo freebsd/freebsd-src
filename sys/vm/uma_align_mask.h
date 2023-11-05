@@ -1,14 +1,19 @@
 /*-
- * Copyright (c) 2017 M. Warner Losh <imp@FreeBSD.org>
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2023 The FreeBSD Foundation
+ *
+ * This software was developed by Olivier Certner <olce.freebsd@certner.fr>
+ * at Kumacom SAS under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ * modification, are permitted provided that the following conditions are
+ * met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -23,29 +28,9 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#include "namespace.h"
-#include <sys/param.h>
-#include <sys/syscall.h>
-#include "compat-ino64.h"
-#include <unistd.h>
+#ifndef _VM_UMA_ALIGN_MASK_H_
+#define _VM_UMA_ALIGN_MASK_H_
 
-#include "libc_private.h"
+unsigned int uma_get_cache_align_mask(void) __pure;
 
-#undef fstat
-__weak_reference(_fstat, fstat);
-
-#pragma weak _fstat
-int
-_fstat(int fd, struct stat *sb)
-{
-	struct freebsd11_stat stat11;
-	int rv;
-
-	if (__getosreldate() >= INO64_FIRST)
-		return (__sys_fstat(fd, sb));
-	rv = syscall(SYS_freebsd11_fstat, fd, &stat11);
-	if (rv == 0)
-		__stat11_to_stat(&stat11, sb);
-	return (rv);
-}
+#endif /* !_VM_UMA_ALIGN_MASK_H_ */

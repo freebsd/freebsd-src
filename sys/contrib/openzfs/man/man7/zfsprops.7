@@ -1197,6 +1197,18 @@ are equivalent to the
 and
 .Sy noexec
 mount options.
+.It Sy volthreading Ns = Ns Sy on Ns | Ns Sy off
+Controls internal zvol threading.
+The value
+.Sy off
+disables zvol threading, and zvol relies on application threads.
+The default value is
+.Sy on ,
+which enables threading within a zvol.
+Please note that this property will be overridden by
+.Sy zvol_request_sync
+module parameter.
+This property is only applicable to Linux.
 .It Sy filesystem_limit Ns = Ns Ar count Ns | Ns Sy none
 Limits the number of filesystems and volumes that can exist under this point in
 the dataset tree.
@@ -1613,6 +1625,23 @@ If this property is set to
 then only metadata is cached.
 The default value is
 .Sy all .
+.It Sy prefetch Ns = Ns Sy all Ns | Ns Sy none Ns | Ns Sy metadata
+Controls what speculative prefetch does.
+If this property is set to
+.Sy all ,
+then both user data and metadata are prefetched.
+If this property is set to
+.Sy none ,
+then neither user data nor metadata are prefetched.
+If this property is set to
+.Sy metadata ,
+then only metadata are prefetched.
+The default value is
+.Sy all .
+.Pp
+Please note that the module parameter zfs_disable_prefetch=1 can
+be used to totally disable speculative prefetch, bypassing anything
+this property does.
 .It Sy setuid Ns = Ns Sy on Ns | Ns Sy off
 Controls whether the setuid bit is respected for the file system.
 The default value is

@@ -1677,21 +1677,33 @@ NO_KERNELOBJ=		t
 KERNCONF=${KERNFAST}
 .endif
 .endif
-.if ${TARGET_ARCH} == "powerpc64"
-KERNCONF?=	GENERIC64
-.elif ${TARGET_ARCH} == "powerpc64le"
-KERNCONF?=	GENERIC64LE
-.elif ${TARGET_ARCH} == "powerpcspe"
-KERNCONF?=	MPC85XXSPE
-.else
-KERNCONF?=	GENERIC
-.endif
+GENERIC_KERNCONF_SUFX_powerpc64=	64
+GENERIC_KERNCONF_SUFX_powerpc64le=	64LE
+GENERIC_KERNCONF_powerpcspe=	MPC85XXSPE
+GENERIC_KERNCONF?=	${GENERIC_KERNCONF_${TARGET_ARCH}:UGENERIC${GENERIC_KERNCONF_SUFX_${TARGET_ARCH}}}
 INSTKERNNAME?=	kernel
 
 KERNSRCDIR?=	${.CURDIR}/sys
 KRNLCONFDIR=	${KERNSRCDIR}/${TARGET}/conf
 KRNLOBJDIR=	${OBJTOP}${KERNSRCDIR:C,^${.CURDIR},,}
 KERNCONFDIR?=	${KRNLCONFDIR}
+
+.for _k in ${GENERIC_KERNCONF} MINIMAL${GENERIC_KERNCONF_SUFX_${TARGET_ARCH}} ${GENERIC_KERNCONF}-MMCCAM
+.if exists(${KERNCONFDIR}/${_k})
+PKG_KERNCONF+=	${_k}
+.for _dbg in NODEBUG DEBUG
+.if exists(${KERNCONFDIR}/${_k}-${_dbg})
+PKG_KERNCONF+= ${_k}-${_dbg}
+.endif
+.endfor
+.endif
+.endfor
+
+.if defined(PACKAGE_BUILDING)
+KERNCONF?=	${PKG_KERNCONF}
+.else
+KERNCONF?=	${GENERIC_KERNCONF}
+.endif
 
 BUILDKERNELS=
 INSTALLKERNEL=
@@ -2180,6 +2192,7 @@ sign-packages:	_pkgbootstrap .PHONY
 	@[ -L "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/latest" ] && \
 		unlink ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/latest ; \
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname repo \
+		-o OSVERSION="${OSRELDATE}" \
 		-m ${WSTAGEDIR}/meta \
 		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION} \
 		${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION} \
@@ -2995,6 +3008,7 @@ _prereq_libs+= lib/libssp_nonshared
 _prereq_libs+=	lib/libclang_rt/asan
 _prereq_libs+=	lib/libclang_rt/asan-preinit
 _prereq_libs+=	lib/libclang_rt/asan_cxx
+_prereq_libs+=	lib/libclang_rt/asan_static
 .endif
 .if ${MK_UBSAN} != "no"
 _prereq_libs+=	lib/libclang_rt/ubsan_minimal
@@ -3372,7 +3386,7 @@ check-old-files: .PHONY
 list-old-libs: .PHONY
 	@cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V "OLD_LIBS:ts\n" -V "MOVED_LIBS:ts\n" \
+	    -V "OLD_LIBS:ts\n" \
 	    ${_ALL_libcompats:@v@-V "OLD_LIBS:Mlib/*:S,^lib,usr/lib$v,:ts\n"@} \
 	    ${_ALL_libcompats:@v@-V "OLD_LIBS:Musr/lib/*:S,^usr/lib,usr/lib$v,:ts\n"@} \
 	    ${_ALL_libcompats:@v@-V "OLD_LIBS:Mlib/casper/*:S,^lib/casper,usr/lib$v,:ts\n"@} | \

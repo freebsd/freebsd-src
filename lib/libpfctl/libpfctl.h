@@ -369,7 +369,6 @@ struct pfctl_state {
 TAILQ_HEAD(pfctl_statelist, pfctl_state);
 struct pfctl_states {
 	struct pfctl_statelist	states;
-	size_t 			count;
 };
 
 enum pfctl_syncookies_mode {
@@ -388,6 +387,7 @@ struct pfctl_syncookies {
 int	pfctl_startstop(int start);
 struct pfctl_status* pfctl_get_status(int dev);
 uint64_t pfctl_status_counter(struct pfctl_status *status, int id);
+uint64_t pfctl_status_lcounter(struct pfctl_status *status, int id);
 uint64_t pfctl_status_fcounter(struct pfctl_status *status, int id);
 uint64_t pfctl_status_scounter(struct pfctl_status *status, int id);
 void	pfctl_free_status(struct pfctl_status *status);

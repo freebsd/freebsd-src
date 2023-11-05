@@ -29,7 +29,6 @@
  * IEEE Std. 1003.1-2008.
  */
 
-#include <sys/cdefs.h>
 #include <sys/wait.h>
 #include <errno.h>
 #include <stdio.h>

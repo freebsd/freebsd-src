@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <dlfcn.h>
 #include <stddef.h>
 #include <unistd.h>

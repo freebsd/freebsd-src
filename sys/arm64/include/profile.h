@@ -68,6 +68,8 @@ static void _mcount
 "	.globl	.mcount				\n"	\
 "	.mcount:				\n"	\
 "	.cfi_startproc				\n"	\
+	/* Allow this to work with BTI, see BTI_C in asm.h */ \
+"	hint	#34				\n"	\
 	/* Load the caller return address as frompc */	\
 "	ldr	x0, [x29, #8]			\n"	\
 	/* Use our return address as selfpc */		\

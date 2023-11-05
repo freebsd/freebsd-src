@@ -56,8 +56,8 @@ CFLAGS.strtok.c+=-Wno-cast-qual
 _libc_other_objects= sigsetjmp lstat stat fstat fstatat fstatfs syscall \
     cerror geteuid getegid sigfastblock munmap mprotect \
     sysarch __sysctl issetugid __getcwd utrace getpid \
-    thr_self thr_kill pread mmap lseek _exit _fstat _fstatat _fstatfs \
-    getdirentries _getdirentries _close _fcntl _open _openat _read \
+    thr_self thr_kill pread mmap lseek _exit \
+    getdirentries _close _fcntl _open _openat _read \
     _sigprocmask _write readlink __realpathat _setjmp setjmp setjmperr
 
 

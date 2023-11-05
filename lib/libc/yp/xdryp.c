@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <rpc/rpc.h>
 #include <rpcsvc/yp.h>
 #include <stdlib.h>

@@ -28,7 +28,6 @@
  * Helper for mlock(3) to avoid EAGAIN errors
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 

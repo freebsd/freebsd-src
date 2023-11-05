@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <ctype.h>
 #include <limits.h>
 #include <stddef.h>

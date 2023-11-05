@@ -152,9 +152,8 @@ pf_nvuint_32_array(const nvlist_t *nvl, const char *name, size_t maxelems,
 	size_t elems;
 
 	tmp = nvlist_get_number_array(nvl, name, &elems);
-	assert(elems <= maxelems);
 
-	for (size_t i = 0; i < elems; i++)
+	for (size_t i = 0; i < elems && i < maxelems; i++)
 		numbers[i] = tmp[i];
 
 	if (nelems)
@@ -307,6 +306,12 @@ uint64_t
 pfctl_status_counter(struct pfctl_status *status, int id)
 {
 	return (_pfctl_status_counter(&status->counters, id));
+}
+
+uint64_t
+pfctl_status_lcounter(struct pfctl_status *status, int id)
+{
+	return (_pfctl_status_counter(&status->lcounters, id));
 }
 
 uint64_t

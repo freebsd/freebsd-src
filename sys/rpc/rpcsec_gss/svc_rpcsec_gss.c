@@ -174,8 +174,7 @@ struct svc_rpc_gss_cookedcred {
 u_int svc_rpc_gss_client_max = CLIENT_MAX;
 u_int svc_rpc_gss_client_hash_size = CLIENT_HASH_SIZE;
 
-SYSCTL_NODE(_kern, OID_AUTO, rpc, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "RPC");
+SYSCTL_DECL(_kern_rpc);
 SYSCTL_NODE(_kern_rpc, OID_AUTO, gss, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GSS");
 

@@ -31,7 +31,6 @@
  * opendir, readdir, seekdir, telldir, closedir, etc
  */
 
-#include <sys/cdefs.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <stdio.h>

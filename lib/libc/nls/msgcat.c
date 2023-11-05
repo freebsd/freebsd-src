@@ -31,7 +31,6 @@ up-to-date.  Many thanks.
 
 ******************************************************************/
 
-#include <sys/cdefs.h>
 #define _NLS_PRIVATE
 
 #include "namespace.h"

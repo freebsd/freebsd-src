@@ -80,7 +80,7 @@ typedef	uint64_t	pn_t;			/* page number */
 #define	PTE_RWX		(PTE_R | PTE_W | PTE_X)
 #define	PTE_RX		(PTE_R | PTE_X)
 #define	PTE_KERN	(PTE_V | PTE_R | PTE_W | PTE_A | PTE_D)
-#define	PTE_PROMOTE	(PTE_V | PTE_RWX | PTE_D | PTE_A | PTE_G | PTE_U | \
+#define	PTE_PROMOTE	(PTE_V | PTE_RWX | PTE_D | PTE_G | PTE_U | \
 			 PTE_SW_MANAGED | PTE_SW_WIRED)
 
 /* Bits 63 - 54 are reserved for future use. */

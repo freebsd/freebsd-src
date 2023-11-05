@@ -30,7 +30,6 @@
  * Test program for mbrtoc16() as specified by ISO/IEC 9899:2011.
  */
 
-#include <sys/cdefs.h>
 #include <errno.h>
 #include <limits.h>
 #include <locale.h>

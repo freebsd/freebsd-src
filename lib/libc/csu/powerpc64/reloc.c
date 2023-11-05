@@ -20,7 +20,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 static uint32_t cpu_features;
 static uint32_t cpu_features2;
 

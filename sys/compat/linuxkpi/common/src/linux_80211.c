@@ -2137,12 +2137,11 @@ lkpi_iv_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	}
 
 	if (error != 0) {
-		/* XXX-BZ currently expected so ignore. */
 		ic_printf(vap->iv_ic, "%s: error %d during state transition "
 		    "%d (%s) -> %d (%s)\n", __func__, error,
 		    ostate, ieee80211_state_name[ostate],
 		    nstate, ieee80211_state_name[nstate]);
-		/* return (error); */
+		return (error);
 	}
 
 #ifdef LINUXKPI_DEBUG_80211
@@ -3528,7 +3527,7 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 			error = ieee80211_add_channel_cbw(c, maxchan, n,
 			    channels[i].hw_value, channels[i].center_freq,
 			    channels[i].max_power,
-			    nflags, bands, chan_flags);
+			    nflags, bands, cflags);
 			/* net80211::ENOBUFS: *n >= maxchans */
 			if (error != 0 && error != ENOBUFS)
 				ic_printf(ic, "%s: Adding chan %u/%u/%#x/%#x/%#x/%#x "
@@ -3557,16 +3556,16 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 		if (hw->wiphy->bands[NL80211_BAND_5GHZ]->vht_cap.vht_supported){
 
 			ic->ic_flags_ext |= IEEE80211_FEXT_VHT;
-			ic->ic_vhtcaps =
+			ic->ic_vht_cap.vht_cap_info =
 			    hw->wiphy->bands[NL80211_BAND_5GHZ]->vht_cap.cap;
 
 			setbit(bands, IEEE80211_MODE_VHT_5GHZ);
 			chan_flags |= NET80211_CBW_FLAG_VHT80;
 			if (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160MHZ(
-			    ic->ic_vhtcaps))
+			    ic->ic_vht_cap.vht_cap_info))
 				chan_flags |= NET80211_CBW_FLAG_VHT160;
 			if (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160_80P80MHZ(
-			    ic->ic_vhtcaps))
+			    ic->ic_vht_cap.vht_cap_info))
 				chan_flags |= NET80211_CBW_FLAG_VHT80P80;
 		}
 #endif
@@ -3598,7 +3597,7 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 			error = ieee80211_add_channel_cbw(c, maxchan, n,
 			    channels[i].hw_value, channels[i].center_freq,
 			    channels[i].max_power,
-			    nflags, bands, chan_flags);
+			    nflags, bands, cflags);
 			/* net80211::ENOBUFS: *n >= maxchans */
 			if (error != 0 && error != ENOBUFS)
 				ic_printf(ic, "%s: Adding chan %u/%u/%#x/%#x/%#x/%#x "
@@ -3920,20 +3919,30 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	lhw->scan_ie_len = 2 + IEEE80211_RATE_SIZE;
 	if (lhw->max_rates > IEEE80211_RATE_SIZE)
 		lhw->scan_ie_len += 2 + (lhw->max_rates - IEEE80211_RATE_SIZE);
-	/*
-	 * net80211 does not seem to support the DSSS Parameter Set but some of
-	 * the drivers insert it so calculate the extra fixed space in.
-	 */
-	lhw->scan_ie_len += 2 + 1;
+
+	if (hw->wiphy->features & NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES) {
+		/*
+		 * net80211 does not seem to support the DSSS Parameter Set but
+		 * some of the drivers insert it so calculate the extra fixed
+		 * space in.
+		 */
+		lhw->scan_ie_len += 2 + 1;
+	}
 
 	/* Reduce the max_scan_ie_len "left" by the amount we consume already. */
-	if (hw->wiphy->max_scan_ie_len > 0)
+	if (hw->wiphy->max_scan_ie_len > 0) {
+		if (lhw->scan_ie_len > hw->wiphy->max_scan_ie_len)
+			goto err;
 		hw->wiphy->max_scan_ie_len -= lhw->scan_ie_len;
+	}
 
 	if (bootverbose)
 		ieee80211_announce(ic);
 
 	return (0);
+err:
+	IMPROVE("TODO FIXME CLEANUP");
+	return (-EAGAIN);
 }
 
 void

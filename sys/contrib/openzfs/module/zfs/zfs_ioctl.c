@@ -238,7 +238,6 @@ uint64_t zfs_max_nvlist_src_size = 0;
  */
 static uint64_t zfs_history_output_max = 1024 * 1024;
 
-uint_t zfs_fsyncer_key;
 uint_t zfs_allow_log_key;
 
 /* DATA_TYPE_ANY is used when zkey_type can vary. */
@@ -1582,8 +1581,9 @@ zfs_ioc_pool_configs(zfs_cmd_t *zc)
 	nvlist_t *configs;
 	int error;
 
-	if ((configs = spa_all_configs(&zc->zc_cookie)) == NULL)
-		return (SET_ERROR(EEXIST));
+	error = spa_all_configs(&zc->zc_cookie, &configs);
+	if (error)
+		return (error);
 
 	error = put_nvlist(zc, configs);
 
@@ -2522,11 +2522,27 @@ zfs_prop_set_special(const char *dsname, zprop_source_t source,
 	case ZFS_PROP_VOLSIZE:
 		err = zvol_set_volsize(dsname, intval);
 		break;
-	case ZFS_PROP_SNAPDEV:
-		err = zvol_set_snapdev(dsname, source, intval);
+	case ZFS_PROP_VOLTHREADING:
+		err = zvol_set_volthreading(dsname, intval);
+		/*
+		 * Set err to -1 to force the zfs_set_prop_nvlist code down the
+		 * default path to set the value in the nvlist.
+		 */
+		if (err == 0)
+			err = -1;
 		break;
+	case ZFS_PROP_SNAPDEV:
 	case ZFS_PROP_VOLMODE:
-		err = zvol_set_volmode(dsname, source, intval);
+		err = zvol_set_common(dsname, prop, source, intval);
+		break;
+	case ZFS_PROP_READONLY:
+		err = zvol_set_ro(dsname, intval);
+		/*
+		 * Set err to -1 to force the zfs_set_prop_nvlist code down the
+		 * default path to set the value in the nvlist.
+		 */
+		if (err == 0)
+			err = -1;
 		break;
 	case ZFS_PROP_VERSION:
 	{
@@ -7881,7 +7897,6 @@ zfs_kmod_init(void)
 	if ((error = zfsdev_attach()) != 0)
 		goto out;
 
-	tsd_create(&zfs_fsyncer_key, NULL);
 	tsd_create(&rrw_tsd_key, rrw_tsd_destroy);
 	tsd_create(&zfs_allow_log_key, zfs_allow_log_destroy);
 
@@ -7918,7 +7933,6 @@ zfs_kmod_fini(void)
 	spa_fini();
 	zvol_fini();
 
-	tsd_destroy(&zfs_fsyncer_key);
 	tsd_destroy(&rrw_tsd_key);
 	tsd_destroy(&zfs_allow_log_key);
 }
