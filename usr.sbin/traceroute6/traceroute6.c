@@ -1818,10 +1818,9 @@ tcp_chksum(struct sockaddr_in6 *src, struct sockaddr_in6 *dst,
 void
 usage(void)
 {
-
 	fprintf(stderr,
-"usage: traceroute6 [-adEIlnNrSTUv] [-A as_server] [-f firsthop] [-g gateway]\n"
-"       [-m hoplimit] [-p port] [-q probes] [-s src] [-w waittime] target\n"
-"       [datalen]\n");
+"Usage: traceroute6 [-adEIlnNrSTUv] [-A as_server] [-f firsthop] [-g gateway]\n"
+"\t[-m hoplimit] [-p port] [-q probes] [-s src] [-t tclass]\n"
+"\t[-w waittime] target [datalen]\n");
 	exit(1);
 }
