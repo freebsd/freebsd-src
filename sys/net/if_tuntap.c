@@ -933,6 +933,16 @@ tunstart_l2(struct ifnet *ifp)
 	TUN_UNLOCK(tp);
 } /* tunstart_l2 */
 
+static int
+tap_transmit(struct ifnet *ifp, struct mbuf *m)
+{
+	int error;
+
+	BPF_MTAP(ifp, m);
+	IFQ_HANDOFF(ifp, m, error);
+	return (error);
+}
+
 /* XXX: should return an error code so it can fail. */
 static void
 tuncreate(struct cdev *dev)
@@ -972,6 +982,8 @@ tuncreate(struct cdev *dev)
 	if ((tp->tun_flags & TUN_L2) != 0) {
 		ifp->if_init = tunifinit;
 		ifp->if_start = tunstart_l2;
+		ifp->if_transmit = tap_transmit;
+		ifp->if_qflush = if_qflush;
 
 		ether_gen_addr(ifp, &eaddr);
 		ether_ifattach(ifp, eaddr.octet);
@@ -1712,9 +1724,6 @@ tunread(struct cdev *dev, struct uio *uio, int flag)
 		}
 	}
 	TUN_UNLOCK(tp);
-
-	if ((tp->tun_flags & TUN_L2) != 0)
-		BPF_MTAP(ifp, m);
 
 	len = min(tp->tun_vhdrlen, uio->uio_resid);
 	if (len > 0) {
