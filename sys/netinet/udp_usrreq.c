@@ -1009,6 +1009,10 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 #ifdef INET
 		case UDP_ENCAP:
+			if (!INP_CHECK_SOCKAF(so, AF_INET)) {
+				INP_WUNLOCK(inp);
+				return (EINVAL);
+			}
 			if (!IPSEC_ENABLED(ipv4)) {
 				INP_WUNLOCK(inp);
 				return (ENOPROTOOPT);
@@ -1056,6 +1060,10 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 #ifdef INET
 		case UDP_ENCAP:
+			if (!INP_CHECK_SOCKAF(so, AF_INET)) {
+				INP_WUNLOCK(inp);
+				return (EINVAL);
+			}
 			if (!IPSEC_ENABLED(ipv4)) {
 				INP_WUNLOCK(inp);
 				return (ENOPROTOOPT);
