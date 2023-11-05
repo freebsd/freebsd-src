@@ -7472,7 +7472,7 @@ need_retran:
 		(void)tqhash_insert(rack->r_ctl.tqh, nrsm);
 #else
 		if ((insret = tqhash_insert(rack->r_ctl.tqh, nrsm)) != 0) {
-			panic("Insert in rb tree of %p fails ret:%d rack:%p rsm:%p",
+			panic("Insert in tailq_hash of %p fails ret:%d rack:%p rsm:%p",
 			      nrsm, insret, rack, rsm);
 		}
 #endif
@@ -7692,8 +7692,8 @@ rack_remxt_tmr(struct tcpcb *tp)
 	 * order. This way we send in the proper order and any
 	 * sacks that come floating in will "re-ack" the data.
 	 * To do this we zap the tmap with an INIT and then
-	 * walk through and place every rsm in the RB tree
-	 * back in its seq ordered place.
+	 * walk through and place every rsm in the tail queue
+	 * hash table back in its seq ordered place.
 	 */
 	TAILQ_INIT(&rack->r_ctl.rc_tmap);
 
@@ -8355,7 +8355,7 @@ rack_update_entry(struct tcpcb *tp, struct tcp_rack *rack,
 	(void)tqhash_insert(rack->r_ctl.tqh, nrsm);
 #else
 	if ((insret = tqhash_insert(rack->r_ctl.tqh, nrsm)) != 0) {
-		panic("Insert in rb tree of %p fails ret:%d rack:%p rsm:%p",
+		panic("Insert in tailq_hash of %p fails ret:%d rack:%p rsm:%p",
 		      nrsm, insret, rack, rsm);
 	}
 #endif
@@ -8545,7 +8545,7 @@ again:
 		(void)tqhash_insert(rack->r_ctl.tqh, rsm);
 #else
 		if ((insret = tqhash_insert(rack->r_ctl.tqh, rsm)) != 0) {
-			panic("Insert in rb tree of %p fails ret:%d rack:%p rsm:%p",
+			panic("Insert in tailq_hash of %p fails ret:%d rack:%p rsm:%p",
 			      nrsm, insret, rack, rsm);
 		}
 #endif
@@ -8619,7 +8619,7 @@ refind:
 			(void)tqhash_insert(rack->r_ctl.tqh, nrsm);
 #else
 			if ((insret = tqhash_insert(rack->r_ctl.tqh, nrsm)) != 0) {
-				panic("Insert in rb tree of %p fails ret:%d rack:%p rsm:%p",
+				panic("Insert in tailq_hash of %p fails ret:%d rack:%p rsm:%p",
 				      nrsm, insret, rack, rsm);
 			}
 #endif
@@ -9776,7 +9776,7 @@ do_rest_ofb:
 				(void)tqhash_insert(rack->r_ctl.tqh, nrsm);
 #else
 				if ((insret = tqhash_insert(rack->r_ctl.tqh, nrsm)) != 0) {
-					panic("Insert in rb tree of %p fails ret:%d rack:%p rsm:%p",
+					panic("Insert in tailq_hash of %p fails ret:%d rack:%p rsm:%p",
 					      nrsm, insret, rack, rsm);
 				}
 #endif
@@ -9897,7 +9897,7 @@ do_rest_ofb:
 		}
 		/*
 		 * There is more not coverend by this rsm move on
-		 * to the next block in the RB tree.
+		 * to the next block in the tail queue hash table.
 		 */
 		nrsm = tqhash_next(rack->r_ctl.tqh, rsm);
 		start = rsm->r_end;
@@ -10138,7 +10138,7 @@ do_rest_ofb:
 			(void)tqhash_insert(rack->r_ctl.tqh, nrsm);
 #else
 			if ((insret = tqhash_insert(rack->r_ctl.tqh, nrsm)) != 0) {
-				panic("Insert in rb tree of %p fails ret:% rack:%p rsm:%p",
+				panic("Insert in tailq_hash of %p fails ret:% rack:%p rsm:%p",
 				      nrsm, insret, rack, rsm);
 			}
 #endif
@@ -12478,7 +12478,7 @@ rack_un_collapse_window(struct tcp_rack *rack, int line)
 		(void)tqhash_insert(rack->r_ctl.tqh, nrsm);
 #else
 		if ((insret = tqhash_insert(rack->r_ctl.tqh, nrsm)) != 0) {
-			panic("Insert in rb tree of %p fails ret:%d rack:%p rsm:%p",
+			panic("Insert in tailq_hash of %p fails ret:%d rack:%p rsm:%p",
 			      nrsm, insret, rack, rsm);
 		}
 #endif
@@ -14808,7 +14808,7 @@ rack_init_outstanding(struct tcpcb *tp, struct tcp_rack *rack, uint32_t us_cts, 
 		}
 #ifdef INVARIANTS
 		if ((insret = tqhash_insert(rack->r_ctl.tqh, rsm)) != 0) {
-			panic("Insert in rb tree fails ret:%d rack:%p rsm:%p",
+			panic("Insert in tailq_hash fails ret:%d rack:%p rsm:%p",
 			      insret, rack, rsm);
 		}
 #else
@@ -14868,7 +14868,7 @@ rack_init_outstanding(struct tcpcb *tp, struct tcp_rack *rack, uint32_t us_cts, 
 			}
 #ifdef INVARIANTS
 			if ((insret = tqhash_insert(rack->r_ctl.tqh, rsm)) != 0) {
-				panic("Insert in rb tree fails ret:%d rack:%p rsm:%p",
+				panic("Insert in tailq_hash fails ret:%d rack:%p rsm:%p",
 				      insret, rack, rsm);
 			}
 #else
