@@ -57,7 +57,7 @@ static const char rcsid[] =
  * A sample use might be:
  *
  *     [yak 71]% traceroute nis.nsf.net.
- *     traceroute to nis.nsf.net (35.1.1.48), 64 hops max, 56 byte packet
+ *     traceroute to nis.nsf.net (35.1.1.48), 64 hops max, 40 byte packets
  *      1  helios.ee.lbl.gov (128.3.112.1)  19 ms  19 ms  0 ms
  *      2  lilac-dmc.Berkeley.EDU (128.32.216.1)  39 ms  39 ms  19 ms
  *      3  lilac-dmc.Berkeley.EDU (128.32.216.1)  39 ms  39 ms  19 ms
@@ -77,7 +77,7 @@ static const char rcsid[] =
  * A more interesting example is:
  *
  *     [yak 72]% traceroute allspice.lcs.mit.edu.
- *     traceroute to allspice.lcs.mit.edu (18.26.0.115), 64 hops max
+ *     traceroute to allspice.lcs.mit.edu (18.26.0.115), 64 hops max, 40 byte packets
  *      1  helios.ee.lbl.gov (128.3.112.1)  0 ms  0 ms  0 ms
  *      2  lilac-dmc.Berkeley.EDU (128.32.216.1)  19 ms  19 ms  19 ms
  *      3  lilac-dmc.Berkeley.EDU (128.32.216.1)  39 ms  19 ms  19 ms
@@ -157,7 +157,7 @@ static const char rcsid[] =
  * This program requires a kernel mod that does not appear in any
  * system available from Berkeley:  A raw ip socket using proto
  * IPPROTO_RAW must interpret the data sent as an ip datagram (as
- * opposed to data to be wrapped in a ip datagram).  See the README
+ * opposed to data to be wrapped in an ip datagram).  See the README
  * file that came with the source to this program for a description
  * of the mods I made to /sys/netinet/raw_ip.c.  Your mileage may
  * vary.  But, again, ANY 4.x (x < 4) BSD KERNEL WILL HAVE TO BE
