@@ -25,17 +25,18 @@
 .Nm
 .Bk -words
 .Op Fl adDeEFISnrvx
+.Op Fl A Ar as_server
 .Op Fl f Ar first_ttl
 .Op Fl g Ar gateway
-.Op Fl M Ar first_ttl
+.Op Fl i Ar iface
 .Op Fl m Ar max_ttl
-.Op Fl P Ar proto
+.Op Fl M Ar first_ttl
 .Op Fl p Ar port
+.Op Fl P Ar proto
 .Op Fl q Ar nprobes
 .Op Fl s Ar src_addr
 .Op Fl t Ar tos
 .Op Fl w Ar waittime
-.Op Fl A Ar as_server
 .Op Fl z Ar pausemsecs
 .Ar host
 .Op Ar packetlen
@@ -62,6 +63,19 @@ Turn on AS# lookups for each hop encountered.
 .It Fl A Ar as_server
 Turn  on  AS#  lookups  and  use the given server instead of the
 default.
+.It Fl d
+Enable socket level debugging.
+.It Fl D
+When an ICMP response to our probe datagram is received,
+print the differences between the transmitted packet and
+the packet quoted by the ICMP response.
+A key showing the location of fields within the transmitted packet is printed,
+followed by the original packet in hex,
+followed by the quoted packet in hex.
+Bytes that are unchanged in the quoted packet are shown as underscores.
+Note,
+the IP checksum and the TTL of the quoted packet are not expected to match.
+By default, only one probe per hop is sent with this option.
 .It Fl e
 Firewall evasion mode.
 Use fixed destination ports for UDP, UDP-Lite, TCP and SCTP probes.
@@ -86,19 +100,6 @@ is also specified, the corresponding ECN bits will be replaced.
 Set the initial time-to-live used in the first outgoing probe packet.
 .It Fl F
 Set the "don't fragment" bit.
-.It Fl d
-Enable socket level debugging.
-.It Fl D
-When an ICMP response to our probe datagram is received,
-print the differences between the transmitted packet and
-the packet quoted by the ICMP response.
-A key showing the location of fields within the transmitted packet is printed,
-followed by the original packet in hex,
-followed by the quoted packet in hex.
-Bytes that are unchanged in the quoted packet are shown as underscores.
-Note,
-the IP checksum and the TTL of the quoted packet are not expected to match.
-By default, only one probe per hop is sent with this option.
 .It Fl g Ar gateway
 Specify a loose source route gateway (8 maximum).
 .It Fl i Ar iface
@@ -109,9 +110,6 @@ host. (See the
 flag for another way to do this.)
 .It Fl I
 Use ICMP ECHO instead of UDP datagrams.  (A synonym for "-P icmp").
-.It Fl M Ar first_ttl
-Set the initial time-to-live value used in outgoing probe packets.
-The default is 1, i.e., start with the first hop.
 .It Fl m Ar max_ttl
 Set the max time-to-live (max number of hops) used in outgoing probe
 packets.  The default is the value of the
@@ -119,18 +117,13 @@ packets.  The default is the value of the
 .Xr sysctl 8
 (the same default used for TCP
 connections).
+.It Fl M Ar first_ttl
+Set the initial time-to-live value used in outgoing probe packets.
+The default is 1, i.e., start with the first hop.
 .It Fl n
 Print hop addresses numerically rather than symbolically and numerically
 (saves a nameserver address-to-name lookup for each gateway found on the
 path).
-.It Fl P Ar proto
-Send packets of specified IP protocol. The currently supported protocols
-are: UDP, UDP-Lite, TCP, SCTP, GRE and ICMP. Other protocols may also be
-specified (either by name or by number), though
-.Nm
-does not implement any special knowledge of their packet formats. This
-option is useful for determining which router along a path may be
-blocking packets based on IP protocol number. But see BUGS below.
 .It Fl p Ar port
 Protocol specific. For UDP, UDP-Lite, TCP and SCTP, sets
 the base
@@ -147,6 +140,14 @@ at the destination host (so an ICMP PORT_UNREACHABLE message will
 be returned to terminate the route tracing).  If something is
 listening on a port in the default range, this option can be used
 to pick an unused port range.
+.It Fl P Ar proto
+Send packets of specified IP protocol. The currently supported protocols
+are: UDP, UDP-Lite, TCP, SCTP, GRE and ICMP. Other protocols may also be
+specified (either by name or by number), though
+.Nm
+does not implement any special knowledge of their packet formats. This
+option is useful for determining which router along a path may be
+blocking packets based on IP protocol number. But see BUGS below.
 .It Fl q Ar nprobes
 Set the number of probes per hop (default is 3,
 unless
