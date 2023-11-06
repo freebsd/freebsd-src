@@ -1437,6 +1437,12 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	to = NVME_CAP_LO_TO(cap_lo) + 1;
 	ctrlr->ready_timeout_in_ms = to * 500;
 
+	timeout_period = NVME_ADMIN_TIMEOUT_PERIOD;
+	TUNABLE_INT_FETCH("hw.nvme.admin_timeout_period", &timeout_period);
+	timeout_period = min(timeout_period, NVME_MAX_TIMEOUT_PERIOD);
+	timeout_period = max(timeout_period, NVME_MIN_TIMEOUT_PERIOD);
+	ctrlr->admin_timeout_period = timeout_period;
+
 	timeout_period = NVME_DEFAULT_TIMEOUT_PERIOD;
 	TUNABLE_INT_FETCH("hw.nvme.timeout_period", &timeout_period);
 	timeout_period = min(timeout_period, NVME_MAX_TIMEOUT_PERIOD);
