@@ -28,7 +28,6 @@
  * Copyright (c) 2009 Alexander Motin <mav@FreeBSD.org>
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #ifdef _KERNEL

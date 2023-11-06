@@ -33,7 +33,6 @@
  * Structures and routines specific && private to SES only
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #include <sys/ctype.h>

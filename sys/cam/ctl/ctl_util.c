@@ -37,7 +37,6 @@
  * Author: Ken Merry <ken@FreeBSD.org>
  */
 
-#include <sys/cdefs.h>
 #ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>

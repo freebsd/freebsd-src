@@ -32,7 +32,6 @@
 #define _CAM_CAM_CCB_H 1
 
 #include <sys/queue.h>
-#include <sys/cdefs.h>
 #include <sys/time.h>
 #include <sys/limits.h>
 #ifndef _KERNEL

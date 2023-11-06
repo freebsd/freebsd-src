@@ -36,7 +36,6 @@
  * Serial Management Protocol helper functions.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #ifdef _KERNEL
