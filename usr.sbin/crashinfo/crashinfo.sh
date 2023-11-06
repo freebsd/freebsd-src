@@ -219,7 +219,7 @@ echo
 # kgdb via stdin and have to use a temporary file instead.
 file=`mktemp /tmp/crashinfo.XXXXXX`
 if [ $? -eq 0 ]; then
-	echo "bt" >> $file
+	echo "bt -full" >> $file
 	echo "quit" >> $file
 	${GDB%gdb}kgdb $KERNEL $VMCORE < $file
 	rm -f $file
