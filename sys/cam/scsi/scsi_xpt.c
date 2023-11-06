@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
@@ -61,7 +60,6 @@
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_pass.h>
 #include <machine/stdarg.h>	/* for xpt_print below */
-#include "opt_cam.h"
 
 struct scsi_quirk_entry {
 	struct scsi_inquiry_pattern inq_pat;

@@ -71,8 +71,6 @@
 
 #include <machine/stdarg.h>	/* for xpt_print below */
 
-#include "opt_cam.h"
-
 /* Wild guess based on not wanting to grow the stack too much */
 #define XPT_PRINT_MAXLEN	512
 #ifdef PRINTF_BUFR_SIZE

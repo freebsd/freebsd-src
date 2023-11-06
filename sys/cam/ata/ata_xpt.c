@@ -26,7 +26,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
@@ -59,7 +58,6 @@
 #include <cam/scsi/scsi_message.h>
 #include <cam/ata/ata_all.h>
 #include <machine/stdarg.h>	/* for xpt_print below */
-#include "opt_cam.h"
 
 struct ata_quirk_entry {
 	struct scsi_inquiry_pattern inq_pat;
