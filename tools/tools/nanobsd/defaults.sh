@@ -425,7 +425,7 @@ install_kernel ( ) (
 )
 
 native_xtools ( ) (
-	print 2 "Installing the optimized native build tools for cross env"
+	pprint 2 "Installing the optimized native build tools for cross env"
 	pprint 3 "log: ${NANO_LOG}/_.native_xtools"
 
 	(
