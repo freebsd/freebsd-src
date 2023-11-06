@@ -66,6 +66,7 @@ MALLOC_DEFINE(M_E6000SW, "e6000sw", "e6000sw switch");
 #define	E6000SW_UNLOCK(_sc)		sx_unlock(&(_sc)->sx)
 #define	E6000SW_LOCK_ASSERT(_sc, _what)	sx_assert(&(_sc)->sx, (_what))
 #define	E6000SW_TRYLOCK(_sc)		sx_tryxlock(&(_sc)->sx)
+#define	E6000SW_LOCKED(_sc)		sx_xlocked(&(_sc)->sx)
 #define	E6000SW_WAITREADY(_sc, _reg, _bit)				\
     e6000sw_waitready((_sc), REG_GLOBAL, (_reg), (_bit))
 #define	E6000SW_WAITREADY2(_sc, _reg, _bit)				\
@@ -169,8 +170,8 @@ static device_method_t e6000sw_methods[] = {
 	DEVMETHOD(bus_add_child,		device_add_child_ordered),
 
 	/* mii interface */
-	DEVMETHOD(miibus_readreg,		e6000sw_readphy_locked),
-	DEVMETHOD(miibus_writereg,		e6000sw_writephy_locked),
+	DEVMETHOD(miibus_readreg,		e6000sw_readphy),
+	DEVMETHOD(miibus_writereg,		e6000sw_writephy),
 
 	/* etherswitch interface */
 	DEVMETHOD(etherswitch_getinfo,		e6000sw_getinfo),
@@ -744,17 +745,20 @@ e6000sw_write_xmdio(device_t dev, int phy, int devaddr, int devreg, int val)
 	return (0);
 }
 
-static int e6000sw_readphy(device_t dev, int phy, int reg)
+static int
+e6000sw_readphy(device_t dev, int phy, int reg)
 {
 	e6000sw_softc_t *sc;
-	int ret;
+	int locked, ret;
 
 	sc = device_get_softc(dev);
-	E6000SW_LOCK_ASSERT(sc, SA_UNLOCKED);
 
-	E6000SW_LOCK(sc);
+	locked = E6000SW_LOCKED(sc);
+	if (!locked)
+		E6000SW_LOCK(sc);
 	ret = e6000sw_readphy_locked(dev, phy, reg);
-	E6000SW_UNLOCK(sc);
+	if (!locked)
+		E6000SW_UNLOCK(sc);
 
 	return (ret);
 }
@@ -795,17 +799,20 @@ e6000sw_readphy_locked(device_t dev, int phy, int reg)
 	return (val & PHY_DATA_MASK);
 }
 
-static int e6000sw_writephy(device_t dev, int phy, int reg, int data)
+static int
+e6000sw_writephy(device_t dev, int phy, int reg, int data)
 {
 	e6000sw_softc_t *sc;
-	int ret;
+	int locked, ret;
 
 	sc = device_get_softc(dev);
-	E6000SW_LOCK_ASSERT(sc, SA_UNLOCKED);
 
-	E6000SW_LOCK(sc);
+	locked = E6000SW_LOCKED(sc);
+	if (!locked)
+		E6000SW_LOCK(sc);
 	ret = e6000sw_writephy_locked(dev, phy, reg, data);
-	E6000SW_UNLOCK(sc);
+	if (!locked)
+		E6000SW_UNLOCK(sc);
 
 	return (ret);
 }
