@@ -32,7 +32,6 @@
  * Bernd Walter <tisco@FreeBSD.org>, and other authors.
  */
 
-#include <sys/cdefs.h>
 //#include "opt_sdda.h"
 
 #include <sys/param.h>

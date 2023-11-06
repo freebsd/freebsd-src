@@ -35,7 +35,6 @@
 #include "opt_cam.h"
 #endif
 
-#include <sys/cdefs.h>
 #ifndef _KERNEL
 #include <stdbool.h>
 #endif
