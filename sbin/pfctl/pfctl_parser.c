@@ -627,6 +627,11 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 		    PFCTL_SYNCOOKIES_MODE_NAMES[cookies->mode]);
 		printf("  %-25s %s\n", "active",
 		    s->syncookies_active ? "active" : "inactive");
+		if (opts & PF_OPT_VERBOSE2) {
+			printf("  %-25s %d %%\n", "highwater", cookies->highwater);
+			printf("  %-25s %d %%\n", "lowwater", cookies->lowwater);
+			printf("  %-25s %d\n", "halfopen states", cookies->halfopen_states);
+		}
 	}
 }
 
