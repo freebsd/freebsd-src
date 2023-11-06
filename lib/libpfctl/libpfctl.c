@@ -189,6 +189,8 @@ pfctl_startstop(int start)
 
 	snl_init(&ss, NETLINK_GENERIC);
 	family_id = snl_get_genl_family(&ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
 
 	snl_init_writer(&ss, &nw);
 	hdr = snl_create_genl_msg_request(&nw, family_id,
@@ -1077,6 +1079,8 @@ pfctl_add_rule(int dev __unused, const struct pfctl_rule *r, const char *anchor,
 
 	snl_init(&ss, NETLINK_GENERIC);
 	family_id = snl_get_genl_family(&ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
 
 	snl_init_writer(&ss, &nw);
 	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_ADDRULE);
@@ -1212,6 +1216,9 @@ pfctl_get_creators_nl(struct snl_state *ss, uint32_t *creators, size_t *len)
 
 	struct nlmsghdr *hdr;
 	struct snl_writer nw;
+
+	if (family_id == 0)
+		return (ENOTSUP);
 
 	snl_init_writer(ss, &nw);
 	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GETCREATORS);
@@ -1362,6 +1369,9 @@ pfctl_get_states_nl(struct pfctl_state_filter *filter, struct snl_state *ss, pfc
 
 	struct nlmsghdr *hdr;
 	struct snl_writer nw;
+
+	if (family_id == 0)
+		return (ENOTSUP);
 
 	snl_init_writer(ss, &nw);
 	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GETSTATES);
