@@ -5691,6 +5691,7 @@ pf_getstatus(struct pfioc_nv *nv)
 	nvlist_add_number(nvl, "reass", V_pf_status.reass);
 	nvlist_add_bool(nvl, "syncookies_active",
 	    V_pf_status.syncookies_active);
+	nvlist_add_number(nvl, "halfopen_states", V_pf_status.states_halfopen);
 
 	/* counters */
 	error = pf_add_status_counters(nvl, "counters", V_pf_status.counters,
