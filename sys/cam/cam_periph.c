@@ -2172,19 +2172,49 @@ cam_periph_devctl_notify(union ccb *ccb)
 		sbuf_printf(&sb, "\" ");
 		type = "error";
 		break;
+	case CAM_NVME_STATUS_ERROR:
+	{
+		struct ccb_nvmeio *n = &ccb->nvmeio;
+
+		sbuf_printf(&sb, "sc=\"%02x\" sct=\"%02x\" cdw0=\"%08x\" ",
+		    NVME_STATUS_GET_SC(n->cpl.status),
+		    NVME_STATUS_GET_SCT(n->cpl.status), n->cpl.cdw0);
+		type = "error";
+		break;
+	}
 	default:
 		type = "error";
 		break;
 	}
 
-	if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
+
+	switch (ccb->ccb_h.func_code) {
+	case XPT_SCSI_IO:
 		sbuf_printf(&sb, "CDB=\"");
 		scsi_cdb_sbuf(scsiio_cdb_ptr(&ccb->csio), &sb);
 		sbuf_printf(&sb, "\" ");
-	} else if (ccb->ccb_h.func_code == XPT_ATA_IO) {
+		break;
+	case XPT_ATA_IO:
 		sbuf_printf(&sb, "ACB=\"");
 		ata_cmd_sbuf(&ccb->ataio.cmd, &sb);
 		sbuf_printf(&sb, "\" ");
+		break;
+	case XPT_NVME_IO:
+	case XPT_NVME_ADMIN:
+	{
+		struct ccb_nvmeio *n = &ccb->nvmeio;
+		struct nvme_command *cmd = &n->cmd;
+
+		// XXX Likely should be nvme_cmd_sbuf
+		sbuf_printf(&sb, "opc=\"%02x\" fuse=\"%02x\" cid=\"%04x\" "
+		    "nsid=\"%08x\" cdw10=\"%08x\" cdw11=\"%08x\" cdw12=\"%08x\" "
+		    "cdw13=\"%08x\" cdw14=\"%08x\" cdw15=\"%08x\" ",
+		    cmd->opc, cmd->fuse, cmd->cid, cmd->nsid, cmd->cdw10,
+		    cmd->cdw11, cmd->cdw12, cmd->cdw13, cmd->cdw14, cmd->cdw15);
+		break;
+	}
+	default:
+		break;
 	}
 
 	if (sbuf_finish(&sb) == 0)
