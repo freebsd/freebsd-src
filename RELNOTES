@@ -10,6 +10,14 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+bb830e346bd5:
+	Set the IUTF8 flag by default in tty(4).
+
+	128f63cedc14 and 9e589b093857 added proper UTF-8 backspacing handling
+	in the tty(4) driver, which is enabled by setting the new IUTF8 flag
+	through stty(1). Since the default locale is UTF-8, enable IUTF8 by
+	default.
+
 ff01d71e48d4:
 	dialog(1) has been replaced by bsddialog(1)
 
