@@ -50,8 +50,6 @@
 
 #include <cam/scsi/scsi_pass.h>
 
-#include "opt_cam.h"
-
 static int cam_compat_handle_0x17(struct cdev *dev, u_long cmd, caddr_t addr,
     int flag, struct thread *td, d_ioctl_t *cbfnp);
 static int cam_compat_handle_0x18(struct cdev *dev, u_long cmd, caddr_t addr,

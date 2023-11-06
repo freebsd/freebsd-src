@@ -26,8 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#include "opt_cam.h"
 #include "opt_nvme.h"
 
 #include <sys/param.h>

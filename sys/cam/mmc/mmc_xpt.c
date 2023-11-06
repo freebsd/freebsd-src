@@ -26,7 +26,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
@@ -61,7 +60,6 @@
 
 #include <machine/stdarg.h>	/* for xpt_print below */
 #include <machine/_inttypes.h>  /* for PRIu64 */
-#include "opt_cam.h"
 
 FEATURE(mmccam, "CAM-based MMC/SD/SDIO stack");
 
