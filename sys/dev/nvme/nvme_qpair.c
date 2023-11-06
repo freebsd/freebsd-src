@@ -1181,6 +1181,8 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 	if (req->timeout) {
 		if (req->cb_fn == nvme_completion_poll_cb)
 			timeout = 1;
+		else if (qpair->id == 0)
+			timeout = ctrlr->admin_timeout_period;
 		else
 			timeout = ctrlr->timeout_period;
 		tr->deadline = getsbinuptime() + timeout * SBT_1S;
