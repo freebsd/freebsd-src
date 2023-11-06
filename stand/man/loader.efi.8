@@ -205,6 +205,14 @@ does not implement the probe
 .Fl P
 functionality where we use the video console if a keyboard is connected and a
 serial console otherwise.
+.Ss Additional Environment Variables
+.Nm
+loads some extra variables early in startup from
+.Pa /efi/freebsd/loader.env
+from the EFI partition. Only simple variables can be set here. It can be useful to specify the root filesystem:
+.Bd -literal -offset indent
+rootdev=disk0s1a
+.Ed
 .Ss Staging Slop
 The kernel must parse the firmware memory map tables to know what memory
 it can use.
