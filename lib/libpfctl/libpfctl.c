@@ -1694,6 +1694,7 @@ pfctl_get_syncookies(int dev, struct pfctl_syncookies *s)
 
 	s->highwater = nvlist_get_number(nvl, "highwater") * 100 / state_limit;
 	s->lowwater = nvlist_get_number(nvl, "lowwater") * 100 / state_limit;
+	s->halfopen_states = nvlist_get_number(nvl, "halfopen_states");
 
 	nvlist_destroy(nvl);
 

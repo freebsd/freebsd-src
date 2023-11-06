@@ -162,6 +162,8 @@ pf_get_syncookies(struct pfioc_nv *nv)
 	    V_pf_status.syncookies_mode == PF_SYNCOOKIES_ADAPTIVE);
 	nvlist_add_number(nvl, "highwater", V_pf_syncookie_status.hiwat);
 	nvlist_add_number(nvl, "lowwater", V_pf_syncookie_status.lowat);
+	nvlist_add_number(nvl, "halfopen_states",
+	    atomic_load_32(&V_pf_status.states_halfopen));
 
 	nvlpacked = nvlist_pack(nvl, &nv->len);
 	if (nvlpacked == NULL)
