@@ -209,7 +209,9 @@ serial console otherwise.
 .Nm
 loads some extra variables early in startup from
 .Pa /efi/freebsd/loader.env
-from the EFI partition. Only simple variables can be set here. It can be useful to specify the root filesystem:
+from the EFI partition.
+Only simple variables can be set here.
+It can be useful to specify the root filesystem:
 .Bd -literal -offset indent
 rootdev=disk0s1a
 .Ed
