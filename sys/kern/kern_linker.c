@@ -461,8 +461,11 @@ linker_load_file(const char *filename, linker_file_t *result)
 		 * If we got something other than ENOENT, then it exists but
 		 * we cannot load it for some other reason.
 		 */
-		if (error != ENOENT)
+		if (error != ENOENT) {
 			foundfile = 1;
+			if (error == EEXIST)
+				break;
+		}
 		if (lf) {
 			error = linker_file_register_modules(lf);
 			if (error == EEXIST) {
