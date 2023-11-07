@@ -256,8 +256,6 @@ sendkeyshort(u_int type, uint8_t satype)
 	msg.sadb_msg_pid = getpid();
 
 	sendkeymsg((char *)&msg, sizeof(msg));
-
-	return;
 }
 
 void

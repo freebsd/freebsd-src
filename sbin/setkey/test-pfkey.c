@@ -265,8 +265,6 @@ key_setsadbmsg(type)
 	}
 
 	((struct sadb_msg *)m_buf)->sadb_msg_len = PFKEY_UNIT64(m_len);
-
-	return;
 }
 
 void
@@ -298,8 +296,6 @@ key_setsadbsens()
 			(caddr_t)&m_sens, sizeof(struct sadb_sens),
 			buf, slen + ilen);
 	m_len += len;
-
-	return;
 }
 
 void
@@ -360,8 +356,6 @@ key_setsadbprop()
 			(caddr_t)&m_prop, sizeof(struct sadb_prop),
 			buf, sizeof(*m_comb) * 2);
 	m_len += len;
-
-	return;
 }
 
 void
@@ -383,8 +377,6 @@ key_setsadbid(ext, str)
 			(caddr_t)&m_id, sizeof(struct sadb_ident),
 			str, idlen);
 	m_len += len;
-
-	return;
 }
 
 void
@@ -402,8 +394,6 @@ key_setsadblft(ext, time)
 
 	memcpy(m_buf + m_len, &m_lft, sizeof(struct sadb_lifetime));
 	m_len += sizeof(struct sadb_lifetime);
-
-	return;
 }
 
 void
@@ -419,8 +409,6 @@ key_setspirange()
 
 	memcpy(m_buf + m_len, &m_spi, sizeof(struct sadb_spirange));
 	m_len += sizeof(struct sadb_spirange);
-
-	return;
 }
 
 void
@@ -442,8 +430,6 @@ key_setsadbkey(ext, str)
 			(caddr_t)&m_key, sizeof(struct sadb_key),
 			str, keylen);
 	m_len += len;
-
-	return;
 }
 
 void
@@ -462,8 +448,6 @@ key_setsadbsa()
 
 	memcpy(m_buf + m_len, &m_sa, sizeof(struct sadb_sa));
 	m_len += sizeof(struct sadb_sa);
-
-	return;
 }
 
 void
@@ -499,7 +483,7 @@ key_setsadbaddr(ext, af, str)
 		/* XXX bark */
 		exit(1);
 	}
-	
+
 	len = sizeof(struct sadb_address) + PFKEY_ALIGN8(res->ai_addrlen);
 	m_addr.sadb_address_len = PFKEY_UNIT64(len);
 	m_addr.sadb_address_exttype = ext;
@@ -514,8 +498,6 @@ key_setsadbaddr(ext, af, str)
 	m_len += len;
 
 	freeaddrinfo(res);
-
-	return;
 }
 
 void
@@ -526,7 +508,5 @@ key_setsadbextbuf(dst, off, ebuf, elen, vbuf, vlen)
 	memset(dst + off, 0, elen + vlen);
 	memcpy(dst + off, (caddr_t)ebuf, elen);
 	memcpy(dst + off + elen, vbuf, vlen);
-
-	return;
 }
 
