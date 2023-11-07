@@ -32,6 +32,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/endian.h>
+#include <sys/param.h>
 
 #include <errno.h>
 #include <strings.h>
@@ -92,7 +93,7 @@ hast_proto_send(const struct hast_resource *res, struct proto_conn *conn,
 	if (data != NULL) {
 		unsigned int ii;
 
-		for (ii = 0; ii < sizeof(pipeline) / sizeof(pipeline[0]);
+		for (ii = 0; ii < nitems(pipeline);
 		    ii++) {
 			(void)pipeline[ii].hps_send(res, nv, &dptr, &size,
 			    &freedata);
@@ -194,7 +195,7 @@ hast_proto_recv_data(const struct hast_resource *res, struct proto_conn *conn,
 	} else {
 		if (proto_recv(conn, data, dsize) == -1)
 			goto end;
-		for (ii = sizeof(pipeline) / sizeof(pipeline[0]); ii > 0;
+		for (ii = nitems(pipeline); ii > 0;
 		    ii--) {
 			ret = pipeline[ii - 1].hps_recv(res, nv, &dptr,
 			    &dsize, &freedata);

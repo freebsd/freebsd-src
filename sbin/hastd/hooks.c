@@ -31,6 +31,7 @@
  */
 
 #include <sys/cdefs.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/wait.h>
@@ -352,12 +353,12 @@ hook_execv(const char *path, va_list ap)
 
 	memset(args, 0, sizeof(args));
 	args[0] = __DECONST(char *, path);
-	for (ii = 1; ii < sizeof(args) / sizeof(args[0]); ii++) {
+	for (ii = 1; ii < nitems(args); ii++) {
 		args[ii] = va_arg(ap, char *);
 		if (args[ii] == NULL)
 			break;
 	}
-	PJDLOG_ASSERT(ii < sizeof(args) / sizeof(args[0]));
+	PJDLOG_ASSERT(ii < nitems(args));
 
 	hp = hook_alloc(path, args);
 	if (hp == NULL)
