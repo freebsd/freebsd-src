@@ -478,7 +478,7 @@ sender_process(void)
 				we->we_idle = htonl(now - stb.st_atime);
 		}
 		(void) getloadavg(avenrun,
-		    sizeof(avenrun) / sizeof(avenrun[0]));
+		    nitems(avenrun));
 		for (i = 0; i < 3; i++)
 			mywd.wd_loadav[i] = htonl((u_long)(avenrun[i] * 100));
 		cc = (char *)wend - (char *)&mywd;
