@@ -388,7 +388,7 @@ filemode(void)
 	printf(sizeof(uintptr_t) == 4 ? fhdr32 : fhdr64);
 	wid = (int)sizeof(uintptr_t) * 2;
 	for (fp = (struct xfile *)buf, i = 0; i < openf; ++fp, ++i) {
-		if ((size_t)fp->xf_type >= sizeof(dtypes) / sizeof(dtypes[0]))
+		if ((size_t)fp->xf_type >= nitems(dtypes))
 			continue;
 		(void)printf("%*jx", wid, (uintmax_t)(uintptr_t)fp->xf_file);
 		(void)printf(" %-6.6s", dtypes[fp->xf_type]);
