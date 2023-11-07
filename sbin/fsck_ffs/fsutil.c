@@ -929,7 +929,6 @@ blwrite(int fd, char *buf, ufs2_daddr_t blk, ssize_t size)
 		if (pwrite(fd, cp, dev_bsize, offset + i) != dev_bsize)
 			printf(" %jd,", (intmax_t)blk + i / dev_bsize);
 	printf("\n");
-	return;
 }
 
 void
@@ -943,7 +942,6 @@ blerase(int fd, ufs2_daddr_t blk, long size)
 	ioarg[1] = size;
 	ioctl(fd, DIOCGDELETE, ioarg);
 	/* we don't really care if we succeed or not */
-	return;
 }
 
 /*

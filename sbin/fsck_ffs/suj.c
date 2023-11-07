@@ -1058,7 +1058,6 @@ ino_reclaim(struct inode *ip, ino_t ino, int mode)
 	DIP_SET(dp, di_gen, gen);
 	inodirty(ip);
 	ino_free(ino, mode);
-	return;
 }
 
 /*
@@ -1406,7 +1405,6 @@ ino_trunc(ino_t ino, off_t size)
 		brelse(bp);
 	}
 	irelse(&ip);
-	return;
 }
 
 /*
@@ -2253,8 +2251,6 @@ jblocks_add(struct jblocks *jblocks, ufs2_daddr_t daddr, int blocks)
 	jext = &jblocks->jb_extent[jblocks->jb_used];
 	jext->je_daddr = daddr;
 	jext->je_blocks = blocks;
-
-	return;
 }
 
 /*

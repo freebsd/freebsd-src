@@ -1018,7 +1018,6 @@ chkcopyonwrite(struct fs *fs, ufs2_daddr_t copyblkno,
 		    DIP(dp, di_blocks) + btodb(fs->fs_bsize));
 		inodirty(&ip);
 	}
-	return;
 }
 
 /*
