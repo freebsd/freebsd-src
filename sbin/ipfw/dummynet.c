@@ -22,7 +22,7 @@
 
 #define NEW_AQM
 #include <sys/limits.h>
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 /* XXX there are several sysctl leftover here */
 #include <sys/sysctl.h>
@@ -1401,7 +1401,7 @@ ipfw_config_pipe(int ac, char **av)
 	 */
 	if (p)
 		p->bandwidth = -1;
-	for (j = 0; j < sizeof(fs->par)/sizeof(fs->par[0]); j++)
+	for (j = 0; j < nitems(fs->par); j++)
 		fs->par[j] = -1;
 	while (ac > 0) {
 		double d;
