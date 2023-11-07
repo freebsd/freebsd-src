@@ -1034,7 +1034,7 @@ moused(void)
 	bstate[i].count = 0;
 	bstate[i].ts = mouse_button_state_ts;
     }
-    for (i = 0; i < (int)(sizeof(zstate) / sizeof(zstate[0])); ++i) {
+    for (i = 0; i < (int)nitems(zstate); ++i) {
 	zstate[i].count = 0;
 	zstate[i].ts = mouse_button_state_ts;
     }
@@ -1490,7 +1490,7 @@ r_identify(void)
     rodent.mode.level = 0;
     if (ioctl(rodent.mfd, MOUSE_GETMODE, &rodent.mode) == 0) {
 	if (rodent.mode.protocol == MOUSE_PROTO_UNKNOWN ||
-	    rodent.mode.protocol >= (int)(sizeof(proto) / sizeof(proto[0]))) {
+	    rodent.mode.protocol >= (int)nitems(proto)) {
 	    logwarnx("unknown mouse protocol (%d)", rodent.mode.protocol);
 	    return (MOUSE_PROTO_UNKNOWN);
 	} else {
@@ -1566,7 +1566,7 @@ r_name(int type)
     const char *unknown = "unknown";
 
     return (type == MOUSE_PROTO_UNKNOWN ||
-	type >= (int)(sizeof(rnames) / sizeof(rnames[0])) ?
+	type >= (int)nitems(rnames) ?
 	unknown : rnames[type]);
 }
 
