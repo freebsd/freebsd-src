@@ -206,7 +206,7 @@ linux_flush_rcu_work(struct rcu_work *rwork)
 
 /*
  * This function queues the given work structure on the given
- * workqueue after a given delay in ticks. It returns non-zero if the
+ * workqueue after a given delay in ticks. It returns true if the
  * work was successfully [re-]queued. Else the work is already pending
  * for completion.
  */
@@ -230,7 +230,7 @@ linux_queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 	switch (linux_update_state(&dwork->work.state, states)) {
 	case WORK_ST_EXEC:
 	case WORK_ST_CANCEL:
-		if (delay == 0 && linux_work_exec_unblock(&dwork->work) != 0) {
+		if (delay == 0 && linux_work_exec_unblock(&dwork->work)) {
 			dwork->timer.expires = jiffies;
 			res = true;
 			goto out;
@@ -468,7 +468,7 @@ linux_cancel_delayed_work(struct delayed_work *dwork)
 
 /*
  * This function cancels the given work structure in a synchronous
- * fashion. It returns non-zero if the work was successfully
+ * fashion. It returns true if the work was successfully
  * cancelled. Else the work was already cancelled.
  */
 static bool
