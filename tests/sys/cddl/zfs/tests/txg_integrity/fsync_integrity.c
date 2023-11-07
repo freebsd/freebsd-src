@@ -106,7 +106,7 @@ typedef struct {
 
 typedef struct {
 	int thread_num;
-	pattern_t* pat;
+	const pattern_t* pat;
 } thread_data_t;
 
 
@@ -354,7 +354,7 @@ verify_file(int fd, const pattern_t* p_pat){
 
 /* Writes a special marker to every byte within the chunk */
 static void
-write_chunk(pattern_t* p_pat, int chunk_idx, int thread_num)
+write_chunk(const pattern_t* p_pat, int chunk_idx, int thread_num)
 {
   uint32_t chunk_start, chunk_end;
   get_chunk_range(p_pat, chunk_idx, &chunk_start, &chunk_end);
