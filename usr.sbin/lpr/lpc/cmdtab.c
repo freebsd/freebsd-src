@@ -35,6 +35,8 @@ static char sccsid[] = "@(#)cmdtab.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 #endif
 
+#include <sys/param.h>
+
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
 #include "lpc.h"
 #include "extern.h"
@@ -87,4 +89,4 @@ struct cmd cmdtab[] = {
 	{ 0, 0, 0, 0, 0},
 };
 
-int	NCMDS = sizeof (cmdtab) / sizeof (cmdtab[0]);
+int	NCMDS = nitems(cmdtab);
