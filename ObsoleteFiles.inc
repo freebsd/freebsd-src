@@ -6737,7 +6737,6 @@ OLD_FILES+=usr/share/man/man4/if_hme.4.gz
 OLD_FILES+=usr/include/net/radix_mpath.h
 
 # 20201124: ping6(8) was merged into ping(8)
-OLD_FILES+=usr/share/man/man8/ping6.8.gz
 OLD_FILES+=usr/tests/sbin/ping6/Kyuafile
 OLD_FILES+=usr/tests/sbin/ping6/ping6_c1_s8_t1.out
 OLD_FILES+=usr/tests/sbin/ping6/ping6_test
