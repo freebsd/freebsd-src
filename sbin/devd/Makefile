@@ -11,6 +11,11 @@ DEVDDIR=	/etc/devd
 DEVD+=	asus.conf
 .endif
 
+CONFGROUPS+=		AUTOFS
+AUTOFSDIR=		${DEVDDIR}
+AUTOFS+=		autofs.conf
+AUTOFSPACKAGE=		autofs
+
 CONFGROUPS+=		DHCLIENT
 DHCLIENTDIR=		${DEVDDIR}
 DHCLIENT+=		dhclient.conf
