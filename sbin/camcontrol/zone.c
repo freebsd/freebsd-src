@@ -40,6 +40,7 @@
 #include <sys/types.h>
 #include <sys/endian.h>
 #include <sys/sbuf.h>
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/chio.h>
 
@@ -353,7 +354,7 @@ zone(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			int entry_num;
 
 			status = scsi_get_nv(zone_cmd_map,
-			    (sizeof(zone_cmd_map) / sizeof(zone_cmd_map[0])),
+			    nitems(zone_cmd_map),
 			    optarg, &entry_num, SCSI_NV_FLAG_IG_CASE);
 			if (status == SCSI_NV_FOUND)
 				action = zone_cmd_map[entry_num].value;
@@ -387,7 +388,7 @@ zone(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			int entry_num;
 
 			status = scsi_get_nv(zone_rep_opts,
-			    (sizeof(zone_rep_opts) /sizeof(zone_rep_opts[0])),
+			    nitems(zone_rep_opts),
 			    optarg, &entry_num, SCSI_NV_FLAG_IG_CASE);
 			if (status == SCSI_NV_FOUND)
 				rep_option = zone_rep_opts[entry_num].value;

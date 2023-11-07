@@ -39,6 +39,7 @@
 #include <sys/types.h>
 #include <sys/endian.h>
 #include <sys/sbuf.h>
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/chio.h>
 
@@ -265,7 +266,7 @@ scsiattrib(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			int entry_num = 0;
 
 			status = scsi_get_nv(elem_type_map,
-			    sizeof(elem_type_map) / sizeof(elem_type_map[0]),
+			    nitems(elem_type_map),
 			    optarg, &entry_num, SCSI_NV_FLAG_IG_CASE);
 			if (status == SCSI_NV_FOUND)
 				element_type = elem_type_map[entry_num].value;
