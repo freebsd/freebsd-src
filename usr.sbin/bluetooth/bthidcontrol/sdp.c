@@ -31,6 +31,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 #define L2CAP_SOCKET_CHECKED
@@ -79,10 +80,10 @@ SDP_ATTR_RANGE(	0x0209,		/* HIDBatteryPower */
 SDP_ATTR_RANGE(	0x020d,		/* HIDNormallyConnectable */
 		0x020d)
 	};
-#define	nattrs	(sizeof(attrs)/sizeof(attrs[0]))
+#define	nattrs	nitems(attrs)
 
 static sdp_attr_t	values[8];
-#define	nvalues	(sizeof(values)/sizeof(values[0]))
+#define	nvalues	nitems(values)
 
 static uint8_t		buffer[nvalues][512];
 
