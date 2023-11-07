@@ -621,7 +621,6 @@ mkentry(char *name, struct direct *dp, struct afile *fp)
 			fp->postfix = ' ';
 		break;
 	}
-	return;
 }
 
 /*

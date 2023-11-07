@@ -512,7 +512,6 @@ rst_closedir(void *arg)
 	dirp = arg;
 	(void)close(dirp->dd_fd);
 	free(dirp);
-	return;
 }
 
 /*
