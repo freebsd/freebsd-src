@@ -32,8 +32,8 @@
 
 #include <sys/cdefs.h>
 #include <sys/ioctl.h>
+#include <sys/param.h>
 #include <sys/stdint.h>
-#include <sys/types.h>
 #include <sys/endian.h>
 #include <sys/sbuf.h>
 #include <sys/queue.h>
@@ -401,7 +401,7 @@ main(int argc, char **argv)
 			int entry_num;
 
 			status = scsi_get_nv(zone_cmd_map,
-			    (sizeof(zone_cmd_map) / sizeof(zone_cmd_map[0])),
+			    nitems(zone_cmd_map),
 			    optarg, &entry_num, SCSI_NV_FLAG_IG_CASE);
 			if (status == SCSI_NV_FOUND)
 				action = zone_cmd_map[entry_num].value;
