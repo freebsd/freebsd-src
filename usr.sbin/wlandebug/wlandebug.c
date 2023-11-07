@@ -33,7 +33,7 @@
  * wlandebug [-i interface] flags
  * (default interface is wlan.0).
  */
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
@@ -47,7 +47,7 @@
 
 #include <libifconfig.h>
 
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
+#define	N(a)	nitems(a)
 
 const char *progname;
 
