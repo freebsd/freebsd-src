@@ -26,6 +26,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/endian.h>
 
@@ -53,9 +54,9 @@ const struct elfh elfhdr = {
 	0,					    /* e_flags */
 	htole16(sizeof(elfhdr.e)),		    /* e_ehsize */
 	htole16(sizeof(elfhdr.p[0])),		    /* e_phentsize */
-	htole16(sizeof(elfhdr.p) / sizeof(elfhdr.p[0])), /* e_phnum */
+	htole16(nitems(elfhdr.p)),		    /* e_phnum */
 	htole16(sizeof(elfhdr.sh[0])),		    /* e_shentsize */
-	htole16(sizeof(elfhdr.sh) / sizeof(elfhdr.sh[0])), /* e_shnum */
+	htole16(nitems(elfhdr.sh)),		    /* e_shnum */
 	htole16(1)				    /* e_shstrndx */
     },
     {
