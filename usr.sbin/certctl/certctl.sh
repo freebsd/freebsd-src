@@ -71,6 +71,11 @@ cert_files_in()
 	\) 2>/dev/null
 }
 
+eolcvt()
+{
+	cat "$@" | tr -s '\r' '\n'
+}
+
 do_hash()
 {
 	local hash
@@ -181,7 +186,7 @@ do_scan()
 	IFS="$oldIFS"
 	for CFILE in $(cert_files_in "$@") ; do
 		verbose "Reading $CFILE"
-		case $(egrep -c '^-+BEGIN CERTIFICATE-+$' "$CFILE") in
+		case $(eolcvt "$CFILE" | egrep -c '^-+BEGIN CERTIFICATE-+$') in
 		0)
 			;;
 		1)
@@ -190,7 +195,7 @@ do_scan()
 		*)
 			verbose "Multiple certificates found, splitting..."
 			SPLITDIR=$(mktemp -d)
-			egrep '^(---|[0-9A-Za-z/+=]+$)' "$CFILE" | \
+			eolcvt "$CFILE" | egrep '^(---|[0-9A-Za-z/+=]+$)' | \
 				split -p '^-+BEGIN CERTIFICATE-+$' - "$SPLITDIR/x"
 			for CERT in $(find "$SPLITDIR" -type f) ; do
 				"$CFUNC" "$CERT"
