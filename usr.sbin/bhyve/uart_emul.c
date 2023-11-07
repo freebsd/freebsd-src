@@ -28,6 +28,7 @@
  */
 
 #include <sys/cdefs.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <dev/ic/ns16550.h>
 #ifndef WITHOUT_CAPSICUM
@@ -93,7 +94,7 @@ static struct {
 	{ COM4_BASE, COM4_IRQ, false},
 };
 
-#define	UART_NLDEVS	(sizeof(uart_lres) / sizeof(uart_lres[0]))
+#define	UART_NLDEVS	nitems(uart_lres)
 
 struct fifo {
 	uint8_t	buf[FIFOSZ];
