@@ -1835,7 +1835,6 @@ status(if_ctx *ctx, const struct sockaddr_dl *sdl __unused, struct ifaddrs *ifa)
 
 	close(s);
 	ctx->io_s = old_s;
-	return;
 }
 #endif
 
