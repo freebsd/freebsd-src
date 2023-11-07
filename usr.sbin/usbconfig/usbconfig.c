@@ -36,6 +36,7 @@
 #include <grp.h>
 #include <errno.h>
 #include <ctype.h>
+#include <sys/param.h>
 #include <sys/types.h>
 
 #include <libusb20_desc.h>
@@ -210,7 +211,7 @@ get_token(const char *str, uint8_t narg)
 {
 	uint8_t n;
 
-	for (n = 0; n != (sizeof(token) / sizeof(token[0])); n++) {
+	for (n = 0; n != nitems(token); n++) {
 		if (strcasecmp(str, token[n].name) == 0) {
 			if (token[n].narg > narg) {
 				/* too few arguments */
