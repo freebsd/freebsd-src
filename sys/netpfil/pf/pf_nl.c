@@ -632,9 +632,6 @@ pf_handle_addrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	    attrs.anchor, attrs.anchor_call, nlp_get_cred(npt->nlp)->cr_uid,
 	    hdr->nlmsg_pid);
 
-	if (error != 0)
-		pf_krule_free(attrs.rule);
-
 	return (error);
 }
 
