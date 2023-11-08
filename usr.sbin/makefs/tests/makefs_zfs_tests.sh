@@ -794,6 +794,49 @@ used_space_props_cleanup()
 	common_cleanup
 }
 
+# Verify that file permissions are set properly.  Make sure that non-executable
+# files can't be executed.
+atf_test_case perms cleanup
+perms_body()
+{
+	local mode
+
+	create_test_dirs
+	cd $TEST_INPUTS_DIR
+
+	for mode in $(seq 0 511); do
+		mode=$(printf "%04o\n" $mode)
+		echo 'echo a' > $mode
+		atf_check chmod $mode $mode
+	done
+
+	cd -
+
+	atf_check $MAKEFS -s 1g -o rootpath=/ -o poolname=$ZFS_POOL_NAME \
+	    $TEST_IMAGE $TEST_INPUTS_DIR
+
+	import_image
+
+	check_image_contents
+
+	for mode in $(seq 0 511); do
+		mode=$(printf "%04o\n" $mode)
+		if [ $(($mode & 0111)) -eq 0 ]; then
+			atf_check -s not-exit:0 -e match:"Permission denied" \
+			    ${TEST_INPUTS_DIR}/$mode
+		fi
+		if [ $(($mode & 0001)) -eq 0 ]; then
+			atf_check -s not-exit:0 -e match:"Permission denied" \
+			    su -m tests -c ${TEST_INPUTS_DIR}/$mode
+		fi
+	done
+
+}
+perms_cleanup()
+{
+	common_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case autoexpand
@@ -817,6 +860,7 @@ atf_init_test_cases()
 	atf_add_test_case soft_links
 	atf_add_test_case root_props
 	atf_add_test_case used_space_props
+	atf_add_test_case perms
 
 	# XXXMJ tests:
 	# - test with different ashifts (at least, 9 and 12), different image sizes
