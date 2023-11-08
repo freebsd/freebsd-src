@@ -30,7 +30,7 @@
 .\"
 .\"	@(#)tzset.3	8.2 (Berkeley) 11/17/93
 .\"
-.Dd March 6, 2023
+.Dd November 8, 2023
 .Dt TZSET 3
 .Os
 .Sh NAME
@@ -290,27 +290,16 @@ may be used to separate the
 .Em rule
 from the rest of the specification.
 .Sh FILES
-.Bl -tag -width /usr/share/zoneinfo/posixrules -compact
+.Bl -tag -width /usr/share/zoneinfo/Etc/GMT -compact
 .It Pa /etc/localtime
 local time zone file
 .It Pa /usr/share/zoneinfo
 time zone directory
-.It Pa /usr/share/zoneinfo/posixrules
-rules for
-.Tn POSIX Ns -style
-.Tn TZ Ns 's
 .It Pa /usr/share/zoneinfo/Etc/GMT
 for
 .Tn UTC
 leap seconds
 .El
-.Pp
-If the file
-.Pa /usr/share/zoneinfo/UTC
-does not exist,
-.Tn UTC
-leap seconds are loaded from
-.Pa /usr/share/zoneinfo/posixrules .
 .Sh SEE ALSO
 .Xr date 1 ,
 .Xr gettimeofday 2 ,
