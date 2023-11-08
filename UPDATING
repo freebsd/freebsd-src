@@ -12,6 +12,20 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20231108:
+	13.2-RELEASE-p5 EN-23:13.freebsd-update
+			EN-23:14.regcomp
+			SA-23:15.stdio
+			SA-23:16.cap_net
+
+	freebsd-update does not handle deep boot environments [EN-23:13.freebsd-update]
+
+	Incorrect regular expression escape handling [EN-23:14.regcomp]
+
+	libc stdio buffer overflow [SA-23:15.stdio]
+
+	Incorrect libcap_net limitation list manipulation [SA-23:16.cap_net]
+
 20231003:
 	13.2-RELEASE-p4 FreeBSD-EN-23:12.freebsd-update
 			FreeBSD-SA-23:12.msdosfs
