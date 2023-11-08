@@ -17,6 +17,17 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20231108:
+	12.4-RELEASE-p7 EN-23:13.freebsd-update
+			EN-23:14.regcomp
+			SA-23:15.stdio
+
+	freebsd-update does not handle deep boot environments [EN-23:13.freebsd-update]
+
+	Incorrect regular expression escape handling [EN-23:14.regcomp]
+
+	libc stdio buffer overflow [SA-23:15.stdio]
+
 20231003:
 	12.4-RELEASE-p6 FreeBSD-EN-23:09.freebsd-update
 			FreeBSD-EN-23:12.freebsd-update
