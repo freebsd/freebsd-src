@@ -12,6 +12,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20231108:
+	14.0-RC4-p1 SA-23:15.stdio
+		    SA-23:16.cap_net
+
+	libc stdio buffer overflow [SA-23:15.stdio]
+
+	Incorrect libcap_net limitation list manipulation [SA-23:16.cap_net]
+
 20230824:
 	__FreeBSD_version 1400097 after the branching stable/14 from main.
 
