@@ -5501,6 +5501,11 @@ OLD_FILES+=usr/share/snmp/defs/netgraph_tree.def
 OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-NETGRAPH.txt
 .endif
 
+.if ${MK_NETLINK} == no
+OLD_FILES+=usr.bin/genl
+OLD_FILES+=usr/share/man/man1/genl.1.gz
+.endif
+
 .if ${MK_NIS} == no
 OLD_FILES+=etc/rc.d/ypbind
 OLD_FILES+=etc/rc.d/ypldap
@@ -5563,11 +5568,6 @@ OLD_FILES+=usr/share/man/man8/ypxfr.8.gz
 OLD_FILES+=var/yp/Makefile
 OLD_FILES+=var/yp/Makefile.dist
 OLD_DIRS+=var/yp
-.endif
-
-.if ${MK_NETLINK} == no
-OLD_FILES+=usr.bin/genl
-OLD_FILES+=usr/share/man/man1/genl.1.gz
 .endif
 
 .if ${MK_NLS} == no
