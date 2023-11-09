@@ -1379,32 +1379,6 @@ OLD_DIRS+=usr/share/bsdconfig/timezone
 OLD_DIRS+=usr/share/bsdconfig/usermgmt
 .endif
 
-.if ${MK_EFI} == no
-OLD_FILES+=usr/sbin/efibootmgr
-OLD_FILES+=usr/sbin/efidp
-OLD_FILES+=usr/sbin/efivar
-OLD_FILES+=usr/sbin/uefisign
-OLD_FILES+=usr/share/examples/uefisign/uefikeys
-.endif
-
-.if ${MK_FTP} == no
-OLD_FILES+=etc/ftpusers
-OLD_FILES+=etc/newsyslog.conf.d/ftp.conf
-OLD_FILES+=etc/pam.d/ftp
-OLD_FILES+=etc/pam.d/ftpd
-OLD_FILES+=etc/rc.d/ftpd
-OLD_FILES+=etc/syslog.d/ftp.conf
-OLD_FILES+=usr/bin/ftp
-OLD_FILES+=usr/bin/gate-ftp
-OLD_FILES+=usr/bin/pftp
-OLD_FILES+=usr/libexec/ftpd
-OLD_FILES+=usr/share/man/man1/ftp.1.gz
-OLD_FILES+=usr/share/man/man1/gate-ftp.1.gz
-OLD_FILES+=usr/share/man/man1/pftp.1.gz
-OLD_FILES+=usr/share/man/man5/ftpchroot.5.gz
-OLD_FILES+=usr/share/man/man8/ftpd.8.gz
-.endif
-
 .if ${MK_DICT} == no
 OLD_FILES+=usr/share/dict/README
 OLD_FILES+=usr/share/dict/freebsd
@@ -1592,6 +1566,14 @@ OLD_FILES+=usr/share/nls/pl_PL.ISO8859-2/ee.cat
 OLD_FILES+=usr/share/nls/pt_BR.ISO8859-1/ee.cat
 OLD_FILES+=usr/share/nls/ru_RU.KOI8-R/ee.cat
 OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/ee.cat
+.endif
+
+.if ${MK_EFI} == no
+OLD_FILES+=usr/sbin/efibootmgr
+OLD_FILES+=usr/sbin/efidp
+OLD_FILES+=usr/sbin/efivar
+OLD_FILES+=usr/sbin/uefisign
+OLD_FILES+=usr/share/examples/uefisign/uefikeys
 .endif
 
 .if ${MK_EXAMPLES} == no
@@ -1952,6 +1934,24 @@ OLD_FILES+=usr/share/man/man8/freebsd-update.8.gz
 .if ${MK_FREEBSD_UPDATE} == no
 OLD_FILES+=usr/libexec/phttpget
 OLD_FILES+=usr/share/man/man8/phttpget.8.gz
+.endif
+
+.if ${MK_FTP} == no
+OLD_FILES+=etc/ftpusers
+OLD_FILES+=etc/newsyslog.conf.d/ftp.conf
+OLD_FILES+=etc/pam.d/ftp
+OLD_FILES+=etc/pam.d/ftpd
+OLD_FILES+=etc/rc.d/ftpd
+OLD_FILES+=etc/syslog.d/ftp.conf
+OLD_FILES+=usr/bin/ftp
+OLD_FILES+=usr/bin/gate-ftp
+OLD_FILES+=usr/bin/pftp
+OLD_FILES+=usr/libexec/ftpd
+OLD_FILES+=usr/share/man/man1/ftp.1.gz
+OLD_FILES+=usr/share/man/man1/gate-ftp.1.gz
+OLD_FILES+=usr/share/man/man1/pftp.1.gz
+OLD_FILES+=usr/share/man/man5/ftpchroot.5.gz
+OLD_FILES+=usr/share/man/man8/ftpd.8.gz
 .endif
 
 .if ${MK_GAMES} == no
