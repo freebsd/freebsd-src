@@ -1985,18 +1985,6 @@ OLD_FILES+=usr/share/man/man8/strfile.8.gz
 OLD_FILES+=usr/share/man/man8/unstr.8.gz
 .endif
 
-.if ${MK_LLVM_COV} == no
-OLD_FILES+=usr/bin/gcov
-OLD_FILES+=usr/share/man/man1/gcov.1.gz
-.endif
-
-.if ${MK_LLVM_COV} == no
-OLD_FILES+=usr/bin/llvm-cov
-OLD_FILES+=usr/bin/llvm-profdata
-OLD_FILES+=usr/share/man/man1/llvm-cov.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-profdata.1.gz
-.endif
-
 .if ${MK_GH_BC} == no
 OLD_FILES+=usr/share/misc/bc.library
 OLD_FILES+=usr/tests/usr.bin/dc/Kyuafile
@@ -3618,6 +3606,15 @@ OLD_FILES+=usr/bin/lldb
 OLD_FILES+=usr/bin/lldb-server
 OLD_FILES+=usr/share/man/man1/lldb-server.1.gz
 OLD_FILES+=usr/share/man/man1/lldb.1.gz
+.endif
+
+.if ${MK_LLVM_COV} == no
+OLD_FILES+=usr/bin/gcov
+OLD_FILES+=usr/bin/llvm-cov
+OLD_FILES+=usr/bin/llvm-profdata
+OLD_FILES+=usr/share/man/man1/gcov.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-cov.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-profdata.1.gz
 .endif
 
 .if ${MK_LOCALES} == no
