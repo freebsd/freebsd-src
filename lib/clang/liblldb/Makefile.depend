@@ -9,9 +9,13 @@ DIRDEPS = \
 	lib/libc++ \
 	lib/libedit \
 	lib/libexecinfo \
+	lib/libkvm \
+	lib/liblzma \
+	lib/libz \
 	lib/msun \
-	lib/ncurses/ncursesw \
-	lib/ncurses/panelw \
+	lib/ncurses/panel \
+	lib/ncurses/tinfo \
+	usr.bin/clang/lldb-tblgen.host \
 
 
 .include <dirdeps.mk>
