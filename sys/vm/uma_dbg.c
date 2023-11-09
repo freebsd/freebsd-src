@@ -53,7 +53,7 @@
 #include <vm/uma_dbg.h>
 #include <vm/memguard.h>
 
-static const uint32_t uma_junk = 0xdeadc0de;
+static const u_long uma_junk = (u_long)0xdeadc0dedeadc0de;
 
 /*
  * Checks an item to make sure it hasn't been overwritten since it was freed,
@@ -64,27 +64,20 @@ static const uint32_t uma_junk = 0xdeadc0de;
 int
 trash_ctor(void *mem, int size, void *arg, int flags)
 {
-	int cnt;
-	uint32_t *p;
+	u_long *p = mem, *e;
 
 #ifdef DEBUG_MEMGUARD
 	if (is_memguard_addr(mem))
 		return (0);
 #endif
 
-	cnt = size / sizeof(uma_junk);
-
-	for (p = mem; cnt > 0; cnt--, p++)
-		if (*p != uma_junk) {
-#ifdef INVARIANTS
-			panic("Memory modified after free %p(%d) val=%x @ %p\n",
-			    mem, size, *p, p);
-#else
-			printf("Memory modified after free %p(%d) val=%x @ %p\n",
-			    mem, size, *p, p);
-#endif
-			return (0);
-		}
+	e = p + size / sizeof(*p);
+	for (; p < e; p++) {
+		if (__predict_true(*p == uma_junk))
+			continue;
+		panic("Memory modified after free %p(%d) val=%lx @ %p\n",
+		    mem, size, *p, p);
+	}
 	return (0);
 }
 
@@ -97,17 +90,15 @@ trash_ctor(void *mem, int size, void *arg, int flags)
 void
 trash_dtor(void *mem, int size, void *arg)
 {
-	int cnt;
-	uint32_t *p;
+	u_long *p = mem, *e;
 
 #ifdef DEBUG_MEMGUARD
 	if (is_memguard_addr(mem))
 		return;
 #endif
 
-	cnt = size / sizeof(uma_junk);
-
-	for (p = mem; cnt > 0; cnt--, p++)
+	e = p + size / sizeof(*p);
+	for (; p < e; p++)
 		*p = uma_junk;
 }
 
@@ -140,8 +131,7 @@ int
 mtrash_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct malloc_type **ksp;
-	uint32_t *p = mem;
-	int cnt;
+	u_long *p = mem, *e;
 
 #ifdef DEBUG_MEMGUARD
 	if (is_memguard_addr(mem))
@@ -151,15 +141,16 @@ mtrash_ctor(void *mem, int size, void *arg, int flags)
 	size -= sizeof(struct malloc_type *);
 	ksp = (struct malloc_type **)mem;
 	ksp += size / sizeof(struct malloc_type *);
-	cnt = size / sizeof(uma_junk);
 
-	for (p = mem; cnt > 0; cnt--, p++)
-		if (*p != uma_junk) {
-			printf("Memory modified after free %p(%d) val=%x @ %p\n",
-			    mem, size, *p, p);
-			panic("Most recently used by %s\n", (*ksp == NULL)?
-			    "none" : (*ksp)->ks_shortdesc);
-		}
+	e = p + size / sizeof(*p);
+	for (; p < e; p++) {
+		if (__predict_true(*p == uma_junk))
+			continue;
+		printf("Memory modified after free %p(%d) val=%lx @ %p\n",
+		    mem, size, *p, p);
+		panic("Most recently used by %s\n", (*ksp == NULL)?
+		    "none" : (*ksp)->ks_shortdesc);
+	}
 	return (0);
 }
 
@@ -172,8 +163,7 @@ mtrash_ctor(void *mem, int size, void *arg, int flags)
 void
 mtrash_dtor(void *mem, int size, void *arg)
 {
-	int cnt;
-	uint32_t *p;
+	u_long *p = mem, *e;
 
 #ifdef DEBUG_MEMGUARD
 	if (is_memguard_addr(mem))
@@ -181,9 +171,9 @@ mtrash_dtor(void *mem, int size, void *arg)
 #endif
 
 	size -= sizeof(struct malloc_type *);
-	cnt = size / sizeof(uma_junk);
 
-	for (p = mem; cnt > 0; cnt--, p++)
+	e = p + size / sizeof(*p);
+	for (; p < e; p++)
 		*p = uma_junk;
 }
 
