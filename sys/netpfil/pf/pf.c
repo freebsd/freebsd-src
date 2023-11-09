@@ -120,6 +120,7 @@ SDT_PROBE_DEFINE5(pf, ip, state, lookup, "struct pfi_kkif *",
     "struct pf_kstate *");
 SDT_PROBE_DEFINE4(pf, sctp, multihome, test, "struct pfi_kkif *",
     "struct pf_krule *", "struct mbuf *", "int");
+SDT_PROBE_DEFINE2(pf, purge, state, rowcount, "int", "size_t");
 
 /*
  * Global variables
@@ -2130,6 +2131,7 @@ pf_purge_expired_states(u_int i, int maxcheck)
 {
 	struct pf_idhash *ih;
 	struct pf_kstate *s;
+	size_t count;
 
 	V_pf_status.states = uma_zone_get_cur(V_pf_state_z);
 
@@ -2137,6 +2139,7 @@ pf_purge_expired_states(u_int i, int maxcheck)
 	 * Go through hash and unlink states that expire now.
 	 */
 	while (maxcheck > 0) {
+		count = 0;
 		ih = &V_pf_idhash[i];
 
 		/* only take the lock if we expect to do work */
@@ -2157,9 +2160,12 @@ relock:
 				s->kif->pfik_flags |= PFI_IFLAG_REFS;
 				if (s->rt_kif)
 					s->rt_kif->pfik_flags |= PFI_IFLAG_REFS;
+				count++;
 			}
 			PF_HASHROW_UNLOCK(ih);
 		}
+
+		SDT_PROBE2(pf, purge, state, rowcount, i, count);
 
 		/* Return when we hit end of hash. */
 		if (++i > pf_hashmask) {
