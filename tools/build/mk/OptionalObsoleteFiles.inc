@@ -2448,6 +2448,16 @@ OLD_FILES+=usr/share/doc/ntp/release.html
 OLD_FILES+=usr/share/doc/ntp/tickadj.html
 .endif
 
+.if ${MK_HYPERV} == no
+OLD_FILES+=etc/devd/hyperv.conf
+OLD_FILES+=usr/libexec/hyperv/hv_set_ifconfig
+OLD_FILES+=usr/libexec/hyperv/hv_get_dns_info
+OLD_FILES+=usr/libexec/hyperv/hv_get_dhcp_info
+OLD_FILES+=usr/sbin/hv_kvp_daemon
+OLD_FILES+=usr/sbin/hv_vss_daemon
+OLD_FILES+=usr/share/man/man8/hv_kvp_daemon.8.gz
+.endif
+
 .if ${MK_ICONV} == no
 OLD_FILES+=usr/bin/iconv
 OLD_FILES+=usr/bin/mkcsmapper
@@ -9159,16 +9169,6 @@ OLD_LIBS+=usr/lib/snmp_wlan.so.6
 OLD_FILES+=usr/share/man/man3/snmp_wlan.3.gz
 OLD_FILES+=usr/share/snmp/defs/wlan_tree.def
 OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-WIRELESS-MIB.txt
-.endif
-
-.if ${MK_HYPERV} == no
-OLD_FILES+=etc/devd/hyperv.conf
-OLD_FILES+=usr/libexec/hyperv/hv_set_ifconfig
-OLD_FILES+=usr/libexec/hyperv/hv_get_dns_info
-OLD_FILES+=usr/libexec/hyperv/hv_get_dhcp_info
-OLD_FILES+=usr/sbin/hv_kvp_daemon
-OLD_FILES+=usr/sbin/hv_vss_daemon
-OLD_FILES+=usr/share/man/man8/hv_kvp_daemon.8.gz
 .endif
 
 .if ${MK_ZONEINFO} == no
