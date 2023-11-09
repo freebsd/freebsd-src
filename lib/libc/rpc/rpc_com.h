@@ -60,7 +60,6 @@
 
 __BEGIN_DECLS
 extern u_int __rpc_get_a_size(int);
-extern int __rpc_dtbsize(void);
 extern struct netconfig * __rpcgettp(int);
 extern  int  __rpc_get_default_domain(char **);
 

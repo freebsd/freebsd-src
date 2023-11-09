@@ -105,29 +105,6 @@ static char *strlocase(char *);
 #endif
 static int getnettype(const char *);
 
-/*
- * Cache the result of getrlimit(), so we don't have to do an
- * expensive call every time.
- */
-int
-__rpc_dtbsize(void)
-{
-	static int tbsize;
-	struct rlimit rl;
-
-	if (tbsize) {
-		return (tbsize);
-	}
-	if (getrlimit(RLIMIT_NOFILE, &rl) == 0) {
-		return (tbsize = (int)rl.rlim_max);
-	}
-	/*
-	 * Something wrong.  I'll try to save face by returning a
-	 * pessimistic number.
-	 */
-	return (32);
-}
-
 
 /*
  * Find the appropriate buffer size
