@@ -54,11 +54,7 @@ CFLAGS+=${CANCELPOINTS_CFLAGS}
 
 # Use a more efficient TLS model for libc since we can reasonably assume that
 # it will be loaded during program startup.
-.if ${LIBC_ARCH} == "aarch64" || ${LIBC_ARCH} == "amd64" || \
-    ${LIBC_ARCH} == "i386" || ${LIBC_ARCH} == "riscv" || \
-    ${LIBC_ARCH:Mpowerpc*} != ""
 CFLAGS+= -ftls-model=initial-exec
-.endif
 
 #
 # Link with static libcompiler_rt.a.
