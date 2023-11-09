@@ -72,7 +72,6 @@
 #endif
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/ktls.h>
-#include <vm/uma_dbg.h>
 #include <vm/vm.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_page.h>
