@@ -1221,6 +1221,8 @@ vfs_domount_update(
 	VOP_UNLOCK(vp);
 
 	rootvp = NULL;
+	vfs_op_enter(mp);
+	vn_seqc_write_begin(vp);
 
 	if (vfs_getopt(*optlist, "fsid", (void **)&fsid_up,
 	    &fsid_up_len) == 0) {
@@ -1234,9 +1236,6 @@ vfs_domount_update(
 		}
 		vfs_deleteopt(*optlist, "fsid");
 	}
-
-	vfs_op_enter(mp);
-	vn_seqc_write_begin(vp);
 
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0) {
