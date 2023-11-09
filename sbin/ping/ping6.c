@@ -1909,7 +1909,6 @@ pr_ip6opt(void *extbuf, size_t bufsize)
 			break;
 		}
 	}
-	return;
 }
 
 static void
@@ -2625,7 +2624,6 @@ pr_retip(struct ip6_hdr *ip6, u_char *end)
 
   trunc:
 	printf("...\n");
-	return;
 }
 
 static void
