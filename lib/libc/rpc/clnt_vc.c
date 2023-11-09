@@ -120,22 +120,25 @@ struct ct_data {
  *      This machinery implements per-fd locks for MT-safety.  It is not
  *      sufficient to do per-CLIENT handle locks for MT-safety because a
  *      user may create more than one CLIENT handle with the same fd behind
- *      it.  Therefore, we allocate an array of flags (vc_fd_locks), protected
- *      by the clnt_fd_lock mutex, and an array (vc_cv) of condition variables
- *      similarly protected.  Vc_fd_lock[fd] == 1 => a call is active on some
- *      CLIENT handle created for that fd.
- *      The current implementation holds locks across the entire RPC and reply.
- *      Yes, this is silly, and as soon as this code is proven to work, this
- *      should be the first thing fixed.  One step at a time.
+ *      it.  Therefore, we allocate an array of flags and condition variables
+ *      (vc_fd) protected by the clnt_fd_lock mutex.  vc_fd_lock[fd] == 1 => a
+ *      call is active on some CLIENT handle created for that fd.  The current
+ *      implementation holds locks across the entire RPC and reply.  Yes, this
+ *      is silly, and as soon as this code is proven to work, this should be
+ *      the first thing fixed.  One step at a time.
  */
-static int      *vc_fd_locks;
-static cond_t   *vc_cv;
-#define release_fd_lock(fd, mask) {	\
-	mutex_lock(&clnt_fd_lock);	\
-	vc_fd_locks[fd] = 0;		\
-	mutex_unlock(&clnt_fd_lock);	\
-	thr_sigsetmask(SIG_SETMASK, &(mask), (sigset_t *) NULL);	\
-	cond_signal(&vc_cv[fd]);	\
+static struct {
+	int lock;
+	cond_t cv;
+} *vc_fd;
+static void
+release_fd_lock(int fd, sigset_t mask)
+{
+	mutex_lock(&clnt_fd_lock);
+	vc_fd[fd].lock = 0;
+	mutex_unlock(&clnt_fd_lock);
+	thr_sigsetmask(SIG_SETMASK, &mask, (sigset_t *) NULL);
+	cond_signal(&vc_fd[fd].cv);
 }
 
 static const char clnt_vc_errstr[] = "%s : %s";
@@ -191,36 +194,23 @@ clnt_vc_create(int fd, const struct netbuf *raddr, const rpcprog_t prog,
 	sigfillset(&newmask);
 	thr_sigsetmask(SIG_SETMASK, &newmask, &mask);
 	mutex_lock(&clnt_fd_lock);
-	if (vc_fd_locks == (int *) NULL) {
-		int cv_allocsz, fd_allocsz;
+	if (vc_fd == NULL) {
+		size_t allocsz;
+		int i;
 		int dtbsize = __rpc_dtbsize();
 
-		fd_allocsz = dtbsize * sizeof (int);
-		vc_fd_locks = (int *) mem_alloc(fd_allocsz);
-		if (vc_fd_locks == (int *) NULL) {
+		allocsz = dtbsize * sizeof (vc_fd[0]);
+		vc_fd = mem_alloc(allocsz);
+		if (vc_fd == NULL) {
 			mutex_unlock(&clnt_fd_lock);
 			thr_sigsetmask(SIG_SETMASK, &(mask), NULL);
 			goto err;
-		} else
-			memset(vc_fd_locks, '\0', fd_allocsz);
-
-		assert(vc_cv == (cond_t *) NULL);
-		cv_allocsz = dtbsize * sizeof (cond_t);
-		vc_cv = (cond_t *) mem_alloc(cv_allocsz);
-		if (vc_cv == (cond_t *) NULL) {
-			mem_free(vc_fd_locks, fd_allocsz);
-			vc_fd_locks = (int *) NULL;
-			mutex_unlock(&clnt_fd_lock);
-			thr_sigsetmask(SIG_SETMASK, &(mask), NULL);
-			goto err;
-		} else {
-			int i;
-
-			for (i = 0; i < dtbsize; i++)
-				cond_init(&vc_cv[i], 0, (void *) 0);
 		}
-	} else
-		assert(vc_cv != (cond_t *) NULL);
+		memset(vc_fd, '\0', allocsz);
+
+		for (i = 0; i < dtbsize; i++)
+			cond_init(&vc_fd[i].cv, 0, (void *) 0);
+	}
 
 	/*
 	 * XXX - fvdl connecting while holding a mutex?
@@ -331,13 +321,13 @@ clnt_vc_call(CLIENT *cl, rpcproc_t proc, xdrproc_t xdr_args, void *args_ptr,
 	sigfillset(&newmask);
 	thr_sigsetmask(SIG_SETMASK, &newmask, &mask);
 	mutex_lock(&clnt_fd_lock);
-	while (vc_fd_locks[ct->ct_fd])
-		cond_wait(&vc_cv[ct->ct_fd], &clnt_fd_lock);
+	while (vc_fd[ct->ct_fd].lock)
+		cond_wait(&vc_fd[ct->ct_fd].cv, &clnt_fd_lock);
 	if (__isthreaded)
                 rpc_lock_value = 1;
         else
                 rpc_lock_value = 0;
-	vc_fd_locks[ct->ct_fd] = rpc_lock_value;
+	vc_fd[ct->ct_fd].lock = rpc_lock_value;
 	mutex_unlock(&clnt_fd_lock);
 	if (!ct->ct_waitset) {
 		/* If time is not within limits, we ignore it. */
@@ -484,13 +474,13 @@ clnt_vc_freeres(CLIENT *cl, xdrproc_t xdr_res, void *res_ptr)
 	sigfillset(&newmask);
 	thr_sigsetmask(SIG_SETMASK, &newmask, &mask);
 	mutex_lock(&clnt_fd_lock);
-	while (vc_fd_locks[ct->ct_fd])
-		cond_wait(&vc_cv[ct->ct_fd], &clnt_fd_lock);
+	while (vc_fd[ct->ct_fd].lock)
+		cond_wait(&vc_fd[ct->ct_fd].cv, &clnt_fd_lock);
 	xdrs->x_op = XDR_FREE;
 	dummy = (*xdr_res)(xdrs, res_ptr);
 	mutex_unlock(&clnt_fd_lock);
 	thr_sigsetmask(SIG_SETMASK, &(mask), NULL);
-	cond_signal(&vc_cv[ct->ct_fd]);
+	cond_signal(&vc_fd[ct->ct_fd].cv);
 
 	return dummy;
 }
@@ -531,13 +521,13 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 	sigfillset(&newmask);
 	thr_sigsetmask(SIG_SETMASK, &newmask, &mask);
 	mutex_lock(&clnt_fd_lock);
-	while (vc_fd_locks[ct->ct_fd])
-		cond_wait(&vc_cv[ct->ct_fd], &clnt_fd_lock);
+	while (vc_fd[ct->ct_fd].lock)
+		cond_wait(&vc_fd[ct->ct_fd].cv, &clnt_fd_lock);
 	if (__isthreaded)
                 rpc_lock_value = 1;
         else
                 rpc_lock_value = 0;
-	vc_fd_locks[ct->ct_fd] = rpc_lock_value;
+	vc_fd[ct->ct_fd].lock = rpc_lock_value;
 	mutex_unlock(&clnt_fd_lock);
 
 	switch (request) {
@@ -648,8 +638,8 @@ clnt_vc_destroy(CLIENT *cl)
 	sigfillset(&newmask);
 	thr_sigsetmask(SIG_SETMASK, &newmask, &mask);
 	mutex_lock(&clnt_fd_lock);
-	while (vc_fd_locks[ct_fd])
-		cond_wait(&vc_cv[ct_fd], &clnt_fd_lock);
+	while (vc_fd[ct_fd].lock)
+		cond_wait(&vc_fd[ct_fd].cv, &clnt_fd_lock);
 	if (ct->ct_closeit && ct->ct_fd != -1) {
 		(void)_close(ct->ct_fd);
 	}
@@ -663,7 +653,7 @@ clnt_vc_destroy(CLIENT *cl)
 	mem_free(cl, sizeof(CLIENT));
 	mutex_unlock(&clnt_fd_lock);
 	thr_sigsetmask(SIG_SETMASK, &(mask), NULL);
-	cond_signal(&vc_cv[ct_fd]);
+	cond_signal(&vc_fd[ct_fd].cv);
 }
 
 /*
