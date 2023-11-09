@@ -2175,7 +2175,7 @@ pf_purge_expired_states(u_int i, int maxcheck)
 	struct pf_idhash *ih;
 	struct pf_kstate *s;
 	struct pf_krule_item *mrm;
-	size_t count;
+	size_t count __unused;
 
 	V_pf_status.states = uma_zone_get_cur(V_pf_state_z);
 
