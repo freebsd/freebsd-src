@@ -400,13 +400,6 @@ OLD_FILES+=usr/sbin/bootptest
 OLD_FILES+=usr/share/man/man8/bootptest.8.gz
 .endif
 
-.if ${MK_BSD_CPIO} == no
-OLD_FILES+=usr/bin/bsdcpio
-OLD_FILES+=usr/bin/cpio
-OLD_FILES+=usr/share/man/man1/bsdcpio.1.gz
-OLD_FILES+=usr/share/man/man1/cpio.1.gz
-.endif
-
 .if ${MK_BSDINSTALL} == no
 OLD_FILES+=usr/libexec/bsdinstall/adduser
 OLD_FILES+=usr/libexec/bsdinstall/auto
@@ -443,6 +436,13 @@ OLD_FILES+=usr/sbin/bsdinstall
 OLD_FILES+=usr/share/man/man8/bsdinstall.8.gz
 OLD_FILES+=usr/share/man/man8/sade.8.gz
 OLD_DIRS+=usr/libexec/bsdinstall
+.endif
+
+.if ${MK_BSD_CPIO} == no
+OLD_FILES+=usr/bin/bsdcpio
+OLD_FILES+=usr/bin/cpio
+OLD_FILES+=usr/share/man/man1/bsdcpio.1.gz
+OLD_FILES+=usr/share/man/man1/cpio.1.gz
 .endif
 
 .if ${MK_BSNMP} == no
