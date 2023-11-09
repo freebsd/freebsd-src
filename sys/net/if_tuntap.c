@@ -977,6 +977,8 @@ tuncreate(struct cdev *dev)
 	ifp->if_flags = iflags;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 	ifp->if_capabilities |= IFCAP_LINKSTATE;
+	if ((tp->tun_flags & TUN_L2) != 0)
+		ifp->if_capabilities |= IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
 	ifp->if_capenable |= IFCAP_LINKSTATE;
 
 	if ((tp->tun_flags & TUN_L2) != 0) {
@@ -1784,9 +1786,35 @@ tunwrite_l2(struct tuntap_softc *tp, struct mbuf *m,
 		return (0);
 	}
 
-	if (vhdr != NULL && virtio_net_rx_csum(m, &vhdr->hdr)) {
-		m_freem(m);
-		return (0);
+	if (vhdr != NULL) {
+		if (virtio_net_rx_csum(m, &vhdr->hdr)) {
+			m_freem(m);
+			return (0);
+		}
+	} else {
+		switch (ntohs(eh->ether_type)) {
+#ifdef INET
+		case ETHERTYPE_IP:
+			if (ifp->if_capenable & IFCAP_RXCSUM) {
+				m->m_pkthdr.csum_flags |=
+				    CSUM_IP_CHECKED | CSUM_IP_VALID |
+				    CSUM_DATA_VALID | CSUM_SCTP_VALID |
+				    CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+			break;
+#endif
+#ifdef INET6
+		case ETHERTYPE_IPV6:
+			if (ifp->if_capenable & IFCAP_RXCSUM_IPV6) {
+				m->m_pkthdr.csum_flags |=
+				    CSUM_DATA_VALID_IPV6 | CSUM_SCTP_VALID |
+				    CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+			break;
+#endif
+		}
 	}
 
 	/* Pass packet up to parent. */
