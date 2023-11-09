@@ -1779,7 +1779,7 @@ tunwrite_l2(struct tuntap_softc *tp, struct mbuf *m,
 
 	eh = mtod(m, struct ether_header *);
 
-	if (eh && (ifp->if_flags & IFF_PROMISC) == 0 &&
+	if ((ifp->if_flags & IFF_PROMISC) == 0 &&
 	    !ETHER_IS_MULTICAST(eh->ether_dhost) &&
 	    bcmp(eh->ether_dhost, IF_LLADDR(ifp), ETHER_ADDR_LEN) != 0) {
 		m_freem(m);
