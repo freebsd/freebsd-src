@@ -703,7 +703,7 @@ mb_dtor_pack(void *mem, int size, void *arg)
 	KASSERT(m->m_ext.ext_size == MCLBYTES, ("%s: ext_size != MCLBYTES", __func__));
 	KASSERT(m->m_ext.ext_type == EXT_PACKET, ("%s: ext_type != EXT_PACKET", __func__));
 #if defined(INVARIANTS) && !defined(KMSAN)
-	trash_dtor(m->m_ext.ext_buf, MCLBYTES, arg);
+	trash_dtor(m->m_ext.ext_buf, MCLBYTES, zone_clust);
 #endif
 	/*
 	 * If there are processes blocked on zone_clust, waiting for pages
@@ -782,7 +782,7 @@ mb_zfini_pack(void *mem, int size)
 #endif
 	uma_zfree_arg(zone_clust, m->m_ext.ext_buf, NULL);
 #if defined(INVARIANTS) && !defined(KMSAN)
-	trash_dtor(mem, size, NULL);
+	trash_dtor(mem, size, zone_clust);
 #endif
 }
 
@@ -804,7 +804,7 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 	MPASS((flags & M_NOFREE) == 0);
 
 #if defined(INVARIANTS) && !defined(KMSAN)
-	trash_ctor(m->m_ext.ext_buf, MCLBYTES, arg, how);
+	trash_ctor(m->m_ext.ext_buf, MCLBYTES, zone_clust, how);
 #endif
 
 	error = m_init(m, how, type, flags);
