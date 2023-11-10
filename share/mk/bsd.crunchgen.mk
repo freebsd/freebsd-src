@@ -18,6 +18,7 @@
 #  CRUNCH_SRCDIR_${P}: base source directory for program ${P}
 #  CRUNCH_BUILDOPTS_${P}: additional build options for ${P}
 #  CRUNCH_ALIAS_${P}: additional names to be used for ${P}
+#  CRUNCH_KEEP_${P}: additional symbols to keep for ${P}
 #
 # By default, any name appearing in CRUNCH_PROGS or CRUNCH_ALIAS_${P}
 # will be used to generate a hard link to the resulting binary.
@@ -100,6 +101,9 @@ ${CONF}: Makefile
 .endif
 .ifdef CRUNCH_LIBS_${P}
 	echo special ${P} lib ${CRUNCH_LIBS_${P}} >>${.TARGET}
+.endif
+.ifdef CRUNCH_KEEP_${P}
+	echo special ${P} keep ${CRUNCH_KEEP_${P}} >>${.TARGET}
 .endif
 .for A in ${CRUNCH_ALIAS_${P}}
 	echo ln ${P} ${A} >>${.TARGET}
