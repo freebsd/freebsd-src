@@ -1213,14 +1213,15 @@ hunk_done:
 size_t
 pgets(bool do_indent)
 {
-	char *line;
-	size_t len = 0;
+	char *line = NULL;
+	ssize_t len = 0;
+	size_t buflen = 0;
 	int indent = 0, skipped = 0;
 
-	line = fgetln(pfp, &len);
-	if (line != NULL) {
-		if (len + 1 > buf_size) {
-			while (len + 1 > buf_size)
+	if ((len = getline(&line, &buflen, pfp)) >= 0) {
+		char *linep = line;
+		if ((size_t)(len + 1) > buf_size) {
+			while ((size_t)(len + 1) > buf_size)
 				buf_size *= 2;
 			free(buf);
 			buf = malloc(buf_size);
@@ -1239,8 +1240,10 @@ pgets(bool do_indent)
 		}
 		memcpy(buf, line, len - skipped);
 		buf[len - skipped] = '\0';
+		line = linep;
 	}
-	return len;
+	free(line);
+	return (len > 0) ? len : 0;
 }
 
 
