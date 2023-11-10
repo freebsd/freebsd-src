@@ -165,7 +165,11 @@ dopanic:
 	off = (uintptr_t)p - (uintptr_t)mem;
 	ksp = (struct malloc_type **)mem;
 	ksp += size / sizeof(struct malloc_type *);
-	if (*ksp != NULL && INKERNEL((uintptr_t)*ksp)) {
+	if (*ksp != NULL
+#ifdef INKERNEL
+	    && INKERNEL((uintptr_t)*ksp)
+#endif
+	    ) {
 		/*
 		 * If *ksp is corrupted we may be unable to panic clean,
 		 * so print what we have reliably while we still can.
