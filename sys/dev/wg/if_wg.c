@@ -562,7 +562,7 @@ wg_aip_add(struct wg_softc *sc, struct wg_peer *peer, sa_family_t af, const void
 		node = root->rnh_lookup(&aip->a_addr, &aip->a_mask, &root->rh);
 	if (!node) {
 		free(aip, M_WG);
-		return (ENOMEM);
+		ret = ENOMEM;
 	} else if (node != aip->a_nodes) {
 		free(aip, M_WG);
 		aip = (struct wg_aip *)node;
