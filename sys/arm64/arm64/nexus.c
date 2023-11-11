@@ -136,6 +136,8 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_adjust_resource,	nexus_adjust_resource),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
 	DEVMETHOD(bus_deactivate_resource, nexus_deactivate_resource),
+	DEVMETHOD(bus_delete_resource, bus_generic_rl_delete_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_get_resource_list, nexus_get_reslist),
 	DEVMETHOD(bus_map_resource,	nexus_map_resource),
 	DEVMETHOD(bus_release_resource,	nexus_release_resource),
