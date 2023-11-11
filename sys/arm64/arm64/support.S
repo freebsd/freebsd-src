@@ -376,8 +376,8 @@ END(pagezero_simple)
 ENTRY(pagezero_cache)
 	add	x1, x0, #PAGE_SIZE
 
-	ldr	x2, =dczva_line_size
-	ldr	x2, [x2]
+	adrp	x2, dczva_line_size
+	ldr	x2, [x2, :lo12:dczva_line_size]
 
 1:
 	dc	zva, x0
