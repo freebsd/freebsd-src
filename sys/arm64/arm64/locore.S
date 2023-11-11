@@ -204,8 +204,8 @@ mp_virtdone:
 	BTI_J
 
 	/* Start using the AP boot stack */
-	ldr	x4, =bootstack
-	ldr	x4, [x4]
+	adrp	x4, bootstack
+	ldr	x4, [x4, :lo12:bootstack]
 	mov	sp, x4
 
 #if defined(PERTHREAD_SSP)
