@@ -52,11 +52,12 @@
  */
 .macro cache_handle_range dcop = 0, ic = 0, icop = 0
 .if \ic == 0
-	ldr	x3, =dcache_line_size	/* Load the D cache line size */
+	adrp	x3, dcache_line_size	/* Load the D cache line size */
+	ldr	x3, [x3, :lo12:dcache_line_size]
 .else
-	ldr	x3, =idcache_line_size	/* Load the I & D cache line size */
+	adrp	x3, idcache_line_size	/* Load the I & D cache line size */
+	ldr	x3, [x3, :lo12:idcache_line_size]
 .endif
-	ldr	x3, [x3]
 	sub	x4, x3, #1		/* Get the address mask */
 	and	x2, x0, x4		/* Get the low bits of the address */
 	add	x1, x1, x2		/* Add these to the size */
