@@ -764,7 +764,7 @@ gdb_cpu_add(struct vcpu *vcpu)
 	CPU_SET(vcpuid, &vcpus_active);
 	if (!TAILQ_EMPTY(&breakpoints)) {
 		vm_set_capability(vcpu, VM_CAP_BPT_EXIT, 1);
-		debug("$vCPU %d enabled breakpoint exits\n", vcpu);
+		debug("$vCPU %d enabled breakpoint exits\n", vcpuid);
 	}
 
 	/*
