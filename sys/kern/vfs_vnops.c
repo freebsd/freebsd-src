@@ -3026,6 +3026,7 @@ vn_copy_file_range(struct vnode *invp, off_t *inoffp, struct vnode *outvp,
     off_t *outoffp, size_t *lenp, unsigned int flags, struct ucred *incred,
     struct ucred *outcred, struct thread *fsize_td)
 {
+	struct mount *inmp, *outmp;
 	int error;
 	size_t len;
 	uint64_t uval;
@@ -3055,13 +3056,16 @@ vn_copy_file_range(struct vnode *invp, off_t *inoffp, struct vnode *outvp,
 	if (len == 0)
 		goto out;
 
+	inmp = invp->v_mount;
+	outmp = outvp->v_mount;
+
 	/*
 	 * If the two vnode are for the same file system, call
 	 * VOP_COPY_FILE_RANGE(), otherwise call vn_generic_copy_file_range()
 	 * which can handle copies across multiple file systems.
 	 */
 	*lenp = len;
-	if (invp->v_mount == outvp->v_mount)
+	if (inmp == outmp)
 		error = VOP_COPY_FILE_RANGE(invp, inoffp, outvp, outoffp,
 		    lenp, flags, incred, outcred, fsize_td);
 	else
