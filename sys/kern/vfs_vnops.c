@@ -3078,6 +3078,29 @@ vn_copy_file_range(struct vnode *invp, off_t *inoffp, struct vnode *outvp,
 
 	inmp = invp->v_mount;
 	outmp = outvp->v_mount;
+	if (inmp == NULL || outmp == NULL) {
+		error = EBADF;
+		goto out;
+	}
+
+	for (;;) {
+		error = vfs_busy(inmp, 0);
+		if (error != 0)
+			goto out;
+		if (inmp == outmp)
+			break;
+		error = vfs_busy(outmp, MBF_NOWAIT);
+		if (error != 0) {
+			vfs_unbusy(inmp);
+			error = vfs_busy(outmp, 0);
+			if (error == 0) {
+				vfs_unbusy(outmp);
+				continue;
+			}
+			goto out;
+		}
+		break;
+	}
 
 	/*
 	 * If the two vnodes are for the same file system type, call
@@ -3092,6 +3115,9 @@ vn_copy_file_range(struct vnode *invp, off_t *inoffp, struct vnode *outvp,
 	else
 		error = vn_generic_copy_file_range(invp, inoffp, outvp,
 		    outoffp, lenp, flags, incred, outcred, fsize_td);
+	vfs_unbusy(outmp);
+	if (inmp != outmp)
+		vfs_unbusy(inmp);
 out:
 	return (error);
 }
