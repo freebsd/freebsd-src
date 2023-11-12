@@ -13,6 +13,7 @@ MDSRCS+= \
 	strcmp.S \
 	strcpy.c \
 	strcspn.S \
+	strlcpy.S \
 	strlen.S \
 	strncmp.S \
 	strncpy.c \
