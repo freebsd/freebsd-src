@@ -2510,6 +2510,13 @@ ieee80211_newstate_cb(void *xvap, int npending)
 	nstate = vap->iv_nstate;
 	arg = vap->iv_nstate_arg;
 
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
+	    "%s:%d: running state update %s -> %s (%d)\n",
+	    __func__, __LINE__,
+	    ieee80211_state_name[vap->iv_state],
+	    ieee80211_state_name[vap->iv_nstate],
+	    npending);
+
 	if (vap->iv_flags_ext & IEEE80211_FEXT_REINIT) {
 		/*
 		 * We have been requested to drop back to the INIT before
@@ -2677,28 +2684,29 @@ ieee80211_new_state_locked(struct ieee80211vap *vap,
 			 * until this is completed.
 			 */
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
-			    "%s: %s -> %s (%s) transition discarded\n",
-			    __func__,
+			    "%s:%d: %s -> %s (%s) transition discarded\n",
+			    __func__, __LINE__,
 			    ieee80211_state_name[vap->iv_state],
 			    ieee80211_state_name[nstate],
 			    ieee80211_state_name[vap->iv_nstate]);
 			return -1;
 		} else if (vap->iv_state != vap->iv_nstate) {
-#if 0
 			/* Warn if the previous state hasn't completed. */
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
-			    "%s: pending %s -> %s transition lost\n", __func__,
+			    "%s:%d: pending %s -> %s (now to %s) transition lost\n",
+			    __func__, __LINE__,
 			    ieee80211_state_name[vap->iv_state],
-			    ieee80211_state_name[vap->iv_nstate]);
-#else
-			/* XXX temporarily enable to identify issues */
-			if_printf(vap->iv_ifp,
-			    "%s: pending %s -> %s transition lost\n",
-			    __func__, ieee80211_state_name[vap->iv_state],
-			    ieee80211_state_name[vap->iv_nstate]);
-#endif
+			    ieee80211_state_name[vap->iv_nstate],
+			    ieee80211_state_name[nstate]);
 		}
 	}
+
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
+	    "%s:%d: starting state update %s -> %s (%s)\n",
+	    __func__, __LINE__,
+	    ieee80211_state_name[vap->iv_state],
+	    ieee80211_state_name[vap->iv_nstate],
+	    ieee80211_state_name[nstate]);
 
 	nrunning = nscanning = 0;
 	/* XXX can track this state instead of calculating */
