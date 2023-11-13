@@ -1365,10 +1365,13 @@ pmap_bootstrap(vm_paddr_t kernstart, vm_size_t kernlen)
  * - Map that entire range using L2 superpages.
  */
 void
-pmap_bootstrap_san(vm_paddr_t kernstart)
+pmap_bootstrap_san(void)
 {
 	vm_offset_t va;
+	vm_paddr_t kernstart;
 	int i, shadow_npages, nkasan_l2;
+
+	kernstart = pmap_early_vtophys(KERNBASE);
 
 	/*
 	 * Rebuild physmap one more time, we may have excluded more regions from
