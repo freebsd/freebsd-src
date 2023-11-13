@@ -95,6 +95,7 @@ struct bus_dmamap {
 	struct memdesc	       mem;
 	bus_dmamap_callback_t *callback;
 	void		      *callback_arg;
+	__sbintime_t	       queued_time;
 	STAILQ_ENTRY(bus_dmamap) links;
 	u_int			flags;
 #define	DMAMAP_COULD_BOUNCE	(1 << 0)
