@@ -27,6 +27,7 @@
 #define _MLX5_FS_
 
 #include <linux/list.h>
+#include <linux/bitops.h>
 
 #include <dev/mlx5/mlx5_ifc.h>
 #include <dev/mlx5/device.h>
