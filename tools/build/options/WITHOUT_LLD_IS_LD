@@ -1,6 +1,0 @@
-Do not install a
-.Pa /usr/bin/ld symlink
-to
-.Pa ld.lld .
-The system will not have a usable tool chain unless a linker is provided
-some other way.
