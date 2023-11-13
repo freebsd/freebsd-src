@@ -31,7 +31,6 @@
 
 struct arm64_bootparams {
 	vm_offset_t	modulep;
-	uint64_t	kern_delta;
 	vm_offset_t	kern_stack;
 	vm_paddr_t	kern_ttbr0;
 	uint64_t	hcr_el2;

@@ -82,11 +82,10 @@ ENTRY(_start)
 	msr	contextidr_el1, xzr
 
 	/* Get the virt -> phys offset */
-	bl	get_virt_delta
+	bl	get_load_phys_addr
 
 	/*
 	 * At this point:
-	 * x29 = PA - VA
 	 * x28 = Our physical load address
 	 */
 
@@ -141,11 +140,7 @@ virtdone:
 	sub	sp, sp, #BOOTPARAMS_SIZE
 	mov	x0, sp
 
-	/* Negate the delta so it is VA -> PA */
-	neg	x29, x29
-
 	str	x1,  [x0, #BP_MODULEP]
-	str	x29, [x0, #BP_KERN_DELTA]
 	adrp	x25, initstack
 	add	x25, x25, :lo12:initstack
 	str	x25, [x0, #BP_KERN_STACK]
@@ -367,11 +362,9 @@ LENTRY(drop_to_el1)
 LEND(drop_to_el1)
 
 /*
- * Get the delta between the physical address we were loaded to and the
- * virtual address we expect to run from. This is used when building the
- * initial page table.
+ * Get the physical address the kernel was loaded at.
  */
-LENTRY(get_virt_delta)
+LENTRY(get_load_phys_addr)
 	/* Load the physical address of virt_map */
 	adrp	x29, virt_map
 	add	x29, x29, :lo12:virt_map
@@ -387,7 +380,7 @@ LENTRY(get_virt_delta)
 	.align 3
 virt_map:
 	.quad	virt_map
-LEND(get_virt_delta)
+LEND(get_load_phys_addr)
 
 /*
  * This builds the page tables containing the identity map, and the kernel
