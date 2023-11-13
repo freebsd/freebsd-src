@@ -822,7 +822,13 @@ ttydisc_rubchar(struct tty *tp)
 				/* Loop back through inq until we hit the
 				 * leading byte. */
 				while (CTL_UTF8_CONT(c) && nb < UTF8_STACKBUF) {
-					ttyinq_peekchar(&tp->t_inq, &c, &quote);
+					/*
+					 * Check if we've reached the beginning
+					 * of the line.
+					 */
+					if (ttyinq_peekchar(&tp->t_inq, &c,
+					    &quote) != 0)
+						break;
 					ttyinq_unputchar(&tp->t_inq);
 					bytes[curidx] = c;
 					curidx--;
