@@ -76,6 +76,7 @@ struct bounce_zone {
 #ifdef dmat_domain
 	int		domain;
 #endif
+	sbintime_t	total_deferred_time;
 	bus_size_t	alignment;
 	bus_addr_t	lowaddr;
 	char		zoneid[8];
@@ -119,6 +120,7 @@ _bus_dmamap_reserve_pages(bus_dma_tag_t dmat, bus_dmamap_t map, int flags)
 			bz = dmat->bounce_zone;
 			STAILQ_INSERT_TAIL(&bz->bounce_map_waitinglist, map,
 			    links);
+			map->queued_time = sbinuptime();
 			mtx_unlock(&bounce_lock);
 			return (EINPROGRESS);
 		}
@@ -239,7 +241,10 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	    "domain", CTLFLAG_RD, &bz->domain, 0,
 	    "memory domain");
 #endif
-
+	SYSCTL_ADD_SBINTIME_USEC(busdma_sysctl_tree(bz),
+	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
+	    "total_deferred_time", CTLFLAG_RD, &bz->total_deferred_time,
+	    "Cumulative time busdma requests are deferred (us)");
 	if (start_thread) {
 		if (kproc_create(busdma_thread, NULL, NULL, 0, 0, "busdma") !=
 		    0)
@@ -436,6 +441,7 @@ busdma_thread(void *dummy __unused)
 	STAILQ_HEAD(, bus_dmamap) callbacklist;
 	bus_dma_tag_t dmat;
 	struct bus_dmamap *map, *nmap;
+	struct bounce_zone *bz;
 
 	thread_lock(curthread);
 	sched_class(curthread, PRI_ITHD);
@@ -452,8 +458,10 @@ busdma_thread(void *dummy __unused)
 
 		STAILQ_FOREACH_SAFE(map, &callbacklist, links, nmap) {
 			dmat = map->dmat;
+			bz = dmat->bounce_zone;
 			dmat_lockfunc(dmat)(dmat_lockfuncarg(dmat),
 			    BUS_DMA_LOCK);
+			bz->total_deferred_time += (sbinuptime() - map->queued_time);
 			bus_dmamap_load_mem(map->dmat, map, &map->mem,
 			    map->callback, map->callback_arg, BUS_DMA_WAITOK);
 			dmat_lockfunc(dmat)(dmat_lockfuncarg(dmat),
