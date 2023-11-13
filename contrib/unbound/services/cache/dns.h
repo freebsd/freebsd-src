@@ -164,6 +164,15 @@ struct dns_msg* tomsg(struct module_env* env, struct query_info* q,
 	struct reply_info* r, struct regional* region, time_t now,
 	int allow_expired, struct regional* scratch);
 
+/**
+ * Deep copy a dns_msg to a region.
+ * @param origin: the dns_msg to copy.
+ * @param region: the region to copy all the data to.
+ * @return the new dns_msg or NULL on malloc error.
+ */
+struct dns_msg* dns_msg_deepcopy_region(struct dns_msg* origin,
+	struct regional* region);
+
 /** 
  * Find cached message 
  * @param env: module environment with the DNS cache.

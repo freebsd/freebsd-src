@@ -99,6 +99,15 @@ struct sldns_buffer;
 #define NSEC3_HASH_SHA1	0x01
 
 /**
+* Cache table for NSEC3 hashes.
+* It keeps a *pointer* to the region its items are allocated.
+*/
+struct nsec3_cache_table {
+	rbtree_type* ct;
+	struct regional* region;
+};
+
+/**
  * Determine if the set of NSEC3 records provided with a response prove NAME
  * ERROR. This means that the NSEC3s prove a) the closest encloser exists,
  * b) the direct child of the closest encloser towards qname doesn't exist,
@@ -110,14 +119,18 @@ struct sldns_buffer;
  * @param num: number of RRsets in the array to examine.
  * @param qinfo: query that is verified for.
  * @param kkey: key entry that signed the NSEC3s.
+ * @param ct: cached hashes table.
+ * @param calc: current hash calculations.
  * @return:
  * 	sec_status SECURE of the Name Error is proven by the NSEC3 RRs, 
- * 	BOGUS if not, INSECURE if all of the NSEC3s could be validly ignored.
+ * 	BOGUS if not, INSECURE if all of the NSEC3s could be validly ignored,
+ * 	UNCHECKED if no more hash calculations are allowed at this point.
  */
 enum sec_status
 nsec3_prove_nameerror(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key** list, size_t num, 
-	struct query_info* qinfo, struct key_entry_key* kkey);
+	struct query_info* qinfo, struct key_entry_key* kkey,
+	struct nsec3_cache_table* ct, int* calc);
 
 /**
  * Determine if the NSEC3s provided in a response prove the NOERROR/NODATA
@@ -144,15 +157,18 @@ nsec3_prove_nameerror(struct module_env* env, struct val_env* ve,
  * @param num: number of RRsets in the array to examine.
  * @param qinfo: query that is verified for.
  * @param kkey: key entry that signed the NSEC3s.
+ * @param ct: cached hashes table.
+ * @param calc: current hash calculations.
  * @return:
  * 	sec_status SECURE of the proposition is proven by the NSEC3 RRs, 
- * 	BOGUS if not, INSECURE if all of the NSEC3s could be validly ignored.
+ * 	BOGUS if not, INSECURE if all of the NSEC3s could be validly ignored,
+ * 	UNCHECKED if no more hash calculations are allowed at this point.
  */
 enum sec_status
 nsec3_prove_nodata(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key** list, size_t num, 
-	struct query_info* qinfo, struct key_entry_key* kkey);
-
+	struct query_info* qinfo, struct key_entry_key* kkey,
+	struct nsec3_cache_table* ct, int* calc);
 
 /**
  * Prove that a positive wildcard match was appropriate (no direct match
@@ -166,14 +182,18 @@ nsec3_prove_nodata(struct module_env* env, struct val_env* ve,
  * @param kkey: key entry that signed the NSEC3s.
  * @param wc: The purported wildcard that matched. This is the wildcard name
  * 	as *.wildcard.name., with the *. label already removed.
+ * @param ct: cached hashes table.
+ * @param calc: current hash calculations.
  * @return:
  * 	sec_status SECURE of the proposition is proven by the NSEC3 RRs, 
- * 	BOGUS if not, INSECURE if all of the NSEC3s could be validly ignored.
+ * 	BOGUS if not, INSECURE if all of the NSEC3s could be validly ignored,
+ * 	UNCHECKED if no more hash calculations are allowed at this point.
  */
 enum sec_status
 nsec3_prove_wildcard(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key** list, size_t num, 
-	struct query_info* qinfo, struct key_entry_key* kkey, uint8_t* wc);
+	struct query_info* qinfo, struct key_entry_key* kkey, uint8_t* wc,
+	struct nsec3_cache_table* ct, int* calc);
 
 /**
  * Prove that a DS response either had no DS, or wasn't a delegation point.
@@ -189,17 +209,20 @@ nsec3_prove_wildcard(struct module_env* env, struct val_env* ve,
  * @param reason: string for bogus result.
  * @param reason_bogus: EDE (RFC8914) code paired with the reason of failure.
  * @param qstate: qstate with region.
+ * @param ct: cached hashes table.
  * @return:
  * 	sec_status SECURE of the proposition is proven by the NSEC3 RRs, 
  * 	BOGUS if not, INSECURE if all of the NSEC3s could be validly ignored.
  * 	or if there was no DS in an insecure (i.e., opt-in) way,
- * 	INDETERMINATE if it was clear that this wasn't a delegation point.
+ * 	INDETERMINATE if it was clear that this wasn't a delegation point,
+ * 	UNCHECKED if no more hash calculations are allowed at this point.
  */
 enum sec_status
 nsec3_prove_nods(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key** list, size_t num, 
 	struct query_info* qinfo, struct key_entry_key* kkey, char** reason,
-	sldns_ede_code* reason_bogus, struct module_qstate* qstate);
+	sldns_ede_code* reason_bogus, struct module_qstate* qstate,
+	struct nsec3_cache_table* ct);
 
 /**
  * Prove NXDOMAIN or NODATA.
@@ -212,14 +235,18 @@ nsec3_prove_nods(struct module_env* env, struct val_env* ve,
  * @param kkey: key entry that signed the NSEC3s.
  * @param nodata: if return value is secure, this indicates if nodata or
  * 	nxdomain was proven.
+ * @param ct: cached hashes table.
+ * @param calc: current hash calculations.
  * @return:
  * 	sec_status SECURE of the proposition is proven by the NSEC3 RRs, 
- * 	BOGUS if not, INSECURE if all of the NSEC3s could be validly ignored.
+ * 	BOGUS if not, INSECURE if all of the NSEC3s could be validly ignored,
+ * 	UNCHECKED if no more hash calculations are allowed at this point.
  */
 enum sec_status
 nsec3_prove_nxornodata(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key** list, size_t num, 
-	struct query_info* qinfo, struct key_entry_key* kkey, int* nodata);
+	struct query_info* qinfo, struct key_entry_key* kkey, int* nodata,
+	struct nsec3_cache_table* ct, int* calc);
 
 /**
  * The NSEC3 hash result storage.
@@ -257,6 +284,14 @@ struct nsec3_cached_hash {
 int nsec3_hash_cmp(const void* c1, const void* c2);
 
 /**
+ * Initialise the NSEC3 cache table.
+ * @param ct: the nsec3 cache table.
+ * @param region: the region where allocations for the table will happen.
+ * @return true on success, false on malloc error.
+ */
+int nsec3_cache_table_init(struct nsec3_cache_table* ct, struct regional* region);
+
+/**
  * Obtain the hash of an owner name.
  * Used internally by the nsec3 proof functions in this file.
  * published to enable unit testing of hash algorithms and cache.
@@ -272,7 +307,8 @@ int nsec3_hash_cmp(const void* c1, const void* c2);
  * @param dname_len: the length of the name.
  * @param hash: the hash node is returned on success.
  * @return:
- * 	1 on success, either from cache or newly hashed hash is returned.
+ * 	2 on success, hash from cache is returned.
+ * 	1 on success, newly computed hash is returned.
  * 	0 on a malloc failure.
  * 	-1 if the NSEC3 rr was badly formatted (i.e. formerr).
  */
