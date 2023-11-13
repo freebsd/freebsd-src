@@ -149,6 +149,7 @@ struct bus_dmamap {
 	struct memdesc		mem;
 	bus_dmamap_callback_t	*callback;
 	void			*callback_arg;
+	__sbintime_t		queued_time;
 	int			flags;
 #define	DMAMAP_COHERENT		(1 << 0)
 #define	DMAMAP_DMAMEM_ALLOC	(1 << 1)

@@ -97,6 +97,7 @@ struct bus_dmamap {
 	int		       nsegs;
 	bus_dmamap_callback_t *callback;
 	void		      *callback_arg;
+	__sbintime_t	       queued_time;
 	STAILQ_ENTRY(bus_dmamap) links;
 	int		       contigalloc;
 };
