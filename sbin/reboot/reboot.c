@@ -281,7 +281,7 @@ get_pageins(void)
 	len = sizeof(pageins);
 	if (sysctlbyname("vm.stats.vm.v_swappgsin", &pageins, &len, NULL, 0)
 	    != 0) {
-		warnx("v_swappgsin");
+		warn("v_swappgsin");
 		return (0);
 	}
 	return (pageins);
