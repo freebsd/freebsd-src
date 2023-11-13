@@ -192,12 +192,45 @@ static sldns_lookup_table sldns_edns_options_data[] = {
 	{ 6, "DHU" },
 	{ 7, "N3U" },
 	{ 8, "edns-client-subnet" },
+	{ 10, "COOKIE" },
 	{ 11, "edns-tcp-keepalive"},
 	{ 12, "Padding" },
 	{ 15, "EDE"},
 	{ 0, NULL}
 };
 sldns_lookup_table* sldns_edns_options = sldns_edns_options_data;
+
+/* From RFC8914 5.2 Table 3, the "Extended DNS Error Codes" registry. */
+static sldns_lookup_table sldns_edns_ede_codes_data[] = {
+	{ LDNS_EDE_NONE, "None" },
+	{ LDNS_EDE_OTHER, "Other Error" },
+	{ LDNS_EDE_UNSUPPORTED_DNSKEY_ALG, "Unsupported DNSKEY Algorithm" },
+	{ LDNS_EDE_UNSUPPORTED_DS_DIGEST, "Unsupported DS Digest Type" },
+	{ LDNS_EDE_STALE_ANSWER, "Stale Answer" },
+	{ LDNS_EDE_FORGED_ANSWER, "Forged Answer" },
+	{ LDNS_EDE_DNSSEC_INDETERMINATE, "DNSSEC Indeterminate" },
+	{ LDNS_EDE_DNSSEC_BOGUS, "DNSSEC Bogus" },
+	{ LDNS_EDE_SIGNATURE_EXPIRED, "Signature Expired" },
+	{ LDNS_EDE_SIGNATURE_NOT_YET_VALID, "Signature Not Yet Valid" },
+	{ LDNS_EDE_DNSKEY_MISSING, "DNSKEY Missing" },
+	{ LDNS_EDE_RRSIGS_MISSING, "RRSIGs Missing" },
+	{ LDNS_EDE_NO_ZONE_KEY_BIT_SET, "No Zone Key Bit Set" },
+	{ LDNS_EDE_NSEC_MISSING, "NSEC Missing" },
+	{ LDNS_EDE_CACHED_ERROR, "Cached Error" },
+	{ LDNS_EDE_NOT_READY, "Not Ready" },
+	{ LDNS_EDE_BLOCKED, "Blocked" },
+	{ LDNS_EDE_CENSORED, "Censored" },
+	{ LDNS_EDE_FILTERED, "Filtered" },
+	{ LDNS_EDE_PROHIBITED, "Prohibited" },
+	{ LDNS_EDE_STALE_NXDOMAIN_ANSWER, "Stale NXDOMAIN Answer" },
+	{ LDNS_EDE_NOT_AUTHORITATIVE, "Not Authoritative" },
+	{ LDNS_EDE_NOT_SUPPORTED, "Not Supported" },
+	{ LDNS_EDE_NO_REACHABLE_AUTHORITY, "No Reachable Authority" },
+	{ LDNS_EDE_NETWORK_ERROR, "Network Error" },
+	{ LDNS_EDE_INVALID_DATA, "Invalid Data" },
+	{ 0, NULL}
+};
+sldns_lookup_table* sldns_edns_ede_codes = sldns_edns_ede_codes_data;
 
 static sldns_lookup_table sldns_tsig_errors_data[] = {
 	{ LDNS_TSIG_ERROR_NOERROR, "NOERROR" },
@@ -2234,6 +2267,52 @@ static int sldns_wire2str_edns_keepalive_print(char** s, size_t* sl,
 	return w;
 }
 
+int sldns_wire2str_edns_ede_print(char** s, size_t* sl,
+	uint8_t* data, size_t len)
+{
+	uint16_t ede_code;
+	int w = 0;
+	sldns_lookup_table *lt;
+	size_t i;
+	int printable;
+
+	if(len < 2) {
+		w += sldns_str_print(s, sl, "malformed ede ");
+		w += print_hex_buf(s, sl, data, len);
+		return w;
+	}
+
+	ede_code = sldns_read_uint16(data);
+	lt = sldns_lookup_by_id(sldns_edns_ede_codes, (int)ede_code);
+	if(lt && lt->name)
+		w += sldns_str_print(s, sl, "%s", lt->name);
+	else 	w += sldns_str_print(s, sl, "%d", (int)ede_code);
+
+	if(len == 2)
+		return w;
+
+	w += sldns_str_print(s, sl, " ");
+
+	/* If it looks like text, show it as text. */
+	printable=1;
+	for(i=2; i<len; i++) {
+		if(isprint((unsigned char)data[i]) || data[i] == '\t')
+			continue;
+		printable = 0;
+		break;
+	}
+	if(printable) {
+		w += sldns_str_print(s, sl, "\"");
+		for(i=2; i<len; i++) {
+			w += str_char_print(s, sl, data[i]);
+		}
+		w += sldns_str_print(s, sl, "\"");
+	} else {
+		w += print_hex_buf(s, sl, data+2, len-2);
+	}
+	return w;
+}
+
 int sldns_wire2str_edns_option_print(char** s, size_t* sl,
 	uint16_t option_code, uint8_t* optdata, size_t optlen)
 {
@@ -2267,6 +2346,9 @@ int sldns_wire2str_edns_option_print(char** s, size_t* sl,
 		break;
 	case LDNS_EDNS_PADDING:
 		w += print_hex_buf(s, sl, optdata, optlen);
+		break;
+	case LDNS_EDNS_EDE:
+		w += sldns_wire2str_edns_ede_print(s, sl, optdata, optlen);
 		break;
 	default:
 		/* unknown option code */

@@ -66,6 +66,7 @@
 #include "util/data/msgencode.h"
 #include "util/data/dname.h"
 #include "util/fptr_wlist.h"
+#include "util/proxy_protocol.h"
 #include "util/tube.h"
 #include "util/edns.h"
 #include "util/timeval_func.h"
@@ -542,6 +543,8 @@ answer_norec_from_cache(struct worker* worker, struct query_info* qinfo,
 	edns->udp_size = EDNS_ADVERTISED_SIZE;
 	edns->ext_rcode = 0;
 	edns->bits &= EDNS_DO;
+	if(worker->env.cfg->disable_edns_do && (edns->bits & EDNS_DO))
+		edns->edns_present = 0;
 	if(!inplace_cb_reply_cache_call(&worker->env, qinfo, NULL, msg->rep,
 		(int)(flags&LDNS_RCODE_MASK), edns, repinfo, worker->scratchpad,
 		worker->env.now_tv))
@@ -702,6 +705,8 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 		edns->udp_size = EDNS_ADVERTISED_SIZE;
 		edns->ext_rcode = 0;
 		edns->bits &= EDNS_DO;
+		if(worker->env.cfg->disable_edns_do && (edns->bits & EDNS_DO))
+			edns->edns_present = 0;
 		if(!inplace_cb_reply_servfail_call(&worker->env, qinfo, NULL, rep,
 			LDNS_RCODE_SERVFAIL, edns, repinfo, worker->scratchpad,
 			worker->env.now_tv))
@@ -742,6 +747,8 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 	edns->udp_size = EDNS_ADVERTISED_SIZE;
 	edns->ext_rcode = 0;
 	edns->bits &= EDNS_DO;
+	if(worker->env.cfg->disable_edns_do && (edns->bits & EDNS_DO))
+		edns->edns_present = 0;
 	*alias_rrset = NULL; /* avoid confusion if caller set it to non-NULL */
 	if((worker->daemon->use_response_ip || worker->daemon->use_rpz) &&
 		!partial_rep && !apply_respip_action(worker, qinfo, cinfo, rep,
@@ -2317,6 +2324,7 @@ worker_init(struct worker* worker, struct config_file *cfg,
 			worker->env.cfg->stat_interval);
 		worker_restart_timer(worker);
 	}
+	pp_init(&sldns_write_uint16, &sldns_write_uint32);
 	return 1;
 }
 

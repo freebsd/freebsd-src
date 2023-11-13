@@ -716,6 +716,56 @@ static int sanitize_nsec_is_overreach(sldns_buffer* pkt,
 	return 0;
 }
 
+/** Remove individual RRs, if the length is wrong. Returns true if the RRset
+ * has been removed. */
+static int
+scrub_sanitize_rr_length(sldns_buffer* pkt, struct msg_parse* msg,
+	struct rrset_parse* prev, struct rrset_parse** rrset, int* added_ede,
+	struct module_qstate* qstate)
+{
+	struct rr_parse* rr, *rr_prev = NULL;
+	for(rr = (*rrset)->rr_first; rr; rr = rr->next) {
+
+		/* Sanity check for length of records
+		 * An A record should be 6 bytes only
+		 * (2 bytes for length and 4 for IPv4 addr)*/
+		if((*rrset)->type == LDNS_RR_TYPE_A && rr->size != 6 ) {
+			if(!*added_ede) {
+				*added_ede = 1;
+				errinf_ede(qstate, "sanitize: records of inappropriate length have been removed.",
+					LDNS_EDE_OTHER);
+			}
+			if(msgparse_rrset_remove_rr("sanitize: removing type A RR of inappropriate length:",
+				pkt, *rrset, rr_prev, rr, NULL, 0)) {
+				remove_rrset("sanitize: removing type A RRset of inappropriate length:",
+					pkt, msg, prev, rrset);
+				return 1;
+			}
+			continue;
+		}
+
+		/* Sanity check for length of records
+		 * An AAAA record should be 18 bytes only
+		 * (2 bytes for length and 16 for IPv6 addr)*/
+		if((*rrset)->type == LDNS_RR_TYPE_AAAA && rr->size != 18 ) {
+			if(!*added_ede) {
+				*added_ede = 1;
+				errinf_ede(qstate, "sanitize: records of inappropriate length have been removed.",
+					LDNS_EDE_OTHER);
+			}
+			if(msgparse_rrset_remove_rr("sanitize: removing type AAAA RR of inappropriate length:",
+				pkt, *rrset, rr_prev, rr, NULL, 0)) {
+				remove_rrset("sanitize: removing type AAAA RRset of inappropriate length:",
+					pkt, msg, prev, rrset);
+				return 1;
+			}
+			continue;
+		}
+		rr_prev = rr;
+	}
+	return 0;
+}
+
 /**
  * Given a response event, remove suspect RRsets from the response.
  * "Suspect" rrsets are potentially poison. Note that this routine expects
@@ -728,15 +778,17 @@ static int sanitize_nsec_is_overreach(sldns_buffer* pkt,
  * @param zonename: name of server zone.
  * @param env: module environment with config and cache.
  * @param ie: iterator environment with private address data.
+ * @param qstate: for setting errinf for EDE error messages.
  * @return 0 on error.
  */
 static int
 scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg, 
 	struct query_info* qinfo, uint8_t* zonename, struct module_env* env,
-	struct iter_env* ie)
+	struct iter_env* ie, struct module_qstate* qstate)
 {
 	int del_addi = 0; /* if additional-holding rrsets are deleted, we
 		do not trust the normalized additional-A-AAAA any more */
+	int added_rrlen_ede = 0;
 	struct rrset_parse* rrset, *prev;
 	prev = NULL;
 	rrset = msg->rrset_first;
@@ -780,6 +832,14 @@ scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg,
 	prev = NULL;
 	rrset = msg->rrset_first;
 	while(rrset) {
+
+		/* Sanity check for length of records */
+		if(rrset->type == LDNS_RR_TYPE_A ||
+			rrset->type == LDNS_RR_TYPE_AAAA) {
+			if(scrub_sanitize_rr_length(pkt, msg, prev, &rrset,
+				&added_rrlen_ede, qstate))
+				continue;
+		}
 
 		/* remove private addresses */
 		if( (rrset->type == LDNS_RR_TYPE_A || 
@@ -854,7 +914,8 @@ scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg,
 int 
 scrub_message(sldns_buffer* pkt, struct msg_parse* msg, 
 	struct query_info* qinfo, uint8_t* zonename, struct regional* region,
-	struct module_env* env, struct iter_env* ie)
+	struct module_env* env, struct module_qstate* qstate,
+	struct iter_env* ie)
 {
 	/* basic sanity checks */
 	log_nametypeclass(VERB_ALGO, "scrub for", zonename, LDNS_RR_TYPE_NS, 
@@ -886,7 +947,7 @@ scrub_message(sldns_buffer* pkt, struct msg_parse* msg,
 	if(!scrub_normalize(pkt, msg, qinfo, region, env))
 		return 0;
 	/* delete all out-of-zone information */
-	if(!scrub_sanitize(pkt, msg, qinfo, zonename, env, ie))
+	if(!scrub_sanitize(pkt, msg, qinfo, zonename, env, ie, qstate))
 		return 0;
 	return 1;
 }
