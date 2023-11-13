@@ -78,6 +78,18 @@ example2.com.	IN NS	ns2.example2.com.
 SECTION ADDITIONAL
 ns2.example2.com.		IN 	A	1.2.3.5
 ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+foo.com. IN NS
+SECTION AUTHORITY
+foo.com.	IN NS	ns.foo.com.
+SECTION ADDITIONAL
+ns.foo.com.		IN 	A	1.2.3.5
+ENTRY_END
 RANGE_END
 
 ; ns.example.com.
@@ -172,6 +184,27 @@ www.example.com. IN A
 SECTION ANSWER
 www.example.com. IN A	10.20.30.40
 ENTRY_END
+
+; foo.com
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.foo.com. IN A
+SECTION ANSWER
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.foo.com. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+;foo.com.	IN SOA ns2.foo.com root.foo.com 4 14400 3600 604800 3600
+ENTRY_END
 RANGE_END
 
 STEP 1 QUERY
@@ -194,5 +227,22 @@ ENTRY_END
 
 ; wait for pending nameserver lookups.
 STEP 20 TRAFFIC
+
+; Test that a nodata stays a nodata.
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.foo.com. IN A
+ENTRY_END
+
+STEP 40 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.foo.com. IN A
+SECTION ANSWER
+ENTRY_END
 
 SCENARIO_END

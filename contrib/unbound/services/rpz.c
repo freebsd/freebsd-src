@@ -2162,7 +2162,7 @@ rpz_apply_nsip_trigger(struct module_qstate* ms, struct rpz* r,
 	case RPZ_TCP_ONLY_ACTION:
 		/* basically a passthru here but the tcp-only will be
 		 * honored before the query gets sent. */
-		ms->respip_action_info->action = respip_truncate;
+		ms->tcp_required = 1;
 		ret = NULL;
 		break;
 	case RPZ_DROP_ACTION:
@@ -2217,7 +2217,7 @@ rpz_apply_nsdname_trigger(struct module_qstate* ms, struct rpz* r,
 	case RPZ_TCP_ONLY_ACTION:
 		/* basically a passthru here but the tcp-only will be
 		 * honored before the query gets sent. */
-		ms->respip_action_info->action = respip_truncate;
+		ms->tcp_required = 1;
 		ret = NULL;
 		break;
 	case RPZ_DROP_ACTION:
@@ -2428,7 +2428,7 @@ struct dns_msg* rpz_callback_from_iterator_cname(struct module_qstate* ms,
 	case RPZ_TCP_ONLY_ACTION:
 		/* basically a passthru here but the tcp-only will be
 		 * honored before the query gets sent. */
-		ms->respip_action_info->action = respip_truncate;
+		ms->tcp_required = 1;
 		ret = NULL;
 		break;
 	case RPZ_DROP_ACTION:
@@ -2448,6 +2448,10 @@ struct dns_msg* rpz_callback_from_iterator_cname(struct module_qstate* ms,
 			rpz_action_to_string(localzone_type_to_rpz_action(lzt)));
 		ret = NULL;
 	}
+	if(r->log)
+		log_rpz_apply("qname", (z?z->name:NULL), NULL,
+			localzone_type_to_rpz_action(lzt),
+			&is->qchase, NULL, ms, r->log_name);
 	lock_rw_unlock(&z->lock);
 	lock_rw_unlock(&a->lock);
 	return ret;
