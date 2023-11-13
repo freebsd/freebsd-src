@@ -64,10 +64,15 @@
 #include "sldns/wire2str.h"
 #include "sldns/str2wire.h"
 
+/** Max number of RRSIGs to validate at once, suspend query for later. */
+#define MAX_VALIDATE_AT_ONCE 8
+/** Max number of validation suspends allowed, error out otherwise. */
+#define MAX_VALIDATION_SUSPENDS 16
+
 /* forward decl for cache response and normal super inform calls of a DS */
 static void process_ds_response(struct module_qstate* qstate, 
 	struct val_qstate* vq, int id, int rcode, struct dns_msg* msg, 
-	struct query_info* qinfo, struct sock_list* origin);
+	struct query_info* qinfo, struct sock_list* origin, int* suspend);
 
 
 /* Updates the suplied EDE (RFC8914) code selectively so we don't lose
@@ -290,6 +295,21 @@ val_new(struct module_qstate* qstate, int id)
 	qstate->minfo[id] = vq;
 	vq->state = VAL_INIT_STATE;
 	return val_new_getmsg(qstate, vq);
+}
+
+/** reset validator query state for query restart */
+static void
+val_restart(struct val_qstate* vq)
+{
+	struct comm_timer* temp_timer;
+	int restart_count;
+	if(!vq) return;
+	temp_timer = vq->suspend_timer;
+	restart_count = vq->restart_count+1;
+	memset(vq, 0, sizeof(*vq));
+	vq->suspend_timer = temp_timer;
+	vq->restart_count = restart_count;
+	vq->state = VAL_INIT_STATE;
 }
 
 /**
@@ -598,30 +618,42 @@ prime_trust_anchor(struct module_qstate* qstate, struct val_qstate* vq,
  * completed.
  * 
  * @param qstate: query state.
+ * @param vq: validator query state.
  * @param env: module env for verify.
  * @param ve: validator env for verify.
  * @param qchase: query that was made.
  * @param chase_reply: answer to validate.
  * @param key_entry: the key entry, which is trusted, and which matches
  * 	the signer of the answer. The key entry isgood().
+ * @param suspend: returned true if the task takes too long and needs to
+ * 	suspend to continue the effort later.
  * @return false if any of the rrsets in the an or ns sections of the message 
  * 	fail to verify. The message is then set to bogus.
  */
 static int
-validate_msg_signatures(struct module_qstate* qstate, struct module_env* env,
-	struct val_env* ve, struct query_info* qchase,
-	struct reply_info* chase_reply, struct key_entry_key* key_entry)
+validate_msg_signatures(struct module_qstate* qstate, struct val_qstate* vq,
+	struct module_env* env, struct val_env* ve, struct query_info* qchase,
+	struct reply_info* chase_reply, struct key_entry_key* key_entry,
+	int* suspend)
 {
 	uint8_t* sname;
 	size_t i, slen;
 	struct ub_packed_rrset_key* s;
 	enum sec_status sec;
-	int dname_seen = 0;
+	int dname_seen = 0, num_verifies = 0, verified, have_state = 0;
 	char* reason = NULL;
 	sldns_ede_code reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
+	*suspend = 0;
+	if(vq->msg_signatures_state) {
+		/* Pick up the state, and reset it, may not be needed now. */
+		vq->msg_signatures_state = 0;
+		have_state = 1;
+	}
 
 	/* validate the ANSWER section */
 	for(i=0; i<chase_reply->an_numrrsets; i++) {
+		if(have_state && i <= vq->msg_signatures_index)
+			continue;
 		s = chase_reply->rrsets[i];
 		/* Skip the CNAME following a (validated) DNAME.
 		 * Because of the normalization routines in the iterator, 
@@ -640,7 +672,7 @@ validate_msg_signatures(struct module_qstate* qstate, struct module_env* env,
 
 		/* Verify the answer rrset */
 		sec = val_verify_rrset_entry(env, ve, s, key_entry, &reason,
-			&reason_bogus, LDNS_SECTION_ANSWER, qstate);
+			&reason_bogus, LDNS_SECTION_ANSWER, qstate, &verified);
 		/* If the (answer) rrset failed to validate, then this 
 		 * message is BAD. */
 		if(sec != sec_status_secure) {
@@ -665,14 +697,33 @@ validate_msg_signatures(struct module_qstate* qstate, struct module_env* env,
 			ntohs(s->rk.type) == LDNS_RR_TYPE_DNAME) {
 			dname_seen = 1;
 		}
+		num_verifies += verified;
+		if(num_verifies > MAX_VALIDATE_AT_ONCE &&
+			i+1 < (env->cfg->val_clean_additional?
+			chase_reply->an_numrrsets+chase_reply->ns_numrrsets:
+			chase_reply->rrset_count)) {
+			/* If the number of RRSIGs exceeds the maximum in
+			 * one go, suspend. Only suspend if there is a next
+			 * rrset to verify, i+1<loopmax. Store where to
+			 * continue later. */
+			*suspend = 1;
+			vq->msg_signatures_state = 1;
+			vq->msg_signatures_index = i;
+			verbose(VERB_ALGO, "msg signature validation "
+				"suspended");
+			return 0;
+		}
 	}
 
 	/* validate the AUTHORITY section */
 	for(i=chase_reply->an_numrrsets; i<chase_reply->an_numrrsets+
 		chase_reply->ns_numrrsets; i++) {
+		if(have_state && i <= vq->msg_signatures_index)
+			continue;
 		s = chase_reply->rrsets[i];
 		sec = val_verify_rrset_entry(env, ve, s, key_entry, &reason,
-			&reason_bogus, LDNS_SECTION_AUTHORITY, qstate);
+			&reason_bogus, LDNS_SECTION_AUTHORITY, qstate,
+			&verified);
 		/* If anything in the authority section fails to be secure, 
 		 * we have a bad message. */
 		if(sec != sec_status_secure) {
@@ -686,6 +737,18 @@ validate_msg_signatures(struct module_qstate* qstate, struct module_env* env,
 			update_reason_bogus(chase_reply, reason_bogus);
 			return 0;
 		}
+		num_verifies += verified;
+		if(num_verifies > MAX_VALIDATE_AT_ONCE &&
+			i+1 < (env->cfg->val_clean_additional?
+			chase_reply->an_numrrsets+chase_reply->ns_numrrsets:
+			chase_reply->rrset_count)) {
+			*suspend = 1;
+			vq->msg_signatures_state = 1;
+			vq->msg_signatures_index = i;
+			verbose(VERB_ALGO, "msg signature validation "
+				"suspended");
+			return 0;
+		}
 	}
 
 	/* If set, the validator should clean the additional section of
@@ -695,19 +758,100 @@ validate_msg_signatures(struct module_qstate* qstate, struct module_env* env,
 	/* attempt to validate the ADDITIONAL section rrsets */
 	for(i=chase_reply->an_numrrsets+chase_reply->ns_numrrsets; 
 		i<chase_reply->rrset_count; i++) {
+		if(have_state && i <= vq->msg_signatures_index)
+			continue;
 		s = chase_reply->rrsets[i];
 		/* only validate rrs that have signatures with the key */
 		/* leave others unchecked, those get removed later on too */
 		val_find_rrset_signer(s, &sname, &slen);
 
+		verified = 0;
 		if(sname && query_dname_compare(sname, key_entry->name)==0)
 			(void)val_verify_rrset_entry(env, ve, s, key_entry,
-				&reason, NULL, LDNS_SECTION_ADDITIONAL, qstate);
+				&reason, NULL, LDNS_SECTION_ADDITIONAL, qstate,
+				&verified);
 		/* the additional section can fail to be secure, 
 		 * it is optional, check signature in case we need
 		 * to clean the additional section later. */
+		num_verifies += verified;
+		if(num_verifies > MAX_VALIDATE_AT_ONCE &&
+			i+1 < chase_reply->rrset_count) {
+			*suspend = 1;
+			vq->msg_signatures_state = 1;
+			vq->msg_signatures_index = i;
+			verbose(VERB_ALGO, "msg signature validation "
+				"suspended");
+			return 0;
+		}
 	}
 
+	return 1;
+}
+
+void
+validate_suspend_timer_cb(void* arg)
+{
+	struct module_qstate* qstate = (struct module_qstate*)arg;
+	verbose(VERB_ALGO, "validate_suspend timer, continue");
+	mesh_run(qstate->env->mesh, qstate->mesh_info, module_event_pass,
+		NULL);
+}
+
+/** Setup timer to continue validation of msg signatures later */
+static int
+validate_suspend_setup_timer(struct module_qstate* qstate,
+	struct val_qstate* vq, int id, enum val_state resume_state)
+{
+	struct timeval tv;
+	int usec, slack, base;
+	if(vq->suspend_count >= MAX_VALIDATION_SUSPENDS) {
+		verbose(VERB_ALGO, "validate_suspend timer: "
+			"reached MAX_VALIDATION_SUSPENDS (%d); error out",
+			MAX_VALIDATION_SUSPENDS);
+		errinf(qstate, "max validation suspends reached, "
+			"too many RRSIG validations");
+		return 0;
+	}
+	verbose(VERB_ALGO, "validate_suspend timer, set for suspend");
+	vq->state = resume_state;
+	qstate->ext_state[id] = module_wait_reply;
+	if(!vq->suspend_timer) {
+		vq->suspend_timer = comm_timer_create(
+			qstate->env->worker_base,
+			validate_suspend_timer_cb, qstate);
+		if(!vq->suspend_timer) {
+			log_err("validate_suspend_setup_timer: "
+				"out of memory for comm_timer_create");
+			return 0;
+		}
+	}
+	/* The timer is activated later, after other events in the event
+	 * loop have been processed. The query state can also be deleted,
+	 * when the list is full and query states are dropped. */
+	/* Extend wait time if there are a lot of queries or if this one
+	 * is taking long, to keep around cpu time for ordinary queries. */
+	usec = 50000; /* 50 msec */
+	slack = 0;
+	if(qstate->env->mesh->all.count >= qstate->env->mesh->max_reply_states)
+		slack += 3;
+	else if(qstate->env->mesh->all.count >= qstate->env->mesh->max_reply_states/2)
+		slack += 2;
+	else if(qstate->env->mesh->all.count >= qstate->env->mesh->max_reply_states/4)
+		slack += 1;
+	if(vq->suspend_count > 3)
+		slack += 3;
+	else if(vq->suspend_count > 0)
+		slack += vq->suspend_count;
+	if(slack != 0 && slack <= 12 /* No numeric overflow. */) {
+		usec = usec << slack;
+	}
+	/* Spread such timeouts within 90%-100% of the original timer. */
+	base = usec * 9/10;
+	usec = base + ub_random_max(qstate->env->rnd, usec-base);
+	tv.tv_usec = (usec % 1000000);
+	tv.tv_sec = (usec / 1000000);
+	vq->suspend_count ++;
+	comm_timer_set(vq->suspend_timer, &tv);
 	return 1;
 }
 
@@ -809,11 +953,17 @@ remove_spurious_authority(struct reply_info* chase_reply,
  * @param chase_reply: answer to that query to validate.
  * @param kkey: the key entry, which is trusted, and which matches
  * 	the signer of the answer. The key entry isgood().
+ * @param qstate: query state for the region.
+ * @param vq: validator state for the nsec3 cache table.
+ * @param nsec3_calculations: current nsec3 hash calculations.
+ * @param suspend: returned true if the task takes too long and needs to
+ * 	suspend to continue the effort later.
  */
 static void
 validate_positive_response(struct module_env* env, struct val_env* ve,
 	struct query_info* qchase, struct reply_info* chase_reply,
-	struct key_entry_key* kkey)
+	struct key_entry_key* kkey, struct module_qstate* qstate,
+	struct val_qstate* vq, int* nsec3_calculations, int* suspend)
 {
 	uint8_t* wc = NULL;
 	size_t wl;
@@ -822,6 +972,7 @@ validate_positive_response(struct module_env* env, struct val_env* ve,
 	int nsec3s_seen = 0;
 	size_t i;
 	struct ub_packed_rrset_key* s;
+	*suspend = 0;
 
 	/* validate the ANSWER section - this will be the answer itself */
 	for(i=0; i<chase_reply->an_numrrsets; i++) {
@@ -873,17 +1024,23 @@ validate_positive_response(struct module_env* env, struct val_env* ve,
 	/* If this was a positive wildcard response that we haven't already
 	 * proven, and we have NSEC3 records, try to prove it using the NSEC3
 	 * records. */
-	if(wc != NULL && !wc_NSEC_ok && nsec3s_seen) {
-		enum sec_status sec = nsec3_prove_wildcard(env, ve, 
+	if(wc != NULL && !wc_NSEC_ok && nsec3s_seen &&
+		nsec3_cache_table_init(&vq->nsec3_cache_table, qstate->region)) {
+		enum sec_status sec = nsec3_prove_wildcard(env, ve,
 			chase_reply->rrsets+chase_reply->an_numrrsets,
-			chase_reply->ns_numrrsets, qchase, kkey, wc);
+			chase_reply->ns_numrrsets, qchase, kkey, wc,
+			&vq->nsec3_cache_table, nsec3_calculations);
 		if(sec == sec_status_insecure) {
 			verbose(VERB_ALGO, "Positive wildcard response is "
 				"insecure");
 			chase_reply->security = sec_status_insecure;
 			return;
-		} else if(sec == sec_status_secure)
+		} else if(sec == sec_status_secure) {
 			wc_NSEC_ok = 1;
+		} else if(sec == sec_status_unchecked) {
+			*suspend = 1;
+			return;
+		}
 	}
 
 	/* If after all this, we still haven't proven the positive wildcard
@@ -915,11 +1072,17 @@ validate_positive_response(struct module_env* env, struct val_env* ve,
  * @param chase_reply: answer to that query to validate.
  * @param kkey: the key entry, which is trusted, and which matches
  * 	the signer of the answer. The key entry isgood().
+ * @param qstate: query state for the region.
+ * @param vq: validator state for the nsec3 cache table.
+ * @param nsec3_calculations: current nsec3 hash calculations.
+ * @param suspend: returned true if the task takes too long and needs to
+ * 	suspend to continue the effort later.
  */
 static void
 validate_nodata_response(struct module_env* env, struct val_env* ve,
 	struct query_info* qchase, struct reply_info* chase_reply,
-	struct key_entry_key* kkey)
+	struct key_entry_key* kkey, struct module_qstate* qstate,
+	struct val_qstate* vq, int* nsec3_calculations, int* suspend)
 {
 	/* Since we are here, there must be nothing in the ANSWER section to
 	 * validate. */
@@ -936,6 +1099,7 @@ validate_nodata_response(struct module_env* env, struct val_env* ve,
 	int nsec3s_seen = 0; /* nsec3s seen */
 	struct ub_packed_rrset_key* s; 
 	size_t i;
+	*suspend = 0;
 
 	for(i=chase_reply->an_numrrsets; i<chase_reply->an_numrrsets+
 		chase_reply->ns_numrrsets; i++) {
@@ -974,16 +1138,23 @@ validate_nodata_response(struct module_env* env, struct val_env* ve,
 		}
 	}
 	
-	if(!has_valid_nsec && nsec3s_seen) {
+	if(!has_valid_nsec && nsec3s_seen &&
+		nsec3_cache_table_init(&vq->nsec3_cache_table, qstate->region)) {
 		enum sec_status sec = nsec3_prove_nodata(env, ve, 
 			chase_reply->rrsets+chase_reply->an_numrrsets,
-			chase_reply->ns_numrrsets, qchase, kkey);
+			chase_reply->ns_numrrsets, qchase, kkey,
+			&vq->nsec3_cache_table, nsec3_calculations);
 		if(sec == sec_status_insecure) {
 			verbose(VERB_ALGO, "NODATA response is insecure");
 			chase_reply->security = sec_status_insecure;
 			return;
-		} else if(sec == sec_status_secure)
+		} else if(sec == sec_status_secure) {
 			has_valid_nsec = 1;
+		} else if(sec == sec_status_unchecked) {
+			/* check is incomplete; suspend */
+			*suspend = 1;
+			return;
+		}
 	}
 
 	if(!has_valid_nsec) {
@@ -1015,11 +1186,18 @@ validate_nodata_response(struct module_env* env, struct val_env* ve,
  * @param kkey: the key entry, which is trusted, and which matches
  * 	the signer of the answer. The key entry isgood().
  * @param rcode: adjusted RCODE, in case of RCODE/proof mismatch leniency.
+ * @param qstate: query state for the region.
+ * @param vq: validator state for the nsec3 cache table.
+ * @param nsec3_calculations: current nsec3 hash calculations.
+ * @param suspend: returned true if the task takes too long and needs to
+ * 	suspend to continue the effort later.
  */
 static void
 validate_nameerror_response(struct module_env* env, struct val_env* ve,
 	struct query_info* qchase, struct reply_info* chase_reply,
-	struct key_entry_key* kkey, int* rcode)
+	struct key_entry_key* kkey, int* rcode,
+	struct module_qstate* qstate, struct val_qstate* vq,
+	int* nsec3_calculations, int* suspend)
 {
 	int has_valid_nsec = 0;
 	int has_valid_wnsec = 0;
@@ -1029,6 +1207,7 @@ validate_nameerror_response(struct module_env* env, struct val_env* ve,
 	uint8_t* ce;
 	int ce_labs = 0;
 	int prev_ce_labs = 0;
+	*suspend = 0;
 
 	for(i=chase_reply->an_numrrsets; i<chase_reply->an_numrrsets+
 		chase_reply->ns_numrrsets; i++) {
@@ -1058,13 +1237,18 @@ validate_nameerror_response(struct module_env* env, struct val_env* ve,
 			nsec3s_seen = 1;
 	}
 
-	if((!has_valid_nsec || !has_valid_wnsec) && nsec3s_seen) {
+	if((!has_valid_nsec || !has_valid_wnsec) && nsec3s_seen &&
+		nsec3_cache_table_init(&vq->nsec3_cache_table, qstate->region)) {
 		/* use NSEC3 proof, both answer and auth rrsets, in case
 		 * NSEC3s end up in the answer (due to qtype=NSEC3 or so) */
 		chase_reply->security = nsec3_prove_nameerror(env, ve,
 			chase_reply->rrsets, chase_reply->an_numrrsets+
-			chase_reply->ns_numrrsets, qchase, kkey);
-		if(chase_reply->security != sec_status_secure) {
+			chase_reply->ns_numrrsets, qchase, kkey,
+			&vq->nsec3_cache_table, nsec3_calculations);
+		if(chase_reply->security == sec_status_unchecked) {
+			*suspend = 1;
+			return;
+		} else if(chase_reply->security != sec_status_secure) {
 			verbose(VERB_QUERY, "NameError response failed nsec, "
 				"nsec3 proof was %s", sec_status_to_string(
 				chase_reply->security));
@@ -1076,26 +1260,34 @@ validate_nameerror_response(struct module_env* env, struct val_env* ve,
 
 	/* If the message fails to prove either condition, it is bogus. */
 	if(!has_valid_nsec) {
+		validate_nodata_response(env, ve, qchase, chase_reply, kkey,
+			qstate, vq, nsec3_calculations, suspend);
+		if(*suspend) return;
 		verbose(VERB_QUERY, "NameError response has failed to prove: "
 		          "qname does not exist");
-		chase_reply->security = sec_status_bogus;
-		update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
 		/* Be lenient with RCODE in NSEC NameError responses */
-		validate_nodata_response(env, ve, qchase, chase_reply, kkey);
-		if (chase_reply->security == sec_status_secure)
+		if(chase_reply->security == sec_status_secure) {
 			*rcode = LDNS_RCODE_NOERROR;
+		} else {
+			chase_reply->security = sec_status_bogus;
+			update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
+		}
 		return;
 	}
 
 	if(!has_valid_wnsec) {
+		validate_nodata_response(env, ve, qchase, chase_reply, kkey,
+			qstate, vq, nsec3_calculations, suspend);
+		if(*suspend) return;
 		verbose(VERB_QUERY, "NameError response has failed to prove: "
 		          "covering wildcard does not exist");
-		chase_reply->security = sec_status_bogus;
-		update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
 		/* Be lenient with RCODE in NSEC NameError responses */
-		validate_nodata_response(env, ve, qchase, chase_reply, kkey);
-		if (chase_reply->security == sec_status_secure)
+		if (chase_reply->security == sec_status_secure) {
 			*rcode = LDNS_RCODE_NOERROR;
+		} else {
+			chase_reply->security = sec_status_bogus;
+			update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
+		}
 		return;
 	}
 
@@ -1155,11 +1347,17 @@ validate_referral_response(struct reply_info* chase_reply)
  * @param chase_reply: answer to that query to validate.
  * @param kkey: the key entry, which is trusted, and which matches
  * 	the signer of the answer. The key entry isgood().
+ * @param qstate: query state for the region.
+ * @param vq: validator state for the nsec3 cache table.
+ * @param nsec3_calculations: current nsec3 hash calculations.
+ * @param suspend: returned true if the task takes too long and needs to
+ * 	suspend to continue the effort later.
  */
 static void
 validate_any_response(struct module_env* env, struct val_env* ve,
 	struct query_info* qchase, struct reply_info* chase_reply,
-	struct key_entry_key* kkey)
+	struct key_entry_key* kkey, struct module_qstate* qstate,
+	struct val_qstate* vq, int* nsec3_calculations, int* suspend)
 {
 	/* all answer and auth rrsets already verified */
 	/* but check if a wildcard response is given, then check NSEC/NSEC3
@@ -1170,6 +1368,7 @@ validate_any_response(struct module_env* env, struct val_env* ve,
 	int nsec3s_seen = 0;
 	size_t i;
 	struct ub_packed_rrset_key* s;
+	*suspend = 0;
 
 	if(qchase->qtype != LDNS_RR_TYPE_ANY) {
 		log_err("internal error: ANY validation called for non-ANY");
@@ -1224,19 +1423,25 @@ validate_any_response(struct module_env* env, struct val_env* ve,
 	/* If this was a positive wildcard response that we haven't already
 	 * proven, and we have NSEC3 records, try to prove it using the NSEC3
 	 * records. */
-	if(wc != NULL && !wc_NSEC_ok && nsec3s_seen) {
+	if(wc != NULL && !wc_NSEC_ok && nsec3s_seen &&
+		nsec3_cache_table_init(&vq->nsec3_cache_table, qstate->region)) {
 		/* look both in answer and auth section for NSEC3s */
-		enum sec_status sec = nsec3_prove_wildcard(env, ve, 
+		enum sec_status sec = nsec3_prove_wildcard(env, ve,
 			chase_reply->rrsets,
-			chase_reply->an_numrrsets+chase_reply->ns_numrrsets, 
-			qchase, kkey, wc);
+			chase_reply->an_numrrsets+chase_reply->ns_numrrsets,
+			qchase, kkey, wc, &vq->nsec3_cache_table,
+			nsec3_calculations);
 		if(sec == sec_status_insecure) {
 			verbose(VERB_ALGO, "Positive ANY wildcard response is "
 				"insecure");
 			chase_reply->security = sec_status_insecure;
 			return;
-		} else if(sec == sec_status_secure)
+		} else if(sec == sec_status_secure) {
 			wc_NSEC_ok = 1;
+		} else if(sec == sec_status_unchecked) {
+			*suspend = 1;
+			return;
+		}
 	}
 
 	/* If after all this, we still haven't proven the positive wildcard
@@ -1269,11 +1474,17 @@ validate_any_response(struct module_env* env, struct val_env* ve,
  * @param chase_reply: answer to that query to validate.
  * @param kkey: the key entry, which is trusted, and which matches
  * 	the signer of the answer. The key entry isgood().
+ * @param qstate: query state for the region.
+ * @param vq: validator state for the nsec3 cache table.
+ * @param nsec3_calculations: current nsec3 hash calculations.
+ * @param suspend: returned true if the task takes too long and needs to
+ * 	suspend to continue the effort later.
  */
 static void
 validate_cname_response(struct module_env* env, struct val_env* ve,
 	struct query_info* qchase, struct reply_info* chase_reply,
-	struct key_entry_key* kkey)
+	struct key_entry_key* kkey, struct module_qstate* qstate,
+	struct val_qstate* vq, int* nsec3_calculations, int* suspend)
 {
 	uint8_t* wc = NULL;
 	size_t wl;
@@ -1281,6 +1492,7 @@ validate_cname_response(struct module_env* env, struct val_env* ve,
 	int nsec3s_seen = 0;
 	size_t i;
 	struct ub_packed_rrset_key* s;
+	*suspend = 0;
 
 	/* validate the ANSWER section - this will be the CNAME (+DNAME) */
 	for(i=0; i<chase_reply->an_numrrsets; i++) {
@@ -1345,17 +1557,23 @@ validate_cname_response(struct module_env* env, struct val_env* ve,
 	/* If this was a positive wildcard response that we haven't already
 	 * proven, and we have NSEC3 records, try to prove it using the NSEC3
 	 * records. */
-	if(wc != NULL && !wc_NSEC_ok && nsec3s_seen) {
-		enum sec_status sec = nsec3_prove_wildcard(env, ve, 
+	if(wc != NULL && !wc_NSEC_ok && nsec3s_seen &&
+		nsec3_cache_table_init(&vq->nsec3_cache_table, qstate->region)) {
+		enum sec_status sec = nsec3_prove_wildcard(env, ve,
 			chase_reply->rrsets+chase_reply->an_numrrsets,
-			chase_reply->ns_numrrsets, qchase, kkey, wc);
+			chase_reply->ns_numrrsets, qchase, kkey, wc,
+			&vq->nsec3_cache_table, nsec3_calculations);
 		if(sec == sec_status_insecure) {
 			verbose(VERB_ALGO, "wildcard CNAME response is "
 				"insecure");
 			chase_reply->security = sec_status_insecure;
 			return;
-		} else if(sec == sec_status_secure)
+		} else if(sec == sec_status_secure) {
 			wc_NSEC_ok = 1;
+		} else if(sec == sec_status_unchecked) {
+			*suspend = 1;
+			return;
+		}
 	}
 
 	/* If after all this, we still haven't proven the positive wildcard
@@ -1386,11 +1604,17 @@ validate_cname_response(struct module_env* env, struct val_env* ve,
  * @param chase_reply: answer to that query to validate.
  * @param kkey: the key entry, which is trusted, and which matches
  * 	the signer of the answer. The key entry isgood().
+ * @param qstate: query state for the region.
+ * @param vq: validator state for the nsec3 cache table.
+ * @param nsec3_calculations: current nsec3 hash calculations.
+ * @param suspend: returned true if the task takes too long and needs to
+ * 	suspend to continue the effort later.
  */
 static void
 validate_cname_noanswer_response(struct module_env* env, struct val_env* ve,
 	struct query_info* qchase, struct reply_info* chase_reply,
-	struct key_entry_key* kkey)
+	struct key_entry_key* kkey, struct module_qstate* qstate,
+	struct val_qstate* vq, int* nsec3_calculations, int* suspend)
 {
 	int nodata_valid_nsec = 0; /* If true, then NODATA has been proven.*/
 	uint8_t* ce = NULL; /* for wildcard nodata responses. This is the 
@@ -1404,6 +1628,7 @@ validate_cname_noanswer_response(struct module_env* env, struct val_env* ve,
 	uint8_t* nsec_ce; /* Used to find the NSEC with the longest ce */
 	int ce_labs = 0;
 	int prev_ce_labs = 0;
+	*suspend = 0;
 
 	/* the AUTHORITY section */
 	for(i=chase_reply->an_numrrsets; i<chase_reply->an_numrrsets+
@@ -1469,11 +1694,13 @@ validate_cname_noanswer_response(struct module_env* env, struct val_env* ve,
 		update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
 		return;
 	}
-	if(!nodata_valid_nsec && !nxdomain_valid_nsec && nsec3s_seen) {
+	if(!nodata_valid_nsec && !nxdomain_valid_nsec && nsec3s_seen &&
+		nsec3_cache_table_init(&vq->nsec3_cache_table, qstate->region)) {
 		int nodata;
 		enum sec_status sec = nsec3_prove_nxornodata(env, ve, 
 			chase_reply->rrsets+chase_reply->an_numrrsets,
-			chase_reply->ns_numrrsets, qchase, kkey, &nodata);
+			chase_reply->ns_numrrsets, qchase, kkey, &nodata,
+			&vq->nsec3_cache_table, nsec3_calculations);
 		if(sec == sec_status_insecure) {
 			verbose(VERB_ALGO, "CNAMEchain to noanswer response "
 				"is insecure");
@@ -1483,6 +1710,9 @@ validate_cname_noanswer_response(struct module_env* env, struct val_env* ve,
 			if(nodata)
 				nodata_valid_nsec = 1;
 			else	nxdomain_valid_nsec = 1;
+		} else if(sec == sec_status_unchecked) {
+			*suspend = 1;
+			return;
 		}
 	}
 
@@ -1826,13 +2056,37 @@ processFindKey(struct module_qstate* qstate, struct val_qstate* vq, int id)
 		 * Uses negative cache for NSEC3 lookup of DS responses. */
 		/* only if cache not blacklisted, of course */
 		struct dns_msg* msg;
-		if(!qstate->blacklist && !vq->chain_blacklist &&
+		int suspend;
+		if(vq->sub_ds_msg) {
+			/* We have a suspended DS reply from a sub-query;
+			 * process it. */
+			verbose(VERB_ALGO, "Process suspended sub DS response");
+			msg = vq->sub_ds_msg;
+			process_ds_response(qstate, vq, id, LDNS_RCODE_NOERROR,
+				msg, &msg->qinfo, NULL, &suspend);
+			if(suspend) {
+				/* we'll come back here later to continue */
+				if(!validate_suspend_setup_timer(qstate, vq,
+					id, VAL_FINDKEY_STATE))
+					return val_error(qstate, id);
+				return 0;
+			}
+			vq->sub_ds_msg = NULL;
+			return 1; /* continue processing ds-response results */
+		} else if(!qstate->blacklist && !vq->chain_blacklist &&
 			(msg=val_find_DS(qstate->env, target_key_name, 
 			target_key_len, vq->qchase.qclass, qstate->region,
 			vq->key_entry->name)) ) {
 			verbose(VERB_ALGO, "Process cached DS response");
 			process_ds_response(qstate, vq, id, LDNS_RCODE_NOERROR,
-				msg, &msg->qinfo, NULL);
+				msg, &msg->qinfo, NULL, &suspend);
+			if(suspend) {
+				/* we'll come back here later to continue */
+				if(!validate_suspend_setup_timer(qstate, vq,
+					id, VAL_FINDKEY_STATE))
+					return val_error(qstate, id);
+				return 0;
+			}
 			return 1; /* continue processing ds-response results */
 		}
 		if(!generate_request(qstate, id, target_key_name, 
@@ -1875,7 +2129,7 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 	struct val_env* ve, int id)
 {
 	enum val_classification subtype;
-	int rcode;
+	int rcode, suspend, nsec3_calculations = 0;
 
 	if(!vq->key_entry) {
 		verbose(VERB_ALGO, "validate: no key entry, failed");
@@ -1932,8 +2186,14 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 
 	/* check signatures in the message; 
 	 * answer and authority must be valid, additional is only checked. */
-	if(!validate_msg_signatures(qstate, qstate->env, ve, &vq->qchase, 
-		vq->chase_reply, vq->key_entry)) {
+	if(!validate_msg_signatures(qstate, vq, qstate->env, ve, &vq->qchase,
+		vq->chase_reply, vq->key_entry, &suspend)) {
+		if(suspend) {
+			if(!validate_suspend_setup_timer(qstate, vq,
+				id, VAL_VALIDATE_STATE))
+				return val_error(qstate, id);
+			return 0;
+		}
 		/* workaround bad recursor out there that truncates (even
 		 * with EDNS4k) to 512 by removing RRSIG from auth section
 		 * for positive replies*/
@@ -1962,7 +2222,14 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 		case VAL_CLASS_POSITIVE:
 			verbose(VERB_ALGO, "Validating a positive response");
 			validate_positive_response(qstate->env, ve,
-				&vq->qchase, vq->chase_reply, vq->key_entry);
+				&vq->qchase, vq->chase_reply, vq->key_entry,
+				qstate, vq, &nsec3_calculations, &suspend);
+			if(suspend) {
+				if(!validate_suspend_setup_timer(qstate,
+					vq, id, VAL_VALIDATE_STATE))
+					return val_error(qstate, id);
+				return 0;
+			}
 			verbose(VERB_DETAIL, "validate(positive): %s",
 			  	sec_status_to_string(
 				vq->chase_reply->security));
@@ -1971,7 +2238,14 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 		case VAL_CLASS_NODATA:
 			verbose(VERB_ALGO, "Validating a nodata response");
 			validate_nodata_response(qstate->env, ve,
-				&vq->qchase, vq->chase_reply, vq->key_entry);
+				&vq->qchase, vq->chase_reply, vq->key_entry,
+				qstate, vq, &nsec3_calculations, &suspend);
+			if(suspend) {
+				if(!validate_suspend_setup_timer(qstate,
+					vq, id, VAL_VALIDATE_STATE))
+					return val_error(qstate, id);
+				return 0;
+			}
 			verbose(VERB_DETAIL, "validate(nodata): %s",
 			  	sec_status_to_string(
 				vq->chase_reply->security));
@@ -1981,7 +2255,14 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 			rcode = (int)FLAGS_GET_RCODE(vq->orig_msg->rep->flags);
 			verbose(VERB_ALGO, "Validating a nxdomain response");
 			validate_nameerror_response(qstate->env, ve, 
-				&vq->qchase, vq->chase_reply, vq->key_entry, &rcode);
+				&vq->qchase, vq->chase_reply, vq->key_entry, &rcode,
+				qstate, vq, &nsec3_calculations, &suspend);
+			if(suspend) {
+				if(!validate_suspend_setup_timer(qstate,
+					vq, id, VAL_VALIDATE_STATE))
+					return val_error(qstate, id);
+				return 0;
+			}
 			verbose(VERB_DETAIL, "validate(nxdomain): %s",
 			  	sec_status_to_string(
 				vq->chase_reply->security));
@@ -1992,7 +2273,14 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 		case VAL_CLASS_CNAME:
 			verbose(VERB_ALGO, "Validating a cname response");
 			validate_cname_response(qstate->env, ve,
-				&vq->qchase, vq->chase_reply, vq->key_entry);
+				&vq->qchase, vq->chase_reply, vq->key_entry,
+				qstate, vq, &nsec3_calculations, &suspend);
+			if(suspend) {
+				if(!validate_suspend_setup_timer(qstate,
+					vq, id, VAL_VALIDATE_STATE))
+					return val_error(qstate, id);
+				return 0;
+			}
 			verbose(VERB_DETAIL, "validate(cname): %s",
 			  	sec_status_to_string(
 				vq->chase_reply->security));
@@ -2002,7 +2290,14 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 			verbose(VERB_ALGO, "Validating a cname noanswer "
 				"response");
 			validate_cname_noanswer_response(qstate->env, ve,
-				&vq->qchase, vq->chase_reply, vq->key_entry);
+				&vq->qchase, vq->chase_reply, vq->key_entry,
+				qstate, vq, &nsec3_calculations, &suspend);
+			if(suspend) {
+				if(!validate_suspend_setup_timer(qstate,
+					vq, id, VAL_VALIDATE_STATE))
+					return val_error(qstate, id);
+				return 0;
+			}
 			verbose(VERB_DETAIL, "validate(cname_noanswer): %s",
 			  	sec_status_to_string(
 				vq->chase_reply->security));
@@ -2019,8 +2314,15 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 		case VAL_CLASS_ANY:
 			verbose(VERB_ALGO, "Validating a positive ANY "
 				"response");
-			validate_any_response(qstate->env, ve, &vq->qchase, 
-				vq->chase_reply, vq->key_entry);
+			validate_any_response(qstate->env, ve, &vq->qchase,
+				vq->chase_reply, vq->key_entry, qstate, vq,
+				&nsec3_calculations, &suspend);
+			if(suspend) {
+				if(!validate_suspend_setup_timer(qstate,
+					vq, id, VAL_VALIDATE_STATE))
+					return val_error(qstate, id);
+				return 0;
+			}
 			verbose(VERB_DETAIL, "validate(positive_any): %s",
 			  	sec_status_to_string(
 				vq->chase_reply->security));
@@ -2129,16 +2431,13 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 	if(vq->orig_msg->rep->security == sec_status_bogus) {
 		/* see if we can try again to fetch data */
 		if(vq->restart_count < ve->max_restart) {
-			int restart_count = vq->restart_count+1;
 			verbose(VERB_ALGO, "validation failed, "
 				"blacklist and retry to fetch data");
 			val_blacklist(&qstate->blacklist, qstate->region, 
 				qstate->reply_origin, 0);
 			qstate->reply_origin = NULL;
 			qstate->errinf = NULL;
-			memset(vq, 0, sizeof(*vq));
-			vq->restart_count = restart_count;
-			vq->state = VAL_INIT_STATE;
+			val_restart(vq);
 			verbose(VERB_ALGO, "pass back to next module");
 			qstate->ext_state[id] = module_restart_next;
 			return 0;
@@ -2465,7 +2764,10 @@ primeResponseToKE(struct ub_packed_rrset_key* dnskey_rrset,
  *	DS response indicated an end to secure space, is_good if the DS
  *	validated. It returns ke=NULL if the DS response indicated that the
  *	request wasn't a delegation point.
- * @return 0 on servfail error (malloc failure).
+ * @return
+ *	0 on success,
+ *	1 on servfail error (malloc failure),
+ *	2 on NSEC3 suspend.
  */
 static int
 ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
@@ -2476,6 +2778,7 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
 	char* reason = NULL;
 	sldns_ede_code reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
 	enum val_classification subtype;
+	int verified;
 	if(rcode != LDNS_RCODE_NOERROR) {
 		char rc[16];
 		rc[0]=0;
@@ -2506,7 +2809,7 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
 		/* Verify only returns BOGUS or SECURE. If the rrset is 
 		 * bogus, then we are done. */
 		sec = val_verify_rrset_entry(qstate->env, ve, ds,
-			vq->key_entry, &reason, &reason_bogus, LDNS_SECTION_ANSWER, qstate);
+			vq->key_entry, &reason, &reason_bogus, LDNS_SECTION_ANSWER, qstate, &verified);
 		if(sec != sec_status_secure) {
 			verbose(VERB_DETAIL, "DS rrset in DS response did "
 				"not verify");
@@ -2524,7 +2827,7 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
 				ub_packed_rrset_ttl(ds),
 				LDNS_EDE_UNSUPPORTED_DS_DIGEST, NULL,
 				*qstate->env->now);
-			return (*ke) != NULL;
+			return (*ke) == NULL;
 		}
 
 		/* Otherwise, we return the positive response. */
@@ -2532,7 +2835,7 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
 		*ke = key_entry_create_rrset(qstate->region,
 			qinfo->qname, qinfo->qname_len, qinfo->qclass, ds,
 			NULL, LDNS_EDE_NONE, NULL, *qstate->env->now);
-		return (*ke) != NULL;
+		return (*ke) == NULL;
 	} else if(subtype == VAL_CLASS_NODATA || 
 		subtype == VAL_CLASS_NAMEERROR) {
 		/* NODATA means that the qname exists, but that there was 
@@ -2566,12 +2869,12 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
 					qinfo->qclass, proof_ttl,
 					LDNS_EDE_NONE, NULL,
 					*qstate->env->now);
-				return (*ke) != NULL;
+				return (*ke) == NULL;
 			case sec_status_insecure:
 				verbose(VERB_DETAIL, "NSEC RRset for the "
 				  "referral proved not a delegation point");
 				*ke = NULL;
-				return 1;
+				return 0;
 			case sec_status_bogus:
 				verbose(VERB_DETAIL, "NSEC RRset for the "
 					"referral did not prove no DS.");
@@ -2583,10 +2886,17 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
 				break;
 		}
 
+		if(!nsec3_cache_table_init(&vq->nsec3_cache_table, qstate->region)) {
+			log_err("malloc failure in ds_response_to_ke for "
+				"NSEC3 cache");
+			reason = "malloc failure";
+			errinf_ede(qstate, reason, 0);
+			goto return_bogus;
+		}
 		sec = nsec3_prove_nods(qstate->env, ve, 
 			msg->rep->rrsets + msg->rep->an_numrrsets,
 			msg->rep->ns_numrrsets, qinfo, vq->key_entry, &reason,
-			&reason_bogus, qstate);
+			&reason_bogus, qstate, &vq->nsec3_cache_table);
 		switch(sec) {
 			case sec_status_insecure:
 				/* case insecure also continues to unsigned
@@ -2600,18 +2910,19 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
 					qinfo->qclass, proof_ttl,
 					LDNS_EDE_NONE, NULL,
 					*qstate->env->now);
-				return (*ke) != NULL;
+				return (*ke) == NULL;
 			case sec_status_indeterminate:
 				verbose(VERB_DETAIL, "NSEC3s for the "
 				  "referral proved no delegation");
 				*ke = NULL;
-				return 1;
+				return 0;
 			case sec_status_bogus:
 				verbose(VERB_DETAIL, "NSEC3s for the "
 					"referral did not prove no DS.");
 				errinf_ede(qstate, reason, reason_bogus);
 				goto return_bogus;
 			case sec_status_unchecked:
+				return 2;
 			default:
 				/* NSEC3 proof did not work */
 				break;
@@ -2652,13 +2963,13 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
 		}
 		sec = val_verify_rrset_entry(qstate->env, ve, cname,
 			vq->key_entry, &reason, &reason_bogus,
-			LDNS_SECTION_ANSWER, qstate);
+			LDNS_SECTION_ANSWER, qstate, &verified);
 		if(sec == sec_status_secure) {
 			verbose(VERB_ALGO, "CNAME validated, "
 				"proof that DS does not exist");
 			/* and that it is not a referral point */
 			*ke = NULL;
-			return 1;
+			return 0;
 		}
 		errinf(qstate, "CNAME in DS response was not secure.");
 		errinf_ede(qstate, reason, reason_bogus);
@@ -2682,7 +2993,7 @@ return_bogus:
 	*ke = key_entry_create_bad(qstate->region, qinfo->qname,
 		qinfo->qname_len, qinfo->qclass, BOGUS_KEY_TTL,
 		reason_bogus, reason, *qstate->env->now);
-	return (*ke) != NULL;
+	return (*ke) == NULL;
 }
 
 /**
@@ -2703,17 +3014,31 @@ return_bogus:
 static void
 process_ds_response(struct module_qstate* qstate, struct val_qstate* vq,
 	int id, int rcode, struct dns_msg* msg, struct query_info* qinfo,
-	struct sock_list* origin)
+	struct sock_list* origin, int* suspend)
 {
 	struct val_env* ve = (struct val_env*)qstate->env->modinfo[id];
 	struct key_entry_key* dske = NULL;
 	uint8_t* olds = vq->empty_DS_name;
+	int ret;
+	*suspend = 0;
 	vq->empty_DS_name = NULL;
-	if(!ds_response_to_ke(qstate, vq, id, rcode, msg, qinfo, &dske)) {
+	ret = ds_response_to_ke(qstate, vq, id, rcode, msg, qinfo, &dske);
+	if(ret != 0) {
+		switch(ret) {
+		case 1:
 			log_err("malloc failure in process_ds_response");
 			vq->key_entry = NULL; /* make it error */
 			vq->state = VAL_VALIDATE_STATE;
 			return;
+		case 2:
+			*suspend = 1;
+			return;
+		default:
+			log_err("unhandled error value for ds_response_to_ke");
+			vq->key_entry = NULL; /* make it error */
+			vq->state = VAL_VALIDATE_STATE;
+			return;
+		}
 	}
 	if(dske == NULL) {
 		vq->empty_DS_name = regional_alloc_init(qstate->region,
@@ -2965,9 +3290,26 @@ val_inform_super(struct module_qstate* qstate, int id,
 		return;
 	}
 	if(qstate->qinfo.qtype == LDNS_RR_TYPE_DS) {
+		int suspend;
 		process_ds_response(super, vq, id, qstate->return_rcode,
-			qstate->return_msg, &qstate->qinfo, 
-			qstate->reply_origin);
+			qstate->return_msg, &qstate->qinfo,
+			qstate->reply_origin, &suspend);
+		/* If NSEC3 was needed during validation, NULL the NSEC3 cache;
+		 * it will be re-initiated if needed later on.
+		 * Validation (and the cache table) are happening/allocated in
+		 * the super qstate whilst the RRs are allocated (and pointed
+		 * to) in this sub qstate. */
+		if(vq->nsec3_cache_table.ct) {
+			vq->nsec3_cache_table.ct = NULL;
+		}
+		if(suspend) {
+			/* deep copy the return_msg to vq->sub_ds_msg; it will
+			 * be resumed later in the super state with the caveat
+			 * that the initial calculations will be re-caclulated
+			 * and re-suspended there before continuing. */
+			vq->sub_ds_msg = dns_msg_deepcopy_region(
+				qstate->return_msg, super->region);
+		}
 		return;
 	} else if(qstate->qinfo.qtype == LDNS_RR_TYPE_DNSKEY) {
 		process_dnskey_response(super, vq, id, qstate->return_rcode,
@@ -2981,8 +3323,15 @@ val_inform_super(struct module_qstate* qstate, int id,
 void
 val_clear(struct module_qstate* qstate, int id)
 {
+	struct val_qstate* vq;
 	if(!qstate)
 		return;
+	vq = (struct val_qstate*)qstate->minfo[id];
+	if(vq) {
+		if(vq->suspend_timer) {
+			comm_timer_delete(vq->suspend_timer);
+		}
+	}
 	/* everything is allocated in the region, so assign NULL */
 	qstate->minfo[id] = NULL;
 }

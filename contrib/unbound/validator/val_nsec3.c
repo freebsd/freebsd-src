@@ -57,6 +57,19 @@
 /* we include nsec.h for the bitmap_has_type function */
 #include "validator/val_nsec.h"
 #include "sldns/sbuffer.h"
+#include "util/config_file.h"
+
+/**
+ * Max number of NSEC3 calculations at once, suspend query for later.
+ * 8 is low enough and allows for cases where multiple proofs are needed.
+ */
+#define MAX_NSEC3_CALCULATIONS 8
+/**
+ * When all allowed NSEC3 calculations at once resulted in error treat as
+ * bogus. NSEC3 hash errors are not cached and this helps breaks loops with
+ * erroneous data.
+ */
+#define MAX_NSEC3_ERRORS -1
 
 /** 
  * This function we get from ldns-compat or from base system 
@@ -532,6 +545,17 @@ nsec3_hash_cmp(const void* c1, const void* c2)
 	return memcmp(s1, s2, s1len);
 }
 
+int
+nsec3_cache_table_init(struct nsec3_cache_table* ct, struct regional* region)
+{
+	if(ct->ct) return 1;
+	ct->ct = (rbtree_type*)regional_alloc(region, sizeof(*ct->ct));
+	if(!ct->ct) return 0;
+	ct->region = region;
+	rbtree_init(ct->ct, &nsec3_hash_cmp);
+	return 1;
+}
+
 size_t
 nsec3_get_hashed(sldns_buffer* buf, uint8_t* nm, size_t nmlen, int algo, 
 	size_t iter, uint8_t* salt, size_t saltlen, uint8_t* res, size_t max)
@@ -646,7 +670,7 @@ nsec3_hash_name(rbtree_type* table, struct regional* region, sldns_buffer* buf,
 	c = (struct nsec3_cached_hash*)rbtree_search(table, &looki);
 	if(c) {
 		*hash = c;
-		return 1;
+		return 2;
 	}
 	/* create a new entry */
 	c = (struct nsec3_cached_hash*)regional_alloc(region, sizeof(*c));
@@ -658,10 +682,10 @@ nsec3_hash_name(rbtree_type* table, struct regional* region, sldns_buffer* buf,
 	c->dname_len = dname_len;
 	r = nsec3_calc_hash(region, buf, c);
 	if(r != 1)
-		return r;
+		return r;  /* returns -1 or 0 */
 	r = nsec3_calc_b32(region, buf, c);
 	if(r != 1)
-		return r;
+		return r;  /* returns 0 */
 #ifdef UNBOUND_DEBUG
 	n =
 #else
@@ -704,6 +728,7 @@ nsec3_hash_matches_owner(struct nsec3_filter* flt,
 	struct nsec3_cached_hash* hash, struct ub_packed_rrset_key* s)
 {
 	uint8_t* nm = s->rk.dname;
+	if(!hash) return 0; /* please clang */
 	/* compare, does hash of name based on params in this NSEC3
 	 * match the owner name of this NSEC3? 
 	 * name must be: <hashlength>base32 . zone name 
@@ -730,34 +755,50 @@ nsec3_hash_matches_owner(struct nsec3_filter* flt,
  * @param nmlen: length of name.
  * @param rrset: nsec3 that matches is returned here.
  * @param rr: rr number in nsec3 rrset that matches.
+ * @param calculations: current hash calculations.
  * @return true if a matching NSEC3 is found, false if not.
  */
 static int
 find_matching_nsec3(struct module_env* env, struct nsec3_filter* flt,
-	rbtree_type* ct, uint8_t* nm, size_t nmlen, 
-	struct ub_packed_rrset_key** rrset, int* rr)
+	struct nsec3_cache_table* ct, uint8_t* nm, size_t nmlen,
+	struct ub_packed_rrset_key** rrset, int* rr,
+	int* calculations)
 {
 	size_t i_rs;
 	int i_rr;
 	struct ub_packed_rrset_key* s;
 	struct nsec3_cached_hash* hash = NULL;
 	int r;
+	int calc_errors = 0;
 
 	/* this loop skips other-zone and unknown NSEC3s, also non-NSEC3 RRs */
 	for(s=filter_first(flt, &i_rs, &i_rr); s; 
 		s=filter_next(flt, &i_rs, &i_rr)) {
+		/* check if we are allowed more calculations */
+		if(*calculations >= MAX_NSEC3_CALCULATIONS) {
+			if(calc_errors == *calculations) {
+				*calculations = MAX_NSEC3_ERRORS;
+			}
+			break;
+		}
 		/* get name hashed for this NSEC3 RR */
-		r = nsec3_hash_name(ct, env->scratch, env->scratch_buffer,
+		r = nsec3_hash_name(ct->ct, ct->region, env->scratch_buffer,
 			s, i_rr, nm, nmlen, &hash);
 		if(r == 0) {
 			log_err("nsec3: malloc failure");
 			break; /* alloc failure */
-		} else if(r != 1)
-			continue; /* malformed NSEC3 */
-		else if(nsec3_hash_matches_owner(flt, hash, s)) {
-			*rrset = s; /* rrset with this name */
-			*rr = i_rr; /* matches hash with these parameters */
-			return 1;
+		} else if(r < 0) {
+			/* malformed NSEC3 */
+			calc_errors++;
+			(*calculations)++;
+			continue;
+		} else {
+			if(r == 1) (*calculations)++;
+			if(nsec3_hash_matches_owner(flt, hash, s)) {
+				*rrset = s; /* rrset with this name */
+				*rr = i_rr; /* matches hash with these parameters */
+				return 1;
+			}
 		}
 	}
 	*rrset = NULL;
@@ -775,6 +816,7 @@ nsec3_covers(uint8_t* zone, struct nsec3_cached_hash* hash,
 	if(!nsec3_get_nextowner(rrset, rr, &next, &nextlen))
 		return 0; /* malformed RR proves nothing */
 
+	if(!hash) return 0; /* please clang */
 	/* check the owner name is a hashed value . apex
 	 * base32 encoded values must have equal length. 
 	 * hash_value and next hash value must have equal length. */
@@ -823,35 +865,51 @@ nsec3_covers(uint8_t* zone, struct nsec3_cached_hash* hash,
  * @param nmlen: length of name.
  * @param rrset: covering NSEC3 rrset is returned here.
  * @param rr: rr of cover is returned here.
+ * @param calculations: current hash calculations.
  * @return true if a covering NSEC3 is found, false if not.
  */
 static int
 find_covering_nsec3(struct module_env* env, struct nsec3_filter* flt,
-        rbtree_type* ct, uint8_t* nm, size_t nmlen, 
-	struct ub_packed_rrset_key** rrset, int* rr)
+	struct nsec3_cache_table* ct, uint8_t* nm, size_t nmlen,
+	struct ub_packed_rrset_key** rrset, int* rr,
+	int* calculations)
 {
 	size_t i_rs;
 	int i_rr;
 	struct ub_packed_rrset_key* s;
 	struct nsec3_cached_hash* hash = NULL;
 	int r;
+	int calc_errors = 0;
 
 	/* this loop skips other-zone and unknown NSEC3s, also non-NSEC3 RRs */
 	for(s=filter_first(flt, &i_rs, &i_rr); s; 
 		s=filter_next(flt, &i_rs, &i_rr)) {
+		/* check if we are allowed more calculations */
+		if(*calculations >= MAX_NSEC3_CALCULATIONS) {
+			if(calc_errors == *calculations) {
+				*calculations = MAX_NSEC3_ERRORS;
+			}
+			break;
+		}
 		/* get name hashed for this NSEC3 RR */
-		r = nsec3_hash_name(ct, env->scratch, env->scratch_buffer,
+		r = nsec3_hash_name(ct->ct, ct->region, env->scratch_buffer,
 			s, i_rr, nm, nmlen, &hash);
 		if(r == 0) {
 			log_err("nsec3: malloc failure");
 			break; /* alloc failure */
-		} else if(r != 1)
-			continue; /* malformed NSEC3 */
-		else if(nsec3_covers(flt->zone, hash, s, i_rr, 
-			env->scratch_buffer)) {
-			*rrset = s; /* rrset with this name */
-			*rr = i_rr; /* covers hash with these parameters */
-			return 1;
+		} else if(r < 0) {
+			/* malformed NSEC3 */
+			calc_errors++;
+			(*calculations)++;
+			continue;
+		} else {
+			if(r == 1) (*calculations)++;
+			if(nsec3_covers(flt->zone, hash, s, i_rr,
+				env->scratch_buffer)) {
+				*rrset = s; /* rrset with this name */
+				*rr = i_rr; /* covers hash with these parameters */
+				return 1;
+			}
 		}
 	}
 	*rrset = NULL;
@@ -869,11 +927,13 @@ find_covering_nsec3(struct module_env* env, struct nsec3_filter* flt,
  * @param ct: cached hashes table.
  * @param qinfo: query that is verified for.
  * @param ce: closest encloser information is returned in here.
+ * @param calculations: current hash calculations.
  * @return true if a closest encloser candidate is found, false if not.
  */
 static int
-nsec3_find_closest_encloser(struct module_env* env, struct nsec3_filter* flt, 
-	rbtree_type* ct, struct query_info* qinfo, struct ce_response* ce)
+nsec3_find_closest_encloser(struct module_env* env, struct nsec3_filter* flt,
+	struct nsec3_cache_table* ct, struct query_info* qinfo,
+	struct ce_response* ce, int* calculations)
 {
 	uint8_t* nm = qinfo->qname;
 	size_t nmlen = qinfo->qname_len;
@@ -888,8 +948,12 @@ nsec3_find_closest_encloser(struct module_env* env, struct nsec3_filter* flt,
 	 * may be the case. */
 
 	while(dname_subdomain_c(nm, flt->zone)) {
+		if(*calculations >= MAX_NSEC3_CALCULATIONS ||
+			*calculations == MAX_NSEC3_ERRORS) {
+			return 0;
+		}
 		if(find_matching_nsec3(env, flt, ct, nm, nmlen, 
-			&ce->ce_rrset, &ce->ce_rr)) {
+			&ce->ce_rrset, &ce->ce_rr, calculations)) {
 			ce->ce = nm;
 			ce->ce_len = nmlen;
 			return 1;
@@ -933,22 +997,38 @@ next_closer(uint8_t* qname, size_t qnamelen, uint8_t* ce,
  * 	If set true, and the return value is true, then you can be 
  * 	certain that the ce.nc_rrset and ce.nc_rr are set properly.
  * @param ce: closest encloser information is returned in here.
+ * @param calculations: pointer to the current NSEC3 hash calculations.
  * @return bogus if no closest encloser could be proven.
  * 	secure if a closest encloser could be proven, ce is set.
  * 	insecure if the closest-encloser candidate turns out to prove
  * 		that an insecure delegation exists above the qname.
+ *	unchecked if no more hash calculations are allowed at this point.
  */
 static enum sec_status
-nsec3_prove_closest_encloser(struct module_env* env, struct nsec3_filter* flt, 
-	rbtree_type* ct, struct query_info* qinfo, int prove_does_not_exist,
-	struct ce_response* ce)
+nsec3_prove_closest_encloser(struct module_env* env, struct nsec3_filter* flt,
+	struct nsec3_cache_table* ct, struct query_info* qinfo,
+	int prove_does_not_exist, struct ce_response* ce, int* calculations)
 {
 	uint8_t* nc;
 	size_t nc_len;
 	/* robust: clean out ce, in case it gets abused later */
 	memset(ce, 0, sizeof(*ce));
 
-	if(!nsec3_find_closest_encloser(env, flt, ct, qinfo, ce)) {
+	if(!nsec3_find_closest_encloser(env, flt, ct, qinfo, ce, calculations)) {
+		if(*calculations == MAX_NSEC3_ERRORS) {
+			verbose(VERB_ALGO, "nsec3 proveClosestEncloser: could "
+				"not find a candidate for the closest "
+				"encloser; all attempted hash calculations "
+				"were erroneous; bogus");
+			return sec_status_bogus;
+		} else if(*calculations >= MAX_NSEC3_CALCULATIONS) {
+			verbose(VERB_ALGO, "nsec3 proveClosestEncloser: could "
+				"not find a candidate for the closest "
+				"encloser; reached MAX_NSEC3_CALCULATIONS "
+				"(%d); unchecked still",
+				MAX_NSEC3_CALCULATIONS);
+			return sec_status_unchecked;
+		}
 		verbose(VERB_ALGO, "nsec3 proveClosestEncloser: could "
 			"not find a candidate for the closest encloser.");
 		return sec_status_bogus;
@@ -989,9 +1069,23 @@ nsec3_prove_closest_encloser(struct module_env* env, struct nsec3_filter* flt,
 	/* Otherwise, we need to show that the next closer name is covered. */
 	next_closer(qinfo->qname, qinfo->qname_len, ce->ce, &nc, &nc_len);
 	if(!find_covering_nsec3(env, flt, ct, nc, nc_len, 
-		&ce->nc_rrset, &ce->nc_rr)) {
+		&ce->nc_rrset, &ce->nc_rr, calculations)) {
+		if(*calculations == MAX_NSEC3_ERRORS) {
+			verbose(VERB_ALGO, "nsec3: Could not find proof that the "
+				"candidate encloser was the closest encloser; "
+				"all attempted hash calculations were "
+				"erroneous; bogus");
+			return sec_status_bogus;
+		} else if(*calculations >= MAX_NSEC3_CALCULATIONS) {
+			verbose(VERB_ALGO, "nsec3: Could not find proof that the "
+				"candidate encloser was the closest encloser; "
+				"reached MAX_NSEC3_CALCULATIONS (%d); "
+				"unchecked still",
+				MAX_NSEC3_CALCULATIONS);
+			return sec_status_unchecked;
+		}
 		verbose(VERB_ALGO, "nsec3: Could not find proof that the "
-		          "candidate encloser was the closest encloser");
+			"candidate encloser was the closest encloser");
 		return sec_status_bogus;
 	}
 	return sec_status_secure;
@@ -1019,8 +1113,8 @@ nsec3_ce_wildcard(struct regional* region, uint8_t* ce, size_t celen,
 
 /** Do the name error proof */
 static enum sec_status
-nsec3_do_prove_nameerror(struct module_env* env, struct nsec3_filter* flt, 
-	rbtree_type* ct, struct query_info* qinfo)
+nsec3_do_prove_nameerror(struct module_env* env, struct nsec3_filter* flt,
+	struct nsec3_cache_table* ct, struct query_info* qinfo, int* calc)
 {
 	struct ce_response ce;
 	uint8_t* wc;
@@ -1032,11 +1126,15 @@ nsec3_do_prove_nameerror(struct module_env* env, struct nsec3_filter* flt,
 	/* First locate and prove the closest encloser to qname. We will 
 	 * use the variant that fails if the closest encloser turns out 
 	 * to be qname. */
-	sec = nsec3_prove_closest_encloser(env, flt, ct, qinfo, 1, &ce);
+	sec = nsec3_prove_closest_encloser(env, flt, ct, qinfo, 1, &ce, calc);
 	if(sec != sec_status_secure) {
 		if(sec == sec_status_bogus)
 			verbose(VERB_ALGO, "nsec3 nameerror proof: failed "
 				"to prove a closest encloser");
+		else if(sec == sec_status_unchecked)
+			verbose(VERB_ALGO, "nsec3 nameerror proof: will "
+				"continue proving closest encloser after "
+				"suspend");
 		else 	verbose(VERB_ALGO, "nsec3 nameerror proof: closest "
 				"nsec3 is an insecure delegation");
 		return sec;
@@ -1046,9 +1144,27 @@ nsec3_do_prove_nameerror(struct module_env* env, struct nsec3_filter* flt,
 	/* At this point, we know that qname does not exist. Now we need 
 	 * to prove that the wildcard does not exist. */
 	log_assert(ce.ce);
-	wc = nsec3_ce_wildcard(env->scratch, ce.ce, ce.ce_len, &wclen);
-	if(!wc || !find_covering_nsec3(env, flt, ct, wc, wclen, 
-		&wc_rrset, &wc_rr)) {
+	wc = nsec3_ce_wildcard(ct->region, ce.ce, ce.ce_len, &wclen);
+	if(!wc) {
+		verbose(VERB_ALGO, "nsec3 nameerror proof: could not prove "
+			"that the applicable wildcard did not exist.");
+		return sec_status_bogus;
+	}
+	if(!find_covering_nsec3(env, flt, ct, wc, wclen, &wc_rrset, &wc_rr, calc)) {
+		if(*calc == MAX_NSEC3_ERRORS) {
+			verbose(VERB_ALGO, "nsec3 nameerror proof: could not prove "
+				"that the applicable wildcard did not exist; "
+				"all attempted hash calculations were "
+				"erroneous; bogus");
+			return sec_status_bogus;
+		} else if(*calc >= MAX_NSEC3_CALCULATIONS) {
+			verbose(VERB_ALGO, "nsec3 nameerror proof: could not prove "
+				"that the applicable wildcard did not exist; "
+				"reached MAX_NSEC3_CALCULATIONS (%d); "
+				"unchecked still",
+				MAX_NSEC3_CALCULATIONS);
+			return sec_status_unchecked;
+		}
 		verbose(VERB_ALGO, "nsec3 nameerror proof: could not prove "
 			"that the applicable wildcard did not exist.");
 		return sec_status_bogus;
@@ -1064,14 +1180,13 @@ nsec3_do_prove_nameerror(struct module_env* env, struct nsec3_filter* flt,
 enum sec_status
 nsec3_prove_nameerror(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key** list, size_t num,
-	struct query_info* qinfo, struct key_entry_key* kkey)
+	struct query_info* qinfo, struct key_entry_key* kkey,
+	struct nsec3_cache_table* ct, int* calc)
 {
-	rbtree_type ct;
 	struct nsec3_filter flt;
 
 	if(!list || num == 0 || !kkey || !key_entry_isgood(kkey))
 		return sec_status_bogus; /* no valid NSEC3s, bogus */
-	rbtree_init(&ct, &nsec3_hash_cmp); /* init names-to-hash cache */
 	filter_init(&flt, list, num, qinfo); /* init RR iterator */
 	if(!flt.zone)
 		return sec_status_bogus; /* no RRs */
@@ -1079,7 +1194,7 @@ nsec3_prove_nameerror(struct module_env* env, struct val_env* ve,
 		return sec_status_insecure; /* iteration count too high */
 	log_nametypeclass(VERB_ALGO, "start nsec3 nameerror proof, zone", 
 		flt.zone, 0, 0);
-	return nsec3_do_prove_nameerror(env, &flt, &ct, qinfo);
+	return nsec3_do_prove_nameerror(env, &flt, ct, qinfo, calc);
 }
 
 /* 
@@ -1089,8 +1204,9 @@ nsec3_prove_nameerror(struct module_env* env, struct val_env* ve,
 
 /** Do the nodata proof */
 static enum sec_status
-nsec3_do_prove_nodata(struct module_env* env, struct nsec3_filter* flt, 
-	rbtree_type* ct, struct query_info* qinfo)
+nsec3_do_prove_nodata(struct module_env* env, struct nsec3_filter* flt,
+	struct nsec3_cache_table* ct, struct query_info* qinfo,
+	int* calc)
 {
 	struct ce_response ce;
 	uint8_t* wc;
@@ -1100,7 +1216,7 @@ nsec3_do_prove_nodata(struct module_env* env, struct nsec3_filter* flt,
 	enum sec_status sec;
 
 	if(find_matching_nsec3(env, flt, ct, qinfo->qname, qinfo->qname_len, 
-		&rrset, &rr)) {
+		&rrset, &rr, calc)) {
 		/* cases 1 and 2 */
 		if(nsec3_has_type(rrset, rr, qinfo->qtype)) {
 			verbose(VERB_ALGO, "proveNodata: Matching NSEC3 "
@@ -1144,11 +1260,23 @@ nsec3_do_prove_nodata(struct module_env* env, struct nsec3_filter* flt,
 		}
 		return sec_status_secure;
 	}
+	if(*calc == MAX_NSEC3_ERRORS) {
+		verbose(VERB_ALGO, "proveNodata: all attempted hash "
+			"calculations were erroneous while finding a matching "
+			"NSEC3, bogus");
+		return sec_status_bogus;
+	} else if(*calc >= MAX_NSEC3_CALCULATIONS) {
+		verbose(VERB_ALGO, "proveNodata: reached "
+			"MAX_NSEC3_CALCULATIONS (%d) while finding a "
+			"matching NSEC3; unchecked still",
+			MAX_NSEC3_CALCULATIONS);
+		return sec_status_unchecked;
+	}
 
 	/* For cases 3 - 5, we need the proven closest encloser, and it 
 	 * can't match qname. Although, at this point, we know that it 
 	 * won't since we just checked that. */
-	sec = nsec3_prove_closest_encloser(env, flt, ct, qinfo, 1, &ce);
+	sec = nsec3_prove_closest_encloser(env, flt, ct, qinfo, 1, &ce, calc);
 	if(sec == sec_status_bogus) {
 		verbose(VERB_ALGO, "proveNodata: did not match qname, "
 		          "nor found a proven closest encloser.");
@@ -1157,14 +1285,17 @@ nsec3_do_prove_nodata(struct module_env* env, struct nsec3_filter* flt,
 		verbose(VERB_ALGO, "proveNodata: closest nsec3 is insecure "
 		          "delegation.");
 		return sec_status_insecure;
+	} else if(sec==sec_status_unchecked) {
+		return sec_status_unchecked;
 	}
 
 	/* Case 3: removed */
 
 	/* Case 4: */
 	log_assert(ce.ce);
-	wc = nsec3_ce_wildcard(env->scratch, ce.ce, ce.ce_len, &wclen);
-	if(wc && find_matching_nsec3(env, flt, ct, wc, wclen, &rrset, &rr)) {
+	wc = nsec3_ce_wildcard(ct->region, ce.ce, ce.ce_len, &wclen);
+	if(wc && find_matching_nsec3(env, flt, ct, wc, wclen, &rrset, &rr,
+		calc)) {
 		/* found wildcard */
 		if(nsec3_has_type(rrset, rr, qinfo->qtype)) {
 			verbose(VERB_ALGO, "nsec3 nodata proof: matching "
@@ -1195,6 +1326,18 @@ nsec3_do_prove_nodata(struct module_env* env, struct nsec3_filter* flt,
 		}
 		return sec_status_secure;
 	}
+	if(*calc == MAX_NSEC3_ERRORS) {
+		verbose(VERB_ALGO, "nsec3 nodata proof: all attempted hash "
+			"calculations were erroneous while matching "
+			"wildcard, bogus");
+		return sec_status_bogus;
+	} else if(*calc >= MAX_NSEC3_CALCULATIONS) {
+		verbose(VERB_ALGO, "nsec3 nodata proof: reached "
+			"MAX_NSEC3_CALCULATIONS (%d) while matching "
+			"wildcard, unchecked still",
+			MAX_NSEC3_CALCULATIONS);
+		return sec_status_unchecked;
+	}
 
 	/* Case 5: */
 	/* Due to forwarders, cnames, and other collating effects, we
@@ -1223,28 +1366,27 @@ nsec3_do_prove_nodata(struct module_env* env, struct nsec3_filter* flt,
 enum sec_status
 nsec3_prove_nodata(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key** list, size_t num,
-	struct query_info* qinfo, struct key_entry_key* kkey)
+	struct query_info* qinfo, struct key_entry_key* kkey,
+	struct nsec3_cache_table* ct, int* calc)
 {
-	rbtree_type ct;
 	struct nsec3_filter flt;
 
 	if(!list || num == 0 || !kkey || !key_entry_isgood(kkey))
 		return sec_status_bogus; /* no valid NSEC3s, bogus */
-	rbtree_init(&ct, &nsec3_hash_cmp); /* init names-to-hash cache */
 	filter_init(&flt, list, num, qinfo); /* init RR iterator */
 	if(!flt.zone)
 		return sec_status_bogus; /* no RRs */
 	if(nsec3_iteration_count_high(ve, &flt, kkey))
 		return sec_status_insecure; /* iteration count too high */
-	return nsec3_do_prove_nodata(env, &flt, &ct, qinfo);
+	return nsec3_do_prove_nodata(env, &flt, ct, qinfo, calc);
 }
 
 enum sec_status
 nsec3_prove_wildcard(struct module_env* env, struct val_env* ve,
         struct ub_packed_rrset_key** list, size_t num,
-	struct query_info* qinfo, struct key_entry_key* kkey, uint8_t* wc)
+	struct query_info* qinfo, struct key_entry_key* kkey, uint8_t* wc,
+	struct nsec3_cache_table* ct, int* calc)
 {
-	rbtree_type ct;
 	struct nsec3_filter flt;
 	struct ce_response ce;
 	uint8_t* nc;
@@ -1254,7 +1396,6 @@ nsec3_prove_wildcard(struct module_env* env, struct val_env* ve,
 
 	if(!list || num == 0 || !kkey || !key_entry_isgood(kkey))
 		return sec_status_bogus; /* no valid NSEC3s, bogus */
-	rbtree_init(&ct, &nsec3_hash_cmp); /* init names-to-hash cache */
 	filter_init(&flt, list, num, qinfo); /* init RR iterator */
 	if(!flt.zone)
 		return sec_status_bogus; /* no RRs */
@@ -1272,8 +1413,22 @@ nsec3_prove_wildcard(struct module_env* env, struct val_env* ve,
 	/* Now we still need to prove that the original data did not exist.
 	 * Otherwise, we need to show that the next closer name is covered. */
 	next_closer(qinfo->qname, qinfo->qname_len, ce.ce, &nc, &nc_len);
-	if(!find_covering_nsec3(env, &flt, &ct, nc, nc_len, 
-		&ce.nc_rrset, &ce.nc_rr)) {
+	if(!find_covering_nsec3(env, &flt, ct, nc, nc_len,
+		&ce.nc_rrset, &ce.nc_rr, calc)) {
+		if(*calc == MAX_NSEC3_ERRORS) {
+			verbose(VERB_ALGO, "proveWildcard: did not find a "
+				"covering NSEC3 that covered the next closer "
+				"name; all attempted hash calculations were "
+				"erroneous; bogus");
+			return sec_status_bogus;
+		} else if(*calc >= MAX_NSEC3_CALCULATIONS) {
+			verbose(VERB_ALGO, "proveWildcard: did not find a "
+				"covering NSEC3 that covered the next closer "
+				"name; reached MAX_NSEC3_CALCULATIONS "
+				"(%d); unchecked still",
+				MAX_NSEC3_CALCULATIONS);
+			return sec_status_unchecked;
+		}
 		verbose(VERB_ALGO, "proveWildcard: did not find a covering "
 			"NSEC3 that covered the next closer name.");
 		return sec_status_bogus;
@@ -1294,6 +1449,7 @@ list_is_secure(struct module_env* env, struct val_env* ve,
 {
 	struct packed_rrset_data* d;
 	size_t i;
+	int verified = 0;
 	for(i=0; i<num; i++) {
 		d = (struct packed_rrset_data*)list[i]->entry.data;
 		if(list[i]->rk.type != htons(LDNS_RR_TYPE_NSEC3))
@@ -1304,7 +1460,8 @@ list_is_secure(struct module_env* env, struct val_env* ve,
 		if(d->security == sec_status_secure)
 			continue;
 		d->security = val_verify_rrset_entry(env, ve, list[i], kkey,
-			reason, reason_bogus, LDNS_SECTION_AUTHORITY, qstate);
+			reason, reason_bogus, LDNS_SECTION_AUTHORITY, qstate,
+			&verified);
 		if(d->security != sec_status_secure) {
 			verbose(VERB_ALGO, "NSEC3 did not verify");
 			return 0;
@@ -1318,13 +1475,16 @@ enum sec_status
 nsec3_prove_nods(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key** list, size_t num,
 	struct query_info* qinfo, struct key_entry_key* kkey, char** reason,
-	sldns_ede_code* reason_bogus, struct module_qstate* qstate)
+	sldns_ede_code* reason_bogus, struct module_qstate* qstate,
+	struct nsec3_cache_table* ct)
 {
-	rbtree_type ct;
 	struct nsec3_filter flt;
 	struct ce_response ce;
 	struct ub_packed_rrset_key* rrset;
 	int rr;
+	int calc = 0;
+	enum sec_status sec;
+
 	log_assert(qinfo->qtype == LDNS_RR_TYPE_DS);
 
 	if(!list || num == 0 || !kkey || !key_entry_isgood(kkey)) {
@@ -1335,7 +1495,6 @@ nsec3_prove_nods(struct module_env* env, struct val_env* ve,
 		*reason = "not all NSEC3 records secure";
 		return sec_status_bogus; /* not all NSEC3 records secure */
 	}
-	rbtree_init(&ct, &nsec3_hash_cmp); /* init names-to-hash cache */
 	filter_init(&flt, list, num, qinfo); /* init RR iterator */
 	if(!flt.zone) {
 		*reason = "no NSEC3 records";
@@ -1346,8 +1505,8 @@ nsec3_prove_nods(struct module_env* env, struct val_env* ve,
 
 	/* Look for a matching NSEC3 to qname -- this is the normal 
 	 * NODATA case. */
-	if(find_matching_nsec3(env, &flt, &ct, qinfo->qname, qinfo->qname_len, 
-		&rrset, &rr)) {
+	if(find_matching_nsec3(env, &flt, ct, qinfo->qname, qinfo->qname_len,
+		&rrset, &rr, &calc)) {
 		/* If the matching NSEC3 has the SOA bit set, it is from 
 		 * the wrong zone (the child instead of the parent). If 
 		 * it has the DS bit set, then we were lied to. */
@@ -1370,10 +1529,24 @@ nsec3_prove_nods(struct module_env* env, struct val_env* ve,
 		/* Otherwise, this proves no DS. */
 		return sec_status_secure;
 	}
+	if(calc == MAX_NSEC3_ERRORS) {
+		verbose(VERB_ALGO, "nsec3 provenods: all attempted hash "
+			"calculations were erroneous while finding a matching "
+			"NSEC3, bogus");
+		return sec_status_bogus;
+	} else if(calc >= MAX_NSEC3_CALCULATIONS) {
+		verbose(VERB_ALGO, "nsec3 provenods: reached "
+			"MAX_NSEC3_CALCULATIONS (%d) while finding a "
+			"matching NSEC3, unchecked still",
+			MAX_NSEC3_CALCULATIONS);
+		return sec_status_unchecked;
+	}
 
 	/* Otherwise, we are probably in the opt-out case. */
-	if(nsec3_prove_closest_encloser(env, &flt, &ct, qinfo, 1, &ce)
-		!= sec_status_secure) {
+	sec = nsec3_prove_closest_encloser(env, &flt, ct, qinfo, 1, &ce, &calc);
+	if(sec == sec_status_unchecked) {
+		return sec_status_unchecked;
+	} else if(sec != sec_status_secure) {
 		/* an insecure delegation *above* the qname does not prove
 		 * anything about this qname exactly, and bogus is bogus */
 		verbose(VERB_ALGO, "nsec3 provenods: did not match qname, "
@@ -1407,17 +1580,16 @@ nsec3_prove_nods(struct module_env* env, struct val_env* ve,
 
 enum sec_status
 nsec3_prove_nxornodata(struct module_env* env, struct val_env* ve,
-	struct ub_packed_rrset_key** list, size_t num, 
-	struct query_info* qinfo, struct key_entry_key* kkey, int* nodata)
+	struct ub_packed_rrset_key** list, size_t num,
+	struct query_info* qinfo, struct key_entry_key* kkey, int* nodata,
+	struct  nsec3_cache_table* ct, int* calc)
 {
 	enum sec_status sec, secnx;
-	rbtree_type ct;
 	struct nsec3_filter flt;
 	*nodata = 0;
 
 	if(!list || num == 0 || !kkey || !key_entry_isgood(kkey))
 		return sec_status_bogus; /* no valid NSEC3s, bogus */
-	rbtree_init(&ct, &nsec3_hash_cmp); /* init names-to-hash cache */
 	filter_init(&flt, list, num, qinfo); /* init RR iterator */
 	if(!flt.zone)
 		return sec_status_bogus; /* no RRs */
@@ -1427,16 +1599,20 @@ nsec3_prove_nxornodata(struct module_env* env, struct val_env* ve,
 	/* try nxdomain and nodata after another, while keeping the
 	 * hash cache intact */
 
-	secnx = nsec3_do_prove_nameerror(env, &flt, &ct, qinfo);
+	secnx = nsec3_do_prove_nameerror(env, &flt, ct, qinfo, calc);
 	if(secnx==sec_status_secure)
 		return sec_status_secure;
-	sec = nsec3_do_prove_nodata(env, &flt, &ct, qinfo);
+	else if(secnx == sec_status_unchecked)
+		return sec_status_unchecked;
+	sec = nsec3_do_prove_nodata(env, &flt, ct, qinfo, calc);
 	if(sec==sec_status_secure) {
 		*nodata = 1;
 	} else if(sec == sec_status_insecure) {
 		*nodata = 1;
 	} else if(secnx == sec_status_insecure) {
 		sec = sec_status_insecure;
+	} else if(sec == sec_status_unchecked) {
+		return sec_status_unchecked;
 	}
 	return sec;
 }
