@@ -162,11 +162,6 @@ OLD_FILES+=usr/share/man/man8/bhyveload.8.gz
 OLD_DIRS+=usr/share/examples/bhyve
 .endif
 
-.if ${MK_LLD_IS_LD} == no
-OLD_FILES+=usr/bin/ld
-OLD_FILES+=usr/share/man/man1/ld.1.gz
-.endif
-
 .if ${MK_BLACKLIST} == no
 OLD_FILES+=etc/blacklistd.conf
 OLD_FILES+=etc/rc.d/blacklistd
