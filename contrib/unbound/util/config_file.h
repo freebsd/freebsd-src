@@ -409,6 +409,8 @@ struct config_file {
 	int aggressive_nsec;
 	/** ignore the CD flag in incoming queries and refuse them bogus data */
 	int ignore_cd;
+	/** disable EDNS DO flag in outgoing requests */
+	int disable_edns_do;
 	/** serve expired entries and prefetch them */
 	int serve_expired;
 	/** serve expired entries until TTL after expiration */
@@ -699,6 +701,8 @@ struct config_file {
 	char* cachedb_backend;
 	/** secret seed for hash key calculation */
 	char* cachedb_secret;
+	/** cachedb that does not store, but only reads from database, if on */
+	int cachedb_no_store;
 #ifdef USE_REDIS
 	/** redis server's IP address or host name */
 	char* redis_server_host;
@@ -712,6 +716,8 @@ struct config_file {
 	int redis_timeout;
 	/** set timeout on redis records based on DNS response ttl */
 	int redis_expire_records;
+	/** set the redis logical database upon connection */
+	int redis_logical_db;
 #endif
 #endif
 	/** Downstream DNS Cookies */

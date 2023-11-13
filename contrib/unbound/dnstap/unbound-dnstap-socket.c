@@ -708,7 +708,7 @@ static ssize_t ssl_read_bytes(struct tap_data* data, void* buf, size_t len)
 				(data->id?data->id:""));
 			return 0;
 		}
-		log_crypto_err("could not SSL_read");
+		log_crypto_err_io("could not SSL_read", want);
 		if(verbosity) log_info("dnstap client stream closed from %s",
 			(data->id?data->id:""));
 		return 0;
@@ -760,10 +760,11 @@ static int reply_with_accept(struct tap_data* data)
 	fd_set_block(data->fd);
 	if(data->ssl) {
 		if((r=SSL_write(data->ssl, acceptframe, len)) <= 0) {
-			if(SSL_get_error(data->ssl, r) == SSL_ERROR_ZERO_RETURN)
+			int r2;
+			if((r2=SSL_get_error(data->ssl, r)) == SSL_ERROR_ZERO_RETURN)
 				log_err("SSL_write, peer closed connection");
 			else
-				log_err("could not SSL_write");
+				log_crypto_err_io("could not SSL_write", r2);
 			fd_set_nonblock(data->fd);
 			free(acceptframe);
 			return 0;
@@ -805,10 +806,11 @@ static int reply_with_finish(struct tap_data* data)
 	if(data->ssl) {
 		int r;
 		if((r=SSL_write(data->ssl, finishframe, len)) <= 0) {
-			if(SSL_get_error(data->ssl, r) == SSL_ERROR_ZERO_RETURN)
+			int r2;
+			if((r2=SSL_get_error(data->ssl, r)) == SSL_ERROR_ZERO_RETURN)
 				log_err("SSL_write, peer closed connection");
 			else
-				log_err("could not SSL_write");
+				log_crypto_err_io("could not SSL_write", r2);
 			fd_set_nonblock(data->fd);
 			free(finishframe);
 			return 0;

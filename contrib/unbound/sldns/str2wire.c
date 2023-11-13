@@ -2459,12 +2459,13 @@ int sldns_str2wire_wks_buf(const char* str, uint8_t* rd, size_t* len)
 			(void)strlcpy(proto_str, token, sizeof(proto_str));
 		} else {
 			int serv_port;
-			struct servent *serv = getservbyname(token, proto_str);
-			if(serv) serv_port=(int)ntohs((uint16_t)serv->s_port);
+			if(atoi(token) != 0) serv_port=atoi(token);
+			else if(strcmp(token, "0") == 0) serv_port=0;
 			else if(strcasecmp(token, "domain")==0) serv_port=53;
 			else {
-				serv_port = atoi(token);
-				if(serv_port == 0 && strcmp(token, "0") != 0) {
+				struct servent *serv = getservbyname(token, proto_str);
+				if(serv) serv_port=(int)ntohs((uint16_t)serv->s_port);
+				else {
 #ifdef HAVE_ENDSERVENT
 					endservent();
 #endif
@@ -2474,16 +2475,16 @@ int sldns_str2wire_wks_buf(const char* str, uint8_t* rd, size_t* len)
 					return RET_ERR(LDNS_WIREPARSE_ERR_SYNTAX,
 						sldns_buffer_position(&strbuf));
 				}
-				if(serv_port < 0 || serv_port > 65535) {
+			}
+			if(serv_port < 0 || serv_port > 65535) {
 #ifdef HAVE_ENDSERVENT
-					endservent();
+				endservent();
 #endif
 #ifdef HAVE_ENDPROTOENT
-					endprotoent();
+				endprotoent();
 #endif
-					return RET_ERR(LDNS_WIREPARSE_ERR_SYNTAX,
-						sldns_buffer_position(&strbuf));
-				}
+				return RET_ERR(LDNS_WIREPARSE_ERR_SYNTAX,
+					sldns_buffer_position(&strbuf));
 			}
 			if(rd_len < 1+serv_port/8+1) {
 				/* bitmap is larger, init new bytes at 0 */

@@ -1327,7 +1327,9 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 			log_warn("socket timestamping is not available");
 		}
 		if(!port_insert(list, s, is_dnscrypt
-			?listen_type_udp_dnscrypt:listen_type_udp,
+			?listen_type_udp_dnscrypt :
+			(sock_queue_timeout ?
+				listen_type_udpancil:listen_type_udp),
 			is_pp2, ub_sock)) {
 			sock_close(s);
 			if(ub_sock->addr)
@@ -1498,9 +1500,13 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 			}
 		} else if(ports->ftype == listen_type_udpancil ||
 				  ports->ftype == listen_type_udpancil_dnscrypt) {
+#if defined(AF_INET6) && defined(IPV6_PKTINFO) && defined(HAVE_RECVMSG)
 			cp = comm_point_create_udp_ancil(base, ports->fd,
 				front->udp_buff, ports->pp2_enabled, cb,
 				cb_arg, ports->socket);
+#else
+			log_warn("This system does not support UDP ancilliary data.");
+#endif
 		}
 		if(!cp) {
 			log_err("can't create commpoint");

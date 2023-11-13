@@ -158,10 +158,10 @@ ipset_check_zones_for_rrset(struct module_env *env, struct ipset_env *ie,
 		qs = NULL;
 		plen = strlen(p->str);
 
-		if (dlen >= plen) {
+		if (dlen == plen || (dlen > plen && dname[dlen - plen - 1] == '.' )) {
 			ds = dname + (dlen - plen);
 		}
-		if (qlen >= plen) {
+		if (qlen == plen || (qlen > plen && qname[qlen - plen - 1] == '.' )) {
 			qs = qname + (qlen - plen);
 		}
 		if ((ds && strncasecmp(p->str, ds, plen) == 0)

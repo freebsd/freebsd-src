@@ -430,6 +430,24 @@ void log_crypto_err(const char* str);
 void log_crypto_err_code(const char* str, unsigned long err);
 
 /**
+ * Log an error from libcrypto that came from SSL_write and so on, with
+ * a value from SSL_get_error, calls log_err. If that fails it logs with
+ * log_crypto_err.
+ * @param str: what failed
+ * @param r: output of SSL_get_error on the I/O operation result.
+ */
+void log_crypto_err_io(const char* str, int r);
+
+/**
+ * Log an error from libcrypt that came from an I/O routine with the
+ * errcode from ERR_get_error. Calls log_err() and log_crypto_err_code.
+ * @param str: what failed
+ * @param r: output of SSL_get_error on the I/O operation result.
+ * @param err: error code from ERR_get_error
+ */
+void log_crypto_err_io_code(const char* str, int r, unsigned long err);
+
+/**
  * Log certificate details verbosity, string, of X509 cert
  * @param level: verbosity level
  * @param str: string to prefix on output

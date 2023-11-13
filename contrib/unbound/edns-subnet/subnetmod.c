@@ -156,6 +156,7 @@ int ecs_whitelist_check(struct query_info* qinfo,
 		qstate->no_cache_store = 0;
 	}
 
+	sq->subnet_sent_no_subnet = 0;
 	if(sq->ecs_server_out.subnet_validdata && ((sq->subnet_downstream &&
 		qstate->env->cfg->client_subnet_always_forward) ||
 		ecs_is_whitelisted(sn_env->whitelist, 
@@ -166,6 +167,14 @@ int ecs_whitelist_check(struct query_info* qinfo,
 		 * set. */
 		if(!edns_opt_list_find(qstate->edns_opts_back_out,
 			qstate->env->cfg->client_subnet_opcode)) {
+			/* if the client is not wanting an EDNS subnet option,
+			 * omit it and store that we omitted it but actually
+			 * are doing EDNS subnet to the server. */
+			if(sq->ecs_server_out.subnet_source_mask == 0) {
+				sq->subnet_sent_no_subnet = 1;
+				sq->subnet_sent = 0;
+				return 1;
+			}
 			subnet_ecs_opt_list_append(&sq->ecs_server_out,
 				&qstate->edns_opts_back_out, qstate, region);
 		}
@@ -515,7 +524,7 @@ eval_response(struct module_qstate *qstate, int id, struct subnet_qstate *sq)
 	}
 
 	/* We have not asked for subnet data */
-	if (!sq->subnet_sent) {
+	if (!sq->subnet_sent && !sq->subnet_sent_no_subnet) {
 		if (s_in->subnet_validdata)
 			verbose(VERB_QUERY, "subnetcache: received spurious data");
 		if (sq->subnet_downstream) /* Copy back to client */
@@ -524,7 +533,7 @@ eval_response(struct module_qstate *qstate, int id, struct subnet_qstate *sq)
 	}
 
 	/* subnet sent but nothing came back */
-	if (!s_in->subnet_validdata) {
+	if (!s_in->subnet_validdata && !sq->subnet_sent_no_subnet) {
 		/* The authority indicated no support for edns subnet. As a
 		 * consequence the answer ended up in the regular cache. It
 		 * is still useful to put it in the edns subnet cache for
@@ -538,6 +547,18 @@ eval_response(struct module_qstate *qstate, int id, struct subnet_qstate *sq)
 		if (sq->subnet_downstream)
 			cp_edns_bad_response(c_out, c_in);
 		return module_finished;
+	}
+
+	/* Purposefully there was no sent subnet, and there is consequently
+	 * no subnet in the answer. If there was, use the subnet in the answer
+	 * anyway. But if there is not, treat it as a prefix 0 answer. */
+	if(sq->subnet_sent_no_subnet && !s_in->subnet_validdata) {
+		/* Fill in 0.0.0.0/0 scope 0, or ::0/0 scope 0, for caching. */
+		s_in->subnet_addr_fam = s_out->subnet_addr_fam;
+		s_in->subnet_source_mask = 0;
+		s_in->subnet_scope_mask = 0;
+		memset(s_in->subnet_addr, 0, INET6_SIZE);
+		s_in->subnet_validdata = 1;
 	}
 
 	/* Being here means we have asked for and got a subnet specific 
@@ -556,6 +577,7 @@ eval_response(struct module_qstate *qstate, int id, struct subnet_qstate *sq)
 		(void)edns_opt_list_remove(&qstate->edns_opts_back_out,
 			qstate->env->cfg->client_subnet_opcode);
 		sq->subnet_sent = 0;
+		sq->subnet_sent_no_subnet = 0;
 		return module_restart_next;
 	}
 
@@ -676,6 +698,7 @@ ecs_query_response(struct module_qstate* qstate, struct dns_msg* response,
 		edns_opt_list_remove(&qstate->edns_opts_back_out,
 			qstate->env->cfg->client_subnet_opcode);
 		sq->subnet_sent = 0;
+		sq->subnet_sent_no_subnet = 0;
 		memset(&sq->ecs_server_out, 0, sizeof(sq->ecs_server_out));
 	} else if (!sq->track_max_scope &&
 		FLAGS_GET_RCODE(response->rep->flags) == LDNS_RCODE_NOERROR &&
@@ -737,6 +760,9 @@ ecs_edns_back_parsed(struct module_qstate* qstate, int id,
 				sq->ecs_server_in.subnet_scope_mask >
 				sq->max_scope))
 				sq->max_scope = sq->ecs_server_in.subnet_scope_mask;
+	} else if(sq->subnet_sent_no_subnet) {
+		/* The answer can be stored as scope 0, not in global cache. */
+		qstate->no_cache_store = 1;
 	}
 
 	return 1;

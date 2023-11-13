@@ -265,11 +265,11 @@ cachedb_init(struct module_env* env, int id)
 		return 0;
 	}
 	cachedb_env->enabled = 1;
-	if(env->cfg->serve_expired_reply_ttl)
+	if(env->cfg->serve_expired && env->cfg->serve_expired_reply_ttl)
 		log_warn(
 			"cachedb: serve-expired-reply-ttl is set but not working for data "
-			"originating from the external cache; 0 TLL is used for those.");
-	if(env->cfg->serve_expired_client_timeout)
+			"originating from the external cache; 0 TTL is used for those.");
+	if(env->cfg->serve_expired && env->cfg->serve_expired_client_timeout)
 		log_warn(
 			"cachedb: serve-expired-client-timeout is set but not working for "
 			"data originating from the external cache; expired data are used "
@@ -812,6 +812,11 @@ cachedb_handle_response(struct module_qstate* qstate,
 	/* check if we are not enabled or instructed to not cache, and skip */
 	if(!ie->enabled || qstate->no_cache_store) {
 		/* we are done with the query */
+		qstate->ext_state[id] = module_finished;
+		return;
+	}
+	if(qstate->env->cfg->cachedb_no_store) {
+		/* do not store the item in the external cache */
 		qstate->ext_state[id] = module_finished;
 		return;
 	}

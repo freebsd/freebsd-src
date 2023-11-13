@@ -2475,6 +2475,7 @@ az_find_ce(struct auth_zone* z, struct query_info* qinfo,
 	struct auth_rrset** rrset)
 {
 	struct auth_data* n = node;
+	struct auth_rrset* lookrrset;
 	*ce = NULL;
 	*rrset = NULL;
 	if(!node_exact) {
@@ -2497,21 +2498,23 @@ az_find_ce(struct auth_zone* z, struct query_info* qinfo,
 		/* see if the current candidate has issues */
 		/* not zone apex and has type NS */
 		if(n->namelen != z->namelen &&
-			(*rrset=az_domain_rrset(n, LDNS_RR_TYPE_NS)) &&
+			(lookrrset=az_domain_rrset(n, LDNS_RR_TYPE_NS)) &&
 			/* delegate here, but DS at exact the dp has notype */
 			(qinfo->qtype != LDNS_RR_TYPE_DS || 
 			n->namelen != qinfo->qname_len)) {
 			/* referral */
 			/* this is ce and the lowernode is nonexisting */
 			*ce = n;
-			return 0;
+			*rrset = lookrrset;
+			node_exact = 0;
 		}
 		/* not equal to qname and has type DNAME */
 		if(n->namelen != qinfo->qname_len &&
-			(*rrset=az_domain_rrset(n, LDNS_RR_TYPE_DNAME))) {
+			(lookrrset=az_domain_rrset(n, LDNS_RR_TYPE_DNAME))) {
 			/* this is ce and the lowernode is nonexisting */
 			*ce = n;
-			return 0;
+			*rrset = lookrrset;
+			node_exact = 0;
 		}
 
 		if(*ce == NULL && !domain_has_only_nsec3(n)) {

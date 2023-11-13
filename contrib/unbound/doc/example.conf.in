@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.18.0.
+# See unbound.conf(5) man page, version 1.19.0.
 #
 # this is a comment.
 
@@ -683,6 +683,11 @@ server:
 	# that set CD but cannot validate themselves.
 	# ignore-cd-flag: no
 
+	# Disable the DO flag in outgoing requests. It is helpful for upstream
+	# devices that cannot handle DNSSEC information. But do not enable it
+	# otherwise, because it would stop DNSSEC validation.
+	# disable-edns-do: no
+
 	# Serve expired responses from cache, with serve-expired-reply-ttl in
 	# the response, and then attempt to fetch the data afresh.
 	# serve-expired: no
@@ -1221,6 +1226,8 @@ remote-control:
 #     backend: "testframe"
 #     # secret seed string to calculate hashed keys
 #     secret-seed: "default"
+#     # if the backend should be read from, but not written to.
+#     cachedb-no-store: no
 #
 #     # For "redis" backend:
 #     # (to enable, use --with-libhiredis to configure before compiling)
@@ -1236,6 +1243,8 @@ remote-control:
 #     redis-timeout: 100
 #     # set timeout on redis records based on DNS response TTL
 #     redis-expire-records: no
+#     # redis logical database to use, 0 is the default database.
+#     redis-logical-db: 0
 
 # IPSet
 # Add specify domain into set via ipset.

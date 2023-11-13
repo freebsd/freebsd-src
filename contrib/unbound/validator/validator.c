@@ -200,6 +200,17 @@ val_init(struct module_env* env, int id)
 		log_err("validator: could not apply configuration settings.");
 		return 0;
 	}
+	if(env->cfg->disable_edns_do) {
+		struct trust_anchor* anchor = anchors_find_any_noninsecure(
+			env->anchors);
+		if(anchor) {
+			char b[LDNS_MAX_DOMAINLEN+2];
+			dname_str(anchor->name, b);
+			log_warn("validator: disable-edns-do is enabled, but there is a trust anchor for '%s'. Since DNSSEC could not work, the disable-edns-do setting is turned off. Continuing without it.", b);
+			lock_basic_unlock(&anchor->lock);
+			env->cfg->disable_edns_do = 0;
+		}
+	}
 
 	return 1;
 }

@@ -85,6 +85,13 @@ struct subnet_qstate {
 	struct ecs_data	ecs_server_out;
 	int subnet_downstream;
 	int subnet_sent;
+	/**
+	 * If there was no subnet sent because the client used source prefix
+	 * length 0 for omitting the information. Then the answer is cached
+	 * like subnet was a /0 scope. Like the subnet_sent flag, but when
+	 * the EDNS subnet option is omitted because the client asked.
+	 */
+	int subnet_sent_no_subnet;
 	/** keep track of longest received scope, set after receiving CNAME for
 	 * incoming QNAME. */
 	int track_max_scope;

@@ -1012,8 +1012,10 @@ reply_info_answer_encode(struct query_info* qinf, struct reply_info* rep,
 	ede_size = calc_ede_option_size(edns, &ede_txt_size);
 	if(sldns_buffer_capacity(pkt) < udpsize)
 		udpsize = sldns_buffer_capacity(pkt);
+	if(!edns || !edns->edns_present) {
+		attach_edns = 0;
 	/* EDEs are optional, try to fit anything else before them */
-	if(udpsize < LDNS_HEADER_SIZE + edns_field_size - ede_size) {
+	} else if(udpsize < LDNS_HEADER_SIZE + edns_field_size - ede_size) {
 		/* packet too small to contain edns, omit it. */
 		attach_edns = 0;
 	} else {

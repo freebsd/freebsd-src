@@ -179,6 +179,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_CACHEDB VAR_CACHEDB_BACKEND VAR_CACHEDB_SECRETSEED
 %token VAR_CACHEDB_REDISHOST VAR_CACHEDB_REDISPORT VAR_CACHEDB_REDISTIMEOUT
 %token VAR_CACHEDB_REDISEXPIRERECORDS VAR_CACHEDB_REDISPATH VAR_CACHEDB_REDISPASSWORD
+%token VAR_CACHEDB_REDISLOGICALDB
 %token VAR_UDP_UPSTREAM_WITHOUT_DOWNSTREAM VAR_FOR_UPSTREAM
 %token VAR_AUTH_ZONE VAR_ZONEFILE VAR_MASTER VAR_URL VAR_FOR_DOWNSTREAM
 %token VAR_FALLBACK_ENABLED VAR_TLS_ADDITIONAL_PORT VAR_LOW_RTT VAR_LOW_RTT_PERMIL
@@ -198,7 +199,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_INTERFACE_ACTION VAR_INTERFACE_VIEW VAR_INTERFACE_TAG
 %token VAR_INTERFACE_TAG_ACTION VAR_INTERFACE_TAG_DATA
 %token VAR_PROXY_PROTOCOL_PORT VAR_STATISTICS_INHIBIT_ZERO
-%token VAR_HARDEN_UNKNOWN_ADDITIONAL
+%token VAR_HARDEN_UNKNOWN_ADDITIONAL VAR_DISABLE_EDNS_DO VAR_CACHEDB_NO_STORE
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -332,7 +333,7 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_tcp_reuse_timeout | server_tcp_auth_query_timeout |
 	server_interface_automatic_ports | server_ede |
 	server_proxy_protocol_port | server_statistics_inhibit_zero |
-	server_harden_unknown_additional
+	server_harden_unknown_additional | server_disable_edns_do
 	;
 stubstart: VAR_STUB_ZONE
 	{
@@ -2060,6 +2061,15 @@ server_ignore_cd_flag: VAR_IGNORE_CD_FLAG STRING_ARG
 		free($2);
 	}
 	;
+server_disable_edns_do: VAR_DISABLE_EDNS_DO STRING_ARG
+	{
+		OUTYY(("P(server_disable_edns_do:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->disable_edns_do = (strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
 server_serve_expired: VAR_SERVE_EXPIRED STRING_ARG
 	{
 		OUTYY(("P(server_serve_expired:%s)\n", $2));
@@ -3701,7 +3711,8 @@ contents_cachedb: contents_cachedb content_cachedb
 	| ;
 content_cachedb: cachedb_backend_name | cachedb_secret_seed |
 	redis_server_host | redis_server_port | redis_timeout |
-	redis_expire_records | redis_server_path | redis_server_password
+	redis_expire_records | redis_server_path | redis_server_password |
+	cachedb_no_store | redis_logical_db
 	;
 cachedb_backend_name: VAR_CACHEDB_BACKEND STRING_ARG
 	{
@@ -3725,6 +3736,19 @@ cachedb_secret_seed: VAR_CACHEDB_SECRETSEED STRING_ARG
 		OUTYY(("P(Compiled without cachedb, ignoring)\n"));
 		free($2);
 	#endif
+	}
+	;
+cachedb_no_store: VAR_CACHEDB_NO_STORE STRING_ARG
+	{
+	#ifdef USE_CACHEDB
+		OUTYY(("P(cachedb_no_store:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->cachedb_no_store = (strcmp($2, "yes")==0);
+	#else
+		OUTYY(("P(Compiled without cachedb, ignoring)\n"));
+	#endif
+		free($2);
 	}
 	;
 redis_server_host: VAR_CACHEDB_REDISHOST STRING_ARG
@@ -3798,6 +3822,21 @@ redis_expire_records: VAR_CACHEDB_REDISEXPIRERECORDS STRING_ARG
 		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
 			yyerror("expected yes or no.");
 		else cfg_parser->cfg->redis_expire_records = (strcmp($2, "yes")==0);
+	#else
+		OUTYY(("P(Compiled without cachedb or redis, ignoring)\n"));
+	#endif
+		free($2);
+	}
+	;
+redis_logical_db: VAR_CACHEDB_REDISLOGICALDB STRING_ARG
+	{
+	#if defined(USE_CACHEDB) && defined(USE_REDIS)
+		int db;
+		OUTYY(("P(redis_logical_db:%s)\n", $2));
+		db = atoi($2);
+		if((db == 0 && strcmp($2, "0") != 0) || db < 0)
+			yyerror("valid redis logical database index expected");
+		else cfg_parser->cfg->redis_logical_db = db;
 	#else
 		OUTYY(("P(Compiled without cachedb or redis, ignoring)\n"));
 	#endif

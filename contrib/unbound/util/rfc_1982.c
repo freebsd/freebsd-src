@@ -39,6 +39,7 @@
  * This file contains functions for RFC 1982 serial number arithmetic.
  */
 #include "config.h"
+#include "util/rfc_1982.h"
 
 int
 compare_1982(uint32_t a, uint32_t b)
