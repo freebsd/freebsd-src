@@ -225,6 +225,36 @@ ENTRY_END
 
 RANGE_END
 
+; dd. ------------------------------------------------------------------------
+RANGE_BEGIN 0 100
+	ADDRESS 8.8.3.8
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+dd. IN NS
+SECTION ANSWER
+dd. IN NS ns1.dd.
+SECTION ADDITIONAL
+ns1.dd. IN A 8.8.3.8
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+gotham.dd. IN A
+SECTION AUTHORITY
+gotham.dd.	IN NS	ns1.gotham.dd.
+SECTION ADDITIONAL
+ns1.gotham.dd. IN A 192.0.3.1
+ENTRY_END
+
+RANGE_END
+
 ; ff. ------------------------------------------------------------------------
 RANGE_BEGIN 0 100
 	ADDRESS 8.8.6.8
@@ -299,6 +329,22 @@ SECTION QUESTION
 gotham.bb. IN A
 SECTION ANSWER
 gotham.bb. IN A 192.0.1.2
+ENTRY_END
+
+RANGE_END
+
+; ns1.gotham.dd. -------------------------------------------------------------
+RANGE_BEGIN 0 100
+	ADDRESS 192.0.3.1
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+gotham.dd. IN A
+SECTION ANSWER
+gotham.dd. IN A 192.0.3.2
 ENTRY_END
 
 RANGE_END
@@ -385,6 +431,41 @@ SECTION QUESTION
 gotham.ff. IN A
 SECTION ANSWER
 gotham.ff. IN A 127.0.0.1
+ENTRY_END
+
+STEP 40 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+gotham.dd. IN A
+ENTRY_END
+
+; should come back truncated because TCP is required.
+STEP 41 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA TC NOERROR
+SECTION QUESTION
+gotham.dd. IN A
+SECTION ANSWER
+ENTRY_END
+
+STEP 42 QUERY
+ENTRY_BEGIN
+MATCH TCP
+REPLY RD
+SECTION QUESTION
+gotham.dd. IN A
+ENTRY_END
+
+STEP 43 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all TCP
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+gotham.dd. IN A
+SECTION ANSWER
+gotham.dd. IN A 192.0.3.2
 ENTRY_END
 
 SCENARIO_END

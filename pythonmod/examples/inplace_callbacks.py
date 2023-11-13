@@ -287,7 +287,7 @@ def init_standard(id, env):
              env.cfg.
 
     """
-    log_info("python: inited script {}".format(env.cfg.python_script))
+    log_info("python: inited script {}".format(mod_env['script']))
 
     # Register the inplace_reply_callback function as an inplace callback
     # function when answering a resolved query.

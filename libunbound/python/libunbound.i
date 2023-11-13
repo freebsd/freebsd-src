@@ -863,6 +863,9 @@ Result: ['74.125.43.147', '74.125.43.99', '74.125.43.103', '74.125.43.104']
 %inline %{
   //SWIG will see the ub_ctx as a class
   struct ub_ctx {
+          /* Dummy member, so the struct is not empty, MSVC complains about
+           * that. */
+          int dummy;
   };
 %}
 

@@ -187,7 +187,7 @@ void log_ident_set_default(const char* id)
 	default_ident = id;
 }
 
-void log_ident_revert_to_default()
+void log_ident_revert_to_default(void)
 {
 	ident = default_ident;
 }

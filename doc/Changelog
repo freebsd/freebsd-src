@@ -1,8 +1,158 @@
+2 November 2023: Wouter
+	- Set version number to 1.19.0.
+	- Tag for 1.19.0rc1 release.
+
+1 November 2023: George
+	- Mention flex and bison in README.md when building from repository
+	  source.
+
+1 November 2023: Wouter
+	- Fix SSL compile failure for definition in log_crypto_err_io_code_arg.
+	- Fix SSL compile failure for other missing definitions in
+	  log_crypto_err_io_code_arg.
+	- Fix compilation without openssl, remove unused function warning.
+
+31 October 2023: George
+	- Fix #941: dnscrypt doesn't work after upgrade to 1.18 with
+	  suggestion by dukeartem to also fix the udp_ancil with dnscrypt.
+
+30 October 2023: George
+	- Merge #930 from Stuart Henderson: add void to
+	  log_ident_revert_to_default declaration.
+
+30 October 2023: Wouter
+	- autoconf.
+
+24 October 2023: George
+	- Clearer configure text for missing protobuf-c development libraries.
+
+20 October 2023: Wouter
+	- Merge #951: Cachedb no store. The cachedb-no-store: yes option is
+	  used to stop cachedb from writing messages to the backend storage.
+	  It reads messages when data is available from the backend. The
+	  default is no.
+
+19 October 2023: Wouter
+	- Fix to print detailed errors when an SSL IO routine fails via
+	  SSL_get_error.
+
+18 October 2023: George
+	- Mailing list patches from Daniel Gröber for DNS64 fallback to plain
+	  AAAA when no A record exists for synthesis, and minor DNS64 code
+	  refactoring for better readability.
+	- Fixes for the DNS64 patches.
+	- Update the dns64_lookup.rpl test for the DNS64 fallback patch.
+	- Merge #955 from buevsan: fix ipset wrong behavior.
+	- Update testdata/ipset.tdir test for ipset fix.
+
+17 October 2023: Wouter
+	- Fix #954: Inconsistent RPZ handling for A record returned along with
+	  CNAME.
+
+16 October 2023: George
+	- Expose the script filename in the Python module environment 'mod_env'
+	  instead of the config_file structure which includes the linked list
+	  of scripts in a multi Python module setup; fixes #79.
+	- Expose the configured listening and outgoing interfaces, if any, as
+	  a list of strings in the Python 'config_file' class instead of the
+	  current Swig object proxy; fixes #79.
+	- For multi Python module setups, clean previously parsed module
+	  functions in __main__'s dictionary, if any, so that only current
+	  module functions are registered.
+
+13 October 2023: George
+	- Better fix for infinite loop when reading multiple lines of input on
+	  a broken remote control socket, by treating a zero byte line the
+	  same as transmission end. Addesses #947 and #948.
+
+12 October 2023: Wouter
+	- Merge #944: Disable EDNS DO.
+	  Disable the EDNS DO flag in upstream requests. This can be helpful
+	  for devices that cannot handle DNSSEC information. But it should not
+	  be enabled otherwise, because that would stop DNSSEC validation. The
+	  DNSSEC validation would not work for Unbound itself, and also not
+	  for downstream users. Default is no. The option
+	  is disable-edns-do: no
+
+11 October 2023: George
+	- Fix #850: [FR] Ability to use specific database in Redis, with new
+	  redis-logical-db configuration option.
+
+11 October 2023: Wouter
+	- Fix #949: "could not create control compt".
+	- Fix that cachedb does not warn when serve-expired is disabled about
+	  use of serve-expired-reply-ttl and serve-expired-client-timeout.
+	- Fix for #949: Fix pythonmod/ubmodule-tst.py for Python 3.x.
+
+10 October 2023: George
+	- Fix infinite loop when reading multiple lines of input on a broken
+	  remote control socket. Addesses #947 and #948.
+
+9 October 2023: Wouter
+	- Fix edns subnet so that queries with a source prefix of zero cause
+	  the recursor send no edns subnet option to the upstream.
+	- Fix that printout of EDNS options shows the EDNS cookie option by
+	  name.
+
+4 October 2023: Wouter
+	- Fix #946: Forwarder returns servfail on upstream response noerror no
+	  data.
+
+3 October 2023: George
+	- Merge #881: Generalise the proxy protocol code.
+
+2 October 2023: George
+	- Fix misplaced comment.
+
+22 September 2023: Wouter
+	- Fix #942: 1.18.0 libunbound DNS regression when built without
+	  OpenSSL.
+
+18 September 2023: Wouter
+	- Fix rpz tcp-only action with rpz triggers nsdname and nsip.
+
+15 September 2023: Wouter
+	- Merge #936: Check for c99 with autoconf versions prior to 2.70.
+	- Fix to remove two c99 notations.
+
+14 September 2023: Wouter
+	- Fix authority zone answers for obscured DNAMEs and delegations.
+
+8 September 2023: Wouter
+	- Fix send of udp retries when ENOBUFS is returned. It stops looping
+	  and also waits for the condition to go away. Reported by Florian
+	  Obser.
+
+7 September 2023: Wouter
+	- Fix to scrub resource records of type A and AAAA that have an
+	  inappropriate size. They are removed from responses.
+	- Fix to move msgparse_rrset_remove_rr code to util/msgparse.c.
+	- Fix to add EDE text when RRs have been removed due to length.
+	- Fix to set ede match in unit test for rr length removal.
+	- Fix to print EDE text in readable form in output logs.
+
+6 September 2023: Wouter
+	- Merge #931: Prevent warnings from -Wmissing-prototypes.
+
+31 August 2023: Wouter
+	- Fix autoconf 2.69 warnings in configure.
+	- Fix #927: unbound 1.18.0 make test error. Fix make test without SHA1.
+
+30 August 2023: Wouter
+	- Fix for WKS call to getservbyname that creates allocation on exit
+	  in unit test by testing numbers first and testing from the services
+	  list later.
+
+28 August 2023: Wouter
+	- Fix for version generation race condition that ignored changes.
+
 25 August 2023: Wouter
 	- Fix compile error on NetBSD in util/netevent.h.
 
 23 August 2023: Wouter
-	- Tag for 1.18.0rc1 release.
+	- Tag for 1.18.0rc1 release. This became the 1.18.0 release on
+	  30 aug 2023, with the fix from 25 aug, fix compile on NetBSD
+	  included. The repository continues with version 1.18.1.
 
 22 August 2023: Wouter
 	- Set version number to 1.18.0.
@@ -4749,7 +4899,7 @@
 	- Fix that with openssl 1.1 control-use-cert: no uses less cpu, by
 	  using no encryption over the unix socket.
 
-22 Novenber 2016: Ralph
+22 November 2016: Ralph
 	- Make access-control-tag-data RDATA absolute. This makes the RDATA
 	  origin consistent between local-data and access-control-tag-data.
 	- Fix NSEC ENT wildcard check. Matching wildcard does not have to be a

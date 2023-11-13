@@ -112,6 +112,34 @@ struct pythonmod_qstate {
 	PyObject* data;
 };
 
+/* The dict from __main__ could have remnants from a previous script
+ * invocation, in a multi python module setup. Usually this is fine since newer
+ * scripts will update their values. The obvious erroneous case is when mixing
+ * python scripts that make use of both 'init' and 'init_standard'. This
+ * results in 'init_standard' to persist on following scripts that don't use it
+ * (thus not replacing it). This is also problematic in case where a script
+ * does not define a required function but a previously loaded script did. The
+ * current solution is to make sure to clean offensive remnants that influence
+ * further parsing of the individual scripts.
+ */
+static void
+clean_python_function_objects(PyObject* dict) {
+	const char* function_names[] = {
+		"init",
+		"init_standard",
+		"deinit",
+		"operate",
+		"inform_super"
+	};
+	size_t i;
+
+	for(i=0; i<sizeof(function_names)/sizeof(function_names[0]); i++) {
+		if(PyDict_GetItemString(dict, function_names[i]) != NULL) {
+			PyDict_DelItemString(dict, function_names[i]);
+		}
+	}
+};
+
 /* Generated */
 #ifndef S_SPLINT_S
 #include "pythonmod/interface.h"
@@ -269,7 +297,7 @@ int pythonmod_init(struct module_env* env, int id)
 
    /* Initialize module */
    FILE* script_py = NULL;
-   PyObject* py_init_arg = NULL, *res = NULL;
+   PyObject* py_init_arg = NULL, *res = NULL, *fname = NULL;
    PyGILState_STATE gil;
    int init_standard = 1, i = 0;
 #if PY_MAJOR_VERSION < 3
@@ -418,7 +446,17 @@ int pythonmod_init(struct module_env* env, int id)
    Py_XINCREF(pe->module);
    pe->dict = PyModule_GetDict(pe->module);
    Py_XINCREF(pe->dict);
+   clean_python_function_objects(pe->dict);
+
    pe->data = PyDict_New();
+   /* add the script filename to the global "mod_env" for trivial access */
+   fname = PyString_FromString(pe->fname);
+   if(PyDict_SetItemString(pe->data, "script", fname) < 0) {
+	log_err("pythonmod: could not add item to dictionary");
+	Py_XDECREF(fname);
+	goto python_init_fail;
+   }
+   Py_XDECREF(fname);
    Py_XINCREF(pe->data);  /* reference will be stolen below */
    if(PyModule_AddObject(pe->module, "mod_env", pe->data) < 0) {
 	log_err("pythonmod: could not add mod_env object");

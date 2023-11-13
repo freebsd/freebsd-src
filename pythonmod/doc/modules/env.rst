@@ -6,8 +6,11 @@ Global variables
 
 .. envvar:: mod_env
 
-   Module environment, contains data pointer for module-specific data.
-   See :class:`pythonmod_env`.
+   Module environment, it is the 'data' pointer for module-specific data
+   in :class:`pythonmod_env`.
+   It is initialized as a dictionary with the 'script' key pointing to the
+   module's python script.
+   It can be further populated during runtime for module-specific data.
 
 
 Predefined constants

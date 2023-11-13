@@ -1249,7 +1249,7 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 		edns.edns_version = EDNS_ADVERTISED_VERSION;
 		edns.udp_size = EDNS_ADVERTISED_SIZE;
 		edns.bits = 0;
-		if(dnssec)
+		if((dnssec & EDNS_DO))
 			edns.bits = EDNS_DO;
 		edns.padding_block_size = 0;
 		edns.cookie_present = 0;

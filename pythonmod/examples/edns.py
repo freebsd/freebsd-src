@@ -80,7 +80,7 @@ def init_standard(id, env):
     ..note:: The previously accessible configuration options can now be found in
              env.cfg.
     """
-    log_info("python: inited script {}".format(env.cfg.python_script))
+    log_info("python: inited script {}".format(mod_env['script']))
 
     # Register EDNS option 65001 as a known EDNS option.
     if not register_edns_option(env, 65001, bypass_cache_stage=True,

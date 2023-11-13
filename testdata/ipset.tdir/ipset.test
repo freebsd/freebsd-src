@@ -146,6 +146,29 @@ else
 	exit 1
 fi
 
+echo "> dig lookslikeexample.net. AAAA"
+dig @127.0.0.1 -p $UNBOUND_PORT lookslikeexample.net. AAAA | tee outfile
+echo "> check answer"
+if grep "::4" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+echo "> check ipset"
+if grep "ipset: add ::4 to atotallymadeupnamefor6 for lookslikeexample.net." unbound.log; then
+	echo "> cat logfiles"
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+else
+	echo "ipset OK"
+fi
+
 echo "> cat logfiles"
 cat tap.log
 cat tap.errlog

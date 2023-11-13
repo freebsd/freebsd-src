@@ -286,7 +286,7 @@ static ssize_t http2_recv_cb(nghttp2_session* ATTR_UNUSED(session),
 			if(want == SSL_ERROR_ZERO_RETURN) {
 				return NGHTTP2_ERR_EOF;
 			}
-			log_crypto_err("could not SSL_read");
+			log_crypto_err_io("could not SSL_read", want);
 			return NGHTTP2_ERR_EOF;
 		}
 		return r;
@@ -317,7 +317,7 @@ static ssize_t http2_send_cb(nghttp2_session* ATTR_UNUSED(session),
 			if(want == SSL_ERROR_ZERO_RETURN) {
 				return NGHTTP2_ERR_CALLBACK_FAILURE;
 			}
-			log_crypto_err("could not SSL_write");
+			log_crypto_err_io("could not SSL_write", want);
 			return NGHTTP2_ERR_CALLBACK_FAILURE;
 		}
 		return r;
@@ -526,7 +526,7 @@ run(struct http2_session* h2_session, int port, int no_tls, int count, char** q)
 			r = SSL_get_error(ssl, r);
 			if(r != SSL_ERROR_WANT_READ &&
 				r != SSL_ERROR_WANT_WRITE) {
-				log_crypto_err("could not ssl_handshake");
+				log_crypto_err_io("could not ssl_handshake", r);
 				exit(1);
 			}
 		}

@@ -26,6 +26,11 @@
  */
 #include "config.h"
 
+/** EDIT
+  * prevent warning from -Wmissing-prototypes
+  */
+#include "util/siphash.h"
+
 /* default: SipHash-2-4 */
 #define cROUNDS 2
 #define dROUNDS 4

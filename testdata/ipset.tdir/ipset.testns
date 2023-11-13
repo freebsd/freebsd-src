@@ -101,3 +101,13 @@ target.example.com.	IN	AAAA
 SECTION ANSWER
 target.example.com.	IN	AAAA	::3
 ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR AA NOERROR
+ADJUST copy_id
+SECTION QUESTION
+lookslikeexample.net.	IN	AAAA
+SECTION ANSWER
+lookslikeexample.net.	IN	AAAA	::4
+ENTRY_END

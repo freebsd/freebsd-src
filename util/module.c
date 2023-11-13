@@ -194,6 +194,24 @@ char* errinf_to_str_servfail(struct module_qstate* qstate)
 	return p;
 }
 
+char* errinf_to_str_misc(struct module_qstate* qstate)
+{
+	char buf[20480];
+	char* p = buf;
+	size_t left = sizeof(buf);
+	struct errinf_strlist* s;
+	if(!qstate->errinf)
+		snprintf(p, left, "misc failure");
+	else for(s=qstate->errinf; s; s=s->next) {
+		snprintf(p, left, "%s%s", (s==qstate->errinf?"":" "), s->str);
+		left -= strlen(p); p += strlen(p);
+	}
+	p = strdup(buf);
+	if(!p)
+		log_err("malloc failure in errinf_to_str");
+	return p;
+}
+
 void errinf_rrset(struct module_qstate* qstate, struct ub_packed_rrset_key *rr)
 {
 	char buf[1024];
