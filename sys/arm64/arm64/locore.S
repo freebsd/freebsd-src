@@ -247,6 +247,14 @@ mp_virtdone:
 	dsb	sy
 	isb
 
+	/*
+	 * Initialize the per-CPU pointer before calling into C code, for the
+	 * benefit of kernel sanitizers.
+	 */
+	adrp	x18, bootpcpu
+	ldr	x18, [x18, :lo12:bootpcpu]
+	msr	tpidr_el1, x18
+
 	b	init_secondary
 END(mpentry)
 #endif
