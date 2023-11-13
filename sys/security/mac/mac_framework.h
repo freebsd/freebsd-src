@@ -408,11 +408,11 @@ void	mac_socket_destroy(struct socket *);
 int	mac_socket_init(struct socket *, int);
 void	mac_socket_newconn(struct socket *oldso, struct socket *newso);
 int	mac_getsockopt_label(struct ucred *cred, struct socket *so,
-	    struct mac *extmac);
+	    const struct mac *extmac);
 int	mac_getsockopt_peerlabel(struct ucred *cred, struct socket *so,
-	    struct mac *extmac);
+	    const struct mac *extmac);
 int	mac_setsockopt_label(struct ucred *cred, struct socket *so,
-	    struct mac *extmac);
+	    const struct mac *extmac);
 
 void	mac_socketpeer_set_from_mbuf(struct mbuf *m, struct socket *so);
 void	mac_socketpeer_set_from_socket(struct socket *oldso,
