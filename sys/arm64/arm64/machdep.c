@@ -973,7 +973,7 @@ initarm(struct arm64_bootparams *abp)
 	 * segments also get excluded from phys_avail.
 	 */
 #if defined(KASAN)
-	pmap_bootstrap_san(KERNBASE - abp->kern_delta);
+	pmap_bootstrap_san();
 #endif
 
 	physmem_init_kernel_globals();
