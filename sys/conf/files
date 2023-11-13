@@ -3194,6 +3194,13 @@ dev/syscons/warp/warp_saver.c	optional warp_saver
 dev/tcp_log/tcp_log_dev.c	optional tcp_blackbox inet | tcp_blackbox inet6
 dev/tdfx/tdfx_pci.c		optional tdfx pci
 dev/ti/if_ti.c			optional ti pci
+dev/tpm/tpm20.c			optional	tpm
+dev/tpm/tpm_bus.c		optional tpm acpi
+dev/tpm/tpm_if.m		optional tpm
+dev/tpm/tpm_spibus.c		optional tpm spibus fdt
+dev/tpm/tpm_tis_acpi.c		optional tpm acpi
+dev/tpm/tpm_tis_core.c		optional tpm
+dev/tpm/tpm_tis_spibus.c	optional tpm spibus fdt
 dev/tws/tws.c			optional tws
 dev/tws/tws_cam.c		optional tws
 dev/tws/tws_hdm.c		optional tws

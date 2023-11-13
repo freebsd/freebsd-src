@@ -3,10 +3,25 @@
 
 KMOD=	tpm
 
-SRCS=	tpm.c bus_if.h device_if.h
+SRCS=	bus_if.h device_if.h tpm_if.c tpm_if.h
+SRCS+=	opt_acpi.h opt_tpm.h
+
 #Bus specific stuff.
-SRCS+=	tpm_isa.c tpm_acpi.c isa_if.h opt_acpi.h acpi_if.h
+.if ${MACHINE_ARCH:Namd64:Ni386} == ""
+SRCS+= tpm.c
+SRCS+=	tpm_acpi.c tpm_isa.c
+SRCS+=	isa_if.h
+.endif
+
 #TPM 2.0
-SRCS+=	tpm20.c tpm_crb.c tpm_tis.c opt_tpm.h
+SRCS+=	tpm20.c tpm_tis_core.c
+.if defined(${OPT_FDT})
+SRCS+=  tpm_spibus.c tpm_tis_spibus.c spibus_if.h
+.endif
+.if ${MACHINE_ARCH:Namd64:Ni386:Narm64} == ""
+SRCS+= acpi_if.h
+SRCS+= tpm_tis_acpi.c
+SRCS+= tpm_crb.c
+.endif
 
 .include <bsd.kmod.mk>

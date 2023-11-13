@@ -27,6 +27,7 @@
 
 #include <sys/cdefs.h>
 #include "tpm20.h"
+#include "tpm_if.h"
 
 /*
  * TIS register space as defined in
@@ -72,10 +73,8 @@
 #define	TPM_STS_BURST_MASK		0xFFFF00
 #define	TPM_STS_BURST_OFFSET		0x8
 
-static int tpmtis_transmit(struct tpm_sc *sc, size_t length);
+static int tpmtis_transmit(device_t dev, size_t length);
 
-static int tpmtis_acpi_probe(device_t dev);
-static int tpmtis_attach(device_t dev);
 static int tpmtis_detach(device_t dev);
 
 static void tpmtis_intr_handler(void *arg);
@@ -93,29 +92,7 @@ static bool tpm_wait_for_u32(struct tpm_sc *sc, bus_size_t off,
 
 static uint16_t tpmtis_wait_for_burst(struct tpm_sc *sc);
 
-char *tpmtis_ids[] = {"MSFT0101", NULL};
-
-static int
-tpmtis_acpi_probe(device_t dev)
-{
-	int err;
-	ACPI_TABLE_TPM23 *tbl;
-	ACPI_STATUS status;
-
-	err = ACPI_ID_PROBE(device_get_parent(dev), dev, tpmtis_ids, NULL);
-	if (err > 0)
-		return (err);
-	/*Find TPM2 Header*/
-	status = AcpiGetTable(ACPI_SIG_TPM2, 1, (ACPI_TABLE_HEADER **) &tbl);
-	if(ACPI_FAILURE(status) ||
-	   tbl->StartMethod != TPM2_START_METHOD_TIS)
-	    err = ENXIO;
-
-	device_set_desc(dev, "Trusted Platform Module 2.0, FIFO mode");
-	return (err);
-}
-
-static int
+int
 tpmtis_attach(device_t dev)
 {
 	struct tpm_sc *sc;
@@ -123,19 +100,10 @@ tpmtis_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	sc->transmit = tpmtis_transmit;
 	sc->intr_type = -1;
 
 	sx_init(&sc->dev_lock, "TPM driver lock");
 	sc->buf = malloc(TPM_BUFSIZE, M_TPM20, M_WAITOK);
-
-	sc->mem_rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
-		    RF_ACTIVE);
-	if (sc->mem_res == NULL) {
-		tpmtis_detach(dev);
-		return (ENXIO);
-	}
 
 	sc->irq_rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
@@ -198,7 +166,7 @@ tpmtis_test_intr(struct tpm_sc *sc)
 
 	sx_xlock(&sc->dev_lock);
 	memcpy(sc->buf, cmd, sizeof(cmd));
-	tpmtis_transmit(sc, sizeof(cmd));
+	tpmtis_transmit(sc->dev, sizeof(cmd));
 	sc->pending_data_length = 0;
 	sx_xunlock(&sc->dev_lock);
 }
@@ -222,19 +190,19 @@ tpmtis_setup_intr(struct tpm_sc *sc)
 	if(!tpmtis_request_locality(sc, 0))
 		sc->interrupts = false;
 
-	WR1(sc, TPM_INT_VECTOR, irq);
+	TPM_WRITE_1(sc->dev, TPM_INT_VECTOR, irq);
 
 	/* Clear all pending interrupts. */
-	reg = RD4(sc, TPM_INT_STS);
-	WR4(sc, TPM_INT_STS, reg);
+	reg = TPM_READ_4(sc->dev, TPM_INT_STS);
+	TPM_WRITE_4(sc->dev, TPM_INT_STS, reg);
 
-	reg = RD4(sc, TPM_INT_ENABLE);
+	reg = TPM_READ_4(sc->dev, TPM_INT_ENABLE);
 	reg |= TPM_INT_ENABLE_GLOBAL_ENABLE |
 	    TPM_INT_ENABLE_DATA_AVAIL |
 	    TPM_INT_ENABLE_LOC_CHANGE |
 	    TPM_INT_ENABLE_CMD_RDY |
 	    TPM_INT_ENABLE_STS_VALID;
-	WR4(sc, TPM_INT_ENABLE, reg);
+	TPM_WRITE_4(sc->dev, TPM_INT_ENABLE, reg);
 
 	tpmtis_relinquish_locality(sc);
 	tpmtis_test_intr(sc);
@@ -247,9 +215,9 @@ tpmtis_intr_handler(void *arg)
 	uint32_t status;
 
 	sc = (struct tpm_sc *)arg;
-	status = RD4(sc, TPM_INT_STS);
+	status = TPM_READ_4(sc->dev, TPM_INT_STS);
 
-	WR4(sc, TPM_INT_STS, status);
+	TPM_WRITE_4(sc->dev, TPM_INT_STS, status);
 
 	/* Check for stray interrupts. */
 	if (sc->intr_type == -1 || (sc->intr_type & status) == 0)
@@ -265,7 +233,7 @@ tpm_wait_for_u32(struct tpm_sc *sc, bus_size_t off, uint32_t mask, uint32_t val,
 {
 
 	/* Check for condition */
-	if ((RD4(sc, off) & mask) == val)
+	if ((TPM_READ_4(sc->dev, off) & mask) == val)
 		return (true);
 
 	/* If interrupts are enabled sleep for timeout duration */
@@ -273,12 +241,12 @@ tpm_wait_for_u32(struct tpm_sc *sc, bus_size_t off, uint32_t mask, uint32_t val,
 		tsleep(sc, PWAIT, "TPM WITH INTERRUPTS", timeout / tick);
 
 		sc->intr_type = -1;
-		return ((RD4(sc, off) & mask) == val);
+		return ((TPM_READ_4(sc->dev, off) & mask) == val);
 	}
 
 	/* If we don't have interrupts poll the device every tick */
 	while (timeout > 0) {
-		if ((RD4(sc, off) & mask) == val)
+		if ((TPM_READ_4(sc->dev, off) & mask) == val)
 			return (true);
 
 		pause("TPM POLLING", 1);
@@ -296,7 +264,7 @@ tpmtis_wait_for_burst(struct tpm_sc *sc)
 	timeout = TPM_TIMEOUT_A;
 
 	while (timeout-- > 0) {
-		burst_count = (RD4(sc, TPM_STS) & TPM_STS_BURST_MASK) >>
+		burst_count = (TPM_READ_4(sc->dev, TPM_STS) & TPM_STS_BURST_MASK) >>
 		    TPM_STS_BURST_OFFSET;
 		if (burst_count > 0)
 			break;
@@ -320,7 +288,7 @@ tpmtis_read_bytes(struct tpm_sc *sc, size_t count, uint8_t *buf)
 		count -= burst_count;
 
 		while (burst_count-- > 0)
-			*buf++ = RD1(sc, TPM_DATA_FIFO);
+			*buf++ = TPM_READ_1(sc->dev, TPM_DATA_FIFO);
 	}
 
 	return (true);
@@ -340,7 +308,7 @@ tpmtis_write_bytes(struct tpm_sc *sc, size_t count, uint8_t *buf)
 		count -= burst_count;
 
 		while (burst_count-- > 0)
-			WR1(sc, TPM_DATA_FIFO, *buf++);
+			TPM_WRITE_1(sc->dev, TPM_DATA_FIFO, *buf++);
 	}
 
 	return (true);
@@ -360,14 +328,14 @@ tpmtis_request_locality(struct tpm_sc *sc, int locality)
 	timeout = TPM_TIMEOUT_A;
 	sc->intr_type = TPM_INT_STS_LOC_CHANGE;
 
-	WR1(sc, TPM_ACCESS, TPM_ACCESS_LOC_REQ);
-	bus_barrier(sc->mem_res, TPM_ACCESS, 1, BUS_SPACE_BARRIER_WRITE);
+	TPM_WRITE_1(sc->dev, TPM_ACCESS, TPM_ACCESS_LOC_REQ);
+	TPM_WRITE_BARRIER(sc->dev, TPM_ACCESS, 1);
 	if(sc->interrupts) {
 		tsleep(sc, PWAIT, "TPMLOCREQUEST with INTR", timeout / tick);
-		return ((RD1(sc, TPM_ACCESS) & mask) == mask);
+		return ((TPM_READ_1(sc->dev, TPM_ACCESS) & mask) == mask);
 	} else  {
 		while(timeout > 0) {
-			if ((RD1(sc, TPM_ACCESS) & mask) == mask)
+			if ((TPM_READ_1(sc->dev, TPM_ACCESS) & mask) == mask)
 				return (true);
 
 			pause("TPMLOCREQUEST POLLING", 1);
@@ -387,7 +355,7 @@ tpmtis_relinquish_locality(struct tpm_sc *sc)
 	 * Clear them now in case interrupt handler didn't make it in time.
 	 */
 	if(sc->interrupts)
-		AND4(sc, TPM_INT_STS, RD4(sc, TPM_INT_STS));
+		AND4(sc, TPM_INT_STS, TPM_READ_4(sc->dev, TPM_INT_STS));
 
 	OR1(sc, TPM_ACCESS, TPM_ACCESS_LOC_RELINQUISH);
 }
@@ -400,8 +368,8 @@ tpmtis_go_ready(struct tpm_sc *sc)
 	mask = TPM_STS_CMD_RDY;
 	sc->intr_type = TPM_INT_STS_CMD_RDY;
 
-	WR4(sc, TPM_STS, TPM_STS_CMD_RDY);
-	bus_barrier(sc->mem_res, TPM_STS, 4, BUS_SPACE_BARRIER_WRITE);
+	TPM_WRITE_4(sc->dev, TPM_STS, TPM_STS_CMD_RDY);
+	TPM_WRITE_BARRIER(sc->dev, TPM_STS, 4);
 	if (!tpm_wait_for_u32(sc, TPM_STS, mask, mask, TPM_TIMEOUT_B))
 		return (false);
 
@@ -409,26 +377,28 @@ tpmtis_go_ready(struct tpm_sc *sc)
 }
 
 static int
-tpmtis_transmit(struct tpm_sc *sc, size_t length)
+tpmtis_transmit(device_t dev, size_t length)
 {
+	struct tpm_sc *sc;
 	size_t bytes_available;
 	uint32_t mask, curr_cmd;
 	int timeout;
 
+	sc = device_get_softc(dev);
 	sx_assert(&sc->dev_lock, SA_XLOCKED);
 
 	if (!tpmtis_request_locality(sc, 0)) {
-		device_printf(sc->dev,
+		device_printf(dev,
 		    "Failed to obtain locality\n");
 		return (EIO);
 	}
 	if (!tpmtis_go_ready(sc)) {
-		device_printf(sc->dev,
+		device_printf(dev,
 		    "Failed to switch to ready state\n");
 		return (EIO);
 	}
 	if (!tpmtis_write_bytes(sc, length, sc->buf)) {
-		device_printf(sc->dev,
+		device_printf(dev,
 		    "Failed to write cmd to device\n");
 		return (EIO);
 	}
@@ -436,12 +406,12 @@ tpmtis_transmit(struct tpm_sc *sc, size_t length)
 	mask = TPM_STS_VALID;
 	sc->intr_type = TPM_INT_STS_VALID;
 	if (!tpm_wait_for_u32(sc, TPM_STS, mask, mask, TPM_TIMEOUT_C)) {
-		device_printf(sc->dev,
+		device_printf(dev,
 		    "Timeout while waiting for valid bit\n");
 		return (EIO);
 	}
-	if (RD4(sc, TPM_STS) & TPM_STS_DATA_EXPECTED) {
-		device_printf(sc->dev,
+	if (TPM_READ_4(dev, TPM_STS) & TPM_STS_DATA_EXPECTED) {
+		device_printf(dev,
 		    "Device expects more data even though we already"
 		    " sent everything we had\n");
 		return (EIO);
@@ -454,13 +424,13 @@ tpmtis_transmit(struct tpm_sc *sc, size_t length)
 	curr_cmd = be32toh(*(uint32_t *) (&sc->buf[6]));
 	timeout = tpm20_get_timeout(curr_cmd);
 
-	WR4(sc, TPM_STS, TPM_STS_CMD_START);
-	bus_barrier(sc->mem_res, TPM_STS, 4, BUS_SPACE_BARRIER_WRITE);
+	TPM_WRITE_4(dev, TPM_STS, TPM_STS_CMD_START);
+	TPM_WRITE_BARRIER(dev, TPM_STS, 4);
 
 	mask = TPM_STS_DATA_AVAIL | TPM_STS_VALID;
 	sc->intr_type = TPM_INT_STS_DATA_AVAIL;
 	if (!tpm_wait_for_u32(sc, TPM_STS, mask, mask, timeout)) {
-		device_printf(sc->dev,
+		device_printf(dev,
 		    "Timeout while waiting for device to process cmd\n");
 		/*
 		 * Switching to ready state also cancels processing
@@ -479,21 +449,21 @@ tpmtis_transmit(struct tpm_sc *sc, size_t length)
 	}
 	/* Read response header. Length is passed in bytes 2 - 6. */
 	if(!tpmtis_read_bytes(sc, TPM_HEADER_SIZE, sc->buf)) {
-		device_printf(sc->dev,
+		device_printf(dev,
 		    "Failed to read response header\n");
 		return (EIO);
 	}
 	bytes_available = be32toh(*(uint32_t *) (&sc->buf[2]));
 
 	if (bytes_available > TPM_BUFSIZE || bytes_available < TPM_HEADER_SIZE) {
-		device_printf(sc->dev,
+		device_printf(dev,
 		    "Incorrect response size: %zu\n",
 		    bytes_available);
 		return (EIO);
 	}
 	if(!tpmtis_read_bytes(sc, bytes_available - TPM_HEADER_SIZE,
 	    &sc->buf[TPM_HEADER_SIZE])) {
-		device_printf(sc->dev,
+		device_printf(dev,
 		    "Failed to read response\n");
 		return (EIO);
 	}
@@ -505,16 +475,12 @@ tpmtis_transmit(struct tpm_sc *sc, size_t length)
 
 /* ACPI Driver */
 static device_method_t tpmtis_methods[] = {
-	DEVMETHOD(device_probe,		tpmtis_acpi_probe),
 	DEVMETHOD(device_attach,	tpmtis_attach),
 	DEVMETHOD(device_detach,	tpmtis_detach),
 	DEVMETHOD(device_shutdown,	tpm20_shutdown),
 	DEVMETHOD(device_suspend,	tpm20_suspend),
-	{0, 0}
+	DEVMETHOD(tpm_transmit,		tpmtis_transmit),
+	DEVMETHOD_END
 };
 
-static driver_t	tpmtis_driver = {
-	"tpmtis", tpmtis_methods, sizeof(struct tpm_sc),
-};
-
-DRIVER_MODULE(tpmtis, acpi, tpmtis_driver, 0, 0);
+DEFINE_CLASS_0(tpmtis, tpmtis_driver, tpmtis_methods, sizeof(struct tpm_sc));
