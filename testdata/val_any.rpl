@@ -162,6 +162,9 @@ SECTION QUESTION
 example.com. IN ANY
 ENTRY_END
 
+; Allow validation resuming for the RRSIGs
+STEP 2 TIME_PASSES ELAPSE 0.05
+
 ; recursion happens here.
 STEP 10 CHECK_ANSWER
 ENTRY_BEGIN

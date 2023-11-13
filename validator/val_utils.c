@@ -58,6 +58,10 @@
 #include "sldns/wire2str.h"
 #include "sldns/parseutil.h"
 
+/** Maximum allowed digest match failures per DS, for DNSKEYs with the same
+ *  properties */
+#define MAX_DS_MATCH_FAILURES 4
+
 enum val_classification 
 val_classify_response(uint16_t query_flags, struct query_info* origqinf,
 	struct query_info* qinf, struct reply_info* rep, size_t skip)
@@ -336,7 +340,8 @@ static enum sec_status
 val_verify_rrset(struct module_env* env, struct val_env* ve,
         struct ub_packed_rrset_key* rrset, struct ub_packed_rrset_key* keys,
 	uint8_t* sigalg, char** reason, sldns_ede_code *reason_bogus,
-	sldns_pkt_section section, struct module_qstate* qstate)
+	sldns_pkt_section section, struct module_qstate* qstate,
+	int *verified)
 {
 	enum sec_status sec;
 	struct packed_rrset_data* d = (struct packed_rrset_data*)rrset->
@@ -346,6 +351,7 @@ val_verify_rrset(struct module_env* env, struct val_env* ve,
 		log_nametypeclass(VERB_ALGO, "verify rrset cached", 
 			rrset->rk.dname, ntohs(rrset->rk.type), 
 			ntohs(rrset->rk.rrset_class));
+		*verified = 0;
 		return d->security;
 	}
 	/* check in the cache if verification has already been done */
@@ -354,12 +360,13 @@ val_verify_rrset(struct module_env* env, struct val_env* ve,
 		log_nametypeclass(VERB_ALGO, "verify rrset from cache", 
 			rrset->rk.dname, ntohs(rrset->rk.type), 
 			ntohs(rrset->rk.rrset_class));
+		*verified = 0;
 		return d->security;
 	}
 	log_nametypeclass(VERB_ALGO, "verify rrset", rrset->rk.dname,
 		ntohs(rrset->rk.type), ntohs(rrset->rk.rrset_class));
 	sec = dnskeyset_verify_rrset(env, ve, rrset, keys, sigalg, reason,
-		reason_bogus, section, qstate);
+		reason_bogus, section, qstate, verified);
 	verbose(VERB_ALGO, "verify result: %s", sec_status_to_string(sec));
 	regional_free_all(env->scratch);
 
@@ -393,7 +400,8 @@ enum sec_status
 val_verify_rrset_entry(struct module_env* env, struct val_env* ve,
         struct ub_packed_rrset_key* rrset, struct key_entry_key* kkey,
 	char** reason, sldns_ede_code *reason_bogus,
-	sldns_pkt_section section, struct module_qstate* qstate)
+	sldns_pkt_section section, struct module_qstate* qstate,
+	int* verified)
 {
 	/* temporary dnskey rrset-key */
 	struct ub_packed_rrset_key dnskey;
@@ -407,7 +415,7 @@ val_verify_rrset_entry(struct module_env* env, struct val_env* ve,
 	dnskey.entry.key = &dnskey;
 	dnskey.entry.data = kd->rrset_data;
 	sec = val_verify_rrset(env, ve, rrset, &dnskey, kd->algo, reason,
-		reason_bogus, section, qstate);
+		reason_bogus, section, qstate, verified);
 	return sec;
 }
 
@@ -439,6 +447,12 @@ verify_dnskeys_with_ds_rr(struct module_env* env, struct val_env* ve,
 		if(!ds_digest_match_dnskey(env, dnskey_rrset, i, ds_rrset, 
 			ds_idx)) {
 			verbose(VERB_ALGO, "DS match attempt failed");
+			if(numchecked > numhashok + MAX_DS_MATCH_FAILURES) {
+				verbose(VERB_ALGO, "DS match attempt reached "
+					"MAX_DS_MATCH_FAILURES (%d); bogus",
+					MAX_DS_MATCH_FAILURES);
+				return sec_status_bogus;
+			}
 			continue;
 		}
 		numhashok++;

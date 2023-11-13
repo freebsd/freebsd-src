@@ -181,6 +181,7 @@ nsec_verify_rrset(struct module_env* env, struct val_env* ve,
 {
 	struct packed_rrset_data* d = (struct packed_rrset_data*)
 		nsec->entry.data;
+	int verified = 0;
 	if(!d) return 0;
 	if(d->security == sec_status_secure)
 		return 1;
@@ -188,7 +189,7 @@ nsec_verify_rrset(struct module_env* env, struct val_env* ve,
 	if(d->security == sec_status_secure)
 		return 1;
 	d->security = val_verify_rrset_entry(env, ve, nsec, kkey, reason,
-		reason_bogus, LDNS_SECTION_AUTHORITY, qstate);
+		reason_bogus, LDNS_SECTION_AUTHORITY, qstate, &verified);
 	if(d->security == sec_status_secure) {
 		rrset_update_sec_status(env->rrset_cache, nsec, *env->now);
 		return 1;

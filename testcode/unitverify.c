@@ -180,6 +180,7 @@ verifytest_rrset(struct module_env* env, struct val_env* ve,
 	enum sec_status sec;
 	char* reason = NULL;
 	uint8_t sigalg[ALGO_NEEDS_MAX+1];
+	int verified = 0;
 	if(vsig) {
 		log_nametypeclass(VERB_QUERY, "verify of rrset",
 			rrset->rk.dname, ntohs(rrset->rk.type),
@@ -188,7 +189,7 @@ verifytest_rrset(struct module_env* env, struct val_env* ve,
 	setup_sigalg(dnskey, sigalg); /* check all algorithms in the dnskey */
 	/* ok to give null as qstate here, won't be used for answer section. */
 	sec = dnskeyset_verify_rrset(env, ve, rrset, dnskey, sigalg, &reason, NULL,
-		LDNS_SECTION_ANSWER, NULL);
+		LDNS_SECTION_ANSWER, NULL, &verified);
 	if(vsig) {
 		printf("verify outcome is: %s %s\n", sec_status_to_string(sec),
 			reason?reason:"");
@@ -442,9 +443,9 @@ nsec3_hash_test_entry(struct entry* e, rbtree_type* ct,
 
 	ret = nsec3_hash_name(ct, region, buf, nsec3, 0, qname,
 		qinfo.qname_len, &hash);
-	if(ret != 1) {
+	if(ret < 1) {
 		printf("Bad nsec3_hash_name retcode %d\n", ret);
-		unit_assert(ret == 1);
+		unit_assert(ret == 1 || ret == 2);
 	}
 	unit_assert(hash->dname && hash->hash && hash->hash_len &&
 		hash->b32 && hash->b32_len);

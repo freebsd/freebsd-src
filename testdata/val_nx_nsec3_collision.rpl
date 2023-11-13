@@ -156,6 +156,9 @@ SECTION QUESTION
 www.example.com. IN A
 ENTRY_END
 
+; Allow validation resuming for NSEC3 hash calculations
+STEP 2 TIME_PASSES ELAPSE 0.05
+
 ; recursion happens here.
 STEP 10 CHECK_ANSWER
 ENTRY_BEGIN

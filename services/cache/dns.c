@@ -690,6 +690,28 @@ tomsg(struct module_env* env, struct query_info* q, struct reply_info* r,
 	return msg;
 }
 
+struct dns_msg*
+dns_msg_deepcopy_region(struct dns_msg* origin, struct regional* region)
+{
+	size_t i;
+	struct dns_msg* res = NULL;
+	res = gen_dns_msg(region, &origin->qinfo, origin->rep->rrset_count);
+	if(!res) return NULL;
+	*res->rep = *origin->rep;
+	if(origin->rep->reason_bogus_str) {
+		res->rep->reason_bogus_str = regional_strdup(region,
+			origin->rep->reason_bogus_str);
+	}
+	for(i=0; i<res->rep->rrset_count; i++) {
+		res->rep->rrsets[i] = packed_rrset_copy_region(
+			origin->rep->rrsets[i], region, 0);
+		if(!res->rep->rrsets[i]) {
+			return NULL;
+		}
+	}
+	return res;
+}
+
 /** synthesize RRset-only response from cached RRset item */
 static struct dns_msg*
 rrset_msg(struct ub_packed_rrset_key* rrset, struct regional* region, 
