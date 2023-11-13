@@ -127,7 +127,7 @@ tpm20_write(struct cdev *dev, struct uio *uio, int flags)
 		return (result);
 	}
 
-	result = sc->transmit(sc, byte_count);
+	result = TPM_TRANSMIT(sc->dev, byte_count);
 
 	if (result == 0) {
 		callout_reset(&sc->discard_buffer_callout,
@@ -267,7 +267,7 @@ tpm20_harvest(void *arg, int unused)
 		cv_wait(&sc->buf_cv, &sc->dev_lock);
 
 	memcpy(sc->buf, cmd, sizeof(cmd));
-	result = sc->transmit(sc, sizeof(cmd));
+	result = TPM_TRANSMIT(sc->dev, sizeof(cmd));
 	if (result != 0) {
 		sx_xunlock(&sc->dev_lock);
 		return;
@@ -319,7 +319,7 @@ tpm20_save_state(device_t dev, bool suspend)
 	sx_xlock(&sc->dev_lock);
 
 	memcpy(sc->buf, save_cmd, sizeof(save_cmd));
-	sc->transmit(sc, sizeof(save_cmd));
+	TPM_TRANSMIT(sc->dev, sizeof(save_cmd));
 
 	sx_xunlock(&sc->dev_lock);
 

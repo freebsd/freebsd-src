@@ -28,6 +28,7 @@
 #ifndef _TPM20_H_
 #define	_TPM20_H_
 
+#include "opt_acpi.h"
 #include <sys/cdefs.h>
 #include <sys/endian.h>
 #include <sys/param.h>
@@ -39,6 +40,7 @@
 #include <sys/bus.h>
 #include <sys/callout.h>
 #include <sys/conf.h>
+#include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/sx.h>
@@ -49,12 +51,14 @@
 #include <machine/md_var.h>
 #include <machine/resource.h>
 
+#ifdef	DEV_ACPI
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <dev/acpica/acpivar.h>
-#include "opt_acpi.h"
+#endif
 
 #include "opt_tpm.h"
+#include "tpm_if.h"
 
 #define	BIT(x) (1 << (x))
 
@@ -136,55 +140,36 @@ int32_t tpm20_get_timeout(uint32_t command);
 int tpm20_init(struct tpm_sc *sc);
 void tpm20_release(struct tpm_sc *sc);
 
+/* Mode driver types */
+DECLARE_CLASS(tpmtis_driver);
+int tpmtis_attach(device_t dev);
+
+DECLARE_CLASS(tpmcrb_driver);
+
+/* Bus driver types */
+DECLARE_CLASS(tpm_bus_driver);
+DECLARE_CLASS(tpm_spi_driver);
+
 /* Small helper routines for io ops */
-static inline uint8_t
-RD1(struct tpm_sc *sc, bus_size_t off)
-{
-
-	return (bus_read_1(sc->mem_res, off));
-}
-static inline uint32_t
-RD4(struct tpm_sc *sc, bus_size_t off)
-{
-
-	return (bus_read_4(sc->mem_res, off));
-}
-#ifdef __amd64__
-static inline uint64_t
-RD8(struct tpm_sc *sc, bus_size_t off)
-{
-
-	return (bus_read_8(sc->mem_res, off));
-}
-#endif
-static inline void
-WR1(struct tpm_sc *sc, bus_size_t off, uint8_t val)
-{
-
-	bus_write_1(sc->mem_res, off, val);
-}
-static inline void
-WR4(struct tpm_sc *sc, bus_size_t off, uint32_t val)
-{
-
-	bus_write_4(sc->mem_res, off, val);
-}
 static inline void
 AND4(struct tpm_sc *sc, bus_size_t off, uint32_t val)
 {
+	uint32_t v = TPM_READ_4(sc->dev, off);
 
-	WR4(sc, off, RD4(sc, off) & val);
+	TPM_WRITE_4(sc->dev, off, v & val);
 }
 static inline void
 OR1(struct tpm_sc *sc, bus_size_t off, uint8_t val)
 {
+	uint8_t v = TPM_READ_1(sc->dev, off);
 
-	WR1(sc, off, RD1(sc, off) | val);
+	TPM_WRITE_1(sc->dev, off, v | val);
 }
 static inline void
 OR4(struct tpm_sc *sc, bus_size_t off, uint32_t val)
 {
+	uint32_t v = TPM_READ_1(sc->dev, off);
 
-	WR4(sc, off, RD4(sc, off) | val);
+	TPM_WRITE_4(sc->dev, off, v | val);
 }
 #endif	/* _TPM20_H_ */
