@@ -3,6 +3,8 @@
 # This file adds support for the WITHOUT_* and WITH_* knobs in src.conf(5) to
 # the check-old* and delete-old* targets.
 #
+# Blocks should be in sort(1) order by primary option.
+#
 
 .if ${MK_ACCT} == no
 OLD_FILES+=etc/rc.d/accounting
