@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Aug 30, 2023" "NLnet Labs" "unbound 1.18.0"
+.TH "unbound.conf" "5" "Nov  8, 2023" "NLnet Labs" "unbound 1.19.0"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -1301,6 +1301,20 @@ does not disable checking any more.  This is useful if legacy (w2008)
 servers that set the CD flag but cannot validate DNSSEC themselves are
 the clients, and then Unbound provides them with DNSSEC protection.
 The default value is "no".
+.TP
+.B disable\-edns\-do: \fI<yes or no>
+Disable the EDNS DO flag in upstream requests.
+It breaks DNSSEC validation for Unbound's clients.
+This results in the upstream name servers to not include DNSSEC records in
+their replies and could be helpful for devices that cannot handle DNSSEC
+information.
+When the option is enabled, clients that set the DO flag receive no EDNS
+record in the response to indicate the lack of support to them.
+If this option is enabled but Unbound is already configured for DNSSEC
+validation (i.e., the validator module is enabled; default) this option is
+implicitly turned off with a warning as to not break DNSSEC validation in
+Unbound.
+Default is no.
 .TP
 .B serve\-expired: \fI<yes or no>
 If enabled, Unbound attempts to serve old responses from cache with a
@@ -2667,6 +2681,11 @@ operationally.
 If the backend database is shared by multiple Unbound instances,
 all instances must use the same secret seed.
 This option defaults to "default".
+.TP
+.B cachedb-no-store: \fI<yes or no>\fR
+If the backend should be read from, but not written to. This makes this
+instance not store dns messages in the backend. But if data is available it
+is retrieved. The default is no.
 .P
 The following
 .B cachedb
@@ -2707,6 +2726,17 @@ Unbound is configured with \fBserve-expired\fR and \fBserve-expired-ttl\fR is 0,
 this option is internally reverted to "no".  Redis SETEX support is required
 for this option (Redis >= 2.0.0).
 This option defaults to no.
+.TP
+.B redis-logical-db: \fI<logical database index>
+The logical database in Redis to use.
+These are databases in the same Redis instance sharing the same configuration
+and persisted in the same RDB/AOF file.
+If unsure about using this option, Redis documentation
+(https://redis.io/commands/select/) suggests not to use a single Redis instance
+for multiple unrelated applications.
+The default database in Redis is 0 while other logical databases need to be
+explicitly SELECT'ed upon connecting.
+This option defaults to 0.
 .SS DNSTAP Logging Options
 DNSTAP support, when compiled in by using \fB\-\-enable\-dnstap\fR, is enabled
 in the \fBdnstap:\fR section.
