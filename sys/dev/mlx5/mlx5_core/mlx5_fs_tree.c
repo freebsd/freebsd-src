@@ -229,14 +229,19 @@ static void __fs_remove_node(struct kref *kref)
 {
 	struct fs_base *node = container_of(kref, struct fs_base, refcount);
 
-	if (node->parent)
+	if (node->parent) {
+		if (node->type == FS_TYPE_FLOW_DEST)
+			mutex_lock(&node->parent->parent->lock);
 		mutex_lock(&node->parent->lock);
+	}
 	mutex_lock(&node->lock);
 	cmd_remove_node(node);
 	mutex_unlock(&node->lock);
 	complete(&node->complete);
 	if (node->parent) {
 		mutex_unlock(&node->parent->lock);
+		if (node->type == FS_TYPE_FLOW_DEST)
+			mutex_unlock(&node->parent->parent->lock);
 		_fs_put(node->parent, _fs_remove_node, false);
 	}
 }
@@ -1719,7 +1724,7 @@ static void fs_del_dst(struct mlx5_flow_rule *dst)
 
 	fs_get_parent(fte, dst);
 	fs_get_parent(fg, fte);
-	mutex_lock(&fg->base.lock);
+	sx_assert(&fg->base.lock.sx, SX_XLOCKED);
 	memcpy(match_value, fte->val, sizeof(fte->val));
 	/* ft can't be changed as fg is locked */
 	fs_get_parent(ft, fg);
@@ -1739,7 +1744,6 @@ static void fs_del_dst(struct mlx5_flow_rule *dst)
 	}
 	call_to_del_rule_notifiers(dst, fte);
 err:
-	mutex_unlock(&fg->base.lock);
 	kvfree(match_value);
 }
 
