@@ -124,12 +124,14 @@ void val_find_signer(enum val_classification subtype,
  * @param reason_bogus: EDE (RFC8914) code paired with the reason of failure.
  * @param section: section of packet where this rrset comes from.
  * @param qstate: qstate with region.
+ * @param verified: if not NULL, the number of RRSIG validations is returned.
  * @return security status of verification.
  */
 enum sec_status val_verify_rrset_entry(struct module_env* env, 
 	struct val_env* ve, struct ub_packed_rrset_key* rrset, 
 	struct key_entry_key* kkey, char** reason, sldns_ede_code *reason_bogus,
-	sldns_pkt_section section, struct module_qstate* qstate);
+	sldns_pkt_section section, struct module_qstate* qstate,
+	int* verified);
 
 /**
  * Verify DNSKEYs with DS rrset. Like val_verify_new_DNSKEYs but

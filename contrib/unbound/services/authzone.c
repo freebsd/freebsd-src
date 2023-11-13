@@ -7774,6 +7774,7 @@ static int zonemd_dnssec_verify_rrset(struct auth_zone* z,
 	enum sec_status sec;
 	struct val_env* ve;
 	int m;
+	int verified = 0;
 	m = modstack_find(mods, "validator");
 	if(m == -1) {
 		auth_zone_log(z->name, VERB_ALGO, "zonemd dnssec verify: have "
@@ -7797,7 +7798,7 @@ static int zonemd_dnssec_verify_rrset(struct auth_zone* z,
 			"zonemd: verify %s RRset with DNSKEY", typestr);
 	}
 	sec = dnskeyset_verify_rrset(env, ve, &pk, dnskey, sigalg, why_bogus, NULL,
-		LDNS_SECTION_ANSWER, NULL);
+		LDNS_SECTION_ANSWER, NULL, &verified);
 	if(sec == sec_status_secure) {
 		return 1;
 	}
