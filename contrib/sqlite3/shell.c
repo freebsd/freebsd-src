@@ -467,18 +467,23 @@ static int bail_on_error = 0;
 */
 static int stdin_is_interactive = 1;
 
-#if (defined(_WIN32) || defined(WIN32)) && SHELL_USE_LOCAL_GETLINE \
-  && !defined(SHELL_OMIT_WIN_UTF8)
-# define SHELL_WIN_UTF8_OPT 1
-#else
-# define SHELL_WIN_UTF8_OPT 0
-#endif
-
-#if SHELL_WIN_UTF8_OPT
 /*
-** Setup console for UTF-8 input/output when following variable true.
+** If build is for non-RT Windows, without 3rd-party line editing,
+** console input and output may be done in a UTF-8 compatible way,
+** if the OS is capable of it and the --no-utf8 option is not seen.
 */
-static int console_utf8 = 0;
+#if (defined(_WIN32) || defined(WIN32)) && SHELL_USE_LOCAL_GETLINE \
+  && !defined(SHELL_OMIT_WIN_UTF8) && !SQLITE_OS_WINRT
+# define SHELL_WIN_UTF8_OPT 1
+/* Record whether to do UTF-8 console I/O translation per stream. */
+  static int console_utf8_in = 0;
+  static int console_utf8_out = 0;
+/* Record whether can do UTF-8 or --no-utf8 seen in invocation. */
+  static int mbcs_opted = 1; /* Assume cannot do until shown otherwise. */
+#else
+# define console_utf8_in 0
+# define console_utf8_out 0
+# define SHELL_WIN_UTF8_OPT 0
 #endif
 
 /*
@@ -614,13 +619,13 @@ static char *dynamicContinuePrompt(void){
 #endif /* !defined(SQLITE_OMIT_DYNAPROMPT) */
 
 #if SHELL_WIN_UTF8_OPT
-/* Following struct is used for -utf8 operation. */
+/* Following struct is used for UTF-8 console I/O. */
 static struct ConsoleState {
   int stdinEof;      /* EOF has been seen on console input */
   int infsMode;      /* Input file stream mode upon shell start */
   UINT inCodePage;   /* Input code page upon shell start */
   UINT outCodePage;  /* Output code page upon shell start */
-  HANDLE hConsoleIn; /* Console input handle */
+  HANDLE hConsole;   /* Console input or output handle */
   DWORD consoleMode; /* Console mode upon shell start */
 } conState = { 0, 0, 0, 0, INVALID_HANDLE_VALUE, 0 };
 
@@ -629,50 +634,123 @@ static struct ConsoleState {
 #endif
 
 /*
-** Prepare console, (if known to be a WIN32 console), for UTF-8
-** input (from either typing or suitable paste operations) and for
-** UTF-8 rendering. This may "fail" with a message to stderr, where
-** the preparation is not done and common "code page" issues occur.
+** If given stream number is a console, return 1 and get some attributes,
+** else return 0 and set the output attributes to invalid values.
 */
-static void console_prepare(void){
-  HANDLE hCI = GetStdHandle(STD_INPUT_HANDLE);
-  DWORD consoleMode = 0;
-  if( isatty(0) && GetFileType(hCI)==FILE_TYPE_CHAR
-      && GetConsoleMode( hCI, &consoleMode) ){
-    if( !IsValidCodePage(CP_UTF8) ){
-      fprintf(stderr, "Cannot use UTF-8 code page.\n");
-      console_utf8 = 0;
-      return;
-    }
-    conState.hConsoleIn = hCI;
-    conState.consoleMode = consoleMode;
-    conState.inCodePage = GetConsoleCP();
-    conState.outCodePage = GetConsoleOutputCP();
-    SetConsoleCP(CP_UTF8);
+static short console_attrs(unsigned stnum, HANDLE *pH, DWORD *pConsMode){
+  static int stid[3] = { STD_INPUT_HANDLE,STD_OUTPUT_HANDLE,STD_ERROR_HANDLE };
+  HANDLE h;
+  *pH = INVALID_HANDLE_VALUE;
+  *pConsMode = 0;
+  if( stnum > 2 ) return 0;
+  h = GetStdHandle(stid[stnum]);
+  if( h!=*pH && GetFileType(h)==FILE_TYPE_CHAR && GetConsoleMode(h,pConsMode) ){
+    *pH = h;
+    return 1;
+  }
+  return 0;
+}
+
+/*
+** Perform a runtime test of Windows console to determine if it can
+** do char-stream I/O correctly when the code page is set to CP_UTF8.
+** Returns are: 1 => yes it can, 0 => no it cannot
+**
+** The console's output code page is momentarily set, then restored.
+** So this should only be run when the process is given use of the
+** console for either input or output.
+*/
+static short ConsoleDoesUTF8(void){
+  UINT ocp = GetConsoleOutputCP();
+  const char TrialUtf8[] = { '\xC8', '\xAB' }; /* "ȫ" or 2 MBCS characters */
+  WCHAR aReadBack[1] = { 0 }; /* Read back as 0x022B when decoded as UTF-8. */
+  CONSOLE_SCREEN_BUFFER_INFO csbInfo = {0};
+  /* Create an inactive screen buffer with which to do the experiment. */
+  HANDLE hCSB = CreateConsoleScreenBuffer(GENERIC_READ|GENERIC_WRITE, 0, 0,
+                                          CONSOLE_TEXTMODE_BUFFER, NULL);
+  if( hCSB!=INVALID_HANDLE_VALUE ){
+    COORD cpos = {0,0};
+    DWORD rbc;
+    SetConsoleCursorPosition(hCSB, cpos);
     SetConsoleOutputCP(CP_UTF8);
-    consoleMode |= ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT;
-    SetConsoleMode(conState.hConsoleIn, consoleMode);
+    /* Write 2 chars which are a single character in UTF-8 but more in MBCS. */
+    WriteConsoleA(hCSB, TrialUtf8, sizeof(TrialUtf8), NULL, NULL);
+    ReadConsoleOutputCharacterW(hCSB, &aReadBack[0], 1, cpos, &rbc);
+    GetConsoleScreenBufferInfo(hCSB, &csbInfo);
+    SetConsoleOutputCP(ocp);
+    CloseHandle(hCSB);
+  }
+  /* Return 1 if cursor advanced by 1 position, else 0. */
+  return (short)(csbInfo.dwCursorPosition.X == 1 && aReadBack[0] == 0x022B);
+}
+
+static short in_console = 0;
+static short out_console = 0;
+
+/*
+** Determine whether either normal I/O stream is the console,
+** and whether it can do UTF-8 translation, setting globals
+** in_console, out_console and mbcs_opted accordingly.
+*/
+static void probe_console(void){
+  HANDLE h;
+  DWORD cMode;
+  in_console = console_attrs(0, &h, &cMode);
+  out_console = console_attrs(1, &h, &cMode);
+  if( in_console || out_console ) mbcs_opted = !ConsoleDoesUTF8();
+}
+
+/*
+** If console is used for normal I/O, absent a --no-utf8 option,
+** prepare console for UTF-8 input (from either typing or suitable
+** paste operations) and/or for UTF-8 output rendering.
+**
+** The console state upon entry is preserved, in conState, so that
+** console_restore() can later restore the same console state.
+**
+** The globals console_utf8_in and console_utf8_out are set, for
+** later use in selecting UTF-8 or MBCS console I/O translations.
+** This routine depends upon globals set by probe_console().
+*/
+static void console_prepare_utf8(void){
+  struct ConsoleState csWork = { 0, 0, 0, 0, INVALID_HANDLE_VALUE, 0 };
+
+  console_utf8_in = console_utf8_out = 0;
+  if( (!in_console && !out_console) || mbcs_opted ) return;
+  console_attrs((in_console)? 0 : 1, &conState.hConsole, &conState.consoleMode);
+  conState.inCodePage = GetConsoleCP();
+  conState.outCodePage = GetConsoleOutputCP();
+  if( in_console ){
+    SetConsoleCP(CP_UTF8);
+    DWORD newConsoleMode = conState.consoleMode
+      | ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT;
+    SetConsoleMode(conState.hConsole, newConsoleMode);
     conState.infsMode = _setmode(_fileno(stdin), _O_U16TEXT);
-    console_utf8 = 1;
-  }else{
-    console_utf8 = 0;
+    console_utf8_in = 1;
+  }
+  if( out_console ){
+    SetConsoleOutputCP(CP_UTF8);
+    console_utf8_out = 1;
   }
 }
 
 /*
-** Undo the effects of console_prepare(), if any.
+** Undo the effects of console_prepare_utf8(), if any.
 */
 static void SQLITE_CDECL console_restore(void){
-  if( console_utf8 && conState.inCodePage!=0
-      && conState.hConsoleIn!=INVALID_HANDLE_VALUE ){
-    _setmode(_fileno(stdin), conState.infsMode);
-    SetConsoleCP(conState.inCodePage);
-    SetConsoleOutputCP(conState.outCodePage);
-    SetConsoleMode(conState.hConsoleIn, conState.consoleMode);
+  if( (console_utf8_in||console_utf8_out)
+      && conState.hConsole!=INVALID_HANDLE_VALUE ){
+    if( console_utf8_in ){
+      SetConsoleCP(conState.inCodePage);
+      _setmode(_fileno(stdin), conState.infsMode);
+    }
+    if( console_utf8_out ) SetConsoleOutputCP(conState.outCodePage);
+    SetConsoleMode(conState.hConsole, conState.consoleMode);
     /* Avoid multiple calls. */
-    conState.hConsoleIn = INVALID_HANDLE_VALUE;
+    conState.hConsole = INVALID_HANDLE_VALUE;
     conState.consoleMode = 0;
-    console_utf8 = 0;
+    console_utf8_in = 0;
+    console_utf8_out = 0;
   }
 }
 
@@ -680,11 +758,11 @@ static void SQLITE_CDECL console_restore(void){
 ** Collect input like fgets(...) with special provisions for input
 ** from the Windows console to get around its strange coding issues.
 ** Defers to plain fgets() when input is not interactive or when the
-** startup option, -utf8, has not been provided or taken effect.
+** UTF-8 input is unavailable or opted out.
 */
 static char* utf8_fgets(char *buf, int ncmax, FILE *fin){
   if( fin==0 ) fin = stdin;
-  if( fin==stdin && stdin_is_interactive && console_utf8 ){
+  if( fin==stdin && stdin_is_interactive && console_utf8_in ){
 # define SQLITE_IALIM 150
     wchar_t wbuf[SQLITE_IALIM];
     int lend = 0;
@@ -697,7 +775,7 @@ static char* utf8_fgets(char *buf, int ncmax, FILE *fin){
         ? SQLITE_IALIM : (ncmax-1 - noc)/4;
 # undef SQLITE_IALIM
       DWORD nbr = 0;
-      BOOL bRC = ReadConsoleW(conState.hConsoleIn, wbuf, na, &nbr, 0);
+      BOOL bRC = ReadConsoleW(conState.hConsole, wbuf, na, &nbr, 0);
       if( !bRC || (noc==0 && nbr==0) ) return 0;
       if( nbr > 0 ){
         int nmb = WideCharToMultiByte(CP_UTF8,WC_COMPOSITECHECK|WC_DEFAULTCHAR,
@@ -743,20 +821,16 @@ static char* utf8_fgets(char *buf, int ncmax, FILE *fin){
 
 /*
 ** Render output like fprintf().  Except, if the output is going to the
-** console and if this is running on a Windows machine, and if the -utf8
-** option is unavailable or (available and inactive), translate the
+** console and if this is running on a Windows machine, and if UTF-8
+** output unavailable (or available but opted out), translate the
 ** output from UTF-8 into MBCS for output through 8-bit stdout stream.
-** (With -utf8 active, no translation is needed and must not be done.)
+** (Without -no-utf8, no translation is needed and must not be done.)
 */
 #if defined(_WIN32) || defined(WIN32)
 void utf8_printf(FILE *out, const char *zFormat, ...){
   va_list ap;
   va_start(ap, zFormat);
-  if( stdout_is_console && (out==stdout || out==stderr)
-# if SHELL_WIN_UTF8_OPT
-      && !console_utf8
-# endif
-  ){
+  if( stdout_is_console && (out==stdout || out==stderr) && !console_utf8_out ){
     char *z1 = sqlite3_vmprintf(zFormat, ap);
     char *z2 = sqlite3_win32_utf8_to_mbcs_v2(z1, 0);
     sqlite3_free(z1);
@@ -967,14 +1041,10 @@ static char *local_getline(char *zLine, FILE *in){
     }
   }
 #if defined(_WIN32) || defined(WIN32)
-  /* For interactive input on Windows systems, without -utf8,
+  /* For interactive input on Windows systems, with -no-utf8,
   ** translate the multi-byte characterset characters into UTF-8.
-  ** This is the translation that predates the -utf8 option. */
-  if( stdin_is_interactive && in==stdin
-# if SHELL_WIN_UTF8_OPT
-      && !console_utf8
-# endif /* SHELL_WIN_UTF8_OPT */
-  ){
+  ** This is the translation that predates console UTF-8 input. */
+  if( stdin_is_interactive && in==stdin && !console_utf8_in ){
     char *zTrans = sqlite3_win32_mbcs_to_utf8_v2(zLine, 0);
     if( zTrans ){
       i64 nTrans = strlen(zTrans)+1;
@@ -1260,7 +1330,7 @@ static void shellDtostr(
   char z[400];
   if( n<1 ) n = 1;
   if( n>350 ) n = 350;
-  sprintf(z, "%#+.*e", n, r);
+  snprintf(z, sizeof(z)-1, "%#+.*e", n, r);
   sqlite3_result_text(pCtx, z, -1, SQLITE_TRANSIENT);
 }
 
@@ -5372,7 +5442,8 @@ static sqlite3_module seriesModule = {
   0,                         /* xSavepoint */
   0,                         /* xRelease */
   0,                         /* xRollbackTo */
-  0                          /* xShadowName */
+  0,                         /* xShadowName */
+  0                          /* xIntegrity */
 };
 
 #endif /* SQLITE_OMIT_VIRTUALTABLE */
@@ -7270,6 +7341,7 @@ static int fsdirRegister(sqlite3 *db){
     0,                         /* xRelease */
     0,                         /* xRollbackTo */
     0,                         /* xShadowName */
+    0                          /* xIntegrity */
   };
 
   int rc = sqlite3_create_module(db, "fsdir", &fsdirModule, 0);
@@ -7790,7 +7862,8 @@ static sqlite3_module completionModule = {
   0,                         /* xSavepoint */
   0,                         /* xRelease */
   0,                         /* xRollbackTo */
-  0                          /* xShadowName */
+  0,                         /* xShadowName */
+  0                          /* xIntegrity */
 };
 
 #endif /* SQLITE_OMIT_VIRTUALTABLE */
@@ -8530,6 +8603,7 @@ SQLITE_EXTENSION_INIT1
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <stdint.h>
 
 #include <zlib.h>
 
@@ -10701,7 +10775,8 @@ static int zipfileRegister(sqlite3 *db){
     0,                         /* xSavepoint */
     0,                         /* xRelease */
     0,                         /* xRollback */
-    0                          /* xShadowName */
+    0,                         /* xShadowName */
+    0                          /* xIntegrity */
   };
 
   int rc = sqlite3_create_module(db, "zipfile"  , &zipfileModule, 0);
@@ -11070,7 +11145,7 @@ void sqlite3_expert_destroy(sqlite3expert*);
 #endif /* !defined(SQLITE_AMALGAMATION) */
 
 
-#ifndef SQLITE_OMIT_VIRTUALTABLE 
+#ifndef SQLITE_OMIT_VIRTUALTABLE
 
 /* typedef sqlite3_int64 i64; */
 /* typedef sqlite3_uint64 u64; */
@@ -11700,6 +11775,7 @@ static int idxRegisterVtab(sqlite3expert *p){
     0,                            /* xRelease */
     0,                            /* xRollbackTo */
     0,                            /* xShadowName */
+    0,                            /* xIntegrity */
   };
 
   return sqlite3_create_module(p->dbv, "expert", &expertModule, (void*)p);
@@ -12857,6 +12933,88 @@ static int idxPopulateStat1(sqlite3expert *p, char **pzErr){
 }
 
 /*
+** Define and possibly pretend to use a useless collation sequence.
+** This pretense allows expert to accept SQL using custom collations.
+*/
+int dummyCompare(void *up1, int up2, const void *up3, int up4, const void *up5){
+  (void)up1;
+  (void)up2;
+  (void)up3;
+  (void)up4;
+  (void)up5;
+  assert(0); /* VDBE should never be run. */
+  return 0;
+}
+/* And a callback to register above upon actual need */
+void useDummyCS(void *up1, sqlite3 *db, int etr, const char *zName){
+  (void)up1;
+  sqlite3_create_collation_v2(db, zName, etr, 0, dummyCompare, 0);
+}
+
+#if !defined(SQLITE_OMIT_SCHEMA_PRAGMAS) \
+  && !defined(SQLITE_OMIT_INTROSPECTION_PRAGMAS)
+/*
+** dummy functions for no-op implementation of UDFs during expert's work
+*/
+void dummyUDF(sqlite3_context *up1, int up2, sqlite3_value **up3){
+  (void)up1;
+  (void)up2;
+  (void)up3;
+  assert(0); /* VDBE should never be run. */
+}
+void dummyUDFvalue(sqlite3_context *up1){
+  (void)up1;
+  assert(0); /* VDBE should never be run. */
+}
+
+/*
+** Register UDFs from user database with another.
+*/
+int registerUDFs(sqlite3 *dbSrc, sqlite3 *dbDst){
+  sqlite3_stmt *pStmt;
+  int rc = sqlite3_prepare_v2(dbSrc,
+            "SELECT name,type,enc,narg,flags "
+            "FROM pragma_function_list() "
+            "WHERE builtin==0", -1, &pStmt, 0);
+  if( rc==SQLITE_OK ){
+    while( SQLITE_ROW==(rc = sqlite3_step(pStmt)) ){
+      int nargs = sqlite3_column_int(pStmt,3);
+      int flags = sqlite3_column_int(pStmt,4);
+      const char *name = (char*)sqlite3_column_text(pStmt,0);
+      const char *type = (char*)sqlite3_column_text(pStmt,1);
+      const char *enc = (char*)sqlite3_column_text(pStmt,2);
+      if( name==0 || type==0 || enc==0 ){
+        /* no-op.  Only happens on OOM */
+      }else{
+        int ienc = SQLITE_UTF8;
+        int rcf = SQLITE_ERROR;
+        if( strcmp(enc,"utf16le")==0 ) ienc = SQLITE_UTF16LE;
+        else if( strcmp(enc,"utf16be")==0 ) ienc = SQLITE_UTF16BE;
+        ienc |= (flags & (SQLITE_DETERMINISTIC|SQLITE_DIRECTONLY));
+        if( strcmp(type,"w")==0 ){
+          rcf = sqlite3_create_window_function(dbDst,name,nargs,ienc,0,
+                                               dummyUDF,dummyUDFvalue,0,0,0);
+        }else if( strcmp(type,"a")==0 ){
+          rcf = sqlite3_create_function(dbDst,name,nargs,ienc,0,
+                                        0,dummyUDF,dummyUDFvalue);
+        }else if( strcmp(type,"s")==0 ){
+          rcf = sqlite3_create_function(dbDst,name,nargs,ienc,0,
+                                        dummyUDF,0,0);
+        }
+        if( rcf!=SQLITE_OK ){
+          rc = rcf;
+          break;
+        }
+      }
+    }
+    sqlite3_finalize(pStmt);
+    if( rc==SQLITE_DONE ) rc = SQLITE_OK;
+  }
+  return rc;
+}
+#endif
+
+/*
 ** Allocate a new sqlite3expert object.
 */
 sqlite3expert *sqlite3_expert_new(sqlite3 *db, char **pzErrmsg){
@@ -12882,7 +13040,21 @@ sqlite3expert *sqlite3_expert_new(sqlite3 *db, char **pzErrmsg){
       sqlite3_db_config(pNew->dbm, SQLITE_DBCONFIG_TRIGGER_EQP, 1, (int*)0);
     }
   }
-  
+
+  /* Allow custom collations to be dealt with through prepare. */
+  if( rc==SQLITE_OK ) rc = sqlite3_collation_needed(pNew->dbm,0,useDummyCS);
+  if( rc==SQLITE_OK ) rc = sqlite3_collation_needed(pNew->dbv,0,useDummyCS);
+
+#if !defined(SQLITE_OMIT_SCHEMA_PRAGMAS) \
+  && !defined(SQLITE_OMIT_INTROSPECTION_PRAGMAS)
+  /* Register UDFs from database [db] with [dbm] and [dbv]. */
+  if( rc==SQLITE_OK ){
+    rc = registerUDFs(pNew->db, pNew->dbm);
+  }
+  if( rc==SQLITE_OK ){
+    rc = registerUDFs(pNew->db, pNew->dbv);
+  }
+#endif
 
   /* Copy the entire schema of database [db] into [dbm]. */
   if( rc==SQLITE_OK ){
@@ -12958,6 +13130,10 @@ int sqlite3_expert_sql(
 
   while( rc==SQLITE_OK && zStmt && zStmt[0] ){
     sqlite3_stmt *pStmt = 0;
+    /* Ensure that the provided statement compiles against user's DB. */
+    rc = idxPrepareStmt(p->db, &pStmt, pzErr, zStmt);
+    if( rc!=SQLITE_OK ) break;
+    sqlite3_finalize(pStmt);
     rc = sqlite3_prepare_v2(p->dbv, zStmt, -1, &pStmt, &zStmt);
     if( rc==SQLITE_OK ){
       if( pStmt ){
@@ -14282,7 +14458,8 @@ static int sqlite3DbdataRegister(sqlite3 *db){
     0,                            /* xSavepoint */
     0,                            /* xRelease */
     0,                            /* xRollbackTo */
-    0                             /* xShadowName */
+    0,                            /* xShadowName */
+    0                             /* xIntegrity */
   };
 
   int rc = sqlite3_create_module(db, "sqlite_dbdata", &dbdata_module, 0);
@@ -19154,7 +19331,7 @@ static void display_explain_scanstats(
     if( sqlite3_stmt_scanstatus_v2(p,ii,SQLITE_SCANSTAT_EXPLAIN,f,(void*)&z) ){
       break;
     }
-    n = strlen(z) + scanStatsHeight(p, ii)*3;
+    n = (int)strlen(z) + scanStatsHeight(p, ii)*3;
     if( n>nWidth ) nWidth = n;
   }
   nWidth += 4;
@@ -19166,12 +19343,12 @@ static void display_explain_scanstats(
     i64 nCycle = 0;
     int iId = 0;
     int iPid = 0;
-    const char *z = 0;
+    const char *zo = 0;
     const char *zName = 0;
     char *zText = 0;
     double rEst = 0.0;
 
-    if( sqlite3_stmt_scanstatus_v2(p,ii,SQLITE_SCANSTAT_EXPLAIN,f,(void*)&z) ){
+    if( sqlite3_stmt_scanstatus_v2(p,ii,SQLITE_SCANSTAT_EXPLAIN,f,(void*)&zo) ){
       break;
     }
     sqlite3_stmt_scanstatus_v2(p, ii, SQLITE_SCANSTAT_EST,f,(void*)&rEst);
@@ -19182,7 +19359,7 @@ static void display_explain_scanstats(
     sqlite3_stmt_scanstatus_v2(p, ii, SQLITE_SCANSTAT_PARENTID,f,(void*)&iPid);
     sqlite3_stmt_scanstatus_v2(p, ii, SQLITE_SCANSTAT_NAME,f,(void*)&zName);
 
-    zText = sqlite3_mprintf("%s", z);
+    zText = sqlite3_mprintf("%s", zo);
     if( nCycle>=0 || nLoop>=0 || nRow>=0 ){
       char *z = 0;
       if( nCycle>=0 && nTotal>0 ){
@@ -23830,7 +24007,6 @@ static int do_meta_command(char *zLine, ShellState *p){
       azArg[nArg++] = &zLine[h];
       while( zLine[h] && !IsSpace(zLine[h]) ){ h++; }
       if( zLine[h] ) zLine[h++] = 0;
-      resolve_backslashes(azArg[nArg-1]);
     }
   }
   azArg[nArg] = 0;
@@ -24569,8 +24745,10 @@ static int do_meta_command(char *zLine, ShellState *p){
                "SELECT rowid FROM sqlite_schema"
                " WHERE name GLOB 'sqlite_stat[134]'",
                -1, &pStmt, 0);
-      doStats = sqlite3_step(pStmt)==SQLITE_ROW;
-      sqlite3_finalize(pStmt);
+      if( rc==SQLITE_OK ){
+        doStats = sqlite3_step(pStmt)==SQLITE_ROW;
+        sqlite3_finalize(pStmt);
+      }
     }
     if( doStats==0 ){
       raw_printf(p->out, "/* No STAT tables available */\n");
@@ -24859,6 +25037,14 @@ static int do_meta_command(char *zLine, ShellState *p){
         ** the remaining columns.
         */
         if( p->mode==MODE_Ascii && (z==0 || z[0]==0) && i==0 ) break;
+        /*
+        ** For CSV mode, per RFC 4180, accept EOF in lieu of final
+        ** record terminator but only for last field of multi-field row.
+        ** (If there are too few fields, it's not valid CSV anyway.)
+        */
+        if( z==0 && (xRead==csv_read_one_field) && i==nCol-1 && i>0 ){
+          z = "";
+        }
         sqlite3_bind_text(pStmt, i+1, z, -1, SQLITE_TRANSIENT);
         if( i<nCol-1 && sCtx.cTerm!=sCtx.cColSep ){
           utf8_printf(stderr, "%s:%d: expected %d columns but found %d - "
@@ -26698,6 +26884,7 @@ static int do_meta_command(char *zLine, ShellState *p){
     {"byteorder",          SQLITE_TESTCTRL_BYTEORDER, 0,  ""                },
     {"extra_schema_checks",SQLITE_TESTCTRL_EXTRA_SCHEMA_CHECKS,0,"BOOLEAN"  },
   /*{"fault_install",      SQLITE_TESTCTRL_FAULT_INSTALL, 1,""              },*/
+    {"fk_no_action",       SQLITE_TESTCTRL_FK_NO_ACTION, 0, "BOOLEAN"       },
     {"imposter",         SQLITE_TESTCTRL_IMPOSTER,1,"SCHEMA ON/OFF ROOTPAGE"},
     {"internal_functions", SQLITE_TESTCTRL_INTERNAL_FUNCTIONS,0,""          },
     {"localtime_fault",    SQLITE_TESTCTRL_LOCALTIME_FAULT,0,"BOOLEAN"      },
@@ -26768,6 +26955,7 @@ static int do_meta_command(char *zLine, ShellState *p){
 
         /* sqlite3_test_control(int, db, int) */
         case SQLITE_TESTCTRL_OPTIMIZATIONS:
+        case SQLITE_TESTCTRL_FK_NO_ACTION:
           if( nArg==3 ){
             unsigned int opt = (unsigned int)strtol(azArg[2], 0, 0);
             rc2 = sqlite3_test_control(testctrl, p->db, opt);
@@ -27720,6 +27908,9 @@ static const char zOptions[] =
   "   -multiplex           enable the multiplexor VFS\n"
 #endif
   "   -newline SEP         set output row separator. Default: '\\n'\n"
+#if SHELL_WIN_UTF8_OPT
+  "   -no-utf8             do not try to set up UTF-8 output (for legacy)\n"
+#endif
   "   -nofollow            refuse to open symbolic links to database files\n"
   "   -nonce STRING        set the safe-mode escape nonce\n"
   "   -nullvalue TEXT      set text string for NULL values. Default ''\n"
@@ -27736,7 +27927,7 @@ static const char zOptions[] =
   "   -table               set output mode to 'table'\n"
   "   -tabs                set output mode to 'tabs'\n"
   "   -unsafe-testing      allow unsafe commands and modes for testing\n"
-#if SHELL_WIN_UTF8_OPT
+#if SHELL_WIN_UTF8_OPT && 0 /* Option is accepted, but is now the default. */
   "   -utf8                setup interactive console code page for UTF-8\n"
 #endif
   "   -version             show SQLite version\n"
@@ -27887,7 +28078,8 @@ int SQLITE_CDECL wmain(int argc, wchar_t **wargv){
   stdout_is_console = isatty(1);
 #endif
 #if SHELL_WIN_UTF8_OPT
-  atexit(console_restore); /* Needs revision for CLI as library call */
+  probe_console(); /* Check for console I/O and UTF-8 capability. */
+  if( !mbcs_opted ) atexit(console_restore);
 #endif
   atexit(sayAbnormalExit);
 #ifdef SQLITE_DEBUG
@@ -27974,8 +28166,8 @@ int SQLITE_CDECL wmain(int argc, wchar_t **wargv){
 
   /* Do an initial pass through the command-line argument to locate
   ** the name of the database file, the name of the initialization file,
-  ** the size of the alternative malloc heap,
-  ** and the first command to execute.
+  ** the size of the alternative malloc heap, options affecting commands
+  ** or SQL run from the command line, and the first command to execute.
   */
 #ifndef SQLITE_SHELL_FIDDLE
   verify_uninitialized();
@@ -28009,12 +28201,26 @@ int SQLITE_CDECL wmain(int argc, wchar_t **wargv){
       (void)cmdline_option_value(argc, argv, ++i);
     }else if( cli_strcmp(z,"-init")==0 ){
       zInitFile = cmdline_option_value(argc, argv, ++i);
+    }else if( cli_strcmp(z,"-interactive")==0 ){
+      /* Need to check for interactive override here to so that it can
+      ** affect console setup (for Windows only) and testing thereof.
+      */
+      stdin_is_interactive = 1;
     }else if( cli_strcmp(z,"-batch")==0 ){
       /* Need to check for batch mode here to so we can avoid printing
       ** informational messages (like from process_sqliterc) before
       ** we do the actual processing of arguments later in a second pass.
       */
       stdin_is_interactive = 0;
+    }else if( cli_strcmp(z,"-utf8")==0 ){
+#if SHELL_WIN_UTF8_OPT
+      /* Option accepted, but is ignored except for this diagnostic. */
+      if( mbcs_opted ) fprintf(stderr, "Cannot do UTF-8 at this console.\n");
+#endif /* SHELL_WIN_UTF8_OPT */
+    }else if( cli_strcmp(z,"-no-utf8")==0 ){
+#if SHELL_WIN_UTF8_OPT
+      mbcs_opted = 1;
+#endif /* SHELL_WIN_UTF8_OPT */
     }else if( cli_strcmp(z,"-heap")==0 ){
 #if defined(SQLITE_ENABLE_MEMSYS3) || defined(SQLITE_ENABLE_MEMSYS5)
       const char *zSize;
@@ -28153,6 +28359,15 @@ int SQLITE_CDECL wmain(int argc, wchar_t **wargv){
       exit(1);
     }
   }
+#if SHELL_WIN_UTF8_OPT
+  /* Get indicated Windows console setup done before running invocation commands. */
+  if( in_console || out_console ){
+    console_prepare_utf8();
+  }
+  if( !in_console ){
+    setBinaryMode(stdin, 0);
+  }
+#endif
 
   if( data.pAuxDb->zDbFilename==0 ){
 #ifndef SQLITE_OMIT_MEMORYDB
@@ -28280,13 +28495,13 @@ int SQLITE_CDECL wmain(int argc, wchar_t **wargv){
              8*(int)sizeof(char*));
       return 0;
     }else if( cli_strcmp(z,"-interactive")==0 ){
-      stdin_is_interactive = 1;
+      /* already handled */
     }else if( cli_strcmp(z,"-batch")==0 ){
-      stdin_is_interactive = 0;
+      /* already handled */
     }else if( cli_strcmp(z,"-utf8")==0 ){
-#if SHELL_WIN_UTF8_OPT
-      console_utf8 = 1;
-#endif /* SHELL_WIN_UTF8_OPT */
+      /* already handled */
+    }else if( cli_strcmp(z,"-no-utf8")==0 ){
+      /* already handled */
     }else if( cli_strcmp(z,"-heap")==0 ){
       i++;
     }else if( cli_strcmp(z,"-pagecache")==0 ){
@@ -28368,14 +28583,6 @@ int SQLITE_CDECL wmain(int argc, wchar_t **wargv){
     }
     data.cMode = data.mode;
   }
-#if SHELL_WIN_UTF8_OPT
-  if( console_utf8 && stdin_is_interactive ){
-    console_prepare();
-  }else{
-    setBinaryMode(stdin, 0);
-    console_utf8 = 0;
-  }
-#endif
 
   if( !readStdin ){
     /* Run all arguments that do not begin with '-' as if they were separate
@@ -28411,11 +28618,20 @@ int SQLITE_CDECL wmain(int argc, wchar_t **wargv){
     if( stdin_is_interactive ){
       char *zHome;
       char *zHistory;
+      const char *zCharset = "";
       int nHistory;
+#if SHELL_WIN_UTF8_OPT
+      switch( console_utf8_in+2*console_utf8_out ){
+      default: case 0: break;
+      case 1: zCharset = " (utf8 in)"; break;
+      case 2: zCharset = " (utf8 out)"; break;
+      case 3: zCharset = " (utf8 I/O)"; break;
+      }
+#endif
       printf(
-        "SQLite version %s %.19s\n" /*extra-version-info*/
+        "SQLite version %s %.19s%s\n" /*extra-version-info*/
         "Enter \".help\" for usage hints.\n",
-        sqlite3_libversion(), sqlite3_sourceid()
+        sqlite3_libversion(), sqlite3_sourceid(), zCharset
       );
       if( warnInmemoryDb ){
         printf("Connected to a ");
