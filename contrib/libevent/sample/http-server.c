@@ -20,25 +20,38 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
+#include <getopt.h>
 #include <io.h>
 #include <fcntl.h>
 #ifndef S_ISDIR
 #define S_ISDIR(x) (((x) & S_IFMT) == S_IFDIR)
 #endif
-#else
+#else /* !_WIN32 */
 #include <sys/stat.h>
 #include <sys/socket.h>
-#include <signal.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>
+#endif /* _WIN32 */
+#include <signal.h>
+
+#ifdef EVENT__HAVE_SYS_UN_H
+#include <sys/un.h>
+#endif
+#ifdef EVENT__HAVE_AFUNIX_H
+#include <afunix.h>
 #endif
 
 #include <event2/event.h>
 #include <event2/http.h>
+#include <event2/listener.h>
 #include <event2/buffer.h>
 #include <event2/util.h>
 #include <event2/keyvalq_struct.h>
+
+#ifdef _WIN32
+#include <event2/thread.h>
+#endif /* _WIN32 */
 
 #ifdef EVENT__HAVE_NETINET_IN_H
 #include <netinet/in.h>
@@ -63,7 +76,7 @@
 #ifndef O_RDONLY
 #define O_RDONLY _O_RDONLY
 #endif
-#endif
+#endif /* _WIN32 */
 
 char uri_root[512];
 
@@ -84,6 +97,16 @@ static const struct table_entry {
 	{ "pdf", "application/pdf" },
 	{ "ps", "application/postscript" },
 	{ NULL, NULL },
+};
+
+struct options {
+	int port;
+	int iocp;
+	int verbose;
+
+	int unlink;
+	const char *unixsock;
+	const char *docroot;
 };
 
 /* Try to guess a good content-type for 'path' */
@@ -159,7 +182,7 @@ static void
 send_document_cb(struct evhttp_request *req, void *arg)
 {
 	struct evbuffer *evb = NULL;
-	const char *docroot = arg;
+	struct options *o = arg;
 	const char *uri = evhttp_request_get_uri(req);
 	struct evhttp_uri *decoded = NULL;
 	const char *path;
@@ -199,12 +222,12 @@ send_document_cb(struct evhttp_request *req, void *arg)
 	if (strstr(decoded_path, ".."))
 		goto err;
 
-	len = strlen(decoded_path)+strlen(docroot)+2;
+	len = strlen(decoded_path)+strlen(o->docroot)+2;
 	if (!(whole_path = malloc(len))) {
 		perror("malloc");
 		goto err;
 	}
-	evutil_snprintf(whole_path, len, "%s/%s", docroot, decoded_path);
+	evutil_snprintf(whole_path, len, "%s/%s", o->docroot, decoded_path);
 
 	if (stat(whole_path, &st)<0) {
 		goto err;
@@ -321,42 +344,161 @@ done:
 }
 
 static void
-syntax(void)
+print_usage(FILE *out, const char *prog, int exit_code)
 {
-	fprintf(stdout, "Syntax: http-server <docroot>\n");
+	fprintf(out,
+		"Syntax: %s [ OPTS ] <docroot>\n"
+		" -p      - port\n"
+		" -U      - bind to unix socket\n"
+		" -u      - unlink unix socket before bind\n"
+		" -I      - IOCP\n"
+		" -v      - verbosity, enables libevent debug logging too\n", prog);
+	exit(exit_code);
+}
+static struct options
+parse_opts(int argc, char **argv)
+{
+	struct options o;
+	int opt;
+
+	memset(&o, 0, sizeof(o));
+
+	while ((opt = getopt(argc, argv, "hp:U:uIv")) != -1) {
+		switch (opt) {
+			case 'p': o.port = atoi(optarg); break;
+			case 'U': o.unixsock = optarg; break;
+			case 'u': o.unlink = 1; break;
+			case 'I': o.iocp = 1; break;
+			case 'v': ++o.verbose; break;
+			case 'h': print_usage(stdout, argv[0], 0); break;
+			default : fprintf(stderr, "Unknown option %c\n", opt); break;
+		}
+	}
+
+	if (optind >= argc || (argc - optind) > 1) {
+		print_usage(stdout, argv[0], 1);
+	}
+	o.docroot = argv[optind];
+
+	return o;
+}
+
+static void
+do_term(int sig, short events, void *arg)
+{
+	struct event_base *base = arg;
+	event_base_loopbreak(base);
+	fprintf(stderr, "Got %i, Terminating\n", sig);
+}
+
+static int
+display_listen_sock(struct evhttp_bound_socket *handle)
+{
+	struct sockaddr_storage ss;
+	evutil_socket_t fd;
+	ev_socklen_t socklen = sizeof(ss);
+	char addrbuf[128];
+	void *inaddr;
+	const char *addr;
+	int got_port = -1;
+
+	fd = evhttp_bound_socket_get_fd(handle);
+	memset(&ss, 0, sizeof(ss));
+	if (getsockname(fd, (struct sockaddr *)&ss, &socklen)) {
+		perror("getsockname() failed");
+		return 1;
+	}
+
+	if (ss.ss_family == AF_INET) {
+		got_port = ntohs(((struct sockaddr_in*)&ss)->sin_port);
+		inaddr = &((struct sockaddr_in*)&ss)->sin_addr;
+	} else if (ss.ss_family == AF_INET6) {
+		got_port = ntohs(((struct sockaddr_in6*)&ss)->sin6_port);
+		inaddr = &((struct sockaddr_in6*)&ss)->sin6_addr;
+	}
+#ifdef EVENT__HAVE_STRUCT_SOCKADDR_UN
+	else if (ss.ss_family == AF_UNIX) {
+		printf("Listening on <%s>\n", ((struct sockaddr_un*)&ss)->sun_path);
+		return 0;
+	}
+#endif
+	else {
+		fprintf(stderr, "Weird address family %d\n",
+		    ss.ss_family);
+		return 1;
+	}
+
+	addr = evutil_inet_ntop(ss.ss_family, inaddr, addrbuf,
+	    sizeof(addrbuf));
+	if (addr) {
+		printf("Listening on %s:%d\n", addr, got_port);
+		evutil_snprintf(uri_root, sizeof(uri_root),
+		    "http://%s:%d",addr,got_port);
+	} else {
+		fprintf(stderr, "evutil_inet_ntop failed\n");
+		return 1;
+	}
+
+	return 0;
 }
 
 int
 main(int argc, char **argv)
 {
-	struct event_base *base;
-	struct evhttp *http;
-	struct evhttp_bound_socket *handle;
+	struct event_config *cfg = NULL;
+	struct event_base *base = NULL;
+	struct evhttp *http = NULL;
+	struct evhttp_bound_socket *handle = NULL;
+	struct evconnlistener *lev = NULL;
+	struct event *term = NULL;
+	struct options o = parse_opts(argc, argv);
+	int ret = 0;
 
-	ev_uint16_t port = 0;
 #ifdef _WIN32
-	WSADATA WSAData;
-	WSAStartup(0x101, &WSAData);
-#else
-	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
-		return (1);
-#endif
-	if (argc < 2) {
-		syntax();
-		return 1;
+	{
+		WORD wVersionRequested;
+		WSADATA wsaData;
+		wVersionRequested = MAKEWORD(2, 2);
+		WSAStartup(wVersionRequested, &wsaData);
 	}
+#else
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
+		ret = 1;
+		goto err;
+	}
+#endif
 
-	base = event_base_new();
+	setbuf(stdout, NULL);
+	setbuf(stderr, NULL);
+
+	/** Read env like in regress */
+	if (o.verbose || getenv("EVENT_DEBUG_LOGGING_ALL"))
+		event_enable_debug_logging(EVENT_DBG_ALL);
+
+	cfg = event_config_new();
+#ifdef _WIN32
+	if (o.iocp) {
+#ifdef EVTHREAD_USE_WINDOWS_THREADS_IMPLEMENTED
+		evthread_use_windows_threads();
+		event_config_set_num_cpus_hint(cfg, 8);
+#endif
+		event_config_set_flag(cfg, EVENT_BASE_FLAG_STARTUP_IOCP);
+	}
+#endif
+
+	base = event_base_new_with_config(cfg);
 	if (!base) {
 		fprintf(stderr, "Couldn't create an event_base: exiting\n");
-		return 1;
+		ret = 1;
 	}
+	event_config_free(cfg);
+	cfg = NULL;
 
 	/* Create a new evhttp object to handle requests. */
 	http = evhttp_new(base);
 	if (!http) {
 		fprintf(stderr, "couldn't create evhttp. Exiting.\n");
-		return 1;
+		ret = 1;
 	}
 
 	/* The /dump URI will dump all requests to stdout and say 200 ok. */
@@ -364,55 +506,77 @@ main(int argc, char **argv)
 
 	/* We want to accept arbitrary requests, so we need to set a "generic"
 	 * cb.  We can also add callbacks for specific paths. */
-	evhttp_set_gencb(http, send_document_cb, argv[1]);
+	evhttp_set_gencb(http, send_document_cb, &o);
 
-	/* Now we tell the evhttp what port to listen on */
-	handle = evhttp_bind_socket_with_handle(http, "0.0.0.0", port);
-	if (!handle) {
-		fprintf(stderr, "couldn't bind to port %d. Exiting.\n",
-		    (int)port);
-		return 1;
+	if (o.unixsock) {
+#ifdef EVENT__HAVE_STRUCT_SOCKADDR_UN
+		struct sockaddr_un addr;
+
+		if (o.unlink && (unlink(o.unixsock) && errno != ENOENT)) {
+			perror(o.unixsock);
+			ret = 1;
+			goto err;
+		}
+
+		addr.sun_family = AF_UNIX;
+		strcpy(addr.sun_path, o.unixsock);
+
+		lev = evconnlistener_new_bind(base, NULL, NULL,
+			LEV_OPT_CLOSE_ON_FREE, -1,
+			(struct sockaddr *)&addr, sizeof(addr));
+		if (!lev) {
+			perror("Cannot create listener");
+			ret = 1;
+			goto err;
+		}
+
+		handle = evhttp_bind_listener(http, lev);
+		if (!handle) {
+			fprintf(stderr, "couldn't bind to %s. Exiting.\n", o.unixsock);
+			ret = 1;
+			goto err;
+		}
+#else /* !EVENT__HAVE_STRUCT_SOCKADDR_UN */
+		fprintf(stderr, "-U is not supported on this platform. Exiting.\n");
+		ret = 1;
+		goto err;
+#endif /* EVENT__HAVE_STRUCT_SOCKADDR_UN */
+	}
+	else {
+		handle = evhttp_bind_socket_with_handle(http, "0.0.0.0", o.port);
+		if (!handle) {
+			fprintf(stderr, "couldn't bind to port %d. Exiting.\n", o.port);
+			ret = 1;
+			goto err;
+		}
 	}
 
-	{
-		/* Extract and display the address we're listening on. */
-		struct sockaddr_storage ss;
-		evutil_socket_t fd;
-		ev_socklen_t socklen = sizeof(ss);
-		char addrbuf[128];
-		void *inaddr;
-		const char *addr;
-		int got_port = -1;
-		fd = evhttp_bound_socket_get_fd(handle);
-		memset(&ss, 0, sizeof(ss));
-		if (getsockname(fd, (struct sockaddr *)&ss, &socklen)) {
-			perror("getsockname() failed");
-			return 1;
-		}
-		if (ss.ss_family == AF_INET) {
-			got_port = ntohs(((struct sockaddr_in*)&ss)->sin_port);
-			inaddr = &((struct sockaddr_in*)&ss)->sin_addr;
-		} else if (ss.ss_family == AF_INET6) {
-			got_port = ntohs(((struct sockaddr_in6*)&ss)->sin6_port);
-			inaddr = &((struct sockaddr_in6*)&ss)->sin6_addr;
-		} else {
-			fprintf(stderr, "Weird address family %d\n",
-			    ss.ss_family);
-			return 1;
-		}
-		addr = evutil_inet_ntop(ss.ss_family, inaddr, addrbuf,
-		    sizeof(addrbuf));
-		if (addr) {
-			printf("Listening on %s:%d\n", addr, got_port);
-			evutil_snprintf(uri_root, sizeof(uri_root),
-			    "http://%s:%d",addr,got_port);
-		} else {
-			fprintf(stderr, "evutil_inet_ntop failed\n");
-			return 1;
-		}
+	if (display_listen_sock(handle)) {
+		ret = 1;
+		goto err;
 	}
+
+	term = evsignal_new(base, SIGINT, do_term, base);
+	if (!term)
+		goto err;
+	if (event_add(term, NULL))
+		goto err;
 
 	event_base_dispatch(base);
 
-	return 0;
+#ifdef _WIN32
+	WSACleanup();
+#endif
+
+err:
+	if (cfg)
+		event_config_free(cfg);
+	if (http)
+		evhttp_free(http);
+	if (term)
+		event_free(term);
+	if (base)
+		event_base_free(base);
+
+	return ret;
 }
