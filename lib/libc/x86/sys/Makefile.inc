@@ -1,4 +1,5 @@
 .PATH:	${LIBC_SRCTOP}/x86/sys
+.PATH:	${LIBSYS_SRCTOP}/x86
 
 SRCS+= \
 	__vdso_gettc.c \
