@@ -1,6 +1,5 @@
 
 # sys sources
-.PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/sys
 .PATH: ${LIBSYS_SRCTOP}/${LIBC_ARCH} ${LIBSYS_SRCTOP}
 
 # Include the generated makefile containing the *complete* list
