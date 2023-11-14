@@ -3349,6 +3349,9 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 				cap->tsomax = ifp->if_hw_tsomax;
 				cap->tsomaxsegcount = ifp->if_hw_tsomaxsegcount;
 				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
+				/* XXXKIB IFCAP2_IPSEC_OFFLOAD_TSO */
+				cap->ipsec_tso =  (ifp->if_capenable2 &
+				    IFCAP2_BIT(IFCAP2_IPSEC_OFFLOAD)) != 0;
 			}
 		}
 	}
@@ -3388,6 +3391,7 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 				cap->tsomax = ifp->if_hw_tsomax;
 				cap->tsomaxsegcount = ifp->if_hw_tsomaxsegcount;
 				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
+				cap->ipsec_tso = false; /* XXXKIB */
 			}
 		}
 	}

@@ -3979,6 +3979,8 @@ tcp_mss(struct tcpcb *tp, int offer)
 		tp->t_tsomax = cap.tsomax;
 		tp->t_tsomaxsegcount = cap.tsomaxsegcount;
 		tp->t_tsomaxsegsize = cap.tsomaxsegsize;
+		if (cap.ipsec_tso)
+			tp->t_flags2 |= TF2_IPSEC_TSO;
 	}
 }
 
