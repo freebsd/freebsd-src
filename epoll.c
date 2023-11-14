@@ -281,7 +281,7 @@ epoll_apply_one_change(struct event_base *base,
 		return 0;
 	}
 
-	if ((ch->read_change|ch->write_change) & EV_CHANGE_ET)
+	if ((ch->read_change|ch->write_change|ch->close_change) & EV_CHANGE_ET)
 		events |= EPOLLET;
 
 	memset(&epev, 0, sizeof(epev));
@@ -401,11 +401,14 @@ epoll_nochangelist_del(struct event_base *base, evutil_socket_t fd,
 	ch.old_events = old;
 	ch.read_change = ch.write_change = ch.close_change = 0;
 	if (events & EV_WRITE)
-		ch.write_change = EV_CHANGE_DEL;
+		ch.write_change = EV_CHANGE_DEL |
+		    (events & EV_ET);
 	if (events & EV_READ)
-		ch.read_change = EV_CHANGE_DEL;
+		ch.read_change = EV_CHANGE_DEL |
+		    (events & EV_ET);
 	if (events & EV_CLOSED)
-		ch.close_change = EV_CHANGE_DEL;
+		ch.close_change = EV_CHANGE_DEL |
+		    (events & EV_ET);
 
 	return epoll_apply_one_change(base, base->evbase, &ch);
 }
@@ -483,7 +486,9 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 			continue;
 #endif
 
-		if (what & (EPOLLHUP|EPOLLERR)) {
+		if (what & EPOLLERR) {
+			ev = EV_READ | EV_WRITE;
+		} else if ((what & EPOLLHUP) && !(what & EPOLLRDHUP)) {
 			ev = EV_READ | EV_WRITE;
 		} else {
 			if (what & EPOLLIN)
