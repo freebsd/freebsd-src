@@ -71,7 +71,7 @@ static ng_findhook_t	ng_ipfw_findhook;
 static ng_rcvdata_t	ng_ipfw_rcvdata;
 static ng_disconnect_t	ng_ipfw_disconnect;
 
-static hook_p		ng_ipfw_findhook1(node_p, u_int16_t );
+static hook_p		ng_ipfw_findhook1(node_p, uint32_t );
 static int		ng_ipfw_input(struct mbuf **, int, struct ip_fw_args *,
 			    int);
 
@@ -97,7 +97,7 @@ MODULE_DEPEND(ng_ipfw, ipfw, 3, 3, 3);
 /* Information we store for each hook */
 struct ng_ipfw_hook_priv {
         hook_p		hook;
-	u_int16_t	rulenum;
+	uint32_t	cookie;
 };
 typedef struct ng_ipfw_hook_priv *hpriv_p;
 
@@ -155,7 +155,7 @@ static int
 ng_ipfw_newhook(node_p node, hook_p hook, const char *name)
 {
 	hpriv_p	hpriv;
-	u_int16_t rulenum;
+	uint32_t cookie;
 	const char *cp;
 	char *endptr;
 
@@ -169,7 +169,7 @@ ng_ipfw_newhook(node_p node, hook_p hook, const char *name)
 			return (EINVAL);
 
 	/* Convert it to integer */
-	rulenum = (u_int16_t)strtol(name, &endptr, 10);
+	cookie = (uint32_t)strtoul(name, &endptr, 10);
 	if (*endptr != '\0')
 		return (EINVAL);
 
@@ -179,7 +179,7 @@ ng_ipfw_newhook(node_p node, hook_p hook, const char *name)
 		return (ENOMEM);
 
 	hpriv->hook = hook;
-	hpriv->rulenum = rulenum;
+	hpriv->cookie = cookie;
 
 	NG_HOOK_SET_PRIVATE(hook, hpriv);
 
@@ -201,10 +201,10 @@ ng_ipfw_connect(hook_p hook)
 static hook_p
 ng_ipfw_findhook(node_p node, const char *name)
 {
-	u_int16_t n;	/* numeric representation of hook */
+	uint32_t n;	/* numeric representation of hook */
 	char *endptr;
 
-	n = (u_int16_t)strtol(name, &endptr, 10);
+	n = (uint32_t)strtoul(name, &endptr, 10);
 	if (*endptr != '\0')
 		return NULL;
 	return ng_ipfw_findhook1(node, n);
@@ -212,14 +212,14 @@ ng_ipfw_findhook(node_p node, const char *name)
 
 /* Look up hook by rule number */
 static hook_p
-ng_ipfw_findhook1(node_p node, u_int16_t rulenum)
+ng_ipfw_findhook1(node_p node, uint32_t cookie)
 {
 	hook_p	hook;
 	hpriv_p	hpriv;
 
 	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
 		hpriv = NG_HOOK_PRIVATE(hook);
-		if (NG_HOOK_IS_VALID(hook) && (hpriv->rulenum == rulenum))
+		if (NG_HOOK_IS_VALID(hook) && (hpriv->cookie == cookie))
                         return (hook);
 	}
 
