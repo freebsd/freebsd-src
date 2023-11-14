@@ -54,6 +54,7 @@
 #ifdef _WIN32
 #include <wincrypt.h>
 #include <process.h>
+#include <winerror.h>
 #else
 #include <fcntl.h>
 #include <unistd.h>
@@ -61,6 +62,9 @@
 #include <sys/time.h>
 #ifdef EVENT__HAVE_SYS_SYSCTL_H
 #include <sys/sysctl.h>
+#endif
+#ifdef EVENT__HAVE_SYS_RANDOM_H
+#include <sys/random.h>
 #endif
 #endif
 #include <limits.h>
@@ -89,7 +93,6 @@ static int rs_initialized;
 static struct arc4_stream rs;
 static pid_t arc4_stir_pid;
 static int arc4_count;
-static int arc4_seeded_ok;
 
 static inline unsigned char arc4_getbyte(void);
 
@@ -163,22 +166,15 @@ arc4_seed_win32(void)
 		return -1;
 	arc4_addrandom(buf, sizeof(buf));
 	evutil_memclear_(buf, sizeof(buf));
-	arc4_seeded_ok = 1;
 	return 0;
 }
 #endif
 
-#if defined(EVENT__HAVE_SYS_SYSCTL_H) && defined(EVENT__HAVE_SYSCTL)
-#if EVENT__HAVE_DECL_CTL_KERN && EVENT__HAVE_DECL_KERN_RANDOM && EVENT__HAVE_DECL_RANDOM_UUID
-#define TRY_SEED_SYSCTL_LINUX
+#if defined(EVENT__HAVE_GETRANDOM)
+#define TRY_SEED_GETRANDOM
 static int
-arc4_seed_sysctl_linux(void)
+arc4_seed_getrandom(void)
 {
-	/* Based on code by William Ahern, this function tries to use the
-	 * RANDOM_UUID sysctl to get entropy from the kernel.  This can work
-	 * even if /dev/urandom is inaccessible for some reason (e.g., we're
-	 * running in a chroot). */
-	int mib[] = { CTL_KERN, KERN_RANDOM, RANDOM_UUID };
 	unsigned char buf[ADD_ENTROPY];
 	size_t len, n;
 	unsigned i;
@@ -189,7 +185,7 @@ arc4_seed_sysctl_linux(void)
 	for (len = 0; len < sizeof(buf); len += n) {
 		n = sizeof(buf) - len;
 
-		if (0 != sysctl(mib, 3, &buf[len], &n, NULL, 0))
+		if (0 == getrandom(&buf[len], n, 0))
 			return -1;
 	}
 	/* make sure that the buffer actually got set. */
@@ -201,11 +197,11 @@ arc4_seed_sysctl_linux(void)
 
 	arc4_addrandom(buf, sizeof(buf));
 	evutil_memclear_(buf, sizeof(buf));
-	arc4_seeded_ok = 1;
 	return 0;
 }
-#endif
+#endif /* EVENT__HAVE_GETRANDOM */
 
+#if defined(EVENT__HAVE_SYS_SYSCTL_H) && defined(EVENT__HAVE_SYSCTL)
 #if EVENT__HAVE_DECL_CTL_KERN && EVENT__HAVE_DECL_KERN_ARND
 #define TRY_SEED_SYSCTL_BSD
 static int
@@ -241,7 +237,6 @@ arc4_seed_sysctl_bsd(void)
 
 	arc4_addrandom(buf, sizeof(buf));
 	evutil_memclear_(buf, sizeof(buf));
-	arc4_seeded_ok = 1;
 	return 0;
 }
 #endif
@@ -287,7 +282,6 @@ arc4_seed_proc_sys_kernel_random_uuid(void)
 	}
 	evutil_memclear_(entropy, sizeof(entropy));
 	evutil_memclear_(buf, sizeof(buf));
-	arc4_seeded_ok = 1;
 	return 0;
 }
 #endif
@@ -311,7 +305,6 @@ static int arc4_seed_urandom_helper_(const char *fname)
 		return -1;
 	arc4_addrandom(buf, sizeof(buf));
 	evutil_memclear_(buf, sizeof(buf));
-	arc4_seeded_ok = 1;
 	return 0;
 }
 
@@ -347,6 +340,10 @@ arc4_seed(void)
 	if (0 == arc4_seed_win32())
 		ok = 1;
 #endif
+#ifdef TRY_SEED_GETRANDOM
+	if (0 == arc4_seed_getrandom())
+		ok = 1;
+#endif
 #ifdef TRY_SEED_URANDOM
 	if (0 == arc4_seed_urandom())
 		ok = 1;
@@ -354,12 +351,6 @@ arc4_seed(void)
 #ifdef TRY_SEED_PROC_SYS_KERNEL_RANDOM_UUID
 	if (arc4random_urandom_filename == NULL &&
 	    0 == arc4_seed_proc_sys_kernel_random_uuid())
-		ok = 1;
-#endif
-#ifdef TRY_SEED_SYSCTL_LINUX
-	/* Apparently Linux is deprecating sysctl, and spewing warning
-	 * messages when you try to use it. */
-	if (!ok && 0 == arc4_seed_sysctl_linux())
 		ok = 1;
 #endif
 #ifdef TRY_SEED_SYSCTL_BSD
@@ -379,8 +370,7 @@ arc4_stir(void)
 		rs_initialized = 1;
 	}
 
-	arc4_seed();
-	if (!arc4_seeded_ok)
+	if (0 != arc4_seed())
 		return -1;
 
 	/*

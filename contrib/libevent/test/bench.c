@@ -34,6 +34,7 @@
  */
 
 #include "event2/event-config.h"
+#include "../util-internal.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -64,10 +65,12 @@
 #include <event.h>
 #include <evutil.h>
 
-static int count, writes, fired, failures;
+static ev_ssize_t count, fired;
+static int writes, failures;
 static evutil_socket_t *pipes;
 static int num_pipes, num_active, num_writes;
 static struct event *events;
+static struct event_base *base;
 
 
 static void
@@ -103,11 +106,11 @@ run_once(void)
 	for (cp = pipes, i = 0; i < num_pipes; i++, cp += 2) {
 		if (event_initialized(&events[i]))
 			event_del(&events[i]);
-		event_set(&events[i], cp[0], EV_READ | EV_PERSIST, read_cb, (void *)(ev_intptr_t) i);
+		event_assign(&events[i], base, cp[0], EV_READ | EV_PERSIST, read_cb, (void *)(ev_intptr_t) i);
 		event_add(&events[i], NULL);
 	}
 
-	event_loop(EVLOOP_ONCE | EVLOOP_NONBLOCK);
+	event_base_loop(base, EVLOOP_ONCE | EVLOOP_NONBLOCK);
 
 	fired = 0;
 	space = num_pipes / num_active;
@@ -117,15 +120,18 @@ run_once(void)
 
 	count = 0;
 	writes = num_writes;
-	{ int xcount = 0;
-	evutil_gettimeofday(&ts, NULL);
-	do {
-		event_loop(EVLOOP_ONCE | EVLOOP_NONBLOCK);
-		xcount++;
-	} while (count != fired);
-	evutil_gettimeofday(&te, NULL);
+	{
+		int xcount = 0;
+		evutil_gettimeofday(&ts, NULL);
+		do {
+			event_base_loop(base, EVLOOP_ONCE | EVLOOP_NONBLOCK);
+			xcount++;
+		} while (count != fired);
+		evutil_gettimeofday(&te, NULL);
 
-	if (xcount != count) fprintf(stderr, "Xcount: %d, Rcount: %d\n", xcount, count);
+		if (xcount != count)
+			fprintf(stderr, "Xcount: %d, Rcount: " EV_SSIZE_FMT "\n",
+				xcount, count);
 	}
 
 	evutil_timersub(&te, &ts, &te);
@@ -136,12 +142,15 @@ run_once(void)
 int
 main(int argc, char **argv)
 {
-#ifdef HAVE_SETRLIMIT 
+#ifdef EVENT__HAVE_SETRLIMIT
 	struct rlimit rl;
 #endif
 	int i, c;
 	struct timeval *tv;
 	evutil_socket_t *cp;
+	const char **methods;
+	const char *method = NULL;
+	struct event_config *cfg = NULL;
 
 #ifdef _WIN32
 	WSADATA WSAData;
@@ -150,7 +159,7 @@ main(int argc, char **argv)
 	num_pipes = 100;
 	num_active = 1;
 	num_writes = num_pipes;
-	while ((c = getopt(argc, argv, "n:a:w:")) != -1) {
+	while ((c = getopt(argc, argv, "n:a:w:m:l")) != -1) {
 		switch (c) {
 		case 'n':
 			num_pipes = atoi(optarg);
@@ -161,13 +170,23 @@ main(int argc, char **argv)
 		case 'w':
 			num_writes = atoi(optarg);
 			break;
+		case 'm':
+			method = optarg;
+			break;
+		case 'l':
+			methods = event_get_supported_methods();
+			fprintf(stdout, "Using Libevent %s. Available methods are:\n",
+				event_get_version());
+			for (i = 0; methods[i] != NULL; ++i)
+				printf("    %s\n", methods[i]);
+			exit(0);
 		default:
 			fprintf(stderr, "Illegal argument \"%c\"\n", c);
 			exit(1);
 		}
 	}
 
-#ifdef HAVE_SETRLIMIT
+#ifdef EVENT__HAVE_SETRLIMIT
 	rl.rlim_cur = rl.rlim_max = num_pipes * 2 + 50;
 	if (setrlimit(RLIMIT_NOFILE, &rl) == -1) {
 		perror("setrlimit");
@@ -182,7 +201,16 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	event_init();
+	if (method != NULL) {
+		cfg = event_config_new();
+		methods = event_get_supported_methods();
+		for (i = 0; methods[i] != NULL; ++i)
+			if (strcmp(methods[i], method))
+				event_config_avoid_method(cfg, methods[i]);
+		base = event_base_new_with_config(cfg);
+		event_config_free(cfg);
+	} else
+		base = event_base_new();
 
 	for (cp = pipes, i = 0; i < num_pipes; i++, cp += 2) {
 #ifdef USE_PIPES

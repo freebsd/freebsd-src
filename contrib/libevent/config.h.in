@@ -12,8 +12,14 @@
 /* Define to 1 if you have the `accept4' function. */
 #undef HAVE_ACCEPT4
 
+/* Define to 1 if you have the <afunix.h> header file. */
+#undef HAVE_AFUNIX_H
+
 /* Define to 1 if you have the `arc4random' function. */
 #undef HAVE_ARC4RANDOM
+
+/* Define to 1 if you have the `arc4random_addrandom' function. */
+#undef HAVE_ARC4RANDOM_ADDRANDOM
 
 /* Define to 1 if you have the `arc4random_buf' function. */
 #undef HAVE_ARC4RANDOM_BUF
@@ -32,14 +38,6 @@
    don't. */
 #undef HAVE_DECL_KERN_ARND
 
-/* Define to 1 if you have the declaration of `KERN_RANDOM', and to 0 if you
-   don't. */
-#undef HAVE_DECL_KERN_RANDOM
-
-/* Define to 1 if you have the declaration of `RANDOM_UUID', and to 0 if you
-   don't. */
-#undef HAVE_DECL_RANDOM_UUID
-
 /* Define if /dev/poll is available */
 #undef HAVE_DEVPOLL
 
@@ -57,9 +55,6 @@
 
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
-
-/* Define to 1 if you have ERR_remove_thread_stat(). */
-#undef HAVE_ERR_REMOVE_THREAD_STATE
 
 /* Define to 1 if you have the `eventfd' function. */
 #undef HAVE_EVENTFD
@@ -106,6 +101,9 @@
 /* Define to 1 if you have the `getprotobynumber' function. */
 #undef HAVE_GETPROTOBYNUMBER
 
+/* Define to 1 if you have the `getrandom' function. */
+#undef HAVE_GETRANDOM
+
 /* Define to 1 if you have the `getservbyname' function. */
 #undef HAVE_GETSERVBYNAME
 
@@ -130,11 +128,17 @@
 /* Define to 1 if you have the `kqueue' function. */
 #undef HAVE_KQUEUE
 
+/* Define to 1 if you have the `ws2_32' library (-lws2_32). */
+#undef HAVE_LIBWS2_32
+
 /* Define if the system has zlib */
 #undef HAVE_LIBZ
 
 /* Define to 1 if you have the `mach_absolute_time' function. */
 #undef HAVE_MACH_ABSOLUTE_TIME
+
+/* Define to 1 if you have the <mach/mach.h> header file. */
+#undef HAVE_MACH_MACH_H
 
 /* Define to 1 if you have the <mach/mach_time.h> header file. */
 #undef HAVE_MACH_MACH_TIME_H
@@ -162,6 +166,9 @@
 
 /* Define if the system has openssl */
 #undef HAVE_OPENSSL
+
+/* Define to 1 if you have the <openssl/ssl.h> header file. */
+#undef HAVE_OPENSSL_SSL_H
 
 /* Define to 1 if you have the `pipe' function. */
 #undef HAVE_PIPE
@@ -259,6 +266,9 @@
 /* Define to 1 if `s6_addr32' is a member of `struct in6_addr'. */
 #undef HAVE_STRUCT_IN6_ADDR_S6_ADDR32
 
+/* Define to 1 if the system has the type `struct linger'. */
+#undef HAVE_STRUCT_LINGER
+
 /* Define to 1 if the system has the type `struct sockaddr_in6'. */
 #undef HAVE_STRUCT_SOCKADDR_IN6
 
@@ -277,8 +287,8 @@
 /* Define to 1 if `__ss_family' is a member of `struct sockaddr_storage'. */
 #undef HAVE_STRUCT_SOCKADDR_STORAGE___SS_FAMILY
 
-/* Define to 1 if the system has the type `struct so_linger'. */
-#undef HAVE_STRUCT_SO_LINGER
+/* Define to 1 if the system has the type `struct sockaddr_un'. */
+#undef HAVE_STRUCT_SOCKADDR_UN
 
 /* Define to 1 if you have the `sysctl' function. */
 #undef HAVE_SYSCTL
@@ -306,6 +316,9 @@
 
 /* Define to 1 if you have the <sys/queue.h> header file. */
 #undef HAVE_SYS_QUEUE_H
+
+/* Define to 1 if you have the <sys/random.h> header file. */
+#undef HAVE_SYS_RANDOM_H
 
 /* Define to 1 if you have the <sys/resource.h> header file. */
 #undef HAVE_SYS_RESOURCE_H
@@ -336,6 +349,9 @@
 
 /* Define to 1 if you have the <sys/uio.h> header file. */
 #undef HAVE_SYS_UIO_H
+
+/* Define to 1 if you have the <sys/un.h> header file. */
+#undef HAVE_SYS_UN_H
 
 /* Define to 1 if you have the <sys/wait.h> header file. */
 #undef HAVE_SYS_WAIT_H
@@ -388,14 +404,23 @@
 /* Define to 1 if you have the `vasprintf' function. */
 #undef HAVE_VASPRINTF
 
-/* Define if waitpid() supports WNOWAIT */
-#undef HAVE_WAITPID_WITH_WNOWAIT
-
 /* Define if kqueue works correctly with pipes */
 #undef HAVE_WORKING_KQUEUE
 
 /* Define to 1 if you have the <zlib.h> header file. */
 #undef HAVE_ZLIB_H
+
+/* Define to 1 if you have the `_gmtime64' function. */
+#undef HAVE__GMTIME64
+
+/* Define to 1 if you have the `_gmtime64_s' function. */
+#undef HAVE__GMTIME64_S
+
+/* Define to 1 if compiler have __FUNCTION__ */
+#undef HAVE___FUNCTION__
+
+/* Define to 1 if compiler have __func__ */
+#undef HAVE___func__
 
 /* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
@@ -448,6 +473,9 @@
 
 /* The size of `size_t', as computed by sizeof. */
 #undef SIZEOF_SIZE_T
+
+/* The size of `time_t', as computed by sizeof. */
+#undef SIZEOF_TIME_T
 
 /* The size of `void *', as computed by sizeof. */
 #undef SIZEOF_VOID_P
@@ -503,9 +531,6 @@
 
 /* Define to 1 if you need to in order for `stat' and other things to work. */
 #undef _POSIX_SOURCE
-
-/* Define to appropriate substitue if compiler doesnt have __func__ */
-#undef __func__
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
