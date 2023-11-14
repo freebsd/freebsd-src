@@ -59,7 +59,7 @@ skel_mod_event(module_t mod, int type, void *data)
 		printf("SKEL module loading.\n");
 		return (0);
 	case MOD_UNLOAD:
-		printf("SKEL module unloadin.\n");
+		printf("SKEL module unloading.\n");
 		return (0);
 	}
 	return (EOPNOTSUPP);
