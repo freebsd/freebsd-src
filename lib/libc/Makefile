@@ -5,6 +5,7 @@ SHLIBDIR?= /lib
 .include <src.opts.mk>
 
 LIBC_SRCTOP?= ${.CURDIR}
+LIBSYS_SRCTOP?=	${.CURDIR:H}/libsys
 
 # Pick the current architecture directory for libc. In general, this is named
 # MACHINE_CPUARCH, but some ABIs are different enough to require their own libc,
@@ -38,6 +39,7 @@ SHLIB_LDSCRIPT_LINKS=libxnet.so
 WARNS?=	2
 CFLAGS+=-I${LIBC_SRCTOP}/include -I${SRCTOP}/include
 CFLAGS+=-I${LIBC_SRCTOP}/${LIBC_ARCH}
+CFLAGS+=-I${LIBSYS_SRCTOP}/${LIBC_ARCH}
 .if ${MK_NLS} != "no"
 CFLAGS+=-DNLS
 .endif
