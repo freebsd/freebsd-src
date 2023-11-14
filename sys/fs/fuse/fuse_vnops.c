@@ -862,7 +862,7 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 	pid_t pid;
 	int err;
 
-	if (mp != vnode_mount(outvp))
+	if (mp == NULL || mp != vnode_mount(outvp))
 		goto fallback;
 
 	if (incred->cr_uid != outcred->cr_uid)
@@ -871,6 +871,7 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 	if (incred->cr_groups[0] != outcred->cr_groups[0])
 		goto fallback;
 
+	/* Caller busied mp, mnt_data can be safely accessed. */
 	if (fsess_not_impl(mp, FUSE_COPY_FILE_RANGE))
 		goto fallback;
 
