@@ -879,23 +879,11 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 		td = ap->a_fsizetd;
 	pid = td->td_proc->p_pid;
 
-	/* Lock both vnodes, avoiding risk of deadlock. */
-	do {
-		err = vn_lock(outvp, LK_EXCLUSIVE);
-		if (invp == outvp)
-			break;
-		if (err == 0) {
-			err = vn_lock(invp, LK_SHARED | LK_NOWAIT);
-			if (err == 0)
-				break;
-			VOP_UNLOCK(outvp);
-			err = vn_lock(invp, LK_SHARED);
-			if (err == 0)
-				VOP_UNLOCK(invp);
-		}
-	} while (err == 0);
-	if (err != 0)
-		return (err);
+	vn_lock_pair(invp, false, LK_SHARED, outvp, false, LK_EXCLUSIVE);
+	if (invp->v_data == NULL || outvp->v_data == NULL) {
+		err = EBADF;
+		goto unlock;
+	}
 
 	err = fuse_filehandle_getrw(invp, FREAD, &infufh, incred, pid);
 	if (err)
