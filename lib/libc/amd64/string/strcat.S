@@ -1,6 +1,14 @@
-/*
- * Written by J.T. Conklin <jtc@acorntoolworks.com>
- * Public domain.
+/*-
+ * Copyright (c) 2023, The FreeBSD Foundation
+ *
+ * SPDX-License-Expression: BSD-2-Clause
+ *
+ * Portions of this software were developed by Robert Clausecker
+ * <fuz@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
+ *
+ * Adapted from NetBSD's common/lib/libc/arch/x86_64/string/strcat.S
+ * written by J.T. Conklin <jtc@acorntoolworks.com>
+ * that was originally dedicated to the public domain
  */
 
 #include <machine/asm.h>
@@ -8,7 +16,14 @@
 	RCSID("$NetBSD: strcat.S,v 1.4 2004/07/26 18:51:21 drochner Exp $")
 #endif
 
-ENTRY(strcat)
+#include "amd64_archlevel.h"
+
+ARCHFUNCS(strcat)
+	ARCHFUNC(strcat, scalar)
+	ARCHFUNC(strcat, baseline)
+ENDARCHFUNCS(strcat)
+
+ARCHENTRY(strcat, scalar)
 	movq	%rdi,%rax
 	movabsq	$0x0101010101010101,%r8
 	movabsq	$0x8080808080808080,%r9
@@ -161,6 +176,28 @@ ENTRY(strcat)
 
 .Ldone:
 	ret
-END(strcat)
+ARCHEND(strcat, scalar)
+
+/*
+ * Call into strlen + strcpy if we have any SIMD at all.
+ * The scalar implementation above is better for the scalar
+ * case as it avoids the function call overhead, but pessimal
+ * if we could call SIMD routines instead.
+ */
+ARCHENTRY(strcat, baseline)
+	push	%rbp
+	mov	%rsp, %rbp
+	push	%rsi
+	push	%rbx
+	mov	%rdi, %rbx		# remember destination for later
+	call	CNAME(strlen)		# strlen(dest)
+	mov	-8(%rbp), %rsi
+	lea	(%rbx, %rax, 1), %rdi	# dest + strlen(dest)
+	call	CNAME(__stpcpy)		# stpcpy(dest + strlen(dest), src)
+	mov	%rbx, %rax		# return dest
+	pop	%rbx
+	leave
+	ret
+ARCHEND(strcat, baseline)
 
 	.section .note.GNU-stack,"",%progbits
