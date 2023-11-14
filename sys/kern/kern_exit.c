@@ -827,8 +827,9 @@ out:
 	sbuf_finish(sb);
 	log(LOG_INFO, "%s", sbuf_data(sb));
 	sbuf_delete(sb);
-	exit1(td, 0, sig);
-	return (0);
+	PROC_LOCK(p);
+	sigexit(td, sig);
+	/* NOTREACHED */
 }
 
 #ifdef COMPAT_43
