@@ -200,7 +200,7 @@ read_start:
 		goto fail;
 	}
 #ifdef SSIF_DEBUG
-	device_printf("SSIF: READ_START: ok\n");
+	device_printf(dev, "SSIF: READ_START: ok\n");
 #endif
 
 	/*
