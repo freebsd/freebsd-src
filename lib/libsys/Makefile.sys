@@ -44,6 +44,8 @@ SRCS+=	recv.c recvmmsg.c send.c sendmmsg.c
 NOASM+=  sched_getcpu.o
 PSEUDO+= _sched_getcpu.o
 
+SRCS+= auxv.c
+
 SRCS+= brk.c
 SRCS+= closefrom.c
 SRCS+= pipe.c
@@ -166,6 +168,7 @@ MAN+=	abort2.2 \
 	aio_suspend.2 \
 	aio_waitcomplete.2 \
 	aio_write.2 \
+	auxv.3 \
 	bind.2 \
 	bindat.2 \
 	brk.2 \
@@ -378,6 +381,7 @@ MLINKS+=aio_write.2 aio_writev.2
 MLINKS+=accept.2 accept4.2
 MLINKS+=access.2 eaccess.2 \
 	access.2 faccessat.2
+MLINKS+=auxv.3 elf_aux_info.3
 MLINKS+=brk.2 sbrk.2
 MLINKS+=cap_enter.2 cap_getmode.2
 MLINKS+=cap_fcntls_limit.2 cap_fcntls_get.2
