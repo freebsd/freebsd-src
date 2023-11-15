@@ -504,6 +504,13 @@ struct tcptemp {
 	struct	tcphdr tt_t;
 };
 
+/* SACK scoreboard update status */
+typedef enum {
+	SACK_NOCHANGE = 0,
+	SACK_CHANGE,
+	SACK_NEWLOSS
+} sackstatus_t;
+
 /* Enable TCP/UDP tunneling port */
 #define TCP_TUNNELING_PORT_MIN		0
 #define TCP_TUNNELING_PORT_MAX		65535
@@ -1303,7 +1310,6 @@ VNET_DECLARE(struct inpcbinfo, tcbinfo);
 
 #define	V_tcp_do_lrd			VNET(tcp_do_lrd)
 #define	V_tcp_do_prr			VNET(tcp_do_prr)
-#define	V_tcp_do_prr_conservative	VNET(tcp_do_prr_conservative)
 #define	V_tcp_do_newcwv			VNET(tcp_do_newcwv)
 #define	V_drop_synfin			VNET(drop_synfin)
 #define	V_path_mtu_discovery		VNET(path_mtu_discovery)
@@ -1483,7 +1489,8 @@ extern	struct protosw tcp6_protosw;		/* shared for TOE */
 uint32_t tcp_new_ts_offset(struct in_conninfo *);
 tcp_seq	 tcp_new_isn(struct in_conninfo *);
 
-int	 tcp_sack_doack(struct tcpcb *, struct tcpopt *, tcp_seq);
+sackstatus_t
+	 tcp_sack_doack(struct tcpcb *, struct tcpopt *, tcp_seq);
 int	 tcp_dsack_block_exists(struct tcpcb *);
 void	 tcp_update_dsack_list(struct tcpcb *, tcp_seq, tcp_seq);
 void	 tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_laststart, tcp_seq rcv_lastend);
@@ -1491,7 +1498,7 @@ void	 tcp_clean_dsack_blocks(struct tcpcb *tp);
 void	 tcp_clean_sackreport(struct tcpcb *tp);
 void	 tcp_sack_adjust(struct tcpcb *tp);
 struct sackhole *tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt);
-void	 tcp_do_prr_ack(struct tcpcb *, struct tcphdr *, struct tcpopt *);
+void	 tcp_do_prr_ack(struct tcpcb *, struct tcphdr *, struct tcpopt *, sackstatus_t);
 void	 tcp_lost_retransmission(struct tcpcb *, struct tcphdr *);
 void	 tcp_sack_partialack(struct tcpcb *, struct tcphdr *);
 void	 tcp_free_sackholes(struct tcpcb *tp);

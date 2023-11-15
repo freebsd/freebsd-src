@@ -33,7 +33,7 @@
 .\"
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\"
-.Dd June 29, 2023
+.Dd November 17, 2023
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -480,12 +480,6 @@ This improves the effectiveness of retransmissions particular in environments
 with ACK thinning or burst loss events, as chances to run out of the ACK clock
 are reduced, preventing lengthy and performance reducing RTO based loss recovery
 (default is true).
-.It Va do_prr_conservative
-While doing Proportional Rate Reduction, remain strictly in a packet conserving
-mode, sending only one new packet for each ACK received.
-Helpful when a misconfigured token bucket traffic policer causes persistent
-high losses leading to RTO, but reduces PRR effectiveness in more common settings
-(default is false).
 .It Va do_tcpdrain
 Flush packets in the
 .Tn TCP

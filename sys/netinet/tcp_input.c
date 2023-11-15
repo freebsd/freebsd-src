@@ -159,11 +159,6 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(drop_synfin), 0,
     "Drop TCP packets with SYN+FIN set");
 
-VNET_DEFINE(int, tcp_do_prr_conservative) = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_prr_conservative, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(tcp_do_prr_conservative), 0,
-    "Do conservative Proportional Rate Reduction");
-
 VNET_DEFINE(int, tcp_do_prr) = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_prr, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_prr), 1,
@@ -1524,7 +1519,8 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
     int drop_hdrlen, int tlen, uint8_t iptos)
 {
 	uint16_t thflags;
-	int acked, ourfinisacked, needoutput = 0, sack_changed;
+	int acked, ourfinisacked, needoutput = 0;
+	sackstatus_t sack_changed;
 	int rstreason, todrop, win, incforsyn = 0;
 	uint32_t tiwin;
 	uint16_t nsegs;
@@ -1539,7 +1535,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 
 	thflags = tcp_get_flags(th);
 	tp->sackhint.last_sack_ack = 0;
-	sack_changed = 0;
+	sack_changed = SACK_NOCHANGE;
 	nsegs = max(1, m->m_pkthdr.lro_nsegs);
 
 	NET_EPOCH_ASSERT();
@@ -2582,7 +2578,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 				 */
 				if (th->th_ack != tp->snd_una ||
 				    (tcp_is_sack_recovery(tp, &to) &&
-				    !sack_changed))
+				    (sack_changed == SACK_NOCHANGE)))
 					break;
 				else if (!tcp_timer_active(tp, TT_REXMT))
 					tp->t_dupacks = 0;
@@ -2591,8 +2587,9 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 					cc_ack_received(tp, th, nsegs,
 					    CC_DUPACK);
 					if (V_tcp_do_prr &&
-					    IN_FASTRECOVERY(tp->t_flags)) {
-						tcp_do_prr_ack(tp, th, &to);
+					    IN_FASTRECOVERY(tp->t_flags) &&
+					    (tp->t_flags & TF_SACK_PERMIT)) {
+						tcp_do_prr_ack(tp, th, &to, sack_changed);
 					} else if (tcp_is_sack_recovery(tp, &to) &&
 					    IN_FASTRECOVERY(tp->t_flags)) {
 						int awnd;
@@ -2667,8 +2664,12 @@ enter_recovery:
 						 * cc_cong_signal.
 						 */
 						if (tcp_is_sack_recovery(tp, &to)) {
+							/*
+							 * Exclude Limited Transmit
+							 * segments here
+							 */
 							tp->sackhint.prr_delivered =
-							    tp->sackhint.sacked_bytes;
+							    maxseg;
 						} else {
 							tp->sackhint.prr_delivered =
 							    imin(tp->snd_max - tp->snd_una,
@@ -2771,7 +2772,7 @@ enter_recovery:
 			 * counted as dupacks here.
 			 */
 			if (tcp_is_sack_recovery(tp, &to) &&
-			    sack_changed) {
+			    (sack_changed != SACK_NOCHANGE)) {
 				tp->t_dupacks++;
 				/* limit overhead by setting maxseg last */
 				if (!IN_FASTRECOVERY(tp->t_flags) &&
@@ -2797,7 +2798,7 @@ resume_partialack:
 					if (V_tcp_do_prr && to.to_flags & TOF_SACK) {
 						tcp_timer_activate(tp, TT_REXMT, 0);
 						tp->t_rtttime = 0;
-						tcp_do_prr_ack(tp, th, &to);
+						tcp_do_prr_ack(tp, th, &to, sack_changed);
 						tp->t_flags |= TF_ACKNOW;
 						(void) tcp_output(tp);
 					} else
@@ -2811,7 +2812,11 @@ resume_partialack:
 				if (V_tcp_do_prr) {
 					tp->sackhint.delivered_data = BYTES_THIS_ACK(tp, th);
 					tp->snd_fack = th->th_ack;
-					tcp_do_prr_ack(tp, th, &to);
+					/*
+					 * During ECN cwnd reduction
+					 * always use PRR-SSRB
+					 */
+					tcp_do_prr_ack(tp, th, &to, SACK_CHANGE);
 					(void) tcp_output(tp);
 				}
 			} else
@@ -3934,7 +3939,7 @@ tcp_mssopt(struct in_conninfo *inc)
 }
 
 void
-tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to)
+tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to, sackstatus_t sack_changed)
 {
 	int snd_cnt = 0, limit = 0, del_data = 0, pipe = 0;
 	int maxseg = tcp_maxseg(tp);
@@ -3974,7 +3979,17 @@ tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to)
 			    tp->snd_ssthresh, tp->sackhint.recover_fs) -
 			    tp->sackhint.prr_out;
 	} else {
-		if (V_tcp_do_prr_conservative || (del_data == 0))
+		/*
+		 * PRR 6937bis heuristic:
+		 * - A partial ack without SACK block beneath snd_recover
+		 * indicates further loss.
+		 * - An SACK scoreboard update adding a new hole indicates
+		 * further loss, so be conservative and send at most one
+		 * segment.
+		 * - Prevent ACK splitting attacks, by being conservative
+		 * when no new data is acked.
+		 */
+		if ((sack_changed == SACK_NEWLOSS) || (del_data == 0))
 			limit = tp->sackhint.prr_delivered -
 				tp->sackhint.prr_out;
 		else
