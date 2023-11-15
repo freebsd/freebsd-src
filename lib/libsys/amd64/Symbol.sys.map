@@ -1,0 +1,28 @@
+FBSD_1.0 {
+	rfork_thread;
+	amd64_get_fsbase;
+	amd64_get_gsbase;
+	amd64_set_fsbase;
+	amd64_set_gsbase;
+	brk;
+	sbrk;
+};
+
+FBSD_1.6 {
+	 x86_pkru_get_perm;
+	 x86_pkru_set_perm;
+	 x86_pkru_protect_range;
+	 x86_pkru_unprotect_range;
+};
+
+/*
+ *
+ * FreeBSD private ABI
+ *
+ */
+FBSDprivate_1.0 {
+	_getlogin;
+
+	_brk;
+	_vfork;
+};
