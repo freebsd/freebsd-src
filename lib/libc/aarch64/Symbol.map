@@ -5,18 +5,12 @@
  */
 FBSD_1.0 {
 	.mcount;
-	_setjmp;
-	_longjmp;
 	fabs;
 	__flt_rounds;
 	fpgetmask;
 	fpsetmask;
 	__infinity;
 	__nan;
-	setjmp;
-	longjmp;
-	sigsetjmp;
-	siglongjmp;
 	makecontext;
 };
 

@@ -5,17 +5,11 @@
  */
 FBSD_1.0 {
 	__mcount;
-	_setjmp;
-	_longjmp;
 	alloca;
 	fabs;
 	__infinity;
 	__nan;
 	makecontext;
-	setjmp;
-	longjmp;
-	sigsetjmp;
-	siglongjmp;
 	brk;
 	sbrk;
 };
