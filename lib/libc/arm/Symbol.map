@@ -9,7 +9,6 @@ FBSD_1.0 {
 	fabs;
 	__infinity;
 	__nan;
-	makecontext;
 	brk;
 	sbrk;
 };
@@ -34,7 +33,6 @@ FBSDprivate_1.0 {
 
 	__aeabi_read_tp;
 	___longjmp;
-	__makecontext;
 	__longjmp;
 	signalcontext;
 	_signalcontext;
