@@ -93,10 +93,10 @@ ZIC= ${STAGE_HOST_OBJTOP}/usr/sbin/zic
 
 zoneinfo: ${TDATA}
 	mkdir -p ${TZBUILDDIR}
-	cd ${TZBUILDDIR}; mkdir -p ${TZBUILDSUBDIRS}
-	umask 022; cd ${.CURDIR}; \
+	(cd ${TZBUILDDIR}; mkdir -p ${TZBUILDSUBDIRS})
+	(umask 022; cd ${.CURDIR}; \
 	${ZIC:Uzic} -D -d ${TZBUILDDIR} ${ZICFLAGS} -m ${NOBINMODE} \
-	    ${LEAPFILE} ${TZFILES}
+	    ${LEAPFILE} ${TZFILES})
 
 #
 # Sort TZS to ensure they are the same every build. find -s might
@@ -110,7 +110,7 @@ TZS!= cd ${TZBUILDDIR} && find * -type f | LC_ALL=C sort
 beforeinstall: install-zoneinfo
 install-zoneinfo:
 	mkdir -p ${DESTDIR}/usr/share/zoneinfo
-	cd ${DESTDIR}/usr/share/zoneinfo;  mkdir -p ${TZBUILDSUBDIRS}
+	(cd ${DESTDIR}/usr/share/zoneinfo;  mkdir -p ${TZBUILDSUBDIRS})
 .for f in ${TZS}
 	${INSTALL} ${TAG_ARGS} \
 	    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
