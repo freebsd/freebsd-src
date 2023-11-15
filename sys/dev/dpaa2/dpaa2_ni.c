@@ -2556,7 +2556,7 @@ dpaa2_ni_ioctl(if_t ifp, u_long c, caddr_t data)
 
 		/* Update maximum frame length. */
 		error = DPAA2_CMD_NI_SET_MFL(dev, child, &cmd,
-		    mtu + ETHER_HDR_LEN);
+		    mtu + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
 		if (error) {
 			device_printf(dev, "%s: failed to update maximum frame "
 			    "length: error=%d\n", __func__, error);
