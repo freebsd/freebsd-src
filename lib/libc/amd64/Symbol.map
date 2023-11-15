@@ -4,9 +4,6 @@
  * stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...).
  */
 FBSD_1.0 {
-	/* PSEUDO syscalls */
-	_exit;
-
 	.mcount;
 	_setjmp;
 	_longjmp;
@@ -37,7 +34,6 @@ FBSD_1.0 {
 	amd64_set_gsbase;
 	brk;
 	sbrk;
-	vfork;
 };
 
 FBSD_1.6 {
