@@ -18,10 +18,6 @@ FBSD_1.0 {
 	longjmp;
 	sigsetjmp;
 	siglongjmp;
-	htonl;
-	htons;
-	ntohl;
-	ntohs;
 	brk;
 	i386_clr_watch;
 	i386_get_fsbase;
