@@ -234,6 +234,13 @@ CXXWARNFLAGS+=	-Wno-literal-suffix 			\
 		-Wno-error=unknown-pragmas
 .endif
 
+# GCC 13.1.0
+.if ${COMPILER_VERSION} >= 130100
+# These warnings are raised by headers in libc++ so are disabled
+# globally for all C++
+CXXWARNFLAGS+=	-Wno-dangling-reference
+.endif
+
 # GCC produces false positives for functions that switch on an
 # enum (GCC bug 87950)
 CWARNFLAGS+=	-Wno-return-type
