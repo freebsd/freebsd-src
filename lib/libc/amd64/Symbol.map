@@ -16,7 +16,6 @@ FBSD_1.0 {
 	fpsetround;
 	__infinity;
 	__nan;
-	makecontext;
 	rfork_thread;
 	amd64_get_fsbase;
 	amd64_get_gsbase;
@@ -43,7 +42,6 @@ FBSDprivate_1.0 {
 	_getlogin;
 
 	___longjmp;
-	__makecontext;
 	__longjmp;
 	__signalcontext;
 	signalcontext;

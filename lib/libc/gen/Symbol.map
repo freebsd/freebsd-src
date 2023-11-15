@@ -196,6 +196,7 @@ FBSD_1.0 {
 	ldexp;
 	lockf;
 	lrand48;
+	makecontext;
 	modf;
 	mrand48;
 	nice;
@@ -577,4 +578,5 @@ FBSDprivate_1.0 {
 	__fillcontextx;
 	__fillcontextx2;
 	__getcontextx_size;
+	__makecontext;
 };

@@ -10,7 +10,6 @@ FBSD_1.0 {
 	__flt_rounds;
 	__nan;
 	__infinity;
-	makecontext;
 	rfork_thread;
 	brk;
 	i386_clr_watch;
@@ -40,7 +39,6 @@ FBSDprivate_1.0 {
 	_getlogin;
 
 	___longjmp;
-	__makecontext;
 	__longjmp;
 	__signalcontext;
 	signalcontext;
