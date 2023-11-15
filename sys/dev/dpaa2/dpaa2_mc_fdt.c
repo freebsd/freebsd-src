@@ -272,8 +272,6 @@ dpaa2_mc_fdt_attach(device_t dev)
 			continue;
 		if (!OF_hasprop(child, "reg"))
 			continue;
-		if (!OF_hasprop(child, "pcs-handle"))
-			continue;
 		if (dpaa2_mc_fdt_probe_child(dev, child) != 0)
 			continue;
 	}
