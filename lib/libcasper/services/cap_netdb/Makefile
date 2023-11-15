@@ -29,3 +29,6 @@ MLINKS+=cap_netdb.3 libcap_netdb.3
 MLINKS+=cap_netdb.3 cap_getprotobyname.3
 
 .include <bsd.lib.mk>
+
+# GCC 13 complains incorrectly about free after failed realloc: GCC bug #110501
+CFLAGS.cap_netdb.c+= ${NO_WUSE_AFTER_FREE}
