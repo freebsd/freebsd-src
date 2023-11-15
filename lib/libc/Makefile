@@ -62,6 +62,9 @@ CFLAGS+= -ftls-model=initial-exec
 #
 LDFLAGS+= -nodefaultlibs
 LIBADD+=	compiler_rt
+LIBADD+=	sys
+
+LDFLAGS+=-Wl,--auxiliary,libsys.so
 
 .if ${MK_SSP} != "no" && \
     (${LIBC_ARCH} == "i386" || ${LIBC_ARCH:Mpowerpc*} != "")

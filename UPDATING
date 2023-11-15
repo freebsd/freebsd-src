@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20240205:
+	For dynamically linked programs, system calls are now made from
+	libsys rather than libc.  No change in linkage is required as
+	libsys is an auxiliary filter for libc.  People building custom
+	images must ensure that libsys.so.7 is included.
+
 20240202:
 	Loader now also read configuration files listed in local_loader_conf_files.
 	Files listed here are the last ones read. And /boot/loader.conf.local was
