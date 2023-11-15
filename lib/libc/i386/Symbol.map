@@ -6,10 +6,7 @@
 FBSD_1.0 {
 	.mcount;
 	alloca;
-	fabs;
 	__flt_rounds;
-	__nan;
-	__infinity;
 	rfork_thread;
 	brk;
 	i386_clr_watch;

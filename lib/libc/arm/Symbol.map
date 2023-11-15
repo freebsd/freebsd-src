@@ -6,9 +6,6 @@
 FBSD_1.0 {
 	__mcount;
 	alloca;
-	fabs;
-	__infinity;
-	__nan;
 	brk;
 	sbrk;
 };

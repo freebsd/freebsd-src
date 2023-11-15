@@ -107,6 +107,7 @@ FBSD_1.0 {
 	execv;
 	execvp;
 	execvP;
+	fabs;
 	fmtcheck;
 	fmtmsg;
 	fnmatch;
@@ -181,10 +182,12 @@ FBSD_1.0 {
 	endusershell;
 	setusershell;
 	getvfsbyname;
+	__nan;
 	__isnan;
 	isnan;
 	__isnanf;
 	isnanf;
+	__infinity;
 	__isinf;
 	isinf;
 	__isinff;

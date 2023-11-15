@@ -5,7 +5,6 @@
  */
 FBSD_1.0 {
 	.mcount;
-	fabs;
 	__flt_rounds;
 	fpgetmask;
 	fpgetprec;
@@ -14,8 +13,6 @@ FBSD_1.0 {
 	fpsetmask;
 	fpsetprec;
 	fpsetround;
-	__infinity;
-	__nan;
 	rfork_thread;
 	amd64_get_fsbase;
 	amd64_get_gsbase;
