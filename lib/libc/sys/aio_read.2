@@ -71,20 +71,6 @@ the
 structure is defined in
 .Xr readv 2 .
 .Pp
-If _POSIX_PRIORITIZED_IO is defined, and the descriptor supports it,
-then the enqueued operation is submitted at a priority equal to that
-of the calling process minus
-.Fa iocb->aio_reqprio .
-.Pp
-The
-.Fa iocb->aio_lio_opcode
-argument
-is ignored by the
-.Fn aio_read
-and
-.Fn aio_readv
-system calls.
-.Pp
 The
 .Fa iocb
 pointer may be subsequently used as an argument to
