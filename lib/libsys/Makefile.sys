@@ -158,6 +158,7 @@ ${SPSEUDO}:
 	printf ${NOTE_GNU_STACK} >>${.TARGET}
 	printf ${FEATURE_NOTE} >> ${.TARGET}
 
+.if ${LIB} == "sys"
 MAN+=	abort2.2 \
 	accept.2 \
 	access.2 \
@@ -541,3 +542,4 @@ MLINKS+=wait.2 wait3.2 \
 MLINKS+=write.2 pwrite.2 \
 	write.2 pwritev.2 \
 	write.2 writev.2
+.endif # ${LIB} == "sys"
