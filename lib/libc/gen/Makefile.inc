@@ -18,7 +18,6 @@ SRCS+=	__getosreldate.c \
 	arc4random-compat.c \
 	arc4random_uniform.c \
 	assert.c \
-	auxv.c \
 	basename.c \
 	basename_compat.c \
 	cap_sandboxed.c \
@@ -197,7 +196,6 @@ SYM_MAPS+=${LIBC_SRCTOP}/gen/Symbol.map
 
 MAN+=	alarm.3 \
 	arc4random.3 \
-	auxv.3 \
 	basename.3 \
 	cap_rights_get.3 \
 	cap_sandboxed.3 \
@@ -324,7 +322,6 @@ MAN+=	alarm.3 \
 
 MLINKS+=arc4random.3 arc4random_buf.3 \
 	arc4random.3 arc4random_uniform.3
-MLINKS+=auxv.3 elf_aux_info.3
 MLINKS+=ctermid.3 ctermid_r.3
 MLINKS+=daemon.3 daemonfd.3
 MLINKS+=devname.3 devname_r.3

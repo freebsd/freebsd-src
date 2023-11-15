@@ -378,6 +378,7 @@ FBSD_1.4 {
 
 FBSD_1.5 {
 	clock_nanosleep;
+	elf_aux_info;
 	fdatasync;
 	fhstat;
 	fhstatfs;
@@ -1049,10 +1050,12 @@ FBSDprivate_1.0 {
 	__sys_writev;
 
 	/* Things that aren't system calls (in sort(1) order) */
+	__elf_aux_vector;
 	__libc_sigwait;
 	__libsys_interposing_slot;
 	__set_error_selector;
 	__sigwait;
+	_elf_aux_info;
 	gssd_syscall;
 	nlm_syscall;
 	rpctls_syscall;
