@@ -6,11 +6,11 @@
 # `git config --global blame.ignoreRevsFile .git-blame-ignore-revs`.  GitHub's
 # blame view also uses this by default.
 #
-# For consistency this file is sorted by hash.
+# This file is sorted in git log order (newest commits first).
 
+# elfctl whitespace
+828e50092ac84f50247fb3f400027fc7510d8141
 # regen syscall files after d51198d63b63
 2c9764f36b6f20e9a6c71ce64a21988a394050b6
 # Remove whitespace at EOL.
 7ebcc426efefea9cd16ac6f565e72030c608f7a4
-# elfctl whitespace
-828e50092ac84f50247fb3f400027fc7510d8141
