@@ -8,6 +8,14 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# sort OptionalObsoleteFiles.inc blocks
+e027fb0ee8d767f577a1c6f73506128beb6384ef
+084cbd8c7283952d68f2c40e27e900fe0af5d97e
+b35fc7c315426e9d339a7911c18ecba0edb888e3
+cd9af23a9cc8a3fe77ecaafdd349209fabc3042c
+e4f8bc4dbef667c96b57190da4c2bc662c28c7b5
+298dcc251b6e075c48e96eac1aec12de9fadf1b5
+19a18508551685628bc725039896b1ac0737dce2
 # elfctl whitespace
 828e50092ac84f50247fb3f400027fc7510d8141
 # regen syscall files after d51198d63b63
