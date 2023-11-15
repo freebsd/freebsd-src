@@ -7740,7 +7740,7 @@ ocs_hw_get_active_profile_cb(ocs_hw_t *hw, int32_t status, uint8_t *mqe, void *a
  *   context.
  * - OCS_HW_RTN_ERROR on any other error.
  */
-int32_t
+ocs_hw_rtn_e
 ocs_hw_get_active_profile(ocs_hw_t *hw, ocs_get_active_profile_cb_t cb, void* ul_arg)
 {
 	uint8_t *mbxdata;
@@ -7837,7 +7837,7 @@ ocs_hw_get_nvparms_cb(ocs_hw_t *hw, int32_t status, uint8_t *mqe, void *arg)
  *   context.
  * - OCS_HW_RTN_ERROR on any other error.
  */
-int32_t
+ocs_hw_rtn_e
 ocs_hw_get_nvparms(ocs_hw_t *hw, ocs_get_nvparms_cb_t cb, void* ul_arg)
 {
 	uint8_t *mbxdata;
@@ -7934,7 +7934,7 @@ ocs_hw_set_nvparms_cb(ocs_hw_t *hw, int32_t status, uint8_t *mqe, void *arg)
  *   context.
  * - OCS_HW_RTN_ERROR on any other error.
  */
-int32_t
+ocs_hw_rtn_e
 ocs_hw_set_nvparms(ocs_hw_t *hw, ocs_set_nvparms_cb_t cb, uint8_t *wwpn,
 		uint8_t *wwnn, uint8_t hard_alpa, uint32_t preferred_d_id, void* ul_arg)
 {
@@ -8099,7 +8099,7 @@ ocs_hw_set_active_profile_cb(ocs_hw_t *hw, int32_t status, uint8_t *mqe, void *a
  *   context.
  * - OCS_HW_RTN_ERROR on any other error.
  */
-int32_t
+ocs_hw_rtn_e
 ocs_hw_set_active_profile(ocs_hw_t *hw, ocs_set_active_profile_cb_t cb, uint32_t profile_id, void* ul_arg)
 {
 	uint8_t *mbxdata;
