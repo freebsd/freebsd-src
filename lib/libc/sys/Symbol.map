@@ -1,7 +1,4 @@
 /*
- */
-
-/*
  * It'd be nice to automatically generate the syscall symbols, but we
  * don't know to what version they will eventually belong to, so for now
  * it has to be manual.

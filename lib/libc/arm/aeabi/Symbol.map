@@ -1,7 +1,4 @@
 /*
- */
-
-/*
  * This only needs to contain AEABI symbols that are not listed in
  * symbol maps from other parts of libc (i.e., not found in
  * stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...).
