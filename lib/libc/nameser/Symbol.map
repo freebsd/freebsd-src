@@ -1,6 +1,3 @@
-/*
- */
-
 FBSD_1.0 {
 	__ns_makecanon;
 	__ns_msg_getflag;
