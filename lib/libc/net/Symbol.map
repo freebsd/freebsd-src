@@ -64,6 +64,10 @@ FBSD_1.0 {
 	hes_resolve;
 	hes_error;
 	hes_free;
+	htonl;
+	htons;
+	ntohl;
+	ntohs;
 	if_indextoname;
 	if_nameindex;
 	if_freenameindex;
