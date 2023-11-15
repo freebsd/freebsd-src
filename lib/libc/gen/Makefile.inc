@@ -279,7 +279,6 @@ MAN+=	alarm.3 \
 	raise.3 \
 	rand48.3 \
 	readpassphrase.3 \
-	rfork_thread.3 \
 	scandir.3 \
 	sem_destroy.3 \
 	sem_getvalue.3 \

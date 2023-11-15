@@ -365,6 +365,7 @@ MAN+=	abort2.2 \
 
 MAN+= \
 	lockf.3 \
+	rfork_thread.3 \
 	sleep.3 \
 	usleep.3
 
