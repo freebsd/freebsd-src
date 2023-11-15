@@ -3125,10 +3125,12 @@ _startup_libs=	lib/csu
 _startup_libs+=	lib/libc
 _startup_libs+=	lib/libc_nonshared
 _startup_libs+=	lib/libcxxrt
+_startup_libs+=	lib/libsys
 
 _prereq_libs+=	lib/libgcc_eh lib/libgcc_s
 _startup_libs+=	lib/libgcc_eh lib/libgcc_s
 
+lib/libc__L: lib/libsys__L
 lib/libgcc_s__L: lib/libc__L
 lib/libgcc_s__L: lib/libc_nonshared__L
 lib/libcxxrt__L: lib/libgcc_s__L
