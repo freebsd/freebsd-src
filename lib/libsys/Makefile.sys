@@ -117,6 +117,9 @@ SPSEUDO= ${PSEUDO:S/.o/.S/}
 SRCS+=	${SASM} ${SPSEUDO}
 
 SYM_MAPS+=	${LIBSYS_SRCTOP}/Symbol.sys.map
+.if exists(${LIBSYS_SRCTOP}/${LIBC_ARCH}/Symbol.sys.map)
+SYM_MAPS+=	${LIBSYS_SRCTOP}/${LIBC_ARCH}/Symbol.sys.map
+.endif
 
 # Generated files
 CLEANFILES+=	${SASM} ${SPSEUDO}
