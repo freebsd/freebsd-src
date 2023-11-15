@@ -1,4 +1,3 @@
-
 SRCS+=	__vdso_gettc.c \
 	sched_getcpu_gen.c
 
