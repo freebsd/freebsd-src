@@ -1,6 +1,3 @@
-/*
- */
-
 FBSD_1.3 {
 	__bsd___iconv;
 	__bsd___iconv_free_list;
