@@ -361,7 +361,7 @@ LEND(drop_to_el1)
 LENTRY(get_load_phys_addr)
 	/* Load the offset of get_load_phys_addr from KERNBASE */
 	ldr	x28, =(get_load_phys_addr - KERNBASE)
-	/* Load the physical address of virt_map */
+	/* Load the physical address of get_load_phys_addr */
 	adr	x29, get_load_phys_addr
 	/* Find the physical address of KERNBASE, i.e. our load address */
 	sub	x28, x29, x28
