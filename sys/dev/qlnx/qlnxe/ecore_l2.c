@@ -2240,7 +2240,8 @@ ecore_configure_rfs_ntuple_filter(struct ecore_hwfn *p_hwfn,
 	return ecore_spq_post(p_hwfn, p_ent, OSAL_NULL);
 }
 
-int ecore_get_rxq_coalesce(struct ecore_hwfn *p_hwfn,
+enum _ecore_status_t
+ecore_get_rxq_coalesce(struct ecore_hwfn *p_hwfn,
 			   struct ecore_ptt *p_ptt,
 			   struct ecore_queue_cid *p_cid,
 			   u16 *p_rx_coal)
@@ -2275,7 +2276,8 @@ int ecore_get_rxq_coalesce(struct ecore_hwfn *p_hwfn,
 	return ECORE_SUCCESS;
 }
 
-int ecore_get_txq_coalesce(struct ecore_hwfn *p_hwfn,
+enum _ecore_status_t
+ecore_get_txq_coalesce(struct ecore_hwfn *p_hwfn,
 			   struct ecore_ptt *p_ptt,
 			   struct ecore_queue_cid *p_cid,
 			   u16 *p_tx_coal)

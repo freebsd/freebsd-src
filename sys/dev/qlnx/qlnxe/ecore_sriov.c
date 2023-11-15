@@ -4925,7 +4925,7 @@ bool ecore_iov_is_vf_started(struct ecore_hwfn *p_hwfn,
 }
 #endif
 
-enum _ecore_status_t
+int
 ecore_iov_get_vf_min_rate(struct ecore_hwfn *p_hwfn, int vfid)
 {
 	struct ecore_wfq_data *vf_vp_wfq;
