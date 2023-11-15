@@ -377,8 +377,6 @@ int yylex(void)
 	}
 }
 
-extern int runetochar(char *str, int c);
-
 int string(void)
 {
 	int c, n;
@@ -426,50 +424,20 @@ int string(void)
 				*bp++ = n;
 				break;
 
-			case 'x':	/* hex  \x0-9a-fA-F (exactly two) */
-			    {
-				int i;
-
-				n = 0;
-				for (i = 1; i <= 2; i++) {
-					c = input();
-					if (c == 0)
-						break;
-					if (isxdigit(c)) {
-						c = tolower(c);
-						n *= 16;
-						if (isdigit(c))
-							n += (c - '0');
-						else
-							n += 10 + (c - 'a');
-					} else
-						break;
-				}
-				if (n)
-					*bp++ = n;
-				else
-					unput(c);
-				break;
-			    }
-
-			case 'u':	/* utf  \u0-9a-fA-F (1..8) */
-			    {
-				int i;
-
-				n = 0;
-				for (i = 0; i < 8; i++) {
-					c = input();
-					if (!isxdigit(c) || c == 0)
-						break;
-					c = tolower(c);
-					n *= 16;
-					if (isdigit(c))
-						n += (c - '0');
+			case 'x':	/* hex  \x0-9a-fA-F + */
+			    {	char xbuf[100], *px;
+				for (px = xbuf; (c = input()) != 0 && px-xbuf < 100-2; ) {
+					if (isdigit(c)
+					 || (c >= 'a' && c <= 'f')
+					 || (c >= 'A' && c <= 'F'))
+						*px++ = c;
 					else
-						n += 10 + (c - 'a');
+						break;
 				}
+				*px = 0;
 				unput(c);
-				bp += runetochar(bp, n);
+	  			sscanf(xbuf, "%x", (unsigned int *) &n);
+				*bp++ = n;
 				break;
 			    }
 
@@ -566,7 +534,7 @@ int regexpr(void)
 	char *bp;
 
 	if (buf == NULL && (buf = (char *) malloc(bufsz)) == NULL)
-		FATAL("out of space for reg expr");
+		FATAL("out of space for rex expr");
 	bp = buf;
 	for ( ; (c = input()) != '/' && c != 0; ) {
 		if (!adjbuf(&buf, &bufsz, bp-buf+3, 500, &bp, "regexpr"))
