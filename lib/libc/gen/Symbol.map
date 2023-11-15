@@ -217,6 +217,12 @@ FBSD_1.0 {
 	group_from_gid;
 	setdomainname;
 	sethostname;
+	_setjmp;
+	_longjmp;
+	setjmp;
+	longjmp;
+	sigsetjmp;
+	siglongjmp;
 	longjmperror;
 	getmode;
 	setmode;
