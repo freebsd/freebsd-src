@@ -147,7 +147,6 @@ STATICOBJS+=${LIBC_NONSHARED_SRCS:S/.c$/.o/}
 
 VERSION_DEF=${LIBC_SRCTOP}/Versions.def
 SYMBOL_MAPS=${SYM_MAPS}
-CFLAGS+= -DSYMBOL_VERSIONING
 
 # If there are no machine dependent sources, append all the
 # machine-independent sources:
