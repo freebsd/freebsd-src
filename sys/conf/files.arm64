@@ -374,6 +374,8 @@ dev/psci/psci.c					standard
 dev/psci/smccc_arm64.S				standard
 dev/psci/smccc.c				standard
 
+dev/random/armv8rng.c				optional armv8_rng !random_loadable
+
 dev/safexcel/safexcel.c				optional safexcel fdt
 
 dev/sdhci/sdhci_xenon.c				optional sdhci_xenon sdhci

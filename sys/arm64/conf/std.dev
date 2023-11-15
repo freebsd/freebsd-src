@@ -53,6 +53,7 @@ device		vt_simplefb
 
 # Pseudo devices.
 device		crypto			# core crypto support
+device		armv8_rng		# Armv8.5 rndr RNG
 device		loop			# Network loopback
 device		ether			# Ethernet support
 device		vlan			# 802.1Q VLAN support
