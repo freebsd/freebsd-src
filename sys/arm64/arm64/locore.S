@@ -134,8 +134,6 @@ virtdone:
 	sub	sp, sp, #BOOTPARAMS_SIZE
 	mov	x0, sp
 
-	/* Negate the delta so it is VA -> PA */
-
 	str	x1,  [x0, #BP_MODULEP]
 	adrp	x25, initstack
 	add	x25, x25, :lo12:initstack
