@@ -26,8 +26,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)intro.3	8.1 (Berkeley) 6/5/93
-.\"
-.Dd November 7, 2022
+.Dd November 16, 2023
 .Dt INTRO 3
 .Os
 .Sh NAME
@@ -278,13 +277,105 @@ the math library
 .It Pa /usr/lib/libm_p.a
 the math library compiled for profiling
 .El
+.Sh LIBRARY TYPES
+The system libraries are located in
+.Pa /lib
+and
+.Pa /usr/lib .
+A library has the following naming convention:
+.Bd -unfilled -offset indent
+libc.so.7
+.Ed
+.Pp
+Libraries with an
+.Sq .a
+suffix are static.
+When a program is linked against a static library, all necessary library code
+will be included in the binary.
+This means the binary can be run even when the libraries are unavailable.
+However, it can be inefficient with both disk space and memory usage
+during execution.
+The C compiler,
+.Xr cc 1 ,
+can be instructed to link statically by specifying the
+.Fl static
+flag.
+.Pp
+Libraries with a
+.Sq .so.X
+suffix are dynamic libraries.
+When code is linked dynamically, the library code that the application needs
+is not included in the binary.
+Instead, data structures are added containing information about which dynamic
+libraries to link with.
+When the binary is executed, the run-time linker
+.Xr ld.so 1
+reads these data structures and loads them into the
+process virtual address space.
+.Xr rtld 1
+loads the shared libraries when the program is executed.
+.Pp
+.Sq X
+represents the library version number of the library.
+In the example above, a binary linked with
+.Pa libc.so.8
+would not be usable on a system where only
+.Pa libc.so.7
+is available.
+.Pp
+The advantages of dynamic libraries are that multiple instances of the same
+library can share address space, and the physical size of the binary is
+smaller.
+A namespace per shared library is available via hidden visibility,
+allowing multiple compilation units in a library to share things without
+making them available to other libraries.
+It is possible to load libraries dynamically via
+.Xr dlopen 3 .
+The disadvantage is the added complexity that comes with loading the
+libraries dynamically, and the extra time taken to load the libraries.
+Of course, if the libraries are not available, the binary will be unable
+to execute.
+Calls across shared libraries are also slightly slower and cannot be
+inlined, not even with link time optimization.
+The C compiler,
+.Xr cc 1 ,
+can be instructed to link dynamically by specifying the
+.Fl shared
+flag.
+.Pp
+Shared libraries, as well as static libraries on architectures which produce
+position-independent executables
+.Pq PIEs
+by default, contain position-independent code
+.Pq PIC .
+Normally, compilers produce relocatable code.
+Relocatable code needs to be modified at run-time, depending on where in
+memory it is to be run.
+The C compiler,
+.Xr cc 1 ,
+can be instructed to generate PIC code by specifying the
+.Fl fPIC
+flag.
+.Pp
+Static libraries are generated using the
+.Xr ar 1
+utility.
+The libraries contain an index to the contents of the library,
+stored within the library itself.
+The index lists each symbol defined by a member of a library that is a
+relocatable object file.
+This speeds up linking to the library, and allows routines in the library
+to call each other regardless of their placement within the library.
 .Sh SEE ALSO
+.Xr ar 1 ,
 .Xr cc 1 ,
 .Xr ld 1 ,
 .Xr nm 1 ,
 .Xr intro 2 ,
 .Xr math 3 ,
-.Xr stdio 3
+.Xr stdio 3 ,
+.Xr make.conf 5 ,
+.Xr src.conf 5
 .Sh HISTORY
 An
 .Nm
