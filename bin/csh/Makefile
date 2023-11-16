@@ -11,6 +11,7 @@ CONFGROUPS=	ETC ROOT
 ETC=	csh.cshrc csh.login csh.logout
 ROOT=	dot.cshrc dot.login
 ROOTDIR=	/root
+ROOTDIR_MODE=	0750
 ROOTNAME_dot.cshrc=	.cshrc
 ROOTNAME_dot.login=	.login
 PACKAGE=runtime
