@@ -6131,8 +6131,12 @@ again:
 			j->pd.sctp_flags |= PFDESC_SCTP_ADD_IP;
 			PF_RULES_RLOCK();
 			sm = NULL;
-			/* XXX: May generated unwanted abort if we try to insert a duplicate state. */
-			ret = pf_test_rule(&r, &sm, kif,
+			/*
+			 * New connections need to be floating, because
+			 * we cannot know what interfaces it will use.
+			 * That's why we pass V_pfi_all rather than kif.
+			 */
+			ret = pf_test_rule(&r, &sm, V_pfi_all,
 			    j->m, off, &j->pd, &ra, &rs, NULL);
 			PF_RULES_RUNLOCK();
 			SDT_PROBE4(pf, sctp, multihome, test, kif, r, j->m, ret);
