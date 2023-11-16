@@ -6,6 +6,7 @@ CONFGROUPS=	ETC ROOT
 ETC=	profile
 ROOT=	dot.shrc dot.profile
 ROOTDIR=	/root
+ROOTDIR_MODE=	0750
 ROOTNAME_dot.shrc=	.shrc
 ROOTNAME_dot.profile=	.profile
 PACKAGE=runtime
