@@ -7160,6 +7160,9 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kkif *kif,
 	if (af != AF_INET && af != AF_INET6)
 		return (0);
 
+	if (kif == V_pfi_all)
+		return (1);
+
 	/* Skip checks for ipsec interfaces */
 	if (kif != NULL && kif->pfik_ifp->if_type == IFT_ENC)
 		return (1);
