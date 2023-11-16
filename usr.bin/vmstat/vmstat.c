@@ -221,11 +221,12 @@ main(int argc, char *argv[])
 	memf = nlistf = NULL;
 	interval = reps = todo = 0;
 	maxshowdevs = 2;
-	hflag = isatty(1);
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
 		return (argc);
+
+	hflag = (xo_get_style(NULL) == XO_STYLE_TEXT) && isatty(1);
 
 	while ((c = getopt(argc, argv, "ac:fhHiM:mN:n:oPp:sw:z")) != -1) {
 		switch (c) {
@@ -818,28 +819,30 @@ dovmstat(unsigned int interval, int reps)
 			    rate(sum.v_tfree - osum.v_tfree), 5, 0);
 			prthuman("scanned",
 			    rate(sum.v_pdpages - osum.v_pdpages), 5, 0);
-			xo_emit(" ");
 		} else {
 			xo_emit(" ");
 			xo_emit("{:freed/%5lu} ",
 			    rate(sum.v_tfree - osum.v_tfree));
-			xo_emit("{:scanned/%4lu} ",
+			xo_emit("{:scanned/%4lu}",
 			    rate(sum.v_pdpages - osum.v_pdpages));
 		}
 		xo_close_container("paging-rates");
 
 		devstats();
 		xo_open_container("fault-rates");
-		xo_emit("{:interrupts/%4lu}", rate(sum.v_intr - osum.v_intr));
 		if (hflag) {
+			prthuman("interrupts",
+			    rate(sum.v_intr - osum.v_intr), 5, 0);
 			prthuman("system-calls",
 			    rate(sum.v_syscall - osum.v_syscall), 5, 0);
 			prthuman("context-switches",
 			    rate(sum.v_swtch - osum.v_swtch), 5, 0);
 		} else {
 			xo_emit(" ");
-			xo_emit("{:system-calls/%5lu} "
+			xo_emit("{:interrupts/%4lu} "
+			    "{:system-calls/%5lu} "
 			    "{:context-switches/%5lu}",
+			    rate(sum.v_intr - osum.v_intr),
 			    rate(sum.v_syscall - osum.v_syscall),
 			    rate(sum.v_swtch - osum.v_swtch));
 		}
@@ -878,9 +881,9 @@ printhdr(int maxid, u_long cpumask)
 	else
 		xo_emit("{T:procs}     {T:memory}       {T:/page%*s}", 19, "");
 	if (num_shown > 1)
-		xo_emit("   {T:/disks %*s}  ", num_shown * 4 - 7, "");
+		xo_emit("   {T:/disks %*s}  ", num_shown * 5 - 7, "");
 	else if (num_shown == 1)
-		xo_emit("   {T:disks}");
+		xo_emit("   {T:disks} ");
 	xo_emit(" {T:faults}      ");
 	if (Pflag) {
 		for (i = 0; i <= maxid; i++) {
@@ -900,8 +903,7 @@ printhdr(int maxid, u_long cpumask)
 	for (i = 0; i < num_devices; i++)
 		if ((dev_select[i].selected) &&
 		    (dev_select[i].selected <= maxshowdevs))
-			xo_emit("{T:/%c%c%d} ", dev_select[i].device_name[0],
-			    dev_select[i].device_name[1],
+			xo_emit("{T:/%3.3s%d} ", dev_select[i].device_name,
 			    dev_select[i].unit_number);
 	xo_emit("  {T:in}   {T:sy}   {T:cs}");
 	if (Pflag) {
@@ -1154,11 +1156,15 @@ devstats(void)
 			xo_errx(1, "%s", devstat_errbuf);
 
 		xo_open_instance("device");
-		xo_emit("{ekq:name/%c%c%d}{:transfers/%3.0Lf} ",
-		    dev_select[dn].device_name[0],
-		    dev_select[dn].device_name[1],
-		    dev_select[dn].unit_number,
-		    transfers_per_second);
+		xo_emit("{ekq:name/%s%d}",
+		    dev_select[dn].device_name,
+		    dev_select[dn].unit_number);
+		if (hflag) {
+			prthuman("transfers", (uint64_t)transfers_per_second,
+			    5, HN_DIVISOR_1000);
+		} else {
+			xo_emit("{:transfers/%3.0Lf}", transfers_per_second);
+		}
 		xo_close_instance("device");
 	}
 	xo_close_list("device");
