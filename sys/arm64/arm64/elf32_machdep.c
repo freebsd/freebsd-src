@@ -160,6 +160,8 @@ register_elf32_brand(void *arg)
 	if (ID_AA64PFR0_EL0_VAL(READ_SPECIALREG(id_aa64pfr0_el1)) ==
 	    ID_AA64PFR0_EL0_64_32) {
 		elf32_insert_brand_entry(&freebsd32_brand_info);
+	} else {
+		compat_freebsd_32bit = 0;
 	}
 }
 SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_FIRST, register_elf32_brand, NULL);

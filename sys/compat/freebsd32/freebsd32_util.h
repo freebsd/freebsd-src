@@ -122,4 +122,6 @@ struct image_args;
 int freebsd32_exec_copyin_args(struct image_args *args, const char *fname,
 	    enum uio_seg segflg, uint32_t *argv, uint32_t *envv);
 
+extern int compat_freebsd_32bit;
+
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_UTIL_H_ */
