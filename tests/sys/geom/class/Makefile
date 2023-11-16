@@ -17,6 +17,7 @@ TESTS_SUBDIRS+=	part
 TESTS_SUBDIRS+=	raid3
 TESTS_SUBDIRS+=	shsec
 TESTS_SUBDIRS+=	stripe
+TESTS_SUBDIRS+=	union
 TESTS_SUBDIRS+=	uzip
 
 ${PACKAGE}FILES+=	geom_subr.sh

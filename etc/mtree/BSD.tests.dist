@@ -795,6 +795,8 @@
                 ..
                 stripe
                 ..
+                union
+                ..
                 uzip
                     etalon
                     ..
