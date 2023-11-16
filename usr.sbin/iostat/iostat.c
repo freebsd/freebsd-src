@@ -612,7 +612,7 @@ main(int argc, char **argv)
 		}
 
 		if (xflag == 0 && Tflag > 0)
-			printf("%4.0Lf %5.0Lf", cur.tk_nin / etime,
+			printf("%4.0Lf %5.0Lf ", cur.tk_nin / etime,
 			    cur.tk_nout / etime);
 
 		devstats(hflag, etime, havelast);
@@ -731,7 +731,7 @@ phdr(void)
 		return;
 
 	if (Tflag > 0)
-		(void)printf("       tty");
+		(void)printf("       tty ");
 	for (i = 0, printed=0;(i < num_devices) && (printed < maxshowdevs);i++){
 		int di;
 		if ((dev_select[i].selected != 0)
@@ -753,7 +753,7 @@ phdr(void)
 		(void)printf("\n");
 
 	if (Tflag > 0)
-		(void)printf(" tin  tout");
+		(void)printf(" tin  tout ");
 
 	for (i=0, printed = 0;(i < num_devices) && (printed < maxshowdevs);i++){
 		if ((dev_select[i].selected != 0)
