@@ -64,7 +64,7 @@ EOT
     echo "};"
     echo "#define _SA(s,f,o) _Static_assert(__builtin_offsetof(struct s ## _lite, f) == o, \\"
     printf '\t"struct "#s"_lite field "#f" not at offset "#o)\n'
-    echo -e "${asserts}\c"
+    printf "${asserts}"
     echo "#undef _SA"
     echo "#endif"
     echo "#endif"
