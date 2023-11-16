@@ -630,6 +630,26 @@ FEATURE(compat_freebsd6, "Compatible with FreeBSD 6");
 FEATURE(compat_freebsd7, "Compatible with FreeBSD 7");
 #endif
 
+#ifdef COMPAT_FREEBSD8
+FEATURE(compat_freebsd8, "Compatible with FreeBSD 8");
+#endif
+
+#ifdef COMPAT_FREEBSD9
+FEATURE(compat_freebsd9, "Compatible with FreeBSD 9");
+#endif
+
+#ifdef COMPAT_FREEBSD10
+FEATURE(compat_freebsd10, "Compatible with FreeBSD 10");
+#endif
+
+#ifdef COMPAT_FREEBSD11
+FEATURE(compat_freebsd11, "Compatible with FreeBSD 11");
+#endif
+
+#ifdef COMPAT_FREEBSD12
+FEATURE(compat_freebsd12, "Compatible with FreeBSD 12");
+#endif
+
 /*
  * This is really cheating.  These actually live in the libc, something
  * which I'm not quite sure is a good idea anyway, but in order for
