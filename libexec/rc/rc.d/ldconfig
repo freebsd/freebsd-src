@@ -53,7 +53,11 @@ ldconfig_start()
 			done
 			_LDC=""
 			if [ -x /libexec/ld-elf32.so.1 ]; then
-				_LDC=$(/libexec/ld-elf32.so.1 -v | sed -n -e '/^Default lib path /s///p' | tr : ' ')
+				for x in $(/libexec/ld-elf32.so.1 -v | sed -n -e '/^Default lib path /s///p' | tr : ' '); do
+					if [ -d "${x}" ]; then
+						_LDC="${_LDC} ${x}"
+					fi
+				done
 			fi
 			for i in ${ldconfig32_paths}; do
 				if [ -r "${i}" ]; then
