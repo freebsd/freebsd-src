@@ -3901,10 +3901,10 @@ vn_lock_pair_pause(const char *wmesg)
 }
 
 /*
- * Lock pair of vnodes vp1, vp2, avoiding lock order reversal.
- * vp1_locked indicates whether vp1 is locked; if not, vp1 must be
- * unlocked.  Same for vp2 and vp2_locked.  One of the vnodes can be
- * NULL.
+ * Lock pair of (possibly same) vnodes vp1, vp2, avoiding lock order
+ * reversal.  vp1_locked indicates whether vp1 is locked; if not, vp1
+ * must be unlocked.  Same for vp2 and vp2_locked.  One of the vnodes
+ * can be NULL.
  *
  * The function returns with both vnodes exclusively or shared locked,
  * according to corresponding lkflags, and guarantees that it does not
@@ -3915,12 +3915,14 @@ vn_lock_pair_pause(const char *wmesg)
  *
  * Only one of LK_SHARED and LK_EXCLUSIVE must be specified.
  * LK_NODDLKTREAT can be optionally passed.
+ *
+ * If vp1 == vp2, only one, most exclusive, lock is obtained on it.
  */
 void
 vn_lock_pair(struct vnode *vp1, bool vp1_locked, int lkflags1,
     struct vnode *vp2, bool vp2_locked, int lkflags2)
 {
-	int error;
+	int error, locked1;
 
 	MPASS(((lkflags1 & LK_SHARED) != 0) ^ ((lkflags1 & LK_EXCLUSIVE) != 0));
 	MPASS((lkflags1 & ~(LK_SHARED | LK_EXCLUSIVE | LK_NODDLKTREAT)) == 0);
@@ -3929,6 +3931,35 @@ vn_lock_pair(struct vnode *vp1, bool vp1_locked, int lkflags1,
 
 	if (vp1 == NULL && vp2 == NULL)
 		return;
+
+	if (vp1 == vp2) {
+		MPASS(vp1_locked == vp2_locked);
+
+		/* Select the most exclusive mode for lock. */
+		if ((lkflags1 & LK_TYPE_MASK) != (lkflags2 & LK_TYPE_MASK))
+			lkflags1 = (lkflags1 & ~LK_SHARED) | LK_EXCLUSIVE;
+
+		if (vp1_locked) {
+			ASSERT_VOP_LOCKED(vp1, "vp1");
+
+			/* No need to relock if any lock is exclusive. */
+			if ((vp1->v_vnlock->lock_object.lo_flags &
+			    LK_NOSHARE) != 0)
+				return;
+
+			locked1 = VOP_ISLOCKED(vp1);
+			if (((lkflags1 & LK_SHARED) != 0 &&
+			    locked1 != LK_EXCLUSIVE) ||
+			    ((lkflags1 & LK_EXCLUSIVE) != 0 &&
+			    locked1 == LK_EXCLUSIVE))
+				return;
+			VOP_UNLOCK(vp1);
+		}
+
+		ASSERT_VOP_UNLOCKED(vp1, "vp1");
+		vn_lock(vp1, lkflags1 | LK_RETRY);
+		return;
+	}		
 
 	if (vp1 != NULL) {
 		if ((lkflags1 & LK_SHARED) != 0 &&
