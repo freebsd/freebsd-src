@@ -28,6 +28,7 @@ ATF_TESTS_C+=	reaper
 ATF_TESTS_C+=	sched_affinity
 ATF_TESTS_C+=	sigaltstack
 ATF_TESTS_C+=	sigwait
+ATF_TESTS_C+=	socket_accept
 ATF_TESTS_C+=	socket_accf
 ATF_TESTS_C+=	socket_msg_trunc
 ATF_TESTS_C+=	socket_msg_waitall
