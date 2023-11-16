@@ -103,6 +103,7 @@ achim [label="Achim Leubner\nachim@FreeBSD.org\n2013/01/23"]
 adrian [label="Adrian Chadd\nadrian@FreeBSD.org\n2000/07/03"]
 ae [label="Andrey V. Elsukov\nae@FreeBSD.org\n2010/06/03"]
 akiyama [label="Shunsuke Akiyama\nakiyama@FreeBSD.org\n2000/06/19"]
+akiyano [label="Arthur Kiyanovski\nakiyano@FreeBSD.org\n2023/11/14"]
 alc [label="Alan Cox\nalc@FreeBSD.org\n1999/02/23"]
 alfredo [label="Alfredo Dal'Ava Junior\nalfredo@FreeBSD.org\n2020/01/27"]
 allanjude [label="Allan Jude\nallanjude@FreeBSD.org\n2015/07/30"]
@@ -481,6 +482,7 @@ cognet -> wkoszek
 cognet -> wma
 cognet -> zbb
 
+cperciva -> akiyano
 cperciva -> eadler
 cperciva -> flz
 cperciva -> randi
