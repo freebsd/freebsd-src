@@ -159,7 +159,6 @@ FBSD_1.0 {
 	endnetgrent;
 	innetgr;
 	getosreldate;
-	getpagesize;
 	getpeereid;
 	_getprogname;
 	getprogname;
@@ -339,7 +338,6 @@ FBSD_1.1 {
 FBSD_1.2 {
 	cfmakesane;
 	endutxent;
-	getpagesizes;
 	getutxent;
 	getutxid;
 	getutxline;

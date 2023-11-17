@@ -33,6 +33,8 @@ PSEUDO+= _clock_gettime.o _gettimeofday.o
 SRCS+=	\
 	__error.c \
 	_once_stub.c \
+	getpagesize.c \
+	getpagesizes.c \
 	interposing_table.c
 
 SRCS+= getdents.c lstat.c mknod.c stat.c
@@ -371,6 +373,8 @@ MAN+=	abort2.2 \
 	_umtx_op.2
 
 MAN+= \
+	getpagesize.3 \
+	getpagesizes.3 \
 	lockf.3 \
 	rfork_thread.3 \
 	sleep.3 \
