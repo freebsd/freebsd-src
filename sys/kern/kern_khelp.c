@@ -357,7 +357,7 @@ khelp_modevent(module_t mod, int event_type, void *data)
 		} else if (error == ENOENT)
 			/* Do nothing and allow unload if helper not in list. */
 			error = 0;
-		else if (error == EBUSY)
+		else if (error == EBUSY && event_type != MOD_SHUTDOWN)
 			printf("Khelp module \"%s\" can't unload until its "
 			    "refcount drops from %d to 0.\n", kmd->name,
 			    kmd->helper->h_refcount);
