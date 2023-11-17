@@ -71,6 +71,11 @@ pfctl_do_ioctl(int dev, uint cmd, size_t size, nvlist_t **nvl)
 
 retry:
 	nv.data = malloc(size);
+	if (nv.data == NULL) {
+		ret = ENOMEM;
+		goto out;
+	}
+
 	memcpy(nv.data, data, nvlen);
 
 	nv.len = nvlen;
@@ -190,6 +195,8 @@ _pfctl_get_status_counters(const nvlist_t *nvl,
 		struct pfctl_status_counter *c;
 
 		c = malloc(sizeof(*c));
+		if (c == NULL)
+			continue;
 
 		c->id = ids[i];
 		c->counter = counts[i];
