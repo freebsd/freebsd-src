@@ -221,6 +221,7 @@ pfctl_get_status(int dev)
 	nvl = nvlist_create(0);
 
 	if (pfctl_do_ioctl(dev, DIOCGETSTATUSNV, 4096, &nvl)) {
+		nvlist_destroy(nvl);
 		free(status);
 		return (NULL);
 	}
@@ -792,7 +793,7 @@ int	pfctl_get_clear_rule(int dev, uint32_t nr, uint32_t ticket,
 		nvlist_add_bool(nvl, "clear_counter", true);
 
 	if ((ret = pfctl_do_ioctl(dev, DIOCGETRULENV, 8192, &nvl)) != 0)
-		return (ret);
+		goto out;
 
 	pf_nvrule_to_rule(nvlist_get_nvlist(nvl, "rule"), rule);
 
@@ -800,9 +801,9 @@ int	pfctl_get_clear_rule(int dev, uint32_t nr, uint32_t ticket,
 		strlcpy(anchor_call, nvlist_get_string(nvl, "anchor_call"),
 		    MAXPATHLEN);
 
+out:
 	nvlist_destroy(nvl);
-
-	return (0);
+	return (ret);
 }
 
 int
@@ -985,13 +986,13 @@ _pfctl_clear_states(int dev, const struct pfctl_kill *kill,
 	nvlist_add_bool(nvl, "kill_match", kill->kill_match);
 
 	if ((ret = pfctl_do_ioctl(dev, ioctlval, 1024, &nvl)) != 0)
-		return (ret);
+		goto out;
 
 	if (killed)
 		*killed = nvlist_get_number(nvl, "killed");
 
+out:
 	nvlist_destroy(nvl);
-
 	return (ret);
 }
 
@@ -1135,8 +1136,10 @@ pfctl_get_syncookies(int dev, struct pfctl_syncookies *s)
 
 	nvl = nvlist_create(0);
 
-	if ((ret = pfctl_do_ioctl(dev, DIOCGETSYNCOOKIES, 256, &nvl)) != 0)
-		return (errno);
+	if ((ret = pfctl_do_ioctl(dev, DIOCGETSYNCOOKIES, 256, &nvl)) != 0) {
+		ret = errno;
+		goto out;
+	}
 
 	enabled = nvlist_get_bool(nvl, "enabled");
 	adaptive = nvlist_get_bool(nvl, "adaptive");
@@ -1154,9 +1157,9 @@ pfctl_get_syncookies(int dev, struct pfctl_syncookies *s)
 	s->lowwater = nvlist_get_number(nvl, "lowwater") * 100 / state_limit;
 	s->halfopen_states = nvlist_get_number(nvl, "halfopen_states");
 
+out:
 	nvlist_destroy(nvl);
-
-	return (0);
+	return (ret);
 }
 
 int
