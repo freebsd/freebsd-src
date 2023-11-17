@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*	$NetBSD: as.c,v 1.1 2001/11/04 23:14:36 atatat Exp $	*/
 
 /*
