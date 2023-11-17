@@ -1956,6 +1956,7 @@ stagekernel: .PHONY
 PORTSDIR?=	/usr/ports
 WSTAGEDIR?=	${OBJTOP}/worldstage
 KSTAGEDIR?=	${OBJTOP}/kernelstage
+SSTAGEDIR?=	${OBJTOP}/sourcestage
 REPODIR?=	${OBJROOT}repo
 PKG_FORMAT?=	tzst
 PKG_REPO_SIGNING_KEY?=	# empty
@@ -1963,6 +1964,7 @@ PKG_OUTPUT_DIR?=	${PKG_VERSION}
 
 .ORDER:		stage-packages create-packages
 .ORDER:		create-packages create-world-packages
+.ORDER:		create-packages create-source-packages
 .ORDER:		create-packages create-kernel-packages
 .ORDER:		create-packages sign-packages
 
@@ -1974,7 +1976,7 @@ _pkgbootstrap: .PHONY
 #
 # Determine PKG_ABI from newvers.sh if not already set.
 #
-.if !defined(PKG_ABI) && (make(create-world-packages-jobs) || make(create-kernel-packages*) || make(real-update-packages) || make(sign-packages))
+.if !defined(PKG_ABI) && (make(create-world-packages-jobs) || make(create-kernel-packages*) || make(real-update-packages) || make (create-source-packages) || make(sign-packages))
 PKG_ABI=${_TYPE}:${MAJOR_REVISION}:${TARGET_ARCH}
 .endif
 PKG_BIN_VERSION!=${PKG_CMD} --version </dev/null 2>/dev/null |\
@@ -2051,7 +2053,10 @@ stage-packages-kernel: .PHONY
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} DESTDIR=${KSTAGEDIR} -DNO_ROOT stagekernel
 
-stage-packages: .PHONY stage-packages-world stage-packages-kernel
+stage-packages-source: .PHONY
+	@mkdir -p ${SSTAGEDIR};
+
+stage-packages: .PHONY stage-packages-world stage-packages-kernel stage-packages-source
 
 _repodir: .PHONY
 	@mkdir -p ${REPODIR}
@@ -2070,7 +2075,50 @@ create-packages-kernel:	_pkgbootstrap _repodir .PHONY
 			SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 			create-kernel-packages
 
-create-packages: .PHONY create-packages-world create-packages-kernel
+create-packages-source:	_pkgbootstrap _repodir .PHONY
+	${_+_}@cd ${.CURDIR}; \
+		${MAKE} -f Makefile.inc1 \
+			DESTDIR=${SSTAGEDIR} \
+			PKG_VERSION=${PKG_VERSION} create-source-packages
+
+create-packages: .PHONY create-packages-world create-packages-kernel create-packages-source
+
+create-source-packages: _pkgbootstrap .PHONY
+	rm -f ${SSTAGEDIR}/*.plist 2>/dev/null || :
+.if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
+	@cd ${SRCDIR}; \
+		( echo "@override_prefix /usr/src" ;  \
+		${GIT_CMD} ls-files ":!:sys/" ) > ${SSTAGEDIR}/src.plist
+	@cd ${SRCDIR}; \
+		( echo "@override_prefix /usr/src" ; \
+		${GIT_CMD} ls-files "sys/" ) > ${SSTAGEDIR}/src-sys.plist
+	sed -e "s/%VERSION%/${PKG_VERSION}/" \
+		-e "s/%DESC%/FreeBSD sources/" \
+		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
+		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
+		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
+		-e "s|%PKG_WWW%|${PKG_WWW}|" \
+		${SRCDIR}/release/packages/src.ucl \
+		> ${SSTAGEDIR}/src.ucl
+	sed -e "s/%VERSION%/${PKG_VERSION}/" \
+		-e "s/%DESC%/FreeBSD Kernel sources/" \
+		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
+		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
+		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
+		-e "s|%PKG_WWW%|${PKG_WWW}|" \
+		${SRCDIR}/release/packages/src-sys.ucl \
+		> ${SSTAGEDIR}/src-sys.ucl
+	${PKG_CMD} -o ABI=${PKG_ABI} create -f ${PKG_FORMAT} \
+		-M ${SSTAGEDIR}/src.ucl \
+		-p ${SSTAGEDIR}/src.plist \
+		-r ${SRCDIR} \
+		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
+	${PKG_CMD} -o ABI=${PKG_ABI} create -f ${PKG_FORMAT} \
+		-M ${SSTAGEDIR}/src-sys.ucl \
+		-p ${SSTAGEDIR}/src-sys.plist \
+		-r ${SRCDIR} \
+		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
+.endif
 
 create-world-packages:	_pkgbootstrap .PHONY
 	@rm -f ${WSTAGEDIR}/*.plist 2>/dev/null || :
