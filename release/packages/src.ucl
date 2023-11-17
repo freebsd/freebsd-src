@@ -1,0 +1,17 @@
+#
+#
+
+name = "%PKG_NAME_PREFIX%-src"
+origin = "base"
+version = "%VERSION%"
+comment = "FreeBSD userland sources"
+categories = [ base ]
+maintainer = "%PKG_MAINTAINER%"
+www = "%PKG_WWW%"
+prefix = "/"
+licenselogic = "single"
+licenses = [ BSD2CLAUSE ]
+desc = <<EOD
+%DESC%
+EOD
+
