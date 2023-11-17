@@ -228,7 +228,8 @@ use_pread(void *devfd, off_t loc, void **bufp, int size)
 	int fd;
 
 	fd = *(int *)devfd;
-	if ((*bufp = malloc(size)) == NULL)
+	BUF_MALLOC(bufp, NULL, size);
+	if (*bufp == NULL)
 		return (ENOSPC);
 	if (pread(fd, *bufp, size, loc) != size)
 		return (EIO);

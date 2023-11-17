@@ -31,6 +31,13 @@
 #define	__LIBUFS_H__
 
 /*
+ * Various disk controllers require their buffers to be aligned to the size
+ * of a cache line. The LIBUFS_BUFALIGN defines the required alignment size.
+ * The alignment must be a power of 2.
+ */
+#define LIBUFS_BUFALIGN	128
+
+/*
  * libufs structures.
  */
 union dinodep {
@@ -42,39 +49,51 @@ union dinodep {
  * userland ufs disk.
  */
 struct uufsd {
-	const char *d_name;		/* disk name */
-	int d_ufs;			/* decimal UFS version */
-	int d_fd;			/* raw device file descriptor */
-	long d_bsize;			/* device bsize */
-	ufs2_daddr_t d_sblock;		/* superblock location */
-	struct fs_summary_info *d_si;	/* Superblock summary info */
-	caddr_t d_inoblock;		/* inode block */
-	uint32_t d_inomin;		/* low ino, not ino_t for ABI compat */
-	uint32_t d_inomax;		/* high ino, not ino_t for ABI compat */
-	union dinodep d_dp;		/* pointer to currently active inode */
 	union {
 		struct fs d_fs;		/* filesystem information */
-		char d_sb[MAXBSIZE];	/* superblock as buffer */
-	} d_sbunion;
+		char d_sb[SBLOCKSIZE];	/* superblock as buffer */
+	} d_sbunion __aligned(LIBUFS_BUFALIGN);
 	union {
 		struct cg d_cg;		/* cylinder group */
 		char d_buf[MAXBSIZE];	/* cylinder group storage */
-	} d_cgunion;
-	int d_ccg;			/* current cylinder group */
-	int d_lcg;			/* last cylinder group (in d_cg) */
+	} d_cgunion __aligned(LIBUFS_BUFALIGN);
+	union {
+		union dinodep d_ino[1];	/* inode block */
+		char d_inos[MAXBSIZE];	/* inode block as buffer */
+	} d_inosunion __aligned(LIBUFS_BUFALIGN);
+	const char *d_name;		/* disk name */
 	const char *d_error;		/* human readable disk error */
+	ufs2_daddr_t d_sblock;		/* superblock location */
+	struct fs_summary_info *d_si;	/* Superblock summary info */
+	union dinodep d_dp;		/* pointer to currently active inode */
+	ino_t d_inomin;			/* low ino */
+	ino_t d_inomax;			/* high ino */
 	off_t d_sblockloc;		/* where to look for the superblock */
-	int d_lookupflags;		/* flags to superblock lookup */
-	int d_mine;			/* internal flags */
-#define	d_fs	d_sbunion.d_fs
-#define	d_sb	d_sbunion.d_sb
-#define	d_cg	d_cgunion.d_cg
+	int64_t d_bsize;		/* device bsize */
+	int64_t d_lookupflags;		/* flags to superblock lookup */
+	int64_t d_mine;			/* internal flags */
+	int32_t d_ccg;			/* current cylinder group */
+	int32_t d_ufs;			/* decimal UFS version */
+	int32_t d_fd;			/* raw device file descriptor */
+	int32_t d_lcg;			/* last cylinder group (in d_cg) */
 };
+#define	d_inos	d_inosunion.d_inos
+#define	d_fs	d_sbunion.d_fs
+#define	d_cg	d_cgunion.d_cg
 
 /*
  * libufs macros (internal, non-exported).
  */
 #ifdef	_LIBUFS
+/*
+ * Ensure that the buffer is aligned to the I/O subsystem requirements.
+ */
+#define BUF_MALLOC(newbufpp, data, size) {				     \
+	if (data != NULL && (((intptr_t)data) & (LIBUFS_BUFALIGN - 1)) == 0) \
+		*newbufpp = (void *)data;				     \
+	else								     \
+		*newbufpp = aligned_alloc(LIBUFS_BUFALIGN, size);	     \
+}
 /*
  * Trace steps through libufs, to be used at entry and erroneous return.
  */

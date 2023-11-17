@@ -2,7 +2,7 @@
 PACKAGE=	ufs
 LIB=	ufs
 SHLIBDIR?= /lib
-SHLIB_MAJOR=	7
+SHLIB_MAJOR=	8
 
 SRCS=	block.c cgroup.c gsb_crc32.c inode.c sblock.c type.c ffs_subr.c
 SRCS+= ffs_tables.c
