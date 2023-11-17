@@ -5932,7 +5932,7 @@ pf_test_state_sctp(struct pf_kstate **state, struct pfi_kkif *kif,
 			dst->scrub->pfss_v_tag = pd->sctp_initiate_tag;
 	}
 
-	if (pd->sctp_flags & PFDESC_SCTP_COOKIE) {
+	if (pd->sctp_flags & (PFDESC_SCTP_COOKIE | PFDESC_SCTP_HEARTBEAT_ACK)) {
 		if (src->state < SCTP_ESTABLISHED) {
 			pf_set_protostate(*state, psrc, SCTP_ESTABLISHED);
 			(*state)->timeout = PFTM_SCTP_ESTABLISHED;
