@@ -45,7 +45,6 @@ static const char sccsid[] = "@(#)pass5.c	8.9 (Berkeley) 4/28/95";
 #include <inttypes.h>
 #include <limits.h>
 #include <string.h>
-#include <libufs.h>
 
 #include "fsck.h"
 

@@ -67,6 +67,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <libufs.h>
 
 #include <sys/queue.h>
 
@@ -420,6 +421,20 @@ Malloc(size_t size)
 	void *retval;
 
 	while ((retval = malloc(size)) == NULL)
+		if (flushentry() == 0)
+			break;
+	return (retval);
+}
+/*
+ * Allocate a block of memory to be used as an I/O buffer.
+ * Ensure that the buffer is aligned to the I/O subsystem requirements.
+ */
+static inline void*
+Balloc(size_t size)
+{
+	void *retval;
+
+	while ((retval = aligned_alloc(LIBUFS_BUFALIGN, size)) == NULL)
 		if (flushentry() == 0)
 			break;
 	return (retval);

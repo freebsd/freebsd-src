@@ -59,7 +59,6 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
 #include <fstab.h>
 #include <grp.h>
 #include <inttypes.h>
-#include <libufs.h>
 #include <mntopts.h>
 #include <paths.h>
 #include <stdint.h>
