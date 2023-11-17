@@ -1904,10 +1904,13 @@ test_ktls_receive_bad_size(const atf_tc_t *tc, struct tls_enable *en,
 	/*
 	 * The other end may notice the error and drop the connection
 	 * before this executes resulting in shutdown() failing with
-	 * ENOTCONN.  Ignore this error if it occurs.
+	 * either ENOTCONN or ECONNRESET.  Ignore this error if it
+	 * occurs.
 	 */
-	if (shutdown(sockets[1], SHUT_WR) != 0)
-		ATF_REQUIRE_ERRNO(ENOTCONN, true);
+	if (shutdown(sockets[1], SHUT_WR) != 0) {
+		ATF_REQUIRE_MSG(errno == ENOTCONN || errno == ECONNRESET,
+		    "shutdown() failed: %s", strerror(errno));
+	}
 
 	ktls_receive_tls_error(sockets[0], EMSGSIZE);
 
