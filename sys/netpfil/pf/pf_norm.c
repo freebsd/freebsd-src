@@ -2084,11 +2084,19 @@ pf_scan_sctp(struct mbuf *m, int ipoff, int off, struct pf_pdesc *pd,
 			pd->sctp_flags |= PFDESC_SCTP_SHUTDOWN_COMPLETE;
 			break;
 		case SCTP_COOKIE_ECHO:
-		case SCTP_COOKIE_ACK:
 			pd->sctp_flags |= PFDESC_SCTP_COOKIE;
+			break;
+		case SCTP_COOKIE_ACK:
+			pd->sctp_flags |= PFDESC_SCTP_COOKIE_ACK;
 			break;
 		case SCTP_DATA:
 			pd->sctp_flags |= PFDESC_SCTP_DATA;
+			break;
+		case SCTP_HEARTBEAT_REQUEST:
+			pd->sctp_flags |= PFDESC_SCTP_HEARTBEAT;
+			break;
+		case SCTP_HEARTBEAT_ACK:
+			pd->sctp_flags |= PFDESC_SCTP_HEARTBEAT_ACK;
 			break;
 		case SCTP_ASCONF:
 			pd->sctp_flags |= PFDESC_SCTP_ASCONF;
