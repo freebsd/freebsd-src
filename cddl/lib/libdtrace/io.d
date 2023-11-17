@@ -194,7 +194,7 @@ inline int DEVSTAT_TYPE_IF_IDE =	0x020;
 #pragma D binding "1.13" DEVSTAT_TYPE_IF_IDE
 inline int DEVSTAT_TYPE_IF_OTHER =	0x030;
 #pragma D binding "1.13" DEVSTAT_TYPE_IF_OTHER
-inline int DEVSTAT_TYPE_IF_NVM =	0x040;
+inline int DEVSTAT_TYPE_IF_NVME =	0x040;
 #pragma D binding "1.13" DEVSTAT_TYPE_IF_NVME
 inline int DEVSTAT_TYPE_IF_MASK =	0x0f0;
 #pragma D binding "1.13" DEVSTAT_TYPE_IF_MASK
