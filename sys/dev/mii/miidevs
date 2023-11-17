@@ -353,6 +353,7 @@ model xxTSC 78Q2121		0x0015 78Q2121 100BASE-TX media interface
 /* Vitesse Semiconductor (now Microsemi) */
 model xxVITESSE VSC8501		0x0013 Vitesse VSC8501 10/100/1000TX PHY
 model xxVITESSE VSC8504		0x000c Vitesse VSC8504 10/100/1000TX PHY
+model xxVITESSE VSC8514		0x0027 Vitesse VSC8514 10/100/1000TX PHY
 
 /* XaQti Corp. PHYs */
 model xxXAQTI XMACII		0x0000 XaQti Corp. XMAC II gigabit interface
