@@ -44,7 +44,7 @@
 #include <sys/module.h>
 
 /*
- * Every module can hav ea module specific piece of code that is
+ * Every module can have a module specific piece of code that is
  * executed whenever the module is loaded or unloaded.  The following
  * is a trivial example that prints a message on the console whenever
  * the module is loaded or unloaded.
