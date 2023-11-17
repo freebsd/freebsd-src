@@ -78,10 +78,10 @@ struct iown_tracker {
  * exclusive.
  */
 struct inode {
-	TAILQ_ENTRY(inode) i_nextsnap; /* snapshot file list. */
-	struct	vnode  *i_vnode;/* Vnode associated with this inode. */
-	struct 	ufsmount *i_ump;/* Ufsmount point associated with this inode. */
-	struct	 dquot *i_dquot[MAXQUOTAS]; /* Dquot structures. */
+	TAILQ_ENTRY(inode) i_nextsnap; /* Snapshot file list. */
+	struct vnode	*i_vnode; /* Vnode associated with this inode. */
+	struct ufsmount	*i_ump; /* Ufsmount point associated with this inode. */
+	struct dquot	*i_dquot[MAXQUOTAS]; /* Dquot structures. */
 	union {
 		struct dirhash *dirhash; /* Hashing for large directories. */
 		daddr_t *snapblklist;    /* Collect expunged snapshot blocks. */
@@ -95,7 +95,7 @@ struct inode {
 	} dinode_u;
 
 	ino_t	  i_number;	/* The identity of the inode. */
-	uint32_t i_flag;	/* flags, see below */
+	uint32_t  i_flag;	/* flags, see below */
 	int	  i_effnlink;	/* i_nlink when I/O completes */
 
 	/*
@@ -126,12 +126,12 @@ struct inode {
 	 * Copies from the on-disk dinode itself.
 	 */
 	uint64_t i_size;	/* File byte count. */
-	uint64_t i_gen;	/* Generation number. */
+	uint64_t i_gen;		/* Generation number. */
 	uint32_t i_flags;	/* Status flags (chflags). */
-	uint32_t i_uid;	/* File owner. */
-	uint32_t i_gid;	/* File group. */
+	uint32_t i_uid;		/* File owner. */
+	uint32_t i_gid;		/* File group. */
+	int16_t  i_nlink;	/* File link count. */
 	uint16_t i_mode;	/* IFMT, permissions; see below. */
-	int16_t	  i_nlink;	/* File link count. */
 };
 /*
  * These flags are kept in i_flag.
