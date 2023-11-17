@@ -1,5 +1,3 @@
-$FreeBSD$
-
 This directory contains virgin copies of the original distribution files
 on a "vendor" branch.  Do not, under any circumstances, attempt to upgrade
 the files in this directory via patches and a cvs commit.

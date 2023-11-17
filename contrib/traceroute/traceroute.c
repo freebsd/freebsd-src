@@ -27,8 +27,6 @@ The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] =
     "@(#)$Id: traceroute.c,v 1.68 2000/12/14 08:04:33 leres Exp $ (LBL)";
 #endif
-static const char rcsid[] =
-    "$FreeBSD$";
 #endif
 
 /*
