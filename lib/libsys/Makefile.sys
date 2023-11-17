@@ -32,6 +32,7 @@ PSEUDO+= _clock_gettime.o _gettimeofday.o
 # Sources common to both syscall interfaces:
 SRCS+=	\
 	__error.c \
+	__getosreldate.c \
 	_once_stub.c \
 	getpagesize.c \
 	getpagesizes.c \

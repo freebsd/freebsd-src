@@ -44,23 +44,10 @@ int
 __getosreldate(void)
 {
 	static int osreldate;
-	size_t len;
-	int oid[2];
-	int error, osrel;
 
 	if (osreldate != 0)
 		return (osreldate);
 
-	error = _elf_aux_info(AT_OSRELDATE, &osreldate, sizeof(osreldate));
-	if (error == 0 && osreldate != 0)
-		return (osreldate);
-
-	oid[0] = CTL_KERN;
-	oid[1] = KERN_OSRELDATE;
-	osrel = 0;
-	len = sizeof(osrel);
-	error = sysctl(oid, 2, &osrel, &len, NULL, 0);
-	if (error == 0 && osrel > 0 && len == sizeof(osrel))
-		osreldate = osrel;
+	(void)_elf_aux_info(AT_OSRELDATE, &osreldate, sizeof(osreldate));
 	return (osreldate);
 }
