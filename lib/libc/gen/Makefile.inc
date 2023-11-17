@@ -6,7 +6,7 @@ CONFS+=	group master.passwd shells
 CONFSMODE_master.passwd=	600
 CONFSPACKAGE=   runtime
 
-SRCS+=	__getosreldate.c \
+SRCS+= \
 	__pthread_mutex_init_calloc_cb_stub.c \
 	__xuname.c \
 	_pthread_stubs.c \
