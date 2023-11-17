@@ -929,17 +929,24 @@ static int
 ng_ksocket_shutdown(node_p node)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
+	struct socket *so = priv->so;
 	priv_p embryo;
 
 	/* Close our socket (if any) */
 	if (priv->so != NULL) {
-		SOCKBUF_LOCK(&priv->so->so_rcv);
-		soupcall_clear(priv->so, SO_RCV);
-		SOCKBUF_UNLOCK(&priv->so->so_rcv);
-		SOCKBUF_LOCK(&priv->so->so_snd);
-		soupcall_clear(priv->so, SO_SND);
-		SOCKBUF_UNLOCK(&priv->so->so_snd);
-		soclose(priv->so);
+		if (SOLISTENING(so)) {
+			SOLISTEN_LOCK(so);
+			solisten_upcall_set(so, NULL, NULL);
+			SOLISTEN_UNLOCK(so);
+		} else {
+			SOCK_RECVBUF_LOCK(so);
+			soupcall_clear(so, SO_RCV);
+			SOCK_RECVBUF_UNLOCK(so);
+			SOCK_SENDBUF_LOCK(so);
+			soupcall_clear(so, SO_SND);
+			SOCK_SENDBUF_UNLOCK(so);
+		}
+		soclose(so);
 		priv->so = NULL;
 	}
 
