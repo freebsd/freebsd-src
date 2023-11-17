@@ -75,16 +75,14 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility
-uses the IPv6 protocol hop limit field to elicit an ICMPv6 TIME_EXCEEDED
-response from each gateway along the path to some host.
+utility uses the IPv6 protocol hop limit field to elicit an ICMPv6
+TIME_EXCEEDED response from each gateway along the path to some host.
 .Pp
 The only mandatory parameter is the destination host name or IPv6 address.
-The default probe datagram carries 20 bytes of payload,
-in addition to the IPv6 header.
-The size of the payload can be specified by giving a length
-(in bytes)
-after the destination host name.
+The default probe datagram carries 20 bytes of payload, in addition to the IPv6
+header.
+The size of the payload can be specified by giving a length (in bytes) after
+the destination host name.
 .Pp
 Other options are:
 .Bl -tag -width Ds
@@ -130,8 +128,8 @@ The default is the value of the
 .It Fl n
 Do not resolve numeric address to hostname.
 .It Fl N
-Use a packet with no upper layer header for the probes,
-instead of UDP datagrams.
+Use a packet with no upper layer header for the probes, instead of UDP
+datagrams.
 .It Fl p Ar port
 Set SCTP/TCP/UDP port number to
 .Ar port .
@@ -139,16 +137,15 @@ Set SCTP/TCP/UDP port number to
 Set the number of probe per hop count to
 .Ar probes .
 .It Fl r
-Bypass the normal routing tables and send directly to a host
-on an attached network.
+Bypass the normal routing tables and send directly to a host on an attached
+network.
 If the host is not on a directly-connected network,
 an error is returned.
 This option corresponds to the
 .Dv SO_DONTROUTE
-socket option;
-it can be used to ping a local host through an interface
-that has no route through it
-(e.g., after the interface was dropped by a routing daemon).
+socket option; it can be used to ping a local host through an interface that
+has no route through it (e.g., after the interface was dropped by a routing
+daemon).
 .It Fl s Ar src
 .Ar Src
 specifies the source IPv6 address to be used.
@@ -178,10 +175,11 @@ Be verbose.
 Specify the delay time between probes.
 .El
 .Pp
-This program prints the route to the given destination and the round-trip
-time to each gateway, in the same manner as traceroute.
+This program prints the route to the given destination and the round-trip time
+to each gateway, in the same manner as traceroute.
 .Pp
-Here is a list of possible annotations after the round-trip time for each gateway:
+Here is a list of possible annotations after the round-trip time for each
+gateway:
 .Bl -hang -offset indent
 .It !N
 Destination Unreachable - No Route to Host.
@@ -195,11 +193,11 @@ Destination Unreachable - Address Unreachable.
 Parameter Problem - Unrecognized Next Header Type.
 .It !\&
 This is printed if the hop limit is <= 1 on a port unreachable message.
-This means that the packet got to the destination,
-but that the reply had a hop limit that was just large enough to
-allow it to get back to the source of the traceroute6.
-This was more interesting in the IPv4 case,
-where some IP stack bugs could be identified by this behaviour.
+This means that the packet got to the destination, but that the reply had a hop
+limit that was just large enough to allow it to get back to the source of the
+traceroute6.
+This was more interesting in the IPv4 case, where some IP stack bugs could be
+identified by this behaviour.
 .El
 .\"
 .Sh EXIT STATUS
