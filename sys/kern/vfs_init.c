@@ -149,8 +149,10 @@ vfs_byname_kld(const char *fstype, struct thread *td, int *error)
 	loaded = (*error == 0);
 	if (*error == EEXIST)
 		*error = 0;
-	if (*error)
+	if (*error) {
+		*error = ENODEV;
 		return (NULL);
+	}
 
 	/* Look up again to see if the VFS was loaded. */
 	vfsp = vfs_byname(fstype);
