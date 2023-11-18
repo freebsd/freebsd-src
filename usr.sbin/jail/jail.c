@@ -139,7 +139,7 @@ main(int argc, char **argv)
 	size_t sysvallen;
 	unsigned op, pi;
 	int ch, docf, error, i, oldcl, sysval;
-	int dflag, Rflag;
+	int dflag, eflag, Rflag;
 #if defined(INET) || defined(INET6)
 	char *cs, *ncs;
 #endif
@@ -148,7 +148,7 @@ main(int argc, char **argv)
 #endif
 
 	op = 0;
-	dflag = Rflag = 0;
+	dflag = eflag = Rflag = 0;
 	docf = 1;
 	cfname = CONF_FILE;
 	JidFile = NULL;
@@ -162,7 +162,7 @@ main(int argc, char **argv)
 			dflag = 1;
 			break;
 		case 'e':
-			op |= JF_SHOW;
+			eflag = 1;
 			separator = optarg;
 			break;
 		case 'f':
@@ -232,7 +232,16 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	/* Find out which of the four command line styles this is. */
+	if (eflag) {
+		/* Just print list of all configured non-wildcard jails */
+		if (op || argc > 0)
+			usage();
+		load_config(cfname);
+		show_jails();
+		exit(0);
+	}
+
+	/* Find out which of the command line styles this is. */
 	oldcl = 0;
 	if (!op) {
 		/* Old-style command line with four fixed parameters */
@@ -282,13 +291,7 @@ main(int argc, char **argv)
 					    ? NULL : "false");
 			}
 		}
-	} else if (op == JF_STOP || op == JF_SHOW) {
-		/* Just print list of all configured non-wildcard jails */
-		if (op == JF_SHOW) {
-			load_config(cfname);
-			show_jails();
-			exit(0);
-		}
+	} else if (op == JF_STOP) {
 		/* Jail remove, perhaps using the config file */
 		if (!docf || argc == 0)
 			usage();
