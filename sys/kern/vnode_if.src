@@ -468,6 +468,13 @@ vop_getwritemount {
 	OUT struct mount **mpp;
 };
 
+%% getwritevnode vp	= = =
+
+vop_getlowvnode {
+	IN struct vnode *vp;
+	OUT struct vnode **vplp;
+	IN int flags;
+};
 
 %% print	vp	- - -
 

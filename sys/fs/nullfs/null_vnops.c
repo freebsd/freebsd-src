@@ -1127,6 +1127,23 @@ null_vput_pair(struct vop_vput_pair_args *ap)
 	return (res);
 }
 
+static int
+null_getlowvnode(struct vop_getlowvnode_args *ap)
+{
+	struct vnode *vp, *vpl;
+
+	vp = ap->a_vp;
+	if (vn_lock(vp, LK_SHARED) != 0)
+		return (EBADF);
+
+	vpl = NULLVPTOLOWERVP(vp);
+	vhold(vpl);
+	VOP_UNLOCK(vp);
+	VOP_GETLOWVNODE(vpl, ap->a_vplp, ap->a_flags);
+	vdrop(vpl);
+	return (0);
+}
+
 /*
  * Global vfs data structures
  */
@@ -1139,6 +1156,7 @@ struct vop_vector null_vnodeops = {
 	.vop_bmap =		VOP_EOPNOTSUPP,
 	.vop_stat =		null_stat,
 	.vop_getattr =		null_getattr,
+	.vop_getlowvnode =	null_getlowvnode,
 	.vop_getwritemount =	null_getwritemount,
 	.vop_inactive =		null_inactive,
 	.vop_need_inactive =	null_need_inactive,
