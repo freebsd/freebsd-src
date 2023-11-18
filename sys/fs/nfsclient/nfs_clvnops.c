@@ -3888,9 +3888,7 @@ nfs_copy_file_range(struct vop_copy_file_range_args *ap)
 	 */
 	if (invp == outvp || invp->v_mount != outvp->v_mount) {
 generic_copy:
-		return (vn_generic_copy_file_range(invp, ap->a_inoffp,
-		    outvp, ap->a_outoffp, ap->a_lenp, ap->a_flags,
-		    ap->a_incred, ap->a_outcred, ap->a_fsizetd));
+		return (ENOSYS);
 	}
 
 	/* Lock both vnodes, avoiding risk of deadlock. */
