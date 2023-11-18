@@ -23,7 +23,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 18, 2023
+.Dd November 18, 2023
 .Dt BSDINSTALL 8
 .Os
 .Sh NAME
@@ -433,8 +433,11 @@ or raidz3 (RAID-Z3 Triple Redundancy RAID).
 Default:
 .Dq stripe
 .It Ev ZFSBOOT_FORCE_4K_SECTORS
-Indicates either the pool will use 4K or 512 sectors.
-If this variable is not empty, 4K sectors will be used.
+Controls the minimum sector size of the pool.
+If this variable is not empty, the minimum sector size is 4K.
+If this variable is empty, the minimum sector size is 512.
+Note that the sector size of the pool will always be at least
+the sector size of the backing disks.
 Default:
 .Dq 1
 .It Ev ZFSBOOT_GELI_ENCRYPTION
