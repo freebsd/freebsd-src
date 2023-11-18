@@ -3027,10 +3027,12 @@ vn_copy_file_range(struct vnode *invp, off_t *inoffp, struct vnode *outvp,
     struct ucred *outcred, struct thread *fsize_td)
 {
 	struct mount *inmp, *outmp;
+	struct vnode *invpl, *outvpl;
 	int error;
 	size_t len;
 	uint64_t uval;
 
+	invpl = outvpl = NULL;
 	len = *lenp;
 	*lenp = 0;		/* For error returns. */
 	error = 0;
@@ -3056,17 +3058,22 @@ vn_copy_file_range(struct vnode *invp, off_t *inoffp, struct vnode *outvp,
 	if (len == 0)
 		goto out;
 
-	inmp = invp->v_mount;
-	outmp = outvp->v_mount;
-	if (inmp == NULL || outmp == NULL) {
-		error = EBADF;
+	error = VOP_GETLOWVNODE(invp, &invpl, FREAD);
+	if (error != 0)
 		goto out;
-	}
+	error = VOP_GETLOWVNODE(outvp, &outvpl, FWRITE);
+	if (error != 0)
+		goto out1;
+
+	inmp = invpl->v_mount;
+	outmp = outvpl->v_mount;
+	if (inmp == NULL || outmp == NULL)
+		goto out2;
 
 	for (;;) {
 		error = vfs_busy(inmp, 0);
 		if (error != 0)
-			goto out;
+			goto out2;
 		if (inmp == outmp)
 			break;
 		error = vfs_busy(outmp, MBF_NOWAIT);
@@ -3077,7 +3084,7 @@ vn_copy_file_range(struct vnode *invp, off_t *inoffp, struct vnode *outvp,
 				vfs_unbusy(outmp);
 				continue;
 			}
-			goto out;
+			goto out2;
 		}
 		break;
 	}
@@ -3089,14 +3096,20 @@ vn_copy_file_range(struct vnode *invp, off_t *inoffp, struct vnode *outvp,
 	 */
 	*lenp = len;
 	if (inmp == outmp)
-		error = VOP_COPY_FILE_RANGE(invp, inoffp, outvp, outoffp,
+		error = VOP_COPY_FILE_RANGE(invpl, inoffp, outvpl, outoffp,
 		    lenp, flags, incred, outcred, fsize_td);
 	else
-		error = vn_generic_copy_file_range(invp, inoffp, outvp,
+		error = vn_generic_copy_file_range(invpl, inoffp, outvpl,
 		    outoffp, lenp, flags, incred, outcred, fsize_td);
 	vfs_unbusy(outmp);
 	if (inmp != outmp)
 		vfs_unbusy(inmp);
+out2:
+	if (outvpl != NULL)
+		vrele(outvpl);
+out1:
+	if (invpl != NULL)
+		vrele(invpl);
 out:
 	return (error);
 }
