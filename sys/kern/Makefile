@@ -2,7 +2,6 @@
 #
 # Makefile for init_sysent
 
-SYSENT_CONF=
 GENERATED=	init_sysent.c			\
 		syscalls.c			\
 		systrace_args.c			\
