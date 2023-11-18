@@ -3142,6 +3142,8 @@ vn_copy_file_range(struct vnode *invp, off_t *inoffp, struct vnode *outvp,
 		error = VOP_COPY_FILE_RANGE(invpl, inoffp, outvpl, outoffp,
 		    lenp, flags, incred, outcred, fsize_td);
 	else
+		error = ENOSYS;
+	if (error == ENOSYS)
 		error = vn_generic_copy_file_range(invpl, inoffp, outvpl,
 		    outoffp, lenp, flags, incred, outcred, fsize_td);
 	vfs_unbusy(outmp);

@@ -6321,9 +6321,7 @@ bad_locked_fallback:
 bad_write_fallback:
 	if (mp != NULL)
 		vn_finished_write(mp);
-	error = vn_generic_copy_file_range(ap->a_invp, ap->a_inoffp,
-	    ap->a_outvp, ap->a_outoffp, ap->a_lenp, ap->a_flags,
-	    ap->a_incred, ap->a_outcred, ap->a_fsizetd);
+	error = ENOSYS;
 	return (error);
 }
 
