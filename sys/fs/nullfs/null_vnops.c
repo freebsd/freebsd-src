@@ -1177,5 +1177,6 @@ struct vop_vector null_vnodeops = {
 	.vop_vptofh =		null_vptofh,
 	.vop_add_writecount =	null_add_writecount,
 	.vop_vput_pair =	null_vput_pair,
+	.vop_copy_file_range =	VOP_PANIC,
 };
 VFS_VOP_VECTOR_REGISTER(null_vnodeops);
