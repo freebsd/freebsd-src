@@ -826,8 +826,9 @@ nvme_ctrlr_configure_aer(struct nvme_controller *ctrlr)
 	    NVME_CRIT_WARN_ST_READ_ONLY |
 	    NVME_CRIT_WARN_ST_VOLATILE_MEMORY_BACKUP;
 	if (ctrlr->cdata.ver >= NVME_REV(1, 2))
-		ctrlr->async_event_config |= NVME_ASYNC_EVENT_NS_ATTRIBUTE |
-		    NVME_ASYNC_EVENT_FW_ACTIVATE;
+		ctrlr->async_event_config |=
+		    ctrlr->cdata.oaes & (NVME_ASYNC_EVENT_NS_ATTRIBUTE |
+			NVME_ASYNC_EVENT_FW_ACTIVATE);
 
 	status.done = 0;
 	nvme_ctrlr_cmd_get_feature(ctrlr, NVME_FEAT_TEMPERATURE_THRESHOLD,
