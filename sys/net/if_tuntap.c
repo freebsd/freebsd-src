@@ -96,6 +96,7 @@
 #endif
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
+#include <netinet/tcp_lro.h>
 #include <net/bpf.h>
 #include <net/if_tap.h>
 #include <net/if_tun.h>
@@ -143,6 +144,8 @@ struct tuntap_softc {
 	struct ether_addr	 tun_ether;	/* remote address */
 	int			 tun_busy;	/* busy count */
 	int			 tun_vhdrlen;	/* virtio-net header length */
+	struct lro_ctrl		 tun_lro;	/* for TCP LRO */
+	bool			 tun_lro_ready;	/* TCP LRO initialized */
 };
 #define	TUN2IFP(sc)	((sc)->tun_ifp)
 
@@ -971,7 +974,8 @@ tuncreate(struct cdev *dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 	ifp->if_capabilities |= IFCAP_LINKSTATE;
 	if ((tp->tun_flags & TUN_L2) != 0)
-		ifp->if_capabilities |= IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+		ifp->if_capabilities |=
+		    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_LRO;
 	ifp->if_capenable |= IFCAP_LINKSTATE;
 
 	if ((tp->tun_flags & TUN_L2) != 0) {
@@ -1168,6 +1172,12 @@ tundtor(void *data)
 	    (l2tun && (ifp->if_flags & IFF_LINK0) != 0))
 		goto out;
 
+	if (l2tun && tp->tun_lro_ready) {
+		TUNDEBUG (ifp, "LRO disabled\n");
+		tcp_lro_free(&tp->tun_lro);
+		tp->tun_lro_ready = false;
+	}
+
 	if (ifp->if_flags & IFF_UP) {
 		TUN_UNLOCK(tp);
 		if_down(ifp);
@@ -1212,6 +1222,14 @@ tuninit(struct ifnet *ifp)
 		getmicrotime(&ifp->if_lastchange);
 		TUN_UNLOCK(tp);
 	} else {
+		if (tcp_lro_init(&tp->tun_lro) == 0) {
+			TUNDEBUG(ifp, "LRO enabled\n");
+			tp->tun_lro.ifp = ifp;
+			tp->tun_lro_ready = true;
+		} else {
+			TUNDEBUG(ifp, "Could not enable LRO\n");
+			tp->tun_lro_ready = false;
+		}
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		TUN_UNLOCK(tp);
 		/* attempt to start output */
@@ -1758,6 +1776,7 @@ tunwrite_l2(struct tuntap_softc *tp, struct mbuf *m,
 	struct epoch_tracker et;
 	struct ether_header *eh;
 	struct ifnet *ifp;
+	int result;
 
 	ifp = TUN2IFP(tp);
 
@@ -1813,7 +1832,15 @@ tunwrite_l2(struct tuntap_softc *tp, struct mbuf *m,
 	/* Pass packet up to parent. */
 	CURVNET_SET(ifp->if_vnet);
 	NET_EPOCH_ENTER(et);
-	(*ifp->if_input)(ifp, m);
+	if (tp->tun_lro_ready && ifp->if_capenable & IFCAP_LRO) {
+		result = tcp_lro_rx(&tp->tun_lro, m, 0);
+		TUNDEBUG(ifp, "tcp_lro_rx() returned %d\n", result);
+	} else
+		result = TCP_LRO_CANNOT;
+	if (result == 0)
+		tcp_lro_flush_all(&tp->tun_lro);
+	else
+		(*ifp->if_input)(ifp, m);
 	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 	/* ibytes are counted in parent */
