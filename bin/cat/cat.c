@@ -281,7 +281,8 @@ scanfiles(char *argv[], int cooked __unused)
 		} else {
 #ifndef BOOTSTRAP_CAT
 			if (in_kernel_copy(fd) == -1) {
-				if (errno == EINVAL || errno == EBADF)
+				if (errno == EINVAL || errno == EBADF ||
+				    errno == EISDIR)
 					raw_cat(fd);
 				else
 					err(1, "stdout");
