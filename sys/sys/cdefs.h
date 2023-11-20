@@ -82,7 +82,6 @@
 #else
 #define	__GNUCLIKE_ASM 2
 #endif
-#define	__GNUCLIKE___TYPEOF 1
 #define	__GNUCLIKE___SECTION 1
 
 #define	__GNUCLIKE_CTOR_SECTION_HANDLING 1
