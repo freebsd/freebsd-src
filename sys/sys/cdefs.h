@@ -79,17 +79,7 @@
  */
 #define	__compiler_membar()	__asm __volatile(" " : : : "memory")
 
-/* XXX: if __GNUC__ >= 2: not tested everywhere originally, where replaced */
-#define	__CC_SUPPORTS_INLINE 1
 #define	__CC_SUPPORTS___INLINE 1
-#define	__CC_SUPPORTS___INLINE__ 1
-
-#define	__CC_SUPPORTS___FUNC__ 1
-#define	__CC_SUPPORTS_WARNING 1
-
-#define	__CC_SUPPORTS_VARADIC_XXX 1 /* see varargs.h */
-
-#define	__CC_SUPPORTS_DYNAMIC_ARRAY_INIT 1
 
 #endif /* __GNUC__ */
 
