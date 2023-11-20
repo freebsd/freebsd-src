@@ -1805,7 +1805,7 @@ inpcb_fini(void *mem, int size)
  * in_pcbdetach().
  *
  * XXXRW: Possibly in_pcbdrop() should also prevent future notifications by
- * in_pcbnotifyall() and in_pcbpurgeif0()?
+ * in_pcbpurgeif0()?
  */
 void
 in_pcbdrop(struct inpcb *inp)
@@ -1877,32 +1877,6 @@ in_getpeeraddr(struct socket *so, struct sockaddr **nam)
 
 	*nam = in_sockaddr(port, &addr);
 	return 0;
-}
-
-void
-in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr faddr, int errno,
-    struct inpcb *(*notify)(struct inpcb *, int))
-{
-	struct inpcb *inp, *inp_temp;
-
-	INP_INFO_WLOCK(pcbinfo);
-	CK_LIST_FOREACH_SAFE(inp, &pcbinfo->ipi_listhead, inp_list, inp_temp) {
-		INP_WLOCK(inp);
-#ifdef INET6
-		if ((inp->inp_vflag & INP_IPV4) == 0) {
-			INP_WUNLOCK(inp);
-			continue;
-		}
-#endif
-		if (inp->inp_faddr.s_addr != faddr.s_addr ||
-		    inp->inp_socket == NULL) {
-			INP_WUNLOCK(inp);
-			continue;
-		}
-		if ((*notify)(inp, errno))
-			INP_WUNLOCK(inp);
-	}
-	INP_INFO_WUNLOCK(pcbinfo);
 }
 
 static bool
