@@ -72,6 +72,16 @@
  * having a compiler-agnostic source tree.
  */
 
+/*
+ * Macro to test if we're using a specific version of gcc or later.
+ */
+#if defined(__GNUC__)
+#define	__GNUC_PREREQ__(ma, mi)	\
+	(__GNUC__ > (ma) || __GNUC__ == (ma) && __GNUC_MINOR__ >= (mi))
+#else
+#define	__GNUC_PREREQ__(ma, mi)	0
+#endif
+
 #if defined(__GNUC__)
 
 /*
@@ -82,16 +92,6 @@
 #define	__CC_SUPPORTS___INLINE 1
 
 #endif /* __GNUC__ */
-
-/*
- * Macro to test if we're using a specific version of gcc or later.
- */
-#if defined(__GNUC__)
-#define	__GNUC_PREREQ__(ma, mi)	\
-	(__GNUC__ > (ma) || __GNUC__ == (ma) && __GNUC_MINOR__ >= (mi))
-#else
-#define	__GNUC_PREREQ__(ma, mi)	0
-#endif
 
 /*
  * The __CONCAT macro is used to concatenate parts of symbol names, e.g.
