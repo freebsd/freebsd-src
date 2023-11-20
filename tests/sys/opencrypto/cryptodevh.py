@@ -23,8 +23,6 @@ def __has_include(x): return 0
 
 def __has_builtin(x): return 0
 
-__GNUCLIKE_BUILTIN_NEXT_ARG = 1
-__GNUCLIKE_BUILTIN_MEMCPY = 1
 __CC_SUPPORTS_INLINE = 1
 __CC_SUPPORTS___INLINE = 1
 __CC_SUPPORTS___INLINE__ = 1
