@@ -378,6 +378,13 @@ struct athn_calib {
 
 struct athn_softc;
 
+struct athn_vap {
+	struct ieee80211vap	vap;
+	int			(*newstate)(struct ieee80211vap *,
+				    enum ieee80211_state, int);
+};
+#define	ATHN_VAP(vap)		((struct athn_vap *)(vap))
+
 struct athn_ops {
 	/* Bus callbacks. */
 	uint32_t	(*read)(struct athn_softc *, uint32_t);
