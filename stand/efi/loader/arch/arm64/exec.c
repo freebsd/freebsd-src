@@ -40,16 +40,6 @@
 #include "loader_efi.h"
 #include "cache.h"
 
-#include "platform/acfreebsd.h"
-#include "acconfig.h"
-#define ACPI_SYSTEM_XFACE
-#define ACPI_USE_SYSTEM_INTTYPES
-#include "actypes.h"
-#include "actbl.h"
-
-static EFI_GUID acpi_guid = ACPI_TABLE_GUID;
-static EFI_GUID acpi20_guid = ACPI_20_TABLE_GUID;
-
 static int elf64_exec(struct preloaded_file *amp);
 static int elf64_obj_exec(struct preloaded_file *amp);
 
@@ -73,51 +63,9 @@ elf64_exec(struct preloaded_file *fp)
 	vm_offset_t clean_addr;
 	size_t clean_size;
 	struct file_metadata *md;
-	ACPI_TABLE_RSDP *rsdp;
 	Elf_Ehdr *ehdr;
-	char buf[24];
-	int err, revision;
+	int err;
 	void (*entry)(vm_offset_t);
-
-	/*
-	 * Report the RSDP to the kernel. The old code used the 'hints' method
-	 * to communicate this to the kernel, but this is now considered legacy.
-	 * Instead, move to setting different tunables that start with acpi.
-	 * The old 'hints' can be removed before we branch for FreeBSD 15.
-	 */
-
-	rsdp = efi_get_table(&acpi20_guid);
-	if (rsdp == NULL) {
-		rsdp = efi_get_table(&acpi_guid);
-	}
-	if (rsdp != NULL) {
-		sprintf(buf, "0x%016llx", (unsigned long long)rsdp);
-		setenv("hint.acpi.0.rsdp", buf, 1);
-		setenv("acpi.rsdp", buf, 1);
-		revision = rsdp->Revision;
-		if (revision == 0)
-			revision = 1;
-		sprintf(buf, "%d", revision);
-		setenv("hint.acpi.0.revision", buf, 1);
-		setenv("acpi.revision", buf, 1);
-		strncpy(buf, rsdp->OemId, sizeof(rsdp->OemId));
-		buf[sizeof(rsdp->OemId)] = '\0';
-		setenv("hint.acpi.0.oem", buf, 1);
-		setenv("acpi.oem", buf, 1);
-		sprintf(buf, "0x%016x", rsdp->RsdtPhysicalAddress);
-		setenv("hint.acpi.0.rsdt", buf, 1);
-		setenv("acpi.rsdt", buf, 1);
-		if (revision >= 2) {
-			/* XXX extended checksum? */
-			sprintf(buf, "0x%016llx",
-			    (unsigned long long)rsdp->XsdtPhysicalAddress);
-			setenv("hint.acpi.0.xsdt", buf, 1);
-			setenv("acpi.xsdt", buf, 1);
-			sprintf(buf, "%d", rsdp->Length);
-			setenv("hint.acpi.0.xsdt_length", buf, 1);
-			setenv("acpi.xsdt_length", buf, 1);
-		}
-	}
 
 	if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
         	return(EFTYPE);
