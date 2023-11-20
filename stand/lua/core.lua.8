@@ -90,7 +90,7 @@ constants.
 .Ss Exported functions
 The following functions are exported from
 .Nm :
-.Bl -tag -width core.getACPIPresent -offset indent
+.Bl -tag -width core.setSingleUser -offset indent
 .It Fn core.setVerbose verbose
 Sets or unsets
 .Ev boot_verbose .
@@ -103,15 +103,14 @@ Sets or unsets
 If
 .Fa singleUser
 is omitted, toggle the current single user setting.
-.It Fn core.getACPIPresent checkingSystemDefaults
-Check whether ACPI is present.
-This will only be accurate for i386-compatible loaders, including non-UEFI
-loaders on amd64 systems.
-If
-.Fa checkingSystemDefaults
-is true, ignore the current value of
-.Ev hint.acpi.0.disabled .
-Otherwise, return true only if ACPI is both present and not disabled.
+.It Fn core.getACPI
+Return true if ACPI is both present and not explicitly disabled by
+.Ev hints.acpi.0.disabled .
+.It Fn core.hasACPI
+Checks whether ACPI support is present.
+This requires the loader to probe the system and set
+.Ev acpi.rsdp
+early before starting the interpreter.
 .It Fn core.setACPI acpi
 Sets or unsets
 .Ev acpi_load ,
@@ -209,9 +208,6 @@ This checks
 .Ev boot_serial ,
 and
 .Ev boot_multicons .
-.It Fn core.isSystem386
-Returns true if this bootloader was compiled as an i386 binary.
-This generally applies to i386 loaders as well as non-UEFI loaders on amd64.
 .It Fn core.deepCopyTable tbl
 Recursively deep copies
 .Fa tbl

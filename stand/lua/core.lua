@@ -32,6 +32,7 @@ local hook = require("hook")
 
 local core = {}
 
+local default_acpi = false
 local default_safe_mode = false
 local default_single_user = false
 local default_verbose = false
@@ -46,20 +47,14 @@ local function composeLoaderCmd(cmd_name, argstr)
 end
 
 local function recordDefaults()
-	-- On i386, hint.acpi.0.rsdp will be set before we're loaded. On !i386,
-	-- it will generally be set upon execution of the kernel. Because of
-	-- this, we can't (or don't really want to) detect/disable ACPI on !i386
-	-- reliably. Just set it enabled if we detect it and leave well enough
-	-- alone if we don't.
-	local boot_acpi = core.isSystem386() and core.getACPIPresent(false)
 	local boot_single = loader.getenv("boot_single") or "no"
 	local boot_verbose = loader.getenv("boot_verbose") or "no"
+
+	default_acpi = core.getACPI()
 	default_single_user = boot_single:lower() ~= "no"
 	default_verbose = boot_verbose:lower() ~= "no"
 
-	if boot_acpi then
-		core.setACPI(true)
-	end
+	core.setACPI(default_acpi)
 	core.setSingleUser(default_single_user)
 	core.setVerbose(default_verbose)
 end
@@ -137,18 +132,18 @@ function core.setSingleUser(single_user)
 	core.su = single_user
 end
 
-function core.getACPIPresent(checking_system_defaults)
-	local c = loader.getenv("hint.acpi.0.rsdp")
+function core.hasACPI()
+	return loader.getenv("acpi.rsdp") ~= nil
+end
 
-	if c ~= nil then
-		if checking_system_defaults then
-			return true
-		end
-		-- Otherwise, respect disabled if it's set
-		c = loader.getenv("hint.acpi.0.disabled")
-		return c == nil or tonumber(c) ~= 1
+function core.getACPI()
+	if not core.hasACPI() then
+		return false
 	end
-	return false
+
+	-- Otherwise, respect disabled if it's set
+	local c = loader.getenv("hint.acpi.0.disabled")
+	return c == nil or tonumber(c) ~= 1
 end
 
 function core.setACPI(acpi)
@@ -378,7 +373,7 @@ function core.loadEntropy()
 end
 
 function core.setDefaults()
-	core.setACPI(core.getACPIPresent(true))
+	core.setACPI(default_acpi)
 	core.setSafeMode(default_safe_mode)
 	core.setSingleUser(default_single_user)
 	core.setVerbose(default_verbose)
@@ -468,10 +463,6 @@ function core.isSerialBoot()
 		return true
 	end
 	return false
-end
-
-function core.isSystem386()
-	return loader.machine_arch == "i386"
 end
 
 -- Is the menu skipped in the environment in which we've booted?
