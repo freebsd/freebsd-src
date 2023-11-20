@@ -74,14 +74,6 @@
 
 #if defined(__GNUC__)
 
-#if (__GNUC_MINOR__ > 95 || __GNUC__ >= 3)
-#define	__GNUCLIKE_BUILTIN_VARARGS 1
-#define	__GNUCLIKE_BUILTIN_STDARG 1
-#define	__GNUCLIKE_BUILTIN_VAALIST 1
-#endif
-
-#define	__GNUC_VA_LIST_COMPATIBILITY 1
-
 /*
  * Compiler memory barriers, specific to gcc and clang.
  */
