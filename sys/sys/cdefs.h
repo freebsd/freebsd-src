@@ -79,11 +79,6 @@
  */
 #define	__compiler_membar()	__asm __volatile(" " : : : "memory")
 
-#define	__GNUCLIKE_BUILTIN_NEXT_ARG 1
-#define	__GNUCLIKE_MATH_BUILTIN_RELOPS
-
-#define	__GNUCLIKE_BUILTIN_MEMCPY 1
-
 /* XXX: if __GNUC__ >= 2: not tested everywhere originally, where replaced */
 #define	__CC_SUPPORTS_INLINE 1
 #define	__CC_SUPPORTS___INLINE 1
