@@ -74,8 +74,6 @@
 
 #if defined(__GNUC__)
 
-#define	__GNUCLIKE_BUILTIN_CONSTANT_P 1
-
 #if (__GNUC_MINOR__ > 95 || __GNUC__ >= 3)
 #define	__GNUCLIKE_BUILTIN_VARARGS 1
 #define	__GNUCLIKE_BUILTIN_STDARG 1
