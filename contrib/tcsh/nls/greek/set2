@@ -91,3 +91,20 @@ $set 2
 89 Νέος χαρακτήρας εισόδου
 90 Stack limit exceeded
 91 Unused signal
+92 LM overlay
+93 system freeze
+94 system defreeze
+95 dead lock
+96 υπέρβαση ορίου μεγέθους μνήμης
+97 υπέρβαση ορίου μεγέθους δεδομένων
+98 υπέρβαση ορίου μεγέθους μνήμης των 32KB
+99 exce error for no memory
+100 check point start
+101 check point start of kernel
+102 restart start
+103 επανεκκίνηση πυρήνα
+104 exeeded XMU size limit
+105 υπέρβαση ορίου RLG0
+106 υπέρβαση ορίου RLG1
+107 υπέρβαση ορίου RLG2
+108 υπέρβαση ορίου RLG3
