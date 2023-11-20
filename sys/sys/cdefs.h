@@ -74,8 +74,6 @@
 
 #if defined(__GNUC__)
 
-#define	__GNUCLIKE___SECTION 1
-
 #define	__GNUCLIKE_CTOR_SECTION_HANDLING 1
 
 #define	__GNUCLIKE_BUILTIN_CONSTANT_P 1
