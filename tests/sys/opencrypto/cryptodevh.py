@@ -23,13 +23,6 @@ def __has_include(x): return 0
 
 def __has_builtin(x): return 0
 
-__CC_SUPPORTS_INLINE = 1
-__CC_SUPPORTS___INLINE = 1
-__CC_SUPPORTS___INLINE__ = 1
-__CC_SUPPORTS___FUNC__ = 1
-__CC_SUPPORTS_WARNING = 1
-__CC_SUPPORTS_VARADIC_XXX = 1
-__CC_SUPPORTS_DYNAMIC_ARRAY_INIT = 1
 def __P(protos): return protos		 
 
 def __STRING(x): return #x		 
