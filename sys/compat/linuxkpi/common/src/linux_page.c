@@ -118,10 +118,12 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 			    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 			if (page == NULL) {
 				if (flags & M_WAITOK) {
-					if (!vm_page_reclaim_contig(req,
-					    npages, 0, pmax, PAGE_SIZE, 0)) {
+					int err = vm_page_reclaim_contig(req,
+					    npages, 0, pmax, PAGE_SIZE, 0);
+					if (err == ENOMEM)
 						vm_wait(NULL);
-					}
+					else if (err != 0)
+						return (NULL);
 					flags &= ~M_WAITOK;
 					goto retry;
 				}

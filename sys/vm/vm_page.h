@@ -660,11 +660,11 @@ vm_page_t vm_page_prev(vm_page_t m);
 bool vm_page_ps_test(vm_page_t m, int flags, vm_page_t skip_m);
 void vm_page_putfake(vm_page_t m);
 void vm_page_readahead_finish(vm_page_t m);
-bool vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low,
+int vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low,
     vm_paddr_t high, u_long alignment, vm_paddr_t boundary);
-bool vm_page_reclaim_contig_domain(int domain, int req, u_long npages,
+int vm_page_reclaim_contig_domain(int domain, int req, u_long npages,
     vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary);
-bool vm_page_reclaim_contig_domain_ext(int domain, int req, u_long npages,
+int vm_page_reclaim_contig_domain_ext(int domain, int req, u_long npages,
     vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     int desired_runs);
 void vm_page_reference(vm_page_t m);
