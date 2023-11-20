@@ -60,6 +60,12 @@
 #include "efizfs.h"
 #include "framebuffer.h"
 
+#include "platform/acfreebsd.h"
+#include "acconfig.h"
+#define ACPI_SYSTEM_XFACE
+#include "actypes.h"
+#include "actbl.h"
+
 #include "loader_efi.h"
 
 struct arch_switch archsw;	/* MI/MD interface boundary */
@@ -896,6 +902,39 @@ ptov(uintptr_t x)
 	return ((caddr_t)x);
 }
 
+static void
+acpi_detect(void)
+{
+	ACPI_TABLE_RSDP *rsdp;
+	char buf[24];
+	int revision;
+
+	if ((rsdp = efi_get_table(&acpi20)) == NULL)
+		if ((rsdp = efi_get_table(&acpi)) == NULL)
+			return;
+
+	sprintf(buf, "0x%016llx", (unsigned long long)rsdp);
+	setenv("acpi.rsdp", buf, 1);
+	revision = rsdp->Revision;
+	if (revision == 0)
+		revision = 1;
+	sprintf(buf, "%d", revision);
+	setenv("acpi.revision", buf, 1);
+	strncpy(buf, rsdp->OemId, sizeof(rsdp->OemId));
+	buf[sizeof(rsdp->OemId)] = '\0';
+	setenv("acpi.oem", buf, 1);
+	sprintf(buf, "0x%016x", rsdp->RsdtPhysicalAddress);
+	setenv("acpi.rsdt", buf, 1);
+	if (revision >= 2) {
+		/* XXX extended checksum? */
+		sprintf(buf, "0x%016llx",
+		    (unsigned long long)rsdp->XsdtPhysicalAddress);
+		setenv("acpi.xsdt", buf, 1);
+		sprintf(buf, "%d", rsdp->Length);
+		setenv("acpi.xsdt_length", buf, 1);
+	}
+}
+
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
@@ -941,6 +980,9 @@ main(int argc, CHAR16 *argv[])
 
         /* Get our loaded image protocol interface structure. */
 	(void) OpenProtocolByHandle(IH, &imgid, (void **)&boot_img);
+
+	/* Report the RSDP early. */
+	acpi_detect();
 
 	/*
 	 * Chicken-and-egg problem; we want to have console output early, but
