@@ -234,8 +234,8 @@ kmem_alloc_contig_pages(vm_object_t object, vm_pindex_t pindex, int domain,
 			break;
 
 		VM_OBJECT_WUNLOCK(object);
-		if (!vm_page_reclaim_contig_domain(domain, pflags, npages,
-		    low, high, alignment, boundary) && wait)
+		if (vm_page_reclaim_contig_domain(domain, pflags, npages,
+		    low, high, alignment, boundary) == ENOMEM && wait)
 			vm_wait_domain(domain);
 		VM_OBJECT_WLOCK(object);
 	}
@@ -308,8 +308,12 @@ kmem_alloc_attr_domainset(struct domainset *ds, vm_size_t size, int flags,
     vm_paddr_t low, vm_paddr_t high, vm_memattr_t memattr)
 {
 	struct vm_domainset_iter di;
+	vm_page_t bounds[2];
 	void *addr;
 	int domain;
+	int start_segind;
+
+	start_segind = -1;
 
 	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
 	do {
@@ -317,6 +321,12 @@ kmem_alloc_attr_domainset(struct domainset *ds, vm_size_t size, int flags,
 		    memattr);
 		if (addr != NULL)
 			break;
+		if (start_segind == -1)
+			start_segind = vm_phys_lookup_segind(low);
+		if (vm_phys_find_range(bounds, start_segind, domain,
+		    atop(round_page(size)), low, high) == -1) {
+			vm_domainset_iter_ignore(&di, domain);
+		}
 	} while (vm_domainset_iter_policy(&di, &domain) == 0);
 
 	return (addr);
@@ -392,8 +402,12 @@ kmem_alloc_contig_domainset(struct domainset *ds, vm_size_t size, int flags,
     vm_memattr_t memattr)
 {
 	struct vm_domainset_iter di;
+	vm_page_t bounds[2];
 	void *addr;
 	int domain;
+	int start_segind;
+
+	start_segind = -1;
 
 	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
 	do {
@@ -401,6 +415,12 @@ kmem_alloc_contig_domainset(struct domainset *ds, vm_size_t size, int flags,
 		    alignment, boundary, memattr);
 		if (addr != NULL)
 			break;
+		if (start_segind == -1)
+			start_segind = vm_phys_lookup_segind(low);
+		if (vm_phys_find_range(bounds, start_segind, domain,
+		    atop(round_page(size)), low, high) == -1) {
+			vm_domainset_iter_ignore(&di, domain);
+		}
 	} while (vm_domainset_iter_policy(&di, &domain) == 0);
 
 	return (addr);
