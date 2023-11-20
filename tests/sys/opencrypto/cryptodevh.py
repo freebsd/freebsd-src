@@ -23,7 +23,6 @@ def __has_include(x): return 0
 
 def __has_builtin(x): return 0
 
-__GNUCLIKE_CTOR_SECTION_HANDLING = 1
 __GNUCLIKE_BUILTIN_CONSTANT_P = 1
 __GNUCLIKE_BUILTIN_VARARGS = 1
 __GNUCLIKE_BUILTIN_STDARG = 1
