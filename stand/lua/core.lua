@@ -136,9 +136,14 @@ function core.hasACPI()
 	return loader.getenv("acpi.rsdp") ~= nil
 end
 
+function core.isX86()
+	return loader.machine_arch == "i386" or loader.machine_arch == "amd64"
+end
+
 function core.getACPI()
 	if not core.hasACPI() then
-		return false
+		-- x86 requires ACPI pretty much
+		return false or core.isX86()
 	end
 
 	-- Otherwise, respect disabled if it's set
