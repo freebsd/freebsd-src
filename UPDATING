@@ -12,6 +12,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240415:
+	MFC e0f3dc82727f: If you have an arm64 system that uses ACPI, you will
+	need to update your loader.efi in the ESP when you update past this
+	point.  Detection of ACPI was moved earlier in the binary so the scripts
+	could use it, but old binaries don't have this, so we default to 'no
+	ACPI' in this case.
+
 20240218:
 	MFC of 713db49d06de changed 'struct ieee80211vap' internals in net80211.
 	Given we do not have enough spares and the struct is allocated by
@@ -24,6 +31,10 @@ and/or ports.
 	endings.  This may cause issues with receiving messages from
 	non-compliant MTAs; please see the first 8.18.1 release note in
 	contrib/sendmail/RELEASE_NOTES for mitigations.
+
+20231113:
+	The WITHOUT_LLD_IS_LD option has been removed.  When LLD is enabled
+	it is always installed as /usr/bin/ld.
 
 20240119:
 	Commit d34f4baaf138 changed the internal interface between
