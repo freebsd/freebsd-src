@@ -4365,7 +4365,7 @@ netinet/tcp_reass.c		optional inet | inet6
 netinet/tcp_sack.c		optional inet | inet6
 netinet/tcp_stacks/bbr.c	optional inet tcp_bbr | inet6 tcp_bbr \
 	compile-with "${NORMAL_C} -DMODNAME=tcp_bbr -DSTACKNAME=bbr"
-netinet/tcp_stacks/rack.c	optional inet tcp_bbr | inet6 tcp_bbr \
+netinet/tcp_stacks/rack.c	optional inet tcp_rack | inet6 tcp_rack \
 	compile-with "${NORMAL_C} -DMODNAME=tcp_rack -DSTACKNAME=rack"
 netinet/tcp_stacks/rack_bbr_common.c	optional inet tcp_bbr | inet tcp_rack | inet6 tcp_bbr | inet6 tcp_rack
 netinet/tcp_stacks/sack_filter.c	optional inet tcp_bbr | inet tcp_rack | inet6 tcp_bbr | inet6 tcp_rack
