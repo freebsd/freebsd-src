@@ -2535,11 +2535,6 @@ _basic_bootstrap_tools+=usr.bin/mkfifo
 # jot is needed for the mkimg tests
 _basic_bootstrap_tools+=usr.bin/jot
 
-.if ${MK_BOOT} != "no"
-# md5 is used by boot/beri (and possibly others)
-_basic_bootstrap_tools+=sbin/md5
-.endif
-
 # tzsetup is needed as an install tool
 .if ${MK_ZONEINFO} != "no"
 _basic_bootstrap_tools+=usr.sbin/tzsetup
