@@ -60,6 +60,7 @@
 #include "efizfs.h"
 #include "framebuffer.h"
 
+#define        ACPI_USE_SYSTEM_INTTYPES
 #include "platform/acfreebsd.h"
 #include "acconfig.h"
 #define ACPI_SYSTEM_XFACE
