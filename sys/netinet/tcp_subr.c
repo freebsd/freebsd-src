@@ -4678,3 +4678,30 @@ tcp_get_srtt(struct tcpcb *tp, int granularity)
 
 	return (srtt);
 }
+
+void
+tcp_account_for_send(struct tcpcb *tp, uint32_t len, uint8_t is_rxt,
+    uint8_t is_tlp, bool hw_tls)
+{
+
+	if (is_tlp) {
+		tp->t_sndtlppack++;
+		tp->t_sndtlpbyte += len;
+	}
+	/* To get total bytes sent you must add t_snd_rxt_bytes to t_sndbytes */
+	if (is_rxt)
+		tp->t_snd_rxt_bytes += len;
+	else
+		tp->t_sndbytes += len;
+
+#ifdef KERN_TLS
+	if (hw_tls && is_rxt && len != 0) {
+		uint64_t rexmit_percent;
+
+		rexmit_percent = (1000ULL * tp->t_snd_rxt_bytes) /
+		    (10ULL * (tp->t_snd_rxt_bytes + tp->t_sndbytes));
+		if (rexmit_percent > ktls_ifnet_max_rexmit_pct)
+			ktls_disable_ifnet(tp);
+	}
+#endif
+}

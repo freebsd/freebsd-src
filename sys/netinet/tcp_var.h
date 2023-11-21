@@ -38,7 +38,6 @@
 #include <netinet/tcp_fsm.h>
 
 #ifdef _KERNEL
-#include "opt_kern_tls.h"
 #include <net/vnet.h>
 #include <sys/mbuf.h>
 #include <sys/ktls.h>
@@ -1356,6 +1355,7 @@ VNET_DECLARE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST + 1]);
 #define	V_tcp_hhh		VNET(tcp_hhh)
 #endif
 
+void	tcp_account_for_send(struct tcpcb *, uint32_t, uint8_t, uint8_t, bool);
 int	 tcp_addoptions(struct tcpopt *, u_char *);
 struct tcpcb *
 	 tcp_close(struct tcpcb *);
@@ -1588,30 +1588,6 @@ tcp_set_flags(struct tcphdr *th, uint16_t flags)
 {
         th->th_x2    = (flags >> 8) & 0x0f;
         th->th_flags = flags & 0xff;
-}
-
-static inline void
-tcp_account_for_send(struct tcpcb *tp, uint32_t len, uint8_t is_rxt,
-    uint8_t is_tlp, bool hw_tls)
-{
-	if (is_tlp) {
-		tp->t_sndtlppack++;
-		tp->t_sndtlpbyte += len;
-	}
-	/* To get total bytes sent you must add t_snd_rxt_bytes to t_sndbytes */
-	if (is_rxt)
-		tp->t_snd_rxt_bytes += len;
-	else
-		tp->t_sndbytes += len;
-
-#ifdef KERN_TLS
-	if (hw_tls && is_rxt && len != 0) {
-		uint64_t rexmit_percent = (1000ULL * tp->t_snd_rxt_bytes) / (10ULL * (tp->t_snd_rxt_bytes + tp->t_sndbytes));
-		if (rexmit_percent > ktls_ifnet_max_rexmit_pct)
-			ktls_disable_ifnet(tp);
-	}
-#endif
-
 }
 #endif /* _KERNEL */
 
