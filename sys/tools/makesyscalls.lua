@@ -42,6 +42,7 @@ local generated_tag = "@" .. "generated"
 local config = {
 	os_id_keyword = "FreeBSD",		-- obsolete, ignored on input, not generated
 	abi_func_prefix = "",
+	libsysmap = "/dev/null",
 	sysnames = "syscalls.c",
 	sysproto = "../sys/sysproto.h",
 	sysproto_h = "_SYS_SYSPROTO_H_",
@@ -85,6 +86,7 @@ local output_files = {
 	"sysnames",
 	"syshdr",
 	"sysmk",
+	"libsysmap",
 	"syssw",
 	"systrace",
 	"sysproto",
@@ -922,6 +924,12 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 		    config.syscallprefix, funcalias, sysnum))
 		write_line("sysmk", string.format(" \\\n\t%s.o",
 		    funcalias))
+		if funcalias ~= "exit" and funcalias ~= "getlogin" and funcalias ~= "vfork" then
+			write_line("libsysmap", string.format("\t_%s;\n",
+			    funcalias))
+		end
+		write_line("libsysmap", string.format("\t__sys_%s;\n",
+		    funcalias))
 	end
 end
 
@@ -1485,6 +1493,13 @@ write_line("sysmk", string.format([[# FreeBSD system call object files.
 # DO NOT EDIT-- this file is automatically %s.
 MIASM = ]], generated_tag))
 
+write_line("libsysmap", string.format([[/*
+ * FreeBSD system call symbols.
+ *  DO NOT EDIT-- this file is automatically %s.
+ */
+FBSDprivate_1.0 {
+]], generated_tag))
+
 write_line("systrace", string.format([[/*
  * System call argument to DTrace register array converstion.
  *
@@ -1548,6 +1563,7 @@ write_line("sysprotoend", string.format([[
 ]], config.sysproto_h))
 
 write_line("sysmk", "\n")
+write_line("libsysmap", "};\n")
 write_line("sysent", "};\n")
 write_line("sysnames", "};\n")
 -- maxsyscall is the highest seen; MAXSYSCALL should be one higher
