@@ -59,8 +59,6 @@
 #include <sys/rctl.h>
 #endif
 
-#ifdef RACCT
-
 FEATURE(racct, "Resource Accounting");
 
 /*
@@ -1364,5 +1362,3 @@ racct_init(void)
 	prison0.pr_prison_racct = prison_racct_find("0");
 }
 SYSINIT(racct, SI_SUB_RACCT, SI_ORDER_FIRST, racct_init, NULL);
-
-#endif /* !RACCT */
