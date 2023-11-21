@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20231120:
+	If you have an arm64 system that uses ACPI, you will need to update your
+	loader.efi in the ESP when you update past this point.  Detection of ACPI
+	was moved earlier in the binary so the scripts could use it, but old
+	binaries don't have this, so we default to 'no ACPI' in this case.
+
 20231113:
 	The WITHOUT_LLD_IS_LD option has been removed.  When LLD is enabled
 	it is always installed as /usr/bin/ld.
