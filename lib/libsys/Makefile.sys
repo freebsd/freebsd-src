@@ -32,6 +32,7 @@ PSEUDO+= _clock_gettime.o _gettimeofday.o
 # Sources common to both syscall interfaces:
 SRCS+=	\
 	__error.c \
+	_once_stub.c \
 	interposing_table.c
 
 SRCS+= getdents.c lstat.c mknod.c stat.c
