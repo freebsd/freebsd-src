@@ -112,7 +112,7 @@ static int	 needcomm;	/* -o "command" */
 static int	 needenv;	/* -e */
 static int	 needuser;	/* -o "user" */
 static int	 optfatal;	/* Fatal error parsing some list-option. */
-static int	 pid_max;	/* kern.max_pid */
+static int	 pid_max;	/* kern.pid_max */
 
 static enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
 
