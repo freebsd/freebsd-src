@@ -3888,7 +3888,7 @@ kern/kern_priv.c		standard
 kern/kern_proc.c		standard
 kern/kern_procctl.c		standard
 kern/kern_prot.c		standard
-kern/kern_racct.c		standard
+kern/kern_racct.c		optional racct
 kern/kern_rangelock.c		standard
 kern/kern_rctl.c		standard
 kern/kern_resource.c		standard
