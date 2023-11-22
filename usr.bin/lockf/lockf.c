@@ -38,7 +38,7 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-static int acquire_lock(const char *name, int flags);
+static int acquire_lock(const char *name, int flags, int silent);
 static void cleanup(void);
 static void killed(int sig);
 static void timeout(int sig);
@@ -125,13 +125,14 @@ main(int argc, char **argv)
 	 * avoiding the separate step of waiting for the lock.  This
 	 * yields fairness and improved performance.
 	 */
-	lockfd = acquire_lock(lockname, flags | O_NONBLOCK);
+	lockfd = acquire_lock(lockname, flags | O_NONBLOCK, silent);
 	while (lockfd == -1 && !timed_out && waitsec != 0) {
 		if (keep)
-			lockfd = acquire_lock(lockname, flags);
+			lockfd = acquire_lock(lockname, flags, silent);
 		else {
 			wait_for_lock(lockname);
-			lockfd = acquire_lock(lockname, flags | O_NONBLOCK);
+			lockfd = acquire_lock(lockname, flags | O_NONBLOCK,
+			    silent);
 		}
 	}
 	if (waitsec > 0)
@@ -168,15 +169,18 @@ main(int argc, char **argv)
  * on success, or -1 on failure.
  */
 static int
-acquire_lock(const char *name, int flags)
+acquire_lock(const char *name, int flags, int silent)
 {
 	int fd;
 
 	if ((fd = open(name, O_EXLOCK|flags, 0666)) == -1) {
 		if (errno == EAGAIN || errno == EINTR)
 			return (-1);
-		else if (errno == ENOENT && (flags & O_CREAT) == 0)
-			err(EX_UNAVAILABLE, "%s", name);
+		else if (errno == ENOENT && (flags & O_CREAT) == 0) {
+			if (!silent)
+				warn("%s", name);
+			exit(EX_UNAVAILABLE);
+		}
 		err(EX_CANTCREAT, "cannot open %s", name);
 	}
 	return (fd);
