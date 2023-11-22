@@ -2323,7 +2323,7 @@ void CheckASLR() {
                "and binaries compiled with PIE\n"
                "ASLR will be disabled and the program re-executed.\n");
     int aslr_ctl = PROC_ASLR_FORCE_DISABLE;
-    CHECK_NE(procctl(P_PID, 0, PROC_ASLR_CTL, &aslr_ctl), -1);
+    CHECK_NE(internal_procctl(P_PID, 0, PROC_ASLR_CTL, &aslr_ctl), -1);
     ReExec();
   }
 #  elif SANITIZER_PPC64V2
