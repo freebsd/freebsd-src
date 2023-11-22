@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 27, 2023
+.Dd November 17, 2023
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -2151,19 +2151,22 @@ Only effective before the route lookup happened, i.e. when filtering inbound.
 .It Xo Ar divert-to Aq Ar host
 .Ar port Aq Ar port
 .Xc
-Used to redirect packets to a local socket bound to
-.Ar host
-and
+Used to
+.Xr divert 4
+packets to the given divert
 .Ar port .
-The packets will not be modified, so
-.Xr getsockname 2
-on the socket will return the original destination address of the packet.
+Historically
+.Ox pf has another meaning for this, and
+.Fx pf uses
+this syntax to support
+.Xr divert 4 instead. Hence,
+.Ar host
+has no meaning and can be set to anything like 127.0.0.1.
+If a packet is re-injected and does not change direction then it will not be
+re-diverted.
 .It Ar divert-reply
-Used to receive replies for sockets that are bound to addresses
-which are not local to the machine.
-See
-.Xr setsockopt 2
-for information on how to bind these sockets.
+It has no meaning in
+.Fx pf .
 .It Ar probability Aq Ar number
 A probability attribute can be attached to a rule, with a value set between
 0 and 1, bounds not included.

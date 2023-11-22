@@ -80,6 +80,7 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 
 #define	ATTR_CONTIGUOUS		(1UL << 52)
 #define	ATTR_DBM		(1UL << 51)
+#define	ATTR_S1_GP		(1UL << 50)
 #define	ATTR_S1_nG		(1 << 11)
 #define	ATTR_AF			(1 << 10)
 #define	ATTR_SH(x)		((x) << 8)

@@ -76,13 +76,6 @@
 
 #if defined(__GNUC__)
 
-#if __GNUC__ >= 3
-#define	__GNUCLIKE_ASM 3
-#define	__GNUCLIKE_MATH_BUILTIN_CONSTANTS
-#else
-#define	__GNUCLIKE_ASM 2
-#endif
-#define	__GNUCLIKE___TYPEOF 1
 #define	__GNUCLIKE___SECTION 1
 
 #define	__GNUCLIKE_CTOR_SECTION_HANDLING 1

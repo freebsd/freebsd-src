@@ -1,8 +1,7 @@
 /*-
- * Copyright (c) 2014 The FreeBSD Foundation
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * This software was developed by Andrew Turner under
- * sponsorship from the FreeBSD Foundation.
+ * Copyright (c) 2023 Gleb Smirnoff <glebius@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,10 +25,45 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/asm.h>
-#include <sys/elf_common.h>
-#include "SYS.h"
+#include <sys/socket.h>
+#include <netgraph.h>
+#include <netgraph/ng_socket.h>
 
-RSYSCALL(syscall)
+#include <errno.h>
 
-GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
+#include <atf-c.h>
+
+ATF_TC_WITHOUT_HEAD(getsockname);
+ATF_TC_BODY(getsockname, tc)
+{
+	struct sockaddr_ng sg;
+	socklen_t len = sizeof(struct sockaddr_ng);
+#define	NAME	"0123456789012345678901234567891"	/* 31 chars */
+	char name[NG_NODESIZ] = NAME;
+	int cs;
+
+#if 0
+	/* Unnamed node. */
+	ATF_REQUIRE(NgMkSockNode(NULL, &cs, NULL) == 0);
+	ATF_REQUIRE(getsockname(cs, (struct sockaddr *)&sg, &len) == 0);
+	close(cs);
+	/* Unnamed node doesn't return any name/ID now. */
+#endif
+
+	/* Named node. */
+	ATF_REQUIRE(NgMkSockNode(name, &cs, NULL) == 0);
+	ATF_REQUIRE(getsockname(cs, (struct sockaddr *)&sg, &len) == 0);
+#if 0
+	/* sockaddr_ng truncates name now. */
+	ATF_REQUIRE(strcmp(sg.sg_data, NAME) == 0);
+#else
+	ATF_REQUIRE(strncmp(sg.sg_data, NAME, sizeof(sg.sg_data)) == 0);
+#endif
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+	ATF_TP_ADD_TC(tp, getsockname);
+
+	return (atf_no_error());
+}
