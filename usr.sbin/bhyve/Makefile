@@ -34,6 +34,7 @@ SRCS=	\
 	mem.c			\
 	mevent.c		\
 	net_backend_netmap.c	\
+	net_backend_slirp.c	\
 	net_backends.c		\
 	net_utils.c		\
 	pci_emul.c		\
