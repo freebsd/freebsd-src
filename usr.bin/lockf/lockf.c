@@ -62,7 +62,7 @@ main(int argc, char **argv)
 	silent = keep = 0;
 	flags = O_CREAT | O_RDONLY;
 	waitsec = -1;	/* Infinite. */
-	while ((ch = getopt(argc, argv, "sknt:w")) != -1) {
+	while ((ch = getopt(argc, argv, "knst:w")) != -1) {
 		switch (ch) {
 		case 'k':
 			keep = 1;
@@ -228,7 +228,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: lockf [-kns] [-t seconds] file command [arguments]\n");
+	    "usage: lockf [-knsw] [-t seconds] file command [arguments]\n");
 	exit(EX_USAGE);
 }
 
