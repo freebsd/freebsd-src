@@ -10,6 +10,12 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+c5359e2af5ab:
+	bhyve(8) has a new network backend, "slirp", which makes use of the
+	libslirp package to provide a userspace network stack.  This backend
+	makes it possible to access the guest network from the host without
+	requiring any extra network configuration on the host.
+
 bb830e346bd5:
 	Set the IUTF8 flag by default in tty(4).
 
