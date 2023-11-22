@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 26, 2020
+.Dd November 25, 2023
 .Dt LOCKF 1
 .Os
 .Sh NAME
@@ -35,6 +35,10 @@
 .Ar file
 .Ar command
 .Op Ar arguments
+.Nm
+.Op Fl s
+.Op Fl t Ar seconds
+.Ar fd
 .Sh DESCRIPTION
 The
 .Nm
@@ -63,6 +67,27 @@ locking is used, as described in
 the mere existence of the
 .Ar file
 is not considered to constitute a lock.
+.Pp
+.Nm
+may also be used to operate on a file descriptor instead of a file.
+If no
+.Ar command
+is supplied, then
+.Ar fd
+must be a file descriptor.
+The version with a
+.Ar command
+may also be used with a file descriptor by supplying it as a path
+.Pa /dev/fd/N ,
+where N is the desired file descriptor.
+The
+.Fl k
+option is implied when a file descriptor is in use, and the
+.Fl n
+and
+.Fl w
+options are silently ignored.
+This can be used to lock inside a shell script.
 .Pp
 If the
 .Nm
@@ -185,6 +210,42 @@ $ lockf mylock sleep 1 & lockf -t 5 mylock echo "Success"
 [1] 19995
 Success
 [1]+  Done                    lockf mylock sleep 1
+.Ed
+Lock a file and run a script, return immediately if the lock is not
+available. Do not delete the file afterward so lock order is
+guaranteed.
+.Pp
+.Dl $ lockf -t 0 -k /tmp/my.lock myscript
+.Pp
+Protect a section of a shell script with a lock, wait up to 5 seconds
+for it to become available.
+Note that the shell script has opened the lock file
+.Fa /tmp/my.lock ,
+and
+.Nm
+is performing the lock call exclusively via the passed in file descriptor (9).
+In this case
+.Fl k
+is implied, and
+.Fl w
+has no effect because the file has already been opened by the shell.
+This example assumes that
+.Ql >
+is implemented in the shell by opening and truncating
+.Pa /tmp/my.lock ,
+rather than by replacing the lock file.
+.Bd -literal -offset indent
+(
+	lockf -s -t 5 9
+	if [ $? -ne 0 ]; then
+		echo "Failed to obtain lock"
+		exit 1
+	fi
+
+	echo Start
+	# Do some stuff
+	echo End
+) 9>/tmp/my.lock
 .Ed
 .Sh SEE ALSO
 .Xr flock 2 ,
