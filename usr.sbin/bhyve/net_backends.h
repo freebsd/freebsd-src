@@ -28,7 +28,11 @@
 #ifndef __NET_BACKENDS_H__
 #define __NET_BACKENDS_H__
 
-#include <stdint.h>
+#include <sys/nv.h>
+#include <sys/time.h>
+#include <sys/uio.h>
+
+#include "mevent.h"
 
 /* Opaque type representing a network backend. */
 typedef struct net_backend net_backend_t;
@@ -90,5 +94,6 @@ struct virtio_net_rxhdr {
 	uint16_t	vrh_csum_offset;
 	uint16_t	vrh_bufs;
 } __packed;
+#define VNET_HDR_LEN	sizeof(struct virtio_net_rxhdr)
 
 #endif /* __NET_BACKENDS_H__ */
