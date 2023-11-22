@@ -580,7 +580,7 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 				continue;
 			}
 			sbuf_new(&sb, buf, RCTL_LOG_BUFSIZE, SBUF_FIXEDLEN);
-			sbuf_printf(&sb, "rule=");
+			sbuf_cat(&sb, "rule=");
 			rctl_rule_to_sbuf(&sb, rule);
 			sbuf_printf(&sb, " pid=%d ruid=%d jail=%s",
 			    p->p_pid, p->p_ucred->cr_ruid,
@@ -1484,28 +1484,28 @@ rctl_rule_to_sbuf(struct sbuf *sb, const struct rctl_rule *rule)
 	switch (rule->rr_subject_type) {
 	case RCTL_SUBJECT_TYPE_PROCESS:
 		if (rule->rr_subject.rs_proc == NULL)
-			sbuf_printf(sb, ":");
+			sbuf_putc(sb, ':');
 		else
 			sbuf_printf(sb, "%d:",
 			    rule->rr_subject.rs_proc->p_pid);
 		break;
 	case RCTL_SUBJECT_TYPE_USER:
 		if (rule->rr_subject.rs_uip == NULL)
-			sbuf_printf(sb, ":");
+			sbuf_putc(sb, ':');
 		else
 			sbuf_printf(sb, "%d:",
 			    rule->rr_subject.rs_uip->ui_uid);
 		break;
 	case RCTL_SUBJECT_TYPE_LOGINCLASS:
 		if (rule->rr_subject.rs_loginclass == NULL)
-			sbuf_printf(sb, ":");
+			sbuf_putc(sb, ':');
 		else
 			sbuf_printf(sb, "%s:",
 			    rule->rr_subject.rs_loginclass->lc_name);
 		break;
 	case RCTL_SUBJECT_TYPE_JAIL:
 		if (rule->rr_subject.rs_prison_racct == NULL)
-			sbuf_printf(sb, ":");
+			sbuf_putc(sb, ':');
 		else
 			sbuf_printf(sb, "%s:",
 			    rule->rr_subject.rs_prison_racct->prr_name);
@@ -1697,7 +1697,7 @@ rctl_get_rules_callback(struct racct *racct, void *arg2, void *arg3)
 		if (!rctl_rule_matches(link->rrl_rule, filter))
 			continue;
 		rctl_rule_to_sbuf(sb, link->rrl_rule);
-		sbuf_printf(sb, ",");
+		sbuf_putc(sb, ',');
 	}
 }
 
@@ -1754,7 +1754,7 @@ sys_rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
 			if (!rctl_rule_matches(link->rrl_rule, filter))
 				continue;
 			rctl_rule_to_sbuf(sb, link->rrl_rule);
-			sbuf_printf(sb, ",");
+			sbuf_putc(sb, ',');
 		}
 		RACCT_UNLOCK();
 	}
@@ -1847,7 +1847,7 @@ sys_rctl_get_limits(struct thread *td, struct rctl_get_limits_args *uap)
 	LIST_FOREACH(link, &filter->rr_subject.rs_proc->p_racct->r_rule_links,
 	    rrl_next) {
 		rctl_rule_to_sbuf(sb, link->rrl_rule);
-		sbuf_printf(sb, ",");
+		sbuf_putc(sb, ',');
 	}
 	RACCT_UNLOCK();
 	if (sbuf_error(sb) == ENOMEM) {

@@ -309,17 +309,17 @@ tty_info(struct tty *tp)
 	    load / 100, load % 100);
 
 	if (tp->t_session == NULL) {
-		sbuf_printf(&sb, "not a controlling terminal\n");
+		sbuf_cat(&sb, "not a controlling terminal\n");
 		goto out;
 	}
 	if (tp->t_pgrp == NULL) {
-		sbuf_printf(&sb, "no foreground process group\n");
+		sbuf_cat(&sb, "no foreground process group\n");
 		goto out;
 	}
 	PGRP_LOCK(tp->t_pgrp);
 	if (LIST_EMPTY(&tp->t_pgrp->pg_members)) {
 		PGRP_UNLOCK(tp->t_pgrp);
-		sbuf_printf(&sb, "empty foreground process group\n");
+		sbuf_cat(&sb, "empty foreground process group\n");
 		goto out;
 	}
 
