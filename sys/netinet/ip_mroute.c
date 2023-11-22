@@ -708,6 +708,10 @@ ip_mrouter_init(struct socket *so, int version)
 
 	V_mfchashtbl = hashinit_flags(mfchashsize, M_MRTABLE, &V_mfchash,
 	    HASH_NOWAIT);
+	if (V_mfchashtbl == NULL) {
+		MRW_WUNLOCK();
+		return (ENOMEM);
+	}
 
 	/* Create upcall ring */
 	mtx_init(&V_bw_upcalls_ring_mtx, "mroute upcall buf_ring mtx", NULL, MTX_DEF);
