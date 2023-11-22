@@ -157,8 +157,11 @@ main(int argc, char **argv)
 	signal(SIGINT, SIG_IGN);
 	signal(SIGQUIT, SIG_IGN);
 	signal(SIGTERM, killed);
+	fclose(stdin);
+	fclose(stdout);
+	fclose(stderr);
 	if (waitpid(child, &status, 0) == -1)
-		err(EX_OSERR, "waitpid failed");
+		exit(EX_OSERR);
 	return (WIFEXITED(status) ? WEXITSTATUS(status) : EX_SOFTWARE);
 }
 
@@ -210,7 +213,7 @@ killed(int sig)
 	cleanup();
 	signal(sig, SIG_DFL);
 	if (kill(getpid(), sig) == -1)
-		err(EX_OSERR, "kill failed");
+		_Exit(EX_OSERR);
 }
 
 /*
