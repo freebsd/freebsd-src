@@ -33,6 +33,7 @@ SRCS=	\
 	iov.c			\
 	mem.c			\
 	mevent.c		\
+	net_backend_netmap.c	\
 	net_backends.c		\
 	net_utils.c		\
 	pci_emul.c		\
@@ -92,8 +93,8 @@ CFLAGS+=-DINET
 CFLAGS+=-DINET6
 .endif
 .if ${MK_NETGRAPH_SUPPORT} != "no"
-CFLAGS+=-DNETGRAPH
-LIBADD+=    netgraph
+SRCS+=	net_backend_netgraph.c
+LIBADD+=	netgraph
 .endif
 .if ${MK_OPENSSL} == "no"
 CFLAGS+=-DNO_OPENSSL
