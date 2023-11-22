@@ -1150,7 +1150,7 @@ xpt_denounce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
 		    path->device->protocol);
 	if (path->device->serial_num_len > 0)
 		sbuf_printf(sb, " s/n %.60s", path->device->serial_num);
-	sbuf_printf(sb, " detached\n");
+	sbuf_cat(sb, " detached\n");
 }
 
 int
@@ -3713,7 +3713,7 @@ static void
 xpt_device_sbuf(struct cam_ed *device, struct sbuf *sb)
 {
 	if (device == NULL)
-		sbuf_printf(sb, "(nopath): ");
+		sbuf_cat(sb, "(nopath): ");
 	else {
 		sbuf_printf(sb, "(noperiph:%s%d:%d:%d:%jx): ",
 		    device->sim->sim_name,
@@ -3759,31 +3759,31 @@ xpt_path_sbuf(struct cam_path *path, struct sbuf *sb)
 {
 
 	if (path == NULL)
-		sbuf_printf(sb, "(nopath): ");
+		sbuf_cat(sb, "(nopath): ");
 	else {
 		if (path->periph != NULL)
 			sbuf_printf(sb, "(%s%d:", path->periph->periph_name,
 				    path->periph->unit_number);
 		else
-			sbuf_printf(sb, "(noperiph:");
+			sbuf_cat(sb, "(noperiph:");
 
 		if (path->bus != NULL)
 			sbuf_printf(sb, "%s%d:%d:", path->bus->sim->sim_name,
 				    path->bus->sim->unit_number,
 				    path->bus->sim->bus_id);
 		else
-			sbuf_printf(sb, "nobus:");
+			sbuf_cat(sb, "nobus:");
 
 		if (path->target != NULL)
 			sbuf_printf(sb, "%d:", path->target->target_id);
 		else
-			sbuf_printf(sb, "X:");
+			sbuf_cat(sb, "X:");
 
 		if (path->device != NULL)
 			sbuf_printf(sb, "%jx): ",
 			    (uintmax_t)path->device->lun_id);
 		else
-			sbuf_printf(sb, "X): ");
+			sbuf_cat(sb, "X): ");
 	}
 }
 
@@ -5585,7 +5585,7 @@ xpt_cam_debug(const char *fmt, ...)
 	va_list ap;
 
 	sbuf_set_drain(sb, sbuf_printf_drain, NULL);
-	sbuf_printf(sb, "cam_debug: ");
+	sbuf_cat(sb, "cam_debug: ");
 	va_start(ap, fmt);
 	sbuf_vprintf(sb, fmt, ap);
 	va_end(ap);

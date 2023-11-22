@@ -814,7 +814,7 @@ nvme_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
 			    nvmex->lanes, nvmex->max_lanes,
 			    nvmex->speed, nvmex->max_speed);
 	}
-	sbuf_printf(sb, "\n");
+	sbuf_putc(sb, '\n');
 }
 
 static void

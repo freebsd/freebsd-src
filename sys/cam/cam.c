@@ -418,7 +418,7 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 			    ccb->ccb_h.func_code);
 			break;
 		}
-		sbuf_printf(&sb, "\n");
+		sbuf_putc(&sb, '\n');
 	}
 
 	if (flags & CAM_ESF_CAM_STATUS) {
@@ -449,13 +449,13 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 			if (proto_flags & CAM_EAF_PRINT_STATUS) {
 				sbuf_cat(&sb, path_str);
 				ata_status_sbuf(&ccb->ataio, &sb);
-				sbuf_printf(&sb, "\n");
+				sbuf_putc(&sb, '\n');
 			}
 			if (proto_flags & CAM_EAF_PRINT_RESULT) {
 				sbuf_cat(&sb, path_str);
-				sbuf_printf(&sb, "RES: ");
+				sbuf_cat(&sb, "RES: ");
 				ata_res_sbuf(&ccb->ataio.res, &sb);
-				sbuf_printf(&sb, "\n");
+				sbuf_putc(&sb, '\n');
 			}
 
 			break;

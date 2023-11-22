@@ -1721,7 +1721,7 @@ cfiscsi_ioctl_list(struct ctl_iscsi *ci)
 		return;
 	}
 
-	sbuf_printf(sb, "<ctlislist>\n");
+	sbuf_cat(sb, "<ctlislist>\n");
 	mtx_lock(&softc->lock);
 	TAILQ_FOREACH(cs, &softc->sessions, cs_next) {
 		if (cs->cs_target == NULL)
@@ -1760,7 +1760,7 @@ cfiscsi_ioctl_list(struct ctl_iscsi *ci)
 			break;
 	}
 	mtx_unlock(&softc->lock);
-	error = sbuf_printf(sb, "</ctlislist>\n");
+	error = sbuf_cat(sb, "</ctlislist>\n");
 	if (error != 0) {
 		sbuf_delete(sb);
 		ci->status = CTL_ISCSI_LIST_NEED_MORE_SPACE;
