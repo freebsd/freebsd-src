@@ -3746,19 +3746,18 @@ xpt_print(struct cam_path *path, const char *fmt, ...)
 	sbuf_delete(&sb);
 }
 
-int
+char *
 xpt_path_string(struct cam_path *path, char *str, size_t str_len)
 {
 	struct sbuf sb;
-	int len;
 
 	sbuf_new(&sb, str, str_len, 0);
-	len = xpt_path_sbuf(path, &sb);
+	xpt_path_sbuf(path, &sb);
 	sbuf_finish(&sb);
-	return (len);
+	return (str);
 }
 
-int
+void
 xpt_path_sbuf(struct cam_path *path, struct sbuf *sb)
 {
 
@@ -3789,8 +3788,6 @@ xpt_path_sbuf(struct cam_path *path, struct sbuf *sb)
 		else
 			sbuf_printf(sb, "X): ");
 	}
-
-	return(sbuf_len(sb));
 }
 
 path_id_t
