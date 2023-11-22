@@ -1055,6 +1055,8 @@
         ..
         locale
         ..
+        lockf
+        ..
         m4
         ..
         mkimg
