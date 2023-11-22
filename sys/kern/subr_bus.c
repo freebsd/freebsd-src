@@ -5332,7 +5332,7 @@ device_get_path(device_t dev, const char *locator, struct sbuf *sb)
 	KASSERT(sb != NULL, ("sb is NULL"));
 	parent = device_get_parent(dev);
 	if (parent == NULL) {
-		error = sbuf_printf(sb, "/");
+		error = sbuf_putc(sb, '/');
 	} else {
 		error = BUS_GET_DEVICE_PATH(parent, dev, locator, sb);
 		if (error == 0) {

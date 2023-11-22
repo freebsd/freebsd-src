@@ -333,7 +333,7 @@ sysctl_kern_console(SYSCTL_HANDLER_ARGS)
 	sbuf_clear(sb);
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next)
 		sbuf_printf(sb, "%s,", cnd->cnd_cn->cn_name);
-	sbuf_printf(sb, "/");
+	sbuf_putc(sb, '/');
 	SET_FOREACH(list, cons_set) {
 		cp = *list;
 		if (cp->cn_name[0] != '\0')

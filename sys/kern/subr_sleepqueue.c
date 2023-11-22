@@ -1281,7 +1281,7 @@ sleepq_sbuf_print_stacks(struct sbuf *sb, const void *wchan, int queue,
 			sbuf_finish(td_infos[i]);
 			sbuf_printf(sb, "--- thread %s: ---\n", sbuf_data(td_infos[i]));
 			stack_sbuf_print(sb, st[i]);
-			sbuf_printf(sb, "\n");
+			sbuf_putc(sb, '\n');
 
 			error = sbuf_error(sb);
 			if (error == 0)
@@ -1426,7 +1426,7 @@ dump_sleepq_prof_stats(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 	sb = sbuf_new_for_sysctl(NULL, NULL, SLEEPQ_SBUFSIZE, req);
-	sbuf_printf(sb, "\nwmesg\tcount\n");
+	sbuf_cat(sb, "\nwmesg\tcount\n");
 	enabled = prof_enabled;
 	mtx_lock_spin(&sleepq_prof_lock);
 	prof_enabled = 0;
