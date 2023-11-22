@@ -86,7 +86,6 @@ static bus_alloc_resource_t	nexus_alloc_resource;
 static bus_deactivate_resource_t nexus_deactivate_resource;
 static bus_get_resource_list_t	nexus_get_reslist;
 static bus_map_resource_t	nexus_map_resource;
-static bus_set_resource_t	nexus_set_resource;
 static bus_release_resource_t	nexus_release_resource;
 
 static bus_config_intr_t	nexus_config_intr;
@@ -113,9 +112,11 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_adjust_resource,	nexus_adjust_resource),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
 	DEVMETHOD(bus_deactivate_resource, nexus_deactivate_resource),
+	DEVMETHOD(bus_delete_resource,	bus_generic_rl_delete_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_get_resource_list, nexus_get_reslist),
 	DEVMETHOD(bus_map_resource,	nexus_map_resource),
-	DEVMETHOD(bus_set_resource,	nexus_set_resource),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
 	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 	DEVMETHOD(bus_describe_intr,	nexus_describe_intr),
@@ -393,19 +394,6 @@ nexus_get_reslist(device_t dev, device_t child)
 	struct nexus_device *ndev = DEVTONX(child);
 
 	return (&ndev->nx_resources);
-}
-
-static int
-nexus_set_resource(device_t dev, device_t child, int type, int rid,
-    rman_res_t start, rman_res_t count)
-{
-	struct nexus_device	*ndev = DEVTONX(child);
-	struct resource_list	*rl = &ndev->nx_resources;
-
-	/* XXX this should return a success/failure indicator */
-	resource_list_add(rl, type, rid, start, start + count - 1, count);
-
-	return (0);
 }
 
 static int
