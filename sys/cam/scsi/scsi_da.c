@@ -2664,7 +2664,7 @@ daflagssysctl(SYSCTL_HANDLER_ARGS)
 	if (softc->flags != 0)
 		sbuf_printf(&sbuf, "0x%b", (unsigned)softc->flags, DA_FLAG_STRING);
 	else
-		sbuf_printf(&sbuf, "0");
+		sbuf_putc(&sbuf, '0');
 	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
 
@@ -2756,7 +2756,7 @@ dazonesupsysctl(SYSCTL_HANDLER_ARGS)
 	}
 
 	if (first == 1)
-		sbuf_printf(&sb, "None");
+		sbuf_cat(&sb, "None");
 
 	error = sbuf_finish(&sb);
 	sbuf_delete(&sb);
