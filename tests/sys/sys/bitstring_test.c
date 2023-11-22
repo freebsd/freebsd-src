@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2014 Spectra Logic Corporation
+ * Copyright (c) 2023 Klara, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +32,7 @@
 #include <sys/param.h>
 
 #include <bitstring.h>
-#include <stdio.h>
+#include <malloc_np.h>
 
 #include <atf-c.h>
 
@@ -51,6 +52,7 @@ bitstring_run_heap_test(testfunc_t *test, int nbits)
 	bitstr_t *bitstr = bit_alloc(nbits);
 
 	test(bitstr, nbits, "heap");
+	free(bitstr);
 }
 
 static void
@@ -862,6 +864,91 @@ BITSTRING_TC_DEFINE(bit_foreach_unset_at)
 	}
 }
 
+/*
+ * Perform various tests on large bit strings.  We can't simply add larger
+ * sizes to bitstring_runner as most of the existing tests are exhaustive
+ * and would take forever to run for large values of nbits.
+ *
+ * On 32-bit platforms, we use nbits = SSIZE_MAX (2147483647) bits, which
+ * is the largest we can hope to support; on 64-bit platforms, we use
+ * nbits = INT_MAX + 30 (2147483677), which is small enough to be
+ * practicable yet large enough to reveal arithmetic overflow bugs.
+ */
+ATF_TC_WITHOUT_HEAD(bitstr_large);
+ATF_TC_BODY(bitstr_large, tc)
+{
+	size_t nbits  = INT_MAX < SSIZE_MAX ? (size_t)INT_MAX + 30 : SSIZE_MAX;
+	size_t early = 5, late = nbits - 5;
+	ssize_t fc, fs;
+	bitstr_t *b;
+
+	/* Check for overflow in size calculation */
+	ATF_REQUIRE(nbits >= (size_t)INT_MAX);
+	ATF_REQUIRE(bitstr_size(nbits) >= nbits / 8);
+
+	/* Allocate the bit string */
+	ATF_REQUIRE(b = bit_alloc(nbits));
+
+	/* Check that we allocated enough */
+	ATF_REQUIRE(malloc_usable_size(b) >= bitstr_size(nbits));
+
+	/* Check ffc, ffs on all-zeroes string */
+	bit_ffc(b, nbits, &fc);
+	ATF_CHECK_EQ(0L, fc);
+	bit_ffs(b, nbits, &fs);
+	ATF_CHECK_EQ(-1L, fs);
+
+	/* Set, test, and clear an early bit */
+	bit_set(b, early);
+	bit_ffs(b, nbits, &fs);
+	ATF_CHECK_EQ((ssize_t)early, fs);
+	ATF_CHECK_EQ(0, bit_test(b, early - 1));
+	ATF_CHECK(bit_test(b, early) != 0);
+	ATF_CHECK_EQ(0, bit_test(b, early + 1));
+	bit_clear(b, early);
+	ATF_CHECK_EQ(0, bit_test(b, early));
+
+	/* Set, test, and clear an early bit range */
+	bit_nset(b, early - 1, early + 1);
+	bit_ffs(b, nbits, &fs);
+	ATF_CHECK_EQ((ssize_t)early - 1, fs);
+	ATF_CHECK_EQ(0, bit_test(b, early - 2));
+	ATF_CHECK(bit_test(b, early - 1));
+	ATF_CHECK(bit_test(b, early));
+	ATF_CHECK(bit_test(b, early + 1));
+	ATF_CHECK_EQ(0, bit_test(b, early + 2));
+	bit_nclear(b, early - 1, early + 1);
+	ATF_CHECK_EQ(0, bit_test(b, early - 1));
+	ATF_CHECK_EQ(0, bit_test(b, early));
+	ATF_CHECK_EQ(0, bit_test(b, early + 1));
+
+	/* Set, test, and clear a late bit */
+	bit_set(b, late);
+	bit_ffs(b, nbits, &fs);
+	ATF_CHECK_EQ((ssize_t)late, fs);
+	ATF_CHECK_EQ(0, bit_test(b, late - 1));
+	ATF_CHECK(bit_test(b, late) != 0);
+	ATF_CHECK_EQ(0, bit_test(b, late + 1));
+	bit_clear(b, late);
+	ATF_CHECK_EQ(0, bit_test(b, late));
+
+	/* Set, test, and clear a late bit range */
+	bit_nset(b, late - 1, late + 1);
+	bit_ffs(b, nbits, &fs);
+	ATF_CHECK_EQ((ssize_t)late - 1, fs);
+	ATF_CHECK_EQ(0, bit_test(b, late - 2));
+	ATF_CHECK(bit_test(b, late - 1));
+	ATF_CHECK(bit_test(b, late));
+	ATF_CHECK(bit_test(b, late + 1));
+	ATF_CHECK_EQ(0, bit_test(b, late + 2));
+	bit_nclear(b, late - 1, late + 1);
+	ATF_CHECK_EQ(0, bit_test(b, late - 1));
+	ATF_CHECK_EQ(0, bit_test(b, late));
+	ATF_CHECK_EQ(0, bit_test(b, late + 1));
+
+	free(b);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -884,6 +971,7 @@ ATF_TP_ADD_TCS(tp)
 	BITSTRING_TC_ADD(tp, bit_foreach_at);
 	BITSTRING_TC_ADD(tp, bit_foreach_unset);
 	BITSTRING_TC_ADD(tp, bit_foreach_unset_at);
+	ATF_TP_ADD_TC(tp, bitstr_large);
 
 	return (atf_no_error());
 }
