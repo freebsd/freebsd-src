@@ -102,9 +102,9 @@ int			xpt_path_comp(struct cam_path *path1,
 				      struct cam_path *path2);
 int			xpt_path_comp_dev(struct cam_path *path,
 					  struct cam_ed *dev);
-int			xpt_path_string(struct cam_path *path, char *str,
+char *			xpt_path_string(struct cam_path *path, char *str,
 					size_t str_len);
-int			xpt_path_sbuf(struct cam_path *path, struct sbuf *sb);
+void			xpt_path_sbuf(struct cam_path *path, struct sbuf *sb);
 path_id_t		xpt_path_path_id(struct cam_path *path);
 target_id_t		xpt_path_target_id(struct cam_path *path);
 lun_id_t		xpt_path_lun_id(struct cam_path *path);
