@@ -60,6 +60,96 @@ basic_body()
 	atf_check test ! -e "testlock"
 }
 
+atf_test_case fdlock
+fdlock_body()
+{
+	# First, make sure we don't get a false positive -- existing uses with
+	# numeric filenames shouldn't switch to being fdlocks automatically.
+	atf_check lockf -k "9" sleep 0
+	atf_check test -e "9"
+	rm "9"
+
+	subexit_lockfail=1
+	subexit_created=2
+	subexit_lockok=3
+	subexit_concurrent=4
+	(
+		lockf -s -t 0 9
+		if [ $? -ne 0 ]; then
+			exit "$subexit_lockfail"
+		fi
+
+		if [ -e "9" ]; then
+			exit "$subexit_created"
+		fi
+	) 9> "testlock1"
+	rc=$?
+
+	atf_check test "$rc" -eq 0
+
+	sub_delay=5
+
+	# But is it actually locking?  Child 1 will acquire the lock and then
+	# signal that it's ok for the second child to try.  The second child
+	# will try to acquire the lock and fail immediately, signal that it
+	# tried, then try again with an indefinite timeout.  On that one, we'll
+	# just check how long we ended up waiting -- it should be at least
+	# $sub_delay.
+	(
+		lockf -s -t 0 /dev/fd/9
+		if [ $? -ne 0 ]; then
+			exit "$subexit_lockfail"
+		fi
+
+		# Signal
+		touch ".lock_acquired"
+
+		while [ ! -e ".lock_attempted" ]; do
+			sleep 0.5
+		done
+
+		sleep "$sub_delay"
+
+		if [ -e ".lock_acquired_again" ]; then
+			exit "$subexit_concurrent"
+		fi
+	) 9> "testlock2" &
+	lpid1=$!
+
+	(
+		while [ ! -e ".lock_acquired" ]; do
+			sleep 0.5
+		done
+
+		# Got the signal, try
+		lockf -s -t 0 9
+		if [ $? -ne "${EX_TEMPFAIL}" ]; then
+			exit "$subexit_lockok"
+		fi
+
+		touch ".lock_attempted"
+		start=$(date +"%s")
+		lockf -s 9
+		touch ".lock_acquired_again"
+		now=$(date +"%s")
+		elapsed=$((now - start))
+
+		if [ "$elapsed" -lt "$sub_delay" ]; then
+			exit "$subexit_concurrent"
+		fi
+	) 9> "testlock2" &
+	lpid2=$!
+
+	wait "$lpid1"
+	status1=$?
+
+	wait "$lpid2"
+	status2=$?
+
+	atf_check test "$status1" -eq 0
+	atf_check test "$status2" -eq 0
+}
+
 atf_test_case keep
 keep_body()
 {
@@ -141,6 +231,7 @@ atf_init_test_cases()
 {
 	atf_add_test_case badargs
 	atf_add_test_case basic
+	atf_add_test_case fdlock
 	atf_add_test_case keep
 	atf_add_test_case needfile
 	atf_add_test_case timeout
