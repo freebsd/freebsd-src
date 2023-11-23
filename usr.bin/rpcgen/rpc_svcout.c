@@ -27,13 +27,6 @@
  * Mountain View, California  94043
  */
 
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)rpc_svcout.c 1.29 89/03/30 (C) 1987 SMI";
-#endif
-#endif
-
-#include <sys/cdefs.h>
 /*
  * rpc_svcout.c, Server-skeleton outputter for the RPC protocol compiler
  * Copyright (C) 1987, Sun Microsystems, Inc.

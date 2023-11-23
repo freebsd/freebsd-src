@@ -1,5 +1,3 @@
-;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
-;
 ; System call name/number master file.
 ; Processed to created init_sysent.c, syscalls.c and syscall.h.
 

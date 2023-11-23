@@ -33,10 +33,6 @@
  * Protocol description file for the Yellow Pages Service
  */
 
-#ifndef RPC_HDR
-%#include <sys/cdefs.h>
-#endif
-
 const YPMAXRECORD = 16777216;
 const YPMAXDOMAIN = 64;
 const YPMAXMAP = 64;

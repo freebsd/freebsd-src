@@ -27,13 +27,6 @@
  * Mountain View, California  94043
  */
 
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)rpc_parse.c 1.8 89/02/22 (C) 1987 SMI";
-#endif
-#endif
-
-#include <sys/cdefs.h>
 /*
  * rpc_parse.c, Parser for the RPC protocol compiler
  * Copyright (C) 1987 Sun Microsystems, Inc.

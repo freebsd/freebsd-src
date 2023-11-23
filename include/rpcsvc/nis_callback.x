@@ -36,10 +36,6 @@
  *	All Rights Reserved.
  */
 
-#ifndef RPC_HDR
-%#include <sys/cdefs.h>
-#endif
-
 /*
  *
  * RPCL description of the Callback Service.

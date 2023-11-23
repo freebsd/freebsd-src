@@ -35,10 +35,6 @@
  *	All Rights Reserved.
  */
 
-#ifndef RPC_HDR
-%#include <sys/cdefs.h>
-#endif
-
 #ifdef RPC_HDR
 %#include <rpc/types.h>
 %#include <rpcsvc/nis.h>

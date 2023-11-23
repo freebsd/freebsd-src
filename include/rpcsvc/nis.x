@@ -29,10 +29,6 @@
 % *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 % */
 
-#ifndef RPC_HDR
-%#include <sys/cdefs.h>
-#endif
-
 /* 
  *
  * RPC Language Protocol description file for NIS Plus
