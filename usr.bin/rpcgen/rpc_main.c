@@ -28,13 +28,6 @@
  */
 
 
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)rpc_main.c 1.30 89/03/30 (C) 1987 SMI";
-#endif
-#endif
-
-#include <sys/cdefs.h>
 /*
  * rpc_main.c, Top level of the RPC protocol compiler.
  * Copyright (C) 1987, Sun Microsystems, Inc.

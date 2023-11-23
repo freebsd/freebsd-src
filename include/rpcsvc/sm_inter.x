@@ -35,10 +35,6 @@
  *
  */
 
-#ifndef RPC_HDR
-%#include <sys/cdefs.h>
-#endif
-
 program SM_PROG { 
 	version SM_VERS  {
 		/* res_stat = stat_succ if status monitor agrees to monitor */

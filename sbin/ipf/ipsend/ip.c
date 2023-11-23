@@ -4,10 +4,6 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
-#if !defined(lint)
-static const char sccsid[] = "%W% %G% (C)1995";
-static const char rcsid[] = "@(#)$Id$";
-#endif
 #include <sys/param.h>
 #include <sys/types.h>
 #include <netinet/in_systm.h>

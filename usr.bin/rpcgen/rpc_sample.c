@@ -27,7 +27,6 @@
  * Mountain View, California  94043
  */
 
-#include <sys/cdefs.h>
 /*
  * rpc_sample.c, Sample client-server code outputter for the RPC protocol compiler
  * Copyright (C) 1987, Sun Microsystems, Inc.

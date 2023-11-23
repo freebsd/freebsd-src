@@ -3,10 +3,6 @@
  * Requires unix authentication
  */
 
-#ifndef RPC_HDR
-%#include <sys/cdefs.h>
-#endif
-
 const RQ_PATHLEN = 1024;
 
 struct sq_dqblk {

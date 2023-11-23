@@ -3,8 +3,7 @@
 
 
 #ifndef RCSID
-#define RCSID(msg) \
-static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
+#define RCSID(msg)
 #endif
 
 /* Maximum values on all known systems */

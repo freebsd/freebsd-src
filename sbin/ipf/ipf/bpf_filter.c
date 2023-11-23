@@ -37,11 +37,6 @@
  * SUCH DAMAGE.
  */
 
-#if !(defined(lint) || defined(KERNEL) || defined(_KERNEL))
-static const char rcsid[] =
-    "@(#) $Header: /devel/CVS/IP-Filter/bpf_filter.c,v 2.2.2.3 2006/10/03 11:25:56 darrenr Exp $ (LBL)";
-#endif
-
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/time.h>
