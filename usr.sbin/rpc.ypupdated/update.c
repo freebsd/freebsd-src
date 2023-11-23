@@ -29,9 +29,6 @@
  */
 
 #ifndef lint
-#if 0
-static	char sccsid[] = "@(#)update.c 1.2 91/03/11 Copyr 1986 Sun Micro";
-#endif
 #endif /* not lint */
 
 /*

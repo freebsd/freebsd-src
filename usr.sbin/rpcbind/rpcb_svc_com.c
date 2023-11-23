@@ -33,8 +33,6 @@
  * Copyright (c) 1986 - 1991 by Sun Microsystems, Inc.
  */
 
-/* #ident	"@(#)rpcb_svc_com.c	1.18	94/05/02 SMI" */
-
 /*
  * rpcb_svc_com.c
  * The commom server procedure for the rpcbind.

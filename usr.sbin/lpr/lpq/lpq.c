@@ -37,9 +37,6 @@ static const char copyright[] =
 #endif /* not lint */
 
 #if 0
-#ifndef lint
-static char sccsid[] = "@(#)lpq.c	8.3 (Berkeley) 5/10/95";
-#endif /* not lint */
 #endif
 
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */

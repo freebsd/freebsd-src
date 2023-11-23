@@ -33,8 +33,6 @@
  * Copyright (c) 1986 - 1991 by Sun Microsystems, Inc.
  */
 
-/* #ident	"@(#)rpcbind.h 1.4 90/04/12 SMI" */
-
 /*
  * rpcbind.h
  * The common header declarations

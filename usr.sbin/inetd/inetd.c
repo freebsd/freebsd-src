@@ -36,9 +36,6 @@ __COPYRIGHT("@(#) Copyright (c) 1983, 1991, 1993, 1994\n\
 #endif /* not lint */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
-#endif
 #endif /* not lint */
 
 /*

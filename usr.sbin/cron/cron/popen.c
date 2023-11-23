@@ -26,9 +26,6 @@
 #ifndef lint
 static const char rcsid[] =
     "$Id: popen.c,v 1.3 1998/08/14 00:32:41 vixie Exp $";
-#if 0
-static const char sccsid[] = "@(#)popen.c	5.7 (Berkeley) 2/14/89";
-#endif
 #endif /* not lint */
 
 #include "cron.h"

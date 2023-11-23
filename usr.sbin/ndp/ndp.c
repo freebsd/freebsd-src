@@ -64,10 +64,7 @@
 
 /*
  * Based on:
- * "@(#) Copyright (c) 1984, 1993\n\
  *	The Regents of the University of California.  All rights reserved.\n";
- *
- * "@(#)arp.c	8.2 (Berkeley) 1/2/94";
  */
 
 /*

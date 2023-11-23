@@ -30,9 +30,6 @@
  */
 
 #if 0
-#ifndef lint
-static char sccsid[] = "@(#)startdaemon.c	8.2 (Berkeley) 4/17/94";
-#endif /* not lint */
 #endif
 
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */

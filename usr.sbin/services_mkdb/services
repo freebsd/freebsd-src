@@ -16,9 +16,6 @@
 # Note that it is presently the policy of IANA to assign a single well-known
 # port number for both TCP and UDP; hence, most entries here have two entries
 # even if the protocol doesn't support UDP operations.
-#
-#	From: @(#)services	5.8 (Berkeley) 5/9/91
-#
 # WELL KNOWN PORT NUMBERS
 #
 tcpmux		  1/tcp	   #TCP Port Service Multiplexer

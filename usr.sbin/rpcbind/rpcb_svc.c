@@ -33,8 +33,6 @@
  * Copyright (c) 1986 - 1991 by Sun Microsystems, Inc.
  */
 
-/* #ident	"@(#)rpcb_svc.c	1.16	93/07/05 SMI" */
-
 /*
  * rpcb_svc.c
  * The server procedure for the version 3 rpcbind (TLI).
