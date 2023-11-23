@@ -432,7 +432,7 @@ iop_queue_wait_msg(struct iop_softc *sc, int mfa, struct i2o_basic_message *msg)
     int status, timeout = 10000;
 
     mtx_lock(&sc->mtx);
-    if (!(sc->reg->oqueue_intr_mask & 0x08)) {
+    if ((sc->reg->oqueue_intr_mask & I20_OUT_INTR_QUEUE) == 0) {
         msg->transaction_context = (u_int32_t)&request;
         msg->initiator_context = (u_int32_t)iop_done;
         sc->reg->iqueue = mfa;
