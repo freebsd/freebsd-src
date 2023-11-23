@@ -36,9 +36,6 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)route.c	8.6 (Berkeley) 4/28/95";
-#endif
 #endif /* not lint */
 
 #include <sys/cdefs.h>

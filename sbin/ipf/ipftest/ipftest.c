@@ -9,10 +9,6 @@
 #include <sys/ioctl.h>
 #include <sys/file.h>
 
-#if !defined(lint)
-static const char sccsid[] = "@(#)ipt.c	1.19 6/3/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id$";
-#endif
 
 extern	char	*optarg;
 extern	struct ipread	pcap, iptext, iphex;

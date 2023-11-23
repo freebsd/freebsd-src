@@ -50,9 +50,6 @@
 #endif
 
 #define UNUSED __attribute__((unused))
-#ifndef __RCSID
-#define __RCSID(_s) static const char rcsid[] UNUSED = _s
-#endif
 #ifndef __COPYRIGHT
 #define __COPYRIGHT(_s) static const char copyright[] UNUSED = _s
 #endif

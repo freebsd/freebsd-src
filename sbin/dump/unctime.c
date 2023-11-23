@@ -30,9 +30,6 @@
  */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)unctime.c	8.2 (Berkeley) 6/14/94";
-#endif
 #endif /* not lint */
 
 #include <time.h>

@@ -30,9 +30,6 @@
  */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)restore.c	8.3 (Berkeley) 9/13/94";
-#endif
 #endif /* not lint */
 
 #include <sys/cdefs.h>

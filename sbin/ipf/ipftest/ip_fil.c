@@ -6,10 +6,6 @@
  *
  * $Id$
  */
-#if !defined(lint)
-static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id$";
-#endif
 
 #include "ipf.h"
 #include "md5.h"

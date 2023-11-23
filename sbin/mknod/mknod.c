@@ -39,9 +39,6 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)mknod.c	8.1 (Berkeley) 6/5/93";
-#endif
 #endif /* not lint */
 
 #include <sys/types.h>
