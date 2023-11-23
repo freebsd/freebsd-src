@@ -492,9 +492,6 @@ kern_reboot(int howto)
 	rebooting = 1;
 	reboottrace(howto);
 
-	/* We are out of the debugger now. */
-	kdb_active = 0;
-
 	/*
 	 * Do any callouts that should be done BEFORE syncing the filesystems.
 	 */
