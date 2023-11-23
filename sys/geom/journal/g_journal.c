@@ -26,34 +26,35 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
+#include <sys/kthread.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/bio.h>
-#include <sys/sysctl.h>
+#include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/eventhandler.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/kthread.h>
+#include <sys/sbuf.h>
 #include <sys/sched.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/vnode.h>
-#include <sys/sbuf.h>
+
 #ifdef GJ_MEMDEBUG
 #include <sys/stack.h>
 #include <sys/kdb.h>
 #endif
+
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
+
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-
 #include <geom/journal/g_journal.h>
 
 FEATURE(geom_journal, "GEOM journaling support");
