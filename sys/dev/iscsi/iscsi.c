@@ -44,6 +44,7 @@
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/socket.h>
 #include <sys/sockopt.h>
@@ -2680,11 +2681,12 @@ iscsi_terminate_sessions(struct iscsi_softc *sc)
 }
 
 static void
-iscsi_shutdown_pre(struct iscsi_softc *sc)
+iscsi_shutdown_pre(struct iscsi_softc *sc, int howto)
 {
 	struct iscsi_session *is;
 
-	if (!fail_on_shutdown)
+	if (!fail_on_shutdown || (howto & RB_NOSYNC) != 0 ||
+	    SCHEDULER_STOPPED())
 		return;
 
 	/*
