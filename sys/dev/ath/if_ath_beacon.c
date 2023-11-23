@@ -1014,7 +1014,7 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	 *
 	 * The specification (802.11-2012 10.1.3.2 - Beacon Generation in
 	 * Infrastructure Networks) requires APs be beaconing at a
-	 * mutiple of intval.  So, if bintval=100, then we shouldn't
+	 * multiple of intval.  So, if bintval=100, then we shouldn't
 	 * get beacons at intervals other than around multiples of 100.
 	 */
 	if (nexttbtt == 0)		/* e.g. for ap mode */
