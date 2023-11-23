@@ -31,7 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	If you have an arm64 system that uses ACPI, you will need to update your
 	loader.efi in the ESP when you update past this point.  Detection of ACPI
 	was moved earlier in the binary so the scripts could use it, but old
-	binaries don't have this, so we default to 'no ACPI' in this case.
+	binaries don't have this, so we default to 'no ACPI' in this case. You can
+	undisable ACPI by doing
+		OK unset hint.acpi.0.disabled
+	This can also be used to recover any other system that was updated in the
+	small window where amd64 was also broken.
 
 20231113:
 	The WITHOUT_LLD_IS_LD option has been removed.  When LLD is enabled
