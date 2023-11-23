@@ -30,9 +30,6 @@
  */
 
 
-#ifndef lint
-static const char sccsid[] = "@(#)display.c	8.1 (Berkeley) 6/6/93";
-#endif
 
 /*
  * The window 'manager', initializes curses and handles the actual

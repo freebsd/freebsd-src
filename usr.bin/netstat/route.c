@@ -30,9 +30,6 @@
  */
 
 #if 0
-#ifndef lint
-static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
-#endif /* not lint */
 #endif
 
 #include <sys/cdefs.h>

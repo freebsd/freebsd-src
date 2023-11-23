@@ -40,9 +40,6 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)join.c	8.6 (Berkeley) 5/4/95";
-#endif
 #endif /* not lint */
 #include <sys/cdefs.h>
 #include <sys/param.h>

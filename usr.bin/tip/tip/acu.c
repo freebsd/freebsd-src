@@ -34,10 +34,6 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)acu.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: acu.c,v 1.12 2006/03/17 14:43:06 moritz Exp $";
-#endif
 #endif /* not lint */
 
 #include "tip.h"

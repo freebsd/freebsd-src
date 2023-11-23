@@ -38,9 +38,6 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
-static const char sccsid[] = "@(#)tsort.c	8.3 (Berkeley) 5/4/95";
-#endif /* not lint */
 
 #include <sys/cdefs.h>
 #include <sys/types.h>

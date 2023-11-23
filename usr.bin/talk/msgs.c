@@ -30,9 +30,6 @@
  */
 
 
-#ifndef lint
-static const char sccsid[] = "@(#)msgs.c	8.1 (Berkeley) 6/6/93";
-#endif
 
 /*
  * A package to display what is happening every MSG_INTERVAL seconds

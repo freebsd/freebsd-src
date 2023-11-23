@@ -1,7 +1,4 @@
 #!/bin/sh -
-#
-#	@(#)Do_spell	8.1 (Berkeley) 5/31/93
-#
 
 F=_spell.$$
 echo $1

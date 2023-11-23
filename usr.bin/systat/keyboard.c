@@ -30,9 +30,6 @@
  */
 
 
-#ifdef lint
-static const char sccsid[] = "@(#)keyboard.c	8.1 (Berkeley) 6/6/93";
-#endif
 
 #include <sys/select.h>
 #include <sys/time.h>

@@ -29,7 +29,6 @@
 
 #if 0
 #ifndef lint
-#ident	"@(#)rpc_svcout.c	1.4	90/04/13 SMI"
 static char sccsid[] = "@(#)rpc_svcout.c 1.29 89/03/30 (C) 1987 SMI";
 #endif
 #endif

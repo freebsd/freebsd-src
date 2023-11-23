@@ -1,4 +1,3 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/29/93
 
 PROG=	gprof
 SRCS=	gprof.c arcs.c dfn.c elf.c lookup.c hertz.c \

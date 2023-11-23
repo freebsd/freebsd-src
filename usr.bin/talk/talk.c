@@ -30,9 +30,6 @@
  */
 
 
-#ifndef lint
-static const char sccsid[] = "@(#)talk.c	8.1 (Berkeley) 6/6/93";
-#endif
 
 #ifndef lint
 static const char copyright[] =

@@ -39,9 +39,6 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)uniq.c	8.3 (Berkeley) 5/4/95";
-#endif
 #endif /* not lint */
 
 #include <sys/capsicum.h>

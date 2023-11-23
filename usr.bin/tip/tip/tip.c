@@ -40,10 +40,6 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)tip.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: tip.c,v 1.30 2006/08/18 03:06:18 jason Exp $";
-#endif
 #endif /* not lint */
 
 /*

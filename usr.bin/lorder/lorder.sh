@@ -28,10 +28,6 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
-#
-#	@(#)lorder.sh	8.1 (Berkeley) 6/6/93
-#
-#
 
 # only one argument is a special case, just output the name twice
 case $# in

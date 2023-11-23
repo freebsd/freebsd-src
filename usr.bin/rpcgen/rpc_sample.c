@@ -27,8 +27,6 @@
  * Mountain View, California  94043
  */
 
-/* #pragma ident	"@(#)rpc_sample.c	1.9	94/04/25 SMI" */
-
 #include <sys/cdefs.h>
 /*
  * rpc_sample.c, Sample client-server code outputter for the RPC protocol compiler

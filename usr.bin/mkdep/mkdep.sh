@@ -29,9 +29,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#
-#	@(#)mkdep.sh	8.1 (Berkeley) 6/6/93
-#
 
 PATH=/bin:/usr/bin:/usr/ucb:/usr/old/bin
 export PATH

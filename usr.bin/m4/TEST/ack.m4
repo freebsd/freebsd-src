@@ -31,9 +31,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#
-#	@(#)ack.m4	8.1 (Berkeley) 6/6/93
-#
 
 define(ack, `ifelse($1,0,incr($2),$2,0,`ack(DECR($1),1)',
 `ack(DECR($1), ack($1,DECR($2)))')')

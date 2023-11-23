@@ -31,9 +31,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#
-#	@(#)hash.m4	8.1 (Berkeley) 6/6/93
-#
 
 dnl	This probably will not run on any m4 that cannot
 dnl	handle char constants in eval.

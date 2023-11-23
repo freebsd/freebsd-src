@@ -31,9 +31,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#
-#	@(#)string.m4	8.1 (Berkeley) 6/6/93
-#
 
 define(string,`integer $1(len(substr($2,1)))
 str($1,substr($2,1),0)
