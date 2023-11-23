@@ -1,5 +1,3 @@
-/* @(#)yp.x	2.1 88/08/01 4.0 RPCSRC */
-
 /*-
  * Copyright (c) 2010, Oracle America, Inc.
  *

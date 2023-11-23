@@ -34,7 +34,6 @@
 #endif
 
 /* 
- * From 4.1 : @(#)nis.x	1.61 Copyright 1989 Sun Microsystems
  *
  * RPC Language Protocol description file for NIS Plus
  * This version : 1.61
