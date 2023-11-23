@@ -33,9 +33,6 @@
  */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
-#endif
 #endif /* not lint */
 #include <sys/cdefs.h>
 #include <sys/param.h>
