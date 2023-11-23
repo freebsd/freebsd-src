@@ -41,9 +41,6 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)mesg.c	8.2 (Berkeley) 1/21/94";
-#endif
 #endif /* not lint */
 #include <sys/cdefs.h>
 #include <sys/types.h>

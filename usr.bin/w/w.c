@@ -36,9 +36,6 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif
 
-#ifndef lint
-static const char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
-#endif
 
 /*
  * w - print system status (who and what)

@@ -32,9 +32,6 @@
  */
 
 #if 0
-#ifndef lint
-static char sccsid[] = "@(#)sctp.c	0.1 (Berkeley) 4/18/2007";
-#endif /* not lint */
 #endif
 
 #include <sys/cdefs.h>

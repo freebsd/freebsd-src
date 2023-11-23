@@ -1,7 +1,4 @@
 #! /bin/sh
-#
-#	@(#)do_sort	8.1 (Berkeley) 5/31/93
-#
 # an aggressive little script for sorting the fortune files
 # depends on octal 02 and 03 not being anywhere in the files.
 

@@ -41,10 +41,6 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)remote.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: remote.c,v 1.16 2006/06/06 23:24:52 deraadt Exp $";
-#endif
 #endif /* not lint */
 
 #include <stdio.h>

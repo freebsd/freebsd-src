@@ -28,8 +28,6 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
-/* #pragma ident   "@(#)rpc_scan.h 1.11     94/05/15 SMI" */
-
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
 /*	  All Rights Reserved  	*/
 
@@ -59,8 +57,6 @@
 *	(c) 1983,1984,1985,1986,1987,1988,1989  AT&T.
 *          All rights reserved.
 */
-
-/*      @(#)rpc_scan.h  1.3  90/08/29  (C) 1987 SMI   */
 
 /*
  * rpc_scan.h, Definitions for the RPCL scanner

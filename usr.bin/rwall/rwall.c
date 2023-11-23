@@ -40,9 +40,6 @@ static const char copyright[] =
  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
-static const char sccsid[] = "from: @(#)wall.c	5.14 (Berkeley) 3/2/91";
-#endif
 
 #include <sys/cdefs.h>
 /*
