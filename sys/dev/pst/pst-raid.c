@@ -73,7 +73,7 @@ struct pst_request {
 static disk_strategy_t pststrategy;
 static int pst_probe(device_t);
 static int pst_attach(device_t);
-static void pst_shutdown_post_sync(device_t, int);
+static int pst_shutdown(device_t);
 static void pst_start(struct pst_softc *);
 static void pst_done(struct iop_softc *, u_int32_t, struct i2o_single_reply *);
 static int pst_rw(struct pst_request *);
@@ -170,22 +170,17 @@ pst_attach(device_t dev)
 	   name, psc->info->capacity/(512*255*63), 255, 63,
 	   device_get_nameunit(psc->iop->dev));
 
-    EVENTHANDLER_REGISTER(shutdown_post_sync, pst_shutdown_post_sync,
+    EVENTHANDLER_REGISTER(shutdown_post_sync, pst_shutdown,
 			  dev, SHUTDOWN_PRI_FIRST);
     return 0;
 }
 
-static void
-pst_shutdown_post_sync(device_t dev, int howto __unused)
+static int
+pst_shutdown(device_t dev)
 {
     struct pst_softc *psc = device_get_softc(dev);
     struct i2o_bsa_cache_flush_message *msg;
     int mfa;
-
-    if (SCHEDULER_STOPPED()) {
-	/* Request polled shutdown. */
-	psc->reg->oqueue_intr_mask = 0xffffffff;
-    }
 
     mfa = iop_get_mfa(psc->iop);
     msg = (struct i2o_bsa_cache_flush_message *)(psc->iop->ibase + mfa);
@@ -199,6 +194,7 @@ pst_shutdown_post_sync(device_t dev, int howto __unused)
     msg->control_flags = 0x0; /* 0x80 = post progress reports */
     if (iop_queue_wait_msg(psc->iop, mfa, (struct i2o_basic_message *)msg))
 	printf("pst: shutdown failed!\n");
+    return 0;
 }
 
 static void
