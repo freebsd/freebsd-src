@@ -345,12 +345,18 @@ xctrl_crash(void)
 }
 
 static void
-shutdown_final(void *arg, int howto)
+xctrl_shutdown_final(void *arg, int howto)
 {
-	/* Inform the hypervisor that shutdown is complete. */
-	if (howto & RB_POWEROFF)
+	/*
+	 * Inform the hypervisor that shutdown is complete, and specify the
+	 * nature of the shutdown. RB_HALT is not handled by this function.
+	 */
+	if (KERNEL_PANICKED())
+		HYPERVISOR_shutdown(SHUTDOWN_crash);
+	else if ((howto & RB_POWEROFF) != 0)
 		HYPERVISOR_shutdown(SHUTDOWN_poweroff);
-	else if (howto & RB_POWERCYCLE)
+	else if ((howto & RB_HALT) == 0)
+		/* RB_POWERCYCLE or regular reset. */
 		HYPERVISOR_shutdown(SHUTDOWN_reboot);
 }
 
@@ -446,7 +452,7 @@ xctrl_attach(device_t dev)
 	xctrl->xctrl_watch.max_pending = 1;
 	xs_register_watch(&xctrl->xctrl_watch);
 
-	EVENTHANDLER_REGISTER(shutdown_final, shutdown_final, NULL,
+	EVENTHANDLER_REGISTER(shutdown_final, xctrl_shutdown_final, NULL,
 	    SHUTDOWN_PRI_LAST);
 
 	return (0);
