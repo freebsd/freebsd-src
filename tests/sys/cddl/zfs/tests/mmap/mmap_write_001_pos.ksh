@@ -23,9 +23,6 @@
 #
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)mmap_write_001_pos.ksh	1.3	07/07/31 SMI"
-#
 . $STF_SUITE/include/libtest.kshlib
 
 # ##########################################################################

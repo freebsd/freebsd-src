@@ -23,9 +23,6 @@
 #
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)snapshot_017_pos.ksh	1.1	08/08/15 SMI"
-#
 
 . $STF_SUITE/include/libtest.kshlib
 

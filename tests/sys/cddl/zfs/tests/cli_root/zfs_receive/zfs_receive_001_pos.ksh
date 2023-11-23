@@ -23,9 +23,6 @@
 #
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zfs_receive_001_pos.ksh	1.4	08/02/27 SMI"
-#
 
 . $STF_SUITE/tests/cli_root/cli_common.kshlib
 

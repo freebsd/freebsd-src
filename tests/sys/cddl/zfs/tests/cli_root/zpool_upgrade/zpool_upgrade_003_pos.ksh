@@ -23,10 +23,6 @@
 #
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zpool_upgrade_003_pos.ksh	1.3	08/08/15 SMI"
-#
-#
 
 . $STF_SUITE/include/libtest.kshlib
 . $STF_SUITE/tests/cli_root/zpool_upgrade/zpool_upgrade.kshlib

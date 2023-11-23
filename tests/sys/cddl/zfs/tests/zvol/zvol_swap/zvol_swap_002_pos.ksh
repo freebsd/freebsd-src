@@ -20,9 +20,6 @@
 # CDDL HEADER END
 #
 
-#
-# ident	"@(#)zvol_swap_002_pos.ksh	1.4	09/05/19 SMI"
-#
 # Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #

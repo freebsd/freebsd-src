@@ -22,10 +22,6 @@
 #
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)README.state	1.2	07/01/09 SMI"
-#
-#
 # For every configX.cfg file there must be a corresponding stateX.cfg
 # file. The state file both drives the operations to be performed on the
 # dataset hierarchy which has been specified by the corresponding

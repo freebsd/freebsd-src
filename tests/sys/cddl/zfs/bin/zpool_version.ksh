@@ -23,9 +23,6 @@
 #
 # Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zpool_version.ksh	1.1	09/01/13 SMI"
-#
 
 cmd=$1
 shift

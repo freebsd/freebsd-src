@@ -23,9 +23,6 @@
 #
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)cleanup.ksh	1.2	07/01/09 SMI"
-#
 
 . $STF_SUITE/tests/cli_root/zfs_destroy/zfs_destroy_common.kshlib
 

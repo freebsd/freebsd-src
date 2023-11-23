@@ -24,7 +24,6 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"@(#)threadsappend.c	1.3	07/05/25 SMI"
 
 #include <sys/types.h>
 #include <sys/stat.h>

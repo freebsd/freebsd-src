@@ -23,9 +23,6 @@
 #
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)cleanup.ksh	1.4	08/11/03 SMI"
-#
 
 . $STF_SUITE/tests/cli_root/zfs_copies/zfs_copies.kshlib
 . $STF_SUITE/tests/cli_root/zfs_copies/zfs_copies.cfg

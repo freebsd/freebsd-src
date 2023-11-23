@@ -23,9 +23,6 @@
 #
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)redundancy_003_pos.ksh	1.4	07/06/05 SMI"
-#
 
 . $STF_SUITE/tests/redundancy/redundancy.kshlib
 

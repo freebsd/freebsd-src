@@ -23,9 +23,6 @@
 #
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)clean_mirror_common.kshlib	1.4	07/10/09 SMI"
-#
 
 # Most of the code related to the clearing of mirrors is duplicated in all
 # the test cases below this directory, barring a few minor changes

@@ -23,9 +23,6 @@
 #
 # Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zfs_destroy_005_neg.ksh	1.3	09/08/06 SMI"
-#
 
 . $STF_SUITE/include/libtest.kshlib
 . $STF_SUITE/tests/cli_root/zfs_destroy/zfs_destroy_common.kshlib

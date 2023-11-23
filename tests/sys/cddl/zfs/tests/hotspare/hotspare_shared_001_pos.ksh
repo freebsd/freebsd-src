@@ -23,9 +23,6 @@
 #
 # Copyright 2012 Spectra Logic Corp.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)hotspare_shared_001_pos.ksh	1.0	08/06/12 SL"
-#
 . $STF_SUITE/tests/hotspare/hotspare.kshlib
 
 ################################################################################

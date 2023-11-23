@@ -24,7 +24,6 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"@(#)dir_rd_update.c	1.2	07/01/09 SMI"
 
 /*
  * Assertion:

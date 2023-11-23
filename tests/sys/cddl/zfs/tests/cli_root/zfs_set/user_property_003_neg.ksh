@@ -23,9 +23,6 @@
 #
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)user_property_003_neg.ksh	1.3	07/02/06 SMI"
-#
 
 . $STF_SUITE/tests/cli_root/zfs_set/zfs_set_common.kshlib
 

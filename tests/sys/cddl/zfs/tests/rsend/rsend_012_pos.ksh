@@ -23,9 +23,6 @@
 #
 # Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)rsend_012_pos.ksh	1.2	09/05/19 SMI"
-#
 
 . $STF_SUITE/tests/rsend/rsend.kshlib
 

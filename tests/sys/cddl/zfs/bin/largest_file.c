@@ -24,7 +24,6 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"@(#)largest_file.c	1.3	07/05/25 SMI"
 
 #include "file_common.h"
 #include <sys/param.h>

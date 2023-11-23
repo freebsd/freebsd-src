@@ -23,9 +23,6 @@
 #
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)pool_names_001_pos.ksh	1.2	07/01/09 SMI"
-#
 
 . $STF_SUITE/include/libtest.kshlib
 

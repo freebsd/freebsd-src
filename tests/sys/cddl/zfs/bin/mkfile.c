@@ -24,9 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	lint
-static char rcsid[] = "$Id: mkfile.c,v 1.5 2013-10-26 10:11:34+09 hatanou Exp $";
-#endif	/* !lint */
 
 #include <stdio.h>
 #include <stdlib.h>

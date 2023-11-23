@@ -22,9 +22,6 @@
 #
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)default.cfg	1.8	08/11/03 SMI"
-#
 # Read the user config file, if it exists
 #
 

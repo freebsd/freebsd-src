@@ -23,9 +23,6 @@
 #
 # Copyright 2011 Spectra logic.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)cleanup.ksh	1.0	10/20/11 SL"
-#
 
 . ${STF_SUITE}/include/libtest.kshlib
 

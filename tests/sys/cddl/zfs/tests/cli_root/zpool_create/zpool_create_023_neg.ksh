@@ -23,9 +23,6 @@
 #
 # Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zpool_create_023_neg.ksh	1.1	09/05/19 SMI"
-#
 . $STF_SUITE/include/libtest.kshlib
 
 ################################################################################

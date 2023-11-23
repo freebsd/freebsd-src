@@ -23,9 +23,6 @@
 #
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zpool_iostat_002_pos.ksh	1.2	08/05/14 SMI"
-#
 . $STF_SUITE/include/libtest.kshlib
 . $STF_SUITE/tests/cli_user/cli_user.kshlib
 

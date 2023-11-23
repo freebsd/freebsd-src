@@ -23,9 +23,6 @@
 #
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)compress_004_pos.ksh	1.3	07/06/06 SMI"
-#
 . $STF_SUITE/include/libtest.kshlib
 
 ################################################################################
