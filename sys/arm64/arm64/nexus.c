@@ -112,6 +112,7 @@ static bus_deactivate_resource_t nexus_deactivate_resource;
 static bus_get_resource_list_t	nexus_get_reslist;
 static bus_map_resource_t	nexus_map_resource;
 static bus_release_resource_t	nexus_release_resource;
+static bus_unmap_resource_t	nexus_unmap_resource;
 
 #ifdef SMP
 static bus_bind_intr_t		nexus_bind_intr;
@@ -139,6 +140,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_map_resource,	nexus_map_resource),
 	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+	DEVMETHOD(bus_unmap_resource,	nexus_unmap_resource),
 #ifdef SMP
 	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
 #endif
@@ -490,6 +492,21 @@ nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
 	 */
 	map->r_bushandle = (bus_space_handle_t)map->r_vaddr;
 	return (0);
+}
+
+static int
+nexus_unmap_resource(device_t bus, device_t child, int type, struct resource *r,
+    struct resource_map *map)
+{
+
+	switch (type) {
+	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
+		pmap_unmapdev(map->r_vaddr, map->r_size);
+		return (0);
+	default:
+		return (EINVAL);
+	}
 }
 
 #ifdef FDT
