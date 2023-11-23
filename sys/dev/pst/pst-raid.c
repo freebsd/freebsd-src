@@ -28,29 +28,31 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/bus.h>
 #include <sys/bio.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/eventhandler.h>
-#include <sys/malloc.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
+
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
-#include <sys/rman.h>
+
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-#include <geom/geom_disk.h>
-
 #include "dev/pst/pst-iop.h"
+
+#include <geom/geom_disk.h>
 
 struct pst_softc {
     struct iop_softc		*iop;
