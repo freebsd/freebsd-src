@@ -37,10 +37,6 @@
 # include <paths.h>
 #endif
 
-#if !defined(lint)
-static const char sccsid[] = "@(#)fils.c	1.21 4/20/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id$";
-#endif
 
 
 extern	char	*optarg;

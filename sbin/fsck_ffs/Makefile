@@ -1,4 +1,3 @@
-#	@(#)Makefile	8.2 (Berkeley) 4/27/95
 
 PACKAGE=ufs
 PROG=	fsck_ffs

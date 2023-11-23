@@ -11,9 +11,6 @@
 #include "kmem.h"
 
 
-#if !defined(lint)
-static const char rcsid[] = "@(#)$Id$";
-#endif
 
 
 /*

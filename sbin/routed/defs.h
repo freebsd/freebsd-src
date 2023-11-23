@@ -27,8 +27,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)defs.h	8.1 (Berkeley) 6/5/93
  */
 
 
@@ -86,9 +84,6 @@
 #define RIPVERSION RIPv2
 #include <protocols/routed.h>
 
-#ifndef __RCSID
-#define __RCSID(_s) static const char rcsid[] UNUSED = _s
-#endif
 #ifndef __COPYRIGHT
 #define __COPYRIGHT(_s) static const char copyright[] UNUSED = _s
 #endif

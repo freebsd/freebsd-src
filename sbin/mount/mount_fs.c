@@ -39,9 +39,6 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)mount_fs.c	8.6 (Berkeley) 4/26/95";
-#endif
 #endif /* not lint */
 
 #include <sys/param.h>

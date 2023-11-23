@@ -3,8 +3,6 @@
  * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
- *
- * @(#)ipf.h	1.12 6/5/96
  * $Id$
  */
 

@@ -9,9 +9,6 @@
 #include "ipf.h"
 
 
-#if !defined(lint)
-static const char rcsid[] = "@(#)$Id: printactiveaddr.c,v 1.3.2.2 2012/07/22 08:04:24 darren_r Exp $";
-#endif
 
 
 void

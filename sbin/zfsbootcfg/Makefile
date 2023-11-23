@@ -1,4 +1,3 @@
-#	@(#)Makefile	8.4 (Berkeley) 6/22/95
 
 PROG=	zfsbootcfg
 MAN=	zfsbootcfg.8

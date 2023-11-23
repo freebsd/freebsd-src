@@ -1,4 +1,3 @@
-#	@(#)Makefile	8.3 (Berkeley) 3/27/94
 
 PACKAGE=runtime
 PROG=	mount_cd9660
