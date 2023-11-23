@@ -66,8 +66,6 @@
  * SUCH DAMAGE.
  *
  * from: Utah $Hdr: cd.c 1.6 90/11/28$
- *
- *	@(#)cd.c	8.2 (Berkeley) 11/16/93
  */
 
 /*

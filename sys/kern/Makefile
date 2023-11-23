@@ -1,5 +1,3 @@
-#	@(#)Makefile	8.2 (Berkeley) 3/21/94
-#
 # Makefile for init_sysent
 
 GENERATED=	init_sysent.c			\

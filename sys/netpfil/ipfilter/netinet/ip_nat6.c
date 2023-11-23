@@ -101,9 +101,6 @@ extern struct ifnet vpnif;
 #undef	SOCKADDR_IN
 #define	SOCKADDR_IN	struct sockaddr_in
 
-#if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_nat6.c,v 1.22.2.20 2012/07/22 08:04:23 darren_r Exp $";
-#endif
 
 #ifdef USE_INET6
 static struct hostmap *ipf_nat6_hostmap(ipf_nat_softc_t *, ipnat_t *,

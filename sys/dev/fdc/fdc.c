@@ -48,8 +48,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *
  */
 
 #include <sys/cdefs.h>

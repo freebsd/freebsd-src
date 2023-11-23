@@ -29,7 +29,6 @@
 
 
 #ifdef illumos
-#pragma ident	"@(#)instr_size.c	1.14	05/07/08 SMI"
 #endif
 
 #include <sys/types.h>

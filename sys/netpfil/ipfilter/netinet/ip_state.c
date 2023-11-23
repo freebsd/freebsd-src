@@ -91,10 +91,6 @@
 /* END OF INCLUDES */
 
 
-#if !defined(lint)
-static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id$";
-#endif
 
 
 static ipftuneable_t ipf_state_tuneables[] = {

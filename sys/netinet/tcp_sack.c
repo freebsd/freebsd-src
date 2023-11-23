@@ -28,12 +28,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)tcp_sack.c	8.12 (Berkeley) 5/24/95
  */
 
 /*-
- *	@@(#)COPYRIGHT	1.1 (NRL) 17 January 1995
  *
  * NRL grants permission for redistribution and use in source and binary
  * forms, with or without modification, of the software and documentation

@@ -35,7 +35,6 @@
  * SUCH DAMAGE.
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
- *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
  */
 
 #include <sys/cdefs.h>

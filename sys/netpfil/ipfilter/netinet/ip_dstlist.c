@@ -62,9 +62,6 @@
 # include "md5.h"
 #endif
 
-#if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_dstlist.c,v 1.13.2.12 2012/07/20 08:40:19 darren_r Exp $";
-#endif
 
 typedef struct ipf_dstl_softc_s {
 	ippool_dst_t	*dstlist[LOOKUP_POOL_SZ];

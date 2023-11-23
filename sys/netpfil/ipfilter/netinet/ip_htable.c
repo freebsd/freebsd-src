@@ -47,9 +47,6 @@
 #include "netinet/ip_htable.h"
 /* END OF INCLUDES */
 
-#if !defined(lint)
-static const char rcsid[] = "@(#)$Id$";
-#endif
 
 # ifdef USE_INET6
 static iphtent_t *ipf_iphmfind6(iphtable_t *, i6addr_t *);

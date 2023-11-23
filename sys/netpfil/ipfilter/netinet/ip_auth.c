@@ -108,9 +108,6 @@
 #endif
 /* END OF INCLUDES */
 
-#if !defined(lint)
-/* static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.73.2.24 2007/09/09 11:32:04 darrenr Exp $"; */
-#endif
 
 
 static void ipf_auth_deref(frauthent_t **);
