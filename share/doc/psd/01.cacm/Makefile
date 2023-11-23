@@ -1,4 +1,3 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/8/93
 
 VOLUME=		psd/01.cacm
 SRCS=		stubs p.mac p1 p2 p3 p4 p5 p6

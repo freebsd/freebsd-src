@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)1.t	5.1 (Berkeley) 4/16/91
-.\"
 .NH
 Motivations for a New Virtual Memory System
 .PP

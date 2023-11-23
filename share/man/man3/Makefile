@@ -1,4 +1,3 @@
-#	@(#)Makefile	8.2 (Berkeley) 12/13/93
 
 .include <src.opts.mk>
 

@@ -29,8 +29,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)edittut.ms	8.3 (Berkeley) 8/18/96
-.\"
 .ll 6.5i
 .nr LL 6.5i
 .EH 'USD:11-%''Edit:  A Tutorial'

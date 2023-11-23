@@ -1,4 +1,3 @@
-/* @(#)sort_proc.c	2.1 88/08/11 4.0 RPCSRC */
 #include <rpc/rpc.h>
 #include "sort.h"
 
