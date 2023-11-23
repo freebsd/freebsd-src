@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)0.t	5.1 (Berkeley) 4/16/91
-.\"
 .rm CM
 .TL
 A New Virtual Memory Implementation for Berkeley

@@ -1,4 +1,3 @@
-/* @(#)rls.c	2.2 88/08/12 4.0 RPCSRC */
 /*
  * rls.c: Remote directory listing client
  */

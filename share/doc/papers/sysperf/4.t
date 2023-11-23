@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)4.t	5.1 (Berkeley) 4/17/91
-.\"
 .ds RH Performance Improvements
 .NH
 Performance Improvements

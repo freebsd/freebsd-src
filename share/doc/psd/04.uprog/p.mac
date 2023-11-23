@@ -34,8 +34,6 @@
 .\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\"
-.\"	@(#)p.mac	8.1 (Berkeley) 6/8/93
 .de UC
 \&\\$3\s-1\\$1\\s0\&\\$2
 ..

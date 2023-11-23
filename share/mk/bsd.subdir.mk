@@ -1,5 +1,3 @@
-#	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#
 # The include file <bsd.subdir.mk> contains the default targets
 # for building subdirectories.
 #

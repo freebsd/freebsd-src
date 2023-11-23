@@ -1,4 +1,3 @@
-/* @(#)dir_proc.c	2.1 88/08/02 4.0 RPCSRC */
 /*
  * dir_proc.c: remote readdir implementation
  */

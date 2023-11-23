@@ -1,4 +1,3 @@
-#	From: @(#)Makefile	8.2 (Berkeley) 4/20/94
 
 # The following modules are not provided:
 # 14.jove

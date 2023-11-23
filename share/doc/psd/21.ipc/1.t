@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)1.t	8.1 (Berkeley) 8/14/93
-.\"
 .\".ds LH "4.4BSD IPC Primer
 .\".ds RH Introduction
 .\".ds RF "Leffler/Fabry/Joy

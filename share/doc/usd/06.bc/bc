@@ -32,8 +32,6 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	@(#)bc	6.2 (Berkeley) 4/17/91
-.\"
 .if n \{\
 .nr PO 5n
 .nr LL 70n

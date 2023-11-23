@@ -34,7 +34,6 @@
 .\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\"	@(#)m4.ms	6.3 (Berkeley) 6/5/93
 .de MH
 Bell Laboratories, Murray Hill, NJ 07974.
 ..

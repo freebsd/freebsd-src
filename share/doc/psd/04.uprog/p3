@@ -35,8 +35,6 @@
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
 .\"
-.\"	@(#)p3	8.1 (Berkeley) 6/8/93
-.\"
 .NH
 THE STANDARD I/O LIBRARY
 .PP

@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)fsinterface.ms	1.4 (Berkeley) 4/16/91
-.\"
 .nr UX 0
 .de UX
 .ie \\n(UX \s-1UNIX\s0\\$1

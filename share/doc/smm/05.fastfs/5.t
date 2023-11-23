@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)5.t	8.1 (Berkeley) 6/8/93
-.\"
 .ds RH Functional enhancements
 .NH 
 File system functional enhancements

@@ -1,4 +1,3 @@
-/* @(#)msg.x	2.1 88/08/11 4.0 RPCSRC */
 /*
  * msg.x: Remote message printing protocol
  */

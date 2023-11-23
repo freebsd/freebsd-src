@@ -1,4 +1,3 @@
-/* @(#)msg_proc.c	2.1 88/08/11 4.0 RPCSRC */
 /*
  * msg_proc.c: implementation of the remote procedure "printmessage"
  */

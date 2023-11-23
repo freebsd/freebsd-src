@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)0.t	8.1 (Berkeley) 7/27/93
-.\"
 .ds Ux \s-1UNIX\s0
 .ds Bs \s-1BSD\s0
 .\" Current version:

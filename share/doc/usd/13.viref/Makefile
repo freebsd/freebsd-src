@@ -1,4 +1,3 @@
-#	From: @(#)Makefile	8.16 (Berkeley) 8/15/94
 
 VOLUME=		usd/13.viref
 EXTRA=		ex.cmd.roff ref.so set.opt.roff vi.cmd.roff

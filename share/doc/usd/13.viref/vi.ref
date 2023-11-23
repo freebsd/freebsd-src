@@ -8,8 +8,6 @@
 .\"
 .\" See the LICENSE file for redistribution information.
 .\"
-.\"     @(#)vi.ref	8.88 (Berkeley) 10/19/96
-.\"
 .so ref.so
 .tp
 .(l C

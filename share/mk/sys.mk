@@ -1,4 +1,3 @@
-#	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
 
 unix		?=	We run FreeBSD, not UNIX.
 .FreeBSD	?=	true

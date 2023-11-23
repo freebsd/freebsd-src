@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)00.contents	8.2 (Berkeley) 4/20/94
-.\"
 .de ND
 .KE
 .sp
