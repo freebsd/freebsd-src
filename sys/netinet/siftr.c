@@ -74,6 +74,7 @@
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/reboot.h>
 #include <sys/sbuf.h>
 #include <sys/sdt.h>
 #include <sys/smp.h>
@@ -1300,8 +1301,11 @@ siftr_sysctl_enabled_handler(SYSCTL_HANDLER_ARGS)
 }
 
 static void
-siftr_shutdown_handler(void *arg)
+siftr_shutdown_handler(void *arg, int howto)
 {
+	if ((howto & RB_NOSYNC) != 0 || SCHEDULER_STOPPED())
+		return;
+
 	if (siftr_enabled == 1) {
 		siftr_manage_ops(SIFTR_DISABLE);
 	}
