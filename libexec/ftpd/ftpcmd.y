@@ -27,8 +27,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)ftpcmd.y	8.3 (Berkeley) 4/6/94
  */
 
 /*
@@ -39,9 +37,6 @@
 %{
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)ftpcmd.y	8.3 (Berkeley) 4/6/94";
-#endif
 #endif /* not lint */
 
 #include <sys/cdefs.h>
