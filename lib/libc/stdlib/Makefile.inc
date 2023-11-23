@@ -1,4 +1,3 @@
-#	from @(#)Makefile.inc	8.3 (Berkeley) 2/4/95
 
 # machine-independent stdlib sources
 .PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/stdlib ${LIBC_SRCTOP}/stdlib

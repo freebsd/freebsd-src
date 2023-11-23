@@ -33,7 +33,6 @@
  * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
  */
 
-/* #pragma ident	"@(#)svc_simple.c	1.18	94/04/24 SMI" */
 /*
  * svc_simple.c
  * Simplified front end to rpc.

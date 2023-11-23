@@ -33,7 +33,6 @@
  * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
  */
 
-/* #pragma ident	"@(#)rpc_generic.c	1.17	94/04/24 SMI" */
 /*
  * rpc_generic.c, Miscl routines for RPC.
  *

@@ -1,4 +1,3 @@
-/* @(#)e_pow.c 1.5 04/04/22 SMI */
 /*
  * ====================================================
  * Copyright (C) 2004 by Sun Microsystems, Inc. All rights reserved.

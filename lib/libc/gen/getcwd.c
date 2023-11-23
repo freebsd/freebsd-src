@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)getcwd.c	8.5 (Berkeley) 2/7/95");
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/stat.h>

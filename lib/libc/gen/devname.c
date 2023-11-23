@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)devname.c	8.2 (Berkeley) 4/29/95");
 #include <sys/param.h>
 #include <sys/sysctl.h>
 

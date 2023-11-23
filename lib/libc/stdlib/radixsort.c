@@ -32,9 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)radixsort.c	8.2 (Berkeley) 4/28/95";
-#endif /* LIBC_SCCS and not lint */
 /*
  * Radixsort routines.
  *

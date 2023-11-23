@@ -30,9 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)getnetconfig.c	1.12 91/12/19 SMI";
-#endif
 /*
  * Copyright (c) 1989 by Sun Microsystems, Inc.
  */

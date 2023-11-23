@@ -45,8 +45,6 @@
 #define	_RPC_RPCCOM_H
 
 
-/* #pragma ident	"@(#)rpc_com.h	1.11	93/07/05 SMI" */
-
 /*
  * The max size of the transport, if the size cannot be determined
  * by other means.

@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)psignal.c	8.1 (Berkeley) 6/4/93");
 /*
  * Print the name of the signal indicated
  * along with the supplied message.

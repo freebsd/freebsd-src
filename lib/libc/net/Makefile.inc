@@ -1,4 +1,3 @@
-#	from @(#)Makefile.inc	8.2 (Berkeley) 9/5/93
 
 # machine-independent net sources
 .PATH: ${LIBC_SRCTOP}/net

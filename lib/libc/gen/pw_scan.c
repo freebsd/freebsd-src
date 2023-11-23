@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)pw_scan.c	8.3 (Berkeley) 4/2/94");
 /*
  * This module is used to "verify" password entries by chpass(1) and
  * pwd_mkdb(8).

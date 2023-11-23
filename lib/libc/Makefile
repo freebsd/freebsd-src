@@ -1,4 +1,3 @@
-#	@(#)Makefile	8.2 (Berkeley) 2/3/94
 
 PACKAGE=	clibs
 SHLIBDIR?= /lib

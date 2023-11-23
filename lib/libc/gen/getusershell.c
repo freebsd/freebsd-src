@@ -30,8 +30,8 @@
  */
 
 #include <sys/cdefs.h>
-__SCCSID("@(#)getusershell.c	8.1 (Berkeley) 6/4/93");
 __RCSID("$NetBSD: getusershell.c,v 1.17 1999/01/25 01:09:34 lukem Exp $");
+
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/file.h>

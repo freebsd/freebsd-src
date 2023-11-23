@@ -1,4 +1,3 @@
-#	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
 
 # locale sources
 .PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/locale ${LIBC_SRCTOP}/locale

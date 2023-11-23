@@ -29,9 +29,6 @@
  */
 
 #include <sys/cdefs.h>
-#if !defined(lint) && defined(SCCSIDS)
-static char sccsid[] = "@(#)secretkey.c 1.8 91/03/11 Copyr 1986 Sun Micro";
-#endif
 
 /*
  * secretkey.c

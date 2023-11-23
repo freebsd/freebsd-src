@@ -32,8 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)crypt.c	5.11 (Berkeley) 6/25/91");
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>

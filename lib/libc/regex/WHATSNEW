@@ -1,4 +1,3 @@
-# @(#)WHATSNEW	8.3 (Berkeley) 3/18/94
 
 New in alpha3.4:  The complex bug alluded to below has been fixed (in a
 slightly kludgey temporary way that may hurt efficiency a bit; this is

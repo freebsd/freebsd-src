@@ -32,8 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)popen.c	8.3 (Berkeley) 5/3/95");
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/queue.h>

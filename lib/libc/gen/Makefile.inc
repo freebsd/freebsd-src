@@ -1,4 +1,3 @@
-#	@(#)Makefile.inc	8.6 (Berkeley) 5/4/95
 
 # machine-independent gen sources
 .PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/gen ${LIBC_SRCTOP}/gen ${SRCTOP}/etc

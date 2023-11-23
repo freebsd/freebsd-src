@@ -36,8 +36,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)pw_util.c	8.3 (Berkeley) 4/2/94");
 
 /*
  * This file is used by all the "password" programs; vipw(8), chpass(1),

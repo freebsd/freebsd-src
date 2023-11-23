@@ -32,8 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)getcap.c	8.3 (Berkeley) 3/25/94");
 #include "namespace.h"
 #include <sys/types.h>
 

@@ -32,9 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)bt_close.c	8.7 (Berkeley) 8/17/94";
-#endif /* LIBC_SCCS and not lint */
 #include "namespace.h"
 #include <sys/param.h>
 

@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)getgrouplist.c	8.2 (Berkeley) 12/8/94");
 /*
  * get credential
  */
