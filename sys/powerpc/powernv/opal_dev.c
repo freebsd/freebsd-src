@@ -344,10 +344,12 @@ static void
 opal_shutdown(void *arg, int howto)
 {
 
-	if (howto & RB_HALT)
+	if ((howto & RB_POWEROFF) != 0)
 		opal_call(OPAL_CEC_POWER_DOWN, 0 /* Normal power off */);
-	else
+	else if ((howto & RB_HALT) == 0)
 		opal_call(OPAL_CEC_REBOOT);
+	else
+		return;
 
 	opal_call(OPAL_RETURN_CPU);
 }

@@ -155,13 +155,13 @@ rtas_shutdown(void *arg, int howto)
 {
 	cell_t token, status;
 
-	if (howto & RB_HALT) {
+	if ((howto & RB_POWEROFF) != 0) {
 		token = rtas_token_lookup("power-off");
 		if (token == -1)
 			return;
 
 		rtas_call_method(token, 2, 1, 0, 0, &status);
-	} else {
+	} else if ((howto & RB_HALT) == 0) {
 		token = rtas_token_lookup("system-reboot");
 		if (token == -1)
 			return;
