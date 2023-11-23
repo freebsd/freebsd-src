@@ -980,6 +980,9 @@ enum vfs_notify_upper_type {
  * exported vnode operations
  */
 
+/* Define this to indicate that vfs_exjail_clone() exists for ZFS to use. */
+#define	VFS_SUPPORTS_EXJAIL_CLONE	1
+
 int	dounmount(struct mount *, uint64_t, struct thread *);
 
 int	kernel_mount(struct mntarg *ma, uint64_t flags);
@@ -1016,6 +1019,7 @@ int	vfs_setpublicfs			    /* set publicly exported fs */
 	    (struct mount *, struct netexport *, struct export_args *);
 void	vfs_periodic(struct mount *, int);
 int	vfs_busy(struct mount *, int);
+void	vfs_exjail_clone(struct mount *, struct mount *);
 void	vfs_exjail_delete(struct prison *);
 int	vfs_export			 /* process mount export info */
 	    (struct mount *, struct export_args *, bool);
