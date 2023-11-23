@@ -30,9 +30,6 @@
  */
 
 #ifndef lint
-#if 0
-static const char sccsid[] = "@(#)getgrent.c	8.2 (Berkeley) 3/21/94";
-#endif
 #endif /* not lint */
 
 /*
