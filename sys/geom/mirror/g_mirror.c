@@ -39,6 +39,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/reboot.h>
 #include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/sx.h>
@@ -3546,7 +3547,7 @@ g_mirror_shutdown_post_sync(void *arg, int howto)
 	struct g_mirror_softc *sc;
 	int error;
 
-	if (KERNEL_PANICKED())
+	if ((howto & RB_NOSYNC) != 0)
 		return;
 
 	mp = arg;
