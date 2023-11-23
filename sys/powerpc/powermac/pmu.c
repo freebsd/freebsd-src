@@ -812,10 +812,12 @@ pmu_shutdown(void *xsc, int howto)
 	struct pmu_softc *sc = xsc;
 	uint8_t cmd[] = {'M', 'A', 'T', 'T'};
 
-	if (howto & RB_HALT)
+	if ((howto & RB_POWEROFF) != 0)
 		pmu_send(sc, PMU_POWER_OFF, 4, cmd, 0, NULL);
-	else
+	else if ((howto & RB_HALT) == 0)
 		pmu_send(sc, PMU_RESET_CPU, 0, NULL, 0, NULL);
+	else
+		return;
 
 	for (;;);
 }

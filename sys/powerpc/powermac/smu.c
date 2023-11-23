@@ -1317,10 +1317,12 @@ smu_shutdown(void *xdev, int howto)
 	struct smu_cmd cmd;
 
 	cmd.cmd = SMU_POWER;
-	if (howto & RB_HALT)
+	if ((howto & RB_POWEROFF) != 0)
 		strcpy(cmd.data, "SHUTDOWN");
-	else
+	else if ((howto & RB_HALT) == 0)
 		strcpy(cmd.data, "RESTART");
+	else
+		return;
 
 	cmd.len = strlen(cmd.data);
 
