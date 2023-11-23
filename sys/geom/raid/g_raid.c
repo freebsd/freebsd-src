@@ -38,6 +38,7 @@
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/reboot.h>
 #include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
@@ -2456,6 +2457,9 @@ g_raid_shutdown_post_sync(void *arg, int howto)
 	struct g_geom *gp, *gp2;
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
+
+	if ((howto & RB_NOSYNC) != 0)
+		return;
 
 	mp = arg;
 	g_topology_lock();
