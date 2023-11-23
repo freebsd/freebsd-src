@@ -2824,6 +2824,41 @@ suspend_all_fs(void)
 	mtx_unlock(&mountlist_mtx);
 }
 
+/*
+ * Clone the mnt_exjail field to a new mount point.
+ */
+void
+vfs_exjail_clone(struct mount *inmp, struct mount *outmp)
+{
+	struct ucred *cr;
+	struct prison *pr;
+
+	MNT_ILOCK(inmp);
+	cr = inmp->mnt_exjail;
+	if (cr != NULL) {
+		crhold(cr);
+		MNT_IUNLOCK(inmp);
+		pr = cr->cr_prison;
+		sx_slock(&allprison_lock);
+		if (!prison_isalive(pr)) {
+			sx_sunlock(&allprison_lock);
+			crfree(cr);
+			return;
+		}
+		MNT_ILOCK(outmp);
+		if (outmp->mnt_exjail == NULL) {
+			outmp->mnt_exjail = cr;
+			atomic_add_int(&pr->pr_exportcnt, 1);
+			cr = NULL;
+		}
+		MNT_IUNLOCK(outmp);
+		sx_sunlock(&allprison_lock);
+		if (cr != NULL)
+			crfree(cr);
+	} else
+		MNT_IUNLOCK(inmp);
+}
+
 void
 resume_all_fs(void)
 {
