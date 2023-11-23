@@ -31,8 +31,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)read.c	8.1 (Berkeley) 6/11/93
- *
  *
  * Copyright (c) 1989, 1990, 1991 Carnegie Mellon University
  * All Rights Reserved.
