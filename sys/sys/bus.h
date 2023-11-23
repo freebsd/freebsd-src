@@ -317,6 +317,8 @@ struct driver {
 	KOBJ_CLASS_FIELDS;
 };
 
+struct resource;
+
 /**
  * @brief A resource mapping.
  */
@@ -341,12 +343,14 @@ void	resource_init_map_request_impl(struct resource_map_request *_args,
 	    size_t _sz);
 #define	resource_init_map_request(rmr) 					\
 	resource_init_map_request_impl((rmr), sizeof(*(rmr)))
+int	resource_validate_map_request(struct resource *r,
+	    struct resource_map_request *in, struct resource_map_request *out,
+	    rman_res_t *startp, rman_res_t *lengthp);
 
 /*
  * Definitions for drivers which need to keep simple lists of resources
  * for their child devices.
  */
-struct	resource;
 
 /**
  * @brief An entry for a single resource in a resource list.
