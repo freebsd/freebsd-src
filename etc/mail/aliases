@@ -1,5 +1,3 @@
-#	@(#)aliases	5.3 (Berkeley) 5/24/90
-#
 #  Aliases in this file will NOT be expanded in the header from
 #  Mail, but WILL be visible over networks.
 #
