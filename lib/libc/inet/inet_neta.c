@@ -17,9 +17,6 @@
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_neta.c,v 1.3 2005/04/27 04:56:20 sra Exp $";
-#endif
 #include "port_before.h"
 
 #include <sys/types.h>

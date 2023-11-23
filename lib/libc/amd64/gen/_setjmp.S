@@ -30,9 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-	.asciz "@(#)_setjmp.s	5.1 (Berkeley) 4/23/90"
-#endif /* LIBC_SCCS and not lint */
 #include <machine/asm.h>
 /*
  * C library -- _setjmp, _longjmp

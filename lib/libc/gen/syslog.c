@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)syslog.c	8.5 (Berkeley) 4/29/95");
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/socket.h>

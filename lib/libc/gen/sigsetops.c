@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)sigsetops.c	8.1 (Berkeley) 6/4/93");
 #include <errno.h>
 #include <signal.h>
 

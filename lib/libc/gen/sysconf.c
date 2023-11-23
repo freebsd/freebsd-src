@@ -32,8 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)sysconf.c	8.2 (Berkeley) 3/20/94");
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/time.h>

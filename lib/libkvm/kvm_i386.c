@@ -33,8 +33,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)kvm_hp300.c	8.1 (Berkeley) 6/4/93");
 
 /*
  * i386 machine dependent routines for kvm.  Hopefully, the forthcoming

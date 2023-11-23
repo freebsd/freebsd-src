@@ -1,5 +1,3 @@
-/* #pragma ident	"@(#)auth_time.c	1.4	92/11/10 SMI" */
-
 /*
  *	auth_time.c
  *

@@ -38,9 +38,6 @@ static char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)tcreat3.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/types.h>
 #include <sys/file.h>
 #include <stdio.h>
