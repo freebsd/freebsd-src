@@ -1,4 +1,3 @@
-/*  @(#)des.h	2.2 88/08/10 4.0 RPCSRC; from 2.7 88/02/08 SMI  */
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *

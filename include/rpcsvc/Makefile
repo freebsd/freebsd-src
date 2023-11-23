@@ -1,4 +1,3 @@
-#	from: @(#)Makefile	2.3 88/08/11 4.0 RPCSRC
 
 .SUFFIXES: .x
 

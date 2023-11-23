@@ -1,5 +1,3 @@
-#	@(#)Makefile	8.2 (Berkeley) 1/4/94
-#
 # Doing a "make install" builds /usr/include.
 
 .include <src.opts.mk>
