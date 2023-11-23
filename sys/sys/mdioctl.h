@@ -35,8 +35,6 @@
  *
  * from: Utah $Hdr: fdioctl.h 1.1 90/07/09$
  *
- *	@(#)vnioctl.h	8.1 (Berkeley) 6/10/93
- *
  * From: src/sys/sys/vnioctl.h,v 1.4
  */
 

@@ -31,12 +31,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)null_vnops.c	8.6 (Berkeley) 5/27/95
- *
  * Ancestors:
- *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
  *	...and...
- *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  */
 
 /*

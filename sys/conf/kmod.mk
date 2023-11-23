@@ -1,5 +1,3 @@
-#	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#
 # The include file <bsd.kmod.mk> handles building and installing loadable
 # kernel modules.
 #

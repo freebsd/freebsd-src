@@ -32,8 +32,6 @@
  * SUCH DAMAGE.
  *
  * From: Id: vfscanf.c,v 1.13 1998/09/25 12:20:27 obrien Exp 
- * From: static char sccsid[] = "@(#)strtol.c	8.1 (Berkeley) 6/4/93";
- * From: static char sccsid[] = "@(#)strtoul.c	8.1 (Berkeley) 6/4/93";
  */
 
 #include <sys/cdefs.h>

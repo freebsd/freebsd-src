@@ -41,7 +41,6 @@
  *
  * partially based on:
  *      libnetboot/rpc.c
- *               @(#) Header: rpc.c,v 1.12 93/09/28 08:31:56 leres Exp  (LBL)
  */
 
 #include <sys/cdefs.h>
