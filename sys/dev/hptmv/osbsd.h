@@ -190,8 +190,6 @@ typedef struct IALAdapter
 	UCHAR               status;
 	UCHAR               ver_601;
 	UCHAR               beeping;
-
-	eventhandler_tag	eh;
 }
 IAL_ADAPTER_T;
 
