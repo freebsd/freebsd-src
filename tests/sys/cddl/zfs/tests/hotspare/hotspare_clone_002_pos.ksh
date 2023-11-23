@@ -23,9 +23,6 @@
 #
 # Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)hotspare_clone_002_pos.ksh	1.3	09/06/22 SMI"
-#
 . $STF_SUITE/tests/hotspare/hotspare.kshlib
 
 ################################################################################

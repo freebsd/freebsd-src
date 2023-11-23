@@ -23,10 +23,6 @@
 #
 # Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zfs_upgrade_005_pos.ksh	1.3	09/06/22 SMI"
-#
-#
 . $STF_SUITE/include/libtest.kshlib
 . $STF_SUITE/tests/cli_root/zfs_upgrade/zfs_upgrade.kshlib
 

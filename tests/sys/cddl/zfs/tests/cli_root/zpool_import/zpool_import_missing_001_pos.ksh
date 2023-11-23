@@ -23,9 +23,6 @@
 #
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zpool_import_missing_001_pos.ksh	1.4	07/10/09 SMI"
-#
 . $STF_SUITE/include/libtest.kshlib
 . $STF_SUITE/tests/cli_root/zfs_mount/zfs_mount.kshlib
 . $STF_SUITE/tests/cli_root/zpool_import/zpool_import.kshlib
