@@ -35,8 +35,6 @@
  * Copyright (c) 1986 - 1991 by Sun Microsystems, Inc.
  */
 
-/* #ident	"@(#)rpcb_svc_4.c	1.8	93/07/05 SMI" */
-
 /*
  * rpcb_svc_4.c
  * The server procedure for the version 4 rpcbind.
