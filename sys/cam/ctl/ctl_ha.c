@@ -909,13 +909,16 @@ ctl_ha_msg_shutdown(struct ctl_softc *ctl_softc)
 {
 	struct ha_softc *softc = &ha_softc;
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	/* Disconnect and shutdown threads. */
 	mtx_lock(&softc->ha_lock);
 	if (softc->ha_shutdown < 2) {
 		softc->ha_shutdown = 1;
 		softc->ha_wakeup = 1;
 		wakeup(&softc->ha_wakeup);
-		while (softc->ha_shutdown < 2 && !SCHEDULER_STOPPED()) {
+		while (softc->ha_shutdown < 2) {
 			msleep(&softc->ha_wakeup, &softc->ha_lock, 0,
 			    "shutdown", hz);
 		}
