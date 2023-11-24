@@ -15,7 +15,6 @@
  * purpose.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/dirent.h>
 #include <sys/endian.h>

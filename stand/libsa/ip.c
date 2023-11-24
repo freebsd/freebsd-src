@@ -37,7 +37,6 @@
  * once we will implement the support for tcp.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/queue.h>

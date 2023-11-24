@@ -31,7 +31,6 @@
  * Block storage I/O routines for U-Boot
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/disk.h>
 #include <machine/stdarg.h>

@@ -26,7 +26,7 @@
 #include <stddef.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include <sys/cdefs.h>
+
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <efi.h>

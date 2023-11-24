@@ -13,7 +13,6 @@
  * purpose.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #include <machine/psl.h>

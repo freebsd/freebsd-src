@@ -26,7 +26,6 @@
  * the rights to redistribute these changes.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #include "bootstrap.h"
