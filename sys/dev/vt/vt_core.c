@@ -579,8 +579,6 @@ vt_window_switch(struct vt_window *vw)
 		 * debugger entry/exit to be equivalent to
 		 * successfully try-locking here.
 		 */
-		if (curvw == vw)
-			return (0);
 		if (!(vw->vw_flags & (VWF_OPENED|VWF_CONSOLE))) {
 			inside_vt_window_switch = false;
 			return (EINVAL);
