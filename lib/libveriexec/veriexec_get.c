@@ -27,7 +27,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/mac.h>

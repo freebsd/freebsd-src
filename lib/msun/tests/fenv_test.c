@@ -28,7 +28,6 @@
  * Test the correctness and C99-compliance of various fenv.h features.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <assert.h>

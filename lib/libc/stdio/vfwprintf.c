@@ -37,8 +37,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#endif
 /*
  * Actual wprintf innards.
  *

@@ -38,7 +38,6 @@
  * $Whistle: debug.c,v 1.24 1999/01/24 01:15:33 archie Exp $
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>

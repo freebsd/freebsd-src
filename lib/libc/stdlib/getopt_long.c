@@ -49,8 +49,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if 0
-#endif
 #include <err.h>
 #include <errno.h>
 #include <getopt.h>

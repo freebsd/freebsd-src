@@ -37,7 +37,6 @@
  * ARM machine dependent routines for kvm.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <kvm.h>

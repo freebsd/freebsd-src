@@ -28,7 +28,6 @@
  * edited for clarity and style only.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #ifdef _KERNEL

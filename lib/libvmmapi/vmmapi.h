@@ -29,7 +29,6 @@
 #ifndef _VMMAPI_H_
 #define	_VMMAPI_H_
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/cpuset.h>
 #include <machine/vmm.h>

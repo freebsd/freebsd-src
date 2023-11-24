@@ -34,8 +34,6 @@
  * Copyright (c) 1986-1991 by Sun Microsystems Inc.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-#endif
 /*
  * svc_dg.c, Server side for connectionless RPC.
  *

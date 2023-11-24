@@ -38,7 +38,6 @@
  * $Whistle: msg.c,v 1.9 1999/01/20 00:57:23 archie Exp $
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdarg.h>

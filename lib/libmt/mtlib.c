@@ -30,7 +30,6 @@
  * Authors: Ken Merry           (Spectra Logic Corporation)
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/mtio.h>

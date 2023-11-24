@@ -29,7 +29,6 @@
 #ifndef _PMC_H_
 #define _PMC_H_
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/pmc.h>
 

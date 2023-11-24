@@ -29,9 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/ioctl.h>

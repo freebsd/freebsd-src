@@ -26,7 +26,6 @@
  * From: FreeBSD: src/lib/libkvm/kvm_minidump_riscv.c
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #include <kvm.h>

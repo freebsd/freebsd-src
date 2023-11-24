@@ -26,7 +26,6 @@
  * From: FreeBSD: src/lib/libkvm/tests/kvm_geterr_test.c
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <errno.h>
