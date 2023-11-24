@@ -1119,26 +1119,55 @@ pfctl_add_rule(int dev __unused, const struct pfctl_rule *r, const char *anchor,
 	return (e.error);
 }
 
+#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
+#define	_OUT(_field)	offsetof(struct pfctl_rules_info, _field)
+static struct snl_attr_parser ap_getrules[] = {
+	{ .type = PF_GR_NR, .off = _OUT(nr), .cb = snl_attr_get_uint32 },
+	{ .type = PF_GR_TICKET, .off = _OUT(ticket), .cb = snl_attr_get_uint32 },
+};
+static struct snl_field_parser fp_getrules[] = {
+};
+#undef _IN
+#undef _OUT
+SNL_DECLARE_PARSER(getrules_parser, struct genlmsghdr, fp_getrules, ap_getrules);
+
 int
-pfctl_get_rules_info(int dev, struct pfctl_rules_info *rules, uint32_t ruleset,
+pfctl_get_rules_info(int dev __unused, struct pfctl_rules_info *rules, uint32_t ruleset,
     const char *path)
 {
-	struct pfioc_rule pr;
-	int ret;
+	struct snl_state ss = {};
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	struct snl_writer nw;
+	uint32_t seq_id;
+	int family_id;
 
-	bzero(&pr, sizeof(pr));
-	if (strlcpy(pr.anchor, path, sizeof(pr.anchor)) >= sizeof(pr.anchor))
-		return (E2BIG);
+	snl_init(&ss, NETLINK_GENERIC);
+	family_id = snl_get_genl_family(&ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
 
-	pr.rule.action = ruleset;
-	ret = ioctl(dev, DIOCGETRULES, &pr);
-	if (ret != 0)
-		return (ret);
+	snl_init_writer(&ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GETRULES);
+	hdr->nlmsg_flags |= NLM_F_DUMP;
 
-	rules->nr = pr.nr;
-	rules->ticket = pr.ticket;
+	snl_add_msg_attr_string(&nw, PF_GR_ANCHOR, path);
+	snl_add_msg_attr_u8(&nw, PF_GR_ACTION, ruleset);
 
-	return (0);
+	hdr = snl_finalize_msg(&nw);
+	if (hdr == NULL)
+		return (ENOMEM);
+
+	seq_id = hdr->nlmsg_seq;
+	if (! snl_send_message(&ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&ss, hdr, &getrules_parser, rules))
+			continue;
+	}
+
+	return (e.error);
 }
 
 int
@@ -1368,7 +1397,7 @@ SNL_DECLARE_PARSER(state_parser, struct genlmsghdr, fp_state, ap_state);
 
 static const struct snl_hdr_parser *all_parsers[] = {
 	&state_parser, &skey_parser, &speer_parser,
-	&creator_parser,
+	&creator_parser, &getrules_parser
 };
 
 static int

@@ -2022,6 +2022,36 @@ pf_rule_to_krule(const struct pf_rule *rule, struct pf_krule *krule)
 }
 
 int
+pf_ioctl_getrules(struct pfioc_rule *pr)
+{
+	struct pf_kruleset	*ruleset;
+	struct pf_krule		*tail;
+	int			 rs_num;
+
+	PF_RULES_WLOCK();
+	ruleset = pf_find_kruleset(pr->anchor);
+	if (ruleset == NULL) {
+		PF_RULES_WUNLOCK();
+		return (EINVAL);
+	}
+	rs_num = pf_get_ruleset_number(pr->rule.action);
+	if (rs_num >= PF_RULESET_MAX) {
+		PF_RULES_WUNLOCK();
+		return (EINVAL);
+	}
+	tail = TAILQ_LAST(ruleset->rules[rs_num].active.ptr,
+	    pf_krulequeue);
+	if (tail)
+		pr->nr = tail->nr + 1;
+	else
+		pr->nr = 0;
+	pr->ticket = ruleset->rules[rs_num].active.ticket;
+	PF_RULES_WUNLOCK();
+
+	return (0);
+}
+
+int
 pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
     uint32_t pool_ticket, const char *anchor, const char *anchor_call,
     uid_t uid, pid_t pid)
@@ -3117,33 +3147,11 @@ DIOCADDRULENV_error:
 
 	case DIOCGETRULES: {
 		struct pfioc_rule	*pr = (struct pfioc_rule *)addr;
-		struct pf_kruleset	*ruleset;
-		struct pf_krule		*tail;
-		int			 rs_num;
 
 		pr->anchor[sizeof(pr->anchor) - 1] = 0;
 
-		PF_RULES_WLOCK();
-		ruleset = pf_find_kruleset(pr->anchor);
-		if (ruleset == NULL) {
-			PF_RULES_WUNLOCK();
-			error = EINVAL;
-			break;
-		}
-		rs_num = pf_get_ruleset_number(pr->rule.action);
-		if (rs_num >= PF_RULESET_MAX) {
-			PF_RULES_WUNLOCK();
-			error = EINVAL;
-			break;
-		}
-		tail = TAILQ_LAST(ruleset->rules[rs_num].active.ptr,
-		    pf_krulequeue);
-		if (tail)
-			pr->nr = tail->nr + 1;
-		else
-			pr->nr = 0;
-		pr->ticket = ruleset->rules[rs_num].active.ticket;
-		PF_RULES_WUNLOCK();
+		error = pf_ioctl_getrules(pr);
+
 		break;
 	}
 
