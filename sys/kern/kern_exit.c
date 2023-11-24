@@ -985,6 +985,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	proc_id_clear(PROC_ID_PID, p->p_pid);
 
 	PROC_LOCK(p);
+	knlist_delete(p->p_klist, td, 1);
 	knlist_detach(p->p_klist);
 	p->p_klist = NULL;
 	PROC_UNLOCK(p);
