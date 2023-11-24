@@ -4358,6 +4358,13 @@ bus_generic_child_present(device_t dev, device_t child)
 	return (BUS_CHILD_PRESENT(device_get_parent(dev), dev));
 }
 
+/**
+ * @brief Helper function for implementing BUS_GET_DOMAIN().
+ *
+ * This simple implementation of BUS_GET_DOMAIN() calls the
+ * BUS_GET_DOMAIN() method of the parent of @p dev.  If @p dev
+ * does not have a parent, the function fails with ENOENT.
+ */
 int
 bus_generic_get_domain(device_t dev, device_t child, int *domain)
 {
