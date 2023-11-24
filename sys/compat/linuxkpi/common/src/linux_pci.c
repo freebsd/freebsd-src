@@ -305,7 +305,7 @@ lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 	pdev->subsystem_device = pci_get_subdevice(dev);
 	pdev->class = pci_get_class(dev);
 	pdev->revision = pci_get_revid(dev);
-	pdev->path_name = kasprintf(GFP_KERNEL, "%04d:%02d:%02d.%d",
+	pdev->path_name = kasprintf(M_WAITOK, "%04d:%02d:%02d.%d",
 	    pci_get_domain(dev), pci_get_bus(dev), pci_get_slot(dev),
 	    pci_get_function(dev));
 	pdev->bus = malloc(sizeof(*pdev->bus), M_DEVBUF, M_WAITOK | M_ZERO);
@@ -1469,7 +1469,7 @@ linux_dma_pool_create(char *name, struct device *dev, size_t size,
 
 	priv = dev->dma_priv;
 
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc(sizeof(*pool), M_WAITOK);
 	pool->pool_device = dev;
 	pool->pool_entry_size = size;
 
