@@ -4190,6 +4190,163 @@ bus_generic_rl_alloc_resource(device_t dev, device_t child, int type,
 }
 
 /**
+ * @brief Helper function for implementing BUS_ALLOC_RESOURCE().
+ *
+ * This implementation of BUS_ALLOC_RESOURCE() allocates a
+ * resource from a resource manager.  It uses BUS_GET_RMAN()
+ * to obtain the resource manager.
+ */
+struct resource *
+bus_generic_rman_alloc_resource(device_t dev, device_t child, int type,
+    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+{
+	struct resource *r;
+	struct rman *rm;
+
+	rm = BUS_GET_RMAN(dev, type, flags);
+	if (rm == NULL)
+		return (NULL);
+
+	r = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
+	    child);
+	if (r == NULL)
+		return (NULL);
+	rman_set_rid(r, *rid);
+
+	if (flags & RF_ACTIVE) {
+		if (bus_activate_resource(child, type, *rid, r) != 0) {
+			rman_release_resource(r);
+			return (NULL);
+		}
+	}
+
+	return (r);
+}
+
+/**
+ * @brief Helper function for implementing BUS_ADJUST_RESOURCE().
+ *
+ * This implementation of BUS_ADJUST_RESOURCE() adjusts resources only
+ * if they were allocated from the resource manager returned by
+ * BUS_GET_RMAN().
+ */
+int
+bus_generic_rman_adjust_resource(device_t dev, device_t child, int type,
+    struct resource *r, rman_res_t start, rman_res_t end)
+{
+	struct rman *rm;
+
+	rm = BUS_GET_RMAN(dev, type, rman_get_flags(r));
+	if (rm == NULL)
+		return (ENXIO);
+	if (!rman_is_region_manager(r, rm))
+		return (EINVAL);
+	return (rman_adjust_resource(r, start, end));
+}
+
+/**
+ * @brief Helper function for implementing BUS_RELEASE_RESOURCE().
+ *
+ * This implementation of BUS_RELEASE_RESOURCE() releases resources
+ * allocated by bus_generic_rman_alloc_resource.
+ */
+int
+bus_generic_rman_release_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *r)
+{
+#ifdef INVARIANTS
+	struct rman *rm;
+#endif
+	int error;
+
+#ifdef INVARIANTS
+	rm = BUS_GET_RMAN(dev, type, rman_get_flags(r));
+	KASSERT(rman_is_region_manager(r, rm),
+	    ("%s: rman %p doesn't match for resource %p", __func__, rm, r));
+#endif
+
+	if (rman_get_flags(r) & RF_ACTIVE) {
+		error = bus_deactivate_resource(child, type, rid, r);
+		if (error != 0)
+			return (error);
+	}
+	return (rman_release_resource(r));
+}
+
+/**
+ * @brief Helper function for implementing BUS_ACTIVATE_RESOURCE().
+ *
+ * This implementation of BUS_ACTIVATE_RESOURCE() activates resources
+ * allocated by bus_generic_rman_alloc_resource.
+ */
+int
+bus_generic_rman_activate_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *r)
+{
+	struct resource_map map;
+#ifdef INVARIANTS
+	struct rman *rm;
+#endif
+	int error;
+
+#ifdef INVARIANTS
+	rm = BUS_GET_RMAN(dev, type, rman_get_flags(r));
+	KASSERT(rman_is_region_manager(r, rm),
+	    ("%s: rman %p doesn't match for resource %p", __func__, rm, r));
+#endif
+
+	error = rman_activate_resource(r);
+	if (error != 0)
+		return (error);
+
+	if ((rman_get_flags(r) & RF_UNMAPPED) == 0 &&
+	    (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT)) {
+		error = BUS_MAP_RESOURCE(dev, child, type, r, NULL, &map);
+		if (error != 0) {
+			rman_deactivate_resource(r);
+			return (error);
+		}
+
+		rman_set_mapping(r, &map);
+	}
+	return (0);
+}
+
+/**
+ * @brief Helper function for implementing BUS_DEACTIVATE_RESOURCE().
+ *
+ * This implementation of BUS_DEACTIVATE_RESOURCE() deactivates
+ * resources allocated by bus_generic_rman_alloc_resource.
+ */
+int
+bus_generic_rman_deactivate_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *r)
+{
+	struct resource_map map;
+#ifdef INVARIANTS
+	struct rman *rm;
+#endif
+	int error;
+
+#ifdef INVARIANTS
+	rm = BUS_GET_RMAN(dev, type, rman_get_flags(r));
+	KASSERT(rman_is_region_manager(r, rm),
+	    ("%s: rman %p doesn't match for resource %p", __func__, rm, r));
+#endif
+
+	error = rman_deactivate_resource(r);
+	if (error != 0)
+		return (error);
+
+	if ((rman_get_flags(r) & RF_UNMAPPED) == 0 &&
+	    (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT)) {
+		rman_get_mapping(r, &map);
+		BUS_UNMAP_RESOURCE(dev, child, type, r, &map);
+	}
+	return (0);
+}
+
+/**
  * @brief Helper function for implementing BUS_CHILD_PRESENT().
  *
  * This simple implementation of BUS_CHILD_PRESENT() simply calls the
