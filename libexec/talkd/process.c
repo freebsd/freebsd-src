@@ -29,9 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-
 /*
  * process.c handles the requests, which can be of three types:
  *	ANNOUNCE - announce to a user that a talk is wanted

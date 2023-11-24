@@ -27,9 +27,6 @@
  * Mountain View, California  94043
  */
 
-#ifndef lint
-#endif
-
 /*
  * rstat service:  built with rstat.x and derived from rpc.rstatd.c
  *

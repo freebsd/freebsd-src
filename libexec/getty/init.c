@@ -29,9 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-
 /*
  * Getty table initializations.
  *

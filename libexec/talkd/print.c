@@ -29,9 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-
 /* debug print routines */
 
 #include <sys/types.h>

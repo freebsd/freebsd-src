@@ -40,9 +40,6 @@
  * Author: Jeff Forys, University of Utah CSS
  */
 
-#ifndef lint
-#endif /* not lint */
-
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/time.h>
