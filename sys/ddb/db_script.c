@@ -55,7 +55,6 @@
  *   this.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>

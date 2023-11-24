@@ -22,7 +22,7 @@
  */
 
 #ifdef __FreeBSD__
-#include <sys/cdefs.h>
+
 #include <sys/param.h>
 #include <sys/module.h>
 #endif

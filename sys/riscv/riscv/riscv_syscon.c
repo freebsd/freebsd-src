@@ -31,7 +31,6 @@
  * describing the SiFive test finisher as a power and reset controller.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>

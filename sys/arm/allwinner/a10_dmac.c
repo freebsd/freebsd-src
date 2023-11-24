@@ -29,7 +29,6 @@
  * Allwinner A10/A20 DMA controller
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

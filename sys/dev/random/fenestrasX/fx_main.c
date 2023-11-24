@@ -92,7 +92,6 @@
  *  - In particular, VM migration/copy detection
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/domainset.h>
 #include <sys/fail.h>

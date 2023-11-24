@@ -29,7 +29,6 @@
 
 /* Driver for Attansic Technology Corp. L1 Gigabit Ethernet. */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

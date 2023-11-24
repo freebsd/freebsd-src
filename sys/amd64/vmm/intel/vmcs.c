@@ -29,7 +29,6 @@
 #include "opt_bhyve_snapshot.h"
 #include "opt_ddb.h"
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>

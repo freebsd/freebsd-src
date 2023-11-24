@@ -44,7 +44,6 @@
 #ifndef _MPI3MRVAR_H
 #define _MPI3MRVAR_H
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>

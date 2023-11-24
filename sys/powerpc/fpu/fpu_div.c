@@ -44,7 +44,6 @@
  * Perform an FPU divide (return x / y).
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/systm.h>
 

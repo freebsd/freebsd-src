@@ -29,7 +29,6 @@
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/endian.h>

@@ -62,7 +62,6 @@
  *	Virtual memory mapping module.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/elf.h>

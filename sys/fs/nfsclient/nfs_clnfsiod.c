@@ -34,7 +34,6 @@
  *	from nfs_syscalls.c	8.5 (Berkeley) 3/30/95
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>

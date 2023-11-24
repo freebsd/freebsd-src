@@ -29,7 +29,6 @@
  * Motorcomm YT8511C / YT8511H Integrated 10/100/1000 Gigabit Ethernet phy
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

@@ -46,7 +46,6 @@
  * To subtract, negate y and call add.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/systm.h>
 

@@ -28,7 +28,6 @@
  * Generic OHCI driver based on AT91 OHCI
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

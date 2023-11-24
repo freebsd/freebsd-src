@@ -44,7 +44,6 @@
  * see man buf(9) for more info.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/asan.h>

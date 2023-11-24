@@ -37,7 +37,6 @@
  * Marvell integrated PCI/PCI-Express Bus Controller Driver.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

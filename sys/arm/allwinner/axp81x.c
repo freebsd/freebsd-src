@@ -28,7 +28,6 @@
  * X-Powers AXP803/813/818 PMU for Allwinner SoCs
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>

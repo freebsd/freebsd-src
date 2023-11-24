@@ -34,7 +34,6 @@
  * controller and register definitions are in appendix B.34.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

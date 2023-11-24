@@ -31,10 +31,6 @@
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <sys/cdefs.h>
-#ifdef __FreeBSD__
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/endian.h>

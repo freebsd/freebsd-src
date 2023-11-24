@@ -28,7 +28,6 @@
  * Based on sys/arm/ti/ti_sysc.c
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

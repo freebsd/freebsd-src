@@ -29,7 +29,6 @@
 #ifndef BXE_STATS_H
 #define BXE_STATS_H
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 struct nig_stats {

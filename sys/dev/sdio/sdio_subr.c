@@ -54,7 +54,6 @@
  * information, know-how or other confidential information to any third party.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kernel.h>

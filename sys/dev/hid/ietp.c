@@ -30,7 +30,6 @@
  * https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/drivers/input/mouse/elan_i2c_core.c
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/endian.h>

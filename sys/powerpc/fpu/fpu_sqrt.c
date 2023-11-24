@@ -44,7 +44,6 @@
  * Perform an FPU square root (return sqrt(x)).
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/systm.h>
 

@@ -62,7 +62,6 @@
  *	Initialize the Virtual Memory subsystem.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/domainset.h>
 #include <sys/kernel.h>

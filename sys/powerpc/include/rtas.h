@@ -29,7 +29,6 @@
 #ifndef _MACHINE_RTAS_H_
 #define _MACHINE_RTAS_H_
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <dev/ofw/openfirm.h>
 

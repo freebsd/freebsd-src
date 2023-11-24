@@ -37,7 +37,6 @@
  * unloaded; in particular, probes may not span multiple kernel modules.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 

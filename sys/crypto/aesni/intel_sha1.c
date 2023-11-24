@@ -55,7 +55,7 @@
 * gcc -msha -msse4 intel_sha_extensions_sha1_intrinsic.c
 *
 *******************************************************************************/
-#include <sys/cdefs.h>
+
 #include <sys/types.h>
 #include <crypto/aesni/aesni_os.h>
 #include <crypto/aesni/sha_sse.h>

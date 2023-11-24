@@ -28,8 +28,6 @@
  *		 Yi CDL Yang
  */
 
-
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/param.h>

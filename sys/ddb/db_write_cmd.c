@@ -30,7 +30,6 @@
  *	Date:	7/90
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #include <ddb/ddb.h>

@@ -36,7 +36,6 @@
 #include "opt_kstack_pages.h"
 #include "opt_platform.h"
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/boot.h>

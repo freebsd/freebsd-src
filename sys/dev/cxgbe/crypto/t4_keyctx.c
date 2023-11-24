@@ -27,7 +27,6 @@
 
 #include "opt_kern_tls.h"
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/ktls.h>
 #include <sys/malloc.h>

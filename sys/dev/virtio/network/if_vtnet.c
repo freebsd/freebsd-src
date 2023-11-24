@@ -28,7 +28,6 @@
 
 /* Driver for VirtIO network devices. */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/eventhandler.h>
 #include <sys/systm.h>

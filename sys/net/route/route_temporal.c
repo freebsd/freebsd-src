@@ -30,7 +30,6 @@
  * (typically, redirect-originated) from the route tables.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>

@@ -30,7 +30,6 @@
 
 /* Based on sys/arm/ti/am335x/am335x_prcm.c */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

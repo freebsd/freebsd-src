@@ -33,7 +33,6 @@
  * \brief A timer driver for the Xen hypervisor's PV clock.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

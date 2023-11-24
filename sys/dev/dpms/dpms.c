@@ -60,7 +60,6 @@
  * Support for managing the display via DPMS for suspend/resume.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>

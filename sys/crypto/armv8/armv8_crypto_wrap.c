@@ -40,7 +40,6 @@
  * into floating-point context before calling any of these functions.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>

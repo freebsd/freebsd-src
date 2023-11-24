@@ -27,7 +27,6 @@
 #ifndef _POWERNV_OPAL_H
 #define _POWERNV_OPAL_H
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/_eventhandler.h>
 

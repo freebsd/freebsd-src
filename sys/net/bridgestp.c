@@ -36,7 +36,6 @@
  * ISO/IEC 802.1D-2004, June 9, 2004.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>

@@ -35,7 +35,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/vnode.h>
 #include <sys/ipc.h>

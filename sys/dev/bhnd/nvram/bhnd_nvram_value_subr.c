@@ -27,7 +27,6 @@
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #ifdef _KERNEL

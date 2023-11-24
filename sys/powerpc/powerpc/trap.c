@@ -31,7 +31,6 @@
  * $NetBSD: trap.c,v 1.58 2002/03/04 04:07:35 dbj Exp $
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/proc.h>

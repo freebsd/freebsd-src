@@ -32,7 +32,6 @@
 /* TODO unlink from VT(9) */
 /* TODO done normal /dev/fb methods */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

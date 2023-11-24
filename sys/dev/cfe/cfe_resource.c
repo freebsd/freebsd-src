@@ -33,7 +33,6 @@
  * TODO: Don't attach this off nexus.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

@@ -33,7 +33,6 @@
  * Lexical analyzer.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/libkern.h>
 #include <sys/lock.h>

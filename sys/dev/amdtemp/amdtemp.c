@@ -34,7 +34,6 @@
  * Initially based on the k8temp Linux driver.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>

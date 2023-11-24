@@ -41,7 +41,6 @@
  * Created      : 10/10/95
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>

@@ -32,7 +32,6 @@
  * LSI MPT-Fusion Host Adapter FreeBSD userland interface
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #ifdef __amd64__
 #include <sys/abi_compat.h>

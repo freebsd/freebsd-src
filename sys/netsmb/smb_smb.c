@@ -30,7 +30,6 @@
  * various SMB requests. Most of the routines merely packs data into mbufs.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

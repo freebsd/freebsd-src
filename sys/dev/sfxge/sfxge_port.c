@@ -33,7 +33,6 @@
  * policies, either expressed or implied, of the FreeBSD Project.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/limits.h>
 #include <net/ethernet.h>

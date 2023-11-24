@@ -27,7 +27,6 @@
 #include "opt_ah.h"
 #include "opt_wlan.h"
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/conf.h>

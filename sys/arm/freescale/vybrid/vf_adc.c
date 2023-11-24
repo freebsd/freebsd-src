@@ -29,7 +29,6 @@
  * Chapter 37, Vybrid Reference Manual, Rev. 5, 07/2013
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

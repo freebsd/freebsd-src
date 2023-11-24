@@ -6,7 +6,6 @@
 
 /* This file implements the VMCI doorbell API. */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #include "vmci_doorbell.h"

@@ -41,7 +41,6 @@
  * requests and I/O memory address space.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

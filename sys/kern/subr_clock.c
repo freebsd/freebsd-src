@@ -39,7 +39,6 @@
  *	from: src/sys/i386/isa/clock.c,v 1.176 2001/09/04
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

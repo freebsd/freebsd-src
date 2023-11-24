@@ -27,9 +27,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
  */ 
-#include <sys/cdefs.h>
-#ifdef __FreeBSD__
-#endif
 
 /*
  * IEEE 802.11s Mesh Point (MBSS) support.

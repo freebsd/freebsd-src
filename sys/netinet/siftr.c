@@ -60,7 +60,6 @@
  * Most recent update: September 2010
  ******************************************************/
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/alq.h>
 #include <sys/errno.h>

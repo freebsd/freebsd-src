@@ -62,7 +62,6 @@
  *   descriptors to be created for processes without pdfork(2)?
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/fcntl.h>

@@ -39,7 +39,6 @@
  * We call the internal versions lxxx (e.g., hw -> lhw, sta -> lsta).
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/kernel.h>

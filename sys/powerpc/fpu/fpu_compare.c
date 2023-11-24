@@ -47,7 +47,6 @@
  * adding zero bits to the end of narrower mantissas.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/systm.h>
 

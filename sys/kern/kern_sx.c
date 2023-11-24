@@ -42,7 +42,6 @@
 #include "opt_hwpmc_hooks.h"
 #include "opt_no_adaptive_sx.h"
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kdb.h>

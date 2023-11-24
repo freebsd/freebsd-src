@@ -30,7 +30,6 @@
  *	Date:	7/90
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/endian.h>

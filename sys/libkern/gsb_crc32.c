@@ -42,7 +42,6 @@
  * CRC32 code derived from work by Gary S. Brown.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/gsb_crc32.h>
 

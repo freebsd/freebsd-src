@@ -27,7 +27,6 @@
 
 /* Driver for Qualcomm IPQ4018 clock and reset device */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>

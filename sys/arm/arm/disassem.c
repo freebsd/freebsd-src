@@ -49,7 +49,6 @@
  * This code is not complete. Not all instructions are disassembled.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #include <sys/systm.h>

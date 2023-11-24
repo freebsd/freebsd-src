@@ -27,10 +27,6 @@
 /*	Copyright (c) 1988 AT&T	*/
 /*	  All Rights Reserved	*/
 
-
-#ifdef illumos
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/proc.h>

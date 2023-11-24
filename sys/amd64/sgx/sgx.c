@@ -117,7 +117,6 @@
  * https://software.intel.com/en-us/articles/intel-sdm
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ioccom.h>

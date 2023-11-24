@@ -32,7 +32,6 @@
  * functions using the zlib library (see sys/contrib/zlib)
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/malloc.h>

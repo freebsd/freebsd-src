@@ -33,7 +33,6 @@
  * $NetBSD: syncicache.c,v 1.2 1999/05/05 12:36:40 tsubai Exp $
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #if	defined(_KERNEL) || defined(_STANDALONE)
 #include <sys/time.h>

@@ -100,7 +100,6 @@
  * sk(4) and Marvell's myk(4) driver for FreeBSD 5.x.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

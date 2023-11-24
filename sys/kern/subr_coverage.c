@@ -37,7 +37,6 @@
 #define	SAN_RUNTIME
 #endif
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/coverage.h>
 

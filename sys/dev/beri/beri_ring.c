@@ -32,7 +32,6 @@
  * SRI-Cambridge BERI soft processor <-> ARM core ring buffer.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

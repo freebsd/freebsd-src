@@ -47,7 +47,6 @@
  * PURPOSE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <crypto/camellia/camellia.h>
 #include <opencrypto/xform_enc.h>

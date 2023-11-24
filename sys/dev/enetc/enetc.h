@@ -27,7 +27,6 @@
 #ifndef _ENETC_H_
 #define _ENETC_H_
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #include <dev/enetc/enetc_hw.h>

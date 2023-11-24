@@ -33,7 +33,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/capsicum.h>
 #include <sys/extattr.h>
 

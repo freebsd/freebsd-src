@@ -31,7 +31,6 @@
  *	$KAME: in6_ifattach.c,v 1.118 2001/05/24 07:44:00 itojun Exp $
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
