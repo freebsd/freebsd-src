@@ -499,6 +499,23 @@ int	bus_generic_rl_set_resource (device_t, device_t, int, int, rman_res_t,
 				     rman_res_t);
 int	bus_generic_rl_release_resource (device_t, device_t, int, int,
 					 struct resource *);
+struct resource *
+	bus_generic_rman_alloc_resource(device_t dev, device_t child, int type,
+					int *rid, rman_res_t start,
+					rman_res_t end, rman_res_t count,
+					u_int flags);
+int	bus_generic_rman_adjust_resource(device_t dev, device_t child, int type,
+					 struct resource *r, rman_res_t start,
+					 rman_res_t end);
+int	bus_generic_rman_release_resource(device_t dev, device_t child,
+					  int type, int rid,
+					  struct resource *r);
+int	bus_generic_rman_activate_resource(device_t dev, device_t child,
+					   int type, int rid,
+					   struct resource *r);
+int	bus_generic_rman_deactivate_resource(device_t dev, device_t child,
+					     int type, int rid,
+					     struct resource *r);
 
 int	bus_generic_shutdown(device_t dev);
 int	bus_generic_suspend(device_t dev);
