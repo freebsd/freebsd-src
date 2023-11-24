@@ -32,9 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <pwd.h>
 #include <stdlib.h>

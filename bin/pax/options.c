@@ -33,10 +33,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#endif
-
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mtio.h>

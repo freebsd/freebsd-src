@@ -30,9 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-#include <sys/cdefs.h>
 /*
  * Routines to check for mail.  (Perhaps make part of main.c?)
  */

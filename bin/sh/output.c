@@ -32,9 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-#include <sys/cdefs.h>
 /*
  * Shell output routines.  We use our own output routines because:
  *	When a builtin command is interrupted we have to discard

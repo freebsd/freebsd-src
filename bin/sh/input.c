@@ -30,9 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-#include <sys/cdefs.h>
 #include <stdio.h>	/* defines BUFSIZ */
 #include <fcntl.h>
 #include <errno.h>
