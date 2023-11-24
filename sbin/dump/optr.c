@@ -29,9 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/wait.h>

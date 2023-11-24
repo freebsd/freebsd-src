@@ -29,9 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-
 /*
  * These routines maintain the symbol table which tracks the state
  * of the file system being restored. They provide lookup by either

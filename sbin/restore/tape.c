@@ -34,10 +34,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/mtio.h>
