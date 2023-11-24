@@ -2046,7 +2046,7 @@ static void
 vtterm_cnungrab(struct terminal *tm)
 {
 	struct vt_device *vd;
-	struct vt_window *vw;
+	struct vt_window *vw, *grabwindow;
 
 	vw = tm->tm_softc;
 	vd = vw->vw_device;
@@ -2055,10 +2055,19 @@ vtterm_cnungrab(struct terminal *tm)
 	if (vtterm_cnungrab_noswitch(vd, vw) != 0)
 		return;
 
-	if (!cold && vd->vd_grabwindow != vw)
-		vt_window_switch(vd->vd_grabwindow);
-
+	/*
+	 * We set `vd_grabwindow` to NULL before calling vt_window_switch()
+	 * because it allows the underlying vt(4) backend to distinguish a
+	 * "grab" from an "ungrab" of the console.
+	 *
+	 * This is used by `vt_drmfb` in drm-kmod to call either
+	 * fb_debug_enter() or fb_debug_leave() appropriately.
+	 */
+	grabwindow = vd->vd_grabwindow;
 	vd->vd_grabwindow = NULL;
+
+	if (!cold)
+		vt_window_switch(grabwindow);
 }
 
 static void
