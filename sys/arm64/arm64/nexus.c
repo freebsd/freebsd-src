@@ -367,10 +367,8 @@ nexus_activate_resource_flags(device_t bus, device_t child, int type, int rid,
 			rman_deactivate_resource(r);
 			return (err);
 		}
-		return (0);
-	default:
-		return (EINVAL);
 	}
+	return (0);
 }
 
 static int
