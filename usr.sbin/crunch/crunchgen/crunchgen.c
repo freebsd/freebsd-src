@@ -31,7 +31,6 @@
  * from specs given in a .conf file.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 

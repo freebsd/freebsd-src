@@ -36,7 +36,6 @@
 
 #include <sys/mount.h>
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <ctype.h>
 

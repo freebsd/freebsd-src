@@ -32,7 +32,6 @@
  * so it can be searched within the range.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/tree.h>

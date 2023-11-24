@@ -31,7 +31,6 @@
  * Print information about system device configuration.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <err.h>
 #include <errno.h>

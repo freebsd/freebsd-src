@@ -47,7 +47,6 @@
  * October 1992
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/endian.h>
 

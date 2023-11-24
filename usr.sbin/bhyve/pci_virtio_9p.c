@@ -30,7 +30,6 @@
  * VirtIO filesystem passthrough using 9p protocol.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/linker_set.h>
 #include <sys/uio.h>

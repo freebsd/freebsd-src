@@ -27,7 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <dev/ic/ns16550.h>
 #ifndef WITHOUT_CAPSICUM

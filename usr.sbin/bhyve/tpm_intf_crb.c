@@ -5,7 +5,6 @@
  * Author: Corvin Köhne <c.koehne@beckhoff.com>
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/linker_set.h>

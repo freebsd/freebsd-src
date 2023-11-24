@@ -29,7 +29,6 @@
  * Emulation of selected legacy test/debug interfaces expected by KVM-unit-tests
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <machine/vmm.h>

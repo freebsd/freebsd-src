@@ -26,7 +26,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/cpuset.h>
 #include <sys/event.h>

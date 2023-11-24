@@ -25,7 +25,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/imgact_binmisc.h>
 #include <sys/linker.h>

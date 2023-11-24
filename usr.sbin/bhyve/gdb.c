@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>

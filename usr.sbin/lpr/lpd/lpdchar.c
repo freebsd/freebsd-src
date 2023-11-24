@@ -29,9 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#endif
-
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
 /*
  *	Character set for line printer daemon

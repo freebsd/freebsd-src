@@ -38,7 +38,6 @@
  * is implemented; use MCAST_JOIN_SOURCE for IPv4.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/errno.h>

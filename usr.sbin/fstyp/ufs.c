@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>

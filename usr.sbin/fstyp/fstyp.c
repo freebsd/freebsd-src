@@ -27,7 +27,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/capsicum.h>
 #include <sys/disk.h>
 #include <sys/ioctl.h>

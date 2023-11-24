@@ -30,9 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-
 /*
  * Make all the .h files for the optional entries
  */

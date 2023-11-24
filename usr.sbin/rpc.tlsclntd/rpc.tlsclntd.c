@@ -32,7 +32,6 @@
  * the client side of kernel RPC-over-TLS by Rick Macklem.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/queue.h>

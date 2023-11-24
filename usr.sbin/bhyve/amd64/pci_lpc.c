@@ -27,7 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <machine/vmm.h>
 #include <machine/vmm_snapshot.h>

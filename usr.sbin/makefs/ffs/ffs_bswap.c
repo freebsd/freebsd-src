@@ -27,7 +27,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #if defined(_KERNEL)
 #include <sys/systm.h>

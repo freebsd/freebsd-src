@@ -30,7 +30,6 @@
  *	From BSDI: daemon.c,v 1.2 1996/08/15 01:11:09 jch Exp
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/event.h>
 #include <sys/mman.h>
