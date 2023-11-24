@@ -284,7 +284,6 @@ EOF
 	cat > fault.c <<EOF
 /* \$Id: fault.c,v 1.5 2008/10/28 17:39:16 kostik Exp \$ */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/ucontext.h>
 #include <errno.h>
