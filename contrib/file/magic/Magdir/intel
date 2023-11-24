@@ -1,0 +1,310 @@
+
+#------------------------------------------------------------------------------
+# $File: intel,v 1.23 2022/10/31 13:22:26 christos Exp $
+# intel:  file(1) magic for x86 Unix
+#
+# Various flavors of x86 UNIX executable/object (other than Xenix, which
+# is in "microsoft").  DOS is in "msdos"; the ambitious soul can do
+# Windows as well.
+#
+# Windows NT belongs elsewhere, as you need x86 and MIPS and Alpha and
+# whatever comes next (HP-PA Hummingbird?).  OS/2 may also go elsewhere
+# as well, if, as, and when IBM makes it portable.
+#
+# The `versions' should be un-commented if they work for you.
+# (Was the problem just one of endianness?)
+#
+0	leshort		0502		basic-16 executable
+>12	lelong		>0		not stripped
+#>22	leshort		>0		- version %d
+0	leshort		0503		basic-16 executable (TV)
+>12	lelong		>0		not stripped
+#>22	leshort		>0		- version %d
+0	leshort		0510		x86 executable
+>12	lelong		>0		not stripped
+0	leshort		0511		x86 executable (TV)
+>12	lelong		>0		not stripped
+0	leshort		=0512		iAPX 286 executable small model (COFF)
+>12	lelong		>0		not stripped
+#>22	leshort		>0		- version %d
+0	leshort		=0522		iAPX 286 executable large model (COFF)
+>12	lelong		>0		not stripped
+#>22	leshort		>0		- version %d
+# updated by Joerg Jenderek at Oct 2015
+# https://de.wikipedia.org/wiki/Common_Object_File_Format
+# http://www.delorie.com/djgpp/doc/coff/filhdr.html
+# ./msdos (version 5.25) labeled the next entry as "MS Windows COFF Intel 80386 object file"
+# ./intel (version 5.25) label labeled the next entry as "80386 COFF executable"
+# SGI labeled the next entry as "iAPX 386 executable" --Dan Quinlan
+0	leshort		=0514
+# use subroutine to display name+flags+variables for common object formatted files
+>0	use				display-coff
+#>12	lelong		>0		not stripped
+# no hint found, that at offset 22 is version
+#>22	leshort		>0		- version %d
+0	leshort		0x0200
+# no F_EXEC flag bit implies Intel ia64 COFF object file without optional header
+>18	leshort		^0x0002
+# skip some DEGAS high-res uncompressed bitmap *.pi3 handled by ./images like
+# GEMINI03.PI3 MODEM2.PI3 POWERFIX.PI3 sigirl1.pi3 vanna5.pi3
+# by test for valid starting character (often point 0x2E) of 1st section name
+>>20	ubyte		>0x1F
+>>>0	use				display-coff
+# F_EXEC flag bit implies Intel ia64 COFF executable
+>18	leshort		&0x0002
+>>0	use				display-coff
+0	leshort		0x8664
+>0	use				display-coff
+
+# rom: file(1) magic for BIOS ROM Extensions found in intel machines
+#      mapped into memory between 0xC0000 and 0xFFFFF
+# From: Alex Myczko <alex@aiei.ch>
+# updated by Joerg Jenderek
+# https://en.wikipedia.org/wiki/Option_ROM
+# URL:		http://fileformats.archiveteam.org/wiki/BIOS
+# Reference:	http://www.lejabeach.com/sisubb/BIOS_Disassembly_Ninjutsu_Uncovered.pdf
+0	beshort		0x55AA
+# skip misidentified raspberry pi pieeprom-*.bin by check for
+# unlikely high ROM size (0xF0*512=240*512) and not observed start instruction 0x0F 
+>2	ubeshort	!0xF00F
+# skip 2 byte sized eof.bin with start magic 
+>>0	use		rom-x86
+0	name		rom-x86
+>0	beshort		x		BIOS (ia32) ROM Ext.
+#!:mime	application/octet-stream
+!:mime	application/x-ibm-rom
+!:ext	rom/bin
+################################################################################
+# not Plug aNd Play ($PnP) like 00000000 (ide_xtp.bin kvmvapic.bin V7VGA.ROM) 000000fc (MCT-VGA.bin)
+# 55aaf00f (pieeprom-*.bin) 55aa40e9 (Trm3x5.bin) 24506f4f (sgabios-bin.rom)
+# 55aa4be9 (vgabios-stdvga.rom vgabios-cirrus-bin.rom vgabios-vmware-bin.rom)
+>(26.s)	ubelong		!0x24506e50
+#>(26.s)	ubelong		!0x24506e50	NOT PNP=%8.8x
+# also not PCI (PCIR) implies "old" ISA cards or foo like: 8a168404 (MCT-VGA.bin)
+# 55aaf00f (pieeprom*.bin)
+>>(24.s)	ubelong	!0x50434952
+#>>(24.s)	ubelong	!0x50434952	ISA CARD=%8.8x
+# "old" identification strings used in file version 5.41 and earlier
+# probably an USB controller
+>>>5	string		USB		USB
+# probably	https://en.wikipedia.org/wiki/Preboot_Execution_Environment
+>>>7	string		LDR		UNDI image
+# probably another Adaptec SCSI controller
+>>>26	string		Adaptec		Adaptec
+# http://minuszerodegrees.net/rom/bin/adaptec_aha1542cp_bios_908501-00.bin
+# already done by PNP variant
+#>>>28	string		Adaptec		Adaptec
+# probably Promise SCSI controller
+>>>42	string		PROMISE		Promise
+# old test for IBM compatible Video cards; INTERNAL FACTS WHY IS THIS WORKING?
+>30      string          IBM          IBM comp. Video
+# display exact text for IBM compatible Video cards with longer text
+>>33	ubyte		!0
+>>>30	string		x		"%s"
+# http://minuszerodegrees.net/rom/bin/unknown/MCT-VGA-16%20-%20TDVGA%203588%20BIOS%20Version%20V1.04A.zip
+# "IBM COMPATIBLETDVGA 3588 BIOS Version V1.04A2+"	"MCT-VGA-16 - TDVGA 3588 BIOS Version V1.04A.bin" 
+# "IBM VGA Compatible\001"				NVidia44.bin
+# "IBM EGA ROM Video Seven BIOS Code, Version 1.04"	V7VGA.ROM
+# "IBM"							vgabios-stdvga.rom
+# "IBM"							vgabios-vmware-bin.rom:
+# "IBM"							vgabios-cirrus-bin.rom
+# "IBM"							vgabios-virtio-bin.rom
+################################################################################
+# ROM size in 512B blocks must be interpreted as unsigned for ROM of network cards
+# like: efi-eepro100.rom efi-rtl8139.rom pxe-e1000.rom
+>2       ubyte            x            (%u*512)
+# file name		file size	calculated size	remark
+# eof.bin		2		-		with start magic nothing is shown here
+# orchid.bin		188		0	=0*512	on window 95 CD in Drivers\audio\orchid3d
+# multiboot.bin		1024		1024	=2*512	QEMU emulator
+# loader1.bin		512		2048	=4*512
+# ide_xtp.bin		8192		8192	=16*512
+# kvmvapic.bin		9216		9216	=18*512
+# V7VGA.ROM		18832		16384	=32*512
+# adaptec1542.bin	32768		16384	=32*512
+# MCT-VGA.bin		32768		24576	=48*512
+# 2975BIOS.BIN		32768		32256	=63*512
+# efi-e1000.rom		196608		64000	=125*512
+# efi-rtl8139.rom	176640		66048	=129*512
+# pieeprom*.bin		524288		122880	=240*512
+################################################################################
+# initialization vector with executable code; often near JuMP instruction E9 yy zz
+>3	ubyte			=0xE9	jmp
+# jmp offset like: 008fh 0093h 009fh 00afh 0143h 3ad7h 5417h 54ech 594dh 895fh 
+>>4	uleshort		x	%#4.4x
+# for initialization vector samples without 3 byte jump instruction
+>3	ubyte			!0xE9	instruction
+#	eb4b3734h	NVidia44.bin
+#	00003234h	V7VGA.ROM
+#	060e0731h	kvmvapic.bin
+#	cb000000h	linuxboot-bin.rom
+#	e80d0fcbh	PXE-Intel.rom
+#	b8004875h	orchid.bin
+>>3	ubelong			x	%#8.8x
+# For misidentified raspberry pi pieeprom-*.bin like: 0xf00f
+#>2	ubeshort		x	\b, AT 2 %#4.4x
+################################################################################
+#		new sections for BIOS (ia32) ROM Extension
+# 4 bytes ASCII Signature "$PnP" for Plug aNd Play expansion header
+>(26.s)	string		=$PnP		\b;
+#>(26.s)	string		=$PnP		FOUND $PnP
+# at 1Ah possible offset to expansion header structure; new for Plug aNd Play
+>>26		uleshort	x	at %#x PNP
+# Plug and Play vendor+device ID like: 0 0x000f1000 (2975BIOS.BIN) 0x31121095 (4243.bin) 0x04904215 (adaptec1542.bin)
+#>>(26.s+0x0A)	ulelong		!0	NOT-nullID=%8.8x
+>>(26.s+0x0A)	uleshort	!0
+# show PnP Vendor identification in human readable text form instead of numeric
+# For adaptec_ava1515_bios_585201-00.bin reverted endian! BUT IS THIS ALWAYS TRUE?
+>>>(26.s+0x0C)	use		\^PCI-vendor
+>>>(26.s+0x0A)	ubeshort	x	device=%#4.4x
+# 3 byte Device type code; probably the same meaning as in PCI section?
+# OK for	storage controller SCSI		(2975BIOS.BIN adaptec1542.bin)
+# and		network controller ethernet	(efi-e1000.rom efi-rtl8139.rom)
+>>(26.s+0x12)	use		PCI-class
+# structure revision like: 01h
+>>(26.s+4)	ubyte		!1	\b, revision %u
+# PnP Header structure length in multiple of 16 bytes like: 2
+>>(26.s+5)	uleshort	!2	\b, length %u*16
+# offset to next header; 0 if none
+>>(26.s+7)	uleshort	!0	\b, at %#x next header
+# reserved byte; seems to be zero
+>>(26.s+8)	ubyte		!0	\b, reserved %#x
+# 8-bit checksum for this header; calculated and patched by patch2pnprom
+>>(26.s+9)	ubyte		!0	\b, CRC %#x
+# pointer to optional manufacturer string; like: 0 (4243.bin) 59h 5ch 60h c7h 14eh 27ch 296h 324h 3662h
+>>(26.s+0x0E)	uleshort	>0	\b, at %#x
+>>>(26.s+0x0C)	uleshort	x
+# manufacturer ASCII-Z string like "http://ipxe.org" "Plop - Elmar Hanlhofer www.plop.at" "QEMU"
+>>>>(&0.s)	string		x	"%s"
+# pointer to optional product string; like: 0 (2975BIOS.BIN) 6ch 70h 7ch d9h 160h 281h 29bh 329h
+>>(26.s+0x10)	uleshort	>0	\b, at %#x
+>>>(26.s+0x0E)	uleshort	x
+# often human readable product ASCII-Z string like "iPXE" "Plop Boot Manager" 
+# "multiboot loader" "Intel UNDI, PXE-2.0 (build 082)"
+>>>>(&0.s)	string		x	"%s"
+# PnP Device indicators; contains bits that identify the device as being capable of bootable
+#>>(26.s+0x15)	ubyte		x	\b, INDICATORS %#x
+# device is a display device
+>>(26.s+0x15)	ubyte		&0x01	\b, display
+# device is an input device
+>>(26.s+0x15)	ubyte		&0x02	\b, input
+# device is an IPL device
+>>(26.s+0x15)	ubyte		&0x04	\b, IPL
+#>>(26.s+0x15)	ubyte		&0x08	reserved
+# ROM is only required if this device is selected as a boot device
+>>(26.s+0x15)	ubyte		&0x10	\b, bootable
+# indicates ROM is read cacheable
+>>(26.s+0x15)	ubyte		&0x20	\b, cacheable
+# ROM may be shadowed in RAM
+>>(26.s+0x15)	ubyte		&0x40	\b, shadowable
+# ROM supports the device driver initialization model
+>>(26.s+0x15)	ubyte		&0x80	\b, InitialModel
+# boot connection vector; an offset to a routine that hook into INT 9h, INT 10h, or INT 13h
+# 0 means disabled 0x0429 (4650_sr5.bin) 0x0072 (adaptec1542.bin)
+>>(26.s+0x16)	uleshort	!0	\b, boot vector offset %#x
+# disconnect vector; offset to routine that do cleanup from an unsuccessful boot attempt
+>>(26.s+0x18)	uleshort	!0	\b, disconnect offset %#x
+# bootstrap entry point/vector (BEV); offset to a routine (like RPL) that hook into INT 19h
+# 0 means disabled 0x3c (multiboot.bin) 0x358 (efi-rtl8139.rom) 0xae7 (PXE-Intel.rom)
+>>(26.s+0x1A)	uleshort	!0	\b, bootstrap offset %#x
+# 2nd reserved area; seems to be zero
+>>(26.s+0x1C)	uleshort	!0	\b, 2nd reserved %#x
+# static resource information vector; 0 means disabled
+>>(26.s+0x1E)	uleshort	!0	\b, static offset %#4.4x
+################################################################################
+# 4 bytes ASCII Signature "PCIR" for PCI Data Structure
+#>(24.s)	string			=PCIR	FOUND PCIR
+>(24.s)	string			=PCIR	\b;
+# pointer to PCI data structure like: 1Ch 38h 104h 8E44h 
+>>24	uleshort		x	at %#x PCI
+# Vendor identification (ID)		https://pci-ids.ucw.cz/v2.2/pci.ids
+#>>(24.s+4)	uleshort	x	ID=%4.4x
+# show Vendor identification in human readable text form instead of numeric
+>>(24.s+4)	use		PCI-vendor
+# device identification (ID)
+>>(24.s+6)	uleshort	x	device=%#4.4x
+# Base+sub class code			https://wiki.osdev.org/PCI
+>>(24.s+0x0D)	use		PCI-class
+# pointer to vital product data (VPD); 0 indicates no VPD; WHAT EXACTLY iS VPD?
+>>(24.s+8)	uleshort	!0	\b, at %#x VPD
+# PCI data structure length like: 24h 28h
+>>(24.s+0xA)	uleshort	>0x28	\b, length %u
+# PCI data structure revision like: 0 3
+>>(24.s+0xC)	ubyte		>0	\b, revision %u
+# image length (hexadecimal) in multiple of 512 bytes like: 54 56 68 6a 76 78 7c 7d 7e 7f 80 81 83
+# Apparently this gives the same information as given by byte at offset 2 but as 16-bit
+#>>(24.s+0x10)	uleshort	x	\b, length %u*512
+# revision level of code/data like: 0 1 201h 502h
+>>(24.s+0xC)	ubyte		>1	\b, code revision %#x
+# code type: 0~Intel x86/PC-AT compatible 1~Open firmware standard for PCI42 FF~Reserved
+>>(24.s+0x14)	ubyte		>0	\b, code type %#x
+# last image indicator; bit 7 indicates "last image"; bits 0-6 are reserved
+>>(24.s+0x15)	ubyte		>0
+>>>(24.s+0x15)	ubyte		=0x80	\b, last ROM
+# THIS SHOULD NOT HAPPEN!
+>>>(24.s+0x15)	ubyte		!0x80	\b, indicator %x
+# 3rd reserved area; seems to be zero in most cases but not for
+# efi-e1000.rom efi-rtl8139.rom
+>>(24.s+0x16)	ubeshort	!0	\b, 3rd reserved %#x
+
+# Flash descriptors for Intel SPI flash roms.
+# From Dr. Jesus <j@hug.gs>
+0	lelong		0x0ff0a55a	Intel serial flash for ICH/PCH ROM <= 5 or 3400 series A-step
+16	lelong		0x0ff0a55a	Intel serial flash for PCH ROM
+
+# From: 	Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Advanced_Configuration_and_Power_Interface
+# Reference:	https://uefi.org/sites/default/files/resources/ACPI_6_3_final_Jan30.pdf
+# Note:		generated for example by `cat /sys/firmware/acpi/tables/DSDT MyDSDT.aml`
+0	string		DSDT
+>0	use		acpi-table
+# not tested or other file format
+0	string		APIC
+>0	use		acpi-table
+#0	string		ASF!
+#>0	use		acpi-table
+0	string		FACP
+>0	use		acpi-table
+#0	string		FACS
+#>0	use		acpi-table
+0	string		MCFG
+>0	use		acpi-table
+0	string		SLIC
+>0	use		acpi-table
+0	string		SSDT
+>0	use		acpi-table
+0	name		acpi-table
+# skip ASCII text starting with DSDT by looking for valid "low" revision
+>8	ubyte		<17	ACPI Machine Language file
+# assume that ACPI tables size are lower than 16 MiB
+#>4	ulelong		<0x01000000
+# DSDT for Differentiated System Description Table
+>>0	string		x	'%.4s'
+#!:mime	application/octet-stream
+!:mime	application/x-intel-aml
+!:ext	aml
+# the manufacture model ID like: VBOXBIOS BXDSDT
+>>16	string		>\0	%.8s
+# OEM revision of DSDT for supplied OEM Table ID like: 0 1 2 20090511
+>>>24	ulelong		x	%x
+# OEM ID like: INTEL VBOX (VirtualBox) BXDSDT (qemu) MEDION or \030\001\0\0 for s3pt.aml
+>>10	ubyte		>040	by %c
+>>>11		ubyte	>040	\b%c
+>>>>12		ubyte	>040	\b%c
+>>>>>13		ubyte	>040	\b%c
+>>>>>>14	ubyte	>040	\b%c
+>>>>>>>15	ubyte	>040	\b%c
+# This field also sets the global integer width for the AML interpreter.
+# Values less than two will cause the interpreter to use 32-bit.
+# Values of two and greater will cause the interpreter to use full 64-bit.
+# 16 for asf!.aml, 67 fo rsdp.aml
+>>8	ubyte		x	\b, revision %u
+# length, in bytes, of the entire DSDT (including the header)
+>>4	ulelong		x	\b, %u bytes
+# entire table must sum to zero
+#>>9	ubyte		x	\b, checksum %#x
+# vendor ID for the ASL Compiler like: INTL MSFT ...
+>>28	string		>\0	\b, created by %.4s
+# revision number of the ASL Compiler like: 20051117 20140724 20190703 20200110 ...
+>>>32	ulelong		x	%x
+

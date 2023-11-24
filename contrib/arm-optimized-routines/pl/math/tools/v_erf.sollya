@@ -1,0 +1,20 @@
+// polynomial for approximating erf(x).
+// To generate coefficients for interval i (0 to 47) do:
+// $ sollya v_erf.sollya $i
+//
+// Copyright (c) 2022-2023, Arm Limited.
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+scale = 1/8;
+deg = 9;
+
+itv = parse(__argv[0]);
+if (itv == 0)  then { a = 0x1p-1022; }
+else                { a = itv * scale; };
+
+prec=256;
+
+poly = fpminimax(erf(scale*x+a), deg, [|D ...|], [0; 1]);
+
+display = hexadecimal;
+for i from 0 to deg do coeff(poly, i);

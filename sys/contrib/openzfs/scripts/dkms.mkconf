@@ -1,0 +1,86 @@
+#!/bin/sh
+
+PROG=$0
+
+pkgcfg=/etc/sysconfig/zfs
+
+while getopts "n:v:c:f:" opt; do
+	case $opt in
+		n) pkgname=$OPTARG  ;;
+		v) pkgver=$OPTARG   ;;
+		c) pkgcfg=$OPTARG   ;;
+		f) filename=$OPTARG ;;
+    *) err=1            ;;
+	esac
+done
+
+if [ -z "${pkgname}" ] || [ -z "${pkgver}" ] || [ -z "${filename}" ] ||
+    [ -n "${err}" ]; then
+	echo "Usage: $PROG -n <pkgname> -v <pkgver> -c <pkgcfg> -f <filename>"
+	exit 1
+fi
+
+exec cat >"${filename}" <<EOF
+PACKAGE_NAME="${pkgname}"
+PACKAGE_VERSION="${pkgver}"
+PACKAGE_CONFIG="${pkgcfg}"
+NO_WEAK_MODULES="yes"
+PRE_BUILD="configure
+  --prefix=/usr
+  --with-config=kernel
+  --with-linux=\$(
+    if [ -e "\${kernel_source_dir/%build/source}" ]
+    then
+      echo "\${kernel_source_dir/%build/source}"
+    else
+      echo "\${kernel_source_dir}"
+    fi
+  )
+  --with-linux-obj="\${kernel_source_dir}"
+  \$(
+    [[ -n \"\${ICP_ROOT}\" ]] && \\
+    {
+      echo --with-qat=\"\${ICP_ROOT}\"
+    }
+  )
+  \$(
+    [[ -r \${PACKAGE_CONFIG} ]] \\
+    && source \${PACKAGE_CONFIG} \\
+    && shopt -q -s extglob \\
+    && \\
+    {
+      if [[ \${ZFS_DKMS_ENABLE_DEBUG,,} == @(y|yes) ]]
+      then
+        echo --enable-debug
+      fi
+      if [[ \${ZFS_DKMS_ENABLE_DEBUGINFO,,} == @(y|yes) ]]
+      then
+        echo --enable-debuginfo
+      fi
+    }
+  )
+"
+POST_BUILD="scripts/dkms.postbuild
+  -n \${PACKAGE_NAME}
+  -v \${PACKAGE_VERSION}
+  -a \${arch}
+  -k \${kernelver}
+  -t \${dkms_tree}
+"
+AUTOINSTALL="yes"
+MAKE[0]="make"
+STRIP[0]="\$(
+  [[ -r \${PACKAGE_CONFIG} ]] \\
+  && source \${PACKAGE_CONFIG} \\
+  && shopt -q -s extglob \\
+  && [[ \${ZFS_DKMS_DISABLE_STRIP,,} == @(y|yes) ]] \\
+  && echo -n no
+)"
+STRIP[1]="\${STRIP[0]}"
+BUILT_MODULE_NAME[0]="zfs"
+BUILT_MODULE_LOCATION[0]="module/"
+DEST_MODULE_LOCATION[0]="/extra"
+BUILT_MODULE_NAME[1]="spl"
+BUILT_MODULE_LOCATION[1]="module/"
+DEST_MODULE_LOCATION[1]="/extra"
+EOF

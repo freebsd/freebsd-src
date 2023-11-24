@@ -1,0 +1,109 @@
+
+#------------------------------------------------------------------------------
+# $File: maple,v 1.10 2021/08/30 13:31:25 christos Exp $
+# maple:  file(1) magic for maple files
+# "H. Nanosecond" <aldomel@ix.netcom.com>
+# Maple V release 4, a multi-purpose math program
+#
+
+# maple library .lib
+# URL:		https://en.wikipedia.org/wiki/Maple_(software)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/l/lib-maple-v-r4.trid.xml
+# Update:	Joerg Jenderek
+0	string	\000MVR4\nI	Maple Vr4 library
+#!:mime	application/octet-stream
+!:mime	application/x-maple-lib
+!:ext	lib
+
+# URL:		https://en.wikipedia.org/wiki/Maple_(software)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/l/lib-maple-v-r5.trid.xml
+# From:		Joerg Jenderek
+0	string	\000MVR5\n	Maple Vr5 library
+#!:mime	application/octet-stream
+!:mime	application/x-maple-lib
+!:ext	lib
+
+# From:		Joerg Jenderek
+0x400	string	M7R0\nI		Maple Vr7 library
+#!:mime	application/octet-stream
+!:mime	application/x-maple-lib
+!:ext	lib
+# null terminated library name like: C:\Maple12/Cliffordlib\maple.lib ../Maplets/Tutors.lib
+>5	string	x		%s
+# probably library name padding with nil or points (0x2E)
+#>0xF8	uquad	x		\b, PADDING 0x%16.16llx
+# null terminated strings like: Exterior Clifford FunctionArithmetics
+# like: 1 20 40
+>0x115	ulelong	x		\b, %u string
+# plural s
+>0x115	ulelong	>1		\bs
+>0x119	string	x		1st '%s'
+# probably second name section padding with nil or points (0x2E)
+#>0x3F0	uquad	x		\b, 2nd PADDING 0x%16.16llx
+# line feed separated ASCII string with maximal 79 length
+#>0x407	string	x		\b, section "%s"
+>0x454	ubyte	!0x0a		\b, at 0x454 0x%x
+
+# .ind
+# no magic for these :-(
+# they are compiled indexes for maple files
+
+# .hdb
+# Update:	Joerg Jenderek
+# URL:		https://www.maplesoft.com/support/help/maple/view.aspx?path=Formats/HDB
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/h/hdb-maple.trid.xml
+# Note:		This format was replaced in Maple 18 by the Maple Help format (*.help)
+0	string	\000\004\000\000
+# skip xBASE Compound Index file *.CDX by looking for version
+>1028	string		version	Maple help database
+# length of string version
+#>>1024	ulelong		!7	\b, at 0x400 unexpected %u
+#!:mime application/octet-stream
+!:mime application/x-maple-hdb
+!:ext	hdb
+>1028	default		x
+# skip more xBASE Compound Index file *.CDX by looking for keyword Maple
+# like hsum.hdb
+>>4	search/0xCC41	Maple	Maple help database
+!:mime	application/x-maple-hdb
+!:ext	hdb
+
+# .mhp
+# this has the form <PACKAGE=name>
+0	string	\<PACKAGE=	Maple help file
+0	string	\<HELP\ NAME=	Maple help file
+0	string	\n\<HELP\ NAME=	Maple help file with extra carriage return at start (yuck)
+#0	string	#\ Newton	Maple help file, old style
+0	string	#\ daub	Maple help file, old style
+#0	string	#===========	Maple help file, old style
+
+# .mws
+0	string	\000\000\001\044\000\221	Maple worksheet
+#this is anomalous
+0	string	WriteNow\000\002\000\001\000\000\000\000\100\000\000\000\000\000	Maple worksheet, but weird
+# this has the form {VERSION 2 3 "IBM INTEL NT" "2.3" }\n
+# that is {VERSION major_version miunor_version computer_type version_string}
+0	string	{VERSION\ 	Maple worksheet
+>9	string	>\0	version %.1s.
+>>11	string	>\0	%.1s
+
+# .mps
+0	string	\0\0\001$	Maple something
+# from byte 4 it is either 'nul E' or 'soh R'
+# I think 'nul E' means a file that was saved as  a different name
+# a sort of revision marking
+# 'soh R' means new
+>4	string	\000\105	An old revision
+>4	string	\001\122	The latest save
+
+# .mpl
+# some of these are the same as .mps above
+#0000000 000 000 001 044 000 105 same as .mps
+#0000000 000 000 001 044 001 122 same as .mps
+
+0	string	#\n##\ <SHAREFILE=	Maple something
+0	string	\n#\n##\ <SHAREFILE=	Maple something
+0	string	##\ <SHAREFILE=	Maple something
+0	string	#\r##\ <SHAREFILE=	Maple something
+0	string	\r#\r##\ <SHAREFILE=	Maple something
+0	string	#\ \r##\ <DESCRIBE>	Maple something anomalous.

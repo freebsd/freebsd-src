@@ -1,0 +1,20 @@
+# This is the list of people who have agreed to one of the CLAs and can
+# contribute patches to the Kyua project.
+#
+# The AUTHORS file lists the copyright holders; this file lists people.
+# For example: Google employees are listed here but not in AUTHORS
+# because Google holds the copyright.
+#
+# See the following links for details on the CLA:
+#
+#     https://developers.google.com/open-source/cla/individual
+#     https://developers.google.com/open-source/cla/corporate
+#
+# Names are sorted by last name and should be added as:
+#
+#     * Name <email address>
+
+* Sergey Bronnikov <sergeyb@openvz.org>
+* Enji Cooper <yaneurabeya@gmail.com>
+* Julio Merino <jmmv@google.com>
+* Craig Rodrigues <rodrigc@crodrigues.org>

@@ -1,0 +1,224 @@
+.\"-
+.\" Copyright (c) 2021-2023 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Bj\xc3\xb6rn Zeeb under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd September 21, 2023
+.Dt IWLWIFI 4
+.Os
+.Sh NAME
+.Nm iwlwifi
+.Nd Intel IEEE 802.11a/b/g/n/ac/ax wireless network driver
+.Sh SYNOPSIS
+The driver will auto-load without any user interaction using
+.Xr devmatch 8
+if enabled in
+.Xr rc.conf 5 .
+.Pp
+Only if auto-loading is explicitly disabled, place the following
+lines in
+.Xr rc.conf 5
+to manually load the driver as a module at boot time:
+.Bd -literal -offset indent
+kld_list="${kld_list} if_iwlwifi"
+.Ed
+.Pp
+The driver should automatically load any
+.Xr iwlwififw 4
+firmware needed for the particular chipset.
+.Pp
+It is discouraged to load the driver from
+.Xr loader 8 .
+.Sh DESCRIPTION
+The
+.Nm
+driver is derived from Intel's Linux iwlwifi driver and provides support for
+all chipsets supported by the
+.Em mvm
+part of that driver.
+.Pp
+.Bl -bullet -compact
+.\" ---------------------------------------------------------------------
+.\" This list is manually generated from a sysctl and post-processing.
+.\" Edits will be overwritten on next update.
+.\" ---------------------------------------------------------------------
+.It
+Intel(R) Dual Band Wireless AC 7260
+.It
+Intel(R) Dual Band Wireless N 7260
+.It
+Intel(R) Wireless N 7260
+.It
+Intel(R) Dual Band Wireless AC 3160
+.It
+Intel(R) Dual Band Wireless N 3160
+.It
+Intel(R) Wireless N 3160
+.It
+Intel(R) Dual Band Wireless AC 3165
+.It
+Intel(R) Dual Band Wireless AC 3168
+.It
+Intel(R) Dual Band Wireless AC 7265
+.It
+Intel(R) Wireless N 7265
+.It
+Intel(R) Dual Band Wireless N 7265
+.It
+Intel(R) Dual Band Wireless AC 8260
+.It
+Intel(R) Dual Band Wireless N 8260
+.It
+Intel(R) Dual Band Wireless AC 4165
+.It
+Intel(R) Dual Band Wireless AC 8265
+.It
+Intel(R) Dual Band Wireless AC 8275
+.It
+Killer (R) Wireless-AC 1550 Wireless Network Adapter (9260NGW) 160MHz
+.It
+Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW)
+.It
+Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW)
+.It
+Killer(R) Wireless-AC 1550s Wireless Network Adapter (9560D2W) 160MHz
+.It
+Killer(R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) 160MHz
+.It
+Killer(R) Wi-Fi 6E AX1690s 160MHz Wireless Network Adapter (411D2W)
+.It
+Killer(R) Wi-Fi 6E AX1690i 160MHz Wireless Network Adapter (411NGW)
+.It
+Intel(R) Wireless-AC 9260-1
+.It
+Intel(R) Wi-Fi 6 AX200 160MHz
+.It
+Killer(R) Wi-Fi 6 AX1650w 160MHz Wireless Network Adapter (200D2W)
+.It
+Killer(R) Wi-Fi 6 AX1650x 160MHz Wireless Network Adapter (200NGW)
+.It
+Intel(R) Wi-Fi 6 AX201 160MHz
+.It
+Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201D2W)
+.It
+Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201NGW)
+.It
+Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201NGW)
+.It
+Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201D2W)
+.It
+Intel(R) Wi-Fi 6E AX211 160MHz
+.It
+Intel(R) Wi-Fi 6 AX210 160MHz
+.It
+Killer(R) Wi-Fi 6E AX1675w 160MHz Wireless Network Adapter (210D2W)
+.It
+Killer(R) Wi-Fi 6E AX1675x 160MHz Wireless Network Adapter (210NGW)
+.It
+Intel(R) Wi-Fi 6E AX411 160MHz
+.It
+Killer(R) Wi-Fi 6E AX1675s 160MHz Wireless Network Adapter (211NGW)
+.It
+Killer(R) Wi-Fi 6E AX1675i 160MHz Wireless Network Adapter (211NGW)
+.It
+Intel(R) Wireless-AC 9461 160MHz
+.It
+Intel(R) Wireless-AC 9461
+.It
+Intel(R) Wireless-AC 9462 160MHz
+.It
+Intel(R) Wireless-AC 9462
+.It
+Intel(R) Wireless-AC 9560 160MHz
+.It
+Intel(R) Wireless-AC 9560
+.It
+Intel(R) Wireless-AC 9270 160MHz
+.It
+Intel(R) Wireless-AC 9270
+.It
+Intel(R) Wireless-AC 9162 160MHz
+.It
+Intel(R) Wireless-AC 9162
+.It
+Intel(R) Wireless-AC 9260 160MHz
+.It
+Intel(R) Wireless-AC 9260
+.It
+Intel(R) Wi-Fi 6 AX101
+.It
+Intel(R) Wi-Fi 6 AX203
+.It
+Intel(R) Wi-Fi 6E AX221 160MHz
+.It
+Intel(R) Wi-Fi 6E AX231 160MHz
+.It
+Intel(R) TBD Bz device
+.It
+Intel(R) Wi-Fi 6 AX204 160MHz
+.It
+Intel(R) TBD Sc device
+.\" ---------------------------------------------------------------------
+.El
+.Pp
+.Nm
+will be a successor to
+.Xr iwm 4
+and may supersede that driver in the future.
+It still complements the
+.Xr iwn 4
+driver which supports older chipsets.
+.Pp
+The driver uses the
+.\" No LinuxKPI man pages so no .Xr here.
+.Em linuxkpi_wlan
+and
+.Em linuxkpi
+compat framework to bridge between the Linux and
+native
+.Fx
+driver code as well as to the native
+.Xr net80211 4
+wireless stack.
+.Pp
+While
+.Nm
+supports all 802.11 a/b/g/n/ac/ax
+the compatibility code currently only supports 802.11 a/b/g modes.
+Support for 802.11 n/ac is to come. 802.11ax and 6Ghz support are planned.
+.Sh BUGS
+Certainly.
+.Sh SEE ALSO
+.Xr iwlwififw 4 ,
+.Xr iwm 4 ,
+.Xr iwn 4 ,
+.Xr wlan 4 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 13.1 .

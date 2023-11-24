@@ -1,0 +1,210 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2019 Rick Macklem
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd January 2, 2021
+.Dt COPY_FILE_RANGE 2
+.Os
+.Sh NAME
+.Nm copy_file_range
+.Nd kernel copy of a byte range from one file to another
+or within one file
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In unistd.h
+.Ft ssize_t
+.Fo copy_file_range
+.Fa "int infd"
+.Fa "off_t *inoffp"
+.Fa "int outfd"
+.Fa "off_t *outoffp"
+.Fa "size_t len"
+.Fa "unsigned int flags"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn copy_file_range
+system call
+copies up to
+.Fa len
+bytes from
+.Fa infd
+to
+.Fa outfd
+in the kernel.
+It may do this using a file system specific technique if
+.Fa infd
+and
+.Fa outfd
+are on the same file system.
+If
+.Fa infd
+and
+.Fa outfd
+refer to the same file, the byte ranges defined by
+the input file offset, output file offset and
+.Fa len
+cannot overlap.
+The
+.Fa infd
+argument must be opened for reading and the
+.Fa outfd
+argument must be opened for writing, but not
+.Dv O_APPEND .
+If
+.Fa inoffp
+or
+.Fa outoffp
+is
+.Dv NULL ,
+the file offset for
+.Fa infd
+or
+.Fa outfd
+respectively will be used and updated by
+the number of bytes copied.
+If
+.Fa inoffp
+or
+.Fa outoffp
+is not
+.Dv NULL ,
+the byte offset pointed to by
+.Fa inoffp
+or
+.Fa outoffp
+respectively will be used/updated and the file offset for
+.Fa infd
+or
+.Fa outfd
+respectively will not be affected.
+The
+.Fa flags
+argument must be 0.
+.Pp
+This system call attempts to maintain holes in the output file for
+the byte range being copied.
+However, this does not always work well.
+It is recommended that sparse files be copied in a loop using
+.Xr lseek 2
+with
+.Dv SEEK_HOLE ,
+.Dv SEEK_DATA
+arguments and this system call for the
+data ranges found.
+.Pp
+For best performance, call
+.Fn copy_file_range
+with the largest
+.Fa len
+value possible.
+It is interruptible on most file systems,
+so there is no penalty for using very large len values, even SSIZE_MAX.
+.Pp
+.Sh RETURN VALUES
+If it succeeds, the call returns the number of bytes copied, which can be fewer
+than
+.Fa len .
+Returning fewer bytes than
+.Fa len
+does not necessarily indicate that EOF was reached.
+However, a return of zero for a non-zero
+.Fa len
+argument indicates that the offset for
+.Fa infd
+is at or beyond EOF.
+.Fn copy_file_range
+should be used in a loop until copying of the desired byte range has been
+completed.
+If an error has occurred, a \-1 is returned and the error code is placed in
+the global variable
+.Va errno .
+.Sh ERRORS
+The
+.Fn copy_file_range
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+If
+.Fa infd
+is not open for reading or
+.Fa outfd
+is not open for writing, or opened for writing with
+.Dv O_APPEND ,
+or if
+.Fa infd
+and
+.Fa outfd
+refer to the same file.
+.It Bq Er EFBIG
+If the copy exceeds the process's file size limit or the maximum file size
+for the file system
+.Fa outfd
+resides on.
+.It Bq Er EINTR
+A signal interrupted the system call
+before it could be completed.
+This may happen for files on some NFS mounts.
+When this happens, the values pointed to by
+.Fa inoffp
+and
+.Fa outoffp
+are reset to the initial values for the system call.
+.It Bq Er EINVAL
+.Fa infd
+and
+.Fa outfd
+refer to the same file and the byte ranges overlap or
+.Fa flags
+is not zero.
+.It Bq Er EIO
+An I/O error occurred while reading/writing the files.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from a file system.
+.It Bq Er EISDIR
+If either
+.Fa infd
+or
+.Fa outfd
+refers to a directory.
+.It Bq Er ENOSPC
+File system that stores
+.Fa outfd
+is full.
+.El
+.Sh SEE ALSO
+.Xr lseek 2
+.Sh STANDARDS
+The
+.Fn copy_file_range
+system call is expected to be compatible with the Linux system call of
+the same name.
+.Sh HISTORY
+The
+.Fn copy_file_range
+function appeared in
+.Fx 13.0 .

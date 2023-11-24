@@ -1,0 +1,13 @@
+[Unit]
+Description=ZFS Event Daemon (zed)
+Documentation=man:zed(8)
+ConditionPathIsDirectory=/sys/module/zfs
+
+[Service]
+EnvironmentFile=-@initconfdir@/zfs
+ExecStart=@sbindir@/zed -F
+Restart=always
+
+[Install]
+Alias=zed.service
+WantedBy=zfs.target

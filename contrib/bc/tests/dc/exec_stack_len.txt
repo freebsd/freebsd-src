@@ -1,0 +1,6 @@
+,pR
+[,pR]x
+[[,pR]x]x
+[[[,pR]x]x]x
+[[[,pR]x ,pR]x]x
+[[[[,p1-Q]x]x]x]x ,pQ

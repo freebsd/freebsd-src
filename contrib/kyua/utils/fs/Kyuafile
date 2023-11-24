@@ -1,0 +1,10 @@
+syntax(2)
+
+test_suite("kyua")
+
+atf_test_program{name="auto_cleaners_test"}
+atf_test_program{name="directory_test"}
+atf_test_program{name="exceptions_test"}
+atf_test_program{name="lua_module_test"}
+atf_test_program{name="operations_test"}
+atf_test_program{name="path_test"}

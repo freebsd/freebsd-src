@@ -1,0 +1,13 @@
+Specify the
+.Xr malloc 3
+implementation used by libc.
+The default value is
+.Li jemalloc .
+Valid values are:
+.Bl -tag -width indent
+.It Li jemalloc
+.El
+.Pp
+Other implementations are expected in the future in both
+.Fx
+and downstream consumers.

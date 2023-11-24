@@ -1,0 +1,106 @@
+<!doctype refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
+
+<refentry>
+  <refentryinfo>
+    <date>07 August 2019</date>
+  </refentryinfo>
+
+  <refmeta>
+    <refentrytitle>wpa_gui</refentrytitle>
+    <manvolnum>8</manvolnum>
+  </refmeta>
+  <refnamediv>
+    <refname>wpa_gui</refname>
+
+    <refpurpose>WPA Graphical User Interface</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>wpa_gui</command>
+      <arg>-p <replaceable>path to ctrl sockets</replaceable></arg>
+      <arg>-i <replaceable>ifname</replaceable></arg>
+      <arg>-m <replaceable>seconds</replaceable></arg>
+      <arg>-t</arg>
+      <arg>-q</arg>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Overview</title>
+
+    <para>wpa_gui is a QT graphical frontend program for interacting
+    with wpa_supplicant. It is used to query current status, change
+    configuration and request interactive user input.</para>
+
+    <para>wpa_gui supports (almost) all of the interactive status and
+    configuration features of the command line client, wpa_cli. Refer
+    to the wpa_cli manpage for a comprehensive list of the
+    interactive mode features.</para>
+  </refsect1>
+  <refsect1>
+    <title>Command Arguments</title>
+    <variablelist>
+      <varlistentry>
+	<term>-p path</term>
+
+	<listitem><para>Change the path where control sockets should
+	be found.</para></listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-i ifname</term>
+
+        <listitem><para>Specify the interface that is being
+	configured. By default, choose the first interface found with
+	a control socket in the socket path.</para></listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-m seconds</term>
+
+	<listitem><para>Set the update interval in seconds for the signal
+	strength meter. This value must be a positive integer, otherwise
+	meter is not enabled (default behavior).</para></listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-t</term>
+
+        <listitem><para>Start program in the system tray only (if the window
+	manager supports it). By default the main status window is
+	shown.</para></listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-q</term>
+
+        <listitem><para>Run program in the quiet mode - do not display tray
+	icon pop-up messages.</para></listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+  <refsect1>
+    <title>See Also</title>
+    <para>
+      <citerefentry>
+	<refentrytitle>wpa_cli</refentrytitle>
+	<manvolnum>8</manvolnum>
+      </citerefentry>
+      <citerefentry>
+	<refentrytitle>wpa_supplicant</refentrytitle>
+	<manvolnum>8</manvolnum>
+      </citerefentry>
+    </para>
+  </refsect1>
+  <refsect1>
+    <title>Legal</title>
+    <para>wpa_supplicant is copyright (c) 2003-2022,
+    Jouni Malinen <email>j@w1.fi</email> and
+    contributors.
+    All Rights Reserved.</para>
+
+    <para>This program is licensed under the BSD license (the one with
+    advertisement clause removed).</para>
+  </refsect1>
+</refentry>

@@ -1,0 +1,10 @@
+Build the BearSSL library.
+.Pp
+BearSSL is a tiny SSL library suitable for embedded environments.
+For details see
+.Lk https://www.BearSSL.org/
+.Pp
+This library is currently only used to perform
+signature verification and related operations
+for Verified Exec and
+.Xr loader 8 .

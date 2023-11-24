@@ -1,0 +1,145 @@
+.\"
+.\" Copyright (C) 2022 Alexander Chernikov <melifaro@FreeBSD.org>.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd November 1, 2022
+.Dt GENETLINK 4
+.Os
+.Sh NAME
+.Nm genetlink
+.Nd Generic Netlink
+.Sh SYNOPSIS
+.In netlink/netlink.h
+.In netlink/netlink_generic.h
+.Ft int
+.Fn socket AF_NETLINK SOCK_DGRAM NETLINK_GENERIC
+.Sh DESCRIPTION
+The
+.Dv NETLINK_GENERIC
+is a "container" family, used for dynamic registration of other families
+belonging to the various subsystems.
+These subsystems provide a string family name during registration and
+receive a dynamically-allocated family id.
+Allocated family identifiers are then used by applications to get access to
+functions provided by that subsystem via netlink.
+There are standard methods for resolving string family names to family
+identifiers.
+A similar mechanism works for the notification groups provided by those
+families.
+.Pp
+All generic netlink families share a common header:
+.Bd -literal
+struct genlmsghdr {
+	uint8_t		cmd;		/* command within the family */
+	uint8_t		version;	/* ABI version for the cmd */
+	uint16_t	reserved;	/* reserved: set to 0 */
+};
+.Ed
+The family id is encoded in the
+.Dv nlmsg_type
+of the base netlink header.
+The
+.Va cmd
+field is the command identifier within the family.
+The
+.Va version
+field is the command version.
+.Sh METHODS
+The generic Netlink framework provides the base family,
+.Dv GENL_ID_CTRL
+("nlctrl") with a fixed family id.
+This family is used to list the details of all registered families.
+.Pp
+The following messages are supported by the framework:
+.Ss CTRL_CMD_GETFAMILY
+Fetches a single family or all registered families, depending on the
+.Dv NLM_F_DUMP
+flag.
+Each family is reported as
+.Dv CTRL_CMD_NEWFAMILY
+message.
+The following filters are recognised by the kernel:
+.Pp
+.Bd -literal -offset indent -compact
+CTRL_ATTR_FAMILY_ID	(uint16_t) current family id assigned by kernel
+CTRL_ATTR_FAMILY_NAME	(string) family name
+.Ed
+.Ss TLVs
+.Bl -tag -width indent
+.It Dv CTRL_ATTR_FAMILY_ID
+(uint16_t) Dynamically-assigned family identifier.
+.It Dv CTRL_ATTR_FAMILY_NAME
+(string) Family name.
+.It Dv CTRL_ATTR_HDRSIZE
+(uint32_t) Family mandatory header size (typically 0).
+.It Dv CTRL_ATTR_MAXATTR
+(uint32_t) Maximum attribute number valid for the family.
+.It Dv CTRL_ATTR_OPS
+(nested) List of the operations supported by the family.
+The attribute consists of a list of nested TLVs, with attribute values
+monotonically incremented, starting from 0.
+The following attributes are present in each TLV:
+.Bl -tag -width indent
+.It Dv CTRL_ATTR_OP_ID
+Operation (message) number.
+.It Dv CTRL_ATTR_OP_FLAGS
+Operation flags.
+The following flags are supported:
+.Bd -literal -offset indent -compact
+GENL_ADMIN_PERM		requires elevated permissions
+GENL_CMD_CAP_DO		operation is a modification request
+GENL_CMD_CAP_DUMP	operation is a get/dump request
+.Ed
+.El
+.It Dv CTRL_ATTR_MCAST_GROUPS
+(nested) List of the notification groups supported by the family.
+The attribute consists of a list of nested TLVs, with attribute values
+monotonically incremented, starting from 0.
+The following attributes are present in each TLV:
+.Bl -tag -width indent
+.It Dv CTRL_ATTR_MCAST_GRP_ID
+Group id that can be used in
+.Dv NETLINK_ADD_MEMBERSHIP
+.Xr setsockopt 2 .
+.It Dv CTRL_ATTR_MCAST_GRP_NAME
+(string) Human-readable name of the group.
+.El
+.El
+.Ss Groups
+The following groups are defined:
+.Bd -literal -offset indent -compact
+"notify"	Notifies on family registrations/removal.
+.Ed
+.Sh SEE ALSO
+.Xr netlink 4
+.Sh HISTORY
+The
+.Dv NETLINK_GENERIC
+protocol family appeared in
+.Fx 13.2 .
+.Sh AUTHORS
+The netlink was implementated by
+.An -nosplit
+.An Alexander Chernikov Aq Mt melifaro@FreeBSD.org .
+It was derived from the Google Summer of Code 2021 project by
+.An Ng Peng Nam Sean .

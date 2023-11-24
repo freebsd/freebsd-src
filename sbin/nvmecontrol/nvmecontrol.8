@@ -1,0 +1,756 @@
+.\"
+.\" Copyright (c) 2020 Warner Losh <imp@FreeBSD.org>
+.\" Copyright (c) 2018-2019 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2012 Intel Corporation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    substantially similar to the "NO WARRANTY" disclaimer below
+.\"    ("Disclaimer") and any redistribution must be conditioned upon
+.\"    including a substantially similar Disclaimer requirement for further
+.\"    binary redistribution.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGES.
+.\"
+.\" nvmecontrol man page.
+.\"
+.\" Author: Jim Harris <jimharris@FreeBSD.org>
+.\"
+.Dd December 14, 2022
+.Dt NVMECONTROL 8
+.Os
+.Sh NAME
+.Nm nvmecontrol
+.Nd NVM Express control utility
+.Sh SYNOPSIS
+.Nm
+.Ic devlist
+.Op Fl h
+.Nm
+.Ic identify
+.Op Fl v
+.Op Fl x
+.Op Fl n Ar nsid
+.Aq Ar device-id | Ar namespace-id
+.Nm
+.Ic perftest
+.Aq Fl n Ar num_threads
+.Aq Fl o Ar read|write
+.Op Fl p
+.Aq Fl s Ar size_in_bytes
+.Aq Fl t Ar time_in_sec
+.Aq Ar namespace-id
+.Nm
+.Ic reset
+.Aq Ar device-id
+.Nm
+.Ic logpage
+.Aq Fl p Ar page_id
+.Op Fl x
+.Op Fl v Ar vendor-string
+.Op Fl b
+.Op Fl f Ar LSP
+.Op Fl i Ar LSI
+.Op Fl r
+.Aq Ar device-id | Ar namespace-id
+.Nm
+.Ic ns active
+.Aq Ar device-id
+.Nm
+.Ic ns allocated
+.Aq Ar device-id
+.Nm
+.Ic ns attach
+.Aq Fl n Ar nsid
+.Aq Fl c Ar cntid
+.Aq Ar device-id
+.Nm
+.Ic ns attached
+.Aq Fl n Ar nsid
+.Aq Ar device-id
+.Nm
+.Ic ns controllers
+.Aq Ar device-id
+.Nm
+.Ic ns create
+.Aq Fl s Ar nsze
+.Op Fl c Ar ncap
+.Op Fl f Ar lbaf
+.Op Fl m Ar mset
+.Op Fl n Ar nmic
+.Op Fl p Ar pi
+.Op Fl l Ar pil
+.Op Fl L Ar flbas
+.Op Fl d Ar dps
+.Aq Ar device-id
+.Nm
+.Ic ns delete
+.Aq Fl n Ar nsid
+.Aq Ar device-id
+.Nm
+.Ic ns detach
+.Aq Fl n Ar nsid
+.Aq Fl c Ar cntid
+.Aq Ar device-id
+.Nm
+.Ic ns identify
+.Op Fl v
+.Op Fl x
+.Aq Fl n Ar nsid
+.Aq Ar device-id
+.Nm
+.Ic nsid
+.Aq Ar device-id | Ar namespace-id
+.Nm
+.Ic resv acquire
+.Aq Fl c Ar crkey
+.Op Fl p Ar prkey
+.Aq Fl t Ar rtype
+.Aq Fl a Ar racqa
+.Aq Ar namespace-id
+.Nm
+.Ic resv register
+.Op Fl i
+.Op Fl c Ar crkey
+.Aq Fl k Ar nrkey
+.Aq Fl r Ar rrega
+.Op Fl p Ar cptpl
+.Aq Ar namespace-id
+.Nm
+.Ic resv release
+.Aq Fl c Ar crkey
+.Aq Fl t Ar rtype
+.Aq Fl a Ar rrela
+.Aq Ar namespace-id
+.Nm
+.Ic resv report
+.Op Fl e
+.Op Fl v
+.Op Fl x
+.Aq Ar namespace-id
+.Nm
+.Ic firmware
+.Op Fl s Ar slot
+.Op Fl f Ar path_to_firmware
+.Op Fl a
+.Aq Ar device-id
+.Nm
+.Ic format
+.Op Fl f Ar fmt
+.Op Fl m Ar mset
+.Op Fl o Ar pi
+.Op Fl l Ar pil
+.Op Fl E
+.Op Fl C
+.Aq Ar device-id | Ar namespace-id
+.Nm
+.Ic sanitize
+.Aq Fl a Ar sanact
+.Op Fl c Ar owpass
+.Op Fl d
+.Op Fl p Ar ovrpat
+.Op Fl r
+.Op Fl I
+.Op Fl U
+.Aq Ar device-id
+.Nm
+.Ic power
+.Op Fl l
+.Op Fl p power_state
+.Op Fl w workload_hint
+.Nm
+.Ic selftest
+.Aq Fl c Ar code
+.Aq Ar device-id | Ar namespace-id
+.Nm
+.Ic wdc cap-diag
+.Op Fl o path_template
+.Aq Ar device-id
+.Nm
+.Ic wdc drive-log
+.Op Fl o path_template
+.Aq Ar device-id
+.Nm
+.Ic wdc get-crash-dump
+.Op Fl o path_template
+.Aq Ar device-id
+.\" .Nm
+.\" .Ic wdc purge
+.\" .Aq device-id
+.\" .Nm
+.\" .Ic wdc purge-monitor
+.\" .Aq device-id
+.Nm
+.Ic admin-passthru
+.Op args
+.Aq Ar device-id
+.Nm
+.Ic io-passthru
+.Op args
+.Aq Ar namespace-id
+.Sh DESCRIPTION
+NVM Express (NVMe) is a storage protocol standard, for SSDs and other
+high-speed storage devices over PCI Express.
+.Ss devlist
+List all NVMe controllers and namespaces along with their device nodes.
+With the
+.Fl h
+argument, use unit suffixes: Byte, Kibibyte, Mebibyte, Gibibyte, Tebibyte
+and Pebibyte (based on powers of 1024) when showing the disk space.
+By default, uses Mebibyte.
+.Ss identify
+The identify commands reports information from the drive's
+.Dv IDENTIFY_CONTROLLER
+if a
+.Ar device-id
+is specified.
+It reports
+.Dv IDENTIFY_NAMESPACE
+data if a
+.Ar namespace-id
+is specified.
+When used with disk names, the
+.Dv IDENTIFY_NAMESPACE
+data is reported, unless the namespace
+.Ar nsid
+is overridden with the
+.Fl n
+flag.
+Then that namespace's data is reported, if it exists.
+The command accepts the following parameters:
+.Bl -tag -width 6n
+.It Fl n
+The namespace
+.Aq nsid
+to use instead of the namespace associated with the device.
+A
+.Ar nsid
+of
+.Dq 0
+is used to retrieve the
+.Dv IDENTIFY_CONTROLLER
+data associated with that drive.
+.El
+.Ss logpage
+The logpage command knows how to print log pages of various types.
+It also knows about vendor specific log pages from hgst/wdc, samsung and intel.
+Note that some vendors use the same log page numbers for different data.
+.Pp
+.Bl -tag -compact -width "Page 0x00"
+.It Dv Page 0x01
+Drive Error Log
+.It Dv Page 0x02
+Health/SMART Data
+.It Dv Page 0x03
+Firmware Information
+.It Dv Page 0x04
+Changed Namespace List
+.It Dv Page 0x05
+Commands Supported and Effects
+.It Dv Page 0x06
+Device Self-test
+.It Dv Page 0x80
+Reservation Notification
+.It Dv Page 0x81
+Sanitize Status
+.It Dv Page 0xc1
+Advanced SMART information (WDC/HGST)
+.It Dv Page 0xc1
+Read latency stats (Intel)
+.It Dv Page 0xc2
+Wite latency stats (Intel)
+.It Dv Page 0xc5
+Temperature stats (Intel)
+.It Dv Page 0xca
+Advanced SMART information (Intel)
+.It Dv Page 0xca
+Extended SMART information (Samsung)
+.El
+.Pp
+Specifying
+.Fl v
+.Ic help
+will list all valid vendors and pages.
+.Fl x
+will print the page as hex.
+.Fl b
+will print the binary data for the page.
+.Fl s
+will set Log Specific Field.
+.Fl i
+will set Log Specific Identifier.
+.Fl r
+will set Retain Asynchronous Event.
+.Ss ns
+Various namespace management commands.
+If namespace management is supported by device, allow list, create and delete
+namespaces, list, attach and detach controllers to namespaces.
+.Ss nsid
+Reports the namespace id and controller device associated with the
+.Aq Ar namespace-id
+or
+.Aq Ar device-id
+argument.
+.Ss resv acquire
+Acquire or preempt namespace reservation, using specified parameters:
+.Bl -tag -width 6n
+.It Fl a
+Acquire action:
+.Bl -tag -compact -width 6n
+.It Dv 0
+Acquire
+.It Dv 1
+Preempt
+.It Dv 2
+Preempt and abort
+.El
+.It Fl c
+Current reservation key.
+.It Fl p
+Preempt reservation key.
+.It Fl t
+Reservation type:
+.Bl -tag -compact -width 6n
+.It Dv 1
+Write Exclusive
+.It Dv 2
+Exclusive Access
+.It Dv 3
+Write Exclusive - Registrants Only
+.It Dv 4
+Exclusive Access - Registrants Only
+.It Dv 5
+Write Exclusive - All Registrants
+.It Dv 6
+Exclusive Access - All Registrants
+.El
+.El
+.Ss resv register
+Register, unregister or replace reservation key, using specified parameters:
+.Bl -tag -width 6n
+.It Fl c
+Current reservation key.
+.It Fl k
+New reservation key.
+.It Fl r
+Register action:
+.Bl -tag -compact -width 6n
+.It Dv 0
+Register
+.It Dv 1
+Unregister
+.It Dv 2
+Replace
+.El
+.It Fl i
+Ignore Existing Key
+.It Fl p
+Change Persist Through Power Loss State:
+.Bl -tag -compact -width 6n
+.It Dv 0
+No change to PTPL state
+.It Dv 2
+Set PTPL state to ‘0’.
+Reservations are released and registrants are cleared on a power on.
+.It Dv 3
+Set PTPL state to ‘1’.
+Reservations and registrants persist across a power loss.
+.El
+.El
+.Ss resv release
+Release or clear reservation, using specified parameters:
+.Bl -tag -width 6n
+.It Fl c
+Current reservation key.
+.It Fl t
+Reservation type.
+.It Fl a
+Release action:
+.Bl -tag -compact -width 6n
+.It Dv 0
+Release
+.It Dv 1
+Clean
+.El
+.El
+.Ss resv report
+Print reservation status, using specified parameters:
+.Bl -tag -width 6n
+.It Fl x
+Print reservation status in hex.
+.It Fl e
+Use Extended Data Structure.
+.El
+.Ss format
+Format either specified namespace, or all namespaces of specified controller,
+using specified parameters:
+.Ar fmt
+LBA Format,
+.Ar mset
+Metadata Settings,
+.Ar pi
+Protection Information,
+.Ar pil
+Protection Information Location.
+When formatting specific namespace, existing values are used as defaults.
+When formatting all namespaces, all parameters should be specified.
+Some controllers may not support formatting or erasing specific or all
+namespaces.
+Option
+.Fl E
+enables User Data Erase during format.
+Option
+.Fl C
+enables Cryptographic Erase during format.
+.Ss sanitize
+Sanitize NVM subsystem of specified controller,
+using specified parameters:
+.Bl -tag -width 6n
+.It Fl a Ar operation
+Specify the sanitize operation to perform.
+.Bl -tag -width 16n
+.It overwrite
+Perform an overwrite operation by writing a user supplied
+data pattern to the device one or more times.
+The pattern is given by the
+.Fl p
+argument.
+The number of times is given by the
+.Fl c
+argument.
+.It block
+Perform a block erase operation.
+All the device's blocks are set to a vendor defined
+value, typically zero.
+.It crypto
+Perform a cryptographic erase operation.
+The encryption keys are changed to prevent the decryption
+of the data.
+.It exitfailure
+Exits a previously failed sanitize operation.
+A failed sanitize operation can only be exited if it was
+run in the unrestricted completion mode, as provided by the
+.Fl U
+argument.
+.El
+.It Fl c Ar passes
+The number of passes when performing an
+.Sq overwrite
+operation.
+Valid values are between 1 and 16.
+The default is 1.
+.It Fl d
+No Deallocate After Sanitize.
+.It Fl I
+When performing an
+.Sq overwrite
+operation, the pattern is inverted between consecutive passes.
+.It Fl p Ar pattern
+32 bits of pattern to use when performing an
+.Sq overwrite
+operation.
+The pattern is repeated as needed to fill each block.
+.It Fl U
+Perform the sanitize in the unrestricted completion mode.
+If the operation fails, it can later be exited with the
+.Sq exitfailure
+operation.
+.It Fl r
+Run in
+.Dq report only
+mode.
+This will report status on a sanitize that is already running on the drive.
+.El
+.Ss power
+Manage the power modes of the NVMe controller.
+.Bl -tag -width 6n
+.It Fl l
+List all supported power modes.
+.It Fl p Ar mode
+Set the power mode to
+.Ar mode .
+This must be a mode listed with the
+.Dl nvmecontrol power -l
+command.
+.It Fl w Ar hint
+Set the workload hint for automatic power mode control.
+.Bl -tag -compact -width 6n
+.It 0
+No workload hint is provided.
+.It 1
+Extended idle period workload.
+The device is often idle for minutes at a time.
+A burst of write commands comes in over a period of seconds.
+Then the device returns to being idle.
+.It 2
+Heavy sequential writes.
+A huge number of sequential writes will be submitted, filling the submission queues.
+.It Other
+All other values are reserved and have no standard meaning.
+.El
+Please see the
+.Dq NVM Subsystem Workloads
+section of the relevant NVM Express Base Standard for details.
+.El
+.Ss selftest
+Start the specified device self-test:
+.Bl -tag -width 6n
+.It Fl c Ar code
+Specify the device self-test command code.
+Common codes are:
+.Bl -tag -compact -width 6n
+.It Dv 0x1
+Start a short device self-test operation
+.It Dv 0x2
+Start an extended device self-test operation
+.It Dv 0xe
+Start a vendor specific device self-test operation
+.It Dv 0xf
+Abort the device self-test operation
+.El
+.El
+.Ss wdc
+The various wdc command retrieve log data from the wdc/hgst drives.
+The
+.Fl o
+flag specifies a path template to use to output the files.
+Each file takes the path template (which defaults to nothing), appends
+the drive's serial number and the type of dump it is followed
+by .bin.
+These logs must be sent to the vendor for analysis.
+This tool only provides a way to extract them.
+.Ss passthru
+The
+.Dq admin-passthru
+and
+.Dq io-passthru
+commands send NVMe commands to
+either the administrative or the data part of the device.
+These commands are expected to be compatible with nvme-cli.
+Please see the NVM Express Base Standard for details.
+.Bl -tag -width 16n
+.It Fl o -opcode Ar opcode
+Opcode to send.
+.It Fl 2 -cdw2 Ar value
+32-bit value for CDW2.
+.It Fl 3 -cdw3 Ar value
+32-bit value for CDW3.
+.It Fl 4 -cdw10 Ar value
+32-bit value for CDW10.
+.It Fl 5 -cdw11 Ar value
+32-bit value for CDW11.
+.It Fl 6 -cdw12 Ar value
+32-bit value for CDW12.
+.It Fl 7 -cdw13 Ar value
+32-bit value for CDW13.
+.It Fl 8 -cdw14 Ar value
+32-bit value for CDW14.
+.It Fl 9 -cdw15 Ar value
+32-bit value for CDW15.
+.It Fl l -data-len
+Length of the data for I/O (bytes).
+.It Fl m -metadata-len
+Length of the metadata segment for command (bytes).
+This is ignored and not implemented in
+.Xr nvme 4 .
+.It Fl f -flags
+Nvme command flags.
+.It Fl n -namespace-id
+Namespace ID for command (Ignored).
+.It Fl p -prefill
+Value to prefill payload with.
+.It Fl b -raw-binary
+Output in binary format (otherwise a hex dump is produced).
+.It Fl d -dry-run
+Do not actually execute the command, but perform sanity checks on it.
+.It Fl r -read
+Command reads data from the device.
+.It Fl s -show-command
+Show all the command values on stdout.
+.It Fl w -write
+Command writes data to the device.
+.El
+.Pp
+Send arbitrary commands to the device.
+Can be used to extract vendor specific logs.
+Transfers to/from the device possible, but limited to
+.Dv MAXPHYS
+bytes.
+Commands either read data or write it, but not both.
+Commands needing metadata are not supported by the
+.Xr nvme 4
+drive.
+.Sh DEVICE NAMES
+Where
+.Aq Ar namespace-id
+is required, you can use either the
+.Pa nvmeXnsY
+device, or the disk device such as
+.Pa ndaZ
+or
+.Pa nvdZ .
+The leading
+.Pa /dev/
+is omitted.
+Where
+.Aq Ar device-id
+is required, you can use either the
+.Pa nvmeX
+device, or the disk device such as
+.Pa ndaZ
+or
+.Pa nvdZ .
+For commands that take an optional
+.Aq nsid
+you can use it to get information on other namespaces, or to query the
+drive itself.
+A
+.Aq nsid
+of
+.Dq 0
+means query the drive itself.
+.Sh EXAMPLES
+.Dl nvmecontrol devlist
+.Pp
+Display a list of NVMe controllers and namespaces along with their device nodes.
+.Pp
+.Dl nvmecontrol identify nvme0
+.Dl nvmecontrol identify -n 0 nvd0
+.Pp
+Display a human-readable summary of the nvme0
+.Dv IDENTIFY_CONTROLLER
+data.
+In this example, nvd0 is connected to nvme0.
+.Pp
+.Dl nvmecontrol identify -x -v nvme0ns1
+.Dl nvmecontrol identify -x -v -n 1 nvme0
+.Pp
+Display an hexadecimal dump of the nvme0
+.Dv IDENTIFY_NAMESPACE
+data for namespace 1.
+.Pp
+.Dl nvmecontrol perftest -n 32 -o read -s 512 -t 30 nvme0ns1
+.Pp
+Run a performance test on nvme0ns1 using 32 kernel threads for 30 seconds.
+Each thread will issue a single 512 byte read command.
+Results are printed to stdout when 30 seconds expires.
+.Pp
+.Dl nvmecontrol reset nvme0
+.Dl nvmecontrol reset nda4
+.Pp
+Perform a controller-level reset of the nvme0 controller.
+In this example, nda4 is wired to nvme0.
+.Pp
+.Dl nvmecontrol logpage -p 1 nvme0
+.Pp
+Display a human-readable summary of the nvme0 controller's Error Information Log.
+Log pages defined by the NVMe specification include Error Information Log (ID=1),
+SMART/Health Information Log (ID=2), and Firmware Slot Log (ID=3).
+.Pp
+.Dl nvmecontrol logpage -p 0xc1 -v wdc nvme0
+.Pp
+Display a human-readable summary of the nvme0's wdc-specific advanced
+SMART data.
+.Pp
+.Dl nvmecontrol logpage -p 1 -x nvme0
+.Pp
+Display a hexadecimal dump of the nvme0 controller's Error Information Log.
+.Pp
+.Dl nvmecontrol logpage -p 0xcb -b nvme0 > /tmp/page-cb.bin
+.Pp
+Print the contents of vendor specific page 0xcb as binary data on
+standard out.
+Redirect it to a temporary file.
+.Pp
+.Dl nvmecontrol firmware -s 2 -f /tmp/nvme_firmware nvme0
+.Pp
+Download the firmware image contained in "/tmp/nvme_firmware" to slot 2 of the
+nvme0 controller, but do not activate the image.
+.Pp
+.Dl nvmecontrol firmware -s 4 -a nvme0
+.Pp
+Activate the firmware in slot 4 of the nvme0 controller on the next reset.
+.Pp
+.Dl nvmecontrol firmware -s 7 -f /tmp/nvme_firmware -a nvme0
+.Pp
+Download the firmware image contained in "/tmp/nvme_firmware" to slot 7 of the
+nvme0 controller and activate it on the next reset.
+.Pp
+.Dl nvmecontrol power -l nvme0
+.Pp
+List all the current power modes.
+.Pp
+.Dl nvmecontrol power -p 3 nvme0
+.Pp
+Set the current power mode.
+.Pp
+.Dl nvmecontrol power nvme0
+.Pp
+Get the current power mode.
+.Pp
+.Dl nvmecontrol identify -n 0 nda0
+.Pp
+Identify the drive data associated with the
+.Pa nda0
+device.
+The corresponding
+.Pa nvmeX
+devices is used automatically.
+.Pp
+.Dl nvmecontrol identify nda0
+.Pp
+Get the namespace parameters associated with the
+.Pa nda0
+device.
+The corresponding
+.Pa nvmeXnsY
+device is used automatically.
+.Sh DYNAMIC LOADING
+The directories
+.Pa /lib/nvmecontrol
+and
+.Pa /usr/local/lib/nvmecontrol
+are scanned for any .so files.
+These files are loaded.
+The members of the
+.Va top
+linker set are added to the top-level commands.
+The members of the
+.Va logpage
+linker set are added to the logpage parsers.
+.Sh SEE ALSO
+.Rs
+.%T The NVM Express Base Specification
+.%D June 10, 2019
+.%U https://nvmexpress.org/wp-content/uploads/NVM-Express-1_4-2019.06.10-Ratified.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 9.2 .
+.Sh AUTHORS
+.An -nosplit
+.Nm
+was developed by Intel and originally written by
+.An Jim Harris Aq Mt jimharris@FreeBSD.org .
+.Pp
+This man page was written by
+.An Jim Harris Aq Mt jimharris@FreeBSD.org .

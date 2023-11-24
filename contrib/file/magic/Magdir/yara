@@ -1,0 +1,17 @@
+
+
+#------------------------------------------------------------------------------
+# $File: yara,v 1.4 2021/04/26 15:56:00 christos Exp $
+# yara:  file(1) magic for https://virustotal.github.io/yara/
+#
+
+0	string	YARA
+>4	lelong	>2047
+>8	byte	<20	YARA 3.x compiled rule set
+# version
+>>8	clear	x
+>>8	byte	6	created with version 3.3.0
+>>8	byte	8	created with version 3.4.0
+>>8	byte	11	created with version 3.5.0
+>>8	default	x
+>>>8	byte	x	development version %#02x

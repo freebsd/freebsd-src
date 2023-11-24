@@ -1,0 +1,18 @@
+Yay!
+g: x: 5
+h: x: 0
+h: x: 1
+h: x: 0
+h: x: 1
+h: x: 0
+h: x: 1
+h: x: 0
+h: x: 1
+i: x: 0
+i: x: 1
+i: x: 0
+i: x: 1
+i: x: 0
+i: x: 1
+i: x: 0
+i: x: 1

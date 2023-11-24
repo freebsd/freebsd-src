@@ -1,0 +1,216 @@
+.\"
+.\" Copyright (c) 1996 David E. O'Brien, Joerg Wunsch
+.\" Copyright (c) 2019 Andrew Gierth
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd April 3, 2019
+.Dt INTRO 4
+.Os
+.Sh NAME
+.Nm intro
+.Nd introduction to devices and device drivers
+.Sh DESCRIPTION
+This section contains information related to devices, device drivers
+and miscellaneous hardware.
+.Ss The device abstraction
+Device is a term used mostly for hardware-related stuff that belongs
+to the system, like disks, printers, or a graphics display with its
+keyboard.
+There are also so-called
+.Em pseudo-devices
+where a device driver emulates the behaviour of a device in software
+without any particular underlying hardware.
+A typical example for
+the latter class is
+.Pa /dev/mem ,
+a mechanism whereby the physical memory can be accessed using file
+access semantics.
+.Pp
+The device abstraction generally provides a common set of system
+calls, which are dispatched to the corresponding device driver by the
+upper layers of the kernel.
+The set of system calls available for devices is chosen from
+.Xr open 2 ,
+.Xr close 2 ,
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr ioctl 2 ,
+.Xr select 2 ,
+and
+.Xr mmap 2 .
+Not all drivers implement all system calls; for example, calling
+.Xr mmap 2
+on a keyboard device is not likely to be useful.
+.Pp
+Aspects of the device abstraction have changed significantly in
+.Fx
+over the past two decades.
+The section
+.Sx Historical Notes
+describes some of the more important differences.
+.Ss Accessing Devices
+Most of the devices in
+.Fx
+are accessed through
+.Em device nodes ,
+sometimes also called
+.Em special files .
+They are located within instances of the
+.Xr devfs 5
+filesystem, which is conventionally mounted on the directory
+.Pa /dev
+in the file system hierarchy
+(see also
+.Xr hier 7 ) .
+.Pp
+The
+.Xr devfs 5
+filesystem creates or removes device nodes automatically according to
+the physical hardware recognized as present at any given time.
+For pseudo-devices, device nodes may be created and removed dynamically
+as required, depending on the nature of the device.
+.Pp
+Access restrictions to device nodes are usually subject to the regular
+file permissions of the device node entry, instead of being enforced
+directly by the drivers in the kernel.
+But since device nodes are not stored persistently between reboots,
+those file permissions are set at boot time from rules specified in
+.Xr devfs.conf 5 ,
+or dynamically according to rules defined in
+.Xr devfs.rules 5
+or set using the
+.Xr devfs 8
+command.
+In the latter case, different rules may be used to make different sets
+of devices visible within different instances of the
+.Xr devfs 5
+filesystem, which may be used, for example, to prevent jailed
+subsystems from accessing unsafe devices.
+Manual changes to device
+node permissions may still be made, but will not persist.
+.Ss Drivers without device nodes
+Drivers for network devices do not use device nodes in order to be
+accessed.
+Their selection is based on other decisions inside the
+kernel, and instead of calling
+.Xr open 2 ,
+use of a network device is generally introduced by using the system
+call
+.Xr socket 2 .
+.Ss Configuring a driver into the kernel
+For each kernel, there is a configuration file that is used as a base
+to select the facilities and drivers for that kernel, and to tune
+several options.
+See
+.Xr config 8
+for a detailed description of the files involved.
+The individual manual pages in this section provide a sample line for the
+configuration file in their synopsis portions.
+See also the files
+.Pa /usr/src/sys/conf/NOTES
+and
+.Pa /usr/src/sys/${ARCH}/conf/NOTES .
+.Pp
+Drivers need not be statically compiled into the kernel; they may also be
+loaded as modules, in which case any device nodes they provide will appear
+only after the module is loaded (and has attached to suitable hardware,
+if applicable).
+.Ss Historical Notes
+Prior to
+.Fx 6.0 ,
+device nodes could be created in the traditional way as persistent
+entries in the file system.
+While such entries can still be created, they no longer function to
+access devices.
+.Pp
+Prior to
+.Fx 5.0 ,
+devices for disk and tape drives existed in two variants, known as
+.Em block
+and
+.Em character
+devices, or to use better terms, buffered and unbuffered
+(raw)
+devices.
+The traditional names are reflected by the letters
+.Dq Li b
+and
+.Dq Li c
+as the file type identification in the output of
+.Dq Li ls -l .
+Raw devices were traditionally named with a prefix of
+.Dq Li r ,
+for example
+.Pa /dev/rda0
+would denote the raw version of the disk whose buffered device was
+.Pa /dev/da0 .
+.Em This is no longer the case ;
+all disk devices are now
+.Dq raw
+in the traditional sense, even though they are not given
+.Dq Li r
+prefixes, and
+.Dq buffered
+devices no longer exist at all.
+.Pp
+Buffered devices were accessed through a buffer cache maintained by
+the operating system; historically this was the system's primary disk
+cache, but in
+.Fx
+this was rendered obsolete by the introduction of unified virtual
+memory management.
+Buffered devices could be read or written at any
+byte position, with the buffer mechanism handling the reading and
+writing of disk blocks.
+In contrast, raw disk devices can be read or
+written only at positions and lengths that are multiples of the
+underlying device block size, and
+.Xr write 2
+calls are
+.Em synchronous ,
+not returning to the caller until the data has been handed off to the
+device.
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr ioctl 2 ,
+.Xr mmap 2 ,
+.Xr open 2 ,
+.Xr read 2 ,
+.Xr select 2 ,
+.Xr socket 2 ,
+.Xr write 2 ,
+.Xr devfs 5 ,
+.Xr hier 7 ,
+.Xr config 8
+.Sh HISTORY
+This manual page first appeared in
+.Fx 2.1 .
+.Sh AUTHORS
+.An -nosplit
+This man page has been rewritten by
+.An Andrew Gierth
+from an earlier version written by
+.An J\(:org Wunsch
+with initial input by
+.An David E. O'Brien .

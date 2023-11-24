@@ -1,0 +1,286 @@
+.\" Copyright (c) 2020 Mariusz Zaborski <oshogbo@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd November 15, 2021
+.Dt CAP_NET 3
+.Os
+.Sh NAME
+.Nm cap_bind ,
+.Nm cap_connect ,
+.Nm cap_getaddrinfo ,
+.Nm cap_gethostbyaddr ,
+.Nm cap_gethostbyname ,
+.Nm cap_gethostbyname2 ,
+.Nm cap_getnameinfo ,
+.Nm cap_net_free ,
+.Nm cap_net_limit ,
+.Nm cap_net_limit_addr2name ,
+.Nm cap_net_limit_addr2name_family ,
+.Nm cap_net_limit_bind ,
+.Nm cap_net_limit_connect ,
+.Nm cap_net_limit_init ,
+.Nm cap_net_limit_name2addr ,
+.Nm cap_net_limit_name2addr_family ,
+.Nd "library for networking in capability mode"
+.Sh LIBRARY
+.Lb libcap_net
+.Sh SYNOPSIS
+.In sys/nv.h
+.In libcasper.h
+.In casper/cap_net.h
+.Ft int
+.Fn cap_bind "cap_channel_t *chan" "int s" "const struct sockaddr *addr" "socklen_t addrlen"
+.Ft int
+.Fn cap_connect "cap_channel_t *chan" "int s" "const struct sockaddr *name" "socklen_t namelen"
+.Ft int
+.Fn cap_getaddrinfo "cap_channel_t *chan" "const char *hostname" "const char *servname" "const struct addrinfo *hints" "struct addrinfo **res"
+.Ft int
+.Fn cap_getnameinfo "cap_channel_t *chan" "const struct sockaddr *sa" "socklen_t salen" "char *host" "size_t hostlen" "char *serv" "size_t servlen" "int flags"
+.Ft "struct hostent *"
+.Fn cap_gethostbyname "const cap_channel_t *chan" "const char *name"
+.Ft "struct hostent *"
+.Fn cap_gethostbyname2 "const cap_channel_t *chan" "const char *name" "int af"
+.Ft "struct hostent *"
+.Fn cap_gethostbyaddr "const cap_channel_t *chan" "const void *addr" "socklen_t len" "int af"
+.Ft "cap_net_limit_t *"
+.Fn cap_net_limit_init "cap_channel_t *chan" "uint64_t mode"
+.Ft int
+.Fn cap_net_limit "cap_net_limit_t *limit"
+.Ft void
+.Fn cap_net_free "cap_net_limit_t *limit"
+.Ft "cap_net_limit_t *"
+.Fn cap_net_limit_addr2name_family "cap_net_limit_t *limit" "int *family" "size_t size"
+.Ft "cap_net_limit_t *"
+.Fn cap_net_limit_addr2name "cap_net_limit_t *limit" "const struct sockaddr *sa" "socklen_t salen"
+.Ft "cap_net_limit_t *"
+.Fn cap_net_limit_name2addr_family "cap_net_limit_t *limit" "int *family" "size_t size"
+.Ft "cap_net_limit_t *"
+.Fn cap_net_limit_name2addr "cap_net_limit_t *limit" "const char *name" "const char *serv"
+.Ft "cap_net_limit_t *"
+.Fn cap_net_limit_connect "cap_net_limit_t *limit" "const struct sockaddr *sa" "socklen_t salen"
+.Ft "cap_net_limit_t *"
+.Fn cap_net_limit_bind "cap_net_limit_t *limit" "const struct sockaddr *sa" "socklen_t salen"
+.Sh DESCRIPTION
+The functions
+.Fn cap_bind ,
+.Fn cap_connect ,
+.Fn cap_gethostbyname ,
+.Fn cap_gethostbyname2 ,
+.Fn cap_gethostbyaddr
+and
+.Fn cap_getnameinfo
+provide a set of APIs equivalent to
+.Xr bind 2 ,
+.Xr connect 2 ,
+.Xr gethostbyname 3 ,
+.Xr gethostbyname2 3 ,
+.Xr gethostbyaddr 3
+and
+.Xr getnameinfo 3
+except that a connection to the
+.Nm system.net
+service needs to be provided.
+.Sh LIMITS
+By default, the cap_net capability provides unrestricted access to the network
+namespace.
+Applications typically only require access to a small portion of the network
+namespace:
+The
+.Fn cap_net_limit
+function can be used to restrict access to the network.
+The
+.Fn cap_net_limit_init
+returns an opaque limit handle used to store a list of capabilities.
+The
+.Fv mode
+restricts the functionality of the service.
+Modes are encoded using the following flags:
+.Pp
+.Bd -literal -offset indent -compact
+CAPNET_ADDR2NAME		reverse DNS lookups are allowed with
+				cap_getnameinfo
+CAPNET_NAME2ADDR		name resolution is allowed with
+				cap_getaddrinfo
+CAPNET_DEPRECATED_ADDR2NAME	reverse DNS lookups are allowed with
+				cap_gethostbyaddr
+CAPNET_DEPRECATED_NAME2ADDR	name resolution is allowed with
+				cap_gethostbyname and cap_gethostbyname2
+CAPNET_BIND			bind syscall is allowed
+CAPNET_CONNECT			connect syscall is allowed
+CAPNET_CONNECTDNS		connect syscall is allowed to the values
+				returned from previous call to
+				the cap_getaddrinfo or cap_gethostbyname
+.Ed
+.Pp
+.Fn cap_net_limit_addr2name_family
+limits the
+.Fn cap_getnameinfo
+and
+.Fn cap_gethostbyaddr
+to do reverse DNS lookups to specific family (AF_INET, AF_INET6, etc.)
+.Pp
+.Fn cap_net_limit_addr2name
+limits the
+.Fn cap_getnameinfo
+and
+.Fn cap_gethostbyaddr
+to do reverse DNS lookups only on those specific structures.
+.Pp
+.Fn cap_net_limit_name2addr_family
+limits the
+.Fn cap_getaddrinfo ,
+.Fn cap_gethostbyname
+and
+.Fn cap_gethostbyname2
+to do the name resolution on specific family (AF_INET, AF_INET6, etc.)
+.Pp
+.Fn cap_net_limit_addr2name
+restricts
+.Fn cap_getaddrinfo ,
+.Fn cap_gethostbyname
+and
+.Fn cap_gethostbyname2
+to a set of domains.
+.Pp
+.Fn cap_net_limit_bind
+limits
+.Fn cap_bind
+to bind only on those specific structures.
+.Pp
+.Fn cap_net_limit_connect
+limits
+.Fn cap_connect
+to connect only on those specific structures.
+If the CAPNET_CONNECTDNS is set the limits are extended to the values returned
+by
+.Fn cap_getaddrinfo ,
+.Fn cap_gethostbyname
+and
+.Fn cap_gethostbyname2
+In case of the
+.Fn cap_getaddrinfo
+the restriction is strict.
+In case of the
+.Fn cap_gethostbyname
+and
+.Fn cap_gethostbyname2
+any port will be accepted in the
+.Fn cap_connect
+function.
+.Pp
+.Fn cap_net_limit
+applies a set of sysctl limits to the capability, denying access to sysctl
+variables not belonging to the set.
+.Pp
+Once a set of limits is applied, subsequent calls to
+.Fn cap_net_limit
+will fail unless the new set is a subset of the current set.
+.Pp
+The
+.Fn cap_net_limit
+will consume the limits.
+If the
+.Fn cap_net_limit
+was not called the rights may be freed using
+.Fn cap_net_free .
+Multiple calls to
+.Fn cap_net_limit_addr2name_family ,
+.Fn cap_net_limit_addr2name ,
+.Fn cap_net_limit_name2addr_family ,
+.Fn cap_net_limit_name2addr ,
+.Fn cap_net_limit_connect ,
+and
+.Fn cap_net_limit_bind
+is supported, each call is extending preview capabilities.
+.Sh EXAMPLES
+The following example first opens a capability to casper and then uses this
+capability to create the
+.Nm system.net
+casper service and uses it to resolve a host and connect to it.
+.Bd -literal
+cap_channel_t *capcas, *capnet;
+cap_net_limit_t *limit;
+int familylimit, error, s;
+const char *host = "example.com";
+struct addrinfo hints, *res;
+
+/* Open capability to Casper. */
+capcas = cap_init();
+if (capcas == NULL)
+	err(1, "Unable to contact Casper");
+
+/* Cache NLA for gai_strerror. */
+caph_cache_catpages();
+
+/* Enter capability mode sandbox. */
+if (caph_enter_casper() < 0)
+	err(1, "Unable to enter capability mode");
+
+/* Use Casper capability to create capability to the system.net service. */
+capnet = cap_service_open(capcas, "system.net");
+if (capnet == NULL)
+	err(1, "Unable to open system.net service");
+
+/* Close Casper capability. */
+cap_close(capcas);
+
+/* Limit system.net to reserve IPv4 addresses, to host example.com . */
+limit = cap_net_limit_init(capnet, CAPNET_NAME2ADDR | CAPNET_CONNECTDNS);
+if (limit == NULL)
+	err(1, "Unable to create limits.");
+cap_net_limit_name2addr(limit, host, "80");
+familylimit = AF_INET;
+cap_net_limit_name2addr_family(limit, &familylimit, 1);
+if (cap_net_limit(limit) < 0)
+	err(1, "Unable to apply limits.");
+
+/* Find IP addresses for the given host. */
+memset(&hints, 0, sizeof(hints));
+hints.ai_family = AF_INET;
+hints.ai_socktype = SOCK_STREAM;
+
+error = cap_getaddrinfo(capnet, host, "80", &hints, &res);
+if (error != 0)
+	errx(1, "cap_getaddrinfo(): %s: %s", host, gai_strerror(error));
+
+s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+if (s < 0)
+	err(1, "Unable to create socket");
+
+if (cap_connect(capnet, s, res->ai_addr,  res->ai_addrlen) < 0)
+	err(1, "Unable to connect to host");
+.Ed
+.Sh SEE ALSO
+.Xr bind 2 ,
+.Xr cap_enter 2 ,
+.Xr connect 2 ,
+.Xr caph_enter 3 ,
+.Xr err 3 ,
+.Xr gethostbyaddr 3 ,
+.Xr gethostbyname 3 ,
+.Xr gethostbyname2 3 ,
+.Xr getnameinfo 3 ,
+.Xr capsicum 4 ,
+.Xr nv 9
+.Sh AUTHORS
+.An Mariusz Zaborski Aq Mt oshogbo@FreeBSD.org

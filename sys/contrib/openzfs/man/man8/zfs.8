@@ -1,0 +1,833 @@
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License (the "License").
+.\" You may not use this file except in compliance with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or https://opensource.org/licenses/CDDL-1.0.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\" Copyright (c) 2009 Sun Microsystems, Inc. All Rights Reserved.
+.\" Copyright 2011 Joshua M. Clulow <josh@sysmgr.org>
+.\" Copyright (c) 2011, 2019 by Delphix. All rights reserved.
+.\" Copyright (c) 2011, Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
+.\" Copyright (c) 2012, Bryan Drewery <bdrewery@FreeBSD.org>
+.\" Copyright (c) 2013, Steven Hartland <smh@FreeBSD.org>
+.\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+.\" Copyright (c) 2014, Joyent, Inc. All rights reserved.
+.\" Copyright (c) 2014 by Adam Stevko. All rights reserved.
+.\" Copyright (c) 2014 Integros [integros.com]
+.\" Copyright (c) 2014, Xin LI <delphij@FreeBSD.org>
+.\" Copyright (c) 2014-2015, The FreeBSD Foundation, All Rights Reserved.
+.\" Copyright (c) 2016 Nexenta Systems, Inc. All Rights Reserved.
+.\" Copyright 2019 Richard Laager. All rights reserved.
+.\" Copyright 2018 Nexenta Systems, Inc.
+.\" Copyright 2019 Joyent, Inc.
+.\"
+.Dd May 12, 2022
+.Dt ZFS 8
+.Os
+.
+.Sh NAME
+.Nm zfs
+.Nd configure ZFS datasets
+.Sh SYNOPSIS
+.Nm
+.Fl ?V
+.Nm
+.Cm version
+.Nm
+.Cm subcommand
+.Op Ar arguments
+.
+.Sh DESCRIPTION
+The
+.Nm
+command configures ZFS datasets within a ZFS storage pool, as described in
+.Xr zpool 8 .
+A dataset is identified by a unique path within the ZFS namespace:
+.Pp
+.D1 Ar pool Ns Oo Sy / Ns Ar component Oc Ns Sy / Ns Ar component
+.Pp
+for example:
+.Pp
+.Dl rpool/var/log
+.Pp
+The maximum length of a dataset name is
+.Sy ZFS_MAX_DATASET_NAME_LEN No - 1
+ASCII characters (currently 255) satisfying
+.Sy [A-Za-z_.:/ -] .
+Additionally snapshots are allowed to contain a single
+.Sy @
+character, while bookmarks are allowed to contain a single
+.Sy #
+character.
+.Sy /
+is used as separator between components.
+The maximum amount of nesting allowed in a path is
+.Sy zfs_max_dataset_nesting
+levels deep.
+ZFS tunables
+.Pq Sy zfs_*
+are explained in
+.Xr zfs 4 .
+.Pp
+A dataset can be one of the following:
+.Bl -tag -offset Ds -width "file system"
+.It Sy file system
+Can be mounted within the standard system namespace and behaves like other file
+systems.
+While ZFS file systems are designed to be POSIX-compliant, known issues exist
+that prevent compliance in some cases.
+Applications that depend on standards conformance might fail due to non-standard
+behavior when checking file system free space.
+.It Sy volume
+A logical volume exported as a raw or block device.
+This type of dataset should only be used when a block device is required.
+File systems are typically used in most environments.
+.It Sy snapshot
+A read-only version of a file system or volume at a given point in time.
+It is specified as
+.Ar filesystem Ns @ Ns Ar name
+or
+.Ar volume Ns @ Ns Ar name .
+.It Sy bookmark
+Much like a
+.Sy snapshot ,
+but without the hold on on-disk data.
+It can be used as the source of a send (but not for a receive).
+It is specified as
+.Ar filesystem Ns # Ns Ar name
+or
+.Ar volume Ns # Ns Ar name .
+.El
+.Pp
+See
+.Xr zfsconcepts 7
+for details.
+.
+.Ss Properties
+Properties are divided into two types: native properties and user-defined
+.Pq or Qq user
+properties.
+Native properties either export internal statistics or control ZFS behavior.
+In addition, native properties are either editable or read-only.
+User properties have no effect on ZFS behavior, but you can use them to annotate
+datasets in a way that is meaningful in your environment.
+For more information about properties, see
+.Xr zfsprops 7 .
+.
+.Ss Encryption
+Enabling the
+.Sy encryption
+feature allows for the creation of encrypted filesystems and volumes.
+ZFS will encrypt file and zvol data, file attributes, ACLs, permission bits,
+directory listings, FUID mappings, and
+.Sy userused Ns / Ns Sy groupused Ns / Ns Sy projectused
+data.
+For an overview of encryption, see
+.Xr zfs-load-key 8 .
+.
+.Sh SUBCOMMANDS
+All subcommands that modify state are logged persistently to the pool in their
+original form.
+.Bl -tag -width ""
+.It Nm Fl ?
+Displays a help message.
+.It Xo
+.Nm
+.Fl V , -version
+.Xc
+.It Xo
+.Nm
+.Cm version
+.Xc
+Displays the software version of the
+.Nm
+userland utility and the zfs kernel module.
+.El
+.
+.Ss Dataset Management
+.Bl -tag -width ""
+.It Xr zfs-list 8
+Lists the property information for the given datasets in tabular form.
+.It Xr zfs-create 8
+Creates a new ZFS file system or volume.
+.It Xr zfs-destroy 8
+Destroys the given dataset(s), snapshot(s), or bookmark.
+.It Xr zfs-rename 8
+Renames the given dataset (filesystem or snapshot).
+.It Xr zfs-upgrade 8
+Manage upgrading the on-disk version of filesystems.
+.El
+.
+.Ss Snapshots
+.Bl -tag -width ""
+.It Xr zfs-snapshot 8
+Creates snapshots with the given names.
+.It Xr zfs-rollback 8
+Roll back the given dataset to a previous snapshot.
+.It Xr zfs-hold 8 Ns / Ns Xr zfs-release 8
+Add or remove a hold reference to the specified snapshot or snapshots.
+If a hold exists on a snapshot, attempts to destroy that snapshot by using the
+.Nm zfs Cm destroy
+command return
+.Sy EBUSY .
+.It Xr zfs-diff 8
+Display the difference between a snapshot of a given filesystem and another
+snapshot of that filesystem from a later time or the current contents of the
+filesystem.
+.El
+.
+.Ss Clones
+.Bl -tag -width ""
+.It Xr zfs-clone 8
+Creates a clone of the given snapshot.
+.It Xr zfs-promote 8
+Promotes a clone file system to no longer be dependent on its
+.Qq origin
+snapshot.
+.El
+.
+.Ss Send & Receive
+.Bl -tag -width ""
+.It Xr zfs-send 8
+Generate a send stream, which may be of a filesystem, and may be incremental
+from a bookmark.
+.It Xr zfs-receive 8
+Creates a snapshot whose contents are as specified in the stream provided on
+standard input.
+If a full stream is received, then a new file system is created as well.
+Streams are created using the
+.Xr zfs-send 8
+subcommand, which by default creates a full stream.
+.It Xr zfs-bookmark 8
+Creates a new bookmark of the given snapshot or bookmark.
+Bookmarks mark the point in time when the snapshot was created, and can be used
+as the incremental source for a
+.Nm zfs Cm send
+command.
+.It Xr zfs-redact 8
+Generate a new redaction bookmark.
+This feature can be used to allow clones of a filesystem to be made available on
+a remote system, in the case where their parent need not (or needs to not) be
+usable.
+.El
+.
+.Ss Properties
+.Bl -tag -width ""
+.It Xr zfs-get 8
+Displays properties for the given datasets.
+.It Xr zfs-set 8
+Sets the property or list of properties to the given value(s) for each dataset.
+.It Xr zfs-inherit 8
+Clears the specified property, causing it to be inherited from an ancestor,
+restored to default if no ancestor has the property set, or with the
+.Fl S
+option reverted to the received value if one exists.
+.El
+.
+.Ss Quotas
+.Bl -tag -width ""
+.It Xr zfs-userspace 8 Ns / Ns Xr zfs-groupspace 8 Ns / Ns Xr zfs-projectspace 8
+Displays space consumed by, and quotas on, each user, group, or project
+in the specified filesystem or snapshot.
+.It Xr zfs-project 8
+List, set, or clear project ID and/or inherit flag on the files or directories.
+.El
+.
+.Ss Mountpoints
+.Bl -tag -width ""
+.It Xr zfs-mount 8
+Displays all ZFS file systems currently mounted, or mount ZFS filesystem
+on a path described by its
+.Sy mountpoint
+property.
+.It Xr zfs-unmount 8
+Unmounts currently mounted ZFS file systems.
+.El
+.
+.Ss Shares
+.Bl -tag -width ""
+.It Xr zfs-share 8
+Shares available ZFS file systems.
+.It Xr zfs-unshare 8
+Unshares currently shared ZFS file systems.
+.El
+.
+.Ss Delegated Administration
+.Bl -tag -width ""
+.It Xr zfs-allow 8
+Delegate permissions on the specified filesystem or volume.
+.It Xr zfs-unallow 8
+Remove delegated permissions on the specified filesystem or volume.
+.El
+.
+.Ss Encryption
+.Bl -tag -width ""
+.It Xr zfs-change-key 8
+Add or change an encryption key on the specified dataset.
+.It Xr zfs-load-key 8
+Load the key for the specified encrypted dataset, enabling access.
+.It Xr zfs-unload-key 8
+Unload a key for the specified dataset,
+removing the ability to access the dataset.
+.El
+.
+.Ss Channel Programs
+.Bl -tag -width ""
+.It Xr zfs-program 8
+Execute ZFS administrative operations
+programmatically via a Lua script-language channel program.
+.El
+.
+.Ss Jails
+.Bl -tag -width ""
+.It Xr zfs-jail 8
+Attaches a filesystem to a jail.
+.It Xr zfs-unjail 8
+Detaches a filesystem from a jail.
+.El
+.
+.Ss Waiting
+.Bl -tag -width ""
+.It Xr zfs-wait 8
+Wait for background activity in a filesystem to complete.
+.El
+.
+.Sh EXIT STATUS
+The
+.Nm
+utility exits
+.Sy 0
+on success,
+.Sy 1
+if an error occurs, and
+.Sy 2
+if invalid command line options were specified.
+.
+.Sh EXAMPLES
+.\" Examples 1, 4, 6, 7, 11, 14, 16 are shared with zfs-set.8.
+.\" Examples 1, 10 are shared with zfs-create.8.
+.\" Examples 2, 3, 10, 15 are also shared with zfs-snapshot.8.
+.\" Examples 3, 10, 15 are shared with zfs-destroy.8.
+.\" Examples 5 are shared with zfs-list.8.
+.\" Examples 8 are shared with zfs-rollback.8.
+.\" Examples 9, 10 are shared with zfs-clone.8.
+.\" Examples 10 are also shared with zfs-promote.8.
+.\" Examples 10, 15 also are shared with zfs-rename.8.
+.\" Examples 12, 13 are shared with zfs-send.8.
+.\" Examples 12, 13 are also shared with zfs-receive.8.
+.\" Examples 17, 18, 19, 20, 21 are shared with zfs-allow.8.
+.\" Examples 22 are shared with zfs-diff.8.
+.\" Examples 23 are shared with zfs-bookmark.8.
+.\" Make sure to update them omnidirectionally
+.Ss Example 1 : No Creating a ZFS File System Hierarchy
+The following commands create a file system named
+.Ar pool/home
+and a file system named
+.Ar pool/home/bob .
+The mount point
+.Pa /export/home
+is set for the parent file system, and is automatically inherited by the child
+file system.
+.Dl # Nm zfs Cm create Ar pool/home
+.Dl # Nm zfs Cm set Sy mountpoint Ns = Ns Ar /export/home pool/home
+.Dl # Nm zfs Cm create Ar pool/home/bob
+.
+.Ss Example 2 : No Creating a ZFS Snapshot
+The following command creates a snapshot named
+.Ar yesterday .
+This snapshot is mounted on demand in the
+.Pa .zfs/snapshot
+directory at the root of the
+.Ar pool/home/bob
+file system.
+.Dl # Nm zfs Cm snapshot Ar pool/home/bob Ns @ Ns Ar yesterday
+.
+.Ss Example 3 : No Creating and Destroying Multiple Snapshots
+The following command creates snapshots named
+.Ar yesterday No of Ar pool/home
+and all of its descendent file systems.
+Each snapshot is mounted on demand in the
+.Pa .zfs/snapshot
+directory at the root of its file system.
+The second command destroys the newly created snapshots.
+.Dl # Nm zfs Cm snapshot Fl r Ar pool/home Ns @ Ns Ar yesterday
+.Dl # Nm zfs Cm destroy Fl r Ar pool/home Ns @ Ns Ar yesterday
+.
+.Ss Example 4 : No Disabling and Enabling File System Compression
+The following command disables the
+.Sy compression
+property for all file systems under
+.Ar pool/home .
+The next command explicitly enables
+.Sy compression
+for
+.Ar pool/home/anne .
+.Dl # Nm zfs Cm set Sy compression Ns = Ns Sy off Ar pool/home
+.Dl # Nm zfs Cm set Sy compression Ns = Ns Sy on Ar pool/home/anne
+.
+.Ss Example 5 : No Listing ZFS Datasets
+The following command lists all active file systems and volumes in the system.
+Snapshots are displayed if
+.Sy listsnaps Ns = Ns Sy on .
+The default is
+.Sy off .
+See
+.Xr zpoolprops 7
+for more information on pool properties.
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm list
+NAME                      USED  AVAIL  REFER  MOUNTPOINT
+pool                      450K   457G    18K  /pool
+pool/home                 315K   457G    21K  /export/home
+pool/home/anne             18K   457G    18K  /export/home/anne
+pool/home/bob             276K   457G   276K  /export/home/bob
+.Ed
+.
+.Ss Example 6 : No Setting a Quota on a ZFS File System
+The following command sets a quota of 50 Gbytes for
+.Ar pool/home/bob :
+.Dl # Nm zfs Cm set Sy quota Ns = Ns Ar 50G pool/home/bob
+.
+.Ss Example 7 : No Listing ZFS Properties
+The following command lists all properties for
+.Ar pool/home/bob :
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm get Sy all Ar pool/home/bob
+NAME           PROPERTY              VALUE                  SOURCE
+pool/home/bob  type                  filesystem             -
+pool/home/bob  creation              Tue Jul 21 15:53 2009  -
+pool/home/bob  used                  21K                    -
+pool/home/bob  available             20.0G                  -
+pool/home/bob  referenced            21K                    -
+pool/home/bob  compressratio         1.00x                  -
+pool/home/bob  mounted               yes                    -
+pool/home/bob  quota                 20G                    local
+pool/home/bob  reservation           none                   default
+pool/home/bob  recordsize            128K                   default
+pool/home/bob  mountpoint            /pool/home/bob         default
+pool/home/bob  sharenfs              off                    default
+pool/home/bob  checksum              on                     default
+pool/home/bob  compression           on                     local
+pool/home/bob  atime                 on                     default
+pool/home/bob  devices               on                     default
+pool/home/bob  exec                  on                     default
+pool/home/bob  setuid                on                     default
+pool/home/bob  readonly              off                    default
+pool/home/bob  zoned                 off                    default
+pool/home/bob  snapdir               hidden                 default
+pool/home/bob  acltype               off                    default
+pool/home/bob  aclmode               discard                default
+pool/home/bob  aclinherit            restricted             default
+pool/home/bob  canmount              on                     default
+pool/home/bob  xattr                 on                     default
+pool/home/bob  copies                1                      default
+pool/home/bob  version               4                      -
+pool/home/bob  utf8only              off                    -
+pool/home/bob  normalization         none                   -
+pool/home/bob  casesensitivity       sensitive              -
+pool/home/bob  vscan                 off                    default
+pool/home/bob  nbmand                off                    default
+pool/home/bob  sharesmb              off                    default
+pool/home/bob  refquota              none                   default
+pool/home/bob  refreservation        none                   default
+pool/home/bob  primarycache          all                    default
+pool/home/bob  secondarycache        all                    default
+pool/home/bob  usedbysnapshots       0                      -
+pool/home/bob  usedbydataset         21K                    -
+pool/home/bob  usedbychildren        0                      -
+pool/home/bob  usedbyrefreservation  0                      -
+.Ed
+.Pp
+The following command gets a single property value:
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm get Fl H o Sy value compression Ar pool/home/bob
+on
+.Ed
+.Pp
+The following command lists all properties with local settings for
+.Ar pool/home/bob :
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm get Fl r s Sy local Fl o Sy name , Ns Sy property , Ns Sy value all Ar pool/home/bob
+NAME           PROPERTY              VALUE
+pool/home/bob  quota                 20G
+pool/home/bob  compression           on
+.Ed
+.
+.Ss Example 8 : No Rolling Back a ZFS File System
+The following command reverts the contents of
+.Ar pool/home/anne
+to the snapshot named
+.Ar yesterday ,
+deleting all intermediate snapshots:
+.Dl # Nm zfs Cm rollback Fl r Ar pool/home/anne Ns @ Ns Ar yesterday
+.
+.Ss Example 9 : No Creating a ZFS Clone
+The following command creates a writable file system whose initial contents are
+the same as
+.Ar pool/home/bob@yesterday .
+.Dl # Nm zfs Cm clone Ar pool/home/bob@yesterday pool/clone
+.
+.Ss Example 10 : No Promoting a ZFS Clone
+The following commands illustrate how to test out changes to a file system, and
+then replace the original file system with the changed one, using clones, clone
+promotion, and renaming:
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm create Ar pool/project/production
+  populate /pool/project/production with data
+.No # Nm zfs Cm snapshot Ar pool/project/production Ns @ Ns Ar today
+.No # Nm zfs Cm clone Ar pool/project/production@today pool/project/beta
+  make changes to /pool/project/beta and test them
+.No # Nm zfs Cm promote Ar pool/project/beta
+.No # Nm zfs Cm rename Ar pool/project/production pool/project/legacy
+.No # Nm zfs Cm rename Ar pool/project/beta pool/project/production
+  once the legacy version is no longer needed, it can be destroyed
+.No # Nm zfs Cm destroy Ar pool/project/legacy
+.Ed
+.
+.Ss Example 11 : No Inheriting ZFS Properties
+The following command causes
+.Ar pool/home/bob No and Ar pool/home/anne
+to inherit the
+.Sy checksum
+property from their parent.
+.Dl # Nm zfs Cm inherit Sy checksum Ar pool/home/bob pool/home/anne
+.
+.Ss Example 12 : No Remotely Replicating ZFS Data
+The following commands send a full stream and then an incremental stream to a
+remote machine, restoring them into
+.Em poolB/received/fs@a
+and
+.Em poolB/received/fs@b ,
+respectively.
+.Em poolB
+must contain the file system
+.Em poolB/received ,
+and must not initially contain
+.Em poolB/received/fs .
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm send Ar pool/fs@a |
+.No "   " Nm ssh Ar host Nm zfs Cm receive Ar poolB/received/fs Ns @ Ns Ar a
+.No # Nm zfs Cm send Fl i Ar a pool/fs@b |
+.No "   " Nm ssh Ar host Nm zfs Cm receive Ar poolB/received/fs
+.Ed
+.
+.Ss Example 13 : No Using the Nm zfs Cm receive Fl d No Option
+The following command sends a full stream of
+.Ar poolA/fsA/fsB@snap
+to a remote machine, receiving it into
+.Ar poolB/received/fsA/fsB@snap .
+The
+.Ar fsA/fsB@snap
+portion of the received snapshot's name is determined from the name of the sent
+snapshot.
+.Ar poolB
+must contain the file system
+.Ar poolB/received .
+If
+.Ar poolB/received/fsA
+does not exist, it is created as an empty file system.
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm send Ar poolA/fsA/fsB@snap |
+.No "   " Nm ssh Ar host Nm zfs Cm receive Fl d Ar poolB/received
+.Ed
+.
+.Ss Example 14 : No Setting User Properties
+The following example sets the user-defined
+.Ar com.example : Ns Ar department
+property for a dataset:
+.Dl # Nm zfs Cm set Ar com.example : Ns Ar department Ns = Ns Ar 12345 tank/accounting
+.
+.Ss Example 15 : No Performing a Rolling Snapshot
+The following example shows how to maintain a history of snapshots with a
+consistent naming scheme.
+To keep a week's worth of snapshots, the user destroys the oldest snapshot,
+renames the remaining snapshots, and then creates a new snapshot, as follows:
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm destroy Fl r Ar pool/users@7daysago
+.No # Nm zfs Cm rename Fl r Ar pool/users@6daysago No @ Ns Ar 7daysago
+.No # Nm zfs Cm rename Fl r Ar pool/users@5daysago No @ Ns Ar 6daysago
+.No # Nm zfs Cm rename Fl r Ar pool/users@4daysago No @ Ns Ar 5daysago
+.No # Nm zfs Cm rename Fl r Ar pool/users@3daysago No @ Ns Ar 4daysago
+.No # Nm zfs Cm rename Fl r Ar pool/users@2daysago No @ Ns Ar 3daysago
+.No # Nm zfs Cm rename Fl r Ar pool/users@yesterday No @ Ns Ar 2daysago
+.No # Nm zfs Cm rename Fl r Ar pool/users@today No @ Ns Ar yesterday
+.No # Nm zfs Cm snapshot Fl r Ar pool/users Ns @ Ns Ar today
+.Ed
+.
+.Ss Example 16 : No Setting sharenfs Property Options on a ZFS File System
+The following commands show how to set
+.Sy sharenfs
+property options to enable read-write
+access for a set of IP addresses and to enable root access for system
+.Qq neo
+on the
+.Ar tank/home
+file system:
+.Dl # Nm zfs Cm set Sy sharenfs Ns = Ns ' Ns Ar rw Ns =@123.123.0.0/16:[::1],root= Ns Ar neo Ns ' tank/home
+.Pp
+If you are using DNS for host name resolution,
+specify the fully-qualified hostname.
+.
+.Ss Example 17 : No Delegating ZFS Administration Permissions on a ZFS Dataset
+The following example shows how to set permissions so that user
+.Ar cindys
+can create, destroy, mount, and take snapshots on
+.Ar tank/cindys .
+The permissions on
+.Ar tank/cindys
+are also displayed.
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm allow Sy cindys create , Ns Sy destroy , Ns Sy mount , Ns Sy snapshot Ar tank/cindys
+.No # Nm zfs Cm allow Ar tank/cindys
+---- Permissions on tank/cindys --------------------------------------
+Local+Descendent permissions:
+        user cindys create,destroy,mount,snapshot
+.Ed
+.Pp
+Because the
+.Ar tank/cindys
+mount point permission is set to 755 by default, user
+.Ar cindys
+will be unable to mount file systems under
+.Ar tank/cindys .
+Add an ACE similar to the following syntax to provide mount point access:
+.Dl # Cm chmod No A+user : Ns Ar cindys Ns :add_subdirectory:allow Ar /tank/cindys
+.
+.Ss Example 18 : No Delegating Create Time Permissions on a ZFS Dataset
+The following example shows how to grant anyone in the group
+.Ar staff
+to create file systems in
+.Ar tank/users .
+This syntax also allows staff members to destroy their own file systems, but not
+destroy anyone else's file system.
+The permissions on
+.Ar tank/users
+are also displayed.
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm allow Ar staff Sy create , Ns Sy mount Ar tank/users
+.No # Nm zfs Cm allow Fl c Sy destroy Ar tank/users
+.No # Nm zfs Cm allow Ar tank/users
+---- Permissions on tank/users ---------------------------------------
+Permission sets:
+        destroy
+Local+Descendent permissions:
+        group staff create,mount
+.Ed
+.
+.Ss Example 19 : No Defining and Granting a Permission Set on a ZFS Dataset
+The following example shows how to define and grant a permission set on the
+.Ar tank/users
+file system.
+The permissions on
+.Ar tank/users
+are also displayed.
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm allow Fl s No @ Ns Ar pset Sy create , Ns Sy destroy , Ns Sy snapshot , Ns Sy mount Ar tank/users
+.No # Nm zfs Cm allow staff No @ Ns Ar pset tank/users
+.No # Nm zfs Cm allow Ar tank/users
+---- Permissions on tank/users ---------------------------------------
+Permission sets:
+        @pset create,destroy,mount,snapshot
+Local+Descendent permissions:
+        group staff @pset
+.Ed
+.
+.Ss Example 20 : No Delegating Property Permissions on a ZFS Dataset
+The following example shows to grant the ability to set quotas and reservations
+on the
+.Ar users/home
+file system.
+The permissions on
+.Ar users/home
+are also displayed.
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm allow Ar cindys Sy quota , Ns Sy reservation Ar users/home
+.No # Nm zfs Cm allow Ar users/home
+---- Permissions on users/home ---------------------------------------
+Local+Descendent permissions:
+        user cindys quota,reservation
+cindys% zfs set quota=10G users/home/marks
+cindys% zfs get quota users/home/marks
+NAME              PROPERTY  VALUE  SOURCE
+users/home/marks  quota     10G    local
+.Ed
+.
+.Ss Example 21 : No Removing ZFS Delegated Permissions on a ZFS Dataset
+The following example shows how to remove the snapshot permission from the
+.Ar staff
+group on the
+.Sy tank/users
+file system.
+The permissions on
+.Sy tank/users
+are also displayed.
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm unallow Ar staff Sy snapshot Ar tank/users
+.No # Nm zfs Cm allow Ar tank/users
+---- Permissions on tank/users ---------------------------------------
+Permission sets:
+        @pset create,destroy,mount,snapshot
+Local+Descendent permissions:
+        group staff @pset
+.Ed
+.
+.Ss Example 22 : No Showing the differences between a snapshot and a ZFS Dataset
+The following example shows how to see what has changed between a prior
+snapshot of a ZFS dataset and its current state.
+The
+.Fl F
+option is used to indicate type information for the files affected.
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm diff Fl F Ar tank/test@before tank/test
+M       /       /tank/test/
+M       F       /tank/test/linked      (+1)
+R       F       /tank/test/oldname -> /tank/test/newname
+-       F       /tank/test/deleted
++       F       /tank/test/created
+M       F       /tank/test/modified
+.Ed
+.
+.Ss Example 23 : No Creating a bookmark
+The following example creates a bookmark to a snapshot.
+This bookmark can then be used instead of a snapshot in send streams.
+.Dl # Nm zfs Cm bookmark Ar rpool Ns @ Ns Ar snapshot rpool Ns # Ns Ar bookmark
+.
+.Ss Example 24 : No Setting Sy sharesmb No Property Options on a ZFS File System
+The following example show how to share SMB filesystem through ZFS.
+Note that a user and their password must be given.
+.Dl # Nm smbmount Ar //127.0.0.1/share_tmp /mnt/tmp Fl o No user=workgroup/turbo,password=obrut,uid=1000
+.Pp
+Minimal
+.Pa /etc/samba/smb.conf
+configuration is required, as follows.
+.Pp
+Samba will need to bind to the loopback interface for the ZFS utilities to
+communicate with Samba.
+This is the default behavior for most Linux distributions.
+.Pp
+Samba must be able to authenticate a user.
+This can be done in a number of ways
+.Pq Xr passwd 5 , LDAP , Xr smbpasswd 5 , &c.\& .
+How to do this is outside the scope of this document – refer to
+.Xr smb.conf 5
+for more information.
+.Pp
+See the
+.Sx USERSHARES
+section for all configuration options,
+in case you need to modify any options of the share afterwards.
+Do note that any changes done with the
+.Xr net 8
+command will be undone if the share is ever unshared (like via a reboot).
+.
+.Sh ENVIRONMENT VARIABLES
+.Bl -tag -width "ZFS_MODULE_TIMEOUT"
+.It Sy ZFS_COLOR
+Use ANSI color in
+.Nm zfs Cm diff
+and
+.Nm zfs Cm list
+output.
+.It Sy ZFS_MOUNT_HELPER
+Cause
+.Nm zfs Cm mount
+to use
+.Xr mount 8
+to mount ZFS datasets.
+This option is provided for backwards compatibility with older ZFS versions.
+.
+.It Sy ZFS_SET_PIPE_MAX
+Tells
+.Nm zfs
+to set the maximum pipe size for sends/recieves.
+Disabled by default on Linux
+due to an unfixed deadlock in Linux's pipe size handling code.
+.
+.\" Shared with zpool.8
+.It Sy ZFS_MODULE_TIMEOUT
+Time, in seconds, to wait for
+.Pa /dev/zfs
+to appear.
+Defaults to
+.Sy 10 ,
+max
+.Sy 600 Pq 10 minutes .
+If
+.Pf < Sy 0 ,
+wait forever; if
+.Sy 0 ,
+don't wait.
+.El
+.
+.Sh INTERFACE STABILITY
+.Sy Committed .
+.
+.Sh SEE ALSO
+.Xr attr 1 ,
+.Xr gzip 1 ,
+.Xr ssh 1 ,
+.Xr chmod 2 ,
+.Xr fsync 2 ,
+.Xr stat 2 ,
+.Xr write 2 ,
+.Xr acl 5 ,
+.Xr attributes 5 ,
+.Xr exports 5 ,
+.Xr zfsconcepts 7 ,
+.Xr zfsprops 7 ,
+.Xr exportfs 8 ,
+.Xr mount 8 ,
+.Xr net 8 ,
+.Xr selinux 8 ,
+.Xr zfs-allow 8 ,
+.Xr zfs-bookmark 8 ,
+.Xr zfs-change-key 8 ,
+.Xr zfs-clone 8 ,
+.Xr zfs-create 8 ,
+.Xr zfs-destroy 8 ,
+.Xr zfs-diff 8 ,
+.Xr zfs-get 8 ,
+.Xr zfs-groupspace 8 ,
+.Xr zfs-hold 8 ,
+.Xr zfs-inherit 8 ,
+.Xr zfs-jail 8 ,
+.Xr zfs-list 8 ,
+.Xr zfs-load-key 8 ,
+.Xr zfs-mount 8 ,
+.Xr zfs-program 8 ,
+.Xr zfs-project 8 ,
+.Xr zfs-projectspace 8 ,
+.Xr zfs-promote 8 ,
+.Xr zfs-receive 8 ,
+.Xr zfs-redact 8 ,
+.Xr zfs-release 8 ,
+.Xr zfs-rename 8 ,
+.Xr zfs-rollback 8 ,
+.Xr zfs-send 8 ,
+.Xr zfs-set 8 ,
+.Xr zfs-share 8 ,
+.Xr zfs-snapshot 8 ,
+.Xr zfs-unallow 8 ,
+.Xr zfs-unjail 8 ,
+.Xr zfs-unload-key 8 ,
+.Xr zfs-unmount 8 ,
+.Xr zfs-unshare 8 ,
+.Xr zfs-upgrade 8 ,
+.Xr zfs-userspace 8 ,
+.Xr zfs-wait 8 ,
+.Xr zpool 8

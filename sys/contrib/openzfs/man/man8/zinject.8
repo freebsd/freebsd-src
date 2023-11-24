@@ -1,0 +1,296 @@
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License (the "License").
+.\" You may not use this file except in compliance with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or https://opensource.org/licenses/CDDL-1.0.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\" Copyright 2013 Darik Horn <dajhorn@vanadac.com>. All rights reserved.
+.\"
+.\" lint-ok: WARNING: sections out of conventional order: Sh SYNOPSIS
+.\"
+.Dd May 26, 2021
+.Dt ZINJECT 8
+.Os
+.
+.Sh NAME
+.Nm zinject
+.Nd ZFS Fault Injector
+.Sh DESCRIPTION
+.Nm
+creates artificial problems in a ZFS pool by simulating data corruption
+or device failures.
+This program is dangerous.
+.
+.Sh SYNOPSIS
+.Bl -tag -width Ds
+.It Xo
+.Nm zinject
+.Xc
+List injection records.
+.
+.It Xo
+.Nm zinject
+.Fl b Ar objset : Ns Ar object : Ns Ar level : Ns Ar start : Ns Ar end
+.Op Fl f Ar frequency
+.Fl amu
+.Op pool
+.Xc
+Force an error into the pool at a bookmark.
+.
+.It Xo
+.Nm zinject
+.Fl c Ar id Ns | Ns Sy all
+.Xc
+Cancel injection records.
+.
+.It Xo
+.Nm zinject
+.Fl d Ar vdev
+.Fl A Sy degrade Ns | Ns Sy fault
+.Ar pool
+.Xc
+Force a vdev into the DEGRADED or FAULTED state.
+.
+.It Xo
+.Nm zinject
+.Fl d Ar vdev
+.Fl D Ar latency : Ns Ar lanes
+.Ar pool
+.Xc
+Add an artificial delay to I/O requests on a particular
+device, such that the requests take a minimum of
+.Ar latency
+milliseconds to complete.
+Each delay has an associated number of
+.Ar lanes
+which defines the number of concurrent
+I/O requests that can be processed.
+.Pp
+For example, with a single lane delay of 10 ms
+.No (\& Ns Fl D Ar 10 : Ns Ar 1 ) ,
+the device will only be able to service a single I/O request
+at a time with each request taking 10 ms to complete.
+So, if only a single request is submitted every 10 ms, the
+average latency will be 10 ms; but if more than one request
+is submitted every 10 ms, the average latency will be more
+than 10 ms.
+.Pp
+Similarly, if a delay of 10 ms is specified to have two
+lanes
+.No (\& Ns Fl D Ar 10 : Ns Ar 2 ) ,
+then the device will be able to service
+two requests at a time, each with a minimum latency of 10 ms.
+So, if two requests are submitted every 10 ms, then
+the average latency will be 10 ms; but if more than two
+requests are submitted every 10 ms, the average latency
+will be more than 10 ms.
+.Pp
+Also note, these delays are additive.
+So two invocations of
+.Fl D Ar 10 : Ns Ar 1
+are roughly equivalent to a single invocation of
+.Fl D Ar 10 : Ns Ar 2 .
+This also means, that one can specify multiple
+lanes with differing target latencies.
+For example, an invocation of
+.Fl D Ar 10 : Ns Ar 1
+followed by
+.Fl D Ar 25 : Ns Ar 2
+will create 3 lanes on the device: one lane with a latency
+of 10 ms and two lanes with a 25 ms latency.
+.
+.It Xo
+.Nm zinject
+.Fl d Ar vdev
+.Op Fl e Ar device_error
+.Op Fl L Ar label_error
+.Op Fl T Ar failure
+.Op Fl f Ar frequency
+.Op Fl F
+.Ar pool
+.Xc
+Force a vdev error.
+.
+.It Xo
+.Nm zinject
+.Fl I
+.Op Fl s Ar seconds Ns | Ns Fl g Ar txgs
+.Ar pool
+.Xc
+Simulate a hardware failure that fails to honor a cache flush.
+.
+.It Xo
+.Nm zinject
+.Fl p Ar function
+.Ar pool
+.Xc
+Panic inside the specified function.
+.
+.It Xo
+.Nm zinject
+.Fl t Sy data
+.Fl C Ar dvas
+.Op Fl e Ar device_error
+.Op Fl f Ar frequency
+.Op Fl l Ar level
+.Op Fl r Ar range
+.Op Fl amq
+.Ar path
+.Xc
+Force an error into the contents of a file.
+.
+.It Xo
+.Nm zinject
+.Fl t Sy dnode
+.Fl C Ar dvas
+.Op Fl e Ar device_error
+.Op Fl f Ar frequency
+.Op Fl l Ar level
+.Op Fl amq
+.Ar path
+.Xc
+Force an error into the metadnode for a file or directory.
+.
+.It Xo
+.Nm zinject
+.Fl t Ar mos_type
+.Fl C Ar dvas
+.Op Fl e Ar device_error
+.Op Fl f Ar frequency
+.Op Fl l Ar level
+.Op Fl r Ar range
+.Op Fl amqu
+.Ar pool
+.Xc
+Force an error into the MOS of a pool.
+.El
+.Sh OPTIONS
+.Bl -tag -width "-C dvas"
+.It Fl a
+Flush the ARC before injection.
+.It Fl b Ar objset : Ns Ar object : Ns Ar level : Ns Ar start : Ns Ar end
+Force an error into the pool at this bookmark tuple.
+Each number is in hexadecimal, and only one block can be specified.
+.It Fl C Ar dvas
+Inject the given error only into specific DVAs.
+The mask should be specified as a list of 0-indexed DVAs separated by commas
+.No (e.g . Ar 0,2 Ns No ).
+This option is not applicable to logical data errors such as
+.Sy decompress
+and
+.Sy decrypt .
+.It Fl d Ar vdev
+A vdev specified by path or GUID.
+.It Fl e Ar device_error
+Specify
+.Bl -tag -compact -width "decompress"
+.It Sy checksum
+for an ECKSUM error,
+.It Sy decompress
+for a data decompression error,
+.It Sy decrypt
+for a data decryption error,
+.It Sy corrupt
+to flip a bit in the data after a read,
+.It Sy dtl
+for an ECHILD error,
+.It Sy io
+for an EIO error where reopening the device will succeed, or
+.It Sy nxio
+for an ENXIO error where reopening the device will fail.
+.El
+.Pp
+For EIO and ENXIO, the "failed" reads or writes still occur.
+The probe simply sets the error value reported by the I/O pipeline
+so it appears the read or write failed.
+Decryption errors only currently work with file data.
+.It Fl f Ar frequency
+Only inject errors a fraction of the time.
+Expressed as a real number percentage between
+.Sy 0.0001
+and
+.Sy 100 .
+.It Fl F
+Fail faster.
+Do fewer checks.
+.It Fl f Ar txgs
+Run for this many transaction groups before reporting failure.
+.It Fl h
+Print the usage message.
+.It Fl l Ar level
+Inject an error at a particular block level.
+The default is
+.Sy 0 .
+.It Fl L Ar label_error
+Set the label error region to one of
+.Sy nvlist ,
+.Sy pad1 ,
+.Sy pad2 ,
+or
+.Sy uber .
+.It Fl m
+Automatically remount the underlying filesystem.
+.It Fl q
+Quiet mode.
+Only print the handler number added.
+.It Fl r Ar range
+Inject an error over a particular logical range of an object, which
+will be translated to the appropriate blkid range according to the
+object's properties.
+.It Fl s Ar seconds
+Run for this many seconds before reporting failure.
+.It Fl T Ar failure
+Set the failure type to one of
+.Sy all ,
+.Sy claim ,
+.Sy free ,
+.Sy read ,
+or
+.Sy write .
+.It Fl t Ar mos_type
+Set this to
+.Bl -tag -compact -width "spacemap"
+.It Sy mos
+for any data in the MOS,
+.It Sy mosdir
+for an object directory,
+.It Sy config
+for the pool configuration,
+.It Sy bpobj
+for the block pointer list,
+.It Sy spacemap
+for the space map,
+.It Sy metaslab
+for the metaslab, or
+.It Sy errlog
+for the persistent error log.
+.El
+.It Fl u
+Unload the pool after injection.
+.El
+.
+.Sh ENVIRONMENT VARIABLES
+.Bl -tag -width "ZF"
+.It Ev ZFS_HOSTID
+Run
+.Nm
+in debug mode.
+.El
+.
+.Sh SEE ALSO
+.Xr zfs 8 ,
+.Xr zpool 8

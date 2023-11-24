@@ -1,0 +1,11 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: FILESYSTEMS
+# REQUIRE: root mountcritlocal cleanvar tmp
+
+#	This is a dummy dependency, for services which require filesystems
+#	to be mounted before starting.  It also serves as the default early /
+#	late divider; after this point, rc.d directories are rescanned to
+#	catch scripts from other filesystems than /.

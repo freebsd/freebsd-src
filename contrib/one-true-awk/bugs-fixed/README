@@ -1,0 +1,57 @@
+List of bugs fixed.
+
+1. ofs-rebuild: OFS value used to rebuild the record was incorrect.
+Fixed August 19, 2014. Revised fix August 2018.
+
+2. system-status: Instead of a floating-point division by 256, use
+the wait(2) macros to create a reasonable exit status. Fixed March 12, 2016.
+
+3. space: Use provided xisblank() function instead of ispace() for
+matching [[:blank:]].
+
+4. a-format: Add POSIX standard %a and %A to supported formats. Check
+at runtime that this format is available.
+
+5. decr-NF: Decrementing NF did not change $0. This is a decades-old
+bug. There are interactions with the old and new value of OFS as well.
+Most of the fix came from the NetBSD awk.
+
+6. string-conv: String conversions of scalars were sticky.  Once a
+conversion to string happened, even with OFMT, that value was used until
+a new numeric value was assigned, even if OFMT differed from CONVFMT,
+and also if CONVFMT changed.
+
+7. unary-plus: Unary plus on a string constant returned the string.
+Instead, it should convert the value to numeric and give that value.
+
+8. concat-assign-same: Concatenation previously evaluated both sides of the
+expression before doing its work, which, since assign() evaluates to the cell
+being assigned to, meant that expressions like "print (a = 1) (a = 2)" would
+print "22" rather than "12".
+
+9. missing-precision: When using the format string "%*s", the precision
+argument was used without checking if it was present first.
+
+10. missing-precision: When using the format string "%*s", the precision
+argument was used without checking if it was present first.
+
+11. fmt-overflow: The buffer used for OFMT/CONVFMT conversions was written
+to with sprintf(), which meant that some conversions could write past the
+end.
+
+12. numeric-subsep, numeric-fs, numeric-output-seps, numerics-rs: If SUBSEP,
+FS, RS, OFS, or ORS were set to a numeric value, then their string values
+wouldn't always be generated before being needed.
+
+13. subsep-overflow: The length of SUBSEP needs to be rechecked after
+calling execute(), in case SUBSEP itself has been changed.
+
+14. split-fs-from-array: If the third argument to split() comes from the
+array passed as the second argument, then split() would previously read
+from the freed memory and possibly produce incorrect results (depending
+on the system's malloc()/free() behaviour.)
+
+15. getline-numeric: The `getline xx < file' syntax did not check if
+values were numeric, in discordance from POSIX. Test case adapted from
+one posted by Ben Bacarisse <ben.usenet@bsb.me.uk> in comp.lang.awk,
+January 2019.

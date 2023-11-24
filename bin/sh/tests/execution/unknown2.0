@@ -1,0 +1,5 @@
+
+{
+	: $(/var/empty/nosuchtool) 
+	: $(:)
+} 2>/dev/null

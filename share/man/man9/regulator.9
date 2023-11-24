@@ -1,0 +1,147 @@
+.\" Copyright (c) 2021 Emmanuel Vadot <manu@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd June 14, 2021
+.Dt REGULATOR 9
+.Os
+.Sh NAME
+.Nm regulator ,
+.Nm regulator_get_by_name ,
+.Nm regulator_get_by_id ,
+.Nm regulator_release ,
+.Nm regulator_get_name ,
+.Nm regulator_enable ,
+.Nm regulator_disable ,
+.Nm regulator_stop ,
+.Nm regulator_status ,
+.Nm regulator_get_voltage ,
+.Nm regulator_set_voltage ,
+.Nm regulator_check_voltage ,
+.Nm regulator_get_by_ofw_property
+.Nd regulator methods
+.Sh SYNOPSIS
+.Cd "device regulator"
+.In "dev/extres/regulator/regulator.h"
+.Ft int
+.Fn regulator_get_by_name "device_t cdev" "const char *name" "regulator_t *regulator"
+.Ft int
+.Fn regulator_get_by_id "device_t cdev" "device_t pdev" "intptr_t id" "regulator_t *regulator"
+.Ft int
+.Fn regulator_release "regulator_t regulator"
+.Ft int
+.Fn regulator_get_name "regulator_t regulator"
+.Ft int
+.Fn regulator_enable "regulator_t reg"
+.Ft int
+.Fn regulator_disable "regulator_t reg"
+.Ft int
+.Fn regulator_stop "regulator_t reg"
+.Ft int
+.Fn regulator_status "regulator_t reg" "int *status"
+.Ft int
+.Fn regulator_get_voltage "regulator_t reg" "int *uvolt"
+.Ft int
+.Fn regulator_set_voltage "regulator_t reg" "int min_uvolt" "int max_uvolt"
+.Ft int
+.Fn regulator_check_voltage "regulator_t reg" "int uvolt"
+.Ft int
+.Fn regulator_get_by_ofw_property "device_t dev" "phandle_t node" "char *name" "regulator_t *reg"
+.Sh DESCRIPTION
+The regulator framework allow drivers to enable, disable and change regulator voltage.
+.Sh RETURN VALUES
+All functions returns 0 on success or
+.Er ENODEV
+if the regulator or one of its parent was not found.
+.Sh INTERFACE
+.Bl -tag -width indent
+.It Fn regulator_get_by_name "device_t cdev" "const char *name" "regulator_t *regulator"
+Resolve a regulator based on its name.
+All regulators names are unique.
+This will also increment the refcount on the regulator.
+.It Fn regulator_get_by_id "device_t cdev" "device_t pdev" "intptr_t id" "regulator_t *regulator"
+Resolve a regulator based on its id.
+All regulators ids are unique.
+This will also increment the refcount on the regulator.
+.It Fn regulator_get_by_ofw_property "device_t dev" "phandle_t node" "char *name" "regulator_t *reg"
+Resolve a regulator based on the fdt property named name.
+If node is 0 then the function will get the ofw node itself.
+This will also increment the refcount on the regulator.
+Returns 0 on success or
+.Er ENOENT
+if the ofw property does not exists.
+.It Fn regulator_release "regulator_t regulator"
+This disables the regulator, decrements the refcount on it and frees the regulator variable passed.
+.It Fn regulator_get_name "regulator_t regulator"
+Returns the name of the regulator.
+All regulator names are unique.
+.It Fn regulator_enable "regulator_t reg"
+Enable the regulator.
+If the regulator supports a voltage range, the one configured in the hardware will be the output voltage.
+If the regulator was already enabled by another driver this simply increments the enable counter.
+.It Fn regulator_disable "regulator_t reg"
+Disable the regulator.
+If the regulator was also enabled by another driver this simply decrements the enable counter.
+If the regulator was not previously enabled we will kassert.
+.It Fn regulator_stop "regulator_t reg"
+Disable the regulator in hardware.
+This ensures the regulator is disabled even if it was enabled by bootloader.
+This should not be called on regulator that has previously been enabled by a driver.
+Returns 0 on success or
+.Er EBUSY
+if another consumer enabled it.
+.It Fn regulator_status "regulator_t reg" "int *status"
+Get the hardware status of the regulator.
+status will contain a bit mask with
+thoses possible value :
+.Bl -tag -width indent
+.It REGULATOR_STATUS_ENABLED
+The regulator is enabled.
+.It REGULATOR_STATUS_OVERCURRENT
+The hardware reports that too much current is being drawn.
+.El
+.It Fn regulator_get_voltage "regulator_t reg" "int *uvolt"
+Get the current voltage set for the regulator in microvolts.
+.It Fn regulator_set_voltage "regulator_t reg" "int min_uvolt" "int max_uvolt"
+Change the voltage for the regulator.
+If a range is acceptable by the hardware or driver different values can be provided as min and max.
+Returns 0 on success or
+.Er ERANGE
+if the regulator doesn't support this voltage range.
+.It Fn regulator_check_voltage "regulator_t reg" "int uvolt"
+Checks if the regulator support the given voltage.
+Returns 0 on success or
+.Er ERANGE
+if the regulator doesn't support this voltage range.
+.El
+.Sh HISTORY
+The
+.Nm regulator
+framework first appear in
+.Fx 12.0 .
+The
+.Nm regulator
+framework was written by
+.An Michal Meloun Aq Mt mmel@FreeBSD.org .
+The
+.Nm regulator
+manual page was written by
+.An Emmanuel Vadot Aq Mt manu@FreeBSD.org .

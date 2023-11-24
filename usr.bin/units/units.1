@@ -1,0 +1,473 @@
+.Dd March 17, 2020
+.Dt UNITS 1
+.Os
+.Sh NAME
+.Nm units
+.Nd conversion calculator
+.Sh SYNOPSIS
+.Nm
+.Op Fl ehqtUVv
+.Op Fl f Ar unitsfile
+.Op Fl o Ar format
+.Op Ar from to
+.Sh DESCRIPTION
+The
+.Nm
+program converts quantities expressed in various scales to
+their equivalents in other scales.
+It can only
+handle multiplicative or affine scale changes.
+.Pp
+.Nm
+can work interactively by prompting
+the user for input
+.Pq see Sx EXAMPLES
+or non-interactively, providing a conversion for given arguments
+.Ar from
+and
+.Ar to .
+.Pp
+The following options are available:
+.Bl -tag -width "from to"
+.It Fl e , Fl -exponential
+Same as
+.Fl o
+.Cm %6e
+(see the description of the
+.Fl o
+flag).
+.It Fl f Ar unitsfile , Fl -file Ar unitsfile
+Specify the name of the units data file to load.
+This option may be specified multiple times.
+.It Fl H Ar historyfile , Fl -history Ar historyfile
+Ignored, for compatibility with GNU units.
+.It Fl h , Fl -help
+Show an overview of options.
+.It Fl o Ar format , Fl -output-format Ar format
+Select the output format string by which numbers are printed.
+Defaults to
+.Dq Li %.8g .
+.It Fl q , Fl -quiet
+Suppress prompting of the user for units and the display of statistics
+about the number of units loaded.
+.It Fl t , Fl -terse
+Only print the result.
+This is used when calling
+.Nm
+from other programs for easy to parse results.
+.It Fl U , Fl -unitsfile
+Print the location of the default unit file if it exists.
+Otherwise, print
+.Dq Units data file not found .
+.It Fl V , Fl -version
+Print the version number
+.Pq which is fixed at Dq Fx units ,
+the path to the units data file and exit.
+.It Fl v , Fl -verbose
+Print the units in the conversion output.
+Be more verbose in general.
+.It Ar from to
+Allow a single unit conversion to be done directly from the command
+line.
+The program will not print prompts.
+It will print out the result of the single specified conversion.
+Both arguments, i.e.,
+.Ar from
+and
+.Ar to ,
+can be just a unit
+.Pq e.g., Dq Cm cm ,
+a quantity
+.Pq e.g., Dq Cm 42 ,
+or a quantity with a unit
+.Pq e.g., Dq Cm 42 cm
+.El
+.Ss Mathematical operators
+.Bl -dash -compact
+.It
+Powers of units can be specified using the
+.Dq Ic ^
+character as shown in the example, or by simple concatenation:
+.Dq Ic cm3
+is
+equivalent to
+.Dq Ic cm^3 .
+See the
+.Sx BUGS
+section
+for details on the limitations of exponent values.
+.It
+Multiplication of units can be specified by using spaces
+.Pq Dq " " ,
+a dash
+.Pq Dq -
+or an asterisk
+.Pq Dq * .
+.It
+Division of units is indicated by the slash
+.Pq Dq Ic / .
+.It
+Division of numbers
+must be indicated using the vertical bar
+.Pq Dq Ic \&| Ns .
+.El
+.Pp
+Note that multiplication has a higher precedence than division,
+so
+.Dq Ic m/s/s
+is the same as
+.Dq Ic m/s^2
+or
+.Dq Ic m/s s .
+.Ss Units
+The conversion information is read from a units data file.
+The default
+file includes definitions for most familiar units, abbreviations and
+metric prefixes.
+Some constants of nature included are:
+.Pp
+.Bl -column -offset indent -compact "mercury"
+.It "pi	ratio of circumference to diameter"
+.It "c	speed of light"
+.It "e	charge on an electron"
+.It "g	acceleration of gravity"
+.It "force	same as g"
+.It "mole	Avogadro's number"
+.It "water	pressure per unit height of water"
+.It "mercury	pressure per unit height of mercury"
+.It "au	astronomical unit"
+.El
+.Pp
+The unit
+.Dq Ic pound
+is a unit of mass.
+Compound names are run together
+so
+.Dq Ic pound force
+is a unit of force.
+The unit
+.Dq Ic ounce
+is also a unit of mass.
+The fluid ounce is
+.Dq Ic floz .
+British units that differ from
+their US counterparts are prefixed with
+.Dq br ,
+and currency is prefixed with its country name:
+.Dq Ic belgiumfranc ,
+.Dq Ic britainpound .
+When searching
+for a unit, if the specified string does not appear exactly as a unit
+name, then
+.Nm
+will try to remove a trailing
+.Dq s
+or a trailing
+.Dq es
+and check again for a match.
+.Ss Units file format
+To find out what units are available read the standard units file.
+If you want to add your own units you can supply your own file.
+A unit is specified on a single line by
+giving its name and an equivalence.
+Be careful to define
+new units in terms of old ones so that a reduction leads to the
+primitive units which are marked with
+.Dq \&!
+characters.
+The
+.Nm
+program will not detect infinite loops that could be caused
+by careless unit definitions.
+Comments in the unit definition file
+begin with a
+.Dq #
+or
+.Dq /
+character at the beginning of a line.
+.Pp
+Prefixes are defined in the same way as standard units, but with
+a trailing dash
+.Pq Dq -
+at the end of the prefix name.
+If a unit is not found
+even after removing trailing
+.Dq s
+or
+.Dq es ,
+then it will be checked against the list of prefixes.
+Prefixes will be removed until a legal
+base unit is identified.
+.Sh ENVIRONMENT
+.Bl -tag -width PATH
+.It Ev PATH
+The colon-separated list of root directories at which
+.Nm
+tries to find
+.Pa /usr/share/misc/definitions.units .
+.Pp
+For example if
+.Ev PATH
+is set to
+.Dq Li /tmp:/:/usr/local ,
+no
+.Fl f
+flags are provided, and
+.Pa /usr/share/misc/definitions.units
+is missing then
+.Nm
+tries to open the following files as the default units file:
+.Pa /tmp/usr/share/misc/definitions.units ,
+.Pa /usr/share/misc/definitions.units ,
+and
+.Pa /usr/local/usr/share/misc/definitions.units .
+.El
+.Sh FILES
+.Bl -tag -width /usr/share/misc/definitions.units -compact
+.It Pa /usr/share/misc/definitions.units
+The standard units file.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+.Bl -tag -width 0n
+.It Sy Example 1 : No Simple conversion of units
+.Pp
+This example shows how to do simple conversions, for example from gigabytes
+to bytes:
+.Bd -literal -offset 2n
+.Li $ Ic units -o %0.f -t '4 gigabytes' bytes
+4294967296
+.Ed
+.Pp
+The
+.Fl o Cm %0.f
+part of the command is required to print the result in a non-scientific
+notation (e.g, 4294967296 instead of 4.29497e+09).
+.It Sy Example 2 : No Interactive usage
+.Pp
+Here is an example of an interactive session where the user is prompted for
+units:
+.Bd -literal -offset 2n
+.Li You have : Ic meters
+.Li You want : Ic feet
+        * 3.2808399
+        / 0.3048
+
+.Li You have : Ic cm^3
+.Li You want : Ic gallons
+        * 0.00026417205
+        / 3785.4118
+
+.Li You have : Ic meters/s
+.Li You want : Ic furlongs/fortnight
+        * 6012.8848
+        / 0.00016630952
+
+.Li You have : Ic 1|2 inch
+.Li You want : Ic cm
+        * 1.27
+        / 0.78740157
+
+.Li You have : Ic 85 degF
+.Li You want : Ic degC
+        29.444444
+.Ed
+.It Sy Example 3 : No Difference between Do Ic \&| Dc No and Do Ic / Dc No division
+.Pp
+The following command shows how to convert half a meter to centimeters.
+.Bd -literal -offset 2n
+.Li $ Ic units '1|2 meter' cm
+        * 50
+        / 0.02
+.Ed
+.Pp
+.Nm
+prints the expected result because the division operator for numbers
+.Pq Dq Li \&|
+was used.
+.Pp
+Using the division operator for units
+.Pq Dq Li /
+would result in an error:
+.Bd -literal -offset 2n
+.Li $ Ic units '1/2 meter' cm
+conformability error
+        0.5 / m
+        0.01 m
+.Ed
+.Pp
+It is because
+.Nm
+interprets
+.Dq Ic 1/2 meter
+as
+.Dq Ic 0.5/meter ,
+which is not conformable to
+.Dq Ic cm .
+.It Sy Example 4 : No Simple units file
+Here is an example of a short units file that defines some basic
+units:
+.Pp
+.Bl -column -offset 2n -compact "minute"
+.It "m	!a!"
+.It "sec	!b!"
+.It "micro-	1e-6"
+.It "minute	60 sec"
+.It "hour	60 min"
+.It "inch	0.0254 m"
+.It "ft	12 inches"
+.It "mile	5280 ft"
+.El
+.It Sy Example 5 : No Viewing units and conversions of the default units file
+The following shell one-liner allows the user to view the contents of the
+default units file:
+.Bd -literal -offset 2n
+.Li $ Ic less \&"$(units -U)"
+.Ed
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It can't find units file '%s'
+The default units file is not in its default location
+.Pq see Sx FILES
+and it is not present in any file tree starting with their roots at directories from
+.Ev PATH
+.Pq see Sx ENVIRONMENT .
+.It cap_rights_limit\&() failed
+See
+.Xr capsicum  4 .
+.It conformability error
+It is not possible to reduce the given units to one common unit:
+they are not conformable.
+Instead of a conversion,
+.Nm
+will display the reduced form for each provided unit:
+.Bd -literal -offset 2n
+.Li You have : Ic ergs/hour
+.Li You want : Ic fathoms kg^2 / day
+conformability error
+        2.7777778e-11 kg m^2 / sec^3
+        2.1166667e-05 kg^2 m / sec
+.Ed
+.It Could not initialize history
+See
+.Xr editline 3 .
+.It dupstr
+.Xr strdup 3
+failed.
+.It memory for prefixes exceeded in line %d
+Over 100 prefixes were defined.
+.It memory for units exceeded in line %d
+Over 1000 prefixes were defined.
+.It memory overflow in unit reduction
+The requested conversion involves too many units
+.Pq see Sx BUGS .
+.It redefinition of prefix '%s' on line %d ignored
+.No ""
+.It redefinition of unit '%s' on line %d ignored
+.No ""
+.It unexpected end of prefix on line %d
+.No ""
+.It unexpected end of unit on line %d
+.No ""
+.It Units data file not found
+The default units file is missing.
+.It unable to enter capability mode
+See
+.Xr capsicum  4 .
+.It unable to open units file '%s'
+One of the user-specified units files cannot be opened.
+.It unit reduces to zero
+.No ""
+.It unknown unit '%s'
+The provided unit cannot be found in the units file.
+.It WARNING: conversion of non-proportional quantities.
+.Nm
+may fail to convert
+.Ar from
+to
+.Ar to
+because the units are not proportional.
+The warning is printed when a quantity is a part of the
+.Ar to
+argument.
+It can be illustrated on an example of conversion from Fahrenheit to Celsius:
+.Bd -literal -offset 2n
+.Li $ Ic units \&"degF" \&"degC"
+         (-> x*0.55555556g -17.777778g)
+         (<- y*1.8g 32g)
+.Li $ Ic units \&"degF" \&"1 degC"
+WARNING: conversion of non-proportional quantities.
+         (-> x*0.55555556g -17.777778g)
+         (<- y*1.8g 32g)
+.Li $ Ic units \&"1 degF" \&"1 degC"
+WARNING: conversion of non-proportional quantities.
+        -17.222222
+.Ed
+.El
+.Sh SEE ALSO
+.Xr bc 1
+.Sh HISTORY
+The
+.Nm
+first appeared in
+.Nx
+and was ported to
+.Fx 2.2.0 .
+.Pp
+The manual page was significantly rewritten in
+.Fx 13.0
+by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .
+.Sh AUTHORS
+.An Adrian Mariano Aq Mt adrian@cam.cornell.edu
+.Sh BUGS
+The effect of including a
+.Dq /
+in a prefix is surprising.
+.Pp
+Exponents entered by the user can be only one digit.
+You can work around this by multiplying several terms.
+.Pp
+The user must use
+.Dq Ic \&|
+to indicate division of numbers and
+.Dq Ic /
+to indicate division of symbols.
+This distinction should not
+be necessary.
+.Pp
+The program contains various arbitrary limits on the length
+of the units converted and on the length of the data file.
+.Pp
+The program should use a hash table to store units so that
+it does not take so long to load the units list and check
+for duplication.
+.Pp
+It is not possible to convert a negative value.
+.Pp
+The
+.Nm
+program
+does not handle reductions of long lists of units very well:
+.Bd -literal -offset 2n
+.Li $ Ic units \&"$(yes m | head -n 154)" \&"$(yes cm | head -n 154)"
+        * 1e+308
+        / 1e-308
+.Li $ Ic units \&"$(yes m | head -n 333)" \&"$(yes cm | head -n 333)"
+        * inf
+        / 0
+.Li $ Ic units \&"$(yes m | head -n 500)" \&"$(yes cm | head -n 500)"
+units: memory overflow in unit reduction
+conformability error
+        1 m^500
+        1 centi cm^499
+.Li $ Ic units \&"$(yes m | head -n 501)" \&"$(yes cm | head -n 501)"
+units: memory overflow in unit reduction
+units: memory overflow in unit reduction
+units: memory overflow in unit reduction
+conformability error
+        1 m^500
+        1 centi cm^499
+.Ed

@@ -1,0 +1,12 @@
+
+#------------------------------------------------------------------------------
+# $File: unisig,v 1.1 2020/04/09 19:05:44 christos Exp $
+# unisig:  file(1) magic for files carrying a uniform signature (Unisig)
+# From: Lassi Kortela, John Cowan
+# URL:	https://github.com/unisig
+#
+0	string	\xDC\xDC\x0D\x0A\x1A\x0A\x00	Unisig:
+>7	ubyte	=0				UUID
+>>8	guid	x				%s
+>7	ubyte	>0				URI
+>>7	pstring x				%s

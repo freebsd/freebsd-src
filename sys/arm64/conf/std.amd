@@ -1,0 +1,16 @@
+#
+# AMD Opteron SoC support
+#
+
+# GPIO / PINCTRL
+device		pl061			# Arm PL061 GPIO controller
+
+# Serial (COM) ports
+device		pl011
+
+# Ethernet NICs
+device		axa			# AMD Opteron A1100 integrated NIC
+device		msk			# Marvell/SysKonnect Yukon II Gigabit Ethernet
+
+options 	FDT
+device		acpi

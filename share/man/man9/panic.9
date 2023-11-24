@@ -1,0 +1,157 @@
+.\"     $NetBSD: panic.9,v 1.2 1996/10/09 17:20:04 explorer Exp $
+.\"
+.\" SPDX-License-Identifier: BSD-4-Clause
+.\"
+.\" Copyright (c) 1996 Michael Graff.
+.\" All rights reserved.
+.\" Copyright (c) 2023 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Mitchell Horne
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Michael Graff
+.\"      for the NetBSD Project.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd March 17, 2023
+.Dt PANIC 9
+.Os
+.Sh NAME
+.Nm panic
+.Nd bring down system on fatal error
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/systm.h
+.Vt extern char *panicstr;
+.Ft void
+.Fn panic "const char *fmt" ...
+.Ft void
+.Fn vpanic "const char *fmt" "va_list ap"
+.Fn KERNEL_PANICKED
+.Sh DESCRIPTION
+The
+.Fn panic
+and
+.Fn vpanic
+functions terminate the running system.
+The message
+.Fa fmt
+is a
+.Xr printf 3
+style format string.
+The message is printed to the console and
+.Va panicstr
+is set pointing to the address of the message text.
+This can be retrieved from a core dump at a later time.
+.Pp
+Upon entering the
+.Fn panic
+function the panicking thread disables interrupts and calls
+.Xr critical_enter 9 .
+This prevents the thread from being preempted or interrupted while the system
+is still in a running state.
+Next, it will instruct the other CPUs in the system to stop.
+This synchronizes with other threads to prevent concurrent panic conditions
+from interfering with one another.
+In the unlikely event of concurrent panics, only one panicking thread will proceed.
+.Pp
+Control will be passed to the kernel debugger via
+.Fn kdb_enter .
+This is conditional on a debugger being installed and enabled by the
+.Va debugger_on_panic
+variable; see
+.Xr ddb 4
+and
+.Xr gdb 4 .
+The debugger may initiate a system reset, or it may eventually return.
+.Pp
+Finally,
+.Xr kern_reboot 9
+is called to restart the system, and a kernel dump will be requested.
+If
+.Fn panic
+is called recursively (from the disk sync routines, for example),
+.Fn kern_reboot
+will be instructed not to sync the disks.
+.Pp
+The
+.Fn vpanic
+function implements the main body of
+.Fn panic .
+It is suitable to be called by functions which perform their own
+variable-length argument processing.
+In all other cases,
+.Fn panic
+is preferred.
+.Pp
+The
+.Fn KERNEL_PANICKED
+macro is the preferred way to determine if the system has panicked.
+It returns a boolean value.
+Most often this is used to avoid taking an action that cannot possibly succeed
+in a panic context.
+.Sh EXECUTION CONTEXT
+.\" TODO: This text describes the kernel debugger / kernel dump execution
+.\" context as well. It could be moved to a future kdb(9) page, and this
+.\" section would become a pointer.
+Once the panic has been initiated, code executing in a panic context is subject
+to the following restrictions:
+.Bl -bullet
+.It
+Single-threaded execution.
+The scheduler is disabled, and other CPUs are stopped/forced idle.
+Functions that manipulate the scheduler state must be avoided.
+This includes, but is not limited to,
+.Xr wakeup 9
+and
+.Xr sleepqueue 9
+functions.
+.It
+Interrupts are disabled.
+Device I/O (e.g. to the console) must be achieved with polling.
+.It
+Dynamic memory allocation cannot be relied on, and must be avoided.
+.It
+Lock acquisition/release will be ignored, meaning these operations will appear
+to succeed.
+.It
+Sleeping on a resource is not strictly prohibited, but will result in an
+immediate return from the sleep function.
+Time-based sleeps such as
+.Xr pause 9
+may be performed as a busy-wait.
+.El
+.Sh RETURN VALUES
+The
+.Fn panic
+and
+.Fn vpanic
+functions do not return.
+.Sh SEE ALSO
+.Xr printf 3 ,
+.Xr ddb 4 ,
+.Xr gdb 4 ,
+.Xr KASSERT 9 ,
+.Xr kern_reboot 9

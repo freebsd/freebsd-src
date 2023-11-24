@@ -1,0 +1,6 @@
+set -e
+if false; then
+	:
+elif false; then
+	:
+fi

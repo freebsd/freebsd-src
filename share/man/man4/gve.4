@@ -1,0 +1,215 @@
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
+.\" Copyright (c) 2023 Google LLC
+.\"
+.\" Redistribution and use in source and binary forms, with or without modification,
+.\" are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice, this
+.\"    list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright notice,
+.\"    this list of conditions and the following disclaimer in the documentation
+.\"    and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the copyright holder nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software without
+.\"    specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+.\" ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+.\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd April 26, 2023
+.Dt GVE 4
+.Os
+.Sh NAME
+.Nm gve
+.Nd "Ethernet driver for Google Virtual NIC (gVNIC)"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device gve"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_gve_load="YES"
+.Ed
+.Sh DESCRIPTION
+gVNIC is a virtual network interface designed specifically for Google Compute Engine (GCE).
+It is required to support per-VM Tier-1 networking performance, and for using certain VM shapes on GCE.
+.Pp
+.Nm
+is the driver for gVNIC.
+It supports the following features:
+.Pp
+.Bl -bullet -compact
+.It
+RX checksum offload
+.It
+TX chesksum offload
+.It
+TCP Segmentation Offload (TSO)
+.It
+Large Receive Offload (LRO) in software
+.It
+Jumbo frames
+.It
+Receive Side Scaling (RSS)
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+.Nm
+binds to a single PCI device ID presented by gVNIC:
+.Pp
+.Bl -bullet -compact
+.It
+0x1AE0:0x0042
+.El
+.Sh DIAGNOSTICS
+The following messages are recorded during driver initialization:
+.Bl -diag
+.It "Enabled MSIX with %d vectors"
+.It "Configured device resources"
+.It "Successfully attached %s"
+.It "Deconfigured device resources"
+.El
+.Pp
+These messages are seen if driver initialization fails.
+Global (across-queues) allocation failures:
+.Bl -diag
+.It "Failed to configure device resources: err=%d"
+.It "No compatible queue formats"
+.It "Failed to allocate ifnet struct"
+.It "Failed to allocate admin queue mem"
+.It "Failed to alloc DMA mem for DescribeDevice"
+.It "Failed to allocate QPL page"
+.El
+.Pp
+irq and BAR allocation failures:
+.Bl -diag
+.It "Failed to acquire any msix vectors"
+.It "Tried to acquire %d msix vectors, got only %d"
+.It "Failed to setup irq %d for Tx queue %d "
+.It "Failed to setup irq %d for Rx queue %d "
+.It "Failed to allocate irq %d for mgmnt queue"
+.It "Failed to setup irq %d for mgmnt queue, err: %d"
+.It "Failed to allocate BAR0"
+.It "Failed to allocate BAR2"
+.It "Failed to allocate msix table"
+.El
+.Pp
+Rx queue-specific allocation failures:
+.Bl -diag
+.It "No QPL left for rx ring %d"
+.It "Failed to alloc queue resources for rx ring %d"
+.It "Failed to alloc desc ring for rx ring %d"
+.It "Failed to alloc data ring for rx ring %d"
+.El
+.Pp
+Tx queue-specific allocation failures:
+.Bl -diag
+.It "No QPL left for tx ring %d"
+.It "Failed to alloc queue resources for tx ring %d"
+.It "Failed to alloc desc ring for tx ring %d"
+.It "Failed to vmap fifo, qpl_id = %d"
+.El
+.El
+.Pp
+The following messages are recorded when the interface detach fails:
+.Bl -diag
+.It "Failed to deconfigure device resources: err=%d"
+.El
+.Pp
+If bootverbose is on, the following messages are recorded when the interface is being brought up:
+.Bl -diag
+.It "Created %d rx queues"
+.It "Created %d tx queues"
+.It "MTU set to %d"
+.El
+.Pp
+The following messages are recorded when the interface is being brought down:
+.Bl -diag
+.It "Destroyed %d rx queues"
+.It "Destroyed %d tx queues"
+.El
+.Pp
+These messages are seen if errors are encountered when bringing the interface up or down:
+.Bl -diag
+.It "Failed to destroy rxq %d, err: %d"
+.It "Failed to destroy txq %d, err: %d"
+.It "Failed to create rxq %d, err: %d"
+.It "Failed to create txq %d, err: %d"
+.It "Failed to set MTU to %d"
+.It "Invalid new MTU setting. new mtu: %d max mtu: %d min mtu: %d"
+.It "Cannot bring the iface up when detached"
+.It "Reached max number of registered pages %lu > %lu"
+.It "Failed to init lro for rx ring %d"
+.El
+.Pp
+These messages are seen if any admin queue command fails:
+.Bl -diag
+.It "AQ command(%u): failed with status %d"
+.It "AQ command(%u): unknown status code %d"
+.It "AQ commands timed out, need to reset AQ"
+.It "Unknown AQ command opcode %d"
+.El
+.Pp
+These messages are recorded when the device is being reset due to an error:
+.Bl -diag
+.It "Scheduling reset task!"
+.It "Waiting until admin queue is released."
+.It "Admin queue released"
+.El
+.Pp
+If it was the NIC that requested the reset, this message is recorded:
+.Bl -diag
+.It "Device requested reset"
+.El
+.Pp
+If the reset fails during the reinitialization phase, this message is recorded:
+.Bl -diag
+.It "Restore failed!"
+.El
+.Pp
+These two messages correspoond to the NIC alerting the driver to link state changes:
+.Bl -diag
+.It "Device link is up."
+.It "Device link is down."
+.El
+.Pp
+Apart from these messages, the driver exposes per-queue packet and error counters as sysctl nodes.
+Global (across queues) counters can be read using
+.Xr netstat 8 .
+.Sh LIMITATIONS
+.Nm
+does not support the transmission of VLAN-tagged packets.
+All VLAN-tagged traffic is dropped.
+.Sh SUPPORT
+Please email gvnic-drivers@google.com with the specifics of the issue encountered.
+.El
+.Sh SEE ALSO
+.Xr ifconfig 8 ,
+.Xr netstat 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 14.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by Google.

@@ -1,0 +1,125 @@
+.\" Copyright (c) 1999 Daniel C. Sobral
+.\" All rights reserved.
+.\" Copyright (c) 2021 Warner Losh <imp@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd September 29, 2021
+.Dt LOADER 8
+.Os
+.Sh NAME
+.Nm loader
+.Nd kernel bootstrapping final stage
+.Sh DESCRIPTION
+The program called
+.Nm
+is the final stage of
+.Fx Ns 's
+kernel bootstrapping process.
+It is responsible for bringing the kernel, kernel modules and other files into
+memory.
+It creates a set of
+.Xr sh 1
+like environment variables that are passed to the kernel.
+It executes boot scripts written in one of several interpreters.
+Together with the scripts, it controls the booting process and
+interaction with the user.
+.Pp
+It provides a scripting language that can be used to
+automate tasks, do pre-configuration or assist in recovery
+procedures.
+This scripting language is roughly divided in
+two main components.
+The smaller one is a set of commands
+designed for direct use by the casual user, called "builtin
+commands" for historical reasons.
+The main drive behind these commands is user-friendliness.
+The larger component is the scripting language built into
+the boot loader.
+.Fx
+provides three different interpreters: Forth, Lua and Simple.
+The Forth loader is based on an ANS Forth compatible
+Forth interpreter based on FICL, by
+.An John Sadler .
+The Lua loader is a full Lua interpreter from
+.Pa https://www.lua.org/ .
+The Simple loader only interprets a list of builtin commands
+without any control structure.
+.Pp
+During initialization,
+.Nm
+will probe for a console and set the
+.Va console
+variable, or set it to serial console
+.Pq Dq Li comconsole
+if the previous boot stage used that.
+If multiple consoles are selected, they will be listed separated by spaces.
+Then, devices are probed,
+.Va currdev
+and
+.Va loaddev
+are set, and
+.Va LINES
+is set to 24.
+Finally, an interpreter specific file will be executed.
+.Sh BUILTIN COMMANDS
+The commands common to all interpreters are described in the
+.Xr loader_simp 8
+.Dq BUILTIN COMMANDS
+section.
+.Ss BUILTIN ENVIRONMENT VARIABLES
+The environment variables common to all interpreters are described in the
+.Xr loader_simp 8
+.Dq BUILTIN ENVIRONMENT VARIABLES
+section.
+.Sh SEE ALSO
+.Xr libsa 3 ,
+.Xr loader.conf 5 ,
+.Xr tuning 7 ,
+.Xr boot 8 ,
+.Xr btxld 8 ,
+.Xr loader.efi 8 ,
+.Xr loader_4th 8 ,
+.Xr loader_lua 8 ,
+.Xr loader_simp 8
+.Sh HISTORY
+The
+.Nm
+first appeared in
+.Fx 3.1 .
+The
+.Nm
+scripting language changed to Lua by default in
+.Fx 12.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+was written by
+.An Michael Smith Aq msmith@FreeBSD.org .
+.Pp
+FICL was written by
+.An John Sadler Aq john_sadler@alum.mit.edu .
+.Pp
+.An Warner Losh Aq imp@FreeBSD.org
+integrated Lua into the tree based on initial work done by Pedro Souza
+for the 2014 Google Summer of Code.

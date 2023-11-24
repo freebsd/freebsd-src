@@ -1,0 +1,21 @@
+
+#------------------------------------------------------------------------------
+# $File: rust,v 1.2 2022/11/18 15:58:15 christos Exp $
+# Magic for Rust and related languages programs
+#
+
+# Rust compiler metadata
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://github.com/rust-lang/rust/blob/1.64.0/compiler/rustc_metadata/src/rmeta/mod.rs
+0	string		rust\x00\x00\x00
+>12	string		\014rustc\x20		Rust compiler metadata
+!:ext	rmeta
+>>7	byte		x			\b, version %d
+
+# Rust incremental compilation metadata
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://github.com/rust-lang/rust/blob/1.64.0/compiler/rustc_incremental/src/persist/file_format.rs
+0	string		RSIC
+>4	uleshort	=0			Rust incremental compilation metadata
+!:ext	bin
+>>6	pstring		x			\b, rustc %s

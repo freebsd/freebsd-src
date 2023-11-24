@@ -1,0 +1,74 @@
+.\" -
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2021 Semihalf
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd February 18, 2022
+.Dt BUS_GET_PROPERTY 9
+.Os
+.Sh NAME
+.Nm BUS_GET_PROPERTY
+.Nd get child's specific property
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Ft ssize_t
+.Fn BUS_GET_PROPERTY "device_t dev" "device_t child" "const char *propname" \
+    "void *propvalue" "size_t size" "device_property_type_t type"
+.Sh DESCRIPTION
+The
+.Fn BUS_GET_PROPERTY
+method
+is called from driver code which wants to access a child's specific data stored
+on the bus.
+A property has a name and an associated value.
+Implementation shall copy to
+.Fa propvalue
+at most
+.Fa size
+bytes.
+.Pp
+.Fn BUS_GET_PROPERTY
+supports different property types specified via the
+.Fa type
+argument.
+The
+.Fa size
+is guaranteed to be a multiple of the underlying property type.
+If a type is not supported,
+.Fn BUS_GET_PROPERTY
+shall return -1.
+.Sh NOTES
+If
+.Fa propvalue
+is NULL or
+.Fa size
+is zero, the implementation shall return only the size of the property.
+.Sh RETURN VALUES
+The property size if successful, otherwise -1.
+.Sh SEE ALSO
+.Xr device 9 ,
+.Xr device_get_property 9
+.Sh AUTHORS
+This manual page was written by
+.An Bartlomiej Grzesik .

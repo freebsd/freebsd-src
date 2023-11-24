@@ -1,0 +1,966 @@
+.\"
+.\" Copyright (c) 2016-2018 Netflix, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd December 2, 2019
+.Dt STATS 3
+.Os
+.Sh NAME
+.Nm stats
+.Nd statistics gathering
+.Sh LIBRARY
+.Lb libstats
+.Sh SYNOPSIS
+.In sys/arb.h
+.In sys/qmath.h
+.In sys/stats.h
+.Ss Stats Blob Template Management Functions
+.Ft int
+.Fo stats_tpl_alloc
+.Fa "const char *name"
+.Fa "uint32_t flags"
+.Fc
+.Ft int
+.Fo stats_tpl_fetch_allocid
+.Fa "const char *name"
+.Fa "uint32_t hash"
+.Fc
+.Ft int
+.Fo stats_tpl_fetch
+.Fa "int tpl_id"
+.Fa "struct statsblob_tpl **tpl"
+.Fc
+.Ft int
+.Fo stats_tpl_id2name
+.Fa "uint32_t tpl_id"
+.Fa "char *buf"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo stats_tpl_sample_rates
+.Fa "SYSCTL_HANDLER_ARGS"
+.Fc
+.Ft int
+.Fo stats_tpl_sample_rollthedice
+.Fa "struct stats_tpl_sample_rate *rates"
+.Fa "int nrates"
+.Fa "void *seed_bytes"
+.Fa "size_t seed_len"
+.Fc
+.Ft struct voistatspec
+.Fo STATS_VSS_SUM
+.Fc
+.Ft struct voistatspec
+.Fo STATS_VSS_MAX
+.Fc
+.Ft struct voistatspec
+.Fo STATS_VSS_MIN
+.Fc
+.Ft struct voistatspec
+.Fo STATS_VSS_CRHIST<32|64>_LIN
+.Fa "lb"
+.Fa "ub"
+.Fa "stepinc"
+.Fa "vsdflags"
+.Fc
+.Ft struct voistatspec
+.Fo STATS_VSS_CRHIST<32|64>_EXP
+.Fa "lb"
+.Fa "ub"
+.Fa "stepbase"
+.Fa "stepexp"
+.Fa "vsdflags"
+.Fc
+.Ft struct voistatspec
+.Fo "STATS_VSS_CRHIST<32|64>_LINEXP"
+.Fa "lb"
+.Fa "ub"
+.Fa "nlinsteps"
+.Fa "stepbase"
+.Fa "vsdflags"
+.Fc
+.Ft struct voistatspec
+.Fo "STATS_VSS_CRHIST<32|64>_USR"
+.Fa Sy "HBKTS" Ns Pq Sy "CRBKT" Ns ( Em "lb" ) , "..." Pc ,
+.Fa "vsdflags"
+.Fc
+.Ft struct voistatspec
+.Fo "STATS_VSS_DRHIST<32|64>_USR"
+.Fa Sy "HBKTS" Ns Pq Sy "DRBKT" Ns ( Em "lb" , "ub" ) , "..." Pc ,
+.Fa "vsdflags"
+.Fc
+.Ft struct voistatspec
+.Fo "STATS_VSS_DVHIST<32|64>_USR"
+.Fa Sy "HBKTS" Ns Pq Sy "DVBKT" Ns ( Em "val" ) , "..." Pc ,
+.Fa "vsdflags"
+.Fc
+.Ft struct voistatspec
+.Fo STATS_VSS_TDGSTCLUST<32|64>
+.Fa "nctroids"
+.Fa "prec"
+.Fc
+.Ft int
+.Fo stats_tpl_add_voistats
+.Fa "uint32_t tpl_id"
+.Fa "int32_t voi_id"
+.Fa "const char *voi_name"
+.Fa "enum vsd_dtype voi_dtype"
+.Fa "uint32_t nvss"
+.Fa "struct voistatspec *vss"
+.Fa "uint32_t flags"
+.Fc
+.Ss Stats Blob Data Gathering Functions
+.Ft int
+.Fo stats_voi_update_<abs|rel>_<dtype>
+.Fa "struct statsblob *sb"
+.Fa "int32_t voi_id"
+.Fa "<dtype> voival"
+.Fc
+.Ss Stats Blob Utility Functions
+.Ft struct statsblob *
+.Fo stats_blob_alloc
+.Fa "uint32_t tpl_id"
+.Fa "uint32_t flags"
+.Fc
+.Ft int
+.Fo stats_blob_init
+.Fa "struct statsblob *sb"
+.Fa "uint32_t tpl_id"
+.Fa "uint32_t flags"
+.Fc
+.Ft int
+.Fo stats_blob_clone
+.Fa "struct statsblob **dst"
+.Fa "size_t dstmaxsz"
+.Fa "struct statsblob *src"
+.Fa "uint32_t flags"
+.Fc
+.Ft void
+.Fo stats_blob_destroy
+.Fa "struct statsblob *sb"
+.Fc
+.Ft int
+.Fo stats_voistat_fetch_dptr
+.Fa "struct statsblob *sb"
+.Fa "int32_t voi_id"
+.Fa "enum voi_stype stype"
+.Fa "enum vsd_dtype *retdtype"
+.Fa "struct voistatdata **retvsd"
+.Fa "size_t *retvsdsz"
+.Fc
+.Ft int
+.Fo stats_voistat_fetch_<dtype>
+.Fa "struct statsblob *sb"
+.Fa "int32_t voi_id"
+.Fa "enum voi_stype stype"
+.Fa "<dtype> *ret"
+.Fc
+.Ft int
+.Fo stats_blob_snapshot
+.Fa "struct statsblob **dst"
+.Fa "size_t dstmaxsz"
+.Fa "struct statsblob *src"
+.Fa "uint32_t flags"
+.Fc
+.Ft int
+.Fo stats_blob_tostr
+.Fa "struct statsblob *sb"
+.Fa "struct sbuf *buf"
+.Fa "enum sb_str_fmt fmt"
+.Fa "uint32_t flags"
+.Fc
+.Ft int
+.Fo stats_voistatdata_tostr
+.Fa "const struct voistatdata *vsd"
+.Fa "enum vsd_dtype dtype"
+.Fa "enum sb_str_fmt fmt"
+.Fa "struct sbuf *buf"
+.Fa "int objdump"
+.Fc
+.Ft typedef int
+.Fn "\*(lp*stats_blob_visitcb_t\*(rp" "struct sb_visit *sbv" "void *usrctx"
+.Ft int
+.Fo stats_blob_visit
+.Fa "struct statsblob *sb"
+.Fa "stats_blob_visitcb_t func"
+.Fa "void *usrctx"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm
+framework facilitates real-time kernel and user space statistics gathering.
+The framework is built around the
+.Dq statsblob ,
+an object embedded within a contiguous memory allocation that is mostly opaque
+to consumers and stores all required state.
+A
+.Dq statsblob
+object can itself be embedded within other objects either directly or indirectly
+using a pointer.
+.Pp
+Objects or subsystems for which statistics are to be gathered are initialized
+from a template
+.Dq statsblob ,
+which acts as the blueprint for an arbitrary set of
+Variables Of Interest (VOIs) and their associated statistics.
+Each template defines a schema plus associated metadata, which are kept separate
+to minimize the memory footprint of blobs.
+.Pp
+Data gathering hook functions added at appropriate locations within the code
+base of interest feed VOI data into the framework for processing.
+.Pp
+Each
+.Dq statsblob ,
+consists of a
+.Vt struct statsblob
+header and opaque internal blob structure per the following diagram:
+.Bd -literal -offset indent
+---------------------------------------------------------
+|   struct  |		       uint8_t			|
+| statsblob |		      opaque[]			|
+---------------------------------------------------------
+.Ed
+.Pp
+The publicly visible 8-byte header is defined as:
+.Bd -literal -offset indent
+struct statsblob {
+	uint8_t		abi;
+	uint8_t		endian;
+	uint16_t	flags;
+	uint16_t	maxsz;
+	uint16_t	cursz;
+	uint8_t		opaque[];
+};
+.Ed
+.Pp
+.Va abi
+specifies which API version the blob's
+.Va opaque
+internals conform to
+.Pq Dv STATS_ABI_V1 is the only version currently defined .
+.Va endian
+specifies the endianness of the blob's fields
+.Po
+.Dv SB_LE
+for little endian,
+.Dv SB_BE
+for big endian, or
+.Dv SB_UE
+for unknown endianness
+.Pc .
+.Va cursz
+specifies the size of the blob, while
+.Va maxsz
+specifies the size of the underlying memory allocation in which the
+blob is embedded.
+Both
+.Va cursz
+and
+.Va maxsz
+default to units of bytes, unless a flag is set in
+.Va flags
+that dictates otherwise.
+.Pp
+Templates are constructed by associating arbitrary VOI IDs with a set of
+statistics, where each statistic is specified using a
+.Vt struct voistatspec
+per the definition below:
+.Bd -literal -offset indent
+struct voistatspec {
+	vss_hlpr_fn		hlpr;
+	struct vss_hlpr_info	*hlprinfo;
+	struct voistatdata	*iv;
+	size_t			vsdsz;
+	uint32_t		flags;
+	enum vsd_dtype		vs_dtype : 8;
+	enum voi_stype		stype : 8;
+};
+.Ed
+.Pp
+It is generally expected that consumers will not work with
+.Vt struct voistatspec
+directly, and instead use the
+.Fn STATS_VSS_*
+helper macros.
+.Pp
+The
+.Nm
+framework offers the following statistics for association with VOIs:
+.Bl -tag -width ".Dv VS_STYPE_TDGST"
+.It Dv VS_STYPE_SUM
+The sum of VOI values.
+.It Dv VS_STYPE_MAX
+The maximum VOI value.
+.It Dv VS_STYPE_MIN
+The minimum VOI value.
+.It Dv VS_STYPE_HIST
+A static bucket histogram of VOI values, including a count of
+.Dq out-of-band/bucket Dc
+values which did not match any bucket.
+Histograms can be specified as
+.Dq Em C Ns ontinuous Em R Ns ange Dc
+.Pq CRHIST Pc ,
+.Dq Em D Ns iscrete Em R Ns ange Dc
+.Pq DRHIST Pc
+or
+.Dq Em D Ns iscrete Em V Ns alue Dc
+.Pq DVHIST Pc ,
+with 32 or 64 bit bucket counters, depending on the VOI semantics.
+.It Dv VS_STYPE_TDGST
+A dynamic bucket histogram of VOI values based on the t-digest method
+.Po refer to the t-digest paper in the
+.Sx SEE ALSO
+section below
+.Pc .
+.El
+.Pp
+A
+.Dq visitor software design pattern Ns
+-like scheme is employed to facilitate iterating over a blob's data without
+concern for the blob's structure.
+The data provided to visitor callback functions is encapsulated in
+.Vt struct sb_visit
+per the definition below:
+.Bd -literal -offset indent
+struct sb_visit {
+	struct voistatdata	*vs_data;
+	uint32_t		tplhash;
+	uint32_t		flags;
+	int16_t			voi_id;
+	int16_t			vs_dsz;
+	enum vsd_dtype		voi_dtype : 8;
+	enum vsd_dtype		vs_dtype : 8;
+	int8_t			vs_stype;
+	uint16_t		vs_errs;
+};
+.Ed
+.Pp
+The
+.Fn stats_tpl_sample_rates
+and
+.Fn stats_tpl_sample_rollthedice
+functions utilize
+.Vt struct stats_tpl_sample_rate
+to encapsulate per-template sample rate information per the definition below:
+.Bd -literal -offset indent
+struct stats_tpl_sample_rate {
+	int32_t		tpl_slot_id;
+	uint32_t	tpl_sample_pct;
+};
+.Ed
+.Pp
+The
+.Va tpl_slot_id
+member holds the template's slot ID obtained from
+.Fn stats_tpl_alloc
+or
+.Fn stats_tpl_fetch_allocid .
+The
+.Va tpl_sample_pct
+member holds the template's sample rate as an integer percentage in the range
+[0,100].
+.Pp
+The
+.Vt stats_tpl_sr_cb_t
+conformant function pointer that is required as the
+.Fa arg1
+of
+.Fn stats_tpl_sample_rates
+is defined as:
+.Bd -literal -offset indent
+enum stats_tpl_sr_cb_action {
+	TPL_SR_UNLOCKED_GET,
+	TPL_SR_RLOCKED_GET,
+	TPL_SR_RUNLOCK,
+	TPL_SR_PUT
+};
+typedef int (*stats_tpl_sr_cb_t)(enum stats_tpl_sr_cb_action action,
+    struct stats_tpl_sample_rate **rates, int *nrates, void *ctx);
+.Ed
+.Pp
+It is required that a conformant function:
+.Bl -dash
+.It
+Return an appropriate
+.Xr errno 2
+on error, otherwise 0.
+.It
+When called with
+.Qq action == TPL_SR_*_GET ,
+return the subsystem's rates list ptr and count, locked or unlocked as
+requested.
+.It
+When called with
+.Qq action == TPL_SR_RUNLOCK ,
+unlock the subsystem's rates list ptr and count.
+Pair with a prior
+.Qq action == TPL_SR_RLOCKED_GET
+call.
+.It
+When called with
+.Qq action == TPL_SR_PUT ,
+update the subsystem's rates list ptr and count to the sysctl processed values
+and return the inactive list details in
+.Fa rates
+and
+.Fa nrates
+for garbage collection by
+.Fn stats_tpl_sample_rates .
+.El
+.Pp
+Where templates need to be referenced via textual means, for example via a MIB
+variable, the following string based template spec formats can be used:
+.Bl -enum
+.It
+.Qq <tplname> Qc Ns
+:<tplhash>
+.Ns , for example
+.Qq TCP_DEFAULT Qc Ns
+:1731235399
+.It
+.Qq <tplname> Qc
+.Ns , for example
+.Qq TCP_DEFAULT Qc
+.It
+:<tplhash>
+.Ns , for example
+:1731235399
+.El
+.Pp
+The first form is the normative spec format generated by the framework, while
+the second and third forms are convenience formats primarily for user input.
+The use of inverted commas around the template name is optional.
+.Ss MIB Variables
+The in-kernel
+.Nm
+framework exposes the following framework-specific variables in the
+.Va kern.stats
+branch of the
+.Xr sysctl 3
+MIB.
+.Bl -tag -width "templates"
+.It templates
+Read-only CSV list of registered templates in normative template spec form.
+.El
+.Ss Template Management Functions
+The
+.Fn stats_tpl_alloc
+function allocates a new template with the specified unique name and returns its
+runtime-stable template slot ID for use with other API functions.
+The
+.Fa flags
+argument is currently unused.
+.Pp
+The
+.Fn stats_tpl_fetch_allocid
+function returns the runtime-stable template slot ID of any registered template
+matching the specified name and hash.
+.Pp
+The
+.Fn stats_tpl_fetch
+function returns the pointer to the registered template object at the specified
+template slot ID.
+.Pp
+The
+.Fn stats_tpl_id2name
+function returns the name of the registered template object at the specified
+template slot ID.
+.Pp
+The
+.Fn stats_tpl_sample_rates
+function provides a generic handler for template sample rates management and
+reporting via
+.Xr sysctl 3
+MIB variables.
+Subsystems can use this function to create a subsystem-specific
+.Xr SYSCTL_PROC 9
+MIB variable that manages and reports subsystem-specific template sampling
+rates.
+Subsystems must supply a
+.Vt stats_tpl_sr_cb_t
+conformant function pointer as the sysctl's
+.Fa arg1 ,
+which is a callback used to interact with the subsystem's stats template sample
+rates list.
+Subsystems can optionally specify the sysctl's
+.Fa arg2
+as non-zero, which causes a zero-initialized allocation of arg2-sized contextual
+memory to be heap-allocated and passed in to all subsystem callbacks made during
+the operation of
+.Fn stats_tpl_sample_rates .
+.Pp
+The
+.Fn stats_tpl_sample_rollthedice
+function makes a weighted random template selection from the supplied array of
+template sampling rates.
+The cumulative percentage of all sampling rates should not exceed 100.
+If no seed is supplied, a PRNG is used to generate a true random number so that
+every selection is independent.
+If a seed is supplied, selection will be made randomly across different seeds, but
+deterministically given the same seed.
+.Pp
+The
+.Fn stats_tpl_add_voistats
+function is used to add a VOI and associated set of statistics to the registered
+template object at the specified template slot ID.
+The set of statistics is passed as an array of
+.Vt struct voistatspec
+which can be initialized using the
+.Fn STATS_VSS_*
+helper macros or manually for non-standard use cases.
+For static
+.Fa vss
+arrays, the
+.Fa nvss
+count of array elements can be determined by passing
+.Fa vss
+to the
+.Fn NVSS
+macro.
+The
+.Dv SB_VOI_RELUPDATE
+flag can be passed to configure the VOI for use with
+.Fn stats_voi_update_rel_<dtype> ,
+which entails maintaining an extra 8 bytes of state in the blob at each update.
+.Ss Data Gathering Functions
+The
+.Fn stats_voi_update_abs_<dtype>
+and
+.Fn stats_voi_update_rel_<dtype>
+functions both update all the statistics associated with the VOI identified by
+.Fa voi_id .
+The
+.Dq abs
+call uses
+.Fa voival
+as an absolute value, whereas the
+.Dq rel
+call uses
+.Fa voival
+as a value relative to that of the previous update function call, by adding it
+to the previous value and using the result for the update.
+Relative updates are only possible for VOIs that were added to the template with
+the
+.Dv SB_VOI_RELUPDATE
+flag specified to
+.Fn stats_tpl_add_voistats .
+.Ss Utility Functions
+The
+.Fn stats_blob_alloc
+function allocates and initializes a new blob based on the registered template
+object at the specified template slot ID.
+.Pp
+The
+.Fn stats_blob_init
+function initializes a new blob in an existing memory allocation based on the
+registered template object at the specified template slot ID.
+.Pp
+The
+.Fn stats_blob_clone
+function duplicates the
+.Fa src
+blob into
+.Fa dst ,
+leaving only the
+.Va maxsz
+field of
+.Fa dst
+untouched.
+The
+.Dv SB_CLONE_ALLOCDST
+flag can be passed to instruct the function to allocate a new blob of
+appropriate size into which to clone
+.Fa src ,
+storing the new pointer in
+.Fa *dst .
+The
+.Dv SB_CLONE_USRDSTNOFAULT
+or
+.Dv SB_CLONE_USRDST
+flags can be set to respectively signal that
+.Xr copyout_nofault 9
+or
+.Xr copyout 9
+should be used because
+.Fa *dst
+is a user space address.
+.Pp
+The
+.Fn stats_blob_snapshot
+function calls
+.Fn stats_blob_clone
+to obtain a copy of
+.Fa src
+and then performs any additional functions required to produce a coherent
+blob snapshot.
+The flags interpreted by
+.Fn stats_blob_clone
+also apply to
+.Fn stats_blob_snapshot .
+Additionally, the
+.Dv SB_CLONE_RSTSRC
+flag can be used to effect a reset of the
+.Fa src
+blob's statistics after a snapshot is successfully taken.
+.Pp
+The
+.Fn stats_blob_destroy
+function destroys a blob previously created with
+.Fn stats_blob_alloc ,
+.Fn stats_blob_clone
+or
+.Fn stats_blob_snapshot .
+.Pp
+The
+.Fn stats_blob_visit
+function allows the caller to iterate over the contents of a blob.
+The callback function
+.Fa func
+is called for every VOI and statistic in the blob, passing a
+.Vt struct sb_visit
+and the user context argument
+.Fa usrctx
+to the callback function.
+The
+.Fa sbv
+passed to the callback function may have one or more of the following flags set
+in the
+.Va flags
+struct member to provide useful metadata about the iteration:
+.Dv SB_IT_FIRST_CB ,
+.Dv SB_IT_LAST_CB ,
+.Dv SB_IT_FIRST_VOI ,
+.Dv SB_IT_LAST_VOI ,
+.Dv SB_IT_FIRST_VOISTAT ,
+.Dv SB_IT_LAST_VOISTAT ,
+.Dv SB_IT_NULLVOI
+and
+.Dv SB_IT_NULLVOISTAT .
+Returning a non-zero value from the callback function terminates the iteration.
+.Pp
+The
+.Fn stats_blob_tostr
+renders a string representation of a blob into the
+.Xr sbuf 9
+.Fa buf .
+Currently supported render formats are
+.Dv SB_STRFMT_FREEFORM
+and
+.Dv SB_STRFMT_JSON .
+The
+.Dv SB_TOSTR_OBJDUMP
+flag can be passed to render version specific opaque implementation detail for
+debugging or string-to-binary blob reconstruction purposes.
+The
+.Dv SB_TOSTR_META
+flag can be passed to render template metadata into the string representation,
+using the blob's template hash to lookup the corresponding template.
+.Pp
+The
+.Fn stats_voistatdata_tostr
+renders a string representation of an individual statistic's data into the
+.Xr sbuf 9
+.Fa buf .
+The same render formats supported by the
+.Fn stats_blob_tostr
+function can be specified, and the
+.Fa objdump
+boolean has the same meaning as the
+.Dv SB_TOSTR_OBJDUMP
+flag.
+.Pp
+The
+.Fn stats_voistat_fetch_dptr
+function returns an internal blob pointer to the specified
+.Fa stype
+statistic data for the VOI
+.Fa voi_id .
+The
+.Fn stats_voistat_fetch_<dtype>
+functions are convenience wrappers around
+.Fn stats_voistat_fetch_dptr
+to perform the extraction for simple data types.
+.Sh IMPLEMENTATION NOTES
+The following notes apply to STATS_ABI_V1 format statsblobs.
+.Ss Space-Time Complexity
+Blobs are laid out as three distinct memory regions following the header:
+.Bd -literal -offset indent
+------------------------------------------------------
+|   struct    | struct |   struct   |     struct     |
+| statsblobv1 | voi [] | voistat [] | voistatdata [] |
+------------------------------------------------------
+.Ed
+.Pp
+Blobs store VOI and statistic blob state
+.Po
+8 bytes for
+.Vt struct voi
+and 8 bytes for
+.Vt struct voistat
+respectively
+.Pc
+in sparse arrays, using the
+.Fa voi_id
+and
+.Vt enum voi_stype
+as array indices.
+This allows O(1) access to any voi/voistat pair in the blob, at the expense of
+8 bytes of wasted memory per vacant slot for templates which do not specify
+contiguously numbered VOIs and/or statistic types.
+Data storage for statistics is only allocated for non-vacant slot pairs.
+.Pp
+To provide a concrete example, a blob with the following specification:
+.Bl -dash
+.It
+Two VOIs; ID 0 and 2; added to the template in that order
+.It
+VOI 0 is of data type
+.Vt int64_t ,
+is configured with
+.Dv SB_VOI_RELUPDATE
+to enable support for relative updates using
+.Fn stats_voi_update_rel_<dtype> ,
+and has a
+.Dv VS_STYPE_MIN
+statistic associated with it.
+.It
+VOI 2 is of data type
+.Vt uint32_t
+with
+.Dv VS_STYPE_SUM
+and
+.Dv VS_STYPE_MAX
+statistics associated with it.
+.El
+.Pp
+would have the following memory layout:
+.Bd -literal
+--------------------------------------
+| header			     | struct statsblobv1, 32 bytes
+|------------------------------------|
+| voi[0]			     | struct voi, 8 bytes
+| voi[1] (vacant)		     | struct voi, 8 bytes
+| voi[2]			     | struct voi, 8 bytes
+|------------------------------------|
+| voi[2]voistat[VOISTATE] (vacant)   | struct voistat, 8 bytes
+| voi[2]voistat[SUM]		     | struct voistat, 8 bytes
+| voi[2]voistat[MAX]		     | struct voistat, 8 bytes
+| voi[0]voistat[VOISTATE]	     | struct voistat, 8 bytes
+| voi[0]voistat[SUM] (vacant)	     | struct voistat, 8 bytes
+| voi[0]voistat[MAX] (vacant)	     | struct voistat, 8 bytes
+| voi[0]voistat[MIN]		     | struct voistat, 8 bytes
+|------------------------------------|
+| voi[2]voistat[SUM]voistatdata      | struct voistatdata_int32, 4 bytes
+| voi[2]voistat[MAX]voistatdata      | struct voistatdata_int32, 4 bytes
+| voi[0]voistat[VOISTATE]voistatdata | struct voistatdata_numeric, 8 bytes
+| voi[0]voistat[MIN]voistatdata      | struct voistatdata_int64, 8 bytes
+--------------------------------------
+				       TOTAL 136 bytes
+.Ed
+.Pp
+When rendered to string format using
+.Fn stats_blob_tostr ,
+the
+.Dv SB_STRFMT_FREEFORM
+.Fa fmt
+and the
+.Dv SB_TOSTR_OBJDUMP
+flag, the rendered output is:
+.Bd -literal
+struct statsblobv1@0x8016250a0, abi=1, endian=1, maxsz=136, cursz=136, \\
+  created=6294158585626144, lastrst=6294158585626144, flags=0x0000, \\
+  stats_off=56, statsdata_off=112, tplhash=2994056564
+    vois[0]: id=0, name="", flags=0x0001, dtype=INT_S64, voistatmaxid=3, \\
+      stats_off=80
+        vois[0]stat[0]: stype=VOISTATE, flags=0x0000, dtype=VOISTATE, \\
+          dsz=8, data_off=120
+            voistatdata: prev=0
+        vois[0]stat[1]: stype=-1
+        vois[0]stat[2]: stype=-1
+        vois[0]stat[3]: stype=MIN, flags=0x0000, dtype=INT_S64, \\
+          dsz=8, data_off=128
+            voistatdata: 9223372036854775807
+    vois[1]: id=-1
+    vois[2]: id=2, name="", flags=0x0000, dtype=INT_U32, voistatmaxid=2, \\
+      stats_off=56
+        vois[2]stat[0]: stype=-1
+        vois[2]stat[1]: stype=SUM, flags=0x0000, dtype=INT_U32, dsz=4, \\
+          data_off=112
+            voistatdata: 0
+        vois[2]stat[2]: stype=MAX, flags=0x0000, dtype=INT_U32, dsz=4, \\
+          data_off=116
+            voistatdata: 0
+.Ed
+.Pp
+Note: The
+.Qq \e
+present in the rendered output above indicates a manual line break inserted to
+keep the man page within 80 columns and is not part of the actual output.
+.Ss Locking
+The
+.Nm
+framework does not provide any concurrency protection at the individual blob
+level, instead requiring that consumers guarantee mutual exclusion when calling
+API functions that reference a non-template blob.
+.Pp
+The list of templates is protected with a
+.Xr rwlock 9
+in-kernel, and
+.Xr pthread 3
+rw lock in user space to support concurrency between template management and
+blob initialization operations.
+.Sh RETURN VALUES
+.Fn stats_tpl_alloc
+returns a runtime-stable template slot ID on success, or a negative errno on
+failure.
+-EINVAL is returned if any problems are detected with the arguments.
+-EEXIST is returned if an existing template is registered with the same name.
+-ENOMEM is returned if a required memory allocation fails.
+.Pp
+.Fn stats_tpl_fetch_allocid
+returns a runtime-stable template slot ID, or negative errno on failure.
+-ESRCH is returned if no registered template matches the specified name and/or
+hash.
+.Pp
+.Fn stats_tpl_fetch
+returns 0 on success, or ENOENT if an invalid
+.Fa tpl_id
+is specified.
+.Pp
+.Fn stats_tpl_id2name
+returns 0 on success, or an errno on failure.
+EOVERFLOW is returned if the length of
+.Fa buf
+specified by
+.Fa len
+is too short to hold the template's name.
+ENOENT is returned if an invalid
+.Fa tpl_id
+is specified.
+.Pp
+.Fn stats_tpl_sample_rollthedice
+returns a valid template slot id selected from
+.Fa rates
+or -1 if a NULL selection was made, that is no stats collection this roll.
+.Pp
+.Fn stats_tpl_add_voistats
+return 0 on success, or an errno on failure.
+EINVAL is returned if any problems are detected with the arguments.
+EFBIG is returned if the resulting blob would have exceeded the maximum size.
+EOPNOTSUPP is returned if an attempt is made to add more VOI stats to a
+previously configured VOI.
+ENOMEM is returned if a required memory allocation fails.
+.Pp
+.Fn stats_voi_update_abs_<dtype>
+and
+.Fn stats_voi_update_rel_<dtype>
+return 0 on success, or EINVAL if any problems are detected with the arguments.
+.Pp
+.Fn stats_blob_init
+returns 0 on success, or an errno on failure.
+EINVAL is returned if any problems are detected with the arguments.
+EOVERFLOW is returned if the template blob's
+.Fa cursz
+is larger than the
+.Fa maxsz
+of the blob being initialized.
+.Pp
+.Fn stats_blob_alloc
+returns a pointer to a newly allocated and initialized blob based on the
+specified template with slot ID
+.Fa tpl_id ,
+or NULL if the memory allocation failed.
+.Pp
+.Fn stats_blob_clone
+and
+.Fn stats_blob_snapshot
+return 0 on success, or an errno on failure.
+EINVAL is returned if any problems are detected with the arguments.
+ENOMEM is returned if the SB_CLONE_ALLOCDST flag was specified and the memory
+allocation for
+.Fa dst
+fails.
+EOVERFLOW is returned if the src blob's
+.Fa cursz
+is larger than the
+.Fa maxsz
+of the
+.Fa dst
+blob.
+.Pp
+.Fn stats_blob_visit
+returns 0 on success, or EINVAL if any problems are detected with the arguments.
+.Pp
+.Fn stats_blob_tostr
+and
+.Fn stats_voistatdata_tostr
+return 0 on success, or an errno on failure.
+EINVAL is returned if any problems are detected with the arguments, otherwise
+any error returned by
+.Fn sbuf_error
+for
+.Fa buf
+is returned.
+.Pp
+.Fn stats_voistat_fetch_dptr
+returns 0 on success, or EINVAL if any problems are detected with the arguments.
+.Pp
+.Fn stats_voistat_fetch_<dtype>
+returns 0 on success, or an errno on failure.
+EINVAL is returned if any problems are detected with the arguments.
+EFTYPE is returned if the requested data type does not match the blob's data
+type for the specified
+.Fa voi_id
+and
+.Fa stype .
+.Sh SEE ALSO
+.Xr errno 2 ,
+.Xr arb 3 ,
+.Xr qmath 3 ,
+.Xr tcp 4 ,
+.Xr sbuf 9
+.Rs
+.%A "Ted Dunning"
+.%A "Otmar Ertl"
+.%T "Computing Extremely Accurate Quantiles Using t-digests"
+.%U "https://github.com/tdunning/t-digest/raw/master/docs/t-digest-paper/histo.pdf"
+.Re
+.Sh HISTORY
+The
+.Nm
+framework first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+framework and this manual page were written by
+.An Lawrence Stewart Aq lstewart@FreeBSD.org
+and sponsored by Netflix, Inc.
+.Sh CAVEATS
+Granularity of timing-dependent network statistics, in particular TCP_RTT,
+depends on the
+.Dv HZ
+timer.
+To minimize the measurement error avoid using HZ lower than 1000.

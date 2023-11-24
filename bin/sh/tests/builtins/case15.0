@@ -1,0 +1,4 @@
+
+case x in
+`false`) exit 3 ;;
+esac

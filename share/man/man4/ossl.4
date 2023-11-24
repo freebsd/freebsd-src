@@ -1,0 +1,115 @@
+.\" Copyright (c) 2020 Netflix, Inc
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
+.\"    redistribution must be conditioned upon including a substantially
+.\"    similar Disclaimer requirement for further binary redistribution.
+.\"
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF NONINFRINGEMENT, MERCHANTIBILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+.\" THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY,
+.\" OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGES.
+.\"
+.Dd May 4, 2023
+.Dt OSSL 4
+.Os
+.Sh NAME
+.Nm ossl
+.Nd "driver using OpenSSL assembly routines"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device crypto"
+.Cd "device cryptodev"
+.Cd "device ossl"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ossl_load="YES"
+.Ed
+.Sh DESCRIPTION
+The OpenSSL distribution includes architecture-specific
+implementations for some commonly used cryptographic algorithms.
+This driver adds a wrapper around these routines permitting them to be
+used by in-kernel cryptography consumers such as kernel TLS and IPsec.
+.Pp
+The
+.Nm
+driver includes architecture-specific implementations for the following
+architectures:
+.Pp
+.Bl -bullet -compact
+.It
+arm64
+.It
+amd64
+.It
+i386
+.El
+.Pp
+The
+.Nm
+driver includes support for the following algorithms:
+.Pp
+.Bl -bullet -compact
+.It
+AES-CBC
+.It
+AES-GCM (amd64 only)
+.It
+ChaCha20
+.It
+ChaCha20-Poly1305 (RFC 8439)
+.It
+Poly1305
+.It
+SHA1
+.It
+SHA1-HMAC
+.It
+SHA2-224
+.It
+SHA2-224-HMAC
+.It
+SHA2-256
+.It
+SHA2-256-HMAC
+.It
+SHA2-384
+.It
+SHA2-384-HMAC
+.It
+SHA2-512
+.It
+SHA2-512-HMAC
+.El
+.Sh SEE ALSO
+.Xr crypto 4 ,
+.Xr intro 4 ,
+.Xr ipsec 4 ,
+.Xr crypto 7 ,
+.Xr crypto 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 13.0 .

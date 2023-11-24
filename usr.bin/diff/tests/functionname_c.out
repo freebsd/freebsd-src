@@ -1,0 +1,11 @@
+--- functionname.in
++++ functionname_c.in
+@@ -6,7 +6,7 @@ doSomethingThenPrintHello(int test)
+ 		return;
+ 	}
+ 
+-	print("goodbye\n");
++	print("hello\n");
+ }
+ 
+ 

@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+#
+
+if [ -n "$2" ]; then
+	ypmatch $2 $1
+	exit 0
+fi
+
+if [ -n "$1" ]; then
+	ypcat -k $1
+	exit 0
+fi

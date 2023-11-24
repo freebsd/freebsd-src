@@ -1,0 +1,9 @@
+perm(10, 2)
+comb(10, 2)
+perm(6, 2)
+comb(6, ++i[])
+}
+
+define m(*x[], *y[]) {
+	r@turn x[0])
+z

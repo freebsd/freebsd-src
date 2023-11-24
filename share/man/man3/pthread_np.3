@@ -1,0 +1,230 @@
+.\" Copyright (c) 2021 Felix Johnson <felix.the.red@gmail.com>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+.\" PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd October 12, 2021
+.Dt PTHREAD_NP 3
+.Os
+.Sh NAME
+.Nm pthread_np
+.Nd FreeBSD extensions to POSIX thread functions
+.Sh LIBRARY
+.Lb libpthread
+.Sh SYNOPSIS
+.In pthread_np.h
+.Sh DESCRIPTION
+This manual page documents extensions to the POSIX thread functions.
+These extensions may or may not be portable to other operating systems.
+.Pp
+The POSIX thread functions are summarized in this section in the following
+groups:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Thread Routines
+.It
+Attribute Object Routines
+.It
+Mutex Routines
+.El
+.\" .It
+.\" Condition Variable Routines
+.\" .It
+.\" Read/Write Lock Routines
+.\" .It
+.\" Per-Thread Context Routines
+.\" .It
+.\" Cleanup Routines
+.Ss Thread Routines
+.Bl -tag -width indent
+.It Xo
+.Ft int
+.Fo pthread_getaffinity_np
+.Fa "pthread_t td" "size_t cpusetsize" "cpuset_t *cpusetp"
+.Fc
+.Xc
+Get the CPU affinity of a specified thread.
+.It Xo
+.Ft int
+.Fn pthread_get_name_np "pthread_t thread" "char *name" "size_t len"
+.Xc
+Get the name of a specified thread.
+.It Xo
+.Ft int
+.Fn pthread_getname_np "pthread_t thread" "char *name" "size_t len"
+.Xc
+Get the name of a specified thread.
+.It Xo
+.Ft int
+.Fn pthread_getthreadid_np void
+.Xc
+Get the calling thread's integral ID.
+.It Xo
+.Ft int
+.Fn pthread_main_np void
+.Xc
+Identify the initial thread.
+.It Xo
+.Ft int
+.Fn pthread_multi_np void
+.Xc
+Sets the thread's scheduling mode to multi-threaded.
+.It Xo
+.Ft int
+.Fn pthread_peekjoin_np "pthread_t thread" "void **value_ptr"
+.Xc
+Peek into the exit status of a specified thread.
+.It Xo
+.Ft int
+.Fn pthread_resume_all_np void
+.Xc
+Resume all suspended threads.
+.It Xo
+.Ft int
+.Fo pthread_setaffinity_np
+.Fa "pthread_t td" "size_t cpusetsize" "const cpuset_t *cpusetp"
+.Fc
+.Xc
+Set the CPU affinity of a specified thread.
+.It Xo
+.Ft int
+.Fn pthread_set_name_np "pthread_t thread" "char *name"
+.Xc
+Sets the specified thread's name.
+.It Xo
+.Ft int
+.Fn pthread_setname_np "pthread_t thread" "char *name"
+.Xc
+Sets the specified thread's name.
+.It Xo
+.Ft int
+.Fn pthread_single_np void
+.Xc
+Sets the thread's scheduling mode to single-threaded.
+.It Xo
+.Ft int
+.Fn pthread_suspend_np "pthread_t tid"
+.Xc
+Suspend the specified thread.
+.It Xo
+.Ft int
+.Fn pthread_suspend_all_np void
+.Xc
+Suspend all active threads.
+.It Xo
+.Ft int
+.Fn pthread_switch_add_np "pthread_switch_routine_t routine"
+.Xc
+Install a routine that is called every time a thread context switches.
+.It Xo
+.Ft int
+.Fn pthread_switch_delete_np "pthread_switch_routine_t routine"
+.Xc
+Remove a routine that is called every time a thread context switches.
+.It Xo
+.Ft int
+.Fo pthread_timedjoin_np
+.Fa "pthread_t thread" "void **value_ptr" "const struct timespec *abstime"
+.Fc
+.Xc
+A variant of
+.Fn pthread_join
+with a timeout.
+.El
+.Ss Attribute Object Routines
+.Bl -tag -width indent
+.It Xo
+.Ft int
+.Fo pthread_attr_get_np
+.Fa "pthread_t pid" "pthread_attr_t *dst"
+.Fc
+.Xc
+Get the attributes of an existent thread.
+.It Xo
+.Ft int
+.Fo pthread_attr_getaffinity_np
+.Fa "const pthread_attr_t *pattr" "size_t cpusetsize" "cpuset_t *cpusetp"
+.Fc
+.Xc
+Get the CPU affinity mask from the thread attribute object.
+.It Xo
+.Ft int
+.Fo pthread_attr_setaffinity_np
+.Fa "pthread_attr_t *pattr" "size_t cpusetsize" "const cpuset_t *cpusetp"
+.Fc
+.Xc
+Set the CPU affinity mask for the thread attribute object.
+.It Xo
+.Ft int
+.Fn pthread_attr_setcreatesuspend_np "pthread_attr_t *attr"
+.Xc
+Permit creation of suspended threads.
+.El
+.Ss Mutex Routines
+.Bl -tag -width indent
+.It Xo
+.Ft int
+.Fn pthread_mutexattr_getkind_np "pthread_mutexattr_t attr"
+.Xc
+Deprecated, use
+.Xr pthread_mutexattr_gettype 3
+instead.
+.It Xo
+.Ft int
+.Fn pthread_mutexattr_setkind_np "pthread_mutexattr_t *attr"
+.Xc
+Deprecated, use
+.Xr pthread_mutexattr_settype 3
+instead.
+.El
+.\" .Ss Condition Variable Routines
+.\" .Bl -tag -width indent
+.\" .El
+.\" .Ss Read/Write Lock Routines
+.\" .Bl -tag -width indent
+.\" .El
+.\" .Ss Per-Thread Context Routines
+.\" .Bl -tag -width indent
+.\" .El
+.\" .Ss Cleanup Routines
+.\" .Bl -tag -width indent
+.\" .El
+.Sh SEE ALSO
+.Xr libthr 3 ,
+.Xr pthread 3 ,
+.Xr pthread_affinity_np 3 ,
+.Xr pthread_attr_affinity_np 3 ,
+.Xr pthread_attr_get_np 3 ,
+.Xr pthread_attr_setcreatesuspend_np 3 ,
+.Xr pthread_getthreadid_np 3 ,
+.Xr pthread_join 3 ,
+.Xr pthread_main_np 3 ,
+.Xr pthread_multi_np 3 ,
+.Xr pthread_mutexattr_getkind_np 3 ,
+.Xr pthread_resume_all_np 3 ,
+.Xr pthread_resume_np 3 ,
+.Xr pthread_set_name_np 3 ,
+.Xr pthread_suspend_all_np 3 ,
+.Xr pthread_suspend_np 3 ,
+.Xr pthread_switch_add_np 3
+.Sh STANDARDS
+All of these functions are non-portable extensions to POSIX threads.

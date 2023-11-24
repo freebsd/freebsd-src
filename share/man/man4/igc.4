@@ -1,0 +1,164 @@
+.\"-
+.\" Copyright 2021 Intel Corp
+.\" Copyright 2021 Rubicon Communications, LLC (Netgate)
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
+.Dd May 10, 2021
+.Dt IGC 4
+.Os
+.Sh NAME
+.Nm igc
+.Nd "Intel Ethernet Controller I225 driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iflib"
+.Cd "device igc"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_igc_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for any PCI Express adapter or LOM (LAN
+On Motherboard) based on the Intel I225 Multi Gigabit Controller.
+The driver supports Transmit/Receive checksum offload, Jumbo Frames,
+MSI/MSI-X, TSO, and RSS.
+.Pp
+Support for Jumbo Frames is provided via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility
+configures the adapter to receive and transmit Jumbo Frames.
+The maximum MTU size for Jumbo Frames is 9216 bytes.
+.Pp
+This driver version supports VLAN hardware insertion / extraction, and
+VLAN checksum offload.
+For information on enabling VLANs, see
+.Xr ifconfig 8 .
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
+Enables auto-negotiation for speed and duplex.
+.It Cm 10baseT/UTP
+Sets 10Mbps operation.
+Use the
+.Cm mediaopt
+option to select
+.Cm half-duplex
+mode.
+.It Cm 100baseTX
+Sets 100Mbps operation.
+Use the
+.Cm mediaopt
+option to select
+.Cm half-duplex
+mode.
+.It Cm 1000baseT
+Sets 1000Mbps operation.
+Only
+.Cm full-duplex
+mode is supported at this speed.
+.It Cm 2500baseT
+Sets 2500Mbps operation.
+Only
+.Cm full-duplex
+mode is supported at this speed.
+.El
+.Sh HARDWARE
+The
+.Nm
+driver supports the following models:
+.Pp
+.Bl -bullet -compact
+.It
+I225-LM
+.It
+I225-V
+.It
+I225-IT
+.It
+I225-K
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.igc.igc_disable_crc_stripping
+Disable or enable hardware stripping of CRC field.
+This is mostly useful on BMC/IPMI shared interfaces where stripping the
+CRC causes remote access over IPMI to fail.
+Default 0 (enabled).
+.It Va hw.igc.rx_int_delay
+This value delays the generation of receive interrupts in units
+of 1.024 microseconds.
+The default value is 0, since adapters may hang with this feature being
+enabled.
+.It Va hw.igc.rx_abs_int_delay
+If hw.igc.rx_int_delay is non-zero, this tunable limits the
+maximum delay in which a receive interrupt is generated.
+.It Va hw.igc.tx_int_delay
+This value delays the generation of transmit interrupts in units
+of 1.024 microseconds.
+The default value is 64.
+.It Va hw.igc.tx_abs_int_delay
+If hw.igc.tx_int_delay is non-zero, this tunable limits the
+maximum delay in which a transmit interrupt is generated.
+.It Va hw.igc.sbp
+Show bad packets when in promiscuous mode.
+Default is false.
+.It Va hw.igc.rx_process_limit
+Maximum number of received packets to process at a time.
+Default is 100.
+A value of -1 means unlimited.
+.It Va hw.igc.eee_setting
+Disable or enable Energy Efficient Ethernet.
+Default 1 (disabled).
+.It Va hw.igc.max_interrupt_rate
+Maximum device interrupts per second.
+The default is 8000.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "igc%d: Hardware Initialization Failed"
+A fatal initialization error has occurred.
+.It "igc%d: Unable to allocate bus resource: memory"
+A fatal initialization error has occurred.
+.It "igc%d: Invalid MAC address"
+The MAC address programmed into the EEPROM is either empty or a multicast/broadcast
+address.
+.El
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr iflib 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 14.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+was originally written by
+.An Intel Corporation
+and converted to the
+.Xr iflib 4
+framework by
+.An Netgate .

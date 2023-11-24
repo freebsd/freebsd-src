@@ -1,0 +1,21 @@
+define i(x) {
+	ibase=x
+	return ibase
+}
+
+define o(x) {
+	obase=x
+	return obase
+}
+
+define r(x) {
+	scale=x
+	return scale
+}
+
+i(11)
+ibase
+o(12)
+obase
+r(15)
+scale

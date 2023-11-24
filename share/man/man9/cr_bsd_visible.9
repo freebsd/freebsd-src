@@ -1,0 +1,117 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2023 Olivier Certner <olce.freebsd@certner.fr>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd August 18, 2023
+.Dt CR_BSD_VISIBLE 9
+.Os
+.Sh NAME
+.Nm cr_bsd_visible
+.Nd determine if subjects may see entities according to BSD security policies
+.Sh SYNOPSIS
+.In sys/proc.h
+.Ft int
+.Fn cr_bsd_visible "struct ucred *u1" "struct ucred *u2"
+.Sh DESCRIPTION
+This function determines if a subject with credentials
+.Fa u1
+is denied seeing an object or subject associated to credentials
+.Fa u2
+by the following policies and associated
+.Xr sysctl 8
+knobs:
+.Bl -tag -width indent
+.It Va security.bsd.seeotheruids
+If set to 0, subjects cannot see other subjects or objects if they are not
+associated with the same real user ID.
+The corresponding internal function is
+.Xr cr_canseeotheruids 9 .
+.It Va security.bsd.seeothergids
+If set to 0, subjects cannot see other subjects or objects if they are not both
+a member of at least one common group.
+The corresponding internal function is
+.Xr cr_canseeothergids 9 .
+.It Va security.bsd.see_jail_proc
+If set to 0, subjects cannot see other subjects or objects that are not
+associated with the same jail as they are.
+The corresponding internal function is
+.Xr cr_canseejailproc 9 .
+.El
+.Pp
+As usual, the superuser (effective user ID 0) is exempt from any of these
+policies provided that the
+.Xr sysctl 8
+variable
+.Va security.bsd.suser_enabled
+is non-zero and no active MAC policy explicitly denies the exemption
+.Po
+see
+.Xr priv_check_cred 9
+.Pc .
+.Pp
+This function is intended to be used as a helper to implement
+.Xr cr_cansee 9
+and similar functions.
+.Sh RETURN VALUES
+This function returns zero if a subject with credentials
+.Fa u1
+may see a subject or object with credentials
+.Fa u2
+by the active above-mentioned policies, or
+.Er ESRCH
+otherwise.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ESRCH
+Credentials
+.Fa u1
+and
+.Fa u2
+do not have the same real user ID.
+.It Bq Er ESRCH
+Credentials
+.Fa u1
+and
+.Fa u2
+are not members of any common group
+.Po
+as determined by
+.Xr realgroupmember 9
+.Pc .
+.It Bq Er ESRCH
+Credentials
+.Fa u1
+and
+.Fa u2
+are not in the same jail.
+.El
+.Sh SEE ALSO
+.Xr cr_canseeotheruids 9 ,
+.Xr cr_canseeothergids 9 ,
+.Xr cr_canseejailproc 9 ,
+.Xr priv_check_cred 9 ,
+.Xr cr_cansee 9
+.Sh AUTHORS
+This function and its manual page were written by
+.An Olivier Certner Aq Mt olce.freebsd@certner.fr .

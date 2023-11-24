@@ -1,0 +1,131 @@
+.\" Copyright (c) 2021 The FreeBSD Foundation, Inc.
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd February 28, 2021
+.Dt VOP_READ_PGCACHE 9
+.Os
+.Sh NAME
+.Nm VOP_READ_PGCACHE
+.Nd read a file, fast
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.In sys/uio.h
+.Ft int
+.Fo VOP_READ_PGCACHE
+.Fa "struct vnode *vp"
+.Fa "struct uio *uio"
+.Fa "int ioflag"
+.Fa "struct ucred *cred"
+.Fc
+.Sh DESCRIPTION
+This entry point reads the contents of a file.
+The intent is to provide the data from caches, which do not require
+expensive operations or any disk IO.
+For instance, if filesystem uses normal VM page cache and maintains
+.Dv v_object
+lifetime, it can use
+.Xr vn_read_from_obj 9
+helper to return data from the resident
+.Dv vp->v_object
+pages.
+.Pp
+The filesystem indicates support for the
+.Nm
+on specific vnode by setting the
+.Dv VIRF_PGREAD
+flag in
+.Dv vp->v_irflag .
+.Pp
+The function does not need to satisfy the whole request; it also might choose
+to not provide any data.
+In these cases, the
+.Fa uio
+must be advanced by the amount of read data,
+.Nm
+should return
+.Er EJUSTRETURN ,
+and VFS would handle the rest of the read operation using the
+.Xr VOP_READ 9 .
+.Pp
+The VFS layer does the same deadlock avoidance for accessing userspace
+pages from
+.Nm
+as for
+.Xr VOP_READ 9 .
+.Pp
+Vnode is not locked on the call entry and should not be locked on return.
+For a filesystem that requires vnode lock to return any data, it does
+not make sense to implement
+.Nm
+(and set
+.Dv VIRF_PGREAD
+flag) since VFS arranges the call to
+.Xr VOP_READ 9
+as needed.
+.Pp
+The arguments are:
+.Bl -tag -width ioflag
+.It Fa vp
+The vnode of the file.
+.It Fa uio
+The location of the data to be read.
+.It Fa ioflag
+Various flags, see
+.Xr VOP_READ 9
+for the list.
+.It Fa cred
+The credentials of the caller.
+.El
+.Pp
+.Nm
+does not handle non-zero
+.Fa ioflag
+argument.
+.Sh LOCKS
+The file should be referenced on entry on entry and will still be
+referenced on exit.
+Rangelock covering the whole read range should be owned around the call.
+.Sh RETURN VALUES
+Zero is returned on success, when the whole request is satisfied, and no
+more data cannot be provided for it by any means.
+If more data can be returned, but
+.Nm
+was unable to provide it,
+.Er EJUSTRETURN
+must be returned.
+The
+.Dv uio
+records should be updated according to the partial operation done.
+.Pp
+Otherwise an error code is returned,
+same as from
+.Xr VOP_READ 9
+.Sh SEE ALSO
+.Xr uiomove 9 ,
+.Xr vnode 9 ,
+.Xr VOP_READ 9

@@ -1,0 +1,38 @@
+
+#------------------------------------------------------------------------------
+# URL: 		https://de.wikipedia.org/wiki/Aria_(Software)
+# Reference:	https://github.com/aria2/aria2/blob/master/doc/manual-src/en/technical-notes.rst
+# From:		Joerg Jenderek
+# Note:		only version 1 suited
+# check for valid version one
+0		beshort		0x0001
+# skip most uncompressed DEGAS med-res bitmap *.PI2 and GEM bitmap (v1) *.IMG
+# by test for valid infoHashCheck extension
+>2		ubelong&0xffFFffFE	0x00000000
+# skip DEGAS med-res bitmap DIAGRAM1.PI2 by test for valid length of download
+>>(6.L+14)	ubequad			>0
+>>>0	use     aria
+0	name	aria
+# version; (0x0000) or (0x0001); for 0 all multi-byte are in host byte order. For 1 big endian
+>0	beshort		x	aria2 control file, version %u
+#!:mime	application/octet-stream
+!:mime	application/x-aria
+!:ext	aria2
+# EXTension; if EXT[3]&1 == 1 checks whether saved InfoHash and current downloading the same; infoHashCheck extension
+>2		ubelong		!0	\b, infoHashCheck %#x
+# info hash length like: 0 14h
+>6		ubelong		!0	\b, %#x bytes info hash
+# info hash; BitTorrent InfoHash
+>>10		ubequad		x	%#16.16llx...
+# piece length; the length of the piece like: 400h 100000h
+>(6.L+10)	ubelong		x	\b, piece length 0x%x
+# total length; the total length of the download
+>(6.L+14)	ubequad		x	\b, total length %llu
+#>(6.L+14)	ubequad		x	\b, total length %#llx
+# upload length; the uploaded length of download like: 0 400h
+>(6.L+22)	ubequad		!0	\b, upload length %#llx
+# bitfield length; the length of bitfield like: 4 6 Ah 10h 13h 167h
+>(6.L+30)	ubelong		x	\b, %#x bytes bitfield
+# bitfield; bitfield which represents current download progress
+>(6.L+34)	ubequad		!0	%#llx...
+

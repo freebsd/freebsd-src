@@ -1,0 +1,4 @@
+set -e
+while false; do
+	:
+done

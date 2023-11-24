@@ -1,0 +1,15 @@
+mfiles=""
+for f in $files
+do
+	rm -f m$f
+	[ -f $f ] && cp $f m$f
+	mfiles="$mfiles m$f"
+done
+unifdef -M~ $opts $mfiles
+e=$?
+for f in $mfiles
+do
+	diff -u $f~ $f | sed '/^[+-]\{3\} /s/	.*//'
+	rm -f $f~ $f
+done
+exit $e

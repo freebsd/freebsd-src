@@ -1,0 +1,6 @@
+syntax(2)
+
+test_suite("kyua")
+
+atf_test_program{name="macros_test"}
+atf_test_program{name="operations_test"}

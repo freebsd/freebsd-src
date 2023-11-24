@@ -1,0 +1,59 @@
+language: c
+
+sudo: false
+
+os:
+  - linux
+  - osx
+
+compiler:
+  - gcc
+  - clang
+
+matrix:
+  include:
+    ## Ubuntu 14.04 Trusty (beta), sudo required!
+    - os: linux
+      dist: trusty
+      sudo: required
+      compiler: gcc
+      env: TRUSTY="yes"
+    - os: linux
+      dist: trusty
+      sudo: required
+      compiler: clang
+      env: TRUSTY="yes"
+    ## MinGW / wine
+    - os: linux
+      sudo: required
+      compiler: i586-mingw32msvc-gcc
+      env: BUILD_MINGW="yes"
+  allow_failures:
+    - compiler: i586-mingw32msvc-gcc
+
+install:
+  - env | grep -v "encrypted" | LC_ALL=C sort
+  - if test "${BUILD_MINGW}" = "yes"; then
+      sudo apt-get -qq update &&
+      sudo apt-get -qq install wine;
+    fi
+
+script:
+  - if test "${BUILD_MINGW}" != "yes"; then
+      make &&
+      make test &&
+      make release;
+    else
+      export CC=i586-mingw32msvc-gcc;
+      echo -e '#!/bin/bash\nexec wine $0.exe "$@"' > unifdef;
+      chmod ugo+x unifdef;
+      make version.h &&
+      make -f win32/Makefile.mingw test;
+    fi
+
+branches:
+  only:
+    - master
+    - next
+    - /^travis.*/
+    - /^tmp.*/

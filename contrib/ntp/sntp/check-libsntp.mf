@@ -1,0 +1,13 @@
+##
+## check-libsntp.mf - automake fragment
+##
+
+BUILT_SOURCES	+= check-libsntp
+CLEANFILES	+= check-libsntp
+
+check-libsntp: $(top_builddir)/sntp/libsntp.a
+	@: avoid default SCCS get by some make implementations
+
+$(top_builddir)/sntp/libsntp.a:
+	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) libsntp.a
+

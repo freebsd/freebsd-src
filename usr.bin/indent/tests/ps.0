@@ -1,0 +1,4 @@
+struct s { int i; };
+void f(struct s *p) {
+	p->i--;
+}

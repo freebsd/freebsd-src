@@ -1,0 +1,142 @@
+#!@DEFAULT_INIT_SHELL@
+# shellcheck disable=SC2154
+#
+# zfs-mount     This script will mount/umount the zfs filesystems.
+#
+# chkconfig:    2345 06 99
+# description:  This script will mount/umount the zfs filesystems during
+#               system boot/shutdown. Configuration of which filesystems
+#               should be mounted is handled by the zfs 'mountpoint' and
+#               'canmount' properties. See the zfs(8) man page for details.
+#               It is also responsible for all userspace zfs services.
+# probe: true
+#
+### BEGIN INIT INFO
+# Provides:          zfs-mount
+# Required-Start:    zfs-import
+# Required-Stop:     $local_fs zfs-import
+# Default-Start:     S
+# Default-Stop:      0 1 6
+# X-Start-Before:    mountall
+# X-Stop-After:      zfs-zed
+# Short-Description: Mount ZFS filesystems and volumes
+# Description: Run the `zfs mount -a` or `zfs umount -a` commands.
+### END INIT INFO
+#
+# Released under the 2-clause BSD license.
+#
+# This script is based on debian/zfsutils.zfs.init from the
+# Debian GNU/kFreeBSD zfsutils 8.1-3 package, written by Aurelien Jarno.
+
+# Source the common init script
+. @sysconfdir@/zfs/zfs-functions
+
+# ----------------------------------------------------
+
+chkroot() {
+	while read -r _ mp _; do
+		if [ "$mp" = "/" ]; then
+			return 0
+		fi
+	done < /proc/self/mounts
+
+	return 1
+}
+
+do_depend()
+{
+	# Try to allow people to mix and match fstab with ZFS in a way that makes sense.
+	if [ "$(mountinfo -s /)" = 'zfs' ]
+	then
+		before localmount
+	else
+		after localmount
+	fi
+
+	# bootmisc will log to /var which may be a different zfs than root.
+	before bootmisc logger
+
+	after zfs-import sysfs
+	use mtab
+	keyword -lxc -openvz -prefix -vserver
+}
+
+# Mount all datasets/filesystems
+do_mount()
+{
+	local verbose overlay
+
+	check_boolean "$VERBOSE_MOUNT" && verbose=v
+	check_boolean "$DO_OVERLAY_MOUNTS" && overlay=O
+
+	zfs_action "Mounting ZFS filesystem(s)" \
+	    "$ZFS" mount "-a$verbose$overlay" "$MOUNT_EXTRA_OPTIONS"
+
+	return 0
+}
+
+# Unmount all filesystems
+do_unmount()
+{
+	# This shouldn't really be necessary, as long as one can get
+	# zfs-import to run sufficiently late in the shutdown/reboot process
+	# - after unmounting local filesystems. This is just here in case/if
+	# this isn't possible.
+	zfs_action "Unmounting ZFS filesystems" "$ZFS" unmount -a
+
+	return 0
+}
+
+do_start()
+{
+	check_boolean "$ZFS_MOUNT" || exit 0
+
+	check_module_loaded "zfs" || exit 0
+
+	# Ensure / exists in /proc/self/mounts.
+	# This should be handled by rc.sysinit but lets be paranoid.
+	if ! chkroot
+	then
+		mount -f /
+	fi
+
+	do_mount
+}
+
+do_stop()
+{
+	check_boolean "$ZFS_UNMOUNT" || exit 0
+
+	check_module_loaded "zfs" || exit 0
+
+	do_unmount
+}
+
+# ----------------------------------------------------
+
+if [ ! -e /sbin/openrc-run ]
+then
+	case "$1" in
+		start)
+			do_start
+			;;
+		stop)
+			do_stop
+			;;
+		force-reload|condrestart|reload|restart|status)
+			# no-op
+			;;
+		*)
+			[ -n "$1" ] && echo "Error: Unknown command $1."
+			echo "Usage: $0 {start|stop}"
+			exit 3
+			;;
+	esac
+
+	exit $?
+else
+	# Create wrapper functions since Gentoo don't use the case part.
+	depend() { do_depend; }
+	start() { do_start; }
+	stop() { do_stop; }
+fi

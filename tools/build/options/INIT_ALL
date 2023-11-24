@@ -1,0 +1,21 @@
+Control default initialization of stack variables in C and C++ code.
+Options other than
+.Li none
+require the Clang compiler or GCC 12.0 or later.
+The default value is
+.Li none .
+Valid values are:
+.Bl -tag -width indent
+.It Li none
+Do not initialize stack variables (standard C/C++ behavior).
+.It Li pattern
+Build the base system or kernel with stack variables initialized to
+.Pq compiler defined
+debugging patterns on function entry.
+.It Li zero
+Build the base system or kernel with stack variables initialized
+to zero on function entry.
+This value is converted to
+.Li none
+for amd64 kernel builds due to incompatability with ifunc memset.
+.El

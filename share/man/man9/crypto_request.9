@@ -1,0 +1,538 @@
+.\" Copyright (c) 2020, Chelsio Inc
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Chelsio Inc nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.Dd November 2, 2022
+.Dt CRYPTO_REQUEST 9
+.Os
+.Sh NAME
+.Nm crypto_request
+.Nd symmetric cryptographic operations
+.Sh SYNOPSIS
+.In opencrypto/cryptodev.h
+.Ft "struct cryptop *"
+.Fn crypto_clonereq "crypto_session_t cses" "struct cryptop *crp" "int how"
+.Ft int
+.Fn crypto_dispatch "struct cryptop *crp"
+.Ft int
+.Fn crypto_dispatch_async "struct cryptop *crp" "int flags"
+.Ft void
+.Fn crypto_dispatch_batch "struct cryptopq *crpq" "int flags"
+.Ft void
+.Fn crypto_destroyreq "struct cryptop *crp"
+.Ft void
+.Fn crypto_freereq "struct cryptop *crp"
+.Ft "struct cryptop *"
+.Fn crypto_getreq "crypto_session_t cses" "int how"
+.Ft void
+.Fn crypto_initreq "crypto_session_t cses" "int how"
+.Ft void
+.Fn crypto_use_buf "struct cryptop *crp" "void *buf" "int len"
+.Ft void
+.Fn crypto_use_mbuf "struct cryptop *crp" "struct mbuf *m"
+.Ft void
+.Fn crypto_use_uio "struct cryptop *crp" "struct uio *uio"
+.Ft void
+.Fn crypto_use_vmpage "struct cryptop *crp" "vm_page_t *pages" "int len" "int offset"
+.Ft void
+.Fn crypto_use_output_buf "struct cryptop *crp" "void *buf" "int len"
+.Ft void
+.Fn crypto_use_output_mbuf "struct cryptop *crp" "struct mbuf *m"
+.Ft void
+.Fn crypto_use_output_uio "struct cryptop *crp" "struct uio *uio"
+.Ft void
+.Fn crypto_use_output_vmpage "struct cryptop *crp" "vm_page_t *pages" "int len" "int offset"
+.Sh DESCRIPTION
+Each symmetric cryptographic operation in the kernel is described by
+an instance of
+.Vt struct cryptop
+and is associated with an active session.
+.Pp
+Requests can either be allocated dynamically or use caller-supplied
+storage.
+Dynamically allocated requests should be allocated by either
+.Fn crypto_getreq
+or
+.Fn crypto_clonereq ,
+and freed by
+.Fn crypto_freereq
+once the request has completed.
+Requests using caller-supplied storage should be initialized by
+.Fn crypto_initreq
+at the start of each operation and destroyed by
+.Fn crypto_destroyreq
+once the request has completed.
+.Pp
+For
+.Fn crypto_clonereq ,
+.Fn crypto_getreq ,
+and
+.Fn crypto_initreq ,
+.Fa cses
+is a reference to an active session.
+For
+.Fn crypto_clonereq
+and
+.Fn crypto_getreq ,
+.Fa how
+is passed to
+.Xr malloc 9
+and should be set to either
+.Dv M_NOWAIT
+or
+.Dv M_WAITOK .
+.Pp
+.Fn crypto_clonereq
+allocates a new request that inherits request inputs such as request buffers
+from the original
+.Fa crp
+request.
+However, the new request is associated with the
+.Fa cses
+session rather than inheriting the session from
+.Fa crp .
+.Fa crp
+must not be a completed request.
+.Pp
+Once a request has been initialized,
+the caller should set fields in the structure to describe
+request-specific parameters.
+Unused fields should be left as-is.
+.Pp
+The
+.Fn crypto_dispatch ,
+.Fn crypto_dispatch_async ,
+and
+.Fn crypto_dispatch_batch
+functions pass one or more crypto requests to the driver attached to the
+request's session.
+If there are errors in the request's fields, these functions may return an
+error to the caller.
+If errors are encountered while servicing the request, they will instead
+be reported to the request's callback function
+.Pq Fa crp_callback
+via
+.Fa crp_etype .
+.Pp
+Note that a request's callback function may be invoked before
+.Fn crypto_dispatch
+returns.
+.Pp
+Once a request has signaled completion by invoking its callback function,
+it should be freed via
+.Fn crypto_destroyreq
+or
+.Fn crypto_freereq .
+.Pp
+Cryptographic operations include several fields to describe the request.
+.Ss Request Buffers
+Requests can either specify a single data buffer that is modified in place
+.Po
+.Fa crp_buf
+.Pc
+or separate input
+.Po
+.Fa crp_buf
+.Pc
+and output
+.Po
+.Fa crp_obuf
+.Pc
+buffers.
+Note that separate input and output buffers are not supported for compression
+mode requests.
+.Pp
+All requests must have a valid
+.Fa crp_buf
+initialized by one of the following functions:
+.Bl -tag -width "Fn crypto_use_vmpage"
+.It Fn crypto_use_buf
+Uses an array of
+.Fa len
+bytes pointed to by
+.Fa buf
+as the data buffer.
+.It Fn crypto_use_mbuf
+Uses the network memory buffer
+.Fa m
+as the data buffer.
+.It Fn crypto_use_uio
+Uses the scatter/gather list
+.Fa uio
+as the data buffer.
+.It Fn crypto_use_vmpage
+Uses the array of
+.Vt vm_page_t
+structures as the data buffer.
+.El
+.Pp
+One of the following functions should be used to initialize
+.Fa crp_obuf
+for requests that use separate input and output buffers:
+.Bl -tag -width "Fn crypto_use_output_vmpage"
+.It Fn crypto_use_output_buf
+Uses an array of
+.Fa len
+bytes pointed to by
+.Fa buf
+as the output buffer.
+.It Fn crypto_use_output_mbuf
+Uses the network memory buffer
+.Fa m
+as the output buffer.
+.It Fn crypto_use_output_uio
+Uses the scatter/gather list
+.Fa uio
+as the output buffer.
+.It Fn crypto_use_output_vmpage
+Uses the array of
+.Vt vm_page_t
+structures as the output buffer.
+.El
+.Ss Request Regions
+Each request describes one or more regions in the data buffers.
+Each region is described by an offset relative to the start of a
+data buffer and a length.
+The length of some regions is the same for all requests belonging to
+a session.
+Those lengths are set in the session parameters of the associated
+session.
+All requests must define a payload region.
+Other regions are only required for specific session modes.
+.Pp
+For requests with separate input and output data buffers,
+the AAD, IV, and payload regions are always defined as regions in the
+input buffer,
+and a separate payload output region is defined to hold the output of
+encryption or decryption in the output buffer.
+The digest region describes a region in the input data buffer for
+requests that verify an existing digest.
+For requests that compute a digest,
+the digest region describes a region in the output data buffer.
+Note that the only data written to the output buffer is the encryption
+or decryption result and any computed digest.
+AAD and IV regions are not copied from the input buffer into the output
+buffer but are only used as inputs.
+.Pp
+The following regions are defined:
+.Bl -column "Payload Output" "Input/Output"
+.It Sy Region Ta Sy Buffer Ta Sy Description
+.It AAD Ta Input Ta
+Embedded Additional Authenticated Data
+.It IV Ta Input Ta
+Embedded IV or nonce
+.It Payload Ta Input Ta
+Data to encrypt, decrypt, compress, or decompress
+.It Payload Output Ta Output Ta
+Encrypted or decrypted data
+.It Digest Ta Input/Output Ta
+Authentication digest, hash, or tag
+.El
+.Bl -column "Payload Output" ".Fa crp_payload_output_start"
+.It Sy Region Ta Sy Start Ta Sy Length
+.It AAD Ta Fa crp_aad_start Ta Fa crp_aad_length
+.It IV Ta Fa crp_iv_start Ta Fa csp_ivlen
+.It Payload Ta Fa crp_payload_start Ta Fa crp_payload_length
+.It Payload Output Ta Fa crp_payload_output_start Ta Fa crp_payload_length
+.It Digest Ta Fa crp_digest_start Ta Fa csp_auth_mlen
+.El
+.Pp
+Requests are permitted to operate on only a subset of the data buffer.
+For example,
+requests from IPsec operate on network packets that include headers not
+used as either additional authentication data (AAD) or payload data.
+.Ss Request Operations
+All requests must specify the type of operation to perform in
+.Fa crp_op .
+Available operations depend on the session's mode.
+.Pp
+Compression requests support the following operations:
+.Bl -tag -width CRYPTO_OP_DECOMPRESS
+.It Dv CRYPTO_OP_COMPRESS
+Compress the data in the payload region of the data buffer.
+.It Dv CRYPTO_OP_DECOMPRESS
+Decompress the data in the payload region of the data buffer.
+.El
+.Pp
+Cipher requests support the following operations:
+.Bl -tag -width CRYPTO_OP_DECRYPT
+.It Dv CRYPTO_OP_ENCRYPT
+Encrypt the data in the payload region of the data buffer.
+.It Dv CRYPTO_OP_DECRYPT
+Decrypt the data in the payload region of the data buffer.
+.El
+.Pp
+Digest requests support the following operations:
+.Bl -tag -width CRYPTO_OP_COMPUTE_DIGEST
+.It Dv CRYPTO_OP_COMPUTE_DIGEST
+Calculate a digest over the payload region of the data buffer
+and store the result in the digest region.
+.It Dv CRYPTO_OP_VERIFY_DIGEST
+Calculate a digest over the payload region of the data buffer.
+Compare the calculated digest to the existing digest from the digest region.
+If the digests match,
+complete the request successfully.
+If the digests do not match,
+fail the request with
+.Er EBADMSG .
+.El
+.Pp
+AEAD and Encrypt-then-Authenticate requests support the following
+operations:
+.Bl -tag -width CRYPTO_OP
+.It Dv CRYPTO_OP_ENCRYPT | Dv CRYPTO_OP_COMPUTE_DIGEST
+Encrypt the data in the payload region of the data buffer.
+Calculate a digest over the AAD and payload regions and store the
+result in the data buffer.
+.It Dv CRYPTO_OP_DECRYPT | Dv CRYPTO_OP_VERIFY_DIGEST
+Calculate a digest over the AAD and payload regions of the data buffer.
+Compare the calculated digest to the existing digest from the digest region.
+If the digests match,
+decrypt the payload region.
+If the digests do not match,
+fail the request with
+.Er EBADMSG .
+.El
+.Ss Request AAD
+AEAD and Encrypt-then-Authenticate requests may optionally include
+Additional Authenticated Data.
+AAD may either be supplied in the AAD region of the input buffer or
+as a single buffer pointed to by
+.Fa crp_aad .
+In either case,
+.Fa crp_aad_length
+always indicates the amount of AAD in bytes.
+.Ss Request ESN
+IPsec requests may optionally include Extended Sequence Numbers (ESN).
+ESN may either be supplied in
+.Fa crp_esn
+or as part of the AAD pointed to by
+.Fa crp_aad .
+.Pp
+If the ESN is stored in
+.Fa crp_esn ,
+.Dv CSP_F_ESN
+should be set in
+.Fa csp_flags .
+This use case is dedicated for encrypt and authenticate mode, since the
+high-order 32 bits of the sequence number are appended after the Next Header
+(RFC 4303).
+.Pp
+AEAD modes supply the ESN in a separate AAD buffer (see e.g. RFC 4106, Chapter 5
+AAD Construction).
+.Ss Request IV and/or Nonce
+Some cryptographic operations require an IV or nonce as an input.
+An IV may be stored either in the IV region of the data buffer or in
+.Fa crp_iv .
+By default,
+the IV is assumed to be stored in the IV region.
+If the IV is stored in
+.Fa crp_iv ,
+.Dv CRYPTO_F_IV_SEPARATE
+should be set in
+.Fa crp_flags
+and
+.Fa crp_iv_start
+should be left as zero.
+.Pp
+Requests that store part, but not all, of the IV in the data buffer should
+store the partial IV in the data buffer and pass the full IV separately in
+.Fa crp_iv .
+.Ss Request and Callback Scheduling
+The crypto framework provides multiple methods of scheduling the dispatch
+of requests to drivers along with the processing of driver callbacks.
+The
+.Fn crypto_dispatch ,
+.Fn crypto_dispatch_async ,
+and
+.Fn crypto_dispatch_batch
+functions can be used to request different dispatch scheduling policies.
+.Pp
+.Fn crypto_dispatch
+synchronously passes the request to the driver.
+The driver itself may process the request synchronously or asynchronously
+depending on whether the driver is implemented by software or hardware.
+.Pp
+.Fn crypto_dispatch_async
+dispatches the request asynchronously.
+If the driver is inherently synchronous, the request is queued to a taskqueue
+backed by a pool of worker threads.
+This can increase througput by allowing requests from a single producer to be
+processed in parallel.
+By default the pool is sized to provide one thread for each CPU.
+Worker threads dequeue requests and pass them to the driver asynchronously.
+.Fn crypto_dispatch_async
+additionally takes a
+.Va flags
+parameter.
+The
+.Dv CRYPTO_ASYNC_ORDERED
+flag indicates that completion callbacks for requests must be called in the
+same order as requests were dispatched.
+If the driver is asynchronous, the behavior of
+.Fn crypto_dispatch_async
+is identical to that of
+.Fn crypto_dispatch .
+.Pp
+.Fn crypto_dispatch_batch
+allows the caller to collect a batch of requests and submit them to the driver
+at the same time.
+This allows hardware drivers to optimize the scheduling of request processing
+and batch completion interrupts.
+A batch is submitted to the driver by invoking the driver's process method on
+each request, specifying
+.Dv CRYPTO_HINT_MORE
+with each request except for the last.
+The
+.Fa flags
+parameter to
+.Fn crypto_dispatch_batch
+is currently ignored.
+.Pp
+Callback function scheduling is simpler than request scheduling.
+Callbacks can either be invoked synchronously from
+.Fn crypto_done ,
+or they can be queued to a pool of worker threads.
+This pool of worker threads is also sized to provide one worker thread
+for each CPU by default.
+Note that a callback function invoked synchronously from
+.Fn crypto_done
+must follow the same restrictions placed on threaded interrupt handlers.
+.Pp
+By default,
+callbacks are invoked asynchronously by a worker thread.
+If
+.Dv CRYPTO_F_CBIMM
+is set,
+the callback is always invoked synchronously from
+.Fn crypto_done .
+If
+.Dv CRYPTO_F_CBIFSYNC
+is set,
+the callback is invoked synchronously if the request was processed by a
+software driver or asynchronously if the request was processed by a
+hardware driver.
+.Pp
+If a request was scheduled to the taskqueue with
+.Dv CRYPTO_ASYNC_ORDERED ,
+callbacks are always invoked asynchronously ignoring
+.Dv CRYPTO_F_CBIMM
+and
+.Dv CRYPTO_F_CBIFSYNC .
+This flag is used by IPsec to ensure that decrypted network packets are
+passed up the network stack in roughly the same order they were received.
+.Ss Other Request Fields
+In addition to the fields and flags enumerated above,
+.Vt struct cryptop
+includes the following:
+.Bl -tag -width crp_payload_length
+.It Fa crp_session
+A reference to the active session.
+This is set when the request is created by
+.Fn crypto_getreq
+and should not be modified.
+Drivers can use this to fetch driver-specific session state or
+session parameters.
+.It Fa crp_etype
+Error status.
+Either zero on success, or an error if a request fails.
+Set by drivers prior to completing a request via
+.Fn crypto_done .
+.It Fa crp_flags
+A bitmask of flags.
+The following flags are available in addition to flags discussed previously:
+.Bl -tag -width CRYPTO_F_DONE
+.It Dv CRYPTO_F_DONE
+Set by
+.Fa crypto_done
+before calling
+.Fa crp_callback .
+This flag is not very useful and will likely be removed in the future.
+It can only be safely checked from the callback routine at which point
+it is always set.
+.El
+.It Fa crp_cipher_key
+Pointer to a request-specific encryption key.
+If this value is not set,
+the request uses the session encryption key.
+.It Fa crp_auth_key
+Pointer to a request-specific authentication key.
+If this value is not set,
+the request uses the session authentication key.
+.It Fa crp_opaque
+An opaque pointer.
+This pointer permits users of the cryptographic framework to store
+information about a request to be used in the callback.
+.It Fa crp_callback
+Callback function.
+This must point to a callback function of type
+.Vt void (*)(struct cryptop *) .
+The callback function should inspect
+.Fa crp_etype
+to determine the status of the completed operation.
+It should also arrange for the request to be freed via
+.Fn crypto_freereq .
+.It Fa crp_olen
+Used with compression and decompression requests to describe the updated
+length of the payload region in the data buffer.
+.Pp
+If a compression request increases the size of the payload,
+then the data buffer is unmodified, the request completes successfully,
+and
+.Fa crp_olen
+is set to the size the compressed data would have used.
+Callers can compare this to the payload region length to determine if
+the compressed data was discarded.
+.El
+.Sh RETURN VALUES
+.Fn crypto_dispatch
+returns an error if the request contained invalid fields,
+or zero if the request was valid.
+.Fn crypto_getreq
+returns a pointer to a new request structure on success,
+or
+.Dv NULL
+on failure.
+.Dv NULL
+can only be returned if
+.Dv M_NOWAIT
+was passed in
+.Fa how .
+.Sh SEE ALSO
+.Xr ipsec 4 ,
+.Xr crypto 7 ,
+.Xr crypto 9 ,
+.Xr crypto_session 9 ,
+.Xr mbuf 9 ,
+.Xr uio 9
+.Sh BUGS
+Not all drivers properly handle mixing session and per-request keys
+within a single session.
+Consumers should either use a single key for a session specified in
+the session parameters or always use per-request keys.

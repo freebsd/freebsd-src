@@ -1,0 +1,217 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2020 Gordon Bergling <gbe@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd June 12, 2023
+.Dt WG 4
+.Os
+.Sh NAME
+.Nm wg
+.Nd "WireGuard protocol driver"
+.Sh SYNOPSIS
+To load the driver as a module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_wg_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides Virtual Private Network (VPN) interfaces for the secure
+exchange of layer 3 traffic with other WireGuard peers using the WireGuard
+protocol.
+.Pp
+A
+.Nm
+interface recognizes one or more peers, establishes a secure tunnel with
+each on demand, and tracks each peer's UDP endpoint for exchanging encrypted
+traffic with.
+.Pp
+The interfaces can be created at runtime using the
+.Ic ifconfig Cm wg Ns Ar N Cm create
+command.
+The interface itself can be configured with
+.Xr wg 8 .
+.Pp
+The following glossary provides a brief overview of WireGuard
+terminology:
+.Bl -tag -width indent -offset 3n
+.It Peer
+Peers exchange IPv4 or IPv6 traffic over secure tunnels.
+Each
+.Nm
+interface may be configured to recognise one or more peers.
+.It Key
+Each peer uses its private key and corresponding public key to
+identify itself to others.
+A peer configures a
+.Nm
+interface with its own private key and with the public keys of its peers.
+.It Pre-shared key
+In addition to the public keys, each peer pair may be configured with a
+unique pre-shared symmetric key.
+This is used in their handshake to guard against future compromise of the
+peers' encrypted tunnel if an attack on their
+Diffie-Hellman exchange becomes feasible.
+It is optional, but recommended.
+.It Allowed IP addresses
+A single
+.Nm
+interface may maintain concurrent tunnels connecting diverse networks.
+The interface therefore implements rudimentary routing and reverse-path
+filtering functions for its tunneled traffic.
+These functions reference a set of allowed IP address ranges configured
+against each peer.
+.Pp
+The interface will route outbound tunneled traffic to the peer configured
+with the most specific matching allowed IP address range, or drop it
+if no such match exists.
+.Pp
+The interface will accept tunneled traffic only from the peer
+configured with the most specific matching allowed IP address range
+for the incoming traffic, or drop it if no such match exists.
+That is, tunneled traffic routed to a given peer cannot return through
+another peer of the same
+.Nm
+interface.
+This ensures that peers cannot spoof one another's traffic.
+.It Handshake
+Two peers handshake to mutually authenticate each other and to
+establish a shared series of secret ephemeral encryption keys.
+Either peer may initiate a handshake.
+Handshakes occur only when there is traffic to send, and recur every
+two minutes during transfers.
+.It Connectionless
+Due to the handshake behavior, there is no connected or disconnected
+state.
+.El
+.Ss Keys
+Private keys for WireGuard can be generated from any sufficiently
+secure random source.
+The Curve25519 keys and the pre-shared keys are both 32 bytes
+long and are commonly encoded in base64 for ease of use.
+.Pp
+Keys can be generated with
+.Xr wg 8
+as follows:
+.Pp
+.Dl $ wg genkey
+.Pp
+Although a valid Curve25519 key must have 5 bits set to
+specific values, this is done by the interface and so it
+will accept any random 32-byte base64 string.
+.Sh EXAMPLES
+Create a
+.Nm
+interface and set random private key.
+.Bd -literal -offset indent
+# ifconfig wg0 create
+# wg genkey | wg set wg0 listen-port 54321 private-key /dev/stdin
+.Ed
+.Pp
+Retrieve the associated public key from a
+.Nm
+interface.
+.Bd -literal -offset indent
+$ wg show wg0 public-key
+.Ed
+.Pp
+Connect to a specific endpoint using its public-key and set the allowed IP address
+.Bd -literal -offset indent
+# wg set wg0 peer '7lWtsDdqaGB3EY9WNxRN3hVaHMtu1zXw71+bOjNOVUw=' endpoint 10.0.1.100:54321 allowed-ips 192.168.2.100/32
+.Ed
+.Pp
+Remove a peer
+.Bd -literal -offset indent
+# wg set wg0 peer '7lWtsDdqaGB3EY9WNxRN3hVaHMtu1zXw71+bOjNOVUw=' remove
+.Ed
+.Sh DIAGNOSTICS
+The
+.Nm
+interface supports runtime debugging, which can be enabled with:
+.Pp
+.D1 Ic ifconfig Cm wg Ns Ar N Cm debug
+.Pp
+Some common error messages include:
+.Bl -diag
+.It "Handshake for peer X did not complete after 5 seconds, retrying"
+Peer X did not reply to our initiation packet, for example because:
+.Bl -bullet
+.It
+The peer does not have the local interface configured as a peer.
+Peers must be able to mutually authenticate each other.
+.It
+The peer endpoint IP address is incorrectly configured.
+.It
+There are firewall rules preventing communication between hosts.
+.El
+.It "Invalid handshake initiation"
+The incoming handshake packet could not be processed.
+This is likely due to the local interface not containing
+the correct public key for the peer.
+.It "Invalid initiation MAC"
+The incoming handshake initiation packet had an invalid MAC.
+This is likely because the initiation sender has the wrong public key
+for the handshake receiver.
+.It "Packet has unallowed src IP from peer X"
+After decryption, an incoming data packet has a source IP address that
+is not assigned to the allowed IPs of Peer X.
+.El
+.Sh SEE ALSO
+.Xr inet 4 ,
+.Xr ip 4 ,
+.Xr ipsec 4 ,
+.Xr netintro 4 ,
+.Xr ovpn 4 ,
+.Xr ipf 5 ,
+.Xr pf.conf 5 ,
+.Xr ifconfig 8 ,
+.Xr ipfw 8 ,
+.Xr wg 8
+.Rs
+.%T WireGuard whitepaper
+.%U https://www.wireguard.com/papers/wireguard.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 13.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was written by
+.An Jason A. Donenfeld Aq Mt Jason@zx2c4.com ,
+.An Matt Dunwoodie Aq Mt ncon@nconroy.net ,
+.An Kyle Evans Aq Mt kevans@FreeBSD.org ,
+and
+.An Matt Macy Aq Mt mmacy@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Gordon Bergling Aq Mt gbe@FreeBSD.org
+and is based on the
+.Ox
+manual page written by
+.An David Gwynne Aq Mt dlg@openbsd.org .

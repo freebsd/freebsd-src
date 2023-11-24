@@ -1,0 +1,816 @@
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2006 Uwe Stuehler <uwe@openbsd.org>
+ * Copyright (c) 2012 Stefan Sperling <stsp@openbsd.org>
+ * Copyright (c) 2020 Henri Hennebert <hlh@restart.be>
+ * All rights reserved.
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#ifndef	_RTSXREG_H_
+#define	_RTSXREG_H_
+
+/* Host command buffer control register. */
+#define	RTSX_HCBAR		0x00
+#define	RTSX_HCBCTLR		0x04
+#define	RTSX_START_CMD		(1U << 31)
+#define	RTSX_HW_AUTO_RSP	(1U << 30)
+#define	RTSX_STOP_CMD		(1U << 28)
+
+/* Host data buffer control register. */
+#define	RTSX_HDBAR		0x08
+#define	RTSX_HDBCTLR		0x0C
+#define	RTSX_TRIG_DMA		(1U << 31)
+#define	RTSX_DMA_READ		(1U << 29)
+#define	RTSX_STOP_DMA		(1U << 28)
+#define	RTSX_ADMA_MODE		(2U << 26)
+
+/* Interrupt pending register. */
+#define	RTSX_BIPR		0x14
+#define	RTSX_CMD_DONE_INT	(1U << 31)
+#define	RTSX_DATA_DONE_INT	(1U << 30)
+#define	RTSX_TRANS_OK_INT	(1U << 29)
+#define	RTSX_TRANS_FAIL_INT	(1U << 28)
+#define	RTSX_XD_INT		(1U << 27)
+#define	RTSX_MS_INT		(1U << 26)
+#define	RTSX_SD_INT		(1U << 25)
+#define	RTSX_DELINK_INT		(1U << 24)
+#define	RTSX_SD_WRITE_PROTECT	(1U << 19)
+#define	RTSX_XD_EXIST		(1U << 18)
+#define	RTSX_MS_EXIST		(1U << 17)
+#define	RTSX_SD_EXIST		(1U << 16)
+#define	RTSX_CARD_EXIST		(RTSX_XD_EXIST|RTSX_MS_EXIST|RTSX_SD_EXIST)
+#define	RTSX_CARD_INT		(RTSX_XD_INT|RTSX_MS_INT|RTSX_SD_INT)
+
+/* Chip register access. */
+#define	RTSX_HAIMR		0x10
+#define	RTSX_HAIMR_WRITE	0x40000000
+#define	RTSX_HAIMR_BUSY		0x80000000
+
+/* Interrupt enable register. */
+#define	RTSX_BIER		0x18
+#define	RTSX_CMD_DONE_INT_EN	(1U << 31)
+#define	RTSX_DATA_DONE_INT_EN	(1U << 30)
+#define	RTSX_TRANS_OK_INT_EN	(1U << 29)
+#define	RTSX_TRANS_FAIL_INT_EN	(1U << 28)
+#define	RTSX_XD_INT_EN		(1U << 27)
+#define	RTSX_MS_INT_EN		(1U << 26)
+#define	RTSX_SD_INT_EN		(1U << 25)
+#define	RTSX_GPIO0_INT_EN	(1U << 24)
+#define	RTSX_MS_OC_INT_EN	(1U << 23)
+#define	RTSX_SD_OC_INT_EN	(1U << 22)
+
+/* Power on/off. */
+#define	RTSX_FPDCTL			0xFC00
+#define	RTSX_SSC_POWER_DOWN		0x01
+#define	RTSX_SD_OC_POWER_DOWN		0x02
+#define	RTSX_MS_OC_POWER_DOWN		0x04
+#define	RTSX_ALL_POWER_DOWN		0x07
+#define	RTSX_OC_POWER_DOWN		0x06
+
+/* Card power control register. */
+#define	RTSX_CARD_PWR_CTL		0xFD50
+#define	RTSX_SD_PWR_ON			0x00
+#define	RTSX_SD_PARTIAL_PWR_ON		0x01
+#define	RTSX_SD_PWR_OFF			0x03
+#define	RTSX_SD_PWR_MASK		0x03
+
+#define	RTSX_PMOS_STRG_MASK		0x10
+#define	RTSX_PMOS_STRG_400mA		0x00
+#define	RTSX_PMOS_STRG_800mA		0x10
+
+#define	RTSX_BPP_POWER_MASK		0x0F
+#define	RTSX_BPP_POWER_OFF		0x0F
+#define	RTSX_BPP_POWER_5_PERCENT_ON	0x0E
+#define	RTSX_BPP_POWER_10_PERCENT_ON	0x0C
+#define	RTSX_BPP_POWER_15_PERCENT_ON	0x08
+#define	RTSX_BPP_POWER_ON		0x00
+
+#define	RTSX_MS_PWR_OFF			0x0C
+#define	RTSX_MS_PWR_ON			0x00
+#define	RTSX_MS_PARTIAL_PWR_ON		0x04
+
+#define	RTSX_RTL8411B_PACKAGE		0xFD51
+#define	RTSX_RTL8411B_QFN48		0x02
+
+#define	RTSX_CARD_SHARE_MODE		0xFD52
+#define	RTSX_CARD_SHARE_MASK		0x0F
+#define	RTSX_CARD_SHARE_48_XD		0x02
+#define	RTSX_CARD_SHARE_48_SD		0x04
+#define	RTSX_CARD_SHARE_48_MS		0x08
+
+#define	RTSX_CARD_DRIVE_SEL		0xFD53
+#define	RTSX_MS_DRIVE_8mA		(0x01 << 6)
+#define	RTSX_MMC_DRIVE_8mA		(0x01 << 4)
+#define	RTSX_XD_DRIVE_8mA		(0x01 << 2)
+#define	RTSX_GPIO_DRIVE_8mA		0x01
+#define	RTSX_CARD_DRIVE_DEFAULT		(RTSX_MS_DRIVE_8mA | RTSX_GPIO_DRIVE_8mA)
+#define	RTSX_RTS5209_CARD_DRIVE_DEFAULT (RTSX_MS_DRIVE_8mA | RTSX_MMC_DRIVE_8mA | \
+					 RTSX_XD_DRIVE_8mA | RTSX_GPIO_DRIVE_8mA)
+#define	RTSX_RTL8411_CARD_DRIVE_DEFAULT (RTSX_MS_DRIVE_8mA | RTSX_MMC_DRIVE_8mA | \
+					 RTSX_XD_DRIVE_8mA)
+
+#define	RTSX_CARD_STOP			0xFD54
+#define	RTSX_SPI_STOP			0x01
+#define	RTSX_XD_STOP			0x02
+#define	RTSX_SD_STOP			0x04
+#define	RTSX_MS_STOP			0x08
+#define	RTSX_SPI_CLR_ERR		0x10
+#define	RTSX_XD_CLR_ERR			0x20
+#define	RTSX_SD_CLR_ERR			0x40
+#define	RTSX_MS_CLR_ERR			0x80
+#define	RTSX_ALL_STOP			0x0F
+#define	RTSX_ALL_CLR_ERR		0xF0
+
+#define	RTSX_CARD_OE			0xFD55
+#define	RTSX_XD_OUTPUT_EN		0x02
+#define	RTSX_SD_OUTPUT_EN		0x04
+#define	RTSX_MS_OUTPUT_EN		0x08
+#define	RTSX_SPI_OUTPUT_EN		0x10
+#define	RTSX_CARD_OUTPUT_EN		(RTSX_XD_OUTPUT_EN|RTSX_SD_OUTPUT_EN|\
+					 RTSX_MS_OUTPUT_EN)
+
+#define	RTSX_CARD_GPIO_DIR		0xFD57
+#define	RTSX_CARD_GPIO			0xFD58
+#define	RTSX_CARD_GPIO_LED_OFF		0x01
+
+#define	RTSX_SD30_CLK_DRIVE_SEL		0xFD5A
+#define	RTSX_DRIVER_TYPE_A		0x05
+#define	RTSX_DRIVER_TYPE_B		0x03
+#define	RTSX_DRIVER_TYPE_C		0x02
+#define	RTSX_DRIVER_TYPE_D		0x01
+
+#define	RTSX_CARD_DATA_SOURCE		0xFD5B
+#define	RTSX_RING_BUFFER		0x00
+#define	RTSX_PINGPONG_BUFFER		0x01
+
+#define	RTSX_CARD_SELECT		0xFD5C
+#define	RTSX_XD_MOD_SEL			0x01
+#define	RTSX_SD_MOD_SEL			0x02
+#define	RTSX_MS_MOD_SEL			0x03
+#define	RTSX_SPI_MOD_SEL		0x04
+
+#define	RTSX_SD30_CMD_DRIVE_SEL		0xFD5E /* was 0xFE5E in OpenBSD */
+#define	RTSX_CFG_DRIVER_TYPE_A		0x02
+#define	RTSX_CFG_DRIVER_TYPE_B		0x03
+#define	RTSX_CFG_DRIVER_TYPE_C		0x01
+#define	RTSX_CFG_DRIVER_TYPE_D		0x00
+#define	RTSX_SD30_DRIVE_SEL_MASK	0x07
+
+#define	RTSX_SD30_DAT_DRIVE_SEL		0xFD5F
+
+/* Card clock. */
+#define	RTSX_CARD_CLK_EN		0xFD69
+#define	RTSX_XD_CLK_EN			0x02
+#define	RTSX_SD_CLK_EN			0x04
+#define	RTSX_MS_CLK_EN			0x08
+#define	RTSX_SPI_CLK_EN			0x10
+#define	RTSX_CARD_CLK_EN_ALL	(RTSX_XD_CLK_EN|RTSX_SD_CLK_EN|\
+				 RTSX_MS_CLK_EN|RTSX_SPI_CLK_EN)
+
+#define	RTSX_SDIO_CTRL			0xFD6B
+#define	RTSX_SDIO_BUS_CTRL		0x01
+#define	RTSX_SDIO_CD_CTRL		0x02
+
+#define	RTSX_CARD_PAD_CTL		0xFD73
+#define	RTSX_CD_DISABLE_MASK		0x07
+#define	RTSX_CD_AUTO_DISABLE		0x40
+#define	RTSX_CD_ENABLE			0x00
+
+/* Internal clock. */
+#define	RTSX_CLK_CTL			0xFC02
+#define	RTSX_CHANGE_CLK			0x01
+#define	RTSX_CLK_LOW_FREQ		0x01
+
+/* Internal clock divisor values. */
+#define	RTSX_CLK_DIV			0xFC03
+#define	RTSX_CLK_DIV_1			0x01
+#define	RTSX_CLK_DIV_2			0x02
+#define	RTSX_CLK_DIV_4			0x03
+#define	RTSX_CLK_DIV_8			0x04
+
+/* Internal clock selection. */
+#define	RTSX_CLK_SEL			0xFC04
+#define	RTSX_SSC_80			0
+#define	RTSX_SSC_100			1
+#define	RTSX_SSC_120			2
+#define	RTSX_SSC_150			3
+#define	RTSX_SSC_200			4
+
+#define	RTSX_SSC_DIV_N_0		0xFC0F
+
+#define	RTSX_SSC_CTL1			0xFC11
+#define	RTSX_RSTB			0x80
+#define	RTSX_SSC_8X_EN			0x40
+#define	RTSX_SSC_FIX_FRAC		0x20
+#define	RTSX_SSC_SEL_1M			0x00
+#define	RTSX_SSC_SEL_2M			0x08
+#define	RTSX_SSC_SEL_2M			0x08
+#define	RTSX_SSC_SEL_4M			0x10
+#define	RTSX_SSC_SEL_8M			0x18
+
+#define	RTSX_SSC_CTL2			0xFC12
+#define	RTSX_SSC_DEPTH_MASK		0x07
+#define	RTSX_SSC_DEPTH_4M		0x01
+#define	RTSX_SSC_DEPTH_2M		0x02
+#define	RTSX_SSC_DEPTH_1M		0x03
+#define	RTSX_SSC_DEPTH_500K		0x04
+#define	RTSX_SSC_DEPTH_250K		0x05
+
+/* RC oscillator, default is 2M */
+#define	RTSX_RCCTL			0xFC14
+#define	RTSX_RCCTL_F_400K		0x00
+#define	RTSX_RCCTL_F_2M			0x01
+
+/* RTS5229-only. */
+#define	RTSX_OLT_LED_CTL		0xFC1E
+#define	RTSX_OLT_LED_PERIOD		0x02
+#define	RTSX_OLT_LED_AUTOBLINK		0x08
+
+#define	RTSX_LDO_CTL			0xFC1E
+#define	RTSX_BPP_ASIC_3V3		0x07
+#define	RTSX_BPP_ASIC_MASK		0x07
+#define	RTSX_BPP_PAD_3V3		0x04
+#define	RTSX_BPP_PAD_1V8		0x00
+#define	RTSX_BPP_PAD_MASK		0x04
+#define	RTSX_BPP_LDO_POWB		0x03
+#define	RTSX_BPP_LDO_ON			0x00
+#define	RTSX_BPP_LDO_SUSPEND		0x02
+#define	RTSX_BPP_LDO_OFF		0x03
+#define	RTSX_BPP_SHIFT_8402		5
+#define	RTSX_BPP_SHIFT_8411		4
+
+#define	RTSX_GPIO_CTL			0xFC1F
+#define	RTSX_GPIO_LED_ON		0x02
+
+#define	RTSX_SD_VPCLK0_CTL		0xFC2A
+#define	RTSX_SD_VPCLK1_CTL		0xFC2B
+#define	RTSX_PHASE_SELECT_MASK		0x1F
+#define	RTSX_PHASE_NOT_RESET		0x40
+
+/* Host controller commands. */
+#define	RTSX_READ_REG_CMD		0
+#define	RTSX_WRITE_REG_CMD		1
+#define	RTSX_CHECK_REG_CMD		2
+
+#define	RTSX_OCPCTL			0xFC15
+#define	RTSX_OCPSTAT			0xFC16
+#define	RTSX_OCPGLITCH			0xFC17
+#define	RTSX_OCPPARA1			0xFC18
+#define	RTSX_OCPPARA2			0xFC19
+
+/* FPGA */
+#define	RTSX_FPGA_PULL_CTL		0xFC1D
+#define	RTSX_FPGA_MS_PULL_CTL_BIT	0x10
+#define	RTSX_FPGA_SD_PULL_CTL_BIT	0x08
+
+/* Clock source configuration register. */
+#define	RTSX_CARD_CLK_SOURCE		0xFC2E
+#define	RTSX_CRC_FIX_CLK		(0x00 << 0)
+#define	RTSX_CRC_VAR_CLK0		(0x01 << 0)
+#define	RTSX_CRC_VAR_CLK1		(0x02 << 0)
+#define	RTSX_SD30_FIX_CLK		(0x00 << 2)
+#define	RTSX_SD30_VAR_CLK0		(0x01 << 2)
+#define	RTSX_SD30_VAR_CLK1		(0x02 << 2)
+#define	RTSX_SAMPLE_FIX_CLK		(0x00 << 4)
+#define	RTSX_SAMPLE_VAR_CLK0		(0x01 << 4)
+#define	RTSX_SAMPLE_VAR_CLK1		(0x02 << 4)
+
+
+/* ASIC */
+#define	RTSX_CARD_PULL_CTL1		0xFD60
+#define	RTSX_CARD_PULL_CTL2		0xFD61
+#define	RTSX_CARD_PULL_CTL3		0xFD62
+#define	RTSX_CARD_PULL_CTL4		0xFD63
+#define	RTSX_CARD_PULL_CTL5		0xFD64
+#define	RTSX_CARD_PULL_CTL6		0xFD65
+
+#define	RTSX_PULL_CTL_DISABLE12		0x55
+#define	RTSX_PULL_CTL_DISABLE3		0xD5
+#define	RTSX_PULL_CTL_DISABLE3_TYPE_C	0xE5
+#define	RTSX_PULL_CTL_ENABLE12		0xAA
+#define	RTSX_PULL_CTL_ENABLE3		0xE9
+#define	RTSX_PULL_CTL_ENABLE3_TYPE_C	0xD9
+
+/* SD configuration register 1 (clock divider, bus mode and width). */
+#define	RTSX_SD_CFG1			0xFDA0
+#define	RTSX_CLK_DIVIDE_0		0x00
+#define	RTSX_CLK_DIVIDE_128		0x80
+#define	RTSX_CLK_DIVIDE_256		0xC0
+#define	RTSX_CLK_DIVIDE_MASK		0xC0
+#define	RTSX_SD20_MODE			0x00
+#define	RTSX_SDDDR_MODE			0x04
+#define	RTSX_SD30_MODE			0x08
+#define	RTSX_SD_MODE_MASK		0x0C
+#define	RTSX_BUS_WIDTH_1		0x00
+#define	RTSX_BUS_WIDTH_4		0x01
+#define	RTSX_BUS_WIDTH_8		0x02
+#define	RTSX_SD_ASYNC_FIFO_NOT_RST	0x10
+#define	RTSX_BUS_WIDTH_MASK		0x03
+
+/* SD configuration register 2 (SD command response flags). */
+#define	RTSX_SD_CFG2			0xFDA1
+#define	RTSX_SD_CALCULATE_CRC7		0x00
+#define	RTSX_SD_NO_CALCULATE_CRC7	0x80
+#define	RTSX_SD_CHECK_CRC16		0x00
+#define	RTSX_SD_NO_CHECK_CRC16		0x40
+#define	RTSX_SD_NO_CHECK_WAIT_CRC_TO	0x20
+#define	RTSX_SD_WAIT_BUSY_END		0x08
+#define	RTSX_SD_NO_WAIT_BUSY_END	0x00
+#define	RTSX_SD_CHECK_CRC7		0x00
+#define	RTSX_SD_NO_CHECK_CRC7		0x04
+#define	RTSX_SD_RSP_LEN_0		0x00
+#define	RTSX_SD_RSP_LEN_6		0x01
+#define	RTSX_SD_RSP_LEN_17		0x02
+/* SD command response types. */
+#define	RTSX_SD_RSP_TYPE_R0		0x04
+#define	RTSX_SD_RSP_TYPE_R1		0x01
+#define	RTSX_SD_RSP_TYPE_R1B		0x09
+#define	RTSX_SD_RSP_TYPE_R2		0x02
+#define	RTSX_SD_RSP_TYPE_R3		0x05
+#define	RTSX_SD_RSP_TYPE_R4		0x05
+#define	RTSX_SD_RSP_TYPE_R5		0x01
+#define	RTSX_SD_RSP_TYPE_R6		0x01
+#define	RTSX_SD_RSP_TYPE_R7		0x01
+
+#define	RTSX_SD_CFG3			0xFDA2
+#define RTSX_SD30_CLK_END_EN		0x10
+#define	RTSX_SD_RSP_80CLK_TIMEOUT_EN	0x01
+
+#define	RTSX_SD_STAT1			0xFDA3
+#define	RTSX_SD_CRC7_ERR		0x80
+#define	RTSX_SD_CRC16_ERR		0x40
+#define	RTSX_SD_CRC_WRITE_ERR		0x20
+#define	RTSX_SD_CRC_WRITE_ERR_MASK	0x1C
+#define	RTSX_GET_CRC_TIME_OUT		0x02
+#define	RTSX_SD_TUNING_COMPARE_ERR	0x01
+
+#define	RTSX_SD_STAT2			0xFDA4
+#define	RTSX_SD_RSP_80CLK_TIMEOUT	0x01
+
+#define	RTSX_SD_CRC_ERR	(RTSX_SD_CRC7_ERR|RTSX_SD_CRC16_ERR|RTSX_SD_CRC_WRITE_ERR)
+
+/* SD bus status register. */
+#define	RTSX_SD_BUS_STAT		0xFDA5
+#define	RTSX_SD_CLK_TOGGLE_EN		0x80
+#define	RTSX_SD_CLK_FORCE_STOP		0x40
+#define	RTSX_SD_DAT3_STATUS		0x10
+#define	RTSX_SD_DAT2_STATUS		0x08
+#define	RTSX_SD_DAT1_STATUS		0x04
+#define	RTSX_SD_DAT0_STATUS		0x02
+#define	RTSX_SD_CMD_STATUS		0x01
+
+#define	RTSX_SD_PAD_CTL			0xFDA6
+#define	RTSX_SD_IO_USING_1V8		0x80
+
+/* Sample point control register. */
+#define	RTSX_SD_SAMPLE_POINT_CTL	0xFDA7
+#define	RTSX_DDR_FIX_RX_DAT		0x00
+#define	RTSX_DDR_VAR_RX_DAT		0x80
+#define	RTSX_DDR_FIX_RX_DAT_EDGE	0x00
+#define	RTSX_DDR_FIX_RX_DAT_14_DELAY	0x40
+#define	RTSX_DDR_FIX_RX_CMD		0x00
+#define	RTSX_DDR_VAR_RX_CMD		0x20
+#define	RTSX_DDR_FIX_RX_CMD_POS_EDGE	0x00
+#define	RTSX_DDR_FIX_RX_CMD_14_DELAY	0x10
+#define	RTSX_SD20_RX_POS_EDGE		0x00
+#define	RTSX_SD20_RX_14_DELAY		0x08
+#define	RTSX_SD20_RX_SEL_MASK		0x08
+
+#define	RTSX_SD_PUSH_POINT_CTL		0xFDA8
+#define	RTSX_SD20_TX_NEG_EDGE		0x00
+#define	RTSX_SD20_TX_SEL_MASK		0x10
+#define	RTSX_SD20_TX_14_AHEAD		0x10
+
+#define	RTSX_SD_CMD0			0xFDA9
+#define	  RTSX_SD_CMD_START		0x40
+#define	RTSX_SD_CMD1			0xFDAA
+#define	RTSX_SD_CMD2			0xFDAB
+#define	RTSX_SD_CMD3			0xFDAC
+#define	RTSX_SD_CMD4			0xFDAD
+
+#define	RTSX_SD_CMD5			0xFDAE
+#define	RTSX_SD_BYTE_CNT_L		0xFDAF
+#define	RTSX_SD_BYTE_CNT_H		0xFDB0
+#define	RTSX_SD_BLOCK_CNT_L		0xFDB1
+#define	RTSX_SD_BLOCK_CNT_H		0xFDB2
+
+/*
+ * Transfer modes.
+ */
+#define	RTSX_SD_TRANSFER		0xFDB3
+
+/* Write one or two bytes from SD_CMD2 and SD_CMD3 to the card. */
+#define	RTSX_TM_NORMAL_WRITE		0x00
+
+/* Write (SD_BYTE_CNT * SD_BLOCK_COUNTS) bytes from ring buffer to card. */
+#define	RTSX_TM_AUTO_WRITE3		0x01
+
+/* Like AUTO_WRITE3, plus automatically send CMD 12 when done.
+ * The response to CMD 12 is written to SD_CMD{0,1,2,3,4}. */
+#define	RTSX_TM_AUTO_WRITE4		0x02
+
+/* Read (SD_BYTE_CNT * SD_BLOCK_CNT) bytes from card into ring buffer. */
+#define	RTSX_TM_AUTO_READ3		0x05
+
+/* Like AUTO_READ3, plus automatically send CMD 12 when done.
+ * The response to CMD 12 is written to SD_CMD{0,1,2,3,4}. */
+#define	RTSX_TM_AUTO_READ4		0x06
+
+/* Send an SD command described in SD_CMD{0,1,2,3,4} to the card and put
+ * the response into SD_CMD{0,1,2,3,4}. Long responses (17 byte) are put
+ * into ping-pong buffer 2 instead. */
+#define	RTSX_TM_CMD_RSP			0x08
+
+/* Send write command, get response from the card, write data from ring
+ * buffer to card, and send CMD 12 when done.
+ * The response to CMD 12 is written to SD_CMD{0,1,2,3,4}. */
+#define	RTSX_TM_AUTO_WRITE1		0x09
+
+/* Like AUTO_WRITE1 except no CMD 12 is sent. */
+#define	RTSX_TM_AUTO_WRITE2		0x0A
+
+/* Send read command, read up to 512 bytes (SD_BYTE_CNT * SD_BLOCK_CNT)
+ * from the card into the ring buffer or ping-pong buffer 2. */
+#define	RTSX_TM_NORMAL_READ		0x0C
+
+/* Same as WRITE1, except data is read from the card to the ring buffer. */
+#define	RTSX_TM_AUTO_READ1		0x0D
+
+/* Same as WRITE2, except data is read from the card to the ring buffer. */
+#define	RTSX_TM_AUTO_READ2		0x0E
+
+/* Send CMD 19 and receive response and tuning pattern from card and
+ * report the result. */
+#define	RTSX_TM_AUTO_TUNING		0x0F
+
+/* transfer control */
+#define	RTSX_SD_TRANSFER_START		0x80
+#define	RTSX_SD_TRANSFER_END		0x40
+#define	RTSX_SD_STAT_IDLE		0x20
+#define	RTSX_SD_TRANSFER_ERR		0x10
+
+#define	RTSX_SD_CMD_STATE		0xFDB5
+#define	RTSX_SD_CMD_IDLE		0x80
+
+#define	RTSX_SD_DATA_STATE		0xFDB6
+#define	RTSX_SD_DATA_IDLE		0x80
+
+#define RTSX_REG_SD_STOP_SDCLK_CFG	0xFDB8
+#define RTSX_SD30_CLK_STOP_CFG_EN	0x04
+#define RTSX_SD30_CLK_STOP_CFG0		0x01
+#define RTSX_SD30_CLK_STOP_CFG1		0x02
+
+#define RTSX_REG_PRE_RW_MODE		0xFD70
+#define RTSX_EN_INFINITE_MODE		0x01
+
+/* ping-pong buffer 2 */
+#define	RTSX_PPBUF_BASE2		0xFA00
+#define	RTSX_PPBUF_SIZE			256
+
+#define	RTSX_SUPPORTED_VOLTAGE		(MMC_OCR_300_310|MMC_OCR_310_320|\
+					 MMC_OCR_320_330|MMC_OCR_330_340)
+
+#define	RTSX_CFG_PCI			0x1C
+#define	RTSX_CFG_ASIC			0x10
+
+#define	RTSX_IRQEN0			0xFE20
+#define	RTSX_LINK_DOWN_INT_EN		0x10
+#define	RTSX_LINK_READY_INT_EN		0x20
+#define	RTSX_SUSPEND_INT_EN		0x40
+#define	RTSX_DMA_DONE_INT_EN		0x80
+
+#define	RTSX_IRQSTAT0			0xFE21
+#define	RTSX_LINK_DOWN_INT		0x10
+#define	RTSX_LINK_READY_INT		0x20
+#define	RTSX_SUSPEND_INT		0x40
+#define	RTSX_DMA_DONE_INT		0x80
+
+#define	RTSX_DMATC0			0xFE28
+#define	RTSX_DMATC1			0xFE29
+#define	RTSX_DMATC2			0xFE2A
+#define	RTSX_DMATC3			0xFE2B
+
+#define	RTSX_DMACTL			0xFE2C
+#define	RTSX_DMA_EN			0x01
+#define	RTSX_DMA_DIR			0x02
+#define	RTSX_DMA_DIR_TO_CARD		0x00
+#define	RTSX_DMA_DIR_FROM_CARD		0x02
+#define	RTSX_DMA_BUSY			0x04
+#define	RTSX_DMA_RST			0x80
+#define	RTSX_DMA_128			(0 << 4)
+#define	RTSX_DMA_256			(1 << 4)
+#define	RTSX_DMA_512			(2 << 4)
+#define	RTSX_DMA_1024			(3 << 4)
+#define	RTSX_DMA_PACK_SIZE_MASK		0x30
+
+#define	RTSX_RBCTL			0xFE34
+#define	RTSX_RB_FLUSH			0x80
+#define RTSX_U_AUTO_DMA_EN_MASK		0x20
+#define RTSX_U_AUTO_DMA_DISABLE		0x00
+
+#define	RTSX_CFGADDR0			0xFE35
+#define	RTSX_CFGADDR1			0xFE36
+#define	RTSX_CFGDATA0			0xFE37
+#define	RTSX_CFGDATA1			0xFE38
+#define	RTSX_CFGDATA2			0xFE39
+#define	RTSX_CFGDATA3			0xFE3A
+#define	RTSX_CFGRWCTL			0xFE3B
+#define	RTSX_CFG_WRITE_DATA0		0x01
+#define	RTSX_CFG_WRITE_DATA1		0x02
+#define	RTSX_CFG_WRITE_DATA2		0x04
+#define	RTSX_CFG_WRITE_DATA3		0x08
+#define	RTSX_CFG_BUSY			0x80
+
+#define	RTSX_LTR_CTL			0xFE4A
+
+#define	RTSX_OBFF_CFG			0xFE4C
+#define	RTSX_OBFF_EN_MASK		0x03
+#define	RTSX_OBFF_DISABLE		0x00
+#define	RTSX_OBFF_ENABLE		0x03
+
+#define	RTSX_SDIOCFG_REG		0x724
+#define	RTSX_SDIOCFG_NO_BYPASS_SDIO	0x02
+#define	RTSX_SDIOCFG_HAVE_SDIO		0x04
+#define	RTSX_SDIOCFG_SINGLE_LUN		0x08
+#define	RTSX_SDIOCFG_SDIO_ONLY		0x80
+
+#define	RTSX_HOST_SLEEP_STATE		0xFE60
+#define	RTSX_HOST_ENTER_S1		0x01
+#define	RTSX_HOST_ENTER_S3		0x02
+
+#define	RTSX_SDIO_CFG			0xFE70
+#define	RTSX_SDIO_BUS_AUTO_SWITCH	0x10
+
+#define	RTSX_NFTS_TX_CTRL		0xFE72
+#define	RTSX_INT_READ_CLR		0x02
+
+#define	RTSX_PWR_GATE_CTRL		0xFE75
+#define	RTSX_PWR_GATE_EN		0x01
+#define	RTSX_LDO3318_PWR_MASK		0x06
+#define	RTSX_LDO3318_ON			0x00
+#define	RTSX_LDO3318_SUSPEND		0x04
+#define	RTSX_LDO3318_OFF		0x06
+#define	RTSX_LDO3318_VCC1		0x02
+#define	RTSX_LDO3318_VCC2		0x04
+#define	RTSX_PWD_SUSPEND_EN		0xFE76
+#define	RTSX_LDO_PWR_SEL		0xFE78
+#define	RTSX_LDO_PWR_SEL_3V3		0x01
+#define	RTSX_LDO_PWR_SEL_DV33		0x03
+
+#define	RTSX_PHY_RWCTL			0xFE3C
+#define	RTSX_PHY_READ			0x00
+#define	RTSX_PHY_WRITE			0x01
+#define	RTSX_PHY_BUSY			0x80
+#define	RTSX_PHY_DATA0			0xFE3D
+#define	RTSX_PHY_DATA1			0xFE3E
+#define	RTSX_PHY_ADDR			0xFE3F
+
+#define	RTSX_PHY_PCR			0x00
+#define	RTSX_PHY_PCR_FORCE_CODE		0xB000
+#define	RTSX_PHY_PCR_OOBS_CALI_50	0x0800
+#define	RTSX_PHY_PCR_OOBS_VCM_08	0x0200
+#define	RTSX_PHY_PCR_OOBS_SEN_90	0x0040
+#define	RTSX_PHY_PCR_RSSI_EN		0x0002
+#define	RTSX_PHY_PCR_RX10K		0x0001
+
+#define	RTSX_PHY_RCR1			0x02
+#define	RTSX_PHY_RCR1_ADP_TIME_4	0x0400
+#define	RTSX_PHY_RCR1_VCO_COARSE	0x001F
+#define	RTSX_PHY_RCR1_INIT_27S		0x0A1F
+
+#define	RTSX_PHY_RCR2			0x03
+#define	RTSX_PHY_RCR2_EMPHASE_EN	0x8000
+#define	RTSX_PHY_RCR2_NADJR		0x4000
+#define	RTSX_PHY_RCR2_CDR_SR_2		0x0100
+#define	RTSX_PHY_RCR2_FREQSEL_12	0x0040
+#define	RTSX_PHY_RCR2_CDR_SC_12P	0x0010
+#define	RTSX_PHY_RCR2_CALIB_LATE	0x0002
+#define	RTSX_PHY_RCR2_INIT_27S		0xC152
+
+#define	RTSX__PHY_ANA03			0x03
+#define	RTSX__PHY_ANA03_TIMER_MAX	0x2700
+#define	RTSX__PHY_ANA03_OOBS_DEB_EN	0x0040
+#define	RTSX__PHY_CMU_DEBUG_EN		0x0008
+
+#define	RTSX_PHY_RDR			0x05
+#define	RTSX_PHY_RDR_RXDSEL_1_9		0x4000
+#define	RTSX_PHY_SSC_AUTO_PWD		0x0600
+
+#define	RTSX_PHY_TUNE			0x08
+#define	RTSX_PHY_TUNE_TUNEREF_1_0	0x4000
+#define	RTSX_PHY_TUNE_VBGSEL_1252	0x0C00
+#define	RTSX_PHY_TUNE_SDBUS_33		0x0200
+#define	RTSX_PHY_TUNE_TUNED18		0x01C0
+#define	RTSX_PHY_TUNE_TUNED12		0X0020
+#define	RTSX_PHY_TUNE_TUNEA12		0x0004
+#define	RTSX_PHY_TUNE_VOLTAGE_MASK	0xFC3F
+#define	RTSX_PHY_TUNE_VOLTAGE_3V3	0x03C0
+#define	RTSX_PHY_TUNE_D18_1V8		0x0100
+#define	RTSX_PHY_TUNE_D18_1V7		0x0080
+
+#define	RTSX_PHY_BPCR			0x0A
+#define	RTSX_PHY_BPCR_IBRXSEL		0x0400
+#define	RTSX_PHY_BPCR_IBTXSEL		0x0100
+#define	RTSX_PHY_BPCR_IB_FILTER		0x0080
+#define	RTSX_PHY_BPCR_CMIRROR_EN	0x0040
+
+#define	RTSX_PHY_REV			0x19
+#define	RTSX_PHY_REV_RESV		0xE000
+#define	RTSX_PHY_REV_RXIDLE_LATCHED	0x1000
+#define	RTSX_PHY_REV_P1_EN		0x0800
+#define	RTSX_PHY_REV_RXIDLE_EN		0x0400
+#define	RTSX_PHY_REV_CLKREQ_TX_EN	0x0200
+#define	RTSX_PHY_REV_CLKREQ_RX_EN	0x0100
+#define	RTSX_PHY_REV_CLKREQ_DT_1_0	0x0040
+#define	RTSX_PHY_REV_STOP_CLKRD		0x0020
+#define	RTSX_PHY_REV_RX_PWST		0x0008
+#define	RTSX_PHY_REV_STOP_CLKWR		0x0004
+
+
+#define	RTSX__PHY_REV0				0x19
+#define	RTSX__PHY_REV0_FILTER_OUT		0x3800
+#define	RTSX__PHY_REV0_CDR_BYPASS_PFD		0x0100
+#define	RTSX__PHY_REV0_CDR_RX_IDLE_BYPASS	0x0002
+
+#define	RTSX_PHY_FLD0			0x1A
+#define	RTSX_PHY_FLD0_INIT_27S		0x2546
+
+#define	RTSX_PHY_FLD3			0x1D
+#define	RTSX_PHY_FLD3_TIMER_4		0x0800
+#define	RTSX_PHY_FLD3_TIMER_6		0x0020
+#define	RTSX_PHY_FLD3_RXDELINK		0x0004
+#define	RTSX_PHY_FLD3_INIT_27S		0x0004
+
+#define	RTSX__PHY_FLD0			0x1D
+#define	RTSX__PHY_FLD0_CLK_REQ_20C	0x8000
+#define	RTSX__PHY_FLD0_RX_IDLE_EN	0x1000
+#define	RTSX__PHY_FLD0_BIT_ERR_RSTN	0x0800
+#define	RTSX__PHY_FLD0_BER_COUNT	0x01E0
+#define	RTSX__PHY_FLD0_BER_TIMER	0x001E
+#define	RTSX__PHY_FLD0_CHECK_EN		0x0001
+
+#define	RTSX_PHY_FLD4			0x1E
+#define	RTSX_PHY_FLD4_FLDEN_SEL		0x4000
+#define	RTSX_PHY_FLD4_REQ_REF		0x2000
+#define	RTSX_PHY_FLD4_RXAMP_OFF		0x1000
+#define	RTSX_PHY_FLD4_REQ_ADDA		0x0800
+#define	RTSX_PHY_FLD4_BER_COUNT		0x00E0
+#define	RTSX_PHY_FLD4_BER_TIMER		0x000A
+#define	RTSX_PHY_FLD4_BER_CHK_EN	0x0001
+#define	RTSX_PHY_FLD4_INIT_27S		0x5C7F
+
+#define	RTSX_CARD_AUTO_BLINK		0xFD56
+#define	RTSX_LED_BLINK_EN		0x08
+#define	RTSX_LED_BLINK_SPEED		0x05
+
+#define	RTSX_PCLK_CTL			0xFE55
+#define	RTSX_PCLK_MODE_SEL		0x20
+
+#define	RTSX_PME_FORCE_CTL		0xFE56
+
+#define	RTSX_ASPM_FORCE_CTL		0xFE57
+#define	RTSX_ASPM_FORCE_MASK		0x3F
+#define	RTSX_FORCE_ASPM_NO_ASPM		0x00
+
+#define	RTSX_PM_CLK_FORCE_CTL		0xFE58
+#define RTSX_CLK_PM_EN			0x01
+
+#define	RTSX_FUNC_FORCE_CTL		0xFE59
+#define	RTSX_FUNC_FORCE_UPME_XMT_DBG	0x02
+
+#define	RTSX_CHANGE_LINK_STATE		0xFE5B
+#define	RTSX_CD_RST_CORE_EN		0x01
+#define	RTSX_FORCE_RST_CORE_EN		0x02
+#define	RTSX_NON_STICKY_RST_N_DBG	0x08
+#define	RTSX_MAC_PHY_RST_N_DBG		0x10
+
+#define	RTSX_PERST_GLITCH_WIDTH		0xFE5C
+
+#define	RTSX_EFUSE_CONTENT		0xFE5F
+
+#define	RTSX_PM_EVENT_DEBUG		0xFE71
+#define	RTSX_PME_DEBUG_0		0x08
+
+#define RTSX_L1SUB_CONFIG1		0xFE8D
+#define RTSX_AUX_CLK_ACTIVE_SEL_MASK	0x01
+#define RTSX_MAC_CKSW_DONE		0x00
+
+#define	RTSX_L1SUB_CONFIG2		0xFE8E
+#define	RTSX_L1SUB_AUTO_CFG		0x02
+
+#define	RTSX_L1SUB_CONFIG3		0xFE8F
+
+#define	RTSX_DUMMY_REG			0xFE90
+
+#define RTSX_REG_VREF			0xFE97
+#define RTSX_PWD_SUSPND_EN		0x10
+
+#define RTSX_RTS5260_DMA_RST_CTL_0	0xFEBF
+#define RTSX_RTS5260_DMA_RST		0x80
+#define RTSX_RTS5260_ADMA3_RST		0x40
+
+#define	RTSX_PETXCFG			0xFF03 /* was 0xFE49 in OpenBSD */
+#define	RTSX_FORCE_CLKREQ_DELINK_MASK	0x80
+#define	RTSX_FORCE_CLKREQ_LOW		0x80
+
+#define	RTSX_RREF_CFG			0xFF6C
+#define	RTSX_RREF_VBGSEL_MASK		0x38
+#define	RTSX_RREF_VBGSEL_1V25		0x28
+
+#define	RTSX_PM_CTRL3			0xFF46
+#define	RTSX_RTS522A_PM_CTRL3		0xFF7E
+#define	RTSX_D3_DELINK_MODE_EN		0x10
+#define	RTSX_PM_WAKE_EN			0x01
+
+#define	RTSX_OOBS_CONFIG		0xFF6E
+#define	RTSX_OOBS_AUTOK_DIS		0x80
+#define	RTSX_OOBS_VAL_MASK		0x1F
+
+#define RTSX_LDO_DV18_CFG		0xFF70
+#define RTSX_DV331812_MASK		0x70
+#define RTSX_DV331812_33		0x70
+
+#define	RTSX_LDO_CONFIG2		0xFF71
+#define	RTSX_LDO_D3318_MASK		0x07
+#define	RTSX_LDO_D3318_33V		0x07
+#define	RTSX_LDO_D3318_18V		0x02
+#define	RTSX_DV331812_VDD1		0x04
+#define	RTSX_DV331812_POWERON		0x08
+#define	RTSX_DV331812_POWEROFF		0x00
+
+#define	RTSX_LDO_VCC_CFG0		0xFF72
+#define	RTSX_LDO_VCC_LMTVTH_MASK	0x30
+#define	RTSX_LDO_VCC_LMTVTH_2A		0x10
+#define RTSX_RTS5260_DVCC_TUNE_MASK	0x70
+#define RTSX_RTS5260_DVCC_33		0x70
+
+#define	RTSX_LDO_VCC_CFG1		0xFF73
+#define	RTSX_LDO_VCC_REF_TUNE_MASK	0x30
+#define	RTSX_LDO_VCC_REF_1V2		0x20
+#define	RTSX_LDO_VCC_TUNE_MASK		0x07
+#define	RTSX_LDO_VCC_1V8		0x04
+#define	RTSX_LDO_VCC_3V3		0x07
+#define	RTSX_LDO_VCC_LMT_EN		0x08
+/*RTS5260*/
+#define	RTSX_LDO_POW_SDVDD1_MASK	0x08
+#define	RTSX_LDO_POW_SDVDD1_ON		0x08
+#define	RTSX_LDO_POW_SDVDD1_OFF		0x00
+
+#define RTSX_RTS5260_DVCC_CTRL		0xFF73
+#define RTSX_RTS5260_DVCC_OCP_EN	(0x01 << 7)
+#define RTSX_RTS5260_DVCC_OCP_THD_MASK	(0x07 << 4)
+#define RTSX_RTS5260_DVCC_POWERON	(0x01 << 3)
+#define RTSX_RTS5260_DVCC_OCP_CL_EN	(0x01 << 2)
+
+#define	RTSX_LDO_VIO_CFG		0xFF75
+#define	RTSX_LDO_VIO_TUNE_MASK		0x07
+#define	RTSX_LDO_VIO_1V7		0x03
+
+#define	RTSX_LDO_DV12S_CFG		0xFF76
+#define	RTSX_LDO_D12_TUNE_MASK		0x07
+#define	RTSX_LDO_D12_TUNE_DF		0x04
+
+#define	RTSX_LDO_AV12S_CFG		0xFF77
+#define	RTSX_LDO_AV12S_TUNE_MASK	0x07
+#define	RTSX_LDO_AV12S_TUNE_DF		0x04
+
+#define	RTSX_SG_INT			0x04
+#define	RTSX_SG_END			0x02
+#define	RTSX_SG_VALID			0x01
+
+#define	RTSX_SG_NO_OP			0x00
+#define	RTSX_SG_TRANS_DATA		(0x02 << 4)
+#define	RTSX_SG_LINK_DESC		(0x03 << 4)
+
+#define	RTSX_IC_VERSION_A		0x00
+#define	RTSX_IC_VERSION_B		0x01
+#define	RTSX_IC_VERSION_C		0x02
+#define	RTSX_IC_VERSION_D		0x03
+
+#define	RTSX_RTS5260_AUTOLOAD_CFG4	0xFF7F
+#define RTSX_RTS5260_MIMO_DISABLE	0x8A
+
+#define	RTSX_PCR_SETTING_REG1		0x724
+#define	RTSX_PCR_SETTING_REG2		0x814
+#define	RTSX_PCR_SETTING_REG3		0x747
+
+#define	RTSX_RX_PHASE_MAX		32
+#define	RTSX_RX_TUNING_CNT		3
+#endif

@@ -1,0 +1,209 @@
+.\"
+.\" Copyright (c) 2019 Ian Lepore <ian@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd June 17, 2019
+.Dt PWMC 4
+.Os
+.Sh NAME
+.Nm pwmc
+.Nd PWM (Pulse Width Modulation) control device driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pwmbus"
+.Cd "device pwmc"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+pwmc_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides device-control access to a channel of PWM hardware.
+Each instance of a
+.Nm
+device is associated with a single PWM output channel.
+.Pp
+Some PWM hardware is organized with multiple channels sharing a
+common clock or other resources.
+In such cases, a separate
+.Nm
+instance will exist for each channel, but changing the period or
+duty cycle of any one channel may affect other channels within the
+hardware which share the same resources.
+Consult the documentation for the underlying PWM hardware device driver
+for details on channels that share resources.
+.Pp
+An instance of
+.Nm
+creates a character device named
+.Pa /dev/pwm/pwmcX.Y
+where
+.Va X
+is a sequential number assigned to each PWM hardware controller
+as it is discovered by the system, and
+.Va Y
+is the channel number within that hardware controller.
+The driver can be configured to create aliases that point to the
+.Pa pwmcX.Y
+entries, in effect creating named channels.
+.Pp
+The
+.Nm
+driver provides control of a PWM channel with the following
+.Xr ioctl 2
+calls and data structures, defined in
+.In dev/pwm/pwmc.h :
+.Bl -tag -width indent
+.It Dv PWMGETSTATE Pq Vt "struct pwm_state"
+Retrieve the current state of the channel.
+.It Dv PWMSETSTATE Pq Vt "struct pwm_state"
+Set the current state of the channel.
+All parameters are updated on every call.
+To change just one of the values, use
+.Dv PWMGETSTATE
+to get the current state and then submit the same data back with
+just the appropriate value changed.
+.El
+.Pp
+The
+.Va pwm_state
+structure is defined as follows:
+.Bd -literal
+struct pwm_state {
+	u_int		period;
+	u_int		duty;
+	uint32_t	flags;
+	bool		enable;
+};
+.Ed
+.Bl -tag -width period
+.It Va period
+The duration, in nanoseconds, of one complete on-off cycle.
+.It Va duty
+The duration, in nanoseconds, of the on portion of one cycle.
+.It Va flags
+Flags that affect the output signal can be bitwise-ORed together.
+The following flags are currently defined:
+.Pp
+.Bl -tag -width PWM_POLARITY_INVERTED -compact
+.It Dv PWM_POLARITY_INVERTED
+Invert the signal polarity.
+.El
+.It Va enable
+.Va
+False to disable the output signal or true to enable it.
+.El
+.Sh HINTS CONFIGURATION
+On a
+.Xr device.hints 5
+based system, such as
+.Li MIPS ,
+these values are configurable for
+.Nm :
+.Bl -tag -width indent
+.It Va hint.pwmc.%d.at
+The pwmbus instance the
+.Nm
+instance is attached to.
+.It Va hint.pwmc.%d.channel
+The hardware channel number the instance is attached to.
+Channel numbers count up from zero.
+.It Va hint.pwmc.%d.label
+If this optional hint is set, the driver creates an alias in
+.Pa /dev/pwm
+with the given name, which points to the instance.
+.El
+.Sh FDT CONFIGURATION
+On an
+.Xr fdt 4
+based system, a
+.Nm
+device is described with a child node of the pwm hardware controller node.
+When the hardware supports multiple channels within the controller, it is
+not necessary to include a
+.Nm
+child node for every channel the hardware supports.
+Define only the channels you need to control.
+.Pp
+The following properties are required for a
+.Nm
+device node:
+.Bl -tag -width indent
+.It Va compatible
+Must be the string "freebsd,pwmc".
+.It Va reg
+The hardware channel number.
+.El
+.Pp
+The following properties are optional for the
+.Nm
+device node:
+.Bl -tag -width indent
+.It Va label
+A string containing only characters legal in a file name.
+The driver creates an alias with the given name in
+.Pa /dev/pwm
+which points to the instance's
+.Pa /dev/pwm/pwmcX.Y
+device entry.
+.El
+.Pp
+Example of a PWM hardware node containing one
+.Nm
+child node:
+.Bd -literal
+&ehrpwm0 {
+    status = "okay";
+    pinctrl-names = "default";
+    pinctrl-0 = <&ehrpwm0_AB_pins>;
+
+    pwmcontrol@0 {
+        compatible = "freebsd,pwmc";
+        reg = <0>;
+        label = "backlight";
+    };
+};
+.Ed
+.Sh FILES
+.Bl -tag -width -compact
+.It Pa /dev/pwm/pwmc*
+.El
+.Sh SEE ALSO
+.Xr fdt 4 ,
+.Xr device.hints 5 ,
+.Xr pwm 8 ,
+.Xr pwm 9
+.Sh HISTORY
+The
+.Nm
+driver
+appeared in
+.Fx 13.0 .

@@ -1,0 +1,713 @@
+<data>
+<languages>
+	<!-- Attributes known:
+		name = language name - only one
+		encoding = encodings to be done - separated by space
+		countries = countries to create - separated by space
+		family = which font family - only one
+		countryname_link = only with family, link this original file \
+			too - only one
+		encoding_link = link this original encoding too - separated \
+			by space
+		fallback = read this file if name_countries doesn't exist - \
+			only one
+		definitions = only use in these definitions (msgdef, timedef, \
+			numericdef, monetdef)
+
+		By default, the name of the input file is name_countries.
+		If family is defined, the name of the input file will be \
+			name_family_countries.
+		If fallback is defined, the name of the input file will be that.
+
+		By default, the name of the output file is name_countries.
+		If family is defined, the name of the output file will be \
+			name_family_countries.
+		For backwards compatibility you use link which is \
+			name_countries.
+
+	-->
+	<language name="af"
+		countries="ZA" />
+	<language name="am"
+		countries="ET" />		<!-- UTF-8 only -->
+	<language name="ar"
+		countries="AE EG JO MA QA SA" />
+	<language name="be"
+		countries="BY" />
+	<language name="bg"
+		countries="BG" />
+	<language name="ca"
+		fallback="ca_ES"
+		countries="AD ES FR IT" />	<!-- only ca_ES defined -->
+	<language name="cs"
+		countries="CZ" />
+	<language name="da"
+		countries="DK" />
+	<language name="de"
+		countries="AT CH DE" />
+	<language name="el"
+		countries="GR" />
+	<language name="en"
+		countries="GB" />
+	<language name="en"
+		countries="AU CA NZ US ZA" />
+	<language name="en"
+		countries="IE" />
+	<language name="en"
+		countries="HK SG" />
+	<language name="en"
+		countries="PH" />               <!-- UTF-8 only -->
+	<language name="es"
+		countries="CR" />               <!-- UTF-8 only -->
+	<language name="es"
+		countries="ES" />
+	<language name="es"
+		countries="AR MX" />
+	<language name="et"
+		countries="EE" />
+	<language name="eu"
+		countries="ES" />
+	<language name="fa"
+		countries="AF IR" />
+	<language name="fi"
+		countries="FI" />
+	<language name="fr"
+		countries="BE CH FR" />
+	<language name="fr"
+		countries="CA" />
+	<language name="ga"
+		countries="IE" />		<!-- UTF-8 only -->
+	<language name="he"
+		countries="IL" />
+	<language name="hi"
+		countries="IN" />
+	<language name="hr"
+		countries="HR" />
+	<language name="hu"
+		countries="HU" />
+	<language name="hy"
+		countries="AM" />
+	<language name="is"
+		countries="IS" />
+	<language name="it"
+		countries="CH IT" />
+	<language name="ja"
+		countries="JP" />
+	<language name="kk"
+		countries="KZ" />  <!-- PT154 not available, UTF-8 -->
+	<language name="ko"
+		countries="KR" />
+	<language name="lt"
+		countries="LT" />
+	<language name="lv"
+		countries="LV" />
+	<language name="mn"
+		countries="MN" />
+	<language name="nb"
+		countries="NO" />
+	<language name="nl"
+		countries="BE NL" />
+	<language name="nn"
+		countries="NO" />
+	<language name="pl"
+		countries="PL" />
+	<language name="pt"
+		countries="PT" />
+	<language name="pt"
+		countries="BR" />
+	<language name="ro"
+		countries="RO" />
+	<language name="ru"
+		countries="RU" />
+	<language name="se"
+		countries="NO FI" />
+	<language name="sk"
+		countries="SK" />
+	<language name="sl"
+		countries="SI" />
+	<language name="sr"
+		family="Latn"
+		countries="RS" />
+	<language name="sr"
+		family="Cyrl"
+		countries="RS" />
+	<language name="sv"
+		countries="SE FI" />
+	<language name="tr"
+		countries="TR" />
+	<language name="uk"
+		countries="UA" />
+	<language name="zh"
+		family="Hans"
+		countries="CN" />
+	<language name="zh"
+		family="Hant"
+		countries="HK" />
+	<language name="zh"
+		family="Hant"
+		countries="TW" />
+</languages>
+
+<translations>
+	<!--
+		encoding: Space-separated list of encodings
+		cldr: Symbol to be replaced with hex, string, unicode, or ucc.
+		  The symbol name should be defined in posix/*.cm files.
+		string: raw code in string.
+		hex: raw code in hex.
+		unicode: Symbol name in Unicode.
+		ucc: Unicode code point in hex.
+	-->
+	<!-- These don't have a special Euro sign so just use Eu for it -->
+	<translation encoding="ISO8859-1" cldr="EURO_SIGN" string="Eu" />
+	<translation encoding="ISO8859-2" cldr="EURO_SIGN" string="Eu" />
+	<translation encoding="ISO8859-4" cldr="EURO_SIGN" string="Eu" />
+	<translation encoding="ISO8859-13" cldr="EURO_SIGN" string="Eu" />
+
+	<!-- Minus and dashes -->
+	<translation encoding="ISO8859-1 ISO8859-2 ISO8859-4 ISO8859-13 ISO8859-15"
+	    cldr="MINUS_SIGN" unicode="HYPHEN-MINUS" />
+	<translation encoding="ISO8859-2"
+	    cldr="EN_DASH" unicode="HYPHEN-MINUS" />
+
+	<!-- Got these from http://www.decodeunicode.org/en/u+0400.
+	     Where possible use the international or ISO translation!
+	-->
+	<translation encoding="ISO8859-2" ucc="0408"
+	    cldr="CYRILLIC_CAPITAL_LETTER_JE"
+	    unicode="LATIN_CAPITAL_LETTER_J" />
+	<translation encoding="ISO8859-2" ucc="0458"
+	    cldr="CYRILLIC_SMALL_LETTER_JE" unicode="LATIN_SMALL_LETTER_J" />
+	<translation encoding="ISO8859-2" ucc="0409"
+	    cldr="CYRILLIC_CAPITAL_LETTER_LJE" string="lj" />
+	<translation encoding="ISO8859-2" ucc="0459"
+	    cldr="CYRILLIC_SMALL_LETTER_LJE" string="lj" />
+	<translation encoding="ISO8859-2" ucc="0410"
+	    cldr="CYRILLIC_CAPITAL_LETTER_A" unicode="LATIN_CAPITAL_LETTER_A" />
+	<translation encoding="ISO8859-2" ucc="0430"
+	    cldr="CYRILLIC_SMALL_LETTER_A" unicode="LATIN_SMALL_LETTER_A" />
+	<translation encoding="ISO8859-2" ucc="0411"
+	    cldr="CYRILLIC_CAPITAL_LETTER_BE"
+	    unicode="LATIN_CAPITAL_LETTER_B" />
+	<translation encoding="ISO8859-2" ucc="0431"
+	    cldr="CYRILLIC_SMALL_LETTER_BE" unicode="LATIN_SMALL_LETTER_B" />
+	<translation encoding="ISO8859-2" ucc="0412"
+	    cldr="CYRILLIC_CAPITAL_LETTER_VE"
+	    unicode="LATIN_CAPITAL_LETTER_B" />
+	<translation encoding="ISO8859-2" ucc="0432"
+	    cldr="CYRILLIC_SMALL_LETTER_VE" unicode="LATIN_SMALL_LETTER_B" />
+	<translation encoding="ISO8859-2" ucc="0413"
+	    cldr="CYRILLIC_CAPITAL_LETTER_GHE"
+	    unicode="LATIN_CAPITAL_LETTER_G" />
+	<translation encoding="ISO8859-2" ucc="0433"
+	    cldr="CYRILLIC_SMALL_LETTER_GHE" unicode="LATIN_SMALL_LETTER_G" />
+	<translation encoding="ISO8859-2" ucc="0414"
+	    cldr="CYRILLIC_CAPITAL_LETTER_DE" string="D" />
+	<translation encoding="ISO8859-2" ucc="0434"
+	    cldr="CYRILLIC_SMALL_LETTER_DE" string="d" />
+	<translation encoding="ISO8859-2" ucc="0415"
+	    cldr="CYRILLIC_CAPITAL_LETTER_IE"
+	    unicode="LATIN_CAPITAL_LETTER_E" />
+	<translation encoding="ISO8859-2" ucc="0435"
+	    cldr="CYRILLIC_SMALL_LETTER_IE" unicode="LATIN_SMALL_LETTER_E" />
+	<translation encoding="ISO8859-2" ucc="0416"
+	    cldr="CYRILLIC_CAPITAL_LETTER_ZHE" string="ZH" />
+	<translation encoding="ISO8859-2" ucc="0436"
+	    cldr="CYRILLIC_SMALL_LETTER_ZHE" string="zh" />
+	<translation encoding="ISO8859-2" ucc="0417"
+	    cldr="CYRILLIC_CAPITAL_LETTER_ZE" string="z" />
+	<translation encoding="ISO8859-2" ucc="0437"
+	    cldr="CYRILLIC_SMALL_LETTER_ZE" string="z" />
+	<translation encoding="ISO8859-2" ucc="0418"
+	    cldr="CYRILLIC_CAPITAL_LETTER_I" unicode="LATIN_CAPITAL_LETTER_J" />
+	<translation encoding="ISO8859-2" ucc="0438"
+	    cldr="CYRILLIC_SMALL_LETTER_I" unicode="LATIN_CAPITAL_LETTER_J" />
+	<translation encoding="ISO8859-2" ucc="0419"
+	    cldr="CYRILLIC_CAPITAL_LETTER_I" unicode="LATIN_SMALL_LETTER_J" />
+	<translation encoding="ISO8859-2" ucc="0439"
+	    cldr="CYRILLIC_SMALL_LETTER_I" unicode="LATIN_SMALL_LETTER_J" />
+	<translation encoding="ISO8859-2" ucc="041A"
+	    cldr="CYRILLIC_CAPITAL_LETTER_KA"
+	    unicode="LATIN_CAPITAL_LETTER_K" />
+	<translation encoding="ISO8859-2" ucc="043A"
+	    cldr="CYRILLIC_SMALL_LETTER_KA" unicode="LATIN_SMALL_LETTER_K" />
+	<translation encoding="ISO8859-2" ucc="041B"
+	    cldr="CYRILLIC_CAPITAL_LETTER_EL"
+	    unicode="LATIN_CAPITAL_LETTER_L" />
+	<translation encoding="ISO8859-2" ucc="043B"
+	    cldr="CYRILLIC_SMALL_LETTER_EL" unicode="LATIN_SMALL_LETTER_L" />
+	<translation encoding="ISO8859-2" ucc="041C"
+	    cldr="CYRILLIC_CAPITAL_LETTER_EM"
+	    unicode="LATIN_CAPITAL_LETTER_M" />
+	<translation encoding="ISO8859-2" ucc="043C"
+	    cldr="CYRILLIC_SMALL_LETTER_EM" unicode="LATIN_SMALL_LETTER_M" />
+	<translation encoding="ISO8859-2" ucc="041D"
+	    cldr="CYRILLIC_CAPITAL_LETTER_EN"
+	    unicode="LATIN_CAPITAL_LETTER_H" />
+	<translation encoding="ISO8859-2" ucc="043D"
+	    cldr="CYRILLIC_SMALL_LETTER_EN" unicode="LATIN_SMALL_LETTER_H" />
+	<translation encoding="ISO8859-2" ucc="041E"
+	    cldr="CYRILLIC_CAPITAL_LETTER_O" unicode="LATIN_CAPITAL_LETTER_O" />
+	<translation encoding="ISO8859-2" ucc="043E"
+	    cldr="CYRILLIC_SMALL_LETTER_O" unicode="LATIN_SMALL_LETTER_O" />
+	<translation encoding="ISO8859-2" ucc="041F"
+	    cldr="CYRILLIC_CAPITAL_LETTER_PE"
+	    unicode="LATIN_CAPITAL_LETTER_P" />
+	<translation encoding="ISO8859-2" ucc="043F"
+	    cldr="CYRILLIC_SMALL_LETTER_PE" unicode="LATIN_SMALL_LETTER_P" />
+	<translation encoding="ISO8859-2" ucc="0420"
+	    cldr="CYRILLIC_CAPITAL_LETTER_ER"
+	    unicode="LATIN_CAPITAL_LETTER_R" />
+	<translation encoding="ISO8859-2" ucc="0440"
+	    cldr="CYRILLIC_SMALL_LETTER_ER" unicode="LATIN_SMALL_LETTER_R" />
+	<translation encoding="ISO8859-2" ucc="0421"
+	    cldr="CYRILLIC_CAPITAL_LETTER_ES"
+	    unicode="LATIN_CAPITAL_LETTER_C" />
+	<translation encoding="ISO8859-2" ucc="0441"
+	    cldr="CYRILLIC_SMALL_LETTER_ES" unicode="LATIN_SMALL_LETTER_C" />
+	<translation encoding="ISO8859-2" ucc="0422"
+	    cldr="CYRILLIC_CAPITAL_LETTER_TE"
+	    unicode="LATIN_CAPITAL_LETTER_T" />
+	<translation encoding="ISO8859-2" ucc="0442"
+	    cldr="CYRILLIC_SMALL_LETTER_TE" unicode="LATIN_SMALL_LETTER_T" />
+	<translation encoding="ISO8859-2" ucc="0423"
+	    cldr="CYRILLIC_CAPITAL_LETTER_U" unicode="LATIN_CAPITAL_LETTER_U" />
+	<translation encoding="ISO8859-2" ucc="0443"
+	    cldr="CYRILLIC_SMALL_LETTER_U" unicode="LATIN_SMALL_LETTER_U" />
+	<translation encoding="ISO8859-2" ucc="0424"
+	    cldr="CYRILLIC_CAPITAL_LETTER_EF"
+	    unicode="LATIN_CAPITAL_LETTER_F" />
+	<translation encoding="ISO8859-2" ucc="0444"
+	    cldr="CYRILLIC_SMALL_LETTER_EF" unicode="LATIN_SMALL_LETTER_F" />
+	<translation encoding="ISO8859-2" ucc="0425"
+	    cldr="CYRILLIC_CAPITAL_LETTER_HA"
+	    unicode="LATIN_CAPITAL_LETTER_H" />
+	<translation encoding="ISO8859-2" ucc="0445"
+	    cldr="CYRILLIC_SMALL_LETTER_HA" unicode="LATIN_SMALL_LETTER_H" />
+	<translation encoding="ISO8859-2" ucc="0426"
+	    cldr="CYRILLIC_CAPITAL_LETTER_TSE"
+	    unicode="LATIN_CAPITAL_LETTER_C" />
+	<translation encoding="ISO8859-2" ucc="0446"
+	    cldr="CYRILLIC_SMALL_LETTER_TSE" unicode="LATIN_SMALL_LETTER_C" />
+	<translation encoding="ISO8859-2" ucc="0427"
+	    cldr="CYRILLIC_CAPITAL_LETTER_CHE"
+	    unicode="LATIN_CAPITAL_LETTER_C_WITH_CARON" />
+	<translation encoding="ISO8859-2" ucc="0447"
+	    cldr="CYRILLIC_SMALL_LETTER_CHE"
+	    unicode="LATIN_SMALL_LETTER_C_WITH_CARON" />
+	<translation encoding="ISO8859-2" ucc="0428"
+	    cldr="CYRILLIC_CAPITAL_LETTER_SHA"
+	    unicode="LATIN_CAPITAL_LETTER_S_WITH_CARON" />
+	<translation encoding="ISO8859-2" ucc="0448"
+	    cldr="CYRILLIC_SMALL_LETTER_SHA"
+	    unicode="LATIN_SMALL_LETTER_S_WITH_CARON" />
+	<translation encoding="ISO8859-2" ucc="0429"
+	    cldr="CYRILLIC_CAPITAL_LETTER_SHCHA"
+	    unicode="LATIN_CAPITAL_LETTER_S_WITH_CIRCUMFLEX" />
+	<translation encoding="ISO8859-2" ucc="0449"
+	    cldr="CYRILLIC_SMALL_LETTER_SHCHA"
+	    unicode="LATIN_SMALL_LETTER_S_WITH_CIRCUMFLEX" />
+	<translation encoding="ISO8859-2" ucc="042A"
+	    cldr="?CYRILLIC_CAPITAL_LETTER_HARD_SIGN" unicode="?" />
+	<translation encoding="ISO8859-2" ucc="044A"
+	    cldr="?CYRILLIC_SMALL_LETTER_HARD_SIGN" unicode="?" />
+	<translation encoding="ISO8859-2" ucc="042B"
+	    cldr="?CYRILLIC_CAPITAL_LETTER_YERU" unicode="?" />
+	<translation encoding="ISO8859-2" ucc="044B"
+	    cldr="?CYRILLIC_SMALL_LETTER_YERU" unicode="?" />
+	<translation encoding="ISO8859-2" ucc="042C"
+	    cldr="?CYRILLIC_CAPITAL_LETTER_SOFT_SIGN" unicode="?" />
+	<translation encoding="ISO8859-2" ucc="044C"
+	    cldr="?CYRILLIC_SMALL_LETTER_SOFT_SIGN" unicode="?" />
+	<translation encoding="ISO8859-2" ucc="042D"
+	    cldr="CYRILLIC_CAPITAL_LETTER_E"
+	    unicode="LATIN_CAPITAL_LETTER_E_WITH_GRAVE" />
+	<translation encoding="ISO8859-2" ucc="044D"
+	    cldr="CYRILLIC_SMALL_LETTER_E"
+	    unicode="LATIN_SMALL_LETTER_E_WITH_GRAVE" />
+	<translation encoding="ISO8859-2" ucc="042E"
+	    cldr="?CYRILLIC_CAPITAL_LETTER_YU" unicode="?" />
+	<translation encoding="ISO8859-2" ucc="044E"
+	    cldr="?CYRILLIC_SMALL_LETTER_YU" unicode="?" />
+	<translation encoding="ISO8859-2" ucc="042F"
+	    cldr="CYRILLIC_CAPITAL_LETTER_YA"
+	    unicode="LATIN_CAPITAL_LETTER_A_WITH_CIRCUMFLEX" />
+	<translation encoding="ISO8859-2" ucc="044F"
+	    cldr="CYRILLIC_SMALL_LETTER_YA"
+	    unicode="LATIN_SMALL_LETTER_A_WITH_CIRCUMFLEX" />
+
+	<translation encoding="ISO8859-2"
+	    cldr="LATIN_SMALL_LETTER_T_WITH_COMMA_BELOW"
+	    unicode="LATIN_SMALL_LETTER_T" />
+
+	<translation encoding="ISO8859-5"
+	    cldr="MODIFIER_LETTER_APOSTROPHE" unicode="APOSTROPHE" />
+	<translation encoding="ISO8859-5"
+	    cldr="LATIN_SMALL_LETTER_C_WITH_CARON"
+	    unicode="LATIN_SMALL_LETTER_C" />
+
+	<translation encoding="KOI8-U"
+	    cldr="MODIFIER_LETTER_APOSTROPHE" unicode="APOSTROPHE" />
+
+	<translation encoding="CP1251"
+	    cldr="MODIFIER_LETTER_APOSTROPHE" unicode="APOSTROPHE" />
+
+	<!-- Copied from the original FreeBSD src/share/monetdef -->
+	<translation encoding="CP1251" cldr="HRYVNIA_SIGN" hex="E3F0ED" />
+	<translation encoding="ISO8859-5" cldr="HRYVNIA_SIGN" hex="D3E0DD" />
+	<translation encoding="KOI8-U" cldr="HRYVNIA_SIGN" hex="C7D2CE" />
+	<translation encoding="CP866" cldr="RUBLE_SIGN" hex="E0E3A1" />
+	<translation encoding="ISO8859-5" cldr="RUBLE_SIGN" hex="E0E3D1" />
+	<translation encoding="CP1251" cldr="RUBLE_SIGN" hex="E0E3D1" />
+	<translation encoding="KOI8-R" cldr="RUBLE_SIGN" hex="D2D5C2" />
+
+	<!-- These don't have a special Kow sign so just use KRW for it -->
+	<translation encoding="CP949" cldr="WON_SIGN" hex="5C" />
+	<translation encoding="eucKR" cldr="WON_SIGN" hex="5C" />
+
+	<!-- Asian characters -->
+	<translation encoding="GB2312 eucCN" cldr="C"
+	    unicode="FULLWIDTH_LATIN_CAPITAL_LETTER_C" />
+	<translation encoding="Big5" cldr="D"
+	    unicode="FULLWIDTH_LATIN_CAPITAL_LETTER_D" />
+	<translation encoding="GB2312 eucCN Big5" cldr="N"
+	    unicode="FULLWIDTH_LATIN_CAPITAL_LETTER_N" />
+	<translation encoding="Big5" cldr="T"
+	    unicode="FULLWIDTH_LATIN_CAPITAL_LETTER_T" />
+	<translation encoding="Big5" cldr="W"
+	    unicode="FULLWIDTH_LATIN_CAPITAL_LETTER_W" />
+	<translation encoding="GB2312 eucCN" cldr="Y"
+	    unicode="FULLWIDTH_LATIN_CAPITAL_LETTER_Y" />
+	<translation encoding="GB2312 Big5 eucCN" cldr="one"
+	    unicode="FULLWIDTH_DIGIT_ONE" />
+	<translation encoding="GB2312 Big5 eucCN" cldr="two"
+	    unicode="FULLWIDTH_DIGIT_TWO" />
+	<translation encoding="GB2312 Big5 eucCN" cldr="three"
+	    unicode="FULLWIDTH_DIGIT_THREE" />
+	<translation encoding="GB2312 Big5 eucCN" cldr="four"
+	    unicode="FULLWIDTH_DIGIT_FOUR" />
+	<translation encoding="GB2312 Big5 eucCN" cldr="five"
+	    unicode="FULLWIDTH_DIGIT_FIVE" />
+	<translation encoding="GB2312 Big5 eucCN" cldr="six"
+	    unicode="FULLWIDTH_DIGIT_SIX" />
+	<translation encoding="GB2312 Big5 eucCN" cldr="seven"
+	    unicode="FULLWIDTH_DIGIT_SEVEN" />
+	<translation encoding="GB2312 Big5 eucCN" cldr="eight"
+	    unicode="FULLWIDTH_DIGIT_EIGHT" />
+	<translation encoding="GB2312 Big5 eucCN" cldr="nine"
+	    unicode="FULLWIDTH_DIGIT_NINE" />
+	<translation encoding="GB2312 Big5 eucCN" cldr="zero"
+	    unicode="FULLWIDTH_DIGIT_ZERO" />
+	<translation encoding="GB2312 eucCN Big5" cldr="space"
+	    unicode="IDEOGRAPHIC_SPACE" />
+	<translation encoding="GB2312 eucCN Big5" cldr="FULL_STOP"
+	    unicode="FULLWIDTH_FULL_STOP" />
+	<translation encoding="GB2312 eucCN Big5" cldr="SOLIDUS"
+	    unicode="FULLWIDTH_SOLIDUS" />
+	<translation encoding="GB2312 eucCN Big5" cldr="COMMA"
+	    unicode="FULLWIDTH_COMMA" />
+	<translation encoding="GB2312 eucCN Big5" cldr="HYPHEN-MINUS"
+	    unicode="FULLWIDTH_HYPHEN-MINUS" />
+	<translation encoding="Big5" cldr="DOLLAR_SIGN"
+	    unicode="FULLWIDTH_DOLLAR_SIGN" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E00" ucc="4E00" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E03" ucc="4E03" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E09" ucc="4E09" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E0A" ucc="4E0A" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E0B" ucc="4E0B" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E0D" ucc="4E0D" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E5D" ucc="4E5D" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E8C" ucc="4E8C" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E94" ucc="4E94" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-516B" ucc="516B" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-516D" ucc="516D" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-5206" ucc="5206" />
+	<translation encoding="eucJP SJIS"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-524D" ucc="524D" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-5341" ucc="5341" />
+	<translation
+	    encoding="GB2312 GB18030 GBK Big5 eucCN eucJP SJIS"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-5348" ucc="5348" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-5426" ucc="5426" />
+	<translation encoding="GB2312 GB18030 GBK eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-5468" ucc="5468" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-56DB" ucc="56DB" />
+	<translation encoding="eucJP SJIS"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-571F" ucc="571F" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-5B9A" ucc="5B9A" />
+	<translation
+	    encoding="GB2312 GB18030 GBK Big5 eucCN eucJP SJIS"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-5E74" ucc="5E74" />
+	<translation encoding="eucJP SJIS"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-5F8C" ucc="5F8C" />
+	<translation
+	    encoding="GB2312 GB18030 GBK Big5 eucCN eucJP SJIS"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-65E5" ucc="65E5" />
+	<translation encoding="GB2312 GB18030 GBK eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-65F6" ucc="65F6" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-661F" ucc="661F" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-662F" ucc="662F" />
+	<translation encoding="Big5 "
+	    cldr="CJK_UNIFIED_IDEOGRAPH-6642" ucc="6642" />
+	<translation encoding="eucJP SJIS"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-66DC" ucc="66DC" />
+	<translation
+	    encoding="GB2312 GB18030 GBK Big5 eucCN eucJP SJIS"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-6708" ucc="6708" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-671F" ucc="671F" />
+	<translation encoding="eucJP SJIS"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-6728" ucc="6728" />
+	<translation encoding="eucJP SJIS"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-6C34" ucc="6C34" />
+	<translation encoding="eucJP SJIS"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-706B" ucc="706B" />
+	<translation encoding="GB2312 GB18030 GBK eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-786E" ucc="786E" />
+	<translation encoding="Big5 "
+	    cldr="CJK_UNIFIED_IDEOGRAPH-78BA" ucc="78BA" />
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-79D2" ucc="79D2" />
+	<translation encoding="Big5 "
+	    cldr="CJK_UNIFIED_IDEOGRAPH-9031" ucc="9031" />
+	<translation encoding="eucJP SJIS"
+	    cldr="CJK_UNIFIED_IDEOGRAPH-91D1" ucc="91D1" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_GEUM" ucc="AE08" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_NYEON" ucc="B144" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_NI" ucc="B2C8" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_MOG" ucc="BAA9" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_BUN" ucc="BD84" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_SU" ucc="C218" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_SI" ucc="C2DC" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_A" ucc="C544" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_YE" ucc="C608" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_O" ucc="C624" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_YO" ucc="C694" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_WEOL" ucc="C6D4" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_IL" ucc="C77C" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_JEON" ucc="C804" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_CO" ucc="CD08" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_TO" ucc="D1A0" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_HWA" ucc="D654" />
+	<translation encoding="eucKR"
+	    cldr="HANGUL_SYLLABLE_HU" ucc="D6C4" />
+
+	<translation encoding="ARMSCII-8"
+	    cldr="ONE_DOT_LEADER" unicode="FULL_STOP" />
+
+	<translation encoding="US-ASCII" cldr="POUND_SIGN" string="GBP" />
+	<translation encoding="US-ASCII"
+	    cldr="NO-BREAK_SPACE" unicode="SPACE" />
+
+	<translation encoding="ISO8859-1 ISO8859-15"
+	    cldr="NARROW_NO-BREAK_SPACE" unicode="NO-BREAK_SPACE" />
+
+	<!-- punctuation and currency -->
+	<translation encoding="ISO8859-1 ISO8859-15"
+	    cldr="RIGHT_SINGLE_QUOTATION_MARK" unicode="APOSTROPHE" />
+
+	<translation encoding="ISCII-DEV" cldr="INDIAN_RUPEE_SIGN" hex="FC" />
+	<translation encoding="ISO8859-1" cldr="PESO_SIGN" hex="A4" />
+	<translation encoding="ISO8859-1" cldr="COLON_SIGN" hex="A4" />
+	<translation encoding="ARMSCII-8" cldr="ARMENIAN_DRAM_SIGN"
+	    hex="B9F12E" />
+	<translation encoding="ISO8859-9" cldr="TURKISH_LIRA_SIGN"
+	    string="TL" />
+
+</translations>
+
+<c_fmt>
+	<!-- The format of the output of date(1) and ctime(3) is different:
+	-->
+</c_fmt>
+
+<alternativemonths>
+	<!-- Months which are different in dates ("21 december 1980") and in
+		sentence usage ("We will do that in December.").
+		The CLDR doesn't understand them, therefore we have
+		to define them inline. Fortunately it doesn't happen
+		often...
+	  -->
+	<language name="be" countries="BY">
+		<![CDATA[
+		"<CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER TE><CYRILLIC SMALL LETTER U><CYRILLIC SMALL LETTER DE><CYRILLIC SMALL LETTER ZE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER EL><CYRILLIC SMALL LETTER YU><CYRILLIC SMALL LETTER TE><CYRILLIC SMALL LETTER YERU>";
+		"<CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER KA><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I><CYRILLIC SMALL LETTER KA>";
+		"<CYRILLIC SMALL LETTER KA><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I><CYRILLIC SMALL LETTER KA>";
+		"<CYRILLIC SMALL LETTER TE><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER CHE><CYRILLIC SMALL LETTER E><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER EL><CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I><CYRILLIC SMALL LETTER PE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER ZHE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER KA><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER TE><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER YERU><CYRILLIC SMALL LETTER CHE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I><CYRILLIC SMALL LETTER KA>";
+		"<CYRILLIC SMALL LETTER EL><CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER TE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER PE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER DE>";
+		"<CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER ZHE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>"
+		]]>
+	</language>
+	<language name="cs" countries="CZ">
+		<![CDATA[
+		"<l><e><d><e><n>";
+		"<LATIN SMALL LETTER U WITH ACUTE><n><o><r>";
+		"<b><LATIN SMALL LETTER R WITH CARON><e><z><e><n>";
+		"<d><u><b><e><n>";
+		"<k><v><LATIN SMALL LETTER E WITH CARON><t><e><n>";
+		"<LATIN SMALL LETTER C WITH CARON><e><r><v><e><n>";
+		"<LATIN SMALL LETTER C WITH CARON><e><r><v><e><n><e><c>";
+		"<s><r><p><e><n>";
+		"<z><LATIN SMALL LETTER A WITH ACUTE><LATIN SMALL LETTER R WITH CARON><LATIN SMALL LETTER I WITH ACUTE>";
+		"<LATIN SMALL LETTER R WITH CARON><LATIN SMALL LETTER I WITH ACUTE><j><e><n>";
+		"<l><i><s><t><o><p><a><d>";
+		"<p><r><o><s><i><n><e><c>"
+		]]>
+	</language>
+	<language name="el" countries="GR">
+		<![CDATA[
+		"<GREEK CAPITAL LETTER IOTA><GREEK SMALL LETTER ALPHA><GREEK SMALL LETTER NU><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER UPSILON><GREEK SMALL LETTER ALPHA WITH TONOS><GREEK SMALL LETTER RHO><GREEK SMALL LETTER IOTA><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER FINAL SIGMA>";
+		"<GREEK CAPITAL LETTER PHI><GREEK SMALL LETTER EPSILON><GREEK SMALL LETTER BETA><GREEK SMALL LETTER RHO><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER UPSILON><GREEK SMALL LETTER ALPHA WITH TONOS><GREEK SMALL LETTER RHO><GREEK SMALL LETTER IOTA><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER FINAL SIGMA>";
+		"<GREEK CAPITAL LETTER MU><GREEK SMALL LETTER ALPHA WITH TONOS><GREEK SMALL LETTER RHO><GREEK SMALL LETTER TAU><GREEK SMALL LETTER IOTA><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER FINAL SIGMA>";
+		"<GREEK CAPITAL LETTER ALPHA><GREEK SMALL LETTER PI><GREEK SMALL LETTER RHO><GREEK SMALL LETTER IOTA WITH TONOS><GREEK SMALL LETTER LAMDA><GREEK SMALL LETTER IOTA><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER FINAL SIGMA>";
+		"<GREEK CAPITAL LETTER MU><GREEK SMALL LETTER ALPHA WITH TONOS><GREEK SMALL LETTER IOTA WITH DIALYTIKA><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER FINAL SIGMA>";
+		"<GREEK CAPITAL LETTER IOTA><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER UPSILON WITH TONOS><GREEK SMALL LETTER NU><GREEK SMALL LETTER IOTA><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER FINAL SIGMA>";
+		"<GREEK CAPITAL LETTER IOTA><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER UPSILON WITH TONOS><GREEK SMALL LETTER LAMDA><GREEK SMALL LETTER IOTA><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER FINAL SIGMA>";
+		"<GREEK CAPITAL LETTER ALPHA><GREEK SMALL LETTER UPSILON WITH TONOS><GREEK SMALL LETTER GAMMA><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER UPSILON><GREEK SMALL LETTER SIGMA><GREEK SMALL LETTER TAU><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER FINAL SIGMA>";
+		"<GREEK CAPITAL LETTER SIGMA><GREEK SMALL LETTER EPSILON><GREEK SMALL LETTER PI><GREEK SMALL LETTER TAU><GREEK SMALL LETTER EPSILON WITH TONOS><GREEK SMALL LETTER MU><GREEK SMALL LETTER BETA><GREEK SMALL LETTER RHO><GREEK SMALL LETTER IOTA><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER FINAL SIGMA>";
+		"<GREEK CAPITAL LETTER OMICRON><GREEK SMALL LETTER KAPPA><GREEK SMALL LETTER TAU><GREEK SMALL LETTER OMEGA WITH TONOS><GREEK SMALL LETTER BETA><GREEK SMALL LETTER RHO><GREEK SMALL LETTER IOTA><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER FINAL SIGMA>";
+		"<GREEK CAPITAL LETTER NU><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER EPSILON WITH TONOS><GREEK SMALL LETTER MU><GREEK SMALL LETTER BETA><GREEK SMALL LETTER RHO><GREEK SMALL LETTER IOTA><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER FINAL SIGMA>";
+		"<GREEK CAPITAL LETTER DELTA><GREEK SMALL LETTER EPSILON><GREEK SMALL LETTER KAPPA><GREEK SMALL LETTER EPSILON WITH TONOS><GREEK SMALL LETTER MU><GREEK SMALL LETTER BETA><GREEK SMALL LETTER RHO><GREEK SMALL LETTER IOTA><GREEK SMALL LETTER OMICRON><GREEK SMALL LETTER FINAL SIGMA>"
+		]]>
+	</language>
+	<language name="kk" countries="KZ">
+		<![CDATA[
+		"<CYRILLIC SMALL LETTER KA WITH DESCENDER><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER TE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER>";
+		"<CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER KA WITH DESCENDER><CYRILLIC SMALL LETTER PE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER EN>";
+		"<CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER U><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER YERU><CYRILLIC SMALL LETTER ZE>";
+		"<CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER SCHWA><CYRILLIC SMALL LETTER U><CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I><CYRILLIC SMALL LETTER ER>";
+		"<CYRILLIC SMALL LETTER EM><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER EM><CYRILLIC SMALL LETTER YERU><CYRILLIC SMALL LETTER ER>";
+		"<CYRILLIC SMALL LETTER EM><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER U><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER YERU><CYRILLIC SMALL LETTER EM>";
+		"<CYRILLIC SMALL LETTER SHA><CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I><CYRILLIC SMALL LETTER EL><CYRILLIC SMALL LETTER DE><CYRILLIC SMALL LETTER IE>";
+		"<CYRILLIC SMALL LETTER TE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER EM><CYRILLIC SMALL LETTER YERU><CYRILLIC SMALL LETTER ZE>";
+		"<CYRILLIC SMALL LETTER KA WITH DESCENDER><CYRILLIC SMALL LETTER YERU><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER KA><CYRILLIC SMALL LETTER STRAIGHT U><CYRILLIC SMALL LETTER SHORT I><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER KA>";
+		"<CYRILLIC SMALL LETTER KA WITH DESCENDER><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ZE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER EN>";
+		"<CYRILLIC SMALL LETTER KA WITH DESCENDER><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER SHA><CYRILLIC SMALL LETTER A>";
+		"<CYRILLIC SMALL LETTER ZHE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EL><CYRILLIC SMALL LETTER TE><CYRILLIC SMALL LETTER O><CYRILLIC SMALL LETTER KA WITH DESCENDER><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER EN>"
+		]]>
+	</language>
+	<language name="lt" countries="LT">
+		<![CDATA[
+		"<s><a><u><s><i><s>";
+		"<v><a><s><a><r><i><s>";
+		"<k><o><v><a><s>";
+		"<b><a><l><a><n><d><i><s>";
+		"<g><e><g><u><LATIN SMALL LETTER Z WITH CARON><LATIN SMALL LETTER E WITH DOT ABOVE>";
+		"<b><i><r><LATIN SMALL LETTER Z WITH CARON><e><l><i><s>";
+		"<l><i><e><p><a>";
+		"<r><u><g><p><j><LATIN SMALL LETTER U WITH MACRON><t><i><s>";
+		"<r><u><g><s><LATIN SMALL LETTER E WITH DOT ABOVE><j><i><s>";
+		"<s><p><a><l><i><s>";
+		"<l><a><p><k><r><i><t><i><s>";
+		"<g><r><u><o><d><i><s>"
+		]]>
+	</language>
+	<language name="mn" countries="MN">
+		<![CDATA[
+		"<CYRILLIC CAPITAL LETTER EN><CYRILLIC SMALL LETTER E><CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER DE><CYRILLIC SMALL LETTER STRAIGHT U><CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER E><CYRILLIC SMALL LETTER E><CYRILLIC SMALL LETTER ER><space><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER>";
+		"<CYRILLIC CAPITAL LETTER HA><CYRILLIC SMALL LETTER O><CYRILLIC SMALL LETTER IO><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER DE><CYRILLIC SMALL LETTER U><CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER><space><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER>";
+		"<CYRILLIC CAPITAL LETTER GHE><CYRILLIC SMALL LETTER U><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER DE><CYRILLIC SMALL LETTER U><CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER><space><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER>";
+		"<CYRILLIC CAPITAL LETTER DE><CYRILLIC SMALL LETTER BARRED O><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER BARRED O><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER DE><CYRILLIC SMALL LETTER STRAIGHT U><CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER E><CYRILLIC SMALL LETTER E><CYRILLIC SMALL LETTER ER><space><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER>";
+		"<CYRILLIC CAPITAL LETTER TE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER DE><CYRILLIC SMALL LETTER U><CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER><space><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER>";
+		"<CYRILLIC CAPITAL LETTER ZE><CYRILLIC SMALL LETTER U><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER DE><CYRILLIC SMALL LETTER U><CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER><space><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER>";
+		"<CYRILLIC CAPITAL LETTER DE><CYRILLIC SMALL LETTER O><CYRILLIC SMALL LETTER EL><CYRILLIC SMALL LETTER O><CYRILLIC SMALL LETTER O><CYRILLIC SMALL LETTER DE><CYRILLIC SMALL LETTER U><CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER><space><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER>";
+		"<CYRILLIC CAPITAL LETTER EN><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER SHORT I><CYRILLIC SMALL LETTER EM><CYRILLIC SMALL LETTER DE><CYRILLIC SMALL LETTER U><CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER><space><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER>";
+		"<CYRILLIC CAPITAL LETTER IE><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER DE><CYRILLIC SMALL LETTER STRAIGHT U><CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER E><CYRILLIC SMALL LETTER E><CYRILLIC SMALL LETTER ER><space><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER>";
+		"<CYRILLIC CAPITAL LETTER A><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER DE><CYRILLIC SMALL LETTER U><CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER><space><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER>";
+		"<CYRILLIC CAPITAL LETTER A><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER EN><space><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER E><CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER DE><CYRILLIC SMALL LETTER STRAIGHT U><CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER E><CYRILLIC SMALL LETTER E><CYRILLIC SMALL LETTER ER><space><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER>";
+		"<CYRILLIC CAPITAL LETTER A><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER EN><space><CYRILLIC SMALL LETTER HA><CYRILLIC SMALL LETTER O><CYRILLIC SMALL LETTER IO><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER DE><CYRILLIC SMALL LETTER U><CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER><space><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER>"
+		]]>
+	</language>
+	<language name="pl" countries="PL">
+		<![CDATA[
+		"<s><t><y><c><z><e><LATIN SMALL LETTER N WITH ACUTE>";
+		"<l><u><t><y>";
+		"<m><a><r><z><e><c>";
+		"<k><w><i><e><c><i><e><LATIN SMALL LETTER N WITH ACUTE>";
+		"<m><a><j>";
+		"<c><z><e><r><w><i><e><c>";
+		"<l><i><p><i><e><c>";
+		"<s><i><e><r><p><i><e><LATIN SMALL LETTER N WITH ACUTE>";
+		"<w><r><z><e><s><i><e><LATIN SMALL LETTER N WITH ACUTE>";
+		"<p><a><LATIN SMALL LETTER Z WITH ACUTE><d><z><i><e><r><n><i><k>";
+		"<l><i><s><t><o><p><a><d>";
+		"<g><r><u><d><z><i><e><LATIN SMALL LETTER N WITH ACUTE>"
+		]]>
+	</language>
+	<language name="ru" countries="RU">
+		<![CDATA[
+		"<CYRILLIC SMALL LETTER YA><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER EF><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER EL><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER EM><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER TE>";
+		"<CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER PE><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EL><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER EM><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER SHORT I>";
+		"<CYRILLIC SMALL LETTER I><CYRILLIC SMALL LETTER YU><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER I><CYRILLIC SMALL LETTER YU><CYRILLIC SMALL LETTER EL><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER U><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER TE>";
+		"<CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER TE><CYRILLIC SMALL LETTER YA><CYRILLIC SMALL LETTER BE><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER O><CYRILLIC SMALL LETTER KA><CYRILLIC SMALL LETTER TE><CYRILLIC SMALL LETTER YA><CYRILLIC SMALL LETTER BE><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER O><CYRILLIC SMALL LETTER YA><CYRILLIC SMALL LETTER BE><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER DE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER KA><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER BE><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER SOFT SIGN>"
+		]]>
+	</language>
+	<language name="uk" countries="UA">
+		<![CDATA[
+		"<CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I><CYRILLIC SMALL LETTER CHE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER EL><CYRILLIC SMALL LETTER YU><CYRILLIC SMALL LETTER TE><CYRILLIC SMALL LETTER I><CYRILLIC SMALL LETTER SHORT I>";
+		"<CYRILLIC SMALL LETTER BE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER ZE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER KA><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I><CYRILLIC SMALL LETTER TE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER TE><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER CHE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER EL><CYRILLIC SMALL LETTER I><CYRILLIC SMALL LETTER PE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER PE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER ZHE><CYRILLIC SMALL LETTER O><CYRILLIC SMALL LETTER VE><CYRILLIC SMALL LETTER TE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>";
+		"<CYRILLIC SMALL LETTER EL><CYRILLIC SMALL LETTER I><CYRILLIC SMALL LETTER ES><CYRILLIC SMALL LETTER TE><CYRILLIC SMALL LETTER O><CYRILLIC SMALL LETTER PE><CYRILLIC SMALL LETTER A><CYRILLIC SMALL LETTER DE>";
+		"<CYRILLIC SMALL LETTER GHE><CYRILLIC SMALL LETTER ER><CYRILLIC SMALL LETTER U><CYRILLIC SMALL LETTER DE><CYRILLIC SMALL LETTER IE><CYRILLIC SMALL LETTER EN><CYRILLIC SMALL LETTER SOFT SIGN>"
+		]]>
+	</language>
+
+</alternativemonths>
+
+</data>

@@ -1,0 +1,185 @@
+.\" Copyright (c) 2014 Gavin Atkinson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\"    - Redistributions of source code must retain the above copyright
+.\"      notice, this list of conditions and the following disclaimer.
+.\"    - Redistributions in binary form must reproduce the above
+.\"      copyright notice, this list of conditions and the following
+.\"      disclaimer in the documentation and/or other materials provided
+.\"      with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd January 29, 2022
+.Dt IPHETH 4
+.Os
+.Sh NAME
+.Nm ipheth
+.Nd "USB Apple iPhone/iPad tethered Ethernet driver"
+.Sh SYNOPSIS
+To load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ipheth_load="YES"
+.Ed
+.Pp
+Alternatively, to compile this driver into the kernel, place the
+following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
+.Cd "device miibus"
+.Cd "device uether"
+.Cd "device ipheth"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for network access through Apple
+iPhone and iPad devices, often referred to as USB tethering.
+.Pp
+.Nm
+should work with any Apple iPhone or iPad device.
+In most cases this must be explicitly enabled on the device first.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+The device does not support different media types or options.
+.Sh HARDWARE
+The following devices are supported by the
+.Nm
+driver:
+.Pp
+.Bl -bullet -compact
+.It
+Apple iPhone tethering (all models)
+.It
+Apple iPad tethering (all models)
+.El
+.Sh EXAMPLES
+.Bl -tag -width 0n
+.It Sy Example 1\&: No Manual Configuration
+.Pp
+The following example shows how to manually configure network access on a
+device that is not automatically recognized.
+.Pp
+First, load the driver and find out the unit and the address of the USB
+Apple
+device:
+.Bd -literal -offset 2n
+.Li # Ic kldload ipheth
+.Li # Ic usbconfig | grep Apple
+ugen0.2: <Apple Inc. iPhone> at usbus0, cfg=0 md=HOST spd=HIGH (480Mbps) pwr=ON (500mA)
+.Ed
+.Pp
+In this example, the unit and the address of the device is 0.2
+.Pq Dq Li ugen0.2 ,
+and its configuration index is 0
+.Pq Dq Li cfg=0 .
+.Pp
+Secondly, check what other configurations are available for the device:
+.Bd -literal -offset 2n
+.Li # Ic usbconfig -d 0.2 dump_all_config_desc | grep -E '(^ Conf|iConf)'
+ Configuration index 0
+    iConfiguration = 0x0005  <PTP>
+ Configuration index 1
+    iConfiguration = 0x0006  <iPod USB Interface>
+ Configuration index 2
+    iConfiguration = 0x0007  <PTP + Apple Mobile Device>
+ Configuration index 3
+    iConfiguration = 0x0008  <PTP + Apple Mobile Device + Apple USB Ethernet>
+.Ed
+.Pp
+In this example, there are 4 different configurations available.
+The configuration with index 3 seems to be related to Ethernet.
+It is time to configure the device:
+.Bd -literal -offset 2n
+.Li # Ic usbconfig -d 0.2 set_config 3
+.Li # Ic usbconfig | grep 'Apple.*cfg=3'
+ugen0.2: <Apple Inc. iPhone> at usbus0, cfg=3 md=HOST spd=HIGH (480Mbps) pwr=ON (500mA)
+.Ed
+.Pp
+At this point the Apple device should ask whether the
+.Fx
+machine can be trusted
+.Po Dq Mobile Data
+has to be on
+.Pc .
+.Pp
+A new
+.Em ue
+USB Ethernet interface should become available:
+.Bd -literal -offset 2n
+.Li # Ic dmesg | grep 'ue[0-9]'
+ue0: <USB Ethernet> on ipheth0
+ue0: bpf attached
+ue0: Ethernet address: 4e:7c:5f:2c:5f:7a
+.Ed
+.Pp
+At this point it might be necessary to run
+.Xr usbmuxd 1
+.Po available in
+.Xr ports 7
+at
+.Pa comms/usbmuxd
+.Pc :
+.Bd -literal -offset 2n
+.Li # Ic usbmuxd --enable-exit --foreground --user root --verbose
+.Ed
+.Pp
+Now it is time to configure the network interface:
+.Bd -literal -offset 2n
+.Li # Ic sysrc ifconfig_ue0="SYNCDHCP"
+ifconfig_ue0:  -> SYNCDHCP
+.Li # Ic service netif restart ue0
+.Ed
+.Pp
+That is it.
+The machine should now be connected to the network via USB tethering.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr cdce 4 ,
+.Xr cdceem 4 ,
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr urndis 4 ,
+.Xr usb 4 ,
+.Xr ifconfig 8 ,
+.Xr usbconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 8.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Hans Petter Selasky Aq Mt hselasky@FreeBSD.org .
+.Sh BUGS
+Some devices are not recognized automatically and may need to be manually
+configured to use an alternative configuration with the
+.Xr usbconfig 8
+utility.
+See
+.Sx EXAMPLES
+for workarounds.

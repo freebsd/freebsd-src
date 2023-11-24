@@ -1,0 +1,9 @@
+#!/bin/sh
+#
+#
+
+# Configuration file for release/release.sh to build powerpc/powerpc64.
+
+TARGET="powerpc"
+TARGET_ARCH="powerpc64"
+KERNEL="GENERIC64"

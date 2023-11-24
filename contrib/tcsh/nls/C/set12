@@ -1,0 +1,3 @@
+$ sh.dir.c
+$set 12 
+1 %s: Trying to start from "%s"\n

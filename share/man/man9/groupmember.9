@@ -1,0 +1,79 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\" Copyright (C) 2023 Olivier Certner <olce.freebsd@certner.fr>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.Dd August 18, 2023
+.Dt GROUPMEMBER 9
+.Os
+.Sh NAME
+.Nm groupmember
+.Nd checks if credentials mandate some group membership
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/ucred.h
+.Ft bool
+.Fn groupmember "gid_t gid" "struct ucred *cred"
+.Ft bool
+.Fn realgroupmember "gid_t gid" "struct ucred *cred"
+.Sh DESCRIPTION
+The
+.Fn groupmember
+function checks if credentials
+.Fa cred
+indicate that the associated subject or object is a member of the group
+designated by the group ID
+.Fa gid .
+.Pp
+Considered groups in
+.Fa cred
+are the effective and supplementary groups.
+The real group is not taken into account.
+.Pp
+Function
+.Fn realgroupmember
+works the same except that it considers instead the real and supplementary
+groups, and not the effective one.
+.Sh RETURN VALUES
+The
+.Fn groupmember
+and
+.Fn realgroupmember
+functions return
+.Dv true
+if the given credentials indicate membership of the group
+.Fa gid ,
+or
+.Dv false
+otherwise.
+.Sh SEE ALSO
+.Xr getgroups 2
+.Xr setgroups 2
+.Sh AUTHORS
+This manual page was initially written by
+.An -nosplit
+.An Chad David Aq Mt davidc@acns.ab.ca
+and was revised by
+.An Olivier Certner Aq Mt olce.freebsd@certner.fr .

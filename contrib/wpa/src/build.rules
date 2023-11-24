@@ -1,0 +1,109 @@
+.PHONY: all
+all: _all
+
+# disable built-in rules
+.SUFFIXES:
+
+# setup some variables
+ROOTDIR := $(dir $(lastword $(MAKEFILE_LIST)))
+ROOTDIR := $(dir $(ROOTDIR:%../src/=%))../
+BUILDDIR ?= $(abspath $(ROOTDIR)build)
+BUILDDIR := $(BUILDDIR:%/=%)
+ABSROOT := $(abspath $(ROOTDIR))
+ifeq ($(origin OUT),command line)
+_PROJ := $(OUT:%/=%)
+_PROJ := $(_PROJ:$(BUILDDIR)/%=%)
+else
+_PROJ := $(abspath $(dir $(firstword $(MAKEFILE_LIST))))
+_PROJ := $(_PROJ:$(ABSROOT)/%=%)
+endif
+
+ifndef CC
+CC=gcc
+endif
+
+ifndef RANLIB
+RANLIB=ranlib
+endif
+
+ifndef LDO
+LDO=$(CC)
+endif
+
+ifndef CFLAGS
+CFLAGS = -MMD -O2 -Wall -g
+endif
+
+ifneq ($(CONFIG_FILE),)
+-include $(CONFIG_FILE)
+
+# export for sub-makefiles
+export CONFIG_CODE_COVERAGE
+
+.PHONY: verify_config
+verify_config:
+	@if [ ! -r $(CONFIG_FILE) ]; then \
+		echo 'Building $(firstword $(ALL)) requires a configuration file'; \
+		echo '(.config). See README for more instructions. You can'; \
+		echo 'run "cp defconfig .config" to create an example'; \
+		echo 'configuration.'; \
+		exit 1; \
+	fi
+VERIFY := verify_config
+else
+VERIFY :=
+endif
+
+# default target
+.PHONY: _all
+_all: $(VERIFY) $(ALL) $(EXTRA_TARGETS)
+
+# continue setup
+COVSUFFIX := $(if $(CONFIG_CODE_COVERAGE),-cov,)
+PROJ := $(_PROJ)$(COVSUFFIX)
+
+Q=@
+E=echo
+ifeq ($(V), 1)
+Q=
+E=true
+endif
+ifeq ($(QUIET), 1)
+Q=@
+E=true
+endif
+
+ifeq ($(Q),@)
+MAKEFLAGS += --no-print-directory
+endif
+
+_DIRS := $(BUILDDIR)/$(PROJ)
+.PHONY: _make_dirs
+_make_dirs:
+	@mkdir -p $(_DIRS)
+
+$(BUILDDIR)/$(PROJ)/src/%.o: $(ROOTDIR)src/%.c $(CONFIG_FILE) | _make_dirs
+	$(Q)$(CC) -c -o $@ $(CFLAGS) $<
+	@$(E) "  CC " $<
+$(BUILDDIR)/$(PROJ)/%.o: %.c $(CONFIG_FILE) | _make_dirs
+	$(Q)$(CC) -c -o $@ $(CFLAGS) $<
+	@$(E) "  CC " $<
+# for the fuzzing tests
+$(BUILDDIR)/$(PROJ)/wpa_supplicant/%.o: $(ROOTDIR)wpa_supplicant/%.c $(CONFIG_FILE) | _make_dirs
+	$(Q)$(CC) -c -o $@ $(CFLAGS) $<
+	@$(E) "  CC " $<
+
+# libraries - they know how to build themselves
+# (lib_phony so we recurse all the time)
+.PHONY: lib_phony
+lib_phony:
+# nothing
+
+$(BUILDDIR)/$(PROJ)/%.a: $(CONFIG_FILE) lib_phony
+	$(Q)$(MAKE) -C $(ROOTDIR)$(dir $(@:$(BUILDDIR)/$(PROJ)/%=%)) OUT=$(abspath $(dir $@))/
+
+BUILDOBJ = $(patsubst %,$(BUILDDIR)/$(PROJ)/%,$(patsubst $(ROOTDIR)%,%,$(1)))
+
+.PHONY: common-clean
+common-clean:
+	$(Q)rm -rf $(ALL) $(BUILDDIR)/$(PROJ)

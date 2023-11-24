@@ -1,0 +1,77 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2023 The FreeBSD Foundation
+.\"
+.\" This manual page was written by Mina Galić <FreeBSD@igalic.co> under
+.\" sponsorship from the FreeBSD Foundation.
+.\"
+.Dd October 16, 2023
+.Dt PMAP_KEXTRACT 9
+.Os
+.Sh NAME
+.Nm pmap_kextract ,
+.Nm vtophys
+.Nd extract a physical address from the kernel page table
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/pmap.h
+.Ft vm_paddr_t
+.Fo pmap_kextract
+.Fa "vm_offset_t va"
+.Fc
+.Ft vm_paddr_t
+.Fo vtophys
+.Fa "vm_offset_t va"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn pmap_kextract
+function retrieves the underlying physical memory address corresponding to the
+given kernel virtual address
+.Fa va .
+The caller is responsible for ensuring that
+.Fa va
+belongs to a valid mapping in the kernel address space.
+The returned physical address is only meaningful as long as the mapping remains
+stable, so the caller must also have some knowledge or guarantee of the
+mapping's lifetime.
+For example, it is invalid to call
+.Fn pmap_kextract
+with the address of a malloc'd object while there is a possibility for that
+object to be freed concurrently.
+.Pp
+Unlike
+.Xr pmap_extract 9 ,
+.Fn pmap_kextract
+is safe to be called from any context; it has no internal locking or sleep.
+.Pp
+.Fn vtophys
+is an alias for
+.Fn pmap_kextract
+and behaves identically.
+.Sh RETURN VALUES
+The
+.Fn pmap_kextract
+function returns the physical address of memory mapped at the kernel
+virtual address
+.Fa va .
+.Pp
+.Fn pmap_kextract
+generally does not fail.
+However, if supplied with an illegitimate value for
+.Fa va ,
+the function may return zero, an invalid non-zero value, or call
+.Xr panic 9 .
+.Sh SEE ALSO
+.Xr pmap 9 ,
+.Xr pmap_extract 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Mina Galić Aq Mt FreeBSD@igalic.co ,
+based on the
+.Xr pmap_extract 9
+page written by
+.An Bruce M Simpson Aq Mt bms@spc.org .

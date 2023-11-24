@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+
+#include "msm8916-samsung-j5-common.dtsi"
+
+/ {
+	model = "Samsung Galaxy J5 (2015)";
+	compatible = "samsung,j5", "qcom,msm8916";
+	chassis-type = "handset";
+};
+
+&usb_hs_phy {
+	qcom,init-seq = /bits/ 8 <0x1 0x19 0x2 0x0b>;
+};

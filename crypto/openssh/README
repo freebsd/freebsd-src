@@ -1,0 +1,53 @@
+See https://www.openssh.com/releasenotes.html#9.5p1 for the release
+notes.
+
+Please read https://www.openssh.com/report.html for bug reporting
+instructions and note that we do not use Github for bug reporting or
+patch/pull-request management.
+
+This is the port of OpenBSD's excellent OpenSSH[0] to Linux and other
+Unices.
+
+OpenSSH is based on the last free version of Tatu Ylonen's sample
+implementation with all patent-encumbered algorithms removed (to
+external libraries), all known security bugs fixed, new features
+reintroduced and many other clean-ups.  OpenSSH has been created by
+Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos, Theo de Raadt,
+and Dug Song. It has a homepage at https://www.openssh.com/
+
+This port consists of the re-introduction of autoconf support, PAM
+support, EGD/PRNGD support and replacements for OpenBSD library
+functions that are (regrettably) absent from other unices. This port
+has been best tested on AIX, Cygwin, HP-UX, Linux, MacOS/X,
+FreeBSD, NetBSD, OpenBSD, OpenServer, Solaris and UnixWare.
+
+This version actively tracks changes in the OpenBSD CVS repository.
+
+The PAM support is now more functional than the popular packages of
+commercial ssh-1.2.x. It checks "account" and "session" modules for
+all logins, not just when using password authentication.
+
+There is now several mailing lists for this port of OpenSSH. Please
+refer to https://www.openssh.com/list.html for details on how to join.
+
+Please send bug reports and patches to https://bugzilla.mindrot.org or
+the mailing list openssh-unix-dev@mindrot.org.  To mitigate spam, the
+list only allows posting from subscribed addresses.  Code contribution
+are welcomed, but please follow the OpenBSD style guidelines[1].
+
+Please refer to the INSTALL document for information on dependencies and
+how to install OpenSSH on your system.
+
+Damien Miller <djm@mindrot.org>
+
+Miscellania -
+
+This version of OpenSSH is based upon code retrieved from the OpenBSD CVS
+repository which in turn was based on the last free sample implementation
+released by Tatu Ylonen.
+
+References -
+
+[0] https://www.openssh.com/
+[1] https://man.openbsd.org/style.9
+

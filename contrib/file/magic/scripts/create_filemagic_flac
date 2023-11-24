@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+
+## bash script to generate file magic support for flac.
+## https://github.com/file/file/blob/master/magic/Magdir/audio
+## below "#some common sample rates" (line 471), ie:
+## >>17	belong&0xfffff0		0x2ee000	\b, 192 kHz
+
+LANG=C
+
+target=magic/Magdir/audio
+
+## construct static list of sample rates based on standard crystal
+## oscillator frequencies.
+## 16.384  MHz Unknown audio application
+##             (16384 kHz  = 32 kHz * 512 = 32 * 2^9)
+## 22.5792 MHz Redbook/CD
+##             (22579.2 kHz = 44.1kHz * 512 = 44.1 * 2^9)
+##             also used: 11.2896, 16.9344, 33.8688 and 45.1584
+## 24.576  MHz DAT/Video
+##             (24576 kHz = 48 kHz * 512 = 48 * 2^9)
+##             also used: 49.1520
+
+## 33.8688 > 16.9344
+## 36.864  > 18.432000
+declare -a a_ground_fs=(16384000 22579200 24576000)
+
+## multiply ground clock frequencies by 1953 to get usable base
+## frequencies, for instance:
+##  DAT/video:  24.576  MHz * 1000000 / 512 = 48000Hz
+##  Redbook/CD: 22.5792 MHz * 1000000 / 512 = 44100Hz
+## use base rates for calculating derived rates
+declare -a samplerates
+## min divider: fs/n
+def_fs_n=512
+min_fs_n=4
+## start at base_fs/(def_fs*min_fs)
+## add each derived sample rate to the array
+for base_fs in "${a_ground_fs[@]}"; do 
+    min_fs=$( echo "${base_fs} / ( ${def_fs_n} * ${min_fs_n} )" | bc)
+    ## max multiplier: fs*n*min_fs
+    max_fs_n=$(( 8 * min_fs_n ))
+    n=${max_fs_n}
+    while [[ ${n} -ge 1 ]]; do
+	sample_rate=$(( min_fs * n ))
+	samplerates+=(${sample_rate})
+	n=$(( n / 2 ))
+    done
+done
+
+declare -a stripped_rates
+declare -a lines
+for samplerate in "${samplerates[@]}"; do
+    ## use bc with sed to convert and format Hz to kHz
+    stripped_rate="$(LANG=C bc <<< "scale=5; ${samplerate} / 1000" | \
+			      sed 's#[0\.]*$##g')"
+    ## only add uniq sample rates (should be necessary
+    if [[ ! "${stripped_rates[@]}" =~ ${stripped_rate} ]]; then
+	printf -v line ">>17\tbelong&%#-15x\t%#08x\t%s, %s kHz\n" \
+	       "16777200" \
+	       "$(( samplerate * 16 ))" \
+	       "\b" \
+	       "${stripped_rate}"
+	stripped_rates+=("${stripped_rate}")
+	lines+=("${line}")
+    fi
+
+done
+printf "## start cutting >>> \n"
+## print out the formatted lines
+printf "%s" "${lines[@]}" | sort -k5 -n
+printf "## <<< stop cutting\n"

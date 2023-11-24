@@ -1,0 +1,51 @@
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2019 Conrad Meyer <cem@FreeBSD.org>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+#pragma once
+
+#include <sys/systm.h>
+
+/*
+ * The root BRNG seed version, or generation.
+ *
+ * FenestrasX-aware downstream CSPRNGs (i.e., arc4random(9)) should track the
+ * generation number they seeded from, using the read_random_key(9) API below.
+ * If their current seed version is older than the root generation, they should
+ * reseed before producing output.
+ *
+ * The variable is read-only outside of the fenestrasX implementation and
+ * should be accessed using 'atomic_load_acq_64(&fxrng_root_generation)'.
+ * Reseeds are extremely infrequent, so callers may wish to hint to the
+ * compiler that a matching generation is the expected case, with
+ * __predict_true() or __predict_false().
+ */
+extern uint64_t __read_mostly fxrng_root_generation;
+
+/*
+ * A routine for generating seed/key material 
+ * Bypasses random(4) for now, but conceivably could be incorporated into that.
+ */
+void read_random_key(void *buf, size_t nbytes, uint64_t *seed_version_out);

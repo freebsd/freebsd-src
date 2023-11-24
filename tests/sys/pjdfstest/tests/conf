@@ -1,0 +1,7 @@
+#!/bin/sh
+#
+
+GREP=grep
+mountpoint=$(df . | tail -1 | awk '{print $6}')
+fs=$(mount -p | awk '$2 == "'$mountpoint'" { print toupper($3) }')
+os=FreeBSD

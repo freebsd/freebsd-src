@@ -1,0 +1,3 @@
+build/
+.DS_Store
+config.mk

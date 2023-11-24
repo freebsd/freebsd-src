@@ -1,0 +1,13 @@
+#! /bin/sh
+# $Id: checklist9,v 1.9 2020/11/26 00:03:58 tom Exp $
+# "checklist8" using --file
+
+. ./setup-vars
+
+. ./setup-tempfile
+
+$DIALOG "$@" --file checklist9.txt 2>$tempfile
+
+returncode=$?
+
+. ./report-tempfile

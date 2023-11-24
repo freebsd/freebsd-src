@@ -1,0 +1,469 @@
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "LLVM-AR" "1" "2023-05-24" "16" "LLVM"
+.SH NAME
+llvm-ar \- LLVM archiver
+.SH SYNOPSIS
+.sp
+\fBllvm\-ar\fP [\-]{dmpqrstx}[abcDilLNoOPsSTuUvV] [relpos] [count] archive [files...]
+.SH DESCRIPTION
+.sp
+The \fBllvm\-ar\fP command is similar to the common Unix utility,
+\fBar\fP\&. It archives several files, such as objects and LLVM bitcode
+files into a single archive library that can be linked into a program. However,
+the archive can contain any kind of file. By default, \fBllvm\-ar\fP
+generates a symbol table that makes linking faster because only the symbol
+table needs to be consulted, not each individual file member of the archive.
+.sp
+The \fBllvm\-ar\fP command can be used to \fIread\fP archive files in SVR4, GNU,
+BSD , Big Archive, and Darwin format, and \fIwrite\fP in the GNU, BSD, Big Archive, and
+Darwin style archive files. If an SVR4 format archive is used with the \fI\%r\fP
+(replace), \fI\%d\fP (delete), \fI\%m\fP (move) or \fI\%q\fP
+(quick update) operations, the archive will be reconstructed in the format
+defined by \fI\%\-\-format\fP\&.
+.sp
+Here\(aqs where \fBllvm\-ar\fP departs from previous \fBar\fP
+implementations:
+.sp
+\fIThe following option is not supported\fP
+.INDENT 0.0
+.INDENT 3.5
+[f] \- truncate inserted filenames
+.UNINDENT
+.UNINDENT
+.sp
+\fIThe following options are ignored for compatibility\fP
+.INDENT 0.0
+.INDENT 3.5
+\-\-plugin=<string> \- load a plugin which adds support for other file formats
+.sp
+[l] \- ignored in \fBar\fP
+.UNINDENT
+.UNINDENT
+.sp
+\fISymbol Table\fP
+.INDENT 0.0
+.INDENT 3.5
+Since \fBllvm\-ar\fP supports bitcode files, the symbol table it creates
+includes both native and bitcode symbols.
+.UNINDENT
+.UNINDENT
+.sp
+\fIDeterministic Archives\fP
+.INDENT 0.0
+.INDENT 3.5
+By default, \fBllvm\-ar\fP always uses zero for timestamps and UIDs/GIDs
+to write archives in a deterministic mode. This is equivalent to the
+\fI\%D\fP modifier being enabled by default. If you wish to maintain
+compatibility with other \fBar\fP implementations, you can pass the
+\fI\%U\fP modifier to write actual timestamps and UIDs/GIDs.
+.UNINDENT
+.UNINDENT
+.sp
+\fIWindows Paths\fP
+.INDENT 0.0
+.INDENT 3.5
+When on Windows \fBllvm\-ar\fP treats the names of archived \fIfiles\fP in the same
+case sensitive manner as the operating system. When on a non\-Windows machine
+\fBllvm\-ar\fP does not consider character case.
+.UNINDENT
+.UNINDENT
+.SH OPTIONS
+.sp
+\fBllvm\-ar\fP operations are compatible with other \fBar\fP
+implementations. However, there are a few modifiers (\fI\%L\fP) that are not
+found in other \fBar\fP implementations. The options for
+\fBllvm\-ar\fP specify a single basic Operation to perform on the archive,
+a variety of Modifiers for that Operation, the name of the archive file, and an
+optional list of file names. If the \fIfiles\fP option is not specified, it
+generally means either \(dqnone\(dq or \(dqall\(dq members, depending on the operation. The
+Options, Operations and Modifiers are explained in the sections below.
+.sp
+The minimal set of options is at least one operator and the name of the
+archive.
+.SS Operations
+.INDENT 0.0
+.TP
+.B d [NT]
+Delete files from the \fBarchive\fP\&. The \fI\%N\fP and \fI\%T\fP modifiers
+apply to this operation. The \fIfiles\fP options specify which members should be
+removed from the archive. It is not an error if a specified file does not
+appear in the archive. If no \fIfiles\fP are specified, the archive is not
+modified.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B m [abi]
+Move files from one location in the \fBarchive\fP to another. The \fI\%a\fP,
+\fI\%b\fP, and \fI\%i\fP modifiers apply to this operation. The \fIfiles\fP
+will all be moved to the location given by the modifiers. If no modifiers are
+used, the files will be moved to the end of the archive. If no \fIfiles\fP are
+specified, the archive is not modified.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B p [v]
+Print \fIfiles\fP to the standard output stream. If no \fIfiles\fP are specified, the
+entire \fBarchive\fP is printed. With the \fI\%v\fP modifier,
+\fBllvm\-ar\fP also prints out the name of the file being output. Printing
+binary files is  ill\-advised as they might confuse your terminal settings. The
+\fI\%p\fP operation never modifies the archive.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B q [LT]
+Quickly append files to the end of the \fBarchive\fP without removing
+duplicates. If no \fIfiles\fP are specified, the archive is not modified. The
+behavior when appending one archive to another depends upon whether the
+\fI\%L\fP and \fI\%T\fP modifiers are used:
+.INDENT 7.0
+.IP \(bu 2
+Appending a regular archive to a regular archive will append the archive
+file. If the \fI\%L\fP modifier is specified the members will be appended
+instead.
+.IP \(bu 2
+Appending a regular archive to a thin archive requires the \fI\%T\fP
+modifier and will append the archive file. The \fI\%L\fP modifier is not
+supported.
+.IP \(bu 2
+Appending a thin archive to a regular archive will append the archive file.
+If the \fI\%L\fP modifier is specified the members will be appended
+instead.
+.IP \(bu 2
+Appending a thin archive to a thin archive will always quick append its
+members.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B r [abTu]
+Replace existing \fIfiles\fP or insert them at the end of the \fBarchive\fP if
+they do not exist. The \fI\%a\fP, \fI\%b\fP, \fI\%T\fP and \fI\%u\fP
+modifiers apply to this operation. If no \fIfiles\fP are specified, the archive
+is not modified.
+.UNINDENT
+.sp
+t[v]
+\&.. option:: t [vO]
+.INDENT 0.0
+.INDENT 3.5
+Print the table of contents. Without any modifiers, this operation just prints
+the names of the members to the standard output stream. With the \fI\%v\fP
+modifier, \fBllvm\-ar\fP also prints out the file type (B=bitcode,
+S=symbol table, blank=regular file), the permission mode, the owner and group,
+are ignored when extracting \fIfiles\fP and set to placeholder values when adding
+size, and the date. With the \fI\%O\fP modifier, display member offsets. If
+any \fIfiles\fP are specified, the listing is only for those files. If no \fIfiles\fP
+are specified, the table of contents for the whole archive is printed.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B V
+A synonym for the \fI\%\-\-version\fP option.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B x [oP]
+Extract \fBarchive\fP members back to files. The \fI\%o\fP modifier applies
+to this operation. This operation retrieves the indicated \fIfiles\fP from the
+archive and writes them back to the operating system\(aqs file system. If no
+\fIfiles\fP are specified, the entire archive is extracted.
+.UNINDENT
+.SS Modifiers (operation specific)
+.sp
+The modifiers below are specific to certain operations. See the Operations
+section to determine which modifiers are applicable to which operations.
+.INDENT 0.0
+.TP
+.B a
+When inserting or moving member files, this option specifies the destination
+of the new files as being after the \fIrelpos\fP member. If \fIrelpos\fP is not found,
+the files are placed at the end of the \fBarchive\fP\&. \fIrelpos\fP cannot be
+consumed without either \fI\%a\fP, \fI\%b\fP or \fI\%i\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B b
+When inserting or moving member files, this option specifies the destination
+of the new files as being before the \fIrelpos\fP member. If \fIrelpos\fP is not
+found, the files are placed at the end of the \fBarchive\fP\&. \fIrelpos\fP cannot
+be consumed without either \fI\%a\fP, \fI\%b\fP or \fI\%i\fP\&. This
+modifier is identical to the \fI\%i\fP modifier.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B i
+A synonym for the \fI\%b\fP option.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B L
+When quick appending an \fBarchive\fP, instead quick append its members. This
+is a feature for \fBllvm\-ar\fP that is not found in gnu\-ar.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B N
+When extracting or deleting a member that shares its name with another member,
+the \fIcount\fP parameter allows you to supply a positive whole number that
+selects the instance of the given name, with \(dq1\(dq indicating the first
+instance. If \fI\%N\fP is not specified the first member of that name will
+be selected. If \fIcount\fP is not supplied, the operation fails.*count* cannot be
+.UNINDENT
+.INDENT 0.0
+.TP
+.B o
+When extracting files, use the modification times of any \fIfiles\fP as they
+appear in the \fBarchive\fP\&. By default \fIfiles\fP extracted from the archive
+use the time of extraction.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B O
+Display member offsets inside the archive.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B T
+Alias for \fB\-\-thin\fP\&. In many ar implementations \fBT\fP has a different
+meaning, as specified by X/Open System interface.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B v
+When printing \fIfiles\fP or the \fBarchive\fP table of contents, this modifier
+instructs \fBllvm\-ar\fP to include additional information in the output.
+.UNINDENT
+.SS Modifiers (generic)
+.sp
+The modifiers below may be applied to any operation.
+.INDENT 0.0
+.TP
+.B c
+For the \fI\%r\fP (replace)and \fI\%q\fP (quick update) operations,
+\fBllvm\-ar\fP will always create the archive if it doesn\(aqt exist.
+Normally, \fBllvm\-ar\fP will print a warning message indicating that the
+\fBarchive\fP is being created. Using this modifier turns off
+that warning.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B D
+Use zero for timestamps and UIDs/GIDs. This is set by default.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B P
+Use full paths when matching member names rather than just the file name.
+This can be useful when manipulating an \fBarchive\fP generated by another
+archiver, as some allow paths as member names. This is the default behavior
+for thin archives.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B s
+This modifier requests that an archive index (or symbol table) be added to the
+\fBarchive\fP, as if using ranlib. The symbol table will contain all the
+externally visible functions and global variables defined by all the bitcode
+files in the archive. By default \fBllvm\-ar\fP generates symbol tables in
+archives. This can also be used as an operation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B S
+This modifier is the opposite of the \fI\%s\fP modifier. It instructs
+\fBllvm\-ar\fP to not build the symbol table. If both \fI\%s\fP and
+\fI\%S\fP are used, the last modifier to occur in the options will prevail.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B u
+Only update \fBarchive\fP members with \fIfiles\fP that have more recent
+timestamps.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B U
+Use actual timestamps and UIDs/GIDs.
+.UNINDENT
+.SS Other
+.INDENT 0.0
+.TP
+.B \-\-format=<type>
+This option allows for default, gnu, darwin or bsd \fB<type>\fP to be selected.
+When creating an \fBarchive\fP, \fB<type>\fP will default to that of the host
+machine.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-h, \-\-help
+Print a summary of command\-line options and their meanings.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-M
+This option allows for MRI scripts to be read through the standard input
+stream. No other options are compatible with this option.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-output=<dir>
+Specify a directory where archive members should be extracted to. By default the
+current working directory is used.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-rsp\-quoting=<type>
+.TP
+.B This option selects the quoting style \(ga\(ga<type>\(ga\(ga for response files, either
+.TP
+.B \(ga\(gaposix\(ga\(ga or \(ga\(gawindows\(ga\(ga. The default when on Windows is \(ga\(gawindows\(ga\(ga, otherwise the
+.TP
+.B default is \(ga\(gaposix\(ga\(ga.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-thin
+When creating or modifying an archive, this option specifies that the
+\fBarchive\fP will be thin. By default, archives are not created as thin archives
+and when modifying a thin archive, it will be converted to a regular archive.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-version
+Display the version of the \fBllvm\-ar\fP executable.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-X mode
+Specifies the type of object file \fBllvm\-ar\fP will recognise. The mode must be
+one of the following:
+.INDENT 7.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B 32
+Process only 32\-bit object files.
+.TP
+.B 64
+Process only 64\-bit object files.
+.TP
+.B 32_64
+Process both 32\-bit and 64\-bit object files.
+.TP
+.B any
+Process all object files.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The default is to process 32\-bit object files (ignore 64\-bit objects). The mode can also
+be set with the OBJECT_MODE environment variable. For example, OBJECT_MODE=64 causes ar to
+process any 64\-bit objects and ignore 32\-bit objects. The \-X flag overrides the OBJECT_MODE
+variable.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B @<FILE>
+Read command\-line options and commands from response file \fB<FILE>\fP\&.
+.UNINDENT
+.SH MRI SCRIPTS
+.sp
+\fBllvm\-ar\fP understands a subset of the MRI scripting interface commonly
+supported by archivers following in the ar tradition. An MRI script contains a
+sequence of commands to be executed by the archiver. The \fI\%\-M\fP option
+allows for an MRI script to be passed to \fBllvm\-ar\fP through the
+standard input stream.
+.sp
+Note that \fBllvm\-ar\fP has known limitations regarding the use of MRI
+scripts:
+.INDENT 0.0
+.IP \(bu 2
+Each script can only create one archive.
+.IP \(bu 2
+Existing archives can not be modified.
+.UNINDENT
+.SS MRI Script Commands
+.sp
+Each command begins with the command\(aqs name and must appear on its own line.
+Some commands have arguments, which must be separated from the name by
+whitespace. An MRI script should begin with either a \fI\%CREATE\fP or
+\fI\%CREATETHIN\fP command and will typically end with a \fI\%SAVE\fP
+command. Any text after either \(aq*\(aq or \(aq;\(aq is treated as a comment.
+.INDENT 0.0
+.TP
+.B CREATE archive
+Begin creation of a regular archive with the specified name. Subsequent
+commands act upon this \fBarchive\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B CREATETHIN archive
+Begin creation of a thin archive with the specified name. Subsequent
+commands act upon this \fBarchive\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B ADDLIB archive
+Append the contents of \fBarchive\fP to the current archive.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B ADDMOD <file>
+Append \fB<file>\fP to the current archive.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B DELETE <file>
+Delete the member of the current archive whose file name, excluding directory
+components, matches \fB<file>\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B SAVE
+Write the current archive to the path specified in the previous
+\fI\%CREATE\fP/\fI\%CREATETHIN\fP command.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B END
+Ends the MRI script (optional).
+.UNINDENT
+.SH EXIT STATUS
+.sp
+If \fBllvm\-ar\fP succeeds, it will exit with 0.  Otherwise, if an error occurs, it
+will exit with a non\-zero value.
+.SH AUTHOR
+Maintained by the LLVM Team (https://llvm.org/).
+.SH COPYRIGHT
+2003-2023, LLVM Project
+.\" Generated by docutils manpage writer.
+.

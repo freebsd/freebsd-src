@@ -1,0 +1,14 @@
+*.swp
+*~
+*.orig
+*.core
+extern.h
+*_def.h
+version.h
+tags
+build/
+
+# Ignore files by the GNU Global source code tagging system.
+/GPATH
+/GRTAGS
+/GTAGS

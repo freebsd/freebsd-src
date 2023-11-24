@@ -1,0 +1,3 @@
+#! /usr/bin/dc
+0si[lid:rli1+sili100>x]dsxxli1-si[li;rpRli1-sili0!>x]dsxxli1+si[li;rpRli1+sili100>x]dsxx
+0 0:a 1 1:a 2 2:a 0;a 1;a 2;a |pR

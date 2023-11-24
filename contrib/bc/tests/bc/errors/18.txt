@@ -1,0 +1,7 @@
+while (1) {
+
+define x(x) {
+	return x
+}
+
+}

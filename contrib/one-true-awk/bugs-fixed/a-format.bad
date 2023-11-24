@@ -1,0 +1,3 @@
+nawk: weird printf conversion %a
+ source line number 2
+%a42

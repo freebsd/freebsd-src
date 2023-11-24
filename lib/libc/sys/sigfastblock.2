@@ -1,0 +1,164 @@
+.\" Copyright (c) 2016 The FreeBSD Foundation, Inc.
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd December 13, 2019
+.Dt SIGFASTBLOCK 2
+.Os
+.Sh NAME
+.Nm sigfastblock
+.Nd controls signals blocking with a simple memory write
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/signalvar.h
+.Ft int
+.Fn sigfastblock "int cmd" "void *ptr"
+.Sh DESCRIPTION
+.Bf -symbolic
+This function is not intended for a direct usage by applications.
+The functionality is provided for implementing some optimizations in
+.Xr ld-elf.so.1 8
+and
+.Lb libthr .
+.Ef
+.Pp
+The function configures the kernel facility that allows a thread to
+block asynchronous signals delivery with a single write to userspace
+memory, avoiding overhead of system calls like
+.Xr sigprocmask 2
+for establishing critical sections.
+The C runtime uses it to optimize implementation of async-signal-safe
+functionality.
+.Pp
+A thread might register a
+.Dv sigblock
+variable of type
+.Vt int
+as a location which is consulted by kernel when calculating the
+blocked signal mask for delivery of asynchronous signals.
+If the variable indicates that blocking is requested, then the kernel
+effectively operates as if the mask containing all blockable signals was
+supplied to
+.Xr sigprocmask 2 .
+.Pp
+The variable is supposed to be modified only from the owning thread,
+there is no way to guarantee visibility of update from other thread
+to kernel when signals are delivered.
+.Pp
+Lower bits of the sigblock variable are reserved as flags,
+which might be set or cleared by kernel at arbitrary moments.
+Userspace code should use
+.Xr atomic 9
+operations of incrementing and decrementing by
+.Dv SIGFASTBLOCK_INC
+quantity to recursively block or unblock signals delivery.
+.Pp
+If a signal would be delivered when unmasked, kernel might set the
+.Dv SIGFASTBLOCK_PEND
+.Dq pending signal
+flag in the sigblock variable.
+Userspace should perform
+.Dv SIGFASTBLOCK_UNBLOCK
+operation when clearing the variable if it notes the pending signal
+bit is set, which would deliver the pending signals immediately.
+Otherwise, signals delivery might be postponed.
+.Pp
+The
+.Fa cmd
+argument specifies one of the following operations:
+.Bl -tag -width SIGFASTBLOCK_UNSETPTR
+.It Dv SIGFASTBLOCK_SETPTR
+Register the variable of type
+.Vt int
+at location pointed to by the
+.Fa ptr
+argument as sigblock variable for the calling thread.
+.It Dv SIGFASTBLOCK_UNSETPTR
+Unregister the currently registered sigblock location.
+Kernel stops inferring the blocked mask from non-zero value of its
+blocked count.
+New location can be registered after previous one is deregistered.
+.It Dv SIGFASTBLOCK_UNBLOCK
+If there are pending signals which should be delivered to the calling
+thread, they are delivered before returning from the call.
+The sigblock variable should have zero blocking count, and indicate
+that the pending signal exists.
+Effectively this means that the variable should have the value
+.Dv SIGFASTBLOCK_PEND .
+.El
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The operation may fail with the following errors:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The
+.Dv SIGFASTBLOCK_SETPTR
+attempted while the sigblock address was already registered.
+The
+.Dv SIGFASTBLOCK_UNBLOCK
+was called while sigblock variable value is not equal to
+.Dv SIGFASTBLOCK_PEND .
+.It Bq Er EINVAL
+The variable address passed to
+.Dv SIGFASTBLOCK_SETPTR
+is not aligned naturally.
+The
+.Dv SIGFASTBLOCK_UNSETPTR
+operation was attempted without prior successfull call to
+.Dv SIGFASTBLOCK_SETPTR .
+.It Bq Er EFAULT
+Attempt to read or write to the sigblock variable failed.
+Note that kernel generates the
+.Dv SIGSEGV
+signal if an attempt to read from the sigblock variable faulted
+during implicit accesses from syscall entry.
+.El
+.Sh SEE ALSO
+.Xr kill 2 ,
+.Xr signal 2 ,
+.Xr sigprocmask 2 ,
+.Xr libthr 3 ,
+.Xr ld-elf.so.1 8
+.Sh STANDARDS
+The
+.Nm
+function is non-standard, although a similar functionality is a common
+optimization provided by several other systems.
+.Sh HISTORY
+The
+.Nm
+function was introduced in
+.Fx 13.0 .
+.Sh BUGS
+The
+.Nm
+symbol is currently not exported by libc, on purpose.
+Consumers should either use the
+.Dv __sys_fast_sigblock
+symbol from the private libc namespace, or utilize
+.Xr syscall 2 .

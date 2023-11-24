@@ -1,0 +1,8 @@
+#
+read x <<EOF; for i in "$x"
+value
+EOF
+do
+	x=$x.$i
+done
+[ "$x" = value.value ]

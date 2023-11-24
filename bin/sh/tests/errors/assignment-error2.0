@@ -1,0 +1,7 @@
+
+set -e
+HOME=/
+readonly HOME
+cd /sbin
+{ HOME=/bin cd; } 2>/dev/null || :
+[ "$(pwd)" != /bin ]

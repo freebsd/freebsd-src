@@ -1,0 +1,294 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2023 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Mark Johnston <markj@FreeBSD.org>
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd January 17, 2023
+.Dt SMR 9
+.Os
+.Sh NAME
+.Nm smr
+.Nd safe memory reclamation for lock-free data structures
+.Sh SYNOPSIS
+.In sys/smr.h
+.Ft smr_seq_t
+.Fo smr_advance
+.Fa "smr_t smr"
+.Fc
+.Ft smr_t
+.Fo smr_create
+.Fa "const char *name"
+.Fc
+.Ft void
+.Fo smr_destroy
+.Fa "smr_t smr"
+.Fc
+.Ft void
+.Fo smr_enter
+.Fa "smr_t smr"
+.Fc
+.Ft void
+.Fo smr_exit
+.Fa "smr_t smr"
+.Fc
+.Ft bool
+.Fo smr_poll
+.Fa "smr_t smr"
+.Fa "smr_seq_t goal"
+.Fa "bool wait"
+.Fc
+.Ft void
+.Fo smr_synchronize
+.Fa "smr_t smr"
+.Fc
+.Ft void
+.Fo smr_wait
+.Fa "smr_t smr"
+.Fa "smr_seq_t goal"
+.Fc
+.Sh DESCRIPTION
+Safe Memory Reclamation (SMR) is a facility which enables the implementation of
+memory-safe lock-free data structures.
+In typical usage, read accesses to an SMR-protected data structure, such as a
+hash table or tree, are performed in a
+.Dq read section
+consisting of code bracketed by
+.Fn smr_enter
+and
+.Fn smr_exit
+calls, while mutations of the data structure are serialized by a traditional
+mutex such as
+.Xr mutex 9 .
+In contrast with reader-writer locks such as
+.Xr rwlock 9 ,
+.Xr rmlock 9 ,
+and
+.Xr sx 9 ,
+SMR allows readers and writers to access the data structure concurrently.
+Readers can always enter a read section immediately
+.Po
+.Fn smr_enter
+never blocks
+.Pc ,
+so mutations do not introduce read latency.
+Furthermore,
+.Fn smr_enter
+and
+.Fn smr_exit
+operate only on per-CPU data and thus avoid some of the performance problems
+inherent in the implementation of traditional reader-writer mutexes.
+SMR can therefore be a useful building block for data structures which are
+accessed frequently but are only rarely modified.
+.Pp
+Note that any SMR-protected data structure must be implemented carefully such
+that operations behave correctly in the absence of mutual exclusion between
+readers and writers.
+The data structure must be designed to be lock-free; SMR merely facilitates
+the implementation, for example by making it safe to follow dangling pointers
+and by helping avoid the ABA problem.
+.Pp
+When shared accesses to and mutations of a data structure can proceed
+concurrently, writers must take care to ensure that any items removed from the
+structure are not freed and recycled while readers are accessing them in
+parallel.
+This requirement results in a two-phase approach to the removal of items:
+first, the item is unlinked such that all pointers to the item are removed from
+the structure, preventing any new readers from observing the item.
+Then, the writer waits until some mechanism guarantees that no existing readers
+are still accessing the item.
+At that point the memory for that item can be freed and reused safely.
+SMR provides this mechanism: readers may access a lock-free data structure in
+between calls to the
+.Fn smr_enter
+and
+.Fn smr_exit
+functions, which together create a read section, and the
+.Fn smr_advance ,
+.Fn smr_poll ,
+.Fn smr_wait ,
+and
+.Fn smr_synchronize
+functions can be used to wait for threads in read sections to finish.
+All of these functions operate on a
+.Ft smr_t
+state block which holds both per-CPU and global state.
+Readers load global state and modify per-CPU state, while writers must scan all
+per-CPU states to detect active readers.
+SMR is designed to amortize this cost by batching to give acceptable
+performance in write-heavy workloads.
+.Ss Readers
+Threads enter a read section by calling
+.Fn smr_enter .
+Read sections should be short, and many operations are not permitted while in
+a read section.
+Specifically, context switching is disabled, and thus readers may not acquire
+blocking mutexes such as
+.Xr mutex 9 .
+Another consequence of this is that the thread is pinned to the current CPU for
+the duration of the read section.
+Furthermore, read sections may not be nested: it is incorrect to call
+.Fn smr_enter
+with a given
+.Ft smr_t
+state block when already in a read section for that state block.
+.Ss UMA Integration
+To simplify the integration of SMR into consumers, the
+.Xr uma 9
+kernel memory allocator provides some SMR-specified facilities.
+This eliminates a good deal of complexity from the implementation of consumers
+and automatically batches write operations.
+.Pp
+In typical usage, a UMA zone (created with the
+.Dv UMA_ZONE_SMR
+flag or initialized with the
+.Fn uma_zone_set_smr
+function) is coupled with a
+.Ft smr_t
+state block.
+To insert an item into an SMR-protected data structure, memory is allocated
+from the zone using the
+.Fn uma_zalloc_smr
+function.
+Insertions and removals are serialized using traditional mutual exclusion
+and items are freed using the
+.Fn uma_zfree_smr
+function.
+Read-only lookup operations are performed in SMR read sections.
+.Fn uma_zfree_smr
+waits for all active readers which may be accessing the freed item to finish
+their read sections before recycling that item's memory.
+.Pp
+If the zone has an associated per-item destructor, it will be invoked at some
+point when no readers can be accessing a given item.
+The destructor can be used to release additional resources associated with the
+item.
+Note however that there is no guarantee that the destructor will be invoked in
+a bounded time period.
+.Ss Writers
+Consumers are expected to use SMR in conjunction with UMA and thus need only
+make use of the
+.Fn smr_enter
+and
+.Fn smr_exit
+functions, and the SMR helper macros defined in
+.Pa sys/smr_types.h .
+However, an introduction to the write-side interface of SMR can be useful.
+.Pp
+Internally, SMR maintains a global
+.Ql write sequence
+number.
+When entering a read section,
+.Fn smr_enter
+loads a copy of the write sequence and stores it in per-CPU memory, hence
+.Ql observing
+that value.
+To exit a read section, this per-CPU memory is overwritten with an invalid
+value, making the CPU inactive.
+Writers perform two operations: advancing the write sequence number, and
+polling all CPUs to see whether active readers have observed a given sequence
+number.
+These operations are performed by
+.Fn smr_advance
+and
+.Fn smr_poll ,
+respectively, which do not require serialization between multiple writers.
+.Pp
+After a writer unlinks an item from a data structure, it increments the write
+sequence number and tags the item with the new value returned by
+.Fn smr_advance .
+Once all CPUs have observed the new value, the writer can use
+.Fn smr_poll
+to deduce that no active readers have access to the unlinked item, and thus the
+item is safe to recycle.
+Because this pair of operations is relatively expensive, it is generally a good
+idea to amortize this cost by accumulating a collection of multiple unlinked
+items and tagging the entire batch with a target write sequence number.
+.Pp
+.Fn smr_poll
+is a non-blocking operation and returns true only if all active readers are
+guaranteed to have observed the target sequence number value.
+.Fn smr_wait
+is a variant of
+.Fn smr_poll
+which waits until all CPUs have observed the target sequence number value.
+.Fn smr_synchronize
+combines
+.Fn smr_advance
+with
+.Fn smr_wait
+to wait for all CPUs to observe a new write sequence number.
+This is an expensive operation and should only be used if polling cannot be
+deferred in some way.
+.Ss Memory Ordering
+The
+.Fn smr_enter
+function has acquire semantics, and the
+.Fn smr_exit
+function has release semantics.
+The
+.Fn smr_advance ,
+.Fn smr_poll ,
+.Fn smr_wait ,
+and
+.Fn smr_synchronize
+functions should not be assumed to have any guarantees with respect to memory
+ordering.
+In practice, some of these functions have stronger ordering semantics than
+is stated here, but this is specific to the implementation and should not be
+relied upon.
+See
+.Xr atomic 9
+for more details.
+.Sh NOTES
+Outside of
+.Fx
+the acronym SMR typically refers to a family of algorithms which enable
+memory-safe read-only access to a data structure concurrent with modifications
+to that data structure.
+Here, SMR refers to a particular algorithm belonging to this family, as well as
+its implementation in
+.Fx .
+See
+.Pa sys/sys/smr.h
+and
+.Pa sys/kern/subr_smr.c
+in the
+.Fx
+source tree for further details on the algorithm and the context.
+.Pp
+The acronym SMR is also used to mean "shingled magnetic recording", a
+technology used to store data on hard disk drives which requires operating
+system support.
+These two uses of the acronym are unrelated.
+.Sh SEE ALSO
+.Xr atomic 9 ,
+.Xr locking 9 ,
+.Xr uma 9
+.Sh AUTHORS
+The SMR algorithm and its implementation were provided by
+.An Jeff Roberson Aq Mt jeff@FreeBSD.org .
+This manual page was written by
+.An Mark Johnston Aq Mt markj@FreeBSD.org .

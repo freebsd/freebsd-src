@@ -1,0 +1,68 @@
+Release notes for FreeBSD 15.0.
+
+This file describes new user-visible features, changes and updates relevant to
+users of binary FreeBSD releases.  Each entry should describe the change in no
+more than several sentences and should reference manual pages where an
+interested user can find more information.  Entries should wrap after 80
+columns.  Each entry should begin with one or more commit IDs on one line,
+specified as a comma separated list and/or range, followed by a colon and a
+newline.  Entries should be separated by a newline.
+
+Changes to this file should not be MFCed.
+
+c5359e2af5ab:
+	bhyve(8) has a new network backend, "slirp", which makes use of the
+	libslirp package to provide a userspace network stack.  This backend
+	makes it possible to access the guest network from the host without
+	requiring any extra network configuration on the host.
+
+bb830e346bd5:
+	Set the IUTF8 flag by default in tty(4).
+
+	128f63cedc14 and 9e589b093857 added proper UTF-8 backspacing handling
+	in the tty(4) driver, which is enabled by setting the new IUTF8 flag
+	through stty(1). Since the default locale is UTF-8, enable IUTF8 by
+	default.
+
+ff01d71e48d4:
+	dialog(1) has been replaced by bsddialog(1)
+
+41582f28ddf7:
+	FreeBSD 15.0 will not include support for 32-bit platforms.
+	However, 64-bit systems will still be able to run older 32-bit
+	binaries.
+
+	Support for executing 32-bit binaries on 64-bit platforms via
+	COMPAT_FREEBSD32 will remain supported for at least the
+	stable/15 and stable/16 branches.
+
+	Support for compiling individual 32-bit applications via
+	`cc -m32` will also be supported for at least the stable/15
+	branch which includes suitable headers in /usr/include and
+	libraries in /usr/lib32.
+
+	Support for 32-bit platforms in ports for 15.0 and later
+	releases is also deprecated, and these future releases may not
+	include binary packages for 32-bit platforms or support for
+	building 32-bit applications from ports.
+
+	stable/14 and earlier branches will retain existing 32-bit
+	kernel and world support.  Ports will retain existing support
+	for building ports and packages for 32-bit systems on stable/14
+	and earlier branches as long as those branches are supported
+	by the ports system.  However, all 32-bit platforms are Tier-2
+	or Tier-3 and support for individual ports should be expected
+	to degrade as upstreams deprecate 32-bit platforms.
+
+	With the current support schedule, stable/14 will be EOLed 5
+	years after the release of 14.0.  The EOL of stable/14 would
+	mark the end of support for 32-bit platforms including source
+	releases, pre-built packages, and support for building
+	applications from ports.  Given an estimated release date of
+	October 2023 for 14.0, support for 32-bit platforms would end
+	in October 2028.
+
+	The project may choose to alter this approach when 15.0 is
+	released by extending some level of 32-bit support for one or
+	more platforms in 15.0 or later.  Users should use the
+	stable/14 branch to migrate off of 32-bit platforms.

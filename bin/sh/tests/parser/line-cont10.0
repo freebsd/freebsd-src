@@ -1,0 +1,17 @@
+
+v=XaaaXbbbX
+[ "${v\
+#\
+*\
+a}.${v\
+#\
+#\
+*\
+a}.${v\
+%\
+b\
+*}.${v\
+%\
+%\
+b\
+*}" = aaXbbbX.XbbbX.XaaaXbb.XaaaX ]

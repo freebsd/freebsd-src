@@ -1,0 +1,24 @@
+Making commands:
+command during parsing
+commands: query status 1
+
+Making opt-query-file.out-of-date in compat mode:
+opt-query-file.out-of-date in compat mode: query status 1
+
+Making opt-query-file.up-to-date in compat mode:
+`opt-query-file.up-to-date' is up to date.
+opt-query-file.up-to-date in compat mode: query status 0
+
+Making phony in compat mode:
+phony in compat mode: query status 1
+
+Making opt-query-file.out-of-date in jobs mode:
+opt-query-file.out-of-date in jobs mode: query status 1
+
+Making opt-query-file.up-to-date in jobs mode:
+opt-query-file.up-to-date in jobs mode: query status 0
+
+Making phony in jobs mode:
+phony in jobs mode: query status 1
+
+exit status 0

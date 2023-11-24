@@ -1,0 +1,4 @@
+Do not build or install
+.Xr tftp 1
+and
+.Xr tftpd 8 .

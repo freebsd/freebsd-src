@@ -1,0 +1,238 @@
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2022 Adrian Chadd <adrian@FreeBSD.org>.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#include <dt-bindings/net/qcom-qca807x.h>
+
+/ {
+	soc {
+		mdio: mdio@90000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "qcom,ipq4019-mdio";
+			reg = <0x90000 0x64>;
+			status = "disabled";
+		};
+
+		ess-switch@c000000 {
+			compatible = "qcom,ess-switch";
+			reg = <0xc000000 0x80000>;
+			resets = <&gcc ESS_RESET>;
+			reset-names = "ess_rst";
+			clocks = <&gcc GCC_ESS_CLK>;
+			clock-names = "ess_clk";
+
+			/*
+			 * The port bitmap describing which ports are CPU
+			 * facing.  It's almost always going to be port 0
+			 * (ie bit 0.)
+			 */
+			switch_cpu_bmp = <0x1>;
+
+			/*
+			 * The port bitmap describing which ports are in
+			 * the LAN group.  This defaults to VLAN 1 in the
+			 * switch driver.
+			 */
+			switch_lan_bmp = <0x1e>;
+
+			/*
+			 * The port bitmap describing which ports are
+			 * in the WAN group.  This defaults to VLAN 2
+			 * in the switch driver.
+			 */
+			switch_wan_bmp = <0x20>;
+
+			/*
+			 * Which interface to use to talk to an external
+			 * PHY.  In this instance we default to
+			 * PORT_WRAPPER_PSGMII as we're defaulting to
+			 * a PSGMII (well, Qualcomm SGMII) facing a 5
+			 * port Malibu PHY.
+			 */
+			switch_mac_mode = <0>;
+			status = "disabled";
+		};
+
+		ess-psgmii@98000 {
+			compatible = "qcom,ess-psgmii";
+			reg = <0x98000 0x800>;
+			status = "disabled";
+		};
+
+		edma@c080000 {
+			compatible = "qcom,ess-edma";
+			reg = <0xc080000 0x8000>;
+
+			/*
+			 * This is a hold-over from the Qualcomm Linux driver
+			 * and controls whether to allocate a full PAGE_SIZE
+			 * page entry per RX buffer or not.
+			 *
+			 * For now it's parsed but ignored by FreeBSD.
+			 */
+			qcom,page-mode = <0>;
+
+			/*
+			 * This sets the size of the RX head buffer.
+			 *
+			 * If qcom,page_mode is set to 1 then this is ignored.
+			 *
+			 * Again, this is currently parsed but ignored by
+			 * FreeBSD.
+			 */
+			qcom,rx_head_buf_size = <1540>;
+
+			/*
+			 * These two fields control whether the GMAC driver
+			 * should be polling the MDIO bus to determine if
+			 * a gmac interface should be considered link
+			 * up or down.
+			 *
+			 * It currently isn't supported by FreeBSD.
+			 */
+			qcom,mdio_supported;
+			qcom,poll_required = <1>;
+
+			/*
+			 * How many virtual ethernet interfaces to create.
+			 * The interfaces are created based on a port bitmap
+			 * and default VLAN ID.
+			 *
+			 * These would do well to map to the default lan/wan
+			 * bit map fields in the ESS switch configuration
+			 * above.
+			 */
+			qcom,num_gmac = <2>;
+
+			/*
+			 * Support up to 16 TX and 16 RX interrupts.
+			 * For now the hardware only uses 16 TX and 8
+			 * RX interrupts/queues, but for some reason
+			 * they're all allocated just in case.
+			 */
+			interrupts = <0  65 IRQ_TYPE_EDGE_RISING
+				      0  66 IRQ_TYPE_EDGE_RISING
+				      0  67 IRQ_TYPE_EDGE_RISING
+				      0  68 IRQ_TYPE_EDGE_RISING
+				      0  69 IRQ_TYPE_EDGE_RISING
+				      0  70 IRQ_TYPE_EDGE_RISING
+				      0  71 IRQ_TYPE_EDGE_RISING
+				      0  72 IRQ_TYPE_EDGE_RISING
+				      0  73 IRQ_TYPE_EDGE_RISING
+				      0  74 IRQ_TYPE_EDGE_RISING
+				      0  75 IRQ_TYPE_EDGE_RISING
+				      0  76 IRQ_TYPE_EDGE_RISING
+				      0  77 IRQ_TYPE_EDGE_RISING
+				      0  78 IRQ_TYPE_EDGE_RISING
+				      0  79 IRQ_TYPE_EDGE_RISING
+				      0  80 IRQ_TYPE_EDGE_RISING
+				      0 240 IRQ_TYPE_EDGE_RISING
+				      0 241 IRQ_TYPE_EDGE_RISING
+				      0 242 IRQ_TYPE_EDGE_RISING
+				      0 243 IRQ_TYPE_EDGE_RISING
+				      0 244 IRQ_TYPE_EDGE_RISING
+				      0 245 IRQ_TYPE_EDGE_RISING
+				      0 246 IRQ_TYPE_EDGE_RISING
+				      0 247 IRQ_TYPE_EDGE_RISING
+				      0 248 IRQ_TYPE_EDGE_RISING
+				      0 249 IRQ_TYPE_EDGE_RISING
+				      0 250 IRQ_TYPE_EDGE_RISING
+				      0 251 IRQ_TYPE_EDGE_RISING
+				      0 252 IRQ_TYPE_EDGE_RISING
+				      0 253 IRQ_TYPE_EDGE_RISING
+				      0 254 IRQ_TYPE_EDGE_RISING
+				      0 255 IRQ_TYPE_EDGE_RISING>;
+
+			status = "disabled";
+
+			/*
+			 * This is the LAN gmac interface.
+			 */
+			gmac0: gmac0 {
+				/*
+				 * Default to an all-zero MAC address for
+				 * this interface.  Ideally bootloaders will
+				 * override this in a DTS overlay but that
+				 * doesn't happen all that often.
+				 *
+				 * If the driver finds an all-zero MAC address
+				 * and no platform hint / routine for fetching
+				 * it from flash it will simply choose a
+				 * random MAC address.
+				 *
+				 * Note this isn't programmed into the
+				 * hardware!  The ethernet switch filters what
+				 * is visible to the ethernet MAC through
+				 * normal ethernet switch MAC address learning
+				 * rules.
+				 */
+				local-mac-address = [00 00 00 00 00 00];
+
+				/*
+				 * The VLAN tag and port map.  Yes, they used
+				 * the same entry for both fields.  The first
+				 * integer is the default VLAN ID, and second
+				 * field is the port map.
+				 *
+				 * When 802.1q VLANs are not used the switch
+				 * will simply use the portmap to limit which
+				 * ports can transmit the frames.  It's used
+				 * for sending broadcast/multicast or flooded
+				 * traffic.
+				 *
+				 * When 802.1q VLANs are used then it's both
+				 * the portmap and the 802.1q tag port
+				 * membership that define which ports can
+				 * be flooded as above.
+				 */
+				vlan_tag = <1 0x1f>;
+			};
+
+			/*
+			 * This is the WAN gmac interface.
+			 */
+			gmac1: gmac1 {
+				local-mac-address = [00 00 00 00 00 00];
+
+				/*
+				 * Whether to poll the MDIO port / PHY for
+				 * link status or not.
+				 *
+				 * This is how the interface would get a
+				 * logical link status for WAN events to tie
+				 * things like dhclient to.
+				 *
+				 * For now it's unsupported in FreeBSD.
+				 */
+				qcom,phy_mdio_addr = <4>;
+				qcom,poll_required = <1>;
+
+				vlan_tag = <2 0x20>;
+			};
+		};
+	};
+};

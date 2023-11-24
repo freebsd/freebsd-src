@@ -1,0 +1,12 @@
+
+#------------------------------------------------------------------------------
+# $File: citrus,v 1.5 2021/01/04 19:48:31 christos Exp $
+# citrus locale declaration
+#
+
+0	string		RuneCT		Citrus locale declaration for LC_CTYPE
+0	string		CtrsME		Citrus locale declaration for LC_MESSAGES
+0	string		CtrsMO		Citrus locale declaration for LC_MONETARY
+0	string		CtrsNU		Citrus locale declaration for LC_NUMERIC
+0	string		CtrsTI		Citrus locale declaration for LC_TIME
+

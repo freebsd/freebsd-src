@@ -1,0 +1,186 @@
+.\" Copyright (c) 2001 Alexey Zelkin <phantom@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd December 14, 2020
+.Dt NL_LANGINFO 3
+.Os
+.Sh NAME
+.Nm nl_langinfo
+.Nd language information
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In langinfo.h
+.Ft char *
+.Fn nl_langinfo "nl_item item"
+.Ft char *
+.Fn nl_langinfo_l "nl_item item" "locale_t loc"
+.Sh DESCRIPTION
+The
+.Fn nl_langinfo
+function returns a pointer to a string containing information relevant to
+the particular language or cultural area defined in the program or thread's
+locale, or in the case of
+.Fn nl_langinfo_l ,
+the locale passed as the second argument.
+.Pp
+Calls to
+.Fn setlocale
+with a category corresponding to the category of
+.Fa item ,
+or to the
+category
+.Dv LC_ALL ,
+may overwrite the buffer pointed to by the return value.
+.Pp
+The manifest constant names and values of
+.Fa item
+are defined in
+.In langinfo.h .
+.Pp
+The following standard constants are recognized:
+.Bl -column "Constant" "Category"
+.It Sy Constant Ta Sy Category Ta Sy Description
+.It Dv CODESET Ta Dv LC_CTYPE Ta codeset name
+.It Dv D_T_FMT Ta Dv LC_TIME Ta string for formatting date and time
+.It Dv D_FMT Ta Dv LC_TIME Ta date format string
+.It Dv T_FMT Ta Dv LC_TIME Ta time format string
+.It Dv T_FMT_AMPM Ta Dv LC_TIME Ta a.m. or p.m. time format string
+.It Dv AM_STR Ta Dv LC_TIME Ta ante-meridiem affix
+.It Dv PM_STR Ta Dv LC_TIME Ta post-meridiem affix
+.It Dv DAY_1 Ta Dv LC_TIME Ta name of the first day of the week
+.It Dv DAY_2 Ta Dv LC_TIME Ta name of the second day of the week
+.It Dv DAY_3 Ta Dv LC_TIME Ta name of the third day of the week
+.It Dv DAY_4 Ta Dv LC_TIME Ta name of the fourth day of the week
+.It Dv DAY_5 Ta Dv LC_TIME Ta name of the fifth day of the week
+.It Dv DAY_6 Ta Dv LC_TIME Ta name of the sixth day of the week
+.It Dv DAY_7 Ta Dv LC_TIME Ta name of the seventh day of the week
+.It Dv ABDAY_1 Ta Dv LC_TIME Ta abbreviated name of the first day of the week
+.It Dv ABDAY_2 Ta Dv LC_TIME Ta abbreviated name of the second day of the week
+.It Dv ABDAY_3 Ta Dv LC_TIME Ta abbreviated name of the third day of the week
+.It Dv ABDAY_4 Ta Dv LC_TIME Ta abbreviated name of the fourth day of the week
+.It Dv ABDAY_5 Ta Dv LC_TIME Ta abbreviated name of the fifth day of the week
+.It Dv ABDAY_6 Ta Dv LC_TIME Ta abbreviated name of the sixth day of the week
+.It Dv ABDAY_7 Ta Dv LC_TIME Ta abbreviated name of the seventh day of the week
+.It Dv MON_1 Ta Dv LC_TIME Ta name of the first month of the year
+.It Dv MON_2 Ta Dv LC_TIME Ta name of the second month
+.It Dv MON_3 Ta Dv LC_TIME Ta name of the third month
+.It Dv MON_4 Ta Dv LC_TIME Ta name of the fourth month
+.It Dv MON_5 Ta Dv LC_TIME Ta name of the fifth month
+.It Dv MON_6 Ta Dv LC_TIME Ta name of the sixth month
+.It Dv MON_7 Ta Dv LC_TIME Ta name of the seventh month
+.It Dv MON_8 Ta Dv LC_TIME Ta name of the eighth month
+.It Dv MON_9 Ta Dv LC_TIME Ta name of the ninth month
+.It Dv MON_10 Ta Dv LC_TIME Ta name of the tenth month
+.It Dv MON_11 Ta Dv LC_TIME Ta name of the eleventh month
+.It Dv MON_12 Ta Dv LC_TIME Ta name of the twelfth month
+.It Dv ABMON_1 Ta Dv LC_TIME Ta abbreviated name of the first month
+.It Dv ABMON_2 Ta Dv LC_TIME Ta abbreviated name of the second month
+.It Dv ABMON_3 Ta Dv LC_TIME Ta abbreviated name of the third month
+.It Dv ABMON_4 Ta Dv LC_TIME Ta abbreviated name of the fourth month
+.It Dv ABMON_5 Ta Dv LC_TIME Ta abbreviated name of the fifth month
+.It Dv ABMON_6 Ta Dv LC_TIME Ta abbreviated name of the sixth month
+.It Dv ABMON_7 Ta Dv LC_TIME Ta abbreviated name of the seventh month
+.It Dv ABMON_8 Ta Dv LC_TIME Ta abbreviated name of the eighth month
+.It Dv ABMON_9 Ta Dv LC_TIME Ta abbreviated name of the ninth month
+.It Dv ABMON_10 Ta Dv LC_TIME Ta abbreviated name of the tenth month
+.It Dv ABMON_11 Ta Dv LC_TIME Ta abbreviated name of the eleventh month
+.It Dv ABMON_12 Ta Dv LC_TIME Ta abbreviated name of the twelfth month
+.It Dv ERA Ta Dv LC_TIME Ta era description segments
+.It Dv ERA_D_FMT Ta Dv LC_TIME Ta era date format string
+.It Dv ERA_D_T_FMT Ta Dv LC_TIME Ta era date and time format string
+.It Dv ERA_T_FMT Ta Dv LC_TIME Ta era time format string
+.It Dv ALT_DIGITS Ta Dv LC_TIME Ta alternative symbols for digits
+.It Dv RADIXCHAR Ta Dv LC_NUMERIC Ta radix character
+.It Dv THOUSEP Ta Dv LC_NUMERIC Ta separator for thousands
+.It Dv YESEXPR Ta Dv LC_MESSAGES Ta affirmative response extended regular
+expression
+.It Dv NOEXPR Ta Dv LC_MESSAGES Ta negative response extended regular expression
+.It Dv CRNCYSTR Ta Dv LC_MONETARY Ta local currency symbol, preceded by '-' if the
+symbol should appear before the value, '+' if the symbol should appear after the
+value, or '.' if the symbol should replace the radix character; if the local
+currency symbol is the empty string, implementations may return the empty string
+.Pq Qq
+.El
+.Pp
+The following non-standard
+.Fx
+extensions are recognized:
+.Bl -column "Constant" "Category"
+.It Sy Constant Ta Sy Category Ta Sy Description
+.It Dv D_MD_ORDER Ta Dv LC_TIME Ta month/day order
+.It Dv ALTMON_1 Ta Dv LC_TIME Ta standalone name of the first month
+.It Dv ALTMON_2 Ta Dv LC_TIME Ta standalone name of the second month
+.It Dv ALTMON_3 Ta Dv LC_TIME Ta standalone name of the third month
+.It Dv ALTMON_4 Ta Dv LC_TIME Ta standalone name of the fourth month
+.It Dv ALTMON_5 Ta Dv LC_TIME Ta standalone name of the fifth month
+.It Dv ALTMON_6 Ta Dv LC_TIME Ta standalone name of the sixth month
+.It Dv ALTMON_7 Ta Dv LC_TIME Ta standalone name of the seventh month
+.It Dv ALTMON_8 Ta Dv LC_TIME Ta standalone name of the eighth month
+.It Dv ALTMON_9 Ta Dv LC_TIME Ta standalone name of the ninth month
+.It Dv ALTMON_10 Ta Dv LC_TIME Ta standalone name of the tenth month
+.It Dv ALTMON_11 Ta Dv LC_TIME Ta standalone name of the eleventh month
+.It Dv ALTMON_12 Ta Dv LC_TIME Ta standalone name of the twelfth month
+.It Dv YESSTR Ta Dv LC_MESSAGES Ta affirmative response string
+.It Dv NOSTR Ta Dv LC_MESSAGES Ta negative response string
+.El
+.Sh RETURN VALUES
+In a locale where langinfo data is not defined,
+.Fn nl_langinfo
+returns a pointer to the corresponding string in the POSIX locale.
+.Fn nl_langinfo_l
+returns the same values as
+.Fn nl_langinfo .
+In all locales,
+.Fn nl_langinfo
+returns a pointer to an empty string if
+.Fa item
+contains an invalid setting.
+.Sh EXAMPLES
+For example:
+.Pp
+.Dl nl_langinfo(ABDAY_1)
+.Pp
+would return a pointer to the string
+.Qq Li Dom
+if the identified language was
+Portuguese, and
+.Qq Li Sun
+if the identified language was English.
+.Sh SEE ALSO
+.Xr setlocale 3
+.Sh STANDARDS
+The
+.Fn nl_langinfo
+function conforms to
+.St -susv2 .
+The
+.Fn nl_langinfo_l
+function conforms to
+.St -p1003.1-2008 .
+.Sh HISTORY
+The
+.Fn nl_langinfo
+function first appeared in
+.Fx 4.6 .

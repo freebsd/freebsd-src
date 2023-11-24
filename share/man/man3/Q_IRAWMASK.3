@@ -1,0 +1,123 @@
+.\"
+.\" Copyright (c) 2018 Netflix, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd July 8, 2018
+.Dt Q_IRAWMASK 3
+.Os
+.Sh NAME
+.Nm Q_IRAWMASK ,
+.Nm Q_GIRAW ,
+.Nm Q_GIABSVAL ,
+.Nm Q_GIVAL ,
+.Nm Q_SIVAL
+.Nd fixed-point math functions which manipulate the integer data bits
+.Sh SYNOPSIS
+.In sys/qmath.h
+.Ft ITYPE
+.Fn Q_IRAWMASK "QTYPE q"
+.Ft ITYPE
+.Fn Q_GIRAW "QTYPE q"
+.Ft ITYPE
+.Fn Q_GIABSVAL "QTYPE q"
+.Ft ITYPE
+.Fn Q_GIVAL "QTYPE q"
+.Ft QTYPE
+.Fn Q_SIVAL "QTYPE q" "ITYPE iv"
+.Sh DESCRIPTION
+.Fn Q_IRAWMASK
+returns a
+.Fa q Ns -specific
+bit mask for
+.Fa q Ap s
+integer data bits.
+.Pp
+.Fn Q_GIRAW
+returns
+.Fa q Ap s
+raw masked integer data bits.
+.Pp
+.Fn Q_GIABSVAL
+and
+.Fn Q_GIVAL
+return the absolute and real values of
+.Fa q Ap s
+integer data bits respectively.
+.Pp
+.Fn Q_SIVAL
+sets
+.Fa q Ap s
+integer data bits to the value
+.Fa iv .
+.Pp
+All of those functions operate on
+the following data types:
+.Vt s8q_t ,
+.Vt u8q_t ,
+.Vt s16q_t ,
+.Vt u16q_t ,
+.Vt s32q_t ,
+.Vt u32q_t ,
+.Vt s64q_t ,
+and
+.Vt u64q_t ,
+which are referred to generically as
+.Fa QTYPE .
+The
+.Fa ITYPE
+refers to the
+.Xr stdint 7
+integer types.
+.Pp
+For more details, see
+.Xr qmath 3 .
+.Sh RETURN VALUES
+.Fn Q_IRAWMASK ,
+.Fn Q_GIRAW ,
+.Fn Q_GIABSVAL
+and
+.Fn Q_GIVAL
+return their respective values as integers of the same underlying ITYPE as
+.Fa q .
+.Pp
+.Fn Q_SIVAL
+returns the value of
+.Fa q
+post change.
+.Sh SEE ALSO
+.Xr errno 2 ,
+.Xr qmath 3 ,
+.Xr stdint 7
+.Sh HISTORY
+The
+.Xr qmath 3
+functions first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Xr qmath 3
+functions and this manual page were written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org
+and sponsored by Netflix, Inc.

@@ -1,0 +1,145 @@
+.\"
+.\" Copyright (c) 2003 Joseph Koshy <jkoshy@FreeBSD.org>
+.\" Copyright (c) 2023 Olivier Certner <olce.freebsd@certner.fr>
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd August 18, 2023
+.Dt P_CANDEBUG 9
+.Os
+.Sh NAME
+.Nm p_candebug
+.Nd determine debuggability of a process
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/proc.h
+.Ft int
+.Fn p_candebug "struct thread *td" "struct proc *p"
+.Sh DESCRIPTION
+This function determines if a given process
+.Fa p
+is debuggable by some thread
+.Fa td .
+.Pp
+The following
+.Xr sysctl 8
+variables directly influence the behaviour of
+.Fn p_candebug :
+.Bl -tag -width indent
+.It Va security.bsd.unprivileged_proc_debug
+Must be set to a non-zero value to allow unprivileged processes
+access to the kernel's debug facilities.
+.It Va kern.securelevel
+Debugging of the init process is not allowed if this variable is
+.Li 1
+or greater.
+.El
+.Pp
+Other such variables indirectly influence it; see
+.Xr cr_bsd_visible 9 .
+.Sh RETURN VALUES
+The
+.Fn p_candebug
+function
+returns
+.Li 0
+if the process denoted by
+.Fa p
+is debuggable by thread
+.Fa td ,
+or a non-zero error return value otherwise.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EPERM
+An unprivileged process attempted to debug another process but the system is
+configured to deny it
+.Po
+see
+.Xr sysctl 8
+variable
+.Va security.bsd.unprivileged_proc_debug
+above
+.Pc .
+.It Bq Er ESRCH
+Thread
+.Fa td
+has been jailed and the process to debug does not belong to the same jail or one
+of its sub-jails, as determined by
+.Xr prison_check 9 .
+.It Bq Er ESRCH
+.Xr cr_bsd_visible 9
+denied visibility according to the BSD security policies in force.
+.It Bq Er EPERM
+Thread
+.Fa td
+lacks superuser credentials and its (effective) group set is not a superset of
+process
+.Fa p Ns 's
+whole group set
+.Pq "including real, effective and saved group IDs" .
+.It Bq Er EPERM
+Thread
+.Fa td
+lacks superuser credentials and its (effective) user ID does not match all user
+IDs of process
+.Fa p .
+.It Bq Er EPERM
+Thread
+.Fa td
+lacks superuser credentials and process
+.Fa p
+is executing a set-user-ID or set-group-ID executable.
+.It Bq Er EPERM
+Process
+.Fa p
+denotes the initial process
+.Fn initproc
+and the
+.Xr sysctl 8
+variable
+.Va kern.securelevel
+is greater than zero.
+.It Bq Er EBUSY
+Process
+.Fa p
+is in the process of being
+.Fn exec Ns 'ed.
+.It Bq Er EPERM
+Process
+.Fa p
+denied debuggability
+.Po
+see
+.Xr procctl 2 ,
+command
+.Dv PROC_TRACE_CTL
+.Pc .
+.El
+.Sh SEE ALSO
+.Xr prison_check 9 ,
+.Xr mac 9 ,
+.Xr cr_bsd_visible 9 ,
+.Xr procctl 2 ,
+.Xr p_cansee 9

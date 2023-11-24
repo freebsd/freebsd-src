@@ -1,0 +1,129 @@
+name: C/C++ CI
+
+on:
+  push:
+    paths: [ '**.c', '**.h', '**.m4', '**.sh', '.github/**', '**/Makefile.in', 'configure.ac' ]
+  pull_request:
+    paths: [ '**.c', '**.h', '**.m4', '**.sh', '.github/**', '**/Makefile.in', 'configure.ac' ]
+
+jobs:
+  ci:
+    if: github.repository != 'openssh/openssh-portable-selfhosted'
+    strategy:
+      fail-fast: false
+      matrix:
+        # First we test all OSes in the default configuration.
+        target:
+          - ubuntu-20.04
+          - ubuntu-22.04
+          - macos-11
+          - macos-12
+          - macos-13
+          - windows-2019
+          - windows-2022
+        config: [default]
+        # Then we include any extra configs we want to test for specific VMs.
+        # Valgrind slows things down quite a bit, so start them first.
+        include:
+          - { target: windows-2019, config: cygwin-release }
+          - { target: windows-2022, config: cygwin-release }
+          - { target: ubuntu-20.04, config: valgrind-1 }
+          - { target: ubuntu-20.04, config: valgrind-2 }
+          - { target: ubuntu-20.04, config: valgrind-3 }
+          - { target: ubuntu-20.04, config: valgrind-4 }
+          - { target: ubuntu-20.04, config: valgrind-5 }
+          - { target: ubuntu-20.04, config: valgrind-unit }
+          - { target: ubuntu-20.04, config: c89 }
+          - { target: ubuntu-20.04, config: clang-6.0 }
+          - { target: ubuntu-20.04, config: clang-8 }
+          - { target: ubuntu-20.04, config: clang-9 }
+          - { target: ubuntu-20.04, config: clang-10 }
+          - { target: ubuntu-20.04, config: clang-11 }
+          - { target: ubuntu-20.04, config: clang-12-Werror }
+          - { target: ubuntu-20.04, config: clang-sanitize-address }
+          - { target: ubuntu-20.04, config: clang-sanitize-undefined }
+          - { target: ubuntu-20.04, config: gcc-sanitize-address }
+          - { target: ubuntu-20.04, config: gcc-sanitize-undefined }
+          - { target: ubuntu-20.04, config: gcc-7 }
+          - { target: ubuntu-20.04, config: gcc-8 }
+          - { target: ubuntu-20.04, config: gcc-10 }
+          - { target: ubuntu-20.04, config: gcc-11-Werror }
+          - { target: ubuntu-20.04, config: pam }
+          - { target: ubuntu-20.04, config: kitchensink }
+          - { target: ubuntu-22.04, config: hardenedmalloc }
+          - { target: ubuntu-20.04, config: tcmalloc }
+          - { target: ubuntu-20.04, config: musl }
+          - { target: ubuntu-latest, config: boringssl }
+          - { target: ubuntu-latest, config: libressl-master }
+          - { target: ubuntu-latest, config: libressl-3.2.6 }
+          - { target: ubuntu-latest, config: libressl-3.3.6 }
+          - { target: ubuntu-latest, config: libressl-3.4.3 }
+          - { target: ubuntu-latest, config: libressl-3.5.3 }
+          - { target: ubuntu-latest, config: libressl-3.6.1 }
+          - { target: ubuntu-latest, config: libressl-3.7.2 }
+          - { target: ubuntu-latest, config: openssl-master }
+          - { target: ubuntu-latest, config: openssl-noec }
+          - { target: ubuntu-latest, config: openssl-1.1.1 }
+          - { target: ubuntu-latest, config: openssl-1.1.1k }
+          - { target: ubuntu-latest, config: openssl-1.1.1n }
+          - { target: ubuntu-latest, config: openssl-1.1.1q }
+          - { target: ubuntu-latest, config: openssl-1.1.1t }
+          - { target: ubuntu-latest, config: openssl-3.0.0 }
+          - { target: ubuntu-latest, config: openssl-3.0.7 }
+          - { target: ubuntu-latest, config: openssl-3.1.0 }
+          - { target: ubuntu-latest, config: openssl-1.1.1_stable }
+          - { target: ubuntu-latest, config: openssl-3.0 }  # stable branch
+          - { target: ubuntu-latest, config: zlib-develop }
+          - { target: ubuntu-22.04, config: pam }
+          - { target: ubuntu-22.04, config: krb5 }
+          - { target: ubuntu-22.04, config: heimdal }
+          - { target: ubuntu-22.04, config: libedit }
+          - { target: ubuntu-22.04, config: sk }
+          - { target: ubuntu-22.04, config: selinux }
+          - { target: ubuntu-22.04, config: kitchensink }
+          - { target: ubuntu-22.04, config: without-openssl }
+          - { target: macos-11, config: pam }
+          - { target: macos-12, config: pam }
+          - { target: macos-13, config: pam }
+    runs-on: ${{ matrix.target }}
+    steps:
+    - name: set cygwin git params
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      run: git config --global core.autocrlf input
+    - name: install cygwin
+      if: ${{ startsWith(matrix.target, 'windows') }}
+      uses: cygwin/cygwin-install-action@master
+    - uses: actions/checkout@main
+    - name: setup CI system
+      run: sh ./.github/setup_ci.sh ${{ matrix.config }}
+    - name: autoreconf
+      run: sh -c autoreconf
+    - name: configure
+      run: sh ./.github/configure.sh ${{ matrix.config }}
+    - name: save config
+      uses: actions/upload-artifact@main
+      with:
+        name: ${{ matrix.target }}-${{ matrix.config }}-config
+        path: config.h
+    - name: make clean
+      run: make clean
+    - name: make
+      run: make -j2
+    - name: make tests
+      run: sh ./.github/run_test.sh ${{ matrix.config }}
+      env:
+        TEST_SSH_UNSAFE_PERMISSIONS: 1
+        TEST_SSH_HOSTBASED_AUTH: yes
+    - name: save logs
+      if: failure()
+      uses: actions/upload-artifact@main
+      with:
+        name: ${{ matrix.target }}-${{ matrix.config }}-logs
+        path: |
+          config.h
+          config.log
+          regress/*.log
+          regress/valgrind-out/
+          regress/asan.log.*
+          regress/msan.log.*
+          regress/log/*

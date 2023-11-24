@@ -1,0 +1,152 @@
+.\" Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+.\" Use is subject to license terms.
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License (the "License").
+.\" You may not use this file except in compliance with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or https://opensource.org/licenses/CDDL-1.0.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.Dd May 26, 2021
+.Dt CSTYLE 1
+.Os
+.
+.Sh NAME
+.Nm cstyle
+.Nd check for some common stylistic errors in C source files
+.Sh SYNOPSIS
+.Nm
+.Op Fl chpvCP
+.Oo Ar file Oc Ns …
+.Sh DESCRIPTION
+.Nm
+inspects C source files (*.c and *.h) for common stylistic errors.
+It attempts to check for the cstyle documented in
+.Lk http://www.cis.upenn.edu/~lee/06cse480/data/cstyle.ms.pdf .
+Note that there is much in that document that
+.Em cannot
+be checked for; just because your code is
+.Nm Ns -clean
+does not mean that you've followed Sun's C style.
+.Em Caveat emptor .
+.
+.Sh OPTIONS
+.Bl -tag -width "-c"
+.It Fl c
+Check continuation line indentation inside of functions.
+Sun's C style
+states that all statements must be indented to an appropriate tab stop,
+and any continuation lines after them must be indented
+.Em exactly
+four spaces from the start line.
+This option enables a series of checks designed to find
+continuation line problems within functions only.
+The checks have some limitations; see
+.Sy CONTINUATION CHECKING ,
+below.
+.It Fl p
+Performs some of the more picky checks.
+Includes ANSI
+.Sy #else
+and
+.Sy #endif
+rules, and tries to detect spaces after casts.
+Used as part of the putback checks.
+.It Fl v
+Verbose output; includes the text of the line of error, and, for
+.Fl c ,
+the first statement in the current continuation block.
+.It Fl P
+Check for use of non-POSIX types.
+Historically, types like
+.Sy u_int
+and
+.Sy u_long
+were used, but they are now deprecated in favor of the POSIX
+types
+.Sy uint_t ,
+.Sy ulong_t ,
+etc.
+This detects any use of the deprecated types.
+Used as part of the putback checks.
+.It Fl g
+Also print GitHub-Actions-style
+.Li ::error
+output.
+.El
+.
+.Sh ENVIRONMENT
+.Bl -tag -compact -width ".Ev CI"
+.It Ev CI
+If set and nonempty, equivalent to
+.Fl g .
+.El
+.
+.Sh CONTINUATION CHECKING
+The continuation checker is a reasonably simple state machine that knows
+something about how C is laid out, and can match parenthesis, etc. over
+multiple lines.
+It does have some limitations:
+.Bl -enum
+.It
+Preprocessor macros which cause unmatched parenthesis will confuse the
+checker for that line.
+To fix this, you'll need to make sure that each branch of the
+.Sy #if
+statement has balanced parenthesis.
+.It
+Some
+.Xr cpp 1
+macros do not require
+.Sy ;\& Ns s after them.
+Any such macros
+.Em must
+be ALL_CAPS; any lower case letters will cause bad output.
+.Pp
+The bad output will generally be corrected after the next
+.Sy ;\& , { , No or Sy } .
+.El
+Some continuation error messages deserve some additional explanation:
+.Bl -tag -width Ds
+.It Sy multiple statements continued over multiple lines
+A multi-line statement which is not broken at statement boundaries.
+For example:
+.Bd -literal -compact -offset Ds
+if (this_is_a_long_variable == another_variable) a =
+    b + c;
+.Ed
+.Pp
+Will trigger this error.
+Instead, do:
+.Bd -literal -compact -offset Ds
+if (this_is_a_long_variable == another_variable)
+    a = b + c;
+.Ed
+.It Sy empty if/for/while body not on its own line
+For visibility, empty bodies for if, for, and while statements should be
+on their own line.
+For example:
+.Bd -literal -compact -offset Ds
+while (do_something(&x) == 0);
+.Ed
+.Pp
+Will trigger this error.
+Instead, do:
+.Bd -literal -compact -offset Ds
+while (do_something(&x) == 0)
+    ;
+.Ed
+.El

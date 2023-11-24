@@ -1,0 +1,130 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mprotect.2	8.1 (Berkeley) 6/9/93
+.\"
+.Dd September 7, 2021
+.Dt MPROTECT 2
+.Os
+.Sh NAME
+.Nm mprotect
+.Nd control the protection of pages
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/mman.h
+.Ft int
+.Fn mprotect "void *addr" "size_t len" "int prot"
+.Sh DESCRIPTION
+The
+.Fn mprotect
+system call
+changes the specified pages to have protection
+.Fa prot .
+.Pp
+The
+.Fa prot
+argument shall be
+.Dv PROT_NONE
+(no permissions at all)
+or the bitwise
+.Em or
+of one or more of the following values:
+.Pp
+.Bl -tag -width ".Dv PROT_WRITE" -compact
+.It Dv PROT_READ
+The pages can be read.
+.It Dv PROT_WRITE
+The pages can be written.
+.It Dv PROT_EXEC
+The pages can be executed.
+.El
+.Pp
+In addition to these standard protection flags,
+the
+.Fx
+implementation of
+.Fn mprotect
+provides the ability to set the maximum protection of a region
+(which prevents
+.Nm
+from adding to the permissions later).
+This is accomplished by bitwise
+.Em or Ns 'ing
+one or more
+.Dv PROT_
+values wrapped in the
+.Dv PROT_MAX()
+macro into the
+.Fa prot
+argument.
+.Sh RETURN VALUES
+.Rv -std mprotect
+.Sh ERRORS
+The
+.Fn mprotect
+system call will fail if:
+.Bl -tag -width Er
+.It Bq Er EACCES
+The calling process was not allowed to change
+the protection to the value specified by
+the
+.Fa prot
+argument.
+.It Bq Er EINVAL
+The virtual address range specified by the
+.Fa addr
+and
+.Fa len
+arguments is not valid.
+.It Bq Er EINVAL
+The
+.Fa prot
+argument contains unhandled bits.
+.It Bq Er ENOTSUP
+The
+.Fa prot
+argument contains permissions which are not a subset of the specified
+maximum permissions.
+.El
+.Sh SEE ALSO
+.Xr madvise 2 ,
+.Xr mincore 2 ,
+.Xr msync 2 ,
+.Xr munmap 2
+.Sh HISTORY
+The
+.Fn mprotect
+system call was first documented in
+.Bx 4.2
+and first appeared in
+.Bx 4.4 .
+.Pp
+The
+.Dv PROT_MAX
+functionality was introduced in
+.Fx 13 .

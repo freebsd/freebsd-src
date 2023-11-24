@@ -1,0 +1,86 @@
+#!/bin/sh
+#
+# Display most relevant iostat bandwidth/latency numbers.  The output is
+# dependent on the name of the script/symlink used to call it.
+#
+
+helpstr="
+iostat:		Show iostat values since boot (summary page).
+iostat-1s:	Do a single 1-second iostat sample and show values.
+iostat-10s:	Do a single 10-second iostat sample and show values."
+
+script="${0##*/}"
+if [ "$1" = "-h" ] ; then
+	echo "$helpstr" | grep "$script:" | tr -s '\t' | cut -f 2-
+	exit
+fi
+
+# Sometimes, UPATH ends up /dev/(null).
+# That should be corrected, but for now...
+# shellcheck disable=SC2154
+if [ ! -b "$VDEV_UPATH" ]; then
+	somepath="${VDEV_PATH}"
+else
+	somepath="${VDEV_UPATH}"
+fi
+
+if [ "$script" = "iostat-1s" ] ; then
+	# Do a single one-second sample
+	interval=1
+	# Don't show summary stats
+	brief="yes"
+elif [ "$script" = "iostat-10s" ] ; then
+	# Do a single ten-second sample
+	interval=10
+	# Don't show summary stats
+	brief="yes"
+fi
+
+if [ -f "$somepath" ] ; then
+	# We're a file-based vdev, iostat doesn't work on us.  Do nothing.
+	exit
+fi
+
+if [ "$(uname)" = "FreeBSD" ]; then
+	out=$(iostat -dKx \
+		${interval:+"-w $interval"} \
+		${interval:+"-c 1"} \
+		"$somepath" | tail -n 2)
+else
+	out=$(iostat -kx \
+		${brief:+"-y"} \
+		${interval:+"$interval"} \
+		${interval:+"1"} \
+		"$somepath" | grep -v '^$' | tail -n 2)
+fi
+
+
+# Sample output (we want the last two lines):
+#
+# Linux 2.6.32-642.13.1.el6.x86_64 (centos68) 	03/09/2017 	_x86_64_	(6 CPU)
+#
+# avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+#           0.00    0.00    0.00    0.00    0.00  100.00
+#
+# Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+# sdb               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00    0.00    0.00   0.00   0.00
+#
+
+# Get the column names
+cols=$(echo "$out" | head -n 1)
+
+# Get the values and tab separate them to make them cut-able.
+vals=$(echo "$out" | tail -n 1 | tr -s '[:space:]' '\t')
+
+i=0
+for col in $cols ; do
+	i=$((i+1))
+	# Skip the first column since it's just the device name
+	if [ "$i" -eq 1 ]; then
+		continue
+	fi
+
+	# Get i'th value
+	val=$(echo "$vals" | cut -f "$i")
+	echo "$col=$val"
+done

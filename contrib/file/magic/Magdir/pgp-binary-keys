@@ -1,0 +1,388 @@
+
+#------------------------------------------------------------------------------
+# $File: pgp-binary-keys,v 1.2 2021/04/26 15:56:00 christos Exp $
+# pgp-binary-keys: This file handles pgp binary keys.
+#
+# An PGP certificate or message doesn't have a fixed header.  Instead,
+# they are sequences of packets:
+#
+#   https://tools.ietf.org/html/rfc4880#section-4.3
+#
+# whose order conforms to a grammar:
+#
+#   https://tools.ietf.org/html/rfc4880#section-11
+#
+# Happily most packets have a few fields that are constrained, which
+# allow us to fingerprint them with relatively high certainty.
+#
+# A PGP packet is described by a single byte: the so-called CTB.  The
+# high-bit is always set.  If bit 6 is set, then it is a so-called
+# new-style CTB; if bit 6 is clear, then it is a so-called old-style
+# CTB.  Old-style CTBs have only four bits of type information; bits
+# 1-0 are used to describe the length.  New-style CTBs have 6 bits of
+# type information.
+#
+# Following the CTB is the packet's length in bytes.  If we blindly
+# advance the file cursor by this amount past the end of the length
+# information we come to the next packet.
+#
+# Data Structures
+# ===============
+#
+# New Style CTB
+# -------------
+#
+# https://tools.ietf.org/html/rfc4880#section-4.2.2
+#
+#   76543210
+#   ||\----/
+#   ||  tag
+#   |always 1
+#   always 1
+#
+#      Tag   bits 7 and 6 set
+#       0       0xC0        -- Reserved - a packet tag MUST NOT have this value
+#       1       0xC1        -- Public-Key Encrypted Session Key Packet
+#       2       0xC2        -- Signature Packet
+#       3       0xC3        -- Symmetric-Key Encrypted Session Key Packet
+#       4       0xC4        -- One-Pass Signature Packet
+#       5       0xC5        -- Secret-Key Packet
+#       6       0xC6        -- Public-Key Packet
+#       7       0xC7        -- Secret-Subkey Packet
+#       8       0xC8        -- Compressed Data Packet
+#       9       0xC9        -- Symmetrically Encrypted Data Packet
+#       10      0xCA        -- Marker Packet
+#       11      0xCB        -- Literal Data Packet
+#       12      0xCC        -- Trust Packet
+#       13      0xCD        -- User ID Packet
+#       14      0xCE        -- Public-Subkey Packet
+#       17      0xD1        -- User Attribute Packet
+#       18      0xD2        -- Sym. Encrypted and Integrity Protected Data Packet
+#       19      0xD3        -- Modification Detection Code Packet
+#       60 to 63 -- Private or Experimental Values
+#
+# The CTB is followed by the length header, which is densely encoded:
+#
+#   if length[0] is:
+#     0..191: one byte length (length[0])
+#     192..223: two byte length ((length[0] - 192) * 256 + length[2] + 192
+#     224..254: four byte length (big endian interpretation of length[1..5])
+#     255: partial body encoding
+#
+# The partial body encoding is similar to HTTP's chunk encoding.  It
+# is only allowed for container packets (SEIP, Compressed Data and
+# Literal).
+#
+# Old Style CTB
+# -------------
+#
+#  https://tools.ietf.org/html/rfc4880#section-4.2.1
+#
+# CTB:
+#
+#   76543210
+#   ||\--/\/
+#   ||  |  length encoding
+#   ||  tag
+#   |always 0
+#   always 1
+#
+# Tag:
+#
+#      Tag   bit 7 set, bits 6, 1, 0 clear
+#       0       0x80        -- Reserved - a packet tag MUST NOT have this value
+#       1       0x84        -- Public-Key Encrypted Session Key Packet
+#       2       0x88        -- Signature Packet
+#       3       0x8C        -- Symmetric-Key Encrypted Session Key Packet
+#       4       0x90        -- One-Pass Signature Packet
+#       5       0x94        -- Secret-Key Packet
+#       6       0x98        -- Public-Key Packet
+#       7       0x9C        -- Secret-Subkey Packet
+#       8       0xA0        -- Compressed Data Packet
+#       9       0xA4        -- Symmetrically Encrypted Data Packet
+#       10      0xA8        -- Marker Packet
+#       11      0xAC        -- Literal Data Packet
+#       12      0xB0        -- Trust Packet
+#       13      0xB4        -- User ID Packet
+#       14      0xB8        -- Public-Subkey Packet
+#
+# Length encoding:
+#
+#     Value
+#       0      1 byte length (following byte is the length)
+#       1      2 byte length (following two bytes are the length)
+#       2      4 byte length (following four bytes are the length)
+#       3      indeterminate length: natural end of packet, e.g., EOF
+#
+# An indeterminate length is only allowed for container packets
+# (SEIP, Compressed Data and Literal).
+#
+# Certificates
+# ------------
+#
+# We check the first three packets to determine if a sequence of
+# OpenPGP packets is likely to be a certificate.  The grammar allows
+# the following prefixes:
+#
+#   [Primary Key] [SIG] (EOF or another certificate)
+#   [Primary Key] [SIG]            [User ID]        [SIG]...
+#   [Primary Key] [SIG]            [User Attribute] [SIG]...
+#   [Primary Key] [SIG]            [Subkey]         [SIG]...
+#   [Primary Key] [User ID]        [SIG]...
+#   [Primary Key] [User Attribute] [SIG]...
+#   [Primary Key] [Subkey]         [SIG]...
+#
+# Any number of marker packets are also allowed between each packet,
+# but they are not normally used and we don't currently check for
+# them.
+#
+# The keys and subkeys may be public or private.
+#
+
+# Key packets and signature packets are versioned.  There are two
+# packet versions that we need to worry about in practice: v3 and v4.
+# v4 packets were introduced in RFC 2440, which was published in 1998.
+# It also deprecated v3 packets.  There are no actively used v3
+# certificates (GnuPG removed the code to support them in November
+# 2014).  But there are v3 keys lying around and it is useful to
+# identify them.  The next version of OpenPGP will introduce v5 keys.
+# The document has not yet been standardized so changes are still
+# possible.  But, for our purposes, it appears that v5 data structures
+# will be identical to v4 data structures modulo the version number.
+#
+#   https://tools.ietf.org/html/rfc2440
+#   https://lists.gnupg.org/pipermail/gnupg-announce/2014q4/000358.html
+#   https://www.ietf.org/id/draft-ietf-openpgp-rfc4880bis-09.html#name-key-material-packet
+
+
+
+
+# The first packet has to be a public key or a secret key.
+#
+# New-Style Public Key
+0	ubyte			=0xC6	OpenPGP Public Key
+>&0	use			primary_key_length_new
+# New-Style Secret Key
+0	ubyte			=0xC5	OpenPGP Secret Key
+>&0	use			primary_key_length_new
+# Old-Style Public Key
+0	ubyte&0xFC		=0x98	OpenPGP Public Key
+>&-1	use			primary_key_length_old
+# Old-Style Secret Key
+0	ubyte&0xFC		=0x94	OpenPGP Secret Key
+>&-1	use			primary_key_length_old
+
+# Parse the length, check the packet's body and finally advance to the
+# next packet.
+
+# There are 4 different new-style length encodings, but the partial
+# body encoding is only acceptable for the SEIP, Compressed Data, and
+# Literal packets, which isn't valid for any packets in a certificate
+# so we ignore it.
+0		name		primary_key_length_new
+>&0		ubyte		<192
+#>>&0		ubyte		x		(1 byte length encoding, %d bytes)
+>>&0		use		pgp_binary_key_pk_check
+>>>&(&-1.B)	use		sig_or_component_1
+>&0		ubyte		>191
+>>&-1		ubyte		<225
+# offset = ((offset[0] - 192) << 8) + offset[1] + 192 (for the length header)
+# raw - (192 * 256 - 192)
+# = 48960
+#>>>&0		ubeshort		x	(2 byte length encoding, %d bytes)
+>>>&1		use		pgp_binary_key_pk_check
+>>>>&(&-2.S-48960)	use	sig_or_component_1
+>&0		ubyte		=255
+#>>&0   	belong		x		(5 byte length encoding, %d bytes)
+>>&4		use		pgp_binary_key_pk_check
+>>>&(&-4.L)	use		sig_or_component_1
+# Partial body encoding (only valid for container packets).
+# >&0		ubyte	>224
+# >>&0		ubyte		<255		partial body encoding
+
+# There are 4 different old-style length encodings, but the
+# indeterminate length encoding is only acceptable for the SEIP,
+# Compressed Data, and Literal packets, which isn't valid for any
+# packets in a certificate.
+0		name		primary_key_length_old
+#>&0		ubyte		x		(ctb: %x)
+>&0		ubyte&0x3	=0
+#>>&0    	ubyte		x		(1 byte length encoding, %d bytes)
+>>&1		use		pgp_binary_key_pk_check
+>>>&(&-1.B)	use		sig_or_component_1
+>&0		ubyte&0x3	=1
+#>>&0    	ubeshort	x		(2 byte length encoding, %d bytes)
+>>&2		use		pgp_binary_key_pk_check
+>>>&(&-2.S)	use		sig_or_component_1
+>&0		ubyte&0x3	=2
+#>>&0    	ubelong	x		(4 byte length encoding, %d bytes)
+>>&4		use		pgp_binary_key_pk_check
+>>>&(&-4.L)	use		sig_or_component_1
+
+# Check the Key.
+#
+# https://tools.ietf.org/html/rfc4880#section-5.5.2
+0		name		pgp_binary_key_pk_check
+# Valid versions are: 2, 3, 4.  5 is proposed in RFC 4880bis.
+# Anticipate a v6 / v7 format that like v5 is compatible with v4.
+# key format in a decade or so :D.
+>&0		ubyte		>1
+>>&-1		ubyte		<8
+>>>&-1		byte		x		Version %d
+# Check that keys were created after 1990.
+# (1990 - 1970) * 365.2524 * 24 * 60 * 60 = 631156147
+>>>&0		bedate		>631156147      \b, Created %s
+>>>>&-5		ubyte		>3
+>>>>>&4		use		pgp_binary_key_algo
+>>>>&-5		ubyte		<4
+>>>>>&6		use		pgp_binary_key_algo
+
+# Print out the key's algorithm and the number of bits, if this is
+# relevant (ECC keys are a fixed size).
+0		name		pgp_binary_key_algo
+>0		clear		x
+>&0		ubyte		=1	\b, RSA (Encrypt or Sign,
+>>&0		ubeshort	x	\b %d bits)
+>&0		ubyte		=2	\b, RSA (Encrypt,
+>>&0		ubeshort	x	\b %d bits)
+>&0		ubyte		=3	\b, RSA (Sign,
+>>&0		ubeshort	x	\b %d bits)
+>&0		ubyte		=16	\b, El Gamal (Encrypt,
+>>&0		ubeshort	x	\b %d bits)
+>&0		ubyte		=17	\b, DSA
+>>&0		ubeshort	x	\b (%d bits)
+>&0		ubyte		=18	\b, ECDH
+>&0		ubyte		=19	\b, ECDSA
+>&0		ubyte		=20	\b, El Gamal (Encrypt or Sign,
+>>&0		ubeshort	x	\b %d bits)
+>&0		ubyte		=22	\b, EdDSA
+>&0		default         x
+>>&0		ubyte		x	\b, Unknown Algorithm (%#x)
+
+# Match all possible second packets.
+0	name		sig_or_component_1
+#>0	ubyte		x	(ctb: %x)
+>&0	ubyte		=0xC2
+>>0	ubyte		x	\b; Signature
+>>&0	use		sig_or_component_1_length_new
+>&0	ubyte		=0xCD
+>>0	ubyte		x	\b; User ID
+>>&0	use		sig_or_component_1_length_new
+>&0	ubyte		=0xCE
+>>0	ubyte		x	\b; Public Subkey
+>>&0	use		sig_or_component_1_length_new
+>&0	ubyte		=0xC7
+>>0	ubyte		x	\b; Secret Subkey
+>>&0	use		sig_or_component_1_length_new
+>&0	ubyte		=0xD1
+>>0	ubyte		x	\b; User Attribute
+>>&0	use		sig_or_component_1_length_new
+>&0	ubyte&0xFC	=0x88
+>>0	ubyte		x	\b; Signature
+>>&-1	use		sig_or_component_1_length_old
+>&0	ubyte&0xFC	=0xB4
+>>0	ubyte		x	\b; User ID
+>>&-1	use		sig_or_component_1_length_old
+>&0	ubyte&0xFC	=0xB8
+>>0	ubyte		x	\b; Public Subkey
+>>&-1	use		sig_or_component_1_length_old
+>&0	ubyte&0xFC	=0x9C
+>>0	ubyte		x	\b; Secret Subkey
+>>&-1	use		sig_or_component_1_length_old
+
+# Copy of 'primary_key_length_new', but calls cert_packet_3.
+0		name		sig_or_component_1_length_new
+>&0		ubyte		<192
+#>>&0		ubyte		x		(1 byte new length encoding, %d bytes)
+>>&(&-1.B)	use		cert_packet_3
+>&0		ubyte		>191
+>>&-1		ubyte		<225
+# offset = ((offset[0] - 192) << 8) + offset[1] + 192 + 1 (for the length header)
+# raw - (192 * 256 - 192 - 1)
+# = 48959
+#>>>&-1		ubeshort		x	(2 byte new length encoding, %d bytes)
+>>>&(&-1.S-48959)	use	cert_packet_3
+>&0		ubyte		=255
+#>>&0   	belong		x		(5 byte new length encoding, %d bytes)
+>>&(&-4.L)	use		cert_packet_3
+# Partial body encoding (only valid for container packets).
+# >&0		ubyte	>224
+# >>&0		ubyte		<255		partial body encoding
+
+0		name		sig_or_component_1_length_old
+#>&0		ubyte		x		(ctb: %x)
+>&0		ubyte&0x3	=0
+#>>&0    	ubyte		x		(1 byte old length encoding, %d bytes)
+>>&(&0.B+1)	use		cert_packet_3
+>&0		ubyte&0x3	=1
+#>>&0    	ubeshort	x		(2 byte old length encoding, %d bytes)
+>>&(&0.S+2)	use		cert_packet_3
+>&0		ubyte&0x3	=2
+#>>&0    	ubelong	x		(4 byte old length encoding, %d bytes)
+>>&(&0.L+4)	use		cert_packet_3
+
+# Copy of above.
+0	name		cert_packet_3
+#>0	ubyte		x	(ctb: %x)
+>&0	ubyte		=0xC2
+>>0	ubyte		x	\b; Signature
+>>&0	use		cert_packet_3_length_new
+>&0	ubyte		=0xCD
+>>0	ubyte		x	\b; User ID
+>>&0	use		cert_packet_3_length_new
+>&0	ubyte		=0xCE
+>>0	ubyte		x	\b; Public Subkey
+>>&0	use		cert_packet_3_length_new
+>&0	ubyte		=0xC7
+>>0	ubyte		x	\b; Secret Subkey
+>>&0	use		cert_packet_3_length_new
+>&0	ubyte		=0xD1
+>>0	ubyte		x	\b; User Attribute
+>>&0	use		cert_packet_3_length_new
+>&0	ubyte&0xFC	=0x88
+>>0	ubyte		x	\b; Signature
+>>&-1	use		cert_packet_3_length_old
+>&0	ubyte&0xFC	=0xB4
+>>0	ubyte		x	\b; User ID
+>>&-1	use		cert_packet_3_length_old
+>&0	ubyte&0xFC	=0xB8
+>>0	ubyte		x	\b; Public Subkey
+>>&-1	use		cert_packet_3_length_old
+>&0	ubyte&0xFC	=0x9C
+>>0	ubyte		x	\b; Secret Subkey
+>>&-1	use		cert_packet_3_length_old
+
+# Copy of above.
+0		name		cert_packet_3_length_new
+>&0		ubyte		<192
+#>>&0		ubyte		x		(1 byte new length encoding, %d bytes)
+>>&(&-1.B)	use		pgp_binary_keys_end
+>&0		ubyte		>191
+>>&-1		ubyte		<225
+# offset = ((offset[0] - 192) << 8) + offset[1] + 192 + 1 (for the length header)
+# raw - (192 * 256 - 192 - 1)
+# = 48959
+#>>>&-1		ubeshort		x	(2 byte new length encoding, %d bytes)
+>>>&(&-1.S-48959)	use	pgp_binary_keys_end
+>&0		ubyte		=255
+#>>&0   	belong		x		(5 byte new length encoding, %d bytes)
+>>&(&-4.L)	use		pgp_binary_keys_end
+
+0		name		cert_packet_3_length_old
+#>&0		ubyte		x		(ctb: %x)
+>&0		ubyte&0x3	=0
+#>>&0    	ubyte		x		(1 byte old length encoding, %d bytes)
+>>&(&0.B+1)	use		pgp_binary_keys_end
+>&0		ubyte&0x3	=1
+#>>&0    	ubeshort	x		(2 byte old length encoding, %d bytes)
+>>&(&0.S+2)	use		pgp_binary_keys_end
+>&0		ubyte&0x3	=2
+#>>&0    	ubelong	x		(4 byte old length encoding, %d bytes)
+>>&(&0.L+4)	use		pgp_binary_keys_end
+
+# We managed to parse the first three packets of the certificate.  Declare
+# victory.
+0		name		pgp_binary_keys_end
+>0		byte		x		\b; OpenPGP Certificate
+!:mime		application/pgp-keys
+!:ext		pgp/gpg/pkr/asd

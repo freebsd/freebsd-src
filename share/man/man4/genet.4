@@ -1,0 +1,181 @@
+.\" Copyright (c) 2021 Michael J. Karels
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd December 8, 2021
+.Dt GENET 4
+.Os
+.Sh NAME
+.Nm genet
+.Nd "Raspberry Pi 4 / BCM2711 Gigabit Ethernet controller driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in the
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device miibus"
+.Cd "device genet"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the BCM2711 Ethernet controller
+as found on the Raspberry Pi 4.
+.Pp
+The following features are supported in the
+.Nm
+driver in
+.Fx :
+.Pp
+.Bl -item -offset indent -compact
+.It
+IP/TCP/UDP checksum offload for IPv4 and IPv6
+.It
+10/100/1000Mbps operation in full-duplex mode
+.It
+10/100Mbps operation in half-duplex mode
+.El
+.Pp
+Note that the operation of transmit checksum offload is coupled
+for IPv4 and IPv6; to disable it, both must be disabled even if both
+address families are not in use.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The user can manually override
+the autoselected mode by adding media options to
+.Xr rc.conf 5 .
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Xr ifconfig 8
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 1000baseT
+Set 1000baseT operation over twisted pair.
+Only
+.Cm full-duplex
+mode is supported.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options set with the
+.Cm mediaopt
+option to the
+.Xr ifconfig 8
+command:
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports the Ethernet controller portion of the Broadcom BCM2711
+on the Raspberry Pi 4 Model B and related systems.
+It utilizes the BCM54213PE PHY.
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+The following loader tunable variable is available, and is also
+available as a read-only
+.Xr sysctl 8
+variable:
+.Bl -tag -width indent
+.It Va hw.genet.rx_batch
+The maximum number of packets to pass to the link-layer input routine
+at one time.
+The default is 16.
+.El
+.Sh SYSCTL VARIABLES
+The following variable is available as a
+.Xr sysctl 8
+variable:
+.Bl -tag -width indent
+.It Va hw.genet.tx_hdr_min
+When the driver is given an output packet in a buffer chain
+in which the first buffer contains only the Ethernet header,
+the number of bytes of the packet to add to the Ethernet header
+in the first buffer.
+Certain packets may be lost if this value is too small.
+The default value is 56, and is sufficient for the observed cases to date.
+.El
+.Sh DIAGNOSTICS
+The
+.Nm
+driver has no diagnostics that are likely in normal operation.
+However, when the
+.Cm debug
+option is set with
+.Xr ifconfig 8 ,
+most failures that cause packet loss in the transmit and receive paths
+cause a cryptic diagnostic message naming the failure.
+These messages generally make sense only when looking at the driver source.
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Mike Karels Aq Mt karels@freebsd.org .
+Portions are derived from the bcmgenet driver in
+.Nx
+by Jared McNeill,
+and parts of the structure and common code are from the awg driver
+for the Allwinner EMAC by Jared McNeill.

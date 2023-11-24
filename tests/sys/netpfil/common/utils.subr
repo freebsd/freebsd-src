@@ -1,0 +1,143 @@
+#-
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2019 Ahsan Barkati
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#
+
+. $(atf_get_srcdir)/../../common/vnet.subr
+
+firewall_config()
+{
+	jname=$1
+	shift
+	fw=$1
+	shift
+
+	while [ $# -gt 0 ]; do
+		if [ $(is_firewall "$1") -eq  1 ]; then
+			current_fw="$1"
+			shift
+			filename=${current_fw}.rule
+			cwd=$(pwd)
+			if [ -f ${current_fw}.rule ]; then
+				rm ${current_fw}.rule
+			fi
+		fi
+		rule=$1
+		echo $rule >> $filename
+		shift
+	done
+
+	if [ ${fw} == "ipfw" ]; then
+		jexec ${jname} ipfw -q -f flush
+		jexec ${jname} /bin/sh $cwd/ipfw.rule
+	elif [ ${fw} == "pf" ]; then
+		jexec ${jname} sysctl net.pf.filter_local=1
+		jexec ${jname} pfctl -e
+		jexec ${jname} pfctl -F all
+		jexec ${jname} pfctl -f $cwd/pf.rule
+	elif [ ${fw} == "ipf" ]; then
+		jexec ${jname} ipf -E
+		jexec ${jname} ipf -Fa -f $cwd/ipf.rule
+	elif [ ${fw} == "ipfnat" ]; then
+		jexec ${jname} service ipfilter start
+		jexec ${jname} ipnat -CF -f $cwd/ipfnat.rule
+		jexec ${jname} pfilctl link -o ipfilter:default-ip4 inet-local
+		jexec ${jname} pfilctl link -o ipfilter:default-ip6 inet6-local
+	else
+		atf_fail "$fw is not a valid firewall to configure"
+	fi
+}
+
+firewall_cleanup()
+{
+	firewall=$1
+	echo "Cleaning $firewall"
+	vnet_cleanup
+}
+
+firewall_init()
+{
+	firewall=$1
+	vnet_init
+
+	if [ ${firewall} == "ipfw" ]; then
+		if ! kldstat -q -m ipfw; then
+			atf_skip "This test requires ipfw"
+		fi
+	elif [ ${firewall} == "pf" ]; then
+		if [ ! -c /dev/pf ]; then
+			atf_skip "This test requires pf"
+		fi
+	elif [ ${firewall} == "ipf" ]; then
+		if ! kldstat -q -m ipfilter; then
+			atf_skip "This test requires ipf"
+		fi
+	elif [ ${firewall} == "ipfnat" ]; then
+		if ! kldstat -q -m ipfilter; then
+			atf_skip "This test requires ipf"
+		fi
+	else
+		atf_fail "$fw is not a valid firewall to initialize"
+	fi
+
+}
+
+dummynet_init()
+{
+	firewall=$1
+
+	if ! kldstat -q -m dummynet; then
+		atf_skip "This test requires dummynet"
+	fi
+
+	case $firewall in
+	ipfw|pf)
+		# Nothing. This is okay.
+		;;
+	*)
+		atf_skip "${firewall} does not support dummynet"
+		;;
+	esac
+}
+
+nat_init()
+{
+	firewall=$1
+	if [ ${firewall} == "ipfw" ]; then
+		if ! kldstat -q -m ipfw_nat; then
+			atf_skip "This test requires ipfw_nat"
+		fi
+	fi
+}
+
+is_firewall()
+{
+	if [ "$1" = "pf" -o "$1" = "ipfw" -o "$1" = "ipf" -o "$1" = "ipfnat" ]; then
+		echo 1
+	else
+		echo 0
+	fi
+}

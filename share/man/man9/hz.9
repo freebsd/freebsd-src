@@ -1,0 +1,159 @@
+.\"
+.\" Copyright (c) 2021 Netflix, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd July 1, 2021
+.Dt HZ 9
+.Os
+.Sh NAME
+.Nm hz ,
+.Nm tick ,
+.Nm stathz ,
+.Nm profhz
+.Nd system time model
+.Sh SYNOPSIS
+.In sys/kernel.h
+.Pp
+.Vt extern int hz;
+.Vt extern int tick;
+.Vt extern int stathz;
+.Vt extern int profhz;  /* deprecated */
+.Sh DESCRIPTION
+.Fx
+utilizes periodic, one-shot, global or per-CPU
+timing hardware using
+.Xr eventtimers 9
+to produce traditional clock behavior.
+These clocks regulate periodic events in the system.
+.Pp
+The main clock is used to update the system's notion of time via
+.Xr timecounters 9
+and to pace periodic system processing as documented in
+.Xr hardclock 9 .
+That routine may be called once every 1 /
+.Va hz
+seconds, though the call is omitted if no work is needed in the next tick and it
+has not been 0.5 seconds since the last call.
+.Pp
+The stat clock running at
+.Va stathz
+gathers statistics on the system and its processes.
+It computes values for
+.Xr getrusage 2
+and statistics displayed by
+.Xr ps 1
+and
+.Xr top 1 .
+.Pp
+Finally, a profiling clock may run at
+.Vt profhz
+to sample user program counter values for profiling purposes.
+This profiling mechanism has been replaced by the more functional
+.Xr hwpmc 4
+and may be removed in a future version of
+.Fx .
+.Pp
+.Va tick
+is the length of time in microseconds of one system tick.
+.Pp
+These system variables are also available as
+.Em struct clockinfo
+from
+.Xr sysctl 3
+and
+.Sy kern.clockrate
+from
+.Xr sysctl 8 .
+.Pp
+The current global and per-CPU CPU time usage is returned to the user in units
+of 1 /
+.Va stathz
+ticks in the
+.Sy kern.cp_time
+and
+.Sy kern.cp_times
+sysctl MIBs.
+.Pp
+The
+.Va hz
+rate may be overridden by defining
+.Dv HZ
+in the kernel configuration file or setting
+.Sy kern.hz
+system tuneable via
+.Xr loader.conf 5 .
+.Pp
+The current default is 1000 Hz for a tick of 1 ms for real hardware.
+For virtual machine guests, the default is 100 Hz for a tick of 10 ms.
+Only override the default value if you really know what you are doing.
+Due to the adaptive nature of timeouts, changing this value has less effect than
+it had in the past.
+.Sh SEE ALSO
+.Xr ps 1 ,
+.Xr top 1 ,
+.Xr setitimer 2 ,
+.Xr timer_settime 2 ,
+.Xr loader.conf 5 ,
+.Xr eventtimers 9 ,
+.Xr hardclock 9 ,
+.Xr microtime 9 ,
+.Xr time_second 9 ,
+.Xr timecounters 9
+.Sh IMPLEMENTATION NOTES
+Historically, both the
+.Va stathz
+and
+.Va profhz
+clocks have run off the same physical timer running at the slower rate when no
+process is using the profile features, or at the higher rate when at least one
+process is using it.
+Although the interface is deprecated by
+.St -p1003.1-2008
+in favor of
+.Xr timer_settime 2 ,
+several programs still use
+.Xr setitimer 2
+and
+.Va ITIMER_PROF
+for a higher-resolution periodic interrupt than has been traditionally
+available.
+.Pp
+Historically,
+.Xr hardclock 9
+has also been run off a separate interrupt, except on constrained platforms that
+lack enough periodic interrupt sources.
+.Fx
+uses
+.Xr eventtimers 9
+to abstract these details away, though some old code may still harbor
+assumptions that are an imperfect fit to this abstraction.
+.Pp
+.Xr timecounters 9
+are limited to 32-bits and wrap after about a second, so we must update the
+time hands they maintain at least every half second to get the proper wrapping
+math.
+In addition,
+.Va kern.cp_times
+needs to updated at least once a second so that the values displayed by
+.Xr top 1
+update every second.

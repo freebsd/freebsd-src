@@ -1,0 +1,48 @@
+#!/bin/sh
+
+# PROVIDE: var_run
+# REQUIRE: mountcritlocal
+# BEFORE: cleanvar
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name=var_run
+rcvar=var_run_enable
+extra_commands="load save"
+start_cmd="_var_run_start"
+load_cmd="_var_run_load"
+save_cmd="_var_run_save"
+stop_cmd="_var_run_stop"
+
+load_rc_config $name
+
+# Set defaults
+: ${var_run_enable:="NO"}
+: ${var_run_mtree:="/var/db/mtree/BSD.var-run.mtree"}
+: ${var_run_autosave:="YES"}
+
+_var_run_load() {
+	test -f ${var_run_mtree} &&
+		mtree -U -i -q -f ${var_run_mtree} -p /var/run > /dev/null
+}
+
+_var_run_save() {
+	if [ ! -d $(dirname ${var_run_mtree}) ]; then
+		mkdir -p ${var_run_mtree}
+	fi
+	mtree -dcbj -p /var/run > ${var_run_mtree}
+}
+
+_var_run_start() {
+	df -ttmpfs /var/run > /dev/null 2>&1 &&
+		_var_run_load
+}
+
+_var_run_stop() {
+	df -ttmpfs /var/run > /dev/null 2>&1 &&
+		checkyesno var_run_autosave &&
+			_var_run_save
+}
+
+run_rc_command "$1"

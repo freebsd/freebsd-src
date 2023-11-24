@@ -1,0 +1,11 @@
+# bhyve ps2kbd keyboard layout file
+#   (centraleuropean : Central European)
+#
+# Created by: Koine Yuusuke(koinec) <koinec@users.osdn.me>
+#
+
+'Y',0x1a;	Y  (0x59)
+'Z',0x35;	Z  (0x5a)
+'y',0x1a;	y  (0x79)
+'z',0x35;	z  (0x7a)
+

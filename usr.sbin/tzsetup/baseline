@@ -1,0 +1,670 @@
+AF:Afghanistan
+  Asia:Asia/Kabul
+AL:Albania
+  Europe:Europe/Tirane
+DZ:Algeria
+  Africa:Africa/Algiers
+AS:American Samoa
+  Pacific:Pacific/Pago_Pago
+AD:Andorra
+  Europe:Europe/Andorra
+AO:Angola
+  Africa:Africa/Lagos
+AI:Anguilla
+  America:America/Puerto_Rico
+AQ:Antarctica
+  Antarctica:Antarctica/Casey
+  Antarctica:Antarctica/Davis
+  Antarctica:Antarctica/Mawson
+  Antarctica:Antarctica/Palmer
+  Antarctica:Antarctica/Rothera
+  Antarctica:Antarctica/Troll
+  Antarctica:Asia/Urumqi
+  Antarctica:Pacific/Auckland
+  Antarctica:Pacific/Port_Moresby
+  Antarctica:Asia/Riyadh
+AG:Antigua and Barbuda
+  America:America/Puerto_Rico
+AR:Argentina
+  America:America/Argentina/Buenos_Aires
+  America:America/Argentina/Cordoba
+  America:America/Argentina/Salta
+  America:America/Argentina/Jujuy
+  America:America/Argentina/Tucuman
+  America:America/Argentina/Catamarca
+  America:America/Argentina/La_Rioja
+  America:America/Argentina/San_Juan
+  America:America/Argentina/Mendoza
+  America:America/Argentina/San_Luis
+  America:America/Argentina/Rio_Gallegos
+  America:America/Argentina/Ushuaia
+AM:Armenia
+  Asia:Asia/Yerevan
+AW:Aruba
+  America:America/Puerto_Rico
+AU:Australia
+  Australia:Australia/Lord_Howe
+  Antarctica:Antarctica/Macquarie
+  Australia:Australia/Hobart
+  Australia:Australia/Melbourne
+  Australia:Australia/Sydney
+  Australia:Australia/Broken_Hill
+  Australia:Australia/Brisbane
+  Australia:Australia/Lindeman
+  Australia:Australia/Adelaide
+  Australia:Australia/Darwin
+  Australia:Australia/Perth
+  Australia:Australia/Eucla
+AT:Austria
+  Europe:Europe/Vienna
+AZ:Azerbaijan
+  Asia:Asia/Baku
+BS:Bahamas
+  America:America/Toronto
+BH:Bahrain
+  Asia:Asia/Qatar
+BD:Bangladesh
+  Asia:Asia/Dhaka
+BB:Barbados
+  America:America/Barbados
+BY:Belarus
+  Europe:Europe/Minsk
+BE:Belgium
+  Europe:Europe/Brussels
+BZ:Belize
+  America:America/Belize
+BJ:Benin
+  Africa:Africa/Lagos
+BM:Bermuda
+  Atlantic:Atlantic/Bermuda
+BT:Bhutan
+  Asia:Asia/Thimphu
+BO:Bolivia, Plurinational State of
+  America:America/La_Paz
+BQ:Bonaire, Sint Eustatius and Saba
+  America:America/Puerto_Rico
+BA:Bosnia and Herzegovina
+  Europe:Europe/Belgrade
+BW:Botswana
+  Africa:Africa/Maputo
+BV:Bouvet Island
+BR:Brazil
+  America:America/Noronha
+  America:America/Belem
+  America:America/Fortaleza
+  America:America/Recife
+  America:America/Araguaina
+  America:America/Maceio
+  America:America/Bahia
+  America:America/Sao_Paulo
+  America:America/Campo_Grande
+  America:America/Cuiaba
+  America:America/Santarem
+  America:America/Porto_Velho
+  America:America/Boa_Vista
+  America:America/Manaus
+  America:America/Eirunepe
+  America:America/Rio_Branco
+IO:British Indian Ocean Territory
+  Indian:Indian/Chagos
+BN:Brunei Darussalam
+  Asia:Asia/Kuching
+BG:Bulgaria
+  Europe:Europe/Sofia
+BF:Burkina Faso
+  Africa:Africa/Abidjan
+BI:Burundi
+  Africa:Africa/Maputo
+CV:Cabo Verde
+  Atlantic:Atlantic/Cape_Verde
+KH:Cambodia
+  Asia:Asia/Bangkok
+CM:Cameroon
+  Africa:Africa/Lagos
+CA:Canada
+  America:America/St_Johns
+  America:America/Halifax
+  America:America/Glace_Bay
+  America:America/Moncton
+  America:America/Goose_Bay
+  America:America/Toronto
+  America:America/Iqaluit
+  America:America/Winnipeg
+  America:America/Resolute
+  America:America/Rankin_Inlet
+  America:America/Regina
+  America:America/Swift_Current
+  America:America/Edmonton
+  America:America/Cambridge_Bay
+  America:America/Inuvik
+  America:America/Dawson_Creek
+  America:America/Fort_Nelson
+  America:America/Whitehorse
+  America:America/Dawson
+  America:America/Vancouver
+  America:America/Panama
+  America:America/Puerto_Rico
+  America:America/Phoenix
+KY:Cayman Islands
+  America:America/Panama
+CF:Central African Republic
+  Africa:Africa/Lagos
+TD:Chad
+  Africa:Africa/Ndjamena
+CL:Chile
+  America:America/Santiago
+  America:America/Punta_Arenas
+  Pacific:Pacific/Easter
+CN:China
+  Asia:Asia/Shanghai
+  Asia:Asia/Urumqi
+CX:Christmas Island
+  Indian:Asia/Bangkok
+CC:Cocos (Keeling) Islands
+  Indian:Asia/Yangon
+CO:Colombia
+  America:America/Bogota
+KM:Comoros
+  Indian:Africa/Nairobi
+CG:Congo
+  Africa:Africa/Lagos
+CD:Congo, Democratic Republic of the
+  Africa:Africa/Maputo
+  Africa:Africa/Lagos
+CK:Cook Islands
+  Pacific:Pacific/Rarotonga
+CR:Costa Rica
+  America:America/Costa_Rica
+HR:Croatia
+  Europe:Europe/Belgrade
+CU:Cuba
+  America:America/Havana
+CW:Curaçao
+  America:America/Puerto_Rico
+CY:Cyprus
+  Asia:Asia/Nicosia
+  Asia:Asia/Famagusta
+CZ:Czech Republic
+  Europe:Europe/Prague
+CI:Côte d'Ivoire
+  Africa:Africa/Abidjan
+DK:Denmark
+  Europe:Europe/Berlin
+DJ:Djibouti
+  Africa:Africa/Nairobi
+DM:Dominica
+  America:America/Puerto_Rico
+DO:Dominican Republic
+  America:America/Santo_Domingo
+EC:Ecuador
+  America:America/Guayaquil
+  Pacific:Pacific/Galapagos
+EG:Egypt
+  Africa:Africa/Cairo
+SV:El Salvador
+  America:America/El_Salvador
+GQ:Equatorial Guinea
+  Africa:Africa/Lagos
+ER:Eritrea
+  Africa:Africa/Nairobi
+EE:Estonia
+  Europe:Europe/Tallinn
+SZ:Eswatini
+  Africa:Africa/Johannesburg
+ET:Ethiopia
+  Africa:Africa/Nairobi
+FK:Falkland Islands (Malvinas)
+  Atlantic:Atlantic/Stanley
+FO:Faroe Islands
+  Atlantic:Atlantic/Faroe
+FJ:Fiji
+  Pacific:Pacific/Fiji
+FI:Finland
+  Europe:Europe/Helsinki
+FR:France
+  Europe:Europe/Paris
+GF:French Guiana
+  America:America/Cayenne
+PF:French Polynesia
+  Pacific:Pacific/Tahiti
+  Pacific:Pacific/Marquesas
+  Pacific:Pacific/Gambier
+TF:French Southern Territories
+  Asia:Asia/Dubai
+  Indian:Indian/Maldives
+GA:Gabon
+  Africa:Africa/Lagos
+GM:Gambia
+  Africa:Africa/Abidjan
+GE:Georgia
+  Asia:Asia/Tbilisi
+DE:Germany
+  Europe:Europe/Zurich
+  Europe:Europe/Berlin
+GH:Ghana
+  Africa:Africa/Abidjan
+GI:Gibraltar
+  Europe:Europe/Gibraltar
+GR:Greece
+  Europe:Europe/Athens
+GL:Greenland
+  America:America/Nuuk
+  America:America/Danmarkshavn
+  America:America/Scoresbysund
+  America:America/Thule
+GD:Grenada
+  America:America/Puerto_Rico
+GP:Guadeloupe
+  America:America/Puerto_Rico
+GU:Guam
+  Pacific:Pacific/Guam
+GT:Guatemala
+  America:America/Guatemala
+GG:Guernsey
+  Europe:Europe/London
+GN:Guinea
+  Africa:Africa/Abidjan
+GW:Guinea-Bissau
+  Africa:Africa/Bissau
+GY:Guyana
+  America:America/Guyana
+HT:Haiti
+  America:America/Port-au-Prince
+HM:Heard Island and McDonald Islands
+VA:Holy See
+  Europe:Europe/Rome
+HN:Honduras
+  America:America/Tegucigalpa
+HK:Hong Kong
+  Asia:Asia/Hong_Kong
+HU:Hungary
+  Europe:Europe/Budapest
+IS:Iceland
+  Atlantic:Africa/Abidjan
+IN:India
+  Asia:Asia/Kolkata
+ID:Indonesia
+  Asia:Asia/Jakarta
+  Asia:Asia/Pontianak
+  Asia:Asia/Makassar
+  Asia:Asia/Jayapura
+IR:Iran (Islamic Republic of)
+  Asia:Asia/Tehran
+IQ:Iraq
+  Asia:Asia/Baghdad
+IE:Ireland
+  Europe:Europe/Dublin
+IM:Isle of Man
+  Europe:Europe/London
+IL:Israel
+  Asia:Asia/Jerusalem
+IT:Italy
+  Europe:Europe/Rome
+JM:Jamaica
+  America:America/Jamaica
+JP:Japan
+  Asia:Asia/Tokyo
+JE:Jersey
+  Europe:Europe/London
+JO:Jordan
+  Asia:Asia/Amman
+KZ:Kazakhstan
+  Asia:Asia/Almaty
+  Asia:Asia/Qyzylorda
+  Asia:Asia/Qostanay
+  Asia:Asia/Aqtobe
+  Asia:Asia/Aqtau
+  Asia:Asia/Atyrau
+  Asia:Asia/Oral
+KE:Kenya
+  Africa:Africa/Nairobi
+KI:Kiribati
+  Pacific:Pacific/Tarawa
+  Pacific:Pacific/Kanton
+  Pacific:Pacific/Kiritimati
+KP:Korea (Democratic People's Republic of)
+  Asia:Asia/Pyongyang
+KR:Korea (Republic of)
+  Asia:Asia/Seoul
+KW:Kuwait
+  Asia:Asia/Riyadh
+KG:Kyrgyzstan
+  Asia:Asia/Bishkek
+LA:Lao People's Democratic Republic
+  Asia:Asia/Bangkok
+LV:Latvia
+  Europe:Europe/Riga
+LB:Lebanon
+  Asia:Asia/Beirut
+LS:Lesotho
+  Africa:Africa/Johannesburg
+LR:Liberia
+  Africa:Africa/Monrovia
+LY:Libya
+  Africa:Africa/Tripoli
+LI:Liechtenstein
+  Europe:Europe/Zurich
+LT:Lithuania
+  Europe:Europe/Vilnius
+LU:Luxembourg
+  Europe:Europe/Brussels
+MO:Macao
+  Asia:Asia/Macau
+MK:Macedonia (the former Yugoslav Republic of)
+  Europe:Europe/Belgrade
+MG:Madagascar
+  Indian:Africa/Nairobi
+MW:Malawi
+  Africa:Africa/Maputo
+MY:Malaysia
+  Asia:Asia/Kuching
+  Asia:Asia/Singapore
+MV:Maldives
+  Indian:Indian/Maldives
+ML:Mali
+  Africa:Africa/Abidjan
+MT:Malta
+  Europe:Europe/Malta
+MH:Marshall Islands
+  Pacific:Pacific/Tarawa
+  Pacific:Pacific/Kwajalein
+MQ:Martinique
+  America:America/Martinique
+MR:Mauritania
+  Africa:Africa/Abidjan
+MU:Mauritius
+  Indian:Indian/Mauritius
+YT:Mayotte
+  Indian:Africa/Nairobi
+MX:Mexico
+  America:America/Mexico_City
+  America:America/Cancun
+  America:America/Merida
+  America:America/Monterrey
+  America:America/Matamoros
+  America:America/Chihuahua
+  America:America/Ciudad_Juarez
+  America:America/Ojinaga
+  America:America/Mazatlan
+  America:America/Bahia_Banderas
+  America:America/Hermosillo
+  America:America/Tijuana
+FM:Micronesia (Federated States of)
+  Pacific:Pacific/Kosrae
+  Pacific:Pacific/Port_Moresby
+  Pacific:Pacific/Guadalcanal
+MD:Moldova (Republic of)
+  Europe:Europe/Chisinau
+MC:Monaco
+  Europe:Europe/Paris
+MN:Mongolia
+  Asia:Asia/Ulaanbaatar
+  Asia:Asia/Hovd
+  Asia:Asia/Choibalsan
+ME:Montenegro
+  Europe:Europe/Belgrade
+MS:Montserrat
+  America:America/Puerto_Rico
+MA:Morocco
+  Africa:Africa/Casablanca
+MZ:Mozambique
+  Africa:Africa/Maputo
+MM:Myanmar
+  Asia:Asia/Yangon
+NA:Namibia
+  Africa:Africa/Windhoek
+NR:Nauru
+  Pacific:Pacific/Nauru
+NP:Nepal
+  Asia:Asia/Kathmandu
+NL:Netherlands
+  Europe:Europe/Brussels
+NC:New Caledonia
+  Pacific:Pacific/Noumea
+NZ:New Zealand
+  Pacific:Pacific/Auckland
+  Pacific:Pacific/Chatham
+NI:Nicaragua
+  America:America/Managua
+NE:Niger
+  Africa:Africa/Lagos
+NG:Nigeria
+  Africa:Africa/Lagos
+NU:Niue
+  Pacific:Pacific/Niue
+NF:Norfolk Island
+  Pacific:Pacific/Norfolk
+MP:Northern Mariana Islands
+  Pacific:Pacific/Guam
+NO:Norway
+  Europe:Europe/Berlin
+OM:Oman
+  Asia:Asia/Dubai
+PK:Pakistan
+  Asia:Asia/Karachi
+PW:Palau
+  Pacific:Pacific/Palau
+PS:Palestine, State of
+  Asia:Asia/Gaza
+  Asia:Asia/Hebron
+PA:Panama
+  America:America/Panama
+PG:Papua New Guinea
+  Pacific:Pacific/Port_Moresby
+  Pacific:Pacific/Bougainville
+PY:Paraguay
+  America:America/Asuncion
+PE:Peru
+  America:America/Lima
+PH:Philippines
+  Asia:Asia/Manila
+PN:Pitcairn
+  Pacific:Pacific/Pitcairn
+PL:Poland
+  Europe:Europe/Warsaw
+PT:Portugal
+  Europe:Europe/Lisbon
+  Atlantic:Atlantic/Madeira
+  Atlantic:Atlantic/Azores
+PR:Puerto Rico
+  America:America/Puerto_Rico
+QA:Qatar
+  Asia:Asia/Qatar
+RO:Romania
+  Europe:Europe/Bucharest
+RU:Russian Federation
+  Europe:Europe/Kaliningrad
+  Europe:Europe/Moscow
+  Europe:Europe/Simferopol
+  Europe:Europe/Kirov
+  Europe:Europe/Volgograd
+  Europe:Europe/Astrakhan
+  Europe:Europe/Saratov
+  Europe:Europe/Ulyanovsk
+  Europe:Europe/Samara
+  Asia:Asia/Yekaterinburg
+  Asia:Asia/Omsk
+  Asia:Asia/Novosibirsk
+  Asia:Asia/Barnaul
+  Asia:Asia/Tomsk
+  Asia:Asia/Novokuznetsk
+  Asia:Asia/Krasnoyarsk
+  Asia:Asia/Irkutsk
+  Asia:Asia/Chita
+  Asia:Asia/Yakutsk
+  Asia:Asia/Khandyga
+  Asia:Asia/Vladivostok
+  Asia:Asia/Ust-Nera
+  Asia:Asia/Magadan
+  Asia:Asia/Sakhalin
+  Asia:Asia/Srednekolymsk
+  Asia:Asia/Kamchatka
+  Asia:Asia/Anadyr
+RW:Rwanda
+  Africa:Africa/Maputo
+RE:Réunion
+  Asia:Asia/Dubai
+BL:Saint Barthélemy
+  America:America/Puerto_Rico
+SH:Saint Helena Ascension and Tristan da Cunha
+  Atlantic:Africa/Abidjan
+KN:Saint Kitts and Nevis
+  America:America/Puerto_Rico
+LC:Saint Lucia
+  America:America/Puerto_Rico
+MF:Saint Martin (French part)
+  America:America/Puerto_Rico
+PM:Saint Pierre and Miquelon
+  America:America/Miquelon
+VC:Saint Vincent and the Grenadines
+  America:America/Puerto_Rico
+WS:Samoa
+  Pacific:Pacific/Apia
+SM:San Marino
+  Europe:Europe/Rome
+ST:Sao Tome and Principe
+  Africa:Africa/Sao_Tome
+SA:Saudi Arabia
+  Asia:Asia/Riyadh
+SN:Senegal
+  Africa:Africa/Abidjan
+RS:Serbia
+  Europe:Europe/Belgrade
+SC:Seychelles
+  Asia:Asia/Dubai
+SL:Sierra Leone
+  Africa:Africa/Abidjan
+SG:Singapore
+  Asia:Asia/Singapore
+SX:Sint Maarten (Dutch part)
+  America:America/Puerto_Rico
+SK:Slovakia
+  Europe:Europe/Prague
+SI:Slovenia
+  Europe:Europe/Belgrade
+SB:Solomon Islands
+  Pacific:Pacific/Guadalcanal
+SO:Somalia
+  Africa:Africa/Nairobi
+ZA:South Africa
+  Africa:Africa/Johannesburg
+GS:South Georgia and the South Sandwich Islands
+  Atlantic:Atlantic/South_Georgia
+SS:South Sudan
+  Africa:Africa/Juba
+ES:Spain
+  Europe:Europe/Madrid
+  Africa:Africa/Ceuta
+  Atlantic:Atlantic/Canary
+LK:Sri Lanka
+  Asia:Asia/Colombo
+SD:Sudan
+  Africa:Africa/Khartoum
+SR:Suriname
+  America:America/Paramaribo
+SJ:Svalbard and Jan Mayen
+  Arctic:Europe/Berlin
+SE:Sweden
+  Europe:Europe/Berlin
+CH:Switzerland
+  Europe:Europe/Zurich
+SY:Syrian Arab Republic
+  Asia:Asia/Damascus
+TW:Taiwan
+  Asia:Asia/Taipei
+TJ:Tajikistan
+  Asia:Asia/Dushanbe
+TZ:Tanzania United Republic of
+  Africa:Africa/Nairobi
+TH:Thailand
+  Asia:Asia/Bangkok
+TL:Timor-Leste
+  Asia:Asia/Dili
+TG:Togo
+  Africa:Africa/Abidjan
+TK:Tokelau
+  Pacific:Pacific/Fakaofo
+TO:Tonga
+  Pacific:Pacific/Tongatapu
+TT:Trinidad and Tobago
+  America:America/Puerto_Rico
+TN:Tunisia
+  Africa:Africa/Tunis
+TR:Turkey
+  Europe:Europe/Istanbul
+TM:Turkmenistan
+  Asia:Asia/Ashgabat
+TC:Turks and Caicos Islands
+  America:America/Grand_Turk
+TV:Tuvalu
+  Pacific:Pacific/Tarawa
+UG:Uganda
+  Africa:Africa/Nairobi
+UA:Ukraine
+  Europe:Europe/Simferopol
+  Europe:Europe/Kyiv
+AE:United Arab Emirates
+  Asia:Asia/Dubai
+GB:United Kingdom of Great Britain and Northern Ireland
+  Europe:Europe/London
+UM:United States Minor Outlying Islands
+  Pacific:Pacific/Pago_Pago
+  Pacific:Pacific/Tarawa
+US:United States of America
+  America:America/New_York
+  America:America/Detroit
+  America:America/Kentucky/Louisville
+  America:America/Kentucky/Monticello
+  America:America/Indiana/Indianapolis
+  America:America/Indiana/Vincennes
+  America:America/Indiana/Winamac
+  America:America/Indiana/Marengo
+  America:America/Indiana/Petersburg
+  America:America/Indiana/Vevay
+  America:America/Chicago
+  America:America/Indiana/Tell_City
+  America:America/Indiana/Knox
+  America:America/Menominee
+  America:America/North_Dakota/Center
+  America:America/North_Dakota/New_Salem
+  America:America/North_Dakota/Beulah
+  America:America/Denver
+  America:America/Boise
+  America:America/Phoenix
+  America:America/Los_Angeles
+  America:America/Anchorage
+  America:America/Juneau
+  America:America/Sitka
+  America:America/Metlakatla
+  America:America/Yakutat
+  America:America/Nome
+  America:America/Adak
+  Pacific:Pacific/Honolulu
+UY:Uruguay
+  America:America/Montevideo
+UZ:Uzbekistan
+  Asia:Asia/Samarkand
+  Asia:Asia/Tashkent
+VU:Vanuatu
+  Pacific:Pacific/Efate
+VE:Venezuela, Bolivarian Republic of
+  America:America/Caracas
+VN:Viet Nam
+  Asia:Asia/Bangkok
+  Asia:Asia/Ho_Chi_Minh
+VG:Virgin Islands (British)
+  America:America/Puerto_Rico
+VI:Virgin Islands (U.S.)
+  America:America/Puerto_Rico
+WF:Wallis and Futuna
+  Pacific:Pacific/Tarawa
+EH:Western Sahara
+  Africa:Africa/El_Aaiun
+YE:Yemen
+  Asia:Asia/Riyadh
+ZM:Zambia
+  Africa:Africa/Maputo
+ZW:Zimbabwe
+  Africa:Africa/Maputo
+AX:Åland Islands
+  Europe:Europe/Helsinki

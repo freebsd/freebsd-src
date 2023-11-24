@@ -1,0 +1,16 @@
+
+#------------------------------------------------------------------------------
+# $File: oric,v 1.2 2022/04/25 17:28:20 christos Exp $
+# Oric tape files
+# From: Stefan A. Haubenthal <polluks@sdf.lonestar.org>
+# References:
+# http://fileformats.archiveteam.org/wiki/TAP_(Oric)
+# http://fileformats.archiveteam.org/wiki/DSK_(Oric)
+0	string		\x16\x16\x16\x24	Oric tape,
+>6	byte		=0x00			BASIC,
+>6	byte		=0x80			memory block,
+>7	byte		>0x00			autorun,
+>13	string		x			"%.15s"
+
+0	string		ORICDISK		Oric Image
+0	string		MFM_DISK		Oric Image

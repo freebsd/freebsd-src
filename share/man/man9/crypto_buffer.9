@@ -1,0 +1,348 @@
+.\" Copyright (c) 2020, Chelsio Inc
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Chelsio Inc nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.Dd February 11, 2022
+.Dt CRYPTO_BUFFER 9
+.Os
+.Sh NAME
+.Nm crypto_buffer
+.Nd symmetric cryptographic request buffers
+.Sh SYNOPSIS
+.In opencrypto/cryptodev.h
+.Ft int
+.Fo crypto_apply
+.Fa "struct cryptop *crp"
+.Fa "int off"
+.Fa "int len"
+.Fa "int (*f)(void *, void *, u_int)"
+.Fa "void *arg"
+.Fc
+.Ft int
+.Fo crypto_apply_buf
+.Fa "struct crypto_buffer *cb"
+.Fa "int off"
+.Fa "int len"
+.Fa "int (*f)(void *, void *, u_int)"
+.Fa "void *arg"
+.Fc
+.Ft void *
+.Fo crypto_buffer_contiguous_subsegment
+.Fa "struct crypto_buffer *cb"
+.Fa "size_t skip"
+.Fa "size_t len"
+.Fc
+.Ft size_t
+.Fn crypto_buffer_len "struct crypto_buffer *cb"
+.Ft void *
+.Fo crypto_contiguous_subsegment
+.Fa "struct cryptop *crp"
+.Fa "size_t skip"
+.Fa "size_t len"
+.Fc
+.Ft void
+.Fo crypto_cursor_init
+.Fa "struct crypto_buffer_cursor *cc"
+.Fa "const struct crypto_buffer *cb"
+.Fc
+.Ft void
+.Fn crypto_cursor_advance "struct crypto_buffer_cursor *cc" "size_t amount"
+.Ft void
+.Fo crypto_cursor_copyback
+.Fa "struct crypto_buffer_cursor *cc"
+.Fa "int size"
+.Fa "const void *src"
+.Fc
+.Ft void
+.Fo crypto_cursor_copydata
+.Fa "struct crypto_buffer_cursor *cc"
+.Fa "int size"
+.Fa "void *dst"
+.Fc
+.Ft void
+.Fo crypto_cursor_copydata_noadv
+.Fa "struct crypto_buffer_cursor *cc"
+.Fa "int size"
+.Fa "void *dst"
+.Fc
+.Ft void *
+.Fn crypto_cursor_segment "struct crypto_buffer_cursor *cc" "size_t *len"
+.Ft void
+.Fo crypto_cursor_copy
+.Fa "const struct crypto_buffer_cursor *fromc"
+.Fa "struct crypto_buffer_cursor *toc"
+.Fc
+.Ft bool
+.Fn CRYPTO_HAS_OUTPUT_BUFFER "struct cryptop *crp"
+.Sh DESCRIPTION
+Symmetric cryptographic requests use data buffers to describe the data to
+be modified.
+Requests can either specify a single data buffer whose contents are modified
+in place,
+or requests may specify separate data buffers for input and output.
+.Vt struct crypto_buffer
+provides an abstraction that permits cryptographic requests to operate on
+different types of buffers.
+.Vt struct crypto_cursor
+allows cryptographic drivers to iterate over a data buffer.
+.Pp
+.Fn CRYPTO_HAS_OUTPUT_BUFFER
+returns true if
+.Fa crp
+uses separate buffers for input and output and false if
+.Fa crp
+uses a single buffer.
+.Pp
+.Fn crypto_buffer_len
+returns the length of data buffer
+.Fa cb
+in bytes.
+.Pp
+.Fn crypto_apply_buf
+invokes a caller-supplied function
+to a region of the data buffer
+.Fa cb .
+The function
+.Fa f
+is called one or more times.
+For each invocation,
+the first argument to
+.Fa f
+is the value of
+.Fa arg
+passed to
+.Fn crypto_apply_buf .
+The second and third arguments to
+.Fa f
+are a pointer and length to a segment of the buffer mapped into the kernel.
+The function is called enough times to cover the
+.Fa len
+bytes of the data buffer which starts at an offset
+.Fa off .
+If any invocation of
+.Fa f
+returns a non-zero value,
+.Fn crypto_apply_buf
+immediately returns that value without invoking
+.Fa f
+on any remaining segments of the region,
+otherwise
+.Fn crypto_apply_buf
+returns the value from the final call to
+.Fa f .
+.Fn crypto_apply
+invokes the callback
+.Fa f
+on a region of the input data buffer for
+.Fa crp .
+.Pp
+.Fn crypto_buffer_contiguous_subsegment
+attempts to locate a single, virtually-contiguous segment of the data buffer
+.Fa cb .
+The segment must be
+.Fa len
+bytes long and start at an offset of
+.Fa skip
+bytes.
+If a segment is found,
+a pointer to the start of the segment is returned.
+Otherwise,
+.Dv NULL
+is returned.
+.Fn crypto_contiguous_subsegment
+attempts to locate a single, virtually-contiguous segment in the input data
+buffer for
+.Fa crp .
+.Ss Data Buffers
+Data buffers are described by an instance of
+.Vt struct crypto buffer .
+The
+.Fa cb_type
+member contains the type of the data buffer.
+The following types are supported:
+.Bl -tag -width "  CRYPTO_BUF_CONTIG"
+.It Dv CRYPTO_BUF_NONE
+An invalid buffer.
+Used to mark the output buffer when a crypto request uses a single data buffer.
+.It Dv CRYPTO_BUF_CONTIG
+An array of bytes mapped into the kernel's address space.
+.It Dv CRYPTO_BUF_UIO
+A scatter/gather list of kernel buffers as described in
+.Xr uio 9 .
+.It Dv CRYPTO_BUF_MBUF
+A chain of network memory buffers as described in
+.Xr mbuf 9 .
+.It Dv CRYPTO_BUF_SINGLE_MBUF
+A single network memory buffer as described in
+.Xr mbuf 9 .
+.It Dv CRYPTO_BUF_VMPAGE
+A scatter/gather list of
+.Vt vm_page_t
+structures describing pages in the kernel's address space.
+This buffer type is only available if
+.Dv CRYPTO_HAS_VMPAGE
+is true.
+.El
+.Pp
+The structure also contains the following type-specific fields:
+.Bl -tag -width "  cb_vm_page_offset"
+.It Fa cb_buf
+A pointer to the start of a
+.Dv CRYPTO_BUF_CONTIG
+data buffer.
+.It Fa cb_buf_len
+The length of a
+.Dv CRYPTO_BUF_CONTIG
+data buffer
+.It Fa cb_mbuf
+A pointer to a
+.Vt struct mbuf
+for
+.Dv CRYPTO_BUF_MBUF
+and
+.Dv CRYPTO_BUF_SINGLE_MBUF .
+.It Fa cb_uio
+A pointer to a
+.Vt struct uio
+for
+.Dv CRYPTO_BUF_UIO .
+.It Fa cb_vm_page
+A pointer to an array of
+.Vt struct vm_page
+for
+.Dv CRYPTO_BUF_VMPAGE .
+.It Fa cb_vm_page_len
+The total amount of data included in the
+.Fa cb_vm_page
+array, in bytes.
+.It Fa cb_vm_page_offset
+Offset in bytes in the first page of
+.Fa cb_vm_page
+where valid data begins.
+.El
+.Ss Cursors
+Cursors provide a mechanism for iterating over a data buffer.
+They are primarily intended for use in software drivers which access data
+buffers via virtual addresses.
+.Pp
+.Fn crypto_cursor_init
+initializes the cursor
+.Fa cc
+to reference the start of the data buffer
+.Fa cb .
+.Pp
+.Fn crypto_cursor_advance
+advances the cursor
+.Fa amount
+bytes forward in the data buffer.
+.Pp
+.Fn crypto_cursor_copyback
+copies
+.Fa size
+bytes from the local buffer pointed to by
+.Fa src
+into the data buffer associated with
+.Fa cc .
+The bytes are written to the current position of
+.Fa cc ,
+and the cursor is then advanced by
+.Fa size
+bytes.
+.Pp
+.Fn crypto_cursor_copydata
+copies
+.Fa size
+bytes out of the data buffer associated with
+.Fa cc
+into a local buffer pointed to by
+.Fa dst .
+The bytes are read from the current position of
+.Fa cc ,
+and the cursor is then advanced by
+.Fa size
+bytes.
+.Pp
+.Fn crypto_cursor_copydata_noadv
+is similar to
+.Fn crypto_cursor_copydata
+except that it does not change the current position of
+.Fa cc .
+.Pp
+.Fn crypto_cursor_segment
+returns the start of the virtually-contiguous segment at the current position of
+.Fa cc .
+The length of the segment is stored in
+.Fa len .
+.Sh RETURN VALUES
+.Fn crypto_apply
+and
+.Fn crypto_apply_buf
+return the return value from the caller-supplied callback function.
+.Pp
+.Fn crypto_buffer_contiguous_subsegment ,
+.Fn crypto_contiguous_subsegment ,
+and
+.Fn crypto_cursor_segment
+return a pointer to a contiguous segment or
+.Dv NULL .
+.Pp
+.Fn crypto_buffer_len
+returns the length of a buffer in bytes.
+.Pp
+.Fn crypto_cursor_seglen
+returns the length in bytes of a contiguous segment.
+.Pp
+.Fn crypto_cursor_copy
+makes a deep copy of the cursor
+.Fa fromc .
+The two copies do not share any state and can thus be used
+independently.
+.Pp
+.Fn CRYPTO_HAS_OUTPUT_BUFFER
+returns true if the request uses a separate output buffer.
+.Sh SEE ALSO
+.Xr ipsec 4 ,
+.Xr crypto 7 ,
+.Xr bus_dma 9 ,
+.Xr crypto 9 ,
+.Xr crypto_driver 9 ,
+.Xr crypto_request 9 ,
+.Xr crypto_session 9 ,
+.Xr mbuf 9 ,
+.Xr uio 9
+.Sh HISTORY
+The
+.Nm
+functions first appeared in
+.Fx 13 .
+.Sh AUTHORS
+The
+.Nm
+functions and this manual page were written by
+.An John Baldwin Aq Mt jhb@FreeBSD.org .

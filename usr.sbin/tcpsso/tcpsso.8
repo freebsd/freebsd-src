@@ -1,0 +1,256 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2022 Michael Tuexen <tuexen@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd June 30, 2022
+.Dt TCPSSO 8
+.Os
+.Sh NAME
+.Nm tcpsso
+.Nd set a socket option on a TCP endpoint
+.Sh SYNOPSIS
+.Nm
+.Fl i Ar id
+.Op Ar level
+.Ar optname
+.Ar optval
+.Nm
+.Fl a
+.Op Ar level
+.Ar optname
+.Ar optval
+.Nm
+.Fl C Ar cc-algo
+.Op Fl S Ar stack
+.Op Fl s Ar state
+.Op Ar level
+.Ar optname
+.Ar optval
+.Nm
+.Op Fl C Ar cc-algo
+.Fl S Ar stack
+.Op Fl s Ar state
+.Op Ar level
+.Ar optname
+.Ar optval
+.Nm
+.Op Fl C Ar cc-algo
+.Op Fl S Ar stack
+.Fl s Ar state
+.Op Ar level
+.Ar optname
+.Ar optval
+.Sh DESCRIPTION
+The
+.Nm
+command applies a
+.Ar level
+level socket option with name
+.Ar optname
+and value
+.Ar optval
+on a TCP endpoint from the command line.
+.Pp
+TCP endpoints in the
+.Dv TIME_WAIT
+state can not be handled by
+.Nm .
+TCP endpoints in the
+.Dv SYN_RCVD
+state can only be handled if their prior state was
+.Dv SYN_SENT .
+.Pp
+.Op Ar level
+can be specified as a non negative number or a symbolic name like
+.Dv SOL_SOCKET ,
+.Dv IPPROTO_IP ,
+.Dv IPPROTO_IPV6 ,
+or
+.Dv IPPROTO_TCP .
+If not specified,
+.Nm
+deduces the level from
+.Ar optname ,
+if provided as a symbolic name.
+If that is not the case,
+.Dv IPPROTO_TCP
+is used.
+.Pp
+.Ar optname
+can be specified as a non negative number or a symbolic name like
+.Dv SO_DEBUG ,
+.Dv IP_TOS ,
+.Dv IPV6_TCLASS ,
+.Dv TCP_LOG ,
+.Dv TCP_CONGESTION ,
+or
+.Dv TCP_FUNCTION_BLK .
+.Pp
+.Ar optval
+can be in integer value, which will be converted to a binary value and
+passed as an int value.
+If it cannot be parsed as an integer value, it will be processed as a string.
+If the
+.Ar optname
+is
+.Dv TCP_FUNCTION_BLK
+then
+.Ar optval
+is converted to a
+.Vt "struct tcp_function_set" .
+.Pp
+If
+.Fl i Ar id
+is specified then
+.Nm
+will apply the socket option to the TCP endpoint with the
+.Dv inp_gencnt
+provided as
+.Ar id .
+The
+.Dv inp_gencnt
+for existing TCP endpoints can be determined by using
+.Xr sockstat 1 .
+.Pp
+If
+.Fl a
+is specified then
+.Nm
+will apply the socket option to all TCP endpoints subject to the above state
+restrictions.
+.Pp
+If
+.Fl C Ar cc-algo
+is specified then
+.Nm
+will apply the socket option to all TCP endpoints using the TCP
+congestion control algorithm
+.Ar cc-algo
+and subject to the above state restrictions.
+.Pp
+If
+.Fl S Ar stack
+is specified then
+.Nm
+will apply the socket option to all TCP endpoints using the TCP
+stack
+.Ar stack
+and subject to the above state restrictions.
+.Pp
+If
+.Fl s Ar state
+is specified then
+.Nm
+will apply the socket option to all TCP endpoints being in the state
+.Ar state .
+.Ar state
+is one of
+.Dv CLOSED ,
+.Dv LISTEN ,
+.Dv SYN_SENT ,
+.Dv SYN_RCVD ,
+.Dv ESTABLISHED ,
+.Dv CLOSE_WAIT ,
+.Dv FIN_WAIT_1 ,
+.Dv CLOSING ,
+.Dv LAST_ACK ,
+.Dv FIN_WAIT_2 .
+Using
+.Dv SYN_RCVD
+only applies to TCP endpoints in the state
+.Dv SYN_RCVD
+if their prior state was
+.Dv SYN_SENT .
+.Pp
+If multiple of
+.Fl C Ar cc-algo ,
+.Fl S Ar stack ,
+and
+.Fl s Ar state
+are specified,
+.Nm
+will apply the socket option to all TCP endpoints not being in the
+state
+.Dv TIME_WAIT
+and using the congestion control algorithm
+.Ar cc-algo ,
+being in the state
+.Ar state ,
+and using the TCP stack
+.Ar stack ,
+if specified.
+.Pp
+If none of the
+.Fl a ,
+.Fl C ,
+.Fl S ,
+or
+.Fl s
+options are specified then the option
+.Fl i
+must be specified.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+To diagnose a problem with a particular TCP connection to
+.Xr sshd 8 ,
+first determine its
+.Dv inp_gencnt
+using
+.Xr sockstat 1 :
+.Bd -literal -offset indent
+# sockstat -4 -c -i -p 22 -P tcp -q
+root     sshd       827   4  tcp4 \e
+	192.168.1.1:22        192.168.1.2:53736     435
+.Ed
+.Pp
+Then, use the following command to enable Black Box Logging on it:
+.Bd -literal -offset indent
+# tcpsso -i 435 TCP_LOG 4
+.Ed
+.Pp
+To switch all TCP endpoints from using the freebsd stack to the rack stack use:
+.Bd -literal -offset indent
+# tcpsso -S freebsd TCP_FUNCTION_BLK rack
+.Ed
+.Pp
+The following command will set the congestion control module of all TCP
+endpoints currently using cubic as its congestion control algorithm to the
+congestion control algorithm newreno:
+.Bd -literal -offset indent
+# tcpsso -C cubic TCP_CONGESTION newreno
+.Ed
+.Sh SEE ALSO
+.Xr sockstat 1 ,
+.Xr setsockopt 2 ,
+.Xr tcp 4 ,
+.Xr tcp_functions 9
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 14 .
+.Sh AUTHORS
+.An Michael Tuexen Aq Mt tuexen@FreeBSD.org

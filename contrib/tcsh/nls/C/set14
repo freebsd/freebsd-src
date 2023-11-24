@@ -1,0 +1,5 @@
+$ sh.file.c
+$set 14 
+1 \nYikes!! Too many %s!!\n
+2 names in password file
+3 files

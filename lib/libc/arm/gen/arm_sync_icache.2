@@ -1,0 +1,77 @@
+.\" Copyright (c) 2019 Ian Lepore <ian@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd July 10, 2019
+.Dt ARM_sync_icache 2
+.Os
+.Sh NAME
+.Nm arm_sync_icache
+.Nd synchronize the data and instruction caches
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In machine/sysarch.h
+.Ft int
+.Fn arm_sync_icache "u_int addr" "int len"
+.Sh DESCRIPTION
+The
+.Nm
+system call synchronizes the contents of any data and instructions caches
+with the contents of main memory for the given range.
+Use this after loading executable code or modifying existing code in memory,
+before attempting to execute that code.
+.Pp
+The
+.Va addr
+and
+.Va len
+arguments do not need to be aligned to any particular boundary, but
+cache operations will affect entire cache lines, even those which are only
+partially overlapped by the given range.
+.Pp
+This takes one or more of the following actions, depending on the requirements
+of the hardware:
+.Bl -bullet
+.It
+Write dirty data cache lines within the range back to main memory.
+.It
+Invalidate existing instruction cache contents for the range.
+.It
+Invalidate branch prediction caches for the range.
+.El
+.Pp
+On hardware which supports multiple synchronization points for cache
+operations, the caches are maintained to the point of unification,
+making the data in the range coherent amongst all cores.
+.Sh RETURN VALUES
+The
+.Nm
+system call always returns 0.
+.Sh ERRORS
+If a call refers to memory which the calling process does not have rights
+to access, or if the
+.Va len
+argument is negative, a SIGSEGV signal is delivered to the calling thread.
+.Sh AUTHORS
+This man page was written by
+.An Ian Lepore .

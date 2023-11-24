@@ -1,0 +1,9 @@
+FBSD_1.0 {
+	regerror;
+	regexec;
+	regfree;
+};
+
+FBSD_1.6 {
+	regcomp;
+};

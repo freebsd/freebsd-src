@@ -1,0 +1,109 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2021 The FreeBSD Foundation
+.\"
+.\" This manual page was written by Ka Ho Ng under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd August 25, 2021
+.Dt VOP_DEALLOCATE 9
+.Os
+.Sh NAME
+.Nm VOP_DEALLOCATE
+.Nd zero and/or deallocate storage from a file
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fo VOP_DEALLOCATE
+.Fa "struct vnode *vp"
+.Fa "off_t *offset"
+.Fa "off_t *len"
+.Fa "int flags"
+.Fa "int ioflag"
+.Fa "struct ucred *cred"
+.Fc
+.Sh DESCRIPTION
+This VOP call zeroes/deallocates storage for an offset range in a file.
+It is used to implement the
+.Xr fspacectl 2
+system call.
+.Pp
+Its arguments are:
+.Bl -tag -width offset
+.It Fa vp
+The vnode of the file.
+.It Fa offset
+The start of the range to deallocate storage in the file.
+.It Fa len
+The length of the range to deallocate storage in the file.
+.It Fa flags
+The flags of this call.
+This should be set to 0 for now.
+.It Fa ioflag
+Directives and hints to be given to the file system.
+.It Fa cred
+The credentials of the caller.
+.El
+.Pp
+.Fa *offset
+and
+.Fa *len
+are updated to reflect the portion of the range that
+still needs to be zeroed/deallocated on return.
+Partial result is considered a successful operation.
+For a non-partial successful completion,
+.Fa *len
+is updated to be the value 0, and
+.Fa *offset
+is incremented by the number of bytes zeroed before the end-of-file.
+.Sh LOCKS
+The vnode should be locked on entry and will still be locked on exit.
+.Sh RETURN VALUES
+Zero is returned if the call is successful, otherwise an appropriate
+error code is returned.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Invalid
+.Fa offset , len
+or
+.Fa flags
+parameters are passed into this VOP call.
+.It Bq Er ENODEV
+The vnode type is not supported by this VOP call.
+.It Bq Er ENOSPC
+The file system is full.
+.It Bq Er EPERM
+An append-only flag is set on the file, but the caller is attempting to
+zero before the current end of file.
+.El
+.Sh SEE ALSO
+.Xr vnode 9
+.Sh AUTHORS
+.Nm
+and this manual page was written by
+.An Ka Ho Ng Aq Mt khng@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.

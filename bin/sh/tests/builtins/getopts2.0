@@ -1,0 +1,5 @@
+set - -ax
+getopts ax option
+set -C
+getopts ax option
+printf '%s\n' "$option"

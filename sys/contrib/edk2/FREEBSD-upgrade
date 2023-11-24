@@ -1,0 +1,23 @@
+$FreeBSD$
+
+We try to maintain the minimal set of headers required to build, as the full
+set of files from MdePkg is quite large (10MB at the time of writing). To do
+this when performing an upgrade, execute the following:
+
+# Generate list of the headers needed to build
+cp -r ../vendor/edk2/dist/MdePkg/Include sys/contrib/edk2
+cd lib/libefivar
+make
+pushd `make -V .OBJDIR`
+cat .depend*.o | grep sys/contrib | cut -d' ' -f 3 |
+    sort -u | sed -e 's=/full/path/sys/contrib/edk2/==' > /tmp/xxx
+popd
+
+# Merge the needed files
+cd ../../sys/contrib/edk2
+svn revert -R .
+for i in `cat /tmp/xxx`; do
+    svn merge -c VendorRevision svn+ssh://repo.freebsd.org/base/vendor/edk2/dist/MdePkg/$i $i
+done
+svn merge -c VendorRevision \
+    svn+ssh://repo.freebsd.org/base/vendor/edk2/dist/MdePkg/MdePkg.dec MdePkg.dec

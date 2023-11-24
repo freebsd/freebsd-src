@@ -1,0 +1,6 @@
+DIRDEPS_OPTIONS = host_egacy
+
+DIRDEPS.host_egacy.yes = tools/build
+
+.include <dirdeps-options.mk>
+

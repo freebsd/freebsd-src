@@ -1,0 +1,89 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
+: ${BSDDIALOG_OK=0}
+
+if [ -f $BSDINSTALL_TMPETC/rc.conf.services ]; then
+	eval "$( sed -E -e 's/\<(YES|AUTO)\>/on/i' -e 's/\<NO\>/off/i' \
+		$BSDINSTALL_TMPETC/rc.conf.services )"
+else
+	# Default service states. Everything is off if not enabled.
+	sshd_enable="on"
+fi
+
+echo -n > $BSDINSTALL_TMPETC/rc.conf.services
+
+exec 5>&1
+DAEMONS=$( bsddialog --backtitle "$OSNAME Installer" \
+    --title "System Configuration" --no-cancel --separate-output \
+    --checklist "Choose the services you would like to be started at boot:" \
+    0 0 0 \
+	local_unbound "Local caching validating resolver" \
+		${local_unbound_enable:-off} \
+	sshd	"Secure shell daemon" ${sshd_enable:-off} \
+	moused	"PS/2 mouse pointer on console" ${moused_enable:-off} \
+	ntpd	"Synchronize system and network time" ${ntpd_enable:-off} \
+	ntpd_sync_on_start	"Sync time on ntpd startup, even if offset is high" \
+		${ntpd_sync_on_start:-off} \
+	powerd	"Adjust CPU frequency dynamically if supported" \
+		${powerd_enable:-off} \
+	dumpdev "Enable kernel crash dumps to /var/crash" ${dumpdev:-on} \
+2>&1 1>&5 )
+retval=$?
+exec 5>&-
+
+if [ $retval -ne $BSDDIALOG_OK ]; then
+	exit 1
+fi
+
+havedump=
+havemouse=
+for daemon in $DAEMONS; do
+	[ "$daemon" = "dumpdev" ] && havedump=1 continue
+	[ "$daemon" = "moused" ] && havemouse=1
+	if [ "$daemon" = "ntpd_sync_on_start" ]; then
+		rcvar=${daemon}
+	else
+		rcvar=${daemon}_enable
+	fi
+	echo ${rcvar}=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
+done
+
+if [ ! "$havemouse" ]; then
+	echo moused_nondefault_enable=\"NO\" >> $BSDINSTALL_TMPETC/rc.conf.services
+fi
+
+echo '# Set dumpdev to "AUTO" to enable crash dumps, "NO"' \
+     'to disable' >> $BSDINSTALL_TMPETC/rc.conf.services
+if [ "$havedump" ]; then
+	echo dumpdev=\"AUTO\" >> $BSDINSTALL_TMPETC/rc.conf.services
+else
+	echo dumpdev=\"NO\" >> $BSDINSTALL_TMPETC/rc.conf.services
+fi

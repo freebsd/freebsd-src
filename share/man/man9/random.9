@@ -1,0 +1,203 @@
+.\"
+.\" Copyright (c) 2015
+.\"	Mark R V Murray
+.\" Copyright (c) 2000
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" "
+.Dd March 22, 2021
+.Dt RANDOM 9
+.Os
+.Sh NAME
+.Nm arc4rand ,
+.Nm arc4random ,
+.Nm arc4random_buf ,
+.Nm is_random_seeded ,
+.Nm random ,
+.Nm read_random ,
+.Nm read_random_uio
+.Nd supply pseudo-random numbers
+.Sh SYNOPSIS
+.In sys/libkern.h
+.Ft uint32_t
+.Fn arc4random "void"
+.Ft void
+.Fn arc4random_buf "void *ptr" "size_t len"
+.Ft void
+.Fn arc4rand "void *ptr" "u_int length" "int reseed"
+.Pp
+.In sys/random.h
+.Ft bool
+.Fn is_random_seeded "void"
+.Ft void
+.Fn read_random "void *buffer" "int count"
+.Ft int
+.Fn read_random_uio "struct uio *uio" "bool nonblock"
+.Ss LEGACY ROUTINES
+.In sys/libkern.h
+.Ft u_long
+.Fn random "void"
+.Sh DESCRIPTION
+The
+.Fn arc4random
+and
+.Fn arc4random_buf
+functions will return very good quality random numbers, suited for
+security-related purposes.
+Both are wrappers around the underlying
+.Fn arc4rand
+interface.
+.Fn arc4random
+returns a 32-bit random value, while
+.Fn arc4random_buf
+fills
+.Fa ptr
+with
+.Fa len
+bytes of random data.
+.Pp
+The
+.Fn arc4rand
+CSPRNG
+is seeded from the
+.Xr random 4
+kernel abstract entropy device.
+Automatic reseeding happens at unspecified time and bytes (of output)
+intervals.
+A reseed can be forced by passing a non-zero
+.Fa reseed
+value.
+.Pp
+The
+.Fn read_random
+function is used to read entropy directly from the kernel abstract entropy
+device.
+.Fn read_random
+blocks if and until the entropy device is seeded.
+The provided
+.Fa buffer
+is filled with no more than
+.Fa count
+bytes.
+It is strongly advised that
+.Fn read_random
+is not used directly;
+instead, use the
+.Fn arc4rand
+family of functions.
+.Pp
+The
+.Fn is_random_seeded
+function can be used to check in advance if
+.Fn read_random
+will block.
+(If random is seeded, it will not block.)
+.Pp
+The
+.Fn read_random_uio
+function behaves identically to
+.Xr read 2
+on
+.Pa /dev/random .
+The
+.Fa uio
+argument points to a buffer where random data should be stored.
+If
+.Fa nonblock
+is true and the random device is not seeded, this function does not return any
+data.
+Otherwise, this function may block interruptibly until the random device is seeded.
+If the function is interrupted before the random device is seeded, no data is
+returned.
+.Pp
+The deprecated
+.Fn random
+function will return a 31-bit value.
+It is obsolete and scheduled to be removed in
+.Fx 14.0 .
+Consider
+.Xr prng 9
+instead and see
+.Sx SECURITY CONSIDERATIONS .
+.Sh RETURN VALUES
+The
+.Fn arc4rand
+function uses the Chacha20 algorithm to generate a pseudo-random sequence of
+bytes.
+The
+.Fn arc4random
+function uses
+.Fn arc4rand
+to generate pseudo-random numbers
+in the range from 0 to
+.if t 2\u\s732\s10\d\(mi1.
+.if n (2**32)\(mi1.
+.Pp
+The
+.Fn read_random
+function returns
+the number of bytes placed in
+.Fa buffer .
+.Pp
+.Fn read_random_uio
+returns zero when successful,
+otherwise an error code is returned.
+.Pp
+.Fn random
+returns numbers
+in the range from 0 to
+.if t 2\u\s731\s10\d\(mi1.
+.if n (2**31)\(mi1.
+
+.Sh ERRORS
+.Fn read_random_uio
+may fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+.Fa uio
+points to an invalid memory region.
+.It Bq Er EWOULDBLOCK
+The random device is unseeded and
+.Fa nonblock
+is true.
+.El
+.Sh AUTHORS
+.An Dan Moschuk
+wrote
+.Fn arc4random .
+.An Mark R V Murray
+wrote
+.Fn read_random .
+.Sh SECURITY CONSIDERATIONS
+Do not use
+.Fn random
+in new code.
+.Pp
+It is important to remember that the
+.Fn random
+function is entirely predictable.
+It is easy for attackers to predict future output of
+.Fn random
+by recording some generated values.
+We cannot emphasize strongly enough that
+.Fn random
+must not be used to generate values that are intended to be unpredictable.

@@ -1,0 +1,9 @@
+All test programs must implement these three procedures:
+
+int setup(int nb)
+void cleanup(void)
+int test(void)
+
+The setup() procedure is called once before test() is called multiple times
+until timeout.  After timeout cleanup() is called.
+test() should periodically test the global variable done_testing and return.

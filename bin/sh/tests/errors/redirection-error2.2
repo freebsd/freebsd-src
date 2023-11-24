@@ -1,0 +1,3 @@
+
+# sh should fail gracefully on this bad redirect
+${SH} -c 'echo 1 >&$a' 2>/dev/null

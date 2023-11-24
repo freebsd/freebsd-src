@@ -1,0 +1,79 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2021 The FreeBSD Foundation
+.\"
+.\" Portions of this software were developed by Ka Ho Ng
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 8, 2021
+.Dt VNODE_PAGER_SETSIZE 9
+.Os
+.Sh NAME
+.Nm vnode_pager_setsize
+.Nd "notify the VM system about updates in the file size"
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_extern.h
+.Ft void
+.Fn vnode_pager_setsize "struct vnode *vp" "vm_ooffset_t nsize"
+.Sh DESCRIPTION
+.Nm
+lets the VM system know about a change in size for a file,
+and updates the object size and vnode pager size of the vm object in
+.Fa vp
+with
+.Fa nsize .
+Page faults on the object mapping with offset beyond the new object
+size results in
+.Va SIGBUS .
+.Pp
+Pages between the old EOF and the new EOF are removed from the object queue
+if the file size shrinks.
+In case the new EOF specified by the
+.Fa nsize
+argument is not aligned to page boundary,
+partial-page area starting beyond the EOF is zeroed and marked invalid.
+if the page exists resident.
+.Pp
+In case the vnode
+.Fa vp
+does not have a VM object allocated, the effect of calling this function is no-op.
+.Pp
+This function must be used within file system code to implement truncation
+if the file system allocates vm objects for vnodes.
+.Sh LOCKS
+The vnode should be exclusively locked on entry and will still be locked on exit.
+.Sh SEE ALSO
+.Xr vnode 9
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 14 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Ka Ho Ng Aq Mt khng@FreeBSD.org .

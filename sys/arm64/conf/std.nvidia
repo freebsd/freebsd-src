@@ -1,0 +1,27 @@
+#
+# NVidia SoC support
+#
+
+# SoC support
+options 	SOC_NVIDIA_TEGRA210
+
+# Serial (COM) ports
+device		uart_ns8250		# ns8250-type UART driver
+device		uart_snps
+
+# Ethernet NICs
+device		re			# RealTek 8139C+/8169/8169S/8110S
+
+# USB support
+device		tegra210_xusb_fw	# Tegra XUSB firmware
+
+# USB NICs
+device		ure
+
+# MMC/SD/SDIO Card slot support
+device		sdhci
+
+options 	FDT
+
+# DTBs
+makeoptions	MODULES_EXTRA+="dtb/nvidia"

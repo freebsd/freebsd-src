@@ -1,0 +1,6 @@
+
+#
+# Standard qemu virt devices and support.
+#
+arm/qemu/virt_machdep.c			standard
+arm/qemu/virt_mp.c			optional	smp

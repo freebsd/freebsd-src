@@ -1,0 +1,7 @@
+compat: testing 1
+compat: testing 2
+compat: testing 3
+jobs: testing 1
+jobs: testing 2
+jobs: testing 3
+exit status 0

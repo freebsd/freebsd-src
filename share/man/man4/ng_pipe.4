@@ -1,0 +1,213 @@
+.\" Copyright (c) 2019 Lutz Donnerhacke
+.\" Copyright (c) 2004-2008 University of Zagreb
+.\" Copyright (c) 2007-2008 FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd October 17, 2019
+.Dt NG_PIPE 4
+.Os
+.Sh NAME
+.Nm ng_pipe
+.Nd Traffic manipulating netgraph node type
+.Sh SYNOPSIS
+.In netgraph/ng_pipe.h
+.Sh DESCRIPTION
+The
+.Nm pipe
+node type manipulates traffic by emulating bandwidth and delay, as well as
+random packet losses.
+.Sh HOOKS
+This node type supports the following hooks:
+.Bl -tag -width ".Va upper"
+.It Va upper
+Hook leading to upper layer protocols.
+.It Va lower
+Hook leading to lower layer protocols.
+.El
+.Pp
+Traffic flowing from
+.Va upper
+to
+.Va lower
+is considered
+.Sy downstream
+traffic.
+Traffic flowing from
+.Va lower
+to
+.Va upper
+is considered
+.Sy upstream
+traffic.
+.Sh MODE OF OPERATION
+Data received on a hook - both in upstream and downstream direction -
+is put into an inbound queue.
+If inbound queue is full, discard one frame
+depending on dropping policy (from the head or from the tail of the
+queue).
+.Pp
+There are three mutually exclusive modes for the input queue:
+.Bl -tag -width foo
+.It Dv "First In First Out (FIFO)"
+A single queue holds packets in chronological order.
+.It Dv Weighted fair queuing (WFQ)
+There are multiple queues for different traffic flows (based on IPv4
+IPs).
+The longest queue is truncated if necessary.
+This approach
+assumes that the stalling flow is the flow with the most packets currently
+on hold.
+.It Dv Deficit Round Robin (DRR)
+This mode is similar to WFQ, but packets are not taken out in
+strict chronological order.
+In principle oldest packets come first,
+but not too many packets from the same flow.
+.El
+.Pp
+It is possible to configure a duplication probability.
+As the dice
+decides, the currently active packet stays in the queue while a copy
+of the packet is sent out.
+Nothing prevents a packet from being
+duplicated multiple times.
+.Pp
+Packets are dropped with an increasing probability depending on the
+size of the packet, if a
+.Va ber
+(bit error rate) is configured.
+.Pp
+Surviving packets are delayed by the time the packet would need to
+travel through a link of the configured bandwidth.
+If this outbound
+queue is full, the packet is dropped.
+.Sh CONTROL MESSAGES
+This node type supports the generic control messages and the following
+specific messages.
+.Bl -tag -width foo
+.It Dv NGM_PIPE_SET_CFG Pq Ic setcfg
+Set node configuration to the one specified in
+.Vt "struct ng_pipe_cfg"
+.Pp
+Note: To set a value to zero, specify -1 instead.
+This allows omitting configuration values, which should not be
+modified.
+.It Dv NGM_PIPE_GET_CFG Pq Ic getcfg
+Return current node configuration as
+.Vt "struct ng_pipe_cfg"
+.Bd -literal
+struct ng_pipe_cfg {
+  u_int64_t  bandwidth;     /* bits per second */
+  u_int64_t  delay;         /* additional delay, usec */
+  u_int32_t  header_offset; /* offset of IP header in bytes */
+  u_int32_t  overhead;      /* assumed L2 overhead in bytes */
+  struct ng_pipe_hookcfg  downstream;
+  struct ng_pipe_hookcfg  upstream;
+};
+
+/* Config structure for one hook */
+struct ng_pipe_hookcfg {
+  u_int64_t  bandwidth;       /* bits per second */
+  u_int64_t  ber;             /* avg. interval between bit errors (1 / BER) */
+  u_int32_t  qin_size_limit;  /* number of queue items */
+  u_int32_t  qout_size_limit; /* number of queue items */
+  u_int32_t  duplicate;       /* probability in % */
+  u_int32_t  fifo;            /* 0 = off, 1 = on */
+  u_int32_t  drr;             /* 0 = off, 1 = 2048 bytes, or x bytes */
+  u_int32_t  wfq;             /* 0 = off, 1 = on */
+  u_int32_t  droptail;        /* 0 = off, 1 = on */
+  u_int32_t  drophead;        /* 0 = off, 1 = on */
+};
+.Ed
+.It Dv NGM_PIPE_GET_STATS Pq Ic getstats
+Return node statistics as
+.Vt "struct ng_pipe_stats"
+.Bd -literal
+/* Statistics structure for one hook */
+struct ng_pipe_hookstat {
+  u_int64_t  fwd_octets;
+  u_int64_t  fwd_frames;
+  u_int64_t  in_disc_octets;
+  u_int64_t  in_disc_frames;
+  u_int64_t  out_disc_octets;
+  u_int64_t  out_disc_frames;
+};
+
+/* Statistics structure returned by NGM_PIPE_GET_STATS */
+struct ng_pipe_stats {
+  struct ng_pipe_hookstat  downstream;
+  struct ng_pipe_hookstat  upstream;
+};
+.Ed
+.It Dv NGM_PIPE_CLR_STATS Pq Ic clrstats
+Clear node statistics.
+.It Dv NGM_PIPE_GETCLR_STATS Pq Ic getclrstats
+Atomically return and clear node statistics.
+.It Dv NGM_PIPE_GET_RUN Pq Ic getrun
+Return node statistics as
+.Vt "struct ng_pipe_run"
+.Bd -literal
+/* Runtime structure for one hook */
+struct ng_pipe_hookrun {
+  u_int32_t  fifo_queues;
+  u_int32_t  qin_octets;
+  u_int32_t  qin_frames;
+  u_int32_t  qout_octets;
+  u_int32_t  qout_frames;
+};
+
+/* Runtime structure returned by NGM_PIPE_GET_RUN */
+struct ng_pipe_run {
+  struct ng_pipe_hookrun  downstream;
+  struct ng_pipe_hookrun  upstream;
+};
+.Ed
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message, or when all hooks have been disconnected.
+.Sh EXAMPLES
+Limit outgoing data rate over fxp0 Ethernet interface to 20Mbps in
+fifo mode and incoming to 50kbps in drr mode and 2% duplicate
+probability.
+.Bd -literal -offset indent
+/usr/sbin/ngctl -f- <<-SEQ
+  mkpeer fxp0: pipe lower lower
+  name fxp0:lower fxp0_pipe
+  connect fxp0: fxp0_pipe: upper upper
+  msg fxp0_pipe: setcfg { downstream={ bandwidth=20000000 fifo=1 } }
+  msg fxp0_pipe: setcfg { upstream={ bandwidth=500000 drr=1 duplicate=2 } }
+SEQ
+.Ed
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ngctl 8
+.Sh AUTHORS
+.An Lutz Donnerhacke Aq Mt lutz@donnerhacke.de
+.Pq man page
+.Sh BUGS
+Error handling for memory issues is missing.
+If kernel memory cannot be allocated immediately, a kernel panic will
+be triggered.
+Same happens if an mbuf is fragmented within the transport headers.

@@ -1,0 +1,75 @@
+#
+# Allwinner SoC support
+#
+
+# SoC support
+options 	SOC_ALLWINNER_A64
+options 	SOC_ALLWINNER_H5
+options 	SOC_ALLWINNER_H6
+
+# Timer drivers
+device		a10_timer
+
+# DMA controller
+device		a31_dmac
+
+# GPIO / PINCTRL
+device		aw_gpio			# Allwinner GPIO controller
+
+# I2C
+device		aw_rsb			# Allwinner Reduced Serial Bus
+device		twsi			# Allwinner I2C controller
+device		sy8106a			# SY8106A Buck Regulator
+
+# Clock and reset controllers
+device		aw_ccu			# Allwinner clock controller
+
+# Interrupt controllers
+device		aw_r_intc		# Allwinner RINTC support
+device		aw_nmi			# Allwinner NMI support
+
+# Real-time clock support
+device		aw_rtc			# Allwinner Real-time Clock
+
+# Watchdog controllers
+device		aw_wdog			# Allwinner Watchdog
+
+# Syscon controller
+device		aw_syscon		# Allwinner System Controller
+
+# Power management controllers
+device		axp81x			# X-Powers AXP81x PMIC
+
+# EFUSE
+device		aw_sid			# Allwinner Secure ID EFUSE
+
+# Thermal sensors
+device		aw_thermal		# Allwinner Thermal Sensor Controller
+
+# PWM
+
+# Serial (COM) ports
+device		uart_snps
+
+# Ethernet NICs
+device		awg			# Allwinner EMAC Gigabit Ethernet
+
+# USB support
+device		aw_usbphy		# Allwinner USB PHY
+device		musb			# Mentor Graphics USB OTG controller
+device		dwc3			# Synopsys DWC controller
+device		aw_dwc3			# Allwinner DWC3 controller
+
+# Sound support
+device		a10_codec               # Allwinner A10 codec
+device		aw_i2s                  # Allwinner I2S
+device		a33_codec               # Allwinner A33 codec
+device		a64_codec               # Allwinner A64 Analog codec
+
+# MMC/SD/SDIO Card slot support
+device		aw_mmc			# Allwinner SD/MMC controller
+
+options 	FDT
+
+# DTBs
+makeoptions	MODULES_EXTRA+="dtb/allwinner"

@@ -1,0 +1,59 @@
+name: checkstyle
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  checkstyle:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+    - name: Install dependencies
+      run: |
+        # https://github.com/orgs/community/discussions/47863
+        sudo apt-mark hold grub-efi-amd64-signed
+        sudo apt-get update --fix-missing
+        sudo apt-get upgrade
+        sudo xargs --arg-file=${{ github.workspace }}/.github/workflows/build-dependencies.txt apt-get install -qq
+        sudo xargs --arg-file=${{ github.workspace }}/.github/workflows/checkstyle-dependencies.txt apt-get install -qq
+        sudo python3 -m pip install --quiet flake8
+        sudo apt-get clean
+
+        # confirm that the tools are installed
+        # the build system doesn't fail when they are not
+        checkbashisms --version
+        cppcheck --version
+        flake8 --version
+        scanelf --version
+        shellcheck --version
+    - name: Prepare
+      run: |
+        ./autogen.sh
+        ./configure
+        make -j$(nproc) --no-print-directory --silent
+    - name: Checkstyle
+      run: |
+        make -j$(nproc) --no-print-directory --silent checkstyle
+    - name: Lint
+      run: |
+        make -j$(nproc) --no-print-directory --silent lint
+    - name: CheckABI
+      id: CheckABI
+      run: |
+        docker run -v $PWD:/source ghcr.io/openzfs/libabigail make -j$(nproc) --no-print-directory --silent checkabi
+    - name: StoreABI
+      if: failure() && steps.CheckABI.outcome == 'failure'
+      run: |
+        docker run -v $PWD:/source ghcr.io/openzfs/libabigail make -j$(nproc) --no-print-directory --silent storeabi
+    - name: Prepare artifacts
+      if: failure() && steps.CheckABI.outcome == 'failure'
+      run: |
+        find -name *.abi | tar -cf abi_files.tar -T -
+    - uses: actions/upload-artifact@v3
+      if: failure() && steps.CheckABI.outcome == 'failure'
+      with:
+        name: New ABI files (use only if you're sure about interface changes)
+        path: abi_files.tar

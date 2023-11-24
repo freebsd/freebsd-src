@@ -1,0 +1,45 @@
+
+#------------------------------------------------------------------------------
+# $File: dwarfs,v 1.2 2023/05/23 13:37:32 christos Exp $
+# dwarfs: file(1) magic for DwarFS File System Image files
+# URL: https://github.com/mhx/dwarfs for details about DwarFS
+# From: Marcus Holland-Moritz <github@mhxnet.de>
+
+#### DwarFS Version Macro
+0			name		dwarfsversion
+>&0			byte		x		\b, version %d
+>&1			byte		x		\b.%d
+
+#### DwarFS Compression Macro
+0			name		dwarfscompression
+>&0			leshort		=0		\b, uncompressed
+>&0			leshort		=1		\b, LZMA compression
+>&0			leshort		=2		\b, ZSTD compression
+>&0			leshort		=3		\b, LZ4 compression
+>&0			leshort		=4		\b, LZ4HC compression
+>&0			leshort		=5		\b, BROTLI compression
+
+#### DwarFS files without header
+## We first check against a DWARFS magic at the start of the file, then
+## validate by checking the block count / section type to be all zeros
+## for the first block. Finally, we check that the *next* block also
+## has the correct DWARFS magic.
+0			string		DWARFS
+>&0x2A			string/b	\0\0\0\0\0\0
+>>&(&0x02.q+0x0A)	string		DWARFS		DwarFS File System Image
+>>>&0			use		dwarfsversion
+>>&0			use		dwarfscompression
+
+#### DwarFS files with header
+## We search for a DWARFS magic in the first 64k of the file (images with
+## headers longer than 64k won't be recognized), then  validate by checking
+## the block count / section type to be all zeros for the first block.
+## Finally, we check that the *next* block also has the correct DWARFS magic.
+## If we find a DWARFS magic that doesn't pass validation, we continue with
+## an indirect match recursively.
+1			search/65536/b	DWARFS
+>&0x2A			string/b	\0\0\0\0\0\0
+>>&(&0x02.q+0x0A)	string		DWARFS		DwarFS File System Image (with header)
+>>>&0			use		dwarfsversion
+>>&0			use		dwarfscompression
+>&-1			indirect	x

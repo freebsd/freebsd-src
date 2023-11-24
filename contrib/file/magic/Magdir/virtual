@@ -1,0 +1,307 @@
+
+#------------------------------------------------------------------------------
+# $File: virtual,v 1.17 2022/08/23 08:00:54 christos Exp $
+# From: James Nobis <quel@quelrod.net>
+# Microsoft hard disk images for:
+# Virtual Server
+# Virtual PC
+# VirtualBox
+# URL: http://fileformats.archiveteam.org/wiki/VHD_(Virtual_Hard_Disk)
+# Reference: https://download.microsoft.com/download/f/f/e/ffef50a5-07dd-4cf8-aaa3-442c0673a029/
+# Virtual%20Hard%20Disk%20Format%20Spec_10_18_06.doc
+0	string	conectix	Microsoft Disk Image, Virtual Server or Virtual PC
+# alternative shorter names
+#0	string	conectix	Microsoft Virtual Hard Disk image
+#0	string	conectix	Microsoft Virtual HD image
+!:mime	application/x-virtualbox-vhd
+!:ext   vhd
+# Features is a bit field used to indicate specific feature support
+#>8	ubelong		!0x00000002	\b, Features %#x
+# Reserved. This bit must always be set to 1.
+#>8	ubelong		&0x00000002	\b, Reserved %#x
+# File Format Version for the current specification 0x00010000
+#>12	ubelong		!0x00010000	\b, Version %#8.8x
+# Data Offset only found 0x200
+#>16	ubequad		!0x200		\b, Data Offset %#llx
+#>16	ubequad		x		\b, at %#llx
+# Dynamic Disk Header cookie like cxsparse
+#>(16.Q)	string		x		"%-.8s"
+# This field contains a Unicode string (UTF-16) of the parent hard disk filename
+#>(16.Q+64)	ubequad	x		\b, parent name %#llx
+# Creator Application
+# vpc~Microsoft Virtual PC, vs~Microsoft Virtual Server, vbox~VirtualBox, d2v~disk2vhd
+>28	string		x		\b, Creator %-4.4s
+# Creator Version: 0x00010000~Virtual Server 2004, 0x00050000~Virtual PC 2004
+# holds the major/minor version of the application that created the image
+>32	ubeshort	x		%x
+>34	ubeshort	x		\b.%x
+#>32	ubelong		x		\b, Version %#8.8x
+# Creator Host OS: 0x5769326B~Windows (Wi2k), 0x4D616320~Macintosh (Mac)
+>36	ubelong		x		(
+>>36	ubelong		0x5769326B	\bW2k
+>>36	ubelong		0x4D616320	\bMac
+>>36	default		x		\b0x
+>>>36	ubelong		x		\b%8.8x
+# creation Time in seconds since 1 Jan 2000 UTC~946684800 sec. since Unix Epoch
+>24	bedate+946684800	x	\b) %s
+# Original Size
+#>40	ubequad		x		\b, o.-Size %#llx
+# Current Size is same as original size, but change when disk is expanded
+#>48	ubequad		x		\b, Size %#llx
+>48	ubequad		x		\b, %llu bytes
+# Disk Geometry: cylinder, heads, and sectors/track for hard disk
+#>56	ubeshort	x		\b, Cylinder %#x
+>56	ubeshort	x		\b, CHS %u
+# Heads
+#>58	ubyte		x		\b, Heads %#x
+>58	ubyte		x		\b/%u
+# Sectors per track
+#>59	ubyte		x		\b, Sectors %#x
+>59	ubyte		x		\b/%u
+# Disk Type: 3~Dynamic hard disk
+>60	ubelong		!0x3		\b, type %#x
+# Checksum
+#>64	ubelong		x		\b, cksum %#x
+# universally unique identifier (UUID) to associate a parent with its differencing image
+#>68	ubequad		x		\b, id %#16.16llx
+#>76	ubequad		x		\b-%16.16llx
+# Saved State: 1~Saved State
+>84	ubyte		!0		\b, State %#x
+# Reserved 427 bytes with nils
+#>85	ubequad	!0			\b, Reserved %#16.16llx
+
+# From: Joerg Jenderek
+# URL: https://msdn.microsoft.com/en-us/library/mt740058.aspx
+# Reference: https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/
+# MS-VHDX/[MS-VHDX].pdf
+# Note: extends the VHD format with new capabilities, such as a 16TB maximum size
+# TODO:	find and display values like virtual size, disk size, cluster_size, etc
+#	display id in GUID format
+#
+# VHDX_FILE_IDENTIFIER signature 0x656C696678646876
+0	string			vhdxfile
+# VHDX_HEADER signature. 1 header is stored at offset 64KB and the other at 128KB
+>0x10000	string		head		Microsoft Disk Image eXtended
+#>0x20000	string			head	\b, 2nd header
+#!:mime	application/x-virtualbox-vhdx
+!:ext	vhdx
+# Creator[256] like "QEMU v3.0.0", "Microsoft Windows 6.3.9600.18512"
+>>8		lestring16		x	\b, by %.256s
+# The Checksum field is a CRC-32C hash over the entire 4 KB structure
+#>>0x10004	ulelong			x	\b, CRC %#x
+# SequenceNumber
+>>0x10008	ulequad			x	\b, sequence %#llx
+# FileWriteGuid
+#>>0x10010	ubequad			x	\b, file id %#llx
+#>>>0x10018	ubequad			x	\b-%llx
+# DataWriteGuid
+#>>0x10020	ubequad			x	\b, data id %#llx
+#>>>0x10028	ubequad			x	\b-%llx
+# LogGuid. If this field is zero, then the log is empty or has no valid entries 
+>>0x10030	ubequad			>0	\b, log id %#llx
+>>>0x10038	ubequad			x	\b-%llx
+# LogVersion. If not 0 there is a log to replay
+>>0x10040	uleshort		>0	\b, LogVersion %#x
+# Version. This field must be set to 1
+>>0x10042	uleshort		!1	\b, Version %#x
+# LogLength must be multiples of 1 MB
+>>0x10044	ulelong/1048576		>1	\b, LogLength %u MB
+# LogOffset (normally 0x100000 when log direct after header); multiples of 1 MB
+>>0x10048	ulequad			!0x100000 \b, LogOffset %#llx
+# Log Entry Signature must be 0x65676F6C~loge
+>>(0x10048.q)	ulelong			!0x65676F6C \b, NO Log Signature
+>>(0x10048.q)	ulelong			=0x65676F6C	\b; LOG
+# Log Entry Checksum
+#>>>(0x10048.q+4)	ulelong		x	\b, Log CRC %#x
+# Log Entry Length must be a multiple of 4 KB
+>>>(0x10048.q+8)	ulelong/1024	>4	\b, EntryLength %u KB
+# Log Entry Tail must be a multiple of 4 KB
+#>>>(0x10048.q+12)	ulelong		x	\b, Tail %#x
+# Log Entry SequenceNumber
+#>>>(0x10048.q+16)	ulequad		x	\b, # %#llx
+# Log Entry DescriptorCount may be zero. only 4 bytes in other docs instead 8
+#>>>(0x10048.q+24)	ulelong		x	\b, DescriptorCount %#llx
+# Log Entry Reserved must be set to 0
+>>>(0x10048.q+28)	ulelong		!0	\b, Reserved %#x
+# Log Entry LogGuid
+#>>>(0x10048.q+32)	ubequad		x	\b, Log id %#llx
+#>>>(0x10048.q+40)	ubequad		x	\b-%llx
+# Log Entry FlushedFileOffset should VHDX size when entry is written.
+#>>>(0x10048.q+48)	ulequad		x	\b, FlushedFileOffset %llu
+# Log Entry LastFileOffset
+#>>>(0x10048.q+56)	ulequad		x	\b, LastFileOffset %llu
+# filling
+#>>>(0x10048.q+64)	ulequad		>0	\b, filling %llx
+# Reserved[4016]
+#>>0x10050	ulequad			>0	\b, Reserved %#llx
+# VHDX_REGION_TABLE_HEADER Signature 0x69676572~regi at offset 192 KB and 256 KB
+>0x30000	ulelong			!0x69676572 \b, 1st region INVALID
+>0x30000	ulelong			=0x69676572 \b; region
+# region Checksum. CRC-32C hash over the entire 64-KB table
+#>>0x30004	ulelong			x	\b, CRC %#x
+# The EntryCount specifies number of valid entries; Found 2; This must be =< 2047. 
+>>0x30008	ulelong			x	\b, %u entries
+# reserved must be zero
+#>>0x3000C	ulelong			!0	\b, RESERVED %#x
+# Region Table Entry starts with identifier for the object. often BAT id
+>>0x30010	use			vhdx-id
+# FileOffset
+>>0x30020	ulequad		x		\b, at %#llx
+# Length. Specifies the length of the object within the file
+#>>0x30028	ulelong		x		\b, Length %#x
+# 1 means region entry is required. if region not recognized, then REFUSE to load VHDX
+>>0x3002C	ulelong		x		\b, Required %u
+# 2nd region entry often metadata id
+>>0x30030	use			vhdx-id
+# 2nd entry FileOffset
+>>0x30040	ulequad		x		\b, at %#llx
+# 1 means region entry is required. if region not recognized, then REFUSE to load VHDX
+>>0x3004C	ulelong		x		\b, Required %u
+# 2nd region
+>>0x40000	ulelong		!0x69676572	\b, 2nd region INVALID
+# check in vhdx images for known id and show names instead hexadecimal
+0	name		vhdx-id
+# https://www.windowstricks.in/online-windows-guid-converter
+# 2DC27766-F623-4200-9D64-115E9BFD4A08		BAT GUID
+# 6677C22D23F600429D64115E9BFD4A08		BAT ID
+>0	ubequad		=0x6677C22D23F60042
+>>8	ubequad		=0x9D64115E9BFD4A08	\b, id BAT
+# no BAT id
+>>8	default		x
+>>>0	use		vhdx-id-hex
+# 8B7CA206-4790-4B9A-B8FE-575F050F886E		Metadata region GUID
+# 06A27C8B90479A4BB8FE575F050F886E		Metadata region ID
+>0	ubequad		=0x06A27C8B90479A4B
+>>8	ubequad		=0xB8FE575F050F886E	\b, id Metadata
+# no Metadata id
+>>8	default		x
+>>>0	use		vhdx-id-hex
+# 2FA54224-CD1B-4876-B211-5DBED83BF4B8		Virtual Disk Size GUID
+# 2442A52F1BCD7648B2115DBED83BF4B8		Virtual Disk Size ID
+# value "virtual size" can be verified by command `qemu-img info `
+>0	ubequad		=0x2442A52F1BCD7648
+>>8	ubequad		=0xB2115DBED83BF4B8	\b, id vsize
+# no Virtual Disk Size ID
+>>8	default		x
+>>>0	use		vhdx-id-hex
+# other ids
+>0	default		x
+>>0	use		vhdx-id-hex
+# in vhdx images show id as hexadecimal
+0	name		vhdx-id-hex
+>0	ubequad		x			\b, ID %#16.16llx
+>8	ubequad		x			\b-%16.16llx
+#
+# libvirt
+# From: Philipp Hahn <hahn@univention.de>
+0	string	LibvirtQemudSave	Libvirt QEMU Suspend Image
+>0x10	lelong	x	\b, version %u
+>0x14	lelong	x	\b, XML length %u
+>0x18	lelong	1	\b, running
+>0x1c	lelong	1	\b, compressed
+
+0	string	LibvirtQemudPart	Libvirt QEMU partial Suspend Image
+# From: Alex Beregszaszi <alex@fsn.hu>
+0	string/b	COWD		VMWare3
+>4	byte	3		disk image
+>>32	lelong	x		(%d/
+>>36	lelong	x		\b%d/
+>>40	lelong	x		\b%d)
+>4	byte	2		undoable disk image
+>>32	string	>\0		(%s)
+
+0	string/b	VMDK		 VMware4 disk image
+0	string/b	KDMV		 VMware4 disk image
+
+#--------------------------------------------------------------------
+# Qemu Emulator Images
+# Lines written by Friedrich Schwittay (f.schwittay@yousable.de)
+# Updated by Adam Buchbinder (adam.buchbinder@gmail.com)
+# Made by reading sources, reading documentation, and doing trial and error
+# on existing QCOW files
+0	string/b	QFI\xFB	QEMU QCOW Image
+!:mime	application/x-qemu-disk
+
+# Uncomment the following line to display Magic (only used for debugging
+# this magic number)
+#>0	string/b	x	, Magic: %s
+
+# There are currently 2 Versions: "1" and "2".
+# https://www.gnome.org/~markmc/qcow-image-format-version-1.html
+>4	belong		x	(v%d)
+
+# Using the existence of the Backing File Offset to determine whether
+# to read Backing File Information
+>>12	belong	 >0	 \b, has backing file (
+# Note that this isn't a null-terminated string; the length is actually
+# (16.L). Assuming a null-terminated string happens to work usually, but it
+# may spew junk until it reaches a \0 in some cases.
+>>>(12.L)	 string >\0	\bpath %s
+
+# Modification time of the Backing File
+# Really useful if you want to know if your backing
+# file is still usable together with this image
+>>>>20	bedate >0	\b, mtime %s)
+>>>>20	default x	\b)
+
+# Size is stored in bytes in a big-endian u64.
+>>24	bequad	x	 \b, %lld bytes
+
+# 1 for AES encryption, 0 for none.
+>>36	belong	1	\b, AES-encrypted
+
+# https://www.gnome.org/~markmc/qcow-image-format.html
+>4	belong	2	(v2)
+# Using the existence of the Backing File Offset to determine whether
+# to read Backing File Information
+>>8	bequad  >0	 \b, has backing file
+# Note that this isn't a null-terminated string; the length is actually
+# (16.L). Assuming a null-terminated string happens to work usually, but it
+# may spew junk until it reaches a \0 in some cases. Also, since there's no
+# .Q modifier, we just use the bottom four bytes as an offset. Note that if
+# the file is over 4G, and the backing file path is stored after the first 4G,
+# the wrong filename will be printed. (This should be (8.Q), when that syntax
+# is introduced.)
+>>>(12.L)	 string >\0	(path %s)
+>>24	bequad	x	\b, %lld bytes
+>>32	belong	1	\b, AES-encrypted
+
+>4	belong	3	(v3)
+# Using the existence of the Backing File Offset to determine whether
+# to read Backing File Information
+>>8	bequad  >0	 \b, has backing file
+# Note that this isn't a null-terminated string; the length is actually
+# (16.L). Assuming a null-terminated string happens to work usually, but it
+# may spew junk until it reaches a \0 in some cases. Also, since there's no
+# .Q modifier, we just use the bottom four bytes as an offset. Note that if
+# the file is over 4G, and the backing file path is stored after the first 4G,
+# the wrong filename will be printed. (This should be (8.Q), when that syntax
+# is introduced.)
+>>>(12.L)	 string >\0	(path %s)
+>>24	bequad	x	\b, %lld bytes
+>>32	belong	1	\b, AES-encrypted
+
+>4	default x	(unknown version)
+
+0	string/b	QEVM		QEMU suspend to disk image
+
+# QEMU QED Image
+# https://wiki.qemu.org/Features/QED/Specification
+0	string/b	QED\0		QEMU QED Image
+
+# VDI Image
+# Sun xVM VirtualBox Disk Image
+# From: Richard W.M. Jones <rich@annexia.org>
+# VirtualBox Disk Image
+0x40	ulelong		0xbeda107f	VirtualBox Disk Image
+>0x44	uleshort	>0		\b, major %u
+>0x46	uleshort	>0		\b, minor %u
+>0	string		>\0		(%s)
+>368	lequad		x		 \b, %lld bytes
+
+0	string/b	Bochs\ Virtual\ HD\ Image	Bochs disk image,
+>32	string	x				type %s,
+>48	string	x				subtype %s
+
+0	lelong	0x02468ace			Bochs Sparse disk image
+

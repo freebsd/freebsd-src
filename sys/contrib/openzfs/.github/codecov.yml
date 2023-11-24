@@ -1,0 +1,25 @@
+codecov:
+  notify:
+    require_ci_to_pass: false	# always post
+    after_n_builds: 2		# user and kernel
+
+coverage:
+  precision: 0			# 0 decimals of precision
+  round: nearest        # Round to nearest precision point
+  range: "50...90"		# red -> yellow -> green
+
+  status:
+    project:
+      default:
+        threshold: 1%		# allow 1% coverage variance
+
+    patch:
+      default:
+        threshold: 1%		# allow 1% coverage variance
+
+comment:
+  layout: "reach, diff, flags, footer"
+  behavior: once		# update if exists; post new; skip if deleted
+  require_changes: yes		# only post when coverage changes
+
+# ignore: Please place any ignores in config/ax_code_coverage.m4 instead

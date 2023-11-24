@@ -1,0 +1,8 @@
+
+args='-ab'
+getopts ab opt $args
+printf '%s\n' "$?:$opt:$OPTARG"
+for dummy in dummy1 dummy2; do
+	getopts ab opt $args
+	printf '%s\n' "$?:$opt:$OPTARG"
+done

@@ -1,0 +1,21 @@
+#
+# Altera SoC support
+#
+
+# SoC support
+options 	SOC_INTEL_STRATIX10
+
+# GPIO / PINCTRL
+device		dwgpio			# Synopsys DesignWare APB GPIO Controller
+
+# Serial (COM) ports
+device		uart_snps
+
+# Ethernet NICs
+device		dwc_socfpga		# Altera SOCFPGA Ethernet MAC
+
+# MMC/SD/SDIO Card slot support
+device		dwmmc
+device		dwmmc_altera
+
+options 	FDT

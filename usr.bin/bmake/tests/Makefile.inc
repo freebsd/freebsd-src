@@ -1,0 +1,2 @@
+
+SUBDIR_PARALLEL= t

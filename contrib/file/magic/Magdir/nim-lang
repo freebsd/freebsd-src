@@ -1,0 +1,29 @@
+
+#------------------------------------------------------------------------------
+# $File: nim-lang,v 1.3 2021/07/06 12:34:06 christos Exp $
+# nim-lang:  file(1) magic for nim
+# URL:  https://nim-lang.org/
+
+0	search/8192	import
+>&0	search/64	os
+>>&0	use		nim1
+>&0	default		x
+>>&0	search/64	osproc
+>>>&0	use		nim1
+>>&0	default		x
+>>>&0	search/64	strutils
+>>>>&0	use		nim1
+
+0	name		nim1
+>&0	search/8192	proc
+>>&0	use		nim2
+>&0	default		x
+>>&0	search/8192	template
+>>>&0	use		nim2
+>>&0	default		x
+>>>&0	search/8192	let
+>>>>&0	use		nim2
+
+0	name		nim2
+>&0	search/8192	when	Nim source code
+!:ext	nim

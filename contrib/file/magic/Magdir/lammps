@@ -1,0 +1,64 @@
+#------------------------------------------------------------------------------
+# $File: lammps,v 1.1 2021/03/14 16:24:18 christos Exp $
+#
+
+# Magic file patterns for use with file(1) for the
+# LAMMPS molecular dynamics simulation software.
+# https://lammps.sandia.gov
+#
+# Updated: 2021-03-14 by akohlmey@gmail.com
+
+# Binary restart file for the LAMMPS MD code
+0        string  LammpS\ RestartT  LAMMPS binary restart file
+>0x14    long    x                 (rev %d),
+>>0x20   string  x                 Version %s,
+>>>0x10  lelong  0x0001            Little Endian
+>>>0x10  lelong  0x1000            Big Endian
+
+# Atom style binary dump file for the LAMMPS MD code
+# written on a little endian machine
+0         lequad  -8
+>0x08     string  DUMPATOM     LAMMPS atom style binary dump
+>>0x14    long    x            (rev %d),
+>>>0x10   lelong  0x0001       Little Endian,
+>>>>0x18  lequad  x            First time step: %lld
+
+# written on a big endian machine
+0         bequad  -8
+>0x08     string  DUMPATOM     LAMMPS atom style binary dump
+>>0x14    belong  x            (rev %d),
+>>>0x10   lelong  0x1000       Big Endian,
+>>>>0x18  bequad  x            First time step: %lld
+
+# Atom style binary dump file for the LAMMPS MD code
+# written on a little endian machine
+0         lequad  -10
+>0x08     string  DUMPCUSTOM   LAMMPS custom style binary dump
+>>0x16    lelong  x            (rev %d),
+>>>0x12   lelong  0x0001       Little Endian,
+>>>>0x1a  lequad  x            First time step: %lld
+
+# written on a big endian machine
+0         bequad  -10
+>0x08     string  DUMPCUSTOM   LAMMPS custom style binary dump
+>>0x16    belong  x            (rev %d),
+>>>0x12   lelong  0x1000       Big Endian,
+>>>>0x1a  bequad  x            First time step: %lld
+
+# LAMMPS log file
+0         string LAMMPS\ (                    LAMMPS log file
+>8        regex/16 [0-9]+\ [A-Za-z]+\ [0-9]+  written by version %s
+
+# Data file written either by LAMMPS, msi2lmp or VMD/TopoTools
+0      string LAMMPS\ data\ file  LAMMPS data file
+>0x12  string CGCMM\ style        written by TopoTools
+>0x12  string msi2lmp             written by msi2lmp
+>0x11  string via\ write_data     written by LAMMPS
+
+# LAMMPS data file written by OVITO
+0      string #\ LAMMPS\ data\ file   LAMMPS data file
+>0x13  string written\ by\ OVITO      written by OVITO
+
+# LAMMPS text mode dump file
+0      string    ITEM:\ TIMESTEP      LAMMPS text mode dump,
+>15    regex/16  [0-9]+               First time step: %s

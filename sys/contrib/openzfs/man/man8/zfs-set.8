@@ -1,0 +1,316 @@
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License (the "License").
+.\" You may not use this file except in compliance with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or https://opensource.org/licenses/CDDL-1.0.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\" Copyright (c) 2009 Sun Microsystems, Inc. All Rights Reserved.
+.\" Copyright 2011 Joshua M. Clulow <josh@sysmgr.org>
+.\" Copyright (c) 2011, 2019 by Delphix. All rights reserved.
+.\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+.\" Copyright (c) 2014, Joyent, Inc. All rights reserved.
+.\" Copyright (c) 2014 by Adam Stevko. All rights reserved.
+.\" Copyright (c) 2014 Integros [integros.com]
+.\" Copyright 2019 Richard Laager. All rights reserved.
+.\" Copyright 2018 Nexenta Systems, Inc.
+.\" Copyright 2019 Joyent, Inc.
+.\"
+.Dd March 16, 2022
+.Dt ZFS-SET 8
+.Os
+.
+.Sh NAME
+.Nm zfs-set
+.Nd set properties on ZFS datasets
+.Sh SYNOPSIS
+.Nm zfs
+.Cm set
+.Op Fl u
+.Ar property Ns = Ns Ar value Oo Ar property Ns = Ns Ar value Oc Ns …
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns …
+.Nm zfs
+.Cm get
+.Op Fl r Ns | Ns Fl d Ar depth
+.Op Fl Hp
+.Oo Fl o Ar field Ns Oo , Ns Ar field Oc Ns … Oc
+.Oo Fl s Ar source Ns Oo , Ns Ar source Oc Ns … Oc
+.Oo Fl t Ar type Ns Oo , Ns Ar type Oc Ns … Oc
+.Cm all Ns | Ns Ar property Ns Oo , Ns Ar property Oc Ns …
+.Oo Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns | Ns Ar bookmark Oc Ns …
+.Nm zfs
+.Cm inherit
+.Op Fl rS
+.Ar property Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns …
+.
+.Sh DESCRIPTION
+.Bl -tag -width ""
+.It Xo
+.Nm zfs
+.Cm set
+.Op Fl u
+.Ar property Ns = Ns Ar value Oo Ar property Ns = Ns Ar value Oc Ns …
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns …
+.Xc
+Only some properties can be edited.
+See
+.Xr zfsprops 7
+for more information on what properties can be set and acceptable
+values.
+Numeric values can be specified as exact values, or in a human-readable form
+with a suffix of
+.Sy B , K , M , G , T , P , E , Z
+.Po for bytes, kilobytes, megabytes, gigabytes, terabytes, petabytes, exabytes,
+or zettabytes, respectively
+.Pc .
+User properties can be set on snapshots.
+For more information, see the
+.Em User Properties
+section of
+.Xr zfsprops 7 .
+.Bl -tag -width "-u"
+.It Fl u
+Update mountpoint, sharenfs, sharesmb property but do not mount or share the
+dataset.
+.El
+.It Xo
+.Nm zfs
+.Cm get
+.Op Fl r Ns | Ns Fl d Ar depth
+.Op Fl Hp
+.Oo Fl o Ar field Ns Oo , Ns Ar field Oc Ns … Oc
+.Oo Fl s Ar source Ns Oo , Ns Ar source Oc Ns … Oc
+.Oo Fl t Ar type Ns Oo , Ns Ar type Oc Ns … Oc
+.Cm all Ns | Ns Ar property Ns Oo , Ns Ar property Oc Ns …
+.Oo Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns | Ns Ar bookmark Oc Ns …
+.Xc
+Displays properties for the given datasets.
+If no datasets are specified, then the command displays properties for all
+datasets on the system.
+For each property, the following columns are displayed:
+.Bl -tag -compact -offset 4n -width "property"
+.It Sy name
+Dataset name
+.It Sy property
+Property name
+.It Sy value
+Property value
+.It Sy source
+Property source
+.Sy local , default , inherited , temporary , received , No or Sy - Pq none .
+.El
+.Pp
+All columns are displayed by default, though this can be controlled by using the
+.Fl o
+option.
+This command takes a comma-separated list of properties as described in the
+.Sx Native Properties
+and
+.Sx User Properties
+sections of
+.Xr zfsprops 7 .
+.Pp
+The value
+.Sy all
+can be used to display all properties that apply to the given dataset's type
+.Pq Sy filesystem , volume , snapshot , No or Sy bookmark .
+.Bl -tag -width "-s source"
+.It Fl H
+Display output in a form more easily parsed by scripts.
+Any headers are omitted, and fields are explicitly separated by a single tab
+instead of an arbitrary amount of space.
+.It Fl d Ar depth
+Recursively display any children of the dataset, limiting the recursion to
+.Ar depth .
+A depth of
+.Sy 1
+will display only the dataset and its direct children.
+.It Fl o Ar field
+A comma-separated list of columns to display, defaults to
+.Sy name , Ns Sy property , Ns Sy value , Ns Sy source .
+.It Fl p
+Display numbers in parsable
+.Pq exact
+values.
+.It Fl r
+Recursively display properties for any children.
+.It Fl s Ar source
+A comma-separated list of sources to display.
+Those properties coming from a source other than those in this list are ignored.
+Each source must be one of the following:
+.Sy local , default , inherited , temporary , received , No or Sy none .
+The default value is all sources.
+.It Fl t Ar type
+A comma-separated list of types to display, where
+.Ar type
+is one of
+.Sy filesystem , snapshot , volume , bookmark , No or Sy all .
+.El
+.It Xo
+.Nm zfs
+.Cm inherit
+.Op Fl rS
+.Ar property Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns …
+.Xc
+Clears the specified property, causing it to be inherited from an ancestor,
+restored to default if no ancestor has the property set, or with the
+.Fl S
+option reverted to the received value if one exists.
+See
+.Xr zfsprops 7
+for a listing of default values, and details on which properties can be
+inherited.
+.Bl -tag -width "-r"
+.It Fl r
+Recursively inherit the given property for all children.
+.It Fl S
+Revert the property to the received value, if one exists;
+otherwise, for non-inheritable properties, to the default;
+otherwise, operate as if the
+.Fl S
+option was not specified.
+.El
+.El
+.
+.Sh EXAMPLES
+.\" These are, respectively, examples 1, 4, 6, 7, 11, 14, 16 from zfs.8
+.\" Make sure to update them bidirectionally
+.Ss Example 1 : No Creating a ZFS File System Hierarchy
+The following commands create a file system named
+.Ar pool/home
+and a file system named
+.Ar pool/home/bob .
+The mount point
+.Pa /export/home
+is set for the parent file system, and is automatically inherited by the child
+file system.
+.Dl # Nm zfs Cm create Ar pool/home
+.Dl # Nm zfs Cm set Sy mountpoint Ns = Ns Ar /export/home pool/home
+.Dl # Nm zfs Cm create Ar pool/home/bob
+.
+.Ss Example 2 : No Disabling and Enabling File System Compression
+The following command disables the
+.Sy compression
+property for all file systems under
+.Ar pool/home .
+The next command explicitly enables
+.Sy compression
+for
+.Ar pool/home/anne .
+.Dl # Nm zfs Cm set Sy compression Ns = Ns Sy off Ar pool/home
+.Dl # Nm zfs Cm set Sy compression Ns = Ns Sy on Ar pool/home/anne
+.
+.Ss Example 3 : No Setting a Quota on a ZFS File System
+The following command sets a quota of 50 Gbytes for
+.Ar pool/home/bob :
+.Dl # Nm zfs Cm set Sy quota Ns = Ns Ar 50G pool/home/bob
+.
+.Ss Example 4 : No Listing ZFS Properties
+The following command lists all properties for
+.Ar pool/home/bob :
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm get Sy all Ar pool/home/bob
+NAME           PROPERTY              VALUE                  SOURCE
+pool/home/bob  type                  filesystem             -
+pool/home/bob  creation              Tue Jul 21 15:53 2009  -
+pool/home/bob  used                  21K                    -
+pool/home/bob  available             20.0G                  -
+pool/home/bob  referenced            21K                    -
+pool/home/bob  compressratio         1.00x                  -
+pool/home/bob  mounted               yes                    -
+pool/home/bob  quota                 20G                    local
+pool/home/bob  reservation           none                   default
+pool/home/bob  recordsize            128K                   default
+pool/home/bob  mountpoint            /pool/home/bob         default
+pool/home/bob  sharenfs              off                    default
+pool/home/bob  checksum              on                     default
+pool/home/bob  compression           on                     local
+pool/home/bob  atime                 on                     default
+pool/home/bob  devices               on                     default
+pool/home/bob  exec                  on                     default
+pool/home/bob  setuid                on                     default
+pool/home/bob  readonly              off                    default
+pool/home/bob  zoned                 off                    default
+pool/home/bob  snapdir               hidden                 default
+pool/home/bob  acltype               off                    default
+pool/home/bob  aclmode               discard                default
+pool/home/bob  aclinherit            restricted             default
+pool/home/bob  canmount              on                     default
+pool/home/bob  xattr                 on                     default
+pool/home/bob  copies                1                      default
+pool/home/bob  version               4                      -
+pool/home/bob  utf8only              off                    -
+pool/home/bob  normalization         none                   -
+pool/home/bob  casesensitivity       sensitive              -
+pool/home/bob  vscan                 off                    default
+pool/home/bob  nbmand                off                    default
+pool/home/bob  sharesmb              off                    default
+pool/home/bob  refquota              none                   default
+pool/home/bob  refreservation        none                   default
+pool/home/bob  primarycache          all                    default
+pool/home/bob  secondarycache        all                    default
+pool/home/bob  usedbysnapshots       0                      -
+pool/home/bob  usedbydataset         21K                    -
+pool/home/bob  usedbychildren        0                      -
+pool/home/bob  usedbyrefreservation  0                      -
+.Ed
+.Pp
+The following command gets a single property value:
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm get Fl H o Sy value compression Ar pool/home/bob
+on
+.Ed
+.Pp
+The following command lists all properties with local settings for
+.Ar pool/home/bob :
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm get Fl r s Sy local Fl o Sy name , Ns Sy property , Ns Sy value all Ar pool/home/bob
+NAME           PROPERTY              VALUE
+pool/home/bob  quota                 20G
+pool/home/bob  compression           on
+.Ed
+.
+.Ss Example 5 : No Inheriting ZFS Properties
+The following command causes
+.Ar pool/home/bob No and Ar pool/home/anne
+to inherit the
+.Sy checksum
+property from their parent.
+.Dl # Nm zfs Cm inherit Sy checksum Ar pool/home/bob pool/home/anne
+.
+.Ss Example 6 : No Setting User Properties
+The following example sets the user-defined
+.Ar com.example : Ns Ar department
+property for a dataset:
+.Dl # Nm zfs Cm set Ar com.example : Ns Ar department Ns = Ns Ar 12345 tank/accounting
+.
+.Ss Example 7 : No Setting sharenfs Property Options on a ZFS File System
+The following commands show how to set
+.Sy sharenfs
+property options to enable read-write
+access for a set of IP addresses and to enable root access for system
+.Qq neo
+on the
+.Ar tank/home
+file system:
+.Dl # Nm zfs Cm set Sy sharenfs Ns = Ns ' Ns Ar rw Ns =@123.123.0.0/16:[::1],root= Ns Ar neo Ns ' tank/home
+.Pp
+If you are using DNS for host name resolution,
+specify the fully-qualified hostname.
+.
+.Sh SEE ALSO
+.Xr zfsprops 7 ,
+.Xr zfs-list 8

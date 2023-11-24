@@ -1,0 +1,3 @@
+this-is-made is made.
+echo this-is-not-made is just echoed.
+exit status 0

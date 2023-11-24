@@ -1,0 +1,106 @@
+.\" Copyright (c) 1999 Chris Costello <chris@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd June 30, 2022
+.Dt SYSCTL.CONF 5
+.Os
+.Sh NAME
+.Nm sysctl.conf
+.Nd kernel state defaults
+.Sh DESCRIPTION
+The
+.Pa /etc/sysctl.conf
+file is read in when the system goes into multi-user mode to set default
+settings for the kernel.
+The
+.Pa /etc/sysctl.conf
+file is in the format of the
+.Xr sysctl 8
+command, i.e.,
+.Bd -literal -offset indent
+sysctl_mib=value
+.Ed
+.Pp
+Comments are denoted by a
+.Dq #
+at the beginning of a line.
+Comments can also exist at the end of a line,
+as seen in the
+.Sx EXAMPLES
+section, below.
+.Pp
+For kernel modules loaded via
+.Xr rc.subr 8
+system,
+additional module-specific settings can be applied
+by adding a file in the same format named
+.Pf /etc/sysctl.kld.d/<module name>.conf .
+.Sh FILES
+.Bl -tag -width /etc/rc.d/sysctl_lastload -compact
+.It Pa /etc/rc.d/sysctl
+.Xr rc 8
+script which processes
+.Nm
+early on in the process of transitioning to multi-user mode.
+.It Pa /etc/rc.d/sysctl_lastload
+.Xr rc 8
+script which processes
+.Nm
+shortly before the system reaches the multi-user mode.
+.It Pa /etc/sysctl.conf
+Initial settings for
+.Xr sysctl 8 .
+.It Pa /etc/sysctl.conf.local
+Machine-specific settings for sites with a common
+.Pa /etc/sysctl.conf .
+.It Pa /etc/sysctl.kld.d
+Module specific settings for kernel modules loaded via
+.Xr rc.subr 8 .
+.El
+.Sh EXAMPLES
+To turn off logging of programs that exit due to fatal signals you may use
+a configuration like
+.Bd -literal -offset indent
+# Configure logging.
+kern.logsigexit=0	# Do not log fatal signal exits (e.g., sig 11)
+.Ed
+.Sh SEE ALSO
+.Xr rc.conf 5 ,
+.Xr rc 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+file appeared in
+.Fx 4.0 .
+.Sh BUGS
+If loadable kernel modules are used to introduce additional kernel
+functionality and sysctls to manage that functionality,
+.Nm
+may be processed too early in the boot process to set those sysctls.
+Please consult
+.Xr rcorder 8
+to learn more about the ordering of
+.Xr rc 8
+scripts.

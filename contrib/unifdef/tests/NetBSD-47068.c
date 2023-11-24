@@ -1,0 +1,2 @@
+#ifdef foo
+#endif

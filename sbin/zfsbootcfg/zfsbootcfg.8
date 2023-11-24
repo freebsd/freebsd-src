@@ -1,0 +1,141 @@
+.\" Copyright (c) 2016 Andriy Gapon
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd July 22, 2020
+.Dt ZFSBOOTCFG 8
+.Os
+.Sh NAME
+.Nm zfsbootcfg
+.Nd "specify zfsboot options for the next boot"
+.Sh SYNOPSIS
+.Nm
+.Ao Ar options Ac
+.Nm
+.Op Fl n Ar name
+.Op Fl k Ar key
+.Op Fl p
+.Op Fl t Ar type
+.Op Fl v Ar value
+.Op Fl z Ar pool
+.Nm
+.Sh DESCRIPTION
+.Nm
+is used to set
+.Xr boot.config 5 Ns -style
+options to be used by
+.Xr zfsboot 8 ,
+.Xr gptzfsboot 8
+or
+.Xr loader 8
+the next time the machine is booted.
+Once
+.Xr zfsboot 8
+or
+.Xr gptzfsboot 8
+or
+.Xr loader 8
+reads the information, it is deleted.
+If booting fails, the machine automatically reverts to the previous
+boot configuration.
+The information is stored in a special boot environment area of a ZFS pool.
+.Pp
+If used without arguments,
+.Nm
+will output the current boot configuration, if set.
+.Pp
+The following options are supported by
+.Nm :
+.Bl -tag -width indent
+.It Fl k Ar key
+Define key for
+.Ao key , value Ac
+pair.
+.It Fl n Ar name
+Update nvlist
+.Ar name .
+.It Fl p
+Print all information stored in ZFS pool bootenv area.
+.It Fl t Ar type
+Set type of
+.Ar value
+used in
+.Ao key , value Ac
+pair.
+Currently supported types are:
+.Bl -tag -width indent -compact
+.It Ar DATA_TYPE_BYTE
+.It Ar DATA_TYPE_INT8
+.It Ar DATA_TYPE_UINT8
+.It Ar DATA_TYPE_INT16
+.It Ar DATA_TYPE_UINT16
+.It Ar DATA_TYPE_INT32
+.It Ar DATA_TYPE_UINT32
+.It Ar DATA_TYPE_INT64
+.It Ar DATA_TYPE_UINT64
+.It Ar DATA_TYPE_BOOLEAN_VALUE
+.It Ar DATA_TYPE_STRING
+.El
+.Pp
+If not specified, the default is
+.Ar DATA_TYPE_STRING .
+.It Fl v Ar value
+Define value for
+.Ao key , value Ac
+pair.
+.It Fl z Ar pool
+Operate on
+.Ar pool .
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width vfs.root.mountfrom -compact
+.It Ev vfs.root.mountfrom
+The
+.Xr kenv 1
+variable that identifies a pool for which the options are written.
+.El
+.Sh EXAMPLES
+Try to boot to a new
+.Em boot environment
+without changing the
+.Cm bootfs
+property of a pool:
+.Pp
+.Dl "zfsbootcfg ""zfs:tank/ROOT/newbe:""
+.Pp
+To clear the boot options:
+.Pp
+.Dl "zfsbootcfg """"
+.Sh SEE ALSO
+.Xr boot.config 5 ,
+.Xr bectl 8 ,
+.Xr gptzfsboot 8 ,
+.Xr loader 8 ,
+.Xr zfsboot 8
+.Sh HISTORY
+.Nm
+appeared in
+.Fx 11.1 .
+.Sh AUTHORS
+This manual page was written by
+.An Andriy Gapon Aq Mt avg@FreeBSD.org .

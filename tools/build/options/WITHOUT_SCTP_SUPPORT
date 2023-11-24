@@ -1,0 +1,4 @@
+Disable support in the kernel for the
+.Xr sctp 4
+Stream Control Transmission Protocol
+loadable kernel module.

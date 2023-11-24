@@ -1,0 +1,24 @@
+Var_SetExpand: variable name "${:U}" expands to empty string, with value "cmdline-u" - ignored
+Var_SetExpand: variable name "" expands to empty string, with value "cmdline-plain" - ignored
+Global: .CURDIR = <curdir>
+Var_Parse: ${MAKE_OBJDIR_CHECK_WRITABLE} (eval)
+Global: .TARGETS = # (empty)
+Internal: MAKEFILE = varname-empty.mk
+Global: .MAKE.MAKEFILES = varname-empty.mk
+Global: .PARSEFILE = varname-empty.mk
+Global: delete .INCLUDEDFROMDIR (not found)
+Global: delete .INCLUDEDFROMFILE (not found)
+Var_SetExpand: variable name "" expands to empty string, with value "default" - ignored
+Var_SetExpand: variable name "" expands to empty string, with value "assigned" - ignored
+SetVar: variable name is empty - ignored
+Var_SetExpand: variable name "" expands to empty string, with value "" - ignored
+Var_SetExpand: variable name "" expands to empty string, with value "subst" - ignored
+Capturing the output of command "echo 'shell-output'"
+Var_SetExpand: variable name "" expands to empty string, with value "shell-output" - ignored
+Var_SetExpand: variable name "${:U}" expands to empty string, with value "assigned indirectly" - ignored
+Var_AppendExpand: variable name "${:U}" expands to empty string, with value "appended indirectly" - ignored
+Global: .MAKEFLAGS =  -r -d v -d
+Global: .MAKEFLAGS =  -r -d v -d 0
+out: fallback
+out: 1 2 3
+exit status 0

@@ -1,0 +1,276 @@
+.\" $OpenBSD: ssh-agent.1,v 1.79 2023/08/10 14:37:32 naddy Exp $
+.\"
+.\" Author: Tatu Ylonen <ylo@cs.hut.fi>
+.\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
+.\"                    All rights reserved
+.\"
+.\" As far as I am concerned, the code I have written for this software
+.\" can be used freely for any purpose.  Any derived versions of this
+.\" software must be clearly marked as such, and if the derived work is
+.\" incompatible with the protocol description in the RFC file, it must be
+.\" called by a name other than "ssh" or "Secure Shell".
+.\"
+.\" Copyright (c) 1999,2000 Markus Friedl.  All rights reserved.
+.\" Copyright (c) 1999 Aaron Campbell.  All rights reserved.
+.\" Copyright (c) 1999 Theo de Raadt.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate: August 10 2023 $
+.Dt SSH-AGENT 1
+.Os
+.Sh NAME
+.Nm ssh-agent
+.Nd OpenSSH authentication agent
+.Sh SYNOPSIS
+.Nm ssh-agent
+.Op Fl c | s
+.Op Fl \&Ddx
+.Op Fl a Ar bind_address
+.Op Fl E Ar fingerprint_hash
+.Op Fl O Ar option
+.Op Fl P Ar allowed_providers
+.Op Fl t Ar life
+.Nm ssh-agent
+.Op Fl a Ar bind_address
+.Op Fl E Ar fingerprint_hash
+.Op Fl O Ar option
+.Op Fl P Ar allowed_providers
+.Op Fl t Ar life
+.Ar command Op Ar arg ...
+.Nm ssh-agent
+.Op Fl c | s
+.Fl k
+.Sh DESCRIPTION
+.Nm
+is a program to hold private keys used for public key authentication.
+Through use of environment variables the agent can be located
+and automatically used for authentication when logging in to other
+machines using
+.Xr ssh 1 .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a Ar bind_address
+Bind the agent to the
+.Ux Ns -domain
+socket
+.Ar bind_address .
+The default is
+.Pa $TMPDIR/ssh-XXXXXXXXXX/agent.\*(Ltppid\*(Gt .
+.It Fl c
+Generate C-shell commands on
+.Dv stdout .
+This is the default if
+.Ev SHELL
+looks like it's a csh style of shell.
+.It Fl D
+Foreground mode.
+When this option is specified,
+.Nm
+will not fork.
+.It Fl d
+Debug mode.
+When this option is specified,
+.Nm
+will not fork and will write debug information to standard error.
+.It Fl E Ar fingerprint_hash
+Specifies the hash algorithm used when displaying key fingerprints.
+Valid options are:
+.Dq md5
+and
+.Dq sha256 .
+The default is
+.Dq sha256 .
+.It Fl k
+Kill the current agent (given by the
+.Ev SSH_AGENT_PID
+environment variable).
+.It Fl O Ar option
+Specify an option when starting
+.Nm .
+Currently two options are supported:
+.Cm allow-remote-pkcs11
+and
+.Cm no-restrict-websafe .
+.Pp
+The
+.Cm allow-remote-pkcs11
+option allows clients of a forwarded
+.Nm
+to load PKCS#11 or FIDO provider libraries.
+By default only local clients may perform this operation.
+Note that signalling that an
+.Nm
+client is remote is performed by
+.Xr ssh 1 ,
+and use of other tools to forward access to the agent socket may circumvent
+this restriction.
+.Pp
+The
+.Cm no-restrict-websafe
+option instructs
+.Nm
+to permit signatures using FIDO keys that might be web authentication
+requests.
+By default,
+.Nm
+refuses signature requests for FIDO keys where the key application string
+does not start with
+.Dq ssh:
+and when the data to be signed does not appear to be a
+.Xr ssh 1
+user authentication request or a
+.Xr ssh-keygen 1
+signature.
+The default behaviour prevents forwarded access to a FIDO key from also
+implicitly forwarding the ability to authenticate to websites.
+.It Fl P Ar allowed_providers
+Specify a pattern-list of acceptable paths for PKCS#11 provider and FIDO
+authenticator middleware shared libraries that may be used with the
+.Fl S
+or
+.Fl s
+options to
+.Xr ssh-add 1 .
+Libraries that do not match the pattern list will be refused.
+See PATTERNS in
+.Xr ssh_config 5
+for a description of pattern-list syntax.
+The default list is
+.Dq usr/lib*/*,/usr/local/lib*/* .
+.It Fl s
+Generate Bourne shell commands on
+.Dv stdout .
+This is the default if
+.Ev SHELL
+does not look like it's a csh style of shell.
+.It Fl t Ar life
+Set a default value for the maximum lifetime of identities added to the agent.
+The lifetime may be specified in seconds or in a time format specified in
+.Xr sshd_config 5 .
+A lifetime specified for an identity with
+.Xr ssh-add 1
+overrides this value.
+Without this option the default maximum lifetime is forever.
+.It Fl x
+Exit after the last client has disconnected.
+.It Ar command Op Ar arg ...
+If a command (and optional arguments) is given,
+this is executed as a subprocess of the agent.
+The agent exits automatically when the command given on the command
+line terminates.
+.El
+.Pp
+There are two main ways to get an agent set up.
+The first is at the start of an X session,
+where all other windows or programs are started as children of the
+.Nm
+program.
+The agent starts a command under which its environment
+variables are exported, for example
+.Cm ssh-agent xterm & .
+When the command terminates, so does the agent.
+.Pp
+The second method is used for a login session.
+When
+.Nm
+is started,
+it prints the shell commands required to set its environment variables,
+which in turn can be evaluated in the calling shell, for example
+.Cm eval `ssh-agent -s` .
+.Pp
+In both cases,
+.Xr ssh 1
+looks at these environment variables
+and uses them to establish a connection to the agent.
+.Pp
+The agent initially does not have any private keys.
+Keys are added using
+.Xr ssh-add 1
+or by
+.Xr ssh 1
+when
+.Cm AddKeysToAgent
+is set in
+.Xr ssh_config 5 .
+Multiple identities may be stored in
+.Nm
+concurrently and
+.Xr ssh 1
+will automatically use them if present.
+.Xr ssh-add 1
+is also used to remove keys from
+.Nm
+and to query the keys that are held in one.
+.Pp
+Connections to
+.Nm
+may be forwarded from further remote hosts using the
+.Fl A
+option to
+.Xr ssh 1
+(but see the caveats documented therein),
+avoiding the need for authentication data to be stored on other machines.
+Authentication passphrases and private keys never go over the network:
+the connection to the agent is forwarded over SSH remote connections
+and the result is returned to the requester,
+allowing the user access to their identities anywhere in the network
+in a secure fashion.
+.Sh ENVIRONMENT
+.Bl -tag -width "SSH_AGENT_PID"
+.It Ev SSH_AGENT_PID
+When
+.Nm
+starts, it stores the name of the agent's process ID (PID) in this variable.
+.It Ev SSH_AUTH_SOCK
+When
+.Nm
+starts, it creates a
+.Ux Ns -domain
+socket and stores its pathname in this variable.
+It is accessible only to the current user,
+but is easily abused by root or another instance of the same user.
+.El
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa $TMPDIR/ssh-XXXXXXXXXX/agent.<ppid>
+.Ux Ns -domain
+sockets used to contain the connection to the authentication agent.
+These sockets should only be readable by the owner.
+The sockets should get automatically removed when the agent exits.
+.El
+.Sh SEE ALSO
+.Xr ssh 1 ,
+.Xr ssh-add 1 ,
+.Xr ssh-keygen 1 ,
+.Xr ssh_config 5 ,
+.Xr sshd 8
+.Sh AUTHORS
+.An -nosplit
+OpenSSH is a derivative of the original and free ssh 1.2.12 release by
+.An Tatu Ylonen .
+.An Aaron Campbell , Bob Beck , Markus Friedl , Niels Provos , Theo de Raadt
+and
+.An Dug Song
+removed many bugs, re-added newer features and created OpenSSH.
+.An Markus Friedl
+contributed the support for SSH protocol versions 1.5 and 2.0.

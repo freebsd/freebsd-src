@@ -1,0 +1,218 @@
+.\" Copyright (c) 2008 Isilon Inc http://www.isilon.com/
+.\" Authors: Doug Rabson <dfr@rabson.org>
+.\" Developed with Red Inc: Alfred Perlstein <alfred@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Modified from gssd.8 for rpc.tlsclntd.8 by Rick Macklem.
+.Dd September 23, 2022
+.Dt RPC.TLSCLNTD 8
+.Os
+.Sh NAME
+.Nm rpc.tlsclntd
+.Nd "Sun RPC over TLS Client Daemon"
+.Sh SYNOPSIS
+.Nm
+.Op Fl 2
+.Op Fl C Ar available_ciphers
+.Op Fl D Ar certdir
+.Op Fl d
+.Op Fl l Ar CAfile
+.Op Fl m
+.Op Fl p Ar CApath
+.Op Fl r Ar CRLfile
+.Op Fl v
+.Sh DESCRIPTION
+The
+.Nm
+program provides support for the client side of the kernel Sun RPC over TLS
+implementation.
+This daemon must be running for the kernel RPC to be able to do a TLS
+connection to a server for an NFS over TLS mount.
+This daemon requires that the kernel be built with
+.Dq options KERNEL_TLS
+and be running on an architecture such as
+.Dq amd64
+that supports a direct map (not i386) with
+.Xr ktls 4
+enabled.
+.Pp
+If either of the
+.Fl l
+or
+.Fl p
+options have been specified, the daemon will require the server's
+certificate to verify
+and have a Fully Qualified Domain Name (FQDN) in it.
+This FQDN must match
+the reverse DNS name for the IP address that
+the server is using for the TCP connection.
+The FQDN may be
+in either the DNS field of the subjectAltName or the CN field of the
+subjectName in the certificate and
+cannot have a wildcard
+.Dq *
+in it.
+.Pp
+If a SIGHUP signal is sent to the daemon it will reload the
+.Dq CRLfile
+and will shut down any extant connections that presented certificates
+during TLS handshake that have been revoked.
+If the
+.Fl r
+option was not specified, the SIGHUP signal will be ignored.
+.Pp
+The daemon will log failed certificate verifications via
+.Xr syslogd 8
+using LOG_INFO | LOG_DAEMON when the
+.Fl l
+or
+.Fl p
+option has been specified.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl 2 , Fl Fl usetls1_2
+Specify the use of TLS version 1.2.
+By default, the client will
+use TLS version 1.3, as required by the RFC.
+However, early
+.Fx
+.Pq 13.0 and 13.1
+servers require
+this option, since they only support TLS version 1.2.
+.It Fl C Ar available_ciphers , Fl Fl ciphers= Ns Ar available_ciphers
+Specify which ciphers are available during TLS handshake.
+If this option is specified,
+.Dq SSL_CTX_set_ciphersuites()
+will be called with
+.Dq available_ciphers
+as the argument.
+If this option is not specified, the cipher will be chosen by
+.Xr ssl 7 ,
+which should be adequate for most cases.
+The format for the available ciphers is a simple
+.So
+:
+.Sc
+separated list, in order of preference.
+The command
+.Dq openssl ciphers -s -tls1_3
+lists available ciphers.
+.It Fl D Ar certdir , Fl Fl certdir= Ns Ar certdir
+Use
+.Dq certdir
+instead of /etc/rpc.tlsclntd for the
+.Fl m
+option.
+.It Fl d , Fl Fl debuglevel
+Run in debug mode.
+In this mode,
+.Nm
+will not fork when it starts.
+.It Fl l Ar CAfile , Fl Fl verifylocs= Ns Ar CAfile
+This specifies the path name of a CAfile which holds the information
+for server certificate verification.
+This path name is used in
+.Dq SSL_CTX_load_verify_locations(ctx,CAfile,NULL)
+and
+.Dq SSL_CTX_set0_CA_list(ctx,SSL_load_client_CA_file(CAfile))
+openssl library calls.
+Note that this is a path name for the file and is not assumed to be
+in
+.Dq certdir .
+.It Fl m , Fl Fl mutualverf
+Enable support for mutual authentication.
+A certificate and associated key must be found in /etc/rpc.tlsclntd
+(or the directory specified by the
+.Fl D
+option)
+in case a server requests a peer certificate.
+The first certificate needs to be in a file named
+.Dq cert.pem
+and the associated key in a file named
+.Dq certkey.pem .
+The
+.Xr mount_nfs 8
+option
+.Fl tlscertname
+can be used to override the default certificate for a given
+NFS mount, where the files use the alternate naming specified by the option.
+If there is a passphrase on the
+.Dq certkey.pem
+file, this daemon will prompt for the passphrase during startup.
+The keys for alternate certificates cannot have passphrases.
+.It Fl p Ar CApath , Fl Fl verifydir= Ns Ar CApath
+This option is similar to the
+.Fl l
+option, but specifies the path of a directory with CA
+certificates in it.
+When this option is used,
+.Dq SSL_CTX_set0_CA_list(ctx,SSL_load_client_CA_file())
+is not called, so a list of CA names is not be passed
+to the server during the TLS handshake.
+The openssl documentation indicates this call is rarely needed.
+.It Fl r Ar CRLfile , Fl Fl crl= Ns Ar CRLfile
+This option specifies a Certificate Revocation List (CRL) file
+that is to be loaded into the verify certificate store and
+checked during verification of the server's certificate.
+This option is meaningless unless either the
+.Fl l
+or
+.Fl p
+have been specified.
+.It Fl v , Fl Fl verbose
+Run in verbose mode.
+In this mode,
+.Nm
+will log activity messages to syslog using LOG_INFO | LOG_DAEMON or to
+stderr, if the
+.Fl d
+option has also been specified.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr openssl 1 ,
+.Xr ktls 4 ,
+.Xr mount_nfs 8 ,
+.Xr rpc.tlsservd 8 ,
+.Xr ssl 7 ,
+.Xr syslogd 8
+.Sh STANDARDS
+The implementation is based on the specification in
+.Rs
+.%B "RFC 9289"
+.%T "Towards Remote Procedure Call Encryption By Default"
+.Re
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 13.0 .
+.Sh BUGS
+This daemon cannot be safely shut down and restarted if there are
+any active RPC-over-TLS connections.
+Doing so will orphan the KERNEL_TLS connections, so that they
+can no longer do upcalls successfully, since the
+.Dq SSL *
+structures in userspace have been lost.

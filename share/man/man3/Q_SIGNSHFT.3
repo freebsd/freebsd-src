@@ -1,0 +1,145 @@
+.\"
+.\" Copyright (c) 2018 Netflix, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd July 8, 2018
+.Dt Q_SIGNSHFT 3
+.Os
+.Sh NAME
+.Nm Q_SIGNSHFT ,
+.Nm Q_SSIGN ,
+.Nm Q_CRAWMASK ,
+.Nm Q_SRAWMASK ,
+.Nm Q_GCRAW ,
+.Nm Q_GCVAL ,
+.Nm Q_SCVAL
+.Nd fixed-point math functions which manipulate the control/sign data bits
+.Sh SYNOPSIS
+.In sys/qmath.h
+.Ft uint32_t
+.Fn Q_SIGNSHFT "QTYPE q"
+.Ft QTYPE
+.Fn Q_SSIGN "QTYPE q" "bool isneg"
+.Ft ITYPE
+.Fn Q_CRAWMASK "QTYPE q"
+.Ft ITYPE
+.Fn Q_SRAWMASK "QTYPE q"
+.Ft ITYPE
+.Fn Q_GCRAW "QTYPE q"
+.Ft ITYPE
+.Fn Q_GCVAL "QTYPE q"
+.Ft QTYPE
+.Fn Q_SCVAL "QTYPE q" "ITYPE cv"
+.Sh DESCRIPTION
+.Fn Q_SIGNSHFT
+gets the bit position of
+.Fa q Ap s
+sign bit relative to bit zero.
+.Pp
+.Fn Q_SSIGN
+sets the sign bit of
+.Fa q
+based on the boolean
+.Fa isneg .
+.Pp
+.Fn Q_CRAWMASK
+and
+.Fn Q_SRAWMASK
+return
+.Fa q Ns -specific
+bit masks for
+.Fa q Ap s
+control bits and sign bit respectively.
+.Pp
+.Fn Q_GCRAW
+and
+.Fn Q_GCVAL
+get the raw masked control bits and value of
+.Fa q Ap s
+control bits respectively.
+.Pp
+.Fn Q_SCVAL
+sets
+.Fa q Ap s
+control bits to the value
+.Fa cv .
+.Pp
+All of those functions operate on
+the following data types:
+.Vt s8q_t ,
+.Vt u8q_t ,
+.Vt s16q_t ,
+.Vt u16q_t ,
+.Vt s32q_t ,
+.Vt u32q_t ,
+.Vt s64q_t ,
+and
+.Vt u64q_t ,
+which are referred to generically as
+.Fa QTYPE .
+The
+.Fa ITYPE
+refers to the
+.Xr stdint 7
+integer types.
+.Pp
+For more details, see
+.Xr qmath 3 .
+.Sh RETURN VALUES
+.Fn Q_SIGNSHFT
+returns the sign bit's position as an integer.
+.Pp
+.Fn Q_SSIGN
+returns the value of
+.Fa q
+post change.
+.Pp
+.Fn Q_CRAWMASK ,
+.Fn Q_SRAWMASK ,
+.Fn Q_GCRAW
+and
+.Fn Q_GCVAL
+return their respective values as integers of the same underlying ITYPE as
+.Fa q .
+.Pp
+.Fn Q_SCVAL
+returns the value of
+.Fa q
+post change.
+.Sh SEE ALSO
+.Xr errno 2 ,
+.Xr qmath 3 ,
+.Xr stdint 7
+.Sh HISTORY
+The
+.Xr qmath 3
+functions first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Xr qmath 3
+functions and this manual page were written by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org
+and sponsored by Netflix, Inc.

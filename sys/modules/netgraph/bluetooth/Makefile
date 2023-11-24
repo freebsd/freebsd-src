@@ -1,0 +1,11 @@
+# $Id: Makefile,v 1.2 2003/04/27 00:22:11 max Exp $
+
+SUBDIR=	\
+	bluetooth \
+	hci	\
+	l2cap	\
+	socket	\
+	ubt	\
+	ubtbcmfw
+
+.include <bsd.subdir.mk>

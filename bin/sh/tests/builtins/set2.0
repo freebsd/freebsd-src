@@ -1,0 +1,2 @@
+
+! env @badness=1 ${SH} -c 'v=`set`; eval "$v"' 2>&1 | grep @badness

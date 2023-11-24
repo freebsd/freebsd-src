@@ -1,0 +1,92 @@
+.\" Copyright (c) 2009 Hudson River Trading LLC
+.\" Written by: John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd March 3, 2022
+.Dt CLOSEFROM 2
+.Os
+.Sh NAME
+.Nm closefrom ,
+.Nm close_range
+.Nd delete open file descriptors
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft void
+.Fn closefrom "int lowfd"
+.Ft int
+.Fn close_range "u_int lowfd" "u_int highfd" "int flags"
+.Sh DESCRIPTION
+The
+.Fn closefrom
+system call deletes all open file descriptors greater than or equal to
+.Fa lowfd
+from the per-process object reference table.
+Any errors encountered while closing file descriptors are ignored.
+.Pp
+The
+.Fn close_range
+system call deletes all open file descriptors between
+.Fa lowfd
+and
+.Fa highfd
+inclusive, clamped to the range of open file descriptors.
+Any errors encountered while closing file descriptors are ignored.
+Supported
+.Fa flags :
+.Bl -tag -width ".Dv CLOSE_RANGE_CLOEXEC"
+.It Dv CLOSE_RANGE_CLOEXEC
+Set the close-on-exec flag on descriptors in the range instead of closing them.
+.El
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn close_range
+returns a value
+of 0.
+Otherwise, a value of -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn close_range
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa highfd
+argument is lower than the
+.Fa lowfd
+argument.
+.It Bq Er EINVAL
+An invalid flag was set.
+.El
+.Sh SEE ALSO
+.Xr close 2
+.Sh HISTORY
+The
+.Fn closefrom
+function first appeared in
+.Fx 8.0 .

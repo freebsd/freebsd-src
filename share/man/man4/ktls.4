@@ -1,0 +1,255 @@
+.\" Copyright (c) 2020, Chelsio Inc
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Chelsio Inc nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.Dd December 14, 2021
+.Dt KTLS 4
+.Os
+.Sh NAME
+.Nm ktls
+.Nd kernel Transport Layer Security
+.Sh SYNOPSIS
+.Cd options KERN_TLS
+.Sh DESCRIPTION
+The
+.Nm
+facility allows the kernel to perform Transport Layer Security (TLS)
+framing on TCP sockets.
+With
+.Nm ,
+the initial handshake for a socket using TLS is performed in userland.
+Once the session keys are negotiated,
+they are provided to the kernel via the
+.Dv TCP_TXTLS_ENABLE
+and
+.Dv TCP_RXTLS_ENABLE
+socket options.
+Both socket options accept a
+.Vt struct tls_enable
+structure as their argument.
+The members of this structure describe the cipher suite used for the
+TLS session and provide the session keys used for the respective
+direction.
+.Pp
+.Nm
+only permits the session keys to be set once in each direction.
+As a result,
+applications must disable rekeying when using
+.Nm .
+.Ss Modes
+.Nm
+can operate in different modes.
+A given socket may use different modes for transmit and receive,
+or a socket may only offload a single direction.
+The available modes are:
+.Bl -tag -width "Dv TCP_TLS_MODE_IFNET"
+.It Dv TCP_TLS_MODE_NONE
+.Nm
+is not enabled.
+.It Dv TCP_TLS_MODE_SW
+TLS records are encrypted or decrypted in the kernel in the socket
+layer via
+.Xr crypto 9 .
+Typically the encryption or decryption is performed in software,
+but it may also be performed by co-processors.
+.It Dv TCP_TLS_MODE_IFNET
+TLS records are encrypted or decrypted by the network interface card (NIC).
+In this mode, the network stack does not work with encrypted data.
+Instead, the NIC encrypts TLS records as they are being transmitted,
+or decrypts received TLS records before providing them to the host.
+.Pp
+Network interfaces which support this feature will advertise the
+.Dv TXTLS4
+(for IPv4)
+and/or
+.Dv TXTLS6
+(for IPv6)
+capabilities as reported by
+.Xr ifconfig 8 .
+These capabilities can also be controlled by
+.Xr ifconfig 8 .
+.Pp
+If a network interface supports rate limiting
+(also known as packet pacing) for TLS offload,
+the interface will advertise the
+.Dv TXTLS_RTLMT
+capability.
+.It Dv TCP_TLS_MODE_TOE
+TLS records are encrypted by the NIC using a TCP offload engine (TOE).
+This is similar to
+.Dv TCP_TLS_MODE_IFNET
+in that the network stack does not work with encrypted data.
+However, this mode works in tandem with a TOE to handle interactions
+between TCP and TLS.
+.El
+.Ss Transmit
+Once TLS transmit is enabled by a successful set of the
+.Dv TCP_TXTLS_ENABLE
+socket option,
+all data written on the socket is stored in TLS records and encrypted.
+Most data is transmitted in application layer TLS records,
+and the kernel chooses how to partition data among TLS records.
+Individual TLS records with a fixed length and record type can be sent
+by
+.Xr sendmsg 2
+with the TLS record type set in a
+.Dv TLS_SET_RECORD_TYPE
+control message.
+The payload of this control message is a single byte holding the desired
+TLS record type.
+This can be used to send TLS records with a type other than
+application data (for example, handshake messages) or to send
+application data records with specific contents (for example, empty
+fragments).
+.Pp
+The current TLS transmit mode of a socket can be queried via the
+.Dv TCP_TXTLS_MODE
+socket option.
+A socket using TLS transmit offload can also set the
+.Dv TCP_TXTLS_MODE
+socket option to toggle between
+.Dv TCP_TLS_MODE_SW
+and
+.Dv TCP_TLS_MODE_IFNET .
+.Ss Receive
+Once TLS receive is enabled by a successful set of the
+.Dv TCP_RXTLS_ENABLE
+socket option,
+all data read from the socket is returned as decrypted TLS records.
+Each received TLS record must be read from the socket using
+.Xr recvmsg 2 .
+Each received TLS record will contain a
+.Dv TLS_GET_RECORD
+control message along with the decrypted payload.
+The control message contains a
+.Vt struct tls_get_record
+which includes fields from the TLS record header.
+If an invalid or corrupted TLS record is received,
+.Xr recvmsg 2
+will fail with one of the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The version fields in a TLS record's header did not match the version required
+by the
+.Vt struct tls_enable
+structure used to enable in-kernel TLS.
+.It Bq Er EMSGSIZE
+A TLS record's length was either too small or too large.
+.It Bq Er EMSGSIZE
+The connection was closed after sending a truncated TLS record.
+.It Bq Er EBADMSG
+The TLS record failed to match the included authentication tag.
+.El
+.Pp
+The current TLS receive mode of a socket can be queried via the
+.Dv TCP_RXTLS_MODE
+socket option.
+At present,
+the mode cannot be changed.
+.Ss Sysctl Nodes
+.Nm
+uses several sysctl nodes under the
+.Va kern.ipc.tls
+node.
+A few of them are described below:
+.Bl -tag -width ".Va kern.ipc.tls.cbc_enable"
+.It Va kern.ipc.tls.enable
+Determines if new kernel TLS sessions can be created.
+.It Va kern.ipc.tls.cbc_enable
+Determines if new kernel TLS sessions with a cipher suite using AES-CBC
+can be created.
+.It Va kern.ipc.tls.sw
+A tree of nodes containing statistics for TLS sessions using
+.Dv TCP_TLS_MODE_SW .
+.It Va kern.ipc.tls.ifnet
+A tree of nodes containing statistics for TLS sessions using
+.Dv TCP_TLS_MODE_IFNET .
+.It Va kern.ipc.tls.toe
+A tree of nodes containing statistics for TLS sessions using
+.Dv TCP_TLS_MODE_TOE .
+.It Va kern.ipc.tls.stats
+A tree of nodes containing various kernel TLS statistics.
+.El
+.Pp
+The
+.Va kern.ipc.mb_use_ext_pgs
+sysctl controls whether the kernel may use unmapped mbufs.
+They are required for TLS transmit.
+.Ss Supported Hardware
+The
+.Xr cxgbe 4
+and
+.Xr mlx5en 4
+drivers include support for the
+.Dv TCP_TLS_MODE_IFNET
+mode.
+.Pp
+The
+.Xr cxgbe 4
+driver includes support for the
+.Dv TCP_TLS_MODE_TOE
+mode.
+.Ss Supported Libraries
+OpenSSL 3.0 and later include support for
+.Nm .
+The
+.Fa security/openssl-devel
+port may also be built with support for
+.Nm
+by enabling the
+.Dv KTLS
+option.
+OpenSSL in the base system includes KTLS support when built with
+.Dv WITH_OPENSSL_KTLS .
+.Pp
+Applications using a supported library should generally work with
+.Nm
+without any changes provided they use standard interfaces such as
+.Xr SSL_read 3
+and
+.Xr SSL_write 3 .
+Additional performance may be gained by the use of
+.Xr SSL_sendfile 3 .
+.Sh IMPLEMENTATION NOTES
+.Nm
+assumes the presence of a direct map of physical memory when performing
+software encryption and decryption.
+As a result, it is only supported on architectures with a direct map.
+.Sh SEE ALSO
+.Xr cxgbe 4 ,
+.Xr mlx5en 4 ,
+.Xr tcp 4 ,
+.Xr src.conf 5 ,
+.Xr ifconfig 8 ,
+.Xr sysctl 8 ,
+.Xr crypto 9
+.Sh HISTORY
+Kernel TLS first appeared in
+.Fx 13.0 .

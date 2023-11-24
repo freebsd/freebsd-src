@@ -1,0 +1,4 @@
+#! /usr/bin/dc
+[lb1+dsb*plb50>x]sx
+0sb1
+lxx

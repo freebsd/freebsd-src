@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# Print out the type of device
+#
+
+if [ "$1" = "-h" ] ; then
+	echo "Show whether a vdev is a file, hdd, ssd, or iscsi."
+	exit
+fi
+
+# shellcheck disable=SC2154
+if [ -b "$VDEV_UPATH" ]; then
+	device="${VDEV_UPATH##*/}"
+	read -r val 2>/dev/null < "/sys/block/$device/queue/rotational"
+	case "$val" in
+		0) MEDIA="ssd" ;;
+		1) MEDIA="hdd" ;;
+		*) MEDIA="invalid" ;;
+	esac
+
+	vpd_pg83="/sys/block/$device/device/vpd_pg83"
+	if [ -f "$vpd_pg83" ]; then
+		if grep -q --binary "iqn." "$vpd_pg83"; then
+			MEDIA="iscsi"
+		fi
+	fi
+else
+	if [ -f "$VDEV_UPATH" ]; then
+		MEDIA="file"
+	fi
+fi
+
+echo "media=$MEDIA"

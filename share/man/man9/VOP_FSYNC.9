@@ -1,0 +1,106 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" Copyright (c) 2019 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by BFF Storage Systems under
+.\" sponsorship from the FreeBSD Foundation.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd March 22, 2019
+.Dt VOP_FSYNC 9
+.Os
+.Sh NAME
+.Nm VOP_FDATASYNC ,
+.Nm VOP_FSYNC
+.Nd flush file system buffers for a file
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn VOP_FDATASYNC "struct vnode *vp" "struct thread *td"
+.Ft int
+.Fn VOP_FSYNC "struct vnode *vp" "int waitfor" "struct thread *td"
+.Sh DESCRIPTION
+.Fn VOP_FSYNC
+ensures that a file can be recovered to its current state following a crash.
+That typically requires flushing the file's dirty buffers, its inode, and
+possibly other filesystem metadata to persistent media.
+.Fn VOP_FSYNC
+is used to implement the
+.Xr sync 2
+and
+.Xr fsync 2
+system calls.
+.Pp
+Its arguments are:
+.Bl -tag -width waitfor
+.It Fa vp
+The vnode of the file.
+.It Fa waitfor
+Whether the function should wait for I/O to complete.
+Possible values are:
+.Bl -tag -width MNT_NOWAIT
+.It Dv MNT_WAIT
+Synchronously wait for I/O to complete.
+.It Dv MNT_NOWAIT
+Start all I/O, but do not wait for it.
+.It Dv MNT_LAZY
+Push data not written by file system syncer.
+.El
+.It Fa td
+The calling thread.
+.El
+.Pp
+.Fn VOP_FDATASYNC
+is similar, but it does not require that all of the file's metadata be flushed.
+It only requires that the file's data be recoverable after a crash.
+That implies that the data itself must be flushed to disk, as well as some
+metadata such as the file's size but not necessarily its attributes.
+.Fn VOP_FDATASYNC
+should always wait for I/O to complete, as if called with
+.Dv MNT_WAIT .
+.Fn VOP_FDATASYNC
+is used to implement
+.Xr fdatasync 2 .
+.Sh LOCKS
+The vnode should be exclusively locked on entry, and stays locked on return.
+.Sh RETURN VALUES
+Zero is returned if the call is successful, otherwise an appropriate
+error code is returned.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ENOSPC
+The file system is full.
+.It Bq Er EDQUOT
+Quota exceeded.
+.El
+.Sh SEE ALSO
+.Xr vnode 9
+.Sh AUTHORS
+This manual page was written by
+.An Doug Rabson .

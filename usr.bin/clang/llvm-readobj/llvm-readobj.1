@@ -1,0 +1,445 @@
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "LLVM-READOBJ" "1" "2023-05-24" "16" "LLVM"
+.SH NAME
+llvm-readobj \- LLVM Object Reader
+.SH SYNOPSIS
+.sp
+\fBllvm\-readobj\fP [\fIoptions\fP] [\fIinput...\fP]
+.SH DESCRIPTION
+.sp
+The \fBllvm\-readobj\fP tool displays low\-level format\-specific information
+about one or more object files.
+.sp
+If \fBinput\fP is \(dq\fB\-\fP\(dq, \fBllvm\-readobj\fP reads from standard
+input. Otherwise, it will read from the specified \fBfilenames\fP\&.
+.SH DIFFERENCES TO LLVM-READELF
+.sp
+\fBllvm\-readelf\fP is an alias for the \fBllvm\-readobj\fP tool with a
+slightly different command\-line interface and output that is GNU compatible.
+Following is a list of differences between \fBllvm\-readelf\fP and
+\fBllvm\-readobj\fP:
+.INDENT 0.0
+.IP \(bu 2
+\fBllvm\-readelf\fP uses \fIGNU\fP for the \fI\%\-\-elf\-output\-style\fP option
+by default. \fBllvm\-readobj\fP uses \fILLVM\fP\&.
+.IP \(bu 2
+\fBllvm\-readelf\fP allows single\-letter grouped flags (e.g.
+\fBllvm\-readelf \-SW\fP is the same as  \fBllvm\-readelf \-S \-W\fP).
+\fBllvm\-readobj\fP does not allow grouping.
+.IP \(bu 2
+\fBllvm\-readelf\fP provides \fI\%\-s\fP as an alias for
+\fI\%\-\-symbols\fP, for GNU \fBreadelf\fP compatibility, whereas it is
+an alias for \fI\%\-\-section\-headers\fP in \fBllvm\-readobj\fP\&.
+.IP \(bu 2
+\fBllvm\-readobj\fP provides \fB\-t\fP as an alias for \fI\%\-\-symbols\fP\&.
+\fBllvm\-readelf\fP does not.
+.IP \(bu 2
+\fBllvm\-readobj\fP provides \fB\-\-sr\fP, \fB\-\-sd\fP, \fB\-\-st\fP and \fB\-\-dt\fP as
+aliases for \fI\%\-\-section\-relocations\fP, \fI\%\-\-section\-data\fP,
+\fI\%\-\-section\-symbols\fP and \fI\%\-\-dyn\-symbols\fP respectively.
+\fBllvm\-readelf\fP does not provide these aliases, to avoid conflicting
+with grouped flags.
+.UNINDENT
+.SH GENERAL AND MULTI-FORMAT OPTIONS
+.sp
+These options are applicable to more than one file format, or are unrelated to
+file formats.
+.INDENT 0.0
+.TP
+.B \-\-all
+Equivalent to specifying all the main display options relevant to the file
+format.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-addrsig
+Display the address\-significance table.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-expand\-relocs
+When used with \fI\%\-\-relocs\fP, display each relocation in an expanded
+multi\-line format.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-file\-header, \-h
+Display file headers.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-headers, \-e
+Equivalent to setting: \fI\%\-\-file\-header\fP, \fI\%\-\-program\-headers\fP,
+and \fI\%\-\-sections\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-help
+Display a summary of command line options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-hex\-dump=<section[,section,...]>, \-x
+Display the specified section(s) as hexadecimal bytes. \fBsection\fP may be a
+section index or section name.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-needed\-libs
+Display the needed libraries.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-relocations, \-\-relocs, \-r
+Display the relocation entries in the file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-sections, \-\-section\-headers, \-S
+Display all sections.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-section\-data, \-\-sd
+When used with \fI\%\-\-sections\fP, display section data for each section
+shown. This option has no effect for GNU style output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-section\-relocations, \-\-sr
+When used with \fI\%\-\-sections\fP, display relocations for each section
+shown. This option has no effect for GNU style output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-section\-symbols, \-\-st
+When used with \fI\%\-\-sections\fP, display symbols for each section shown.
+This option has no effect for GNU style output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-sort\-symbols=<sort_key[,sort_key]>
+Specify the keys to sort symbols before displaying symtab.
+Valid values for sort_key are \fBname\fP and \fBtype\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-stackmap
+Display contents of the stackmap section.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-string\-dump=<section[,section,...]>, \-p
+Display the specified section(s) as a list of strings. \fBsection\fP may be a
+section index or section name.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-string\-table
+Display contents of the string table.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-symbols, \-\-syms, \-s
+Display the symbol table.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-unwind, \-u
+Display unwind information.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-version
+Display the version of the \fBllvm\-readobj\fP executable.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B @<FILE>
+Read command\-line options from response file \fI<FILE>\fP\&.
+.UNINDENT
+.SH ELF SPECIFIC OPTIONS
+.sp
+The following options are implemented only for the ELF file format.
+.INDENT 0.0
+.TP
+.B \-\-arch\-specific, \-A
+Display architecture\-specific information, e.g. the ARM attributes section on ARM.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-bb\-addr\-map
+Display the contents of the basic block address map section(s), which contain the
+address of each function, along with the relative offset of each basic block.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-demangle, \-C
+Display demangled symbol names in the output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dependent\-libraries
+Display the dependent libraries section.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dyn\-relocations
+Display the dynamic relocation entries.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dyn\-symbols, \-\-dyn\-syms, \-\-dt
+Display the dynamic symbol table.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dynamic\-table, \-\-dynamic, \-d
+Display the dynamic table.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-cg\-profile
+Display the callgraph profile section.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-histogram, \-I
+Display a bucket list histogram for dynamic symbol hash tables.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-elf\-linker\-options
+Display the linker options section.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-elf\-output\-style=<value>
+Format ELF information in the specified style. Valid options are \fBLLVM\fP,
+\fBGNU\fP, and \fBJSON\fP\&. \fBLLVM\fP output (the default) is an expanded and
+structured format. \fBGNU\fP output mimics the equivalent GNU \fBreadelf\fP
+output. \fBJSON\fP is JSON formatted output intended for machine consumption.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-section\-groups, \-g
+Display section groups.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-gnu\-hash\-table
+Display the GNU hash table for dynamic symbols.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-hash\-symbols
+Display the expanded hash table with dynamic symbol data.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-hash\-table
+Display the hash table for dynamic symbols.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-notes, \-n
+Display all notes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-pretty\-print
+When used with \fI\%\-\-elf\-output\-style\fP, JSON output will be formatted in
+a more readable format.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-program\-headers, \-\-segments, \-l
+Display the program headers.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-raw\-relr
+Do not decode relocations in RELR relocation sections when displaying them.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-section\-mapping
+Display the section to segment mapping.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-stack\-sizes
+Display the contents of the stack sizes section(s), i.e. pairs of function
+names and the size of their stack frames. Currently only implemented for GNU
+style output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-version\-info, \-V
+Display version sections.
+.UNINDENT
+.SH MACH-O SPECIFIC OPTIONS
+.sp
+The following options are implemented only for the Mach\-O file format.
+.INDENT 0.0
+.TP
+.B \-\-macho\-data\-in\-code
+Display the Data in Code command.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-macho\-dsymtab
+Display the Dsymtab command.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-macho\-indirect\-symbols
+Display indirect symbols.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-macho\-linker\-options
+Display the Mach\-O\-specific linker options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-macho\-segment
+Display the Segment command.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-macho\-version\-min
+Display the version min command.
+.UNINDENT
+.SH PE/COFF SPECIFIC OPTIONS
+.sp
+The following options are implemented only for the PE/COFF file format.
+.INDENT 0.0
+.TP
+.B \-\-codeview
+Display CodeView debug information.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-codeview\-ghash
+Enable global hashing for CodeView type stream de\-duplication.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-codeview\-merged\-types
+Display the merged CodeView type stream.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-codeview\-subsection\-bytes
+Dump raw contents of CodeView debug sections and records.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-coff\-basereloc
+Display the .reloc section.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-coff\-debug\-directory
+Display the debug directory.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-coff\-tls\-directory
+Display the TLS directory.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-coff\-directives
+Display the .drectve section.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-coff\-exports
+Display the export table.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-coff\-imports
+Display the import table.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-coff\-load\-config
+Display the load config.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-coff\-resources
+Display the .rsrc section.
+.UNINDENT
+.SH XCOFF SPECIFIC OPTIONS
+.sp
+The following options are implemented only for the XCOFF file format.
+.INDENT 0.0
+.TP
+.B \-\-auxiliary\-header
+Display XCOFF Auxiliary header.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-exception\-section
+Display XCOFF exception section entries.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-loader\-section\-header
+Display XCOFF loader section header.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-loader\-section\-symbols
+Display symbol table of loader section.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-loader\-section\-relocations
+Display relocation entries of loader section.
+.UNINDENT
+.SH EXIT STATUS
+.sp
+\fBllvm\-readobj\fP returns 0 under normal operation. It returns a non\-zero
+exit code if there were any errors.
+.SH SEE ALSO
+.sp
+\fBllvm\-nm(1)\fP, \fBllvm\-objdump(1)\fP, \fBllvm\-readelf(1)\fP
+.SH AUTHOR
+Maintained by the LLVM Team (https://llvm.org/).
+.SH COPYRIGHT
+2003-2023, LLVM Project
+.\" Generated by docutils manpage writer.
+.

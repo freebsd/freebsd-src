@@ -1,0 +1,11 @@
+ignore-errors begin
+false ignore-errors
+ignore-errors end
+all begin
+*** Error code 1 (ignored)
+false all
+*** Error code 1 (continuing)
+
+Stop.
+make: stopped in unit-tests
+exit status 1

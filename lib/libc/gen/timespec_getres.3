@@ -1,0 +1,51 @@
+.\"-
+.\" Copyright (c) 2023 Dag-Erling Smørgrav
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 21, 2023
+.Dt TIMESPEC_GETRES 3
+.Os
+.Sh NAME
+.Nm timespec_getres
+.Nd get clock resolution
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In time.h
+.Ft int
+.Fn timespec_getres "struct timespec *ts" "int base"
+.Sh DESCRIPTION
+If
+.Fa ts
+is non-null and
+.Fa base
+refers to a supported time base as described in
+.Xr timespec_get 3 ,
+the
+.Nm
+function fills in the structure pointed to by
+.Fa ts
+to reflect the resolution of that time base.
+.Sh RETURN VALUES
+The
+.Nm
+function returns the value of
+.Fa base
+if successful and zero otherwise.
+.Sh SEE ALSO
+.Xr clock_getres 2 ,
+.Xr timespec_get 3
+.\" .Sh STANDARDS
+.\" The
+.\" .Nm
+.\" function conforms to
+.\" .St -isoC-2023 .
+.Sh HISTORY
+This interface first appeared in
+.Fx 14 .
+.Sh AUTHORS
+The
+.Nm
+function and this manual page were written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

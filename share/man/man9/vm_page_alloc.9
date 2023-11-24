@@ -1,0 +1,358 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\" Copyright (c) 2021 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Mark Johnston under
+.\" sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.Dd November 11, 2021
+.Dt VM_PAGE_ALLOC 9
+.Os
+.Sh NAME
+.Nm vm_page_alloc
+.Nd "allocate a page of memory"
+.Sh SYNOPSIS
+.In sys/param.h
+.In vm/vm.h
+.In vm/vm_page.h
+.Ft vm_page_t
+.Fn vm_page_alloc "vm_object_t object" "vm_pindex_t pindex" "int req"
+.Ft vm_page_t
+.Fo vm_page_alloc_after
+.Fa "vm_object_t object"
+.Fa "vm_pindex_t pindex"
+.Fa "int req"
+.Fa "vm_page_t mpred"
+.Fc
+.Ft vm_page_t
+.Fo vm_page_alloc_contig
+.Fa "vm_object_t object"
+.Fa "vm_pindex_t pindex"
+.Fa "int req"
+.Fa "u_long npages"
+.Fa "vm_paddr_t low"
+.Fa "vm_paddr_t high"
+.Fa "u_long alignment"
+.Fa "vm_paddr_t boundary"
+.Fa "vm_memattr_t memattr"
+.Fc
+.Ft vm_page_t
+.Fo vm_page_alloc_contig_domain
+.Fa "vm_object_t object"
+.Fa "vm_pindex_t pindex"
+.Fa "int req"
+.Fa "u_long npages"
+.Fa "vm_paddr_t low"
+.Fa "vm_paddr_t high"
+.Fa "u_long alignment"
+.Fa "vm_paddr_t boundary"
+.Fa "vm_memattr_t memattr"
+.Fc
+.Ft vm_page_t
+.Fo vm_page_alloc_domain
+.Fa "vm_object_t object"
+.Fa "vm_pindex_t pindex"
+.Fa "int domain"
+.Fa "int req"
+.Fc
+.Ft vm_page_t
+.Fo vm_page_alloc_domain_after
+.Fa "vm_object_t object"
+.Fa "vm_pindex_t pindex"
+.Fa "int domain"
+.Fa "int req"
+.Fa "vm_page_t mpred"
+.Fc
+.Ft vm_page_t
+.Fo vm_page_alloc_freelist
+.Fa "int freelist"
+.Fa "int req"
+.Fc
+.Ft vm_page_t
+.Fo vm_page_alloc_freelist_domain
+.Fa "int domain"
+.Fa "int freelist"
+.Fa "int req"
+.Fc
+.Ft vm_page_t
+.Fo vm_page_alloc_noobj
+.Fa "int req"
+.Fc
+.Ft vm_page_t
+.Fo vm_page_alloc_noobj_contig
+.Fa "int req"
+.Fa "u_long npages"
+.Fa "vm_paddr_t low"
+.Fa "vm_paddr_t high"
+.Fa "u_long alignment"
+.Fa "vm_paddr_t boundary"
+.Fa "vm_memattr_t memattr"
+.Fc
+.Ft vm_page_t
+.Fo vm_page_alloc_noobj_contig_domain
+.Fa "int domain"
+.Fa "int req"
+.Fa "u_long npages"
+.Fa "vm_paddr_t low"
+.Fa "vm_paddr_t high"
+.Fa "u_long alignment"
+.Fa "vm_paddr_t boundary"
+.Fa "vm_memattr_t memattr"
+.Fc
+.Ft vm_page_t
+.Fo vm_page_alloc_noobj_domain
+.Fa "int domain"
+.Fa "int req"
+.Fc
+.Sh DESCRIPTION
+The
+.Fn vm_page_alloc
+family of functions allocate one or more pages of physical memory.
+Most kernel code should not call these functions directly but should instead
+use a kernel memory allocator such as
+.Xr malloc 9
+or
+.Xr uma 9 ,
+or should use a higher-level interface to the page cache, such as
+.Xr vm_page_grab 9 .
+.Pp
+All of the functions take a
+.Fa req
+parameter which encodes the allocation priority and optional modifier flags,
+described below.
+The functions whose names do not include
+.Dq noobj
+additionally insert the pages starting at index
+.Fa pindex
+in the
+VM object
+.Fa object .
+The object must be write-locked and not have a page already resident at the
+specified index.
+The functions whose names include
+.Dq domain
+support NUMA-aware allocation by returning pages from the
+.Xr numa 4
+domain specified by
+.Fa domain .
+.Pp
+The
+.Fn vm_page_alloc_after
+and
+.Fn vm_page_alloc_domain_after
+functions behave identically to
+.Fn vm_page_alloc
+and
+.Fn vm_page_alloc_domain ,
+respectively, except that they take an additional parameter
+.Fa mpred
+which must be the page resident in
+.Fa object
+with largest index smaller than
+.Fa pindex ,
+or
+.Dv NULL
+if no such page exists.
+These functions exist to optimize the common case of loops that allocate
+multiple pages at successive indices within an object.
+.Pp
+The
+.Fn vm_page_alloc_contig
+and
+.Fn vm_page_alloc_noobj_contig
+functions and their NUMA-aware variants allocate a physically contiguous run of
+.Fa npages
+pages which satisfies the specified constraints.
+The
+.Fa low
+and
+.Fa high
+parameters specify a physical address range from which the run is to
+be allocated.
+The
+.Fa alignment
+parameter specifies the requested alignment of the first page in the run
+and must be a power of two.
+If the
+.Fa boundary
+parameter is non-zero, the pages constituting the run will not cross a
+physical address that is a multiple of the parameter value, which must be a
+power of two.
+If
+.Fa memattr
+is not equal to
+.Dv VM_MEMATTR_DEFAULT ,
+then mappings of the returned pages created by, e.g.,
+.Xr pmap_enter 9
+or
+.Xr pmap_qenter 9 ,
+will carry the machine-dependent encoding of the memory attribute.
+Additionally, the direct mapping of the page, if any, will be updated to
+reflect the requested memory attribute.
+.Pp
+The
+.Fn vm_page_alloc_freelist
+and
+.Fn vm_page_alloc_freelist_domain
+functions behave identically to
+.Fn vm_page_alloc_noobj
+and
+.Fn vm_page_alloc_noobj_domain ,
+respectively, except that a successful allocation will return a page from the
+specified physical memory freelist.
+These functions are not intended for use outside of the virtual memory
+subsystem and exist only to support the requirements of certain platforms.
+.Sh REQUEST FLAGS
+All page allocator functions accept a
+.Fa req
+parameter that governs certain aspects of the function's behavior.
+.Pp
+The
+.Dv VM_ALLOC_WAITOK ,
+.Dv VM_ALLOC_WAITFAIL ,
+and
+.Dv VM_ALLOC_NOWAIT
+flags specify the behavior of the allocator if free pages could not be
+immediately allocated.
+The
+.Dv VM_ALLOC_WAITOK
+flag can only be used with the
+.Dq noobj
+variants.
+If
+.Dv VM_ALLOC_NOWAIT
+is specified, then the allocator gives up and returns
+.Dv NULL .
+.Dv VM_ALLOC_NOWAIT
+is specified implicitly if none of the flags are present in the request.
+If either
+.Dv VM_ALLOC_WAITOK
+or
+.Dv VM_ALLOC_WAITFAIL
+is specified, the allocator will put the calling thread to sleep until
+sufficient free pages become available.
+At this point, if
+.Dv VM_ALLOC_WAITFAIL
+is specified the allocator will return
+.Dv NULL ,
+and if
+.Dv VM_ALLOC_WAITOK
+is specified the allocator will retry the allocation.
+After a failed
+.Dv VM_ALLOC_WAITFAIL
+allocation returns, the VM object, if any, will have been unlocked while the
+thread was sleeping.
+In this case the VM object write lock will be re-acquired before the function
+call returns.
+.Pp
+.Fa req
+also encodes the allocation request priority.
+By default the page(s) are allocated with no special treatment.
+If the number of available free pages is below a certain watermark, the
+allocation will fail or the allocating thread will sleep, depending on
+the specified wait flag.
+The watermark is computed at boot time and corresponds to a small (less than
+one percent) fraction of the system's total physical memory.
+To allocate memory more aggressively, one of following flags may be specified.
+.Bl -tag -width ".Dv VM_ALLOC_INTERRUPT"
+.It Dv VM_ALLOC_SYSTEM
+The page can be allocated if the free page count is above the interrupt
+reserved water mark.
+This flag should be used only when the system really needs the page.
+.It Dv VM_ALLOC_INTERRUPT
+The allocation will fail only if zero free pages are available.
+This flag should be used only if the consequences of an allocation failure
+are worse than leaving the system without free memory.
+For example, this flag is used when allocating kernel page table pages, where
+allocation failures trigger a kernel panic.
+.El
+.Pp
+The following optional flags can further modify allocator behavior:
+.Bl -tag -width ".Dv VM_ALLOC_NOBUSY"
+.It Dv VM_ALLOC_SBUSY
+The returned page will be shared-busy.
+This flag may only be specified when allocating pages in a VM object.
+.It Dv VM_ALLOC_NOBUSY
+The returned page will not be busy.
+This flag is implicit when allocating pages without a VM object.
+When allocating pages in a VM object, and neither
+.Dv VM_ALLOC_SBUSY
+nor
+.Dv VM_ALLOC_NOBUSY
+are specified, the returned pages will be exclusively busied.
+.It Dv VM_ALLOC_NODUMP
+The returned page will not be included in any kernel core dumps
+regardless of whether or not it is mapped in to KVA.
+.It Dv VM_ALLOC_WIRED
+The returned page will be wired.
+.It Dv VM_ALLOC_ZERO
+If this flag is specified, the
+.Dq noobj
+variants will return zeroed pages.
+The other allocator interfaces ignore this flag.
+.It Dv VM_ALLOC_NORECLAIM
+If this flag is specified and the request can not be immediately satisfied,
+the allocator will not attempt to break superpage reservations to satisfy the
+allocation.
+This may be useful when the overhead of scanning the reservation queue
+outweighs the cost of a failed allocation.
+This flag may be used only with the
+.Dq contig
+variants, and must not be specified in combination with
+.Dv VM_ALLOC_WAITOK .
+.It Dv VM_ALLOC_COUNT(n)
+Hint that at least
+.Fa n
+pages will be allocated by the caller in the near future.
+.Fa n
+must be no larger than 65535.
+If the system is short of free pages, this hint may cause the kernel
+to reclaim memory more aggressively than it would otherwise.
+.El
+.Sh RETURN VALUES
+If the allocation was successful, a pointer to the
+.Vt struct vm_page
+corresponding to the allocated page is returned.
+If the allocation request specified multiple pages, the returned
+pointer points to an array of
+.Vt struct vm_page
+constituting the run.
+Upon failure,
+.Dv NULL
+is returned.
+Regardless of whether the allocation succeeds or fails, the VM
+object
+.Fa object
+will be write-locked upon return.
+.Sh SEE ALSO
+.Xr numa 4 ,
+.Xr malloc 9 ,
+.Xr uma 9 ,
+.Xr vm_page_grab 9 ,
+.Xr vm_page_sbusy 9
+.Sh AUTHORS
+This manual page was written by
+.An Chad David Aq Mt davidc@acns.ab.ca .

@@ -1,0 +1,22 @@
+1..18
+ok 1      state initial 0: expected POLLOUT; got POLLOUT
+ok 2      state initial 1: expected POLLOUT; got POLLOUT
+ok 3      state after large write: expected 0; got 0
+ok 4      state other side after large write: expected POLLIN | POLLOUT; got POLLIN | POLLOUT
+ok 5      state other side after close: expected POLLIN | POLLHUP; got POLLIN | POLLHUP
+not ok 6  state other side after reading input: expected POLLHUP; got POLLIN | POLLHUP
+ok 7      state after shutdown(SHUT_WR): expected POLLOUT; got POLLOUT
+ok 8      state other side after shutdown(SHUT_WR): expected POLLIN | POLLOUT; got POLLIN | POLLOUT
+ok 9      state other side after reading EOF: expected POLLIN | POLLOUT; got POLLIN | POLLOUT
+ok 10     state after data from other side: expected POLLIN | POLLOUT; got POLLIN | POLLOUT
+ok 11     state after writing: expected POLLIN; got POLLIN
+ok 12     state after second shutdown: expected POLLIN | POLLHUP; got POLLIN | POLLHUP
+not ok 13 state after second shutdown: expected POLLHUP; got POLLIN | POLLHUP
+not ok 14 state after close: expected POLLHUP; got POLLIN | POLLHUP
+ok 15     state after shutdown(SHUT_RD): expected POLLIN | POLLOUT; got POLLIN | POLLOUT
+ok 16     state other side after shutdown(SHUT_RD): expected POLLOUT; got POLLOUT
+not ok 17 state after shutdown(SHUT_WR): expected POLLHUP; got POLLIN | POLLHUP
+ok 18     state other side after shutdown(SHUT_WR): expected POLLIN | POLLOUT; got POLLIN | POLLOUT
+ok 19     state other side after shutdown(SHUT_RD): expected POLLOUT; got POLLOUT
+ok 20     state other side after write: expected POLLIN | POLLOUT; got POLLIN | POLLOUT
+ok 21     state other side after shutdown(SHUT_WR): expected POLLIN | POLLOUT | POLLRDHUP; got POLLIN | POLLOUT | POLLRDHUP

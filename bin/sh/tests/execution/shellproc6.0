@@ -1,0 +1,7 @@
+
+T=`mktemp -d "${TMPDIR:-/tmp}/sh-test.XXXXXXXX"` || exit
+trap 'rm -rf "${T}"' 0
+printf 'printf "this "\necho is a test\nexit\n\0' >"$T/testshellproc"
+chmod 755 "$T/testshellproc"
+PATH=$T:$PATH
+[ "`testshellproc`" = "this is a test" ]

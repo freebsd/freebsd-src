@@ -1,0 +1,39 @@
+#!/usr/bin/perl
+
+# usage: curl --silent https://www.spamhaus.org/drop/drop.txt | $0 > /path/to/spamhaus-drop.rpz.local
+#
+# unbound.conf:
+#  rpz:
+#    name: "drop.spamhaus.org.rpz.local."
+#    zonefile: "/path/tp/spamhaus-drop.rpz.local"
+#    rpz-log: yes
+#    rpz-log-name: "spamhaus-drop"
+#
+
+use strict;
+use vars qw{$o1 $o2 $o3 $o4 $m};
+
+# trailing dots required
+my $origin = 'drop.spamhaus.org.rpz.local.';
+my $mname  = 'localhost.';
+my $rname  = 'root.localhost.';
+my $ns     = $mname;
+
+my  $rpz_action = '.';         # return NXDOMAIN
+#my $rpz_action = '*.';        # return NODATA
+#my $rpz_action = 'rpz-drop.'; # drop the query
+
+print "$origin SOA $mname $rname 1 43200 7200 2419200 3600\n";
+print "$origin NS  $ns\n";
+while(<>) {
+  if(($o1, $o2, $o3, $o4, $m) = m{(\d+)\.(\d+)\.(\d+)\.(\d+)/(\d+)}) {
+    print "$m.$o4.$o3.$o2.$o1.rpz-ip.$origin CNAME $rpz_action\n";
+  } else {
+    print "$_";
+  }
+}
+
+# add a testpoint: ask for "dns.google"
+# print "32.8.8.8.8.rpz-ip.$origin CNAME $rpz_action\n";
+
+exit;

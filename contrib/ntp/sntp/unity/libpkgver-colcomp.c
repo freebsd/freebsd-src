@@ -1,0 +1,1 @@
+#include "../libpkgver/colcomp.c"

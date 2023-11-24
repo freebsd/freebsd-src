@@ -1,0 +1,9 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: DAEMON
+# REQUIRE: NETWORKING SERVERS
+
+#	This is a dummy dependency, to ensure that general purpose daemons
+#	are run _after_ the above are.

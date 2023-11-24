@@ -1,0 +1,5 @@
+#
+# This builds the kld related programs.
+#
+#
+CRUNCH_PROGS_sbin+=	kldload kldunload kldstat

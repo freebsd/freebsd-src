@@ -1,0 +1,100 @@
+# This file contains some CA certificates that are used to sign the
+# certificates of mail servers of members of the sendmail consortium
+# who may reply to questions etc sent to support.sendmail.org.
+# It is useful to allow connections from those MTAs which can present
+# a certificate signed by one of these CA certificates.
+#
+
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            92:a1:3b:d3:90:0b:ea:a7
+    Signature Algorithm: sha256WithRSAEncryption
+        Issuer: C=US, ST=California, L=Berkeley, O=Endmail Org, OU=MTA, CN=CA/emailAddress=ca+ca-rsa2021@esmtp.org
+        Validity
+            Not Before: Feb 25 17:44:02 2021 GMT
+            Not After : Feb 25 17:44:02 2024 GMT
+        Subject: C=US, ST=California, L=Berkeley, O=Endmail Org, OU=MTA, CN=CA/emailAddress=ca+ca-rsa2021@esmtp.org
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (2048 bit)
+                Modulus:
+                    00:cc:8c:39:bd:cf:55:4f:66:2a:78:c7:65:47:81:
+                    dd:d1:3f:08:12:4b:87:40:48:95:5c:24:52:65:a1:
+                    82:1c:f4:90:a1:7c:f7:27:8f:02:e5:cb:ac:89:ae:
+                    b8:25:4e:26:da:14:20:07:29:a4:59:03:61:b4:44:
+                    ae:45:55:b4:72:7d:66:9a:88:de:59:bf:6f:31:23:
+                    06:29:ab:c2:b9:a0:6c:6a:5d:d0:ac:e6:b8:ac:8a:
+                    6f:5e:bb:f3:19:b5:8d:e1:df:2e:d1:7f:1a:bc:2c:
+                    13:10:65:46:7f:68:c7:60:49:c6:30:4e:a0:24:ed:
+                    d4:a8:27:cf:b2:d0:c5:7c:96:47:82:b6:f1:17:0a:
+                    5a:35:82:0b:85:0f:17:71:a9:bd:3a:4c:e6:32:95:
+                    3e:68:f7:3d:f5:04:33:16:19:1e:4c:0a:04:c3:1f:
+                    9e:ba:db:e2:0d:29:c8:3f:29:cf:47:cb:11:db:d2:
+                    cd:d0:26:2f:35:eb:7d:a2:60:18:e7:7b:a2:43:15:
+                    59:d7:ea:9d:38:60:f1:48:df:57:54:df:8a:50:b9:
+                    e3:5c:72:82:51:b7:05:78:c2:14:08:71:71:1c:06:
+                    44:4a:85:73:08:a8:49:50:b2:d2:fb:da:a2:a5:5a:
+                    36:49:a8:4b:38:56:f6:67:0f:12:34:39:cc:fb:9c:
+                    bd:d3
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Subject Key Identifier:
+                86:F0:F9:7A:CD:66:A9:16:CC:A3:26:08:3D:B3:B2:42:C2:E5:A9:13
+            X509v3 Authority Key Identifier:
+                keyid:86:F0:F9:7A:CD:66:A9:16:CC:A3:26:08:3D:B3:B2:42:C2:E5:A9:13
+                DirName:/C=US/ST=California/L=Berkeley/O=Endmail Org/OU=MTA/CN=CA/emailAddress=ca+ca-rsa2021@esmtp.org
+                serial:92:A1:3B:D3:90:0B:EA:A7
+            X509v3 Basic Constraints:
+                CA:TRUE
+            X509v3 Subject Alternative Name:
+                email:ca+ca-rsa2021@esmtp.org
+            X509v3 Issuer Alternative Name:
+                email:ca+ca-rsa2021@esmtp.org
+    Signature Algorithm: sha256WithRSAEncryption
+         41:14:09:49:01:5f:51:ff:20:7b:c2:41:79:9d:11:3c:7c:48:
+         d6:43:d4:c6:0d:55:e6:76:bb:2c:c7:fb:dd:10:53:79:30:1a:
+         35:64:2c:d0:64:b6:5a:fd:a9:d3:e3:09:8c:7d:22:81:b7:71:
+         a6:7d:bf:80:24:79:24:c1:61:6d:54:ab:14:4b:5a:54:cb:75:
+         47:2e:e5:51:6f:cb:91:b6:a7:e8:aa:8d:78:c5:7e:05:56:3b:
+         31:02:bd:0c:e4:af:78:27:7d:6d:bf:fd:0f:0d:2a:00:1d:cc:
+         a2:34:4d:a3:9e:70:45:89:56:2d:d2:35:ee:26:ea:0f:9d:fc:
+         c0:2c:64:f6:55:af:de:e0:72:64:e2:20:8f:e2:f2:e9:e2:6c:
+         3a:0c:45:23:dd:80:57:25:fa:18:bb:25:f8:7e:3c:3b:a7:ef:
+         40:f0:ba:6f:ce:b1:eb:f9:14:03:04:34:3d:e0:43:a6:8d:95:
+         d0:a4:dc:df:e4:79:ce:8d:e2:1e:30:ff:55:0c:e6:9d:e4:1d:
+         62:cc:a5:4f:9a:6f:c0:b4:1f:05:7c:a7:c7:b1:72:58:98:ad:
+         2f:f9:8a:41:0c:48:d5:78:ad:af:eb:ff:59:0b:4a:99:26:5b:
+         e8:8c:e3:e5:6b:01:d9:a0:db:a2:1b:d8:8e:f1:82:38:58:ba:
+         8c:11:65:36
+
+-----BEGIN CERTIFICATE-----
+MIIE4jCCA8qgAwIBAgIJAJKhO9OQC+qnMA0GCSqGSIb3DQEBCwUAMIGOMQswCQYD
+VQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTERMA8GA1UEBwwIQmVya2VsZXkx
+FDASBgNVBAoMC0VuZG1haWwgT3JnMQwwCgYDVQQLDANNVEExCzAJBgNVBAMMAkNB
+MSYwJAYJKoZIhvcNAQkBFhdjYStjYS1yc2EyMDIxQGVzbXRwLm9yZzAeFw0yMTAy
+MjUxNzQ0MDJaFw0yNDAyMjUxNzQ0MDJaMIGOMQswCQYDVQQGEwJVUzETMBEGA1UE
+CAwKQ2FsaWZvcm5pYTERMA8GA1UEBwwIQmVya2VsZXkxFDASBgNVBAoMC0VuZG1h
+aWwgT3JnMQwwCgYDVQQLDANNVEExCzAJBgNVBAMMAkNBMSYwJAYJKoZIhvcNAQkB
+FhdjYStjYS1yc2EyMDIxQGVzbXRwLm9yZzCCASIwDQYJKoZIhvcNAQEBBQADggEP
+ADCCAQoCggEBAMyMOb3PVU9mKnjHZUeB3dE/CBJLh0BIlVwkUmWhghz0kKF89yeP
+AuXLrImuuCVOJtoUIAcppFkDYbRErkVVtHJ9ZpqI3lm/bzEjBimrwrmgbGpd0Kzm
+uKyKb1678xm1jeHfLtF/GrwsExBlRn9ox2BJxjBOoCTt1Kgnz7LQxXyWR4K28RcK
+WjWCC4UPF3GpvTpM5jKVPmj3PfUEMxYZHkwKBMMfnrrb4g0pyD8pz0fLEdvSzdAm
+LzXrfaJgGOd7okMVWdfqnThg8UjfV1TfilC541xyglG3BXjCFAhxcRwGREqFcwio
+SVCy0vvaoqVaNkmoSzhW9mcPEjQ5zPucvdMCAwEAAaOCAT8wggE7MB0GA1UdDgQW
+BBSG8Pl6zWapFsyjJgg9s7JCwuWpEzCBwwYDVR0jBIG7MIG4gBSG8Pl6zWapFsyj
+Jgg9s7JCwuWpE6GBlKSBkTCBjjELMAkGA1UEBhMCVVMxEzARBgNVBAgMCkNhbGlm
+b3JuaWExETAPBgNVBAcMCEJlcmtlbGV5MRQwEgYDVQQKDAtFbmRtYWlsIE9yZzEM
+MAoGA1UECwwDTVRBMQswCQYDVQQDDAJDQTEmMCQGCSqGSIb3DQEJARYXY2ErY2Et
+cnNhMjAyMUBlc210cC5vcmeCCQCSoTvTkAvqpzAMBgNVHRMEBTADAQH/MCIGA1Ud
+EQQbMBmBF2NhK2NhLXJzYTIwMjFAZXNtdHAub3JnMCIGA1UdEgQbMBmBF2NhK2Nh
+LXJzYTIwMjFAZXNtdHAub3JnMA0GCSqGSIb3DQEBCwUAA4IBAQBBFAlJAV9R/yB7
+wkF5nRE8fEjWQ9TGDVXmdrssx/vdEFN5MBo1ZCzQZLZa/anT4wmMfSKBt3Gmfb+A
+JHkkwWFtVKsUS1pUy3VHLuVRb8uRtqfoqo14xX4FVjsxAr0M5K94J31tv/0PDSoA
+HcyiNE2jnnBFiVYt0jXuJuoPnfzALGT2Va/e4HJk4iCP4vLp4mw6DEUj3YBXJfoY
+uyX4fjw7p+9A8LpvzrHr+RQDBDQ94EOmjZXQpNzf5HnOjeIeMP9VDOad5B1izKVP
+mm/AtB8FfKfHsXJYmK0v+YpBDEjVeK2v6/9ZC0qZJlvojOPlawHZoNuiG9iO8YI4
+WLqMEWU2
+-----END CERTIFICATE-----

@@ -1,0 +1,511 @@
+.\"	$OpenBSD: tree.3,v 1.7 2002/06/12 01:09:20 provos Exp $
+.\"
+.\" Copyright 2002 Niels Provos <provos@citi.umich.edu>
+.\" Copyright 2018-2019 Netflix, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Niels Provos.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd October 14, 2019
+.Dt ARB 3
+.Os
+.Sh NAME
+.Nm ARB_PROTOTYPE ,
+.Nm ARB_PROTOTYPE_STATIC ,
+.Nm ARB_PROTOTYPE_INSERT ,
+.Nm ARB_PROTOTYPE_INSERT_COLOR ,
+.Nm ARB_PROTOTYPE_REMOVE ,
+.Nm ARB_PROTOTYPE_REMOVE_COLOR ,
+.Nm ARB_PROTOTYPE_FIND ,
+.Nm ARB_PROTOTYPE_NFIND ,
+.Nm ARB_PROTOTYPE_NEXT ,
+.Nm ARB_PROTOTYPE_PREV ,
+.Nm ARB_PROTOTYPE_MINMAX ,
+.Nm ARB_PROTOTYPE_REINSERT ,
+.Nm ARB_GENERATE ,
+.Nm ARB_GENERATE_STATIC ,
+.Nm ARB_GENERATE_INSERT ,
+.Nm ARB_GENERATE_INSERT_COLOR ,
+.Nm ARB_GENERATE_REMOVE ,
+.Nm ARB_GENERATE_REMOVE_COLOR ,
+.Nm ARB_GENERATE_FIND ,
+.Nm ARB_GENERATE_NFIND ,
+.Nm ARB_GENERATE_NEXT ,
+.Nm ARB_GENERATE_PREV ,
+.Nm ARB_GENERATE_MINMAX ,
+.Nm ARB_GENERATE_REINSERT ,
+.Nm ARB8_ENTRY ,
+.Nm ARB16_ENTRY ,
+.Nm ARB32_ENTRY ,
+.Nm ARB8_HEAD ,
+.Nm ARB16_HEAD ,
+.Nm ARB32_HEAD ,
+.Nm ARB_ALLOCSIZE ,
+.Nm ARB_INITIALIZER ,
+.Nm ARB_ROOT ,
+.Nm ARB_EMPTY ,
+.Nm ARB_FULL ,
+.Nm ARB_CURNODES ,
+.Nm ARB_MAXNODES ,
+.Nm ARB_NEXT ,
+.Nm ARB_PREV ,
+.Nm ARB_MIN ,
+.Nm ARB_MAX ,
+.Nm ARB_FIND ,
+.Nm ARB_NFIND ,
+.Nm ARB_LEFT ,
+.Nm ARB_LEFTIDX ,
+.Nm ARB_RIGHT ,
+.Nm ARB_RIGHTIDX ,
+.Nm ARB_PARENT ,
+.Nm ARB_PARENTIDX ,
+.Nm ARB_GETFREE ,
+.Nm ARB_FREEIDX ,
+.Nm ARB_FOREACH ,
+.Nm ARB_FOREACH_FROM ,
+.Nm ARB_FOREACH_SAFE ,
+.Nm ARB_FOREACH_REVERSE ,
+.Nm ARB_FOREACH_REVERSE_FROM ,
+.Nm ARB_FOREACH_REVERSE_SAFE ,
+.Nm ARB_INIT ,
+.Nm ARB_INSERT ,
+.Nm ARB_REMOVE ,
+.Nm ARB_REINSERT ,
+.Nm ARB_RESET_TREE
+.Nd "array-based red-black trees"
+.Sh SYNOPSIS
+.In sys/arb.h
+.Fn ARB_PROTOTYPE NAME TYPE FIELD CMP
+.Fn ARB_PROTOTYPE_STATIC NAME TYPE FIELD CMP
+.Fn ARB_PROTOTYPE_INSERT NAME TYPE ATTR
+.Fn ARB_PROTOTYPE_INSERT_COLOR NAME TYPE ATTR
+.Fn ARB_PROTOTYPE_REMOVE NAME TYPE ATTR
+.Fn ARB_PROTOTYPE_REMOVE_COLOR NAME TYPE ATTR
+.Fn ARB_PROTOTYPE_FIND NAME TYPE ATTR
+.Fn ARB_PROTOTYPE_NFIND NAME TYPE ATTR
+.Fn ARB_PROTOTYPE_NEXT NAME TYPE ATTR
+.Fn ARB_PROTOTYPE_PREV NAME TYPE ATTR
+.Fn ARB_PROTOTYPE_MINMAX NAME TYPE ATTR
+.Fn ARB_PROTOTYPE_REINSERT NAME TYPE ATTR
+.Fn ARB_GENERATE NAME TYPE FIELD CMP
+.Fn ARB_GENERATE_STATIC NAME TYPE FIELD CMP
+.Fn ARB_GENERATE_INSERT NAME TYPE FIELD CMP ATTR
+.Fn ARB_GENERATE_INSERT_COLOR NAME TYPE FIELD ATTR
+.Fn ARB_GENERATE_REMOVE NAME TYPE FIELD ATTR
+.Fn ARB_GENERATE_REMOVE_COLOR NAME TYPE FIELD ATTR
+.Fn ARB_GENERATE_FIND NAME TYPE FIELD CMP ATTR
+.Fn ARB_GENERATE_NFIND NAME TYPE FIELD CMP ATTR
+.Fn ARB_GENERATE_NEXT NAME TYPE FIELD ATTR
+.Fn ARB_GENERATE_PREV NAME TYPE FIELD ATTR
+.Fn ARB_GENERATE_MINMAX NAME TYPE FIELD ATTR
+.Fn ARB_GENERATE_REINSERT NAME TYPE FIELD CMP ATTR
+.Fn ARB<8|16|32>_ENTRY
+.Fn ARB<8|16|32>_HEAD HEADNAME TYPE
+.Ft "size_t"
+.Fn ARB_ALLOCSIZE "ARB_HEAD *head" "int<8|16|32>_t maxnodes" "struct TYPE *elm"
+.Fn ARB_INITIALIZER "ARB_HEAD *head" "int<8|16|32>_t maxnodes"
+.Ft "struct TYPE *"
+.Fn ARB_ROOT "ARB_HEAD *head"
+.Ft "bool"
+.Fn ARB_EMPTY "ARB_HEAD *head"
+.Ft "bool"
+.Fn ARB_FULL "ARB_HEAD *head"
+.Ft "int<8|16|32>_t"
+.Fn ARB_CURNODES "ARB_HEAD *head"
+.Ft "int<8|16|32>_t"
+.Fn ARB_MAXNODES "ARB_HEAD *head"
+.Ft "struct TYPE *"
+.Fn ARB_NEXT NAME "ARB_HEAD *head" "struct TYPE *elm"
+.Ft "struct TYPE *"
+.Fn ARB_PREV NAME "ARB_HEAD *head" "struct TYPE *elm"
+.Ft "struct TYPE *"
+.Fn ARB_MIN NAME "ARB_HEAD *head"
+.Ft "struct TYPE *"
+.Fn ARB_MAX NAME "ARB_HEAD *head"
+.Ft "struct TYPE *"
+.Fn ARB_FIND NAME "ARB_HEAD *head" "struct TYPE *elm"
+.Ft "struct TYPE *"
+.Fn ARB_NFIND NAME "ARB_HEAD *head" "struct TYPE *elm"
+.Ft "struct TYPE *"
+.Fn ARB_LEFT "struct TYPE *elm" "ARB_ENTRY NAME"
+.Ft "int<8|16|32>_t"
+.Fn ARB_LEFTIDX "struct TYPE *elm" "ARB_ENTRY NAME"
+.Ft "struct TYPE *"
+.Fn ARB_RIGHT "struct TYPE *elm" "ARB_ENTRY NAME"
+.Ft "int<8|16|32>_t"
+.Fn ARB_RIGHTIDX "struct TYPE *elm" "ARB_ENTRY NAME"
+.Ft "struct TYPE *"
+.Fn ARB_PARENT "struct TYPE *elm" "ARB_ENTRY NAME"
+.Ft "int<8|16|32>_t"
+.Fn ARB_PARENTIDX "struct TYPE *elm" "ARB_ENTRY NAME"
+.Ft "struct TYPE *"
+.Fn ARB_GETFREE "ARB_HEAD *head" "FIELD"
+.Ft "int<8|16|32>_t"
+.Fn ARB_FREEIDX "ARB_HEAD *head"
+.Fn ARB_FOREACH VARNAME NAME "ARB_HEAD *head"
+.Fn ARB_FOREACH_FROM "VARNAME" "NAME" "POS_VARNAME"
+.Fn ARB_FOREACH_SAFE "VARNAME" "NAME" "ARB_HEAD *head" "TEMP_VARNAME"
+.Fn ARB_FOREACH_REVERSE VARNAME NAME "ARB_HEAD *head"
+.Fn ARB_FOREACH_REVERSE_FROM "VARNAME" "NAME" "POS_VARNAME"
+.Fn ARB_FOREACH_REVERSE_SAFE "VARNAME" "NAME" "ARB_HEAD *head" "TEMP_VARNAME"
+.Ft void
+.Fn ARB_INIT "struct TYPE *elm" "FIELD" "ARB_HEAD *head" "int<8|16|32>_t maxnodes"
+.Ft "struct TYPE *"
+.Fn ARB_INSERT NAME "ARB_HEAD *head" "struct TYPE *elm"
+.Ft "struct TYPE *"
+.Fn ARB_REMOVE NAME "ARB_HEAD *head" "struct TYPE *elm"
+.Ft "struct TYPE *"
+.Fn ARB_REINSERT NAME "ARB_HEAD *head" "struct TYPE *elm"
+.Ft void
+.Fn ARB_RESET_TREE "ARB_HEAD *head" NAME "int<8|16|32>_t maxnodes"
+.Sh DESCRIPTION
+These macros define data structures for and array-based red-black trees.
+They use a single, continuous chunk of memory, and are useful
+e.g., when the tree needs to be transferred between userspace and kernel.
+.Pp
+In the macro definitions,
+.Fa TYPE
+is the name tag of a user defined structure that must contain a field of type
+.Vt ARB_ENTRY ,
+named
+.Fa ENTRYNAME .
+The argument
+.Fa HEADNAME
+is the name tag of a user defined structure that must be declared
+using the
+.Fn ARB_HEAD
+macro.
+The argument
+.Fa NAME
+has to be a unique name prefix for every tree that is defined.
+.Pp
+The function prototypes are declared with
+.Fn ARB_PROTOTYPE ,
+or
+.Fn ARB_PROTOTYPE_STATIC .
+The function bodies are generated with
+.Fn ARB_GENERATE ,
+or
+.Fn ARB_GENERATE_STATIC .
+See the examples below for further explanation of how these macros are used.
+.Pp
+A red-black tree is a binary search tree with the node color as an
+extra attribute.
+It fulfills a set of conditions:
+.Bl -enum -offset indent
+.It
+Every search path from the root to a leaf consists of the same number of
+black nodes.
+.It
+Each red node (except for the root) has a black parent.
+.It
+Each leaf node is black.
+.El
+.Pp
+Every operation on a red-black tree is bounded as
+.Fn O "lg n" .
+The maximum height of a red-black tree is
+.Fn 2lg "n + 1" .
+.Pp
+.Fn ARB_*
+trees require entries to be allocated as an array, and uses array
+indices to link entries together.
+The maximum number of
+.Fn ARB_*
+tree entries is therefore constrained by the minimum of array size and choice of
+signed integer data type used to store array indices.
+Use
+.Fn ARB_ALLOCSIZE
+to compute the size of memory chunk to allocate.
+.Pp
+A red-black tree is headed by a structure defined by the
+.Fn ARB_HEAD
+macro.
+A
+structure is declared with either of the following:
+.Bd -ragged -offset indent
+.Fn ARB<8|16|32>_HEAD HEADNAME TYPE
+.Va head ;
+.Ed
+.Pp
+where
+.Fa HEADNAME
+is the name of the structure to be defined, and struct
+.Fa TYPE
+is the type of the elements to be inserted into the tree.
+.Pp
+The
+.Fn ARB_HEAD
+variant includes a suffix denoting the signed integer data type size
+.Pq in bits
+used to store array indices.
+For example,
+.Fn ARB_HEAD8
+creates a red-black tree head strucutre with 8-bit signed array indices capable
+of indexing up to 128 entries.
+.Pp
+The
+.Fn ARB_ENTRY
+macro declares a structure that allows elements to be connected in the tree.
+Similarly to the
+.Fn ARB<8|16|32>_HEAD
+macro, the
+.Fn ARB_ENTRY
+variant includes a suffix denoting the signed integer data type size
+.Pq in bits
+used to store array indices.
+Entries should use the same number of bits as the tree head structure they will
+be linked into.
+.Pp
+In order to use the functions that manipulate the tree structure,
+their prototypes need to be declared with the
+.Fn ARB_PROTOTYPE
+or
+.Fn ARB_PROTOTYPE_STATIC
+macro,
+where
+.Fa NAME
+is a unique identifier for this particular tree.
+The
+.Fa TYPE
+argument is the type of the structure that is being managed
+by the tree.
+The
+.Fa FIELD
+argument is the name of the element defined by
+.Fn ARB_ENTRY .
+Individual prototypes can be declared with
+.Fn ARB_PROTOTYPE_INSERT ,
+.Fn ARB_PROTOTYPE_INSERT_COLOR ,
+.Fn ARB_PROTOTYPE_REMOVE ,
+.Fn ARB_PROTOTYPE_REMOVE_COLOR ,
+.Fn ARB_PROTOTYPE_FIND ,
+.Fn ARB_PROTOTYPE_NFIND ,
+.Fn ARB_PROTOTYPE_NEXT ,
+.Fn ARB_PROTOTYPE_PREV ,
+.Fn ARB_PROTOTYPE_MINMAX ,
+and
+.Fn ARB_PROTOTYPE_REINSERT
+in case not all functions are required.
+The individual prototype macros expect
+.Fa NAME ,
+.Fa TYPE ,
+and
+.Fa ATTR
+arguments.
+The
+.Fa ATTR
+argument must be empty for global functions or
+.Fa static
+for static functions.
+.Pp
+The function bodies are generated with the
+.Fn ARB_GENERATE
+or
+.Fn ARB_GENERATE_STATIC
+macro.
+These macros take the same arguments as the
+.Fn ARB_PROTOTYPE
+and
+.Fn ARB_PROTOTYPE_STATIC
+macros, but should be used only once.
+As an alternative individual function bodies are generated with the
+.Fn ARB_GENERATE_INSERT ,
+.Fn ARB_GENERATE_INSERT_COLOR ,
+.Fn ARB_GENERATE_REMOVE ,
+.Fn ARB_GENERATE_REMOVE_COLOR ,
+.Fn ARB_GENERATE_FIND ,
+.Fn ARB_GENERATE_NFIND ,
+.Fn ARB_GENERATE_NEXT ,
+.Fn ARB_GENERATE_PREV ,
+.Fn ARB_GENERATE_MINMAX ,
+and
+.Fn ARB_GENERATE_REINSERT
+macros.
+.Pp
+Finally,
+the
+.Fa CMP
+argument is the name of a function used to compare tree nodes
+with each other.
+The function takes two arguments of type
+.Vt "struct TYPE *" .
+If the first argument is smaller than the second, the function returns a
+value smaller than zero.
+If they are equal, the function returns zero.
+Otherwise, it should return a value greater than zero.
+The compare
+function defines the order of the tree elements.
+.Pp
+The
+.Fn ARB_INIT
+macro initializes the tree referenced by
+.Fa head ,
+with the array length of
+.Fa maxnodes .
+.Pp
+The red-black tree can also be initialized statically by using the
+.Fn ARB_INITIALIZER
+macro:
+.Bd -ragged -offset indent
+.Fn ARB<8|16|32>_HEAD HEADNAME TYPE
+.Va head
+=
+.Fn ARB_INITIALIZER &head maxnodes ;
+.Ed
+.Pp
+The
+.Fn ARB_INSERT
+macro inserts the new element
+.Fa elm
+into the tree.
+.Pp
+The
+.Fn ARB_REMOVE
+macro removes the element
+.Fa elm
+from the tree pointed by
+.Fa head .
+.Pp
+The
+.Fn ARB_FIND
+and
+.Fn ARB_NFIND
+macros can be used to find a particular element in the tree.
+.Bd -literal -offset indent
+struct TYPE find, *res;
+find.key = 30;
+res = ARB_FIND(NAME, head, &find);
+.Ed
+.Pp
+The
+.Fn ARB_ROOT ,
+.Fn ARB_MIN ,
+.Fn ARB_MAX ,
+.Fn ARB_NEXT ,
+and
+.Fn ARB_PREV
+macros can be used to traverse the tree:
+.Pp
+.Dl "for (np = ARB_MIN(NAME, &head); np != NULL; np = ARB_NEXT(NAME, &head, np))"
+.Pp
+Or, for simplicity, one can use the
+.Fn ARB_FOREACH
+or
+.Fn ARB_FOREACH_REVERSE
+macro:
+.Bd -ragged -offset indent
+.Fn ARB_FOREACH np NAME head
+.Ed
+.Pp
+The macros
+.Fn ARB_FOREACH_SAFE
+and
+.Fn ARB_FOREACH_REVERSE_SAFE
+traverse the tree referenced by head
+in a forward or reverse direction respectively,
+assigning each element in turn to np.
+However, unlike their unsafe counterparts,
+they permit both the removal of np
+as well as freeing it from within the loop safely
+without interfering with the traversal.
+.Pp
+Both
+.Fn ARB_FOREACH_FROM
+and
+.Fn ARB_FOREACH_REVERSE_FROM
+may be used to continue an interrupted traversal
+in a forward or reverse direction respectively.
+The head pointer is not required.
+The pointer to the node from where to resume the traversal
+should be passed as their last argument,
+and will be overwritten to provide safe traversal.
+.Pp
+The
+.Fn ARB_EMPTY
+macro should be used to check whether a red-black tree is empty.
+.Pp
+Given that ARB trees have an intrinsic upper bound on the number of entries,
+some ARB-specific additional macros are defined.
+The
+.Fn ARB_FULL
+macro returns a boolean indicating whether the current number of tree entries
+equals the tree's maximum.
+The
+.Fn ARB_CURNODES
+and
+.Fn ARB_MAXNODES
+macros return the current and maximum number of entries respectively.
+The
+.Fn ARB_GETFREE
+macro returns a pointer to the next free entry in the array of entries, ready to
+be linked into the tree.
+The
+.Fn ARB_INSERT
+returns
+.Dv NULL
+if the element was inserted in the tree successfully, otherwise they
+return a pointer to the element with the colliding key.
+.Pp
+Accordingly,
+.Fn ARB_REMOVE
+returns the pointer to the removed element otherwise they return
+.Dv NULL
+to indicate an error.
+.Pp
+The
+.Fn ARB_REINSERT
+macro updates the position of the element
+.Fa elm
+in the tree.
+This must be called if a member of a
+.Nm tree
+is modified in a way that affects comparison, such as by modifying
+a node's key.
+This is a lower overhead alternative to removing the element
+and reinserting it again.
+.Pp
+The
+.Fn ARB_RESET_TREE
+macro discards the tree topology.
+It does not modify embedded object values or the free list.
+.Sh SEE ALSO
+.Xr queue 3 ,
+.Xr tree 3
+.Sh HISTORY
+The
+.Nm ARB
+macros first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+The
+.Nm ARB
+macros were implemented by
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org ,
+based on
+.Xr tree 3
+macros written by
+.An Niels Provos .

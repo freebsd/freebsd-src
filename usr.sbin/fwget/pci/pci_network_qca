@@ -1,0 +1,81 @@
+#-
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright 2023 Bjoern A. Zeeb
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+
+# ath10k
+pci_network_qca_ath10k()
+{
+
+	# awk '/DEVICE_ID[[:space:]]/ { gsub("[()]", "", $3); printf "%s)\taddpkg \"wifi-firmware-ath10k-kmod\"; return 1 ;;\n", tolower($3) }' hw.h
+	# We ignore the ubiquity entry for now.
+        case "$1" in
+	0x003c)	addpkg "wifi-firmware-ath10k-kmod"; return 1 ;;
+	0x0041)	addpkg "wifi-firmware-ath10k-kmod"; return 1 ;;
+	0x003e)	addpkg "wifi-firmware-ath10k-kmod"; return 1 ;;
+	0x0042)	addpkg "wifi-firmware-ath10k-kmod"; return 1 ;;
+	0x0040)	addpkg "wifi-firmware-ath10k-kmod"; return 1 ;;
+	0x0056)	addpkg "wifi-firmware-ath10k-kmod"; return 1 ;;
+	0x0046)	addpkg "wifi-firmware-ath10k-kmod"; return 1 ;;
+	0x0042)	addpkg "wifi-firmware-ath10k-kmod"; return 1 ;;
+	0x0050)	addpkg "wifi-firmware-ath10k-kmod"; return 1 ;;
+	esac
+}
+
+# ath11k
+pci_network_qca_ath11k()
+{
+
+	# awk '/DEVICE_ID[[:space:]]/ { gsub("[()]", "", $3); printf "%s)\taddpkg \"wifi-firmware-ath11k-kmod\"; return 1 ;;\n", tolower($3) }' pci.c
+        case "$1" in
+	0x1101)	addpkg "wifi-firmware-ath11k-kmod"; return 1 ;;
+	0x1104)	addpkg "wifi-firmware-ath11k-kmod"; return 1 ;;
+	0x1103)	addpkg "wifi-firmware-ath11k-kmod"; return 1 ;;
+	esac
+}
+
+# ath12k
+pci_network_qca_ath12k()
+{
+	# No ath12k firmware package yet
+	return 0
+
+	# awk '/DEVICE_ID[[:space:]]/ { gsub("[()]", "", $3); printf "%s)\taddpkg \"wifi-firmware-ath12k-kmod\"; return 1 ;;\n", tolower($3) }' pci.c
+        case "$1" in
+	0x1109)	addpkg "wifi-firmware-ath12k-kmod"; return 1 ;;
+	0x1107)	addpkg "wifi-firmware-ath12k-kmod"; return 1 ;;
+	esac
+}
+
+pci_network_qca()
+{
+
+	for _drv in ath10k ath11k; do
+		pci_network_qca_${_drv} "$1"
+		case $? in
+		1)	break ;;
+		esac
+	done
+}

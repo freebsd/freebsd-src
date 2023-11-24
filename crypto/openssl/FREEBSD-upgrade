@@ -1,0 +1,130 @@
+	    FreeBSD maintainer's guide to OpenSSL
+	    =====================================
+
+    These instructions assume you have a clone of the FreeBSD git repo
+    main branch in src/freebsd/main, and will store vendor trees under
+    src/freebsd/vendor/. In addition, this assumes there is a "freebsd"
+    origin pointing to git(repo).freebsd.org/src.git.
+
+01) Switch to the vendor branch:
+
+    $ cd src/freebsd/main
+    $ git worktree add ../vendor/openssl-X.Y freebsd/vendor/openssl-X.Y
+    $ cd ../vendor/openssl-X.Y
+
+02) Download the latest OpenSSL tarball and signature from the official
+    website (https://www.openssl.org/source/).
+
+    $ (cd .. && fetch https://openssl.org/source/openssl-X.Y.Z.tar.gz)
+    $ (cd .. && fetch https://openssl.org/source/openssl-X.Y.Z.tar.gz.asc)
+
+03) Verify the signature:
+
+    $ gpg --verify ../openssl-X.Y.Z.tar.gz.asc ../openssl-X.Y.Z.tar.gz
+
+04) Unpack the OpenSSL tarball to the parent directory:
+
+    $ tar -x -X FREEBSD-Xlist -f ../openssl-X.Y.Z.tar.gz -C ..
+
+05) Copy to the vendor branch:
+
+    $ rsync --exclude FREEBSD.* --delete -av ../openssl-X.Y.Z/* .
+
+06) Take care of added / deleted files:
+
+    $ git add -A
+
+07) Commit:
+
+    $ git commit -m "openssl: Vendor import of OpenSSL X.Y.Z"
+
+08) Tag:
+
+    $ git tag -a -m "Tag OpenSSL X.Y.Z" vendor/openssl/X.Y.Z
+
+    At this point the vendor branch can be pushed to the FreeBSD repo via:
+
+    $ git push freebsd vendor/openssl-X.Y
+    $ git push freebsd vendor/openssl/X.Y.Z
+
+    Note the second "git push" command is used to push the tag, which is
+    not pushed by default.
+
+    It is also possible to push the branch and tag together, but use
+    --dry-run first to ensure that no undesired tags will be pushed:
+
+    $ git push --dry-run --follow-tags freebsd vendor/openssl-X.Y
+    $ git push --follow-tags freebsd vendor/openssl-X.Y
+
+    The update and tag could instead be pushed later, along with the merge
+    to main, but pushing now allows others to collaborate.
+
+09) Merge from the vendor branch:
+
+    $ git subtree merge -P crypto/openssl vendor/openssl-X.Y
+
+    A number of files have been deleted from FreeBSD's copy of OpenSSL.
+    If git prompts for these deleted files during the merge, choose 'd'
+    (leaving them deleted).
+
+10) Resolve conflicts. Remember to bump the version and date in
+    secure/lib/libcrypto/Makefile.inc and
+    crypto/openssl/include/openssl/opensslv.h.
+
+11) Diff against the vendor branch:
+
+    $ git diff --diff-filter=M vendor/openssl/X.Y.Z HEAD:crypto/openssl
+
+    Review the diff for any unexpected changes.
+
+12) Re-generate the assembly files:
+
+    $ cd secure/lib/libcrypto
+    $ make cleanasm buildasm
+
+13) Update the appropriate makefiles to reflect changes in the vendor's
+    build.info files. This is especially important if source files have
+    been added or removed. Keep in mind that the assembly files generated
+    belong to sys/crypto/openssl, and will therefore affect the kernel as
+    well.
+
+14) If symbols have been added or removed, update the appropriate
+    Version.map to reflect these changes.
+
+15) Compare compilation flags, the list of files built and included, the
+    list of symbols generated with the corresponding port if available.
+
+16) Re-generate the manual files:
+
+    $ tar xzf openssl-X.Y.Z.tar.gz
+    $ (cd openssl-X.Y.Z && ./Configure --prefix=/usr --openssldir=/etc/ssl &&
+       make build_man_docs)
+    [...]
+    $ find openssl-X.Y.Z/doc/man/man1 -name '*.1' -exec cp {} secure/usr.bin/openssl/man/ \;
+    $ find openssl-X.Y.Z/doc/man/man3 -name '*.3' -exec cp {} secure/lib/libcrypto/man/man3/ \;
+    $ find openssl-X.Y.Z/doc/man/man5 -name '*.5' -exec cp {} secure/lib/libcrypto/man/man5/ \;
+    $ find openssl-X.Y.Z/doc/man/man7 -name '*.7' -exec cp {} secure/lib/libcrypto/man/man7/ \;
+    $ grep -nrF usr/local secure/lib/libcrypto/man secure/usr.bin/openssl/man
+    [correct the references to the prefix and OpenSSL directories]
+    $ git commit --amend secure/lib/libcrypto/man secure/usr.bin/openssl/man
+
+    Review the diff and tree status for anything requiring attention.
+
+16) Build and install world, reboot, test.
+
+17) Test the legacy and fips providers as well: (here with "test" as the password)
+
+    $ echo test | openssl rc4 -provider legacy -e -a -pbkdf2
+    enter RC4 encryption password:
+    Verifying - enter RC4 encryption password:
+    U2FsdGVkX1+JvhqxLMOvlxvTi1/h
+
+    # openssl fipsinstall -out /etc/ssl/fipsmodule.cnf -module /usr/lib/ossl-modules/fips.so
+    INSTALL PASSED
+    # vi /etc/ssl/openssl.cnf
+    [enable the FIPS module]
+    # echo test | openssl aes-256-cbc -provider fips -e -a -pbkdf2
+    U2FsdGVkX19lTexiYsnMX83ZLSojBOFwv7GB0Plhgmw=
+
+18) Commit and hope you did not miss anything.
+

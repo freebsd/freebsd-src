@@ -1,0 +1,21 @@
+#!/bin/sh
+#-
+# SPDX-License-Identifier: CC0-1.0
+#
+# Written in 2021 by Alfonso Sabato Siciliano.
+# To the extent possible under law, the author has dedicated all copyright
+# and related and neighboring rights to this software to the public domain
+# worldwide. This software is distributed without any warranty, see:
+#     <http://creativecommons.org/publicdomain/zero/1.0/>.
+
+libpath=../lib
+examples="menu checklist radiolist mixedlist theme infobox yesno msgbox \
+	datebox form timebox rangebox pause calendar gauge mixedgauge"
+
+rm -f $examples
+
+for e in $examples
+do
+	cc -g -Wall -Wextra -I$libpath ${e}.c -o $e -L$libpath -lbsddialog \
+	-Wl,-rpath=$libpath
+done

@@ -1,0 +1,114 @@
+.\"
+.\" Copyright (c) 2020 Takanori Watanabe <takawata@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd March 15, 2020
+.Dt pchtherm 4
+.Os
+.Sh NAME
+.Nm pchtherm
+.Nd Intel PCH thermal subsystem
+.Sh SYNOPSIS
+.Cd "device pci"
+.Cd "device pchtherm"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides access to sensor data and configuration
+installed in Intel PCH chipset.
+.Nm
+configuration register.
+.Pp
+The access to
+.Nm
+data is made via the
+.Xr sysctl 8
+interface:
+.Bd -literal
+dev.pchtherm.0.ctt: 115.0C
+dev.pchtherm.0.temperature: 28.5C
+dev.pchtherm.0.t2temp: 91.0C
+dev.pchtherm.0.t1temp: 86.0C
+dev.pchtherm.0.t0temp: 81.0C
+dev.pchtherm.0.tahv: 83.0C
+dev.pchtherm.0.talv: 30.0C
+dev.pchtherm.0.pmtime: 32
+dev.pchtherm.0.pmtemp: 50.0C
+dev.pchtherm.0.%parent: pci0
+dev.pchtherm.0.%pnpinfo: vendor=0x8086 device=0x9d31 subvendor=0x17aa subdevice=0x2256 class=0x118000
+dev.pchtherm.0.%location: slot=20 function=2 dbsf=pci0:0:20:2
+dev.pchtherm.0.%driver: pchtherm
+dev.pchtherm.0.%desc: Skylake PCH Thermal Subsystem
+dev.pchtherm.%parent:
+.Ed
+.Bl -tag -width ".Va dev.pchtherm.%d.pch_hot_level"
+.It Va dev.pchtherm.%d.temperature
+Is the read-only value of the current temperature read by the sensor.
+.It Va dev.pchtherm.%d.ctt
+When the system reaches this temperature, it will shut down.
+This will not appear when this feature is disabled and locked down.
+.It Va dev.pchtherm.%d.t0temp
+When temperature is under this value, system will be in T0 state.
+.It Va dev.pchtherm.%d.t1temp
+When temperature is over
+.Va t0temp
+and under this value, system will be in T1 state.
+.It Va dev.pchtherm.%d.t2temp
+When temperature is over
+.Va t1temp
+and under this value, system will be in T2 state.
+Over this value, system will be in T3 state.
+.It Va dev.pchtherm.%d.talv
+Lower alart value.
+This will not appear when sensor enable bit is locked down and the value is zero(which will show -50.0C).
+.It Va dev.pchtherm.%d.tahv
+High alart value.
+This will not appear when sensor enable bit is locked down and the value is zero(which will show -50.0C).
+.It Va dev.pchtherm.%d.pmtemp
+Sensor Power management temperature.
+Under this temperature, sensor will idle during
+.Va pmtime
+second.
+.It Va dev.pchtherm.%d.pmtime
+Sensor idle duration when low temperature.
+.It Va dev.pchtherm.%d.pch_hot_level
+When temperature is higher than this value, PCHHOT# pin will assert.
+This value is not appear when this feature is disabled and locked down.
+.El
+.Pp
+Please check the PCH datasheets for more details.
+.Sh CAVEATS
+All values are read-only.
+And it do not support event interrupt for now.
+.Sh SEE ALSO
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver and this manual page were written by
+.An Takanori Watanabe Aq Mt takawata@FreeBSD.org .
