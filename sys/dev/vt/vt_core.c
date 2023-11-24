@@ -274,6 +274,8 @@ SYSINIT(vt_update_static, SI_SUB_KMEM, SI_ORDER_ANY, vt_update_static,
 SYSINIT(vt_early_cons, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_ANY, vt_upgrade,
     &vt_consdev);
 
+static bool inside_vt_flush = false;
+
 /* Initialize locks/mem depended members. */
 static void
 vt_update_static(void *dummy)
@@ -1344,6 +1346,9 @@ vt_flush(struct vt_device *vd)
 	int cursor_was_shown, cursor_moved;
 #endif
 
+	if (inside_vt_flush && KERNEL_PANICKED())
+		return (0);
+
 	vw = vd->vd_curwindow;
 	if (vw == NULL)
 		return (0);
@@ -1356,6 +1361,8 @@ vt_flush(struct vt_device *vd)
 		return (0);
 
 	vtbuf_lock(&vw->vw_buf);
+
+	inside_vt_flush = true;
 
 #ifndef SC_NO_CUTPASTE
 	cursor_was_shown = vd->vd_mshown;
@@ -1414,10 +1421,12 @@ vt_flush(struct vt_device *vd)
 
 	if (tarea.tr_begin.tp_col < tarea.tr_end.tp_col) {
 		vd->vd_driver->vd_bitblt_text(vd, vw, &tarea);
+		inside_vt_flush = false;
 		vtbuf_unlock(&vw->vw_buf);
 		return (1);
 	}
 
+	inside_vt_flush = false;
 	vtbuf_unlock(&vw->vw_buf);
 	return (0);
 }
@@ -1444,6 +1453,9 @@ vtterm_pre_input(struct terminal *tm)
 {
 	struct vt_window *vw = tm->tm_softc;
 
+	if (inside_vt_flush && KERNEL_PANICKED())
+		return;
+
 	vtbuf_lock(&vw->vw_buf);
 }
 
@@ -1451,6 +1463,9 @@ static void
 vtterm_post_input(struct terminal *tm)
 {
 	struct vt_window *vw = tm->tm_softc;
+
+	if (inside_vt_flush && KERNEL_PANICKED())
+		return;
 
 	vtbuf_unlock(&vw->vw_buf);
 	vt_resume_flush_timer(vw, 0);
