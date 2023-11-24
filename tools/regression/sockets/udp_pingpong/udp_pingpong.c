@@ -34,7 +34,6 @@
  * sure it makes sense.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/wait.h>

@@ -89,7 +89,6 @@
  * XXXRW: message queue and shared memory fds?
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/mount.h>

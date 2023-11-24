@@ -31,7 +31,6 @@
  * whether or not they return the expected ECAPMODE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #include <sys/capsicum.h>

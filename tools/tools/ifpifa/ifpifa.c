@@ -28,7 +28,7 @@
 
 #include <sys/types.h>
 #include <sys/callout.h>
-#include <sys/cdefs.h>
+
 #include <sys/param.h>
 #include <sys/protosw.h>
 #include <sys/queue.h>

@@ -28,7 +28,6 @@
  * Test utility for IPv4 broadcast sockets.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>

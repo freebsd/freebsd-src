@@ -38,7 +38,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/disk.h>
 #include <sys/ioctl.h>
