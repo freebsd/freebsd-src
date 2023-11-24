@@ -38,9 +38,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#endif
-#include <sys/cdefs.h>
 #define _WANT_P_OSREL
 #include <sys/param.h>
 #include <sys/disklabel.h>
