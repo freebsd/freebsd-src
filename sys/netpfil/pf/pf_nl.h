@@ -41,6 +41,7 @@ enum {
 	PFNL_CMD_START = 3,
 	PFNL_CMD_STOP = 4,
 	PFNL_CMD_ADDRULE = 5,
+	PFNL_CMD_GETRULES = 6,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -230,6 +231,14 @@ enum pf_addrule_type_t {
 	PF_ART_ANCHOR		= 3, /* string */
 	PF_ART_ANCHOR_CALL	= 4, /* string */
 	PF_ART_RULE		= 5, /* nested, pfrule_type_t */
+};
+
+enum pf_getrules_type_t {
+	PF_GR_UNSPEC,
+	PF_GR_ANCHOR		= 1, /* string */
+	PF_GR_ACTION		= 2, /* u8 */
+	PF_GR_NR		= 3, /* u32 */
+	PF_GR_TICKET		= 4, /* u32 */
 };
 
 #ifdef _KERNEL

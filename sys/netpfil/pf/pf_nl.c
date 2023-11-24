@@ -635,7 +635,64 @@ pf_handle_addrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (error);
 }
 
-static const struct nlhdr_parser *all_parsers[] = { &state_parser, &addrule_parser };
+struct nl_parsed_getrules {
+	char		*anchor;
+	uint8_t		 action;
+};
+#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
+#define	_OUT(_field)	offsetof(struct pfioc_rule, _field)
+static const struct nlattr_parser nla_p_getrules[] = {
+	{ .type = PF_GR_ANCHOR, .off = _OUT(anchor), .arg = (void *)MAXPATHLEN, .cb = nlattr_get_chara },
+	{ .type = PF_GR_ACTION, .off = _OUT(rule.action), .cb = nlattr_get_uint8 },
+};
+static const struct nlfield_parser nlf_p_getrules[] = {
+};
+NL_DECLARE_PARSER(getrules_parser, struct genlmsghdr, nlf_p_getrules, nla_p_getrules);
+
+static int
+pf_handle_getrules(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pfioc_rule attrs = {};
+	int error;
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+
+	error = nl_parse_nlmsg(hdr, &getrules_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_GETRULES;
+	ghdr_new->version = 0;
+	ghdr_new->reserved = 0;
+
+	error = pf_ioctl_getrules(&attrs);
+	if (error != 0)
+		goto out;
+
+	nlattr_add_u32(nw, PF_GR_NR, attrs.nr);
+	nlattr_add_u32(nw, PF_GR_TICKET, attrs.ticket);
+
+	if (!nlmsg_end(nw)) {
+		error = ENOMEM;
+		goto out;
+	}
+
+	return (0);
+
+out:
+	nlmsg_abort(nw);
+	return (error);
+}
+
+static const struct nlhdr_parser *all_parsers[] = {
+	&state_parser,
+	&addrule_parser,
+	&getrules_parser
+};
 
 static int family_id;
 
@@ -670,7 +727,12 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_cb = pf_handle_addrule,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 	},
-
+	{
+		.cmd_num = PFNL_CMD_GETRULES,
+		.cmd_name = "GETRULES",
+		.cmd_cb = pf_handle_getrules,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+	},
 };
 
 void
