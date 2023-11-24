@@ -232,7 +232,8 @@ echo "Differences for real update:"
 diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out \
     || FAILED=yes
 
-file /etc/localtime "foo"
-file /var/db/zoneinfo "foo"
+# XXX tzsetup installs a symlink as of 5e16809c953f
+#file /etc/localtime "foo"
+#file /var/db/zoneinfo "foo"
 
 [ "${FAILED}" = no ]
