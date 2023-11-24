@@ -14,7 +14,6 @@
  * purpose.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #include <btxv86.h>

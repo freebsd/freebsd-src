@@ -7,7 +7,6 @@
  *	must be included extraneously.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

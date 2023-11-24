@@ -32,7 +32,7 @@
 
 #include <stdarg.h>
 #include <stdbool.h>
-#include <sys/cdefs.h>
+
 #include <sys/param.h>
 #include <sys/disk/bsd.h>
 #include <efi.h>

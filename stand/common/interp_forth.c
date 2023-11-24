@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>		/* to pick up __FreeBSD_version */
 #include <string.h>
 #include <stand.h>

@@ -60,7 +60,6 @@
  * Prototypes for Open Firmware Interface Routines
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 typedef uint32_t		ihandle_t;

@@ -19,7 +19,6 @@
  * purpose.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <machine/elf.h>
 #include <machine/stdarg.h>
