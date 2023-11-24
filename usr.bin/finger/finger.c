@@ -42,16 +42,6 @@
  *	login time is < 6 days.
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1989, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#if 0
-#endif
-
-#include <sys/cdefs.h>
 /*
  * Finger prints out information about users.  It is not portable since
  * certain fields (e.g. the full user name, office, and phone numbers) are

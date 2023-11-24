@@ -33,15 +33,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static char copyright[] =
-"@(#) Copyright (c) 1989, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#endif
-
 /*
  * PURPOSE:	sorted list compressor (works with a modified 'find'
  *		to encode/decode a filename database)

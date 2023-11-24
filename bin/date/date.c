@@ -29,15 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static char const copyright[] =
-"@(#) Copyright (c) 1985, 1987, 1988, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#if 0
-#endif
-
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/time.h>

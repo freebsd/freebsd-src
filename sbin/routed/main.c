@@ -35,9 +35,6 @@
 #include <fcntl.h>
 #include <sys/file.h>
 
-__COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993 "
-	    "The Regents of the University of California."
-	    "  All rights reserved.");
 pid_t	mypid;
 
 naddr	myaddr;				/* system address */

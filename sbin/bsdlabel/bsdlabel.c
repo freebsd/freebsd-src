@@ -42,15 +42,6 @@
  *	from: $NetBSD: disksubr.c,v 1.13 2000/12/17 22:39:18 pk $
  */
 
-#if 0
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1987, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#endif
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <stdint.h>
 #include <sys/file.h>

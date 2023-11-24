@@ -45,14 +45,6 @@
  *
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 2000 Christoph Herrmann, Thomas-Henning von Kamptz\n\
-Copyright (c) 1980, 1989, 1993 The Regents of the University of California.\n\
-All rights reserved.\n";
-#endif /* not lint */
-
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>

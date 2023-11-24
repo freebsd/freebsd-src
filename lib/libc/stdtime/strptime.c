@@ -37,14 +37,6 @@
  * official policies, either expressed or implied, of Powerdog Industries.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#ifndef NOID
-static char copyright[] __unused =
-"@(#) Copyright (c) 1994 Powerdog Industries.  All rights reserved.";
-static char sccsid[] __unused = "@(#)strptime.c	0.1 (Powerdog) 94/03/27";
-#endif /* !defined NOID */
-#endif /* not lint */
 #include "namespace.h"
 #include <time.h>
 #include <ctype.h>

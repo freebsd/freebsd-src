@@ -32,12 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static char copyright[] =
-"@(#) Copyright (c) 1991, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/file.h>
 #include <stdio.h>

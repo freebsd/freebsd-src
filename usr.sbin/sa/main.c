@@ -30,14 +30,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1994 Christopher G. Demetriou\n\
- All rights reserved.\n";
-#endif
-#endif
-#include <sys/cdefs.h>
 /*
  * sa:	system accounting
  */

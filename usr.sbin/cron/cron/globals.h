@@ -30,9 +30,6 @@
 XTRN const char *copyright[]
 #ifdef MAIN_PROGRAM
 	= {
-		"@(#) Copyright 1988,1989,1990,1993,1994 by Paul Vixie",
-		"@(#) Copyright 1997 by Internet Software Consortium",
-		"@(#) All rights reserved",
 		NULL
 	}
 #endif

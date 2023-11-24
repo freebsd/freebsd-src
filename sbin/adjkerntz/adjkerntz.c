@@ -26,14 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static const char copyright[] =
-"@(#)Copyright (C) 1993-1996 by Andrey A. Chernov, Moscow, Russia.\n\
- All rights reserved.\n";
-#endif /* not lint */
-#endif
-#include <sys/cdefs.h>
 /*
  * Andrey A. Chernov   <ache@astral.msk.su>    Dec 20 1993
  *
