@@ -26,7 +26,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/capsicum.h>
 
 #include <capsicum_helpers.h>

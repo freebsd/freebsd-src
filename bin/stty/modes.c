@@ -27,9 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <string.h>
 #include "stty.h"
