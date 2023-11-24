@@ -126,7 +126,6 @@ also menu-namespace also menu-command-helpers
 	s" set kern.smp.disabled=1" evaluate
 	s" set hw.ata.ata_dma=0" evaluate
 	s" set hw.ata.atapi_dma=0" evaluate
-	s" set hw.ata.wc=0" evaluate
 	s" set kern.eventtimer.periodic=1" evaluate
 	s" set kern.geom.part.check_integrity=0" evaluate
 ;
@@ -135,7 +134,6 @@ also menu-namespace also menu-command-helpers
 	s" kern.smp.disabled" unsetenv
 	s" hw.ata.ata_dma" unsetenv
 	s" hw.ata.atapi_dma" unsetenv
-	s" hw.ata.wc" unsetenv
 	s" kern.eventtimer.periodic" unsetenv
 	s" kern.geom.part.check_integrity" unsetenv
 ;
