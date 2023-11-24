@@ -275,6 +275,7 @@ SYSINIT(vt_early_cons, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_ANY, vt_upgrade,
     &vt_consdev);
 
 static bool inside_vt_flush = false;
+static bool inside_vt_window_switch = false;
 
 /* Initialize locks/mem depended members. */
 static void
@@ -564,6 +565,11 @@ vt_window_switch(struct vt_window *vw)
 	struct vt_window *curvw = vd->vd_curwindow;
 	keyboard_t *kbd;
 
+	if (inside_vt_window_switch && KERNEL_PANICKED())
+		return (0);
+
+	inside_vt_window_switch = true;
+
 	if (kdb_active) {
 		/*
 		 * When grabbing the console for the debugger, avoid
@@ -575,13 +581,16 @@ vt_window_switch(struct vt_window *vw)
 		 */
 		if (curvw == vw)
 			return (0);
-		if (!(vw->vw_flags & (VWF_OPENED|VWF_CONSOLE)))
+		if (!(vw->vw_flags & (VWF_OPENED|VWF_CONSOLE))) {
+			inside_vt_window_switch = false;
 			return (EINVAL);
+		}
 
 		vd->vd_curwindow = vw;
 		vd->vd_flags |= VDF_INVALID;
 		if (vd->vd_driver->vd_postswitch)
 			vd->vd_driver->vd_postswitch(vd);
+		inside_vt_window_switch = false;
 		return (0);
 	}
 
@@ -595,10 +604,12 @@ vt_window_switch(struct vt_window *vw)
 		if ((kdb_active || KERNEL_PANICKED()) &&
 		    vd->vd_driver->vd_postswitch)
 			vd->vd_driver->vd_postswitch(vd);
+		inside_vt_window_switch = false;
 		VT_UNLOCK(vd);
 		return (0);
 	}
 	if (!(vw->vw_flags & (VWF_OPENED|VWF_CONSOLE))) {
+		inside_vt_window_switch = false;
 		VT_UNLOCK(vd);
 		return (EINVAL);
 	}
@@ -627,6 +638,7 @@ vt_window_switch(struct vt_window *vw)
 	mtx_unlock(&Giant);
 	DPRINTF(10, "%s(ttyv%d) done\n", __func__, vw->vw_number);
 
+	inside_vt_window_switch = false;
 	return (0);
 }
 
