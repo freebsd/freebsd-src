@@ -645,6 +645,11 @@ but specific to the pool
 Set to a list of extra scripts that should be run after all other
 daily scripts.
 All scripts must be absolute path names.
+.It Va daily_diff_flags
+.Pq Vt str
+Set to the arguments to pass to the
+.Xr diff 1
+utility when generating differences.
 .El
 .Pp
 The following variables are used by the standard scripts that reside in
