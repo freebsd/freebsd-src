@@ -2707,6 +2707,15 @@ device_set_unit(device_t dev, int unit)
  * Some useful method implementations to make life easier for bus drivers.
  */
 
+/**
+ * @brief Initialize a resource mapping request
+ *
+ * This is the internal implementation of the public API
+ * resource_init_map_request.  Callers may be using a different layout
+ * of struct resource_map_request than the kernel, so callers pass in
+ * the size of the structure they are using to identify the structure
+ * layout.
+ */
 void
 resource_init_map_request_impl(struct resource_map_request *args, size_t sz)
 {
@@ -2715,6 +2724,18 @@ resource_init_map_request_impl(struct resource_map_request *args, size_t sz)
 	args->memattr = VM_MEMATTR_DEVICE;
 }
 
+/**
+ * @brief Validate a resource mapping request
+ *
+ * Translate a device driver's mapping request (@p in) to a struct
+ * resource_map_request using the current structure layout (@p out).
+ * In addition, validate the offset and length from the mapping
+ * request against the bounds of the resource @p r.  If the offset or
+ * length are invalid, fail with EINVAL.  If the offset and length are
+ * valid, the absolute starting address of the requested mapping is
+ * returned in @p startp and the length of the requested mapping is
+ * returned in @p lengthp.
+ */
 int
 resource_validate_map_request(struct resource *r,
     struct resource_map_request *in, struct resource_map_request *out,
