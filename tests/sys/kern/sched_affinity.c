@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
-#include <sys/cdefs.h>
+
 #include <sys/types.h>
 #include <sys/stdint.h>
 #include <sys/sysctl.h>
