@@ -29,14 +29,6 @@
  * SUCH DAMAGE.
  */
 
-
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1980, 1988, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif
-
-
 #include <err.h>
 #include <stdbool.h>
 #include <stdio.h>

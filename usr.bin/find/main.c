@@ -32,12 +32,6 @@
  * SUCH DAMAGE.
  */
 
-static const char copyright[] =
-"@(#) Copyright (c) 1990, 1993, 1994\n\
-	The Regents of the University of California.  All rights reserved.\n";
-
-
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 

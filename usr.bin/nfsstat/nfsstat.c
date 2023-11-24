@@ -60,15 +60,6 @@
  */
 
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1983, 1989, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-#endif /* not lint */
-
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/mount.h>

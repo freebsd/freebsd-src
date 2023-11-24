@@ -50,20 +50,6 @@
 #endif
 
 #define UNUSED __attribute__((unused))
-#ifndef __COPYRIGHT
-#define __COPYRIGHT(_s) static const char copyright[] UNUSED = _s
-#endif
-__COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993\n"
-	    "The Regents of the University of California."
-	    "  All rights reserved.\n");
-#ifdef __NetBSD__
-__RCSID("$NetBSD$");
-#elif defined(__FreeBSD__)
-#else
-__RCSID("$Revision: 2.26 $");
-#ident "$Revision: 2.26 $"
-#endif
-
 #ifndef sgi
 #define _HAVE_SIN_LEN
 #endif
