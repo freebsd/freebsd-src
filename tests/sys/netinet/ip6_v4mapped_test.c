@@ -31,7 +31,6 @@
  * This test is derived from tcp_connect_port_test.c.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/stat.h>

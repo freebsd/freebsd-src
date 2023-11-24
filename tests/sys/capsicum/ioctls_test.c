@@ -23,7 +23,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/capsicum.h>
 #include <sys/filio.h>
 #include <sys/socket.h>
