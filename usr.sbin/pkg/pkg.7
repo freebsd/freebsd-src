@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 24, 2022
+.Dd November 24, 2023
 .Dt PKG 7
 .Os
 .Sh NAME
@@ -152,7 +152,7 @@ by default.
 Repository configuration is stored in the following format:
 .Bd -literal -offset indent
 FreeBSD: {
-  url: "pkg+http://pkg.FreeBSD.org/${ABI}/latest",
+  url: "pkg+https://pkg.freebsd.org/${ABI}/latest",
   mirror_type: "srv",
   signature_type: "none",
   fingerprints: "/usr/share/keys/pkg",
@@ -196,7 +196,7 @@ Global configuration can be stored in
 .Pa /usr/local/etc/pkg.conf
 in the following format:
 .Bd -literal -offset indent
-PACKAGESITE: "pkg+http://pkg.FreeBSD.org/${ABI}/latest",
+PACKAGESITE: "pkg+https://pkg.freebsd.org/${ABI}/latest",
 MIRROR_TYPE: "srv",
 SIGNATURE_TYPE: "none",
 FINGERPRINTS: "/usr/share/keys/pkg",
