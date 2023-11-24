@@ -30,7 +30,6 @@
  * Driver for TI DP83867 Ethernet PHY
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>

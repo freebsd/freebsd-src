@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h> /* required by xen/xen-os.h */
 
 #include <vm/vm.h>

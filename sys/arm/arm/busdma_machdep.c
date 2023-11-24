@@ -32,7 +32,6 @@
  *  From i386/busdma_machdep.c 191438 2009-04-23 20:24:19Z jhb
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>

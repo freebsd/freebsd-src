@@ -32,7 +32,6 @@
  * and Kohno ("FS&K").
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/limits.h>
 

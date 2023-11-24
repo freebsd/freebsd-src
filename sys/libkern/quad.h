@@ -52,7 +52,6 @@
  * with 48-bit longs.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/limits.h>
 #include <sys/syslimits.h>

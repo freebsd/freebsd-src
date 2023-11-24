@@ -90,7 +90,6 @@
 #include "opt_platform.h"
 #include "opt_acpi.h"
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bitstring.h>
 #include <sys/bus.h>

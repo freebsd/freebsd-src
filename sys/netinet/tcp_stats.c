@@ -28,7 +28,6 @@
  * Author: Lawrence Stewart <lstewart@netflix.com>
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/arb.h>
 #include <sys/errno.h>

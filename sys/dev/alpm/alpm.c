@@ -28,7 +28,6 @@
  * Power Management support for the Acer M15x3 chipsets
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>

@@ -32,9 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #ifdef _KERNEL
 #include <sys/systm.h>

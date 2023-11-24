@@ -31,10 +31,6 @@
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <sys/cdefs.h>
-#ifdef __FreeBSD__
-#endif
-
 #include "opt_malo.h"
 
 #include <sys/param.h>

@@ -78,7 +78,6 @@
  * Created      : 28/11/94
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

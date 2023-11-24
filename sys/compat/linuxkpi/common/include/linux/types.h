@@ -29,7 +29,6 @@
 #ifndef	_LINUXKPI_LINUX_TYPES_H_
 #define	_LINUXKPI_LINUX_TYPES_H_
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -33,7 +33,7 @@
 /*
  * Atheros Hardware Access Layer (HAL) OS Dependent Definitions.
  */
-#include <sys/cdefs.h>
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/endian.h>

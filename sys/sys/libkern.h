@@ -32,7 +32,6 @@
 #ifndef _SYS_LIBKERN_H_
 #define	_SYS_LIBKERN_H_
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #ifdef _KERNEL
 #include <sys/systm.h>

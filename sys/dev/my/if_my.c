@@ -29,7 +29,6 @@
  * Myson fast ethernet PCI NIC driver, available at: http://www.myson.com.tw/
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>

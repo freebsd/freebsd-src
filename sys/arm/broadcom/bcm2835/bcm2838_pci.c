@@ -25,7 +25,6 @@
  * this driver is taken from the Raspberry Pi 4 Broadcom 2838 chip.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/endian.h>

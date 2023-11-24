@@ -58,7 +58,6 @@
  * SoC PMC support by Denir Li <denir.li@cas-well.com>
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>

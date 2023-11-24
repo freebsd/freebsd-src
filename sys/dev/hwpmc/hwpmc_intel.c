@@ -30,7 +30,6 @@
  * Common code for handling Intel CPUs.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>

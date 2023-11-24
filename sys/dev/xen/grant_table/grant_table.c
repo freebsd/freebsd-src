@@ -10,7 +10,6 @@
  * Copyright (c) 2004, K A Fraser
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

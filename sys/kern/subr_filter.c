@@ -27,7 +27,7 @@
 /*
  * Author: Randall Stewart <rrs@netflix.com>
  */
-#include <sys/cdefs.h>
+
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/errno.h>

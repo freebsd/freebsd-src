@@ -31,7 +31,6 @@
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>

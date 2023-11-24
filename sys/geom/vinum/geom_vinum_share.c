@@ -42,7 +42,6 @@
 
 /* This file is shared between kernel and userland. */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #ifdef _KERNEL
 #include <sys/malloc.h>

@@ -1,7 +1,6 @@
 /*	$NetBSD: db_disasm.c,v 1.28 2013/07/04 23:00:23 joerg Exp $	*/
 /*	$OpenBSD: db_disasm.c,v 1.2 1996/12/28 06:21:48 rahnds Exp $	*/
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/systm.h>

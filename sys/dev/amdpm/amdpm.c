@@ -32,7 +32,6 @@
  * Power management function/SMBus function support for the AMD 756 chip.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
