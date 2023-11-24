@@ -29,9 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/stat.h>

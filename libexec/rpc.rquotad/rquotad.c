@@ -4,7 +4,6 @@
  * There is no copyright, you can use it as you want.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/file.h>

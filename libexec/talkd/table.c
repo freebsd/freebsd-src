@@ -29,9 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-
 /*
  * Routines to handle insertion, deletion, etc on the table
  * of requests kept by the daemon. Nothing fancy here, linear

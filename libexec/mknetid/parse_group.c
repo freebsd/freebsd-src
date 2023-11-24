@@ -29,9 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-
 /*
  * This is a slightly modified chunk of getgrent(3). All the YP support
  * and unneeded functions have been stripped out.
