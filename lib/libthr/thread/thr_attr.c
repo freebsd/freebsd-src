@@ -380,12 +380,10 @@ int
 _thr_attr_setinheritsched(pthread_attr_t *attr, int sched_inherit)
 {
 
-	if (attr == NULL || *attr == NULL)
+	if (attr == NULL || *attr == NULL ||
+	    (sched_inherit != PTHREAD_INHERIT_SCHED &&
+	    sched_inherit != PTHREAD_EXPLICIT_SCHED))
 		return (EINVAL);
-
-	if (sched_inherit != PTHREAD_INHERIT_SCHED &&
-	    sched_inherit != PTHREAD_EXPLICIT_SCHED)
-		return (ENOTSUP);
 
 	(*attr)->sched_inherit = sched_inherit;
 	return (0);
@@ -400,18 +398,15 @@ _thr_attr_setschedparam(pthread_attr_t * __restrict attr,
 {
 	int policy;
 
-	if (attr == NULL || *attr == NULL)
+	if (attr == NULL || *attr == NULL || param == NULL)
 		return (EINVAL);
-
-	if (param == NULL)
-		return (ENOTSUP);
 
 	policy = (*attr)->sched_policy;
 
 	if (policy == SCHED_FIFO || policy == SCHED_RR) {
 		if (param->sched_priority < _thr_priorities[policy-1].pri_min ||
 		    param->sched_priority > _thr_priorities[policy-1].pri_max)
-			return (ENOTSUP);
+			return (EINVAL);
 	} else {
 		/*
 		 * Ignore it for SCHED_OTHER now, patches for glib ports
@@ -432,10 +427,9 @@ int
 _thr_attr_setschedpolicy(pthread_attr_t *attr, int policy)
 {
 
-	if (attr == NULL || *attr == NULL)
+	if (attr == NULL || *attr == NULL ||
+	    policy < SCHED_FIFO || policy > SCHED_RR)
 		return (EINVAL);
-	if (policy < SCHED_FIFO || policy > SCHED_RR)
-		return (ENOTSUP);
 
 	(*attr)->sched_policy = policy;
 	(*attr)->prio = _thr_priorities[policy-1].pri_default;
