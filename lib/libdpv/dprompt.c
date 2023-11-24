@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #define _BSD_SOURCE /* to get dprintf() prototype in stdio.h below */

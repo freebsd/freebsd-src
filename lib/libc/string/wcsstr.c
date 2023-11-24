@@ -32,8 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#endif
 #include <wchar.h>
 
 /*

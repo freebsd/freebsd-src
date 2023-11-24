@@ -28,7 +28,6 @@
  * Tests for corner cases in cexp*().
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #include <complex.h>

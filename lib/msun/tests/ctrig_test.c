@@ -28,7 +28,6 @@
  * Tests for csin[h](), ccos[h](), and ctan[h]().
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <complex.h>
 #include <fenv.h>

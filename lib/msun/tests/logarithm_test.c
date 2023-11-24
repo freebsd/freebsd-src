@@ -28,7 +28,6 @@
  * Tests for corner cases in log*().
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <fenv.h>
 #include <float.h>
