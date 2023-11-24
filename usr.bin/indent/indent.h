@@ -26,9 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#endif
-
 void	add_typename(const char *);
 void	alloc_typenames(void);
 int	compute_code_target(void);

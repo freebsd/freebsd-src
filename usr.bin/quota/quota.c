@@ -35,7 +35,7 @@
 /*
  * Disk quota reporting program.
  */
-#include <sys/cdefs.h>
+
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/file.h>

@@ -33,9 +33,6 @@
  * Copyright (c) 1986 - 1991 by Sun Microsystems, Inc.
  */
 
-#if 0
-#endif
-
 #include <sys/cdefs.h>
 /*
  * rpcinfo: ping a particular rpc program

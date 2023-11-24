@@ -29,9 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#endif
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <stddef.h>
 #include "chpass.h"

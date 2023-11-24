@@ -29,10 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#endif
-
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>

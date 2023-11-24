@@ -62,9 +62,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#endif /* not lint */
-#include <sys/cdefs.h>
 #include <sys/capsicum.h>
 #include <sys/procdesc.h>
 #include <sys/types.h>

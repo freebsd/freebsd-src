@@ -32,7 +32,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #define	_WANT_SYSVMSG_INTERNALS
 #include <sys/msg.h>

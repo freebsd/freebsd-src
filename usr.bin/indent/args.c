@@ -35,9 +35,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#endif
-
 #include <sys/cdefs.h>
 /*
  * Argument scanning and profile reading code.  Default parameters are set

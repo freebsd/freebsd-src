@@ -30,7 +30,6 @@
  * newgrp -- change to a new group
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #include <err.h>

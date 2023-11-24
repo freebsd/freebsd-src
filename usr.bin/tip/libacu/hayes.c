@@ -32,10 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#endif /* not lint */
-
 /*
  * Routines for calling up on a Hayes Modem
  * (based on the old VenTel driver).

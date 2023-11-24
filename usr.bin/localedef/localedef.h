@@ -33,7 +33,7 @@
  */
 
 /* Common header files. */
-#include <sys/cdefs.h>
+
 #include <sys/types.h>
 #include <stdarg.h>
 #include <stdio.h>

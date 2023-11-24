@@ -28,9 +28,6 @@
  * Mountain View, California  94043
  */
 
-#if 0
-#endif
-
 #include <sys/cdefs.h>
 /*
  * Copyright (C) 1986, Sun Microsystems, Inc.
