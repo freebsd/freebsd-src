@@ -33,9 +33,6 @@
  * Copyright (c) 1984 - 1991 by Sun Microsystems, Inc.
  */
 
-#if 0
-#endif
-
 /*
  * rpcbind.c
  * Implements the program, version to address mapping for rpc.

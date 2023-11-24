@@ -27,9 +27,6 @@
  * Mountain View, California  94043
  */
 
-#ifndef lint
-#endif /* not lint */
-
 /*
  * Copyright (c) 1986 - 1991 by Sun Microsystems, Inc.
  */

@@ -33,9 +33,6 @@
  * Copyright (c) 1986 - 1991 by Sun Microsystems, Inc.
  */
 
-#if 0
-#endif
-
 /*
  * check_bound.c
  * Checks to see whether the program is still bound to the

@@ -33,9 +33,6 @@
  * Copyright (c) 1984 - 1991 by Sun Microsystems, Inc.
  */
 
-#if 0
-#endif
-
 /*
  * pmap_svc.c
  * The server procedure for the version 2 portmaper.
