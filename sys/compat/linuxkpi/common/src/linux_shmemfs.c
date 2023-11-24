@@ -48,8 +48,15 @@ linux_shmem_read_mapping_page_gfp(vm_object_t obj, int pindex, gfp_t gfp)
 	struct page *page;
 	int rv;
 
-	if ((gfp & GFP_NOWAIT) != 0)
-		panic("GFP_NOWAIT is unimplemented");
+	/*
+	 * Historically, GFP_KERNEL was the equivalent of M_WAITOK. But it was
+	 * changed to a synonym of M_NOWAIT to allow allocations in
+	 * non-sleepable code.
+	 *
+	 * However, there was an assertion here to make sure that `gfp` was
+	 * never set to GFP_NOWAIT/M_NOWAIT. Do we need a specific handling of
+	 * M_NOWAIT here?
+	 */
 
 	VM_OBJECT_WLOCK(obj);
 	rv = vm_page_grab_valid(&page, obj, pindex, VM_ALLOC_NORMAL |
