@@ -29,9 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-#include <sys/cdefs.h>
 #include "rcv.h"
 #include <errno.h>
 #include <fcntl.h>

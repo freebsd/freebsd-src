@@ -10,7 +10,6 @@
  *	Upgraded to function properly on 64-bit machines.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #include <stdio.h>

@@ -34,7 +34,6 @@
  * Dodge.  It is used in place of <sys/queue.h> to get a better performance.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/queue.h>
 

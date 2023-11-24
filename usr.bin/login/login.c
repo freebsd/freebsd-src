@@ -40,9 +40,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#endif
-
 #include <sys/cdefs.h>
 /*
  * login [ name ]

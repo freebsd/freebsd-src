@@ -32,10 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#endif /* not lint */
-
 /*
  * Dial the DF02-AC or DF03-AC
  */

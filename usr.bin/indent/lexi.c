@@ -35,9 +35,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#endif
-#include <sys/cdefs.h>
 /*
  * Here we have the token scanner for indent.  It scans off one token and puts
  * it in the global variable "token".  It returns a code, indicating the type

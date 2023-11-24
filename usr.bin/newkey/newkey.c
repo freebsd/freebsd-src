@@ -28,9 +28,6 @@
  * Mountain View, California  94043
  */
 
-#if !defined(lint) && defined(SCCSIDS)
-#endif
-
 /*
  * Copyright (C) 1986, Sun Microsystems, Inc.
  */
@@ -38,7 +35,7 @@
 /*
  * Administrative tool to add a new user to the publickey database
  */
-#include <sys/cdefs.h>
+
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>

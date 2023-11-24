@@ -29,9 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#endif
-
 #include <sys/cdefs.h>
 /* Many bug fixes are from Jim Guyton <guyton@rand-unix> */
 

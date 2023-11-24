@@ -35,10 +35,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#endif
-
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <capsicum_helpers.h>

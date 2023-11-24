@@ -38,7 +38,6 @@
  * Authors: Ken Merry <ken@FreeBSD.org>, Will Andrews <will@FreeBSD.org>
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/callout.h>
 #include <sys/ioctl.h>

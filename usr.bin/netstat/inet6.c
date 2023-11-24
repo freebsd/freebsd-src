@@ -30,9 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#endif
-
 #include <sys/cdefs.h>
 #ifdef INET6
 #include <sys/param.h>

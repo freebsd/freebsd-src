@@ -30,9 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#endif /* not lint */
-
 /*
  * pattern - the Eratosthenes sieve on odd numbers for 3,5,7,11 and 13
  *

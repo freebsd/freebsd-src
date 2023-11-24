@@ -32,10 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#endif /* not lint */
-
 /*
  * Routines for calling up on a Ventel Modem
  * The Ventel is expected to be strapped for local echo (just like uucp)

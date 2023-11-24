@@ -33,7 +33,6 @@
  * @APPLE_BSD_LICENSE_HEADER_END@
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #include <bsm/libbsm.h>

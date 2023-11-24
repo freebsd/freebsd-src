@@ -33,7 +33,6 @@
 /* From: */
 #endif
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/stat.h>

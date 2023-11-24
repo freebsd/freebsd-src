@@ -32,10 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/file.h>
 #include <sys/dirent.h>

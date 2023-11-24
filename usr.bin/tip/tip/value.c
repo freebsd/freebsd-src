@@ -32,10 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#endif /* not lint */
-
 #include "tip.h"
 
 #define MIDDLE	35
