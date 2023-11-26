@@ -195,6 +195,9 @@
 // Unaligned reads and writes //
 ////////////////////////////////
 
+// No-strict-align archs like x86-64
+// ---------------------------------
+//
 // The traditional way of casting e.g. *(const uint16_t *)uint8_pointer
 // is bad even if the uint8_pointer is properly aligned because this kind
 // of casts break strict aliasing rules and result in undefined behavior.
@@ -209,12 +212,115 @@
 // build time. A third method, casting to a packed struct, would also be
 // an option but isn't provided to keep things simpler (it's already a mess).
 // Hopefully this is flexible enough in practice.
+//
+// Some compilers on x86-64 like Clang >= 10 and GCC >= 5.1 detect that
+//
+//     buf[0] | (buf[1] << 8)
+//
+// reads a 16-bit value and can emit a single 16-bit load and produce
+// identical code than with the memcpy() method. In other cases Clang and GCC
+// produce either the same or better code with memcpy(). For example, Clang 9
+// on x86-64 can detect 32-bit load but not 16-bit load.
+//
+// MSVC uses unaligned access with the memcpy() method but emits byte-by-byte
+// code for "buf[0] | (buf[1] << 8)".
+//
+// Conclusion: The memcpy() method is the best choice when unaligned access
+// is supported.
+//
+// Strict-align archs like SPARC
+// -----------------------------
+//
+// GCC versions from around 4.x to to at least 13.2.0 produce worse code
+// from the memcpy() method than from simple byte-by-byte shift-or code
+// when reading a 32-bit integer:
+//
+//     (1) It may be constructed on stack using using four 8-bit loads,
+//         four 8-bit stores to stack, and finally one 32-bit load from stack.
+//
+//     (2) Especially with -Os, an actual memcpy() call may be emitted.
+//
+// This is true on at least on ARM, ARM64, SPARC, SPARC64, MIPS64EL, and
+// RISC-V. Of these, ARM, ARM64, and RISC-V support unaligned access in
+// some processors but not all so this is relevant only in the case when
+// GCC assumes that unaligned is not supported or -mstrict-align or
+// -mno-unaligned-access is used.
+//
+// For Clang it makes little difference. ARM64 with -O2 -mstrict-align
+// was one the very few with a minor difference: the memcpy() version
+// was one instruction longer.
+//
+// Conclusion: At least in case of GCC and Clang, byte-by-byte code is
+// the best choise for strict-align archs to do unaligned access.
+//
+// See also: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=111502
+//
+// Thanks to <https://godbolt.org/> it was easy to test different compilers.
+// The following is for little endian targets:
+/*
+#include <stdint.h>
+#include <string.h>
+
+uint32_t bytes16(const uint8_t *b)
+{
+    return (uint32_t)b[0]
+        | ((uint32_t)b[1] << 8);
+}
+
+uint32_t copy16(const uint8_t *b)
+{
+    uint16_t v;
+    memcpy(&v, b, sizeof(v));
+    return v;
+}
+
+uint32_t bytes32(const uint8_t *b)
+{
+    return (uint32_t)b[0]
+        | ((uint32_t)b[1] << 8)
+        | ((uint32_t)b[2] << 16)
+        | ((uint32_t)b[3] << 24);
+}
+
+uint32_t copy32(const uint8_t *b)
+{
+    uint32_t v;
+    memcpy(&v, b, sizeof(v));
+    return v;
+}
+
+void wbytes16(uint8_t *b, uint16_t v)
+{
+    b[0] = (uint8_t)v;
+    b[1] = (uint8_t)(v >> 8);
+}
+
+void wcopy16(uint8_t *b, uint16_t v)
+{
+    memcpy(b, &v, sizeof(v));
+}
+
+void wbytes32(uint8_t *b, uint32_t v)
+{
+    b[0] = (uint8_t)v;
+    b[1] = (uint8_t)(v >> 8);
+    b[2] = (uint8_t)(v >> 16);
+    b[3] = (uint8_t)(v >> 24);
+}
+
+void wcopy32(uint8_t *b, uint32_t v)
+{
+    memcpy(b, &v, sizeof(v));
+}
+*/
+
+
+#ifdef TUKLIB_FAST_UNALIGNED_ACCESS
 
 static inline uint16_t
 read16ne(const uint8_t *buf)
 {
-#if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
-		&& defined(TUKLIB_USE_UNSAFE_TYPE_PUNNING)
+#ifdef TUKLIB_USE_UNSAFE_TYPE_PUNNING
 	return *(const uint16_t *)buf;
 #else
 	uint16_t num;
@@ -227,8 +333,7 @@ read16ne(const uint8_t *buf)
 static inline uint32_t
 read32ne(const uint8_t *buf)
 {
-#if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
-		&& defined(TUKLIB_USE_UNSAFE_TYPE_PUNNING)
+#ifdef TUKLIB_USE_UNSAFE_TYPE_PUNNING
 	return *(const uint32_t *)buf;
 #else
 	uint32_t num;
@@ -241,8 +346,7 @@ read32ne(const uint8_t *buf)
 static inline uint64_t
 read64ne(const uint8_t *buf)
 {
-#if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
-		&& defined(TUKLIB_USE_UNSAFE_TYPE_PUNNING)
+#ifdef TUKLIB_USE_UNSAFE_TYPE_PUNNING
 	return *(const uint64_t *)buf;
 #else
 	uint64_t num;
@@ -255,8 +359,7 @@ read64ne(const uint8_t *buf)
 static inline void
 write16ne(uint8_t *buf, uint16_t num)
 {
-#if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
-		&& defined(TUKLIB_USE_UNSAFE_TYPE_PUNNING)
+#ifdef TUKLIB_USE_UNSAFE_TYPE_PUNNING
 	*(uint16_t *)buf = num;
 #else
 	memcpy(buf, &num, sizeof(num));
@@ -268,8 +371,7 @@ write16ne(uint8_t *buf, uint16_t num)
 static inline void
 write32ne(uint8_t *buf, uint32_t num)
 {
-#if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
-		&& defined(TUKLIB_USE_UNSAFE_TYPE_PUNNING)
+#ifdef TUKLIB_USE_UNSAFE_TYPE_PUNNING
 	*(uint32_t *)buf = num;
 #else
 	memcpy(buf, &num, sizeof(num));
@@ -281,8 +383,7 @@ write32ne(uint8_t *buf, uint32_t num)
 static inline void
 write64ne(uint8_t *buf, uint64_t num)
 {
-#if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
-		&& defined(TUKLIB_USE_UNSAFE_TYPE_PUNNING)
+#ifdef TUKLIB_USE_UNSAFE_TYPE_PUNNING
 	*(uint64_t *)buf = num;
 #else
 	memcpy(buf, &num, sizeof(num));
@@ -294,68 +395,122 @@ write64ne(uint8_t *buf, uint64_t num)
 static inline uint16_t
 read16be(const uint8_t *buf)
 {
-#if defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
 	uint16_t num = read16ne(buf);
 	return conv16be(num);
-#else
-	uint16_t num = ((uint16_t)buf[0] << 8) | (uint16_t)buf[1];
-	return num;
-#endif
 }
 
 
 static inline uint16_t
 read16le(const uint8_t *buf)
 {
-#if !defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
 	uint16_t num = read16ne(buf);
 	return conv16le(num);
-#else
-	uint16_t num = ((uint16_t)buf[0]) | ((uint16_t)buf[1] << 8);
-	return num;
-#endif
 }
 
 
 static inline uint32_t
 read32be(const uint8_t *buf)
 {
-#if defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
 	uint32_t num = read32ne(buf);
 	return conv32be(num);
-#else
-	uint32_t num = (uint32_t)buf[0] << 24;
-	num |= (uint32_t)buf[1] << 16;
-	num |= (uint32_t)buf[2] << 8;
-	num |= (uint32_t)buf[3];
-	return num;
-#endif
 }
 
 
 static inline uint32_t
 read32le(const uint8_t *buf)
 {
-#if !defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
 	uint32_t num = read32ne(buf);
 	return conv32le(num);
-#else
-	uint32_t num = (uint32_t)buf[0];
-	num |= (uint32_t)buf[1] << 8;
-	num |= (uint32_t)buf[2] << 16;
-	num |= (uint32_t)buf[3] << 24;
-	return num;
-#endif
 }
 
 
 static inline uint64_t
 read64be(const uint8_t *buf)
 {
-#if defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
 	uint64_t num = read64ne(buf);
 	return conv64be(num);
+}
+
+
+static inline uint64_t
+read64le(const uint8_t *buf)
+{
+	uint64_t num = read64ne(buf);
+	return conv64le(num);
+}
+
+
+// NOTE: Possible byte swapping must be done in a macro to allow the compiler
+// to optimize byte swapping of constants when using glibc's or *BSD's
+// byte swapping macros. The actual write is done in an inline function
+// to make type checking of the buf pointer possible.
+#define write16be(buf, num) write16ne(buf, conv16be(num))
+#define write32be(buf, num) write32ne(buf, conv32be(num))
+#define write64be(buf, num) write64ne(buf, conv64be(num))
+#define write16le(buf, num) write16ne(buf, conv16le(num))
+#define write32le(buf, num) write32ne(buf, conv32le(num))
+#define write64le(buf, num) write64ne(buf, conv64le(num))
+
 #else
+
+#ifdef WORDS_BIGENDIAN
+#	define read16ne read16be
+#	define read32ne read32be
+#	define read64ne read64be
+#	define write16ne write16be
+#	define write32ne write32be
+#	define write64ne write64be
+#else
+#	define read16ne read16le
+#	define read32ne read32le
+#	define read64ne read64le
+#	define write16ne write16le
+#	define write32ne write32le
+#	define write64ne write64le
+#endif
+
+
+static inline uint16_t
+read16be(const uint8_t *buf)
+{
+	uint16_t num = ((uint16_t)buf[0] << 8) | (uint16_t)buf[1];
+	return num;
+}
+
+
+static inline uint16_t
+read16le(const uint8_t *buf)
+{
+	uint16_t num = ((uint16_t)buf[0]) | ((uint16_t)buf[1] << 8);
+	return num;
+}
+
+
+static inline uint32_t
+read32be(const uint8_t *buf)
+{
+	uint32_t num = (uint32_t)buf[0] << 24;
+	num |= (uint32_t)buf[1] << 16;
+	num |= (uint32_t)buf[2] << 8;
+	num |= (uint32_t)buf[3];
+	return num;
+}
+
+
+static inline uint32_t
+read32le(const uint8_t *buf)
+{
+	uint32_t num = (uint32_t)buf[0];
+	num |= (uint32_t)buf[1] << 8;
+	num |= (uint32_t)buf[2] << 16;
+	num |= (uint32_t)buf[3] << 24;
+	return num;
+}
+
+
+static inline uint64_t
+read64be(const uint8_t *buf)
+{
 	uint64_t num = (uint64_t)buf[0] << 56;
 	num |= (uint64_t)buf[1] << 48;
 	num |= (uint64_t)buf[2] << 40;
@@ -365,17 +520,12 @@ read64be(const uint8_t *buf)
 	num |= (uint64_t)buf[6] << 8;
 	num |= (uint64_t)buf[7];
 	return num;
-#endif
 }
 
 
 static inline uint64_t
 read64le(const uint8_t *buf)
 {
-#if !defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
-	uint64_t num = read64ne(buf);
-	return conv64le(num);
-#else
 	uint64_t num = (uint64_t)buf[0];
 	num |= (uint64_t)buf[1] << 8;
 	num |= (uint64_t)buf[2] << 16;
@@ -385,28 +535,9 @@ read64le(const uint8_t *buf)
 	num |= (uint64_t)buf[6] << 48;
 	num |= (uint64_t)buf[7] << 56;
 	return num;
-#endif
 }
 
 
-// NOTE: Possible byte swapping must be done in a macro to allow the compiler
-// to optimize byte swapping of constants when using glibc's or *BSD's
-// byte swapping macros. The actual write is done in an inline function
-// to make type checking of the buf pointer possible.
-#if defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
-#	define write16be(buf, num) write16ne(buf, conv16be(num))
-#	define write32be(buf, num) write32ne(buf, conv32be(num))
-#	define write64be(buf, num) write64ne(buf, conv64be(num))
-#endif
-
-#if !defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
-#	define write16le(buf, num) write16ne(buf, conv16le(num))
-#	define write32le(buf, num) write32ne(buf, conv32le(num))
-#	define write64le(buf, num) write64ne(buf, conv64le(num))
-#endif
-
-
-#ifndef write16be
 static inline void
 write16be(uint8_t *buf, uint16_t num)
 {
@@ -414,10 +545,8 @@ write16be(uint8_t *buf, uint16_t num)
 	buf[1] = (uint8_t)num;
 	return;
 }
-#endif
 
 
-#ifndef write16le
 static inline void
 write16le(uint8_t *buf, uint16_t num)
 {
@@ -425,10 +554,8 @@ write16le(uint8_t *buf, uint16_t num)
 	buf[1] = (uint8_t)(num >> 8);
 	return;
 }
-#endif
 
 
-#ifndef write32be
 static inline void
 write32be(uint8_t *buf, uint32_t num)
 {
@@ -438,10 +565,8 @@ write32be(uint8_t *buf, uint32_t num)
 	buf[3] = (uint8_t)num;
 	return;
 }
-#endif
 
 
-#ifndef write32le
 static inline void
 write32le(uint8_t *buf, uint32_t num)
 {
@@ -451,6 +576,37 @@ write32le(uint8_t *buf, uint32_t num)
 	buf[3] = (uint8_t)(num >> 24);
 	return;
 }
+
+
+static inline void
+write64be(uint8_t *buf, uint64_t num)
+{
+	buf[0] = (uint8_t)(num >> 56);
+	buf[1] = (uint8_t)(num >> 48);
+	buf[2] = (uint8_t)(num >> 40);
+	buf[3] = (uint8_t)(num >> 32);
+	buf[4] = (uint8_t)(num >> 24);
+	buf[5] = (uint8_t)(num >> 16);
+	buf[6] = (uint8_t)(num >> 8);
+	buf[7] = (uint8_t)num;
+	return;
+}
+
+
+static inline void
+write64le(uint8_t *buf, uint64_t num)
+{
+	buf[0] = (uint8_t)num;
+	buf[1] = (uint8_t)(num >> 8);
+	buf[2] = (uint8_t)(num >> 16);
+	buf[3] = (uint8_t)(num >> 24);
+	buf[4] = (uint8_t)(num >> 32);
+	buf[5] = (uint8_t)(num >> 40);
+	buf[6] = (uint8_t)(num >> 48);
+	buf[7] = (uint8_t)(num >> 56);
+	return;
+}
+
 #endif
 
 

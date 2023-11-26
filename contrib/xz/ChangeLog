@@ -1,4 +1,870 @@
-commit c1e396a9ac1c1c28ce4ede5cbadb955c516477bc
+commit 49053c0a649f4c8bd2b8d97ce915f401fbc0f3d9
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-10-31 22:30:29 +0800
+
+    Bump version and soname for 5.4.5.
+
+ src/liblzma/Makefile.am        | 2 +-
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit 84c0cfc556287628df871703672879e530d0391f
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-11-01 20:18:30 +0800
+
+    Add NEWS for 5.4.5.
+
+ NEWS | 74 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 74 insertions(+)
+
+commit d90ed84db9770712e2421e170076b43bda9b64a7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-10-31 21:41:09 +0200
+
+    liblzma: Fix compilation of fastpos_tablegen.c.
+    
+    The macro lzma_attr_visibility_hidden has to be defined to make
+    fastpos.h usable. The visibility attribute is irrelevant to
+    fastpos_tablegen.c so simply #define the macro to an empty value.
+    
+    fastpos_tablegen.c is never built by the included build systems
+    and so the problem wasn't noticed earlier. It's just a standalone
+    program for generating fastpos_table.c.
+    
+    Fixes: https://github.com/tukaani-project/xz/pull/69
+    Thanks to GitHub user Jamaika1.
+
+ src/liblzma/lzma/fastpos_tablegen.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit 9b1268538b0b2c6c0a121f95165de65fc71ad23c
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-10-31 21:51:40 +0800
+
+    Build: Fix text wrapping in an output message.
+
+ configure.ac | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+commit 068ee436f4a8a706125ef43e8228b30001b1554e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-10-22 17:59:11 +0300
+
+    liblzma: Use lzma_always_inline in memcmplen.h.
+
+ src/liblzma/common/memcmplen.h | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+commit 6cdf0a7b7974baf58c1fd20ec3278f3b84ae56e5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-10-30 17:43:03 +0200
+
+    liblzma: #define lzma_always_inline in common.h.
+
+ src/liblzma/common/common.h | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+commit 33daad3961a4f07f3902b40f13e823e6e43e85da
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-10-22 17:15:32 +0300
+
+    liblzma: Use lzma_attr_visibility_hidden on private extern declarations.
+    
+    These variables are internal to liblzma and not exposed in the API.
+
+ src/liblzma/check/check.h                | 7 +++++++
+ src/liblzma/common/stream_flags_common.h | 3 +++
+ src/liblzma/lz/lz_encoder_hash.h         | 1 +
+ src/liblzma/lzma/fastpos.h               | 1 +
+ src/liblzma/rangecoder/price.h           | 1 +
+ 5 files changed, 13 insertions(+)
+
+commit 6961a5ac7df178bfc2b7a181c40575847bc3035f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-10-22 17:08:39 +0300
+
+    liblzma: #define lzma_attr_visibility_hidden in common.h.
+    
+    In ELF shared libs:
+    
+    -fvisibility=hidden affects definitions of symbols but not
+    declarations.[*] This doesn't affect direct calls to functions
+    inside liblzma as a linker can replace a call to lzma_foo@plt
+    with a call directly to lzma_foo when -fvisibility=hidden is used.
+    
+    [*] It has to be like this because otherwise every installed
+        header file would need to explictly set the symbol visibility
+        to default.
+    
+    When accessing extern variables that aren't defined in the
+    same translation unit, compiler assumes that the variable has
+    the default visibility and thus indirection is needed. Unlike
+    function calls, linker cannot optimize this.
+    
+    Using __attribute__((__visibility__("hidden"))) with the extern
+    variable declarations tells the compiler that indirection isn't
+    needed because the definition is in the same shared library.
+    
+    About 15+ years ago, someone told me that it would be good if
+    the CRC tables would be defined in the same translation unit
+    as the C code of the CRC functions. While I understood that it
+    could help a tiny amount, I didn't want to change the code because
+    a separate translation unit for the CRC tables was needed for the
+    x86 assembly code anyway. But when visibility attributes are
+    supported, simply marking the extern declaration with the
+    hidden attribute will get identical result. When there are only
+    a few affected variables, this is trivial to do. I wish I had
+    understood this back then already.
+
+ src/liblzma/common/common.h | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+commit 5b9e16764905d06fa8e8339ba185ddfee304e5fb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-30 22:54:28 +0300
+
+    liblzma: Refer to MinGW-w64 instead of MinGW in the API headers.
+    
+    MinGW (formely a MinGW.org Project, later the MinGW.OSDN Project
+    at <https://osdn.net/projects/mingw/>) has GCC 9.2.0 as the
+    most recent GCC package (released 2021-02-02). The project might
+    still be alive but majority of people have switched to MinGW-w64.
+    Thus it seems clearer to refer to MinGW-w64 in our API headers too.
+    Building with MinGW is likely to still work but I haven't tested it
+    in the recent years.
+
+ src/liblzma/api/lzma.h         | 4 ++--
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+commit 36fabdbe67c8a8fbdc3ac695a91fc443a1328cc4
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-27 00:58:17 +0300
+
+    CMake: Use -D_FILE_OFFSET_BITS=64 if (and only if) needed.
+    
+    A CMake option LARGE_FILE_SUPPORT is created if and only if
+    -D_FILE_OFFSET_BITS=64 affects sizeof(off_t).
+    
+    This is needed on many 32-bit platforms and even with 64-bit builds
+    with MinGW-w64 to get support for files larger than 2 GiB.
+
+ CMakeLists.txt                        |  7 ++++-
+ cmake/tuklib_large_file_support.cmake | 52 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 1 deletion(-)
+
+commit 989c8c354cbd2d20fbae4a432a3e31f5bc1cb9bf
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-30 02:14:25 +0300
+
+    CMake: Generate and install liblzma.pc if not using MSVC.
+    
+    Autotools based build uses -pthread and thus adds it to Libs.private
+    in liblzma.pc. CMake doesn't use -pthread at all if pthread functions
+    are available in libc so Libs.private doesn't get -pthread either.
+
+ CMakeLists.txt | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+commit 983f3b458dc79c5976a4237fdfe4f8079f8d8830
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-30 01:13:13 +0300
+
+    CMake: Rearrange the PACKAGE_ variables.
+    
+    The windres workaround now replaces spaces with \x20 so
+    the package name isn't repeated.
+    
+    These changes will help with creation of liblzma.pc.
+
+ CMakeLists.txt | 26 +++++++++++++++-----------
+ 1 file changed, 15 insertions(+), 11 deletions(-)
+
+commit 4083c8e9501a48934a5fb563d2c3ce2ae143cd27
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-29 20:46:11 +0300
+
+    liblzma: Add Cflags.private to liblzma.pc.in for MSYS2.
+    
+    It properly adds -DLZMA_API_STATIC when compiling code that
+    will be linked against static liblzma. Having it there on
+    systems other than Windows does no harm.
+    
+    See: https://www.msys2.org/docs/pkgconfig/
+
+ src/liblzma/liblzma.pc.in | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 661549ecb7a9b136d72a01c137d9776c75d52d51
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-27 22:46:20 +0300
+
+    CMake: Create liblzma.def when building liblzma.dll with MinGW-w64.
+
+ CMakeLists.txt              | 20 ++++++++++++++++++++
+ cmake/remove-ordinals.cmake | 26 ++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+)
+
+commit 0e546eb4da05c52b7d257e5bd85e15c51c4d86a3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-10-26 21:44:42 +0300
+
+    CMake: Change one CMAKE_CURRENT_SOURCE_DIR to CMAKE_CURRENT_LIST_DIR.
+    
+    In this case they have identical values.
+
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit da4d04e4d6e199d28b58bd2e0df4e120c52dd5d7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-10-01 19:10:57 +0300
+
+    CMake/Windows: Fix the import library filename.
+    
+    Both PREFIX and IMPORT_PERFIX have to be set to "" to get
+    liblzma.dll and liblzma.dll.a.
+
+ CMakeLists.txt | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 007558a358c48a0175cc8d47d11798d7967282ab
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-10-11 19:47:44 +0300
+
+    CMake: Don't shadow the cache entry ENABLE_THREADS with a normal variable.
+    
+    Using set(ENABLE_THREADS "posix") is confusing because it sets
+    a new normal variable and leaves the cache entry with the same
+    name unchanged. The intent wasn't to change the cache entry so
+    this switches to a different variable name.
+
+ CMakeLists.txt | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+commit 7d01de67ee3dd76cfc12c23220e2e4cdc59708f1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-10-09 21:12:31 +0300
+
+    CMake: Edit threading related messages.
+    
+    It's mostly to change from "thread method" to "threading method".
+
+ CMakeLists.txt | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
+
+commit f8edcf3da689aad4b21e139197725450f2c456a0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-10-09 20:59:24 +0300
+
+    CMake: Use FATAL_ERROR if user-supplied options aren't understood.
+    
+    This way typos are caught quickly and compounding error messages
+    are avoided (a single typo could cause more than one error).
+    
+    This keeps using SEND_ERROR when the system is lacking a feature
+    (like threading library or sandboxing method). This way the whole
+    configuration log will be generated in case someone wishes to
+    report a problem upstream.
+
+ CMakeLists.txt | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)
+
+commit 1695021e4a233a9388ddd428654c1447f0ea3bfb
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-10-19 16:09:01 +0800
+
+    CMake: Add ALLOW_CLMUL_CRC option to enable/disable CLMUL.
+    
+    The option is enabled by default, but will only be visible to a user
+    listing cache variables or using a CMake GUI application if the
+    immintrin.h header file is found.
+    
+    This mirrors our Autotools build --disable-clmul-crc functionality.
+
+ CMakeLists.txt | 40 +++++++++++++++++++++++-----------------
+ 1 file changed, 23 insertions(+), 17 deletions(-)
+
+commit 5056bc51071d1a07097c5667a0d5bd85242e31b9
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-10-14 17:56:59 +0300
+
+    tuklib_integer: Revise unaligned reads and writes on strict-align archs.
+    
+    In XZ Utils context this doesn't matter much because
+    unaligned reads and writes aren't used in hot code
+    when TUKLIB_FAST_UNALIGNED_ACCESS isn't #defined.
+
+ src/common/tuklib_integer.h | 256 ++++++++++++++++++++++++++++++++------------
+ 1 file changed, 189 insertions(+), 67 deletions(-)
+
+commit 9e14743ee5ba79181076bc33952245d5b18fbc58
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-23 02:21:49 +0300
+
+    tuklib_integer: Add missing write64be and write64le fallback functions.
+
+ src/common/tuklib_integer.h | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)
+
+commit 4cc91ceb3992ef4f51302b56178c3b2c2aeaaaad
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-10-12 20:12:18 +0800
+
+    Build: Update visibility.m4 from Gnulib.
+    
+    Updating from version 6 -> 8 from upstream. Declarations for variables
+    and function bodies were added to avoid unnecessary failures with
+    -Werror.
+
+ m4/visibility.m4 | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+commit 1824a6007cb1c8d5d7abcc7bf649148bc06fa72c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-10-06 19:36:35 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 8fdc71a27d07b10a3da52432432e080b6d577642
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-09-29 20:14:39 +0800
+
+    CMake: Rename xz and man page symlink custom targets.
+    
+    The Ninja Generator for CMake cannot have a custom target and its
+    BYPRODUCTS have the same name. This has prevented Ninja builds on
+    Unix-like systems since the xz symlinks were introduced in
+    80a1a8bb838842a2be343bd88ad1462c21c5e2c9.
+
+ CMakeLists.txt | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+commit 38171492ded6426ddf53d0c200fa8c93fcd02a60
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-27 19:54:35 +0300
+
+    CMake: Fix Windows build with Clang/LLVM 17.
+    
+    llvm-windres 17.0.0 has more accurate emulation of GNU windres, so
+    the hack for GNU windres must now be used with llvm-windres too.
+    
+    LLVM 16.0.6 has the old behavior and there likely won't be more
+    16.x releases. So we can simply check for >= 17.0.0.
+    
+    The workaround must not be used with Clang that is acting in
+    MSVC mode. This checks for the known environments that need
+    the workaround instead of using "NOT MSVC".
+    
+    See also:
+    https://github.com/llvm/llvm-project/commit/2bcc0fdc58a220cb9921b47ec8a32c85f2511a47
+
+ CMakeLists.txt | 26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)
+
+commit 1bce6fe48334b5df33d0487a9cbe41950122230e
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-09-27 00:02:11 +0800
+
+    liblzma: Avoid compiler warning without creating extra symbol.
+    
+    When the generic fast crc64 method is used, then we omit
+    lzma_crc64_table[][].
+    
+    The C standards don't allow an empty translation unit which can be
+    avoided by declaring something, without exporting any symbols.
+
+ src/liblzma/check/crc64_table.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+commit dce95a593e6cd9779110aa1e314abd8b35c75f6b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-26 17:24:15 +0300
+
+    Build: Update the comment about -Werror usage in checks.
+
+ configure.ac | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+commit f3c32762ae309afa2fe330e7fb397acfdedc4d37
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-26 13:51:31 +0300
+
+    Build: Fix underquoted AC_LANG_SOURCE.
+    
+    It made no practical difference in this case.
+
+ configure.ac | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 7dd57f2f2c8fde93fa42b4dbf6d9860717723b41
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-26 13:14:37 +0300
+
+    Build: Silence Autoconf warning.
+    
+    There was a use of AC_COMPILE_IFELSE that didn't use
+    AC_LANG_SOURCE and Autoconf warned about this. The omission
+    had been intentional but it turned out that this didn't do
+    what I thought it would.
+    
+    Autoconf 2.71 manual gives an impression that AC_LANG_SOURCE
+    inserts all #defines that have been made with AC_DEFINE so
+    far (confdefs.h). The idea was that omitting AC_LANG_SOURCE
+    would mean that only the exact code included in the
+    AC_COMPILE_IFELSE call would be compiled.
+    
+    With C programs this is not true: the #defines get added without
+    AC_LANG_SOURCE too. There seems to be no neat way to avoid this.
+    Thus, with the C language at least, adding AC_LANG_SOURCE makes
+    no other difference than silencing a warning from Autoconf. The
+    generated "configure" remains identical. (Docs of AC_LANG_CONFTEST
+    say that the #defines have been inserted since Autoconf 2.63b and
+    that AC_COMPILE_IFELSE uses AC_LANG_CONFTEST. So the behavior is
+    documented if one also reads the docs of macros that one isn't
+    calling directly.)
+    
+    Any extra code, including #defines, can cause problems for
+    these two tests because these tests must use -Werror.
+    CC=clang CFLAGS=-Weverything is the most extreme example.
+    It enables -Wreserved-macro-identifier which warns about
+    It's possible to write a test file that passes -Weverything but
+    it becomes impossible when Autoconf inserts confdefs.h.
+    
+    So this commit adds AC_LANG_SOURCE to silence Autoconf warnings.
+    A different solution is needed for -Werror tests.
+
+ configure.ac | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+commit edec253e418562f3164a01ecc8805295fa022efa
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-09-26 00:47:26 +0800
+
+    Build: Remove Gnulib dependency from tests.
+    
+    The tests do not use any Gnulib replacements so they do not need to link
+    libgnu.a or have /lib in the include path.
+
+ tests/Makefile.am | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
+
+commit 46cb133ce7360496eecca1255b364c05f0205855
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-09-26 00:43:43 +0800
+
+    CMake: Remove /lib from tests include path.
+    
+    The tests never included anything from /lib, so this was not needed.
+
+ CMakeLists.txt | 1 -
+ 1 file changed, 1 deletion(-)
+
+commit 4ae13cfe0dedb8ddc3cf9ded8cd1ac09361b3bd1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-24 16:32:32 +0300
+
+    sysdefs.h: Update the comment about __USE_MINGW_ANSI_STDIO.
+
+ src/common/sysdefs.h | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+commit 660c8c29e57d30dbd5009ef1f0ec1bbe195ccef6
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-22 02:33:29 +0300
+
+    xz: Windows: Don't (de)compress to special files like "con" or "nul".
+    
+    Before this commit, the following writes "foo" to the
+    console and deletes the input file:
+    
+        echo foo | xz > con_xz
+        xz --suffix=_xz --decompress con_xz
+    
+    It cannot happen without --suffix because names like con.xz
+    are also special and so attempting to decompress con.xz
+    (or compress con to con.xz) will already fail when opening
+    the input file.
+    
+    Similar thing is possible when compressing. The following
+    writes to "nul" and the input file "n" is deleted.
+    
+        echo foo | xz > n
+        xz --suffix=ul n
+    
+    Now xz checks if the destination is a special file before
+    continuing. DOS/DJGPP version had a check for this but
+    Windows (and OS/2) didn't.
+
+ src/xz/file_io.c | 35 ++++++++++++++++++++++++++++-------
+ 1 file changed, 28 insertions(+), 7 deletions(-)
+
+commit b7ce6e80786fc0c08ed129e8ee262ea96a5473a1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-21 20:42:52 +0300
+
+    CMake: Wrap two overlong lines that are possible to wrap.
+
+ CMakeLists.txt | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+commit 1595f454d5c8257c668cccd6a86dd68175d5c430
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-21 20:36:31 +0300
+
+    CMake: Add a comment about threads on Cygwin.
+
+ CMakeLists.txt | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 5be6275f19784cdd5a954f0188045c8ff4934d54
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-12 21:12:34 +0300
+
+    CMake: Bump maximum policy version to 3.27.
+    
+    There are several new policies. CMP0149 may affect the Windows SDK
+    version that CMake will choose by default. The new behavior is more
+    predictable, always choosing the latest SDK version by default.
+    
+    The other new policies shouldn't affect this package.
+
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit e515643d7524851d1eb7dab73453e26d8521324c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-08 19:08:57 +0300
+
+    Doxygen: Add more C macro names to PREDEFINED.
+
+ doxygen/Doxyfile | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+commit e3478ae4f36cd06522a2fef023860893f068434d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-11 18:47:26 +0300
+
+    liblzma: Move a few __attribute__ uses in function declarations.
+    
+    The API headers have many attributes but these were left
+    as is for now.
+
+ src/liblzma/common/common.c    | 6 ++++--
+ src/liblzma/common/common.h    | 8 ++++----
+ src/liblzma/common/memcmplen.h | 3 ++-
+ 3 files changed, 10 insertions(+), 7 deletions(-)
+
+commit b71b8922ef3971e5ccffd1e213888d44abe21d11
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-11 19:03:35 +0300
+
+    xz, xzdec, lzmainfo: Use tuklib_attr_noreturn.
+    
+    For compatibility with C23's [[noreturn]], tuklib_attr_noreturn
+    must be at the beginning of declaration (before "extern" or
+    "static", and even before any GNU C's __attribute__).
+    
+    This commit also moves all other function attributes to
+    the beginning of function declarations. "extern" is kept
+    at the beginning of a line so the attributes are listed on
+    separate lines before "extern" or "static".
+
+ src/lzmainfo/lzmainfo.c |  6 ++++--
+ src/xz/coder.c          |  3 ++-
+ src/xz/hardware.h       |  3 ++-
+ src/xz/message.h        | 30 +++++++++++++++++-------------
+ src/xz/options.c        |  3 ++-
+ src/xz/util.h           |  8 ++++----
+ src/xzdec/xzdec.c       |  9 ++++++---
+ 7 files changed, 37 insertions(+), 25 deletions(-)
+
+commit 359e5c6cb128dab64ea6070d21d1c240f96cea6b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-11 18:53:31 +0300
+
+    Remove incorrect uses of __attribute__((__malloc__)).
+    
+    xrealloc() is obviously incorrect, modern GCC docs even
+    mention realloc() as an example where this attribute
+    cannot be used.
+    
+    liblzma's lzma_alloc() and lzma_alloc_zero() would be
+    correct uses most of the time but custom allocators
+    may use a memory pool or otherwise hold the pointer
+    so aliasing issues could happen in theory.
+    
+    The xstrdup() case likely was correct but I removed it anyway.
+    Now there are no __malloc__ attributes left in the code.
+    The allocations aren't in hot paths so this should make
+    no practical difference.
+
+ src/liblzma/common/common.c | 4 ++--
+ src/liblzma/common/common.h | 4 ++--
+ src/xz/util.h               | 4 ++--
+ 3 files changed, 6 insertions(+), 6 deletions(-)
+
+commit 589b4cba22fccb1dbc919df5d134aefb2b5a6b01
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-19 14:03:45 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 43728ed2267e921fbdfa699ee1e91b105ab0e98b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-14 16:35:46 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit caf00e0988ba47842cfd93dfbb17f7d30120d6e7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-09-14 16:34:07 +0300
+
+    liblzma: Mark crc64_clmul() with __attribute__((__no_sanitize_address__)).
+    
+    Thanks to Agostino Sarubbo.
+    Fixes: https://github.com/tukaani-project/xz/issues/62
+
+ src/liblzma/check/crc64_fast.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+commit a70e96d2da761b8b3a77bf14e08002d871e5950b
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-09-12 22:36:12 +0800
+
+    CMake: Fix time.h checks not running on second CMake run.
+    
+    If CMake was configured more than once, HAVE_CLOCK_GETTIME and
+    HAVE_CLOCK_MONOTONIC would not be set as compile definitions. The check
+    for librt being needed to provide HAVE_CLOCK_GETTIME was also
+    simplified.
+
+ CMakeLists.txt | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)
+
+commit d5275d83bd2a9701c5feb8666785007c074b1359
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-09-12 22:34:06 +0800
+
+    CMake: Fix unconditionally defining HAVE_CLOCK_MONOTONIC.
+    
+    If HAVE_CLOCK_GETTIME was defined, then HAVE_CLOCK_MONOTONIC was always
+    added as a compile definition even if the check for it failed.
+
+ CMakeLists.txt | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+
+commit 1f6e7c68fbdeeaa9482fc77de090be63d90912fd
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-08-31 19:50:05 +0300
+
+    xz: Refactor thousand separator detection and disable it on MSVC.
+    
+    Now the two variations of the format strings are created with
+    a macro, and the whole detection code can be easily disabled
+    on platforms where thousand separator formatting is known to
+    not work (MSVC has no support, and on DJGPP 2.05 it can have
+    problems in some cases).
+
+ src/xz/util.c | 89 ++++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 45 insertions(+), 44 deletions(-)
+
+commit ef71f83973a20cc28a3221f85681922026ea33f5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-08-31 18:14:43 +0300
+
+    xz: Fix a too relaxed assertion and remove uses of SSIZE_MAX.
+    
+    SSIZE_MAX isn't readily available on MSVC. Removing it means
+    that there is one thing less to worry when porting to MSVC.
+
+ src/xz/file_io.c | 5 ++---
+ src/xz/file_io.h | 4 ++--
+ 2 files changed, 4 insertions(+), 5 deletions(-)
+
+commit cf8ba7c3a89e37736b926dfbe85dffeff725db47
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-08-28 23:14:45 +0800
+
+    Tests: Improve invalid unpadded size check in test_lzma_index_append().
+    
+    This check was extended to test the code added to fix a failing assert
+    in 68bda971bb8b666a009331455fcedb4e18d837a4.
+
+ tests/test_index.c | 26 +++++++++++++++++++++++---
+ 1 file changed, 23 insertions(+), 3 deletions(-)
+
+commit 4a4180ce74788e97e90b9aab579bfd7c6dce3f59
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-08-28 21:54:41 +0800
+
+    Tests: Improve comments in test_index.c.
+
+ tests/test_index.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+commit 4b23b84b89e39a5117e16f66c3b01db4f08ed3e7
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-08-28 21:52:54 +0800
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 773f1e8622cb1465df528cb16a749517650acd93
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-08-28 21:50:16 +0800
+
+    liblzma: Update assert in vli_ceil4().
+    
+    The argument to vli_ceil4() should always guarantee the return value
+    is also a valid lzma_vli. Thus the highest three valid lzma_vli values
+    are invalid arguments. All uses of the function ensure this so the
+    assert is updated to match this.
+
+ src/liblzma/common/index.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 68bda971bb8b666a009331455fcedb4e18d837a4
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-08-28 21:31:25 +0800
+
+    liblzma: Add overflow check for Unpadded size in lzma_index_append().
+    
+    This was not a security bug since there was no path to overflow
+    UINT64_MAX in lzma_index_append() or when it calls index_file_size().
+    The bug was discovered by a failing assert() in vli_ceil4() when called
+    from index_file_size() when unpadded_sum (the sum of the compressed size
+    of current Stream and the unpadded_size parameter) exceeds LZMA_VLI_MAX.
+    
+    Previously, the unpadded_size parameter was checked to be not greater
+    than UNPADDED_SIZE_MAX, but no check was done once compressed_base was
+    added.
+    
+    This could not have caused an integer overflow in index_file_size() when
+    called by lzma_index_append(). The calculation for file_size breaks down
+    into the sum of:
+    
+    - Compressed base from all previous Streams
+    - 2 * LZMA_STREAM_HEADER_SIZE (size of the current Streams header and
+      footer)
+    - stream_padding (can be set by lzma_index_stream_padding())
+    - Compressed base from the current Stream
+    - Unpadded size (parameter to lzma_index_append())
+    
+    The sum of everything except for Unpadded size must be less than
+    LZMA_VLI_MAX. This is guarenteed by overflow checks in the functions
+    that can set these values including lzma_index_stream_padding(),
+    lzma_index_append(), and lzma_index_cat(). The maximum value for
+    Unpadded size is enforced by lzma_index_append() to be less than or
+    equal UNPADDED_SIZE_MAX. Thus, the sum cannot exceed UINT64_MAX since
+    LZMA_VLI_MAX is half of UINT64_MAX.
+    
+    Thanks to Joona Kannisto for reporting this.
+
+ src/liblzma/common/index.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+commit b41bb79c602481d7ea93d65f5b3e3f08dc54233b
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-08-28 22:18:29 +0800
+
+    Translations: Update the Esperanto translation.
+
+ po/eo.po | 47 +++++++++++++++++++++++++++++------------------
+ 1 file changed, 29 insertions(+), 18 deletions(-)
+
+commit 6614e6d4bf8e2b5af6eb73930148e0ffc8d2265a
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-08-09 20:55:36 +0800
+
+    Docs: Update INSTALL for --enable-threads method win95.
+    
+    The Autotools build allows win95 threads and --enable-small together now
+    if the compiler supports __attribute__((__constructor__)).
+
+ INSTALL | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+commit bfb623ad96fa6f1dbc0c560403c4296e3c8e26c9
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-08-09 20:54:15 +0800
+
+    CMake: Conditionally allow win95 threads and --enable-small.
+
+ CMakeLists.txt | 27 +++++++++++++++++++--------
+ 1 file changed, 19 insertions(+), 8 deletions(-)
+
+commit e919ebb29ac9f5270cd7176a39d0d3b4cea875a9
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-08-09 20:35:16 +0800
+
+    Build: Conditionally allow win95 threads and --enable-small.
+    
+    When the compiler supports __attribute__((__constructor__))
+    mythread_once() is never used, even with --enable-small. A configuration
+    with win95 threads and --enable-small will compile and be thread safe so
+    it can be allowed.
+    
+    This isn't a very common configuration since MSVC does not support
+    __attribute__((__constructor__)), but MINGW32 and CLANG32 environments
+    for MSYS2 can use win95 threads and have
+    __attribute__((__constructor__)) support.
+
+ configure.ac | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
+
+commit c0c0cd4a483a672b66a13761583bc4f84d86d501
+Author: Jamaika1 <lukaszcz18@wp.pl>
+Date:   2023-08-08 14:07:59 +0200
+
+    mythread.h: Fix typo error in Vista threads mythread_once().
+    
+    The "once_" variable was accidentally referred to as just "once". This
+    prevented building with Vista threads when
+    HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR was not defined.
+
+ src/common/mythread.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit d93fbefcc48a8737fdf5678ce66d1c1d605752a0
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-08-03 20:10:21 +0800
+
+    Tests: Style fixes to test_lzip_decoder.c.
+
+ tests/test_lzip_decoder.c | 36 ++++++++++++++++++++++++------------
+ 1 file changed, 24 insertions(+), 12 deletions(-)
+
+commit 65981d8e45741fd1502e007609469e1d60312e69
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-08-03 15:56:20 +0800
+
+    Translations: Update the Chinese (simplified) translation.
+
+ po/zh_CN.po | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit a108ed589171d683c34238a87e358b87f69e39a0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-08-02 17:15:12 +0300
+
+    xz: Omit an empty paragraph on the man page.
+
+ src/xz/xz.1 | 1 -
+ 1 file changed, 1 deletion(-)
+
+commit 03c51c5c08fe3579d8bbc8eea8251a1128001330
 Author: Jia Tan <jiat0218@gmail.com>
 Date:   2023-08-02 20:32:20 +0800
 
@@ -8,7 +874,7 @@ Date:   2023-08-02 20:32:20 +0800
  src/liblzma/api/lzma/version.h | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
 
-commit 7d266d25ae323a2dc5f2e254c991ef84b997adad
+commit d7fa3f1b58a77f79b1a4e12452418b5555632e18
 Author: Jia Tan <jiat0218@gmail.com>
 Date:   2023-08-02 20:30:07 +0800
 

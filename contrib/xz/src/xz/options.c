@@ -241,7 +241,8 @@ enum {
 };
 
 
-static void lzma_attribute((__noreturn__))
+tuklib_attr_noreturn
+static void
 error_lzma_preset(const char *valuestr)
 {
 	message_fatal(_("Unsupported LZMA1/LZMA2 preset: %s"), valuestr);

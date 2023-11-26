@@ -46,7 +46,7 @@ extern void lzma_index_prealloc(lzma_index *i, lzma_vli records);
 static inline lzma_vli
 vli_ceil4(lzma_vli vli)
 {
-	assert(vli <= LZMA_VLI_MAX);
+	assert(vli <= UNPADDED_SIZE_MAX);
 	return (vli + 3) & ~LZMA_VLI_C(3);
 }
 

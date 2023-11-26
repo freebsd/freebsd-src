@@ -17,8 +17,44 @@
 /// Buffers for uint64_to_str() and uint64_to_nicestr()
 static char bufs[4][128];
 
-/// Thousand separator support in uint64_to_str() and uint64_to_nicestr()
+
+// Thousand separator support in uint64_to_str() and uint64_to_nicestr():
+//
+// DJGPP 2.05 added support for thousands separators but it's broken
+// at least under WinXP with Finnish locale that uses a non-breaking space
+// as the thousands separator. Workaround by disabling thousands separators
+// for DJGPP builds.
+//
+// MSVC doesn't support thousand separators.
+#if defined(__DJGPP__) || defined(_MSC_VER)
+#	define FORMAT_THOUSAND_SEP(prefix, suffix) prefix suffix
+#	define check_thousand_sep(slot) do { } while (0)
+#else
+#	define FORMAT_THOUSAND_SEP(prefix, suffix) ((thousand == WORKS) \
+			? prefix "'" suffix \
+			: prefix suffix)
+
 static enum { UNKNOWN, WORKS, BROKEN } thousand = UNKNOWN;
+
+/// Check if thousands separator is supported. Run-time checking is easiest
+/// because it seems to be sometimes lacking even on a POSIXish system.
+/// Note that trying to use thousands separators when snprintf() doesn't
+/// support them results in undefined behavior. This just has happened to
+/// work well enough in practice.
+///
+/// This must be called before using the FORMAT_THOUSAND_SEP macro.
+static void
+check_thousand_sep(uint32_t slot)
+{
+	if (thousand == UNKNOWN) {
+		bufs[slot][0] = '\0';
+		snprintf(bufs[slot], sizeof(bufs[slot]), "%'u", 1U);
+		thousand = bufs[slot][0] == '1' ? WORKS : BROKEN;
+	}
+
+	return;
+}
+#endif
 
 
 extern void *
@@ -142,31 +178,6 @@ round_up_to_mib(uint64_t n)
 }
 
 
-/// Check if thousands separator is supported. Run-time checking is easiest
-/// because it seems to be sometimes lacking even on a POSIXish system.
-/// Note that trying to use thousands separators when snprintf() doesn't
-/// support them results in undefined behavior. This just has happened to
-/// work well enough in practice.
-///
-/// DJGPP 2.05 added support for thousands separators but it's broken
-/// at least under WinXP with Finnish locale that uses a non-breaking space
-/// as the thousands separator. Workaround by disabling thousands separators
-/// for DJGPP builds.
-static void
-check_thousand_sep(uint32_t slot)
-{
-	if (thousand == UNKNOWN) {
-		bufs[slot][0] = '\0';
-#ifndef __DJGPP__
-		snprintf(bufs[slot], sizeof(bufs[slot]), "%'u", 1U);
-#endif
-		thousand = bufs[slot][0] == '1' ? WORKS : BROKEN;
-	}
-
-	return;
-}
-
-
 extern const char *
 uint64_to_str(uint64_t value, uint32_t slot)
 {
@@ -174,10 +185,8 @@ uint64_to_str(uint64_t value, uint32_t slot)
 
 	check_thousand_sep(slot);
 
-	if (thousand == WORKS)
-		snprintf(bufs[slot], sizeof(bufs[slot]), "%'" PRIu64, value);
-	else
-		snprintf(bufs[slot], sizeof(bufs[slot]), "%" PRIu64, value);
+	snprintf(bufs[slot], sizeof(bufs[slot]),
+			FORMAT_THOUSAND_SEP("%", PRIu64), value);
 
 	return bufs[slot];
 }
@@ -201,10 +210,8 @@ uint64_to_nicestr(uint64_t value, enum nicestr_unit unit_min,
 	if ((unit_min == NICESTR_B && value < 10000)
 			|| unit_max == NICESTR_B) {
 		// The value is shown as bytes.
-		if (thousand == WORKS)
-			my_snprintf(&pos, &left, "%'u", (unsigned int)value);
-		else
-			my_snprintf(&pos, &left, "%u", (unsigned int)value);
+		my_snprintf(&pos, &left, FORMAT_THOUSAND_SEP("%", "u"),
+				(unsigned int)value);
 	} else {
 		// Scale the value to a nicer unit. Unless unit_min and
 		// unit_max limit us, we will show at most five significant
@@ -215,21 +222,15 @@ uint64_to_nicestr(uint64_t value, enum nicestr_unit unit_min,
 			++unit;
 		} while (unit < unit_min || (d > 9999.9 && unit < unit_max));
 
-		if (thousand == WORKS)
-			my_snprintf(&pos, &left, "%'.1f", d);
-		else
-			my_snprintf(&pos, &left, "%.1f", d);
+		my_snprintf(&pos, &left, FORMAT_THOUSAND_SEP("%", ".1f"), d);
 	}
 
 	static const char suffix[5][4] = { "B", "KiB", "MiB", "GiB", "TiB" };
 	my_snprintf(&pos, &left, " %s", suffix[unit]);
 
-	if (always_also_bytes && value >= 10000) {
-		if (thousand == WORKS)
-			snprintf(pos, left, " (%'" PRIu64 " B)", value);
-		else
-			snprintf(pos, left, " (%" PRIu64 " B)", value);
-	}
+	if (always_also_bytes && value >= 10000)
+		snprintf(pos, left, FORMAT_THOUSAND_SEP(" (%", PRIu64 " B)"),
+				value);
 
 	return bufs[slot];
 }

@@ -2277,8 +2277,11 @@ INCLUDE_FILE_PATTERNS  =
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
 PREDEFINED             = LZMA_API(type)=type \
-                         LZMA_API_IMPORT \
-                         LZMA_API_CALL=
+                         LZMA_API_IMPORT= \
+                         LZMA_API_CALL= \
+                         tuklib_attr_noreturn= \
+                         lzma_attribute(attr)= \
+                         lzma_attr_alloc_size(size)=
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The

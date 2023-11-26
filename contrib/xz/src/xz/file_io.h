@@ -118,7 +118,7 @@ extern void io_close(file_pair *pair, bool success);
 ///
 /// \param      pair    File pair having the source file open for reading
 /// \param      buf     Destination buffer to hold the read data
-/// \param      size    Size of the buffer; assumed be smaller than SSIZE_MAX
+/// \param      size    Size of the buffer; must be at most IO_BUFFER_SIZE
 ///
 /// \return     On success, number of bytes read is returned. On end of
 ///             file zero is returned and pair->src_eof set to true.
@@ -172,7 +172,7 @@ extern bool io_pread(file_pair *pair, io_buf *buf, size_t size, uint64_t pos);
 ///
 /// \param      pair    File pair having the destination file open for writing
 /// \param      buf     Buffer containing the data to be written
-/// \param      size    Size of the buffer; assumed be smaller than SSIZE_MAX
+/// \param      size    Size of the buffer; must be at most IO_BUFFER_SIZE
 ///
 /// \return     On success, zero is returned. On error, -1 is returned
 ///             and error message printed.

@@ -23,7 +23,7 @@
 #define LZMA_VERSION_MINOR 4
 
 /** \brief Patch version number of the liblzma release. */
-#define LZMA_VERSION_PATCH 4
+#define LZMA_VERSION_PATCH 5
 
 /**
  * \brief Version stability marker
@@ -106,7 +106,7 @@
 		LZMA_VERSION_COMMIT)
 
 
-/* #ifndef is needed for use with windres (MinGW or Cygwin). */
+/* #ifndef is needed for use with windres (MinGW-w64 or Cygwin). */
 #ifndef LZMA_H_INTERNAL_RC
 
 /**

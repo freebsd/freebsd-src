@@ -22,6 +22,7 @@
 
 
 /// Lookup table for the inline functions defined in this file.
+lzma_attr_visibility_hidden
 extern const uint8_t lzma_rc_prices[RC_PRICE_TABLE_SIZE];
 
 

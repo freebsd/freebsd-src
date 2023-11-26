@@ -206,6 +206,14 @@ calc_hi(uint64_t poly, uint64_t a)
 #if (defined(__GNUC__) || defined(__clang__)) && !defined(__EDG__)
 __attribute__((__target__("ssse3,sse4.1,pclmul")))
 #endif
+// The intrinsics use 16-byte-aligned reads from buf, thus they may read
+// up to 15 bytes before or after the buffer (depending on the alignment
+// of the buf argument). The values of the extra bytes are ignored.
+// This unavoidably trips -fsanitize=address so address sanitizier has
+// to be disabled for this function.
+#if lzma_has_attribute(__no_sanitize_address__)
+__attribute__((__no_sanitize_address__))
+#endif
 static uint64_t
 crc64_clmul(const uint8_t *buf, size_t size, uint64_t crc)
 {
