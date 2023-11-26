@@ -26,7 +26,8 @@
 #endif
 
 
-static void lzma_attribute((__noreturn__))
+tuklib_attr_noreturn
+static void
 help(void)
 {
 	printf(
@@ -45,7 +46,8 @@ _("Usage: %s [--help] [--version] [FILE]...\n"
 }
 
 
-static void lzma_attribute((__noreturn__))
+tuklib_attr_noreturn
+static void
 version(void)
 {
 	puts("lzmainfo (" PACKAGE_NAME ") " LZMA_VERSION_STRING);

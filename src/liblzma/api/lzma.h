@@ -182,11 +182,11 @@
  * against static liblzma on them, don't worry about LZMA_API_STATIC. That
  * is, most developers will never need to use LZMA_API_STATIC.
  *
- * The GCC variants are a special case on Windows (Cygwin and MinGW).
+ * The GCC variants are a special case on Windows (Cygwin and MinGW-w64).
  * We rely on GCC doing the right thing with its auto-import feature,
  * and thus don't use __declspec(dllimport). This way developers don't
  * need to worry about LZMA_API_STATIC. Also the calling convention is
- * omitted on Cygwin but not on MinGW.
+ * omitted on Cygwin but not on MinGW-w64.
  */
 #ifndef LZMA_API_IMPORT
 #	if !defined(LZMA_API_STATIC) && defined(_WIN32) && !defined(__GNUC__)
