@@ -54,7 +54,7 @@
 .\"
 .\"	@(#)iostat.8	8.1 (Berkeley) 6/6/93
 .\"
-.Dd August 29, 2023
+.Dd November 26, 2023
 .Dt IOSTAT 8
 .Os
 .Sh NAME
@@ -83,7 +83,12 @@ The
 utility displays kernel
 .Tn I/O
 statistics on terminal, device and cpu operations.
-The first statistics that are printed are averaged over the system uptime.
+The first statistics that are printed are averaged over the system uptime
+(unless
+.Fl I
+is specified).
+Any references to repetitions in this man page implicitly include the first
+statistics output.
 To get information about the current activity, a suitable wait time should
 be specified, so that the subsequent sets of printed statistics will be
 averaged over that time.
@@ -101,14 +106,11 @@ is specified.
 Repeat the display
 .Ar count
 times.
-If no repeat
-.Ar count
-is specified, the default depends on whether
-.Fl w
-is specified.
-With
-.Fl w
-the default repeat count is infinity, otherwise it is 1.
+If
+.Fl c
+is not specified and a wait interval is specified,
+the default repeat count is infinity.
+If no wait interval is specified, the default repeat count is 1.
 .It Fl d
 Display only device statistics.
 If this flag is turned on, only device statistics will be displayed, unless
@@ -130,8 +132,11 @@ per measurement cycle.
 Display total statistics for a given time period, rather than average
 statistics for each second during that time period.
 .It Fl K
-In the blocks transferred display (-o), display block count in kilobytes rather
-then the device native block size.
+In the old-style blocks transferred display
+.Po Fl I
+and
+.Fl o Pc ,
+display block count in kilobytes rather than the device native block size.
 .It Fl M
 Extract values associated with the name list from the specified core
 instead of the default
@@ -145,7 +150,7 @@ Display up to
 number of devices.
 The
 .Nm
-utility will display fewer devices if there are not
+utility will display fewer devices if there are less than
 .Ar devs
 devices present.
 .It Fl o
@@ -220,7 +225,7 @@ Passthrough devices
 The user must specify at least one device type, and may specify at most
 one device type from each category.
 Multiple device types in a single device type statement must be separated by
-commas.
+commas and are ANDed together.
 .Pp
 Any number of
 .Fl t
@@ -234,14 +239,16 @@ Any device that fully matches any
 argument will be included in the
 .Nm
 output, up to the number of devices that can be displayed in
-80 columns, or the maximum number of devices specified by the user.
+80 columns, or the maximum number of devices
+.Pq Fl n
+specified by the user.
 .It Fl w
 Pause
 .Ar wait
 seconds between each display.
-If no
-.Ar wait
-interval is specified, the default is 1 second.
+If
+.Fl w
+is not specified, the default interval is 1 second.
 .Pp
 The
 .Nm
@@ -516,3 +523,24 @@ The use of
 as a debugging tool for crash dumps is probably limited because there is
 currently no way to get statistics that only cover the time immediately before
 the crash.
+.Pp
+Each
+.Ar drives
+argument is passed to
+.Fn isdigit .
+If
+.Fn isdigit
+returns true,
+.Nm
+switches into an undocumented traditional syntax and subsequent arguments,
+if any, will not be interpreted as drive names.
+This behavior collides with the one documented in this man page and prevents
+specifying drive names starting with a number.
+E.g., the following
+.Bd -literal -offset indent
+iostat ada0 ada1 2 3 cd0
+.Ed
+.Pp
+This document's use of
+.Dq device type
+is misleading.
