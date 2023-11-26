@@ -92,7 +92,8 @@ fdlock_implied(const char *name, long *ofd)
 int
 main(int argc, char **argv)
 {
-	int ch, flags, silent, status, waitsec;
+	int ch, flags, silent, status;
+	long long waitsec;
 	pid_t child;
 	union lock_subject subj;
 
@@ -112,9 +113,10 @@ main(int argc, char **argv)
 			break;
 		case 't':
 		{
-			char *endptr;
-			waitsec = strtol(optarg, &endptr, 0);
-			if (*optarg == '\0' || *endptr != '\0' || waitsec < 0)
+			const char *errstr;
+
+			waitsec = strtonum(optarg, 0, UINT_MAX, &errstr);
+			if (errstr != NULL)
 				errx(EX_USAGE,
 				    "invalid timeout \"%s\"", optarg);
 		}
@@ -181,7 +183,7 @@ main(int argc, char **argv)
 		sigemptyset(&act.sa_mask);
 		act.sa_flags = 0;	/* Note that we do not set SA_RESTART. */
 		sigaction(SIGALRM, &act, NULL);
-		alarm(waitsec);
+		alarm((unsigned int)waitsec);
 	}
 	/*
 	 * If the "-k" option is not given, then we must not block when
