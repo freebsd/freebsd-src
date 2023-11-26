@@ -25,6 +25,29 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the 
 second edition of the AWK book was published in September 2023.
 
+Nov 24, 2023:
+        Fix issue #199: gototab improvements to dynamically resize the
+        table, qsort and bsearch to improve the lookup speed as the
+        table gets larger for multibyte input. thanks to Arnold Robbins.
+
+Nov 23, 2023:
+	Fix Issue #169, related to escape sequences in strings.
+	Thanks to Github user rajeevvp.
+	Fix Issue #147, reported by Github user drawkula, and fixed
+	by Miguel Pineiro Jr.
+
+Nov 20, 2023:
+	rewrite of fnematch to fix a number of issues, including
+	extraneous output, out-of-bounds access, number of bytes
+	to push back after a failed match etc.
+	thanks to Miguel Pineiro Jr.
+
+Nov 15, 2023:
+	Man page edit, regression test fixes. thanks to Arnold Robbins
+	consolidation of sub and gsub into dosub, removing duplicate
+	code. thanks to Miguel Pineiro Jr.
+	gcc replaced with cc everywhere.
+
 Oct 30, 2023:
 	multiple fixes and a minor code cleanup.
 	disabled utf-8 for non-multibyte locales, such as C or POSIX.
@@ -32,7 +55,6 @@ Oct 30, 2023:
 	systems. also fixed an out-of-bounds read for empty CCL.
 	fixed a buffer overflow in substr with utf-8 strings.
 	many thanks to Todd C Miller.
-	
 
 Sep 24, 2023:
 	fnematch and getrune have been overhauled to solve issues around

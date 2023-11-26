@@ -638,6 +638,9 @@ the syntax is worse.
 .PP
 Input is expected to be UTF-8 encoded. Other multibyte
 character sets are not handled.
+However, in eight-bit locales,
+.I awk
+treats each input byte as a separate character.
 .SH UNUSUAL FLOATING-POINT VALUES
 .I Awk
 was designed before IEEE 754 arithmetic defined Not-A-Number (NaN)

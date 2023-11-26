@@ -96,9 +96,8 @@ extern int u8_nextlen(const char *s);
    mechanism of the goto table used 8-bit byte indices into the
    gototab entries to compute the next state.  Unicode is a lot
    bigger, so the gototab entries are now structs with a character
-   and a next state, and there is a linear search of the characters
-   to find the state.  (Yes, this is slower, by a significant
-   amount.  Tough.)
+   and a next state. These are sorted by code point and binary
+   searched.
 
    Throughout the RE mechanism in b.c, utf-8 characters are
    converted to their utf-32 value.  This mostly shows up in
@@ -113,8 +112,10 @@ extern int u8_nextlen(const char *s);
 
  */
 
+static int entry_cmp(const void *l, const void *r);
 static int get_gototab(fa*, int, int);
 static int set_gototab(fa*, int, int, int);
+static void clear_gototab(fa*, int);
 extern int u8_rune(int *, const uschar *);
 
 static int *
@@ -142,7 +143,7 @@ resizesetvec(const char *f)
 static void
 resize_state(fa *f, int state)
 {
-	gtt **p;
+	gtt *p;
 	uschar *p2;
 	int **p3;
 	int i, new_count;
@@ -152,7 +153,7 @@ resize_state(fa *f, int state)
 
 	new_count = state + 10; /* needs to be tuned */
 
-	p = (gtt **) realloc(f->gototab, new_count * sizeof(f->gototab[0]));
+	p = (gtt *) realloc(f->gototab, new_count * sizeof(gtt));
 	if (p == NULL)
 		goto out;
 	f->gototab = p;
@@ -168,13 +169,14 @@ resize_state(fa *f, int state)
 	f->posns = p3;
 
 	for (i = f->state_count; i < new_count; ++i) {
-		f->gototab[i] = (gtt *) calloc(NCHARS, sizeof(**f->gototab));
-		if (f->gototab[i] == NULL)
+		f->gototab[i].entries = (gtte *) calloc(NCHARS, sizeof(gtte));
+		if (f->gototab[i].entries == NULL)
 			goto out;
-		f->out[i]  = 0;
+		f->gototab[i].allocated = NCHARS;
+		f->gototab[i].inuse = 0;
+		f->out[i] = 0;
 		f->posns[i] = NULL;
 	}
-	f->gototab_len = NCHARS; /* should be variable, growable */
 	f->state_count = new_count;
 	return;
 out:
@@ -268,8 +270,7 @@ int makeinit(fa *f, bool anchor)
 	}
 	if ((f->posns[2])[1] == f->accept)
 		f->out[2] = 1;
-	for (i = 0; i < NCHARS; i++)
-		set_gototab(f, 2, 0, 0); /* f->gototab[2][i] = 0; */
+	clear_gototab(f, 2);
 	f->curstat = cgoto(f, 2, HAT);
 	if (anchor) {
 		*f->posns[2] = k-1;	/* leave out position 0 */
@@ -595,30 +596,102 @@ int member(int c, int *sarg)	/* is c in s? */
 	return(0);
 }
 
+static void resize_gototab(fa *f, int state)
+{
+	size_t new_size = f->gototab[state].allocated * 2;
+	gtte *p = (gtte *) realloc(f->gototab[state].entries, new_size * sizeof(gtte));
+	if (p == NULL)
+		overflo(__func__);
+
+	// need to initialized the new memory to zero
+	size_t orig_size = f->gototab[state].allocated;		// 2nd half of new mem is this size
+	memset(p + orig_size, 0, orig_size * sizeof(gtte));	// clean it out
+
+	f->gototab[state].allocated = new_size;			// update gotottab info
+	f->gototab[state].entries = p;
+}
+
 static int get_gototab(fa *f, int state, int ch) /* hide gototab inplementation */
 {
-	int i;
-	for (i = 0; i < f->gototab_len; i++) {
-		if (f->gototab[state][i].ch == 0)
-			break;
-		if (f->gototab[state][i].ch == ch)
-			return f->gototab[state][i].state;
-	}
-	return 0;
+	gtte key;
+	gtte *item;
+
+	key.ch = ch;
+	key.state = 0;	/* irrelevant */
+	item = bsearch(& key, f->gototab[state].entries,
+			f->gototab[state].inuse, sizeof(gtte),
+			entry_cmp);
+
+	if (item == NULL)
+		return 0;
+	else
+		return item->state;
+}
+
+static int entry_cmp(const void *l, const void *r)
+{
+	const gtte *left, *right;
+
+	left = (const gtte *) l;
+	right = (const gtte *) r;
+
+	return left->ch - right->ch;
 }
 
 static int set_gototab(fa *f, int state, int ch, int val) /* hide gototab inplementation */
 {
-	int i;
-	for (i = 0; i < f->gototab_len; i++) {
-		if (f->gototab[state][i].ch == 0 || f->gototab[state][i].ch == ch) {
-			f->gototab[state][i].ch = ch;
-			f->gototab[state][i].state = val;
-			return val;
+	if (f->gototab[state].inuse == 0) {
+		f->gototab[state].entries[0].ch = ch;
+		f->gototab[state].entries[0].state = val;
+		f->gototab[state].inuse++;
+		return val;
+	} else if (ch > f->gototab[state].entries[f->gototab[state].inuse-1].ch) {
+		// not seen yet, insert and return
+		gtt *tab = & f->gototab[state];
+		if (tab->inuse + 1 >= tab->allocated)
+			resize_gototab(f, state);
+
+		f->gototab[state].entries[f->gototab[state].inuse-1].ch = ch;
+		f->gototab[state].entries[f->gototab[state].inuse-1].state = val;
+		f->gototab[state].inuse++;
+		return val;
+	} else {
+		// maybe we have it, maybe we don't
+		gtte key;
+		gtte *item;
+
+		key.ch = ch;
+		key.state = 0;	/* irrelevant */
+		item = bsearch(& key, f->gototab[state].entries,
+				f->gototab[state].inuse, sizeof(gtte),
+				entry_cmp);
+
+		if (item != NULL) {
+			// we have it, update state and return
+			item->state = val;
+			return item->state;
 		}
+		// otherwise, fall through to insert and reallocate.
 	}
-	overflo(__func__);
+
+	gtt *tab = & f->gototab[state];
+	if (tab->inuse + 1 >= tab->allocated)
+		resize_gototab(f, state);
+	++tab->inuse;
+	f->gototab[state].entries[tab->inuse].ch = ch;
+	f->gototab[state].entries[tab->inuse].state = val;
+
+	qsort(f->gototab[state].entries,
+		f->gototab[state].inuse, sizeof(gtte), entry_cmp);
+
 	return val; /* not used anywhere at the moment */
+}
+
+static void clear_gototab(fa *f, int state)
+{
+	memset(f->gototab[state].entries, 0,
+		f->gototab[state].allocated * sizeof(gtte));
+	f->gototab[state].inuse = 0;
 }
 
 int match(fa *f, const char *p0)	/* shortest match ? */
@@ -759,59 +832,6 @@ int nematch(fa *f, const char *p0)	/* non-empty match, for sub */
 
 #define MAX_UTF_BYTES	4	// UTF-8 is up to 4 bytes long
 
-// Read one rune at a time from the given FILE*. Return both
-// the bytes and the actual rune.
-
-struct runedata {
-	int rune;
-	size_t len;
-	char bytes[6];
-};
-
-struct runedata getrune(FILE *fp)
-{
-	struct runedata result;
-	int c, next;
-
-	memset(&result, 0, sizeof(result));
-
-	c = getc(fp);
-	if (c == EOF)
-		return result;	// result.rune == 0 --> EOF
-	else if (c < 128 || awk_mb_cur_max == 1) {
-		result.bytes[0] = c;
-		result.len = 1;
-		result.rune = c;
-
-		return result;
-	}
-
-	// need to get bytes and fill things in
-	result.bytes[0] = c;
-	result.len = 1;
-
-	next = 1;
-	for (int i = 1; i < MAX_UTF_BYTES; i++) {
-		c = getc(fp);
-		if (c == EOF)
-			break;
-		result.bytes[next++] = c;
-		result.len++;
-	}
-
-	// put back any extra input bytes
-	int actual_len = u8_nextlen(result.bytes);
-	while (result.len > actual_len) {
-		ungetc(result.bytes[--result.len], fp);
-	}
-
-	result.bytes[result.len] = '\0';
-	(void) u8_rune(& result.rune, (uschar *) result.bytes);
-
-	return result;
-}
-
-
 /*
  * NAME
  *     fnematch
@@ -829,58 +849,76 @@ struct runedata getrune(FILE *fp)
 
 bool fnematch(fa *pfa, FILE *f, char **pbuf, int *pbufsize, int quantum)
 {
-	char *buf = *pbuf;
+	char *i, *j, *k, *buf = *pbuf;
 	int bufsize = *pbufsize;
-	int i, j, k, ns, s;
-	struct runedata r;
+	int c, n, ns, s;
 
 	s = pfa->initstat;
 	patlen = 0;
 
 	/*
-	 * All indices relative to buf.
-	 * i <= j <= k <= bufsize
+	 * buf <= i <= j <= k <= buf+bufsize
 	 *
-	 * i: origin of active substring (first byte of first character)
-	 * j: current character		(last byte of current character)
-	 * k: destination of next getc()
+	 * i: origin of active substring
+	 * j: current character
+	 * k: destination of the next getc
 	 */
-	i = -1, k = 0;
-        do {
-		j = i++;
-		do {
-			r = getrune(f);
-			if ((++j + r.len) >= k) {
-				if (k >= bufsize)
-					if (!adjbuf((char **) &buf, &bufsize, bufsize+1, quantum, 0, "fnematch"))
-						FATAL("stream '%.30s...' too long", buf);
-			}
-			memcpy(buf + k, r.bytes, r.len);
-			j += r.len - 1;	// incremented next time around the loop
-			k += r.len;
 
-			if ((ns = get_gototab(pfa, s, r.rune)) != 0)
-				s = ns;
-			else
-				s = cgoto(pfa, s, r.rune);
+	i = j = k = buf;
 
-			if (pfa->out[s]) {	/* final state */
-				patlen = j - i + 1;
-				if (r.rune == 0)	/* don't count $ */
-					patlen--;
+	do {
+		/*
+		 * Call u8_rune with at least MAX_UTF_BYTES ahead in
+		 * the buffer until EOF interferes.
+		 */
+		if (k - j < MAX_UTF_BYTES) {
+			if (k + MAX_UTF_BYTES > buf + bufsize) {
+				adjbuf((char **) &buf, &bufsize,
+				    bufsize + MAX_UTF_BYTES,
+				    quantum, 0, "fnematch");
 			}
-		} while (buf[j] && s != 1);
+			for (n = MAX_UTF_BYTES ; n > 0; n--) {
+				*k++ = (c = getc(f)) != EOF ? c : 0;
+				if (c == EOF) {
+					if (ferror(f))
+						FATAL("fnematch: getc error");
+					break;
+				}
+			}
+		}
+
+		j += u8_rune(&c, (uschar *)j);
+
+		if ((ns = get_gototab(pfa, s, c)) != 0)
+			s = ns;
+		else
+			s = cgoto(pfa, s, c);
+
+		if (pfa->out[s]) {	/* final state */
+			patbeg = i;
+			patlen = j - i;
+			if (c == 0)	/* don't count $ */
+				patlen--;
+		}
+
+		if (c && s != 1)
+			continue;  /* origin i still viable, next j */
+		if (patlen)
+			break;     /* best match found */
+
+		/* no match at origin i, next i and start over */
+		i += u8_rune(&c, (uschar *)i);
+		if (c == 0)
+			break;    /* no match */
+		j = i;
 		s = 2;
-		if (r.len > 1)
-			i += r.len - 1;	// i incremented around the loop
-	} while (buf[i] && !patlen);
+	} while (1);
 
 	/* adjbuf() may have relocated a resized buffer. Inform the world. */
 	*pbuf = buf;
 	*pbufsize = bufsize;
 
 	if (patlen) {
-		patbeg = (char *) buf + i;
 		/*
 		 * Under no circumstances is the last character fed to
 		 * the automaton part of the match. It is EOF's nullbyte,
@@ -893,11 +931,10 @@ bool fnematch(fa *pfa, FILE *f, char **pbuf, int *pbufsize, int quantum)
 		 * terminate the buffer.
 		 */
 		do
-			for (int ii = r.len; ii > 0; ii--)
-				if (buf[--k] && ungetc(buf[k], f) == EOF)
-					FATAL("unable to ungetc '%c'", buf[k]);
-		while (k > i + patlen);
-		buf[k] = '\0';
+			if (*--k && ungetc(*k, f) == EOF)
+				FATAL("unable to ungetc '%c'", *k);
+		while (k > patbeg + patlen);
+		*k = '\0';
 		return true;
 	}
 	else
@@ -1486,8 +1523,7 @@ int cgoto(fa *f, int s, int c)
 	/* add tmpset to current set of states */
 	++(f->curstat);
 	resize_state(f, f->curstat);
-	for (i = 0; i < NCHARS; i++)
-		set_gototab(f, f->curstat, 0, 0);
+	clear_gototab(f, f->curstat);
 	xfree(f->posns[f->curstat]);
 	p = intalloc(setcnt + 1, __func__);
 
@@ -1511,7 +1547,8 @@ void freefa(fa *f)	/* free a finite automaton */
 	if (f == NULL)
 		return;
 	for (i = 0; i < f->state_count; i++)
-		xfree(f->gototab[i])
+		xfree(f->gototab[i].entries);
+	xfree(f->gototab);
 	for (i = 0; i <= f->curstat; i++)
 		xfree(f->posns[i]);
 	for (i = 0; i <= f->accept; i++) {

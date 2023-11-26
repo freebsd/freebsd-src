@@ -198,8 +198,7 @@ extern	FILE	*openfile(int, const char *, bool *);
 extern	const char	*filename(FILE *);
 extern	Cell	*closefile(Node **, int);
 extern	void	closeall(void);
-extern	Cell	*sub(Node **, int);
-extern	Cell	*gsub(Node **, int);
+extern	Cell	*dosub(Node **, int);
 extern	Cell	*gensub(Node **, int);
 
 extern	FILE	*popen(const char *, const char *);

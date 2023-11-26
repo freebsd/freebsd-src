@@ -21,8 +21,6 @@ Aribtrary characters may be included with `\u` followed by 1 to 8 hexadecimal di
 ### Regular expressions ###
 
 Regular expressions may include UTF-8 code points, including `\u`.
-Character classes are likely to be limited to about 256 characters
-when expanded.
 
 ### CSV ###
 
@@ -145,4 +143,4 @@ is not at the top of our priority list.
 
 #### Last Updated
 
-Sun 15 Oct 2023 06:28:36 IDT
+Mon 16 Oct 2023 11:23:08 IDT
