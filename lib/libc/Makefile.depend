@@ -6,6 +6,7 @@ DIRDEPS = \
 	include/rpcsvc \
 	lib/${CSU_DIR} \
 	lib/libcompiler_rt \
+	usr.bin/awk.host \
 	usr.bin/yacc.host \
 
 
