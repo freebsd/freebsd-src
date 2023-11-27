@@ -30,6 +30,7 @@
  * $Id: ssr.c,v 1.5 2004/01/13 01:54:39 max Exp $
  */
 
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/uio.h>
 #include <netinet/in.h>
@@ -269,7 +270,7 @@ server_send_service_search_response(server_p srv, int32_t fd)
 	iov[3].iov_len = 1 + cs[0];
 
 	do {
-		size = writev(fd, (struct iovec const *) &iov, sizeof(iov)/sizeof(iov[0]));
+		size = writev(fd, (struct iovec const *) &iov, nitems(iov));
 	} while (size < 0 && errno == EINTR);
 
 	/* Check if we have sent (or failed to sent) last response chunk */

@@ -385,7 +385,7 @@ main(int argc, char *argv[])
 	}
 
 	size = sizeof(i);
-	(void) sysctl(mib, sizeof(mib)/sizeof(mib[0]), &i, &size, NULL, 0);
+	(void) sysctl(mib, nitems(mib), &i, &size, NULL, 0);
 	max_hops = i;
 
 	/* specify to tell receiving interface */

@@ -31,6 +31,7 @@
  */
 
 #include <sys/ioctl.h>
+#include <sys/param.h>
 #define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <errno.h>
@@ -160,7 +161,7 @@ hci_read_node_features(int s, int argc, char **argv)
 		return (ERROR);
 
 	fprintf(stdout, "Features: ");
-	for (n = 0; n < sizeof(r.features)/sizeof(r.features[0]); n++)
+	for (n = 0; n < nitems(r.features); n++)
 		fprintf(stdout, "%#02x ", r.features[n]);
 	fprintf(stdout, "\n%s\n", hci_features2str(r.features, 
 		buffer, sizeof(buffer)));
@@ -243,8 +244,8 @@ hci_read_neighbor_cache(int s, int argc, char **argv)
 
 	for (n = 0; n < r.num_entries; n++) {
 	        uint8_t addrtype = r.entries[n].addrtype;
-		if(addrtype >= sizeof(addrtype2str)/sizeof(addrtype2str[0]))
-			addrtype = sizeof(addrtype2str)/sizeof(addrtype2str[0]) - 1;
+		if(addrtype >= nitems(addrtype2str))
+			addrtype = nitems(addrtype2str) - 1;
 		fprintf(stdout, 
 "%1s %-17.17s " \
 "%02x %02x %02x %02x %02x %02x %02x %02x " \

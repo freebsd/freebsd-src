@@ -26,6 +26,8 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/param.h>
+
 #define CHAT_EXPECT 0
 #define CHAT_SEND   1
 #define CHAT_DONE   2
@@ -74,7 +76,7 @@ struct chat {
 
 #define descriptor2chat(d) \
   ((d)->type == CHAT_DESCRIPTOR ? (struct chat *)(d) : NULL)
-#define	VECSIZE(v)	(sizeof(v) / sizeof(v[0]))
+#define	VECSIZE(v)	nitems(v)
 
 extern void chat_Init(struct chat *, struct physical *);
 extern int chat_Setup(struct chat *, const char *, const char *);
