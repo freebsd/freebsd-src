@@ -96,9 +96,14 @@
 /*
  * The __CONCAT macro is used to concatenate parts of symbol names, e.g.
  * with "#define OLD(foo) __CONCAT(old,foo)", OLD(foo) produces oldfoo.
+ * The __CONCAT macro is a bit tricky to use if it must work in non-ANSI
+ * mode -- there must be no spaces between its arguments, and for nested
+ * __CONCAT's, all the __CONCAT's must be at the left.  __CONCAT can also
+ * concatenate double-quoted strings produced by the __STRING macro, but
+ * this only works with ANSI C.
  *
  * __XSTRING is like __STRING, but it expands any macros in its argument
- * first.
+ * first.  It is only available with ANSI C.
  */
 #if defined(__STDC__) || defined(__cplusplus)
 #define	__P(protos)	protos		/* full-blown ANSI C */
@@ -117,7 +122,33 @@
 #define	__inline			/* delete GCC keyword */
 #endif /* ! __CC_SUPPORTS___INLINE */
 #endif /* !__cplusplus */
-#endif	/* __STDC__ || __cplusplus */
+
+#else	/* !(__STDC__ || __cplusplus) */
+#define	__P(protos)	()		/* traditional C preprocessor */
+#define	__CONCAT(x,y)	x/**/y
+#define	__STRING(x)	"x"
+
+#if !defined(__CC_SUPPORTS___INLINE)
+#define	__const				/* delete pseudo-ANSI C keywords */
+#define	__inline
+#define	__signed
+#define	__volatile
+/*
+ * In non-ANSI C environments, new programs will want ANSI-only C keywords
+ * deleted from the program and old programs will want them left alone.
+ * When using a compiler other than gcc, programs using the ANSI C keywords
+ * const, inline etc. as normal identifiers should define -DNO_ANSI_KEYWORDS.
+ * When using "gcc -traditional", we assume that this is the intent; if
+ * __GNUC__ is defined but __STDC__ is not, we leave the new keywords alone.
+ */
+#ifndef	NO_ANSI_KEYWORDS
+#define	const				/* delete ANSI C keywords */
+#define	inline
+#define	signed
+#define	volatile
+#endif	/* !NO_ANSI_KEYWORDS */
+#endif	/* !__CC_SUPPORTS___INLINE */
+#endif	/* !(__STDC__ || __cplusplus) */
 
 /*
  * Compiler-dependent macros to help declare dead (non-returning) and
@@ -310,6 +341,11 @@
 #define	__unreachable()	__builtin_unreachable()
 #else
 #define	__unreachable()	((void)0)
+#endif
+
+/* XXX: should use `#if __STDC_VERSION__ < 199901'. */
+#if !__GNUC_PREREQ__(2, 7)
+#define	__func__	NULL
 #endif
 
 #if (defined(__GNUC__) && __GNUC__ >= 2) && !defined(__STRICT_ANSI__) || __STDC_VERSION__ >= 199901
