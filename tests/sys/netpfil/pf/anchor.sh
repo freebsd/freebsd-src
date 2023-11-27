@@ -130,9 +130,44 @@ wildcard_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "nested_label" "cleanup"
+nested_label_head()
+{
+	atf_set descr "Test recursive listing of labels"
+	atf_set require.user root
+}
+
+nested_label_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+
+	pft_set_rules alcatraz \
+		"anchor \"foo\" { \n\
+			pass in quick proto icmp label \"passicmp\"\n\
+			anchor \"bar\" { \n\
+				pass in proto tcp label \"passtcp\"\n\
+			} \n\
+		}" \
+		"pass quick from any to any label \"anytoany\""
+
+	atf_check -s exit:0 \
+	    -o inline:"passicmp 0 0 0 0 0 0 0 0
+passtcp 0 0 0 0 0 0 0 0
+anytoany 0 0 0 0 0 0 0 0
+" jexec alcatraz pfctl -sl -a*
+}
+
+nested_label_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "pr183198"
 	atf_add_test_case "nested_anchor"
 	atf_add_test_case "wildcard"
+	atf_add_test_case "nested_label"
 }
