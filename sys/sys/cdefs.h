@@ -343,11 +343,6 @@
 #define	__unreachable()	((void)0)
 #endif
 
-/* XXX: should use `#if __STDC_VERSION__ < 199901'. */
-#if !__GNUC_PREREQ__(2, 7)
-#define	__func__	NULL
-#endif
-
 #if (defined(__GNUC__) && __GNUC__ >= 2) && !defined(__STRICT_ANSI__) || __STDC_VERSION__ >= 199901
 #define	__LONG_LONG_SUPPORTED
 #endif
