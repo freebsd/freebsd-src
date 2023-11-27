@@ -81,6 +81,7 @@ emulator-portinstall:
 	env ASSUME_ALWAYS_YES=yes pkg install -y emulators/qemu-user-static
 .endif
 .endif
+	touch ${.TARGET}
 
 QEMUSTATIC=/usr/local/bin/qemu-${TARGET_ARCH}-static
 .endif
@@ -137,10 +138,11 @@ vm-image:
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 . for FORMAT in ${VMFORMATS}
 .  for FS in ${VMFSLIST}
-	mkdir -p ${.OBJDIR}/${.TARGET}
+	mkdir -p ${.OBJDIR}/${.TARGET}-${FORMAT}-${FS}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
-		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${FS} \
+		-C ${.CURDIR}/tools/vmimage.subr \
+		-d ${.OBJDIR}/${.TARGET}-${FORMAT}-${FS} -F ${FS} \
 		-i ${.OBJDIR}/${FORMAT}.${FS}.img -s ${VMSIZE} -f ${FORMAT} \
 		-S ${WORLDDIR} -o ${.OBJDIR}/${VMBASE}.${FS}.${FORMAT}
 .  endfor
