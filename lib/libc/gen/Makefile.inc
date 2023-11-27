@@ -101,6 +101,7 @@ SRCS+=	__getosreldate.c \
 	lockf.c \
 	lrand48.c \
 	memalign.c \
+	memfd_create.c \
 	mrand48.c \
 	nftw.c \
 	nftw-compat11.c \
