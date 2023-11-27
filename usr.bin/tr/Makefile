@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	runtime
 PROG=	tr
 SRCS=	cmap.c cset.c str.c tr.c
 
