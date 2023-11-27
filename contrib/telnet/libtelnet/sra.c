@@ -28,10 +28,6 @@
  * 
  */
 
-#include <sys/cdefs.h>
-
-__FBSDID("$FreeBSD$");
-
 #ifdef	SRA
 #ifdef	ENCRYPTION
 #include <sys/types.h>
