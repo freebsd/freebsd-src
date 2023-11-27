@@ -32,9 +32,6 @@
  *
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <contrib/x86emu/x86emu.h>
 #include <contrib/x86emu/x86emu_regs.h>
 
