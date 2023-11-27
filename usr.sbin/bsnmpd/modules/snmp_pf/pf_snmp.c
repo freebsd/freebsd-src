@@ -1513,24 +1513,21 @@ err2:
 static int
 pfl_scan_ruleset(const char *path)
 {
-	struct pfioc_rule pr;
+	struct pfctl_rules_info rules;
 	struct pfctl_rule rule;
+	char anchor_call[MAXPATHLEN] = "";
 	struct pfl_entry *e;
 	u_int32_t nr, i;
 
-	bzero(&pr, sizeof(pr));
-	strlcpy(pr.anchor, path, sizeof(pr.anchor));
-	pr.rule.action = PF_PASS;
-	if (ioctl(dev, DIOCGETRULES, &pr)) {
+	if (pfctl_get_rules_info(dev, &rules, PF_PASS, path)) {
 		syslog(LOG_ERR, "pfl_scan_ruleset: ioctl(DIOCGETRULES): %s",
 		    strerror(errno));
 		goto err;
 	}
 
-	for (nr = pr.nr, i = 0; i < nr; i++) {
-		pr.nr = i;
-		if (pfctl_get_rule(dev, pr.nr, pr.ticket, pr.anchor,
-		    PF_PASS, &rule, pr.anchor_call)) {
+	for (nr = rules.nr, i = 0; i < nr; i++) {
+		if (pfctl_get_rule(dev, i, rules.ticket, path,
+		    PF_PASS, &rule, anchor_call)) {
 			syslog(LOG_ERR, "pfl_scan_ruleset: ioctl(DIOCGETRULE):"
 			    " %s", strerror(errno));
 			goto err;
