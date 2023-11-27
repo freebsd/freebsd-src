@@ -32,8 +32,6 @@
 static const char sccsid[] = "@(#)ring.c	8.2 (Berkeley) 5/30/95";
 #endif
 #endif
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 /*
  * This defines a structure for a ring buffer.
