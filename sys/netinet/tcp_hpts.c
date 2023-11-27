@@ -1519,6 +1519,7 @@ __tcp_run_hpts(struct tcp_hpts_entry *hpts)
 				hpts->p_mysleep.tv_usec = dynamic_min_sleep;
 			/* Reschedule with new to value */
 			tcp_hpts_set_max_sleep(hpts, 0);
+			tv.tv_sec = 0;
 			tv.tv_usec = hpts->p_hpts_sleep_time * HPTS_TICKS_PER_SLOT;
 			/* Validate its in the right ranges */
 			if (tv.tv_usec < hpts->p_mysleep.tv_usec) {
@@ -1600,7 +1601,7 @@ tcp_choose_hpts_to_run(void)
 void
 tcp_run_hpts(void)
 {
-	static struct tcp_hpts_entry *hpts;
+	struct tcp_hpts_entry *hpts;
 	struct epoch_tracker et;
 
 	NET_EPOCH_ENTER(et);
