@@ -35,7 +35,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -52,7 +51,8 @@ int
 memfd_create(const char *name, unsigned int flags)
 {
 	char memfd_name[NAME_MAX + 1];
-	size_t namelen, *pgs, pgsize;
+	size_t pgs[MAXPAGESIZES];
+	size_t namelen, pgsize;
 	struct shm_largepage_conf slc;
 	int error, fd, npgs, oflags, pgidx, saved_errno, shmflags;
 
@@ -92,15 +92,8 @@ memfd_create(const char *name, unsigned int flags)
 	if (fd == -1 || (flags & MFD_HUGETLB) == 0)
 		return (fd);
 
-	pgs = NULL;
-	npgs = getpagesizes(NULL, 0);
+	npgs = getpagesizes(pgs, nitems(pgs));
 	if (npgs == -1)
-		goto clean;
-	pgs = calloc(npgs, sizeof(size_t));
-	if (pgs == NULL)
-		goto clean;
-	error = getpagesizes(pgs, npgs);
-	if (error == -1)
 		goto clean;
 	pgsize = (size_t)1 << ((flags & MFD_HUGE_MASK) >> MFD_HUGE_SHIFT);
 	for (pgidx = 0; pgidx < npgs; pgidx++) {
@@ -111,8 +104,6 @@ memfd_create(const char *name, unsigned int flags)
 		errno = EOPNOTSUPP;
 		goto clean;
 	}
-	free(pgs);
-	pgs = NULL;
 
 	memset(&slc, 0, sizeof(slc));
 	slc.psind = pgidx;
@@ -125,7 +116,6 @@ memfd_create(const char *name, unsigned int flags)
 clean:
 	saved_errno = errno;
 	close(fd);
-	free(pgs);
 	errno = saved_errno;
 	return (-1);
 }
