@@ -13,9 +13,9 @@ dst=`mktemp $base.XXXXXX` || exit 1
 
 dd if=/dev/random of=${src} bs=$ddbs count=$nblocks2 >/dev/null 2>&1
 
-us0=$(attach_md -t malloc -s `expr $nblocks1 + 1`) || exit 1
-us1=$(attach_md -t malloc -s `expr $nblocks1 + 1`) || exit 1
-us2=$(attach_md -t malloc -s `expr $nblocks1 + 1`) || exit 1
+attach_md us0 -t malloc -s `expr $nblocks1 + 1` || exit 1
+attach_md us1 -t malloc -s `expr $nblocks1 + 1` || exit 1
+attach_md us2 -t malloc -s `expr $nblocks1 + 1` || exit 1
 
 gmirror label -b $balance -s `expr $ddbs / 2` $name /dev/${us0} /dev/${us1} /dev/${us2} || exit 1
 devwait

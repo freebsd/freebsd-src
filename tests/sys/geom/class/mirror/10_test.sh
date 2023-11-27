@@ -16,8 +16,8 @@ m2=$(mktemp $base.XXXXXX)
 dd if=/dev/random of=$m1 bs=$ddbs count=1024 >/dev/null 2>&1
 dd if=/dev/zero of=$m2 bs=$ddbs count=1024 >/dev/null 2>&1
 
-us0=$(attach_md -t vnode -f $m1)
-us1=$(attach_md -t vnode -f $m2)
+attach_md us0 -t vnode -f $m1
+attach_md us1 -t vnode -f $m2
 
 gmirror label $name /dev/$us0
 gmirror insert $name /dev/$us1
@@ -52,10 +52,10 @@ fi
 # Force a retaste of the disconnected component.
 if [ $(gmirror status -s $name | awk '{print $3}') = $us0 ]; then
 	detach_md $us1
-	us1=$(attach_md -t vnode -f $m2)
+	attach_md us1 -t vnode -f $m2
 else
 	detach_md $us0
-	us0=$(attach_md -t vnode -f $m1)
+	attach_md us0 -t vnode -f $m1
 fi
 
 # Make sure that the component wasn't re-added to the gmirror.

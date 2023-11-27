@@ -8,9 +8,9 @@ nblocks1=9
 nblocks2=`expr $nblocks1 - 1`
 nblocks3=`expr $nblocks2 / 2`
 
-us0=$(attach_md -t malloc -s $nblocks1) || exit 1
-us1=$(attach_md -t malloc -s $nblocks1) || exit 1
-us2=$(attach_md -t malloc -s $nblocks1) || exit 1
+attach_md us0 -t malloc -s $nblocks1 || exit 1
+attach_md us1 -t malloc -s $nblocks1 || exit 1
+attach_md us2 -t malloc -s $nblocks1 || exit 1
 
 dd if=/dev/random of=/dev/${us0} count=$nblocks1 >/dev/null 2>&1
 dd if=/dev/random of=/dev/${us1} count=$nblocks1 >/dev/null 2>&1

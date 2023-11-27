@@ -103,7 +103,7 @@ onetime_d_body()
 	geli_test_setup
 
 	sectors=100
-	md=$(attach_md -t malloc -s $sectors)
+	attach_md md -t malloc -s $sectors
 
 	atf_check geli onetime -d ${md}
 	if [ ! -c /dev/${md}.eli ]; then
@@ -147,7 +147,7 @@ onetime_null_body()
 	ealgo=${cipher%%:*}
 	keylen=${cipher##*:}
 
-	md=$(attach_md -t malloc -s 100k)
+	attach_md md -t malloc -s 100k
 
 	atf_check -s exit:0 -o ignore -e ignore \
 		geli onetime -e null -s ${secsize} ${md}

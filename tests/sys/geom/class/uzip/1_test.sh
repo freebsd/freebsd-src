@@ -19,7 +19,7 @@ fi
 echo "1..1"
 
 uudecode $UUE
-us0=$(attach_md -f $(basename $UUE .uue)) || exit 1
+attach_md us0 -f $(basename $UUE .uue) || exit 1
 sleep 1
 
 mount -o ro /dev/${us0}.uzip "${mntpoint}" || exit 1

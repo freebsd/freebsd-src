@@ -39,8 +39,8 @@ create_body()
 {
     gunion_test_setup
 
-    upperdev="$(attach_md -s 1m)"
-    lowerdev="$(attach_md -s 1m)"
+    attach_md upperdev -s 1m
+    attach_md lowerdev -s 1m
     newfs -U "/dev/${lowerdev}"
 
     atf_check gunion create "$upperdev" "$lowerdev"
@@ -66,8 +66,8 @@ basic_body()
 {
     gunion_test_setup
 
-    upperdev="$(attach_md -s 1m)"
-    lowerdev="$(attach_md -s 1m)"
+    attach_md upperdev -s 1m
+    attach_md lowerdev -s 1m
     newfs -U "/dev/${lowerdev}"
     mkdir lowermnt
     mkdir gunionmnt
@@ -109,8 +109,8 @@ commit_body()
 {
     gunion_test_setup
 
-    upperdev="$(attach_md -s 1m)"
-    lowerdev="$(attach_md -s 1m)"
+    attach_md upperdev -s 1m
+    attach_md lowerdev -s 1m
     newfs -U "/dev/${lowerdev}"
     mkdir lowermnt
     mkdir gunionmnt
@@ -155,8 +155,8 @@ offset_body()
 {
     gunion_test_setup
 
-    upperdev="$(attach_md -s 1m)"
-    lowerdev="$(attach_md -s 1m)"
+    attach_md upperdev -s 1m
+    attach_md lowerdev -s 1m
     gpart create -s GPT "/dev/${lowerdev}"
     gpart add -t freebsd-ufs "$lowerdev"
     newfs "/dev/${lowerdev}p1"
@@ -193,8 +193,8 @@ size_body()
 {
     gunion_test_setup
 
-    upperdev="$(attach_md -s 2m)"
-    lowerdev="$(attach_md -s 1m)"
+    attach_md upperdev -s 2m
+    attach_md lowerdev -s 1m
     newfs -U "/dev/${lowerdev}"
 
     gunion create -s 2m "$upperdev" "$lowerdev"
@@ -219,8 +219,8 @@ secsize_body()
 {
     gunion_test_setup
 
-    upperdev="$(attach_md -s 1m)"
-    lowerdev="$(attach_md -s 1m)"
+    attach_md upperdev -s 1m
+    attach_md lowerdev -s 1m
     newfs -S 512 -U "/dev/${lowerdev}"
     lower_secsize="$(diskinfo "/dev/${lowerdev}" | awk '{print $2}')"
     atf_check_equal "512" "$lower_secsize"
@@ -247,8 +247,8 @@ gunionname_body()
 {
     gunion_test_setup
 
-    upperdev="$(attach_md -s 1m)"
-    lowerdev="$(attach_md -s 1m)"
+    attach_md upperdev -s 1m
+    attach_md lowerdev -s 1m
     newfs -U "/dev/${lowerdev}"
 
     gunion create -Z gunion1 "$upperdev" "$lowerdev"
@@ -270,8 +270,8 @@ revert_body()
 {
     gunion_test_setup
 
-    upperdev="$(attach_md -s 1m)"
-    lowerdev="$(attach_md -s 1m)"
+    attach_md upperdev -s 1m
+    attach_md lowerdev -s 1m
     newfs -U "/dev/${lowerdev}"
     mkdir lowermnt
     mkdir gunionmnt

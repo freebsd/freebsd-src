@@ -31,9 +31,9 @@ truncate -s $((1024 * 1024 + $ss)) $f2
 f3=$(mktemp) || exit 1
 truncate -s $((1024 * 1024 + $ss)) $f3
 
-us0=$(attach_md -f $f1 -S $ss) || exit 1
-us1=$(attach_md -f $f2 -S $ss) || exit 1
-us2=$(attach_md -f $f3 -S $ss) || exit 1
+attach_md us0 -f $f1 -S $ss || exit 1
+attach_md us1 -f $f2 -S $ss || exit 1
+attach_md us2 -f $f3 -S $ss || exit 1
 
 gconcat label $name /dev/$us0 /dev/$us1 || exit 1
 devwait
@@ -57,9 +57,9 @@ detach_md $us2
 
 # Re-create the providers and verify that the concat device comes
 # back and that the data is still there.
-us0=$(attach_md -f $f1 -S $ss) || exit 1
-us1=$(attach_md -f $f2 -S $ss) || exit 1
-us2=$(attach_md -f $f3 -S $ss) || exit 1
+attach_md us0 -f $f1 -S $ss || exit 1
+attach_md us1 -f $f2 -S $ss || exit 1
+attach_md us2 -f $f3 -S $ss || exit 1
 
 devwait
 

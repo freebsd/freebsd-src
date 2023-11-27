@@ -21,8 +21,8 @@ sync_read_error_2_disks_body()
 	atf_check dd if=/dev/zero bs=1M count=32 of=$f1 status=none
 	atf_check truncate -s 32M $f2 
 
-	md1=$(attach_md -t vnode -f ${f1})
-	md2=$(attach_md -t vnode -f ${f2})
+	attach_md md1 -t vnode -f ${f1}
+	attach_md md2 -t vnode -f ${f2}
 
 	atf_check gmirror label $name $md1
 	devwait
@@ -64,9 +64,9 @@ sync_read_error_3_disks_body()
 	atf_check truncate -s 32M $f2
 	atf_check truncate -s 32M $f3
 
-	md1=$(attach_md -t vnode -f ${f1})
-	md2=$(attach_md -t vnode -f ${f2})
-	md3=$(attach_md -t vnode -f ${f3})
+	attach_md md1 -t vnode -f ${f1}
+	attach_md md2 -t vnode -f ${f2}
+	attach_md md3 -t vnode -f ${f3}
 
 	atf_check gmirror label $name $md1
 	devwait
