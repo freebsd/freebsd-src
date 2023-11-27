@@ -409,7 +409,6 @@ FBSD_1.6 {
 	fhreadlink;
 	getfhat;
 	funlinkat;
-	memfd_create;
 	shm_create_largepage;
 	shm_rename;
 };
