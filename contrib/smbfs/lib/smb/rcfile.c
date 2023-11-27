@@ -32,9 +32,6 @@
  * $Id: rcfile.c,v 1.5 2001/04/16 12:46:46 bp Exp $
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <ctype.h>

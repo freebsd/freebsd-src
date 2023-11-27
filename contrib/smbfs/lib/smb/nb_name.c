@@ -32,9 +32,6 @@
  * $Id: nb_name.c,v 1.2 2001/08/22 03:31:36 bp Exp $
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/socket.h>
