@@ -29,6 +29,10 @@ def __STRING(x): return #x
 
 def __XSTRING(x): return __STRING(x)	 
 
+def __P(protos): return ()		 
+
+def __STRING(x): return "x"
+
 def __aligned(x): return __attribute__((__aligned__(x)))
 
 def __section(x): return __attribute__((__section__(x)))
