@@ -1226,6 +1226,7 @@ pf_state_key_attach(struct pf_state_key *skw, struct pf_state_key *sks,
 	struct pf_kstate	*si, *olds = NULL;
 	int idx;
 
+	NET_EPOCH_ASSERT();
 	KASSERT(s->refs == 0, ("%s: state not pristine", __func__));
 	KASSERT(s->key[PF_SK_WIRE] == NULL, ("%s: state has key", __func__));
 	KASSERT(s->key[PF_SK_STACK] == NULL, ("%s: state has key", __func__));
@@ -1392,6 +1393,8 @@ pf_detach_state(struct pf_kstate *s)
 	struct pf_state_key *sks = s->key[PF_SK_STACK];
 	struct pf_keyhash *kh;
 
+	NET_EPOCH_ASSERT();
+
 	pf_sctp_multihome_detach_addr(s);
 
 	if (sks != NULL) {
@@ -1490,6 +1493,8 @@ pf_state_insert(struct pfi_kkif *kif, struct pfi_kkif *orig_kif,
 	struct pf_idhash *ih;
 	struct pf_kstate *cur;
 	int error;
+
+	NET_EPOCH_ASSERT();
 
 	KASSERT(TAILQ_EMPTY(&sks->states[0]) && TAILQ_EMPTY(&sks->states[1]),
 	    ("%s: sks not pristine", __func__));
@@ -1915,6 +1920,8 @@ pf_counter_u64_periodic_main(void)
 void
 pf_purge_thread(void *unused __unused)
 {
+	struct epoch_tracker	 et;
+
 	VNET_ITERATOR_DECL(vnet_iter);
 
 	sx_xlock(&pf_end_lock);
@@ -1922,6 +1929,7 @@ pf_purge_thread(void *unused __unused)
 		sx_sleep(pf_purge_thread, &pf_end_lock, 0, "pftm", pf_purge_thread_period);
 
 		VNET_LIST_RLOCK();
+		NET_EPOCH_ENTER(et);
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET(vnet_iter);
 
@@ -1958,6 +1966,7 @@ pf_purge_thread(void *unused __unused)
 			}
 			CURVNET_RESTORE();
 		}
+		NET_EPOCH_EXIT(et);
 		VNET_LIST_RUNLOCK();
 	}
 
@@ -2097,6 +2106,7 @@ pf_unlink_state(struct pf_kstate *s)
 {
 	struct pf_idhash *ih = &V_pf_idhash[PF_IDHASH(s)];
 
+	NET_EPOCH_ASSERT();
 	PF_HASHROW_ASSERT(ih);
 
 	if (s->timeout == PFTM_UNLINKED) {
@@ -8434,6 +8444,13 @@ done:
 
 	SDT_PROBE4(pf, ip, test, done, action, reason, r, s);
 
+	if (s && action != PF_DROP) {
+		if (!s->if_index_in && dir == PF_IN)
+			s->if_index_in = ifp->if_index;
+		else if (!s->if_index_out && dir == PF_OUT)
+			s->if_index_out = ifp->if_index;
+	}
+
 	if (s)
 		PF_STATE_UNLOCK(s);
 
@@ -8984,6 +9001,13 @@ done:
 			REASON_SET(&reason, PFRES_MEMORY);
 		}
 		break;
+	}
+
+	if (s && action != PF_DROP) {
+		if (!s->if_index_in && dir == PF_IN)
+			s->if_index_in = ifp->if_index;
+		else if (!s->if_index_out && dir == PF_OUT)
+			s->if_index_out = ifp->if_index;
 	}
 
 	if (s)

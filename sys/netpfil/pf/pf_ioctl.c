@@ -5784,9 +5784,11 @@ done:
 static void
 pf_clear_all_states(void)
 {
+	struct epoch_tracker	 et;
 	struct pf_kstate	*s;
 	u_int i;
 
+	NET_EPOCH_ENTER(et);
 	for (i = 0; i <= pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 relock:
@@ -5800,6 +5802,7 @@ relock:
 		}
 		PF_HASHROW_UNLOCK(ih);
 	}
+	NET_EPOCH_EXIT(et);
 }
 
 static int
@@ -5943,6 +5946,8 @@ pf_clear_states(const struct pf_kstate_kill *kill)
 	int		 idx;
 	unsigned int	 killed = 0, dir;
 
+	NET_EPOCH_ASSERT();
+
 	for (unsigned int i = 0; i <= pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 
@@ -6006,6 +6011,7 @@ pf_killstates(struct pf_kstate_kill *kill, unsigned int *killed)
 {
 	struct pf_kstate	*s;
 
+	NET_EPOCH_ASSERT();
 	if (kill->psk_pfcmp.id) {
 		if (kill->psk_pfcmp.creatorid == 0)
 			kill->psk_pfcmp.creatorid = V_pf_status.hostid;
@@ -6019,14 +6025,13 @@ pf_killstates(struct pf_kstate_kill *kill, unsigned int *killed)
 
 	for (unsigned int i = 0; i <= pf_hashmask; i++)
 		*killed += pf_killstates_row(kill, &V_pf_idhash[i]);
-
-	return;
 }
 
 static int
 pf_killstates_nv(struct pfioc_nv *nv)
 {
 	struct pf_kstate_kill	 kill;
+	struct epoch_tracker	 et;
 	nvlist_t		*nvl = NULL;
 	void			*nvlpacked = NULL;
 	int			 error = 0;
@@ -6053,7 +6058,9 @@ pf_killstates_nv(struct pfioc_nv *nv)
 	if (error)
 		ERROUT(error);
 
+	NET_EPOCH_ENTER(et);
 	pf_killstates(&kill, &killed);
+	NET_EPOCH_EXIT(et);
 
 	free(nvlpacked, M_NVLIST);
 	nvlpacked = NULL;
@@ -6085,6 +6092,7 @@ static int
 pf_clearstates_nv(struct pfioc_nv *nv)
 {
 	struct pf_kstate_kill	 kill;
+	struct epoch_tracker	 et;
 	nvlist_t		*nvl = NULL;
 	void			*nvlpacked = NULL;
 	int			 error = 0;
@@ -6111,7 +6119,9 @@ pf_clearstates_nv(struct pfioc_nv *nv)
 	if (error)
 		ERROUT(error);
 
+	NET_EPOCH_ENTER(et);
 	killed = pf_clear_states(&kill);
+	NET_EPOCH_EXIT(et);
 
 	free(nvlpacked, M_NVLIST);
 	nvlpacked = NULL;
