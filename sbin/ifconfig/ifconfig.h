@@ -231,6 +231,7 @@ struct ifconfig_args {
 	bool supmedia;		/* Supported media */
 	bool printkeys;		/* Print security keys */
 	bool allfamilies;	/* Print all families */
+	bool drivername;	/* Print driver name */
 	int verbose;		/* verbosity level */
 	int argc;
 	char **argv;
