@@ -39,6 +39,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/rman.h>
 
 #include <vm/vm.h>
