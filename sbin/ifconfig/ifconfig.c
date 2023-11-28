@@ -456,7 +456,7 @@ args_parse(struct ifconfig_args *args, int argc, char *argv[])
 	int c;
 
 	/* Parse leading line options */
-	strlcpy(options, "G:adf:j:klmnuv", sizeof(options));
+	strlcpy(options, "G:adDf:j:klmnuv", sizeof(options));
 	for (p = opts; p != NULL; p = p->next)
 		strlcat(options, p->opt, sizeof(options));
 	while ((c = getopt(argc, argv, options)) != -1) {
@@ -466,6 +466,9 @@ args_parse(struct ifconfig_args *args, int argc, char *argv[])
 			break;
 		case 'd':	/* restrict scan to "down" interfaces */
 			args->downonly = true;
+			break;
+		case 'D':	/* Print driver name */
+			args->drivername = true;
 			break;
 		case 'f':
 			if (optarg == NULL)

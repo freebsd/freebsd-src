@@ -388,6 +388,7 @@ status_nl(if_ctx *ctx, struct iface *iface)
 {
 	if_link_t *link = &iface->link;
 	struct ifconfig_args *args = ctx->args;
+	char *drivername = NULL;
 
 	printf("%s: ", link->ifla_ifname);
 
@@ -432,6 +433,22 @@ status_nl(if_ctx *ctx, struct iface *iface)
 		args->afp->af_other_status(ctx);
 
 	print_ifstatus(ctx);
+	if (args->drivername || args->verbose) {
+		if (ifconfig_get_orig_name(lifh, link->ifla_ifname,
+		    &drivername) != 0) {
+			if (ifconfig_err_errtype(lifh) == OTHER)
+				fprintf(stderr, "get original name: %s\n",
+				    strerror(ifconfig_err_errno(lifh)));
+			else
+				fprintf(stderr,
+				    "get original name: error type %d\n",
+				    ifconfig_err_errtype(lifh));
+			exit_code = 1;
+		}
+		if (drivername != NULL)
+			printf("\tdrivername: %s\n", drivername);
+		free(drivername);
+	}
 	if (args->verbose > 0)
 		sfp_status(ctx);
 }

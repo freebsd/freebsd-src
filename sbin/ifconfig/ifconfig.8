@@ -34,7 +34,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl j Ar jail
-.Op Fl kLmn
+.Op Fl DkLmn
 .Op Fl f Ar type Ns Cm \&: Ns Ar format
 .Ar interface
 .Op Cm create
@@ -53,7 +53,7 @@
 .Nm
 .Op Fl j Ar jail
 .Fl a
-.Op Fl dkLmuv
+.Op Fl dDkLmuv
 .Op Fl f Ar type Ns Cm \&: Ns Ar format
 .Op Fl G Ar groupname
 .Op Fl g Ar groupname
@@ -102,6 +102,12 @@ with no additional information.
 Use of this flag is mutually exclusive with all other flags and commands.
 .It Fl d
 Display only the interfaces that are down.
+.It Fl D
+Include the driver name and unit number of the interface in the output.
+This is normally the original name of the interface,
+even if it has been renamed; it may differ from the original name
+in some cases, such as
+.Xr epair 4 .
 .It Fl f Xo
 .Ar type Ns Cm \&: Ns Ar format Ns
 .Op Cm \&, Ns Ar type Ns Cm \&: Ns Ar format Ar ...
