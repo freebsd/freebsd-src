@@ -141,6 +141,9 @@ commits_to()
 canonicalize_hashes()
 {
 	while read hash rest; do
+		case "${hash}" in
+		"#"*)	continue ;;
+		esac
 		if ! git show --pretty=%H --no-patch $hash; then
 			echo "error parsing hash list" >&2
 			exit 1
