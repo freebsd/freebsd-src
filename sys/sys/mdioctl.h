@@ -34,8 +34,6 @@
  * SUCH DAMAGE.
  *
  * from: Utah $Hdr: fdioctl.h 1.1 90/07/09$
- *
- * From: src/sys/sys/vnioctl.h,v 1.4
  */
 
 #ifndef _SYS_MDIOCTL_H_
