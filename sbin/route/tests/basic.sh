@@ -117,8 +117,66 @@ basic_v6_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "interface_route_v4" "cleanup"
+interface_route_v4_head()
+{
+	atf_set descr 'add interface route for v4'
+	atf_set require.user root
+	atf_set require.progs jail jq
+}
+
+interface_route_v4_body()
+{
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a up
+	vnet_mkjail alcatraz ${epair}b
+
+	# add interface route
+	jexec alcatraz route add "192.0.2.1" -iface ${epair}b
+	gateway=$(check_route "alcatraz" "192.0.2.1")
+
+	if [ -z "${gateway}" ]; then
+		atf_fail "Failed to add interface route."
+	fi
+}
+
+interface_route_v4_cleanup()
+{
+	vnet_cleanup
+}
+
+atf_test_case "interface_route_v6" "cleanup"
+interface_route_v6_head()
+{
+	atf_set descr 'add interface route for v6'
+	atf_set require.user root
+	atf_set require.progs jail jq
+}
+
+interface_route_v6_body()
+{
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a up
+	vnet_mkjail alcatraz ${epair}b
+
+	# add interface route
+	jexec alcatraz route add -6 "2001:db8:cc4b::1" -iface ${epair}b
+	gateway=$(check_route "alcatraz" "2001:db8:cc4b::1")
+
+	if [ -z "${gateway}" ]; then
+		atf_fail "Failed to add interface route."
+	fi
+}
+
+interface_route_v6_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic_v4"
 	atf_add_test_case "basic_v6"
+	atf_add_test_case "interface_route_v4"
+	atf_add_test_case "interface_route_v6"
 }
