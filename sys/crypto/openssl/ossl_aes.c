@@ -198,14 +198,20 @@ ossl_aes_gcm(struct ossl_session_cipher *s, struct cryptop *crp,
 	crypto_read_iv(crp, iv);
 	ctx->ops->setiv(ctx, iv, csp->csp_ivlen);
 
-	crypto_cursor_init(&cc_in, &crp->crp_buf);
-	crypto_cursor_advance(&cc_in, crp->crp_aad_start);
-	for (size_t alen = crp->crp_aad_length; alen > 0; alen -= seglen) {
-		inseg = crypto_cursor_segment(&cc_in, &inlen);
-		seglen = MIN(alen, inlen);
-		if (ctx->ops->aad(ctx, inseg, seglen) != 0)
+	if (crp->crp_aad != NULL) {
+		if (ctx->ops->aad(ctx, crp->crp_aad, crp->crp_aad_length) != 0)
 			return (EINVAL);
-		crypto_cursor_advance(&cc_in, seglen);
+	} else {
+		crypto_cursor_init(&cc_in, &crp->crp_buf);
+		crypto_cursor_advance(&cc_in, crp->crp_aad_start);
+		for (size_t alen = crp->crp_aad_length; alen > 0;
+		    alen -= seglen) {
+			inseg = crypto_cursor_segment(&cc_in, &inlen);
+			seglen = MIN(alen, inlen);
+			if (ctx->ops->aad(ctx, inseg, seglen) != 0)
+				return (EINVAL);
+			crypto_cursor_advance(&cc_in, seglen);
+		}
 	}
 
 	crypto_cursor_init(&cc_in, &crp->crp_buf);
