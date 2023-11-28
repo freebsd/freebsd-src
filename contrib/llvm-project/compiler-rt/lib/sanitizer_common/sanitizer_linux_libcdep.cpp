@@ -47,7 +47,6 @@
 
 #if SANITIZER_FREEBSD
 #include <pthread_np.h>
-#include <stdlib.h>
 #include <osreldate.h>
 #include <sys/auxv.h>
 #include <sys/sysctl.h>
