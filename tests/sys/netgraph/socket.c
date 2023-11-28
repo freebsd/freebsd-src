@@ -42,13 +42,12 @@ ATF_TC_BODY(getsockname, tc)
 	char name[NG_NODESIZ] = NAME;
 	int cs;
 
-#if 0
-	/* Unnamed node. */
+	/* Unnamed node returns its ID as name. */
 	ATF_REQUIRE(NgMkSockNode(NULL, &cs, NULL) == 0);
 	ATF_REQUIRE(getsockname(cs, (struct sockaddr *)&sg, &len) == 0);
+	ATF_REQUIRE(strspn(sg.sg_data, "[0123456789abcdef]") >= 3 &&
+	    sg.sg_data[strspn(sg.sg_data, "[0123456789abcdef]")] == '\0');
 	close(cs);
-	/* Unnamed node doesn't return any name/ID now. */
-#endif
 
 	/* Named node. */
 	ATF_REQUIRE(NgMkSockNode(name, &cs, NULL) == 0);

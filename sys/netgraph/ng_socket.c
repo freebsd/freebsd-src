@@ -523,6 +523,9 @@ ng_getsockaddr(struct socket *so, struct sockaddr **addr)
 		if (NG_NODE_HAS_NAME(node))
 			bcopy(NG_NODE_NAME(node), sg->sg_data,
 			    strlen(NG_NODE_NAME(node)));
+		else
+			snprintf(sg->sg_data, sizeof(sg->sg_data), "[%x]",
+			    ng_node2ID(node));
 		mtx_unlock(&pcbp->sockdata->mtx);
 
 		sg->sg_len = sg_len;
