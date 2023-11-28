@@ -53,12 +53,7 @@ ATF_TC_BODY(getsockname, tc)
 	/* Named node. */
 	ATF_REQUIRE(NgMkSockNode(name, &cs, NULL) == 0);
 	ATF_REQUIRE(getsockname(cs, (struct sockaddr *)&sg, &len) == 0);
-#if 0
-	/* sockaddr_ng truncates name now. */
 	ATF_REQUIRE(strcmp(sg.sg_data, NAME) == 0);
-#else
-	ATF_REQUIRE(strncmp(sg.sg_data, NAME, sizeof(sg.sg_data)) == 0);
-#endif
 }
 
 ATF_TP_ADD_TCS(tp)
