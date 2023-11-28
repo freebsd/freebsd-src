@@ -147,7 +147,7 @@ flag is specified.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
-To display the last 500 lines of the file
+Display the last 500 lines of the file
 .Ar foo :
 .Pp
 .Dl $ tail -n 500 foo
@@ -157,6 +157,12 @@ Keep
 open, displaying to the standard output anything appended to the file:
 .Pp
 .Dl $ tail -F /var/log/messages
+.Pp
+Read
+.Pa /var/log/messages
+from the beginning and then follow the file as usual:
+.Pp
+.Dl $ tail -F -n +1 /var/log/messages
 .Sh SEE ALSO
 .Xr cat 1 ,
 .Xr head 1 ,
