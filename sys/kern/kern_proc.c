@@ -275,6 +275,7 @@ proc_init(void *mem, int size, int flags)
 	EVENTHANDLER_DIRECT_INVOKE(process_init, p);
 	p->p_stats = pstats_alloc();
 	p->p_pgrp = NULL;
+	TAILQ_INIT(&p->p_kqtim_stop);
 	return (0);
 }
 
