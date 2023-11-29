@@ -1,4 +1,4 @@
-/*	$NetBSD: extern.h,v 1.39 2014/04/24 17:22:41 christos Exp $	*/
+/*	$NetBSD: extern.h,v 1.40 2021/03/18 20:02:18 cheusov Exp $	*/
 
 /*-
  * Copyright (c) 1991, 1993
@@ -62,7 +62,7 @@ enum flavor {
 void	 addtag(slist_t *, char *);
 int	 check_excludes(const char *, const char *);
 int	 compare(NODE *, FTSENT *);
-int	 crc(int, u_int32_t *, u_int32_t *);
+int	 crc(int, uint32_t *, uint32_t *);
 void	 cwalk(FILE *);
 void	 dump_nodes(FILE *, const char *, NODE *, int);
 void	 init_excludes(void);
@@ -83,7 +83,7 @@ extern int	bflag, dflag, eflag, iflag, jflag, lflag, mflag,
 extern int	mtree_Mflag, mtree_Sflag, mtree_Wflag;
 extern size_t	mtree_lineno;
 extern enum flavor	flavor;
-extern u_int32_t crc_total;
+extern uint32_t crc_total;
 extern int	ftsoptions, keys;
 extern char	fullpath[];
 extern slist_t	includetags, excludetags;

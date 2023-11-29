@@ -1,4 +1,4 @@
-/*	$NetBSD: verify.c,v 1.46 2015/01/23 20:28:24 christos Exp $	*/
+/*	$NetBSD: verify.c,v 1.47 2021/03/18 20:02:18 cheusov Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)verify.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: verify.c,v 1.46 2015/01/23 20:28:24 christos Exp $");
+__RCSID("$NetBSD: verify.c,v 1.47 2021/03/18 20:02:18 cheusov Exp $");
 #endif
 #endif /* not lint */
 
@@ -180,7 +180,7 @@ miss(NODE *p, char *tail)
 	int create;
 	char *tp;
 	const char *type;
-	u_int32_t flags;
+	uint32_t flags;
 
 	for (; p; p = p->next) {
 		if (p->flags & F_OPT && !(p->flags & F_VISIT))
