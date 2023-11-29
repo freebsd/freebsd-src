@@ -30,6 +30,7 @@
 #include <sys/_mutex.h>
 
 #include <linux/ktime.h>
+#include <linux/rbtree.h>
 #include <linux/timer.h>
 
 enum hrtimer_mode {
