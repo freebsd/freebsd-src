@@ -545,7 +545,6 @@ struct mpi3mr_softc {
 	char driver_name[MPI3MR_NAME_LENGTH];
 	int bars;
 	bus_addr_t dma_loaddr;
-	bus_addr_t dma_hiaddr;
 	u_int mpi3mr_debug;
 	struct mpi3mr_reset reset;
 	int max_msix_vectors;
