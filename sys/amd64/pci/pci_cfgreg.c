@@ -218,27 +218,11 @@ pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 	mtx_unlock_spin(&pcicfg_mtx);
 }
 
-int
-pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
+static void
+pcie_init_badslots(void)
 {
 	uint32_t val1, val2;
 	int slot;
-
-	if (!mcfg_enable)
-		return (0);
-
-	if (minbus != 0)
-		return (0);
-
-	if (bootverbose)
-		printf("PCIe: Memory Mapped configuration base @ 0x%lx\n",
-		    base);
-
-	/* XXX: We should make sure this really fits into the direct map. */
-	pcie_base = (vm_offset_t)pmap_mapdev_pciecfg(base, (maxbus + 1) << 20);
-	pcie_minbus = minbus;
-	pcie_maxbus = maxbus;
-	cfgmech = CFGMECH_PCIE;
 
 	/*
 	 * On some AMD systems, some of the devices on bus 0 are
@@ -257,6 +241,29 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 				pcie_badslots |= (1 << slot);
 		}
 	}
+}
+
+int
+pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
+{
+
+	if (!mcfg_enable)
+		return (0);
+
+	if (minbus != 0)
+		return (0);
+
+	if (bootverbose)
+		printf("PCIe: Memory Mapped configuration base @ 0x%lx\n",
+		    base);
+
+	/* XXX: We should make sure this really fits into the direct map. */
+	pcie_base = (vm_offset_t)pmap_mapdev_pciecfg(base, (maxbus + 1) << 20);
+	pcie_minbus = minbus;
+	pcie_maxbus = maxbus;
+	cfgmech = CFGMECH_PCIE;
+
+	pcie_init_badslots();
 
 	return (1);
 }
