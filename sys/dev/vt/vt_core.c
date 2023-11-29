@@ -3284,6 +3284,13 @@ vt_replace_backend(const struct vt_driver *drv, void *softc)
 	/* Update windows sizes and initialize last items. */
 	vt_upgrade(vd);
 
+	/*
+	 * Give a chance to the new backend to run the post-switch code, for
+	 * instance to refresh the screen.
+	 */
+	if (vd->vd_driver->vd_postswitch)
+		vd->vd_driver->vd_postswitch(vd);
+
 #ifdef DEV_SPLASH
 	if (vd->vd_flags & VDF_SPLASH)
 		vtterm_splash(vd);
