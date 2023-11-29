@@ -975,7 +975,7 @@ dmar_path_dev(int segment, int path_len, int busno,
 		dev = pci_find_dbsf(segment, busno, path->Device,
 		    path->Function);
 		if (i != path_len - 1) {
-			busno = pci_cfgregread(busno, path->Device,
+			busno = pci_cfgregread(segment, busno, path->Device,
 			    path->Function, PCIR_SECBUS_1, 1);
 			path++;
 		}

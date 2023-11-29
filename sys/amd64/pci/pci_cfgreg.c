@@ -42,12 +42,12 @@
 #include <vm/pmap.h>
 #include <machine/pci_cfgreg.h>
 
-static uint32_t	pci_docfgregread(int bus, int slot, int func, int reg,
-		    int bytes);
-static int	pciereg_cfgread(int bus, unsigned slot, unsigned func,
-		    unsigned reg, unsigned bytes);
-static void	pciereg_cfgwrite(int bus, unsigned slot, unsigned func,
-		    unsigned reg, int data, unsigned bytes);
+static uint32_t	pci_docfgregread(int domain, int bus, int slot, int func,
+		    int reg, int bytes);
+static int	pciereg_cfgread(int domain, int bus, unsigned slot,
+		    unsigned func, unsigned reg, unsigned bytes);
+static void	pciereg_cfgwrite(int domain, int bus, unsigned slot,
+		    unsigned func, unsigned reg, int data, unsigned bytes);
 static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
 
@@ -77,22 +77,25 @@ pci_cfgregopen(void)
 }
 
 static uint32_t
-pci_docfgregread(int bus, int slot, int func, int reg, int bytes)
+pci_docfgregread(int domain, int bus, int slot, int func, int reg, int bytes)
 {
+	if (domain == 0 && bus == 0 && (1 << slot & pcie_badslots) != 0)
+		return (pcireg_cfgread(bus, slot, func, reg, bytes));
 
 	if (cfgmech == CFGMECH_PCIE &&
-	    (bus >= pcie_minbus && bus <= pcie_maxbus) &&
-	    (bus != 0 || !(1 << slot & pcie_badslots)))
-		return (pciereg_cfgread(bus, slot, func, reg, bytes));
-	else
+	    (bus >= pcie_minbus && bus <= pcie_maxbus))
+		return (pciereg_cfgread(domain, bus, slot, func, reg, bytes));
+	else if (domain == 0)
 		return (pcireg_cfgread(bus, slot, func, reg, bytes));
+	else
+		return (-1);
 }
 
 /* 
  * Read configuration space register
  */
 u_int32_t
-pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
+pci_cfgregread(int domain, int bus, int slot, int func, int reg, int bytes)
 {
 	uint32_t line;
 
@@ -105,26 +108,31 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 	 * as an invalid IRQ.
 	 */
 	if (reg == PCIR_INTLINE && bytes == 1) {
-		line = pci_docfgregread(bus, slot, func, PCIR_INTLINE, 1);
+		line = pci_docfgregread(domain, bus, slot, func, PCIR_INTLINE,
+		    1);
 		if (line == 0 || line >= 128)
 			line = PCI_INVALID_IRQ;
 		return (line);
 	}
-	return (pci_docfgregread(bus, slot, func, reg, bytes));
+	return (pci_docfgregread(domain, bus, slot, func, reg, bytes));
 }
 
 /* 
  * Write configuration space register 
  */
 void
-pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
+pci_cfgregwrite(int domain, int bus, int slot, int func, int reg, uint32_t data,
+    int bytes)
 {
+	if (domain == 0 && bus == 0 && (1 << slot & pcie_badslots) != 0) {
+		pcireg_cfgwrite(bus, slot, func, reg, data, bytes);
+		return;
+	}
 
 	if (cfgmech == CFGMECH_PCIE &&
-	    (bus >= pcie_minbus && bus <= pcie_maxbus) &&
-	    (bus != 0 || !(1 << slot & pcie_badslots)))
-		pciereg_cfgwrite(bus, slot, func, reg, data, bytes);
-	else
+	    (bus >= pcie_minbus && bus <= pcie_maxbus))
+		pciereg_cfgwrite(domain, bus, slot, func, reg, data, bytes);
+	else if (domain == 0)
 		pcireg_cfgwrite(bus, slot, func, reg, data, bytes);
 }
 
@@ -243,7 +251,7 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 			if (val1 == 0xffffffff)
 				continue;
 
-			val2 = pciereg_cfgread(0, slot, 0, 0, 4);
+			val2 = pciereg_cfgread(0, 0, slot, 0, 0, 4);
 			if (val2 != val1)
 				pcie_badslots |= (1 << slot);
 		}
@@ -268,14 +276,14 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
  */
 
 static int
-pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
+pciereg_cfgread(int domain, int bus, unsigned slot, unsigned func, unsigned reg,
     unsigned bytes)
 {
 	vm_offset_t va;
 	int data = -1;
 
-	if (bus < pcie_minbus || bus > pcie_maxbus || slot > PCI_SLOTMAX ||
-	    func > PCI_FUNCMAX || reg > PCIE_REGMAX)
+	if (domain != 0 || bus < pcie_minbus || bus > pcie_maxbus ||
+	    slot > PCI_SLOTMAX || func > PCI_FUNCMAX || reg > PCIE_REGMAX)
 		return (-1);
 
 	va = PCIE_VADDR(pcie_base, reg, bus, slot, func);
@@ -299,13 +307,13 @@ pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
 }
 
 static void
-pciereg_cfgwrite(int bus, unsigned slot, unsigned func, unsigned reg, int data,
-    unsigned bytes)
+pciereg_cfgwrite(int domain, int bus, unsigned slot, unsigned func,
+    unsigned reg, int data, unsigned bytes)
 {
 	vm_offset_t va;
 
-	if (bus < pcie_minbus || bus > pcie_maxbus || slot > PCI_SLOTMAX ||
-	    func > PCI_FUNCMAX || reg > PCIE_REGMAX)
+	if (domain != 0 || bus < pcie_minbus || bus > pcie_maxbus ||
+	    slot > PCI_SLOTMAX || func > PCI_FUNCMAX || reg > PCIE_REGMAX)
 		return;
 
 	va = PCIE_VADDR(pcie_base, reg, bus, slot, func);
