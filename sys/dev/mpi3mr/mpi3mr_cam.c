@@ -1025,7 +1025,7 @@ mpi3mr_action_scsiio(struct mpi3mr_cam_softc *cam_sc, union ccb *ccb)
 			cam_sc->flags |= MPI3MRSAS_QUEUE_FROZEN;
 		}
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-		ccb->ccb_h.status |= CAM_REQUEUE_REQ;
+		mpi3mr_set_ccbstatus(ccb, CAM_REQUEUE_REQ);
 		xpt_done(ccb);
 		return;
 	}
@@ -1099,39 +1099,38 @@ mpi3mr_action_scsiio(struct mpi3mr_cam_softc *cam_sc, union ccb *ccb)
 	mpi3mr_dprint(sc, MPI3MR_TRACE, "[QID:%d]: func: %s line:%d CDB: 0x%x targetid: %x SMID: 0x%x\n",
 		(queue_idx + 1), __func__, __LINE__, scsi_opcode, csio->ccb_h.target_id, cm->hosttag);
 
-	ccb->ccb_h.status |= CAM_SIM_QUEUED;
-
 	switch ((ccb->ccb_h.flags & CAM_DATA_MASK)) {
 	case CAM_DATA_PADDR:
 	case CAM_DATA_SG_PADDR:
 		device_printf(sc->mpi3mr_dev, "%s: physical addresses not supported\n",
 		    __func__);
 		mpi3mr_release_command(cm);
-		ccb->ccb_h.status = CAM_REQ_INVALID;
-		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+		mpi3mr_set_ccbstatus(ccb, CAM_REQ_INVALID);
 		xpt_done(ccb);
 		return;
 	case CAM_DATA_SG:
 		device_printf(sc->mpi3mr_dev, "%s: scatter gather is not supported\n",
 		    __func__);
 		mpi3mr_release_command(cm);
-		ccb->ccb_h.status = CAM_REQ_INVALID;
+		mpi3mr_set_ccbstatus(ccb, CAM_REQ_INVALID);
 		xpt_done(ccb);
 		return;
 	case CAM_DATA_VADDR:
 	case CAM_DATA_BIO:
 		if (csio->dxfer_len > (MPI3MR_SG_DEPTH * MPI3MR_4K_PGSZ)) {
+			mpi3mr_set_ccbstatus(ccb, CAM_REQ_TOO_BIG);
 			mpi3mr_release_command(cm);
-			ccb->ccb_h.status = CAM_REQ_TOO_BIG;
 			xpt_done(ccb);
 			return;
 		}
+		ccb->ccb_h.status |= CAM_SIM_QUEUED;
 		cm->length = csio->dxfer_len;
 		if (cm->length)
 			cm->data = csio->data_ptr;
 		break;
 	default:
-		ccb->ccb_h.status = CAM_REQ_INVALID;
+		mpi3mr_release_command(cm);
+		mpi3mr_set_ccbstatus(ccb, CAM_REQ_INVALID);
 		xpt_done(ccb);
 		return;
 	}
