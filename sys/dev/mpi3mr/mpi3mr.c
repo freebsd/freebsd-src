@@ -603,8 +603,8 @@ static int mpi3mr_create_op_reply_queue(struct mpi3mr_softc *sc, U16 qid)
 
 		if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 					4, 0,			/* algnmnt, boundary */
-					BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-					BUS_SPACE_MAXADDR,	/* highaddr */
+					sc->dma_loaddr,		/* lowaddr */
+					sc->dma_hiaddr,		/* highaddr */
 					NULL, NULL,		/* filter, filterarg */
 					op_reply_q->qsz,		/* maxsize */
 					1,			/* nsegments */
@@ -618,7 +618,7 @@ static int mpi3mr_create_op_reply_queue(struct mpi3mr_softc *sc, U16 qid)
 
 		if (bus_dmamem_alloc(op_reply_q->q_base_tag, (void **)&op_reply_q->q_base,
 		    BUS_DMA_NOWAIT, &op_reply_q->q_base_dmamap)) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, "Cannot allocate replies memory\n");
+			mpi3mr_dprint(sc, MPI3MR_ERROR, "%s: Cannot allocate replies memory\n", __func__);
 			return (ENOMEM);
 		}
 		bzero(op_reply_q->q_base, op_reply_q->qsz);
@@ -749,8 +749,8 @@ static int mpi3mr_create_op_req_queue(struct mpi3mr_softc *sc, U16 req_qid, U8 r
 
 		if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 					4, 0,			/* algnmnt, boundary */
-					BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-					BUS_SPACE_MAXADDR,	/* highaddr */
+					sc->dma_loaddr,		/* lowaddr */
+					sc->dma_hiaddr,		/* highaddr */
 					NULL, NULL,		/* filter, filterarg */
 					op_req_q->qsz,		/* maxsize */
 					1,			/* nsegments */
@@ -764,7 +764,7 @@ static int mpi3mr_create_op_req_queue(struct mpi3mr_softc *sc, U16 req_qid, U8 r
 
 		if (bus_dmamem_alloc(op_req_q->q_base_tag, (void **)&op_req_q->q_base,
 		    BUS_DMA_NOWAIT, &op_req_q->q_base_dmamap)) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, "Cannot allocate replies memory\n");
+			mpi3mr_dprint(sc, MPI3MR_ERROR, "%s: Cannot allocate replies memory\n", __func__);
 			return (ENOMEM);
 		}
 
@@ -1002,7 +1002,7 @@ static int mpi3mr_setup_admin_qpair(struct mpi3mr_softc *sc)
 
 		if (bus_dmamem_alloc(sc->admin_req_tag, (void **)&sc->admin_req,
 		    BUS_DMA_NOWAIT, &sc->admin_req_dmamap)) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, "Cannot allocate replies memory\n");
+			mpi3mr_dprint(sc, MPI3MR_ERROR, "%s: Cannot allocate replies memory\n", __func__);
 			return (ENOMEM);
 		}
 		bzero(sc->admin_req, sc->admin_req_q_sz);
@@ -1040,7 +1040,7 @@ static int mpi3mr_setup_admin_qpair(struct mpi3mr_softc *sc)
 
 		if (bus_dmamem_alloc(sc->admin_reply_tag, (void **)&sc->admin_reply,
 		    BUS_DMA_NOWAIT, &sc->admin_reply_dmamap)) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, "Cannot allocate replies memory\n");
+			mpi3mr_dprint(sc, MPI3MR_ERROR, "%s: Cannot allocate replies memory\n", __func__);
 			return (ENOMEM);
 		}
 		bzero(sc->admin_reply, sc->admin_reply_q_sz);
@@ -1730,8 +1730,8 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
 	
 	if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,  /* parent */
 				16, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
+				sc->dma_loaddr,		/* lowaddr */
+				sc->dma_hiaddr,		/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 sz,			/* maxsize */
                                 1,			/* nsegments */
@@ -1766,8 +1766,8 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
 
         if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				8, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
+				sc->dma_loaddr,		/* lowaddr */
+				sc->dma_hiaddr,		/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 sz,			/* maxsize */
                                 1,			/* nsegments */
@@ -1800,8 +1800,8 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
 
         if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
+				sc->dma_loaddr,		/* lowaddr */
+				sc->dma_hiaddr,		/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 sz,			/* maxsize */
                                 1,			/* nsegments */
@@ -1834,8 +1834,8 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
 
         if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				8, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
+				sc->dma_loaddr,		/* lowaddr */
+				sc->dma_hiaddr,		/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 sz,			/* maxsize */
                                 1,			/* nsegments */
@@ -1971,8 +1971,8 @@ mpi3mr_print_fw_pkg_ver(struct mpi3mr_softc *sc)
 
 	if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,  /* parent */
 				4, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
+				sc->dma_loaddr,		/* lowaddr */
+				sc->dma_hiaddr,		/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
 				fw_pkg_ver_len,		/* maxsize */
 				1,			/* nsegments */
@@ -2092,8 +2092,8 @@ static int mpi3mr_issue_iocinit(struct mpi3mr_softc *sc)
 
 	if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,  /* parent */
 				4, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
+				sc->dma_loaddr,		/* lowaddr */
+				sc->dma_hiaddr,		/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 drvr_info_len,		/* maxsize */
                                 1,			/* nsegments */
@@ -2508,8 +2508,8 @@ static int mpi3mr_alloc_chain_bufs(struct mpi3mr_softc *sc)
 
         if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,  /* parent */
 				4096, 0,		/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
+				sc->dma_loaddr,		/* lowaddr */
+				sc->dma_hiaddr,		/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 sz,			/* maxsize */
                                 1,			/* nsegments */
@@ -2584,8 +2584,8 @@ static int mpi3mr_pel_alloc(struct mpi3mr_softc *sc)
 		sc->pel_seq_number_sz = sizeof(Mpi3PELSeq_t);
 		if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,   /* parent */
 				 4, 0,                           /* alignment, boundary */
-				 BUS_SPACE_MAXADDR_32BIT,        /* lowaddr */
-				 BUS_SPACE_MAXADDR,              /* highaddr */
+				 sc->dma_loaddr,	        /* lowaddr */
+				 sc->dma_hiaddr,	              /* highaddr */
 				 NULL, NULL,                     /* filter, filterarg */
 				 sc->pel_seq_number_sz,		 /* maxsize */
 				 1,                              /* nsegments */
@@ -4940,8 +4940,8 @@ mpi3mr_alloc_requests(struct mpi3mr_softc *sc)
 	nsegs = MPI3MR_SG_DEPTH;
 	ret = bus_dma_tag_create( sc->mpi3mr_parent_dmat,    /* parent */
 				1, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR,	/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
+				sc->dma_loaddr,		/* lowaddr */
+				sc->dma_hiaddr,		/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
 				MAXPHYS,/* maxsize */
                                 nsegs,			/* nsegments */
@@ -5114,8 +5114,8 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 		
 		if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 					4, 0,			/* algnmnt, boundary */
-					BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-					BUS_SPACE_MAXADDR,	/* highaddr */
+					sc->dma_loaddr,		/* lowaddr */
+					sc->dma_hiaddr,		/* highaddr */
 					NULL, NULL,		/* filter, filterarg */
 					mem_desc->size,		/* maxsize */
 					1,			/* nsegments */
@@ -5129,7 +5129,7 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 
 		if (bus_dmamem_alloc(mem_desc->tag, (void **)&mem_desc->addr,
 		    BUS_DMA_NOWAIT, &mem_desc->dmamap)) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, "Cannot allocate replies memory\n");
+			mpi3mr_dprint(sc, MPI3MR_ERROR, "%s: Cannot allocate replies memory\n", __func__);
 			goto out_failed;
 		}
 		bzero(mem_desc->addr, mem_desc->size);
@@ -5144,8 +5144,8 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 	mem_desc->size = MPI3MR_4K_PGSZ;
 	if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
+				sc->dma_loaddr,		/* lowaddr */
+				sc->dma_hiaddr,		/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
 				mem_desc->size,		/* maxsize */
 				1,			/* nsegments */
@@ -5159,7 +5159,7 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 
 	if (bus_dmamem_alloc(mem_desc->tag, (void **)&mem_desc->addr,
 	    BUS_DMA_NOWAIT, &mem_desc->dmamap)) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, "Cannot allocate replies memory\n");
+		mpi3mr_dprint(sc, MPI3MR_ERROR, "%s: Cannot allocate replies memory\n", __func__);
 		goto out_failed;
 	}
 	bzero(mem_desc->addr, mem_desc->size);
@@ -5173,8 +5173,8 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 	mem_desc->size = MPI3MR_4K_PGSZ;
 	if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
+				sc->dma_loaddr,		/* lowaddr */
+				sc->dma_hiaddr,		/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
 				mem_desc->size,		/* maxsize */
 				1,			/* nsegments */
