@@ -47,6 +47,7 @@ struct domainset;
 
 /* These operate on kernel virtual addresses only. */
 vm_offset_t kva_alloc(vm_size_t);
+vm_offset_t kva_alloc_aligned(vm_size_t, vm_size_t);
 void kva_free(vm_offset_t, vm_size_t);
 
 /* These operate on pageable virtual addresses. */
