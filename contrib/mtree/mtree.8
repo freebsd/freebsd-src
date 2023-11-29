@@ -1,4 +1,4 @@
-.\"	$NetBSD: mtree.8,v 1.76 2020/06/16 14:26:39 wiz Exp $
+.\"	$NetBSD: mtree.8,v 1.77 2023/06/01 13:04:47 uwe Exp $
 .\"
 .\" Copyright (c) 1989, 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -93,9 +93,11 @@ characteristics do not match the specification, or which are
 missing from either the file hierarchy or the specification.
 .Pp
 The options are as follows:
-.Bl -tag -width Xxxexcludexfilexx
+.Bl -tag -width Fl
+.
 .It Fl b
 Suppress blank lines before entering and after exiting directories.
+.
 .It Fl C
 Convert a specification into
 a format that's easier to parse with various tools.
@@ -105,8 +107,7 @@ from the file given by
 In the output, each file or directory is represented using a single line
 (which might be very long).
 The full path name
-(beginning with
-.Dq \&./ )
+.Pq beginning with Ql \&./
 is always printed as the first field;
 .Fl K ,
 .Fl k ,
@@ -120,19 +121,25 @@ can be used to control which files are printed;
 and the
 .Fl S
 option can be used to sort the output.
+.
 .It Fl c
 Print a specification for the file hierarchy originating at
-the current working directory (or the directory provided by
-.Fl p Ar path )
+the current working directory
+.Po or the directory provided by
+.Fl p Ar path
+.Pc
 to the standard output.
 The output is in a style using relative path names.
+.
 .It Fl D
 As per
 .Fl C ,
 except that the path name is always printed as the last field instead of
 the first.
+.
 .It Fl d
 Ignore everything except directory type files.
+.
 .It Fl E Ar tags
 Add the comma separated tags to the
 .Dq exclusion
@@ -141,9 +148,11 @@ Non-directories with tags which are in the exclusion list are not printed with
 .Fl C
 and
 .Fl D .
+.
 .It Fl e
 Don't complain about files that are in the file hierarchy, but not in the
 specification.
+.
 .It Fl F Ar flavor
 Set the compatibility flavor of the
 .Nm
@@ -151,22 +160,23 @@ utility.
 The
 .Ar flavor
 can be one of
-.Sy mtree ,
-.Sy freebsd9 ,
+.Cm mtree ,
+.Cm freebsd9 ,
 or
-.Sy netbsd6 .
+.Cm netbsd6 .
 The default is
-.Sy mtree .
+.Cm mtree .
 The
-.Sy freebsd9
+.Cm freebsd9
 and
-.Sy netbsd6
+.Cm netbsd6
 flavors attempt to preserve output compatibility and command line option
 backward compatibility with
 .Fx 9.0
 and
 .Nx 6.0
 respectively.
+.
 .It Fl f Ar spec
 Read the specification from
 .Ar file  ,
@@ -178,10 +188,18 @@ The specifications will be sorted like output generated using
 .Fl c .
 The output format in this case is somewhat reminiscent of
 .Xr comm 1 ,
-having "in first spec only", "in second spec only", and "different"
-columns, prefixed by zero, one and two TAB characters respectively.
-Each entry in the "different" column occupies two lines, one from each
-specification.
+having
+.Dq in first spec only ,
+.Dq in second spec only ,
+and
+.Dq different
+columns, prefixed by zero, one and two
+.Tn TAB
+characters respectively.
+Each entry in the
+.Dq different
+column occupies two lines, one from each specification.
+.
 .It Fl I Ar tags
 Add the comma separated tags to the
 .Dq inclusion
@@ -191,14 +209,22 @@ Non-directories with tags which are in the inclusion list are printed with
 and
 .Fl D .
 If no inclusion list is provided, the default is to display all files.
+.
 .It Fl i
-If specified, set the schg and/or sappnd flags.
+If specified, set the
+.Ql schg
+and/or
+.Ql sappnd
+flags.
+.
 .It Fl j
 Indent the output 4 spaces each time a directory level is descended when
 creating a specification with the
 .Fl c
 option.
-This does not affect either the /set statements or the comment before each
+This does not affect either the
+.Ql /set
+statements or the comment before each
 directory.
 It does however affect the comment before the close of each directory.
 This is the equivalent of the
@@ -207,26 +233,31 @@ option in the
 .Fx
 version of
 .Nm .
+.
 .It Fl K Ar keywords
 Add the specified (whitespace or comma separated) keywords to the current
 set of keywords.
 If
 .Ql all
 is specified, add all of the other keywords.
+.
 .It Fl k Ar keywords
 Use the
 .Sy type
 keyword plus the specified (whitespace or comma separated)
-keywords instead of the current set of keywords.
+.Ar keywords
+instead of the current set of keywords.
 If
 .Ql all
 is specified, use all of the other keywords.
 If the
 .Sy type
 keyword is not desired, suppress it with
-.Fl R Ar type .
+.Fl R Cm type .
+.
 .It Fl L
 Follow all symbolic links in the file hierarchy.
+.
 .It Fl l
 Do
 .Dq loose
@@ -244,17 +275,25 @@ This option may not be set at the same time as the
 or
 .Fl u
 option.
+.
 .It Fl M
 Permit merging of specification entries with different types,
 with the last entry taking precedence.
+.
 .It Fl m
-If the schg and/or sappnd flags are specified, reset these flags.
-Note that this is only possible with securelevel less than 1 (i.e.,
-in single user mode or while the system is running in insecure
-mode).
+If the
+.Ql schg
+and/or
+.Ql sappnd
+flags are specified, reset these flags.
+Note that this is only possible with securelevel less than 1
+.Po
+i.e., in single user mode or while the system is running in insecure mode
+.Pc .
 See
 .Xr init 8
 for information on security levels.
+.
 .It Fl n
 Do not emit pathname comments when creating a specification.
 Normally
@@ -262,6 +301,7 @@ a comment is emitted before each directory and before the close of that
 directory when using the
 .Fl c
 option.
+.
 .It Fl N Ar dbdir
 Use the user database text file
 .Pa master.passwd
@@ -274,28 +314,34 @@ rather than using the results from the system's
 and
 .Xr getgrnam 3
 (and related) library calls.
+.
 .It Fl O Ar onlypaths
 Only include files included in this list of pathnames.
+.
 .It Fl P
 Don't follow symbolic links in the file hierarchy, instead consider
 the symbolic link itself in any comparisons.
 This is the default.
+.
 .It Fl p Ar path
 Use the file hierarchy rooted in
 .Ar path  ,
 instead of the current directory.
+.
 .It Fl q
 Quiet mode.
 Do not complain when a
 .Dq missing
 directory cannot be created because it already exists.
 This occurs when the directory is a symbolic link.
+.
 .It Fl R Ar keywords
 Remove the specified (whitespace or comma separated) keywords from the current
 set of keywords.
 If
 .Ql all
 is specified, remove all of the other keywords.
+.
 .It Fl r
 Remove any files in the file hierarchy that are not described in the
 specification.
@@ -303,6 +349,7 @@ Repeating the flag more than once will attempt to reset all the
 file flags via
 .Xr lchflags 2
 before attempting to remove the file in case the file was immutable.
+.
 .It Fl S
 When reading a specification into an internal data structure,
 sort the entries.
@@ -324,19 +371,23 @@ By default, if the
 .Fl S
 option is not used, entries within the same directory are collected
 together (separated from entries for other directories), but not sorted.
+.
 .It Fl s Ar seed
 Display a single checksum to the standard error output that represents all
 of the files for which the keyword
 .Sy cksum
 was specified.
 The checksum is seeded with the specified value.
+.
 .It Fl t
 Modify the modified time of existing files, the device type of devices, and
 symbolic link targets, to match the specification.
+.
 .It Fl U
 Same as
 .Fl u
 except that a mismatch is not considered to be an error if it was corrected.
+.
 .It Fl u
 Modify the owner, group, permissions, and flags of existing files,
 the device type of devices, and symbolic link targets,
@@ -354,6 +405,7 @@ is given, these flags will be reset.
 Exit with a status of 0 on success,
 2 if the file hierarchy did not match the specification, and
 1 if any other error occurred.
+.
 .It Fl W
 Don't attempt to set various file attributes such as the
 ownership, mode, flags, or time
@@ -362,6 +414,7 @@ This option will be most useful when used in conjunction with
 .Fl U
 or
 .Fl u .
+.
 .It Fl X Ar exclude-file
 The specified file contains
 .Xr fnmatch 3
@@ -376,9 +429,12 @@ Comments are permitted in
 the
 .Ar exclude-file
 file.
+.
 .It Fl x
 Don't descend below mount points in the file hierarchy.
+.
 .El
+.
 .Pp
 Specifications are mostly composed of
 .Dq keywords ,
@@ -388,7 +444,8 @@ No keywords have default values, and if a keyword has no value set, no
 checks based on it are performed.
 .Pp
 Currently supported keywords are as follows:
-.Bl -tag -width sha384digestxx
+.
+.Bl -tag -width Sy
 .It Sy cksum
 The checksum of the file using the default algorithm specified by
 the
@@ -424,6 +481,7 @@ format.)
 .It Ar number
 Opaque number (as stored on the file system).
 .El
+.
 .Pp
 The following values for
 .Ar format
@@ -697,7 +755,7 @@ The
 utility exits with a status of 0 on success, 1 if any error occurred,
 and 2 if the file hierarchy did not match the specification.
 .Sh FILES
-.Bl -tag -width /etc/mtree -compact
+.Bl -tag -width Pa -compact
 .It Pa /etc/mtree
 system specification directory
 .El
