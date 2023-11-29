@@ -1223,15 +1223,15 @@ mpi3mr_action_scsiio(struct mpi3mr_cam_softc *cam_sc, union ccb *ccb)
 		mpi3mr_set_ccbstatus(ccb, CAM_RESRC_UNAVAIL);
 		xpt_done(ccb);
 	} else {
-		callout_reset_sbt(&cm->callout, SBT_1S * 90 , 0,
-				  mpi3mr_scsiio_timeout, cm, 0);
+		callout_reset_sbt(&cm->callout, mstosbt(ccb->ccb_h.timeout), 0,
+		    mpi3mr_scsiio_timeout, cm, 0);
+		cm->callout_owner = true;
 		mpi3mr_atomic_inc(&sc->fw_outstanding);
 		mpi3mr_atomic_inc(&targ->outstanding);
 		if (mpi3mr_atomic_read(&sc->fw_outstanding) > sc->io_cmds_highwater)
 			sc->io_cmds_highwater++;
 	}
 
-	cm->callout_owner = true;
 	return;
 }
 
