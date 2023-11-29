@@ -2785,7 +2785,6 @@ int mpi3mr_initialize_ioc(struct mpi3mr_softc *sc, U8 init_type)
 		mtx_init(&sc->sense_buf_q_lock, "Sense buffer Queue lock", NULL, MTX_SPIN);
 		mtx_init(&sc->chain_buf_lock, "Chain buffer lock", NULL, MTX_SPIN);
 		mtx_init(&sc->cmd_pool_lock, "Command pool lock", NULL, MTX_DEF);
-//		mtx_init(&sc->fwevt_lock, "Firmware Event lock", NULL, MTX_SPIN);
 		mtx_init(&sc->fwevt_lock, "Firmware Event lock", NULL, MTX_DEF);
 		mtx_init(&sc->target_lock, "Target lock", NULL, MTX_SPIN);
 		mtx_init(&sc->reset_mutex, "Reset lock", NULL, MTX_DEF);
@@ -5826,11 +5825,14 @@ static int mpi3mr_issue_reset(struct mpi3mr_softc *sc, U16 reset_type,
 
 inline void mpi3mr_cleanup_event_taskq(struct mpi3mr_softc *sc)
 {
-	mtx_lock(&sc->fwevt_lock);
-	taskqueue_drain(sc->cam_sc->ev_tq, &sc->cam_sc->ev_task);
+	/*
+	 * Block the taskqueue before draining. This means any new tasks won't
+	 * be queued to a worker thread. But it doesn't stop the current workers
+	 * that are running. taskqueue_drain waits for those correctly in the
+	 * case of thread backed taskqueues.
+	 */
 	taskqueue_block(sc->cam_sc->ev_tq);
-	mtx_unlock(&sc->fwevt_lock);
-	return;
+	taskqueue_drain(sc->cam_sc->ev_tq, &sc->cam_sc->ev_task);
 }
 
 /**
