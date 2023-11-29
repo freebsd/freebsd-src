@@ -624,7 +624,7 @@ static int mpi3mr_create_op_reply_queue(struct mpi3mr_softc *sc, U16 qid)
 		}
 		bzero(op_reply_q->q_base, op_reply_q->qsz);
 		bus_dmamap_load(op_reply_q->q_base_tag, op_reply_q->q_base_dmamap, op_reply_q->q_base, op_reply_q->qsz,
-		    mpi3mr_memaddr_cb, &op_reply_q->q_base_phys, 0);
+		    mpi3mr_memaddr_cb, &op_reply_q->q_base_phys, BUS_DMA_NOWAIT);
 		mpi3mr_dprint(sc, MPI3MR_XINFO, "Operational Reply queue ID: %d phys addr= %#016jx virt_addr: %pa size= %d\n",
 		    qid, (uintmax_t)op_reply_q->q_base_phys, op_reply_q->q_base, op_reply_q->qsz);
 		
@@ -772,7 +772,7 @@ static int mpi3mr_create_op_req_queue(struct mpi3mr_softc *sc, U16 req_qid, U8 r
 		bzero(op_req_q->q_base, op_req_q->qsz);
 		
 		bus_dmamap_load(op_req_q->q_base_tag, op_req_q->q_base_dmamap, op_req_q->q_base, op_req_q->qsz,
-		    mpi3mr_memaddr_cb, &op_req_q->q_base_phys, 0);
+		    mpi3mr_memaddr_cb, &op_req_q->q_base_phys, BUS_DMA_NOWAIT);
 		
 		mpi3mr_dprint(sc, MPI3MR_XINFO, "Operational Request QID: %d phys addr= %#016jx virt addr= %pa size= %d associated Reply QID: %d\n",
 		    req_qid, (uintmax_t)op_req_q->q_base_phys, op_req_q->q_base, op_req_q->qsz, reply_qid);
@@ -1008,7 +1008,7 @@ static int mpi3mr_setup_admin_qpair(struct mpi3mr_softc *sc)
 		}
 		bzero(sc->admin_req, sc->admin_req_q_sz);
 		bus_dmamap_load(sc->admin_req_tag, sc->admin_req_dmamap, sc->admin_req, sc->admin_req_q_sz,
-		    mpi3mr_memaddr_cb, &sc->admin_req_phys, 0);
+		    mpi3mr_memaddr_cb, &sc->admin_req_phys, BUS_DMA_NOWAIT);
 		mpi3mr_dprint(sc, MPI3MR_XINFO, "Admin Req queue phys addr= %#016jx size= %d\n",
 		    (uintmax_t)sc->admin_req_phys, sc->admin_req_q_sz);
 		
@@ -1046,7 +1046,7 @@ static int mpi3mr_setup_admin_qpair(struct mpi3mr_softc *sc)
 		}
 		bzero(sc->admin_reply, sc->admin_reply_q_sz);
 		bus_dmamap_load(sc->admin_reply_tag, sc->admin_reply_dmamap, sc->admin_reply, sc->admin_reply_q_sz,
-		    mpi3mr_memaddr_cb, &sc->admin_reply_phys, 0);
+		    mpi3mr_memaddr_cb, &sc->admin_reply_phys, BUS_DMA_NOWAIT);
 		mpi3mr_dprint(sc, MPI3MR_XINFO, "Admin Reply queue phys addr= %#016jx size= %d\n",
 		    (uintmax_t)sc->admin_reply_phys, sc->admin_req_q_sz);
 		
@@ -1470,7 +1470,7 @@ static int mpi3mr_issue_iocfacts(struct mpi3mr_softc *sc,
 
         bzero(data, data_len);
         bus_dmamap_load(data_tag, data_map, data, data_len,
-	    mpi3mr_memaddr_cb, &data_phys, 0);
+	    mpi3mr_memaddr_cb, &data_phys, BUS_DMA_NOWAIT);
 	mpi3mr_dprint(sc, MPI3MR_XINFO, "Func: %s line: %d IOCfacts data phys addr= %#016jx size= %d\n",
 	    __func__, __LINE__, (uintmax_t)data_phys, data_len);
 	
@@ -1760,7 +1760,7 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
         
 	bzero(sc->reply_buf, sz);
         bus_dmamap_load(sc->reply_buf_tag, sc->reply_buf_dmamap, sc->reply_buf, sz,
-	    mpi3mr_memaddr_cb, &sc->reply_buf_phys, 0);
+	    mpi3mr_memaddr_cb, &sc->reply_buf_phys, BUS_DMA_NOWAIT);
 	
 	sc->reply_buf_dma_min_address = sc->reply_buf_phys;
 	sc->reply_buf_dma_max_address = sc->reply_buf_phys + sz;
@@ -1796,7 +1796,7 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
         
 	bzero(sc->reply_free_q, sz);
         bus_dmamap_load(sc->reply_free_q_tag, sc->reply_free_q_dmamap, sc->reply_free_q, sz,
-	    mpi3mr_memaddr_cb, &sc->reply_free_q_phys, 0);
+	    mpi3mr_memaddr_cb, &sc->reply_free_q_phys, BUS_DMA_NOWAIT);
 	
 	mpi3mr_dprint(sc, MPI3MR_XINFO, "reply_free_q (0x%p): depth(%d), frame_size(%d), "
 	    "pool_size(%d kB), reply_free_q_dma(0x%llx)\n",
@@ -1830,7 +1830,7 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
         
 	bzero(sc->sense_buf, sz);
         bus_dmamap_load(sc->sense_buf_tag, sc->sense_buf_dmamap, sc->sense_buf, sz,
-	    mpi3mr_memaddr_cb, &sc->sense_buf_phys, 0);
+	    mpi3mr_memaddr_cb, &sc->sense_buf_phys, BUS_DMA_NOWAIT);
 
 	mpi3mr_dprint(sc, MPI3MR_XINFO, "sense_buf (0x%p): depth(%d), frame_size(%d), "
 	    "pool_size(%d kB), sense_dma(0x%llx)\n",
@@ -1864,7 +1864,7 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
         
 	bzero(sc->sense_buf_q, sz);
         bus_dmamap_load(sc->sense_buf_q_tag, sc->sense_buf_q_dmamap, sc->sense_buf_q, sz,
-	    mpi3mr_memaddr_cb, &sc->sense_buf_q_phys, 0);
+	    mpi3mr_memaddr_cb, &sc->sense_buf_q_phys, BUS_DMA_NOWAIT);
 
 	mpi3mr_dprint(sc, MPI3MR_XINFO, "sense_buf_q (0x%p): depth(%d), frame_size(%d), "
 	    "pool_size(%d kB), sense_dma(0x%llx)\n",
@@ -2000,7 +2000,8 @@ mpi3mr_print_fw_pkg_ver(struct mpi3mr_softc *sc)
 
 	bzero(fw_pkg_ver, fw_pkg_ver_len);
 
-	bus_dmamap_load(fw_pkg_ver_tag, fw_pkg_ver_map, fw_pkg_ver, fw_pkg_ver_len, mpi3mr_memaddr_cb, &fw_pkg_ver_dma, 0);
+	bus_dmamap_load(fw_pkg_ver_tag, fw_pkg_ver_map, fw_pkg_ver, fw_pkg_ver_len,
+	    mpi3mr_memaddr_cb, &fw_pkg_ver_dma, BUS_DMA_NOWAIT);
 
 	mpi3mr_dprint(sc, MPI3MR_XINFO, "Func: %s line: %d fw package version phys addr= %#016jx size= %d\n",
 		      __func__, __LINE__, (uintmax_t)fw_pkg_ver_dma, fw_pkg_ver_len);
@@ -2122,7 +2123,7 @@ static int mpi3mr_issue_iocinit(struct mpi3mr_softc *sc)
         
 	bzero(drvr_info, drvr_info_len);
         bus_dmamap_load(drvr_info_tag, drvr_info_map, drvr_info, drvr_info_len,
-	    mpi3mr_memaddr_cb, &drvr_info_phys, 0);
+	    mpi3mr_memaddr_cb, &drvr_info_phys, BUS_DMA_NOWAIT);
 	mpi3mr_dprint(sc, MPI3MR_XINFO, "Func: %s line: %d IOCfacts drvr_info phys addr= %#016jx size= %d\n",
 	    __func__, __LINE__, (uintmax_t)drvr_info_phys, drvr_info_len);
 	
@@ -2536,7 +2537,7 @@ static int mpi3mr_alloc_chain_bufs(struct mpi3mr_softc *sc)
 		
 		bzero(sc->chain_sgl_list[i].buf, sz);
 		bus_dmamap_load(sc->chain_sgl_list_tag, sc->chain_sgl_list[i].buf_dmamap, sc->chain_sgl_list[i].buf, sz,
-		    mpi3mr_memaddr_cb, &sc->chain_sgl_list[i].buf_phys, 0);
+		    mpi3mr_memaddr_cb, &sc->chain_sgl_list[i].buf_phys, BUS_DMA_NOWAIT);
 		mpi3mr_dprint(sc, MPI3MR_XINFO, "Func: %s line: %d phys addr= %#016jx size= %d\n",
 		    __func__, __LINE__, (uintmax_t)sc->chain_sgl_list[i].buf_phys, sz);
 	}
@@ -2613,7 +2614,7 @@ static int mpi3mr_pel_alloc(struct mpi3mr_softc *sc)
 		bzero(sc->pel_seq_number, sc->pel_seq_number_sz);
 		
 		bus_dmamap_load(sc->pel_seq_num_dmatag, sc->pel_seq_num_dmamap, sc->pel_seq_number,
-		    sc->pel_seq_number_sz, mpi3mr_memaddr_cb, &sc->pel_seq_number_dma, 0);
+		    sc->pel_seq_number_sz, mpi3mr_memaddr_cb, &sc->pel_seq_number_dma, BUS_DMA_NOWAIT);
 		
 		if (!sc->pel_seq_number) {
 			printf(IOCNAME "%s:%d Cannot load PEL seq number dma memory for size: %d\n", sc->name,
@@ -5138,7 +5139,7 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 		}
 		bzero(mem_desc->addr, mem_desc->size);
 		bus_dmamap_load(mem_desc->tag, mem_desc->dmamap, mem_desc->addr, mem_desc->size,
-		    mpi3mr_memaddr_cb, &mem_desc->dma_addr, 0);
+		    mpi3mr_memaddr_cb, &mem_desc->dma_addr, BUS_DMA_NOWAIT);
 
 		if (!mem_desc->addr)
 			goto out_failed;
@@ -5168,7 +5169,7 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 	}
 	bzero(mem_desc->addr, mem_desc->size);
 	bus_dmamap_load(mem_desc->tag, mem_desc->dmamap, mem_desc->addr, mem_desc->size,
-	    mpi3mr_memaddr_cb, &mem_desc->dma_addr, 0);
+	    mpi3mr_memaddr_cb, &mem_desc->dma_addr, BUS_DMA_NOWAIT);
 
 	if (!mem_desc->addr)
 		goto out_failed;
@@ -5197,7 +5198,7 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 	}
 	bzero(mem_desc->addr, mem_desc->size);
 	bus_dmamap_load(mem_desc->tag, mem_desc->dmamap, mem_desc->addr, mem_desc->size,
-	    mpi3mr_memaddr_cb, &mem_desc->dma_addr, 0);
+	    mpi3mr_memaddr_cb, &mem_desc->dma_addr, BUS_DMA_NOWAIT);
 
 	if (!mem_desc->addr)
 		goto out_failed;

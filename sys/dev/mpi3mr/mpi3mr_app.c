@@ -358,7 +358,7 @@ mpi3mr_app_build_nvme_prp(struct mpi3mr_softc *sc,
 	bzero(sc->nvme_encap_prp_list, dev_pgsz);
 	bus_dmamap_load(sc->nvme_encap_prp_list_dmatag, sc->nvme_encap_prp_list_dma_dmamap,
 			sc->nvme_encap_prp_list, dev_pgsz, mpi3mr_memaddr_cb, &sc->nvme_encap_prp_list_dma,
-			0);
+			BUS_DMA_NOWAIT);
 	
 	if (!sc->nvme_encap_prp_list) {
 		printf(IOCNAME "%s:%d Cannot load ioctl NVME dma memory for size: %d\n", sc->name,
