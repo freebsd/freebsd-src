@@ -167,10 +167,9 @@ static int
 ossl_aes_gcm(struct ossl_session_cipher *s, struct cryptop *crp,
     const struct crypto_session_params *csp)
 {
-	struct ossl_cipher_context key;
+	struct ossl_gcm_context ctx;
 	struct crypto_buffer_cursor cc_in, cc_out;
 	unsigned char iv[AES_BLOCK_LEN], tag[AES_BLOCK_LEN];
-	struct ossl_gcm_context *ctx;
 	const unsigned char *inseg;
 	unsigned char *outseg;
 	size_t inlen, outlen, seglen;
@@ -182,24 +181,25 @@ ossl_aes_gcm(struct ossl_session_cipher *s, struct cryptop *crp,
 	if (crp->crp_cipher_key != NULL) {
 		if (encrypt)
 			error = s->cipher->set_encrypt_key(crp->crp_cipher_key,
-			    8 * csp->csp_cipher_klen, &key);
+			    8 * csp->csp_cipher_klen,
+			    (struct ossl_cipher_context *)&ctx);
 		else
 			error = s->cipher->set_decrypt_key(crp->crp_cipher_key,
-			    8 * csp->csp_cipher_klen, &key);
+			    8 * csp->csp_cipher_klen,
+			    (struct ossl_cipher_context *)&ctx);
 		if (error)
 			return (error);
-		ctx = (struct ossl_gcm_context *)&key;
 	} else if (encrypt) {
-		ctx = (struct ossl_gcm_context *)&s->enc_ctx;
+		memcpy(&ctx, &s->enc_ctx, sizeof(struct ossl_gcm_context));
 	} else {
-		ctx = (struct ossl_gcm_context *)&s->dec_ctx;
+		memcpy(&ctx, &s->dec_ctx, sizeof(struct ossl_gcm_context));
 	}
 
 	crypto_read_iv(crp, iv);
-	ctx->ops->setiv(ctx, iv, csp->csp_ivlen);
+	ctx.ops->setiv(&ctx, iv, csp->csp_ivlen);
 
 	if (crp->crp_aad != NULL) {
-		if (ctx->ops->aad(ctx, crp->crp_aad, crp->crp_aad_length) != 0)
+		if (ctx.ops->aad(&ctx, crp->crp_aad, crp->crp_aad_length) != 0)
 			return (EINVAL);
 	} else {
 		crypto_cursor_init(&cc_in, &crp->crp_buf);
@@ -208,7 +208,7 @@ ossl_aes_gcm(struct ossl_session_cipher *s, struct cryptop *crp,
 		    alen -= seglen) {
 			inseg = crypto_cursor_segment(&cc_in, &inlen);
 			seglen = MIN(alen, inlen);
-			if (ctx->ops->aad(ctx, inseg, seglen) != 0)
+			if (ctx.ops->aad(&ctx, inseg, seglen) != 0)
 				return (EINVAL);
 			crypto_cursor_advance(&cc_in, seglen);
 		}
@@ -229,10 +229,10 @@ ossl_aes_gcm(struct ossl_session_cipher *s, struct cryptop *crp,
 		seglen = MIN(plen, MIN(inlen, outlen));
 
 		if (encrypt) {
-			if (ctx->ops->encrypt(ctx, inseg, outseg, seglen) != 0)
+			if (ctx.ops->encrypt(&ctx, inseg, outseg, seglen) != 0)
 				return (EINVAL);
 		} else {
-			if (ctx->ops->decrypt(ctx, inseg, outseg, seglen) != 0)
+			if (ctx.ops->decrypt(&ctx, inseg, outseg, seglen) != 0)
 				return (EINVAL);
 		}
 
@@ -242,18 +242,19 @@ ossl_aes_gcm(struct ossl_session_cipher *s, struct cryptop *crp,
 
 	error = 0;
 	if (encrypt) {
-		ctx->ops->tag(ctx, tag, GMAC_DIGEST_LEN);
+		ctx.ops->tag(&ctx, tag, GMAC_DIGEST_LEN);
 		crypto_copyback(crp, crp->crp_digest_start, GMAC_DIGEST_LEN,
 		    tag);
 	} else {
 		crypto_copydata(crp, crp->crp_digest_start, GMAC_DIGEST_LEN,
 		    tag);
-		if (ctx->ops->finish(ctx, tag, GMAC_DIGEST_LEN) != 0)
+		if (ctx.ops->finish(&ctx, tag, GMAC_DIGEST_LEN) != 0)
 			error = EBADMSG;
 	}
 
 	explicit_bzero(iv, sizeof(iv));
 	explicit_bzero(tag, sizeof(tag));
+	explicit_bzero(&ctx, sizeof(ctx));
 
 	return (error);
 }
