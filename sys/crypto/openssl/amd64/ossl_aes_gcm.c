@@ -459,7 +459,7 @@ gcm_encrypt_aesni(struct ossl_gcm_context *ctx, const unsigned char *in,
 	size_t bulk = 0, res;
 	int error;
 
-	res = (AES_BLOCK_LEN - ctx->gcm.mres) % AES_BLOCK_LEN;
+	res = MIN(len, (AES_BLOCK_LEN - ctx->gcm.mres) % AES_BLOCK_LEN);
 	if ((error = gcm_encrypt(ctx, in, out, res)) != 0)
 		return error;
 
@@ -621,12 +621,12 @@ gcm_decrypt_aesni(struct ossl_gcm_context *ctx, const unsigned char *in,
 	size_t bulk = 0, res;
 	int error;
 
-	res = (AES_BLOCK_LEN - ctx->gcm.mres) % AES_BLOCK_LEN;
+	res = MIN(len, (AES_BLOCK_LEN - ctx->gcm.mres) % AES_BLOCK_LEN);
 	if ((error = gcm_decrypt(ctx, in, out, res)) != 0)
 		return error;
 
-	bulk = aesni_gcm_decrypt(in, out, len, &ctx->aes_ks, ctx->gcm.Yi.c,
-	    ctx->gcm.Xi.u);
+	bulk = aesni_gcm_decrypt(in + res, out + res, len - res, &ctx->aes_ks,
+	    ctx->gcm.Yi.c, ctx->gcm.Xi.u);
 	ctx->gcm.len.u[1] += bulk;
 	bulk += res;
 
