@@ -56,7 +56,7 @@ enum {
 extern int cfgmech;
 
 rman_res_t	hostb_alloc_start(int type, rman_res_t start, rman_res_t end, rman_res_t count);
-int		pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus);
+int		pcie_cfgregopen(uint64_t base, uint16_t domain, uint8_t minbus, uint8_t maxbus);
 int		pci_cfgregopen(void);
 u_int32_t	pci_cfgregread_domain(int domain, int bus, int slot, int func, int reg, int bytes);
 void		pci_cfgregwrite_domain(int domain, int bus, int slot, int func, int reg, u_int32_t data, int bytes);
