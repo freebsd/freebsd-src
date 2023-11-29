@@ -47,11 +47,8 @@
 #include <vm/pmap.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
+#include <machine/pci_cfgreg.h>
 #include <sys/rman.h>
-
-/* XXX */
-extern void pci_cfgregwrite(int, int, int, int, uint32_t, int);
-extern uint32_t pci_cfgregread(int, int, int, int, int);
 
 static void agp_amd64_apbase_fixup(device_t);
 
