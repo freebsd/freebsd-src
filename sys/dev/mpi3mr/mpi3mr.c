@@ -4947,9 +4947,9 @@ mpi3mr_alloc_requests(struct mpi3mr_softc *sc)
 				sc->dma_loaddr,		/* lowaddr */
 				sc->dma_hiaddr,		/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
-				MAXPHYS,/* maxsize */
+				BUS_SPACE_MAXSIZE,	/* maxsize */
                                 nsegs,			/* nsegments */
-				MAXPHYS,/* maxsegsize */
+				BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
                                 BUS_DMA_ALLOCNOW,	/* flags */
                                 busdma_lock_mutex,	/* lockfunc */
 				&sc->io_lock,	/* lockarg */
