@@ -39,6 +39,7 @@ ATF_TESTS_SH+=	altq \
 		syncookie \
 		synproxy \
 		table \
+		tcp \
 		tos
 
 ATF_TESTS_PYTEST+=	frag6.py
