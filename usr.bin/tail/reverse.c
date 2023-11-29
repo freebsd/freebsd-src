@@ -212,7 +212,7 @@ r_buf(FILE *fp, const char *fn)
 		while ((tl = malloc(sizeof(bfelem_t))) == NULL) {
 			first = TAILQ_FIRST(&head);
 			if (TAILQ_EMPTY(&head))
-				err(1, "malloc");
+				err(1, "failed to allocate memory");
 			enomem += first->len;
 			TAILQ_REMOVE(&head, first, entries);
 			free(first);
