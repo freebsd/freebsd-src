@@ -981,6 +981,11 @@ static int mpi3mr_setup_admin_qpair(struct mpi3mr_softc *sc)
 	sc->admin_reply_ephase = 1;
 
 	if (!sc->admin_req) {
+		/*
+		 * We need to create the tag for the admin queue to get the
+		 * iofacts to see how many bits the controller decodes.  Solve
+		 * this chicken and egg problem by only doing lower 4GB DMA.
+		 */
 		if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 					4, 0,			/* algnmnt, boundary */
 					BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
@@ -1435,6 +1440,12 @@ static int mpi3mr_issue_iocfacts(struct mpi3mr_softc *sc,
 			MPI3_SGE_FLAGS_END_OF_LIST);
 
 
+	/*
+	 * We can't use sc->dma_loaddr / hiaddr here.  We set those only after
+	 * we get the iocfacts.  So allocate in the lower 4GB.  The amount of
+	 * data is tiny and we don't do this that often, so any bouncing we
+	 * might have to do isn't a cause for concern.
+	 */
         if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
@@ -1668,6 +1679,22 @@ static int mpi3mr_process_factsdata(struct mpi3mr_softc *sc,
 	
 	sc->max_host_ios = sc->facts.max_reqs -
 	    (MPI3MR_INTERNALCMDS_RESVD + 1);
+
+	/*
+	 * Set the DMA mask for the card.  dma_mask is the number of bits that
+	 * can have bits set in them.  Translate this into bus_dma loaddr/hiaddr
+	 * args.  Add sanity for more bits than address space or other overflow
+	 * situations.
+	 */
+	if (sc->facts.dma_mask == 0 ||
+	    (sc->facts.dma_mask >= sizeof(bus_addr_t) * 8))
+		sc->dma_loaddr = BUS_SPACE_MAXADDR;
+	else
+		sc->dma_loaddr = ~((1ull << sc->facts.dma_mask) - 1);
+	sc->dma_hiaddr = BUS_SPACE_MAXADDR;
+	mpi3mr_dprint(sc, MPI3MR_INFO,
+	    "dma_mask bits: %d loaddr 0x%jx hiaddr 0x%jx\n",
+	    sc->facts.dma_mask, sc->dma_loaddr, sc->dma_hiaddr);
 
 	return retval;
 }

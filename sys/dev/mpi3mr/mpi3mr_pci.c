@@ -273,6 +273,16 @@ static int mpi3mr_setup_resources(struct mpi3mr_softc *sc)
 	sc->mpi3mr_btag = rman_get_bustag(sc->mpi3mr_regs_resource);
 	sc->mpi3mr_bhandle = rman_get_bushandle(sc->mpi3mr_regs_resource);
 
+	/*
+	 * XXX Perhaps we should move this to after we read iocfacts and use
+	 * that to create the proper parent tag.  However, to get the iocfacts
+	 * we need to have a dmatag for both the admin queue and the iocfacts
+	 * DMA transfer.  So for now, we just create a 'no restriction' tag and
+	 * use sc->dma_loaddr for all the other tag_create calls to get the
+	 * right value.  It would be nice if one could retroactively adjust a
+	 * created tag.  The Linux driver effectively does this by setting the
+	 * dma_mask on the device.
+	 */
 	/* Allocate the parent DMA tag */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev),  	/* parent */
 				1, 0,			/* algnmnt, boundary */
