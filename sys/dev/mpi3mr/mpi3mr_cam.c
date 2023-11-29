@@ -1213,8 +1213,7 @@ mpi3mr_action_scsiio(struct mpi3mr_cam_softc *cam_sc, union ccb *ccb)
 	}
 	req->Flags = htole32(mpi_control);
 
-	if (mpi3mr_submit_io(sc, opreqq,
-	    	(U8 *)&cm->io_request)) {
+	if (mpi3mr_submit_io(sc, opreqq, (U8 *)&cm->io_request)) {
 		mpi3mr_release_command(cm);
 		if (tracked_io_sz) {
 			mpi3mr_atomic_sub(&sc->pend_large_data_sz, tracked_io_sz);
