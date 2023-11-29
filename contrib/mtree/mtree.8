@@ -1,4 +1,4 @@
-.\"	$NetBSD: mtree.8,v 1.69 2013/02/03 19:16:06 christos Exp $
+.\"	$NetBSD: mtree.8,v 1.70 2015/01/23 02:27:01 christos Exp $
 .\"
 .\" Copyright (c) 1989, 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -56,7 +56,7 @@
 .\"
 .\"     @(#)mtree.8	8.2 (Berkeley) 12/11/93
 .\"
-.Dd February 3, 2013
+.Dd January 22, 2014
 .Dt MTREE 8
 .Os
 .Sh NAME
@@ -299,6 +299,10 @@ is specified, remove all of the other keywords.
 .It Fl r
 Remove any files in the file hierarchy that are not described in the
 specification.
+Repeating the flag more than once will attempt to reset all the
+file flags via
+.Xr lchflags 2
+before attempting to remove the file in case the file was immutable.
 .It Fl S
 When reading a specification into an internal data structure,
 sort the entries.
