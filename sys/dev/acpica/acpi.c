@@ -2091,11 +2091,8 @@ acpi_enable_pcie(void)
 	end = (ACPI_MCFG_ALLOCATION *)((char *)hdr + hdr->Length);
 	alloc = (ACPI_MCFG_ALLOCATION *)((ACPI_TABLE_MCFG *)hdr + 1);
 	while (alloc < end) {
-		if (alloc->PciSegment == 0) {
-			pcie_cfgregopen(alloc->Address, alloc->StartBusNumber,
-			    alloc->EndBusNumber);
-			return;
-		}
+		pcie_cfgregopen(alloc->Address, alloc->PciSegment,
+		    alloc->StartBusNumber, alloc->EndBusNumber);
 		alloc++;
 	}
 #endif
