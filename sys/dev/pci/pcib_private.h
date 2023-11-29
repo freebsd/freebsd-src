@@ -148,7 +148,8 @@ struct pcib_softc
 
 #define	PCIB_SUPPORTED_ARI_VER	1
 
-typedef uint32_t pci_read_config_fn(int b, int s, int f, int reg, int width);
+typedef uint32_t pci_read_config_fn(int d, int b, int s, int f, int reg,
+    int width);
 
 int		host_pcib_get_busno(pci_read_config_fn read_config, int bus,
     int slot, int func, uint8_t *busnum);
