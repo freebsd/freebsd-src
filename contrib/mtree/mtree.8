@@ -1,4 +1,4 @@
-.\"	$NetBSD: mtree.8,v 1.75 2020/06/16 13:34:38 sborrill Exp $
+.\"	$NetBSD: mtree.8,v 1.76 2020/06/16 14:26:39 wiz Exp $
 .\"
 .\" Copyright (c) 1989, 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -56,7 +56,7 @@
 .\"
 .\"     @(#)mtree.8	8.2 (Berkeley) 12/11/93
 .\"
-.Dd January 22, 2015
+.Dd June 16, 2020
 .Dt MTREE 8
 .Os
 .Sh NAME
@@ -618,7 +618,9 @@ they match.
 .Nm
 uses
 .Xr strsvis 3
-(in VIS_OCTAL format) to encode path names containing
+(in
+.Dv VIS_OCTAL
+format) to encode path names containing
 non-printable characters.
 Whitespace characters are encoded as
 .Ql \e040
@@ -631,7 +633,9 @@ When flavor
 .Sy netbsd6
 is selected,
 .Xr strsvis 3
-(in VIS_CSTYLE format) is used and whitespace characters are encoded as
+(in
+.Dv VIS_CSTYLE
+format) is used and whitespace characters are encoded as
 .Ql \es
 (space),
 .Ql \et
