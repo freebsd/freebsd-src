@@ -604,7 +604,7 @@ static int mpi3mr_create_op_reply_queue(struct mpi3mr_softc *sc, U16 qid)
 		if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 					4, 0,			/* algnmnt, boundary */
 					sc->dma_loaddr,		/* lowaddr */
-					sc->dma_hiaddr,		/* highaddr */
+					BUS_SPACE_MAXADDR,	/* highaddr */
 					NULL, NULL,		/* filter, filterarg */
 					op_reply_q->qsz,		/* maxsize */
 					1,			/* nsegments */
@@ -750,7 +750,7 @@ static int mpi3mr_create_op_req_queue(struct mpi3mr_softc *sc, U16 req_qid, U8 r
 		if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 					4, 0,			/* algnmnt, boundary */
 					sc->dma_loaddr,		/* lowaddr */
-					sc->dma_hiaddr,		/* highaddr */
+					BUS_SPACE_MAXADDR,	/* highaddr */
 					NULL, NULL,		/* filter, filterarg */
 					op_req_q->qsz,		/* maxsize */
 					1,			/* nsegments */
@@ -1440,10 +1440,10 @@ static int mpi3mr_issue_iocfacts(struct mpi3mr_softc *sc,
 
 
 	/*
-	 * We can't use sc->dma_loaddr / hiaddr here.  We set those only after
-	 * we get the iocfacts.  So allocate in the lower 4GB.  The amount of
-	 * data is tiny and we don't do this that often, so any bouncing we
-	 * might have to do isn't a cause for concern.
+	 * We can't use sc->dma_loaddr here.  We set those only after we get the
+	 * iocfacts.  So allocate in the lower 4GB.  The amount of data is tiny
+	 * and we don't do this that often, so any bouncing we might have to do
+	 * isn't a cause for concern.
 	 */
         if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
@@ -1688,8 +1688,8 @@ static int mpi3mr_process_factsdata(struct mpi3mr_softc *sc,
 
 	/*
 	 * Set the DMA mask for the card.  dma_mask is the number of bits that
-	 * can have bits set in them.  Translate this into bus_dma loaddr/hiaddr
-	 * args.  Add sanity for more bits than address space or other overflow
+	 * can have bits set in them.  Translate this into bus_dma loaddr args.
+	 * Add sanity for more bits than address space or other overflow
 	 * situations.
 	 */
 	if (sc->facts.dma_mask == 0 ||
@@ -1697,10 +1697,9 @@ static int mpi3mr_process_factsdata(struct mpi3mr_softc *sc,
 		sc->dma_loaddr = BUS_SPACE_MAXADDR;
 	else
 		sc->dma_loaddr = ~((1ull << sc->facts.dma_mask) - 1);
-	sc->dma_hiaddr = BUS_SPACE_MAXADDR;
 	mpi3mr_dprint(sc, MPI3MR_INFO,
-	    "dma_mask bits: %d loaddr 0x%jx hiaddr 0x%jx\n",
-	    sc->facts.dma_mask, sc->dma_loaddr, sc->dma_hiaddr);
+	    "dma_mask bits: %d loaddr 0x%jx\n",
+	    sc->facts.dma_mask, sc->dma_loaddr);
 
 	return retval;
 }
@@ -1738,7 +1737,7 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
 	if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,  /* parent */
 				16, 0,			/* algnmnt, boundary */
 				sc->dma_loaddr,		/* lowaddr */
-				sc->dma_hiaddr,		/* highaddr */
+				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 sz,			/* maxsize */
                                 1,			/* nsegments */
@@ -1774,7 +1773,7 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
         if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				8, 0,			/* algnmnt, boundary */
 				sc->dma_loaddr,		/* lowaddr */
-				sc->dma_hiaddr,		/* highaddr */
+				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 sz,			/* maxsize */
                                 1,			/* nsegments */
@@ -1808,7 +1807,7 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
         if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
 				sc->dma_loaddr,		/* lowaddr */
-				sc->dma_hiaddr,		/* highaddr */
+				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 sz,			/* maxsize */
                                 1,			/* nsegments */
@@ -1842,7 +1841,7 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
         if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				8, 0,			/* algnmnt, boundary */
 				sc->dma_loaddr,		/* lowaddr */
-				sc->dma_hiaddr,		/* highaddr */
+				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 sz,			/* maxsize */
                                 1,			/* nsegments */
@@ -1979,7 +1978,7 @@ mpi3mr_print_fw_pkg_ver(struct mpi3mr_softc *sc)
 	if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,  /* parent */
 				4, 0,			/* algnmnt, boundary */
 				sc->dma_loaddr,		/* lowaddr */
-				sc->dma_hiaddr,		/* highaddr */
+				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
 				fw_pkg_ver_len,		/* maxsize */
 				1,			/* nsegments */
@@ -2101,7 +2100,7 @@ static int mpi3mr_issue_iocinit(struct mpi3mr_softc *sc)
 	if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,  /* parent */
 				4, 0,			/* algnmnt, boundary */
 				sc->dma_loaddr,		/* lowaddr */
-				sc->dma_hiaddr,		/* highaddr */
+				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 drvr_info_len,		/* maxsize */
                                 1,			/* nsegments */
@@ -2514,7 +2513,7 @@ static int mpi3mr_alloc_chain_bufs(struct mpi3mr_softc *sc)
         if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,  /* parent */
 				4096, 0,		/* algnmnt, boundary */
 				sc->dma_loaddr,		/* lowaddr */
-				sc->dma_hiaddr,		/* highaddr */
+				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 sz,			/* maxsize */
                                 1,			/* nsegments */
@@ -2589,8 +2588,8 @@ static int mpi3mr_pel_alloc(struct mpi3mr_softc *sc)
 		sc->pel_seq_number_sz = sizeof(Mpi3PELSeq_t);
 		if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,   /* parent */
 				 4, 0,                           /* alignment, boundary */
-				 sc->dma_loaddr,	        /* lowaddr */
-				 sc->dma_hiaddr,	              /* highaddr */
+				 sc->dma_loaddr,	         /* lowaddr */
+				 BUS_SPACE_MAXADDR,		 /* highaddr */
 				 NULL, NULL,                     /* filter, filterarg */
 				 sc->pel_seq_number_sz,		 /* maxsize */
 				 1,                              /* nsegments */
@@ -4945,7 +4944,7 @@ mpi3mr_alloc_requests(struct mpi3mr_softc *sc)
 	ret = bus_dma_tag_create( sc->mpi3mr_parent_dmat,    /* parent */
 				1, 0,			/* algnmnt, boundary */
 				sc->dma_loaddr,		/* lowaddr */
-				sc->dma_hiaddr,		/* highaddr */
+				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
 				BUS_SPACE_MAXSIZE,	/* maxsize */
                                 nsegs,			/* nsegments */
@@ -5119,7 +5118,7 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 		if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 					4, 0,			/* algnmnt, boundary */
 					sc->dma_loaddr,		/* lowaddr */
-					sc->dma_hiaddr,		/* highaddr */
+					BUS_SPACE_MAXADDR,	/* highaddr */
 					NULL, NULL,		/* filter, filterarg */
 					mem_desc->size,		/* maxsize */
 					1,			/* nsegments */
@@ -5149,7 +5148,7 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 	if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
 				sc->dma_loaddr,		/* lowaddr */
-				sc->dma_hiaddr,		/* highaddr */
+				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
 				mem_desc->size,		/* maxsize */
 				1,			/* nsegments */
@@ -5178,7 +5177,7 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 	if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
 				sc->dma_loaddr,		/* lowaddr */
-				sc->dma_hiaddr,		/* highaddr */
+				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
 				mem_desc->size,		/* maxsize */
 				1,			/* nsegments */
