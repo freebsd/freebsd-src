@@ -57,6 +57,12 @@
 
 #include <net/bpf.h>
 
+#ifdef IEEE80211_DEBUG_REFCNT
+#define	__debrefcnt_used
+#else
+#define	__debrefcnt_used	__unused
+#endif
+
 /*
  * IEEE80211_NODE_HASHSIZE must be a power of 2.
  */
