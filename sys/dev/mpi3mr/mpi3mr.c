@@ -3038,9 +3038,6 @@ mpi3mr_watchdog_thread(void *arg)
 	sc->watchdog_thread_active = 1;
 	mtx_lock(&sc->reset_mutex);
 	for (;;) {
-		/* Sleep for 1 second and check the queue status */
-		msleep(&sc->watchdog_chan, &sc->reset_mutex, PRIBIO,
-		    "mpi3mr_watchdog", 1 * hz);
 		if (sc->mpi3mr_flags & MPI3MR_FLAGS_SHUTDOWN || 
 		    (sc->unrecoverable == 1)) {
 			mpi3mr_dprint(sc, MPI3MR_INFO,
@@ -3049,20 +3046,21 @@ mpi3mr_watchdog_thread(void *arg)
 			    "Hardware critical error", __func__);
 			break;
 		}
+		mtx_unlock(&sc->reset_mutex);
 
 		if ((sc->prepare_for_reset) &&
 		    ((sc->prepare_for_reset_timeout_counter++) >=
 		     MPI3MR_PREPARE_FOR_RESET_TIMEOUT)) {
 			mpi3mr_soft_reset_handler(sc,
 			    MPI3MR_RESET_FROM_CIACTVRST_TIMER, 1);
-			continue;
+			goto sleep;
 		}
 	
 		ioc_status = mpi3mr_regread(sc, MPI3_SYSIF_IOC_STATUS_OFFSET);
 		
 		if (ioc_status & MPI3_SYSIF_IOC_STATUS_RESET_HISTORY) {
 			mpi3mr_soft_reset_handler(sc, MPI3MR_RESET_FROM_FIRMWARE, 0);
-			continue;
+			goto sleep;
 		}
 
 		ioc_state = mpi3mr_get_iocstate(sc);
@@ -3078,7 +3076,7 @@ mpi3mr_watchdog_thread(void *arg)
 						"diag save in progress\n");
 				}
 				if ((sc->diagsave_timeout++) <= MPI3_SYSIF_DIAG_SAVE_TIMEOUT)
-					continue;
+					goto sleep;
 			}
 			mpi3mr_print_fault_info(sc);
 			sc->diagsave_timeout = 0;
@@ -3089,12 +3087,12 @@ mpi3mr_watchdog_thread(void *arg)
 				    "Controller requires system power cycle or complete reset is needed,"
 				    "fault code: 0x%x. marking controller as unrecoverable\n", fault);
 				sc->unrecoverable = 1;
-				goto out;
+				break;
 			}
 			if ((fault == MPI3_SYSIF_FAULT_CODE_DIAG_FAULT_RESET)
 			    || (fault == MPI3_SYSIF_FAULT_CODE_SOFT_RESET_IN_PROGRESS)
 			    || (sc->reset_in_progress))
-				goto out;
+				break;
 			if (fault == MPI3_SYSIF_FAULT_CODE_CI_ACTIVATION_RESET)
 				mpi3mr_soft_reset_handler(sc,
 				    MPI3MR_RESET_FROM_CIACTIV_FAULT, 0);
@@ -3108,8 +3106,18 @@ mpi3mr_watchdog_thread(void *arg)
 			mpi3mr_print_fault_info(sc);
 			mpi3mr_soft_reset_handler(sc, sc->reset.reason, 1);
 		}
+sleep:
+		mtx_lock(&sc->reset_mutex);
+		/*
+		 * Sleep for 1 second if we're not exiting, then loop to top
+		 * to poll exit status and hardware health.
+		 */
+		if ((sc->mpi3mr_flags & MPI3MR_FLAGS_SHUTDOWN) == 0 &&
+		    !sc->unrecoverable) {
+			msleep(&sc->watchdog_chan, &sc->reset_mutex, PRIBIO,
+			    "mpi3mr_watchdog", 1 * hz);
+		}
 	}
-out:
 	mtx_unlock(&sc->reset_mutex);
 	sc->watchdog_thread_active = 0;
 	mpi3mr_kproc_exit(0);

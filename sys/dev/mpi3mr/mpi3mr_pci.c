@@ -635,13 +635,15 @@ mpi3mr_pci_detach(device_t dev)
 	if (!sc->secure_ctrl)
 		return 0;
 	
-	sc->mpi3mr_flags |= MPI3MR_FLAGS_SHUTDOWN;
 	
 	if (sc->sysctl_tree != NULL)
 		sysctl_ctx_free(&sc->sysctl_ctx);
 	
+	mtx_lock(&sc->reset_mutex);
+	sc->mpi3mr_flags |= MPI3MR_FLAGS_SHUTDOWN;
 	if (sc->watchdog_thread_active)
 		wakeup(&sc->watchdog_chan);
+	mtx_unlock(&sc->reset_mutex);
 	
 	while (sc->reset_in_progress && (i < PEND_IOCTLS_COMP_WAIT_TIME)) {
 		i++;
