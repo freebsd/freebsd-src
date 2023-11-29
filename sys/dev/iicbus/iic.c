@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1998, 2001 Nicolas Souchu
+ * Copyright (c) 2023 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +28,7 @@
  *
  */
 #include <sys/param.h>
+#include <sys/abi_compat.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
@@ -57,6 +59,30 @@ struct iic_cdevpriv {
 	uint8_t addr;
 };
 
+#ifdef COMPAT_FREEBSD32
+struct iic_msg32 {
+	uint16_t slave;
+	uint16_t flags;
+	uint16_t len;
+	uint32_t buf;
+};
+
+struct iiccmd32 {
+	u_char slave;
+	uint32_t count;
+	uint32_t last;
+	uint32_t buf;
+};
+
+struct iic_rdwr_data32 {
+	uint32_t msgs;
+	uint32_t nmsgs;
+};
+
+#define	I2CWRITE32	_IOW('i', 4, struct iiccmd32)
+#define	I2CREAD32	_IOW('i', 5, struct iiccmd32)
+#define	I2CRDWR32	_IOW('i', 6, struct iic_rdwr_data32)
+#endif
 
 #define	IIC_LOCK(cdp)			sx_xlock(&(cdp)->lock)
 #define	IIC_UNLOCK(cdp)			sx_xunlock(&(cdp)->lock)
@@ -70,7 +96,7 @@ static void iic_identify(driver_t *driver, device_t parent);
 static void iicdtor(void *data);
 static int iicuio_move(struct iic_cdevpriv *priv, struct uio *uio, int last);
 static int iicuio(struct cdev *dev, struct uio *uio, int ioflag);
-static int iicrdwr(struct iic_cdevpriv *priv, struct iic_rdwr_data *d, int flags);
+static int iicrdwr(struct iic_cdevpriv *priv, struct iic_rdwr_data *d, int flags, bool compat32);
 
 static device_method_t iic_methods[] = {
 	/* device interface */
@@ -285,9 +311,36 @@ iicuio(struct cdev *dev, struct uio *uio, int ioflag)
 	return (error);
 }
 
+#ifdef COMPAT_FREEBSD32
 static int
-iicrdwr(struct iic_cdevpriv *priv, struct iic_rdwr_data *d, int flags)
+iic_copyinmsgs32(struct iic_rdwr_data *d, struct iic_msg *buf)
 {
+	struct iic_msg32 msg32;
+	struct iic_msg32 *m32;
+	int error, i;
+
+	m32 = (struct iic_msg32 *)d->msgs;
+	for (i = 0; i < d->nmsgs; i++) {
+		error = copyin(&m32[i], &msg32, sizeof(msg32));
+		if (error != 0)
+			return (error);
+		CP(msg32, buf[i], slave);
+		CP(msg32, buf[i], flags);
+		CP(msg32, buf[i], len);
+		PTRIN_CP(msg32, buf[i], buf);
+	}
+	return (0);
+}
+#endif
+
+static int
+iicrdwr(struct iic_cdevpriv *priv, struct iic_rdwr_data *d, int flags,
+    bool compat32 __unused)
+{
+#ifdef COMPAT_FREEBSD32
+	struct iic_rdwr_data dswab;
+	struct iic_rdwr_data32 *d32;
+#endif
 	struct iic_msg *buf, *m;
 	void **usrbufs;
 	device_t iicdev, parent;
@@ -297,12 +350,25 @@ iicrdwr(struct iic_cdevpriv *priv, struct iic_rdwr_data *d, int flags)
 	iicdev = priv->sc->sc_dev;
 	parent = device_get_parent(iicdev);
 	error = 0;
+#ifdef COMPAT_FREEBSD32
+	if (compat32) {
+		d32 = (struct iic_rdwr_data32 *)d;
+		PTRIN_CP(*d32, dswab, msgs);
+		CP(*d32, dswab, nmsgs);
+		d = &dswab;
+	}
+#endif
 
 	if (d->nmsgs > IIC_RDRW_MAX_MSGS)
 		return (EINVAL);
 
 	buf = malloc(sizeof(*d->msgs) * d->nmsgs, M_IIC, M_WAITOK);
 
+#ifdef COMPAT_FREEBSD32
+	if (compat32)
+		error = iic_copyinmsgs32(d, buf);
+	else
+#endif
 	error = copyin(d->msgs, buf, sizeof(*d->msgs) * d->nmsgs);
 	if (error != 0) {
 		free(buf, M_IIC);
@@ -355,14 +421,24 @@ iicrdwr(struct iic_cdevpriv *priv, struct iic_rdwr_data *d, int flags)
 static int
 iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
+#ifdef COMPAT_FREEBSD32
+	struct iiccmd iicswab;
+#endif
 	device_t parent, iicdev;
 	struct iiccmd *s;
+#ifdef COMPAT_FREEBSD32
+	struct iiccmd32 *s32;
+#endif
 	struct uio ubuf;
 	struct iovec uvec;
 	struct iic_cdevpriv *priv;
 	int error;
+	bool compat32;
 
 	s = (struct iiccmd *)data;
+#ifdef COMPAT_FREEBSD32
+	s32 = (struct iiccmd32 *)data;
+#endif
 	error = devfs_get_cdevpriv((void**)&priv);
 	if (error != 0)
 		return (error);
@@ -373,6 +449,20 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 	parent = device_get_parent(iicdev);
 	IIC_LOCK(priv);
 
+#ifdef COMPAT_FREEBSD32
+	switch (cmd) {
+	case I2CWRITE32:
+	case I2CREAD32:
+		CP(*s32, iicswab, slave);
+		CP(*s32, iicswab, count);
+		CP(*s32, iicswab, last);
+		PTRIN_CP(*s32, iicswab, buf);
+		s = &iicswab;
+		break;
+	default:
+		break;
+	}
+#endif
 
 	switch (cmd) {
 	case I2CSTART:
@@ -428,6 +518,9 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		break;
 
 	case I2CWRITE:
+#ifdef COMPAT_FREEBSD32
+	case I2CWRITE32:
+#endif
 		if (!priv->started) {
 			error = EINVAL;
 			break;
@@ -445,6 +538,9 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		break;
 
 	case I2CREAD:
+#ifdef COMPAT_FREEBSD32
+	case I2CREAD32:
+#endif
 		if (!priv->started) {
 			error = EINVAL;
 			break;
@@ -461,6 +557,9 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		error = iicuio_move(priv, &ubuf, s->last);
 		break;
 
+#ifdef COMPAT_FREEBSD32
+	case I2CRDWR32:
+#endif
 	case I2CRDWR:
 		/*
 		 * The rdwr list should be a self-contained set of
@@ -471,7 +570,13 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 			break;
 		}
 
-		error = iicrdwr(priv, (struct iic_rdwr_data *)data, flags);
+#ifdef COMPAT_FREEBSD32
+		compat32 = (cmd == I2CRDWR32);
+#else
+		compat32 = false;
+#endif
+		error = iicrdwr(priv, (struct iic_rdwr_data *)data, flags,
+		    compat32);
 
 		break;
 
