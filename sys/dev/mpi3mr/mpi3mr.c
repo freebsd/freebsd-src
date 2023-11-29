@@ -5861,13 +5861,16 @@ static int mpi3mr_issue_reset(struct mpi3mr_softc *sc, U16 reset_type,
 inline void mpi3mr_cleanup_event_taskq(struct mpi3mr_softc *sc)
 {
 	/*
-	 * Block the taskqueue before draining. This means any new tasks won't
-	 * be queued to a worker thread. But it doesn't stop the current workers
-	 * that are running. taskqueue_drain waits for those correctly in the
-	 * case of thread backed taskqueues.
+	 * Block the taskqueue before draining.  This means any new tasks won't
+	 * be queued to the taskqueue worker thread.  But it doesn't stop the
+	 * current workers that are running.  taskqueue_drain waits for those
+	 * correctly in the case of thread backed taskqueues.  The while loop
+	 * ensures that all taskqueue threads have finished their current tasks.
 	 */
 	taskqueue_block(sc->cam_sc->ev_tq);
-	taskqueue_drain(sc->cam_sc->ev_tq, &sc->cam_sc->ev_task);
+	while (taskqueue_cancel(sc->cam_sc->ev_tq, &sc->cam_sc->ev_task, NULL) != 0) {
+		taskqueue_drain(sc->cam_sc->ev_tq, &sc->cam_sc->ev_task);
+	}
 }
 
 /**
