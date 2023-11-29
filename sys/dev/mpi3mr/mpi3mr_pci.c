@@ -286,7 +286,7 @@ static int mpi3mr_setup_resources(struct mpi3mr_softc *sc)
 	/* Allocate the parent DMA tag */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev),  	/* parent */
 				1, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
 				BUS_SPACE_MAXSIZE_32BIT,/* maxsize */
