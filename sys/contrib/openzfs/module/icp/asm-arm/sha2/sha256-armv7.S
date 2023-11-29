@@ -21,8 +21,11 @@
 
 #if defined(__arm__)
 
-#define	__ARM_ARCH__      7
-#define	__ARM_MAX_ARCH__  7
+#ifndef __ARM_ARCH
+# define __ARM_ARCH__	7
+#else
+# define __ARM_ARCH__	__ARM_ARCH
+#endif
 
 #if defined(__thumb2__)
 .syntax unified
@@ -1846,7 +1849,11 @@ zfs_sha256_block_neon:
 	stmdb	sp!,{r4-r12,lr}
 
 	sub	r11,sp,#16*4+16
+#if __ARM_ARCH__ >=7
 	adr	r14,K256
+#else
+	ldr	r14,=K256
+#endif
 	bic	r11,r11,#15		@ align for 128-bit stores
 	mov	r12,sp
 	mov	sp,r11			@ alloca
