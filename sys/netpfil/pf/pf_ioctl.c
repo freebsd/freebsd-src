@@ -5809,6 +5809,7 @@ pf_clear_tables(void)
 	int error;
 
 	bzero(&io, sizeof(io));
+	io.pfrio_flags |= PFR_FLAG_ALLRSETS;
 
 	error = pfr_clr_tables(&io.pfrio_table, &io.pfrio_ndel,
 	    io.pfrio_flags);
@@ -6219,8 +6220,54 @@ shutdown_pf(void)
 	int error = 0;
 	u_int32_t t[5];
 	char nn = '\0';
+	struct pf_kanchor *anchor;
+	struct pf_keth_anchor *eth_anchor;
+	int rs_num;
 
 	do {
+		/* Unlink rules of all user defined anchors */
+		RB_FOREACH(anchor, pf_kanchor_global, &V_pf_anchors) {
+			/* Wildcard based anchors may not have a respective
+			 * explicit anchor rule or they may be left empty
+			 * without rules. It leads to anchor.refcnt=0, and the
+			 * rest of the logic does not expect it. */
+			if (anchor->refcnt == 0)
+				anchor->refcnt = 1;
+			for (rs_num = 0; rs_num < PF_RULESET_MAX; ++rs_num) {
+				if ((error = pf_begin_rules(&t[rs_num], rs_num,
+				    anchor->path)) != 0) {
+					DPFPRINTF(PF_DEBUG_MISC, ("shutdown_pf: "
+					    "anchor.path=%s rs_num=%d\n",
+					    anchor->path, rs_num));
+					goto error;	/* XXX: rollback? */
+				}
+			}
+			for (rs_num = 0; rs_num < PF_RULESET_MAX; ++rs_num) {
+				error = pf_commit_rules(t[rs_num], rs_num,
+				    anchor->path);
+				MPASS(error == 0);
+			}
+		}
+
+		/* Unlink rules of all user defined ether anchors */
+		RB_FOREACH(eth_anchor, pf_keth_anchor_global,
+		    &V_pf_keth_anchors) {
+			/* Wildcard based anchors may not have a respective
+			 * explicit anchor rule or they may be left empty
+			 * without rules. It leads to anchor.refcnt=0, and the
+			 * rest of the logic does not expect it. */
+			if (eth_anchor->refcnt == 0)
+				eth_anchor->refcnt = 1;
+			if ((error = pf_begin_eth(&t[0], eth_anchor->path))
+			    != 0) {
+				DPFPRINTF(PF_DEBUG_MISC, ("shutdown_pf: eth "
+				    "anchor.path=%s\n", eth_anchor->path));
+				goto error;
+			}
+			error = pf_commit_eth(t[0], eth_anchor->path);
+			MPASS(error == 0);
+		}
+
 		if ((error = pf_begin_rules(&t[0], PF_RULESET_SCRUB, &nn))
 		    != 0) {
 			DPFPRINTF(PF_DEBUG_MISC, ("shutdown_pf: SCRUB\n"));
@@ -6247,12 +6294,16 @@ shutdown_pf(void)
 			break;		/* XXX: rollback? */
 		}
 
-		/* XXX: these should always succeed here */
-		pf_commit_rules(t[0], PF_RULESET_SCRUB, &nn);
-		pf_commit_rules(t[1], PF_RULESET_FILTER, &nn);
-		pf_commit_rules(t[2], PF_RULESET_NAT, &nn);
-		pf_commit_rules(t[3], PF_RULESET_BINAT, &nn);
-		pf_commit_rules(t[4], PF_RULESET_RDR, &nn);
+		error = pf_commit_rules(t[0], PF_RULESET_SCRUB, &nn);
+		MPASS(error == 0);
+		error = pf_commit_rules(t[1], PF_RULESET_FILTER, &nn);
+		MPASS(error == 0);
+		error = pf_commit_rules(t[2], PF_RULESET_NAT, &nn);
+		MPASS(error == 0);
+		error = pf_commit_rules(t[3], PF_RULESET_BINAT, &nn);
+		MPASS(error == 0);
+		error = pf_commit_rules(t[4], PF_RULESET_RDR, &nn);
+		MPASS(error == 0);
 
 		if ((error = pf_clear_tables()) != 0)
 			break;
@@ -6261,7 +6312,8 @@ shutdown_pf(void)
 			DPFPRINTF(PF_DEBUG_MISC, ("shutdown_pf: eth\n"));
 			break;
 		}
-		pf_commit_eth(t[0], &nn);
+		error = pf_commit_eth(t[0], &nn);
+		MPASS(error == 0);
 
 #ifdef ALTQ
 		if ((error = pf_begin_altq(&t[0])) != 0) {
@@ -6279,6 +6331,7 @@ shutdown_pf(void)
 		/* fingerprints and interfaces have their own cleanup code */
 	} while(0);
 
+error:
 	return (error);
 }
 
