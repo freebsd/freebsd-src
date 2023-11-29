@@ -86,7 +86,9 @@
 
 #define	smp_processor_id()  PCPU_GET(cpuid)
 
-static int
+static void
+mpi3mr_enqueue_request(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cm);
+static void
 mpi3mr_map_request(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cm);
 void
 mpi3mr_release_simq_reinit(struct mpi3mr_cam_softc *cam_sc);
@@ -118,18 +120,23 @@ static void mpi3mr_prepare_sgls(void *arg,
 	U8 last_chain_sgl_flags;
 	struct mpi3mr_chain *chain_req;
 	Mpi3SCSIIORequest_t *scsiio_req;
+	union ccb *ccb;
 	
 	cm = (struct mpi3mr_cmd *)arg;
 	sc = cm->sc;
 	scsiio_req = (Mpi3SCSIIORequest_t *) &cm->io_request;
+	ccb = cm->ccb;
 
 	if (error) {
-		cm->error_code = error;
 		device_printf(sc->mpi3mr_dev, "%s: error=%d\n",__func__, error);
 		if (error == EFBIG) {
-			cm->ccb->ccb_h.status = CAM_REQ_TOO_BIG;
-			return;
+			mpi3mr_set_ccbstatus(ccb, CAM_REQ_TOO_BIG);
+		} else {
+			mpi3mr_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 		}
+		mpi3mr_release_command(cm);
+		xpt_done(ccb);
+		return;
 	}
 	
 	if (cm->data_dir == MPI3MR_READ)
@@ -138,10 +145,9 @@ static void mpi3mr_prepare_sgls(void *arg,
 	if (cm->data_dir == MPI3MR_WRITE)
 		bus_dmamap_sync(sc->buffer_dmat, cm->dmamap,
 		    BUS_DMASYNC_PREWRITE);
-	if (nsegs > MPI3MR_SG_DEPTH) {
-		device_printf(sc->mpi3mr_dev, "SGE count is too large or 0.\n");
-		return;
-	}
+
+	KASSERT(nsegs <= MPI3MR_SG_DEPTH && nsegs > 0,
+	    ("%s: bad SGE count: %d\n", device_get_nameunit(sc->mpi3mr_dev), nsegs));
 
 	simple_sgl_flags = MPI3_SGE_FLAGS_ELEMENT_TYPE_SIMPLE |
 	    MPI3_SGE_FLAGS_DLAS_SYSTEM;
@@ -152,23 +158,14 @@ static void mpi3mr_prepare_sgls(void *arg,
 
 	sg_local = (U8 *)&scsiio_req->SGL;
 
-	if (!scsiio_req->DataLength) {
+	if (scsiio_req->DataLength == 0) {
+		/* XXX we don't ever get here when DataLength == 0, right? cm->data is NULL */
+		/* This whole if can likely be removed -- we handle it in mpi3mr_request_map */
 		mpi3mr_build_zero_len_sge(sg_local);
-		return;
+		goto enqueue;
 	}
 	
 	sges_left = nsegs;
-
-	if (sges_left < 0) {
-		printf("scsi_dma_map failed: request for %d bytes!\n",
-			scsiio_req->DataLength);
-		return;
-	}
-	if (sges_left > MPI3MR_SG_DEPTH) {
-		printf("scsi_dma_map returned unsupported sge count %d!\n",
-			sges_left);
-		return;
-	}
 
 	sges_in_segment = (sc->facts.op_req_sz -
 	    offsetof(Mpi3SCSIIORequest_t, SGL))/sizeof(Mpi3SGESimple_t);
@@ -218,33 +215,51 @@ fill_in_last_segment:
 		i++;
 	}
 
+enqueue:
+	/*
+	 * Now that we've created the sgls, we send the request to the device.
+	 * Unlike in Linux, dmaload isn't guaranteed to load every time, but
+	 * this function is always called when the resources are available, so
+	 * we can send the request to hardware here always. mpi3mr_map_request
+	 * knows about this quirk and will only take evasive action when an
+	 * error other than EINPROGRESS is returned from dmaload.
+	 */
+	mpi3mr_enqueue_request(sc, cm);
+
 	return;
 }
 
-int 
+static void
 mpi3mr_map_request(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cm)
 {
 	u_int32_t retcode = 0;
+	union ccb *ccb;
 
+	ccb = cm->ccb;
 	if (cm->data != NULL) {
 		mtx_lock(&sc->io_lock);
 		/* Map data buffer into bus space */
 		retcode = bus_dmamap_load_ccb(sc->buffer_dmat, cm->dmamap,
-		    cm->ccb, mpi3mr_prepare_sgls, cm, 0);
+		    ccb, mpi3mr_prepare_sgls, cm, 0);
 		mtx_unlock(&sc->io_lock);
-		if (retcode)
-			device_printf(sc->mpi3mr_dev, "bus_dmamap_load(): retcode = %d\n", retcode);
-		if (retcode == EINPROGRESS) {
-			device_printf(sc->mpi3mr_dev, "request load in progress\n");
-			xpt_freeze_simq(sc->cam_sc->sim, 1);
+		if (retcode != 0 && retcode != EINPROGRESS) {
+			device_printf(sc->mpi3mr_dev,
+			    "bus_dmamap_load(): retcode = %d\n", retcode);
+			/*
+			 * Any other error means prepare_sgls wasn't called, and
+			 * will never be called, so we have to mop up. This error
+			 * should never happen, though.
+			 */
+			mpi3mr_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
+			mpi3mr_release_command(cm);
+			xpt_done(ccb);
 		}
+	} else {
+		/*
+		 * No data, we enqueue it directly here.
+		 */
+		mpi3mr_enqueue_request(sc, cm);
 	}
-	if (cm->error_code)
-		return cm->error_code;
-	if (retcode)
-		mpi3mr_set_ccbstatus(cm->ccb, CAM_REQ_INVALID);
-
-	return (retcode);
 }
 
 void
@@ -912,12 +927,6 @@ mpi3mr_action_scsiio(struct mpi3mr_cam_softc *cam_sc, union ccb *ccb)
 	struct mpi3mr_cmd *cm;
 	uint8_t scsi_opcode, queue_idx;
 	uint32_t mpi_control;
-	struct mpi3mr_op_req_queue *opreqq = NULL;
-	U32 data_len_blks = 0;
-	U32 tracked_io_sz = 0;
-	U32 ioc_pend_data_len = 0, tg_pend_data_len = 0;
-	struct mpi3mr_throttle_group_info *tg = NULL;
-	static int ratelimit;
 
 	sc = cam_sc->sc;
 	mtx_assert(&sc->mpi3mr_mtx, MA_OWNED);
@@ -1104,15 +1113,15 @@ mpi3mr_action_scsiio(struct mpi3mr_cam_softc *cam_sc, union ccb *ccb)
 	case CAM_DATA_SG_PADDR:
 		device_printf(sc->mpi3mr_dev, "%s: physical addresses not supported\n",
 		    __func__);
-		mpi3mr_release_command(cm);
 		mpi3mr_set_ccbstatus(ccb, CAM_REQ_INVALID);
+		mpi3mr_release_command(cm);
 		xpt_done(ccb);
 		return;
 	case CAM_DATA_SG:
 		device_printf(sc->mpi3mr_dev, "%s: scatter gather is not supported\n",
 		    __func__);
-		mpi3mr_release_command(cm);
 		mpi3mr_set_ccbstatus(ccb, CAM_REQ_INVALID);
+		mpi3mr_release_command(cm);
 		xpt_done(ccb);
 		return;
 	case CAM_DATA_VADDR:
@@ -1129,27 +1138,35 @@ mpi3mr_action_scsiio(struct mpi3mr_cam_softc *cam_sc, union ccb *ccb)
 			cm->data = csio->data_ptr;
 		break;
 	default:
-		mpi3mr_release_command(cm);
 		mpi3mr_set_ccbstatus(ccb, CAM_REQ_INVALID);
+		mpi3mr_release_command(cm);
 		xpt_done(ccb);
 		return;
 	}
 
-	/* Prepare SGEs */
-	if (mpi3mr_map_request(sc, cm)) {
-		mpi3mr_release_command(cm);
-		xpt_done(ccb);
-		printf("func: %s line: %d Build SGLs failed\n", __func__, __LINE__);
-		return;
-	}
-	
-	opreqq = &sc->op_req_q[queue_idx];
+	/* Prepare SGEs and queue to hardware */
+	mpi3mr_map_request(sc, cm);
+}
+
+static void
+mpi3mr_enqueue_request(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cm)
+{
+	static int ratelimit;
+	struct mpi3mr_op_req_queue *opreqq = &sc->op_req_q[cm->req_qidx];
+	struct mpi3mr_throttle_group_info *tg = NULL;
+	uint32_t data_len_blks = 0;
+	uint32_t tracked_io_sz = 0;
+	uint32_t ioc_pend_data_len = 0, tg_pend_data_len = 0;
+	struct mpi3mr_target *targ = cm->targ;
+	union ccb *ccb = cm->ccb;
+	Mpi3SCSIIORequest_t *req = (Mpi3SCSIIORequest_t *)&cm->io_request;
 
 	if (sc->iot_enable) {
-		data_len_blks = csio->dxfer_len >> 9;
-		
+		data_len_blks = ccb->csio.dxfer_len >> 9;
+
 		if ((data_len_blks >= sc->io_throttle_data_length) &&
 		    targ->io_throttle_enabled) {
+
 			tracked_io_sz = data_len_blks;
 			tg = targ->throttle_group;
 			if (tg) {
@@ -1207,19 +1224,18 @@ mpi3mr_action_scsiio(struct mpi3mr_cam_softc *cam_sc, union ccb *ccb)
 
 		if (targ->io_divert) {
 			req->MsgFlags |= MPI3_SCSIIO_MSGFLAGS_DIVERT_TO_FIRMWARE;
-			mpi_control |= MPI3_SCSIIO_FLAGS_DIVERT_REASON_IO_THROTTLING;
+			req->Flags = htole32(le32toh(req->Flags) | MPI3_SCSIIO_FLAGS_DIVERT_REASON_IO_THROTTLING);
 		}
 	}
-	req->Flags = htole32(mpi_control);
 
 	if (mpi3mr_submit_io(sc, opreqq, (U8 *)&cm->io_request)) {
-		mpi3mr_release_command(cm);
 		if (tracked_io_sz) {
 			mpi3mr_atomic_sub(&sc->pend_large_data_sz, tracked_io_sz);
 			if (tg)
 				mpi3mr_atomic_sub(&tg->pend_large_data_sz, tracked_io_sz);
 		}
 		mpi3mr_set_ccbstatus(ccb, CAM_RESRC_UNAVAIL);
+		mpi3mr_release_command(cm);
 		xpt_done(ccb);
 	} else {
 		callout_reset_sbt(&cm->callout, mstosbt(ccb->ccb_h.timeout), 0,

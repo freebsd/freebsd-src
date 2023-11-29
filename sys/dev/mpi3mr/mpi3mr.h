@@ -467,7 +467,6 @@ struct mpi3mr_cmd {
 	U16				hosttag;
 	U8				req_qidx;
 	Mpi3SCSIIORequest_t		io_request;
-	int				error_code;
 };
 
 struct mpi3mr_chain {
