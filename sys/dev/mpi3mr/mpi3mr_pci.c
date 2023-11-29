@@ -256,6 +256,7 @@ mpi3mr_release_resources(struct mpi3mr_softc *sc)
 
 static int mpi3mr_setup_resources(struct mpi3mr_softc *sc)
 {
+	bus_dma_template_t t;
 	int i;
 	device_t dev = sc->mpi3mr_dev;
 	
@@ -288,20 +289,11 @@ static int mpi3mr_setup_resources(struct mpi3mr_softc *sc)
 	 * dma_mask on the device.
 	 */
 	/* Allocate the parent DMA tag */
-	if (bus_dma_tag_create(bus_get_dma_tag(dev),  	/* parent */
-				1, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR,	/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
-				NULL, NULL,		/* filter, filterarg */
-				BUS_SPACE_MAXSIZE_32BIT,/* maxsize */
-				BUS_SPACE_UNRESTRICTED,	/* nsegments */
-				BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
-                                0,			/* flags */
-                                NULL, NULL,		/* lockfunc, lockarg */
-                                &sc->mpi3mr_parent_dmat)) {
+	bus_dma_template_init(&t, bus_get_dma_tag(dev));
+	if (bus_dma_template_tag(&t, &sc->mpi3mr_parent_dmat)) {
 		mpi3mr_dprint(sc, MPI3MR_ERROR, "Cannot allocate parent DMA tag\n");
 		return (ENOMEM);
-        }
+	}
 
 	sc->max_msix_vectors = pci_msix_count(dev);
 	
