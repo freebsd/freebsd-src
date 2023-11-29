@@ -1565,6 +1565,7 @@ static int mpi3mr_process_factsdata(struct mpi3mr_softc *sc,
 {
 	int retval = 0;
 	U32 ioc_config, req_sz, facts_flags;
+        struct mpi3mr_compimg_ver *fwver;
 
 	if (le16toh(facts_data->IOCFactsDataLength) !=
 	    (sizeof(*facts_data) / 4)) {
@@ -1661,6 +1662,12 @@ static int mpi3mr_process_factsdata(struct mpi3mr_softc *sc,
 	sc->io_throttle_high = (sc->facts.io_throttle_high * 2 * 1024);
 	sc->io_throttle_low = (sc->facts.io_throttle_low * 2 * 1024);
         
+	fwver = &sc->facts.fw_ver;
+	snprintf(sc->fw_version, sizeof(sc->fw_version),
+	    "%d.%d.%d.%d.%05d-%05d",
+	    fwver->gen_major, fwver->gen_minor, fwver->ph_major,
+	    fwver->ph_minor, fwver->cust_id, fwver->build_num);
+
 	mpi3mr_dprint(sc, MPI3MR_INFO, "ioc_num(%d), maxopQ(%d), maxopRepQ(%d), maxdh(%d),"
             "maxreqs(%d), mindh(%d) maxPDs(%d) maxvectors(%d) maxperids(%d)\n",
 	    sc->facts.ioc_num, sc->facts.max_op_req_q,
@@ -1676,7 +1683,7 @@ static int mpi3mr_process_factsdata(struct mpi3mr_softc *sc,
 	    sc->facts.max_dev_per_tg, sc->facts.max_io_throttle_group,
 	    sc->facts.io_throttle_data_length * 4,
 	    sc->facts.io_throttle_high, sc->facts.io_throttle_low);
-	
+
 	sc->max_host_ios = sc->facts.max_reqs -
 	    (MPI3MR_INTERNALCMDS_RESVD + 1);
 
@@ -2220,7 +2227,6 @@ mpi3mr_display_ioc_info(struct mpi3mr_softc *sc)
 {
         int i = 0;
         char personality[16];
-        struct mpi3mr_compimg_ver *fwver = &sc->facts.fw_ver;
 
         switch (sc->facts.personality) {
         case MPI3_IOCFACTS_FLAGS_PERSONALITY_EHBA:
@@ -2236,9 +2242,7 @@ mpi3mr_display_ioc_info(struct mpi3mr_softc *sc)
 
 	mpi3mr_dprint(sc, MPI3MR_INFO, "Current Personality: %s\n", personality);
 
-	mpi3mr_dprint(sc, MPI3MR_INFO, "FW Version: %d.%d.%d.%d.%05d-%05d\n",
-		      fwver->gen_major, fwver->gen_minor, fwver->ph_major,
-		      fwver->ph_minor, fwver->cust_id, fwver->build_num);
+	mpi3mr_dprint(sc, MPI3MR_INFO, "%s\n", sc->fw_version);
 
         mpi3mr_dprint(sc, MPI3MR_INFO, "Protocol=(");
 
@@ -2880,7 +2884,6 @@ int mpi3mr_initialize_ioc(struct mpi3mr_softc *sc, U8 init_type)
 	} else {
 		sc->reply_sz = sc->facts.reply_sz;
 	}
-
 
 	mpi3mr_display_ioc_info(sc);
 

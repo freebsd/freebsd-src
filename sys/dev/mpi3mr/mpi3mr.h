@@ -556,8 +556,7 @@ struct mpi3mr_softc {
 	uint32_t chain_frame_size;
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
-	char fw_version[16];
-	char msg_version[8];
+	char fw_version[32];
 	struct mpi3mr_chain *chains;
 	struct callout periodic;
 	struct callout device_check_callout;

@@ -145,6 +145,10 @@ mpi3mr_setup_sysctl(struct mpi3mr_softc *sc)
 	    OID_AUTO, "io_cmds_highwater", CTLFLAG_RD,
 	    &sc->io_cmds_highwater, 0, "Max FW outstanding commands");
 
+	SYSCTL_ADD_STRING(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "firmware_version", CTLFLAG_RD, sc->fw_version,
+	    strlen(sc->fw_version), "firmware version");
+
 	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "mpi3mr_debug", CTLFLAG_RW, &sc->mpi3mr_debug, 0,
 	    "Driver debug level");
