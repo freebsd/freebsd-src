@@ -4986,12 +4986,9 @@ mpi3mr_get_command(struct mpi3mr_softc *sc)
 	cmd->data_dir = 0;
 	cmd->ccb = NULL;
 	cmd->targ = NULL;
-	cmd->max_segs = 0;
-	cmd->lun = 0;
 	cmd->state = MPI3MR_CMD_STATE_BUSY;
 	cmd->data = NULL;
 	cmd->length = 0;
-	cmd->out_len = 0;
 out:
 	mtx_unlock(&sc->cmd_pool_lock);
 	return cmd;
