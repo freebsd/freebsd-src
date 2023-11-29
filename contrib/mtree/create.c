@@ -1,4 +1,4 @@
-/*	$NetBSD: create.c,v 1.74 2017/12/14 18:34:41 christos Exp $	*/
+/*	$NetBSD: create.c,v 1.75 2017/12/31 03:04:44 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)create.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: create.c,v 1.74 2017/12/14 18:34:41 christos Exp $");
+__RCSID("$NetBSD: create.c,v 1.75 2017/12/31 03:04:44 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -181,14 +181,58 @@ cwalk(FILE *fp)
 }
 
 static void
+dosum(FILE *fp, int indent, FTSENT *p, int *offset, int flag,
+    char * (*func)(const char *, char *), const char *key)
+{
+	char *digestbuf;
+
+	if ((keys & flag) == 0)
+		return;
+
+	digestbuf = (*func)(p->fts_accpath, NULL);
+	if (digestbuf != NULL) {
+		output(fp, indent, offset, "%s=%s", key, digestbuf);
+		free(digestbuf);
+		return;
+	}
+
+	if (qflag) {
+		warn("%s: %s failed", p->fts_path, key);
+		return;
+	}
+
+	mtree_err("%s: %s failed: %s", p->fts_path, key, strerror(errno));
+}
+
+static char *
+crcFile(const char *fname, char *dummy __unused)
+{
+	char *ptr;
+	uint32_t val, len;
+	int fd, e;
+
+	if ((fd = open(fname, O_RDONLY)) == -1)
+		goto out;
+
+	e = crc(fd, &val, &len);
+	close(fd);
+	if (e)
+		goto out;
+
+	if (asprintf(&ptr, "%u", val) < 0)
+		goto out;
+
+	return ptr;
+out:
+	mtree_err("%s: %s", fname, strerror(errno));
+	return NULL;
+}
+
+static void
 statf(FILE *fp, int indent, FTSENT *p)
 {
-	u_int32_t len, val;
-	int fd, offset;
+	int offset;
 	const char *name = NULL;
-#if !defined(NO_MD5) || !defined(NO_RMD160) || !defined(NO_SHA1) || !defined(NO_SHA2)
-	char *digestbuf;
-#endif
 
 	offset = fprintf(fp, "%*s%s%s", indent, "",
 	    S_ISDIR(p->fts_statp->st_mode) ? "" : "    ", vispath(p->fts_name));
@@ -241,65 +285,25 @@ statf(FILE *fp, int indent, FTSENT *p)
 		output(fp, indent, &offset, "time=%jd.%09ld",
 		    (intmax_t)p->fts_statp->st_mtime, (long)0);
 #endif
-	if (keys & F_CKSUM && S_ISREG(p->fts_statp->st_mode)) {
-		if ((fd = open(p->fts_accpath, O_RDONLY, 0)) < 0 ||
-		    crc(fd, &val, &len))
-			mtree_err("%s: %s", p->fts_accpath, strerror(errno));
-		close(fd);
-		output(fp, indent, &offset, "cksum=%lu", (long)val);
-	}
+	if (S_ISREG(p->fts_statp->st_mode))  {
+		dosum(fp, indent, p, &offset, F_CKSUM, crcFile, "cksum");
 #ifndef NO_MD5
-	if (keys & F_MD5 && S_ISREG(p->fts_statp->st_mode)) {
-		if ((digestbuf = MD5File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: MD5File failed: %s", p->fts_accpath,
-			    strerror(errno));
-		output(fp, indent, &offset, "%s=%s", MD5KEY, digestbuf);
-		free(digestbuf);
-	}
+		dosum(fp, indent, p, &offset, F_MD5, MD5File, MD5KEY);
 #endif	/* ! NO_MD5 */
 #ifndef NO_RMD160
-	if (keys & F_RMD160 && S_ISREG(p->fts_statp->st_mode)) {
-		if ((digestbuf = RMD160File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: RMD160File failed: %s", p->fts_accpath,
-			    strerror(errno));
-		output(fp, indent, &offset, "%s=%s", RMD160KEY, digestbuf);
-		free(digestbuf);
-	}
+		dosum(fp, indent, p, &offset, F_RMD160, RMD160File, RMD160KEY);
 #endif	/* ! NO_RMD160 */
 #ifndef NO_SHA1
-	if (keys & F_SHA1 && S_ISREG(p->fts_statp->st_mode)) {
-		if ((digestbuf = SHA1File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: SHA1File failed: %s", p->fts_accpath,
-			    strerror(errno));
-		output(fp, indent, &offset, "%s=%s", SHA1KEY, digestbuf);
-		free(digestbuf);
-	}
+		dosum(fp, indent, p, &offset, F_SHA1, SHA1File, SHA1KEY);
 #endif	/* ! NO_SHA1 */
 #ifndef NO_SHA2
-	if (keys & F_SHA256 && S_ISREG(p->fts_statp->st_mode)) {
-		if ((digestbuf = SHA256_File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: SHA256_File failed: %s", p->fts_accpath,
-			    strerror(errno));
-		output(fp, indent, &offset, "%s=%s", SHA256KEY, digestbuf);
-		free(digestbuf);
-	}
+		dosum(fp, indent, p, &offset, F_SHA256, SHA256_File, SHA256KEY);
 #ifdef SHA384_BLOCK_LENGTH
-	if (keys & F_SHA384 && S_ISREG(p->fts_statp->st_mode)) {
-		if ((digestbuf = SHA384_File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: SHA384_File failed: %s", p->fts_accpath,
-			    strerror(errno));
-		output(fp, indent, &offset, "%s=%s", SHA384KEY, digestbuf);
-		free(digestbuf);
-	}
+		dosum(fp, indent, p, &offset, F_SHA384, SHA384_File, SHA384KEY);
 #endif
-	if (keys & F_SHA512 && S_ISREG(p->fts_statp->st_mode)) {
-		if ((digestbuf = SHA512_File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: SHA512_File failed: %s", p->fts_accpath,
-			    strerror(errno));
-		output(fp, indent, &offset, "%s=%s", SHA512KEY, digestbuf);
-		free(digestbuf);
-	}
+		dosum(fp, indent, p, &offset, F_SHA512, SHA512_File, SHA512KEY);
 #endif	/* ! NO_SHA2 */
+	}
 	if (keys & F_SLINK &&
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE))
 		output(fp, indent, &offset, "link=%s",
