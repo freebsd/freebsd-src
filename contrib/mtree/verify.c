@@ -1,4 +1,4 @@
-/*	$NetBSD: verify.c,v 1.45 2015/01/23 02:27:01 christos Exp $	*/
+/*	$NetBSD: verify.c,v 1.46 2015/01/23 20:28:24 christos Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)verify.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: verify.c,v 1.45 2015/01/23 02:27:01 christos Exp $");
+__RCSID("$NetBSD: verify.c,v 1.46 2015/01/23 20:28:24 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -149,10 +149,12 @@ vwalk(void)
 		if (!eflag && !(dflag && p->fts_info == FTS_SL)) {
 			printf("extra: %s", RP(p));
 			if (rflag) {
+#if HAVE_STRUCT_STAT_ST_FLAGS
 				if (rflag > 1 &&
 				    lchflags(p->fts_accpath, 0) == -1)
 					printf(" (chflags %s)",
 					    strerror(errno));
+#endif
 				if ((S_ISDIR(p->fts_statp->st_mode)
 				    ? rmdir : unlink)(p->fts_accpath)) {
 					printf(", not removed: %s",
