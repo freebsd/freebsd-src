@@ -29,6 +29,7 @@
 
 #include <linux/types.h>
 #include <linux/page.h>
+#include <linux/rbtree.h>
 #include <linux/rwsem.h>
 
 #include <asm/atomic.h>
