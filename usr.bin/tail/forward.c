@@ -335,7 +335,7 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 	 */
 	ev = malloc(no_files * 2 * sizeof(struct kevent));
 	if (ev == NULL)
-		err(1, "Couldn't allocate memory for kevents.");
+		err(1, "failed to allocate memory for kevents");
 	set_events(files);
 
 	for (;;) {

@@ -163,7 +163,7 @@ main(int argc, char *argv[])
 		cap_rights_set(&rights, CAP_EVENT);
 	if (caph_rights_limit(STDIN_FILENO, &rights) < 0 ||
 	    caph_limit_stderr() < 0 || caph_limit_stdout() < 0)
-		err(1, "can't limit stdio rights");
+		err(1, "unable to limit stdio rights");
 
 	fa = fileargs_init(argc, argv, O_RDONLY, 0, &rights, FA_OPEN);
 	if (fa == NULL)
@@ -203,7 +203,7 @@ main(int argc, char *argv[])
 	if (*argv && fflag) {
 		files = malloc(no_files * sizeof(struct file_info));
 		if (files == NULL)
-			err(1, "Couldn't malloc space for file descriptors.");
+			err(1, "failed to allocate memory for file descriptors");
 
 		for (filep = files; (fn = *argv++); filep++) {
 			filep->file_name = fn;
@@ -298,7 +298,7 @@ obsolete(char *argv[])
 			/* Malloc space for dash, new option and argument. */
 			len = strlen(*argv);
 			if ((start = p = malloc(len + 3)) == NULL)
-				err(1, "malloc");
+				err(1, "failed to allocate memory");
 			*p++ = '-';
 
 			/*
