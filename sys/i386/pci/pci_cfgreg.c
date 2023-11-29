@@ -437,8 +437,8 @@ pcireg_cfgopen(void)
 	return (cfgmech);
 }
 
-int
-pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
+static bool
+pcie_init_cache(void)
 {
 	struct pcie_cfg_list *pcielist;
 	struct pcie_cfg_elem *pcie_array, *elem;
@@ -446,26 +446,7 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 	struct pcpu *pc;
 #endif
 	vm_offset_t va;
-	uint32_t val1, val2;
-	int i, slot;
-
-	if (!mcfg_enable)
-		return (0);
-
-	if (minbus != 0)
-		return (0);
-
-	if (!pae_mode && base >= 0x100000000) {
-		if (bootverbose)
-			printf(
-	    "PCI: Memory Mapped PCI configuration area base 0x%jx too high\n",
-			    (uintmax_t)base);
-		return (0);
-	}
-		
-	if (bootverbose)
-		printf("PCIe: Memory Mapped configuration base @ 0x%jx\n",
-		    (uintmax_t)base);
+	int i;
 
 #ifdef SMP
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu)
@@ -474,12 +455,12 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 		pcie_array = malloc(sizeof(struct pcie_cfg_elem) * PCIE_CACHE,
 		    M_DEVBUF, M_NOWAIT);
 		if (pcie_array == NULL)
-			return (0);
+			return (false);
 
 		va = kva_alloc(PCIE_CACHE * PAGE_SIZE);
 		if (va == 0) {
 			free(pcie_array, M_DEVBUF);
-			return (0);
+			return (false);
 		}
 
 #ifdef SMP
@@ -495,12 +476,14 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 			TAILQ_INSERT_HEAD(pcielist, elem, elem);
 		}
 	}
+	return (true);
+}
 
-	pcie_base = base;
-	pcie_minbus = minbus;
-	pcie_maxbus = maxbus;
-	cfgmech = CFGMECH_PCIE;
-	devmax = 32;
+static void
+pcie_init_badslots(void)
+{
+	uint32_t val1, val2;
+	int slot;
 
 	/*
 	 * On some AMD systems, some of the devices on bus 0 are
@@ -519,6 +502,40 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 				pcie_badslots |= (1 << slot);
 		}
 	}
+}
+
+int
+pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
+{
+
+	if (!mcfg_enable)
+		return (0);
+
+	if (minbus != 0)
+		return (0);
+
+	if (!pae_mode && base >= 0x100000000) {
+		if (bootverbose)
+			printf(
+	    "PCI: Memory Mapped PCI configuration area base 0x%jx too high\n",
+			    (uintmax_t)base);
+		return (0);
+	}
+
+	if (bootverbose)
+		printf("PCIe: Memory Mapped configuration base @ 0x%jx\n",
+		    (uintmax_t)base);
+
+	if (!pcie_init_cache())
+		return (0);
+
+	pcie_base = base;
+	pcie_minbus = minbus;
+	pcie_maxbus = maxbus;
+	cfgmech = CFGMECH_PCIE;
+	devmax = 32;
+
+	pcie_init_badslots();
 
 	return (1);
 }
