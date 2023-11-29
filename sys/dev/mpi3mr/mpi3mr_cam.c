@@ -99,7 +99,6 @@ extern int
 mpi3mr_register_events(struct mpi3mr_softc *sc);
 extern void mpi3mr_add_sg_single(void *paddr, U8 flags, U32 length,
     bus_addr_t dma_addr);
-extern void mpi3mr_build_zero_len_sge(void *paddr);
 
 static U32 event_count;
 
@@ -148,6 +147,9 @@ static void mpi3mr_prepare_sgls(void *arg,
 
 	KASSERT(nsegs <= MPI3MR_SG_DEPTH && nsegs > 0,
 	    ("%s: bad SGE count: %d\n", device_get_nameunit(sc->mpi3mr_dev), nsegs));
+	KASSERT(scsiio_req->DataLength != 0,
+	    ("%s: Data segments (%d), but DataLength == 0\n",
+		device_get_nameunit(sc->mpi3mr_dev), nsegs));
 
 	simple_sgl_flags = MPI3_SGE_FLAGS_ELEMENT_TYPE_SIMPLE |
 	    MPI3_SGE_FLAGS_DLAS_SYSTEM;
@@ -158,13 +160,6 @@ static void mpi3mr_prepare_sgls(void *arg,
 
 	sg_local = (U8 *)&scsiio_req->SGL;
 
-	if (scsiio_req->DataLength == 0) {
-		/* XXX we don't ever get here when DataLength == 0, right? cm->data is NULL */
-		/* This whole if can likely be removed -- we handle it in mpi3mr_request_map */
-		mpi3mr_build_zero_len_sge(sg_local);
-		goto enqueue;
-	}
-	
 	sges_left = nsegs;
 
 	sges_in_segment = (sc->facts.op_req_sz -
@@ -215,7 +210,6 @@ fill_in_last_segment:
 		i++;
 	}
 
-enqueue:
 	/*
 	 * Now that we've created the sgls, we send the request to the device.
 	 * Unlike in Linux, dmaload isn't guaranteed to load every time, but
@@ -880,10 +874,10 @@ mpi3mr_scsiio_timeout(void *data)
 		return;
 
 	/*
-	 * task abort and target reset has failed. So issue Controller reset(soft reset) 
+	 * task abort and target reset has failed. So issue Controller reset(soft reset)
 	 * through OCR thread context
 	 */
-	trigger_reset_from_watchdog(sc, MPI3MR_TRIGGER_SOFT_RESET, MPI3MR_RESET_FROM_SCSIIO_TIMEOUT); 
+	trigger_reset_from_watchdog(sc, MPI3MR_TRIGGER_SOFT_RESET, MPI3MR_RESET_FROM_SCSIIO_TIMEOUT);
 
 	return;
 }
@@ -977,7 +971,7 @@ mpi3mr_action_scsiio(struct mpi3mr_cam_softc *cam_sc, union ccb *ccb)
 	}
 
 	if (targ->dev_handle == 0x0) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, "%s NULL handle for target 0x%x\n", 
+		mpi3mr_dprint(sc, MPI3MR_ERROR, "%s NULL handle for target 0x%x\n",
 		    __func__, csio->ccb_h.target_id);
 		mpi3mr_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 		xpt_done(ccb);
