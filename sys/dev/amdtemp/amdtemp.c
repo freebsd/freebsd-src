@@ -431,8 +431,9 @@ amdtemp_attach(device_t dev)
 			erratum319 = 1;
 			break;
 		case 1:	/* Socket AM2+ or AM3 */
-			if ((pci_cfgregread(pci_get_bus(dev),
-			    pci_get_slot(dev), 2, AMDTEMP_DRAM_CONF_HIGH, 2) &
+			if ((pci_cfgregread(pci_get_domain(dev),
+			    pci_get_bus(dev), pci_get_slot(dev), 2,
+			    AMDTEMP_DRAM_CONF_HIGH, 2) &
 			    AMDTEMP_DRAM_MODE_DDR3) != 0 || model > 0x04 ||
 			    (model == 0x04 && (cpuid & CPUID_STEPPING) >= 3))
 				break;

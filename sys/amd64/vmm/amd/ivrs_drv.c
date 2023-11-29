@@ -649,7 +649,8 @@ ivhd_attach(device_t dev)
 	softc->dev = dev;
 	ivhd = ivhd_hdrs[unit];
 	KASSERT(ivhd, ("ivhd is NULL"));
-	softc->pci_dev = pci_find_bsf(PCI_RID2BUS(ivhd->Header.DeviceId),
+	softc->pci_dev = pci_find_dbsf(ivhd->PciSegmentGroup,
+	    PCI_RID2BUS(ivhd->Header.DeviceId),
 	    PCI_RID2SLOT(ivhd->Header.DeviceId),
 	    PCI_RID2FUNC(ivhd->Header.DeviceId));
 
