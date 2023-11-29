@@ -110,7 +110,7 @@ AcpiOsReadPciConfiguration(ACPI_PCI_ID *PciId, UINT32 Register, UINT64 *Value,
     if (!pci_cfgregopen())
 	return (AE_NOT_EXIST);
 
-    *(UINT64 *)Value = pci_cfgregread(PciId->Bus, PciId->Device,
+    *(UINT64 *)Value = pci_cfgregread(PciId->Segment, PciId->Bus, PciId->Device,
 	PciId->Function, Register, Width / 8);
 
     return (AE_OK);
@@ -132,8 +132,8 @@ AcpiOsWritePciConfiguration (ACPI_PCI_ID *PciId, UINT32 Register,
     if (!pci_cfgregopen())
     	return (AE_NOT_EXIST);
 
-    pci_cfgregwrite(PciId->Bus, PciId->Device, PciId->Function, Register,
-	Value, Width / 8);
+    pci_cfgregwrite(PciId->Segment, PciId->Bus, PciId->Device, PciId->Function,
+	Register, Value, Width / 8);
 
     return (AE_OK);
 #endif

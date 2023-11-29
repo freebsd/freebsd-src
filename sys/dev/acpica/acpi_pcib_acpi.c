@@ -629,14 +629,18 @@ static uint32_t
 acpi_pcib_read_config(device_t dev, u_int bus, u_int slot, u_int func,
     u_int reg, int bytes)
 {
-    return (pci_cfgregread(bus, slot, func, reg, bytes));
+    struct acpi_hpcib_softc *sc = device_get_softc(dev);
+
+    return (pci_cfgregread(sc->ap_segment, bus, slot, func, reg, bytes));
 }
 
 static void
 acpi_pcib_write_config(device_t dev, u_int bus, u_int slot, u_int func,
     u_int reg, uint32_t data, int bytes)
 {
-    pci_cfgregwrite(bus, slot, func, reg, data, bytes);
+    struct acpi_hpcib_softc *sc = device_get_softc(dev);
+
+    pci_cfgregwrite(sc->ap_segment, bus, slot, func, reg, data, bytes);
 }
 
 static int

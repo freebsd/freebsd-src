@@ -27,7 +27,7 @@
 #define	_MACHINE_PCI_CFGREG_H
 
 int pci_cfgregopen(void);
-uint32_t pci_cfgregread(int, int, int, int, int);
-void pci_cfgregwrite(int, int, int, int, u_int32_t, int);
+uint32_t pci_cfgregread(int, int, int, int, int, int);
+void pci_cfgregwrite(int, int, int, int, int, uint32_t, int);
 
 #endif /* !_MACHINE_PCI_CFGREG_H */

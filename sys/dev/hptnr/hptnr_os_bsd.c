@@ -88,7 +88,7 @@ BUS_ADDRESS get_dmapool_phy_addr(void *osext, void * dmapool_virt_addr)
 
 HPT_U32 pcicfg_read_dword(HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg)
 {
-	return (HPT_U32)pci_cfgregread(bus, dev, func, reg, 4);
+	return (HPT_U32)pci_cfgregread(0, bus, dev, func, reg, 4);
 }/* PCI space access */
 
 void *os_map_pci_bar(
