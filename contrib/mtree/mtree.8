@@ -1,4 +1,4 @@
-.\"	$NetBSD: mtree.8,v 1.73 2018/12/13 03:18:18 dholland Exp $
+.\"	$NetBSD: mtree.8,v 1.74 2018/12/13 07:34:03 wiz Exp $
 .\"
 .\" Copyright (c) 1989, 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -235,7 +235,7 @@ will match less stringent ones.
 For example, a file marked mode 0444
 will pass a check for mode 0644.
 .Dq Loose
-checks apply only to read, write and execute permissions -- in
+checks apply only to read, write and execute permissions \(em in
 particular, if other bits like the sticky bit or suid/sgid bits are
 set either in the specification or the file, exact checking will be
 performed.
