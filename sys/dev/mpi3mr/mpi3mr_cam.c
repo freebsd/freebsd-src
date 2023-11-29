@@ -389,7 +389,7 @@ static bool mpi3mr_allow_unmap_to_fw(struct mpi3mr_softc *sc,
 			mpi3mr_dprint(sc, MPI3MR_INFO,
 			    "%s: Truncating param_list_len from (%d) to (%d)\n",
 			    __func__, param_list_len, trunc_param_len);
-			scsiio_cdb_ptr(csio)[7] = (param_list_len >> 8) | 0xff; 
+			scsiio_cdb_ptr(csio)[7] = (param_list_len >> 8) | 0xff;
 			scsiio_cdb_ptr(csio)[8] = param_list_len | 0xff;
 			mpi3mr_print_cdb(ccb);
 		}
@@ -507,12 +507,12 @@ mpi3mr_issue_tm(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cmd,
 
 	
 	if (sc->unrecoverable) {
-		mpi3mr_dprint(sc, MPI3MR_INFO, 
+		mpi3mr_dprint(sc, MPI3MR_INFO,
 			"Controller is in unrecoverable state!! TM not required\n");
 		return retval;
 	}
 	if (sc->reset_in_progress) {
-		mpi3mr_dprint(sc, MPI3MR_INFO, 
+		mpi3mr_dprint(sc, MPI3MR_INFO,
 			"controller reset in progress!! TM not required\n");
 		return retval;
 	}
@@ -554,7 +554,7 @@ mpi3mr_issue_tm(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cmd,
 			tm_req.TaskHostTag = htole16(cmd->hosttag);
 			tm_req.TaskRequestQueueID = htole16(op_req_q->qid);
 		}
-	} 
+	}
 	
 	if (tgtdev)
 		mpi3mr_atomic_inc(&tgtdev->block_io);
@@ -570,14 +570,14 @@ mpi3mr_issue_tm(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cmd,
 	
 	sc->tm_chan = (void *)&drv_cmd;
 	
-	mpi3mr_dprint(sc, MPI3MR_DEBUG_TM, 
+	mpi3mr_dprint(sc, MPI3MR_DEBUG_TM,
 		      "posting task management request: type(%d), handle(0x%04x)\n",
 		       tm_type, tgtdev->dev_handle);
 
 	init_completion(&drv_cmd->completion);
 	retval = mpi3mr_submit_admin_cmd(sc, &tm_req, sizeof(tm_req));
 	if (retval) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, 
+		mpi3mr_dprint(sc, MPI3MR_ERROR,
 			      "posting task management request is failed\n");
 		retval = -1;
 		goto out_unlock;
@@ -588,20 +588,20 @@ mpi3mr_issue_tm(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cmd,
 		drv_cmd->is_waiting = 0;
 		retval = -1;
 		if (!(drv_cmd->state & MPI3MR_CMD_RESET)) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, 
+			mpi3mr_dprint(sc, MPI3MR_ERROR,
 				      "task management request timed out after %ld seconds\n", timeout);
 			if (sc->mpi3mr_debug & MPI3MR_DEBUG_TM) {
 				mpi3mr_dprint(sc, MPI3MR_INFO, "tm_request dump\n");
 				mpi3mr_hexdump(&tm_req, sizeof(tm_req), 8);
 			}
-			trigger_reset_from_watchdog(sc, MPI3MR_TRIGGER_SOFT_RESET, MPI3MR_RESET_FROM_TM_TIMEOUT); 
+			trigger_reset_from_watchdog(sc, MPI3MR_TRIGGER_SOFT_RESET, MPI3MR_RESET_FROM_TM_TIMEOUT);
 			retval = ETIMEDOUT;
 		}
 		goto out_unlock;
 	}
 
 	if (!(drv_cmd->state & MPI3MR_CMD_REPLYVALID)) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, 
+		mpi3mr_dprint(sc, MPI3MR_ERROR,
 			      "invalid task management reply message\n");
 		retval = -1;
 		goto out_unlock;
@@ -616,7 +616,7 @@ mpi3mr_issue_tm(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cmd,
 		resp_code = MPI3_SCSITASKMGMT_RSPCODE_TM_COMPLETE;
 		break;
 	default:
-		mpi3mr_dprint(sc, MPI3MR_ERROR, 
+		mpi3mr_dprint(sc, MPI3MR_ERROR,
 			      "task management request to handle(0x%04x) is failed with ioc_status(0x%04x) log_info(0x%08x)\n",
 			       tgtdev->dev_handle, drv_cmd->ioc_status, drv_cmd->ioc_loginfo);
 		retval = -1;
@@ -636,7 +636,7 @@ mpi3mr_issue_tm(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cmd,
 		break;
 	}
 	
-	mpi3mr_dprint(sc, MPI3MR_DEBUG_TM, 
+	mpi3mr_dprint(sc, MPI3MR_DEBUG_TM,
 		      "task management request type(%d) completed for handle(0x%04x) with ioc_status(0x%04x), log_info(0x%08x)"
 		      "termination_count(%u), response:%s(0x%x)\n", tm_type, tgtdev->dev_handle, drv_cmd->ioc_status, drv_cmd->ioc_loginfo,
 		      tm_reply->TerminationCount, mpi3mr_tm_response_name(resp_code), resp_code);
@@ -652,7 +652,7 @@ mpi3mr_issue_tm(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cmd,
 	switch (tm_type) {
 	case MPI3_SCSITASKMGMT_TASKTYPE_ABORT_TASK:
 		if (cmd->state == MPI3MR_CMD_STATE_IN_TM) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, 
+			mpi3mr_dprint(sc, MPI3MR_ERROR,
 				      "%s: task abort returned success from firmware but corresponding CCB (%p) was not terminated"
 				      "marking task abort failed!\n", sc->name, cmd->ccb);
 			retval = -1;
@@ -660,7 +660,7 @@ mpi3mr_issue_tm(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cmd,
 		break;
 	case MPI3_SCSITASKMGMT_TASKTYPE_TARGET_RESET:
 		if (mpi3mr_atomic_read(&tgtdev->outstanding)) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, 
+			mpi3mr_dprint(sc, MPI3MR_ERROR,
 				      "%s: target reset returned success from firmware but IOs are still pending on the target (%p)"
 				      "marking target reset failed!\n",
 				      sc->name, tgtdev);
@@ -704,13 +704,13 @@ static int mpi3mr_task_abort(struct mpi3mr_cmd *cmd)
 	}
 	ccb = cmd->ccb;
 	
-	mpi3mr_dprint(sc, MPI3MR_INFO, 
+	mpi3mr_dprint(sc, MPI3MR_INFO,
 		      "attempting abort task for ccb(%p)\n", ccb);
 	
 	mpi3mr_print_cdb(ccb);
 
 	if (cmd->state != MPI3MR_CMD_STATE_BUSY) {
-		mpi3mr_dprint(sc, MPI3MR_INFO, 
+		mpi3mr_dprint(sc, MPI3MR_INFO,
 			      "%s: ccb is not in driver scope, abort task is not required\n",
 			      sc->name);
 		return retval;
@@ -719,7 +719,7 @@ static int mpi3mr_task_abort(struct mpi3mr_cmd *cmd)
 
 	retval = mpi3mr_issue_tm(sc, cmd, MPI3_SCSITASKMGMT_TASKTYPE_ABORT_TASK, MPI3MR_ABORTTM_TIMEOUT);
 	
-	mpi3mr_dprint(sc, MPI3MR_INFO, 
+	mpi3mr_dprint(sc, MPI3MR_INFO,
 		      "abort task is %s for ccb(%p)\n", ((retval == 0) ? "SUCCESS" : "FAILED"), ccb);
 	
 	return retval;
@@ -750,12 +750,12 @@ static int mpi3mr_target_reset(struct mpi3mr_cmd *cmd)
 		return retval;
 	}
 	
-	mpi3mr_dprint(sc, MPI3MR_INFO, 
+	mpi3mr_dprint(sc, MPI3MR_INFO,
 		      "attempting target reset on target(%d)\n", target->per_id);
 
 	
 	if (mpi3mr_atomic_read(&target->outstanding)) {
-		mpi3mr_dprint(sc, MPI3MR_INFO, 
+		mpi3mr_dprint(sc, MPI3MR_INFO,
 			      "no outstanding IOs on the target(%d),"
 			      " target reset not required.\n", target->per_id);
 		return retval;
@@ -763,7 +763,7 @@ static int mpi3mr_target_reset(struct mpi3mr_cmd *cmd)
 	
 	retval = mpi3mr_issue_tm(sc, cmd, MPI3_SCSITASKMGMT_TASKTYPE_TARGET_RESET, MPI3MR_RESETTM_TIMEOUT);
 
-	mpi3mr_dprint(sc, MPI3MR_INFO, 
+	mpi3mr_dprint(sc, MPI3MR_INFO,
 		      "target reset is %s for target(%d)\n", ((retval == 0) ? "SUCCESS" : "FAILED"),
 		      target->per_id);
 
@@ -791,7 +791,7 @@ static inline int mpi3mr_get_fw_pending_ios(struct mpi3mr_softc *sc)
  * mpi3mr_wait_for_host_io - block for I/Os to complete
  * @sc: Adapter instance reference
  * @timeout: time out in seconds
- * 
+ *
  * Waits for pending I/Os for the given adapter to complete or
  * to hit the timeout.
  *
@@ -860,7 +860,7 @@ mpi3mr_scsiio_timeout(void *data)
 	 * with max timeout for outstanding IOs to complete is 180sec.
 	 */
 	targ_dev = cmd->targ;
-	if (targ_dev && (targ_dev->dev_type == MPI3_DEVICE_DEVFORM_VD)) { 
+	if (targ_dev && (targ_dev->dev_type == MPI3_DEVICE_DEVFORM_VD)) {
 		if (mpi3mr_wait_for_host_io(sc, MPI3MR_RAID_ERRREC_RESET_TIMEOUT))
 			trigger_reset_from_watchdog(sc, MPI3MR_TRIGGER_SOFT_RESET, MPI3MR_RESET_FROM_SCSIIO_TIMEOUT);
 		return;
@@ -871,7 +871,7 @@ mpi3mr_scsiio_timeout(void *data)
 	if (!retval || (retval == ETIMEDOUT))
 		return;
 	
-	/* 
+	/*
 	 * task abort has failed to recover the timed out IO,
 	 * try with the target reset
 	 */
@@ -879,7 +879,7 @@ mpi3mr_scsiio_timeout(void *data)
 	if (!retval || (retval == ETIMEDOUT))
 		return;
 
-	/* 
+	/*
 	 * task abort and target reset has failed. So issue Controller reset(soft reset) 
 	 * through OCR thread context
 	 */
@@ -2107,7 +2107,7 @@ mpi3mr_cam_attach(struct mpi3mr_softc *sc)
 	TASK_INIT(&cam_sc->ev_task, 0, mpi3mr_firmware_event_work, sc);
 	cam_sc->ev_tq = taskqueue_create("mpi3mr_taskq", M_NOWAIT | M_ZERO,
 	    taskqueue_thread_enqueue, &cam_sc->ev_tq);
-	taskqueue_start_threads(&cam_sc->ev_tq, 1, PRIBIO, "%s taskq", 
+	taskqueue_start_threads(&cam_sc->ev_tq, 1, PRIBIO, "%s taskq",
 	    device_get_nameunit(sc->mpi3mr_dev));
 
 	mtx_lock(&sc->mpi3mr_mtx);
@@ -2219,7 +2219,7 @@ get_target:
 		goto out_tgt_free;
 	}
 	mtx_unlock_spin(&sc->target_lock);
-out_tgt_free: 
+out_tgt_free:
 	if (target) {
 		free(target, M_MPI3MR);
 		target = NULL;

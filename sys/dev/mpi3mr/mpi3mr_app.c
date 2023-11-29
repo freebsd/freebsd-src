@@ -336,8 +336,8 @@ mpi3mr_app_build_nvme_prp(struct mpi3mr_softc *sc,
 	sc->nvme_encap_prp_sz = 0;
 	if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,		/* parent */
 				4, 0,				/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-				BUS_SPACE_MAXADDR,		/* highaddr */
+				sc->dma_loaddr,			/* lowaddr */
+				sc->dma_hiaddr,			/* highaddr */
 				NULL, NULL,			/* filter, filterarg */
 				dev_pgsz,			/* maxsize */
                                 1,				/* nsegments */
