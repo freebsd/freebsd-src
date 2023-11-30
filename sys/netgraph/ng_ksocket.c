@@ -1178,7 +1178,7 @@ ng_ksocket_accept(priv_p priv)
 {
 	struct socket *const head = priv->so;
 	struct socket *so;
-	struct sockaddr *sa = NULL;
+	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
 	struct ng_mesg *resp;
 	struct ng_ksocket_accept *resp_data;
 	node_p node;
@@ -1196,12 +1196,11 @@ ng_ksocket_accept(priv_p priv)
 	if (error)
 		return (error);
 
-	if ((error = soaccept(so, &sa)) != 0)
+	if ((error = soaccept(so, (struct sockaddr *)&ss)) != 0)
 		return (error);
 
 	len = OFFSETOF(struct ng_ksocket_accept, addr);
-	if (sa != NULL)
-		len += sa->sa_len;
+	len += ss.ss_len;
 
 	NG_MKMESSAGE(resp, NGM_KSOCKET_COOKIE, NGM_KSOCKET_ACCEPT, len,
 	    M_NOWAIT);
@@ -1249,13 +1248,10 @@ ng_ksocket_accept(priv_p priv)
 	/* Fill in the response data and send it or return it to the caller */
 	resp_data = (struct ng_ksocket_accept *)resp->data;
 	resp_data->nodeid = NG_NODE_ID(node);
-	if (sa != NULL)
-		bcopy(sa, &resp_data->addr, sa->sa_len);
+	bcopy(&ss, &resp_data->addr, ss.ss_len);
 	NG_SEND_MSG_ID(error, node, resp, priv->response_addr, 0);
 
 out:
-	if (sa != NULL)
-		free(sa, M_SONAME);
 
 	return (0);
 }

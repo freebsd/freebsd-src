@@ -61,7 +61,7 @@ struct uio;
 typedef int	pr_ctloutput_t(struct socket *, struct sockopt *);
 typedef int	pr_setsbopt_t(struct socket *, struct sockopt *);
 typedef void	pr_abort_t(struct socket *);
-typedef int	pr_accept_t(struct socket *, struct sockaddr **);
+typedef int	pr_accept_t(struct socket *, struct sockaddr *);
 typedef int	pr_attach_t(struct socket *, int, struct thread *);
 typedef int	pr_bind_t(struct socket *, struct sockaddr *, struct thread *);
 typedef int	pr_connect_t(struct socket *, struct sockaddr *,

@@ -1017,31 +1017,29 @@ static int
 linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
     l_uintptr_t namelen, int flags)
 {
-	struct sockaddr *sa;
+	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
 	struct file *fp, *fp1;
-	int bflags, len;
 	struct socket *so;
-	int error, error1;
+	socklen_t len;
+	int bflags, error, error1;
 
 	bflags = 0;
 	fp = NULL;
-	sa = NULL;
 
 	error = linux_set_socket_flags(flags, &bflags);
 	if (error != 0)
 		return (error);
 
-	if (PTRIN(addr) == NULL) {
-		len = 0;
-		error = kern_accept4(td, s, NULL, NULL, bflags, NULL);
-	} else {
+	if (PTRIN(addr) != NULL) {
 		error = copyin(PTRIN(namelen), &len, sizeof(len));
 		if (error != 0)
 			return (error);
 		if (len < 0)
 			return (EINVAL);
-		error = kern_accept4(td, s, &sa, &len, bflags, &fp);
-	}
+	} else
+		len = 0;
+
+	error = kern_accept4(td, s, (struct sockaddr *)&ss, bflags, &fp);
 
 	/*
 	 * Translate errno values into ones used by Linux.
@@ -1071,11 +1069,14 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 		return (error);
 	}
 
-	if (len != 0) {
-		error = linux_copyout_sockaddr(sa, PTRIN(addr), len);
-		if (error == 0)
-			error = copyout(&len, PTRIN(namelen),
-			    sizeof(len));
+	if (PTRIN(addr) != NULL) {
+		len = min(ss.ss_len, len);
+		error = linux_copyout_sockaddr((struct sockaddr *)&ss,
+		    PTRIN(addr), len);
+		if (error == 0) {
+			len = ss.ss_len;
+			error = copyout(&len, PTRIN(namelen), sizeof(len));
+		}
 		if (error != 0) {
 			fdclose(td, fp, td->td_retval[0]);
 			td->td_retval[0] = 0;
@@ -1083,7 +1084,6 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 	}
 	if (fp != NULL)
 		fdrop(fp, td);
-	free(sa, M_SONAME);
 	return (error);
 }
 

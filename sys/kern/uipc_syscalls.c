@@ -277,19 +277,18 @@ static int
 accept1(struct thread *td, int s, struct sockaddr *uname, socklen_t *anamelen,
     int flags)
 {
-	struct sockaddr *name;
-	socklen_t namelen;
+	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
+	socklen_t addrlen;
 	struct file *fp;
 	int error;
 
-	if (uname == NULL)
-		return (kern_accept4(td, s, NULL, NULL, flags, NULL));
+	if (uname != NULL) {
+		error = copyin(anamelen, &addrlen, sizeof(addrlen));
+		if (error != 0)
+			return (error);
+	}
 
-	error = copyin(anamelen, &namelen, sizeof (namelen));
-	if (error != 0)
-		return (error);
-
-	error = kern_accept4(td, s, &name, &namelen, flags, &fp);
+	error = kern_accept4(td, s, (struct sockaddr *)&ss, flags, &fp);
 
 	if (error != 0)
 		return (error);
@@ -297,41 +296,39 @@ accept1(struct thread *td, int s, struct sockaddr *uname, socklen_t *anamelen,
 #ifdef COMPAT_OLDSOCK
 	if (SV_PROC_FLAG(td->td_proc, SV_AOUT) &&
 	    (flags & ACCEPT4_COMPAT) != 0)
-		((struct osockaddr *)name)->sa_family =
-		    name->sa_family;
+		((struct osockaddr *)&ss)->sa_family = ss.ss_family;
 #endif
-	error = copyout(name, uname, namelen);
-	if (error == 0)
-		error = copyout(&namelen, anamelen,
-		    sizeof(namelen));
+	if (uname != NULL) {
+		addrlen = min(ss.ss_len, addrlen);
+		error = copyout(&ss, uname, addrlen);
+		if (error == 0) {
+			addrlen = ss.ss_len;
+			error = copyout(&addrlen, anamelen, sizeof(addrlen));
+		}
+	}
 	if (error != 0)
 		fdclose(td, fp, td->td_retval[0]);
 	fdrop(fp, td);
-	free(name, M_SONAME);
+
 	return (error);
 }
 
 int
-kern_accept(struct thread *td, int s, struct sockaddr **name,
-    socklen_t *namelen, struct file **fp)
+kern_accept(struct thread *td, int s, struct sockaddr *sa, struct file **fp)
 {
-	return (kern_accept4(td, s, name, namelen, ACCEPT4_INHERIT, fp));
+	return (kern_accept4(td, s, sa, ACCEPT4_INHERIT, fp));
 }
 
 int
-kern_accept4(struct thread *td, int s, struct sockaddr **name,
-    socklen_t *namelen, int flags, struct file **fp)
+kern_accept4(struct thread *td, int s, struct sockaddr *sa, int flags,
+    struct file **fp)
 {
 	struct file *headfp, *nfp = NULL;
-	struct sockaddr *sa = NULL;
 	struct socket *head, *so;
 	struct filecaps fcaps;
 	u_int fflag;
 	pid_t pgid;
 	int error, fd, tmp;
-
-	if (name != NULL)
-		*name = NULL;
 
 	AUDIT_ARG_FD(s);
 	error = getsock_cap(td, s, &cap_accept_rights,
@@ -386,29 +383,15 @@ kern_accept4(struct thread *td, int s, struct sockaddr **name,
 	(void) fo_ioctl(nfp, FIONBIO, &tmp, td->td_ucred, td);
 	tmp = fflag & FASYNC;
 	(void) fo_ioctl(nfp, FIOASYNC, &tmp, td->td_ucred, td);
-	error = soaccept(so, &sa);
-	if (error != 0)
-		goto noconnection;
-	if (sa == NULL) {
-		if (name)
-			*namelen = 0;
-		goto done;
-	}
-	AUDIT_ARG_SOCKADDR(td, AT_FDCWD, sa);
-	if (name) {
-		/* check sa_len before it is destroyed */
-		if (*namelen > sa->sa_len)
-			*namelen = sa->sa_len;
+
+	if ((error = soaccept(so, sa)) == 0) {
+		AUDIT_ARG_SOCKADDR(td, AT_FDCWD, sa);
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_STRUCT))
 			ktrsockaddr(sa);
 #endif
-		*name = sa;
-		sa = NULL;
 	}
 noconnection:
-	free(sa, M_SONAME);
-
 	/*
 	 * close the new descriptor, assuming someone hasn't ripped it
 	 * out from under us.

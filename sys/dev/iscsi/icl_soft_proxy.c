@@ -205,7 +205,7 @@ icl_accept_thread(void *arg)
 {
 	struct icl_listen_sock *ils;
 	struct socket *head, *so;
-	struct sockaddr *sa;
+	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
 	int error;
 
 	ils = arg;
@@ -231,17 +231,15 @@ icl_accept_thread(void *arg)
 			continue;
 		}
 
-		sa = NULL;
-		error = soaccept(so, &sa);
+		error = soaccept(so, (struct sockaddr *)&ss);
 		if (error != 0) {
 			ICL_WARN("soaccept error %d", error);
-			if (sa != NULL)
-				free(sa, M_SONAME);
 			soclose(so);
 			continue;
 		}
 
-		(ils->ils_listen->il_accept)(so, sa, ils->ils_id);
+		(ils->ils_listen->il_accept)(so, (struct sockaddr *)&ss,
+		    ils->ils_id);
 	}
 }
 

@@ -191,7 +191,7 @@ typedef struct ng_btsocket_l2cap_pcb *	ng_btsocket_l2cap_pcb_p;
 
 void ng_btsocket_l2cap_abort      (struct socket *);
 void ng_btsocket_l2cap_close      (struct socket *);
-int  ng_btsocket_l2cap_accept     (struct socket *, struct sockaddr **);
+int  ng_btsocket_l2cap_accept     (struct socket *, struct sockaddr *);
 int  ng_btsocket_l2cap_attach     (struct socket *, int, struct thread *);
 int  ng_btsocket_l2cap_bind       (struct socket *, struct sockaddr *,
                                    struct thread *);

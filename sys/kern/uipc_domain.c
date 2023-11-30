@@ -53,7 +53,7 @@ static struct mtx dom_mtx;		/* domain list lock */
 MTX_SYSINIT(domain, &dom_mtx, "domain list", MTX_DEF);
 
 static int
-pr_accept_notsupp(struct socket *so, struct sockaddr **nam)
+pr_accept_notsupp(struct socket *so, struct sockaddr *sa)
 {
 	return (EOPNOTSUPP);
 }

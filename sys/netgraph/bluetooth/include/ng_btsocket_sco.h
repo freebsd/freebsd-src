@@ -106,7 +106,7 @@ typedef struct ng_btsocket_sco_pcb *	ng_btsocket_sco_pcb_p;
 
 void ng_btsocket_sco_abort      (struct socket *);
 void ng_btsocket_sco_close      (struct socket *);
-int  ng_btsocket_sco_accept     (struct socket *, struct sockaddr **);
+int  ng_btsocket_sco_accept     (struct socket *, struct sockaddr *);
 int  ng_btsocket_sco_attach     (struct socket *, int, struct thread *);
 int  ng_btsocket_sco_bind       (struct socket *, struct sockaddr *,
                                    struct thread *);

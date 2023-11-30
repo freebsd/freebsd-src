@@ -478,7 +478,7 @@ hvs_trans_listen(struct socket *so, int backlog, struct thread *td)
 }
 
 int
-hvs_trans_accept(struct socket *so, struct sockaddr **nam)
+hvs_trans_accept(struct socket *so, struct sockaddr *sa)
 {
 	struct hvs_pcb *pcb = so2hvspcb(so);
 
@@ -488,10 +488,9 @@ hvs_trans_accept(struct socket *so, struct sockaddr **nam)
 	if (pcb == NULL)
 		return (EINVAL);
 
-	*nam = sodupsockaddr((struct sockaddr *) &pcb->remote_addr,
-	    M_NOWAIT);
+	memcpy(sa, &pcb->remote_addr, pcb->remote_addr.sa_len);
 
-	return ((*nam == NULL) ? ENOMEM : 0);
+	return (0);
 }
 
 int

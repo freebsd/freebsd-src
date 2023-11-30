@@ -1348,12 +1348,17 @@ soabort(struct socket *so)
 }
 
 int
-soaccept(struct socket *so, struct sockaddr **nam)
+soaccept(struct socket *so, struct sockaddr *sa)
 {
+#ifdef INVARIANTS
+	u_char len = sa->sa_len;
+#endif
 	int error;
 
 	CURVNET_SET(so->so_vnet);
-	error = so->so_proto->pr_accept(so, nam);
+	error = so->so_proto->pr_accept(so, sa);
+	KASSERT(sa->sa_len <= len,
+	    ("%s: protocol %p sockaddr overflow", __func__, so->so_proto));
 	CURVNET_RESTORE();
 	return (error);
 }

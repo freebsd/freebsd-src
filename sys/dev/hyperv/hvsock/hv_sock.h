@@ -100,7 +100,7 @@ void	hvs_trans_abort(struct socket *);
 int	hvs_trans_attach(struct socket *, int, struct thread *);
 int	hvs_trans_bind(struct socket *, struct sockaddr *, struct thread *);
 int	hvs_trans_listen(struct socket *, int, struct thread *);
-int	hvs_trans_accept(struct socket *, struct sockaddr **);
+int	hvs_trans_accept(struct socket *, struct sockaddr *);
 int	hvs_trans_connect(struct socket *,
 	    struct sockaddr *, struct thread *);
 int	hvs_trans_peeraddr(struct socket *, struct sockaddr **);
