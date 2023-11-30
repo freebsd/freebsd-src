@@ -717,13 +717,11 @@ out:
  * just return the address of the peer, storing through addr.
  */
 static int
-tcp_usr_accept(struct socket *so, struct sockaddr **nam)
+tcp_usr_accept(struct socket *so, struct sockaddr *sa)
 {
-	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
-	struct in_addr addr;
-	in_port_t port = 0;
+	int error = 0;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_accept: inp == NULL"));
@@ -734,39 +732,30 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 	}
 	tp = intotcpcb(inp);
 
-	if (so->so_state & SS_ISDISCONNECTED) {
+	if (so->so_state & SS_ISDISCONNECTED)
 		error = ECONNABORTED;
-		goto out;
-	}
-	/*
-	 * We inline in_getpeeraddr and COMMON_END here, so that we can
-	 * copy the data of interest and defer the malloc until after we
-	 * release the lock.
-	 */
-	port = inp->inp_fport;
-	addr = inp->inp_faddr;
-
-out:
+	else
+		*(struct sockaddr_in *)sa = (struct sockaddr_in ){
+			.sin_family = AF_INET,
+			.sin_len = sizeof(struct sockaddr_in),
+			.sin_port = inp->inp_fport,
+			.sin_addr = inp->inp_faddr,
+		};
 	tcp_bblog_pru(tp, PRU_ACCEPT, error);
 	TCP_PROBE2(debug__user, tp, PRU_ACCEPT);
 	INP_WUNLOCK(inp);
-	if (error == 0)
-		*nam = in_sockaddr(port, &addr);
-	return error;
+
+	return (error);
 }
 #endif /* INET */
 
 #ifdef INET6
 static int
-tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
+tcp6_usr_accept(struct socket *so, struct sockaddr *sa)
 {
 	struct inpcb *inp;
-	int error = 0;
 	struct tcpcb *tp;
-	struct in_addr addr;
-	struct in6_addr addr6;
-	in_port_t port = 0;
-	int v4 = 0;
+	int error = 0;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_accept: inp == NULL"));
@@ -779,33 +768,32 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 
 	if (so->so_state & SS_ISDISCONNECTED) {
 		error = ECONNABORTED;
-		goto out;
-	}
-	/*
-	 * We inline in6_mapped_peeraddr and COMMON_END here, so that we can
-	 * copy the data of interest and defer the malloc until after we
-	 * release the lock.
-	 */
-	if (inp->inp_vflag & INP_IPV4) {
-		v4 = 1;
-		port = inp->inp_fport;
-		addr = inp->inp_faddr;
 	} else {
-		port = inp->inp_fport;
-		addr6 = inp->in6p_faddr;
+		if (inp->inp_vflag & INP_IPV4) {
+			struct sockaddr_in sin = {
+				.sin_family = AF_INET,
+				.sin_len = sizeof(struct sockaddr_in),
+				.sin_port = inp->inp_fport,
+				.sin_addr = inp->inp_faddr,
+			};
+			in6_sin_2_v4mapsin6(&sin, (struct sockaddr_in6 *)sa);
+		} else {
+			*(struct sockaddr_in6 *)sa = (struct sockaddr_in6 ){
+				.sin6_family = AF_INET6,
+				.sin6_len = sizeof(struct sockaddr_in6),
+				.sin6_port = inp->inp_fport,
+				.sin6_addr = inp->in6p_faddr,
+			};
+			/* XXX: should catch errors */
+			(void)sa6_recoverscope((struct sockaddr_in6 *)sa);
+		}
 	}
 
-out:
 	tcp_bblog_pru(tp, PRU_ACCEPT, error);
 	TCP_PROBE2(debug__user, tp, PRU_ACCEPT);
 	INP_WUNLOCK(inp);
-	if (error == 0) {
-		if (v4)
-			*nam = in6_v4mapsin6_sockaddr(port, &addr);
-		else
-			*nam = in6_sockaddr(port, &addr6);
-	}
-	return error;
+
+	return (error);
 }
 #endif /* INET6 */
 

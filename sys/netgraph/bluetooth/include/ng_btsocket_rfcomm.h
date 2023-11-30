@@ -316,7 +316,7 @@ typedef struct ng_btsocket_rfcomm_pcb *	ng_btsocket_rfcomm_pcb_p;
 
 void ng_btsocket_rfcomm_abort      (struct socket *);
 void ng_btsocket_rfcomm_close      (struct socket *);
-int  ng_btsocket_rfcomm_accept     (struct socket *, struct sockaddr **);
+int  ng_btsocket_rfcomm_accept     (struct socket *, struct sockaddr *);
 int  ng_btsocket_rfcomm_attach     (struct socket *, int, struct thread *);
 int  ng_btsocket_rfcomm_bind       (struct socket *, struct sockaddr *,
                                     struct thread *);

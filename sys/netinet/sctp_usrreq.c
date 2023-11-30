@@ -7271,7 +7271,7 @@ out:
 static int sctp_defered_wakeup_cnt = 0;
 
 int
-sctp_accept(struct socket *so, struct sockaddr **addr)
+sctp_accept(struct socket *so, struct sockaddr *sa)
 {
 	struct sctp_tcb *stcb;
 	struct sctp_inpcb *inp;
@@ -7338,39 +7338,25 @@ sctp_accept(struct socket *so, struct sockaddr **addr)
 	switch (store.sa.sa_family) {
 #ifdef INET
 	case AF_INET:
-		{
-			struct sockaddr_in *sin;
-
-			SCTP_MALLOC_SONAME(sin, struct sockaddr_in *, sizeof *sin);
-			if (sin == NULL)
-				return (ENOMEM);
-			sin->sin_family = AF_INET;
-			sin->sin_len = sizeof(*sin);
-			sin->sin_port = store.sin.sin_port;
-			sin->sin_addr = store.sin.sin_addr;
-			*addr = (struct sockaddr *)sin;
-			break;
-		}
+		*(struct sockaddr_in *)sa = (struct sockaddr_in ){
+			.sin_family = AF_INET,
+			.sin_len = sizeof(struct sockaddr_in),
+			.sin_port = store.sin.sin_port,
+			.sin_addr = store.sin.sin_addr,
+		};
+		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		{
-			struct sockaddr_in6 *sin6;
-
-			SCTP_MALLOC_SONAME(sin6, struct sockaddr_in6 *, sizeof *sin6);
-			if (sin6 == NULL)
-				return (ENOMEM);
-			sin6->sin6_family = AF_INET6;
-			sin6->sin6_len = sizeof(*sin6);
-			sin6->sin6_port = store.sin6.sin6_port;
-			sin6->sin6_addr = store.sin6.sin6_addr;
-			if ((error = sa6_recoverscope(sin6)) != 0) {
-				SCTP_FREE_SONAME(sin6);
-				return (error);
-			}
-			*addr = (struct sockaddr *)sin6;
-			break;
-		}
+		*(struct sockaddr_in6 *)sa = (struct sockaddr_in6 ){
+			.sin6_family = AF_INET6,
+			.sin6_len = sizeof(struct sockaddr_in6),
+			.sin6_port = store.sin6.sin6_port,
+			.sin6_addr = store.sin6.sin6_addr,
+		};
+		if ((error = sa6_recoverscope((struct sockaddr_in6 *)sa)) != 0)
+			return (error);
+		break;
 #endif
 	default:
 		/* TSNH */

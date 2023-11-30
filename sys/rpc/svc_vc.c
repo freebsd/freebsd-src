@@ -420,7 +420,7 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
     struct sockaddr **addrp, struct mbuf **mp)
 {
 	struct socket *so = NULL;
-	struct sockaddr *sa = NULL;
+	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
 	int error;
 	SVCXPRT *new_xprt;
 
@@ -464,15 +464,12 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 	sx_xunlock(&xprt->xp_lock);
 
-	sa = NULL;
-	error = soaccept(so, &sa);
+	error = soaccept(so, (struct sockaddr *)&ss);
 
 	if (error) {
 		/*
 		 * XXX not sure if I need to call sofree or soclose here.
 		 */
-		if (sa)
-			free(sa, M_SONAME);
 		return (FALSE);
 	}
 
@@ -480,14 +477,13 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 	 * svc_vc_create_conn will call xprt_register - we don't need
 	 * to do anything with the new connection except derefence it.
 	 */
-	new_xprt = svc_vc_create_conn(xprt->xp_pool, so, sa);
+	new_xprt = svc_vc_create_conn(xprt->xp_pool, so,
+	    (struct sockaddr *)&ss);
 	if (!new_xprt) {
 		soclose(so);
 	} else {
 		SVC_RELEASE(new_xprt);
 	}
-
-	free(sa, M_SONAME);
 
 	return (FALSE); /* there is never an rpc msg to be processed */
 }

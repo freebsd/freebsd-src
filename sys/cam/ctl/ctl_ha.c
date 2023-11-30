@@ -397,7 +397,7 @@ static int
 ctl_ha_accept(struct ha_softc *softc)
 {
 	struct socket *lso, *so;
-	struct sockaddr *sap;
+	struct sockaddr_in sin = { .sin_len = sizeof(sin) };
 	int error;
 
 	lso = softc->ha_lso;
@@ -410,16 +410,11 @@ ctl_ha_accept(struct ha_softc *softc)
 		goto out;
 	}
 
-	sap = NULL;
-	error = soaccept(so, &sap);
+	error = soaccept(so, (struct sockaddr *)&sin);
 	if (error != 0) {
 		printf("%s: soaccept() error %d\n", __func__, error);
-		if (sap != NULL)
-			free(sap, M_SONAME);
 		goto out;
 	}
-	if (sap != NULL)
-		free(sap, M_SONAME);
 	softc->ha_so = so;
 	ctl_ha_sock_setup(softc);
 	return (0);

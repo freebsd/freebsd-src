@@ -517,25 +517,6 @@ in6_sockaddr(in_port_t port, struct in6_addr *addr_p)
 	return (struct sockaddr *)sin6;
 }
 
-struct sockaddr *
-in6_v4mapsin6_sockaddr(in_port_t port, struct in_addr *addr_p)
-{
-	struct sockaddr_in sin;
-	struct sockaddr_in6 *sin6_p;
-
-	bzero(&sin, sizeof sin);
-	sin.sin_family = AF_INET;
-	sin.sin_len = sizeof(sin);
-	sin.sin_port = port;
-	sin.sin_addr = *addr_p;
-
-	sin6_p = malloc(sizeof *sin6_p, M_SONAME,
-		M_WAITOK);
-	in6_sin_2_v4mapsin6(&sin, sin6_p);
-
-	return (struct sockaddr *)sin6_p;
-}
-
 int
 in6_getsockaddr(struct socket *so, struct sockaddr **nam)
 {

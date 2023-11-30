@@ -120,7 +120,10 @@ struct unp_defer {
 static SLIST_HEAD(, unp_defer) unp_defers;
 static int unp_defers_count;
 
-static const struct sockaddr	sun_noname = { sizeof(sun_noname), AF_LOCAL };
+static const struct sockaddr	sun_noname = {
+	.sa_len = sizeof(sun_noname),
+	.sa_family = AF_LOCAL,
+};
 
 /*
  * Garbage collection of cyclic file descriptor/socket references occurs
@@ -434,7 +437,7 @@ uipc_abort(struct socket *so)
 }
 
 static int
-uipc_accept(struct socket *so, struct sockaddr **nam)
+uipc_accept(struct socket *so, struct sockaddr *ret)
 {
 	struct unpcb *unp, *unp2;
 	const struct sockaddr *sa;
@@ -446,14 +449,13 @@ uipc_accept(struct socket *so, struct sockaddr **nam)
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_accept: unp == NULL"));
 
-	*nam = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
 	UNP_PCB_LOCK(unp);
 	unp2 = unp_pcb_lock_peer(unp);
 	if (unp2 != NULL && unp2->unp_addr != NULL)
 		sa = (struct sockaddr *)unp2->unp_addr;
 	else
 		sa = &sun_noname;
-	bcopy(sa, *nam, sa->sa_len);
+	bcopy(sa, ret, sa->sa_len);
 	if (unp2 != NULL)
 		unp_pcb_unlock_pair(unp, unp2);
 	else
