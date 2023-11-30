@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 ossl_cipher_setkey_t AES_set_encrypt_key;
 ossl_cipher_setkey_t AES_set_decrypt_key;
 
+ossl_cipher_setkey_t ossl_aes_gcm_setkey;
+
 unsigned int OPENSSL_armcap_P;
 
 void
@@ -55,5 +57,9 @@ ossl_cpuid(struct ossl_softc *sc)
 		sc->has_aes = true;
 		ossl_cipher_aes_cbc.set_encrypt_key = AES_set_encrypt_key;
 		ossl_cipher_aes_cbc.set_decrypt_key = AES_set_decrypt_key;
+
+		sc->has_aes_gcm = true;
+		ossl_cipher_aes_gcm.set_encrypt_key = ossl_aes_gcm_setkey;
+		ossl_cipher_aes_gcm.set_decrypt_key = ossl_aes_gcm_setkey;
 	}
 }
