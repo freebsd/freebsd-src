@@ -16,6 +16,16 @@ SRCS=	bus_if.h \
 	ossl_sha512.c \
 	${SRCS.${MACHINE_CPUARCH}}
 
+SRCS.arm= \
+	aes-armv4.S \
+	bsaes-armv7.S \
+	chacha-armv4.S \
+	poly1305-armv4.S  \
+	sha1-armv4-large.S \
+	sha256-armv4.S \
+	sha512-armv4.S \
+	ossl_arm.c
+
 SRCS.aarch64= \
 	chacha-armv8.S \
 	poly1305-armv8.S \
@@ -46,6 +56,8 @@ SRCS.i386= \
 	sha256-586.S \
 	sha512-586.S \
 	ossl_x86.c
+
+CFLAGS.bsaes-armv7.S+=	-D__KERNEL__
 
 # For arm64, we are forced to rewrite the compiler invocation for the assembly
 # files, to remove -mgeneral-regs-only.
