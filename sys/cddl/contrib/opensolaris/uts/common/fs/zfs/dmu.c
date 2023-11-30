@@ -2557,7 +2557,8 @@ dmu_object_wait_synced(objset_t *os, uint64_t object)
 	}
 
 	for (i = 0; i < TXG_SIZE; i++) {
-		if (list_link_active(&dn->dn_dirty_link[i])) {
+		if (list_link_active(&dn->dn_dirty_link[i]) ||
+		    !list_is_empty(&dn->dn_dirty_records[i])) {
 			break;
 		}
 	}
