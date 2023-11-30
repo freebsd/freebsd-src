@@ -616,7 +616,6 @@ jail_warnx(const struct cfjail *j, const char *fmt, ...)
 int
 create_jail(struct cfjail *j)
 {
-	struct iovec jiov[4];
 	struct stat st;
 	struct jailparam *jp, *setparams, *sjp;
 	const char *path;
