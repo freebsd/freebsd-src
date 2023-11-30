@@ -464,13 +464,6 @@ See
 Maximum amount of time, in milliseconds, before a delayed ACK is sent.
 .It Va delayed_ack
 Delay ACK to try and piggyback it onto a data packet or another ACK.
-.It Va do_lrd
-Enable Lost Retransmission Detection for SACK-enabled sessions, enabled by
-default.
-Under severe congestion, a retransmission can be lost which then leads to a
-mandatory Retransmission Timeout (RTO), followed by slow-start.
-LRD will try to resend the repeatedly lost packet, preventing the time-consuming
-RTO and performance reducing slow-start.
 .It Va do_prr
 Perform SACK loss recovery using the Proportional Rate Reduction (PRR) algorithm
 described in RFC6937.
@@ -901,6 +894,13 @@ Global number of TCP SACK holes currently allocated.
 .It Va sack.globalmaxholes
 Maximum number of SACK holes per system, across all connections.
 Defaults to 65536.
+.It Va sack.lrd
+Enable Lost Retransmission Detection for SACK-enabled sessions, enabled by
+default.
+Under severe congestion, a retransmission can be lost which then leads to a
+mandatory Retransmission Timeout (RTO), followed by slow-start.
+LRD will try to resend the repeatedly lost packet, preventing the time-consuming
+RTO and performance reducing slow-start or purge of the SACK scoreboard.
 .It Va sack.maxholes
 Maximum number of SACK holes per connection.
 Defaults to 128.
