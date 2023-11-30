@@ -12,6 +12,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20231130:
+	14.0-RELEASE-p1	EN-23:15.sanitizer
+			EN-23:16.openzfs
+
+	Fix clang sanitizer failure with ASLR enabled [EN-23:15.sanitizer]
+
+	OpenZFS data corruption [EN-23:16.openzfs]
+
 20231114:
 	FreeBSD 14.0-RELEASE.
 
