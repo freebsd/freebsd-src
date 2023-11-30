@@ -771,9 +771,8 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_KSOCKET_GETNAME:
 		case NGM_KSOCKET_GETPEERNAME:
 		    {
-			int (*func)(struct socket *so, struct sockaddr **nam);
-			struct sockaddr *sa = NULL;
-			int len;
+			int (*func)(struct socket *so, struct sockaddr *sa);
+			struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
 
 			/* Sanity check */
 			if (msg->header.arglen != 0)
@@ -786,27 +785,22 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				if ((so->so_state
 				    & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0)
 					ERROUT(ENOTCONN);
-				func = so->so_proto->pr_peeraddr;
+				func = sopeeraddr;
 			} else
-				func = so->so_proto->pr_sockaddr;
+				func = sosockaddr;
 
 			/* Get local or peer address */
-			if ((error = (*func)(so, &sa)) != 0)
-				goto bail;
-			len = (sa == NULL) ? 0 : sa->sa_len;
+			error = (*func)(so, (struct sockaddr *)&ss);
+			if (error)
+				break;
 
 			/* Send it back in a response */
-			NG_MKRESPONSE(resp, msg, len, M_NOWAIT);
-			if (resp == NULL) {
+			NG_MKRESPONSE(resp, msg, ss.ss_len, M_NOWAIT);
+			if (resp != NULL)
+				bcopy(&ss, resp->data, ss.ss_len);
+			else
 				error = ENOMEM;
-				goto bail;
-			}
-			bcopy(sa, resp->data, len);
 
-		bail:
-			/* Cleanup */
-			if (sa != NULL)
-				free(sa, M_SONAME);
 			break;
 		    }
 

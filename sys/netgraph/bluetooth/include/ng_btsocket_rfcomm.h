@@ -328,11 +328,11 @@ int  ng_btsocket_rfcomm_ctloutput  (struct socket *, struct sockopt *);
 void ng_btsocket_rfcomm_detach     (struct socket *);
 int  ng_btsocket_rfcomm_disconnect (struct socket *);
 int  ng_btsocket_rfcomm_listen     (struct socket *, int, struct thread *);
-int  ng_btsocket_rfcomm_peeraddr   (struct socket *, struct sockaddr **);
+int  ng_btsocket_rfcomm_peeraddr   (struct socket *, struct sockaddr *);
 int  ng_btsocket_rfcomm_send       (struct socket *, int, struct mbuf *,
                                     struct sockaddr *, struct mbuf *,
                                     struct thread *);
-int  ng_btsocket_rfcomm_sockaddr   (struct socket *, struct sockaddr **);
+int  ng_btsocket_rfcomm_sockaddr   (struct socket *, struct sockaddr *);
 
 #endif /* _KERNEL */
 

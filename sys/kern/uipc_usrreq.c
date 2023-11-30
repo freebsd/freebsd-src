@@ -437,33 +437,6 @@ uipc_abort(struct socket *so)
 }
 
 static int
-uipc_accept(struct socket *so, struct sockaddr *ret)
-{
-	struct unpcb *unp, *unp2;
-	const struct sockaddr *sa;
-
-	/*
-	 * Pass back name of connected socket, if it was bound and we are
-	 * still connected (our peer may have closed already!).
-	 */
-	unp = sotounpcb(so);
-	KASSERT(unp != NULL, ("uipc_accept: unp == NULL"));
-
-	UNP_PCB_LOCK(unp);
-	unp2 = unp_pcb_lock_peer(unp);
-	if (unp2 != NULL && unp2->unp_addr != NULL)
-		sa = (struct sockaddr *)unp2->unp_addr;
-	else
-		sa = &sun_noname;
-	bcopy(sa, ret, sa->sa_len);
-	if (unp2 != NULL)
-		unp_pcb_unlock_pair(unp, unp2);
-	else
-		UNP_PCB_UNLOCK(unp);
-	return (0);
-}
-
-static int
 uipc_attach(struct socket *so, int proto, struct thread *td)
 {
 	u_long sendspace, recvspace;
@@ -874,15 +847,13 @@ uipc_listen(struct socket *so, int backlog, struct thread *td)
 }
 
 static int
-uipc_peeraddr(struct socket *so, struct sockaddr **nam)
+uipc_peeraddr(struct socket *so, struct sockaddr *ret)
 {
 	struct unpcb *unp, *unp2;
 	const struct sockaddr *sa;
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_peeraddr: unp == NULL"));
-
-	*nam = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
 
 	UNP_PCB_LOCK(unp);
 	unp2 = unp_pcb_lock_peer(unp);
@@ -891,12 +862,12 @@ uipc_peeraddr(struct socket *so, struct sockaddr **nam)
 			sa = (struct sockaddr *)unp2->unp_addr;
 		else
 			sa = &sun_noname;
-		bcopy(sa, *nam, sa->sa_len);
+		bcopy(sa, ret, sa->sa_len);
 		unp_pcb_unlock_pair(unp, unp2);
 	} else {
-		sa = &sun_noname;
-		bcopy(sa, *nam, sa->sa_len);
 		UNP_PCB_UNLOCK(unp);
+		sa = &sun_noname;
+		bcopy(sa, ret, sa->sa_len);
 	}
 	return (0);
 }
@@ -1704,7 +1675,7 @@ uipc_shutdown(struct socket *so)
 }
 
 static int
-uipc_sockaddr(struct socket *so, struct sockaddr **nam)
+uipc_sockaddr(struct socket *so, struct sockaddr *ret)
 {
 	struct unpcb *unp;
 	const struct sockaddr *sa;
@@ -1712,13 +1683,12 @@ uipc_sockaddr(struct socket *so, struct sockaddr **nam)
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_sockaddr: unp == NULL"));
 
-	*nam = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
 	UNP_PCB_LOCK(unp);
 	if (unp->unp_addr != NULL)
 		sa = (struct sockaddr *) unp->unp_addr;
 	else
 		sa = &sun_noname;
-	bcopy(sa, *nam, sa->sa_len);
+	bcopy(sa, ret, sa->sa_len);
 	UNP_PCB_UNLOCK(unp);
 	return (0);
 }
@@ -3322,7 +3292,7 @@ static struct protosw streamproto = {
 				    PR_CAPATTACH,
 	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_abort = 		uipc_abort,
-	.pr_accept =		uipc_accept,
+	.pr_accept =		uipc_peeraddr,
 	.pr_attach =		uipc_attach,
 	.pr_bind =		uipc_bind,
 	.pr_bindat =		uipc_bindat,
@@ -3349,7 +3319,7 @@ static struct protosw dgramproto = {
 				    PR_SOCKBUF,
 	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_abort = 		uipc_abort,
-	.pr_accept =		uipc_accept,
+	.pr_accept =		uipc_peeraddr,
 	.pr_attach =		uipc_attach,
 	.pr_bind =		uipc_bind,
 	.pr_bindat =		uipc_bindat,
@@ -3378,7 +3348,7 @@ static struct protosw seqpacketproto = {
 				    PR_WANTRCVD|PR_RIGHTS|PR_CAPATTACH,
 	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_abort =		uipc_abort,
-	.pr_accept =		uipc_accept,
+	.pr_accept =		uipc_peeraddr,
 	.pr_attach =		uipc_attach,
 	.pr_bind =		uipc_bind,
 	.pr_bindat =		uipc_bindat,

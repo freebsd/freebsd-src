@@ -145,30 +145,24 @@ static void process_newconn(struct c4iw_listen_ep *master_lep,
 
 #define GET_LOCAL_ADDR(pladdr, so) \
 	do { \
-		struct sockaddr_storage *__a = NULL; \
 		struct  inpcb *__inp = sotoinpcb(so); \
 		KASSERT(__inp != NULL, \
 		   ("GET_LOCAL_ADDR(%s):so:%p, inp = NULL", __func__, so)); \
 		if (__inp->inp_vflag & INP_IPV4) \
-			in_getsockaddr(so, (struct sockaddr **)&__a); \
+			in_getsockaddr(so, (struct sockaddr *)pladdr); \
 		else \
-			in6_getsockaddr(so, (struct sockaddr **)&__a); \
-		*(pladdr) = *__a; \
-		free(__a, M_SONAME); \
+			in6_getsockaddr(so, (struct sockaddr *)pladdr); \
 	} while (0)
 
 #define GET_REMOTE_ADDR(praddr, so) \
 	do { \
-		struct sockaddr_storage *__a = NULL; \
 		struct  inpcb *__inp = sotoinpcb(so); \
 		KASSERT(__inp != NULL, \
 		   ("GET_REMOTE_ADDR(%s):so:%p, inp = NULL", __func__, so)); \
 		if (__inp->inp_vflag & INP_IPV4) \
-			in_getpeeraddr(so, (struct sockaddr **)&__a); \
+			in_getpeeraddr(so, (struct sockaddr *)praddr); \
 		else \
-			in6_getpeeraddr(so, (struct sockaddr **)&__a); \
-		*(praddr) = *__a; \
-		free(__a, M_SONAME); \
+			in6_getpeeraddr(so, (struct sockaddr *)praddr); \
 	} while (0)
 
 static char *states[] = {

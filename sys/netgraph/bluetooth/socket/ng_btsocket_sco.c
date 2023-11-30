@@ -1609,55 +1609,30 @@ out:
 	return (error);
 } /* ng_btsocket_listen */
 
-static int
-ng_btsocket_sco_peeraddr1(struct socket *so, struct sockaddr_sco *sa)
+/*
+ * Return peer address for getpeername(2) or for accept(2).  For the latter
+ * case no extra work to do here, socket must be connected and ready.
+ */
+int
+ng_btsocket_sco_peeraddr(struct socket *so, struct sockaddr *sa)
 {
 	ng_btsocket_sco_pcb_p	pcb = so2sco_pcb(so);
+	struct sockaddr_sco *sco = (struct sockaddr_sco *)sa;
 
 	if (pcb == NULL)
 		return (EINVAL);
 	if (ng_btsocket_sco_node == NULL) 
 		return (EINVAL);
 
-	*sa = (struct sockaddr_sco ){
+	*sco = (struct sockaddr_sco ){
 		.sco_len = sizeof(struct sockaddr_sco),
 		.sco_family = AF_BLUETOOTH,
 	};
 	mtx_lock(&pcb->pcb_mtx);
-	bcopy(&pcb->dst, &sa->sco_bdaddr, sizeof(sa->sco_bdaddr));
+	bcopy(&pcb->dst, &sco->sco_bdaddr, sizeof(sco->sco_bdaddr));
 	mtx_unlock(&pcb->pcb_mtx);
 
 	return (0);
-}
-
-/*
- * Get peer address
- */
-int
-ng_btsocket_sco_peeraddr(struct socket *so, struct sockaddr **nam)
-{
-	struct sockaddr_sco sa;
-	int error;
-
-	error = ng_btsocket_sco_peeraddr1(so, &sa);
-	if (error != 0)
-		return (error);
-	*nam = sodupsockaddr((struct sockaddr *) &sa, M_NOWAIT);
-
-	return ((*nam == NULL)? ENOMEM : 0);
-}
-
-/*
- * Accept connection on socket. Nothing to do here, socket must be connected
- * and ready, so just return peer address and be done with it.
- */
-int
-ng_btsocket_sco_accept(struct socket *so, struct sockaddr *sa)
-{
-	if (ng_btsocket_sco_node == NULL)
-		return (EINVAL);
-
-	return (ng_btsocket_sco_peeraddr1(so, (struct sockaddr_sco *)sa));
 }
 
 /*
@@ -1791,27 +1766,26 @@ ng_btsocket_sco_send2(ng_btsocket_sco_pcb_p pcb)
  */
 
 int
-ng_btsocket_sco_sockaddr(struct socket *so, struct sockaddr **nam)
+ng_btsocket_sco_sockaddr(struct socket *so, struct sockaddr *sa)
 {
 	ng_btsocket_sco_pcb_p	pcb = so2sco_pcb(so);
-	struct sockaddr_sco	sa;
+	struct sockaddr_sco *sco = (struct sockaddr_sco *)sa;
 
 	if (pcb == NULL)
 		return (EINVAL);
 	if (ng_btsocket_sco_node == NULL) 
 		return (EINVAL);
 
+	*sco = (struct sockaddr_sco ){
+		.sco_len = sizeof(struct sockaddr_sco),
+		.sco_family = AF_BLUETOOTH,
+	};
 	mtx_lock(&pcb->pcb_mtx);
-	bcopy(&pcb->src, &sa.sco_bdaddr, sizeof(sa.sco_bdaddr));
+	bcopy(&pcb->src, &sco->sco_bdaddr, sizeof(sco->sco_bdaddr));
 	mtx_unlock(&pcb->pcb_mtx);
 
-	sa.sco_len = sizeof(sa);
-	sa.sco_family = AF_BLUETOOTH;
-
-	*nam = sodupsockaddr((struct sockaddr *) &sa, M_NOWAIT);
-
-	return ((*nam == NULL)? ENOMEM : 0);
-} /* ng_btsocket_sco_sockaddr */
+	return (0);
+}
 
 /*****************************************************************************
  *****************************************************************************

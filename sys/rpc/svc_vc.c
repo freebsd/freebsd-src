@@ -206,19 +206,17 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
     size_t recvsize)
 {
 	SVCXPRT *xprt;
-	struct sockaddr* sa;
 	int error;
 
 	SOCK_LOCK(so);
 	if (so->so_state & (SS_ISCONNECTED|SS_ISDISCONNECTED)) {
+		struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
+
 		SOCK_UNLOCK(so);
-		CURVNET_SET(so->so_vnet);
-		error = so->so_proto->pr_peeraddr(so, &sa);
-		CURVNET_RESTORE();
+		error = sopeeraddr(so, (struct sockaddr *)&ss);
 		if (error)
 			return (NULL);
-		xprt = svc_vc_create_conn(pool, so, sa);
-		free(sa, M_SONAME);
+		xprt = svc_vc_create_conn(pool, so, (struct sockaddr *)&ss);
 		return (xprt);
 	}
 	SOCK_UNLOCK(so);
@@ -231,15 +229,11 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	xprt->xp_p2 = NULL;
 	xprt->xp_ops = &svc_vc_rendezvous_ops;
 
-	CURVNET_SET(so->so_vnet);
-	error = so->so_proto->pr_sockaddr(so, &sa);
-	CURVNET_RESTORE();
+	xprt->xp_ltaddr.ss_len = sizeof(xprt->xp_ltaddr);
+	error = sosockaddr(so, (struct sockaddr *)&xprt->xp_ltaddr);
 	if (error) {
 		goto cleanup_svc_vc_create;
 	}
-
-	memcpy(&xprt->xp_ltaddr, sa, sa->sa_len);
-	free(sa, M_SONAME);
 
 	xprt_register(xprt);
 
@@ -267,7 +261,6 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 {
 	SVCXPRT *xprt;
 	struct cf_conn *cd;
-	struct sockaddr* sa = NULL;
 	struct sockopt opt;
 	int one = 1;
 	int error;
@@ -315,14 +308,10 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 
 	memcpy(&xprt->xp_rtaddr, raddr, raddr->sa_len);
 
-	CURVNET_SET(so->so_vnet);
-	error = so->so_proto->pr_sockaddr(so, &sa);
-	CURVNET_RESTORE();
+	xprt->xp_ltaddr.ss_len = sizeof(xprt->xp_ltaddr);
+	error = sosockaddr(so, (struct sockaddr *)&xprt->xp_ltaddr);
 	if (error)
 		goto cleanup_svc_vc_create;
-
-	memcpy(&xprt->xp_ltaddr, sa, sa->sa_len);
-	free(sa, M_SONAME);
 
 	xprt_register(xprt);
 

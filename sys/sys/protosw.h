@@ -72,7 +72,7 @@ typedef int	pr_control_t(struct socket *, unsigned long, void *,
 typedef void	pr_detach_t(struct socket *);
 typedef int	pr_disconnect_t(struct socket *);
 typedef int	pr_listen_t(struct socket *, int, struct thread *);
-typedef int	pr_peeraddr_t(struct socket *, struct sockaddr **);
+typedef int	pr_peeraddr_t(struct socket *, struct sockaddr *);
 typedef int	pr_rcvd_t(struct socket *, int);
 typedef int	pr_rcvoob_t(struct socket *, struct mbuf *, int);
 typedef enum {
@@ -88,7 +88,7 @@ typedef int	pr_ready_t(struct socket *, struct mbuf *, int);
 typedef int	pr_sense_t(struct socket *, struct stat *);
 typedef int	pr_shutdown_t(struct socket *);
 typedef int	pr_flush_t(struct socket *, int);
-typedef int	pr_sockaddr_t(struct socket *, struct sockaddr **);
+typedef int	pr_sockaddr_t(struct socket *, struct sockaddr *);
 typedef int	pr_sosend_t(struct socket *, struct sockaddr *, struct uio *,
 		    struct mbuf *, struct mbuf *, int, struct thread *);
 typedef int	pr_soreceive_t(struct socket *, struct sockaddr **,

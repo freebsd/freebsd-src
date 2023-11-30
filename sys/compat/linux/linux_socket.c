@@ -1106,48 +1106,50 @@ linux_accept4(struct thread *td, struct linux_accept4_args *args)
 int
 linux_getsockname(struct thread *td, struct linux_getsockname_args *args)
 {
-	struct sockaddr *sa;
-	int len, error;
+	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
+	socklen_t len;
+	int error;
 
 	error = copyin(PTRIN(args->namelen), &len, sizeof(len));
 	if (error != 0)
 		return (error);
 
-	error = kern_getsockname(td, args->s, &sa, &len);
+	error = kern_getsockname(td, args->s, (struct sockaddr *)&ss);
 	if (error != 0)
 		return (error);
 
-	if (len != 0)
-		error = linux_copyout_sockaddr(sa, PTRIN(args->addr), len);
-
-	free(sa, M_SONAME);
-	if (error == 0)
+	len = min(ss.ss_len, len);
+	error = linux_copyout_sockaddr((struct sockaddr *)&ss,
+	    PTRIN(args->addr), len);
+	if (error == 0) {
+		len = ss.ss_len;
 		error = copyout(&len, PTRIN(args->namelen), sizeof(len));
+	}
 	return (error);
 }
 
 int
 linux_getpeername(struct thread *td, struct linux_getpeername_args *args)
 {
-	struct sockaddr *sa;
-	int len, error;
+	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
+	socklen_t len;
+	int error;
 
 	error = copyin(PTRIN(args->namelen), &len, sizeof(len));
 	if (error != 0)
 		return (error);
-	if (len < 0)
-		return (EINVAL);
 
-	error = kern_getpeername(td, args->s, &sa, &len);
+	error = kern_getpeername(td, args->s, (struct sockaddr *)&ss);
 	if (error != 0)
 		return (error);
 
-	if (len != 0)
-		error = linux_copyout_sockaddr(sa, PTRIN(args->addr), len);
-
-	free(sa, M_SONAME);
-	if (error == 0)
+	len = min(ss.ss_len, len);
+	error = linux_copyout_sockaddr((struct sockaddr *)&ss,
+	    PTRIN(args->addr), len);
+	if (error == 0) {
+		len = ss.ss_len;
 		error = copyout(&len, PTRIN(args->namelen), sizeof(len));
+	}
 	return (error);
 }
 
@@ -1348,6 +1350,7 @@ static int
 linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
     l_uint flags)
 {
+	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
 	struct cmsghdr *cmsg;
 	struct mbuf *control;
 	struct msghdr msg;
@@ -1356,7 +1359,6 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	struct l_msghdr linux_msghdr;
 	struct iovec *iov;
 	socklen_t datalen;
-	struct sockaddr *sa;
 	struct socket *so;
 	sa_family_t sa_family;
 	struct file *fp;
@@ -1395,11 +1397,10 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 
 	control = NULL;
 
-	error = kern_getsockname(td, s, &sa, &datalen);
+	error = kern_getsockname(td, s, (struct sockaddr *)&ss);
 	if (error != 0)
 		goto bad;
-	sa_family = sa->sa_family;
-	free(sa, M_SONAME);
+	sa_family = ss.ss_family;
 
 	if (flags & LINUX_MSG_OOB) {
 		error = EOPNOTSUPP;

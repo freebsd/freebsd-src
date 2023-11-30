@@ -450,6 +450,8 @@ int	getsock(struct thread *td, int fd, cap_rights_t *rightsp,
 	    struct file **fpp);
 void	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr *sa);
+int	sopeeraddr(struct socket *so, struct sockaddr *sa);
+int	sosockaddr(struct socket *so, struct sockaddr *sa);
 void	soaio_enqueue(struct task *task);
 void	soaio_rcv(void *context, int pending);
 void	soaio_snd(void *context, int pending);
