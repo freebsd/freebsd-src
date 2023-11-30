@@ -2669,7 +2669,8 @@ ieee80211_dump_node(struct ieee80211_node_table *nt __unused,
 	printf("\tbssid %s essid \"%.*s\" channel %u:0x%x\n",
 		ether_sprintf(ni->ni_bssid),
 		ni->ni_esslen, ni->ni_essid,
-		ni->ni_chan->ic_freq, ni->ni_chan->ic_flags);
+		(ni->ni_chan != IEEE80211_CHAN_ANYC) ? ni->ni_chan->ic_freq : 0,
+		(ni->ni_chan != IEEE80211_CHAN_ANYC) ? ni->ni_chan->ic_flags : 0);
 	printf("\tinact %u inact_reload %u txrate %u\n",
 		ni->ni_inact, ni->ni_inact_reload, ni->ni_txrate);
 	printf("\thtcap %x htparam %x htctlchan %u ht2ndchan %u\n",
