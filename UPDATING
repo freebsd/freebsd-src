@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20231130:
+        13.2-RELEASE-p6 EN-23:16.openzfs
+
+        OpenZFS data corruption [EN-23:16.openzfs]
+
 20231108:
 	13.2-RELEASE-p5 EN-23:13.freebsd-update
 			EN-23:14.regcomp
