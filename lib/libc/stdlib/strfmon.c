@@ -156,7 +156,6 @@ vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
 		left_prec = -1;		/* no left precision specified */
 		right_prec = -1;	/* no right precision specified */
 		width = -1;		/* no width specified */
-		value = 0;		/* we have no value to print now */
 
 		/* Flags */
 		while (1) {
