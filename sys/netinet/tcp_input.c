@@ -162,7 +162,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_prr, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_prr), 1,
     "Enable Proportional Rate Reduction per RFC 6937");
 
-VNET_DEFINE(int, tcp_do_lrd) = 0;
+VNET_DEFINE(int, tcp_do_lrd) = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_lrd, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_lrd), 1,
     "Perform Lost Retransmission Detection");
