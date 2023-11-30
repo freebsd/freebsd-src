@@ -1308,7 +1308,7 @@ static int
 user_getsockname(struct thread *td, int fdes, struct sockaddr *asa,
     socklen_t *alen, bool compat)
 {
-	struct sockaddr *sa;
+	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
 	socklen_t len;
 	int error;
 
@@ -1316,30 +1316,28 @@ user_getsockname(struct thread *td, int fdes, struct sockaddr *asa,
 	if (error != 0)
 		return (error);
 
-	error = kern_getsockname(td, fdes, &sa, &len);
+	error = kern_getsockname(td, fdes, (struct sockaddr *)&ss);
 	if (error != 0)
 		return (error);
 
-	if (len != 0) {
 #ifdef COMPAT_OLDSOCK
-		if (compat && SV_PROC_FLAG(td->td_proc, SV_AOUT))
-			((struct osockaddr *)sa)->sa_family = sa->sa_family;
+	if (compat && SV_PROC_FLAG(td->td_proc, SV_AOUT))
+		((struct osockaddr *)&ss)->sa_family = ss.ss_family;
 #endif
-		error = copyout(sa, asa, len);
-	}
-	free(sa, M_SONAME);
-	if (error == 0)
+	len = min(ss.ss_len, len);
+	error = copyout(&ss, asa, len);
+	if (error == 0) {
+		len = ss.ss_len;
 		error = copyout(&len, alen, sizeof(len));
+	}
 	return (error);
 }
 
 int
-kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
-    socklen_t *alen)
+kern_getsockname(struct thread *td, int fd, struct sockaddr *sa)
 {
 	struct socket *so;
 	struct file *fp;
-	socklen_t len;
 	int error;
 
 	AUDIT_ARG_FD(fd);
@@ -1347,27 +1345,12 @@ kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
 	if (error != 0)
 		return (error);
 	so = fp->f_data;
-	*sa = NULL;
-	CURVNET_SET(so->so_vnet);
-	error = so->so_proto->pr_sockaddr(so, sa);
-	CURVNET_RESTORE();
-	if (error != 0)
-		goto bad;
-	if (*sa == NULL)
-		len = 0;
-	else
-		len = MIN(*alen, (*sa)->sa_len);
-	*alen = len;
+	error = sosockaddr(so, sa);
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_STRUCT))
-		ktrsockaddr(*sa);
+	if (error == 0 && KTRPOINT(td, KTR_STRUCT))
+		ktrsockaddr(sa);
 #endif
-bad:
 	fdrop(fp, td);
-	if (error != 0 && *sa != NULL) {
-		free(*sa, M_SONAME);
-		*sa = NULL;
-	}
 	return (error);
 }
 
@@ -1389,7 +1372,7 @@ static int
 user_getpeername(struct thread *td, int fdes, struct sockaddr *asa,
     socklen_t *alen, bool compat)
 {
-	struct sockaddr *sa;
+	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
 	socklen_t len;
 	int error;
 
@@ -1397,30 +1380,28 @@ user_getpeername(struct thread *td, int fdes, struct sockaddr *asa,
 	if (error != 0)
 		return (error);
 
-	error = kern_getpeername(td, fdes, &sa, &len);
+	error = kern_getpeername(td, fdes, (struct sockaddr *)&ss);
 	if (error != 0)
 		return (error);
 
-	if (len != 0) {
 #ifdef COMPAT_OLDSOCK
-		if (compat && SV_PROC_FLAG(td->td_proc, SV_AOUT))
-			((struct osockaddr *)sa)->sa_family = sa->sa_family;
+	if (compat && SV_PROC_FLAG(td->td_proc, SV_AOUT))
+		((struct osockaddr *)&ss)->sa_family = ss.ss_family;
 #endif
-		error = copyout(sa, asa, len);
-	}
-	free(sa, M_SONAME);
-	if (error == 0)
+	len = min(ss.ss_len, len);
+	error = copyout(&ss, asa, len);
+	if (error == 0) {
+		len = ss.ss_len;
 		error = copyout(&len, alen, sizeof(len));
+	}
 	return (error);
 }
 
 int
-kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
-    socklen_t *alen)
+kern_getpeername(struct thread *td, int fd, struct sockaddr *sa)
 {
 	struct socket *so;
 	struct file *fp;
-	socklen_t len;
 	int error;
 
 	AUDIT_ARG_FD(fd);
@@ -1432,26 +1413,11 @@ kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
 		error = ENOTCONN;
 		goto done;
 	}
-	*sa = NULL;
-	CURVNET_SET(so->so_vnet);
-	error = so->so_proto->pr_peeraddr(so, sa);
-	CURVNET_RESTORE();
-	if (error != 0)
-		goto bad;
-	if (*sa == NULL)
-		len = 0;
-	else
-		len = MIN(*alen, (*sa)->sa_len);
-	*alen = len;
+	error = sopeeraddr(so, sa);
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_STRUCT))
-		ktrsockaddr(*sa);
+	if (error == 0 && KTRPOINT(td, KTR_STRUCT))
+		ktrsockaddr(sa);
 #endif
-bad:
-	if (error != 0 && *sa != NULL) {
-		free(*sa, M_SONAME);
-		*sa = NULL;
-	}
 done:
 	fdrop(fp, td);
 	return (error);

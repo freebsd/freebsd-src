@@ -116,7 +116,7 @@ pr_listen_notsupp(struct socket *so, int backlog, struct thread *td)
 }
 
 static int
-pr_peeraddr_notsupp(struct socket *so, struct sockaddr **nam)
+pr_peeraddr_notsupp(struct socket *so, struct sockaddr *nam)
 {
 	return (EOPNOTSUPP);
 }
@@ -157,7 +157,7 @@ pr_shutdown_notsupp(struct socket *so)
 }
 
 static int
-pr_sockaddr_notsupp(struct socket *so, struct sockaddr **nam)
+pr_sockaddr_notsupp(struct socket *so, struct sockaddr *nam)
 {
 	return (EOPNOTSUPP);
 }

@@ -721,10 +721,8 @@ struct inpcb_iterator {
 struct inpcb *inp_next(struct inpcb_iterator *);
 void	in_losing(struct inpcb *);
 void	in_pcbsetsolabel(struct socket *so);
-int	in_getpeeraddr(struct socket *so, struct sockaddr **nam);
-int	in_getsockaddr(struct socket *so, struct sockaddr **nam);
-struct sockaddr *
-	in_sockaddr(in_port_t port, struct in_addr *addr);
+int	in_getpeeraddr(struct socket *, struct sockaddr *sa);
+int	in_getsockaddr(struct socket *, struct sockaddr *sa);
 void	in_pcbsosetlabel(struct socket *so);
 #ifdef RATELIMIT
 int

@@ -7367,24 +7367,20 @@ sctp_accept(struct socket *so, struct sockaddr *sa)
 
 #ifdef INET
 int
-sctp_ingetaddr(struct socket *so, struct sockaddr **addr)
+sctp_ingetaddr(struct socket *so, struct sockaddr *sa)
 {
-	struct sockaddr_in *sin;
+	struct sockaddr_in *sin = (struct sockaddr_in *)sa;
 	uint32_t vrf_id;
 	struct sctp_inpcb *inp;
 	struct sctp_ifa *sctp_ifa;
 
-	/*
-	 * Do the malloc first in case it blocks.
-	 */
-	SCTP_MALLOC_SONAME(sin, struct sockaddr_in *, sizeof *sin);
-	if (sin == NULL)
-		return (ENOMEM);
-	sin->sin_family = AF_INET;
-	sin->sin_len = sizeof(*sin);
+	*sin = (struct sockaddr_in ){
+		.sin_len = sizeof(struct sockaddr_in),
+		.sin_family = AF_INET,
+	};
+
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (!inp) {
-		SCTP_FREE_SONAME(sin);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return (ECONNRESET);
 	}
@@ -7453,39 +7449,35 @@ sctp_ingetaddr(struct socket *so, struct sockaddr **addr)
 			}
 		}
 		if (!fnd) {
-			SCTP_FREE_SONAME(sin);
 			SCTP_INP_RUNLOCK(inp);
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOENT);
 			return (ENOENT);
 		}
 	}
 	SCTP_INP_RUNLOCK(inp);
-	(*addr) = (struct sockaddr *)sin;
+
 	return (0);
 }
 
 int
-sctp_peeraddr(struct socket *so, struct sockaddr **addr)
+sctp_peeraddr(struct socket *so, struct sockaddr *sa)
 {
-	struct sockaddr_in *sin;
+	struct sockaddr_in *sin = (struct sockaddr_in *)sa;
 	int fnd;
 	struct sockaddr_in *sin_a;
 	struct sctp_inpcb *inp;
 	struct sctp_tcb *stcb;
 	struct sctp_nets *net;
 
-	/* Do the malloc first in case it blocks. */
-	SCTP_MALLOC_SONAME(sin, struct sockaddr_in *, sizeof *sin);
-	if (sin == NULL)
-		return (ENOMEM);
-	sin->sin_family = AF_INET;
-	sin->sin_len = sizeof(*sin);
+	*sin = (struct sockaddr_in ){
+		.sin_len = sizeof(struct sockaddr_in),
+		.sin_family = AF_INET,
+	};
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if ((inp == NULL) ||
 	    ((inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) == 0)) {
 		/* UDP type and listeners will drop out here */
-		SCTP_FREE_SONAME(sin);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOTCONN);
 		return (ENOTCONN);
 	}
@@ -7496,7 +7488,6 @@ sctp_peeraddr(struct socket *so, struct sockaddr **addr)
 	}
 	SCTP_INP_RUNLOCK(inp);
 	if (stcb == NULL) {
-		SCTP_FREE_SONAME(sin);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return (ECONNRESET);
 	}
@@ -7513,11 +7504,10 @@ sctp_peeraddr(struct socket *so, struct sockaddr **addr)
 	SCTP_TCB_UNLOCK(stcb);
 	if (!fnd) {
 		/* No IPv4 address */
-		SCTP_FREE_SONAME(sin);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOENT);
 		return (ENOENT);
 	}
-	(*addr) = (struct sockaddr *)sin;
+
 	return (0);
 }
 

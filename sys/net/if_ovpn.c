@@ -508,7 +508,6 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 	struct sockaddr_storage remote;
 	struct ovpn_kpeer *peer = NULL;
 	struct file *fp = NULL;
-	struct sockaddr *name = NULL;
 	struct ovpn_softc *sc = ifp->if_softc;
 	struct thread *td = curthread;
 	struct socket *so = NULL;
@@ -574,23 +573,21 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 	callout_init_rm(&peer->ping_send, &sc->lock, CALLOUT_SHAREDLOCK);
 	callout_init_rm(&peer->ping_rcv, &sc->lock, 0);
 
-	ret = so->so_proto->pr_sockaddr(so, &name);
+	peer->local.ss_len = sizeof(peer->local);
+	ret = sosockaddr(so, (struct sockaddr *)&peer->local);
 	if (ret)
 		goto error;
 
-	if (ovpn_get_port((struct sockaddr_storage *)name) == 0) {
+	if (ovpn_get_port(&peer->local) == 0) {
 		ret = EINVAL;
 		goto error;
 	}
-	if (name->sa_family != remote.ss_family) {
+	if (peer->local.ss_family != remote.ss_family) {
 		ret = EINVAL;
 		goto error;
 	}
 
-	memcpy(&peer->local, name, name->sa_len);
 	memcpy(&peer->remote, &remote, sizeof(remote));
-	free(name, M_SONAME);
-	name = NULL;
 
 	if (peer->local.ss_family == AF_INET6 &&
 	    IN6_IS_ADDR_V4MAPPED(&TO_IN6(&peer->remote)->sin6_addr)) {
@@ -656,7 +653,6 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 error_locked:
 	OVPN_WUNLOCK(sc);
 error:
-	free(name, M_SONAME);
 	COUNTER_ARRAY_FREE(peer->counters, OVPN_PEER_COUNTER_SIZE);
 	uma_zfree_pcpu(pcpu_zone_4, peer->last_active);
 	free(peer, M_OVPN);

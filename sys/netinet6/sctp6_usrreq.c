@@ -880,27 +880,21 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 }
 
 static int
-sctp6_getaddr(struct socket *so, struct sockaddr **addr)
+sctp6_getaddr(struct socket *so, struct sockaddr *sa)
 {
-	struct sockaddr_in6 *sin6;
+	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
 	struct sctp_inpcb *inp;
 	uint32_t vrf_id;
 	struct sctp_ifa *sctp_ifa;
-
 	int error;
 
-	/*
-	 * Do the malloc first in case it blocks.
-	 */
-	SCTP_MALLOC_SONAME(sin6, struct sockaddr_in6 *, sizeof(*sin6));
-	if (sin6 == NULL)
-		return (ENOMEM);
-	sin6->sin6_family = AF_INET6;
-	sin6->sin6_len = sizeof(*sin6);
+	*sin6 = (struct sockaddr_in6 ){
+		.sin6_len = sizeof(struct sockaddr_in6),
+		.sin6_family = AF_INET6,
+	};
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (inp == NULL) {
-		SCTP_FREE_SONAME(sin6);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ECONNRESET);
 		return (ECONNRESET);
 	}
@@ -917,7 +911,6 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 			stcb = LIST_FIRST(&inp->sctp_asoc_list);
 			if (stcb == NULL) {
 				SCTP_INP_RUNLOCK(inp);
-				SCTP_FREE_SONAME(sin6);
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ENOENT);
 				return (ENOENT);
 			}
@@ -937,7 +930,6 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 			if ((!fnd) || (sin_a6 == NULL)) {
 				/* punt */
 				SCTP_INP_RUNLOCK(inp);
-				SCTP_FREE_SONAME(sin6);
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ENOENT);
 				return (ENOENT);
 			}
@@ -966,7 +958,6 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 			}
 		}
 		if (!fnd) {
-			SCTP_FREE_SONAME(sin6);
 			SCTP_INP_RUNLOCK(inp);
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ENOENT);
 			return (ENOENT);
@@ -975,17 +966,16 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 	SCTP_INP_RUNLOCK(inp);
 	/* Scoping things for v6 */
 	if ((error = sa6_recoverscope(sin6)) != 0) {
-		SCTP_FREE_SONAME(sin6);
 		return (error);
 	}
-	(*addr) = (struct sockaddr *)sin6;
+
 	return (0);
 }
 
 static int
-sctp6_peeraddr(struct socket *so, struct sockaddr **addr)
+sctp6_peeraddr(struct socket *so, struct sockaddr *sa)
 {
-	struct sockaddr_in6 *sin6;
+	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
 	int fnd;
 	struct sockaddr_in6 *sin_a6;
 	struct sctp_inpcb *inp;
@@ -993,18 +983,15 @@ sctp6_peeraddr(struct socket *so, struct sockaddr **addr)
 	struct sctp_nets *net;
 	int error;
 
-	/* Do the malloc first in case it blocks. */
-	SCTP_MALLOC_SONAME(sin6, struct sockaddr_in6 *, sizeof *sin6);
-	if (sin6 == NULL)
-		return (ENOMEM);
-	sin6->sin6_family = AF_INET6;
-	sin6->sin6_len = sizeof(*sin6);
+	*sin6 = (struct sockaddr_in6 ){
+		.sin6_len = sizeof(struct sockaddr_in6),
+		.sin6_family = AF_INET6,
+	};
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if ((inp == NULL) ||
 	    ((inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) == 0)) {
 		/* UDP type and listeners will drop out here */
-		SCTP_FREE_SONAME(sin6);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ENOTCONN);
 		return (ENOTCONN);
 	}
@@ -1015,7 +1002,6 @@ sctp6_peeraddr(struct socket *so, struct sockaddr **addr)
 	}
 	SCTP_INP_RUNLOCK(inp);
 	if (stcb == NULL) {
-		SCTP_FREE_SONAME(sin6);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ECONNRESET);
 		return (ECONNRESET);
 	}
@@ -1032,21 +1018,19 @@ sctp6_peeraddr(struct socket *so, struct sockaddr **addr)
 	SCTP_TCB_UNLOCK(stcb);
 	if (!fnd) {
 		/* No IPv4 address */
-		SCTP_FREE_SONAME(sin6);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ENOENT);
 		return (ENOENT);
 	}
 	if ((error = sa6_recoverscope(sin6)) != 0) {
-		SCTP_FREE_SONAME(sin6);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, error);
 		return (error);
 	}
-	*addr = (struct sockaddr *)sin6;
+
 	return (0);
 }
 
 static int
-sctp6_in6getaddr(struct socket *so, struct sockaddr **nam)
+sctp6_in6getaddr(struct socket *so, struct sockaddr *sa)
 {
 	struct inpcb *inp = sotoinpcb(so);
 	int error;
@@ -1057,31 +1041,23 @@ sctp6_in6getaddr(struct socket *so, struct sockaddr **nam)
 	}
 
 	/* allow v6 addresses precedence */
-	error = sctp6_getaddr(so, nam);
+	error = sctp6_getaddr(so, sa);
 #ifdef INET
 	if (error) {
-		struct sockaddr_in6 *sin6;
+		struct sockaddr_in sin;
 
 		/* try v4 next if v6 failed */
-		error = sctp_ingetaddr(so, nam);
-		if (error) {
+		error = sctp_ingetaddr(so, (struct sockaddr *)&sin);
+		if (error)
 			return (error);
-		}
-		SCTP_MALLOC_SONAME(sin6, struct sockaddr_in6 *, sizeof *sin6);
-		if (sin6 == NULL) {
-			SCTP_FREE_SONAME(*nam);
-			return (ENOMEM);
-		}
-		in6_sin_2_v4mapsin6((struct sockaddr_in *)*nam, sin6);
-		SCTP_FREE_SONAME(*nam);
-		*nam = (struct sockaddr *)sin6;
+		in6_sin_2_v4mapsin6(&sin, (struct sockaddr_in6 *)sa);
 	}
 #endif
 	return (error);
 }
 
 static int
-sctp6_getpeeraddr(struct socket *so, struct sockaddr **nam)
+sctp6_getpeeraddr(struct socket *so, struct sockaddr *sa)
 {
 	struct inpcb *inp = sotoinpcb(so);
 	int error;
@@ -1092,24 +1068,16 @@ sctp6_getpeeraddr(struct socket *so, struct sockaddr **nam)
 	}
 
 	/* allow v6 addresses precedence */
-	error = sctp6_peeraddr(so, nam);
+	error = sctp6_peeraddr(so, sa);
 #ifdef INET
 	if (error) {
-		struct sockaddr_in6 *sin6;
+		struct sockaddr_in sin;
 
 		/* try v4 next if v6 failed */
-		error = sctp_peeraddr(so, nam);
-		if (error) {
+		error = sctp_peeraddr(so, (struct sockaddr *)&sin);
+		if (error)
 			return (error);
-		}
-		SCTP_MALLOC_SONAME(sin6, struct sockaddr_in6 *, sizeof *sin6);
-		if (sin6 == NULL) {
-			SCTP_FREE_SONAME(*nam);
-			return (ENOMEM);
-		}
-		in6_sin_2_v4mapsin6((struct sockaddr_in *)*nam, sin6);
-		SCTP_FREE_SONAME(*nam);
-		*nam = (struct sockaddr *)sin6;
+		in6_sin_2_v4mapsin6(&sin, (struct sockaddr_in6 *)sa);
 	}
 #endif
 	return (error);
