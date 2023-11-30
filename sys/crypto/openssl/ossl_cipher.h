@@ -28,6 +28,9 @@
 #ifndef __OSSL_CIPHER_H__
 #define __OSSL_CIPHER_H__
 
+#include <sys/types.h>
+#include <crypto/rijndael/rijndael.h>
+
 struct ossl_session_cipher;
 struct cryptop;
 struct crypto_session_params;
@@ -48,6 +51,11 @@ struct ossl_cipher {
 	ossl_cipher_setkey_t	*set_encrypt_key;
 	ossl_cipher_setkey_t	*set_decrypt_key;
 	ossl_cipher_process_t	*process;
+};
+
+struct ossl_aes_keysched {
+	uint32_t ks[4 * (RIJNDAEL_MAXNR + 1)];
+	int rounds;
 };
 
 #endif

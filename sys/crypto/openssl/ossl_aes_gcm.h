@@ -28,7 +28,6 @@
 #define	_OSSL_AES_GCM_H_
 
 #include <crypto/openssl/ossl_cipher.h>
-#include <crypto/rijndael/rijndael.h>
 
 struct ossl_gcm_context;
 
@@ -64,10 +63,7 @@ struct ossl_gcm_context {
 		unsigned int mres, ares;
 	} gcm;
 
-	struct {
-		uint32_t ks[4 * (RIJNDAEL_MAXNR + 1)];
-		int rounds;
-	} aes_ks;
+	struct ossl_aes_keysched aes_ks;
 
 	const struct ossl_aes_gcm_ops *ops;
 };
