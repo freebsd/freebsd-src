@@ -619,6 +619,10 @@ struct athn_softc {
 #endif
 };
 
+#define	ATHN_LOCK(sc)			mtx_lock(&(sc)->sc_mtx)
+#define	ATHN_UNLOCK(sc)			mtx_unlock(&(sc)->sc_mtx)
+#define	ATHN_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)
+
 extern int	athn_attach(struct athn_softc *);
 extern void	athn_detach(struct athn_softc *);
 extern void	athn_suspend(struct athn_softc *);
