@@ -227,6 +227,7 @@ local compat_option_sets = {
 		{ stdcompat = "FREEBSD11" },
 		{ stdcompat = "FREEBSD12" },
 		{ stdcompat = "FREEBSD13" },
+		{ stdcompat = "FREEBSD14" },
 	},
 }
 
