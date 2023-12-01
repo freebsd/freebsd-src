@@ -187,24 +187,6 @@ sdp_pcbfree(struct sdp_sock *ssk)
 	uma_zfree(sdp_zone, ssk);
 }
 
-/*
- * Common routines to return a socket address.
- */
-static struct sockaddr *
-sdp_sockaddr(in_port_t port, struct in_addr *addr_p)
-{
-	struct sockaddr_in *sin;
-
-	sin = malloc(sizeof *sin, M_SONAME,
-		M_WAITOK | M_ZERO);
-	sin->sin_family = AF_INET;
-	sin->sin_len = sizeof(*sin);
-	sin->sin_addr = *addr_p;
-	sin->sin_port = port;
-
-	return (struct sockaddr *)sin;
-}
-
 static int
 sdp_getsockaddr(struct socket *so, struct sockaddr *sa)
 {
