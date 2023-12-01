@@ -43,63 +43,114 @@
 
 bool byte_sort;
 
-static wchar_t **wmonths;
-static char **cmonths;
+struct wmonth {
+	wchar_t *mon;
+	wchar_t *ab;
+	wchar_t *alt;
+};
 
-/* initialise months */
+struct cmonth {
+	char *mon;
+	char *ab;
+	char *alt;
+};
+
+static struct wmonth *wmonths;
+static struct cmonth *cmonths;
+
+static int
+populate_cmonth(char **field, const nl_item item, int idx)
+{
+	char *tmp, *m;
+	size_t i, len;
+
+	tmp = nl_langinfo(item);
+	if (debug_sort)
+		printf("month[%d]=%s\n", idx, tmp);
+	if (*tmp == '\0')
+		return (0);
+	m = sort_strdup(tmp);
+	len = strlen(tmp);
+	for (i = 0; i < len; i++)
+		m[i] = toupper(m[i]);
+	*field = m;
+
+	return (1);
+}
+
+static int
+populate_wmonth(wchar_t **field, const nl_item item, int idx)
+{
+	wchar_t *m;
+	char *tmp;
+	size_t i, len;
+
+	tmp = nl_langinfo(item);
+	if (debug_sort)
+		printf("month[%d]=%s\n", idx, tmp);
+	if (*tmp == '\0')
+		return (0);
+	len = strlen(tmp);
+	m = sort_malloc(SIZEOF_WCHAR_STRING(len + 1));
+	if (mbstowcs(m, tmp, len) == ((size_t) - 1)) {
+		sort_free(m);
+		return (0);
+	}
+	m[len] = L'\0';
+	for (i = 0; i < len; i++)
+		m[i] = towupper(m[i]);
+	*field = m;
+
+	return (1);
+}
 
 void
 initialise_months(void)
 {
-	const nl_item item[12] = { ABMON_1, ABMON_2, ABMON_3, ABMON_4,
+	const nl_item mon_item[12] = { MON_1, MON_2, MON_3, MON_4,
+	    MON_5, MON_6, MON_7, MON_8, MON_9, MON_10,
+	    MON_11, MON_12 };
+	const nl_item ab_item[12] = { ABMON_1, ABMON_2, ABMON_3, ABMON_4,
 	    ABMON_5, ABMON_6, ABMON_7, ABMON_8, ABMON_9, ABMON_10,
 	    ABMON_11, ABMON_12 };
-	char *tmp;
-	size_t len;
+	const nl_item alt_item[12] = { ALTMON_1, ALTMON_2, ALTMON_3, ALTMON_4,
+	    ALTMON_5, ALTMON_6, ALTMON_7, ALTMON_8, ALTMON_9, ALTMON_10,
+	    ALTMON_11, ALTMON_12 };
+	int i;
 
+	/*
+	 * Handle all possible month formats: abbrevation, full name,
+	 * standalone name (without case ending).
+	 */
 	if (mb_cur_max == 1) {
 		if (cmonths == NULL) {
-			char *m;
-
-			cmonths = sort_malloc(sizeof(char*) * 12);
-			for (int i = 0; i < 12; i++) {
-				cmonths[i] = NULL;
-				tmp = nl_langinfo(item[i]);
-				if (debug_sort)
-					printf("month[%d]=%s\n", i, tmp);
-				if (*tmp == '\0')
+			cmonths = sort_malloc(sizeof(struct cmonth) * 12);
+			for (i = 0; i < 12; i++) {
+				if (!populate_cmonth(&cmonths[i].mon,
+				    mon_item[i], i))
 					continue;
-				m = sort_strdup(tmp);
-				len = strlen(tmp);
-				for (unsigned int j = 0; j < len; j++)
-					m[j] = toupper(m[j]);
-				cmonths[i] = m;
+				if (!populate_cmonth(&cmonths[i].ab,
+				    ab_item[i], i))
+					continue;
+				if (!populate_cmonth(&cmonths[i].alt,
+				    alt_item[i], i))
+					continue;
 			}
 		}
 
 	} else {
 		if (wmonths == NULL) {
-			wchar_t *m;
-
-			wmonths = sort_malloc(sizeof(wchar_t *) * 12);
-			for (int i = 0; i < 12; i++) {
-				wmonths[i] = NULL;
-				tmp = nl_langinfo(item[i]);
-				if (debug_sort)
-					printf("month[%d]=%s\n", i, tmp);
-				if (*tmp == '\0')
+			wmonths = sort_malloc(sizeof(struct wmonth) * 12);
+			for (i = 0; i < 12; i++) {
+				if (!populate_wmonth(&wmonths[i].mon,
+				    mon_item[i], i))
 					continue;
-				len = strlen(tmp);
-				m = sort_malloc(SIZEOF_WCHAR_STRING(len + 1));
-				if (mbstowcs(m, tmp, len) ==
-				    ((size_t) - 1)) {
-					sort_free(m);
+				if (!populate_wmonth(&wmonths[i].ab,
+				    ab_item[i], i))
 					continue;
-				}
-				m[len] = L'\0';
-				for (unsigned int j = 0; j < len; j++)
-					m[j] = towupper(m[j]);
-				wmonths[i] = m;
+				if (!populate_wmonth(&wmonths[i].alt,
+				    alt_item[i], i))
+					continue;
 			}
 		}
 	}
@@ -754,8 +805,11 @@ bws_month_score(const struct bwstring *s0)
 			++s;
 
 		for (int i = 11; i >= 0; --i) {
-			if (cmonths[i] &&
-			    (s == strstr(s, cmonths[i])))
+			if (cmonths[i].mon && (s == strstr(s, cmonths[i].mon)))
+				return (i);
+			if (cmonths[i].ab && (s == strstr(s, cmonths[i].ab)))
+				return (i);
+			if (cmonths[i].alt && (s == strstr(s, cmonths[i].alt)))
 				return (i);
 		}
 
@@ -769,7 +823,11 @@ bws_month_score(const struct bwstring *s0)
 			++s;
 
 		for (int i = 11; i >= 0; --i) {
-			if (wmonths[i] && (s == wcsstr(s, wmonths[i])))
+			if (wmonths[i].ab && (s == wcsstr(s, wmonths[i].ab)))
+				return (i);
+			if (wmonths[i].mon && (s == wcsstr(s, wmonths[i].mon)))
+				return (i);
+			if (wmonths[i].alt && (s == wcsstr(s, wmonths[i].alt)))
 				return (i);
 		}
 	}
