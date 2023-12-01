@@ -88,6 +88,15 @@ pflog_init()
 	fi
 }
 
+pflow_init()
+{
+	pft_init
+
+	if ! kldstat -q -m pflow; then
+		atf_skip "This test requires pflow"
+	fi
+}
+
 dummynet_init()
 {
 	pft_init
