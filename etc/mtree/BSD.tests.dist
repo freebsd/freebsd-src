@@ -436,6 +436,8 @@
         rc
         ..
         rtld-elf
+            rtld_deepbind
+            ..
         ..
         tftpd
         ..

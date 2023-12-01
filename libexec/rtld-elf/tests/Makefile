@@ -1,6 +1,9 @@
 
-SUBDIR+=	libpythagoras target
+SUBDIR+=	libpythagoras libdeep libval libval2 target
+TESTS_SUBDIRS+=	rtld_deepbind
 
+SUBDIR_DEPEND_libdeep=	libval2
+SUBDIR_DEPEND_rtld_deepbind=	libval
 SUBDIR_DEPEND_target=	libpythagoras
 
 ATF_TESTS_C=	ld_library_pathfds
