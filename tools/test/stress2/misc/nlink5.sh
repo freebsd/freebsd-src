@@ -35,7 +35,7 @@
 
 UFS_LINK_MAX=`grep UFS_LINK_MAX /usr/include/ufs/ufs/dinode.h 2>/dev/null`
 [ -z "$UFS_LINK_MAX" ] && exit 0
-UFS_LINK_MAX=`echo $UFS_LINK_MAX | awk '{print $NF}'`
+UFS_LINK_MAX=`echo $UFS_LINK_MAX | awk '{print $3}'`
 cat > /tmp/nlink5.c <<EOF
 #include <sys/stat.h>
 #include <ufs/ufs/dinode.h>
