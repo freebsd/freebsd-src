@@ -3,12 +3,22 @@
 
 PACKAGE=runtime
 PROG=	camcontrol
-SRCS=	camcontrol.c util.c
-SRCS+=	attrib.c depop.c epc.c fwdownload.c modeedit.c persist.c progress.c timestamp.c zone.c
+SRCS=	camcontrol.c
+SRCS+=	attrib.c
+SRCS+=	depop.c
+SRCS+=	epc.c
+SRCS+=	fwdownload.c
+SRCS+=	modeedit.c
+SRCS+=	persist.c
+SRCS+=	progress.c
+SRCS+=	timestamp.c
+SRCS+=	util.c
+SRCS+=	zone.c
 .if ${MK_NVME} != "no"
 .PATH:	${SRCTOP}/sbin/nvmecontrol
 CFLAGS+= -I${SRCTOP}/sbin/nvmecontrol -DWITH_NVME
-SRCS+=	identify_ext.c nc_util.c
+SRCS+=	identify_ext.c
+SRCS+=	nc_util.c
 .PATH:	${SRCTOP}/sys/dev/nvme
 SRCS+=	nvme_util.c
 .endif
