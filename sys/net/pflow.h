@@ -326,7 +326,6 @@ enum pflow_set_type_t {
 };
 
 #ifdef _KERNEL
-int export_pflow(struct pf_kstate *);
 int pflow_sysctl(int *, u_int,  void *, size_t *, void *, size_t);
 #endif /* _KERNEL */
 

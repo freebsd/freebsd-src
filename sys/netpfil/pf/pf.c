@@ -1397,6 +1397,9 @@ pf_detach_state(struct pf_kstate *s)
 
 	pf_sctp_multihome_detach_addr(s);
 
+	if ((s->state_flags & PFSTATE_PFLOW) && V_pflow_export_state_ptr)
+		V_pflow_export_state_ptr(s);
+
 	if (sks != NULL) {
 		kh = &V_pf_keyhash[pf_hashkey(sks)];
 		PF_HASHROW_LOCK(kh);
@@ -4872,6 +4875,8 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		s->state_flags |= PFSTATE_SLOPPY;
 	if (pd->flags & PFDESC_TCP_NORM) /* Set by old-style scrub rules */
 		s->state_flags |= PFSTATE_SCRUB_TCP;
+	if (r->rule_flag & PFRULE_PFLOW)
+		s->state_flags |= PFSTATE_PFLOW;
 
 	s->act.log = pd->act.log & PF_LOG_ALL;
 	s->sync_state = PFSYNC_S_NONE;

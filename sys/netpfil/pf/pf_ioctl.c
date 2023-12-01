@@ -304,6 +304,7 @@ VNET_DEFINE(pfsync_update_state_t *, pfsync_update_state_ptr);
 VNET_DEFINE(pfsync_delete_state_t *, pfsync_delete_state_ptr);
 VNET_DEFINE(pfsync_clear_states_t *, pfsync_clear_states_ptr);
 VNET_DEFINE(pfsync_defer_t *, pfsync_defer_ptr);
+VNET_DEFINE(pflow_export_state_t *, pflow_export_state_ptr);
 pfsync_detach_ifnet_t *pfsync_detach_ifnet_ptr;
 
 /* pflog */
