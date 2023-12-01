@@ -154,8 +154,8 @@ static struct task	unp_defer_task;
 #endif
 static u_long	unpst_sendspace = PIPSIZ;
 static u_long	unpst_recvspace = PIPSIZ;
-static u_long	unpdg_maxdgram = 2*1024;
-static u_long	unpdg_recvspace = 16*1024;	/* support 8KB syslog msgs */
+static u_long	unpdg_maxdgram = 8*1024;	/* support 8KB syslog msgs */
+static u_long	unpdg_recvspace = 16*1024;
 static u_long	unpsp_sendspace = PIPSIZ;	/* really max datagram size */
 static u_long	unpsp_recvspace = PIPSIZ;
 
