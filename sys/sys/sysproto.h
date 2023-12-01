@@ -2767,6 +2767,12 @@ int	freebsd13_swapoff(struct thread *, struct freebsd13_swapoff_args *);
 
 #endif /* COMPAT_FREEBSD13 */
 
+
+#ifdef COMPAT_FREEBSD14
+
+
+#endif /* COMPAT_FREEBSD14 */
+
 #define	SYS_AUE_exit	AUE_EXIT
 #define	SYS_AUE_fork	AUE_FORK
 #define	SYS_AUE_read	AUE_READ
