@@ -59,10 +59,10 @@ random_rndr_read_one(u_long *buf)
 	loop = 10;
 	do {
 		__asm __volatile(
-		    ".arch_extension rng   \n"
-		    "mrs	%0, rndrrs \n" /* Read the random number */
-		    "cset	%w1, ne    \n" /* 1 on success, 0 on failure */
-		    ".arch_extension norng \n"
+		    /* Read the random number */
+		    "mrs	%0, " __XSTRING(RNDRRS_REG) "\n"
+		    /* 1 on success, 0 on failure */
+		    "cset	%w1, ne\n"
 		    : "=&r" (val), "=&r"(ret) :: "cc");
 	} while (ret != 0 && --loop > 0);
 
