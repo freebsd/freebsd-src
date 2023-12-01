@@ -502,8 +502,10 @@ _slirp_init(struct net_backend *be, const char *devname __unused,
 			goto err;
 		while ((rule = strsep(&rules, ";")) != NULL) {
 			error = config_one_hostfwd(priv, rule);
-			if (error != 0)
+			if (error != 0) {
+				free(tofree);
 				goto err;
+			}
 		}
 		free(tofree);
 	}
