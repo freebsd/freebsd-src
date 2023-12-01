@@ -37,6 +37,7 @@
 
 #ifndef _KERNEL
 #include <stdbool.h>
+#include <stdio.h>
 #endif
 
 typedef u_int path_id_t;
