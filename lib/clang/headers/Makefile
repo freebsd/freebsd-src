@@ -138,6 +138,7 @@ INCS+=		tsxldtrkintrin.h
 INCS+=		uintrintrin.h
 INCS+=		vadefs.h
 INCS+=		vaesintrin.h
+INCS+=		varargs.h
 INCS+=		vecintrin.h
 INCS+=		velintrin.h
 INCS+=		velintrin_approx.h
@@ -174,7 +175,6 @@ INCS+=		stdint.h
 INCS+=		stdnoreturn.h
 INCS+=		tgmath.h
 INCS+=		unwind.h
-INCS+=		varargs.h
 .endif # INSTALL_CONFLICTING_CLANG_HEADERS
 
 CUDA+=		cuda_wrappers/algorithm
