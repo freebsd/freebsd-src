@@ -25,6 +25,7 @@ ATF_TESTS_SH+=	altq \
 		nat \
 		pass_block \
 		pflog \
+		pflow \
 		pfsync	\
 		prio \
 		proxy \
