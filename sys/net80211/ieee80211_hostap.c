@@ -2124,12 +2124,12 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		/* Validate VHT IEs */
 		if (vhtcap != NULL) {
 			IEEE80211_VERIFY_LENGTH(vhtcap[1],
-			    sizeof(struct ieee80211_ie_vhtcap) - 2,
+			    sizeof(struct ieee80211_vht_cap),
 			    return);
 		}
 		if (vhtinfo != NULL) {
 			IEEE80211_VERIFY_LENGTH(vhtinfo[1],
-			    sizeof(struct ieee80211_ie_vht_operation) - 2,
+			    sizeof(struct ieee80211_vht_operation),
 			    return);
 		}
 

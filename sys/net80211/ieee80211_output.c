@@ -2455,7 +2455,7 @@ ieee80211_probereq_ie_len(struct ieee80211vap *vap, struct ieee80211com *ic)
 	                sizeof(struct ieee80211_ie_htcap) : 0)
 #ifdef notyet
 	       + sizeof(struct ieee80211_ie_htinfo)	/* XXX not needed? */
-	       + sizeof(struct ieee80211_ie_vhtcap)
+	       + 2 + sizeof(struct ieee80211_vht_cap)
 #endif
 	       + ((vap->iv_flags & IEEE80211_F_WPA1 && vap->iv_wpa_ie != NULL) ?
 	           vap->iv_wpa_ie[1] : 0)
@@ -2820,7 +2820,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		       + 2 + 26
 		       + sizeof(struct ieee80211_wme_info)
 		       + sizeof(struct ieee80211_ie_htcap)
-		       + sizeof(struct ieee80211_ie_vhtcap)
+		       + 2 + sizeof(struct ieee80211_vht_cap)
 		       + 4 + sizeof(struct ieee80211_ie_htcap)
 #ifdef IEEE80211_SUPPORT_SUPERG
 		       + sizeof(struct ieee80211_ath_ie)
@@ -2953,8 +2953,8 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		       + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE)
 		       + sizeof(struct ieee80211_ie_htcap) + 4
 		       + sizeof(struct ieee80211_ie_htinfo) + 4
-		       + sizeof(struct ieee80211_ie_vhtcap)
-		       + sizeof(struct ieee80211_ie_vht_operation)
+		       + 2 + sizeof(struct ieee80211_vht_cap)
+		       + 2 + sizeof(struct ieee80211_vht_operation)
 		       + sizeof(struct ieee80211_wme_param)
 #ifdef IEEE80211_SUPPORT_SUPERG
 		       + sizeof(struct ieee80211_ath_ie)
@@ -3112,8 +3112,8 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	       + sizeof(struct ieee80211_wme_param)
 	       + 4 + sizeof(struct ieee80211_ie_htcap)
 	       + 4 + sizeof(struct ieee80211_ie_htinfo)
-	       +  sizeof(struct ieee80211_ie_vhtcap)
-	       +  sizeof(struct ieee80211_ie_vht_operation)
+	       + 2 + sizeof(struct ieee80211_vht_cap)
+	       + 2 + sizeof(struct ieee80211_vht_operation)
 #ifdef IEEE80211_SUPPORT_SUPERG
 	       + sizeof(struct ieee80211_ath_ie)
 #endif
@@ -3727,8 +3727,8 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni)
 		 /* XXX conditional? */
 		 + 4+2*sizeof(struct ieee80211_ie_htcap)/* HT caps */
 		 + 4+2*sizeof(struct ieee80211_ie_htinfo)/* HT info */
-		 + sizeof(struct ieee80211_ie_vhtcap)/* VHT caps */
-		 + sizeof(struct ieee80211_ie_vht_operation)/* VHT info */
+		 + 2 + sizeof(struct ieee80211_vht_cap)/* VHT caps */
+		 + 2 + sizeof(struct ieee80211_vht_operation)/* VHT info */
 		 + (vap->iv_caps & IEEE80211_C_WME ?	/* WME */
 			sizeof(struct ieee80211_wme_param) : 0)
 #ifdef IEEE80211_SUPPORT_SUPERG

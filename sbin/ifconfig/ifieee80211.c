@@ -70,6 +70,7 @@
 #include <net/if_media.h>
 #include <net/route.h>
 
+#define WANT_NET80211	1
 #include <net80211/ieee80211_ioctl.h>
 #include <net80211/ieee80211_freebsd.h>
 #include <net80211/ieee80211_superg.h>
@@ -2780,10 +2781,18 @@ printvhtcap(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 {
 	printf("%s", tag);
 	if (verbose) {
-		const struct ieee80211_ie_vhtcap *vhtcap =
-		    (const struct ieee80211_ie_vhtcap *) ie;
-		uint32_t vhtcap_info = LE_READ_4(&vhtcap->vht_cap_info);
+		const struct ieee80211_vht_cap *vhtcap;
+		uint32_t vhtcap_info;
 
+		/* Check that the the right size. */
+		if (ie[1] != sizeof(*vhtcap)) {
+			printf("<err: vht_cap inval. length>");
+			return;
+		}
+		/* Skip Element ID and Length. */
+		vhtcap = (const struct ieee80211_vht_cap *)(ie + 2);
+
+		vhtcap_info = LE_READ_4(&vhtcap->vht_cap_info);
 		printf("<cap 0x%08x", vhtcap_info);
 		printf(" rx_mcs_map 0x%x",
 		    LE_READ_2(&vhtcap->supp_mcs.rx_mcs_map));
@@ -2803,13 +2812,20 @@ printvhtinfo(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 {
 	printf("%s", tag);
 	if (verbose) {
-		const struct ieee80211_ie_vht_operation *vhtinfo =
-		    (const struct ieee80211_ie_vht_operation *) ie;
+		const struct ieee80211_vht_operation *vhtinfo;
 
-		printf("<chw %d freq1_idx %d freq2_idx %d basic_mcs_set 0x%04x>",
+		/* Check that the the right size. */
+		if (ie[1] != sizeof(*vhtinfo)) {
+			printf("<err: vht_operation inval. length>");
+			return;
+		}
+		/* Skip Element ID and Length. */
+		vhtinfo = (const struct ieee80211_vht_operation *)(ie + 2);
+
+		printf("<chw %d freq0_idx %d freq1_idx %d basic_mcs_set 0x%04x>",
 		    vhtinfo->chan_width,
-		    vhtinfo->center_freq_seg1_idx,
-		    vhtinfo->center_freq_seg2_idx,
+		    vhtinfo->center_freq_seq0_idx,
+		    vhtinfo->center_freq_seq1_idx,
 		    LE_READ_2(&vhtinfo->basic_mcs_set));
 	}
 }
