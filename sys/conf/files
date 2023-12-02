@@ -3480,7 +3480,7 @@ dev/xen/bus/xen_intr.c		optional xenhvm
 dev/xen/bus/xenpv.c		optional xenhvm
 dev/xen/console/xen_console.c	optional xenhvm
 dev/xen/control/control.c	optional xenhvm
-dev/xen/cpu/xen_acpi_cpu.c	optional xenhvm
+dev/xen/cpu/xen_acpi_cpu.c	optional xenhvm acpi
 dev/xen/efi/pvefi.c		optional xenhvm xenefi efirt
 dev/xen/grant_table/grant_table.c	optional xenhvm
 dev/xen/netback/netback.c	optional xenhvm
