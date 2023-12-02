@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 26, 2020
+.Dd December 2, 2023
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -124,33 +124,6 @@ The following bridge device drivers are available:
 .Pp
 Refer to the manual page for each bridge device driver for driver specific
 settings and information.
-.Ss Legacy Hardware
-For old legacy
-.Tn ISA
-cards, the driver looks for
-.Tn MSS
-cards at addresses
-.Dv 0x530
-and
-.Dv 0x604 .
-These values can be overridden in
-.Pa /boot/device.hints .
-Non-PnP sound cards require the following lines in
-.Xr device.hints 5 :
-.Bd -literal -offset indent
-hint.pcm.0.at="isa"
-hint.pcm.0.irq="5"
-hint.pcm.0.drq="1"
-hint.pcm.0.flags="0x0"
-.Ed
-.Pp
-Apart from the usual parameters, the flags field is used to specify
-the secondary
-.Tn DMA
-channel (generally used for capture in full duplex cards).
-Flags are set to 0 for cards not using a secondary
-.Tn DMA
-channel, or to 0x10 + C to specify channel C.
 .Ss Boot Variables
 In general, the module
 .Pa snd_foo
