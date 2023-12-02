@@ -869,29 +869,25 @@ struct ieee80211_vht_cap {
 	struct ieee80211_vht_mcs_info	supp_mcs;
 } __packed;
 
-/* VHT capabilities element: 802.11ac-2013 8.4.2.160 */
-struct ieee80211_ie_vhtcap {
-	uint8_t ie;
-	uint8_t len;
-	uint32_t vht_cap_info;
-	struct ieee80211_vht_mcs_info supp_mcs;
-} __packed;
+/* 802.11ac-2013, Table 8-183x-VHT Operation Information subfields */
+enum ieee80211_vht_chanwidth {
+	IEEE80211_VHT_CHANWIDTH_USE_HT		= 0,	/* 20 MHz or 40 MHz */
+	IEEE80211_VHT_CHANWIDTH_80MHZ		= 1,	/* 80MHz */
+	IEEE80211_VHT_CHANWIDTH_160MHZ		= 2,	/* 160MHz */
+	IEEE80211_VHT_CHANWIDTH_80P80MHZ	= 3,	/* 80+80MHz */
+	/* 4..255 reserved. */
+};
 
-/* VHT operation mode subfields - 802.11ac-2013 Table 8.183x */
-#define	IEEE80211_VHT_CHANWIDTH_USE_HT		0	/* Use HT IE for chw */
-#define	IEEE80211_VHT_CHANWIDTH_80MHZ		1	/* 80MHz */
-#define	IEEE80211_VHT_CHANWIDTH_160MHZ		2	/* 160MHz */
-#define	IEEE80211_VHT_CHANWIDTH_80P80MHZ	3	/* 80+80MHz */
-
-/* VHT operation IE - 802.11ac-2013 8.4.2.161 */
-struct ieee80211_ie_vht_operation {
-	uint8_t ie;
-	uint8_t len;
-	uint8_t chan_width;
-	uint8_t center_freq_seg1_idx;
-	uint8_t center_freq_seg2_idx;
-	uint16_t basic_mcs_set;
+/* The name conflicts with the same structure in wpa.  Only ifconfig needs this. */
+#if defined(_KERNEL) || defined(WANT_NET80211)
+/* 802.11ac-2013 8.4.2.161 VHT Operation element */
+struct ieee80211_vht_operation {
+	uint8_t			chan_width;		/* enum ieee80211_vht_chanwidth */
+	uint8_t			center_freq_seq0_idx;	/* 20/40/80/160 - VHT chan1 */
+	uint8_t			center_freq_seq1_idx;	/* 80+80 - VHT chan2 */
+	uint16_t		basic_mcs_set;		/* Basic VHT-MCS and NSS Set */
 } __packed;
+#endif
 
 /* 802.11ac VHT Capabilities */
 #define	IEEE80211_VHTCAP_MAX_MPDU_LENGTH_3895	0x00000000
