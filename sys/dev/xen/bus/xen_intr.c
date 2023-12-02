@@ -84,7 +84,7 @@ struct xen_intr_pcpu_data {
 	 * A bitmap of ports that can be serviced from this CPU.
 	 * A set bit means interrupt handling is enabled.
 	 */
-	u_long	evtchn_enabled[sizeof(u_long) * 8];
+	xen_ulong_t	evtchn_enabled[sizeof(xen_ulong_t) * 8];
 };
 
 /*
