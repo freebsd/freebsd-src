@@ -54,7 +54,7 @@ static inline int
 evtchn_test_and_set_mask(evtchn_port_t port)
 {
 
-	return (atomic_testandset_long(EVTCHN_PTR(mask, port),
+	return (atomic_testandset_xen_ulong(EVTCHN_PTR(mask, port),
 	    EVTCHN_BIT(port)));
 }
 
@@ -67,7 +67,7 @@ static inline void
 evtchn_clear_port(evtchn_port_t port)
 {
 
-	atomic_clear_long(EVTCHN_PTR(pending, port), EVTCHN_MASK(port));
+	atomic_clear_xen_ulong(EVTCHN_PTR(pending, port), EVTCHN_MASK(port));
 }
 
 /**
@@ -79,7 +79,7 @@ static inline void
 evtchn_mask_port(evtchn_port_t port)
 {
 
-	atomic_set_long(EVTCHN_PTR(mask, port), EVTCHN_MASK(port));
+	atomic_set_xen_ulong(EVTCHN_PTR(mask, port), EVTCHN_MASK(port));
 }
 
 /**
