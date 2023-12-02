@@ -3,6 +3,7 @@ MDSRCS+= \
 	bcmp.S \
 	memchr.S \
 	memcmp.S \
+	memccpy.S \
 	memcpy.S \
 	memmove.S \
 	memset.S \
