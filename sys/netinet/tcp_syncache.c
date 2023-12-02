@@ -952,7 +952,8 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	tp->rcv_adv += tp->rcv_wnd;
 	tp->last_ack_sent = tp->rcv_nxt;
 
-	tp->t_flags = sototcpcb(lso)->t_flags & (TF_NOPUSH|TF_NODELAY);
+	tp->t_flags = sototcpcb(lso)->t_flags &
+	    (TF_LRD|TF_NOPUSH|TF_NODELAY);
 	if (sc->sc_flags & SCF_NOOPT)
 		tp->t_flags |= TF_NOOPT;
 	else {
