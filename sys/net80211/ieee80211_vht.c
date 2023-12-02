@@ -342,16 +342,13 @@ ieee80211_vht_node_leave(struct ieee80211_node *ni)
  */
 void
 ieee80211_vht_get_vhtcap_ie(struct ieee80211_node *ni,
-    struct ieee80211_ie_vhtcap *vhtcap, int opmode)
+    struct ieee80211_vht_cap *vhtcap, int opmode)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 //	struct ieee80211com *ic = vap->iv_ic;
 	uint32_t val, val1, val2;
 	uint32_t new_vhtcap;
 	int i;
-
-	vhtcap->ie = IEEE80211_ELEMID_VHT_CAP;
-	vhtcap->len = sizeof(struct ieee80211_ie_vhtcap) - 2;
 
 	/*
 	 * Capabilities - it depends on whether we are a station
@@ -680,19 +677,12 @@ ieee80211_vht_get_vhtcap_ie(struct ieee80211_node *ni,
 uint8_t *
 ieee80211_add_vhtcap(uint8_t *frm, struct ieee80211_node *ni)
 {
-	struct ieee80211_ie_vhtcap vhtcap;
-	int opmode;
+	struct ieee80211_vht_cap vhtcap;
 
-	opmode = 0;
-	if (ni->ni_vap->iv_opmode == IEEE80211_M_STA)
-		opmode = 1;
-
-	ieee80211_vht_get_vhtcap_ie(ni, &vhtcap, opmode);
-
-	memset(frm, '\0', sizeof(struct ieee80211_ie_vhtcap));
+	ieee80211_vht_get_vhtcap_ie(ni, &vhtcap, 1);
 
 	frm[0] = IEEE80211_ELEMID_VHT_CAP;
-	frm[1] = sizeof(struct ieee80211_ie_vhtcap) - 2;
+	frm[1] = sizeof(vhtcap);
 	frm += 2;
 
 	/* 32-bit VHT capability */
@@ -775,10 +765,9 @@ ieee80211_vht_get_chwidth_ie(struct ieee80211_channel *c)
 uint8_t *
 ieee80211_add_vhtinfo(uint8_t *frm, struct ieee80211_node *ni)
 {
-	memset(frm, '\0', sizeof(struct ieee80211_ie_vht_operation));
 
 	frm[0] = IEEE80211_ELEMID_VHT_OPMODE;
-	frm[1] = sizeof(struct ieee80211_ie_vht_operation) - 2;
+	frm[1] = sizeof(struct ieee80211_vht_operation);
 	frm += 2;
 
 	/* 8-bit chanwidth */
@@ -886,7 +875,7 @@ ieee80211_vht_adjust_channel(struct ieee80211com *ic,
  */
 void
 ieee80211_vht_get_vhtinfo_ie(struct ieee80211_node *ni,
-    struct ieee80211_ie_vht_operation *vhtop, int opmode)
+    struct ieee80211_vht_operation *vhtop, int opmode)
 {
 	printf("%s: called; TODO!\n", __func__);
 }
