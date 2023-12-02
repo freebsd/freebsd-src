@@ -102,7 +102,7 @@ struct sndstat_file {
 	size_t devs_nbytes;	/* (l) */
 	TAILQ_HEAD(, sndstat_userdev) userdev_list;	/* (l) */
 	int out_offset;
-  	int in_offset;
+	int in_offset;
 	int fflags;
 };
 
@@ -884,7 +884,7 @@ sndstat_dsp_nvlist_is_sane(const nvlist_t *nvlist)
 		    nvlist_exists_number(nvlist, "rfmts")))
 			return (false);
 	}
-	
+
 	return (true);
 
 }
@@ -1368,7 +1368,7 @@ sndstat_prepare(struct sndstat_file *pf_self)
 	struct sndstat_entry *ent;
 	struct snddev_info *d;
 	struct sndstat_file *pf;
-    	int k;
+	int k;
 
 	/* make sure buffer is reset */
 	sbuf_clear(s);
@@ -1429,7 +1429,7 @@ sndstat_prepare(struct sndstat_file *pf_self)
 		sbuf_printf(s, "No devices installed from userspace.\n");
 
 	sbuf_finish(s);
-    	return (sbuf_len(s));
+	return (sbuf_len(s));
 }
 
 static void

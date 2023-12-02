@@ -69,13 +69,13 @@ struct emu_pcm_rchinfo {
 	int		fmt;
 	unsigned int	blksz;
 	int		run;
-	uint32_t 	idxreg;
+	uint32_t	idxreg;
 	uint32_t	basereg;
 	uint32_t	sizereg;
 	uint32_t	setupreg;
 	uint32_t	irqmask;
 	uint32_t	iprmask;
-	int 		ihandle;
+	int		ihandle;
 	struct snd_dbuf	*buffer;
 	struct pcm_channel *channel;
 	struct emu_pcm_info *pcm;
@@ -92,7 +92,7 @@ struct emu_pcm_rchinfo {
 struct emu_pcm_info {
 	struct mtx		lock;
 	device_t		dev;		/* device information */
-	struct emu_sc_info 	*card;
+	struct emu_sc_info	*card;
 	struct emu_pcm_pchinfo	pch[MAX_CHANNELS];	/* hardware channels */
 	int			pnum;		/* next free channel number */
 	struct emu_pcm_rchinfo	rch_adc;
@@ -104,7 +104,7 @@ struct emu_pcm_info {
 	unsigned int		bufsz;
 	int			is_emu10k1;
 	struct ac97_info	*codec;
-	uint32_t 		ac97_state[0x7F];
+	uint32_t		ac97_state[0x7F];
 	kobj_class_t		ac97_mixerclass;
 	uint32_t		ac97_recdevs;
 	uint32_t		ac97_playdevs;
@@ -1468,7 +1468,7 @@ emu_pcm_attach(device_t dev)
 		goto bad;
 	}
 
-	/* 
+	/*
 	 * We don't register interrupt handler with snd_setup_intr
 	 * in pcm device. Mark pcm device as MPSAFE manually.
 	 */
@@ -1511,7 +1511,7 @@ emu_pcm_detach(device_t dev)
 
 	r = pcm_unregister(dev);
 
-	if (r) 	return (r);
+	if (r)	return (r);
 
 	emu_pcm_uninit(sc);
 

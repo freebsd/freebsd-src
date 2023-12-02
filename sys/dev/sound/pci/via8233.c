@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2002 Orion Hodson <orion@freebsd.org>
  * Portions of this code derived from via82c686.c:
- * 	Copyright (c) 2000 David Jones <dej@ox.org>
+ *	Copyright (c) 2000 David Jones <dej@ox.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -907,7 +907,7 @@ via8233chan_trigger(kobj_t obj, void* data, int go)
 				pollticks = 1;
 			if (via_chan_active(via) == 0 ||
 			    pollticks < via->poll_ticks) {
-			    	if (bootverbose) {
+				if (bootverbose) {
 					if (via_chan_active(via) == 0)
 						printf("%s: pollticks=%d\n",
 						    __func__, pollticks);

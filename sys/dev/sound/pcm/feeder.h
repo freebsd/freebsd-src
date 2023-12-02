@@ -53,7 +53,7 @@ struct feeder_class {
 };
 
 struct pcm_feeder {
-    	KOBJ_FIELDS;
+	KOBJ_FIELDS;
 	struct pcm_feederdesc desc;
 	void *data;
 	struct feeder_class *class;

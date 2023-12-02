@@ -77,28 +77,28 @@ struct ac97_codecid {
 	uint32_t  id;
 	uint8_t   stepmask;
 	uint8_t   noext:1;
-	char 	  *name;
+	char	  *name;
 	ac97_patch patch;
 };
 
 static const struct ac97mixtable_entry ac97mixtable_default[AC97_MIXER_SIZE] = {
     /*	[offset]			reg	     bits of st mu re mk en */
-	[SOUND_MIXER_VOLUME]	= { AC97_MIX_MASTER, 	5, 0, 1, 1, 6, 0, 1 },
-	[SOUND_MIXER_OGAIN]	= { AC97_MIX_AUXOUT, 	5, 0, 1, 1, 0, 0, 0 },
-	[SOUND_MIXER_PHONEOUT]	= { AC97_MIX_MONO, 	5, 0, 0, 1, 7, 0, 0 },
-	[SOUND_MIXER_BASS]	= { AC97_MIX_TONE, 	4, 8, 0, 0, 0, 1, 0 },
-	[SOUND_MIXER_TREBLE]	= { AC97_MIX_TONE, 	4, 0, 0, 0, 0, 1, 0 },
-	[SOUND_MIXER_PCM]	= { AC97_MIX_PCM, 	5, 0, 1, 1, 0, 0, 1 },
-	[SOUND_MIXER_SPEAKER]	= { AC97_MIX_BEEP, 	4, 1, 0, 1, 0, 0, 0 },
-	[SOUND_MIXER_LINE]	= { AC97_MIX_LINE, 	5, 0, 1, 1, 5, 0, 1 },
-	[SOUND_MIXER_PHONEIN]	= { AC97_MIX_PHONE, 	5, 0, 0, 1, 8, 0, 0 },
-	[SOUND_MIXER_MIC] 	= { AC97_MIX_MIC, 	5, 0, 0, 1, 1, 1, 1 },
+	[SOUND_MIXER_VOLUME]	= { AC97_MIX_MASTER,	5, 0, 1, 1, 6, 0, 1 },
+	[SOUND_MIXER_OGAIN]	= { AC97_MIX_AUXOUT,	5, 0, 1, 1, 0, 0, 0 },
+	[SOUND_MIXER_PHONEOUT]	= { AC97_MIX_MONO,	5, 0, 0, 1, 7, 0, 0 },
+	[SOUND_MIXER_BASS]	= { AC97_MIX_TONE,	4, 8, 0, 0, 0, 1, 0 },
+	[SOUND_MIXER_TREBLE]	= { AC97_MIX_TONE,	4, 0, 0, 0, 0, 1, 0 },
+	[SOUND_MIXER_PCM]	= { AC97_MIX_PCM,	5, 0, 1, 1, 0, 0, 1 },
+	[SOUND_MIXER_SPEAKER]	= { AC97_MIX_BEEP,	4, 1, 0, 1, 0, 0, 0 },
+	[SOUND_MIXER_LINE]	= { AC97_MIX_LINE,	5, 0, 1, 1, 5, 0, 1 },
+	[SOUND_MIXER_PHONEIN]	= { AC97_MIX_PHONE,	5, 0, 0, 1, 8, 0, 0 },
+	[SOUND_MIXER_MIC]	= { AC97_MIX_MIC,	5, 0, 0, 1, 1, 1, 1 },
 	/* use igain for the mic 20dB boost */
-	[SOUND_MIXER_IGAIN] 	= { -AC97_MIX_MIC, 	1, 6, 0, 0, 0, 1, 1 },
-	[SOUND_MIXER_CD]	= { AC97_MIX_CD, 	5, 0, 1, 1, 2, 0, 1 },
-	[SOUND_MIXER_LINE1]	= { AC97_MIX_AUX, 	5, 0, 1, 1, 4, 0, 0 },
-	[SOUND_MIXER_VIDEO]	= { AC97_MIX_VIDEO, 	5, 0, 1, 1, 3, 0, 0 },
-	[SOUND_MIXER_RECLEV]	= { -AC97_MIX_RGAIN, 	4, 0, 1, 1, 0, 0, 1 }
+	[SOUND_MIXER_IGAIN]	= { -AC97_MIX_MIC,	1, 6, 0, 0, 0, 1, 1 },
+	[SOUND_MIXER_CD]	= { AC97_MIX_CD,	5, 0, 1, 1, 2, 0, 1 },
+	[SOUND_MIXER_LINE1]	= { AC97_MIX_AUX,	5, 0, 1, 1, 4, 0, 0 },
+	[SOUND_MIXER_VIDEO]	= { AC97_MIX_VIDEO,	5, 0, 1, 1, 3, 0, 0 },
+	[SOUND_MIXER_RECLEV]	= { -AC97_MIX_RGAIN,	4, 0, 1, 1, 0, 0, 1 }
 };
 
 static const struct ac97_vendorid ac97vendorid[] = {
@@ -140,32 +140,32 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x41445340, 0x00, 0, "AD1881",	0 },
 	{ 0x41445348, 0x00, 0, "AD1881A",	0 },
 	{ 0x41445360, 0x00, 0, "AD1885",	0 },
-	{ 0x41445361, 0x00, 0, "AD1886", 	ad1886_patch },
-	{ 0x41445362, 0x00, 0, "AD1887", 	0 },
-	{ 0x41445363, 0x00, 0, "AD1886A", 	0 },
-	{ 0x41445368, 0x00, 0, "AD1888", 	ad198x_patch },
+	{ 0x41445361, 0x00, 0, "AD1886",	ad1886_patch },
+	{ 0x41445362, 0x00, 0, "AD1887",	0 },
+	{ 0x41445363, 0x00, 0, "AD1886A",	0 },
+	{ 0x41445368, 0x00, 0, "AD1888",	ad198x_patch },
 	{ 0x41445370, 0x00, 0, "AD1980",	ad198x_patch },
 	{ 0x41445372, 0x00, 0, "AD1981A",	0 },
 	{ 0x41445374, 0x00, 0, "AD1981B",	ad1981b_patch },
 	{ 0x41445375, 0x00, 0, "AD1985",	ad198x_patch },
 	{ 0x41445378, 0x00, 0, "AD1986",	ad198x_patch },
-	{ 0x414b4d00, 0x00, 1, "AK4540", 	0 },
-	{ 0x414b4d01, 0x00, 1, "AK4542", 	0 },
-	{ 0x414b4d02, 0x00, 1, "AK4543", 	0 },
+	{ 0x414b4d00, 0x00, 1, "AK4540",	0 },
+	{ 0x414b4d01, 0x00, 1, "AK4542",	0 },
+	{ 0x414b4d02, 0x00, 1, "AK4543",	0 },
 	{ 0x414b4d06, 0x00, 0, "AK4544A",	0 },
 	{ 0x454b4d07, 0x00, 0, "AK4545",	0 },
 	{ 0x414c4320, 0x0f, 0, "ALC100",	0 },
 	{ 0x414c4730, 0x0f, 0, "ALC101",	0 },
-	{ 0x414c4710, 0x0f, 0, "ALC200", 	0 },
-	{ 0x414c4740, 0x0f, 0, "ALC202", 	0 },
-	{ 0x414c4720, 0x0f, 0, "ALC650", 	0 },
+	{ 0x414c4710, 0x0f, 0, "ALC200",	0 },
+	{ 0x414c4740, 0x0f, 0, "ALC202",	0 },
+	{ 0x414c4720, 0x0f, 0, "ALC650",	0 },
 	{ 0x414c4752, 0x0f, 0, "ALC250",	0 },
 	{ 0x414c4760, 0x0f, 0, "ALC655",	alc655_patch },
 	{ 0x414c4770, 0x0f, 0, "ALC203",	0 },
 	{ 0x414c4780, 0x0f, 0, "ALC658",	0 },
 	{ 0x414c4790, 0x0f, 0, "ALC850",	0 },
-	{ 0x43525900, 0x07, 0, "CS4297", 	0 },
-	{ 0x43525910, 0x07, 0, "CS4297A", 	0 },
+	{ 0x43525900, 0x07, 0, "CS4297",	0 },
+	{ 0x43525910, 0x07, 0, "CS4297A",	0 },
 	{ 0x43525920, 0x07, 0, "CS4294/98",	0 },
 	{ 0x4352592d, 0x07, 0, "CS4294",	0 },
 	{ 0x43525930, 0x07, 0, "CS4299",	0 },
@@ -1132,11 +1132,11 @@ ac97mix_setrecsrc(struct snd_mixer *m, uint32_t src)
 }
 
 static kobj_method_t ac97mixer_methods[] = {
-    	KOBJMETHOD(mixer_init,		ac97mix_init),
-    	KOBJMETHOD(mixer_uninit,	ac97mix_uninit),
-    	KOBJMETHOD(mixer_reinit,	ac97mix_reinit),
-    	KOBJMETHOD(mixer_set,		ac97mix_set),
-    	KOBJMETHOD(mixer_setrecsrc,	ac97mix_setrecsrc),
+	KOBJMETHOD(mixer_init,		ac97mix_init),
+	KOBJMETHOD(mixer_uninit,	ac97mix_uninit),
+	KOBJMETHOD(mixer_reinit,	ac97mix_reinit),
+	KOBJMETHOD(mixer_set,		ac97mix_set),
+	KOBJMETHOD(mixer_setrecsrc,	ac97mix_setrecsrc),
 	KOBJMETHOD_END
 };
 MIXER_DECLARE(ac97mixer);

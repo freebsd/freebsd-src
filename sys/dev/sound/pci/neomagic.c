@@ -44,8 +44,8 @@
 
 #define	NM_BUFFSIZE	16384
 
-#define NM256AV_PCI_ID 	0x800510c8
-#define NM256ZX_PCI_ID 	0x800610c8
+#define NM256AV_PCI_ID	0x800510c8
+#define NM256ZX_PCI_ID	0x800610c8
 
 struct sc_info;
 
@@ -61,13 +61,13 @@ struct sc_chinfo {
 /* device private data */
 struct sc_info {
 	device_t	dev;
-	uint32_t 	type;
+	uint32_t	type;
 
 	struct resource *reg, *irq, *buf;
 	int		regid, irqid, bufid;
 	void		*ih;
 
-	uint32_t 	ac97_base, ac97_status, ac97_busy;
+	uint32_t	ac97_base, ac97_status, ac97_busy;
 	uint32_t	buftop, pbuf, rbuf, cbuf, acbuf;
 	uint32_t	playint, recint, misc1int, misc2int;
 	uint32_t	irsz, badintr;
@@ -82,16 +82,16 @@ struct sc_info {
  */
 
 /* stuff */
-static int 	 nm_loadcoeff(struct sc_info *sc, int dir, int num);
+static int	 nm_loadcoeff(struct sc_info *sc, int dir, int num);
 static int	 nm_setch(struct sc_chinfo *ch);
 static int       nm_init(struct sc_info *);
 static void      nm_intr(void *);
 
 /* talk to the card */
 static uint32_t nm_rd(struct sc_info *, int, int);
-static void 	 nm_wr(struct sc_info *, int, uint32_t, int);
+static void	 nm_wr(struct sc_info *, int, uint32_t, int);
 static uint32_t nm_rdbuf(struct sc_info *, int, int);
-static void 	 nm_wrbuf(struct sc_info *, int, uint32_t, int);
+static void	 nm_wrbuf(struct sc_info *, int, uint32_t, int);
 
 static uint32_t badcards[] = {
 	0x0007103c,
@@ -278,9 +278,9 @@ nm_wrcd(kobj_t obj, void *devinfo, int regno, uint32_t data)
 }
 
 static kobj_method_t nm_ac97_methods[] = {
-    	KOBJMETHOD(ac97_init,		nm_initcd),
-    	KOBJMETHOD(ac97_read,		nm_rdcd),
-    	KOBJMETHOD(ac97_write,		nm_wrcd),
+	KOBJMETHOD(ac97_init,		nm_initcd),
+	KOBJMETHOD(ac97_read,		nm_rdcd),
+	KOBJMETHOD(ac97_write,		nm_wrcd),
 	KOBJMETHOD_END
 };
 AC97_DECLARE(nm_ac97);
@@ -470,14 +470,14 @@ nmchan_getcaps(kobj_t obj, void *data)
 }
 
 static kobj_method_t nmchan_methods[] = {
-    	KOBJMETHOD(channel_init,		nmchan_init),
-    	KOBJMETHOD(channel_free,		nmchan_free),
-    	KOBJMETHOD(channel_setformat,		nmchan_setformat),
-    	KOBJMETHOD(channel_setspeed,		nmchan_setspeed),
-    	KOBJMETHOD(channel_setblocksize,	nmchan_setblocksize),
-    	KOBJMETHOD(channel_trigger,		nmchan_trigger),
-    	KOBJMETHOD(channel_getptr,		nmchan_getptr),
-    	KOBJMETHOD(channel_getcaps,		nmchan_getcaps),
+	KOBJMETHOD(channel_init,		nmchan_init),
+	KOBJMETHOD(channel_free,		nmchan_free),
+	KOBJMETHOD(channel_setformat,		nmchan_setformat),
+	KOBJMETHOD(channel_setspeed,		nmchan_setspeed),
+	KOBJMETHOD(channel_setblocksize,	nmchan_setblocksize),
+	KOBJMETHOD(channel_trigger,		nmchan_trigger),
+	KOBJMETHOD(channel_getptr,		nmchan_getptr),
+	KOBJMETHOD(channel_getcaps,		nmchan_getcaps),
 	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(nmchan);
@@ -516,18 +516,18 @@ nm_intr(void *p)
 		nm_ackint(sc, sc->misc1int);
 		x = nm_rd(sc, 0x400, 1);
 		nm_wr(sc, 0x400, x | 2, 1);
-	 	device_printf(sc->dev, "misc int 1\n");
+		device_printf(sc->dev, "misc int 1\n");
 	}
 	if (status & sc->misc2int) {
 		status &= ~sc->misc2int;
 		nm_ackint(sc, sc->misc2int);
 		x = nm_rd(sc, 0x400, 1);
 		nm_wr(sc, 0x400, x & ~2, 1);
-	 	device_printf(sc->dev, "misc int 2\n");
+		device_printf(sc->dev, "misc int 2\n");
 	}
 	if (status) {
 		nm_ackint(sc, status);
-	 	device_printf(sc->dev, "unknown int\n");
+		device_printf(sc->dev, "unknown int\n");
 	}
 }
 
@@ -573,7 +573,7 @@ nm_init(struct sc_info *sc)
 
 	if (bootverbose)
 		device_printf(sc->dev, "buftop is 0x%08x\n", sc->buftop);
- 	if ((nm_rdbuf(sc, ofs, 4) & NM_SIG_MASK) == NM_SIGNATURE) {
+	if ((nm_rdbuf(sc, ofs, 4) & NM_SIG_MASK) == NM_SIGNATURE) {
 		i = nm_rdbuf(sc, ofs + 4, 4);
 		if (i != 0 && i != 0xffffffff) {
 			if (bootverbose)
@@ -665,7 +665,7 @@ nm_pci_attach(device_t dev)
 {
 	struct sc_info *sc;
 	struct ac97_info *codec = NULL;
-	char 		status[SND_STATUSLEN];
+	char		status[SND_STATUSLEN];
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->dev = dev;
@@ -783,7 +783,7 @@ nm_pci_resume(device_t dev)
 	nm_wr(sc, 0x214, 0, 2);
 
 	/* Reinit mixer */
-    	if (mixer_reinit(dev) == -1) {
+	if (mixer_reinit(dev) == -1) {
 		device_printf(dev, "unable to reinitialize the mixer\n");
 		return ENXIO;
 	}

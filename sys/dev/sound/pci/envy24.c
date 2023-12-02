@@ -295,8 +295,8 @@ static struct cfg_info cfg_table[] = {
 		0xc0, 0xff, 0x7f,
 		0x10, 0x20, 0x01, 0x01, 0x00,
 		0x00,
- 		&delta_codec,
- 	},
+		&delta_codec,
+	},
 	{
 		"Envy24 audio (M Audio Audiophile 2496)",
 		0x1412, 0xd634,
@@ -304,8 +304,8 @@ static struct cfg_info cfg_table[] = {
 		0x04, 0xfe, 0xfb,
 		0x08, 0x02, 0x20, 0x00, 0x01,
 		0x00,
- 		&delta_codec,
- 	},
+		&delta_codec,
+	},
         {
                 "Envy24 audio (M Audio Delta 66)",
                 0x1412, 0xd632,
@@ -1024,7 +1024,7 @@ envy24_delta_ak4524_init(void *codec)
         /* 6fire rear input init test, set ptr->num to 1 for test */
         if (ptr->parent->cfg->subvendor == 0x153b && \
                 ptr->parent->cfg->subdevice == 0x1138 && ptr->num == 100) {
-                ptr->cs = 0x02;  
+                ptr->cs = 0x02;
                 spicds_init(ptr->info);
                 device_printf(ptr->parent->dev, "6fire rear input init\n");
                 i2c_wr(ptr, envy24_gpio_i2c_ctl, \
@@ -2072,7 +2072,7 @@ envy24_intr(void *p)
 		device_printf(sc->dev, "envy24_intr(): ptr = %d-->", ptr);
 #endif
 		ptr -= ptr % sc->blk[0];
-		feed = (ptr + dsize - sc->intr[0]) % dsize; 
+		feed = (ptr + dsize - sc->intr[0]) % dsize;
 #if(0)
 		printf("%d intr = %d feed = %d\n", ptr, sc->intr[0], feed);
 #endif
@@ -2098,7 +2098,7 @@ envy24_intr(void *p)
 		dsize = sc->rsize / 4;
 		ptr = dsize - envy24_rdmt(sc, ENVY24_MT_RCNT, 2) - 1;
 		ptr -= ptr % sc->blk[1];
-		feed = (ptr + dsize - sc->intr[1]) % dsize; 
+		feed = (ptr + dsize - sc->intr[1]) % dsize;
 		for (i = ENVY24_CHAN_REC_ADC1; i <= ENVY24_CHAN_REC_SPDIF; i++) {
 			ch = &sc->chan[i];
 			if (ch->run && ch->blk <= feed) {
@@ -2534,8 +2534,8 @@ envy24_alloc_resource(struct sc_info *sc)
 static int
 envy24_pci_attach(device_t dev)
 {
-	struct sc_info 		*sc;
-	char 			status[SND_STATUSLEN];
+	struct sc_info		*sc;
+	char			status[SND_STATUSLEN];
 	int			err = 0;
 	int			i;
 

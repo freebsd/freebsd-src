@@ -205,8 +205,8 @@ via_read_codec(kobj_t obj, void *addr, int reg)
 }
 
 static kobj_method_t via_ac97_methods[] = {
-    	KOBJMETHOD(ac97_read,		via_read_codec),
-    	KOBJMETHOD(ac97_write,		via_write_codec),
+	KOBJMETHOD(ac97_read,		via_read_codec),
+	KOBJMETHOD(ac97_write,		via_write_codec),
 	KOBJMETHOD_END
 };
 AC97_DECLARE(via_ac97);
@@ -371,7 +371,7 @@ viachan_getptr(kobj_t obj, void *data)
 	base1 = via_rd(via, ch->base, 4);
 	len = via_rd(via, ch->count, 4);
 	base = via_rd(via, ch->base, 4);
-	if (base != base1) 	/* Avoid race hazard */
+	if (base != base1)	/* Avoid race hazard */
 		len = via_rd(via, ch->count, 4);
 	mtx_unlock(&via->lock);
 
@@ -406,13 +406,13 @@ viachan_getcaps(kobj_t obj, void *data)
 }
 
 static kobj_method_t viachan_methods[] = {
-    	KOBJMETHOD(channel_init,		viachan_init),
-    	KOBJMETHOD(channel_setformat,		viachan_setformat),
-    	KOBJMETHOD(channel_setspeed,		viachan_setspeed),
-    	KOBJMETHOD(channel_setblocksize,	viachan_setblocksize),
-    	KOBJMETHOD(channel_trigger,		viachan_trigger),
-    	KOBJMETHOD(channel_getptr,		viachan_getptr),
-    	KOBJMETHOD(channel_getcaps,		viachan_getcaps),
+	KOBJMETHOD(channel_init,		viachan_init),
+	KOBJMETHOD(channel_setformat,		viachan_setformat),
+	KOBJMETHOD(channel_setspeed,		viachan_setspeed),
+	KOBJMETHOD(channel_setblocksize,	viachan_setblocksize),
+	KOBJMETHOD(channel_trigger,		viachan_trigger),
+	KOBJMETHOD(channel_getptr,		viachan_getptr),
+	KOBJMETHOD(channel_getcaps,		viachan_getcaps),
 	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(viachan);
@@ -498,12 +498,12 @@ via_attach(device_t dev)
 	}
 
 	/* Power everything up */
-	pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_DESIRED, 1);	
+	pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_DESIRED, 1);
 
 	/* Wait for codec to become ready (largest reported delay here 310ms) */
 	for (cnt = 0; cnt < 2000; cnt++) {
 		data = pci_read_config(dev, VIA_AC97STATUS, 1);
-		if (data & VIA_AC97STATUS_RDY) 
+		if (data & VIA_AC97STATUS_RDY)
 			break;
 		DELAY(5000);
 	}
@@ -540,7 +540,7 @@ via_attach(device_t dev)
 		goto bad;
 
 	via->codec_caps = ac97_getextcaps(via->codec);
-	ac97_setextmode(via->codec, 
+	ac97_setextmode(via->codec,
 			via->codec_caps & (AC97_EXTCAP_VRA | AC97_EXTCAP_VRM));
 
 	/* DMA tag for buffers */

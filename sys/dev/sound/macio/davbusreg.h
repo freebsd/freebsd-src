@@ -152,7 +152,7 @@
 #define BURGUNDY_OS3_MIX2       0x00000080
 #define BURGUNDY_OS3_MIX3       0x000000C0
 #define BURGUNDY_OSA_MIX0	0x00000000
-#define BURGUNDY_OSA_MIX1	0x00010000	
+#define BURGUNDY_OSA_MIX1	0x00010000
 #define BURGUNDY_OSA_MIX2	0x00020000
 #define BURGUNDY_OSA_MIX3	0x00030000
 #define BURGUNDY_OSB_MIX0       0x00000000
@@ -195,8 +195,8 @@
 #define BURGUNDY_OSS3R_REG	0x13103
 #define BURGUNDY_OSS_UNITY	0xDF
 
-/* Digital input streams ISA-ISC. A stream may be derived from data coming 
-   from the controller in subframes 0 to 3 as well as from internal 
+/* Digital input streams ISA-ISC. A stream may be derived from data coming
+   from the controller in subframes 0 to 3 as well as from internal
    output sources OSA-OSD. */
 #define BURGUNDY_SDIN_REG	0x17800
 #define BURGUNDY_ISA_SF0	0x00
@@ -214,7 +214,7 @@
 #define BURGUNDY_ISS_UNITY	0xDF
 
 /*
- * Screamer codec control bits 
+ * Screamer codec control bits
  * This codec has the following 12-bit control registers:
  *	cc0 cc1 cc2 cc4 cc5 cc6 cc7
  */
@@ -237,7 +237,7 @@
  * Bits 7-4 specify the left ADC input gain;
  * bits 3-0 specify the right ADC input gain.
  *
- * The gain is a 4-bit value expressed in units of 1.5 dB, 
+ * The gain is a 4-bit value expressed in units of 1.5 dB,
  * ranging from 0 dB (0) to +22.5 dB (15).
  */
 #define SCREAMER_DEFAULT_CD_GAIN	0x000000bb /* +16.5 dB */
@@ -251,8 +251,8 @@
 #define SCREAMER_MUTE_SPEAKER		0x00000080
 #define SCREAMER_MUTE_HEADPHONES	0x00000200
 #define SCREAMER_PARALLEL_OUTPUT	0x00000c00
-#define SCREAMER_PROG_OUTPUT0      	0x00000400
-#define SCREAMER_PROG_OUTPUT1      	0x00000800
+#define SCREAMER_PROG_OUTPUT0		0x00000400
+#define SCREAMER_PROG_OUTPUT1		0x00000800
 
 /* cc2: headphones/external port attenuation */
 /* cc4: internal speaker attenuation */
@@ -265,12 +265,12 @@
  */
 
 /* screamer codec status bits. */
-#define SCREAMER_STATUS_MASK 	0x00FFFFFF
-#define SCREAMER_STATUS_SENSEMASK 	0x0000000F
-#define  SCREAMER_STATUS_SENSE0 	0x00000008
-#define  SCREAMER_STATUS_SENSE1 	0x00000004
-#define  SCREAMER_STATUS_SENSE2 	0x00000002
-#define  SCREAMER_STATUS_SENSE3 	0x00000001
+#define SCREAMER_STATUS_MASK	0x00FFFFFF
+#define SCREAMER_STATUS_SENSEMASK	0x0000000F
+#define  SCREAMER_STATUS_SENSE0		0x00000008
+#define  SCREAMER_STATUS_SENSE1		0x00000004
+#define  SCREAMER_STATUS_SENSE2		0x00000002
+#define  SCREAMER_STATUS_SENSE3		0x00000001
 #define SCREAMER_STATUS_PARTMASK	0x00000300
 #define SCREAMER_STATUS_PARTSHFT	8
 #define  SCREAMER_PART_CRYSTAL	0x00000100

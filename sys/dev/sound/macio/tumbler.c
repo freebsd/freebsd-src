@@ -49,8 +49,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * 	NetBSD: tumbler.c,v 1.28 2008/05/16 03:49:54 macallan Exp
- *	Id: tumbler.c,v 1.11 2002/10/31 17:42:13 tsubai Exp 
+ *	NetBSD: tumbler.c,v 1.28 2008/05/16 03:49:54 macallan Exp
+ *	Id: tumbler.c,v 1.11 2002/10/31 17:42:13 tsubai Exp
  */
 
 /*
@@ -98,7 +98,7 @@ struct tumbler_softc
 };
 
 static int	tumbler_probe(device_t);
-static int 	tumbler_attach(device_t);
+static int	tumbler_attach(device_t);
 static int	tumbler_init(struct snd_mixer *m);
 static int	tumbler_uninit(struct snd_mixer *m);
 static int	tumbler_reinit(struct snd_mixer *m);
@@ -124,11 +124,11 @@ MODULE_VERSION(tumbler, 1);
 MODULE_DEPEND(tumbler, iicbus, 1, 1, 1);
 
 static kobj_method_t tumbler_mixer_methods[] = {
-	KOBJMETHOD(mixer_init, 		tumbler_init),
-	KOBJMETHOD(mixer_uninit, 	tumbler_uninit),
-	KOBJMETHOD(mixer_reinit, 	tumbler_reinit),
-	KOBJMETHOD(mixer_set, 		tumbler_set),
-	KOBJMETHOD(mixer_setrecsrc, 	tumbler_setrecsrc),
+	KOBJMETHOD(mixer_init,		tumbler_init),
+	KOBJMETHOD(mixer_uninit,	tumbler_uninit),
+	KOBJMETHOD(mixer_reinit,	tumbler_reinit),
+	KOBJMETHOD(mixer_set,		tumbler_set),
+	KOBJMETHOD(mixer_setrecsrc,	tumbler_setrecsrc),
 	KOBJMETHOD_END
 };
 
@@ -138,7 +138,7 @@ MIXER_DECLARE(tumbler_mixer);
 
 /* Tumbler (Texas Instruments TAS3001) registers. */
 #define TUMBLER_MCR		0x01	/* Main control register (1byte) */
-#define TUMBLER_DRC         	0x02    /* Dynamic Range Compression (2bytes) */
+#define TUMBLER_DRC		0x02    /* Dynamic Range Compression (2bytes) */
 #define TUMBLER_VOLUME		0x04	/* Volume (6bytes) */
 #define TUMBLER_TREBLE		0x05	/* Treble control (1byte) */
 #define TUMBLER_BASS		0x06	/* Bass control (1byte) */
@@ -203,14 +203,14 @@ struct tumbler_reg {
 };
 
 const struct tumbler_reg tumbler_initdata = {
-	{ TUMBLER_MCR_SC_64 | TUMBLER_MCR_SM_I2S | 
+	{ TUMBLER_MCR_SC_64 | TUMBLER_MCR_SM_I2S |
           TUMBLER_MCR_ISM_I2S | TUMBLER_MCR_W_16 },             /* MCR */
         { TUMBLER_DRC_COMP_31, TUMBLER_DRC_DEFL_TH },           /* DRC */
         { 0, 0, 0, 0, 0, 0 },				        /* VOLUME */
 	{ 0x72 },						/* TREBLE */
 	{ 0x3e },						/* BASS */
-	{ 0x10, 0x00, 0x00 },	                		/* MIXER1 */
-	{ 0x00, 0x00, 0x00 },		                	/* MIXER2 */
+	{ 0x10, 0x00, 0x00 },					/* MIXER1 */
+	{ 0x00, 0x00, 0x00 },					/* MIXER2 */
 	{ 0x10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },	/* BIQUAD */
 	{ 0x10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },	/* BIQUAD */
 	{ 0x10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },	/* BIQUAD */
@@ -233,7 +233,7 @@ const char tumbler_regsize[] = {
 	sizeof tumbler_initdata.VOLUME,		/* 0x04 */
 	sizeof tumbler_initdata.TREBLE,		/* 0x05 */
 	sizeof tumbler_initdata.BASS,		/* 0x06 */
-	sizeof tumbler_initdata.MIXER1, 	/* 0x07 */
+	sizeof tumbler_initdata.MIXER1,		/* 0x07 */
 	sizeof tumbler_initdata.MIXER2,	        /* 0x08 */
 	0,					/* 0x09 */
 	sizeof tumbler_initdata.LB0,		/* 0x0a */
@@ -254,7 +254,7 @@ const char tumbler_regsize[] = {
 };
 
 /* dB = 20 * log (x) table. */
-static unsigned int	tumbler_volume_table[100] = {      	
+static unsigned int	tumbler_volume_table[100] = {
 	0x00000148,   0x0000015C,   0x00000171,   0x00000186,   // -46.0,	-45.5,	-45.0,	-44.5,
 	0x0000019E,   0x000001B6,   0x000001D0,   0x000001EB,   // -44.0,	-43.5,	-43.0,	-42.5,
 	0x00000209,   0x00000227,   0x00000248,   0x0000026B,   // -42.0,	-41.5,	-41.0,	-40.5,
@@ -291,7 +291,7 @@ tumbler_write(struct tumbler_softc *sc, uint8_t reg, const void *data)
 	struct iic_msg msg[] = {
 		{ sc->sc_addr, IIC_M_WR, 0, buf }
 	};
-		
+
 	KASSERT(reg < sizeof(tumbler_regsize), ("bad reg"));
 	size = tumbler_regsize[reg];
 	msg[0].len = size + 1;
@@ -330,7 +330,7 @@ tumbler_probe(device_t dev)
 	if (name == NULL)
 		return (ENXIO);
 
-	if (strcmp(name, "deq") == 0 && iicbus_get_addr(dev) == 
+	if (strcmp(name, "deq") == 0 && iicbus_get_addr(dev) ==
 	    TUMBLER_IICADDR) {
 		device_set_desc(dev, "Texas Instruments TAS3001 Audio Codec");
 		return (0);
@@ -343,7 +343,7 @@ static int
 tumbler_attach(device_t dev)
 {
 	struct tumbler_softc *sc;
-		
+
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	sc->sc_addr = iicbus_get_addr(dev);
@@ -426,7 +426,7 @@ tumbler_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 
 		l = (left == 0 ? 0 : tumbler_volume_table[left - 1]);
 		r = (right == 0 ? 0 : tumbler_volume_table[right - 1]);
-		
+
 		reg[0] = (l & 0xff0000) >> 16;
 		reg[1] = (l & 0x00ff00) >> 8;
 		reg[2] = l & 0x0000ff;

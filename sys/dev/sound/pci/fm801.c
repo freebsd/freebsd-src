@@ -272,8 +272,8 @@ fm801_wrcd(kobj_t obj, void *devinfo, int regno, uint32_t data)
 }
 
 static kobj_method_t fm801_ac97_methods[] = {
-    	KOBJMETHOD(ac97_read,		fm801_rdcd),
-    	KOBJMETHOD(ac97_write,		fm801_wrcd),
+	KOBJMETHOD(ac97_read,		fm801_rdcd),
+	KOBJMETHOD(ac97_write,		fm801_wrcd),
 	DEVMETHOD_END
 };
 AC97_DECLARE(fm801_ac97);
@@ -286,8 +286,8 @@ AC97_DECLARE(fm801_ac97);
 static void
 fm801_intr(void *p)
 {
-	struct fm801_info 	*fm801 = (struct fm801_info *)p;
-	uint32_t       	intsrc = fm801_rd(fm801, FM_INTSTATUS, 2);
+	struct fm801_info	*fm801 = (struct fm801_info *)p;
+	uint32_t	intsrc = fm801_rd(fm801, FM_INTSTATUS, 2);
 
 	DPRINT("\nfm801_intr intsrc 0x%x ", intsrc);
 
@@ -519,13 +519,13 @@ fm801ch_getcaps(kobj_t obj, void *data)
 }
 
 static kobj_method_t fm801ch_methods[] = {
-    	KOBJMETHOD(channel_init,		fm801ch_init),
-    	KOBJMETHOD(channel_setformat,		fm801ch_setformat),
-    	KOBJMETHOD(channel_setspeed,		fm801ch_setspeed),
-    	KOBJMETHOD(channel_setblocksize,	fm801ch_setblocksize),
-    	KOBJMETHOD(channel_trigger,		fm801ch_trigger),
-    	KOBJMETHOD(channel_getptr,		fm801ch_getptr),
-    	KOBJMETHOD(channel_getcaps,		fm801ch_getcaps),
+	KOBJMETHOD(channel_init,		fm801ch_init),
+	KOBJMETHOD(channel_setformat,		fm801ch_setformat),
+	KOBJMETHOD(channel_setspeed,		fm801ch_setspeed),
+	KOBJMETHOD(channel_setblocksize,	fm801ch_setblocksize),
+	KOBJMETHOD(channel_trigger,		fm801ch_trigger),
+	KOBJMETHOD(channel_getptr,		fm801ch_getptr),
+	KOBJMETHOD(channel_getcaps,		fm801ch_getcaps),
 	DEVMETHOD_END
 };
 CHANNEL_DECLARE(fm801ch);
@@ -569,11 +569,11 @@ fm801_init(struct fm801_info *fm801)
 static int
 fm801_pci_attach(device_t dev)
 {
-	struct ac97_info 	*codec = NULL;
-	struct fm801_info 	*fm801;
-	int 			i;
-	int 			mapped = 0;
-	char 			status[SND_STATUSLEN];
+	struct ac97_info	*codec = NULL;
+	struct fm801_info	*fm801;
+	int			i;
+	int			mapped = 0;
+	char			status[SND_STATUSLEN];
 
 	fm801 = malloc(sizeof(*fm801), M_DEVBUF, M_WAITOK | M_ZERO);
 	fm801->type = pci_get_devid(dev);
@@ -588,7 +588,7 @@ fm801_pci_attach(device_t dev)
 		if(!fm801->reg)
 		{
 			fm801->regtype = SYS_RES_IOPORT;
-			fm801->reg = bus_alloc_resource_any(dev, 
+			fm801->reg = bus_alloc_resource_any(dev,
 							    fm801->regtype,
 							    &fm801->regid,
 							    RF_ACTIVE);

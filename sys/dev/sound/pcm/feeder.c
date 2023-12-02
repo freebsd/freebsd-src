@@ -353,7 +353,7 @@ feed_root(struct pcm_feeder *feeder, struct pcm_channel *ch, uint8_t *buffer, ui
 }
 
 static kobj_method_t feeder_root_methods[] = {
-    	KOBJMETHOD(feeder_feed,		feed_root),
+	KOBJMETHOD(feeder_feed,		feed_root),
 	KOBJMETHOD_END
 };
 static struct feeder_class feeder_root_class = {

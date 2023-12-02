@@ -650,7 +650,7 @@ feeder_chain(struct pcm_channel *c)
 		softmatrix = feeder_matrix_format_map(softfmt);
 		if (softmatrix == NULL) {
 			/* setup a default matrix */
-		  	softmatrix = &c->matrix;
+			softmatrix = &c->matrix;
 			feeder_default_matrix(softmatrix, softfmt,
 			    SND_CHN_MATRIX_PCMCHANNEL);
 		} else {

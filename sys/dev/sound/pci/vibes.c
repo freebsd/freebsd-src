@@ -77,7 +77,7 @@ struct sc_info {
 	bus_dma_tag_t		parent_dmat;
 
 	/* Enhanced register resources */
-	struct resource 	*enh_reg;
+	struct resource		*enh_reg;
 	bus_space_tag_t		enh_st;
 	bus_space_handle_t	enh_sh;
 	int			enh_type;
@@ -91,7 +91,7 @@ struct sc_info {
 	int			dmaa_rid, dmac_rid;
 
 	/* Interrupt resources */
-	struct resource 	*irq;
+	struct resource		*irq;
 	int			irqid;
 	void			*ih;
 
@@ -313,7 +313,7 @@ static int
 svrchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct sc_chinfo	*ch = data;
-	struct sc_info 		*sc = ch->parent;
+	struct sc_info		*sc = ch->parent;
 	uint32_t		count, enable;
 	uint8_t		v;
 
@@ -357,7 +357,7 @@ static uint32_t
 svrchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo	*ch = data;
-	struct sc_info 		*sc = ch->parent;
+	struct sc_info		*sc = ch->parent;
 	uint32_t sz, remain;
 
 	sz = ch->buffer->bufsize;
@@ -434,7 +434,7 @@ static uint32_t
 svpchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo	*ch = data;
-	struct sc_info 		*sc = ch->parent;
+	struct sc_info		*sc = ch->parent;
 	uint32_t sz, remain;
 
 	sz = ch->buffer->bufsize;
@@ -520,7 +520,7 @@ sv_mix_mute_all(struct sc_info *sc)
 static int
 sv_mix_init(struct snd_mixer *m)
 {
-	uint32_t 	i, v;
+	uint32_t	i, v;
 
 	for(i = v = 0; i < SOUND_MIXER_NRDEVICES; i++) {
 		if (mt[i].max) v |= (1 << i);

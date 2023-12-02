@@ -40,7 +40,7 @@
 #define		AC97_CAP_ADC_20		(1 << 9)
 #define AC97_MIX_MASTER	0x02
 #define AC97_MIX_AUXOUT	0x04
-#define AC97_MIX_MONO 	0x06
+#define AC97_MIX_MONO	0x06
 #define AC97_MIX_TONE	0x08
 #define AC97_MIX_BEEP	0x0a
 #define AC97_MIX_PHONE	0x0c
@@ -63,9 +63,9 @@
 #define		AC97_POWER_STATUS	(AC97_POWER_ADC | AC97_POWER_DAC | \
 					 AC97_POWER_REF | AC97_POWER_ANL )
 #define AC97_REGEXT_ID		0x28
-#define 	AC97_EXTCAP_VRA		(1 << 0)
-#define 	AC97_EXTCAP_DRA		(1 << 1)
-#define 	AC97_EXTCAP_VRM		(1 << 3)
+#define	AC97_EXTCAP_VRA		(1 << 0)
+#define	AC97_EXTCAP_DRA		(1 << 1)
+#define	AC97_EXTCAP_VRM		(1 << 3)
 #define		AC97_EXTCAPS (AC97_EXTCAP_VRA | AC97_EXTCAP_DRA | AC97_EXTCAP_VRM)
 #define		AC97_EXTCAP_SDAC	(1 << 7)
 
