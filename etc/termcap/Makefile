@@ -14,8 +14,8 @@ TERMCAP_SMALL_ENTS?=	SC cons25 cons25-m cons25-w cons25l1 cons25l1-m \
     cons50l1-w cons50l2 cons50l2-m cons50l7 cons50l7-m cons50r cons50r-m \
     cons50r-mv cons50r-v cons60 cons60-m cons60-w cons60l1 cons60l1-m \
     cons60l1-w cons60l2 cons60l2-m cons60l7 cons60l7-m cons60r cons60r-m \
-    cons60r-mv cons60r-v ecma[+]italics vt100 xterm xterm-basic xterm-clear \
-    xterm-color xterm-new xterm-r6 xterm-r6-clear
+    cons60r-mv cons60r-v ecma[+]italics vt100 xterm xterm-256color xterm-basic \
+    xterm-clear xterm-color xterm-new xterm-r6 xterm-r6-clear
 
 termcap.small: termcap
 	set -e; \
