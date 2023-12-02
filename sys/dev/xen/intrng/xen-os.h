@@ -43,6 +43,17 @@
 /* Early initializer, returns success/failure identical to xen_domain() */
 extern int xen_dt_probe(void);
 
+/* compatibility for accessing xen_ulong_t with atomics */
+
+#define	atomic_clear_xen_ulong		atomic_clear_64
+#define	atomic_set_xen_ulong		atomic_set_64
+#define	atomic_testandset_xen_ulong	atomic_testandset_64
+#define	atomic_readandclear_xen_ulong	atomic_readandclear_64
+#define	atomic_load_acq_xen_ulong	atomic_load_acq_64
+#define	atomic_store_rel_xen_ulong	atomic_store_rel_64
+#define	atomic_set_xen_ulong		atomic_set_64
+#define	atomic_clear_xen_ulong		atomic_clear_64
+
 #define	XEN_CPUID_TO_VCPUID(cpu)	(cpu)
 
 #define	XEN_VCPUID()			PCPU_GET(cpuid)
