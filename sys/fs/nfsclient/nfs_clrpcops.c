@@ -3001,7 +3001,7 @@ tryagain:
 			    ND_NFSV4) {
 			    NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 			    if (*(tl + 1)) {
-				if (i == 0 && ret > 1) {
+				if (i == 1 && ret > 1) {
 				    /*
 				     * If the Delegreturn failed, try again
 				     * without it. The server will Recall, as
