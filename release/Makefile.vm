@@ -69,8 +69,6 @@ ${_V}!=	eval $$(awk '/^${_V}=/{print}' ${.CURDIR}/../sys/conf/newvers.sh); echo 
 .endfor
 
 emulator-portinstall:
-.if ${TARGET_ARCH} != ${MACHINE_ARCH}
-.if ( ${TARGET_ARCH} != "i386" ) || ( ${MACHINE_ARCH} != "amd64" )
 .if !exists(/usr/local/bin/qemu-${TARGET_ARCH}-static)
 .if exists(${PORTSDIR}/emulators/qemu-user-static/Makefile)
 	env - UNAME_r=${UNAME_r} PATH=$$PATH make -C ${PORTSDIR}/emulators/qemu-user-static BATCH=1 all install clean
@@ -83,9 +81,13 @@ emulator-portinstall:
 .endif
 	touch ${.TARGET}
 
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
+.if ( ${TARGET_ARCH} != "i386" ) || ( ${MACHINE_ARCH} != "amd64" )
 QEMUSTATIC=/usr/local/bin/qemu-${TARGET_ARCH}-static
+QEMUTGT=emulator-portinstall
 .endif
 .endif
+QEMUTGT?=
 
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
 . for _CW in ${CLOUDWARE}
@@ -100,7 +102,7 @@ CLEANFILES+=	${_CW:tl}.${_FS}.img \
 		${_CW:tl}.${_FS}.${${_CW:tu}_FORMAT}.raw
 ${_CW:tu}${_FS:tu}IMAGE=	${_CW:tl}.${_FS}.${${_CW:tu}_FORMAT}
 
-cw-${_CW:tl}-${_FS}: emulator-portinstall
+cw-${_CW:tl}-${_FS}: ${QEMUTGT}
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		QEMUSTATIC=${QEMUSTATIC} \
