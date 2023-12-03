@@ -1123,7 +1123,7 @@ ufs_dirremove(struct vnode *dvp, struct inode *ip, int flags, int isrmdir)
 			softdep_setup_unlink(dp, ip);
 		} else {
 			ip->i_nlink--;
-			DIP_SET(ip, i_nlink, ip->i_nlink);
+			DIP_SET_NLINK(ip, ip->i_nlink);
 			UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 		}
 	}
@@ -1139,7 +1139,7 @@ ufs_dirremove(struct vnode *dvp, struct inode *ip, int flags, int isrmdir)
 				softdep_change_linkcnt(ip);
 			} else {
 				ip->i_nlink++;
-				DIP_SET(ip, i_nlink, ip->i_nlink);
+				DIP_SET_NLINK(ip, ip->i_nlink);
 				UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 			}
 		}
@@ -1243,7 +1243,7 @@ ufs_dirrewrite(struct inode *dp, struct inode *oip, ino_t newinum, int newtype,
 		softdep_setup_unlink(dp, oip);
 	} else {
 		oip->i_nlink--;
-		DIP_SET(oip, i_nlink, oip->i_nlink);
+		DIP_SET_NLINK(oip, oip->i_nlink);
 		UFS_INODE_SET_FLAG(oip, IN_CHANGE);
 	}
 
@@ -1260,7 +1260,7 @@ ufs_dirrewrite(struct inode *dp, struct inode *oip, ino_t newinum, int newtype,
 			softdep_change_linkcnt(oip);
 		} else {
 			oip->i_nlink++;
-			DIP_SET(oip, i_nlink, oip->i_nlink);
+			DIP_SET_NLINK(oip, oip->i_nlink);
 			UFS_INODE_SET_FLAG(oip, IN_CHANGE);
 		}
 		return (error);
