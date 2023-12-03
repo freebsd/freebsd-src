@@ -4944,6 +4944,7 @@ product WESTERN MYPASSPORTES_06	0x0750	MyPassport Essential External HDD
 product WESTERN MYPASSPORTES_07	0x0752	MyPassport Essential External HDD
 product WESTERN MYPASSPORTES_08	0x07A0	MyPassport Essential External HDD
 product WESTERN MYPASSPORTES_09	0x07A2	MyPassport Essential External HDD
+product WESTERN MYPASSPORTUL_00	0x0743	MyPassport Ultra External HDD
 
 /* WeTelecom products */
 product WETELECOM WM_D200	0x6801	WM-D200
