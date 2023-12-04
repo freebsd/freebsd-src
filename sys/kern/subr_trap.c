@@ -74,6 +74,8 @@
 #include <sys/epoch.h>
 #endif
 
+void	(*tcp_hpts_softclock)(void);
+
 /*
  * Define the code needed before returning to user mode, for trap and
  * syscall.
@@ -125,16 +127,18 @@ userret(struct thread *td, struct trapframe *frame)
 	if (PMC_THREAD_HAS_SAMPLES(td))
 		PMC_CALL_HOOK(td, PMC_FN_THR_USERRET, NULL);
 #endif
-#ifdef TCPHPTS
 	/*
-	 * @gallatin is adament that this needs to go here, I
-	 * am not so sure. Running hpts is a lot like
-	 * a lro_flush() that happens while a user process
-	 * is running. But he may know best so I will go
-	 * with his view of accounting. :-)
+	 * Calling tcp_hpts_softclock() here allows us to avoid frequent,
+	 * expensive callouts that trash the cache and lead to a much higher
+	 * number of interrupts and context switches.  Testing on busy web
+	 * servers at Netflix has shown that this improves CPU use by 7% over
+	 * relying only on callouts to drive HPTS, and also results in idle
+	 * power savings on mostly idle servers.
+	 * This was inspired by the paper "Soft Timers: Efficient Microsecond
+	 * Software Timer Support for Network Processing"
+	 * by Mohit Aron and Peter Druschel.
 	 */
-	tcp_run_hpts();
-#endif
+	tcp_hpts_softclock();
 	/*
 	 * Let the scheduler adjust our priority etc.
 	 */
