@@ -83,3 +83,6 @@ SRCS+= \
 	x509/x509_decoder.c \
 	x509/x509_minimal.c \
 
+# We want find_error_name().
+SRCS+= \
+	${BEARSSL_TOOLS}/errors.c \
