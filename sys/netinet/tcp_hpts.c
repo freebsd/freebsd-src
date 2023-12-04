@@ -1489,10 +1489,55 @@ __tcp_set_hpts(struct tcpcb *tp, int32_t line)
 	mtx_unlock(&hpts->p_mtx);
 }
 
-static void
-__tcp_run_hpts(struct tcp_hpts_entry *hpts)
+static struct tcp_hpts_entry *
+tcp_choose_hpts_to_run(void)
 {
+	int i, oldest_idx, start, end;
+	uint32_t cts, time_since_ran, calc;
+
+	cts = tcp_get_usecs(NULL);
+	time_since_ran = 0;
+	/* Default is all one group */
+	start = 0;
+	end = tcp_pace.rp_num_hptss;
+	/*
+	 * If we have more than one L3 group figure out which one
+	 * this CPU is in.
+	 */
+	if (tcp_pace.grp_cnt > 1) {
+		for (i = 0; i < tcp_pace.grp_cnt; i++) {
+			if (CPU_ISSET(curcpu, &tcp_pace.grps[i]->cg_mask)) {
+				start = tcp_pace.grps[i]->cg_first;
+				end = (tcp_pace.grps[i]->cg_last + 1);
+				break;
+			}
+		}
+	}
+	oldest_idx = -1;
+	for (i = start; i < end; i++) {
+		if (TSTMP_GT(cts, cts_last_ran[i]))
+			calc = cts - cts_last_ran[i];
+		else
+			calc = 0;
+		if (calc > time_since_ran) {
+			oldest_idx = i;
+			time_since_ran = calc;
+		}
+	}
+	if (oldest_idx >= 0)
+		return(tcp_pace.rp_ent[oldest_idx]);
+	else
+		return(tcp_pace.rp_ent[(curcpu % tcp_pace.rp_num_hptss)]);
+}
+
+static void
+__tcp_run_hpts(void)
+{
+	struct epoch_tracker et;
+	struct tcp_hpts_entry *hpts;
 	int ticks_ran;
+
+	hpts = tcp_choose_hpts_to_run();
 
 	if (hpts->p_hpts_active) {
 		/* Already active */
@@ -1502,6 +1547,7 @@ __tcp_run_hpts(struct tcp_hpts_entry *hpts)
 		/* Someone else got the lock */
 		return;
 	}
+	NET_EPOCH_ENTER(et);
 	if (hpts->p_hpts_active)
 		goto out_with_mtx;
 	hpts->syscall_cnt++;
@@ -1554,62 +1600,8 @@ __tcp_run_hpts(struct tcp_hpts_entry *hpts)
 out_with_mtx:
 	HPTS_MTX_ASSERT(hpts);
 	mtx_unlock(&hpts->p_mtx);
-}
-
-static struct tcp_hpts_entry *
-tcp_choose_hpts_to_run(void)
-{
-	int i, oldest_idx, start, end;
-	uint32_t cts, time_since_ran, calc;
-
-	cts = tcp_get_usecs(NULL);
-	time_since_ran = 0;
-	/* Default is all one group */
-	start = 0;
-	end = tcp_pace.rp_num_hptss;
-	/*
-	 * If we have more than one L3 group figure out which one
-	 * this CPU is in.
-	 */
-	if (tcp_pace.grp_cnt > 1) {
-		for (i = 0; i < tcp_pace.grp_cnt; i++) {
-			if (CPU_ISSET(curcpu, &tcp_pace.grps[i]->cg_mask)) {
-				start = tcp_pace.grps[i]->cg_first;
-				end = (tcp_pace.grps[i]->cg_last + 1);
-				break;
-			}
-		}
-	}
-	oldest_idx = -1;
-	for (i = start; i < end; i++) {
-		if (TSTMP_GT(cts, cts_last_ran[i]))
-			calc = cts - cts_last_ran[i];
-		else
-			calc = 0;
-		if (calc > time_since_ran) {
-			oldest_idx = i;
-			time_since_ran = calc;
-		}
-	}
-	if (oldest_idx >= 0)
-		return(tcp_pace.rp_ent[oldest_idx]);
-	else
-		return(tcp_pace.rp_ent[(curcpu % tcp_pace.rp_num_hptss)]);
-}
-
-
-void
-tcp_run_hpts(void)
-{
-	struct tcp_hpts_entry *hpts;
-	struct epoch_tracker et;
-
-	NET_EPOCH_ENTER(et);
-	hpts = tcp_choose_hpts_to_run();
-	__tcp_run_hpts(hpts);
 	NET_EPOCH_EXIT(et);
 }
-
 
 static void
 tcp_hpts_thread(void *ctx)
@@ -2001,6 +1993,8 @@ tcp_init_hptsi(void *st)
 			break;
 		}
 	}
+	tcp_hpts_softclock = __tcp_run_hpts;
+	tcp_lro_hpts_init();
 	printf("TCP Hpts created %d swi interrupt threads and bound %d to %s\n",
 	    created, bound,
 	    tcp_bind_threads == 2 ? "NUMA domains" : "cpus");
