@@ -228,7 +228,7 @@ SYSVMSG		opt_sysvipc.h
 SYSVSEM		opt_sysvipc.h
 SYSVSHM		opt_sysvipc.h
 SW_WATCHDOG	opt_watchdog.h
-TCPHPTS         opt_inet.h
+TCPHPTS
 TCP_REQUEST_TRK opt_global.h
 TCP_ACCOUNTING	opt_global.h
 TCP_BBR		opt_inet.h
