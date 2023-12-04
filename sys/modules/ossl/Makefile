@@ -61,6 +61,8 @@ SRCS.i386= \
 
 CFLAGS.bsaes-armv7.S+=	-D__KERNEL__
 
+CFLAGS+= -I${SRCTOP}/sys/crypto/openssl
+
 # For arm64, we are forced to rewrite the compiler invocation for the assembly
 # files, to remove -mgeneral-regs-only.
 ${SRCS.aarch64:M*.S:S/S/o/}: ${.TARGET:R}.S

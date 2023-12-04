@@ -137,15 +137,22 @@ libkern/umoddi3.c		standard
 
 crypto/openssl/ossl_arm.c		optional ossl
 crypto/openssl/arm/ossl_aes_gcm.c	optional ossl
-crypto/openssl/arm/aes-armv4.S		optional ossl
+crypto/openssl/arm/aes-armv4.S		optional ossl	\
+	compile-with	"${NORMAL_C} -I${SRCTOP}/sys/crypto/openssl"
 crypto/openssl/arm/bsaes-armv7.S	optional ossl	\
-	compile-with	"${CC} -D__KERNEL__ -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${.IMPSRC}"
-crypto/openssl/arm/chacha-armv4.S	optional ossl
-crypto/openssl/arm/ghash-armv4.S	optional ossl
-crypto/openssl/arm/poly1305-armv4.S	optional ossl
-crypto/openssl/arm/sha1-armv4-large.S	optional ossl
-crypto/openssl/arm/sha256-armv4.S	optional ossl
-crypto/openssl/arm/sha512-armv4.S	optional ossl
+	compile-with	"${CC} -D__KERNEL__ -c ${CFLAGS:N-mgeneral-regs-only} -I${SRCTOP}/sys/crypto/openssl ${WERROR} ${.IMPSRC}"
+crypto/openssl/arm/chacha-armv4.S	optional ossl	\
+	compile-with	"${NORMAL_C} -I${SRCTOP}/sys/crypto/openssl"
+crypto/openssl/arm/ghash-armv4.S	optional ossl	\
+	compile-with	"${NORMAL_C} -I${SRCTOP}/sys/crypto/openssl"
+crypto/openssl/arm/poly1305-armv4.S	optional ossl	\
+	compile-with	"${NORMAL_C} -I${SRCTOP}/sys/crypto/openssl"
+crypto/openssl/arm/sha1-armv4-large.S	optional ossl	\
+	compile-with	"${NORMAL_C} -I${SRCTOP}/sys/crypto/openssl"
+crypto/openssl/arm/sha256-armv4.S	optional ossl	\
+	compile-with	"${NORMAL_C} -I${SRCTOP}/sys/crypto/openssl"
+crypto/openssl/arm/sha512-armv4.S	optional ossl	\
+	compile-with	"${NORMAL_C} -I${SRCTOP}/sys/crypto/openssl"
 
 # Annapurna support
 arm/annapurna/alpine/alpine_ccu.c		optional al_ccu fdt
