@@ -474,6 +474,10 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	/* Return a NULL tag on failure */
 	*dmat = NULL;
 
+	/* Filters are deprecated, emit a warning. */
+	if (filter != NULL || filterarg != NULL)
+		printf("Warning: use of filters is deprecated; see busdma(9)\n");
+
 	newtag = (bus_dma_tag_t)malloc(sizeof(*newtag), M_BUSDMA,
 	    M_ZERO | M_NOWAIT);
 	if (newtag == NULL) {

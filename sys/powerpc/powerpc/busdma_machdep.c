@@ -239,6 +239,10 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		return (EINVAL);
 	}
 
+	/* Filters are deprecated, emit a warning. */
+	if (filter != NULL || filterarg != NULL)
+		printf("Warning: use of filters is deprecated; see busdma(9)\n");
+
 	/* Return a NULL tag on failure */
 	*dmat = NULL;
 
