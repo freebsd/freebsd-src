@@ -1171,13 +1171,13 @@ tundtor(void *data)
 	if ((tp->tun_flags & TUN_VMNET) != 0 ||
 	    (l2tun && (ifp->if_flags & IFF_LINK0) != 0))
 		goto out;
-
+#if defined(INET) || defined(INET6)
 	if (l2tun && tp->tun_lro_ready) {
 		TUNDEBUG (ifp, "LRO disabled\n");
 		tcp_lro_free(&tp->tun_lro);
 		tp->tun_lro_ready = false;
 	}
-
+#endif
 	if (ifp->if_flags & IFF_UP) {
 		TUN_UNLOCK(tp);
 		if_down(ifp);
@@ -1222,6 +1222,7 @@ tuninit(struct ifnet *ifp)
 		getmicrotime(&ifp->if_lastchange);
 		TUN_UNLOCK(tp);
 	} else {
+#if defined(INET) || defined(INET6)
 		if (tcp_lro_init(&tp->tun_lro) == 0) {
 			TUNDEBUG(ifp, "LRO enabled\n");
 			tp->tun_lro.ifp = ifp;
@@ -1230,6 +1231,7 @@ tuninit(struct ifnet *ifp)
 			TUNDEBUG(ifp, "Could not enable LRO\n");
 			tp->tun_lro_ready = false;
 		}
+#endif
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		TUN_UNLOCK(tp);
 		/* attempt to start output */
@@ -1776,7 +1778,6 @@ tunwrite_l2(struct tuntap_softc *tp, struct mbuf *m,
 	struct epoch_tracker et;
 	struct ether_header *eh;
 	struct ifnet *ifp;
-	int result;
 
 	ifp = TUN2IFP(tp);
 
@@ -1832,14 +1833,12 @@ tunwrite_l2(struct tuntap_softc *tp, struct mbuf *m,
 	/* Pass packet up to parent. */
 	CURVNET_SET(ifp->if_vnet);
 	NET_EPOCH_ENTER(et);
-	if (tp->tun_lro_ready && ifp->if_capenable & IFCAP_LRO) {
-		result = tcp_lro_rx(&tp->tun_lro, m, 0);
-		TUNDEBUG(ifp, "tcp_lro_rx() returned %d\n", result);
-	} else
-		result = TCP_LRO_CANNOT;
-	if (result == 0)
+#if defined(INET) || defined(INET6)
+	if (tp->tun_lro_ready && ifp->if_capenable & IFCAP_LRO &&
+	    tcp_lro_rx(&tp->tun_lro, m, 0) == 0)
 		tcp_lro_flush_all(&tp->tun_lro);
 	else
+#endif
 		(*ifp->if_input)(ifp, m);
 	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
