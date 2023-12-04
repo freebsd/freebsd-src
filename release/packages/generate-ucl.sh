@@ -45,7 +45,7 @@ main() {
 			pkgdeps="caroot openssl"
 			;;
 		clang)
-			pkgdeps="lld clang-dev libcompiler_rt-dev"
+			pkgdeps="lld libcompiler_rt-dev"
 			;;
 
 		# -dev packages that have no corresponding non-dev package
