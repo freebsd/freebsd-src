@@ -9926,6 +9926,8 @@ bbr_init(struct tcpcb *tp, void **ptr)
 	struct tcp_bbr *bbr = NULL;
 	uint32_t cts;
 
+	tcp_hpts_init(tp);
+
 	*ptr = uma_zalloc(bbr_pcb_zone, (M_NOWAIT | M_ZERO));
 	if (*ptr == NULL) {
 		/*
