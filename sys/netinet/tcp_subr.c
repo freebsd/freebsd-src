@@ -4316,9 +4316,7 @@ tcp_req_log_req_info(struct tcpcb *tp, struct tcp_sendfile_track *req,
 		struct timeval tv;
 
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-#ifdef TCPHPTS
 		log.u_bbr.inhpts = tcp_in_hpts(tp);
-#endif
 		log.u_bbr.flex8 = val;
 		log.u_bbr.rttProp = req->timestamp;
 		log.u_bbr.delRate = req->start;
