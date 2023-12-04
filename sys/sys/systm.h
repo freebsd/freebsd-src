@@ -380,6 +380,12 @@ void	cpu_et_frequency(struct eventtimer *et, uint64_t newfreq);
 extern int	cpu_disable_c2_sleep;
 extern int	cpu_disable_c3_sleep;
 
+extern void	(*tcp_hpts_softclock)(void);
+#define	tcp_hpts_softclock()	do {					\
+		if (tcp_hpts_softclock != NULL)				\
+			tcp_hpts_softclock();				\
+} while (0)
+
 char	*kern_getenv(const char *name);
 void	freeenv(char *env);
 int	getenv_int(const char *name, int *data);
