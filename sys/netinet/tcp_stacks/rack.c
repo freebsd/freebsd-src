@@ -14973,6 +14973,8 @@ rack_init(struct tcpcb *tp, void **ptr)
 	uint32_t iwin, snt, us_cts;
 	int err, no_query;
 
+	tcp_hpts_init(tp);
+
 	/*
 	 * First are we the initial or are we a switched stack?
 	 * If we are initing via tcp_newtcppcb the ptr passed

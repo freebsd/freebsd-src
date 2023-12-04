@@ -2315,9 +2315,6 @@ tcp_newtcpcb(struct inpcb *inp)
 	 * which may match an IPv4-mapped IPv6 address.
 	 */
 	inp->inp_ip_ttl = V_ip_defttl;
-#ifdef TCPHPTS
-	tcp_hpts_init(tp);
-#endif
 #ifdef TCPPCAP
 	/*
 	 * Init the TCP PCAP queues.
