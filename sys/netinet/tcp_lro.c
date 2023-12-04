@@ -88,6 +88,9 @@ SYSCTL_NODE(_net_inet_tcp, OID_AUTO, lro,  CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP LRO");
 
 long tcplro_stacks_wanting_mbufq;
+int	(*tcp_lro_flush_tcphpts)(struct lro_ctrl *lc, struct lro_entry *le);
+void	(*tcp_hpts_softclock)(void);
+
 counter_u64_t tcp_inp_lro_direct_queue;
 counter_u64_t tcp_inp_lro_wokeup_queue;
 counter_u64_t tcp_inp_lro_compressed;
@@ -1109,23 +1112,14 @@ again:
 void
 tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 {
-	/* Only optimise if there are multiple packets waiting. */
-#ifdef TCPHPTS
-	int error;
-#endif
 
+	/* Only optimise if there are multiple packets waiting. */
 	NET_EPOCH_ASSERT();
-#ifdef TCPHPTS
-	CURVNET_SET(lc->ifp->if_vnet);
-	error = tcp_lro_flush_tcphpts(lc, le);
-	CURVNET_RESTORE();
-	if (error != 0) {
-#endif
+	if (tcp_lro_flush_tcphpts == NULL ||
+	    tcp_lro_flush_tcphpts(lc, le) != 0) {
 		tcp_lro_condense(lc, le);
 		tcp_flush_out_entry(lc, le);
-#ifdef TCPHPTS
 	}
-#endif
 	lc->lro_flushed++;
 	bzero(le, sizeof(*le));
 	LIST_INSERT_HEAD(&lc->lro_free, le, next);
@@ -1268,10 +1262,8 @@ tcp_lro_flush_all(struct lro_ctrl *lc)
 done:
 	/* flush active streams */
 	tcp_lro_rx_done(lc);
-
-#ifdef TCPHPTS
-	tcp_run_hpts();
-#endif
+	if (tcp_hpts_softclock != NULL)
+		tcp_hpts_softclock();
 	lc->lro_mbuf_count = 0;
 }
 

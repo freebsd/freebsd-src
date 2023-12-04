@@ -423,6 +423,7 @@ tcp_lro_lookup(struct ifnet *ifp, struct lro_parser *pa)
 {
 	struct inpcb *inp;
 
+	CURVNET_SET(ifp->if_vnet);
 	switch (pa->data.lro_type) {
 #ifdef INET6
 	case LRO_TYPE_IPV6_TCP:
@@ -447,14 +448,16 @@ tcp_lro_lookup(struct ifnet *ifp, struct lro_parser *pa)
 		break;
 #endif
 	default:
+		CURVNET_RESTORE();
 		return (NULL);
 	}
+	CURVNET_RESTORE();
 
 	return (intotcpcb(inp));
 }
 
-int
-tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
+static int
+_tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 {
 	struct tcpcb *tp;
 	struct mbuf **pp, *cmp, *mv_to;
@@ -574,4 +577,10 @@ tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 	INP_WUNLOCK(tptoinpcb(tp));
 
 	return (0);	/* Success. */
+}
+
+void
+tcp_lro_hpts_init(void)
+{
+	tcp_lro_flush_tcphpts = _tcp_lro_flush_tcphpts;
 }
