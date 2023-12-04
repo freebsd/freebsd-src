@@ -4354,6 +4354,7 @@ netinet/tcp_hostcache.c		optional inet | inet6
 netinet/tcp_input.c		optional inet | inet6
 netinet/tcp_log_buf.c		optional tcp_blackbox inet | tcp_blackbox inet6
 netinet/tcp_lro.c		optional inet | inet6
+netinet/tcp_lro_hpts.c		optional tcphpts inet | tcphpts inet6
 netinet/tcp_output.c		optional inet | inet6
 netinet/tcp_offload.c		optional tcp_offload inet | tcp_offload inet6
 netinet/tcp_hpts.c		optional tcphpts inet | tcphpts inet6
