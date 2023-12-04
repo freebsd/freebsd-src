@@ -15,7 +15,7 @@
 #include <crypto/openssl/ossl_arm.h>
 #include <crypto/openssl/ossl_aes_gcm.h>
 #include <crypto/openssl/ossl_cipher.h>
-#include <crypto/openssl/arm/arm_arch.h>
+#include <crypto/openssl/arm_arch.h>
 
 #include <opencrypto/cryptodev.h>
 

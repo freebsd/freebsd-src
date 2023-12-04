@@ -12,7 +12,7 @@
 
 #include <crypto/openssl/ossl.h>
 #include <crypto/openssl/ossl_cipher.h>
-#include <crypto/openssl/aarch64/arm_arch.h>
+#include <crypto/openssl/arm_arch.h>
 
 /* aesv8-armx.S */
 ossl_cipher_encrypt_t aes_v8_cbc_encrypt;
