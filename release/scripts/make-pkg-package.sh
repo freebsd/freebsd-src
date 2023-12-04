@@ -9,6 +9,7 @@ export WSTAGEDIR=${WSTAGEDIR}
 export REPODIR=${REPODIR}
 export PKG_CMD=${PKG_CMD}
 export PKG_VERSION=${PKG_VERSION}
+export OSVERSION=${OSVERSION}
 export WRKDIR=$(make -C ${PORTSDIR}/ports-mgmt/pkg -V WRKDIR)
 
 make -C ${PORTSDIR}/ports-mgmt/pkg TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
