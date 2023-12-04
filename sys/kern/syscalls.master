@@ -502,16 +502,8 @@
 	}
 67	AUE_NULL	OBSOL	vread
 68	AUE_NULL	OBSOL	vwrite
-69	AUE_SBRK	STD|CAPENABLED {
-		int sbrk(
-		    int incr
-		);
-	}
-70	AUE_SSTK	STD|CAPENABLED {
-		int sstk(
-		    int incr
-		);
-	}
+69	AUE_NULL	OBSOL	sbrk
+70	AUE_NULL	OBSOL	sstk
 71	AUE_MMAP	COMPAT|CAPENABLED {
 		void *mmap(
 		    _In_ void *addr,

@@ -7,4 +7,4 @@ SRCS+=	\
 MDASM=	vfork.S cerror.S getcontext.S
 
 # Don't generate default code for these syscalls:
-NOASM+=	sbrk.o vfork.o
+NOASM+=	vfork.o
