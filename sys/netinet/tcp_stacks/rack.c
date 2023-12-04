@@ -8213,8 +8213,12 @@ static int
 rack_stopall(struct tcpcb *tp)
 {
 	struct tcp_rack *rack;
+
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	rack->t_timers_stopped = 1;
+
+	tcp_hpts_remove(tp);
+
 	return (0);
 }
 
