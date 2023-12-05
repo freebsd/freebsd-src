@@ -17,6 +17,11 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20231205:
+        12.4-RELEASE-p9 FreeBSD-SA-23:17.pf
+
+	TCP spoofing vulnerability in pf(4) [SA-23:17.pf]
+
 20231130:
         12.4-RELEASE-p8 EN-23:16.openzfs
 
