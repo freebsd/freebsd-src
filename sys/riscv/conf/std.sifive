@@ -1,0 +1,15 @@
+#
+# SiFive SoC support
+#
+
+device		cgem		# Cadence GEM Gigabit Ethernet device
+device		da9063_pmic	# Dialog Semiconductor DA9063 PMIC
+device		da9063_rtc	# Dialog Semiconductor DA9063 RTC
+device		fu740_pci_dw
+device		sifive_gpio
+device		sifive_spi
+
+# DTBs
+makeoptions	MODULES_EXTRA+="dtb/sifive"
+
+files		"../sifive/files.sifive"
