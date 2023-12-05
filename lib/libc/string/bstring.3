@@ -29,7 +29,7 @@
 .\"
 .\"     @(#)bstring.3	8.1 (Berkeley) 6/4/93
 .\"
-.Dd June 4, 1993
+.Dd December 5, 2023
 .Dt BSTRING 3
 .Os
 .Sh NAME
@@ -58,7 +58,12 @@
 .Ft int
 .Fn memcmp "const void *b1" "const void *b2" "size_t len"
 .Ft void *
-.Fn memccpy "void *dst" "const void *src" "int c" "size_t len"
+.Fo memccpy
+.Fa "void * restrict dst"
+.Fa "const void * restrict src"
+.Fa "int c"
+.Fa "size_t len"
+.Fc
 .Ft void *
 .Fn memcpy "void *dst" "const void *src" "size_t len"
 .Ft void *
@@ -80,6 +85,7 @@ See the specific manual pages for more information.
 .Xr memccpy 3 ,
 .Xr memchr 3 ,
 .Xr memcmp 3 ,
+.Xr memccpy 3 ,
 .Xr memcpy 3 ,
 .Xr memmove 3 ,
 .Xr memset 3
