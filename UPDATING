@@ -12,6 +12,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20231205:
+	13.2-RELEASE-p7	SA-23:17.pf
+			EN-23:15.sanitizer
+
+	TCP spoofing vulnerability in pf(4) [SA-23:17.pf]
+
+	Fix clang sanitizer failure with ASLR enabled [EN-23:15.sanitizer]
+
 20231130:
         13.2-RELEASE-p6 EN-23:16.openzfs
 
