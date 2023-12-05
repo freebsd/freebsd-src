@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 5, 2020
+.Dd December 6, 2023
 .Dt CAP_SYSLOG 3
 .Os
 .Sh NAME
@@ -63,6 +63,11 @@ are respectively equivalent to
 except that the connection to the
 .Nm system.syslog
 service needs to be provided.
+.Pp
+All of these functions are reentrant but not thread-safe.
+That is, they may be called from separate threads only with different
+.Vt cap_channel_t
+arguments or with synchronization.
 .Sh EXAMPLES
 The following example first opens a capability to casper and then uses this
 capability to create the
