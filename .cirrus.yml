@@ -97,9 +97,10 @@ task:
   - gpart show
   - df -m
   - pkg --version
-  - pw useradd user
+  - pw useradd -n user -m
   - mkdir -p /usr/obj/$(pwd -P)
   - chown user:user /usr/obj/$(pwd -P)
+  - su user -c "git config --global --add safe.directory $(pwd -P)"
 
   build_world_script:
   - su user -c "make -j$(sysctl -n hw.ncpu) ${EXTRA_MAKE_FLAGS} CROSS_TOOLCHAIN=${TOOLCHAIN} WITHOUT_TOOLCHAIN=yes buildworld"
