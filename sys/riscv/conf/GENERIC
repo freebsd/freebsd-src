@@ -123,15 +123,6 @@ device		umass			# Disks/Mass storage - Requires scbus and da
 options 	HID_DEBUG	# enable debug msgs
 device		hid		# Generic HID support
 
-# DTrace support
-# device	dtrace
-# device	dtrace_profile
-# device	dtrace_sdt
-# device	dtrace_fbt
-# device	dtrace_systrace
-# device	dtrace_prototype
-# device	dtraceall
-
 # Serial (COM) ports
 device		uart		# Generic UART driver
 device		uart_lowrisc	# lowRISC UART driver
@@ -158,15 +149,6 @@ device		gpio
 # SPI
 device		spibus
 device		spigen
-
-# Uncomment for memory disk
-# options 	MD_ROOT
-# options 	MD_ROOT_SIZE=32768	# 32MB ram disk
-# makeoptions	MFS_IMAGE=/path/to/img
-# options 	ROOTDEVNAME=\"ufs:/dev/md0\"
-
-# Uncomment for virtio block device
-# options 	ROOTDEVNAME=\"ufs:/dev/vtbd0\"
 
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
