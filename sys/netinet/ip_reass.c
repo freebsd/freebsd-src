@@ -661,11 +661,13 @@ ipreass_drain(void)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 
+	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		ipreass_drain_vnet();
 		CURVNET_RESTORE();
 	}
+	VNET_LIST_RUNLOCK();
 }
 
 
