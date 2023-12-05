@@ -1488,7 +1488,7 @@ domemstat_zone(void)
 		}
 	}
 	xo_open_container("memory-zone-statistics");
-	xo_emit("{T:/%-20s} {T:/%6s} {T:/%6s} {T:/%8s} {T:/%8s} {T:/%8s} {T:/%8s}"
+	xo_emit("{T:/%-20s} {T:/%6s} {T:/%6s} {T:/%8s} {T:/%8s} {T:/%8s} {T:/%8s} "
 	    "{T:/%4s} {T:/%4s}\n", "ITEM", "SIZE",
 	    "LIMIT", "USED", "FREE", "REQ", "FAIL", "SLEEP", "XDOMAIN");
 	xo_open_list("zone");
