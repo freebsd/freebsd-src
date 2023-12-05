@@ -12,6 +12,29 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20231205:
+	14.0-RELEASE-p2	SA-23:17.pf
+			EN-23:17.ossl
+			EN-23:18.openzfs
+			EN-23:19.pkgbase
+			EN-23:20.vm
+			EN-23:21.tty
+			EN-23:22.vfs
+
+	TCP spoofing vulnerability in pf(4) [SA-23:17.pf]
+
+	ossl(4)'s AES-GCM implementation may give incorrect results [EN-23:17.ossl]
+
+	High CPU usage by ZFS kernel threads [EN-23:18.openzfs]
+
+	Incorrect pkgbase version number for FreeBSD 14.0 [EN-23:19.pkgbase]
+
+	Incorrect results from the kernel physical memory allocator [EN-23:20.vm]
+
+	tty(4) IUTF8 causes a kernel panic [EN-23:21.tty]
+
+	ZFS snapshot directories not accessible over NFS [EN-23:22.vfs]
+
 20231130:
 	14.0-RELEASE-p1	EN-23:15.sanitizer
 			EN-23:16.openzfs
