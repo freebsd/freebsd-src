@@ -285,7 +285,7 @@ static device_method_t siba_bhndb_methods[] = {
 };
 
 DEFINE_CLASS_2(bhnd, siba_bhndb_driver, siba_bhndb_methods,
-    sizeof(struct siba_softc), bhnd_bhndb_driver, siba_driver);
+    sizeof(struct siba_bhndb_softc), bhnd_bhndb_driver, siba_driver);
 
 DRIVER_MODULE(siba_bhndb, bhndb, siba_bhndb_driver, NULL, NULL);
 
