@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 6, 2023
+.Dd December 6, 2023
 .Dt LIBCASPER 3
 .Os
 .Sh NAME
@@ -94,7 +94,6 @@ The
 .Fn cap_init
 function instantiates a capability to allow a program to access
 the casper daemon.
-It must be called from a single-threaded context.
 .Pp
 The
 .Fn cap_wrap
@@ -235,6 +234,21 @@ provides a
 .Xr syslog 3
 compatible API
 .El
+.Pp
+.Fn cap_init
+must be called from a single-threaded context.
+.Fn cap_clone ,
+.Fn cap_close ,
+.Fn cap_limit_get ,
+.Fn cap_limit_set ,
+.Fn cap_send_nvlist ,
+.Fn cap_recv_nvlist ,
+and
+.Fn cap_service_open
+are reentrant but not thread-safe.
+That is, they may be called from separate threads only with different
+.Vt cap_channel_t
+arguments or with synchronization.
 .Sh RETURN VALUES
 The
 .Fn cap_clone ,
