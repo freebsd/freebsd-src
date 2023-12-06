@@ -148,18 +148,17 @@ bounce_bus_dma_zone_setup(bus_dma_tag_t dmat)
 static int
 bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
     bus_addr_t boundary, bus_addr_t lowaddr, bus_addr_t highaddr,
-    bus_dma_filter_t *filter, void *filterarg, bus_size_t maxsize,
-    int nsegments, bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
-    void *lockfuncarg, bus_dma_tag_t *dmat)
+    bus_size_t maxsize, int nsegments, bus_size_t maxsegsz, int flags,
+    bus_dma_lock_t *lockfunc, void *lockfuncarg, bus_dma_tag_t *dmat)
 {
 	bus_dma_tag_t newtag;
 	int error;
 
 	*dmat = NULL;
 	error = common_bus_dma_tag_create(parent != NULL ? &parent->common :
-	    NULL, alignment, boundary, lowaddr, highaddr, filter, filterarg,
-	    maxsize, nsegments, maxsegsz, flags, lockfunc, lockfuncarg,
-	    sizeof (struct bus_dma_tag), (void **)&newtag);
+	    NULL, alignment, boundary, lowaddr, highaddr, maxsize, nsegments,
+	    maxsegsz, flags, lockfunc, lockfuncarg, sizeof(struct bus_dma_tag),
+	    (void **)&newtag);
 	if (error != 0)
 		return (error);
 
@@ -175,8 +174,8 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->bounce_flags |= BUS_DMA_FORCE_MAP;
 #endif
 
-	if (parent != NULL && (newtag->common.filter != NULL ||
-	    (parent->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0))
+	if (parent != NULL &&
+	    (parent->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0)
 		newtag->bounce_flags |= BUS_DMA_COULD_BOUNCE;
 
 	if (newtag->common.lowaddr < ptoa((vm_paddr_t)Maxmem) ||

@@ -82,8 +82,6 @@ struct bus_dma_tag {
 	bus_addr_t		boundary;
 	bus_addr_t		lowaddr;
 	bus_addr_t		highaddr;
-	bus_dma_filter_t	*filter;
-	void			*filterarg;
 	bus_size_t		maxsize;
 	u_int			nsegments;
 	bus_size_t		maxsegsz;
@@ -337,8 +335,7 @@ might_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t addr,
  * exclusion zone of any tag in the ancestry chain.
  *
  * For exclusions, walk the chain of tags comparing paddr to the exclusion zone
- * within each tag.  If the tag has a filter function, use it to decide whether
- * the DMA needs to bounce, otherwise any DMA within the zone bounces.
+ * within each tag.
  */
 static int
 must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
@@ -363,9 +360,7 @@ must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
 	 * within the low-highaddr range of the tag that filterfunc belongs to.
 	 */
 	while (dmat != NULL && exclusion_bounce(dmat)) {
-		if ((paddr >= dmat->lowaddr && paddr <= dmat->highaddr) &&
-		    (dmat->filter == NULL ||
-		    dmat->filter(dmat->filterarg, paddr) != 0))
+		if (paddr >= dmat->lowaddr && paddr <= dmat->highaddr)
 			return (1);
 		dmat = dmat->parent;
 	}
@@ -416,8 +411,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->lowaddr = trunc_page((vm_paddr_t)lowaddr) + (PAGE_SIZE - 1);
 	newtag->highaddr = trunc_page((vm_paddr_t)highaddr) +
 	    (PAGE_SIZE - 1);
-	newtag->filter = filter;
-	newtag->filterarg = filterarg;
 	newtag->maxsize = maxsize;
 	newtag->nsegments = nsegments;
 	newtag->maxsegsz = maxsegsz;
@@ -444,15 +437,12 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		else if (parent->boundary != 0)
 			newtag->boundary = MIN(parent->boundary,
 					       newtag->boundary);
-		if (newtag->filter == NULL) {
-			/*
-			 * Short circuit to looking at our parent directly
-			 * since we have encapsulated all of its information
-			 */
-			newtag->filter = parent->filter;
-			newtag->filterarg = parent->filterarg;
-			newtag->parent = parent->parent;
-		}
+
+		/*
+		 * Short circuit to looking at our parent directly since we
+		 * have encapsulated all of its information.
+		 */
+		newtag->parent = parent->parent;
 		if (newtag->parent != NULL)
 			atomic_add_int(&parent->ref_count, 1);
 	}

@@ -68,8 +68,6 @@ struct bus_dma_tag {
 	bus_addr_t	  boundary;
 	bus_addr_t	  lowaddr;
 	bus_addr_t	  highaddr;
-	bus_dma_filter_t *filter;
-	void		 *filterarg;
 	bus_size_t	  maxsize;
 	bus_size_t	  maxsegsz;
 	u_int		  nsegments;
@@ -129,14 +127,10 @@ run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
 	retval = 0;
 
 	do {
-		if (dmat->filter == NULL && dmat->iommu == NULL &&
+		if (dmat->iommu == NULL &&
 		    paddr > dmat->lowaddr && paddr <= dmat->highaddr)
 			retval = 1;
-		if (dmat->filter == NULL &&
-		    !vm_addr_align_ok(paddr, dmat->alignment))
-			retval = 1;
-		if (dmat->filter != NULL &&
-		    (*dmat->filter)(dmat->filterarg, paddr) != 0)
+		if (!vm_addr_align_ok(paddr, dmat->alignment))
 			retval = 1;
 
 		dmat = dmat->parent;		
@@ -188,8 +182,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->boundary = boundary;
 	newtag->lowaddr = trunc_page((vm_paddr_t)lowaddr) + (PAGE_SIZE - 1);
 	newtag->highaddr = trunc_page((vm_paddr_t)highaddr) + (PAGE_SIZE - 1);
-	newtag->filter = filter;
-	newtag->filterarg = filterarg;
 	newtag->maxsize = maxsize;
 	newtag->nsegments = nsegments;
 	newtag->maxsegsz = maxsegsz;
@@ -213,15 +205,12 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		else if (parent->boundary != 0)
 			newtag->boundary = MIN(parent->boundary,
 					       newtag->boundary);
-		if (newtag->filter == NULL) {
-			/*
-			 * Short circuit looking at our parent directly
-			 * since we have encapsulated all of its information
-			 */
-			newtag->filter = parent->filter;
-			newtag->filterarg = parent->filterarg;
-			newtag->parent = parent->parent;
-		}
+
+		/*
+		 * Short circuit looking at our parent directly since we have
+		 * encapsulated all of its information.
+		 */
+		newtag->parent = parent->parent;
 		if (newtag->parent != NULL)
 			atomic_add_int(&parent->ref_count, 1);
 		newtag->iommu = parent->iommu;

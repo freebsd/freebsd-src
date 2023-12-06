@@ -62,12 +62,10 @@ bus_dma_run_filter(struct bus_dma_tag_common *tc, bus_addr_t paddr)
 {
 
 	while (tc != NULL) {
-		if ((paddr > tc->lowaddr && paddr <= tc->highaddr) &&
-		    (tc->filter == NULL ||
-		    (*tc->filter)(tc->filterarg, paddr) != 0))
+		if (paddr > tc->lowaddr && paddr <= tc->highaddr)
 			return (1);
 
-		tc = tc->parent;		
+		tc = tc->parent;
 	}
 
 	return (0);
@@ -76,9 +74,9 @@ bus_dma_run_filter(struct bus_dma_tag_common *tc, bus_addr_t paddr)
 int
 common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
     bus_size_t alignment, bus_addr_t boundary, bus_addr_t lowaddr,
-    bus_addr_t highaddr, bus_dma_filter_t *filter, void *filterarg,
-    bus_size_t maxsize, int nsegments, bus_size_t maxsegsz, int flags,
-    bus_dma_lock_t *lockfunc, void *lockfuncarg, size_t sz, void **dmat)
+    bus_addr_t highaddr, bus_size_t maxsize, int nsegments,
+    bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
+    void *lockfuncarg, size_t sz, void **dmat)
 {
 	void *newtag;
 	struct bus_dma_tag_common *common;
@@ -106,8 +104,6 @@ common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
 	common->boundary = boundary;
 	common->lowaddr = trunc_page((vm_paddr_t)lowaddr) + (PAGE_SIZE - 1);
 	common->highaddr = trunc_page((vm_paddr_t)highaddr) + (PAGE_SIZE - 1);
-	common->filter = filter;
-	common->filterarg = filterarg;
 	common->maxsize = maxsize;
 	common->nsegments = nsegments;
 	common->maxsegsz = maxsegsz;
@@ -133,15 +129,12 @@ common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
 			common->boundary = MIN(parent->boundary,
 			    common->boundary);
 		}
-		if (common->filter == NULL) {
-			/*
-			 * Short circuit looking at our parent directly
-			 * since we have encapsulated all of its information
-			 */
-			common->filter = parent->filter;
-			common->filterarg = parent->filterarg;
-			common->parent = parent->parent;
-		}
+
+		/*
+		 * Short circuit looking at our parent directly since we have
+		 * encapsulated all of its information.
+		 */
+		common->parent = parent->parent;
 		common->domain = parent->domain;
 		atomic_add_int(&parent->ref_count, 1);
 	}
@@ -170,13 +163,13 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 
 	if (parent == NULL) {
 		error = bus_dma_bounce_impl.tag_create(parent, alignment,
-		    boundary, lowaddr, highaddr, filter, filterarg, maxsize,
-		    nsegments, maxsegsz, flags, lockfunc, lockfuncarg, dmat);
+		    boundary, lowaddr, highaddr, maxsize, nsegments, maxsegsz,
+		    flags, lockfunc, lockfuncarg, dmat);
 	} else {
 		tc = (struct bus_dma_tag_common *)parent;
 		error = tc->impl->tag_create(parent, alignment,
-		    boundary, lowaddr, highaddr, filter, filterarg, maxsize,
-		    nsegments, maxsegsz, flags, lockfunc, lockfuncarg, dmat);
+		    boundary, lowaddr, highaddr, maxsize, nsegments, maxsegsz,
+		    flags, lockfunc, lockfuncarg, dmat);
 	}
 	return (error);
 }
