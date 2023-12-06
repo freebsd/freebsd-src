@@ -79,5 +79,6 @@
 #include <der.h>
 #include <parse_units.h>
 #include "private.h"
+#include "fbsd_ossl_provider.h"
 
 #endif /* __KADM5_LOCL_H__ */
