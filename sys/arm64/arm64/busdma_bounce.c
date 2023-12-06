@@ -107,7 +107,6 @@ struct bus_dmamap {
 	struct sync_list	slist[];
 };
 
-int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
 static bool _bus_dmamap_pagesneeded(bus_dma_tag_t dmat, bus_dmamap_t map,
     vm_paddr_t buf, bus_size_t buflen, int *pagesneeded);
 static void _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
@@ -120,6 +119,7 @@ static MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
 #define	dmat_alignment(dmat)	((dmat)->common.alignment)
 #define	dmat_domain(dmat)	((dmat)->common.domain)
 #define	dmat_flags(dmat)	((dmat)->common.flags)
+#define	dmat_highaddr(dmat)	((dmat)->common.highaddr)
 #define	dmat_lowaddr(dmat)	((dmat)->common.lowaddr)
 #define	dmat_lockfunc(dmat)	((dmat)->common.lockfunc)
 #define	dmat_lockfuncarg(dmat)	((dmat)->common.lockfuncarg)
@@ -225,11 +225,8 @@ must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
 	if (cacheline_bounce(dmat, map, paddr, size))
 		return (true);
 
-	if (alignment_bounce(dmat, paddr))
-		return (true);
-
 	if ((dmat->bounce_flags & BF_COULD_BOUNCE) != 0 &&
-	    bus_dma_run_filter(&dmat->common, paddr))
+	    addr_needs_bounce(dmat, paddr))
 		return (true);
 
 	return (false);

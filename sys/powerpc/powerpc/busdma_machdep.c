@@ -99,10 +99,9 @@ struct bus_dmamap {
 
 static MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
 
-static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
-
 #define	dmat_alignment(dmat)	((dmat)->alignment)
 #define	dmat_flags(dmat)	((dmat)->flags)
+#define	dmat_highaddr(dmat)	((dmat)->highaddr)
 #define	dmat_lowaddr(dmat)	((dmat)->lowaddr)
 #define	dmat_lockfunc(dmat)	((dmat)->lockfunc)
 #define	dmat_lockfuncarg(dmat)	((dmat)->lockfuncarg)
@@ -110,27 +109,20 @@ static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
 #include "../../kern/subr_busdma_bounce.c"
 
 /*
- * Return true if a match is made.
- *
- * To find a match walk the chain of bus_dma_tag_t's looking for 'paddr'.
- *
- * If paddr is within the bounds of the dma tag then call the filter callback
- * to check for a match, if there is no filter callback then assume a match.
+ * Returns true if the address falls within the tag's exclusion window, or
+ * fails to meet its alignment requirements.
  */
-static __inline int
-run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
+static __inline bool
+must_bounce(bus_dma_tag_t dmat, bus_addr_t paddr)
 {
-	int retval;
 
-	retval = 0;
-
-	if (dmat->iommu == NULL &&
-	    paddr > dmat->lowaddr && paddr <= dmat->highaddr)
-		retval = 1;
+	if (dmat->iommu == NULL && paddr > dmat->lowaddr &&
+	    paddr <= dmat->highaddr)
+		return (true);
 	if (!vm_addr_align_ok(paddr, dmat->alignment))
-		retval = 1;
+		return (true);
 
-	return (retval);
+	return (false);
 }
 
 #define BUS_DMA_COULD_BOUNCE	BUS_DMA_BUS3
@@ -492,7 +484,7 @@ _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
 		curaddr = buf;
 		while (buflen != 0) {
 			sgsize = MIN(buflen, dmat->maxsegsz);
-			if (run_filter(dmat, curaddr) != 0) {
+			if (must_bounce(dmat, curaddr)) {
 				sgsize = MIN(sgsize,
 				    PAGE_SIZE - (curaddr & PAGE_MASK));
 				map->pagesneeded++;
@@ -532,7 +524,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 				paddr = pmap_kextract(vaddr);
 			else
 				paddr = pmap_extract(pmap, vaddr);
-			if (run_filter(dmat, paddr) != 0) {
+			if (must_bounce(dmat, paddr)) {
 				sg_len = roundup2(sg_len, dmat->alignment);
 				map->pagesneeded++;
 			}
@@ -614,7 +606,7 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat,
 	while (buflen > 0) {
 		curaddr = buf;
 		sgsize = MIN(buflen, dmat->maxsegsz);
-		if (map->pagesneeded != 0 && run_filter(dmat, curaddr)) {
+		if (map->pagesneeded != 0 && must_bounce(dmat, curaddr)) {
 			sgsize = MIN(sgsize, PAGE_SIZE - (curaddr & PAGE_MASK));
 			curaddr = add_bounce_page(dmat, map, 0, curaddr,
 			    sgsize);
@@ -694,7 +686,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		 */
 		max_sgsize = MIN(buflen, dmat->maxsegsz);
 		sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
-		if (map->pagesneeded != 0 && run_filter(dmat, curaddr)) {
+		if (map->pagesneeded != 0 && must_bounce(dmat, curaddr)) {
 			sgsize = roundup2(sgsize, dmat->alignment);
 			sgsize = MIN(sgsize, max_sgsize);
 			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr,

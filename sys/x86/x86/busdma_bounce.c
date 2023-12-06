@@ -110,6 +110,7 @@ static MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
 #define	dmat_alignment(dmat)	((dmat)->common.alignment)
 #define	dmat_domain(dmat)	((dmat)->common.domain)
 #define	dmat_flags(dmat)	((dmat)->common.flags)
+#define	dmat_highaddr(dmat)	((dmat)->common.highaddr)
 #define	dmat_lowaddr(dmat)	((dmat)->common.lowaddr)
 #define	dmat_lockfunc(dmat)	((dmat)->common.lockfunc)
 #define	dmat_lockfuncarg(dmat)	((dmat)->common.lockfuncarg)
@@ -490,7 +491,7 @@ _bus_dmamap_pagesneeded(bus_dma_tag_t dmat, vm_paddr_t buf, bus_size_t buflen,
 	curaddr = buf;
 	while (buflen != 0) {
 		sgsize = MIN(buflen, dmat->common.maxsegsz);
-		if (bus_dma_run_filter(&dmat->common, curaddr)) {
+		if (addr_needs_bounce(dmat, curaddr)) {
 			sgsize = MIN(sgsize,
 			    PAGE_SIZE - (curaddr & PAGE_MASK));
 			if (pagesneeded == NULL)
@@ -546,7 +547,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 				paddr = pmap_kextract(vaddr);
 			else
 				paddr = pmap_extract(pmap, vaddr);
-			if (bus_dma_run_filter(&dmat->common, paddr) != 0) {
+			if (addr_needs_bounce(dmat, paddr)) {
 				sg_len = roundup2(sg_len,
 				    dmat->common.alignment);
 				map->pagesneeded++;
@@ -583,7 +584,7 @@ _bus_dmamap_count_ma(bus_dma_tag_t dmat, bus_dmamap_t map, struct vm_page **ma,
 			sg_len = PAGE_SIZE - ma_offs;
 			max_sgsize = MIN(buflen, dmat->common.maxsegsz);
 			sg_len = MIN(sg_len, max_sgsize);
-			if (bus_dma_run_filter(&dmat->common, paddr) != 0) {
+			if (addr_needs_bounce(dmat, paddr)) {
 				sg_len = roundup2(sg_len,
 				    dmat->common.alignment);
 				sg_len = MIN(sg_len, max_sgsize);
@@ -684,7 +685,7 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 		sgsize = MIN(buflen, dmat->common.maxsegsz);
 		if ((dmat->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0 &&
 		    map->pagesneeded != 0 &&
-		    bus_dma_run_filter(&dmat->common, curaddr)) {
+		    addr_needs_bounce(dmat, curaddr)) {
 			sgsize = MIN(sgsize, PAGE_SIZE - (curaddr & PAGE_MASK));
 			curaddr = add_bounce_page(dmat, map, 0, curaddr, 0,
 			    sgsize);
@@ -752,7 +753,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
 		if ((dmat->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0 &&
 		    map->pagesneeded != 0 &&
-		    bus_dma_run_filter(&dmat->common, curaddr)) {
+		    addr_needs_bounce(dmat, curaddr)) {
 			sgsize = roundup2(sgsize, dmat->common.alignment);
 			sgsize = MIN(sgsize, max_sgsize);
 			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr, 0,
@@ -819,7 +820,7 @@ bounce_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
 		sgsize = PAGE_SIZE - ma_offs;
 		if ((dmat->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0 &&
 		    map->pagesneeded != 0 &&
-		    bus_dma_run_filter(&dmat->common, paddr)) {
+		    addr_needs_bounce(dmat, paddr)) {
 			sgsize = roundup2(sgsize, dmat->common.alignment);
 			sgsize = MIN(sgsize, max_sgsize);
 			KASSERT(vm_addr_align_ok(sgsize,

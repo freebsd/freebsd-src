@@ -77,7 +77,6 @@ struct bus_dma_impl {
 	    bus_dmasync_op_t op);
 };
 
-int bus_dma_run_filter(struct bus_dma_tag_common *dmat, bus_addr_t paddr);
 int common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
     bus_size_t alignment, bus_addr_t boundary, bus_addr_t lowaddr,
     bus_addr_t highaddr, bus_size_t maxsize, int nsegments,

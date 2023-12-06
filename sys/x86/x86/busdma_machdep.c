@@ -53,28 +53,6 @@
 #include <machine/bus.h>
 #include <x86/include/busdma_impl.h>
 
-/*
- * Return true if a match is made.
- *
- * To find a match walk the chain of bus_dma_tag_t's looking for 'paddr'.
- *
- * If paddr is within the bounds of the dma tag then call the filter callback
- * to check for a match, if there is no filter callback then assume a match.
- */
-int
-bus_dma_run_filter(struct bus_dma_tag_common *tc, vm_paddr_t paddr)
-{
-	int retval;
-
-	retval = 0;
-	if (paddr >= BUS_SPACE_MAXADDR ||
-	    (paddr > tc->lowaddr && paddr <= tc->highaddr) ||
-	    !vm_addr_align_ok(paddr, tc->alignment))
-		retval = 1;
-
-	return (retval);
-}
-
 int
 common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
     bus_size_t alignment, bus_addr_t boundary, bus_addr_t lowaddr,

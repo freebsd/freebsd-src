@@ -169,6 +169,7 @@ MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
 
 #define	dmat_alignment(dmat)	((dmat)->alignment)
 #define	dmat_flags(dmat)	((dmat)->flags)
+#define	dmat_highaddr(dmat)	((dmat)->highaddr)
 #define	dmat_lowaddr(dmat)	((dmat)->lowaddr)
 #define	dmat_lockfunc(dmat)	((dmat)->lockfunc)
 #define	dmat_lockfuncarg(dmat)	((dmat)->lockfuncarg)
@@ -341,17 +342,9 @@ must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
 		return (1);
 
 	/*
-	 *  The tag already contains ancestors' alignment restrictions so this
-	 *  check doesn't need to be inside the loop.
-	 */
-	if (alignment_bounce(dmat, paddr))
-		return (1);
-
-	/*
 	 * Check the tag's exclusion zone.
 	 */
-	if (exclusion_bounce(dmat) &&
-	    paddr >= dmat->lowaddr && paddr <= dmat->highaddr)
+	if (exclusion_bounce(dmat) && addr_needs_bounce(dmat, paddr))
 		return (1);
 
 	return (0);

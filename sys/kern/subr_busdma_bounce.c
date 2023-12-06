@@ -155,6 +155,22 @@ busdma_sysctl_tree_top(struct bounce_zone *bz)
 	return (bz->sysctl_tree_top);
 }
 
+/*
+ * Returns true if the address falls within the tag's exclusion window, or
+ * fails to meet its alignment requirements.
+ */
+static bool
+addr_needs_bounce(bus_dma_tag_t dmat, bus_addr_t paddr)
+{
+
+	if (paddr > dmat_lowaddr(dmat) && paddr <= dmat_highaddr(dmat))
+		return (true);
+	if (!vm_addr_align_ok(paddr, dmat_alignment(dmat)))
+		return (true);
+
+	return (false);
+}
+
 static int
 alloc_bounce_zone(bus_dma_tag_t dmat)
 {
