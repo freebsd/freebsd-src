@@ -98,10 +98,8 @@ SRCS+=${MDASM}
 # not declared for no generation of default code (NOASM).  Add each
 # syscall that satisfies these conditions to the ASM list.
 .for _asm in ${MIASM}
-.if (${MDASM:R:M${_asm:R}} == "")
-.if (${NOASM:R:M${_asm:R}} == "")
+.if !${MDASM:R:M${_asm:R}} && !${NOASM:R:M${_asm:R}}
 ASM+=$(_asm)
-.endif
 .endif
 .endfor
 
