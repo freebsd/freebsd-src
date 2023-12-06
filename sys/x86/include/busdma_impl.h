@@ -33,7 +33,6 @@
 
 struct bus_dma_tag_common {
 	struct bus_dma_impl *impl;
-	struct bus_dma_tag_common *parent;
 	bus_size_t	  alignment;
 	bus_addr_t	  boundary;
 	bus_addr_t	  lowaddr;
@@ -44,7 +43,6 @@ struct bus_dma_tag_common {
 	int		  flags;
 	bus_dma_lock_t	 *lockfunc;
 	void		 *lockfuncarg;
-	int		  ref_count;
 	int		  domain;
 };
 

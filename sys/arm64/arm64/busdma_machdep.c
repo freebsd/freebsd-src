@@ -61,12 +61,8 @@ int
 bus_dma_run_filter(struct bus_dma_tag_common *tc, bus_addr_t paddr)
 {
 
-	while (tc != NULL) {
-		if (paddr > tc->lowaddr && paddr <= tc->highaddr)
-			return (1);
-
-		tc = tc->parent;
-	}
+	if (paddr > tc->lowaddr && paddr <= tc->highaddr)
+		return (1);
 
 	return (0);
 }
@@ -99,7 +95,6 @@ common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
 
 	common = newtag;
 	common->impl = &bus_dma_bounce_impl;
-	common->parent = parent;
 	common->alignment = alignment;
 	common->boundary = boundary;
 	common->lowaddr = trunc_page((vm_paddr_t)lowaddr) + (PAGE_SIZE - 1);
@@ -108,7 +103,6 @@ common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
 	common->nsegments = nsegments;
 	common->maxsegsz = maxsegsz;
 	common->flags = flags;
-	common->ref_count = 1; /* Count ourself */
 	if (lockfunc != NULL) {
 		common->lockfunc = lockfunc;
 		common->lockfuncarg = lockfuncarg;
@@ -130,13 +124,7 @@ common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
 			    common->boundary);
 		}
 
-		/*
-		 * Short circuit looking at our parent directly since we have
-		 * encapsulated all of its information.
-		 */
-		common->parent = parent->parent;
 		common->domain = parent->domain;
-		atomic_add_int(&parent->ref_count, 1);
 	}
 	common->domain = vm_phys_domain_match(common->domain, 0ul,
 	    common->lowaddr);
@@ -184,7 +172,6 @@ bus_dma_template_clone(bus_dma_template_t *t, bus_dma_tag_t dmat)
 
 	common = (struct bus_dma_tag_common *)dmat;
 
-	t->parent = (bus_dma_tag_t)common->parent;
 	t->alignment = common->alignment;
 	t->boundary = common->boundary;
 	t->lowaddr = common->lowaddr;
