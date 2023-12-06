@@ -30,14 +30,20 @@ test -f $BSDINSTALL_DISTDIR/MANIFEST || exit 0
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 
+dist_to_statusvar()
+{
+	printf 'status_'
+	echo "$1" | sed 's/_/__/g;s/\./_dot_/g;s/-/_dash_/g'
+}
+
 percentage=0
 for dist in $DISTRIBUTIONS; do
-	distname=$(basename $dist .txz)
-	eval "status_$distname=-8"
+	statusvar=$(dist_to_statusvar $dist)
+	eval "$statusvar=-8"
 
 	items=""
 	for i in $DISTRIBUTIONS; do
-		items="$items $i `eval echo \\\${status_$(basename $i .txz):--11}`"
+		items="$items $i `eval echo \\\${$(dist_to_statusvar $i):--11}`"
 	done
 	bsddialog --backtitle "$OSNAME Installer" --title "Checksum Verification" \
 	    --mixedgauge "\nVerifying checksums of selected distributions.\n" \
@@ -57,13 +63,13 @@ for dist in $DISTRIBUTIONS; do
 	CK_VALID=$?
 	if [ $CK_VALID -le 1 ]; then
 		if [ $CK_VALID -eq 0 ]; then
-			eval "status_$distname=-3"
+			eval "$statusvar=-3"
 		else
-			eval "status_$distname=-7"
+			eval "$statusvar=-7"
 		fi
 		percentage=$(echo $percentage + 100/`echo $DISTRIBUTIONS | wc -w` | bc)
 	else
-		eval "status_$distname=-2"
+		eval "$statusvar=-2"
 		case $(/bin/freebsd-version -u) in
 		*-ALPHA*|*-CURRENT|*-STABLE|*-PRERELEASE)
 			bsddialog --backtitle "$OSNAME Installer" --title "Error" \
