@@ -50,6 +50,7 @@ union ccb;
 struct bio;
 struct mbuf;
 struct memdesc;
+struct uio;
 
 void kmsan_init(void);
 
@@ -69,6 +70,7 @@ void kmsan_check(const void *, size_t, const char *);
 void kmsan_check_bio(const struct bio *, const char *);
 void kmsan_check_ccb(const union ccb *, const char *);
 void kmsan_check_mbuf(const struct mbuf *, const char *);
+void kmsan_check_uio(const struct uio *, const char *);
 
 #else
 #define kmsan_init(u)
@@ -85,6 +87,7 @@ void kmsan_check_mbuf(const struct mbuf *, const char *);
 #define kmsan_check_bio(b, d)
 #define kmsan_check_ccb(c, d)
 #define kmsan_check_mbuf(m, d)
+#define kmsan_check_uio(u, d)
 #define	kmsan_bus_dmamap_sync(d, op)
 #endif
 

@@ -588,6 +588,15 @@ kmsan_check_mbuf(const struct mbuf *m, const char *descr)
 }
 
 void
+kmsan_check_uio(const struct uio *uio, const char *descr)
+{
+	for (int i = 0; i < uio->uio_iovcnt; i++) {
+		kmsan_check(uio->uio_iov[i].iov_base, uio->uio_iov[i].iov_len,
+		    descr);
+	}
+}
+
+void
 kmsan_init(void)
 {
 	int disabled;
