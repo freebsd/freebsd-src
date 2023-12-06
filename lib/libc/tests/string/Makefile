@@ -11,6 +11,7 @@ ATF_TESTS_C+=		flsl_test
 ATF_TESTS_C+=		flsll_test
 ATF_TESTS_C+=		memccpy_test
 ATF_TESTS_C+=		memcmp_test
+ATF_TESTS_C+=		memrchr_test
 ATF_TESTS_C+=		memset_s_test
 ATF_TESTS_C+=		strncmp_test
 ATF_TESTS_C+=		stpncpy_test
