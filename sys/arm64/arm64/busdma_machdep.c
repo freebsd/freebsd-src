@@ -164,6 +164,10 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	struct bus_dma_tag_common *tc;
 	int error;
 
+	/* Filters are no longer supported. */
+	if (filter != NULL || filterarg != NULL)
+		return (EINVAL);
+
 	if (parent == NULL) {
 		error = bus_dma_bounce_impl.tag_create(parent, alignment,
 		    boundary, lowaddr, highaddr, filter, filterarg, maxsize,
