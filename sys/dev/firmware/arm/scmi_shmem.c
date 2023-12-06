@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2022 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2023 Arm Ltd
  *
  * This work was supported by Innovate UK project 105694, "Digital Security
  * by Design (DSbD) Technology Platform Prototype".
@@ -41,6 +42,7 @@
 
 #include "mmio_sram_if.h"
 
+#include "scmi_shmem.h"
 #include "scmi.h"
 
 struct shmem_softc {
@@ -48,6 +50,14 @@ struct shmem_softc {
 	device_t		parent;
 	int			reg;
 };
+
+static void	scmi_shmem_read(device_t, bus_size_t, void *, bus_size_t);
+static void	scmi_shmem_write(device_t, bus_size_t, const void *,
+				 bus_size_t);
+
+static int	shmem_probe(device_t);
+static int	shmem_attach(device_t);
+static int	shmem_detach(device_t);
 
 static int
 shmem_probe(device_t dev)
@@ -97,7 +107,7 @@ shmem_detach(device_t dev)
 	return (0);
 }
 
-void
+static void
 scmi_shmem_read(device_t dev, bus_size_t offset, void *buf, bus_size_t len)
 {
 	struct shmem_softc *sc;
@@ -112,7 +122,7 @@ scmi_shmem_read(device_t dev, bus_size_t offset, void *buf, bus_size_t len)
 		addr[i] = MMIO_SRAM_READ_1(sc->parent, sc->reg + offset + i);
 }
 
-void
+static void
 scmi_shmem_write(device_t dev, bus_size_t offset, const void *buf,
     bus_size_t len)
 {
@@ -126,6 +136,107 @@ scmi_shmem_write(device_t dev, bus_size_t offset, const void *buf,
 
 	for (i = 0; i < len; i++)
 		MMIO_SRAM_WRITE_1(sc->parent, sc->reg + offset + i, addr[i]);
+}
+
+device_t
+scmi_shmem_get(device_t dev, phandle_t node, int index)
+{
+	phandle_t *shmems;
+	device_t shmem_dev;
+	size_t len;
+
+	len = OF_getencprop_alloc_multi(node, "shmem", sizeof(*shmems),
+	    (void **)&shmems);
+	if (len <= 0) {
+		device_printf(dev, "%s: Can't get shmem node.\n", __func__);
+		return (NULL);
+	}
+
+	if (index >= len) {
+		OF_prop_free(shmems);
+		return (NULL);
+	}
+
+	shmem_dev = OF_device_from_xref(shmems[index]);
+	if (shmem_dev == NULL)
+		device_printf(dev, "%s: Can't get shmem device.\n",
+		    __func__);
+
+	OF_prop_free(shmems);
+
+	return (shmem_dev);
+}
+
+int
+scmi_shmem_prepare_msg(device_t dev, struct scmi_req *req)
+{
+	struct scmi_smt_header hdr = {};
+	uint32_t channel_status;
+
+	/* Read channel status */
+	scmi_shmem_read(dev, SMT_OFFSET_CHAN_STATUS, &channel_status,
+	    SMT_SIZE_CHAN_STATUS);
+	if ((channel_status & SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE) == 0) {
+		device_printf(dev, "Shmem channel busy. Abort !.\n");
+		return (1);
+	}
+
+	/* Update header */
+	hdr.channel_status &= ~SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE;
+	hdr.msg_header = htole32(req->msg_header);
+	hdr.length = htole32(sizeof(req->msg_header) + req->in_size);
+	hdr.flags |= SCMI_SHMEM_FLAG_INTR_ENABLED;
+
+	/* Write header */
+	scmi_shmem_write(dev, 0, &hdr, SMT_SIZE_HEADER);
+
+	/* Write request payload if any */
+	if (req->in_size)
+		scmi_shmem_write(dev, SMT_SIZE_HEADER, req->in_buf,
+		    req->in_size);
+
+	return (0);
+}
+
+int
+scmi_shmem_read_msg_header(device_t dev, uint32_t *msg_header)
+{
+	uint32_t length, header;
+
+	/* Read and check length. */
+	scmi_shmem_read(dev, SMT_OFFSET_LENGTH, &length, SMT_SIZE_LENGTH);
+	if (le32toh(length) < sizeof(header))
+		return (EINVAL);
+
+	/* Read header. */
+	scmi_shmem_read(dev, SMT_OFFSET_MSG_HEADER, &header,
+	    SMT_SIZE_MSG_HEADER);
+
+	*msg_header = le32toh(header);
+
+	return (0);
+}
+
+int
+scmi_shmem_read_msg_payload(device_t dev, uint8_t *buf, uint32_t buf_len)
+{
+	uint32_t length, payld_len;
+
+	/* Read length. */
+	scmi_shmem_read(dev, SMT_OFFSET_LENGTH, &length, SMT_SIZE_LENGTH);
+	payld_len = le32toh(length) - SCMI_MSG_HDR_SIZE;
+
+	if (payld_len > buf_len) {
+		device_printf(dev,
+		    "RX payload %dbytes exceeds buflen %dbytes. Truncate.\n",
+		    payld_len, buf_len);
+		payld_len = buf_len;
+	}
+
+	/* Read response payload */
+	scmi_shmem_read(dev, SMT_SIZE_HEADER, buf, payld_len);
+
+	return (0);
 }
 
 static device_method_t shmem_methods[] = {
