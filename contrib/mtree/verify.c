@@ -1,4 +1,4 @@
-/*	$NetBSD: verify.c,v 1.47 2021/03/18 20:02:18 cheusov Exp $	*/
+/*	$NetBSD: verify.c,v 1.48 2023/12/02 13:34:48 christos Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)verify.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: verify.c,v 1.47 2021/03/18 20:02:18 cheusov Exp $");
+__RCSID("$NetBSD: verify.c,v 1.48 2023/12/02 13:34:48 christos Exp $");
 #endif
 #endif /* not lint */
 
