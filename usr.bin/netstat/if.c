@@ -45,6 +45,7 @@
 #include <arpa/inet.h>
 #ifdef PF
 #include <net/pfvar.h>
+#include <net/pflow.h>
 #include <net/if_pfsync.h>
 #endif
 
@@ -179,6 +180,31 @@ pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(pfsyncs_oerrors, "\t\t{:send-errors/%ju} "
 	    "{N:/send error%s}\n");
 #undef p
+	xo_close_container(name);
+}
+
+void
+pflow_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
+{
+	struct pflowstats pflowstat;
+
+	if (fetch_stats("net.pflow.stats", off, &pflowstat,
+	    sizeof(pflowstat), kread) != 0)
+		return;
+
+	xo_emit("{T:/%s}:\n", name);
+	xo_open_container(name);
+
+#define	p(f, m) if (pflowstat.f || sflag <= 1) \
+	xo_emit(m, (uintmax_t)pflowstat.f, plural(pflowstat.f))
+
+	p(pflow_flows, "\t{:flows/%ju} {N:/flow%s sent}\n");
+	p(pflow_packets, "\t{:packets/%ju} {N:/packet%s sent}\n");
+	p(pflow_onomem, "\t{:nomem/%ju} "
+	    "{N:/send failed due to mbuf memory error}\n");
+	p(pflow_oerrors, "\t{:send-error/%ju} {N:/send error}\n");
+#undef p
+
 	xo_close_container(name);
 }
 #endif /* PF */

@@ -96,6 +96,7 @@ void	igmp_stats(u_long, const char *, int, int);
 void	pim_stats(u_long, const char *, int, int);
 void	carp_stats(u_long, const char *, int, int);
 void	pfsync_stats(u_long, const char *, int, int);
+void	pflow_stats(u_long, const char *, int, int);
 #ifdef IPSEC
 void	ipsec_stats(u_long, const char *, int, int);
 void	esp_stats(u_long, const char *, int, int);
