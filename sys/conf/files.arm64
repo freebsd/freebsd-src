@@ -136,17 +136,17 @@ ghashv8-armx.o					optional armv8crypto	\
 crypto/des/des_enc.c				optional netsmb
 crypto/openssl/ossl_aarch64.c			optional ossl
 crypto/openssl/aarch64/chacha-armv8.S		optional ossl		\
-	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${.IMPSRC}"
+	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} -I$S/crypto/openssl ${WERROR} ${.IMPSRC}"
 crypto/openssl/aarch64/poly1305-armv8.S		optional ossl		\
-	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${.IMPSRC}"
+	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} -I$S/crypto/openssl ${WERROR} ${.IMPSRC}"
 crypto/openssl/aarch64/sha1-armv8.S		optional ossl		\
-	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${.IMPSRC}"
+	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} -I$S/crypto/openssl ${WERROR} ${.IMPSRC}"
 crypto/openssl/aarch64/sha256-armv8.S		optional ossl		\
-	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${.IMPSRC}"
+	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} -I$S/crypto/openssl ${WERROR} ${.IMPSRC}"
 crypto/openssl/aarch64/sha512-armv8.S		optional ossl		\
-	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${.IMPSRC}"
+	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} -I$S/crypto/openssl ${WERROR} ${.IMPSRC}"
 crypto/openssl/aarch64/vpaes-armv8.S		optional ossl		\
-	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${.IMPSRC}"
+	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} -I$S/crypto/openssl ${WERROR} ${.IMPSRC}"
 
 dev/acpica/acpi_bus_if.m			optional acpi
 dev/acpica/acpi_if.m				optional acpi
