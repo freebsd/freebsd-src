@@ -29,45 +29,42 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_ARM64_SCMI_SCMI_H_
-#define	_ARM64_SCMI_SCMI_H_
+#ifndef	_ARM64_SCMI_SCMI_SHMEM_H_
+#define	_ARM64_SCMI_SCMI_SHMEM_H_
 
-#include "scmi_if.h"
-
-#define	SCMI_LOCK(sc)		mtx_lock(&(sc)->mtx)
-#define	SCMI_UNLOCK(sc)		mtx_unlock(&(sc)->mtx)
-#define	SCMI_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->mtx, MA_OWNED)
-
-#define dprintf(fmt, ...)
-
-#define SCMI_MSG_HDR_SIZE	(sizeof(uint32_t))
-
-enum scmi_chan {
-	SCMI_CHAN_A2P,
-	SCMI_CHAN_P2A,
-	SCMI_CHAN_MAX
-};
-
-struct scmi_softc {
-	struct simplebus_softc	simplebus_sc;
-	device_t		dev;
-	device_t		a2p_dev;
-	struct mtx		mtx;
-};
-
-struct scmi_req {
-	int protocol_id;
-	int message_id;
+/* Shared Memory Transfer. */
+struct scmi_smt_header {
+	uint32_t reserved;
+	uint32_t channel_status;
+#define	SCMI_SHMEM_CHAN_STAT_CHANNEL_ERROR	(1 << 1)
+#define	SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE	(1 << 0)
+	uint32_t reserved1[2];
+	uint32_t flags;
+#define	SCMI_SHMEM_FLAG_INTR_ENABLED		(1 << 0)
+	uint32_t length;
 	uint32_t msg_header;
-	const void *in_buf;
-	uint32_t in_size;
-	void *out_buf;
-	uint32_t out_size;
+	uint8_t msg_payload[0];
 };
 
-DECLARE_CLASS(scmi_driver);
+#define	SMT_SIZE_HEADER			sizeof(struct scmi_smt_header)
 
-int scmi_attach(device_t dev);
-int scmi_request(device_t dev, struct scmi_req *req);
+#define	SMT_OFFSET_CHAN_STATUS		\
+	__offsetof(struct scmi_smt_header, channel_status)
+#define	SMT_SIZE_CHAN_STATUS		sizeof(uint32_t)
 
-#endif /* !_ARM64_SCMI_SCMI_H_ */
+#define	SMT_OFFSET_LENGTH		\
+	__offsetof(struct scmi_smt_header, length)
+#define	SMT_SIZE_LENGTH			sizeof(uint32_t)
+
+#define	SMT_OFFSET_MSG_HEADER		\
+    __offsetof(struct scmi_smt_header, msg_header)
+#define	SMT_SIZE_MSG_HEADER		sizeof(uint32_t)
+
+struct scmi_req;
+
+device_t	scmi_shmem_get(device_t sdev, phandle_t node, int index);
+int		scmi_shmem_prepare_msg(device_t dev, struct scmi_req *req);
+int scmi_shmem_read_msg_header(device_t dev, uint32_t *msg_header);
+int scmi_shmem_read_msg_payload(device_t dev, uint8_t *buf, uint32_t buf_len);
+
+#endif /* !_ARM64_SCMI_SCMI_SHMEM_H_ */

@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2022 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2023 Arm Ltd
  *
  * This work was supported by Innovate UK project 105694, "Digital Security
  * by Design (DSbD) Technology Platform Prototype".
@@ -46,84 +47,62 @@
 
 #include "scmi.h"
 #include "scmi_protocols.h"
+#include "scmi_shmem.h"
 
-static device_t
-scmi_get_shmem(struct scmi_softc *sc, int index)
-{
-	phandle_t *shmems;
-	phandle_t node;
-	device_t dev;
-	size_t len;
+#define	SCMI_HDR_TOKEN_S		18
+#define SCMI_HDR_TOKEN_BF		(0x3fff)
+#define	SCMI_HDR_TOKEN_M		(SCMI_HDR_TOKEN_BF << SCMI_HDR_TOKEN_S)
 
-	node = ofw_bus_get_node(sc->dev);
-	if (node <= 0)
-		return (NULL);
+#define	SCMI_HDR_PROTOCOL_ID_S		10
+#define	SCMI_HDR_PROTOCOL_ID_BF		(0xff)
+#define	SCMI_HDR_PROTOCOL_ID_M		\
+    (SCMI_HDR_PROTOCOL_ID_BF << SCMI_HDR_PROTOCOL_ID_S)
 
-	len = OF_getencprop_alloc_multi(node, "shmem", sizeof(*shmems),
-	    (void **)&shmems);
-	if (len <= 0) {
-		device_printf(sc->dev, "%s: Can't get shmem node.\n", __func__);
-		return (NULL);
-	}
+#define	SCMI_HDR_MESSAGE_TYPE_S		8
+#define	SCMI_HDR_MESSAGE_TYPE_BF	(0x3)
+#define	SCMI_HDR_MESSAGE_TYPE_M		\
+    (SCMI_HDR_MESSAGE_TYPE_BF << SCMI_HDR_MESSAGE_TYPE_S)
 
-	if (index >= len) {
-		OF_prop_free(shmems);
-		return (NULL);
-	}
+#define	SCMI_HDR_MESSAGE_ID_S		0
+#define	SCMI_HDR_MESSAGE_ID_BF		(0xff)
+#define	SCMI_HDR_MESSAGE_ID_M		\
+    (SCMI_HDR_MESSAGE_ID_BF << SCMI_HDR_MESSAGE_ID_S)
 
-	dev = OF_device_from_xref(shmems[index]);
-	if (dev == NULL)
-		device_printf(sc->dev, "%s: Can't get shmem device.\n",
-		    __func__);
-
-	OF_prop_free(shmems);
-
-	return (dev);
-}
+#define SCMI_MSG_TYPE_CMD	0
+#define SCMI_MSG_TYPE_DRESP	2
+#define SCMI_MSG_TYPE_NOTIF	3
 
 static int
 scmi_request_locked(struct scmi_softc *sc, struct scmi_req *req)
 {
-	struct scmi_smt_header hdr;
+	uint32_t reply_header;
 	int ret;
-
-	bzero(&hdr, sizeof(struct scmi_smt_header));
 
 	SCMI_ASSERT_LOCKED(sc);
 
-	/* Read header */
-	scmi_shmem_read(sc->tx_shmem, 0, &hdr, SMT_HEADER_SIZE);
-
-	if ((hdr.channel_status & SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE) == 0)
-		return (1);
-
-	/* Update header */
-	hdr.channel_status &= ~SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE;
-	hdr.msg_header = req->protocol_id << SMT_HEADER_PROTOCOL_ID_S;
-	hdr.msg_header |= req->message_id << SMT_HEADER_MESSAGE_ID_S;
+	req->msg_header = req->message_id << SCMI_HDR_MESSAGE_ID_S;
 	/* TODO: Allocate a token */
-	hdr.length = sizeof(hdr.msg_header) + req->in_size;
-	hdr.flags |= SCMI_SHMEM_FLAG_INTR_ENABLED;
+	req->msg_header |= SCMI_MSG_TYPE_CMD << SCMI_HDR_MESSAGE_TYPE_S;
+	req->msg_header |= req->protocol_id << SCMI_HDR_PROTOCOL_ID_S;
 
-	/* Write header */
-	scmi_shmem_write(sc->tx_shmem, 0, &hdr, SMT_HEADER_SIZE);
-
-	/* Write request */
-	scmi_shmem_write(sc->tx_shmem, SMT_HEADER_SIZE, req->in_buf,
-	    req->in_size);
+	ret = scmi_shmem_prepare_msg(sc->a2p_dev, req);
+	if (ret != 0)
+		return (ret);
 
 	ret = SCMI_XFER_MSG(sc->dev);
 	if (ret != 0)
 		return (ret);
 
 	/* Read header. */
-	scmi_shmem_read(sc->tx_shmem, 0, &hdr, SMT_HEADER_SIZE);
+	ret = scmi_shmem_read_msg_header(sc->a2p_dev, &reply_header);
+	if (ret != 0)
+		return (ret);
 
-	/* Read response */
-	scmi_shmem_read(sc->tx_shmem, SMT_HEADER_SIZE, req->out_buf,
-	    req->out_size);
+	if (reply_header != req->msg_header)
+		return (EPROTO);
 
-	return (0);
+	return (scmi_shmem_read_msg_payload(sc->a2p_dev, req->out_buf,
+	    req->out_size));
 }
 
 int
@@ -155,9 +134,9 @@ scmi_attach(device_t dev)
 	if (node == -1)
 		return (ENXIO);
 
-	sc->tx_shmem = scmi_get_shmem(sc, 0);
-	if (sc->tx_shmem == NULL) {
-		device_printf(dev, "TX shmem dev not found.\n");
+	sc->a2p_dev = scmi_shmem_get(dev, node, SCMI_CHAN_A2P);
+	if (sc->a2p_dev == NULL) {
+		device_printf(dev, "A2P shmem dev not found.\n");
 		return (ENXIO);
 	}
 
