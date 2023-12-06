@@ -1468,8 +1468,7 @@ domemstat_zone(void)
 {
 	struct memory_type_list *mtlp;
 	struct memory_type *mtp;
-	int error;
-	char name[MEMTYPE_MAXNAME + 1];
+	int error, len;
 
 	mtlp = memstat_mtl_alloc();
 	if (mtlp == NULL) {
@@ -1494,20 +1493,20 @@ domemstat_zone(void)
 		}
 	}
 	xo_open_container("memory-zone-statistics");
-	xo_emit("{T:/%-20s} {T:/%6s} {T:/%6s} {T:/%8s} {T:/%8s} {T:/%8s} {T:/%8s} "
-	    "{T:/%4s} {T:/%4s}\n", "ITEM", "SIZE",
-	    "LIMIT", "USED", "FREE", "REQ", "FAIL", "SLEEP", "XDOMAIN");
+	xo_emit("{T:/%-19s} {T:/%7s} {T:/%7s} {T:/%8s} {T:/%8s} {T:/%8s} "
+	    "{T:/%4s} {T:/%4s} {T:/%4s}\n", "ITEM", "SIZE",
+	    "LIMIT", "USED", "FREE", "REQ", "FAIL", "SLEEP", "XDOM");
 	xo_open_list("zone");
 	for (mtp = memstat_mtl_first(mtlp); mtp != NULL;
 	    mtp = memstat_mtl_next(mtp)) {
-		strlcpy(name, memstat_get_name(mtp), MEMTYPE_MAXNAME);
-		strcat(name, ":");
+		len = strlen(memstat_get_name(mtp));
 		xo_open_instance("zone");
-		xo_emit("{d:name/%-20s}{ke:name/%s} {:size/%6ju}, "
-		    "{:limit/%6ju},{:used/%8ju},"
+		xo_emit("{k:name/%s}:{d:size/%*ju}{e:size/%ju},"
+		    "{:limit/%7ju},{:used/%8ju},"
 		    "{:free/%8ju},{:requests/%8ju},"
-		    "{:fail/%4ju},{:sleep/%4ju},{:xdomain/%4ju}\n", name,
-		    memstat_get_name(mtp),
+		    "{:fail/%4ju},{:sleep/%4ju},{:xdomain/%4ju}\n",
+		    memstat_get_name(mtp), MAX(1, 26 - len),
+		    (uintmax_t)memstat_get_size(mtp),
 		    (uintmax_t)memstat_get_size(mtp),
 		    (uintmax_t)memstat_get_countlimit(mtp),
 		    (uintmax_t)memstat_get_count(mtp),
