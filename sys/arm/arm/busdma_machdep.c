@@ -398,6 +398,10 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	/* Return a NULL tag on failure */
 	*dmat = NULL;
 
+	/* Filters are no longer supported. */
+	if (filter != NULL || filterarg != NULL)
+		return (EINVAL);
+
 	newtag = (bus_dma_tag_t)malloc(sizeof(*newtag), M_BUSDMA,
 	    M_ZERO | M_NOWAIT);
 	if (newtag == NULL) {

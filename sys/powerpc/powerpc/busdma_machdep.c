@@ -168,6 +168,10 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		return (EINVAL);
 	}
 
+	/* Filters are no longer supported. */
+	if (filter != NULL || filterarg != NULL)
+		return (EINVAL);
+
 	/* Return a NULL tag on failure */
 	*dmat = NULL;
 
