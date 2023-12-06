@@ -356,9 +356,8 @@ static void iommu_bus_schedule_dmamap(struct iommu_unit *unit,
 static int
 iommu_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
     bus_addr_t boundary, bus_addr_t lowaddr, bus_addr_t highaddr,
-    bus_dma_filter_t *filter, void *filterarg, bus_size_t maxsize,
-    int nsegments, bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
-    void *lockfuncarg, bus_dma_tag_t *dmat)
+    bus_size_t maxsize, int nsegments, bus_size_t maxsegsz, int flags,
+    bus_dma_lock_t *lockfunc, void *lockfuncarg, bus_dma_tag_t *dmat)
 {
 	struct bus_dma_tag_iommu *newtag, *oldtag;
 	int error;
@@ -366,9 +365,9 @@ iommu_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	*dmat = NULL;
 	error = common_bus_dma_tag_create(parent != NULL ?
 	    &((struct bus_dma_tag_iommu *)parent)->common : NULL, alignment,
-	    boundary, lowaddr, highaddr, filter, filterarg, maxsize,
-	    nsegments, maxsegsz, flags, lockfunc, lockfuncarg,
-	    sizeof(struct bus_dma_tag_iommu), (void **)&newtag);
+	    boundary, lowaddr, highaddr, maxsize, nsegments, maxsegsz, flags,
+	    lockfunc, lockfuncarg, sizeof(struct bus_dma_tag_iommu),
+	    (void **)&newtag);
 	if (error != 0)
 		goto out;
 

@@ -125,17 +125,16 @@ static MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
 static int
 bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
     bus_addr_t boundary, bus_addr_t lowaddr, bus_addr_t highaddr,
-    bus_dma_filter_t *filter, void *filterarg, bus_size_t maxsize,
-    int nsegments, bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
-    void *lockfuncarg, bus_dma_tag_t *dmat)
+    bus_size_t maxsize, int nsegments, bus_size_t maxsegsz, int flags,
+    bus_dma_lock_t *lockfunc, void *lockfuncarg, bus_dma_tag_t *dmat)
 {
 	bus_dma_tag_t newtag;
 	int error;
 
 	*dmat = NULL;
 	error = common_bus_dma_tag_create(parent != NULL ? &parent->common :
-	    NULL, alignment, boundary, lowaddr, highaddr, filter, filterarg,
-	    maxsize, nsegments, maxsegsz, flags, lockfunc, lockfuncarg,
+	    NULL, alignment, boundary, lowaddr, highaddr, maxsize, nsegments,
+	    maxsegsz, flags, lockfunc, lockfuncarg,
 	    sizeof (struct bus_dma_tag), (void **)&newtag);
 	if (error != 0)
 		return (error);
@@ -148,8 +147,7 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		newtag->bounce_flags |= BF_COHERENT;
 
 	if (parent != NULL) {
-		if ((newtag->common.filter != NULL ||
-		    (parent->bounce_flags & BF_COULD_BOUNCE) != 0))
+		if ((parent->bounce_flags & BF_COULD_BOUNCE) != 0)
 			newtag->bounce_flags |= BF_COULD_BOUNCE;
 
 		/* Copy some flags from the parent */
