@@ -77,7 +77,6 @@ struct bounce_page;
 struct bounce_zone;
 
 struct bus_dma_tag {
-	bus_dma_tag_t		parent;
 	bus_size_t		alignment;
 	bus_addr_t		boundary;
 	bus_addr_t		lowaddr;
@@ -86,7 +85,6 @@ struct bus_dma_tag {
 	u_int			nsegments;
 	bus_size_t		maxsegsz;
 	int			flags;
-	int			ref_count;
 	int			map_count;
 	bus_dma_lock_t		*lockfunc;
 	void			*lockfuncarg;
@@ -332,10 +330,7 @@ might_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t addr,
  *
  * Bouncing can be triggered by DMA that doesn't begin and end on cacheline
  * boundaries, or doesn't begin on an alignment boundary, or falls within the
- * exclusion zone of any tag in the ancestry chain.
- *
- * For exclusions, walk the chain of tags comparing paddr to the exclusion zone
- * within each tag.
+ * exclusion zone of the tag.
  */
 static int
 must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
@@ -353,17 +348,11 @@ must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
 		return (1);
 
 	/*
-	 * Even though each tag has an exclusion zone that is a superset of its
-	 * own and all its ancestors' exclusions, the exclusion zone of each tag
-	 * up the chain must be checked within the loop, because the busdma
-	 * rules say the filter function is called only when the address lies
-	 * within the low-highaddr range of the tag that filterfunc belongs to.
+	 * Check the tag's exclusion zone.
 	 */
-	while (dmat != NULL && exclusion_bounce(dmat)) {
-		if (paddr >= dmat->lowaddr && paddr <= dmat->highaddr)
-			return (1);
-		dmat = dmat->parent;
-	}
+	if (exclusion_bounce(dmat) &&
+	    paddr >= dmat->lowaddr && paddr <= dmat->highaddr)
+		return (1);
 
 	return (0);
 }
@@ -405,7 +394,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		return (ENOMEM);
 	}
 
-	newtag->parent = parent;
 	newtag->alignment = alignment;
 	newtag->boundary = boundary;
 	newtag->lowaddr = trunc_page((vm_paddr_t)lowaddr) + (PAGE_SIZE - 1);
@@ -415,7 +403,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->nsegments = nsegments;
 	newtag->maxsegsz = maxsegsz;
 	newtag->flags = flags;
-	newtag->ref_count = 1; /* Count ourself */
 	newtag->map_count = 0;
 	if (lockfunc != NULL) {
 		newtag->lockfunc = lockfunc;
@@ -437,14 +424,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		else if (parent->boundary != 0)
 			newtag->boundary = MIN(parent->boundary,
 					       newtag->boundary);
-
-		/*
-		 * Short circuit to looking at our parent directly since we
-		 * have encapsulated all of its information.
-		 */
-		newtag->parent = parent->parent;
-		if (newtag->parent != NULL)
-			atomic_add_int(&parent->ref_count, 1);
 	}
 
 	if (exclusion_bounce_check(newtag->lowaddr, newtag->highaddr))
@@ -504,7 +483,6 @@ bus_dma_template_clone(bus_dma_template_t *t, bus_dma_tag_t dmat)
 	if (t == NULL || dmat == NULL)
 		return;
 
-	t->parent = dmat->parent;
 	t->alignment = dmat->alignment;
 	t->boundary = dmat->boundary;
 	t->lowaddr = dmat->lowaddr;
@@ -527,39 +505,17 @@ bus_dma_tag_set_domain(bus_dma_tag_t dmat, int domain)
 int
 bus_dma_tag_destroy(bus_dma_tag_t dmat)
 {
-#ifdef KTR
-	bus_dma_tag_t dmat_copy = dmat;
-#endif
-	int error;
-
-	error = 0;
+	int error = 0;
 
 	if (dmat != NULL) {
 		if (dmat->map_count != 0) {
 			error = EBUSY;
 			goto out;
 		}
-
-		while (dmat != NULL) {
-			bus_dma_tag_t parent;
-
-			parent = dmat->parent;
-			atomic_subtract_int(&dmat->ref_count, 1);
-			if (dmat->ref_count == 0) {
-				atomic_subtract_32(&tags_total, 1);
-				free(dmat, M_BUSDMA);
-				/*
-				 * Last reference count, so
-				 * release our reference
-				 * count on our parent.
-				 */
-				dmat = parent;
-			} else
-				dmat = NULL;
-		}
+		free(dmat, M_BUSDMA);
 	}
 out:
-	CTR3(KTR_BUSDMA, "%s tag %p error %d", __func__, dmat_copy, error);
+	CTR3(KTR_BUSDMA, "%s tag %p error %d", __func__, dmat, error);
 	return (error);
 }
 

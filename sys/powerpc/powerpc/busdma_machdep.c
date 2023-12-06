@@ -63,7 +63,6 @@ struct bounce_page;
 struct bounce_zone;
 
 struct bus_dma_tag {
-	bus_dma_tag_t	  parent;
 	bus_size_t	  alignment;
 	bus_addr_t	  boundary;
 	bus_addr_t	  lowaddr;
@@ -72,7 +71,6 @@ struct bus_dma_tag {
 	bus_size_t	  maxsegsz;
 	u_int		  nsegments;
 	int		  flags;
-	int		  ref_count;
 	int		  map_count;
 	bus_dma_lock_t	 *lockfunc;
 	void		 *lockfuncarg;
@@ -126,15 +124,12 @@ run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
 
 	retval = 0;
 
-	do {
-		if (dmat->iommu == NULL &&
-		    paddr > dmat->lowaddr && paddr <= dmat->highaddr)
-			retval = 1;
-		if (!vm_addr_align_ok(paddr, dmat->alignment))
-			retval = 1;
+	if (dmat->iommu == NULL &&
+	    paddr > dmat->lowaddr && paddr <= dmat->highaddr)
+		retval = 1;
+	if (!vm_addr_align_ok(paddr, dmat->alignment))
+		retval = 1;
 
-		dmat = dmat->parent;		
-	} while (retval == 0 && dmat != NULL);
 	return (retval);
 }
 
@@ -177,7 +172,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		return (ENOMEM);
 	}
 
-	newtag->parent = parent;
 	newtag->alignment = alignment;
 	newtag->boundary = boundary;
 	newtag->lowaddr = trunc_page((vm_paddr_t)lowaddr) + (PAGE_SIZE - 1);
@@ -186,7 +180,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->nsegments = nsegments;
 	newtag->maxsegsz = maxsegsz;
 	newtag->flags = flags;
-	newtag->ref_count = 1; /* Count ourself */
 	newtag->map_count = 0;
 	if (lockfunc != NULL) {
 		newtag->lockfunc = lockfunc;
@@ -206,13 +199,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 			newtag->boundary = MIN(parent->boundary,
 					       newtag->boundary);
 
-		/*
-		 * Short circuit looking at our parent directly since we have
-		 * encapsulated all of its information.
-		 */
-		newtag->parent = parent->parent;
-		if (newtag->parent != NULL)
-			atomic_add_int(&parent->ref_count, 1);
 		newtag->iommu = parent->iommu;
 		newtag->iommu_cookie = parent->iommu_cookie;
 	}
@@ -265,7 +251,6 @@ bus_dma_template_clone(bus_dma_template_t *t, bus_dma_tag_t dmat)
 	if (t == NULL || dmat == NULL)
 		return;
 
-	t->parent = dmat->parent;
 	t->alignment = dmat->alignment;
 	t->boundary = dmat->boundary;
 	t->lowaddr = dmat->lowaddr;
@@ -288,11 +273,7 @@ bus_dma_tag_set_domain(bus_dma_tag_t dmat, int domain)
 int
 bus_dma_tag_destroy(bus_dma_tag_t dmat)
 {
-	bus_dma_tag_t dmat_copy __unused;
-	int error;
-
-	error = 0;
-	dmat_copy = dmat;
+	int error = 0;
 
 	if (dmat != NULL) {
 		if (dmat->map_count != 0) {
@@ -300,25 +281,10 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 			goto out;
 		}
 
-		while (dmat != NULL) {
-			bus_dma_tag_t parent;
-
-			parent = dmat->parent;
-			atomic_subtract_int(&dmat->ref_count, 1);
-			if (dmat->ref_count == 0) {
-				free(dmat, M_DEVBUF);
-				/*
-				 * Last reference count, so
-				 * release our reference
-				 * count on our parent.
-				 */
-				dmat = parent;
-			} else
-				dmat = NULL;
-		}
+		free(dmat, M_DEVBUF);
 	}
 out:
-	CTR3(KTR_BUSDMA, "%s tag %p error %d", __func__, dmat_copy, error);
+	CTR3(KTR_BUSDMA, "%s tag %p error %d", __func__, dmat, error);
 	return (error);
 }
 

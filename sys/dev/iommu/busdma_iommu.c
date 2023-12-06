@@ -394,33 +394,24 @@ iommu_bus_dma_tag_set_domain(bus_dma_tag_t dmat)
 static int
 iommu_bus_dma_tag_destroy(bus_dma_tag_t dmat1)
 {
-	struct bus_dma_tag_iommu *dmat, *parent;
-	struct bus_dma_tag_iommu *dmat_copy __unused;
+	struct bus_dma_tag_iommu *dmat;
 	int error;
 
 	error = 0;
-	dmat_copy = dmat = (struct bus_dma_tag_iommu *)dmat1;
+	dmat = (struct bus_dma_tag_iommu *)dmat1;
 
 	if (dmat != NULL) {
 		if (dmat->map_count != 0) {
 			error = EBUSY;
 			goto out;
 		}
-		while (dmat != NULL) {
-			parent = (struct bus_dma_tag_iommu *)dmat->common.parent;
-			if (atomic_fetchadd_int(&dmat->common.ref_count, -1) ==
-			    1) {
-				if (dmat == dmat->ctx->tag)
-					iommu_free_ctx(dmat->ctx);
-				free(dmat->segments, M_IOMMU_DMAMAP);
-				free(dmat, M_DEVBUF);
-				dmat = parent;
-			} else
-				dmat = NULL;
-		}
+		if (dmat == dmat->ctx->tag)
+			iommu_free_ctx(dmat->ctx);
+		free(dmat->segments, M_IOMMU_DMAMAP);
+		free(dmat, M_DEVBUF);
 	}
 out:
-	CTR3(KTR_BUSDMA, "%s tag %p error %d", __func__, dmat_copy, error);
+	CTR3(KTR_BUSDMA, "%s tag %p error %d", __func__, dmat, error);
 	return (error);
 }
 
