@@ -128,12 +128,18 @@ VNET_DEFINE(CK_LIST_HEAD(, pflow_softc), pflowif_list);
 #define	V_pflowif_list	VNET(pflowif_list)
 VNET_DEFINE(struct mtx, pflowif_list_mtx);
 #define	V_pflowif_list_mtx	VNET(pflowif_list_mtx)
-VNET_DEFINE(struct pflowstats,	 pflowstats);
-#define	V_pflowstats	VNET(pflowstats)
+VNET_DEFINE(struct pflowstats,	 pflowstat);
+#define	V_pflowstats	VNET(pflowstat)
 
 #define	PFLOW_LOCK(_sc)		mtx_lock(&(_sc)->sc_lock)
 #define	PFLOW_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_lock)
 #define	PFLOW_ASSERT(_sc)	mtx_assert(&(_sc)->sc_lock, MA_OWNED)
+
+SYSCTL_NODE(_net, OID_AUTO, pflow, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "PFLOW");
+SYSCTL_STRUCT(_net_pflow, OID_AUTO, stats, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(pflowstat), pflowstats,
+    "PFLOW statistics (struct pflowstats, net/if_pflow.h)");
 
 static void
 vnet_pflowattach(void)
