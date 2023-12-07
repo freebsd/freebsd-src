@@ -113,9 +113,11 @@ initialise_months(void)
 	const nl_item ab_item[12] = { ABMON_1, ABMON_2, ABMON_3, ABMON_4,
 	    ABMON_5, ABMON_6, ABMON_7, ABMON_8, ABMON_9, ABMON_10,
 	    ABMON_11, ABMON_12 };
+#ifdef ALTMON_1
 	const nl_item alt_item[12] = { ALTMON_1, ALTMON_2, ALTMON_3, ALTMON_4,
 	    ALTMON_5, ALTMON_6, ALTMON_7, ALTMON_8, ALTMON_9, ALTMON_10,
 	    ALTMON_11, ALTMON_12 };
+#endif
 	int i;
 
 	/*
@@ -132,9 +134,13 @@ initialise_months(void)
 				if (!populate_cmonth(&cmonths[i].ab,
 				    ab_item[i], i))
 					continue;
+#ifdef ALTMON_1
 				if (!populate_cmonth(&cmonths[i].alt,
 				    alt_item[i], i))
 					continue;
+#else
+				cmonths[i].alt = NULL;
+#endif
 			}
 		}
 
@@ -148,9 +154,13 @@ initialise_months(void)
 				if (!populate_wmonth(&wmonths[i].ab,
 				    ab_item[i], i))
 					continue;
+#ifdef ALTMON_1
 				if (!populate_wmonth(&wmonths[i].alt,
 				    alt_item[i], i))
 					continue;
+#else
+				wmonths[i].alt = NULL;
+#endif
 			}
 		}
 	}
