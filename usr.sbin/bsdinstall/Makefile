@@ -1,5 +1,5 @@
 
-SUBDIR=	distextract distfetch partedit runconsoles scripts
+SUBDIR=	distextract distfetch include partedit runconsoles scripts
 SUBDIR_PARALLEL=
 SUBDIR_DEPEND_distextract = include
 SUBDIR_DEPEND_distfetch = include
