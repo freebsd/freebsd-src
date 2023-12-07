@@ -210,7 +210,7 @@ scmi_shmem_prepare_msg(device_t dev, struct scmi_req *req, bool polling)
 	if ((channel_status & SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE) == 0) {
 		scmi_shmem_release_channel(sc);
 		device_printf(dev, "Shmem channel busy. Abort !.\n");
-		return (1);
+		return (EBUSY);
 	}
 
 	/* Update header */

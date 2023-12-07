@@ -53,9 +53,18 @@
 
 struct scmi_mailbox_softc {
 	struct scmi_softc	base;
+	device_t		a2p_dev;
 	struct arm_doorbell	*db;
 	int			req_done;
 };
+
+static int	scmi_mailbox_transport_init(device_t);
+static void	scmi_mailbox_transport_cleanup(device_t);
+static int	scmi_mailbox_xfer_msg(device_t, struct scmi_req *);
+static int	scmi_mailbox_collect_reply(device_t, struct scmi_req *);
+static void	scmi_mailbox_tx_complete(device_t, void *);
+
+static int	scmi_mailbox_probe(device_t);
 
 static void
 scmi_mailbox_callback(void *arg)
@@ -73,15 +82,63 @@ scmi_mailbox_callback(void *arg)
 }
 
 static int
-scmi_mailbox_xfer_msg(device_t dev)
+scmi_mailbox_transport_init(device_t dev)
 {
 	struct scmi_mailbox_softc *sc;
-	int timeout;
+	phandle_t node;
+
+	sc = device_get_softc(dev);
+
+	node = ofw_bus_get_node(dev);
+	if (node == -1)
+		return (ENXIO);
+	/*
+	 * TODO
+	 * - Support P2A shmem + IRQ/doorbell
+	 * - Support other mailbox devices
+	 */
+	sc->a2p_dev = scmi_shmem_get(dev, node, SCMI_CHAN_A2P);
+	if (sc->a2p_dev == NULL) {
+		device_printf(dev, "A2P shmem dev not found.\n");
+		return (ENXIO);
+	}
+
+	/* TODO: Fix ofw_get...mbox doorbell names NOT required in Linux DT */
+	sc->db = arm_doorbell_ofw_get(dev, "tx");
+	if (sc->db == NULL) {
+		device_printf(dev, "Doorbell device not found.\n");
+		return (ENXIO);
+	}
+
+	arm_doorbell_set_handler(sc->db, scmi_mailbox_callback, sc);
+
+	return (0);
+}
+
+static void
+scmi_mailbox_transport_cleanup(device_t dev)
+{
+	struct scmi_mailbox_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	arm_doorbell_set_handler(sc->db, NULL, NULL);
+}
+
+static int
+scmi_mailbox_xfer_msg(device_t dev, struct scmi_req *req)
+{
+	struct scmi_mailbox_softc *sc;
+	int ret, timeout;
 
 	sc = device_get_softc(dev);
 	SCMI_ASSERT_LOCKED(&sc->base);
 
 	sc->req_done = 0;
+
+	ret = scmi_shmem_prepare_msg(sc->a2p_dev, req, cold);
+	if (ret != 0)
+		return (ret);
 
 	/* Interrupt SCP firmware. */
 	arm_doorbell_set(sc->db);
@@ -92,7 +149,7 @@ scmi_mailbox_xfer_msg(device_t dev)
 
 	do {
 		if (cold) {
-			if (scmi_shmem_poll_msg(sc->base.a2p_dev))
+			if (scmi_shmem_poll_msg(sc->a2p_dev))
 				break;
 			DELAY(10000);
 		} else {
@@ -103,11 +160,41 @@ scmi_mailbox_xfer_msg(device_t dev)
 	} while (timeout--);
 
 	if (timeout <= 0)
-		return (-1);
+		return (ETIMEDOUT);
 
 	dprintf("%s: got reply, timeout %d\n", __func__, timeout);
 
 	return (0);
+}
+
+static int
+scmi_mailbox_collect_reply(device_t dev, struct scmi_req *req)
+{
+	struct scmi_mailbox_softc *sc;
+	uint32_t reply_header;
+	int ret;
+
+	sc = device_get_softc(dev);
+
+	/* Read header. */
+	ret = scmi_shmem_read_msg_header(sc->a2p_dev, &reply_header);
+	if (ret != 0)
+		return (ret);
+
+	if (reply_header != req->msg_header)
+		return (EPROTO);
+
+	return (scmi_shmem_read_msg_payload(sc->a2p_dev, req->out_buf,
+	    req->out_size));
+}
+
+static void
+scmi_mailbox_tx_complete(device_t dev, void *chan)
+{
+	struct scmi_mailbox_softc *sc;
+
+	sc = device_get_softc(dev);
+	scmi_shmem_tx_complete(sc->a2p_dev);
 }
 
 static int
@@ -125,49 +212,15 @@ scmi_mailbox_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-static int
-scmi_mailbox_attach(device_t dev)
-{
-	struct scmi_mailbox_softc *sc;
-	int ret;
-
-	sc = device_get_softc(dev);
-
-	/* TODO: Support other mailbox devices */
-	sc->db = arm_doorbell_ofw_get(dev, "tx");
-	if (sc->db == NULL) {
-		device_printf(dev, "Doorbell device not found.\n");
-		return (ENXIO);
-	}
-
-	arm_doorbell_set_handler(sc->db, scmi_mailbox_callback, sc);
-
-	ret = scmi_attach(dev);
-	if (ret != 0)
-		arm_doorbell_set_handler(sc->db, NULL, NULL);
-
-	return (ret);
-}
-
-static int
-scmi_mailbox_detach(device_t dev)
-{
-	struct scmi_mailbox_softc *sc;
-
-	sc = device_get_softc(dev);
-
-	arm_doorbell_set_handler(sc->db, NULL, NULL);
-
-	return (0);
-}
-
 static device_method_t scmi_mailbox_methods[] = {
 	DEVMETHOD(device_probe,		scmi_mailbox_probe),
-	DEVMETHOD(device_attach,	scmi_mailbox_attach),
-	DEVMETHOD(device_detach,	scmi_mailbox_detach),
 
 	/* SCMI interface */
-	DEVMETHOD(scmi_xfer_msg,	scmi_mailbox_xfer_msg),
+	DEVMETHOD(scmi_transport_init,		scmi_mailbox_transport_init),
+	DEVMETHOD(scmi_transport_cleanup,	scmi_mailbox_transport_cleanup),
+	DEVMETHOD(scmi_xfer_msg,		scmi_mailbox_xfer_msg),
+	DEVMETHOD(scmi_collect_reply,		scmi_mailbox_collect_reply),
+	DEVMETHOD(scmi_tx_complete,		scmi_mailbox_tx_complete),
 
 	DEVMETHOD_END
 };

@@ -51,7 +51,6 @@ enum scmi_chan {
 struct scmi_softc {
 	struct simplebus_softc	simplebus_sc;
 	device_t		dev;
-	device_t		a2p_dev;
 	struct mtx		mtx;
 };
 

@@ -27,6 +27,29 @@
 
 INTERFACE scmi;
 
+HEADER {
+	struct scmi_req;
+};
+
+METHOD int transport_init {
+	device_t dev;
+};
+
+METHOD void transport_cleanup {
+	device_t dev;
+};
+
 METHOD int xfer_msg {
 	device_t dev;
+	struct scmi_req *req;
+};
+
+METHOD int collect_reply {
+	device_t dev;
+	struct scmi_req *req;
+};
+
+METHOD void tx_complete {
+	device_t dev;
+	void *chan;
 };
