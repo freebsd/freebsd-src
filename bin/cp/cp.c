@@ -84,7 +84,7 @@ static char emptystring[] = "";
 
 PATH_T to = { to.p_path, emptystring, "" };
 
-int fflag, iflag, lflag, nflag, pflag, sflag, vflag;
+int Nflag, fflag, iflag, lflag, nflag, pflag, sflag, vflag;
 static int Hflag, Lflag, Rflag, rflag;
 volatile sig_atomic_t info;
 
@@ -103,7 +103,7 @@ main(int argc, char *argv[])
 
 	fts_options = FTS_NOCHDIR | FTS_PHYSICAL;
 	Pflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRafilnprsvx")) != -1)
+	while ((ch = getopt(argc, argv, "HLNPRafilnprsvx")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -112,6 +112,9 @@ main(int argc, char *argv[])
 		case 'L':
 			Lflag = 1;
 			Hflag = Pflag = 0;
+			break;
+		case 'N':
+			Nflag = 1;
 			break;
 		case 'P':
 			Pflag = 1;
