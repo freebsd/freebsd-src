@@ -2276,6 +2276,9 @@ tcp_newtcpcb(struct inpcb *inp)
 	/* All mbuf queue/ack compress flags should be off */
 	tcp_lro_features_off(tp);
 
+	tp->t_hpts_cpu = HPTS_CPU_NONE;
+	tp->t_lro_cpu = HPTS_CPU_NONE;
+
 	callout_init_rw(&tp->t_callout, &inp->inp_lock, CALLOUT_RETURNUNLOCKED);
 	for (int i = 0; i < TT_N; i++)
 		tp->t_timers[i] = SBT_MAX;
