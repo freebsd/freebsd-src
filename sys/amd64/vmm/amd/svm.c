@@ -1442,11 +1442,12 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 			info1 = 0;
 			break;
 		}
-		KASSERT(vmexit->inst_length == 0, ("invalid inst_length (%d) "
-		    "when reflecting exception %d into guest",
-		    vmexit->inst_length, idtvec));
 
 		if (reflect) {
+			KASSERT(vmexit->inst_length == 0,
+			    ("invalid inst_length (%d) "
+			     "when reflecting exception %d into guest",
+				vmexit->inst_length, idtvec));
 			/* Reflect the exception back into the guest */
 			SVM_CTR2(vcpu, "Reflecting exception "
 			    "%d/%#x into the guest", idtvec, (int)info1);
@@ -1454,8 +1455,8 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 			    errcode_valid, info1, 0);
 			KASSERT(error == 0, ("%s: vm_inject_exception error %d",
 			    __func__, error));
+			handled = 1;
 		}
-		handled = 1;
 		break;
 	case VMCB_EXIT_MSR:	/* MSR access. */
 		eax = state->rax;
