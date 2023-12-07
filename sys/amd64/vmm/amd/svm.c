@@ -1725,6 +1725,10 @@ svm_inj_interrupts(struct svm_softc *sc, struct svm_vcpu *vcpu,
 	int vector, need_intr_window;
 	int extint_pending;
 
+	if (vcpu->caps & (1 << VM_CAP_MASK_HWINTR)) {
+		return;
+	}
+
 	state = svm_get_vmcb_state(vcpu);
 	ctrl  = svm_get_vmcb_ctrl(vcpu);
 
@@ -2446,6 +2450,10 @@ svm_setcap(void *vcpui, int type, int val)
 		vlapic = vm_lapic(vcpu->vcpu);
 		vlapic->ipi_exit = val;
 		break;
+	case VM_CAP_MASK_HWINTR:
+		vcpu->caps &= ~(1 << VM_CAP_MASK_HWINTR);
+		vcpu->caps |= (val << VM_CAP_MASK_HWINTR);
+		break;
 	case VM_CAP_RFLAGS_TF: {
 		uint64_t rflags;
 
@@ -2528,6 +2536,9 @@ svm_getcap(void *vcpui, int type, int *retval)
 		break;
 	case VM_CAP_RFLAGS_TF:
 		*retval = !!(vcpu->caps & (1 << VM_CAP_RFLAGS_TF));
+		break;
+	case VM_CAP_MASK_HWINTR:
+		*retval = !!(vcpu->caps & (1 << VM_CAP_MASK_HWINTR));
 		break;
 	default:
 		error = ENOENT;
