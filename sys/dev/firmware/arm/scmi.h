@@ -34,12 +34,10 @@
 
 #include "scmi_if.h"
 
-#define	SCMI_LOCK(sc)		mtx_lock(&(sc)->mtx)
-#define	SCMI_UNLOCK(sc)		mtx_unlock(&(sc)->mtx)
-#define	SCMI_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->mtx, MA_OWNED)
 
 #define dprintf(fmt, ...)
 
+#define SCMI_MAX_MSG		32
 #define SCMI_MSG_HDR_SIZE	(sizeof(uint32_t))
 
 enum scmi_chan {
@@ -48,21 +46,37 @@ enum scmi_chan {
 	SCMI_CHAN_MAX
 };
 
+struct scmi_transport_desc {
+	bool no_completion_irq;
+	unsigned int reply_timo_ms;
+};
+
+struct scmi_transport;
+
 struct scmi_softc {
-	struct simplebus_softc	simplebus_sc;
-	device_t		dev;
-	struct mtx		mtx;
+	struct simplebus_softc		simplebus_sc;
+	device_t			dev;
+	struct mtx			mtx;
+	struct scmi_transport_desc	trs_desc;
+	struct scmi_transport		*trs;
 };
 
 struct scmi_req {
-	int protocol_id;
-	int message_id;
-	uint32_t msg_header;
-	const void *in_buf;
-	uint32_t in_size;
-	void *out_buf;
-	uint32_t out_size;
+	bool		use_polling;
+	bool		done;
+	LIST_ENTRY(scmi_req)	next;
+	int		protocol_id;
+	int		message_id;
+	int		token;
+	uint32_t	msg_header;
+	const void	*in_buf;
+	uint32_t	in_size;
+	void		*out_buf;
+	uint32_t	out_size;
 };
+
+int scmi_request(device_t dev, struct scmi_req *req);
+void scmi_rx_irq_callback(device_t dev, void *chan, uint32_t hdr);
 
 DECLARE_CLASS(scmi_driver);
 

@@ -38,7 +38,6 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
-#include <sys/mutex.h>
 
 #include <dev/clk/clk.h>
 #include <dev/fdt/simplebus.h>
@@ -51,34 +50,36 @@
 #include "scmi_protocols.h"
 #include "scmi_shmem.h"
 
+#define SCMI_MBOX_POLL_INTERVAL_MS	3
+
 struct scmi_mailbox_softc {
 	struct scmi_softc	base;
 	device_t		a2p_dev;
 	struct arm_doorbell	*db;
-	int			req_done;
 };
 
 static int	scmi_mailbox_transport_init(device_t);
 static void	scmi_mailbox_transport_cleanup(device_t);
 static int	scmi_mailbox_xfer_msg(device_t, struct scmi_req *);
+static int	scmi_mailbox_poll_msg(device_t, struct scmi_req *,
+    unsigned int);
 static int	scmi_mailbox_collect_reply(device_t, struct scmi_req *);
 static void	scmi_mailbox_tx_complete(device_t, void *);
 
 static int	scmi_mailbox_probe(device_t);
 
 static void
-scmi_mailbox_callback(void *arg)
+scmi_mailbox_a2p_callback(void *arg)
 {
 	struct scmi_mailbox_softc *sc;
+	uint32_t msg_header;
+	int ret;
 
 	sc = arg;
 
-	dprintf("%s sc %p\n", __func__, sc);
-
-	SCMI_LOCK(&sc->base);
-	sc->req_done = 1;
-	wakeup(sc);
-	SCMI_UNLOCK(&sc->base);
+	ret = scmi_shmem_read_msg_header(sc->a2p_dev, &msg_header);
+	if (ret == 0)
+		scmi_rx_irq_callback(sc->base.dev, sc->a2p_dev, msg_header);
 }
 
 static int
@@ -110,7 +111,9 @@ scmi_mailbox_transport_init(device_t dev)
 		return (ENXIO);
 	}
 
-	arm_doorbell_set_handler(sc->db, scmi_mailbox_callback, sc);
+	sc->base.trs_desc.reply_timo_ms = 30;
+
+	arm_doorbell_set_handler(sc->db, scmi_mailbox_a2p_callback, sc);
 
 	return (0);
 }
@@ -129,42 +132,37 @@ static int
 scmi_mailbox_xfer_msg(device_t dev, struct scmi_req *req)
 {
 	struct scmi_mailbox_softc *sc;
-	int ret, timeout;
+	int ret;
 
 	sc = device_get_softc(dev);
-	SCMI_ASSERT_LOCKED(&sc->base);
 
-	sc->req_done = 0;
-
-	ret = scmi_shmem_prepare_msg(sc->a2p_dev, req, cold);
+	ret = scmi_shmem_prepare_msg(sc->a2p_dev, req, req->use_polling);
 	if (ret != 0)
 		return (ret);
 
 	/* Interrupt SCP firmware. */
 	arm_doorbell_set(sc->db);
 
-	timeout = 200;
-
 	dprintf("%s: request\n", __func__);
 
-	do {
-		if (cold) {
-			if (scmi_shmem_poll_msg(sc->a2p_dev))
-				break;
-			DELAY(10000);
-		} else {
-			msleep(sc, &sc->base.mtx, 0, "scmi", hz / 10);
-			if (sc->req_done)
-				break;
-		}
-	} while (timeout--);
-
-	if (timeout <= 0)
-		return (ETIMEDOUT);
-
-	dprintf("%s: got reply, timeout %d\n", __func__, timeout);
-
 	return (0);
+}
+
+static int
+scmi_mailbox_poll_msg(device_t dev, struct scmi_req *req, unsigned int tmo_ms)
+{
+	struct scmi_mailbox_softc *sc;
+	unsigned int tmo_loops = tmo_ms / SCMI_MBOX_POLL_INTERVAL_MS;
+
+	sc = device_get_softc(dev);
+
+	do {
+		if (scmi_shmem_poll_msg(sc->a2p_dev, req->msg_header))
+			break;
+		DELAY(SCMI_MBOX_POLL_INTERVAL_MS * 1000);
+	} while (tmo_loops--);
+
+	return (tmo_loops ? 0 : 1);
 }
 
 static int
@@ -197,6 +195,13 @@ scmi_mailbox_tx_complete(device_t dev, void *chan)
 	scmi_shmem_tx_complete(sc->a2p_dev);
 }
 
+static void
+scmi_mailbox_clear_channel(device_t dev, void *chan)
+{
+	/* Only P2A channel can be cleared forcibly by agent */
+	scmi_shmem_clear_channel(chan);
+}
+
 static int
 scmi_mailbox_probe(device_t dev)
 {
@@ -219,8 +224,10 @@ static device_method_t scmi_mailbox_methods[] = {
 	DEVMETHOD(scmi_transport_init,		scmi_mailbox_transport_init),
 	DEVMETHOD(scmi_transport_cleanup,	scmi_mailbox_transport_cleanup),
 	DEVMETHOD(scmi_xfer_msg,		scmi_mailbox_xfer_msg),
+	DEVMETHOD(scmi_poll_msg,		scmi_mailbox_poll_msg),
 	DEVMETHOD(scmi_collect_reply,		scmi_mailbox_collect_reply),
 	DEVMETHOD(scmi_tx_complete,		scmi_mailbox_tx_complete),
+	DEVMETHOD(scmi_clear_channel,		scmi_mailbox_clear_channel),
 
 	DEVMETHOD_END
 };

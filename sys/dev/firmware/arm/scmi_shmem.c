@@ -233,6 +233,19 @@ scmi_shmem_prepare_msg(device_t dev, struct scmi_req *req, bool polling)
 	return (0);
 }
 
+void
+scmi_shmem_clear_channel(device_t dev)
+{
+	uint32_t channel_status = 0;
+
+	if (dev == NULL)
+		return;
+
+	channel_status |= SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE;
+	scmi_shmem_write(dev, SMT_OFFSET_CHAN_STATUS, &channel_status,
+	    SMT_SIZE_CHAN_STATUS);
+}
+
 int
 scmi_shmem_read_msg_header(device_t dev, uint32_t *msg_header)
 {
@@ -283,9 +296,15 @@ scmi_shmem_tx_complete(device_t dev)
 	scmi_shmem_release_channel(sc);
 }
 
-bool scmi_shmem_poll_msg(device_t dev)
+bool scmi_shmem_poll_msg(device_t dev, uint32_t msg_header)
 {
-	uint32_t status;
+	uint32_t status, header;
+
+	scmi_shmem_read(dev, SMT_OFFSET_MSG_HEADER, &header,
+	    SMT_SIZE_MSG_HEADER);
+	/* Bail out if it is NOT what we were polling for. */
+	if (le32toh(header) != msg_header)
+		return (false);
 
 	scmi_shmem_read(dev, SMT_OFFSET_CHAN_STATUS, &status,
 	    SMT_SIZE_CHAN_STATUS);

@@ -44,12 +44,23 @@ METHOD int xfer_msg {
 	struct scmi_req *req;
 };
 
+METHOD int poll_msg {
+	device_t dev;
+	struct scmi_req *req;
+	unsigned int tmo;
+};
+
 METHOD int collect_reply {
 	device_t dev;
 	struct scmi_req *req;
 };
 
 METHOD void tx_complete {
+	device_t dev;
+	void *chan;
+};
+
+METHOD void clear_channel {
 	device_t dev;
 	void *chan;
 };
