@@ -1594,7 +1594,7 @@ smsc_bootargs_get_mac_addr(device_t dev, struct usb_ether *ue)
 	len = OF_getprop_alloc(node, "bootargs", (void **)&bootargs);
 	if (len == -1 || bootargs == NULL) {
 		smsc_warn_printf((struct smsc_softc *)ue->ue_sc,
-				"failed alloc for bootargs (%lu)", len);
+				"failed alloc for bootargs (%zd)", len);
 		return (false);
 	}
 	smsc_dbg_printf((struct smsc_softc *)ue->ue_sc, "bootargs: %s.\n",
