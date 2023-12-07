@@ -542,15 +542,23 @@ tcp_hpts_release(struct tcpcb *tp)
 }
 
 /*
- * Initialize newborn tcpcb to get ready for use with HPTS.
+ * Initialize tcpcb to get ready for use with HPTS.  We will know which CPU
+ * is preferred on the first incoming packet.  Before that avoid crowding
+ * a single CPU with newborn connections and use a random one.
+ * This initialization is normally called on a newborn tcpcb, but potentially
+ * can be called once again if stack is switched.  In that case we inherit CPU
+ * that the previous stack has set, be it random or not.  In extreme cases,
+ * e.g. syzkaller fuzzing, a tcpcb can already be in HPTS in IHPTS_MOVING state
+ * and has never received a first packet.
  */
 void
 tcp_hpts_init(struct tcpcb *tp)
 {
 
-	tp->t_hpts_cpu = hpts_random_cpu();
-	tp->t_lro_cpu = HPTS_CPU_NONE;
-	MPASS(!(tp->t_flags2 & TF2_HPTS_CPU_SET));
+	if (__predict_true(tp->t_hpts_cpu == HPTS_CPU_NONE)) {
+		tp->t_hpts_cpu = hpts_random_cpu();
+		MPASS(!(tp->t_flags2 & TF2_HPTS_CPU_SET));
+	}
 }
 
 /*
