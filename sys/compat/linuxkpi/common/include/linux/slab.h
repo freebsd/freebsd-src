@@ -47,12 +47,12 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	kzalloc(size, flags)		kmalloc(size, (flags) | __GFP_ZERO)
 #define	kzalloc_node(size, flags, node)	kmalloc_node(size, (flags) | __GFP_ZERO, node)
 #define	kfree_const(ptr)		kfree(ptr)
-#define	vzalloc(size)			__vmalloc(size, M_WAITOK | __GFP_NOWARN | __GFP_ZERO, 0)
+#define	vzalloc(size)			__vmalloc(size, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO, 0)
 #define	vfree(arg)			kfree(arg)
 #define	kvfree(arg)			kfree(arg)
-#define	vmalloc_node(size, node)	__vmalloc_node(size, M_WAITOK, node)
-#define	vmalloc_user(size)		__vmalloc(size, M_WAITOK | __GFP_ZERO, 0)
-#define	vmalloc(size)			__vmalloc(size, M_WAITOK, 0)
+#define	vmalloc_node(size, node)	__vmalloc_node(size, GFP_KERNEL, node)
+#define	vmalloc_user(size)		__vmalloc(size, GFP_KERNEL | __GFP_ZERO, 0)
+#define	vmalloc(size)			__vmalloc(size, GFP_KERNEL, 0)
 #define	__kmalloc(...)			kmalloc(__VA_ARGS__)
 
 /*
