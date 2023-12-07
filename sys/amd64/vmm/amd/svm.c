@@ -1421,6 +1421,12 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 			break;
 
 		case IDT_BP:
+			vmexit->exitcode = VM_EXITCODE_BPT;
+			vmexit->u.bpt.inst_length = vmexit->inst_length;
+			vmexit->inst_length = 0;
+
+			reflect = 0;
+			break;
 		case IDT_OF:
 		case IDT_BR:
 			/*
@@ -2333,6 +2339,9 @@ svm_setcap(void *vcpui, int type, int val)
 		if (val == 0)
 			error = EINVAL;
 		break;
+	case VM_CAP_BPT_EXIT:
+		svm_set_intercept(vcpu, VMCB_EXC_INTCPT, BIT(IDT_BP), val);
+		break;
 	case VM_CAP_IPI_EXIT:
 		vlapic = vm_lapic(vcpu->vcpu);
 		vlapic->ipi_exit = val;
@@ -2365,6 +2374,9 @@ svm_getcap(void *vcpui, int type, int *retval)
 		break;
 	case VM_CAP_UNRESTRICTED_GUEST:
 		*retval = 1;	/* unrestricted guest is always enabled */
+		break;
+	case VM_CAP_BPT_EXIT:
+		*retval = svm_get_intercept(vcpu, VMCB_EXC_INTCPT, BIT(IDT_BP));
 		break;
 	case VM_CAP_IPI_EXIT:
 		vlapic = vm_lapic(vcpu->vcpu);
