@@ -1429,8 +1429,8 @@ domemstat_malloc(void)
 		}
 	}
 	xo_open_container("malloc-statistics");
-	xo_emit("{T:/%13s} {T:/%5s} {T:/%6s} {T:/%8s}  {T:Size(s)}\n",
-	    "Type", "InUse", "MemUse", "Requests");
+	xo_emit("{T:/%16s} {T:/%4s} {T:/%5s} {T:/%3s} {T:Size(s)}\n",
+	    "Type", "Use", "Memory", "Req");
 	xo_open_list("memory");
 	zones = memstat_malloc_zone_get_count();
 	for (mtp = memstat_mtl_first(mtlp); mtp != NULL;
@@ -1439,10 +1439,12 @@ domemstat_malloc(void)
 		    memstat_get_count(mtp) == 0)
 			continue;
 		xo_open_instance("memory");
-		xo_emit("{k:type/%13s/%s} {:in-use/%5ju} "
-		    "{:memory-use/%5ju}{U:K} {:requests/%8ju}  ",
+		xo_emit("{k:type/%16s/%s} "
+		    "{[:4}{h,hn-decimal,hn-1000:in-use/%ju}{]:} "
+		    "{[:5}{h,hn-decimal:memory-use/%ju}{]:} "
+		    "{[:4}{h,hn-decimal,hn-1000:requests/%ju}{]:} ",
 		    memstat_get_name(mtp), (uintmax_t)memstat_get_count(mtp),
-		    ((uintmax_t)memstat_get_bytes(mtp) + 1023) / 1024,
+		    (uintmax_t)memstat_get_bytes(mtp),
 		    (uintmax_t)memstat_get_numallocs(mtp));
 		first = 1;
 		xo_open_list("size");
@@ -1450,7 +1452,7 @@ domemstat_malloc(void)
 			if (memstat_malloc_zone_used(mtp, i)) {
 				if (!first)
 					xo_emit(",");
-				xo_emit("{l:size/%d}", memstat_malloc_zone_get_size(i));
+				xo_emit("{lh:size/%d}", memstat_malloc_zone_get_size(i));
 				first = 0;
 			}
 		}
