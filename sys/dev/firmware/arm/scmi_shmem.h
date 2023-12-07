@@ -65,9 +65,10 @@ struct scmi_req;
 device_t	scmi_shmem_get(device_t sdev, phandle_t node, int index);
 int		scmi_shmem_prepare_msg(device_t dev, struct scmi_req *req,
     bool polling);
-bool scmi_shmem_poll_msg(device_t);
+bool scmi_shmem_poll_msg(device_t, uint32_t msg_header);
 int scmi_shmem_read_msg_header(device_t dev, uint32_t *msg_header);
 int scmi_shmem_read_msg_payload(device_t dev, uint8_t *buf, uint32_t buf_len);
 void scmi_shmem_tx_complete(device_t);
+void scmi_shmem_clear_channel(device_t dev);
 
 #endif /* !_ARM64_SCMI_SCMI_SHMEM_H_ */

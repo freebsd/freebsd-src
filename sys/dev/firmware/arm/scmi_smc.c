@@ -58,11 +58,11 @@ struct scmi_smc_softc {
 
 static int	scmi_smc_transport_init(device_t);
 static int	scmi_smc_xfer_msg(device_t, struct scmi_req *);
+static int	scmi_smc_poll_msg(device_t, struct scmi_req *, unsigned int);
 static int	scmi_smc_collect_reply(device_t, struct scmi_req *);
 static void	scmi_smc_tx_complete(device_t, void *);
 
 static int	scmi_smc_probe(device_t);
-static int	scmi_smc_attach(device_t);
 
 static int
 scmi_smc_transport_init(device_t dev)
@@ -89,6 +89,9 @@ scmi_smc_transport_init(device_t dev)
 		return (ENXIO);
 	}
 
+	sc->base.trs_desc.no_completion_irq = true;
+	sc->base.trs_desc.reply_timo_ms = 30;
+
 	return (0);
 }
 
@@ -99,13 +102,32 @@ scmi_smc_xfer_msg(device_t dev, struct scmi_req *req)
 	int ret;
 
 	sc = device_get_softc(dev);
-	SCMI_ASSERT_LOCKED(&sc->base);
 
 	ret = scmi_shmem_prepare_msg(sc->a2p_dev, req, cold);
 	if (ret != 0)
 		return (ret);
 
 	arm_smccc_smc(sc->smc_id, 0, 0, 0, 0, 0, 0, 0, NULL);
+
+	return (0);
+}
+
+static int
+scmi_smc_poll_msg(device_t dev, struct scmi_req *req, unsigned int tmo)
+{
+	struct scmi_smc_softc *sc;
+	uint32_t msg_header;
+	int ret;
+
+	sc = device_get_softc(dev);
+
+	/*
+	 * Nothing to poll since commands are completed as soon as smc
+	 * returns ... but did we get back what we were poling for ?
+	 */
+	ret = scmi_shmem_read_msg_header(sc->a2p_dev, &msg_header);
+	if (ret != 0 || msg_header != req->msg_header)
+		return (1);
 
 	return (0);
 }
@@ -140,40 +162,18 @@ scmi_smc_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	device_set_desc(dev, "ARM SCMI SCM interface driver");
+	device_set_desc(dev, "ARM SCMI SMC Transport driver");
 
 	return (BUS_PROBE_DEFAULT);
 }
 
-static int
-scmi_smc_attach(device_t dev)
-{
-	struct scmi_smc_softc *sc;
-	phandle_t node;
-	ssize_t len;
-
-	sc = device_get_softc(dev);
-
-	node = ofw_bus_get_node(dev);
-	len = OF_getencprop(node, "arm,smc-id", &sc->smc_id,
-	    sizeof(sc->smc_id));
-	if (len <= 0) {
-		device_printf(dev, "No SMC ID found\n");
-		return (EINVAL);
-	}
-
-	device_printf(dev, "smc id %x\n", sc->smc_id);
-
-	return (scmi_attach(dev));
-}
-
 static device_method_t scmi_smc_methods[] = {
 	DEVMETHOD(device_probe,		scmi_smc_probe),
-	DEVMETHOD(device_attach,	scmi_smc_attach),
 
 	/* SCMI interface */
 	DEVMETHOD(scmi_transport_init,		scmi_smc_transport_init),
 	DEVMETHOD(scmi_xfer_msg,		scmi_smc_xfer_msg),
+	DEVMETHOD(scmi_poll_msg,		scmi_smc_poll_msg),
 	DEVMETHOD(scmi_collect_reply,		scmi_smc_collect_reply),
 	DEVMETHOD(scmi_tx_complete,		scmi_smc_tx_complete),
 
