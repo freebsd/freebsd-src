@@ -1061,8 +1061,8 @@ struct pf_kstate {
 	struct pf_ksrc_node	*nat_src_node;
 	u_int64_t		 packets[2];
 	u_int64_t		 bytes[2];
-	u_int32_t		 creation;
-	u_int32_t	 	 expire;
+	u_int64_t		 creation;
+	u_int64_t	 	 expire;
 	u_int32_t		 pfsync_time;
 	struct pf_rule_actions	 act;
 	u_int16_t		 tag;
@@ -2236,6 +2236,22 @@ pf_release_staten(struct pf_kstate *s, u_int n)
 		return (1);
 	} else
 		return (0);
+}
+
+static __inline uint64_t
+pf_get_uptime(void)
+{
+	struct timeval t;
+	microuptime(&t);
+	return ((t.tv_sec * 1000) + (t.tv_usec / 1000));
+}
+
+static __inline uint64_t
+pf_get_time(void)
+{
+	struct timeval t;
+	microtime(&t);
+	return ((t.tv_sec * 1000) + (t.tv_usec / 1000));
 }
 
 extern struct pf_kstate		*pf_find_state_byid(uint64_t, uint32_t);

@@ -543,9 +543,9 @@ copy_flow_data(struct pflow_flow *flow1, struct pflow_flow *flow2,
 	 * or was created / expired before this machine came up due to pfsync.
 	 */
 	flow1->flow_start = flow2->flow_start = st->creation < 0 ||
-	    st->creation > st->expire ? htonl(0) : htonl(st->creation * 1000);
+	    st->creation > st->expire ? htonl(0) : htonl(st->creation);
 	flow1->flow_finish = flow2->flow_finish = st->expire < 0 ? htonl(0) :
-	    htonl(st->expire * 1000);
+	    htonl(st->expire);
 	flow1->tcp_flags = flow2->tcp_flags = 0;
 	flow1->protocol = flow2->protocol = sk->proto;
 	flow1->tos = flow2->tos = st->rule.ptr->tos;
@@ -579,10 +579,10 @@ copy_flow_ipfix_4_data(struct pflow_ipfix_flow4 *flow1,
 		flow1->flow_start = flow2->flow_start = htobe64((time_second -
 		    time_uptime)*1000);
 	else
-		flow1->flow_start = flow2->flow_start = htobe64((time_second -
-		    (time_uptime - st->creation))*1000);
-	flow1->flow_finish = flow2->flow_finish = htobe64((time_second -
-	    (time_uptime - st->expire))*1000);
+		flow1->flow_start = flow2->flow_start = htobe64((pf_get_time() -
+		    (pf_get_uptime() - st->creation)));
+	flow1->flow_finish = flow2->flow_finish = htobe64((pf_get_time() -
+	    (pf_get_uptime() - st->expire)));
 
 	flow1->protocol = flow2->protocol = sk->proto;
 	flow1->tos = flow2->tos = st->rule.ptr->tos;
@@ -618,10 +618,10 @@ copy_flow_ipfix_6_data(struct pflow_ipfix_flow6 *flow1,
 		flow1->flow_start = flow2->flow_start = htobe64((time_second -
 		    time_uptime)*1000);
 	else
-		flow1->flow_start = flow2->flow_start = htobe64((time_second -
-		    (time_uptime - st->creation))*1000);
-	flow1->flow_finish = flow2->flow_finish = htobe64((time_second -
-	    (time_uptime - st->expire))*1000);
+		flow1->flow_start = flow2->flow_start = htobe64((pf_get_time() -
+		    (pf_get_uptime() - st->creation)));
+	flow1->flow_finish = flow2->flow_finish = htobe64((pf_get_time() -
+	    (pf_get_uptime() - st->expire)));
 
 	flow1->protocol = flow2->protocol = sk->proto;
 	flow1->tos = flow2->tos = st->rule.ptr->tos;
