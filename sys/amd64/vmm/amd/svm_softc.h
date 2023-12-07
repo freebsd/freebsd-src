@@ -36,6 +36,12 @@
 
 struct svm_softc;
 
+struct dbg {
+	uint32_t	rflags_tf;   /* saved RFLAGS.TF value when single-stepping a vcpu */
+	bool		popf_sstep;  /* indicates that we've stepped over popf */
+	bool		pushf_sstep; /* indicates that we've stepped over pushf */
+};
+
 struct asid {
 	uint64_t	gen;	/* range is [1, ~0UL] */
 	uint32_t	num;	/* range is [1, nasid - 1] */
@@ -54,6 +60,8 @@ struct svm_vcpu {
 	struct asid	asid;
 	struct vm_mtrr  mtrr;
 	int		vcpuid;
+	struct dbg	dbg;
+	int		caps;	 /* optional vm capabilities */
 };
 
 /*

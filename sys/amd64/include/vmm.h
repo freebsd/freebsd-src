@@ -497,6 +497,7 @@ enum vm_cap_type {
 	VM_CAP_RDTSCP,
 	VM_CAP_IPI_EXIT,
 	VM_CAP_MASK_HWINTR,
+	VM_CAP_RFLAGS_TF,
 	VM_CAP_MAX
 };
 
@@ -645,6 +646,7 @@ enum vm_exitcode {
 	VM_EXITCODE_VMINSN,
 	VM_EXITCODE_BPT,
 	VM_EXITCODE_IPI,
+	VM_EXITCODE_DB,
 	VM_EXITCODE_MAX
 };
 
@@ -734,6 +736,12 @@ struct vm_exit {
 		struct {
 			int		inst_length;
 		} bpt;
+		struct {
+			int		trace_trap;
+			int		pushf_intercept;
+			int		tf_shadow_val;
+			struct		vm_guest_paging paging;
+		} dbg;
 		struct {
 			uint32_t	code;		/* ecx value */
 			uint64_t	wval;
