@@ -349,7 +349,7 @@ setfile(struct stat *fs, int fd)
 			rval = 1;
 		}
 
-	if (!gotstat || fs->st_flags != ts.st_flags)
+	if (!Nflag && (!gotstat || fs->st_flags != ts.st_flags))
 		if (fdval ?
 		    fchflags(fd, fs->st_flags) :
 		    (islink ? lchflags(to.p_path, fs->st_flags) :
