@@ -68,5 +68,6 @@ int		scmi_shmem_prepare_msg(device_t dev, struct scmi_req *req,
 bool scmi_shmem_poll_msg(device_t);
 int scmi_shmem_read_msg_header(device_t dev, uint32_t *msg_header);
 int scmi_shmem_read_msg_payload(device_t dev, uint8_t *buf, uint32_t buf_len);
+void scmi_shmem_tx_complete(device_t);
 
 #endif /* !_ARM64_SCMI_SCMI_SHMEM_H_ */

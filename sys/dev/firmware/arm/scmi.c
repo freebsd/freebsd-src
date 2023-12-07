@@ -91,18 +91,25 @@ scmi_request_locked(struct scmi_softc *sc, struct scmi_req *req)
 
 	ret = SCMI_XFER_MSG(sc->dev);
 	if (ret != 0)
-		return (ret);
+		goto out;
 
 	/* Read header. */
 	ret = scmi_shmem_read_msg_header(sc->a2p_dev, &reply_header);
 	if (ret != 0)
-		return (ret);
+		goto out;
 
-	if (reply_header != req->msg_header)
-		return (EPROTO);
+	if (reply_header != req->msg_header) {
+		ret = EPROTO;
+		goto out;
+	}
 
-	return (scmi_shmem_read_msg_payload(sc->a2p_dev, req->out_buf,
-	    req->out_size));
+	ret = scmi_shmem_read_msg_payload(sc->a2p_dev, req->out_buf,
+	    req->out_size);
+
+out:
+	scmi_shmem_tx_complete(sc->a2p_dev);
+
+	return (ret);
 }
 
 int
