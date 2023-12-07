@@ -1231,8 +1231,7 @@ buildworld_epilogue: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> World build completed on `LC_ALL=C date`"
 	@seconds=$$(($$(date '+%s') - ${_BUILDWORLD_START})); \
-	  echo -n ">>> World built in $$seconds seconds, "; \
-	  echo "ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
+	  echo ">>> World built in $$seconds seconds, ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
 	@echo "--------------------------------------------------------------"
 
 #
@@ -1808,8 +1807,7 @@ buildkernel: .MAKE .PHONY
 
 .endfor
 	@seconds=$$(($$(date '+%s') - ${_BUILDKERNEL_START})); \
-	  echo -n ">>> Kernel(s) ${BUILDKERNELS} built in $$seconds seconds, "; \
-	  echo "ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
+	  echo ">>> Kernel(s) ${BUILDKERNELS} built in $$seconds seconds, ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
 	@echo "--------------------------------------------------------------"
 
 .if !make(packages) && !make(update-packages)
