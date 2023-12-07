@@ -36,6 +36,8 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 
+#include <machine/atomic.h>
+
 #include <dev/fdt/simplebus.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -45,15 +47,21 @@
 #include "scmi_shmem.h"
 #include "scmi.h"
 
+#define INFLIGHT_NONE	0
+#define INFLIGHT_REQ	1
+
 struct shmem_softc {
 	device_t		dev;
 	device_t		parent;
 	int			reg;
+	int			inflight;
 };
 
 static void	scmi_shmem_read(device_t, bus_size_t, void *, bus_size_t);
 static void	scmi_shmem_write(device_t, bus_size_t, const void *,
 				 bus_size_t);
+static void	scmi_shmem_acquire_channel(struct shmem_softc *);
+static void	scmi_shmem_release_channel(struct shmem_softc *);
 
 static int	shmem_probe(device_t);
 static int	shmem_attach(device_t);
@@ -94,6 +102,7 @@ shmem_attach(device_t dev)
 	dprintf("%s: reg %x\n", __func__, reg);
 
 	sc->reg = reg;
+	atomic_store_rel_int(&sc->inflight, INFLIGHT_NONE);
 
 	OF_device_register_xref(OF_xref_from_node(node), dev);
 
@@ -167,16 +176,39 @@ scmi_shmem_get(device_t dev, phandle_t node, int index)
 	return (shmem_dev);
 }
 
+static void
+scmi_shmem_acquire_channel(struct shmem_softc *sc)
+{
+
+	 while ((atomic_cmpset_acq_int(&sc->inflight, INFLIGHT_NONE,
+	     INFLIGHT_REQ)) == 0)
+		 DELAY(1000);
+}
+
+static void
+scmi_shmem_release_channel(struct shmem_softc *sc)
+{
+
+	atomic_store_rel_int(&sc->inflight, INFLIGHT_NONE);
+}
+
 int
 scmi_shmem_prepare_msg(device_t dev, struct scmi_req *req, bool polling)
 {
+	struct shmem_softc *sc;
 	struct scmi_smt_header hdr = {};
 	uint32_t channel_status;
+
+	sc = device_get_softc(dev);
+
+	/* Get exclusive write access to channel */
+	scmi_shmem_acquire_channel(sc);
 
 	/* Read channel status */
 	scmi_shmem_read(dev, SMT_OFFSET_CHAN_STATUS, &channel_status,
 	    SMT_SIZE_CHAN_STATUS);
 	if ((channel_status & SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE) == 0) {
+		scmi_shmem_release_channel(sc);
 		device_printf(dev, "Shmem channel busy. Abort !.\n");
 		return (1);
 	}
@@ -240,6 +272,15 @@ scmi_shmem_read_msg_payload(device_t dev, uint8_t *buf, uint32_t buf_len)
 	scmi_shmem_read(dev, SMT_SIZE_HEADER, buf, payld_len);
 
 	return (0);
+}
+
+void
+scmi_shmem_tx_complete(device_t dev)
+{
+	struct shmem_softc *sc;
+
+	sc = device_get_softc(dev);
+	scmi_shmem_release_channel(sc);
 }
 
 bool scmi_shmem_poll_msg(device_t dev)
