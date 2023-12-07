@@ -49,6 +49,7 @@
 
 #include "scmi.h"
 #include "scmi_protocols.h"
+#include "scmi_shmem.h"
 
 struct scmi_mailbox_softc {
 	struct scmi_softc	base;
@@ -91,7 +92,7 @@ scmi_mailbox_xfer_msg(device_t dev)
 
 	do {
 		if (cold) {
-			if (arm_doorbell_get(sc->db))
+			if (scmi_shmem_poll_msg(sc->base.a2p_dev))
 				break;
 			DELAY(10000);
 		} else {

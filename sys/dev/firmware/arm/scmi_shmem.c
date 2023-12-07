@@ -168,7 +168,7 @@ scmi_shmem_get(device_t dev, phandle_t node, int index)
 }
 
 int
-scmi_shmem_prepare_msg(device_t dev, struct scmi_req *req)
+scmi_shmem_prepare_msg(device_t dev, struct scmi_req *req, bool polling)
 {
 	struct scmi_smt_header hdr = {};
 	uint32_t channel_status;
@@ -185,7 +185,10 @@ scmi_shmem_prepare_msg(device_t dev, struct scmi_req *req)
 	hdr.channel_status &= ~SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE;
 	hdr.msg_header = htole32(req->msg_header);
 	hdr.length = htole32(sizeof(req->msg_header) + req->in_size);
-	hdr.flags |= SCMI_SHMEM_FLAG_INTR_ENABLED;
+	if (!polling)
+		hdr.flags |= SCMI_SHMEM_FLAG_INTR_ENABLED;
+	else
+		hdr.flags &= ~SCMI_SHMEM_FLAG_INTR_ENABLED;
 
 	/* Write header */
 	scmi_shmem_write(dev, 0, &hdr, SMT_SIZE_HEADER);
@@ -237,6 +240,17 @@ scmi_shmem_read_msg_payload(device_t dev, uint8_t *buf, uint32_t buf_len)
 	scmi_shmem_read(dev, SMT_SIZE_HEADER, buf, payld_len);
 
 	return (0);
+}
+
+bool scmi_shmem_poll_msg(device_t dev)
+{
+	uint32_t status;
+
+	scmi_shmem_read(dev, SMT_OFFSET_CHAN_STATUS, &status,
+	    SMT_SIZE_CHAN_STATUS);
+
+	return (status & (SCMI_SHMEM_CHAN_STAT_CHANNEL_ERROR |
+	    SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE));
 }
 
 static device_method_t shmem_methods[] = {
