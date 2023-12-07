@@ -544,6 +544,9 @@ tcp_switch_back_to_default(struct tcpcb *tp)
 	KASSERT(tp->t_fb != &tcp_def_funcblk,
 	    ("%s: called by the built-in default stack", __func__));
 
+	if (tp->t_fb->tfb_tcp_timer_stop_all != NULL)
+		tp->t_fb->tfb_tcp_timer_stop_all(tp);
+
 	/*
 	 * Now, we'll find a new function block to use.
 	 * Start by trying the current user-selected
