@@ -5483,7 +5483,7 @@ pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_
 	/* copy from state */
 	strlcpy(sp->pfs_1301.ifname, st->kif->pfik_name, sizeof(sp->pfs_1301.ifname));
 	bcopy(&st->rt_addr, &sp->pfs_1301.rt_addr, sizeof(sp->pfs_1301.rt_addr));
-	sp->pfs_1301.creation = htonl(time_uptime - st->creation);
+	sp->pfs_1301.creation = htonl(time_uptime - (st->creation / 1000));
 	sp->pfs_1301.expire = pf_state_expires(st);
 	if (sp->pfs_1301.expire <= time_uptime)
 		sp->pfs_1301.expire = htonl(0);
@@ -5574,7 +5574,7 @@ pf_state_export(struct pf_state_export *sp, struct pf_kstate *st)
 	strlcpy(sp->orig_ifname, st->orig_kif->pfik_name,
 	    sizeof(sp->orig_ifname));
 	bcopy(&st->rt_addr, &sp->rt_addr, sizeof(sp->rt_addr));
-	sp->creation = htonl(time_uptime - st->creation);
+	sp->creation = htonl(time_uptime - (st->creation / 1000));
 	sp->expire = pf_state_expires(st);
 	if (sp->expire <= time_uptime)
 		sp->expire = htonl(0);

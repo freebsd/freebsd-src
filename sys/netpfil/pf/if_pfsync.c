@@ -611,8 +611,8 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 
 	/* copy to state */
 	bcopy(&sp->pfs_1301.rt_addr, &st->rt_addr, sizeof(st->rt_addr));
-	st->creation = time_uptime - ntohl(sp->pfs_1301.creation);
-	st->expire = time_uptime;
+	st->creation = (time_uptime - ntohl(sp->pfs_1301.creation)) * 1000;
+	st->expire = pf_get_uptime();
 	if (sp->pfs_1301.expire) {
 		uint32_t timeout;
 
@@ -621,7 +621,7 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 			timeout = V_pf_default_rule.timeout[sp->pfs_1301.timeout];
 
 		/* sp->expire may have been adaptively scaled by export. */
-		st->expire -= timeout - ntohl(sp->pfs_1301.expire);
+		st->expire -= (timeout - ntohl(sp->pfs_1301.expire)) * 1000;
 	}
 
 	st->direction = sp->pfs_1301.direction;
@@ -1198,7 +1198,7 @@ pfsync_in_upd(struct mbuf *m, int offset, int count, int flags, int action)
 		if (sync < 2) {
 			pfsync_alloc_scrub_memory(&sp->pfs_1301.dst, &st->dst);
 			pf_state_peer_ntoh(&sp->pfs_1301.dst, &st->dst);
-			st->expire = time_uptime;
+			st->expire = pf_get_uptime();
 			st->timeout = sp->pfs_1301.timeout;
 		}
 		st->pfsync_time = time_uptime;
@@ -1285,7 +1285,7 @@ pfsync_in_upd_c(struct mbuf *m, int offset, int count, int flags, int action)
 		if (sync < 2) {
 			pfsync_alloc_scrub_memory(&up->dst, &st->dst);
 			pf_state_peer_ntoh(&up->dst, &st->dst);
-			st->expire = time_uptime;
+			st->expire = pf_get_uptime();
 			st->timeout = up->timeout;
 		}
 		st->pfsync_time = time_uptime;

@@ -2037,12 +2037,12 @@ pf_state_expires(const struct pf_kstate *state)
 		if (states < end) {
 			timeout = (u_int64_t)timeout * (end - states) /
 			    (end - start);
-			return (state->expire + timeout);
+			return ((state->expire / 1000) + timeout);
 		}
 		else
 			return (time_uptime);
 	}
-	return (state->expire + timeout);
+	return ((state->expire / 1000) + timeout);
 }
 
 void
@@ -4951,8 +4951,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		s->rt = r->rt;
 	}
 
-	s->creation = time_uptime;
-	s->expire = time_uptime;
+	s->creation = s->expire = pf_get_uptime();
 
 	if (sn != NULL)
 		s->src_node = sn;
@@ -5426,7 +5425,7 @@ pf_tcp_track_full(struct pf_kstate **state, struct pfi_kkif *kif,
 			pf_set_protostate(*state, PF_PEER_BOTH, TCPS_TIME_WAIT);
 
 		/* update expire time */
-		(*state)->expire = time_uptime;
+		(*state)->expire = pf_get_uptime();
 		if (src->state >= TCPS_FIN_WAIT_2 &&
 		    dst->state >= TCPS_FIN_WAIT_2)
 			(*state)->timeout = PFTM_TCP_CLOSED;
@@ -5622,7 +5621,7 @@ pf_tcp_track_sloppy(struct pf_kstate **state, struct pf_pdesc *pd, u_short *reas
 		pf_set_protostate(*state, PF_PEER_BOTH, TCPS_TIME_WAIT);
 
 	/* update expire time */
-	(*state)->expire = time_uptime;
+	(*state)->expire = pf_get_uptime();
 	if (src->state >= TCPS_FIN_WAIT_2 &&
 	    dst->state >= TCPS_FIN_WAIT_2)
 		(*state)->timeout = PFTM_TCP_CLOSED;
@@ -5870,7 +5869,7 @@ pf_test_state_udp(struct pf_kstate **state, struct pfi_kkif *kif,
 		pf_set_protostate(*state, pdst, PFUDPS_MULTIPLE);
 
 	/* update expire time */
-	(*state)->expire = time_uptime;
+	(*state)->expire = pf_get_uptime();
 	if (src->state == PFUDPS_MULTIPLE && dst->state == PFUDPS_MULTIPLE)
 		(*state)->timeout = PFTM_UDP_MULTIPLE;
 	else
@@ -5971,7 +5970,7 @@ pf_test_state_sctp(struct pf_kstate **state, struct pfi_kkif *kif,
 			return (PF_DROP);
 	}
 
-	(*state)->expire = time_uptime;
+	(*state)->expire = pf_get_uptime();
 
 	/* translate source/destination address, if necessary */
 	if ((*state)->key[PF_SK_WIRE] != (*state)->key[PF_SK_STACK]) {
@@ -6478,7 +6477,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pfi_kkif *kif,
 
 		STATE_LOOKUP(kif, &key, *state, pd);
 
-		(*state)->expire = time_uptime;
+		(*state)->expire = pf_get_uptime();
 		(*state)->timeout = PFTM_ICMP_ERROR_REPLY;
 
 		/* translate source/destination address, if necessary */
@@ -7063,7 +7062,7 @@ pf_test_state_other(struct pf_kstate **state, struct pfi_kkif *kif,
 		pf_set_protostate(*state, pdst, PFOTHERS_MULTIPLE);
 
 	/* update expire time */
-	(*state)->expire = time_uptime;
+	(*state)->expire = pf_get_uptime();
 	if (src->state == PFOTHERS_MULTIPLE && dst->state == PFOTHERS_MULTIPLE)
 		(*state)->timeout = PFTM_OTHER_MULTIPLE;
 	else
