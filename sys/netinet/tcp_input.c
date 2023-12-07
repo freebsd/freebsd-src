@@ -3970,7 +3970,7 @@ tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to, sackstatu
 			    imax(1, tp->snd_nxt - tp->snd_una);
 		snd_cnt = howmany((long)tp->sackhint.prr_delivered *
 			    tp->snd_ssthresh, tp->sackhint.recover_fs) -
-			    tp->sackhint.prr_out;
+			    tp->sackhint.prr_out + maxseg - 1;
 	} else {
 		/*
 		 * PRR 6937bis heuristic:
