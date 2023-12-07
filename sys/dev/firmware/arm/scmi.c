@@ -85,7 +85,7 @@ scmi_request_locked(struct scmi_softc *sc, struct scmi_req *req)
 	req->msg_header |= SCMI_MSG_TYPE_CMD << SCMI_HDR_MESSAGE_TYPE_S;
 	req->msg_header |= req->protocol_id << SCMI_HDR_PROTOCOL_ID_S;
 
-	ret = scmi_shmem_prepare_msg(sc->a2p_dev, req);
+	ret = scmi_shmem_prepare_msg(sc->a2p_dev, req, cold);
 	if (ret != 0)
 		return (ret);
 
