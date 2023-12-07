@@ -355,13 +355,22 @@ setfile(struct stat *fs, int fd)
 			rval = 1;
 		}
 
-	if (!gotstat || fs->st_flags != ts.st_flags)
+	if (!Nflag && (!gotstat || fs->st_flags != ts.st_flags))
 		if (fdval ?
 		    fchflags(fd, fs->st_flags) :
 		    (islink ? lchflags(to.p_path, fs->st_flags) :
 		    chflags(to.p_path, fs->st_flags))) {
-			warn("chflags: %s", to.p_path);
-			rval = 1;
+			/*
+			 * NFS doesn't support chflags; ignore errors unless
+			 * there's reason to believe we're losing bits.  (Note,
+			 * this still won't be right if the server supports
+			 * flags and we were trying to *remove* flags on a file
+			 * that we copied, i.e., that we didn't create.)
+			 */
+			if (errno != EOPNOTSUPP || fs->st_flags != 0) {
+				warn("chflags: %s", to.p_path);
+				rval = 1;
+			}
 		}
 
 	return (rval);
