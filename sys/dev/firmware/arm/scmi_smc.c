@@ -48,23 +48,86 @@
 
 #include "scmi.h"
 #include "scmi_protocols.h"
+#include "scmi_shmem.h"
 
 struct scmi_smc_softc {
 	struct scmi_softc	base;
 	uint32_t		smc_id;
+	device_t		a2p_dev;
 };
 
+static int	scmi_smc_transport_init(device_t);
+static int	scmi_smc_xfer_msg(device_t, struct scmi_req *);
+static int	scmi_smc_collect_reply(device_t, struct scmi_req *);
+static void	scmi_smc_tx_complete(device_t, void *);
+
+static int	scmi_smc_probe(device_t);
+static int	scmi_smc_attach(device_t);
+
 static int
-scmi_smc_xfer_msg(device_t dev)
+scmi_smc_transport_init(device_t dev)
 {
 	struct scmi_smc_softc *sc;
+	phandle_t node;
+	ssize_t len;
+
+	sc = device_get_softc(dev);
+
+	node = ofw_bus_get_node(dev);
+	len = OF_getencprop(node, "arm,smc-id", &sc->smc_id,
+	    sizeof(sc->smc_id));
+	if (len <= 0) {
+		device_printf(dev, "No SMC ID found\n");
+		return (EINVAL);
+	}
+
+	device_printf(dev, "smc id %x\n", sc->smc_id);
+
+	sc->a2p_dev = scmi_shmem_get(dev, node, SCMI_CHAN_A2P);
+	if (sc->a2p_dev == NULL) {
+		device_printf(dev, "A2P shmem dev not found.\n");
+		return (ENXIO);
+	}
+
+	return (0);
+}
+
+static int
+scmi_smc_xfer_msg(device_t dev, struct scmi_req *req)
+{
+	struct scmi_smc_softc *sc;
+	int ret;
 
 	sc = device_get_softc(dev);
 	SCMI_ASSERT_LOCKED(&sc->base);
 
+	ret = scmi_shmem_prepare_msg(sc->a2p_dev, req, cold);
+	if (ret != 0)
+		return (ret);
+
 	arm_smccc_smc(sc->smc_id, 0, 0, 0, 0, 0, 0, 0, NULL);
 
 	return (0);
+}
+
+static int
+scmi_smc_collect_reply(device_t dev, struct scmi_req *req)
+{
+	struct scmi_smc_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (scmi_shmem_read_msg_payload(sc->a2p_dev, req->out_buf,
+	    req->out_size));
+}
+
+static void
+scmi_smc_tx_complete(device_t dev, void *chan)
+{
+	struct scmi_smc_softc *sc;
+
+	sc = device_get_softc(dev);
+	scmi_shmem_tx_complete(sc->a2p_dev);
 }
 
 static int
@@ -104,20 +167,15 @@ scmi_smc_attach(device_t dev)
 	return (scmi_attach(dev));
 }
 
-static int
-scmi_smc_detach(device_t dev)
-{
-
-	return (0);
-}
-
 static device_method_t scmi_smc_methods[] = {
 	DEVMETHOD(device_probe,		scmi_smc_probe),
 	DEVMETHOD(device_attach,	scmi_smc_attach),
-	DEVMETHOD(device_detach,	scmi_smc_detach),
 
 	/* SCMI interface */
-	DEVMETHOD(scmi_xfer_msg,	scmi_smc_xfer_msg),
+	DEVMETHOD(scmi_transport_init,		scmi_smc_transport_init),
+	DEVMETHOD(scmi_xfer_msg,		scmi_smc_xfer_msg),
+	DEVMETHOD(scmi_collect_reply,		scmi_smc_collect_reply),
+	DEVMETHOD(scmi_tx_complete,		scmi_smc_tx_complete),
 
 	DEVMETHOD_END
 };

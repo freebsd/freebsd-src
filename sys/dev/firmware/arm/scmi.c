@@ -43,11 +43,8 @@
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include "dev/mailbox/arm/arm_doorbell.h"
-
 #include "scmi.h"
 #include "scmi_protocols.h"
-#include "scmi_shmem.h"
 
 #define	SCMI_HDR_TOKEN_S		18
 #define SCMI_HDR_TOKEN_BF		(0x3fff)
@@ -75,7 +72,6 @@
 static int
 scmi_request_locked(struct scmi_softc *sc, struct scmi_req *req)
 {
-	uint32_t reply_header;
 	int ret;
 
 	SCMI_ASSERT_LOCKED(sc);
@@ -85,29 +81,12 @@ scmi_request_locked(struct scmi_softc *sc, struct scmi_req *req)
 	req->msg_header |= SCMI_MSG_TYPE_CMD << SCMI_HDR_MESSAGE_TYPE_S;
 	req->msg_header |= req->protocol_id << SCMI_HDR_PROTOCOL_ID_S;
 
-	ret = scmi_shmem_prepare_msg(sc->a2p_dev, req, cold);
-	if (ret != 0)
-		return (ret);
+	ret = SCMI_XFER_MSG(sc->dev, req);
+	if (ret == 0)
+		ret = SCMI_COLLECT_REPLY(sc->dev, req);
 
-	ret = SCMI_XFER_MSG(sc->dev);
-	if (ret != 0)
-		goto out;
-
-	/* Read header. */
-	ret = scmi_shmem_read_msg_header(sc->a2p_dev, &reply_header);
-	if (ret != 0)
-		goto out;
-
-	if (reply_header != req->msg_header) {
-		ret = EPROTO;
-		goto out;
-	}
-
-	ret = scmi_shmem_read_msg_payload(sc->a2p_dev, req->out_buf,
-	    req->out_size);
-
-out:
-	scmi_shmem_tx_complete(sc->a2p_dev);
+	if (ret == 0  || ret != EBUSY)
+		SCMI_TX_COMPLETE(sc->dev, NULL);
 
 	return (ret);
 }
@@ -141,15 +120,13 @@ scmi_attach(device_t dev)
 	if (node == -1)
 		return (ENXIO);
 
-	sc->a2p_dev = scmi_shmem_get(dev, node, SCMI_CHAN_A2P);
-	if (sc->a2p_dev == NULL) {
-		device_printf(dev, "A2P shmem dev not found.\n");
-		return (ENXIO);
-	}
-
 	mtx_init(&sc->mtx, device_get_nameunit(dev), "SCMI", MTX_DEF);
 
 	simplebus_init(dev, node);
+
+	error = SCMI_TRANSPORT_INIT(dev);
+	if (error != 0)
+		return (error);
 
 	/*
 	 * Allow devices to identify.
@@ -171,6 +148,7 @@ static int
 scmi_detach(device_t dev)
 {
 
+	SCMI_TRANSPORT_CLEANUP(dev);
 	return (0);
 }
 
