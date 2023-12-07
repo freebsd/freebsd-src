@@ -449,8 +449,10 @@ FreeBSD 5.2           |      |                 |                       |
  |                  macOS    |                    |                    |
  |                   14      |                    |                    |
  |                    |      |                OpenBSD 7.4              |
+ *--FreeBSD           |      |                    |                    |
+ |   14.0             |      |                    |                    |
  |                    |      |                    |                    |
-FreeBSD 14 -current   |  NetBSD -current   OpenBSD -current    DragonFly -current
+FreeBSD 15 -current   |  NetBSD -current   OpenBSD -current    DragonFly -current
  |                    |      |                    |                    |
  v                    v      v                    v                    v
 
@@ -877,6 +879,7 @@ OpenBSD 7.3		2023-04-10 [OBD]
 FreeBSD 13.2		2023-04-11 [FBD]
 macOS 14		2023-09-26 [APL]
 OpenBSD 7.4		2023-10-16 [OBD]
+FreeBSD 14.0		2023-11-20 [FBD]
 
 Bibliography
 ------------------------
