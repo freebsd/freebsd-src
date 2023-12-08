@@ -909,6 +909,7 @@ acpi_detect(void)
 	char buf[24];
 	int revision;
 
+	feature_enable(FEATURE_EARLY_ACPI);
 	if ((rsdp = efi_get_table(&acpi20)) == NULL)
 		if ((rsdp = efi_get_table(&acpi)) == NULL)
 			return;
