@@ -382,6 +382,15 @@ function core.boot(argstr)
 	loader.perform(composeLoaderCmd("boot", argstr))
 end
 
+function core.hasFeature(name)
+	if not loader.has_feature then
+		-- Loader too old, no feature support
+		return nil, "No feature support in loaded loader"
+	end
+
+	return loader.has_feature(name)
+end
+
 function core.isSingleUserBoot()
 	local single_user = loader.getenv("boot_single")
 	return single_user ~= nil and single_user:lower() == "yes"
