@@ -216,6 +216,7 @@ struct pflow_softc {
 	struct sockaddr		*sc_flowdst;
 	struct pflow_ipfix_tmpl	 sc_tmpl_ipfix;
 	u_int8_t		 sc_version;
+	u_int32_t		 sc_observation_dom;
 	struct mbuf		*sc_mbuf;	/* current cumulative mbuf */
 	struct mbuf		*sc_mbuf6;	/* current cumulative mbuf */
 	CK_LIST_ENTRY(pflow_softc) sc_next;
@@ -315,6 +316,7 @@ enum pflow_get_type_t {
 	PFLOWNL_GET_VERSION	= 2, /* u16 */
 	PFLOWNL_GET_SRC		= 3, /* struct sockaddr_storage */
 	PFLOWNL_GET_DST		= 4, /* struct sockaddr_storage */
+	PFLOWNL_GET_OBSERVATION_DOMAIN = 5, /* u32 */
 };
 
 enum pflow_set_type_t {
@@ -323,6 +325,7 @@ enum pflow_set_type_t {
 	PFLOWNL_SET_VERSION	= 2, /* u16 */
 	PFLOWNL_SET_SRC		= 3, /* struct sockaddr_storage */
 	PFLOWNL_SET_DST		= 4, /* struct sockaddr_storage */
+	PFLOWNL_SET_OBSERVATION_DOMAIN = 5, /* u32 */
 };
 
 #ifdef _KERNEL

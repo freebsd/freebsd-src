@@ -252,6 +252,7 @@ struct pflowctl_get {
 	int version;
 	struct pflowctl_sockaddr src;
 	struct pflowctl_sockaddr dst;
+	uint32_t obs_dom;
 };
 #define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct pflowctl_get, _field)
@@ -260,6 +261,7 @@ static struct snl_attr_parser ap_get[] = {
 	{ .type = PFLOWNL_GET_VERSION, .off = _OUT(version), .cb = snl_attr_get_int16 },
 	{ .type = PFLOWNL_GET_SRC, .off = _OUT(src), .arg = &sockaddr_parser, .cb = snl_attr_get_nested },
 	{ .type = PFLOWNL_GET_DST, .off = _OUT(dst), .arg = &sockaddr_parser, .cb = snl_attr_get_nested },
+	{ .type = PFLOWNL_GET_OBSERVATION_DOMAIN, .off = _OUT(obs_dom), .cb = snl_attr_get_uint32 },
 };
 static struct snl_field_parser fp_get[] = {};
 #undef _IN
@@ -338,7 +340,7 @@ get(int id)
 		if (! snl_parse_nlmsg(&ss, hdr, &get_parser, &g))
 			continue;
 
-		printf("pflow%d: version %d", g.id, g.version);
+		printf("pflow%d: version %d domain %d", g.id, g.version, g.obs_dom);
 		print_sockaddr(" src ", &g.src.storage);
 		print_sockaddr(" dst ", &g.dst.storage);
 		printf("\n");
@@ -355,6 +357,7 @@ struct pflowctl_set {
 	uint16_t version;
 	struct sockaddr_storage src;
 	struct sockaddr_storage dst;
+	uint32_t obs_dom;
 };
 static inline bool
 snl_add_msg_attr_sockaddr(struct snl_writer *nw, int attrtype, struct sockaddr_storage *s)
@@ -408,6 +411,8 @@ do_set(struct pflowctl_set *s)
 		snl_add_msg_attr_sockaddr(&nw, PFLOWNL_SET_SRC, &s->src);
 	if (s->dst.ss_len != 0)
 		snl_add_msg_attr_sockaddr(&nw, PFLOWNL_SET_DST, &s->dst);
+	if (s->obs_dom != 0)
+		snl_add_msg_attr_u32(&nw, PFLOWNL_SET_OBSERVATION_DOMAIN, s->obs_dom);
 
 	hdr = snl_finalize_msg(&nw);
 	if (hdr == NULL)
@@ -504,6 +509,14 @@ set(char *idstr, int argc, char *argv[])
 				usage();
 
 			s.version = strtol(argv[1], NULL, 10);
+
+			argc -= 2;
+			argv += 2;
+		} else if (strcmp(argv[0], "domain") == 0) {
+			if (argc < 2)
+				usage();
+
+			s.obs_dom = strtol(argv[1], NULL, 10);
 
 			argc -= 2;
 			argv += 2;
