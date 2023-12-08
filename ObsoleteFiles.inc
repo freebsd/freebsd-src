@@ -453,6 +453,9 @@ OLD_FILES+=usr/include/c++/v1/experimental/algorithm
 OLD_FILES+=usr/include/c++/v1/experimental/coroutine
 OLD_FILES+=usr/include/c++/v1/experimental/functional
 
+# 20231117: libufs version bumped to 8
+OLD_LIBS+=lib/libufs.so.7
+
 # 20231018: pmc.k7(3) removed
 OLD_FILES+=usr/share/man/man3/pmc.k7.3.gz
 
