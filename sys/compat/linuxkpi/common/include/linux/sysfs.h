@@ -153,6 +153,15 @@ sysfs_remove_file(struct kobject *kobj, const struct attribute *attr)
 }
 
 static inline int
+sysfs_create_link(struct kobject *kobj __unused,
+    struct kobject *target __unused, const char *name __unused)
+{
+	/* TODO */
+
+	return (0);
+}
+
+static inline int
 sysfs_create_files(struct kobject *kobj, const struct attribute * const *attrs)
 {
 	int error = 0;
