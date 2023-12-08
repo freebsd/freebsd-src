@@ -51,7 +51,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 2023mmdd: new clang import which bumps version from 16 to 17
+# 20231208: new clang import which bumps version from 16 to 17
 OLD_FILES+=usr/lib/clang/16/include/__clang_cuda_builtin_vars.h
 OLD_FILES+=usr/lib/clang/16/include/__clang_cuda_cmath.h
 OLD_FILES+=usr/lib/clang/16/include/__clang_cuda_complex_builtins.h
@@ -429,7 +429,7 @@ OLD_FILES+=usr/lib/clang/16/share/msan_ignorelist.txt
 OLD_DIRS+=usr/lib/clang/16/share
 OLD_DIRS+=usr/lib/clang/16
 
-# 2023mmdd: new libc++ import which bumps version from 16 to 17
+# 20231208: new libc++ import which bumps version from 16 to 17
 OLD_FILES+=usr/include/c++/v1/__bsd_locale_defaults.h
 OLD_FILES+=usr/include/c++/v1/__bsd_locale_fallbacks.h
 OLD_FILES+=usr/include/c++/v1/__debug
