@@ -30,6 +30,10 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 
+static void kset_join(struct kobject *kobj);
+static void kset_leave(struct kobject *kobj);
+static void kset_kfree(struct kobject *kobj);
+
 struct kobject *
 kobject_create(void)
 {
@@ -101,12 +105,16 @@ kobject_set_name(struct kobject *kobj, const char *fmt, ...)
 }
 
 static int
-kobject_add_complete(struct kobject *kobj, struct kobject *parent)
+kobject_add_complete(struct kobject *kobj)
 {
 	const struct kobj_type *t;
 	int error;
 
-	kobj->parent = parent;
+	if (kobj->kset != NULL) {
+		kset_join(kobj);
+		kobj->parent = &kobj->kset->kobj;
+	}
+
 	error = sysfs_create_dir(kobj);
 	if (error == 0 && kobj->ktype && kobj->ktype->default_attrs) {
 		struct attribute **attr;
@@ -120,6 +128,10 @@ kobject_add_complete(struct kobject *kobj, struct kobject *parent)
 		if (error)
 			sysfs_remove_dir(kobj);
 	}
+
+	if (error != 0)
+		kset_leave(kobj);
+
 	return (error);
 }
 
@@ -129,13 +141,15 @@ kobject_add(struct kobject *kobj, struct kobject *parent, const char *fmt, ...)
 	va_list args;
 	int error;
 
+	kobj->parent = parent;
+
 	va_start(args, fmt);
 	error = kobject_set_name_vargs(kobj, fmt, args);
 	va_end(args);
 	if (error)
 		return (error);
 
-	return kobject_add_complete(kobj, parent);
+	return kobject_add_complete(kobj);
 }
 
 int
@@ -155,7 +169,7 @@ kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 	va_end(args);
 	if (error)
 		return (error);
-	return kobject_add_complete(kobj, parent);
+	return kobject_add_complete(kobj);
 }
 
 void
@@ -166,6 +180,7 @@ linux_kobject_release(struct kref *kref)
 
 	kobj = container_of(kref, struct kobject, kref);
 	sysfs_remove_dir(kobj);
+	kset_leave(kobj);
 	name = kobj->name;
 	if (kobj->ktype && kobj->ktype->release)
 		kobj->ktype->release(kobj);
@@ -219,3 +234,121 @@ const struct sysfs_ops kobj_sysfs_ops = {
 	.show	= lkpi_kobj_attr_show,
 	.store	= lkpi_kobj_attr_store,
 };
+
+const struct kobj_type linux_kset_kfree_type = {
+	.release = kset_kfree
+};
+
+static struct kset *
+kset_create(const char *name,
+    const struct kset_uevent_ops *uevent_ops,
+    struct kobject *parent_kobj)
+{
+	struct kset *kset;
+
+	kset = kzalloc(sizeof(*kset), GFP_KERNEL);
+	if (kset == NULL)
+		return (NULL);
+
+	kset->uevent_ops = uevent_ops;
+
+	kobject_set_name(&kset->kobj, "%s", name);
+	kset->kobj.parent = parent_kobj;
+	kset->kobj.kset = NULL;
+
+	return (kset);
+}
+
+void
+kset_init(struct kset *kset)
+{
+	kobject_init(&kset->kobj, &linux_kset_kfree_type);
+	INIT_LIST_HEAD(&kset->list);
+	spin_lock_init(&kset->list_lock);
+}
+
+static void
+kset_join(struct kobject *kobj)
+{
+	struct kset *kset;
+
+	kset = kobj->kset;
+	if (kset == NULL)
+		return;
+
+	kset_get(kobj->kset);
+
+	spin_lock(&kset->list_lock);
+	list_add_tail(&kobj->entry, &kset->list);
+	spin_unlock(&kset->list_lock);
+}
+
+static void
+kset_leave(struct kobject *kobj)
+{
+	struct kset *kset;
+
+	kset = kobj->kset;
+	if (kset == NULL)
+		return;
+
+	spin_lock(&kset->list_lock);
+	list_del_init(&kobj->entry);
+	spin_unlock(&kset->list_lock);
+
+	kset_put(kobj->kset);
+}
+
+struct kset *
+kset_create_and_add(const char *name, const struct kset_uevent_ops *u,
+    struct kobject *parent_kobj)
+{
+	int ret;
+	struct kset *kset;
+
+	kset = kset_create(name, u, parent_kobj);
+	if (kset == NULL)
+		return (NULL);
+
+	ret = kset_register(kset);
+	if (ret != 0) {
+		linux_kobject_kfree_name(&kset->kobj);
+		kfree(kset);
+		return (NULL);
+	}
+
+	return (kset);
+}
+
+int
+kset_register(struct kset *kset)
+{
+	int ret;
+
+	if (kset == NULL)
+		return -EINVAL;
+
+	kset_init(kset);
+	ret = kobject_add_complete(&kset->kobj);
+
+	return ret;
+}
+
+void
+kset_unregister(struct kset *kset)
+{
+	if (kset == NULL)
+		return;
+
+	kobject_del(&kset->kobj);
+	kobject_put(&kset->kobj);
+}
+
+static void
+kset_kfree(struct kobject *kobj)
+{
+	struct kset *kset;
+
+	kset = to_kset(kobj);
+	kfree(kset);
+}
