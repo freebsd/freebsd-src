@@ -316,6 +316,9 @@
 /* sops->evict_inode() exists */
 /* #undef HAVE_EVICT_INODE */
 
+/* Define to 1 if you have the `execvpe' function. */
+/* #undef HAVE_EXECVPE */
+
 /* FALLOC_FL_ZERO_RANGE is defined */
 /* #undef HAVE_FALLOC_FL_ZERO_RANGE */
 
@@ -1110,7 +1113,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.99-239-FreeBSD_ga03ebd9be"
+#define ZFS_META_ALIAS "zfs-2.2.99-257-FreeBSD_g450f2d0b0"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1140,7 +1143,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "239-FreeBSD_ga03ebd9be"
+#define ZFS_META_RELEASE "257-FreeBSD_g450f2d0b0"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.2.99"
