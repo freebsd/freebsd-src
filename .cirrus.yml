@@ -94,7 +94,7 @@ task:
   - sh .cirrus-ci/pkg-install.sh ${TOOLCHAIN_PKG} git-lite
 
   xxx_upgrade_pkg_script:
-  - fetch http://pkg.freebsd.org/FreeBSD:13:amd64/latest/All/pkg-1.20.9.pkg
+  - fetch https://pkg.freebsd.org/FreeBSD:13:amd64/latest/All/pkg-1.20.9.pkg
   - pkg install -y ./pkg-1.20.9.pkg
   - rm -f pkg-1.20.9.pkg
 
