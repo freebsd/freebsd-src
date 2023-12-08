@@ -29,14 +29,15 @@
 #ifndef	_LINUXKPI_LINUX_SHMEM_FS_H_
 #define	_LINUXKPI_LINUX_SHMEM_FS_H_
 
-/* Shared memory support */
-unsigned long linux_invalidate_mapping_pages(vm_object_t, pgoff_t, pgoff_t);
-struct page *linux_shmem_read_mapping_page_gfp(vm_object_t, int, gfp_t);
-struct linux_file *linux_shmem_file_setup(const char *, loff_t, unsigned long);
-void linux_shmem_truncate_range(vm_object_t, loff_t, loff_t);
+#include <linux/pagemap.h>
 
-#define	invalidate_mapping_pages(...) \
-  linux_invalidate_mapping_pages(__VA_ARGS__)
+/* Shared memory support */
+struct page *linux_shmem_read_mapping_page_gfp(vm_object_t obj, int pindex,
+    gfp_t gfp);
+struct linux_file *linux_shmem_file_setup(const char *name, loff_t size,
+    unsigned long flags);
+void linux_shmem_truncate_range(vm_object_t obj, loff_t lstart,
+    loff_t lend);
 
 #define	shmem_read_mapping_page(...) \
   linux_shmem_read_mapping_page_gfp(__VA_ARGS__, 0)
