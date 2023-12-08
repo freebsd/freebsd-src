@@ -210,6 +210,7 @@ pflow_create(int unit)
 	pflowif = malloc(sizeof(*pflowif), M_DEVBUF, M_WAITOK|M_ZERO);
 	mtx_init(&pflowif->sc_lock, "pflowlk", NULL, MTX_DEF);
 	pflowif->sc_version = PFLOW_PROTO_DEFAULT;
+	pflowif->sc_observation_dom = PFLOW_ENGINE_TYPE;
 
 	/* ipfix template init */
 	bzero(&pflowif->sc_tmpl_ipfix,sizeof(pflowif->sc_tmpl_ipfix));
@@ -421,7 +422,7 @@ pflowvalidsockaddr(const struct sockaddr *sa, int ignore_port)
 	}
 }
 
-static int
+int
 pflow_calc_mtu(struct pflow_softc *sc, int mtu, int hdrsz)
 {
 
@@ -1010,7 +1011,7 @@ pflow_sendout_ipfix(struct pflow_softc *sc, sa_family_t af)
 	h10->time_sec = htonl(time_second);		/* XXX 2038 */
 	h10->flow_sequence = htonl(sc->sc_sequence);
 	sc->sc_sequence += count;
-	h10->observation_dom = htonl(PFLOW_ENGINE_TYPE);
+	h10->observation_dom = htonl(sc->sc_observation_dom);
 	if (mbufq_enqueue(&sc->sc_outputqueue, m) == 0)
 		swi_sched(sc->sc_swi_cookie, 0);
 
@@ -1045,7 +1046,7 @@ pflow_sendout_ipfix_tmpl(struct pflow_softc *sc)
 	    pflow_ipfix_tmpl));
 	h10->time_sec = htonl(time_second);		/* XXX 2038 */
 	h10->flow_sequence = htonl(sc->sc_sequence);
-	h10->observation_dom = htonl(PFLOW_ENGINE_TYPE);
+	h10->observation_dom = htonl(sc->sc_observation_dom);
 
 	callout_reset(&sc->sc_tmo_tmpl, PFLOW_TMPL_TIMEOUT * hz,
 	    pflow_timeout_tmpl, sc);
@@ -1257,6 +1258,8 @@ pflow_nl_get(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		nlattr_add_sockaddr(nw, PFLOWNL_GET_SRC, sc->sc_flowsrc);
 	if (sc->sc_flowdst)
 		nlattr_add_sockaddr(nw, PFLOWNL_GET_DST, sc->sc_flowdst);
+	nlattr_add_u32(nw, PFLOWNL_GET_OBSERVATION_DOMAIN,
+	    sc->sc_observation_dom);
 
 	if (! nlmsg_end(nw)) {
 		nlmsg_abort(nw);
@@ -1306,6 +1309,7 @@ struct pflow_parsed_set {
 	uint16_t version;
 	struct sockaddr_storage src;
 	struct sockaddr_storage dst;
+	uint32_t observation_dom;
 };
 #define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct pflow_parsed_set, _field)
@@ -1314,6 +1318,7 @@ static const struct nlattr_parser nla_p_set[] = {
 	{ .type = PFLOWNL_SET_VERSION, .off = _OUT(version), .cb = nlattr_get_uint16 },
 	{ .type = PFLOWNL_SET_SRC, .off = _OUT(src), .arg = &addr_parser, .cb = nlattr_get_nested },
 	{ .type = PFLOWNL_SET_DST, .off = _OUT(dst), .arg = &addr_parser, .cb = nlattr_get_nested },
+	{ .type = PFLOWNL_SET_OBSERVATION_DOMAIN, .off = _OUT(observation_dom), .cb = nlattr_get_uint32 },
 };
 static const struct nlfield_parser nlf_p_set[] = {};
 #undef _IN
@@ -1437,6 +1442,9 @@ pflow_set(struct pflow_softc *sc, const struct pflow_parsed_set *pflowr, struct 
 		soclose(sc->so);
 		sc->so = NULL;
 	}
+
+	if (pflowr->observation_dom != 0)
+		sc->sc_observation_dom = pflowr->observation_dom;
 
 	/* error check is above */
 	if (pflowr->version != 0)

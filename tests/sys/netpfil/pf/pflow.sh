@@ -67,6 +67,12 @@ basic_body()
 	    jexec alcatraz pflowctl -s ${pflow} proto 5
 	atf_check -s exit:0 \
 	    jexec alcatraz pflowctl -s ${pflow} proto 10
+
+	# We can change the observation domain
+	atf_check -s exit:0 \
+	    jexec alcatraz pflowctl -s ${pflow} domain 13
+	atf_check -s exit:0 -o match:".*domain 13.*" \
+	    jexec alcatraz pflowctl -l
 }
 
 basic_cleanup()
