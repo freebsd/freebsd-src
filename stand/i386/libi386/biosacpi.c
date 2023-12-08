@@ -54,6 +54,8 @@ biosacpi_detect(void)
     char		buf[24];
     int			revision;
 
+    feature_enable(FEATURE_EARLY_ACPI);
+
     /* locate and validate the RSDP */
     if ((rsdp = biosacpi_find_rsdp()) == NULL)
 	return;
