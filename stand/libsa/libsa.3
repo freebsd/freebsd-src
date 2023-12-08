@@ -497,6 +497,66 @@ Attempts to open and display the file
 .Fa fname .
 Returns -1 on error, 0 at EOF, or 1 if the user elects to quit while reading.
 .El
+.Sh FEATURE SUPPORT
+A set of functions are provided to communicate support of features from the
+loader binary to the interpreter.
+These are used to do something sensible if we are still operating with a loader
+binary that behaves differently than expected.
+.Bl -hang -width 10n
+.It Xo
+.Ft void
+.Fn feature_enable "uint32_t mask"
+.Xc
+.Pp
+Enable the referenced
+.Fa mask
+feature, which should be one of the
+.Li FEATURE_*
+macros defined in
+.In stand.h .
+.It Xo
+.Ft bool
+.Fn feature_name_is_enabled "const char *name"
+.Xc
+.Pp
+Check if the referenced
+.Fa name
+feature is enabled.
+The
+.Fa name
+is usually the same name as the
+.Li FEATURE_*
+macro, but with the FEATURE_ prefix stripped off.
+The authoritative source of feature names is the mapping table near the top in
+.Pa stand/libsa/features.c .
+.It Xo
+.Ft void
+.Fn "(feature_iter_fn)" "void *cookie" "const char *name" "const char *desc" "bool enabled"
+.Xc
+.Pp
+The
+.Fa cookie
+argument is passed as-is from the argument of the same name to
+.Fn feature_iter .
+The
+.Fa name
+and
+.Fa desc
+arguments are defined in the mapping table in
+.Pa stand/libsa/features.c .
+The
+.Fa enabled
+argument indicates the current status of the feature, though one could
+theoretically turn a feature off in later execution.
+As such, this should likely not be trusted if it is needed after the iteration
+has finished.
+.It Xo
+.Ft void
+.Fn "feature_iter" "feature_iter_fn *iter_fn" "void *cookie"
+.Xc
+.Pp
+Iterate over the current set of features.
+.El
 .Sh MISC
 .Bl -hang -width 10n
 .It Xo
