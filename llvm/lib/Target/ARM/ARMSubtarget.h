@@ -71,6 +71,7 @@ protected:
     CortexA9,
     CortexM3,
     CortexM7,
+    CortexM52,
     CortexR4,
     CortexR4F,
     CortexR5,
@@ -198,7 +199,7 @@ protected:
   /// operand cycle returned by the itinerary data for pre-ISel operands.
   int PreISelOperandLatencyAdjustment = 2;
 
-  /// What alignment is preferred for loop bodies, in log2(bytes).
+  /// What alignment is preferred for loop bodies and functions, in log2(bytes).
   unsigned PrefLoopLogAlignment = 0;
 
   /// The cost factor for MVE instructions, representing the multiple beats an

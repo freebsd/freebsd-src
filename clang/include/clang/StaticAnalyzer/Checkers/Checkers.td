@@ -71,9 +71,11 @@ def InsecureAPI : Package<"insecureAPI">, ParentPackage<Security>;
 def SecurityAlpha : Package<"security">, ParentPackage<Alpha>;
 def Taint : Package<"taint">, ParentPackage<SecurityAlpha>;
 
-def CERT : Package<"cert">, ParentPackage<SecurityAlpha>;
-def POS : Package<"pos">, ParentPackage<CERT>;
+def CERT : Package<"cert">, ParentPackage<Security>;
 def ENV : Package<"env">, ParentPackage<CERT>;
+
+def CERTAlpha : Package<"cert">, ParentPackage<SecurityAlpha>;
+def POSAlpha : Package<"pos">, ParentPackage<CERTAlpha>;
 
 def Unix : Package<"unix">;
 def UnixAlpha : Package<"unix">, ParentPackage<Alpha>;
@@ -125,6 +127,19 @@ def WebKitAlpha : Package<"webkit">, ParentPackage<Alpha>;
 //===----------------------------------------------------------------------===//
 
 let ParentPackage = Core in {
+
+def BitwiseShiftChecker : Checker<"BitwiseShift">,
+  HelpText<"Finds cases where bitwise shift operation causes undefined behaviour.">,
+  CheckerOptions<[
+    CmdLineOption<Boolean,
+                  "Pedantic",
+                  "If set to true, the checker reports undefined behavior even "
+                  "if it is supported by most compilers. (This flag has no "
+                  "effect in C++20 where these constructs are legal.)",
+                  "false",
+                  Released>,
+  ]>,
+  Documentation<HasDocumentation>;
 
 def CallAndMessageModeling : Checker<"CallAndMessageModeling">,
   HelpText<"Responsible for essential modeling and assumptions after a "
@@ -303,6 +318,10 @@ def PthreadLockBase : Checker<"PthreadLockBase">,
 def C11LockChecker : Checker<"C11Lock">,
   HelpText<"Simple lock -> unlock checker">,
   Dependencies<[PthreadLockBase]>,
+  Documentation<HasDocumentation>;
+
+def StdVariantChecker : Checker<"StdVariant">,
+  HelpText<"Check for bad type access for std::variant.">,
   Documentation<HasDocumentation>;
 
 } // end "alpha.core"
@@ -504,6 +523,18 @@ def DynamicMemoryModeling: Checker<"DynamicMemoryModeling">,
   Documentation<NotDocumented>,
   Hidden;
 
+def ErrnoChecker : Checker<"Errno">,
+  HelpText<"Check for improper use of 'errno'">,
+  Dependencies<[ErrnoModeling]>,
+  CheckerOptions<[
+    CmdLineOption<Boolean,
+                  "AllowErrnoReadOutsideConditionExpressions",
+                  "Allow read of undefined value from errno outside of conditions",
+                  "true",
+                  InAlpha>,
+  ]>,
+  Documentation<HasDocumentation>;
+
 def MallocChecker: Checker<"Malloc">,
   HelpText<"Check for memory leaks, double free, and use-after-free problems. "
            "Traces memory managed by malloc()/free().">,
@@ -519,6 +550,27 @@ def MismatchedDeallocatorChecker : Checker<"MismatchedDeallocator">,
   Dependencies<[DynamicMemoryModeling]>,
   Documentation<HasDocumentation>;
 
+def StdCLibraryFunctionsChecker : Checker<"StdCLibraryFunctions">,
+  HelpText<"Check for invalid arguments of C standard library functions, "
+           "and apply relations between arguments and return value">,
+  CheckerOptions<[
+    CmdLineOption<Boolean,
+                  "DisplayLoadedSummaries",
+                  "If set to true, the checker displays the found summaries "
+                  "for the given translation unit.",
+                  "false",
+                  Released,
+                  Hide>,
+    CmdLineOption<Boolean,
+                  "ModelPOSIX",
+                  "If set to true, the checker models additional functions "
+                  "from the POSIX standard.",
+                  "false",
+                  InAlpha>
+  ]>,
+  WeakDependencies<[CallAndMessageChecker, NonNullParamChecker]>,
+  Documentation<HasDocumentation>;
+
 def VforkChecker : Checker<"Vfork">,
   HelpText<"Check for proper usage of vfork">,
   Documentation<HasDocumentation>;
@@ -526,18 +578,6 @@ def VforkChecker : Checker<"Vfork">,
 } // end "unix"
 
 let ParentPackage = UnixAlpha in {
-
-def ErrnoChecker : Checker<"Errno">,
-  HelpText<"Check for improper use of 'errno'">,
-  Dependencies<[ErrnoModeling]>,
-  CheckerOptions<[
-    CmdLineOption<Boolean,
-                  "AllowErrnoReadOutsideConditionExpressions",
-                  "Allow read of undefined value from errno outside of conditions",
-                  "true",
-                  InAlpha>,
-  ]>,
-  Documentation<HasDocumentation>;
 
 def ChrootChecker : Checker<"Chroot">,
   HelpText<"Check improper use of chroot">,
@@ -559,27 +599,6 @@ def SimpleStreamChecker : Checker<"SimpleStream">,
 
 def BlockInCriticalSectionChecker : Checker<"BlockInCriticalSection">,
   HelpText<"Check for calls to blocking functions inside a critical section">,
-  Documentation<HasDocumentation>;
-
-def StdCLibraryFunctionsChecker : Checker<"StdCLibraryFunctions">,
-  HelpText<"Check for invalid arguments of C standard library functions, "
-           "and apply relations between arguments and return value">,
-  CheckerOptions<[
-    CmdLineOption<Boolean,
-                  "DisplayLoadedSummaries",
-                  "If set to true, the checker displays the found summaries "
-                  "for the given translation unit.",
-                  "false",
-                  Released,
-                  Hide>,
-    CmdLineOption<Boolean,
-                  "ModelPOSIX",
-                  "If set to true, the checker models additional functions "
-                  "from the POSIX standard.",
-                  "false",
-                  InAlpha>
-  ]>,
-  WeakDependencies<[CallAndMessageChecker, NonNullParamChecker, StreamChecker]>,
   Documentation<HasDocumentation>;
 
 } // end "alpha.unix"
@@ -744,6 +763,11 @@ def ContainerModeling : Checker<"ContainerModeling">,
   HelpText<"Models C++ containers">,
   Documentation<NotDocumented>,
   Hidden;
+
+def CXXArrayDeleteChecker : Checker<"ArrayDelete">,
+  HelpText<"Reports destructions of arrays of polymorphic objects that are "
+           "destructed as their base class.">,
+  Documentation<HasDocumentation>;
 
 def DeleteWithNonVirtualDtorChecker : Checker<"DeleteWithNonVirtualDtor">,
   HelpText<"Reports destructions of polymorphic objects with a non-virtual "
@@ -971,7 +995,24 @@ def FloatLoopCounter : Checker<"FloatLoopCounter">,
 
 } // end "security"
 
-let ParentPackage = POS in {
+let ParentPackage = ENV in {
+
+  def InvalidPtrChecker : Checker<"InvalidPtr">,
+  HelpText<"Finds usages of possibly invalidated pointers">,
+  CheckerOptions<[
+    CmdLineOption<Boolean,
+                  "InvalidatingGetEnv",
+                  "Regard getenv as an invalidating call (as per POSIX "
+                  "standard), which can lead to false positives depending on "
+                  "implementation.",
+                  "false",
+                  Released>,
+  ]>,
+  Documentation<HasDocumentation>;
+
+} // end "security.cert.env"
+
+let ParentPackage = POSAlpha in {
 
   def PutenvWithAuto : Checker<"34c">,
   HelpText<"Finds calls to the 'putenv' function which pass a pointer to "
@@ -979,14 +1020,6 @@ let ParentPackage = POS in {
   Documentation<HasDocumentation>;
 
 } // end "alpha.cert.pos"
-
-let ParentPackage = ENV in {
-
-  def InvalidPtrChecker : Checker<"InvalidPtr">,
-  HelpText<"Finds usages of possibly invalidated pointers">,
-  Documentation<HasDocumentation>;
-
-} // end "alpha.cert.env"
 
 let ParentPackage = SecurityAlpha in {
 
@@ -1609,6 +1642,7 @@ def DebugIteratorModeling : Checker<"DebugIteratorModeling">,
 def StdCLibraryFunctionsTesterChecker : Checker<"StdCLibraryFunctionsTester">,
   HelpText<"Add test functions to the summary map, so testing of individual "
            "summary constituents becomes possible.">,
+  WeakDependencies<[StdCLibraryFunctionsChecker]>,
   Documentation<NotDocumented>;
 
 } // end "debug"

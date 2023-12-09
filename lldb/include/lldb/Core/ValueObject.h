@@ -479,10 +479,6 @@ public:
   // this will always create the children if necessary
   lldb::ValueObjectSP GetChildAtNamePath(llvm::ArrayRef<llvm::StringRef> names);
 
-  lldb::ValueObjectSP
-  GetChildAtNamePath(llvm::ArrayRef<std::pair<ConstString, bool>> names,
-                     ConstString *name_of_error = nullptr);
-
   virtual lldb::ValueObjectSP GetChildMemberWithName(llvm::StringRef name,
                                                      bool can_create = true);
 
@@ -624,6 +620,10 @@ public:
   virtual lldb::ValueObjectSP CastPointerType(const char *name,
                                               lldb::TypeSP &type_sp);
 
+  /// If this object represents a C++ class with a vtable, return an object
+  /// that represents the virtual function table. If the object isn't a class
+  /// with a vtable, return a valid ValueObject with the error set correctly.
+  lldb::ValueObjectSP GetVTable();
   // The backing bits of this value object were updated, clear any descriptive
   // string, so we know we have to refetch them.
   void ValueUpdated() {

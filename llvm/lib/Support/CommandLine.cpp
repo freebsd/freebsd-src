@@ -1667,6 +1667,13 @@ bool CommandLineParser::ParseCommandLineOptions(int argc,
       Handler = LookupLongOption(*ChosenSubCommand, ArgName, Value,
                                  LongOptionsUseDoubleDash, HaveDoubleDash);
 
+      // If Handler is not found in a specialized subcommand, look up handler
+      // in the top-level subcommand.
+      // cl::opt without cl::sub belongs to top-level subcommand.
+      if (!Handler && ChosenSubCommand != &SubCommand::getTopLevel())
+        Handler = LookupLongOption(SubCommand::getTopLevel(), ArgName, Value,
+                                   LongOptionsUseDoubleDash, HaveDoubleDash);
+
       // Check to see if this "option" is really a prefixed or grouped argument.
       if (!Handler && !(LongOptionsUseDoubleDash && HaveDoubleDash))
         Handler = HandlePrefixedOrGroupedOption(ArgName, Value, ErrorParsing,
@@ -2181,7 +2188,7 @@ void generic_parser_base::printGenericOptionDiff(
 
   unsigned NumOpts = getNumOptions();
   for (unsigned i = 0; i != NumOpts; ++i) {
-    if (Value.compare(getOptionValue(i)))
+    if (!Value.compare(getOptionValue(i)))
       continue;
 
     outs() << "= " << getOption(i);
@@ -2189,7 +2196,7 @@ void generic_parser_base::printGenericOptionDiff(
     size_t NumSpaces = MaxOptWidth > L ? MaxOptWidth - L : 0;
     outs().indent(NumSpaces) << " (default: ";
     for (unsigned j = 0; j != NumOpts; ++j) {
-      if (Default.compare(getOptionValue(j)))
+      if (!Default.compare(getOptionValue(j)))
         continue;
       outs() << getOption(j);
       break;
@@ -2365,7 +2372,7 @@ public:
 
     if (Sub == &SubCommand::getTopLevel()) {
       outs() << "USAGE: " << GlobalParser->ProgramName;
-      if (Subs.size() > 2)
+      if (!Subs.empty())
         outs() << " [subcommand]";
       outs() << " [options]";
     } else {

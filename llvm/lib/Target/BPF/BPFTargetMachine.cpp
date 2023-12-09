@@ -42,7 +42,6 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeBPFTarget() {
   PassRegistry &PR = *PassRegistry::getPassRegistry();
   initializeBPFCheckAndAdjustIRPass(PR);
   initializeBPFMIPeepholePass(PR);
-  initializeBPFMIPeepholeTruncElimPass(PR);
   initializeBPFDAGToDAGISelPass(PR);
 }
 
@@ -63,7 +62,7 @@ BPFTargetMachine::BPFTargetMachine(const Target &T, const Triple &TT,
                                    const TargetOptions &Options,
                                    std::optional<Reloc::Model> RM,
                                    std::optional<CodeModel::Model> CM,
-                                   CodeGenOpt::Level OL, bool JIT)
+                                   CodeGenOptLevel OL, bool JIT)
     : LLVMTargetMachine(T, computeDataLayout(TT), TT, CPU, FS, Options,
                         getEffectiveRelocModel(RM),
                         getEffectiveCodeModel(CM, CodeModel::Small), OL),
@@ -106,11 +105,16 @@ void BPFTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
           FPM.addPass(BPFIRPeepholePass());
           return true;
         }
+        if (PassName == "bpf-preserve-static-offset") {
+          FPM.addPass(BPFPreserveStaticOffsetPass(false));
+          return true;
+        }
         return false;
       });
   PB.registerPipelineStartEPCallback(
       [=](ModulePassManager &MPM, OptimizationLevel) {
         FunctionPassManager FPM;
+        FPM.addPass(BPFPreserveStaticOffsetPass(true));
         FPM.addPass(BPFAbstractMemberAccessPass(this));
         FPM.addPass(BPFPreserveDITypePass());
         FPM.addPass(BPFIRPeepholePass());
@@ -120,6 +124,12 @@ void BPFTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
                                     OptimizationLevel Level) {
     FPM.addPass(SimplifyCFGPass(SimplifyCFGOptions().hoistCommonInsts(true)));
   });
+  PB.registerScalarOptimizerLateEPCallback(
+      [=](FunctionPassManager &FPM, OptimizationLevel Level) {
+        // Run this after loop unrolling but before
+        // SimplifyCFGPass(... .sinkCommonInsts(true))
+        FPM.addPass(BPFPreserveStaticOffsetPass(false));
+      });
   PB.registerPipelineEarlySimplificationEPCallback(
       [=](ModulePassManager &MPM, OptimizationLevel) {
         MPM.addPass(BPFAdjustOptPass());
@@ -155,13 +165,12 @@ void BPFPassConfig::addMachineSSAOptimization() {
   if (!DisableMIPeephole) {
     if (Subtarget->getHasAlu32())
       addPass(createBPFMIPeepholePass());
-    addPass(createBPFMIPeepholeTruncElimPass());
   }
 }
 
 void BPFPassConfig::addPreEmitPass() {
   addPass(createBPFMIPreEmitCheckingPass());
-  if (getOptLevel() != CodeGenOpt::None)
+  if (getOptLevel() != CodeGenOptLevel::None)
     if (!DisableMIPeephole)
       addPass(createBPFMIPreEmitPeepholePass());
 }

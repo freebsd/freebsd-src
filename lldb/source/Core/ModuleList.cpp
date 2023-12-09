@@ -9,12 +9,12 @@
 #include "lldb/Core/ModuleList.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
+#include "lldb/Core/PluginManager.h"
 #include "lldb/Host/FileSystem.h"
 #include "lldb/Interpreter/OptionValueFileSpec.h"
 #include "lldb/Interpreter/OptionValueFileSpecList.h"
 #include "lldb/Interpreter/OptionValueProperties.h"
 #include "lldb/Interpreter/Property.h"
-#include "lldb/Symbol/LocateSymbolFile.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Symbol/TypeList.h"
@@ -75,8 +75,7 @@ enum {
 } // namespace
 
 ModuleListProperties::ModuleListProperties() {
-  m_collection_sp =
-      std::make_shared<OptionValueProperties>(ConstString("symbols"));
+  m_collection_sp = std::make_shared<OptionValueProperties>("symbols");
   m_collection_sp->Initialize(g_modulelist_properties);
   m_collection_sp->SetValueChangedCallback(ePropertySymLinkPaths,
                                            [this] { UpdateSymlinkMappings(); });
@@ -348,7 +347,7 @@ size_t ModuleList::RemoveOrphans(bool mandatory) {
   }
   size_t remove_count = 0;
   // Modules might hold shared pointers to other modules, so removing one
-  // module might make other other modules orphans. Keep removing modules until
+  // module might make other modules orphans. Keep removing modules until
   // there are no further modules that can be removed.
   bool made_progress = true;
   while (made_progress) {
@@ -907,7 +906,7 @@ ModuleList::GetSharedModule(const ModuleSpec &module_spec, ModuleSP &module_sp,
   // Fixup the incoming path in case the path points to a valid file, yet the
   // arch or UUID (if one was passed in) don't match.
   ModuleSpec located_binary_modulespec =
-      Symbols::LocateExecutableObjectFile(module_spec);
+      PluginManager::LocateExecutableObjectFile(module_spec);
 
   // Don't look for the file if it appears to be the same one we already
   // checked for above...
@@ -1078,4 +1077,12 @@ bool ModuleList::AnyOf(
   }
 
   return false;
+}
+
+
+void ModuleList::Swap(ModuleList &other) {
+  // scoped_lock locks both mutexes at once.
+  std::scoped_lock<std::recursive_mutex, std::recursive_mutex> lock(
+      m_modules_mutex, other.m_modules_mutex);
+  m_modules.swap(other.m_modules);
 }

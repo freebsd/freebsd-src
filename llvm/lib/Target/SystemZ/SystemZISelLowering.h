@@ -215,11 +215,12 @@ enum NodeType : unsigned {
   UNPACK_LOW,
   UNPACKL_LOW,
 
-  // Shift each element of vector operand 0 by the number of bits specified
-  // by scalar operand 1.
+  // Shift/rotate each element of vector operand 0 by the number of bits
+  // specified by scalar operand 1.
   VSHL_BY_SCALAR,
   VSRL_BY_SCALAR,
   VSRA_BY_SCALAR,
+  VROTL_BY_SCALAR,
 
   // For each element of the output type, sum across all sub-elements of
   // operand 0 belonging to the corresponding element, and add in the
@@ -452,6 +453,8 @@ public:
     return VT != MVT::f64;
   }
   bool hasInlineStackProbe(const MachineFunction &MF) const override;
+  AtomicExpansionKind
+  shouldExpandAtomicRMWInIR(AtomicRMWInst *RMW) const override;
   bool isLegalICmpImmediate(int64_t Imm) const override;
   bool isLegalAddImmediate(int64_t Imm) const override;
   bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM, Type *Ty,
@@ -487,39 +490,39 @@ public:
   TargetLowering::ConstraintWeight
     getSingleConstraintMatchWeight(AsmOperandInfo &info,
                                    const char *constraint) const override;
-  void LowerAsmOperandForConstraint(SDValue Op,
-                                    std::string &Constraint,
+  void LowerAsmOperandForConstraint(SDValue Op, StringRef Constraint,
                                     std::vector<SDValue> &Ops,
                                     SelectionDAG &DAG) const override;
 
-  unsigned getInlineAsmMemConstraint(StringRef ConstraintCode) const override {
+  InlineAsm::ConstraintCode
+  getInlineAsmMemConstraint(StringRef ConstraintCode) const override {
     if (ConstraintCode.size() == 1) {
       switch(ConstraintCode[0]) {
       default:
         break;
       case 'o':
-        return InlineAsm::Constraint_o;
+        return InlineAsm::ConstraintCode::o;
       case 'Q':
-        return InlineAsm::Constraint_Q;
+        return InlineAsm::ConstraintCode::Q;
       case 'R':
-        return InlineAsm::Constraint_R;
+        return InlineAsm::ConstraintCode::R;
       case 'S':
-        return InlineAsm::Constraint_S;
+        return InlineAsm::ConstraintCode::S;
       case 'T':
-        return InlineAsm::Constraint_T;
+        return InlineAsm::ConstraintCode::T;
       }
     } else if (ConstraintCode.size() == 2 && ConstraintCode[0] == 'Z') {
       switch (ConstraintCode[1]) {
       default:
         break;
       case 'Q':
-        return InlineAsm::Constraint_ZQ;
+        return InlineAsm::ConstraintCode::ZQ;
       case 'R':
-        return InlineAsm::Constraint_ZR;
+        return InlineAsm::ConstraintCode::ZR;
       case 'S':
-        return InlineAsm::Constraint_ZS;
+        return InlineAsm::ConstraintCode::ZS;
       case 'T':
-        return InlineAsm::Constraint_ZT;
+        return InlineAsm::ConstraintCode::ZT;
       }
     }
     return TargetLowering::getInlineAsmMemConstraint(ConstraintCode);
@@ -745,13 +748,12 @@ private:
                                 bool ClearEven) const;
   MachineBasicBlock *emitAtomicLoadBinary(MachineInstr &MI,
                                           MachineBasicBlock *BB,
-                                          unsigned BinOpcode, unsigned BitSize,
+                                          unsigned BinOpcode,
                                           bool Invert = false) const;
   MachineBasicBlock *emitAtomicLoadMinMax(MachineInstr &MI,
                                           MachineBasicBlock *MBB,
                                           unsigned CompareOpcode,
-                                          unsigned KeepOldMask,
-                                          unsigned BitSize) const;
+                                          unsigned KeepOldMask) const;
   MachineBasicBlock *emitAtomicCmpSwapW(MachineInstr &MI,
                                         MachineBasicBlock *BB) const;
   MachineBasicBlock *emitMemMemWrapper(MachineInstr &MI, MachineBasicBlock *BB,

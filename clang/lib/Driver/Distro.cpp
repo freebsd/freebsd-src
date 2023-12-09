@@ -94,6 +94,7 @@ static Distro::DistroType DetectLsbRelease(llvm::vfs::FileSystem &VFS) {
                     .Case("kinetic", Distro::UbuntuKinetic)
                     .Case("lunar", Distro::UbuntuLunar)
                     .Case("mantic", Distro::UbuntuMantic)
+                    .Case("noble", Distro::UbuntuNoble)
                     .Default(Distro::UnknownDistro);
   return Version;
 }
@@ -112,7 +113,7 @@ static Distro::DistroType DetectDistro(llvm::vfs::FileSystem &VFS) {
   if (Version != Distro::UnknownDistro)
     return Version;
 
-  // Otherwise try some distro-specific quirks for RedHat...
+  // Otherwise try some distro-specific quirks for Red Hat...
   llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> File =
       VFS.getBufferForFile("/etc/redhat-release");
 

@@ -246,8 +246,7 @@ public:
   /// separately to avoid any inconsistencies with an ad-hoc pipeline that tries
   /// to approximate the PerModuleDefaultPipeline from the pre-link LTO
   /// pipelines.
-  ModulePassManager buildFatLTODefaultPipeline(OptimizationLevel Level,
-                                               bool ThinLTO, bool EmitSummary);
+  ModulePassManager buildFatLTODefaultPipeline(OptimizationLevel Level);
 
   /// Build a pre-link, ThinLTO-targeting default optimization pipeline to
   /// a pass manager.
@@ -333,7 +332,7 @@ public:
   ///   mpass1,fpass1,fpass2,mpass2,lpass1
   ///
   /// This pipeline uses only one pass manager: the top-level module manager.
-  /// fpass1,fpass2 and lpass1 are added into the the top-level module manager
+  /// fpass1,fpass2 and lpass1 are added into the top-level module manager
   /// using only adaptor passes. No nested function/loop pass managers are
   /// added. The purpose is to allow easy pass testing when the user
   /// specifically want the pass to run under a adaptor directly. This is
@@ -560,7 +559,8 @@ public:
 
   /// Add PGOInstrumenation passes for O0 only.
   void addPGOInstrPassesForO0(ModulePassManager &MPM, bool RunProfileGen,
-                              bool IsCS, std::string ProfileFile,
+                              bool IsCS, bool AtomicCounterUpdate,
+                              std::string ProfileFile,
                               std::string ProfileRemappingFile,
                               IntrusiveRefCntPtr<vfs::FileSystem> FS);
 
@@ -627,10 +627,16 @@ private:
   Error parseModulePassPipeline(ModulePassManager &MPM,
                                 ArrayRef<PipelineElement> Pipeline);
 
+  // Adds passes to do pre-inlining and related cleanup passes before
+  // profile instrumentation/matching (to enable better context sensitivity),
+  // and for memprof to enable better matching with missing debug frames.
+  void addPreInlinerPasses(ModulePassManager &MPM, OptimizationLevel Level,
+                           ThinOrFullLTOPhase LTOPhase);
+
   void addPGOInstrPasses(ModulePassManager &MPM, OptimizationLevel Level,
-                         bool RunProfileGen, bool IsCS, std::string ProfileFile,
+                         bool RunProfileGen, bool IsCS,
+                         bool AtomicCounterUpdate, std::string ProfileFile,
                          std::string ProfileRemappingFile,
-                         ThinOrFullLTOPhase LTOPhase,
                          IntrusiveRefCntPtr<vfs::FileSystem> FS);
 
   // Extension Point callbacks

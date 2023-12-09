@@ -15,7 +15,7 @@
 #include "clang/Basic/MacroBuilder.h"
 #include "clang/Basic/TargetBuiltins.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/TargetParser/TargetParser.h"
+#include "llvm/TargetParser/LoongArchTargetParser.h"
 
 using namespace clang;
 using namespace clang::targets;
@@ -198,7 +198,20 @@ void LoongArchTargetInfo::getTargetDefines(const LangOptions &Opts,
   else
     Builder.defineMacro("__loongarch_frlen", "0");
 
-  // TODO: define __loongarch_arch and __loongarch_tune.
+  // Define __loongarch_arch.
+  StringRef ArchName = getCPU();
+  Builder.defineMacro("__loongarch_arch", Twine('"') + ArchName + Twine('"'));
+
+  // Define __loongarch_tune.
+  StringRef TuneCPU = getTargetOpts().TuneCPU;
+  if (TuneCPU.empty())
+    TuneCPU = ArchName;
+  Builder.defineMacro("__loongarch_tune", Twine('"') + TuneCPU + Twine('"'));
+
+  if (HasFeatureLSX)
+    Builder.defineMacro("__loongarch_sx", Twine(1));
+  if (HasFeatureLASX)
+    Builder.defineMacro("__loongarch_asx", Twine(1));
 
   StringRef ABI = getABI();
   if (ABI == "lp64d" || ABI == "lp64f" || ABI == "lp64s")
@@ -249,6 +262,8 @@ bool LoongArchTargetInfo::hasFeature(StringRef Feature) const {
       .Case("loongarch64", Is64Bit)
       .Case("32bit", !Is64Bit)
       .Case("64bit", Is64Bit)
+      .Case("lsx", HasFeatureLSX)
+      .Case("lasx", HasFeatureLASX)
       .Default(false);
 }
 
@@ -266,7 +281,19 @@ bool LoongArchTargetInfo::handleTargetFeatures(
       if (Feature == "+d") {
         HasFeatureD = true;
       }
-    }
+    } else if (Feature == "+lsx")
+      HasFeatureLSX = true;
+    else if (Feature == "+lasx")
+      HasFeatureLASX = true;
   }
   return true;
+}
+
+bool LoongArchTargetInfo::isValidCPUName(StringRef Name) const {
+  return llvm::LoongArch::isValidCPUName(Name);
+}
+
+void LoongArchTargetInfo::fillValidCPUList(
+    SmallVectorImpl<StringRef> &Values) const {
+  llvm::LoongArch::fillValidCPUList(Values);
 }

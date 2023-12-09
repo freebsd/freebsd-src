@@ -27,7 +27,6 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ELFAttributeParser.h"
 #include "llvm/Support/ELFAttributes.h"
-#include "llvm/Support/Endian.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBufferRef.h"
@@ -458,8 +457,9 @@ public:
 
   bool isDyldType() const { return isDyldELFObject; }
   static bool classof(const Binary *v) {
-    return v->getType() == getELFType(ELFT::TargetEndianness == support::little,
-                                      ELFT::Is64Bits);
+    return v->getType() ==
+           getELFType(ELFT::TargetEndianness == llvm::endianness::little,
+                      ELFT::Is64Bits);
   }
 
   elf_symbol_iterator_range getDynamicSymbolIterators() const override;
@@ -761,10 +761,21 @@ Expected<uint32_t> ELFObjectFile<ELFT>::getSymbolFlags(DataRefImpl Sym) const {
     }
     if (ESym->getType() == ELF::STT_FUNC && (ESym->st_value & 1) == 1)
       Result |= SymbolRef::SF_Thumb;
+  } else if (EF.getHeader().e_machine == ELF::EM_CSKY) {
+    if (Expected<StringRef> NameOrErr = getSymbolName(Sym)) {
+      StringRef Name = *NameOrErr;
+      if (Name.startswith("$d") || Name.startswith("$t"))
+        Result |= SymbolRef::SF_FormatSpecific;
+    } else {
+      // TODO: Actually report errors helpfully.
+      consumeError(NameOrErr.takeError());
+    }
   } else if (EF.getHeader().e_machine == ELF::EM_RISCV) {
     if (Expected<StringRef> NameOrErr = getSymbolName(Sym)) {
-      // Mark empty name symbols used for label differences.
-      if (NameOrErr->empty())
+      StringRef Name = *NameOrErr;
+      // Mark empty name symbols (used for label differences) and mapping
+      // symbols.
+      if (Name.empty() || Name.startswith("$d") || Name.startswith("$x"))
         Result |= SymbolRef::SF_FormatSpecific;
     } else {
       // TODO: Actually report errors helpfully.
@@ -1117,7 +1128,8 @@ ELFObjectFile<ELFT>::ELFObjectFile(MemoryBufferRef Object, ELFFile<ELFT> EF,
                                    const Elf_Shdr *DotSymtabSec,
                                    const Elf_Shdr *DotSymtabShndx)
     : ELFObjectFileBase(
-          getELFType(ELFT::TargetEndianness == support::little, ELFT::Is64Bits),
+          getELFType(ELFT::TargetEndianness == llvm::endianness::little,
+                     ELFT::Is64Bits),
           Object),
       EF(EF), DotDynSymSec(DotDynSymSec), DotSymtabSec(DotSymtabSec),
       DotSymtabShndxSec(DotSymtabShndx) {}
@@ -1186,7 +1198,8 @@ uint8_t ELFObjectFile<ELFT>::getBytesInAddress() const {
 
 template <class ELFT>
 StringRef ELFObjectFile<ELFT>::getFileFormatName() const {
-  constexpr bool IsLittleEndian = ELFT::TargetEndianness == support::little;
+  constexpr bool IsLittleEndian =
+      ELFT::TargetEndianness == llvm::endianness::little;
   switch (EF.getHeader().e_ident[ELF::EI_CLASS]) {
   case ELF::ELFCLASS32:
     switch (EF.getHeader().e_machine) {
@@ -1264,7 +1277,7 @@ StringRef ELFObjectFile<ELFT>::getFileFormatName() const {
 }
 
 template <class ELFT> Triple::ArchType ELFObjectFile<ELFT>::getArch() const {
-  bool IsLittleEndian = ELFT::TargetEndianness == support::little;
+  bool IsLittleEndian = ELFT::TargetEndianness == llvm::endianness::little;
   switch (EF.getHeader().e_machine) {
   case ELF::EM_68K:
     return Triple::m68k;

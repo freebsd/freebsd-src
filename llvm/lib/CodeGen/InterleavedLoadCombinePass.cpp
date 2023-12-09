@@ -628,7 +628,7 @@ static raw_ostream &operator<<(raw_ostream &OS, const Polynomial &S) {
 /// VectorInfo stores abstract the following information for each vector
 /// element:
 ///
-/// 1) The the memory address loaded into the element as Polynomial
+/// 1) The memory address loaded into the element as Polynomial
 /// 2) a set of load instruction necessary to construct the vector,
 /// 3) a set of all other instructions that are necessary to create the vector and
 /// 4) a pointer value that can be used as relative base for all elements.
@@ -1215,13 +1215,9 @@ bool InterleavedLoadCombineImpl::combine(std::list<VectorInfo> &InterleavedLoad,
     return false;
   }
 
-  // Create a pointer cast for the wide load.
-  auto CI = Builder.CreatePointerCast(InsertionPoint->getOperand(0),
-                                      ILTy->getPointerTo(),
-                                      "interleaved.wide.ptrcast");
-
   // Create the wide load and update the MemorySSA.
-  auto LI = Builder.CreateAlignedLoad(ILTy, CI, InsertionPoint->getAlign(),
+  auto Ptr = InsertionPoint->getPointerOperand();
+  auto LI = Builder.CreateAlignedLoad(ILTy, Ptr, InsertionPoint->getAlign(),
                                       "interleaved.wide.load");
   auto MSSAU = MemorySSAUpdater(&MSSA);
   MemoryUse *MSSALoad = cast<MemoryUse>(MSSAU.createMemoryAccessBefore(

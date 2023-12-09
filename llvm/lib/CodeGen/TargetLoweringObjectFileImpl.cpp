@@ -616,7 +616,7 @@ static unsigned getEntrySizeForKind(SectionKind Kind) {
 /// DataSections.
 static StringRef getSectionPrefixForGlobal(SectionKind Kind, bool IsLarge) {
   if (Kind.isText())
-    return ".text";
+    return IsLarge ? ".ltext" : ".text";
   if (Kind.isReadOnly())
     return IsLarge ? ".lrodata" : ".rodata";
   if (Kind.isBSS())
@@ -650,10 +650,7 @@ getELFSectionNameForGlobal(const GlobalObject *GO, SectionKind Kind,
     Name = ".rodata.cst";
     Name += utostr(EntrySize);
   } else {
-    bool IsLarge = false;
-    if (isa<GlobalVariable>(GO))
-      IsLarge = TM.isLargeData();
-    Name = getSectionPrefixForGlobal(Kind, IsLarge);
+    Name = getSectionPrefixForGlobal(Kind, TM.isLargeGlobalObject(GO));
   }
 
   bool HasPrefix = false;
@@ -763,6 +760,21 @@ calcUniqueIDUpdateFlagsAndSize(const GlobalObject *GO, StringRef SectionName,
   return NextUniqueID++;
 }
 
+static std::tuple<StringRef, bool, unsigned>
+getGlobalObjectInfo(const GlobalObject *GO, const TargetMachine &TM) {
+  StringRef Group = "";
+  bool IsComdat = false;
+  unsigned Flags = 0;
+  if (const Comdat *C = getELFComdat(GO)) {
+    Flags |= ELF::SHF_GROUP;
+    Group = C->getName();
+    IsComdat = C->getSelectionKind() == Comdat::Any;
+  }
+  if (TM.isLargeGlobalObject(GO))
+    Flags |= ELF::SHF_X86_64_LARGE;
+  return {Group, IsComdat, Flags};
+}
+
 static MCSection *selectExplicitSectionGlobal(
     const GlobalObject *GO, SectionKind Kind, const TargetMachine &TM,
     MCContext &Ctx, Mangler &Mang, unsigned &NextUniqueID,
@@ -793,14 +805,9 @@ static MCSection *selectExplicitSectionGlobal(
   // Infer section flags from the section name if we can.
   Kind = getELFKindForNamedSection(SectionName, Kind);
 
-  StringRef Group = "";
-  bool IsComdat = false;
   unsigned Flags = getELFSectionFlags(Kind);
-  if (const Comdat *C = getELFComdat(GO)) {
-    Group = C->getName();
-    IsComdat = C->getSelectionKind() == Comdat::Any;
-    Flags |= ELF::SHF_GROUP;
-  }
+  auto [Group, IsComdat, ExtraFlags] = getGlobalObjectInfo(GO, TM);
+  Flags |= ExtraFlags;
 
   unsigned EntrySize = getEntrySizeForKind(Kind);
   const unsigned UniqueID = calcUniqueIDUpdateFlagsAndSize(
@@ -848,19 +855,8 @@ static MCSectionELF *selectELFSectionForGlobal(
     const TargetMachine &TM, bool EmitUniqueSection, unsigned Flags,
     unsigned *NextUniqueID, const MCSymbolELF *AssociatedSymbol) {
 
-  StringRef Group = "";
-  bool IsComdat = false;
-  if (const Comdat *C = getELFComdat(GO)) {
-    Flags |= ELF::SHF_GROUP;
-    Group = C->getName();
-    IsComdat = C->getSelectionKind() == Comdat::Any;
-  }
-  if (isa<GlobalVariable>(GO)) {
-    if (TM.isLargeData()) {
-      assert(TM.getTargetTriple().getArch() == Triple::x86_64);
-      Flags |= ELF::SHF_X86_64_LARGE;
-    }
-  }
+  auto [Group, IsComdat, ExtraFlags] = getGlobalObjectInfo(GO, TM);
+  Flags |= ExtraFlags;
 
   // Get the section entry size based on the kind.
   unsigned EntrySize = getEntrySizeForKind(Kind);
@@ -1038,21 +1034,32 @@ MCSection *TargetLoweringObjectFileELF::getSectionForMachineBasicBlock(
   // under the .text.eh prefix. For regular sections, we either use a unique
   // name, or a unique ID for the section.
   SmallString<128> Name;
-  if (MBB.getSectionID() == MBBSectionID::ColdSectionID) {
-    Name += BBSectionsColdTextPrefix;
-    Name += MBB.getParent()->getName();
-  } else if (MBB.getSectionID() == MBBSectionID::ExceptionSectionID) {
-    Name += ".text.eh.";
-    Name += MBB.getParent()->getName();
-  } else {
-    Name += MBB.getParent()->getSection()->getName();
-    if (TM.getUniqueBasicBlockSectionNames()) {
-      if (!Name.endswith("."))
-        Name += ".";
-      Name += MBB.getSymbol()->getName();
+  StringRef FunctionSectionName = MBB.getParent()->getSection()->getName();
+  if (FunctionSectionName.equals(".text") ||
+      FunctionSectionName.startswith(".text.")) {
+    // Function is in a regular .text section.
+    StringRef FunctionName = MBB.getParent()->getName();
+    if (MBB.getSectionID() == MBBSectionID::ColdSectionID) {
+      Name += BBSectionsColdTextPrefix;
+      Name += FunctionName;
+    } else if (MBB.getSectionID() == MBBSectionID::ExceptionSectionID) {
+      Name += ".text.eh.";
+      Name += FunctionName;
     } else {
-      UniqueID = NextUniqueID++;
+      Name += FunctionSectionName;
+      if (TM.getUniqueBasicBlockSectionNames()) {
+        if (!Name.endswith("."))
+          Name += ".";
+        Name += MBB.getSymbol()->getName();
+      } else {
+        UniqueID = NextUniqueID++;
+      }
     }
+  } else {
+    // If the original function has a custom non-dot-text section, then emit
+    // all basic block sections into that section too, each with a unique id.
+    Name = FunctionSectionName;
+    UniqueID = NextUniqueID++;
   }
 
   unsigned Flags = ELF::SHF_ALLOC | ELF::SHF_EXECINSTR;
@@ -2303,8 +2310,10 @@ bool TargetLoweringObjectFileXCOFF::ShouldSetSSPCanaryBitInTB(
 
 MCSymbol *
 TargetLoweringObjectFileXCOFF::getEHInfoTableSymbol(const MachineFunction *MF) {
-  return MF->getMMI().getContext().getOrCreateSymbol(
+  MCSymbol *EHInfoSym = MF->getMMI().getContext().getOrCreateSymbol(
       "__ehinfo." + Twine(MF->getFunctionNumber()));
+  cast<MCSymbolXCOFF>(EHInfoSym)->setEHInfo();
+  return EHInfoSym;
 }
 
 MCSymbol *
@@ -2424,23 +2433,6 @@ MCSection *TargetLoweringObjectFileXCOFF::SelectSectionForGlobal(
                                                        : XCOFF::XMC_UL;
     return getContext().getXCOFFSection(
         Name, Kind, XCOFF::CsectProperties(SMC, XCOFF::XTY_CM));
-  }
-
-  if (Kind.isMergeableCString()) {
-    Align Alignment = GO->getParent()->getDataLayout().getPreferredAlign(
-        cast<GlobalVariable>(GO));
-
-    unsigned EntrySize = getEntrySizeForKind(Kind);
-    std::string SizeSpec = ".rodata.str" + utostr(EntrySize) + ".";
-    SmallString<128> Name;
-    Name = SizeSpec + utostr(Alignment.value());
-
-    if (TM.getDataSections())
-      getNameWithPrefix(Name, GO, TM);
-
-    return getContext().getXCOFFSection(
-        Name, Kind, XCOFF::CsectProperties(XCOFF::XMC_RO, XCOFF::XTY_SD),
-        /* MultiSymbolsAllowed*/ !TM.getDataSections());
   }
 
   if (Kind.isText()) {
@@ -2628,12 +2620,12 @@ MCSymbol *TargetLoweringObjectFileXCOFF::getFunctionEntryPointSymbol(
   // function entry point csect instead. And for function delcarations, the
   // undefined symbols gets treated as csect with XTY_ER property.
   if (((TM.getFunctionSections() && !Func->hasSection()) ||
-       Func->isDeclaration()) &&
+       Func->isDeclarationForLinker()) &&
       isa<Function>(Func)) {
     return getContext()
         .getXCOFFSection(
             NameStr, SectionKind::getText(),
-            XCOFF::CsectProperties(XCOFF::XMC_PR, Func->isDeclaration()
+            XCOFF::CsectProperties(XCOFF::XMC_PR, Func->isDeclarationForLinker()
                                                       ? XCOFF::XTY_ER
                                                       : XCOFF::XTY_SD))
         ->getQualNameSymbol();
@@ -2654,12 +2646,16 @@ MCSection *TargetLoweringObjectFileXCOFF::getSectionForFunctionDescriptor(
 MCSection *TargetLoweringObjectFileXCOFF::getSectionForTOCEntry(
     const MCSymbol *Sym, const TargetMachine &TM) const {
   // Use TE storage-mapping class when large code model is enabled so that
-  // the chance of needing -bbigtoc is decreased.
+  // the chance of needing -bbigtoc is decreased. Also, the toc-entry for
+  // EH info is never referenced directly using instructions so it can be
+  // allocated with TE storage-mapping class.
   return getContext().getXCOFFSection(
       cast<MCSymbolXCOFF>(Sym)->getSymbolTableName(), SectionKind::getData(),
-      XCOFF::CsectProperties(
-          TM.getCodeModel() == CodeModel::Large ? XCOFF::XMC_TE : XCOFF::XMC_TC,
-          XCOFF::XTY_SD));
+      XCOFF::CsectProperties((TM.getCodeModel() == CodeModel::Large ||
+                              cast<MCSymbolXCOFF>(Sym)->isEHInfo())
+                                 ? XCOFF::XMC_TE
+                                 : XCOFF::XMC_TC,
+                             XCOFF::XTY_SD));
 }
 
 MCSection *TargetLoweringObjectFileXCOFF::getSectionForLSDA(

@@ -517,6 +517,26 @@ const ConstructionContext *CallEvent::getConstructionContext() const {
   return nullptr;
 }
 
+const CallEventRef<> CallEvent::getCaller() const {
+  const auto *CallLocationContext = this->getLocationContext();
+  if (!CallLocationContext || CallLocationContext->inTopFrame())
+    return nullptr;
+
+  const auto *CallStackFrameContext = CallLocationContext->getStackFrame();
+  if (!CallStackFrameContext)
+    return nullptr;
+
+  CallEventManager &CEMgr = State->getStateManager().getCallEventManager();
+  return CEMgr.getCaller(CallStackFrameContext, State);
+}
+
+bool CallEvent::isCalledFromSystemHeader() const {
+  if (const CallEventRef<> Caller = getCaller())
+    return Caller->isInSystemHeader();
+
+  return false;
+}
+
 std::optional<SVal> CallEvent::getReturnValueUnderConstruction() const {
   const auto *CC = getConstructionContext();
   if (!CC)
@@ -715,10 +735,14 @@ void CXXInstanceCall::getExtraInvalidatedValues(
 SVal CXXInstanceCall::getCXXThisVal() const {
   const Expr *Base = getCXXThisExpr();
   // FIXME: This doesn't handle an overloaded ->* operator.
-  if (!Base)
-    return UnknownVal();
+  SVal ThisVal = Base ? getSVal(Base) : UnknownVal();
 
-  SVal ThisVal = getSVal(Base);
+  if (isa<NonLoc>(ThisVal)) {
+    SValBuilder &SVB = getState()->getStateManager().getSValBuilder();
+    QualType OriginalTy = ThisVal.getType(SVB.getContext());
+    return SVB.evalCast(ThisVal, Base->getType(), OriginalTy);
+  }
+
   assert(ThisVal.isUnknownOrUndef() || isa<Loc>(ThisVal));
   return ThisVal;
 }
@@ -765,8 +789,9 @@ RuntimeDefinition CXXInstanceCall::getRuntimeDefinition() const {
     // the static type. However, because we currently don't update
     // DynamicTypeInfo when an object is cast, we can't actually be sure the
     // DynamicTypeInfo is up to date. This assert should be re-enabled once
-    // this is fixed. <rdar://problem/12287087>
-    //assert(!MD->getParent()->isDerivedFrom(RD) && "Bad DynamicTypeInfo");
+    // this is fixed.
+    //
+    // assert(!MD->getParent()->isDerivedFrom(RD) && "Bad DynamicTypeInfo");
 
     return {};
   }

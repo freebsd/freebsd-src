@@ -550,7 +550,7 @@ void WasmObjectWriter::recordRelocation(MCAssembler &Asm,
       TargetObjectWriter->getRelocType(Target, Fixup, FixupSection, IsLocRel);
 
   // Absolute offset within a section or a function.
-  // Currently only supported for for metadata sections.
+  // Currently only supported for metadata sections.
   // See: test/MC/WebAssembly/blockaddress.ll
   if ((Type == wasm::R_WASM_FUNCTION_OFFSET_I32 ||
        Type == wasm::R_WASM_FUNCTION_OFFSET_I64 ||
@@ -1438,12 +1438,12 @@ void WasmObjectWriter::prepareImports(
 
 uint64_t WasmObjectWriter::writeObject(MCAssembler &Asm,
                                        const MCAsmLayout &Layout) {
-  support::endian::Writer MainWriter(*OS, support::little);
+  support::endian::Writer MainWriter(*OS, llvm::endianness::little);
   W = &MainWriter;
   if (IsSplitDwarf) {
     uint64_t TotalSize = writeOneObject(Asm, Layout, DwoMode::NonDwoOnly);
     assert(DwoOS);
-    support::endian::Writer DwoWriter(*DwoOS, support::little);
+    support::endian::Writer DwoWriter(*DwoOS, llvm::endianness::little);
     W = &DwoWriter;
     return TotalSize + writeOneObject(Asm, Layout, DwoMode::DwoOnly);
   } else {

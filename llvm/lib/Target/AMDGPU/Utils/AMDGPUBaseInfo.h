@@ -31,7 +31,6 @@ class MCRegisterClass;
 class MCRegisterInfo;
 class MCSubtargetInfo;
 class StringRef;
-class TargetRegisterClass;
 class Triple;
 class raw_ostream;
 
@@ -43,30 +42,18 @@ namespace AMDGPU {
 
 struct IsaVersion;
 
-enum {
-  AMDHSA_COV2 = 2,
-  AMDHSA_COV3 = 3,
-  AMDHSA_COV4 = 4,
-  AMDHSA_COV5 = 5
-};
+enum { AMDHSA_COV4 = 4, AMDHSA_COV5 = 5 };
 
+/// \returns True if \p STI is AMDHSA.
+bool isHsaAbi(const MCSubtargetInfo &STI);
 /// \returns HSA OS ABI Version identification.
 std::optional<uint8_t> getHsaAbiVersion(const MCSubtargetInfo *STI);
-/// \returns True if HSA OS ABI Version identification is 2,
-/// false otherwise.
-bool isHsaAbiVersion2(const MCSubtargetInfo *STI);
-/// \returns True if HSA OS ABI Version identification is 3,
-/// false otherwise.
-bool isHsaAbiVersion3(const MCSubtargetInfo *STI);
 /// \returns True if HSA OS ABI Version identification is 4,
 /// false otherwise.
 bool isHsaAbiVersion4(const MCSubtargetInfo *STI);
 /// \returns True if HSA OS ABI Version identification is 5,
 /// false otherwise.
 bool isHsaAbiVersion5(const MCSubtargetInfo *STI);
-/// \returns True if HSA OS ABI Version identification is 3 and above,
-/// false otherwise.
-bool isHsaAbiVersion3AndAbove(const MCSubtargetInfo *STI);
 
 /// \returns The offset of the multigrid_sync_arg argument from implicitarg_ptr
 unsigned getMultigridSyncArgImplicitArgPosition(unsigned COV);
@@ -547,6 +534,9 @@ bool isMAC(unsigned Opc);
 
 LLVM_READNONE
 bool isPermlane16(unsigned Opc);
+
+LLVM_READNONE
+bool isGenericAtomic(unsigned Opc);
 
 namespace VOPD {
 
@@ -1121,6 +1111,9 @@ bool isEntryFunctionCC(CallingConv::ID CC);
 LLVM_READNONE
 bool isModuleEntryFunctionCC(CallingConv::ID CC);
 
+LLVM_READNONE
+bool isChainCC(CallingConv::ID CC);
+
 bool isKernelCC(const Function *Func);
 
 // FIXME: Remove this when calling conventions cleaned up
@@ -1141,36 +1134,50 @@ bool hasMIMG_R128(const MCSubtargetInfo &STI);
 bool hasA16(const MCSubtargetInfo &STI);
 bool hasG16(const MCSubtargetInfo &STI);
 bool hasPackedD16(const MCSubtargetInfo &STI);
-unsigned getNSAMaxSize(const MCSubtargetInfo &STI);
+bool hasGDS(const MCSubtargetInfo &STI);
+unsigned getNSAMaxSize(const MCSubtargetInfo &STI, bool HasSampler = false);
+unsigned getMaxNumUserSGPRs(const MCSubtargetInfo &STI);
 
 bool isSI(const MCSubtargetInfo &STI);
 bool isCI(const MCSubtargetInfo &STI);
 bool isVI(const MCSubtargetInfo &STI);
 bool isGFX9(const MCSubtargetInfo &STI);
 bool isGFX9_GFX10(const MCSubtargetInfo &STI);
+bool isGFX9_GFX10_GFX11(const MCSubtargetInfo &STI);
 bool isGFX8_GFX9_GFX10(const MCSubtargetInfo &STI);
 bool isGFX8Plus(const MCSubtargetInfo &STI);
 bool isGFX9Plus(const MCSubtargetInfo &STI);
 bool isGFX10(const MCSubtargetInfo &STI);
+bool isGFX10_GFX11(const MCSubtargetInfo &STI);
 bool isGFX10Plus(const MCSubtargetInfo &STI);
 bool isNotGFX10Plus(const MCSubtargetInfo &STI);
 bool isGFX10Before1030(const MCSubtargetInfo &STI);
 bool isGFX11(const MCSubtargetInfo &STI);
 bool isGFX11Plus(const MCSubtargetInfo &STI);
+bool isGFX12(const MCSubtargetInfo &STI);
+bool isGFX12Plus(const MCSubtargetInfo &STI);
+bool isNotGFX12Plus(const MCSubtargetInfo &STI);
 bool isNotGFX11Plus(const MCSubtargetInfo &STI);
 bool isGCN3Encoding(const MCSubtargetInfo &STI);
 bool isGFX10_AEncoding(const MCSubtargetInfo &STI);
 bool isGFX10_BEncoding(const MCSubtargetInfo &STI);
 bool hasGFX10_3Insts(const MCSubtargetInfo &STI);
+bool isGFX10_3_GFX11(const MCSubtargetInfo &STI);
 bool isGFX90A(const MCSubtargetInfo &STI);
 bool isGFX940(const MCSubtargetInfo &STI);
 bool hasArchitectedFlatScratch(const MCSubtargetInfo &STI);
 bool hasMAIInsts(const MCSubtargetInfo &STI);
 bool hasVOPD(const MCSubtargetInfo &STI);
+bool hasDPPSrc1SGPR(const MCSubtargetInfo &STI);
 int getTotalNumVGPRs(bool has90AInsts, int32_t ArgNumAGPR, int32_t ArgNumVGPR);
+unsigned hasKernargPreload(const MCSubtargetInfo &STI);
 
 /// Is Reg - scalar register
 bool isSGPR(unsigned Reg, const MCRegisterInfo* TRI);
+
+/// \returns if \p Reg occupies the high 16-bits of a 32-bit register.
+/// The bit indicating isHi is the LSB of the encoding.
+bool isHi(unsigned Reg, const MCRegisterInfo &MRI);
 
 /// If \p Reg is a pseudo reg, return the correct hardware register given
 /// \p STI otherwise return \p Reg.
@@ -1201,9 +1208,6 @@ unsigned getRegBitWidth(unsigned RCID);
 
 /// Get the size in bits of a register from the register class \p RC.
 unsigned getRegBitWidth(const MCRegisterClass &RC);
-
-/// Get the size in bits of a register from the register class \p RC.
-unsigned getRegBitWidth(const TargetRegisterClass &RC);
 
 /// Get size of register operand
 unsigned getRegOperandSize(const MCRegisterInfo *MRI, const MCInstrDesc &Desc,
@@ -1283,7 +1287,13 @@ LLVM_READNONE
 bool isInlinableIntLiteralV216(int32_t Literal);
 
 LLVM_READNONE
+bool isInlinableLiteralV216(int32_t Literal, bool HasInv2Pi, uint8_t OpType);
+
+LLVM_READNONE
 bool isFoldableLiteralV216(int32_t Literal, bool HasInv2Pi);
+
+LLVM_READNONE
+bool isValid32BitLiteral(uint64_t Val, bool IsFP64);
 
 bool isArgPassedInSGPR(const Argument *Arg);
 
@@ -1328,9 +1338,15 @@ unsigned getNumFlatOffsetBits(const MCSubtargetInfo &ST);
 bool isLegalSMRDImmOffset(const MCSubtargetInfo &ST, int64_t ByteOffset);
 
 LLVM_READNONE
-inline bool isLegal64BitDPPControl(unsigned DC) {
+inline bool isLegalDPALU_DPPControl(unsigned DC) {
   return DC >= DPP::ROW_NEWBCAST_FIRST && DC <= DPP::ROW_NEWBCAST_LAST;
 }
+
+/// \returns true if an instruction may have a 64-bit VGPR operand.
+bool hasAny64BitVGPROperands(const MCInstrDesc &OpDesc);
+
+/// \returns true if an instruction is a DP ALU DPP.
+bool isDPALU_DPP(const MCInstrDesc &OpDesc);
 
 /// \returns true if the intrinsic is divergent
 bool isIntrinsicSourceOfDivergence(unsigned IntrID);

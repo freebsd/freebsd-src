@@ -216,7 +216,6 @@ typedef enum {
   LLVMColdCallConv          = 9,
   LLVMGHCCallConv           = 10,
   LLVMHiPECallConv          = 11,
-  LLVMWebKitJSCallConv      = 12,
   LLVMAnyRegCallConv        = 13,
   LLVMPreserveMostCallConv  = 14,
   LLVMPreserveAllCallConv   = 15,
@@ -467,6 +466,20 @@ enum {
   // LLVMAttributeFunctionIndex = ~0U,
   LLVMAttributeFunctionIndex = -1,
 };
+
+/**
+ * Tail call kind for LLVMSetTailCallKind and LLVMGetTailCallKind.
+ *
+ * Note that 'musttail' implies 'tail'.
+ *
+ * @see CallInst::TailCallKind
+ */
+typedef enum {
+  LLVMTailCallKindNone = 0,
+  LLVMTailCallKindTail = 1,
+  LLVMTailCallKindMustTail = 2,
+  LLVMTailCallKindNoTail = 3,
+} LLVMTailCallKind;
 
 typedef unsigned LLVMAttributeIndex;
 
@@ -890,11 +903,57 @@ void LLVMAppendModuleInlineAsm(LLVMModuleRef M, const char *Asm, size_t Len);
  *
  * @see InlineAsm::get()
  */
-LLVMValueRef LLVMGetInlineAsm(LLVMTypeRef Ty, char *AsmString,
-                              size_t AsmStringSize, char *Constraints,
+LLVMValueRef LLVMGetInlineAsm(LLVMTypeRef Ty, const char *AsmString,
+                              size_t AsmStringSize, const char *Constraints,
                               size_t ConstraintsSize, LLVMBool HasSideEffects,
                               LLVMBool IsAlignStack,
                               LLVMInlineAsmDialect Dialect, LLVMBool CanThrow);
+
+/**
+ * Get the template string used for an inline assembly snippet
+ *
+ */
+const char *LLVMGetInlineAsmAsmString(LLVMValueRef InlineAsmVal, size_t *Len);
+
+/**
+ * Get the raw constraint string for an inline assembly snippet
+ *
+ */
+const char *LLVMGetInlineAsmConstraintString(LLVMValueRef InlineAsmVal,
+                                             size_t *Len);
+
+/**
+ * Get the dialect used by the inline asm snippet
+ *
+ */
+LLVMInlineAsmDialect LLVMGetInlineAsmDialect(LLVMValueRef InlineAsmVal);
+
+/**
+ * Get the function type of the inline assembly snippet. The same type that
+ * was passed into LLVMGetInlineAsm originally
+ *
+ * @see LLVMGetInlineAsm
+ *
+ */
+LLVMTypeRef LLVMGetInlineAsmFunctionType(LLVMValueRef InlineAsmVal);
+
+/**
+ * Get if the inline asm snippet has side effects
+ *
+ */
+LLVMBool LLVMGetInlineAsmHasSideEffects(LLVMValueRef InlineAsmVal);
+
+/**
+ * Get if the inline asm snippet needs an aligned stack
+ *
+ */
+LLVMBool LLVMGetInlineAsmNeedsAlignedStack(LLVMValueRef InlineAsmVal);
+
+/**
+ * Get if the inline asm snippet may unwind the stack
+ *
+ */
+LLVMBool LLVMGetInlineAsmCanUnwind(LLVMValueRef InlineAsmVal);
 
 /**
  * Obtain the context to which this module is associated.
@@ -2216,45 +2275,26 @@ LLVMValueRef LLVMConstNUWSub(LLVMValueRef LHSConstant, LLVMValueRef RHSConstant)
 LLVMValueRef LLVMConstMul(LLVMValueRef LHSConstant, LLVMValueRef RHSConstant);
 LLVMValueRef LLVMConstNSWMul(LLVMValueRef LHSConstant, LLVMValueRef RHSConstant);
 LLVMValueRef LLVMConstNUWMul(LLVMValueRef LHSConstant, LLVMValueRef RHSConstant);
-LLVMValueRef LLVMConstAnd(LLVMValueRef LHSConstant, LLVMValueRef RHSConstant);
-LLVMValueRef LLVMConstOr(LLVMValueRef LHSConstant, LLVMValueRef RHSConstant);
 LLVMValueRef LLVMConstXor(LLVMValueRef LHSConstant, LLVMValueRef RHSConstant);
 LLVMValueRef LLVMConstICmp(LLVMIntPredicate Predicate,
                            LLVMValueRef LHSConstant, LLVMValueRef RHSConstant);
 LLVMValueRef LLVMConstFCmp(LLVMRealPredicate Predicate,
                            LLVMValueRef LHSConstant, LLVMValueRef RHSConstant);
 LLVMValueRef LLVMConstShl(LLVMValueRef LHSConstant, LLVMValueRef RHSConstant);
-LLVMValueRef LLVMConstLShr(LLVMValueRef LHSConstant, LLVMValueRef RHSConstant);
-LLVMValueRef LLVMConstAShr(LLVMValueRef LHSConstant, LLVMValueRef RHSConstant);
 LLVMValueRef LLVMConstGEP2(LLVMTypeRef Ty, LLVMValueRef ConstantVal,
                            LLVMValueRef *ConstantIndices, unsigned NumIndices);
 LLVMValueRef LLVMConstInBoundsGEP2(LLVMTypeRef Ty, LLVMValueRef ConstantVal,
                                    LLVMValueRef *ConstantIndices,
                                    unsigned NumIndices);
 LLVMValueRef LLVMConstTrunc(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
-LLVMValueRef LLVMConstSExt(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
-LLVMValueRef LLVMConstZExt(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
-LLVMValueRef LLVMConstFPTrunc(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
-LLVMValueRef LLVMConstFPExt(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
-LLVMValueRef LLVMConstUIToFP(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
-LLVMValueRef LLVMConstSIToFP(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
-LLVMValueRef LLVMConstFPToUI(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
-LLVMValueRef LLVMConstFPToSI(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
 LLVMValueRef LLVMConstPtrToInt(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
 LLVMValueRef LLVMConstIntToPtr(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
 LLVMValueRef LLVMConstBitCast(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
 LLVMValueRef LLVMConstAddrSpaceCast(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
-LLVMValueRef LLVMConstZExtOrBitCast(LLVMValueRef ConstantVal,
-                                    LLVMTypeRef ToType);
-LLVMValueRef LLVMConstSExtOrBitCast(LLVMValueRef ConstantVal,
-                                    LLVMTypeRef ToType);
 LLVMValueRef LLVMConstTruncOrBitCast(LLVMValueRef ConstantVal,
                                      LLVMTypeRef ToType);
 LLVMValueRef LLVMConstPointerCast(LLVMValueRef ConstantVal,
                                   LLVMTypeRef ToType);
-LLVMValueRef LLVMConstIntCast(LLVMValueRef ConstantVal, LLVMTypeRef ToType,
-                              LLVMBool isSigned);
-LLVMValueRef LLVMConstFPCast(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
 LLVMValueRef LLVMConstExtractElement(LLVMValueRef VectorConstant,
                                      LLVMValueRef IndexConstant);
 LLVMValueRef LLVMConstInsertElement(LLVMValueRef VectorConstant,
@@ -3430,6 +3470,20 @@ LLVMBool LLVMIsTailCall(LLVMValueRef CallInst);
 void LLVMSetTailCall(LLVMValueRef CallInst, LLVMBool IsTailCall);
 
 /**
+ * Obtain a tail call kind of the call instruction.
+ *
+ * @see llvm::CallInst::setTailCallKind()
+ */
+LLVMTailCallKind LLVMGetTailCallKind(LLVMValueRef CallInst);
+
+/**
+ * Set the call kind of the call instruction.
+ *
+ * @see llvm::CallInst::getTailCallKind()
+ */
+void LLVMSetTailCallKind(LLVMValueRef CallInst, LLVMTailCallKind kind);
+
+/**
  * Return the normal destination basic block.
  *
  * This only works on llvm::InvokeInst instructions.
@@ -3919,6 +3973,28 @@ LLVMBool LLVMGetNSW(LLVMValueRef ArithInst);
 void LLVMSetNSW(LLVMValueRef ArithInst, LLVMBool HasNSW);
 LLVMBool LLVMGetExact(LLVMValueRef DivOrShrInst);
 void LLVMSetExact(LLVMValueRef DivOrShrInst, LLVMBool IsExact);
+
+/**
+ * Gets if the instruction has the non-negative flag set.
+ * Only valid for zext instructions.
+ */
+LLVMBool LLVMGetNNeg(LLVMValueRef NonNegInst);
+/**
+ * Sets the non-negative flag for the instruction.
+ * Only valid for zext instructions.
+ */
+void LLVMSetNNeg(LLVMValueRef NonNegInst, LLVMBool IsNonNeg);
+
+/**
+ * Gets whether the instruction has the disjoint flag set.
+ * Only valid for or instructions.
+ */
+LLVMBool LLVMGetIsDisjoint(LLVMValueRef Inst);
+/**
+ * Sets the disjoint flag for the instruction.
+ * Only valid for or instructions.
+ */
+void LLVMSetIsDisjoint(LLVMValueRef Inst, LLVMBool IsDisjoint);
 
 /* Memory */
 LLVMValueRef LLVMBuildMalloc(LLVMBuilderRef, LLVMTypeRef Ty, const char *Name);

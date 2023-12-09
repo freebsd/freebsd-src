@@ -152,8 +152,9 @@ struct ELFWriter {
 public:
   ELFWriter(ELFObjectWriter &OWriter, raw_pwrite_stream &OS,
             bool IsLittleEndian, DwoMode Mode)
-      : OWriter(OWriter),
-        W(OS, IsLittleEndian ? support::little : support::big), Mode(Mode) {}
+      : OWriter(OWriter), W(OS, IsLittleEndian ? llvm::endianness::little
+                                               : llvm::endianness::big),
+        Mode(Mode) {}
 
   void WriteWord(uint64_t Word) {
     if (is64Bit())
@@ -227,8 +228,7 @@ class ELFObjectWriter : public MCObjectWriter {
 
   bool hasRelocationAddend() const;
 
-  bool shouldRelocateWithSymbol(const MCAssembler &Asm,
-                                const MCSymbolRefExpr *RefA,
+  bool shouldRelocateWithSymbol(const MCAssembler &Asm, const MCValue &Val,
                                 const MCSymbolELF *Sym, uint64_t C,
                                 unsigned Type) const;
 
@@ -407,8 +407,8 @@ void ELFWriter::writeHeader(const MCAssembler &Asm) {
   W.OS << char(is64Bit() ? ELF::ELFCLASS64 : ELF::ELFCLASS32); // e_ident[EI_CLASS]
 
   // e_ident[EI_DATA]
-  W.OS << char(W.Endian == support::little ? ELF::ELFDATA2LSB
-                                           : ELF::ELFDATA2MSB);
+  W.OS << char(W.Endian == llvm::endianness::little ? ELF::ELFDATA2LSB
+                                                    : ELF::ELFDATA2MSB);
 
   W.OS << char(ELF::EV_CURRENT);        // e_ident[EI_VERSION]
   // e_ident[EI_OSABI]
@@ -843,7 +843,7 @@ bool ELFWriter::maybeWriteCompression(
     uint32_t ChType, uint64_t Size,
     SmallVectorImpl<uint8_t> &CompressedContents, Align Alignment) {
   uint64_t HdrSize =
-      is64Bit() ? sizeof(ELF::Elf32_Chdr) : sizeof(ELF::Elf64_Chdr);
+      is64Bit() ? sizeof(ELF::Elf64_Chdr) : sizeof(ELF::Elf32_Chdr);
   if (Size <= HdrSize + CompressedContents.size())
     return false;
   // Platform specific header is followed by compressed data.
@@ -1297,10 +1297,11 @@ void ELFObjectWriter::executePostLayoutBinding(MCAssembler &Asm,
 // to use a relocation with a section if that is possible. Using the section
 // allows us to omit some local symbols from the symbol table.
 bool ELFObjectWriter::shouldRelocateWithSymbol(const MCAssembler &Asm,
-                                               const MCSymbolRefExpr *RefA,
+                                               const MCValue &Val,
                                                const MCSymbolELF *Sym,
                                                uint64_t C,
                                                unsigned Type) const {
+  const MCSymbolRefExpr *RefA = Val.getSymA();
   // A PCRel relocation to an absolute value has no symbol (or section). We
   // represent that with a relocation to a null section.
   if (!RefA)
@@ -1419,7 +1420,7 @@ bool ELFObjectWriter::shouldRelocateWithSymbol(const MCAssembler &Asm,
   if (Asm.isThumbFunc(Sym))
     return true;
 
-  if (TargetObjectWriter->needsRelocateWithSymbol(*Sym, Type))
+  if (TargetObjectWriter->needsRelocateWithSymbol(Val, *Sym, Type))
     return true;
   return false;
 }
@@ -1484,7 +1485,7 @@ void ELFObjectWriter::recordRelocation(MCAssembler &Asm,
   const auto *Parent = cast<MCSectionELF>(Fragment->getParent());
   // Emiting relocation with sybmol for CG Profile to  help with --cg-profile.
   bool RelocateWithSymbol =
-      shouldRelocateWithSymbol(Asm, RefA, SymA, C, Type) ||
+      shouldRelocateWithSymbol(Asm, Target, SymA, C, Type) ||
       (Parent->getType() == ELF::SHT_LLVM_CALL_GRAPH_PROFILE);
   uint64_t Addend = 0;
 

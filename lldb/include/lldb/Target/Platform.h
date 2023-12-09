@@ -44,7 +44,7 @@ class PlatformProperties : public Properties {
 public:
   PlatformProperties();
 
-  static ConstString GetSettingName();
+  static llvm::StringRef GetSettingName();
 
   bool GetUseModuleCache() const;
   bool SetUseModuleCache(bool use_module_cache);
@@ -293,6 +293,11 @@ public:
       lldb::ModuleSP &module_sp, const FileSpecList *module_search_paths_ptr,
       llvm::SmallVectorImpl<lldb::ModuleSP> *old_modules, bool *did_create_ptr);
 
+  void CallLocateModuleCallbackIfSet(const ModuleSpec &module_spec,
+                                     lldb::ModuleSP &module_sp,
+                                     FileSpec &symbol_file_spec,
+                                     bool *did_create_ptr);
+
   virtual bool GetModuleSpec(const FileSpec &module_file_spec,
                              const ArchSpec &arch, ModuleSpec &module_spec);
 
@@ -401,6 +406,8 @@ public:
   // will need to fill in the remote case.
   virtual uint32_t FindProcesses(const ProcessInstanceInfoMatch &match_info,
                                  ProcessInstanceInfoList &proc_infos);
+
+  ProcessInstanceInfoList GetAllProcesses();
 
   virtual bool GetProcessInfo(lldb::pid_t pid, ProcessInstanceInfo &proc_info);
 
@@ -878,7 +885,7 @@ public:
   }
 
   virtual CompilerType GetSiginfoType(const llvm::Triple &triple);
-  
+
   virtual Args GetExtraStartupCommands();
 
   typedef std::function<Status(const ModuleSpec &module_spec,

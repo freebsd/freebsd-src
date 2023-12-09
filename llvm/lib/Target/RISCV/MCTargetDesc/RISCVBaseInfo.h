@@ -203,6 +203,35 @@ static inline unsigned getVecPolicyOpNum(const MCInstrDesc &Desc) {
   return Desc.getNumOperands() - 1;
 }
 
+/// \returns  the index to the rounding mode immediate value if any, otherwise
+/// returns -1.
+static inline int getFRMOpNum(const MCInstrDesc &Desc) {
+  const uint64_t TSFlags = Desc.TSFlags;
+  if (!hasRoundModeOp(TSFlags) || usesVXRM(TSFlags))
+    return -1;
+
+  // The operand order
+  // --------------------------------------
+  // | n-1 (if any)   | n-2  | n-3 | n-4 |
+  // | policy         | sew  | vl  | frm |
+  // --------------------------------------
+  return getVLOpNum(Desc) - 1;
+}
+
+/// \returns  the index to the rounding mode immediate value if any, otherwise
+/// returns -1.
+static inline int getVXRMOpNum(const MCInstrDesc &Desc) {
+  const uint64_t TSFlags = Desc.TSFlags;
+  if (!hasRoundModeOp(TSFlags) || !usesVXRM(TSFlags))
+    return -1;
+  // The operand order
+  // --------------------------------------
+  // | n-1 (if any)   | n-2  | n-3 | n-4  |
+  // | policy         | sew  | vl  | vxrm |
+  // --------------------------------------
+  return getVLOpNum(Desc) - 1;
+}
+
 // Is the first def operand tied to the first use operand. This is true for
 // vector pseudo instructions that have a merge operand for tail/mask
 // undisturbed. It's also true for vector FMA instructions where one of the
@@ -506,6 +535,8 @@ void printVType(unsigned VType, raw_ostream &OS);
 
 unsigned getSEWLMULRatio(unsigned SEW, RISCVII::VLMUL VLMul);
 
+std::optional<RISCVII::VLMUL>
+getSameRatioLMUL(unsigned SEW, RISCVII::VLMUL VLMUL, unsigned EEW);
 } // namespace RISCVVType
 
 namespace RISCVRVC {

@@ -650,6 +650,15 @@ InstructionCost GCNTTIImpl::getArithmeticInstrCost(
       return LT.first * Cost * NElts;
     }
 
+    if (SLT == MVT::f32 && ((CxtI && CxtI->hasApproxFunc()) ||
+                            TLI->getTargetMachine().Options.UnsafeFPMath)) {
+      // Fast unsafe fdiv lowering:
+      // f32 rcp
+      // f32 fmul
+      int Cost = getQuarterRateInstrCost(CostKind) + getFullRateInstrCost();
+      return LT.first * Cost * NElts;
+    }
+
     if (SLT == MVT::f32 || SLT == MVT::f16) {
       // 4 more v_cvt_* insts without f16 insts support
       int Cost = (SLT == MVT::f16 ? 14 : 10) * getFullRateInstrCost() +
@@ -1114,7 +1123,8 @@ InstructionCost GCNTTIImpl::getShuffleCost(TTI::ShuffleKind Kind,
                                            TTI::TargetCostKind CostKind,
                                            int Index, VectorType *SubTp,
                                            ArrayRef<const Value *> Args) {
-  Kind = improveShuffleKindFromMask(Kind, Mask);
+  Kind = improveShuffleKindFromMask(Kind, Mask, VT, Index, SubTp);
+
   if (ST->hasVOP3PInsts()) {
     if (cast<FixedVectorType>(VT)->getNumElements() == 2 &&
         DL.getTypeSizeInBits(VT->getElementType()) == 16) {

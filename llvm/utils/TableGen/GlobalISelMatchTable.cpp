@@ -43,11 +43,13 @@ std::string getMatchOpcodeForImmPredicate(const TreePredicateFn &Predicate) {
 
 //===- Helpers ------------------------------------------------------------===//
 
-std::string
-getNameForFeatureBitset(const std::vector<Record *> &FeatureBitset) {
+std::string getNameForFeatureBitset(const std::vector<Record *> &FeatureBitset,
+                                    int HwModeIdx) {
   std::string Name = "GIFBS";
   for (const auto &Feature : FeatureBitset)
     Name += ("_" + Feature->getName()).str();
+  if (HwModeIdx >= 0)
+    Name += ("_HwMode" + std::to_string(HwModeIdx));
   return Name;
 }
 
@@ -241,7 +243,7 @@ void MatchTable::emitDeclaration(raw_ostream &OS) const {
     if (I->Flags & MatchTableRecord::MTRF_Outdent)
       Indentation -= 2;
   }
-  OS << "};\n";
+  OS << "}; // Size: " << (CurrentSize * 8) << " bytes\n";
 }
 
 MatchTable MatchTable::buildTable(ArrayRef<Matcher *> Rules, bool WithCoverage,
@@ -820,6 +822,15 @@ const OperandMatcher &RuleMatcher::getPhysRegOperandMatcher(Record *Reg) const {
   return *I->second;
 }
 
+OperandMatcher &RuleMatcher::getOperandMatcher(StringRef Name) {
+  const auto &I = DefinedOperands.find(Name);
+
+  if (I == DefinedOperands.end())
+    PrintFatalError(SrcLoc, "Operand " + Name + " was not declared in matcher");
+
+  return *I->second;
+}
+
 const OperandMatcher &RuleMatcher::getOperandMatcher(StringRef Name) const {
   const auto &I = DefinedOperands.find(Name);
 
@@ -851,9 +862,10 @@ void RuleMatcher::emit(MatchTable &Table) {
         << MatchTable::Comment(("Rule ID " + Twine(RuleID) + " //").str())
         << MatchTable::LineBreak;
 
-  if (!RequiredFeatures.empty()) {
+  if (!RequiredFeatures.empty() || HwModeIdx >= 0) {
     Table << MatchTable::Opcode("GIM_CheckFeatures")
-          << MatchTable::NamedValue(getNameForFeatureBitset(RequiredFeatures))
+          << MatchTable::NamedValue(
+                 getNameForFeatureBitset(RequiredFeatures, HwModeIdx))
           << MatchTable::LineBreak;
   }
 
@@ -865,6 +877,10 @@ void RuleMatcher::emit(MatchTable &Table) {
   }
 
   Matchers.front()->emitPredicateOpcodes(Table, *this);
+
+  // Check if it's safe to replace registers.
+  for (const auto &MA : Actions)
+    MA->emitAdditionalPredicates(Table, *this);
 
   // We must also check if it's safe to fold the matched instructions.
   if (InsnVariableIDs.size() >= 2) {
@@ -1074,6 +1090,17 @@ void RecordNamedOperandMatcher::emitPredicateOpcodes(MatchTable &Table,
         << MatchTable::Comment("Name : " + Name) << MatchTable::LineBreak;
 }
 
+//===- RecordRegisterType ------------------------------------------===//
+
+void RecordRegisterType::emitPredicateOpcodes(MatchTable &Table,
+                                              RuleMatcher &Rule) const {
+  assert(Idx < 0 && "Temp types always have negative indexes!");
+  Table << MatchTable::Opcode("GIM_RecordRegType") << MatchTable::Comment("MI")
+        << MatchTable::IntValue(InsnVarID) << MatchTable::Comment("Op")
+        << MatchTable::IntValue(OpIdx) << MatchTable::Comment("TempTypeIdx")
+        << MatchTable::IntValue(Idx) << MatchTable::LineBreak;
+}
+
 //===- ComplexPatternOperandMatcher ---------------------------------------===//
 
 void ComplexPatternOperandMatcher::emitPredicateOpcodes(
@@ -1104,7 +1131,7 @@ void RegisterBankOperandMatcher::emitPredicateOpcodes(MatchTable &Table,
         << MatchTable::Comment("MI") << MatchTable::IntValue(InsnVarID)
         << MatchTable::Comment("Op") << MatchTable::IntValue(OpIdx)
         << MatchTable::Comment("RC")
-        << MatchTable::NamedValue(RC.getQualifiedName() + "RegClassID")
+        << MatchTable::NamedValue(RC.getQualifiedIdName())
         << MatchTable::LineBreak;
 }
 
@@ -1188,6 +1215,18 @@ std::string OperandMatcher::getOperandExpr(unsigned InsnVarID) const {
 }
 
 unsigned OperandMatcher::getInsnVarID() const { return Insn.getInsnVarID(); }
+
+TempTypeIdx OperandMatcher::getTempTypeIdx(RuleMatcher &Rule) {
+  if (TTIdx >= 0) {
+    // Temp type index not assigned yet, so assign one and add the necessary
+    // predicate.
+    TTIdx = Rule.getNextTempTypeIdx();
+    assert(TTIdx < 0);
+    addPredicate<RecordRegisterType>(TTIdx);
+    return TTIdx;
+  }
+  return TTIdx;
+}
 
 void OperandMatcher::emitPredicateOpcodes(MatchTable &Table,
                                           RuleMatcher &Rule) {
@@ -1500,6 +1539,24 @@ void GenericInstructionPredicateMatcher::emitPredicateOpcodes(
         << MatchTable::Comment("MI") << MatchTable::IntValue(InsnVarID)
         << MatchTable::Comment("FnId") << MatchTable::NamedValue(EnumVal)
         << MatchTable::LineBreak;
+}
+
+//===- MIFlagsInstructionPredicateMatcher ---------------------------------===//
+
+bool MIFlagsInstructionPredicateMatcher::isIdentical(
+    const PredicateMatcher &B) const {
+  if (!InstructionPredicateMatcher::isIdentical(B))
+    return false;
+  const auto &Other =
+      static_cast<const MIFlagsInstructionPredicateMatcher &>(B);
+  return Flags == Other.Flags && CheckNot == Other.CheckNot;
+}
+
+void MIFlagsInstructionPredicateMatcher::emitPredicateOpcodes(
+    MatchTable &Table, RuleMatcher &Rule) const {
+  Table << MatchTable::Opcode(CheckNot ? "GIM_MIFlagsNot" : "GIM_MIFlags")
+        << MatchTable::Comment("MI") << MatchTable::IntValue(InsnVarID)
+        << MatchTable::NamedValue(join(Flags, " | ")) << MatchTable::LineBreak;
 }
 
 //===- InstructionMatcher -------------------------------------------------===//
@@ -1917,6 +1974,30 @@ void BuildMIAction::chooseInsnToMutate(RuleMatcher &Rule) {
 
 void BuildMIAction::emitActionOpcodes(MatchTable &Table,
                                       RuleMatcher &Rule) const {
+  const auto AddMIFlags = [&]() {
+    for (const InstructionMatcher *IM : CopiedFlags) {
+      Table << MatchTable::Opcode("GIR_CopyMIFlags")
+            << MatchTable::Comment("InsnID") << MatchTable::IntValue(InsnID)
+            << MatchTable::Comment("OldInsnID")
+            << MatchTable::IntValue(IM->getInsnVarID())
+            << MatchTable::LineBreak;
+    }
+
+    if (!SetFlags.empty()) {
+      Table << MatchTable::Opcode("GIR_SetMIFlags")
+            << MatchTable::Comment("InsnID") << MatchTable::IntValue(InsnID)
+            << MatchTable::NamedValue(join(SetFlags, " | "))
+            << MatchTable::LineBreak;
+    }
+
+    if (!UnsetFlags.empty()) {
+      Table << MatchTable::Opcode("GIR_UnsetMIFlags")
+            << MatchTable::Comment("InsnID") << MatchTable::IntValue(InsnID)
+            << MatchTable::NamedValue(join(UnsetFlags, " | "))
+            << MatchTable::LineBreak;
+    }
+  };
+
   if (Matched) {
     assert(canMutate(Rule, Matched) &&
            "Arranged to mutate an insn that isn't mutatable");
@@ -1935,9 +2016,12 @@ void BuildMIAction::emitActionOpcodes(MatchTable &Table,
         auto Namespace = Def->getValue("Namespace")
                              ? Def->getValueAsString("Namespace")
                              : "";
+        const bool IsDead = DeadImplicitDefs.contains(Def);
         Table << MatchTable::Opcode("GIR_AddImplicitDef")
               << MatchTable::Comment("InsnID") << MatchTable::IntValue(InsnID)
               << MatchTable::NamedValue(Namespace, Def->getName())
+              << (IsDead ? MatchTable::NamedValue("RegState", "Dead")
+                         : MatchTable::IntValue(0))
               << MatchTable::LineBreak;
       }
       for (auto *Use : I->ImplicitUses) {
@@ -1950,6 +2034,8 @@ void BuildMIAction::emitActionOpcodes(MatchTable &Table,
               << MatchTable::LineBreak;
       }
     }
+
+    AddMIFlags();
     return;
   }
 
@@ -1962,6 +2048,19 @@ void BuildMIAction::emitActionOpcodes(MatchTable &Table,
         << MatchTable::LineBreak;
   for (const auto &Renderer : OperandRenderers)
     Renderer->emitRenderOpcodes(Table, Rule);
+
+  for (auto [OpIdx, Def] : enumerate(I->ImplicitDefs)) {
+    auto Namespace =
+        Def->getValue("Namespace") ? Def->getValueAsString("Namespace") : "";
+    if (DeadImplicitDefs.contains(Def)) {
+      Table
+          << MatchTable::Opcode("GIR_SetImplicitDefDead")
+          << MatchTable::Comment("InsnID") << MatchTable::IntValue(InsnID)
+          << MatchTable::Comment(
+                 ("OpIdx for " + Namespace + "::" + Def->getName() + "").str())
+          << MatchTable::IntValue(OpIdx) << MatchTable::LineBreak;
+    }
+  }
 
   if (I->mayLoad || I->mayStore) {
     Table << MatchTable::Opcode("GIR_MergeMemOperands")
@@ -1984,13 +2083,74 @@ void BuildMIAction::emitActionOpcodes(MatchTable &Table,
           << MatchTable::LineBreak;
   }
 
+  AddMIFlags();
+
   // FIXME: This is a hack but it's sufficient for ISel. We'll need to do
   //        better for combines. Particularly when there are multiple match
   //        roots.
   if (InsnID == 0)
-    Table << MatchTable::Opcode("GIR_EraseFromParent")
-          << MatchTable::Comment("InsnID") << MatchTable::IntValue(InsnID)
+    EraseInstAction::emitActionOpcodes(Table, Rule, /*InsnID*/ 0);
+}
+
+//===- BuildConstantAction ------------------------------------------------===//
+
+void BuildConstantAction::emitActionOpcodes(MatchTable &Table,
+                                            RuleMatcher &Rule) const {
+  Table << MatchTable::Opcode("GIR_BuildConstant")
+        << MatchTable::Comment("TempRegID") << MatchTable::IntValue(TempRegID)
+        << MatchTable::Comment("Val") << MatchTable::IntValue(Val)
+        << MatchTable::LineBreak;
+}
+
+//===- EraseInstAction ----------------------------------------------------===//
+
+void EraseInstAction::emitActionOpcodes(MatchTable &Table, RuleMatcher &Rule,
+                                        unsigned InsnID) {
+  // Avoid erasing the same inst twice.
+  if (!Rule.tryEraseInsnID(InsnID))
+    return;
+
+  Table << MatchTable::Opcode("GIR_EraseFromParent")
+        << MatchTable::Comment("InsnID") << MatchTable::IntValue(InsnID)
+        << MatchTable::LineBreak;
+}
+
+void EraseInstAction::emitActionOpcodes(MatchTable &Table,
+                                        RuleMatcher &Rule) const {
+  emitActionOpcodes(Table, Rule, InsnID);
+}
+
+//===- ReplaceRegAction ---------------------------------------------------===//
+
+void ReplaceRegAction::emitAdditionalPredicates(MatchTable &Table,
+                                                RuleMatcher &Rule) const {
+  if (TempRegID != (unsigned)-1)
+    return;
+
+  Table << MatchTable::Opcode("GIM_CheckCanReplaceReg")
+        << MatchTable::Comment("OldInsnID") << MatchTable::IntValue(OldInsnID)
+        << MatchTable::Comment("OldOpIdx") << MatchTable::IntValue(OldOpIdx)
+        << MatchTable::Comment("NewInsnId") << MatchTable::IntValue(NewInsnId)
+        << MatchTable::Comment("NewOpIdx") << MatchTable::IntValue(NewOpIdx)
+        << MatchTable::LineBreak;
+}
+
+void ReplaceRegAction::emitActionOpcodes(MatchTable &Table,
+                                         RuleMatcher &Rule) const {
+  if (TempRegID != (unsigned)-1) {
+    Table << MatchTable::Opcode("GIR_ReplaceRegWithTempReg")
+          << MatchTable::Comment("OldInsnID") << MatchTable::IntValue(OldInsnID)
+          << MatchTable::Comment("OldOpIdx") << MatchTable::IntValue(OldOpIdx)
+          << MatchTable::Comment("TempRegID") << MatchTable::IntValue(TempRegID)
           << MatchTable::LineBreak;
+  } else {
+    Table << MatchTable::Opcode("GIR_ReplaceReg")
+          << MatchTable::Comment("OldInsnID") << MatchTable::IntValue(OldInsnID)
+          << MatchTable::Comment("OldOpIdx") << MatchTable::IntValue(OldOpIdx)
+          << MatchTable::Comment("NewInsnId") << MatchTable::IntValue(NewInsnId)
+          << MatchTable::Comment("NewOpIdx") << MatchTable::IntValue(NewOpIdx)
+          << MatchTable::LineBreak;
+  }
 }
 
 //===- ConstrainOperandToRegClassAction -----------------------------------===//
@@ -2000,7 +2160,7 @@ void ConstrainOperandToRegClassAction::emitActionOpcodes(
   Table << MatchTable::Opcode("GIR_ConstrainOperandRC")
         << MatchTable::Comment("InsnID") << MatchTable::IntValue(InsnID)
         << MatchTable::Comment("Op") << MatchTable::IntValue(OpIdx)
-        << MatchTable::NamedValue(RC.getQualifiedName() + "RegClassID")
+        << MatchTable::NamedValue(RC.getQualifiedIdName())
         << MatchTable::LineBreak;
 }
 
@@ -2010,9 +2170,7 @@ void MakeTempRegisterAction::emitActionOpcodes(MatchTable &Table,
                                                RuleMatcher &Rule) const {
   Table << MatchTable::Opcode("GIR_MakeTempReg")
         << MatchTable::Comment("TempRegID") << MatchTable::IntValue(TempRegID)
-        << MatchTable::Comment("TypeID")
-        << MatchTable::NamedValue(Ty.getCxxEnumValue())
-        << MatchTable::LineBreak;
+        << MatchTable::Comment("TypeID") << Ty << MatchTable::LineBreak;
 }
 
 } // namespace gi

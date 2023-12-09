@@ -32,7 +32,7 @@ void replaceCoroFree(CoroIdInst *CoroId, bool Elide);
 /// OptimizeFrame is false.
 void salvageDebugInfo(
     SmallDenseMap<Argument *, AllocaInst *, 4> &ArgToAllocaMap,
-    DbgVariableIntrinsic *DVI, bool OptimizeFrame);
+    DbgVariableIntrinsic *DVI, bool OptimizeFrame, bool IsEntryPoint);
 
 // Keeps data and helper functions for lowering coroutine intrinsics.
 struct LowererBase {
@@ -185,7 +185,8 @@ struct LLVM_LIBRARY_VISIBILITY Shape {
     switch (ABI) {
     case coro::ABI::Switch:
       return FunctionType::get(Type::getVoidTy(FrameTy->getContext()),
-                               FrameTy->getPointerTo(), /*IsVarArg*/false);
+                               PointerType::getUnqual(FrameTy->getContext()),
+                               /*IsVarArg=*/false);
     case coro::ABI::Retcon:
     case coro::ABI::RetconOnce:
       return RetconLowering.ResumePrototype->getFunctionType();

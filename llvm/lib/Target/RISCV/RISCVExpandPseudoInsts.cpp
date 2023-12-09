@@ -34,9 +34,7 @@ public:
   const RISCVInstrInfo *TII;
   static char ID;
 
-  RISCVExpandPseudo() : MachineFunctionPass(ID) {
-    initializeRISCVExpandPseudoPass(*PassRegistry::getPassRegistry());
-  }
+  RISCVExpandPseudo() : MachineFunctionPass(ID) {}
 
   bool runOnMachineFunction(MachineFunction &MF) override;
 
@@ -119,6 +117,23 @@ bool RISCVExpandPseudo::expandMI(MachineBasicBlock &MBB,
   case RISCV::PseudoCCXOR:
   case RISCV::PseudoCCADDW:
   case RISCV::PseudoCCSUBW:
+  case RISCV::PseudoCCSLL:
+  case RISCV::PseudoCCSRL:
+  case RISCV::PseudoCCSRA:
+  case RISCV::PseudoCCADDI:
+  case RISCV::PseudoCCSLLI:
+  case RISCV::PseudoCCSRLI:
+  case RISCV::PseudoCCSRAI:
+  case RISCV::PseudoCCANDI:
+  case RISCV::PseudoCCORI:
+  case RISCV::PseudoCCXORI:
+  case RISCV::PseudoCCSLLW:
+  case RISCV::PseudoCCSRLW:
+  case RISCV::PseudoCCSRAW:
+  case RISCV::PseudoCCADDIW:
+  case RISCV::PseudoCCSLLIW:
+  case RISCV::PseudoCCSRLIW:
+  case RISCV::PseudoCCSRAIW:
     return expandCCOp(MBB, MBBI, NextMBBI);
   case RISCV::PseudoVSETVLI:
   case RISCV::PseudoVSETVLIX0:
@@ -188,11 +203,28 @@ bool RISCVExpandPseudo::expandCCOp(MachineBasicBlock &MBB,
       llvm_unreachable("Unexpected opcode!");
     case RISCV::PseudoCCADD:   NewOpc = RISCV::ADD;   break;
     case RISCV::PseudoCCSUB:   NewOpc = RISCV::SUB;   break;
+    case RISCV::PseudoCCSLL:   NewOpc = RISCV::SLL;   break;
+    case RISCV::PseudoCCSRL:   NewOpc = RISCV::SRL;   break;
+    case RISCV::PseudoCCSRA:   NewOpc = RISCV::SRA;   break;
     case RISCV::PseudoCCAND:   NewOpc = RISCV::AND;   break;
     case RISCV::PseudoCCOR:    NewOpc = RISCV::OR;    break;
     case RISCV::PseudoCCXOR:   NewOpc = RISCV::XOR;   break;
+    case RISCV::PseudoCCADDI:  NewOpc = RISCV::ADDI;  break;
+    case RISCV::PseudoCCSLLI:  NewOpc = RISCV::SLLI;  break;
+    case RISCV::PseudoCCSRLI:  NewOpc = RISCV::SRLI;  break;
+    case RISCV::PseudoCCSRAI:  NewOpc = RISCV::SRAI;  break;
+    case RISCV::PseudoCCANDI:  NewOpc = RISCV::ANDI;  break;
+    case RISCV::PseudoCCORI:   NewOpc = RISCV::ORI;   break;
+    case RISCV::PseudoCCXORI:  NewOpc = RISCV::XORI;  break;
     case RISCV::PseudoCCADDW:  NewOpc = RISCV::ADDW;  break;
     case RISCV::PseudoCCSUBW:  NewOpc = RISCV::SUBW;  break;
+    case RISCV::PseudoCCSLLW:  NewOpc = RISCV::SLLW;  break;
+    case RISCV::PseudoCCSRLW:  NewOpc = RISCV::SRLW;  break;
+    case RISCV::PseudoCCSRAW:  NewOpc = RISCV::SRAW;  break;
+    case RISCV::PseudoCCADDIW: NewOpc = RISCV::ADDIW; break;
+    case RISCV::PseudoCCSLLIW: NewOpc = RISCV::SLLIW; break;
+    case RISCV::PseudoCCSRLIW: NewOpc = RISCV::SRLIW; break;
+    case RISCV::PseudoCCSRAIW: NewOpc = RISCV::SRAIW; break;
     }
     BuildMI(TrueBB, DL, TII->get(NewOpc), DestReg)
         .add(MI.getOperand(5))
@@ -275,8 +307,8 @@ bool RISCVExpandPseudo::expandRV32ZdinxStore(MachineBasicBlock &MBB,
       .addReg(MBBI->getOperand(1).getReg())
       .add(MBBI->getOperand(2));
   if (MBBI->getOperand(2).isGlobal() || MBBI->getOperand(2).isCPI()) {
-    // FIXME: Zdinx RV32 can not work on unaligned scalar memory.
-    assert(!STI->enableUnalignedScalarMem());
+    // FIXME: Zdinx RV32 can not work on unaligned memory.
+    assert(!STI->hasFastUnalignedAccess());
 
     assert(MBBI->getOperand(2).getOffset() % 8 == 0);
     MBBI->getOperand(2).setOffset(MBBI->getOperand(2).getOffset() + 4);
@@ -347,9 +379,7 @@ public:
   const RISCVInstrInfo *TII;
   static char ID;
 
-  RISCVPreRAExpandPseudo() : MachineFunctionPass(ID) {
-    initializeRISCVPreRAExpandPseudoPass(*PassRegistry::getPassRegistry());
-  }
+  RISCVPreRAExpandPseudo() : MachineFunctionPass(ID) {}
 
   bool runOnMachineFunction(MachineFunction &MF) override;
 
