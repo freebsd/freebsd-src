@@ -640,7 +640,7 @@ __format_grouped_double(double value, int *flags, int left_prec, int right_prec,
 }
 
 ssize_t
-strfmon(char *__restrict s, size_t maxsize, const char *__restrict format, ...)
+strfmon(char *restrict s, size_t maxsize, const char *restrict format, ...)
 {
 	ssize_t ret;
 	va_list ap;
@@ -653,8 +653,8 @@ strfmon(char *__restrict s, size_t maxsize, const char *__restrict format, ...)
 }
 
 ssize_t
-strfmon_l(char *__restrict s, size_t maxsize, locale_t loc,
-    const char *__restrict format, ...)
+strfmon_l(char *restrict s, size_t maxsize, locale_t loc,
+    const char *restrict format, ...)
 {
 	ssize_t ret;
 	va_list ap;
