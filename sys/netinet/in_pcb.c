@@ -2984,7 +2984,11 @@ sysctl_setsockopt(SYSCTL_HANDLER_ARGS, struct inpcbinfo *pcbinfo,
 			so = inp->inp_socket;
 			KASSERT(so != NULL, ("inp_socket == NULL"));
 			soref(so);
-			error = (*ctloutput_set)(inp, &sopt);
+			if (params->sop_level == SOL_SOCKET) {
+				INP_WUNLOCK(inp);
+				error = sosetopt(so, &sopt);
+			} else
+				error = (*ctloutput_set)(inp, &sopt);
 			sorele(so);
 			break;
 		}
