@@ -30,6 +30,7 @@
 
 #include <linux/types.h>
 #include <linux/fs.h>
+#include <linux/string_helpers.h>
 
 #undef file
 #define inode vnode
