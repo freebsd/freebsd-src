@@ -2092,10 +2092,12 @@ create-source-packages: _pkgbootstrap .PHONY
 .if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
 	@cd ${SRCDIR}; \
 		( echo "@override_prefix /usr/src" ;  \
-		${GIT_CMD} ls-files ":!:sys/" ) > ${SSTAGEDIR}/src.plist
+		${GIT_CMD} ls-files --recurse-submodules ":!:sys/" ) \
+		> ${SSTAGEDIR}/src.plist
 	@cd ${SRCDIR}; \
 		( echo "@override_prefix /usr/src" ; \
-		${GIT_CMD} ls-files "sys/" ) > ${SSTAGEDIR}/src-sys.plist
+		${GIT_CMD} ls-files --recurse-submodules "sys/" ) \
+		> ${SSTAGEDIR}/src-sys.plist
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
 		-e "s/%DESC%/FreeBSD sources/" \
 		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
