@@ -35,9 +35,9 @@
 
 /*
  * We don't define BIG_ENDI, LITTLE_ENDI, HIGH_HALF and LOW_HALF macros that
- * glibc's endian.h defines since those appear to be internal to internal to
- * glibc. We also don't try to emulate the various helper macros that glibc
- * uses to limit namespace visibility.
+ * glibc's endian.h defines since those appear to be internal to glibc.
+ * We also don't try to emulate the various helper macros that glibc uses to
+ * limit namespace visibility.
  */
 
 #endif /* _ENDIAN_H_ */
