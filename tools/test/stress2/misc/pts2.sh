@@ -40,11 +40,11 @@ sed '1,/^EOF/d' < $here/$0 > pts2.c
 mycc -o pts2 -Wall -Wextra -O2 pts2.c || exit 1
 rm -f pts2.c
 
-pts=`vmstat -m | grep pts | awk '{print $2}'`
+pts=`vmstat -m | awk '/ pts / {print $2}'`
 for i in `jot 10`; do
 	/tmp/pts2
 done
-new=`vmstat -m | grep pts | awk '{print $2}'`
+new=`vmstat -m | awk '/ pts / {print $2}'`
 s=0
 [ $((new - pts)) -gt 1 ] && { s=1; echo "Leaked $((new - pts)) pts."; }
 
