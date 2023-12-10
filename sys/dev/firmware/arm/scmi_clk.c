@@ -55,7 +55,7 @@ struct scmi_clknode_softc {
 	int		clock_id;
 };
 
-static int __unused
+static int
 scmi_clk_get_rate(struct scmi_clk_softc *sc, int clk_id, uint64_t *rate)
 {
 	struct scmi_clk_rate_get_out out;
@@ -154,8 +154,18 @@ scmi_clknode_init(struct clknode *clk, device_t dev)
 static int
 scmi_clknode_recalc_freq(struct clknode *clk, uint64_t *freq)
 {
+	struct scmi_clknode_softc *clk_sc;
+	struct scmi_clk_softc *sc;
+	uint64_t rate;
+	int ret;
 
-	return (0);
+	clk_sc = clknode_get_softc(clk);
+	sc = device_get_softc(clk_sc->dev);
+	ret = scmi_clk_get_rate(sc, clk_sc->clock_id, &rate);
+	if (ret == 0)
+		*freq = rate;
+
+	return (ret);
 }
 
 static int
