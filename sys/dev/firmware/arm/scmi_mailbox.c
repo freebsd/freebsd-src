@@ -36,10 +36,8 @@
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/module.h>
 
-#include <dev/clk/clk.h>
 #include <dev/fdt/simplebus.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -60,10 +58,10 @@ struct scmi_mailbox_softc {
 
 static int	scmi_mailbox_transport_init(device_t);
 static void	scmi_mailbox_transport_cleanup(device_t);
-static int	scmi_mailbox_xfer_msg(device_t, struct scmi_req *);
-static int	scmi_mailbox_poll_msg(device_t, struct scmi_req *,
+static int	scmi_mailbox_xfer_msg(device_t, struct scmi_msg *);
+static int	scmi_mailbox_poll_msg(device_t, struct scmi_msg *,
     unsigned int);
-static int	scmi_mailbox_collect_reply(device_t, struct scmi_req *);
+static int	scmi_mailbox_collect_reply(device_t, struct scmi_msg *);
 static void	scmi_mailbox_tx_complete(device_t, void *);
 
 static int	scmi_mailbox_probe(device_t);
@@ -129,27 +127,26 @@ scmi_mailbox_transport_cleanup(device_t dev)
 }
 
 static int
-scmi_mailbox_xfer_msg(device_t dev, struct scmi_req *req)
+scmi_mailbox_xfer_msg(device_t dev, struct scmi_msg *msg)
 {
 	struct scmi_mailbox_softc *sc;
 	int ret;
 
 	sc = device_get_softc(dev);
 
-	ret = scmi_shmem_prepare_msg(sc->a2p_dev, req, req->use_polling);
+	ret = scmi_shmem_prepare_msg(sc->a2p_dev, (uint8_t *)&msg->hdr,
+	    msg->tx_len, msg->polling);
 	if (ret != 0)
 		return (ret);
 
 	/* Interrupt SCP firmware. */
 	arm_doorbell_set(sc->db);
 
-	dprintf("%s: request\n", __func__);
-
 	return (0);
 }
 
 static int
-scmi_mailbox_poll_msg(device_t dev, struct scmi_req *req, unsigned int tmo_ms)
+scmi_mailbox_poll_msg(device_t dev, struct scmi_msg *msg, unsigned int tmo_ms)
 {
 	struct scmi_mailbox_softc *sc;
 	unsigned int tmo_loops = tmo_ms / SCMI_MBOX_POLL_INTERVAL_MS;
@@ -157,7 +154,7 @@ scmi_mailbox_poll_msg(device_t dev, struct scmi_req *req, unsigned int tmo_ms)
 	sc = device_get_softc(dev);
 
 	do {
-		if (scmi_shmem_poll_msg(sc->a2p_dev, req->msg_header))
+		if (scmi_shmem_poll_msg(sc->a2p_dev, &msg->hdr))
 			break;
 		DELAY(SCMI_MBOX_POLL_INTERVAL_MS * 1000);
 	} while (tmo_loops--);
@@ -166,24 +163,17 @@ scmi_mailbox_poll_msg(device_t dev, struct scmi_req *req, unsigned int tmo_ms)
 }
 
 static int
-scmi_mailbox_collect_reply(device_t dev, struct scmi_req *req)
+scmi_mailbox_collect_reply(device_t dev, struct scmi_msg *msg)
 {
 	struct scmi_mailbox_softc *sc;
-	uint32_t reply_header;
 	int ret;
 
 	sc = device_get_softc(dev);
 
-	/* Read header. */
-	ret = scmi_shmem_read_msg_header(sc->a2p_dev, &reply_header);
-	if (ret != 0)
-		return (ret);
+	ret = scmi_shmem_read_msg_payload(sc->a2p_dev,
+	    msg->payld, msg->rx_len - SCMI_MSG_HDR_SIZE);
 
-	if (reply_header != req->msg_header)
-		return (EPROTO);
-
-	return (scmi_shmem_read_msg_payload(sc->a2p_dev, req->out_buf,
-	    req->out_size));
+	return (ret);
 }
 
 static void
@@ -212,7 +202,7 @@ scmi_mailbox_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	device_set_desc(dev, "ARM SCMI interface driver");
+	device_set_desc(dev, "ARM SCMI Mailbox Transport driver");
 
 	return (BUS_PROBE_DEFAULT);
 }

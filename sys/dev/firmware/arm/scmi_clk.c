@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2022 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2023 Arm Ltd
  *
  * This work was supported by Innovate UK project 105694, "Digital Security
  * by Design (DSbD) Technology Platform Prototype".
@@ -58,88 +59,68 @@ struct scmi_clknode_softc {
 static int
 scmi_clk_get_rate(struct scmi_clk_softc *sc, int clk_id, uint64_t *rate)
 {
-	struct scmi_clk_rate_get_out out;
-	struct scmi_clk_rate_get_in in;
-	struct scmi_req req;
+	struct scmi_clk_rate_get_out *out;
+	struct scmi_clk_rate_get_in *in;
 	int error;
 
-	req.protocol_id = SCMI_PROTOCOL_ID_CLOCK;
-	req.message_id = SCMI_CLOCK_RATE_GET;
-	req.in_buf = &in;
-	req.in_size = sizeof(struct scmi_clk_rate_get_in);
-	req.out_buf = &out;
-	req.out_size = sizeof(struct scmi_clk_rate_get_out);
-
-	in.clock_id = clk_id;
-
-	error = scmi_request(sc->scmi, &req);
-	if (error != 0)
-		return (error);
-
-	if (out.status != 0)
+	in = scmi_buf_get(sc->scmi, SCMI_PROTOCOL_ID_CLOCK,
+	    SCMI_CLOCK_RATE_GET, sizeof(*in), sizeof(*out));
+	if (in == NULL)
 		return (ENXIO);
 
-	*rate = out.rate_lsb | ((uint64_t)out.rate_msb << 32);
+	in->clock_id = clk_id;
+	error = scmi_request(sc->scmi, in, (void **)&out);
+	if (error == 0)
+		*rate = out->rate_lsb | ((uint64_t)out->rate_msb << 32);
 
-	return (0);
+	scmi_buf_put(sc->scmi, in);
+
+	return (error);
 }
 
 static int
 scmi_clk_set_rate(struct scmi_clk_softc *sc, int clk_id, uint64_t rate)
 {
-	struct scmi_clk_rate_set_out out;
-	struct scmi_clk_rate_set_in in;
-	struct scmi_req req;
+	struct scmi_clk_rate_set_in *in;
+	void *out;
 	int error;
 
-	req.protocol_id = SCMI_PROTOCOL_ID_CLOCK;
-	req.message_id = SCMI_CLOCK_RATE_SET;
-	req.in_buf = &in;
-	req.in_size = sizeof(struct scmi_clk_rate_set_in);
-	req.out_buf = &out;
-	req.out_size = sizeof(struct scmi_clk_rate_set_out);
-
-	in.clock_id = clk_id;
-	in.flags = SCMI_CLK_RATE_ROUND_CLOSEST;
-	in.rate_lsb = (uint32_t)rate;
-	in.rate_msb = (uint32_t)(rate >> 32);
-
-	error = scmi_request(sc->scmi, &req);
-	if (error != 0)
-		return (error);
-
-	if (out.status != 0)
+	in = scmi_buf_get(sc->scmi, SCMI_PROTOCOL_ID_CLOCK,
+	    SCMI_CLOCK_RATE_SET, sizeof(*in), 0);
+	if (in == NULL)
 		return (ENXIO);
 
-	return (0);
+	in->clock_id = clk_id;
+	in->flags = SCMI_CLK_RATE_ROUND_CLOSEST;
+	in->rate_lsb = (uint32_t)rate;
+	in->rate_msb = (uint32_t)(rate >> 32);
+
+	error = scmi_request(sc->scmi, in, &out);
+
+	scmi_buf_put(sc->scmi, in);
+
+	return (error);
 }
 
 static int __unused
 scmi_clk_gate(struct scmi_clk_softc *sc, int clk_id, int enable)
 {
-	struct scmi_clk_state_out out;
-	struct scmi_clk_state_in in;
-	struct scmi_req req;
+	struct scmi_clk_state_in *in;
+	void *out;
 	int error;
 
-	req.protocol_id = SCMI_PROTOCOL_ID_CLOCK;
-	req.message_id = SCMI_CLOCK_CONFIG_SET;
-	req.in_buf = &in;
-	req.in_size = sizeof(struct scmi_clk_state_in);
-	req.out_buf = &out;
-	req.out_size = sizeof(struct scmi_clk_state_out);
-
-	in.clock_id = clk_id;
-	in.attributes = enable;
-
-	error = scmi_request(sc->scmi, &req);
-	if (error != 0)
-		return (error);
-
-	if (out.status != 0)
+	in = scmi_buf_get(sc->scmi, SCMI_PROTOCOL_ID_CLOCK,
+	    SCMI_CLOCK_CONFIG_SET, sizeof(*in), 0);
+	if (in == NULL)
 		return (ENXIO);
 
-	return (0);
+	in->clock_id = clk_id;
+	in->attributes = enable;
+	error = scmi_request(sc->scmi, in, &out);
+
+	scmi_buf_put(sc->scmi, in);
+
+	return (error);
 }
 
 static int
@@ -177,8 +158,6 @@ scmi_clknode_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 
 	clk_sc = clknode_get_softc(clk);
 	sc = device_get_softc(clk_sc->dev);
-
-	dprintf("%s: %ld\n", __func__, *fout);
 
 	scmi_clk_set_rate(sc, clk_sc->clock_id, *fout);
 
@@ -235,71 +214,60 @@ scmi_clk_add_node(struct scmi_clk_softc *sc, int index, char *clock_name)
 static int
 scmi_clk_get_name(struct scmi_clk_softc *sc, int index, char **result)
 {
-	struct scmi_clk_name_get_out out;
-	struct scmi_clk_name_get_in in;
-	struct scmi_req req;
-	char *clock_name;
+	struct scmi_clk_name_get_out *out;
+	struct scmi_clk_name_get_in *in;
 	int error;
 
-	req.protocol_id = SCMI_PROTOCOL_ID_CLOCK;
-	req.message_id = SCMI_CLOCK_NAME_GET;
-	req.in_buf = &in;
-	req.in_size = sizeof(struct scmi_clk_name_get_in);
-	req.out_buf = &out;
-	req.out_size = sizeof(struct scmi_clk_name_get_out);
-
-	in.clock_id = index;
-
-	error = scmi_request(sc->scmi, &req);
-	if (error != 0)
-		return (error);
-
-	if (out.status != 0)
+	in = scmi_buf_get(sc->scmi, SCMI_PROTOCOL_ID_CLOCK,
+	    SCMI_CLOCK_NAME_GET, sizeof(*in), sizeof(*out));
+	if (in == NULL)
 		return (ENXIO);
 
-	clock_name = malloc(sizeof(out.name), M_DEVBUF, M_WAITOK);
-	strncpy(clock_name, out.name, sizeof(out.name));
+	in->clock_id = index;
+	error = scmi_request(sc->scmi, in, (void **)&out);
+	if (error == 0) {
+		char *clock_name;
 
-	*result = clock_name;
+		clock_name = malloc(sizeof(out->name), M_DEVBUF, M_WAITOK);
+		strncpy(clock_name, out->name, sizeof(out->name));
+		*result = clock_name;
+	}
 
-	return (0);
+	scmi_buf_put(sc->scmi, in);
+
+	return (error);
 }
 
 static int
 scmi_clk_attrs(struct scmi_clk_softc *sc, int index)
 {
-	struct scmi_clk_attrs_out out;
-	struct scmi_clk_attrs_in in;
-	struct scmi_req req;
-	int error;
+	struct scmi_clk_attrs_out *out;
+	struct scmi_clk_attrs_in *in;
 	char *clock_name;
+	int error;
 
-	req.protocol_id = SCMI_PROTOCOL_ID_CLOCK;
-	req.message_id = SCMI_CLOCK_ATTRIBUTES;
-	req.in_buf = &in;
-	req.in_size = sizeof(struct scmi_clk_attrs_in);
-	req.out_buf = &out;
-	req.out_size = sizeof(struct scmi_clk_attrs_out);
-
-	in.clock_id = index;
-
-	error = scmi_request(sc->scmi, &req);
-	if (error != 0)
-		return (error);
-
-	if (out.status != 0)
+	in = scmi_buf_get(sc->scmi, SCMI_PROTOCOL_ID_CLOCK,
+	    SCMI_CLOCK_ATTRIBUTES, sizeof(*in), sizeof(*out));
+	if (in == NULL)
 		return (ENXIO);
 
-	if (out.attributes & CLK_ATTRS_EXT_CLK_NAME) {
-		error = scmi_clk_get_name(sc, index, &clock_name);
-		if (error)
-			return (error);
-	} else {
-		clock_name = malloc(sizeof(out.clock_name), M_DEVBUF, M_WAITOK);
-		strncpy(clock_name, out.clock_name, sizeof(out.clock_name));
+	in->clock_id = index;
+	error = scmi_request(sc->scmi, in, (void **)&out);
+	if (error == 0) {
+		if (out->attributes & CLK_ATTRS_EXT_CLK_NAME) {
+			error = scmi_clk_get_name(sc, index, &clock_name);
+		} else {
+			clock_name = malloc(sizeof(out->clock_name),
+			    M_DEVBUF, M_WAITOK);
+			strncpy(clock_name, out->clock_name,
+			    sizeof(out->clock_name));
+		}
+
+		if (error == 0)
+			error = scmi_clk_add_node(sc, index, clock_name);
 	}
 
-	error = scmi_clk_add_node(sc, index, clock_name);
+	scmi_buf_put(sc->scmi, in);
 
 	return (error);
 }
@@ -307,47 +275,45 @@ scmi_clk_attrs(struct scmi_clk_softc *sc, int index)
 static int
 scmi_clk_discover(struct scmi_clk_softc *sc)
 {
-	struct scmi_clk_protocol_attrs_out out;
-	struct scmi_req req;
+	struct scmi_clk_protocol_attrs_out *out;
+	void *in;
 	int nclocks;
 	int failing;
 	int error;
 	int i;
 
-	req.protocol_id = SCMI_PROTOCOL_ID_CLOCK;
-	req.message_id = SCMI_PROTOCOL_ATTRIBUTES;
-	req.in_buf = NULL;
-	req.in_size = 0;
-	req.out_buf = &out;
-	req.out_size = sizeof(struct scmi_clk_protocol_attrs_out);
-
-	error = scmi_request(sc->scmi, &req);
-	if (error != 0)
-		return (error);
-
-	if (out.status != 0)
+	in = scmi_buf_get(sc->scmi, SCMI_PROTOCOL_ID_CLOCK,
+	    SCMI_PROTOCOL_ATTRIBUTES, 0, sizeof(*out));
+	if (in == NULL)
 		return (ENXIO);
 
-	nclocks = (out.attributes & CLK_ATTRS_NCLOCKS_M) >>
-	    CLK_ATTRS_NCLOCKS_S;
+	error = scmi_request(sc->scmi, in, (void **)&out);
+	if (error == 0) {
+		nclocks = (out->attributes & CLK_ATTRS_NCLOCKS_M) >>
+		    CLK_ATTRS_NCLOCKS_S;
 
-	device_printf(sc->dev, "Found %d clocks.\n", nclocks);
+		device_printf(sc->dev, "Found %d clocks.\n", nclocks);
 
-	failing = 0;
+		failing = 0;
 
-	for (i = 0; i < nclocks; i++) {
-		error = scmi_clk_attrs(sc, i);
-		if (error) {
-			device_printf(sc->dev,
-			    "Could not process clock index %d.\n", i);
-			failing++;
+		for (i = 0; i < nclocks; i++) {
+			error = scmi_clk_attrs(sc, i);
+			if (error) {
+				device_printf(sc->dev,
+				    "Could not process clock index %d.\n", i);
+				failing++;
+				error = 0;
+			}
 		}
+		if (failing == nclocks)
+			error = ENXIO;
+	} else {
+		error = ENXIO;
 	}
 
-	if (failing == nclocks)
-		return (ENXIO);
+	scmi_buf_put(sc->scmi, in);
 
-	return (0);
+	return (error);
 }
 
 static int

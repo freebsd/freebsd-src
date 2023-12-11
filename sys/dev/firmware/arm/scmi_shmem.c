@@ -34,6 +34,7 @@
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
 
 #include <machine/atomic.h>
@@ -98,8 +99,6 @@ shmem_attach(device_t dev)
 		return (ENXIO);
 
 	OF_getencprop(node, "reg", &reg, sizeof(reg));
-
-	dprintf("%s: reg %x\n", __func__, reg);
 
 	sc->reg = reg;
 	atomic_store_rel_int(&sc->inflight, INFLIGHT_NONE);
@@ -182,7 +181,7 @@ scmi_shmem_acquire_channel(struct shmem_softc *sc)
 
 	 while ((atomic_cmpset_acq_int(&sc->inflight, INFLIGHT_NONE,
 	     INFLIGHT_REQ)) == 0)
-		 DELAY(1000);
+		DELAY(1000);
 }
 
 static void
@@ -193,7 +192,8 @@ scmi_shmem_release_channel(struct shmem_softc *sc)
 }
 
 int
-scmi_shmem_prepare_msg(device_t dev, struct scmi_req *req, bool polling)
+scmi_shmem_prepare_msg(device_t dev, uint8_t *msg, uint32_t tx_len,
+		bool polling)
 {
 	struct shmem_softc *sc;
 	struct scmi_smt_header hdr = {};
@@ -210,13 +210,13 @@ scmi_shmem_prepare_msg(device_t dev, struct scmi_req *req, bool polling)
 	if ((channel_status & SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE) == 0) {
 		scmi_shmem_release_channel(sc);
 		device_printf(dev, "Shmem channel busy. Abort !.\n");
-		return (EBUSY);
+		return (1);
 	}
 
 	/* Update header */
 	hdr.channel_status &= ~SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE;
-	hdr.msg_header = htole32(req->msg_header);
-	hdr.length = htole32(sizeof(req->msg_header) + req->in_size);
+	hdr.msg_header = htole32(*((uint32_t *)msg));
+	hdr.length = htole32(tx_len);
 	if (!polling)
 		hdr.flags |= SCMI_SHMEM_FLAG_INTR_ENABLED;
 	else
@@ -226,9 +226,9 @@ scmi_shmem_prepare_msg(device_t dev, struct scmi_req *req, bool polling)
 	scmi_shmem_write(dev, 0, &hdr, SMT_SIZE_HEADER);
 
 	/* Write request payload if any */
-	if (req->in_size)
-		scmi_shmem_write(dev, SMT_SIZE_HEADER, req->in_buf,
-		    req->in_size);
+	if (tx_len > SCMI_MSG_HDR_SIZE)
+		scmi_shmem_write(dev, SMT_SIZE_HEADER,
+		    &msg[SCMI_MSG_HDR_SIZE], tx_len - SCMI_MSG_HDR_SIZE);
 
 	return (0);
 }
@@ -296,21 +296,22 @@ scmi_shmem_tx_complete(device_t dev)
 	scmi_shmem_release_channel(sc);
 }
 
-bool scmi_shmem_poll_msg(device_t dev, uint32_t msg_header)
+bool scmi_shmem_poll_msg(device_t dev, uint32_t *msg_header)
 {
-	uint32_t status, header;
-
-	scmi_shmem_read(dev, SMT_OFFSET_MSG_HEADER, &header,
-	    SMT_SIZE_MSG_HEADER);
-	/* Bail out if it is NOT what we were polling for. */
-	if (le32toh(header) != msg_header)
-		return (false);
+	uint32_t status;
+	bool ret;
 
 	scmi_shmem_read(dev, SMT_OFFSET_CHAN_STATUS, &status,
 	    SMT_SIZE_CHAN_STATUS);
 
-	return (status & (SCMI_SHMEM_CHAN_STAT_CHANNEL_ERROR |
+	ret = (status & (SCMI_SHMEM_CHAN_STAT_CHANNEL_ERROR |
 	    SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE));
+
+	if (ret)
+		scmi_shmem_read(dev, SMT_OFFSET_MSG_HEADER, msg_header,
+		    SMT_SIZE_MSG_HEADER);
+
+	return (ret);
 }
 
 static device_method_t shmem_methods[] = {

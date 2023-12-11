@@ -28,7 +28,7 @@
 INTERFACE scmi;
 
 HEADER {
-	struct scmi_req;
+	struct scmi_msg;
 };
 
 METHOD int transport_init {
@@ -41,18 +41,18 @@ METHOD void transport_cleanup {
 
 METHOD int xfer_msg {
 	device_t dev;
-	struct scmi_req *req;
+	struct scmi_msg *msg;
 };
 
 METHOD int poll_msg {
 	device_t dev;
-	struct scmi_req *req;
+	struct scmi_msg *msg;
 	unsigned int tmo;
 };
 
 METHOD int collect_reply {
 	device_t dev;
-	struct scmi_req *req;
+	struct scmi_msg *msg;
 };
 
 METHOD void tx_complete {

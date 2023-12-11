@@ -36,9 +36,7 @@
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/module.h>
-#include <sys/mutex.h>
 
 #include <dev/fdt/simplebus.h>
 #include <dev/fdt/fdt_common.h>
@@ -57,9 +55,9 @@ struct scmi_smc_softc {
 };
 
 static int	scmi_smc_transport_init(device_t);
-static int	scmi_smc_xfer_msg(device_t, struct scmi_req *);
-static int	scmi_smc_poll_msg(device_t, struct scmi_req *, unsigned int);
-static int	scmi_smc_collect_reply(device_t, struct scmi_req *);
+static int	scmi_smc_xfer_msg(device_t, struct scmi_msg *);
+static int	scmi_smc_poll_msg(device_t, struct scmi_msg *, unsigned int);
+static int	scmi_smc_collect_reply(device_t, struct scmi_msg *);
 static void	scmi_smc_tx_complete(device_t, void *);
 
 static int	scmi_smc_probe(device_t);
@@ -96,14 +94,15 @@ scmi_smc_transport_init(device_t dev)
 }
 
 static int
-scmi_smc_xfer_msg(device_t dev, struct scmi_req *req)
+scmi_smc_xfer_msg(device_t dev, struct scmi_msg *msg)
 {
 	struct scmi_smc_softc *sc;
 	int ret;
 
 	sc = device_get_softc(dev);
 
-	ret = scmi_shmem_prepare_msg(sc->a2p_dev, req, cold);
+	ret = scmi_shmem_prepare_msg(sc->a2p_dev, (uint8_t *)&msg->hdr,
+	    msg->tx_len, msg->polling);
 	if (ret != 0)
 		return (ret);
 
@@ -113,11 +112,9 @@ scmi_smc_xfer_msg(device_t dev, struct scmi_req *req)
 }
 
 static int
-scmi_smc_poll_msg(device_t dev, struct scmi_req *req, unsigned int tmo)
+scmi_smc_poll_msg(device_t dev, struct scmi_msg *msg, unsigned int tmo)
 {
 	struct scmi_smc_softc *sc;
-	uint32_t msg_header;
-	int ret;
 
 	sc = device_get_softc(dev);
 
@@ -125,22 +122,23 @@ scmi_smc_poll_msg(device_t dev, struct scmi_req *req, unsigned int tmo)
 	 * Nothing to poll since commands are completed as soon as smc
 	 * returns ... but did we get back what we were poling for ?
 	 */
-	ret = scmi_shmem_read_msg_header(sc->a2p_dev, &msg_header);
-	if (ret != 0 || msg_header != req->msg_header)
-		return (1);
+	scmi_shmem_read_msg_header(sc->a2p_dev, &msg->hdr);
 
 	return (0);
 }
 
 static int
-scmi_smc_collect_reply(device_t dev, struct scmi_req *req)
+scmi_smc_collect_reply(device_t dev, struct scmi_msg *msg)
 {
 	struct scmi_smc_softc *sc;
+	int ret;
 
 	sc = device_get_softc(dev);
 
-	return (scmi_shmem_read_msg_payload(sc->a2p_dev, req->out_buf,
-	    req->out_size));
+	ret = scmi_shmem_read_msg_payload(sc->a2p_dev,
+	    msg->payld, msg->rx_len - SCMI_MSG_HDR_SIZE);
+
+	return (ret);
 }
 
 static void
