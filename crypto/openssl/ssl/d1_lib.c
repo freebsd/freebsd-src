@@ -59,7 +59,7 @@ long dtls1_default_timeout(void)
 {
     /*
      * 2 hours, the 24 hours mentioned in the DTLSv1 spec is way too long for
-     * http, the cache would over fill
+     * http, the cache would overfill
      */
     return (60 * 60 * 2);
 }
@@ -491,7 +491,7 @@ int DTLSv1_listen(SSL *s, BIO_ADDR *client)
 # if SSL3_ALIGN_PAYLOAD != 0
     /*
      * Using SSL3_RT_HEADER_LENGTH here instead of DTLS1_RT_HEADER_LENGTH for
-     * consistency with ssl3_read_n. In practice it should make no difference
+     * consistency with ssl3_read_n. In practice, it should make no difference
      * for sensible values of SSL3_ALIGN_PAYLOAD because the difference between
      * SSL3_RT_HEADER_LENGTH and DTLS1_RT_HEADER_LENGTH is exactly 8
      */
@@ -569,7 +569,7 @@ int DTLSv1_listen(SSL *s, BIO_ADDR *client)
         }
         reclen = PACKET_remaining(&msgpkt);
         /*
-         * We allow data remaining at the end of the packet because there could
+         * We allow data to remain at the end of the packet because there could
          * be a second record (but we ignore it)
          */
 
@@ -607,7 +607,7 @@ int DTLSv1_listen(SSL *s, BIO_ADDR *client)
 
         /*
          * We don't support fragment reassembly for ClientHellos whilst
-         * listening because that would require server side state (which is
+         * listening because that would require a server side state (which is
          * against the whole point of the ClientHello/HelloVerifyRequest
          * mechanism). Instead we only look at the first ClientHello fragment
          * and require that the cookie must be contained within it.
@@ -836,7 +836,7 @@ int DTLSv1_listen(SSL *s, BIO_ADDR *client)
     ossl_statem_set_hello_verify_done(s);
 
     /*
-     * Some BIOs may not support this. If we fail we clear the client address
+     * Some BIOs may not support this. If we fail we clear the client's address
      */
     if (BIO_dgram_get_peer(rbio, client) <= 0)
         BIO_ADDR_clear(client);
