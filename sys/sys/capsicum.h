@@ -336,6 +336,8 @@ cap_rights_t *__cap_rights_clear(cap_rights_t *rights, ...);
 	__cap_rights_is_set(__VA_ARGS__, 0ULL)
 bool __cap_rights_is_set(const cap_rights_t *rights, ...);
 
+bool cap_rights_is_empty(const cap_rights_t *rights);
+
 bool cap_rights_is_valid(const cap_rights_t *rights);
 cap_rights_t *cap_rights_merge(cap_rights_t *dst, const cap_rights_t *src);
 cap_rights_t *cap_rights_remove(cap_rights_t *dst, const cap_rights_t *src);
