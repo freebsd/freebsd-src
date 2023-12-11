@@ -136,7 +136,7 @@ execv(const char *name, char * const *argv)
 int
 execvp(const char *name, char * const *argv)
 {
-	return (_execvpe(name, argv, environ));
+	return (execvpe(name, argv, environ));
 }
 
 static int
@@ -288,7 +288,7 @@ execvP(const char *name, const char *path, char * const argv[])
 }
 
 int
-_execvpe(const char *name, char * const argv[], char * const envp[])
+execvpe(const char *name, char * const argv[], char * const envp[])
 {
 	const char *path;
 
