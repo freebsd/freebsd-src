@@ -28,8 +28,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifdef VFP
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/limits.h>
@@ -524,5 +522,3 @@ is_fpu_kern_thread(u_int flags __unused)
 	curpcb = curthread->td_pcb;
 	return ((curpcb->pcb_fpflags & PCB_FP_KERN) != 0);
 }
-
-#endif
