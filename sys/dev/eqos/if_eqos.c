@@ -1126,7 +1126,7 @@ eqos_attach(device_t dev)
 	snpsver = ver & GMAC_MAC_VERSION_SNPSVER_MASK;
 
 	if (snpsver != 0x51) {
-		device_printf(dev, "EQOS version 0x%02xx not supported\n",
+		device_printf(dev, "EQOS version 0x%02x not supported\n",
 		    snpsver);
 		return (ENXIO);
 	}
