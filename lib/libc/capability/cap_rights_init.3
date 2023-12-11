@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 5, 2020
+.Dd November 25, 2023
 .Dt CAP_RIGHTS_INIT 3
 .Os
 .Sh NAME
@@ -33,6 +33,7 @@
 .Nm cap_rights_set ,
 .Nm cap_rights_clear ,
 .Nm cap_rights_is_set ,
+.Nm cap_rights_is_empty ,
 .Nm cap_rights_is_valid ,
 .Nm cap_rights_merge ,
 .Nm cap_rights_remove ,
@@ -50,6 +51,8 @@
 .Fn cap_rights_clear "cap_rights_t *rights" "..."
 .Ft bool
 .Fn cap_rights_is_set "const cap_rights_t *rights" "..."
+.Ft bool
+.Fn cap_rights_is_empty "const cap_rights_t *rights"
 .Ft bool
 .Fn cap_rights_is_valid "const cap_rights_t *rights"
 .Ft cap_rights_t *
@@ -118,6 +121,12 @@ function checks if all the given capability rights are set for the given
 structure.
 .Pp
 The
+.Fn cap_rights_is_empty
+function checks if the
+.Fa rights
+structure is empty.
+.Pp
+The
 .Fn cap_rights_is_valid
 function verifies if the given
 .Vt cap_rights_t
@@ -180,6 +189,14 @@ returns
 if all the given capability rights are set in the
 .Fa rights
 argument.
+.Pp
+The
+.Fn cap_rights_is_empty
+function returns
+.Va true
+if none of the capability rights are set in the
+.Fa rights
+structure.
 .Pp
 The
 .Fn cap_rights_is_valid

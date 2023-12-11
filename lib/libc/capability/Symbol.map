@@ -8,3 +8,7 @@ FBSD_1.3 {
 	cap_rights_remove;
 	__cap_rights_set;
 };
+
+FBSD_1.8 {
+	cap_rights_is_empty;
+};
