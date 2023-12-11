@@ -1288,6 +1288,7 @@ tty_to_xtty(struct tty *tp, struct xtty *xt)
 
 	tty_assert_locked(tp);
 
+	memset(xt, 0, sizeof(*xt));
 	xt->xt_size = sizeof(struct xtty);
 	xt->xt_insize = ttyinq_getsize(&tp->t_inq);
 	xt->xt_incc = ttyinq_bytescanonicalized(&tp->t_inq);
