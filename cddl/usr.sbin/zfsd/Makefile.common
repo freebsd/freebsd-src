@@ -22,8 +22,8 @@ CFLAGS+= -I${SRCTOP}/sys
 CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -I${SRCTOP}/cddl/usr.sbin
 
-# use issetugid(2)
 CFLAGS+= -DHAVE_ISSETUGID
+CFLAGS+= -DHAVE_EXECVPE
 
 LIBADD+=	devdctl zfs util geom bsdxml sbuf nvpair avl uutil zutil
 

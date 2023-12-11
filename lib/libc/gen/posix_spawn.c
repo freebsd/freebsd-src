@@ -226,7 +226,7 @@ struct posix_spawn_args {
 #if defined(__i386__) || defined(__amd64__)
 /*
  * Below we'll assume that _RFORK_THREAD_STACK_SIZE is appropriately aligned for
- * the posix_spawn() case where we do not end up calling _execvpe and won't ever
+ * the posix_spawn() case where we do not end up calling execvpe and won't ever
  * try to allocate space on the stack for argv[].
  */
 #define	_RFORK_THREAD_STACK_SIZE	4096
@@ -253,7 +253,7 @@ _posix_spawn_thr(void *data)
 	}
 	envp = psa->envp != NULL ? psa->envp : environ;
 	if (psa->use_env_path)
-		_execvpe(psa->path, psa->argv, envp);
+		execvpe(psa->path, psa->argv, envp);
 	else
 		_execve(psa->path, psa->argv, envp);
 	psa->error = errno;
