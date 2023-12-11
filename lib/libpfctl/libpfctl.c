@@ -1108,10 +1108,8 @@ pfctl_add_rule(int dev __unused, const struct pfctl_rule *r, const char *anchor,
 
 	seq_id = hdr->nlmsg_seq;
 
-	if (! snl_send_message(&ss, hdr)) {
-		printf("Send failed\n");
+	if (! snl_send_message(&ss, hdr))
 		return (ENXIO);
-	}
 
 	while ((hdr = snl_read_reply_multi(&ss, seq_id, &e)) != NULL) {
 	}
