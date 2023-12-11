@@ -625,8 +625,10 @@ pf_handle_addrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	attrs.rule = pf_krule_alloc();
 
 	error = nl_parse_nlmsg(hdr, &addrule_parser, npt, &attrs);
-	if (error != 0)
+	if (error != 0) {
+		pf_free_rule(attrs.rule);
 		return (error);
+	}
 
 	error = pf_ioctl_addrule(attrs.rule, attrs.ticket, attrs.pool_ticket,
 	    attrs.anchor, attrs.anchor_call, nlp_get_cred(npt->nlp)->cr_uid,
