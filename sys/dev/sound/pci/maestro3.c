@@ -1160,7 +1160,7 @@ m3_handle_channel_intr:
 		pch = &sc->pch[i];
 		if (pch->active) {
 			pch->ptr = m3_pchan_getptr_internal(pch);
-			delta = pch->bufsize + pch->ptr - pch->prevptr;
+			delta = pch->ptr - pch->prevptr;
 			delta %= pch->bufsize;
 			if (delta < sndbuf_getblksz(pch->buffer))
 				continue;
@@ -1174,7 +1174,7 @@ m3_handle_channel_intr:
 		rch = &sc->rch[i];
 		if (rch->active) {
 			rch->ptr = m3_rchan_getptr_internal(rch);
-			delta = rch->bufsize + rch->ptr - rch->prevptr;
+			delta = rch->ptr - rch->prevptr;
 			delta %= rch->bufsize;
 			if (delta < sndbuf_getblksz(rch->buffer))
 				continue;

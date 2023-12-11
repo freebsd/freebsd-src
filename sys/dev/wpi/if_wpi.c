@@ -2440,7 +2440,7 @@ wpi_debug_registers(struct wpi_softc *sc)
 		DPRINTF(sc, WPI_DEBUG_REGISTER, "  %-18s: 0x%08x ",
 		    wpi_get_csr_string(csr_tbl[i]), WPI_READ(sc, csr_tbl[i]));
 
-		if ((i + 1) % 2 == 0)
+		if ((i & 1) != 0)
 			DPRINTF(sc, WPI_DEBUG_REGISTER, "\n");
 	}
 	DPRINTF(sc, WPI_DEBUG_REGISTER, "\n\n");
@@ -2451,7 +2451,7 @@ wpi_debug_registers(struct wpi_softc *sc)
 			    wpi_get_prph_string(prph_tbl[i]),
 			    wpi_prph_read(sc, prph_tbl[i]));
 
-			if ((i + 1) % 2 == 0)
+			if ((i & 1) != 0)
 				DPRINTF(sc, WPI_DEBUG_REGISTER, "\n");
 		}
 		DPRINTF(sc, WPI_DEBUG_REGISTER, "\n");

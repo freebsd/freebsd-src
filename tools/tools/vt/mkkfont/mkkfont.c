@@ -96,7 +96,7 @@ print_mappings(struct font_header *fh, int map_index)
 		printf("{ 0x%04x, 0x%04x, 0x%02x },",
 		    be32toh(fm.vfm_src), be16toh(fm.vfm_dst),
 		    be16toh(fm.vfm_len));
-		col = (col + 1) % 2;
+		col ^= 1;
 	}
 
 	printf("\n};\n");

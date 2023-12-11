@@ -1138,13 +1138,11 @@ static void arcmsr_post_srb(struct AdapterControlBlock *acb, struct CommandContr
 			pinbound_srb->length = srb->arc_cdb_size >> 2;
 			arcmsr_cdb->Context = (u_int32_t)srb->cdb_phyaddr;
 			if (postq_index & 0x4000) {
-				index_stripped = postq_index & 0xFF;
-				index_stripped += 1;
+				index_stripped = postq_index + 1;
 				index_stripped %= ARCMSR_MAX_HBD_POSTQUEUE;
 				phbdmu->postq_index = index_stripped ? (index_stripped | 0x4000) : index_stripped;
 			} else {
-				index_stripped = postq_index;
-				index_stripped += 1;
+				index_stripped = postq_index + 1;
 				index_stripped %= ARCMSR_MAX_HBD_POSTQUEUE;
 				phbdmu->postq_index = index_stripped ? index_stripped : (index_stripped | 0x4000);
 			}
@@ -1532,11 +1530,12 @@ static u_int32_t arcmsr_Read_iop_rqbuffer_data(struct AdapterControlBlock *acb,
 	iop_data = (u_int8_t *)prbuffer->data;
 	iop_len = (u_int32_t)prbuffer->data_len;
 	while (iop_len > 0) {
-		pQbuffer = &acb->rqbuffer[acb->rqbuf_lastindex];
-		*pQbuffer = *iop_data;
-		acb->rqbuf_lastindex++;
+		pQbuffer = &acb->rqbuffer[acb->rqbuf_lastindex++];
+
 		/* if last, index number set it to 0 */
 		acb->rqbuf_lastindex %= ARCMSR_MAX_QBUFFER;
+
+		*pQbuffer = *iop_data;
 		iop_data++;
 		iop_len--;
 	}

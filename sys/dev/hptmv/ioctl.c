@@ -87,7 +87,9 @@ static int
 event_queue_add(PHPT_EVENT pEvent)
 {
 	int p;
-	p = (event_queue_tail + 1) % MAX_EVENTS;
+	p = (event_queue_tail + 1);
+	if (p == MAX_EVENTS)
+		p = 0;
 	if (p==event_queue_head)
 	{
 		return -1;
@@ -102,9 +104,9 @@ event_queue_remove(PHPT_EVENT pEvent)
 {
 	if (event_queue_head != event_queue_tail)
 	{
-		*pEvent = hpt_event_queue[event_queue_head];
-		event_queue_head++;
-		event_queue_head %= MAX_EVENTS;
+		*pEvent = hpt_event_queue[event_queue_head++];
+		if (event_queue_head == MAX_EVENTS)
+			event_queue_head = 0;
 		return 0;
 	}
 	return -1;

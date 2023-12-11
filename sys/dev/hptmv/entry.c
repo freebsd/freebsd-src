@@ -2382,8 +2382,7 @@ static void hpt_worker_thread(void)
 		mtx_lock(&DpcQueue_Lock);
 		while (DpcQueue_First!=DpcQueue_Last) {
 			ST_HPT_DPC p;
-			p = DpcQueue[DpcQueue_First];
-			DpcQueue_First++;
+			p = DpcQueue[DpcQueue_First++];
 			DpcQueue_First %= MAX_DPC;
 			DPC_Request_Nums++;
 			mtx_unlock(&DpcQueue_Lock);
