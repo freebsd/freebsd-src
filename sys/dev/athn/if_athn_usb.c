@@ -578,7 +578,7 @@ athn_usb_attachhook(device_t self)
 	}
 
 	// TODO MichalP: this can be used as a starting point for echo command or firmware command
-//	ATHN_LOCK(usc);
+//	ATHN_LOCK(&usc->sc_sc);
 //	device_printf(sc->sc_dev, " %s:val = %d\n", __func__, val);
 //	val = athn_usb_read(sc, AR_WMI_CMD_ECHO);
 //	device_printf(sc->sc_dev, "%s: returned val = %d\n", __func__, val);
