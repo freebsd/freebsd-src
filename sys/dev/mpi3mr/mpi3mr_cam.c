@@ -1187,7 +1187,7 @@ mpi3mr_enqueue_request(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cm)
 					mpi3mr_dprint(sc, MPI3MR_IOT,
 						"VD: Setting divert flag for tg_id(%d), persist_id(%d)\n",
 						tg->id, targ->per_id);
-					if (sc->mpi3mr_debug | MPI3MR_IOT)
+					if (sc->mpi3mr_debug & MPI3MR_IOT)
 						mpi3mr_print_cdb(ccb);
 					mpi3mr_set_io_divert_for_all_vd_in_tg(sc,
 					    tg, 1);
@@ -1209,7 +1209,7 @@ mpi3mr_enqueue_request(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cm)
 					mpi3mr_dprint(sc, MPI3MR_IOT,
 						"PD: Setting divert flag for persist_id(%d)\n",
 						targ->per_id);
-					if (sc->mpi3mr_debug | MPI3MR_IOT)
+					if (sc->mpi3mr_debug & MPI3MR_IOT)
 						mpi3mr_print_cdb(ccb);
 				}
 			}
