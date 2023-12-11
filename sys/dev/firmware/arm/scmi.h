@@ -34,11 +34,10 @@
 
 #include "scmi_if.h"
 
-
-#define dprintf(fmt, ...)
-
 #define SCMI_MAX_MSG		32
-#define SCMI_MSG_HDR_SIZE	(sizeof(uint32_t))
+#define SCMI_MAX_MSG_PAYLD_SIZE	128
+#define SCMI_MAX_MSG_REPLY_SIZE	(SCMI_MAX_MSG_PAYLD_SIZE - sizeof(uint32_t))
+#define SCMI_MAX_MSG_SIZE	(SCMI_MAX_MSG_PAYLD_SIZE + sizeof(uint32_t))
 
 enum scmi_chan {
 	SCMI_CHAN_A2P,
@@ -61,26 +60,23 @@ struct scmi_softc {
 	struct scmi_transport		*trs;
 };
 
-struct scmi_req {
-	bool		use_polling;
-	bool		done;
-	LIST_ENTRY(scmi_req)	next;
-	int		protocol_id;
-	int		message_id;
-	int		token;
-	uint32_t	msg_header;
-	const void	*in_buf;
-	uint32_t	in_size;
-	void		*out_buf;
-	uint32_t	out_size;
+struct scmi_msg {
+	bool		polling;
+	uint32_t	tx_len;
+	uint32_t	rx_len;
+#define SCMI_MSG_HDR_SIZE	(sizeof(uint32_t))
+	uint32_t	hdr;
+	uint8_t		payld[];
 };
 
-int scmi_request(device_t dev, struct scmi_req *req);
+void *scmi_buf_get(device_t dev, uint8_t protocol_id, uint8_t message_id,
+		   int tx_payd_sz, int rx_payld_sz);
+void scmi_buf_put(device_t dev, void *buf);
+int scmi_request(device_t dev, void *in, void **);
 void scmi_rx_irq_callback(device_t dev, void *chan, uint32_t hdr);
 
 DECLARE_CLASS(scmi_driver);
 
 int scmi_attach(device_t dev);
-int scmi_request(device_t dev, struct scmi_req *req);
 
 #endif /* !_ARM64_SCMI_SCMI_H_ */
