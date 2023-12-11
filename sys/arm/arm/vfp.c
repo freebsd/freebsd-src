@@ -30,10 +30,10 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/limits.h>
-#include <sys/proc.h>
-#include <sys/imgact_elf.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
+#include <sys/malloc.h>
+#include <sys/proc.h>
 
 #include <machine/armreg.h>
 #include <machine/elf.h>
@@ -51,6 +51,9 @@ extern int vfp_exists;
 static struct undefined_handler vfp10_uh, vfp11_uh;
 /* If true the VFP unit has 32 double registers, otherwise it has 16 */
 static int is_d32;
+
+static MALLOC_DEFINE(M_FPUKERN_CTX, "fpukern_ctx",
+    "Kernel contexts for VFP state");
 
 struct fpu_kern_ctx {
 	struct vfp_state	*prev;
@@ -405,6 +408,21 @@ vfp_save_state(struct thread *td, struct pcb *pcb)
 		vfp_store(pcb->pcb_vfpsaved, true);
 	}
 	critical_exit();
+}
+
+struct fpu_kern_ctx *
+fpu_kern_alloc_ctx(u_int flags)
+{
+	return (malloc(sizeof(struct fpu_kern_ctx), M_FPUKERN_CTX,
+	    ((flags & FPU_KERN_NOWAIT) ? M_NOWAIT : M_WAITOK) | M_ZERO));
+}
+
+void
+fpu_kern_free_ctx(struct fpu_kern_ctx *ctx)
+{
+	KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) == 0, ("freeing in-use ctx"));
+
+	free(ctx, M_FPUKERN_CTX);
 }
 
 void
