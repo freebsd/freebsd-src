@@ -1119,6 +1119,9 @@ eqos_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	if ((error = IF_EQOS_INIT(dev)))
+		return (error);
+
 	sc->dev = dev;
 	ver  = RD4(sc, GMAC_MAC_VERSION);
 	userver = (ver & GMAC_MAC_VERSION_USERVER_MASK) >>
@@ -1141,10 +1144,6 @@ eqos_attach(device_t dev)
 		    sc->hw_feature[0], sc->hw_feature[1],
 		    sc->hw_feature[2], sc->hw_feature[3]);
 	}
-
-
-	if ((error = IF_EQOS_INIT(dev)))
-		return (error);
 
 	mtx_init(&sc->lock, "eqos lock", MTX_NETWORK_LOCK, MTX_DEF);
 	callout_init_mtx(&sc->callout, &sc->lock, 0);
