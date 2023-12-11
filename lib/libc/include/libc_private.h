@@ -422,9 +422,6 @@ int		__sys_futimens(int fd, const struct timespec *times) __hidden;
 int		__sys_utimensat(int fd, const char *path,
 		    const struct timespec *times, int flag) __hidden;
 
-/* execve() with PATH processing to implement posix_spawnp() */
-int _execvpe(const char *, char * const *, char * const *);
-
 int _elf_aux_info(int aux, void *buf, int buflen);
 struct dl_phdr_info;
 int __elf_phdr_match_addr(struct dl_phdr_info *, void *);

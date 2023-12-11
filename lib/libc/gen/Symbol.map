@@ -457,6 +457,10 @@ FBSD_1.7 {
 	 __cpuset_free;
 };
 
+FBSD_1.8 {
+	execvpe;
+};
+
 FBSDprivate_1.0 {
 	/* needed by thread libraries */
 	__thr_jtable;
