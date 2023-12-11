@@ -196,8 +196,9 @@ vfp_init(void)
 
 SYSINIT(vfp, SI_SUB_CPU, SI_ORDER_ANY, vfp_init, NULL);
 
-/* start VFP unit, restore the vfp registers from the PCB  and retry
- * the instruction
+/*
+ * Start the VFP unit, restore the VFP registers from the PCB and retry
+ * the instruction.
  */
 static int
 vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
@@ -205,9 +206,6 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 	u_int cpu, fpexc;
 	struct pcb *curpcb;
 	ksiginfo_t ksi;
-
-	if ((code & FAULT_USER) == 0)
-		panic("undefined floating point instruction in supervisor mode");
 
 	critical_enter();
 
@@ -242,13 +240,19 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 		return 1;
 	}
 
+	curpcb = curthread->td_pcb;
+	if ((code & FAULT_USER) == 0 &&
+	    (curpcb->pcb_fpflags & PCB_FP_KERN) == 0) {
+		critical_exit();
+		return (1);
+	}
+
 	/*
 	 * If the last time this thread used the VFP it was on this core, and
 	 * the last thread to use the VFP on this core was this thread, then the
 	 * VFP state is valid, otherwise restore this thread's state to the VFP.
 	 */
 	fmxr(fpexc, fpexc | VFPEXC_EN);
-	curpcb = curthread->td_pcb;
 	cpu = PCPU_GET(cpuid);
 	if (curpcb->pcb_vfpcpu != cpu || curthread != PCPU_GET(fpcurthread)) {
 		vfp_restore(curpcb->pcb_vfpsaved);
@@ -258,7 +262,8 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 
 	critical_exit();
 
-	KASSERT(curpcb->pcb_vfpsaved == &curpcb->pcb_vfpstate,
+	KASSERT((code & FAULT_USER) == 0 ||
+	    curpcb->pcb_vfpsaved == &curpcb->pcb_vfpstate,
 	    ("Kernel VFP state in use when entering userspace"));
 
 	return (0);
