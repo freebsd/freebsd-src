@@ -978,8 +978,15 @@ ffs_write(
 		 * validated the pages.
 		 */
 		if (error != 0 && (bp->b_flags & B_CACHE) == 0 &&
-		    fs->fs_bsize == xfersize)
-			vfs_bio_clrbuf(bp);
+		    fs->fs_bsize == xfersize) {
+			if (error == EFAULT && LIST_EMPTY(&bp->b_dep)) {
+				bp->b_flags |= B_INVAL | B_RELBUF | B_NOCACHE;
+				brelse(bp);
+				break;
+			} else {
+				vfs_bio_clrbuf(bp);
+			}
+		}
 
 		vfs_bio_set_flags(bp, ioflag);
 
