@@ -59,9 +59,6 @@
 	it	cs;							\
 	bcs PIC_SYM(CERROR, PLT)
 
-#define SYSCALL(x)							\
-	_SYSCALL(x)
-
 #define PSEUDO(x)							\
 	ENTRY(__CONCAT(__sys_, x));					\
 	.weak _C_LABEL(__CONCAT(_,x));					\

@@ -34,14 +34,6 @@
 	mov	x8, SYS_ ## name;				\
 	svc	0
 
-#define	SYSCALL(name)						\
-ENTRY(__sys_##name);						\
-	WEAK_REFERENCE(__sys_##name, name);			\
-	WEAK_REFERENCE(__sys_##name, _##name);			\
-	_SYSCALL(name);						\
-	ret;							\
-END(__sys_##name)
-
 /*
  * Conditional jumps can only go up to one megabyte in either
  * direction, and cerror can be located anywhere, so we have
