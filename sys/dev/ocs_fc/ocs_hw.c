@@ -148,17 +148,29 @@ static void ocs_hw_check_sec_hio_list(ocs_hw_t *hw);
 static void target_wqe_timer_cb(void *arg);
 static void shutdown_target_wqe_timer(ocs_hw_t *hw);
 
+/* WQE timeout for initiator IOs */
+static inline uint8_t
+ocs_hw_set_io_wqe_timeout(ocs_hw_io_t *io, uint32_t timeout)
+{
+	if (timeout > 255) {
+		io->wqe_timeout = timeout;
+		return 0;
+	} else {
+		return timeout;
+	}
+}
+
 static inline void
 ocs_hw_add_io_timed_wqe(ocs_hw_t *hw, ocs_hw_io_t *io)
 {
-	if (hw->config.emulate_tgt_wqe_timeout && io->tgt_wqe_timeout) {
+	if (hw->config.emulate_wqe_timeout && io->wqe_timeout) {
 		/*
 		 * Active WQE list currently only used for
 		 * target WQE timeouts.
 		 */
 		ocs_lock(&hw->io_lock);
 			ocs_list_add_tail(&hw->io_timed_wqe, io);
-			io->submit_ticks = ocs_get_os_ticks();
+			getmicrouptime(&io->submit_time);
 		ocs_unlock(&hw->io_lock);
 	}
 }
@@ -166,7 +178,7 @@ ocs_hw_add_io_timed_wqe(ocs_hw_t *hw, ocs_hw_io_t *io)
 static inline void
 ocs_hw_remove_io_timed_wqe(ocs_hw_t *hw, ocs_hw_io_t *io)
 {
-	if (hw->config.emulate_tgt_wqe_timeout) {
+	if (hw->config.emulate_wqe_timeout) {
 		/*
 		 * If target wqe timeouts are enabled,
 		 * remove from active wqe list.
@@ -965,7 +977,7 @@ ocs_hw_init(ocs_hw_t *hw)
 	}
 
 	/* finally kick off periodic timer to check for timed out target WQEs */
-	if (hw->config.emulate_tgt_wqe_timeout) {
+	if (hw->config.emulate_wqe_timeout) {
 		ocs_setup_timer(hw->os, &hw->wqe_timer, target_wqe_timer_cb, hw,
 				OCS_HW_WQ_TIMER_PERIOD_MS);
 	}
@@ -1695,8 +1707,8 @@ ocs_hw_get(ocs_hw_t *hw, ocs_hw_property_e prop, uint32_t *value)
 	case OCS_HW_EMULATE_I_ONLY_AAB:
 		*value = hw->config.i_only_aab;
 		break;
-	case OCS_HW_EMULATE_TARGET_WQE_TIMEOUT:
-		*value = hw->config.emulate_tgt_wqe_timeout;
+	case OCS_HW_EMULATE_WQE_TIMEOUT:
+		*value = hw->config.emulate_wqe_timeout;
 		break;
 	case OCS_HW_VPD_LEN:
 		*value = sli_get_vpd_len(&hw->sli);
@@ -1996,8 +2008,8 @@ ocs_hw_set(ocs_hw_t *hw, ocs_hw_property_e prop, uint32_t value)
 	case OCS_HW_EMULATE_I_ONLY_AAB:
 		hw->config.i_only_aab = value;
 		break;
-	case OCS_HW_EMULATE_TARGET_WQE_TIMEOUT:
-		hw->config.emulate_tgt_wqe_timeout = value;
+	case OCS_HW_EMULATE_WQE_TIMEOUT:
+		hw->config.emulate_wqe_timeout = value;
 		break;
 	case OCS_HW_BOUNCE:
 		hw->config.bounce = value;
@@ -3324,7 +3336,7 @@ ocs_hw_init_free_io(ocs_hw_io_t *io)
 	io->type = 0xFFFF;
 	io->wq = NULL;
 	io->ul_io = NULL;
-	io->tgt_wqe_timeout = 0;
+	io->wqe_timeout = 0;
 }
 
 /**
@@ -3738,7 +3750,7 @@ ocs_hw_check_sec_hio_list(ocs_hw_t *hw)
 			flags &= ~SLI4_IO_CONTINUATION;
 		}
 
-		io->tgt_wqe_timeout = io->sec_iparam.fcp_tgt.timeout;
+		io->wqe_timeout = io->sec_iparam.fcp_tgt.timeout;
 
 		/* Complete (continue) TRECV IO */
 		if (io->xbusy) {
@@ -4041,6 +4053,7 @@ ocs_hw_io_send(ocs_hw_t *hw, ocs_hw_io_type_e type, ocs_hw_io_t *io,
 	ocs_hw_rtn_e	rc = OCS_HW_RTN_SUCCESS;
 	uint32_t	rpi;
 	uint8_t		send_wqe = TRUE;
+	uint8_t		timeout = 0;
 
 	CPUTRACE("");
 
@@ -4075,6 +4088,8 @@ ocs_hw_io_send(ocs_hw_t *hw, ocs_hw_io_type_e type, ocs_hw_io_t *io,
 	 */
 	switch (type) {
 	case OCS_HW_IO_INITIATOR_READ:
+		timeout = ocs_hw_set_io_wqe_timeout(io, iparam->fcp_ini.timeout);
+
 		/*
 		 * If use_dif_quarantine workaround is in effect, and dif_separates then mark the
 		 * initiator read IO for quarantine
@@ -4090,12 +4105,14 @@ ocs_hw_io_send(ocs_hw_t *hw, ocs_hw_io_type_e type, ocs_hw_io_t *io,
 		if (sli_fcp_iread64_wqe(&hw->sli, io->wqe.wqebuf, hw->sli.config.wqe_size, &io->def_sgl, io->first_data_sge, len,
 					io->indicator, io->reqtag, SLI4_CQ_DEFAULT, rpi, rnode,
 					iparam->fcp_ini.dif_oper, iparam->fcp_ini.blk_size,
-					iparam->fcp_ini.timeout)) {
+					timeout)) {
 			ocs_log_err(hw->os, "IREAD WQE error\n");
 			rc = OCS_HW_RTN_ERROR;
 		}
 		break;
 	case OCS_HW_IO_INITIATOR_WRITE:
+		timeout = ocs_hw_set_io_wqe_timeout(io, iparam->fcp_ini.timeout);
+
 		ocs_hw_io_ini_sge(hw, io, iparam->fcp_ini.cmnd, iparam->fcp_ini.cmnd_size,
 				iparam->fcp_ini.rsp);
 
@@ -4104,18 +4121,20 @@ ocs_hw_io_send(ocs_hw_t *hw, ocs_hw_io_type_e type, ocs_hw_io_t *io,
 					 io->indicator, io->reqtag,
 					SLI4_CQ_DEFAULT, rpi, rnode,
 					iparam->fcp_ini.dif_oper, iparam->fcp_ini.blk_size,
-					iparam->fcp_ini.timeout)) {
+					timeout)) {
 			ocs_log_err(hw->os, "IWRITE WQE error\n");
 			rc = OCS_HW_RTN_ERROR;
 		}
 		break;
 	case OCS_HW_IO_INITIATOR_NODATA:
+		timeout = ocs_hw_set_io_wqe_timeout(io, iparam->fcp_ini.timeout);
+
 		ocs_hw_io_ini_sge(hw, io, iparam->fcp_ini.cmnd, iparam->fcp_ini.cmnd_size,
 				iparam->fcp_ini.rsp);
 
 		if (sli_fcp_icmnd64_wqe(&hw->sli, io->wqe.wqebuf, hw->sli.config.wqe_size, &io->def_sgl,
 					io->indicator, io->reqtag, SLI4_CQ_DEFAULT,
-					rpi, rnode, iparam->fcp_ini.timeout)) {
+					rpi, rnode, timeout)) {
 			ocs_log_err(hw->os, "ICMND WQE error\n");
 			rc = OCS_HW_RTN_ERROR;
 		}
@@ -4137,7 +4156,7 @@ ocs_hw_io_send(ocs_hw_t *hw, ocs_hw_io_type_e type, ocs_hw_io_t *io,
 			flags &= ~SLI4_IO_CONTINUATION;
 		}
 
-		io->tgt_wqe_timeout = iparam->fcp_tgt.timeout;
+		io->wqe_timeout = iparam->fcp_tgt.timeout;
 
 		/*
 		 * If use_dif_quarantine workaround is in effect, and this is a DIF enabled IO
@@ -4227,7 +4246,7 @@ ocs_hw_io_send(ocs_hw_t *hw, ocs_hw_io_type_e type, ocs_hw_io_t *io,
 			flags &= ~SLI4_IO_CONTINUATION;
 		}
 
-		io->tgt_wqe_timeout = iparam->fcp_tgt.timeout;
+		io->wqe_timeout = iparam->fcp_tgt.timeout;
 		if (sli_fcp_tsend64_wqe(&hw->sli, io->wqe.wqebuf, hw->sli.config.wqe_size, &io->def_sgl, io->first_data_sge,
 					iparam->fcp_tgt.offset, len, io->indicator, io->reqtag,
 					SLI4_CQ_DEFAULT,
@@ -4260,7 +4279,7 @@ ocs_hw_io_send(ocs_hw_t *hw, ocs_hw_io_type_e type, ocs_hw_io_t *io,
 			}
 		}
 
-		io->tgt_wqe_timeout = iparam->fcp_tgt.timeout;
+		io->wqe_timeout = iparam->fcp_tgt.timeout;
 		if (sli_fcp_trsp64_wqe(&hw->sli, io->wqe.wqebuf, hw->sli.config.wqe_size,
 					&io->def_sgl,
 					len,
@@ -11173,9 +11192,8 @@ target_wqe_timer_nop_cb(ocs_hw_t *hw, int32_t status, uint8_t *mqe, void *arg)
 {
 	ocs_hw_io_t *io = NULL;
 	ocs_hw_io_t *io_next = NULL;
-	uint64_t ticks_current = ocs_get_os_ticks();
-	uint32_t sec_elapsed;
 	ocs_hw_rtn_e rc;
+	struct timeval cur_time;
 
 	sli4_mbox_command_header_t	*hdr = (sli4_mbox_command_header_t *)mqe;
 
@@ -11188,27 +11206,28 @@ target_wqe_timer_nop_cb(ocs_hw_t *hw, int32_t status, uint8_t *mqe, void *arg)
 	/* loop through active WQE list and check for timeouts */
 	ocs_lock(&hw->io_lock);
 	ocs_list_foreach_safe(&hw->io_timed_wqe, io, io_next) {
-		sec_elapsed = ((ticks_current - io->submit_ticks) / ocs_get_os_tick_freq());
 
 		/*
 		 * If elapsed time > timeout, abort it. No need to check type since
 		 * it wouldn't be on this list unless it was a target WQE
 		 */
-		if (sec_elapsed > io->tgt_wqe_timeout) {
-			ocs_log_test(hw->os, "IO timeout xri=0x%x tag=0x%x type=%d\n",
-				     io->indicator, io->reqtag, io->type);
+		getmicrouptime(&cur_time);
+		timevalsub(&cur_time, &io->submit_time);
+		if (cur_time.tv_sec > io->wqe_timeout) {
+			ocs_log_info(hw->os, "IO timeout xri=0x%x tag=0x%x type=%d elasped time:%u\n",
+				     io->indicator, io->reqtag, io->type, cur_time.tv_sec);
 
 			/* remove from active_wqe list so won't try to abort again */
 			ocs_list_remove(&hw->io_timed_wqe, io);
 
 			/* save status of "timed out" for when abort completes */
 			io->status_saved = 1;
-			io->saved_status = SLI4_FC_WCQE_STATUS_TARGET_WQE_TIMEOUT;
+			io->saved_status = SLI4_FC_WCQE_STATUS_WQE_TIMEOUT;
 			io->saved_ext = 0;
 			io->saved_len = 0;
 
 			/* now abort outstanding IO */
-			rc = ocs_hw_io_abort(hw, io, FALSE, NULL, NULL);
+			rc = ocs_hw_io_abort(hw, io, TRUE, NULL, NULL);
 			if (rc) {
 				ocs_log_test(hw->os,
 					"abort failed xri=%#x tag=%#x rc=%d\n",
@@ -11237,7 +11256,6 @@ target_wqe_timer_cb(void *arg)
 
 	/* delete existing timer; will kick off new timer after checking wqe timeouts */
 	hw->in_active_wqe_timer = TRUE;
-	ocs_del_timer(&hw->wqe_timer);
 
 	/* Forward timer callback to execute in the mailbox completion processing context */
 	if (ocs_hw_async_call(hw, target_wqe_timer_nop_cb, hw)) {
@@ -11250,7 +11268,7 @@ shutdown_target_wqe_timer(ocs_hw_t *hw)
 {
 	uint32_t	iters = 100;
 
-	if (hw->config.emulate_tgt_wqe_timeout) {
+	if (hw->config.emulate_wqe_timeout) {
 		/* request active wqe timer shutdown, then wait for it to complete */
 		hw->active_wqe_timer_shutdown = TRUE;
 

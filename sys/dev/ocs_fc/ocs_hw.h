@@ -211,7 +211,7 @@ typedef enum {
 	OCS_HW_WAR_VERSION,
 	OCS_HW_DISABLE_AR_TGT_DIF,
 	OCS_HW_EMULATE_I_ONLY_AAB, /**< emulate IAAB=0 for initiator-commands only */
-	OCS_HW_EMULATE_TARGET_WQE_TIMEOUT, /**< enable driver timeouts for target WQEs */
+	OCS_HW_EMULATE_WQE_TIMEOUT, /**< enable driver timeouts for WQEs */
 	OCS_HW_LINK_CONFIG_SPEED,
 	OCS_HW_CONFIG_TOPOLOGY,
 	OCS_HW_BOUNCE,
@@ -520,7 +520,7 @@ typedef union ocs_hw_io_param_u {
 		ocs_hw_dif_blk_size_e blk_size;
 		uint32_t	cmnd_size;
 		uint16_t	flags;
-		uint8_t		timeout;
+		uint32_t	timeout;
 		uint32_t	first_burst;
 	} fcp_ini;
 } ocs_hw_io_param_t;
@@ -576,8 +576,8 @@ struct ocs_hw_io_s {
 	void		*abort_arg;	/**< argument passed to "abort done" callback */
 	ocs_ref_t	ref;		/**< refcount object */
 	size_t		length;		/**< needed for bug O127585: length of IO */
-	uint8_t		tgt_wqe_timeout; /**< timeout value for target WQEs */
-	uint64_t	submit_ticks;	/**< timestamp when current WQE was submitted */
+	uint32_t	wqe_timeout;	/**< timeout value for WQEs */
+	struct timeval  submit_time;	/**< timestamp when current WQE was submitted */
 
 	uint32_t	status_saved:1, /**< if TRUE, latched status should be returned */
 			abort_in_progress:1, /**< if TRUE, abort is in progress */
@@ -915,7 +915,7 @@ struct ocs_hw_s {
 		uint16_t	auto_xfer_rdy_app_tag_value;
 		uint8_t		dif_mode; /**< DIF mode to use */
 		uint8_t		i_only_aab; /** Enable initiator-only auto-abort */
-		uint8_t		emulate_tgt_wqe_timeout; /** Enable driver target wqe timeouts */
+		uint8_t		emulate_wqe_timeout; /** Enable driver wqe timeouts */
 		uint32_t	bounce:1;
 		const char	*queue_topology;		/**< Queue topology string */
 		uint8_t		auto_xfer_rdy_t10_enable;	/** Enable t10 PI for auto xfer ready */

@@ -44,6 +44,7 @@
 #include "ocs.h"
 #include "ocs_scsi.h"
 #include "ocs_device.h"
+#include <sys/sbuf.h>
 
 /* Default IO timeout value for initiators is 30 seconds */
 #define OCS_CAM_IO_TIMEOUT	30
@@ -54,6 +55,27 @@ typedef struct {
 	uint32_t sgl_count;
 	int32_t rc;
 } ocs_dmamap_load_arg_t;
+
+struct ocs_scsi_status_desc {
+	ocs_scsi_io_status_e status;
+	const char *desc;
+} ocs_status_desc[] = {
+	{ OCS_SCSI_STATUS_GOOD, "Good" },
+	{ OCS_SCSI_STATUS_ABORTED, "Aborted" },
+	{ OCS_SCSI_STATUS_ERROR, "Error" },
+	{ OCS_SCSI_STATUS_DIF_GUARD_ERROR, "DIF Guard Error" },
+	{ OCS_SCSI_STATUS_DIF_REF_TAG_ERROR, "DIF REF Tag Error" },
+	{ OCS_SCSI_STATUS_DIF_APP_TAG_ERROR, "DIF App Tag Error" },
+	{ OCS_SCSI_STATUS_DIF_UNKNOWN_ERROR, "DIF Unknown Error" },
+	{ OCS_SCSI_STATUS_PROTOCOL_CRC_ERROR, "Proto CRC Error" },
+	{ OCS_SCSI_STATUS_NO_IO, "No IO" },
+	{ OCS_SCSI_STATUS_ABORT_IN_PROGRESS, "Abort in Progress" },
+	{ OCS_SCSI_STATUS_CHECK_RESPONSE, "Check Response" },
+	{ OCS_SCSI_STATUS_COMMAND_TIMEOUT, "Command Timeout" },
+	{ OCS_SCSI_STATUS_TIMEDOUT_AND_ABORTED, "Timed out and Aborted" },
+	{ OCS_SCSI_STATUS_SHUTDOWN, "Shutdown" },
+	{ OCS_SCSI_STATUS_NEXUS_LOST, "Nexus Lost" }
+};
 
 static void ocs_action(struct cam_sim *, union ccb *);
 static void ocs_poll(struct cam_sim *);
@@ -1497,7 +1519,7 @@ static int32_t ocs_scsi_initiator_io_cb(ocs_io_t *io,
 		 * If we've already got a SCSI error, prefer that because it
 		 * will have more detail.
 		 */
-		 if ((rsp->residual < 0) && (ccb_status == CAM_REQ_CMP)) {
+		if ((rsp->residual < 0) && (ccb_status == CAM_REQ_CMP)) {
 			ccb_status = CAM_DATA_RUN_ERR;
 		}
 
@@ -1517,7 +1539,62 @@ static int32_t ocs_scsi_initiator_io_cb(ocs_io_t *io,
 			ocs_memcpy(&csio->sense_data, rsp->sense_data, sense_len);
 		}
 	} else if (scsi_status != OCS_SCSI_STATUS_GOOD) {
-		ccb_status = CAM_REQ_CMP_ERR;
+		const char *err_desc = NULL;
+		char path_str[64];
+		char err_str[224];
+		struct sbuf sb;
+		size_t i;
+
+		sbuf_new(&sb, err_str, sizeof(err_str), 0);
+
+		xpt_path_string(ccb->ccb_h.path, path_str, sizeof(path_str));
+		sbuf_cat(&sb, path_str);
+
+		for (i = 0; i < (sizeof(ocs_status_desc) /
+		     sizeof(ocs_status_desc[0])); i++) {
+			if (scsi_status == ocs_status_desc[i].status) {
+				err_desc = ocs_status_desc[i].desc;
+				break;
+			}
+		}
+		if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
+			scsi_command_string(&ccb->csio, &sb);
+			sbuf_printf(&sb, "length %d ", ccb->csio.dxfer_len);
+		}
+		sbuf_printf(&sb, "error status %d (%s)\n", scsi_status,
+		    (err_desc != NULL) ? err_desc : "Unknown");
+		sbuf_finish(&sb);
+		printf("%s", sbuf_data(&sb));
+
+		switch (scsi_status) {
+		case OCS_SCSI_STATUS_ABORTED:
+		case OCS_SCSI_STATUS_ABORT_IN_PROGRESS:
+			ccb_status = CAM_REQ_ABORTED;
+			break;
+		case OCS_SCSI_STATUS_DIF_GUARD_ERROR:
+		case OCS_SCSI_STATUS_DIF_REF_TAG_ERROR:
+		case OCS_SCSI_STATUS_DIF_APP_TAG_ERROR:
+		case OCS_SCSI_STATUS_DIF_UNKNOWN_ERROR:
+		case OCS_SCSI_STATUS_PROTOCOL_CRC_ERROR:
+			ccb_status = CAM_IDE;
+			break;
+		case OCS_SCSI_STATUS_ERROR:
+		case OCS_SCSI_STATUS_NO_IO:
+			ccb_status = CAM_REQ_CMP_ERR;
+			break;
+		case OCS_SCSI_STATUS_COMMAND_TIMEOUT:
+		case OCS_SCSI_STATUS_TIMEDOUT_AND_ABORTED:
+			ccb_status = CAM_CMD_TIMEOUT;
+			break;
+		case OCS_SCSI_STATUS_SHUTDOWN:
+		case OCS_SCSI_STATUS_NEXUS_LOST:
+			ccb_status = CAM_SCSI_IT_NEXUS_LOST;
+			break;
+		default:
+			ccb_status = CAM_REQ_CMP_ERR;
+			break;
+		}
+
 	} else {
 		ccb_status = CAM_REQ_CMP;
 	}
@@ -1842,7 +1919,11 @@ ocs_initiator_io(struct ocs_softc *ocs, union ccb *ccb)
 	} else if (ccb->ccb_h.timeout == CAM_TIME_DEFAULT) {
 		io->timeout = OCS_CAM_IO_TIMEOUT;
 	} else {
-		io->timeout = ccb->ccb_h.timeout;
+		if (ccb->ccb_h.timeout < 1000)
+			io->timeout = 1;
+		else {
+			io->timeout = ccb->ccb_h.timeout / 1000;
+		}
 	}
 
 	switch (csio->tag_action) {
