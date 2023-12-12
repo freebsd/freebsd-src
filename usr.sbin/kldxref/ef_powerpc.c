@@ -27,21 +27,13 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <machine/elf.h>
+#include <sys/endian.h>
 
 #include <err.h>
 #include <errno.h>
-#include <inttypes.h>
-#include <string.h>
+#include <gelf.h>
 
 #include "ef.h"
-
-#ifdef __powerpc64__
-#define PRI_ELF_SIZE PRIu64
-#else
-#define PRI_ELF_SIZE PRIu32
-#endif
 
 /*
  * Apply relocations to the values obtained from the file. `relbase' is the
@@ -49,41 +41,53 @@
  * that is to be relocated, and has been copied to *dest
  */
 int
-ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
-    Elf_Off dataoff, size_t len, void *dest)
+ef_ppc_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
+    GElf_Addr relbase, GElf_Addr dataoff, size_t len, void *dest)
 {
-	Elf_Addr *where, addend;
-	Elf32_Addr *where32;
-	Elf_Size rtype, symidx;
-	const Elf_Rela *rela;
+	char *where;
+	GElf_Addr addend, val;
+	GElf_Size rtype, symidx;
+	const GElf_Rela *rela;
 
-	if (reltype != EF_RELOC_RELA)
+	if (reltype != ELF_T_RELA)
 		return (EINVAL);
 
-	rela = (const Elf_Rela *)reldata;
-	where = (Elf_Addr *) ((Elf_Off)dest - dataoff + rela->r_offset);
-	where32 = (Elf32_Addr *) ((Elf_Off)dest - dataoff + rela->r_offset);
+	rela = (const GElf_Rela *)reldata;
+	where = (char *)dest - dataoff + rela->r_offset;
 	addend = rela->r_addend;
-	rtype = ELF_R_TYPE(rela->r_info);
-	symidx = ELF_R_SYM(rela->r_info);
+	rtype = GELF_R_TYPE(rela->r_info);
+	symidx = GELF_R_SYM(rela->r_info);
 
-	if ((char *)where < (char *)dest || (char *)where >= (char *)dest + len)
+	if (where < (char *)dest || where >= (char *)dest + len)
 		return (0);
 
 	switch (rtype) {
 	case R_PPC_RELATIVE: /* word32|doubleword64 B + A */
-		*where = relbase + addend;
+		val = relbase + addend;
+		if (elf_class(ef) == ELFCLASS64) {
+			if (elf_encoding(ef) == ELFDATA2LSB)
+				le64enc(where, val);
+			else
+				be64enc(where, val);
+		}
 		break;
 	case R_PPC_ADDR32:	/* word32 S + A */
-		*where32 = EF_SYMADDR(ef, symidx) + addend;
+		val = EF_SYMADDR(ef, symidx) + addend;
+		be32enc(where, val);
 		break;
-#ifdef __powerpc64__
 	case R_PPC64_ADDR64:	/* doubleword64 S + A */
-		*where = EF_SYMADDR(ef, symidx) + addend;
+		val = EF_SYMADDR(ef, symidx) + addend;
+		if (elf_encoding(ef) == ELFDATA2LSB)
+			le64enc(where, val);
+		else
+			be64enc(where, val);
 		break;
-#endif
 	default:
-		warnx("unhandled relocation type %" PRI_ELF_SIZE, rtype);
+		warnx("unhandled relocation type %d", (int)rtype);
 	}
 	return (0);
 }
+
+ELF_RELOC(ELFCLASS32, ELFDATA2MSB, EM_PPC, ef_ppc_reloc);
+ELF_RELOC(ELFCLASS64, ELFDATA2LSB, EM_PPC64, ef_ppc_reloc);
+ELF_RELOC(ELFCLASS64, ELFDATA2MSB, EM_PPC64, ef_ppc_reloc);
