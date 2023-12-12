@@ -237,6 +237,7 @@ parse_pnp_list(const char *desc, char **new_desc, pnp_list *list)
 	size_t new_desc_size;
 	FILE *fp;
 
+	TAILQ_INIT(list);
 	walker = desc;
 	ep = desc + strlen(desc);
 	off = 0;
@@ -379,6 +380,142 @@ err:
 	errx(1, "Parse error of description string %s", desc);
 }
 
+static void
+free_pnp_list(char *new_desc, pnp_list *list)
+{
+	struct pnp_elt *elt, *elt_tmp;
+
+	TAILQ_FOREACH_SAFE(elt, list, next, elt_tmp) {
+		TAILQ_REMOVE(list, elt, next);
+		free(elt);
+	}
+	free(new_desc);
+}
+
+static void
+parse_pnp_entry(struct elf_file *ef, struct pnp_elt *elt, const char *walker)
+{
+	uint8_t v1;
+	uint16_t v2;
+	uint32_t v4;
+	int	value;
+	char buffer[1024];
+
+	if (elt->pe_kind == TYPE_W32) {
+		memcpy(&v4, walker + elt->pe_offset, sizeof(v4));
+		value = v4 & 0xffff;
+		record_int(value);
+		if (verbose > 1)
+			printf("W32:%#x", value);
+		value = (v4 >> 16) & 0xffff;
+		record_int(value);
+		if (verbose > 1)
+			printf(":%#x;", value);
+	} else if (elt->pe_kind & TYPE_INT) {
+		switch (elt->pe_kind & TYPE_SZ_MASK) {
+		case 1:
+			memcpy(&v1, walker + elt->pe_offset, sizeof(v1));
+			if ((elt->pe_kind & TYPE_FLAGGED) && v1 == 0xff)
+				value = -1;
+			else
+				value = v1;
+			break;
+		case 2:
+			memcpy(&v2, walker + elt->pe_offset, sizeof(v2));
+			if ((elt->pe_kind & TYPE_FLAGGED) && v2 == 0xffff)
+				value = -1;
+			else
+				value = v2;
+			break;
+		case 4:
+			memcpy(&v4, walker + elt->pe_offset, sizeof(v4));
+			if ((elt->pe_kind & TYPE_FLAGGED) && v4 == 0xffffffff)
+				value = -1;
+			else
+				value = v4;
+			break;
+		default:
+			errx(1, "Invalid size somehow %#x", elt->pe_kind);
+		}
+		if (verbose > 1)
+			printf("I:%#x;", value);
+		record_int(value);
+	} else if (elt->pe_kind == TYPE_T) {
+		/* Do nothing */
+	} else { /* E, Z or D -- P already filtered */
+		if (elt->pe_kind == TYPE_E) {
+			memcpy(&v4, walker + elt->pe_offset, sizeof(v4));
+			strcpy(buffer, pnp_eisaformat(v4));
+		} else {
+			char *ptr;
+
+			ptr = *(char **)(walker + elt->pe_offset);
+			buffer[0] = '\0';
+			if (ptr != NULL) {
+				EF_SEG_READ_STRING(ef, (Elf_Off)ptr,
+				    sizeof(buffer), buffer);
+				buffer[sizeof(buffer) - 1] = '\0';
+			}
+		}
+		if (verbose > 1)
+			printf("%c:%s;", elt->pe_kind == TYPE_E ? 'E' :
+			    (elt->pe_kind == TYPE_Z ? 'Z' : 'D'), buffer);
+		record_string(buffer);
+	}
+}
+
+static void
+record_pnp_info(struct elf_file *ef, const char *cval,
+    struct mod_pnp_match_info *pnp, const char *descr)
+{
+	pnp_list list;
+	struct pnp_elt *elt;
+	char *new_descr, *walker;
+	void *table;
+	size_t len;
+	int error, i;
+
+	if (verbose > 1)
+		printf("  pnp info for bus %s format %s %d entries of %d bytes\n",
+		    cval, descr, pnp->num_entry, pnp->entry_len);
+
+	/*
+	 * Parse descr to weed out the chaff and to create a list
+	 * of offsets to output.
+	 */
+	parse_pnp_list(descr, &new_descr, &list);
+	record_int(MDT_PNP_INFO);
+	record_string(cval);
+	record_string(new_descr);
+	record_int(pnp->num_entry);
+	len = pnp->num_entry * pnp->entry_len;
+	table = malloc(len);
+	error = EF_SEG_READ_REL(ef, (Elf_Off)pnp->table, len, table);
+	if (error != 0) {
+		free_pnp_list(new_descr, &list);
+		free(table);
+		return;
+	}
+
+	/*
+	 * Walk the list and output things. We've collapsed all the
+	 * variant forms of the table down to just ints and strings.
+	 */
+	walker = table;
+	for (i = 0; i < pnp->num_entry; i++) {
+		TAILQ_FOREACH(elt, &list, next) {
+			parse_pnp_entry(ef, elt, walker);
+		}
+		if (verbose > 1)
+			printf("\n");
+		walker += pnp->entry_len;
+	}
+
+	/* Now free it */
+	free_pnp_list(new_descr, &list);
+	free(table);
+}
+
 static int
 parse_entry(struct mod_metadata *md, const char *cval,
     struct elf_file *ef, const char *kldname)
@@ -388,10 +525,7 @@ parse_entry(struct mod_metadata *md, const char *cval,
 	struct mod_pnp_match_info pnp;
 	char descr[1024];
 	Elf_Off data;
-	int error, i;
-	size_t len;
-	char *walker;
-	void *table;
+	int error;
 
 	data = (Elf_Off)md->md_data;
 	error = 0;
@@ -432,110 +566,7 @@ parse_entry(struct mod_metadata *md, const char *cval,
 			printf("  pnp info for bus %s format %s %d entries of %d bytes\n",
 			    cval, descr, pnp.num_entry, pnp.entry_len);
 		} else {
-			pnp_list list;
-			struct pnp_elt *elt, *elt_tmp;
-			char *new_descr;
-
-			if (verbose > 1)
-				printf("  pnp info for bus %s format %s %d entries of %d bytes\n",
-				    cval, descr, pnp.num_entry, pnp.entry_len);
-			/*
-			 * Parse descr to weed out the chaff and to create a list
-			 * of offsets to output.
-			 */
-			TAILQ_INIT(&list);
-			parse_pnp_list(descr, &new_descr, &list);
-			record_int(MDT_PNP_INFO);
-			record_string(cval);
-			record_string(new_descr);
-			record_int(pnp.num_entry);
-			len = pnp.num_entry * pnp.entry_len;
-			walker = table = malloc(len);
-			check(EF_SEG_READ_REL(ef, (Elf_Off)pnp.table, len, table));
-
-			/*
-			 * Walk the list and output things. We've collapsed all the
-			 * variant forms of the table down to just ints and strings.
-			 */
-			for (i = 0; i < pnp.num_entry; i++) {
-				TAILQ_FOREACH(elt, &list, next) {
-					uint8_t v1;
-					uint16_t v2;
-					uint32_t v4;
-					int	value;
-					char buffer[1024];
-
-					if (elt->pe_kind == TYPE_W32) {
-						memcpy(&v4, walker + elt->pe_offset, sizeof(v4));
-						value = v4 & 0xffff;
-						record_int(value);
-						if (verbose > 1)
-							printf("W32:%#x", value);
-						value = (v4 >> 16) & 0xffff;
-						record_int(value);
-						if (verbose > 1)
-							printf(":%#x;", value);
-					} else if (elt->pe_kind & TYPE_INT) {
-						switch (elt->pe_kind & TYPE_SZ_MASK) {
-						case 1:
-							memcpy(&v1, walker + elt->pe_offset, sizeof(v1));
-							if ((elt->pe_kind & TYPE_FLAGGED) && v1 == 0xff)
-								value = -1;
-							else
-								value = v1;
-							break;
-						case 2:
-							memcpy(&v2, walker + elt->pe_offset, sizeof(v2));
-							if ((elt->pe_kind & TYPE_FLAGGED) && v2 == 0xffff)
-								value = -1;
-							else
-								value = v2;
-							break;
-						case 4:
-							memcpy(&v4, walker + elt->pe_offset, sizeof(v4));
-							if ((elt->pe_kind & TYPE_FLAGGED) && v4 == 0xffffffff)
-								value = -1;
-							else
-								value = v4;
-							break;
-						default:
-							errx(1, "Invalid size somehow %#x", elt->pe_kind);
-						}
-						if (verbose > 1)
-							printf("I:%#x;", value);
-						record_int(value);
-					} else if (elt->pe_kind == TYPE_T) {
-						/* Do nothing */
-					} else { /* E, Z or D -- P already filtered */
-						if (elt->pe_kind == TYPE_E) {
-							memcpy(&v4, walker + elt->pe_offset, sizeof(v4));
-							strcpy(buffer, pnp_eisaformat(v4));
-						} else {
-							char *ptr;
-
-							ptr = *(char **)(walker + elt->pe_offset);
-							buffer[0] = '\0';
-							if (ptr != NULL) {
-								EF_SEG_READ_STRING(ef, (Elf_Off)ptr,
-								    sizeof(buffer), buffer);
-								buffer[sizeof(buffer) - 1] = '\0';
-							}
-						}
-						if (verbose > 1)
-							printf("%c:%s;", elt->pe_kind == TYPE_E ? 'E' : (elt->pe_kind == TYPE_Z ? 'Z' : 'D'), buffer);
-						record_string(buffer);
-					}
-				}
-				if (verbose > 1)
-					printf("\n");
-				walker += pnp.entry_len;
-			}
-			/* Now free it */
-			TAILQ_FOREACH_SAFE(elt, &list, next, elt_tmp) {
-				TAILQ_REMOVE(&list, elt, next);
-				free(elt);
-			}
-			free(table);
+			record_pnp_info(ef, cval, &pnp, descr);
 		}
 		break;
 	default:
