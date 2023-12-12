@@ -440,6 +440,20 @@ vmexit_debug(struct vmctx *ctx __unused, struct vcpu *vcpu,
 }
 
 static int
+vmexit_db(struct vmctx *ctx __unused, struct vcpu *vcpu, struct vm_run *vmrun)
+{
+
+#ifdef BHYVE_SNAPSHOT
+	checkpoint_cpu_suspend(vcpu_id(vcpu));
+#endif
+	gdb_cpu_debug(vcpu, vmrun->vm_exit);
+#ifdef BHYVE_SNAPSHOT
+	checkpoint_cpu_resume(vcpu_id(vcpu));
+#endif
+	return (VMEXIT_CONTINUE);
+}
+
+static int
 vmexit_breakpoint(struct vmctx *ctx __unused, struct vcpu *vcpu,
     struct vm_run *vmrun)
 {
@@ -503,4 +517,5 @@ const vmexit_handler_t vmexit_handlers[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_IPI] = vmexit_ipi,
 	[VM_EXITCODE_HLT] = vmexit_hlt,
 	[VM_EXITCODE_PAUSE] = vmexit_pause,
+	[VM_EXITCODE_DB] = vmexit_db,
 };
