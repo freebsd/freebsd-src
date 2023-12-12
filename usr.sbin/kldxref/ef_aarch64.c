@@ -25,12 +25,11 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <machine/elf.h>
+#include <sys/endian.h>
 
 #include <err.h>
 #include <errno.h>
-#include <string.h>
+#include <gelf.h>
 
 #include "ef.h"
 
@@ -39,28 +38,29 @@
  * target relocation address of the section, and `dataoff/len' is the region
  * that is to be relocated, and has been copied to *dest
  */
-int
-ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
-    Elf_Off dataoff, size_t len, void *dest)
+static int
+ef_aarch64_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
+    GElf_Addr relbase, GElf_Addr dataoff, size_t len, void *dest)
 {
-	Elf_Addr *where, addend;
-	Elf_Size rtype;
-	const Elf_Rela *rela;
+	char *where;
+	Elf64_Addr addend;
+	GElf_Size rtype;
+	const GElf_Rela *rela;
 
-	if (reltype != EF_RELOC_RELA)
+	if (reltype != ELF_T_RELA)
 		return (EINVAL);
 
-	rela = (const Elf_Rela *)reldata;
-	where = (Elf_Addr *) ((Elf_Off)dest - dataoff + rela->r_offset);
+	rela = (const GElf_Rela *)reldata;
+	where = (char *)dest - dataoff + rela->r_offset;
 	addend = rela->r_addend;
-	rtype = ELF_R_TYPE(rela->r_info);
+	rtype = GELF_R_TYPE(rela->r_info);
 
-	if ((char *)where < (char *)dest || (char *)where >= (char *)dest + len)
+	if (where < (char *)dest || where >= (char *)dest + len)
 		return (0);
 
 	switch(rtype) {
 	case R_AARCH64_RELATIVE:
-		*where = relbase + addend;
+		le64enc(where, relbase + addend);
 		break;
 	case R_AARCH64_ABS64:
 		break;
@@ -70,3 +70,5 @@ ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
 	}
 	return (0);
 }
+
+ELF_RELOC(ELFCLASS64, ELFDATA2LSB, EM_AARCH64, ef_aarch64_reloc);
