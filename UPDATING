@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20231212:
+	13.2-RELEASE-p8	SA-23:18.nfsclient
+
+	NFS client data corruption and kernel memory disclosure [SA-23:18.nfsclient]
+
 20231205:
 	13.2-RELEASE-p7	SA-23:17.pf
 			EN-23:15.sanitizer
