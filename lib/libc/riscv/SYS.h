@@ -40,14 +40,6 @@
 	li	t0, SYS_ ## name;				\
 	ecall
 
-#define	SYSCALL(name)						\
-ENTRY(__sys_##name);						\
-	WEAK_REFERENCE(__sys_##name, name);			\
-	WEAK_REFERENCE(__sys_##name, _##name);			\
-	_SYSCALL(name);						\
-	ret;							\
-END(__sys_##name)
-
 #define	PSEUDO(name)						\
 ENTRY(__sys_##name);						\
 	WEAK_REFERENCE(__sys_##name, _##name);			\
