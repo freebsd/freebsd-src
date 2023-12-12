@@ -30,50 +30,51 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <machine/elf.h>
+#include <sys/endian.h>
 
 #include <err.h>
 #include <errno.h>
+#include <gelf.h>
 
 #include "ef.h"
 
 int
-ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
-    Elf_Off dataoff, size_t len, void *dest)
+ef_riscv_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
+    GElf_Addr relbase, GElf_Addr dataoff, size_t len, void *dest)
 {
-	Elf_Addr *where;
-	const Elf_Rela *rela;
-	Elf_Addr addend, addr;
-	Elf_Size rtype, symidx;
+	char *where;
+	const GElf_Rela *rela;
+	GElf_Addr addend, addr;
+	GElf_Size rtype, symidx;
 
 	switch (reltype) {
-	case EF_RELOC_RELA:
-		rela = (const Elf_Rela *)reldata;
-		where = (Elf_Addr *)((char *)dest + relbase + rela->r_offset -
-		    dataoff);
+	case ELF_T_RELA:
+		rela = (const GElf_Rela *)reldata;
+		where = (char *)dest + relbase + rela->r_offset - dataoff;
 		addend = rela->r_addend;
-		rtype = ELF_R_TYPE(rela->r_info);
-		symidx = ELF_R_SYM(rela->r_info);
+		rtype = GELF_R_TYPE(rela->r_info);
+		symidx = GELF_R_SYM(rela->r_info);
 		break;
 	default:
 		return (EINVAL);
 	}
 
-	if ((char *)where < (char *)dest || (char *)where >= (char *)dest + len)
+	if (where < (char *)dest || where >= (char *)dest + len)
 		return (0);
 
 	switch (rtype) {
 	case R_RISCV_64:	/* S + A */
 		addr = EF_SYMADDR(ef, symidx) + addend;
-		*where = addr;
+		le64enc(where, addr);
 		break;
 	case R_RISCV_RELATIVE:	/* B + A */
 		addr = addend + relbase;
-		*where = addr;
+		le64enc(where, addr);
 		break;
 	default:
 		warnx("unhandled relocation type %d", (int)rtype);
 	}
 	return (0);
 }
+
+ELF_RELOC(ELFCLASS64, ELFDATA2LSB, EM_RISCV, ef_riscv_reloc);

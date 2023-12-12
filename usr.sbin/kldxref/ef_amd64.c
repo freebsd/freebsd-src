@@ -27,11 +27,11 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <machine/elf.h>
+#include <sys/endian.h>
 
 #include <err.h>
 #include <errno.h>
+#include <gelf.h>
 
 #include "ef.h"
 
@@ -40,48 +40,48 @@
  * target relocation address of the section, and `dataoff' is the target
  * relocation address of the data in `dest'.
  */
-int
-ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
-    Elf_Off dataoff, size_t len, void *dest)
+static int
+ef_amd64_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
+    GElf_Addr relbase, GElf_Addr dataoff, size_t len, void *dest)
 {
-	Elf64_Addr *where, val;
-	Elf32_Addr *where32, val32;
-	Elf_Addr addend, addr;
-	Elf_Size rtype, symidx;
-	const Elf_Rel *rel;
-	const Elf_Rela *rela;
+	char *where;
+	GElf_Addr val;
+	GElf_Addr addend, addr;
+	GElf_Size rtype, symidx;
+	const GElf_Rel *rel;
+	const GElf_Rela *rela;
 
 	switch (reltype) {
-	case EF_RELOC_REL:
-		rel = (const Elf_Rel *)reldata;
-		where = (Elf_Addr *)(dest + relbase + rel->r_offset - dataoff);
+	case ELF_T_REL:
+		rel = (const GElf_Rel *)reldata;
+		where = (char *)dest + relbase + rel->r_offset - dataoff;
 		addend = 0;
-		rtype = ELF_R_TYPE(rel->r_info);
-		symidx = ELF_R_SYM(rel->r_info);
+		rtype = GELF_R_TYPE(rel->r_info);
+		symidx = GELF_R_SYM(rel->r_info);
 		break;
-	case EF_RELOC_RELA:
-		rela = (const Elf_Rela *)reldata;
-		where = (Elf_Addr *)(dest + relbase + rela->r_offset - dataoff);
+	case ELF_T_RELA:
+		rela = (const GElf_Rela *)reldata;
+		where = (char *)dest + relbase + rela->r_offset - dataoff;
 		addend = rela->r_addend;
-		rtype = ELF_R_TYPE(rela->r_info);
-		symidx = ELF_R_SYM(rela->r_info);
+		rtype = GELF_R_TYPE(rela->r_info);
+		symidx = GELF_R_SYM(rela->r_info);
 		break;
 	default:
 		return (EINVAL);
 	}
 
-	if ((char *)where < (char *)dest || (char *)where >= (char *)dest + len)
+	if (where < (char *)dest || where >= (char *)dest + len)
 		return (0);
 
-	if (reltype == EF_RELOC_REL) {
+	if (reltype == ELF_T_REL) {
 		/* Addend is 32 bit on 32 bit relocs */
 		switch (rtype) {
 		case R_X86_64_PC32:
 		case R_X86_64_32S:
-			addend = *(Elf32_Addr *)where;
+			addend = le32dec(where);
 			break;
 		default:
-			addend = *where;
+			addend = le64dec(where);
 			break;
 		}
 	}
@@ -92,25 +92,26 @@ ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
 	case R_X86_64_64:	/* S + A */
 		addr = EF_SYMADDR(ef, symidx);
 		val = addr + addend;
-		*where = val;
+		le64enc(where, val);
 		break;
 	case R_X86_64_32S:	/* S + A sign extend */
 		addr = EF_SYMADDR(ef, symidx);
-		val32 = (Elf32_Addr)(addr + addend);
-		where32 = (Elf32_Addr *)where;
-		*where32 = val32;
+		val = (Elf32_Addr)(addr + addend);
+		le32enc(where, val);
 		break;
 	case R_X86_64_GLOB_DAT:	/* S */
 		addr = EF_SYMADDR(ef, symidx);
-		*where = addr;
+		le64enc(where, addr);
 		break;
 	case R_X86_64_RELATIVE:	/* B + A */
-		addr = (Elf_Addr)addend + relbase;
+		addr = addend + relbase;
 		val = addr;
-		*where = val;
+		le64enc(where, val);
 		break;
 	default:
 		warnx("unhandled relocation type %d", (int)rtype);
 	}
 	return (0);
 }
+
+ELF_RELOC(ELFCLASS64, ELFDATA2LSB, EM_X86_64, ef_amd64_reloc);
