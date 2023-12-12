@@ -48,7 +48,4 @@
 			jb HIDENAME(cerror); ret;			\
 			END(__sys_##name)
 
-/* gas messes up offset -- although we don't currently need it, do for BCS */
-#define	LCALL(x,y)	.byte 0x9a ; .long y; .word x
-
 #define KERNCALL	int $0x80
