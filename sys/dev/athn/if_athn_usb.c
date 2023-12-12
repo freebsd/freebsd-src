@@ -578,13 +578,13 @@ athn_usb_attachhook(device_t self)
 	}
 
 	// TODO MichalP: this can be used as a starting point for echo command or firmware command
-//	mtx_lock(&usc->sc_sc.sc_mtx);
+//	ATHN_LOCK(&usc->sc_sc);
 //	device_printf(sc->sc_dev, " %s:val = %d\n", __func__, val);
 //	val = athn_usb_read(sc, AR_WMI_CMD_ECHO);
 //	device_printf(sc->sc_dev, "%s: returned val = %d\n", __func__, val);
 //	val = *(uint32_t*)usc->obuf;
 //	device_printf(sc->sc_dev, "%s: casted val = %d\n", __func__, val);
-//	mtx_unlock(&usc->sc_sc.sc_mtx);
+//	ATHN_UNLOCK(&usc->sc_sc);
 //
 //	return;
 
@@ -675,10 +675,10 @@ athn_usb_open_pipes(struct athn_usb_softc *usc)
 	TAILQ_REMOVE(&usc->tx_free_list, usc->tx_bcn, next);
 #endif
 
-	mtx_lock(&sc->sc_mtx);
+	ATHN_LOCK(sc);
 	usbd_transfer_start(usc->sc_xfer[ATHN_BULK_RX]);
 	usbd_transfer_start(usc->sc_xfer[ATHN_BULK_IRQ]);
-	mtx_unlock(&sc->sc_mtx);
+	ATHN_UNLOCK(sc);
 	return 0;
 
  fail:
@@ -691,11 +691,11 @@ athn_usb_close_pipes(struct athn_usb_softc *usc)
 {
 	struct athn_softc *sc = &usc->sc_sc;
 
-	mtx_lock(&sc->sc_mtx);
+	ATHN_LOCK(sc);
 	athn_usb_free_rx_list(usc);
 	athn_usb_free_tx_list(usc);
 	athn_usb_free_tx_cmd(usc);
-	mtx_unlock(&sc->sc_mtx);
+	ATHN_UNLOCK(sc);
 }
 
 static int
@@ -995,7 +995,7 @@ athn_if_intr_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 	int state = USB_GET_STATE(xfer);
 	char *state_str = state2Str(state);
 
-	mtx_assert(&(sc)->sc_mtx, MA_OWNED);
+	ATHN_ASSERT_LOCKED(sc);
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
@@ -1072,7 +1072,7 @@ athn_if_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 	int state = USB_GET_STATE(xfer);
 	char *state_str = state2Str(state);
 
-	mtx_assert(&(sc)->sc_mtx, MA_OWNED);
+	ATHN_ASSERT_LOCKED(sc);
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
@@ -1131,7 +1131,7 @@ athn_if_bulk_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct athn_usb_data *data;
 
-	mtx_assert(&(sc)->sc_mtx, MA_OWNED);
+	ATHN_ASSERT_LOCKED(sc);
 
 	int actlen;
 	int state = USB_GET_STATE(xfer);
@@ -1249,7 +1249,7 @@ athn_usb_verify_fw(struct athn_usb_softc *usc)
 	struct athn_softc *sc = &usc->sc_sc;
 	struct athn_usb_data *data;
 
-	mtx_lock(&usc->sc_sc.sc_mtx);
+	ATHN_LOCK(sc);
 
 	data = STAILQ_FIRST(&usc->sc_cmd_inactive);
 	if (data == NULL) {
@@ -1272,7 +1272,7 @@ athn_usb_htc_msg(struct athn_usb_softc *usc, uint16_t msg_id, void *buf,
 
 	device_printf(sc->sc_dev, "%s: message id: %d\n",  __func__, msg_id);
 
-	mtx_assert(&(sc)->sc_mtx, MA_OWNED);
+	ATHN_ASSERT_LOCKED(sc);
 
 	cmd = STAILQ_FIRST(&usc->sc_cmd_inactive);
 	if (cmd == NULL) {
@@ -1353,7 +1353,7 @@ athn_usb_htc_setup(struct athn_usb_softc *usc)
 	cfg.pipe_id = UE_GET_ADDR(AR_PIPE_TX_DATA);
 	cfg.credits = (usc->flags & ATHN_USB_FLAG_AR7010) ? 45 : 33;
 
-	mtx_lock(&usc->sc_sc.sc_mtx);
+	ATHN_LOCK(&usc->sc_sc);
 
 	usc->wait_msg_id = AR_HTC_MSG_CONF_PIPE_RSP;
 	error = athn_usb_htc_msg(usc, AR_HTC_MSG_CONF_PIPE, &cfg, sizeof(cfg));
@@ -1362,7 +1362,7 @@ athn_usb_htc_setup(struct athn_usb_softc *usc)
 					   hz);
 	usc->wait_msg_id = 0;
 
-	mtx_unlock(&usc->sc_sc.sc_mtx);
+	ATHN_UNLOCK(&usc->sc_sc);
 
 	if (error != 0) {
 		printf("%s: could not configure pipe\n",
@@ -1370,7 +1370,7 @@ athn_usb_htc_setup(struct athn_usb_softc *usc)
 		return (error);
 	}
 
-	mtx_lock(&usc->sc_sc.sc_mtx);
+	ATHN_LOCK(&usc->sc_sc);
 
 	error = athn_usb_htc_msg(usc, AR_HTC_MSG_SETUP_COMPLETE, NULL, 0);
 	if (error != 0) {
@@ -1379,7 +1379,7 @@ athn_usb_htc_setup(struct athn_usb_softc *usc)
 		return (error);
 	}
 
-	mtx_unlock(&usc->sc_sc.sc_mtx);
+	ATHN_UNLOCK(&usc->sc_sc);
 
 	return (0);
 }
@@ -1401,7 +1401,7 @@ athn_usb_htc_connect_svc(struct athn_usb_softc *usc, uint16_t svc_id,
 	msg.ul_pipeid = UE_GET_ADDR(ul_pipe);
 	usc->msg_conn_svc_rsp = &rsp;
 
-	mtx_lock(&usc->sc_sc.sc_mtx);
+	ATHN_LOCK(&usc->sc_sc);
 
 	usc->wait_msg_id = AR_HTC_MSG_CONN_SVC_RSP;
 	error = athn_usb_htc_msg(usc, AR_HTC_MSG_CONN_SVC, &msg, sizeof(msg));
@@ -1410,7 +1410,7 @@ athn_usb_htc_connect_svc(struct athn_usb_softc *usc, uint16_t svc_id,
 		error = msleep(&usc->wait_msg_id, &usc->sc_sc.sc_mtx, PCATCH, "athnhtc", hz * 2);
 	usc->wait_msg_id = 0;
 
-	mtx_unlock(&usc->sc_sc.sc_mtx);
+	ATHN_UNLOCK(&usc->sc_sc);
 
 	if (error != 0) {
 		device_printf(sc->sc_dev, "%s: error waiting for service %d connection "
@@ -1443,7 +1443,7 @@ athn_usb_wmi_xcmd(struct athn_usb_softc *usc, uint16_t cmd_id, void *ibuf,
 
 	device_printf(sc->sc_dev, "%s: called \n", __func__);
 
-	mtx_assert(&(sc)->sc_mtx, MA_OWNED);
+	ATHN_ASSERT_LOCKED(sc);
 
 	data = STAILQ_FIRST(&usc->sc_cmd_inactive);
 	if (data == NULL) {
@@ -1639,7 +1639,7 @@ athn_usb_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate,
 	timeout_del(&sc->calib_to);
 #endif
 	IEEE80211_UNLOCK(ic);
-	mtx_lock(&sc->sc_mtx);
+	ATHN_LOCK(sc);
 	ostate = vap->iv_state;
 
 	if (ostate == IEEE80211_S_RUN && ic->ic_opmode == IEEE80211_M_STA) {
@@ -1722,7 +1722,7 @@ athn_usb_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate,
 	return sc->sc_newstate(ic, state, arg);
 	splx(s);
 	#endif
-	mtx_unlock(&sc->sc_mtx);
+	ATHN_UNLOCK(sc);
 	IEEE80211_LOCK(ic);
 	return (uvp->newstate(vap, nstate, arg));
 }
@@ -2810,7 +2810,7 @@ athn_usb_txeof(struct usb_xfer *xfer, struct athn_usb_data* data)
 
 	device_printf(sc->sc_dev, "%s: called; data=%p\n", __func__, data);
 
-	mtx_assert(&sc->sc_mtx, MA_OWNED);
+	ATHN_ASSERT_LOCKED(sc);
 
 	if (usc->sc_tx_n_active == 0) {
 		device_printf(sc->sc_dev,
