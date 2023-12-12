@@ -4363,13 +4363,13 @@ netinet/tcp_pcap.c		optional inet tcppcap | inet6 tcppcap \
 	compile-with "${NORMAL_C} ${NO_WNONNULL}"
 netinet/tcp_reass.c		optional inet | inet6
 netinet/tcp_sack.c		optional inet | inet6
-netinet/tcp_stacks/bbr.c	optional inet tcp_bbr | inet6 tcp_bbr \
+netinet/tcp_stacks/bbr.c	optional inet tcphpts tcp_bbr | inet6 tcphpts tcp_bbr \
 	compile-with "${NORMAL_C} -DMODNAME=tcp_bbr -DSTACKNAME=bbr"
-netinet/tcp_stacks/rack.c	optional inet tcp_rack | inet6 tcp_rack \
+netinet/tcp_stacks/rack.c	optional inet tcphpts tcp_rack | inet6 tcphpts tcp_rack \
 	compile-with "${NORMAL_C} -DMODNAME=tcp_rack -DSTACKNAME=rack"
-netinet/tcp_stacks/rack_bbr_common.c	optional inet tcp_bbr | inet tcp_rack | inet6 tcp_bbr | inet6 tcp_rack
-netinet/tcp_stacks/sack_filter.c	optional inet tcp_bbr | inet tcp_rack | inet6 tcp_bbr | inet6 tcp_rack
-netinet/tcp_stacks/tailq_hash.c	optional inet tcp_bbr | inet tcp_rack | inet6 tcp_bbr | inet6 tcp_rack
+netinet/tcp_stacks/rack_bbr_common.c	optional inet tcphpts tcp_bbr | inet tcphpts tcp_rack | inet6 tcphpts tcp_bbr | inet6 tcphpts tcp_rack
+netinet/tcp_stacks/sack_filter.c	optional inet tcphpts tcp_bbr | inet tcphpts tcp_rack | inet6 tcphpts tcp_bbr | inet6 tcphpts tcp_rack
+netinet/tcp_stacks/tailq_hash.c	optional inet tcphpts tcp_bbr | inet tcphpts tcp_rack | inet6 tcphpts tcp_bbr | inet6 tcphpts tcp_rack
 netinet/tcp_stats.c		optional stats inet | stats inet6
 netinet/tcp_subr.c		optional inet | inet6
 netinet/tcp_syncache.c		optional inet | inet6
