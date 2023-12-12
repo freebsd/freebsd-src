@@ -33,7 +33,6 @@
 
 #include <stand.h>
 
-#define FREEBSD_ELF
 #include <sys/link_elf.h>
 
 #include "bootstrap.h"
