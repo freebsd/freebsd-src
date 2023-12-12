@@ -413,7 +413,7 @@ ocs_target_io_cb(ocs_hw_io_t *hio, ocs_remote_node_t *rnode, uint32_t length,
 			}
 			break;
 
-		case SLI4_FC_WCQE_STATUS_TARGET_WQE_TIMEOUT:
+		case SLI4_FC_WCQE_STATUS_WQE_TIMEOUT:
 			/* target IO timed out */
 			scsi_status = OCS_SCSI_STATUS_TIMEDOUT_AND_ABORTED;
 			break;
@@ -2208,6 +2208,10 @@ ocs_initiator_io_cb(ocs_hw_io_t *hio, ocs_remote_node_t *rnode, uint32_t length,
 			} else {
 				scsi_status = OCS_SCSI_STATUS_ERROR;
 			}
+			break;
+		case SLI4_FC_WCQE_STATUS_WQE_TIMEOUT:
+			/* IO timed out */
+			scsi_status = OCS_SCSI_STATUS_TIMEDOUT_AND_ABORTED;
 			break;
 		case SLI4_FC_WCQE_STATUS_DI_ERROR:
 			if (ext_status & 0x01) {
