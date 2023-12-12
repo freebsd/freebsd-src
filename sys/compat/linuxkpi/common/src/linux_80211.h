@@ -100,6 +100,7 @@ struct lkpi_radiotap_rx_hdr {
 struct lkpi_txq {
 	TAILQ_ENTRY(lkpi_txq)	txq_entry;
 
+	struct mtx		ltxq_mtx;
 	bool			seen_dequeue;
 	bool			stopped;
 	uint32_t		txq_generation;
@@ -175,6 +176,7 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 
 	struct sx			sx;
 
+	struct mtx			txq_mtx;
 	uint32_t			txq_generation[IEEE80211_NUM_ACS];
 	TAILQ_HEAD(, lkpi_txq)		scheduled_txqs[IEEE80211_NUM_ACS];
 
@@ -247,12 +249,25 @@ struct lkpi_wiphy {
     mtx_destroy(&(_lhw)->scan_mtx);
 #define	LKPI_80211_LHW_SCAN_LOCK(_lhw)			\
     mtx_lock(&(_lhw)->scan_mtx)
-#define	LKPI_80211_LHW_SCAN_UNLOCK(_lhw)        	\
+#define	LKPI_80211_LHW_SCAN_UNLOCK(_lhw)		\
     mtx_unlock(&(_lhw)->scan_mtx)
 #define	LKPI_80211_LHW_SCAN_LOCK_ASSERT(_lhw)		\
     mtx_assert(&(_lhw)->scan_mtx, MA_OWNED)
 #define	LKPI_80211_LHW_SCAN_UNLOCK_ASSERT(_lhw)		\
     mtx_assert(&(_lhw)->scan_mtx, MA_NOTOWNED)
+
+#define	LKPI_80211_LHW_TXQ_LOCK_INIT(_lhw)		\
+    mtx_init(&(_lhw)->txq_mtx, "lhw-txq", NULL, MTX_DEF | MTX_RECURSE);
+#define	LKPI_80211_LHW_TXQ_LOCK_DESTROY(_lhw)		\
+    mtx_destroy(&(_lhw)->txq_mtx);
+#define	LKPI_80211_LHW_TXQ_LOCK(_lhw)			\
+    mtx_lock(&(_lhw)->txq_mtx)
+#define	LKPI_80211_LHW_TXQ_UNLOCK(_lhw)			\
+    mtx_unlock(&(_lhw)->txq_mtx)
+#define	LKPI_80211_LHW_TXQ_LOCK_ASSERT(_lhw)		\
+    mtx_assert(&(_lhw)->txq_mtx, MA_OWNED)
+#define	LKPI_80211_LHW_TXQ_UNLOCK_ASSERT(_lhw)		\
+    mtx_assert(&(_lhw)->txq_mtx, MA_NOTOWNED)
 
 #define	LKPI_80211_LHW_LVIF_LOCK(_lhw)	sx_xlock(&(_lhw)->lvif_sx)
 #define	LKPI_80211_LHW_LVIF_UNLOCK(_lhw) sx_xunlock(&(_lhw)->lvif_sx)
@@ -263,6 +278,18 @@ struct lkpi_wiphy {
 #define	LKPI_80211_LSTA_LOCK(_lsta)	mtx_lock(&(_lsta)->txq_mtx)
 #define	LKPI_80211_LSTA_UNLOCK(_lsta)	mtx_unlock(&(_lsta)->txq_mtx)
 
+#define	LKPI_80211_LTXQ_LOCK_INIT(_ltxq)		\
+    mtx_init(&(_ltxq)->ltxq_mtx, "ltxq", NULL, MTX_DEF);
+#define	LKPI_80211_LTXQ_LOCK_DESTROY(_ltxq)		\
+    mtx_destroy(&(_ltxq)->ltxq_mtx);
+#define	LKPI_80211_LTXQ_LOCK(_ltxq)			\
+    mtx_lock(&(_ltxq)->ltxq_mtx)
+#define	LKPI_80211_LTXQ_UNLOCK(_ltxq)			\
+    mtx_unlock(&(_ltxq)->ltxq_mtx)
+#define	LKPI_80211_LTXQ_LOCK_ASSERT(_ltxq)		\
+    mtx_assert(&(_ltxq)->ltxq_mtx, MA_OWNED)
+#define	LKPI_80211_LTXQ_UNLOCK_ASSERT(_ltxq)		\
+    mtx_assert(&(_ltxq)->ltxq_mtx, MA_NOTOWNED)
 
 int lkpi_80211_mo_start(struct ieee80211_hw *);
 void lkpi_80211_mo_stop(struct ieee80211_hw *);

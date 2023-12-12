@@ -249,6 +249,7 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 		ltxq->txq.sta = sta;
 		TAILQ_ELEM_INIT(ltxq, txq_entry);
 		skb_queue_head_init(&ltxq->skbq);
+		LKPI_80211_LTXQ_LOCK_INIT(ltxq);
 		sta->txq[tid] = &ltxq->txq;
 	}
 
@@ -286,8 +287,13 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 	return (lsta);
 
 cleanup:
-	for (; tid >= 0; tid--)
+	for (; tid >= 0; tid--) {
+		struct lkpi_txq *ltxq;
+
+		ltxq = TXQ_TO_LTXQ(sta->txq[tid]);
+		LKPI_80211_LTXQ_LOCK_DESTROY(ltxq);
 		free(sta->txq[tid], M_LKPI80211);
+	}
 	free(lsta, M_LKPI80211);
 	return (NULL);
 }
@@ -881,6 +887,7 @@ lkpi_wake_tx_queues(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 {
 	struct lkpi_txq *ltxq;
 	int tid;
+	bool ltxq_empty;
 
 	/* Wake up all queues to know they are allocated in the driver. */
 	for (tid = 0; tid < nitems(sta->txq); tid++) {
@@ -899,7 +906,10 @@ lkpi_wake_tx_queues(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		if (dequeue_seen && !ltxq->seen_dequeue)
 			continue;
 
-		if (no_emptyq && skb_queue_empty(&ltxq->skbq))
+		LKPI_80211_LTXQ_LOCK(ltxq);
+		ltxq_empty = skb_queue_empty(&ltxq->skbq);
+		LKPI_80211_LTXQ_UNLOCK(ltxq);
+		if (no_emptyq && ltxq_empty)
 			continue;
 
 		lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid]);
@@ -3395,6 +3405,7 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 		KASSERT(ltxq != NULL, ("%s: lsta %p sta %p m %p skb %p "
 		    "ltxq %p != NULL\n", __func__, lsta, sta, m, skb, ltxq));
 
+		LKPI_80211_LTXQ_LOCK(ltxq);
 		skb_queue_tail(&ltxq->skbq, skb);
 #ifdef LINUXKPI_DEBUG_80211
 		if (linuxkpi_debug_80211 & D80211_TRACE_TX)
@@ -3407,6 +3418,7 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 			    skb_queue_len(&ltxq->skbq), ltxq->txq.ac,
 			    ltxq->txq.tid, ac, skb->priority, skb->qmap);
 #endif
+		LKPI_80211_LTXQ_UNLOCK(ltxq);
 		lkpi_80211_mo_wake_tx_queue(hw, &ltxq->txq);
 		return;
 	}
@@ -3645,6 +3657,7 @@ linuxkpi_ieee80211_alloc_hw(size_t priv_len, const struct ieee80211_ops *ops)
 
 	LKPI_80211_LHW_LOCK_INIT(lhw);
 	LKPI_80211_LHW_SCAN_LOCK_INIT(lhw);
+	LKPI_80211_LHW_TXQ_LOCK_INIT(lhw);
 	sx_init_flags(&lhw->lvif_sx, "lhw-lvif", SX_RECURSE | SX_DUPOK);
 	TAILQ_INIT(&lhw->lvif_head);
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
@@ -3683,9 +3696,10 @@ linuxkpi_ieee80211_iffree(struct ieee80211_hw *hw)
 	lhw->ic = NULL;
 
 	/* Cleanup more of lhw here or in wiphy_free()? */
-	sx_destroy(&lhw->lvif_sx);
-	LKPI_80211_LHW_LOCK_DESTROY(lhw);
+	LKPI_80211_LHW_TXQ_LOCK_DESTROY(lhw);
 	LKPI_80211_LHW_SCAN_LOCK_DESTROY(lhw);
+	LKPI_80211_LHW_LOCK_DESTROY(lhw);
+	sx_destroy(&lhw->lvif_sx);
 	IMPROVE();
 }
 
@@ -4564,7 +4578,11 @@ linuxkpi_ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 		goto stopped;
 	}
 
+	IMPROVE("hw(TX_FRAG_LIST)");
+
+	LKPI_80211_LTXQ_LOCK(ltxq);
 	skb = skb_dequeue(&ltxq->skbq);
+	LKPI_80211_LTXQ_UNLOCK(ltxq);
 
 stopped:
 	return (skb);
@@ -4581,10 +4599,12 @@ linuxkpi_ieee80211_txq_get_depth(struct ieee80211_txq *txq,
 	ltxq = TXQ_TO_LTXQ(txq);
 
 	fc = bc = 0;
+	LKPI_80211_LTXQ_LOCK(ltxq);
 	skb_queue_walk(&ltxq->skbq, skb) {
 		fc++;
 		bc += skb->len;
 	}
+	LKPI_80211_LTXQ_UNLOCK(ltxq);
 	if (frame_cnt)
 		*frame_cnt = fc;
 	if (byte_cnt)
@@ -5137,13 +5157,17 @@ void linuxkpi_ieee80211_schedule_txq(struct ieee80211_hw *hw,
 {
 	struct lkpi_hw *lhw;
 	struct lkpi_txq *ltxq;
+	bool ltxq_empty;
 
 	ltxq = TXQ_TO_LTXQ(txq);
 
 	IMPROVE_TXQ("LOCKING");
 
 	/* Only schedule if work to do or asked to anyway. */
-	if (!withoutpkts && skb_queue_empty(&ltxq->skbq))
+	LKPI_80211_LTXQ_LOCK(ltxq);
+	ltxq_empty = skb_queue_empty(&ltxq->skbq);
+	LKPI_80211_LTXQ_UNLOCK(ltxq);
+	if (!withoutpkts && ltxq_empty)
 		goto out;
 
 	/* Make sure we do not double-schedule. */
@@ -5154,6 +5178,39 @@ void linuxkpi_ieee80211_schedule_txq(struct ieee80211_hw *hw,
 	TAILQ_INSERT_TAIL(&lhw->scheduled_txqs[txq->ac], ltxq, txq_entry);
 out:
 	return;
+}
+
+void
+linuxkpi_ieee80211_handle_wake_tx_queue(struct ieee80211_hw *hw,
+    struct ieee80211_txq *txq)
+{
+	struct lkpi_hw *lhw;
+	struct ieee80211_txq *ntxq;
+	struct ieee80211_tx_control control;
+        struct sk_buff *skb;
+
+	lhw = HW_TO_LHW(hw);
+
+	LKPI_80211_LHW_TXQ_LOCK(lhw);
+	ieee80211_txq_schedule_start(hw, txq->ac);
+	do {
+		ntxq = ieee80211_next_txq(hw, txq->ac);
+		if (ntxq == NULL)
+			break;
+
+		memset(&control, 0, sizeof(control));
+		control.sta = ntxq->sta;
+		do {
+			skb = linuxkpi_ieee80211_tx_dequeue(hw, ntxq);
+			if (skb == NULL)
+				break;
+			lkpi_80211_mo_tx(hw, &control, skb);
+		} while(1);
+
+		ieee80211_return_txq(hw, ntxq, false);
+	} while (1);
+	ieee80211_txq_schedule_end(hw, txq->ac);
+	LKPI_80211_LHW_TXQ_UNLOCK(lhw);
 }
 
 /* -------------------------------------------------------------------------- */
