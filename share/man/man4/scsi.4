@@ -190,25 +190,25 @@ Individual
 bus numbers can be wired down to specific controllers with
 a config line similar to the following:
 .Bd -literal -offset indent
-hint.scbus.0.at="ahd1"
+hint.scbus.0.at="mpr1"
 .Ed
 .Pp
 This assigns
 .Nm
 bus number 0 to the
-.Em ahd1
+.Em mpr1
 driver instance.
 For controllers supporting more than one bus, a particular bus can be assigned
 as follows:
 .Bd -literal -offset indent
-hint.scbus.0.at="ahc1"
+hint.scbus.0.at="ahci1"
 hint.scbus.0.bus="1"
 .Ed
 .Pp
 This assigns
 .Nm
 bus 0 to the bus 1 instance on
-.Em ahc1 .
+.Em ahci1 .
 Peripheral drivers can be wired to a specific bus, target, and lun as so:
 .Bd -literal -offset indent
 hint.da.0.at="scbus0"
@@ -279,7 +279,7 @@ or
 bus and the system.
 The maximum size of a transfer is governed by the
 adapter.
-Most adapters can transfer 64KB in a single operation, however
+Most adapters can transfer 1MB in a single operation, however
 many can transfer larger amounts.
 .Sh TARGET MODE
 Some adapters support
