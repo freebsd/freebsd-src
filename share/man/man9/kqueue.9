@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 20, 2022
+.Dd December 18, 2023
 .Dt KQUEUE 9
 .Os
 .Sh NAME
@@ -333,16 +333,6 @@ The
 function will be called when the
 .Vt knote
 is deleted during the next scan.
-This function must not be used when
-.Va f_isfd
-is set in
-.Vt "struct filterops" ,
-as the
-.Fa td
-argument of
-.Fn fdrop
-will be
-.Dv NULL .
 .Pp
 The function
 .Fn knlist_delete
