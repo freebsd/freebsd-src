@@ -30,11 +30,11 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <machine/elf.h>
+#include <sys/endian.h>
 
 #include <err.h>
 #include <errno.h>
+#include <gelf.h>
 
 #include "ef.h"
 
@@ -43,55 +43,78 @@
  * target relocation address of the section, and `dataoff' is the target
  * relocation address of the data in `dest'.
  */
-int
-ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
-    Elf_Off dataoff, size_t len, void *dest)
+static int
+ef_mips_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
+    GElf_Addr relbase, GElf_Addr dataoff, size_t len, void *dest)
 {
-	Elf_Addr *where, val;
-	const Elf_Rel *rel;
-	const Elf_Rela *rela;
-	Elf_Addr addend, addr;
-	Elf_Size rtype, symidx;
+	char *where;
+	GElf_Addr val;
+	const GElf_Rel *rel;
+	const GElf_Rela *rela;
+	GElf_Addr addend, addr;
+	GElf_Size rtype, symidx;
 
 	switch (reltype) {
-	case EF_RELOC_REL:
-		rel = (const Elf_Rel *)reldata;
-		where = (Elf_Addr *)((char *)dest + relbase + rel->r_offset -
-		    dataoff);
+	case ELF_T_REL:
+		rel = (const GElf_Rel *)reldata;
+		where = (char *)dest + relbase + rel->r_offset - dataoff;
 		addend = 0;
-		rtype = ELF_R_TYPE(rel->r_info);
-		symidx = ELF_R_SYM(rel->r_info);
+		rtype = GELF_R_TYPE(rel->r_info);
+		symidx = GELF_R_SYM(rel->r_info);
 		break;
-	case EF_RELOC_RELA:
-		rela = (const Elf_Rela *)reldata;
-		where = (Elf_Addr *)((char *)dest + relbase + rela->r_offset -
-		    dataoff);
+	case ELF_T_RELA:
+		rela = (const GElf_Rela *)reldata;
+		where = (char *)dest + relbase + rela->r_offset - dataoff;
 		addend = rela->r_addend;
-		rtype = ELF_R_TYPE(rela->r_info);
-		symidx = ELF_R_SYM(rela->r_info);
+		rtype = GELF_R_TYPE(rela->r_info);
+		symidx = GELF_R_SYM(rela->r_info);
 		break;
 	default:
 		return (EINVAL);
 	}
 
-	if ((char *)where < (char *)dest || (char *)where >= (char *)dest + len)
+	if (where < (char *)dest || where >= (char *)dest + len)
 		return (0);
 
-	if (reltype == EF_RELOC_REL)
+	if (reltype == ELF_T_REL) {
+		if (elf_class(ef) == ELFCLASS64) {
+			if (elf_encoding(ef) == ELFDATA2LSB)
+				addend = le64dec(where);
+			else
+				addend = be64dec(where);
+		} else {
+			if (elf_encoding(ef) == ELFDATA2LSB)
+				addend = le32dec(where);
+			else
+				addend = be32dec(where);
+		}
 		addend = *where;
+	}
 
 	switch (rtype) {
-#ifdef __LP64__
 	case R_MIPS_64:		/* S + A */
-#else
-	case R_MIPS_32:		/* S + A */
-#endif
 		addr = EF_SYMADDR(ef, symidx);
 		val = addr + addend;
-		*where = val;
+		if (elf_encoding(ef) == ELFDATA2LSB)
+			le64enc(where, val);
+		else
+			be64enc(where, val);
+		break;
+	case R_MIPS_32:		/* S + A */
+		addr = EF_SYMADDR(ef, symidx);
+		val = addr + addend;
+		if (elf_encoding(ef) == ELFDATA2LSB)
+			le32enc(where, val);
+		else
+			be32enc(where, val);
 		break;
 	default:
 		warnx("unhandled relocation type %d", (int)rtype);
 	}
 	return (0);
 }
+
+ELF_RELOC(ELFCLASS32, ELFDATA2LSB, EM_MIPS, ef_mips_reloc);
+ELF_RELOC(ELFCLASS32, ELFDATA2MSB, EM_MIPS, ef_mips_reloc);
+ELF_RELOC(ELFCLASS64, ELFDATA2LSB, EM_MIPS, ef_mips_reloc);
+ELF_RELOC(ELFCLASS64, ELFDATA2MSB, EM_MIPS, ef_mips_reloc);
