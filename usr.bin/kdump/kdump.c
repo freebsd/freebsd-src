@@ -880,7 +880,8 @@ ktrsyscall_freebsd(struct ktr_syscall *ktr, register_t **resip,
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				putchar(',');
-				print_mask_arg(sysdecode_close_range_flags, *ip);
+				print_mask_arg0(sysdecode_close_range_flags,
+				    *ip);
 				ip += 3;
 				narg -= 3;
 				break;
@@ -946,14 +947,14 @@ ktrsyscall_freebsd(struct ktr_syscall *ktr, register_t **resip,
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				putchar(',');
-				print_mask_arg(sysdecode_mount_flags, *ip);
+				print_mask_arg0(sysdecode_mount_flags, *ip);
 				ip++;
 				narg--;
 				break;
 			case SYS_unmount:
 				print_number(ip, narg, c);
 				putchar(',');
-				print_mask_arg(sysdecode_mount_flags, *ip);
+				print_mask_arg0(sysdecode_mount_flags, *ip);
 				ip++;
 				narg--;
 				break;
@@ -1411,7 +1412,7 @@ ktrsyscall_freebsd(struct ktr_syscall *ktr, register_t **resip,
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				putchar(',');
-				print_mask_arg(sysdecode_mount_flags, *ip);
+				print_mask_arg0(sysdecode_mount_flags, *ip);
 				ip++;
 				narg--;
 				break;
