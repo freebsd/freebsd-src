@@ -31,7 +31,7 @@
 .\"
 .\"	@(#)cp.1	8.3 (Berkeley) 4/18/94
 .\"
-.Dd December 7, 2023
+.Dd December 14, 2023
 .Dt CP 1
 .Os
 .Sh NAME
@@ -90,10 +90,6 @@ option is specified, symbolic links on the command line are followed.
 If the
 .Fl R
 option is specified, all symbolic links are followed.
-.It Fl N
-When used with
-.Fl p ,
-suppress copying file flags.
 .It Fl P
 No symbolic links are followed.
 This is the default if the
@@ -161,6 +157,10 @@ or
 options.)
 .It Fl l
 Create hard links to regular files in a hierarchy instead of copying.
+.It Fl N
+When used with
+.Fl p ,
+suppress copying file flags.
 .It Fl n
 Do not overwrite an existing file.
 (The

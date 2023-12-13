@@ -68,6 +68,11 @@ static char sccsid[] = "@(#)utils.c	8.3 (Berkeley) 4/1/94";
  */
 #define BUFSIZE_SMALL (MAXPHYS)
 
+/*
+ * Prompt used in -i case.
+ */
+#define YESNO "(y/n [n]) "
+
 static ssize_t
 copy_fallback(int from_fd, int to_fd)
 {
@@ -125,7 +130,6 @@ copy_file(const FTSENT *entp, int dne)
 	 * modified by the umask.)
 	 */
 	if (!dne) {
-#define YESNO "(y/n [n]) "
 		if (nflag) {
 			if (vflag)
 				printf("%s not overwritten\n", to.p_path);
@@ -145,70 +149,69 @@ copy_file(const FTSENT *entp, int dne)
 		}
 
 		if (fflag) {
-			/*
-			 * Remove existing destination file name create a new
-			 * file.
-			 */
+			/* remove existing destination file */
 			(void)unlink(to.p_path);
-			if (!lflag && !sflag) {
-				to_fd = open(to.p_path,
-				    O_WRONLY | O_TRUNC | O_CREAT,
-				    fs->st_mode & ~(S_ISUID | S_ISGID));
-			}
-		} else if (!lflag && !sflag) {
-			/* Overwrite existing destination file name. */
-			to_fd = open(to.p_path, O_WRONLY | O_TRUNC, 0);
+			dne = 1;
 		}
-	} else if (!lflag && !sflag) {
+	}
+
+	rval = 0;
+
+	if (lflag) {
+		if (link(entp->fts_path, to.p_path) != 0) {
+			warn("%s", to.p_path);
+			rval = 1;
+		}
+		goto done;
+	}
+
+	if (sflag) {
+		if (symlink(entp->fts_path, to.p_path) != 0) {
+			warn("%s", to.p_path);
+			rval = 1;
+		}
+		goto done;
+	}
+
+	if (!dne) {
+		/* overwrite existing destination file */
+		to_fd = open(to.p_path, O_WRONLY | O_TRUNC, 0);
+	} else {
+		/* create new destination file */
 		to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
 		    fs->st_mode & ~(S_ISUID | S_ISGID));
 	}
-
-	if (!lflag && !sflag && to_fd == -1) {
+	if (to_fd == -1) {
 		warn("%s", to.p_path);
 		rval = 1;
 		goto done;
 	}
 
-	rval = 0;
-
-	if (!lflag && !sflag) {
-		wtotal = 0;
-		do {
-			if (use_copy_file_range) {
-				wcount = copy_file_range(from_fd, NULL,
-				    to_fd, NULL, SSIZE_MAX, 0);
-				if (wcount < 0 && errno == EINVAL) {
-					/* Prob a non-seekable FD */
-					use_copy_file_range = 0;
-				}
+	wtotal = 0;
+	do {
+		if (use_copy_file_range) {
+			wcount = copy_file_range(from_fd, NULL,
+			    to_fd, NULL, SSIZE_MAX, 0);
+			if (wcount < 0 && errno == EINVAL) {
+				/* probably a non-seekable descriptor */
+				use_copy_file_range = 0;
 			}
-			if (!use_copy_file_range) {
-				wcount = copy_fallback(from_fd, to_fd);
-			}
-			wtotal += wcount;
-			if (info) {
-				info = 0;
-				(void)fprintf(stderr,
-				    "%s -> %s %3d%%\n",
-				    entp->fts_path, to.p_path,
-				    cp_pct(wtotal, fs->st_size));
-			}
-		} while (wcount > 0);
-		if (wcount < 0) {
-			warn("%s", entp->fts_path);
-			rval = 1;
 		}
-	} else if (lflag) {
-		if (link(entp->fts_path, to.p_path)) {
-			warn("%s", to.p_path);
-			rval = 1;
+		if (!use_copy_file_range) {
+			wcount = copy_fallback(from_fd, to_fd);
 		}
-	} else if (sflag) {
-		if (symlink(entp->fts_path, to.p_path)) {
-			warn("%s", to.p_path);
-			rval = 1;
+		wtotal += wcount;
+		if (info) {
+			info = 0;
+			(void)fprintf(stderr,
+			    "%s -> %s %3d%%\n",
+			    entp->fts_path, to.p_path,
+			    cp_pct(wtotal, fs->st_size));
 		}
+	} while (wcount > 0);
+	if (wcount < 0) {
+		warn("%s", entp->fts_path);
+		rval = 1;
 	}
 
 	/*
@@ -217,16 +220,13 @@ copy_file(const FTSENT *entp, int dne)
 	 * or its contents might be irreplaceable.  It would only be safe
 	 * to remove it if we created it and its length is 0.
 	 */
-
-	if (!lflag && !sflag) {
-		if (pflag && setfile(fs, to_fd))
-			rval = 1;
-		if (pflag && preserve_fd_acls(from_fd, to_fd) != 0)
-			rval = 1;
-		if (close(to_fd)) {
-			warn("%s", to.p_path);
-			rval = 1;
-		}
+	if (pflag && setfile(fs, to_fd))
+		rval = 1;
+	if (pflag && preserve_fd_acls(from_fd, to_fd) != 0)
+		rval = 1;
+	if (close(to_fd)) {
+		warn("%s", to.p_path);
+		rval = 1;
 	}
 
 done:
