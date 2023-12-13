@@ -329,7 +329,7 @@ out:
 }
 
 int
-elf_read_dynamic(struct elf_file *efile, int section_index, long *ndynp,
+elf_read_dynamic(struct elf_file *efile, int section_index, size_t *ndynp,
     GElf_Dyn **dynp)
 {
 	GElf_Shdr shdr;
@@ -365,14 +365,14 @@ elf_read_dynamic(struct elf_file *efile, int section_index, long *ndynp,
 }
 
 int
-elf_read_symbols(struct elf_file *efile, int section_index, long *nsymp,
+elf_read_symbols(struct elf_file *efile, int section_index, size_t *nsymp,
     GElf_Sym **symp)
 {
 	GElf_Shdr shdr;
 	Elf_Scn *scn;
 	Elf_Data *data;
 	GElf_Sym *sym;
-	long i, nsym;
+	size_t i, nsym;
 
 	scn = elf_getscn(efile->ef_elf, section_index);
 	if (scn == NULL)
