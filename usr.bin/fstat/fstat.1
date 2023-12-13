@@ -312,7 +312,7 @@ $ fstat . | awk 'NR > 1 {printf "%d%s(%s) ", $3, $4, $1;}'
 2133wd(alice) 2132wd(alice) 1991wd(alice)
 .Ed
 .Pp
-Create a list of processes sorted by number of opened files in desdencing order:
+Create a list of processes sorted by number of opened files in descending order:
 .Bd -literal -offset indent
 $ fstat | awk 'NR > 1 {print $2;}' | sort | uniq -c | sort -r
  728 firefox
