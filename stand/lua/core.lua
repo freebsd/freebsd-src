@@ -201,17 +201,18 @@ function core.kernelList()
 		return core.cached_kernels
 	end
 
-	local k = loader.getenv("kernel")
+	local default_kernel = loader.getenv("kernel")
 	local v = loader.getenv("kernels")
 	local autodetect = loader.getenv("kernels_autodetect") or ""
 
 	local kernels = {}
 	local unique = {}
 	local i = 0
-	if k ~= nil then
+
+	if default_kernel then
 		i = i + 1
-		kernels[i] = k
-		unique[k] = true
+		kernels[i] = default_kernel
+		unique[default_kernel] = true
 	end
 
 	if v ~= nil then
@@ -238,6 +239,8 @@ function core.kernelList()
 		core.cached_kernels = kernels
 		return core.cached_kernels
 	end
+
+	local present = {}
 
 	-- Automatically detect other bootable kernel directories using a
 	-- heuristic.  Any directory in /boot that contains an ordinary file
@@ -267,8 +270,25 @@ function core.kernelList()
 			unique[file] = true
 		end
 
+		present[file] = true
+
 		::continue::
 	end
+
+	-- If we found more than one kernel, prune the "kernel" specified kernel
+	-- off of the list if it wasn't found during traversal.  If we didn't
+	-- actually find any kernels, we just assume that they know what they're
+	-- doing and leave it alone.
+	if default_kernel and not present[default_kernel] and #kernels > 1 then
+		for i = 1, #kernels do
+			if i == #kernels then
+				kernels[i] = nil
+			else
+				kernels[i] = kernels[i + 1]
+			end
+		end
+	end
+
 	core.cached_kernels = kernels
 	return core.cached_kernels
 end
