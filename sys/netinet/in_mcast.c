@@ -1181,6 +1181,7 @@ inm_purge(struct in_multi *inm)
 		free(ims, M_IPMSOURCE);
 		inm->inm_nsrc--;
 	}
+	mbufq_drain(&inm->inm_scq);
 }
 
 /*
