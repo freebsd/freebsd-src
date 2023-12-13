@@ -208,6 +208,10 @@ SRCS+=	progname.c
 # Stub implementations of fflagstostr/strtofflags
 SRCS+=	fflags.c
 
+# macOS has a standalone cross-build implementation, but Linux can use the same
+# ELF one as FreeBSD
+SYSINCS+=	${SRCTOP}/sys/sys/linker_set.h
+
 .endif # ${MAKE.OS} == "Linux"
 
 .if ${.MAKE.OS} == "Darwin"
