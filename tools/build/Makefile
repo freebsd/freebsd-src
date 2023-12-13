@@ -295,6 +295,8 @@ SYSINCS+=	${SRCTOP}/sys/sys/elf.h
 SYSINCS+=	${SRCTOP}/sys/sys/ctf.h
 # for kbdcontrol:
 SYSINCS+=	${SRCTOP}/sys/sys/kbio.h
+# for kldxref:
+SYSINCS+=	${SRCTOP}/sys/sys/module.h
 
 # We want to run the build with only ${WORLDTMP} in $PATH to ensure we don't
 # accidentally run tools that are incompatible but happen to be in $PATH.
