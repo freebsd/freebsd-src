@@ -4875,7 +4875,8 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		s->state_flags |= PFSTATE_SLOPPY;
 	if (pd->flags & PFDESC_TCP_NORM) /* Set by old-style scrub rules */
 		s->state_flags |= PFSTATE_SCRUB_TCP;
-	if (r->rule_flag & PFRULE_PFLOW)
+	if ((r->rule_flag & PFRULE_PFLOW) ||
+	    (nr != NULL && nr->rule_flag & PFRULE_PFLOW))
 		s->state_flags |= PFSTATE_PFLOW;
 
 	s->act.log = pd->act.log & PF_LOG_ALL;
