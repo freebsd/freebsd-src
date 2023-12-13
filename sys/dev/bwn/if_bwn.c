@@ -808,8 +808,6 @@ bwn_attach_post(struct bwn_softc *sc)
 	/* call MI attach routine. */
 	ieee80211_ifattach(ic);
 
-	ic->ic_headroom = sizeof(struct bwn_txhdr);
-
 	/* override default methods */
 	ic->ic_raw_xmit = bwn_raw_xmit;
 	ic->ic_updateslot = bwn_updateslot;
