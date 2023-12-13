@@ -218,7 +218,7 @@ int	elf_read_shdrs(struct elf_file *efile, size_t *nshdrp,
  * Read the dynamic table from a section of an ELF file into a
  * dynamically-allocated array of GElf_Dyn objects.
  */
-int	elf_read_dynamic(struct elf_file *efile, int section_index, long *ndynp,
+int	elf_read_dynamic(struct elf_file *efile, int section_index, size_t *ndynp,
     GElf_Dyn **dynp);
 
 /*
@@ -226,7 +226,7 @@ int	elf_read_dynamic(struct elf_file *efile, int section_index, long *ndynp,
  * dynamically-allocated array of GElf_Sym objects.
  */
 int	elf_read_symbols(struct elf_file *efile, int section_index,
-    long *nsymp, GElf_Sym **symp);
+    size_t *nsymp, GElf_Sym **symp);
 
 /*
  * Read a string table described by a section header of an ELF file
