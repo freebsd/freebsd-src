@@ -82,7 +82,7 @@ struct ef_file {
 	int		nrel;
 
 	GElf_Sym	*ddbsymtab;	/* The symbol table we are using */
-	long		ddbsymcnt;	/* Number of symbols */
+	size_t		ddbsymcnt;	/* Number of symbols */
 	caddr_t		ddbstrtab;	/* String table */
 	long		ddbstrcnt;	/* number of bytes in string table */
 
@@ -155,7 +155,7 @@ ef_obj_symaddr(elf_file_t ef, GElf_Size symidx)
 {
 	const GElf_Sym *sym;
 
-	if (symidx >= (size_t)ef->ddbsymcnt)
+	if (symidx >= ef->ddbsymcnt)
 		return (0);
 	sym = ef->ddbsymtab + symidx;
 
