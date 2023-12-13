@@ -71,6 +71,35 @@ chrdev_body()
 	check_size trunc 0
 }
 
+atf_test_case hardlink
+hardlink_body()
+{
+	echo "foo" >foo
+	atf_check cp -l foo bar
+	atf_check -o inline:"foo\n" cat bar
+	atf_check_equal "$(stat -f%d,%i foo)" "$(stat -f%d,%i bar)"
+}
+
+atf_test_case hardlink_exists
+hardlink_exists_body()
+{
+	echo "foo" >foo
+	echo "bar" >bar
+	atf_check -s not-exit:0 -e match:exists cp -l foo bar
+	atf_check -o inline:"bar\n" cat bar
+	atf_check_not_equal "$(stat -f%d,%i foo)" "$(stat -f%d,%i bar)"
+}
+
+atf_test_case hardlink_exists_force
+hardlink_exists_force_body()
+{
+	echo "foo" >foo
+	echo "bar" >bar
+	atf_check cp -fl foo bar
+	atf_check -o inline:"foo\n" cat bar
+	atf_check_equal "$(stat -f%d,%i foo)" "$(stat -f%d,%i bar)"
+}
+
 atf_test_case matching_srctgt
 matching_srctgt_body()
 {
@@ -298,6 +327,9 @@ atf_init_test_cases()
 	atf_add_test_case basic
 	atf_add_test_case basic_symlink
 	atf_add_test_case chrdev
+	atf_add_test_case hardlink
+	atf_add_test_case hardlink_exists
+	atf_add_test_case hardlink_exists_force
 	atf_add_test_case matching_srctgt
 	atf_add_test_case matching_srctgt_contained
 	atf_add_test_case matching_srctgt_link
