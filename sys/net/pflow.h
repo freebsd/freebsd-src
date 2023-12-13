@@ -68,6 +68,14 @@
 #define PFIX_IE_destinationIPv6Address		 28
 #define PFIX_IE_flowStartMilliseconds		152
 #define PFIX_IE_flowEndMilliseconds		153
+#define PFIX_IE_postNATSourceIPv4Address	225
+#define PFIX_IE_postNATDestinationIPv4Address	226
+#define PFIX_IE_postNAPTSourceTransportPort	227
+#define PFIX_IE_postNAPTDestinationTransportPort	228
+#define PFIX_IE_natEvent			230
+#define PFIX_NAT_EVENT_SESSION_CREATE		4
+#define PFIX_NAT_EVENT_SESSION_DELETE		5
+#define PFIX_IE_timeStamp			323
 
 struct pflow_flow {
 	u_int32_t	src_ip;
@@ -148,10 +156,28 @@ struct pflow_ipfix_tmpl_ipv6 {
 #define PFLOW_IPFIX_TMPL_IPV6_ID 257
 } __packed;
 
+struct pflow_ipfix_tmpl_nat44 {
+	struct pflow_tmpl_hdr	h;
+	struct pflow_tmpl_fspec timestamp;
+	struct pflow_tmpl_fspec nat_event;
+	struct pflow_tmpl_fspec protocol;
+	struct pflow_tmpl_fspec src_ip;
+	struct pflow_tmpl_fspec src_port;
+	struct pflow_tmpl_fspec postnat_src_ip;
+	struct pflow_tmpl_fspec postnat_src_port;
+	struct pflow_tmpl_fspec dst_ip;
+	struct pflow_tmpl_fspec dst_port;
+	struct pflow_tmpl_fspec postnat_dst_ip;
+	struct pflow_tmpl_fspec postnat_dst_port;
+#define PFLOW_IPFIX_TMPL_NAT44_FIELD_COUNT 11
+#define PFLOW_IPFIX_TMPL_NAT44_ID 258
+};
+
 struct pflow_ipfix_tmpl {
 	struct pflow_set_header	set_header;
 	struct pflow_ipfix_tmpl_ipv4	ipv4_tmpl;
 	struct pflow_ipfix_tmpl_ipv6	ipv6_tmpl;
+	struct pflow_ipfix_tmpl_nat44	nat44_tmpl;
 } __packed;
 
 struct pflow_ipfix_flow4 {
@@ -186,6 +212,20 @@ struct pflow_ipfix_flow6 {
 	/* XXX padding needed? */
 } __packed;
 
+struct pflow_ipfix_nat4 {
+	u_int64_t	timestamp;	/* timeStamp */
+	u_int8_t	nat_event;	/* natEvent */
+	u_int8_t	protocol;	/* protocolIdentifier */
+	u_int32_t	src_ip;		/* sourceIPv4Address */
+	u_int16_t	src_port;	/* sourceTransportPort */
+	u_int32_t	postnat_src_ip;	/* postNATSourceIPv4Address */
+	u_int16_t	postnat_src_port;/* postNAPTSourceTransportPort */
+	u_int32_t	dest_ip;	/* destinationIPv4Address */
+	u_int16_t	dest_port;	/* destinationTransportPort */
+	u_int32_t	postnat_dest_ip;/* postNATDestinationIPv4Address */
+	u_int16_t	postnat_dest_port;/* postNAPTDestinationTransportPort */
+} __packed;
+
 #ifdef _KERNEL
 
 struct pflow_softc {
@@ -199,13 +239,16 @@ struct pflow_softc {
 	unsigned int		 sc_count;
 	unsigned int		 sc_count4;
 	unsigned int		 sc_count6;
+	unsigned int		 sc_count_nat4;
 	unsigned int		 sc_maxcount;
 	unsigned int		 sc_maxcount4;
 	unsigned int		 sc_maxcount6;
+	unsigned int		 sc_maxcount_nat4;
 	u_int64_t		 sc_gcounter;
 	u_int32_t		 sc_sequence;
 	struct callout		 sc_tmo;
 	struct callout		 sc_tmo6;
+	struct callout		 sc_tmo_nat4;
 	struct callout		 sc_tmo_tmpl;
 	struct intr_event	*sc_swi_ie;
 	void			*sc_swi_cookie;
@@ -219,6 +262,7 @@ struct pflow_softc {
 	u_int32_t		 sc_observation_dom;
 	struct mbuf		*sc_mbuf;	/* current cumulative mbuf */
 	struct mbuf		*sc_mbuf6;	/* current cumulative mbuf */
+	struct mbuf		*sc_mbuf_nat4;
 	CK_LIST_ENTRY(pflow_softc) sc_next;
 	struct epoch_context	 sc_epoch_ctx;
 };

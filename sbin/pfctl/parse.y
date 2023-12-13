@@ -4680,6 +4680,7 @@ natrule		: nataction interface af proto fromto tag tagged rtable
 		    redirpool pool_opts
 		{
 			struct pfctl_rule	r;
+			struct node_state_opt	*o;
 
 			if (check_rulestate(PFCTL_STATE_NAT))
 				YYERROR;
@@ -4853,6 +4854,21 @@ natrule		: nataction interface af proto fromto tag tagged rtable
 					YYERROR;
 				}
 				r.rpool.mape = $10.mape;
+			}
+
+			o = keep_state_defaults;
+			while (o) {
+				switch (o->type) {
+				case PF_STATE_OPT_PFLOW:
+					if (r.rule_flag & PFRULE_PFLOW) {
+						yyerror("state pflow option: "
+						    "multiple definitions");
+						YYERROR;
+					}
+					r.rule_flag |= PFRULE_PFLOW;
+					break;
+				}
+				o = o->next;
 			}
 
 			expand_rule(&r, $2, $9 == NULL ? NULL : $9->host, $4,
