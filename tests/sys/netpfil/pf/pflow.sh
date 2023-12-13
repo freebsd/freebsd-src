@@ -141,8 +141,51 @@ state_defaults_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "v6" "cleanup"
+v6_head()
+{
+	atf_set descr 'Test pflow over IPv6'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+v6_body()
+{
+	pflow_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a inet6 2001:db8::2/64 up no_dad
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b inet6 2001:db8::1/64 up no_dad
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping -6 -c 1 2001:db8::1
+
+	pflow=$(jexec alcatraz pflowctl -c )
+	# Note proto 10, because there's no IPv6 information in v5
+	jexec alcatraz pflowctl -s ${pflow} dst [2001:db8::2]:2055 proto 10
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"set state-defaults pflow" \
+		"pass"
+
+	ping -6 -c 1 2001:db8::1
+
+	atf_check -o match:"^v=10.*" \
+	    $(atf_get_srcdir)/pft_read_ipfix.py --recvif ${epair}a --port 2055
+}
+
+v6_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
 	atf_add_test_case "state_defaults"
+	atf_add_test_case "v6"
 }
