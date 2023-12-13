@@ -65,7 +65,7 @@ ef_aarch64_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 	case R_AARCH64_ABS64:
 		break;
 	default:
-		warnx("unhandled relocation type %lu", rtype);
+		warnx("unhandled relocation type %d", (int)rtype);
 		break;
 	}
 	return (0);
