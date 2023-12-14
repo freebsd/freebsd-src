@@ -263,6 +263,8 @@ int dmar_map_ioapic_intr(u_int ioapic_id, u_int cpu, u_int vector, bool edge,
     bool activehi, int irq, u_int *cookie, uint32_t *hi, uint32_t *lo);
 int dmar_unmap_ioapic_intr(u_int ioapic_id, u_int *cookie);
 
+int dmar_is_running(void);
+
 extern int haw;
 extern int dmar_rmrr_enable;
 
