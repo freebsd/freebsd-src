@@ -51,10 +51,7 @@ basic_symlink_body()
 	atf_check cp baz foo
 	atf_check test '!' -L foo
 
-	atf_check -e inline:"cp: baz and baz are identical (not copied).\n" \
-	    -s exit:1 cp baz baz
-	atf_check -e inline:"cp: bar and baz are identical (not copied).\n" \
-	    -s exit:1 cp baz bar
+	atf_check cmp foo bar
 }
 
 atf_test_case chrdev
@@ -227,6 +224,22 @@ recursive_link_Lflag_body()
 	    '(' ! -L foo-mirror/foo/baz ')'
 }
 
+atf_test_case samefile
+samefile_body()
+{
+	echo "foo" >foo
+	ln foo bar
+	ln -s bar baz
+	atf_check -e match:"baz and baz are identical" \
+	    -s exit:1 cp baz baz
+	atf_check -e match:"bar and baz are identical" \
+	    -s exit:1 cp baz bar
+	atf_check -e match:"foo and baz are identical" \
+	    -s exit:1 cp baz foo
+	atf_check -e match:"bar and foo are identical" \
+	    -s exit:1 cp foo bar
+}
+
 file_is_sparse()
 {
 	atf_check ${0%/*}/sparse "$1"
@@ -234,7 +247,7 @@ file_is_sparse()
 
 files_are_equal()
 {
-	atf_check test "$(stat -f "%d %i" "$1")" != "$(stat -f "%d %i" "$2")"
+	atf_check_not_equal "$(stat -f%d,%i "$1")" "$(stat -f%d,%i "$2")"
 	atf_check cmp "$1" "$2"
 }
 
@@ -365,6 +378,7 @@ atf_init_test_cases()
 	atf_add_test_case recursive_link_dflt
 	atf_add_test_case recursive_link_Hflag
 	atf_add_test_case recursive_link_Lflag
+	atf_add_test_case samefile
 	atf_add_test_case sparse_leading_hole
 	atf_add_test_case sparse_multiple_holes
 	atf_add_test_case sparse_only_hole
