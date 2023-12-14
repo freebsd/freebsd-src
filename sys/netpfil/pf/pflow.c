@@ -89,6 +89,7 @@ static int	pflow_sendout_v5(struct pflow_softc *);
 static int	pflow_sendout_ipfix(struct pflow_softc *, enum pflow_family_t);
 static int	pflow_sendout_ipfix_tmpl(struct pflow_softc *);
 static int	pflow_sendout_mbuf(struct pflow_softc *, struct mbuf *);
+static int	sysctl_pflowstats(SYSCTL_HANDLER_ARGS);
 static void	pflow_timeout(void *);
 static void	pflow_timeout6(void *);
 static void	pflow_timeout_tmpl(void *);
@@ -119,6 +120,17 @@ static int	copy_nat_ipfix_4_to_m(struct pflow_ipfix_nat4 *,
 
 static const char pflowname[] = "pflow";
 
+enum pflowstat_counters {
+	pflow_flows,
+	pflow_packets,
+	pflow_onomem,
+	pflow_oerrors,
+	pflow_ncounters,
+};
+struct pflowstats_ctr {
+	counter_u64_t	c[pflow_ncounters];
+};
+
 /**
  * Locking concept
  *
@@ -139,7 +151,7 @@ VNET_DEFINE(CK_LIST_HEAD(, pflow_softc), pflowif_list);
 #define	V_pflowif_list	VNET(pflowif_list)
 VNET_DEFINE(struct mtx, pflowif_list_mtx);
 #define	V_pflowif_list_mtx	VNET(pflowif_list_mtx)
-VNET_DEFINE(struct pflowstats,	 pflowstat);
+VNET_DEFINE(struct pflowstats_ctr,	 pflowstat);
 #define	V_pflowstats	VNET(pflowstat)
 
 #define	PFLOW_LOCK(_sc)		mtx_lock(&(_sc)->sc_lock)
@@ -148,9 +160,15 @@ VNET_DEFINE(struct pflowstats,	 pflowstat);
 
 SYSCTL_NODE(_net, OID_AUTO, pflow, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "PFLOW");
-SYSCTL_STRUCT(_net_pflow, OID_AUTO, stats, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(pflowstat), pflowstats,
+SYSCTL_PROC(_net_pflow, OID_AUTO, stats, CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    0, 0, sysctl_pflowstats, "S,pflowstats",
     "PFLOW statistics (struct pflowstats, net/if_pflow.h)");
+
+static inline void
+pflowstat_inc(enum pflowstat_counters c)
+{
+	counter_u64_add(V_pflowstats.c[c], 1);
+}
 
 static void
 vnet_pflowattach(void)
@@ -159,6 +177,9 @@ vnet_pflowattach(void)
 	mtx_init(&V_pflowif_list_mtx, "pflow interface list mtx", NULL, MTX_DEF);
 
 	V_pflow_unr = new_unrhdr(0, INT_MAX, &V_pflowif_list_mtx);
+
+	for (int i = 0; i < pflow_ncounters; i++)
+		V_pflowstats.c[i] = counter_u64_alloc(M_WAITOK);
 }
 VNET_SYSINIT(vnet_pflowattach, SI_SUB_PROTO_FIREWALL, SI_ORDER_ANY,
     vnet_pflowattach, NULL);
@@ -175,6 +196,9 @@ vnet_pflowdetach(void)
 	MPASS(CK_LIST_EMPTY(&V_pflowif_list));
 	delete_unrhdr(V_pflow_unr);
 	mtx_destroy(&V_pflowif_list_mtx);
+
+	for (int i = 0; i < pflow_ncounters; i++)
+		counter_u64_free(V_pflowstats.c[i]);
 }
 VNET_SYSUNINIT(vnet_pflowdetach, SI_SUB_PROTO_FIREWALL, SI_ORDER_FOURTH,
     vnet_pflowdetach, NULL);
@@ -538,14 +562,14 @@ pflow_get_mbuf(struct pflow_softc *sc, u_int16_t set_id)
 
 	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL) {
-		V_pflowstats.pflow_onomem++;
+		pflowstat_inc(pflow_onomem);
 		return (NULL);
 	}
 
 	MCLGET(m, M_NOWAIT);
 	if ((m->m_flags & M_EXT) == 0) {
 		m_free(m);
-		V_pflowstats.pflow_onomem++;
+		pflowstat_inc(pflow_onomem);
 		return (NULL);
 	}
 
@@ -808,8 +832,7 @@ copy_flow_to_m(struct pflow_flow *flow, struct pflow_softc *sc)
 	    (sc->sc_count * sizeof(struct pflow_flow)),
 	    sizeof(struct pflow_flow), (caddr_t)flow);
 
-	if (V_pflowstats.pflow_flows == sc->sc_gcounter)
-		V_pflowstats.pflow_flows++;
+	pflowstat_inc(pflow_flows);
 	sc->sc_gcounter++;
 	sc->sc_count++;
 
@@ -839,8 +862,7 @@ copy_flow_ipfix_4_to_m(struct pflow_ipfix_flow4 *flow, struct pflow_softc *sc)
 	    (sc->sc_count4 * sizeof(struct pflow_ipfix_flow4)),
 	    sizeof(struct pflow_ipfix_flow4), (caddr_t)flow);
 
-	if (V_pflowstats.pflow_flows == sc->sc_gcounter)
-		V_pflowstats.pflow_flows++;
+	pflowstat_inc(pflow_flows);
 	sc->sc_gcounter++;
 	sc->sc_count4++;
 
@@ -869,8 +891,7 @@ copy_flow_ipfix_6_to_m(struct pflow_ipfix_flow6 *flow, struct pflow_softc *sc)
 	    (sc->sc_count6 * sizeof(struct pflow_ipfix_flow6)),
 	    sizeof(struct pflow_ipfix_flow6), (caddr_t)flow);
 
-	if (V_pflowstats.pflow_flows == sc->sc_gcounter)
-		V_pflowstats.pflow_flows++;
+	pflowstat_inc(pflow_flows);
 	sc->sc_gcounter++;
 	sc->sc_count6++;
 
@@ -905,10 +926,9 @@ copy_nat_ipfix_4_to_m(struct pflow_ipfix_nat4 *nat, const struct pf_kstate *st,
 	    sizeof(struct pflow_ipfix_nat4), (caddr_t)nat);
 	sc->sc_count_nat4++;
 
-	if (V_pflowstats.pflow_flows == sc->sc_gcounter)
-		V_pflowstats.pflow_flows++;
-
+	pflowstat_inc(pflow_flows);
 	sc->sc_gcounter++;
+
 	if (sc->sc_count_nat4 >= sc->sc_maxcount_nat4)
 		ret = pflow_sendout_ipfix(sc, PFLOW_NAT4);
 
@@ -1116,7 +1136,7 @@ pflow_sendout_v5(struct pflow_softc *sc)
 
 	sc->sc_mbuf = NULL;
 
-	V_pflowstats.pflow_packets++;
+	pflowstat_inc(pflow_packets);
 	h = mtod(m, struct pflow_header *);
 	h->count = htons(sc->sc_count);
 
@@ -1178,14 +1198,15 @@ pflow_sendout_ipfix(struct pflow_softc *sc, enum pflow_family_t af)
 		panic("Unsupported AF %d", af);
 	}
 
-	V_pflowstats.pflow_packets++;
+	pflowstat_inc(pflow_packets);
+
 	set_hdr = mtod(m, struct pflow_set_header *);
 	set_hdr->set_length = htons(set_length);
 
 	/* populate pflow_header */
 	M_PREPEND(m, sizeof(struct pflow_v10_header), M_NOWAIT);
 	if (m == NULL) {
-		V_pflowstats.pflow_onomem++;
+		pflowstat_inc(pflow_onomem);
 		return (ENOBUFS);
 	}
 	h10 = mtod(m, struct pflow_v10_header *);
@@ -1215,12 +1236,12 @@ pflow_sendout_ipfix_tmpl(struct pflow_softc *sc)
 	m_copyback(m, 0, sizeof(struct pflow_ipfix_tmpl),
 	    (caddr_t)&sc->sc_tmpl_ipfix);
 
-	V_pflowstats.pflow_packets++;
+	pflowstat_inc(pflow_packets);
 
 	/* populate pflow_header */
 	M_PREPEND(m, sizeof(struct pflow_v10_header), M_NOWAIT);
 	if (m == NULL) {
-		V_pflowstats.pflow_onomem++;
+		pflowstat_inc(pflow_onomem);
 		return (ENOBUFS);
 	}
 	h10 = mtod(m, struct pflow_v10_header *);
@@ -1247,6 +1268,23 @@ pflow_sendout_mbuf(struct pflow_softc *sc, struct mbuf *m)
 		return (EINVAL);
 	}
 	return (sosend(sc->so, sc->sc_flowdst, NULL, m, NULL, 0, curthread));
+}
+
+static int
+sysctl_pflowstats(SYSCTL_HANDLER_ARGS)
+{
+	struct pflowstats pflowstats;
+
+	pflowstats.pflow_flows =
+	    counter_u64_fetch(V_pflowstats.c[pflow_flows]);
+	pflowstats.pflow_packets =
+	    counter_u64_fetch(V_pflowstats.c[pflow_packets]);
+	pflowstats.pflow_onomem =
+	    counter_u64_fetch(V_pflowstats.c[pflow_onomem]);
+	pflowstats.pflow_oerrors =
+	    counter_u64_fetch(V_pflowstats.c[pflow_oerrors]);
+
+	return (sysctl_handle_opaque(oidp, &pflowstats, sizeof(pflowstats), req));
 }
 
 static int
