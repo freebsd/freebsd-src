@@ -708,28 +708,20 @@ iommu_gas_remove_unmap(struct iommu_domain *domain,
 	TAILQ_INSERT_TAIL(gcp, entry, dmamap_link);
 }
 
-/*
- * Remove specified range from the GAS of the domain.  Note that the
- * removal is not guaranteed to occur upon the function return, it
- * might be finalized some time after, when hardware reports that
- * (queued) IOTLB invalidation was performed.
- */
-void
-iommu_gas_remove(struct iommu_domain *domain, iommu_gaddr_t start,
-    iommu_gaddr_t size)
+static void
+iommu_gas_remove_locked(struct iommu_domain *domain,
+    iommu_gaddr_t start, iommu_gaddr_t size,
+    struct iommu_map_entries_tailq *gc,
+    struct iommu_map_entry **r1, struct iommu_map_entry **r2)
 {
-	struct iommu_map_entry *entry, *nentry, *r1, *r2;
-	struct iommu_map_entries_tailq gc;
+	struct iommu_map_entry *entry, *nentry;
 	iommu_gaddr_t end;
 
+	IOMMU_DOMAIN_ASSERT_LOCKED(domain);
+
 	end = start + size;
-	r1 = iommu_gas_alloc_entry(domain, IOMMU_PGF_WAITOK);
-	r2 = iommu_gas_alloc_entry(domain, IOMMU_PGF_WAITOK);
-	TAILQ_INIT(&gc);
 
-	IOMMU_DOMAIN_LOCK(domain);
-
-	nentry = iommu_gas_remove_clip_left(domain, start, end, &r1);
+	nentry = iommu_gas_remove_clip_left(domain, start, end, r1);
 	RB_FOREACH_FROM(entry, iommu_gas_entries_tree, nentry) {
 		if (entry->start >= end)
 			break;
@@ -738,11 +730,11 @@ iommu_gas_remove(struct iommu_domain *domain, iommu_gaddr_t start,
 		    entry->start, entry->end, start));
 		if ((entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
 			continue;
-		iommu_gas_remove_unmap(domain, entry, &gc);
+		iommu_gas_remove_unmap(domain, entry, gc);
 	}
-	if (iommu_gas_remove_clip_right(domain, end, entry, r2)) {
-		iommu_gas_remove_unmap(domain, r2, &gc);
-		r2 = NULL;
+	if (iommu_gas_remove_clip_right(domain, end, entry, *r2)) {
+		iommu_gas_remove_unmap(domain, *r2, gc);
+		*r2 = NULL;
 	}
 
 #ifdef INVARIANTS
@@ -755,13 +747,52 @@ iommu_gas_remove(struct iommu_domain *domain, iommu_gaddr_t start,
 		    entry->start, entry->end, start, end));
 	}
 #endif
+}
 
+static void
+iommu_gas_remove_init(struct iommu_domain *domain,
+    struct iommu_map_entries_tailq *gc, struct iommu_map_entry **r1,
+    struct iommu_map_entry **r2)
+{
+	TAILQ_INIT(gc);
+	*r1 = iommu_gas_alloc_entry(domain, IOMMU_PGF_WAITOK);
+	*r2 = iommu_gas_alloc_entry(domain, IOMMU_PGF_WAITOK);
+}
+
+static void
+iommu_gas_remove_cleanup(struct iommu_domain *domain,
+    struct iommu_map_entries_tailq *gc, struct iommu_map_entry **r1,
+    struct iommu_map_entry **r2)
+{
+	if (*r1 != NULL) {
+		iommu_gas_free_entry(*r1);
+		*r1 = NULL;
+	}
+	if (*r2 != NULL) {
+		iommu_gas_free_entry(*r2);
+		*r2 = NULL;
+	}
+	iommu_domain_unload(domain, gc, true);
+}
+
+/*
+ * Remove specified range from the GAS of the domain.  Note that the
+ * removal is not guaranteed to occur upon the function return, it
+ * might be finalized some time after, when hardware reports that
+ * (queued) IOTLB invalidation was performed.
+ */
+void
+iommu_gas_remove(struct iommu_domain *domain, iommu_gaddr_t start,
+    iommu_gaddr_t size)
+{
+	struct iommu_map_entry *r1, *r2;
+	struct iommu_map_entries_tailq gc;
+
+	iommu_gas_remove_init(domain, &gc, &r1, &r2);
+	IOMMU_DOMAIN_LOCK(domain);
+	iommu_gas_remove_locked(domain, start, size, &gc, &r1, &r2);
 	IOMMU_DOMAIN_UNLOCK(domain);
-	if (r1 != NULL)
-		iommu_gas_free_entry(r1);
-	if (r2 != NULL)
-		iommu_gas_free_entry(r2);
-	iommu_domain_unload(domain, &gc, true);
+	iommu_gas_remove_cleanup(domain, &gc, &r1, &r2);
 }
 
 int
