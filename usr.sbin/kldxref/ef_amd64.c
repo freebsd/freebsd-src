@@ -36,17 +36,16 @@
 #include "ef.h"
 
 /*
- * Apply relocations to the values we got from the file. `relbase' is the
- * target relocation address of the section, and `dataoff' is the target
- * relocation address of the data in `dest'.
+ * Apply relocations to the values obtained from the file. `relbase' is the
+ * target relocation address of the section, and `dataoff/len' is the region
+ * that is to be relocated, and has been copied to *dest
  */
 static int
 ef_amd64_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
     GElf_Addr relbase, GElf_Addr dataoff, size_t len, void *dest)
 {
 	char *where;
-	GElf_Addr val;
-	GElf_Addr addend, addr;
+	GElf_Addr addr, addend;
 	GElf_Size rtype, symidx;
 	const GElf_Rel *rel;
 	const GElf_Rela *rela;
@@ -54,14 +53,14 @@ ef_amd64_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 	switch (reltype) {
 	case ELF_T_REL:
 		rel = (const GElf_Rel *)reldata;
-		where = (char *)dest + relbase + rel->r_offset - dataoff;
+		where = (char *)dest + (relbase + rel->r_offset - dataoff);
 		addend = 0;
 		rtype = GELF_R_TYPE(rel->r_info);
 		symidx = GELF_R_SYM(rel->r_info);
 		break;
 	case ELF_T_RELA:
 		rela = (const GElf_Rela *)reldata;
-		where = (char *)dest + relbase + rela->r_offset - dataoff;
+		where = (char *)dest + (relbase + rela->r_offset - dataoff);
 		addend = rela->r_addend;
 		rtype = GELF_R_TYPE(rela->r_info);
 		symidx = GELF_R_SYM(rela->r_info);
@@ -90,23 +89,20 @@ ef_amd64_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 	case R_X86_64_NONE:	/* none */
 		break;
 	case R_X86_64_64:	/* S + A */
-		addr = EF_SYMADDR(ef, symidx);
-		val = addr + addend;
-		le64enc(where, val);
+		addr = EF_SYMADDR(ef, symidx) + addend;
+		le64enc(where, addr);
 		break;
 	case R_X86_64_32S:	/* S + A sign extend */
-		addr = EF_SYMADDR(ef, symidx);
-		val = (Elf32_Addr)(addr + addend);
-		le32enc(where, val);
+		addr = EF_SYMADDR(ef, symidx) + addend;
+		le32enc(where, addr);
 		break;
 	case R_X86_64_GLOB_DAT:	/* S */
 		addr = EF_SYMADDR(ef, symidx);
 		le64enc(where, addr);
 		break;
 	case R_X86_64_RELATIVE:	/* B + A */
-		addr = addend + relbase;
-		val = addr;
-		le64enc(where, val);
+		addr = relbase + addend;
+		le64enc(where, addr);
 		break;
 	default:
 		warnx("unhandled relocation type %d", (int)rtype);

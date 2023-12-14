@@ -47,21 +47,25 @@ ef_aarch64_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 	GElf_Size rtype, symidx;
 	const GElf_Rela *rela;
 
-	if (reltype != ELF_T_RELA)
+	switch (reltype) {
+	case ELF_T_RELA:
+		rela = (const GElf_Rela *)reldata;
+		where = (char *)dest + (relbase + rela->r_offset - dataoff);
+		addend = rela->r_addend;
+		rtype = GELF_R_TYPE(rela->r_info);
+		symidx = GELF_R_SYM(rela->r_info);
+		break;
+	default:
 		return (EINVAL);
-
-	rela = (const GElf_Rela *)reldata;
-	where = (char *)dest - dataoff + rela->r_offset;
-	addend = rela->r_addend;
-	rtype = GELF_R_TYPE(rela->r_info);
-	symidx = GELF_R_SYM(rela->r_info);
+	}
 
 	if (where < (char *)dest || where >= (char *)dest + len)
 		return (0);
 
-	switch(rtype) {
+	switch (rtype) {
 	case R_AARCH64_RELATIVE:
-		le64enc(where, relbase + addend);
+		addr = relbase + addend;
+		le64enc(where, addr);
 		break;
 	case R_AARCH64_ABS64:
 		addr = EF_SYMADDR(ef, symidx) + addend;
