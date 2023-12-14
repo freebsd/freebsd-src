@@ -908,7 +908,8 @@ SUBDIR:= ${SUBDIR:N${reject}}
 .endif # MODULES_OVERRIDE -- Keep last
 
 # Calling kldxref(8) for each module is expensive.
-.if !defined(NO_XREF)
+# XXX: kldxref lacks support for arm
+.if !defined(NO_XREF) && ${MACHINE_CPUARCH} != "arm"
 .MAKEFLAGS+=	-DNO_XREF
 afterinstall: .PHONY
 	${KLDXREF_CMD} ${DESTDIR}${KMODDIR}
