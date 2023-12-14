@@ -86,6 +86,7 @@
 
 static device_t *dmar_devs;
 static int dmar_devcnt;
+static bool dmar_running = false;
 
 typedef int (*dmar_iter_t)(ACPI_DMAR_HEADER *, void *);
 
@@ -539,6 +540,7 @@ dmar_attach(device_t dev)
 	DMAR_UNLOCK(unit);
 #endif
 
+	dmar_running = true;
 	return (0);
 }
 
@@ -1053,6 +1055,13 @@ dmar_inst_rmrr_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
 
 	return (1);
 
+}
+
+int
+dmar_is_running(void)
+{
+
+	return (dmar_running ? 0 : ENXIO);
 }
 
 /*
