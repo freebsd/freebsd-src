@@ -88,7 +88,6 @@ ef_mips_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 			else
 				addend = be32dec(where);
 		}
-		addend = *where;
 	}
 
 	switch (rtype) {
