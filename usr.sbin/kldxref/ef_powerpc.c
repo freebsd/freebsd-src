@@ -40,48 +40,51 @@
  * target relocation address of the section, and `dataoff/len' is the region
  * that is to be relocated, and has been copied to *dest
  */
-int
+static int
 ef_ppc_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
     GElf_Addr relbase, GElf_Addr dataoff, size_t len, void *dest)
 {
 	char *where;
-	GElf_Addr addend, val;
+	GElf_Addr addr, addend;
 	GElf_Size rtype, symidx;
 	const GElf_Rela *rela;
 
-	if (reltype != ELF_T_RELA)
+	switch (reltype) {
+	case ELF_T_RELA:
+		rela = (const GElf_Rela *)reldata;
+		where = (char *)dest + (relbase + rela->r_offset - dataoff);
+		addend = rela->r_addend;
+		rtype = GELF_R_TYPE(rela->r_info);
+		symidx = GELF_R_SYM(rela->r_info);
+		break;
+	default:
 		return (EINVAL);
-
-	rela = (const GElf_Rela *)reldata;
-	where = (char *)dest - dataoff + rela->r_offset;
-	addend = rela->r_addend;
-	rtype = GELF_R_TYPE(rela->r_info);
-	symidx = GELF_R_SYM(rela->r_info);
+	}
 
 	if (where < (char *)dest || where >= (char *)dest + len)
 		return (0);
 
 	switch (rtype) {
 	case R_PPC_RELATIVE: /* word32|doubleword64 B + A */
-		val = relbase + addend;
+		addr = relbase + addend;
 		if (elf_class(ef) == ELFCLASS64) {
 			if (elf_encoding(ef) == ELFDATA2LSB)
-				le64enc(where, val);
+				le64enc(where, addr);
 			else
-				be64enc(where, val);
+				be64enc(where, addr);
 		} else
-			be32enc(where, val);
+			be32enc(where, addr);
 		break;
 	case R_PPC_ADDR32:	/* word32 S + A */
-		val = EF_SYMADDR(ef, symidx) + addend;
-		be32enc(where, val);
+		addr = EF_SYMADDR(ef, symidx) + addend;
+		be32enc(where, addr);
 		break;
 	case R_PPC64_ADDR64:	/* doubleword64 S + A */
-		val = EF_SYMADDR(ef, symidx) + addend;
+		addr = EF_SYMADDR(ef, symidx) + addend;
 		if (elf_encoding(ef) == ELFDATA2LSB)
-			le64enc(where, val);
+			le64enc(where, addr);
 		else
-			be64enc(where, val);
+			be64enc(where, addr);
 		break;
 	default:
 		warnx("unhandled relocation type %d", (int)rtype);
