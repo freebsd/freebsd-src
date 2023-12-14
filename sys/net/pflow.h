@@ -244,7 +244,7 @@ struct pflow_softc {
 	unsigned int		 sc_maxcount4;
 	unsigned int		 sc_maxcount6;
 	unsigned int		 sc_maxcount_nat4;
-	u_int64_t		 sc_gcounter;
+	u_int32_t		 sc_gcounter;
 	u_int32_t		 sc_sequence;
 	struct callout		 sc_tmo;
 	struct callout		 sc_tmo6;
