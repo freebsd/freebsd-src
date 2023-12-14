@@ -38,19 +38,24 @@
 
 #include "ef.h"
 
-int
+/*
+ * Apply relocations to the values obtained from the file. `relbase' is the
+ * target relocation address of the section, and `dataoff/len' is the region
+ * that is to be relocated, and has been copied to *dest
+ */
+static int
 ef_riscv_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
     GElf_Addr relbase, GElf_Addr dataoff, size_t len, void *dest)
 {
 	char *where;
-	const GElf_Rela *rela;
-	GElf_Addr addend, addr;
+	GElf_Addr addr, addend;
 	GElf_Size rtype, symidx;
+	const GElf_Rela *rela;
 
 	switch (reltype) {
 	case ELF_T_RELA:
 		rela = (const GElf_Rela *)reldata;
-		where = (char *)dest + relbase + rela->r_offset - dataoff;
+		where = (char *)dest + (relbase + rela->r_offset - dataoff);
 		addend = rela->r_addend;
 		rtype = GELF_R_TYPE(rela->r_info);
 		symidx = GELF_R_SYM(rela->r_info);
@@ -68,7 +73,7 @@ ef_riscv_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 		le64enc(where, addr);
 		break;
 	case R_RISCV_RELATIVE:	/* B + A */
-		addr = addend + relbase;
+		addr = relbase + addend;
 		le64enc(where, addr);
 		break;
 	default:

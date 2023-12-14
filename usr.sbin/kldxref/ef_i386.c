@@ -36,9 +36,9 @@
 #include "ef.h"
 
 /*
- * Apply relocations to the values we got from the file. `relbase' is the
- * target relocation address of the section, and `dataoff' is the target
- * relocation address of the data in `dest'.
+ * Apply relocations to the values obtained from the file. `relbase' is the
+ * target relocation address of the section, and `dataoff/len' is the region
+ * that is to be relocated, and has been copied to *dest
  */
 static int
 ef_i386_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
@@ -53,14 +53,14 @@ ef_i386_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 	switch (reltype) {
 	case ELF_T_REL:
 		rel = (const GElf_Rel *)reldata;
-		where = (char *)dest + relbase + rel->r_offset - dataoff;
+		where = (char *)dest + (relbase + rel->r_offset - dataoff);
 		addend = 0;
 		rtype = GELF_R_TYPE(rel->r_info);
 		symidx = GELF_R_SYM(rel->r_info);
 		break;
 	case ELF_T_RELA:
 		rela = (const GElf_Rela *)reldata;
-		where = (char *)dest + relbase + rela->r_offset - dataoff;
+		where = (char *)dest + (relbase + rela->r_offset - dataoff);
 		addend = rela->r_addend;
 		rtype = GELF_R_TYPE(rela->r_info);
 		symidx = GELF_R_SYM(rela->r_info);
@@ -76,13 +76,12 @@ ef_i386_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 		addend = le32dec(where);
 
 	switch (rtype) {
-	case R_386_RELATIVE:	/* A + B */
-		addr = addend + relbase;
+	case R_386_RELATIVE:	/* B + A */
+		addr = relbase + addend;
 		le32enc(where, addr);
 		break;
 	case R_386_32:	/* S + A - P */
-		addr = EF_SYMADDR(ef, symidx);
-		addr += addend;
+		addr = EF_SYMADDR(ef, symidx) + addend;
 		le32enc(where, addr);
 		break;
 	case R_386_GLOB_DAT:	/* S */
