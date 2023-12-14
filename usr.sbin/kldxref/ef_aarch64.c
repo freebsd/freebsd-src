@@ -43,8 +43,8 @@ ef_aarch64_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
     GElf_Addr relbase, GElf_Addr dataoff, size_t len, void *dest)
 {
 	char *where;
-	Elf64_Addr addend;
-	GElf_Size rtype;
+	GElf_Addr addr, addend;
+	GElf_Size rtype, symidx;
 	const GElf_Rela *rela;
 
 	if (reltype != ELF_T_RELA)
@@ -54,6 +54,7 @@ ef_aarch64_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 	where = (char *)dest - dataoff + rela->r_offset;
 	addend = rela->r_addend;
 	rtype = GELF_R_TYPE(rela->r_info);
+	symidx = GELF_R_SYM(rela->r_info);
 
 	if (where < (char *)dest || where >= (char *)dest + len)
 		return (0);
@@ -63,6 +64,8 @@ ef_aarch64_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 		le64enc(where, relbase + addend);
 		break;
 	case R_AARCH64_ABS64:
+		addr = EF_SYMADDR(ef, symidx) + addend;
+		le64enc(where, addr);
 		break;
 	default:
 		warnx("unhandled relocation type %d", (int)rtype);
