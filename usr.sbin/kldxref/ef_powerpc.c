@@ -69,7 +69,8 @@ ef_ppc_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 				le64enc(where, val);
 			else
 				be64enc(where, val);
-		}
+		} else
+			be32enc(where, val);
 		break;
 	case R_PPC_ADDR32:	/* word32 S + A */
 		val = EF_SYMADDR(ef, symidx) + addend;
