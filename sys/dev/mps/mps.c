@@ -1428,7 +1428,8 @@ mps_alloc_requests(struct mps_softc *sc)
 	rsize = sc->reqframesz * sc->num_chains;
 	bus_dma_template_clone(&t, sc->req_dmat);
 	BUS_DMA_TEMPLATE_FILL(&t, BD_MAXSIZE(rsize), BD_MAXSEGSIZE(rsize),
-	    BD_NSEGMENTS(howmany(rsize, PAGE_SIZE)));
+	    BD_NSEGMENTS(howmany(rsize, PAGE_SIZE)),
+	    BD_BOUNDARY(BUS_SPACE_MAXSIZE_32BIT+1));
 	if (bus_dma_template_tag(&t, &sc->chain_dmat)) {
 		mps_dprint(sc, MPS_ERROR, "Cannot allocate chain DMA tag\n");
 		return (ENOMEM);
@@ -1470,7 +1471,8 @@ mps_alloc_requests(struct mps_softc *sc)
 	BUS_DMA_TEMPLATE_FILL(&t, BD_MAXSIZE(BUS_SPACE_MAXSIZE_32BIT),
 	    BD_NSEGMENTS(nsegs), BD_MAXSEGSIZE(BUS_SPACE_MAXSIZE_24BIT),
 	    BD_FLAGS(BUS_DMA_ALLOCNOW), BD_LOCKFUNC(busdma_lock_mutex),
-	    BD_LOCKFUNCARG(&sc->mps_mtx));
+	    BD_LOCKFUNCARG(&sc->mps_mtx),
+	    BD_BOUNDARY(BUS_SPACE_MAXSIZE_32BIT+1));
         if (bus_dma_template_tag(&t, &sc->buffer_dmat)) {
 		mps_dprint(sc, MPS_ERROR, "Cannot allocate buffer DMA tag\n");
 		return (ENOMEM);
