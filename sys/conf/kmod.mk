@@ -354,8 +354,7 @@ _kmodinstall: .PHONY
 
 .include <bsd.links.mk>
 
-# XXX: kldxref lacks support for arm
-.if !defined(NO_XREF) && ${MACHINE_CPUARCH} != "arm"
+.if !defined(NO_XREF)
 afterinstall: _kldxref
 .ORDER: realinstall _kldxref
 .ORDER: _installlinks _kldxref
