@@ -145,6 +145,7 @@ copy_file(const FTSENT *entp, int dne)
 		if (fflag) {
 			/* remove existing destination file */
 			(void)unlink(to.p_path);
+			dne = 1;
 		}
 	}
 
@@ -166,7 +167,7 @@ copy_file(const FTSENT *entp, int dne)
 		goto done;
 	}
 
-	if (!dne && !fflag) {
+	if (!dne) {
 		/* overwrite existing destination file */
 		to_fd = open(to.p_path, O_WRONLY | O_TRUNC, 0);
 	} else {
