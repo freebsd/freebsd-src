@@ -33,6 +33,7 @@
 #define PCI_VENDOR_INTEL 0x8086
 
 #define PCIR_BDSM 0x5C	   /* Base of Data Stolen Memory register */
+#define PCIR_BDSM_GEN11 0xC0
 #define PCIR_ASLS_CTL 0xFC /* Opregion start address register */
 
 #define PCIM_BDSM_GSM_ALIGNMENT \
@@ -64,11 +65,36 @@ set_bdsm_gen3(struct pci_devinst *const pi, vm_paddr_t bdsm_gpa)
 	return (0);
 }
 
+static int
+set_bdsm_gen11(struct pci_devinst *const pi, vm_paddr_t bdsm_gpa)
+{
+	struct passthru_softc *sc = pi->pi_arg;
+	uint64_t bdsm;
+	int error;
+
+	bdsm = pci_host_read_config(passthru_get_sel(sc), PCIR_BDSM_GEN11, 8);
+
+	/* Protect the BDSM register in PCI space. */
+	pci_set_cfgdata32(pi, PCIR_BDSM_GEN11,
+	    bdsm_gpa | (bdsm & (PCIM_BDSM_GSM_ALIGNMENT - 1)));
+	pci_set_cfgdata32(pi, PCIR_BDSM_GEN11 + 4, bdsm_gpa >> 32);
+	error = set_pcir_handler(sc, PCIR_BDSM_GEN11, 8, passthru_cfgread_emulate,
+	    passthru_cfgwrite_emulate);
+	if (error) {
+		warnx("%s: Failed to setup handler for BDSM register!\n", __func__);
+		return (error);
+	}
+
+	return (0);
+}
+
 struct igd_ops {
 	int (*set_bdsm)(struct pci_devinst *const pi, vm_paddr_t bdsm_gpa);
 };
 
 static const struct igd_ops igd_ops_gen3 = { .set_bdsm = set_bdsm_gen3 };
+
+static const struct igd_ops igd_ops_gen11 = { .set_bdsm = set_bdsm_gen11 };
 
 struct igd_device {
 	uint32_t device_id;
@@ -105,6 +131,17 @@ static const struct igd_device igd_devices[] = {
 	INTEL_CML_IDS(IGD_DEVICE, &igd_ops_gen3),
 	INTEL_GLK_IDS(IGD_DEVICE, &igd_ops_gen3),
 	INTEL_CNL_IDS(IGD_DEVICE, &igd_ops_gen3),
+	INTEL_ICL_IDS(IGD_DEVICE, &igd_ops_gen11),
+	INTEL_EHL_IDS(IGD_DEVICE, &igd_ops_gen11),
+	INTEL_JSL_IDS(IGD_DEVICE, &igd_ops_gen11),
+	INTEL_TGL_IDS(IGD_DEVICE, &igd_ops_gen11),
+	INTEL_RKL_IDS(IGD_DEVICE, &igd_ops_gen11),
+	INTEL_ADLS_IDS(IGD_DEVICE, &igd_ops_gen11),
+	INTEL_ADLP_IDS(IGD_DEVICE, &igd_ops_gen11),
+	INTEL_ADLN_IDS(IGD_DEVICE, &igd_ops_gen11),
+	INTEL_RPLS_IDS(IGD_DEVICE, &igd_ops_gen11),
+	INTEL_RPLU_IDS(IGD_DEVICE, &igd_ops_gen11),
+	INTEL_RPLP_IDS(IGD_DEVICE, &igd_ops_gen11),
 };
 
 static const struct igd_ops *
