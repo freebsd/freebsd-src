@@ -1113,7 +1113,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.99-257-FreeBSD_g450f2d0b0"
+#define ZFS_META_ALIAS "zfs-2.2.99-268-FreeBSD_g86e115e21"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1143,7 +1143,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "257-FreeBSD_g450f2d0b0"
+#define ZFS_META_RELEASE "268-FreeBSD_g86e115e21"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.2.99"
