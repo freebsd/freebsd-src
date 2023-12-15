@@ -31,12 +31,42 @@ import logging
 logging.getLogger("scapy").setLevel(logging.CRITICAL)
 import scapy.all as sp
 
+def parse_ipfix(p):
+	if not sp.NetflowDataflowsetV9 in p:
+		# A template?
+		return
+
+	c = p
+	while sp.NetflowDataflowsetV9 in c:
+		datafl = c[sp.NetflowDataflowsetV9]
+		if datafl.templateID == 258:
+			# NAT
+			for r in datafl.records:
+				print("v=10,NAT=%d,proto=%s,src=%s-%s,dst=%s-%s" %
+				    (int.from_bytes(r.natEvent, "big"), r.PROTOCOL,
+				     r.IPV4_SRC_ADDR, r.postNATSourceIPv4Address,
+				     r.IPV4_DST_ADDR, r.postNATDestinationIPv4Address))
+		elif datafl.templateID == 257:
+			# IPv6
+			for r in datafl.records:
+				print("v=10,IPv6,proto=%s,src=%s,dst=%s" %
+				    (r.PROTOCOL, r.IPV6_SRC_ADDR, r.IPV6_DST_ADDR))
+		elif datafl.templateID == 256:
+			# IPv4
+			for r in datafl.records:
+				print("v=10,proto=%s,src=%s,dst=%s" %
+				    (r.PROTOCOL, r.IPV4_SRC_ADDR, r.IPV4_DST_ADDR))
+
+		c = datafl.payload
+
 def receive(recvif, recvport):
 	pkts = sp.sniff(iface=recvif, timeout=65)
 
 	if len(pkts) == 0:
 		print("No data")
 		return
+
+	pkts = sp.ipfix_defragment(pkts)
 
 	for pkt in pkts:
 		udp = pkt.getlayer(sp.UDP)
@@ -46,18 +76,19 @@ def receive(recvif, recvport):
 		if udp.dport != recvport:
 			continue
 
-		hdr = pkt.getlayer(sp.NetflowHeader)
+		if not sp.NetflowHeader in pkt:
+			continue
 
+		hdr = pkt.getlayer(sp.NetflowHeader)
 		if hdr.version == 5:
 			v5hdr = pkt.getlayer(sp.NetflowHeaderV5)
 			out=""
 			for i in range(1, v5hdr.count + 1):
 				r = pkt.getlayer(sp.NetflowRecordV5, nb=i)
-				out = "%s,proto=%d,src=%s,dst=%s,srcport=%d,dstport=%d" % (out, r.prot, r.src, r.dst, r.srcport, r.dstport)
-			print("v=%d,count=%d%s" % (hdr.version, v5hdr.count, out))
+				print("v=%d,proto=%d,src=%s,dst=%s,srcport=%d,dstport=%d" %
+				    (hdr.version, r.prot, r.src, r.dst, r.srcport, r.dstport))
 		elif hdr.version == 10:
-			print("v=10")
-			return
+			parse_ipfix(pkt)
 
 def main():
 	parser = argparse.ArgumentParser("pft_read_ipfix.py",

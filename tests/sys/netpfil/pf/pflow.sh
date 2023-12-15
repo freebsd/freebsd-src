@@ -124,7 +124,7 @@ state_defaults_body()
 	ping -c 1 192.0.2.1
 
 	# We default to version 5
-	atf_check -o match:"^v=5.*" \
+	atf_check -o match:".*v=5.*" \
 	    $(atf_get_srcdir)/pft_read_ipfix.py --recvif ${epair}a --port 2055
 
 	# Switch to version 10
@@ -132,7 +132,7 @@ state_defaults_body()
 
 	ping -c 1 192.0.2.1
 
-	atf_check -o match:"^v=10.*" \
+	atf_check -o match:".*v=10.*" \
 	    $(atf_get_srcdir)/pft_read_ipfix.py --recvif ${epair}a --port 2055
 }
 
@@ -174,11 +174,62 @@ v6_body()
 
 	ping -6 -c 1 2001:db8::1
 
-	atf_check -o match:"^v=10.*" \
+	atf_check -o match:".*v=10,IPv6,proto=58,src=2001:db8::2,dst=2001:db8::1.*" \
 	    $(atf_get_srcdir)/pft_read_ipfix.py --recvif ${epair}a --port 2055
 }
 
 v6_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "nat" "cleanup"
+nat_head()
+{
+	atf_set descr 'Test pflow export for NAT44'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+nat_body()
+{
+	pflow_init
+
+	epair=$(vnet_mkepair)
+	epair_srv=$(vnet_mkepair)
+
+	vnet_mkjail srv ${epair_srv}a
+	vnet_mkjail rtr ${epair_srv}b ${epair}a
+
+	ifconfig ${epair}b 192.0.2.2/24 up
+
+	jexec srv ifconfig ${epair_srv}a 198.51.100.2/24 up
+	jexec srv route add default 198.51.100.1
+
+	jexec rtr ifconfig ${epair_srv}b 198.51.100.1/24 up
+	jexec rtr ifconfig ${epair}a 192.0.2.1/24 up
+	jexec rtr sysctl net.inet.ip.forwarding=1
+
+	route add -net 198.51.100.0/24 192.0.2.1
+
+	jexec rtr pfctl -e
+	pft_set_rules rtr \
+		"set state-defaults pflow" \
+		"nat pass on ${epair_srv}b inet from 192.0.2.0/24 to any -> (${epair_srv}b)" \
+		"pass"
+
+	pflow=$(jexec rtr pflowctl -c)
+	jexec rtr pflowctl -s ${pflow} dst 192.0.2.2:2055 proto 10
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 198.51.100.2
+
+	atf_check -o match:".*v=10,NAT=4,proto=1,src=192.0.2.2-198.51.100.1.*" \
+	    $(atf_get_srcdir)/pft_read_ipfix.py --recvif ${epair}b --port 2055
+}
+
+nat_cleanup()
 {
 	pft_cleanup
 }
@@ -188,4 +239,5 @@ atf_init_test_cases()
 	atf_add_test_case "basic"
 	atf_add_test_case "state_defaults"
 	atf_add_test_case "v6"
+	atf_add_test_case "nat"
 }
