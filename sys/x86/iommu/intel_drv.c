@@ -1018,10 +1018,10 @@ dmar_inst_rmrr_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
 			if (bootverbose) {
 				printf("dmar%d no dev found for RMRR "
 				    "[%#jx, %#jx] rid %#x scope path ",
-				     iria->dmar->iommu.unit,
-				     (uintmax_t)resmem->BaseAddress,
-				     (uintmax_t)resmem->EndAddress,
-				     rid);
+				    iria->dmar->iommu.unit,
+				    (uintmax_t)resmem->BaseAddress,
+				    (uintmax_t)resmem->EndAddress,
+				    rid);
 				dmar_print_path(devscope->Bus, dev_path_len,
 				    (const ACPI_DMAR_PCI_PATH *)(devscope + 1));
 				printf("\n");
