@@ -1995,6 +1995,7 @@ vm_object_collapse(vm_object_t object)
 			    backing_object));
 			vm_object_pip_wakeup(backing_object);
 			(void)refcount_release(&backing_object->ref_count);
+			umtx_shm_object_terminated(backing_object);
 			vm_object_terminate(backing_object);
 			counter_u64_add(object_collapses, 1);
 			VM_OBJECT_WLOCK(object);
