@@ -1,5 +1,5 @@
 .\"
-.Dd September 28, 2023
+.Dd December 17, 2023
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -3039,12 +3039,47 @@ needed for some experimental setups where you want to simulate
 loss or congestion at a remote router.
 .Pp
 .It Cm plr Ar packet-loss-rate
+.It Cm plr Ar K,p,H,r
 Packet loss rate.
 Argument
 .Ar packet-loss-rate
 is a floating-point number between 0 and 1, with 0 meaning no
 loss, 1 meaning 100% loss.
-The loss rate is internally represented on 31 bits.
+.Pp
+When invoked with four arguments, the simple Gilbert-Elliott
+channel model with two states (Good and Bad) is used.
+.Bd -literal -offset indent
+                        r
+               .----------------.
+               v                |
+         .------------.   .------------.
+         |     G      |   |     B      |
+         |  drop (K)  |   |  drop (H)  |
+         '------------'   '------------'
+               |                ^
+               '----------------'
+                        p
+
+.Ed
+This has the associated probabilities
+.Po Ar K
+and
+.Ar H Pc
+for the loss probability. This is different from the literature,
+where this model is described with probabilities of successful
+transmission k and h. However, converting from literature is
+easy:
+.Pp
+K = 1 - k ; H = 1 - h
+.Pp
+This is to retain consistency within the interface and allow the
+quick re-use of loss probability when giving only a single argument.
+In addition the state change probabilities
+.Po Ar p
+and
+.Ar r Pc
+are given.
+All of the above probabilities are internally represented on 31 bits.
 .Pp
 .It Cm queue Brq Ar slots | size Ns Cm Kbytes
 Queue size, in
