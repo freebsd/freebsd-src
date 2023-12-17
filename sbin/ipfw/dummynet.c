@@ -471,7 +471,7 @@ print_flowset_parms(struct dn_fs *fs, char *prefix)
 {
 	int l;
 	char qs[30];
-	char plr[30];
+	char plr[40];
 	char red[200];	/* Display RED parameters */
 
 	l = fs->qsize;
@@ -482,9 +482,17 @@ print_flowset_parms(struct dn_fs *fs, char *prefix)
 			sprintf(qs, "%d B", l);
 	} else
 		sprintf(qs, "%3d sl.", l);
-	if (fs->plr)
-		sprintf(plr, "plr %f", 1.0 * fs->plr / (double)(0x7fffffff));
-	else
+	if (fs->plr[0] || fs->plr[1]) {
+		if (fs->plr[1] == 0)
+			sprintf(plr, "plr %f",
+				1.0 * fs->plr[0] / (double)(0x7fffffff));
+		else
+			sprintf(plr, "plr %f,%f,%f,%f",
+				1.0 * fs->plr[0] / (double)(0x7fffffff),
+				1.0 * fs->plr[1] / (double)(0x7fffffff),
+				1.0 * fs->plr[2] / (double)(0x7fffffff),
+				1.0 * fs->plr[3] / (double)(0x7fffffff));
+	} else
 		plr[0] = '\0';
 
 	if (fs->flags & DN_IS_RED) {	/* RED parameters */
@@ -1408,13 +1416,27 @@ ipfw_config_pipe(int ac, char **av)
 
 		case TOK_PLR:
 			NEED(fs, "plr is only for pipes");
-			NEED1("plr needs argument 0..1\n");
-			d = strtod(av[0], NULL);
-			if (d > 1)
-				d = 1;
-			else if (d < 0)
-				d = 0;
-			fs->plr = (int)(d*0x7fffffff);
+			NEED1("plr needs one or four arguments 0..1\n");
+			if ((end = strsep(&av[0], ","))) {
+				d = strtod(end, NULL);
+				d = (d < 0) ? 0 : (d <= 1) ? d : 1;
+				fs->plr[0] = (int)(d*0x7fffffff);
+			}
+			if ((end = strsep(&av[0], ","))) {
+				d = strtod(end, NULL);
+				d = (d < 0) ? 0 : (d <= 1) ? d : 1;
+				fs->plr[1] = (int)(d*0x7fffffff);
+			}
+			if ((end = strsep(&av[0], ","))) {
+				d = strtod(end, NULL);
+				d = (d < 0) ? 0 : (d <= 1) ? d : 1;
+				fs->plr[2] = (int)(d*0x7fffffff);
+			}
+			if ((end = strsep(&av[0], ","))) {
+				d = strtod(end, NULL);
+				d = (d < 0) ? 0 : (d <= 1) ? d : 1;
+				fs->plr[3] = (int)(d*0x7fffffff);
+			}
 			ac--; av++;
 			break;
 

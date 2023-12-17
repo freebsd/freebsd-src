@@ -392,6 +392,15 @@ enum {
 	PROTO_IFB =	0x0c, /* layer2 + ifbridge */
 };
 
+/*
+ * States for the Packet Loss Rate Gilbert-Elliott
+ * channel model
+ */
+enum {
+	PLR_STATE_G = 0,
+	PLR_STATE_B,
+};
+
 //extern struct dn_parms V_dn_cfg;
 VNET_DECLARE(struct dn_parms, dn_cfg);
 #define V_dn_cfg	VNET(dn_cfg)
