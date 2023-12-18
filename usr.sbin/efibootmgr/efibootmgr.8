@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 26, 2023
+.Dd December 17, 2023
 .Dt EFIBOOTMGR 8
 .Os
 .Sh NAME
@@ -130,6 +130,21 @@ Create a new
 variable (aka method or entry).
 .It Fl D -dry-run
 Process but do not change any variables.
+.It Fl e -env
+When creating a
+.Cm Boot
+variable, include a set of environment variables for the loader to set after
+parsing the command line.
+Variables are of the form
+.Dq a=b
+and separated by spaces.
+The argument should be quoted.
+.Nm appends these to the end of the
+.Cm Boot
+environment variable.
+Before processing anything else,
+.Xr loader.efi 8
+will parse this area and set all variables found there.
 .It Fl E -esp
 Print the
 .Fx
@@ -216,16 +231,16 @@ the EFI partition mounted under
 .Pa /boot/efi ,
 mark the method active, using
 the given loader and label the method
-.Qq FreeBSD-11 :
+.Qq FreeBSD-15 :
 .Pp
-.Dl efibootmgr -a -c -l /boot/efi/EFI/freebsd/loader.efi -L FreeBSD-11
+.Dl efibootmgr -a -c -l /boot/efi/EFI/freebsd/loader.efi -L FreeBSD-15
 .Pp
 This will result in the next available bootnum being assigned to a
 new UEFI boot variable, and given the label
-.Qq FreeBSD-11
+.Qq FreeBSD-15
 such as:
 .Pp
-.Dl Boot0009 FreeBSD-11
+.Dl Boot0009 FreeBSD-15
 .Pp
 Note newly created boot entries are, by default, created inactive, hence
 the reason
