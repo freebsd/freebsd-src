@@ -151,7 +151,9 @@ static BasicType ParseBasicType(char c) {
   case 'd':
     return BasicType::Float64;
     break;
-
+  case 'b':
+    return BasicType::BFloat16;
+    break;
   default:
     return BasicType::Unknown;
   }
@@ -178,13 +180,10 @@ void emitCodeGenSwitchBody(const RVVIntrinsic *RVVI, raw_ostream &OS) {
     return;
   }
 
-  // Cast pointer operand of vector load intrinsic.
   for (const auto &I : enumerate(RVVI->getInputTypes())) {
     if (I.value()->isPointer()) {
       assert(RVVI->getIntrinsicTypes().front() == -1 &&
              "RVVI should be vector load intrinsic.");
-      OS << "  Ops[" << I.index() << "] = Builder.CreateBitCast(Ops[";
-      OS << I.index() << "], ResultType->getPointerTo());\n";
     }
   }
 
@@ -264,13 +263,14 @@ void SemaSignatureTable::init(ArrayRef<SemaRecord> SemaRecords) {
 
   assert(!SemaRecords.empty());
 
-  llvm::for_each(SemaRecords, [&](const SemaRecord &SR) {
+  for (const SemaRecord &SR : SemaRecords) {
     InsertToSignatureSet(SR.Prototype);
     InsertToSignatureSet(SR.Suffix);
     InsertToSignatureSet(SR.OverloadedSuffix);
-  });
+  }
 
-  llvm::for_each(Signatures, [this](auto &Sig) { insert(Sig); });
+  for (auto &Sig : Signatures)
+    insert(Sig);
 }
 
 void SemaSignatureTable::insert(ArrayRef<PrototypeDescriptor> Signature) {
@@ -289,7 +289,7 @@ unsigned SemaSignatureTable::getIndex(ArrayRef<PrototypeDescriptor> Signature) {
     return 0;
 
   // Checking Signature already in table or not.
-  if (Signature.size() < SignatureTable.size()) {
+  if (Signature.size() <= SignatureTable.size()) {
     size_t Bound = SignatureTable.size() - Signature.size() + 1;
     for (size_t Index = 0; Index < Bound; ++Index) {
       if (equal(Signature.begin(), Signature.end(),
@@ -388,8 +388,8 @@ void RVVEmitter::createHeader(raw_ostream &OS) {
     }
   }
 
-  for (BasicType BT :
-       {BasicType::Float16, BasicType::Float32, BasicType::Float64}) {
+  for (BasicType BT : {BasicType::Float16, BasicType::Float32,
+                       BasicType::Float64, BasicType::BFloat16}) {
     for (int Log2LMUL : Log2LMULs) {
       auto T = TypeCache.computeType(BT, Log2LMUL, PrototypeDescriptor::Vector);
       if (T)
@@ -398,7 +398,9 @@ void RVVEmitter::createHeader(raw_ostream &OS) {
         auto TupleT = TypeCache.computeType(
             BT, Log2LMUL,
             PrototypeDescriptor(BaseTypeModifier::Vector, getTupleVTM(NF),
-                                TypeModifier::Float));
+                                (BT == BasicType::BFloat16
+                                     ? TypeModifier::BFloat
+                                     : TypeModifier::Float)));
         if (TupleT)
           printType(*TupleT);
       }
@@ -482,8 +484,6 @@ void RVVEmitter::createCodeGen(raw_ostream &OS) {
       PrintFatalError("Builtin with same name has different IRName");
     else if (P.first->second->getManualCodegen() != Def->getManualCodegen())
       PrintFatalError("Builtin with same name has different ManualCodegen");
-    else if (P.first->second->getNF() != Def->getNF())
-      PrintFatalError("Builtin with same name has different NF");
     else if (P.first->second->isMasked() != Def->isMasked())
       PrintFatalError("Builtin with same name has different isMasked");
     else if (P.first->second->hasVL() != Def->hasVL())
@@ -655,7 +655,21 @@ void RVVEmitter::createRVVIntrinsics(
     for (auto RequiredFeature : RequiredFeatures) {
       RVVRequire RequireExt = StringSwitch<RVVRequire>(RequiredFeature)
                                   .Case("RV64", RVV_REQ_RV64)
+                                  .Case("ZvfhminOrZvfh", RVV_REQ_ZvfhminOrZvfh)
                                   .Case("Xsfvcp", RVV_REQ_Xsfvcp)
+                                  .Case("Xsfvfnrclipxfqf", RVV_REQ_Xsfvfnrclipxfqf)
+                                  .Case("Xsfvfwmaccqqq", RVV_REQ_Xsfvfwmaccqqq)
+                                  .Case("Xsfvqmaccdod", RVV_REQ_Xsfvqmaccdod)
+                                  .Case("Xsfvqmaccqoq", RVV_REQ_Xsfvqmaccqoq)
+                                  .Case("Zvbb", RVV_REQ_Zvbb)
+                                  .Case("Zvbc", RVV_REQ_Zvbc)
+                                  .Case("Zvkb", RVV_REQ_Zvkb)
+                                  .Case("Zvkg", RVV_REQ_Zvkg)
+                                  .Case("Zvkned", RVV_REQ_Zvkned)
+                                  .Case("Zvknha", RVV_REQ_Zvknha)
+                                  .Case("Zvknhb", RVV_REQ_Zvknhb)
+                                  .Case("Zvksed", RVV_REQ_Zvksed)
+                                  .Case("Zvksh", RVV_REQ_Zvksh)
                                   .Default(RVV_REQ_None);
       assert(RequireExt != RVV_REQ_None && "Unrecognized required feature?");
       SR.RequiredExtensions |= RequireExt;

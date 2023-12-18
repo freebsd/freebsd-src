@@ -92,7 +92,7 @@ __substitute_arg_id(basic_format_arg<_Context> __format_arg) {
   // This means the 128-bit will not be valid anymore.
   // TODO FMT Verify this resolution is accepted and add a test to verify
   //          128-bit integrals fail and switch to visit_format_arg.
-  return _VSTD::__visit_format_arg(
+  return std::__visit_format_arg(
       [](auto __arg) -> uint32_t {
         using _Type = decltype(__arg);
         if constexpr (same_as<_Type, monostate>)
@@ -176,7 +176,7 @@ inline constexpr __fields __fields_range{.__use_range_fill_ = true, .__clear_bra
 inline constexpr __fields __fields_fill_align_width{};
 #  endif
 
-enum class _LIBCPP_ENUM_VIS __alignment : uint8_t {
+enum class __alignment : uint8_t {
   /// No alignment is set in the format string.
   __default,
   __left,
@@ -185,7 +185,7 @@ enum class _LIBCPP_ENUM_VIS __alignment : uint8_t {
   __zero_padding
 };
 
-enum class _LIBCPP_ENUM_VIS __sign : uint8_t {
+enum class __sign : uint8_t {
   /// No sign is set in the format string.
   ///
   /// The sign isn't allowed for certain format-types. By using this value
@@ -197,7 +197,7 @@ enum class _LIBCPP_ENUM_VIS __sign : uint8_t {
   __space
 };
 
-enum class _LIBCPP_ENUM_VIS __type : uint8_t {
+enum class __type : uint8_t {
   __default = 0,
   __string,
   __binary_lower_case,
@@ -1158,7 +1158,7 @@ __estimate_column_width(basic_string_view<_CharT> __str, size_t __maximum, __col
   // When Unicode isn't supported assume ASCII and every code unit is one code
   // point. In ASCII the estimated column width is always one. Thus there's no
   // need for rounding.
-  size_t __width_ = _VSTD::min(__str.size(), __maximum);
+  size_t __width_ = std::min(__str.size(), __maximum);
   return {__width_, __str.begin() + __width_};
 }
 
