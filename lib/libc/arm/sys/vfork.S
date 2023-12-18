@@ -44,7 +44,7 @@
 
 ENTRY(vfork)
 	mov	r2, r14
-	SYSTRAP(vfork)
+	_SYSCALL(vfork)
 	bcs	PIC_SYM(CERROR, PLT)
 	sub	r1, r1, #1	/* r1 == 0xffffffff if parent, 0 if child */
 	and	r0, r0, r1	/* r0 == 0 if child, else unchanged */

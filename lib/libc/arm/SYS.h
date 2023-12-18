@@ -37,7 +37,7 @@
 #include <machine/asm.h>
 #include <sys/syscall.h>
 
-#define SYSTRAP(x)							\
+#define _SYSCALL(x)							\
 			mov ip, r7;					\
 			ldr r7, =SYS_ ## x;				\
 			swi 0;						\
@@ -45,30 +45,24 @@
 
 #define	CERROR		_C_LABEL(cerror)
 
-#define _SYSCALL_NOERROR(x)						\
-	ENTRY(__CONCAT(__sys_, x));					\
-	.weak _C_LABEL(x);						\
-	.set _C_LABEL(x), _C_LABEL(__CONCAT(__sys_,x));			\
-	.weak _C_LABEL(__CONCAT(_,x));					\
-	.set _C_LABEL(__CONCAT(_,x)),_C_LABEL(__CONCAT(__sys_,x));	\
-	SYSTRAP(x)
-
-#define _SYSCALL(x)							\
-	_SYSCALL_NOERROR(x);						\
+#define _SYSCALL_BODY(x)						\
+	_SYSCALL(x);							\
 	it	cs;							\
-	bcs PIC_SYM(CERROR, PLT)
+	bcs PIC_SYM(CERROR, PLT);					\
+	RET
 
 #define PSEUDO(x)							\
 	ENTRY(__CONCAT(__sys_, x));					\
 	.weak _C_LABEL(__CONCAT(_,x));					\
 	.set _C_LABEL(__CONCAT(_,x)),_C_LABEL(__CONCAT(__sys_,x));	\
-	SYSTRAP(x);							\
-	it	cs;							\
-	bcs PIC_SYM(CERROR, PLT);					\
-	RET
+	_SYSCALL_BODY(x)
 
 #define RSYSCALL(x)							\
-	_SYSCALL(x);							\
-	RET
+	ENTRY(__CONCAT(__sys_, x));					\
+	.weak _C_LABEL(x);						\
+	.set _C_LABEL(x), _C_LABEL(__CONCAT(__sys_,x));			\
+	.weak _C_LABEL(__CONCAT(_,x));					\
+	.set _C_LABEL(__CONCAT(_,x)),_C_LABEL(__CONCAT(__sys_,x));	\
+	_SYSCALL_BODY(x);						\
 
 	.globl  CERROR
