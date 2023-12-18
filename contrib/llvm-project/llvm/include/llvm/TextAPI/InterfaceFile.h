@@ -15,7 +15,6 @@
 #define LLVM_TEXTAPI_INTERFACEFILE_H
 
 #include "llvm/ADT/BitmaskEnum.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator.h"
@@ -55,22 +54,31 @@ enum FileType : unsigned {
   /// Invalid file type.
   Invalid = 0U,
 
+  /// \brief MachO Dynamic Library file.
+  MachO_DynamicLibrary      = 1U <<  0,
+
+  /// \brief MachO Dynamic Library Stub file.
+  MachO_DynamicLibrary_Stub = 1U <<  1,
+
+  /// \brief MachO Bundle file.
+  MachO_Bundle              = 1U <<  2,
+
   /// Text-based stub file (.tbd) version 1.0
-  TBD_V1  = 1U <<  0,
+  TBD_V1                    = 1U <<  3,
 
   /// Text-based stub file (.tbd) version 2.0
-  TBD_V2  = 1U <<  1,
+  TBD_V2                    = 1U <<  4,
 
   /// Text-based stub file (.tbd) version 3.0
-  TBD_V3  = 1U <<  2,
+  TBD_V3                    = 1U <<  5,
 
   /// Text-based stub file (.tbd) version 4.0
-  TBD_V4  = 1U <<  3,
+  TBD_V4                    = 1U <<  6,
 
   /// Text-based stub file (.tbd) version 5.0
-  TBD_V5  = 1U <<  4,
+  TBD_V5                    = 1U <<  7,
 
-  All     = ~0U,
+  All                       = ~0U,
 
   LLVM_MARK_AS_BITMASK_ENUM(/*LargestValue=*/All),
 };
@@ -93,6 +101,10 @@ public:
   template <typename RangeT> void addTargets(RangeT &&Targets) {
     for (const auto &Target : Targets)
       addTarget(Target(Target));
+  }
+
+  bool hasTarget(Target &Targ) const {
+    return llvm::is_contained(Targets, Targ);
   }
 
   using const_target_iterator = TargetList::const_iterator;
@@ -173,6 +185,13 @@ public:
   /// \param Target the target to add into.
   void addTarget(const Target &Target);
 
+  /// Determine if target triple slice exists in file.
+  ///
+  /// \param Targ the value to find.
+  bool hasTarget(const Target &Targ) const {
+    return llvm::is_contained(Targets, Targ);
+  }
+
   /// Set and add targets.
   ///
   /// Add the subset of llvm::triples that is supported by Tapi
@@ -228,11 +247,25 @@ public:
   /// Check if the library uses two-level namespace.
   bool isTwoLevelNamespace() const { return IsTwoLevelNamespace; }
 
+  /// Specify if the library is an OS library but not shared cache eligible.
+  void setOSLibNotForSharedCache(bool V = true) {
+    IsOSLibNotForSharedCache = V;
+  }
+
+  /// Check if the library is an OS library that is not shared cache eligible.
+  bool isOSLibNotForSharedCache() const { return IsOSLibNotForSharedCache; }
+
   /// Specify if the library is application extension safe (or not).
   void setApplicationExtensionSafe(bool V = true) { IsAppExtensionSafe = V; }
 
   /// Check if the library is application extension safe.
   bool isApplicationExtensionSafe() const { return IsAppExtensionSafe; }
+
+  /// Check if the library has simulator support.
+  bool hasSimulatorSupport() const { return HasSimSupport; }
+
+  /// Specify if the library has simulator support.
+  void setSimulatorSupport(bool V = true) { HasSimSupport = V; }
 
   /// Set the Objective-C constraint.
   void setObjCConstraint(ObjCConstraintType Constraint) {
@@ -326,9 +359,8 @@ public:
   }
 
   /// Add a symbol to the symbols list or extend an existing one.
-  template <typename RangeT,
-            typename ElT = typename std::remove_reference<
-                decltype(*std::begin(std::declval<RangeT>()))>::type>
+  template <typename RangeT, typename ElT = std::remove_reference_t<
+                                 decltype(*std::begin(std::declval<RangeT>()))>>
   void addSymbol(SymbolKind Kind, StringRef Name, RangeT &&Targets,
                  SymbolFlags Flags = SymbolFlags::None) {
     SymbolsSet->addGlobal(Kind, Name, Flags, Targets);
@@ -372,6 +404,37 @@ public:
     return SymbolsSet->undefineds();
   };
 
+  /// Extract architecture slice from Interface.
+  ///
+  /// \param Arch architecture to extract from.
+  /// \return New InterfaceFile with extracted architecture slice.
+  llvm::Expected<std::unique_ptr<InterfaceFile>>
+  extract(Architecture Arch) const;
+
+  /// Remove architecture slice from Interface.
+  ///
+  /// \param Arch architecture to remove.
+  /// \return New Interface File with removed architecture slice.
+  llvm::Expected<std::unique_ptr<InterfaceFile>>
+  remove(Architecture Arch) const;
+
+  /// Merge Interfaces for the same library. The following library attributes
+  /// must match.
+  /// * Install name, Current & Compatibility version,
+  /// * Two-level namespace enablement, and App extension enablement.
+  ///
+  /// \param O The Interface to merge.
+  /// \return New Interface File that was merged.
+  llvm::Expected<std::unique_ptr<InterfaceFile>>
+  merge(const InterfaceFile *O) const;
+
+  /// Inline reexported library into Interface.
+  ///
+  /// \param Library Interface of reexported library.
+  /// \param Overwrite Whether to overwrite preexisting inlined library.
+  void inlineLibrary(std::shared_ptr<InterfaceFile> Library,
+                     bool Overwrite = false);
+
   /// The equality is determined by attributes that impact linking
   /// compatibilities. Path, & FileKind are irrelevant since these by
   /// itself should not impact linking.
@@ -399,7 +462,9 @@ private:
   PackedVersion CompatibilityVersion;
   uint8_t SwiftABIVersion{0};
   bool IsTwoLevelNamespace{false};
+  bool IsOSLibNotForSharedCache{false};
   bool IsAppExtensionSafe{false};
+  bool HasSimSupport{false};
   ObjCConstraintType ObjcConstraint = ObjCConstraintType::None;
   std::vector<std::pair<Target, std::string>> ParentUmbrellas;
   std::vector<InterfaceFileRef> AllowableClients;

@@ -9,6 +9,7 @@
 #include "Context.h"
 #include "ByteCodeEmitter.h"
 #include "ByteCodeExprGen.h"
+#include "ByteCodeGenError.h"
 #include "ByteCodeStmtGen.h"
 #include "EvalEmitter.h"
 #include "Interp.h"
@@ -88,14 +89,11 @@ bool Context::evaluateAsInitializer(State &Parent, const VarDecl *VD,
 const LangOptions &Context::getLangOpts() const { return Ctx.getLangOpts(); }
 
 std::optional<PrimType> Context::classify(QualType T) const {
-  if (T->isFunctionPointerType() || T->isFunctionReferenceType())
-    return PT_FnPtr;
-
-  if (T->isReferenceType() || T->isPointerType())
-    return PT_Ptr;
-
   if (T->isBooleanType())
     return PT_Bool;
+
+  if (T->isAnyComplexType())
+    return std::nullopt;
 
   if (T->isSignedIntegerOrEnumerationType()) {
     switch (Ctx.getIntWidth(T)) {
@@ -108,7 +106,7 @@ std::optional<PrimType> Context::classify(QualType T) const {
     case 8:
       return PT_Sint8;
     default:
-      return {};
+      return PT_IntAPS;
     }
   }
 
@@ -123,7 +121,7 @@ std::optional<PrimType> Context::classify(QualType T) const {
     case 8:
       return PT_Uint8;
     default:
-      return {};
+      return PT_IntAP;
     }
   }
 
@@ -133,10 +131,23 @@ std::optional<PrimType> Context::classify(QualType T) const {
   if (T->isFloatingType())
     return PT_Float;
 
-  if (auto *AT = dyn_cast<AtomicType>(T))
+  if (T->isFunctionPointerType() || T->isFunctionReferenceType() ||
+      T->isFunctionType() || T->isSpecificBuiltinType(BuiltinType::BoundMember))
+    return PT_FnPtr;
+
+  if (T->isReferenceType() || T->isPointerType())
+    return PT_Ptr;
+
+  if (const auto *AT = dyn_cast<AtomicType>(T))
     return classify(AT->getValueType());
 
-  return {};
+  if (const auto *DT = dyn_cast<DecltypeType>(T))
+    return classify(DT->getUnderlyingType());
+
+  if (const auto *DT = dyn_cast<MemberPointerType>(T))
+    return classify(DT->getPointeeType());
+
+  return std::nullopt;
 }
 
 unsigned Context::getCharBit() const {
@@ -150,10 +161,19 @@ const llvm::fltSemantics &Context::getFloatSemantics(QualType T) const {
 }
 
 bool Context::Run(State &Parent, const Function *Func, APValue &Result) {
-  InterpState State(Parent, *P, Stk, *this);
-  State.Current = new InterpFrame(State, Func, /*Caller=*/nullptr, {});
-  if (Interpret(State, Result))
-    return true;
+
+  {
+    InterpState State(Parent, *P, Stk, *this);
+    State.Current = new InterpFrame(State, Func, /*Caller=*/nullptr, {});
+    if (Interpret(State, Result)) {
+      assert(Stk.empty());
+      return true;
+    }
+
+    // State gets destroyed here, so the Stk.clear() below doesn't accidentally
+    // remove values the State's destructor might access.
+  }
+
   Stk.clear();
   return false;
 }
@@ -202,4 +222,25 @@ Context::getOverridingFunction(const CXXRecordDecl *DynamicDecl,
   llvm_unreachable(
       "Couldn't find an overriding function in the class hierarchy?");
   return nullptr;
+}
+
+const Function *Context::getOrCreateFunction(const FunctionDecl *FD) {
+  assert(FD);
+  const Function *Func = P->getFunction(FD);
+  bool IsBeingCompiled = Func && Func->isDefined() && !Func->isFullyCompiled();
+  bool WasNotDefined = Func && !Func->isConstexpr() && !Func->isDefined();
+
+  if (IsBeingCompiled)
+    return Func;
+
+  if (!Func || WasNotDefined) {
+    if (auto R = ByteCodeStmtGen<ByteCodeEmitter>(*this, *P).compileFunc(FD))
+      Func = *R;
+    else {
+      llvm::consumeError(R.takeError());
+      return nullptr;
+    }
+  }
+
+  return Func;
 }

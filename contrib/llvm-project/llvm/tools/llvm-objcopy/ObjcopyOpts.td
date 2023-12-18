@@ -52,7 +52,7 @@ defm rename_section
          "Renames a section from old to new, optionally with specified flags. "
          "Flags supported for GNU compatibility: alloc, load, noload, "
          "readonly, exclude, debug, code, data, rom, share, contents, merge, "
-         "strings">,
+         "strings, large">,
       MetaVarName<"old=new[,flag1,...]">;
 defm redefine_symbol
     : Eq<"redefine-sym", "Change the name of a symbol old to new">,
@@ -85,7 +85,7 @@ defm set_section_flags
     : Eq<"set-section-flags",
          "Set section flags for a given section. Flags supported for GNU "
          "compatibility: alloc, load, noload, readonly, exclude, debug, code, "
-         "data, rom, share, contents, merge, strings">,
+         "data, rom, share, contents, merge, strings, large">,
       MetaVarName<"section=flag1[,flag2,...]">;
 
 defm set_section_type
@@ -230,3 +230,15 @@ defm add_symbol
 defm update_section
     : Eq<"update-section", "Replace the contents of section <name> with contents from a file <file>">,
       MetaVarName<"name=file">;
+
+defm gap_fill
+    : Eq<"gap-fill", "Fill the gaps between sections with <value> instead of zero. "
+                     "<value> must be an unsigned 8-bit integer. "
+                     "This option is only supported for ELF input and binary output">,
+      MetaVarName<"value">;
+
+defm pad_to
+    : Eq<"pad-to", "Pad the output up to the load address <address>, using a value "
+                   "of zero or the value specified by the --gap-fill option. "
+                   "This option is only supported for ELF input and binary output">,
+      MetaVarName<"address">;

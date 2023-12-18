@@ -170,10 +170,11 @@ def : PatFprFpr<fminnum_ieee, FMIN_S, FPR32>;
 def : PatFpr<fneg, FNEG_S, FPR32>;
 def : PatFpr<fabs, FABS_S, FPR32>;
 def : PatFpr<fsqrt, FSQRT_S, FPR32>;
-
 def : Pat<(fdiv fpimm1, (fsqrt FPR32:$fj)), (FRSQRT_S FPR32:$fj)>;
-
 def : Pat<(fcanonicalize FPR32:$fj), (FMAX_S $fj, $fj)>;
+def : Pat<(is_fpclass FPR32:$fj, (i32 timm:$mask)),
+          (SLTU R0, (ANDI (MOVFR2GR_S (FCLASS_S FPR32:$fj)),
+                          (to_fclass_mask timm:$mask)))>;
 
 /// Setcc
 
@@ -294,8 +295,12 @@ def : Pat<(fneg (fma FPR32:$fj, FPR32:$fk, FPR32:$fa)),
 def : Pat<(fma_nsz (fneg FPR32:$fj), FPR32:$fk, (fneg FPR32:$fa)),
           (FNMADD_S FPR32:$fj, FPR32:$fk, FPR32:$fa)>;
 
-// fnmsub.s: -fj * fk + fa
-def : Pat<(fma (fneg FPR32:$fj), FPR32:$fk, FPR32:$fa),
+// fnmsub.s: -(fj * fk - fa)
+def : Pat<(fneg (fma FPR32:$fj, FPR32:$fk, (fneg FPR32:$fa))),
+          (FNMSUB_S FPR32:$fj, FPR32:$fk, FPR32:$fa)>;
+
+// fnmsub.s: -fj * fk + fa (the nsz flag on the FMA)
+def : Pat<(fma_nsz (fneg FPR32:$fj), FPR32:$fk, FPR32:$fa),
           (FNMSUB_S FPR32:$fj, FPR32:$fk, FPR32:$fa)>;
 } // Predicates = [HasBasicF]
 

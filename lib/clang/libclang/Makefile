@@ -26,6 +26,10 @@ SRCDIR=		clang/lib
 # SRCS_FUL:	required for MK_CLANG_FULL
 # SRCS_LDB:	required for MK_LLDB
 
+SRCS_MIN+=	APINotes/APINotesManager.cpp
+SRCS_MIN+=	APINotes/APINotesReader.cpp
+SRCS_MIN+=	APINotes/APINotesWriter.cpp
+SRCS_MIN+=	APINotes/APINotesYAMLCompiler.cpp
 SRCS_FUL+=	ARCMigrate/ARCMT.cpp
 SRCS_FUL+=	ARCMigrate/ARCMTActions.cpp
 SRCS_FUL+=	ARCMigrate/FileRemapper.cpp
@@ -94,8 +98,8 @@ SRCS_MIN+=	AST/Interp/ByteCodeStmtGen.cpp
 SRCS_MIN+=	AST/Interp/Context.cpp
 SRCS_MIN+=	AST/Interp/Descriptor.cpp
 SRCS_MIN+=	AST/Interp/EvalEmitter.cpp
-SRCS_MIN+=	AST/Interp/Frame.cpp
 SRCS_MIN+=	AST/Interp/Floating.cpp
+SRCS_MIN+=	AST/Interp/Frame.cpp
 SRCS_MIN+=	AST/Interp/Function.cpp
 SRCS_MIN+=	AST/Interp/Interp.cpp
 SRCS_MIN+=	AST/Interp/InterpBlock.cpp
@@ -161,8 +165,8 @@ SRCS_MIN+=	Analysis/CalledOnceCheck.cpp
 SRCS_MIN+=	Analysis/CloneDetection.cpp
 SRCS_MIN+=	Analysis/CocoaConventions.cpp
 SRCS_FUL+=	Analysis/CodeInjector.cpp
-SRCS_MIN+=	Analysis/Consumed.cpp
 SRCS_MIN+=	Analysis/ConstructionContext.cpp
+SRCS_MIN+=	Analysis/Consumed.cpp
 SRCS_FUL+=	Analysis/Dominators.cpp
 SRCS_MIN+=	Analysis/ExprMutationAnalyzer.cpp
 SRCS_FUL+=	Analysis/IssueHash.cpp
@@ -210,6 +214,7 @@ SRCS_MIN+=	Basic/Sanitizers.cpp
 SRCS_MIN+=	Basic/Sarif.cpp
 SRCS_MIN+=	Basic/SourceLocation.cpp
 SRCS_MIN+=	Basic/SourceManager.cpp
+SRCS_MIN+=	Basic/SourceMgrAdapter.cpp
 SRCS_MIN+=	Basic/Stack.cpp
 SRCS_MIN+=	Basic/TargetID.cpp
 SRCS_MIN+=	Basic/TargetInfo.cpp
@@ -227,8 +232,8 @@ SRCS_MIN+=	Basic/Targets/Lanai.cpp
 SRCS_MIN+=	Basic/Targets/Le64.cpp
 SRCS_MIN+=	Basic/Targets/LoongArch.cpp
 SRCS_MIN+=	Basic/Targets/M68k.cpp
-SRCS_MIN+=	Basic/Targets/Mips.cpp
 SRCS_MIN+=	Basic/Targets/MSP430.cpp
+SRCS_MIN+=	Basic/Targets/Mips.cpp
 SRCS_MIN+=	Basic/Targets/NVPTX.cpp
 SRCS_MIN+=	Basic/Targets/OSTargets.cpp
 SRCS_MIN+=	Basic/Targets/PNaCl.cpp
@@ -297,6 +302,7 @@ SRCS_MIN+=	CodeGen/CodeGenTypes.cpp
 SRCS_MIN+=	CodeGen/ConstantInitBuilder.cpp
 SRCS_MIN+=	CodeGen/CoverageMappingGen.cpp
 SRCS_MIN+=	CodeGen/ItaniumCXXABI.cpp
+SRCS_MIN+=	CodeGen/LinkInModulesPass.cpp
 SRCS_MIN+=	CodeGen/MacroPPCallbacks.cpp
 SRCS_MIN+=	CodeGen/MicrosoftCXXABI.cpp
 SRCS_MIN+=	CodeGen/ModuleBuilder.cpp
@@ -349,7 +355,6 @@ SRCS_MIN+=	Driver/ToolChains/AIX.cpp
 SRCS_MIN+=	Driver/ToolChains/AMDGPU.cpp
 SRCS_MIN+=	Driver/ToolChains/AMDGPUOpenMP.cpp
 SRCS_MIN+=	Driver/ToolChains/AVR.cpp
-SRCS_MIN+=	Driver/ToolChains/Ananas.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/AArch64.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/ARM.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/CSKY.cpp
@@ -365,9 +370,7 @@ SRCS_MIN+=	Driver/ToolChains/Arch/X86.cpp
 SRCS_MIN+=	Driver/ToolChains/BareMetal.cpp
 SRCS_MIN+=	Driver/ToolChains/CSKYToolChain.cpp
 SRCS_MIN+=	Driver/ToolChains/Clang.cpp
-SRCS_MIN+=	Driver/ToolChains/CloudABI.cpp
 SRCS_MIN+=	Driver/ToolChains/CommonArgs.cpp
-SRCS_MIN+=	Driver/ToolChains/Contiki.cpp
 SRCS_MIN+=	Driver/ToolChains/CrossWindows.cpp
 SRCS_MIN+=	Driver/ToolChains/Cuda.cpp
 SRCS_MIN+=	Driver/ToolChains/Darwin.cpp
@@ -388,9 +391,7 @@ SRCS_MIN+=	Driver/ToolChains/Linux.cpp
 SRCS_MIN+=	Driver/ToolChains/MSP430.cpp
 SRCS_MIN+=	Driver/ToolChains/MSVC.cpp
 SRCS_MIN+=	Driver/ToolChains/MinGW.cpp
-SRCS_MIN+=	Driver/ToolChains/Minix.cpp
 SRCS_MIN+=	Driver/ToolChains/MipsLinux.cpp
-SRCS_MIN+=	Driver/ToolChains/Myriad.cpp
 SRCS_MIN+=	Driver/ToolChains/NaCl.cpp
 SRCS_MIN+=	Driver/ToolChains/NetBSD.cpp
 SRCS_MIN+=	Driver/ToolChains/OHOS.cpp
@@ -429,6 +430,7 @@ SRCS_EXT+=	Format/IntegerLiteralSeparatorFixer.cpp
 SRCS_EXT+=	Format/MacroCallReconstructor.cpp
 SRCS_EXT+=	Format/MacroExpander.cpp
 SRCS_EXT+=	Format/NamespaceEndCommentsFixer.cpp
+SRCS_EXT+=	Format/ObjCPropertyAttributeOrderFixer.cpp
 SRCS_EXT+=	Format/QualifierAlignmentFixer.cpp
 SRCS_EXT+=	Format/SortJavaScriptImports.cpp
 SRCS_EXT+=	Format/TokenAnalyzer.cpp
@@ -485,9 +487,9 @@ SRCS_MIN+=	Index/IndexingAction.cpp
 SRCS_MIN+=	Index/IndexingContext.cpp
 SRCS_MIN+=	Index/USRGeneration.cpp
 SRCS_MIN+=	Lex/DependencyDirectivesScanner.cpp
-SRCS_MIN+=	Lex/InitHeaderSearch.cpp
 SRCS_MIN+=	Lex/HeaderMap.cpp
 SRCS_MIN+=	Lex/HeaderSearch.cpp
+SRCS_MIN+=	Lex/InitHeaderSearch.cpp
 SRCS_MIN+=	Lex/Lexer.cpp
 SRCS_MIN+=	Lex/LiteralSupport.cpp
 SRCS_MIN+=	Lex/MacroArgs.cpp
@@ -516,6 +518,7 @@ SRCS_MIN+=	Parse/ParseExprCXX.cpp
 SRCS_MIN+=	Parse/ParseHLSL.cpp
 SRCS_MIN+=	Parse/ParseInit.cpp
 SRCS_MIN+=	Parse/ParseObjc.cpp
+SRCS_MIN+=	Parse/ParseOpenACC.cpp
 SRCS_MIN+=	Parse/ParseOpenMP.cpp
 SRCS_MIN+=	Parse/ParsePragma.cpp
 SRCS_MIN+=	Parse/ParseStmt.cpp
@@ -601,12 +604,13 @@ SRCS_FUL+=	StaticAnalyzer/Checkers/AnalyzerStatsChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/ArrayBoundChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/ArrayBoundCheckerV2.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/BasicObjCFoundationChecks.cpp
+SRCS_FUL+=	StaticAnalyzer/Checkers/BitwiseShiftChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/BlockInCriticalSectionChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/BoolAssignmentChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/BuiltinFunctionChecker.cpp
-SRCS_FUL+=	StaticAnalyzer/Checkers/GCDAntipatternChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/CStringChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/CStringSyntaxChecker.cpp
+SRCS_FUL+=	StaticAnalyzer/Checkers/CXXDeleteChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/CXXSelfAssignmentChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/CallAndMessageChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/CastSizeChecker.cpp
@@ -625,7 +629,6 @@ SRCS_FUL+=	StaticAnalyzer/Checkers/DeadStoresChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/DebugCheckers.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/DebugContainerModeling.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/DebugIteratorModeling.cpp
-SRCS_FUL+=	StaticAnalyzer/Checkers/DeleteWithNonVirtualDtorChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/DereferenceChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/DirectIvarAssignment.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/DivZeroChecker.cpp
@@ -638,6 +641,7 @@ SRCS_FUL+=	StaticAnalyzer/Checkers/ErrnoTesterChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/ExprInspectionChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/FixedAddressChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/FuchsiaHandleChecker.cpp
+SRCS_FUL+=	StaticAnalyzer/Checkers/GCDAntipatternChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/GTestChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/GenericTaintChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/IdenticalExprChecker.cpp
@@ -696,6 +700,7 @@ SRCS_FUL+=	StaticAnalyzer/Checkers/SmartPtrChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/SmartPtrModeling.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/StackAddrEscapeChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/StdLibraryFunctionsChecker.cpp
+SRCS_FUL+=	StaticAnalyzer/Checkers/StdVariantChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/StreamChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/StringChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/Taint.cpp
@@ -718,7 +723,6 @@ SRCS_FUL+=	StaticAnalyzer/Checkers/VLASizeChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/ValistChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/VforkChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/VirtualCallChecker.cpp
-SRCS_FUL+=	StaticAnalyzer/Checkers/cert/PutenvWithAutoChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/WebKit/ASTUtils.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/WebKit/NoUncountedMembersChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/WebKit/PtrTypesSemantics.cpp
@@ -727,6 +731,7 @@ SRCS_FUL+=	StaticAnalyzer/Checkers/WebKit/UncountedCallArgsChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/WebKit/UncountedLambdaCapturesChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/WebKit/UncountedLocalVarsChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Checkers/cert/InvalidPtrChecker.cpp
+SRCS_FUL+=	StaticAnalyzer/Checkers/cert/PutenvWithAutoChecker.cpp
 SRCS_FUL+=	StaticAnalyzer/Core/APSIntType.cpp
 SRCS_FUL+=	StaticAnalyzer/Core/AnalysisManager.cpp
 SRCS_FUL+=	StaticAnalyzer/Core/AnalyzerOptions.cpp
@@ -734,6 +739,7 @@ SRCS_FUL+=	StaticAnalyzer/Core/BasicValueFactory.cpp
 SRCS_FUL+=	StaticAnalyzer/Core/BlockCounter.cpp
 SRCS_FUL+=	StaticAnalyzer/Core/BugReporter.cpp
 SRCS_FUL+=	StaticAnalyzer/Core/BugReporterVisitors.cpp
+SRCS_FUL+=	StaticAnalyzer/Core/BugSuppression.cpp
 SRCS_FUL+=	StaticAnalyzer/Core/CallDescription.cpp
 SRCS_FUL+=	StaticAnalyzer/Core/CallEvent.cpp
 SRCS_FUL+=	StaticAnalyzer/Core/Checker.cpp
@@ -934,6 +940,18 @@ clang/Basic/AttrHasAttributeImpl.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Basic/AttrHasAttributeImpl.inc
+
+clang/Basic/AttrLeftSideCanPrintList.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -gen-clang-attr-can-print-left-list \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
+TGHDRS+=	clang/Basic/AttrLeftSideCanPrintList.inc
+
+clang/Basic/AttrLeftSideMustPrintList.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -gen-clang-attr-must-print-left-list \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
+TGHDRS+=	clang/Basic/AttrLeftSideMustPrintList.inc
 
 clang/Basic/AttrList.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -gen-clang-attr-list \

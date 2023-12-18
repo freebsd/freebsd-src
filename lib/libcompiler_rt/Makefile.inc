@@ -40,6 +40,7 @@ SRCF+=		divti3
 SRCF+=		divxc3
 SRCF+=		enable_execute_stack
 SRCF+=		extendhfsf2
+SRCF+=		extendxftf2
 SRCF+=		ffsdi2
 SRCF+=		ffssi2
 SRCF+=		ffsti2
@@ -109,6 +110,7 @@ SRCF+=		subvti3
 SRCF+=		trampoline_setup
 SRCF+=		truncdfhf2
 SRCF+=		truncsfhf2
+SRCF+=		trunctfxf2
 SRCF+=		ucmpdi2
 SRCF+=		ucmpti2
 SRCF+=		udivdi3
@@ -163,7 +165,8 @@ SRCF+=		fp_mode
 # 128-bit quad precision long double support,
 # only used on some architectures.
 #
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "riscv"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "riscv"
 SRCF+=		addtf3
 SRCF+=		comparetf2
 SRCF+=		divtf3
@@ -208,6 +211,16 @@ SRCF+=		truncdfsf2
 .if ${MACHINE_CPUARCH} != "arm"
 SRCF+=		comparedf2
 SRCF+=		comparesf2
+.endif
+
+#
+# bfloat16 support, only used on some architectures.
+#
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "arm" || (${MACHINE_CPUARCH} == "i386" && \
+    !empty(MACHINE_CPU:Msse2)) || ${MACHINE_CPUARCH} == "riscv"
+SRCF+=		truncdfbf2
+SRCF+=		truncsfbf2
 .endif
 
 # FreeBSD-specific atomic intrinsics.

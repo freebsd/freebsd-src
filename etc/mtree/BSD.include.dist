@@ -60,6 +60,8 @@
                 locale_base_api
                 ..
             ..
+            __math
+            ..
             __mdspan
             ..
             __memory
@@ -69,12 +71,6 @@
             __mutex
             ..
             __numeric
-            ..
-            __pstl
-                internal
-                    omp
-                    ..
-                ..
             ..
             __random
             ..
@@ -97,6 +93,8 @@
             __variant
             ..
             experimental
+                __simd
+                ..
             ..
             ext
             ..

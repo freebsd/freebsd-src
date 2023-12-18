@@ -54,6 +54,113 @@
 /* LLVM name for the native target MCA init function, if available */
 /* #undef LLVM_NATIVE_TARGETMCA */
 
+/* Define if the AArch64 target is built in */
+#ifdef LLVM_TARGET_ENABLE_AARCH64
+#define LLVM_HAS_AARCH64_TARGET 1
+#else
+#define LLVM_HAS_AARCH64_TARGET 0
+#endif
+
+/* Define if the AMDGPU target is built in */
+#define LLVM_HAS_AMDGPU_TARGET 0
+
+/* Define if the ARC target is built in */
+#define LLVM_HAS_ARC_TARGET 0
+
+/* Define if the ARM target is built in */
+#ifdef LLVM_TARGET_ENABLE_ARM
+#define LLVM_HAS_ARM_TARGET 1
+#else
+#define LLVM_HAS_ARM_TARGET 0
+#endif
+
+/* Define if the AVR target is built in */
+#define LLVM_HAS_AVR_TARGET 0
+
+/* Define if the BPF target is built in */
+#ifdef LLVM_TARGET_ENABLE_BPF
+#define LLVM_HAS_BPF_TARGET 1
+#else
+#define LLVM_HAS_BPF_TARGET 0
+#endif
+
+/* Define if the CSKY target is built in */
+#define LLVM_HAS_CSKY_TARGET 0
+
+/* Define if the DirectX target is built in */
+#define LLVM_HAS_DIRECTX_TARGET 0
+
+/* Define if the Hexagon target is built in */
+#define LLVM_HAS_HEXAGON_TARGET 0
+
+/* Define if the Lanai target is built in */
+#define LLVM_HAS_LANAI_TARGET 0
+
+/* Define if the LoongArch target is built in */
+#define LLVM_HAS_LOONGARCH_TARGET 0
+
+/* Define if the M68k target is built in */
+#define LLVM_HAS_M68K_TARGET 0
+
+/* Define if the Mips target is built in */
+#ifdef LLVM_TARGET_ENABLE_MIPS
+#define LLVM_HAS_MIPS_TARGET 1
+#else
+#define LLVM_HAS_MIPS_TARGET 0
+#endif
+
+/* Define if the MSP430 target is built in */
+#define LLVM_HAS_MSP430_TARGET 0
+
+/* Define if the NVPTX target is built in */
+#define LLVM_HAS_NVPTX_TARGET 0
+
+/* Define if the PowerPC target is built in */
+#ifdef LLVM_TARGET_ENABLE_POWERPC
+#define LLVM_HAS_POWERPC_TARGET 1
+#else
+#define LLVM_HAS_POWERPC_TARGET 0
+#endif
+
+/* Define if the RISCV target is built in */
+#ifdef LLVM_TARGET_ENABLE_RISCV
+#define LLVM_HAS_RISCV_TARGET 1
+#else
+#define LLVM_HAS_RISCV_TARGET 0
+#endif
+
+/* Define if the Sparc target is built in */
+#ifdef LLVM_TARGET_ENABLE_SPARC
+#define LLVM_HAS_SPARC_TARGET 1
+#else
+#define LLVM_HAS_SPARC_TARGET 0
+#endif
+
+/* Define if the SPIRV target is built in */
+#define LLVM_HAS_SPIRV_TARGET 0
+
+/* Define if the SystemZ target is built in */
+#define LLVM_HAS_SYSTEMZ_TARGET 0
+
+/* Define if the VE target is built in */
+#define LLVM_HAS_VE_TARGET 0
+
+/* Define if the WebAssembly target is built in */
+#define LLVM_HAS_WEBASSEMBLY_TARGET 0
+
+/* Define if the X86 target is built in */
+#ifdef LLVM_TARGET_ENABLE_X86
+#define LLVM_HAS_X86_TARGET 1
+#else
+#define LLVM_HAS_X86_TARGET 0
+#endif
+
+/* Define if the XCore target is built in */
+#define LLVM_HAS_XCORE_TARGET 0
+
+/* Define if the Xtensa target is built in */
+#define LLVM_HAS_XTENSA_TARGET 0
+
 /* Define if this is Unixish platform */
 #define LLVM_ON_UNIX 1
 
@@ -67,16 +174,16 @@
 #define LLVM_USE_PERF 0
 
 /* Major version of the LLVM API */
-#define LLVM_VERSION_MAJOR 17
+#define LLVM_VERSION_MAJOR 18
 
 /* Minor version of the LLVM API */
 #define LLVM_VERSION_MINOR 0
 
 /* Patch version of the LLVM API */
-#define LLVM_VERSION_PATCH 6
+#define LLVM_VERSION_PATCH 0
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "17.0.6"
+#define LLVM_VERSION_STRING "18.0.0git"
 
 /* Whether LLVM records statistics for use with GetStatistics(),
  * PrintStatistics() or PrintStatisticsJSON()
@@ -98,16 +205,11 @@
 /* Define if zstd compression is available */
 #define LLVM_ENABLE_ZSTD 1
 
-/* Define if LLVM is using tflite instead of libtensorflow */
+/* Define if LLVM is using tflite */
 /* #undef LLVM_HAVE_TFLITE */
 
 /* Define to 1 if you have the <sysexits.h> header file. */
 #define HAVE_SYSEXITS_H 1
-
-/* Define if the xar_open() function is supported on this platform. */
-#if defined(__APPLE__)
-#define LLVM_HAVE_LIBXAR 1
-#endif
 
 /* Define if building libLLVM shared library */
 /* #undef LLVM_BUILD_LLVM_DYLIB */
