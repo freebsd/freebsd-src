@@ -222,8 +222,8 @@ gvt_d_setup_opregion(struct pci_devinst *const pi)
 	opregion->len = header->size * KB;
 	munmap(header, sizeof(*header));
 
-	opregion->hva = mmap(NULL, opregion->len * KB, PROT_READ, MAP_SHARED,
-	    memfd, opregion->hpa);
+	opregion->hva = mmap(NULL, opregion->len, PROT_READ, MAP_SHARED, memfd,
+	    opregion->hpa);
 	if (opregion->hva == MAP_FAILED) {
 		warn("%s: Unable to map host OpRegion", __func__);
 		close(memfd);
