@@ -13,7 +13,6 @@
 #include "llvm/CodeGen/DwarfStringPoolEntry.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/PerThreadBumpPtrAllocator.h"
-#include <string>
 #include <string_view>
 
 namespace llvm {
@@ -21,7 +20,7 @@ namespace dwarflinker_parallel {
 
 /// StringEntry keeps data of the string: the length, external offset
 /// and a string body which is placed right after StringEntry.
-using StringEntry = StringMapEntry<DwarfStringPoolEntry *>;
+using StringEntry = StringMapEntry<std::nullopt_t>;
 
 class StringPoolEntryInfo {
 public:
@@ -63,6 +62,8 @@ public:
                                  StringPoolEntryInfo>(Allocator, InitialSize) {}
 
   parallel::PerThreadBumpPtrAllocator &getAllocatorRef() { return Allocator; }
+
+  void clear() { Allocator.Reset(); }
 
 private:
   parallel::PerThreadBumpPtrAllocator Allocator;

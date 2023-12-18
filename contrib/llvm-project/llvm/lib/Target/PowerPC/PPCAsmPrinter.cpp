@@ -68,6 +68,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Threading.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
@@ -316,7 +317,7 @@ void PPCAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
 
     // Linux assembler (Others?) does not take register mnemonics.
     // FIXME - What about special registers used in mfspr/mtspr?
-    O << PPCRegisterInfo::stripRegisterPrefix(RegName);
+    O << PPC::stripRegisterPrefix(RegName);
     return;
   }
   case MachineOperand::MO_Immediate:
@@ -376,13 +377,13 @@ bool PPCAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
       // This operand uses VSX numbering.
       // If the operand is a VMX register, convert it to a VSX register.
       Register Reg = MI->getOperand(OpNo).getReg();
-      if (PPCInstrInfo::isVRRegister(Reg))
+      if (PPC::isVRRegister(Reg))
         Reg = PPC::VSX32 + (Reg - PPC::V0);
-      else if (PPCInstrInfo::isVFRegister(Reg))
+      else if (PPC::isVFRegister(Reg))
         Reg = PPC::VSX32 + (Reg - PPC::VF0);
       const char *RegName;
       RegName = PPCInstPrinter::getRegisterName(Reg);
-      RegName = PPCRegisterInfo::stripRegisterPrefix(RegName);
+      RegName = PPC::stripRegisterPrefix(RegName);
       O << RegName;
       return false;
     }
@@ -632,7 +633,6 @@ void PPCAsmPrinter::EmitAIXTlsCallHelper(const MachineInstr *MI) {
   const MCExpr *TlsRef =
       MCSymbolRefExpr::create(TlsCall, MCSymbolRefExpr::VK_None, OutContext);
   EmitToStreamer(*OutStreamer, MCInstBuilder(PPC::BLA).addExpr(TlsRef));
-  return;
 }
 
 /// EmitTlsCall -- Given a GETtls[ld]ADDR[32] instruction, print a
@@ -715,25 +715,11 @@ static MCSymbol *getMCSymbolForTOCPseudoMO(const MachineOperand &MO,
   }
 }
 
-static bool hasTLSFlag(const MachineOperand &MO) {
-  unsigned Flags = MO.getTargetFlags();
-  if (Flags & PPCII::MO_TLSGD_FLAG || Flags & PPCII::MO_TPREL_FLAG ||
-      Flags & PPCII::MO_TLSLD_FLAG || Flags & PPCII::MO_TLSGDM_FLAG)
-    return true;
-
-  if (Flags == PPCII::MO_TPREL_LO || Flags == PPCII::MO_TPREL_HA ||
-      Flags == PPCII::MO_DTPREL_LO || Flags == PPCII::MO_TLSLD_LO ||
-      Flags == PPCII::MO_TLS)
-    return true;
-
-  return false;
-}
-
 static PPCAsmPrinter::TOCEntryType
 getTOCEntryTypeForMO(const MachineOperand &MO) {
   // Use the target flags to determine if this MO is Thread Local.
   // If we don't do this it comes out as Global.
-  if (hasTLSFlag(MO))
+  if (PPCInstrInfo::hasTLSFlag(MO.getTargetFlags()))
     return PPCAsmPrinter::TOCType_ThreadLocal;
 
   switch (MO.getType()) {
@@ -827,24 +813,27 @@ void PPCAsmPrinter::emitInstruction(const MachineInstr *MI) {
     return Expr;
   };
   auto GetVKForMO = [&](const MachineOperand &MO) {
-    // For TLS local-exec accesses on AIX, we have one TOC entry for the symbol
-    // (with the variable offset), which is differentiated by MO_TPREL_FLAG.
-    if (MO.getTargetFlags() & PPCII::MO_TPREL_FLAG) {
-      // TODO: Update the query and the comment above to add a check for initial
-      // exec when this TLS model is supported on AIX in the future, as both
-      // local-exec and initial-exec can use MO_TPREL_FLAG.
+    // For TLS initial-exec and local-exec accesses on AIX, we have one TOC
+    // entry for the symbol (with the variable offset), which is differentiated
+    // by MO_TPREL_FLAG.
+    unsigned Flag = MO.getTargetFlags();
+    if (Flag == PPCII::MO_TPREL_FLAG ||
+        Flag == PPCII::MO_GOT_TPREL_PCREL_FLAG ||
+        Flag == PPCII::MO_TPREL_PCREL_FLAG) {
       assert(MO.isGlobal() && "Only expecting a global MachineOperand here!\n");
       TLSModel::Model Model = TM.getTLSModel(MO.getGlobal());
       if (Model == TLSModel::LocalExec)
         return MCSymbolRefExpr::VariantKind::VK_PPC_AIX_TLSLE;
-      llvm_unreachable("Only expecting local-exec accesses!");
+      if (Model == TLSModel::InitialExec)
+        return MCSymbolRefExpr::VariantKind::VK_PPC_AIX_TLSIE;
+      llvm_unreachable("Only expecting local-exec or initial-exec accesses!");
     }
     // For GD TLS access on AIX, we have two TOC entries for the symbol (one for
     // the variable offset and the other for the region handle). They are
     // differentiated by MO_TLSGD_FLAG and MO_TLSGDM_FLAG.
-    if (MO.getTargetFlags() & PPCII::MO_TLSGDM_FLAG)
+    if (Flag == PPCII::MO_TLSGDM_FLAG)
       return MCSymbolRefExpr::VariantKind::VK_PPC_AIX_TLSGDM;
-    if (MO.getTargetFlags() & PPCII::MO_TLSGD_FLAG)
+    if (Flag == PPCII::MO_TLSGD_FLAG || Flag == PPCII::MO_GOT_TLSGD_PCREL_FLAG)
       return MCSymbolRefExpr::VariantKind::VK_PPC_AIX_TLSGD;
     return MCSymbolRefExpr::VariantKind::VK_None;
   };
@@ -1533,6 +1522,24 @@ void PPCAsmPrinter::emitInstruction(const MachineInstr *MI) {
         MCInstBuilder(PPC::ORI).addReg(PPC::X2).addReg(PPC::X2).addImm(0));
     EmitToStreamer(*OutStreamer, MCInstBuilder(PPC::EnforceIEIO));
     return;
+  }
+  case PPC::ADDI8: {
+    // The faster non-TOC-based local-exec sequence is represented by `addi`
+    // with an immediate operand having the MO_TPREL_FLAG. Such an instruction
+    // does not otherwise arise.
+    unsigned Flag = MI->getOperand(2).getTargetFlags();
+    if (Flag == PPCII::MO_TPREL_FLAG ||
+        Flag == PPCII::MO_GOT_TPREL_PCREL_FLAG ||
+        Flag == PPCII::MO_TPREL_PCREL_FLAG) {
+      assert(
+          Subtarget->hasAIXSmallLocalExecTLS() &&
+          "addi with thread-pointer only expected with local-exec small TLS");
+      LowerPPCMachineInstrToMCInst(MI, TmpInst, *this);
+      TmpInst.setOpcode(PPC::LA8);
+      EmitToStreamer(*OutStreamer, TmpInst);
+      return;
+    }
+    break;
   }
   }
 
@@ -2512,7 +2519,7 @@ void PPCAIXAsmPrinter::emitGlobalVariable(const GlobalVariable *GV) {
 }
 
 void PPCAIXAsmPrinter::emitGlobalVariableHelper(const GlobalVariable *GV) {
-  assert(!GV->getName().startswith("llvm.") &&
+  assert(!GV->getName().starts_with("llvm.") &&
          "Unhandled intrinsic global variable.");
 
   if (GV->hasComdat())
@@ -2759,14 +2766,18 @@ bool PPCAIXAsmPrinter::doInitialization(Module &M) {
           // and add a format indicator as a part of function name in case we
           // will support more than one format.
           FormatIndicatorAndUniqueModId = "clang_" + UniqueModuleId.substr(1);
-        else
-          // Use the Pid and current time as the unique module id when we cannot
-          // generate one based on a module's strong external symbols.
-          // FIXME: Adjust the comment accordingly after we use source file full
-          // path instead.
+        else {
+          // Use threadId, Pid, and current time as the unique module id when we
+          // cannot generate one based on a module's strong external symbols.
+          auto CurTime =
+              std::chrono::duration_cast<std::chrono::nanoseconds>(
+                  std::chrono::steady_clock::now().time_since_epoch())
+                  .count();
           FormatIndicatorAndUniqueModId =
-              "clangPidTime_" + llvm::itostr(sys::Process::getProcessId()) +
-              "_" + llvm::itostr(time(nullptr));
+              "clangPidTidTime_" + llvm::itostr(sys::Process::getProcessId()) +
+              "_" + llvm::itostr(llvm::get_threadid()) + "_" +
+              llvm::itostr(CurTime);
+        }
       }
 
       emitSpecialLLVMGlobal(&G);
@@ -2781,11 +2792,21 @@ bool PPCAIXAsmPrinter::doInitialization(Module &M) {
 
   // Construct an aliasing list for each GlobalObject.
   for (const auto &Alias : M.aliases()) {
-    const GlobalObject *Base = Alias.getAliaseeObject();
-    if (!Base)
+    const GlobalObject *Aliasee = Alias.getAliaseeObject();
+    if (!Aliasee)
       report_fatal_error(
           "alias without a base object is not yet supported on AIX");
-    GOAliasMap[Base].push_back(&Alias);
+
+    if (Aliasee->hasCommonLinkage()) {
+      report_fatal_error("Aliases to common variables are not allowed on AIX:"
+                         "\n\tAlias attribute for " +
+                             Alias.getGlobalIdentifier() +
+                             " is invalid because " + Aliasee->getName() +
+                             " is common.",
+                         false);
+    }
+
+    GOAliasMap[Aliasee].push_back(&Alias);
   }
 
   return Result;

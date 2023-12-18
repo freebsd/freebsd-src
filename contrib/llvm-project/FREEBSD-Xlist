@@ -7,6 +7,7 @@
 .github/
 .gitignore
 .mailmap
+CODE_OF_CONDUCT.md
 CONTRIBUTING.md
 LICENSE.TXT
 README.md
@@ -111,6 +112,7 @@ clang/tools/clang-format/clang-format.el
 clang/tools/clang-format/clang-format.py
 clang/tools/clang-format/fuzzer/
 clang/tools/clang-format/git-clang-format
+clang/tools/clang-format/git-clang-format.bat
 clang/tools/clang-format-vs/
 clang/tools/clang-fuzzer/
 clang/tools/clang-import-test/
@@ -144,6 +146,7 @@ clang/utils/FuzzTest
 clang/utils/TableGen/CMakeLists.txt
 clang/utils/TestUtils/
 clang/utils/VtableTest/
+clang/utils/analyze_safe_buffer_debug_notes.py
 clang/utils/analyzer/
 clang/utils/bash-autocomplete.sh
 clang/utils/builtin-defines.c
@@ -160,6 +163,7 @@ clang/utils/modfuzz.py
 clang/utils/module-deps-to-rsp.py
 clang/utils/perf-training/
 clang/utils/token-delta.py
+clang/utils/update_options_td_flags.py
 clang/utils/valgrind/
 clang/www/
 clang-tools-extra/
@@ -216,6 +220,7 @@ compiler-rt/lib/safestack/CMakeLists.txt
 compiler-rt/lib/sanitizer_common/.clang-format
 compiler-rt/lib/sanitizer_common/CMakeLists.txt
 compiler-rt/lib/sanitizer_common/scripts/
+compiler-rt/lib/sanitizer_common/symbolizer/CMakeLists.txt
 compiler-rt/lib/sanitizer_common/tests/
 compiler-rt/lib/scudo/standalone/CMakeLists.txt
 compiler-rt/lib/scudo/standalone/benchmarks/
@@ -262,6 +267,7 @@ libcxx/include/__support/
 libcxx/lib/
 libcxx/modules/CMakeLists.txt
 libcxx/modules/CMakeLists.txt.in
+libcxx/modules/README.md
 libcxx/src/CMakeLists.txt
 libcxx/src/support/win32/
 libcxx/test/
@@ -291,7 +297,7 @@ lldb/.clang-format
 lldb/.clang-tidy
 lldb/.gitignore
 lldb/CMakeLists.txt
-lldb/CODE_OWNERS.txt
+lldb/CodeOwners.rst
 lldb/bindings/CMakeLists.txt
 lldb/bindings/lua/CMakeLists.txt
 lldb/bindings/python/CMakeLists.txt
@@ -299,7 +305,6 @@ lldb/bindings/python/get-python-config.py
 lldb/cmake/
 lldb/docs/.htaccess
 lldb/docs/CMakeLists.txt
-lldb/docs/_static/
 lldb/docs/conf.py
 lldb/docs/doxygen-mainpage.dox
 lldb/docs/doxygen.cfg.in
@@ -308,7 +313,6 @@ lldb/docs/lldb-for-gdb-users.txt
 lldb/docs/lldb-gdb-remote.txt
 lldb/docs/lldb-platform-packets.txt
 lldb/docs/resources/
-lldb/docs/status/
 lldb/docs/testsuite/
 lldb/docs/use/
 lldb/examples/
@@ -341,6 +345,7 @@ lldb/source/Plugins/ABI/Hexagon/CMakeLists.txt
 lldb/source/Plugins/ABI/MSP430/CMakeLists.txt
 lldb/source/Plugins/ABI/Mips/CMakeLists.txt
 lldb/source/Plugins/ABI/PowerPC/CMakeLists.txt
+lldb/source/Plugins/ABI/RISCV/CMakeLists.txt
 lldb/source/Plugins/ABI/SystemZ/CMakeLists.txt
 lldb/source/Plugins/ABI/X86/CMakeLists.txt
 lldb/source/Plugins/Architecture/AArch64/CMakeLists.txt
@@ -353,6 +358,7 @@ lldb/source/Plugins/Disassembler/CMakeLists.txt
 lldb/source/Plugins/Disassembler/LLVMC/CMakeLists.txt
 lldb/source/Plugins/DynamicLoader/CMakeLists.txt
 lldb/source/Plugins/DynamicLoader/Darwin-Kernel/
+lldb/source/Plugins/DynamicLoader/FreeBSD-Kernel/CMakeLists.txt
 lldb/source/Plugins/DynamicLoader/Hexagon-DYLD/CMakeLists.txt
 lldb/source/Plugins/DynamicLoader/MacOSX-DYLD/
 lldb/source/Plugins/DynamicLoader/POSIX-DYLD/CMakeLists.txt
@@ -370,10 +376,12 @@ lldb/source/Plugins/Instruction/MIPS64/CMakeLists.txt
 lldb/source/Plugins/Instruction/PPC64/CMakeLists.txt
 lldb/source/Plugins/Instruction/RISCV/CMakeLists.txt
 lldb/source/Plugins/InstrumentationRuntime/ASan/CMakeLists.txt
+lldb/source/Plugins/InstrumentationRuntime/ASanLibsanitizers/CMakeLists.txt
 lldb/source/Plugins/InstrumentationRuntime/CMakeLists.txt
 lldb/source/Plugins/InstrumentationRuntime/MainThreadChecker/CMakeLists.txt
 lldb/source/Plugins/InstrumentationRuntime/TSan/CMakeLists.txt
 lldb/source/Plugins/InstrumentationRuntime/UBSan/CMakeLists.txt
+lldb/source/Plugins/InstrumentationRuntime/Utility/CMakeLists.txt
 lldb/source/Plugins/JITLoader/CMakeLists.txt
 lldb/source/Plugins/JITLoader/GDB/CMakeLists.txt
 lldb/source/Plugins/Language/CMakeLists.txt
@@ -438,6 +446,7 @@ lldb/source/Plugins/ScriptInterpreter/CMakeLists.txt
 lldb/source/Plugins/ScriptInterpreter/Lua/CMakeLists.txt
 lldb/source/Plugins/ScriptInterpreter/None/CMakeLists.txt
 lldb/source/Plugins/ScriptInterpreter/Python/CMakeLists.txt
+lldb/source/Plugins/ScriptInterpreter/Python/Interfaces/CMakeLists.txt
 lldb/source/Plugins/StructuredData/CMakeLists.txt
 lldb/source/Plugins/StructuredData/DarwinLog/CMakeLists.txt
 lldb/source/Plugins/SymbolFile/Breakpad/CMakeLists.txt
@@ -448,6 +457,10 @@ lldb/source/Plugins/SymbolFile/JSON/CMakeLists.txt
 lldb/source/Plugins/SymbolFile/NativePDB/CMakeLists.txt
 lldb/source/Plugins/SymbolFile/PDB/CMakeLists.txt
 lldb/source/Plugins/SymbolFile/Symtab/CMakeLists.txt
+lldb/source/Plugins/SymbolLocator/CMakeLists.txt
+lldb/source/Plugins/SymbolLocator/DebugSymbols/CMakeLists.txt
+lldb/source/Plugins/SymbolLocator/Debuginfod/CMakeLists.txt
+lldb/source/Plugins/SymbolLocator/Default/CMakeLists.txt
 lldb/source/Plugins/SymbolVendor/CMakeLists.txt
 lldb/source/Plugins/SymbolVendor/ELF/CMakeLists.txt
 lldb/source/Plugins/SymbolVendor/MacOSX/
@@ -479,11 +492,12 @@ lldb/tools/debugserver/
 lldb/tools/driver/CMakeLists.txt
 lldb/tools/driver/lldb-Info.plist.in
 lldb/tools/intel-features/
+lldb/tools/lldb-dap/
 lldb/tools/lldb-fuzzer/
 lldb/tools/lldb-instr/CMakeLists.txt
 lldb/tools/lldb-server/CMakeLists.txt
 lldb/tools/lldb-test/
-lldb/tools/lldb-vscode/
+lldb/tools/lldb-vscode
 lldb/unittests/
 lldb/use_lldb_suite_root.py
 lldb/utils/CMakeLists.txt
@@ -555,6 +569,7 @@ llvm/lib/ExecutionEngine/JITLink/CMakeLists.txt
 llvm/lib/ExecutionEngine/MCJIT/CMakeLists.txt
 llvm/lib/ExecutionEngine/OProfileJIT/CMakeLists.txt
 llvm/lib/ExecutionEngine/Orc/CMakeLists.txt
+llvm/lib/ExecutionEngine/Orc/Debugging/CMakeLists.txt
 llvm/lib/ExecutionEngine/Orc/Shared/CMakeLists.txt
 llvm/lib/ExecutionEngine/Orc/TargetProcess/CMakeLists.txt
 llvm/lib/ExecutionEngine/PerfJITEvents/CMakeLists.txt
@@ -562,7 +577,9 @@ llvm/lib/ExecutionEngine/RuntimeDyld/CMakeLists.txt
 llvm/lib/Extensions/
 llvm/lib/FileCheck/CMakeLists.txt
 llvm/lib/Frontend/CMakeLists.txt
+llvm/lib/Frontend/Driver/CMakeLists.txt
 llvm/lib/Frontend/HLSL/CMakeLists.txt
+llvm/lib/Frontend/Offloading/CMakeLists.txt
 llvm/lib/Frontend/OpenACC/CMakeLists.txt
 llvm/lib/Frontend/OpenMP/CMakeLists.txt
 llvm/lib/FuzzMutate/CMakeLists.txt
@@ -743,6 +760,7 @@ llvm/lib/Transforms/CFGuard/CMakeLists.txt
 llvm/lib/Transforms/CMakeLists.txt
 llvm/lib/Transforms/Coroutines/CMakeLists.txt
 llvm/lib/Transforms/Hello/
+llvm/lib/Transforms/HipStdPar/CMakeLists.txt
 llvm/lib/Transforms/IPO/CMakeLists.txt
 llvm/lib/Transforms/InstCombine/CMakeLists.txt
 llvm/lib/Transforms/Instrumentation/CMakeLists.txt
@@ -824,8 +842,8 @@ llvm/tools/llvm-profdata/CMakeLists.txt
 llvm/tools/llvm-profgen/
 llvm/tools/llvm-rc/
 llvm/tools/llvm-readobj/CMakeLists.txt
+llvm/tools/llvm-readtapi/
 llvm/tools/llvm-reduce/
-llvm/tools/llvm-remark-size-diff/
 llvm/tools/llvm-remarkutil/CMakeLists.txt
 llvm/tools/llvm-rtdyld/CMakeLists.txt
 llvm/tools/llvm-rust-demangle-fuzzer/
@@ -837,7 +855,6 @@ llvm/tools/llvm-split/
 llvm/tools/llvm-stress/CMakeLists.txt
 llvm/tools/llvm-strings/CMakeLists.txt
 llvm/tools/llvm-symbolizer/CMakeLists.txt
-llvm/tools/llvm-tapi-diff/CMakeLists.txt
 llvm/tools/llvm-tli-checker/CMakeLists.txt
 llvm/tools/llvm-undname/
 llvm/tools/llvm-xray/CMakeLists.txt
@@ -850,6 +867,7 @@ llvm/tools/opt-viewer/
 llvm/tools/remarks-shlib/
 llvm/tools/sancov/
 llvm/tools/sanstats/
+llvm/tools/spirv-tools/
 llvm/tools/verify-uselistorder/
 llvm/tools/vfabi-demangle-fuzzer/
 llvm/tools/xcode-toolchain/
@@ -867,6 +885,7 @@ llvm/utils/PerfectShuffle/
 llvm/utils/Reviewing/
 llvm/utils/TableGen/CMakeLists.txt
 llvm/utils/TableGen/GlobalISel/CMakeLists.txt
+llvm/utils/TableGen/README.md
 llvm/utils/TableGen/jupyter/
 llvm/utils/TableGen/tdtags
 llvm/utils/Target/
@@ -918,7 +937,6 @@ llvm/utils/llvm-original-di-preservation.py
 llvm/utils/llvm.grm
 llvm/utils/merge-stats.py
 llvm/utils/not/
-llvm/utils/phabricator/
 llvm/utils/pipeline.py
 llvm/utils/prepare-code-coverage-artifact.py
 llvm/utils/reduce_pipeline.py

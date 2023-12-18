@@ -587,7 +587,7 @@ bool RegionInfoBase<Tr>::isRegion(BlockT *entry, BlockT *exit) const {
   for (BlockT *Succ : *entrySuccs) {
     if (Succ == exit || Succ == entry)
       continue;
-    if (exitSuccs->find(Succ) == exitSuccs->end())
+    if (!exitSuccs->contains(Succ))
       return false;
     if (!isCommonDomFrontier(Succ, entry, exit))
       return false;
@@ -657,11 +657,7 @@ typename Tr::RegionT *RegionInfoBase<Tr>::createRegion(BlockT *entry,
       new RegionT(entry, exit, static_cast<RegionInfoT *>(this), DT);
   BBtoRegion.insert({entry, region});
 
-#ifdef EXPENSIVE_CHECKS
   region->verifyRegion();
-#else
-  LLVM_DEBUG(region->verifyRegion());
-#endif
 
   updateStatistics(region);
   return region;

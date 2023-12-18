@@ -39,6 +39,8 @@ void EmitClangAttrSubjectMatchRulesParserStringSwitches(
 void EmitClangAttrClass(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 void EmitClangAttrImpl(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 void EmitClangAttrList(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
+void EmitClangAttrPrintList(const std::string &FieldName,
+                            llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 void EmitClangAttrSubjectMatchRuleList(llvm::RecordKeeper &Records,
                                        llvm::raw_ostream &OS);
 void EmitClangAttrPCHRead(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
@@ -95,6 +97,7 @@ void EmitNeon(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 void EmitFP16(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 void EmitBF16(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 void EmitNeonSema(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
+void EmitVectorTypes(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 void EmitNeonTest(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 
 void EmitSveHeader(llvm::RecordKeeper &Records, llvm::raw_ostream &OS);

@@ -2950,8 +2950,6 @@ static bool CC_MipsO32(unsigned ValNo, MVT ValVT, MVT LocVT,
       Reg = State.AllocateReg(IntRegs);
     LocVT = MVT::i32;
   } else if (ValVT == MVT::f64 && AllocateFloatsInIntReg) {
-    LocVT = MVT::i32;
-
     // Allocate int register and shadow next int register. If first
     // available register is Mips::A1 or Mips::A3, shadow it too.
     Reg = State.AllocateReg(IntRegs);
@@ -2959,6 +2957,8 @@ static bool CC_MipsO32(unsigned ValNo, MVT ValVT, MVT LocVT,
       Reg = State.AllocateReg(IntRegs);
 
     if (Reg) {
+      LocVT = MVT::i32;
+
       State.addLoc(
           CCValAssign::getCustomReg(ValNo, ValVT, Reg, LocVT, LocInfo));
       MCRegister HiReg = State.AllocateReg(IntRegs);
@@ -3725,15 +3725,6 @@ SDValue MipsTargetLowering::LowerFormalArguments(
 
       assert(!VA.needsCustom() && "unexpected custom memory argument");
 
-      if (ABI.IsO32()) {
-        // We ought to be able to use LocVT directly but O32 sets it to i32
-        // when allocating floating point values to integer registers.
-        // This shouldn't influence how we load the value into registers unless
-        // we are targeting softfloat.
-        if (VA.getValVT().isFloatingPoint() && !Subtarget.useSoftFloat())
-          LocVT = VA.getValVT();
-      }
-
       // Only arguments pased on the stack should make it here. 
       assert(VA.isMemLoc());
 
@@ -4073,7 +4064,7 @@ parseRegForInlineAsmConstraint(StringRef C, MVT VT) const {
     RC = TRI->getRegClass(Prefix == "hi" ?
                           Mips::HI32RegClassID : Mips::LO32RegClassID);
     return std::make_pair(*(RC->begin()), RC);
-  } else if (Prefix.startswith("$msa")) {
+  } else if (Prefix.starts_with("$msa")) {
     // Parse $msa(ir|csr|access|save|modify|request|map|unmap)
 
     // No numeric characters follow the name.
@@ -4200,14 +4191,15 @@ MipsTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
 /// LowerAsmOperandForConstraint - Lower the specified operand into the Ops
 /// vector.  If it is invalid, don't add anything to Ops.
 void MipsTargetLowering::LowerAsmOperandForConstraint(SDValue Op,
-                                                     std::string &Constraint,
-                                                     std::vector<SDValue>&Ops,
-                                                     SelectionDAG &DAG) const {
+                                                      StringRef Constraint,
+                                                      std::vector<SDValue> &Ops,
+                                                      SelectionDAG &DAG) const {
   SDLoc DL(Op);
   SDValue Result;
 
   // Only support length 1 constraints for now.
-  if (Constraint.length() > 1) return;
+  if (Constraint.size() > 1)
+    return;
 
   char ConstraintLetter = Constraint[0];
   switch (ConstraintLetter) {

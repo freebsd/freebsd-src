@@ -42,6 +42,9 @@ namespace __lsan {
 // also to protect the global list of root regions.
 static Mutex global_mutex;
 
+void LockGlobal() SANITIZER_ACQUIRE(global_mutex) { global_mutex.Lock(); }
+void UnlockGlobal() SANITIZER_RELEASE(global_mutex) { global_mutex.Unlock(); }
+
 Flags lsan_flags;
 
 void DisableCounterUnderflow() {
@@ -950,8 +953,8 @@ void LeakReport::PrintSummary() {
     allocations += leaks_[i].hit_count;
   }
   InternalScopedString summary;
-  summary.append("%zu byte(s) leaked in %zu allocation(s).", bytes,
-                 allocations);
+  summary.AppendF("%zu byte(s) leaked in %zu allocation(s).", bytes,
+                  allocations);
   ReportErrorSummary(summary.data());
 }
 
