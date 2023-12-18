@@ -104,6 +104,32 @@ http://git.libssh.org/users/aris/libssh.git/plain/doc/curve25519-sha256@libssh.o
 
 This is identical to curve25519-sha256 as later published in RFC8731.
 
+1.9 transport: strict key exchange extension
+
+OpenSSH supports a number of transport-layer hardening measures under
+a "strict KEX" feature. This feature is signalled similarly to the
+RFC8308 ext-info feature: by including a additional algorithm in the
+initiial SSH2_MSG_KEXINIT kex_algorithms field. The client may append
+"kex-strict-c-v00@openssh.com" to its kex_algorithms and the server
+may append "kex-strict-s-v00@openssh.com". These pseudo-algorithms
+are only valid in the initial SSH2_MSG_KEXINIT and MUST be ignored
+if they are present in subsequent SSH2_MSG_KEXINIT packets.
+
+When an endpoint that supports this extension observes this algorithm
+name in a peer's KEXINIT packet, it MUST make the following changes to
+the the protocol:
+
+a) During initial KEX, terminate the connection if any unexpected or
+   out-of-sequence packet is received. This includes terminating the
+   connection if the first packet received is not SSH2_MSG_KEXINIT.
+   Unexpected packets for the purpose of strict KEX include messages
+   that are otherwise valid at any time during the connection such as
+   SSH2_MSG_DEBUG and SSH2_MSG_IGNORE.
+b) After sending or receiving a SSH2_MSG_NEWKEYS message, reset the
+   packet sequence number to zero. This behaviour persists for the
+   duration of the connection (i.e. not just the first
+   SSH2_MSG_NEWKEYS).
+
 2. Connection protocol changes
 
 2.1. connection: Channel write close extension "eow@openssh.com"
