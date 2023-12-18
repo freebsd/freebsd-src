@@ -148,6 +148,7 @@ struct kex {
 	u_int	kex_type;
 	char	*server_sig_algs;
 	int	ext_info_c;
+	int	kex_strict;
 	struct sshbuf *my;
 	struct sshbuf *peer;
 	struct sshbuf *client_version;
