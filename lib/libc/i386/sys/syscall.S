@@ -37,7 +37,7 @@ ENTRY(syscall)
 	pop	%ecx	/* rta */
 	pop	%eax	/* syscall number */
 	push	%ecx
-	KERNCALL
+	int	$0x80
 	push	%ecx	/* need to push a word to keep stack frame intact
 			   upon return; the word must be the return address. */
 	jb	HIDENAME(cerror)

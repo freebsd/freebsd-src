@@ -37,8 +37,7 @@
 	WEAK_REFERENCE(__sys_vfork, vfork)
 ENTRY(__sys_vfork)
 	popl	%ecx		/* my rta into ecx */
-	mov	$SYS_vfork,%eax
-	KERNCALL
+	_SYSCALL(vfork)
 	jb	1f
 	jmp	*%ecx
 1:
