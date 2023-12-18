@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)calendar.1  8.1 (Berkeley) 6/29/93
 .\"
-.Dd July 31, 2022
+.Dd December 17, 2023
 .Dt CALENDAR 1
 .Os
 .Sh NAME
@@ -215,9 +215,8 @@ succeeding lines.
 .Pp
 If the shared file is not referenced by a full pathname,
 .Nm
-searches in the current (or home) directory first, and then in the
-directory
-.Pa /usr/share/calendar .
+searches in the same order of precedence described in
+.Sx FILES .
 .Pp
 Blank lines and text protected by the C comment syntax
 .Ql /* ... */
