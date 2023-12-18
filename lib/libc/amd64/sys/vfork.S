@@ -37,8 +37,7 @@
 	WEAK_REFERENCE(__sys_vfork, vfork)
 ENTRY(__sys_vfork)
 	popq	%rsi		/* fetch return address (%rsi preserved) */
-	mov	$SYS_vfork,%rax
-	KERNCALL
+	_SYSCALL(vfork)
 	jb	1f
 	jmp	*%rsi
 1:
