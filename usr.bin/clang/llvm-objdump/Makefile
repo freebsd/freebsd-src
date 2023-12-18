@@ -11,6 +11,7 @@ SRCS+=		OffloadDump.cpp
 SRCS+=		SourcePrinter.cpp
 SRCS+=		WasmDump.cpp
 SRCS+=		XCOFFDump.cpp
+SRCS+=		llvm-objdump-driver.cpp
 SRCS+=		llvm-objdump.cpp
 
 .include "${SRCTOP}/lib/clang/llvm.pre.mk"

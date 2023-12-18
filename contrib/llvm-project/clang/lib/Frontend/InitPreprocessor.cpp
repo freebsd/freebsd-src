@@ -438,9 +438,8 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
   //      value is, are implementation-defined.
   // (Removed in C++20.)
   if (!LangOpts.CPlusPlus) {
-    // FIXME: Use correct value for C23.
-    if (LangOpts.C2x)
-      Builder.defineMacro("__STDC_VERSION__", "202000L");
+    if (LangOpts.C23)
+      Builder.defineMacro("__STDC_VERSION__", "202311L");
     else if (LangOpts.C17)
       Builder.defineMacro("__STDC_VERSION__", "201710L");
     else if (LangOpts.C11)
@@ -586,6 +585,11 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("__HIP_MEMORY_SCOPE_WORKGROUP", "3");
     Builder.defineMacro("__HIP_MEMORY_SCOPE_AGENT", "4");
     Builder.defineMacro("__HIP_MEMORY_SCOPE_SYSTEM", "5");
+    if (LangOpts.HIPStdPar) {
+      Builder.defineMacro("__HIPSTDPAR__");
+      if (LangOpts.HIPStdParInterposeAlloc)
+        Builder.defineMacro("__HIPSTDPAR_INTERPOSE_ALLOC__");
+    }
     if (LangOpts.CUDAIsDevice) {
       Builder.defineMacro("__HIP_DEVICE_COMPILE__");
       if (!TI.hasHIPImageSupport()) {
@@ -600,6 +604,17 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
       // Deprecated.
       Builder.defineMacro("HIP_API_PER_THREAD_DEFAULT_STREAM");
     }
+  }
+
+  if (LangOpts.OpenACC) {
+    // FIXME: When we have full support for OpenACC, we should set this to the
+    // version we support. Until then, set as '1' by default, but provide a
+    // temporary mechanism for users to override this so real-world examples can
+    // be tested against.
+    if (!LangOpts.OpenACCMacroOverride.empty())
+      Builder.defineMacro("_OPENACC", LangOpts.OpenACCMacroOverride);
+    else
+      Builder.defineMacro("_OPENACC", "1");
   }
 }
 
@@ -720,6 +735,7 @@ static void InitializeCPlusPlusFeatureTestMacros(const LangOptions &LangOpts,
   if (LangOpts.CPlusPlus11)
     Builder.defineMacro("__cpp_static_call_operator", "202207L");
   Builder.defineMacro("__cpp_named_character_escapes", "202207L");
+  Builder.defineMacro("__cpp_placeholder_variables", "202306L");
 
   if (LangOpts.Char8)
     Builder.defineMacro("__cpp_char8_t", "202207L");
@@ -792,6 +808,13 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   Builder.defineMacro("__ATOMIC_RELEASE", "3");
   Builder.defineMacro("__ATOMIC_ACQ_REL", "4");
   Builder.defineMacro("__ATOMIC_SEQ_CST", "5");
+
+  // Define macros for the clang atomic scopes.
+  Builder.defineMacro("__MEMORY_SCOPE_SYSTEM", "0");
+  Builder.defineMacro("__MEMORY_SCOPE_DEVICE", "1");
+  Builder.defineMacro("__MEMORY_SCOPE_WRKGRP", "2");
+  Builder.defineMacro("__MEMORY_SCOPE_WVFRNT", "3");
+  Builder.defineMacro("__MEMORY_SCOPE_SINGLE", "4");
 
   // Define macros for the OpenCL memory scope.
   // The values should match AtomicScopeOpenCLModel::ID enum.
@@ -1297,11 +1320,10 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("__CUDA_ARCH__");
   }
 
-  // We need to communicate this to our CUDA header wrapper, which in turn
-  // informs the proper CUDA headers of this choice.
-  if (LangOpts.CUDADeviceApproxTranscendentals || LangOpts.FastMath) {
-    Builder.defineMacro("__CLANG_CUDA_APPROX_TRANSCENDENTALS__");
-  }
+  // We need to communicate this to our CUDA/HIP header wrapper, which in turn
+  // informs the proper CUDA/HIP headers of this choice.
+  if (LangOpts.GPUDeviceApproxTranscendentals)
+    Builder.defineMacro("__CLANG_GPU_APPROX_TRANSCENDENTALS__");
 
   // Define a macro indicating that the source file is being compiled with a
   // SYCL device compiler which doesn't produce host binary.
@@ -1328,6 +1350,15 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   // ELF targets define __ELF__
   if (TI.getTriple().isOSBinFormatELF())
     Builder.defineMacro("__ELF__");
+
+  // Target OS macro definitions.
+  if (PPOpts.DefineTargetOSMacros) {
+    const llvm::Triple &Triple = TI.getTriple();
+#define TARGET_OS(Name, Predicate)                                             \
+  Builder.defineMacro(#Name, (Predicate) ? "1" : "0");
+#include "clang/Basic/TargetOSMacros.def"
+#undef TARGET_OS
+  }
 
   // Get other target #defines.
   TI.getTargetDefines(LangOpts, Builder);

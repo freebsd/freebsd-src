@@ -1250,11 +1250,11 @@ public:
   /// destroyed by aggressive peephole optimizations that assume that
   /// all uses of a value have been realized in the IR.
   class PeepholeProtection {
-    llvm::Instruction *Inst;
+    llvm::Instruction *Inst = nullptr;
     friend class CodeGenFunction;
 
   public:
-    PeepholeProtection() : Inst(nullptr) {}
+    PeepholeProtection() = default;
   };
 
   /// A non-RAII class containing all the information about a bound
@@ -3022,6 +3022,19 @@ public:
   void EmitBoundsCheck(const Expr *E, const Expr *Base, llvm::Value *Index,
                        QualType IndexType, bool Accessed);
 
+  // Find a struct's flexible array member. It may be embedded inside multiple
+  // sub-structs, but must still be the last field.
+  const ValueDecl *FindFlexibleArrayMemberField(ASTContext &Ctx,
+                                                const RecordDecl *RD);
+
+  /// Find the FieldDecl specified in a FAM's "counted_by" attribute. Returns
+  /// \p nullptr if either the attribute or the field doesn't exist.
+  const ValueDecl *FindCountedByField(const Expr *Base);
+
+  /// Build an expression accessing the "counted_by" field.
+  const Expr *BuildCountedByFieldExpr(const Expr *Base,
+                                      const ValueDecl *CountedByVD);
+
   llvm::Value *EmitScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
                                        bool isInc, bool isPre);
   ComplexPairTy EmitComplexPrePostIncDec(const UnaryOperator *E, LValue LV,
@@ -4017,6 +4030,8 @@ public:
                                            const ObjCIvarDecl *Ivar);
   LValue EmitLValueForField(LValue Base, const FieldDecl* Field);
   LValue EmitLValueForLambdaField(const FieldDecl *Field);
+  LValue EmitLValueForLambdaField(const FieldDecl *Field,
+                                  llvm::Value *ThisValue);
 
   /// EmitLValueForFieldInitialization - Like EmitLValueForField, except that
   /// if the Field is a reference, this will return the address of the reference
@@ -4272,7 +4287,6 @@ public:
   llvm::Value *EmitSVEMaskedStore(const CallExpr *,
                                   SmallVectorImpl<llvm::Value *> &Ops,
                                   unsigned BuiltinID);
-  llvm::Value *EmitTileslice(llvm::Value *Offset, llvm::Value *Base);
   llvm::Value *EmitSVEPrefetchLoad(const SVETypeFlags &TypeFlags,
                                    SmallVectorImpl<llvm::Value *> &Ops,
                                    unsigned BuiltinID);
@@ -4285,20 +4299,31 @@ public:
   llvm::Value *EmitSVEStructStore(const SVETypeFlags &TypeFlags,
                                   SmallVectorImpl<llvm::Value *> &Ops,
                                   unsigned IntID);
+  /// FormSVEBuiltinResult - Returns the struct of scalable vectors as a wider
+  /// vector. It extracts the scalable vector from the struct and inserts into
+  /// the wider vector. This avoids the error when allocating space in llvm
+  /// for struct of scalable vectors if a function returns struct.
+  llvm::Value *FormSVEBuiltinResult(llvm::Value *Call);
+
   llvm::Value *EmitAArch64SVEBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
 
-  llvm::Value *EmitSMELd1St1(SVETypeFlags TypeFlags,
+  llvm::Value *EmitSMELd1St1(const SVETypeFlags &TypeFlags,
                              llvm::SmallVectorImpl<llvm::Value *> &Ops,
                              unsigned IntID);
-  llvm::Value *EmitSMEReadWrite(SVETypeFlags TypeFlags,
+  llvm::Value *EmitSMEReadWrite(const SVETypeFlags &TypeFlags,
                                 llvm::SmallVectorImpl<llvm::Value *> &Ops,
                                 unsigned IntID);
-  llvm::Value *EmitSMEZero(SVETypeFlags TypeFlags,
+  llvm::Value *EmitSMEZero(const SVETypeFlags &TypeFlags,
                            llvm::SmallVectorImpl<llvm::Value *> &Ops,
                            unsigned IntID);
-  llvm::Value *EmitSMELdrStr(SVETypeFlags TypeFlags,
+  llvm::Value *EmitSMELdrStr(const SVETypeFlags &TypeFlags,
                              llvm::SmallVectorImpl<llvm::Value *> &Ops,
                              unsigned IntID);
+
+  void GetAArch64SVEProcessedOperands(unsigned BuiltinID, const CallExpr *E,
+                                      SmallVectorImpl<llvm::Value *> &Ops,
+                                      SVETypeFlags TypeFlags);
+
   llvm::Value *EmitAArch64SMEBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
 
   llvm::Value *EmitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E,
@@ -4309,6 +4334,8 @@ public:
   llvm::Value *EmitX86BuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   llvm::Value *EmitPPCBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   llvm::Value *EmitAMDGPUBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
+  llvm::Value *EmitScalarOrConstFoldImmArg(unsigned ICEArguments, unsigned Idx,
+                                           const CallExpr *E);
   llvm::Value *EmitSystemZBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   llvm::Value *EmitNVPTXBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   llvm::Value *EmitWebAssemblyBuiltinExpr(unsigned BuiltinID,
@@ -4316,7 +4343,6 @@ public:
   llvm::Value *EmitHexagonBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   llvm::Value *EmitRISCVBuiltinExpr(unsigned BuiltinID, const CallExpr *E,
                                     ReturnValueSlot ReturnValue);
-  llvm::Value *EmitLoongArchBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   void ProcessOrderScopeAMDGCN(llvm::Value *Order, llvm::Value *Scope,
                                llvm::AtomicOrdering &AO,
                                llvm::SyncScope::ID &SSID);
@@ -4509,6 +4535,11 @@ public:
   /// the given function.
   void registerGlobalDtorWithAtExit(const VarDecl &D, llvm::FunctionCallee fn,
                                     llvm::Constant *addr);
+
+  /// Registers the dtor using 'llvm.global_dtors' for platforms that do not
+  /// support an 'atexit()' function.
+  void registerGlobalDtorWithLLVM(const VarDecl &D, llvm::FunctionCallee fn,
+                                  llvm::Constant *addr);
 
   /// Call atexit() with function dtorStub.
   void registerGlobalDtorWithAtExit(llvm::Constant *dtorStub);
@@ -4799,6 +4830,9 @@ private:
                                      llvm::Value *EmittedE,
                                      bool IsDynamic);
 
+  llvm::Value *emitFlexibleArrayMemberSize(const Expr *E, unsigned Type,
+                                           llvm::IntegerType *ResType);
+
   void emitZeroOrPatternForAutoVarInit(QualType type, const VarDecl &D,
                                        Address Loc);
 
@@ -4898,7 +4932,7 @@ private:
   llvm::Value *EmitX86CpuIs(StringRef CPUStr);
   llvm::Value *EmitX86CpuSupports(const CallExpr *E);
   llvm::Value *EmitX86CpuSupports(ArrayRef<StringRef> FeatureStrs);
-  llvm::Value *EmitX86CpuSupports(uint64_t Mask);
+  llvm::Value *EmitX86CpuSupports(std::array<uint32_t, 4> FeatureMask);
   llvm::Value *EmitX86CpuInit();
   llvm::Value *FormX86ResolverCondition(const MultiVersionResolverOption &RO);
   llvm::Value *EmitAArch64CpuInit();
