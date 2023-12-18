@@ -8,9 +8,10 @@ SYNOPSIS
          [-c cipher_spec] [-D [bind_address:]port] [-E log_file]
          [-e escape_char] [-F configfile] [-I pkcs11] [-i identity_file]
          [-J destination] [-L address] [-l login_name] [-m mac_spec]
-         [-O ctl_cmd] [-o option] [-P tag] [-p port] [-Q query_option]
-         [-R address] [-S ctl_path] [-W host:port] [-w local_tun[:remote_tun]]
-         destination [command [argument ...]]
+         [-O ctl_cmd] [-o option] [-P tag] [-p port] [-R address]
+         [-S ctl_path] [-W host:port] [-w local_tun[:remote_tun]] destination
+         [command [argument ...]]
+     ssh [-Q query_option]
 
 DESCRIPTION
      ssh (SSH client) is a program for logging into a remote machine and for
@@ -1019,4 +1020,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.3                      July 23, 2023                     OpenBSD 7.3
+OpenBSD 7.3                    October 11, 2023                    OpenBSD 7.3

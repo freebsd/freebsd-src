@@ -137,6 +137,51 @@ than as a named global or channel request to allow pings with very
 short packet lengths, which would not be possible with other
 approaches.
 
+1.9 transport: strict key exchange extension
+
+OpenSSH supports a number of transport-layer hardening measures under
+a "strict KEX" feature. This feature is signalled similarly to the
+RFC8308 ext-info feature: by including a additional algorithm in the
+initiial SSH2_MSG_KEXINIT kex_algorithms field. The client may append
+"kex-strict-c-v00@openssh.com" to its kex_algorithms and the server
+may append "kex-strict-s-v00@openssh.com". These pseudo-algorithms
+are only valid in the initial SSH2_MSG_KEXINIT and MUST be ignored
+if they are present in subsequent SSH2_MSG_KEXINIT packets.
+
+When an endpoint that supports this extension observes this algorithm
+name in a peer's KEXINIT packet, it MUST make the following changes to
+the the protocol:
+
+a) During initial KEX, terminate the connection if any unexpected or
+   out-of-sequence packet is received. This includes terminating the
+   connection if the first packet received is not SSH2_MSG_KEXINIT.
+   Unexpected packets for the purpose of strict KEX include messages
+   that are otherwise valid at any time during the connection such as
+   SSH2_MSG_DEBUG and SSH2_MSG_IGNORE.
+b) After sending or receiving a SSH2_MSG_NEWKEYS message, reset the
+   packet sequence number to zero. This behaviour persists for the
+   duration of the connection (i.e. not just the first
+   SSH2_MSG_NEWKEYS).
+
+1.10 transport: SSH2_MSG_EXT_INFO during user authentication
+
+This protocol extension allows the SSH2_MSG_EXT_INFO to be sent
+during user authentication. RFC8308 does allow a second
+SSH2_MSG_EXT_INFO notification, but it may only be sent at the end
+of user authentication and this is too late to signal per-user
+server signature algorithms.
+
+Support for receiving the SSH2_MSG_EXT_INFO message during user
+authentication is signalled by the client including a
+"ext-info-in-auth@openssh.com" key via its initial SSH2_MSG_EXT_INFO
+set after the SSH2_MSG_NEWKEYS message.
+
+A server that supports this extension MAY send a second
+SSH2_MSG_EXT_INFO message any time after the client's first
+SSH2_MSG_USERAUTH_REQUEST, regardless of whether it succeed or fails.
+The client SHOULD be prepared to update the server-sig-algs that
+it received during an earlier SSH2_MSG_EXT_INFO with the later one.
+
 2. Connection protocol changes
 
 2.1. connection: Channel write close extension "eow@openssh.com"
@@ -745,4 +790,4 @@ master instance and later clients.
 OpenSSH extends the usual agent protocol. These changes are documented
 in the PROTOCOL.agent file.
 
-$OpenBSD: PROTOCOL,v 1.49 2023/08/28 03:28:43 djm Exp $
+$OpenBSD: PROTOCOL,v 1.51 2023/12/18 14:45:49 djm Exp $

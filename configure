@@ -652,6 +652,13 @@ ac_header_c_list=
 ac_subst_vars='LTLIBOBJS
 CFLAGS_NOPIE
 LDFLAGS_NOPIE
+DROPBEARCONVERT
+DROPBEARKEY
+DBCLIENT
+DROPBEAR
+CONCH
+PUTTYGEN
+PLINK
 DEPEND
 UNSUPPORTED_ALGORITHMS
 TEST_MALLOC_OPTIONS
@@ -6085,10 +6092,11 @@ printf "%s\n" "$GCC_VER" >&6; }
 printf %s "checking clang version... " >&6; }
 	ver="`$CC -v 2>&1`"
 	if echo "$ver" | grep "Apple" >/dev/null; then
-		CLANG_VER="apple-`echo "$ver" | \
-		    awk '/Apple LLVM/ {print $4"-"$5}'`"
+		CLANG_VER=apple-`echo "$ver" | grep 'clang version' | \
+		    $SED 's/.*clang version //g' | $AWK '{print $1}'`
 	else
-		CLANG_VER=`echo "$ver" | $AWK '/clang version /{print $3}'`
+		CLANG_VER=`echo "$ver" | grep 'clang version' | \
+		    $SED 's/.*clang version //g' | $AWK '{print $1}'`
 	fi
 	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $CLANG_VER" >&5
 printf "%s\n" "$CLANG_VER" >&6; }
@@ -6104,18 +6112,33 @@ printf %s "checking if $CC supports compile flag -pipe... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -6129,6 +6152,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -6139,9 +6163,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -6162,18 +6249,33 @@ printf %s "checking if $CC supports compile flag -Wunknown-warning-option... " >
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -6187,6 +6289,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -6197,9 +6300,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -6220,18 +6386,33 @@ printf %s "checking if $CC supports compile flag -Wno-error=format-truncation...
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -6245,6 +6426,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -6255,9 +6437,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -6278,18 +6523,33 @@ printf %s "checking if $CC supports compile flag -Qunused-arguments... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -6303,6 +6563,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -6313,9 +6574,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -6336,18 +6660,33 @@ printf %s "checking if $CC supports compile flag -Wall... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -6361,6 +6700,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -6371,9 +6711,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -6394,18 +6797,33 @@ printf %s "checking if $CC supports compile flag -Wextra... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -6419,6 +6837,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -6429,9 +6848,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -6452,18 +6934,33 @@ printf %s "checking if $CC supports compile flag -Wpointer-arith... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -6477,6 +6974,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -6487,9 +6985,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -6510,18 +7071,33 @@ printf %s "checking if $CC supports compile flag -Wuninitialized... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -6535,6 +7111,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -6545,9 +7122,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -6568,18 +7208,33 @@ printf %s "checking if $CC supports compile flag -Wsign-compare... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -6593,6 +7248,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -6603,9 +7259,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -6626,18 +7345,33 @@ printf %s "checking if $CC supports compile flag -Wformat-security... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -6651,6 +7385,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -6661,9 +7396,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -6684,18 +7482,33 @@ printf %s "checking if $CC supports compile flag -Wsizeof-pointer-memaccess... "
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -6709,6 +7522,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -6719,9 +7533,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -6742,18 +7619,33 @@ printf %s "checking if $CC supports compile flag -Wpointer-sign... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -6767,6 +7659,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -6777,9 +7670,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -6800,18 +7756,33 @@ printf %s "checking if $CC supports compile flag -Wunused-parameter... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -6825,6 +7796,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -6835,9 +7807,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -6858,18 +7893,33 @@ printf %s "checking if $CC supports compile flag -Wunused-result... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -6883,6 +7933,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -6893,9 +7944,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -6916,18 +8030,33 @@ printf %s "checking if $CC supports compile flag -Wimplicit-fallthrough... " >&6
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -6941,6 +8070,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -6951,9 +8081,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -6974,18 +8167,33 @@ printf %s "checking if $CC supports compile flag -Wmisleading-indentation... " >
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -6999,6 +8207,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -7009,9 +8218,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -7032,18 +8304,33 @@ printf %s "checking if $CC supports compile flag -Wbitwise-instead-of-logical...
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -7057,6 +8344,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -7067,9 +8355,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -7090,18 +8441,33 @@ printf %s "checking if $CC supports compile flag -fno-strict-aliasing... " >&6; 
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -7115,6 +8481,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -7125,9 +8492,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -7149,18 +8579,33 @@ printf %s "checking if $CC supports compile flag -mretpoline... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -7174,6 +8619,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -7184,9 +8630,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -7207,18 +8716,46 @@ printf %s "checking if $LD supports link flag -Wl,-z,retpolineplt... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	long long p = n * o;
-	printf("%d %d %d %f %f %lld %lld %lld\n", i, j, k, l, m, n, o, p);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
 	exit(0);
 }
+
 
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -7230,9 +8767,73 @@ then
 printf "%s\n" "no" >&6; }
 		  LDFLAGS="$saved_LDFLAGS"
 else
-		  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+		  		  if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		  LDFLAGS="$saved_LDFLAGS $_define_flag"
+			  LDFLAGS="$saved_LDFLAGS $_define_flag"
+
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  LDFLAGS="$saved_LDFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  LDFLAGS="$saved_LDFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -7254,18 +8855,33 @@ printf %s "checking if $CC supports compile flag -D_FORTIFY_SOURCE=2... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -7279,6 +8895,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -7289,9 +8906,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -7312,18 +8992,46 @@ printf %s "checking if $LD supports link flag -Wl,-z,relro... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	long long p = n * o;
-	printf("%d %d %d %f %f %lld %lld %lld\n", i, j, k, l, m, n, o, p);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
 	exit(0);
 }
+
 
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -7335,9 +9043,73 @@ then
 printf "%s\n" "no" >&6; }
 		  LDFLAGS="$saved_LDFLAGS"
 else
-		  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+		  		  if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		  LDFLAGS="$saved_LDFLAGS $_define_flag"
+			  LDFLAGS="$saved_LDFLAGS $_define_flag"
+
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  LDFLAGS="$saved_LDFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  LDFLAGS="$saved_LDFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -7359,18 +9131,46 @@ printf %s "checking if $LD supports link flag -Wl,-z,now... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	long long p = n * o;
-	printf("%d %d %d %f %f %lld %lld %lld\n", i, j, k, l, m, n, o, p);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
 	exit(0);
 }
+
 
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -7382,9 +9182,73 @@ then
 printf "%s\n" "no" >&6; }
 		  LDFLAGS="$saved_LDFLAGS"
 else
-		  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+		  		  if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		  LDFLAGS="$saved_LDFLAGS $_define_flag"
+			  LDFLAGS="$saved_LDFLAGS $_define_flag"
+
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  LDFLAGS="$saved_LDFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  LDFLAGS="$saved_LDFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -7406,18 +9270,46 @@ printf %s "checking if $LD supports link flag -Wl,-z,noexecstack... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	long long p = n * o;
-	printf("%d %d %d %f %f %lld %lld %lld\n", i, j, k, l, m, n, o, p);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
 	exit(0);
 }
+
 
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -7429,9 +9321,73 @@ then
 printf "%s\n" "no" >&6; }
 		  LDFLAGS="$saved_LDFLAGS"
 else
-		  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+		  		  if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		  LDFLAGS="$saved_LDFLAGS $_define_flag"
+			  LDFLAGS="$saved_LDFLAGS $_define_flag"
+
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  LDFLAGS="$saved_LDFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  LDFLAGS="$saved_LDFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -7458,18 +9414,46 @@ printf %s "checking if $CC supports compile flag -ftrapv and linking succeeds...
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	long long int p = n * o;
-	printf("%d %d %d %f %f %lld %lld %lld\n", i, j, k, l, m, n, o, p);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
 	exit(0);
 }
+
 
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -7481,9 +9465,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -7497,10 +9544,12 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam \
 	# clang 15 seems to have a bug in -fzero-call-used-regs=all.  See
 	# https://bugzilla.mindrot.org/show_bug.cgi?id=3475 and
 	# https://github.com/llvm/llvm-project/issues/59242
+	# clang 17 has a different bug that causes an ICE when using this
+	# flag at all (https://bugzilla.mindrot.org/show_bug.cgi?id=3629)
 	case "$CLANG_VER" in
-	15.*|apple*) {
-	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -fzero-call-used-regs=used" >&5
-printf %s "checking if $CC supports compile flag -fzero-call-used-regs=used... " >&6; }
+	apple-15*) {
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -fzero-call-used-regs=used and linking succeeds" >&5
+printf %s "checking if $CC supports compile flag -fzero-call-used-regs=used and linking succeeds... " >&6; }
 	saved_CFLAGS="$CFLAGS"
 	CFLAGS="$CFLAGS $WERROR -fzero-call-used-regs=used"
 	_define_flag=""
@@ -7509,18 +9558,33 @@ printf %s "checking if $CC supports compile flag -fzero-call-used-regs=used... "
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -7534,8 +9598,9 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
-if ac_fn_c_try_compile "$LINENO"
+if ac_fn_c_try_link "$LINENO"
 then :
 
 if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
@@ -7544,9 +9609,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -7554,31 +9682,48 @@ printf "%s\n" "no" >&6; }
 		  CFLAGS="$saved_CFLAGS"
 
 fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
 } ;;
-	*)    {
-	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -fzero-call-used-regs=all" >&5
-printf %s "checking if $CC supports compile flag -fzero-call-used-regs=all... " >&6; }
+	17*)	;;
+	*)	{
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -fzero-call-used-regs=used and linking succeeds" >&5
+printf %s "checking if $CC supports compile flag -fzero-call-used-regs=used and linking succeeds... " >&6; }
 	saved_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS $WERROR -fzero-call-used-regs=all"
+	CFLAGS="$CFLAGS $WERROR -fzero-call-used-regs=used"
 	_define_flag=""
-	test "x$_define_flag" = "x" && _define_flag="-fzero-call-used-regs=all"
+	test "x$_define_flag" = "x" && _define_flag="-fzero-call-used-regs=used"
 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -7592,8 +9737,9 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
-if ac_fn_c_try_compile "$LINENO"
+if ac_fn_c_try_link "$LINENO"
 then :
 
 if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
@@ -7602,9 +9748,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -7612,7 +9821,8 @@ printf "%s\n" "no" >&6; }
 		  CFLAGS="$saved_CFLAGS"
 
 fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
 } ;;
 	esac
 	{
@@ -7626,18 +9836,33 @@ printf %s "checking if $CC supports compile flag -ftrivial-auto-var-init=zero...
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -7651,6 +9876,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -7661,9 +9887,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -9018,18 +11307,33 @@ printf %s "checking if $CC supports compile flag -Wno-attributes... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -9043,6 +11347,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -9053,9 +11358,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -12618,18 +14986,33 @@ printf %s "checking if $CC supports compile flag -fPIE... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /* Trivial function to help test for -fzero-call-used-regs */
-void f(int n) {}
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(0);
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
 	 * not understand comments and we don't use the "fallthrough" attribute
@@ -12643,6 +15026,7 @@ int main(int argc, char **argv) {
 	exit(0);
 }
 
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"
 then :
@@ -12653,9 +15037,72 @@ then
 printf "%s\n" "no" >&6; }
 		CFLAGS="$saved_CFLAGS"
 else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		 CFLAGS="$saved_CFLAGS $_define_flag"
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -12676,18 +15123,46 @@ printf %s "checking if $LD supports link flag -pie... " >&6; }
 /* end confdefs.h.  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
 int main(int argc, char **argv) {
 	(void)argv;
+	char b[256], *cp;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	long long p = n * o;
-	printf("%d %d %d %f %f %lld %lld %lld\n", i, j, k, l, m, n, o, p);
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
 	exit(0);
 }
+
 
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -12699,9 +15174,73 @@ then
 printf "%s\n" "no" >&6; }
 		  LDFLAGS="$saved_LDFLAGS"
 else
-		  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+		  		  if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-		  LDFLAGS="$saved_LDFLAGS $_define_flag"
+			  LDFLAGS="$saved_LDFLAGS $_define_flag"
+
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+int main(int argc, char **argv) {
+	(void)argv;
+	char b[256], *cp;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(1);
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  LDFLAGS="$saved_LDFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  LDFLAGS="$saved_LDFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
 fi
 else $as_nop
    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -15640,7 +18179,7 @@ then :
 				# OpenSSL 3; we use the 1.1x API
 				CPPFLAGS="$CPPFLAGS -DOPENSSL_API_COMPAT=0x10100000L"
 				;;
-			301*|302*)
+			301*|302*|303*)
 				# OpenSSL development branch; request 1.1x API
 				CPPFLAGS="$CPPFLAGS -DOPENSSL_API_COMPAT=0x10100000L"
 				;;
@@ -16252,6 +18791,61 @@ printf "%s\n" "#define OPENSSL_HAS_NISTP521 1" >>confdefs.h
 			ecdsa-sha2-nistp521 \
 			ecdsa-sha2-nistp521-cert-v01@openssh.com"
 	fi
+
+	# Check libcrypto ED25519 support
+	ac_fn_c_check_func "$LINENO" "EVP_PKEY_get_raw_public_key" "ac_cv_func_EVP_PKEY_get_raw_public_key"
+if test "x$ac_cv_func_EVP_PKEY_get_raw_public_key" = xyes
+then :
+  printf "%s\n" "#define HAVE_EVP_PKEY_GET_RAW_PUBLIC_KEY 1" >>confdefs.h
+
+fi
+
+	ac_fn_c_check_func "$LINENO" "EVP_PKEY_get_raw_private_key" "ac_cv_func_EVP_PKEY_get_raw_private_key"
+if test "x$ac_cv_func_EVP_PKEY_get_raw_private_key" = xyes
+then :
+  printf "%s\n" "#define HAVE_EVP_PKEY_GET_RAW_PRIVATE_KEY 1" >>confdefs.h
+
+fi
+
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether OpenSSL has ED25519 support" >&5
+printf %s "checking whether OpenSSL has ED25519 support... " >&6; }
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+	#include <string.h>
+	#include <openssl/evp.h>
+
+int
+main (void)
+{
+
+		unsigned char buf[64];
+		memset(buf, 0, sizeof(buf));
+		exit(EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519,
+		    buf, sizeof(buf)) == NULL);
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+
+			{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+
+printf "%s\n" "#define OPENSSL_HAS_ED25519 1" >>confdefs.h
+
+
+else $as_nop
+
+			{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
 fi
 
 # PKCS11/U2F depend on OpenSSL and dlopen().
@@ -22714,6 +25308,323 @@ TEST_MALLOC_OPTIONS=$TEST_MALLOC_OPTIONS
 UNSUPPORTED_ALGORITHMS=$unsupported_algorithms
 
 DEPEND=$(cat $srcdir/.depend)
+
+
+# Binaries for interop tests.
+# Extract the first word of "plink", so it can be a program name with args.
+set dummy plink; ac_word=$2
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+printf %s "checking for $ac_word... " >&6; }
+if test ${ac_cv_path_PLINK+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  case $PLINK in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PLINK="$PLINK" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  case $as_dir in #(((
+    '') as_dir=./ ;;
+    */) ;;
+    *) as_dir=$as_dir/ ;;
+  esac
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
+    ac_cv_path_PLINK="$as_dir$ac_word$ac_exec_ext"
+    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+PLINK=$ac_cv_path_PLINK
+if test -n "$PLINK"; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $PLINK" >&5
+printf "%s\n" "$PLINK" >&6; }
+else
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+fi
+
+
+# Extract the first word of "puttygen", so it can be a program name with args.
+set dummy puttygen; ac_word=$2
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+printf %s "checking for $ac_word... " >&6; }
+if test ${ac_cv_path_PUTTYGEN+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  case $PUTTYGEN in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PUTTYGEN="$PUTTYGEN" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  case $as_dir in #(((
+    '') as_dir=./ ;;
+    */) ;;
+    *) as_dir=$as_dir/ ;;
+  esac
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
+    ac_cv_path_PUTTYGEN="$as_dir$ac_word$ac_exec_ext"
+    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+PUTTYGEN=$ac_cv_path_PUTTYGEN
+if test -n "$PUTTYGEN"; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $PUTTYGEN" >&5
+printf "%s\n" "$PUTTYGEN" >&6; }
+else
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+fi
+
+
+# Extract the first word of "conch", so it can be a program name with args.
+set dummy conch; ac_word=$2
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+printf %s "checking for $ac_word... " >&6; }
+if test ${ac_cv_path_CONCH+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  case $CONCH in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_CONCH="$CONCH" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  case $as_dir in #(((
+    '') as_dir=./ ;;
+    */) ;;
+    *) as_dir=$as_dir/ ;;
+  esac
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
+    ac_cv_path_CONCH="$as_dir$ac_word$ac_exec_ext"
+    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+CONCH=$ac_cv_path_CONCH
+if test -n "$CONCH"; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $CONCH" >&5
+printf "%s\n" "$CONCH" >&6; }
+else
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+fi
+
+
+# Extract the first word of "dropbear", so it can be a program name with args.
+set dummy dropbear; ac_word=$2
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+printf %s "checking for $ac_word... " >&6; }
+if test ${ac_cv_path_DROPBEAR+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  case $DROPBEAR in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_DROPBEAR="$DROPBEAR" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  case $as_dir in #(((
+    '') as_dir=./ ;;
+    */) ;;
+    *) as_dir=$as_dir/ ;;
+  esac
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
+    ac_cv_path_DROPBEAR="$as_dir$ac_word$ac_exec_ext"
+    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+DROPBEAR=$ac_cv_path_DROPBEAR
+if test -n "$DROPBEAR"; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $DROPBEAR" >&5
+printf "%s\n" "$DROPBEAR" >&6; }
+else
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+fi
+
+
+# Extract the first word of "dbclient", so it can be a program name with args.
+set dummy dbclient; ac_word=$2
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+printf %s "checking for $ac_word... " >&6; }
+if test ${ac_cv_path_DBCLIENT+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  case $DBCLIENT in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_DBCLIENT="$DBCLIENT" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  case $as_dir in #(((
+    '') as_dir=./ ;;
+    */) ;;
+    *) as_dir=$as_dir/ ;;
+  esac
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
+    ac_cv_path_DBCLIENT="$as_dir$ac_word$ac_exec_ext"
+    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+DBCLIENT=$ac_cv_path_DBCLIENT
+if test -n "$DBCLIENT"; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $DBCLIENT" >&5
+printf "%s\n" "$DBCLIENT" >&6; }
+else
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+fi
+
+
+# Extract the first word of "dropbearkey", so it can be a program name with args.
+set dummy dropbearkey; ac_word=$2
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+printf %s "checking for $ac_word... " >&6; }
+if test ${ac_cv_path_DROPBEARKEY+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  case $DROPBEARKEY in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_DROPBEARKEY="$DROPBEARKEY" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  case $as_dir in #(((
+    '') as_dir=./ ;;
+    */) ;;
+    *) as_dir=$as_dir/ ;;
+  esac
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
+    ac_cv_path_DROPBEARKEY="$as_dir$ac_word$ac_exec_ext"
+    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+DROPBEARKEY=$ac_cv_path_DROPBEARKEY
+if test -n "$DROPBEARKEY"; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $DROPBEARKEY" >&5
+printf "%s\n" "$DROPBEARKEY" >&6; }
+else
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+fi
+
+
+# Extract the first word of "dropbearconvert", so it can be a program name with args.
+set dummy dropbearconvert; ac_word=$2
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+printf %s "checking for $ac_word... " >&6; }
+if test ${ac_cv_path_DROPBEARCONVERT+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  case $DROPBEARCONVERT in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_DROPBEARCONVERT="$DROPBEARCONVERT" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  case $as_dir in #(((
+    '') as_dir=./ ;;
+    */) ;;
+    *) as_dir=$as_dir/ ;;
+  esac
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
+    ac_cv_path_DROPBEARCONVERT="$as_dir$ac_word$ac_exec_ext"
+    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+DROPBEARCONVERT=$ac_cv_path_DROPBEARCONVERT
+if test -n "$DROPBEARCONVERT"; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $DROPBEARCONVERT" >&5
+printf "%s\n" "$DROPBEARCONVERT" >&6; }
+else
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+fi
+
 
 
 CFLAGS="${CFLAGS} ${CFLAGS_AFTER}"

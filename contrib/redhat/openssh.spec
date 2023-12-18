@@ -1,4 +1,4 @@
-%global ver 9.5p1
+%global ver 9.6p1
 %global rel 1%{?dist}
 
 # OpenSSH privilege separation requires a user & group ID
@@ -31,10 +31,13 @@
 %global build6x 1
 %endif
 
-%if 0%{?fedora} >= 26
-%global compat_openssl 1
-%else
-%global compat_openssl 0
+%global without_openssl 0
+# build without openssl where 1.1.1 is not available
+%if 0%{?fedora} <= 28
+%global without_openssl 1
+%endif
+%if 0%{?rhel} <= 7
+%global without_openssl 1
 %endif
 
 # Do we want kerberos5 support (1=yes 0=no)
@@ -96,11 +99,8 @@ PreReq: initscripts >= 5.00
 Requires: initscripts >= 5.20
 %endif
 BuildRequires: perl
-%if %{compat_openssl}
-BuildRequires: compat-openssl10-devel
-%else
-BuildRequires: openssl-devel >= 1.0.1
-BuildRequires: openssl-devel < 1.1
+%if ! %{without_openssl}
+BuildRequires: openssl-devel >= 1.1.1
 %endif
 BuildRequires: /bin/login
 %if ! %{build6x}
@@ -214,6 +214,9 @@ CFLAGS="$RPM_OPT_FLAGS -Os"; export CFLAGS
 	--mandir=%{_mandir} \
 	--with-mantype=man \
 	--disable-strip \
+%if %{without_openssl}
+	--without-openssl \
+%endif
 %if %{scard}
 	--with-smartcard \
 %endif
@@ -272,11 +275,7 @@ make install DESTDIR=$RPM_BUILD_ROOT
 install -d $RPM_BUILD_ROOT/etc/pam.d/
 install -d $RPM_BUILD_ROOT/etc/rc.d/init.d
 install -d $RPM_BUILD_ROOT%{_libexecdir}/openssh
-%if %{build6x}
-install -m644 contrib/redhat/sshd.pam.old $RPM_BUILD_ROOT/etc/pam.d/sshd
-%else
-install -m644 contrib/redhat/sshd.pam     $RPM_BUILD_ROOT/etc/pam.d/sshd
-%endif
+install -m644 contrib/redhat/sshd.pam  $RPM_BUILD_ROOT/etc/pam.d/sshd
 install -m755 contrib/redhat/sshd.init $RPM_BUILD_ROOT/etc/rc.d/init.d/sshd
 
 %if ! %{no_x11_askpass}
@@ -423,6 +422,11 @@ fi
 %endif
 
 %changelog
+* Mon Oct 16 2023 Fabio Pedretti <pedretti.fabio@gmail.com>
+- Remove reference of dropped sshd.pam.old file
+- Update openssl-devel dependency to require >= 1.1.1
+- Build with --without-openssl elsewhere
+
 * Thu Oct 28 2021 Damien Miller <djm@mindrot.org>
 - Remove remaining traces of --with-md5-passwords
 
