@@ -1007,6 +1007,8 @@ again:
 	}
 
 	for (i = 0; i < ctrlr->hmb_nchunks; i++) {
+		memset(&ctrlr->hmb_desc_vaddr[i], 0,
+		    sizeof(struct nvme_hmb_desc));
 		ctrlr->hmb_desc_vaddr[i].addr =
 		    htole64(ctrlr->hmb_chunks[i].hmbc_paddr);
 		ctrlr->hmb_desc_vaddr[i].size = htole32(ctrlr->hmb_chunk / ctrlr->page_size);
