@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.h,v 1.105 2023/08/28 03:31:16 djm Exp $ */
+/* $OpenBSD: misc.h,v 1.106 2023/10/11 22:42:26 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -95,6 +95,7 @@ int	 valid_env_name(const char *);
 const char *atoi_err(const char *, int *);
 int	 parse_absolute_time(const char *, uint64_t *);
 void	 format_absolute_time(uint64_t, char *, size_t);
+int	 parse_pattern_interval(const char *, char **, int *);
 int	 path_absolute(const char *);
 int	 stdfd_devnull(int, int, int);
 int	 lib_contains_symbol(const char *, const char *);

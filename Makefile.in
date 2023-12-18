@@ -715,7 +715,7 @@ regress-unit-binaries: regress-prep $(REGRESSLIBS) \
 	regress/unittests/sshsig/test_sshsig$(EXEEXT) \
 	regress/unittests/utf8/test_utf8$(EXEEXT)
 
-tests:	file-tests t-exec interop-tests unit
+tests:	file-tests t-exec interop-tests extra-tests unit
 	echo all tests passed
 
 unit: regress-unit-binaries
@@ -726,7 +726,7 @@ unit: regress-unit-binaries
 		OBJ="$(BUILDDIR)/regress" \
 		$@ && echo $@ tests passed
 
-interop-tests t-exec file-tests: regress-prep regress-binaries $(TARGETS)
+interop-tests t-exec file-tests extra-tests: regress-prep regress-binaries $(TARGETS)
 	cd $(srcdir)/regress || exit $$?; \
 	EGREP='@EGREP@' \
 	OPENSSL_BIN='@OPENSSL_BIN@' \
@@ -751,9 +751,13 @@ interop-tests t-exec file-tests: regress-prep regress-binaries $(TARGETS)
 		TEST_SSH_SK_HELPER="$(BUILDDIR)/ssh-sk-helper" \
 		TEST_SSH_SFTPSERVER="$(BUILDDIR)/sftp-server" \
 		TEST_SSH_MODULI_FILE="$(abs_top_srcdir)/moduli" \
-		TEST_SSH_PLINK="plink" \
-		TEST_SSH_PUTTYGEN="puttygen" \
-		TEST_SSH_CONCH="conch" \
+		TEST_SSH_PLINK="@PLINK@" \
+		TEST_SSH_PUTTYGEN="@PUTTYGEN@" \
+		TEST_SSH_CONCH="@CONCH@" \
+		TEST_SSH_DROPBEAR="@DROPBEAR@" \
+		TEST_SSH_DROPBEARKEY="@DROPBEARKEY@" \
+		TEST_SSH_DROPBEARCONVERT="@DROPBEARCONVERT@" \
+		TEST_SSH_DBCLIENT="@DBCLIENT@" \
 		TEST_SSH_IPV6="@TEST_SSH_IPV6@" \
 		TEST_SSH_UTF8="@TEST_SSH_UTF8@" \
 		TEST_SHELL="$(TEST_SHELL)" \

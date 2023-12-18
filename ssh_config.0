@@ -223,6 +223,58 @@ DESCRIPTION
              sequence.  Multiple CertificateFile directives will add to the
              list of certificates used for authentication.
 
+     ChannelTimeout
+             Specifies whether and how quickly ssh(1) should close inactive
+             channels.  Timeouts are specified as one or more M-bM-^@M-^\type=intervalM-bM-^@M-^]
+             pairs separated by whitespace, where the M-bM-^@M-^\typeM-bM-^@M-^] must be a channel
+             type name (as described in the table below), optionally
+             containing wildcard characters.
+
+             The timeout value M-bM-^@M-^\intervalM-bM-^@M-^] is specified in seconds or may use
+             any of the units documented in the TIME FORMATS section.  For
+             example, M-bM-^@M-^\session=5mM-bM-^@M-^] would cause the interactive session to
+             terminate after five minutes of inactivity.  Specifying a zero
+             value disables the inactivity timeout.
+
+             The available channel types include:
+
+             agent-connection
+                     Open connections to ssh-agent(1).
+
+             direct-tcpip, direct-streamlocal@openssh.com
+                     Open TCP or Unix socket (respectively) connections that
+                     have been established from a ssh(1) local forwarding,
+                     i.e. LocalForward or DynamicForward.
+
+             forwarded-tcpip, forwarded-streamlocal@openssh.com
+                     Open TCP or Unix socket (respectively) connections that
+                     have been established to a sshd(8) listening on behalf of
+                     a ssh(1) remote forwarding, i.e. RemoteForward.
+
+             session
+                     The interactive main session, including shell session,
+                     command execution, scp(1), sftp(1), etc.
+
+             tun-connection
+                     Open TunnelForward connections.
+
+             x11-connection
+                     Open X11 forwarding sessions.
+
+             Note that in all the above cases, terminating an inactive session
+             does not guarantee to remove all resources associated with the
+             session, e.g. shell processes or X11 clients relating to the
+             session may continue to execute.
+
+             Moreover, terminating an inactive channel or session does not
+             necessarily close the SSH connection, nor does it prevent a
+             client from requesting another channel of the same type.  In
+             particular, expiring an inactive forwarding session does not
+             prevent another identical forwarding from being subsequently
+             created.
+
+             The default is not to expire channels of any type for inactivity.
+
      CheckHostIP
              If set to yes, ssh(1) will additionally check the host IP address
              in the known_hosts file.  This allows it to detect if a host key
@@ -619,7 +671,8 @@ DESCRIPTION
 
              Arguments to IdentityFile may use the tilde syntax to refer to a
              user's home directory or the tokens described in the TOKENS
-             section.
+             section.  Alternately an argument of none may be used to indicate
+             no identity files should be loaded.
 
              It is possible to have multiple identity files specified in
              configuration files; all these identities will be tried in
@@ -1280,7 +1333,7 @@ TOKENS
      runtime:
 
            %%    A literal M-bM-^@M-^X%M-bM-^@M-^Y.
-           %C    Hash of %l%h%p%r.
+           %C    Hash of %l%h%p%r%j.
            %d    Local user's home directory.
            %f    The fingerprint of the server's host key.
            %H    The known_hosts hostname or address that is being searched
@@ -1292,6 +1345,8 @@ TOKENS
                  by hostname, or ORDER when preparing the host key algorithm
                  preference list to use for the destination host.
            %i    The local user ID.
+           %j    The contents of the ProxyJump option, or the empty string if
+                 this option is unset.
            %K    The base64 encoded host key.
            %k    The host key alias if specified, otherwise the original
                  remote hostname given on the command line.
@@ -1308,7 +1363,7 @@ TOKENS
      CertificateFile, ControlPath, IdentityAgent, IdentityFile,
      KnownHostsCommand, LocalForward, Match exec, RemoteCommand,
      RemoteForward, RevokedHostKeys, and UserKnownHostsFile accept the tokens
-     %%, %C, %d, %h, %i, %k, %L, %l, %n, %p, %r, and %u.
+     %%, %C, %d, %h, %i, %j, %k, %L, %l, %n, %p, %r, and %u.
 
      KnownHostsCommand additionally accepts the tokens %f, %H, %I, %K and %t.
 
@@ -1321,8 +1376,8 @@ TOKENS
      Note that some of these directives build commands for execution via the
      shell.  Because ssh(1) performs no filtering or escaping of characters
      that have special meaning in shell commands (e.g. quotes), it is the
-     user's reposibility to ensure that the arguments passed to ssh(1) do not
-     contain such characters and that tokens are appropriately quoted when
+     user's responsibility to ensure that the arguments passed to ssh(1) do
+     not contain such characters and that tokens are appropriately quoted when
      used.
 
 ENVIRONMENT VARIABLES
@@ -1360,4 +1415,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.3                     October 4, 2023                    OpenBSD 7.3
+OpenBSD 7.3                    October 12, 2023                    OpenBSD 7.3

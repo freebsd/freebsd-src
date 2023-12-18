@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.c,v 1.128 2023/03/31 00:44:29 dtucker Exp $ */
+/* $OpenBSD: monitor_wrap.c,v 1.129 2023/12/18 14:45:49 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -340,8 +340,8 @@ out:
 		log_verbose_add(options.log_verbose[i]);
 	process_permitopen(ssh, &options);
 	process_channel_timeouts(ssh, &options);
+	kex_set_server_sig_algs(ssh, options.pubkey_accepted_algos);
 	free(newopts);
-
 	sshbuf_free(m);
 
 	return (pw);

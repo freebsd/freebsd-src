@@ -81,4 +81,35 @@ the constraint is:
 
 This option is only valid for XMSS keys.
 
-$OpenBSD: PROTOCOL.agent,v 1.20 2023/10/03 23:56:10 djm Exp $
+3. associated-certs-v00@openssh.com key constraint extension
+
+The key constraint extension allows certificates to be associated
+with private keys as they are loaded from a PKCS#11 token.
+
+	byte		SSH_AGENT_CONSTRAIN_EXTENSION (0xff)
+	string		associated-certs-v00@openssh.com
+	bool		certs_only
+	string		certsblob
+
+Where "certsblob" constists of one or more certificates encoded as public
+key blobs:
+
+	string[]	certificates
+
+This extension is only valid for SSH_AGENTC_ADD_SMARTCARD_KEY_CONSTRAINED
+requests. When an agent receives this extension, it will attempt to match
+each certificate in the request with a corresponding private key loaded
+from the requested PKCS#11 token. When a matching key is found, the
+agent will graft the certificate contents to the token-hosted private key
+and store the result for subsequent use by regular agent operations.
+
+If the "certs_only" flag is set, then this extension will cause ONLY
+the resultant certificates to be loaded to the agent. The default
+behaviour is to load the PKCS#11-hosted private key as well as the
+resultant certificate.
+
+A SSH_AGENTC_ADD_SMARTCARD_KEY_CONSTRAINED will return SSH_AGENT_SUCCESS
+if any key (plain private or certificate) was successfully loaded, or
+SSH_AGENT_FAILURE if no key was loaded.
+
+$OpenBSD: PROTOCOL.agent,v 1.21 2023/12/18 14:46:56 djm Exp $
