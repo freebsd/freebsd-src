@@ -102,6 +102,8 @@ static const struct pci_device_table pchtherm_devices[] =
 	  PCI_DESCR("CometLake-H Thermal Subsystem")},
 	{ PCI_DEV(0x8086, 0xa1b1),
 	  PCI_DESCR("Lewisburg Thermal Subsystem")},
+	{ PCI_DEV(0x8086, 0x8d24),
+	  PCI_DESCR("Wellsburg Thermal Subsystem")},
 };
 
 static int pchtherm_probe(device_t dev)
