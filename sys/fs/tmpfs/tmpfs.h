@@ -544,6 +544,14 @@ tmpfs_update(struct vnode *vp)
 #endif
 
 /*
+ * Percent of available memory + swap available to use by tmpfs file systems
+ * without a size limit.
+ */
+#if !defined(TMPFS_MEM_PERCENT)
+#define TMPFS_MEM_PERCENT		95
+#endif
+
+/*
  * Amount of memory to reserve for extended attributes.
  */
 #if !defined(TMPFS_EA_MEMORY_RESERVED)
