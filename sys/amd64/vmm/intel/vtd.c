@@ -431,8 +431,8 @@ vtd_disable(void)
 	}
 }
 
-static void
-vtd_add_device(void *arg, uint16_t rid)
+static int
+vtd_add_device(void *arg, device_t dev __unused, uint16_t rid)
 {
 	int idx;
 	uint64_t *ctxp;
@@ -475,10 +475,11 @@ vtd_add_device(void *arg, uint16_t rid)
 	 * 'Not Present' entries are not cached in either the Context Cache
 	 * or in the IOTLB, so there is no need to invalidate either of them.
 	 */
+	return (0);
 }
 
-static void
-vtd_remove_device(void *arg, uint16_t rid)
+static int
+vtd_remove_device(void *arg, device_t dev __unused, uint16_t rid)
 {
 	int i, idx;
 	uint64_t *ctxp;
@@ -506,6 +507,7 @@ vtd_remove_device(void *arg, uint16_t rid)
 		vtd_ctx_global_invalidate(vtdmap);
 		vtd_iotlb_global_invalidate(vtdmap);
 	}
+	return (0);
 }
 
 #define	CREATE_MAPPING	0
@@ -600,21 +602,24 @@ vtd_update_mapping(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, uint64_t len,
 	return (1UL << ptpshift);
 }
 
-static uint64_t
-vtd_create_mapping(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, uint64_t len)
+static int
+vtd_create_mapping(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, uint64_t len,
+    uint64_t *res_len)
 {
 
-	return (vtd_update_mapping(arg, gpa, hpa, len, CREATE_MAPPING));
+	*res_len = vtd_update_mapping(arg, gpa, hpa, len, CREATE_MAPPING);
+	return (0);
 }
 
-static uint64_t
-vtd_remove_mapping(void *arg, vm_paddr_t gpa, uint64_t len)
+static int
+vtd_remove_mapping(void *arg, vm_paddr_t gpa, uint64_t len, uint64_t *res_len)
 {
 
-	return (vtd_update_mapping(arg, gpa, 0, len, REMOVE_MAPPING));
+	*res_len = vtd_update_mapping(arg, gpa, 0, len, REMOVE_MAPPING);
+	return (0);
 }
 
-static void
+static int
 vtd_invalidate_tlb(void *dom)
 {
 	int i;
@@ -628,6 +633,7 @@ vtd_invalidate_tlb(void *dom)
 		vtdmap = vtdmaps[i];
 		vtd_iotlb_global_invalidate(vtdmap);
 	}
+	return (0);
 }
 
 static void *

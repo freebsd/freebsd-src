@@ -745,12 +745,12 @@ vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len)
 	return (0);
 }
 
-static void
+static int
 vm_iommu_map(struct vm *vm)
 {
 	vm_paddr_t gpa, hpa;
 	struct vm_mem_map *mm;
-	int i;
+	int error, i;
 
 	sx_assert(&vm->mem.mem_segs_lock, SX_LOCKED);
 
@@ -789,15 +789,16 @@ vm_iommu_map(struct vm *vm)
 		}
 	}
 
-	iommu_invalidate_tlb(iommu_host_domain());
+	error = iommu_invalidate_tlb(iommu_host_domain());
+	return (error);
 }
 
-static void
+static int
 vm_iommu_unmap(struct vm *vm)
 {
 	vm_paddr_t gpa;
 	struct vm_mem_map *mm;
-	int i;
+	int error, i;
 
 	sx_assert(&vm->mem.mem_segs_lock, SX_LOCKED);
 
@@ -826,7 +827,8 @@ vm_iommu_unmap(struct vm *vm)
 	 * Invalidate the cached translations associated with the domain
 	 * from which pages were removed.
 	 */
-	iommu_invalidate_tlb(vm->iommu);
+	error = iommu_invalidate_tlb(vm->iommu);
+	return (error);
 }
 
 int
@@ -839,9 +841,9 @@ vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func)
 		return (error);
 
 	if (ppt_assigned_devices(vm) == 0)
-		vm_iommu_unmap(vm);
+		error = vm_iommu_unmap(vm);
 
-	return (0);
+	return (error);
 }
 
 int
@@ -858,10 +860,12 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 		vm->iommu = iommu_create_domain(maxaddr);
 		if (vm->iommu == NULL)
 			return (ENXIO);
-		vm_iommu_map(vm);
 	}
 
 	error = ppt_assign_device(vm, bus, slot, func);
+	if (error != 0)
+		return (error);
+	error = vm_iommu_map(vm);
 	return (error);
 }
 
