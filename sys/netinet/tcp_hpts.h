@@ -153,6 +153,7 @@ void __tcp_set_hpts(struct tcpcb *tp, int32_t line);
 void tcp_set_inp_to_drop(struct inpcb *inp, uint16_t reason);
 
 void tcp_lro_hpts_init(void);
+void tcp_lro_hpts_uninit(void);
 
 extern int32_t tcp_min_hptsi_time;
 
