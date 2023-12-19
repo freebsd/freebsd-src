@@ -26,7 +26,7 @@
 # SUCH DAMAGE.
 #
 
-# fcntl(2) locking scenario. No problems seen.
+# fcntl(2) locking scenario.
 
 . ../default.cfg
 
@@ -45,6 +45,8 @@ rm -f /tmp/fcntl
 exit $status
 EOF
 #include <sys/types.h>
+#include <sys/wait.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -52,7 +54,6 @@ EOF
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 #define PARALLEL 16
@@ -80,9 +81,10 @@ add(int n, int increment)
 {
         struct flock fl;
 	off_t pos;
-	long val, oval __unused;
-	int r;
+	long val, oval;
+	int debug, r;
 
+	debug = 0; /* set to "1" for debug output. */
 	pos = n * sizeof(val);
 	memset(&fl, 0, sizeof(fl));
         fl.l_start = pos;
@@ -107,10 +109,9 @@ add(int n, int increment)
 	}
 	oval = val;
 	val = val + increment;
-#if defined(DEBUG)
-	fprintf(stderr, "add(%d, %d) @ pos %ld: %ld = %ld + %d\n",
-	    n, increment, (long)pos, val, oval, increment);
-#endif
+	if (debug != 0)
+		fprintf(stderr, "add(%d, %d) @ pos %ld: %ld = %ld + %d\n",
+		    n, increment, (long)pos, val, oval, increment);
 	if (lseek(fd, pos, SEEK_SET) == -1)
 		err(1, "lseek");
 	while ((r = write(fd, &val, sizeof(val)) != sizeof(val))) {
@@ -178,9 +179,9 @@ down(void)
 int
 main(void)
 {
-	int flags, i;
-	long val, sum;
 	off_t len;
+	long val, sum;
+	int flags, i;
 
 	signal(SIGHUP, handler);
 	signal(SIGALRM, ahandler);
