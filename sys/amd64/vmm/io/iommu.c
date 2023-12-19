@@ -129,7 +129,7 @@ IOMMU_REMOVE_DEVICE(void *domain, device_t dev, uint16_t rid)
 
 	if (ops != NULL && iommu_avail)
 		return ((*ops->remove_device)(domain, dev, rid));
-	return (EOPNOTSUPP);
+	return (0);	/* To allow ppt_attach() to succeed. */
 }
 
 static __inline int
