@@ -13,6 +13,11 @@ Items affecting the ports and packages system can be found in
 and/or ports.
 
 20231212:
+	13.2-RELEASE-p9	SA-23:19.openssh
+
+	Prefix Truncation Attack in the SSH protocol [SA-23:19.openssh]
+
+20231212:
 	13.2-RELEASE-p8	SA-23:18.nfsclient
 
 	NFS client data corruption and kernel memory disclosure [SA-23:18.nfsclient]
