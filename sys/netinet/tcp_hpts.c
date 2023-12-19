@@ -229,7 +229,7 @@ static struct tcp_hptsi {
 	uint32_t rp_num_hptss;	/* Number of hpts threads */
 } tcp_pace;
 
-MALLOC_DEFINE(M_TCPHPTS, "tcp_hpts", "TCP hpts");
+static MALLOC_DEFINE(M_TCPHPTS, "tcp_hpts", "TCP hpts");
 #ifdef RSS
 static int tcp_bind_threads = 1;
 #else
@@ -240,7 +240,6 @@ static int hpts_does_tp_logging = 0;
 
 static int32_t tcp_hptsi(struct tcp_hpts_entry *hpts, int from_callout);
 static void tcp_hpts_thread(void *ctx);
-static void tcp_init_hptsi(void *st);
 
 int32_t tcp_min_hptsi_time = DEFAULT_MIN_SLEEP;
 static int conn_cnt_thresh = DEFAULT_CONNECTION_THESHOLD;
@@ -1794,7 +1793,7 @@ hpts_gather_grps(struct cpu_group **grps, int32_t *at, int32_t max, struct cpu_g
 }
 
 static void
-tcp_init_hptsi(void *st)
+tcp_hpts_mod_load(void)
 {
 	struct cpu_group *cpu_top;
 	int32_t error __diagused;
@@ -2005,10 +2004,81 @@ tcp_init_hptsi(void *st)
 	printf("TCP Hpts created %d swi interrupt threads and bound %d to %s\n",
 	    created, bound,
 	    tcp_bind_threads == 2 ? "NUMA domains" : "cpus");
-#ifdef INVARIANTS
-	printf("HPTS is in INVARIANT mode!!\n");
-#endif
 }
 
-SYSINIT(tcphptsi, SI_SUB_SOFTINTR, SI_ORDER_ANY, tcp_init_hptsi, NULL);
+static void
+tcp_hpts_mod_unload(void)
+{
+	int rv __diagused;
+
+	tcp_lro_hpts_uninit();
+	atomic_store_ptr(&tcp_hpts_softclock, NULL);
+
+	for (int i = 0; i < tcp_pace.rp_num_hptss; i++) {
+		struct tcp_hpts_entry *hpts = tcp_pace.rp_ent[i];
+
+		rv = callout_drain(&hpts->co);
+		MPASS(rv != 0);
+
+		rv = swi_remove(hpts->ie_cookie);
+		MPASS(rv == 0);
+
+		rv = sysctl_ctx_free(&hpts->hpts_ctx);
+		MPASS(rv == 0);
+
+		mtx_destroy(&hpts->p_mtx);
+		free(hpts->p_hptss, M_TCPHPTS);
+		free(hpts, M_TCPHPTS);
+	}
+
+	free(tcp_pace.rp_ent, M_TCPHPTS);
+	free(tcp_pace.cts_last_ran, M_TCPHPTS);
+#ifdef SMP
+	free(tcp_pace.grps, M_TCPHPTS);
+#endif
+
+	counter_u64_free(hpts_hopelessly_behind);
+	counter_u64_free(hpts_loops);
+	counter_u64_free(back_tosleep);
+	counter_u64_free(combined_wheel_wrap);
+	counter_u64_free(wheel_wrap);
+	counter_u64_free(hpts_wake_timeout);
+	counter_u64_free(hpts_direct_awakening);
+	counter_u64_free(hpts_back_tosleep);
+	counter_u64_free(hpts_direct_call);
+	counter_u64_free(cpu_uses_flowid);
+	counter_u64_free(cpu_uses_random);
+}
+
+static int
+tcp_hpts_modevent(module_t mod, int what, void *arg)
+{
+
+	switch (what) {
+	case MOD_LOAD:
+		tcp_hpts_mod_load();
+		return (0);
+	case MOD_QUIESCE:
+		/*
+		 * Since we are a dependency of TCP stack modules, they should
+		 * already be unloaded, and the HPTS ring is empty.  However,
+		 * function pointer manipulations aren't 100% safe.  Although,
+		 * tcp_hpts_mod_unload() use atomic(9) the userret() doesn't.
+		 * Thus, allow only forced unload of HPTS.
+		 */
+		return (EBUSY);
+	case MOD_UNLOAD:
+		tcp_hpts_mod_unload();
+		return (0);
+	default:
+		return (EINVAL);
+	};
+}
+
+static moduledata_t tcp_hpts_module = {
+	.name = "tcphpts",
+	.evhand = tcp_hpts_modevent,
+};
+
+DECLARE_MODULE(tcphpts, tcp_hpts_module, SI_SUB_SOFTINTR, SI_ORDER_ANY);
 MODULE_VERSION(tcphpts, 1);
