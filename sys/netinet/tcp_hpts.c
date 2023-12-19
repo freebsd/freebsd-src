@@ -236,7 +236,6 @@ static int tcp_bind_threads = 1;
 static int tcp_bind_threads = 2;
 #endif
 static int tcp_use_irq_cpu = 0;
-static uint32_t *cts_last_ran;
 static int hpts_does_tp_logging = 0;
 
 static int32_t tcp_hptsi(struct tcp_hpts_entry *hpts, int from_callout);
@@ -1098,7 +1097,7 @@ tcp_hptsi(struct tcp_hpts_entry *hpts, int from_callout)
 
 	hpts->p_lasttick = hpts->p_curtick;
 	hpts->p_curtick = tcp_gethptstick(&tv);
-	cts_last_ran[hpts->p_num] = tcp_tv_to_usectick(&tv);
+	tcp_pace.cts_last_ran[hpts->p_num] = tcp_tv_to_usectick(&tv);
 	orig_exit_slot = hpts->p_cur_slot = tick_to_wheel(hpts->p_curtick);
 	if ((hpts->p_on_queue_cnt == 0) ||
 	    (hpts->p_lasttick == hpts->p_curtick)) {
@@ -1441,7 +1440,7 @@ no_one:
 		goto again;
 	}
 no_run:
-	cts_last_ran[hpts->p_num] = tcp_tv_to_usectick(&tv);
+	tcp_pace.cts_last_ran[hpts->p_num] = tcp_tv_to_usectick(&tv);
 	/*
 	 * Set flag to tell that we are done for
 	 * any slot input that happens during
@@ -1523,8 +1522,8 @@ tcp_choose_hpts_to_run(void)
 	}
 	oldest_idx = -1;
 	for (i = start; i < end; i++) {
-		if (TSTMP_GT(cts, cts_last_ran[i]))
-			calc = cts - cts_last_ran[i];
+		if (TSTMP_GT(cts, tcp_pace.cts_last_ran[i]))
+			calc = cts - tcp_pace.cts_last_ran[i];
 		else
 			calc = 0;
 		if (calc > time_since_ran) {
@@ -1830,7 +1829,7 @@ tcp_init_hptsi(void *st)
 	sz = (tcp_pace.rp_num_hptss * sizeof(struct tcp_hpts_entry *));
 	tcp_pace.rp_ent = malloc(sz, M_TCPHPTS, M_WAITOK | M_ZERO);
 	sz = (sizeof(uint32_t) * tcp_pace.rp_num_hptss);
-	cts_last_ran = malloc(sz, M_TCPHPTS, M_WAITOK);
+	tcp_pace.cts_last_ran = malloc(sz, M_TCPHPTS, M_WAITOK);
 	tcp_pace.grp_cnt = 0;
 	if (cpu_top == NULL) {
 		tcp_pace.grp_cnt = 1;
@@ -1916,7 +1915,7 @@ tcp_init_hptsi(void *st)
 		SYSCTL_ADD_UINT(&hpts->hpts_ctx,
 		    SYSCTL_CHILDREN(hpts->hpts_root),
 		    OID_AUTO, "lastran", CTLFLAG_RD,
-		    &cts_last_ran[i], 0,
+		    &tcp_pace.cts_last_ran[i], 0,
 		    "The last usec tick that this hpts ran");
 		SYSCTL_ADD_LONG(&hpts->hpts_ctx,
 		    SYSCTL_CHILDREN(hpts->hpts_root),
@@ -1937,7 +1936,7 @@ tcp_init_hptsi(void *st)
 		hpts->p_hpts_sleep_time = hpts_sleep_max;
 		hpts->p_num = i;
 		hpts->p_curtick = tcp_gethptstick(&tv);
-		cts_last_ran[i] = tcp_tv_to_usectick(&tv);
+		tcp_pace.cts_last_ran[i] = tcp_tv_to_usectick(&tv);
 		hpts->p_prev_slot = hpts->p_cur_slot = tick_to_wheel(hpts->p_curtick);
 		hpts->p_cpu = 0xffff;
 		hpts->p_nxt_slot = hpts_slot(hpts->p_cur_slot, 1);
