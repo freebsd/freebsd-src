@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20231219:
+	14.0-RELEASE-p4 SA-23:19.openssh
+
+	Prefix Truncation Attack in the SSH protocol [SA-23:19.openssh]
+
 20231212:
 	14.0-RELEASE-p3 SA-23:18.nfsclient
 
