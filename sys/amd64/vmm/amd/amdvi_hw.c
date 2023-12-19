@@ -1379,5 +1379,5 @@ const struct iommu_ops iommu_ops_amd = {
 	.remove_mapping = amdvi_remove_mapping,
 	.add_device = amdvi_add_device,
 	.remove_device = amdvi_remove_device,
-	.invalidate_tlb = amdvi_invalidate_tlb
+	.invalidate_tlb = amdvi_invalidate_tlb,
 };
