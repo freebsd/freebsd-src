@@ -290,6 +290,8 @@ tmpfs_can_alloc_page(vm_object_t obj, vm_pindex_t pindex)
 	if (tm == NULL || vm_pager_has_page(obj, pindex, NULL, NULL) ||
 	    tm->tm_pages_max == 0)
 		return (true);
+	if (tm->tm_pages_max == ULONG_MAX)
+		return (tmpfs_mem_avail() >= 1);
 	return (tm->tm_pages_max > atomic_load_long(&tm->tm_pages_used));
 }
 
