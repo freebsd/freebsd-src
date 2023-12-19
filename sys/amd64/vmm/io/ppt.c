@@ -151,14 +151,19 @@ static int
 ppt_attach(device_t dev)
 {
 	struct pptdev *ppt;
-	uint16_t cmd;
+	uint16_t cmd, cmd1;
+	int error;
 
 	ppt = device_get_softc(dev);
 
-	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
+	cmd1 = cmd = pci_read_config(dev, PCIR_COMMAND, 2);
 	cmd &= ~(PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
 	pci_write_config(dev, PCIR_COMMAND, cmd, 2);
-	iommu_remove_device(iommu_host_domain(), pci_get_rid(dev));
+	error = iommu_remove_device(iommu_host_domain(), dev, pci_get_rid(dev));
+	if (error != 0) {
+		pci_write_config(dev, PCIR_COMMAND, cmd1, 2);
+		return (error);
+	}
 	num_pptdevs++;
 	TAILQ_INSERT_TAIL(&pptdev_list, ppt, next);
 	ppt->dev = dev;
@@ -173,16 +178,22 @@ static int
 ppt_detach(device_t dev)
 {
 	struct pptdev *ppt;
+	int error;
 
 	ppt = device_get_softc(dev);
 
 	if (ppt->vm != NULL)
 		return (EBUSY);
+	if (iommu_host_domain() != NULL) {
+		error = iommu_add_device(iommu_host_domain(), dev,
+		    pci_get_rid(dev));
+	} else {
+		error = 0;
+	}
+	if (error != 0)
+		return (error);
 	num_pptdevs--;
 	TAILQ_REMOVE(&pptdev_list, ppt, next);
-
-	if (iommu_host_domain() != NULL)
-		iommu_add_device(iommu_host_domain(), pci_get_rid(dev));
 
 	return (0);
 }
@@ -410,8 +421,11 @@ ppt_assign_device(struct vm *vm, int bus, int slot, int func)
 	pci_save_state(ppt->dev);
 	ppt_pci_reset(ppt->dev);
 	pci_restore_state(ppt->dev);
+	error = iommu_add_device(vm_iommu_domain(vm), ppt->dev,
+	    pci_get_rid(ppt->dev));
+	if (error != 0)
+		return (error);
 	ppt->vm = vm;
-	iommu_add_device(vm_iommu_domain(vm), pci_get_rid(ppt->dev));
 	cmd = pci_read_config(ppt->dev, PCIR_COMMAND, 2);
 	cmd |= PCIM_CMD_BUSMASTEREN | ppt_bar_enables(ppt);
 	pci_write_config(ppt->dev, PCIR_COMMAND, cmd, 2);
@@ -438,9 +452,10 @@ ppt_unassign_device(struct vm *vm, int bus, int slot, int func)
 	ppt_unmap_all_mmio(vm, ppt);
 	ppt_teardown_msi(ppt);
 	ppt_teardown_msix(ppt);
-	iommu_remove_device(vm_iommu_domain(vm), pci_get_rid(ppt->dev));
+	error = iommu_remove_device(vm_iommu_domain(vm), ppt->dev,
+	    pci_get_rid(ppt->dev));
 	ppt->vm = NULL;
-	return (0);
+	return (error);
 }
 
 int
