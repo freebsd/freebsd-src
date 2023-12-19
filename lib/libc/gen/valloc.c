@@ -35,10 +35,5 @@
 void *
 valloc(size_t i)
 {
-	void	*ret;
-
-	if (posix_memalign(&ret, getpagesize(), i) != 0)
-		ret = NULL;
-
-	return ret;
+	return alloc_align(getpagesize(), i);
 }

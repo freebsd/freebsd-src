@@ -1152,7 +1152,7 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t size,
 	if (need_buf) {
 		for (bio_size = BIO_BUFFER_SIZE; bio_size > 0;
 		    bio_size -= blkio->Media->BlockSize) {
-			blkbuf = memalign(ioalign, bio_size);
+			blkbuf = aligned_alloc(ioalign, bio_size);
 			if (blkbuf != NULL)
 				break;
 		}

@@ -138,7 +138,8 @@ main(int argc, char **argv)
 		usage();
 	}
 
-	if (posix_memalign((void **)&buf, PAGE_SIZE, MAXTX))
+	buf = aligned_alloc(PAGE_SIZE, MAXTX);
+	if (buf == NULL)
 		errx(1, "Can't allocate memory buffer");
 	for (i = 0; i < argc; i++) {
 		fd = open(argv[i], (opt_w ? O_RDWR : O_RDONLY) | O_DIRECT);
