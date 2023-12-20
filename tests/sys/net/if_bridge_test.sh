@@ -663,6 +663,33 @@ vlan_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "many_bridge_members" "cleanup"
+many_bridge_members_head()
+{
+	atf_set descr 'many_bridge_members ifconfig test'
+	atf_set require.user root
+}
+
+many_bridge_members_body()
+{
+	vnet_init
+
+	bridge=$(vnet_mkbridge)
+	ifcount=256
+	for _ in $(seq 1 $ifcount); do
+		epair=$(vnet_mkepair)
+		ifconfig "${bridge}" addm "${epair}"a
+	done
+
+	atf_check -s exit:0 -o inline:"$ifcount\n" \
+	  sh -c "ifconfig ${bridge} | grep member: | wc -l | xargs"
+}
+
+many_bridge_members_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
@@ -677,4 +704,5 @@ atf_init_test_cases()
 	atf_add_test_case "gif"
 	atf_add_test_case "mtu"
 	atf_add_test_case "vlan"
+	atf_add_test_case "many_bridge_members"
 }
