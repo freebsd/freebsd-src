@@ -867,6 +867,7 @@ MDS_HEADERS+=	default_accessor.h
 MDS_HEADERS+=	extents.h
 MDS_HEADERS+=	layout_left.h
 MDS_HEADERS+=	layout_right.h
+MDS_HEADERS+=	mdspan.h
 .for hdr in ${MDS_HEADERS}
 MDS+=		${HDRDIR}/__mdspan/${hdr}
 .endfor
