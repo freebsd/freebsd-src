@@ -4,7 +4,6 @@
 LIB=		clang_rt.ubsan_standalone-${CRTARCH}
 
 SRCS+=		interception/interception_linux.cpp
-SRCS+=		interception/interception_type_test.cpp
 SRCS+=		sanitizer_common/sancov_flags.cpp
 SRCS+=		sanitizer_common/sanitizer_allocator.cpp
 SRCS+=		sanitizer_common/sanitizer_allocator_checks.cpp
@@ -42,6 +41,7 @@ SRCS+=		sanitizer_common/sanitizer_symbolizer_libcdep.cpp
 SRCS+=		sanitizer_common/sanitizer_symbolizer_posix_libcdep.cpp
 SRCS+=		sanitizer_common/sanitizer_symbolizer_report.cpp
 SRCS+=		sanitizer_common/sanitizer_termination.cpp
+SRCS+=		sanitizer_common/sanitizer_thread_arg_retval.cpp
 SRCS+=		sanitizer_common/sanitizer_thread_registry.cpp
 SRCS+=		sanitizer_common/sanitizer_tls_get_addr.cpp
 SRCS+=		sanitizer_common/sanitizer_type_traits.cpp

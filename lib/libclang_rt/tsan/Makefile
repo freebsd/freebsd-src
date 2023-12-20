@@ -4,7 +4,6 @@
 LIB=		clang_rt.tsan-${CRTARCH}
 
 SRCS+=		interception/interception_linux.cpp
-SRCS+=		interception/interception_type_test.cpp
 SRCS+=		sanitizer_common/sancov_flags.cpp
 SRCS+=		sanitizer_common/sanitizer_allocator.cpp
 SRCS+=		sanitizer_common/sanitizer_allocator_checks.cpp
@@ -30,7 +29,6 @@ SRCS+=		sanitizer_common/sanitizer_posix_libcdep.cpp
 SRCS+=		sanitizer_common/sanitizer_printf.cpp
 SRCS+=		sanitizer_common/sanitizer_procmaps_bsd.cpp
 SRCS+=		sanitizer_common/sanitizer_procmaps_common.cpp
-SRCS+=		sanitizer_common/sanitizer_range.cpp
 SRCS+=		sanitizer_common/sanitizer_stack_store.cpp
 SRCS+=		sanitizer_common/sanitizer_stackdepot.cpp
 SRCS+=		sanitizer_common/sanitizer_stacktrace.cpp
@@ -62,7 +60,6 @@ SRCS+=		tsan/rtl/tsan_interface_java.cpp
 SRCS+=		tsan/rtl/tsan_md5.cpp
 SRCS+=		tsan/rtl/tsan_mman.cpp
 SRCS+=		tsan/rtl/tsan_mutexset.cpp
-SRCS+=		tsan/rtl/tsan_new_delete.cpp
 SRCS+=		tsan/rtl/tsan_platform_linux.cpp
 SRCS+=		tsan/rtl/tsan_platform_posix.cpp
 SRCS+=		tsan/rtl/tsan_preinit.cpp
