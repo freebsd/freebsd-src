@@ -545,7 +545,7 @@
 
 /*
  * The RealTek doesn't use a fragment-based descriptor mechanism.
- * Instead, there are only four register sets, each or which represents
+ * Instead, there are only four register sets, each of which represents
  * one 'descriptor.' Basically, each TX descriptor is just a contiguous
  * packet buffer (32-bit aligned!) and we place the buffer addresses in
  * the registers so the chip knows where they are.
