@@ -260,8 +260,6 @@ void *vm_gpa_hold(struct vcpu *vcpu, vm_paddr_t gpa, size_t len,
     int prot, void **cookie);
 void *vm_gpa_hold_global(struct vm *vm, vm_paddr_t gpa, size_t len,
     int prot, void **cookie);
-void *vm_gpa_hold_global(struct vm *vm, vm_paddr_t gpa, size_t len,
-    int prot, void **cookie);
 void vm_gpa_release(void *cookie);
 bool vm_mem_allocated(struct vcpu *vcpu, vm_paddr_t gpa);
 
