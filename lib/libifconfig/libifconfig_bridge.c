@@ -111,7 +111,7 @@ ifconfig_bridge_get_bridge_status(ifconfig_handle_t *h,
 			free(bridge);
 			return (-1);
 		}
-		if (members.ifbic_len <= len)
+		if ((members.ifbic_len + sizeof(*members.ifbic_req)) < len)
 			break;
 	}
 	if (buf == NULL) {
