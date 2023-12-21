@@ -251,6 +251,7 @@ pfil_head_unregister(pfil_head_t ph)
 		free(link, M_PFIL);
 	}
 	PFIL_UNLOCK();
+	free(ph, M_PFIL);
 }
 
 pfil_hook_t
