@@ -1040,54 +1040,68 @@ vmm_sysmem_maxaddr(struct vm *vm)
 }
 
 static void
-vm_iommu_modify(struct vm *vm, bool map)
+vm_iommu_map(struct vm *vm)
 {
-	int i, sz;
 	vm_paddr_t gpa, hpa;
 	struct mem_map *mm;
-	void *vp, *cookie, *host_domain;
-
-	sz = PAGE_SIZE;
-	host_domain = iommu_host_domain();
+	void *vp, *cookie;
+	int i;
 
 	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
 		mm = &vm->mem_maps[i];
 		if (!sysmem_mapping(vm, mm))
 			continue;
 
-		if (map) {
-			KASSERT((mm->flags & VM_MEMMAP_F_IOMMU) == 0,
-			    ("iommu map found invalid memmap %#lx/%#lx/%#x",
-			    mm->gpa, mm->len, mm->flags));
-			if ((mm->flags & VM_MEMMAP_F_WIRED) == 0)
-				continue;
-			mm->flags |= VM_MEMMAP_F_IOMMU;
-		} else {
-			if ((mm->flags & VM_MEMMAP_F_IOMMU) == 0)
-				continue;
-			mm->flags &= ~VM_MEMMAP_F_IOMMU;
-			KASSERT((mm->flags & VM_MEMMAP_F_WIRED) != 0,
-			    ("iommu unmap found invalid memmap %#lx/%#lx/%#x",
-			    mm->gpa, mm->len, mm->flags));
-		}
+		KASSERT((mm->flags & VM_MEMMAP_F_IOMMU) == 0,
+		    ("iommu map found invalid memmap %#lx/%#lx/%#x",
+		    mm->gpa, mm->len, mm->flags));
+		if ((mm->flags & VM_MEMMAP_F_WIRED) == 0)
+			continue;
+		mm->flags |= VM_MEMMAP_F_IOMMU;
 
-		gpa = mm->gpa;
-		while (gpa < mm->gpa + mm->len) {
+		for (gpa = mm->gpa; gpa < mm->gpa + mm->len; gpa += PAGE_SIZE) {
 			vp = vm_gpa_hold_global(vm, gpa, PAGE_SIZE,
 			    VM_PROT_WRITE, &cookie);
 			KASSERT(vp != NULL, ("vm(%s) could not map gpa %#lx",
 			    vm_name(vm), gpa));
-
 			vm_gpa_release(cookie);
 
 			hpa = DMAP_TO_PHYS((uintptr_t)vp);
-			if (map) {
-				iommu_create_mapping(vm->iommu, gpa, hpa, sz);
-			} else {
-				iommu_remove_mapping(vm->iommu, gpa, sz);
-			}
+			iommu_create_mapping(vm->iommu, gpa, hpa, PAGE_SIZE);
+		}
+	}
 
-			gpa += PAGE_SIZE;
+	iommu_invalidate_tlb(iommu_host_domain());
+}
+
+static void
+vm_iommu_unmap(struct vm *vm)
+{
+	vm_paddr_t gpa;
+	struct mem_map *mm;
+	void *vp, *cookie;
+	int i;
+
+	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
+		mm = &vm->mem_maps[i];
+		if (!sysmem_mapping(vm, mm))
+			continue;
+
+		if ((mm->flags & VM_MEMMAP_F_IOMMU) == 0)
+			continue;
+		mm->flags &= ~VM_MEMMAP_F_IOMMU;
+		KASSERT((mm->flags & VM_MEMMAP_F_WIRED) != 0,
+		    ("iommu unmap found invalid memmap %#lx/%#lx/%#x",
+		    mm->gpa, mm->len, mm->flags));
+
+		for (gpa = mm->gpa; gpa < mm->gpa + mm->len; gpa += PAGE_SIZE) {
+			vp = vm_gpa_hold_global(vm, gpa, PAGE_SIZE,
+			    VM_PROT_WRITE, &cookie);
+			KASSERT(vp != NULL, ("vm(%s) could not map gpa %#lx",
+			    vm_name(vm), gpa));
+			vm_gpa_release(cookie);
+
+			iommu_remove_mapping(vm->iommu, gpa, PAGE_SIZE);
 		}
 	}
 
@@ -1095,14 +1109,8 @@ vm_iommu_modify(struct vm *vm, bool map)
 	 * Invalidate the cached translations associated with the domain
 	 * from which pages were removed.
 	 */
-	if (map)
-		iommu_invalidate_tlb(host_domain);
-	else
-		iommu_invalidate_tlb(vm->iommu);
+	iommu_invalidate_tlb(vm->iommu);
 }
-
-#define	vm_iommu_unmap(vm)	vm_iommu_modify((vm), false)
-#define	vm_iommu_map(vm)	vm_iommu_modify((vm), true)
 
 int
 vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func)
