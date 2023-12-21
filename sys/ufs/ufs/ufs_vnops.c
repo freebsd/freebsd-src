@@ -2434,8 +2434,10 @@ ufs_readdir(
 	if (uio->uio_offset < 0)
 		return (EINVAL);
 	ip = VTOI(vp);
-	if (ip->i_effnlink == 0)
+	if (ip->i_effnlink == 0) {
+		*ap->a_eofflag = 1;
 		return (0);
+	}
 	if (ap->a_ncookies != NULL) {
 		if (uio->uio_resid < 0)
 			ncookies = 0;
