@@ -2700,9 +2700,8 @@ freebsd32___sysctlbyname(struct thread *td,
 	    &oldlen, uap->new, uap->newlen, &rv, SCTL_MASK32, 1);
 	if (error != 0)
 		return (error);
-	if (uap->oldlenp != NULL)
-		error = suword32(uap->oldlenp, rv);
-
+	if (uap->oldlenp != NULL && suword32(uap->oldlenp, rv) != 0)
+		error = EFAULT;
 	return (error);
 }
 
