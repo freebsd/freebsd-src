@@ -1532,8 +1532,8 @@ vtnet_rx_alloc_buf(struct vtnet_softc *sc, int nbufs, struct mbuf **m_tailp)
 			m_freem(m_head);
 			return (NULL);
 		}
+
 		m->m_len = size;
-		m_adj(m, ETHER_ALIGN);
 		if (m_head != NULL) {
 			m_tail->m_next = m;
 			m_tail = m;
@@ -1587,6 +1587,15 @@ vtnet_rxq_replace_lro_nomrg_buf(struct vtnet_rxq *rxq, struct mbuf *m0,
 		    ("%s: mbuf size %d not expected cluster size %d", __func__,
 		    m->m_len, clustersz));
 
+#ifdef __NO_STRICT_ALIGNMENT
+		/*
+		 * Need to offset the first mbuf in this chain to align the IP
+		 * structure because this host requires strict alignment.
+		 */
+		if (m_prev == NULL) {
+			m_adj(m, ETHER_ALIGN);
+		}
+#endif
 		m->m_len = MIN(m->m_len, len);
 		len -= m->m_len;
 
@@ -1655,6 +1664,13 @@ vtnet_rxq_replace_buf(struct vtnet_rxq *rxq, struct mbuf *m, int len)
 	if (m_new == NULL)
 		return (ENOBUFS);
 
+#ifdef __NO_STRICT_ALIGNMENT
+	/*
+	 * Need to offset the first mbuf in this chain to align the IP
+	 * structure because this host requires strict alignment.
+	 */
+	m_adj(m_new, ETHER_ALIGN);
+#endif
 	error = vtnet_rxq_enqueue_buf(rxq, m_new);
 	if (error) {
 		sc->vtnet_stats.rx_enq_replacement_failed++;
@@ -1722,6 +1738,13 @@ vtnet_rxq_new_buf(struct vtnet_rxq *rxq)
 	if (m == NULL)
 		return (ENOBUFS);
 
+#ifdef __NO_STRICT_ALIGNMENT
+	/*
+	 * Need to offset the first mbuf in this chain to align the IP
+	 * structure because this host requires strict alignment.
+	 */
+	m_adj(m, ETHER_ALIGN);
+#endif
 	error = vtnet_rxq_enqueue_buf(rxq, m);
 	if (error)
 		m_freem(m);
@@ -1907,8 +1930,10 @@ vtnet_rxq_discard_buf(struct vtnet_rxq *rxq, struct mbuf *m)
 	int error __diagused;
 
 	/*
-	 * Requeue the discarded mbuf. This should always be successful
-	 * since it was just dequeued.
+	 * Requeue the discarded mbuf. This should always be successful since it
+	 * was just dequeued. There's no need to adjust for ethernet alignment
+	 * here on strict alignment hosts because we're requeueing a packet
+	 * already adjusted.
 	 */
 	error = vtnet_rxq_enqueue_buf(rxq, m);
 	KASSERT(error == 0,
