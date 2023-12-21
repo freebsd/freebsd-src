@@ -131,6 +131,10 @@ Space separated list of directories to process for configuration files.
 The lua-based loader will process files with a
 .Dq .conf
 suffix that are placed in these directories.
+Files found here are processed after the ones listed in
+.Va loader_conf_files
+but before the ones found in
+.Va local_loader_conf_files .
 .It Ar loader_conf_files
 Defines additional configuration files to be processed right after the
 present file.
@@ -138,6 +142,13 @@ present file.
 should be treated as write-only.
 One cannot depend on any value remaining in the loader environment or carried
 over into the kernel environment.
+.It Ar local_loader_conf_files
+Space separated list of additional configuration files to be processed at last,
+i.e., after
+.Va loader_conf_files
+and
+.Va loader_conf_dirs
+are processed.
 .It Ar product_vars
 When set, must be a space separated list of environment variable names to walk
 through to guess product information.
@@ -274,6 +285,14 @@ default settings can be ignored.
 The few of them which are important
 or useful are:
 .Bl -tag -width bootfile -offset indent
+.It Va local_loader_conf_files
+.Pq Dq /boot/loader.conf.local
+Ensure
+.Va loader.conf.local
+can always be used to override settings from files found in
+.Va loader_conf_files
+and
+.Va loader_conf_dirs .
 .It Va bitmap_load
 .Pq Dq NO
 If set to
@@ -455,13 +474,18 @@ It is not available in the default Forth-based loader.
 .Sh FILES
 .Bl -tag -width /boot/defaults/loader.conf -compact
 .It Pa /boot/defaults/loader.conf
-default settings \(em do not change this file.
+Default settings \(em do not change this file.
 .It Pa /boot/loader.conf
-user defined settings.
+User defined settings.
 .It Pa /boot/loader.conf.lua
-user defined settings written in lua.
+User defined settings written in lua.
+.It Pa /boot/loader.conf.d/*.conf
+User defined settings split in separate files.
+.It Pa /boot/loader.conf.d/*.lua
+User defined settings written in lua and split in separate files.
 .It Pa /boot/loader.conf.local
-machine-specific settings for sites with a common loader.conf.
+Machine-specific settings for sites with a common loader.conf. Allow to override
+settings defined in other files.
 .El
 .Sh SEE ALSO
 .Xr kenv 1 ,

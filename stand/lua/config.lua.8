@@ -64,9 +64,13 @@ as a configuration file
 .Po e.g., as
 .Pa loader.conf
 .Pc
-and then processing files listed in
+and then process files listed in the
 .Ev loader_conf_files
-variable
+variable. Additionnaly, the top-level call to readConf will process files listed in the
+.Ev loader_conf_dirs
+and
+.Ev local_loader_conf_files
+variables
 .Po see
 .Xr loader.conf 5
 .Pc .
