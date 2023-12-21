@@ -30,7 +30,7 @@
 .\"
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\"
-.Dd January 23, 2023
+.Dd December 22, 2023
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -349,6 +349,22 @@ The
 .Ic -delete
 primary will fail to delete a directory if it is not empty.
 Following symlinks is incompatible with this option.
+.Pp
+.Em WARNING :
+The
+.Ic -delete
+primary will immediately attempt to delete the current path when
+evaluated.
+Be mindful of its place in the expression; as a general rule, it
+should almost always come last.
+If in doubt, try running with
+.Ic -print
+in place of
+.Ic -delete
+first.
+See
+.Sx OPERATORS
+below for additional information on the order of evaluation.
 .It Ic -depth
 Always true;
 same as the non-portable
