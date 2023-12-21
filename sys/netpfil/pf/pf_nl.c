@@ -194,6 +194,14 @@ dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
 	nlattr_add_u64(nw, PF_ST_PACKETS1, s->packets[1]);
 	nlattr_add_u64(nw, PF_ST_BYTES0, s->bytes[0]);
 	nlattr_add_u64(nw, PF_ST_BYTES1, s->bytes[1]);
+	nlattr_add_u32(nw, PF_ST_RTABLEID, s->act.rtableid);
+	nlattr_add_u8(nw, PF_ST_MIN_TTL, s->act.min_ttl);
+	nlattr_add_u16(nw, PF_ST_MAX_MSS, s->act.max_mss);
+	nlattr_add_u16(nw, PF_ST_DNPIPE, s->act.dnpipe);
+	nlattr_add_u16(nw, PF_ST_DNRPIPE, s->act.dnrpipe);
+	nlattr_add_u8(nw, PF_ST_RT, s->rt);
+	if (s->rt_kif != NULL)
+		nlattr_add_string(nw, PF_ST_RT_IFNAME, s->rt_kif->pfik_name);
 
 	if (!dump_state_peer(nw, PF_ST_PEER_SRC, &s->src))
 		goto enomem;

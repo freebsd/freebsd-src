@@ -1386,6 +1386,13 @@ static struct snl_attr_parser ap_state[] = {
 	{ .type = PF_ST_LOG, .off = _OUT(log), .cb = snl_attr_get_uint8 },
 	{ .type = PF_ST_STATE_FLAGS, .off = _OUT(state_flags), .cb = snl_attr_get_uint16 },
 	{ .type = PF_ST_SYNC_FLAGS, .off = _OUT(sync_flags), .cb = snl_attr_get_uint8 },
+	{ .type = PF_ST_RTABLEID, .off = _OUT(rtableid), .cb = snl_attr_get_int32 },
+	{ .type = PF_ST_MIN_TTL, .off = _OUT(min_ttl), .cb = snl_attr_get_uint8 },
+	{ .type = PF_ST_MAX_MSS, .off = _OUT(max_mss), .cb = snl_attr_get_uint16 },
+	{ .type = PF_ST_DNPIPE, .off = _OUT(dnpipe), .cb = snl_attr_get_uint16 },
+	{ .type = PF_ST_DNRPIPE, .off = _OUT(dnrpipe), .cb = snl_attr_get_uint16 },
+	{ .type = PF_ST_RT, .off = _OUT(rt), .cb = snl_attr_get_uint8 },
+	{ .type = PF_ST_RT_IFNAME, .off = _OUT(rt_ifname), .cb = snl_attr_store_ifname },
 };
 static struct snl_field_parser fp_state[] = {
 };
