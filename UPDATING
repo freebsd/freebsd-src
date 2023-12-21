@@ -27,6 +27,27 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20240202:
+	Loader now also read configuration files listed in local_loader_conf_files.
+	Files listed here are the last ones read. And /boot/loader.conf.local was
+	moved from loader_conf_files to local_loader_conf_files leaving only
+	loader.conf and device.hints in loader_conf_files by default.
+
+	The following sequencing is applied:
+
+	1. Bootstrap:
+	    /boot/defaults/loader.conf
+
+	2. Read loader_conf_files files:
+	    /boot/device.hints
+	    /boot/loader.conf
+
+	3. Read loader_conf_dirs files:
+	    /boot/loader.conf.d/*.conf
+
+	4. And finally, rread local_loader_conf_files files:
+	    /boot/loader.conf.local
+
 20240201:
 	sendmail 8.18.1 has been imported and merged.  This version enforces
 	stricter RFC compliance by default, especially with respect to line
