@@ -1041,8 +1041,9 @@ vm_iommu_map(struct vm *vm)
 {
 	vm_paddr_t gpa, hpa;
 	struct mem_map *mm;
-	void *vp, *cookie;
 	int i;
+
+	sx_assert(&vm->mem_segs_lock, SX_LOCKED);
 
 	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
 		mm = &vm->mem_maps[i];
@@ -1057,13 +1058,24 @@ vm_iommu_map(struct vm *vm)
 		mm->flags |= VM_MEMMAP_F_IOMMU;
 
 		for (gpa = mm->gpa; gpa < mm->gpa + mm->len; gpa += PAGE_SIZE) {
-			vp = vm_gpa_hold_global(vm, gpa, PAGE_SIZE,
-			    VM_PROT_WRITE, &cookie);
-			KASSERT(vp != NULL, ("vm(%s) could not map gpa %#lx",
-			    vm_name(vm), gpa));
-			vm_gpa_release(cookie);
+			hpa = pmap_extract(vmspace_pmap(vm->vmspace), gpa);
 
-			hpa = DMAP_TO_PHYS((uintptr_t)vp);
+			/*
+			 * All mappings in the vmm vmspace must be
+			 * present since they are managed by vmm in this way.
+			 * Because we are in pass-through mode, the
+			 * mappings must also be wired.  This implies
+			 * that all pages must be mapped and wired,
+			 * allowing to use pmap_extract() and avoiding the
+			 * need to use vm_gpa_hold_global().
+			 *
+			 * This could change if/when we start
+			 * supporting page faults on IOMMU maps.
+			 */
+			KASSERT(vm_page_wired(PHYS_TO_VM_PAGE(hpa)),
+			    ("vm_iommu_map: vm %p gpa %jx hpa %jx not wired",
+			    vm, (uintmax_t)gpa, (uintmax_t)hpa));
+
 			iommu_create_mapping(vm->iommu, gpa, hpa, PAGE_SIZE);
 		}
 	}
@@ -1076,8 +1088,9 @@ vm_iommu_unmap(struct vm *vm)
 {
 	vm_paddr_t gpa;
 	struct mem_map *mm;
-	void *vp, *cookie;
 	int i;
+
+	sx_assert(&vm->mem_segs_lock, SX_LOCKED);
 
 	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
 		mm = &vm->mem_maps[i];
@@ -1092,12 +1105,10 @@ vm_iommu_unmap(struct vm *vm)
 		    mm->gpa, mm->len, mm->flags));
 
 		for (gpa = mm->gpa; gpa < mm->gpa + mm->len; gpa += PAGE_SIZE) {
-			vp = vm_gpa_hold_global(vm, gpa, PAGE_SIZE,
-			    VM_PROT_WRITE, &cookie);
-			KASSERT(vp != NULL, ("vm(%s) could not map gpa %#lx",
-			    vm_name(vm), gpa));
-			vm_gpa_release(cookie);
-
+			KASSERT(vm_page_wired(PHYS_TO_VM_PAGE(pmap_extract(
+			    vmspace_pmap(vm->vmspace), gpa))),
+			    ("vm_iommu_unmap: vm %p gpa %jx not wired",
+			    vm, (uintmax_t)gpa));
 			iommu_remove_mapping(vm->iommu, gpa, PAGE_SIZE);
 		}
 	}
