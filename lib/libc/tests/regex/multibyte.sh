@@ -1,4 +1,3 @@
-
 atf_test_case bmpat
 bmpat_head()
 {
@@ -45,8 +44,50 @@ icase_body()
 	echo $c | atf_check -o "inline:$c\n" sed -ne "/$a/Ip"
 }
 
+atf_test_case mbset cleanup
+mbset_head()
+{
+	atf_set "descr" "Check multibyte sets matching"
+}
+mbset_body()
+{
+	export LC_CTYPE="C.UTF-8"
+
+	# This involved an erroneously implemented optimization which reduces
+	# single-element sets to an exact match with a single codepoint.
+	# Match sets record small-codepoint characters in a bitmap and
+	# large-codepoint characters in an array; the optimization would falsely
+	# trigger if either the bitmap or the array was a singleton, ignoring
+	# the members of the other side of the set.
+	#
+	# To exercise this, we construct sets which have one member of one side
+	# and one or more of the other, and verify that all members can be
+	# found.
+	printf "a" > mbset; atf_check -o not-empty sed -ne '/[aà]/p' mbset
+	printf "à" > mbset; atf_check -o not-empty sed -ne '/[aà]/p' mbset
+	printf "a" > mbset; atf_check -o not-empty sed -ne '/[aàá]/p' mbset
+	printf "à" > mbset; atf_check -o not-empty sed -ne '/[aàá]/p' mbset
+	printf "á" > mbset; atf_check -o not-empty sed -ne '/[aàá]/p' mbset
+	printf "à" > mbset; atf_check -o not-empty sed -ne '/[abà]/p' mbset
+	printf "a" > mbset; atf_check -o not-empty sed -ne '/[abà]/p' mbset
+	printf "b" > mbset; atf_check -o not-empty sed -ne '/[abà]/p' mbset
+	printf "a" > mbset; atf_check -o not-empty sed -Ene '/[aà]/p' mbset
+	printf "à" > mbset; atf_check -o not-empty sed -Ene '/[aà]/p' mbset
+	printf "a" > mbset; atf_check -o not-empty sed -Ene '/[aàá]/p' mbset
+	printf "à" > mbset; atf_check -o not-empty sed -Ene '/[aàá]/p' mbset
+	printf "á" > mbset; atf_check -o not-empty sed -Ene '/[aàá]/p' mbset
+	printf "à" > mbset; atf_check -o not-empty sed -Ene '/[abà]/p' mbset
+	printf "a" > mbset; atf_check -o not-empty sed -Ene '/[abà]/p' mbset
+	printf "b" > mbset; atf_check -o not-empty sed -Ene '/[abà]/p' mbset
+}
+mbset_cleanup()
+{
+	rm -f mbset
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case bmpat
 	atf_add_test_case icase
+	atf_add_test_case mbset
 }
