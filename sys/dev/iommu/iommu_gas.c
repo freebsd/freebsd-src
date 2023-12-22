@@ -693,6 +693,7 @@ iommu_gas_remove_unmap(struct iommu_domain *domain,
 	IOMMU_DOMAIN_ASSERT_LOCKED(domain);
 
 	if ((entry->flags & (IOMMU_MAP_ENTRY_UNMAPPED |
+	    IOMMU_MAP_ENTRY_RMRR |
 	    IOMMU_MAP_ENTRY_REMOVING)) != 0)
 		return;
 	MPASS((entry->flags & IOMMU_MAP_ENTRY_PLACE) == 0);
@@ -720,8 +721,6 @@ iommu_gas_remove_locked(struct iommu_domain *domain,
 		KASSERT(start <= entry->start,
 		    ("iommu_gas_remove entry (%#jx, %#jx) start %#jx",
 		    entry->start, entry->end, start));
-		if ((entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
-			continue;
 		iommu_gas_remove_unmap(domain, entry, gc);
 	}
 	if (iommu_gas_remove_clip_right(domain, end, entry, *r2)) {
