@@ -127,6 +127,7 @@ OLD_FILES+=etc/autofs/special_media
 OLD_FILES+=etc/autofs/special_noauto
 OLD_FILES+=etc/autofs/special_null
 OLD_FILES+=etc/auto_master
+OLD_FILES+=etc/devd/autofs.conf
 OLD_FILES+=etc/rc.d/automount
 OLD_FILES+=etc/rc.d/automountd
 OLD_FILES+=etc/rc.d/autounmountd
