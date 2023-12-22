@@ -46,7 +46,8 @@
 #include "ef.h"
 
 typedef struct {
-	char		*addr;
+	GElf_Addr	addr;
+	GElf_Off	offset;
 	GElf_Off	size;
 	int		flags;
 	int		sec;	/* Original section */
@@ -68,9 +69,6 @@ typedef struct {
 struct ef_file {
 	char		*ef_name;
 	struct elf_file *ef_efile;
-
-	char		*address;
-	GElf_Off	size;
 
 	Elf_progent	*progtab;
 	int		nprogtab;
@@ -113,6 +111,22 @@ static struct elf_file_ops ef_obj_file_ops = {
 	.lookup_set		= ef_obj_lookup_set,
 };
 
+static GElf_Off
+ef_obj_get_offset(elf_file_t ef, GElf_Addr addr)
+{
+	Elf_progent *pt;
+	int i;
+
+	for (i = 0; i < ef->nprogtab; i++) {
+		pt = &ef->progtab[i];
+		if (pt->offset == (GElf_Off)-1)
+			continue;
+		if (addr >= pt->addr && addr < pt->addr + pt->size)
+			return (pt->offset + (addr - pt->addr));
+	}
+	return (0);
+}
+
 static int
 ef_obj_lookup_symbol(elf_file_t ef, const char *name, GElf_Sym **sym)
 {
@@ -139,9 +153,8 @@ ef_obj_lookup_set(elf_file_t ef, const char *name, GElf_Addr *startp,
 	for (i = 0; i < ef->nprogtab; i++) {
 		if ((strncmp(ef->progtab[i].name, "set_", 4) == 0) &&
 		    strcmp(ef->progtab[i].name + 4, name) == 0) {
-			*startp = ef->progtab[i].addr - ef->address;
-			*stopp = ef->progtab[i].addr + ef->progtab[i].size -
-			    ef->address;
+			*startp = ef->progtab[i].addr;
+			*stopp = ef->progtab[i].addr + ef->progtab[i].size;
 			*countp = (*stopp - *startp) /
 			    elf_pointer_size(ef->ef_efile);
 			return (0);
@@ -160,46 +173,50 @@ ef_obj_symaddr(elf_file_t ef, GElf_Size symidx)
 	sym = ef->ddbsymtab + symidx;
 
 	if (sym->st_shndx != SHN_UNDEF)
-		return (sym->st_value - (GElf_Addr)ef->address);
+		return (sym->st_value);
 	return (0);
 }
 
 static int
 ef_obj_seg_read_rel(elf_file_t ef, GElf_Addr address, size_t len, void *dest)
 {
-	char *memaddr;
+	GElf_Off secofs;
 	GElf_Rel *r;
 	GElf_Rela *a;
 	GElf_Addr secbase, dataoff;
 	int error, i, sec;
 
-	if (address + len > ef->size) {
-		if (ef->ef_verbose)
-			warnx("ef_obj_seg_read_rel(%s): bad offset/len (%lx:%ld)",
-			    ef->ef_name, (long)address, (long)len);
-		return (EFAULT);
-	}
-	bcopy(ef->address + address, dest, len);
-
 	/* Find out which section contains the data. */
-	memaddr = ef->address + address;
 	sec = -1;
-	secbase = dataoff = 0;
 	for (i = 0; i < ef->nprogtab; i++) {
-		if (ef->progtab[i].addr == NULL)
+		if (address < ef->progtab[i].addr)
 			continue;
-		if (memaddr < (char *)ef->progtab[i].addr || memaddr + len >
-		     (char *)ef->progtab[i].addr + ef->progtab[i].size)
+
+		dataoff = address - ef->progtab[i].addr;
+		if (dataoff + len > ef->progtab[i].size)
 			continue;
+
 		sec = ef->progtab[i].sec;
-		/* We relocate to address 0. */
-		secbase = (char *)ef->progtab[i].addr - ef->address;
-		dataoff = memaddr - ef->address;
+		secbase = ef->progtab[i].addr;
+		secofs = ef->progtab[i].offset;
 		break;
 	}
 
-	if (sec == -1)
+	if (sec == -1) {
+		if (ef->ef_verbose)
+			warnx("ef_obj_seg_read_rel(%s): bad address (%jx)",
+			    ef->ef_name, (uintmax_t)address);
 		return (EFAULT);
+	}
+
+	if (secofs == (GElf_Off)-1) {
+		memset(dest, 0, len);
+	} else {
+		error = elf_read_raw_data(ef->ef_efile, secofs + dataoff, dest,
+		    len);
+		if (error != 0)
+			return (error);
+	}
 
 	/* Now do the relocations. */
 	for (i = 0; i < ef->nrel; i++) {
@@ -208,7 +225,7 @@ ef_obj_seg_read_rel(elf_file_t ef, GElf_Addr address, size_t len, void *dest)
 		for (r = ef->reltab[i].rel;
 		     r < &ef->reltab[i].rel[ef->reltab[i].nrel]; r++) {
 			error = elf_reloc(ef->ef_efile, r, ELF_T_REL, secbase,
-			    dataoff, len, dest);
+			    address, len, dest);
 			if (error != 0)
 				return (error);
 		}
@@ -219,7 +236,7 @@ ef_obj_seg_read_rel(elf_file_t ef, GElf_Addr address, size_t len, void *dest)
 		for (a = ef->relatab[i].rela;
 		     a < &ef->relatab[i].rela[ef->relatab[i].nrela]; a++) {
 			error = elf_reloc(ef->ef_efile, a, ELF_T_RELA, secbase,
-			    dataoff, len, dest);
+			    address, len, dest);
 			if (error != 0)
 				return (error);
 		}
@@ -230,21 +247,23 @@ ef_obj_seg_read_rel(elf_file_t ef, GElf_Addr address, size_t len, void *dest)
 static int
 ef_obj_seg_read_string(elf_file_t ef, GElf_Addr address, size_t len, char *dest)
 {
+	GElf_Off ofs;
+	int error;
 
-	if (address >= ef->size) {
+	ofs = ef_obj_get_offset(ef, address);
+	if (ofs == 0) {
 		if (ef->ef_verbose)
-			warnx("ef_obj_seg_read_string(%s): bad address (%lx)",
-			    ef->ef_name, (long)address);
+			warnx("ef_obj_seg_read_string(%s): bad address (%jx)",
+			    ef->ef_name, (uintmax_t)address);
 		return (EFAULT);
 	}
 
-	if (ef->size - address < len)
-		len = ef->size - address;
-
-	if (strnlen(ef->address + address, len) == len)
+	error = elf_read_raw_data(ef->ef_efile, ofs, dest, len);
+	if (error != 0)
+		return (error);
+	if (strnlen(dest, len) == len)
 		return (EFAULT);
 
-	memcpy(dest, ef->address + address, len);
 	return (0);
 }
 
@@ -255,8 +274,8 @@ ef_obj_open(struct elf_file *efile, int verbose)
 	GElf_Ehdr *hdr;
 	GElf_Shdr *shdr;
 	GElf_Sym *es;
-	char *mapbase;
-	size_t i, mapsize, alignmask, max_addralign, nshdr;
+	GElf_Addr mapbase;
+	size_t i, nshdr;
 	int error, pb, ra, rl;
 	int j, nsym, symstrindex, symtabindex;
 
@@ -359,59 +378,26 @@ ef_obj_open(struct elf_file *efile, int verbose)
 		}
 	}
 
-	/* Size up code/data(progbits) and bss(nobits). */
-	alignmask = 0;
-	max_addralign = 0;
-	mapsize = 0;
-	for (i = 0; i < nshdr; i++) {
-		switch (shdr[i].sh_type) {
-		case SHT_PROGBITS:
-		case SHT_NOBITS:
-			alignmask = shdr[i].sh_addralign - 1;
-			if (shdr[i].sh_addralign > max_addralign)
-				max_addralign = shdr[i].sh_addralign;
-			mapsize += alignmask;
-			mapsize &= ~alignmask;
-			mapsize += shdr[i].sh_size;
-			break;
-		}
-	}
-
-	/* We know how much space we need for the text/data/bss/etc. */
-	ef->size = mapsize;
-	if (posix_memalign((void **)&ef->address, max_addralign, mapsize)) {
-		printf("posix_memalign failed\n");
-		goto out;
-	}
-	mapbase = ef->address;
-
 	/*
-	 * Now load code/data(progbits), zero bss(nobits), allocate
-	 * space for and load relocs
+	 * Now allocate address space for code/data(progbits) and
+	 * bss(nobits) and allocate space for and load relocs.
 	 */
 	pb = 0;
 	rl = 0;
 	ra = 0;
-	alignmask = 0;
+	mapbase = 0;
 	for (i = 0; i < nshdr; i++) {
 		switch (shdr[i].sh_type) {
 		case SHT_PROGBITS:
 		case SHT_NOBITS:
-			alignmask = shdr[i].sh_addralign - 1;
-			mapbase += alignmask;
-			mapbase = (char *)((uintptr_t)mapbase & ~alignmask);
-			ef->progtab[pb].addr = (void *)(uintptr_t)mapbase;
+			mapbase = roundup2(mapbase, shdr[i].sh_addralign);
+			ef->progtab[pb].addr = mapbase;
 			if (shdr[i].sh_type == SHT_PROGBITS) {
 				ef->progtab[pb].name = "<<PROGBITS>>";
-				if (elf_read_raw_data(efile,
-				    shdr[i].sh_offset, ef->progtab[pb].addr,
-				    shdr[i].sh_size) != 0) {
-					printf("failed to read progbits\n");
-					goto out;
-				}
+				ef->progtab[pb].offset = shdr[i].sh_offset;
 			} else {
 				ef->progtab[pb].name = "<<NOBITS>>";
-				bzero(ef->progtab[pb].addr, shdr[i].sh_size);
+				ef->progtab[pb].offset = (GElf_Off)-1;
 			}
 			ef->progtab[pb].size = shdr[i].sh_size;
 			ef->progtab[pb].sec = i;
@@ -424,7 +410,7 @@ ef_obj_open(struct elf_file *efile, int verbose)
 				es = &ef->ddbsymtab[j];
 				if (es->st_shndx != i)
 					continue;
-				es->st_value += (GElf_Addr)ef->progtab[pb].addr;
+				es->st_value += ef->progtab[pb].addr;
 			}
 			mapbase += shdr[i].sh_size;
 			pb++;
@@ -464,8 +450,6 @@ ef_obj_close(elf_file_t ef)
 
 	if (ef->ef_name)
 		free(ef->ef_name);
-	if (ef->size != 0)
-		free(ef->address);
 	if (ef->nprogtab != 0)
 		free(ef->progtab);
 	if (ef->nrel != 0) {
