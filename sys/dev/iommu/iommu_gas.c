@@ -123,7 +123,8 @@ iommu_gas_cmp_entries(struct iommu_map_entry *a, struct iommu_map_entry *b)
 	    a, (uintmax_t)a->start, (uintmax_t)a->end));
 	KASSERT(b->start <= b->end, ("inverted entry %p (%jx, %jx)",
 	    b, (uintmax_t)b->start, (uintmax_t)b->end));
-	KASSERT(a->end <= b->start || b->end <= a->start ||
+	KASSERT(((a->flags | b->flags) & IOMMU_MAP_ENTRY_FAKE) != 0 ||
+	    a->end <= b->start || b->end <= a->start ||
 	    a->end == a->start || b->end == b->start,
 	    ("overlapping entries %p (%jx, %jx) f %#x %p (%jx, %jx) f %#x"
 	    " domain %p %p",
@@ -536,11 +537,13 @@ iommu_gas_alloc_region(struct iommu_domain *domain, struct iommu_map_entry *entr
 	if (entry->end >= domain->end)
 		return (EINVAL);
 
+	entry->flags |= IOMMU_MAP_ENTRY_FAKE;
 	next = RB_NFIND(iommu_gas_entries_tree, &domain->rb_root, entry);
 	KASSERT(next != NULL, ("next must be non-null %p %jx", domain,
 	    (uintmax_t)entry->start));
 	prev = RB_PREV(iommu_gas_entries_tree, &domain->rb_root, next);
 	/* prev could be NULL */
+	entry->flags &= ~IOMMU_MAP_ENTRY_FAKE;
 
 	/*
 	 * Adapt to broken BIOSes which specify overlapping RMRR
@@ -658,6 +661,7 @@ iommu_gas_remove_clip_left(struct iommu_domain *domain, iommu_gaddr_t start,
 	bzero(&fentry, sizeof(fentry));
 	fentry.start = start + 1;
 	fentry.end = start + 1;
+	fentry.flags = IOMMU_MAP_ENTRY_FAKE;
 	entry = RB_NFIND(iommu_gas_entries_tree, &domain->rb_root, &fentry);
 
 	if (entry->start >= start ||

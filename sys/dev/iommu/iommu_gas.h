@@ -50,6 +50,7 @@
 #define	IOMMU_MAP_ENTRY_UNMAPPED	0x0010	/* No backing pages */
 #define	IOMMU_MAP_ENTRY_REMOVING	0x0020	/* In process of removal by
 						   iommu_gas_remove() */
+#define	IOMMU_MAP_ENTRY_FAKE	0x0040	/* disable assert in cmp() */
 #define	IOMMU_MAP_ENTRY_READ	0x1000	/* Read permitted */
 #define	IOMMU_MAP_ENTRY_WRITE	0x2000	/* Write permitted */
 #define	IOMMU_MAP_ENTRY_SNOOP	0x4000	/* Snoop */
