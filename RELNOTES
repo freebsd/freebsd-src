@@ -10,6 +10,12 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+7c5146da1286:
+	Mountd has been modified to use strunvis(3) to decode directory
+	names in exports(5) file(s).  This allows special characters,
+	such as blanks, to be embedded in the directory name(s).
+	"vis -M" may be used to encode such directory name(s).
+
 c5359e2af5ab:
 	bhyve(8) has a new network backend, "slirp", which makes use of the
 	libslirp package to provide a userspace network stack.  This backend
