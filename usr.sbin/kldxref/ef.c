@@ -512,8 +512,8 @@ ef_seg_read_rel(elf_file_t ef, GElf_Addr address, size_t len, void *dest)
 	ofs = ef_get_offset(ef, address);
 	if (ofs == 0) {
 		if (ef->ef_verbose)
-			warnx("ef_seg_read_rel(%s): zero offset (%jx:%ju)",
-			    ef->ef_name, (uintmax_t)address, (uintmax_t)ofs);
+			warnx("ef_seg_read_rel(%s): bad address (%jx)",
+			    ef->ef_name, (uintmax_t)address);
 		return (EFAULT);
 	}
 	error = elf_read_raw_data(ef->ef_efile, ofs, dest, len);
@@ -542,7 +542,7 @@ ef_seg_read_string(elf_file_t ef, GElf_Addr address, size_t len, char *dest)
 	int error;
 
 	ofs = ef_get_offset(ef, address);
-	if (ofs == 0 || ofs == (GElf_Off)-1) {
+	if (ofs == 0) {
 		if (ef->ef_verbose)
 			warnx("ef_seg_read_string(%s): bad offset (%jx:%ju)",
 			    ef->ef_name, (uintmax_t)address, (uintmax_t)ofs);
