@@ -51,6 +51,8 @@ typedef enum _unionfs_whitemode {
 } unionfs_whitemode;
 
 struct unionfs_mount {
+	struct mount   *um_lowermp;     /* MNT_REFed lower mount object */
+	struct mount   *um_uppermp;     /* MNT_REFed upper mount object */
 	struct vnode   *um_lowervp;	/* VREFed once */
 	struct vnode   *um_uppervp;	/* VREFed once */
 	struct vnode   *um_rootvp;	/* ROOT vnode */
