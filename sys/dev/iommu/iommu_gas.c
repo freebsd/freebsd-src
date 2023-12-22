@@ -118,7 +118,7 @@ static int
 iommu_gas_cmp_entries(struct iommu_map_entry *a, struct iommu_map_entry *b)
 {
 
-	/* Last entry have zero size, so <= */
+	/* First and last entries have zero size, so <= */
 	KASSERT(a->start <= a->end, ("inverted entry %p (%jx, %jx)",
 	    a, (uintmax_t)a->start, (uintmax_t)a->end));
 	KASSERT(b->start <= b->end, ("inverted entry %p (%jx, %jx)",
@@ -244,25 +244,17 @@ iommu_gas_init_domain(struct iommu_domain *domain)
 	KASSERT(RB_EMPTY(&domain->rb_root),
 	    ("non-empty entries %p", domain));
 
-	/*
-	 * The end entry must be inserted first because it has a zero-length gap
-	 * between start and end.  Initially, all augmentation data for a new
-	 * entry is zero.  Function iommu_gas_augment_entry will compute no
-	 * change in the value of (start-end) and no change in the value of
-	 * free_down, so it will return false to suggest that nothing changed in
-	 * the entry.  Thus, inserting the end entry second prevents
-	 * augmentation information to be propogated to the begin entry at the
-	 * tree root.  So it is inserted first.
-	 */
 	end->start = domain->end;
 	end->end = domain->end;
 	end->flags = IOMMU_MAP_ENTRY_PLACE | IOMMU_MAP_ENTRY_UNMAPPED;
 	RB_INSERT(iommu_gas_entries_tree, &domain->rb_root, end);
 
 	begin->start = 0;
-	begin->end = IOMMU_PAGE_SIZE;
+	begin->end = 0;
 	begin->flags = IOMMU_MAP_ENTRY_PLACE | IOMMU_MAP_ENTRY_UNMAPPED;
 	RB_INSERT_PREV(iommu_gas_entries_tree, &domain->rb_root, end, begin);
+	iommu_gas_augment_entry(end);
+	iommu_gas_augment_entry(begin);
 
 	domain->start_gap = begin;
 	domain->first_place = begin;
@@ -739,7 +731,8 @@ iommu_gas_remove_locked(struct iommu_domain *domain,
 
 #ifdef INVARIANTS
 	RB_FOREACH(entry, iommu_gas_entries_tree, &domain->rb_root) {
-		if ((entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
+		if ((entry->flags & (IOMMU_MAP_ENTRY_RMRR |
+		    IOMMU_MAP_ENTRY_PLACE)) != 0)
 			continue;
 		KASSERT(entry->end <= start || entry->start >= end,
 		    ("iommu_gas_remove leftover entry (%#jx, %#jx) range "
