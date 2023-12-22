@@ -361,6 +361,7 @@ ef_parse_dynamic(elf_file_t ef, const GElf_Phdr *phdyn)
 		goto out;
 	}
 
+	nsym = 0;
 	for (i = 0; i < nshdr; i++) {
 		switch (shdr[i].sh_type) {
 		case SHT_HASH:
