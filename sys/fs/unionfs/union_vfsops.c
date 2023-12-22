@@ -73,7 +73,6 @@ static struct vfsops unionfs_vfsops;
 static int
 unionfs_domount(struct mount *mp)
 {
-	struct mount   *lowermp, *uppermp;
 	struct vnode   *lowerrootvp;
 	struct vnode   *upperrootvp;
 	struct unionfs_mount *ump;
@@ -305,18 +304,18 @@ unionfs_domount(struct mount *mp)
 	 * reused until that happens.  We assume the caller holds a reference
 	 * to lowerrootvp as it is the mount's covered vnode.
 	 */
-	lowermp = vfs_register_upper_from_vp(ump->um_lowervp, mp,
+	ump->um_lowermp = vfs_register_upper_from_vp(ump->um_lowervp, mp,
 	    &ump->um_lower_link);
-	uppermp = vfs_register_upper_from_vp(ump->um_uppervp, mp,
+	ump->um_uppermp = vfs_register_upper_from_vp(ump->um_uppervp, mp,
 	    &ump->um_upper_link);
 
 	vrele(upperrootvp);
 
-	if (lowermp == NULL || uppermp == NULL) {
-		if (lowermp != NULL)
-			vfs_unregister_upper(lowermp, &ump->um_lower_link);
-		if (uppermp != NULL)
-			vfs_unregister_upper(uppermp, &ump->um_upper_link);
+	if (ump->um_lowermp == NULL || ump->um_uppermp == NULL) {
+		if (ump->um_lowermp != NULL)
+			vfs_unregister_upper(ump->um_lowermp, &ump->um_lower_link);
+		if (ump->um_uppermp != NULL)
+			vfs_unregister_upper(ump->um_uppermp, &ump->um_upper_link);
 		vflush(mp, 1, FORCECLOSE, curthread);
 		free(ump, M_UNIONFSMNT);
 		mp->mnt_data = NULL;
@@ -348,8 +347,8 @@ unionfs_domount(struct mount *mp)
 	}
 
 	MNT_ILOCK(mp);
-	if ((lowermp->mnt_flag & MNT_LOCAL) != 0 &&
-	    (uppermp->mnt_flag & MNT_LOCAL) != 0)
+	if ((ump->um_lowermp->mnt_flag & MNT_LOCAL) != 0 &&
+	    (ump->um_uppermp->mnt_flag & MNT_LOCAL) != 0)
 		mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_kern_flag |= MNTK_NOMSYNC | MNTK_UNIONFS |
 	    (ump->um_uppermp->mnt_kern_flag & MNTK_SHARED_WRITES);
@@ -403,8 +402,8 @@ unionfs_unmount(struct mount *mp, int mntflags)
 	vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY | LK_CANRECURSE);
 	mp->mnt_vnodecovered->v_vflag &= ~VV_CROSSLOCK;
 	VOP_UNLOCK(mp->mnt_vnodecovered);
-	vfs_unregister_upper(ump->um_lowervp->v_mount, &ump->um_lower_link);
-	vfs_unregister_upper(ump->um_uppervp->v_mount, &ump->um_upper_link);
+	vfs_unregister_upper(ump->um_lowermp, &ump->um_lower_link);
+	vfs_unregister_upper(ump->um_uppermp, &ump->um_upper_link);
 	free(ump, M_UNIONFSMNT);
 	mp->mnt_data = NULL;
 
@@ -442,7 +441,11 @@ unionfs_quotactl(struct mount *mp, int cmd, uid_t uid, void *arg,
 	bool unbusy;
 
 	ump = MOUNTTOUNIONFSMOUNT(mp);
-	uppermp = atomic_load_ptr(&ump->um_uppervp->v_mount);
+	/*
+	 * Issue a volatile load of um_uppermp here, as the mount may be
+	 * torn down after we call vfs_unbusy().
+	 */
+	uppermp = atomic_load_ptr(&ump->um_uppermp);
 	KASSERT(*mp_busy == true, ("upper mount not busy"));
 	/*
 	 * See comment in sys_quotactl() for an explanation of why the
@@ -482,7 +485,7 @@ unionfs_statfs(struct mount *mp, struct statfs *sbp)
 
 	mstat = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK | M_ZERO);
 
-	error = VFS_STATFS(ump->um_lowervp->v_mount, mstat);
+	error = VFS_STATFS(ump->um_lowermp, mstat);
 	if (error) {
 		free(mstat, M_STATFS);
 		return (error);
@@ -494,7 +497,7 @@ unionfs_statfs(struct mount *mp, struct statfs *sbp)
 
 	lbsize = mstat->f_bsize;
 
-	error = VFS_STATFS(ump->um_uppervp->v_mount, mstat);
+	error = VFS_STATFS(ump->um_uppermp, mstat);
 	if (error) {
 		free(mstat, M_STATFS);
 		return (error);
@@ -561,10 +564,10 @@ unionfs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
 	unp = VTOUNIONFS(filename_vp);
 
 	if (unp->un_uppervp != NULLVP) {
-		return (VFS_EXTATTRCTL(ump->um_uppervp->v_mount, cmd,
+		return (VFS_EXTATTRCTL(ump->um_uppermp, cmd,
 		    unp->un_uppervp, namespace, attrname));
 	} else {
-		return (VFS_EXTATTRCTL(ump->um_lowervp->v_mount, cmd,
+		return (VFS_EXTATTRCTL(ump->um_lowermp, cmd,
 		    unp->un_lowervp, namespace, attrname));
 	}
 }

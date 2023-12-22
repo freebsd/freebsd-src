@@ -766,7 +766,7 @@ unionfs_access(struct vop_access_args *ap)
 
 	if (lvp != NULLVP) {
 		if (accmode & VWRITE) {
-			if (ump->um_uppervp->v_mount->mnt_flag & MNT_RDONLY) {
+			if ((ump->um_uppermp->mnt_flag & MNT_RDONLY) != 0) {
 				switch (ap->a_vp->v_type) {
 				case VREG:
 				case VDIR:
@@ -837,7 +837,7 @@ unionfs_getattr(struct vop_getattr_args *ap)
 
 	error = VOP_GETATTR(lvp, ap->a_vap, ap->a_cred);
 
-	if (error == 0 && !(ump->um_uppervp->v_mount->mnt_flag & MNT_RDONLY)) {
+	if (error == 0 && (ump->um_uppermp->mnt_flag & MNT_RDONLY) == 0) {
 		/* correct the attr toward shadow file/dir. */
 		if (ap->a_vp->v_type == VREG || ap->a_vp->v_type == VDIR) {
 			unionfs_create_uppervattr_core(ump, ap->a_vap, &va, td);
