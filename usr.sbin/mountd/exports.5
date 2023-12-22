@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 16, 2022
+.Dd December 21, 2023
 .Dt EXPORTS 5
 .Os
 .Sh NAME
@@ -106,6 +106,17 @@ any
 or
 .Dq Pa ..
 components.
+Pathnames are decoded by
+.Xr strunvis 3
+allowing special characters to be included in the directory name(s).
+In particular, whitespace, such as embedded blanks in directory names
+can be handled.
+For example, a blank can be encoded as \(rs040.
+.Xr vis 1
+with the
+.Fl M
+option may be used to encode directory name(s) with embedded special
+characters.
 Mount points for a file system may appear on multiple lines each with
 different sets of hosts and export options.
 .Pp
@@ -582,6 +593,8 @@ NFSv4 mount request for a directory that the client does not have
 permission for will succeed and read/write access will fail
 afterwards, whereas NFSv3 rejects the mount request.
 .Sh SEE ALSO
+.Xr vis 1 ,
+.Xr strunvis 3 ,
 .Xr nfsv4 4 ,
 .Xr netgroup 5 ,
 .Xr mountd 8 ,
