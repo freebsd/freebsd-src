@@ -18,7 +18,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd February 26, 2021
+.Dd December 22, 2023
 .Dt NEWSYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -308,8 +308,11 @@ for details on syntax and matching rules.
 .It Cm J
 indicates that
 .Xr newsyslog 8
-should attempt to save disk space by compressing the rotated
-log file using
+should consider the rotated log file as compressible.
+In legacy mode,
+this also tells
+.Xr newsyslog 8
+to use
 .Xr bzip2 1 .
 .It Cm N
 indicates that there is no process which needs to be signaled
@@ -337,20 +340,29 @@ be a negative value to distinguish it from a process ID.
 .It Cm X
 indicates that
 .Xr newsyslog 8
-should attempt to save disk space by compressing the rotated
-log file using
+should consider the rotated log file as compressible.
+In legacy mode,
+this also tells
+.Xr newsyslog 8
+to use
 .Xr xz 1 .
 .It Cm Y
 indicates that
 .Xr newsyslog 8
-should attempt to save disk space by compressing the rotated
-log file using
+should consider the rotated log file as compressible.
+In legacy mode,
+this also tells
+.Xr newsyslog 8
+to use
 .Xr zstd 1 .
 .It Cm Z
 indicates that
 .Xr newsyslog 8
-should attempt to save disk space by compressing the rotated
-log file using
+should consider the rotated log file as compressible.
+In legacy mode,
+this also tells
+.Xr newsyslog 8
+to use
 .Xr gzip 1 .
 .It Fl
 a minus sign will not cause any special processing, but it

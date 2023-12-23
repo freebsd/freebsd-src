@@ -14,7 +14,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd November 10, 2018
+.Dd December 22, 2023
 .Dt NEWSYSLOG 8
 .Os
 .Sh NAME
@@ -24,6 +24,7 @@
 .Nm
 .Op Fl CFNPnrsv
 .Op Fl a Ar directory
+.Op Fl c Ar none Ns | Ns Ar legacy Ns | Ns Ar bzip2 Ns | Ns Ar gzip Ns | Ns Ar xz Ns | Ns Ar zstd
 .Op Fl d Ar directory
 .Op Fl f Ar config_file
 .Op Fl S Ar pidfile
@@ -78,6 +79,25 @@ and mode three (above) assumes that this is so.
 The following options can be used with
 .Nm :
 .Bl -tag -width indent
+.It Fl c Ar none Ns | Ns Ar legacy Ns | Ns Ar bzip2 Ns | Ns Ar gzip Ns | Ns Ar xz Ns | Ns Ar zstd
+Instructs
+.Nm
+to use the specified compression method when a file is flagged for compression.
+The default method is
+.Dq legacy ,
+which interprets the
+.Sy J, X, Y, Z
+flags in the configuration file according to their historical meanings.
+This default setting can be overridden by specifying
+.Fl c Ar none ,
+which causes
+.Nm
+to ignore all compression flags.
+Alternatively, specifying one of the compression methods:
+.Sy bzip2 , gzip , xz ,
+or
+.Sy zstd ,
+will apply the chosen method to all files flagged for compression.
 .It Fl f Ar config_file
 Instruct
 .Nm
