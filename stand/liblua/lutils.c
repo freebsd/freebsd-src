@@ -76,6 +76,25 @@ lua_has_command(lua_State *L)
 }
 
 static int
+lua_has_feature(lua_State *L)
+{
+	const char	*feature;
+	char *msg;
+
+	feature = luaL_checkstring(L, 1);
+
+	if (feature_name_is_enabled(feature)) {
+		lua_pushboolean(L, 1);
+		return 1;
+	}
+
+	lua_pushnil(L);
+	lua_pushstring(L, "Feature not enabled");
+	return 2;
+}
+
+
+static int
 lua_perform(lua_State *L)
 {
 	int	argc;
@@ -552,6 +571,7 @@ static const struct luaL_Reg loaderlib[] = {
 	REG_SIMPLE(parse),
 	REG_SIMPLE(getenv),
 	REG_SIMPLE(has_command),
+	REG_SIMPLE(has_feature),
 	REG_SIMPLE(perform),
 	REG_SIMPLE(printc),	/* Also registered as the global 'printc' */
 	REG_SIMPLE(setenv),
@@ -579,6 +599,33 @@ static const struct luaL_Reg iolib[] = {
 };
 #undef REG_SIMPLE
 
+static void
+lua_add_feature(void *cookie, const char *name, const char *desc, bool enabled)
+{
+	lua_State *L = cookie;
+
+	/*
+	 * The feature table consists solely of features that are enabled, and
+	 * their associated descriptions for debugging purposes.
+	 */
+	lua_pushstring(L, desc);
+	lua_setfield(L, -2, name);
+}
+
+static void
+lua_add_features(lua_State *L)
+{
+
+	lua_newtable(L);
+	feature_iter(&lua_add_feature, L);
+
+	/*
+	 * We should still have just the table on the stack after we're done
+	 * iterating.
+	 */
+	lua_setfield(L, -2, "features");
+}
+
 int
 luaopen_loader(lua_State *L)
 {
@@ -592,6 +639,7 @@ luaopen_loader(lua_State *L)
 	lua_setfield(L, -2, "lua_path");
 	lua_pushinteger(L, bootprog_rev);
 	lua_setfield(L, -2, "version");
+	lua_add_features(L);
 	/* Set global printc to loader.printc */
 	lua_register(L, "printc", lua_printc);
 	return 1;

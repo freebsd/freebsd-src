@@ -240,7 +240,7 @@ abort_v4_cleanup()
 }
 
 atf_test_case "abort_v6" "cleanup"
-abort_v4_head()
+abort_v6_head()
 {
 	atf_set descr 'Test sending ABORT messages over IPv6'
 	atf_set require.user root
@@ -292,7 +292,7 @@ abort_v6_body()
 	fi
 }
 
-abort_v4_cleanup()
+abort_v6_cleanup()
 {
 	pft_cleanup
 }

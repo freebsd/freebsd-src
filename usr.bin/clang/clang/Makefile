@@ -7,9 +7,8 @@ SRCDIR=		clang/tools/driver
 SRCS+=		cc1_main.cpp
 SRCS+=		cc1as_main.cpp
 SRCS+=		cc1gen_reproducer_main.cpp
+SRCS+=		clang-driver.cpp
 SRCS+=		driver.cpp
-
-CFLAGS.driver.cpp+=	-Dclang_main=main
 
 LINKS=	${BINDIR}/clang ${BINDIR}/clang++ \
 	${BINDIR}/clang ${BINDIR}/clang-cpp

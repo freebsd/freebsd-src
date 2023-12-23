@@ -35,7 +35,7 @@ class VOP3P_Mix_Profile<VOPProfile P, VOP3Features Features = VOP3_REGULAR,
                FP16InputMods:$src2_modifiers, VCSrc_f16:$src2);
     dag dpp_srcs =
           (ins FPVRegInputMods:$src0_modifiers, VGPRSrc_32:$src0,
-               FPVRegInputMods:$src1_modifiers, VGPRSrc_32:$src1,
+               FPVRegInputMods:$src1_modifiers, VRegSrc_32:$src1,
                FP16InputMods:$src2_modifiers, VCSrc_f16:$src2);
 
            // FIXME: clampmod0 misbehaves with the non-default vdst_in
@@ -142,9 +142,34 @@ def : VOP3PSatPat<usubsat, V_PK_SUB_U16>;
 def : VOP3PSatPat<ssubsat, V_PK_SUB_I16>;
 } // End SubtargetPredicate = HasVOP3PInsts
 
+// TODO: Make sure we're doing the right thing with denormals. Note
+// that FMA and MAD will differ.
 multiclass MadFmaMixPats<SDPatternOperator fma_like,
+                         Instruction mix_inst,
                          Instruction mixlo_inst,
                          Instruction mixhi_inst> {
+  // At least one of the operands needs to be an fpextend of an f16
+  // for this to be worthwhile, so we need three patterns here.
+  // TODO: Could we use a predicate to inspect src1/2/3 instead?
+  def : GCNPat <
+    (f32 (fma_like (f32 (VOP3PMadMixModsExt f16:$src0, i32:$src0_mods)),
+                   (f32 (VOP3PMadMixMods f16:$src1, i32:$src1_mods)),
+                   (f32 (VOP3PMadMixMods f16:$src2, i32:$src2_mods)))),
+    (mix_inst $src0_mods, $src0, $src1_mods, $src1, $src2_mods, $src2,
+              DSTCLAMP.NONE)>;
+  def : GCNPat <
+    (f32 (fma_like (f32 (VOP3PMadMixMods f16:$src0, i32:$src0_mods)),
+                   (f32 (VOP3PMadMixModsExt f16:$src1, i32:$src1_mods)),
+                   (f32 (VOP3PMadMixMods f32:$src2, i32:$src2_mods)))),
+    (mix_inst $src0_mods, $src0, $src1_mods, $src1, $src2_mods, $src2,
+              DSTCLAMP.NONE)>;
+  def : GCNPat <
+    (f32 (fma_like (f32 (VOP3PMadMixMods f16:$src0, i32:$src0_mods)),
+                   (f32 (VOP3PMadMixMods f32:$src1, i32:$src1_mods)),
+                   (f32 (VOP3PMadMixModsExt f16:$src2, i32:$src2_mods)))),
+    (mix_inst $src0_mods, $src0, $src1_mods, $src1, $src2_mods, $src2,
+              DSTCLAMP.NONE)>;
+
   def : GCNPat <
     (f16 (fpround (fma_like (f32 (VOP3PMadMixMods f16:$src0, i32:$src0_modifiers)),
                             (f32 (VOP3PMadMixMods f16:$src1, i32:$src1_modifiers)),
@@ -201,9 +226,29 @@ multiclass MadFmaMixPats<SDPatternOperator fma_like,
                                    DSTCLAMP.ENABLE,
                                    (i32 (IMPLICIT_DEF)))))
   >;
+
+  def : GCNPat <
+    (f16 (fpround (fmul (f32 (VOP3PMadMixMods f32:$src0, i32:$src0_modifiers)),
+                        (f32 (VOP3PMadMixMods f32:$src1, i32:$src1_modifiers))))),
+    (mixlo_inst $src0_modifiers, $src0,
+                $src1_modifiers, $src1,
+                (i32 0), (i32 0),
+                DSTCLAMP.NONE,
+                (i32 (IMPLICIT_DEF)))
+  >;
+
+  def : GCNPat <
+    (build_vector f16:$elt0, (fpround (fmul (f32 (VOP3PMadMixMods f32:$src0, i32:$src0_modifiers)),
+                                            (f32 (VOP3PMadMixMods f32:$src1, i32:$src1_modifiers))))),
+    (v2f16 (mixhi_inst $src0_modifiers, $src0,
+                       $src1_modifiers, $src1,
+                       (i32 0), (i32 0),
+                       DSTCLAMP.NONE,
+                       VGPR_32:$elt0))
+  >;
 }
 
-let SubtargetPredicate = HasMadMixInsts in {
+let SubtargetPredicate = HasMadMixInsts, OtherPredicates = [NoFP32Denormals] in {
 
 // These are VOP3a-like opcodes which accept no omod.
 // Size of src arguments (16/32) is controlled by op_sel.
@@ -222,8 +267,8 @@ defm V_MAD_MIXHI_F16 : VOP3_VOP3PInst<"v_mad_mixhi_f16", VOP3P_Mix_Profile<VOP_F
 } // End FPDPRounding = 1
 }
 
-defm : MadFmaMixPats<fmad, V_MAD_MIXLO_F16, V_MAD_MIXHI_F16>;
-} // End SubtargetPredicate = HasMadMixInsts
+defm : MadFmaMixPats<fmad, V_MAD_MIX_F32, V_MAD_MIXLO_F16, V_MAD_MIXHI_F16>;
+} // End SubtargetPredicate = HasMadMixInsts, OtherPredicates = [NoFP32Denormals]
 
 
 // Essentially the same as the mad_mix versions
@@ -243,7 +288,7 @@ defm V_FMA_MIXHI_F16 : VOP3_VOP3PInst<"v_fma_mixhi_f16", VOP3P_Mix_Profile<VOP_F
 } // End FPDPRounding = 1
 }
 
-defm : MadFmaMixPats<fma, V_FMA_MIXLO_F16, V_FMA_MIXHI_F16>;
+defm : MadFmaMixPats<fma, V_FMA_MIX_F32, V_FMA_MIXLO_F16, V_FMA_MIXHI_F16>;
 }
 
 // Defines patterns that extract signed 4bit from each Idx[0].
@@ -337,11 +382,12 @@ defm V_DOT2_U32_U16 : VOP3PInst<"v_dot2_u32_u16",
 
 } // End SubtargetPredicate = HasDot2Insts
 
-let SubtargetPredicate = HasDot7Insts in {
-
+let SubtargetPredicate = HasDot10Insts in
 defm V_DOT2_F32_F16 : VOP3PInst<"v_dot2_f32_f16",
   VOP3P_Profile<VOP_F32_V2F16_V2F16_F32, VOP3_REGULAR, /*HasDPP*/ 1>,
   AMDGPUfdot2, 1/*ExplicitClamp*/>;
+
+let SubtargetPredicate = HasDot7Insts in {
 defm V_DOT4_U32_U8  : VOP3PInst<"v_dot4_u32_u8",
   VOP3P_Profile<VOP_I32_I32_I32_I32, VOP3_PACKED>, int_amdgcn_udot4, 1>;
 defm V_DOT8_U32_U4  : VOP3PInst<"v_dot8_u32_u4",
@@ -581,7 +627,7 @@ multiclass MAIInst<string OpName, string P, SDPatternOperator node,
                         MFMATable<0, NAME # "_vgprcd_e64">;
     }
 
-    foreach _ = BoolToList<NoDstOverlap>.ret in {
+    if NoDstOverlap then {
       let Constraints = !if(NoDstOverlap, "$vdst = $src2", ""),
           isConvertibleToThreeAddress = NoDstOverlap,
           Mnemonic = OpName in {
@@ -989,7 +1035,7 @@ multiclass VOP3P_Real_MFMA_gfx940_aliases<string NameFrom, string NameTo, string
                                           VOPProfile Pfl_ACD = PS_ACD.Pfl,
                                           VOPProfile Pfl_VCD = PS_VCD.Pfl> {
   let Predicates = [isGFX940Plus] in {
-    foreach _ = BoolToList<!ne(NameFrom, NameTo)>.ret in {
+    if !ne(NameFrom, NameTo) then {
       def : InstAlias <NameTo # " " # PS_ACD.AsmOperands,
                        (!cast<VOP3P_Real>(Op # "_gfx940_acd") Pfl_ACD.DstRC:$vdst,
                            Pfl_ACD.Src0RC64:$src0, Pfl_ACD.Src1RC64:$src1, Pfl_ACD.Src2RC64:$src2,
@@ -1017,7 +1063,7 @@ multiclass VOP3P_Real_MFMA_gfx940<bits<7> op, string Name = !cast<VOP3_Pseudo>(N
 
   defm : VOP3P_Real_MFMA_gfx940_aliases<Name, PS_ACD.Mnemonic, NAME>;
 
-  foreach _ = BoolToList<!ne(!subst("_1k", "", PS_ACD.Mnemonic), PS_ACD.Mnemonic)>.ret in
+  if !ne(!subst("_1k", "", PS_ACD.Mnemonic), PS_ACD.Mnemonic) then
   defm : VOP3P_Real_MFMA_gfx940_aliases<Name, !subst("_1k", "", PS_ACD.Mnemonic), NAME>;
 }
 
@@ -1081,27 +1127,15 @@ defm V_FMA_MIXHI_F16 : VOP3P_Real_vi <0x22>;
 }
 
 
-let SubtargetPredicate = HasDot2Insts in {
-
 defm V_DOT2_I32_I16 : VOP3P_Real_vi <0x26>;
 defm V_DOT2_U32_U16 : VOP3P_Real_vi <0x27>;
-
-} // End SubtargetPredicate = HasDot2Insts
-
-let SubtargetPredicate = HasDot7Insts in {
 
 defm V_DOT2_F32_F16 : VOP3P_Real_vi <0x23>;
 defm V_DOT4_U32_U8  : VOP3P_Real_vi <0x29>;
 defm V_DOT8_U32_U4  : VOP3P_Real_vi <0x2b>;
 
-} // End SubtargetPredicate = HasDot7Insts
-
-let SubtargetPredicate = HasDot1Insts in {
-
 defm V_DOT4_I32_I8  : VOP3P_Real_vi <0x28>;
 defm V_DOT8_I32_I4  : VOP3P_Real_vi <0x2a>;
-
-} // End SubtargetPredicate = HasDot1Insts
 
 let SubtargetPredicate = HasMAIInsts in {
 
@@ -1225,24 +1259,12 @@ defm V_FMA_MIX_F32    : VOP3P_Real_gfx10_gfx11_Triple <0x20>;
 defm V_FMA_MIXLO_F16  : VOP3P_Real_gfx10_gfx11_Triple <0x21>;
 defm V_FMA_MIXHI_F16  : VOP3P_Real_gfx10_gfx11_Triple <0x22>;
 
-let SubtargetPredicate = HasDot2Insts in {
-
 defm V_DOT2_I32_I16 : VOP3P_Real_gfx10 <0x14>;
 defm V_DOT2_U32_U16 : VOP3P_Real_gfx10 <0x15>;
-
-} // End SubtargetPredicate = HasDot2Insts
-
-let SubtargetPredicate = HasDot7Insts in {
 
 defm V_DOT2_F32_F16 : VOP3P_Real_gfx10_gfx11_Triple <0x13>;
 defm V_DOT4_U32_U8  : VOP3P_Real_gfx10_gfx11 <0x17>;
 defm V_DOT8_U32_U4  : VOP3P_Real_gfx10_gfx11 <0x19>;
 
-} // End SubtargetPredicate = HasDot7Insts
-
-let SubtargetPredicate = HasDot1Insts in {
-
 defm V_DOT4_I32_I8  : VOP3P_Real_gfx10 <0x16>;
 defm V_DOT8_I32_I4  : VOP3P_Real_gfx10 <0x18>;
-
-} // End SubtargetPredicate = HasDot1Insts

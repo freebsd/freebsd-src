@@ -167,7 +167,7 @@ _Unwind_Backtrace(_Unwind_Trace_Fn callback, void *ref) {
     }
 
     // Update the pr_cache in the mock exception object.
-    const uint32_t* unwindInfo = (uint32_t *) frameInfo.unwind_info;
+    uint32_t *unwindInfo = (uint32_t *)frameInfo.unwind_info;
     ex.pr_cache.fnstart = frameInfo.start_ip;
     ex.pr_cache.ehtp = (_Unwind_EHT_Header *) unwindInfo;
     ex.pr_cache.additional= frameInfo.flags;
@@ -311,6 +311,7 @@ _LIBUNWIND_EXPORT void __register_frame(const void *fde) {
   _LIBUNWIND_TRACE_API("__register_frame(%p)", fde);
   __unw_add_dynamic_fde((unw_word_t)(uintptr_t)fde);
 }
+
 
 /// Called by programs with dynamic code generators that want
 /// to unregister a dynamically generated FDE.

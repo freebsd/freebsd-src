@@ -143,7 +143,7 @@ CLEANFILES+= ${_T} ${_T}.tmp
 # this proves to be useful within the tests.
 ATF_TESTS_PYTEST_SED_${_T}?= # empty
 ATF_TESTS_PYTEST_SRC_${_T}?= ${.CURDIR}/${_T:S,.xtmp$,,}
-${_T}:
+${_T}: ${_T:S/.xtmp//}
 	echo "#! /usr/libexec/atf_pytest_wrapper -P ${TESTSBASE}" > ${.TARGET}.tmp
 .if empty(ATF_TESTS_PYTEST_SED_${_T})
 	cat ${ATF_TESTS_PYTEST_SRC_${_T}}  >>${.TARGET}.tmp

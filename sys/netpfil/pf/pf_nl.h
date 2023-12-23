@@ -100,6 +100,13 @@ enum pfstate_type_t {
 	PF_ST_VERSION		= 28, /* u64 */
 	PF_ST_FILTER_ADDR	= 29, /* in6_addr */
 	PF_ST_FILTER_MASK	= 30, /* in6_addr */
+	PF_ST_RTABLEID		= 31, /* i32 */
+	PF_ST_MIN_TTL		= 32, /* u8 */
+	PF_ST_MAX_MSS		= 33, /* u16 */
+	PF_ST_DNPIPE		= 34, /* u16 */
+	PF_ST_DNRPIPE		= 35, /* u16 */
+	PF_ST_RT		= 36, /* u8 */
+	PF_ST_RT_IFNAME		= 37, /* string */
 };
 
 enum pf_addr_type_t {

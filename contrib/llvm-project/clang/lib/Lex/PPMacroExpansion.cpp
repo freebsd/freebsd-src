@@ -87,7 +87,7 @@ void Preprocessor::appendMacroDirective(IdentifierInfo *II, MacroDirective *MD){
 
   // Set up the identifier as having associated macro history.
   II->setHasMacroDefinition(true);
-  if (!MD->isDefined() && LeafModuleMacros.find(II) == LeafModuleMacros.end())
+  if (!MD->isDefined() && !LeafModuleMacros.contains(II))
     II->setHasMacroDefinition(false);
   if (II->isFromAST())
     II->setChangedSinceDeserialization();
@@ -125,7 +125,7 @@ void Preprocessor::setLoadedMacroDirective(IdentifierInfo *II,
 
   // Setup the identifier as having associated macro history.
   II->setHasMacroDefinition(true);
-  if (!MD->isDefined() && LeafModuleMacros.find(II) == LeafModuleMacros.end())
+  if (!MD->isDefined() && !LeafModuleMacros.contains(II))
     II->setHasMacroDefinition(false);
 }
 
@@ -1559,17 +1559,11 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
       // __FILE_NAME__ is a Clang-specific extension that expands to the
       // the last part of __FILE__.
       if (II == Ident__FILE_NAME__) {
-        // Try to get the last path component, failing that return the original
-        // presumed location.
-        StringRef PLFileName = llvm::sys::path::filename(PLoc.getFilename());
-        if (PLFileName != "")
-          FN += PLFileName;
-        else
-          FN += PLoc.getFilename();
+        processPathToFileName(FN, PLoc, getLangOpts(), getTargetInfo());
       } else {
         FN += PLoc.getFilename();
+        processPathForFileMacro(FN, getLangOpts(), getTargetInfo());
       }
-      processPathForFileMacro(FN, getLangOpts(), getTargetInfo());
       Lexer::Stringify(FN);
       OS << '"' << FN << '"';
     }
@@ -1875,7 +1869,8 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     if (!Tok.isAnnotation() && Tok.getIdentifierInfo())
       Tok.setKind(tok::identifier);
     else if (Tok.is(tok::string_literal) && !Tok.hasUDSuffix()) {
-      StringLiteralParser Literal(Tok, *this);
+      StringLiteralParser Literal(Tok, *this,
+                                  StringLiteralEvalMethod::Unevaluated);
       if (Literal.hadError)
         return;
 
@@ -1973,4 +1968,17 @@ void Preprocessor::processPathForFileMacro(SmallVectorImpl<char> &Path,
     else
       llvm::sys::path::remove_dots(Path, false, llvm::sys::path::Style::posix);
   }
+}
+
+void Preprocessor::processPathToFileName(SmallVectorImpl<char> &FileName,
+                                         const PresumedLoc &PLoc,
+                                         const LangOptions &LangOpts,
+                                         const TargetInfo &TI) {
+  // Try to get the last path component, failing that return the original
+  // presumed location.
+  StringRef PLFileName = llvm::sys::path::filename(PLoc.getFilename());
+  if (PLFileName.empty())
+    PLFileName = PLoc.getFilename();
+  FileName.append(PLFileName.begin(), PLFileName.end());
+  processPathForFileMacro(FileName, LangOpts, TI);
 }

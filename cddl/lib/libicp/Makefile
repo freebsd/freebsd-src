@@ -21,7 +21,7 @@ ASM_SOURCES_AS = \
         asm-x86_64/blake3/blake3_sse41.S
 
 CFLAGS+= -D__amd64 -D_SYS_STACK_H -UHAVE_AES
-.elif ${MACHINE_ARCH} == "armv7"
+.elif ${MACHINE_CPUARCH} == "arm"
 ASM_SOURCES_C =
 ASM_SOURCES_AS = \
         asm-arm/sha2/sha256-armv7.S \

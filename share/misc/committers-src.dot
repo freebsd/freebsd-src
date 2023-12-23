@@ -291,6 +291,7 @@ nwhitehorn [label="Nathan Whitehorn\nnwhitehorn@FreeBSD.org\n2008/07/03"]
 n_hibma [label="Nick Hibma\nn_hibma@FreeBSD.org\n1998/11/26"]
 obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
 oh [label="Oskar Holmlund\noh@FreeBSD.org\n2021/04/21"]
+olce [label="Olivier Certner\nolce@FreeBSD.org\n2023/12/01"]
 olli [label="Oliver Fromme\nolli@FreeBSD.org\n2008/02/14"]
 oshogbo [label="Mariusz Zaborski\noshogbo@FreeBSD.org\n2015/04/15"]
 peadar [label="Peter Edwards\npeadar@FreeBSD.org\n2004/03/08"]
@@ -537,6 +538,7 @@ emaste -> kevans
 emaste -> lwhsu
 emaste -> markj
 emaste -> ngie
+emaste -> olce
 emaste -> rstone
 emaste -> scottph
 
@@ -751,6 +753,7 @@ markj -> dougm
 markj -> jfree
 markj -> lwhsu
 markj -> mhorne
+markj -> olce
 markj -> rlibby
 
 markm -> jasone

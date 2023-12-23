@@ -51,8 +51,7 @@ ENTRY(rfork_thread)
 	/*
 	 * Prepare and execute the thread creation syscall
 	 */
-	movq	$SYS_rfork, %rax
-	KERNCALL
+	_SYSCALL(rfork)
 	jb 	2f
 
 	/*
@@ -78,8 +77,7 @@ ENTRY(rfork_thread)
 	/*
 	 * Exit system call
 	 */
-	movq	$SYS_exit, %rax
-	KERNCALL
+	_SYSCALL(exit)
 
 	/*
 	 * Branch here if the thread creation fails:
