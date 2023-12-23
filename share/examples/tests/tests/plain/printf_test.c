@@ -62,7 +62,7 @@ snprintf__two_formatters(void)
 static void
 snprintf__overflow(void)
 {
-	char buffer[10];
+	char buffer[];
 
 	if (snprintf(buffer, sizeof(buffer), "0123456789abcdef") != 16)
 		errx(EXIT_FAILURE, "snprintf did not return the expected "

@@ -142,7 +142,7 @@ TEST_P(Cache, truncate_by_surprise_invalidates_cache)
 	uint64_t attr_valid, entry_valid;
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
-	uint8_t buf[bufsize];
+	uint8_t buf[];
 	bool reopen = get<0>(get<0>(GetParam()));
 	bool cache_lookups = get<1>(get<0>(GetParam()));
 	bool cache_attrs = get<2>(get<0>(GetParam()));
