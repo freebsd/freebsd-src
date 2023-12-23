@@ -3847,7 +3847,7 @@ kern/subr_clock.c		standard
 kern/subr_compressor.c		standard \
 	compile-with "${NORMAL_C} -I$S/contrib/zstd/lib/freebsd"
 kern/subr_coverage.c		optional coverage \
-	compile-with "${NORMAL_C:N-fsanitize*}"
+	compile-with "${NORMAL_C:N-fsanitize*:N-fno-sanitize*}"
 kern/subr_counter.c		standard
 kern/subr_csan.c		optional kcsan \
 	compile-with "${NORMAL_C:N-fsanitize*:N-fstack-protector*}"
