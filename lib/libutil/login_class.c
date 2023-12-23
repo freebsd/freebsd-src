@@ -22,7 +22,6 @@
  * High-level routines relating to use of the user capabilities database
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/cpuset.h>
 #include <sys/mac.h>

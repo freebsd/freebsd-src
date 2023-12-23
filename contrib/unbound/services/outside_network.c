@@ -550,7 +550,6 @@ reuse_tcp_find(struct outside_network* outnet, struct sockaddr_storage* addr,
 		log_assert(&key_p.reuse != (struct reuse_tcp*)result);
 		log_assert(&key_p != ((struct reuse_tcp*)result)->pending);
 	}
-	/* not found, return null */
 
 	/* It is possible that we search for something before the first element
 	 * in the tree. Replace a null pointer with the first element.
@@ -560,6 +559,7 @@ reuse_tcp_find(struct outside_network* outnet, struct sockaddr_storage* addr,
 		result = rbtree_first(&outnet->tcp_reuse);
 	}
 
+	/* not found, return null */
 	if(!result || result == RBTREE_NULL)
 		return NULL;
 

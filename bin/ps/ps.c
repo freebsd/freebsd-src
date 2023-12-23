@@ -36,19 +36,6 @@
  * ------+---------+---------+-------- + --------+---------+---------+---------*
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1990, 1993, 1994\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)ps.c	8.4 (Berkeley) 4/2/94";
-#endif /* not lint */
-#endif
-
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/jail.h>
 #include <sys/proc.h>
@@ -112,7 +99,7 @@ static int	 needcomm;	/* -o "command" */
 static int	 needenv;	/* -e */
 static int	 needuser;	/* -o "user" */
 static int	 optfatal;	/* Fatal error parsing some list-option. */
-static int	 pid_max;	/* kern.max_pid */
+static int	 pid_max;	/* kern.pid_max */
 
 static enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
 

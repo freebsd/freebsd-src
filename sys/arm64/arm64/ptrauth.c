@@ -35,7 +35,6 @@
 #error Must be built with pointer authentication disabled
 #endif
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/libkern.h>

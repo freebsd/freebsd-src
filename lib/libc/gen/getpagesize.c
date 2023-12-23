@@ -29,21 +29,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)getpagesize.c	8.1 (Berkeley) 6/4/93");
 #include <sys/param.h>
-#include <sys/sysctl.h>
-
-#include <errno.h>
-#include <link.h>
-#include <unistd.h>
+#include <sys/auxv.h>
 
 #include "libc_private.h"
 
 /*
- * This is unlikely to change over the running time of any
- * program, so we cache the result to save some syscalls.
- *
  * NB: This function may be called from malloc(3) at initialization
  * NB: so must not result in a malloc(3) related call!
  */
@@ -51,23 +42,10 @@ __SCCSID("@(#)getpagesize.c	8.1 (Berkeley) 6/4/93");
 int
 getpagesize(void)
 {
-	int mib[2];
-	static int value;
-	size_t size;
-	int error;
+	int value;
 
-	if (value != 0)
-		return (value);
-
-	error = _elf_aux_info(AT_PAGESZ, &value, sizeof(value));
-	if (error == 0 && value != 0)
-		return (value);
-
-	mib[0] = CTL_HW;
-	mib[1] = HW_PAGESIZE;
-	size = sizeof value;
-	if (sysctl(mib, nitems(mib), &value, &size, NULL, 0) == -1)
-		return (PAGE_SIZE);
+	if (_elf_aux_info(AT_PAGESZ, &value, sizeof(value)) != 0)
+		value = PAGE_SIZE;
 
 	return (value);
 }

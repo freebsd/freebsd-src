@@ -29,12 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static const char sccsid[] = "@(#)utilities.c	8.6 (Berkeley) 5/19/95";
-#endif /* not lint */
-#endif
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -58,7 +52,6 @@ static const char sccsid[] = "@(#)utilities.c	8.6 (Berkeley) 5/19/95";
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
-#include <libufs.h>
 
 #include "fsck.h"
 
@@ -189,7 +182,7 @@ bufinit(void)
 	initbarea(&failedbuf, BT_UNKNOWN);
 	failedbuf.b_errs = -1;
 	failedbuf.b_un.b_buf = NULL;
-	if ((cgblk.b_un.b_buf = Malloc((unsigned int)sblock.fs_bsize)) == NULL)
+	if ((cgblk.b_un.b_buf = Balloc((unsigned int)sblock.fs_bsize)) == NULL)
 		errx(EEXIT, "Initial malloc(%d) failed", sblock.fs_bsize);
 	initbarea(&cgblk, BT_CYLGRP);
 	numbufs = cachelookups = cachereads = 0;
@@ -211,7 +204,7 @@ allocbuf(const char *failreason)
 	char *bufp;
 
 	bp = (struct bufarea *)Malloc(sizeof(struct bufarea));
-	bufp = Malloc((unsigned int)sblock.fs_bsize);
+	bufp = Balloc((unsigned int)sblock.fs_bsize);
 	if (bp == NULL || bufp == NULL) {
 		errx(EEXIT, "%s", failreason);
 		/* NOTREACHED */
@@ -241,7 +234,7 @@ cglookup(int cg)
 	if ((unsigned) cg >= sblock.fs_ncg)
 		errx(EEXIT, "cglookup: out of range cylinder group %d", cg);
 	if (cgbufs == NULL) {
-		cgbufs = calloc(sblock.fs_ncg, sizeof(struct bufarea));
+		cgbufs = Calloc(sblock.fs_ncg, sizeof(struct bufarea));
 		if (cgbufs == NULL)
 			errx(EEXIT, "Cannot allocate cylinder group buffers");
 	}
@@ -250,7 +243,7 @@ cglookup(int cg)
 		return (cgbp);
 	cgp = NULL;
 	if (flushtries == 0)
-		cgp = Malloc((unsigned int)sblock.fs_cgsize);
+		cgp = Balloc((unsigned int)sblock.fs_cgsize);
 	if (cgp == NULL) {
 		if (sujrecovery)
 			errx(EEXIT,"Ran out of memory during journal recovery");
@@ -966,7 +959,7 @@ blzero(int fd, ufs2_daddr_t blk, long size)
 	if (fd < 0)
 		return;
 	if (zero == NULL) {
-		zero = calloc(ZEROBUFSIZE, 1);
+		zero = Balloc(ZEROBUFSIZE);
 		if (zero == NULL)
 			errx(EEXIT, "cannot allocate buffer pool");
 	}

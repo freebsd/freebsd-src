@@ -41,8 +41,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)vm_pageout.c	7.4 (Berkeley) 5/7/91
- *
  *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
  * All rights reserved.
@@ -70,7 +68,6 @@
  * rights to redistribute these changes.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

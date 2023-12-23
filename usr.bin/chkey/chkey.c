@@ -28,12 +28,6 @@
  * Mountain View, California  94043
  */
 
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)chkey.c 1.7 91/03/11 Copyr 1986 Sun Micro";
-#endif
-#endif
-
 #include <sys/cdefs.h>
 /*
  * Copyright (C) 1986, Sun Microsystems, Inc.

@@ -60,7 +60,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
@@ -861,7 +860,8 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 	pid_t pid;
 	int err;
 
-	if (mp != vnode_mount(outvp))
+	err = ENOSYS;
+	if (mp == NULL || mp != vnode_mount(outvp))
 		goto fallback;
 
 	if (incred->cr_uid != outcred->cr_uid)
@@ -870,6 +870,7 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 	if (incred->cr_groups[0] != outcred->cr_groups[0])
 		goto fallback;
 
+	/* Caller busied mp, mnt_data can be safely accessed. */
 	if (fsess_not_impl(mp, FUSE_COPY_FILE_RANGE))
 		goto fallback;
 
@@ -879,23 +880,11 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 		td = ap->a_fsizetd;
 	pid = td->td_proc->p_pid;
 
-	/* Lock both vnodes, avoiding risk of deadlock. */
-	do {
-		err = vn_lock(outvp, LK_EXCLUSIVE);
-		if (invp == outvp)
-			break;
-		if (err == 0) {
-			err = vn_lock(invp, LK_SHARED | LK_NOWAIT);
-			if (err == 0)
-				break;
-			VOP_UNLOCK(outvp);
-			err = vn_lock(invp, LK_SHARED);
-			if (err == 0)
-				VOP_UNLOCK(invp);
-		}
-	} while (err == 0);
-	if (err != 0)
-		return (err);
+	vn_lock_pair(invp, false, LK_SHARED, outvp, false, LK_EXCLUSIVE);
+	if (invp->v_data == NULL || outvp->v_data == NULL) {
+		err = EBADF;
+		goto unlock;
+	}
 
 	err = fuse_filehandle_getrw(invp, FREAD, &infufh, incred, pid);
 	if (err)
@@ -954,13 +943,9 @@ unlock:
 		VOP_UNLOCK(invp);
 	VOP_UNLOCK(outvp);
 
-	if (err == ENOSYS) {
+	if (err == ENOSYS)
 		fsess_set_notimpl(mp, FUSE_COPY_FILE_RANGE);
 fallback:
-		err = vn_generic_copy_file_range(ap->a_invp, ap->a_inoffp,
-		    ap->a_outvp, ap->a_outoffp, ap->a_lenp, ap->a_flags,
-		    ap->a_incred, ap->a_outcred, ap->a_fsizetd);
-	}
 
 	/*
 	 * No need to call vn_rlimit_fsizex_res before return, since the uio is

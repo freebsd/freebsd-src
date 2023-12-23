@@ -35,7 +35,7 @@
  * XenBus management of the NewBus bus containing the backend instances of
  * Xen split devices.
  */
-#include <sys/cdefs.h>
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -305,7 +305,8 @@ static device_method_t xenbusb_back_methods[] = {
 	DEVMETHOD(xenbusb_get_otherend_node, xenbusb_back_get_otherend_node),
 	DEVMETHOD(xenbusb_otherend_changed, xenbusb_back_otherend_changed),
 	DEVMETHOD(xenbusb_localend_changed, xenbusb_back_localend_changed),
-	{ 0, 0 } 
+
+	DEVMETHOD_END
 }; 
 
 DEFINE_CLASS_0(xenbusb_back, xenbusb_back_driver, xenbusb_back_methods,

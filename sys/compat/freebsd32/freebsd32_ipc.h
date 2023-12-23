@@ -43,8 +43,8 @@ struct semid_ds32 {
 	struct ipc_perm32 sem_perm;
 	uint32_t	__sem_base;
 	unsigned short	sem_nsems;
-	int32_t		sem_otime;
-	int32_t		sem_ctime;
+	time32_t	sem_otime;
+	time32_t	sem_ctime;
 };
 
 #ifdef _KERNEL
@@ -73,9 +73,9 @@ struct msqid_ds32 {
 	uint32_t	msg_qbytes;
 	pid_t		msg_lspid;
 	pid_t		msg_lrpid;
-	int32_t		msg_stime;
-	int32_t		msg_rtime;
-	int32_t		msg_ctime;
+	time32_t	msg_stime;
+	time32_t	msg_rtime;
+	time32_t	msg_ctime;
 };
 
 #ifdef _KERNEL
@@ -95,9 +95,9 @@ struct shmid_ds32 {
 	pid_t		shm_lpid;
 	pid_t		shm_cpid;
 	unsigned int	shm_nattch;
-	int32_t		shm_atime;
-	int32_t		shm_dtime;
-	int32_t		shm_ctime;
+	time32_t	shm_atime;
+	time32_t	shm_dtime;
+	time32_t	shm_ctime;
 };
 
 #ifdef _KERNEL
@@ -142,9 +142,9 @@ struct semid_ds_old32 {
 	struct ipc_perm_old32 sem_perm;
 	uint32_t	__sem_base;
 	unsigned short	sem_nsems;
-	int32_t		sem_otime;
+	time32_t	sem_otime;
 	int32_t		sem_pad1;
-	int32_t		sem_ctime;
+	time32_t	sem_ctime;
 	int32_t		sem_pad2;
 	int32_t		sem_pad3[4];
 };
@@ -158,11 +158,11 @@ struct msqid_ds_old32 {
 	uint32_t	msg_qbytes;
 	pid_t		msg_lspid;
 	pid_t		msg_lrpid;
-	int32_t		msg_stime;
+	time32_t	msg_stime;
 	int32_t		msg_pad1;
-	int32_t		msg_rtime;
+	time32_t	msg_rtime;
 	int32_t		msg_pad2;
-	int32_t		msg_ctime;
+	time32_t	msg_ctime;
 	int32_t		msg_pad3;
 	int32_t		msg_pad4[4];
 };
@@ -173,9 +173,9 @@ struct shmid_ds_old32 {
 	pid_t		shm_lpid;
 	pid_t		shm_cpid;
 	int16_t		shm_nattch;
-	int32_t		shm_atime;
-	int32_t		shm_dtime;
-	int32_t		shm_ctime;
+	time32_t	shm_atime;
+	time32_t	shm_dtime;
+	time32_t	shm_ctime;
 	uint32_t	shm_internal;
 };
 

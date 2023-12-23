@@ -33,7 +33,6 @@
  * policies, either expressed or implied, of the FreeBSD Project.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/condvar.h>
 #include <sys/lock.h>

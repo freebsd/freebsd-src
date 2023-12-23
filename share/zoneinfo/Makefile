@@ -78,9 +78,9 @@ TZBUILDSUBDIRS=	\
 TZBUILDSUBDIRS+= US Mexico Chile Canada Brazil
 
 .if !defined(_SKIP_BUILD)
-all: zoneinfo
+all: zonefiles
 .endif
-META_TARGETS+=	zoneinfo install-zoneinfo
+META_TARGETS+=	zonefiles install-zoneinfo
 
 #
 # Produce “fat” zoneinfo files for backward compatibility.
@@ -89,33 +89,27 @@ ZICFLAGS?=	-b fat
 
 .if ${MK_DIRDEPS_BUILD} == "yes"
 ZIC= ${STAGE_HOST_OBJTOP}/usr/sbin/zic
+# we do everything in a single visit
+install-zoneinfo: zonefiles
 .endif
 
-zoneinfo: ${TDATA}
+zonefiles: ${TDATA}
 	mkdir -p ${TZBUILDDIR}
-	cd ${TZBUILDDIR}; mkdir -p ${TZBUILDSUBDIRS}
-	umask 022; cd ${.CURDIR}; \
+	(cd ${TZBUILDDIR}; mkdir -p ${TZBUILDSUBDIRS})
+	(umask 022; cd ${.CURDIR}; \
 	${ZIC:Uzic} -D -d ${TZBUILDDIR} ${ZICFLAGS} -m ${NOBINMODE} \
-	    ${LEAPFILE} ${TZFILES}
-
-#
-# Sort TZS to ensure they are the same every build. find -s might
-# be a shorter way to express this, but it's non-portable. Any
-# differences between the two don't matter for this purpose.
-#
-.if make(*install*)
-TZS!= cd ${TZBUILDDIR} && find * -type f | LC_ALL=C sort
-.endif
+	    ${LEAPFILE} ${TZFILES})
+	(cd ${TZBUILDDIR} && find * -type f | LC_ALL=C sort) > ${.TARGET}
 
 beforeinstall: install-zoneinfo
 install-zoneinfo:
 	mkdir -p ${DESTDIR}/usr/share/zoneinfo
-	cd ${DESTDIR}/usr/share/zoneinfo;  mkdir -p ${TZBUILDSUBDIRS}
-.for f in ${TZS}
-	${INSTALL} ${TAG_ARGS} \
-	    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	    ${TZBUILDDIR}/${f} ${DESTDIR}/usr/share/zoneinfo/${f}
-.endfor
+	(cd ${DESTDIR}/usr/share/zoneinfo;  mkdir -p ${TZBUILDSUBDIRS})
+	for f in `cat zonefiles`; do \
+		${INSTALL} ${TAG_ARGS} \
+		    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+		    ${TZBUILDDIR}/$${f} ${DESTDIR}/usr/share/zoneinfo/$${f}; \
+	done
 	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${CONTRIBDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
 	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \

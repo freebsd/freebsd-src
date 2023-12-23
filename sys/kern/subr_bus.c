@@ -2707,12 +2707,64 @@ device_set_unit(device_t dev, int unit)
  * Some useful method implementations to make life easier for bus drivers.
  */
 
+/**
+ * @brief Initialize a resource mapping request
+ *
+ * This is the internal implementation of the public API
+ * resource_init_map_request.  Callers may be using a different layout
+ * of struct resource_map_request than the kernel, so callers pass in
+ * the size of the structure they are using to identify the structure
+ * layout.
+ */
 void
 resource_init_map_request_impl(struct resource_map_request *args, size_t sz)
 {
 	bzero(args, sz);
 	args->size = sz;
 	args->memattr = VM_MEMATTR_DEVICE;
+}
+
+/**
+ * @brief Validate a resource mapping request
+ *
+ * Translate a device driver's mapping request (@p in) to a struct
+ * resource_map_request using the current structure layout (@p out).
+ * In addition, validate the offset and length from the mapping
+ * request against the bounds of the resource @p r.  If the offset or
+ * length are invalid, fail with EINVAL.  If the offset and length are
+ * valid, the absolute starting address of the requested mapping is
+ * returned in @p startp and the length of the requested mapping is
+ * returned in @p lengthp.
+ */
+int
+resource_validate_map_request(struct resource *r,
+    struct resource_map_request *in, struct resource_map_request *out,
+    rman_res_t *startp, rman_res_t *lengthp)
+{
+	rman_res_t end, length, start;
+
+	/*
+	 * This assumes that any callers of this function are compiled
+	 * into the kernel and use the same version of the structure
+	 * as this file.
+	 */
+	MPASS(out->size == sizeof(struct resource_map_request));
+
+	if (in != NULL)
+		bcopy(in, out, imin(in->size, out->size));
+	start = rman_get_start(r) + out->offset;
+	if (out->length == 0)
+		length = rman_get_size(r);
+	else
+		length = out->length;
+	end = start + length - 1;
+	if (start > rman_get_end(r) || start < rman_get_start(r))
+		return (EINVAL);
+	if (end > rman_get_end(r) || end < start)
+		return (EINVAL);
+	*lengthp = length;
+	*startp = start;
+	return (0);
 }
 
 /**
@@ -4159,6 +4211,163 @@ bus_generic_rl_alloc_resource(device_t dev, device_t child, int type,
 }
 
 /**
+ * @brief Helper function for implementing BUS_ALLOC_RESOURCE().
+ *
+ * This implementation of BUS_ALLOC_RESOURCE() allocates a
+ * resource from a resource manager.  It uses BUS_GET_RMAN()
+ * to obtain the resource manager.
+ */
+struct resource *
+bus_generic_rman_alloc_resource(device_t dev, device_t child, int type,
+    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+{
+	struct resource *r;
+	struct rman *rm;
+
+	rm = BUS_GET_RMAN(dev, type, flags);
+	if (rm == NULL)
+		return (NULL);
+
+	r = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
+	    child);
+	if (r == NULL)
+		return (NULL);
+	rman_set_rid(r, *rid);
+
+	if (flags & RF_ACTIVE) {
+		if (bus_activate_resource(child, type, *rid, r) != 0) {
+			rman_release_resource(r);
+			return (NULL);
+		}
+	}
+
+	return (r);
+}
+
+/**
+ * @brief Helper function for implementing BUS_ADJUST_RESOURCE().
+ *
+ * This implementation of BUS_ADJUST_RESOURCE() adjusts resources only
+ * if they were allocated from the resource manager returned by
+ * BUS_GET_RMAN().
+ */
+int
+bus_generic_rman_adjust_resource(device_t dev, device_t child, int type,
+    struct resource *r, rman_res_t start, rman_res_t end)
+{
+	struct rman *rm;
+
+	rm = BUS_GET_RMAN(dev, type, rman_get_flags(r));
+	if (rm == NULL)
+		return (ENXIO);
+	if (!rman_is_region_manager(r, rm))
+		return (EINVAL);
+	return (rman_adjust_resource(r, start, end));
+}
+
+/**
+ * @brief Helper function for implementing BUS_RELEASE_RESOURCE().
+ *
+ * This implementation of BUS_RELEASE_RESOURCE() releases resources
+ * allocated by bus_generic_rman_alloc_resource.
+ */
+int
+bus_generic_rman_release_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *r)
+{
+#ifdef INVARIANTS
+	struct rman *rm;
+#endif
+	int error;
+
+#ifdef INVARIANTS
+	rm = BUS_GET_RMAN(dev, type, rman_get_flags(r));
+	KASSERT(rman_is_region_manager(r, rm),
+	    ("%s: rman %p doesn't match for resource %p", __func__, rm, r));
+#endif
+
+	if (rman_get_flags(r) & RF_ACTIVE) {
+		error = bus_deactivate_resource(child, type, rid, r);
+		if (error != 0)
+			return (error);
+	}
+	return (rman_release_resource(r));
+}
+
+/**
+ * @brief Helper function for implementing BUS_ACTIVATE_RESOURCE().
+ *
+ * This implementation of BUS_ACTIVATE_RESOURCE() activates resources
+ * allocated by bus_generic_rman_alloc_resource.
+ */
+int
+bus_generic_rman_activate_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *r)
+{
+	struct resource_map map;
+#ifdef INVARIANTS_XXX
+	struct rman *rm;
+#endif
+	int error;
+
+#ifdef INVARIANTS_XXX
+	rm = BUS_GET_RMAN(dev, type, rman_get_flags(r));
+	KASSERT(rman_is_region_manager(r, rm),
+	    ("%s: rman %p doesn't match for resource %p", __func__, rm, r));
+#endif
+
+	error = rman_activate_resource(r);
+	if (error != 0)
+		return (error);
+
+	if ((rman_get_flags(r) & RF_UNMAPPED) == 0 &&
+	    (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT)) {
+		error = BUS_MAP_RESOURCE(dev, child, type, r, NULL, &map);
+		if (error != 0) {
+			rman_deactivate_resource(r);
+			return (error);
+		}
+
+		rman_set_mapping(r, &map);
+	}
+	return (0);
+}
+
+/**
+ * @brief Helper function for implementing BUS_DEACTIVATE_RESOURCE().
+ *
+ * This implementation of BUS_DEACTIVATE_RESOURCE() deactivates
+ * resources allocated by bus_generic_rman_alloc_resource.
+ */
+int
+bus_generic_rman_deactivate_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *r)
+{
+	struct resource_map map;
+#ifdef INVARIANTS_XXX
+	struct rman *rm;
+#endif
+	int error;
+
+#ifdef INVARIANTS_XXX
+	rm = BUS_GET_RMAN(dev, type, rman_get_flags(r));
+	KASSERT(rman_is_region_manager(r, rm),
+	    ("%s: rman %p doesn't match for resource %p", __func__, rm, r));
+#endif
+
+	error = rman_deactivate_resource(r);
+	if (error != 0)
+		return (error);
+
+	if ((rman_get_flags(r) & RF_UNMAPPED) == 0 &&
+	    (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT)) {
+		rman_get_mapping(r, &map);
+		BUS_UNMAP_RESOURCE(dev, child, type, r, &map);
+	}
+	return (0);
+}
+
+/**
  * @brief Helper function for implementing BUS_CHILD_PRESENT().
  *
  * This simple implementation of BUS_CHILD_PRESENT() simply calls the
@@ -4170,6 +4379,13 @@ bus_generic_child_present(device_t dev, device_t child)
 	return (BUS_CHILD_PRESENT(device_get_parent(dev), dev));
 }
 
+/**
+ * @brief Helper function for implementing BUS_GET_DOMAIN().
+ *
+ * This simple implementation of BUS_GET_DOMAIN() calls the
+ * BUS_GET_DOMAIN() method of the parent of @p dev.  If @p dev
+ * does not have a parent, the function fails with ENOENT.
+ */
 int
 bus_generic_get_domain(device_t dev, device_t child, int *domain)
 {
@@ -5332,7 +5548,7 @@ device_get_path(device_t dev, const char *locator, struct sbuf *sb)
 	KASSERT(sb != NULL, ("sb is NULL"));
 	parent = device_get_parent(dev);
 	if (parent == NULL) {
-		error = sbuf_printf(sb, "/");
+		error = sbuf_putc(sb, '/');
 	} else {
 		error = BUS_GET_DEVICE_PATH(parent, dev, locator, sb);
 		if (error == 0) {

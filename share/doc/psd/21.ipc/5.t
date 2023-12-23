@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)5.t	8.1 (Berkeley) 8/14/93
-.\"
 .\".ds RH "Advanced Topics
 .bp
 .nr H1 5

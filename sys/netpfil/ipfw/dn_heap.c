@@ -30,7 +30,6 @@
  * Binary heap and hash tables, used in dummynet
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #ifdef _KERNEL
 #include <sys/systm.h>

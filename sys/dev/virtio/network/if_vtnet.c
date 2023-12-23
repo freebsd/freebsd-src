@@ -28,7 +28,6 @@
 
 /* Driver for VirtIO network devices. */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/eventhandler.h>
 #include <sys/systm.h>
@@ -1533,8 +1532,8 @@ vtnet_rx_alloc_buf(struct vtnet_softc *sc, int nbufs, struct mbuf **m_tailp)
 			m_freem(m_head);
 			return (NULL);
 		}
-
 		m->m_len = size;
+		m_adj(m, ETHER_ALIGN);
 		if (m_head != NULL) {
 			m_tail->m_next = m;
 			m_tail = m;

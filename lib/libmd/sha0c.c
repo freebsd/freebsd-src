@@ -56,7 +56,6 @@
  * [including the GNU Public Licence.]
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #include <stdio.h>

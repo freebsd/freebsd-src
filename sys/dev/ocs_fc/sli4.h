@@ -5345,7 +5345,7 @@ typedef struct sli4_fc_wqec_s {
 #define SLI4_FC_WCQE_STATUS_RX_ABORT_REQUEST	0x1b
 
 /* driver generated status codes; better not overlap with chip's status codes! */
-#define SLI4_FC_WCQE_STATUS_TARGET_WQE_TIMEOUT  0xff
+#define SLI4_FC_WCQE_STATUS_WQE_TIMEOUT		0xff
 #define SLI4_FC_WCQE_STATUS_SHUTDOWN		0xfe
 #define SLI4_FC_WCQE_STATUS_DISPATCH_ERROR	0xfd
 

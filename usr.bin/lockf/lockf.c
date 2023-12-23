@@ -25,20 +25,29 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
 
-static int acquire_lock(const char *name, int flags);
+#define	FDLOCK_PREFIX	"/dev/fd/"
+
+union lock_subject {
+	long		 subj_fd;
+	const char	*subj_name;
+};
+
+static int acquire_lock(union lock_subject *subj, int flags, int silent);
 static void cleanup(void);
 static void killed(int sig);
 static void timeout(int sig);
@@ -48,7 +57,33 @@ static void wait_for_lock(const char *name);
 static const char *lockname;
 static int lockfd = -1;
 static int keep;
+static int fdlock;
 static volatile sig_atomic_t timed_out;
+
+/*
+ * Check if fdlock is implied by the given `lockname`.  We'll write the fd that
+ * is represented by it out to ofd, and the caller is expected to do any
+ * necessary validation on it.
+ */
+static int
+fdlock_implied(const char *name, long *ofd)
+{
+	char *endp;
+	long fd;
+
+	if (strncmp(name, FDLOCK_PREFIX, sizeof(FDLOCK_PREFIX) - 1) != 0)
+		return (0);
+
+	/* Skip past the prefix. */
+	name += sizeof(FDLOCK_PREFIX) - 1;
+	errno = 0;
+	fd = strtol(name, &endp, 10);
+	if (errno != 0 || *endp != '\0')
+		return (0);
+
+	*ofd = fd;
+	return (1);
+}
 
 /*
  * Execute an arbitrary command while holding a file lock.
@@ -56,13 +91,15 @@ static volatile sig_atomic_t timed_out;
 int
 main(int argc, char **argv)
 {
-	int ch, flags, silent, status, waitsec;
+	int ch, flags, silent, status;
+	long long waitsec;
 	pid_t child;
+	union lock_subject subj;
 
 	silent = keep = 0;
 	flags = O_CREAT | O_RDONLY;
 	waitsec = -1;	/* Infinite. */
-	while ((ch = getopt(argc, argv, "sknt:w")) != -1) {
+	while ((ch = getopt(argc, argv, "knst:w")) != -1) {
 		switch (ch) {
 		case 'k':
 			keep = 1;
@@ -75,9 +112,10 @@ main(int argc, char **argv)
 			break;
 		case 't':
 		{
-			char *endptr;
-			waitsec = strtol(optarg, &endptr, 0);
-			if (*optarg == '\0' || *endptr != '\0' || waitsec < 0)
+			const char *errstr;
+
+			waitsec = strtonum(optarg, 0, UINT_MAX, &errstr);
+			if (errstr != NULL)
 				errx(EX_USAGE,
 				    "invalid timeout \"%s\"", optarg);
 		}
@@ -89,11 +127,54 @@ main(int argc, char **argv)
 			usage();
 		}
 	}
-	if (argc - optind < 2)
-		usage();
-	lockname = argv[optind++];
+
 	argc -= optind;
 	argv += optind;
+
+	if (argc == 0)
+		usage();
+
+	lockname = argv[0];
+
+	argc--;
+	argv++;
+
+	/*
+	 * If there aren't any arguments left, then we must be in fdlock mode.
+	 */
+	if (argc == 0 && *lockname != '/') {
+		fdlock = 1;
+		subj.subj_fd = -1;
+	} else {
+		fdlock = fdlock_implied(lockname, &subj.subj_fd);
+		if (argc == 0 && !fdlock) {
+			fprintf(stderr, "Expected fd, got '%s'\n", lockname);
+			usage();
+		}
+	}
+
+	if (fdlock) {
+		if (subj.subj_fd < 0) {
+			char *endp;
+
+			errno = 0;
+			subj.subj_fd = strtol(lockname, &endp, 10);
+			if (errno != 0 || *endp != '\0') {
+				fprintf(stderr, "Expected fd, got '%s'\n",
+				    lockname);
+				usage();
+			}
+		}
+
+		if (subj.subj_fd < 0 || subj.subj_fd > INT_MAX) {
+			fprintf(stderr, "fd '%ld' out of range\n",
+			    subj.subj_fd);
+			usage();
+		}
+	} else {
+		subj.subj_name = lockname;
+	}
+
 	if (waitsec > 0) {		/* Set up a timeout. */
 		struct sigaction act;
 
@@ -101,7 +182,7 @@ main(int argc, char **argv)
 		sigemptyset(&act.sa_mask);
 		act.sa_flags = 0;	/* Note that we do not set SA_RESTART. */
 		sigaction(SIGALRM, &act, NULL);
-		alarm(waitsec);
+		alarm((unsigned int)waitsec);
 	}
 	/*
 	 * If the "-k" option is not given, then we must not block when
@@ -125,13 +206,14 @@ main(int argc, char **argv)
 	 * avoiding the separate step of waiting for the lock.  This
 	 * yields fairness and improved performance.
 	 */
-	lockfd = acquire_lock(lockname, flags | O_NONBLOCK);
+	lockfd = acquire_lock(&subj, flags | O_NONBLOCK, silent);
 	while (lockfd == -1 && !timed_out && waitsec != 0) {
-		if (keep)
-			lockfd = acquire_lock(lockname, flags);
+		if (keep || fdlock)
+			lockfd = acquire_lock(&subj, flags, silent);
 		else {
 			wait_for_lock(lockname);
-			lockfd = acquire_lock(lockname, flags | O_NONBLOCK);
+			lockfd = acquire_lock(&subj, flags | O_NONBLOCK,
+			    silent);
 		}
 	}
 	if (waitsec > 0)
@@ -141,7 +223,15 @@ main(int argc, char **argv)
 			exit(EX_TEMPFAIL);
 		errx(EX_TEMPFAIL, "%s: already locked", lockname);
 	}
+
 	/* At this point, we own the lock. */
+
+	/* Nothing else to do for FD lock, just exit */
+	if (argc == 0) {
+		assert(fdlock);
+		return 0;
+	}
+
 	if (atexit(cleanup) == -1)
 		err(EX_OSERR, "atexit failed");
 	if ((child = fork()) == -1)
@@ -156,28 +246,43 @@ main(int argc, char **argv)
 	signal(SIGINT, SIG_IGN);
 	signal(SIGQUIT, SIG_IGN);
 	signal(SIGTERM, killed);
+	fclose(stdin);
+	fclose(stdout);
+	fclose(stderr);
 	if (waitpid(child, &status, 0) == -1)
-		err(EX_OSERR, "waitpid failed");
+		exit(EX_OSERR);
 	return (WIFEXITED(status) ? WEXITSTATUS(status) : EX_SOFTWARE);
 }
 
 /*
- * Try to acquire a lock on the given file, creating the file if
+ * Try to acquire a lock on the given file/fd, creating the file if
  * necessary.  The flags argument is O_NONBLOCK or 0, depending on
  * whether we should wait for the lock.  Returns an open file descriptor
  * on success, or -1 on failure.
  */
 static int
-acquire_lock(const char *name, int flags)
+acquire_lock(union lock_subject *subj, int flags, int silent)
 {
 	int fd;
 
-	if ((fd = open(name, O_EXLOCK|flags, 0666)) == -1) {
+	if (fdlock) {
+		assert(subj->subj_fd >= 0 && subj->subj_fd <= INT_MAX);
+		fd = (int)subj->subj_fd;
+
+		if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
+			if (errno == EAGAIN || errno == EINTR)
+				return (-1);
+			err(EX_CANTCREAT, "cannot lock fd %d", fd);
+		}
+	} else if ((fd = open(subj->subj_name, O_EXLOCK|flags, 0666)) == -1) {
 		if (errno == EAGAIN || errno == EINTR)
 			return (-1);
-		else if (errno == ENOENT && (flags & O_CREAT) == 0)
-			err(EX_UNAVAILABLE, "%s", name);
-		err(EX_CANTCREAT, "cannot open %s", name);
+		else if (errno == ENOENT && (flags & O_CREAT) == 0) {
+			if (!silent)
+				warn("%s", subj->subj_name);
+			exit(EX_UNAVAILABLE);
+		}
+		err(EX_CANTCREAT, "cannot open %s", subj->subj_name);
 	}
 	return (fd);
 }
@@ -189,7 +294,7 @@ static void
 cleanup(void)
 {
 
-	if (keep)
+	if (keep || fdlock)
 		flock(lockfd, LOCK_UN);
 	else
 		unlink(lockname);
@@ -206,7 +311,7 @@ killed(int sig)
 	cleanup();
 	signal(sig, SIG_DFL);
 	if (kill(getpid(), sig) == -1)
-		err(EX_OSERR, "kill failed");
+		_Exit(EX_OSERR);
 }
 
 /*
@@ -224,7 +329,8 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: lockf [-kns] [-t seconds] file command [arguments]\n");
+	    "usage: lockf [-knsw] [-t seconds] file command [arguments]\n"
+	    "       lockf [-s] [-t seconds] fd\n");
 	exit(EX_USAGE);
 }
 

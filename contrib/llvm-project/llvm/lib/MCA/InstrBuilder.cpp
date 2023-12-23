@@ -123,7 +123,7 @@ static void initializeUsedResources(InstrDesc &ID,
     ResourcePlusCycles &A = Worklist[I];
     if (!A.second.size()) {
       assert(llvm::popcount(A.first) > 1 && "Expected a group!");
-      UsedResourceGroups |= PowerOf2Floor(A.first);
+      UsedResourceGroups |= llvm::bit_floor(A.first);
       continue;
     }
 
@@ -134,7 +134,7 @@ static void initializeUsedResources(InstrDesc &ID,
       UsedResourceUnits |= A.first;
     } else {
       // Remove the leading 1 from the resource group mask.
-      NormalizedMask ^= PowerOf2Floor(NormalizedMask);
+      NormalizedMask ^= llvm::bit_floor(NormalizedMask);
       if (UnitsFromResourceGroups & NormalizedMask)
         ID.HasPartiallyOverlappingGroups = true;
 
@@ -172,7 +172,7 @@ static void initializeUsedResources(InstrDesc &ID,
   for (ResourcePlusCycles &RPC : ID.Resources) {
     if (llvm::popcount(RPC.first) > 1 && !RPC.second.isReserved()) {
       // Remove the leading 1 from the resource group mask.
-      uint64_t Mask = RPC.first ^ PowerOf2Floor(RPC.first);
+      uint64_t Mask = RPC.first ^ llvm::bit_floor(RPC.first);
       uint64_t MaxResourceUnits = llvm::popcount(Mask);
       if (RPC.second.NumUnits > (unsigned)llvm::popcount(Mask)) {
         RPC.second.setReserved();
@@ -511,7 +511,7 @@ Error InstrBuilder::verifyInstrDesc(const InstrDesc &ID,
 
 Expected<const InstrDesc &>
 InstrBuilder::createInstrDescImpl(const MCInst &MCI,
-                                  const SmallVector<SharedInstrument> &IVec) {
+                                  const SmallVector<Instrument *> &IVec) {
   assert(STI.getSchedModel().hasInstrSchedModel() &&
          "Itineraries are not yet supported!");
 
@@ -601,7 +601,7 @@ InstrBuilder::createInstrDescImpl(const MCInst &MCI,
 
 Expected<const InstrDesc &>
 InstrBuilder::getOrCreateInstrDesc(const MCInst &MCI,
-                                   const SmallVector<SharedInstrument> &IVec) {
+                                   const SmallVector<Instrument *> &IVec) {
   // Cache lookup using SchedClassID from Instrumentation
   unsigned SchedClassID = IM.getSchedClassID(MCII, MCI, IVec);
 
@@ -612,7 +612,7 @@ InstrBuilder::getOrCreateInstrDesc(const MCInst &MCI,
   unsigned CPUID = STI.getSchedModel().getProcessorID();
   SchedClassID = STI.resolveVariantSchedClass(SchedClassID, &MCI, &MCII, CPUID);
   auto VDKey = std::make_pair(&MCI, SchedClassID);
-  if (VariantDescriptors.find(VDKey) != VariantDescriptors.end())
+  if (VariantDescriptors.contains(VDKey))
     return *VariantDescriptors[VDKey];
 
   return createInstrDescImpl(MCI, IVec);
@@ -622,7 +622,7 @@ STATISTIC(NumVariantInst, "Number of MCInsts that doesn't have static Desc");
 
 Expected<std::unique_ptr<Instruction>>
 InstrBuilder::createInstruction(const MCInst &MCI,
-                                const SmallVector<SharedInstrument> &IVec) {
+                                const SmallVector<Instrument *> &IVec) {
   Expected<const InstrDesc &> DescOrErr = getOrCreateInstrDesc(MCI, IVec);
   if (!DescOrErr)
     return DescOrErr.takeError();

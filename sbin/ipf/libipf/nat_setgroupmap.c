@@ -4,9 +4,6 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
-#if !defined(lint)
-static const char rcsid[] = "@(#)$Id$";
-#endif
 
 #include "ipf.h"
 

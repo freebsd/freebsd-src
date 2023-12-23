@@ -28,10 +28,6 @@
  */
 
 
-#include <sys/cdefs.h>
-__COPYRIGHT("@(#) Copyright (c) 2008 Iain Hibbert. All rights reserved.");
-__RCSID("$NetBSD: btpand.c,v 1.1 2008/08/17 13:20:57 plunky Exp $");
-
 #include <sys/wait.h>
 
 #define L2CAP_SOCKET_CHECKED

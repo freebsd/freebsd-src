@@ -78,10 +78,10 @@ struct fs_fte {
 	struct fs_base				base;
 	u32					val[MLX5_ST_SZ_DW(fte_match_param)];
 	uint32_t				dests_size;
-	uint32_t				flow_tag;
 	struct list_head			dests;
 	uint32_t				index; /* index in ft */
-	u8					action; /* MLX5_FLOW_CONTEXT_ACTION */
+	struct mlx5_flow_act			flow_act;
+	u32					sw_action; /* enum mlx5_rule_fwd_action */
 	enum fs_fte_status			status;
 };
 
@@ -97,7 +97,9 @@ struct mlx5_flow_table {
 	struct {
 		bool			active;
 		unsigned int		max_types;
+		unsigned int		group_size;
 		unsigned int		num_types;
+		unsigned int		max_fte;
 	} autogroup;
 	unsigned int			max_fte;
 	unsigned int			level;
@@ -166,6 +168,17 @@ struct fs_client_priv_data {
 	struct mlx5_flow_handler *fs_handler;
 	struct list_head list;
 	void   *client_dst_data;
+};
+
+struct mlx5_modify_hdr {
+	enum mlx5_flow_namespace_type ns_type;
+	u32 id;
+};
+
+struct mlx5_pkt_reformat {
+        enum mlx5_flow_namespace_type ns_type;
+        int reformat_type; /* from mlx5_ifc */
+	u32 id;
 };
 
 void _fs_remove_node(struct kref *kref);
@@ -253,9 +266,8 @@ void _fs_remove_node(struct kref *kref);
 			       &(fte)->dests)
 
 int mlx5_cmd_fs_create_ft(struct mlx5_core_dev *dev,
-			  u16 vport,
-			  enum fs_ft_type type, unsigned int level,
-			  unsigned int log_size, unsigned int *table_id);
+			  u16 vport, enum fs_ft_type type, unsigned int level,
+			  unsigned int log_size, const char *name, unsigned int *table_id);
 
 int mlx5_cmd_fs_destroy_ft(struct mlx5_core_dev *dev,
 			   u16 vport,
@@ -279,8 +291,8 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 			u32 *match_val,
 			enum fs_ft_type type, unsigned int table_id,
 			unsigned int index, unsigned int group_id,
-			unsigned int flow_tag,
-			unsigned short action, int dest_size,
+			struct mlx5_flow_act *flow_act,
+			u32 sw_action, int dest_size,
 			struct list_head *dests);  /* mlx5_flow_desination */
 
 int mlx5_cmd_fs_delete_fte(struct mlx5_core_dev *dev,
@@ -295,4 +307,25 @@ int mlx5_cmd_update_root_ft(struct mlx5_core_dev *dev,
 
 int mlx5_init_fs(struct mlx5_core_dev *dev);
 void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
+void mlx5_fc_update_sampling_interval(struct mlx5_core_dev *dev,
+				      unsigned long interval);
+
+int mlx5_cmd_modify_header_alloc(struct mlx5_core_dev *dev,
+				 enum mlx5_flow_namespace_type namespace,
+				 u8 num_actions,
+				 void *modify_actions,
+				 struct mlx5_modify_hdr *modify_hdr);
+void mlx5_cmd_modify_header_dealloc(struct mlx5_core_dev *dev,
+				    struct mlx5_modify_hdr *modify_hdr);
+int mlx5_cmd_packet_reformat_alloc(struct mlx5_core_dev *dev,
+				   struct mlx5_pkt_reformat_params *params,
+				   enum mlx5_flow_namespace_type namespace,
+				   struct mlx5_pkt_reformat *pkt_reformat);
+void mlx5_cmd_packet_reformat_dealloc(struct mlx5_core_dev *dev,
+				      struct mlx5_pkt_reformat *pkt_reformat);
+int mlx5_init_fc_stats(struct mlx5_core_dev *dev);
+void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev);
+void mlx5_fc_queue_stats_work(struct mlx5_core_dev *dev,
+			      struct delayed_work *dwork,
+			      unsigned long delay);
 #endif

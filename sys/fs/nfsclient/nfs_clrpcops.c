@@ -2104,7 +2104,12 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 			*tl++ = x;      /* total to this offset */
 			*tl = x;        /* size of this write */
 		}
-		nfsm_uiombuf(nd, uiop, len);
+		error = nfsm_uiombuf(nd, uiop, len);
+		if (error != 0) {
+			m_freem(nd->nd_mreq);
+			free(nd, M_TEMP);
+			return (error);
+		}
 		/*
 		 * Although it is tempting to do a normal Getattr Op in the
 		 * NFSv4 compound, the result can be a nearly hung client
@@ -3001,12 +3006,12 @@ tryagain:
 			    ND_NFSV4) {
 			    NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 			    if (*(tl + 1)) {
-				if (i == 0 && ret > 1) {
+				if (i == 1 && ret > 1) {
 				    /*
 				     * If the Delegreturn failed, try again
 				     * without it. The server will Recall, as
 				     * required.
-				     * If ret > 1, the first iteration of this
+				     * If ret > 1, the second iteration of this
 				     * loop is the second DelegReturn result.
 				     */
 				    m_freem(nd->nd_mrep);
@@ -6361,6 +6366,10 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 						iovlen = uiop->uio_iov->iov_len;
 						m = nfsm_uiombuflist(uiop, len,
 						    0);
+						if (m == NULL) {
+							error = EFAULT;
+							break;
+						}
 					}
 					tdrpc = drpc = malloc(sizeof(*drpc) *
 					    (mirrorcnt - 1), M_TEMP, M_WAITOK |
@@ -6933,7 +6942,11 @@ nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		*tl++ = txdr_unsigned(len);
 	*tl++ = txdr_unsigned(*iomode);
 	*tl = txdr_unsigned(len);
-	nfsm_uiombuf(nd, uiop, len);
+	error = nfsm_uiombuf(nd, uiop, len);
+	if (error != 0) {
+		m_freem(nd->nd_mreq);
+		return (error);
+	}
 	nrp = dsp->nfsclds_sockp;
 	if (nrp == NULL)
 		/* If NULL, use the MDS socket. */
@@ -9057,7 +9070,11 @@ nfsrpc_setextattr(vnode_t vp, const char *name, struct uio *uiop,
 	nfsm_strtom(nd, name, strlen(name));
 	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(uiop->uio_resid);
-	nfsm_uiombuf(nd, uiop, uiop->uio_resid);
+	error = nfsm_uiombuf(nd, uiop, uiop->uio_resid);
+	if (error != 0) {
+		m_freem(nd->nd_mreq);
+		return (error);
+	}
 	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(NFSV4OP_GETATTR);
 	NFSGETATTR_ATTRBIT(&attrbits);

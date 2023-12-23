@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bio.h>
 #include <sys/bus.h>

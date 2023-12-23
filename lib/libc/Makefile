@@ -1,4 +1,3 @@
-#	@(#)Makefile	8.2 (Berkeley) 2/3/94
 
 PACKAGE=	clibs
 SHLIBDIR?= /lib
@@ -11,7 +10,7 @@ LIBC_SRCTOP?= ${.CURDIR}
 # MACHINE_CPUARCH, but some ABIs are different enough to require their own libc,
 # so allow a directory named MACHINE_ARCH to override this (though treat
 # powerpc64le and powerpc64 the same).
-# Note: This is copeid to msun/Makefile
+# Note: This is copied to msun/Makefile
 M=${MACHINE_ARCH:S/powerpc64le/powerpc64/}
 .if exists(${LIBC_SRCTOP}/${M})
 LIBC_ARCH=${M}
@@ -54,11 +53,7 @@ CFLAGS+=${CANCELPOINTS_CFLAGS}
 
 # Use a more efficient TLS model for libc since we can reasonably assume that
 # it will be loaded during program startup.
-.if ${LIBC_ARCH} == "aarch64" || ${LIBC_ARCH} == "amd64" || \
-    ${LIBC_ARCH} == "i386" || ${LIBC_ARCH} == "riscv" || \
-    ${LIBC_ARCH:Mpowerpc*} != ""
 CFLAGS+= -ftls-model=initial-exec
-.endif
 
 #
 # Link with static libcompiler_rt.a.
@@ -151,7 +146,6 @@ STATICOBJS+=${LIBC_NONSHARED_SRCS:S/.c$/.o/}
 
 VERSION_DEF=${LIBC_SRCTOP}/Versions.def
 SYMBOL_MAPS=${SYM_MAPS}
-CFLAGS+= -DSYMBOL_VERSIONING
 
 # If there are no machine dependent sources, append all the
 # machine-independent sources:

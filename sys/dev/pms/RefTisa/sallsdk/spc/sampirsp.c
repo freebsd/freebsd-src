@@ -659,9 +659,6 @@ mpiParseOBIomb(
 }
 #endif
 
-#ifndef BIOS
-#endif
-
 /******************************************************************************/
 /*! \brief ECHO Response
  *

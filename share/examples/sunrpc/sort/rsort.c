@@ -1,4 +1,3 @@
-/* @(#)rsort.c	2.1 88/08/11 4.0 RPCSRC */
 /*
  * rsort.c
  * Client side application which sorts argc, argv.

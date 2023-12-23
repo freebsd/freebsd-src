@@ -32,11 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-static const char sccsid[] = "@(#)function.c	8.10 (Berkeley) 5/4/95";
-#endif
-
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/ucred.h>
 #include <sys/stat.h>

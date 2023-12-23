@@ -28,9 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)tail.1	8.1 (Berkeley) 6/6/93
-.\"
-.Dd July 12, 2022
+.Dd November 28, 2023
 .Dt TAIL 1
 .Os
 .Sh NAME
@@ -115,7 +113,7 @@ option if reading from standard input rather than a file.
 The location is
 .Ar number
 lines.
-.It Fl q, Fl -quiet, Fl -silent
+.It Fl q , Fl -quiet , Fl -silent
 Suppresses printing of headers when multiple files are being examined.
 .It Fl r
 The
@@ -134,7 +132,7 @@ from the beginning or end of the input from which to begin the display.
 The default for the
 .Fl r
 option is to display all of the input.
-.It Fl v, Fl -verbose
+.It Fl v , Fl -verbose
 Prepend each file with a header.
 .El
 .Pp
@@ -157,7 +155,7 @@ arguments may also be specified with size suffixes supported by
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
-To display the last 500 lines of the file
+Display the last 500 lines of the file
 .Ar foo :
 .Pp
 .Dl $ tail -n 500 foo
@@ -167,6 +165,12 @@ Keep
 open, displaying to the standard output anything appended to the file:
 .Pp
 .Dl $ tail -F /var/log/messages
+.Pp
+Read
+.Pa /var/log/messages
+from the beginning and then follow the file as usual:
+.Pp
+.Dl $ tail -F -n +1 /var/log/messages
 .Sh SEE ALSO
 .Xr cat 1 ,
 .Xr head 1 ,

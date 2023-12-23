@@ -78,6 +78,11 @@ pfctl_do_ioctl(int dev, uint cmd, size_t size, nvlist_t **nvl)
 
 retry:
 	nv.data = malloc(size);
+	if (nv.data == NULL) {
+		ret = ENOMEM;
+		goto out;
+	}
+
 	memcpy(nv.data, data, nvlen);
 
 	nv.len = nvlen;
@@ -229,6 +234,8 @@ _pfctl_get_status_counters(const nvlist_t *nvl,
 		struct pfctl_status_counter *c;
 
 		c = malloc(sizeof(*c));
+		if (c == NULL)
+			continue;
 
 		c->id = ids[i];
 		c->counter = counts[i];
@@ -253,6 +260,7 @@ pfctl_get_status(int dev)
 	nvl = nvlist_create(0);
 
 	if (pfctl_do_ioctl(dev, DIOCGETSTATUSNV, 4096, &nvl)) {
+		nvlist_destroy(nvl);
 		free(status);
 		return (NULL);
 	}
@@ -710,12 +718,13 @@ pfctl_get_eth_rulesets_info(int dev, struct pfctl_eth_rulesets_info *ri,
 	nvlist_add_string(nvl, "path", path);
 
 	if ((ret = pfctl_do_ioctl(dev, DIOCGETETHRULESETS, 256, &nvl)) != 0)
-		return (ret);
+		goto out;
 
 	ri->nr = nvlist_get_number(nvl, "nr");
 
+out:
 	nvlist_destroy(nvl);
-	return (0);
+	return (ret);
 }
 
 int
@@ -732,16 +741,16 @@ pfctl_get_eth_ruleset(int dev, const char *path, int nr,
 	nvlist_add_number(nvl, "nr", nr);
 
 	if ((ret = pfctl_do_ioctl(dev, DIOCGETETHRULESET, 1024, &nvl)) != 0)
-		return (ret);
+		goto out;
 
 	ri->nr = nvlist_get_number(nvl, "nr");
 	strlcpy(ri->path, nvlist_get_string(nvl, "path"), MAXPATHLEN);
 	strlcpy(ri->name, nvlist_get_string(nvl, "name"),
 	    PF_ANCHOR_NAME_SIZE);
 
+out:
 	nvlist_destroy(nvl);
-
-	return (0);
+	return (ret);
 }
 
 int
@@ -757,13 +766,14 @@ pfctl_get_eth_rules_info(int dev, struct pfctl_eth_rules_info *rules,
 	nvlist_add_string(nvl, "anchor", path);
 
 	if ((ret = pfctl_do_ioctl(dev, DIOCGETETHRULES, 1024, &nvl)) != 0)
-		return (ret);
+		goto out;
 
 	rules->nr = nvlist_get_number(nvl, "nr");
 	rules->ticket = nvlist_get_number(nvl, "ticket");
 
+out:
 	nvlist_destroy(nvl);
-	return (0);
+	return (ret);
 }
 
 int
@@ -782,7 +792,7 @@ pfctl_get_eth_rule(int dev, uint32_t nr, uint32_t ticket,
 	nvlist_add_bool(nvl, "clear", clear);
 
 	if ((ret = pfctl_do_ioctl(dev, DIOCGETETHRULE, 4096, &nvl)) != 0)
-		return (ret);
+		goto out;
 
 	pfctl_nveth_rule_to_eth_rule(nvl, rule);
 
@@ -790,8 +800,9 @@ pfctl_get_eth_rule(int dev, uint32_t nr, uint32_t ticket,
 		strlcpy(anchor_call, nvlist_get_string(nvl, "anchor_call"),
 		    MAXPATHLEN);
 
+out:
 	nvlist_destroy(nvl);
-	return (0);
+	return (ret);
 }
 
 int
@@ -1097,10 +1108,8 @@ pfctl_add_rule(int dev __unused, const struct pfctl_rule *r, const char *anchor,
 
 	seq_id = hdr->nlmsg_seq;
 
-	if (! snl_send_message(&ss, hdr)) {
-		printf("Send failed\n");
+	if (! snl_send_message(&ss, hdr))
 		return (ENXIO);
-	}
 
 	while ((hdr = snl_read_reply_multi(&ss, seq_id, &e)) != NULL) {
 	}
@@ -1108,26 +1117,55 @@ pfctl_add_rule(int dev __unused, const struct pfctl_rule *r, const char *anchor,
 	return (e.error);
 }
 
+#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
+#define	_OUT(_field)	offsetof(struct pfctl_rules_info, _field)
+static struct snl_attr_parser ap_getrules[] = {
+	{ .type = PF_GR_NR, .off = _OUT(nr), .cb = snl_attr_get_uint32 },
+	{ .type = PF_GR_TICKET, .off = _OUT(ticket), .cb = snl_attr_get_uint32 },
+};
+static struct snl_field_parser fp_getrules[] = {
+};
+#undef _IN
+#undef _OUT
+SNL_DECLARE_PARSER(getrules_parser, struct genlmsghdr, fp_getrules, ap_getrules);
+
 int
-pfctl_get_rules_info(int dev, struct pfctl_rules_info *rules, uint32_t ruleset,
+pfctl_get_rules_info(int dev __unused, struct pfctl_rules_info *rules, uint32_t ruleset,
     const char *path)
 {
-	struct pfioc_rule pr;
-	int ret;
+	struct snl_state ss = {};
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	struct snl_writer nw;
+	uint32_t seq_id;
+	int family_id;
 
-	bzero(&pr, sizeof(pr));
-	if (strlcpy(pr.anchor, path, sizeof(pr.anchor)) >= sizeof(pr.anchor))
-		return (E2BIG);
+	snl_init(&ss, NETLINK_GENERIC);
+	family_id = snl_get_genl_family(&ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
 
-	pr.rule.action = ruleset;
-	ret = ioctl(dev, DIOCGETRULES, &pr);
-	if (ret != 0)
-		return (ret);
+	snl_init_writer(&ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GETRULES);
+	hdr->nlmsg_flags |= NLM_F_DUMP;
 
-	rules->nr = pr.nr;
-	rules->ticket = pr.ticket;
+	snl_add_msg_attr_string(&nw, PF_GR_ANCHOR, path);
+	snl_add_msg_attr_u8(&nw, PF_GR_ACTION, ruleset);
 
-	return (0);
+	hdr = snl_finalize_msg(&nw);
+	if (hdr == NULL)
+		return (ENOMEM);
+
+	seq_id = hdr->nlmsg_seq;
+	if (! snl_send_message(&ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&ss, hdr, &getrules_parser, rules))
+			continue;
+	}
+
+	return (e.error);
 }
 
 int
@@ -1158,7 +1196,7 @@ int	pfctl_get_clear_rule(int dev, uint32_t nr, uint32_t ticket,
 		nvlist_add_bool(nvl, "clear_counter", true);
 
 	if ((ret = pfctl_do_ioctl(dev, DIOCGETRULENV, 8192, &nvl)) != 0)
-		return (ret);
+		goto out;
 
 	pf_nvrule_to_rule(nvlist_get_nvlist(nvl, "rule"), rule);
 
@@ -1166,9 +1204,9 @@ int	pfctl_get_clear_rule(int dev, uint32_t nr, uint32_t ticket,
 		strlcpy(anchor_call, nvlist_get_string(nvl, "anchor_call"),
 		    MAXPATHLEN);
 
+out:
 	nvlist_destroy(nvl);
-
-	return (0);
+	return (ret);
 }
 
 int
@@ -1348,6 +1386,13 @@ static struct snl_attr_parser ap_state[] = {
 	{ .type = PF_ST_LOG, .off = _OUT(log), .cb = snl_attr_get_uint8 },
 	{ .type = PF_ST_STATE_FLAGS, .off = _OUT(state_flags), .cb = snl_attr_get_uint16 },
 	{ .type = PF_ST_SYNC_FLAGS, .off = _OUT(sync_flags), .cb = snl_attr_get_uint8 },
+	{ .type = PF_ST_RTABLEID, .off = _OUT(rtableid), .cb = snl_attr_get_int32 },
+	{ .type = PF_ST_MIN_TTL, .off = _OUT(min_ttl), .cb = snl_attr_get_uint8 },
+	{ .type = PF_ST_MAX_MSS, .off = _OUT(max_mss), .cb = snl_attr_get_uint16 },
+	{ .type = PF_ST_DNPIPE, .off = _OUT(dnpipe), .cb = snl_attr_get_uint16 },
+	{ .type = PF_ST_DNRPIPE, .off = _OUT(dnrpipe), .cb = snl_attr_get_uint16 },
+	{ .type = PF_ST_RT, .off = _OUT(rt), .cb = snl_attr_get_uint8 },
+	{ .type = PF_ST_RT_IFNAME, .off = _OUT(rt_ifname), .cb = snl_attr_store_ifname },
 };
 static struct snl_field_parser fp_state[] = {
 };
@@ -1357,7 +1402,7 @@ SNL_DECLARE_PARSER(state_parser, struct genlmsghdr, fp_state, ap_state);
 
 static const struct snl_hdr_parser *all_parsers[] = {
 	&state_parser, &skey_parser, &speer_parser,
-	&creator_parser,
+	&creator_parser, &getrules_parser
 };
 
 static int
@@ -1495,13 +1540,13 @@ _pfctl_clear_states(int dev, const struct pfctl_kill *kill,
 	nvlist_add_bool(nvl, "nat", kill->nat);
 
 	if ((ret = pfctl_do_ioctl(dev, ioctlval, 1024, &nvl)) != 0)
-		return (ret);
+		goto out;
 
 	if (killed)
 		*killed = nvlist_get_number(nvl, "killed");
 
+out:
 	nvlist_destroy(nvl);
-
 	return (ret);
 }
 
@@ -1677,8 +1722,10 @@ pfctl_get_syncookies(int dev, struct pfctl_syncookies *s)
 
 	nvl = nvlist_create(0);
 
-	if ((ret = pfctl_do_ioctl(dev, DIOCGETSYNCOOKIES, 256, &nvl)) != 0)
-		return (errno);
+	if ((ret = pfctl_do_ioctl(dev, DIOCGETSYNCOOKIES, 256, &nvl)) != 0) {
+		ret = errno;
+		goto out;
+	}
 
 	enabled = nvlist_get_bool(nvl, "enabled");
 	adaptive = nvlist_get_bool(nvl, "adaptive");
@@ -1696,9 +1743,9 @@ pfctl_get_syncookies(int dev, struct pfctl_syncookies *s)
 	s->lowwater = nvlist_get_number(nvl, "lowwater") * 100 / state_limit;
 	s->halfopen_states = nvlist_get_number(nvl, "halfopen_states");
 
+out:
 	nvlist_destroy(nvl);
-
-	return (0);
+	return (ret);
 }
 
 int

@@ -517,6 +517,13 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
         acpi_MatchHid(handle, "ARMHD620") != ACPI_MATCHHID_NOMATCH)
 	    arc.ignore_producer_flag = true;
 
+    /*
+     * The DesignWare I2C Controller on Ampere Altra sets ResourceProducer on
+     * memory resources.
+     */
+    if (acpi_MatchHid(handle, "APMC0D0F") != ACPI_MATCHHID_NOMATCH)
+	    arc.ignore_producer_flag = true;
+
     status = AcpiWalkResources(handle, "_CRS", acpi_parse_resource, &arc);
     if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
 	printf("can't fetch resources for %s - %s\n",

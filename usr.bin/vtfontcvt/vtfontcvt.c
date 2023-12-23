@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/endian.h>
 #include <sys/fnv_hash.h>

@@ -30,8 +30,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-/* #pragma ident   "@(#)rpcb_stat.c 1.7     94/04/25 SMI" */
-
 /*
  * rpcb_stat.c
  * Allows for gathering of statistics

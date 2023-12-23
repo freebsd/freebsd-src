@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -57,13 +56,12 @@
 
 struct smbios_softc {
 	device_t		dev;
-	struct resource *	res;
-	int			rid;
-
-	struct smbios_eps *	eps;
+	union {
+		struct smbios_eps *	eps;
+		struct smbios3_eps *	eps3;
+	};
+	bool is_eps3;
 };
-
-#define	RES2EPS(res)	((struct smbios_eps *)rman_get_virtual(res))
 
 static void	smbios_identify	(driver_t *, device_t);
 static int	smbios_probe	(device_t);
@@ -71,27 +69,36 @@ static int	smbios_attach	(device_t);
 static int	smbios_detach	(device_t);
 static int	smbios_modevent	(module_t, int, void *);
 
-static int	smbios_cksum	(struct smbios_eps *);
+static int	smbios_cksum	(void *);
+static bool	smbios_eps3	(void *);
 
 static void
 smbios_identify (driver_t *driver, device_t parent)
 {
 #ifdef ARCH_MAY_USE_EFI
 	struct uuid efi_smbios = EFI_TABLE_SMBIOS;
+	struct uuid efi_smbios3 = EFI_TABLE_SMBIOS3;
 	void *addr_efi;
 #endif
 	struct smbios_eps *eps;
+	struct smbios3_eps *eps3;
+	void *ptr;
 	device_t child;
 	vm_paddr_t addr = 0;
+	size_t map_size = sizeof (*eps);
 	int length;
-	int rid;
 
 	if (!device_is_alive(parent))
 		return;
 
 #ifdef ARCH_MAY_USE_EFI
-	if (!efi_get_table(&efi_smbios, &addr_efi))
+	if (!efi_get_table(&efi_smbios3, &addr_efi)) {
 		addr = (vm_paddr_t)addr_efi;
+		map_size = sizeof (*eps3);
+	} else if (!efi_get_table(&efi_smbios, &addr_efi)) {
+		addr = (vm_paddr_t)addr_efi;
+	}
+
 #endif
 
 #if defined(__amd64__) || defined(__i386__)
@@ -101,28 +108,50 @@ smbios_identify (driver_t *driver, device_t parent)
 #endif
 
 	if (addr != 0) {
-		eps = pmap_mapbios(addr, 0x1f);
-		rid = 0;
-		length = eps->length;
-
-		if (length != 0x1f) {
+		ptr = pmap_mapbios(addr, map_size);
+		if (ptr == NULL)
+			return;
+		if (map_size == sizeof (*eps3)) {
+			eps3 = ptr;
+			length = eps3->length;
+			if (memcmp(eps3->anchor_string,
+			    SMBIOS3_SIG, SMBIOS3_LEN) != 0) {
+				printf("smbios3: corrupt sig %s found\n",
+				    eps3->anchor_string);
+				return;
+			}
+		} else {
+			eps = ptr;
+			length = eps->length;
+			if (memcmp(eps->anchor_string,
+			    SMBIOS_SIG, SMBIOS_LEN) != 0) {
+				printf("smbios: corrupt sig %s found\n",
+				    eps->anchor_string);
+				return;
+			}
+		}
+		if (length != map_size) {
 			u_int8_t major, minor;
 
 			major = eps->major_version;
 			minor = eps->minor_version;
 
 			/* SMBIOS v2.1 implementation might use 0x1e. */
-			if (length == 0x1e && major == 2 && minor == 1)
+			if (length == 0x1e && major == 2 && minor == 1) {
 				length = 0x1f;
-			else
+			} else {
+				pmap_unmapbios(eps, map_size);
 				return;
+			}
 		}
 
 		child = BUS_ADD_CHILD(parent, 5, "smbios", -1);
 		device_set_driver(child, driver);
-		bus_set_resource(child, SYS_RES_MEMORY, rid, addr, length);
+
+		/* smuggle the phys addr into probe and attach */
+		bus_set_resource(child, SYS_RES_MEMORY, 0, addr, length);
 		device_set_desc(child, "System Management BIOS");
-		pmap_unmapbios(eps, 0x1f);
+		pmap_unmapbios(ptr, map_size);
 	}
 
 	return;
@@ -131,28 +160,27 @@ smbios_identify (driver_t *driver, device_t parent)
 static int
 smbios_probe (device_t dev)
 {
-	struct resource *res;
-	int rid;
+	vm_paddr_t pa;
+	vm_size_t size;
+	void *va;
 	int error;
 
 	error = 0;
-	rid = 0;
-	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
-	if (res == NULL) {
-		device_printf(dev, "Unable to allocate memory resource.\n");
-		error = ENOMEM;
-		goto bad;
+
+	pa = bus_get_resource_start(dev, SYS_RES_MEMORY, 0);
+	size = bus_get_resource_count(dev, SYS_RES_MEMORY, 0);
+	va = pmap_mapbios(pa, size);
+	if (va == NULL) {
+		device_printf(dev, "Unable to map memory.\n");
+		return (ENOMEM);
 	}
 
-	if (smbios_cksum(RES2EPS(res))) {
+	if (smbios_cksum(va)) {
 		device_printf(dev, "SMBIOS checksum failed.\n");
 		error = ENXIO;
-		goto bad;
 	}
 
-bad:
-	if (res)
-		bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
+	pmap_unmapbios(va, size);
 	return (error);
 }
 
@@ -160,46 +188,55 @@ static int
 smbios_attach (device_t dev)
 {
 	struct smbios_softc *sc;
-	int error;
+	void *va;
+	vm_paddr_t pa;
+	vm_size_t size;
 
 	sc = device_get_softc(dev);
-	error = 0;
-
 	sc->dev = dev;
-	sc->rid = 0;
-	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->rid,
-		RF_ACTIVE);
-	if (sc->res == NULL) {
-		device_printf(dev, "Unable to allocate memory resource.\n");
-		error = ENOMEM;
-		goto bad;
+	pa = bus_get_resource_start(dev, SYS_RES_MEMORY, 0);
+	size = bus_get_resource_count(dev, SYS_RES_MEMORY, 0);
+	va = pmap_mapbios(pa, size);
+	if (va == NULL) {
+		device_printf(dev, "Unable to map memory.\n");
+		return (ENOMEM);
 	}
-	sc->eps = RES2EPS(sc->res);
+	sc->is_eps3 = smbios_eps3(va);
 
-	device_printf(dev, "Version: %u.%u",
-	    sc->eps->major_version, sc->eps->minor_version);
-	if (bcd2bin(sc->eps->BCD_revision))
-		printf(", BCD Revision: %u.%u",
-			bcd2bin(sc->eps->BCD_revision >> 4),
-			bcd2bin(sc->eps->BCD_revision & 0x0f));
+	if (sc->is_eps3) {
+		sc->eps3 = va;
+		device_printf(dev, "Version: %u.%u",
+		    sc->eps3->major_version, sc->eps3->minor_version);
+	} else {
+		sc->eps = va;
+		device_printf(dev, "Version: %u.%u",
+		    sc->eps->major_version, sc->eps->minor_version);
+		if (bcd2bin(sc->eps->BCD_revision))
+			printf(", BCD Revision: %u.%u",
+			    bcd2bin(sc->eps->BCD_revision >> 4),
+			    bcd2bin(sc->eps->BCD_revision & 0x0f));
+	}
 	printf("\n");
-
 	return (0);
-bad:
-	if (sc->res)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->rid, sc->res);
-	return (error);
 }
 
 static int
 smbios_detach (device_t dev)
 {
 	struct smbios_softc *sc;
+	vm_size_t size;
+	void *va;
 
 	sc = device_get_softc(dev);
+	va = (sc->is_eps3 ? (void *)sc->eps3 : (void *)sc->eps);
+	if (sc->is_eps3)
+		va = sc->eps3;
+	else
+		va = sc->eps;
+	size = bus_get_resource_count(dev, SYS_RES_MEMORY, 0);
 
-	if (sc->res)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->rid, sc->res);
+	if (va != NULL)
+		pmap_unmapbios(va, size);
 
 	return (0);
 }
@@ -249,16 +286,36 @@ MODULE_DEPEND(smbios, efirt, 1, 1, 1);
 #endif
 MODULE_VERSION(smbios, 1);
 
-static int
-smbios_cksum (struct smbios_eps *e)
+
+static bool
+smbios_eps3 (void *v)
 {
+	struct smbios3_eps *e;
+
+	e = (struct smbios3_eps *)v;
+	return (memcmp(e->anchor_string, SMBIOS3_SIG, SMBIOS3_LEN) == 0);
+}
+
+static int
+smbios_cksum (void *v)
+{
+	struct smbios3_eps *eps3;
+	struct smbios_eps *eps;
 	u_int8_t *ptr;
 	u_int8_t cksum;
+	u_int8_t length;
 	int i;
 
-	ptr = (u_int8_t *)e;
+	if (smbios_eps3(v)) {
+		eps3 = (struct smbios3_eps *)v;
+		length = eps3->length;
+	} else {
+		eps = (struct smbios_eps *)v;
+		length = eps->length;
+	}
+	ptr = (u_int8_t *)v;
 	cksum = 0;
-	for (i = 0; i < e->length; i++) {
+	for (i = 0; i < length; i++) {
 		cksum += ptr[i];
 	}
 

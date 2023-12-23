@@ -32,19 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1990, 1993, 1994\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif
-
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)col.c	8.5 (Berkeley) 5/4/95";
-#endif
-#endif
-
-#include <sys/cdefs.h>
 #include <sys/capsicum.h>
 
 #include <capsicum_helpers.h>

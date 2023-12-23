@@ -9,9 +9,6 @@
 #include "ipf.h"
 #include "ipt.h"
 
-#if !defined(lint)
-static const char rcsid[] = "@(#)$Id$";
-#endif
 
 struct	llc	{
 	int	lc_type;

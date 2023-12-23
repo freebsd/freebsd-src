@@ -24,9 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/time.h>
 
 #include <err.h>
@@ -50,8 +47,8 @@ __FBSDID("$FreeBSD$");
 void
 pnp_write(int d, u_char r)
 {
-    outb (_PNP_ADDRESS, d);
-    outb (_PNP_WRITE_DATA, r);
+    outb(_PNP_ADDRESS, d);
+    outb(_PNP_WRITE_DATA, r);
 }
 
 /* The READ_DATA port that we are using currently */
@@ -74,14 +71,14 @@ pnp_readw(int d)
 
 int logdevs=0;
 
-void DELAY __P((int i));
-void send_Initiation_LFSR();
-int get_serial __P((u_char *data));
-int get_resource_info __P((u_char *buffer, int len));
-int handle_small_res __P((u_char *resinfo, int item, int len));
-void handle_large_res __P((u_char *resinfo, int item, int len));
-void dump_resdata __P((u_char *data, int csn));
-int isolation_protocol();
+void DELAY(int i);
+void send_Initiation_LFSR(void);
+int get_serial(u_char *data);
+int get_resource_info(u_char *buffer, int len);
+int handle_small_res(u_char *resinfo, int item, int len);
+void handle_large_res(u_char *resinfo, int item, int len);
+void dump_resdata(u_char *data, int csn);
+int isolation_protocol(void);
 
 
 /*
@@ -89,7 +86,7 @@ int isolation_protocol();
  * This function busy-waits.
  */
 void
-DELAY (int i)
+DELAY(int i)
 {
     struct timeval t;
     long start, stop;
@@ -235,7 +232,7 @@ report_dma_info(int x)
 
 
 void
-report_memory_info (int x)
+report_memory_info(int x)
 {
     if (x & 0x1)
 	printf ("Memory Range: Writeable\n");

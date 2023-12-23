@@ -2011,6 +2011,8 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr)
 	vap->va_size = zp->z_size;
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		vap->va_rdev = zfs_cmpldev(rdev);
+	else
+		vap->va_rdev = 0;
 	vap->va_gen = zp->z_gen;
 	vap->va_flags = 0;	/* FreeBSD: Reset chflags(2) flags. */
 	vap->va_filerev = zp->z_seq;
@@ -6220,6 +6222,7 @@ zfs_deallocate(struct vop_deallocate_args *ap)
 }
 #endif
 
+#if __FreeBSD_version >= 1300039
 #ifndef _SYS_SYSPROTO_H_
 struct vop_copy_file_range_args {
 	struct vnode *a_invp;
@@ -6321,11 +6324,10 @@ bad_locked_fallback:
 bad_write_fallback:
 	if (mp != NULL)
 		vn_finished_write(mp);
-	error = vn_generic_copy_file_range(ap->a_invp, ap->a_inoffp,
-	    ap->a_outvp, ap->a_outoffp, ap->a_lenp, ap->a_flags,
-	    ap->a_incred, ap->a_outcred, ap->a_fsizetd);
+	error = ENOSYS;
 	return (error);
 }
+#endif
 
 struct vop_vector zfs_vnodeops;
 struct vop_vector zfs_fifoops;
@@ -6390,7 +6392,9 @@ struct vop_vector zfs_vnodeops = {
 #if __FreeBSD_version >= 1400043
 	.vop_add_writecount =	vop_stdadd_writecount_nomsync,
 #endif
+#if __FreeBSD_version >= 1300039
 	.vop_copy_file_range =	zfs_freebsd_copy_file_range,
+#endif
 };
 VFS_VOP_VECTOR_REGISTER(zfs_vnodeops);
 

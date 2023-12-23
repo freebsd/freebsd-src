@@ -826,8 +826,9 @@ nvme_ctrlr_configure_aer(struct nvme_controller *ctrlr)
 	    NVME_CRIT_WARN_ST_READ_ONLY |
 	    NVME_CRIT_WARN_ST_VOLATILE_MEMORY_BACKUP;
 	if (ctrlr->cdata.ver >= NVME_REV(1, 2))
-		ctrlr->async_event_config |= NVME_ASYNC_EVENT_NS_ATTRIBUTE |
-		    NVME_ASYNC_EVENT_FW_ACTIVATE;
+		ctrlr->async_event_config |=
+		    ctrlr->cdata.oaes & (NVME_ASYNC_EVENT_NS_ATTRIBUTE |
+			NVME_ASYNC_EVENT_FW_ACTIVATE);
 
 	status.done = 0;
 	nvme_ctrlr_cmd_get_feature(ctrlr, NVME_FEAT_TEMPERATURE_THRESHOLD,
@@ -1006,6 +1007,8 @@ again:
 	}
 
 	for (i = 0; i < ctrlr->hmb_nchunks; i++) {
+		memset(&ctrlr->hmb_desc_vaddr[i], 0,
+		    sizeof(struct nvme_hmb_desc));
 		ctrlr->hmb_desc_vaddr[i].addr =
 		    htole64(ctrlr->hmb_chunks[i].hmbc_paddr);
 		ctrlr->hmb_desc_vaddr[i].size = htole32(ctrlr->hmb_chunk / ctrlr->page_size);

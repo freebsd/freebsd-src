@@ -23,9 +23,6 @@
 #
 # Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)mv_files_common.kshlib	1.5	09/06/22 SMI"
-#
 
 #
 # Determine whether this version of the ksh being

@@ -2,6 +2,7 @@
 PACKAGE=	tests
 
 NETBSD_ATF_TESTS_SH=	sort_test
+ATF_TESTS_SH=		sort_monthsort_test
 
 ${PACKAGE}FILES+=		d_any_char_dflag_out.txt
 ${PACKAGE}FILES+=		d_any_char_fflag_out.txt

@@ -26,8 +26,6 @@
  * RCSid:
  *	from: signer.c,v 1.10 2018/03/23 01:14:30 sjg
  *
- *	@(#) Copyright (c) 2012 Simon J. Gerraty
- *
  *	This file is provided in the hope that it will
  *	be of use.  There is absolutely NO WARRANTY.
  *	Permission to copy, redistribute or otherwise

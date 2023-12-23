@@ -82,7 +82,6 @@
  * from VGA colors to console colors, while we are reading RGB data.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <stand.h>
 #include <teken.h>

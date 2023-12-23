@@ -1,4 +1,3 @@
-/* @(#)rprintmsg.c	2.1 88/08/11 4.0 RPCSRC */
 /*
  * rprintmsg.c: remote version of "printmsg.c"
  */

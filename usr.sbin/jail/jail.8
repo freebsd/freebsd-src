@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 1, 2023
+.Dd November 29, 2023
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -144,10 +144,6 @@ jail if it does exist.
 .Pp
 Other available options are:
 .Bl -tag -width indent
-.It Fl d
-Allow making changes to a dying jail, equivalent to the
-.Va allow.dying
-parameter.
 .It Fl f Ar conf_file
 Use configuration file
 .Ar conf_file
@@ -215,6 +211,17 @@ parameter.
 .It Fl v
 Print a message on every operation, such as running commands and
 mounting filesystems.
+.It Fl d
+This is deprecated and is equivalent to the
+.Va allow.dying
+parameter, which is also deprecated.
+It used to allow making changes to a
+.Va dying
+jail.
+Now such jails are always replaced when a new jail is created with the same
+.Va jid
+or
+.Va name .
 .El
 .Pp
 If no arguments are given after the options, the operation (except
@@ -955,9 +962,14 @@ filesystem on the chrooted
 .Pa /proc
 directory.
 .It Va allow.dying
-Allow making changes to a
+This is deprecated and has no effect.
+It used to allow making changes to a
 .Va dying
 jail.
+Now such jails are always replaced when a new jail is created with the same
+.Va jid
+or
+.Va name .
 .It Va depend
 Specify a jail (or jails) that this jail depends on.
 When this jail is to be created, any jail(s) it depends on must already exist.

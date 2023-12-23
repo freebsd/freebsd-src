@@ -29,12 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static const char sccsid[] = "@(#)dir.c	8.8 (Berkeley) 4/28/95";
-#endif /* not lint */
-#endif
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/types.h>

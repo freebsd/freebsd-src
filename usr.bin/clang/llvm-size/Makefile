@@ -4,9 +4,8 @@
 PROG_CXX=	llvm-size
 
 SRCDIR=		llvm/tools/llvm-size
+SRCS+=		llvm-size-driver.cpp
 SRCS+=		llvm-size.cpp
-
-CFLAGS.llvm-size.cpp+=	-Dllvm_size_main=main
 
 .include "${SRCTOP}/lib/clang/llvm.pre.mk"
 

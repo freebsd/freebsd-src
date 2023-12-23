@@ -29,18 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1980, 1986, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
-#endif /* not lint */
-#endif
-#include <sys/cdefs.h>
 #define _WANT_P_OSREL
 #include <sys/param.h>
 #include <sys/file.h>
@@ -59,7 +47,6 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
 #include <fstab.h>
 #include <grp.h>
 #include <inttypes.h>
-#include <libufs.h>
 #include <mntopts.h>
 #include <paths.h>
 #include <stdint.h>

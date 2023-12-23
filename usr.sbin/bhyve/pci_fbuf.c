@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 
@@ -71,10 +70,10 @@ static int fbuf_debug = 1;
 
 #define	DMEMSZ	128
 
-#define	FB_SIZE		(16*MB)
+#define	FB_SIZE		(32*MB)
 
-#define COLS_MAX	1920
-#define	ROWS_MAX	1200
+#define COLS_MAX	3840
+#define ROWS_MAX	2160
 
 #define COLS_DEFAULT	1024
 #define ROWS_DEFAULT	768

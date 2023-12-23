@@ -72,7 +72,6 @@
  *  * David Cross: Author of the initial ugly hack for a specific cardbus card
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/condvar.h>

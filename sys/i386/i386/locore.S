@@ -29,8 +29,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *
  *		originally from: locore.s, by William F. Jolitz
  *
  *		Substantially rewritten by David Greenman, Rod Grimes,

@@ -77,6 +77,12 @@ CODE {
 	{
 		return (0);
 	}
+
+	static struct rman *
+	null_get_rman(device_t bus, int type, u_int flags)
+	{
+		return (NULL);
+	}
 };
 
 /**
@@ -621,6 +627,24 @@ METHOD struct resource_list * get_resource_list {
 	device_t	_dev;
 	device_t	_child;
 } DEFAULT bus_generic_get_resource_list;
+
+/**
+ * @brief Return a struct rman.
+ *
+ * Used by drivers which use bus_generic_rman_alloc_resource() etc. to
+ * implement their resource handling. It should return the resource
+ * manager used for the given resource type.
+ *
+ * @param _dev		the bus device
+ * @param _type		the resource type
+ * @param _flags	resource flags (@c RF_XXX flags in
+ *			<sys/rman.h>)
+ */
+METHOD struct rman * get_rman {
+	device_t	_dev;
+	int		_type;
+	u_int		_flags;
+} DEFAULT null_get_rman;
 
 /**
  * @brief Is the hardware described by @p _child still attached to the

@@ -30,7 +30,6 @@
 #ifndef	_LINUXKPI_LINUX_KERNEL_H_
 #define	_LINUXKPI_LINUX_KERNEL_H_
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/param.h>

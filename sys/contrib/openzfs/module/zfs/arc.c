@@ -6069,7 +6069,7 @@ arc_prune_task(void *ptr)
 	if (func != NULL)
 		func(ap->p_adjust, ap->p_private);
 
-	zfs_refcount_remove(&ap->p_refcnt, func);
+	(void) zfs_refcount_remove(&ap->p_refcnt, func);
 }
 
 /*
@@ -6098,7 +6098,7 @@ arc_prune_async(uint64_t adjust)
 		ap->p_adjust = adjust;
 		if (taskq_dispatch(arc_prune_taskq, arc_prune_task,
 		    ap, TQ_SLEEP) == TASKQID_INVALID) {
-			zfs_refcount_remove(&ap->p_refcnt, ap->p_pfunc);
+			(void) zfs_refcount_remove(&ap->p_refcnt, ap->p_pfunc);
 			continue;
 		}
 		ARCSTAT_BUMP(arcstat_prune);
@@ -7720,7 +7720,7 @@ arc_fini(void)
 
 	mutex_enter(&arc_prune_mtx);
 	while ((p = list_remove_head(&arc_prune_list)) != NULL) {
-		zfs_refcount_remove(&p->p_refcnt, &arc_prune_list);
+		(void) zfs_refcount_remove(&p->p_refcnt, &arc_prune_list);
 		zfs_refcount_destroy(&p->p_refcnt);
 		kmem_free(p, sizeof (*p));
 	}
@@ -8035,9 +8035,8 @@ l2arc_write_size(l2arc_dev_t *dev)
 	 */
 	size = l2arc_write_max;
 	if (size == 0) {
-		cmn_err(CE_NOTE, "Bad value for l2arc_write_max, value must "
-		    "be greater than zero, resetting it to the default (%d)",
-		    L2ARC_WRITE_SIZE);
+		cmn_err(CE_NOTE, "l2arc_write_max must be greater than zero, "
+		    "resetting it to the default (%d)", L2ARC_WRITE_SIZE);
 		size = l2arc_write_max = L2ARC_WRITE_SIZE;
 	}
 
@@ -8060,30 +8059,9 @@ l2arc_write_size(l2arc_dev_t *dev)
 	 * device. This is important in l2arc_evict(), otherwise infinite
 	 * iteration can occur.
 	 */
-	if (size > dev->l2ad_end - dev->l2ad_start) {
-		cmn_err(CE_NOTE, "l2arc_write_max or l2arc_write_boost "
-		    "plus the overhead of log blocks (persistent L2ARC, "
-		    "%llu bytes) exceeds the size of the cache device "
-		    "(guid %llu), resetting them to the default (%d)",
-		    (u_longlong_t)l2arc_log_blk_overhead(size, dev),
-		    (u_longlong_t)dev->l2ad_vdev->vdev_guid, L2ARC_WRITE_SIZE);
+	size = MIN(size, (dev->l2ad_end - dev->l2ad_start) / 4);
 
-		size = l2arc_write_max = l2arc_write_boost = L2ARC_WRITE_SIZE;
-
-		if (l2arc_trim_ahead > 1) {
-			cmn_err(CE_NOTE, "l2arc_trim_ahead set to 1");
-			l2arc_trim_ahead = 1;
-		}
-
-		if (arc_warm == B_FALSE)
-			size += l2arc_write_boost;
-
-		size += l2arc_log_blk_overhead(size, dev);
-		if (dev->l2ad_vdev->vdev_has_trim && l2arc_trim_ahead > 0) {
-			size += MAX(64 * 1024 * 1024,
-			    (size * l2arc_trim_ahead) / 100);
-		}
-	}
+	size = P2ROUNDUP(size, 1ULL << dev->l2ad_vdev->vdev_ashift);
 
 	return (size);
 
@@ -8323,7 +8301,8 @@ top:
 			ARCSTAT_BUMPDOWN(arcstat_l2_log_blk_count);
 			zfs_refcount_remove_many(&dev->l2ad_lb_asize, asize,
 			    lb_ptr_buf);
-			zfs_refcount_remove(&dev->l2ad_lb_count, lb_ptr_buf);
+			(void) zfs_refcount_remove(&dev->l2ad_lb_count,
+			    lb_ptr_buf);
 			kmem_free(lb_ptr_buf->lb_ptr,
 			    sizeof (l2arc_log_blkptr_t));
 			kmem_free(lb_ptr_buf, sizeof (l2arc_lb_ptr_buf_t));
@@ -8794,7 +8773,8 @@ retry:
 			ARCSTAT_BUMPDOWN(arcstat_l2_log_blk_count);
 			zfs_refcount_remove_many(&dev->l2ad_lb_asize, asize,
 			    lb_ptr_buf);
-			zfs_refcount_remove(&dev->l2ad_lb_count, lb_ptr_buf);
+			(void) zfs_refcount_remove(&dev->l2ad_lb_count,
+			    lb_ptr_buf);
 			list_remove(&dev->l2ad_lbptr_list, lb_ptr_buf);
 			kmem_free(lb_ptr_buf->lb_ptr,
 			    sizeof (l2arc_log_blkptr_t));

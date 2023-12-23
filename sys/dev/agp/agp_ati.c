@@ -28,7 +28,6 @@
  * Based on reading the Linux 2.6.8.1 driver by Dave Jones.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>

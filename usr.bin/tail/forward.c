@@ -33,9 +33,6 @@
  */
 
 
-#ifndef lint
-static const char sccsid[] = "@(#)forward.c	8.1 (Berkeley) 6/6/93";
-#endif
 
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -275,7 +272,7 @@ set_events(file_info_t *files)
 
 	action = USE_KQUEUE;
 	for (i = 0, file = files; i < no_files; i++, file++) {
-		if (! file->fp)
+		if (!file->fp)
 			continue;
 
 		if (fstatfs(fileno(file->fp), &sf) == 0 &&
@@ -307,27 +304,21 @@ set_events(file_info_t *files)
 void
 follow(file_info_t *files, enum STYLE style, off_t off)
 {
-	int active, ev_change, i, n = -1;
+	int active, ev_change, i, n;
 	struct stat sb2;
 	file_info_t *file;
 	FILE *ftmp;
 	struct timespec ts;
 
 	/* Position each of the files */
-
-	file = files;
 	active = 0;
-	n = 0;
-	for (i = 0; i < no_files; i++, file++) {
-		if (file->fp) {
-			active = 1;
-			n++;
-			if (vflag || (qflag == 0 && no_files > 1))
-				printfn(file->file_name, 1);
-			forward(file->fp, file->file_name, style, off, &file->st);
-			if (Fflag && fileno(file->fp) != STDIN_FILENO)
-				n++;
-		}
+	for (i = 0, file = files; i < no_files; i++, file++) {
+		if (!file->fp)
+			continue;
+		active = 1;
+		if (vflag || (qflag == 0 && no_files > 1))
+			printfn(file->file_name, 1);
+		forward(file->fp, file->file_name, style, off, &file->st);
 	}
 	if (!Fflag && !active)
 		return;
@@ -337,9 +328,14 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 	kq = kqueue();
 	if (kq < 0)
 		err(1, "kqueue");
-	ev = malloc(n * sizeof(struct kevent));
-	if (! ev)
-	    err(1, "Couldn't allocate memory for kevents.");
+	/*
+	 * The number of kqueue events we track may vary over time and may
+	 * even grow past its initial value in the -F case, but it will
+	 * never exceed two per file, so just preallocate that.
+	 */
+	ev = malloc(no_files * 2 * sizeof(struct kevent));
+	if (ev == NULL)
+		err(1, "failed to allocate memory for kevents");
 	set_events(files);
 
 	for (;;) {
@@ -413,9 +409,7 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 			 */
 			do {
 				n = kevent(kq, NULL, 0, ev, 1, Fflag ? &ts : NULL);
-				if (n < 0 && errno == EINTR)
-					continue;
-				if (n < 0)
+				if (n < 0 && errno != EINTR)
 					err(1, "kevent");
 			} while (n < 0);
 			if (n == 0) {

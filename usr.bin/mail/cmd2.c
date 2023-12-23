@@ -29,12 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)cmd2.c	8.1 (Berkeley) 6/6/93";
-#endif
-#endif /* not lint */
-#include <sys/cdefs.h>
 #include "rcv.h"
 #include <sys/wait.h>
 #include "extern.h"

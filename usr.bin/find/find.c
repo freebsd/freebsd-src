@@ -32,11 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-static char sccsid[] = "@(#)find.c	8.5 (Berkeley) 8/5/94";
-#endif
-
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 

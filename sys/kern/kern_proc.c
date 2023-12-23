@@ -27,8 +27,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
  */
 
 #include <sys/cdefs.h>
@@ -277,6 +275,7 @@ proc_init(void *mem, int size, int flags)
 	EVENTHANDLER_DIRECT_INVOKE(process_init, p);
 	p->p_stats = pstats_alloc();
 	p->p_pgrp = NULL;
+	TAILQ_INIT(&p->p_kqtim_stop);
 	return (0);
 }
 

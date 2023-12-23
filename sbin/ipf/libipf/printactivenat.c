@@ -10,9 +10,6 @@
 #include "ipf.h"
 
 
-#if !defined(lint)
-static const char rcsid[] = "@(#)$Id$";
-#endif
 
 static int proto_opened = 0;
 

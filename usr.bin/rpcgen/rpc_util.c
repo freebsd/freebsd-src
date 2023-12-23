@@ -27,14 +27,6 @@
  * Mountain View, California  94043
  */
 
-#if 0
-#ifndef lint
-#ident	"@(#)rpc_util.c	1.14	93/07/05 SMI"
-static char sccsid[] = "@(#)rpc_util.c 1.11 89/02/22 (C) 1987 SMI";
-#endif
-#endif
-
-#include <sys/cdefs.h>
 /*
  * rpc_util.c, Utility routines for the RPC protocol compiler
  * Copyright (C) 1989, Sun Microsystems, Inc.

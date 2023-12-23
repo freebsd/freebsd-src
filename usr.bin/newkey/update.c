@@ -28,12 +28,6 @@
  * Mountain View, California  94043
  */
 
-#ifndef lint
-#if 0
-static	char sccsid[] = "@(#)update.c 1.2 91/03/11 Copyr 1986 Sun Micro";
-#endif
-#endif
-
 /*
  * Copyright (C) 1986, 1989, Sun Microsystems, Inc.
  */
@@ -41,7 +35,7 @@ static	char sccsid[] = "@(#)update.c 1.2 91/03/11 Copyr 1986 Sun Micro";
 /*
  * Administrative tool to add a new user to the publickey database
  */
-#include <sys/cdefs.h>
+
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>

@@ -46,8 +46,6 @@
 
 #include <sys/cdefs.h>
 
-/* #pragma ident	"@(#)rpc_com.h	1.11	93/07/05 SMI" */
-
 /*
  * The max size of the transport, if the size cannot be determined
  * by other means.
@@ -70,7 +68,6 @@
 __BEGIN_DECLS
 #ifndef _KERNEL
 extern u_int __rpc_get_a_size(int);
-extern int __rpc_dtbsize(void);
 extern struct netconfig * __rpcgettp(int);
 extern  int  __rpc_get_default_domain(char **);
 

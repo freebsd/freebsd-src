@@ -14,6 +14,7 @@ SRCS=	linux_compat.c \
 	linux_i2c.c \
 	linux_i2cbb.c \
 	linux_kmod.c \
+	linux_kobject.c \
 	linux_kthread.c \
 	linux_lock.c \
 	linux_netdev.c \

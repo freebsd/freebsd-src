@@ -38,12 +38,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)printcap.c	8.2 (Berkeley) 4/28/95";
-#endif /* not lint */
-#endif
-
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
 #include <errno.h>
 #include <stdio.h>

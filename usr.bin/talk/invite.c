@@ -30,9 +30,6 @@
  */
 
 
-#ifndef lint
-static const char sccsid[] = "@(#)invite.c	8.1 (Berkeley) 6/6/93";
-#endif
 
 #include <sys/types.h>
 #include <sys/socket.h>

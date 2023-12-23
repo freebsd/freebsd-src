@@ -2157,7 +2157,8 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 	if (!ft) {
 		ft = mlx5_create_auto_grouped_flow_table(ns, priority, "bypass",
 							 num_entries,
-							 num_groups);
+							 num_groups,
+							 0);
 
 		if (!IS_ERR(ft)) {
 			prio->refcount = 0;
@@ -2180,6 +2181,10 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 	struct mlx5_flow_spec *spec;
 	const void *ib_flow = (const void *)flow_attr + sizeof(*flow_attr);
 	unsigned int spec_index;
+	struct mlx5_flow_act flow_act = {
+		.actions = MLX5_FLOW_ACT_ACTIONS_FLOW_TAG,
+		.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG,
+	};
 	u32 action;
 	int err = 0;
 
@@ -2205,13 +2210,12 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 	}
 
 	spec->match_criteria_enable = get_match_criteria_enable(spec->match_criteria);
-	action = dst ? MLX5_FLOW_CONTEXT_ACTION_FWD_DEST :
-		MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO;
+	action = dst ? MLX5_FLOW_RULE_FWD_ACTION_DEST : 0;
 	handler->rule = mlx5_add_flow_rule(ft, spec->match_criteria_enable,
 					   spec->match_criteria,
 					   spec->match_value,
 					   action,
-					   MLX5_FS_DEFAULT_FLOW_TAG,
+					   &flow_act,
 					   dst);
 
 	if (IS_ERR(handler->rule)) {

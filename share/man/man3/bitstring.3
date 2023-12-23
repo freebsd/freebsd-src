@@ -55,9 +55,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGES.
 .\"
-.\"     @(#)bitstring.3	8.1 (Berkeley) 7/19/93
-.\"
-.Dd August 8, 2021
+.Dd November 21, 2023
 .Dt BITSTRING 3
 .Os
 .Sh NAME
@@ -85,49 +83,49 @@
 .Sh SYNOPSIS
 .In bitstring.h
 .Ft bitstr_t *
-.Fn bit_alloc "int nbits"
+.Fn bit_alloc "size_t nbits"
 .Ft void
-.Fn bit_decl "bitstr_t *name" "int nbits"
+.Fn bit_decl "bitstr_t *name" "size_t nbits"
 .Ft void
-.Fn bit_clear "bitstr_t *name" "int bit"
+.Fn bit_clear "bitstr_t *name" "size_t bit"
 .Ft void
-.Fn bit_count "bitstr_t *name" "int count" "int nbits" "int *value"
+.Fn bit_count "bitstr_t *name" "size_t count" "size_t nbits" "ssize_t *value"
 .Ft void
-.Fn bit_ffc "bitstr_t *name" "int nbits" "int *value"
+.Fn bit_ffc "bitstr_t *name" "size_t nbits" "ssize_t *value"
 .Ft void
-.Fn bit_ffs "bitstr_t *name" "int nbits" "int *value"
+.Fn bit_ffs "bitstr_t *name" "size_t nbits" "ssize_t *value"
 .Ft void
-.Fn bit_ffc_at "bitstr_t *name" "int start" "int nbits" "int *value"
+.Fn bit_ffc_at "bitstr_t *name" "size_t start" "size_t nbits" "ssize_t *value"
 .Ft void
-.Fn bit_ffs_at "bitstr_t *name" "int start" "int nbits" "int *value"
+.Fn bit_ffs_at "bitstr_t *name" "size_t start" "size_t nbits" "ssize_t *value"
 .Ft void
-.Fn bit_ff_at "bitstr_t *name" "int start" "int nbits" "int match" "int *value"
+.Fn bit_ff_at "bitstr_t *name" "size_t start" "size_t nbits" "int match" "ssize_t *value"
 .Ft void
-.Fn bit_ffc_area "bitstr_t *name" "int nbits" "int size" "int *value"
+.Fn bit_ffc_area "bitstr_t *name" "size_t nbits" "size_t size" "ssize_t *value"
 .Ft void
-.Fn bit_ffs_area "bitstr_t *name" "int nbits" "int size" "int *value"
+.Fn bit_ffs_area "bitstr_t *name" "size_t nbits" "size_t size" "ssize_t *value"
 .Ft void
-.Fn bit_ffc_area_at "bitstr_t *name" "int start" "int nbits" "int size" "int *value"
+.Fn bit_ffc_area_at "bitstr_t *name" "size_t start" "size_t nbits" "size_t size" "ssize_t *value"
 .Ft void
-.Fn bit_ffs_area_at "bitstr_t *name" "int start" "int nbits" "int size" "int *value"
+.Fn bit_ffs_area_at "bitstr_t *name" "size_t start" "size_t nbits" "size_t size" "ssize_t *value"
 .Ft void
-.Fn bit_ff_area_at "bitstr_t *name" "int start" "int nbits" "int size" "int match" "int *value"
-.Fn bit_foreach "bitstr_t *name" "int nbits" "int var"
-.Fn bit_foreach_at "bitstr_t *name" "int start" "int nbits" "int var"
-.Fn bit_foreach_unset "bitstr_t *name" "int nbits" "int var"
-.Fn bit_foreach_unset_at "bitstr_t *name" "int start" "int nbits" "int var"
+.Fn bit_ff_area_at "bitstr_t *name" "size_t start" "size_t nbits" "size_t size" "int match" "ssize_t *value"
+.Fn bit_foreach "bitstr_t *name" "size_t nbits" "size_t var"
+.Fn bit_foreach_at "bitstr_t *name" "size_t start" "size_t nbits" "size_t var"
+.Fn bit_foreach_unset "bitstr_t *name" "size_t nbits" "size_t var"
+.Fn bit_foreach_unset_at "bitstr_t *name" "size_t start" "size_t nbits" "size_t var"
 .Ft void
-.Fn bit_nclear "bitstr_t *name" "int start" "int stop"
+.Fn bit_nclear "bitstr_t *name" "size_t start" "size_t stop"
 .Ft void
-.Fn bit_nset "bitstr_t *name" "int start" "int stop"
+.Fn bit_nset "bitstr_t *name" "size_t start" "size_t stop"
 .Ft int
-.Fn bit_ntest "bitstr_t *name" "int start" "int stop" "int match"
+.Fn bit_ntest "bitstr_t *name" "size_t start" "size_t stop" "int match"
 .Ft void
-.Fn bit_set "bitstr_t *name" "int bit"
+.Fn bit_set "bitstr_t *name" "size_t bit"
 .Ft int
-.Fn bitstr_size "int nbits"
+.Fn bitstr_size "size_t nbits"
 .Ft int
-.Fn bit_test "bitstr_t *name" "int bit"
+.Fn bit_test "bitstr_t *name" "size_t bit"
 .Sh DESCRIPTION
 These macros operate on strings of bits.
 .Pp

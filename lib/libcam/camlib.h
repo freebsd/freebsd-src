@@ -64,7 +64,6 @@
 #ifndef _CAMLIB_H
 #define _CAMLIB_H
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #include <cam/cam.h>

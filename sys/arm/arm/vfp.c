@@ -28,14 +28,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifdef VFP
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/limits.h>
-#include <sys/proc.h>
-#include <sys/imgact_elf.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
+#include <sys/malloc.h>
+#include <sys/proc.h>
 
 #include <machine/armreg.h>
 #include <machine/elf.h>
@@ -53,6 +51,9 @@ extern int vfp_exists;
 static struct undefined_handler vfp10_uh, vfp11_uh;
 /* If true the VFP unit has 32 double registers, otherwise it has 16 */
 static int is_d32;
+
+static MALLOC_DEFINE(M_FPUKERN_CTX, "fpukern_ctx",
+    "Kernel contexts for VFP state");
 
 struct fpu_kern_ctx {
 	struct vfp_state	*prev;
@@ -180,6 +181,8 @@ vfp_init(void)
 				elf_hwcap |= HWCAP_VFPv4;
 		}
 
+		vfp_disable();
+
 		/* initialize the coprocess 10 and 11 calls
 		 * These are called to restore the registers and enable
 		 * the VFP hardware.
@@ -195,8 +198,9 @@ vfp_init(void)
 
 SYSINIT(vfp, SI_SUB_CPU, SI_ORDER_ANY, vfp_init, NULL);
 
-/* start VFP unit, restore the vfp registers from the PCB  and retry
- * the instruction
+/*
+ * Start the VFP unit, restore the VFP registers from the PCB and retry
+ * the instruction.
  */
 static int
 vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
@@ -204,9 +208,6 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 	u_int cpu, fpexc;
 	struct pcb *curpcb;
 	ksiginfo_t ksi;
-
-	if ((code & FAULT_USER) == 0)
-		panic("undefined floating point instruction in supervisor mode");
 
 	critical_enter();
 
@@ -241,13 +242,19 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 		return 1;
 	}
 
+	curpcb = curthread->td_pcb;
+	if ((code & FAULT_USER) == 0 &&
+	    (curpcb->pcb_fpflags & PCB_FP_KERN) == 0) {
+		critical_exit();
+		return (1);
+	}
+
 	/*
 	 * If the last time this thread used the VFP it was on this core, and
 	 * the last thread to use the VFP on this core was this thread, then the
 	 * VFP state is valid, otherwise restore this thread's state to the VFP.
 	 */
 	fmxr(fpexc, fpexc | VFPEXC_EN);
-	curpcb = curthread->td_pcb;
 	cpu = PCPU_GET(cpuid);
 	if (curpcb->pcb_vfpcpu != cpu || curthread != PCPU_GET(fpcurthread)) {
 		vfp_restore(curpcb->pcb_vfpsaved);
@@ -257,7 +264,8 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 
 	critical_exit();
 
-	KASSERT(curpcb->pcb_vfpsaved == &curpcb->pcb_vfpstate,
+	KASSERT((code & FAULT_USER) == 0 ||
+	    curpcb->pcb_vfpsaved == &curpcb->pcb_vfpstate,
 	    ("Kernel VFP state in use when entering userspace"));
 
 	return (0);
@@ -409,6 +417,21 @@ vfp_save_state(struct thread *td, struct pcb *pcb)
 	critical_exit();
 }
 
+struct fpu_kern_ctx *
+fpu_kern_alloc_ctx(u_int flags)
+{
+	return (malloc(sizeof(struct fpu_kern_ctx), M_FPUKERN_CTX,
+	    ((flags & FPU_KERN_NOWAIT) ? M_NOWAIT : M_WAITOK) | M_ZERO));
+}
+
+void
+fpu_kern_free_ctx(struct fpu_kern_ctx *ctx)
+{
+	KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) == 0, ("freeing in-use ctx"));
+
+	free(ctx, M_FPUKERN_CTX);
+}
+
 void
 fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 {
@@ -524,5 +547,3 @@ is_fpu_kern_thread(u_int flags __unused)
 	curpcb = curthread->td_pcb;
 	return ((curpcb->pcb_fpflags & PCB_FP_KERN) != 0);
 }
-
-#endif

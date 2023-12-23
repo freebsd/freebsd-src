@@ -33,7 +33,6 @@
  * Chapter 14, Altera Cyclone V Device Handbook (CV-5V2 2014.07.22)
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>

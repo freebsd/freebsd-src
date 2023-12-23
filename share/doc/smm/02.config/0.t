@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)0.t	8.1 (Berkeley) 7/5/93
-.\"
 .bd S B 3
 .de UX
 .ie \\n(GA>0 \\$2UNIX\\$1

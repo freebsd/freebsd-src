@@ -10,7 +10,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/capsicum.h>
 #include <sys/ioctl.h>
 #include <sys/queue.h>

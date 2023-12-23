@@ -9,7 +9,7 @@
 .\"
 .\" This file is in the public domain.
 .\"
-.Dd June 4, 2003
+.Dd November 17, 2023
 .Dt UFS_DISK_CLOSE 3
 .Os
 .Sh NAME
@@ -51,6 +51,13 @@ functions open a disk specified by
 .Fa name
 and populate the structure pointed to by
 .Fa disk .
+The structure referenced by the
+.Fa disk
+pointer must be aligned to at least the alignment specified by
+.Dv LIBUFS_ALIGN
+that is defined in the
+.Lb libufs.h
+header file.
 The disk is opened read-only.
 The specified
 .Fa name

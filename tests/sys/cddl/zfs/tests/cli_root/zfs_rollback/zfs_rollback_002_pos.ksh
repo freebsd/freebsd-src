@@ -23,9 +23,6 @@
 #
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zfs_rollback_002_pos.ksh	1.4	08/05/14 SMI"
-#
 
 . $STF_SUITE/include/libtest.kshlib
 . $STF_SUITE/tests/cli_root/zfs_rollback/zfs_rollback_common.kshlib

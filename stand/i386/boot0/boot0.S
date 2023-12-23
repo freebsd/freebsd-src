@@ -16,18 +16,11 @@
  */
 
 /* build options: */
-#ifdef SIO		/* use serial console on COM1.	*/
-#endif
 
 #ifdef PXE		/* enable PXE/INT18 booting with F6 */
 #define SAVE_MORE_MEMORY
 #endif
 
-#ifdef CHECK_DRIVE	/* make sure we boot from a HD. */
-#endif
-
-#ifdef ONLY_F_KEYS	/* Only F1..F6, no digits on console */
-#endif
 
 #ifdef VOLUME_SERIAL	/* support Volume serial number */
 #define B0_BASE	0x1ae	/* move the internal data area */

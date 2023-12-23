@@ -32,7 +32,6 @@
 /* Originally derived from libsa/cd9660.c: */
 /*	$NetBSD: cd9660.c,v 1.5 1997/06/26 19:11:33 drochner Exp $	*/
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <fs/cd9660/iso.h>
 #include <fs/cd9660/cd9660_rrip.h>

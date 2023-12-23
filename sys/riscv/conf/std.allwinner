@@ -1,0 +1,7 @@
+#
+# Allwinner SoC support
+#
+
+device		aw_wdog		# Allwinner Watchdog
+
+files		"../allwinner/files.allwinner"

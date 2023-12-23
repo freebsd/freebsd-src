@@ -37,7 +37,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>

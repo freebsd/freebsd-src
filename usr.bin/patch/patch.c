@@ -717,6 +717,8 @@ locate_hunk(LINENUM fuzz)
 		    || diff_type == UNI_DIFF)) {
 			say("Empty context always matches.\n");
 		}
+		if (first_guess == 0)	/* empty file */
+			return 1;
 		return (first_guess);
 	}
 	if (max_neg_offset >= first_guess)	/* do not try lines < 0 */

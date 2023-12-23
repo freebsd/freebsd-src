@@ -9,7 +9,7 @@ PACKAGE=	lld
 PROG_CXX=	ld.lld
 # Man page directory
 .PATH:		${LLD_SRCS}/docs
-.if (!defined(TOOLS_PREFIX) && ${MK_LLD_IS_LD} != "no") || \
+.if !defined(TOOLS_PREFIX) || \
     (defined(TOOLS_PREFIX) && ${MK_LLD_BOOTSTRAP} != "no")
 SYMLINKS=	${PROG_CXX} ${BINDIR}/ld
 MLINKS=		ld.lld.1 ld.1
@@ -27,6 +27,7 @@ SRCDIR=		lld
 SRCS+=		Common/Args.cpp
 SRCS+=		Common/CommonLinkerContext.cpp
 SRCS+=		Common/DWARF.cpp
+SRCS+=		Common/DriverDispatcher.cpp
 SRCS+=		Common/ErrorHandler.cpp
 SRCS+=		Common/Filesystem.cpp
 SRCS+=		Common/Memory.cpp
@@ -41,6 +42,7 @@ SRCS+=		ELF/Arch/AMDGPU.cpp
 SRCS+=		ELF/Arch/ARM.cpp
 SRCS+=		ELF/Arch/AVR.cpp
 SRCS+=		ELF/Arch/Hexagon.cpp
+SRCS+=		ELF/Arch/LoongArch.cpp
 SRCS+=		ELF/Arch/MSP430.cpp
 SRCS+=		ELF/Arch/Mips.cpp
 SRCS+=		ELF/Arch/MipsArchTree.cpp
@@ -72,9 +74,8 @@ SRCS+=		ELF/SyntheticSections.cpp
 SRCS+=		ELF/Target.cpp
 SRCS+=		ELF/Thunks.cpp
 SRCS+=		ELF/Writer.cpp
+SRCS+=		lld-driver.cpp
 SRCS+=		tools/lld/lld.cpp
-
-CFLAGS.lld.cpp+=	-Dlld_main=main
 
 .include "${SRCTOP}/lib/clang/llvm.build.mk"
 

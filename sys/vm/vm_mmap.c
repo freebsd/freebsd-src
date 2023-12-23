@@ -34,8 +34,6 @@
  * SUCH DAMAGE.
  *
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
- *
- *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
  */
 
 /*
@@ -107,32 +105,6 @@ SYSCTL_INT(_vm, OID_AUTO, imply_prot_max, CTLFLAG_RWTUN, &imply_prot_max, 0,
     "Imply maximum page protections in mmap() when none are specified");
 
 _Static_assert(MAXPAGESIZES <= 4, "MINCORE_SUPER too narrow");
-
-#ifndef _SYS_SYSPROTO_H_
-struct sbrk_args {
-	int incr;
-};
-#endif
-
-int
-sys_sbrk(struct thread *td, struct sbrk_args *uap)
-{
-	/* Not yet implemented */
-	return (EOPNOTSUPP);
-}
-
-#ifndef _SYS_SYSPROTO_H_
-struct sstk_args {
-	int incr;
-};
-#endif
-
-int
-sys_sstk(struct thread *td, struct sstk_args *uap)
-{
-	/* Not yet implemented */
-	return (EOPNOTSUPP);
-}
 
 #if defined(COMPAT_43)
 int

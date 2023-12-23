@@ -34,10 +34,6 @@
  * Copyright (c) 1986-1991 by Sun Microsystems Inc.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-#ident	"@(#)svc_dg.c	1.17	94/04/24 SMI"
-#endif
-#include <sys/cdefs.h>
 /*
  * svc_dg.c, Server side for connectionless RPC.
  */
@@ -101,7 +97,6 @@ svc_dg_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 {
 	SVCXPRT *xprt;
 	struct __rpc_sockinfo si;
-	struct sockaddr* sa;
 	int error;
 
 	if (jailed(curthread->td_ucred))
@@ -128,14 +123,10 @@ svc_dg_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	xprt->xp_p2 = NULL;
 	xprt->xp_ops = &svc_dg_ops;
 
-	CURVNET_SET(so->so_vnet);
-	error = so->so_proto->pr_sockaddr(so, &sa);
-	CURVNET_RESTORE();
+	xprt->xp_ltaddr.ss_len = sizeof(xprt->xp_ltaddr);
+	error = sosockaddr(so, (struct sockaddr *)&xprt->xp_ltaddr);
 	if (error)
 		goto freedata;
-
-	memcpy(&xprt->xp_ltaddr, sa, sa->sa_len);
-	free(sa, M_SONAME);
 
 	xprt_register(xprt);
 

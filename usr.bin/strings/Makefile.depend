@@ -9,7 +9,6 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libelf \
 	lib/libelftc \
-	lib/libnv \
 
 
 .include <dirdeps.mk>

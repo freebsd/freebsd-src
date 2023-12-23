@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)siginterrupt.c	8.1 (Berkeley) 6/4/93");
 #include "namespace.h"
 #include <signal.h>
 #include "un-namespace.h"

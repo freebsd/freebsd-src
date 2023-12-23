@@ -44,7 +44,6 @@
  * assumption about the input.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #include <ctype.h>

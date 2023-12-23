@@ -141,6 +141,15 @@ ports-${__target}:
 .endfor
 .endif
 
+# Generate the .bin (booti images) kernel as an extra build output.
+# The targets and rules to generate these appear in Makefile.$MACHINE
+# if the platform supports it.
+.if ${MK_KERNEL_BIN} != "no"
+KERNEL_EXTRA+= ${KERNEL_KO}.bin
+KERNEL_EXTRA_INSTALL+= ${KERNEL_KO}.bin
+CLEAN+=	${KERNEL_KO}.bin
+.endif
+
 .ORDER: kernel-install modules-install
 
 beforebuild: .PHONY
@@ -417,22 +426,22 @@ kernel-install: .PHONY
 	fi
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}/
+	${INSTALL} -p -m ${KMODMODE} -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}/
 .if defined(DEBUG) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
 	mkdir -p ${DESTDIR}${KERN_DEBUGDIR}${KODIR}
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.debug ${DESTDIR}${KERN_DEBUGDIR}${KODIR}/
+	${INSTALL} -p -m ${KMODMODE} -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.debug ${DESTDIR}${KERN_DEBUGDIR}${KODIR}/
 .endif
 .if defined(KERNEL_EXTRA_INSTALL)
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_EXTRA_INSTALL} ${DESTDIR}${KODIR}/
+	${INSTALL} -p -m ${KMODMODE} -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_EXTRA_INSTALL} ${DESTDIR}${KODIR}/
 .endif
 
 
 
 kernel-reinstall:
 	@-chflags -R noschg ${DESTDIR}${KODIR}
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}/
+	${INSTALL} -p -m ${KMODMODE} -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}/
 .if defined(DEBUG) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.debug ${DESTDIR}${KERN_DEBUGDIR}${KODIR}/
+	${INSTALL} -p -m ${KMODMODE} -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.debug ${DESTDIR}${KERN_DEBUGDIR}${KODIR}/
 .endif
 
 config.o env.o hints.o vers.o vnode_if.o:
@@ -464,15 +473,6 @@ embedfs_${MFS_IMAGE:T:R}.o: ${MFS_IMAGE} $S/dev/md/embedfs.S
 	${CC} ${CFLAGS} ${ACFLAGS} -DMFS_IMAGE=\""${MFS_IMAGE}"\" -c \
 	    $S/dev/md/embedfs.S -o ${.TARGET}
 .endif
-.endif
-
-# Generate the .bin (booti images) kernel as an extra build output.
-# The targets and rules to generate these appear in Makefile.$MACHINE
-# if the platform supports it.
-.if ${MK_KERNEL_BIN} != "no"
-KERNEL_EXTRA+= ${KERNEL_KO}.bin
-KERNEL_EXTRA_INSTALL+= ${KERNEL_KO}.bin
-CLEAN+=	${KERNEL_KO}.bin
 .endif
 
 .include "kern.mk"

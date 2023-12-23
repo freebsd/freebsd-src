@@ -22,7 +22,7 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.Dd September 15, 2023
+.Dd December 11, 2023
 .Dt CAM 4
 .Os
 .Sh NAME
@@ -190,25 +190,25 @@ Individual
 bus numbers can be wired down to specific controllers with
 a config line similar to the following:
 .Bd -literal -offset indent
-hint.scbus.0.at="ahd1"
+hint.scbus.0.at="mpr1"
 .Ed
 .Pp
 This assigns
 .Nm
 bus number 0 to the
-.Em ahd1
+.Em mpr1
 driver instance.
 For controllers supporting more than one bus, a particular bus can be assigned
 as follows:
 .Bd -literal -offset indent
-hint.scbus.0.at="ahc1"
+hint.scbus.0.at="ahci1"
 hint.scbus.0.bus="1"
 .Ed
 .Pp
 This assigns
 .Nm
 bus 0 to the bus 1 instance on
-.Em ahc1 .
+.Em ahci1 .
 Peripheral drivers can be wired to a specific bus, target, and lun as so:
 .Bd -literal -offset indent
 hint.da.0.at="scbus0"
@@ -279,7 +279,7 @@ or
 bus and the system.
 The maximum size of a transfer is governed by the
 adapter.
-Most adapters can transfer 64KB in a single operation, however
+Most adapters can transfer 1MB in a single operation, however
 many can transfer larger amounts.
 .Sh TARGET MODE
 Some adapters support
@@ -367,7 +367,7 @@ SIM used to stand for SCSI Interface Module.
 Now it is just SIM because it understands protocols other than SCSI.
 There are two types of SIM drivers: virtual and physical.
 Physical SIMs are typically called host bus adapters (HBA), but not universally.
-Virtual SIM drivers are for communicating with virtual machine hosts.
+Virtual SIM drivers are for communicating with network or virtual machine hosts.
 .Sh FILES
 see other
 .Nm

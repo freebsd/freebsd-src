@@ -52,8 +52,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)stand.h	8.1 (Berkeley) 6/11/93
  */
 
 #ifndef	STAND_H
@@ -497,6 +495,21 @@ extern void *reallocf(void *, size_t);
  * va <-> pa routines. MD code must supply.
  */
 caddr_t ptov(uintptr_t);
+
+/* features.c */
+typedef void (feature_iter_fn)(void *, const char *, const char *, bool);
+
+extern void feature_enable(uint32_t);
+extern bool feature_name_is_enabled(const char *);
+extern void feature_iter(feature_iter_fn *, void *);
+
+/*
+ * Note that these should also be added to the mapping table in features.c,
+ * which the interpreter may query to provide details from.  The name with
+ * FEATURE_ removed is assumed to be the name we'll provide in the loader
+ * features table, just to simplify reasoning about these.
+ */
+#define	FEATURE_EARLY_ACPI	0x0001
 
 /* hexdump.c */
 void	hexdump(caddr_t region, size_t len);

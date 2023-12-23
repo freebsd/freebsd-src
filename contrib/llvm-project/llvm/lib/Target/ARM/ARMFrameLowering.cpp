@@ -324,8 +324,8 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
           BuildMI(MF, DL, TII.get(ARM::tMOVi8)).setMIFlags(MBBI->getFlags());
       NewInstr.add(MBBI->getOperand(0));
       NewInstr.add(t1CondCodeOp(/*isDead=*/true));
-      for (unsigned i = 1, NumOps = MBBI->getNumOperands(); i != NumOps; ++i)
-        NewInstr.add(MBBI->getOperand(i));
+      for (MachineOperand &MO : llvm::drop_begin(MBBI->operands()))
+        NewInstr.add(MO);
       MachineBasicBlock::iterator NewMBBI = MBB->insertAfter(MBBI, NewInstr);
       MBB->erase(MBBI);
       MBBI = NewMBBI;
@@ -437,8 +437,7 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
   case ARM::VSTMDDB_UPD:
   case ARM::VLDMDIA_UPD: {
     int First = -1, Last = 0;
-    for (unsigned i = 4, NumOps = MBBI->getNumOperands(); i != NumOps; ++i) {
-      const MachineOperand &MO = MBBI->getOperand(i);
+    for (const MachineOperand &MO : llvm::drop_begin(MBBI->operands(), 4)) {
       unsigned Reg = RegInfo->getSEHRegNum(MO.getReg());
       if (First == -1)
         First = Reg;
@@ -3169,12 +3168,12 @@ void ARMFrameLowering::adjustForSegmentedStacks(
       .addReg(ScratchReg1)
       .add(predOps(ARMCC::AL));
 
-  // This jump is taken if StackLimit < SP - stack required.
+  // This jump is taken if StackLimit <= SP - stack required.
   Opcode = Thumb ? ARM::tBcc : ARM::Bcc;
-  BuildMI(GetMBB, DL, TII.get(Opcode)).addMBB(PostStackMBB)
-       .addImm(ARMCC::LO)
-       .addReg(ARM::CPSR);
-
+  BuildMI(GetMBB, DL, TII.get(Opcode))
+      .addMBB(PostStackMBB)
+      .addImm(ARMCC::LS)
+      .addReg(ARM::CPSR);
 
   // Calling __morestack(StackSize, Size of stack arguments).
   // __morestack knows that the stack size requested is in SR0(r4)

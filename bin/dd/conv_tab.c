@@ -33,12 +33,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)conv_tab.c	8.1 (Berkeley) 5/31/93";
-#endif
-#endif /* not lint */
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #include <signal.h>

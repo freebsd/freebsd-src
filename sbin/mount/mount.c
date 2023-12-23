@@ -29,16 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1980, 1989, 1993, 1994\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#if 0
-static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
-#endif
-#endif /* not lint */
-
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #define _WANT_MNTOPTNAMES
 #include <sys/mount.h>

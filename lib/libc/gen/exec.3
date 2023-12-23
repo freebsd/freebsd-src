@@ -25,9 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)exec.3	8.3 (Berkeley) 1/24/94
-.\"
-.Dd March 22, 2020
+.Dd December 11, 2023
 .Dt EXEC 3
 .Os
 .Sh NAME
@@ -37,6 +35,7 @@
 .Nm exect ,
 .Nm execv ,
 .Nm execvp ,
+.Nm execvpe ,
 .Nm execvP
 .Nd execute a file
 .Sh LIBRARY
@@ -57,6 +56,8 @@
 .Fn execv "const char *path" "char *const argv[]"
 .Ft int
 .Fn execvp "const char *file" "char *const argv[]"
+.Ft int
+.Fn execvpe "const char *file" "char *const argv[]" "char *const envp[]"
 .Ft int
 .Fn execvP "const char *file" "const char *search_path" "char *const argv[]"
 .Sh DESCRIPTION
@@ -99,6 +100,7 @@ The
 .Fn exect ,
 .Fn execv ,
 .Fn execvp ,
+.Fn execvpe ,
 and
 .Fn execvP
 functions provide an array of pointers to null-terminated strings that
@@ -112,9 +114,10 @@ be terminated by a
 pointer.
 .Pp
 The
-.Fn execle
+.Fn execle ,
+.Fn exect ,
 and
-.Fn exect
+.Fn execvpe
 functions also specify the environment of the executed process by following
 the
 .Dv NULL
@@ -136,6 +139,7 @@ Some of these functions have special semantics.
 The functions
 .Fn execlp ,
 .Fn execvp ,
+.Fn execvpe ,
 and
 .Fn execvP
 will duplicate the actions of the shell in searching for an executable file
@@ -146,6 +150,7 @@ For
 .Fn execlp
 and
 .Fn execvp ,
+.Fn execvpe ,
 search path is the path specified in the environment by
 .Dq Ev PATH
 variable.
@@ -271,7 +276,8 @@ The
 .Fn execl ,
 .Fn execle ,
 .Fn execlp ,
-.Fn execvp
+.Fn execvp ,
+.Fn execvpe ,
 and
 .Fn execvP
 functions
@@ -309,6 +315,9 @@ and
 functions
 conform to
 .St -p1003.1-88 .
+The
+.Fn execvpe
+function is a GNU extension.
 .Sh HISTORY
 The
 .Fn exec
@@ -332,6 +341,10 @@ The
 .Fn execvP
 function first appeared in
 .Fx 5.2 .
+The
+.Fn execvpe
+function first appeared in
+.Fx 15.0 .
 .Sh BUGS
 The type of the
 .Fa argv
@@ -342,6 +355,7 @@ parameters to
 .Fn exect ,
 .Fn execv ,
 .Fn execvp ,
+.Fn execvpe ,
 and
 .Fn execvP
 is a historical accident and no sane implementation should modify the provided

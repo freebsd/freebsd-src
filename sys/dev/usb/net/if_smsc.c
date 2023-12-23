@@ -179,6 +179,8 @@ static const struct usb_device_id smsc_devs[] = {
 #define ETHER_IS_VALID(addr) \
 	(!ETHER_IS_MULTICAST(addr) && !ETHER_IS_ZERO(addr))
 
+#define BOOTARGS_SMSC95XX	"smsc95xx.macaddr"
+
 static device_probe_t smsc_probe;
 static device_attach_t smsc_attach;
 static device_detach_t smsc_detach;
@@ -1538,6 +1540,76 @@ smsc_ioctl(if_t ifp, u_long cmd, caddr_t data)
 	return (rc);
 }
 
+#ifdef FDT
+static bool
+smsc_get_smsc95xx_macaddr(char* bootargs, size_t len, struct usb_ether *ue)
+{
+	int values[6];
+	int i;
+	char* p;
+
+	p = strnstr(bootargs, BOOTARGS_SMSC95XX, len);
+	if (p == NULL)
+		return (false);
+
+	if (sscanf(p, BOOTARGS_SMSC95XX "=%x:%x:%x:%x:%x:%x%*c",
+			&values[0], &values[1], &values[2],
+			&values[3], &values[4], &values[5]) != 6) {
+		smsc_warn_printf((struct smsc_softc *)ue->ue_sc,
+				"invalid mac from bootargs '%s'.\n", p);
+		return (false);
+	}
+
+	for (i = 0; i < ETHER_ADDR_LEN; ++i)
+		ue->ue_eaddr[i] = values[i];
+
+	smsc_dbg_printf((struct smsc_softc *)ue->ue_sc,
+			"bootargs mac=%6D.\n", ue->ue_eaddr, ":");
+	return (true);
+}
+
+/**
+ * Raspberry Pi is known to pass smsc95xx.macaddr=XX:XX:XX:XX:XX:XX via
+ * bootargs.
+ */
+static bool
+smsc_bootargs_get_mac_addr(device_t dev, struct usb_ether *ue)
+{
+	char *bootargs;
+	ssize_t len;
+	phandle_t node;
+
+	/* only use bootargs for the first device
+	 * to prevent duplicate mac addresses */
+	if (device_get_unit(dev) != 0)
+		return (false);
+	node = OF_finddevice("/chosen");
+	if (node == -1)
+		return (false);
+	if (OF_hasprop(node, "bootargs") == 0) {
+		smsc_dbg_printf((struct smsc_softc *)ue->ue_sc,
+				"bootargs not found");
+		return (false);
+	}
+	len = OF_getprop_alloc(node, "bootargs", (void **)&bootargs);
+	if (len == -1 || bootargs == NULL) {
+		smsc_warn_printf((struct smsc_softc *)ue->ue_sc,
+				"failed alloc for bootargs (%zd)", len);
+		return (false);
+	}
+	smsc_dbg_printf((struct smsc_softc *)ue->ue_sc, "bootargs: %s.\n",
+			bootargs);
+	if (!smsc_get_smsc95xx_macaddr(bootargs, len, ue)) {
+		OF_prop_free(bootargs);
+		return (false);
+	}
+	OF_prop_free(bootargs);
+	device_printf(dev, "MAC address found in bootargs %6D.\n",
+			ue->ue_eaddr, ":");
+	return (true);
+}
+#endif
+
 /**
  *	smsc_attach_post - Called after the driver attached to the USB interface
  *	@ue: the USB ethernet device
@@ -1552,8 +1624,10 @@ static void
 smsc_attach_post(struct usb_ether *ue)
 {
 	struct smsc_softc *sc = uether_getsc(ue);
+	struct ether_addr eaddr;
 	uint32_t mac_h, mac_l;
 	int err;
+	int i;
 
 	smsc_dbg_printf(sc, "smsc_attach_post\n");
 
@@ -1585,11 +1659,17 @@ smsc_attach_post(struct usb_ether *ue)
 #ifdef FDT
 		if ((err != 0) || (!ETHER_IS_VALID(sc->sc_ue.ue_eaddr)))
 			err = usb_fdt_get_mac_addr(sc->sc_ue.ue_dev, &sc->sc_ue);
+		if ((err != 0) || (!ETHER_IS_VALID(sc->sc_ue.ue_eaddr)))
+			err = smsc_bootargs_get_mac_addr(sc->sc_ue.ue_dev,
+					&sc->sc_ue) ? (0) : (1);
 #endif
 		if ((err != 0) || (!ETHER_IS_VALID(sc->sc_ue.ue_eaddr))) {
-			read_random(sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN);
-			sc->sc_ue.ue_eaddr[0] &= ~0x01;     /* unicast */
-			sc->sc_ue.ue_eaddr[0] |=  0x02;     /* locally administered */
+			smsc_dbg_printf(sc, "No MAC address found."
+					" Using ether_gen_addr().\n");
+			ether_gen_addr_byname(device_get_nameunit(ue->ue_dev),
+					&eaddr);
+			for (i = 0; i < ETHER_ADDR_LEN; i++)
+				sc->sc_ue.ue_eaddr[i] = eaddr.octet[i];
 		}
 	}
 

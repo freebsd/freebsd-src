@@ -75,6 +75,7 @@ int dynlibmod_init(struct module_env* env, int id) {
     struct config_strlist* cfg_item = env->cfg->dynlib_file;
     struct dynlibmod_env* de = (struct dynlibmod_env*)calloc(1, sizeof(struct dynlibmod_env));
     __DYNMOD dynamic_library;
+    int i;
     if (!de)
     {
         log_err("dynlibmod[%d]: malloc failure", dynlib_mod_idx);
@@ -84,7 +85,7 @@ int dynlibmod_init(struct module_env* env, int id) {
     env->modinfo[id] = (void*) de;
 
     de->fname = NULL;
-    for(int i = dynlib_mod_idx;
+    for(i = dynlib_mod_idx;
         i != 0 && cfg_item != NULL;
         i--, cfg_item = cfg_item->next) {}
 

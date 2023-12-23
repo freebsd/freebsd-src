@@ -33,14 +33,6 @@
  * Copyright (c) 1984 - 1991 by Sun Microsystems, Inc.
  */
 
-/* #ident	"@(#)pmap_svc.c	1.14	93/07/05 SMI" */
-
-#if 0
-#ifndef lint
-static	char sccsid[] = "@(#)pmap_svc.c 1.23 89/04/05 Copyr 1984 Sun Micro";
-#endif
-#endif
-
 /*
  * pmap_svc.c
  * The server procedure for the version 2 portmaper.

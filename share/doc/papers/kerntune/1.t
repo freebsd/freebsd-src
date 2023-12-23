@@ -26,8 +26,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)1.t	1.2 (Berkeley) 11/8/90
-.\"
 .ds RH Introduction
 .NH 1
 Introduction

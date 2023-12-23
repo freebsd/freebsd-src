@@ -29,7 +29,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <stdbool.h>

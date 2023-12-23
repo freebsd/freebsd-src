@@ -21,9 +21,6 @@
 #
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)xattr_013_pos.ksh	1.1	07/02/06 SMI"
-#
 
 . $STF_SUITE/include/libtest.kshlib
 . $STF_SUITE/tests/xattr/xattr_common.kshlib

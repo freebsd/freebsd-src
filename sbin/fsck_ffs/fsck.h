@@ -57,8 +57,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)fsck.h	8.4 (Berkeley) 5/9/95
  */
 
 #ifndef _FSCK_H_
@@ -67,6 +65,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <libufs.h>
 
 #include <sys/queue.h>
 
@@ -420,6 +419,20 @@ Malloc(size_t size)
 	void *retval;
 
 	while ((retval = malloc(size)) == NULL)
+		if (flushentry() == 0)
+			break;
+	return (retval);
+}
+/*
+ * Allocate a block of memory to be used as an I/O buffer.
+ * Ensure that the buffer is aligned to the I/O subsystem requirements.
+ */
+static inline void*
+Balloc(size_t size)
+{
+	void *retval;
+
+	while ((retval = aligned_alloc(LIBUFS_BUFALIGN, size)) == NULL)
 		if (flushentry() == 0)
 			break;
 	return (retval);

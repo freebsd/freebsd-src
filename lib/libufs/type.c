@@ -27,7 +27,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/disklabel.h>
@@ -61,10 +60,6 @@ ufs_disk_close(struct uufsd *disk)
 	ERROR(disk, NULL);
 	close(disk->d_fd);
 	disk->d_fd = -1;
-	if (disk->d_inoblock != NULL) {
-		free(disk->d_inoblock);
-		disk->d_inoblock = NULL;
-	}
 	if (disk->d_mine & MINE_NAME) {
 		free((char *)(uintptr_t)disk->d_name);
 		disk->d_name = NULL;
@@ -155,10 +150,16 @@ again:	if ((ret = stat(name, &st)) < 0) {
 		return (-1);
 	}
 
+	if (((uintptr_t)disk & ~(LIBUFS_BUFALIGN - 1)) != (uintptr_t)disk) {
+		ERROR(disk, "uufsd structure must be aligned to "
+		    "LIBUFS_BUFALIGN byte boundry, see ufs_disk_fillout(3)");
+		close(fd);
+		return (-1);
+	}
+
 	disk->d_bsize = 1;
 	disk->d_ccg = 0;
 	disk->d_fd = fd;
-	disk->d_inoblock = NULL;
 	disk->d_inomin = 0;
 	disk->d_inomax = 0;
 	disk->d_lcg = 0;

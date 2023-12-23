@@ -27,11 +27,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)ffs_subr.c	8.5 (Berkeley) 3/21/95
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/limits.h>

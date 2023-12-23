@@ -30,8 +30,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
  */
 
 /*
@@ -650,7 +648,7 @@ void *
 		size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
 	indx = kmemsize[size >> KMEM_ZSHIFT];
 	zone = kmemzones[indx].kz_zone[mtp_get_subzone(mtp)];
-	va = uma_zalloc(zone, flags);
+	va = uma_zalloc_arg(zone, zone, flags);
 	if (va != NULL) {
 		size = zone->uz_size;
 		if ((flags & M_ZERO) == 0) {
@@ -690,7 +688,7 @@ malloc_domain(size_t *sizep, int *indxp, struct malloc_type *mtp, int domain,
 		size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
 	indx = kmemsize[size >> KMEM_ZSHIFT];
 	zone = kmemzones[indx].kz_zone[mtp_get_subzone(mtp)];
-	va = uma_zalloc_domain(zone, NULL, domain, flags);
+	va = uma_zalloc_domain(zone, zone, domain, flags);
 	if (va != NULL)
 		*sizep = zone->uz_size;
 	*indxp = indx;

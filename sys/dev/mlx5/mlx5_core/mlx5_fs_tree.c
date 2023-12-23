@@ -229,14 +229,19 @@ static void __fs_remove_node(struct kref *kref)
 {
 	struct fs_base *node = container_of(kref, struct fs_base, refcount);
 
-	if (node->parent)
+	if (node->parent) {
+		if (node->type == FS_TYPE_FLOW_DEST)
+			mutex_lock(&node->parent->parent->lock);
 		mutex_lock(&node->parent->lock);
+	}
 	mutex_lock(&node->lock);
 	cmd_remove_node(node);
 	mutex_unlock(&node->lock);
 	complete(&node->complete);
 	if (node->parent) {
 		mutex_unlock(&node->parent->lock);
+		if (node->type == FS_TYPE_FLOW_DEST)
+			mutex_unlock(&node->parent->parent->lock);
 		_fs_put(node->parent, _fs_remove_node, false);
 	}
 }
@@ -302,8 +307,8 @@ static void fs_remove_node_parent_locked(struct fs_base *node)
 	kfree(node);
 }
 
-static struct fs_fte *fs_alloc_fte(u8 action,
-				   u32 flow_tag,
+static struct fs_fte *fs_alloc_fte(u32 sw_action,
+				   struct mlx5_flow_act *flow_act,
 				   u32 *match_value,
 				   unsigned int index)
 {
@@ -317,10 +322,10 @@ static struct fs_fte *fs_alloc_fte(u8 action,
 	memcpy(fte->val, match_value, sizeof(fte->val));
 	fte->base.type =  FS_TYPE_FLOW_ENTRY;
 	fte->dests_size = 0;
-	fte->flow_tag = flow_tag;
 	fte->index = index;
 	INIT_LIST_HEAD(&fte->dests);
-	fte->action = action;
+	fte->flow_act = *flow_act;
+	fte->sw_action = sw_action;
 
 	return fte;
 }
@@ -333,12 +338,16 @@ static struct fs_fte *alloc_star_ft_entry(struct mlx5_flow_table *ft,
 	int err;
 	struct fs_fte *fte;
 	struct mlx5_flow_rule *dst;
+	struct mlx5_flow_act flow_act = {
+		.actions = MLX5_FLOW_ACT_ACTIONS_FLOW_TAG,
+		.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG,
+	};
 
 	if (fg->num_ftes == fg->max_ftes)
 		return ERR_PTR(-ENOSPC);
 
-	fte = fs_alloc_fte(MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
-			   MLX5_FS_DEFAULT_FLOW_TAG, match_value, index);
+	fte = fs_alloc_fte(MLX5_FLOW_RULE_FWD_ACTION_DEST,
+			   &flow_act, match_value, index);
 	if (IS_ERR(fte))
 		return fte;
 
@@ -442,8 +451,8 @@ static int fs_set_star_rule(struct mlx5_core_dev *dev,
 					  match_value, src_ft->type,
 					  src_ft->id, src_fte->index,
 					  src_ft->star_rule.fg->id,
-					  src_fte->flow_tag,
-					  src_fte->action,
+					  &src_fte->flow_act,
+					  src_fte->sw_action,
 					  src_fte->dests_size,
 					  &src_fte->dests);
 		if (err)
@@ -812,8 +821,14 @@ static struct mlx5_flow_table *_create_ft_common(struct mlx5_flow_namespace *ns,
 	/*User isn't aware to those rules*/
 	ft->max_fte = ft_size - 2;
 	log_table_sz = ilog2(ft_size);
+
+	if (name == NULL || name[0] == '\0') {
+		snprintf(gen_name, sizeof(gen_name), "flow_table_%u", ft->id);
+		name = gen_name;
+	}
+
 	err = mlx5_cmd_fs_create_ft(root->dev, ft->vport, ft->type,
-				    ft->level, log_table_sz, &ft->id);
+				    ft->level, log_table_sz, name, &ft->id);
 	if (err)
 		goto free_ft;
 
@@ -828,12 +843,8 @@ static struct mlx5_flow_table *_create_ft_common(struct mlx5_flow_namespace *ns,
 			goto destroy_star_rule;
 	}
 
-	if (!name || !strlen(name)) {
-		snprintf(gen_name, 20, "flow_table_%u", ft->id);
-		_fs_add_node(&ft->base, gen_name, &fs_prio->base);
-	} else {
-		_fs_add_node(&ft->base, name, &fs_prio->base);
-	}
+	_fs_add_node(&ft->base, name, &fs_prio->base);
+
 	list_add_tail(&ft->base.list, &fs_prio->objs);
 	fs_prio->num_ft++;
 
@@ -886,11 +897,17 @@ struct mlx5_flow_table *mlx5_create_auto_grouped_flow_table(struct mlx5_flow_nam
 							   int prio,
 							   const char *name,
 							   int num_flow_table_entries,
-							   int max_num_groups)
+							   int max_num_groups,
+							   int num_reserved_entries)
 {
 	struct mlx5_flow_table *ft = NULL;
 	struct fs_prio *fs_prio;
 	bool is_shared_prio;
+
+	if (max_num_groups > (num_flow_table_entries - num_reserved_entries))
+		return ERR_PTR(-EINVAL);
+	if (num_reserved_entries > num_flow_table_entries)
+		return ERR_PTR(-EINVAL);
 
 	fs_prio = find_prio(ns, prio);
 	if (!fs_prio)
@@ -912,6 +929,10 @@ struct mlx5_flow_table *mlx5_create_auto_grouped_flow_table(struct mlx5_flow_nam
 
 	ft->autogroup.active = true;
 	ft->autogroup.max_types = max_num_groups;
+	ft->autogroup.max_fte = num_flow_table_entries - num_reserved_entries;
+	/* We save place for flow groups in addition to max types */
+	ft->autogroup.group_size = ft->autogroup.max_fte / (max_num_groups + 1);
+
 	if (is_shared_prio)
 		ft->shared_refcount = 1;
 
@@ -1060,6 +1081,7 @@ static struct mlx5_flow_group *fs_create_fg(struct mlx5_core_dev *dev,
 					    int refcount)
 {
 	struct mlx5_flow_group *fg;
+	unsigned int group_size;
 	int err;
 	char name[20];
 
@@ -1067,6 +1089,8 @@ static struct mlx5_flow_group *fs_create_fg(struct mlx5_core_dev *dev,
 	if (IS_ERR(fg))
 		return fg;
 
+	group_size = MLX5_GET(create_flow_group_in, fg_in, end_flow_index) -
+		MLX5_GET(create_flow_group_in, fg_in, start_flow_index) + 1;
 	err =  mlx5_cmd_fs_create_fg(dev, fg_in,
 				     ft->vport, ft->type, ft->id,
 				     &fg->id);
@@ -1074,7 +1098,8 @@ static struct mlx5_flow_group *fs_create_fg(struct mlx5_core_dev *dev,
 		goto free_fg;
 
 	mutex_lock(&ft->base.lock);
-	if (ft->autogroup.active)
+
+	if (ft->autogroup.active && group_size == ft->autogroup.group_size)
 		ft->autogroup.num_types++;
 
 	snprintf(name, sizeof(name), "group_%u", fg->id);
@@ -1096,11 +1121,13 @@ struct mlx5_flow_group *mlx5_create_flow_group(struct mlx5_flow_table *ft,
 {
 	struct mlx5_flow_group *fg;
 	struct mlx5_core_dev *dev = fs_get_dev(&ft->base);
+	unsigned int start_index;
 
+	start_index = MLX5_GET(create_flow_group_in, in, start_flow_index);
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 
-	if (ft->autogroup.active)
+	if (ft->autogroup.active && start_index < ft->autogroup.max_fte)
 		return ERR_PTR(-EPERM);
 
 	fg = fs_create_fg(dev, ft, ft->fgs.prev, in, 1);
@@ -1119,7 +1146,9 @@ static void fs_del_fg(struct mlx5_flow_group *fg)
 	dev = fs_get_dev(&parent_ft->base);
 	WARN_ON(!dev);
 
-	if (parent_ft->autogroup.active)
+	if (parent_ft->autogroup.active &&
+	    fg->max_ftes == parent_ft->autogroup.group_size &&
+	    fg->start_index < parent_ft->autogroup.max_fte)
 		parent_ft->autogroup.num_types--;
 
 	if (mlx5_cmd_fs_destroy_fg(dev, parent_ft->vport,
@@ -1410,6 +1439,7 @@ static struct mlx5_flow_group *create_autogroup(struct mlx5_flow_table *ft,
 	u32 *in;
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	void *match_criteria_addr;
+	u32 max_fte = ft->autogroup.max_fte;
 
 	if (!ft->autogroup.active)
 		return ERR_PTR(-ENOENT);
@@ -1426,7 +1456,7 @@ static struct mlx5_flow_group *create_autogroup(struct mlx5_flow_table *ft,
 
 
 	if (ft->autogroup.num_types < ft->autogroup.max_types)
-		group_size = ft->max_fte / (ft->autogroup.max_types + 1);
+		group_size = ft->autogroup.group_size;
 	else
 		group_size = 1;
 
@@ -1446,7 +1476,7 @@ static struct mlx5_flow_group *create_autogroup(struct mlx5_flow_table *ft,
 		prev = &g->base.list;
 	}
 
-	if (candidate_index + group_size > ft->max_fte) {
+	if (candidate_index + group_size > max_fte) {
 		ret = ERR_PTR(-ENOSPC);
 		goto out;
 	}
@@ -1583,8 +1613,8 @@ static struct mlx5_flow_rule *_fs_add_dst_fte(struct fs_fte *fte,
 				  ft->vport,
 				  &fte->status,
 				  fte->val, ft->type,
-				  ft->id, fte->index, fg->id, fte->flow_tag,
-				  fte->action, fte->dests_size, &fte->dests);
+				  ft->id, fte->index, fg->id, &fte->flow_act,
+				  fte->sw_action, fte->dests_size, &fte->dests);
 	if (err)
 		goto free_dst;
 
@@ -1646,15 +1676,15 @@ static unsigned int fs_get_free_fg_index(struct mlx5_flow_group *fg,
 
 static struct fs_fte *fs_create_fte(struct mlx5_flow_group *fg,
 			     u32 *match_value,
-			     u8 action,
-			     u32 flow_tag,
+			     u32 sw_action,
+			     struct mlx5_flow_act *flow_act,
 			     struct list_head **prev)
 {
 	struct fs_fte *fte;
 	int index = 0;
 
 	index = fs_get_free_fg_index(fg, prev);
-	fte = fs_alloc_fte(action, flow_tag, match_value, index);
+	fte = fs_alloc_fte(sw_action, flow_act, match_value, index);
 	if (IS_ERR(fte))
 		return fte;
 
@@ -1694,7 +1724,7 @@ static void fs_del_dst(struct mlx5_flow_rule *dst)
 
 	fs_get_parent(fte, dst);
 	fs_get_parent(fg, fte);
-	mutex_lock(&fg->base.lock);
+	sx_assert(&fg->base.lock.sx, SX_XLOCKED);
 	memcpy(match_value, fte->val, sizeof(fte->val));
 	/* ft can't be changed as fg is locked */
 	fs_get_parent(ft, fg);
@@ -1704,7 +1734,7 @@ static void fs_del_dst(struct mlx5_flow_rule *dst)
 		err = mlx5_cmd_fs_set_fte(dev, ft->vport,
 					  &fte->status, match_value, ft->type,
 					  ft->id, fte->index, fg->id,
-					  fte->flow_tag, fte->action,
+					  &fte->flow_act, fte->sw_action,
 					  fte->dests_size, &fte->dests);
 		if (err) {
 			mlx5_core_warn(dev, "%s can't delete dst %s\n",
@@ -1714,7 +1744,6 @@ static void fs_del_dst(struct mlx5_flow_rule *dst)
 	}
 	call_to_del_rule_notifiers(dst, fte);
 err:
-	mutex_unlock(&fg->base.lock);
 	kvfree(match_value);
 }
 
@@ -1740,12 +1769,41 @@ static void fs_del_fte(struct fs_fte *fte)
 	fg->num_ftes--;
 }
 
+static bool check_conflicting_actions(const struct mlx5_flow_act *act1,
+				      const struct mlx5_flow_act *act2)
+{
+        u32 action1 = act1->actions;
+        u32 action2 = act2->actions;
+	u32 xored_actions;
+
+	xored_actions = action1 ^ action2;
+
+	if (xored_actions & (MLX5_FLOW_ACT_ACTIONS_FLOW_TAG))
+		return true;
+
+	if (action1 & MLX5_FLOW_ACT_ACTIONS_FLOW_TAG &&
+	    act1->flow_tag != act2->flow_tag)
+		return true;
+
+	/* Can even have complex actions in merged rules */
+	if (action1 & MLX5_FLOW_ACT_ACTIONS_MODIFY_HDR)
+		return true;
+
+	if (action1 & MLX5_FLOW_ACT_ACTIONS_PACKET_REFORMAT)
+		return true;
+
+	if (action1 & MLX5_FLOW_ACT_ACTIONS_COUNT)
+		return true;
+
+	return false;
+}
+
 /* assuming parent fg is locked */
 /* Add dst algorithm */
 static struct mlx5_flow_rule *fs_add_dst_fg(struct mlx5_flow_group *fg,
 						   u32 *match_value,
-						   u8 action,
-						   u32 flow_tag,
+						   u32 sw_action,
+						   struct mlx5_flow_act *flow_act,
 						   struct mlx5_flow_destination *dest)
 {
 	struct fs_fte *fte;
@@ -1755,11 +1813,15 @@ static struct mlx5_flow_rule *fs_add_dst_fg(struct mlx5_flow_group *fg,
 	char fte_name[20];
 
 	mutex_lock(&fg->base.lock);
+	if (flow_act->flags & MLX5_FLOW_ACT_NO_APPEND)
+		goto insert_fte;
+
 	fs_for_each_fte(fte, fg) {
 		/* TODO: Check of size against PRM max size */
 		mutex_lock(&fte->base.lock);
 		if (fs_match_exact_val(&fg->mask, match_value, &fte->val) &&
-		    action == fte->action && flow_tag == fte->flow_tag) {
+		    sw_action == fte->sw_action &&
+		    !check_conflicting_actions(flow_act, &fte->flow_act)) {
 			dst = _fs_add_dst_fte(fte, fg, dest);
 			mutex_unlock(&fte->base.lock);
 			if (IS_ERR(dst))
@@ -1769,13 +1831,14 @@ static struct mlx5_flow_rule *fs_add_dst_fg(struct mlx5_flow_group *fg,
 		mutex_unlock(&fte->base.lock);
 	}
 
+insert_fte:
 	fs_get_parent(ft, fg);
 	if (fg->num_ftes == fg->max_ftes) {
 		dst = ERR_PTR(-ENOSPC);
 		goto unlock_fg;
 	}
 
-	fte = fs_create_fte(fg, match_value, action, flow_tag, &prev);
+	fte = fs_create_fte(fg, match_value, sw_action, flow_act, &prev);
 	if (IS_ERR(fte)) {
 		dst = (void *)fte;
 		goto unlock_fg;
@@ -1803,7 +1866,8 @@ static struct mlx5_flow_rule *fs_add_dst_ft(struct mlx5_flow_table *ft,
 					    u8 match_criteria_enable,
 					    u32 *match_criteria,
 					    u32 *match_value,
-					    u8 action, u32 flow_tag,
+					    u32 sw_action,
+					    struct mlx5_flow_act *flow_act,
 					    struct mlx5_flow_destination *dest)
 {
 	/*? where dst_entry is allocated*/
@@ -1819,8 +1883,7 @@ static struct mlx5_flow_rule *fs_add_dst_ft(struct mlx5_flow_table *ft,
 					match_criteria)) {
 			mutex_unlock(&ft->base.lock);
 
-			dst = fs_add_dst_fg(g, match_value,
-					    action, flow_tag, dest);
+			dst = fs_add_dst_fg(g, match_value, sw_action, flow_act, dest);
 			if (PTR_ERR(dst) && PTR_ERR(dst) != -ENOSPC)
 				goto unlock;
 		}
@@ -1833,7 +1896,7 @@ static struct mlx5_flow_rule *fs_add_dst_ft(struct mlx5_flow_table *ft,
 	}
 
 	dst = fs_add_dst_fg(g, match_value,
-			    action, flow_tag, dest);
+			    sw_action, flow_act, dest);
 	if (IS_ERR(dst)) {
 		/* Remove assumes refcount > 0 and autogroup creates a group
 		 * with a refcount = 0.
@@ -1853,8 +1916,8 @@ mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 		   u8 match_criteria_enable,
 		   u32 *match_criteria,
 		   u32 *match_value,
-		   u32 action,
-		   u32 flow_tag,
+		   u32 sw_action,
+		   struct mlx5_flow_act *flow_act,
 		   struct mlx5_flow_destination *dest)
 {
 	struct mlx5_flow_rule *dst;
@@ -1864,7 +1927,7 @@ mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 	if (ns)
 		down_read(&ns->dests_rw_sem);
 	dst =  fs_add_dst_ft(ft, match_criteria_enable, match_criteria,
-			     match_value, action, flow_tag, dest);
+			     match_value, sw_action, flow_act, dest);
 	if (ns)
 		up_read(&ns->dests_rw_sem);
 
@@ -1994,6 +2057,7 @@ static void cleanup_single_prio_root_ns(struct mlx5_core_dev *dev,
 
 void mlx5_cleanup_fs(struct mlx5_core_dev *dev)
 {
+	mlx5_cleanup_fc_stats(dev);
 	cleanup_root_ns(dev);
 	cleanup_single_prio_root_ns(dev, dev->sniffer_rx_root_ns);
 	cleanup_single_prio_root_ns(dev, dev->sniffer_tx_root_ns);
@@ -2364,6 +2428,10 @@ int mlx5_init_fs(struct mlx5_core_dev *dev)
 		goto err;
 
 	err = init_sniffer_rx_root_ns(dev);
+	if (err)
+		goto err;
+
+	err = mlx5_init_fc_stats(dev);
 	if (err)
 		goto err;
 
@@ -2739,3 +2807,68 @@ free_list:
 	mlx5_del_flow_rules_list(rules_list);
 	return NULL;
 }
+
+struct mlx5_modify_hdr *mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
+						 enum mlx5_flow_namespace_type ns_type,
+						 u8 num_actions,
+						 void *modify_actions)
+{
+	struct mlx5_modify_hdr *modify_hdr;
+	int err;
+
+	modify_hdr = kzalloc(sizeof(*modify_hdr), GFP_KERNEL);
+	if (!modify_hdr)
+		return ERR_PTR(-ENOMEM);
+
+	modify_hdr->ns_type = ns_type;
+	err = mlx5_cmd_modify_header_alloc(dev, ns_type, num_actions,
+					   modify_actions, modify_hdr);
+	if (err) {
+		kfree(modify_hdr);
+		return ERR_PTR(err);
+	}
+
+	return modify_hdr;
+}
+EXPORT_SYMBOL(mlx5_modify_header_alloc);
+
+void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev,
+                                struct mlx5_modify_hdr *modify_hdr)
+{
+        mlx5_cmd_modify_header_dealloc(dev, modify_hdr);
+        kfree(modify_hdr);
+}
+EXPORT_SYMBOL(mlx5_modify_header_dealloc);
+
+struct mlx5_pkt_reformat *mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,
+                                                     struct mlx5_pkt_reformat_params *params,
+                                                     enum mlx5_flow_namespace_type ns_type)
+{
+        struct mlx5_pkt_reformat *pkt_reformat;
+        int err;
+
+        pkt_reformat = kzalloc(sizeof(*pkt_reformat), GFP_KERNEL);
+        if (!pkt_reformat)
+                return ERR_PTR(-ENOMEM);
+
+        pkt_reformat->ns_type = ns_type;
+        pkt_reformat->reformat_type = params->type;
+	err = mlx5_cmd_packet_reformat_alloc(dev, params, ns_type,
+					     pkt_reformat);
+        if (err) {
+                kfree(pkt_reformat);
+                return ERR_PTR(err);
+        }
+
+        return pkt_reformat;
+}
+EXPORT_SYMBOL(mlx5_packet_reformat_alloc);
+
+void mlx5_packet_reformat_dealloc(struct mlx5_core_dev *dev,
+                                  struct mlx5_pkt_reformat *pkt_reformat)
+{
+        mlx5_cmd_packet_reformat_dealloc(dev, pkt_reformat);
+        kfree(pkt_reformat);
+}
+EXPORT_SYMBOL(mlx5_packet_reformat_dealloc);
+

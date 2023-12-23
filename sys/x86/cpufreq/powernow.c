@@ -30,7 +30,6 @@
  * to Jung-uk Kim for testing.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/cpu.h>

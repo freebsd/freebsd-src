@@ -29,10 +29,6 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
-#
-# From @(#)vnode_if.sh        8.1 (Berkeley) 6/10/93
-# From @(#)makedevops.sh 1.1 1998/06/14 13:53:12 dfr Exp $
-# From @(#)makedevops.sh ?.? 1998/10/05
 # From src/sys/kern/makedevops.pl,v 1.12 1999/11/22 14:40:04 n_hibma Exp
 # From src/sys/kern/makeobjops.pl,v 1.8 2001/11/16 02:02:42 joe Exp
 #

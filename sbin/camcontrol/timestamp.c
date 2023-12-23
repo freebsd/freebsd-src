@@ -35,7 +35,6 @@
  * SCSI tape drive timestamp support
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #include <assert.h>

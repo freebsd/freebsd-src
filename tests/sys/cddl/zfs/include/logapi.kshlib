@@ -23,9 +23,6 @@
 #
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)logapi.kshlib	1.2	07/03/14 SMI"
-#
 
 #
 # This is a ksh function library. It is intended to be sourced into

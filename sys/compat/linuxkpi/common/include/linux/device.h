@@ -81,6 +81,7 @@ struct dev_pm_ops {
 	int (*poweroff_late)(struct device *dev);
 	int (*restore)(struct device *dev);
 	int (*restore_early)(struct device *dev);
+	int (*suspend_noirq)(struct device *dev);
 	int (*runtime_suspend)(struct device *dev);
 	int (*runtime_resume)(struct device *dev);
 	int (*runtime_idle)(struct device *dev);

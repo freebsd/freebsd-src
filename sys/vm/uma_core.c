@@ -3468,7 +3468,7 @@ item_ctor(uma_zone_t zone, int uz_flags, int size, void *udata, int flags,
 	skipdbg = uma_dbg_zskip(zone, item);
 	if (!skipdbg && (uz_flags & UMA_ZFLAG_TRASH) != 0 &&
 	    zone->uz_ctor != trash_ctor)
-		trash_ctor(item, size, udata, flags);
+		trash_ctor(item, size, zone, flags);
 #endif
 
 	/* Check flags before loading ctor pointer. */
@@ -3510,7 +3510,7 @@ item_dtor(uma_zone_t zone, void *item, int size, void *udata,
 #ifdef INVARIANTS
 		if (!skipdbg && (zone->uz_flags & UMA_ZFLAG_TRASH) != 0 &&
 		    zone->uz_dtor != trash_dtor)
-			trash_dtor(item, size, udata);
+			trash_dtor(item, size, zone);
 #endif
 	}
 	kasan_mark_item_invalid(zone, item);

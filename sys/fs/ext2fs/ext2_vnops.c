@@ -38,9 +38,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)ufs_vnops.c	8.7 (Berkeley) 2/3/94
- *	@(#)ufs_vnops.c 8.27 (Berkeley) 5/27/95
  */
 
 #include "opt_suiddir.h"

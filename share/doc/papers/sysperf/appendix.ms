@@ -97,8 +97,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)a1.t	5.1 (Berkeley) 4/17/91
-.\"
 .ds RH Appendix A \- Benchmark sources
 .nr H2 1
 .sp 2
@@ -940,8 +938,6 @@ rnd()
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\"
-.\"	@(#)a2.t	5.1 (Berkeley) 4/17/91
 .\"
 .SH
 run (shell script)

@@ -72,10 +72,10 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/StringSwitch.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/Support/AtomicOrdering.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
@@ -86,6 +86,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/SaveAndRestore.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/TargetParser/Triple.h"
 #include <algorithm>
 #include <bitset>
 #include <cassert>
@@ -2025,6 +2026,12 @@ bool Sema::CheckTSBuiltinFunctionCall(const TargetInfo &TI, unsigned BuiltinID,
   case llvm::Triple::loongarch32:
   case llvm::Triple::loongarch64:
     return CheckLoongArchBuiltinFunctionCall(TI, BuiltinID, TheCall);
+  case llvm::Triple::wasm32:
+  case llvm::Triple::wasm64:
+    return CheckWebAssemblyBuiltinFunctionCall(TI, BuiltinID, TheCall);
+  case llvm::Triple::nvptx:
+  case llvm::Triple::nvptx64:
+    return CheckNVPTXBuiltinFunctionCall(TI, BuiltinID, TheCall);
   }
 }
 
@@ -2143,6 +2150,14 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
       return ExprError();
     break;
 
+  case Builtin::BI__builtin_set_flt_rounds:
+    if (CheckBuiltinTargetInSupported(*this, BuiltinID, TheCall,
+                                      {llvm::Triple::x86, llvm::Triple::x86_64,
+                                       llvm::Triple::arm, llvm::Triple::thumb,
+                                       llvm::Triple::aarch64}))
+      return ExprError();
+    break;
+
   case Builtin::BI__builtin_isgreater:
   case Builtin::BI__builtin_isgreaterequal:
   case Builtin::BI__builtin_isless:
@@ -2154,6 +2169,10 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
     break;
   case Builtin::BI__builtin_fpclassify:
     if (SemaBuiltinFPClassification(TheCall, 6))
+      return ExprError();
+    break;
+  case Builtin::BI__builtin_isfpclass:
+    if (SemaBuiltinFPClassification(TheCall, 2))
       return ExprError();
     break;
   case Builtin::BI__builtin_isfinite:
@@ -2471,6 +2490,7 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
   case Builtin::BIaddressof:
   case Builtin::BI__addressof:
   case Builtin::BIforward:
+  case Builtin::BIforward_like:
   case Builtin::BImove:
   case Builtin::BImove_if_noexcept:
   case Builtin::BIas_const: {
@@ -2580,6 +2600,12 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
     break;
   }
 
+  case Builtin::BI__builtin_nondeterministic_value: {
+    if (SemaBuiltinNonDeterministicValue(TheCall))
+      return ExprError();
+    break;
+  }
+
   // __builtin_elementwise_abs restricts the element type to signed integers or
   // floating point types only.
   case Builtin::BI__builtin_elementwise_abs: {
@@ -2604,8 +2630,16 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
   // types only.
   case Builtin::BI__builtin_elementwise_ceil:
   case Builtin::BI__builtin_elementwise_cos:
+  case Builtin::BI__builtin_elementwise_exp:
+  case Builtin::BI__builtin_elementwise_exp2:
   case Builtin::BI__builtin_elementwise_floor:
+  case Builtin::BI__builtin_elementwise_log:
+  case Builtin::BI__builtin_elementwise_log2:
+  case Builtin::BI__builtin_elementwise_log10:
   case Builtin::BI__builtin_elementwise_roundeven:
+  case Builtin::BI__builtin_elementwise_round:
+  case Builtin::BI__builtin_elementwise_rint:
+  case Builtin::BI__builtin_elementwise_nearbyint:
   case Builtin::BI__builtin_elementwise_sin:
   case Builtin::BI__builtin_elementwise_trunc:
   case Builtin::BI__builtin_elementwise_canonicalize: {
@@ -2613,17 +2647,29 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
       return ExprError();
 
     QualType ArgTy = TheCall->getArg(0)->getType();
-    QualType EltTy = ArgTy;
-
-    if (auto *VecTy = EltTy->getAs<VectorType>())
-      EltTy = VecTy->getElementType();
-    if (!EltTy->isFloatingType()) {
-      Diag(TheCall->getArg(0)->getBeginLoc(),
-           diag::err_builtin_invalid_arg_type)
-          << 1 << /* float ty*/ 5 << ArgTy;
-
+    if (checkFPMathBuiltinElementType(*this, TheCall->getArg(0)->getBeginLoc(),
+                                      ArgTy, 1))
       return ExprError();
-    }
+    break;
+  }
+  case Builtin::BI__builtin_elementwise_fma: {
+    if (SemaBuiltinElementwiseTernaryMath(TheCall))
+      return ExprError();
+    break;
+  }
+
+  // These builtins restrict the element type to floating point
+  // types only, and take in two arguments.
+  case Builtin::BI__builtin_elementwise_pow: {
+    if (SemaBuiltinElementwiseMath(TheCall))
+      return ExprError();
+
+    QualType ArgTy = TheCall->getArg(0)->getType();
+    if (checkFPMathBuiltinElementType(*this, TheCall->getArg(0)->getBeginLoc(),
+                                      ArgTy, 1) ||
+        checkFPMathBuiltinElementType(*this, TheCall->getArg(1)->getBeginLoc(),
+                                      ArgTy, 2))
+      return ExprError();
     break;
   }
 
@@ -2857,6 +2903,9 @@ bool Sema::CheckSVEBuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall) {
 #define GET_SVE_IMMEDIATE_CHECK
 #include "clang/Basic/arm_sve_sema_rangechecks.inc"
 #undef GET_SVE_IMMEDIATE_CHECK
+#define GET_SME_IMMEDIATE_CHECK
+#include "clang/Basic/arm_sme_sema_rangechecks.inc"
+#undef GET_SME_IMMEDIATE_CHECK
   }
 
   // Perform all the immediate checks for this builtin call.
@@ -2960,6 +3009,18 @@ bool Sema::CheckSVEBuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall) {
       break;
     case SVETypeFlags::ImmCheck0_3:
       if (SemaBuiltinConstantArgRange(TheCall, ArgNum, 0, 3))
+        HasError = true;
+      break;
+    case SVETypeFlags::ImmCheck0_0:
+      if (SemaBuiltinConstantArgRange(TheCall, ArgNum, 0, 0))
+        HasError = true;
+      break;
+    case SVETypeFlags::ImmCheck0_15:
+      if (SemaBuiltinConstantArgRange(TheCall, ArgNum, 0, 15))
+        HasError = true;
+      break;
+    case SVETypeFlags::ImmCheck0_255:
+      if (SemaBuiltinConstantArgRange(TheCall, ArgNum, 0, 255))
         HasError = true;
       break;
     }
@@ -3770,7 +3831,7 @@ bool Sema::CheckLoongArchBuiltinFunctionCall(const TargetInfo &TI,
       return Diag(TheCall->getBeginLoc(),
                   diag::err_loongarch_builtin_requires_la64)
              << TheCall->getSourceRange();
-    LLVM_FALLTHROUGH;
+    [[fallthrough]];
   case LoongArch::BI__builtin_loongarch_cacop_w: {
     if (BuiltinID == LoongArch::BI__builtin_loongarch_cacop_w &&
         !TI.hasFeature("32bit"))
@@ -4153,21 +4214,6 @@ static bool isPPC_64Builtin(unsigned BuiltinID) {
   return false;
 }
 
-static bool SemaFeatureCheck(Sema &S, CallExpr *TheCall,
-                             StringRef FeatureToCheck, unsigned DiagID,
-                             StringRef DiagArg = "") {
-  if (S.Context.getTargetInfo().hasFeature(FeatureToCheck))
-    return false;
-
-  if (DiagArg.empty())
-    S.Diag(TheCall->getBeginLoc(), DiagID) << TheCall->getSourceRange();
-  else
-    S.Diag(TheCall->getBeginLoc(), DiagID)
-        << DiagArg << TheCall->getSourceRange();
-
-  return true;
-}
-
 /// Returns true if the argument consists of one contiguous run of 1s with any
 /// number of 0s on either side. The 1s are allowed to wrap from LSB to MSB, so
 /// 0x000FFF0, 0x0000FFFF, 0xFF0000FF, 0x0 are all runs. 0x0F0F0000 is not,
@@ -4212,42 +4258,16 @@ bool Sema::CheckPPCBuiltinFunctionCall(const TargetInfo &TI, unsigned BuiltinID,
     return SemaBuiltinConstantArgRange(TheCall, 0, 0, 3);
   case PPC::BI__builtin_tbegin:
   case PPC::BI__builtin_tend:
-    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 1) ||
-           SemaFeatureCheck(*this, TheCall, "htm",
-                            diag::err_ppc_builtin_requires_htm);
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 1);
   case PPC::BI__builtin_tsr:
-    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 7) ||
-           SemaFeatureCheck(*this, TheCall, "htm",
-                            diag::err_ppc_builtin_requires_htm);
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 7);
   case PPC::BI__builtin_tabortwc:
   case PPC::BI__builtin_tabortdc:
-    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 31) ||
-           SemaFeatureCheck(*this, TheCall, "htm",
-                            diag::err_ppc_builtin_requires_htm);
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 31);
   case PPC::BI__builtin_tabortwci:
   case PPC::BI__builtin_tabortdci:
-    return SemaFeatureCheck(*this, TheCall, "htm",
-                            diag::err_ppc_builtin_requires_htm) ||
-           (SemaBuiltinConstantArgRange(TheCall, 0, 0, 31) ||
-            SemaBuiltinConstantArgRange(TheCall, 2, 0, 31));
-  case PPC::BI__builtin_tabort:
-  case PPC::BI__builtin_tcheck:
-  case PPC::BI__builtin_treclaim:
-  case PPC::BI__builtin_trechkpt:
-  case PPC::BI__builtin_tendall:
-  case PPC::BI__builtin_tresume:
-  case PPC::BI__builtin_tsuspend:
-  case PPC::BI__builtin_get_texasr:
-  case PPC::BI__builtin_get_texasru:
-  case PPC::BI__builtin_get_tfhar:
-  case PPC::BI__builtin_get_tfiar:
-  case PPC::BI__builtin_set_texasr:
-  case PPC::BI__builtin_set_texasru:
-  case PPC::BI__builtin_set_tfhar:
-  case PPC::BI__builtin_set_tfiar:
-  case PPC::BI__builtin_ttest:
-    return SemaFeatureCheck(*this, TheCall, "htm",
-                            diag::err_ppc_builtin_requires_htm);
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 31) ||
+           SemaBuiltinConstantArgRange(TheCall, 2, 0, 31);
   // According to GCC 'Basic PowerPC Built-in Functions Available on ISA 2.05',
   // __builtin_(un)pack_longdouble are available only if long double uses IBM
   // extended double representation.
@@ -4268,26 +4288,8 @@ bool Sema::CheckPPCBuiltinFunctionCall(const TargetInfo &TI, unsigned BuiltinID,
   case PPC::BI__builtin_vsx_xxpermdi:
   case PPC::BI__builtin_vsx_xxsldwi:
     return SemaBuiltinVSX(TheCall);
-  case PPC::BI__builtin_divwe:
-  case PPC::BI__builtin_divweu:
-  case PPC::BI__builtin_divde:
-  case PPC::BI__builtin_divdeu:
-    return SemaFeatureCheck(*this, TheCall, "extdiv",
-                            diag::err_ppc_builtin_only_on_arch, "7");
-  case PPC::BI__builtin_bpermd:
-    return SemaFeatureCheck(*this, TheCall, "bpermd",
-                            diag::err_ppc_builtin_only_on_arch, "7");
   case PPC::BI__builtin_unpack_vector_int128:
-    return SemaFeatureCheck(*this, TheCall, "vsx",
-                            diag::err_ppc_builtin_only_on_arch, "7") ||
-           SemaBuiltinConstantArgRange(TheCall, 1, 0, 1);
-  case PPC::BI__builtin_pack_vector_int128:
-    return SemaFeatureCheck(*this, TheCall, "vsx",
-                            diag::err_ppc_builtin_only_on_arch, "7");
-  case PPC::BI__builtin_pdepd:
-  case PPC::BI__builtin_pextd:
-    return SemaFeatureCheck(*this, TheCall, "isa-v31-instructions",
-                            diag::err_ppc_builtin_only_on_arch, "10");
+    return SemaBuiltinConstantArgRange(TheCall, 1, 0, 1);
   case PPC::BI__builtin_altivec_vgnb:
      return SemaBuiltinConstantArgRange(TheCall, 1, 2, 7);
   case PPC::BI__builtin_vsx_xxeval:
@@ -4301,17 +4303,8 @@ bool Sema::CheckPPCBuiltinFunctionCall(const TargetInfo &TI, unsigned BuiltinID,
   case PPC::BI__builtin_ppc_tw:
   case PPC::BI__builtin_ppc_tdw:
     return SemaBuiltinConstantArgRange(TheCall, 2, 1, 31);
-  case PPC::BI__builtin_ppc_cmpeqb:
-  case PPC::BI__builtin_ppc_setb:
-  case PPC::BI__builtin_ppc_maddhd:
-  case PPC::BI__builtin_ppc_maddhdu:
-  case PPC::BI__builtin_ppc_maddld:
-    return SemaFeatureCheck(*this, TheCall, "isa-v30-instructions",
-                            diag::err_ppc_builtin_only_on_arch, "9");
   case PPC::BI__builtin_ppc_cmprb:
-    return SemaFeatureCheck(*this, TheCall, "isa-v30-instructions",
-                            diag::err_ppc_builtin_only_on_arch, "9") ||
-           SemaBuiltinConstantArgRange(TheCall, 0, 0, 1);
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 1);
   // For __rlwnm, __rlwimi and __rldimi, the last parameter mask must
   // be a constant that represents a contiguous bit field.
   case PPC::BI__builtin_ppc_rlwnm:
@@ -4320,15 +4313,8 @@ bool Sema::CheckPPCBuiltinFunctionCall(const TargetInfo &TI, unsigned BuiltinID,
   case PPC::BI__builtin_ppc_rldimi:
     return SemaBuiltinConstantArg(TheCall, 2, Result) ||
            SemaValueIsRunOfOnes(TheCall, 3);
-  case PPC::BI__builtin_ppc_extract_exp:
-  case PPC::BI__builtin_ppc_extract_sig:
-  case PPC::BI__builtin_ppc_insert_exp:
-    return SemaFeatureCheck(*this, TheCall, "power9-vector",
-                            diag::err_ppc_builtin_only_on_arch, "9");
   case PPC::BI__builtin_ppc_addex: {
-    if (SemaFeatureCheck(*this, TheCall, "isa-v30-instructions",
-                         diag::err_ppc_builtin_only_on_arch, "9") ||
-        SemaBuiltinConstantArgRange(TheCall, 2, 0, 3))
+    if (SemaBuiltinConstantArgRange(TheCall, 2, 0, 3))
       return true;
     // Output warning for reserved values 1 to 3.
     int ArgValue =
@@ -4350,41 +4336,19 @@ bool Sema::CheckPPCBuiltinFunctionCall(const TargetInfo &TI, unsigned BuiltinID,
     return SemaBuiltinConstantArgPower2(TheCall, 0);
   case PPC::BI__builtin_ppc_rdlam:
     return SemaValueIsRunOfOnes(TheCall, 2);
-  case PPC::BI__builtin_ppc_icbt:
-  case PPC::BI__builtin_ppc_sthcx:
-  case PPC::BI__builtin_ppc_stbcx:
-  case PPC::BI__builtin_ppc_lharx:
-  case PPC::BI__builtin_ppc_lbarx:
-    return SemaFeatureCheck(*this, TheCall, "isa-v207-instructions",
-                            diag::err_ppc_builtin_only_on_arch, "8");
   case PPC::BI__builtin_vsx_ldrmb:
   case PPC::BI__builtin_vsx_strmb:
-    return SemaFeatureCheck(*this, TheCall, "isa-v207-instructions",
-                            diag::err_ppc_builtin_only_on_arch, "8") ||
-           SemaBuiltinConstantArgRange(TheCall, 1, 1, 16);
+    return SemaBuiltinConstantArgRange(TheCall, 1, 1, 16);
   case PPC::BI__builtin_altivec_vcntmbb:
   case PPC::BI__builtin_altivec_vcntmbh:
   case PPC::BI__builtin_altivec_vcntmbw:
   case PPC::BI__builtin_altivec_vcntmbd:
     return SemaBuiltinConstantArgRange(TheCall, 1, 0, 1);
-  case PPC::BI__builtin_darn:
-  case PPC::BI__builtin_darn_raw:
-  case PPC::BI__builtin_darn_32:
-    return SemaFeatureCheck(*this, TheCall, "isa-v30-instructions",
-                            diag::err_ppc_builtin_only_on_arch, "9");
   case PPC::BI__builtin_vsx_xxgenpcvbm:
   case PPC::BI__builtin_vsx_xxgenpcvhm:
   case PPC::BI__builtin_vsx_xxgenpcvwm:
   case PPC::BI__builtin_vsx_xxgenpcvdm:
     return SemaBuiltinConstantArgRange(TheCall, 1, 0, 3);
-  case PPC::BI__builtin_ppc_compare_exp_uo:
-  case PPC::BI__builtin_ppc_compare_exp_lt:
-  case PPC::BI__builtin_ppc_compare_exp_gt:
-  case PPC::BI__builtin_ppc_compare_exp_eq:
-    return SemaFeatureCheck(*this, TheCall, "isa-v30-instructions",
-                            diag::err_ppc_builtin_only_on_arch, "9") ||
-           SemaFeatureCheck(*this, TheCall, "vsx",
-                            diag::err_ppc_builtin_requires_vsx);
   case PPC::BI__builtin_ppc_test_data_class: {
     // Check if the first argument of the __builtin_ppc_test_data_class call is
     // valid. The argument must be 'float' or 'double' or '__float128'.
@@ -4394,11 +4358,7 @@ bool Sema::CheckPPCBuiltinFunctionCall(const TargetInfo &TI, unsigned BuiltinID,
         ArgType != QualType(Context.Float128Ty))
       return Diag(TheCall->getBeginLoc(),
                   diag::err_ppc_invalid_test_data_class_type);
-    return SemaFeatureCheck(*this, TheCall, "isa-v30-instructions",
-                            diag::err_ppc_builtin_only_on_arch, "9") ||
-           SemaFeatureCheck(*this, TheCall, "vsx",
-                            diag::err_ppc_builtin_requires_vsx) ||
-           SemaBuiltinConstantArgRange(TheCall, 1, 0, 127);
+    return SemaBuiltinConstantArgRange(TheCall, 1, 0, 127);
   }
   case PPC::BI__builtin_ppc_maxfe:
   case PPC::BI__builtin_ppc_minfe:
@@ -4427,11 +4387,7 @@ bool Sema::CheckPPCBuiltinFunctionCall(const TargetInfo &TI, unsigned BuiltinID,
                << TheCall->getArg(I)->getType() << ArgType << 1 << 0 << 0;
     return false;
   }
-  case PPC::BI__builtin_ppc_load8r:
-  case PPC::BI__builtin_ppc_store8r:
-    return SemaFeatureCheck(*this, TheCall, "isa-v206-instructions",
-                            diag::err_ppc_builtin_only_on_arch, "7");
-#define CUSTOM_BUILTIN(Name, Intr, Types, Acc)                                 \
+#define CUSTOM_BUILTIN(Name, Intr, Types, Acc, Feature)                                 \
   case PPC::BI__builtin_##Name:                                                \
     return SemaBuiltinPPCMMACall(TheCall, BuiltinID, Types);
 #include "clang/Basic/BuiltinsPPC.def"
@@ -4545,7 +4501,7 @@ bool Sema::CheckRISCVBuiltinFunctionCall(const TargetInfo &TI,
   bool FeatureMissing = false;
   SmallVector<StringRef> ReqFeatures;
   StringRef Features = Context.BuiltinInfo.getRequiredFeatures(BuiltinID);
-  Features.split(ReqFeatures, ',');
+  Features.split(ReqFeatures, ',', -1, false);
 
   // Check if each required feature is included
   for (StringRef F : ReqFeatures) {
@@ -4575,7 +4531,7 @@ bool Sema::CheckRISCVBuiltinFunctionCall(const TargetInfo &TI,
         std::string FeatureStr = OF.str();
         FeatureStr[0] = std::toupper(FeatureStr[0]);
         // Combine strings.
-        FeatureStrs += FeatureStrs == "" ? "" : ", ";
+        FeatureStrs += FeatureStrs.empty() ? "" : ", ";
         FeatureStrs += "'";
         FeatureStrs += FeatureStr;
         FeatureStrs += "'";
@@ -4591,6 +4547,73 @@ bool Sema::CheckRISCVBuiltinFunctionCall(const TargetInfo &TI,
   if (FeatureMissing)
     return true;
 
+  // vmulh.vv, vmulh.vx, vmulhu.vv, vmulhu.vx, vmulhsu.vv, vmulhsu.vx,
+  // vsmul.vv, vsmul.vx are not included for EEW=64 in Zve64*.
+  switch (BuiltinID) {
+  default:
+    break;
+  case RISCVVector::BI__builtin_rvv_vmulhsu_vv:
+  case RISCVVector::BI__builtin_rvv_vmulhsu_vx:
+  case RISCVVector::BI__builtin_rvv_vmulhsu_vv_tu:
+  case RISCVVector::BI__builtin_rvv_vmulhsu_vx_tu:
+  case RISCVVector::BI__builtin_rvv_vmulhsu_vv_m:
+  case RISCVVector::BI__builtin_rvv_vmulhsu_vx_m:
+  case RISCVVector::BI__builtin_rvv_vmulhsu_vv_mu:
+  case RISCVVector::BI__builtin_rvv_vmulhsu_vx_mu:
+  case RISCVVector::BI__builtin_rvv_vmulhsu_vv_tum:
+  case RISCVVector::BI__builtin_rvv_vmulhsu_vx_tum:
+  case RISCVVector::BI__builtin_rvv_vmulhsu_vv_tumu:
+  case RISCVVector::BI__builtin_rvv_vmulhsu_vx_tumu:
+  case RISCVVector::BI__builtin_rvv_vmulhu_vv:
+  case RISCVVector::BI__builtin_rvv_vmulhu_vx:
+  case RISCVVector::BI__builtin_rvv_vmulhu_vv_tu:
+  case RISCVVector::BI__builtin_rvv_vmulhu_vx_tu:
+  case RISCVVector::BI__builtin_rvv_vmulhu_vv_m:
+  case RISCVVector::BI__builtin_rvv_vmulhu_vx_m:
+  case RISCVVector::BI__builtin_rvv_vmulhu_vv_mu:
+  case RISCVVector::BI__builtin_rvv_vmulhu_vx_mu:
+  case RISCVVector::BI__builtin_rvv_vmulhu_vv_tum:
+  case RISCVVector::BI__builtin_rvv_vmulhu_vx_tum:
+  case RISCVVector::BI__builtin_rvv_vmulhu_vv_tumu:
+  case RISCVVector::BI__builtin_rvv_vmulhu_vx_tumu:
+  case RISCVVector::BI__builtin_rvv_vmulh_vv:
+  case RISCVVector::BI__builtin_rvv_vmulh_vx:
+  case RISCVVector::BI__builtin_rvv_vmulh_vv_tu:
+  case RISCVVector::BI__builtin_rvv_vmulh_vx_tu:
+  case RISCVVector::BI__builtin_rvv_vmulh_vv_m:
+  case RISCVVector::BI__builtin_rvv_vmulh_vx_m:
+  case RISCVVector::BI__builtin_rvv_vmulh_vv_mu:
+  case RISCVVector::BI__builtin_rvv_vmulh_vx_mu:
+  case RISCVVector::BI__builtin_rvv_vmulh_vv_tum:
+  case RISCVVector::BI__builtin_rvv_vmulh_vx_tum:
+  case RISCVVector::BI__builtin_rvv_vmulh_vv_tumu:
+  case RISCVVector::BI__builtin_rvv_vmulh_vx_tumu:
+  case RISCVVector::BI__builtin_rvv_vsmul_vv:
+  case RISCVVector::BI__builtin_rvv_vsmul_vx:
+  case RISCVVector::BI__builtin_rvv_vsmul_vv_tu:
+  case RISCVVector::BI__builtin_rvv_vsmul_vx_tu:
+  case RISCVVector::BI__builtin_rvv_vsmul_vv_m:
+  case RISCVVector::BI__builtin_rvv_vsmul_vx_m:
+  case RISCVVector::BI__builtin_rvv_vsmul_vv_mu:
+  case RISCVVector::BI__builtin_rvv_vsmul_vx_mu:
+  case RISCVVector::BI__builtin_rvv_vsmul_vv_tum:
+  case RISCVVector::BI__builtin_rvv_vsmul_vx_tum:
+  case RISCVVector::BI__builtin_rvv_vsmul_vv_tumu:
+  case RISCVVector::BI__builtin_rvv_vsmul_vx_tumu: {
+    bool RequireV = false;
+    for (unsigned ArgNum = 0; ArgNum < TheCall->getNumArgs(); ++ArgNum)
+      RequireV |= TheCall->getArg(ArgNum)->getType()->isRVVType(
+          /* Bitwidth */ 64, /* IsFloat */ false);
+
+    if (RequireV && !TI.hasFeature("v"))
+      return Diag(TheCall->getBeginLoc(),
+                  diag::err_riscv_builtin_requires_extension)
+             << /* IsExtension */ false << TheCall->getSourceRange() << "v";
+
+    break;
+  }
+  }
+
   switch (BuiltinID) {
   case RISCVVector::BI__builtin_rvv_vsetvli:
     return SemaBuiltinConstantArgRange(TheCall, 1, 0, 3) ||
@@ -4605,9 +4628,12 @@ bool Sema::CheckRISCVBuiltinFunctionCall(const TargetInfo &TI,
     ASTContext::BuiltinVectorTypeInfo VecInfo =
         Context.getBuiltinVectorTypeInfo(cast<BuiltinType>(
             TheCall->getArg(0)->getType().getCanonicalType().getTypePtr()));
-    unsigned MaxIndex =
-        (VecInfo.EC.getKnownMinValue() * VecInfo.NumVectors) /
-        (ResVecInfo.EC.getKnownMinValue() * ResVecInfo.NumVectors);
+    unsigned MaxIndex;
+    if (VecInfo.NumVectors != 1) // vget for tuple type
+      MaxIndex = VecInfo.NumVectors;
+    else // vget for non-tuple type
+      MaxIndex = (VecInfo.EC.getKnownMinValue() * VecInfo.NumVectors) /
+                 (ResVecInfo.EC.getKnownMinValue() * ResVecInfo.NumVectors);
     return SemaBuiltinConstantArgRange(TheCall, 1, 0, MaxIndex - 1);
   }
   case RISCVVector::BI__builtin_rvv_vset_v: {
@@ -4617,22 +4643,679 @@ bool Sema::CheckRISCVBuiltinFunctionCall(const TargetInfo &TI,
     ASTContext::BuiltinVectorTypeInfo VecInfo =
         Context.getBuiltinVectorTypeInfo(cast<BuiltinType>(
             TheCall->getArg(2)->getType().getCanonicalType().getTypePtr()));
-    unsigned MaxIndex =
-        (ResVecInfo.EC.getKnownMinValue() * ResVecInfo.NumVectors) /
-        (VecInfo.EC.getKnownMinValue() * VecInfo.NumVectors);
+    unsigned MaxIndex;
+    if (ResVecInfo.NumVectors != 1) // vset for tuple type
+      MaxIndex = ResVecInfo.NumVectors;
+    else // vset fo non-tuple type
+      MaxIndex = (ResVecInfo.EC.getKnownMinValue() * ResVecInfo.NumVectors) /
+                 (VecInfo.EC.getKnownMinValue() * VecInfo.NumVectors);
     return SemaBuiltinConstantArgRange(TheCall, 1, 0, MaxIndex - 1);
   }
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u8mf8:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u8mf4:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u8mf2:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u8m1:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u8m2:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u8m4:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u8m8:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u16mf4:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u16mf2:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u16m1:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u16m2:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u16m4:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u16m8:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u32mf2:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u32m1:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u32m2:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u32m4:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u32m8:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u64m1:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u64m2:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u64m4:
+  case RISCVVector::BI__builtin_rvv_sf_vc_i_se_u64m8:
+    // bit_27_26, bit_24_20, bit_11_7, simm5
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 3) ||
+           SemaBuiltinConstantArgRange(TheCall, 1, 0, 31) ||
+           SemaBuiltinConstantArgRange(TheCall, 2, 0, 31) ||
+           SemaBuiltinConstantArgRange(TheCall, 3, -16, 15);
+  case RISCVVector::BI__builtin_rvv_sf_vc_iv_se:
+    // bit_27_26, bit_11_7, vs2, simm5
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 3) ||
+           SemaBuiltinConstantArgRange(TheCall, 1, 0, 31) ||
+           SemaBuiltinConstantArgRange(TheCall, 3, -16, 15);
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_i:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_i_se:
+    // bit_27_26, bit_24_20, simm5
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 3) ||
+           SemaBuiltinConstantArgRange(TheCall, 1, 0, 31) ||
+           SemaBuiltinConstantArgRange(TheCall, 2, -16, 15);
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_iv:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_iv_se:
+    // bit_27_26, vs2, simm5
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 3) ||
+           SemaBuiltinConstantArgRange(TheCall, 2, -16, 15);
+  case RISCVVector::BI__builtin_rvv_sf_vc_ivv_se:
+  case RISCVVector::BI__builtin_rvv_sf_vc_ivw_se:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_ivv:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_ivw:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_ivv_se:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_ivw_se:
+    // bit_27_26, vd, vs2, simm5
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 3) ||
+           SemaBuiltinConstantArgRange(TheCall, 3, -16, 15);
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u8mf8:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u8mf4:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u8mf2:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u8m1:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u8m2:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u8m4:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u8m8:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u16mf4:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u16mf2:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u16m1:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u16m2:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u16m4:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u16m8:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u32mf2:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u32m1:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u32m2:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u32m4:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u32m8:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u64m1:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u64m2:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u64m4:
+  case RISCVVector::BI__builtin_rvv_sf_vc_x_se_u64m8:
+    // bit_27_26, bit_24_20, bit_11_7, xs1
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 3) ||
+           SemaBuiltinConstantArgRange(TheCall, 1, 0, 31) ||
+           SemaBuiltinConstantArgRange(TheCall, 2, 0, 31);
+  case RISCVVector::BI__builtin_rvv_sf_vc_xv_se:
+  case RISCVVector::BI__builtin_rvv_sf_vc_vv_se:
+    // bit_27_26, bit_11_7, vs2, xs1/vs1
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_x:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_x_se:
+    // bit_27_26, bit_24-20, xs1
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 3) ||
+           SemaBuiltinConstantArgRange(TheCall, 1, 0, 31);
+  case RISCVVector::BI__builtin_rvv_sf_vc_vvv_se:
+  case RISCVVector::BI__builtin_rvv_sf_vc_xvv_se:
+  case RISCVVector::BI__builtin_rvv_sf_vc_vvw_se:
+  case RISCVVector::BI__builtin_rvv_sf_vc_xvw_se:
+    // bit_27_26, vd, vs2, xs1
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_xv:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_vv:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_xv_se:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_vv_se:
+    // bit_27_26, vs2, xs1/vs1
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_xvv:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_vvv:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_xvw:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_vvw:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_xvv_se:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_vvv_se:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_xvw_se:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_vvw_se:
+    // bit_27_26, vd, vs2, xs1/vs1
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 3);
+  case RISCVVector::BI__builtin_rvv_sf_vc_fv_se:
+    // bit_26, bit_11_7, vs2, fs1
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 1) ||
+           SemaBuiltinConstantArgRange(TheCall, 1, 0, 31);
+  case RISCVVector::BI__builtin_rvv_sf_vc_fvv_se:
+  case RISCVVector::BI__builtin_rvv_sf_vc_fvw_se:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_fvv:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_fvw:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_fvv_se:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_fvw_se:
+    // bit_26, vd, vs2, fs1
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_fv:
+  case RISCVVector::BI__builtin_rvv_sf_vc_v_fv_se:
+    // bit_26, vs2, fs1
+    return SemaBuiltinConstantArgRange(TheCall, 0, 0, 1);
   // Check if byteselect is in [0, 3]
-  case RISCV::BI__builtin_riscv_aes32dsi_32:
-  case RISCV::BI__builtin_riscv_aes32dsmi_32:
-  case RISCV::BI__builtin_riscv_aes32esi_32:
-  case RISCV::BI__builtin_riscv_aes32esmi_32:
+  case RISCV::BI__builtin_riscv_aes32dsi:
+  case RISCV::BI__builtin_riscv_aes32dsmi:
+  case RISCV::BI__builtin_riscv_aes32esi:
+  case RISCV::BI__builtin_riscv_aes32esmi:
   case RISCV::BI__builtin_riscv_sm4ks:
   case RISCV::BI__builtin_riscv_sm4ed:
     return SemaBuiltinConstantArgRange(TheCall, 2, 0, 3);
   // Check if rnum is in [0, 10]
-  case RISCV::BI__builtin_riscv_aes64ks1i_64:
+  case RISCV::BI__builtin_riscv_aes64ks1i:
     return SemaBuiltinConstantArgRange(TheCall, 1, 0, 10);
+  // Check if value range for vxrm is in [0, 3]
+  case RISCVVector::BI__builtin_rvv_vaaddu_vv:
+  case RISCVVector::BI__builtin_rvv_vaaddu_vx:
+  case RISCVVector::BI__builtin_rvv_vaadd_vv:
+  case RISCVVector::BI__builtin_rvv_vaadd_vx:
+  case RISCVVector::BI__builtin_rvv_vasubu_vv:
+  case RISCVVector::BI__builtin_rvv_vasubu_vx:
+  case RISCVVector::BI__builtin_rvv_vasub_vv:
+  case RISCVVector::BI__builtin_rvv_vasub_vx:
+  case RISCVVector::BI__builtin_rvv_vsmul_vv:
+  case RISCVVector::BI__builtin_rvv_vsmul_vx:
+  case RISCVVector::BI__builtin_rvv_vssra_vv:
+  case RISCVVector::BI__builtin_rvv_vssra_vx:
+  case RISCVVector::BI__builtin_rvv_vssrl_vv:
+  case RISCVVector::BI__builtin_rvv_vssrl_vx:
+  case RISCVVector::BI__builtin_rvv_vnclip_wv:
+  case RISCVVector::BI__builtin_rvv_vnclip_wx:
+  case RISCVVector::BI__builtin_rvv_vnclipu_wv:
+  case RISCVVector::BI__builtin_rvv_vnclipu_wx:
+    return SemaBuiltinConstantArgRange(TheCall, 2, 0, 3);
+  case RISCVVector::BI__builtin_rvv_vaaddu_vv_tu:
+  case RISCVVector::BI__builtin_rvv_vaaddu_vx_tu:
+  case RISCVVector::BI__builtin_rvv_vaadd_vv_tu:
+  case RISCVVector::BI__builtin_rvv_vaadd_vx_tu:
+  case RISCVVector::BI__builtin_rvv_vasubu_vv_tu:
+  case RISCVVector::BI__builtin_rvv_vasubu_vx_tu:
+  case RISCVVector::BI__builtin_rvv_vasub_vv_tu:
+  case RISCVVector::BI__builtin_rvv_vasub_vx_tu:
+  case RISCVVector::BI__builtin_rvv_vsmul_vv_tu:
+  case RISCVVector::BI__builtin_rvv_vsmul_vx_tu:
+  case RISCVVector::BI__builtin_rvv_vssra_vv_tu:
+  case RISCVVector::BI__builtin_rvv_vssra_vx_tu:
+  case RISCVVector::BI__builtin_rvv_vssrl_vv_tu:
+  case RISCVVector::BI__builtin_rvv_vssrl_vx_tu:
+  case RISCVVector::BI__builtin_rvv_vnclip_wv_tu:
+  case RISCVVector::BI__builtin_rvv_vnclip_wx_tu:
+  case RISCVVector::BI__builtin_rvv_vnclipu_wv_tu:
+  case RISCVVector::BI__builtin_rvv_vnclipu_wx_tu:
+  case RISCVVector::BI__builtin_rvv_vaaddu_vv_m:
+  case RISCVVector::BI__builtin_rvv_vaaddu_vx_m:
+  case RISCVVector::BI__builtin_rvv_vaadd_vv_m:
+  case RISCVVector::BI__builtin_rvv_vaadd_vx_m:
+  case RISCVVector::BI__builtin_rvv_vasubu_vv_m:
+  case RISCVVector::BI__builtin_rvv_vasubu_vx_m:
+  case RISCVVector::BI__builtin_rvv_vasub_vv_m:
+  case RISCVVector::BI__builtin_rvv_vasub_vx_m:
+  case RISCVVector::BI__builtin_rvv_vsmul_vv_m:
+  case RISCVVector::BI__builtin_rvv_vsmul_vx_m:
+  case RISCVVector::BI__builtin_rvv_vssra_vv_m:
+  case RISCVVector::BI__builtin_rvv_vssra_vx_m:
+  case RISCVVector::BI__builtin_rvv_vssrl_vv_m:
+  case RISCVVector::BI__builtin_rvv_vssrl_vx_m:
+  case RISCVVector::BI__builtin_rvv_vnclip_wv_m:
+  case RISCVVector::BI__builtin_rvv_vnclip_wx_m:
+  case RISCVVector::BI__builtin_rvv_vnclipu_wv_m:
+  case RISCVVector::BI__builtin_rvv_vnclipu_wx_m:
+    return SemaBuiltinConstantArgRange(TheCall, 3, 0, 3);
+  case RISCVVector::BI__builtin_rvv_vaaddu_vv_tum:
+  case RISCVVector::BI__builtin_rvv_vaaddu_vv_tumu:
+  case RISCVVector::BI__builtin_rvv_vaaddu_vv_mu:
+  case RISCVVector::BI__builtin_rvv_vaaddu_vx_tum:
+  case RISCVVector::BI__builtin_rvv_vaaddu_vx_tumu:
+  case RISCVVector::BI__builtin_rvv_vaaddu_vx_mu:
+  case RISCVVector::BI__builtin_rvv_vaadd_vv_tum:
+  case RISCVVector::BI__builtin_rvv_vaadd_vv_tumu:
+  case RISCVVector::BI__builtin_rvv_vaadd_vv_mu:
+  case RISCVVector::BI__builtin_rvv_vaadd_vx_tum:
+  case RISCVVector::BI__builtin_rvv_vaadd_vx_tumu:
+  case RISCVVector::BI__builtin_rvv_vaadd_vx_mu:
+  case RISCVVector::BI__builtin_rvv_vasubu_vv_tum:
+  case RISCVVector::BI__builtin_rvv_vasubu_vv_tumu:
+  case RISCVVector::BI__builtin_rvv_vasubu_vv_mu:
+  case RISCVVector::BI__builtin_rvv_vasubu_vx_tum:
+  case RISCVVector::BI__builtin_rvv_vasubu_vx_tumu:
+  case RISCVVector::BI__builtin_rvv_vasubu_vx_mu:
+  case RISCVVector::BI__builtin_rvv_vasub_vv_tum:
+  case RISCVVector::BI__builtin_rvv_vasub_vv_tumu:
+  case RISCVVector::BI__builtin_rvv_vasub_vv_mu:
+  case RISCVVector::BI__builtin_rvv_vasub_vx_tum:
+  case RISCVVector::BI__builtin_rvv_vasub_vx_tumu:
+  case RISCVVector::BI__builtin_rvv_vasub_vx_mu:
+  case RISCVVector::BI__builtin_rvv_vsmul_vv_mu:
+  case RISCVVector::BI__builtin_rvv_vsmul_vx_mu:
+  case RISCVVector::BI__builtin_rvv_vssra_vv_mu:
+  case RISCVVector::BI__builtin_rvv_vssra_vx_mu:
+  case RISCVVector::BI__builtin_rvv_vssrl_vv_mu:
+  case RISCVVector::BI__builtin_rvv_vssrl_vx_mu:
+  case RISCVVector::BI__builtin_rvv_vnclip_wv_mu:
+  case RISCVVector::BI__builtin_rvv_vnclip_wx_mu:
+  case RISCVVector::BI__builtin_rvv_vnclipu_wv_mu:
+  case RISCVVector::BI__builtin_rvv_vnclipu_wx_mu:
+  case RISCVVector::BI__builtin_rvv_vsmul_vv_tum:
+  case RISCVVector::BI__builtin_rvv_vsmul_vx_tum:
+  case RISCVVector::BI__builtin_rvv_vssra_vv_tum:
+  case RISCVVector::BI__builtin_rvv_vssra_vx_tum:
+  case RISCVVector::BI__builtin_rvv_vssrl_vv_tum:
+  case RISCVVector::BI__builtin_rvv_vssrl_vx_tum:
+  case RISCVVector::BI__builtin_rvv_vnclip_wv_tum:
+  case RISCVVector::BI__builtin_rvv_vnclip_wx_tum:
+  case RISCVVector::BI__builtin_rvv_vnclipu_wv_tum:
+  case RISCVVector::BI__builtin_rvv_vnclipu_wx_tum:
+  case RISCVVector::BI__builtin_rvv_vsmul_vv_tumu:
+  case RISCVVector::BI__builtin_rvv_vsmul_vx_tumu:
+  case RISCVVector::BI__builtin_rvv_vssra_vv_tumu:
+  case RISCVVector::BI__builtin_rvv_vssra_vx_tumu:
+  case RISCVVector::BI__builtin_rvv_vssrl_vv_tumu:
+  case RISCVVector::BI__builtin_rvv_vssrl_vx_tumu:
+  case RISCVVector::BI__builtin_rvv_vnclip_wv_tumu:
+  case RISCVVector::BI__builtin_rvv_vnclip_wx_tumu:
+  case RISCVVector::BI__builtin_rvv_vnclipu_wv_tumu:
+  case RISCVVector::BI__builtin_rvv_vnclipu_wx_tumu:
+    return SemaBuiltinConstantArgRange(TheCall, 4, 0, 3);
+  case RISCVVector::BI__builtin_rvv_vfsqrt_v_rm:
+  case RISCVVector::BI__builtin_rvv_vfrec7_v_rm:
+  case RISCVVector::BI__builtin_rvv_vfcvt_x_f_v_rm:
+  case RISCVVector::BI__builtin_rvv_vfcvt_xu_f_v_rm:
+  case RISCVVector::BI__builtin_rvv_vfcvt_f_x_v_rm:
+  case RISCVVector::BI__builtin_rvv_vfcvt_f_xu_v_rm:
+  case RISCVVector::BI__builtin_rvv_vfwcvt_x_f_v_rm:
+  case RISCVVector::BI__builtin_rvv_vfwcvt_xu_f_v_rm:
+  case RISCVVector::BI__builtin_rvv_vfncvt_x_f_w_rm:
+  case RISCVVector::BI__builtin_rvv_vfncvt_xu_f_w_rm:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_x_w_rm:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_xu_w_rm:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_f_w_rm:
+    return SemaBuiltinConstantArgRange(TheCall, 1, 0, 4);
+  case RISCVVector::BI__builtin_rvv_vfadd_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfadd_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfsub_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfsub_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfrsub_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfwadd_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfwadd_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfwsub_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfwsub_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfwadd_wv_rm:
+  case RISCVVector::BI__builtin_rvv_vfwadd_wf_rm:
+  case RISCVVector::BI__builtin_rvv_vfwsub_wv_rm:
+  case RISCVVector::BI__builtin_rvv_vfwsub_wf_rm:
+  case RISCVVector::BI__builtin_rvv_vfmul_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfmul_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfdiv_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfdiv_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfrdiv_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfwmul_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfwmul_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfredosum_vs_rm:
+  case RISCVVector::BI__builtin_rvv_vfredusum_vs_rm:
+  case RISCVVector::BI__builtin_rvv_vfwredosum_vs_rm:
+  case RISCVVector::BI__builtin_rvv_vfwredusum_vs_rm:
+  case RISCVVector::BI__builtin_rvv_vfsqrt_v_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfrec7_v_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfcvt_x_f_v_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfcvt_xu_f_v_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfcvt_f_x_v_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfcvt_f_xu_v_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwcvt_x_f_v_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwcvt_xu_f_v_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfncvt_x_f_w_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfncvt_xu_f_w_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_x_w_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_xu_w_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_f_w_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfsqrt_v_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfrec7_v_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfcvt_x_f_v_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfcvt_xu_f_v_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfcvt_f_x_v_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfcvt_f_xu_v_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwcvt_x_f_v_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwcvt_xu_f_v_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfncvt_x_f_w_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfncvt_xu_f_w_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_x_w_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_xu_w_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_f_w_rm_m:
+    return SemaBuiltinConstantArgRange(TheCall, 2, 0, 4);
+  case RISCVVector::BI__builtin_rvv_vfadd_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfadd_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfsub_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfsub_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfrsub_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwadd_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwadd_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwsub_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwsub_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwadd_wv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwadd_wf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwsub_wv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwsub_wf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfmul_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfmul_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfdiv_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfdiv_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfrdiv_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwmul_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwmul_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfredosum_vs_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfredusum_vs_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwredosum_vs_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwredusum_vs_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfmacc_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfmacc_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfnmacc_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfnmacc_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfmsac_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfmsac_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfnmsac_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfnmsac_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfmadd_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfmadd_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfnmadd_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfnmadd_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfmsub_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfmsub_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfnmsub_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfnmsub_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfwmacc_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfwmacc_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfwnmacc_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfwnmacc_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfwmsac_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfwmsac_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfwnmsac_vv_rm:
+  case RISCVVector::BI__builtin_rvv_vfwnmsac_vf_rm:
+  case RISCVVector::BI__builtin_rvv_vfmacc_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfmacc_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfnmacc_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfnmacc_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfmsac_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfmsac_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfnmsac_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfnmsac_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfmadd_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfmadd_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfnmadd_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfnmadd_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfmsub_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfmsub_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfnmsub_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfnmsub_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwmacc_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwmacc_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwnmacc_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwnmacc_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwmsac_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwmsac_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwnmsac_vv_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfwnmsac_vf_rm_tu:
+  case RISCVVector::BI__builtin_rvv_vfadd_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfadd_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfsub_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfsub_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfrsub_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwadd_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwadd_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwsub_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwsub_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwadd_wv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwadd_wf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwsub_wv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwsub_wf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfmul_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfmul_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfdiv_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfdiv_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfrdiv_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwmul_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwmul_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfredosum_vs_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfredusum_vs_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwredosum_vs_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwredusum_vs_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfsqrt_v_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfrec7_v_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfcvt_x_f_v_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfcvt_xu_f_v_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfcvt_f_x_v_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfcvt_f_xu_v_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwcvt_x_f_v_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwcvt_xu_f_v_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfncvt_x_f_w_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfncvt_xu_f_w_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_x_w_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_xu_w_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_f_w_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfsqrt_v_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfrec7_v_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfcvt_x_f_v_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfcvt_xu_f_v_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfcvt_f_x_v_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfcvt_f_xu_v_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwcvt_x_f_v_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwcvt_xu_f_v_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfncvt_x_f_w_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfncvt_xu_f_w_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_x_w_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_xu_w_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_f_w_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfsqrt_v_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfrec7_v_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfcvt_x_f_v_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfcvt_xu_f_v_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfcvt_f_x_v_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfcvt_f_xu_v_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwcvt_x_f_v_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwcvt_xu_f_v_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfncvt_x_f_w_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfncvt_xu_f_w_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_x_w_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_xu_w_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfncvt_f_f_w_rm_mu:
+    return SemaBuiltinConstantArgRange(TheCall, 3, 0, 4);
+  case RISCVVector::BI__builtin_rvv_vfmacc_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfmacc_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfnmacc_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfnmacc_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfmsac_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfmsac_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfnmsac_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfnmsac_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfmadd_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfmadd_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfnmadd_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfnmadd_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfmsub_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfmsub_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfnmsub_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfnmsub_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwmacc_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwmacc_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwnmacc_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwnmacc_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwmsac_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwmsac_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwnmsac_vv_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfwnmsac_vf_rm_m:
+  case RISCVVector::BI__builtin_rvv_vfadd_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfadd_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfsub_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfsub_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfrsub_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwadd_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwadd_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwsub_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwsub_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwadd_wv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwadd_wf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwsub_wv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwsub_wf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfmul_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfmul_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfdiv_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfdiv_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfrdiv_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwmul_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwmul_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfmacc_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfmacc_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfnmacc_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfnmacc_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfmsac_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfmsac_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfnmsac_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfnmsac_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfmadd_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfmadd_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfnmadd_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfnmadd_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfmsub_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfmsub_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfnmsub_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfnmsub_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwmacc_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwmacc_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwnmacc_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwnmacc_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwmsac_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwmsac_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwnmsac_vv_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwnmsac_vf_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfredosum_vs_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfredusum_vs_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwredosum_vs_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfwredusum_vs_rm_tum:
+  case RISCVVector::BI__builtin_rvv_vfadd_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfadd_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfsub_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfsub_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfrsub_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwadd_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwadd_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwsub_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwsub_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwadd_wv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwadd_wf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwsub_wv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwsub_wf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfmul_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfmul_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfdiv_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfdiv_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfrdiv_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwmul_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwmul_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfmacc_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfmacc_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfnmacc_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfnmacc_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfmsac_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfmsac_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfnmsac_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfnmsac_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfmadd_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfmadd_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfnmadd_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfnmadd_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfmsub_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfmsub_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfnmsub_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfnmsub_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwmacc_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwmacc_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwnmacc_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwnmacc_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwmsac_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwmsac_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwnmsac_vv_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfwnmsac_vf_rm_tumu:
+  case RISCVVector::BI__builtin_rvv_vfadd_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfadd_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfsub_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfsub_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfrsub_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwadd_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwadd_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwsub_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwsub_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwadd_wv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwadd_wf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwsub_wv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwsub_wf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfmul_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfmul_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfdiv_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfdiv_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfrdiv_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwmul_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwmul_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfmacc_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfmacc_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfnmacc_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfnmacc_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfmsac_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfmsac_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfnmsac_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfnmsac_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfmadd_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfmadd_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfnmadd_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfnmadd_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfmsub_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfmsub_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfnmsub_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfnmsub_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwmacc_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwmacc_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwnmacc_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwnmacc_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwmsac_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwmsac_vf_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwnmsac_vv_rm_mu:
+  case RISCVVector::BI__builtin_rvv_vfwnmsac_vf_rm_mu:
+    return SemaBuiltinConstantArgRange(TheCall, 4, 0, 4);
+  case RISCV::BI__builtin_riscv_ntl_load:
+  case RISCV::BI__builtin_riscv_ntl_store:
+    DeclRefExpr *DRE =
+        cast<DeclRefExpr>(TheCall->getCallee()->IgnoreParenCasts());
+    assert((BuiltinID == RISCV::BI__builtin_riscv_ntl_store ||
+            BuiltinID == RISCV::BI__builtin_riscv_ntl_load) &&
+           "Unexpected RISC-V nontemporal load/store builtin!");
+    bool IsStore = BuiltinID == RISCV::BI__builtin_riscv_ntl_store;
+    unsigned NumArgs = IsStore ? 3 : 2;
+
+    if (checkArgCount(*this, TheCall, NumArgs))
+      return true;
+
+    // Domain value should be compile-time constant.
+    // 2 <= domain <= 5
+    if (SemaBuiltinConstantArgRange(TheCall, NumArgs - 1, 2, 5))
+      return true;
+
+    Expr *PointerArg = TheCall->getArg(0);
+    ExprResult PointerArgResult =
+        DefaultFunctionArrayLvalueConversion(PointerArg);
+
+    if (PointerArgResult.isInvalid())
+      return true;
+    PointerArg = PointerArgResult.get();
+
+    const PointerType *PtrType = PointerArg->getType()->getAs<PointerType>();
+    if (!PtrType) {
+      Diag(DRE->getBeginLoc(), diag::err_nontemporal_builtin_must_be_pointer)
+          << PointerArg->getType() << PointerArg->getSourceRange();
+      return true;
+    }
+
+    QualType ValType = PtrType->getPointeeType();
+    ValType = ValType.getUnqualifiedType();
+    if (!ValType->isIntegerType() && !ValType->isAnyPointerType() &&
+        !ValType->isBlockPointerType() && !ValType->isFloatingType() &&
+        !ValType->isVectorType() && !ValType->isRVVType()) {
+      Diag(DRE->getBeginLoc(),
+           diag::err_nontemporal_builtin_must_be_pointer_intfltptr_or_vector)
+          << PointerArg->getType() << PointerArg->getSourceRange();
+      return true;
+    }
+
+    if (!IsStore) {
+      TheCall->setType(ValType);
+      return false;
+    }
+
+    ExprResult ValArg = TheCall->getArg(1);
+    InitializedEntity Entity = InitializedEntity::InitializeParameter(
+        Context, ValType, /*consume*/ false);
+    ValArg = PerformCopyInitialization(Entity, SourceLocation(), ValArg);
+    if (ValArg.isInvalid())
+      return true;
+
+    TheCall->setArg(1, ValArg.get());
+    TheCall->setType(Context.VoidTy);
+    return false;
   }
 
   return false;
@@ -4706,6 +5389,68 @@ bool Sema::CheckSystemZBuiltinFunctionCall(unsigned BuiltinID,
   case SystemZ::BI__builtin_s390_vcrnfs: i = 2; l = 0; u = 15; break;
   }
   return SemaBuiltinConstantArgRange(TheCall, i, l, u);
+}
+
+bool Sema::CheckWebAssemblyBuiltinFunctionCall(const TargetInfo &TI,
+                                               unsigned BuiltinID,
+                                               CallExpr *TheCall) {
+  switch (BuiltinID) {
+  case WebAssembly::BI__builtin_wasm_ref_null_extern:
+    return BuiltinWasmRefNullExtern(TheCall);
+  case WebAssembly::BI__builtin_wasm_ref_null_func:
+    return BuiltinWasmRefNullFunc(TheCall);
+  case WebAssembly::BI__builtin_wasm_table_get:
+    return BuiltinWasmTableGet(TheCall);
+  case WebAssembly::BI__builtin_wasm_table_set:
+    return BuiltinWasmTableSet(TheCall);
+  case WebAssembly::BI__builtin_wasm_table_size:
+    return BuiltinWasmTableSize(TheCall);
+  case WebAssembly::BI__builtin_wasm_table_grow:
+    return BuiltinWasmTableGrow(TheCall);
+  case WebAssembly::BI__builtin_wasm_table_fill:
+    return BuiltinWasmTableFill(TheCall);
+  case WebAssembly::BI__builtin_wasm_table_copy:
+    return BuiltinWasmTableCopy(TheCall);
+  }
+
+  return false;
+}
+
+void Sema::checkRVVTypeSupport(QualType Ty, SourceLocation Loc, ValueDecl *D) {
+  const TargetInfo &TI = Context.getTargetInfo();
+  // (ELEN, LMUL) pairs of (8, mf8), (16, mf4), (32, mf2), (64, m1) requires at
+  // least zve64x
+  if ((Ty->isRVVType(/* Bitwidth */ 64, /* IsFloat */ false) ||
+       Ty->isRVVType(/* ElementCount */ 1)) &&
+      !TI.hasFeature("zve64x"))
+    Diag(Loc, diag::err_riscv_type_requires_extension, D) << Ty << "zve64x";
+  if (Ty->isRVVType(/* Bitwidth */ 16, /* IsFloat */ true) &&
+      !TI.hasFeature("zvfh"))
+    Diag(Loc, diag::err_riscv_type_requires_extension, D) << Ty << "zvfh";
+  if (Ty->isRVVType(/* Bitwidth */ 32, /* IsFloat */ true) &&
+      !TI.hasFeature("zve32f"))
+    Diag(Loc, diag::err_riscv_type_requires_extension, D) << Ty << "zve32f";
+  if (Ty->isRVVType(/* Bitwidth */ 64, /* IsFloat */ true) &&
+      !TI.hasFeature("zve64d"))
+    Diag(Loc, diag::err_riscv_type_requires_extension, D) << Ty << "zve64d";
+  // Given that caller already checked isRVVType() before calling this function,
+  // if we don't have at least zve32x supported, then we need to emit error.
+  if (!TI.hasFeature("zve32x"))
+    Diag(Loc, diag::err_riscv_type_requires_extension, D) << Ty << "zve32x";
+}
+
+bool Sema::CheckNVPTXBuiltinFunctionCall(const TargetInfo &TI,
+                                         unsigned BuiltinID,
+                                         CallExpr *TheCall) {
+  switch (BuiltinID) {
+  case NVPTX::BI__nvvm_cp_async_ca_shared_global_4:
+  case NVPTX::BI__nvvm_cp_async_ca_shared_global_8:
+  case NVPTX::BI__nvvm_cp_async_ca_shared_global_16:
+  case NVPTX::BI__nvvm_cp_async_cg_shared_global_16:
+    return checkArgCountAtMost(*this, TheCall, 3);
+  }
+
+  return false;
 }
 
 /// SemaBuiltinCpuSupports - Handle __builtin_cpu_supports(char *).
@@ -5205,6 +5950,8 @@ bool Sema::CheckX86BuiltinTileArguments(unsigned BuiltinID, CallExpr *TheCall) {
   case X86::BI__builtin_ia32_tdpbuud:
   case X86::BI__builtin_ia32_tdpbf16ps:
   case X86::BI__builtin_ia32_tdpfp16ps:
+  case X86::BI__builtin_ia32_tcmmimfp16ps:
+  case X86::BI__builtin_ia32_tcmmrlfp16ps:
     return CheckX86BuiltinTileRangeAndDuplicate(TheCall, {0, 1, 2});
   }
 }
@@ -5569,6 +6316,7 @@ bool Sema::CheckX86BuiltinFunctionCall(const TargetInfo &TI, unsigned BuiltinID,
   case X86::BI__builtin_ia32_pternlogq128_maskz:
   case X86::BI__builtin_ia32_pternlogq256_mask:
   case X86::BI__builtin_ia32_pternlogq256_maskz:
+  case X86::BI__builtin_ia32_vsm3rnds2:
     i = 3; l = 0; u = 255;
     break;
   case X86::BI__builtin_ia32_gatherpfdpd:
@@ -6268,7 +7016,15 @@ ExprResult Sema::BuildAtomicExpr(SourceRange CallRange, SourceRange ExprRange,
              Op == AtomicExpr::AO__atomic_store_n ||
              Op == AtomicExpr::AO__atomic_exchange_n ||
              Op == AtomicExpr::AO__atomic_compare_exchange_n;
-  bool IsAddSub = false;
+  // Bit mask for extra allowed value types other than integers for atomic
+  // arithmetic operations. Add/sub allow pointer and floating point. Min/max
+  // allow floating point.
+  enum ArithOpExtraValueType {
+    AOEVT_None = 0,
+    AOEVT_Pointer = 1,
+    AOEVT_FP = 2,
+  };
+  unsigned ArithAllows = AOEVT_None;
 
   switch (Op) {
   case AtomicExpr::AO__c11_atomic_init:
@@ -6294,18 +7050,30 @@ ExprResult Sema::BuildAtomicExpr(SourceRange CallRange, SourceRange ExprRange,
   case AtomicExpr::AO__atomic_store_n:
     Form = Copy;
     break;
-  case AtomicExpr::AO__hip_atomic_fetch_add:
-  case AtomicExpr::AO__hip_atomic_fetch_min:
-  case AtomicExpr::AO__hip_atomic_fetch_max:
-  case AtomicExpr::AO__c11_atomic_fetch_add:
-  case AtomicExpr::AO__c11_atomic_fetch_sub:
-  case AtomicExpr::AO__opencl_atomic_fetch_add:
-  case AtomicExpr::AO__opencl_atomic_fetch_sub:
   case AtomicExpr::AO__atomic_fetch_add:
   case AtomicExpr::AO__atomic_fetch_sub:
   case AtomicExpr::AO__atomic_add_fetch:
   case AtomicExpr::AO__atomic_sub_fetch:
-    IsAddSub = true;
+  case AtomicExpr::AO__c11_atomic_fetch_add:
+  case AtomicExpr::AO__c11_atomic_fetch_sub:
+  case AtomicExpr::AO__opencl_atomic_fetch_add:
+  case AtomicExpr::AO__opencl_atomic_fetch_sub:
+  case AtomicExpr::AO__hip_atomic_fetch_add:
+  case AtomicExpr::AO__hip_atomic_fetch_sub:
+    ArithAllows = AOEVT_Pointer | AOEVT_FP;
+    Form = Arithmetic;
+    break;
+  case AtomicExpr::AO__atomic_fetch_max:
+  case AtomicExpr::AO__atomic_fetch_min:
+  case AtomicExpr::AO__atomic_max_fetch:
+  case AtomicExpr::AO__atomic_min_fetch:
+  case AtomicExpr::AO__c11_atomic_fetch_max:
+  case AtomicExpr::AO__c11_atomic_fetch_min:
+  case AtomicExpr::AO__opencl_atomic_fetch_max:
+  case AtomicExpr::AO__opencl_atomic_fetch_min:
+  case AtomicExpr::AO__hip_atomic_fetch_max:
+  case AtomicExpr::AO__hip_atomic_fetch_min:
+    ArithAllows = AOEVT_FP;
     Form = Arithmetic;
     break;
   case AtomicExpr::AO__c11_atomic_fetch_and:
@@ -6326,16 +7094,6 @@ ExprResult Sema::BuildAtomicExpr(SourceRange CallRange, SourceRange ExprRange,
   case AtomicExpr::AO__atomic_or_fetch:
   case AtomicExpr::AO__atomic_xor_fetch:
   case AtomicExpr::AO__atomic_nand_fetch:
-    Form = Arithmetic;
-    break;
-  case AtomicExpr::AO__c11_atomic_fetch_min:
-  case AtomicExpr::AO__c11_atomic_fetch_max:
-  case AtomicExpr::AO__opencl_atomic_fetch_min:
-  case AtomicExpr::AO__opencl_atomic_fetch_max:
-  case AtomicExpr::AO__atomic_min_fetch:
-  case AtomicExpr::AO__atomic_max_fetch:
-  case AtomicExpr::AO__atomic_fetch_min:
-  case AtomicExpr::AO__atomic_fetch_max:
     Form = Arithmetic;
     break;
 
@@ -6425,12 +7183,13 @@ ExprResult Sema::BuildAtomicExpr(SourceRange CallRange, SourceRange ExprRange,
   if (Form == Arithmetic) {
     // GCC does not enforce these rules for GNU atomics, but we do to help catch
     // trivial type errors.
-    auto IsAllowedValueType = [&](QualType ValType) {
+    auto IsAllowedValueType = [&](QualType ValType,
+                                  unsigned AllowedType) -> bool {
       if (ValType->isIntegerType())
         return true;
       if (ValType->isPointerType())
-        return true;
-      if (!ValType->isFloatingType())
+        return AllowedType & AOEVT_Pointer;
+      if (!(ValType->isFloatingType() && (AllowedType & AOEVT_FP)))
         return false;
       // LLVM Parser does not allow atomicrmw with x86_fp80 type.
       if (ValType->isSpecificBuiltinType(BuiltinType::LongDouble) &&
@@ -6439,13 +7198,13 @@ ExprResult Sema::BuildAtomicExpr(SourceRange CallRange, SourceRange ExprRange,
         return false;
       return true;
     };
-    if (IsAddSub && !IsAllowedValueType(ValType)) {
-      Diag(ExprRange.getBegin(), diag::err_atomic_op_needs_atomic_int_ptr_or_fp)
-          << IsC11 << Ptr->getType() << Ptr->getSourceRange();
-      return ExprError();
-    }
-    if (!IsAddSub && !ValType->isIntegerType()) {
-      Diag(ExprRange.getBegin(), diag::err_atomic_op_needs_atomic_int)
+    if (!IsAllowedValueType(ValType, ArithAllows)) {
+      auto DID = ArithAllows & AOEVT_FP
+                     ? (ArithAllows & AOEVT_Pointer
+                            ? diag::err_atomic_op_needs_atomic_int_ptr_or_fp
+                            : diag::err_atomic_op_needs_atomic_int_or_fp)
+                     : diag::err_atomic_op_needs_atomic_int;
+      Diag(ExprRange.getBegin(), DID)
           << IsC11 << Ptr->getType() << Ptr->getSourceRange();
       return ExprError();
     }
@@ -6725,6 +7484,34 @@ static bool checkBuiltinArgument(Sema &S, CallExpr *E, unsigned ArgIndex) {
     return true;
 
   E->setArg(ArgIndex, Arg.get());
+  return false;
+}
+
+bool Sema::BuiltinWasmRefNullExtern(CallExpr *TheCall) {
+  if (TheCall->getNumArgs() != 0)
+    return true;
+
+  TheCall->setType(Context.getWebAssemblyExternrefType());
+
+  return false;
+}
+
+bool Sema::BuiltinWasmRefNullFunc(CallExpr *TheCall) {
+  if (TheCall->getNumArgs() != 0) {
+    Diag(TheCall->getBeginLoc(), diag::err_typecheck_call_too_many_args)
+         << 0 /*function call*/ << 0 << TheCall->getNumArgs();
+    return true;
+  }
+
+  // This custom type checking code ensures that the nodes are as expected
+  // in order to later on generate the necessary builtin.
+  QualType Pointee = Context.getFunctionType(Context.VoidTy, {}, {});
+  QualType Type = Context.getPointerType(Pointee);
+  Pointee = Context.getAddrSpaceQualType(Pointee, LangAS::wasm_funcref);
+  Type = Context.getAttributedType(attr::WebAssemblyFuncref, Type,
+                                   Context.getPointerType(Pointee));
+  TheCall->setType(Type);
+
   return false;
 }
 
@@ -7494,9 +8281,12 @@ bool Sema::SemaBuiltinFPClassification(CallExpr *TheCall, unsigned NumArgs) {
   if (checkArgCount(*this, TheCall, NumArgs))
     return true;
 
-  // __builtin_fpclassify is the only case where NumArgs != 1, so we can count
-  // on all preceding parameters just being int.  Try all of those.
-  for (unsigned i = 0; i < NumArgs - 1; ++i) {
+  // Find out position of floating-point argument.
+  unsigned FPArgNo = (NumArgs == 2) ? 0 : NumArgs - 1;
+
+  // We can count on all parameters preceding the floating-point just being int.
+  // Try all of those.
+  for (unsigned i = 0; i < FPArgNo; ++i) {
     Expr *Arg = TheCall->getArg(i);
 
     if (Arg->isTypeDependent())
@@ -7509,7 +8299,7 @@ bool Sema::SemaBuiltinFPClassification(CallExpr *TheCall, unsigned NumArgs) {
     TheCall->setArg(i, Res.get());
   }
 
-  Expr *OrigArg = TheCall->getArg(NumArgs-1);
+  Expr *OrigArg = TheCall->getArg(FPArgNo);
 
   if (OrigArg->isTypeDependent())
     return false;
@@ -7521,13 +8311,19 @@ bool Sema::SemaBuiltinFPClassification(CallExpr *TheCall, unsigned NumArgs) {
     OrigArg = UsualUnaryConversions(OrigArg).get();
   else
     OrigArg = DefaultFunctionArrayLvalueConversion(OrigArg).get();
-  TheCall->setArg(NumArgs - 1, OrigArg);
+  TheCall->setArg(FPArgNo, OrigArg);
 
   // This operation requires a non-_Complex floating-point number.
   if (!OrigArg->getType()->isRealFloatingType())
     return Diag(OrigArg->getBeginLoc(),
                 diag::err_typecheck_call_invalid_unary_fp)
            << OrigArg->getType() << OrigArg->getSourceRange();
+
+  // __builtin_isfpclass has integer parameter that specify test mask. It is
+  // passed in (...), so it should be analyzed completely here.
+  if (NumArgs == 2)
+    if (SemaBuiltinConstantArgRange(TheCall, 1, 0, llvm::fcAllFlags))
+      return true;
 
   return false;
 }
@@ -7858,8 +8654,9 @@ bool Sema::SemaBuiltinAssumeAligned(CallExpr *TheCall) {
   {
     ExprResult FirstArgResult =
         DefaultFunctionArrayLvalueConversion(FirstArg);
-    if (FirstArgResult.isInvalid())
+    if (checkBuiltinArgument(*this, TheCall, 0))
       return true;
+    /// In-place updation of FirstArg by checkBuiltinArgument is ignored.
     TheCall->setArg(0, FirstArgResult.get());
   }
 
@@ -8352,18 +9149,18 @@ bool Sema::SemaBuiltinARMSpecialReg(unsigned BuiltinID, CallExpr *TheCall,
 
     bool ValidString = true;
     if (IsARMBuiltin) {
-      ValidString &= Fields[0].startswith_insensitive("cp") ||
-                     Fields[0].startswith_insensitive("p");
+      ValidString &= Fields[0].starts_with_insensitive("cp") ||
+                     Fields[0].starts_with_insensitive("p");
       if (ValidString)
         Fields[0] = Fields[0].drop_front(
-            Fields[0].startswith_insensitive("cp") ? 2 : 1);
+            Fields[0].starts_with_insensitive("cp") ? 2 : 1);
 
-      ValidString &= Fields[2].startswith_insensitive("c");
+      ValidString &= Fields[2].starts_with_insensitive("c");
       if (ValidString)
         Fields[2] = Fields[2].drop_front(1);
 
       if (FiveFields) {
-        ValidString &= Fields[3].startswith_insensitive("c");
+        ValidString &= Fields[3].starts_with_insensitive("c");
         if (ValidString)
           Fields[3] = Fields[3].drop_front(1);
       }
@@ -8444,29 +9241,6 @@ bool Sema::SemaBuiltinPPCMMACall(CallExpr *TheCall, unsigned BuiltinID,
 
   assert((TypeStr[0] != '\0') &&
          "Invalid types in PPC MMA builtin declaration");
-
-  switch (BuiltinID) {
-  default:
-    // This function is called in CheckPPCBuiltinFunctionCall where the
-    // BuiltinID is guaranteed to be an MMA or pair vector memop builtin, here
-    // we are isolating the pair vector memop builtins that can be used with mma
-    // off so the default case is every builtin that requires mma and paired
-    // vector memops.
-    if (SemaFeatureCheck(*this, TheCall, "paired-vector-memops",
-                         diag::err_ppc_builtin_only_on_arch, "10") ||
-        SemaFeatureCheck(*this, TheCall, "mma",
-                         diag::err_ppc_builtin_only_on_arch, "10"))
-      return true;
-    break;
-  case PPC::BI__builtin_vsx_lxvp:
-  case PPC::BI__builtin_vsx_stxvp:
-  case PPC::BI__builtin_vsx_assemble_pair:
-  case PPC::BI__builtin_vsx_disassemble_pair:
-    if (SemaFeatureCheck(*this, TheCall, "paired-vector-memops",
-                         diag::err_ppc_builtin_only_on_arch, "10"))
-      return true;
-    break;
-  }
 
   unsigned Mask = 0;
   unsigned ArgNum = 0;
@@ -9444,13 +10218,13 @@ void CheckFormatHandler::HandlePosition(const char *startPos,
                                getSpecifierRange(startPos, posLen));
 }
 
-void
-CheckFormatHandler::HandleInvalidPosition(const char *startPos, unsigned posLen,
-                                     analyze_format_string::PositionContext p) {
-  EmitFormatDiagnostic(S.PDiag(diag::warn_format_invalid_positional_specifier)
-                         << (unsigned) p,
-                       getLocationOfByte(startPos), /*IsStringLocation*/true,
-                       getSpecifierRange(startPos, posLen));
+void CheckFormatHandler::HandleInvalidPosition(
+    const char *startSpecifier, unsigned specifierLen,
+    analyze_format_string::PositionContext p) {
+  EmitFormatDiagnostic(
+      S.PDiag(diag::warn_format_invalid_positional_specifier) << (unsigned)p,
+      getLocationOfByte(startSpecifier), /*IsStringLocation*/ true,
+      getSpecifierRange(startSpecifier, specifierLen));
 }
 
 void CheckFormatHandler::HandleZeroPosition(const char *startPos,
@@ -9495,7 +10269,7 @@ void CheckFormatHandler::DoneProcessing() {
 
 void UncoveredArgHandler::Diagnose(Sema &S, bool IsFunctionCall,
                                    const Expr *ArgExpr) {
-  assert(hasUncoveredArg() && DiagnosticExprs.size() > 0 &&
+  assert(hasUncoveredArg() && !DiagnosticExprs.empty() &&
          "Invalid state");
 
   if (!ArgExpr)
@@ -10392,17 +11166,26 @@ CheckPrintfHandler::checkFormatExpr(const analyze_printf::PrintfSpecifier &FS,
       ImplicitMatch == ArgType::NoMatchTypeConfusion)
     Match = ImplicitMatch;
   assert(Match != ArgType::MatchPromotion);
-  // Look through enums to their underlying type.
+
+  // Look through unscoped enums to their underlying type.
   bool IsEnum = false;
+  bool IsScopedEnum = false;
+  QualType IntendedTy = ExprTy;
   if (auto EnumTy = ExprTy->getAs<EnumType>()) {
-    ExprTy = EnumTy->getDecl()->getIntegerType();
-    IsEnum = true;
+    IntendedTy = EnumTy->getDecl()->getIntegerType();
+    if (EnumTy->isUnscopedEnumerationType()) {
+      ExprTy = IntendedTy;
+      // This controls whether we're talking about the underlying type or not,
+      // which we only want to do when it's an unscoped enum.
+      IsEnum = true;
+    } else {
+      IsScopedEnum = true;
+    }
   }
 
   // %C in an Objective-C context prints a unichar, not a wchar_t.
   // If the argument is an integer of some kind, believe the %C and suggest
   // a cast instead of changing the conversion specifier.
-  QualType IntendedTy = ExprTy;
   if (isObjCContext() &&
       FS.getConversionSpecifier().getKind() == ConversionSpecifier::CArg) {
     if (ExprTy->isIntegralOrUnscopedEnumerationType() &&
@@ -10438,8 +11221,10 @@ CheckPrintfHandler::checkFormatExpr(const analyze_printf::PrintfSpecifier &FS,
     std::tie(CastTy, CastTyName) = shouldNotPrintDirectly(S.Context, IntendedTy, E);
     if (!CastTy.isNull()) {
       // %zi/%zu and %td/%tu are OK to use for NSInteger/NSUInteger of type int
-      // (long in ASTContext). Only complain to pedants.
-      if ((CastTyName == "NSInteger" || CastTyName == "NSUInteger") &&
+      // (long in ASTContext). Only complain to pedants or when they're the
+      // underlying type of a scoped enum (which always needs a cast).
+      if (!IsScopedEnum &&
+          (CastTyName == "NSInteger" || CastTyName == "NSUInteger") &&
           (AT.isSizeT() || AT.isPtrdiffT()) &&
           AT.matchesType(S.Context, CastTy))
         Match = ArgType::NoMatchPedantic;
@@ -10461,7 +11246,7 @@ CheckPrintfHandler::checkFormatExpr(const analyze_printf::PrintfSpecifier &FS,
 
     CharSourceRange SpecRange = getSpecifierRange(StartSpecifier, SpecifierLen);
 
-    if (IntendedTy == ExprTy && !ShouldNotPrintDirectly) {
+    if (IntendedTy == ExprTy && !ShouldNotPrintDirectly && !IsScopedEnum) {
       unsigned Diag;
       switch (Match) {
       case ArgType::Match:
@@ -10494,15 +11279,16 @@ CheckPrintfHandler::checkFormatExpr(const analyze_printf::PrintfSpecifier &FS,
       // should be printed as 'long' for 64-bit compatibility.)
       // Rather than emitting a normal format/argument mismatch, we want to
       // add a cast to the recommended type (and correct the format string
-      // if necessary).
+      // if necessary). We should also do so for scoped enumerations.
       SmallString<16> CastBuf;
       llvm::raw_svector_ostream CastFix(CastBuf);
-      CastFix << "(";
+      CastFix << (S.LangOpts.CPlusPlus ? "static_cast<" : "(");
       IntendedTy.print(CastFix, S.Context.getPrintingPolicy());
-      CastFix << ")";
+      CastFix << (S.LangOpts.CPlusPlus ? ">" : ")");
 
       SmallVector<FixItHint,4> Hints;
-      if (!AT.matchesType(S.Context, IntendedTy) || ShouldNotPrintDirectly)
+      if (AT.matchesType(S.Context, IntendedTy) != ArgType::Match ||
+          ShouldNotPrintDirectly)
         Hints.push_back(FixItHint::CreateReplacement(SpecRange, os.str()));
 
       if (const CStyleCastExpr *CCast = dyn_cast<CStyleCastExpr>(E)) {
@@ -10510,7 +11296,7 @@ CheckPrintfHandler::checkFormatExpr(const analyze_printf::PrintfSpecifier &FS,
         SourceRange CastRange(CCast->getLParenLoc(), CCast->getRParenLoc());
         Hints.push_back(FixItHint::CreateReplacement(CastRange, CastFix.str()));
 
-      } else if (!requiresParensToAddCast(E)) {
+      } else if (!requiresParensToAddCast(E) && !S.LangOpts.CPlusPlus) {
         // If the expression has high enough precedence,
         // just write the C-style cast.
         Hints.push_back(
@@ -10521,11 +11307,15 @@ CheckPrintfHandler::checkFormatExpr(const analyze_printf::PrintfSpecifier &FS,
         Hints.push_back(
             FixItHint::CreateInsertion(E->getBeginLoc(), CastFix.str()));
 
-        SourceLocation After = S.getLocForEndOfToken(E->getEndLoc());
+        // We don't use getLocForEndOfToken because it returns invalid source
+        // locations for macro expansions (by design).
+        SourceLocation EndLoc = S.SourceMgr.getSpellingLoc(E->getEndLoc());
+        SourceLocation After = EndLoc.getLocWithOffset(
+            Lexer::MeasureTokenLength(EndLoc, S.SourceMgr, S.LangOpts));
         Hints.push_back(FixItHint::CreateInsertion(After, ")"));
       }
 
-      if (ShouldNotPrintDirectly) {
+      if (ShouldNotPrintDirectly && !IsScopedEnum) {
         // The expression has a type that should not be printed directly.
         // We extract the name from the typedef because we don't want to show
         // the underlying type in the diagnostic.
@@ -12170,6 +12960,10 @@ Sema::CheckReturnValExpr(Expr *RetValExp, QualType lhsType,
     }
   }
 
+  if (RetValExp && RetValExp->getType()->isWebAssemblyTableType()) {
+    Diag(ReturnLoc, diag::err_wasm_table_art) << 1;
+  }
+
   // PPC MMA non-pointer types are not allowed as return type. Checking the type
   // here prevent the user from using a PPC MMA type as trailing return type.
   if (Context.getTargetInfo().getTriple().isPPC64())
@@ -12423,7 +13217,7 @@ struct IntRange {
 static IntRange GetValueRange(ASTContext &C, llvm::APSInt &value,
                               unsigned MaxWidth) {
   if (value.isSigned() && value.isNegative())
-    return IntRange(value.getMinSignedBits(), false);
+    return IntRange(value.getSignificantBits(), false);
 
   if (value.getBitWidth() > MaxWidth)
     value = value.trunc(MaxWidth);
@@ -13340,7 +14134,7 @@ static bool AnalyzeBitFieldAssignment(Sema &S, FieldDecl *Bitfield, Expr *Init,
   if (!Value.isSigned() || Value.isNegative())
     if (UnaryOperator *UO = dyn_cast<UnaryOperator>(OriginalInit))
       if (UO->getOpcode() == UO_Minus || UO->getOpcode() == UO_Not)
-        OriginalWidth = Value.getMinSignedBits();
+        OriginalWidth = Value.getSignificantBits();
 
   if (OriginalWidth <= FieldWidth)
     return false;
@@ -13932,6 +14726,13 @@ static void CheckImplicitConversion(Sema &S, Expr *E, QualType T,
                                             QualType(Source, 0))))
       return;
 
+    if (Target->isRVVVLSBuiltinType() &&
+        (S.Context.areCompatibleRVVTypes(QualType(Target, 0),
+                                         QualType(Source, 0)) ||
+         S.Context.areLaxCompatibleRVVTypes(QualType(Target, 0),
+                                            QualType(Source, 0))))
+      return;
+
     if (!isa<VectorType>(Target)) {
       if (S.SourceMgr.isInSystemMacro(CC))
         return;
@@ -14283,6 +15084,12 @@ static void CheckImplicitConversion(Sema &S, Expr *E, QualType T,
     if (S.SourceMgr.isInSystemMacro(CC))
       return;
 
+    if (SourceBT && SourceBT->isInteger() && TargetBT &&
+        TargetBT->isInteger() &&
+        Source->isSignedIntegerType() == Target->isSignedIntegerType()) {
+      return;
+    }
+
     unsigned DiagID = diag::warn_impcast_integer_sign;
 
     // Traditionally, gcc has warned about this under -Wsign-compare.
@@ -14330,6 +15137,9 @@ static void CheckConditionalOperator(Sema &S, AbstractConditionalOperator *E,
 static void CheckConditionalOperand(Sema &S, Expr *E, QualType T,
                                     SourceLocation CC, bool &ICContext) {
   E = E->IgnoreParenImpCasts();
+  // Diagnose incomplete type for second or third operand in C.
+  if (!S.getLangOpts().CPlusPlus && E->getType()->isRecordType())
+    S.RequireCompleteExprType(E, diag::err_incomplete_type);
 
   if (auto *CO = dyn_cast<AbstractConditionalOperator>(E))
     return CheckConditionalOperator(S, CO, CC, T);
@@ -14652,7 +15462,7 @@ void Sema::DiagnoseAlwaysNonNullPointer(Expr *E,
 
   bool IsAddressOf = false;
 
-  if (UnaryOperator *UO = dyn_cast<UnaryOperator>(E)) {
+  if (auto *UO = dyn_cast<UnaryOperator>(E->IgnoreParens())) {
     if (UO->getOpcode() != UO_AddrOf)
       return;
     IsAddressOf = true;
@@ -14844,37 +15654,39 @@ void Sema::CheckBoolLikeConversion(Expr *E, SourceLocation CC) {
 
 /// Diagnose when expression is an integer constant expression and its evaluation
 /// results in integer overflow
-void Sema::CheckForIntOverflow (Expr *E) {
+void Sema::CheckForIntOverflow (const Expr *E) {
   // Use a work list to deal with nested struct initializers.
-  SmallVector<Expr *, 2> Exprs(1, E);
+  SmallVector<const Expr *, 2> Exprs(1, E);
 
   do {
-    Expr *OriginalE = Exprs.pop_back_val();
-    Expr *E = OriginalE->IgnoreParenCasts();
+    const Expr *OriginalE = Exprs.pop_back_val();
+    const Expr *E = OriginalE->IgnoreParenCasts();
 
-    if (isa<BinaryOperator>(E)) {
+    if (isa<BinaryOperator, UnaryOperator>(E)) {
       E->EvaluateForOverflow(Context);
       continue;
     }
 
-    if (auto InitList = dyn_cast<InitListExpr>(OriginalE))
+    if (const auto *InitList = dyn_cast<InitListExpr>(OriginalE))
       Exprs.append(InitList->inits().begin(), InitList->inits().end());
     else if (isa<ObjCBoxedExpr>(OriginalE))
       E->EvaluateForOverflow(Context);
-    else if (auto Call = dyn_cast<CallExpr>(E))
+    else if (const auto *Call = dyn_cast<CallExpr>(E))
       Exprs.append(Call->arg_begin(), Call->arg_end());
-    else if (auto Message = dyn_cast<ObjCMessageExpr>(E))
+    else if (const auto *Message = dyn_cast<ObjCMessageExpr>(E))
       Exprs.append(Message->arg_begin(), Message->arg_end());
-    else if (auto Construct = dyn_cast<CXXConstructExpr>(E))
+    else if (const auto *Construct = dyn_cast<CXXConstructExpr>(E))
       Exprs.append(Construct->arg_begin(), Construct->arg_end());
-    else if (auto Array = dyn_cast<ArraySubscriptExpr>(E))
+    else if (const auto *Temporary = dyn_cast<CXXBindTemporaryExpr>(E))
+      Exprs.push_back(Temporary->getSubExpr());
+    else if (const auto *Array = dyn_cast<ArraySubscriptExpr>(E))
       Exprs.push_back(Array->getIdx());
-    else if (auto Compound = dyn_cast<CompoundLiteralExpr>(E))
+    else if (const auto *Compound = dyn_cast<CompoundLiteralExpr>(E))
       Exprs.push_back(Compound->getInitializer());
-    else if (auto New = dyn_cast<CXXNewExpr>(E)) {
-      if (New->isArray())
-        if (auto ArraySize = New->getArraySize())
-          Exprs.push_back(*ArraySize);
+    else if (const auto *New = dyn_cast<CXXNewExpr>(E);
+             New && New->isArray()) {
+      if (auto ArraySize = New->getArraySize())
+        Exprs.push_back(*ArraySize);
     }
   } while (!Exprs.empty());
 }
@@ -15208,6 +16020,23 @@ public:
   void VisitExpr(const Expr *E) {
     // By default, just recurse to evaluated subexpressions.
     Base::VisitStmt(E);
+  }
+
+  void VisitCoroutineSuspendExpr(const CoroutineSuspendExpr *CSE) {
+    for (auto *Sub : CSE->children()) {
+      const Expr *ChildExpr = dyn_cast_or_null<Expr>(Sub);
+      if (!ChildExpr)
+        continue;
+
+      if (ChildExpr == CSE->getOperand())
+        // Do not recurse over a CoroutineSuspendExpr's operand.
+        // The operand is also a subexpression of getCommonExpr(), and
+        // recursing into it directly could confuse object management
+        // for the sake of sequence tracking.
+        continue;
+
+      Visit(Sub);
+    }
   }
 
   void VisitCastExpr(const CastExpr *E) {
@@ -15796,14 +16625,21 @@ bool Sema::CheckParmsForFunctionDef(ArrayRef<ParmVarDecl *> Parameters,
                                     bool CheckParameterNames) {
   bool HasInvalidParm = false;
   for (ParmVarDecl *Param : Parameters) {
+    assert(Param && "null in a parameter list");
     // C99 6.7.5.3p4: the parameters in a parameter type list in a
     // function declarator that is part of a function definition of
     // that function shall not have incomplete type.
     //
-    // This is also C++ [dcl.fct]p6.
+    // C++23 [dcl.fct.def.general]/p2
+    // The type of a parameter [...] for a function definition
+    // shall not be a (possibly cv-qualified) class type that is incomplete
+    // or abstract within the function body unless the function is deleted.
     if (!Param->isInvalidDecl() &&
-        RequireCompleteType(Param->getLocation(), Param->getType(),
-                            diag::err_typecheck_decl_incomplete_type)) {
+        (RequireCompleteType(Param->getLocation(), Param->getType(),
+                             diag::err_typecheck_decl_incomplete_type) ||
+         RequireNonAbstractType(Param->getBeginLoc(), Param->getOriginalType(),
+                                diag::err_abstract_type_in_decl,
+                                AbstractParamType))) {
       Param->setInvalidDecl();
       HasInvalidParm = true;
     }
@@ -15862,6 +16698,13 @@ bool Sema::CheckParmsForFunctionDef(ArrayRef<ParmVarDecl *> Parameters,
           CheckShadowInheritedFields(Param->getLocation(), Param->getDeclName(),
                                      RD, /*DeclIsField*/ false);
       }
+    }
+
+    if (!Param->isInvalidDecl() &&
+        Param->getOriginalType()->isWebAssemblyTableType()) {
+      Param->setInvalidDecl();
+      HasInvalidParm = true;
+      Diag(Param->getLocation(), diag::err_wasm_table_as_function_parameter);
     }
   }
 
@@ -15975,8 +16818,12 @@ std::optional<std::pair<
     if (auto *VD = dyn_cast<VarDecl>(cast<DeclRefExpr>(E)->getDecl())) {
       // FIXME: If VD is captured by copy or is an escaping __block variable,
       // use the alignment of VD's type.
-      if (!VD->getType()->isReferenceType())
+      if (!VD->getType()->isReferenceType()) {
+        // Dependent alignment cannot be resolved -> bail out.
+        if (VD->hasDependentAlignment())
+          break;
         return std::make_pair(Ctx.getDeclAlign(VD), CharUnits::Zero());
+      }
       if (VD->hasInit())
         return getBaseAlignmentAndOffsetFromLValue(VD->getInit(), Ctx);
     }
@@ -16528,14 +17375,13 @@ static bool findRetainCycleOwner(Sema &S, Expr *e, RetainCycleOwner &owner) {
 namespace {
 
   struct FindCaptureVisitor : EvaluatedExprVisitor<FindCaptureVisitor> {
-    ASTContext &Context;
     VarDecl *Variable;
     Expr *Capturer = nullptr;
     bool VarWillBeReased = false;
 
     FindCaptureVisitor(ASTContext &Context, VarDecl *variable)
         : EvaluatedExprVisitor<FindCaptureVisitor>(Context),
-          Context(Context), Variable(variable) {}
+          Variable(variable) {}
 
     void VisitDeclRefExpr(DeclRefExpr *ref) {
       if (ref->getDecl() == Variable && !Capturer)
@@ -17821,6 +18667,40 @@ bool Sema::SemaBuiltinElementwiseMath(CallExpr *TheCall) {
   return false;
 }
 
+bool Sema::SemaBuiltinElementwiseTernaryMath(CallExpr *TheCall) {
+  if (checkArgCount(*this, TheCall, 3))
+    return true;
+
+  Expr *Args[3];
+  for (int I = 0; I < 3; ++I) {
+    ExprResult Converted = UsualUnaryConversions(TheCall->getArg(I));
+    if (Converted.isInvalid())
+      return true;
+    Args[I] = Converted.get();
+  }
+
+  int ArgOrdinal = 1;
+  for (Expr *Arg : Args) {
+    if (checkFPMathBuiltinElementType(*this, Arg->getBeginLoc(), Arg->getType(),
+                                      ArgOrdinal++))
+      return true;
+  }
+
+  for (int I = 1; I < 3; ++I) {
+    if (Args[0]->getType().getCanonicalType() !=
+        Args[I]->getType().getCanonicalType()) {
+      return Diag(Args[0]->getBeginLoc(),
+                  diag::err_typecheck_call_different_arg_types)
+             << Args[0]->getType() << Args[I]->getType();
+    }
+
+    TheCall->setArg(I, Args[I]);
+  }
+
+  TheCall->setType(Args[0]->getType());
+  return false;
+}
+
 bool Sema::PrepareBuiltinReduceMathOneArgCall(CallExpr *TheCall) {
   if (checkArgCount(*this, TheCall, 1))
     return true;
@@ -17830,6 +18710,21 @@ bool Sema::PrepareBuiltinReduceMathOneArgCall(CallExpr *TheCall) {
     return true;
 
   TheCall->setArg(0, A.get());
+  return false;
+}
+
+bool Sema::SemaBuiltinNonDeterministicValue(CallExpr *TheCall) {
+  if (checkArgCount(*this, TheCall, 1))
+    return true;
+
+  ExprResult Arg = TheCall->getArg(0);
+  QualType TyArg = Arg.get()->getType();
+
+  if (!TyArg->isBuiltinType() && !TyArg->isVectorType())
+    return Diag(TheCall->getArg(0)->getBeginLoc(), diag::err_builtin_invalid_arg_type)
+           << 1 << /*vector, integer or floating point ty*/ 0 << TyArg;
+
+  TheCall->setType(TyArg);
   return false;
 }
 
@@ -18097,12 +18992,178 @@ ExprResult Sema::SemaBuiltinMatrixColumnMajorStore(CallExpr *TheCall,
   return CallResult;
 }
 
+/// Checks the argument at the given index is a WebAssembly table and if it
+/// is, sets ElTy to the element type.
+static bool CheckWasmBuiltinArgIsTable(Sema &S, CallExpr *E, unsigned ArgIndex,
+                                       QualType &ElTy) {
+  Expr *ArgExpr = E->getArg(ArgIndex);
+  const auto *ATy = dyn_cast<ArrayType>(ArgExpr->getType());
+  if (!ATy || !ATy->getElementType().isWebAssemblyReferenceType()) {
+    return S.Diag(ArgExpr->getBeginLoc(),
+                  diag::err_wasm_builtin_arg_must_be_table_type)
+           << ArgIndex + 1 << ArgExpr->getSourceRange();
+  }
+  ElTy = ATy->getElementType();
+  return false;
+}
+
+/// Checks the argument at the given index is an integer.
+static bool CheckWasmBuiltinArgIsInteger(Sema &S, CallExpr *E,
+                                         unsigned ArgIndex) {
+  Expr *ArgExpr = E->getArg(ArgIndex);
+  if (!ArgExpr->getType()->isIntegerType()) {
+    return S.Diag(ArgExpr->getBeginLoc(),
+                  diag::err_wasm_builtin_arg_must_be_integer_type)
+           << ArgIndex + 1 << ArgExpr->getSourceRange();
+  }
+  return false;
+}
+
+/// Check that the first argument is a WebAssembly table, and the second
+/// is an index to use as index into the table.
+bool Sema::BuiltinWasmTableGet(CallExpr *TheCall) {
+  if (checkArgCount(*this, TheCall, 2))
+    return true;
+
+  QualType ElTy;
+  if (CheckWasmBuiltinArgIsTable(*this, TheCall, 0, ElTy))
+    return true;
+
+  if (CheckWasmBuiltinArgIsInteger(*this, TheCall, 1))
+    return true;
+
+  // If all is well, we set the type of TheCall to be the type of the
+  // element of the table.
+  // i.e. a table.get on an externref table has type externref,
+  // or whatever the type of the table element is.
+  TheCall->setType(ElTy);
+
+  return false;
+}
+
+/// Check that the first argumnet is a WebAssembly table, the second is
+/// an index to use as index into the table and the third is the reference
+/// type to set into the table.
+bool Sema::BuiltinWasmTableSet(CallExpr *TheCall) {
+  if (checkArgCount(*this, TheCall, 3))
+    return true;
+
+  QualType ElTy;
+  if (CheckWasmBuiltinArgIsTable(*this, TheCall, 0, ElTy))
+    return true;
+
+  if (CheckWasmBuiltinArgIsInteger(*this, TheCall, 1))
+    return true;
+
+  if (!Context.hasSameType(ElTy, TheCall->getArg(2)->getType()))
+    return true;
+
+  return false;
+}
+
+/// Check that the argument is a WebAssembly table.
+bool Sema::BuiltinWasmTableSize(CallExpr *TheCall) {
+  if (checkArgCount(*this, TheCall, 1))
+    return true;
+
+  QualType ElTy;
+  if (CheckWasmBuiltinArgIsTable(*this, TheCall, 0, ElTy))
+    return true;
+
+  return false;
+}
+
+/// Check that the first argument is a WebAssembly table, the second is the
+/// value to use for new elements (of a type matching the table type), the
+/// third value is an integer.
+bool Sema::BuiltinWasmTableGrow(CallExpr *TheCall) {
+  if (checkArgCount(*this, TheCall, 3))
+    return true;
+
+  QualType ElTy;
+  if (CheckWasmBuiltinArgIsTable(*this, TheCall, 0, ElTy))
+    return true;
+
+  Expr *NewElemArg = TheCall->getArg(1);
+  if (!Context.hasSameType(ElTy, NewElemArg->getType())) {
+    return Diag(NewElemArg->getBeginLoc(),
+                diag::err_wasm_builtin_arg_must_match_table_element_type)
+           << 2 << 1 << NewElemArg->getSourceRange();
+  }
+
+  if (CheckWasmBuiltinArgIsInteger(*this, TheCall, 2))
+    return true;
+
+  return false;
+}
+
+/// Check that the first argument is a WebAssembly table, the second is an
+/// integer, the third is the value to use to fill the table (of a type
+/// matching the table type), and the fourth is an integer.
+bool Sema::BuiltinWasmTableFill(CallExpr *TheCall) {
+  if (checkArgCount(*this, TheCall, 4))
+    return true;
+
+  QualType ElTy;
+  if (CheckWasmBuiltinArgIsTable(*this, TheCall, 0, ElTy))
+    return true;
+
+  if (CheckWasmBuiltinArgIsInteger(*this, TheCall, 1))
+    return true;
+
+  Expr *NewElemArg = TheCall->getArg(2);
+  if (!Context.hasSameType(ElTy, NewElemArg->getType())) {
+    return Diag(NewElemArg->getBeginLoc(),
+                diag::err_wasm_builtin_arg_must_match_table_element_type)
+           << 3 << 1 << NewElemArg->getSourceRange();
+  }
+
+  if (CheckWasmBuiltinArgIsInteger(*this, TheCall, 3))
+    return true;
+
+  return false;
+}
+
+/// Check that the first argument is a WebAssembly table, the second is also a
+/// WebAssembly table (of the same element type), and the third to fifth
+/// arguments are integers.
+bool Sema::BuiltinWasmTableCopy(CallExpr *TheCall) {
+  if (checkArgCount(*this, TheCall, 5))
+    return true;
+
+  QualType XElTy;
+  if (CheckWasmBuiltinArgIsTable(*this, TheCall, 0, XElTy))
+    return true;
+
+  QualType YElTy;
+  if (CheckWasmBuiltinArgIsTable(*this, TheCall, 1, YElTy))
+    return true;
+
+  Expr *TableYArg = TheCall->getArg(1);
+  if (!Context.hasSameType(XElTy, YElTy)) {
+    return Diag(TableYArg->getBeginLoc(),
+                diag::err_wasm_builtin_arg_must_match_table_element_type)
+           << 2 << 1 << TableYArg->getSourceRange();
+  }
+
+  for (int I = 2; I <= 4; I++) {
+    if (CheckWasmBuiltinArgIsInteger(*this, TheCall, I))
+      return true;
+  }
+
+  return false;
+}
+
 /// \brief Enforce the bounds of a TCB
 /// CheckTCBEnforcement - Enforces that every function in a named TCB only
 /// directly calls other functions in the same TCB as marked by the enforce_tcb
 /// and enforce_tcb_leaf attributes.
 void Sema::CheckTCBEnforcement(const SourceLocation CallExprLoc,
                                const NamedDecl *Callee) {
+  // This warning does not make sense in code that has no runtime behavior.
+  if (isUnevaluatedContext())
+    return;
+
   const NamedDecl *Caller = getCurFunctionOrMethodDecl();
 
   if (!Caller || !Caller->hasAttr<EnforceTCBAttr>())

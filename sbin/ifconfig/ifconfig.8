@@ -25,9 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
-.\"
-.Dd October 17, 2023
+.Dd November 08, 2023
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -36,7 +34,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl j Ar jail
-.Op Fl kLmn
+.Op Fl DkLmn
 .Op Fl f Ar type Ns Cm \&: Ns Ar format
 .Ar interface
 .Op Cm create
@@ -55,7 +53,7 @@
 .Nm
 .Op Fl j Ar jail
 .Fl a
-.Op Fl dkLmuv
+.Op Fl dDkLmuv
 .Op Fl f Ar type Ns Cm \&: Ns Ar format
 .Op Fl G Ar groupname
 .Op Fl g Ar groupname
@@ -104,6 +102,12 @@ with no additional information.
 Use of this flag is mutually exclusive with all other flags and commands.
 .It Fl d
 Display only the interfaces that are down.
+.It Fl D
+Include the driver name and unit number of the interface in the output.
+This is normally the original name of the interface,
+even if it has been renamed; it may differ from the original name
+in some cases, such as
+.Xr epair 4 .
 .It Fl f Xo
 .Ar type Ns Cm \&: Ns Ar format Ns
 .Op Cm \&, Ns Ar type Ns Cm \&: Ns Ar format Ar ...
@@ -2870,12 +2874,24 @@ to send and receive pfsync state synchronisation messages.
 .It Fl syncdev
 Stop sending pfsync state synchronisation messages over the network.
 .It Cm syncpeer Ar peer_address
-Make the pfsync link point-to-point rather than using
-multicast to broadcast the state synchronisation messages.
-The peer_address is the IP address of the other host taking part in
-the pfsync cluster.
+Set the destination address for the state synchronization messages sent.
+The
+.Ar peer_address
+is normally the IPv4 or IPv6 address of the other host taking
+part in the pfsync cluster.
+.Pp
+When the
+.Ar peer_address
+is set to a unicast IP address, the pfsync link will behave
+as point-to-point rather than using multicast to broadcast the messages.
+.Pp
+When the
+.Ar peer_address
+is set to ff12::f0, the state synchronization
+messages will be broadcast using multicast over IPv6.
 .It Fl syncpeer
-Broadcast the packets using multicast.
+Unset the syncpeer.
+Packets will then be broadcast using multicast over IPv4.
 .It Cm maxupd Ar n
 Set the maximum number of updates for a single state which
 can be collapsed into one.

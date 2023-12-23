@@ -28,7 +28,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -644,6 +643,8 @@ linux_pci_suspend(device_t dev)
 		error = -pmops->suspend(&pdev->dev);
 		if (error == 0 && pmops->suspend_late != NULL)
 			error = -pmops->suspend_late(&pdev->dev);
+		if (error == 0 && pmops->suspend_noirq != NULL)
+			error = -pmops->suspend_noirq(&pdev->dev);
 	}
 	return (error);
 }

@@ -338,10 +338,10 @@ sctp_bindx(struct socket *, int, struct sockaddr_storage *,
 
 /* can't use sctp_assoc_t here */
 int sctp_peeloff(struct socket *, struct socket *, int, caddr_t, int *);
-int sctp_ingetaddr(struct socket *, struct sockaddr **);
-int sctp_peeraddr(struct socket *, struct sockaddr **);
+int sctp_ingetaddr(struct socket *, struct sockaddr *);
+int sctp_peeraddr(struct socket *, struct sockaddr *);
 int sctp_listen(struct socket *, int, struct thread *);
-int sctp_accept(struct socket *, struct sockaddr **);
+int sctp_accept(struct socket *, struct sockaddr *);
 
 #endif				/* _KERNEL */
 

@@ -10,7 +10,6 @@
  * Copyright (c) 2004, K A Fraser
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -570,7 +569,7 @@ MTX_SYSINIT(gnttab, &gnttab_list_lock, "GNTTAB LOCK", MTX_DEF | MTX_RECURSE);
  * \param parent  The NewBus parent device for any devices this method adds.
  */
 static void
-granttable_identify(driver_t *driver __unused, device_t parent)
+granttable_identify(driver_t *driver, device_t parent)
 {
 
 	KASSERT(xen_domain(),

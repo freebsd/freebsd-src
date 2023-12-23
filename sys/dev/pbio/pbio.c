@@ -30,7 +30,6 @@
  * $Id: pbio.c,v 1.12 2003/10/11 13:05:08 dds Exp dds $
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>		/* SYSINIT stuff */

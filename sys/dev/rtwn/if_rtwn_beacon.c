@@ -16,7 +16,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>

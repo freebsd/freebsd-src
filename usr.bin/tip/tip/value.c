@@ -32,14 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)value.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: value.c,v 1.14 2006/03/17 22:02:58 moritz Exp $";
-#endif
-#endif /* not lint */
-
 #include "tip.h"
 
 #define MIDDLE	35

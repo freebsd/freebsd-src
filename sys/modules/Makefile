@@ -41,6 +41,7 @@ SUBDIR=	\
 	${_arcmsr} \
 	${_allwinner} \
 	${_armv8crypto} \
+	${_armv8_rng} \
 	${_asmc} \
 	ata \
 	ath \
@@ -564,9 +565,13 @@ _iwlwifi=	iwlwifi
 .if ${MK_SOURCELESS_UCODE} != "no"
 _iwlwififw=	iwlwififw
 .endif
-_ossl=		ossl
 _rtw88=		rtw88
 _vmware=	vmware
+.endif
+
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "i386" || ${MACHINE_ARCH} == "armv7"
+_ossl=		ossl
 .endif
 
 # MAC framework
@@ -674,6 +679,7 @@ _cxgb=		cxgb
 
 .if ${MACHINE_CPUARCH} == "aarch64"
 _armv8crypto=	armv8crypto
+_armv8_rng=	armv8_rng
 _dpaa2=		dpaa2
 _sff=		sff
 _em=		em
@@ -905,10 +911,11 @@ SUBDIR:= ${SUBDIR:N${reject}}
 .if !defined(NO_XREF)
 .MAKEFLAGS+=	-DNO_XREF
 afterinstall: .PHONY
-	@if type kldxref >/dev/null 2>&1; then \
-		${ECHO} ${KLDXREF_CMD} ${DESTDIR}${KMODDIR}; \
-		${KLDXREF_CMD} ${DESTDIR}${KMODDIR}; \
-	fi
+	${KLDXREF_CMD} ${DESTDIR}${KMODDIR}
+.if defined(NO_ROOT) && defined(METALOG)
+	echo ".${DISTBASE}${KMODDIR}/linker.hints type=file mode=0644 uname=root gname=wheel" | \
+	    cat -l >> ${METALOG}
+.endif
 .endif
 
 SUBDIR:= ${SUBDIR:u:O}

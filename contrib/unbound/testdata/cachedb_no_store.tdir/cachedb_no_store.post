@@ -1,0 +1,20 @@
+# #-- cachedb_no_store.post --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# source the test var file when it's there
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+#
+# do your teardown here
+PRE="../.."
+. ../common.sh
+
+echo "> cat logfiles"
+cat fwd.log 
+if test -f fwd2.log; then cat fwd2.log; else echo "no fwd2.log"; fi
+if test -f fwd3.log; then cat fwd3.log; else echo "no fwd3.log"; fi
+if test -f fwd4.log; then cat fwd4.log; else echo "no fwd4.log"; fi
+cat unbound.log
+if test -f unbound2.log; then cat unbound2.log; else echo "no unbound2.log"; fi
+kill_pid $FWD_PID
+kill_pid `cat unbound.pid`
+rm -f $CONTROL_PATH/controlpipe.$CONTROL_PID
