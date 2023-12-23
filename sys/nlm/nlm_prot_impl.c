@@ -29,7 +29,6 @@
 
 #include "opt_inet6.h"
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/fail.h>
 #include <sys/fcntl.h>
@@ -343,6 +342,12 @@ nlm_get_rpc(struct sockaddr *sa, rpcprog_t prog, rpcvers_t vers)
 	bool_t tryagain = FALSE;
 	struct portmap mapping;
 	u_short port = 0;
+	struct sockaddr_in *sin4;
+	char namebuf[INET_ADDRSTRLEN];
+#ifdef INET6
+	struct sockaddr_in6 *sin6;
+	char namebuf6[INET6_ADDRSTRLEN];
+#endif
 
 	/*
 	 * First we need to contact the remote RPCBIND service to find
@@ -489,8 +494,26 @@ again:
 		}
 
 		/* Otherwise, bad news. */
-		NLM_ERR("NLM: failed to contact remote rpcbind, "
-		    "stat = %d, port = %d\n", (int) stat, port);
+		switch (ss.ss_family) {
+			case AF_INET:
+				sin4 = (struct sockaddr_in *)&ss;
+				inet_ntop(ss.ss_family, &sin4->sin_addr,
+				    namebuf, sizeof namebuf);
+				NLM_ERR("NLM: failed to contact remote rpcbind, "
+				    "stat = %d, host = %s, port = %d\n",
+				    (int) stat, namebuf, htons(port));
+				break;
+#ifdef INET6
+			case AF_INET6:
+				sin6 = (struct sockaddr_in6 *)&ss;
+				inet_ntop(ss.ss_family, &sin6->sin6_addr,
+				    namebuf6, sizeof namebuf6);
+				NLM_ERR("NLM: failed to contact remote rpcbind, "
+				    "stat = %d, host = %s, port = %d\n",
+				    (int) stat, namebuf6, htons(port));
+				break;
+#endif
+		}
 		CLNT_DESTROY(rpcb);
 		return (NULL);
 	}

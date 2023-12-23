@@ -30,7 +30,7 @@
  * Guest firmware interface. Uses i/o ports x510/x511 as Qemu does,
  * but with a request/response messaging protocol.
  */
-#include <sys/cdefs.h>
+
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/errno.h>

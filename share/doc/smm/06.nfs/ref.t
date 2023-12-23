@@ -28,8 +28,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)ref.t	8.1 (Berkeley) 6/8/93
-.\"
 .sh 1 "Bibliography"
 .ip [Baker91] 16
 Mary Baker and John Ousterhout, Availability in the Sprite Distributed

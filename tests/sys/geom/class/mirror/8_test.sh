@@ -34,11 +34,11 @@ mdconfig -d -u ${us1#md} -o force || exit 1
 exec 9>&-
 
 dd if=/dev/random of=$m1 bs=$ddbs count=1 conv=notrunc >/dev/null 2>&1
-us0=$(attach_md -t vnode -f $m1) || exit 1
+attach_md us0 -t vnode -f $m1 || exit 1
 devwait # This will take kern.geom.mirror.timeout seconds.
 
 # Re-attach the second mirror and wait for it to synchronize.
-us1=$(attach_md -t vnode -f $m2) || exit 1
+attach_md us1 -t vnode -f $m2 || exit 1
 syncwait
 
 # Verify the two mirrors are identical. Destroy the gmirror first so that

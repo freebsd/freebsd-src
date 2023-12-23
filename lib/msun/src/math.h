@@ -10,7 +10,6 @@
  */
 
 /*
- * from: @(#)fdlibm.h 5.1 93/09/24
  */
 
 #ifndef _MATH_H_
@@ -183,21 +182,21 @@ int	__signbitf(float) __pure2;
 int	__signbitl(long double) __pure2;
 
 static __inline int
-__inline_isnan(__const double __x)
+__inline_isnan(const double __x)
 {
 
 	return (__x != __x);
 }
 
 static __inline int
-__inline_isnanf(__const float __x)
+__inline_isnanf(const float __x)
 {
 
 	return (__x != __x);
 }
 
 static __inline int
-__inline_isnanl(__const long double __x)
+__inline_isnanl(const long double __x)
 {
 
 	return (__x != __x);

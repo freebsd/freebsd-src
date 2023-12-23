@@ -41,6 +41,7 @@ enum {
 	PFNL_CMD_START = 3,
 	PFNL_CMD_STOP = 4,
 	PFNL_CMD_ADDRULE = 5,
+	PFNL_CMD_GETRULES = 6,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -99,6 +100,13 @@ enum pfstate_type_t {
 	PF_ST_VERSION		= 28, /* u64 */
 	PF_ST_FILTER_ADDR	= 29, /* in6_addr */
 	PF_ST_FILTER_MASK	= 30, /* in6_addr */
+	PF_ST_RTABLEID		= 31, /* i32 */
+	PF_ST_MIN_TTL		= 32, /* u8 */
+	PF_ST_MAX_MSS		= 33, /* u16 */
+	PF_ST_DNPIPE		= 34, /* u16 */
+	PF_ST_DNRPIPE		= 35, /* u16 */
+	PF_ST_RT		= 36, /* u8 */
+	PF_ST_RT_IFNAME		= 37, /* string */
 };
 
 enum pf_addr_type_t {
@@ -230,6 +238,14 @@ enum pf_addrule_type_t {
 	PF_ART_ANCHOR		= 3, /* string */
 	PF_ART_ANCHOR_CALL	= 4, /* string */
 	PF_ART_RULE		= 5, /* nested, pfrule_type_t */
+};
+
+enum pf_getrules_type_t {
+	PF_GR_UNSPEC,
+	PF_GR_ANCHOR		= 1, /* string */
+	PF_GR_ACTION		= 2, /* u8 */
+	PF_GR_NR		= 3, /* u32 */
+	PF_GR_TICKET		= 4, /* u32 */
 };
 
 #ifdef _KERNEL

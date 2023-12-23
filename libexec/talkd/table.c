@@ -29,12 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)table.c	8.1 (Berkeley) 6/4/93";
-#endif
-#endif /* not lint */
-
 /*
  * Routines to handle insertion, deletion, etc on the table
  * of requests kept by the daemon. Nothing fancy here, linear

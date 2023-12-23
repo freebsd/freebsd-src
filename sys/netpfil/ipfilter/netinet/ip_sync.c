@@ -87,9 +87,6 @@
 #endif
 /* END OF INCLUDES */
 
-#if !defined(lint)
-static const char rcsid[] = "@(#)$Id$";
-#endif
 
 #define	SYNC_STATETABSZ	256
 #define	SYNC_NATTABSZ	256

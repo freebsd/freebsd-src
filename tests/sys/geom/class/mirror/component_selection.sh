@@ -29,9 +29,9 @@ run_latest_genid_body()
 	dd if=/dev/urandom bs=512 count=1 of="$rnd1"
 	dd if=/dev/urandom bs=512 count=1 of="$rnd2"
 
-	md1=$(attach_md -t vnode -f ${f1})
-	md2=$(attach_md -t vnode -f ${f2})
-	md3=$(attach_md -t vnode -f ${f3})
+	attach_md md1 -t vnode -f ${f1}
+	attach_md md2 -t vnode -f ${f2}
+	attach_md md3 -t vnode -f ${f3}
 
 	# Use a gnop for md1 just for consistency; it's not used for anything.
 	atf_check gnop create $md1

@@ -33,8 +33,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
  */
 
 #include <sys/cdefs.h>
@@ -719,13 +717,11 @@ out:
  * just return the address of the peer, storing through addr.
  */
 static int
-tcp_usr_accept(struct socket *so, struct sockaddr **nam)
+tcp_usr_accept(struct socket *so, struct sockaddr *sa)
 {
-	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
-	struct in_addr addr;
-	in_port_t port = 0;
+	int error = 0;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_accept: inp == NULL"));
@@ -736,82 +732,68 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 	}
 	tp = intotcpcb(inp);
 
-	if (so->so_state & SS_ISDISCONNECTED) {
+	if (so->so_state & SS_ISDISCONNECTED)
 		error = ECONNABORTED;
-		goto out;
-	}
-	/*
-	 * We inline in_getpeeraddr and COMMON_END here, so that we can
-	 * copy the data of interest and defer the malloc until after we
-	 * release the lock.
-	 */
-	port = inp->inp_fport;
-	addr = inp->inp_faddr;
-
-out:
+	else
+		*(struct sockaddr_in *)sa = (struct sockaddr_in ){
+			.sin_family = AF_INET,
+			.sin_len = sizeof(struct sockaddr_in),
+			.sin_port = inp->inp_fport,
+			.sin_addr = inp->inp_faddr,
+		};
 	tcp_bblog_pru(tp, PRU_ACCEPT, error);
 	TCP_PROBE2(debug__user, tp, PRU_ACCEPT);
 	INP_WUNLOCK(inp);
-	if (error == 0)
-		*nam = in_sockaddr(port, &addr);
-	return error;
+
+	return (error);
 }
 #endif /* INET */
 
 #ifdef INET6
 static int
-tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
+tcp6_usr_accept(struct socket *so, struct sockaddr *sa)
 {
 	struct inpcb *inp;
-	int error = 0;
 	struct tcpcb *tp;
-	struct in_addr addr;
-	struct in6_addr addr6;
-	struct epoch_tracker et;
-	in_port_t port = 0;
-	int v4 = 0;
+	int error = 0;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_accept: inp == NULL"));
-	NET_EPOCH_ENTER(et); /* XXXMT Why is this needed? */
 	INP_WLOCK(inp);
 	if (inp->inp_flags & INP_DROPPED) {
 		INP_WUNLOCK(inp);
-		NET_EPOCH_EXIT(et);
 		return (ECONNABORTED);
 	}
 	tp = intotcpcb(inp);
 
 	if (so->so_state & SS_ISDISCONNECTED) {
 		error = ECONNABORTED;
-		goto out;
-	}
-	/*
-	 * We inline in6_mapped_peeraddr and COMMON_END here, so that we can
-	 * copy the data of interest and defer the malloc until after we
-	 * release the lock.
-	 */
-	if (inp->inp_vflag & INP_IPV4) {
-		v4 = 1;
-		port = inp->inp_fport;
-		addr = inp->inp_faddr;
 	} else {
-		port = inp->inp_fport;
-		addr6 = inp->in6p_faddr;
+		if (inp->inp_vflag & INP_IPV4) {
+			struct sockaddr_in sin = {
+				.sin_family = AF_INET,
+				.sin_len = sizeof(struct sockaddr_in),
+				.sin_port = inp->inp_fport,
+				.sin_addr = inp->inp_faddr,
+			};
+			in6_sin_2_v4mapsin6(&sin, (struct sockaddr_in6 *)sa);
+		} else {
+			*(struct sockaddr_in6 *)sa = (struct sockaddr_in6 ){
+				.sin6_family = AF_INET6,
+				.sin6_len = sizeof(struct sockaddr_in6),
+				.sin6_port = inp->inp_fport,
+				.sin6_addr = inp->in6p_faddr,
+			};
+			/* XXX: should catch errors */
+			(void)sa6_recoverscope((struct sockaddr_in6 *)sa);
+		}
 	}
 
-out:
 	tcp_bblog_pru(tp, PRU_ACCEPT, error);
 	TCP_PROBE2(debug__user, tp, PRU_ACCEPT);
 	INP_WUNLOCK(inp);
-	NET_EPOCH_EXIT(et);
-	if (error == 0) {
-		if (v4)
-			*nam = in6_v4mapsin6_sockaddr(port, &addr);
-		else
-			*nam = in6_sockaddr(port, &addr6);
-	}
-	return error;
+
+	return (error);
 }
 #endif /* INET6 */
 
@@ -1761,10 +1743,8 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 		 * Ensure the new stack takes ownership with a
 		 * clean slate on peak rate threshold.
 		 */
-#ifdef TCPHPTS
-		/* Assure that we are not on any hpts */
-		tcp_hpts_remove(tp);
-#endif
+		if (tp->t_fb->tfb_tcp_timer_stop_all != NULL)
+			tp->t_fb->tfb_tcp_timer_stop_all(tp);
 		if (blk->tfb_tcp_fb_init) {
 			error = (*blk->tfb_tcp_fb_init)(tp, &ptr);
 			if (error) {
@@ -2136,7 +2116,6 @@ tcp_default_ctloutput(struct tcpcb *tp, struct sockopt *sopt)
 
 		case TCP_NODELAY:
 		case TCP_NOOPT:
-		case TCP_LRD:
 			INP_WUNLOCK(inp);
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 			    sizeof optval);
@@ -2150,9 +2129,6 @@ tcp_default_ctloutput(struct tcpcb *tp, struct sockopt *sopt)
 				break;
 			case TCP_NOOPT:
 				opt = TF_NOOPT;
-				break;
-			case TCP_LRD:
-				opt = TF_LRD;
 				break;
 			default:
 				opt = 0; /* dead code to fool gcc */
@@ -2675,11 +2651,6 @@ unhold:
 				    sizeof(optval));
 			break;
 #endif
-		case TCP_LRD:
-			optval = tp->t_flags & TF_LRD;
-			INP_WUNLOCK(inp);
-			error = sooptcopyout(sopt, &optval, sizeof optval);
-			break;
 		default:
 			INP_WUNLOCK(inp);
 			error = ENOPROTOOPT;

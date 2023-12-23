@@ -35,13 +35,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)indent.c	5.17 (Berkeley) 6/7/93";
-#endif /* not lint */
-#endif
-
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <capsicum_helpers.h>

@@ -382,6 +382,7 @@ struct pfctl_syncookies {
 	enum pfctl_syncookies_mode	mode;
 	uint8_t				highwater;	/* Percent */
 	uint8_t				lowwater;	/* Percent */
+	uint32_t			halfopen_states;
 };
 
 int	pfctl_startstop(int start);

@@ -23,9 +23,6 @@
 #
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zones_003_pos.ksh	1.3	08/11/03 SMI"
-#
 
 . ${STF_SUITE}/include/libtest.kshlib
 . ${STF_SUITE}/tests/zones/zones_common.kshlib

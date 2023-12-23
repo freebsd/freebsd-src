@@ -97,7 +97,7 @@ and only applicable in related situations.
 .It Sy l2arc_feed_secs Ns = Ns Sy 1 Pq u64
 Seconds between L2ARC writing.
 .
-.It Sy l2arc_headroom Ns = Ns Sy 2 Pq u64
+.It Sy l2arc_headroom Ns = Ns Sy 8 Pq u64
 How far through the ARC lists to search for L2ARC cacheable content,
 expressed as a multiplier of
 .Sy l2arc_write_max .
@@ -200,12 +200,12 @@ to enable caching/reading prefetches to/from L2ARC.
 .It Sy l2arc_norw Ns = Ns Sy 0 Ns | Ns 1 Pq int
 No reads during writes.
 .
-.It Sy l2arc_write_boost Ns = Ns Sy 8388608 Ns B Po 8 MiB Pc Pq u64
+.It Sy l2arc_write_boost Ns = Ns Sy 33554432 Ns B Po 32 MiB Pc Pq u64
 Cold L2ARC devices will have
 .Sy l2arc_write_max
 increased by this amount while they remain cold.
 .
-.It Sy l2arc_write_max Ns = Ns Sy 8388608 Ns B Po 8 MiB Pc Pq u64
+.It Sy l2arc_write_max Ns = Ns Sy 33554432 Ns B Po 32 MiB Pc Pq u64
 Max write bytes per interval.
 .
 .It Sy l2arc_rebuild_enabled Ns = Ns Sy 1 Ns | Ns 0 Pq int
@@ -430,6 +430,19 @@ TXGs must pass before unloading will occur.
 .It Sy reference_history Ns = Ns Sy 3 Pq uint
 Maximum reference holders being tracked when reference_tracking_enable is
 active.
+.It Sy raidz_expand_max_copy_bytes Ns = Ns Sy 160MB Pq ulong
+Max amount of memory to use for RAID-Z expansion I/O.
+This limits how much I/O can be outstanding at once.
+.
+.It Sy raidz_expand_max_reflow_bytes Ns = Ns Sy 0 Pq ulong
+For testing, pause RAID-Z expansion when reflow amount reaches this value.
+.
+.It Sy raidz_io_aggregate_rows Ns = Ns Sy 4 Pq ulong
+For expanded RAID-Z, aggregate reads that have more rows than this.
+.
+.It Sy reference_history Ns = Ns Sy 3 Pq int
+Maximum reference holders being tracked when reference_tracking_enable is
+active.
 .
 .It Sy reference_tracking_enable Ns = Ns Sy 0 Ns | Ns 1 Pq int
 Track reference holders to
@@ -495,6 +508,13 @@ It also limits the worst-case time to allocate space.
 If we have less than this amount of free space,
 most ZPL operations (e.g. write, create) will return
 .Sy ENOSPC .
+.
+.It Sy spa_num_allocators Ns = Ns Sy 4 Pq int
+Determines the number of block alloctators to use per spa instance.
+Capped by the number of actual CPUs in the system.
+.Pp
+Note that setting this value too high could result in performance
+degredation and/or excess fragmentation.
 .
 .It Sy spa_upgrade_errlog_limit Ns = Ns Sy 0 Pq uint
 Limits the number of on-disk error log entries that will be converted to the
@@ -1133,6 +1153,11 @@ Selecting any option other than
 .Sy fastest No or Sy scalar
 results in vector instructions
 from the respective CPU instruction set being used.
+.
+.It Sy zfs_bclone_enabled Ns = Ns Sy 1 Ns | Ns 0 Pq int
+Enable the experimental block cloning feature.
+If this setting is 0, then even if feature@block_cloning is enabled,
+attempts to clone blocks will act as though the feature is disabled.
 .
 .It Sy zfs_blake3_impl Ns = Ns Sy fastest Pq string
 Select a BLAKE3 implementation.
@@ -1774,6 +1799,12 @@ even if there were unrepairable errors.
 Intended to be used during pool repair or recovery to
 stop resilvering when the pool is next imported.
 .
+.It Sy zfs_scrub_after_expand Ns = Ns Sy 1 Ns | Ns 0 Pq int
+Automatically start a pool scrub after a RAIDZ expansion completes
+in order to verify the checksums of all blocks which have been
+copied during the expansion.
+This is enabled by default and strongly recommended.
+.
 .It Sy zfs_scrub_min_time_ms Ns = Ns Sy 1000 Ns ms Po 1 s Pc Pq uint
 Scrubs are processed by the sync thread.
 While scrubbing, it will spend at least this much time
@@ -1973,13 +2004,6 @@ and may need to load new metaslabs to satisfy these allocations.
 .
 .It Sy zfs_sync_pass_rewrite Ns = Ns Sy 2 Pq uint
 Rewrite new block pointers starting in this pass.
-.
-.It Sy zfs_sync_taskq_batch_pct Ns = Ns Sy 75 Ns % Pq int
-This controls the number of threads used by
-.Sy dp_sync_taskq .
-The default value of
-.Sy 75%
-will create a maximum of one thread per CPU.
 .
 .It Sy zfs_trim_extent_bytes_max Ns = Ns Sy 134217728 Ns B Po 128 MiB Pc Pq uint
 Maximum size of TRIM command.
@@ -2264,6 +2288,14 @@ while higher reduces lock contention.
 If
 .Sy 0 ,
 generate a system-dependent value close to 6 threads per taskq.
+.
+.It Sy zio_taskq_wr_iss_ncpus Ns = Ns Sy 0 Pq uint
+Determines the number of CPUs to run write issue taskqs.
+.Pp
+When 0 (the default), the value to use is computed internally
+as the number of actual CPUs in the system divided by the
+.Sy spa_num_allocators
+value.
 .
 .It Sy zvol_inhibit_dev Ns = Ns Sy 0 Ns | Ns 1 Pq uint
 Do not create zvol device nodes.

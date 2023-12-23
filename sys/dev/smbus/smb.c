@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1998, 2001 Nicolas Souchu
+ * Copyright (c) 2023 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +30,7 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/abi_compat.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -40,6 +42,44 @@
 #include <dev/smbus/smb.h>
 
 #include "smbus_if.h"
+
+#ifdef COMPAT_FREEBSD32
+struct smbcmd32 {
+	u_char cmd;
+	u_char reserved;
+	u_short op;
+	union {
+		char	byte;
+		char	buf[2];
+		short	word;
+	} wdata;
+	union {
+		char	byte;
+		char	buf[2];
+		short	word;
+	} rdata;
+	int slave;
+	uint32_t wbuf;
+	int wcount;
+	uint32_t rbuf;
+	int rcount;
+};
+
+#define	SMB_QUICK_WRITE32	_IOW('i', 1, struct smbcmd32)
+#define	SMB_QUICK_READ32	_IOW('i', 2, struct smbcmd32)
+#define	SMB_SENDB32		_IOW('i', 3, struct smbcmd32)
+#define	SMB_RECVB32		_IOWR('i', 4, struct smbcmd32)
+#define	SMB_WRITEB32		_IOW('i', 5, struct smbcmd32)
+#define	SMB_WRITEW32		_IOW('i', 6, struct smbcmd32)
+#define	SMB_READB32		_IOWR('i', 7, struct smbcmd32)
+#define	SMB_READW32		_IOWR('i', 8, struct smbcmd32)
+#define	SMB_PCALL32		_IOWR('i', 9, struct smbcmd32)
+#define	SMB_BWRITE32		_IOW('i', 10, struct smbcmd32)
+#define	SMB_BREAD32		_IOWR('i', 11, struct smbcmd32)
+#define	SMB_OLD_READB32		_IOW('i', 7, struct smbcmd32)
+#define	SMB_OLD_READW32		_IOW('i', 8, struct smbcmd32)
+#define	SMB_OLD_PCALL32		_IOW('i', 9, struct smbcmd32)
+#endif
 
 #define SMB_OLD_READB	_IOW('i', 7, struct smbcmd)
 #define SMB_OLD_READW	_IOW('i', 8, struct smbcmd)
@@ -131,11 +171,30 @@ smb_detach(device_t dev)
 	return (0);
 }
 
+#ifdef COMPAT_FREEBSD32
+static void
+smbcopyincmd32(struct smbcmd32 *uaddr, struct smbcmd *kaddr)
+{
+	CP(*uaddr, *kaddr, cmd);
+	CP(*uaddr, *kaddr, op);
+	CP(*uaddr, *kaddr, wdata.word);
+	CP(*uaddr, *kaddr, slave);
+	PTRIN_CP(*uaddr, *kaddr, wbuf);
+	CP(*uaddr, *kaddr, wcount);
+	PTRIN_CP(*uaddr, *kaddr, rbuf);
+	CP(*uaddr, *kaddr, rcount);
+}
+#endif
+
 static int
 smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	char buf[SMB_MAXBLOCKSIZE];
 	device_t parent;
+#ifdef COMPAT_FREEBSD32
+	struct smbcmd sswab;
+	struct smbcmd32 *s32 = (struct smbcmd32 *)data;
+#endif
 	struct smbcmd *s = (struct smbcmd *)data;
 	struct smb_softc *sc = dev->si_drv1;
 	device_t smbdev = sc->sc_dev;
@@ -162,35 +221,81 @@ smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 			(flags & O_NONBLOCK) ? SMB_DONTWAIT : (SMB_WAIT | SMB_INTR))))
 		return (error);
 
+#ifdef COMPAT_FREEBSD32
+	switch (cmd) {
+	case SMB_QUICK_WRITE32:
+	case SMB_QUICK_READ32:
+	case SMB_SENDB32:
+	case SMB_RECVB32:
+	case SMB_WRITEB32:
+	case SMB_WRITEW32:
+	case SMB_OLD_READB32:
+	case SMB_READB32:
+	case SMB_OLD_READW32:
+	case SMB_READW32:
+	case SMB_OLD_PCALL32:
+	case SMB_PCALL32:
+	case SMB_BWRITE32:
+	case SMB_BREAD32:
+		smbcopyincmd32(s32, &sswab);
+		s = &sswab;
+		break;
+	default:
+		break;
+	}
+#endif
+
 	switch (cmd) {
 	case SMB_QUICK_WRITE:
+#ifdef COMPAT_FREEBSD32
+	case SMB_QUICK_WRITE32:
+#endif
 		error = smbus_error(smbus_quick(parent, s->slave, SMB_QWRITE));
 		break;
 
 	case SMB_QUICK_READ:
+#ifdef COMPAT_FREEBSD32
+	case SMB_QUICK_READ32:
+#endif
 		error = smbus_error(smbus_quick(parent, s->slave, SMB_QREAD));
 		break;
 
 	case SMB_SENDB:
+#ifdef COMPAT_FREEBSD32
+	case SMB_SENDB32:
+#endif
 		error = smbus_error(smbus_sendb(parent, s->slave, s->cmd));
 		break;
 
 	case SMB_RECVB:
+#ifdef COMPAT_FREEBSD32
+	case SMB_RECVB32:
+#endif
 		error = smbus_error(smbus_recvb(parent, s->slave, &s->cmd));
 		break;
 
 	case SMB_WRITEB:
+#ifdef COMPAT_FREEBSD32
+	case SMB_WRITEB32:
+#endif
 		error = smbus_error(smbus_writeb(parent, s->slave, s->cmd,
 						s->wdata.byte));
 		break;
 
 	case SMB_WRITEW:
+#ifdef COMPAT_FREEBSD32
+	case SMB_WRITEW32:
+#endif
 		error = smbus_error(smbus_writew(parent, s->slave,
 						s->cmd, s->wdata.word));
 		break;
 
 	case SMB_OLD_READB:
 	case SMB_READB:
+#ifdef COMPAT_FREEBSD32
+	case SMB_OLD_READB32:
+	case SMB_READB32:
+#endif
 		/* NB: for SMB_OLD_READB the read data goes to rbuf only. */
 		error = smbus_error(smbus_readb(parent, s->slave, s->cmd,
 		    &s->rdata.byte));
@@ -204,6 +309,10 @@ smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 
 	case SMB_OLD_READW:
 	case SMB_READW:
+#ifdef COMPAT_FREEBSD32
+	case SMB_OLD_READW32:
+	case SMB_READW32:
+#endif
 		/* NB: for SMB_OLD_READW the read data goes to rbuf only. */
 		error = smbus_error(smbus_readw(parent, s->slave, s->cmd,
 		    &s->rdata.word));
@@ -219,6 +328,10 @@ smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 
 	case SMB_OLD_PCALL:
 	case SMB_PCALL:
+#ifdef COMPAT_FREEBSD32
+	case SMB_OLD_PCALL32:
+	case SMB_PCALL32:
+#endif
 		/* NB: for SMB_OLD_PCALL the read data goes to rbuf only. */
 		error = smbus_error(smbus_pcall(parent, s->slave, s->cmd,
 		    s->wdata.word, &s->rdata.word));
@@ -234,6 +347,9 @@ smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		break;
 
 	case SMB_BWRITE:
+#ifdef COMPAT_FREEBSD32
+	case SMB_BWRITE32:
+#endif
 		if (s->wcount < 0) {
 			error = EINVAL;
 			break;
@@ -249,6 +365,9 @@ smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		break;
 
 	case SMB_BREAD:
+#ifdef COMPAT_FREEBSD32
+	case SMB_BREAD32:
+#endif
 		if (s->rcount < 0) {
 			error = EINVAL;
 			break;
@@ -267,6 +386,29 @@ smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 	default:
 		error = ENOTTY;
 	}
+
+#ifdef COMPAT_FREEBSD32
+	switch (cmd) {
+	case SMB_RECVB32:
+		CP(*s, *s32, cmd);
+		break;
+	case SMB_OLD_READB32:
+	case SMB_READB32:
+	case SMB_OLD_READW32:
+	case SMB_READW32:
+	case SMB_OLD_PCALL32:
+	case SMB_PCALL32:
+		CP(*s, *s32, rdata.word);
+		break;
+	case SMB_BREAD32:
+		if (s->rbuf == NULL)
+			CP(*s, *s32, rdata.word);
+		CP(*s, *s32, rcount);
+		break;
+	default:
+		break;
+	}
+#endif
 
 	smbus_release_bus(parent, smbdev);
 

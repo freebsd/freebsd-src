@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -2140,7 +2139,7 @@ cam_periph_devctl_notify(union ccb *ccb)
 	sbuf_printf(&sb, "device=%s%d ", periph->periph_name,
 	    periph->unit_number);
 
-	sbuf_printf(&sb, "serial=\"");
+	sbuf_cat(&sb, "serial=\"");
 	if ((cgd = (struct ccb_getdev *)xpt_alloc_ccb_nowait()) != NULL) {
 		xpt_setup_ccb(&cgd->ccb_h, ccb->ccb_h.path,
 		    CAM_PRIORITY_NORMAL);
@@ -2151,7 +2150,7 @@ cam_periph_devctl_notify(union ccb *ccb)
 			sbuf_bcat(&sb, cgd->serial_num, cgd->serial_num_len);
 		xpt_free_ccb((union ccb *)cgd);
 	}
-	sbuf_printf(&sb, "\" ");
+	sbuf_cat(&sb, "\" ");
 	sbuf_printf(&sb, "cam_status=\"0x%x\" ", ccb->ccb_h.status);
 
 	switch (ccb->ccb_h.status & CAM_STATUS_MASK) {
@@ -2167,24 +2166,54 @@ cam_periph_devctl_notify(union ccb *ccb)
 		type = "error";
 		break;
 	case CAM_ATA_STATUS_ERROR:
-		sbuf_printf(&sb, "RES=\"");
+		sbuf_cat(&sb, "RES=\"");
 		ata_res_sbuf(&ccb->ataio.res, &sb);
-		sbuf_printf(&sb, "\" ");
+		sbuf_cat(&sb, "\" ");
 		type = "error";
 		break;
+	case CAM_NVME_STATUS_ERROR:
+	{
+		struct ccb_nvmeio *n = &ccb->nvmeio;
+
+		sbuf_printf(&sb, "sc=\"%02x\" sct=\"%02x\" cdw0=\"%08x\" ",
+		    NVME_STATUS_GET_SC(n->cpl.status),
+		    NVME_STATUS_GET_SCT(n->cpl.status), n->cpl.cdw0);
+		type = "error";
+		break;
+	}
 	default:
 		type = "error";
 		break;
 	}
 
-	if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
-		sbuf_printf(&sb, "CDB=\"");
+
+	switch (ccb->ccb_h.func_code) {
+	case XPT_SCSI_IO:
+		sbuf_cat(&sb, "CDB=\"");
 		scsi_cdb_sbuf(scsiio_cdb_ptr(&ccb->csio), &sb);
-		sbuf_printf(&sb, "\" ");
-	} else if (ccb->ccb_h.func_code == XPT_ATA_IO) {
-		sbuf_printf(&sb, "ACB=\"");
+		sbuf_cat(&sb, "\" ");
+		break;
+	case XPT_ATA_IO:
+		sbuf_cat(&sb, "ACB=\"");
 		ata_cmd_sbuf(&ccb->ataio.cmd, &sb);
-		sbuf_printf(&sb, "\" ");
+		sbuf_cat(&sb, "\" ");
+		break;
+	case XPT_NVME_IO:
+	case XPT_NVME_ADMIN:
+	{
+		struct ccb_nvmeio *n = &ccb->nvmeio;
+		struct nvme_command *cmd = &n->cmd;
+
+		// XXX Likely should be nvme_cmd_sbuf
+		sbuf_printf(&sb, "opc=\"%02x\" fuse=\"%02x\" cid=\"%04x\" "
+		    "nsid=\"%08x\" cdw10=\"%08x\" cdw11=\"%08x\" cdw12=\"%08x\" "
+		    "cdw13=\"%08x\" cdw14=\"%08x\" cdw15=\"%08x\" ",
+		    cmd->opc, cmd->fuse, cmd->cid, cmd->nsid, cmd->cdw10,
+		    cmd->cdw11, cmd->cdw12, cmd->cdw13, cmd->cdw14, cmd->cdw15);
+		break;
+	}
+	default:
+		break;
 	}
 
 	if (sbuf_finish(&sb) == 0)

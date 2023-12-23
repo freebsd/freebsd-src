@@ -24,12 +24,12 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 17, 2023
+.Dd November 08, 2023
 .Dt PFSYNC 4
 .Os
 .Sh NAME
 .Nm pfsync
-.Nd packet filter state table sychronisation interface
+.Nd packet filter state table synchronisation interface
 .Sh SYNOPSIS
 .Cd "device pfsync"
 .Sh DESCRIPTION
@@ -112,6 +112,25 @@ Either run the pfsync protocol on a trusted network \- ideally a network
 dedicated to pfsync messages such as a crossover cable between two firewalls,
 or specify a peer address and protect the traffic with
 .Xr ipsec 4 .
+.Pp
+Support for
+.Nm
+transport over IPv6 was introduced in
+.Fx 14.0 .
+To set up
+.Nm
+using multicast with IPv6 link-local addresses, the
+.Ic syncpeer
+must be set to the
+.Nm
+multicast address and the
+.Ic syncdev
+to the interface where
+.Nm
+traffic is expected.
+.Bd -literal -offset indent
+# ifconfig pfsync0 syncpeer ff12::f0 syncdev vtnet0
+.Ed
 .Pp
 When new features are introduced to
 .Xr pf 4

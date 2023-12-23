@@ -26,7 +26,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -125,7 +124,7 @@ static inline uint32_t
 amdvi_pci_read(struct amdvi_softc *softc, int off)
 {
 
-	return (pci_cfgregread(PCI_RID2BUS(softc->pci_rid),
+	return (pci_cfgregread(softc->pci_seg, PCI_RID2BUS(softc->pci_rid),
 	    PCI_RID2SLOT(softc->pci_rid), PCI_RID2FUNC(softc->pci_rid),
 	    off, 4));
 }

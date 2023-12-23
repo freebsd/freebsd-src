@@ -28,7 +28,7 @@
 #ifndef OFFSET_TEST
 #define GENOFFSET
 #endif
-#include <sys/cdefs.h>
+
 #include <sys/param.h>
 #include <sys/assym.h>
 #include <sys/proc.h>

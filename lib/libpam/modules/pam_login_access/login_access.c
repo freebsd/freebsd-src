@@ -13,7 +13,6 @@ static char sccsid[] = "%Z% %M% %I% %E% %U%";
 #endif
 #endif
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <ctype.h>

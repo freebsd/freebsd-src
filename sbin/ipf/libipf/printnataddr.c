@@ -10,9 +10,6 @@
 #include "kmem.h"
 
 
-#if !defined(lint)
-static const char rcsid[] = "@(#)$Id: printnataddr.c,v 1.4.2.2 2012/07/22 08:04:24 darren_r Exp $";
-#endif
 
 
 void

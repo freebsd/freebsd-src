@@ -1,4 +1,6 @@
 /******************************************************************************
+ * SPDX-License-Identifier: MIT OR GPL-2.0-only
+ *
  * privcmd.h
  * 
  * Interface to /proc/xen/privcmd.

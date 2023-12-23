@@ -30,9 +30,6 @@
 #include "ipf.h"
 #include "netinet/ipl.h"
 
-#if !defined(lint)
-static const char rcsid[] = "@(#)$Id$";
-#endif
 
 #ifndef	IPF_SAVEDIR
 # define	IPF_SAVEDIR	"/var/db/ipf"

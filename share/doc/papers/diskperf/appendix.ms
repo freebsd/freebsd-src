@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)appendix.ms	6.2 (Berkeley) 4/16/91
-.\"
 .\" .nr H2 1
 .ds RH Appendix A
 .NH

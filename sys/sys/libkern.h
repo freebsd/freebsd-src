@@ -27,14 +27,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)libkern.h	8.1 (Berkeley) 6/10/93
  */
 
 #ifndef _SYS_LIBKERN_H_
 #define	_SYS_LIBKERN_H_
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #ifdef _KERNEL
 #include <sys/systm.h>

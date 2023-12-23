@@ -32,14 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)cmds.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: cmds.c,v 1.26 2006/06/06 23:24:52 deraadt Exp $";
-#endif
-#endif /* not lint */
-
 #include "tip.h"
 #include "pathnames.h"
 

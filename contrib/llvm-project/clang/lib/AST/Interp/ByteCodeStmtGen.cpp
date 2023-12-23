@@ -95,28 +95,25 @@ bool ByteCodeStmtGen<Emitter>::visitFunc(const FunctionDecl *F) {
   ReturnType = this->classify(F->getReturnType());
 
   // Constructor. Set up field initializers.
-  if (const auto Ctor = dyn_cast<CXXConstructorDecl>(F)) {
+  if (const auto *Ctor = dyn_cast<CXXConstructorDecl>(F)) {
     const RecordDecl *RD = Ctor->getParent();
     const Record *R = this->getRecord(RD);
     if (!R)
       return false;
 
     for (const auto *Init : Ctor->inits()) {
+      // Scope needed for the initializers.
+      BlockScope<Emitter> Scope(this);
+
       const Expr *InitExpr = Init->getInit();
       if (const FieldDecl *Member = Init->getMember()) {
         const Record::Field *F = R->getField(Member);
 
         if (std::optional<PrimType> T = this->classify(InitExpr)) {
-          if (!this->emitThis(InitExpr))
-            return false;
-
           if (!this->visit(InitExpr))
             return false;
 
-          if (!this->emitInitField(*T, F->Offset, InitExpr))
-            return false;
-
-          if (!this->emitPopPtr(InitExpr))
+          if (!this->emitInitThisField(*T, F->Offset, InitExpr))
             return false;
         } else {
           // Non-primitive case. Get a pointer to the field-to-initialize
@@ -136,7 +133,7 @@ bool ByteCodeStmtGen<Emitter>::visitFunc(const FunctionDecl *F) {
       } else if (const Type *Base = Init->getBaseClass()) {
         // Base class initializer.
         // Get This Base and call initializer on it.
-        auto *BaseDecl = Base->getAsCXXRecordDecl();
+        const auto *BaseDecl = Base->getAsCXXRecordDecl();
         assert(BaseDecl);
         const Record::Base *B = R->getBase(BaseDecl);
         assert(B);
@@ -178,10 +175,18 @@ bool ByteCodeStmtGen<Emitter>::visitStmt(const Stmt *S) {
     return visitDoStmt(cast<DoStmt>(S));
   case Stmt::ForStmtClass:
     return visitForStmt(cast<ForStmt>(S));
+  case Stmt::CXXForRangeStmtClass:
+    return visitCXXForRangeStmt(cast<CXXForRangeStmt>(S));
   case Stmt::BreakStmtClass:
     return visitBreakStmt(cast<BreakStmt>(S));
   case Stmt::ContinueStmtClass:
     return visitContinueStmt(cast<ContinueStmt>(S));
+  case Stmt::SwitchStmtClass:
+    return visitSwitchStmt(cast<SwitchStmt>(S));
+  case Stmt::CaseStmtClass:
+    return visitCaseStmt(cast<CaseStmt>(S));
+  case Stmt::DefaultStmtClass:
+    return visitDefaultStmt(cast<DefaultStmt>(S));
   case Stmt::NullStmtClass:
     return true;
   default: {
@@ -190,6 +195,23 @@ bool ByteCodeStmtGen<Emitter>::visitStmt(const Stmt *S) {
     return this->bail(S);
   }
   }
+}
+
+/// Visits the given statment without creating a variable
+/// scope for it in case it is a compound statement.
+template <class Emitter>
+bool ByteCodeStmtGen<Emitter>::visitLoopBody(const Stmt *S) {
+  if (isa<NullStmt>(S))
+    return true;
+
+  if (const auto *CS = dyn_cast<CompoundStmt>(S)) {
+    for (auto *InnerStmt : CS->body())
+      if (!visitStmt(InnerStmt))
+        return false;
+    return true;
+  }
+
+  return this->visitStmt(S);
 }
 
 template <class Emitter>
@@ -205,17 +227,14 @@ bool ByteCodeStmtGen<Emitter>::visitCompoundStmt(
 template <class Emitter>
 bool ByteCodeStmtGen<Emitter>::visitDeclStmt(const DeclStmt *DS) {
   for (auto *D : DS->decls()) {
-    // Variable declarator.
-    if (auto *VD = dyn_cast<VarDecl>(D)) {
-      if (!this->visitVarDecl(VD))
-        return false;
+    if (isa<StaticAssertDecl, TagDecl, TypedefNameDecl>(D))
       continue;
-    }
 
-    // Decomposition declarator.
-    if (auto *DD = dyn_cast<DecompositionDecl>(D)) {
-      return this->bail(DD);
-    }
+    const auto *VD = dyn_cast<VarDecl>(D);
+    if (!VD)
+      return false;
+    if (!this->visitVarDecl(VD))
+      return false;
   }
 
   return true;
@@ -310,11 +329,15 @@ bool ByteCodeStmtGen<Emitter>::visitWhileStmt(const WhileStmt *S) {
   if (!this->jumpFalse(EndLabel))
     return false;
 
-  if (!this->visitStmt(Body))
-    return false;
+  LocalScope<Emitter> Scope(this);
+  {
+    DestructorScope<Emitter> DS(Scope);
+    if (!this->visitLoopBody(Body))
+      return false;
+  }
+
   if (!this->jump(CondLabel))
     return false;
-
   this->emitLabel(EndLabel);
 
   return true;
@@ -329,15 +352,21 @@ bool ByteCodeStmtGen<Emitter>::visitDoStmt(const DoStmt *S) {
   LabelTy EndLabel = this->getLabel();
   LabelTy CondLabel = this->getLabel();
   LoopScope<Emitter> LS(this, EndLabel, CondLabel);
+  LocalScope<Emitter> Scope(this);
 
   this->emitLabel(StartLabel);
-  if (!this->visitStmt(Body))
-    return false;
-  this->emitLabel(CondLabel);
-  if (!this->visitBool(Cond))
-    return false;
+  {
+    DestructorScope<Emitter> DS(Scope);
+
+    if (!this->visitLoopBody(Body))
+      return false;
+    this->emitLabel(CondLabel);
+    if (!this->visitBool(Cond))
+      return false;
+  }
   if (!this->jumpTrue(StartLabel))
     return false;
+
   this->emitLabel(EndLabel);
   return true;
 }
@@ -354,6 +383,7 @@ bool ByteCodeStmtGen<Emitter>::visitForStmt(const ForStmt *S) {
   LabelTy CondLabel = this->getLabel();
   LabelTy IncLabel = this->getLabel();
   LoopScope<Emitter> LS(this, EndLabel, IncLabel);
+  LocalScope<Emitter> Scope(this);
 
   if (Init && !this->visitStmt(Init))
     return false;
@@ -364,13 +394,73 @@ bool ByteCodeStmtGen<Emitter>::visitForStmt(const ForStmt *S) {
     if (!this->jumpFalse(EndLabel))
       return false;
   }
-  if (Body && !this->visitStmt(Body))
-    return false;
-  this->emitLabel(IncLabel);
-  if (Inc && !this->discard(Inc))
-    return false;
+
+  {
+    DestructorScope<Emitter> DS(Scope);
+
+    if (Body && !this->visitLoopBody(Body))
+      return false;
+    this->emitLabel(IncLabel);
+    if (Inc && !this->discard(Inc))
+      return false;
+  }
+
   if (!this->jump(CondLabel))
     return false;
+  this->emitLabel(EndLabel);
+  return true;
+}
+
+template <class Emitter>
+bool ByteCodeStmtGen<Emitter>::visitCXXForRangeStmt(const CXXForRangeStmt *S) {
+  const Stmt *Init = S->getInit();
+  const Expr *Cond = S->getCond();
+  const Expr *Inc = S->getInc();
+  const Stmt *Body = S->getBody();
+  const Stmt *BeginStmt = S->getBeginStmt();
+  const Stmt *RangeStmt = S->getRangeStmt();
+  const Stmt *EndStmt = S->getEndStmt();
+  const VarDecl *LoopVar = S->getLoopVariable();
+
+  LabelTy EndLabel = this->getLabel();
+  LabelTy CondLabel = this->getLabel();
+  LabelTy IncLabel = this->getLabel();
+  LoopScope<Emitter> LS(this, EndLabel, IncLabel);
+
+  // Emit declarations needed in the loop.
+  if (Init && !this->visitStmt(Init))
+    return false;
+  if (!this->visitStmt(RangeStmt))
+    return false;
+  if (!this->visitStmt(BeginStmt))
+    return false;
+  if (!this->visitStmt(EndStmt))
+    return false;
+
+  // Now the condition as well as the loop variable assignment.
+  this->emitLabel(CondLabel);
+  if (!this->visitBool(Cond))
+    return false;
+  if (!this->jumpFalse(EndLabel))
+    return false;
+
+  if (!this->visitVarDecl(LoopVar))
+    return false;
+
+  // Body.
+  LocalScope<Emitter> Scope(this);
+  {
+    DestructorScope<Emitter> DS(Scope);
+
+    if (!this->visitLoopBody(Body))
+      return false;
+    this->emitLabel(IncLabel);
+    if (!this->discard(Inc))
+      return false;
+  }
+  if (!this->jump(CondLabel))
+    return false;
+
   this->emitLabel(EndLabel);
   return true;
 }
@@ -380,6 +470,7 @@ bool ByteCodeStmtGen<Emitter>::visitBreakStmt(const BreakStmt *S) {
   if (!BreakLabel)
     return false;
 
+  this->VarScope->emitDestructors();
   return this->jump(*BreakLabel);
 }
 
@@ -388,7 +479,86 @@ bool ByteCodeStmtGen<Emitter>::visitContinueStmt(const ContinueStmt *S) {
   if (!ContinueLabel)
     return false;
 
+  this->VarScope->emitDestructors();
   return this->jump(*ContinueLabel);
+}
+
+template <class Emitter>
+bool ByteCodeStmtGen<Emitter>::visitSwitchStmt(const SwitchStmt *S) {
+  const Expr *Cond = S->getCond();
+  PrimType CondT = this->classifyPrim(Cond->getType());
+
+  LabelTy EndLabel = this->getLabel();
+  OptLabelTy DefaultLabel = std::nullopt;
+  unsigned CondVar = this->allocateLocalPrimitive(Cond, CondT, true, false);
+
+  if (const auto *CondInit = S->getInit())
+    if (!visitStmt(CondInit))
+      return false;
+
+  // Initialize condition variable.
+  if (!this->visit(Cond))
+    return false;
+  if (!this->emitSetLocal(CondT, CondVar, S))
+    return false;
+
+  CaseMap CaseLabels;
+  // Create labels and comparison ops for all case statements.
+  for (const SwitchCase *SC = S->getSwitchCaseList(); SC;
+       SC = SC->getNextSwitchCase()) {
+    if (const auto *CS = dyn_cast<CaseStmt>(SC)) {
+      // FIXME: Implement ranges.
+      if (CS->caseStmtIsGNURange())
+        return false;
+      CaseLabels[SC] = this->getLabel();
+
+      const Expr *Value = CS->getLHS();
+      PrimType ValueT = this->classifyPrim(Value->getType());
+
+      // Compare the case statement's value to the switch condition.
+      if (!this->emitGetLocal(CondT, CondVar, CS))
+        return false;
+      if (!this->visit(Value))
+        return false;
+
+      // Compare and jump to the case label.
+      if (!this->emitEQ(ValueT, S))
+        return false;
+      if (!this->jumpTrue(CaseLabels[CS]))
+        return false;
+    } else {
+      assert(!DefaultLabel);
+      DefaultLabel = this->getLabel();
+    }
+  }
+
+  // If none of the conditions above were true, fall through to the default
+  // statement or jump after the switch statement.
+  if (DefaultLabel) {
+    if (!this->jump(*DefaultLabel))
+      return false;
+  } else {
+    if (!this->jump(EndLabel))
+      return false;
+  }
+
+  SwitchScope<Emitter> SS(this, std::move(CaseLabels), EndLabel, DefaultLabel);
+  if (!this->visitStmt(S->getBody()))
+    return false;
+  this->emitLabel(EndLabel);
+  return true;
+}
+
+template <class Emitter>
+bool ByteCodeStmtGen<Emitter>::visitCaseStmt(const CaseStmt *S) {
+  this->emitLabel(CaseLabels[S]);
+  return this->visitStmt(S->getSubStmt());
+}
+
+template <class Emitter>
+bool ByteCodeStmtGen<Emitter>::visitDefaultStmt(const DefaultStmt *S) {
+  this->emitLabel(*DefaultLabel);
+  return this->visitStmt(S->getSubStmt());
 }
 
 namespace clang {

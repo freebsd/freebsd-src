@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)opendir.c	8.8 (Berkeley) 5/1/95");
 #include "namespace.h"
 #include <sys/param.h>
 

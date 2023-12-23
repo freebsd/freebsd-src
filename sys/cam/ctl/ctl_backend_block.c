@@ -45,7 +45,6 @@
  *
  * Author: Ken Merry <ken@FreeBSD.org>
  */
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -2827,13 +2826,13 @@ ctl_be_block_lun_info(struct ctl_be_lun *cbe_lun, struct sbuf *sb)
 	struct ctl_be_block_lun *lun = (struct ctl_be_block_lun *)cbe_lun;
 	int retval;
 
-	retval = sbuf_printf(sb, "\t<num_threads>");
+	retval = sbuf_cat(sb, "\t<num_threads>");
 	if (retval != 0)
 		goto bailout;
 	retval = sbuf_printf(sb, "%d", lun->num_threads);
 	if (retval != 0)
 		goto bailout;
-	retval = sbuf_printf(sb, "</num_threads>\n");
+	retval = sbuf_cat(sb, "</num_threads>\n");
 
 bailout:
 	return (retval);

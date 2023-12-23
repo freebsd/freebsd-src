@@ -1,7 +1,4 @@
 /*
- */
-
-/*
  * It'd be nice to automatically generate the syscall symbols, but we
  * don't know to what version they will eventually belong to, so for now
  * it has to be manual.
@@ -33,6 +30,7 @@ FBSD_1.0 {
 	__setugid;
 	__syscall;
 	__sysctl;
+	_exit;
 	_umtx_op;
 	abort2;
 	accept;
@@ -286,6 +284,7 @@ FBSD_1.0 {
 	utrace;
 	uuidgen;
 	vadvise;
+	vfork;
 	wait4;
 	write;
 	writev;
@@ -410,7 +409,6 @@ FBSD_1.6 {
 	fhreadlink;
 	getfhat;
 	funlinkat;
-	memfd_create;
 	shm_create_largepage;
 	shm_rename;
 };

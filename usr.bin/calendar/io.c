@@ -29,25 +29,13 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1989, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif
-
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)calendar.c  8.3 (Berkeley) 3/25/94";
-#endif
-#endif
-
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <libutil.h>
 #include <locale.h>
 #include <pwd.h>
@@ -115,9 +103,11 @@ trimlr(char **buf)
 static FILE *
 cal_fopen(const char *file)
 {
+	static int cwdfd = -1;
 	FILE *fp;
 	char *home = getenv("HOME");
 	unsigned int i;
+	int fd;
 	struct stat sb;
 	static bool warned = false;
 	static char calendarhome[MAXPATHLEN];
@@ -125,6 +115,34 @@ cal_fopen(const char *file)
 	if (home == NULL || *home == '\0') {
 		warnx("Cannot get home directory");
 		return (NULL);
+	}
+
+	/*
+	 * On -a runs, we would have done a chdir() earlier on, but we also
+	 * shouldn't have used the initial cwd anyways lest we bring
+	 * unpredictable behavior upon us.
+	 */
+	if (!doall && cwdfd == -1) {
+		cwdfd = open(".", O_DIRECTORY | O_PATH);
+		if (cwdfd == -1)
+			err(1, "open(cwd)");
+	}
+
+	/*
+	 * Check $PWD first as documented.
+	 */
+	if (cwdfd != -1) {
+		if ((fd = openat(cwdfd, file, O_RDONLY)) != -1) {
+			if ((fp = fdopen(fd, "r")) == NULL)
+				err(1, "fdopen(%s)", file);
+
+			cal_home = NULL;
+			cal_dir = NULL;
+			cal_file = file;
+			return (fp);
+		} else if (errno != ENOENT && errno != ENAMETOOLONG) {
+			err(1, "open(%s)", file);
+		}
 	}
 
 	if (chdir(home) != 0) {

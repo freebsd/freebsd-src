@@ -29,15 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1983, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#if 0
-static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
-#endif
-#endif /* not lint */
-
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #ifdef JAIL
@@ -465,7 +456,7 @@ args_parse(struct ifconfig_args *args, int argc, char *argv[])
 	int c;
 
 	/* Parse leading line options */
-	strlcpy(options, "G:adf:j:klmnuv", sizeof(options));
+	strlcpy(options, "G:adDf:j:klmnuv", sizeof(options));
 	for (p = opts; p != NULL; p = p->next)
 		strlcat(options, p->opt, sizeof(options));
 	while ((c = getopt(argc, argv, options)) != -1) {
@@ -475,6 +466,9 @@ args_parse(struct ifconfig_args *args, int argc, char *argv[])
 			break;
 		case 'd':	/* restrict scan to "down" interfaces */
 			args->downonly = true;
+			break;
+		case 'D':	/* Print driver name */
+			args->drivername = true;
 			break;
 		case 'f':
 			if (optarg == NULL)

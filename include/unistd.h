@@ -27,14 +27,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)unistd.h	8.12 (Berkeley) 4/27/95
  */
 
 #ifndef _UNISTD_H_
 #define	_UNISTD_H_
 
-#include <sys/cdefs.h>
 #include <sys/types.h>			/* XXX adds too much pollution. */
 #include <sys/unistd.h>
 #include <sys/_null.h>
@@ -504,6 +501,7 @@ int	 eaccess(const char *, int);
 void	 endusershell(void);
 int	 exect(const char *, char * const *, char * const *);
 int	 execvP(const char *, const char *, char * const *);
+int	 execvpe(const char *, char * const *, char * const *);
 int	 feature_present(const char *);
 char	*fflagstostr(u_long);
 int	 getdomainname(char *, int);

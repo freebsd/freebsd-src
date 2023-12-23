@@ -57,10 +57,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	from: @(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
  * from: $FreeBSD: .../ufs/ufs_readwrite.c,v 1.96 2002/08/12 09:22:11 phk ...
- *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
  */
 
 #include <sys/cdefs.h>
@@ -981,8 +978,15 @@ ffs_write(
 		 * validated the pages.
 		 */
 		if (error != 0 && (bp->b_flags & B_CACHE) == 0 &&
-		    fs->fs_bsize == xfersize)
-			vfs_bio_clrbuf(bp);
+		    fs->fs_bsize == xfersize) {
+			if (error == EFAULT && LIST_EMPTY(&bp->b_dep)) {
+				bp->b_flags |= B_INVAL | B_RELBUF | B_NOCACHE;
+				brelse(bp);
+				break;
+			} else {
+				vfs_bio_clrbuf(bp);
+			}
+		}
 
 		vfs_bio_set_flags(bp, ioflag);
 

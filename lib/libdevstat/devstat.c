@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/errno.h>
@@ -75,6 +74,7 @@ struct devstat_match_table match_table[] = {
 	{"scsi",	DEVSTAT_TYPE_IF_SCSI,	DEVSTAT_MATCH_IF},
 	{"ide",		DEVSTAT_TYPE_IF_IDE,	DEVSTAT_MATCH_IF},
 	{"other",	DEVSTAT_TYPE_IF_OTHER,	DEVSTAT_MATCH_IF},
+	{"nvme",	DEVSTAT_TYPE_IF_NVME,	DEVSTAT_MATCH_IF},
 	{"worm",	DEVSTAT_TYPE_WORM,	DEVSTAT_MATCH_TYPE},
 	{"sa",		DEVSTAT_TYPE_SEQUENTIAL,DEVSTAT_MATCH_TYPE},
 	{"pass",	DEVSTAT_TYPE_PASS,	DEVSTAT_MATCH_PASS},

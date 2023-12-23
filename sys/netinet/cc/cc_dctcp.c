@@ -36,7 +36,6 @@
  * Originally released as the contribution of Microsoft Research project.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>

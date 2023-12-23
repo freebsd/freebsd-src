@@ -25,7 +25,7 @@
 /*
  * Routines to verify files loaded.
  */
-#include <sys/cdefs.h>
+
 #include <sys/param.h>
 #include <string.h>
 #include <sys/queue.h>

@@ -3229,25 +3229,25 @@ sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
 	for (i = cg->cg_first; i <= cg->cg_last; i++) {
 		if (CPU_ISSET(i, &cg->cg_mask)) {
 			if (!first)
-				sbuf_printf(sb, ", ");
+				sbuf_cat(sb, ", ");
 			else
 				first = FALSE;
 			sbuf_printf(sb, "%d", i);
 		}
 	}
-	sbuf_printf(sb, "</cpu>\n");
+	sbuf_cat(sb, "</cpu>\n");
 
 	if (cg->cg_flags != 0) {
 		sbuf_printf(sb, "%*s <flags>", indent, "");
 		if ((cg->cg_flags & CG_FLAG_HTT) != 0)
-			sbuf_printf(sb, "<flag name=\"HTT\">HTT group</flag>");
+			sbuf_cat(sb, "<flag name=\"HTT\">HTT group</flag>");
 		if ((cg->cg_flags & CG_FLAG_THREAD) != 0)
-			sbuf_printf(sb, "<flag name=\"THREAD\">THREAD group</flag>");
+			sbuf_cat(sb, "<flag name=\"THREAD\">THREAD group</flag>");
 		if ((cg->cg_flags & CG_FLAG_SMT) != 0)
-			sbuf_printf(sb, "<flag name=\"SMT\">SMT group</flag>");
+			sbuf_cat(sb, "<flag name=\"SMT\">SMT group</flag>");
 		if ((cg->cg_flags & CG_FLAG_NODE) != 0)
-			sbuf_printf(sb, "<flag name=\"NODE\">NUMA node</flag>");
-		sbuf_printf(sb, "</flags>\n");
+			sbuf_cat(sb, "<flag name=\"NODE\">NUMA node</flag>");
+		sbuf_cat(sb, "</flags>\n");
 	}
 
 	if (cg->cg_children > 0) {
@@ -3277,9 +3277,9 @@ sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
 	if (topo == NULL)
 		return (ENOMEM);
 
-	sbuf_printf(topo, "<groups>\n");
+	sbuf_cat(topo, "<groups>\n");
 	err = sysctl_kern_sched_topology_spec_internal(topo, cpu_top, 1);
-	sbuf_printf(topo, "</groups>\n");
+	sbuf_cat(topo, "</groups>\n");
 
 	if (err == 0) {
 		err = sbuf_finish(topo);

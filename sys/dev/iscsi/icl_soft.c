@@ -33,7 +33,6 @@
  * Software implementation of iSCSI Common Layer kobj(9) interface.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bio.h>
 #include <sys/capsicum.h>

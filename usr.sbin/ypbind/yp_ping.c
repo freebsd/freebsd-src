@@ -59,13 +59,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#if 0
-#ifndef lint
-static char *sccsid = "@(#)from: clnt_udp.c 1.39 87/08/11 Copyr 1984 Sun Micro";
-static char *sccsid = "@(#)from: clnt_udp.c	2.2 88/08/01 4.0 RPCSRC";
-#endif
-#endif
-#include <sys/cdefs.h>
 /*
  * clnt_udp.c, Implements a UDP/IP based, client side RPC.
  *

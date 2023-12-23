@@ -1342,3 +1342,18 @@ TEST(Capability, NoBypassDACIfRoot) {
   close(fd);
   unlink(TmpFile("cap_root_owned"));
 }
+
+TEST(Capability, CheckIsEmpty) {
+  cap_rights_t rights;
+
+  cap_rights_init(&rights);
+  EXPECT_TRUE(cap_rights_is_empty(&rights));
+
+  size_t num_known = (sizeof(known_rights)/sizeof(known_rights[0]));
+  for (size_t ii = 0; ii < num_known; ii++) {
+    cap_rights_init(&rights, known_rights[ii].right);
+    EXPECT_FALSE(cap_rights_is_empty(&rights));
+    cap_rights_clear(&rights, known_rights[ii].right);
+    EXPECT_TRUE(cap_rights_is_empty(&rights));
+  }
+}

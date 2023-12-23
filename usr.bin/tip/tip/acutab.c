@@ -32,14 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)acutab.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: acutab.c,v 1.5 2006/03/17 19:17:13 moritz Exp $";
-#endif
-#endif /* not lint */
-
 #include "tip.h"
 
 acu_t acutable[] = {

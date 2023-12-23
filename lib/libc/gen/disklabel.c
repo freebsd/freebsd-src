@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)disklabel.c	8.2 (Berkeley) 5/3/95");
 #include <sys/param.h>
 #define DKTYPENAMES
 #define FSTYPENAMES

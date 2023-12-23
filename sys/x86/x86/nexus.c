@@ -97,16 +97,10 @@ static device_attach_t		nexus_attach;
 static bus_add_child_t		nexus_add_child;
 static bus_print_child_t	nexus_print_child;
 
-static bus_activate_resource_t	nexus_activate_resource;
-static bus_adjust_resource_t	nexus_adjust_resource;
 static bus_alloc_resource_t	nexus_alloc_resource;
-static bus_deactivate_resource_t nexus_deactivate_resource;
-static bus_delete_resource_t	nexus_delete_resource;
-static bus_get_resource_t	nexus_get_resource;
 static bus_get_resource_list_t	nexus_get_reslist;
+static bus_get_rman_t		nexus_get_rman;
 static bus_map_resource_t	nexus_map_resource;
-static bus_release_resource_t	nexus_release_resource;
-static bus_set_resource_t	nexus_set_resource;
 static bus_unmap_resource_t	nexus_unmap_resource;
 
 #ifdef SMP
@@ -141,16 +135,17 @@ static device_method_t nexus_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	nexus_print_child),
 	DEVMETHOD(bus_add_child,	nexus_add_child),
-	DEVMETHOD(bus_activate_resource, nexus_activate_resource),
-	DEVMETHOD(bus_adjust_resource,	nexus_adjust_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_rman_activate_resource),
+	DEVMETHOD(bus_adjust_resource,	bus_generic_rman_adjust_resource),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
-	DEVMETHOD(bus_deactivate_resource, nexus_deactivate_resource),
-	DEVMETHOD(bus_get_resource,	nexus_get_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_rman_deactivate_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_get_resource_list, nexus_get_reslist),
-	DEVMETHOD(bus_delete_resource,	nexus_delete_resource),
+	DEVMETHOD(bus_get_rman,		nexus_get_rman),
+	DEVMETHOD(bus_delete_resource,	bus_generic_rl_delete_resource),
 	DEVMETHOD(bus_map_resource,	nexus_map_resource),
-	DEVMETHOD(bus_release_resource,	nexus_release_resource),
-	DEVMETHOD(bus_set_resource,	nexus_set_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_rman_release_resource),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
 	DEVMETHOD(bus_unmap_resource,	nexus_unmap_resource),
 #ifdef SMP
 	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
@@ -331,7 +326,7 @@ nexus_add_child(device_t bus, u_int order, const char *name, int unit)
 }
 
 static struct rman *
-nexus_rman(int type)
+nexus_get_rman(device_t bus, int type, u_int flags)
 {
 	switch (type) {
 	case SYS_RES_IRQ:
@@ -357,10 +352,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		     u_int flags)
 {
 	struct nexus_device *ndev = DEVTONX(child);
-	struct	resource *rv;
 	struct resource_list_entry *rle;
-	struct	rman *rm;
-	int needactivate = flags & RF_ACTIVE;
 
 	/*
 	 * If this is an allocation of the "default" range for a given
@@ -379,81 +371,8 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		count = rle->count;
 	}
 
-	flags &= ~RF_ACTIVE;
-	rm = nexus_rman(type);
-	if (rm == NULL)
-		return (NULL);
-
-	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == NULL)
-		return (NULL);
-	rman_set_rid(rv, *rid);
-
-	if (needactivate) {
-		if (bus_activate_resource(child, type, *rid, rv)) {
-			rman_release_resource(rv);
-			return (NULL);
-		}
-	}
-
-	return (rv);
-}
-
-static int
-nexus_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *r, rman_res_t start, rman_res_t end)
-{
-	struct rman *rm;
-
-	rm = nexus_rman(type);
-	if (rm == NULL)
-		return (ENXIO);
-	if (!rman_is_region_manager(r, rm))
-		return (EINVAL);
-	return (rman_adjust_resource(r, start, end));
-}
-
-static int
-nexus_activate_resource(device_t bus, device_t child, int type, int rid,
-			struct resource *r)
-{
-	struct resource_map map;
-	int error;
-
-	error = rman_activate_resource(r);
-	if (error != 0)
-		return (error);
-
-	if (!(rman_get_flags(r) & RF_UNMAPPED) &&
-	    (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT)) {
-		error = nexus_map_resource(bus, child, type, r, NULL, &map);
-		if (error) {
-			rman_deactivate_resource(r);
-			return (error);
-		}
-
-		rman_set_mapping(r,&map);
-	}
-	return (0);
-}
-
-static int
-nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
-			  struct resource *r)
-{
-	struct resource_map map;
-	int error;
-
-	error = rman_deactivate_resource(r);
-	if (error)
-		return (error);
-
-	if (!(rman_get_flags(r) & RF_UNMAPPED) &&
-	    (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT)) {
-		rman_get_mapping(r, &map);
-		nexus_unmap_resource(bus, child, type, r, &map);
-	}
-	return (0);
+	return (bus_generic_rman_alloc_resource(bus, child, type, rid,
+	    start, end, count, flags));
 }
 
 static int
@@ -461,7 +380,8 @@ nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
     struct resource_map_request *argsp, struct resource_map *map)
 {
 	struct resource_map_request args;
-	rman_res_t end, length, start;
+	rman_res_t length, start;
+	int error;
 
 	/* Resources must be active to be mapped. */
 	if (!(rman_get_flags(r) & RF_ACTIVE))
@@ -477,18 +397,9 @@ nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
 	}
 
 	resource_init_map_request(&args);
-	if (argsp != NULL)
-		bcopy(argsp, &args, imin(argsp->size, args.size));
-	start = rman_get_start(r) + args.offset;
-	if (args.length == 0)
-		length = rman_get_size(r);
-	else
-		length = args.length;
-	end = start + length - 1;
-	if (start > rman_get_end(r) || start < rman_get_start(r))
-		return (EINVAL);
-	if (end > rman_get_end(r) || end < start)
-		return (EINVAL);
+	error = resource_validate_map_request(r, argsp, &args, &start, &length);
+	if (error)
+		return (error);
 
 	/*
 	 * If this is a memory resource, map it into the kernel.
@@ -532,20 +443,6 @@ nexus_unmap_resource(device_t bus, device_t child, int type, struct resource *r,
 		return (EINVAL);
 	}
 	return (0);
-}
-
-static int
-nexus_release_resource(device_t bus, device_t child, int type, int rid,
-		       struct resource *r)
-{
-	int error;
-
-	if (rman_get_flags(r) & RF_ACTIVE) {
-		error = bus_deactivate_resource(child, type, rid, r);
-		if (error != 0)
-			return (error);
-	}
-	return (rman_release_resource(r));
 }
 
 /*
@@ -643,45 +540,6 @@ nexus_get_reslist(device_t dev, device_t child)
 	struct nexus_device *ndev = DEVTONX(child);
 
 	return (&ndev->nx_resources);
-}
-
-static int
-nexus_set_resource(device_t dev, device_t child, int type, int rid,
-    rman_res_t start, rman_res_t count)
-{
-	struct nexus_device	*ndev = DEVTONX(child);
-	struct resource_list	*rl = &ndev->nx_resources;
-
-	/* XXX this should return a success/failure indicator */
-	resource_list_add(rl, type, rid, start, start + count - 1, count);
-	return (0);
-}
-
-static int
-nexus_get_resource(device_t dev, device_t child, int type, int rid,
-    rman_res_t *startp, rman_res_t *countp)
-{
-	struct nexus_device	*ndev = DEVTONX(child);
-	struct resource_list	*rl = &ndev->nx_resources;
-	struct resource_list_entry *rle;
-
-	rle = resource_list_find(rl, type, rid);
-	if (!rle)
-		return (ENOENT);
-	if (startp)
-		*startp = rle->start;
-	if (countp)
-		*countp = rle->count;
-	return (0);
-}
-
-static void
-nexus_delete_resource(device_t dev, device_t child, int type, int rid)
-{
-	struct nexus_device	*ndev = DEVTONX(child);
-	struct resource_list	*rl = &ndev->nx_resources;
-
-	resource_list_delete(rl, type, rid);
 }
 
 static int

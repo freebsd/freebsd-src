@@ -345,12 +345,18 @@ xctrl_crash(void)
 }
 
 static void
-shutdown_final(void *arg, int howto)
+xctrl_shutdown_final(void *arg, int howto)
 {
-	/* Inform the hypervisor that shutdown is complete. */
-	if (howto & RB_POWEROFF)
+	/*
+	 * Inform the hypervisor that shutdown is complete, and specify the
+	 * nature of the shutdown. RB_HALT is not handled by this function.
+	 */
+	if (KERNEL_PANICKED())
+		HYPERVISOR_shutdown(SHUTDOWN_crash);
+	else if ((howto & RB_POWEROFF) != 0)
 		HYPERVISOR_shutdown(SHUTDOWN_poweroff);
-	else if (howto & RB_POWERCYCLE)
+	else if ((howto & RB_HALT) == 0)
+		/* RB_POWERCYCLE or regular reset. */
 		HYPERVISOR_shutdown(SHUTDOWN_reboot);
 }
 
@@ -395,7 +401,7 @@ xctrl_on_watch_event(struct xs_watch *watch, const char **vec, unsigned int len)
  * \param parent  The NewBus parent device for any devices this method adds.
  */
 static void
-xctrl_identify(driver_t *driver __unused, device_t parent)
+xctrl_identify(driver_t *driver, device_t parent)
 {
 	/*
 	 * A single device instance for our driver is always present
@@ -446,7 +452,7 @@ xctrl_attach(device_t dev)
 	xctrl->xctrl_watch.max_pending = 1;
 	xs_register_watch(&xctrl->xctrl_watch);
 
-	EVENTHANDLER_REGISTER(shutdown_final, shutdown_final, NULL,
+	EVENTHANDLER_REGISTER(shutdown_final, xctrl_shutdown_final, NULL,
 	    SHUTDOWN_PRI_LAST);
 
 	return (0);

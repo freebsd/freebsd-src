@@ -29,7 +29,6 @@
  * IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/cdefs.h>
 #include <sys/errno.h>
@@ -475,7 +474,7 @@ static struct cdevsw xs_dev_cdevsw = {
  * \param parent  The NewBus parent device for any devices this method adds.
  */
 static void
-xs_dev_identify(driver_t *driver __unused, device_t parent)
+xs_dev_identify(driver_t *driver, device_t parent)
 {
 	/*
 	 * A single device instance for our driver is always present

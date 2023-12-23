@@ -33,6 +33,9 @@
 
 . ../default.cfg
 
+UFS_LINK_MAX=`grep UFS_LINK_MAX /usr/include/ufs/ufs/dinode.h 2>/dev/null`
+[ -z "$UFS_LINK_MAX" ] && exit 0
+UFS_LINK_MAX=`echo $UFS_LINK_MAX | awk '{print $3}'`
 cat > /tmp/nlink5.c <<EOF
 #include <sys/stat.h>
 #include <ufs/ufs/dinode.h>
@@ -46,7 +49,7 @@ main (void) {
 	int i, mx;
 	char dir[100];
 
-	mx = UFS_LINK_MAX - 2; /* UFS_LINK_MAX = 32767 */
+	mx = UFS_LINK_MAX - 2;
 	for (i = 0; i < mx; i++) {
 		snprintf(dir, sizeof(dir), "%d", i);
 		if (mkdir(dir, 0700) == -1)
@@ -111,7 +114,7 @@ set +e
 cd $mntpoint
 /tmp/nlink5; s=$?
 n=`find . -type d -maxdepth 1 | wc -l`
-[ $n -ne 32766 ] && s=2
+[ $n -ne $((UFS_LINK_MAX - 1)) ] && s=2
 cd $here
 
 umount $mntpoint

@@ -32,14 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)cu.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: cu.c,v 1.19 2006/05/25 08:41:52 jmc Exp $";
-#endif
-#endif /* not lint */
-
 #include "tip.h"
 
 static void	cuusage(void);

@@ -26,7 +26,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/assym.h>
 #include <sys/pcpu.h>
@@ -40,7 +39,6 @@
 ASSYM(BOOTPARAMS_SIZE, roundup2(sizeof(struct arm64_bootparams),
     STACKALIGNBYTES + 1));
 ASSYM(BP_MODULEP, offsetof(struct arm64_bootparams, modulep));
-ASSYM(BP_KERN_DELTA, offsetof(struct arm64_bootparams, kern_delta));
 ASSYM(BP_KERN_STACK, offsetof(struct arm64_bootparams, kern_stack));
 ASSYM(BP_KERN_TTBR0, offsetof(struct arm64_bootparams, kern_ttbr0));
 ASSYM(BP_BOOT_EL, offsetof(struct arm64_bootparams, boot_el));

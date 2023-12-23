@@ -26,25 +26,27 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
+#include <sys/kthread.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/bio.h>
-#include <sys/sbuf.h>
-#include <sys/sysctl.h>
 #include <sys/malloc.h>
-#include <sys/eventhandler.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/reboot.h>
+#include <sys/sbuf.h>
+#include <sys/sched.h>
+#include <sys/sysctl.h>
+
 #include <vm/uma.h>
+
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <sys/proc.h>
-#include <sys/kthread.h>
-#include <sys/sched.h>
 #include <geom/raid3/g_raid3.h>
 
 FEATURE(geom_raid3, "GEOM RAID-3 functionality");
@@ -3571,6 +3573,9 @@ g_raid3_shutdown_post_sync(void *arg, int howto)
 	struct g_geom *gp, *gp2;
 	struct g_raid3_softc *sc;
 	int error;
+
+	if ((howto & RB_NOSYNC) != 0)
+		return;
 
 	mp = arg;
 	g_topology_lock();

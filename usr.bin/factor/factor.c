@@ -30,20 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#include <sys/cdefs.h>
-#ifdef __COPYRIGHT
-__COPYRIGHT("@(#) Copyright (c) 1989, 1993\
-	The Regents of the University of California.  All rights reserved.");
-#endif
-#ifdef __SCCSID
-__SCCSID("@(#)factor.c	8.4 (Berkeley) 5/4/95");
-#endif
-#ifdef __RCSID
-__RCSID("$NetBSD: factor.c,v 1.19 2009/08/12 05:54:31 dholland Exp $");
-#endif
-#endif /* not lint */
-
 /*
  * factor - factor a number into primes
  *

@@ -33,7 +33,6 @@
  * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
  */
 
-/* #pragma ident	"@(#)rpc_generic.c	1.17	94/04/24 SMI" */
 #include <sys/cdefs.h>
 /*
  * rpc_generic.c, Miscl routines for RPC.
@@ -186,20 +185,17 @@ int
 __rpc_socket2sockinfo(struct socket *so, struct __rpc_sockinfo *sip)
 {
 	int type, proto;
-	struct sockaddr *sa;
+	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
 	sa_family_t family;
 	struct sockopt opt;
 	int error;
 
-	CURVNET_SET(so->so_vnet);
-	error = so->so_proto->pr_sockaddr(so, &sa);
-	CURVNET_RESTORE();
+	error = sosockaddr(so, (struct sockaddr *)&ss);
 	if (error)
 		return 0;
 
-	sip->si_alen = sa->sa_len;
-	family = sa->sa_family;
-	free(sa, M_SONAME);
+	sip->si_alen = ss.ss_len;
+	family = ss.ss_family;
 
 	opt.sopt_dir = SOPT_GET;
 	opt.sopt_level = SOL_SOCKET;
@@ -699,34 +695,30 @@ __rpc_endconf(void *vhandle)
 int
 __rpc_sockisbound(struct socket *so)
 {
-	struct sockaddr *sa;
+	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
 	int error, bound;
 
-	CURVNET_SET(so->so_vnet);
-	error = so->so_proto->pr_sockaddr(so, &sa);
-	CURVNET_RESTORE();
+	error = sosockaddr(so, (struct sockaddr *)&ss);
 	if (error)
 		return (0);
 
-	switch (sa->sa_family) {
+	switch (ss.ss_family) {
 		case AF_INET:
-			bound = (((struct sockaddr_in *) sa)->sin_port != 0);
+			bound = (((struct sockaddr_in *)&ss)->sin_port != 0);
 			break;
 #ifdef INET6
 		case AF_INET6:
-			bound = (((struct sockaddr_in6 *) sa)->sin6_port != 0);
+			bound = (((struct sockaddr_in6 *)&ss)->sin6_port != 0);
 			break;
 #endif
 		case AF_LOCAL:
 			/* XXX check this */
-			bound = (((struct sockaddr_un *) sa)->sun_path[0] != '\0');
+			bound = (((struct sockaddr_un *)&ss)->sun_path[0] != '\0');
 			break;
 		default:
 			bound = FALSE;
 			break;
 	}
-
-	free(sa, M_SONAME);
 
 	return bound;
 }
@@ -780,8 +772,8 @@ clnt_call_private(
 int
 bindresvport(struct socket *so, struct sockaddr *sa)
 {
+	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
 	int old, error, af;
-	bool_t freesa = FALSE;
 	struct sockaddr_in *sin;
 #ifdef INET6
 	struct sockaddr_in6 *sin6;
@@ -792,12 +784,10 @@ bindresvport(struct socket *so, struct sockaddr *sa)
 	socklen_t salen;
 
 	if (sa == NULL) {
-		CURVNET_SET(so->so_vnet);
-		error = so->so_proto->pr_sockaddr(so, &sa);
-		CURVNET_RESTORE();
+		sa = (struct sockaddr *)&ss;
+		error = sosockaddr(so, sa);
 		if (error)
 			return (error);
-		freesa = TRUE;
 		af = sa->sa_family;
 		salen = sa->sa_len;
 		memset(sa, 0, sa->sa_len);
@@ -838,15 +828,14 @@ bindresvport(struct socket *so, struct sockaddr *sa)
 		opt.sopt_val = &old;
 		opt.sopt_valsize = sizeof(old);
 		error = sogetopt(so, &opt);
-		if (error) {
-			goto out;
-		}
+		if (error)
+			return (error);
 
 		opt.sopt_dir = SOPT_SET;
 		opt.sopt_val = &portlow;
 		error = sosetopt(so, &opt);
 		if (error)
-			goto out;
+			return (error);
 	}
 
 	error = sobind(so, sa, curthread);
@@ -858,9 +847,6 @@ bindresvport(struct socket *so, struct sockaddr *sa)
 			sosetopt(so, &opt);
 		}
 	}
-out:
-	if (freesa)
-		free(sa, M_SONAME);
 
 	return (error);
 }

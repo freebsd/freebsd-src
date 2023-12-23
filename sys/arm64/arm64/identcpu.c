@@ -29,14 +29,15 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/pcpu.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/systm.h>
 
 #include <machine/atomic.h>
@@ -162,6 +163,7 @@ static struct cpu_desc cpu_desc0;
 static struct cpu_desc *cpu_desc;
 static struct cpu_desc kern_cpu_desc;
 static struct cpu_desc user_cpu_desc;
+static struct cpu_desc l_user_cpu_desc;
 
 static struct cpu_desc *
 get_cpu_desc(u_int cpu)
@@ -275,10 +277,12 @@ const struct cpu_implementers cpu_implementers[] = {
 };
 
 #define	MRS_TYPE_MASK		0xf
+#define	MRS_TYPE_FBSD_SHIFT	0
+#define	MRS_TYPE_LNX_SHIFT	8
 #define	MRS_INVALID		0
 #define	MRS_EXACT		1
 #define	MRS_EXACT_VAL(x)	(MRS_EXACT | ((x) << 4))
-#define	MRS_EXACT_FIELD(x)	((x) >> 4)
+#define	MRS_EXACT_FIELD(x)	(((x) >> 4) & 0xf)
 #define	MRS_LOWER		2
 
 struct mrs_field_value {
@@ -317,19 +321,19 @@ struct mrs_field_value {
 #define	MRS_FIELD_VALUE_END	{ .desc = NULL }
 
 struct mrs_field_hwcap {
-	u_long		*hwcap;
 	uint64_t	min;
 	u_long		hwcap_val;
+	u_int		hwcap_id;
 };
 
-#define	MRS_HWCAP(_hwcap, _val, _min)				\
+#define	MRS_HWCAP(_hwcap_id, _val, _min)			\
 {								\
-	.hwcap = (_hwcap),					\
+	.hwcap_id = (_hwcap_id),				\
 	.hwcap_val = (_val),					\
 	.min = (_min),						\
 }
 
-#define	MRS_HWCAP_END		{ .hwcap = NULL }
+#define	MRS_HWCAP_END		{ .hwcap_id = 0 }
 
 struct mrs_field {
 	const char	*name;
@@ -341,16 +345,22 @@ struct mrs_field {
 	u_int		shift;
 };
 
-#define	MRS_FIELD_HWCAP(_register, _name, _sign, _type, _values, _hwcap) \
+#define	MRS_FIELD_HWCAP_SPLIT(_register, _name, _sign, _fbsd_type,	\
+    _lnx_type, _values, _hwcap)						\
 	{								\
 		.name = #_name,						\
 		.sign = (_sign),					\
-		.type = (_type),					\
+		.type = ((_fbsd_type) << MRS_TYPE_FBSD_SHIFT) |		\
+		    ((_lnx_type) << MRS_TYPE_LNX_SHIFT),		\
 		.shift = _register ## _ ## _name ## _SHIFT,		\
 		.mask = _register ## _ ## _name ## _MASK,		\
 		.values = (_values),					\
 		.hwcaps = (_hwcap),					\
 	}
+
+#define	MRS_FIELD_HWCAP(_register, _name, _sign, _type, _values, _hwcap) \
+	MRS_FIELD_HWCAP_SPLIT(_register, _name, _sign, _type, _type,	\
+	    _values, _hwcap)
 
 #define	MRS_FIELD(_register, _name, _sign, _type, _values)		\
 	MRS_FIELD_HWCAP(_register, _name, _sign, _type, _values, NULL)
@@ -493,7 +503,7 @@ static const struct mrs_field_value id_aa64isar0_rndr[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar0_rndr_caps[] = {
-	MRS_HWCAP(&elf_hwcap2, HWCAP2_RNG, ID_AA64ISAR0_RNDR_IMPL),
+	MRS_HWCAP(2, HWCAP2_RNG, ID_AA64ISAR0_RNDR_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -512,8 +522,8 @@ static const struct mrs_field_value id_aa64isar0_ts[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar0_ts_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_FLAGM, ID_AA64ISAR0_TS_CondM_8_4),
-	MRS_HWCAP(&elf_hwcap2, HWCAP2_FLAGM2, ID_AA64ISAR0_TS_CondM_8_5),
+	MRS_HWCAP(1, HWCAP_FLAGM, ID_AA64ISAR0_TS_CondM_8_4),
+	MRS_HWCAP(2, HWCAP2_FLAGM2, ID_AA64ISAR0_TS_CondM_8_5),
 	MRS_HWCAP_END
 };
 
@@ -523,7 +533,7 @@ static const struct mrs_field_value id_aa64isar0_fhm[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar0_fhm_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_ASIMDFHM, ID_AA64ISAR0_FHM_IMPL),
+	MRS_HWCAP(1, HWCAP_ASIMDFHM, ID_AA64ISAR0_FHM_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -533,7 +543,7 @@ static const struct mrs_field_value id_aa64isar0_dp[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar0_dp_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_ASIMDDP, ID_AA64ISAR0_DP_IMPL),
+	MRS_HWCAP(1, HWCAP_ASIMDDP, ID_AA64ISAR0_DP_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -543,7 +553,7 @@ static const struct mrs_field_value id_aa64isar0_sm4[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar0_sm4_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_SM4, ID_AA64ISAR0_SM4_IMPL),
+	MRS_HWCAP(1, HWCAP_SM4, ID_AA64ISAR0_SM4_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -553,7 +563,7 @@ static const struct mrs_field_value id_aa64isar0_sm3[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar0_sm3_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_SM3, ID_AA64ISAR0_SM3_IMPL),
+	MRS_HWCAP(1, HWCAP_SM3, ID_AA64ISAR0_SM3_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -563,7 +573,7 @@ static const struct mrs_field_value id_aa64isar0_sha3[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar0_sha3_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_SHA3, ID_AA64ISAR0_SHA3_IMPL),
+	MRS_HWCAP(1, HWCAP_SHA3, ID_AA64ISAR0_SHA3_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -573,7 +583,7 @@ static const struct mrs_field_value id_aa64isar0_rdm[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar0_rdm_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_ASIMDRDM, ID_AA64ISAR0_RDM_IMPL),
+	MRS_HWCAP(1, HWCAP_ASIMDRDM, ID_AA64ISAR0_RDM_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -588,7 +598,7 @@ static const struct mrs_field_value id_aa64isar0_atomic[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar0_atomic_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_ATOMICS, ID_AA64ISAR0_Atomic_IMPL),
+	MRS_HWCAP(1, HWCAP_ATOMICS, ID_AA64ISAR0_Atomic_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -598,7 +608,7 @@ static const struct mrs_field_value id_aa64isar0_crc32[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar0_crc32_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_CRC32, ID_AA64ISAR0_CRC32_BASE),
+	MRS_HWCAP(1, HWCAP_CRC32, ID_AA64ISAR0_CRC32_BASE),
 	MRS_HWCAP_END
 };
 
@@ -609,8 +619,8 @@ static const struct mrs_field_value id_aa64isar0_sha2[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar0_sha2_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_SHA2, ID_AA64ISAR0_SHA2_BASE),
-	MRS_HWCAP(&elf_hwcap, HWCAP_SHA512, ID_AA64ISAR0_SHA2_512),
+	MRS_HWCAP(1, HWCAP_SHA2, ID_AA64ISAR0_SHA2_BASE),
+	MRS_HWCAP(1, HWCAP_SHA512, ID_AA64ISAR0_SHA2_512),
 	MRS_HWCAP_END
 };
 
@@ -620,7 +630,7 @@ static const struct mrs_field_value id_aa64isar0_sha1[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar0_sha1_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_SHA1, ID_AA64ISAR0_SHA1_BASE),
+	MRS_HWCAP(1, HWCAP_SHA1, ID_AA64ISAR0_SHA1_BASE),
 	MRS_HWCAP_END
 };
 
@@ -631,8 +641,8 @@ static const struct mrs_field_value id_aa64isar0_aes[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar0_aes_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_AES, ID_AA64ISAR0_AES_BASE),
-	MRS_HWCAP(&elf_hwcap, HWCAP_PMULL, ID_AA64ISAR0_AES_PMULL),
+	MRS_HWCAP(1, HWCAP_AES, ID_AA64ISAR0_AES_BASE),
+	MRS_HWCAP(1, HWCAP_PMULL, ID_AA64ISAR0_AES_PMULL),
 	MRS_HWCAP_END
 };
 
@@ -688,7 +698,7 @@ static const struct mrs_field_value id_aa64isar1_i8mm[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar1_i8mm_caps[] = {
-	MRS_HWCAP(&elf_hwcap2, HWCAP2_I8MM, ID_AA64ISAR1_I8MM_IMPL),
+	MRS_HWCAP(2, HWCAP2_I8MM, ID_AA64ISAR1_I8MM_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -698,7 +708,7 @@ static const struct mrs_field_value id_aa64isar1_dgh[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar1_dgh_caps[] = {
-	MRS_HWCAP(&elf_hwcap2, HWCAP2_DGH, ID_AA64ISAR1_DGH_IMPL),
+	MRS_HWCAP(2, HWCAP2_DGH, ID_AA64ISAR1_DGH_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -709,7 +719,7 @@ static const struct mrs_field_value id_aa64isar1_bf16[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar1_bf16_caps[] = {
-	MRS_HWCAP(&elf_hwcap2, HWCAP2_BF16, ID_AA64ISAR1_BF16_IMPL),
+	MRS_HWCAP(2, HWCAP2_BF16, ID_AA64ISAR1_BF16_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -725,7 +735,7 @@ static const struct mrs_field_value id_aa64isar1_sb[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar1_sb_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_SB, ID_AA64ISAR1_SB_IMPL),
+	MRS_HWCAP(1, HWCAP_SB, ID_AA64ISAR1_SB_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -735,7 +745,7 @@ static const struct mrs_field_value id_aa64isar1_frintts[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar1_frintts_caps[] = {
-	MRS_HWCAP(&elf_hwcap2, HWCAP2_FRINT, ID_AA64ISAR1_FRINTTS_IMPL),
+	MRS_HWCAP(2, HWCAP2_FRINT, ID_AA64ISAR1_FRINTTS_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -745,7 +755,7 @@ static const struct mrs_field_value id_aa64isar1_gpi[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar1_gpi_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_PACG, ID_AA64ISAR1_GPI_IMPL),
+	MRS_HWCAP(1, HWCAP_PACG, ID_AA64ISAR1_GPI_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -755,7 +765,7 @@ static const struct mrs_field_value id_aa64isar1_gpa[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar1_gpa_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_PACG, ID_AA64ISAR1_GPA_IMPL),
+	MRS_HWCAP(1, HWCAP_PACG, ID_AA64ISAR1_GPA_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -767,8 +777,8 @@ static const struct mrs_field_value id_aa64isar1_lrcpc[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar1_lrcpc_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_LRCPC, ID_AA64ISAR1_LRCPC_RCPC_8_3),
-	MRS_HWCAP(&elf_hwcap, HWCAP_ILRCPC, ID_AA64ISAR1_LRCPC_RCPC_8_4),
+	MRS_HWCAP(1, HWCAP_LRCPC, ID_AA64ISAR1_LRCPC_RCPC_8_3),
+	MRS_HWCAP(1, HWCAP_ILRCPC, ID_AA64ISAR1_LRCPC_RCPC_8_4),
 	MRS_HWCAP_END
 };
 
@@ -778,7 +788,7 @@ static const struct mrs_field_value id_aa64isar1_fcma[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar1_fcma_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_FCMA, ID_AA64ISAR1_FCMA_IMPL),
+	MRS_HWCAP(1, HWCAP_FCMA, ID_AA64ISAR1_FCMA_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -788,7 +798,7 @@ static const struct mrs_field_value id_aa64isar1_jscvt[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar1_jscvt_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_JSCVT, ID_AA64ISAR1_JSCVT_IMPL),
+	MRS_HWCAP(1, HWCAP_JSCVT, ID_AA64ISAR1_JSCVT_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -804,7 +814,7 @@ static const struct mrs_field_value id_aa64isar1_api[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar1_api_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_PACA, ID_AA64ISAR1_API_PAC),
+	MRS_HWCAP(1, HWCAP_PACA, ID_AA64ISAR1_API_PAC),
 	MRS_HWCAP_END
 };
 
@@ -820,7 +830,7 @@ static const struct mrs_field_value id_aa64isar1_apa[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar1_apa_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_PACA, ID_AA64ISAR1_APA_PAC),
+	MRS_HWCAP(1, HWCAP_PACA, ID_AA64ISAR1_APA_PAC),
 	MRS_HWCAP_END
 };
 
@@ -832,8 +842,8 @@ static const struct mrs_field_value id_aa64isar1_dpb[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar1_dpb_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_DCPOP, ID_AA64ISAR1_DPB_DCCVAP),
-	MRS_HWCAP(&elf_hwcap2, HWCAP2_DCPODP, ID_AA64ISAR1_DPB_DCCVADP),
+	MRS_HWCAP(1, HWCAP_DCPOP, ID_AA64ISAR1_DPB_DCCVAP),
+	MRS_HWCAP(2, HWCAP2_DCPODP, ID_AA64ISAR1_DPB_DCCVADP),
 	MRS_HWCAP_END
 };
 
@@ -900,7 +910,7 @@ static const struct mrs_field_value id_aa64isar2_apa3[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar2_apa3_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_PACA, ID_AA64ISAR2_APA3_PAC),
+	MRS_HWCAP(1, HWCAP_PACA, ID_AA64ISAR2_APA3_PAC),
 	MRS_HWCAP_END
 };
 
@@ -910,7 +920,7 @@ static const struct mrs_field_value id_aa64isar2_gpa3[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64isar2_gpa3_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_PACG, ID_AA64ISAR2_GPA3_IMPL),
+	MRS_HWCAP(1, HWCAP_PACG, ID_AA64ISAR2_GPA3_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -1201,7 +1211,7 @@ static const struct mrs_field_value id_aa64mmfr2_at[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64mmfr2_at_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_USCAT, ID_AA64MMFR2_AT_IMPL),
+	MRS_HWCAP(1, HWCAP_USCAT, ID_AA64MMFR2_AT_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -1336,7 +1346,7 @@ static const struct mrs_field_value id_aa64pfr0_dit[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64pfr0_dit_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_DIT, ID_AA64PFR0_DIT_PSTATE),
+	MRS_HWCAP(1, HWCAP_DIT, ID_AA64PFR0_DIT_PSTATE),
 	MRS_HWCAP_END
 };
 
@@ -1365,7 +1375,7 @@ static const struct mrs_field_value id_aa64pfr0_sve[] = {
 #if 0
 /* Enable when we add SVE support */
 static const struct mrs_field_hwcap id_aa64pfr0_sve_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_SVE, ID_AA64PFR0_SVE_IMPL),
+	MRS_HWCAP(1, HWCAP_SVE, ID_AA64PFR0_SVE_IMPL),
 	MRS_HWCAP_END
 };
 #endif
@@ -1392,8 +1402,8 @@ static const struct mrs_field_value id_aa64pfr0_advsimd[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64pfr0_advsimd_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_ASIMD, ID_AA64PFR0_AdvSIMD_IMPL),
-	MRS_HWCAP(&elf_hwcap, HWCAP_ASIMDHP, ID_AA64PFR0_AdvSIMD_HP),
+	MRS_HWCAP(1, HWCAP_ASIMD, ID_AA64PFR0_AdvSIMD_IMPL),
+	MRS_HWCAP(1, HWCAP_ASIMDHP, ID_AA64PFR0_AdvSIMD_HP),
 	MRS_HWCAP_END
 };
 
@@ -1404,8 +1414,8 @@ static const struct mrs_field_value id_aa64pfr0_fp[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64pfr0_fp_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_FP, ID_AA64PFR0_FP_IMPL),
-	MRS_HWCAP(&elf_hwcap, HWCAP_FPHP, ID_AA64PFR0_FP_HP),
+	MRS_HWCAP(1, HWCAP_FP, ID_AA64PFR0_FP_IMPL),
+	MRS_HWCAP(1, HWCAP_FPHP, ID_AA64PFR0_FP_HP),
 	MRS_HWCAP_END
 };
 
@@ -1510,7 +1520,7 @@ static const struct mrs_field_value id_aa64pfr1_ssbs[] = {
 };
 
 static const struct mrs_field_hwcap id_aa64pfr1_ssbs_caps[] = {
-	MRS_HWCAP(&elf_hwcap, HWCAP_SSBS, ID_AA64PFR1_SSBS_PSTATE),
+	MRS_HWCAP(1, HWCAP_SSBS, ID_AA64PFR1_SSBS_PSTATE),
 	MRS_HWCAP_END
 };
 
@@ -1523,7 +1533,7 @@ static const struct mrs_field_value id_aa64pfr1_bt[] = {
 #if 0
 /* Enable when we add BTI support */
 static const struct mrs_field_hwcap id_aa64pfr1_bt_caps[] = {
-	MRS_HWCAP(&elf_hwcap2, HWCAP2_BTI, ID_AA64PFR1_BT_IMPL),
+	MRS_HWCAP(2, HWCAP2_BTI, ID_AA64PFR1_BT_IMPL),
 	MRS_HWCAP_END
 };
 #endif
@@ -1636,7 +1646,7 @@ static const struct mrs_field_value id_isar5_crc32[] = {
 };
 
 static const struct mrs_field_hwcap id_isar5_crc32_caps[] = {
-	MRS_HWCAP(&elf32_hwcap2, HWCAP32_2_CRC32, ID_ISAR5_CRC32_IMPL),
+	MRS_HWCAP(2, HWCAP32_2_CRC32, ID_ISAR5_CRC32_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -1646,7 +1656,7 @@ static const struct mrs_field_value id_isar5_sha2[] = {
 };
 
 static const struct mrs_field_hwcap id_isar5_sha2_caps[] = {
-	MRS_HWCAP(&elf32_hwcap2, HWCAP32_2_SHA2, ID_ISAR5_SHA2_IMPL),
+	MRS_HWCAP(2, HWCAP32_2_SHA2, ID_ISAR5_SHA2_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -1656,7 +1666,7 @@ static const struct mrs_field_value id_isar5_sha1[] = {
 };
 
 static const struct mrs_field_hwcap id_isar5_sha1_caps[] = {
-	MRS_HWCAP(&elf32_hwcap2, HWCAP32_2_SHA1, ID_ISAR5_SHA1_IMPL),
+	MRS_HWCAP(2, HWCAP32_2_SHA1, ID_ISAR5_SHA1_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -1667,8 +1677,8 @@ static const struct mrs_field_value id_isar5_aes[] = {
 };
 
 static const struct mrs_field_hwcap id_isar5_aes_caps[] = {
-	MRS_HWCAP(&elf32_hwcap2, HWCAP32_2_AES, ID_ISAR5_AES_BASE),
-	MRS_HWCAP(&elf32_hwcap2, HWCAP32_2_PMULL, ID_ISAR5_AES_VMULL),
+	MRS_HWCAP(2, HWCAP32_2_AES, ID_ISAR5_AES_BASE),
+	MRS_HWCAP(2, HWCAP32_2_PMULL, ID_ISAR5_AES_VMULL),
 	MRS_HWCAP_END
 };
 
@@ -1721,8 +1731,8 @@ static const struct mrs_field_value mvfr0_fpdp[] = {
 };
 
 static const struct mrs_field_hwcap mvfr0_fpdp_caps[] = {
-	MRS_HWCAP(&elf32_hwcap, HWCAP32_VFP, MVFR0_FPDP_VFP_v2),
-	MRS_HWCAP(&elf32_hwcap, HWCAP32_VFPv3, MVFR0_FPDP_VFP_v3_v4),
+	MRS_HWCAP(1, HWCAP32_VFP, MVFR0_FPDP_VFP_v2),
+	MRS_HWCAP(1, HWCAP32_VFPv3, MVFR0_FPDP_VFP_v3_v4),
 	MRS_HWCAP_END
 };
 
@@ -1759,7 +1769,7 @@ static const struct mrs_field_value mvfr1_simdfmac[] = {
 };
 
 static const struct mrs_field_hwcap mvfr1_simdfmac_caps[] = {
-	MRS_HWCAP(&elf32_hwcap, HWCAP32_VFPv4, MVFR1_SIMDFMAC_IMPL),
+	MRS_HWCAP(1, HWCAP32_VFPv4, MVFR1_SIMDFMAC_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -1794,7 +1804,7 @@ static const struct mrs_field_value mvfr1_simdls[] = {
 };
 
 static const struct mrs_field_hwcap mvfr1_simdls_caps[] = {
-	MRS_HWCAP(&elf32_hwcap, HWCAP32_VFPv4, MVFR1_SIMDFMAC_IMPL),
+	MRS_HWCAP(1, HWCAP32_VFPv4, MVFR1_SIMDFMAC_IMPL),
 	MRS_HWCAP_END
 };
 
@@ -1827,50 +1837,52 @@ struct mrs_user_reg {
 	u_int		reg;
 	u_int		CRm;
 	u_int		Op2;
+	bool		is64bit;
 	size_t		offset;
 	const struct mrs_field *fields;
 };
 
-#define	USER_REG(name, field_name)					\
+#define	USER_REG(name, field_name, _is64bit)				\
 	{								\
 		.reg = name,						\
 		.CRm = name##_CRm,					\
 		.Op2 = name##_op2,					\
 		.offset = __offsetof(struct cpu_desc, field_name),	\
 		.fields = field_name##_fields,				\
+		.is64bit = _is64bit,					\
 	}
 static const struct mrs_user_reg user_regs[] = {
-	USER_REG(ID_AA64AFR0_EL1, id_aa64afr0),
-	USER_REG(ID_AA64AFR1_EL1, id_aa64afr1),
+	USER_REG(ID_AA64AFR0_EL1, id_aa64afr0, true),
+	USER_REG(ID_AA64AFR1_EL1, id_aa64afr1, true),
 
-	USER_REG(ID_AA64DFR0_EL1, id_aa64dfr0),
-	USER_REG(ID_AA64DFR1_EL1, id_aa64dfr1),
+	USER_REG(ID_AA64DFR0_EL1, id_aa64dfr0, true),
+	USER_REG(ID_AA64DFR1_EL1, id_aa64dfr1, true),
 
-	USER_REG(ID_AA64ISAR0_EL1, id_aa64isar0),
-	USER_REG(ID_AA64ISAR1_EL1, id_aa64isar1),
-	USER_REG(ID_AA64ISAR2_EL1, id_aa64isar2),
+	USER_REG(ID_AA64ISAR0_EL1, id_aa64isar0, true),
+	USER_REG(ID_AA64ISAR1_EL1, id_aa64isar1, true),
+	USER_REG(ID_AA64ISAR2_EL1, id_aa64isar2, true),
 
-	USER_REG(ID_AA64MMFR0_EL1, id_aa64mmfr0),
-	USER_REG(ID_AA64MMFR1_EL1, id_aa64mmfr1),
-	USER_REG(ID_AA64MMFR2_EL1, id_aa64mmfr2),
+	USER_REG(ID_AA64MMFR0_EL1, id_aa64mmfr0, true),
+	USER_REG(ID_AA64MMFR1_EL1, id_aa64mmfr1, true),
+	USER_REG(ID_AA64MMFR2_EL1, id_aa64mmfr2, true),
 #ifdef NOTYET
-	USER_REG(ID_AA64MMFR3_EL1, id_aa64mmfr3),
-	USER_REG(ID_AA64MMFR4_EL1, id_aa64mmfr4),
+	USER_REG(ID_AA64MMFR3_EL1, id_aa64mmfr3, true),
+	USER_REG(ID_AA64MMFR4_EL1, id_aa64mmfr4, true),
 #endif
 
-	USER_REG(ID_AA64PFR0_EL1, id_aa64pfr0),
-	USER_REG(ID_AA64PFR1_EL1, id_aa64pfr1),
+	USER_REG(ID_AA64PFR0_EL1, id_aa64pfr0, true),
+	USER_REG(ID_AA64PFR1_EL1, id_aa64pfr1, true),
 #ifdef NOTYET
-	USER_REG(ID_AA64PFR2_EL1, id_aa64pfr2),
+	USER_REG(ID_AA64PFR2_EL1, id_aa64pfr2, true),
 #endif
 
-	USER_REG(ID_AA64ZFR0_EL1, id_aa64zfr0),
+	USER_REG(ID_AA64ZFR0_EL1, id_aa64zfr0, true),
 
 #ifdef COMPAT_FREEBSD32
-	USER_REG(ID_ISAR5_EL1, id_isar5),
+	USER_REG(ID_ISAR5_EL1, id_isar5, false),
 
-	USER_REG(MVFR0_EL1, mvfr0),
-	USER_REG(MVFR1_EL1, mvfr1),
+	USER_REG(MVFR0_EL1, mvfr0, false),
+	USER_REG(MVFR1_EL1, mvfr1, false),
 #endif /* COMPAT_FREEBSD32 */
 };
 
@@ -1909,7 +1921,10 @@ user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 
 	for (i = 0; i < nitems(user_regs); i++) {
 		if (user_regs[i].CRm == CRm && user_regs[i].Op2 == Op2) {
-			value = CPU_DESC_FIELD(user_cpu_desc, i);
+			if (SV_CURPROC_ABI() == SV_ABI_FREEBSD)
+				value = CPU_DESC_FIELD(user_cpu_desc, i);
+			else
+				value = CPU_DESC_FIELD(l_user_cpu_desc, i);
 			break;
 		}
 	}
@@ -2062,12 +2077,32 @@ get_kernel_reg_masked(u_int reg, uint64_t *valp, uint64_t mask)
 	return (false);
 }
 
+static uint64_t
+update_special_reg_field(uint64_t user_reg, u_int type, uint64_t value,
+    u_int shift, bool sign)
+{
+	switch (type & MRS_TYPE_MASK) {
+	case MRS_EXACT:
+		user_reg &= ~(0xful << shift);
+		user_reg |= (uint64_t)MRS_EXACT_FIELD(type) << shift;
+		break;
+	case MRS_LOWER:
+		user_reg = update_lower_register(user_reg, value, shift, 4,
+		    sign);
+		break;
+	default:
+		panic("Invalid field type: %d", type);
+	}
+
+	return (user_reg);
+}
+
 void
 update_special_regs(u_int cpu)
 {
 	struct cpu_desc *desc;
 	const struct mrs_field *fields;
-	uint64_t user_reg, kern_reg, value;
+	uint64_t l_user_reg, user_reg, kern_reg, value;
 	int i, j;
 
 	if (cpu == 0) {
@@ -2078,6 +2113,8 @@ update_special_regs(u_int cpu)
 		    ID_AA64PFR0_FP_NONE | ID_AA64PFR0_EL1_64 |
 		    ID_AA64PFR0_EL0_64;
 		user_cpu_desc.id_aa64dfr0 = ID_AA64DFR0_DebugVer_8;
+		/* Create the Linux user visible cpu description */
+		memcpy(&l_user_cpu_desc, &user_cpu_desc, sizeof(user_cpu_desc));
 	}
 
 	desc = get_cpu_desc(cpu);
@@ -2086,33 +2123,33 @@ update_special_regs(u_int cpu)
 		if (cpu == 0) {
 			kern_reg = value;
 			user_reg = value;
+			l_user_reg = value;
 		} else {
 			kern_reg = CPU_DESC_FIELD(kern_cpu_desc, i);
 			user_reg = CPU_DESC_FIELD(user_cpu_desc, i);
+			l_user_reg = CPU_DESC_FIELD(l_user_cpu_desc, i);
 		}
 
 		fields = user_regs[i].fields;
 		for (j = 0; fields[j].type != 0; j++) {
-			switch (fields[j].type & MRS_TYPE_MASK) {
-			case MRS_EXACT:
-				user_reg &= ~(0xful << fields[j].shift);
-				user_reg |=
-				    (uint64_t)MRS_EXACT_FIELD(fields[j].type) <<
-				    fields[j].shift;
-				break;
-			case MRS_LOWER:
-				user_reg = update_lower_register(user_reg,
-				    value, fields[j].shift, 4, fields[j].sign);
-				break;
-			default:
-				panic("Invalid field type: %d", fields[j].type);
-			}
+			/* Update the FreeBSD userspace ID register view */
+			user_reg = update_special_reg_field(user_reg,
+			    fields[j].type >> MRS_TYPE_FBSD_SHIFT, value,
+			    fields[j].shift, fields[j].sign);
+
+			/* Update the Linux userspace ID register view */
+			l_user_reg = update_special_reg_field(l_user_reg,
+			    fields[j].type >> MRS_TYPE_LNX_SHIFT, value,
+			    fields[j].shift, fields[j].sign);
+
+			/* Update the kernel ID register view */
 			kern_reg = update_lower_register(kern_reg, value,
 			    fields[j].shift, 4, fields[j].sign);
 		}
 
 		CPU_DESC_FIELD(kern_cpu_desc, i) = kern_reg;
 		CPU_DESC_FIELD(user_cpu_desc, i) = user_reg;
+		CPU_DESC_FIELD(l_user_cpu_desc, i) = l_user_reg;
 	}
 }
 
@@ -2146,22 +2183,34 @@ int64_t idcache_line_size;	/* The minimum cache line size */
  * Find the values to export to userspace as AT_HWCAP and AT_HWCAP2.
  */
 static void
-parse_cpu_features(void)
+parse_cpu_features(bool is64bit, struct cpu_desc *cpu_desc, u_long *hwcap,
+    u_long *hwcap2)
 {
 	const struct mrs_field_hwcap *hwcaps;
 	const struct mrs_field *fields;
 	uint64_t min, reg;
+	u_long *cur_hwcap;
 	int i, j, k;
 
 	for (i = 0; i < nitems(user_regs); i++) {
-		reg = CPU_DESC_FIELD(user_cpu_desc, i);
+		if (user_regs[i].is64bit != is64bit)
+			continue;
+
+		reg = CPU_DESC_FIELD(*cpu_desc, i);
 		fields = user_regs[i].fields;
 		for (j = 0; fields[j].type != 0; j++) {
 			hwcaps = fields[j].hwcaps;
 			if (hwcaps == NULL)
 				continue;
 
-			for (k = 0; hwcaps[k].hwcap != NULL; k++) {
+			for (k = 0; hwcaps[k].hwcap_id != 0; k++) {
+				KASSERT(hwcaps[k].hwcap_id == 1 ||
+				    hwcaps[k].hwcap_id == 2,
+				    ("%s: Invalid HWCAP ID %d", __func__,
+				    hwcaps[k].hwcap_id));
+
+				cur_hwcap = hwcaps[k].hwcap_id == 1 ?
+				    hwcap : hwcap2;
 				min = hwcaps[k].min;
 
 				/*
@@ -2170,7 +2219,7 @@ parse_cpu_features(void)
 				 */
 				if (mrs_field_cmp(reg, min, fields[j].shift,
 				    4, fields[j].sign) >= 0) {
-					*hwcaps[k].hwcap |= hwcaps[k].hwcap_val;
+					*cur_hwcap |= hwcaps[k].hwcap_val;
 				}
 			}
 		}
@@ -2203,9 +2252,16 @@ identify_cpu_sysinit(void *dummy __unused)
 	}
 
 	/* Find the values to export to userspace as AT_HWCAP and AT_HWCAP2 */
-	parse_cpu_features();
+	parse_cpu_features(true, &user_cpu_desc, &elf_hwcap, &elf_hwcap2);
+	parse_cpu_features(true, &l_user_cpu_desc, &linux_elf_hwcap,
+	    &linux_elf_hwcap2);
+#ifdef COMPAT_FREEBSD32
+	parse_cpu_features(false, &user_cpu_desc, &elf32_hwcap, &elf32_hwcap2);
+#endif
+
 	/* We export the CPUID registers */
 	elf_hwcap |= HWCAP_CPUID;
+	linux_elf_hwcap |= HWCAP_CPUID;
 
 #ifdef COMPAT_FREEBSD32
 	/* Set the default caps and any that need to check multiple fields */

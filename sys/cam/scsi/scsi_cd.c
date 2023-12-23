@@ -47,7 +47,6 @@
  *      from: cd.c,v 1.83 1997/05/04 15:24:22 joerg Exp $
  */
 
-#include <sys/cdefs.h>
 #include "opt_cd.h"
 
 #include <sys/param.h>

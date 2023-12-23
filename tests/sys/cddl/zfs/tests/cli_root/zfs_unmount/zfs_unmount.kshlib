@@ -23,9 +23,6 @@
 #
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zfs_unmount.kshlib	1.2	07/01/09 SMI"
-#
 
 function do_unmount #cmd #opt #mnt #expect
 {

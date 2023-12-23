@@ -1370,6 +1370,7 @@ MLINKS+=kmsan.9 KMSAN.9 \
 	kmsan.9 kmsan_check_bio.9 \
 	kmsan.9 kmsan_check_ccb.9 \
 	kmsan.9 kmsan_check_mbuf.9 \
+	kmsan.9 kmsan_check_uio.9 \
 	kmsan.9 kmsan_mark.9 \
 	kmsan.9 kmsan_oirg.9
 MLINKS+=kobj.9 DEFINE_CLASS.9 \

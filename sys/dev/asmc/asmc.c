@@ -34,7 +34,6 @@
  * Inspired by the Linux applesmc driver.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>

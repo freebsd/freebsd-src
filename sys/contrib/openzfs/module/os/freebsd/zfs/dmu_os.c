@@ -25,9 +25,6 @@
  *
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/dmu.h>
@@ -110,7 +107,7 @@ dmu_write_pages(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 		ASSERT(i == 0 || i == numbufs-1 || tocpy == db->db_size);
 
 		if (tocpy == db->db_size)
-			dmu_buf_will_fill(db, tx);
+			dmu_buf_will_fill(db, tx, B_FALSE);
 		else
 			dmu_buf_will_dirty(db, tx);
 
@@ -126,7 +123,7 @@ dmu_write_pages(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 		}
 
 		if (tocpy == db->db_size)
-			dmu_buf_fill_done(db, tx);
+			dmu_buf_fill_done(db, tx, B_FALSE);
 
 		offset += tocpy;
 		size -= tocpy;

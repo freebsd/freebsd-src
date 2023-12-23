@@ -32,8 +32,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)param.c	8.3 (Berkeley) 8/20/94
  */
 
 #include <sys/cdefs.h>
@@ -158,9 +156,9 @@ static const char *const vm_guest_sysctl_names[] = {
 	[VM_GUEST_BHYVE] = "bhyve",
 	[VM_GUEST_VBOX] = "vbox",
 	[VM_GUEST_PARALLELS] = "parallels",
-	[VM_LAST] = NULL
 };
-CTASSERT(nitems(vm_guest_sysctl_names) - 1 == VM_LAST);
+_Static_assert(nitems(vm_guest_sysctl_names) == VM_LAST,
+    "new vm guest type not added to vm_guest_sysctl_names");
 
 /*
  * Boot time overrides that are not scaled against main memory

@@ -23,7 +23,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/ptrace.h>
 #include <sys/syscall.h>

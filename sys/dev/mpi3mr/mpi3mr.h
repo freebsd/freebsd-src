@@ -44,7 +44,6 @@
 #ifndef _MPI3MRVAR_H
 #define _MPI3MRVAR_H
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -457,23 +456,16 @@ struct mpi3mr_cmd {
 	union ccb			*ccb;
 	void				*data;
 	u_int				length;
-	u_int				out_len;
-	struct uio			uio;
-	struct iovec			iovec[MPI3MR_IOVEC_COUNT];
-	u_int				max_segs;
 	struct mpi3mr_target		*targ;
-	u_int	                	lun;
 	u_int				data_dir;
 	u_int				state;
 	bus_dmamap_t			dmamap;
 	struct scsi_sense_data		*sense;
 	struct callout			callout;
 	bool				callout_owner;
-	mpi3mr_cmd_callback_t		*timeout_handler;
 	U16				hosttag;
 	U8				req_qidx;
 	Mpi3SCSIIORequest_t		io_request;
-	int				error_code;
 };
 
 struct mpi3mr_chain {
@@ -551,7 +543,7 @@ struct mpi3mr_softc {
 	char name[MPI3MR_NAME_LENGTH];
 	char driver_name[MPI3MR_NAME_LENGTH];
 	int bars;
-	int dma_mask;
+	bus_addr_t dma_loaddr;
 	u_int mpi3mr_debug;
 	struct mpi3mr_reset reset;
 	int max_msix_vectors;
@@ -562,8 +554,7 @@ struct mpi3mr_softc {
 	uint32_t chain_frame_size;
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
-	char fw_version[16];
-	char msg_version[8];
+	char fw_version[32];
 	struct mpi3mr_chain *chains;
 	struct callout periodic;
 	struct callout device_check_callout;

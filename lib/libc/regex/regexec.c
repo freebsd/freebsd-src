@@ -31,13 +31,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)regexec.c	8.3 (Berkeley) 3/20/94
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)regexec.c	8.3 (Berkeley) 3/20/94";
-#endif /* LIBC_SCCS and not lint */
 /*
  * the outer shell of regexec()
  *

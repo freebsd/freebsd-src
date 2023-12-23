@@ -403,8 +403,8 @@ fs_populate_sattrs(struct fs_populate_arg *arg, const fsnode *cur,
 	}
 
 	daclcount = nitems(aces);
-	flags = ZFS_ACL_TRIVIAL | ZFS_ACL_AUTO_INHERIT | ZFS_NO_EXECS_DENIED |
-	    ZFS_ARCHIVE | ZFS_AV_MODIFIED; /* XXX-MJ */
+	flags = ZFS_ACL_TRIVIAL | ZFS_ACL_AUTO_INHERIT | ZFS_ARCHIVE |
+	    ZFS_AV_MODIFIED;
 	gen = 1;
 	gid = sb->st_gid;
 	mode = sb->st_mode;

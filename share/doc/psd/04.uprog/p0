@@ -35,8 +35,6 @@
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
 .\"
-.\"	@(#)p0	8.1 (Berkeley) 6/8/93
-.\"
 .if n .ls 1
 .\" .TM 78-1273-9 39199 39199-11
 .\" .ND October 2, 1978

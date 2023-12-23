@@ -569,6 +569,21 @@ dbuf_evict_user(dmu_buf_impl_t *db)
 		*dbu->dbu_clear_on_evict_dbufp = NULL;
 #endif
 
+	if (db->db_caching_status != DB_NO_CACHE) {
+		/*
+		 * This is a cached dbuf, so the size of the user data is
+		 * included in its cached amount. We adjust it here because the
+		 * user data has already been detached from the dbuf, and the
+		 * sync functions are not supposed to touch it (the dbuf might
+		 * not exist anymore by the time the sync functions run.
+		 */
+		uint64_t size = dbu->dbu_size;
+		(void) zfs_refcount_remove_many(
+		    &dbuf_caches[db->db_caching_status].size, size, db);
+		if (db->db_caching_status == DB_DBUF_CACHE)
+			DBUF_STAT_DECR(cache_levels_bytes[db->db_level], size);
+	}
+
 	/*
 	 * There are two eviction callbacks - one that we call synchronously
 	 * and one that we invoke via a taskq.  The async one is useful for
@@ -770,12 +785,12 @@ dbuf_evict_one(void)
 	if (db != NULL) {
 		multilist_sublist_remove(mls, db);
 		multilist_sublist_unlock(mls);
+		uint64_t size = db->db.db_size + dmu_buf_user_size(&db->db);
 		(void) zfs_refcount_remove_many(
-		    &dbuf_caches[DB_DBUF_CACHE].size, db->db.db_size, db);
+		    &dbuf_caches[DB_DBUF_CACHE].size, size, db);
 		DBUF_STAT_BUMPDOWN(cache_levels[db->db_level]);
 		DBUF_STAT_BUMPDOWN(cache_count);
-		DBUF_STAT_DECR(cache_levels_bytes[db->db_level],
-		    db->db.db_size);
+		DBUF_STAT_DECR(cache_levels_bytes[db->db_level], size);
 		ASSERT3U(db->db_caching_status, ==, DB_DBUF_CACHE);
 		db->db_caching_status = DB_NO_CACHE;
 		dbuf_destroy(db);
@@ -1904,7 +1919,6 @@ dbuf_unoverride(dbuf_dirty_record_t *dr)
 	dmu_buf_impl_t *db = dr->dr_dbuf;
 	blkptr_t *bp = &dr->dt.dl.dr_overridden_by;
 	uint64_t txg = dr->dr_txg;
-	boolean_t release;
 
 	ASSERT(MUTEX_HELD(&db->db_mtx));
 	/*
@@ -1925,7 +1939,10 @@ dbuf_unoverride(dbuf_dirty_record_t *dr)
 	if (!BP_IS_HOLE(bp) && !dr->dt.dl.dr_nopwrite)
 		zio_free(db->db_objset->os_spa, txg, bp);
 
-	release = !dr->dt.dl.dr_brtwrite;
+	if (dr->dt.dl.dr_brtwrite) {
+		ASSERT0P(dr->dt.dl.dr_data);
+		dr->dt.dl.dr_data = db->db_buf;
+	}
 	dr->dt.dl.dr_override_state = DR_NOT_OVERRIDDEN;
 	dr->dt.dl.dr_nopwrite = B_FALSE;
 	dr->dt.dl.dr_brtwrite = B_FALSE;
@@ -1939,7 +1956,7 @@ dbuf_unoverride(dbuf_dirty_record_t *dr)
 	 * the buf thawed to save the effort of freezing &
 	 * immediately re-thawing it.
 	 */
-	if (release)
+	if (dr->dt.dl.dr_data)
 		arc_release(dr->dt.dl.dr_data, db);
 }
 
@@ -2700,15 +2717,23 @@ dmu_buf_will_clone(dmu_buf_t *db_fake, dmu_tx_t *tx)
 	 * writes and clones into this block.
 	 */
 	mutex_enter(&db->db_mtx);
+	DBUF_VERIFY(db);
 	VERIFY(!dbuf_undirty(db, tx));
 	ASSERT0P(dbuf_find_dirty_eq(db, tx->tx_txg));
 	if (db->db_buf != NULL) {
 		arc_buf_destroy(db->db_buf, db);
 		db->db_buf = NULL;
+		dbuf_clear_data(db);
 	}
+
+	db->db_state = DB_NOFILL;
+	DTRACE_SET_STATE(db, "allocating NOFILL buffer for clone");
+
+	DBUF_VERIFY(db);
 	mutex_exit(&db->db_mtx);
 
-	dmu_buf_will_not_fill(db_fake, tx);
+	dbuf_noread(db);
+	(void) dbuf_dirty(db, tx);
 }
 
 void
@@ -2726,7 +2751,7 @@ dmu_buf_will_not_fill(dmu_buf_t *db_fake, dmu_tx_t *tx)
 }
 
 void
-dmu_buf_will_fill(dmu_buf_t *db_fake, dmu_tx_t *tx)
+dmu_buf_will_fill(dmu_buf_t *db_fake, dmu_tx_t *tx, boolean_t canfail)
 {
 	dmu_buf_impl_t *db = (dmu_buf_impl_t *)db_fake;
 
@@ -2744,8 +2769,14 @@ dmu_buf_will_fill(dmu_buf_t *db_fake, dmu_tx_t *tx)
 		 * Block cloning: We will be completely overwriting a block
 		 * cloned in this transaction group, so let's undirty the
 		 * pending clone and mark the block as uncached. This will be
-		 * as if the clone was never done.
+		 * as if the clone was never done.  But if the fill can fail
+		 * we should have a way to return back to the cloned data.
 		 */
+		if (canfail && dbuf_find_dirty_eq(db, tx->tx_txg) != NULL) {
+			mutex_exit(&db->db_mtx);
+			dmu_buf_will_dirty(db_fake, tx);
+			return;
+		}
 		VERIFY(!dbuf_undirty(db, tx));
 		db->db_state = DB_UNCACHED;
 	}
@@ -2806,32 +2837,41 @@ dbuf_override_impl(dmu_buf_impl_t *db, const blkptr_t *bp, dmu_tx_t *tx)
 	dl->dr_overridden_by.blk_birth = dr->dr_txg;
 }
 
-void
-dmu_buf_fill_done(dmu_buf_t *dbuf, dmu_tx_t *tx)
+boolean_t
+dmu_buf_fill_done(dmu_buf_t *dbuf, dmu_tx_t *tx, boolean_t failed)
 {
 	(void) tx;
 	dmu_buf_impl_t *db = (dmu_buf_impl_t *)dbuf;
-	dbuf_states_t old_state;
 	mutex_enter(&db->db_mtx);
 	DBUF_VERIFY(db);
 
-	old_state = db->db_state;
-	db->db_state = DB_CACHED;
-	if (old_state == DB_FILL) {
+	if (db->db_state == DB_FILL) {
 		if (db->db_level == 0 && db->db_freed_in_flight) {
 			ASSERT(db->db_blkid != DMU_BONUS_BLKID);
 			/* we were freed while filling */
 			/* XXX dbuf_undirty? */
 			memset(db->db.db_data, 0, db->db.db_size);
 			db->db_freed_in_flight = FALSE;
+			db->db_state = DB_CACHED;
 			DTRACE_SET_STATE(db,
 			    "fill done handling freed in flight");
+			failed = B_FALSE;
+		} else if (failed) {
+			VERIFY(!dbuf_undirty(db, tx));
+			db->db_buf = NULL;
+			dbuf_clear_data(db);
+			DTRACE_SET_STATE(db, "fill failed");
 		} else {
+			db->db_state = DB_CACHED;
 			DTRACE_SET_STATE(db, "fill done");
 		}
 		cv_broadcast(&db->db_changed);
+	} else {
+		db->db_state = DB_CACHED;
+		failed = B_FALSE;
 	}
 	mutex_exit(&db->db_mtx);
+	return (failed);
 }
 
 void
@@ -2922,7 +2962,8 @@ dbuf_assign_arcbuf(dmu_buf_impl_t *db, arc_buf_t *buf, dmu_tx_t *tx)
 	while (db->db_state == DB_READ || db->db_state == DB_FILL)
 		cv_wait(&db->db_changed, &db->db_mtx);
 
-	ASSERT(db->db_state == DB_CACHED || db->db_state == DB_UNCACHED);
+	ASSERT(db->db_state == DB_CACHED || db->db_state == DB_UNCACHED ||
+	    db->db_state == DB_NOFILL);
 
 	if (db->db_state == DB_CACHED &&
 	    zfs_refcount_count(&db->db_holds) - 1 > db->db_dirtycnt) {
@@ -2959,6 +3000,15 @@ dbuf_assign_arcbuf(dmu_buf_impl_t *db, arc_buf_t *buf, dmu_tx_t *tx)
 			arc_buf_destroy(db->db_buf, db);
 		}
 		db->db_buf = NULL;
+	} else if (db->db_state == DB_NOFILL) {
+		/*
+		 * We will be completely replacing the cloned block.  In case
+		 * it was cloned in this transaction group, let's undirty the
+		 * pending clone and mark the block as uncached. This will be
+		 * as if the clone was never done.
+		 */
+		VERIFY(!dbuf_undirty(db, tx));
+		db->db_state = DB_UNCACHED;
 	}
 	ASSERT(db->db_buf == NULL);
 	dbuf_set_data(db, buf);
@@ -2966,7 +3016,7 @@ dbuf_assign_arcbuf(dmu_buf_impl_t *db, arc_buf_t *buf, dmu_tx_t *tx)
 	DTRACE_SET_STATE(db, "filling assigned arcbuf");
 	mutex_exit(&db->db_mtx);
 	(void) dbuf_dirty(db, tx);
-	dmu_buf_fill_done(&db->db, tx);
+	dmu_buf_fill_done(&db->db, tx, B_FALSE);
 }
 
 void
@@ -3002,6 +3052,8 @@ dbuf_destroy(dmu_buf_impl_t *db)
 		    db->db_caching_status == DB_DBUF_METADATA_CACHE);
 
 		multilist_remove(&dbuf_caches[db->db_caching_status].cache, db);
+
+		ASSERT0(dmu_buf_user_size(&db->db));
 		(void) zfs_refcount_remove_many(
 		    &dbuf_caches[db->db_caching_status].size,
 		    db->db.db_size, db);
@@ -3749,17 +3801,17 @@ dbuf_hold_impl(dnode_t *dn, uint8_t level, uint64_t blkid,
 		    db->db_caching_status == DB_DBUF_METADATA_CACHE);
 
 		multilist_remove(&dbuf_caches[db->db_caching_status].cache, db);
+
+		uint64_t size = db->db.db_size + dmu_buf_user_size(&db->db);
 		(void) zfs_refcount_remove_many(
-		    &dbuf_caches[db->db_caching_status].size,
-		    db->db.db_size, db);
+		    &dbuf_caches[db->db_caching_status].size, size, db);
 
 		if (db->db_caching_status == DB_DBUF_METADATA_CACHE) {
 			DBUF_STAT_BUMPDOWN(metadata_cache_count);
 		} else {
 			DBUF_STAT_BUMPDOWN(cache_levels[db->db_level]);
 			DBUF_STAT_BUMPDOWN(cache_count);
-			DBUF_STAT_DECR(cache_levels_bytes[db->db_level],
-			    db->db.db_size);
+			DBUF_STAT_DECR(cache_levels_bytes[db->db_level], size);
 		}
 		db->db_caching_status = DB_NO_CACHE;
 	}
@@ -3978,7 +4030,8 @@ dbuf_rele_and_unlock(dmu_buf_impl_t *db, const void *tag, boolean_t evicting)
 			db->db_caching_status = dcs;
 
 			multilist_insert(&dbuf_caches[dcs].cache, db);
-			uint64_t db_size = db->db.db_size;
+			uint64_t db_size = db->db.db_size +
+			    dmu_buf_user_size(&db->db);
 			size = zfs_refcount_add_many(
 			    &dbuf_caches[dcs].size, db_size, db);
 			uint8_t db_level = db->db_level;
@@ -4072,6 +4125,35 @@ dmu_buf_get_user(dmu_buf_t *db_fake)
 
 	dbuf_verify_user(db, DBVU_NOT_EVICTING);
 	return (db->db_user);
+}
+
+uint64_t
+dmu_buf_user_size(dmu_buf_t *db_fake)
+{
+	dmu_buf_impl_t *db = (dmu_buf_impl_t *)db_fake;
+	if (db->db_user == NULL)
+		return (0);
+	return (atomic_load_64(&db->db_user->dbu_size));
+}
+
+void
+dmu_buf_add_user_size(dmu_buf_t *db_fake, uint64_t nadd)
+{
+	dmu_buf_impl_t *db = (dmu_buf_impl_t *)db_fake;
+	ASSERT3U(db->db_caching_status, ==, DB_NO_CACHE);
+	ASSERT3P(db->db_user, !=, NULL);
+	ASSERT3U(atomic_load_64(&db->db_user->dbu_size), <, UINT64_MAX - nadd);
+	atomic_add_64(&db->db_user->dbu_size, nadd);
+}
+
+void
+dmu_buf_sub_user_size(dmu_buf_t *db_fake, uint64_t nsub)
+{
+	dmu_buf_impl_t *db = (dmu_buf_impl_t *)db_fake;
+	ASSERT3U(db->db_caching_status, ==, DB_NO_CACHE);
+	ASSERT3P(db->db_user, !=, NULL);
+	ASSERT3U(atomic_load_64(&db->db_user->dbu_size), >=, nsub);
+	atomic_sub_64(&db->db_user->dbu_size, nsub);
 }
 
 void
@@ -4587,6 +4669,10 @@ dbuf_sync_leaf(dbuf_dirty_record_t *dr, dmu_tx_t *tx)
 	}
 }
 
+/*
+ * Syncs out a range of dirty records for indirect or leaf dbufs.  May be
+ * called recursively from dbuf_sync_indirect().
+ */
 void
 dbuf_sync_list(list_t *list, int level, dmu_tx_t *tx)
 {
@@ -5005,7 +5091,10 @@ dbuf_remap(dnode_t *dn, dmu_buf_impl_t *db, dmu_tx_t *tx)
 }
 
 
-/* Issue I/O to commit a dirty buffer to disk. */
+/*
+ * Populate dr->dr_zio with a zio to commit a dirty buffer to disk.
+ * Caller is responsible for issuing the zio_[no]wait(dr->dr_zio).
+ */
 static void
 dbuf_write(dbuf_dirty_record_t *dr, arc_buf_t *data, dmu_tx_t *tx)
 {

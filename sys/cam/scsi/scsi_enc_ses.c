@@ -33,7 +33,6 @@
  * Structures and routines specific && private to SES only
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #include <sys/ctype.h>
@@ -2269,12 +2268,12 @@ ses_get_elm_addlstatus_fc(enc_softc_t *enc, enc_cache_t *enc_cache,
 	if (((p) & SES_SASOBJ_DEV_PHY_PROTOMASK) != 0) {		\
 		sbuf_printf(sbp, " %s (", type);			\
 		if ((p) & SES_SASOBJ_DEV_PHY_SMP)			\
-			sbuf_printf(sbp, " SMP");			\
+			sbuf_cat(sbp, " SMP");				\
 		if ((p) & SES_SASOBJ_DEV_PHY_STP)			\
-			sbuf_printf(sbp, " STP");			\
+			sbuf_cat(sbp, " STP");				\
 		if ((p) & SES_SASOBJ_DEV_PHY_SSP)			\
-			sbuf_printf(sbp, " SSP");			\
-		sbuf_printf(sbp, " )");					\
+			sbuf_cat(sbp, " SSP");				\
+		sbuf_cat(sbp, " )");					\
 	}								\
 } while(0)
 
@@ -2303,7 +2302,7 @@ ses_print_addl_data_sas_type0(char *sesname, struct sbuf *sbp,
 	if (ses_elm_addlstatus_eip(addl->hdr))
 		sbuf_printf(sbp, " at slot %d",
 		    addl->proto_hdr.sas->type0_eip.dev_slot_num);
-	sbuf_printf(sbp, "\n");
+	sbuf_putc(sbp, '\n');
 	if (addl->proto_data.sasdev_phys == NULL)
 		return;
 	for (i = 0;i < addl->proto_hdr.sas->base_hdr.num_phys;i++) {
@@ -2311,13 +2310,13 @@ ses_print_addl_data_sas_type0(char *sesname, struct sbuf *sbp,
 		sbuf_printf(sbp, "%s:  phy %d:", sesname, i);
 		if (ses_elm_sas_dev_phy_sata_dev(phy))
 			/* Spec says all other fields are specific values */
-			sbuf_printf(sbp, " SATA device\n");
+			sbuf_cat(sbp, " SATA device\n");
 		else {
 			sbuf_printf(sbp, " SAS device type %d phy %d",
 			    ses_elm_sas_dev_phy_dev_type(phy), phy->phy_id);
 			SES_PRINT_PORTS(phy->initiator_ports, "Initiator");
 			SES_PRINT_PORTS(phy->target_ports, "Target");
-			sbuf_printf(sbp, "\n");
+			sbuf_putc(sbp, '\n');
 		}
 		sbuf_printf(sbp, "%s:  phy %d: parent %jx addr %jx\n",
 		    sesname, i,
@@ -2347,7 +2346,7 @@ ses_print_addl_data_sas_type1(char *sesname, struct sbuf *sbp,
 
 	elmpriv = obj->elm_private;
 	addl = &(elmpriv->addl);
-	sbuf_printf(sbp, ", SAS ");
+	sbuf_cat(sbp, ", SAS ");
 	if (obj->elm_type == ELMTYP_SAS_EXP) {
 		num_phys = addl->proto_hdr.sas->base_hdr.num_phys;
 		sbuf_printf(sbp, "Expander: %d phys", num_phys);
@@ -2420,7 +2419,7 @@ ses_print_addl_data(enc_softc_t *enc, enc_element_t *obj)
 	sbuf_new(&out, NULL, 512, SBUF_AUTOEXTEND);
 	ses_paths_iter(enc, obj, ses_elmdevname_callback, &name);
 	if (sbuf_len(&name) == 0)
-		sbuf_printf(&name, "(none)");
+		sbuf_cat(&name, "(none)");
 	sbuf_finish(&name);
 	sbuf_printf(&sesname, "%s%d", enc->periph->periph_name,
 	    enc->periph->unit_number);

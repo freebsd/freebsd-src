@@ -30,9 +30,6 @@
  */
 
 
-#ifndef lint
-static const char sccsid[] = "@(#)get_names.c	8.1 (Berkeley) 6/6/93";
-#endif
 
 #include <sys/param.h>
 

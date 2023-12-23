@@ -479,9 +479,9 @@ dump_gap_stats(const struct gap_stats *stats, struct sbuf *s)
 	sbuf_printf(s, "largest free range: %jd\n", (intmax_t)stats->max);
 	sbuf_printf(s, "average maximal free range size: %jd\n",
 	    (intmax_t)stats->avg);
-	sbuf_printf(s, "number of maximal free ranges of different sizes:\n");
-	sbuf_printf(s, "               count  |  size range\n");
-	sbuf_printf(s, "               -----  |  ----------\n");
+	sbuf_cat(s, "number of maximal free ranges of different sizes:\n");
+	sbuf_cat(s, "               count  |  size range\n");
+	sbuf_cat(s, "               -----  |  ----------\n");
 	for (i = 0; i < stats->max_bucket; i++) {
 		if (stats->histo[i] != 0) {
 			sbuf_printf(s, "%20jd  |  ",

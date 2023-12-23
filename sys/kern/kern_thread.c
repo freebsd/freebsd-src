@@ -31,7 +31,6 @@
 #include "opt_witness.h"
 #include "opt_hwpmc_hooks.h"
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

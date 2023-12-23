@@ -1,4 +1,3 @@
-#	@(#)Makefile	8.4 (Berkeley) 5/5/95
 
 .include <src.opts.mk>
 
@@ -6,6 +5,7 @@ CONFGROUPS=	ETC ROOT
 ETC=	profile
 ROOT=	dot.shrc dot.profile
 ROOTDIR=	/root
+ROOTDIR_MODE=	0750
 ROOTNAME_dot.shrc=	.shrc
 ROOTNAME_dot.profile=	.profile
 PACKAGE=runtime

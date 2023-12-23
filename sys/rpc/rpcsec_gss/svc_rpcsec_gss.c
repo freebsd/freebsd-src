@@ -63,7 +63,6 @@
   $Id: svc_auth_gss.c,v 1.27 2002/01/15 15:43:00 andros Exp $
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/jail.h>

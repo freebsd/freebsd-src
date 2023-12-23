@@ -27,7 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/utsname.h>
@@ -144,32 +143,35 @@ static struct config_entry c[] = {
 	}
 };
 
-static int
-pkg_get_myabi(char *dest, size_t sz)
+static char *
+pkg_get_myabi(void)
 {
 	struct utsname uts;
 	char machine_arch[255];
+	char *abi;
 	size_t len;
 	int error;
 
 	error = uname(&uts);
 	if (error)
-		return (errno);
+		return (NULL);
 
 	len = sizeof(machine_arch);
 	error = sysctlbyname("hw.machine_arch", machine_arch, &len, NULL, 0);
 	if (error)
-		return (errno);
+		return (NULL);
 	machine_arch[len] = '\0';
 
 	/*
 	 * Use __FreeBSD_version rather than kernel version (uts.release) for
 	 * use in jails. This is equivalent to the value of uname -U.
 	 */
-	snprintf(dest, sz, "%s:%d:%s", uts.sysname, __FreeBSD_version/100000,
+	error = asprintf(&abi, "%s:%d:%s", uts.sysname, __FreeBSD_version/100000,
 	    machine_arch);
+	if (error < 0)
+		return (NULL);
 
-	return (error);
+	return (abi);
 }
 
 static void
@@ -453,10 +455,9 @@ config_init(const char *requested_repo)
 	char *val;
 	int i;
 	const char *localbase;
-	char *env_list_item;
+	char *abi, *env_list_item;
 	char confpath[MAXPATHLEN];
 	struct config_value *cv;
-	char abi[BUFSIZ];
 
 	for (i = 0; i < CONFIG_SIZE; i++) {
 		val = getenv(c[i].key);
@@ -512,7 +513,8 @@ config_init(const char *requested_repo)
 
 finalize:
 	if (c[ABI].val == NULL && c[ABI].value == NULL) {
-		if (pkg_get_myabi(abi, BUFSIZ) != 0)
+		abi = pkg_get_myabi();
+		if (abi == NULL)
 			errx(EXIT_FAILURE, "Failed to determine the system "
 			    "ABI");
 		c[ABI].val = abi;

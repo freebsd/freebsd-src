@@ -23,9 +23,6 @@
 #
 # Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zfs_acl_chmod_rwx_001_pos.ksh	1.3	09/01/13 SMI"
-#
 
 . $STF_SUITE/tests/acl/acl_common.kshlib
 

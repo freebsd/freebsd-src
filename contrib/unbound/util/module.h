@@ -691,6 +691,8 @@ struct module_qstate {
 	struct respip_action_info* respip_action_info;
 	/** if the query is rpz passthru, no further rpz processing for it */
 	int rpz_passthru;
+	/* Flag tcp required. */
+	int tcp_required;
 
 	/** whether the reply should be dropped */
 	int is_drop;
@@ -841,6 +843,14 @@ sldns_ede_code errinf_to_reason_bogus(struct module_qstate* qstate);
  *    This string is malloced and has to be freed by caller.
  */
 char* errinf_to_str_servfail(struct module_qstate* qstate);
+
+/**
+ * Create error info in string.  For misc failures that are not servfail.
+ * @param qstate: query state.
+ * @return string or NULL on malloc failure (already logged).
+ *    This string is malloced and has to be freed by caller.
+ */
+char* errinf_to_str_misc(struct module_qstate* qstate);
 
 /**
  * Initialize the edns known options by allocating the required space.

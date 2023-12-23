@@ -97,7 +97,6 @@
  *
   */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <ctype.h>
@@ -1508,10 +1507,10 @@ cd9660_generate_path_table(iso9660_disk *diskStructure)
 	TAILQ_INSERT_HEAD(&pt_head, n, ptq);
 
 	/* Breadth-first traversal of file structure */
-	while (pt_head.tqh_first != 0) {
-		n = pt_head.tqh_first;
+	while (!TAILQ_EMPTY(&pt_head)) {
+		n = TAILQ_FIRST(&pt_head);
 		dirNode = n->node;
-		TAILQ_REMOVE(&pt_head, pt_head.tqh_first, ptq);
+		TAILQ_REMOVE(&pt_head, n, ptq);
 		free(n);
 
 		/* Update the size */

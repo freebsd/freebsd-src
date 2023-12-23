@@ -404,6 +404,7 @@ val-clean-additional{COLON}	{ YDVAR(1, VAR_VAL_CLEAN_ADDITIONAL) }
 val-permissive-mode{COLON}	{ YDVAR(1, VAR_VAL_PERMISSIVE_MODE) }
 aggressive-nsec{COLON}		{ YDVAR(1, VAR_AGGRESSIVE_NSEC) }
 ignore-cd-flag{COLON}		{ YDVAR(1, VAR_IGNORE_CD_FLAG) }
+disable-edns-do{COLON}		{ YDVAR(1, VAR_DISABLE_EDNS_DO) }
 serve-expired{COLON}		{ YDVAR(1, VAR_SERVE_EXPIRED) }
 serve-expired-ttl{COLON}	{ YDVAR(1, VAR_SERVE_EXPIRED_TTL) }
 serve-expired-ttl-reset{COLON}	{ YDVAR(1, VAR_SERVE_EXPIRED_TTL_RESET) }
@@ -558,12 +559,14 @@ ipsecmod-strict{COLON}		{ YDVAR(1, VAR_IPSECMOD_STRICT) }
 cachedb{COLON}			{ YDVAR(0, VAR_CACHEDB) }
 backend{COLON}			{ YDVAR(1, VAR_CACHEDB_BACKEND) }
 secret-seed{COLON}		{ YDVAR(1, VAR_CACHEDB_SECRETSEED) }
+cachedb-no-store{COLON}		{ YDVAR(1, VAR_CACHEDB_NO_STORE) }
 redis-server-host{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISHOST) }
 redis-server-port{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISPORT) }
 redis-server-path{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISPATH) }
 redis-server-password{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISPASSWORD) }
 redis-timeout{COLON}		{ YDVAR(1, VAR_CACHEDB_REDISTIMEOUT) }
 redis-expire-records{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISEXPIRERECORDS) }
+redis-logical-db{COLON}		{ YDVAR(1, VAR_CACHEDB_REDISLOGICALDB) }
 ipset{COLON}			{ YDVAR(0, VAR_IPSET) }
 name-v4{COLON}			{ YDVAR(1, VAR_IPSET_NAME_V4) }
 name-v6{COLON}			{ YDVAR(1, VAR_IPSET_NAME_V6) }

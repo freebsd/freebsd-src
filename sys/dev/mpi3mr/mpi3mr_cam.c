@@ -41,7 +41,6 @@
  * Broadcom Inc. (Broadcom) MPI3MR Adapter FreeBSD
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -86,7 +85,9 @@
 
 #define	smp_processor_id()  PCPU_GET(cpuid)
 
-static int
+static void
+mpi3mr_enqueue_request(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cm);
+static void
 mpi3mr_map_request(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cm);
 void
 mpi3mr_release_simq_reinit(struct mpi3mr_cam_softc *cam_sc);
@@ -97,7 +98,6 @@ extern int
 mpi3mr_register_events(struct mpi3mr_softc *sc);
 extern void mpi3mr_add_sg_single(void *paddr, U8 flags, U32 length,
     bus_addr_t dma_addr);
-extern void mpi3mr_build_zero_len_sge(void *paddr);
 
 static U32 event_count;
 
@@ -118,18 +118,23 @@ static void mpi3mr_prepare_sgls(void *arg,
 	U8 last_chain_sgl_flags;
 	struct mpi3mr_chain *chain_req;
 	Mpi3SCSIIORequest_t *scsiio_req;
+	union ccb *ccb;
 	
 	cm = (struct mpi3mr_cmd *)arg;
 	sc = cm->sc;
 	scsiio_req = (Mpi3SCSIIORequest_t *) &cm->io_request;
+	ccb = cm->ccb;
 
 	if (error) {
-		cm->error_code = error;
 		device_printf(sc->mpi3mr_dev, "%s: error=%d\n",__func__, error);
 		if (error == EFBIG) {
-			cm->ccb->ccb_h.status = CAM_REQ_TOO_BIG;
-			return;
+			mpi3mr_set_ccbstatus(ccb, CAM_REQ_TOO_BIG);
+		} else {
+			mpi3mr_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 		}
+		mpi3mr_release_command(cm);
+		xpt_done(ccb);
+		return;
 	}
 	
 	if (cm->data_dir == MPI3MR_READ)
@@ -138,10 +143,12 @@ static void mpi3mr_prepare_sgls(void *arg,
 	if (cm->data_dir == MPI3MR_WRITE)
 		bus_dmamap_sync(sc->buffer_dmat, cm->dmamap,
 		    BUS_DMASYNC_PREWRITE);
-	if (nsegs > MPI3MR_SG_DEPTH) {
-		device_printf(sc->mpi3mr_dev, "SGE count is too large or 0.\n");
-		return;
-	}
+
+	KASSERT(nsegs <= MPI3MR_SG_DEPTH && nsegs > 0,
+	    ("%s: bad SGE count: %d\n", device_get_nameunit(sc->mpi3mr_dev), nsegs));
+	KASSERT(scsiio_req->DataLength != 0,
+	    ("%s: Data segments (%d), but DataLength == 0\n",
+		device_get_nameunit(sc->mpi3mr_dev), nsegs));
 
 	simple_sgl_flags = MPI3_SGE_FLAGS_ELEMENT_TYPE_SIMPLE |
 	    MPI3_SGE_FLAGS_DLAS_SYSTEM;
@@ -152,23 +159,7 @@ static void mpi3mr_prepare_sgls(void *arg,
 
 	sg_local = (U8 *)&scsiio_req->SGL;
 
-	if (!scsiio_req->DataLength) {
-		mpi3mr_build_zero_len_sge(sg_local);
-		return;
-	}
-	
 	sges_left = nsegs;
-
-	if (sges_left < 0) {
-		printf("scsi_dma_map failed: request for %d bytes!\n",
-			scsiio_req->DataLength);
-		return;
-	}
-	if (sges_left > MPI3MR_SG_DEPTH) {
-		printf("scsi_dma_map returned unsupported sge count %d!\n",
-			sges_left);
-		return;
-	}
 
 	sges_in_segment = (sc->facts.op_req_sz -
 	    offsetof(Mpi3SCSIIORequest_t, SGL))/sizeof(Mpi3SGESimple_t);
@@ -218,33 +209,50 @@ fill_in_last_segment:
 		i++;
 	}
 
+	/*
+	 * Now that we've created the sgls, we send the request to the device.
+	 * Unlike in Linux, dmaload isn't guaranteed to load every time, but
+	 * this function is always called when the resources are available, so
+	 * we can send the request to hardware here always. mpi3mr_map_request
+	 * knows about this quirk and will only take evasive action when an
+	 * error other than EINPROGRESS is returned from dmaload.
+	 */
+	mpi3mr_enqueue_request(sc, cm);
+
 	return;
 }
 
-int 
+static void
 mpi3mr_map_request(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cm)
 {
 	u_int32_t retcode = 0;
+	union ccb *ccb;
 
+	ccb = cm->ccb;
 	if (cm->data != NULL) {
 		mtx_lock(&sc->io_lock);
 		/* Map data buffer into bus space */
 		retcode = bus_dmamap_load_ccb(sc->buffer_dmat, cm->dmamap,
-		    cm->ccb, mpi3mr_prepare_sgls, cm, 0);
+		    ccb, mpi3mr_prepare_sgls, cm, 0);
 		mtx_unlock(&sc->io_lock);
-		if (retcode)
-			device_printf(sc->mpi3mr_dev, "bus_dmamap_load(): retcode = %d\n", retcode);
-		if (retcode == EINPROGRESS) {
-			device_printf(sc->mpi3mr_dev, "request load in progress\n");
-			xpt_freeze_simq(sc->cam_sc->sim, 1);
+		if (retcode != 0 && retcode != EINPROGRESS) {
+			device_printf(sc->mpi3mr_dev,
+			    "bus_dmamap_load(): retcode = %d\n", retcode);
+			/*
+			 * Any other error means prepare_sgls wasn't called, and
+			 * will never be called, so we have to mop up. This error
+			 * should never happen, though.
+			 */
+			mpi3mr_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
+			mpi3mr_release_command(cm);
+			xpt_done(ccb);
 		}
+	} else {
+		/*
+		 * No data, we enqueue it directly here.
+		 */
+		mpi3mr_enqueue_request(sc, cm);
 	}
-	if (cm->error_code)
-		return cm->error_code;
-	if (retcode)
-		mpi3mr_set_ccbstatus(cm->ccb, CAM_REQ_INVALID);
-
-	return (retcode);
 }
 
 void
@@ -374,7 +382,7 @@ static bool mpi3mr_allow_unmap_to_fw(struct mpi3mr_softc *sc,
 			mpi3mr_dprint(sc, MPI3MR_INFO,
 			    "%s: Truncating param_list_len from (%d) to (%d)\n",
 			    __func__, param_list_len, trunc_param_len);
-			scsiio_cdb_ptr(csio)[7] = (param_list_len >> 8) | 0xff; 
+			scsiio_cdb_ptr(csio)[7] = (param_list_len >> 8) | 0xff;
 			scsiio_cdb_ptr(csio)[8] = param_list_len | 0xff;
 			mpi3mr_print_cdb(ccb);
 		}
@@ -492,12 +500,12 @@ mpi3mr_issue_tm(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cmd,
 
 	
 	if (sc->unrecoverable) {
-		mpi3mr_dprint(sc, MPI3MR_INFO, 
+		mpi3mr_dprint(sc, MPI3MR_INFO,
 			"Controller is in unrecoverable state!! TM not required\n");
 		return retval;
 	}
 	if (sc->reset_in_progress) {
-		mpi3mr_dprint(sc, MPI3MR_INFO, 
+		mpi3mr_dprint(sc, MPI3MR_INFO,
 			"controller reset in progress!! TM not required\n");
 		return retval;
 	}
@@ -539,7 +547,7 @@ mpi3mr_issue_tm(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cmd,
 			tm_req.TaskHostTag = htole16(cmd->hosttag);
 			tm_req.TaskRequestQueueID = htole16(op_req_q->qid);
 		}
-	} 
+	}
 	
 	if (tgtdev)
 		mpi3mr_atomic_inc(&tgtdev->block_io);
@@ -555,14 +563,14 @@ mpi3mr_issue_tm(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cmd,
 	
 	sc->tm_chan = (void *)&drv_cmd;
 	
-	mpi3mr_dprint(sc, MPI3MR_DEBUG_TM, 
+	mpi3mr_dprint(sc, MPI3MR_DEBUG_TM,
 		      "posting task management request: type(%d), handle(0x%04x)\n",
 		       tm_type, tgtdev->dev_handle);
 
 	init_completion(&drv_cmd->completion);
 	retval = mpi3mr_submit_admin_cmd(sc, &tm_req, sizeof(tm_req));
 	if (retval) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, 
+		mpi3mr_dprint(sc, MPI3MR_ERROR,
 			      "posting task management request is failed\n");
 		retval = -1;
 		goto out_unlock;
@@ -573,20 +581,20 @@ mpi3mr_issue_tm(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cmd,
 		drv_cmd->is_waiting = 0;
 		retval = -1;
 		if (!(drv_cmd->state & MPI3MR_CMD_RESET)) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, 
+			mpi3mr_dprint(sc, MPI3MR_ERROR,
 				      "task management request timed out after %ld seconds\n", timeout);
 			if (sc->mpi3mr_debug & MPI3MR_DEBUG_TM) {
 				mpi3mr_dprint(sc, MPI3MR_INFO, "tm_request dump\n");
 				mpi3mr_hexdump(&tm_req, sizeof(tm_req), 8);
 			}
-			trigger_reset_from_watchdog(sc, MPI3MR_TRIGGER_SOFT_RESET, MPI3MR_RESET_FROM_TM_TIMEOUT); 
+			trigger_reset_from_watchdog(sc, MPI3MR_TRIGGER_SOFT_RESET, MPI3MR_RESET_FROM_TM_TIMEOUT);
 			retval = ETIMEDOUT;
 		}
 		goto out_unlock;
 	}
 
 	if (!(drv_cmd->state & MPI3MR_CMD_REPLYVALID)) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, 
+		mpi3mr_dprint(sc, MPI3MR_ERROR,
 			      "invalid task management reply message\n");
 		retval = -1;
 		goto out_unlock;
@@ -601,7 +609,7 @@ mpi3mr_issue_tm(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cmd,
 		resp_code = MPI3_SCSITASKMGMT_RSPCODE_TM_COMPLETE;
 		break;
 	default:
-		mpi3mr_dprint(sc, MPI3MR_ERROR, 
+		mpi3mr_dprint(sc, MPI3MR_ERROR,
 			      "task management request to handle(0x%04x) is failed with ioc_status(0x%04x) log_info(0x%08x)\n",
 			       tgtdev->dev_handle, drv_cmd->ioc_status, drv_cmd->ioc_loginfo);
 		retval = -1;
@@ -621,7 +629,7 @@ mpi3mr_issue_tm(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cmd,
 		break;
 	}
 	
-	mpi3mr_dprint(sc, MPI3MR_DEBUG_TM, 
+	mpi3mr_dprint(sc, MPI3MR_DEBUG_TM,
 		      "task management request type(%d) completed for handle(0x%04x) with ioc_status(0x%04x), log_info(0x%08x)"
 		      "termination_count(%u), response:%s(0x%x)\n", tm_type, tgtdev->dev_handle, drv_cmd->ioc_status, drv_cmd->ioc_loginfo,
 		      tm_reply->TerminationCount, mpi3mr_tm_response_name(resp_code), resp_code);
@@ -637,7 +645,7 @@ mpi3mr_issue_tm(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cmd,
 	switch (tm_type) {
 	case MPI3_SCSITASKMGMT_TASKTYPE_ABORT_TASK:
 		if (cmd->state == MPI3MR_CMD_STATE_IN_TM) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, 
+			mpi3mr_dprint(sc, MPI3MR_ERROR,
 				      "%s: task abort returned success from firmware but corresponding CCB (%p) was not terminated"
 				      "marking task abort failed!\n", sc->name, cmd->ccb);
 			retval = -1;
@@ -645,7 +653,7 @@ mpi3mr_issue_tm(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cmd,
 		break;
 	case MPI3_SCSITASKMGMT_TASKTYPE_TARGET_RESET:
 		if (mpi3mr_atomic_read(&tgtdev->outstanding)) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, 
+			mpi3mr_dprint(sc, MPI3MR_ERROR,
 				      "%s: target reset returned success from firmware but IOs are still pending on the target (%p)"
 				      "marking target reset failed!\n",
 				      sc->name, tgtdev);
@@ -689,13 +697,13 @@ static int mpi3mr_task_abort(struct mpi3mr_cmd *cmd)
 	}
 	ccb = cmd->ccb;
 	
-	mpi3mr_dprint(sc, MPI3MR_INFO, 
+	mpi3mr_dprint(sc, MPI3MR_INFO,
 		      "attempting abort task for ccb(%p)\n", ccb);
 	
 	mpi3mr_print_cdb(ccb);
 
 	if (cmd->state != MPI3MR_CMD_STATE_BUSY) {
-		mpi3mr_dprint(sc, MPI3MR_INFO, 
+		mpi3mr_dprint(sc, MPI3MR_INFO,
 			      "%s: ccb is not in driver scope, abort task is not required\n",
 			      sc->name);
 		return retval;
@@ -704,7 +712,7 @@ static int mpi3mr_task_abort(struct mpi3mr_cmd *cmd)
 
 	retval = mpi3mr_issue_tm(sc, cmd, MPI3_SCSITASKMGMT_TASKTYPE_ABORT_TASK, MPI3MR_ABORTTM_TIMEOUT);
 	
-	mpi3mr_dprint(sc, MPI3MR_INFO, 
+	mpi3mr_dprint(sc, MPI3MR_INFO,
 		      "abort task is %s for ccb(%p)\n", ((retval == 0) ? "SUCCESS" : "FAILED"), ccb);
 	
 	return retval;
@@ -735,12 +743,12 @@ static int mpi3mr_target_reset(struct mpi3mr_cmd *cmd)
 		return retval;
 	}
 	
-	mpi3mr_dprint(sc, MPI3MR_INFO, 
+	mpi3mr_dprint(sc, MPI3MR_INFO,
 		      "attempting target reset on target(%d)\n", target->per_id);
 
 	
 	if (mpi3mr_atomic_read(&target->outstanding)) {
-		mpi3mr_dprint(sc, MPI3MR_INFO, 
+		mpi3mr_dprint(sc, MPI3MR_INFO,
 			      "no outstanding IOs on the target(%d),"
 			      " target reset not required.\n", target->per_id);
 		return retval;
@@ -748,7 +756,7 @@ static int mpi3mr_target_reset(struct mpi3mr_cmd *cmd)
 	
 	retval = mpi3mr_issue_tm(sc, cmd, MPI3_SCSITASKMGMT_TASKTYPE_TARGET_RESET, MPI3MR_RESETTM_TIMEOUT);
 
-	mpi3mr_dprint(sc, MPI3MR_INFO, 
+	mpi3mr_dprint(sc, MPI3MR_INFO,
 		      "target reset is %s for target(%d)\n", ((retval == 0) ? "SUCCESS" : "FAILED"),
 		      target->per_id);
 
@@ -776,7 +784,7 @@ static inline int mpi3mr_get_fw_pending_ios(struct mpi3mr_softc *sc)
  * mpi3mr_wait_for_host_io - block for I/Os to complete
  * @sc: Adapter instance reference
  * @timeout: time out in seconds
- * 
+ *
  * Waits for pending I/Os for the given adapter to complete or
  * to hit the timeout.
  *
@@ -845,7 +853,7 @@ mpi3mr_scsiio_timeout(void *data)
 	 * with max timeout for outstanding IOs to complete is 180sec.
 	 */
 	targ_dev = cmd->targ;
-	if (targ_dev && (targ_dev->dev_type == MPI3_DEVICE_DEVFORM_VD)) { 
+	if (targ_dev && (targ_dev->dev_type == MPI3_DEVICE_DEVFORM_VD)) {
 		if (mpi3mr_wait_for_host_io(sc, MPI3MR_RAID_ERRREC_RESET_TIMEOUT))
 			trigger_reset_from_watchdog(sc, MPI3MR_TRIGGER_SOFT_RESET, MPI3MR_RESET_FROM_SCSIIO_TIMEOUT);
 		return;
@@ -856,7 +864,7 @@ mpi3mr_scsiio_timeout(void *data)
 	if (!retval || (retval == ETIMEDOUT))
 		return;
 	
-	/* 
+	/*
 	 * task abort has failed to recover the timed out IO,
 	 * try with the target reset
 	 */
@@ -864,11 +872,11 @@ mpi3mr_scsiio_timeout(void *data)
 	if (!retval || (retval == ETIMEDOUT))
 		return;
 
-	/* 
-	 * task abort and target reset has failed. So issue Controller reset(soft reset) 
+	/*
+	 * task abort and target reset has failed. So issue Controller reset(soft reset)
 	 * through OCR thread context
 	 */
-	trigger_reset_from_watchdog(sc, MPI3MR_TRIGGER_SOFT_RESET, MPI3MR_RESET_FROM_SCSIIO_TIMEOUT); 
+	trigger_reset_from_watchdog(sc, MPI3MR_TRIGGER_SOFT_RESET, MPI3MR_RESET_FROM_SCSIIO_TIMEOUT);
 
 	return;
 }
@@ -912,12 +920,6 @@ mpi3mr_action_scsiio(struct mpi3mr_cam_softc *cam_sc, union ccb *ccb)
 	struct mpi3mr_cmd *cm;
 	uint8_t scsi_opcode, queue_idx;
 	uint32_t mpi_control;
-	struct mpi3mr_op_req_queue *opreqq = NULL;
-	U32 data_len_blks = 0;
-	U32 tracked_io_sz = 0;
-	U32 ioc_pend_data_len = 0, tg_pend_data_len = 0;
-	struct mpi3mr_throttle_group_info *tg = NULL;
-	static int ratelimit;
 
 	sc = cam_sc->sc;
 	mtx_assert(&sc->mpi3mr_mtx, MA_OWNED);
@@ -968,7 +970,7 @@ mpi3mr_action_scsiio(struct mpi3mr_cam_softc *cam_sc, union ccb *ccb)
 	}
 
 	if (targ->dev_handle == 0x0) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, "%s NULL handle for target 0x%x\n", 
+		mpi3mr_dprint(sc, MPI3MR_ERROR, "%s NULL handle for target 0x%x\n",
 		    __func__, csio->ccb_h.target_id);
 		mpi3mr_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 		xpt_done(ccb);
@@ -1025,7 +1027,7 @@ mpi3mr_action_scsiio(struct mpi3mr_cam_softc *cam_sc, union ccb *ccb)
 			cam_sc->flags |= MPI3MRSAS_QUEUE_FROZEN;
 		}
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-		ccb->ccb_h.status |= CAM_REQUEUE_REQ;
+		mpi3mr_set_ccbstatus(ccb, CAM_REQUEUE_REQ);
 		xpt_done(ccb);
 		return;
 	}
@@ -1099,58 +1101,65 @@ mpi3mr_action_scsiio(struct mpi3mr_cam_softc *cam_sc, union ccb *ccb)
 	mpi3mr_dprint(sc, MPI3MR_TRACE, "[QID:%d]: func: %s line:%d CDB: 0x%x targetid: %x SMID: 0x%x\n",
 		(queue_idx + 1), __func__, __LINE__, scsi_opcode, csio->ccb_h.target_id, cm->hosttag);
 
-	ccb->ccb_h.status |= CAM_SIM_QUEUED;
-
 	switch ((ccb->ccb_h.flags & CAM_DATA_MASK)) {
 	case CAM_DATA_PADDR:
 	case CAM_DATA_SG_PADDR:
 		device_printf(sc->mpi3mr_dev, "%s: physical addresses not supported\n",
 		    __func__);
+		mpi3mr_set_ccbstatus(ccb, CAM_REQ_INVALID);
 		mpi3mr_release_command(cm);
-		ccb->ccb_h.status = CAM_REQ_INVALID;
-		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		xpt_done(ccb);
 		return;
 	case CAM_DATA_SG:
 		device_printf(sc->mpi3mr_dev, "%s: scatter gather is not supported\n",
 		    __func__);
+		mpi3mr_set_ccbstatus(ccb, CAM_REQ_INVALID);
 		mpi3mr_release_command(cm);
-		ccb->ccb_h.status = CAM_REQ_INVALID;
 		xpt_done(ccb);
 		return;
 	case CAM_DATA_VADDR:
 	case CAM_DATA_BIO:
 		if (csio->dxfer_len > (MPI3MR_SG_DEPTH * MPI3MR_4K_PGSZ)) {
+			mpi3mr_set_ccbstatus(ccb, CAM_REQ_TOO_BIG);
 			mpi3mr_release_command(cm);
-			ccb->ccb_h.status = CAM_REQ_TOO_BIG;
 			xpt_done(ccb);
 			return;
 		}
+		ccb->ccb_h.status |= CAM_SIM_QUEUED;
 		cm->length = csio->dxfer_len;
 		if (cm->length)
 			cm->data = csio->data_ptr;
 		break;
 	default:
-		ccb->ccb_h.status = CAM_REQ_INVALID;
-		xpt_done(ccb);
-		return;
-	}
-
-	/* Prepare SGEs */
-	if (mpi3mr_map_request(sc, cm)) {
+		mpi3mr_set_ccbstatus(ccb, CAM_REQ_INVALID);
 		mpi3mr_release_command(cm);
 		xpt_done(ccb);
-		printf("func: %s line: %d Build SGLs failed\n", __func__, __LINE__);
 		return;
 	}
-	
-	opreqq = &sc->op_req_q[queue_idx];
+
+	/* Prepare SGEs and queue to hardware */
+	mpi3mr_map_request(sc, cm);
+}
+
+static void
+mpi3mr_enqueue_request(struct mpi3mr_softc *sc, struct mpi3mr_cmd *cm)
+{
+	static int ratelimit;
+	struct mpi3mr_op_req_queue *opreqq = &sc->op_req_q[cm->req_qidx];
+	struct mpi3mr_throttle_group_info *tg = NULL;
+	uint32_t data_len_blks = 0;
+	uint32_t tracked_io_sz = 0;
+	uint32_t ioc_pend_data_len = 0, tg_pend_data_len = 0;
+	struct mpi3mr_target *targ = cm->targ;
+	union ccb *ccb = cm->ccb;
+	Mpi3SCSIIORequest_t *req = (Mpi3SCSIIORequest_t *)&cm->io_request;
 
 	if (sc->iot_enable) {
-		data_len_blks = csio->dxfer_len >> 9;
-		
+		data_len_blks = ccb->csio.dxfer_len >> 9;
+
 		if ((data_len_blks >= sc->io_throttle_data_length) &&
 		    targ->io_throttle_enabled) {
+
 			tracked_io_sz = data_len_blks;
 			tg = targ->throttle_group;
 			if (tg) {
@@ -1208,31 +1217,29 @@ mpi3mr_action_scsiio(struct mpi3mr_cam_softc *cam_sc, union ccb *ccb)
 
 		if (targ->io_divert) {
 			req->MsgFlags |= MPI3_SCSIIO_MSGFLAGS_DIVERT_TO_FIRMWARE;
-			mpi_control |= MPI3_SCSIIO_FLAGS_DIVERT_REASON_IO_THROTTLING;
+			req->Flags = htole32(le32toh(req->Flags) | MPI3_SCSIIO_FLAGS_DIVERT_REASON_IO_THROTTLING);
 		}
 	}
-	req->Flags = htole32(mpi_control);
 
-	if (mpi3mr_submit_io(sc, opreqq,
-	    	(U8 *)&cm->io_request)) {
-		mpi3mr_release_command(cm);
+	if (mpi3mr_submit_io(sc, opreqq, (U8 *)&cm->io_request)) {
 		if (tracked_io_sz) {
 			mpi3mr_atomic_sub(&sc->pend_large_data_sz, tracked_io_sz);
 			if (tg)
 				mpi3mr_atomic_sub(&tg->pend_large_data_sz, tracked_io_sz);
 		}
 		mpi3mr_set_ccbstatus(ccb, CAM_RESRC_UNAVAIL);
+		mpi3mr_release_command(cm);
 		xpt_done(ccb);
 	} else {
-		callout_reset_sbt(&cm->callout, SBT_1S * 90 , 0,
-				  mpi3mr_scsiio_timeout, cm, 0);
+		callout_reset_sbt(&cm->callout, mstosbt(ccb->ccb_h.timeout), 0,
+		    mpi3mr_scsiio_timeout, cm, 0);
+		cm->callout_owner = true;
 		mpi3mr_atomic_inc(&sc->fw_outstanding);
 		mpi3mr_atomic_inc(&targ->outstanding);
 		if (mpi3mr_atomic_read(&sc->fw_outstanding) > sc->io_cmds_highwater)
 			sc->io_cmds_highwater++;
 	}
 
-	cm->callout_owner = true;
 	return;
 }
 
@@ -2093,7 +2100,7 @@ mpi3mr_cam_attach(struct mpi3mr_softc *sc)
 	TASK_INIT(&cam_sc->ev_task, 0, mpi3mr_firmware_event_work, sc);
 	cam_sc->ev_tq = taskqueue_create("mpi3mr_taskq", M_NOWAIT | M_ZERO,
 	    taskqueue_thread_enqueue, &cam_sc->ev_tq);
-	taskqueue_start_threads(&cam_sc->ev_tq, 1, PRIBIO, "%s taskq", 
+	taskqueue_start_threads(&cam_sc->ev_tq, 1, PRIBIO, "%s taskq",
 	    device_get_nameunit(sc->mpi3mr_dev));
 
 	mtx_lock(&sc->mpi3mr_mtx);
@@ -2205,7 +2212,7 @@ get_target:
 		goto out_tgt_free;
 	}
 	mtx_unlock_spin(&sc->target_lock);
-out_tgt_free: 
+out_tgt_free:
 	if (target) {
 		free(target, M_MPI3MR);
 		target = NULL;

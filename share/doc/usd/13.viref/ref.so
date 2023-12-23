@@ -5,8 +5,6 @@
 .\"
 .\" See the LICENSE file for redistribution information.
 .\"
-.\"     @(#)ref.so	8.9 (Berkeley) 8/17/96
-.\"
 .\"
 .\" indented paragraph, with spaces between the items, bold font
 .de IP

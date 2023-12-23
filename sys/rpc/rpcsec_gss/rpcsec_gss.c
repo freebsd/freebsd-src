@@ -64,7 +64,6 @@
   $Id: auth_gss.c,v 1.32 2002/01/15 15:43:00 andros Exp $
 */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/hash.h>

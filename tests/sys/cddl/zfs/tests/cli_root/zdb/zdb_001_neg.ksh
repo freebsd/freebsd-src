@@ -23,9 +23,6 @@
 #
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zdb_001_neg.ksh	1.4	08/02/27 SMI"
-#
 . $STF_SUITE/include/libtest.kshlib
 
 ################################################################################

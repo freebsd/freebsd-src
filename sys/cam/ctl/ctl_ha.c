@@ -26,7 +26,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/condvar.h>
 #include <sys/conf.h>
@@ -398,7 +397,7 @@ static int
 ctl_ha_accept(struct ha_softc *softc)
 {
 	struct socket *lso, *so;
-	struct sockaddr *sap;
+	struct sockaddr_in sin = { .sin_len = sizeof(sin) };
 	int error;
 
 	lso = softc->ha_lso;
@@ -411,16 +410,11 @@ ctl_ha_accept(struct ha_softc *softc)
 		goto out;
 	}
 
-	sap = NULL;
-	error = soaccept(so, &sap);
+	error = soaccept(so, (struct sockaddr *)&sin);
 	if (error != 0) {
 		printf("%s: soaccept() error %d\n", __func__, error);
-		if (sap != NULL)
-			free(sap, M_SONAME);
 		goto out;
 	}
-	if (sap != NULL)
-		free(sap, M_SONAME);
 	softc->ha_so = so;
 	ctl_ha_sock_setup(softc);
 	return (0);
@@ -910,13 +904,16 @@ ctl_ha_msg_shutdown(struct ctl_softc *ctl_softc)
 {
 	struct ha_softc *softc = &ha_softc;
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	/* Disconnect and shutdown threads. */
 	mtx_lock(&softc->ha_lock);
 	if (softc->ha_shutdown < 2) {
 		softc->ha_shutdown = 1;
 		softc->ha_wakeup = 1;
 		wakeup(&softc->ha_wakeup);
-		while (softc->ha_shutdown < 2 && !SCHEDULER_STOPPED()) {
+		while (softc->ha_shutdown < 2) {
 			msleep(&softc->ha_wakeup, &softc->ha_lock, 0,
 			    "shutdown", hz);
 		}

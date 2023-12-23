@@ -34,9 +34,6 @@
  */
 
 #include <sys/cdefs.h>
-#ifndef lint
-static const char sccsid[] = "@(#)process.c	8.6 (Berkeley) 4/20/94";
-#endif
 
 #include <sys/types.h>
 #include <sys/stat.h>

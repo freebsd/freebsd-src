@@ -29,12 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)symtab.c	8.3 (Berkeley) 4/28/95";
-#endif
-#endif /* not lint */
-
 /*
  * These routines maintain the symbol table which tracks the state
  * of the file system being restored. They provide lookup by either

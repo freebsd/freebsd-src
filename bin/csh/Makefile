@@ -1,5 +1,3 @@
-#	@(#)Makefile	8.1 (Berkeley) 5/31/93
-#
 # C Shell with process control; VM/UNIX VAX Makefile
 # Bill Joy UC Berkeley; Jim Kulp IIASA, Austria
 #
@@ -15,6 +13,7 @@ ROOTPACKAGE=	csh
 ETC=	csh.cshrc csh.login csh.logout
 ROOT=	dot.cshrc dot.login
 ROOTDIR=	/root
+ROOTDIR_MODE=	0750
 ROOTNAME_dot.cshrc=	.cshrc
 ROOTNAME_dot.login=	.login
 TCSHDIR= ${SRCTOP}/contrib/tcsh

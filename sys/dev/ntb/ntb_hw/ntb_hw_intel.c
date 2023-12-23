@@ -36,7 +36,6 @@
  * be picked up and redistributed in Linux with a dual GPL/BSD license.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>

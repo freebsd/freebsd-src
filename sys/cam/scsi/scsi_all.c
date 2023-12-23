@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stdint.h>
@@ -4571,9 +4570,9 @@ scsi_stream_sbuf(struct sbuf *sb, uint8_t stream_bits)
 	/*
 	 * XXX KDM this needs more descriptive decoding.
 	 */
-	sbuf_printf(sb, "Stream Command Sense Data: ");
+	sbuf_cat(sb, "Stream Command Sense Data: ");
 	if (stream_bits & SSD_DESC_STREAM_FM) {
-		sbuf_printf(sb, "Filemark");
+		sbuf_cat(sb, "Filemark");
 		need_comma = 1;
 	}
 
@@ -4590,9 +4589,9 @@ void
 scsi_block_sbuf(struct sbuf *sb, uint8_t block_bits)
 {
 
-	sbuf_printf(sb, "Block Command Sense Data: ");
+	sbuf_cat(sb, "Block Command Sense Data: ");
 	if (block_bits & SSD_DESC_BLOCK_ILI)
-		sbuf_printf(sb, "ILI");
+		sbuf_cat(sb, "ILI");
 }
 
 void
@@ -4926,7 +4925,7 @@ scsi_print_desc_func(struct scsi_sense_data_desc *sense, u_int sense_len,
 				     (struct scsi_sense_data *)sense, sense_len,
 				     print_info->cdb, print_info->cdb_len,
 				     print_info->inq_data, header);
-		sbuf_printf(print_info->sb, "\n");
+		sbuf_putc(print_info->sb, '\n');
 		break;
 	}
 	}
@@ -4951,11 +4950,11 @@ scsi_sense_only_sbuf(struct scsi_sense_data *sense, u_int sense_len,
 	scsi_extract_sense_len(sense, sense_len, &error_code, &sense_key,
 			       &asc, &ascq, /*show_errors*/ 1);
 
-	sbuf_printf(sb, "SCSI sense: ");
+	sbuf_cat(sb, "SCSI sense: ");
 	switch (error_code) {
 	case SSD_DEFERRED_ERROR:
 	case SSD_DESC_DEFERRED_ERROR:
-		sbuf_printf(sb, "Deferred error: ");
+		sbuf_cat(sb, "Deferred error: ");
 
 		/* FALLTHROUGH */
 	case SSD_CURRENT_ERROR:
@@ -4992,12 +4991,12 @@ scsi_sense_only_sbuf(struct scsi_sense_data *sense, u_int sense_len,
 		    &bits) == 0 && bits != 0) {
 			sbuf_cat(sb, path_str);
 			scsi_block_sbuf(sb, bits);
-			sbuf_printf(sb, "\n");
+			sbuf_putc(sb, '\n');
 		} else if (scsi_get_stream_info(sense, sense_len, inq_data,
 		    &bits) == 0 && bits != 0) {
 			sbuf_cat(sb, path_str);
 			scsi_stream_sbuf(sb, bits);
-			sbuf_printf(sb, "\n");
+			sbuf_putc(sb, '\n');
 		}
 
 		/*
@@ -5007,7 +5006,7 @@ scsi_sense_only_sbuf(struct scsi_sense_data *sense, u_int sense_len,
 					&val, NULL) == 0) {
 			sbuf_cat(sb, path_str);
 			scsi_info_sbuf(sb, cdb, cdb_len, inq_data, val);
-			sbuf_printf(sb, "\n");
+			sbuf_putc(sb, '\n');
 		}
 
 		/*
@@ -5017,7 +5016,7 @@ scsi_sense_only_sbuf(struct scsi_sense_data *sense, u_int sense_len,
 					&val, NULL) == 0) {
 			sbuf_cat(sb, path_str);
 			scsi_fru_sbuf(sb, val);
-			sbuf_printf(sb, "\n");
+			sbuf_putc(sb, '\n');
 		}
 
 		/*
@@ -5027,7 +5026,7 @@ scsi_sense_only_sbuf(struct scsi_sense_data *sense, u_int sense_len,
 					&val, NULL) == 0) {
 			sbuf_cat(sb, path_str);
 			scsi_command_sbuf(sb, cdb, cdb_len, inq_data, val);
-			sbuf_printf(sb, "\n");
+			sbuf_putc(sb, '\n');
 		}
 
 		/*
@@ -5036,7 +5035,7 @@ scsi_sense_only_sbuf(struct scsi_sense_data *sense, u_int sense_len,
 		if (scsi_get_sks(sense, sense_len, sks) == 0) {
 			sbuf_cat(sb, path_str);
 			scsi_sks_sbuf(sb, sense_key, sks);
-			sbuf_printf(sb, "\n");
+			sbuf_putc(sb, '\n');
 		}
 
 		/*
@@ -5068,7 +5067,7 @@ scsi_sense_only_sbuf(struct scsi_sense_data *sense, u_int sense_len,
 		 * show_errors flag is set and they aren't present in the
 		 * sense data.  This means that sense_len is 0.
 		 */
-		sbuf_printf(sb, "No sense data present\n");
+		sbuf_cat(sb, "No sense data present\n");
 		break;
 	default: {
 		sbuf_printf(sb, "Error code 0x%x", error_code);
@@ -5086,7 +5085,7 @@ scsi_sense_only_sbuf(struct scsi_sense_data *sense, u_int sense_len,
 					    info);
 			}
 		}
-		sbuf_printf(sb, "\n");
+		sbuf_putc(sb, '\n');
 		break;
 	}
 	}
@@ -5168,7 +5167,7 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 #else /* !_KERNEL */
 		scsi_command_string(device, csio, sb);
 #endif /* _KERNEL/!_KERNEL */
-		sbuf_printf(sb, "\n");
+		sbuf_putc(sb, '\n');
 	}
 
 	/*
@@ -5542,7 +5541,7 @@ scsi_print_inquiry_sbuf(struct sbuf *sb, struct scsi_inquiry_data *inq_data)
 	sbuf_printf(sb, "%s %s ", SID_IS_REMOVABLE(inq_data) ? "Removable" : "Fixed", dtype);
 
 	if (SID_ANSI_REV(inq_data) == SCSI_REV_0)
-		sbuf_printf(sb, "SCSI ");
+		sbuf_cat(sb, "SCSI ");
 	else if (SID_ANSI_REV(inq_data) <= SCSI_REV_SPC) {
 		sbuf_printf(sb, "SCSI-%d ", SID_ANSI_REV(inq_data));
 	} else {
@@ -5567,13 +5566,13 @@ void
 scsi_print_inquiry_short_sbuf(struct sbuf *sb, struct scsi_inquiry_data *inq_data)
 {
 
-	sbuf_printf(sb, "<");
+	sbuf_putc(sb, '<');
 	cam_strvis_sbuf(sb, inq_data->vendor, sizeof(inq_data->vendor), 0);
-	sbuf_printf(sb, " ");
+	sbuf_putc(sb, ' ');
 	cam_strvis_sbuf(sb, inq_data->product, sizeof(inq_data->product), 0);
-	sbuf_printf(sb, " ");
+	sbuf_putc(sb, ' ');
 	cam_strvis_sbuf(sb, inq_data->revision, sizeof(inq_data->revision), 0);
-	sbuf_printf(sb, "> ");
+	sbuf_cat(sb, "> ");
 }
 
 void
@@ -5873,7 +5872,7 @@ scsi_transportid_sbuf(struct sbuf *sb, struct scsi_transportid_header *hdr,
 
 		rdma = (struct scsi_transportid_rdma *)hdr;
 
-		sbuf_printf(sb, "RDMA address: 0x");
+		sbuf_cat(sb, "RDMA address: 0x");
 		for (i = 0; i < sizeof(rdma->initiator_port_id); i++)
 			sbuf_printf(sb, "%02x", rdma->initiator_port_id[i]);
 		break;
@@ -5883,7 +5882,7 @@ scsi_transportid_sbuf(struct sbuf *sb, struct scsi_transportid_header *hdr,
 		uint8_t *iscsi_name = NULL;
 		int nul_found = 0;
 
-		sbuf_printf(sb, "iSCSI address: ");
+		sbuf_cat(sb, "iSCSI address: ");
 		if ((hdr->format_protocol & SCSI_TRN_FORMAT_MASK) ==
 		    SCSI_TRN_ISCSI_FORMAT_DEVICE) {
 			struct scsi_transportid_iscsi_device *dev;
@@ -5918,7 +5917,7 @@ scsi_transportid_sbuf(struct sbuf *sb, struct scsi_transportid_header *hdr,
 			break;
 		}
 		if (add_len == 0) {
-			sbuf_printf(sb, "not enough data");
+			sbuf_cat(sb, "not enough data");
 			break;
 		}
 		/*
@@ -7084,7 +7083,7 @@ scsi_attrib_volcoh_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
 	vcr_len = *cur_ptr;
 	cur_ptr++;
 
-	sbuf_printf(sb, "\n\tVolume Change Reference Value:");
+	sbuf_cat(sb, "\n\tVolume Change Reference Value:");
 
 	switch (vcr_len) {
 	case 0:
@@ -7111,7 +7110,7 @@ scsi_attrib_volcoh_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
 		tmp_val = scsi_8btou64(cur_ptr);
 		break;
 	default:
-		sbuf_printf(sb, "\n");
+		sbuf_putc(sb, '\n');
 		sbuf_hexdump(sb, cur_ptr, vcr_len, NULL, 0);
 		break;
 	}
@@ -7134,11 +7133,11 @@ scsi_attrib_volcoh_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
 	cur_ptr += sizeof(tmp_val);
 	as_len = scsi_2btoul(cur_ptr);
 	cur_ptr += sizeof(uint16_t);
-	sbuf_printf(sb, "\tApplication Client Specific Information: ");
+	sbuf_cat(sb, "\tApplication Client Specific Information: ");
 	if (((as_len == SCSI_LTFS_VER0_LEN)
 	  || (as_len == SCSI_LTFS_VER1_LEN))
 	 && (strncmp(cur_ptr, SCSI_LTFS_STR_NAME, SCSI_LTFS_STR_LEN) == 0)) {
-		sbuf_printf(sb, "LTFS\n");
+		sbuf_cat(sb, "LTFS\n");
 		cur_ptr += SCSI_LTFS_STR_LEN + 1;
 		if (cur_ptr[SCSI_LTFS_UUID_LEN] != '\0')
 			cur_ptr[SCSI_LTFS_UUID_LEN] = '\0';
@@ -7147,7 +7146,7 @@ scsi_attrib_volcoh_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
 		/* XXX KDM check the length */
 		sbuf_printf(sb, "\tLTFS Version: %d\n", *cur_ptr);
 	} else {
-		sbuf_printf(sb, "Unknown\n");
+		sbuf_cat(sb, "Unknown\n");
 		sbuf_hexdump(sb, cur_ptr, as_len, NULL, 0);
 	}
 
@@ -7233,7 +7232,7 @@ scsi_attrib_hexdump_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
 	num_ptr = hdr->attribute;
 
 	if (print_len > 0) {
-		sbuf_printf(sb, "\n");
+		sbuf_putc(sb, '\n');
 		sbuf_hexdump(sb, num_ptr, print_len, NULL, 0);
 	}
 
@@ -7526,7 +7525,7 @@ scsi_attrib_prefix_sbuf(struct sbuf *sb, uint32_t output_flags,
 
 	if ((output_flags & SCSI_ATTR_OUTPUT_FIELD_DESC)
 	 && (desc != NULL)) {
-		sbuf_printf(sb, "%s", desc);
+		sbuf_cat(sb, desc);
 		need_space = 1;
 	}
 
@@ -7543,7 +7542,7 @@ scsi_attrib_prefix_sbuf(struct sbuf *sb, uint32_t output_flags,
 		sbuf_printf(sb, "%s(%s)", (need_space) ? " " : "",
 			    (hdr->byte2 & SMA_READ_ONLY) ? "RO" : "RW");
 	}
-	sbuf_printf(sb, ": ");
+	sbuf_cat(sb, ": ");
 }
 
 int
@@ -7621,7 +7620,7 @@ bailout:
 			sbuf_printf(sb, " %s", entry->suffix);
 
 		sbuf_trim(sb);
-		sbuf_printf(sb, "\n");
+		sbuf_putc(sb, '\n');
 	}
 
 	return (retval);

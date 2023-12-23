@@ -29,18 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1983, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-static char sccsid[] = "@(#)tunefs.c	8.2 (Berkeley) 4/19/94";
-#endif /* not lint */
-#endif
-#include <sys/cdefs.h>
 /*
  * tunefs: change layout parameters to an existing file system.
  */

@@ -153,19 +153,24 @@ static Elf32_Brandinfo freebsd32_brand_info = {
 	.header_supported= elf32_arm_abi_supported,
 };
 
-SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_FIRST,
-    (sysinit_cfunc_t)elf32_insert_brand_entry, &freebsd32_brand_info);
+static void
+register_elf32_brand(void *arg)
+{
+	/* Check if we support AArch32 */
+	if (ID_AA64PFR0_EL0_VAL(READ_SPECIALREG(id_aa64pfr0_el1)) ==
+	    ID_AA64PFR0_EL0_64_32) {
+		elf32_insert_brand_entry(&freebsd32_brand_info);
+	} else {
+		compat_freebsd_32bit = 0;
+	}
+}
+SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_FIRST, register_elf32_brand, NULL);
 
 static bool
 elf32_arm_abi_supported(struct image_params *imgp, int32_t *osrel __unused,
     uint32_t *fctl0 __unused)
 {
 	const Elf32_Ehdr *hdr;
-
-	/* Check if we support AArch32 */
-	if (ID_AA64PFR0_EL0_VAL(READ_SPECIALREG(id_aa64pfr0_el1)) !=
-	    ID_AA64PFR0_EL0_64_32)
-		return (false);
 
 #define	EF_ARM_EABI_FREEBSD_MIN	EF_ARM_EABI_VER4
 	hdr = (const Elf32_Ehdr *)imgp->image_header;

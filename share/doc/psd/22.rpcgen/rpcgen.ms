@@ -1,8 +1,6 @@
 .\"
 .\" Must use  --  tbl -- for this one
 .\"
-.\" @(#)rpcgen.ms	2.2 88/08/04 4.0 RPCSRC
-.\"
 .de BT
 .if \\n%=1 .tl ''- % -''
 ..

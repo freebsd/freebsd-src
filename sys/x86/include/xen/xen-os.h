@@ -43,6 +43,9 @@
 /* If non-zero, the hypervisor has been configured to use a direct vector */
 extern int xen_vector_callback_enabled;
 
+/* Signal whether the event channel vector requires EOI at the lapic */
+extern bool xen_evtchn_needs_ack;
+
 /* tunable for disabling PV disks */
 extern int xen_disable_pv_disks;
 
@@ -50,6 +53,16 @@ extern int xen_disable_pv_disks;
 extern int xen_disable_pv_nics;
 
 extern uint32_t xen_cpuid_base;
+
+/* compatibility for accessing xen_ulong_t with atomics */
+#define	atomic_clear_xen_ulong		atomic_clear_long
+#define	atomic_set_xen_ulong		atomic_set_long
+#define	atomic_readandclear_xen_ulong	atomic_readandclear_long
+#define	atomic_testandset_xen_ulong	atomic_testandset_long
+#define	atomic_load_acq_xen_ulong	atomic_load_acq_long
+#define	atomic_store_rel_xen_ulong	atomic_store_rel_long
+#define	atomic_set_xen_ulong		atomic_set_long
+#define	atomic_clear_xen_ulong		atomic_clear_long
 
 static inline u_int
 XEN_CPUID_TO_VCPUID(u_int cpuid)

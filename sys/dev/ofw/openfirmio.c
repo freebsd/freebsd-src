@@ -40,8 +40,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)openfirm.c	8.1 (Berkeley) 6/11/93
- *
  */
 
 #include <sys/param.h>

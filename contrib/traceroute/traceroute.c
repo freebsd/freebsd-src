@@ -388,7 +388,7 @@ int	packet_ok(u_char *, int, struct sockaddr_in *, int);
 char	*pr_type(u_char);
 void	print(u_char *, int, struct sockaddr_in *);
 #ifdef	IPSEC
-int	setpolicy __P((int so, char *policy));
+int	setpolicy(int so, char *policy);
 #endif
 void	send_probe(int, int);
 struct outproto *setproto(char *);

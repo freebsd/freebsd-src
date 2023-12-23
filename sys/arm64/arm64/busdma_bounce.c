@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/domainset.h>
@@ -98,6 +97,7 @@ struct bus_dmamap {
 	struct memdesc	       mem;
 	bus_dmamap_callback_t *callback;
 	void		      *callback_arg;
+	__sbintime_t	       queued_time;
 	STAILQ_ENTRY(bus_dmamap) links;
 	u_int			flags;
 #define	DMAMAP_COHERENT		(1 << 0)
@@ -107,7 +107,6 @@ struct bus_dmamap {
 	struct sync_list	slist[];
 };
 
-int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
 static bool _bus_dmamap_pagesneeded(bus_dma_tag_t dmat, bus_dmamap_t map,
     vm_paddr_t buf, bus_size_t buflen, int *pagesneeded);
 static void _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
@@ -120,6 +119,7 @@ static MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
 #define	dmat_alignment(dmat)	((dmat)->common.alignment)
 #define	dmat_domain(dmat)	((dmat)->common.domain)
 #define	dmat_flags(dmat)	((dmat)->common.flags)
+#define	dmat_highaddr(dmat)	((dmat)->common.highaddr)
 #define	dmat_lowaddr(dmat)	((dmat)->common.lowaddr)
 #define	dmat_lockfunc(dmat)	((dmat)->common.lockfunc)
 #define	dmat_lockfuncarg(dmat)	((dmat)->common.lockfuncarg)
@@ -225,11 +225,8 @@ must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
 	if (cacheline_bounce(dmat, map, paddr, size))
 		return (true);
 
-	if (alignment_bounce(dmat, paddr))
-		return (true);
-
 	if ((dmat->bounce_flags & BF_COULD_BOUNCE) != 0 &&
-	    bus_dma_run_filter(&dmat->common, paddr))
+	    addr_needs_bounce(dmat, paddr))
 		return (true);
 
 	return (false);
@@ -241,17 +238,16 @@ must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
 static int
 bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
     bus_addr_t boundary, bus_addr_t lowaddr, bus_addr_t highaddr,
-    bus_dma_filter_t *filter, void *filterarg, bus_size_t maxsize,
-    int nsegments, bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
-    void *lockfuncarg, bus_dma_tag_t *dmat)
+    bus_size_t maxsize, int nsegments, bus_size_t maxsegsz, int flags,
+    bus_dma_lock_t *lockfunc, void *lockfuncarg, bus_dma_tag_t *dmat)
 {
 	bus_dma_tag_t newtag;
 	int error;
 
 	*dmat = NULL;
 	error = common_bus_dma_tag_create(parent != NULL ? &parent->common :
-	    NULL, alignment, boundary, lowaddr, highaddr, filter, filterarg,
-	    maxsize, nsegments, maxsegsz, flags, lockfunc, lockfuncarg,
+	    NULL, alignment, boundary, lowaddr, highaddr, maxsize, nsegments,
+	    maxsegsz, flags, lockfunc, lockfuncarg,
 	    sizeof (struct bus_dma_tag), (void **)&newtag);
 	if (error != 0)
 		return (error);
@@ -265,8 +261,7 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	}
 
 	if (parent != NULL) {
-		if ((newtag->common.filter != NULL ||
-		    (parent->bounce_flags & BF_COULD_BOUNCE) != 0))
+		if ((parent->bounce_flags & BF_COULD_BOUNCE) != 0)
 			newtag->bounce_flags |= BF_COULD_BOUNCE;
 
 		/* Copy some flags from the parent */
@@ -311,42 +306,19 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 static int
 bounce_bus_dma_tag_destroy(bus_dma_tag_t dmat)
 {
-#ifdef KTR
-	bus_dma_tag_t dmat_copy;
-#endif
-	bus_dma_tag_t parent;
-	int error;
-
-	error = 0;
-#ifdef KTR
-	dmat_copy = dmat;
-#endif
-
+	int error = 0;
 
 	if (dmat != NULL) {
 		if (dmat->map_count != 0) {
 			error = EBUSY;
 			goto out;
 		}
-		while (dmat != NULL) {
-			parent = (bus_dma_tag_t)dmat->common.parent;
-			atomic_subtract_int(&dmat->common.ref_count, 1);
-			if (dmat->common.ref_count == 0) {
-				if (dmat->segments != NULL)
-					free(dmat->segments, M_DEVBUF);
-				free(dmat, M_DEVBUF);
-				/*
-				 * Last reference count, so
-				 * release our reference
-				 * count on our parent.
-				 */
-				dmat = parent;
-			} else
-				dmat = NULL;
-		}
+		if (dmat->segments != NULL)
+			free(dmat->segments, M_DEVBUF);
+		free(dmat, M_DEVBUF);
 	}
 out:
-	CTR3(KTR_BUSDMA, "%s tag %p error %d", __func__, dmat_copy, error);
+	CTR3(KTR_BUSDMA, "%s tag %p error %d", __func__, dmat, error);
 	return (error);
 }
 

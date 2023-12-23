@@ -34,6 +34,13 @@ __interceptor_pthread_setspecific w
 __interceptor_read w
 __interceptor_realpath w
 __isinf U
+__isoc23_sscanf U
+__isoc23_strtol U
+__isoc23_strtoll U
+__isoc23_strtoll_l U
+__isoc23_strtoull U
+__isoc23_strtoull_l U
+__isoc23_vsscanf U
 __isoc99_sscanf U
 __isoc99_vsscanf U
 __moddi3 U
@@ -50,6 +57,7 @@ _exit U
 abort U
 access U
 aligned_alloc U
+arc4random U
 bcmp U
 calloc U
 catclose U
@@ -74,6 +82,7 @@ fopen U
 fork U
 fprintf U
 fputc U
+fputwc U
 free U
 freelocale U
 fwrite U
@@ -86,6 +95,7 @@ getpwuid U
 getrlimit U
 gettimeofday U
 getuid U
+getwc U
 ioctl U
 isalnum U
 isalpha U
@@ -111,6 +121,7 @@ memcpy U
 memmove U
 memset U
 mkdir U
+modf U
 munmap U
 newlocale U
 perror U
@@ -154,12 +165,15 @@ strncmp U
 strncpy U
 strrchr U
 strsep U
+strtod U
 strtod_l U
 strtof_l U
 strtok_r U
 strtol U
 strtold_l U
+strtoll U
 strtoll_l U
+strtoull U
 strtoull_l U
 syscall U
 sysconf U
@@ -168,6 +182,7 @@ tolower U
 toupper U
 uname U
 ungetc U
+ungetwc U
 unlink U
 uselocale U
 vasprintf U
@@ -179,6 +194,7 @@ waitpid U
 wcrtomb U
 wcslen U
 wcsnrtombs U
+wmemchr U
 wmemcpy U
 wmemmove U
 wmemset U

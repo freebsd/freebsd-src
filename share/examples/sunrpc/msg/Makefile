@@ -1,7 +1,3 @@
-#
-# @(#)Makefile	2.1 88/08/11 4.0 RPCSRC
-#
-#
 PACKAGE=examples
 FILESDIR=${SHAREDIR}/examples/sunrpc/msg
 BIN = printmsg msg_svc rprintmsg

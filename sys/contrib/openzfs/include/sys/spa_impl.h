@@ -38,6 +38,7 @@
 #include <sys/vdev.h>
 #include <sys/vdev_rebuild.h>
 #include <sys/vdev_removal.h>
+#include <sys/vdev_raidz.h>
 #include <sys/metaslab.h>
 #include <sys/dmu.h>
 #include <sys/dsl_pool.h>
@@ -188,6 +189,12 @@ typedef struct spa_taskqs {
 	taskq_t **stqs_taskq;
 } spa_taskqs_t;
 
+/* one for each thread in the spa sync taskq */
+typedef struct spa_syncthread_info {
+	kthread_t	*sti_thread;
+	taskq_t		*sti_wr_iss_tq;		/* assigned wr_iss taskq */
+} spa_syncthread_info_t;
+
 typedef enum spa_all_vdev_zap_action {
 	AVZ_ACTION_NONE = 0,
 	AVZ_ACTION_DESTROY,	/* Destroy all per-vdev ZAPs and the AVZ. */
@@ -265,6 +272,10 @@ struct spa {
 	int		spa_alloc_count;
 	int		spa_active_allocator;	/* selectable allocator */
 
+	/* per-allocator sync thread taskqs */
+	taskq_t		*spa_sync_tq;
+	spa_syncthread_info_t *spa_syncthreads;
+
 	spa_aux_vdev_t	spa_spares;		/* hot spares */
 	spa_aux_vdev_t	spa_l2cache;		/* L2ARC cache devices */
 	nvlist_t	*spa_label_features;	/* Features for reading MOS */
@@ -322,6 +333,9 @@ struct spa {
 	spa_condensing_indirect_phys_t	spa_condensing_indirect_phys;
 	spa_condensing_indirect_t	*spa_condensing_indirect;
 	zthr_t		*spa_condense_zthr;	/* zthr doing condense. */
+
+	vdev_raidz_expand_t	*spa_raidz_expand;
+	zthr_t		*spa_raidz_expand_zthr;
 
 	uint64_t	spa_checkpoint_txg;	/* the txg of the checkpoint */
 	spa_checkpoint_info_t spa_checkpoint_info; /* checkpoint accounting */
@@ -456,7 +470,7 @@ extern char *spa_config_path;
 extern const char *zfs_deadman_failmode;
 extern uint_t spa_slop_shift;
 extern void spa_taskq_dispatch_ent(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
-    task_func_t *func, void *arg, uint_t flags, taskq_ent_t *ent);
+    task_func_t *func, void *arg, uint_t flags, taskq_ent_t *ent, zio_t *zio);
 extern void spa_taskq_dispatch_sync(spa_t *, zio_type_t t, zio_taskq_type_t q,
     task_func_t *func, void *arg, uint_t flags);
 extern void spa_load_spares(spa_t *spa);

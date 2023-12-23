@@ -32,15 +32,6 @@
  * SUCH DAMAGE.
  */
 
-static const char copyright[] =
-"@(#) Copyright (c) 1990, 1993, 1994\n\
-	The Regents of the University of California.  All rights reserved.\n";
-
-#if 0
-static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 5/4/95";
-#endif
-
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 

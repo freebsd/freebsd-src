@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -756,24 +755,6 @@ gpiobus_hinted_child(device_t bus, const char *dname, int dunit)
 }
 
 static int
-gpiobus_set_resource(device_t dev, device_t child, int type, int rid,
-    rman_res_t start, rman_res_t count)
-{
-	struct gpiobus_ivar *devi;
-	struct resource_list_entry *rle;
-
-	dprintf("%s: entry (%p, %p, %d, %d, %p, %ld)\n",
-	    __func__, dev, child, type, rid, (void *)(intptr_t)start, count);
-	devi = GPIOBUS_IVAR(child);
-	rle = resource_list_add(&devi->rl, type, rid, start,
-	    start + count - 1, count);
-	if (rle == NULL)
-		return (ENXIO);
-
-	return (0);
-}
-
-static int
 gpiobus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct gpiobus_ivar *devi;
@@ -1075,7 +1056,9 @@ static device_method_t gpiobus_methods[] = {
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_config_intr,	bus_generic_config_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-	DEVMETHOD(bus_set_resource,	gpiobus_set_resource),
+	DEVMETHOD(bus_delete_resource,	bus_generic_rl_delete_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
 	DEVMETHOD(bus_alloc_resource,	gpiobus_alloc_resource),
 	DEVMETHOD(bus_release_resource,	gpiobus_release_resource),
 	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),

@@ -38,6 +38,9 @@ __postrcconf_${var}:=	${MK_${var}:U-}${WITHOUT_${var}:Uno:Dyes}${WITH_${var}:Uno
 # default over to -fno-common, making this redundant.
 CFCOMMONFLAG?=	-fno-common
 CFLAGS+=	${CFCOMMONFLAG}
+.if defined(PACKAGE_BUILDING)
+CFLAGS+=	-fmacro-prefix-map=${SRCTOP}=/usr/src -fdebug-prefix-map=${SRCTOP}=/usr/src
+.endif
 
 DEFAULTWARNS=	6
 

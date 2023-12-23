@@ -17,17 +17,28 @@
 #include "mythread.h"
 #include "tuklib_integer.h"
 
+// LZMA_API_EXPORT is used to mark the exported API functions.
+// It's used to define the LZMA_API macro.
+//
+// lzma_attr_visibility_hidden is used for marking *declarations* of extern
+// variables that are internal to liblzma (-fvisibility=hidden alone is
+// enough to hide the *definitions*). Such markings allow slightly more
+// efficient code to accesses those variables in ELF shared libraries.
 #if defined(_WIN32) || defined(__CYGWIN__)
 #	ifdef DLL_EXPORT
 #		define LZMA_API_EXPORT __declspec(dllexport)
 #	else
 #		define LZMA_API_EXPORT
 #	endif
+#	define lzma_attr_visibility_hidden
 // Don't use ifdef or defined() below.
 #elif HAVE_VISIBILITY
 #	define LZMA_API_EXPORT __attribute__((__visibility__("default")))
+#	define lzma_attr_visibility_hidden \
+			__attribute__((__visibility__("hidden")))
 #else
 #	define LZMA_API_EXPORT
+#	define lzma_attr_visibility_hidden
 #endif
 
 #define LZMA_API(type) LZMA_API_EXPORT type LZMA_API_CALL
@@ -85,6 +96,23 @@
 			__asm__(".symver " #intname "," extnamever); \
 			extern LZMA_API(type) intname
 #	endif
+#endif
+
+// MSVC has __forceinline which shouldn't be combined with the inline keyword
+// (results in a warning).
+//
+// GCC 3.1 added always_inline attribute so we don't need to check
+// for __GNUC__ version. Similarly, all relevant Clang versions
+// support it (at least Clang 3.0.0 does already).
+// Other compilers might support too which also support __has_attribute
+// (Solaris Studio) so do that check too.
+#if defined(_MSC_VER)
+#	define lzma_always_inline __forceinline
+#elif defined(__GNUC__) || defined(__clang__) || defined(__INTEL_COMPILER) \
+		|| lzma_has_attribute(__always_inline__)
+#	define lzma_always_inline inline __attribute__((__always_inline__))
+#else
+#	define lzma_always_inline inline
 #endif
 
 // These allow helping the compiler in some often-executed branches, whose
@@ -297,14 +325,14 @@ struct lzma_internal_s {
 
 
 /// Allocates memory
-extern void *lzma_alloc(size_t size, const lzma_allocator *allocator)
-		lzma_attribute((__malloc__)) lzma_attr_alloc_size(1);
+lzma_attr_alloc_size(1)
+extern void *lzma_alloc(size_t size, const lzma_allocator *allocator);
 
 /// Allocates memory and zeroes it (like calloc()). This can be faster
 /// than lzma_alloc() + memzero() while being backward compatible with
 /// custom allocators.
-extern void * lzma_attribute((__malloc__)) lzma_attr_alloc_size(1)
-		lzma_alloc_zero(size_t size, const lzma_allocator *allocator);
+lzma_attr_alloc_size(1)
+extern void *lzma_alloc_zero(size_t size, const lzma_allocator *allocator);
 
 /// Frees memory
 extern void lzma_free(void *ptr, const lzma_allocator *allocator);

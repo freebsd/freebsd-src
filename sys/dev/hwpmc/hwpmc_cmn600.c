@@ -32,7 +32,6 @@
 
 /* Arm CoreLink CMN-600 Coherent Mesh Network PMU Driver */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>

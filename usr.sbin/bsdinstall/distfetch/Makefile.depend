@@ -8,7 +8,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libfetch \
-	usr.sbin/bsdinstall/distextract \
+	usr.sbin/bsdinstall/include \
 
 
 .include <dirdeps.mk>

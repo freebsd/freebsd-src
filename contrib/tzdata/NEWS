@@ -1,5 +1,109 @@
 News for the tz database
 
+Release 2023d - 2023-12-21 20:02:24 -0800
+
+  Briefly:
+    Ittoqqortoormiit, Greenland changes time zones on 2024-03-31.
+    Vostok, Antarctica changed time zones on 2023-12-18.
+    Casey, Antarctica changed time zones five times since 2020.
+    Code and data fixes for Palestine timestamps starting in 2072.
+    A new data file zonenow.tab for timestamps starting now.
+
+  Changes to future timestamps
+
+    Ittoqqortoormiit, Greenland (America/Scoresbysund) joins most of
+    the rest of Greenland's timekeeping practice on 2024-03-31, by
+    changing its time zone from -01/+00 to -02/-01 at the same moment
+    as the spring-forward transition.  Its clocks will therefore not
+    spring forward as previously scheduled.  The time zone change
+    reverts to its common practice before 1981.
+
+    Fix predictions for DST transitions in Palestine in 2072-2075,
+    correcting a typo introduced in 2023a.
+
+  Changes to past and future timestamps
+
+    Vostok, Antarctica changed to +05 on 2023-12-18.  It had been at
+    +07 (not +06) for years.  (Thanks to Zakhary V. Akulov.)
+
+    Change data for Casey, Antarctica to agree with timeanddate.com,
+    by adding five time zone changes since 2020.  Casey is now at +08
+    instead of +11.
+
+  Changes to past tm_isdst flags
+
+    Much of Greenland, represented by America/Nuuk, changed its
+    standard time from -03 to -02 on 2023-03-25, not on 2023-10-28.
+    This does not affect UTC offsets, only the tm_isdst flag.
+    (Thanks to Thomas M. Steenholdt.)
+
+  New data file
+
+    A new data file zonenow.tab helps configure applications that use
+    timestamps dated from now on.  This simplifies configuration,
+    since users choose from a smaller Zone set.  The file's format is
+    experimental and subject to change.
+
+  Changes to code
+
+    localtime.c no longer mishandles TZif files that contain a single
+    transition into a DST regime.  Previously, it incorrectly assumed
+    DST was in effect before the transition too.  (Thanks to Alois
+    Treindl for debugging help.)
+
+    localtime.c's timeoff no longer collides with OpenBSD 7.4.
+
+    The C code now uses _Generic only if __STDC_VERSION__ says the
+    compiler is C11 or later.
+
+    tzselect now optionally reads zonenow.tab, to simplify when
+    configuring only for timestamps dated from now on.
+
+    tzselect no longer creates temporary files.
+
+    tzselect no longer mishandles the following:
+
+      Spaces and most other special characters in BUGEMAIL, PACKAGE,
+      TZDIR, and VERSION.
+
+      TZ strings when using mawk 1.4.3, which mishandles regular
+      expressions of the form /X{2,}/.
+
+      ISO 6709 coordinates when using an awk that lacks the GNU
+      extension of newlines in -v option-arguments.
+
+      Non UTF-8 locales when using an iconv command that lacks the GNU
+      //TRANSLIT extension.
+
+    zic no longer mishandles data for Palestine after the year 2075.
+    Previously, it incorrectly omitted post-2075 transitions that are
+    predicted for just before and just after Ramadan.  (Thanks to Ken
+    Murchison for debugging help.)
+
+    zic now works again on Linux 2.6.16 and 2.6.17 (2006).
+    (Problem reported by Rune Torgersen.)
+
+  Changes to build procedure
+
+    The Makefile is now more compatible with POSIX:
+     * It no longer defines AR, CC, CFLAGS, LDFLAGS, and SHELL.
+     * It no longer uses its own 'cc' in place of CC.
+     * It now uses ARFLAGS, with default specified by POSIX.
+     * It does not use LFLAGS incompatibly with POSIX.
+     * It uses the special .POSIX target.
+     * It quotes special characters more carefully.
+     * It no longer mishandles builds in an ISO 8859 locale.
+    Due to the CC changes, TZDIR is now #defined in a file tzfile.h
+    built by 'make', not in a $(CC) -D option.  Also, TZDEFAULT is
+    now treated like TZDIR as they have similar roles.
+
+  Changes to commentary
+
+     Limitations and hazards of the optional support for obsolescent
+     C89 platforms are documented better, along with a tentative
+     schedule for removing this support.
+
+
 Release 2023c - 2023-03-28 12:42:14 -0700
 
   Changes to past and future timestamps
@@ -76,11 +180,14 @@ Release 2023a - 2023-03-22 12:39:33 -0700
     platform dependent and abbreviations were silently truncated to
     16 bytes even when the limit was greater than 16.
 
-    The code by default is now designed for C99 or later.  To build in
-    a C89 environment, compile with -DPORT_TO_C89.  To support C89
-    callers of the tzcode library, compile with -DSUPPORT_C89.  The
-    two new macros are transitional aids planned to be removed in a
-    future version, when C99 or later will be required.
+    The code by default is now designed for C99 or later.  To build on
+    a mostly-C89 platform, compile with -DPORT_TO_C89; this should
+    work on C89 platforms that also support C99 'long long' and
+    perhaps a few other extensions to C89.  To support C89 callers of
+    tzcode's library, compile with -DSUPPORT_C89; however, this could
+    trigger latent bugs in C99-or-later callers.  The two new macros
+    are transitional aids planned to be removed in a future version
+    (say, in 2029), when C99 or later will be required.
 
     The code now builds again on pre-C99 platforms, if you compile
     with -DPORT_TO_C89.  This fixes a bug introduced in 2022f.
@@ -723,6 +830,8 @@ Release 2021b - 2021-09-24 16:23:00 -0700
     them, set the EXPIRES_LINE Makefile variable.  If a TZif file uses
     this new feature it is marked with a new TZif version number 4,
     a format intended to be documented in a successor to RFC 8536.
+    The old-format "#expires" comments are now treated solely as
+    comments and have no effect on the TZif files.
 
     zic -L LEAPFILE -r @LO no longer generates an invalid TZif file
     that omits leap second information for the range LO..B when LO
@@ -4302,7 +4411,7 @@ Release 2012j - 2012-11-12 18:34:49 -0800
   now uses tz@iana.org rather than the old elsie address.
 
   zic -v now complains about abbreviations that are less than 3
-  or more than 6 characters, as per Posix.  Formerly, it checked
+  or more than 6 characters, as per POSIX.  Formerly, it checked
   for abbreviations that were more than 3.
 
   'make public' no longer puts its temporary directory under /tmp,
@@ -4467,8 +4576,8 @@ Release data2011m - 2011-10-24 21:42:16 +0700
   In particular, the typos in comments in the data (2011-11-17 should have
   been 2011-10-17 as Alan Barrett noted, and spelling of Tiraspol that
   Tim Parenti noted) have been fixed, and the change for Ukraine has been
-  made in all 4 Ukrainian zones, rather than just Kiev (again, thanks to
-  Tim Parenti, and also Denys Gavrysh)
+  made in all 4 Ukrainian zones, rather than just Europe/Kiev
+  (again, thanks to Tim Parenti, and also Denys Gavrysh).
 
   In addition, I added Europe/Tiraspol to zone.tab.
 

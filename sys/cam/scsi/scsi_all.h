@@ -22,7 +22,6 @@
 #ifndef	_SCSI_SCSI_ALL_H
 #define	_SCSI_SCSI_ALL_H 1
 
-#include <sys/cdefs.h>
 #ifdef _KERNEL
 #include <sys/malloc.h>
 #include <machine/stdarg.h>

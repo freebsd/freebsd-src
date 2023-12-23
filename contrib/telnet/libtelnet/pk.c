@@ -28,10 +28,6 @@
  * 
  */
 
-#include <sys/cdefs.h>
-
-__FBSDID("$FreeBSD$");
-
 /* public key routines */
 /* functions:
 	genkeys(char *public, char *secret)

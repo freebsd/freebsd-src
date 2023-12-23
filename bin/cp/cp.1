@@ -29,9 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)cp.1	8.3 (Berkeley) 4/18/94
-.\"
-.Dd February 23, 2022
+.Dd December 14, 2023
 .Dt CP 1
 .Os
 .Sh NAME
@@ -44,7 +42,7 @@
 .Op Fl H | Fl L | Fl P
 .Oc
 .Op Fl f | i | n
-.Op Fl alpsvx
+.Op Fl alNpsvx
 .Ar source_file target_file
 .Nm
 .Oo
@@ -52,15 +50,15 @@
 .Op Fl H | Fl L | Fl P
 .Oc
 .Op Fl f | i | n
-.Op Fl alpsvx
+.Op Fl alNpsvx
 .Ar source_file ... target_directory
 .Nm
 .Op Fl f | i | n
-.Op Fl alPpsvx
+.Op Fl alNPpsvx
 .Ar source_file target_file
 .Nm
 .Op Fl f | i | n
-.Op Fl alPpsvx
+.Op Fl alNPpsvx
 .Ar source_file ... target_directory
 .Sh DESCRIPTION
 In the first synopsis form, the
@@ -157,6 +155,10 @@ or
 options.)
 .It Fl l
 Create hard links to regular files in a hierarchy instead of copying.
+.It Fl N
+When used with
+.Fl p ,
+suppress copying file flags.
 .It Fl n
 Do not overwrite an existing file.
 (The

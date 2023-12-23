@@ -32,14 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)v831.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: v831.c,v 1.11 2006/03/17 19:17:13 moritz Exp $";
-#endif
-#endif /* not lint */
-
 /*
  * Routines for dialing up on Vadic 831
  */

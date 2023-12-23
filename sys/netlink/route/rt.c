@@ -750,9 +750,14 @@ finalize_nhop(struct nhop_object *nh, const struct sockaddr *dst, int *perror)
 
 		struct ifaddr *ifa = ifaof_ifpforaddr(gw_sa, nh->nh_ifp);
 		if (ifa == NULL) {
-			NL_LOG(LOG_DEBUG, "Unable to determine ifa, skipping");
-			*perror = EINVAL;
-			return (NULL);
+			/* Try link-level ifa. */
+			gw_sa = &nh->gw_sa;
+			ifa = ifaof_ifpforaddr(gw_sa, nh->nh_ifp);
+			if (ifa == NULL) {
+				NL_LOG(LOG_DEBUG, "Unable to determine ifa, skipping");
+				*perror = EINVAL;
+				return (NULL);
+			}
 		}
 		nhop_set_src(nh, ifa);
 	}

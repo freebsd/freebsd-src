@@ -10,7 +10,6 @@
  * Copyright (c) 2004, K A Fraser
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -570,7 +569,7 @@ MTX_SYSINIT(gnttab, &gnttab_list_lock, "GNTTAB LOCK", MTX_DEF | MTX_RECURSE);
  * \param parent  The NewBus parent device for any devices this method adds.
  */
 static void
-granttable_identify(driver_t *driver __unused, device_t parent)
+granttable_identify(driver_t *driver, device_t parent)
 {
 
 	KASSERT(xen_domain(),
@@ -610,20 +609,12 @@ static int
 granttable_attach(device_t dev)
 {
 	int i;
-	unsigned int max_nr_glist_frames;
 	unsigned int nr_init_grefs;
 
 	nr_grant_frames = 1;
 	boot_max_nr_grant_frames = __max_nr_grant_frames();
 
-	/* Determine the maximum number of frames required for the
-	 * grant reference free list on the current hypervisor.
-	 */
-	max_nr_glist_frames = (boot_max_nr_grant_frames *
-			       GREFS_PER_GRANT_FRAME /
-			       (PAGE_SIZE / sizeof(grant_ref_t)));
-
-	gnttab_list = malloc(max_nr_glist_frames * sizeof(grant_ref_t *),
+	gnttab_list = malloc(boot_max_nr_grant_frames * sizeof(grant_ref_t *),
 	    M_DEVBUF, M_NOWAIT);
 
 	if (gnttab_list == NULL)

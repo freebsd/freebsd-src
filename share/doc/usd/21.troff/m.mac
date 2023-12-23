@@ -33,8 +33,6 @@
 .\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 .\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.\"
-.\"	@(#)m.mac	8.1 (Berkeley) 8/14/93
 .if \n(mo=1 .ds mo January
 .if \n(mo=2 .ds mo February
 .if \n(mo=3 .ds mo March

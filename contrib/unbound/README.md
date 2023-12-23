@@ -17,7 +17,9 @@ You can learn more about Unbound by reading our
 ## Compiling
 
 Make sure you have the C toolchain, OpenSSL and its include files, and libexpat
-installed. Unbound can be compiled and installed using:
+installed.
+If building from the repository source you also need flex and bison installed.
+Unbound can be compiled and installed using:
 
 ```
 ./configure && make && make install
@@ -27,7 +29,7 @@ You can use libevent if you want. libevent is useful when using many (10000)
 outgoing ports. By default max 256 ports are opened at the same time and the
 builtin alternative is equally capable and a little faster.
 
-Use the `--with-libevent=dir` configure option to compile Unbound with libevent
+Use the `--with-libevent` configure option to compile Unbound with libevent
 support.
 
 ## Unbound configuration

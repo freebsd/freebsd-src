@@ -4078,8 +4078,8 @@ zfs_map(struct inode *ip, offset_t off, caddr_t *addrp, size_t len,
 	if ((error = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
 		return (error);
 
-	if ((vm_flags & VM_WRITE) && (zp->z_pflags &
-	    (ZFS_IMMUTABLE | ZFS_READONLY | ZFS_APPENDONLY))) {
+	if ((vm_flags & VM_WRITE) && (vm_flags & VM_SHARED) &&
+	    (zp->z_pflags & (ZFS_IMMUTABLE | ZFS_READONLY | ZFS_APPENDONLY))) {
 		zfs_exit(zfsvfs, FTAG);
 		return (SET_ERROR(EPERM));
 	}
@@ -4248,5 +4248,9 @@ EXPORT_SYMBOL(zfs_map);
 /* CSTYLED */
 module_param(zfs_delete_blocks, ulong, 0644);
 MODULE_PARM_DESC(zfs_delete_blocks, "Delete files larger than N blocks async");
+
+/* CSTYLED */
+module_param(zfs_bclone_enabled, uint, 0644);
+MODULE_PARM_DESC(zfs_bclone_enabled, "Enable block cloning");
 
 #endif

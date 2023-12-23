@@ -32,7 +32,6 @@
  * NetBSD: ccdconfig.c,v 1.6 1996/05/16 07:11:18 thorpej Exp $
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/linker.h>
 #include <sys/module.h>

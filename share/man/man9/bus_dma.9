@@ -373,7 +373,7 @@ inclusive.
 The filter function should return zero if any mapping in this range
 can be accommodated by the device and non-zero otherwise.
 .Pp
-.Em Note: The use of filters is deprecated.  Proper operation is not guaranteed.
+.Em Note: The use of filters is no longer supported and will result in an error.
 .It Vt bus_dma_segment_t
 A machine-dependent type that describes individual
 DMA segments.
@@ -611,26 +611,10 @@ This area of
 is used to bounce requests that would otherwise conflict with
 the exclusion window.
 .It Fa filtfunc
-Optional filter function (may be
-.Dv NULL )
-to be called for any attempt to
-map memory into the window described by
-.Fa lowaddr
-and
-.Fa highaddr .
-A filter function is only required when the single window described
-by
-.Fa lowaddr
-and
-.Fa highaddr
-cannot adequately describe the constraints of the device.
-The filter function will be called for every machine page
-that overlaps the exclusion window.
-.Pp
-.Em Note: The use of filters is deprecated.  Proper operation is not guaranteed.
+Formerly the optional filter function; must be
+.Dv NULL .
 .It Fa filtfuncarg
-Argument passed to all calls to the filter function for this tag.
-May be
+Must be
 .Dv NULL .
 .It Fa maxsize
 Maximum size, in bytes, of the sum of all segment lengths in a given
@@ -689,6 +673,14 @@ Returns
 .Er ENOMEM
 if sufficient memory is not available for tag creation
 or allocating mapping resources.
+Returns
+.Er EINVAL
+if either
+.Fa filtfunc
+or
+.Fa filtarg
+arguments are not
+.Dv NULL .
 .It Fn bus_dma_tag_destroy "dmat"
 Deallocate the DMA tag
 .Fa dmat

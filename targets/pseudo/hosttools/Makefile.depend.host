@@ -9,6 +9,7 @@
 
 DIRDEPS = \
 	usr.bin/clang/clang-tblgen \
+	usr.bin/clang/llvm-min-tblgen \
 	usr.bin/clang/llvm-tblgen \
 	usr.bin/localedef \
 	usr.bin/mkcsmapper \

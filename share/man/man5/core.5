@@ -25,9 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)core.5	8.3 (Berkeley) 12/11/93
-.\"
-.Dd October 5, 2021
+.Dd November 12, 2023
 .Dt CORE 5
 .Os
 .Sh NAME
@@ -169,7 +167,8 @@ Packing is disabled with
 .Dl sysctl kern.coredump_pack_vmmapinfo=0 .
 .Sh EXAMPLES
 In order to store all core images in per-user private areas under
-.Pa /var/coredumps ,
+.Pa /var/coredumps
+(assuming the appropriate subdirectories exist and are writable by users),
 the following
 .Xr sysctl 8
 command can be used:

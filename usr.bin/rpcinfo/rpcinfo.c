@@ -33,14 +33,6 @@
  * Copyright (c) 1986 - 1991 by Sun Microsystems, Inc.
  */
 
-/* #ident	"@(#)rpcinfo.c	1.18	93/07/05 SMI" */
-
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)rpcinfo.c 1.16 89/04/05 Copyr 1986 Sun Micro";
-#endif
-#endif
-
 #include <sys/cdefs.h>
 /*
  * rpcinfo: ping a particular rpc program

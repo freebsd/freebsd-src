@@ -99,7 +99,7 @@ enum prison_state {
 #define	JAIL_UPDATE	0x02	/* Update parameters of existing jail */
 #define	JAIL_ATTACH	0x04	/* Attach to jail upon creation */
 #define	JAIL_DYING	0x08	/* Allow getting a dying jail */
-#define	JAIL_SET_MASK	0x0f
+#define	JAIL_SET_MASK	0x0f	/* JAIL_DYING is deprecated/ignored here */
 #define	JAIL_GET_MASK	0x08
 
 #define	JAIL_SYS_DISABLE	0

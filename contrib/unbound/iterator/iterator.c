@@ -1449,6 +1449,39 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
 			}
 			iq->qchase.qname = sname;
 			iq->qchase.qname_len = slen;
+			if(qstate->env->auth_zones) {
+				/* apply rpz qname triggers after cname */
+				struct dns_msg* forged_response =
+					rpz_callback_from_iterator_cname(qstate, iq);
+				while(forged_response && reply_find_rrset_section_an(
+					forged_response->rep, iq->qchase.qname,
+					iq->qchase.qname_len, LDNS_RR_TYPE_CNAME,
+					iq->qchase.qclass)) {
+					/* another cname to follow */
+					if(!handle_cname_response(qstate, iq, forged_response,
+						&sname, &slen)) {
+						errinf(qstate, "malloc failure, CNAME info");
+						return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
+					}
+					iq->qchase.qname = sname;
+					iq->qchase.qname_len = slen;
+					forged_response =
+						rpz_callback_from_iterator_cname(qstate, iq);
+				}
+				if(forged_response != NULL) {
+					qstate->ext_state[id] = module_finished;
+					qstate->return_rcode = LDNS_RCODE_NOERROR;
+					qstate->return_msg = forged_response;
+					iq->response = forged_response;
+					next_state(iq, FINISHED_STATE);
+					if(!iter_prepend(iq, qstate->return_msg, qstate->region)) {
+						log_err("rpz: after cached cname, prepend rrsets: out of memory");
+						return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
+					}
+					qstate->return_msg->qinfo = qstate->qinfo;
+					return 0;
+				}
+			}
 			/* This *is* a query restart, even if it is a cheap 
 			 * one. */
 			iq->dp = NULL;
@@ -2875,7 +2908,8 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		/* unset CD if to forwarder(RD set) and not dnssec retry
 		 * (blacklist nonempty) and no trust-anchors are configured
 		 * above the qname or on the first attempt when dnssec is on */
-		EDNS_DO| ((iq->chase_to_rd||(iq->chase_flags&BIT_RD)!=0)&&
+		(qstate->env->cfg->disable_edns_do?0:EDNS_DO)|
+		((iq->chase_to_rd||(iq->chase_flags&BIT_RD)!=0)&&
 		!qstate->blacklist&&(!iter_qname_indicates_dnssec(qstate->env,
 		&iq->qinfo_out)||target->attempts==1)?0:BIT_CD),
 		iq->dnssec_expected, iq->caps_fallback || is_caps_whitelisted(
@@ -2940,7 +2974,7 @@ static int
 processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 	struct iter_env* ie, int id)
 {
-	int dnsseclame = 0, origtypecname = 0;
+	int dnsseclame = 0, origtypecname = 0, orig_empty_nodata_found;
 	enum response_type type;
 
 	iq->num_current_queries--;
@@ -2960,12 +2994,25 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		return next_state(iq, QUERYTARGETS_STATE);
 	}
 	iq->timeout_count = 0;
+	orig_empty_nodata_found = iq->empty_nodata_found;
 	type = response_type_from_server(
 		(int)((iq->chase_flags&BIT_RD) || iq->chase_to_rd),
-		iq->response, &iq->qinfo_out, iq->dp);
+		iq->response, &iq->qinfo_out, iq->dp, &iq->empty_nodata_found);
 	iq->chase_to_rd = 0;
 	/* remove TC flag, if this is erroneously set by TCP upstream */
 	iq->response->rep->flags &= ~BIT_TC;
+	if(orig_empty_nodata_found != iq->empty_nodata_found &&
+		iq->empty_nodata_found < EMPTY_NODATA_RETRY_COUNT) {
+		/* try to search at another server */
+		if(qstate->reply) {
+			struct delegpt_addr* a = delegpt_find_addr(
+				iq->dp, &qstate->reply->remote_addr,
+				qstate->reply->remote_addrlen);
+			/* make selection disprefer it */
+			if(a) a->lame = 1;
+		}
+		return next_state(iq, QUERYTARGETS_STATE);
+	}
 	if(type == RESPONSE_TYPE_REFERRAL && (iq->chase_flags&BIT_RD) &&
 		!iq->auth_zone_response) {
 		/* When forwarding (RD bit is set), we handle referrals 
@@ -3501,7 +3548,7 @@ processPrimeResponse(struct module_qstate* qstate, int id)
 	iq->response->rep->flags &= ~(BIT_RD|BIT_RA); /* ignore rec-lame */
 	type = response_type_from_server(
 		(int)((iq->chase_flags&BIT_RD) || iq->chase_to_rd), 
-		iq->response, &iq->qchase, iq->dp);
+		iq->response, &iq->qchase, iq->dp, NULL);
 	if(type == RESPONSE_TYPE_ANSWER) {
 		qstate->return_rcode = LDNS_RCODE_NOERROR;
 		qstate->return_msg = iq->response;
@@ -3874,6 +3921,23 @@ processFinished(struct module_qstate* qstate, struct iter_qstate* iq,
 
 	/* explicitly set the EDE string to NULL */
 	iq->response->rep->reason_bogus_str = NULL;
+	if((qstate->env->cfg->val_log_level >= 2 ||
+		qstate->env->cfg->log_servfail) && qstate->errinf &&
+		!qstate->env->cfg->val_log_squelch) {
+		char* err_str = errinf_to_str_misc(qstate);
+		if(err_str) {
+			size_t err_str_len = strlen(err_str);
+			verbose(VERB_ALGO, "iterator EDE: %s", err_str);
+			/* allocate space and store the error
+			 * string */
+			iq->response->rep->reason_bogus_str = regional_alloc(
+				qstate->region,
+				sizeof(char) * (err_str_len+1));
+			memcpy(iq->response->rep->reason_bogus_str,
+				err_str, err_str_len+1);
+		}
+		free(err_str);
+	}
 
 	/* we have finished processing this query */
 	qstate->ext_state[id] = module_finished;
@@ -4098,7 +4162,7 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 
 	/* normalize and sanitize: easy to delete items from linked lists */
 	if(!scrub_message(pkt, prs, &iq->qinfo_out, iq->dp->name, 
-		qstate->env->scratch, qstate->env, ie)) {
+		qstate->env->scratch, qstate->env, qstate, ie)) {
 		/* if 0x20 enabled, start fallback, but we have no message */
 		if(event == module_event_capsfail && !iq->caps_fallback) {
 			iq->caps_fallback = 1;

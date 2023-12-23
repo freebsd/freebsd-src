@@ -10,6 +10,7 @@
 #define LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_GNU_H
 
 #include "Cuda.h"
+#include "LazyDetector.h"
 #include "ROCm.h"
 #include "clang/Driver/Tool.h"
 #include "clang/Driver/ToolChain.h"
@@ -22,8 +23,8 @@ struct DetectedMultilibs {
   /// The set of multilibs that the detected installation supports.
   MultilibSet Multilibs;
 
-  /// The primary multilib appropriate for the given flags.
-  Multilib SelectedMultilib;
+  /// The multilibs appropriate for the given flags.
+  llvm::SmallVector<Multilib> SelectedMultilibs;
 
   /// On Biarch systems, this corresponds to the default multilib when
   /// targeting the non-default multilib. Otherwise, it is empty.
@@ -286,8 +287,8 @@ public:
 
 protected:
   GCCInstallationDetector GCCInstallation;
-  CudaInstallationDetector CudaInstallation;
-  RocmInstallationDetector RocmInstallation;
+  LazyDetector<CudaInstallationDetector> CudaInstallation;
+  LazyDetector<RocmInstallationDetector> RocmInstallation;
 
 public:
   Generic_GCC(const Driver &D, const llvm::Triple &Triple,

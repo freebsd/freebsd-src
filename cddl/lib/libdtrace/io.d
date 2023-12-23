@@ -194,6 +194,8 @@ inline int DEVSTAT_TYPE_IF_IDE =	0x020;
 #pragma D binding "1.13" DEVSTAT_TYPE_IF_IDE
 inline int DEVSTAT_TYPE_IF_OTHER =	0x030;
 #pragma D binding "1.13" DEVSTAT_TYPE_IF_OTHER
+inline int DEVSTAT_TYPE_IF_NVME =	0x040;
+#pragma D binding "1.13" DEVSTAT_TYPE_IF_NVME
 inline int DEVSTAT_TYPE_IF_MASK =	0x0f0;
 #pragma D binding "1.13" DEVSTAT_TYPE_IF_MASK
 inline int DEVSTAT_TYPE_PASS =		0x100;
@@ -228,6 +230,7 @@ inline string device_if_string[int type] =
 	type == DEVSTAT_TYPE_IF_SCSI ?	"SCSI" :
 	type == DEVSTAT_TYPE_IF_IDE ?	"IDE" :
 	type == DEVSTAT_TYPE_IF_OTHER ?	"OTHER" :
+	type == DEVSTAT_TYPE_IF_NVME ?	"NVME" :
 	strjoin("UNKNOWN(", strjoin(lltostr(type), ")"));
 
 #pragma D binding "1.13" device_if

@@ -207,6 +207,9 @@ frag6_19_head() {
 }
 
 frag6_19_body() {
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/274941"
+	fi
 	frag6_body 19 frag6_19_check_stats
 }
 

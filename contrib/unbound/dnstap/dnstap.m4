@@ -41,7 +41,7 @@ AC_DEFUN([dt_DNSTAP],
 	  fi
     ])
     AC_SEARCH_LIBS([protobuf_c_message_pack], [protobuf-c], [],
-      AC_MSG_ERROR([The protobuf-c library was not found. Please install protobuf-c!]))
+      AC_MSG_ERROR([The protobuf-c library was not found. Please install the development libraries for protobuf-c!]))
     $2
   else
     $3

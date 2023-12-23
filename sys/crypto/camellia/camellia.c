@@ -30,7 +30,6 @@
  *  http://info.isl.ntt.co.jp/crypt/eng/camellia/specifications.html
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/endian.h>
 #ifdef _KERNEL

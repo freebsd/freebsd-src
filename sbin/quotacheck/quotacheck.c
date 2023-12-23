@@ -32,18 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1980, 1990, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-static char sccsid[] = "@(#)quotacheck.c	8.3 (Berkeley) 1/29/94";
-#endif /* not lint */
-#endif
-#include <sys/cdefs.h>
 /*
  * Fix up / report on disk quotas & usage
  */

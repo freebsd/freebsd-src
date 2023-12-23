@@ -36,6 +36,7 @@ struct bcm_spi_softc {
 	struct resource *	sc_mem_res;
 	struct resource *	sc_irq_res;
 	struct spi_command	*sc_cmd;
+	struct thread		*sc_thread;
 	bus_space_tag_t		sc_bst;
 	bus_space_handle_t	sc_bsh;
 	uint32_t		sc_len;
@@ -46,6 +47,7 @@ struct bcm_spi_softc {
 };
 
 #define	BCM_SPI_BUSY		0x1
+#define	BCM_SPI_KEEP_CS		0x2
 
 #define BCM_SPI_WRITE(_sc, _off, _val)		\
     bus_space_write_4(_sc->sc_bst, _sc->sc_bsh, _off, _val)

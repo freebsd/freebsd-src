@@ -81,8 +81,8 @@ int		gpio_pin_set_flags(gpio_handle_t, gpio_config_t *);
 /*
  * GPIO pin values.
  */
-int		gpio_pin_get(gpio_handle_t, gpio_pin_t);
-int		gpio_pin_set(gpio_handle_t, gpio_pin_t, int);
+gpio_value_t	gpio_pin_get(gpio_handle_t, gpio_pin_t);
+int		gpio_pin_set(gpio_handle_t, gpio_pin_t, gpio_value_t);
 int		gpio_pin_toggle(gpio_handle_t, gpio_pin_t);
 /*
  * Helper functions to set pin states.

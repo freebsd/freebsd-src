@@ -36,8 +36,7 @@
 	WEAK_REFERENCE(__sys_getcontext, getcontext)
 ENTRY(__sys_getcontext)
 	movq	(%rsp),%rsi	/* save getcontext return address */
-	mov	$SYS_getcontext,%rax
-	KERNCALL
+	_SYSCALL(getcontext)
 	jb	HIDENAME(cerror)
 	addq	$8,%rsp		/* remove stale (setcontext) return address */
 	jmp	*%rsi		/* restore return address */

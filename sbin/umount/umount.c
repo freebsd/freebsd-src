@@ -29,18 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1980, 1989, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)umount.c	8.8 (Berkeley) 5/8/95";
-#endif
-#endif /* not lint */
-
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/socket.h>

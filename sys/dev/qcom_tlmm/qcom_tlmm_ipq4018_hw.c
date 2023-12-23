@@ -30,7 +30,6 @@
  * This is a pinmux/gpio controller for the IPQ4018/IPQ4019.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

@@ -4,9 +4,8 @@
 PROG_CXX=	llvm-cxxfilt
 
 SRCDIR=		llvm/tools/llvm-cxxfilt
+SRCS+=		llvm-cxxfilt-driver.cpp
 SRCS+=		llvm-cxxfilt.cpp
-
-CFLAGS.llvm-cxxfilt.cpp+=	-Dllvm_cxxfilt_main=main
 
 .include "${SRCTOP}/lib/clang/llvm.pre.mk"
 

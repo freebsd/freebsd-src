@@ -32,13 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)lprint.c	8.3 (Berkeley) 4/28/95";
-#endif
-#endif
-
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>

@@ -38,7 +38,6 @@
  * John Polstra <jdp@polstra.com>.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/mman.h>
@@ -3756,7 +3755,7 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 	if (!obj->init_done) {
 	    /* We loaded something new and have to init something. */
 	    if ((lo_flags & RTLD_LO_DEEPBIND) != 0)
-		obj->symbolic = true;
+		obj->deepbind = true;
 	    result = 0;
 	    if ((lo_flags & (RTLD_LO_EARLY | RTLD_LO_IGNSTLS)) == 0 &&
 	      obj->static_tls && !allocate_tls_offset(obj)) {
@@ -4582,7 +4581,8 @@ symlook_default(SymLook *req, const Obj_Entry *refobj)
     if (refobj->symbolic || req->defobj_out != NULL)
 	donelist_check(&donelist, refobj);
 
-    symlook_global(req, &donelist);
+    if (!refobj->deepbind)
+        symlook_global(req, &donelist);
 
     /* Search all dlopened DAGs containing the referencing object. */
     STAILQ_FOREACH(elm, &refobj->dldags, link) {
@@ -4597,6 +4597,9 @@ symlook_default(SymLook *req, const Obj_Entry *refobj)
 	    assert(req->defobj_out != NULL);
 	}
     }
+
+    if (refobj->deepbind)
+        symlook_global(req, &donelist);
 
     /*
      * Search the dynamic linker itself, and possibly resolve the

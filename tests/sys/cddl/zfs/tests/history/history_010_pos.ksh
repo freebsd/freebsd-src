@@ -23,9 +23,6 @@
 #
 # Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)history_010_pos.ksh	1.4	09/01/12 SMI"
-#
 
 . $STF_SUITE/tests/history/history_common.kshlib
 

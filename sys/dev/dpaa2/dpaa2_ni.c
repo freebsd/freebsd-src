@@ -116,6 +116,9 @@
 	mtx_assert(&(__sc)->lock, MA_OWNED);	\
 	mtx_unlock(&(__sc)->lock);		\
 } while (0)
+#define	DPNI_LOCK_ASSERT(__sc) do {		\
+	mtx_assert(&(__sc)->lock, MA_OWNED);	\
+} while (0)
 
 #define DPAA2_TX_RING(sc, chan, tc) \
 	(&(sc)->channels[(chan)]->txc_queue.tx_rings[(tc)])
@@ -2269,6 +2272,16 @@ dpaa2_ni_miibus_statchg(device_t dev)
 	if (sc->fixed_link || sc->mii == NULL) {
 		return;
 	}
+	if ((if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) == 0) {
+		/*
+		 * We will receive calls and adjust the changes but
+		 * not have setup everything (called before dpaa2_ni_init()
+		 * really).  This will then setup the link and internal
+		 * sc->link_state and not trigger the update once needed,
+		 * so basically dpmac never knows about it.
+		 */
+		return;
+	}
 
 	/*
 	 * Note: ifp link state will only be changed AFTER we are called so we
@@ -2344,21 +2357,31 @@ err_exit:
  * @brief Callback function to process media change request.
  */
 static int
-dpaa2_ni_media_change(if_t ifp)
+dpaa2_ni_media_change_locked(struct dpaa2_ni_softc *sc)
 {
-	struct dpaa2_ni_softc *sc = if_getsoftc(ifp);
 
-	DPNI_LOCK(sc);
+	DPNI_LOCK_ASSERT(sc);
 	if (sc->mii) {
 		mii_mediachg(sc->mii);
 		sc->media_status = sc->mii->mii_media.ifm_media;
 	} else if (sc->fixed_link) {
-		if_printf(ifp, "%s: can't change media in fixed mode\n",
+		if_printf(sc->ifp, "%s: can't change media in fixed mode\n",
 		    __func__);
 	}
-	DPNI_UNLOCK(sc);
 
 	return (0);
+}
+
+static int
+dpaa2_ni_media_change(if_t ifp)
+{
+	struct dpaa2_ni_softc *sc = if_getsoftc(ifp);
+	int error;
+
+	DPNI_LOCK(sc);
+	error = dpaa2_ni_media_change_locked(sc);
+	DPNI_UNLOCK(sc);
+	return (error);
 }
 
 /**
@@ -2443,16 +2466,19 @@ dpaa2_ni_init(void *arg)
 	}
 
 	DPNI_LOCK(sc);
+	/* Announce we are up and running and can queue packets. */
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
+
 	if (sc->mii) {
-		mii_mediachg(sc->mii);
+		/*
+		 * mii_mediachg() will trigger a call into
+		 * dpaa2_ni_miibus_statchg() to setup link state.
+		 */
+		dpaa2_ni_media_change_locked(sc);
 	}
 	callout_reset(&sc->mii_callout, hz, dpaa2_ni_media_tick, sc);
 
-	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 	DPNI_UNLOCK(sc);
-
-	/* Force link-state update to initilize things. */
-	dpaa2_ni_miibus_statchg(dev);
 
 	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
 	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
@@ -2556,7 +2582,7 @@ dpaa2_ni_ioctl(if_t ifp, u_long c, caddr_t data)
 
 		/* Update maximum frame length. */
 		error = DPAA2_CMD_NI_SET_MFL(dev, child, &cmd,
-		    mtu + ETHER_HDR_LEN);
+		    mtu + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
 		if (error) {
 			device_printf(dev, "%s: failed to update maximum frame "
 			    "length: error=%d\n", __func__, error);

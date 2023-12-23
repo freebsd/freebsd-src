@@ -32,8 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)regex.c	5.1 (Berkeley) 3/29/92");
 
 /*
  * Compatibility routines that implement the old re_comp/re_exec interface in

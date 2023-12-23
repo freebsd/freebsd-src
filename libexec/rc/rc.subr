@@ -218,7 +218,7 @@ stop_boot()
 
 	case $1 in
 		#	"yes", "true", "on", or "1"
-        [Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
 		always=true
 		;;
 	*)
@@ -1583,7 +1583,7 @@ load_rc_config_var()
 	fi
 	eval $(eval '(
 		load_rc_config '$1' >/dev/null;
-                if [ -n "${'$2'}" -o "${'$2'-UNSET}" != "UNSET" ]; then
+		if [ -n "${'$2'}" -o "${'$2'-UNSET}" != "UNSET" ]; then
 			echo '$2'=\'\''${'$2'}\'\'';
 		fi
 	)' )

@@ -27,11 +27,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)sys_socket.c	8.1 (Berkeley) 6/10/93
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/aio.h>
@@ -358,7 +355,7 @@ soo_close(struct file *fp, struct thread *td)
 static int
 soo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 {
-	struct sockaddr *sa;
+	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
 	struct inpcb *inpcb;
 	struct unpcb *unpcb;
 	struct socket *so;
@@ -407,17 +404,16 @@ soo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 		}
 		break;
 	}
-	error = so->so_proto->pr_sockaddr(so, &sa);
+	error = sosockaddr(so, (struct sockaddr *)&ss);
 	if (error == 0 &&
-	    sa->sa_len <= sizeof(kif->kf_un.kf_sock.kf_sa_local)) {
-		bcopy(sa, &kif->kf_un.kf_sock.kf_sa_local, sa->sa_len);
-		free(sa, M_SONAME);
+	    ss.ss_len <= sizeof(kif->kf_un.kf_sock.kf_sa_local)) {
+		bcopy(&ss, &kif->kf_un.kf_sock.kf_sa_local, ss.ss_len);
 	}
-	error = so->so_proto->pr_peeraddr(so, &sa);
+	ss.ss_len = sizeof(ss);
+	error = sopeeraddr(so, (struct sockaddr *)&ss);
 	if (error == 0 &&
-	    sa->sa_len <= sizeof(kif->kf_un.kf_sock.kf_sa_peer)) {
-		bcopy(sa, &kif->kf_un.kf_sock.kf_sa_peer, sa->sa_len);
-		free(sa, M_SONAME);
+	    ss.ss_len <= sizeof(kif->kf_un.kf_sock.kf_sa_peer)) {
+		bcopy(&ss, &kif->kf_un.kf_sock.kf_sa_peer, ss.ss_len);
 	}
 	strncpy(kif->kf_path, so->so_proto->pr_domain->dom_name,
 	    sizeof(kif->kf_path));

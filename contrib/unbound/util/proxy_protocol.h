@@ -42,7 +42,7 @@
 #ifndef PROXY_PROTOCOL_H
 #define PROXY_PROTOCOL_H
 
-#include "sldns/sbuffer.h"
+#include "config.h"
 
 /** PROXYv2 minimum header size */
 #define PP2_HEADER_SIZE 16
@@ -51,11 +51,11 @@
 #define PP2_SIG "\x0D\x0A\x0D\x0A\x00\x0D\x0A\x51\x55\x49\x54\x0A"
 #define PP2_SIG_LEN 12
 
-/** PROXYv2 version */
+/** PROXYv2 version (protocol value) */
 #define PP2_VERSION 0x2
 
 /**
- * PROXYv2 command.
+ * PROXYv2 command (protocol value).
  */
 enum pp2_command {
 	PP2_CMD_LOCAL = 0x0,
@@ -63,7 +63,7 @@ enum pp2_command {
 };
 
 /**
- * PROXYv2 address family.
+ * PROXYv2 address family (protocol value).
  */
 enum pp2_af {
 	PP2_AF_UNSPEC = 0x0,
@@ -73,12 +73,25 @@ enum pp2_af {
 };
 
 /**
- * PROXYv2 protocol.
+ * PROXYv2 protocol (protocol value).
  */
 enum pp2_protocol {
 	PP2_PROT_UNSPEC = 0x0,
 	PP2_PROT_STREAM = 0x1,
 	PP2_PROT_DGRAM = 0x2
+};
+
+/**
+ * Expected combinations of address family and protocol values used in checks.
+ */
+enum pp2_af_protocol_combination {
+	PP2_UNSPEC_UNSPEC = (PP2_AF_UNSPEC<<4)|PP2_PROT_UNSPEC,
+	PP2_INET_STREAM = (PP2_AF_INET<<4)|PP2_PROT_STREAM,
+	PP2_INET_DGRAM = (PP2_AF_INET<<4)|PP2_PROT_DGRAM,
+	PP2_INET6_STREAM = (PP2_AF_INET6<<4)|PP2_PROT_STREAM,
+	PP2_INET6_DGRAM = (PP2_AF_INET6<<4)|PP2_PROT_DGRAM,
+	PP2_UNIX_STREAM = (PP2_AF_UNIX<<4)|PP2_PROT_STREAM,
+	PP2_UNIX_DGRAM = (PP2_AF_UNIX<<4)|PP2_PROT_DGRAM
 };
 
 /**
@@ -110,22 +123,55 @@ struct pp2_header {
 };
 
 /**
+ * PROXY parse errors.
+ */
+enum pp_parse_errors {
+	PP_PARSE_NOERROR = 0,
+	PP_PARSE_SIZE,
+	PP_PARSE_WRONG_HEADERv2,
+	PP_PARSE_UNKNOWN_CMD,
+	PP_PARSE_UNKNOWN_FAM_PROT,
+};
+
+/**
+ * Initialize the internal proxy structure.
+ * @param write_uint16: pointer to a function that can write uint16.
+ * @param write_uint32: pointer to a function that can write uint32.
+ */
+void pp_init(void (*write_uint16)(void* buf, uint16_t data),
+	void (*write_uint32)(void* buf, uint32_t data));
+
+/**
+ * Lookup the parsing error description.
+ * @param error: parsing error from pp2_read_header.
+ * @return the description.
+ */
+const char* pp_lookup_error(enum pp_parse_errors error);
+
+/**
  * Write a PROXYv2 header at the current position of the buffer.
- * @param buf: the buffer to write to.
+ * @param buf: pointer to the buffer to write data to.
+ * @param buflen: available size on the buffer.
  * @param src: the source address.
  * @param stream: if the protocol is stream or datagram.
  * @return 1 on success, 0 on failure.
  */
-int pp2_write_to_buf(struct sldns_buffer* buf, struct sockaddr_storage* src,
+size_t pp2_write_to_buf(uint8_t* buf, size_t buflen,
+#ifdef INET6
+	struct sockaddr_storage* src,
+#else
+	struct sockaddr_in* src,
+#endif
 	int stream);
 
 /**
  * Read a PROXYv2 header from the current position of the buffer.
  * It does initial validation and returns a pointer to the buffer position on
  * success.
- * @param buf: the buffer to read from.
- * @return the pointer to the buffer position on success, NULL on error.
+ * @param buf: pointer to the buffer data to read from.
+ * @param buflen: available size on the buffer.
+ * @return parsing error, 0 on success.
  */
-struct pp2_header* pp2_read_header(struct sldns_buffer* buf);
+int pp2_read_header(uint8_t* buf, size_t buflen);
 
 #endif /* PROXY_PROTOCOL_H */

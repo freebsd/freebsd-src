@@ -28,8 +28,6 @@
 # Use is subject to license terms.
 # 
 # Portions taken from:
-# ident	"@(#)replacement_001_pos.ksh	1.4	08/02/27 SMI"
-#
 
 . $STF_SUITE/tests/hotspare/hotspare.kshlib
 . $STF_SUITE/tests/zfsd/zfsd.kshlib

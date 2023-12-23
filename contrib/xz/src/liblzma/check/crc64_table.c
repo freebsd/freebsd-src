@@ -18,10 +18,8 @@
 #if (defined(__x86_64__) && defined(__SSSE3__) \
 			&& defined(__SSE4_1__) && defined(__PCLMUL__)) \
 		|| (defined(__e2k__) && __iset__ >= 6)
-// No table needed but something has to be exported to keep some toolchains
-// happy. Also use a declaration to silence compiler warnings.
-extern const char lzma_crc64_dummy;
-const char lzma_crc64_dummy;
+// No table needed. Use a typedef to avoid an empty translation unit.
+typedef void lzma_crc64_dummy;
 
 #else
 // Having the declaration here silences clang -Wmissing-variable-declarations.

@@ -27,8 +27,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
  */
 
 #include <sys/cdefs.h>
@@ -543,6 +541,9 @@ tcp_switch_back_to_default(struct tcpcb *tp)
 
 	KASSERT(tp->t_fb != &tcp_def_funcblk,
 	    ("%s: called by the built-in default stack", __func__));
+
+	if (tp->t_fb->tfb_tcp_timer_stop_all != NULL)
+		tp->t_fb->tfb_tcp_timer_stop_all(tp);
 
 	/*
 	 * Now, we'll find a new function block to use.
@@ -2273,6 +2274,9 @@ tcp_newtcpcb(struct inpcb *inp)
 	/* All mbuf queue/ack compress flags should be off */
 	tcp_lro_features_off(tp);
 
+	tp->t_hpts_cpu = HPTS_CPU_NONE;
+	tp->t_lro_cpu = HPTS_CPU_NONE;
+
 	callout_init_rw(&tp->t_callout, &inp->inp_lock, CALLOUT_RETURNUNLOCKED);
 	for (int i = 0; i < TT_N; i++)
 		tp->t_timers[i] = SBT_MAX;
@@ -2315,9 +2319,6 @@ tcp_newtcpcb(struct inpcb *inp)
 	 * which may match an IPv4-mapped IPv6 address.
 	 */
 	inp->inp_ip_ttl = V_ip_defttl;
-#ifdef TCPHPTS
-	tcp_hpts_init(tp);
-#endif
 #ifdef TCPPCAP
 	/*
 	 * Init the TCP PCAP queues.
@@ -2384,9 +2385,6 @@ tcp_discardcb(struct tcpcb *tp)
 	INP_WLOCK_ASSERT(inp);
 
 	tcp_timer_stop(tp);
-	if (tp->t_fb->tfb_tcp_timer_stop_all) {
-		tp->t_fb->tfb_tcp_timer_stop_all(tp);
-	}
 
 	/* free the reassembly queue, if any */
 	tcp_reass_flush(tp);
@@ -2526,9 +2524,8 @@ tcp_close(struct tcpcb *tp)
 		tcp_fastopen_decrement_counter(tp->t_tfo_pending);
 		tp->t_tfo_pending = NULL;
 	}
-#ifdef TCPHPTS
-	tcp_hpts_remove(tp);
-#endif
+	if (tp->t_fb->tfb_tcp_timer_stop_all != NULL)
+		tp->t_fb->tfb_tcp_timer_stop_all(tp);
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);
 	if (tp->t_state != TCPS_CLOSED)
@@ -4316,9 +4313,7 @@ tcp_req_log_req_info(struct tcpcb *tp, struct tcp_sendfile_track *req,
 		struct timeval tv;
 
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-#ifdef TCPHPTS
 		log.u_bbr.inhpts = tcp_in_hpts(tp);
-#endif
 		log.u_bbr.flex8 = val;
 		log.u_bbr.rttProp = req->timestamp;
 		log.u_bbr.delRate = req->start;
@@ -4677,4 +4672,31 @@ tcp_get_srtt(struct tcpcb *tp, int granularity)
 		srtt = srtt >> TCP_RTT_SHIFT;
 
 	return (srtt);
+}
+
+void
+tcp_account_for_send(struct tcpcb *tp, uint32_t len, uint8_t is_rxt,
+    uint8_t is_tlp, bool hw_tls)
+{
+
+	if (is_tlp) {
+		tp->t_sndtlppack++;
+		tp->t_sndtlpbyte += len;
+	}
+	/* To get total bytes sent you must add t_snd_rxt_bytes to t_sndbytes */
+	if (is_rxt)
+		tp->t_snd_rxt_bytes += len;
+	else
+		tp->t_sndbytes += len;
+
+#ifdef KERN_TLS
+	if (hw_tls && is_rxt && len != 0) {
+		uint64_t rexmit_percent;
+
+		rexmit_percent = (1000ULL * tp->t_snd_rxt_bytes) /
+		    (10ULL * (tp->t_snd_rxt_bytes + tp->t_sndbytes));
+		if (rexmit_percent > ktls_ifnet_max_rexmit_pct)
+			ktls_disable_ifnet(tp);
+	}
+#endif
 }

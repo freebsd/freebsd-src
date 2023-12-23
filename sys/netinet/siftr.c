@@ -60,7 +60,6 @@
  * Most recent update: September 2010
  ******************************************************/
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/alq.h>
 #include <sys/errno.h>
@@ -74,6 +73,7 @@
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/reboot.h>
 #include <sys/sbuf.h>
 #include <sys/sdt.h>
 #include <sys/smp.h>
@@ -134,6 +134,7 @@
  * data fields such that the line length could exceed the below value.
  */
 #define MAX_LOG_MSG_LEN 300
+#define MAX_LOG_BATCH_SIZE 3
 /* XXX: Make this a sysctl tunable. */
 #define SIFTR_ALQ_BUFLEN (1000*MAX_LOG_MSG_LEN)
 
@@ -445,10 +446,10 @@ siftr_pkt_manager_thread(void *arg)
 {
 	STAILQ_HEAD(pkthead, pkt_node) tmp_pkt_queue =
 	    STAILQ_HEAD_INITIALIZER(tmp_pkt_queue);
-	struct pkt_node *pkt_node, *pkt_node_temp;
+	struct pkt_node *pkt_node;
 	uint8_t draining;
 	struct ale *log_buf;
-	int ret_sz, cnt;
+	int ret_sz, cnt = 0;
 	char *bufp;
 
 	draining = 2;
@@ -485,17 +486,12 @@ siftr_pkt_manager_thread(void *arg)
 		 */
 		mtx_unlock(&siftr_pkt_mgr_mtx);
 
-try_again:
-		pkt_node = STAILQ_FIRST(&tmp_pkt_queue);
-		if (pkt_node != NULL) {
-			if (STAILQ_NEXT(pkt_node, nodes) != NULL) {
-				cnt = 3;
-			} else {
-				cnt = 1;
-			}
+		while ((pkt_node = STAILQ_FIRST(&tmp_pkt_queue)) != NULL) {
 
-			log_buf = alq_getn(siftr_alq, MAX_LOG_MSG_LEN * cnt,
-					   ALQ_WAITOK);
+			log_buf = alq_getn(siftr_alq, MAX_LOG_MSG_LEN *
+			    ((STAILQ_NEXT(pkt_node, nodes) != NULL) ?
+				MAX_LOG_BATCH_SIZE : 1),
+			    ALQ_WAITOK);
 
 			if (log_buf != NULL) {
 				log_buf->ae_bytesused = 0;
@@ -509,26 +505,23 @@ try_again:
 			}
 
 			/* Flush all pkt_nodes to the log file. */
-			STAILQ_FOREACH_SAFE(pkt_node, &tmp_pkt_queue, nodes,
-			    pkt_node_temp) {
+			STAILQ_FOREACH(pkt_node, &tmp_pkt_queue, nodes) {
 				if (log_buf != NULL) {
 					ret_sz = siftr_process_pkt(pkt_node,
 								   bufp);
 					bufp += ret_sz;
 					log_buf->ae_bytesused += ret_sz;
-					cnt--;
 				}
-
-				STAILQ_REMOVE_HEAD(&tmp_pkt_queue, nodes);
-				free(pkt_node, M_SIFTR_PKTNODE);
-
-				if (cnt <= 0 && !STAILQ_EMPTY(&tmp_pkt_queue)) {
-					alq_post_flags(siftr_alq, log_buf, 0);
-					goto try_again;
-				}
+				if (++cnt >= MAX_LOG_BATCH_SIZE)
+					break;
 			}
 			if (log_buf != NULL) {
 				alq_post_flags(siftr_alq, log_buf, 0);
+			}
+			for (;cnt > 0; cnt--) {
+				pkt_node = STAILQ_FIRST(&tmp_pkt_queue);
+				STAILQ_REMOVE_HEAD(&tmp_pkt_queue, nodes);
+				free(pkt_node, M_SIFTR_PKTNODE);
 			}
 		}
 
@@ -1300,8 +1293,11 @@ siftr_sysctl_enabled_handler(SYSCTL_HANDLER_ARGS)
 }
 
 static void
-siftr_shutdown_handler(void *arg)
+siftr_shutdown_handler(void *arg, int howto)
 {
+	if ((howto & RB_NOSYNC) != 0 || SCHEDULER_STOPPED())
+		return;
+
 	if (siftr_enabled == 1) {
 		siftr_manage_ops(SIFTR_DISABLE);
 	}

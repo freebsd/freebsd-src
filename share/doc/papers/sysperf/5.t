@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)5.t	5.1 (Berkeley) 4/17/91
-.\"
 .ds RH Functional Extensions
 .NH
 Functional Extensions

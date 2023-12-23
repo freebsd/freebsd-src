@@ -1,6 +1,3 @@
-#
-#	@(#)ttys	5.1 (Berkeley) 4/17/89
-#
 # This file specifies various information about terminals on the system.
 # It is used by several different programs.  Common entries for the
 # various columns include:

@@ -164,6 +164,24 @@ The default is the mount point's UID.
 Refer to
 .Xr mount 8 .
 .El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables are available:
+.Bl -tag -width indent
+.It Va vfs.tmpfs.memory_percent
+The percentage of memory plus swap space available at kernel file system
+initialization that can be used by a file system with a size of 0.
+When this amount of space in use is reached, new files cannot be created
+and files cannot be extended.
+The default is 95%.
+Changing this value also changes
+.Va vfs.tmpfs.memory_reserved .
+.It Va vfs.tmpfs.memory_reserved
+The currently-reserved amount of memory plus swap space
+based on the memory percentage.
+The minimum is compiled into the system, and defaults to 4 MB.
+.El
 .Sh EXAMPLES
 Mount a
 .Nm

@@ -28,8 +28,6 @@
 # Use is subject to license terms.
 # 
 # Portions taken from:
-# ident	"@(#)replacement_001_pos.ksh	1.4	08/02/27 SMI"
-#
 # $Id$
 
 . $STF_SUITE/include/libtest.kshlib

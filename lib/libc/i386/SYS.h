@@ -30,28 +30,27 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)SYS.h	5.5 (Berkeley) 5/7/91
  */
 
 #include <sys/syscall.h>
 #include <machine/asm.h>
 
-#define	SYSCALL(name)	ENTRY(__sys_##name);				\
+#define	_SYSCALL(name)							\
+			mov $SYS_##name, %eax;				\
+			int $0x80
+
+#define _SYSCALL_BODY(name)						\
+			_SYSCALL(name);					\
+			jb HIDENAME(cerror);				\
+			ret
+
+#define	RSYSCALL(name)	ENTRY(__sys_##name);				\
 			WEAK_REFERENCE(__sys_##name, name);		\
 			WEAK_REFERENCE(__sys_##name, _##name);		\
-			mov $SYS_##name,%eax; KERNCALL;			\
-			jb HIDENAME(cerror)
-
-#define	RSYSCALL(name)	SYSCALL(name); ret; END(__sys_##name)
+			_SYSCALL_BODY(name);				\
+			END(__sys_##name)
 
 #define	PSEUDO(name)	ENTRY(__sys_##name);				\
 			WEAK_REFERENCE(__sys_##name, _##name);		\
-			mov $SYS_##name,%eax; KERNCALL;			\
-			jb HIDENAME(cerror); ret;			\
+			_SYSCALL_BODY(name);				\
 			END(__sys_##name)
-
-/* gas messes up offset -- although we don't currently need it, do for BCS */
-#define	LCALL(x,y)	.byte 0x9a ; .long y; .word x
-
-#define KERNCALL	int $0x80

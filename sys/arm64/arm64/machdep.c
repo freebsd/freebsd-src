@@ -30,7 +30,6 @@
 #include "opt_platform.h"
 #include "opt_ddb.h"
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/asan.h>
@@ -957,7 +956,7 @@ initarm(struct arm64_bootparams *abp)
 	pan_setup();
 
 	/* Bootstrap enough of pmap  to enter the kernel proper */
-	pmap_bootstrap(KERNBASE - abp->kern_delta, lastaddr - KERNBASE);
+	pmap_bootstrap(lastaddr - KERNBASE);
 	/* Exclude entries needed in the DMAP region, but not phys_avail */
 	if (efihdr != NULL)
 		exclude_efi_map_entries(efihdr);
@@ -973,7 +972,7 @@ initarm(struct arm64_bootparams *abp)
 	 * segments also get excluded from phys_avail.
 	 */
 #if defined(KASAN)
-	pmap_bootstrap_san(KERNBASE - abp->kern_delta);
+	pmap_bootstrap_san();
 #endif
 
 	physmem_init_kernel_globals();

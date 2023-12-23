@@ -30,8 +30,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
  */
 
 /*
@@ -1350,13 +1348,52 @@ soabort(struct socket *so)
 }
 
 int
-soaccept(struct socket *so, struct sockaddr **nam)
+soaccept(struct socket *so, struct sockaddr *sa)
 {
+#ifdef INVARIANTS
+	u_char len = sa->sa_len;
+#endif
 	int error;
 
 	CURVNET_SET(so->so_vnet);
-	error = so->so_proto->pr_accept(so, nam);
+	error = so->so_proto->pr_accept(so, sa);
+	KASSERT(sa->sa_len <= len,
+	    ("%s: protocol %p sockaddr overflow", __func__, so->so_proto));
 	CURVNET_RESTORE();
+	return (error);
+}
+
+int
+sopeeraddr(struct socket *so, struct sockaddr *sa)
+{
+#ifdef INVARIANTS
+	u_char len = sa->sa_len;
+#endif
+	int error;
+
+	CURVNET_SET(so->so_vnet);
+	error = so->so_proto->pr_peeraddr(so, sa);
+	KASSERT(sa->sa_len <= len,
+	    ("%s: protocol %p sockaddr overflow", __func__, so->so_proto));
+	CURVNET_RESTORE();
+
+	return (error);
+}
+
+int
+sosockaddr(struct socket *so, struct sockaddr *sa)
+{
+#ifdef INVARIANTS
+	u_char len = sa->sa_len;
+#endif
+	int error;
+
+	CURVNET_SET(so->so_vnet);
+	error = so->so_proto->pr_sockaddr(so, sa);
+	KASSERT(sa->sa_len <= len,
+	    ("%s: protocol %p sockaddr overflow", __func__, so->so_proto));
+	CURVNET_RESTORE();
+
 	return (error);
 }
 
@@ -3442,7 +3479,7 @@ integer:
 			    so, &extmac);
 			if (error)
 				goto bad;
-			error = sooptcopyout(sopt, &extmac, sizeof extmac);
+			/* Don't copy out extmac, it is unchanged. */
 #else
 			error = EOPNOTSUPP;
 #endif
@@ -3458,7 +3495,7 @@ integer:
 			    sopt->sopt_td->td_ucred, so, &extmac);
 			if (error)
 				goto bad;
-			error = sooptcopyout(sopt, &extmac, sizeof extmac);
+			/* Don't copy out extmac, it is unchanged. */
 #else
 			error = EOPNOTSUPP;
 #endif

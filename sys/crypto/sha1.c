@@ -36,7 +36,6 @@
  * implemented by Jun-ichiro itojun Itoh <itojun@itojun.org>
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/cdefs.h>
 #include <sys/time.h>

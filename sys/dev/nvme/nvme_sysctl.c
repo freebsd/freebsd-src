@@ -132,8 +132,8 @@ nvme_sysctl_int_coal_threshold(SYSCTL_HANDLER_ARGS)
 static int
 nvme_sysctl_timeout_period(SYSCTL_HANDLER_ARGS)
 {
-	struct nvme_controller *ctrlr = arg1;
-	uint32_t newval = ctrlr->timeout_period;
+	uint32_t *ptr = arg1;
+	uint32_t newval = *ptr;
 	int error = sysctl_handle_int(oidp, &newval, 0, req);
 
 	if (error || (req->newptr == NULL))
@@ -143,7 +143,7 @@ nvme_sysctl_timeout_period(SYSCTL_HANDLER_ARGS)
 	    newval < NVME_MIN_TIMEOUT_PERIOD) {
 		return (EINVAL);
 	} else {
-		ctrlr->timeout_period = newval;
+		*ptr = newval;
 	}
 
 	return (0);
@@ -353,9 +353,14 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 	    "Interrupt coalescing threshold");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
+	    "admin_timeout_period", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    &ctrlr->admin_timeout_period, 0, nvme_sysctl_timeout_period, "IU",
+	    "Timeout period for Admin queue (in seconds)");
+
+	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 	    "timeout_period", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	    ctrlr, 0, nvme_sysctl_timeout_period, "IU",
-	    "Timeout period (in seconds)");
+	    &ctrlr->timeout_period, 0, nvme_sysctl_timeout_period, "IU",
+	    "Timeout period for I/O queues (in seconds)");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 	    "num_cmds", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
