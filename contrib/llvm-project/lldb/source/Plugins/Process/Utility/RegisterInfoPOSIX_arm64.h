@@ -28,6 +28,7 @@ public:
     eRegsetMaskSVE = 1,
     eRegsetMaskPAuth = 2,
     eRegsetMaskMTE = 4,
+    eRegsetMaskTLS = 8,
     eRegsetMaskDynamic = ~1,
   };
 
@@ -102,6 +103,8 @@ public:
 
   void AddRegSetMTE();
 
+  void AddRegSetTLS();
+
   uint32_t ConfigureVectorLength(uint32_t sve_vq);
 
   bool VectorSizeIsValid(uint32_t vq) {
@@ -114,6 +117,7 @@ public:
   bool IsSVEEnabled() const { return m_opt_regsets.AnySet(eRegsetMaskSVE); }
   bool IsPAuthEnabled() const { return m_opt_regsets.AnySet(eRegsetMaskPAuth); }
   bool IsMTEEnabled() const { return m_opt_regsets.AnySet(eRegsetMaskMTE); }
+  bool IsTLSEnabled() const { return m_opt_regsets.AnySet(eRegsetMaskTLS); }
 
   bool IsSVEReg(unsigned reg) const;
   bool IsSVEZReg(unsigned reg) const;
@@ -121,6 +125,7 @@ public:
   bool IsSVERegVG(unsigned reg) const;
   bool IsPAuthReg(unsigned reg) const;
   bool IsMTEReg(unsigned reg) const;
+  bool IsTLSReg(unsigned reg) const;
 
   uint32_t GetRegNumSVEZ0() const;
   uint32_t GetRegNumSVEFFR() const;
@@ -129,6 +134,7 @@ public:
   uint32_t GetRegNumSVEVG() const;
   uint32_t GetPAuthOffset() const;
   uint32_t GetMTEOffset() const;
+  uint32_t GetTLSOffset() const;
 
 private:
   typedef std::map<uint32_t, std::vector<lldb_private::RegisterInfo>>
@@ -155,6 +161,7 @@ private:
 
   std::vector<uint32_t> pauth_regnum_collection;
   std::vector<uint32_t> m_mte_regnum_collection;
+  std::vector<uint32_t> m_tls_regnum_collection;
 };
 
 #endif

@@ -1652,7 +1652,7 @@ timer:
 		    ((flags & TH_SYN) == 0) &&
 		    (error != EPERM)) {
 			if (sack_rxmit) {
-				p->rxmit -= len;
+				p->rxmit = SEQ_MIN(p->end, p->rxmit) - len;
 				tp->sackhint.sack_bytes_rexmit -= len;
 				KASSERT(tp->sackhint.sack_bytes_rexmit >= 0,
 				    ("sackhint bytes rtx >= 0"));

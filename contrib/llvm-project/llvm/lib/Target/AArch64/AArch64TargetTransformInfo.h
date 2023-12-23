@@ -57,16 +57,17 @@ class AArch64TTIImpl : public BasicTTIImplBase<AArch64TTIImpl> {
     VECTOR_LDST_FOUR_ELEMENTS
   };
 
-  bool isWideningInstruction(Type *Ty, unsigned Opcode,
-                             ArrayRef<const Value *> Args);
+  bool isWideningInstruction(Type *DstTy, unsigned Opcode,
+                             ArrayRef<const Value *> Args,
+                             Type *SrcOverrideTy = nullptr);
 
   // A helper function called by 'getVectorInstrCost'.
   //
   // 'Val' and 'Index' are forwarded from 'getVectorInstrCost'; 'HasRealUse'
   // indicates whether the vector instruction is available in the input IR or
   // just imaginary in vectorizer passes.
-  InstructionCost getVectorInstrCostHelper(Type *Val, unsigned Index,
-                                           bool HasRealUse);
+  InstructionCost getVectorInstrCostHelper(const Instruction *I, Type *Val,
+                                           unsigned Index, bool HasRealUse);
 
 public:
   explicit AArch64TTIImpl(const AArch64TargetMachine *TM, const Function &F)
@@ -75,6 +76,9 @@ public:
 
   bool areInlineCompatible(const Function *Caller,
                            const Function *Callee) const;
+
+  bool areTypesABICompatible(const Function *Caller, const Function *Callee,
+                             const ArrayRef<Type *> &Types) const;
 
   /// \name Scalar TTI Implementations
   /// @{
@@ -98,6 +102,8 @@ public:
   /// @{
 
   bool enableInterleavedAccessVectorization() { return true; }
+
+  bool enableMaskedInterleavedAccessVectorization() { return ST->hasSVE(); }
 
   unsigned getNumberOfRegisters(unsigned ClassID) const {
     bool Vector = (ClassID == 1);
@@ -131,6 +137,8 @@ public:
     return ST->getVScaleForTuning();
   }
 
+  bool isVScaleKnownToBeAPowerOfTwo() const { return true; }
+
   bool shouldMaximizeVectorBandwidth(TargetTransformInfo::RegisterKind K) const;
 
   /// Try to return an estimate cost factor that can be used as a multiplier
@@ -144,7 +152,7 @@ public:
     return VF.getKnownMinValue() * ST->getVScaleForTuning();
   }
 
-  unsigned getMaxInterleaveFactor(unsigned VF);
+  unsigned getMaxInterleaveFactor(ElementCount VF);
 
   bool prefersVectorizedAddressing() const;
 
@@ -176,8 +184,8 @@ public:
                                      TTI::TargetCostKind CostKind,
                                      unsigned Index);
 
-  InstructionCost getMinMaxReductionCost(VectorType *Ty, VectorType *CondTy,
-                                         bool IsUnsigned,
+  InstructionCost getMinMaxReductionCost(Intrinsic::ID IID, VectorType *Ty,
+                                         FastMathFlags FMF,
                                          TTI::TargetCostKind CostKind);
 
   InstructionCost getArithmeticReductionCostSVE(unsigned Opcode,
@@ -262,7 +270,7 @@ public:
   }
 
   bool isLegalMaskedGatherScatter(Type *DataType) const {
-    if (!ST->hasSVE() || ST->forceStreamingCompatibleSVE())
+    if (!ST->hasSVE() || !ST->isNeonAvailable())
       return false;
 
     // For fixed vectors, scalarize if not using SVE for them.
@@ -347,17 +355,16 @@ public:
     return ST->hasSVE() ? 5 : 0;
   }
 
-  PredicationStyle emitGetActiveLaneMask() const {
+  TailFoldingStyle getPreferredTailFoldingStyle(bool IVUpdateMayOverflow) const {
     if (ST->hasSVE())
-      return PredicationStyle::DataAndControlFlow;
-    return PredicationStyle::None;
+      return IVUpdateMayOverflow
+                 ? TailFoldingStyle::DataAndControlFlowWithoutRuntimeCheck
+                 : TailFoldingStyle::DataAndControlFlow;
+
+    return TailFoldingStyle::DataWithoutLaneMask;
   }
 
-  bool preferPredicateOverEpilogue(Loop *L, LoopInfo *LI, ScalarEvolution &SE,
-                                   AssumptionCache &AC, TargetLibraryInfo *TLI,
-                                   DominatorTree *DT,
-                                   LoopVectorizationLegality *LVL,
-                                   InterleavedAccessInfo *IAI);
+  bool preferPredicateOverEpilogue(TailFoldingInfo *TFI);
 
   bool supportsScalableVectors() const { return ST->hasSVE(); }
 
@@ -392,6 +399,15 @@ public:
   /// @}
 
   bool enableSelectOptimize() { return ST->enableSelectOptimize(); }
+
+  unsigned getStoreMinimumVF(unsigned VF, Type *ScalarMemTy,
+                             Type *ScalarValTy) const {
+    // We can vectorize store v4i8.
+    if (ScalarMemTy->isIntegerTy(8) && isPowerOf2_32(VF) && VF >= 4)
+      return 4;
+
+    return BaseT::getStoreMinimumVF(VF, ScalarMemTy, ScalarValTy);
+  }
 };
 
 } // end namespace llvm

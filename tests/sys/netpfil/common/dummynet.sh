@@ -517,6 +517,102 @@ nat_cleanup()
 	firewall_cleanup $1
 }
 
+pls_basic_head()
+{
+	atf_set descr 'Basic dummynet packet loss rate test'
+	atf_set require.user root
+}
+
+pls_basic_body()
+{
+	fw=$1
+	firewall_init $fw
+	dummynet_init $fw
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}b
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+
+	firewall_config alcatraz ${fw} \
+		"ipfw"	\
+			"ipfw add 65432 ip from any to any" \
+		"pf"	\
+			"pass on ${epair}b"
+
+	# Sanity check
+	atf_check -s exit:0 -o match:'100 packets transmitted, 100 packets received' ping -i .1 -c 100 192.0.2.2
+
+	jexec alcatraz dnctl pipe 1 config plr 0.1
+
+	firewall_config alcatraz ${fw} \
+		"ipfw"	\
+			"ipfw add 1000 pipe 1 ip from 192.0.2.1 to 192.0.2.2" \
+		"pf"	\
+			"pass on ${epair}b dnpipe 1"
+
+	# check if the expected number of pings
+	# are dropped (84 - 96 responses).
+	# repeat up to 6 times if the initial
+	# checks fail
+	atf_check -s exit:0 -o match:'100 packets transmitted, (8[4-9]|9[0-6]) packets received' -r 6:10 ping -i 0.010 -c 100 192.0.2.2
+}
+
+pls_basic_cleanup()
+{
+	firewall_cleanup $1
+}
+
+pls_gilbert_head()
+{
+	atf_set descr 'dummynet Gilbert-Elliott packet loss model test'
+	atf_set require.user root
+}
+
+pls_gilbert_body()
+{
+	fw=$1
+	firewall_init $fw
+	dummynet_init $fw
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}b
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+
+	firewall_config alcatraz ${fw} \
+		"ipfw"	\
+			"ipfw add 65432 ip from any to any" \
+		"pf"	\
+			"pass on ${epair}b"
+
+	# Sanity check
+	atf_check -s exit:0 -o match:'100 packets transmitted, 100 packets received' ping -i .1 -c 100 192.0.2.2
+
+	jexec alcatraz dnctl pipe 1 config plr 0.01,0.1,0.8,0.2
+
+	firewall_config alcatraz ${fw} \
+		"ipfw"	\
+			"ipfw add 1000 pipe 1 ip from 192.0.2.1 to 192.0.2.2" \
+		"pf"	\
+			"pass on ${epair}b dnpipe 1"
+
+	# check if the expected number of pings
+	# are dropped (70 - 85 responses).
+	# repeat up to 6 times if the initial
+	# checks fail
+	atf_check -s exit:0 -o match:'100 packets transmitted, (7[0-9]|8[0-5]) packets received' -r 6:10 ping -i 0.010 -c 100 192.0.2.2
+}
+
+pls_gilbert_cleanup()
+{
+	firewall_cleanup $1
+}
+
+
+
 setup_tests		\
 	interface_removal	\
 		ipfw	\
@@ -539,4 +635,10 @@ setup_tests		\
 		ipfw	\
 		pf	\
 	nat		\
+		pf	\
+	pls_basic	\
+		ipfw	\
+		pf	\
+	pls_gilbert	\
+		ipfw	\
 		pf

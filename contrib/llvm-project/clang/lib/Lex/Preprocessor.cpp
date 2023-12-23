@@ -860,7 +860,7 @@ bool Preprocessor::HandleIdentifier(Token &Identifier) {
   // keyword when we're in a caching lexer, because caching lexers only get
   // used in contexts where import declarations are disallowed.
   //
-  // Likewise if this is the C++ Modules TS import keyword.
+  // Likewise if this is the standard C++ import keyword.
   if (((LastTokenWasAt && II.isModulesImport()) ||
        Identifier.is(tok::kw_import)) &&
       !InMacroArgs && !DisableMacroExpansion &&
@@ -1274,7 +1274,7 @@ bool Preprocessor::LexAfterModuleImport(Token &Result) {
 
   // If we're expecting a '.' or a ';', and we got a '.', then wait until we
   // see the next identifier. (We can also see a '[[' that begins an
-  // attribute-specifier-seq here under the C++ Modules TS.)
+  // attribute-specifier-seq here under the Standard C++ Modules.)
   if (!ModuleImportExpectsIdentifier && Result.getKind() == tok::period) {
     ModuleImportExpectsIdentifier = true;
     CurLexerKind = CLK_LexAfterModuleImport;
@@ -1299,12 +1299,12 @@ bool Preprocessor::LexAfterModuleImport(Token &Result) {
     SemiLoc = Suffix.back().getLocation();
   }
 
-  // Under the Modules TS, the dot is just part of the module name, and not
-  // a real hierarchy separator. Flatten such module names now.
+  // Under the standard C++ Modules, the dot is just part of the module name,
+  // and not a real hierarchy separator. Flatten such module names now.
   //
   // FIXME: Is this the right level to be performing this transformation?
   std::string FlatModuleName;
-  if (getLangOpts().ModulesTS || getLangOpts().CPlusPlusModules) {
+  if (getLangOpts().CPlusPlusModules) {
     for (auto &Piece : NamedModuleImportPath) {
       // If the FlatModuleName ends with colon, it implies it is a partition.
       if (!FlatModuleName.empty() && FlatModuleName.back() != ':')
@@ -1484,6 +1484,75 @@ void Preprocessor::emitFinalMacroWarning(const Token &Identifier,
   Diag(Identifier, diag::warn_pragma_final_macro)
       << Identifier.getIdentifierInfo() << (IsUndef ? 0 : 1);
   Diag(*A.FinalAnnotationLoc, diag::note_pp_macro_annotation) << 2;
+}
+
+bool Preprocessor::isSafeBufferOptOut(const SourceManager &SourceMgr,
+                                           const SourceLocation &Loc) const {
+  // Try to find a region in `SafeBufferOptOutMap` where `Loc` is in:
+  auto FirstRegionEndingAfterLoc = llvm::partition_point(
+      SafeBufferOptOutMap,
+      [&SourceMgr,
+       &Loc](const std::pair<SourceLocation, SourceLocation> &Region) {
+        return SourceMgr.isBeforeInTranslationUnit(Region.second, Loc);
+      });
+
+  if (FirstRegionEndingAfterLoc != SafeBufferOptOutMap.end()) {
+    // To test if the start location of the found region precedes `Loc`:
+    return SourceMgr.isBeforeInTranslationUnit(FirstRegionEndingAfterLoc->first,
+                                               Loc);
+  }
+  // If we do not find a region whose end location passes `Loc`, we want to
+  // check if the current region is still open:
+  if (!SafeBufferOptOutMap.empty() &&
+      SafeBufferOptOutMap.back().first == SafeBufferOptOutMap.back().second)
+    return SourceMgr.isBeforeInTranslationUnit(SafeBufferOptOutMap.back().first,
+                                               Loc);
+  return false;
+}
+
+bool Preprocessor::enterOrExitSafeBufferOptOutRegion(
+    bool isEnter, const SourceLocation &Loc) {
+  if (isEnter) {
+    if (isPPInSafeBufferOptOutRegion())
+      return true; // invalid enter action
+    InSafeBufferOptOutRegion = true;
+    CurrentSafeBufferOptOutStart = Loc;
+
+    // To set the start location of a new region:
+
+    if (!SafeBufferOptOutMap.empty()) {
+      [[maybe_unused]] auto *PrevRegion = &SafeBufferOptOutMap.back();
+      assert(PrevRegion->first != PrevRegion->second &&
+             "Shall not begin a safe buffer opt-out region before closing the "
+             "previous one.");
+    }
+    // If the start location equals to the end location, we call the region a
+    // open region or a unclosed region (i.e., end location has not been set
+    // yet).
+    SafeBufferOptOutMap.emplace_back(Loc, Loc);
+  } else {
+    if (!isPPInSafeBufferOptOutRegion())
+      return true; // invalid enter action
+    InSafeBufferOptOutRegion = false;
+
+    // To set the end location of the current open region:
+
+    assert(!SafeBufferOptOutMap.empty() &&
+           "Misordered safe buffer opt-out regions");
+    auto *CurrRegion = &SafeBufferOptOutMap.back();
+    assert(CurrRegion->first == CurrRegion->second &&
+           "Set end location to a closed safe buffer opt-out region");
+    CurrRegion->second = Loc;
+  }
+  return false;
+}
+
+bool Preprocessor::isPPInSafeBufferOptOutRegion() {
+  return InSafeBufferOptOutRegion;
+}
+bool Preprocessor::isPPInSafeBufferOptOutRegion(SourceLocation &StartLoc) {
+  StartLoc = CurrentSafeBufferOptOutStart;
+  return InSafeBufferOptOutRegion;
 }
 
 ModuleLoader::~ModuleLoader() = default;

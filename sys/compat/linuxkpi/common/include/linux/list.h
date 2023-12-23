@@ -225,6 +225,11 @@ list_del_init(struct list_head *entry)
 
 #define	list_for_each_prev(p, h) for (p = (h)->prev; p != (h); p = (p)->prev)
 
+#define	list_for_each_prev_safe(p, n, h) 				\
+	for (p = (h)->prev, n = (p)->prev;				\
+	     p != (h);							\
+	     p = n, n = (p)->prev)
+
 #define	list_for_each_entry_from_reverse(p, h, field)	\
 	for (; &p->field != (h);			\
 	     p = list_prev_entry(p, field))

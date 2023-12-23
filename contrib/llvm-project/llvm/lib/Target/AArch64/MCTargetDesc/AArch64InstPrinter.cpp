@@ -213,8 +213,7 @@ void AArch64InstPrinter::printInst(const MCInst *MI, uint64_t Address,
     int ImmS = MI->getOperand(4).getImm();
 
     if ((Op2.getReg() == AArch64::WZR || Op2.getReg() == AArch64::XZR) &&
-        (ImmR == 0 || ImmS < ImmR) &&
-        STI.getFeatureBits()[AArch64::HasV8_2aOps]) {
+        (ImmR == 0 || ImmS < ImmR) && STI.hasFeature(AArch64::HasV8_2aOps)) {
       // BFC takes precedence over its entire range, sligtly differently to BFI.
       int BitWidth = Opcode == AArch64::BFMXri ? 64 : 32;
       int LSB = (BitWidth - ImmR) % BitWidth;
@@ -283,6 +282,23 @@ void AArch64InstPrinter::printInst(const MCInst *MI, uint64_t Address,
     return;
   }
 
+  auto PrintMovImm = [&](uint64_t Value, int RegWidth) {
+    int64_t SExtVal = SignExtend64(Value, RegWidth);
+    O << "\tmov\t";
+    printRegName(O, MI->getOperand(0).getReg());
+    O << ", " << markup("<imm:") << "#"
+      << formatImm(SExtVal) << markup(">");
+    if (CommentStream) {
+      // Do the opposite to that used for instruction operands.
+      if (getPrintImmHex())
+        *CommentStream << '=' << formatDec(SExtVal) << '\n';
+      else {
+        uint64_t Mask = maskTrailingOnes<uint64_t>(RegWidth);
+        *CommentStream << '=' << formatHex(SExtVal & Mask) << '\n';
+      }
+    }
+  };
+
   // MOVZ, MOVN and "ORR wzr, #imm" instructions are aliases for MOV, but their
   // domains overlap so they need to be prioritized. The chain is "MOVZ lsl #0 >
   // MOVZ lsl #N > MOVN lsl #0 > MOVN lsl #N > ORR". The highest instruction
@@ -296,10 +312,7 @@ void AArch64InstPrinter::printInst(const MCInst *MI, uint64_t Address,
 
     if (AArch64_AM::isMOVZMovAlias(Value, Shift,
                                    Opcode == AArch64::MOVZXi ? 64 : 32)) {
-      O << "\tmov\t";
-      printRegName(O, MI->getOperand(0).getReg());
-      O << ", " << markup("<imm:") << "#"
-        << formatImm(SignExtend64(Value, RegWidth)) << markup(">");
+      PrintMovImm(Value, RegWidth);
       return;
     }
   }
@@ -313,10 +326,7 @@ void AArch64InstPrinter::printInst(const MCInst *MI, uint64_t Address,
       Value = Value & 0xffffffff;
 
     if (AArch64_AM::isMOVNMovAlias(Value, Shift, RegWidth)) {
-      O << "\tmov\t";
-      printRegName(O, MI->getOperand(0).getReg());
-      O << ", " << markup("<imm:") << "#"
-        << formatImm(SignExtend64(Value, RegWidth)) << markup(">");
+      PrintMovImm(Value, RegWidth);
       return;
     }
   }
@@ -329,10 +339,7 @@ void AArch64InstPrinter::printInst(const MCInst *MI, uint64_t Address,
     uint64_t Value = AArch64_AM::decodeLogicalImmediate(
         MI->getOperand(2).getImm(), RegWidth);
     if (!AArch64_AM::isAnyMOVWMovAlias(Value, RegWidth)) {
-      O << "\tmov\t";
-      printRegName(O, MI->getOperand(0).getReg());
-      O << ", " << markup("<imm:") << "#"
-        << formatImm(SignExtend64(Value, RegWidth)) << markup(">");
+      PrintMovImm(Value, RegWidth);
       return;
     }
   }
@@ -1773,19 +1780,23 @@ void AArch64InstPrinter::printAlignedLabel(const MCInst *MI, uint64_t Address,
   }
 }
 
-void AArch64InstPrinter::printAdrpLabel(const MCInst *MI, uint64_t Address,
-                                        unsigned OpNum,
-                                        const MCSubtargetInfo &STI,
-                                        raw_ostream &O) {
+void AArch64InstPrinter::printAdrAdrpLabel(const MCInst *MI, uint64_t Address,
+                                           unsigned OpNum,
+                                           const MCSubtargetInfo &STI,
+                                           raw_ostream &O) {
   const MCOperand &Op = MI->getOperand(OpNum);
 
   // If the label has already been resolved to an immediate offset (say, when
   // we're running the disassembler), just print the immediate.
   if (Op.isImm()) {
-    const int64_t Offset = Op.getImm() * 4096;
+    int64_t Offset = Op.getImm();
+    if (MI->getOpcode() == AArch64::ADRP) {
+      Offset = Offset * 4096;
+      Address = Address & -4096;
+    }
     O << markup("<imm:");
     if (PrintBranchImmAsAddress)
-      O << formatHex((Address & -4096) + Offset);
+      O << formatHex(Address + Offset);
     else
       O << "#" << Offset;
     O << markup(">");

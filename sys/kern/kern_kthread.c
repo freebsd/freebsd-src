@@ -286,6 +286,13 @@ kthread_add1(void (*func)(void *), void *arg, struct proc *p,
 	}
 	oldtd = FIRST_THREAD_IN_PROC(p);
 
+	/*
+	 * Set the new thread pointer before the thread starts running: *newtdp
+	 * could be a pointer that is referenced by "func".
+	 */
+	if (newtdp != NULL)
+		*newtdp = newtd;
+
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	bcopy(&oldtd->td_startcopy, &newtd->td_startcopy,
@@ -330,8 +337,6 @@ kthread_add1(void (*func)(void *), void *arg, struct proc *p,
 		thread_lock(newtd);
 		sched_add(newtd, SRQ_BORING); 
 	}
-	if (newtdp)
-		*newtdp = newtd;
 	return (0);
 }
 

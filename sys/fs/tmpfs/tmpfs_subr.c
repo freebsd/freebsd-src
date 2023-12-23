@@ -73,6 +73,9 @@ SYSCTL_NODE(_vfs, OID_AUTO, tmpfs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "tmpfs file system");
 
 static long tmpfs_pages_reserved = TMPFS_PAGES_MINRESERVED;
+static long tmpfs_pages_avail_init;
+static int tmpfs_mem_percent = TMPFS_MEM_PERCENT;
+static void tmpfs_set_reserve_from_percent(void);
 
 MALLOC_DEFINE(M_TMPFSDIR, "tmpfs dir", "tmpfs dirent structure");
 static uma_zone_t tmpfs_node_pool;
@@ -290,6 +293,8 @@ tmpfs_can_alloc_page(vm_object_t obj, vm_pindex_t pindex)
 	if (tm == NULL || vm_pager_has_page(obj, pindex, NULL, NULL) ||
 	    tm->tm_pages_max == 0)
 		return (true);
+	if (tm->tm_pages_max == ULONG_MAX)
+		return (tmpfs_mem_avail() >= 1);
 	return (tm->tm_pages_max > atomic_load_long(&tm->tm_pages_used));
 }
 
@@ -365,6 +370,9 @@ tmpfs_subr_init(void)
 	    sizeof(struct tmpfs_node), tmpfs_node_ctor, tmpfs_node_dtor,
 	    tmpfs_node_init, tmpfs_node_fini, UMA_ALIGN_PTR, 0);
 	VFS_SMR_ZONE_SET(tmpfs_node_pool);
+
+	tmpfs_pages_avail_init = tmpfs_mem_avail();
+	tmpfs_set_reserve_from_percent();
 	return (0);
 }
 
@@ -399,9 +407,41 @@ sysctl_mem_reserved(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_vfs_tmpfs, OID_AUTO, memory_reserved,
-    CTLTYPE_LONG|CTLFLAG_MPSAFE|CTLFLAG_RW, &tmpfs_pages_reserved, 0,
+    CTLTYPE_LONG | CTLFLAG_MPSAFE | CTLFLAG_RW, &tmpfs_pages_reserved, 0,
     sysctl_mem_reserved, "L",
     "Amount of available memory and swap below which tmpfs growth stops");
+
+static int
+sysctl_mem_percent(SYSCTL_HANDLER_ARGS)
+{
+	int error, percent;
+
+	percent = *(int *)arg1;
+	error = sysctl_handle_int(oidp, &percent, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	if ((unsigned) percent > 100)
+		return (EINVAL);
+
+	*(long *)arg1 = percent;
+	tmpfs_set_reserve_from_percent();
+	return (0);
+}
+
+static void
+tmpfs_set_reserve_from_percent(void)
+{
+	size_t reserved;
+
+	reserved = tmpfs_pages_avail_init * (100 - tmpfs_mem_percent) / 100;
+	tmpfs_pages_reserved = max(reserved, TMPFS_PAGES_MINRESERVED);
+}
+
+SYSCTL_PROC(_vfs_tmpfs, OID_AUTO, memory_percent,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, &tmpfs_mem_percent, 0,
+    sysctl_mem_percent, "I",
+    "Percent of available memory that can be used if no size limit");
 
 static __inline int tmpfs_dirtree_cmp(struct tmpfs_dirent *a,
     struct tmpfs_dirent *b);

@@ -77,35 +77,35 @@ struct dn_heap7 {
 
 /* Common to 7.2 and 8 */
 struct dn_flow_set {
-	SLIST_ENTRY(dn_flow_set)    next;   /* linked list in a hash slot */
+	SLIST_ENTRY(dn_flow_set) next;	/* linked list in a hash slot */
 
-	u_short fs_nr ;             /* flow_set number       */
+	u_short fs_nr ;			/* flow_set number       */
 	u_short flags_fs;
 #define DNOLD_HAVE_FLOW_MASK   0x0001
-#define DNOLD_IS_RED       0x0002
+#define DNOLD_IS_RED           0x0002
 #define DNOLD_IS_GENTLE_RED    0x0004
-#define DNOLD_QSIZE_IS_BYTES   0x0008  /* queue size is measured in bytes */
-#define DNOLD_NOERROR      0x0010  /* do not report ENOBUFS on drops  */
-#define DNOLD_HAS_PROFILE      0x0020  /* the pipe has a delay profile. */
-#define DNOLD_IS_PIPE      0x4000
-#define DNOLD_IS_QUEUE     0x8000
+#define DNOLD_QSIZE_IS_BYTES   0x0008	/* queue size is measured in bytes */
+#define DNOLD_NOERROR          0x0010	/* do not report ENOBUFS on drops  */
+#define DNOLD_HAS_PROFILE      0x0020	/* the pipe has a delay profile. */
+#define DNOLD_IS_PIPE          0x4000
+#define DNOLD_IS_QUEUE         0x8000
 
-	struct dn_pipe7 *pipe ;  /* pointer to parent pipe */
-	u_short parent_nr ;     /* parent pipe#, 0 if local to a pipe */
+	struct dn_pipe7 *pipe ;		/* pointer to parent pipe */
+	u_short parent_nr ;		/* parent pipe#, 0 if local to a pipe */
 
-	int weight ;        /* WFQ queue weight */
-	int qsize ;         /* queue size in slots or bytes */
-	int plr ;           /* pkt loss rate (2^31-1 means 100%) */
+	int weight ;			/* WFQ queue weight */
+	int qsize ;			/* queue size in slots or bytes */
+	int plr[4] ;			/* pkt loss rate (2^31-1 means 100%) */
 
 	struct ipfw_flow_id flow_mask ;
 
 	/* hash table of queues onto this flow_set */
-	int rq_size ;       /* number of slots */
-	int rq_elements ;       /* active elements */
-	struct dn_flow_queue7 **rq;  /* array of rq_size entries */
+	int rq_size ;			/* number of slots */
+	int rq_elements ;		/* active elements */
+	struct dn_flow_queue7 **rq ;	/* array of rq_size entries */
 
-	u_int32_t last_expired ;    /* do not expire too frequently */
-	int backlogged ;        /* #active queues for this flowset */
+	u_int32_t last_expired ;	/* do not expire too frequently */
+	int backlogged ;		/* #active queues for this flowset */
 
         /* RED parameters */
 #define SCALE_RED               16
@@ -420,7 +420,10 @@ dn_compat_config_queue(struct dn_fs *fs, void* v)
 	fs->flow_mask = f->flow_mask;
 	fs->buckets = f->rq_size;
 	fs->qsize = f->qsize;
-	fs->plr = f->plr;
+	fs->plr[0] = f->plr[0];
+	fs->plr[1] = f->plr[1];
+	fs->plr[2] = f->plr[2];
+	fs->plr[3] = f->plr[3];
 	fs->par[0] = f->weight;
 	fs->flags = convertflags2new(f->flags_fs);
 	if (fs->flags & DN_IS_GENTLE_RED || fs->flags & DN_IS_RED) {
@@ -645,7 +648,10 @@ dn_c_copy_pipe(struct dn_schk *s, struct copy_args *a, int nq)
 
 	fs->parent_nr = l->link_nr - DN_MAX_ID;
 	fs->qsize = f->fs.qsize;
-	fs->plr = f->fs.plr;
+	fs->plr[0] = f->fs.plr[0];
+	fs->plr[1] = f->fs.plr[1];
+	fs->plr[2] = f->fs.plr[2];
+	fs->plr[3] = f->fs.plr[3];
 	fs->w_q = f->fs.w_q;
 	fs->max_th = f->max_th;
 	fs->min_th = f->min_th;
@@ -698,7 +704,10 @@ dn_c_copy_fs(struct dn_fsk *f, struct copy_args *a, int nq)
 	fs->next.sle_next = (struct dn_flow_set *)DN_IS_QUEUE;
 	fs->fs_nr = f->fs.fs_nr;
 	fs->qsize = f->fs.qsize;
-	fs->plr = f->fs.plr;
+	fs->plr[0] = f->fs.plr[0];
+	fs->plr[1] = f->fs.plr[1];
+	fs->plr[2] = f->fs.plr[2];
+	fs->plr[3] = f->fs.plr[3];
 	fs->w_q = f->fs.w_q;
 	fs->max_th = f->max_th;
 	fs->min_th = f->min_th;

@@ -206,7 +206,7 @@ unsigned char ComPortBaudRate[256];
 void
 DoBaudRate(char *arg)
 {
-    char *temp, temp2[10];
+    char *temp, temp2[11];
     int i;
     uint32_t baudrate;
 

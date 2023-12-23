@@ -84,7 +84,7 @@ struct xen_intr_pcpu_data {
 	 * A bitmap of ports that can be serviced from this CPU.
 	 * A set bit means interrupt handling is enabled.
 	 */
-	u_long	evtchn_enabled[sizeof(u_long) * 8];
+	xen_ulong_t	evtchn_enabled[sizeof(xen_ulong_t) * 8];
 };
 
 /*
@@ -369,7 +369,7 @@ xen_intr_handle_upcall(void *unused __unused)
 	/* Clear master flag /before/ clearing selector flag. */
 	wmb();
 #endif
-	l1 = atomic_readandclear_long(&v->evtchn_pending_sel);
+	l1 = atomic_readandclear_xen_ulong(&v->evtchn_pending_sel);
 
 	l1i = pc->last_processed_l1i;
 	l2i = pc->last_processed_l2i;
@@ -475,7 +475,7 @@ xen_intr_init(void *dummy __unused)
 	}
 
 	for (i = 0; i < nitems(s->evtchn_mask); i++)
-		atomic_store_rel_long(&s->evtchn_mask[i], ~0);
+		atomic_store_rel_xen_ulong(&s->evtchn_mask[i], ~0);
 
 	xen_arch_intr_init();
 
@@ -582,7 +582,7 @@ xen_intr_resume(void)
 
 	/* Mask all event channels. */
 	for (i = 0; i < nitems(s->evtchn_mask); i++)
-		atomic_store_rel_long(&s->evtchn_mask[i], ~0);
+		atomic_store_rel_xen_ulong(&s->evtchn_mask[i], ~0);
 
 	/* Clear existing port mappings */
 	for (isrc_idx = 0; isrc_idx < NR_EVENT_CHANNELS; ++isrc_idx)

@@ -820,7 +820,7 @@ tun_create_device(struct tuntap_driver *drv, int unit, struct ucred *cr,
 
 	make_dev_args_init(&args);
 	if (cr != NULL)
-		args.mda_flags = MAKEDEV_REF;
+		args.mda_flags = MAKEDEV_REF | MAKEDEV_CHECKNAME;
 	args.mda_devsw = &drv->cdevsw;
 	args.mda_cr = cr;
 	args.mda_uid = UID_UUCP;
