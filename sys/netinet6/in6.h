@@ -58,8 +58,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)in.h	8.3 (Berkeley) 1/3/94
  */
 
 #ifndef __KAME_NETINET_IN_H_INCLUDED_
@@ -677,7 +675,6 @@ void	in6_sin6_2_sin(struct sockaddr_in *sin,
 void	in6_sin_2_v4mapsin6(struct sockaddr_in *sin,
 				 struct sockaddr_in6 *sin6);
 void	in6_sin6_2_sin_in_sock(struct sockaddr *nam);
-void	in6_sin_2_v4mapsin6_in_sock(struct sockaddr **nam);
 extern void addrsel_policy_init(void);
 
 #define	satosin6(sa)	((struct sockaddr_in6 *)(sa))

@@ -29,7 +29,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bio.h>
 #include <sys/condvar.h>
@@ -44,11 +43,14 @@
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
+#include <sys/proc.h>
+#include <sys/reboot.h>
 #include <sys/socket.h>
 #include <sys/sockopt.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/sx.h>
+
 #include <vm/uma.h>
 
 #include <cam/cam.h>
@@ -2678,11 +2680,12 @@ iscsi_terminate_sessions(struct iscsi_softc *sc)
 }
 
 static void
-iscsi_shutdown_pre(struct iscsi_softc *sc)
+iscsi_shutdown_pre(struct iscsi_softc *sc, int howto)
 {
 	struct iscsi_session *is;
 
-	if (!fail_on_shutdown)
+	if (!fail_on_shutdown || (howto & RB_NOSYNC) != 0 ||
+	    SCHEDULER_STOPPED())
 		return;
 
 	/*
@@ -2711,10 +2714,10 @@ iscsi_shutdown_pre(struct iscsi_softc *sc)
 }
 
 static void
-iscsi_shutdown_post(struct iscsi_softc *sc)
+iscsi_shutdown_post_sync(struct iscsi_softc *sc, int howto)
 {
 
-	if (!KERNEL_PANICKED()) {
+	if ((howto & RB_NOSYNC) == 0) {
 		ISCSI_DEBUG("removing all sessions due to shutdown");
 		iscsi_terminate_sessions(sc);
 	}
@@ -2751,7 +2754,7 @@ iscsi_load(void)
 	 * cam_periph_runccb().
 	 */
 	sc->sc_shutdown_post_eh = EVENTHANDLER_REGISTER(shutdown_post_sync,
-	    iscsi_shutdown_post, sc, SHUTDOWN_PRI_DEFAULT - 1);
+	    iscsi_shutdown_post_sync, sc, SHUTDOWN_PRI_DEFAULT - 1);
 
 	return (0);
 }

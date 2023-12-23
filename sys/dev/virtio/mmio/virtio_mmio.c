@@ -37,7 +37,6 @@
  * This driver is heavily based on VirtIO PCI interface driver.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

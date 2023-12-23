@@ -165,6 +165,9 @@ struct vt_device {
 	term_char_t		*vd_drawn;	/* (?) Most recent char drawn. */
 	term_color_t		*vd_drawnfg;	/* (?) Most recent fg color drawn. */
 	term_color_t		*vd_drawnbg;	/* (?) Most recent bg color drawn. */
+
+	struct mtx		 vd_flush_lock;	/* (?) vt_flush() lock. */
+	bool			*vd_pos_to_flush;/* (?) Positions to flush. */
 };
 
 #define	VD_PASTEBUF(vd)	((vd)->vd_pastebuf.vpb_buf)
@@ -174,6 +177,14 @@ struct vt_device {
 #define	VT_LOCK(vd)	mtx_lock(&(vd)->vd_lock)
 #define	VT_UNLOCK(vd)	mtx_unlock(&(vd)->vd_lock)
 #define	VT_LOCK_ASSERT(vd, what)	mtx_assert(&(vd)->vd_lock, what)
+
+#define	VT_FLUSH_LOCK(vd)	\
+    if ((vd)->vd_driver->vd_bitblt_after_vtbuf_unlock) \
+	    mtx_lock(&(vd)->vd_flush_lock)
+
+#define	VT_FLUSH_UNLOCK(vd)	\
+    if ((vd)->vd_driver->vd_bitblt_after_vtbuf_unlock) \
+	    mtx_unlock(&(vd)->vd_flush_lock)
 
 void vt_resume(struct vt_device *vd);
 void vt_resume_flush_timer(struct vt_window *vw, int ms);
@@ -376,6 +387,14 @@ struct vt_driver {
 #define	VD_PRIORITY_DUMB	10
 #define	VD_PRIORITY_GENERIC	100
 #define	VD_PRIORITY_SPECIFIC	1000
+
+	/*
+	 * Should vd_bitblt_text() be called after unlocking vtbuf? If true,
+	 * characters are copied before vd_bitblt_bmp() is called.
+	 *
+	 * This is only valid when the default bitblt_text callback is used.
+	 */
+	bool		vd_bitblt_after_vtbuf_unlock;
 };
 
 /*

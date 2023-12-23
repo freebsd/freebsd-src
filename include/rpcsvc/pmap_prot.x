@@ -34,9 +34,6 @@
 
 #ifdef RPC_HDR
 %
-%#pragma ident	"@(#)pmap_prot.x	1.6	94/04/29 SMI"
-%#include <sys/cdefs.h>
-%
 %#ifndef _KERNEL
 %
 #endif

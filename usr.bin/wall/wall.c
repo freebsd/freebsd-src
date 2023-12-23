@@ -29,17 +29,6 @@
  * SUCH DAMAGE.
  */
 
-
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1988, 1990, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif
-
-#ifndef lint
-static const char sccsid[] = "@(#)wall.c	8.2 (Berkeley) 11/16/93";
-#endif
-
 /*
  * This program is not related to David Wall, whose Stanford Ph.D. thesis
  * is entitled "Mechanisms for Broadcast and Selective Broadcast".

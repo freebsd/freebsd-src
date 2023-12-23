@@ -51,10 +51,7 @@ basic_symlink_body()
 	atf_check cp baz foo
 	atf_check test '!' -L foo
 
-	atf_check -e inline:"cp: baz and baz are identical (not copied).\n" \
-	    -s exit:1 cp baz baz
-	atf_check -e inline:"cp: bar and baz are identical (not copied).\n" \
-	    -s exit:1 cp baz bar
+	atf_check cmp foo bar
 }
 
 atf_test_case chrdev
@@ -69,6 +66,35 @@ chrdev_body()
 	check_size trunc 4
 	atf_check cp /dev/null trunc
 	check_size trunc 0
+}
+
+atf_test_case hardlink
+hardlink_body()
+{
+	echo "foo" >foo
+	atf_check cp -l foo bar
+	atf_check -o inline:"foo\n" cat bar
+	atf_check_equal "$(stat -f%d,%i foo)" "$(stat -f%d,%i bar)"
+}
+
+atf_test_case hardlink_exists
+hardlink_exists_body()
+{
+	echo "foo" >foo
+	echo "bar" >bar
+	atf_check -s not-exit:0 -e match:exists cp -l foo bar
+	atf_check -o inline:"bar\n" cat bar
+	atf_check_not_equal "$(stat -f%d,%i foo)" "$(stat -f%d,%i bar)"
+}
+
+atf_test_case hardlink_exists_force
+hardlink_exists_force_body()
+{
+	echo "foo" >foo
+	echo "bar" >bar
+	atf_check cp -fl foo bar
+	atf_check -o inline:"foo\n" cat bar
+	atf_check_equal "$(stat -f%d,%i foo)" "$(stat -f%d,%i bar)"
 }
 
 atf_test_case matching_srctgt
@@ -198,6 +224,22 @@ recursive_link_Lflag_body()
 	    '(' ! -L foo-mirror/foo/baz ')'
 }
 
+atf_test_case samefile
+samefile_body()
+{
+	echo "foo" >foo
+	ln foo bar
+	ln -s bar baz
+	atf_check -e match:"baz and baz are identical" \
+	    -s exit:1 cp baz baz
+	atf_check -e match:"bar and baz are identical" \
+	    -s exit:1 cp baz bar
+	atf_check -e match:"foo and baz are identical" \
+	    -s exit:1 cp baz foo
+	atf_check -e match:"bar and foo are identical" \
+	    -s exit:1 cp foo bar
+}
+
 file_is_sparse()
 {
 	atf_check ${0%/*}/sparse "$1"
@@ -205,7 +247,7 @@ file_is_sparse()
 
 files_are_equal()
 {
-	atf_check test "$(stat -f "%d %i" "$1")" != "$(stat -f "%d %i" "$2")"
+	atf_check_not_equal "$(stat -f%d,%i "$1")" "$(stat -f%d,%i "$2")"
 	atf_check cmp "$1" "$2"
 }
 
@@ -293,11 +335,42 @@ standalone_Pflag_body()
 	atf_check -o inline:'Symbolic Link\n' stat -f %SHT baz
 }
 
+atf_test_case symlink
+symlink_body()
+{
+	echo "foo" >foo
+	atf_check cp -s foo bar
+	atf_check -o inline:"foo\n" cat bar
+	atf_check -o inline:"foo\n" readlink bar
+}
+
+atf_test_case symlink_exists
+symlink_exists_body()
+{
+	echo "foo" >foo
+	echo "bar" >bar
+	atf_check -s not-exit:0 -e match:exists cp -s foo bar
+	atf_check -o inline:"bar\n" cat bar
+}
+
+atf_test_case symlink_exists_force
+symlink_exists_force_body()
+{
+	echo "foo" >foo
+	echo "bar" >bar
+	atf_check cp -fs foo bar
+	atf_check -o inline:"foo\n" cat bar
+	atf_check -o inline:"foo\n" readlink bar
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case basic
 	atf_add_test_case basic_symlink
 	atf_add_test_case chrdev
+	atf_add_test_case hardlink
+	atf_add_test_case hardlink_exists
+	atf_add_test_case hardlink_exists_force
 	atf_add_test_case matching_srctgt
 	atf_add_test_case matching_srctgt_contained
 	atf_add_test_case matching_srctgt_link
@@ -305,10 +378,14 @@ atf_init_test_cases()
 	atf_add_test_case recursive_link_dflt
 	atf_add_test_case recursive_link_Hflag
 	atf_add_test_case recursive_link_Lflag
+	atf_add_test_case samefile
 	atf_add_test_case sparse_leading_hole
 	atf_add_test_case sparse_multiple_holes
 	atf_add_test_case sparse_only_hole
 	atf_add_test_case sparse_to_dev
 	atf_add_test_case sparse_trailing_hole
 	atf_add_test_case standalone_Pflag
+	atf_add_test_case symlink
+	atf_add_test_case symlink_exists
+	atf_add_test_case symlink_exists_force
 }

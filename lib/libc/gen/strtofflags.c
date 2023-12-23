@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)stat_flags.c	8.1 (Berkeley) 5/31/93");
 #include <sys/types.h>
 #include <sys/stat.h>
 

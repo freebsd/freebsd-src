@@ -21,7 +21,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 15, 2021
+.Dd December 6, 2023
 .Dt CAP_NET 3
 .Os
 .Sh NAME
@@ -84,22 +84,31 @@
 The functions
 .Fn cap_bind ,
 .Fn cap_connect ,
+.Fn cap_getaddrinfo ,
+.Fn cap_getnameinfo ,
 .Fn cap_gethostbyname ,
 .Fn cap_gethostbyname2 ,
-.Fn cap_gethostbyaddr
 and
-.Fn cap_getnameinfo
+.Fn cap_gethostbyaddr
 provide a set of APIs equivalent to
 .Xr bind 2 ,
 .Xr connect 2 ,
+.Xr getaddrinfo 3 ,
+.Xr getnameinfo 3 ,
 .Xr gethostbyname 3 ,
 .Xr gethostbyname2 3 ,
-.Xr gethostbyaddr 3
 and
-.Xr getnameinfo 3
+.Xr gethostbyaddr 3
 except that a connection to the
 .Nm system.net
 service needs to be provided.
+.Pp
+These functions, as well as
+.Fn cap_net_limit ,
+are reentrant but not thread-safe.
+That is, they may be called from separate threads only with different
+.Vt cap_channel_t
+arguments or with synchronization.
 .Sh LIMITS
 By default, the cap_net capability provides unrestricted access to the network
 namespace.
@@ -188,17 +197,14 @@ any port will be accepted in the
 .Fn cap_connect
 function.
 .Pp
+The
 .Fn cap_net_limit
-applies a set of sysctl limits to the capability, denying access to sysctl
-variables not belonging to the set.
+will consume and apply the limits.
 .Pp
 Once a set of limits is applied, subsequent calls to
 .Fn cap_net_limit
 will fail unless the new set is a subset of the current set.
 .Pp
-The
-.Fn cap_net_limit
-will consume the limits.
 If the
 .Fn cap_net_limit
 was not called the rights may be freed using

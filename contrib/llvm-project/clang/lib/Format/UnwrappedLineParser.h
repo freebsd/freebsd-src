@@ -15,10 +15,14 @@
 #ifndef LLVM_CLANG_LIB_FORMAT_UNWRAPPEDLINEPARSER_H
 #define LLVM_CLANG_LIB_FORMAT_UNWRAPPEDLINEPARSER_H
 
+#include "Encoding.h"
 #include "FormatToken.h"
+#include "Macros.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Format/Format.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/Regex.h"
 #include <list>
 #include <stack>
@@ -57,6 +61,9 @@ struct UnwrappedLine {
 
   bool MustBeDeclaration;
 
+  /// Whether the parser has seen \c decltype(auto) in this line.
+  bool SeenDecltypeAuto = false;
+
   /// \c True if this line should be indented by ContinuationIndent in
   /// addition to the normal indention level.
   bool IsContinuation = false;
@@ -76,6 +83,19 @@ struct UnwrappedLine {
   unsigned FirstStartColumn = 0;
 };
 
+/// Interface for users of the UnwrappedLineParser to receive the parsed lines.
+/// Parsing a single snippet of code can lead to multiple runs, where each
+/// run is a coherent view of the file.
+///
+/// For example, different runs are generated:
+/// - for different combinations of #if blocks
+/// - when macros are involved, for the expanded code and the as-written code
+///
+/// Some tokens will only be visible in a subset of the runs.
+/// For each run, \c UnwrappedLineParser will call \c consumeUnwrappedLine
+/// for each parsed unwrapped line, and then \c finishRun to indicate
+/// that the set of unwrapped lines before is one coherent view of the
+/// code snippet to be formatted.
 class UnwrappedLineConsumer {
 public:
   virtual ~UnwrappedLineConsumer() {}
@@ -87,10 +107,12 @@ class FormatTokenSource;
 
 class UnwrappedLineParser {
 public:
-  UnwrappedLineParser(const FormatStyle &Style,
+  UnwrappedLineParser(SourceManager &SourceMgr, const FormatStyle &Style,
                       const AdditionalKeywords &Keywords,
                       unsigned FirstStartColumn, ArrayRef<FormatToken *> Tokens,
-                      UnwrappedLineConsumer &Callback);
+                      UnwrappedLineConsumer &Callback,
+                      llvm::SpecificBumpPtrAllocator<FormatToken> &Allocator,
+                      IdentifierTable &IdentTable);
 
   void parse();
 
@@ -137,17 +159,18 @@ private:
   bool tryToParseBracedList();
   bool parseBracedList(bool ContinueOnSemicolons = false, bool IsEnum = false,
                        tok::TokenKind ClosingBraceKind = tok::r_brace);
-  void parseParens(TokenType AmpAmpTokenType = TT_Unknown);
+  bool parseParens(TokenType AmpAmpTokenType = TT_Unknown);
   void parseSquare(bool LambdaIntroducer = false);
   void keepAncestorBraces();
   void parseUnbracedBody(bool CheckEOF = false);
   void handleAttributes();
   bool handleCppAttributes();
   bool isBlockBegin(const FormatToken &Tok) const;
-  FormatToken *parseIfThenElse(IfStmtKind *IfKind, bool KeepBraces = false);
+  FormatToken *parseIfThenElse(IfStmtKind *IfKind, bool KeepBraces = false,
+                               bool IsVerilogAssert = false);
   void parseTryCatch();
   void parseLoopBody(bool KeepBraces, bool WrapRightBrace);
-  void parseForOrWhileLoop();
+  void parseForOrWhileLoop(bool HasParens = true);
   void parseDoWhile();
   void parseLabel(bool LeftAlignLabel = false);
   void parseCaseLabel();
@@ -193,6 +216,8 @@ private:
   unsigned parseVerilogHierarchyHeader();
   void parseVerilogTable();
   void parseVerilogCaseLabel();
+  std::optional<llvm::SmallVector<llvm::SmallVector<FormatToken *, 8>, 1>>
+  parseMacroCall();
 
   // Used by addUnwrappedLine to denote whether to keep or remove a level
   // when resetting the line state.
@@ -236,22 +261,55 @@ private:
 
   bool isOnNewLine(const FormatToken &FormatTok);
 
+  // Returns whether there is a macro expansion in the line, i.e. a token that
+  // was expanded from a macro call.
+  bool containsExpansion(const UnwrappedLine &Line) const;
+
   // Compute hash of the current preprocessor branch.
   // This is used to identify the different branches, and thus track if block
   // open and close in the same branch.
   size_t computePPHash() const;
+
+  bool parsingPPDirective() const { return CurrentLines != &Lines; }
 
   // FIXME: We are constantly running into bugs where Line.Level is incorrectly
   // subtracted from beyond 0. Introduce a method to subtract from Line.Level
   // and use that everywhere in the Parser.
   std::unique_ptr<UnwrappedLine> Line;
 
+  // Lines that are created by macro expansion.
+  // When formatting code containing macro calls, we first format the expanded
+  // lines to set the token types correctly. Afterwards, we format the
+  // reconstructed macro calls, re-using the token types determined in the first
+  // step.
+  // ExpandedLines will be reset every time we create a new LineAndExpansion
+  // instance once a line containing macro calls has been parsed.
+  SmallVector<UnwrappedLine, 8> CurrentExpandedLines;
+
+  // Maps from the first token of a top-level UnwrappedLine that contains
+  // a macro call to the replacement UnwrappedLines expanded from the macro
+  // call.
+  llvm::DenseMap<FormatToken *, SmallVector<UnwrappedLine, 8>> ExpandedLines;
+
+  // Map from the macro identifier to a line containing the full unexpanded
+  // macro call.
+  llvm::DenseMap<FormatToken *, std::unique_ptr<UnwrappedLine>> Unexpanded;
+
+  // For recursive macro expansions, trigger reconstruction only on the
+  // outermost expansion.
+  bool InExpansion = false;
+
+  // Set while we reconstruct a macro call.
+  // For reconstruction, we feed the expanded lines into the reconstructor
+  // until it is finished.
+  std::optional<MacroCallReconstructor> Reconstruct;
+
   // Comments are sorted into unwrapped lines by whether they are in the same
   // line as the previous token, or not. If not, they belong to the next token.
   // Since the next token might already be in a new unwrapped line, we need to
   // store the comments belonging to that token.
   SmallVector<FormatToken *, 1> CommentsBeforeNextToken;
-  FormatToken *FormatTok;
+  FormatToken *FormatTok = nullptr;
   bool MustBreakBeforeNextToken;
 
   // The parsed lines. Only added to through \c CurrentLines.
@@ -280,14 +338,19 @@ private:
   FormatTokenSource *Tokens;
   UnwrappedLineConsumer &Callback;
 
-  // FIXME: This is a temporary measure until we have reworked the ownership
-  // of the format tokens. The goal is to have the actual tokens created and
-  // owned outside of and handed into the UnwrappedLineParser.
   ArrayRef<FormatToken *> AllTokens;
 
   // Keeps a stack of the states of nested control statements (true if the
   // statement contains more than some predefined number of nested statements).
   SmallVector<bool, 8> NestedTooDeep;
+
+  // Keeps a stack of the states of nested lambdas (true if the return type of
+  // the lambda is `decltype(auto)`).
+  SmallVector<bool, 4> NestedLambdas;
+
+  // Whether the parser is parsing the body of a function whose return type is
+  // `decltype(auto)`.
+  bool IsDecltypeAutoFunction = false;
 
   // Represents preprocessor branch type, so we can find matching
   // #if/#else/#endif directives.
@@ -348,13 +411,17 @@ private:
   // does not start at the beginning of the file.
   unsigned FirstStartColumn;
 
+  MacroExpander Macros;
+
   friend class ScopedLineState;
   friend class CompoundStatementIndenter;
 };
 
 struct UnwrappedLineNode {
   UnwrappedLineNode() : Tok(nullptr) {}
-  UnwrappedLineNode(FormatToken *Tok) : Tok(Tok) {}
+  UnwrappedLineNode(FormatToken *Tok,
+                    llvm::ArrayRef<UnwrappedLine> Children = {})
+      : Tok(Tok), Children(Children.begin(), Children.end()) {}
 
   FormatToken *Tok;
   SmallVector<UnwrappedLine, 0> Children;

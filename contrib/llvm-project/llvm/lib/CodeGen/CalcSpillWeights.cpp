@@ -133,7 +133,7 @@ bool VirtRegAuxInfo::isLiveAtStatepointVarArg(LiveInterval &LI) {
     MachineInstr *MI = MO.getParent();
     if (MI->getOpcode() != TargetOpcode::STATEPOINT)
       return false;
-    return StatepointOpers(MI).getVarIdx() <= MI->getOperandNo(&MO);
+    return StatepointOpers(MI).getVarIdx() <= MO.getOperandNo();
   });
 }
 
@@ -157,7 +157,7 @@ float VirtRegAuxInfo::weightCalcHelper(LiveInterval &LI, SlotIndex *Start,
   unsigned NumInstr = 0; // Number of instructions using LI
   SmallPtrSet<MachineInstr *, 8> Visited;
 
-  std::pair<Register, Register> TargetHint = MRI.getRegAllocationHint(LI.reg());
+  std::pair<unsigned, Register> TargetHint = MRI.getRegAllocationHint(LI.reg());
 
   if (LI.isSpillable()) {
     Register Reg = LI.reg();

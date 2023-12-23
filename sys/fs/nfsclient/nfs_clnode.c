@@ -34,7 +34,6 @@
  *	from nfs_node.c	8.6 (Berkeley) 5/22/95
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>

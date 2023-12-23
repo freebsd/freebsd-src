@@ -32,14 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)tipout.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: tipout.c,v 1.18 2006/05/31 07:03:08 jason Exp $";
-#endif
-#endif /* not lint */
-
 #include "tip.h"
 
 /*

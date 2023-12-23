@@ -37,19 +37,20 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/alq.h>
+#include <sys/eventhandler.h>
+#include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
-#include <sys/vnode.h>
-#include <sys/alq.h>
-#include <sys/malloc.h>
+#include <sys/reboot.h>
 #include <sys/unistd.h>
-#include <sys/fcntl.h>
-#include <sys/eventhandler.h>
+#include <sys/vnode.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -227,6 +228,9 @@ static void
 ald_shutdown(void *arg, int howto)
 {
 	struct alq *alq;
+
+	if ((howto & RB_NOSYNC) != 0 || SCHEDULER_STOPPED())
+		return;
 
 	ALD_LOCK();
 

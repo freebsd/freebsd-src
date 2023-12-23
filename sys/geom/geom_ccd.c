@@ -66,8 +66,6 @@
  * SUCH DAMAGE.
  *
  * from: Utah $Hdr: cd.c 1.6 90/11/28$
- *
- *	@(#)cd.c	8.2 (Berkeley) 11/16/93
  */
 
 /*
@@ -79,7 +77,6 @@
  *	Moffett Field, CA 94035
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

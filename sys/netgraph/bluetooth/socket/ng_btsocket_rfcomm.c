@@ -371,17 +371,6 @@ ng_btsocket_rfcomm_close(struct socket *so)
 } /* ng_btsocket_rfcomm_close */
 
 /*
- * Accept connection on socket. Nothing to do here, socket must be connected
- * and ready, so just return peer address and be done with it.
- */
-
-int
-ng_btsocket_rfcomm_accept(struct socket *so, struct sockaddr **nam)
-{
-	return (ng_btsocket_rfcomm_peeraddr(so, nam));
-} /* ng_btsocket_rfcomm_accept */
-
-/*
  * Create and attach new socket
  */
 
@@ -926,27 +915,27 @@ out:
 } /* ng_btsocket_listen */
 
 /*
- * Get peer address
+ * Return peer address for getpeername(2) or for accept(2).  For the latter
+ * case no extra work to do here, socket must be connected and ready.
  */
-
 int
-ng_btsocket_rfcomm_peeraddr(struct socket *so, struct sockaddr **nam)
+ng_btsocket_rfcomm_peeraddr(struct socket *so, struct sockaddr *sa)
 {
 	ng_btsocket_rfcomm_pcb_p	pcb = so2rfcomm_pcb(so);
-	struct sockaddr_rfcomm		sa;
+	struct sockaddr_rfcomm *rfcomm = (struct sockaddr_rfcomm *)sa;
 
 	if (pcb == NULL)
 		return (EINVAL);
 
-	bcopy(&pcb->dst, &sa.rfcomm_bdaddr, sizeof(sa.rfcomm_bdaddr));
-	sa.rfcomm_channel = pcb->channel;
-	sa.rfcomm_len = sizeof(sa);
-	sa.rfcomm_family = AF_BLUETOOTH;
+	*rfcomm = (struct sockaddr_rfcomm ){
+		.rfcomm_len = sizeof(struct sockaddr_rfcomm),
+		.rfcomm_family = AF_BLUETOOTH,
+		.rfcomm_channel = pcb->channel,
+	};
+	bcopy(&pcb->dst, &rfcomm->rfcomm_bdaddr, sizeof(rfcomm->rfcomm_bdaddr));
 
-	*nam = sodupsockaddr((struct sockaddr *) &sa, M_NOWAIT);
-
-	return ((*nam == NULL)? ENOMEM : 0);
-} /* ng_btsocket_rfcomm_peeraddr */
+	return (0);
+}
 
 /*
  * Send data to socket
@@ -996,23 +985,23 @@ drop:
  */
 
 int
-ng_btsocket_rfcomm_sockaddr(struct socket *so, struct sockaddr **nam)
+ng_btsocket_rfcomm_sockaddr(struct socket *so, struct sockaddr *sa)
 {
 	ng_btsocket_rfcomm_pcb_p	pcb = so2rfcomm_pcb(so);
-	struct sockaddr_rfcomm		sa;
+	struct sockaddr_rfcomm *rfcomm = (struct sockaddr_rfcomm *)sa;
 
 	if (pcb == NULL)
 		return (EINVAL);
 
-	bcopy(&pcb->src, &sa.rfcomm_bdaddr, sizeof(sa.rfcomm_bdaddr));
-	sa.rfcomm_channel = pcb->channel;
-	sa.rfcomm_len = sizeof(sa);
-	sa.rfcomm_family = AF_BLUETOOTH;
+	*rfcomm = (struct sockaddr_rfcomm ){
+		.rfcomm_len = sizeof(struct sockaddr_rfcomm),
+		.rfcomm_family = AF_BLUETOOTH,
+		.rfcomm_channel = pcb->channel,
+	};
+	bcopy(&pcb->src, &rfcomm->rfcomm_bdaddr, sizeof(rfcomm->rfcomm_bdaddr));
 
-	*nam = sodupsockaddr((struct sockaddr *) &sa, M_NOWAIT);
-
-	return ((*nam == NULL)? ENOMEM : 0);
-} /* ng_btsocket_rfcomm_sockaddr */
+	return (0);
+}
 
 /*
  * Upcall function for L2CAP sockets. Enqueue RFCOMM task.
@@ -1407,7 +1396,7 @@ static int
 ng_btsocket_rfcomm_session_accept(ng_btsocket_rfcomm_session_p s0)
 {
 	struct socket			*l2so;
-	struct sockaddr_l2cap		*l2sa = NULL;
+	struct sockaddr_l2cap		l2sa = { .l2cap_len = sizeof(l2sa) };
 	ng_btsocket_l2cap_pcb_t		*l2pcb = NULL;
 	ng_btsocket_rfcomm_session_p	 s = NULL;
 	int				 error;
@@ -1425,7 +1414,7 @@ ng_btsocket_rfcomm_session_accept(ng_btsocket_rfcomm_session_p s0)
 		return (error);
 	}
 
-	error = soaccept(l2so, (struct sockaddr **) &l2sa);
+	error = soaccept(l2so, (struct sockaddr *)&l2sa);
 	if (error != 0) {
 		NG_BTSOCKET_RFCOMM_ERR(
 "%s: soaccept() on L2CAP socket failed, error=%d\n", __func__, error);

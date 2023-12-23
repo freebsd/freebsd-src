@@ -33,8 +33,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)kvm.c	8.2 (Berkeley) 2/13/94");
 
 #include <sys/param.h>
 #include <sys/fnv_hash.h>

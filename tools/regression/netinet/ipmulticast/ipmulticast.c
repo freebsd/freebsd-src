@@ -32,7 +32,6 @@
  * TODO: Merge multicast socket option tests from ipsockopt.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>

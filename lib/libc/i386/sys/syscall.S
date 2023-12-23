@@ -30,9 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#if defined(SYSLIBC_SCCS) && !defined(lint)
-	.asciz "@(#)syscall.s	5.1 (Berkeley) 4/23/90"
-#endif /* SYSLIBC_SCCS and not lint */
 #include <machine/asm.h>
 #include "SYS.h"
 
@@ -40,7 +37,7 @@ ENTRY(syscall)
 	pop	%ecx	/* rta */
 	pop	%eax	/* syscall number */
 	push	%ecx
-	KERNCALL
+	int	$0x80
 	push	%ecx	/* need to push a word to keep stack frame intact
 			   upon return; the word must be the return address. */
 	jb	HIDENAME(cerror)

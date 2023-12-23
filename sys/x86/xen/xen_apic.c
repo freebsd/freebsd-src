@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -217,10 +216,8 @@ xen_pv_lapic_ipi_vectored(u_int vector, int dest)
 static int
 xen_ipi_bitmap_handler(void *arg)
 {
-	struct trapframe *frame;
 
-	frame = arg;
-	ipi_bitmap_handler(*frame);
+	ipi_bitmap_handler(*curthread->td_intr_frame);
 	return (FILTER_HANDLED);
 }
 
@@ -298,9 +295,8 @@ xen_cpususpend_handler(void *arg)
 static int
 xen_ipi_swi_handler(void *arg)
 {
-	struct trapframe *frame = arg;
 
-	ipi_swi_handler(*frame);
+	ipi_swi_handler(*curthread->td_intr_frame);
 	return (FILTER_HANDLED);
 }
 

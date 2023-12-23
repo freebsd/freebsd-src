@@ -30,8 +30,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
  */
 
 /*
@@ -122,7 +120,10 @@ struct unp_defer {
 static SLIST_HEAD(, unp_defer) unp_defers;
 static int unp_defers_count;
 
-static const struct sockaddr	sun_noname = { sizeof(sun_noname), AF_LOCAL };
+static const struct sockaddr	sun_noname = {
+	.sa_len = sizeof(sun_noname),
+	.sa_family = AF_LOCAL,
+};
 
 /*
  * Garbage collection of cyclic file descriptor/socket references occurs
@@ -153,8 +154,8 @@ static struct task	unp_defer_task;
 #endif
 static u_long	unpst_sendspace = PIPSIZ;
 static u_long	unpst_recvspace = PIPSIZ;
-static u_long	unpdg_maxdgram = 2*1024;
-static u_long	unpdg_recvspace = 16*1024;	/* support 8KB syslog msgs */
+static u_long	unpdg_maxdgram = 8*1024;	/* support 8KB syslog msgs */
+static u_long	unpdg_recvspace = 16*1024;
 static u_long	unpsp_sendspace = PIPSIZ;	/* really max datagram size */
 static u_long	unpsp_recvspace = PIPSIZ;
 
@@ -433,34 +434,6 @@ uipc_abort(struct socket *so)
 		unp_drop(unp2);
 	} else
 		UNP_PCB_UNLOCK(unp);
-}
-
-static int
-uipc_accept(struct socket *so, struct sockaddr **nam)
-{
-	struct unpcb *unp, *unp2;
-	const struct sockaddr *sa;
-
-	/*
-	 * Pass back name of connected socket, if it was bound and we are
-	 * still connected (our peer may have closed already!).
-	 */
-	unp = sotounpcb(so);
-	KASSERT(unp != NULL, ("uipc_accept: unp == NULL"));
-
-	*nam = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
-	UNP_PCB_LOCK(unp);
-	unp2 = unp_pcb_lock_peer(unp);
-	if (unp2 != NULL && unp2->unp_addr != NULL)
-		sa = (struct sockaddr *)unp2->unp_addr;
-	else
-		sa = &sun_noname;
-	bcopy(sa, *nam, sa->sa_len);
-	if (unp2 != NULL)
-		unp_pcb_unlock_pair(unp, unp2);
-	else
-		UNP_PCB_UNLOCK(unp);
-	return (0);
 }
 
 static int
@@ -874,15 +847,13 @@ uipc_listen(struct socket *so, int backlog, struct thread *td)
 }
 
 static int
-uipc_peeraddr(struct socket *so, struct sockaddr **nam)
+uipc_peeraddr(struct socket *so, struct sockaddr *ret)
 {
 	struct unpcb *unp, *unp2;
 	const struct sockaddr *sa;
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_peeraddr: unp == NULL"));
-
-	*nam = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
 
 	UNP_PCB_LOCK(unp);
 	unp2 = unp_pcb_lock_peer(unp);
@@ -891,12 +862,12 @@ uipc_peeraddr(struct socket *so, struct sockaddr **nam)
 			sa = (struct sockaddr *)unp2->unp_addr;
 		else
 			sa = &sun_noname;
-		bcopy(sa, *nam, sa->sa_len);
+		bcopy(sa, ret, sa->sa_len);
 		unp_pcb_unlock_pair(unp, unp2);
 	} else {
-		sa = &sun_noname;
-		bcopy(sa, *nam, sa->sa_len);
 		UNP_PCB_UNLOCK(unp);
+		sa = &sun_noname;
+		bcopy(sa, ret, sa->sa_len);
 	}
 	return (0);
 }
@@ -1704,7 +1675,7 @@ uipc_shutdown(struct socket *so)
 }
 
 static int
-uipc_sockaddr(struct socket *so, struct sockaddr **nam)
+uipc_sockaddr(struct socket *so, struct sockaddr *ret)
 {
 	struct unpcb *unp;
 	const struct sockaddr *sa;
@@ -1712,13 +1683,12 @@ uipc_sockaddr(struct socket *so, struct sockaddr **nam)
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_sockaddr: unp == NULL"));
 
-	*nam = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
 	UNP_PCB_LOCK(unp);
 	if (unp->unp_addr != NULL)
 		sa = (struct sockaddr *) unp->unp_addr;
 	else
 		sa = &sun_noname;
-	bcopy(sa, *nam, sa->sa_len);
+	bcopy(sa, ret, sa->sa_len);
 	UNP_PCB_UNLOCK(unp);
 	return (0);
 }
@@ -3322,7 +3292,7 @@ static struct protosw streamproto = {
 				    PR_CAPATTACH,
 	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_abort = 		uipc_abort,
-	.pr_accept =		uipc_accept,
+	.pr_accept =		uipc_peeraddr,
 	.pr_attach =		uipc_attach,
 	.pr_bind =		uipc_bind,
 	.pr_bindat =		uipc_bindat,
@@ -3349,7 +3319,7 @@ static struct protosw dgramproto = {
 				    PR_SOCKBUF,
 	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_abort = 		uipc_abort,
-	.pr_accept =		uipc_accept,
+	.pr_accept =		uipc_peeraddr,
 	.pr_attach =		uipc_attach,
 	.pr_bind =		uipc_bind,
 	.pr_bindat =		uipc_bindat,
@@ -3378,7 +3348,7 @@ static struct protosw seqpacketproto = {
 				    PR_WANTRCVD|PR_RIGHTS|PR_CAPATTACH,
 	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_abort =		uipc_abort,
-	.pr_accept =		uipc_accept,
+	.pr_accept =		uipc_peeraddr,
 	.pr_attach =		uipc_attach,
 	.pr_bind =		uipc_bind,
 	.pr_bindat =		uipc_bindat,

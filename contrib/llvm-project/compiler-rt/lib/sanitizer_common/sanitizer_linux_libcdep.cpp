@@ -47,7 +47,6 @@
 
 #if SANITIZER_FREEBSD
 #include <pthread_np.h>
-#include <stdlib.h>
 #include <osreldate.h>
 #include <sys/auxv.h>
 #include <sys/sysctl.h>
@@ -56,6 +55,7 @@
 // that, it was never implemented. So just define it to zero.
 #undef MAP_NORESERVE
 #define MAP_NORESERVE 0
+extern const Elf_Auxinfo *__elf_aux_vector;
 #endif
 
 #if SANITIZER_NETBSD
@@ -150,7 +150,7 @@ void GetThreadStackTopAndBottom(bool at_initialization, uptr *stack_top,
   pthread_attr_t attr;
   pthread_attr_init(&attr);
   CHECK_EQ(pthread_getattr_np(pthread_self(), &attr), 0);
-  my_pthread_attr_getstack(&attr, &stackaddr, &stacksize);
+  internal_pthread_attr_getstack(&attr, &stackaddr, &stacksize);
   pthread_attr_destroy(&attr);
 #endif  // SANITIZER_SOLARIS
 
@@ -947,11 +947,11 @@ void ReExec() {
   const char *pathname = "/proc/self/exe";
 
 #if SANITIZER_FREEBSD
-  char exe_path[PATH_MAX];
-  if (elf_aux_info(AT_EXECPATH, exe_path, sizeof(exe_path)) == 0) {
-    char link_path[PATH_MAX];
-    if (realpath(exe_path, link_path))
-      pathname = link_path;
+  for (const auto *aux = __elf_aux_vector; aux->a_type != AT_NULL; aux++) {
+    if (aux->a_type == AT_EXECPATH) {
+      pathname = static_cast<const char *>(aux->a_un.a_ptr);
+      break;
+    }
   }
 #elif SANITIZER_NETBSD
   static const int name[] = {

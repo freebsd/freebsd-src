@@ -2473,6 +2473,7 @@ int			 pf_keth_anchor_nvcopyout(
 struct pf_keth_ruleset	*pf_find_or_create_keth_ruleset(const char *);
 void			 pf_keth_anchor_remove(struct pf_keth_rule *);
 
+int			 pf_ioctl_getrules(struct pfioc_rule *);
 int			 pf_ioctl_addrule(struct pf_krule *, uint32_t,
 			    uint32_t, const char *, const char *, uid_t uid,
 			    pid_t);

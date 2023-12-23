@@ -37,7 +37,6 @@
  * From: scsi.c,v 1.8 1997/02/22 15:07:54 peter Exp $
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #include <stdlib.h>

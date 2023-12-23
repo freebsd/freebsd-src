@@ -500,11 +500,10 @@ ngd_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
  * Used for both data and control sockets
  */
 static int
-ng_getsockaddr(struct socket *so, struct sockaddr **addr)
+ng_getsockaddr(struct socket *so, struct sockaddr *sa)
 {
+	struct sockaddr_ng *sg = (struct sockaddr_ng *)sa;
 	struct ngpcb *pcbp;
-	struct sockaddr_ng *sg;
-	int sg_len;
 	int error = 0;
 
 	pcbp = sotongpcb(so);
@@ -512,9 +511,10 @@ ng_getsockaddr(struct socket *so, struct sockaddr **addr)
 		/* XXXGL: can this still happen? */
 		return (EINVAL);
 
-	sg_len = sizeof(struct sockaddr_ng) + NG_NODESIZ -
-	    sizeof(sg->sg_data);
-	sg = malloc(sg_len, M_SONAME, M_WAITOK | M_ZERO);
+	*sg = (struct sockaddr_ng ){
+		.sg_len = sizeof(struct sockaddr_ng),
+		.sg_family = AF_NETGRAPH,
+	};
 
 	mtx_lock(&pcbp->sockdata->mtx);
 	if (pcbp->sockdata->node != NULL) {
@@ -523,16 +523,12 @@ ng_getsockaddr(struct socket *so, struct sockaddr **addr)
 		if (NG_NODE_HAS_NAME(node))
 			bcopy(NG_NODE_NAME(node), sg->sg_data,
 			    strlen(NG_NODE_NAME(node)));
-		mtx_unlock(&pcbp->sockdata->mtx);
-
-		sg->sg_len = sg_len;
-		sg->sg_family = AF_NETGRAPH;
-		*addr = (struct sockaddr *)sg;
-	} else {
-		mtx_unlock(&pcbp->sockdata->mtx);
-		free(sg, M_SONAME);
+		else
+			snprintf(sg->sg_data, sizeof(sg->sg_data), "[%x]",
+			    ng_node2ID(node));
+	} else
 		error = EINVAL;
-	}
+	mtx_unlock(&pcbp->sockdata->mtx);
 
 	return (error);
 }

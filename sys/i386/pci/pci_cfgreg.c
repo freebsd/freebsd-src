@@ -29,7 +29,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -55,6 +54,13 @@
 		printf a ;						\
 } while(0)
 
+struct pcie_mcfg_region {
+	uint64_t base;
+	uint16_t domain;
+	uint8_t minbus;
+	uint8_t maxbus;
+};
+
 #define PCIE_CACHE 8
 struct pcie_cfg_elem {
 	TAILQ_ENTRY(pcie_cfg_elem)	elem;
@@ -64,26 +70,30 @@ struct pcie_cfg_elem {
 
 SYSCTL_DECL(_hw_pci);
 
+static struct pcie_mcfg_region *mcfg_regions;
+static int mcfg_numregions;
 static TAILQ_HEAD(pcie_cfg_list, pcie_cfg_elem) pcie_list[MAXCPU];
-static uint64_t pcie_base;
-static int pcie_minbus, pcie_maxbus;
+static int pcie_cache_initted;
 static uint32_t pcie_badslots;
 int cfgmech;
 static int devmax;
 static struct mtx pcicfg_mtx;
+
 static int mcfg_enable = 1;
 SYSCTL_INT(_hw_pci, OID_AUTO, mcfg, CTLFLAG_RDTUN, &mcfg_enable, 0,
     "Enable support for PCI-e memory mapped config access");
 
-static uint32_t	pci_docfgregread(int bus, int slot, int func, int reg,
-		    int bytes);
+static uint32_t	pci_docfgregread(int domain, int bus, int slot, int func,
+		    int reg, int bytes);
+static struct pcie_mcfg_region *pcie_lookup_region(int domain, int bus);
 static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
 static int	pcireg_cfgopen(void);
-static int	pciereg_cfgread(int bus, unsigned slot, unsigned func,
-		    unsigned reg, unsigned bytes);
-static void	pciereg_cfgwrite(int bus, unsigned slot, unsigned func,
-		    unsigned reg, int data, unsigned bytes);
+static int	pciereg_cfgread(struct pcie_mcfg_region *region, int bus,
+		    unsigned slot, unsigned func, unsigned reg, unsigned bytes);
+static void	pciereg_cfgwrite(struct pcie_mcfg_region *region, int bus,
+		    unsigned slot, unsigned func, unsigned reg, int data,
+		    unsigned bytes);
 
 /*
  * Some BIOS writers seem to want to ignore the spec and put
@@ -150,23 +160,43 @@ pci_cfgregopen(void)
 	return (1);
 }
 
-static uint32_t
-pci_docfgregread(int bus, int slot, int func, int reg, int bytes)
+static struct pcie_mcfg_region *
+pcie_lookup_region(int domain, int bus)
 {
+	for (int i = 0; i < mcfg_numregions; i++)
+		if (mcfg_regions[i].domain == domain &&
+		    bus >= mcfg_regions[i].minbus &&
+		    bus <= mcfg_regions[i].maxbus)
+			return (&mcfg_regions[i]);
+	return (NULL);
+}
 
-	if (cfgmech == CFGMECH_PCIE &&
-	    (bus >= pcie_minbus && bus <= pcie_maxbus) &&
-	    (bus != 0 || !(1 << slot & pcie_badslots)))
-		return (pciereg_cfgread(bus, slot, func, reg, bytes));
-	else
+static uint32_t
+pci_docfgregread(int domain, int bus, int slot, int func, int reg, int bytes)
+{
+	if (domain == 0 && bus == 0 && (1 << slot & pcie_badslots) != 0)
 		return (pcireg_cfgread(bus, slot, func, reg, bytes));
+
+	if (cfgmech == CFGMECH_PCIE) {
+		struct pcie_mcfg_region *region;
+
+		region = pcie_lookup_region(domain, bus);
+		if (region != NULL)
+			return (pciereg_cfgread(region, bus, slot, func, reg,
+			    bytes));
+	}
+
+	if (domain == 0)
+		return (pcireg_cfgread(bus, slot, func, reg, bytes));
+	else
+		return (-1);
 }
 
 /* 
  * Read configuration space register
  */
 u_int32_t
-pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
+pci_cfgregread(int domain, int bus, int slot, int func, int reg, int bytes)
 {
 	uint32_t line;
 
@@ -176,24 +206,37 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 	 * the code uses 255 as an invalid IRQ.
 	 */
 	if (reg == PCIR_INTLINE && bytes == 1) {
-		line = pci_docfgregread(bus, slot, func, PCIR_INTLINE, 1);
+		line = pci_docfgregread(domain, bus, slot, func, PCIR_INTLINE,
+		    1);
 		return (pci_i386_map_intline(line));
 	}
-	return (pci_docfgregread(bus, slot, func, reg, bytes));
+	return (pci_docfgregread(domain, bus, slot, func, reg, bytes));
 }
 
 /* 
  * Write configuration space register 
  */
 void
-pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
+pci_cfgregwrite(int domain, int bus, int slot, int func, int reg, uint32_t data,
+    int bytes)
 {
+	if (domain == 0 && bus == 0 && (1 << slot & pcie_badslots) != 0) {
+		pcireg_cfgwrite(bus, slot, func, reg, data, bytes);
+		return;
+	}
 
-	if (cfgmech == CFGMECH_PCIE &&
-	    (bus >= pcie_minbus && bus <= pcie_maxbus) &&
-	    (bus != 0 || !(1 << slot & pcie_badslots)))
-		pciereg_cfgwrite(bus, slot, func, reg, data, bytes);
-	else
+	if (cfgmech == CFGMECH_PCIE) {
+		struct pcie_mcfg_region *region;
+
+		region = pcie_lookup_region(domain, bus);
+		if (region != NULL) {
+			pciereg_cfgwrite(region, bus, slot, func, reg, data,
+			    bytes);
+			return;
+		}
+	}
+
+	if (domain == 0)
 		pcireg_cfgwrite(bus, slot, func, reg, data, bytes);
 }
 
@@ -429,8 +472,8 @@ pcireg_cfgopen(void)
 	return (cfgmech);
 }
 
-int
-pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
+static bool
+pcie_init_cache(void)
 {
 	struct pcie_cfg_list *pcielist;
 	struct pcie_cfg_elem *pcie_array, *elem;
@@ -438,26 +481,7 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 	struct pcpu *pc;
 #endif
 	vm_offset_t va;
-	uint32_t val1, val2;
-	int i, slot;
-
-	if (!mcfg_enable)
-		return (0);
-
-	if (minbus != 0)
-		return (0);
-
-	if (!pae_mode && base >= 0x100000000) {
-		if (bootverbose)
-			printf(
-	    "PCI: Memory Mapped PCI configuration area base 0x%jx too high\n",
-			    (uintmax_t)base);
-		return (0);
-	}
-		
-	if (bootverbose)
-		printf("PCIe: Memory Mapped configuration base @ 0x%jx\n",
-		    (uintmax_t)base);
+	int i;
 
 #ifdef SMP
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu)
@@ -466,12 +490,12 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 		pcie_array = malloc(sizeof(struct pcie_cfg_elem) * PCIE_CACHE,
 		    M_DEVBUF, M_NOWAIT);
 		if (pcie_array == NULL)
-			return (0);
+			return (false);
 
 		va = kva_alloc(PCIE_CACHE * PAGE_SIZE);
 		if (va == 0) {
 			free(pcie_array, M_DEVBUF);
-			return (0);
+			return (false);
 		}
 
 #ifdef SMP
@@ -487,12 +511,14 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 			TAILQ_INSERT_HEAD(pcielist, elem, elem);
 		}
 	}
+	return (true);
+}
 
-	pcie_base = base;
-	pcie_minbus = minbus;
-	pcie_maxbus = maxbus;
-	cfgmech = CFGMECH_PCIE;
-	devmax = 32;
+static void
+pcie_init_badslots(struct pcie_mcfg_region *region)
+{
+	uint32_t val1, val2;
+	int slot;
 
 	/*
 	 * On some AMD systems, some of the devices on bus 0 are
@@ -506,11 +532,59 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 			if (val1 == 0xffffffff)
 				continue;
 
-			val2 = pciereg_cfgread(0, slot, 0, 0, 4);
+			val2 = pciereg_cfgread(region, 0, slot, 0, 0, 4);
 			if (val2 != val1)
 				pcie_badslots |= (1 << slot);
 		}
 	}
+}
+
+int
+pcie_cfgregopen(uint64_t base, uint16_t domain, uint8_t minbus, uint8_t maxbus)
+{
+	struct pcie_mcfg_region *region;
+
+	if (!mcfg_enable)
+		return (0);
+
+	if (!pae_mode && base >= 0x100000000) {
+		if (bootverbose)
+			printf(
+	    "PCI: MCFG domain %u bus %u-%u base 0x%jx too high\n",
+			domain, minbus, maxbus, (uintmax_t)base);
+		return (0);
+	}
+
+	if (bootverbose)
+		printf("PCI: MCFG domain %u bus %u-%u base @ 0x%jx\n",
+		    domain, minbus, maxbus, (uintmax_t)base);
+
+	if (pcie_cache_initted == 0) {
+		if (!pcie_init_cache())
+			pcie_cache_initted = -1;
+		else
+			pcie_cache_initted = 1;
+	}
+
+	if (pcie_cache_initted == -1)
+		return (0);
+
+	/* Resize the array. */
+	mcfg_regions = realloc(mcfg_regions,
+	    sizeof(*mcfg_regions) * (mcfg_numregions + 1), M_DEVBUF, M_WAITOK);
+
+	region = &mcfg_regions[mcfg_numregions];
+	region->base = base;
+	region->domain = domain;
+	region->minbus = minbus;
+	region->maxbus = maxbus;
+	mcfg_numregions++;
+
+	cfgmech = CFGMECH_PCIE;
+	devmax = 32;
+
+	if (domain == 0 && minbus == 0)
+		pcie_init_badslots(region);
 
 	return (1);
 }
@@ -523,13 +597,16 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 	((reg) & 0xfff)))
 
 static __inline vm_offset_t
-pciereg_findaddr(int bus, unsigned slot, unsigned func, unsigned reg)
+pciereg_findaddr(struct pcie_mcfg_region *region, int bus, unsigned slot,
+    unsigned func, unsigned reg)
 {
 	struct pcie_cfg_list *pcielist;
 	struct pcie_cfg_elem *elem;
 	vm_paddr_t pa, papage;
 
-	pa = PCIE_PADDR(pcie_base, reg, bus, slot, func);
+	MPASS(bus >= region->minbus && bus <= region->maxbus);
+
+	pa = PCIE_PADDR(region->base, reg, bus - region->minbus, slot, func);
 	papage = pa & ~PAGE_MASK;
 
 	/*
@@ -570,18 +647,17 @@ pciereg_findaddr(int bus, unsigned slot, unsigned func, unsigned reg)
  */
 
 static int
-pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
-    unsigned bytes)
+pciereg_cfgread(struct pcie_mcfg_region *region, int bus, unsigned slot,
+    unsigned func, unsigned reg, unsigned bytes)
 {
 	vm_offset_t va;
 	int data = -1;
 
-	if (bus < pcie_minbus || bus > pcie_maxbus || slot > PCI_SLOTMAX ||
-	    func > PCI_FUNCMAX || reg > PCIE_REGMAX)
+	if (slot > PCI_SLOTMAX || func > PCI_FUNCMAX || reg > PCIE_REGMAX)
 		return (-1);
 
 	critical_enter();
-	va = pciereg_findaddr(bus, slot, func, reg);
+	va = pciereg_findaddr(region, bus, slot, func, reg);
 
 	switch (bytes) {
 	case 4:
@@ -603,17 +679,16 @@ pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
 }
 
 static void
-pciereg_cfgwrite(int bus, unsigned slot, unsigned func, unsigned reg, int data,
-    unsigned bytes)
+pciereg_cfgwrite(struct pcie_mcfg_region *region, int bus, unsigned slot,
+    unsigned func, unsigned reg, int data, unsigned bytes)
 {
 	vm_offset_t va;
 
-	if (bus < pcie_minbus || bus > pcie_maxbus || slot > PCI_SLOTMAX ||
-	    func > PCI_FUNCMAX || reg > PCIE_REGMAX)
+	if (slot > PCI_SLOTMAX || func > PCI_FUNCMAX || reg > PCIE_REGMAX)
 		return;
 
 	critical_enter();
-	va = pciereg_findaddr(bus, slot, func, reg);
+	va = pciereg_findaddr(region, bus, slot, func, reg);
 
 	switch (bytes) {
 	case 4:

@@ -30,7 +30,6 @@
  * used for the kernel SMP support.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -113,12 +112,6 @@ SYSCTL_INT(_kern_smp, OID_AUTO, topology, CTLFLAG_RDTUN, &smp_topology, 0,
     "Topology override setting; 0 is default provided by hardware.");
 
 #ifdef SMP
-/* Enable forwarding of a signal to a process running on a different CPU */
-static int forward_signal_enabled = 1;
-SYSCTL_INT(_kern_smp, OID_AUTO, forward_signal_enabled, CTLFLAG_RW,
-	   &forward_signal_enabled, 0,
-	   "Forwarding of a signal to a process on a different CPU");
-
 /* Variables needed for SMP rendezvous. */
 static volatile int smp_rv_ncpus;
 static void (*volatile smp_rv_setup_func)(void *arg);
@@ -204,8 +197,6 @@ forward_signal(struct thread *td)
 	CTR1(KTR_SMP, "forward_signal(%p)", td->td_proc);
 
 	if (!smp_started || cold || KERNEL_PANICKED())
-		return;
-	if (!forward_signal_enabled)
 		return;
 
 	/* No need to IPI ourself. */

@@ -1,5 +1,3 @@
-/* From: @(#)k_tan.c 1.5 04/04/22 SMI */
-
 /*
  * ====================================================
  * Copyright 2004 Sun Microsystems, Inc.  All Rights Reserved.

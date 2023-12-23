@@ -23,9 +23,6 @@
 #
 # Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)history_008_pos.ksh	1.3	09/01/12 SMI"
-#
 
 . $STF_SUITE/tests/history/history_common.kshlib
 . $STF_SUITE/tests/cli_root/zfs_rollback/zfs_rollback_common.kshlib

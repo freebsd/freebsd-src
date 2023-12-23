@@ -559,7 +559,7 @@ cpaCySymDpSessionCtxGetSize(const CpaInstanceHandle instanceHandle,
  *      minimum memory size needed to support all possible setup data parameter 
  *      combinations. cpaCySymDpSessionCtxGetDynamicSize() will return the 
  *      minimum memory size needed to support the specific session setup 
- *      data parmeters provided. This size may be different for different setup
+ *      data parameters provided. This size may be different for different setup
  *      data parameters.
  *
  * @context

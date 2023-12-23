@@ -1587,7 +1587,7 @@ ncl_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 		error = nfscl_doiods(vp, uiop, NULL, NULL,
 		    NFSV4OPEN_ACCESSREAD, 0, cred, uiop->uio_td);
 	NFSCL_DEBUG(4, "readrpc: aft doiods=%d\n", error);
-	if (error != 0)
+	if (error != 0 && error != EFAULT)
 		error = nfsrpc_read(vp, uiop, cred, uiop->uio_td, &nfsva,
 		    &attrflag);
 	if (attrflag) {
@@ -1618,7 +1618,7 @@ ncl_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 		error = nfscl_doiods(vp, uiop, iomode, must_commit,
 		    NFSV4OPEN_ACCESSWRITE, 0, cred, uiop->uio_td);
 	NFSCL_DEBUG(4, "writerpc: aft doiods=%d\n", error);
-	if (error != 0)
+	if (error != 0 && error != EFAULT)
 		error = nfsrpc_write(vp, uiop, iomode, must_commit, cred,
 		    uiop->uio_td, &nfsva, &attrflag, called_from_strategy,
 		    ioflag);
@@ -3888,9 +3888,7 @@ nfs_copy_file_range(struct vop_copy_file_range_args *ap)
 	 */
 	if (invp == outvp || invp->v_mount != outvp->v_mount) {
 generic_copy:
-		return (vn_generic_copy_file_range(invp, ap->a_inoffp,
-		    outvp, ap->a_outoffp, ap->a_lenp, ap->a_flags,
-		    ap->a_incred, ap->a_outcred, ap->a_fsizetd));
+		return (ENOSYS);
 	}
 
 	/* Lock both vnodes, avoiding risk of deadlock. */

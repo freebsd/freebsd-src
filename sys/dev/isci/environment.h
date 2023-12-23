@@ -38,7 +38,7 @@
  *
  * @brief Types and macros specific to the FreeBSD environment.
  */
-#include <sys/cdefs.h>
+
 #include <sys/types.h>
 #include <sys/libkern.h>
 #include <machine/bus.h>

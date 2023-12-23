@@ -34,15 +34,12 @@
  * SUCH DAMAGE.
  *
  * from: Utah $Hdr: vm_unix.c 1.1 89/11/07$
- *
- *	@(#)vm_unix.c	8.1 (Berkeley) 6/11/93
  */
 
 /*
  * Traditional sbrk/grow interface to VM
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>

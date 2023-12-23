@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)alarm.c	8.1 (Berkeley) 6/4/93");
 /*
  * Backwards compatible alarm.
  */

@@ -418,9 +418,7 @@ void MetadataStreamerYamlV2::emitHiddenKernelArgs(const Function &Func,
   }
 
   if (HiddenArgNumBytes >= 48) {
-    if (!Func.hasFnAttribute("amdgpu-no-completion-action") &&
-        // FIXME: Hack for runtime bug if we fail to optimize this out
-        Func.hasFnAttribute("calls-enqueue-kernel")) {
+    if (!Func.hasFnAttribute("amdgpu-no-completion-action")) {
       emitKernelArg(DL, Int8PtrTy, Align(8), ValueKind::HiddenCompletionAction);
     } else {
       emitKernelArg(DL, Int8PtrTy, Align(8), ValueKind::HiddenNone);
@@ -854,9 +852,7 @@ void MetadataStreamerMsgPackV3::emitHiddenKernelArgs(
   }
 
   if (HiddenArgNumBytes >= 48) {
-    if (!Func.hasFnAttribute("amdgpu-no-completion-action") &&
-        // FIXME: Hack for runtime bug if we fail to optimize this out
-        Func.hasFnAttribute("calls-enqueue-kernel")) {
+    if (!Func.hasFnAttribute("amdgpu-no-completion-action")) {
       emitKernelArg(DL, Int8PtrTy, Align(8), "hidden_completion_action", Offset,
                     Args);
     } else {
@@ -876,7 +872,8 @@ void MetadataStreamerMsgPackV3::emitHiddenKernelArgs(
 }
 
 msgpack::MapDocNode MetadataStreamerMsgPackV3::getHSAKernelProps(
-    const MachineFunction &MF, const SIProgramInfo &ProgramInfo) const {
+    const MachineFunction &MF, const SIProgramInfo &ProgramInfo,
+    unsigned CodeObjectVersion) const {
   const GCNSubtarget &STM = MF.getSubtarget<GCNSubtarget>();
   const SIMachineFunctionInfo &MFI = *MF.getInfo<SIMachineFunctionInfo>();
   const Function &F = MF.getFunction();
@@ -890,10 +887,11 @@ msgpack::MapDocNode MetadataStreamerMsgPackV3::getHSAKernelProps(
       Kern.getDocument()->getNode(ProgramInfo.LDSSize);
   Kern[".private_segment_fixed_size"] =
       Kern.getDocument()->getNode(ProgramInfo.ScratchSize);
-  if (AMDGPU::getAmdhsaCodeObjectVersion() >= 5)
+  if (CodeObjectVersion >= AMDGPU::AMDHSA_COV5)
     Kern[".uses_dynamic_stack"] =
         Kern.getDocument()->getNode(ProgramInfo.DynamicCallStack);
-  if (AMDGPU::getAmdhsaCodeObjectVersion() >= 5 && STM.supportsWGP())
+
+  if (CodeObjectVersion >= AMDGPU::AMDHSA_COV5 && STM.supportsWGP())
     Kern[".workgroup_processor_mode"] =
         Kern.getDocument()->getNode(ProgramInfo.WgpMode);
 
@@ -945,10 +943,12 @@ void MetadataStreamerMsgPackV3::end() {
 void MetadataStreamerMsgPackV3::emitKernel(const MachineFunction &MF,
                                            const SIProgramInfo &ProgramInfo) {
   auto &Func = MF.getFunction();
-  auto Kern = getHSAKernelProps(MF, ProgramInfo);
+  if (Func.getCallingConv() != CallingConv::AMDGPU_KERNEL &&
+      Func.getCallingConv() != CallingConv::SPIR_KERNEL)
+    return;
 
-  assert(Func.getCallingConv() == CallingConv::AMDGPU_KERNEL ||
-         Func.getCallingConv() == CallingConv::SPIR_KERNEL);
+  auto CodeObjectVersion = AMDGPU::getCodeObjectVersion(*Func.getParent());
+  auto Kern = getHSAKernelProps(MF, ProgramInfo, CodeObjectVersion);
 
   auto Kernels =
       getRootMetadata("amdhsa.kernels").getArray(/*Convert=*/true);
@@ -1079,9 +1079,7 @@ void MetadataStreamerMsgPackV5::emitHiddenKernelArgs(
     Offset += 8; // Skipped.
   }
 
-  if (!Func.hasFnAttribute("amdgpu-no-completion-action") &&
-      // FIXME: Hack for runtime bug
-      Func.hasFnAttribute("calls-enqueue-kernel")) {
+  if (!Func.hasFnAttribute("amdgpu-no-completion-action")) {
     emitKernelArg(DL, Int8PtrTy, Align(8), "hidden_completion_action", Offset,
                   Args);
   } else {

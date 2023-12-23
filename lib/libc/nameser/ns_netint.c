@@ -17,9 +17,6 @@
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef lint
-static const char rcsid[] = "$Id: ns_netint.c,v 1.3 2005/04/27 04:56:40 sra Exp $";
-#endif
 /* Import. */
 
 #include "port_before.h"

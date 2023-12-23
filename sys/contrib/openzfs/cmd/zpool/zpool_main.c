@@ -3132,7 +3132,8 @@ zfs_force_import_required(nvlist_t *config)
 	 * local hostid.
 	 */
 	if (nvlist_lookup_uint64(nvinfo, ZPOOL_CONFIG_HOSTID, &hostid) != 0)
-		nvlist_lookup_uint64(config, ZPOOL_CONFIG_HOSTID, &hostid);
+		(void) nvlist_lookup_uint64(config, ZPOOL_CONFIG_HOSTID,
+		    &hostid);
 
 	if (state != POOL_STATE_EXPORTED && hostid != get_system_hostid())
 		return (B_TRUE);
@@ -5950,6 +5951,7 @@ zpool_do_iostat(int argc, char **argv)
 				print_iostat_header(&cb);
 
 			if (skip) {
+				(void) fflush(stdout);
 				(void) fsleep(interval);
 				continue;
 			}
@@ -5980,18 +5982,13 @@ zpool_do_iostat(int argc, char **argv)
 
 		}
 
-		/*
-		 * Flush the output so that redirection to a file isn't buffered
-		 * indefinitely.
-		 */
-		(void) fflush(stdout);
-
 		if (interval == 0)
 			break;
 
 		if (count != 0 && --count == 0)
 			break;
 
+		(void) fflush(stdout);
 		(void) fsleep(interval);
 	}
 
@@ -6514,6 +6511,8 @@ zpool_do_list(int argc, char **argv)
 			break;
 
 		pool_list_free(list);
+
+		(void) fflush(stdout);
 		(void) fsleep(interval);
 	}
 
@@ -9094,6 +9093,7 @@ zpool_do_status(int argc, char **argv)
 		if (count != 0 && --count == 0)
 			break;
 
+		(void) fflush(stdout);
 		(void) fsleep(interval);
 	}
 

@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -49,38 +48,12 @@
 #include <machine/bus.h>
 #include <machine/bus_dma_impl.h>
 
-/*
- * Return true if a match is made.
- *
- * To find a match walk the chain of bus_dma_tag_t's looking for 'paddr'.
- *
- * If paddr is within the bounds of the dma tag then call the filter callback
- * to check for a match, if there is no filter callback then assume a match.
- */
-int
-bus_dma_run_filter(struct bus_dma_tag_common *tc, bus_addr_t paddr)
-{
-	int retval;
-
-	retval = 0;
-	do {
-		if (((paddr > tc->lowaddr && paddr <= tc->highaddr) ||
-		    !vm_addr_align_ok(paddr, tc->alignment)) &&
-		    (tc->filter == NULL ||
-		    (*tc->filter)(tc->filterarg, paddr) != 0))
-			retval = 1;
-
-		tc = tc->parent;		
-	} while (retval == 0 && tc != NULL);
-	return (retval);
-}
-
 int
 common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
     bus_size_t alignment, bus_addr_t boundary, bus_addr_t lowaddr,
-    bus_addr_t highaddr, bus_dma_filter_t *filter, void *filterarg,
-    bus_size_t maxsize, int nsegments, bus_size_t maxsegsz, int flags,
-    bus_dma_lock_t *lockfunc, void *lockfuncarg, size_t sz, void **dmat)
+    bus_addr_t highaddr, bus_size_t maxsize, int nsegments,
+    bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
+    void *lockfuncarg, size_t sz, void **dmat)
 {
 	void *newtag;
 	struct bus_dma_tag_common *common;
@@ -103,18 +76,14 @@ common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
 
 	common = newtag;
 	common->impl = &bus_dma_bounce_impl;
-	common->parent = parent;
 	common->alignment = alignment;
 	common->boundary = boundary;
 	common->lowaddr = trunc_page((vm_paddr_t)lowaddr) + (PAGE_SIZE - 1);
 	common->highaddr = trunc_page((vm_paddr_t)highaddr) + (PAGE_SIZE - 1);
-	common->filter = filter;
-	common->filterarg = filterarg;
 	common->maxsize = maxsize;
 	common->nsegments = nsegments;
 	common->maxsegsz = maxsegsz;
 	common->flags = flags;
-	common->ref_count = 1; /* Count ourself */
 	if (lockfunc != NULL) {
 		common->lockfunc = lockfunc;
 		common->lockfuncarg = lockfuncarg;
@@ -134,16 +103,6 @@ common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
 			common->boundary = MIN(parent->boundary,
 			    common->boundary);
 		}
-		if (common->filter == NULL) {
-			/*
-			 * Short circuit looking at our parent directly
-			 * since we have encapsulated all of its information
-			 */
-			common->filter = parent->filter;
-			common->filterarg = parent->filterarg;
-			common->parent = parent->parent;
-		}
-		atomic_add_int(&parent->ref_count, 1);
 	}
 	*dmat = common;
 	return (0);
@@ -162,15 +121,19 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	struct bus_dma_tag_common *tc;
 	int error;
 
+	/* Filters are no longer supported. */
+	if (filter != NULL || filterarg != NULL)
+		return (EINVAL);
+
 	if (parent == NULL) {
 		error = bus_dma_bounce_impl.tag_create(parent, alignment,
-		    boundary, lowaddr, highaddr, filter, filterarg, maxsize,
-		    nsegments, maxsegsz, flags, lockfunc, lockfuncarg, dmat);
+		    boundary, lowaddr, highaddr, maxsize, nsegments, maxsegsz,
+		    flags, lockfunc, lockfuncarg, dmat);
 	} else {
 		tc = (struct bus_dma_tag_common *)parent;
 		error = tc->impl->tag_create(parent, alignment,
-		    boundary, lowaddr, highaddr, filter, filterarg, maxsize,
-		    nsegments, maxsegsz, flags, lockfunc, lockfuncarg, dmat);
+		    boundary, lowaddr, highaddr, maxsize, nsegments, maxsegsz,
+		    flags, lockfunc, lockfuncarg, dmat);
 	}
 	return (error);
 }
@@ -185,7 +148,6 @@ bus_dma_template_clone(bus_dma_template_t *t, bus_dma_tag_t dmat)
 
 	common = (struct bus_dma_tag_common *)dmat;
 
-	t->parent = (bus_dma_tag_t)common->parent;
 	t->alignment = common->alignment;
 	t->boundary = common->boundary;
 	t->lowaddr = common->lowaddr;

@@ -84,10 +84,10 @@ int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
 	    size_t buflen, size_t path_max);
 int	kern_abort2(struct thread *td, const char *why, int nargs,
 	    void **uargs);
-int	kern_accept(struct thread *td, int s, struct sockaddr **name,
-	    socklen_t *namelen, struct file **fp);
-int	kern_accept4(struct thread *td, int s, struct sockaddr **name,
-	    socklen_t *namelen, int flags, struct file **fp);
+int	kern_accept(struct thread *td, int s, struct sockaddr *sa,
+	    struct file **fp);
+int	kern_accept4(struct thread *td, int s, struct sockaddr *sa,
+	    int flags, struct file **fp);
 int	kern_accessat(struct thread *td, int fd, const char *path,
 	    enum uio_seg pathseg, int flags, int mode);
 int	kern_adjtime(struct thread *td, struct timeval *delta,
@@ -187,13 +187,11 @@ int	kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 	    size_t *countp, enum uio_seg bufseg, int mode);
 int	kern_getitimer(struct thread *, u_int, struct itimerval *);
 int	kern_getppid(struct thread *);
-int	kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
-	    socklen_t *alen);
+int	kern_getpeername(struct thread *td, int fd, struct sockaddr *sa);
 int	kern_getpriority(struct thread *td, int which, int who);
 int	kern_getrusage(struct thread *td, int who, struct rusage *rup);
 int	kern_getsid(struct thread *td, pid_t pid);
-int	kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
-	    socklen_t *alen);
+int	kern_getsockname(struct thread *td, int fd, struct sockaddr *sa);
 int	kern_getsockopt(struct thread *td, int s, int level, int name,
 	    void *optval, enum uio_seg valseg, socklen_t *valsize);
 int	kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data);

@@ -35,10 +35,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *      @(#)bpf.h       7.1 (Berkeley) 5/7/91
- *
- * @(#) $Header: /devel/CVS/IP-Filter/bpf-ipf.h,v 2.1 2002/10/26 12:14:26 darrenr Exp $ (LBL)
  */
 
 #ifndef BPF_MAJOR_VERSION

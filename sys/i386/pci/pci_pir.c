@@ -29,7 +29,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -265,10 +264,10 @@ pci_pir_search_irq(int bus, int device, int pin)
 	uint8_t func, maxfunc;
 
 	/* See if we have a valid device at function 0. */
-	value = pci_cfgregread(bus, device, 0, PCIR_VENDOR, 2);
+	value = pci_cfgregread(0, bus, device, 0, PCIR_VENDOR, 2);
 	if (value == PCIV_INVALID)
 		return (PCI_INVALID_IRQ);
-	value = pci_cfgregread(bus, device, 0, PCIR_HDRTYPE, 1);
+	value = pci_cfgregread(0, bus, device, 0, PCIR_HDRTYPE, 1);
 	if ((value & PCIM_HDRTYPE) > PCI_MAXHDRTYPE)
 		return (PCI_INVALID_IRQ);
 	if (value & PCIM_MFDEV)
@@ -278,10 +277,10 @@ pci_pir_search_irq(int bus, int device, int pin)
 
 	/* Scan all possible functions at this device. */
 	for (func = 0; func <= maxfunc; func++) {
-		value = pci_cfgregread(bus, device, func, PCIR_VENDOR, 2);
+		value = pci_cfgregread(0, bus, device, func, PCIR_VENDOR, 2);
 		if (value == PCIV_INVALID)
 			continue;
-		value = pci_cfgregread(bus, device, func, PCIR_INTPIN, 1);
+		value = pci_cfgregread(0, bus, device, func, PCIR_INTPIN, 1);
 
 		/*
 		 * See if it uses the pin in question.  Note that the passed
@@ -290,7 +289,7 @@ pci_pir_search_irq(int bus, int device, int pin)
 		 */
 		if (value != pin + 1)
 			continue;
-		value = pci_cfgregread(bus, device, func, PCIR_INTLINE, 1);
+		value = pci_cfgregread(0, bus, device, func, PCIR_INTLINE, 1);
 		if (bootverbose)
 			printf(
 		"$PIR: Found matching pin for %d.%d.INT%c at func %d: %d\n",

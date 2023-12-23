@@ -134,8 +134,6 @@ virtdone:
 	sub	sp, sp, #BOOTPARAMS_SIZE
 	mov	x0, sp
 
-	/* Negate the delta so it is VA -> PA */
-
 	str	x1,  [x0, #BP_MODULEP]
 	adrp	x25, initstack
 	add	x25, x25, :lo12:initstack
@@ -678,6 +676,9 @@ LENTRY(build_l2_block_pagetable)
 	orr	x12, x7, #L2_BLOCK
 	orr	x12, x12, #(ATTR_DEFAULT)
 	orr	x12, x12, #(ATTR_S1_UXN)
+#ifdef __ARM_FEATURE_BTI_DEFAULT
+	orr	x12, x12, #(ATTR_S1_GP)
+#endif
 
 	/* Only use the output address bits */
 	lsr	x9, x9, #L2_SHIFT
@@ -747,6 +748,9 @@ LENTRY(build_l3_page_pagetable)
 	orr	x12, x7, #L3_PAGE
 	orr	x12, x12, #(ATTR_DEFAULT)
 	orr	x12, x12, #(ATTR_S1_UXN)
+#ifdef __ARM_FEATURE_BTI_DEFAULT
+	orr	x12, x12, #(ATTR_S1_GP)
+#endif
 
 	/* Only use the output address bits */
 	lsr	x9, x9, #L3_SHIFT

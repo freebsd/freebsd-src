@@ -15,7 +15,6 @@
 
 #include "Frame.h"
 #include "Program.h"
-#include "State.h"
 #include <cstdint>
 #include <vector>
 
@@ -51,7 +50,7 @@ public:
   void popArgs();
 
   /// Describes the frame with arguments for diagnostic purposes.
-  void describe(llvm::raw_ostream &OS) override;
+  void describe(llvm::raw_ostream &OS) const override;
 
   /// Returns the parent frame object.
   Frame *getCaller() const override;
@@ -120,6 +119,8 @@ public:
   const Expr *getExpr(CodePtr PC) const;
   SourceLocation getLocation(CodePtr PC) const;
 
+  unsigned getDepth() const { return Depth; }
+
 private:
   /// Returns an original argument from the stack.
   template <typename T> const T &stackRef(unsigned Offset) const {
@@ -133,8 +134,8 @@ private:
   }
 
   /// Returns a pointer to a local's block.
-  void *localBlock(unsigned Offset) const {
-    return Locals.get() + Offset - sizeof(Block);
+  Block *localBlock(unsigned Offset) const {
+    return reinterpret_cast<Block *>(Locals.get() + Offset - sizeof(Block));
   }
 
   // Returns the inline descriptor of the local.
@@ -145,6 +146,8 @@ private:
 private:
   /// Reference to the interpreter state.
   InterpState &S;
+  /// Depth of this frame.
+  unsigned Depth;
   /// Reference to the function being executed.
   const Function *Func;
   /// Current object pointer for methods.

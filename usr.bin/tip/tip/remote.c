@@ -33,20 +33,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1992, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)remote.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: remote.c,v 1.16 2006/06/06 23:24:52 deraadt Exp $";
-#endif
-#endif /* not lint */
-
 #include <stdio.h>
 #include <stdlib.h>
 

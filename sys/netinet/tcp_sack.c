@@ -28,12 +28,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)tcp_sack.c	8.12 (Berkeley) 5/24/95
  */
 
 /*-
- *	@@(#)COPYRIGHT	1.1 (NRL) 17 January 1995
  *
  * NRL grants permission for redistribution and use in source and binary
  * forms, with or without modification, of the software and documentation
@@ -134,6 +131,11 @@ VNET_DEFINE(int, tcp_do_newsack) = 1;
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, revised, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_newsack), 0,
     "Use revised SACK loss recovery per RFC 6675");
+
+VNET_DEFINE(int, tcp_do_lrd) = 1;
+SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, lrd, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(tcp_do_lrd), 1,
+    "Perform Lost Retransmission Detection");
 
 VNET_DEFINE(int, tcp_sack_maxholes) = 128;
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, maxholes, CTLFLAG_VNET | CTLFLAG_RW,

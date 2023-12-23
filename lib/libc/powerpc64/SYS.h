@@ -40,24 +40,6 @@
 	li	0,(SYS_##name);					\
 	sc
 
-#define	SYSCALL(name)						\
-	.text;							\
-	.align 2;						\
-2:	mflr	%r0;						\
-	std	%r0,16(%r1);					\
-	stdu	%r1,-48(%r1);					\
-	bl	CNAME(HIDENAME(cerror));			\
-	nop;							\
-	addi	%r1,%r1,48;					\
-	ld	%r0,16(%r1);					\
-	mtlr	%r0;						\
-	blr;							\
-ENTRY(__sys_##name);						\
-	WEAK_REFERENCE(__sys_##name, name);			\
-	WEAK_REFERENCE(__sys_##name, _##name);			\
-	_SYSCALL(name);						\
-	bso	2b
-
 #define	PSEUDO(name)						\
 	.text;							\
 	.align 2;						\

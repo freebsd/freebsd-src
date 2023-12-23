@@ -65,6 +65,8 @@ SIMachineFunctionInfo::SIMachineFunctionInfo(const Function &F,
   Occupancy = ST.computeOccupancy(F, getLDSSize());
   CallingConv::ID CC = F.getCallingConv();
 
+  VRegFlags.reserve(1024);
+
   // FIXME: Should have analysis or something rather than attribute to detect
   // calls.
   const bool HasCalls = F.hasFnAttribute("amdgpu-calls");
@@ -119,7 +121,8 @@ SIMachineFunctionInfo::SIMachineFunctionInfo(const Function &F,
   else if (ST.isMesaGfxShader(F))
     ImplicitBufferPtr = true;
 
-  if (!AMDGPU::isGraphics(CC)) {
+  if (!AMDGPU::isGraphics(CC) ||
+      (CC == CallingConv::AMDGPU_CS && ST.hasArchitectedSGPRs())) {
     if (IsKernel || !F.hasFnAttribute("amdgpu-no-workgroup-id-x"))
       WorkGroupIDX = true;
 
@@ -128,7 +131,9 @@ SIMachineFunctionInfo::SIMachineFunctionInfo(const Function &F,
 
     if (!F.hasFnAttribute("amdgpu-no-workgroup-id-z"))
       WorkGroupIDZ = true;
+  }
 
+  if (!AMDGPU::isGraphics(CC)) {
     if (IsKernel || !F.hasFnAttribute("amdgpu-no-workitem-id-x"))
       WorkItemIDX = true;
 
@@ -537,6 +542,16 @@ MCPhysReg SIMachineFunctionInfo::getNextSystemSGPR() const {
   return AMDGPU::SGPR0 + NumUserSGPRs + NumSystemSGPRs;
 }
 
+void SIMachineFunctionInfo::MRI_NoteNewVirtualRegister(Register Reg) {
+  VRegFlags.grow(Reg);
+}
+
+void SIMachineFunctionInfo::MRI_NoteCloneVirtualRegister(Register NewReg,
+                                                         Register SrcReg) {
+  VRegFlags.grow(NewReg);
+  VRegFlags[NewReg] = VRegFlags[SrcReg];
+}
+
 Register
 SIMachineFunctionInfo::getGITPtrLoReg(const MachineFunction &MF) const {
   const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
@@ -638,12 +653,21 @@ yaml::SIMachineFunctionInfo::SIMachineFunctionInfo(
       StackPtrOffsetReg(regToString(MFI.getStackPtrOffsetReg(), TRI)),
       BytesInStackArgArea(MFI.getBytesInStackArgArea()),
       ReturnsVoid(MFI.returnsVoid()),
-      ArgInfo(convertArgumentInfo(MFI.getArgInfo(), TRI)), Mode(MFI.getMode()) {
+      ArgInfo(convertArgumentInfo(MFI.getArgInfo(), TRI)),
+      PSInputAddr(MFI.getPSInputAddr()),
+      PSInputEnable(MFI.getPSInputEnable()),
+      Mode(MFI.getMode()) {
   for (Register Reg : MFI.getWWMReservedRegs())
     WWMReservedRegs.push_back(regToString(Reg, TRI));
 
+  if (MFI.getLongBranchReservedReg())
+    LongBranchReservedReg = regToString(MFI.getLongBranchReservedReg(), TRI);
   if (MFI.getVGPRForAGPRCopy())
     VGPRForAGPRCopy = regToString(MFI.getVGPRForAGPRCopy(), TRI);
+
+  if (MFI.getSGPRForEXECCopy())
+    SGPRForEXECCopy = regToString(MFI.getSGPRForEXECCopy(), TRI);
+
   auto SFI = MFI.getOptionalScavengeFI();
   if (SFI)
     ScavengeFI = yaml::FrameIndex(*SFI, MF.getFrameInfo());
@@ -661,6 +685,8 @@ bool SIMachineFunctionInfo::initializeBaseYamlFields(
   LDSSize = YamlMFI.LDSSize;
   GDSSize = YamlMFI.GDSSize;
   DynLDSAlign = YamlMFI.DynLDSAlign;
+  PSInputAddr = YamlMFI.PSInputAddr;
+  PSInputEnable = YamlMFI.PSInputEnable;
   HighBitsOf32BitAddress = YamlMFI.HighBitsOf32BitAddress;
   Occupancy = YamlMFI.Occupancy;
   IsEntryFunction = YamlMFI.IsEntryFunction;

@@ -63,18 +63,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1990, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)traceroute.c	8.1 (Berkeley) 6/6/93";
-#endif
-#endif /* not lint */
-
 /*
  * traceroute host  - trace the route ip packets follow going to "host".
  *

@@ -51,7 +51,7 @@
  *                        xnb0
  *                        xnb1
  */
-#include <sys/cdefs.h>
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -622,7 +622,7 @@ xenbusb_nop_confighook_cb(void *arg __unused)
 /*--------------------------- Public Functions -------------------------------*/
 /*--------- API comments for these methods can be found in xenbusb.h ---------*/
 void
-xenbusb_identify(driver_t *driver __unused, device_t parent)
+xenbusb_identify(driver_t *driver, device_t parent)
 {
 	/*
 	 * A single instance of each bus type for which we have a driver

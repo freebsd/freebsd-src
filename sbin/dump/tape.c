@@ -29,12 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)tape.c	8.4 (Berkeley) 5/1/95";
-#endif
-#endif /* not lint */
-
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/wait.h>

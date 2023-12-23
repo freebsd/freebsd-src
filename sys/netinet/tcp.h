@@ -27,14 +27,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)tcp.h	8.1 (Berkeley) 6/10/93
  */
 
 #ifndef _NETINET_TCP_H_
 #define _NETINET_TCP_H_
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #if __BSD_VISIBLE
@@ -203,7 +200,6 @@ struct tcphdr {
 #define TCP_PROC_ACCOUNTING 76	/* Do accounting on tcp cpu usage and counts */
 #define TCP_USE_CMP_ACKS 77 	/* The transport can handle the Compressed mbuf acks */
 #define	TCP_PERF_INFO	78	/* retrieve accounting counters */
-#define	TCP_LRD		79	/* toggle Lost Retransmission Detection for A/B testing */
 #define	TCP_KEEPINIT	128	/* N, time to establish connection */
 #define	TCP_KEEPIDLE	256	/* L,N,X start keeplives after this period */
 #define	TCP_KEEPINTVL	512	/* L,N interval between keepalives */

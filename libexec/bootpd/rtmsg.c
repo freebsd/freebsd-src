@@ -39,7 +39,6 @@
  * from arp.c	8.2 (Berkeley) 1/2/94
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 /*
  * Verify that we are at least 4.4 BSD

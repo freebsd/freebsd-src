@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)closedir.c	8.1 (Berkeley) 6/10/93");
 #include "namespace.h"
 #include <sys/types.h>
 #include <dirent.h>

@@ -771,9 +771,8 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_KSOCKET_GETNAME:
 		case NGM_KSOCKET_GETPEERNAME:
 		    {
-			int (*func)(struct socket *so, struct sockaddr **nam);
-			struct sockaddr *sa = NULL;
-			int len;
+			int (*func)(struct socket *so, struct sockaddr *sa);
+			struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
 
 			/* Sanity check */
 			if (msg->header.arglen != 0)
@@ -786,27 +785,22 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				if ((so->so_state
 				    & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0)
 					ERROUT(ENOTCONN);
-				func = so->so_proto->pr_peeraddr;
+				func = sopeeraddr;
 			} else
-				func = so->so_proto->pr_sockaddr;
+				func = sosockaddr;
 
 			/* Get local or peer address */
-			if ((error = (*func)(so, &sa)) != 0)
-				goto bail;
-			len = (sa == NULL) ? 0 : sa->sa_len;
+			error = (*func)(so, (struct sockaddr *)&ss);
+			if (error)
+				break;
 
 			/* Send it back in a response */
-			NG_MKRESPONSE(resp, msg, len, M_NOWAIT);
-			if (resp == NULL) {
+			NG_MKRESPONSE(resp, msg, ss.ss_len, M_NOWAIT);
+			if (resp != NULL)
+				bcopy(&ss, resp->data, ss.ss_len);
+			else
 				error = ENOMEM;
-				goto bail;
-			}
-			bcopy(sa, resp->data, len);
 
-		bail:
-			/* Cleanup */
-			if (sa != NULL)
-				free(sa, M_SONAME);
 			break;
 		    }
 
@@ -1178,7 +1172,7 @@ ng_ksocket_accept(priv_p priv)
 {
 	struct socket *const head = priv->so;
 	struct socket *so;
-	struct sockaddr *sa = NULL;
+	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
 	struct ng_mesg *resp;
 	struct ng_ksocket_accept *resp_data;
 	node_p node;
@@ -1196,12 +1190,11 @@ ng_ksocket_accept(priv_p priv)
 	if (error)
 		return (error);
 
-	if ((error = soaccept(so, &sa)) != 0)
+	if ((error = soaccept(so, (struct sockaddr *)&ss)) != 0)
 		return (error);
 
 	len = OFFSETOF(struct ng_ksocket_accept, addr);
-	if (sa != NULL)
-		len += sa->sa_len;
+	len += ss.ss_len;
 
 	NG_MKMESSAGE(resp, NGM_KSOCKET_COOKIE, NGM_KSOCKET_ACCEPT, len,
 	    M_NOWAIT);
@@ -1249,13 +1242,10 @@ ng_ksocket_accept(priv_p priv)
 	/* Fill in the response data and send it or return it to the caller */
 	resp_data = (struct ng_ksocket_accept *)resp->data;
 	resp_data->nodeid = NG_NODE_ID(node);
-	if (sa != NULL)
-		bcopy(sa, &resp_data->addr, sa->sa_len);
+	bcopy(&ss, &resp_data->addr, ss.ss_len);
 	NG_SEND_MSG_ID(error, node, resp, priv->response_addr, 0);
 
 out:
-	if (sa != NULL)
-		free(sa, M_SONAME);
 
 	return (0);
 }

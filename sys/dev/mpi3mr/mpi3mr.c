@@ -41,7 +41,6 @@
  * Broadcom Inc. (Broadcom) MPI3MR Adapter FreeBSD
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -604,7 +603,7 @@ static int mpi3mr_create_op_reply_queue(struct mpi3mr_softc *sc, U16 qid)
 
 		if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 					4, 0,			/* algnmnt, boundary */
-					BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+					sc->dma_loaddr,		/* lowaddr */
 					BUS_SPACE_MAXADDR,	/* highaddr */
 					NULL, NULL,		/* filter, filterarg */
 					op_reply_q->qsz,		/* maxsize */
@@ -619,12 +618,12 @@ static int mpi3mr_create_op_reply_queue(struct mpi3mr_softc *sc, U16 qid)
 
 		if (bus_dmamem_alloc(op_reply_q->q_base_tag, (void **)&op_reply_q->q_base,
 		    BUS_DMA_NOWAIT, &op_reply_q->q_base_dmamap)) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, "Cannot allocate replies memory\n");
+			mpi3mr_dprint(sc, MPI3MR_ERROR, "%s: Cannot allocate replies memory\n", __func__);
 			return (ENOMEM);
 		}
 		bzero(op_reply_q->q_base, op_reply_q->qsz);
 		bus_dmamap_load(op_reply_q->q_base_tag, op_reply_q->q_base_dmamap, op_reply_q->q_base, op_reply_q->qsz,
-		    mpi3mr_memaddr_cb, &op_reply_q->q_base_phys, 0);
+		    mpi3mr_memaddr_cb, &op_reply_q->q_base_phys, BUS_DMA_NOWAIT);
 		mpi3mr_dprint(sc, MPI3MR_XINFO, "Operational Reply queue ID: %d phys addr= %#016jx virt_addr: %pa size= %d\n",
 		    qid, (uintmax_t)op_reply_q->q_base_phys, op_reply_q->q_base, op_reply_q->qsz);
 		
@@ -750,7 +749,7 @@ static int mpi3mr_create_op_req_queue(struct mpi3mr_softc *sc, U16 req_qid, U8 r
 
 		if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 					4, 0,			/* algnmnt, boundary */
-					BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+					sc->dma_loaddr,		/* lowaddr */
 					BUS_SPACE_MAXADDR,	/* highaddr */
 					NULL, NULL,		/* filter, filterarg */
 					op_req_q->qsz,		/* maxsize */
@@ -765,14 +764,14 @@ static int mpi3mr_create_op_req_queue(struct mpi3mr_softc *sc, U16 req_qid, U8 r
 
 		if (bus_dmamem_alloc(op_req_q->q_base_tag, (void **)&op_req_q->q_base,
 		    BUS_DMA_NOWAIT, &op_req_q->q_base_dmamap)) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, "Cannot allocate replies memory\n");
+			mpi3mr_dprint(sc, MPI3MR_ERROR, "%s: Cannot allocate replies memory\n", __func__);
 			return (ENOMEM);
 		}
 
 		bzero(op_req_q->q_base, op_req_q->qsz);
 		
 		bus_dmamap_load(op_req_q->q_base_tag, op_req_q->q_base_dmamap, op_req_q->q_base, op_req_q->qsz,
-		    mpi3mr_memaddr_cb, &op_req_q->q_base_phys, 0);
+		    mpi3mr_memaddr_cb, &op_req_q->q_base_phys, BUS_DMA_NOWAIT);
 		
 		mpi3mr_dprint(sc, MPI3MR_XINFO, "Operational Request QID: %d phys addr= %#016jx virt addr= %pa size= %d associated Reply QID: %d\n",
 		    req_qid, (uintmax_t)op_req_q->q_base_phys, op_req_q->q_base, op_req_q->qsz, reply_qid);
@@ -981,6 +980,11 @@ static int mpi3mr_setup_admin_qpair(struct mpi3mr_softc *sc)
 	sc->admin_reply_ephase = 1;
 
 	if (!sc->admin_req) {
+		/*
+		 * We need to create the tag for the admin queue to get the
+		 * iofacts to see how many bits the controller decodes.  Solve
+		 * this chicken and egg problem by only doing lower 4GB DMA.
+		 */
 		if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 					4, 0,			/* algnmnt, boundary */
 					BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
@@ -998,12 +1002,12 @@ static int mpi3mr_setup_admin_qpair(struct mpi3mr_softc *sc)
 
 		if (bus_dmamem_alloc(sc->admin_req_tag, (void **)&sc->admin_req,
 		    BUS_DMA_NOWAIT, &sc->admin_req_dmamap)) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, "Cannot allocate replies memory\n");
+			mpi3mr_dprint(sc, MPI3MR_ERROR, "%s: Cannot allocate replies memory\n", __func__);
 			return (ENOMEM);
 		}
 		bzero(sc->admin_req, sc->admin_req_q_sz);
 		bus_dmamap_load(sc->admin_req_tag, sc->admin_req_dmamap, sc->admin_req, sc->admin_req_q_sz,
-		    mpi3mr_memaddr_cb, &sc->admin_req_phys, 0);
+		    mpi3mr_memaddr_cb, &sc->admin_req_phys, BUS_DMA_NOWAIT);
 		mpi3mr_dprint(sc, MPI3MR_XINFO, "Admin Req queue phys addr= %#016jx size= %d\n",
 		    (uintmax_t)sc->admin_req_phys, sc->admin_req_q_sz);
 		
@@ -1036,12 +1040,12 @@ static int mpi3mr_setup_admin_qpair(struct mpi3mr_softc *sc)
 
 		if (bus_dmamem_alloc(sc->admin_reply_tag, (void **)&sc->admin_reply,
 		    BUS_DMA_NOWAIT, &sc->admin_reply_dmamap)) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, "Cannot allocate replies memory\n");
+			mpi3mr_dprint(sc, MPI3MR_ERROR, "%s: Cannot allocate replies memory\n", __func__);
 			return (ENOMEM);
 		}
 		bzero(sc->admin_reply, sc->admin_reply_q_sz);
 		bus_dmamap_load(sc->admin_reply_tag, sc->admin_reply_dmamap, sc->admin_reply, sc->admin_reply_q_sz,
-		    mpi3mr_memaddr_cb, &sc->admin_reply_phys, 0);
+		    mpi3mr_memaddr_cb, &sc->admin_reply_phys, BUS_DMA_NOWAIT);
 		mpi3mr_dprint(sc, MPI3MR_XINFO, "Admin Reply queue phys addr= %#016jx size= %d\n",
 		    (uintmax_t)sc->admin_reply_phys, sc->admin_req_q_sz);
 		
@@ -1435,6 +1439,12 @@ static int mpi3mr_issue_iocfacts(struct mpi3mr_softc *sc,
 			MPI3_SGE_FLAGS_END_OF_LIST);
 
 
+	/*
+	 * We can't use sc->dma_loaddr here.  We set those only after we get the
+	 * iocfacts.  So allocate in the lower 4GB.  The amount of data is tiny
+	 * and we don't do this that often, so any bouncing we might have to do
+	 * isn't a cause for concern.
+	 */
         if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
@@ -1459,7 +1469,7 @@ static int mpi3mr_issue_iocfacts(struct mpi3mr_softc *sc,
 
         bzero(data, data_len);
         bus_dmamap_load(data_tag, data_map, data, data_len,
-	    mpi3mr_memaddr_cb, &data_phys, 0);
+	    mpi3mr_memaddr_cb, &data_phys, BUS_DMA_NOWAIT);
 	mpi3mr_dprint(sc, MPI3MR_XINFO, "Func: %s line: %d IOCfacts data phys addr= %#016jx size= %d\n",
 	    __func__, __LINE__, (uintmax_t)data_phys, data_len);
 	
@@ -1554,6 +1564,7 @@ static int mpi3mr_process_factsdata(struct mpi3mr_softc *sc,
 {
 	int retval = 0;
 	U32 ioc_config, req_sz, facts_flags;
+        struct mpi3mr_compimg_ver *fwver;
 
 	if (le16toh(facts_data->IOCFactsDataLength) !=
 	    (sizeof(*facts_data) / 4)) {
@@ -1650,6 +1661,12 @@ static int mpi3mr_process_factsdata(struct mpi3mr_softc *sc,
 	sc->io_throttle_high = (sc->facts.io_throttle_high * 2 * 1024);
 	sc->io_throttle_low = (sc->facts.io_throttle_low * 2 * 1024);
         
+	fwver = &sc->facts.fw_ver;
+	snprintf(sc->fw_version, sizeof(sc->fw_version),
+	    "%d.%d.%d.%d.%05d-%05d",
+	    fwver->gen_major, fwver->gen_minor, fwver->ph_major,
+	    fwver->ph_minor, fwver->cust_id, fwver->build_num);
+
 	mpi3mr_dprint(sc, MPI3MR_INFO, "ioc_num(%d), maxopQ(%d), maxopRepQ(%d), maxdh(%d),"
             "maxreqs(%d), mindh(%d) maxPDs(%d) maxvectors(%d) maxperids(%d)\n",
 	    sc->facts.ioc_num, sc->facts.max_op_req_q,
@@ -1665,9 +1682,24 @@ static int mpi3mr_process_factsdata(struct mpi3mr_softc *sc,
 	    sc->facts.max_dev_per_tg, sc->facts.max_io_throttle_group,
 	    sc->facts.io_throttle_data_length * 4,
 	    sc->facts.io_throttle_high, sc->facts.io_throttle_low);
-	
+
 	sc->max_host_ios = sc->facts.max_reqs -
 	    (MPI3MR_INTERNALCMDS_RESVD + 1);
+
+	/*
+	 * Set the DMA mask for the card.  dma_mask is the number of bits that
+	 * can have bits set in them.  Translate this into bus_dma loaddr args.
+	 * Add sanity for more bits than address space or other overflow
+	 * situations.
+	 */
+	if (sc->facts.dma_mask == 0 ||
+	    (sc->facts.dma_mask >= sizeof(bus_addr_t) * 8))
+		sc->dma_loaddr = BUS_SPACE_MAXADDR;
+	else
+		sc->dma_loaddr = ~((1ull << sc->facts.dma_mask) - 1);
+	mpi3mr_dprint(sc, MPI3MR_INFO,
+	    "dma_mask bits: %d loaddr 0x%jx\n",
+	    sc->facts.dma_mask, sc->dma_loaddr);
 
 	return retval;
 }
@@ -1704,7 +1736,7 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
 	
 	if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,  /* parent */
 				16, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				sc->dma_loaddr,		/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 sz,			/* maxsize */
@@ -1726,7 +1758,7 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
         
 	bzero(sc->reply_buf, sz);
         bus_dmamap_load(sc->reply_buf_tag, sc->reply_buf_dmamap, sc->reply_buf, sz,
-	    mpi3mr_memaddr_cb, &sc->reply_buf_phys, 0);
+	    mpi3mr_memaddr_cb, &sc->reply_buf_phys, BUS_DMA_NOWAIT);
 	
 	sc->reply_buf_dma_min_address = sc->reply_buf_phys;
 	sc->reply_buf_dma_max_address = sc->reply_buf_phys + sz;
@@ -1740,7 +1772,7 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
 
         if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				8, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				sc->dma_loaddr,		/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 sz,			/* maxsize */
@@ -1762,7 +1794,7 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
         
 	bzero(sc->reply_free_q, sz);
         bus_dmamap_load(sc->reply_free_q_tag, sc->reply_free_q_dmamap, sc->reply_free_q, sz,
-	    mpi3mr_memaddr_cb, &sc->reply_free_q_phys, 0);
+	    mpi3mr_memaddr_cb, &sc->reply_free_q_phys, BUS_DMA_NOWAIT);
 	
 	mpi3mr_dprint(sc, MPI3MR_XINFO, "reply_free_q (0x%p): depth(%d), frame_size(%d), "
 	    "pool_size(%d kB), reply_free_q_dma(0x%llx)\n",
@@ -1774,7 +1806,7 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
 
         if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				sc->dma_loaddr,		/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 sz,			/* maxsize */
@@ -1796,7 +1828,7 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
         
 	bzero(sc->sense_buf, sz);
         bus_dmamap_load(sc->sense_buf_tag, sc->sense_buf_dmamap, sc->sense_buf, sz,
-	    mpi3mr_memaddr_cb, &sc->sense_buf_phys, 0);
+	    mpi3mr_memaddr_cb, &sc->sense_buf_phys, BUS_DMA_NOWAIT);
 
 	mpi3mr_dprint(sc, MPI3MR_XINFO, "sense_buf (0x%p): depth(%d), frame_size(%d), "
 	    "pool_size(%d kB), sense_dma(0x%llx)\n",
@@ -1808,7 +1840,7 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
 
         if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				8, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				sc->dma_loaddr,		/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 sz,			/* maxsize */
@@ -1830,7 +1862,7 @@ static int mpi3mr_reply_dma_alloc(struct mpi3mr_softc *sc)
         
 	bzero(sc->sense_buf_q, sz);
         bus_dmamap_load(sc->sense_buf_q_tag, sc->sense_buf_q_dmamap, sc->sense_buf_q, sz,
-	    mpi3mr_memaddr_cb, &sc->sense_buf_q_phys, 0);
+	    mpi3mr_memaddr_cb, &sc->sense_buf_q_phys, BUS_DMA_NOWAIT);
 
 	mpi3mr_dprint(sc, MPI3MR_XINFO, "sense_buf_q (0x%p): depth(%d), frame_size(%d), "
 	    "pool_size(%d kB), sense_dma(0x%llx)\n",
@@ -1945,7 +1977,7 @@ mpi3mr_print_fw_pkg_ver(struct mpi3mr_softc *sc)
 
 	if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,  /* parent */
 				4, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				sc->dma_loaddr,		/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
 				fw_pkg_ver_len,		/* maxsize */
@@ -1966,7 +1998,8 @@ mpi3mr_print_fw_pkg_ver(struct mpi3mr_softc *sc)
 
 	bzero(fw_pkg_ver, fw_pkg_ver_len);
 
-	bus_dmamap_load(fw_pkg_ver_tag, fw_pkg_ver_map, fw_pkg_ver, fw_pkg_ver_len, mpi3mr_memaddr_cb, &fw_pkg_ver_dma, 0);
+	bus_dmamap_load(fw_pkg_ver_tag, fw_pkg_ver_map, fw_pkg_ver, fw_pkg_ver_len,
+	    mpi3mr_memaddr_cb, &fw_pkg_ver_dma, BUS_DMA_NOWAIT);
 
 	mpi3mr_dprint(sc, MPI3MR_XINFO, "Func: %s line: %d fw package version phys addr= %#016jx size= %d\n",
 		      __func__, __LINE__, (uintmax_t)fw_pkg_ver_dma, fw_pkg_ver_len);
@@ -2066,7 +2099,7 @@ static int mpi3mr_issue_iocinit(struct mpi3mr_softc *sc)
 
 	if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,  /* parent */
 				4, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				sc->dma_loaddr,		/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 drvr_info_len,		/* maxsize */
@@ -2088,7 +2121,7 @@ static int mpi3mr_issue_iocinit(struct mpi3mr_softc *sc)
         
 	bzero(drvr_info, drvr_info_len);
         bus_dmamap_load(drvr_info_tag, drvr_info_map, drvr_info, drvr_info_len,
-	    mpi3mr_memaddr_cb, &drvr_info_phys, 0);
+	    mpi3mr_memaddr_cb, &drvr_info_phys, BUS_DMA_NOWAIT);
 	mpi3mr_dprint(sc, MPI3MR_XINFO, "Func: %s line: %d IOCfacts drvr_info phys addr= %#016jx size= %d\n",
 	    __func__, __LINE__, (uintmax_t)drvr_info_phys, drvr_info_len);
 	
@@ -2193,7 +2226,6 @@ mpi3mr_display_ioc_info(struct mpi3mr_softc *sc)
 {
         int i = 0;
         char personality[16];
-        struct mpi3mr_compimg_ver *fwver = &sc->facts.fw_ver;
 
         switch (sc->facts.personality) {
         case MPI3_IOCFACTS_FLAGS_PERSONALITY_EHBA:
@@ -2209,9 +2241,7 @@ mpi3mr_display_ioc_info(struct mpi3mr_softc *sc)
 
 	mpi3mr_dprint(sc, MPI3MR_INFO, "Current Personality: %s\n", personality);
 
-	mpi3mr_dprint(sc, MPI3MR_INFO, "FW Version: %d.%d.%d.%d.%05d-%05d\n",
-		      fwver->gen_major, fwver->gen_minor, fwver->ph_major,
-		      fwver->ph_minor, fwver->cust_id, fwver->build_num);
+	mpi3mr_dprint(sc, MPI3MR_INFO, "%s\n", sc->fw_version);
 
         mpi3mr_dprint(sc, MPI3MR_INFO, "Protocol=(");
 
@@ -2482,7 +2512,7 @@ static int mpi3mr_alloc_chain_bufs(struct mpi3mr_softc *sc)
 
         if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,  /* parent */
 				4096, 0,		/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				sc->dma_loaddr,		/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
                                 sz,			/* maxsize */
@@ -2505,7 +2535,7 @@ static int mpi3mr_alloc_chain_bufs(struct mpi3mr_softc *sc)
 		
 		bzero(sc->chain_sgl_list[i].buf, sz);
 		bus_dmamap_load(sc->chain_sgl_list_tag, sc->chain_sgl_list[i].buf_dmamap, sc->chain_sgl_list[i].buf, sz,
-		    mpi3mr_memaddr_cb, &sc->chain_sgl_list[i].buf_phys, 0);
+		    mpi3mr_memaddr_cb, &sc->chain_sgl_list[i].buf_phys, BUS_DMA_NOWAIT);
 		mpi3mr_dprint(sc, MPI3MR_XINFO, "Func: %s line: %d phys addr= %#016jx size= %d\n",
 		    __func__, __LINE__, (uintmax_t)sc->chain_sgl_list[i].buf_phys, sz);
 	}
@@ -2558,8 +2588,8 @@ static int mpi3mr_pel_alloc(struct mpi3mr_softc *sc)
 		sc->pel_seq_number_sz = sizeof(Mpi3PELSeq_t);
 		if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,   /* parent */
 				 4, 0,                           /* alignment, boundary */
-				 BUS_SPACE_MAXADDR_32BIT,        /* lowaddr */
-				 BUS_SPACE_MAXADDR,              /* highaddr */
+				 sc->dma_loaddr,	         /* lowaddr */
+				 BUS_SPACE_MAXADDR,		 /* highaddr */
 				 NULL, NULL,                     /* filter, filterarg */
 				 sc->pel_seq_number_sz,		 /* maxsize */
 				 1,                              /* nsegments */
@@ -2582,7 +2612,7 @@ static int mpi3mr_pel_alloc(struct mpi3mr_softc *sc)
 		bzero(sc->pel_seq_number, sc->pel_seq_number_sz);
 		
 		bus_dmamap_load(sc->pel_seq_num_dmatag, sc->pel_seq_num_dmamap, sc->pel_seq_number,
-		    sc->pel_seq_number_sz, mpi3mr_memaddr_cb, &sc->pel_seq_number_dma, 0);
+		    sc->pel_seq_number_sz, mpi3mr_memaddr_cb, &sc->pel_seq_number_dma, BUS_DMA_NOWAIT);
 		
 		if (!sc->pel_seq_number) {
 			printf(IOCNAME "%s:%d Cannot load PEL seq number dma memory for size: %d\n", sc->name,
@@ -2785,7 +2815,6 @@ int mpi3mr_initialize_ioc(struct mpi3mr_softc *sc, U8 init_type)
 		mtx_init(&sc->sense_buf_q_lock, "Sense buffer Queue lock", NULL, MTX_SPIN);
 		mtx_init(&sc->chain_buf_lock, "Chain buffer lock", NULL, MTX_SPIN);
 		mtx_init(&sc->cmd_pool_lock, "Command pool lock", NULL, MTX_DEF);
-//		mtx_init(&sc->fwevt_lock, "Firmware Event lock", NULL, MTX_SPIN);
 		mtx_init(&sc->fwevt_lock, "Firmware Event lock", NULL, MTX_DEF);
 		mtx_init(&sc->target_lock, "Target lock", NULL, MTX_SPIN);
 		mtx_init(&sc->reset_mutex, "Reset lock", NULL, MTX_DEF);
@@ -2854,7 +2883,6 @@ int mpi3mr_initialize_ioc(struct mpi3mr_softc *sc, U8 init_type)
 	} else {
 		sc->reply_sz = sc->facts.reply_sz;
 	}
-
 
 	mpi3mr_display_ioc_info(sc);
 
@@ -3039,9 +3067,6 @@ mpi3mr_watchdog_thread(void *arg)
 	sc->watchdog_thread_active = 1;
 	mtx_lock(&sc->reset_mutex);
 	for (;;) {
-		/* Sleep for 1 second and check the queue status */
-		msleep(&sc->watchdog_chan, &sc->reset_mutex, PRIBIO,
-		    "mpi3mr_watchdog", 1 * hz);
 		if (sc->mpi3mr_flags & MPI3MR_FLAGS_SHUTDOWN || 
 		    (sc->unrecoverable == 1)) {
 			mpi3mr_dprint(sc, MPI3MR_INFO,
@@ -3050,20 +3075,21 @@ mpi3mr_watchdog_thread(void *arg)
 			    "Hardware critical error", __func__);
 			break;
 		}
+		mtx_unlock(&sc->reset_mutex);
 
 		if ((sc->prepare_for_reset) &&
 		    ((sc->prepare_for_reset_timeout_counter++) >=
 		     MPI3MR_PREPARE_FOR_RESET_TIMEOUT)) {
 			mpi3mr_soft_reset_handler(sc,
 			    MPI3MR_RESET_FROM_CIACTVRST_TIMER, 1);
-			continue;
+			goto sleep;
 		}
 	
 		ioc_status = mpi3mr_regread(sc, MPI3_SYSIF_IOC_STATUS_OFFSET);
 		
 		if (ioc_status & MPI3_SYSIF_IOC_STATUS_RESET_HISTORY) {
 			mpi3mr_soft_reset_handler(sc, MPI3MR_RESET_FROM_FIRMWARE, 0);
-			continue;
+			goto sleep;
 		}
 
 		ioc_state = mpi3mr_get_iocstate(sc);
@@ -3079,7 +3105,7 @@ mpi3mr_watchdog_thread(void *arg)
 						"diag save in progress\n");
 				}
 				if ((sc->diagsave_timeout++) <= MPI3_SYSIF_DIAG_SAVE_TIMEOUT)
-					continue;
+					goto sleep;
 			}
 			mpi3mr_print_fault_info(sc);
 			sc->diagsave_timeout = 0;
@@ -3090,12 +3116,12 @@ mpi3mr_watchdog_thread(void *arg)
 				    "Controller requires system power cycle or complete reset is needed,"
 				    "fault code: 0x%x. marking controller as unrecoverable\n", fault);
 				sc->unrecoverable = 1;
-				goto out;
+				break;
 			}
 			if ((fault == MPI3_SYSIF_FAULT_CODE_DIAG_FAULT_RESET)
 			    || (fault == MPI3_SYSIF_FAULT_CODE_SOFT_RESET_IN_PROGRESS)
 			    || (sc->reset_in_progress))
-				goto out;
+				break;
 			if (fault == MPI3_SYSIF_FAULT_CODE_CI_ACTIVATION_RESET)
 				mpi3mr_soft_reset_handler(sc,
 				    MPI3MR_RESET_FROM_CIACTIV_FAULT, 0);
@@ -3109,8 +3135,18 @@ mpi3mr_watchdog_thread(void *arg)
 			mpi3mr_print_fault_info(sc);
 			mpi3mr_soft_reset_handler(sc, sc->reset.reason, 1);
 		}
+sleep:
+		mtx_lock(&sc->reset_mutex);
+		/*
+		 * Sleep for 1 second if we're not exiting, then loop to top
+		 * to poll exit status and hardware health.
+		 */
+		if ((sc->mpi3mr_flags & MPI3MR_FLAGS_SHUTDOWN) == 0 &&
+		    !sc->unrecoverable) {
+			msleep(&sc->watchdog_chan, &sc->reset_mutex, PRIBIO,
+			    "mpi3mr_watchdog", 1 * hz);
+		}
 	}
-out:
 	mtx_unlock(&sc->reset_mutex);
 	sc->watchdog_thread_active = 0;
 	mpi3mr_kproc_exit(0);
@@ -4907,12 +4943,12 @@ mpi3mr_alloc_requests(struct mpi3mr_softc *sc)
 	nsegs = MPI3MR_SG_DEPTH;
 	ret = bus_dma_tag_create( sc->mpi3mr_parent_dmat,    /* parent */
 				1, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR,	/* lowaddr */
+				sc->dma_loaddr,		/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
-				MAXPHYS,/* maxsize */
+				BUS_SPACE_MAXSIZE,	/* maxsize */
                                 nsegs,			/* nsegments */
-				MAXPHYS,/* maxsegsize */
+				BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
                                 BUS_DMA_ALLOCNOW,	/* flags */
                                 busdma_lock_mutex,	/* lockfunc */
 				&sc->io_lock,	/* lockarg */
@@ -4987,12 +5023,9 @@ mpi3mr_get_command(struct mpi3mr_softc *sc)
 	cmd->data_dir = 0;
 	cmd->ccb = NULL;
 	cmd->targ = NULL;
-	cmd->max_segs = 0;
-	cmd->lun = 0;
 	cmd->state = MPI3MR_CMD_STATE_BUSY;
 	cmd->data = NULL;
 	cmd->length = 0;
-	cmd->out_len = 0;
 out:
 	mtx_unlock(&sc->cmd_pool_lock);
 	return cmd;
@@ -5084,7 +5117,7 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 		
 		if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 					4, 0,			/* algnmnt, boundary */
-					BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+					sc->dma_loaddr,		/* lowaddr */
 					BUS_SPACE_MAXADDR,	/* highaddr */
 					NULL, NULL,		/* filter, filterarg */
 					mem_desc->size,		/* maxsize */
@@ -5099,12 +5132,12 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 
 		if (bus_dmamem_alloc(mem_desc->tag, (void **)&mem_desc->addr,
 		    BUS_DMA_NOWAIT, &mem_desc->dmamap)) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, "Cannot allocate replies memory\n");
+			mpi3mr_dprint(sc, MPI3MR_ERROR, "%s: Cannot allocate replies memory\n", __func__);
 			goto out_failed;
 		}
 		bzero(mem_desc->addr, mem_desc->size);
 		bus_dmamap_load(mem_desc->tag, mem_desc->dmamap, mem_desc->addr, mem_desc->size,
-		    mpi3mr_memaddr_cb, &mem_desc->dma_addr, 0);
+		    mpi3mr_memaddr_cb, &mem_desc->dma_addr, BUS_DMA_NOWAIT);
 
 		if (!mem_desc->addr)
 			goto out_failed;
@@ -5114,7 +5147,7 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 	mem_desc->size = MPI3MR_4K_PGSZ;
 	if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				sc->dma_loaddr,		/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
 				mem_desc->size,		/* maxsize */
@@ -5129,12 +5162,12 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 
 	if (bus_dmamem_alloc(mem_desc->tag, (void **)&mem_desc->addr,
 	    BUS_DMA_NOWAIT, &mem_desc->dmamap)) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, "Cannot allocate replies memory\n");
+		mpi3mr_dprint(sc, MPI3MR_ERROR, "%s: Cannot allocate replies memory\n", __func__);
 		goto out_failed;
 	}
 	bzero(mem_desc->addr, mem_desc->size);
 	bus_dmamap_load(mem_desc->tag, mem_desc->dmamap, mem_desc->addr, mem_desc->size,
-	    mpi3mr_memaddr_cb, &mem_desc->dma_addr, 0);
+	    mpi3mr_memaddr_cb, &mem_desc->dma_addr, BUS_DMA_NOWAIT);
 
 	if (!mem_desc->addr)
 		goto out_failed;
@@ -5143,7 +5176,7 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 	mem_desc->size = MPI3MR_4K_PGSZ;
 	if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				sc->dma_loaddr,		/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
 				mem_desc->size,		/* maxsize */
@@ -5163,7 +5196,7 @@ void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc)
 	}
 	bzero(mem_desc->addr, mem_desc->size);
 	bus_dmamap_load(mem_desc->tag, mem_desc->dmamap, mem_desc->addr, mem_desc->size,
-	    mpi3mr_memaddr_cb, &mem_desc->dma_addr, 0);
+	    mpi3mr_memaddr_cb, &mem_desc->dma_addr, BUS_DMA_NOWAIT);
 
 	if (!mem_desc->addr)
 		goto out_failed;
@@ -5826,11 +5859,17 @@ static int mpi3mr_issue_reset(struct mpi3mr_softc *sc, U16 reset_type,
 
 inline void mpi3mr_cleanup_event_taskq(struct mpi3mr_softc *sc)
 {
-	mtx_lock(&sc->fwevt_lock);
-	taskqueue_drain(sc->cam_sc->ev_tq, &sc->cam_sc->ev_task);
+	/*
+	 * Block the taskqueue before draining.  This means any new tasks won't
+	 * be queued to the taskqueue worker thread.  But it doesn't stop the
+	 * current workers that are running.  taskqueue_drain waits for those
+	 * correctly in the case of thread backed taskqueues.  The while loop
+	 * ensures that all taskqueue threads have finished their current tasks.
+	 */
 	taskqueue_block(sc->cam_sc->ev_tq);
-	mtx_unlock(&sc->fwevt_lock);
-	return;
+	while (taskqueue_cancel(sc->cam_sc->ev_tq, &sc->cam_sc->ev_task, NULL) != 0) {
+		taskqueue_drain(sc->cam_sc->ev_tq, &sc->cam_sc->ev_task);
+	}
 }
 
 /**

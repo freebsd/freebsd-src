@@ -61,8 +61,8 @@ struct ieee80211_channel *
 	    struct ieee80211_channel *, int);
 
 void	ieee80211_vht_get_vhtcap_ie(struct ieee80211_node *ni,
-	    struct ieee80211_ie_vhtcap *, int);
+	    struct ieee80211_vht_cap *, int);
 void	ieee80211_vht_get_vhtinfo_ie(struct ieee80211_node *ni,
-	    struct ieee80211_ie_vht_operation *, int);
+	    struct ieee80211_vht_operation *, int);
 
 #endif	/* _NET80211_IEEE80211_VHT_H_ */

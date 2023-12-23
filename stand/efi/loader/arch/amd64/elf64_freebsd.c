@@ -41,16 +41,7 @@
 
 #include "bootstrap.h"
 
-#include "platform/acfreebsd.h"
-#include "acconfig.h"
-#define ACPI_SYSTEM_XFACE
-#include "actypes.h"
-#include "actbl.h"
-
 #include "loader_efi.h"
-
-static EFI_GUID acpi_guid = ACPI_TABLE_GUID;
-static EFI_GUID acpi20_guid = ACPI_20_TABLE_GUID;
 
 extern int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
     bool exit_bs);
@@ -104,47 +95,12 @@ elf64_exec(struct preloaded_file *fp)
 	Elf_Ehdr 		*ehdr;
 	vm_offset_t		modulep, kernend, trampcode, trampstack;
 	int			err, i;
-	ACPI_TABLE_RSDP		*rsdp;
-	char			buf[24];
-	int			revision;
 	bool			copy_auto;
 
 	copy_auto = copy_staging == COPY_STAGING_AUTO;
 	if (copy_auto)
 		copy_staging = fp->f_kernphys_relocatable ?
 		    COPY_STAGING_DISABLE : COPY_STAGING_ENABLE;
-
-	/*
-	 * Report the RSDP to the kernel. While this can be found with
-	 * a BIOS boot, the RSDP may be elsewhere when booted from UEFI.
-	 */
-
-	rsdp = efi_get_table(&acpi20_guid);
-	if (rsdp == NULL) {
-		rsdp = efi_get_table(&acpi_guid);
-	}
-	if (rsdp != NULL) {
-		sprintf(buf, "0x%016llx", (unsigned long long)rsdp);
-		setenv("acpi.rsdp", buf, 1);
-		revision = rsdp->Revision;
-		if (revision == 0)
-			revision = 1;
-		sprintf(buf, "%d", revision);
-		setenv("acpi.revision", buf, 1);
-		strncpy(buf, rsdp->OemId, sizeof(rsdp->OemId));
-		buf[sizeof(rsdp->OemId)] = '\0';
-		setenv("acpi.oem", buf, 1);
-		sprintf(buf, "0x%016x", rsdp->RsdtPhysicalAddress);
-		setenv("acpi.rsdt", buf, 1);
-		if (revision >= 2) {
-			/* XXX extended checksum? */
-			sprintf(buf, "0x%016llx",
-			    (unsigned long long)rsdp->XsdtPhysicalAddress);
-			setenv("acpi.xsdt", buf, 1);
-			sprintf(buf, "%d", rsdp->Length);
-			setenv("acpi.xsdt_length", buf, 1);
-		}
-	}
 
 	if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
 		return (EFTYPE);

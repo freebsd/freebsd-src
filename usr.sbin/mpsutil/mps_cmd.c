@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>

@@ -37,7 +37,6 @@
  * - PR223575 non-promiscuous mode (driver currently forces promisc)
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bitset.h>

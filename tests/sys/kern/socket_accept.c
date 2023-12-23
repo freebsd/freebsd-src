@@ -81,10 +81,7 @@ ATF_TC_BODY(tcp4_zerolen, tc)
 	salen = 0;
 	ATF_REQUIRE(accept(l, (struct sockaddr *)&ret, &salen) > 0);
 	ATF_REQUIRE(memcmp(&ret, &canary, sizeof(ret)) == 0);
-#if 0
-	/* Linux behavior. Matches my reading of accept(2) and POSIX. */
 	ATF_REQUIRE(salen == sizeof(struct sockaddr_in));
-#endif
 	/* Note: Linux will block for connection here, we fail immediately. */
 	ATF_REQUIRE(accept(l, (struct sockaddr *)&ret, NULL) == -1);
 	ATF_REQUIRE(errno == EFAULT);

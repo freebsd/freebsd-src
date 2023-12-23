@@ -1557,16 +1557,6 @@ ng_btsocket_hci_raw_disconnect(struct socket *so)
 } /* ng_btsocket_hci_raw_disconnect */
 
 /*
- * Get socket peer's address
- */
-
-int
-ng_btsocket_hci_raw_peeraddr(struct socket *so, struct sockaddr **nam)
-{
-	return (ng_btsocket_hci_raw_sockaddr(so, nam));
-} /* ng_btsocket_hci_raw_peeraddr */
-
-/*
  * Send data
  */
 
@@ -1656,25 +1646,24 @@ drop:
  */
 
 int
-ng_btsocket_hci_raw_sockaddr(struct socket *so, struct sockaddr **nam)
+ng_btsocket_hci_raw_sockaddr(struct socket *so, struct sockaddr *sa)
 {
 	ng_btsocket_hci_raw_pcb_p	pcb = so2hci_raw_pcb(so);
-	struct sockaddr_hci		sa;
+	struct sockaddr_hci *hci = (struct sockaddr_hci *)sa;
 
 	if (pcb == NULL)
 		return (EINVAL);
 	if (ng_btsocket_hci_raw_node == NULL)
 		return (EINVAL);
 
-	bzero(&sa, sizeof(sa));
-	sa.hci_len = sizeof(sa);
-	sa.hci_family = AF_BLUETOOTH;
+	*hci = (struct sockaddr_hci ){
+		.hci_len = sizeof(struct sockaddr_hci),
+		.hci_family = AF_BLUETOOTH,
+	};
 
 	mtx_lock(&pcb->pcb_mtx);
-	strlcpy(sa.hci_node, pcb->addr.hci_node, sizeof(sa.hci_node));
+	strlcpy(hci->hci_node, pcb->addr.hci_node, sizeof(hci->hci_node));
 	mtx_unlock(&pcb->pcb_mtx);
 
-	*nam = sodupsockaddr((struct sockaddr *) &sa, M_NOWAIT);
-
-	return ((*nam == NULL)? ENOMEM : 0);
-} /* ng_btsocket_hci_raw_sockaddr */
+	return (0);
+}

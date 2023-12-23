@@ -105,10 +105,6 @@ extern struct ifnet vpnif;
 #undef	SOCKADDR_IN
 #define	SOCKADDR_IN	struct sockaddr_in
 
-#if !defined(lint)
-static const char sccsid[] = "@(#)ip_nat.c	1.11 6/5/96 (C) 1995 Darren Reed";
-/* static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.195.2.102 2007/10/16 10:08:10 darrenr Exp $"; */
-#endif
 
 
 #define	NATFSUM(n,v,f)	((v) == 4 ? (n)->f.in4.s_addr : (n)->f.i6[0] + \

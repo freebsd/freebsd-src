@@ -23,7 +23,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/kernel.h>

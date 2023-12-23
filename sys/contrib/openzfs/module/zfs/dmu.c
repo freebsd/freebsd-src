@@ -1134,14 +1134,14 @@ dmu_write_impl(dmu_buf_t **dbp, int numbufs, uint64_t offset, uint64_t size,
 		ASSERT(i == 0 || i == numbufs-1 || tocpy == db->db_size);
 
 		if (tocpy == db->db_size)
-			dmu_buf_will_fill(db, tx);
+			dmu_buf_will_fill(db, tx, B_FALSE);
 		else
 			dmu_buf_will_dirty(db, tx);
 
 		(void) memcpy((char *)db->db_data + bufoff, buf, tocpy);
 
 		if (tocpy == db->db_size)
-			dmu_buf_fill_done(db, tx);
+			dmu_buf_fill_done(db, tx, B_FALSE);
 
 		offset += tocpy;
 		size -= tocpy;
@@ -1349,27 +1349,24 @@ dmu_write_uio_dnode(dnode_t *dn, zfs_uio_t *uio, uint64_t size, dmu_tx_t *tx)
 
 		ASSERT(size > 0);
 
-		bufoff = zfs_uio_offset(uio) - db->db_offset;
+		offset_t off = zfs_uio_offset(uio);
+		bufoff = off - db->db_offset;
 		tocpy = MIN(db->db_size - bufoff, size);
 
 		ASSERT(i == 0 || i == numbufs-1 || tocpy == db->db_size);
 
 		if (tocpy == db->db_size)
-			dmu_buf_will_fill(db, tx);
+			dmu_buf_will_fill(db, tx, B_TRUE);
 		else
 			dmu_buf_will_dirty(db, tx);
 
-		/*
-		 * XXX zfs_uiomove could block forever (eg.nfs-backed
-		 * pages).  There needs to be a uiolockdown() function
-		 * to lock the pages in memory, so that zfs_uiomove won't
-		 * block.
-		 */
 		err = zfs_uio_fault_move((char *)db->db_data + bufoff,
 		    tocpy, UIO_WRITE, uio);
 
-		if (tocpy == db->db_size)
-			dmu_buf_fill_done(db, tx);
+		if (tocpy == db->db_size && dmu_buf_fill_done(db, tx, err)) {
+			/* The fill was reverted.  Undo any uio progress. */
+			zfs_uio_advance(uio, off - zfs_uio_offset(uio));
+		}
 
 		if (err)
 			break;
@@ -1501,9 +1498,9 @@ dmu_assign_arcbuf_by_dnode(dnode_t *dn, uint64_t offset, arc_buf_t *buf,
 	rw_enter(&dn->dn_struct_rwlock, RW_READER);
 	blkid = dbuf_whichblock(dn, 0, offset);
 	db = dbuf_hold(dn, blkid, FTAG);
+	rw_exit(&dn->dn_struct_rwlock);
 	if (db == NULL)
 		return (SET_ERROR(EIO));
-	rw_exit(&dn->dn_struct_rwlock);
 
 	/*
 	 * We can only assign if the offset is aligned and the arc buf is the
@@ -2274,6 +2271,21 @@ dmu_read_l0_bps(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 			goto out;
 		}
 
+		/*
+		 * If the block was allocated in transaction group that is not
+		 * yet synced, we could clone it, but we couldn't write this
+		 * operation into ZIL, or it may be impossible to replay, since
+		 * the block may appear not yet allocated at that point.
+		 */
+		if (BP_PHYSICAL_BIRTH(bp) > spa_freeze_txg(os->os_spa)) {
+			error = SET_ERROR(EINVAL);
+			goto out;
+		}
+		if (BP_PHYSICAL_BIRTH(bp) > spa_last_synced_txg(os->os_spa)) {
+			error = SET_ERROR(EAGAIN);
+			goto out;
+		}
+
 		bps[i] = *bp;
 	}
 
@@ -2286,7 +2298,7 @@ out:
 
 int
 dmu_brt_clone(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
-    dmu_tx_t *tx, const blkptr_t *bps, size_t nbps, boolean_t replay)
+    dmu_tx_t *tx, const blkptr_t *bps, size_t nbps)
 {
 	spa_t *spa;
 	dmu_buf_t **dbp, *dbuf;
@@ -2360,10 +2372,8 @@ dmu_brt_clone(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 		 * When data in embedded into BP there is no need to create
 		 * BRT entry as there is no data block. Just copy the BP as
 		 * it contains the data.
-		 * Also, when replaying ZIL we don't want to bump references
-		 * in the BRT as it was already done during ZIL claim.
 		 */
-		if (!replay && !BP_IS_HOLE(bp) && !BP_IS_EMBEDDED(bp)) {
+		if (!BP_IS_HOLE(bp) && !BP_IS_EMBEDDED(bp)) {
 			brt_pending_add(spa, bp, tx);
 		}
 	}

@@ -27,7 +27,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #ifdef _KERNEL
 #include <sys/systm.h>

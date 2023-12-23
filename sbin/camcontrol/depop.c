@@ -50,7 +50,6 @@
  * 'depop' provides a wrapper around all these functions.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #include <err.h>

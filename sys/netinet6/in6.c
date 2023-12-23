@@ -58,8 +58,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)in.c	8.2 (Berkeley) 11/15/93
  */
 
 #include <sys/cdefs.h>
@@ -2679,20 +2677,6 @@ in6_sin6_2_sin_in_sock(struct sockaddr *nam)
 	sin6 = *(struct sockaddr_in6 *)nam;
 	sin_p = (struct sockaddr_in *)nam;
 	in6_sin6_2_sin(sin_p, &sin6);
-}
-
-/* Convert sockaddr_in into sockaddr_in6 in v4 mapped addr format. */
-void
-in6_sin_2_v4mapsin6_in_sock(struct sockaddr **nam)
-{
-	struct sockaddr_in *sin_p;
-	struct sockaddr_in6 *sin6_p;
-
-	sin6_p = malloc(sizeof *sin6_p, M_SONAME, M_WAITOK);
-	sin_p = (struct sockaddr_in *)*nam;
-	in6_sin_2_v4mapsin6(sin_p, sin6_p);
-	free(*nam, M_SONAME);
-	*nam = (struct sockaddr *)sin6_p;
 }
 
 /*

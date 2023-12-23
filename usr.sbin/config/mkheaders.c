@@ -29,12 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)mkheaders.c	8.1 (Berkeley) 6/6/93";
-#endif
-#endif /* not lint */
-
 /*
  * This used to generate a bunch of headers files related to devices when
  * device counters were supported. Support for that was removed in 2005.

@@ -28,7 +28,6 @@
  * Author: Lawrence Stewart <lstewart@netflix.com>
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/arb.h>
 #include <sys/ctype.h>
@@ -2077,7 +2076,7 @@ stats_v1_itercb_tostr_freeform(struct statsblobv1 *sb, struct voi *v,
 		    "data_off=%hu", vs->flags, vsd_dtype2name[vs->dtype],
 		    vs->dsz, vs->data_off);
 
-	sbuf_printf(buf, "\n\t\t\tvoistatdata: ");
+	sbuf_cat(buf, "\n\t\t\tvoistatdata: ");
 	stats_voistatdata_tostr(vsd, v->dtype, vs->dtype, vs->dsz,
 	    sctx->fmt, buf, dump);
 }
@@ -2124,7 +2123,7 @@ stats_v1_itercb_tostr_json(struct statsblobv1 *sb, struct voi *v, struct voistat
 			sbuf_printf(buf, "\"[%d]\":{\"id\":%d", ctx->vslot,
 			    v->id);
 			if (v->id < 0) {
-				sbuf_printf(buf, "},");
+				sbuf_cat(buf, "},");
 				return;
 			}
 			
@@ -2156,7 +2155,7 @@ stats_v1_itercb_tostr_json(struct statsblobv1 *sb, struct voi *v, struct voistat
 	if (dump) {
 		sbuf_printf(buf, "\"[%hhd]\":", ctx->vsslot);
 		if (vs->stype < 0) {
-			sbuf_printf(buf, "{\"stype\":-1},");
+			sbuf_cat(buf, "{\"stype\":-1},");
 			return;
 		}
 		sbuf_printf(buf, "{\"stype\":\"%s\",\"errs\":%hu,\"flags\":%hu,"

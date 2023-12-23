@@ -28,9 +28,6 @@
      bzBuffToBuffDecompress.  Fixed.
 */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "bzlib_private.h"
 
 #ifndef BZ_NO_COMPRESS

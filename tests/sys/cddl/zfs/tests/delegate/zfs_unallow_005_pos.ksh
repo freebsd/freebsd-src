@@ -23,9 +23,6 @@
 #
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zfs_unallow_005_pos.ksh	1.2	07/07/31 SMI"
-#
 
 . $STF_SUITE/tests/delegate/delegate_common.kshlib
 

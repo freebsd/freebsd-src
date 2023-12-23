@@ -34,7 +34,6 @@
 #define	_REGSET_H
 
 /*
- * #pragma ident	"@(#)regset.h	1.11	05/06/08 SMI"
  */
 
 #ifdef __cplusplus

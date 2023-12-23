@@ -60,7 +60,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
@@ -861,6 +860,7 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 	pid_t pid;
 	int err;
 
+	err = ENOSYS;
 	if (mp == NULL || mp != vnode_mount(outvp))
 		goto fallback;
 
@@ -943,13 +943,9 @@ unlock:
 		VOP_UNLOCK(invp);
 	VOP_UNLOCK(outvp);
 
-	if (err == ENOSYS) {
+	if (err == ENOSYS)
 		fsess_set_notimpl(mp, FUSE_COPY_FILE_RANGE);
 fallback:
-		err = vn_generic_copy_file_range(ap->a_invp, ap->a_inoffp,
-		    ap->a_outvp, ap->a_outoffp, ap->a_lenp, ap->a_flags,
-		    ap->a_incred, ap->a_outcred, ap->a_fsizetd);
-	}
 
 	/*
 	 * No need to call vn_rlimit_fsizex_res before return, since the uio is

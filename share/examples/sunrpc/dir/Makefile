@@ -1,7 +1,3 @@
-#
-# @(#)Makefile	2.1 88/08/02 4.0 RPCSRC
-#
-#
 PACKAGE=examples
 FILESDIR=${SHAREDIR}/examples/sunrpc/dir
 BIN = dir_svc rls

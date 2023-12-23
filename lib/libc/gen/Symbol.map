@@ -433,6 +433,7 @@ FBSD_1.6 {
 	eventfd_write;
 	getlogin_r;
 	memalign;
+	memfd_create;
 	pthread_getname_np;
 	scandir_b;
 	sigandset;
@@ -454,6 +455,10 @@ FBSD_1.7 {
 	 versionsort;
 	 __cpuset_alloc;
 	 __cpuset_free;
+};
+
+FBSD_1.8 {
+	execvpe;
 };
 
 FBSDprivate_1.0 {

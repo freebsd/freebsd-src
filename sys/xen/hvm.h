@@ -102,6 +102,5 @@ void xen_hvm_suspend(void);
 void xen_hvm_resume(bool suspend_cancelled);
 
 extern uint32_t hvm_start_flags;
-extern bool xen_evtchn_needs_ack;
 
 #endif	/* __XEN_HVM_H__ */

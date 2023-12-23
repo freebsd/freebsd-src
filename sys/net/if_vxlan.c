@@ -28,7 +28,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>

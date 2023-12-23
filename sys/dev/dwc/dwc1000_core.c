@@ -35,7 +35,6 @@
  * Universal 10/100/1000 Ethernet MAC (DWC_gmac).
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

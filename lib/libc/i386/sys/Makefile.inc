@@ -2,9 +2,7 @@ SRCS+=	i386_get_fsbase.c i386_get_gsbase.c i386_get_ioperm.c i386_get_ldt.c \
 	i386_set_fsbase.c i386_set_gsbase.c i386_set_ioperm.c i386_set_ldt.c \
 	i386_clr_watch.c i386_set_watch.c i386_vm86.c
 
-MDASM=	Ovfork.S cerror.S getcontext.S syscall.S
-
-NOASM+=	sbrk.o vfork.o
+MDASM=	vfork.S cerror.S getcontext.S syscall.S
 
 MAN+=	i386_get_ioperm.2 i386_get_ldt.2 i386_vm86.2
 MAN+=	i386_set_watch.3

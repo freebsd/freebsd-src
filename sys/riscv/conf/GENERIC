@@ -83,6 +83,8 @@ device		rcons
 # pseudo devices
 device		clk
 device		hwreset
+device		phy
+device		regulator
 device		syscon
 device		syscon_power
 device		riscv_syscon
@@ -123,15 +125,6 @@ device		umass			# Disks/Mass storage - Requires scbus and da
 options 	HID_DEBUG	# enable debug msgs
 device		hid		# Generic HID support
 
-# DTrace support
-# device	dtrace
-# device	dtrace_profile
-# device	dtrace_sdt
-# device	dtrace_fbt
-# device	dtrace_systrace
-# device	dtrace_prototype
-# device	dtraceall
-
 # Serial (COM) ports
 device		uart		# Generic UART driver
 device		uart_lowrisc	# lowRISC UART driver
@@ -142,11 +135,9 @@ device		vt
 device		kbdmux
 
 # RTC
-device		da9063_rtc	# Dialog Semiconductor DA9063 RTC
 device		goldfish_rtc	# QEMU RTC
 
 # Ethernet drivers
-device		cgem		# Cadence GEM Gigabit Ethernet device
 device		miibus		# MII bus support
 device		xae		# Xilinx AXI Ethernet MAC
 
@@ -160,18 +151,6 @@ device		gpio
 # SPI
 device		spibus
 device		spigen
-
-# Power management controllers
-device		da9063_pmic	# Dialog Semiconductor DA9063 PMIC
-
-# Uncomment for memory disk
-# options 	MD_ROOT
-# options 	MD_ROOT_SIZE=32768	# 32MB ram disk
-# makeoptions	MFS_IMAGE=/path/to/img
-# options 	ROOTDEVNAME=\"ufs:/dev/md0\"
-
-# Uncomment for virtio block device
-# options 	ROOTDEVNAME=\"ufs:/dev/vtbd0\"
 
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
@@ -190,7 +169,11 @@ options 	ALT_BREAK_TO_DEBUGGER	# Enter debugger on keyboard escape sequence
 options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
 
 # Kernel dump features.
+options 	EKCD			# Support for encrypted kernel dumps
+options 	GZIO			# gzip-compressed kernel and user dumps
 options 	ZSTDIO			# zstd-compressed kernel and user dumps
+options 	DEBUGNET		# debugnet networking
+options 	NETDUMP			# netdump(4) client support
 
 # Pseudo devices.
 device		crypto		# core crypto support
@@ -202,6 +185,11 @@ device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		firmware	# firmware assist module
 
+# MMC/SD/SDIO Card slot support
+device		sdhci
+device		mmc			# MMC/SD bus
+device		mmcsd			# MMC/SD flash cards
+
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
 # Note that 'bpf' is required for DHCP.
@@ -209,18 +197,11 @@ device		bpf		# Berkeley packet filter
 
 # Flattened Device Tree
 options 	FDT
-makeoptions	MODULES_EXTRA+="dtb/sifive"
 
 # I2C support
 device		iicbus		# Bus support, required for iicoc below.
 device		iicoc		# OpenCores I2C controller support
 
-# Allwinner device drivers
-device		aw_wdog		# Allwinner Watchdog
-files		"../allwinner/files.allwinner"
-
-# SiFive device drivers
-device		fu740_pci_dw
-device		sifive_gpio
-device		sifive_spi
-include		"../sifive/std.sifive"
+# Include SoC specific configuration
+include		"std.allwinner"
+include		"std.sifive"

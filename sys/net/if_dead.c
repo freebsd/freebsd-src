@@ -33,7 +33,6 @@
  * returned.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>

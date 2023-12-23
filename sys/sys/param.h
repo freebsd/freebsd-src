@@ -32,8 +32,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)param.h	8.3 (Berkeley) 4/4/95
  */
 
 #ifndef _SYS_PARAM_H_
@@ -75,7 +73,7 @@
  * cannot include sys/param.h and should only be updated here.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1500003
+#define __FreeBSD_version 1500007
 
 /*
  * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,

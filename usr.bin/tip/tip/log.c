@@ -32,14 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)log.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: log.c,v 1.8 2006/03/16 19:32:46 deraadt Exp $";
-#endif
-#endif /* not lint */
-
 #include "tip.h"
 
 #ifdef ACULOG

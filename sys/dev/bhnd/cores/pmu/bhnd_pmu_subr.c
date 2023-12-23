@@ -22,7 +22,6 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #include <dev/bhnd/bhndvar.h>

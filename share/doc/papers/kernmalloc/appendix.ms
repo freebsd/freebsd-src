@@ -97,8 +97,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)appendix.t	5.1 (Berkeley) 4/16/91
-.\"
 .bp
 .H 1 "Appendix A - Implementation Details"
 .LP

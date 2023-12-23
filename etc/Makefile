@@ -1,4 +1,3 @@
-#	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
 
 .include <src.opts.mk>
 .include <src.tools.mk>
@@ -125,6 +124,7 @@ MTREES+=	../${mtree}			/
 # Clean up files that have changed into directories, as mtree cannot handle this
 # scenario.
 DISTRIB_CLEANUP_FILES+=	${INCLUDEDIR}/c++/v1/__string
+DISTRIB_CLEANUP_FILES+=	${INCLUDEDIR}/c++/v1/__tuple
 distrib-cleanup: .PHONY
 	for file in ${DISTRIB_CLEANUP_FILES}; do \
 		if [ -f ${DESTDIR}/$${file} ]; then \

@@ -23,9 +23,6 @@
 #
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zpool_create_005_pos.ksh	1.3	08/02/27 SMI"
-#
 . $STF_SUITE/include/libtest.kshlib
 . $STF_SUITE/tests/cli_root/zpool_create/zpool_create.kshlib
 

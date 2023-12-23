@@ -33,18 +33,6 @@
  * as a builtin for /bin/sh (#define SHELL).
  */
 
-#if 0
-#ifndef lint
-static char const copyright[] =
-"@(#) Copyright (c) 1988, 1993, 1994\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-static char sccsid[] = "@(#)kill.c	8.4 (Berkeley) 4/28/95";
-#endif /* not lint */
-#endif
-#include <sys/cdefs.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>

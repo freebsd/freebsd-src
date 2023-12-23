@@ -23,28 +23,28 @@ CLOUDWARE_TYPES?= BASIC-CI \
 		OCI \
 		VAGRANT
 AZURE_FORMAT=	vhdf
-AZURE_FSLIST=	ufs zfs
+AZURE_FSLIST?=	ufs zfs
 AZURE_DESC=	Microsoft Azure platform image
 BASIC-CI_FORMAT=	raw
-BASIC-CI_FSLIST=	ufs
+BASIC-CI_FSLIST?=	ufs
 BASIC-CI_DESC=		Image for CI
 EC2_FORMAT=	raw
-EC2_FSLIST=	ufs zfs
-EC2_FLAVOURS=	BASE CLOUD-INIT
+EC2_FSLIST?=	ufs zfs
+EC2_FLAVOURS?=	BASE CLOUD-INIT
 EC2-BASE_DESC=	Amazon EC2 image
 EC2-CLOUD-INIT_DESC=	Amazon EC2 Cloud-Init image
 GCE_FORMAT=	raw
-GCE_FSLIST=	ufs zfs
+GCE_FSLIST?=	ufs zfs
 GCE_DESC=	Google Compute Engine image
 OCI_FORMAT=	qcow2
-OCI_FSLIST=	ufs
+OCI_FSLIST?=	ufs
 OCI_DESC=	Oracle Cloud Infrastructure image
 OPENSTACK_FORMAT=qcow2
-OPENSTACK_FSLIST=	ufs
+OPENSTACK_FSLIST?=	ufs
 OPENSTACK_DESC=	OpenStack platform image
 VAGRANT_FORMAT=	vmdk
-VAGRANT_FSLIST=	ufs
-VAGRANT_FLAVOURS=	VIRTUALBOX VMWARE
+VAGRANT_FSLIST?=	ufs
+VAGRANT_FLAVOURS?=	VIRTUALBOX VMWARE
 VAGRANT-VIRTUALBOX_DESC=	Vagrant Image for VirtualBox
 VAGRANT-VMWARE_DESC=	Vagrant Image for VMWare
 
@@ -69,8 +69,6 @@ ${_V}!=	eval $$(awk '/^${_V}=/{print}' ${.CURDIR}/../sys/conf/newvers.sh); echo 
 .endfor
 
 emulator-portinstall:
-.if ${TARGET_ARCH} != ${MACHINE_ARCH}
-.if ( ${TARGET_ARCH} != "i386" ) || ( ${MACHINE_ARCH} != "amd64" )
 .if !exists(/usr/local/bin/qemu-${TARGET_ARCH}-static)
 .if exists(${PORTSDIR}/emulators/qemu-user-static/Makefile)
 	env - UNAME_r=${UNAME_r} PATH=$$PATH make -C ${PORTSDIR}/emulators/qemu-user-static BATCH=1 all install clean
@@ -81,10 +79,15 @@ emulator-portinstall:
 	env ASSUME_ALWAYS_YES=yes pkg install -y emulators/qemu-user-static
 .endif
 .endif
+	touch ${.TARGET}
 
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
+.if ( ${TARGET_ARCH} != "i386" ) || ( ${MACHINE_ARCH} != "amd64" )
 QEMUSTATIC=/usr/local/bin/qemu-${TARGET_ARCH}-static
+QEMUTGT=emulator-portinstall
 .endif
 .endif
+QEMUTGT?=
 
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
 . for _CW in ${CLOUDWARE}
@@ -99,7 +102,7 @@ CLEANFILES+=	${_CW:tl}.${_FS}.img \
 		${_CW:tl}.${_FS}.${${_CW:tu}_FORMAT}.raw
 ${_CW:tu}${_FS:tu}IMAGE=	${_CW:tl}.${_FS}.${${_CW:tu}_FORMAT}
 
-cw-${_CW:tl}-${_FS}: emulator-portinstall
+cw-${_CW:tl}-${_FS}: ${QEMUTGT}
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		QEMUSTATIC=${QEMUSTATIC} \
@@ -137,10 +140,11 @@ vm-image:
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 . for FORMAT in ${VMFORMATS}
 .  for FS in ${VMFSLIST}
-	mkdir -p ${.OBJDIR}/${.TARGET}
+	mkdir -p ${.OBJDIR}/${.TARGET}-${FORMAT}-${FS}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
-		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${FS} \
+		-C ${.CURDIR}/tools/vmimage.subr \
+		-d ${.OBJDIR}/${.TARGET}-${FORMAT}-${FS} -F ${FS} \
 		-i ${.OBJDIR}/${FORMAT}.${FS}.img -s ${VMSIZE} -f ${FORMAT} \
 		-S ${WORLDDIR} -o ${.OBJDIR}/${VMBASE}.${FS}.${FORMAT}
 .  endfor

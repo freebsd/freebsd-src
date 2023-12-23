@@ -32,14 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)df.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: df.c,v 1.9 2006/03/17 19:17:13 moritz Exp $";
-#endif
-#endif /* not lint */
-
 /*
  * Dial the DF02-AC or DF03-AC
  */

@@ -1231,8 +1231,7 @@ buildworld_epilogue: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> World build completed on `LC_ALL=C date`"
 	@seconds=$$(($$(date '+%s') - ${_BUILDWORLD_START})); \
-	  echo -n ">>> World built in $$seconds seconds, "; \
-	  echo "ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
+	  echo ">>> World built in $$seconds seconds, ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
 	@echo "--------------------------------------------------------------"
 
 #
@@ -1808,8 +1807,7 @@ buildkernel: .MAKE .PHONY
 
 .endfor
 	@seconds=$$(($$(date '+%s') - ${_BUILDKERNEL_START})); \
-	  echo -n ">>> Kernel(s) ${BUILDKERNELS} built in $$seconds seconds, "; \
-	  echo "ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
+	  echo ">>> Kernel(s) ${BUILDKERNELS} built in $$seconds seconds, ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
 	@echo "--------------------------------------------------------------"
 
 .if !make(packages) && !make(update-packages)
@@ -1839,7 +1837,8 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel .PHONY
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH:Q} \
-	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
+	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME} METALOG=${METALOG} \
+	    ${.TARGET:S/kernel//}
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing kernel ${INSTALLKERNEL} completed on $$(LC_ALL=C date)"
 	@echo "--------------------------------------------------------------"
@@ -1851,7 +1850,8 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel .PHONY
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${CROSSENV} PATH=${TMPPATH:Q} \
-	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME}.${_kernel} ${.TARGET:S/kernel//}
+	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME}.${_kernel} METALOG=${METALOG} \
+	    ${.TARGET:S/kernel//}
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing kernel ${_kernel} completed on $$(LC_ALL=C date)"
 	@echo "--------------------------------------------------------------"
@@ -1871,7 +1871,8 @@ distributekernel distributekernel.debug: .PHONY
 	${_+_}cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.premeta/} \
 	    ${IMAKE_MTREE} PATH=${TMPPATH:Q} ${MAKE} KERNEL=${INSTKERNNAME} \
-	    DESTDIR=${INSTALL_DDIR}/kernel \
+	    DISTBASE=/kernel DESTDIR=${INSTALL_DDIR}/kernel \
+	    METALOG=${METALOG:S/METALOG/kernel.premeta/} \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
 	@sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta > \
@@ -1887,7 +1888,8 @@ distributekernel distributekernel.debug: .PHONY
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.${_kernel}.premeta/} \
 	    ${IMAKE_MTREE} PATH=${TMPPATH:Q} ${MAKE} \
 	    KERNEL=${INSTKERNNAME}.${_kernel} \
-	    DESTDIR=${INSTALL_DDIR}/kernel.${_kernel} \
+	    DISTBASE=/kernel.${_kernel} DESTDIR=${INSTALL_DDIR}/kernel.${_kernel} \
+	    METALOG=${METALOG:S/METALOG/kernel.${_kernel}.premeta/} \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
 	@sed -e "s|^./kernel.${_kernel}|.|" \
@@ -1956,6 +1958,7 @@ stagekernel: .PHONY
 PORTSDIR?=	/usr/ports
 WSTAGEDIR?=	${OBJTOP}/worldstage
 KSTAGEDIR?=	${OBJTOP}/kernelstage
+SSTAGEDIR?=	${OBJTOP}/sourcestage
 REPODIR?=	${OBJROOT}repo
 PKG_FORMAT?=	tzst
 PKG_REPO_SIGNING_KEY?=	# empty
@@ -1963,6 +1966,7 @@ PKG_OUTPUT_DIR?=	${PKG_VERSION}
 
 .ORDER:		stage-packages create-packages
 .ORDER:		create-packages create-world-packages
+.ORDER:		create-packages create-source-packages
 .ORDER:		create-packages create-kernel-packages
 .ORDER:		create-packages sign-packages
 
@@ -1974,7 +1978,7 @@ _pkgbootstrap: .PHONY
 #
 # Determine PKG_ABI from newvers.sh if not already set.
 #
-.if !defined(PKG_ABI) && (make(create-world-packages-jobs) || make(create-kernel-packages*) || make(real-update-packages) || make(sign-packages))
+.if !defined(PKG_ABI) && (make(create-world-packages-jobs) || make(create-kernel-packages*) || make(real-update-packages) || make (create-source-packages) || make(sign-packages))
 PKG_ABI=${_TYPE}:${MAJOR_REVISION}:${TARGET_ARCH}
 .endif
 PKG_BIN_VERSION!=${PKG_CMD} --version </dev/null 2>/dev/null |\
@@ -2011,6 +2015,7 @@ package-pkg: .PHONY
 	env ${WMAKEENV:Q} SRCDIR=${.CURDIR} PORTSDIR=${PORTSDIR} REVISION=${_REVISION} \
 		PKG_CMD=${PKG_CMD} PKG_VERSION=${PKG_VERSION} REPODIR=${REPODIR} \
 		WSTAGEDIR=${WSTAGEDIR} \
+		OSVERSION="${SRCRELDATE}" \
 		sh ${.CURDIR}/release/scripts/make-pkg-package.sh
 
 real-packages:	stage-packages create-packages sign-packages .PHONY
@@ -2051,7 +2056,10 @@ stage-packages-kernel: .PHONY
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} DESTDIR=${KSTAGEDIR} -DNO_ROOT stagekernel
 
-stage-packages: .PHONY stage-packages-world stage-packages-kernel
+stage-packages-source: .PHONY
+	@mkdir -p ${SSTAGEDIR};
+
+stage-packages: .PHONY stage-packages-world stage-packages-kernel stage-packages-source
 
 _repodir: .PHONY
 	@mkdir -p ${REPODIR}
@@ -2070,7 +2078,56 @@ create-packages-kernel:	_pkgbootstrap _repodir .PHONY
 			SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 			create-kernel-packages
 
-create-packages: .PHONY create-packages-world create-packages-kernel
+create-packages-source:	_pkgbootstrap _repodir .PHONY
+	${_+_}@cd ${.CURDIR}; \
+		${MAKE} -f Makefile.inc1 \
+			DESTDIR=${SSTAGEDIR} \
+			PKG_VERSION=${PKG_VERSION} create-source-packages
+
+create-packages: .PHONY create-packages-world create-packages-kernel create-packages-source
+
+create-source-packages: _pkgbootstrap .PHONY
+	rm -f ${SSTAGEDIR}/*.plist 2>/dev/null || :
+.if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
+	@cd ${SRCDIR}; \
+		( echo "@override_prefix /usr/src" ;  \
+		${GIT_CMD} ls-files --recurse-submodules ":!:sys/" ) \
+		> ${SSTAGEDIR}/src.plist
+	@cd ${SRCDIR}; \
+		( echo "@override_prefix /usr/src" ; \
+		${GIT_CMD} ls-files --recurse-submodules "sys/" ) \
+		> ${SSTAGEDIR}/src-sys.plist
+	sed -e "s/%VERSION%/${PKG_VERSION}/" \
+		-e "s/%DESC%/FreeBSD sources/" \
+		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
+		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
+		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
+		-e "s|%PKG_WWW%|${PKG_WWW}|" \
+		${SRCDIR}/release/packages/src.ucl \
+		> ${SSTAGEDIR}/src.ucl
+	sed -e "s/%VERSION%/${PKG_VERSION}/" \
+		-e "s/%DESC%/FreeBSD Kernel sources/" \
+		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
+		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
+		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
+		-e "s|%PKG_WWW%|${PKG_WWW}|" \
+		${SRCDIR}/release/packages/src-sys.ucl \
+		> ${SSTAGEDIR}/src-sys.ucl
+	${PKG_CMD} -o ABI=${PKG_ABI} \
+		-o OSVERSION="${SRCRELDATE}" \
+		create -f ${PKG_FORMAT} \
+		-M ${SSTAGEDIR}/src.ucl \
+		-p ${SSTAGEDIR}/src.plist \
+		-r ${SRCDIR} \
+		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
+	${PKG_CMD} -o ABI=${PKG_ABI} \
+		-o OSVERSION="${SRCRELDATE}" \
+		create -f ${PKG_FORMAT} \
+		-M ${SSTAGEDIR}/src-sys.ucl \
+		-p ${SSTAGEDIR}/src-sys.plist \
+		-r ${SRCDIR} \
+		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
+.endif
 
 create-world-packages:	_pkgbootstrap .PHONY
 	@rm -f ${WSTAGEDIR}/*.plist 2>/dev/null || :
@@ -2105,6 +2162,7 @@ create-world-package-${pkgname}: .PHONY
 		sed -i '' -e "s/%VCS_REVISION%/${VCS_REVISION}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
 	fi
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname -o ALLOW_BASE_SHLIBS=yes \
+		-o OSVERSION="${SRCRELDATE}" \
 		create -f ${PKG_FORMAT} -M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \
 		-r ${WSTAGEDIR} \
@@ -2140,6 +2198,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 		/version/ {print $$2; next } ' \
 		${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
 	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
+		-o OSVERSION="${SRCRELDATE}" \
 		create -f ${PKG_FORMAT} \
 		-M ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl \
 		-p ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
@@ -2176,6 +2235,7 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		/version/ {print $$2; next } ' \
 		${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname -o ALLOW_BASE_SHLIBS=yes \
+		-o OSVERSION="${SRCRELDATE}" \
 		create -f ${PKG_FORMAT} \
 		-M ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl \
 		-p ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.plist \
@@ -2350,7 +2410,11 @@ _bootstrap_tools_links+=m4 lex
 _elftoolchain_libs= lib/libelf lib/libdwarf lib/libzstd
 ${_bt}-lib/libelf: ${_bt_m4_depend}
 ${_bt}-lib/libdwarf: ${_bt_m4_depend}
+_bt_libelf_depend=${_bt}-lib/libelf
 .endif
+
+_kldxref=	usr.sbin/kldxref
+${_bt}-usr.sbin/kldxref: ${_bt_libelf_depend}
 
 # flua is required to regenerate syscall files.  It first appeared during the
 # 13.0-CURRENT cycle, thus needs to be built on -older releases and stable
@@ -2443,6 +2507,7 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
     ${MK_LLDB} != "no" || ${MK_LLVM_BINUTILS} != "no"
 _clang_tblgen= \
 	lib/clang/libllvmminimal \
+	usr.bin/clang/llvm-min-tblgen \
 	usr.bin/clang/llvm-tblgen
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no" || \
     ${MK_LLDB} != "no"
@@ -2453,8 +2518,10 @@ _clang_tblgen+= usr.bin/clang/clang-tblgen
 _clang_tblgen+=	usr.bin/clang/lldb-tblgen
 .endif
 ${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmminimal
-${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-lib/clang/libllvmminimal
 ${_bt}-usr.bin/clang/lldb-tblgen: ${_bt}-lib/clang/libllvmminimal
+${_bt}-usr.bin/clang/llvm-min-tblgen: ${_bt}-lib/clang/libllvmminimal
+${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-lib/clang/libllvmminimal
+${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-usr.bin/clang/llvm-min-tblgen
 .endif
 
 # C.UTF-8 is always built in share/ctypes and we need localedef for that.
@@ -2535,8 +2602,8 @@ _basic_bootstrap_tools+=usr.bin/mkfifo
 # jot is needed for the mkimg tests
 _basic_bootstrap_tools+=usr.bin/jot
 
-.if ${MK_BOOT} != "no"
-# md5 is used by boot/beri (and possibly others)
+.if defined(BOOTSTRAP_ALL_TOOLS)
+# sha256 and sha512 are used by release/ (and possibly others)
 _basic_bootstrap_tools+=sbin/md5
 .endif
 
@@ -2610,6 +2677,7 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_cat} \
     ${_kbdcontrol} \
     ${_elftoolchain_libs} \
+    ${_kldxref} \
     lib/libopenbsd \
     usr.bin/mandoc \
     usr.bin/rpcgen \

@@ -28,12 +28,12 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <dev/pci/pcivar.h>
@@ -42,12 +42,21 @@
 #include <vm/pmap.h>
 #include <machine/pci_cfgreg.h>
 
-static uint32_t	pci_docfgregread(int bus, int slot, int func, int reg,
-		    int bytes);
-static int	pciereg_cfgread(int bus, unsigned slot, unsigned func,
-		    unsigned reg, unsigned bytes);
-static void	pciereg_cfgwrite(int bus, unsigned slot, unsigned func,
-		    unsigned reg, int data, unsigned bytes);
+struct pcie_mcfg_region {
+	char *base;
+	uint16_t domain;
+	uint8_t minbus;
+	uint8_t maxbus;
+};
+
+static uint32_t	pci_docfgregread(int domain, int bus, int slot, int func,
+		    int reg, int bytes);
+static struct pcie_mcfg_region *pcie_lookup_region(int domain, int bus);
+static int	pciereg_cfgread(struct pcie_mcfg_region *region, int bus,
+		    unsigned slot, unsigned func, unsigned reg, unsigned bytes);
+static void	pciereg_cfgwrite(struct pcie_mcfg_region *region, int bus,
+		    unsigned slot, unsigned func, unsigned reg, int data,
+		    unsigned bytes);
 static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
 
@@ -60,11 +69,12 @@ SYSCTL_DECL(_hw_pci);
  */
 int cfgmech = CFGMECH_1;
 
-static vm_offset_t pcie_base;
-static int pcie_minbus, pcie_maxbus;
+static struct pcie_mcfg_region *mcfg_regions;
+static int mcfg_numregions;
 static uint32_t pcie_badslots;
 static struct mtx pcicfg_mtx;
 MTX_SYSINIT(pcicfg_mtx, &pcicfg_mtx, "pcicfg_mtx", MTX_SPIN);
+
 static int mcfg_enable = 1;
 SYSCTL_INT(_hw_pci, OID_AUTO, mcfg, CTLFLAG_RDTUN, &mcfg_enable, 0,
     "Enable support for PCI-e memory mapped config access");
@@ -76,23 +86,43 @@ pci_cfgregopen(void)
 	return (1);
 }
 
-static uint32_t
-pci_docfgregread(int bus, int slot, int func, int reg, int bytes)
+static struct pcie_mcfg_region *
+pcie_lookup_region(int domain, int bus)
 {
+	for (int i = 0; i < mcfg_numregions; i++)
+		if (mcfg_regions[i].domain == domain &&
+		    bus >= mcfg_regions[i].minbus &&
+		    bus <= mcfg_regions[i].maxbus)
+			return (&mcfg_regions[i]);
+	return (NULL);
+}
 
-	if (cfgmech == CFGMECH_PCIE &&
-	    (bus >= pcie_minbus && bus <= pcie_maxbus) &&
-	    (bus != 0 || !(1 << slot & pcie_badslots)))
-		return (pciereg_cfgread(bus, slot, func, reg, bytes));
-	else
+static uint32_t
+pci_docfgregread(int domain, int bus, int slot, int func, int reg, int bytes)
+{
+	if (domain == 0 && bus == 0 && (1 << slot & pcie_badslots) != 0)
 		return (pcireg_cfgread(bus, slot, func, reg, bytes));
+
+	if (cfgmech == CFGMECH_PCIE) {
+		struct pcie_mcfg_region *region;
+
+		region = pcie_lookup_region(domain, bus);
+		if (region != NULL)
+			return (pciereg_cfgread(region, bus, slot, func, reg,
+			    bytes));
+	}
+
+	if (domain == 0)
+		return (pcireg_cfgread(bus, slot, func, reg, bytes));
+	else
+		return (-1);
 }
 
 /* 
  * Read configuration space register
  */
 u_int32_t
-pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
+pci_cfgregread(int domain, int bus, int slot, int func, int reg, int bytes)
 {
 	uint32_t line;
 
@@ -105,26 +135,39 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 	 * as an invalid IRQ.
 	 */
 	if (reg == PCIR_INTLINE && bytes == 1) {
-		line = pci_docfgregread(bus, slot, func, PCIR_INTLINE, 1);
+		line = pci_docfgregread(domain, bus, slot, func, PCIR_INTLINE,
+		    1);
 		if (line == 0 || line >= 128)
 			line = PCI_INVALID_IRQ;
 		return (line);
 	}
-	return (pci_docfgregread(bus, slot, func, reg, bytes));
+	return (pci_docfgregread(domain, bus, slot, func, reg, bytes));
 }
 
 /* 
  * Write configuration space register 
  */
 void
-pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
+pci_cfgregwrite(int domain, int bus, int slot, int func, int reg, uint32_t data,
+    int bytes)
 {
+	if (domain == 0 && bus == 0 && (1 << slot & pcie_badslots) != 0) {
+		pcireg_cfgwrite(bus, slot, func, reg, data, bytes);
+		return;
+	}
 
-	if (cfgmech == CFGMECH_PCIE &&
-	    (bus >= pcie_minbus && bus <= pcie_maxbus) &&
-	    (bus != 0 || !(1 << slot & pcie_badslots)))
-		pciereg_cfgwrite(bus, slot, func, reg, data, bytes);
-	else
+	if (cfgmech == CFGMECH_PCIE) {
+		struct pcie_mcfg_region *region;
+
+		region = pcie_lookup_region(domain, bus);
+		if (region != NULL) {
+			pciereg_cfgwrite(region, bus, slot, func, reg, data,
+			    bytes);
+			return;
+		}
+	}
+
+	if (domain == 0)
 		pcireg_cfgwrite(bus, slot, func, reg, data, bytes);
 }
 
@@ -209,27 +252,11 @@ pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 	mtx_unlock_spin(&pcicfg_mtx);
 }
 
-int
-pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
+static void
+pcie_init_badslots(struct pcie_mcfg_region *region)
 {
 	uint32_t val1, val2;
 	int slot;
-
-	if (!mcfg_enable)
-		return (0);
-
-	if (minbus != 0)
-		return (0);
-
-	if (bootverbose)
-		printf("PCIe: Memory Mapped configuration base @ 0x%lx\n",
-		    base);
-
-	/* XXX: We should make sure this really fits into the direct map. */
-	pcie_base = (vm_offset_t)pmap_mapdev_pciecfg(base, (maxbus + 1) << 20);
-	pcie_minbus = minbus;
-	pcie_maxbus = maxbus;
-	cfgmech = CFGMECH_PCIE;
 
 	/*
 	 * On some AMD systems, some of the devices on bus 0 are
@@ -243,11 +270,42 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 			if (val1 == 0xffffffff)
 				continue;
 
-			val2 = pciereg_cfgread(0, slot, 0, 0, 4);
+			val2 = pciereg_cfgread(region, 0, slot, 0, 0, 4);
 			if (val2 != val1)
 				pcie_badslots |= (1 << slot);
 		}
 	}
+}
+
+int
+pcie_cfgregopen(uint64_t base, uint16_t domain, uint8_t minbus, uint8_t maxbus)
+{
+	struct pcie_mcfg_region *region;
+
+	if (!mcfg_enable)
+		return (0);
+
+	if (bootverbose)
+		printf("PCI: MCFG domain %u bus %u-%u base @ 0x%lx\n",
+		    domain, minbus, maxbus, base);
+
+	/* Resize the array. */
+	mcfg_regions = realloc(mcfg_regions,
+	    sizeof(*mcfg_regions) * (mcfg_numregions + 1), M_DEVBUF, M_WAITOK);
+
+	region = &mcfg_regions[mcfg_numregions];
+
+	/* XXX: We should make sure this really fits into the direct map. */
+	region->base = pmap_mapdev_pciecfg(base, (maxbus + 1 - minbus) << 20);
+	region->domain = domain;
+	region->minbus = minbus;
+	region->maxbus = maxbus;
+	mcfg_numregions++;
+
+	cfgmech = CFGMECH_PCIE;
+
+	if (domain == 0 && minbus == 0)
+		pcie_init_badslots(region);
 
 	return (1);
 }
@@ -268,17 +326,18 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
  */
 
 static int
-pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
-    unsigned bytes)
+pciereg_cfgread(struct pcie_mcfg_region *region, int bus, unsigned slot,
+    unsigned func, unsigned reg, unsigned bytes)
 {
-	vm_offset_t va;
+	char *va;
 	int data = -1;
 
-	if (bus < pcie_minbus || bus > pcie_maxbus || slot > PCI_SLOTMAX ||
-	    func > PCI_FUNCMAX || reg > PCIE_REGMAX)
+	MPASS(bus >= region->minbus && bus <= region->maxbus);
+
+	if (slot > PCI_SLOTMAX || func > PCI_FUNCMAX || reg > PCIE_REGMAX)
 		return (-1);
 
-	va = PCIE_VADDR(pcie_base, reg, bus, slot, func);
+	va = PCIE_VADDR(region->base, reg, bus - region->minbus, slot, func);
 
 	switch (bytes) {
 	case 4:
@@ -299,16 +358,17 @@ pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
 }
 
 static void
-pciereg_cfgwrite(int bus, unsigned slot, unsigned func, unsigned reg, int data,
-    unsigned bytes)
+pciereg_cfgwrite(struct pcie_mcfg_region *region, int bus, unsigned slot,
+    unsigned func, unsigned reg, int data, unsigned bytes)
 {
-	vm_offset_t va;
+	char *va;
 
-	if (bus < pcie_minbus || bus > pcie_maxbus || slot > PCI_SLOTMAX ||
-	    func > PCI_FUNCMAX || reg > PCIE_REGMAX)
+	MPASS(bus >= region->minbus && bus <= region->maxbus);
+
+	if (slot > PCI_SLOTMAX || func > PCI_FUNCMAX || reg > PCIE_REGMAX)
 		return;
 
-	va = PCIE_VADDR(pcie_base, reg, bus, slot, func);
+	va = PCIE_VADDR(region->base, reg, bus - region->minbus, slot, func);
 
 	switch (bytes) {
 	case 4:

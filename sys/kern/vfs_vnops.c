@@ -38,8 +38,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
  */
 
 #include <sys/cdefs.h>
@@ -828,6 +826,13 @@ foffset_unlock(struct file *fp, off_t val, int flags)
 	sleepq_broadcast(&fp->f_vnread_flags, SLEEPQ_SLEEP, 0, 0);
 	sleepq_release(&fp->f_vnread_flags);
 }
+
+static off_t
+foffset_read(struct file *fp)
+{
+
+	return (atomic_load_long(&fp->f_offset));
+}
 #else
 off_t
 foffset_lock(struct file *fp, int flags)
@@ -875,6 +880,13 @@ foffset_unlock(struct file *fp, off_t val, int flags)
 		fp->f_vnread_flags = 0;
 	}
 	mtx_unlock(mtxp);
+}
+
+static off_t
+foffset_read(struct file *fp)
+{
+
+	return (foffset_lock(fp, FOF_NOLOCK));
 }
 #endif
 
@@ -2647,8 +2659,19 @@ vn_seek(struct file *fp, off_t offset, int whence, struct thread *td)
 
 	cred = td->td_ucred;
 	vp = fp->f_vnode;
-	foffset = foffset_lock(fp, 0);
 	noneg = (vp->v_type != VCHR);
+	/*
+	 * Try to dodge locking for common case of querying the offset.
+	 */
+	if (whence == L_INCR && offset == 0) {
+		foffset = foffset_read(fp);
+		if (__predict_false(foffset < 0 && noneg)) {
+			return (EOVERFLOW);
+		}
+		td->td_uretoff.tdu_off = foffset;
+		return (0);
+	}
+	foffset = foffset_lock(fp, 0);
 	error = 0;
 	switch (whence) {
 	case L_INCR:
@@ -3047,10 +3070,12 @@ vn_copy_file_range(struct vnode *invp, off_t *inoffp, struct vnode *outvp,
     struct ucred *outcred, struct thread *fsize_td)
 {
 	struct mount *inmp, *outmp;
+	struct vnode *invpl, *outvpl;
 	int error;
 	size_t len;
 	uint64_t uval;
 
+	invpl = outvpl = NULL;
 	len = *lenp;
 	*lenp = 0;		/* For error returns. */
 	error = 0;
@@ -3076,17 +3101,22 @@ vn_copy_file_range(struct vnode *invp, off_t *inoffp, struct vnode *outvp,
 	if (len == 0)
 		goto out;
 
-	inmp = invp->v_mount;
-	outmp = outvp->v_mount;
-	if (inmp == NULL || outmp == NULL) {
-		error = EBADF;
+	error = VOP_GETLOWVNODE(invp, &invpl, FREAD);
+	if (error != 0)
 		goto out;
-	}
+	error = VOP_GETLOWVNODE(outvp, &outvpl, FWRITE);
+	if (error != 0)
+		goto out1;
+
+	inmp = invpl->v_mount;
+	outmp = outvpl->v_mount;
+	if (inmp == NULL || outmp == NULL)
+		goto out2;
 
 	for (;;) {
 		error = vfs_busy(inmp, 0);
 		if (error != 0)
-			goto out;
+			goto out2;
 		if (inmp == outmp)
 			break;
 		error = vfs_busy(outmp, MBF_NOWAIT);
@@ -3097,7 +3127,7 @@ vn_copy_file_range(struct vnode *invp, off_t *inoffp, struct vnode *outvp,
 				vfs_unbusy(outmp);
 				continue;
 			}
-			goto out;
+			goto out2;
 		}
 		break;
 	}
@@ -3108,16 +3138,23 @@ vn_copy_file_range(struct vnode *invp, off_t *inoffp, struct vnode *outvp,
 	 * which can handle copies across multiple file system types.
 	 */
 	*lenp = len;
-	if (inmp == outmp || strcmp(inmp->mnt_vfc->vfc_name,
-	    outmp->mnt_vfc->vfc_name) == 0)
-		error = VOP_COPY_FILE_RANGE(invp, inoffp, outvp, outoffp,
+	if (inmp == outmp || inmp->mnt_vfc == outmp->mnt_vfc)
+		error = VOP_COPY_FILE_RANGE(invpl, inoffp, outvpl, outoffp,
 		    lenp, flags, incred, outcred, fsize_td);
 	else
-		error = vn_generic_copy_file_range(invp, inoffp, outvp,
+		error = ENOSYS;
+	if (error == ENOSYS)
+		error = vn_generic_copy_file_range(invpl, inoffp, outvpl,
 		    outoffp, lenp, flags, incred, outcred, fsize_td);
 	vfs_unbusy(outmp);
 	if (inmp != outmp)
 		vfs_unbusy(inmp);
+out2:
+	if (outvpl != NULL)
+		vrele(outvpl);
+out1:
+	if (invpl != NULL)
+		vrele(invpl);
 out:
 	return (error);
 }

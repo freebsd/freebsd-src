@@ -1355,7 +1355,11 @@ err_out:
 #include <fts.h>
 
 static int
+#ifdef __GLIBC__
+fts_compare(const FTSENT **a, const FTSENT **b)
+#else
 fts_compare(const FTSENT * const *a, const FTSENT * const *b)
+#endif
 {
 	return (strcmp((*a)->fts_name, (*b)->fts_name));
 }

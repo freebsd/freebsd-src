@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)results.ms	6.2 (Berkeley) 4/16/91
-.\"
 .ds RH Results
 .NH
 Results

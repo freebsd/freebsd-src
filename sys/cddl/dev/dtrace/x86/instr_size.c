@@ -27,11 +27,6 @@
 /*	Copyright (c) 1988 AT&T	*/
 /*	  All Rights Reserved	*/
 
-
-#ifdef illumos
-#pragma ident	"@(#)instr_size.c	1.14	05/07/08 SMI"
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/proc.h>

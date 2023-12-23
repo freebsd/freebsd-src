@@ -1981,6 +1981,15 @@
 #define	PMXEVTYPER_EL0_CRm		13
 #define	PMXEVTYPER_EL0_op2		1
 
+/* RNDRRS */
+#define	RNDRRS				MRS_REG(RNDRRS)
+#define	RNDRRS_REG			MRS_REG_ALT_NAME(RNDRRS)
+#define	RNDRRS_op0			3
+#define	RNDRRS_op1			3
+#define	RNDRRS_CRn			2
+#define	RNDRRS_CRm			4
+#define	RNDRRS_op2			1
+
 /* SCTLR_EL1 - System Control Register */
 #define	SCTLR_RES1	0x30d00800	/* Reserved ARMv8.0, write 1 */
 #define	SCTLR_M				(UL(0x1) << 0)

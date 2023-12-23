@@ -30,8 +30,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -927,6 +925,12 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	FEATURE(name, desc)						\
 	SYSCTL_INT_WITH_LABEL(_kern_features, OID_AUTO, name,		\
 	    CTLFLAG_RD | CTLFLAG_CAPRD, SYSCTL_NULL_INT_PTR, 1, desc, "feature")
+/* Same for the dynamic registration. */
+#define	FEATURE_ADD(name, desc)						\
+	sysctl_add_oid(NULL, SYSCTL_CHILDREN(&sysctl___kern_features),	\
+	    OID_AUTO, name,						\
+	    CTLFLAG_RD | CTLFLAG_CAPRD | CTLTYPE_INT | CTLFLAG_MPSAFE,	\
+	    NULL, 1, sysctl_handle_int, "I", desc, "feature");
 
 #endif /* _KERNEL */
 

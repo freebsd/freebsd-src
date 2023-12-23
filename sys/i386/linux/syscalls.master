@@ -1,5 +1,4 @@
 
-;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
 ; Processed to create linux_sysent.c, linux_proto.h and linux_syscall.h.
 

@@ -58,7 +58,6 @@
 #ifndef _SHA_H_
 #define _SHA_H_		1
 
-#include <sys/cdefs.h>
 #include <sys/types.h>		/* XXX switch to machine/ansi.h and __ types */
 
 #define	SHA_CBLOCK	64

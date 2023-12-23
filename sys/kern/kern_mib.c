@@ -33,8 +33,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
  */
 
 #include <sys/cdefs.h>
@@ -316,16 +314,25 @@ SYSCTL_PROC(_hw, HW_MACHINE_ARCH, machine_arch, CTLTYPE_STRING | CTLFLAG_RD |
     CTLFLAG_CAPRD | CTLFLAG_MPSAFE, NULL, 0, sysctl_hw_machine_arch, "A",
     "System architecture");
 
-#ifndef MACHINE_ARCHES
 #ifdef COMPAT_FREEBSD32
-#define	MACHINE_ARCHES	MACHINE_ARCH " " MACHINE_ARCH32
-#else
-#define	MACHINE_ARCHES	MACHINE_ARCH
-#endif
+#include <compat/freebsd32/freebsd32_util.h>
 #endif
 
-SYSCTL_STRING(_kern, OID_AUTO, supported_archs, CTLFLAG_RD | CTLFLAG_MPSAFE,
-    MACHINE_ARCHES, 0, "Supported architectures for binaries");
+static int
+sysctl_kern_supported_archs(SYSCTL_HANDLER_ARGS)
+{
+	const char *supported_archs;
+
+	supported_archs =
+#ifdef COMPAT_FREEBSD32
+	    compat_freebsd_32bit ? MACHINE_ARCH " " MACHINE_ARCH32 :
+#endif
+	    MACHINE_ARCH;
+	return (SYSCTL_OUT(req, supported_archs, strlen(supported_archs) + 1));
+}
+SYSCTL_PROC(_kern, OID_AUTO, supported_archs, CTLFLAG_RD | CTLFLAG_MPSAFE |
+    CTLFLAG_CAPRD | CTLTYPE_STRING, NULL, 0, sysctl_kern_supported_archs, "A",
+    "Supported architectures for binaries");
 
 static int
 sysctl_hostname(SYSCTL_HANDLER_ARGS)

@@ -561,39 +561,15 @@ static int handle_hca_cap_atomic(struct mlx5_core_dev *dev)
 
 static int handle_hca_cap_2(struct mlx5_core_dev *dev)
 {
-	void *set_ctx;
-	void *set_hca_cap;
-	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
 	int err;
 
 	if (MLX5_CAP_GEN_MAX(dev, hca_cap_2)) {
 		err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL_2);
 		if (err)
 			return err;
-	} else {
-		return 0;
 	}
 
-	/* To be added if sw_vhca support was added */
-	/*if (!MLX5_CAP_GEN_2_MAX(dev, sw_vhca_id_valid) ||
-	    !(dev->priv.sw_vhca_id > 0))
-		return 0;*/
-
-	set_ctx = kzalloc(set_sz, GFP_KERNEL);
-	if (!set_ctx)
-		return -ENOMEM;
-
-	MLX5_SET(set_hca_cap_in, set_ctx, op_mod,
-		 MLX5_CAP_GENERAL_2 << 1);
-	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx, capability);
-	memcpy(set_hca_cap, dev->hca_caps_cur[MLX5_CAP_GENERAL_2],
-	       MLX5_ST_SZ_BYTES(cmd_hca_cap_2));
-	//MLX5_SET(cmd_hca_cap_2, set_hca_cap, sw_vhca_id_valid, 1);
-
-	err = set_caps(dev, set_ctx, set_sz);
-
-	kfree(set_ctx);
-	return err;
+	return 0;
 }
 
 static int set_hca_ctrl(struct mlx5_core_dev *dev)

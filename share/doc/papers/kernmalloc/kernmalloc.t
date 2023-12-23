@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)kernmalloc.t	5.1 (Berkeley) 4/16/91
-.\"
 .\" reference a system routine name
 .de RN
 \fI\\$1\fP\^(\h'1m/24u')\\$2

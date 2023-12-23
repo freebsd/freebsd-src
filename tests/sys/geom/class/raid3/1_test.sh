@@ -4,9 +4,9 @@
 
 echo "1..2"
 
-us0=$(attach_md -t malloc -s 1M) || exit 1
-us1=$(attach_md -t malloc -s 2M) || exit 1
-us2=$(attach_md -t malloc -s 3M) || exit 1
+attach_md us0 -t malloc -s 1M || exit 1
+attach_md us1 -t malloc -s 2M || exit 1
+attach_md us2 -t malloc -s 3M || exit 1
 
 graid3 label $name /dev/${us0} /dev/${us1} /dev/${us2} 2>/dev/null || exit 1
 devwait

@@ -30,7 +30,6 @@
  * Userland code for testing binary heaps and hash tables
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #include <stdio.h>

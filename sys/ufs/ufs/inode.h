@@ -32,8 +32,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)inode.h	8.9 (Berkeley) 5/14/95
  */
 
 #ifndef _UFS_UFS_INODE_H_
@@ -97,7 +95,7 @@ struct inode {
 
 	ino_t	  i_number;	/* The identity of the inode. */
 	uint32_t  i_flag;	/* flags, see below */
-	int	  i_effnlink;	/* i_nlink when I/O completes */
+	int32_t	  i_effnlink;	/* i_nlink when I/O completes */
 
 	/*
 	 * Side effects; used during directory lookup.
@@ -133,7 +131,7 @@ struct inode {
 	uint32_t i_flags;	/* Status flags (chflags). */
 	uint32_t i_uid;		/* File owner. */
 	uint32_t i_gid;		/* File group. */
-	int16_t  i_nlink;	/* File link count. */
+	int32_t  i_nlink;	/* File link count. */
 	uint16_t i_mode;	/* IFMT, permissions; see below. */
 };
 /*
@@ -243,6 +241,12 @@ I_IS_UFS2(const struct inode *ip)
 		(ip)->i_din1->d##field = (val); 		\
 	else							\
 		(ip)->i_din2->d##field = (val); 		\
+	} while (0)
+#define	DIP_SET_NLINK(ip, val) do {					\
+	KASSERT(ip->i_nlink >= 0, ("%s:%d %s(): setting negative "	\
+	    "nlink value %d for inode %jd\n", __FILE__, __LINE__,	\
+	    __FUNCTION__, (ip)->i_nlink, (ip)->i_number));		\
+	DIP_SET(ip, i_nlink, val);					\
 	} while (0)
 
 #define	IS_SNAPSHOT(ip)		((ip)->i_flags & SF_SNAPSHOT)

@@ -31,7 +31,7 @@
 /*
  * CHARMAP file handling for localedef.
  */
-#include <sys/cdefs.h>
+
 #include <sys/types.h>
 #include <sys/tree.h>
 

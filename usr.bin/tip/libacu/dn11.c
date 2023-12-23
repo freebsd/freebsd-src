@@ -32,14 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)dn11.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: dn11.c,v 1.9 2006/03/17 19:17:13 moritz Exp $";
-#endif
-#endif /* not lint */
-
 /*
  * Routines for dialing up on DN-11
  */

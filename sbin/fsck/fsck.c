@@ -30,13 +30,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * From: @(#)mount.c	8.19 (Berkeley) 4/19/94
  * From: $NetBSD: mount.c,v 1.24 1995/11/18 03:34:29 cgd Exp 
  * $NetBSD: fsck.c,v 1.30 2003/08/07 10:04:15 agc Exp $
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/queue.h>

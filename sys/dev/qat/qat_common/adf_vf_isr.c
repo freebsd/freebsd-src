@@ -3,7 +3,7 @@
 #include "qat_freebsd.h"
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/cdefs.h>
+
 #include <sys/types.h>
 #include <sys/interrupt.h>
 #include <dev/pci/pcivar.h>

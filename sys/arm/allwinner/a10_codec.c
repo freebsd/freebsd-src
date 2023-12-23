@@ -28,7 +28,6 @@
  * Allwinner A10/A20 and H3 Audio Codec
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

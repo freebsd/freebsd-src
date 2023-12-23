@@ -32,6 +32,7 @@ local hook = require("hook")
 
 local core = {}
 
+local default_acpi = false
 local default_safe_mode = false
 local default_single_user = false
 local default_verbose = false
@@ -46,20 +47,14 @@ local function composeLoaderCmd(cmd_name, argstr)
 end
 
 local function recordDefaults()
-	-- On i386, hint.acpi.0.rsdp will be set before we're loaded. On !i386,
-	-- it will generally be set upon execution of the kernel. Because of
-	-- this, we can't (or don't really want to) detect/disable ACPI on !i386
-	-- reliably. Just set it enabled if we detect it and leave well enough
-	-- alone if we don't.
-	local boot_acpi = core.isSystem386() and core.getACPIPresent(false)
 	local boot_single = loader.getenv("boot_single") or "no"
 	local boot_verbose = loader.getenv("boot_verbose") or "no"
+
+	default_acpi = core.getACPI()
 	default_single_user = boot_single:lower() ~= "no"
 	default_verbose = boot_verbose:lower() ~= "no"
 
-	if boot_acpi then
-		core.setACPI(true)
-	end
+	core.setACPI(default_acpi)
 	core.setSingleUser(default_single_user)
 	core.setVerbose(default_verbose)
 end
@@ -137,18 +132,26 @@ function core.setSingleUser(single_user)
 	core.su = single_user
 end
 
-function core.getACPIPresent(checking_system_defaults)
-	local c = loader.getenv("hint.acpi.0.rsdp")
-
-	if c ~= nil then
-		if checking_system_defaults then
-			return true
-		end
-		-- Otherwise, respect disabled if it's set
-		c = loader.getenv("hint.acpi.0.disabled")
-		return c == nil or tonumber(c) ~= 1
+function core.hasACPI()
+	-- We can't trust acpi.rsdp to be set if the loader binary doesn't do
+	-- ACPI detection early enough.  UEFI loader historically didn't, so
+	-- we'll fallback to assuming ACPI is enabled if this binary does not
+	-- declare that it probes for ACPI early enough
+	if loader.getenv("acpi.rsdp") ~= nil then
+		return true
 	end
-	return false
+
+	return not core.hasFeature("EARLY_ACPI")
+end
+
+function core.getACPI()
+	if not core.hasACPI() then
+		return false
+	end
+
+	-- Otherwise, respect disabled if it's set
+	local c = loader.getenv("hint.acpi.0.disabled")
+	return c == nil or tonumber(c) ~= 1
 end
 
 function core.setACPI(acpi)
@@ -157,13 +160,11 @@ function core.setACPI(acpi)
 	end
 
 	if acpi then
-		loader.setenv("acpi_load", "YES")
+		config.enableModule("acpi")
 		loader.setenv("hint.acpi.0.disabled", "0")
-		loader.unsetenv("loader.acpi_disabled_by_user")
 	else
-		loader.unsetenv("acpi_load")
+		config.disableModule("acpi")
 		loader.setenv("hint.acpi.0.disabled", "1")
-		loader.setenv("loader.acpi_disabled_by_user", "1")
 	end
 	core.acpi = acpi
 end
@@ -176,16 +177,12 @@ function core.setSafeMode(safe_mode)
 		loader.setenv("kern.smp.disabled", "1")
 		loader.setenv("hw.ata.ata_dma", "0")
 		loader.setenv("hw.ata.atapi_dma", "0")
-		loader.setenv("hw.ata.wc", "0")
-		loader.setenv("hw.eisa_slots", "0")
 		loader.setenv("kern.eventtimer.periodic", "1")
 		loader.setenv("kern.geom.part.check_integrity", "0")
 	else
 		loader.unsetenv("kern.smp.disabled")
 		loader.unsetenv("hw.ata.ata_dma")
 		loader.unsetenv("hw.ata.atapi_dma")
-		loader.unsetenv("hw.ata.wc")
-		loader.unsetenv("hw.eisa_slots")
 		loader.unsetenv("kern.eventtimer.periodic")
 		loader.unsetenv("kern.geom.part.check_integrity")
 	end
@@ -204,17 +201,18 @@ function core.kernelList()
 		return core.cached_kernels
 	end
 
-	local k = loader.getenv("kernel")
+	local default_kernel = loader.getenv("kernel")
 	local v = loader.getenv("kernels")
 	local autodetect = loader.getenv("kernels_autodetect") or ""
 
 	local kernels = {}
 	local unique = {}
 	local i = 0
-	if k ~= nil then
+
+	if default_kernel then
 		i = i + 1
-		kernels[i] = k
-		unique[k] = true
+		kernels[i] = default_kernel
+		unique[default_kernel] = true
 	end
 
 	if v ~= nil then
@@ -241,6 +239,8 @@ function core.kernelList()
 		core.cached_kernels = kernels
 		return core.cached_kernels
 	end
+
+	local present = {}
 
 	-- Automatically detect other bootable kernel directories using a
 	-- heuristic.  Any directory in /boot that contains an ordinary file
@@ -270,8 +270,25 @@ function core.kernelList()
 			unique[file] = true
 		end
 
+		present[file] = true
+
 		::continue::
 	end
+
+	-- If we found more than one kernel, prune the "kernel" specified kernel
+	-- off of the list if it wasn't found during traversal.  If we didn't
+	-- actually find any kernels, we just assume that they know what they're
+	-- doing and leave it alone.
+	if default_kernel and not present[default_kernel] and #kernels > 1 then
+		for i = 1, #kernels do
+			if i == #kernels then
+				kernels[i] = nil
+			else
+				kernels[i] = kernels[i + 1]
+			end
+		end
+	end
+
 	core.cached_kernels = kernels
 	return core.cached_kernels
 end
@@ -358,7 +375,7 @@ function core.loadEntropy()
 end
 
 function core.setDefaults()
-	core.setACPI(core.getACPIPresent(true))
+	core.setACPI(default_acpi)
 	core.setSafeMode(default_safe_mode)
 	core.setSingleUser(default_single_user)
 	core.setVerbose(default_verbose)
@@ -380,6 +397,15 @@ function core.boot(argstr)
 	end
 	core.loadEntropy()
 	loader.perform(composeLoaderCmd("boot", argstr))
+end
+
+function core.hasFeature(name)
+	if not loader.has_feature then
+		-- Loader too old, no feature support
+		return nil, "No feature support in loaded loader"
+	end
+
+	return loader.has_feature(name)
 end
 
 function core.isSingleUserBoot()
@@ -439,10 +465,6 @@ function core.isSerialBoot()
 		return true
 	end
 	return false
-end
-
-function core.isSystem386()
-	return loader.machine_arch == "i386"
 end
 
 -- Is the menu skipped in the environment in which we've booted?

@@ -35,19 +35,6 @@
  * locate.bigram - list bigrams for /usr/libexec/locate.mklocatedb script
  */
 
-#if 0
-#ifndef lint
-static char copyright[] =
-"@(#) Copyright (c) 1989, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-static char sccsid[] = "@(#)locate.bigram.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
-#endif
-
-
 #include <capsicum_helpers.h>
 #include <err.h>
 #include <stdio.h>

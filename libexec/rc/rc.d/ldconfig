@@ -39,10 +39,7 @@ ldconfig_start()
 		startmsg 'ELF ldconfig path:' ${_LDC}
 		${ldconfig} -elf ${_ins} ${_LDC}
 
-		machine_arch=$(sysctl -n hw.machine_arch)
-
-		case ${machine_arch} in
-		aarch64|amd64|powerpc64)
+		if check_kern_features compat_freebsd32; then
 			for i in ${ldconfig_local32_dirs}; do
 				if [ -d "${i}" ]; then
 					_files=`find ${i} -type f`
@@ -53,7 +50,11 @@ ldconfig_start()
 			done
 			_LDC=""
 			if [ -x /libexec/ld-elf32.so.1 ]; then
-				_LDC=$(/libexec/ld-elf32.so.1 -v | sed -n -e '/^Default lib path /s///p' | tr : ' ')
+				for x in $(/libexec/ld-elf32.so.1 -v | sed -n -e '/^Default lib path /s///p' | tr : ' '); do
+					if [ -d "${x}" ]; then
+						_LDC="${_LDC} ${x}"
+					fi
+				done
 			fi
 			for i in ${ldconfig32_paths}; do
 				if [ -r "${i}" ]; then
@@ -62,8 +63,7 @@ ldconfig_start()
 			done
 			startmsg '32-bit compatibility ldconfig path:' ${_LDC}
 			${ldconfig} -32 ${_ins} ${_LDC}
-			;;
-		esac
+		fi
 
 	fi
 }

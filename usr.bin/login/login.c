@@ -40,12 +40,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
-#endif
-#endif
-
 #include <sys/cdefs.h>
 /*
  * login [ name ]

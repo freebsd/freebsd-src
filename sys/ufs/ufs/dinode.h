@@ -62,8 +62,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)dinode.h	8.3 (Berkeley) 1/21/94
  */
 
 #ifndef _UFS_UFS_DINODE_H_
@@ -125,7 +123,7 @@ typedef int64_t ufs_time_t;
 
 struct ufs2_dinode {
 	uint16_t	di_mode;	/*   0: IFMT, permissions; see below. */
-	int16_t		di_nlink;	/*   2: File link count. */
+	uint16_t	di_nlink;	/*   2: File link count. */
 	uint32_t	di_uid;		/*   4: File owner. */
 	uint32_t	di_gid;		/*   8: File group. */
 	uint32_t	di_blksize;	/*  12: Inode blocksize. */
@@ -180,7 +178,7 @@ struct ufs2_dinode {
  */
 struct ufs1_dinode {
 	uint16_t	di_mode;	/*   0: IFMT, permissions; see below. */
-	int16_t		di_nlink;	/*   2: File link count. */
+	uint16_t	di_nlink;	/*   2: File link count. */
 	union {
 		uint32_t di_freelink;	/*   4: SUJ: Next unlinked inode. */
 		uint32_t di_dirdepth;	/*   4: IFDIR: depth from root dir */
@@ -210,6 +208,6 @@ struct ufs1_dinode {
 	uint64_t	di_modrev;	/* 120: i_modrev for NFSv4 */
 };
 
-#define	UFS_LINK_MAX	32767
+#define	UFS_LINK_MAX	65500	/* leave a few spare for special values */
 
 #endif /* _UFS_UFS_DINODE_H_ */

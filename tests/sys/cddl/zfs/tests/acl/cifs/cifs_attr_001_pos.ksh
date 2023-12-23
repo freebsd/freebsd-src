@@ -23,9 +23,6 @@
 #
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)cifs_attr_001_pos.ksh	1.1	08/02/27 SMI"
-#
 
 . $STF_SUITE/tests/acl/acl_common.kshlib
 . $STF_SUITE/tests/acl/cifs/cifs.kshlib

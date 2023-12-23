@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/cdefs.h>
 #include <sys/errno.h>
@@ -96,7 +95,7 @@ xsd_dev_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
  * \param parent  The NewBus parent device for any devices this method adds.
  */
 static void
-xsd_dev_identify(driver_t *driver __unused, device_t parent)
+xsd_dev_identify(driver_t *driver, device_t parent)
 {
 
 	if (!xen_domain() || xs_initialized())

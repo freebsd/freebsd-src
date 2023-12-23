@@ -53,8 +53,6 @@
  * SUCH DAMAGE.
  *
  * from: Utah Hdr: vn.c 1.13 94/04/02
- *
- *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
  * From: src/sys/dev/vn/vn.c,v 1.122 2000/12/16 16:06:03
  */
 

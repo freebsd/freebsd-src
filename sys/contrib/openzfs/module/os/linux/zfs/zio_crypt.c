@@ -1405,7 +1405,7 @@ zio_crypt_init_uios_zil(boolean_t encrypt, uint8_t *plainbuf,
     boolean_t *no_crypt)
 {
 	int ret;
-	uint64_t txtype, lr_len;
+	uint64_t txtype, lr_len, nused;
 	uint_t nr_src, nr_dst, crypt_len;
 	uint_t aad_len = 0, nr_iovecs = 0, total_len = 0;
 	iovec_t *src_iovecs = NULL, *dst_iovecs = NULL;
@@ -1432,7 +1432,10 @@ zio_crypt_init_uios_zil(boolean_t encrypt, uint8_t *plainbuf,
 	zilc = (zil_chain_t *)src;
 	slrp = src + sizeof (zil_chain_t);
 	aadp = aadbuf;
-	blkend = src + ((byteswap) ? BSWAP_64(zilc->zc_nused) : zilc->zc_nused);
+	nused = ((byteswap) ? BSWAP_64(zilc->zc_nused) : zilc->zc_nused);
+	ASSERT3U(nused, >=, sizeof (zil_chain_t));
+	ASSERT3U(nused, <=, datalen);
+	blkend = src + nused;
 
 	/* calculate the number of encrypted iovecs we will need */
 	for (; slrp < blkend; slrp += lr_len) {
@@ -1445,6 +1448,8 @@ zio_crypt_init_uios_zil(boolean_t encrypt, uint8_t *plainbuf,
 			txtype = BSWAP_64(lr->lrc_txtype);
 			lr_len = BSWAP_64(lr->lrc_reclen);
 		}
+		ASSERT3U(lr_len, >=, sizeof (lr_t));
+		ASSERT3U(lr_len, <=, blkend - slrp);
 
 		nr_iovecs++;
 		if (txtype == TX_WRITE && lr_len != sizeof (lr_write_t))
@@ -1513,20 +1518,16 @@ zio_crypt_init_uios_zil(boolean_t encrypt, uint8_t *plainbuf,
 		 * authenticate it.
 		 */
 		if (txtype == TX_WRITE) {
-			crypt_len = sizeof (lr_write_t) -
-			    sizeof (lr_t) - sizeof (blkptr_t);
+			const size_t o = offsetof(lr_write_t, lr_blkptr);
+			crypt_len = o - sizeof (lr_t);
 			src_iovecs[nr_iovecs].iov_base = slrp + sizeof (lr_t);
 			src_iovecs[nr_iovecs].iov_len = crypt_len;
 			dst_iovecs[nr_iovecs].iov_base = dlrp + sizeof (lr_t);
 			dst_iovecs[nr_iovecs].iov_len = crypt_len;
 
 			/* copy the bp now since it will not be encrypted */
-			memcpy(dlrp + sizeof (lr_write_t) - sizeof (blkptr_t),
-			    slrp + sizeof (lr_write_t) - sizeof (blkptr_t),
-			    sizeof (blkptr_t));
-			memcpy(aadp,
-			    slrp + sizeof (lr_write_t) - sizeof (blkptr_t),
-			    sizeof (blkptr_t));
+			memcpy(dlrp + o, slrp + o, sizeof (blkptr_t));
+			memcpy(aadp, slrp + o, sizeof (blkptr_t));
 			aadp += sizeof (blkptr_t);
 			aad_len += sizeof (blkptr_t);
 			nr_iovecs++;
@@ -1543,6 +1544,21 @@ zio_crypt_init_uios_zil(boolean_t encrypt, uint8_t *plainbuf,
 				nr_iovecs++;
 				total_len += crypt_len;
 			}
+		} else if (txtype == TX_CLONE_RANGE) {
+			const size_t o = offsetof(lr_clone_range_t, lr_nbps);
+			crypt_len = o - sizeof (lr_t);
+			src_iovecs[nr_iovecs].iov_base = slrp + sizeof (lr_t);
+			src_iovecs[nr_iovecs].iov_len = crypt_len;
+			dst_iovecs[nr_iovecs].iov_base = dlrp + sizeof (lr_t);
+			dst_iovecs[nr_iovecs].iov_len = crypt_len;
+
+			/* copy the bps now since they will not be encrypted */
+			memcpy(dlrp + o, slrp + o, lr_len - o);
+			memcpy(aadp, slrp + o, lr_len - o);
+			aadp += lr_len - o;
+			aad_len += lr_len - o;
+			nr_iovecs++;
+			total_len += crypt_len;
 		} else {
 			crypt_len = lr_len - sizeof (lr_t);
 			src_iovecs[nr_iovecs].iov_base = slrp + sizeof (lr_t);

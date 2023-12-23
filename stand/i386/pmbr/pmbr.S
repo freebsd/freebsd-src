@@ -155,8 +155,10 @@ next_boot:	addl $1,(%si)			# Next LBA
 		mov %es,%ax			# Adjust segment for next
 		addw $SECSIZE/16,%ax		#  sector
 		cmp $0x9000,%ax			# Don't load past 0x90000,
-		jae err_big			#  545k should be enough for
-		mov %ax,%es			#  any boot code. :)
+		jb sz_ok			#  545k should be enough for
+		call err_big			#  any boot code, but warn
+		mov $0x9000-SECSIZE/16,%ax	#  and truncate
+sz_ok:		mov %ax,%es
 		jmp load_boot
 #
 # Move to the next partition.  If we walk off the end of the sector, load
@@ -203,17 +205,21 @@ getdrvparams:
 #
 # Various error message entry points.
 #
-err_big: 	movw $msg_big,%si		# "Boot loader too
-		jmp putstr			#  large"
+err_big: 	movw $msg_big,%si		# "Truncated
+		call putstr			#  to 545k"
+		ret
 
 err_pt: 	movw $msg_pt,%si		# "Invalid partition
-		jmp putstr			#  table"
+		call putstr			#  table"
+err_pt.1:	jmp err_pt.1			# Await reset
 
 err_rd: 	movw $msg_rd,%si		# "I/O error loading
-		jmp putstr			#  boot loader"
+		call putstr			#  boot loader"
+		jmp err_pt.1
 
 err_noboot: 	movw $msg_noboot,%si		# "Missing boot
-		jmp putstr			#  loader"
+		call putstr			#  loader"
+		jmp err_pt.1
 #
 # Output an ASCIZ string to the console via the BIOS.
 # 
@@ -223,9 +229,9 @@ putstr.0:	movw $0x7,%bx	 		# Page:attribute
 putstr: 	lodsb				# Get character
 		testb %al,%al			# End of string?
 		jnz putstr.0			# No
-putstr.1:	jmp putstr.1			# Await reset
+		ret
 
-msg_big: 	.asciz "Boot loader too large"
+msg_big: 	.asciz "Loaded only 545k"
 msg_pt: 	.asciz "Invalid partition table"
 msg_rd: 	.asciz "I/O error loading boot loader"
 msg_noboot: 	.asciz "Missing boot loader"

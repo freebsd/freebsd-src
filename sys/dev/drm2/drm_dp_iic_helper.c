@@ -20,7 +20,6 @@
  * OF THIS SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/kobj.h>
 #include <sys/bus.h>

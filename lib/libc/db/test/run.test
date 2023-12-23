@@ -1,7 +1,4 @@
 #!/bin/sh -
-#
-#	@(#)run.test	8.10 (Berkeley) 7/26/94
-#
 
 # db regression tests
 main()

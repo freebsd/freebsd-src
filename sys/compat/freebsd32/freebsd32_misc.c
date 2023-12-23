@@ -123,7 +123,20 @@
 #include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
-FEATURE(compat_freebsd_32bit, "Compatible with 32-bit FreeBSD");
+int compat_freebsd_32bit = 1;
+
+static void
+register_compat32_feature(void *arg)
+{
+	if (!compat_freebsd_32bit)
+		return;
+
+	FEATURE_ADD("compat_freebsd32", "Compatible with 32-bit FreeBSD");
+	FEATURE_ADD("compat_freebsd_32bit",
+	    "Compatible with 32-bit FreeBSD (legacy feature name)");
+}
+SYSINIT(freebsd32, SI_SUB_EXEC, SI_ORDER_ANY, register_compat32_feature,
+    NULL);
 
 struct ptrace_io_desc32 {
 	int		piod_op;
@@ -2687,9 +2700,8 @@ freebsd32___sysctlbyname(struct thread *td,
 	    &oldlen, uap->new, uap->newlen, &rv, SCTL_MASK32, 1);
 	if (error != 0)
 		return (error);
-	if (uap->oldlenp != NULL)
-		error = suword32(uap->oldlenp, rv);
-
+	if (uap->oldlenp != NULL && suword32(uap->oldlenp, rv) != 0)
+		error = EFAULT;
 	return (error);
 }
 

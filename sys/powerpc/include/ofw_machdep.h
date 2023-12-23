@@ -28,7 +28,6 @@
 #ifndef _MACHINE_OFW_MACHDEP_H_
 #define _MACHINE_OFW_MACHDEP_H_
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/rman.h>
 #include <sys/bus.h>

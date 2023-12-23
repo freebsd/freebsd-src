@@ -124,23 +124,23 @@ legacy_pci_cfgregopen(device_t dev)
 		return;
 
 	/* Check for supported chipsets */
-	vid = pci_cfgregread(0, 0, 0, PCIR_VENDOR, 2);
-	did = pci_cfgregread(0, 0, 0, PCIR_DEVICE, 2);
+	vid = pci_cfgregread(0, 0, 0, 0, PCIR_VENDOR, 2);
+	did = pci_cfgregread(0, 0, 0, 0, PCIR_DEVICE, 2);
 	switch (vid) {
 	case 0x8086:
 		switch (did) {
 		case 0x3590:
 		case 0x3592:
 			/* Intel 7520 or 7320 */
-			pciebar = pci_cfgregread(0, 0, 0, 0xce, 2) << 16;
-			pcie_cfgregopen(pciebar, 0, 255);
+			pciebar = pci_cfgregread(0, 0, 0, 0, 0xce, 2) << 16;
+			pcie_cfgregopen(pciebar, 0, 0, 255);
 			break;
 		case 0x2580:
 		case 0x2584:
 		case 0x2590:
 			/* Intel 915, 925, or 915GM */
-			pciebar = pci_cfgregread(0, 0, 0, 0x48, 4);
-			pcie_cfgregopen(pciebar, 0, 255);
+			pciebar = pci_cfgregread(0, 0, 0, 0, 0x48, 4);
+			pcie_cfgregopen(pciebar, 0, 0, 255);
 			break;
 		}
 	}

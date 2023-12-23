@@ -307,6 +307,25 @@ __cap_rights_is_set(const cap_rights_t *rights, ...)
 }
 
 bool
+cap_rights_is_empty(const cap_rights_t *rights)
+{
+#ifndef _KERNEL
+	cap_rights_t cap_no_rights;
+	cap_rights_init(&cap_no_rights);
+#endif
+
+	assert(CAPVER(rights) == CAP_RIGHTS_VERSION_00);
+	assert(CAPVER(&cap_no_rights) == CAP_RIGHTS_VERSION_00);
+
+	for (int i = 0; i < CAPARSIZE(rights); i++) {
+		if (rights->cr_rights[i] != cap_no_rights.cr_rights[i])
+			return (false);
+	}
+
+	return (true);
+}
+
+bool
 cap_rights_is_valid(const cap_rights_t *rights)
 {
 	cap_rights_t allrights;

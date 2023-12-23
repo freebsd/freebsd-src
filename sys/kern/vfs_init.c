@@ -7,8 +7,6 @@
  * This code is derived from software contributed
  * to Berkeley by John Heidemann of the UCLA Ficus project.
  *
- * Source: * @(#)i405_init.c 2.10 92/04/27 UCLA Ficus project
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -32,11 +30,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fnv_hash.h>

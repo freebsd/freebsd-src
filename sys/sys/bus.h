@@ -317,6 +317,8 @@ struct driver {
 	KOBJ_CLASS_FIELDS;
 };
 
+struct resource;
+
 /**
  * @brief A resource mapping.
  */
@@ -341,12 +343,14 @@ void	resource_init_map_request_impl(struct resource_map_request *_args,
 	    size_t _sz);
 #define	resource_init_map_request(rmr) 					\
 	resource_init_map_request_impl((rmr), sizeof(*(rmr)))
+int	resource_validate_map_request(struct resource *r,
+	    struct resource_map_request *in, struct resource_map_request *out,
+	    rman_res_t *startp, rman_res_t *lengthp);
 
 /*
  * Definitions for drivers which need to keep simple lists of resources
  * for their child devices.
  */
-struct	resource;
 
 /**
  * @brief An entry for a single resource in a resource list.
@@ -495,6 +499,23 @@ int	bus_generic_rl_set_resource (device_t, device_t, int, int, rman_res_t,
 				     rman_res_t);
 int	bus_generic_rl_release_resource (device_t, device_t, int, int,
 					 struct resource *);
+struct resource *
+	bus_generic_rman_alloc_resource(device_t dev, device_t child, int type,
+					int *rid, rman_res_t start,
+					rman_res_t end, rman_res_t count,
+					u_int flags);
+int	bus_generic_rman_adjust_resource(device_t dev, device_t child, int type,
+					 struct resource *r, rman_res_t start,
+					 rman_res_t end);
+int	bus_generic_rman_release_resource(device_t dev, device_t child,
+					  int type, int rid,
+					  struct resource *r);
+int	bus_generic_rman_activate_resource(device_t dev, device_t child,
+					   int type, int rid,
+					   struct resource *r);
+int	bus_generic_rman_deactivate_resource(device_t dev, device_t child,
+					     int type, int rid,
+					     struct resource *r);
 
 int	bus_generic_shutdown(device_t dev);
 int	bus_generic_suspend(device_t dev);

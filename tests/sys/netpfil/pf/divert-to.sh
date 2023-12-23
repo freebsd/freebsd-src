@@ -405,13 +405,13 @@ ipfwon_in_div_in_fwd_out_div_out_cleanup()
 	pft_cleanup
 }
 
-atf_test_case "ipfwoff_in_dn_in_div_in_out_dn_out_div_out" "cleanup"
-ipfwoff_in_dn_in_div_in_out_dn_out_div_out_head()
+atf_test_case "ipfwoff_in_dn_in_div_in_out_div_out_dn_out" "cleanup"
+ipfwoff_in_dn_in_div_in_out_div_out_dn_out_head()
 {
-	atf_set descr 'Test inbound > delayed+diverted > outbound > delayed+diverted > outbound | network terminated'
+	atf_set descr 'Test inbound > delayed+diverted > outbound > diverted+delayed > outbound | network terminated'
 	atf_set require.user root
 }
-ipfwoff_in_dn_in_div_in_out_dn_out_div_out_body()
+ipfwoff_in_dn_in_div_in_out_div_out_dn_out_body()
 {
 	local ipfwon
 
@@ -489,22 +489,22 @@ ipfwoff_in_dn_in_div_in_out_dn_out_div_out_body()
 
 	# }
 }
-ipfwoff_in_dn_in_div_in_out_dn_out_div_out_cleanup()
+ipfwoff_in_dn_in_div_in_out_div_out_dn_out_cleanup()
 {
 	pft_cleanup
 }
 
-atf_test_case "ipfwon_in_dn_in_div_in_out_dn_out_div_out" "cleanup"
-ipfwon_in_dn_in_div_in_out_dn_out_div_out_head()
+atf_test_case "ipfwon_in_dn_in_div_in_out_div_out_dn_out" "cleanup"
+ipfwon_in_dn_in_div_in_out_div_out_dn_out_head()
 {
-	atf_set descr 'Test inbound > delayed+diverted > outbound > delayed+diverted > outbound | network terminated, with ipfw enabled'
+	atf_set descr 'Test inbound > delayed+diverted > outbound > diverted+delayed > outbound | network terminated, with ipfw enabled'
 	atf_set require.user root
 }
-ipfwon_in_dn_in_div_in_out_dn_out_div_out_body()
+ipfwon_in_dn_in_div_in_out_div_out_dn_out_body()
 {
-	ipfwoff_in_dn_in_div_in_out_dn_out_div_out_body "ipfwon"
+	ipfwoff_in_dn_in_div_in_out_div_out_dn_out_body "ipfwon"
 }
-ipfwon_in_dn_in_div_in_out_dn_out_div_out_cleanup()
+ipfwon_in_dn_in_div_in_out_div_out_dn_out_cleanup()
 {
 	pft_cleanup
 }
@@ -524,6 +524,6 @@ atf_init_test_cases()
 	atf_add_test_case "ipfwoff_in_div_in_fwd_out_div_out"
 	atf_add_test_case "ipfwon_in_div_in_fwd_out_div_out"
 
-	atf_add_test_case "ipfwoff_in_dn_in_div_in_out_dn_out_div_out"
-	atf_add_test_case "ipfwon_in_dn_in_div_in_out_dn_out_div_out"
+	atf_add_test_case "ipfwoff_in_dn_in_div_in_out_div_out_dn_out"
+	atf_add_test_case "ipfwon_in_dn_in_div_in_out_div_out_dn_out"
 }

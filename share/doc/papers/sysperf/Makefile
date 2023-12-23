@@ -1,4 +1,3 @@
-#	From: @(#)Makefile	1.6 (Berkeley) 6/8/93
 
 VOLUME=		papers
 DOC=		sysperf

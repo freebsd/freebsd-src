@@ -6,7 +6,6 @@
  *	NetBSD: modelines,v 1.9 2011/03/30 18:45:04 jdc Exp 
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/module.h>

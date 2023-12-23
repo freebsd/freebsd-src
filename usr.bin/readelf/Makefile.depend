@@ -10,7 +10,7 @@ DIRDEPS = \
 	lib/libdwarf \
 	lib/libelf \
 	lib/libelftc \
-	lib/libnv \
+	lib/libz \
 
 
 .include <dirdeps.mk>
