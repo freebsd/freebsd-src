@@ -32,14 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)biz31.c	8.1 (Berkeley) 6/6/93";
-static char rcsid[] = "$OpenBSD: biz31.c,v 1.10 2006/03/17 19:17:13 moritz Exp $";
-#endif
-#endif /* not lint */
-
 #include "tip.h"
 
 #define MAXRETRY	3		/* sync up retry count */

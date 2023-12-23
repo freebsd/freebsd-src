@@ -23,7 +23,6 @@
  * http://www.amd.com/files/connectivitysolutions/geode/geode_lx/33234d_lx_ds.pdf
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

@@ -17,10 +17,6 @@
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef lint
-static const char rcsid[] = "$Id: ns_samedomain.c,v 1.6 2005/04/27 04:56:40 sra Exp $";
-#endif
-#include <sys/cdefs.h>
 #include "port_before.h"
 
 #include <sys/types.h>

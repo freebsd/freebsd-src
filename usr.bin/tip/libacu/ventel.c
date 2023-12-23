@@ -32,14 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)ventel.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: ventel.c,v 1.12 2006/03/17 19:17:13 moritz Exp $";
-#endif
-#endif /* not lint */
-
 /*
  * Routines for calling up on a Ventel Modem
  * The Ventel is expected to be strapped for local echo (just like uucp)

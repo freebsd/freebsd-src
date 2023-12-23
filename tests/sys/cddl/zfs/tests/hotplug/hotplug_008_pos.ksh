@@ -23,9 +23,6 @@
 #
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)hotplug_008_pos.ksh	1.3	08/02/27 SMI"
-#
 
 . $STF_SUITE/tests/hotplug/hotplug.kshlib
 

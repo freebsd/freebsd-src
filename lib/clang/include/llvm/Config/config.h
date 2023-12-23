@@ -196,9 +196,6 @@
 /* Define to 1 if you have the <signal.h> header file. */
 #define HAVE_SIGNAL_H 1
 
-/* Define to 1 if you have the `strerror' function. */
-#define HAVE_STRERROR 1
-
 /* Define to 1 if you have the `strerror_r' function. */
 #define HAVE_STRERROR_R 1
 
@@ -347,10 +344,10 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 16.0.6"
+#define PACKAGE_STRING "LLVM 17.0.6"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "16.0.6"
+#define PACKAGE_VERSION "17.0.6"
 
 /* Define to the vendor of this package. */
 /* #undef PACKAGE_VENDOR */
@@ -375,5 +372,7 @@
 #endif
 
 /* #undef HAVE_PROC_PID_RUSAGE */
+
+#define HAVE_BUILTIN_THREAD_POINTER 1
 
 #endif

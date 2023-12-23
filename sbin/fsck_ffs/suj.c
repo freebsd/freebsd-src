@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/disk.h>
 #include <sys/disklabel.h>
@@ -47,7 +46,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <libufs.h>
 #include <string.h>
 #include <strings.h>
 #include <sysexits.h>
@@ -2274,7 +2272,7 @@ suj_add_block(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int frags)
 static void
 suj_read(void)
 {
-	uint8_t block[1 * 1024 * 1024];
+	uint8_t block[1 * 1024 * 1024] __aligned(LIBUFS_BUFALIGN);
 	struct suj_seg *seg;
 	struct jsegrec *recn;
 	struct jsegrec *rec;

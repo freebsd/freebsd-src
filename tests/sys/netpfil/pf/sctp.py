@@ -372,6 +372,7 @@ class TestSCTP(VnetTestTemplate):
 
         ToolsHelper.print_output("/sbin/pfctl -e")
         ToolsHelper.pf_rules([
+            "set state-policy if-bound",
             "block proto sctp",
             "pass inet proto sctp to 192.0.2.0/24"])
 
@@ -386,9 +387,9 @@ class TestSCTP(VnetTestTemplate):
         # Check that we have a state for 192.0.2.3 and 192.0.2.2 to 192.0.2.1, but also to 192.0.2.4
         states = ToolsHelper.get_output("/sbin/pfctl -ss")
         print(states)
-        assert re.search(r"all sctp 192.0.2.1:.*192.0.2.3:1234", states)
+        assert re.search(r".*sctp 192.0.2.1:.*192.0.2.3:1234", states)
         assert re.search(r"all sctp 192.0.2.1:.*192.0.2.2:1234", states)
-        assert re.search(r"all sctp 192.0.2.4:.*192.0.2.3:1234", states)
+        assert re.search(r".*sctp 192.0.2.4:.*192.0.2.3:1234", states)
         assert re.search(r"all sctp 192.0.2.4:.*192.0.2.2:1234", states)
 
 class TestSCTPv6(VnetTestTemplate):

@@ -33,12 +33,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * From: @(#)glob.c	8.3 (Berkeley) 10/13/93
  * From: FreeBSD: head/lib/libc/gen/glob.c 317913 2017-05-07 19:52:56Z jilles
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #define	_WANT_FREEBSD11_STAT
 #include <sys/stat.h>

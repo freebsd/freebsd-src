@@ -16,7 +16,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -878,24 +877,23 @@ block_feedback(struct pfctl *pf, struct superblock *block)
 int
 load_feedback_profile(struct pfctl *pf, struct superblocks *superblocks)
 {
+	char anchor_call[MAXPATHLEN] = "";
 	struct superblock *block, *blockcur;
 	struct superblocks prof_superblocks;
 	struct pf_opt_rule *por;
 	struct pf_opt_queue queue;
-	struct pfioc_rule pr;
+	struct pfctl_rules_info rules;
 	struct pfctl_rule a, b, rule;
 	int nr, mnr;
 
 	TAILQ_INIT(&queue);
 	TAILQ_INIT(&prof_superblocks);
 
-	memset(&pr, 0, sizeof(pr));
-	pr.rule.action = PF_PASS;
-	if (ioctl(pf->dev, DIOCGETRULES, &pr)) {
+	if (pfctl_get_rules_info(pf->dev, &rules, PF_PASS, "")) {
 		warn("DIOCGETRULES");
 		return (1);
 	}
-	mnr = pr.nr;
+	mnr = rules.nr;
 
 	DEBUG("Loading %d active rules for a feedback profile", mnr);
 	for (nr = 0; nr < mnr; ++nr) {
@@ -904,15 +902,14 @@ load_feedback_profile(struct pfctl *pf, struct superblocks *superblocks)
 			warn("calloc");
 			return (1);
 		}
-		pr.nr = nr;
 
-		if (pfctl_get_rule(pf->dev, nr, pr.ticket, "", PF_PASS,
-		    &rule, pr.anchor_call)) {
+		if (pfctl_get_rule(pf->dev, nr, rules.ticket, "", PF_PASS,
+		    &rule, anchor_call)) {
 			warn("DIOCGETRULENV");
 			return (1);
 		}
 		memcpy(&por->por_rule, &rule, sizeof(por->por_rule));
-		rs = pf_find_or_create_ruleset(pr.anchor_call);
+		rs = pf_find_or_create_ruleset(anchor_call);
 		por->por_rule.anchor = rs->anchor;
 		if (TAILQ_EMPTY(&por->por_rule.rpool.list))
 			memset(&por->por_rule.rpool, 0,

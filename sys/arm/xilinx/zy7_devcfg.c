@@ -35,7 +35,6 @@
  * covered in section 6.4.5.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>

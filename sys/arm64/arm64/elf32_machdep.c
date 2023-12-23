@@ -43,6 +43,7 @@
 #include <sys/linker.h>
 #include <sys/proc.h>
 #include <sys/reg.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/imgact_elf.h>
 #include <sys/syscall.h>
@@ -61,6 +62,9 @@
 #define	FREEBSD32_MAXUSER	((1ul << 32) - PAGE_SIZE)
 #define	FREEBSD32_SHAREDPAGE	(FREEBSD32_MAXUSER - PAGE_SIZE)
 #define	FREEBSD32_USRSTACK	FREEBSD32_SHAREDPAGE
+#define	AARCH32_MAXDSIZ		(512 * 1024 * 1024)
+#define	AARCH32_MAXSSIZ		(64 * 1024 * 1024)
+#define	AARCH32_MAXVMEM		0
 
 extern const char *freebsd32_syscallnames[];
 
@@ -74,11 +78,25 @@ static void freebsd32_set_syscall_retval(struct thread *, int);
 
 static bool elf32_arm_abi_supported(struct image_params *, int32_t *,
     uint32_t *);
+static void elf32_fixlimit(struct rlimit *rl, int which);
 
 extern void freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 
 u_long __read_frequently elf32_hwcap;
 u_long __read_frequently elf32_hwcap2;
+
+static SYSCTL_NODE(_compat, OID_AUTO, aarch32, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "aarch32 mode");
+
+static u_long aarch32_maxdsiz = AARCH32_MAXDSIZ;
+SYSCTL_ULONG(_compat_aarch32, OID_AUTO, maxdsiz, CTLFLAG_RWTUN,
+    &aarch32_maxdsiz, 0, "");
+u_long aarch32_maxssiz = AARCH32_MAXSSIZ;
+SYSCTL_ULONG(_compat_aarch32, OID_AUTO, maxssiz, CTLFLAG_RWTUN,
+    &aarch32_maxssiz, 0, "");
+static u_long aarch32_maxvmem = AARCH32_MAXVMEM;
+SYSCTL_ULONG(_compat_aarch32, OID_AUTO, maxvmem, CTLFLAG_RWTUN,
+    &aarch32_maxvmem, 0, "");
 
 static struct sysentvec elf32_freebsd_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
@@ -102,8 +120,8 @@ static struct sysentvec elf32_freebsd_sysvec = {
 	.sv_copyout_auxargs = elf32_freebsd_copyout_auxargs,
 	.sv_copyout_strings = freebsd32_copyout_strings,
 	.sv_setregs	= freebsd32_setregs,
-	.sv_fixlimit	= NULL, // XXX
-	.sv_maxssiz	= NULL,
+	.sv_fixlimit	= elf32_fixlimit,
+	.sv_maxssiz	= &aarch32_maxssiz,
 	.sv_flags	= SV_ABI_FREEBSD | SV_ILP32 | SV_SHP | SV_TIMEKEEP |
 	    SV_RNG_SEED_VER | SV_SIGSYS,
 	.sv_set_syscall_retval = freebsd32_set_syscall_retval,
@@ -135,19 +153,24 @@ static Elf32_Brandinfo freebsd32_brand_info = {
 	.header_supported= elf32_arm_abi_supported,
 };
 
-SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_FIRST,
-    (sysinit_cfunc_t)elf32_insert_brand_entry, &freebsd32_brand_info);
+static void
+register_elf32_brand(void *arg)
+{
+	/* Check if we support AArch32 */
+	if (ID_AA64PFR0_EL0_VAL(READ_SPECIALREG(id_aa64pfr0_el1)) ==
+	    ID_AA64PFR0_EL0_64_32) {
+		elf32_insert_brand_entry(&freebsd32_brand_info);
+	} else {
+		compat_freebsd_32bit = 0;
+	}
+}
+SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_FIRST, register_elf32_brand, NULL);
 
 static bool
 elf32_arm_abi_supported(struct image_params *imgp, int32_t *osrel __unused,
     uint32_t *fctl0 __unused)
 {
 	const Elf32_Ehdr *hdr;
-
-	/* Check if we support AArch32 */
-	if (ID_AA64PFR0_EL0_VAL(READ_SPECIALREG(id_aa64pfr0_el1)) !=
-	    ID_AA64PFR0_EL0_64_32)
-		return (false);
 
 #define	EF_ARM_EABI_FREEBSD_MIN	EF_ARM_EABI_VER4
 	hdr = (const Elf32_Ehdr *)imgp->image_header;
@@ -283,4 +306,36 @@ freebsd32_setregs(struct thread *td, struct image_params *imgp,
 void
 elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 {
+}
+
+static void
+elf32_fixlimit(struct rlimit *rl, int which)
+{
+
+	switch (which) {
+	case RLIMIT_DATA:
+		if (aarch32_maxdsiz != 0) {
+			if (rl->rlim_cur > aarch32_maxdsiz)
+				rl->rlim_cur = aarch32_maxdsiz;
+			if (rl->rlim_max > aarch32_maxdsiz)
+				rl->rlim_max = aarch32_maxdsiz;
+		}
+		break;
+	case RLIMIT_STACK:
+		if (aarch32_maxssiz != 0) {
+			if (rl->rlim_cur > aarch32_maxssiz)
+				rl->rlim_cur = aarch32_maxssiz;
+			if (rl->rlim_max > aarch32_maxssiz)
+				rl->rlim_max = aarch32_maxssiz;
+		}
+		break;
+	case RLIMIT_VMEM:
+		if (aarch32_maxvmem != 0) {
+			if (rl->rlim_cur > aarch32_maxvmem)
+				rl->rlim_cur = aarch32_maxvmem;
+			if (rl->rlim_max > aarch32_maxvmem)
+				rl->rlim_max = aarch32_maxvmem;
+		}
+		break;
+	}
 }

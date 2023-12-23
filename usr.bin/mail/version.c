@@ -29,12 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)version.c	8.1 (Berkeley) 6/6/93";
-#endif
-#endif /* not lint */
-#include <sys/cdefs.h>
 /*
  * Just keep track of the date/sid of this version of Mail.
  * Load this file first to get a "total" Mail version.

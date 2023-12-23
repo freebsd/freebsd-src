@@ -35,14 +35,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#if defined(LIBC_SCCS) && !defined(lint)
-#if 0
-static char sccsid[] = "@(#)muldi3.c	8.1 (Berkeley) 6/4/93";
-#else
-#endif
-#endif /* LIBC_SCCS and not lint */
-
 #include <libkern/quad.h>
 
 /*

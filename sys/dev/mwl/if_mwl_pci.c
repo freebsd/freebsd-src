@@ -30,10 +30,6 @@
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <sys/cdefs.h>
-#ifdef __FreeBSD__
-#endif
-
 /*
  * PCI front-end for the Marvell Wireless LAN controller driver.
  */

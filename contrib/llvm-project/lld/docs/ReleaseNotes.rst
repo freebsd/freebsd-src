@@ -26,39 +26,65 @@ Non-comprehensive list of changes in this release
 ELF Improvements
 ----------------
 
-* Link speed improved greatly compared with lld 15.0. Notably input section
-  initialization and relocation scanning are now parallel.
-  (`D130810 <https://reviews.llvm.org/D130810>`_)
-  (`D133003 <https://reviews.llvm.org/D133003>`_)
-* ``ELFCOMPRESS_ZSTD`` compressed input sections are now supported.
-  (`D129406 <https://reviews.llvm.org/D129406>`_)
-* ``--compress-debug-sections=zstd`` is now available to compress debug
-  sections with zstd (``ELFCOMPRESS_ZSTD``).
-  (`D133548 <https://reviews.llvm.org/D133548>`_)
-* ``--no-warnings``/``-w`` is now available to suppress warnings.
-  (`D136569 <https://reviews.llvm.org/D136569>`_)
-* ``DT_RISCV_VARIANT_CC`` is now produced if at least one ``R_RISCV_JUMP_SLOT``
-  relocation references a symbol with the ``STO_RISCV_VARIANT_CC`` bit.
-  (`D107951 <https://reviews.llvm.org/D107951>`_)
-* ``DT_STATIC_TLS`` is now set for AArch64/PPC32/PPC64 initial-exec TLS models
-  when producing a shared object.
-* ``--no-undefined-version`` is now the default; symbols named in version
-  scripts that have no matching symbol in the output will be reported. Use
-  ``--undefined-version`` to revert to the old behavior.
-  (`D135402 <https://reviews.llvm.org/D135402>`_)
-* ``-V`` is now an alias for ``-v`` to support ``gcc -fuse-ld=lld -v`` on many targets.
-* ``-r`` no longer defines ``__global_pointer$`` or ``_TLS_MODULE_BASE_``.
-* A corner case of mixed GCC and Clang object files (``STB_WEAK`` and
-  ``STB_GNU_UNIQUE`` in different COMDATs) is now supported.
-  (`D136381 <https://reviews.llvm.org/D136381>`_)
-* The output ``SHT_RISCV_ATTRIBUTES`` section now merges all input components
-  instead of picking the first input component.
-  (`D138550 <https://reviews.llvm.org/D138550>`_)
-* For x86-32, ``-fno-plt`` GD/LD TLS models ``call *___tls_get_addr@GOT(%reg)``
-  are now supported. Previous output might have runtime crash.
-* Armv4(T) thunks are now supported.
-  (`D139888 <https://reviews.llvm.org/D139888>`_)
-  (`D141272 <https://reviews.llvm.org/D141272>`_)
+* When ``--threads=`` is not specified, the number of concurrency is now capped to 16.
+  A large ``--thread=`` can harm performance, especially with some system
+  malloc implementations like glibc's.
+  (`D147493 <https://reviews.llvm.org/D147493>`_)
+* ``--remap-inputs=`` and ``--remap-inputs-file=`` are added to remap input files.
+  (`D148859 <https://reviews.llvm.org/D148859>`_)
+* ``--lto=`` is now available to support ``clang -funified-lto``
+  (`D123805 <https://reviews.llvm.org/D123805>`_)
+* ``--lto-CGO[0-3]`` is now available to control ``CodeGenOpt::Level`` independent of the LTO optimization level.
+  (`D141970 <https://reviews.llvm.org/D141970>`_)
+* ``--check-dynamic-relocations=`` is now correct 32-bit targets when the addend is larger than 0x80000000.
+  (`D149347 <https://reviews.llvm.org/D149347>`_)
+* ``--print-memory-usage`` has been implemented for memory regions.
+  (`D150644 <https://reviews.llvm.org/D150644>`_)
+* ``SHF_MERGE``, ``--icf=``, and ``--build-id=fast`` have switched to 64-bit xxh3.
+  (`D154813 <https://reviews.llvm.org/D154813>`_)
+* Quoted output section names can now be used in linker scripts.
+  (`#60496 <https://github.com/llvm/llvm-project/issues/60496>`_)
+* ``MEMORY`` can now be used without a ``SECTIONS`` command.
+  (`D145132 <https://reviews.llvm.org/D145132>`_)
+* ``REVERSE`` can now be used in input section descriptions to reverse the order of input sections.
+  (`D145381 <https://reviews.llvm.org/D145381>`_)
+* Program header assignment can now be used within ``OVERLAY``. This functionality was accidentally lost in 2020.
+  (`D150445 <https://reviews.llvm.org/D150445>`_)
+* Operators ``^`` and ``^=`` can now be used in linker scripts.
+* LoongArch is now supported.
+* ``DT_AARCH64_MEMTAG_*`` dynamic tags are now supported.
+  (`D143769 <https://reviews.llvm.org/D143769>`_)
+* AArch32 port now supports BE-8 and BE-32 modes for big-endian.
+  (`D140201 <https://reviews.llvm.org/D140201>`_)
+  (`D140202 <https://reviews.llvm.org/D140202>`_)
+  (`D150870 <https://reviews.llvm.org/D150870>`_)
+* ``R_ARM_THM_ALU_ABS_G*`` relocations are now supported.
+  (`D153407 <https://reviews.llvm.org/D153407>`_)
+* ``.ARM.exidx`` sections may start at non-zero output section offset.
+  (`D148033 <https://reviews.llvm.org/D148033>`_)
+* Arm Cortex-M Security Extensions is now implemented.
+  (`D139092 <https://reviews.llvm.org/D139092>`_)
+* BTI landing pads are now added to PLT entries accessed by range extension thunks or relative vtables.
+  (`D148704 <https://reviews.llvm.org/D148704>`_)
+  (`D153264 <https://reviews.llvm.org/D153264>`_)
+* AArch64 short range thunk has been implemented to mitigate the performance loss of a long range thunk.
+  (`D148701 <https://reviews.llvm.org/D148701>`_)
+* ``R_AVR_8_LO8/R_AVR_8_HI8/R_AVR_8_HLO8/R_AVR_LO8_LDI_GS/R_AVR_HI8_LDI_GS`` have been implemented.
+  (`D147100 <https://reviews.llvm.org/D147100>`_)
+  (`D147364 <https://reviews.llvm.org/D147364>`_)
+* ``--no-power10-stubs`` now works for PowerPC64.
+* ``DT_PPC64_OPT`` is now supported;
+  (`D150631 <https://reviews.llvm.org/D150631>`_)
+* ``PT_RISCV_ATTRIBUTES`` is added to include the SHT_RISCV_ATTRIBUTES section.
+  (`D152065 <https://reviews.llvm.org/D152065>`_)
+* ``R_RISCV_PLT32`` is added to support C++ relative vtables.
+  (`D143115 <https://reviews.llvm.org/D143115>`_)
+* RISC-V global pointer relaxation has been implemented. Specify ``--relax-gp`` to enable the linker relaxation.
+  (`D143673 <https://reviews.llvm.org/D143673>`_)
+* The symbol value of ``foo`` is correctly handled when ``--wrap=foo`` and RISC-V linker relaxation are used.
+  (`D151768 <https://reviews.llvm.org/D151768>`_)
+* x86-64 large data sections are now placed away from code sections to alleviate relocation overflow pressure.
+  (`D150510 <https://reviews.llvm.org/D150510>`_)
 
 Breaking changes
 ----------------
@@ -66,37 +92,25 @@ Breaking changes
 COFF Improvements
 -----------------
 
-* The linker command line entry in ``S_ENVBLOCK`` of the PDB is now stripped
-  from input files, to align with MSVC behavior.
-  (`D137723 <https://reviews.llvm.org/D137723>`_)
-* Switched from SHA1 to BLAKE3 for PDB type hashing / ``-gcodeview-ghash``
-  (`D137101 <https://reviews.llvm.org/D137101>`_)
-* Improvements to the PCH.OBJ files handling. Now LLD behaves the same as MSVC
-  link.exe when merging PCH.OBJ files that don't have the same signature.
-  (`D136762 <https://reviews.llvm.org/D136762>`_)
-* Changed the OrdinalBase for DLLs from 0 to 1, matching the output from
-  both MS link.exe and GNU ld. (`D134140 <https://reviews.llvm.org/D134140>`_)
+* lld-link can now find libraries with relative paths that are relative to
+  `/libpath`. Before it would only be able to find libraries relative to the
+  current directory.
+  I.e. ``lld-link /libpath:c:\relative\root relative\path\my.lib`` where before
+  we would have to do ``lld-link /libpath:c:\relative\root\relative\path my.lib``
+* lld-link learned -print-search-paths that will print all the paths where it will
+  search for libraries.
+* By default lld-link will now search for libraries in the toolchain directories.
+  Specifically it will search:
+  ``<toolchain>/lib``, ``<toolchain>/lib/clang/<version>/lib`` and
+  ``<toolchain>/lib/clang/<version>/lib/windows``.
 
 MinGW Improvements
 ------------------
 
-* The lld-specific options ``--guard-cf``, ``--no-guard-cf``,
-  ``--guard-longjmp`` and ``--no-guard-longjmp`` has been added to allow
-  enabling Control Flow Guard and long jump hardening. These options are
-  disabled by default, but enabling ``--guard-cf`` will also enable
-  ``--guard-longjmp`` unless ``--no-guard-longjmp`` is also specified.
-  ``--guard-longjmp`` depends on ``--guard-cf`` and cannot be used by itself.
-  Note that these features require the ``_load_config_used`` symbol to contain
-  the load config directory and be filled with the required symbols.
-  (`D132808 <https://reviews.llvm.org/D132808>`_)
-
-* Pick up libraries named ``<name>.lib`` when linked with ``-l<name>``, even
-  if ``-static`` has been specified. This fixes conformance to what
-  GNU ld does. (`D135651 <https://reviews.llvm.org/D135651>`_)
-
-* Unwinding in Rust code on i386 in MinGW builds has been fixed, by avoiding
-  to leave out the ``rust_eh_personality`` symbol.
-  (`D136879 <https://reviews.llvm.org/D136879>`_)
+* A warning is now printed if the linked module contains runtime pseudo
+  relocations that are too narrow, that can end up producing runtime
+  errors if loaded too far away from the referenced DLL in the address
+  space. (`D154777 <https://reviews.llvm.org/D154777>`_)
 
 MachO Improvements
 ------------------
@@ -104,3 +118,9 @@ MachO Improvements
 WebAssembly Improvements
 ------------------------
 
+Fixes
+#####
+
+* Arm exception index tables (.ARM.exidx sections) are now output
+  correctly when they are at a non zero offset within their output
+  section. (`D148033 <https://reviews.llvm.org/D148033>`_)

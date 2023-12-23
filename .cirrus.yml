@@ -54,6 +54,15 @@ task:
       TOOLCHAIN: amd64-gcc12
       TOOLCHAIN_PKG: ${TOOLCHAIN}
       EXTRA_MAKE_FLAGS: -s
+  - name: amd64-gcc13 World and kernel build and boot smoke test (manual)
+    only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
+    trigger_type: manual
+    env:
+      TARGET: amd64
+      TARGET_ARCH: amd64
+      TOOLCHAIN: amd64-gcc13
+      TOOLCHAIN_PKG: ${TOOLCHAIN}
+      EXTRA_MAKE_FLAGS: -s
   - name: aarch64-gcc12 World and kernel build and boot smoke test (manual)
     only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
     trigger_type: manual
@@ -61,6 +70,15 @@ task:
       TARGET: arm64
       TARGET_ARCH: aarch64
       TOOLCHAIN: aarch64-gcc12
+      TOOLCHAIN_PKG: ${TOOLCHAIN}
+      EXTRA_MAKE_FLAGS: -s
+  - name: aarch64-gcc13 World and kernel build and boot smoke test (manual)
+    only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
+    trigger_type: manual
+    env:
+      TARGET: arm64
+      TARGET_ARCH: aarch64
+      TOOLCHAIN: aarch64-gcc13
       TOOLCHAIN_PKG: ${TOOLCHAIN}
       EXTRA_MAKE_FLAGS: -s
   - name: amd64-gcc12 World and kernel build and boot smoke test (FreeBSD repo)
@@ -80,9 +98,10 @@ task:
   - gpart show
   - df -m
   - pkg --version
-  - pw useradd user
+  - pw useradd -n user -m
   - mkdir -p /usr/obj/$(pwd -P)
   - chown user:user /usr/obj/$(pwd -P)
+  - su user -c "git config --global --add safe.directory $(pwd -P)"
 
   build_world_script:
   - su user -c "make -j$(sysctl -n hw.ncpu) ${EXTRA_MAKE_FLAGS} CROSS_TOOLCHAIN=${TOOLCHAIN} WITHOUT_TOOLCHAIN=yes buildworld"

@@ -40,7 +40,7 @@ print_map_entry() {
 	case "${_fstype}" in
 	"exfat")
 		if [ -f "/usr/local/sbin/mount.exfat" ]; then
-			echo "-mountprog=/usr/local/sbin/mount.exfat,fstype=${_fstype},nosuid	:/dev/${_p}"
+			echo "-mountprog=/usr/local/sbin/mount.exfat,fstype=${_fstype},sync	:/dev/${_p}"
 		else
 			/usr/bin/logger -p info -t "special_media[$$]" \
 			    "Cannot mount ${_fstype} formatted device /dev/${_p}: Install sysutils/fusefs-exfat first"
@@ -49,18 +49,21 @@ print_map_entry() {
 		;;
 	"ntfs")
 		if [ -f "/usr/local/bin/ntfs-3g" ]; then
-			echo "-mountprog=/usr/local/bin/ntfs-3g,fstype=${_fstype},nosuid	:/dev/${_p}"
+			echo "-mountprog=/usr/local/bin/ntfs-3g,fstype=${_fstype},sync	:/dev/${_p}"
 		else
 			/usr/bin/logger -p info -t "special_media[$$]" \
 			    "Cannot mount ${_fstype} formatted device /dev/${_p}: Install sysutils/fusefs-ntfs first"
 			exit 1
 		fi
 		;;
-	"ext2fs" | "msdosfs")
-		echo "-fstype=${_fstype},nosuid,async	:/dev/${_p}"
+	"msdosfs")
+		echo "-fstype=${_fstype},sync	:/dev/${_p}"
+		;;
+	"ext2fs")
+		echo "-fstype=${_fstype},async	:/dev/${_p}"
 		;;
 	*)
-		echo "-fstype=${_fstype},nosuid	:/dev/${_p}"
+		echo "-fstype=${_fstype}	:/dev/${_p}"
 		;;
 	esac
 }

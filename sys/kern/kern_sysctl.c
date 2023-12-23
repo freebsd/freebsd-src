@@ -33,8 +33,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
  */
 
 #include <sys/cdefs.h>
@@ -421,9 +419,9 @@ sysctl_warn_reuse(const char *func, struct sysctl_oid *leaf)
 			sbuf_printf(&sb, "%s%.*s", nodes[i]->oid_name,
 			    i != (rc - 1), ".");
 	} else {
-		sbuf_printf(&sb, "%s", leaf->oid_name);
+		sbuf_cat(&sb, leaf->oid_name);
 	}
-	sbuf_printf(&sb, ")!\n");
+	sbuf_cat(&sb, ")!\n");
 
 	(void)sbuf_finish(&sb);
 }

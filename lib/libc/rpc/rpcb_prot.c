@@ -33,12 +33,6 @@
  * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
  */
 
-/* #ident	"@(#)rpcb_prot.c	1.13	94/04/24 SMI" */
-
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)rpcb_prot.c 1.9 89/04/21 Copyr 1984 Sun Micro";
-#endif
-#include <sys/cdefs.h>
 /*
  * rpcb_prot.c
  * XDR routines for the rpcbinder version 3.

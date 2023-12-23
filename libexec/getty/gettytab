@@ -1,5 +1,3 @@
-#	from: @(#)gettytab	5.14 (Berkeley) 3/27/91
-#
 # Most of the table entries here are just copies of the old getty table,
 # it is by no means certain, or even likely, that any of them are optimal
 # for any purpose whatever.  Nor is it likely that more than a couple are

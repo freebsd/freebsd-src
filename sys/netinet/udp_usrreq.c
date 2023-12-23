@@ -34,8 +34,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
  */
 
 #include <sys/cdefs.h>
@@ -897,6 +895,10 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 #ifdef INET
 		case UDP_ENCAP:
+			if (!INP_CHECK_SOCKAF(so, AF_INET)) {
+				INP_WUNLOCK(inp);
+				return (EINVAL);
+			}
 			if (!IPSEC_ENABLED(ipv4)) {
 				INP_WUNLOCK(inp);
 				return (ENOPROTOOPT);
@@ -944,6 +946,10 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 #ifdef INET
 		case UDP_ENCAP:
+			if (!INP_CHECK_SOCKAF(so, AF_INET)) {
+				INP_WUNLOCK(inp);
+				return (EINVAL);
+			}
 			if (!IPSEC_ENABLED(ipv4)) {
 				INP_WUNLOCK(inp);
 				return (ENOPROTOOPT);
@@ -1330,8 +1336,12 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	 * into network format.
 	 */
 	ui = mtod(m, struct udpiphdr *);
-	bzero(ui->ui_x1, sizeof(ui->ui_x1));	/* XXX still needed? */
-	ui->ui_v = IPVERSION << 4;
+	/*
+	 * Filling only those fields of udpiphdr that participate in the
+	 * checksum calculation. The rest must be zeroed and will be filled
+	 * later.
+	 */
+	bzero(ui->ui_x1, sizeof(ui->ui_x1));
 	ui->ui_pr = pr;
 	ui->ui_src = laddr;
 	ui->ui_dst = faddr;
@@ -1354,16 +1364,6 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		 * the entire UDPLite packet is covered by the checksum.
 		 */
 		cscov_partial = (cscov == 0) ? 0 : 1;
-	}
-
-	/*
-	 * Set the Don't Fragment bit in the IP header.
-	 */
-	if (inp->inp_flags & INP_DONTFRAG) {
-		struct ip *ip;
-
-		ip = (struct ip *)&ui->ui_i;
-		ip->ip_off |= htons(IP_DF);
 	}
 
 	if (inp->inp_socket->so_options & SO_DONTROUTE)
@@ -1399,9 +1399,16 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		m->m_pkthdr.csum_flags = CSUM_UDP;
 		m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
 	}
+	/*
+	 * After finishing the checksum computation, fill the remaining fields
+	 * of udpiphdr.
+	 */
+	((struct ip *)ui)->ip_v = IPVERSION;
+	((struct ip *)ui)->ip_tos = tos;
 	((struct ip *)ui)->ip_len = htons(sizeof(struct udpiphdr) + len);
-	((struct ip *)ui)->ip_ttl = inp->inp_ip_ttl;	/* XXX */
-	((struct ip *)ui)->ip_tos = tos;		/* XXX */
+	if (inp->inp_flags & INP_DONTFRAG)
+		((struct ip *)ui)->ip_off |= htons(IP_DF);
+	((struct ip *)ui)->ip_ttl = inp->inp_ip_ttl;
 	UDPSTAT_INC(udps_opackets);
 
 	/*

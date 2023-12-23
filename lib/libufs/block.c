@@ -27,7 +27,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/disk.h>
@@ -57,19 +56,10 @@ bread(struct uufsd *disk, ufs2_daddr_t blockno, void *data, size_t size)
 
 	ERROR(disk, NULL);
 
-	p2 = data;
-	/*
-	 * XXX: various disk controllers require alignment of our buffer
-	 * XXX: which is stricter than struct alignment.
-	 * XXX: Bounce the buffer if not 64 byte aligned.
-	 * XXX: this can be removed if/when the kernel is fixed
-	 */
-	if (((intptr_t)data) & 0x3f) {
-		p2 = malloc(size);
-		if (p2 == NULL) {
-			ERROR(disk, "allocate bounce buffer");
-			goto fail;
-		}
+	BUF_MALLOC(&p2, data, size);
+	if (p2 == NULL) {
+		ERROR(disk, "allocate bounce buffer");
+		goto fail;
 	}
 	cnt = pread(disk->d_fd, p2, size, (off_t)(blockno * disk->d_bsize));
 	if (cnt == -1) {
@@ -101,7 +91,7 @@ bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
 {
 	ssize_t cnt;
 	int rv;
-	void *p2 = NULL;
+	void *p2;
 
 	ERROR(disk, NULL);
 
@@ -110,24 +100,15 @@ bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
 		ERROR(disk, "failed to open disk for writing");
 		return (-1);
 	}
-
-	/*
-	 * XXX: various disk controllers require alignment of our buffer
-	 * XXX: which is stricter than struct alignment.
-	 * XXX: Bounce the buffer if not 64 byte aligned.
-	 * XXX: this can be removed if/when the kernel is fixed
-	 */
-	if (((intptr_t)data) & 0x3f) {
-		p2 = malloc(size);
-		if (p2 == NULL) {
-			ERROR(disk, "allocate bounce buffer");
-			return (-1);
-		}
-		memcpy(p2, data, size);
-		data = p2;
+	BUF_MALLOC(&p2, data, size);
+	if (p2 == NULL) {
+		ERROR(disk, "allocate bounce buffer");
+		return (-1);
 	}
-	cnt = pwrite(disk->d_fd, data, size, (off_t)(blockno * disk->d_bsize));
-	if (p2 != NULL)
+	if (p2 != data)
+		memcpy(p2, data, size);
+	cnt = pwrite(disk->d_fd, p2, size, (off_t)(blockno * disk->d_bsize));
+	if (p2 != data)
 		free(p2);
 	if (cnt == -1) {
 		ERROR(disk, "write error to block device");
@@ -137,7 +118,6 @@ bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
 		ERROR(disk, "short write to block device");
 		return (-1);
 	}
-
 	return (cnt);
 }
 

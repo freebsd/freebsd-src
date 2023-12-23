@@ -162,7 +162,7 @@ namespace {
     struct BlockCacheEntry {
       SmallDenseMap<AssertingVH<Value>, ValueLatticeElement, 4> LatticeElements;
       SmallDenseSet<AssertingVH<Value>, 4> OverDefined;
-      // None indicates that the nonnull pointers for this basic block
+      // std::nullopt indicates that the nonnull pointers for this basic block
       // block have not been computed yet.
       std::optional<NonNullPointerSet> NonNullPointers;
     };
@@ -464,6 +464,10 @@ public:
     LazyValueInfoAnnotatedWriter Writer(this, DTree);
     F.print(OS, &Writer);
   }
+
+  /// This is part of the update interface to remove information related to this
+  /// value from the cache.
+  void forgetValue(Value *V) { TheCache.eraseValue(V); }
 
   /// This is part of the update interface to inform the cache
   /// that a block has been deleted.
@@ -800,7 +804,7 @@ void LazyValueInfoImpl::intersectAssumeOrGuardBlockValueConstantRange(
 
 static ConstantRange getConstantRangeOrFull(const ValueLatticeElement &Val,
                                             Type *Ty, const DataLayout &DL) {
-  if (Val.isConstantRange())
+  if (Val.isConstantRange(/*UndefAllowed*/ false))
     return Val.getConstantRange();
   return ConstantRange::getFull(DL.getTypeSizeInBits(Ty));
 }
@@ -876,10 +880,14 @@ LazyValueInfoImpl::solveBlockValueSelect(SelectInst *SI, BasicBlock *BB) {
   // condition itself?  This shows up with idioms like e.g. select(a > 5, a, 5).
   // TODO: We could potentially refine an overdefined true value above.
   Value *Cond = SI->getCondition();
-  TrueVal = intersect(TrueVal,
-                      getValueFromCondition(SI->getTrueValue(), Cond, true));
-  FalseVal = intersect(FalseVal,
-                       getValueFromCondition(SI->getFalseValue(), Cond, false));
+  // If the value is undef, a different value may be chosen in
+  // the select condition.
+  if (isGuaranteedNotToBeUndefOrPoison(Cond, AC)) {
+    TrueVal = intersect(TrueVal,
+                        getValueFromCondition(SI->getTrueValue(), Cond, true));
+    FalseVal = intersect(
+        FalseVal, getValueFromCondition(SI->getFalseValue(), Cond, false));
+  }
 
   ValueLatticeElement Result = TrueVal;
   Result.mergeIn(FalseVal);
@@ -990,10 +998,11 @@ LazyValueInfoImpl::solveBlockValueOverflowIntrinsic(WithOverflowInst *WO,
 
 std::optional<ValueLatticeElement>
 LazyValueInfoImpl::solveBlockValueIntrinsic(IntrinsicInst *II, BasicBlock *BB) {
+  ValueLatticeElement MetadataVal = getFromRangeMetadata(II);
   if (!ConstantRange::isIntrinsicSupported(II->getIntrinsicID())) {
     LLVM_DEBUG(dbgs() << " compute BB '" << BB->getName()
                       << "' - unknown intrinsic.\n");
-    return getFromRangeMetadata(II);
+    return MetadataVal;
   }
 
   SmallVector<ConstantRange, 2> OpRanges;
@@ -1004,8 +1013,9 @@ LazyValueInfoImpl::solveBlockValueIntrinsic(IntrinsicInst *II, BasicBlock *BB) {
     OpRanges.push_back(*Range);
   }
 
-  return ValueLatticeElement::getRange(
-      ConstantRange::intrinsic(II->getIntrinsicID(), OpRanges));
+  return intersect(ValueLatticeElement::getRange(ConstantRange::intrinsic(
+                       II->getIntrinsicID(), OpRanges)),
+                   MetadataVal);
 }
 
 std::optional<ValueLatticeElement>
@@ -1123,7 +1133,7 @@ static ValueLatticeElement getValueFromICmpCondition(Value *Val, ICmpInst *ICI,
     // bit of Mask.
     if (EdgePred == ICmpInst::ICMP_NE && !Mask->isZero() && C->isZero()) {
       return ValueLatticeElement::getRange(ConstantRange::getNonEmpty(
-          APInt::getOneBitSet(BitWidth, Mask->countTrailingZeros()),
+          APInt::getOneBitSet(BitWidth, Mask->countr_zero()),
           APInt::getZero(BitWidth)));
     }
   }
@@ -1665,6 +1675,10 @@ ConstantRange LazyValueInfo::getConstantRangeAtUse(const Use &U,
     std::optional<ValueLatticeElement> CondVal;
     auto *CurrI = cast<Instruction>(CurrU->getUser());
     if (auto *SI = dyn_cast<SelectInst>(CurrI)) {
+      // If the value is undef, a different value may be chosen in
+      // the select condition and at use.
+      if (!isGuaranteedNotToBeUndefOrPoison(SI->getCondition(), AC))
+        break;
       if (CurrU->getOperandNo() == 1)
         CondVal = getValueFromCondition(V, SI->getCondition(), true);
       else if (CurrU->getOperandNo() == 2)
@@ -1739,7 +1753,7 @@ getPredicateResult(unsigned Pred, Constant *C, const ValueLatticeElement &Val,
   Constant *Res = nullptr;
   if (Val.isConstant()) {
     Res = ConstantFoldCompareInstOperands(Pred, Val.getConstant(), C, DL, TLI);
-    if (ConstantInt *ResCI = dyn_cast<ConstantInt>(Res))
+    if (ConstantInt *ResCI = dyn_cast_or_null<ConstantInt>(Res))
       return ResCI->isZero() ? LazyValueInfo::False : LazyValueInfo::True;
     return LazyValueInfo::Unknown;
   }
@@ -1781,14 +1795,14 @@ getPredicateResult(unsigned Pred, Constant *C, const ValueLatticeElement &Val,
       Res = ConstantFoldCompareInstOperands(ICmpInst::ICMP_NE,
                                             Val.getNotConstant(), C, DL,
                                             TLI);
-      if (Res->isNullValue())
+      if (Res && Res->isNullValue())
         return LazyValueInfo::False;
     } else if (Pred == ICmpInst::ICMP_NE) {
       // !C1 != C -> true iff C1 == C.
       Res = ConstantFoldCompareInstOperands(ICmpInst::ICMP_NE,
                                             Val.getNotConstant(), C, DL,
                                             TLI);
-      if (Res->isNullValue())
+      if (Res && Res->isNullValue())
         return LazyValueInfo::True;
     }
     return LazyValueInfo::Unknown;
@@ -1957,6 +1971,11 @@ void LazyValueInfo::threadEdge(BasicBlock *PredBB, BasicBlock *OldSucc,
     getImpl(PImpl, AC, PredBB->getModule())
         .threadEdge(PredBB, OldSucc, NewSucc);
   }
+}
+
+void LazyValueInfo::forgetValue(Value *V) {
+  if (PImpl)
+    getImpl(PImpl, AC, nullptr).forgetValue(V);
 }
 
 void LazyValueInfo::eraseBlock(BasicBlock *BB) {

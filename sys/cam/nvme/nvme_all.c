@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #ifdef _KERNEL
@@ -88,23 +87,23 @@ nvme_print_ident(const struct nvme_controller_data *cdata,
     const struct nvme_namespace_data *data, struct sbuf *sb)
 {
 	nvme_print_ident_short(cdata, data, sb);
-	sbuf_printf(sb, "\n");
+	sbuf_putc(sb, '\n');
 }
 
 void
 nvme_print_ident_short(const struct nvme_controller_data *cdata,
     const struct nvme_namespace_data *data, struct sbuf *sb)
 {
-	sbuf_printf(sb, "<");
+	sbuf_putc(sb, '<');
 	cam_strvis_sbuf(sb, cdata->mn, sizeof(cdata->mn),
 	    CAM_STRVIS_FLAG_NONASCII_SPC);
-	sbuf_printf(sb, " ");
+	sbuf_putc(sb, ' ');
 	cam_strvis_sbuf(sb, cdata->fr, sizeof(cdata->fr),
 	    CAM_STRVIS_FLAG_NONASCII_SPC);
-	sbuf_printf(sb, " ");
+	sbuf_putc(sb, ' ');
 	cam_strvis_sbuf(sb, cdata->sn, sizeof(cdata->sn),
 	    CAM_STRVIS_FLAG_NONASCII_SPC);
-	sbuf_printf(sb, ">");
+	sbuf_putc(sb, '>');
 }
 
 /* XXX need to do nvme admin opcodes too, but those aren't used yet by nda */

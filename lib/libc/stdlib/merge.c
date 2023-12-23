@@ -32,10 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)merge.c	8.2 (Berkeley) 2/14/94";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
 /*
  * Hybrid exponential search/linear search merge sort with hybrid
  * natural/pairwise first pass.  Requires about .3% more comparisons

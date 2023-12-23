@@ -8,7 +8,6 @@
 #include "milieu.h"
 #include "softfloat.h"
 
-#include <sys/cdefs.h>
 #ifdef FLOATX80
 
 flag __gexf2(floatx80, floatx80);

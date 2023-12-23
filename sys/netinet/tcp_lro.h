@@ -33,7 +33,7 @@
 
 #include <sys/time.h>
 #include <sys/param.h>
-
+#include <sys/mbuf.h>
 #include <netinet/in.h>
 
 #ifndef TCP_LRO_ENTRIES
@@ -200,12 +200,25 @@ struct tcp_ackent {
 #define	TCP_LRO_LENGTH_MAX	(65535 - 255)	/* safe value with room for outer headers */
 #define	TCP_LRO_ACKCNT_MAX	65535		/* unlimited */
 
+#define	TCP_LRO_TS_OPTION	ntohl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |\
+    (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP)
+
+static inline struct tcphdr *
+tcp_lro_get_th(struct mbuf *m)
+{
+	return ((struct tcphdr *)((char *)m->m_data +
+	    m->m_pkthdr.lro_tcp_h_off));
+}
+
+extern long tcplro_stacks_wanting_mbufq;
+
 int tcp_lro_init(struct lro_ctrl *);
 int tcp_lro_init_args(struct lro_ctrl *, struct ifnet *, unsigned, unsigned);
 void tcp_lro_free(struct lro_ctrl *);
 void tcp_lro_flush_inactive(struct lro_ctrl *, const struct timeval *);
 void tcp_lro_flush(struct lro_ctrl *, struct lro_entry *);
 void tcp_lro_flush_all(struct lro_ctrl *);
+extern int (*tcp_lro_flush_tcphpts)(struct lro_ctrl *, struct lro_entry *);
 int tcp_lro_rx(struct lro_ctrl *, struct mbuf *, uint32_t);
 void tcp_lro_queue_mbuf(struct lro_ctrl *, struct mbuf *);
 void tcp_lro_reg_mbufq(void);

@@ -31,7 +31,6 @@
 
 #include "opt_printf.h"
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bio.h>
 #include <sys/bus.h>
@@ -70,8 +69,6 @@
 #include <cam/scsi/scsi_pass.h>
 
 #include <machine/stdarg.h>	/* for xpt_print below */
-
-#include "opt_cam.h"
 
 /* Wild guess based on not wanting to grow the stack too much */
 #define XPT_PRINT_MAXLEN	512
@@ -1153,7 +1150,7 @@ xpt_denounce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
 		    path->device->protocol);
 	if (path->device->serial_num_len > 0)
 		sbuf_printf(sb, " s/n %.60s", path->device->serial_num);
-	sbuf_printf(sb, " detached\n");
+	sbuf_cat(sb, " detached\n");
 }
 
 int
@@ -3712,18 +3709,18 @@ xpt_print_path(struct cam_path *path)
 	sbuf_delete(&sb);
 }
 
-void
-xpt_print_device(struct cam_ed *device)
+static void
+xpt_device_sbuf(struct cam_ed *device, struct sbuf *sb)
 {
-
 	if (device == NULL)
-		printf("(nopath): ");
+		sbuf_cat(sb, "(nopath): ");
 	else {
-		printf("(noperiph:%s%d:%d:%d:%jx): ", device->sim->sim_name,
-		       device->sim->unit_number,
-		       device->sim->bus_id,
-		       device->target->target_id,
-		       (uintmax_t)device->lun_id);
+		sbuf_printf(sb, "(noperiph:%s%d:%d:%d:%jx): ",
+		    device->sim->sim_name,
+		    device->sim->unit_number,
+		    device->sim->bus_id,
+		    device->target->target_id,
+		    (uintmax_t)device->lun_id);
 	}
 }
 
@@ -3746,51 +3743,48 @@ xpt_print(struct cam_path *path, const char *fmt, ...)
 	sbuf_delete(&sb);
 }
 
-int
+char *
 xpt_path_string(struct cam_path *path, char *str, size_t str_len)
 {
 	struct sbuf sb;
-	int len;
 
 	sbuf_new(&sb, str, str_len, 0);
-	len = xpt_path_sbuf(path, &sb);
+	xpt_path_sbuf(path, &sb);
 	sbuf_finish(&sb);
-	return (len);
+	return (str);
 }
 
-int
+void
 xpt_path_sbuf(struct cam_path *path, struct sbuf *sb)
 {
 
 	if (path == NULL)
-		sbuf_printf(sb, "(nopath): ");
+		sbuf_cat(sb, "(nopath): ");
 	else {
 		if (path->periph != NULL)
 			sbuf_printf(sb, "(%s%d:", path->periph->periph_name,
 				    path->periph->unit_number);
 		else
-			sbuf_printf(sb, "(noperiph:");
+			sbuf_cat(sb, "(noperiph:");
 
 		if (path->bus != NULL)
 			sbuf_printf(sb, "%s%d:%d:", path->bus->sim->sim_name,
 				    path->bus->sim->unit_number,
 				    path->bus->sim->bus_id);
 		else
-			sbuf_printf(sb, "nobus:");
+			sbuf_cat(sb, "nobus:");
 
 		if (path->target != NULL)
 			sbuf_printf(sb, "%d:", path->target->target_id);
 		else
-			sbuf_printf(sb, "X:");
+			sbuf_cat(sb, "X:");
 
 		if (path->device != NULL)
 			sbuf_printf(sb, "%jx): ",
 			    (uintmax_t)path->device->lun_id);
 		else
-			sbuf_printf(sb, "X): ");
+			sbuf_cat(sb, "X): ");
 	}
-
-	return(sbuf_len(sb));
 }
 
 path_id_t
@@ -5542,4 +5536,61 @@ xpt_action_name(uint32_t action)
 
 	snprintf(buffer, sizeof(buffer), "%#x", action);
 	return (buffer);
+}
+
+void
+xpt_cam_path_debug(struct cam_path *path, const char *fmt, ...)
+{
+	struct sbuf sbuf;
+	char buf[XPT_PRINT_LEN]; /* balance to not eat too much stack */
+	struct sbuf *sb = sbuf_new(&sbuf, buf, sizeof(buf), SBUF_FIXEDLEN);
+	va_list ap;
+
+	sbuf_set_drain(sb, sbuf_printf_drain, NULL);
+	xpt_path_sbuf(path, sb);
+	va_start(ap, fmt);
+	sbuf_vprintf(sb, fmt, ap);
+	va_end(ap);
+	sbuf_finish(sb);
+	sbuf_delete(sb);
+	if (cam_debug_delay != 0)
+		DELAY(cam_debug_delay);
+}
+
+void
+xpt_cam_dev_debug(struct cam_ed *dev, const char *fmt, ...)
+{
+	struct sbuf sbuf;
+	char buf[XPT_PRINT_LEN]; /* balance to not eat too much stack */
+	struct sbuf *sb = sbuf_new(&sbuf, buf, sizeof(buf), SBUF_FIXEDLEN);
+	va_list ap;
+
+	sbuf_set_drain(sb, sbuf_printf_drain, NULL);
+	xpt_device_sbuf(dev, sb);
+	va_start(ap, fmt);
+	sbuf_vprintf(sb, fmt, ap);
+	va_end(ap);
+	sbuf_finish(sb);
+	sbuf_delete(sb);
+	if (cam_debug_delay != 0)
+		DELAY(cam_debug_delay);
+}
+
+void
+xpt_cam_debug(const char *fmt, ...)
+{
+	struct sbuf sbuf;
+	char buf[XPT_PRINT_LEN]; /* balance to not eat too much stack */
+	struct sbuf *sb = sbuf_new(&sbuf, buf, sizeof(buf), SBUF_FIXEDLEN);
+	va_list ap;
+
+	sbuf_set_drain(sb, sbuf_printf_drain, NULL);
+	sbuf_cat(sb, "cam_debug: ");
+	va_start(ap, fmt);
+	sbuf_vprintf(sb, fmt, ap);
+	va_end(ap);
+	sbuf_finish(sb);
+	sbuf_delete(sb);
+	if (cam_debug_delay != 0)
+		DELAY(cam_debug_delay);
 }

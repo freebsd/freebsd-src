@@ -2485,7 +2485,8 @@ static device_method_t xnb_methods[] = {
 
 	/* Xenbus interface */
 	DEVMETHOD(xenbus_otherend_changed, xnb_frontend_changed),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t xnb_driver = {

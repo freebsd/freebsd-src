@@ -55,10 +55,6 @@
 #include <netdb.h>
 #include "un-namespace.h"
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = 	"@(#)rtime.c	2.2 88/08/10 4.0 RPCSRC; from 1.8 88/02/08 SMI";
-#endif
-#include <sys/cdefs.h>
 extern int _rpc_dtablesize( void );
 
 #define	NYEARS	(unsigned long)(1970 - 1900)

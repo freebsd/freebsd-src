@@ -27,7 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -346,15 +345,13 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 			return;
 
 		/*
-		 * If xen_domain_type is not set at this point
+		 * If the Xen domain type is not set at this point
 		 * it means we are inside a (PV)HVM guest, because
 		 * for PVH the guest type is set much earlier
 		 * (see hammer_time_xen).
 		 */
-		if (!xen_domain()) {
-			xen_domain_type = XEN_HVM_DOMAIN;
+		if (!xen_domain())
 			vm_guest = VM_GUEST_XEN;
-		}
 
 		setup_xen_features();
 #ifdef SMP

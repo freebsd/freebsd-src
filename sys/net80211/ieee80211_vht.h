@@ -50,6 +50,8 @@ void	ieee80211_vht_node_leave(struct ieee80211_node *ni);
 
 uint8_t *	ieee80211_add_vhtcap(uint8_t *frm, struct ieee80211_node *);
 uint8_t *	ieee80211_add_vhtinfo(uint8_t *frm, struct ieee80211_node *);
+uint8_t *ieee80211_add_vhtcap_ch(uint8_t *, struct ieee80211vap *,
+    struct ieee80211_channel *);
 
 void	ieee80211_vht_update_cap(struct ieee80211_node *,
 	    const uint8_t *, const uint8_t *);
@@ -59,8 +61,8 @@ struct ieee80211_channel *
 	    struct ieee80211_channel *, int);
 
 void	ieee80211_vht_get_vhtcap_ie(struct ieee80211_node *ni,
-	    struct ieee80211_ie_vhtcap *, int);
+	    struct ieee80211_vht_cap *, int);
 void	ieee80211_vht_get_vhtinfo_ie(struct ieee80211_node *ni,
-	    struct ieee80211_ie_vht_operation *, int);
+	    struct ieee80211_vht_operation *, int);
 
 #endif	/* _NET80211_IEEE80211_VHT_H_ */

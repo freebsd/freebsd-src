@@ -1,4 +1,4 @@
-Release notes for FreeBSD 14.0.
+Release notes for FreeBSD 15.0.
 
 This file describes new user-visible features, changes and updates relevant to
 users of binary FreeBSD releases.  Each entry should describe the change in no
@@ -9,6 +9,26 @@ specified as a comma separated list and/or range, followed by a colon and a
 newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
+
+7c5146da1286:
+	Mountd has been modified to use strunvis(3) to decode directory
+	names in exports(5) file(s).  This allows special characters,
+	such as blanks, to be embedded in the directory name(s).
+	"vis -M" may be used to encode such directory name(s).
+
+c5359e2af5ab:
+	bhyve(8) has a new network backend, "slirp", which makes use of the
+	libslirp package to provide a userspace network stack.  This backend
+	makes it possible to access the guest network from the host without
+	requiring any extra network configuration on the host.
+
+bb830e346bd5:
+	Set the IUTF8 flag by default in tty(4).
+
+	128f63cedc14 and 9e589b093857 added proper UTF-8 backspacing handling
+	in the tty(4) driver, which is enabled by setting the new IUTF8 flag
+	through stty(1). Since the default locale is UTF-8, enable IUTF8 by
+	default.
 
 ff01d71e48d4:
 	dialog(1) has been replaced by bsddialog(1)
@@ -52,234 +72,3 @@ ff01d71e48d4:
 	released by extending some level of 32-bit support for one or
 	more platforms in 15.0 or later.  Users should use the
 	stable/14 branch to migrate off of 32-bit platforms.
-
-3cb2f5f369ec:
-	The lua-flavored loader(8) will now interpret .lua files that appear in
-	loader_conf_files as lua, and execute them in a sandbox.  Existing
-	loader environment variables are available as globals in the sandbox,
-	and any global variable set, if not a table value, will be reflected in
-	the loader environment upon successful execution of the configuration
-	file.  Environment variables with names that aren't valid lua names may
-	be accessed as indices of _ENV; e.g., _ENV['net.fibs'].
-
-bdc81eeda05d:
-	nda is now the default nvme device on all platforms. While nda creates
-	nvd links by default so fstab, etc continues to work, configuration
-	should be updated to the new nda devices.
-
-	To restore the old behavior, add hw.nvme.use_nvd=1 to loader.conf or
-	`options NVME_USE_NVD=1` to the kernel config.  To disable the nvd
-	compatibility aliases, add kern.cam.nda.nvd_compat=0 to loader.conf.
-
-bbb2d2ce4220:
-	Change pw (hence bsdinstall) not to move /home to /usr/home.
-	Previously, when creating the path to home directories, pw
-	would move any path in the root directory under /usr, creating
-	a symlink in root.  In particular, the default /home would become
-	/usr/home.  Now /home is at the top level by default.  /usr/home
-	can be used explicitly.
-
-3416e102c4e9:
-	Remove TI code from armv7 GENERIC kernel.
-	This code doesn't cope with newer DTS and hasn't in a long time so
-	support for TI armv7 platform (like BeagleBone and Pandaboard) is now
-	removed from GENERIC.
-
-d198b8774d2c:
-	Add a new "fwget" utility.
-	The goal of this utility is to inspect the system for peripherals
-	that needs firmware and install the appropriate packages for them.
-	For now only pci subsystem is supported and only firmwares for Intel
-	and AMD GPUs are known.
-
-896516e54a8c:
-	Add a new "syskrb5" mount option for Kerberized NFSv4.1/4.2 mounts.
-	Without this patch, a Kerberized NFSv4.1/4.2 mount must provide
-	a Kerberos credential for the client at mount time.
-	This patch uses a feature of NFSv4.1/4.2 called SP4_NONE, which
-	allows the state maintenance operations to be performed by any
-	authentication mechanism, so that these operations may be done via
-	AUTH_SYS instead of RPCSEC_GSS (KerberosV).  As such, no Kerberos
-	credential is required at mount time.
-	See mount_nfs(8).
-
-330aa8acdec7,ff2f1f691cdb:
-	Adds support for the SP4_MACH_CRED case for the
-	NFSv4.1/4.2 ExchangeID operation since the Linux
-	NFSv4.1/4.2 client is now using this for Kerberized mounts.
-	This change should only affect Kerberized NFSv4.1/4.2 mounts.
-	The Linux Kerberized NFSv4.1/4.2 mounts currently work without
-	support for this because Linux will fall back to SP4_NONE,
-	but there is no guarantee this fallback will work forever.
-
-7344856e3a6d and many others:
-	Add support so that nfsd(8), nfsuserd(8), mountd(8), gssd(8)
-	and rpc.tlsservd(8) can be run in an appropriately configured
-	vnet prison.  The vnet prison must be on its own file system,
-	have the "allow.nfsd" jail parameter set on it and enforce_statfs
-	cannot be set to "0".  Use of UDP and pNFS server configurations
-	are not permitted.  (ie. The nfsd command line options "-u", "-p"
-	and "-m" are not supported.)
-	See jail(8), nfsd(8) and mountd(8).
-
-2fb4f839f3fc,d89513ed2050,3413ee88c39d,f97a19ecb985,021562c5020d,431d2a81d421:
-	sendmail has been updated to the latest upstream version (8.17.1).
-
-4a30d7bb373c,d670a8f7c596,af01b4722577,4e240e55d818:
-	The growfs(7) script can now add a swap partition at the end of
-	the expansion area, and does so by default if there is no existing
-	swap.  See growfs(7).
-
-86edb11e7491:
-	llvm-objdump is now always installed as objdump.
-
-616f32ea6da7:
-	mta_start_script along with othermta rc.d script has been retired.
-
-a67b925ff3e5:
-	The default mail transport agent is now dma(8) replacing sendmail.
-
-22893e584032:
-	L3 filtering on if_bridge will do surprising things which aren't
-	fail-safe, so net.link.bridge.pfil_member and
-	net.link.bridge.pfil_bridge now default to zero.
-
-f0bc4ed144fc:
-	A new DTrace provider, kinst, is introduced and documented in
-	dtrace_kinst(4).  The provider allows kernel instructions to be traced,
-	similar to the FBT (function boundary tracing) provider except that all
-	instructions may be probed instead of logical entry and return
-	instructions.  The provider is currently amd64-only.
-
-0aa2700123e2:
-	OPIE has been removed from the base system.  If you still wish
-	to use it, install the security/opie port.  Otherwise, make
-	sure to remove or comment out any mention of pam_opie and
-	pam_opieaccess from your PAM policies (etcupdate will normally
-	take care of this for the stock policies).
-
-0eea46fb1f83:
-	Removed telnetd.
-
-981ef32230b2,33721eb991d8:
-	These commits make the use of NFSv4.1/4.2 mounts with the "intr"
-	mount option fairly usable, although not 100% correct, so long as
-	the "nolockd" mount option is used as well.  See the mount_nfs(8)
-	manual page for more information.
-
-b875d4f5ddcb,0685c73cfe88:
-	The NFSv4.1/4.2 client and server will now generate console messages
-	if sessions are broken, suggesting that users check to ensure
-	that the /etc/hostid strings are unique for all NFSv4.1/4.2 clients.
-
-240afd8c1fcc:
-	makefs(8) has ZFS support; it can create a ZFS pool, backed by a
-	single disk vdev, containing one or more datasets populated from
-	the staging directory.
-
-78ee8d1c4cda,f4f56ff43dbd:
-	The in-tree qat(4) driver has been replaced with Intel's QAT driver.
-	The new version provides additional interfaces to the chipset's
-	cryptographic and compression offload functionality.
-
-	This will have no visible change for most users; however, the new
-	driver does not support Atom C2000 chipsets.  To preserve support for
-	those chipsets, the old driver has been renamed to qat_c2xxx and kept
-	in the tree.  Users of qat(4) on C2000 hardware will thus need to
-	ensure that qat_c2xxx(4) is loaded instead of qat(4).
-
-da5b7e90e740,5a8fceb3bd9f,7b0a665d72c0,13ec1e3155c7,318d0db5fe8a,1ae2c59bcf21:
-	Boottrace is a new kernel-userspace interface for capturing trace
-	events during system boot and shutdown. Event annotations are
-	present in:
-
-	- The boot and shutdown paths in the kernel
-	- Some key system utilities (init(8), shutdown(8), reboot(8))
-	- rc(8) scripts (via boottrace(8))
-
-	In contrast to other existing boot-time tracing facilities like TSLOG,
-	Boottrace focuses on the ease of use and is aimed primarily at system
-	administrators.
-
-	It is available in the default GENERIC kernel and can be enabled by
-	toggling a single sysctl(8) variable.
-
-	See boottrace(4) for more details.
-
-05a1d0f5d7ac:
-	Kernel TLS offload now supports receive-side offload of TLS 1.3.
-
-19dc64451179:
-	if_stf now supports 6rd (RFC5969).
-
-c1d255d3ffdb, 3968b47cd974, bd452dcbede6:
-	Add WiFi 6 support to wpa.
-
-ba48d52ca6c8,4ac3d08a9693,2533eca1c2b9:
-	The default bell tone is now 800Hz. It may be set with kbdcontrol
-	again. There's devd integration for people wishing to use their sound
-	cards for the beep.
-
-92b3e07229ba:
-	net.inet.tcp.nolocaltimewait enabled by default.  It prevents
-	creation of timewait entries for TCP connections that were
-	terminated locally.
-
-d410b585b6f0:
-	sh(1) is now the default shell for the root user.
-
-396851c20aeb:
-	libncursesw has been split into libtinfow and libncursesw, linker
-	scripts should make it transparent for consumers. pkg-config files
-	are also now installed to ease ports detecting the ncurses setup from
-	base.
-
-a422084abbda:
-	LLVM's MemorySanitizer can now be used in amd64 kernels.  See the
-	kmsan(9) manual page for more information.
-
-38da497a4dfc:
-	LLVM's AddressSanitizer can now be used in amd64 kernels.  See the
-	kasan(9) manual page for more information.
-
-f39dd6a97844,23f24377b1a9,628bd30ab5a4:
-	One True Awk has been updated to the latest from upstream
-	(20210727). All the FreeBSD patches, but one, have now been
-	either up streamed or discarded.  Notable changes include:
-		o Locale is no longer used for ranges
-		o Various bugs fixed
-		o Better compatibility with gawk and mawk
-
-	The one FreeBSD change, likely to be removed in FreeBSD 14, is that
-	we still allow hex numbers, prefixed with 0x, to be parsed and
-	interpreted as hex numbers while all other awks (including one
-	true awk now) interpret them as 0 in line with awk's historic
-	behavior.
-
-	A second change, less likely to be noticed, is the historic wart
-	if -Ft meaning to use hard tab characters as the field separator
-	is deprecated and will likely be removed in FreeBSD 14.
-
-ee29e6f31111:
-	Commit ee29e6f31111 added a new sysctl called vfs.nfsd.srvmaxio
-	that can be used to increase the maximum I/O size for the NFS
-	server to any power of 2 up to 1Mbyte while the nfsd(8) is not running.
-	The FreeBSD NFS client can now be set to use a 1Mbyte I/O size
-	via the vfs.maxbcachebuf tunable and the Linux NFS client
-	can also do 1Mbyte I/O.
-	kern.ipc.maxsockbuf will need to be increased.  A console
-	message will suggest a setting for it.
-
-d575e81fbcfa:
-	gconcat(8) has added support for appending devices to the device
-	not present at creation time.
-
-76681661be28:
-	Remove support for asymmetric cryptographic operations from
-	the kernel open cryptographic framework (OCF).
-
-a145cf3f73c7:
-	The NFSv4 client now uses the highest minor version of NFSv4
-	supported by the NFSv4 server by default instead of minor version 0,
-	for NFSv4 mounts.
-	The "minorversion" mount option may be used to override this default.

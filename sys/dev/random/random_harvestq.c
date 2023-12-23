@@ -29,7 +29,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ck.h>
@@ -385,6 +384,7 @@ static const char *random_source_descr[ENTROPYSOURCE] = {
 	[RANDOM_PURE_TPM] = "PURE_TPM",
 	[RANDOM_PURE_VMGENID] = "PURE_VMGENID",
 	[RANDOM_PURE_QUALCOMM] = "PURE_QUALCOMM",
+	[RANDOM_PURE_ARMV8] = "PURE_ARMV8",
 	/* "ENTROPYSOURCE" */
 };
 

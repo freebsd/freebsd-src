@@ -17,10 +17,6 @@
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_ntop.c,v 1.5 2005/11/03 22:59:52 marka Exp $";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
 #include "port_before.h"
 
 #include <sys/param.h>

@@ -31,7 +31,6 @@
  * from specs given in a .conf file.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 
@@ -1128,7 +1127,7 @@ prog_makefile_rules(FILE *outmk, prog_t *p)
 	fprintf(outmk, "\n");
 	fprintf(outmk, "\tcrunchide -k _crunched_%s_stub ", p->ident);
 	for (lst = p->keeplist; lst != NULL; lst = lst->next)
-		fprintf(outmk, "-k _%s ", lst->str);
+		fprintf(outmk, "-k %s ", lst->str);
 	fprintf(outmk, "%s.lo\n", p->name);
 }
 

@@ -37,7 +37,6 @@
  * is the same as a double, such as the Alpha.
  */
 
-#include <sys/cdefs.h>
 #include "gdtoaimp.h"
 #undef strtold_l
 

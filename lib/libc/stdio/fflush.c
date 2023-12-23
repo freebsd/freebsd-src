@@ -32,10 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)fflush.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <errno.h>
 #include <stdio.h>
@@ -103,11 +99,11 @@ __weak_reference(__fflush, fflush_unlocked);
 int
 __sflush(FILE *fp)
 {
-	unsigned char *p, *old_p;
-	int n, t, old_w;
+	unsigned char *p;
+	int n, f, t;
 
-	t = fp->_flags;
-	if ((t & __SWR) == 0)
+	f = fp->_flags;
+	if ((f & __SWR) == 0)
 		return (0);
 
 	if ((p = fp->_bf._base) == NULL)
@@ -119,26 +115,19 @@ __sflush(FILE *fp)
 	 * Set these immediately to avoid problems with longjmp and to allow
 	 * exchange buffering (via setvbuf) in user write function.
 	 */
-	old_p = fp->_p;
 	fp->_p = p;
-	old_w = fp->_w;
-	fp->_w = t & (__SLBF|__SNBF) ? 0 : fp->_bf._size;
+	fp->_w = f & (__SLBF|__SNBF) ? 0 : fp->_bf._size;
 
 	for (; n > 0; n -= t, p += t) {
 		t = _swrite(fp, (char *)p, n);
 		if (t <= 0) {
-			/* Reset _p and _w. */
-			if (p > fp->_p) {
+			if (p > fp->_p)
 				/* Some was written. */
 				memmove(fp->_p, p, n);
-				fp->_p += n;
-				if ((fp->_flags & (__SLBF | __SNBF)) == 0)
-					fp->_w -= n;
-			/* conditional to handle setvbuf */
-			} else if (p == fp->_p && errno == EINTR) {
-				fp->_p = old_p;
-				fp->_w = old_w;
-			}
+			/* Reset _p and _w. */
+			fp->_p += n;
+			if ((fp->_flags & __SNBF) == 0)
+				fp->_w -= n;
 			fp->_flags |= __SERR;
 			return (EOF);
 		}

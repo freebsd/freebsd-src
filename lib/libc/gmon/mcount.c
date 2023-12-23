@@ -29,10 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(_KERNEL) && defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)mcount.c	8.1 (Berkeley) 6/4/93";
-#endif
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/gmon.h>
 #ifdef _KERNEL

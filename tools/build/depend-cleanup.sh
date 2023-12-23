@@ -210,3 +210,11 @@ if [ -e "$OBJTOP"/tests/sys/fs/fusefs/mockfs.o ] && \
 	echo "Removing stale fusefs GoogleTest objects"
 	run rm -rf "$OBJTOP"/tests/sys/fs/fusefs
 fi
+
+# 20231031  0527c9bdc718    Remove forward compat ino64 stuff
+clean_dep   lib/libc        fstat         c
+clean_dep   lib/libc        fstatat       c
+clean_dep   lib/libc        fstatfs       c
+clean_dep   lib/libc        getdirentries c
+clean_dep   lib/libc        getfsstat     c
+clean_dep   lib/libc        statfs        c

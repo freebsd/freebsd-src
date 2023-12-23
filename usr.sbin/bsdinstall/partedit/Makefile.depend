@@ -9,7 +9,7 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libgeom \
 	lib/libutil \
-	usr.sbin/bsdinstall/distextract \
+	usr.sbin/bsdinstall/include \
 
 
 .include <dirdeps.mk>

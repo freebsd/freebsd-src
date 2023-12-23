@@ -28,7 +28,6 @@
  * DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <machine/reg.h>
 #include <machine/sysarch.h>
 

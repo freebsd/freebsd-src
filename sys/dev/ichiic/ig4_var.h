@@ -42,6 +42,7 @@
 #include "iicbus_if.h"
 
 enum ig4_vers {
+	IG4_EMAG,
 	IG4_HASWELL,
 	IG4_ATOM,
 	IG4_SKYLAKE,

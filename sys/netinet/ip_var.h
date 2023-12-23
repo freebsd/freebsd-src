@@ -27,8 +27,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -333,11 +331,10 @@ __enum_uint8_decl(pf_mtag_dir) {
 	PF_DIVERT_MTAG_DIR_OUT = 2
 };
 struct pf_divert_mtag {
-	__enum_uint8(pf_mtag_dir) idir;	// initial pkt direction
+	__enum_uint8(pf_mtag_dir) idir;		/* initial pkt direction */
 	union {
-		__enum_uint8(pf_mtag_dir) ndir;	// a) divert(4) port upon initial diversion
-				// b) new direction upon pkt re-enter
-		uint16_t port;	/* Initial divert(4) port */
+		__enum_uint8(pf_mtag_dir) ndir;	/* new dir after re-enter */
+		uint16_t port;			/* initial divert(4) port */
 	};
 };
 #define MTAG_PF_DIVERT	1262273569

@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  */
-#include <sys/cdefs.h>
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -388,8 +388,10 @@ bcm_spi_intr(void *arg)
 	/* Check for end of transfer. */
 	if (sc->sc_written == sc->sc_len && sc->sc_read == sc->sc_len) {
 		/* Disable interrupts and the SPI engine. */
-		bcm_spi_modifyreg(sc, SPI_CS,
-		    SPI_CS_TA | SPI_CS_INTR | SPI_CS_INTD, 0);
+		if ((sc->sc_flags & BCM_SPI_KEEP_CS) == 0) {
+			bcm_spi_modifyreg(sc, SPI_CS,
+			    SPI_CS_TA | SPI_CS_INTR | SPI_CS_INTD, 0);
+		}
 		wakeup(sc->sc_dev);
 	}
 
@@ -438,16 +440,23 @@ bcm_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	/* If the controller is in use wait until it is available. */
 	BCM_SPI_LOCK(sc);
-	while (sc->sc_flags & BCM_SPI_BUSY)
-		mtx_sleep(dev, &sc->sc_mtx, 0, "bcm_spi", 0);
+	if (sc->sc_thread != curthread)
+		while (sc->sc_flags & BCM_SPI_BUSY)
+			mtx_sleep(dev, &sc->sc_mtx, 0, "bcm_spi", 0);
 
 	/* Now we have control over SPI controller. */
 	sc->sc_flags = BCM_SPI_BUSY;
 
+	if ((cmd->flags & SPI_FLAG_KEEP_CS) != 0)
+		sc->sc_flags |= BCM_SPI_KEEP_CS;
+
 	/* Clear the FIFO. */
-	bcm_spi_modifyreg(sc, SPI_CS,
-	    SPI_CS_CLEAR_RXFIFO | SPI_CS_CLEAR_TXFIFO,
-	    SPI_CS_CLEAR_RXFIFO | SPI_CS_CLEAR_TXFIFO);
+	if (sc->sc_thread != curthread)
+		bcm_spi_modifyreg(sc, SPI_CS,
+		    SPI_CS_CLEAR_RXFIFO | SPI_CS_CLEAR_TXFIFO,
+		    SPI_CS_CLEAR_RXFIFO | SPI_CS_CLEAR_TXFIFO);
+
+	sc->sc_thread = curthread;
 
 	/* Save a pointer to the SPI command. */
 	sc->sc_cmd = cmd;
@@ -517,11 +526,15 @@ bcm_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	err = mtx_sleep(dev, &sc->sc_mtx, 0, "bcm_spi", hz * 2);
 
 	/* Make sure the SPI engine and interrupts are disabled. */
-	bcm_spi_modifyreg(sc, SPI_CS, SPI_CS_TA | SPI_CS_INTR | SPI_CS_INTD, 0);
+	if (!(cmd->flags & SPI_FLAG_KEEP_CS)) {
+		bcm_spi_modifyreg(sc,
+		    SPI_CS, SPI_CS_TA | SPI_CS_INTR | SPI_CS_INTD, 0);
+		sc->sc_thread = 0;
+	}
 
-	/* Release the controller and wakeup the next thread waiting for it. */
-	sc->sc_flags = 0;
 	wakeup_one(dev);
+	sc->sc_flags &= ~BCM_SPI_BUSY;
+	/* Release the controller and wakeup the next thread waiting for it. */
 	BCM_SPI_UNLOCK(sc);
 
 	/*

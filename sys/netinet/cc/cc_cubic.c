@@ -47,7 +47,6 @@
  *   http://caia.swin.edu.au/urp/newtcp/
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>

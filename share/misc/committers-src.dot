@@ -103,6 +103,7 @@ achim [label="Achim Leubner\nachim@FreeBSD.org\n2013/01/23"]
 adrian [label="Adrian Chadd\nadrian@FreeBSD.org\n2000/07/03"]
 ae [label="Andrey V. Elsukov\nae@FreeBSD.org\n2010/06/03"]
 akiyama [label="Shunsuke Akiyama\nakiyama@FreeBSD.org\n2000/06/19"]
+akiyano [label="Arthur Kiyanovski\nakiyano@FreeBSD.org\n2023/11/14"]
 alc [label="Alan Cox\nalc@FreeBSD.org\n1999/02/23"]
 alfredo [label="Alfredo Dal'Ava Junior\nalfredo@FreeBSD.org\n2020/01/27"]
 allanjude [label="Allan Jude\nallanjude@FreeBSD.org\n2015/07/30"]
@@ -212,6 +213,7 @@ jch [label="Julien Charbon\njch@FreeBSD.org\n2014/09/24"]
 jchandra [label="Jayachandran C.\njchandra@FreeBSD.org\n2010/05/19"]
 jeb [label="Jeb Cramer\njeb@FreeBSD.org\n2018/01/25"]
 jeff [label="Jeff Roberson\njeff@FreeBSD.org\n2002/02/21"]
+jfree [label="Jake Freeland\njfree@FreeBSD.org\n2023/11/03"]
 jh [label="Jaakko Heinonen\njh@FreeBSD.org\n2009/10/02"]
 jhb [label="John Baldwin\njhb@FreeBSD.org\n1999/08/23"]
 jhibbits [label="Justin Hibbits\njhibbits@FreeBSD.org\n2011/11/30"]
@@ -289,6 +291,7 @@ nwhitehorn [label="Nathan Whitehorn\nnwhitehorn@FreeBSD.org\n2008/07/03"]
 n_hibma [label="Nick Hibma\nn_hibma@FreeBSD.org\n1998/11/26"]
 obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
 oh [label="Oskar Holmlund\noh@FreeBSD.org\n2021/04/21"]
+olce [label="Olivier Certner\nolce@FreeBSD.org\n2023/12/01"]
 olli [label="Oliver Fromme\nolli@FreeBSD.org\n2008/02/14"]
 oshogbo [label="Mariusz Zaborski\noshogbo@FreeBSD.org\n2015/04/15"]
 peadar [label="Peter Edwards\npeadar@FreeBSD.org\n2004/03/08"]
@@ -307,6 +310,7 @@ qingli [label="Qing Li\nqingli@FreeBSD.org\n2005/04/13"]
 rajeshasp [label="Rajesh Kumar M A\nrajeshasp@FreeBSD.org\n2021/01/27"]
 ram [label="Ram Kishore Vegesna\nram@FreeBSD.org\n2018/04/04"]
 ray [label="Aleksandr Rybalko\nray@FreeBSD.org\n2011/05/25"]
+rcm [label="R. Christian McDonald\nrcm@FreeBSD.org\n2023/11/14"]
 rdivacky [label="Roman Divacky\nrdivacky@FreeBSD.org\n2008/03/13"]
 remko [label="Remko Lodder\nremko@FreeBSD.org\n2007/02/23"]
 rew [label="Robert Wing\nrew@FreeBSD.org\n2020/07/23"]
@@ -480,6 +484,7 @@ cognet -> wkoszek
 cognet -> wma
 cognet -> zbb
 
+cperciva -> akiyano
 cperciva -> eadler
 cperciva -> flz
 cperciva -> randi
@@ -533,6 +538,7 @@ emaste -> kevans
 emaste -> lwhsu
 emaste -> markj
 emaste -> ngie
+emaste -> olce
 emaste -> rstone
 emaste -> scottph
 
@@ -590,6 +596,7 @@ imp -> chuck
 imp -> dmlb
 imp -> emax
 imp -> furuta
+imp -> jfree
 imp -> joe
 imp -> johalun
 imp -> jon
@@ -725,6 +732,7 @@ kmacy -> lstewart
 
 kp -> donner
 kp -> nick
+kp -> rcm
 kp -> zlei
 
 lwhsu -> khng
@@ -742,8 +750,10 @@ marcel -> sjg
 markj -> cem
 markj -> christos
 markj -> dougm
+markj -> jfree
 markj -> lwhsu
 markj -> mhorne
+markj -> olce
 markj -> rlibby
 
 markm -> jasone

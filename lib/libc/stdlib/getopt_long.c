@@ -49,12 +49,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if 0
-#if defined(LIBC_SCCS) && !defined(lint)
-static char *rcsid = "$OpenBSD: getopt_long.c,v 1.16 2004/02/04 18:17:25 millert Exp $";
-#endif /* LIBC_SCCS and not lint */
-#endif
-#include <sys/cdefs.h>
 #include <err.h>
 #include <errno.h>
 #include <getopt.h>

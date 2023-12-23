@@ -1177,7 +1177,6 @@ static void
 iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
     struct iwi_frame *frame)
 {
-	struct epoch_tracker et;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct mbuf *mnew, *m;
 	struct ieee80211_node *ni;
@@ -1267,13 +1266,11 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 	IWI_UNLOCK(sc);
 
 	ni = ieee80211_find_rxnode(ic, mtod(m, struct ieee80211_frame_min *));
-	NET_EPOCH_ENTER(et);
 	if (ni != NULL) {
 		type = ieee80211_input(ni, m, rssi, nf);
 		ieee80211_free_node(ni);
 	} else
 		type = ieee80211_input_all(ic, m, rssi, nf);
-	NET_EPOCH_EXIT(et);
 
 	IWI_LOCK(sc);
 	if (sc->sc_softled) {

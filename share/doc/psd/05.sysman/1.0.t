@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)1.0.t	8.1 (Berkeley) 6/8/93
-.\"
 .ds ss 1
 .sh "Kernel primitives
 .PP

@@ -29,12 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static const char sccsid[] = "@(#)setup.c	8.10 (Berkeley) 5/9/95";
-#endif /* not lint */
-#endif
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/disk.h>
 #include <sys/stat.h>
@@ -52,7 +46,6 @@ static const char sccsid[] = "@(#)setup.c	8.10 (Berkeley) 5/9/95";
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
-#include <libufs.h>
 
 #include "fsck.h"
 
@@ -214,7 +207,7 @@ setup(char *dev)
 		sbdirty();
 	}
 	if (snapcnt > 0 && copybuf == NULL) {
-		copybuf = Malloc(sblock.fs_bsize);
+		copybuf = Balloc(sblock.fs_bsize);
 		if (copybuf == NULL)
 			errx(EEXIT, "cannot allocate space for snapshot "
 			    "copy buffer");
@@ -501,7 +494,7 @@ sblock_init(void)
 	fsmodified = 0;
 	lfdir = 0;
 	initbarea(&sblk, BT_SUPERBLK);
-	sblk.b_un.b_buf = Malloc(SBLOCKSIZE);
+	sblk.b_un.b_buf = Balloc(SBLOCKSIZE);
 	if (sblk.b_un.b_buf == NULL)
 		errx(EEXIT, "cannot allocate space for superblock");
 	dev_bsize = secsize = DEV_BSIZE;
@@ -530,7 +523,7 @@ calcsb(char *dev, int devfd, struct fs *fs)
 	 */
 	if (ioctl(devfd, DIOCGSECTORSIZE, &secsize) == -1)
 		return (0);
-	fsrbuf = Malloc(secsize);
+	fsrbuf = Balloc(secsize);
 	if (fsrbuf == NULL)
 		errx(EEXIT, "calcsb: cannot allocate recovery buffer");
 	if (blread(devfd, fsrbuf,
@@ -573,7 +566,7 @@ chkrecovery(int devfd)
 	rdsize = sblock.fs_fsize;
 	if (ioctl(devfd, DIOCGSECTORSIZE, &secsize) == -1 ||
 	    rdsize % secsize != 0 ||
-	    (fsrbuf = Malloc(rdsize)) == NULL ||
+	    (fsrbuf = Balloc(rdsize)) == NULL ||
 	    blread(devfd, fsrbuf, (SBLOCK_UFS2 - rdsize) / dev_bsize,
 	      rdsize) != 0) {
 		free(fsrbuf);
@@ -612,7 +605,7 @@ saverecovery(int readfd, int writefd)
 	if (sblock.fs_magic != FS_UFS2_MAGIC ||
 	    ioctl(readfd, DIOCGSECTORSIZE, &secsize) == -1 ||
 	    rdsize % secsize != 0 ||
-	    (fsrbuf = Malloc(rdsize)) == NULL ||
+	    (fsrbuf = Balloc(rdsize)) == NULL ||
 	    blread(readfd, fsrbuf, (SBLOCK_UFS2 - rdsize) / dev_bsize,
 	      rdsize) != 0) {
 		printf("RECOVERY DATA COULD NOT BE CREATED\n");

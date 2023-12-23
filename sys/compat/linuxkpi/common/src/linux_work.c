@@ -206,7 +206,7 @@ linux_flush_rcu_work(struct rcu_work *rwork)
 
 /*
  * This function queues the given work structure on the given
- * workqueue after a given delay in ticks. It returns non-zero if the
+ * workqueue after a given delay in ticks. It returns true if the
  * work was successfully [re-]queued. Else the work is already pending
  * for completion.
  */
@@ -221,16 +221,19 @@ linux_queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 		[WORK_ST_EXEC] = WORK_ST_TIMER,		/* start timeout */
 		[WORK_ST_CANCEL] = WORK_ST_TIMER,	/* start timeout */
 	};
+	bool res;
 
 	if (atomic_read(&wq->draining) != 0)
 		return (!work_pending(&dwork->work));
 
+	mtx_lock(&dwork->timer.mtx);
 	switch (linux_update_state(&dwork->work.state, states)) {
 	case WORK_ST_EXEC:
 	case WORK_ST_CANCEL:
-		if (delay == 0 && linux_work_exec_unblock(&dwork->work) != 0) {
+		if (delay == 0 && linux_work_exec_unblock(&dwork->work)) {
 			dwork->timer.expires = jiffies;
-			return (true);
+			res = true;
+			goto out;
 		}
 		/* FALLTHROUGH */
 	case WORK_ST_IDLE:
@@ -240,20 +243,21 @@ linux_queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 		if (delay == 0) {
 			linux_delayed_work_enqueue(dwork);
 		} else if (unlikely(cpu != WORK_CPU_UNBOUND)) {
-			mtx_lock(&dwork->timer.mtx);
 			callout_reset_on(&dwork->timer.callout, delay,
 			    &linux_delayed_work_timer_fn, dwork, cpu);
-			mtx_unlock(&dwork->timer.mtx);
 		} else {
-			mtx_lock(&dwork->timer.mtx);
 			callout_reset(&dwork->timer.callout, delay,
 			    &linux_delayed_work_timer_fn, dwork);
-			mtx_unlock(&dwork->timer.mtx);
 		}
-		return (true);
+		res = true;
+		break;
 	default:
-		return (false);		/* already on a queue */
+		res = false;
+		break;
 	}
+out:
+	mtx_unlock(&dwork->timer.mtx);
+	return (res);
 }
 
 void
@@ -464,11 +468,11 @@ linux_cancel_delayed_work(struct delayed_work *dwork)
 
 /*
  * This function cancels the given work structure in a synchronous
- * fashion. It returns non-zero if the work was successfully
+ * fashion. It returns true if the work was successfully
  * cancelled. Else the work was already cancelled.
  */
-bool
-linux_cancel_delayed_work_sync(struct delayed_work *dwork)
+static bool
+linux_cancel_delayed_work_sync_int(struct delayed_work *dwork)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
 		[WORK_ST_IDLE] = WORK_ST_IDLE,		/* NOP */
@@ -478,7 +482,6 @@ linux_cancel_delayed_work_sync(struct delayed_work *dwork)
 		[WORK_ST_CANCEL] = WORK_ST_IDLE,	/* cancel and drain */
 	};
 	struct taskqueue *tq;
-	bool retval = false;
 	int ret, state;
 	bool cancelled;
 
@@ -490,7 +493,7 @@ linux_cancel_delayed_work_sync(struct delayed_work *dwork)
 	switch (state) {
 	case WORK_ST_IDLE:
 		mtx_unlock(&dwork->timer.mtx);
-		return (retval);
+		return (false);
 	case WORK_ST_TIMER:
 	case WORK_ST_CANCEL:
 		cancelled = (callout_stop(&dwork->timer.callout) == 1);
@@ -510,6 +513,17 @@ linux_cancel_delayed_work_sync(struct delayed_work *dwork)
 			taskqueue_drain(tq, &dwork->work.work_task);
 		return (ret != 0);
 	}
+}
+
+bool
+linux_cancel_delayed_work_sync(struct delayed_work *dwork)
+{
+	bool res;
+
+	res = false;
+	while (linux_cancel_delayed_work_sync_int(dwork))
+		res = true;
+	return (res);
 }
 
 /*

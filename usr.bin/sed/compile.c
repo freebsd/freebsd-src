@@ -34,9 +34,6 @@
  */
 
 #include <sys/cdefs.h>
-#ifndef lint
-static const char sccsid[] = "@(#)compile.c	8.1 (Berkeley) 6/6/93";
-#endif
 
 #include <sys/types.h>
 #include <sys/stat.h>

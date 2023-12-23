@@ -1,4 +1,3 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/8/93
 # Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without

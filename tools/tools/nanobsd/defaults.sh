@@ -425,7 +425,7 @@ install_kernel ( ) (
 )
 
 native_xtools ( ) (
-	print 2 "Installing the optimized native build tools for cross env"
+	pprint 2 "Installing the optimized native build tools for cross env"
 	pprint 3 "log: ${NANO_LOG}/_.native_xtools"
 
 	(
@@ -884,7 +884,7 @@ export_var ( ) {		# Don't wawnt a subshell
 # Call this function to set defaults _after_ parsing options.
 # dont want a subshell otherwise variable setting is thrown away.
 set_defaults_and_export ( ) {
-	: ${NANO_OBJ:=/usr/obj/nanobsd.${NANO_NAME}${NANO_LAYOUT}:+.${NANO_LAYOUT}}
+	: ${NANO_OBJ:=/usr/obj/nanobsd.${NANO_NAME}${NANO_LAYOUT:+.${NANO_LAYOUT}}}
 	: ${MAKEOBJDIRPREFIX:=${NANO_OBJ}}
 	: ${NANO_DISKIMGDIR:=${NANO_OBJ}}
 	: ${NANO_WORLDDIR:=${NANO_OBJ}/_.w}

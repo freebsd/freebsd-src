@@ -32,14 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)partab.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: partab.c,v 1.5 2003/06/03 02:56:18 millert Exp $";
-#endif
-#endif /* not lint */
-
 /*
  * Even parity table for 0-0177
  */

@@ -28,7 +28,6 @@
  *      from: pnp.c,v 1.11 1999/05/06 22:11:19 peter Exp
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

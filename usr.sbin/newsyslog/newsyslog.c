@@ -88,13 +88,15 @@
 /*
  * Compression types
  */
-#define	COMPRESS_TYPES  5	/* Number of supported compression types */
-
-#define	COMPRESS_NONE	0
-#define	COMPRESS_GZIP	1
-#define	COMPRESS_BZIP2	2
-#define	COMPRESS_XZ	3
-#define COMPRESS_ZSTD	4
+enum compress_types_enum {
+	COMPRESS_NONE	= 0,
+	COMPRESS_GZIP	= 1,
+	COMPRESS_BZIP2	= 2,
+	COMPRESS_XZ	= 3,
+	COMPRESS_ZSTD	= 4,
+	COMPRESS_LEGACY = 5,			/* Special: use legacy type */
+	COMPRESS_TYPES = COMPRESS_LEGACY	/* Number of supported compression types */
+};
 
 /*
  * Bit-values for the 'flags' parsed from a config-file entry.
@@ -127,6 +129,7 @@
 #define	MAX_OLDLOGS 65536	/* Default maximum number of old logfiles */
 
 struct compress_types {
+	const char *name;	/* Name of compression type */
 	const char *flag;	/* Flag in configuration file */
 	const char *suffix;	/* Compression suffix */
 	const char *path;	/* Path to compression program */
@@ -137,14 +140,29 @@ struct compress_types {
 static const char *gzip_flags[] = { "-f" };
 #define bzip2_flags gzip_flags
 #define xz_flags gzip_flags
-static const char *zstd_flags[] = { "-q", "--rm" };
+static const char *zstd_flags[] = { "-q", "-T0", "--adapt", "--long", "--rm" };
 
-static const struct compress_types compress_type[COMPRESS_TYPES] = {
-	{ "", "", "", NULL, 0 },
-	{ "Z", ".gz", _PATH_GZIP, gzip_flags, nitems(gzip_flags) },
-	{ "J", ".bz2", _PATH_BZIP2, bzip2_flags, nitems(bzip2_flags) },
-	{ "X", ".xz", _PATH_XZ, xz_flags, nitems(xz_flags) },
-	{ "Y", ".zst", _PATH_ZSTD, zstd_flags, nitems(zstd_flags) }
+static struct compress_types compress_type[COMPRESS_TYPES] = {
+	[COMPRESS_NONE] = {
+		.name = "none", .flag = "", .suffix = "",
+		.path = "", .flags = NULL, .nflags = 0
+	},
+	[COMPRESS_GZIP] = {
+		.name = "gzip", .flag = "Z", .suffix = ".gz",
+		.path = _PATH_GZIP, .flags = gzip_flags, .nflags = nitems(gzip_flags)
+	},
+	[COMPRESS_BZIP2] = {
+		.name = "bzip2", .flag = "J", .suffix = ".bz2",
+		.path = _PATH_BZIP2, .flags = bzip2_flags, .nflags = nitems(bzip2_flags)
+	},
+	[COMPRESS_XZ] = {
+		.name = "xz", .flag = "X", .suffix = ".xz",
+		.path = _PATH_XZ, .flags = xz_flags, .nflags = nitems(xz_flags)
+	},
+	[COMPRESS_ZSTD] = {
+		.name = "zstd", .flag = "Y", .suffix = ".zst",
+		.path = _PATH_ZSTD, .flags = zstd_flags, .nflags = nitems(zstd_flags)
+	},
 };
 
 struct conf_entry {
@@ -229,6 +247,7 @@ static char *timefnamefmt = NULL;/* Use time based filenames instead of .0 */
 static char *archdirname;	/* Directory path to old logfiles archive */
 static char *destdir = NULL;	/* Directory to treat at root for logs */
 static const char *conf;	/* Configuration file to use */
+static enum compress_types_enum compress_type_override = COMPRESS_LEGACY;	/* Compression type */
 
 struct ptime_data *dbg_timenow;	/* A "timenow" value set via -D option */
 static struct ptime_data *timenow; /* The time to use for checking at-fields */
@@ -628,7 +647,7 @@ do_entry(struct conf_entry * ent)
 static void
 parse_args(int argc, char **argv)
 {
-	int ch;
+	int ch, i;
 	char *p;
 
 	timenow = ptime_init(NULL);
@@ -641,11 +660,27 @@ parse_args(int argc, char **argv)
 	hostname_shortlen = strcspn(hostname, ".");
 
 	/* Parse command line options. */
-	while ((ch = getopt(argc, argv, "a:d:f:nrst:vCD:FNPR:S:")) != -1)
+	while ((ch = getopt(argc, argv, "a:c:d:f:nrst:vCD:FNPR:S:")) != -1)
 		switch (ch) {
 		case 'a':
 			archtodir++;
 			archdirname = optarg;
+			break;
+		case 'c':
+			for (i = 0; i < COMPRESS_TYPES; i++) {
+				if (strcmp(optarg, compress_type[i].name) == 0) {
+					compress_type_override = i;
+					break;
+				}
+			}
+			if (i == COMPRESS_TYPES) {
+				if (strcmp(optarg, "legacy") == 0)
+					compress_type_override = COMPRESS_LEGACY;
+				else {
+					warnx("Unrecognized compression method '%s'.", optarg);
+					usage();
+				}
+			}
 			break;
 		case 'd':
 			destdir = optarg;
@@ -791,10 +826,26 @@ parse_doption(const char *doption)
 static void
 usage(void)
 {
+	int i;
+	char *alltypes = NULL, *tmp = NULL;
+
+	for (i = 0; i < COMPRESS_TYPES; i++) {
+		if (i == COMPRESS_NONE) {
+			(void)asprintf(&tmp, "%s|legacy", compress_type[i].name);
+		} else {
+			(void)asprintf(&tmp, "%s|%s", alltypes, compress_type[i].name);
+		}
+		if (alltypes)
+			free(alltypes);
+		alltypes = tmp;
+		tmp = NULL;
+	}
 
 	fprintf(stderr,
-	    "usage: newsyslog [-CFNPnrsv] [-a directory] [-d directory] [-f config_file]\n"
-	    "                 [-S pidfile] [-t timefmt] [[-R tagname] file ...]\n");
+	    "usage: newsyslog [-CFNPnrsv] [-a directory] [-c %s]\n"
+	    "                 [-d directory] [-f config_file]\n"
+	    "                 [-S pidfile] [-t timefmt] [[-R tagname] file ...]\n",
+	    alltypes);
 	exit(1);
 }
 
@@ -1302,7 +1353,10 @@ no_trimat:
 				working->flags |= CE_GLOB;
 				break;
 			case 'j':
-				working->compress = COMPRESS_BZIP2;
+				if (compress_type_override == COMPRESS_LEGACY)
+					working->compress = COMPRESS_BZIP2;
+				else
+					working->compress = compress_type_override;
 				break;
 			case 'n':
 				working->flags |= CE_NOSIGNAL;
@@ -1323,13 +1377,22 @@ no_trimat:
 				/* Deprecated flag - keep for compatibility purposes */
 				break;
 			case 'x':
-				working->compress = COMPRESS_XZ;
+				if (compress_type_override == COMPRESS_LEGACY)
+					working->compress = COMPRESS_XZ;
+				else
+					working->compress = compress_type_override;
 				break;
 			case 'y':
-				working->compress = COMPRESS_ZSTD;
+				if (compress_type_override == COMPRESS_LEGACY)
+					working->compress = COMPRESS_ZSTD;
+				else
+					working->compress = compress_type_override;
 				break;
 			case 'z':
-				working->compress = COMPRESS_GZIP;
+				if (compress_type_override == COMPRESS_LEGACY)
+					working->compress = COMPRESS_GZIP;
+				else
+					working->compress = compress_type_override;
 				break;
 			case '-':
 				break;
@@ -2035,6 +2098,7 @@ do_zipwork(struct zipwork_entry *zwork)
 	assert(zwork->zw_conf != NULL);
 	assert(zwork->zw_conf->compress > COMPRESS_NONE);
 	assert(zwork->zw_conf->compress < COMPRESS_TYPES);
+	assert(zwork->zw_conf->compress != COMPRESS_LEGACY);
 
 	if (zwork->zw_swork != NULL && zwork->zw_swork->sw_runcmd == 0 &&
 	    zwork->zw_swork->sw_pidok <= 0) {

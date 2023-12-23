@@ -23,9 +23,6 @@
 #
 # Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)user_property_004_pos.ksh	1.4	09/05/19 SMI"
-#
 
 . $STF_SUITE/tests/cli_root/zfs_set/zfs_set_common.kshlib
 

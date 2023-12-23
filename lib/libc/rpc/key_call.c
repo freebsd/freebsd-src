@@ -31,8 +31,6 @@
  * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
  */
 
-#ident	"@(#)key_call.c	1.25	94/04/24 SMI"
-#include <sys/cdefs.h>
 /*
  * key_call.c, Interface to keyserver
  *

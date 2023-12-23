@@ -26,7 +26,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #ifdef _KERNEL
@@ -465,7 +464,7 @@ ata_print_ident_sbuf(struct ata_params *ident_data, struct sbuf *sb)
 	int version;
 
 	ata_print_ident_short_sbuf(ident_data, sb);
-	sbuf_printf(sb, " ");
+	sbuf_putc(sb, ' ');
 
 	proto = (ident_data->config == ATA_PROTO_CFA) ? "CFA" :
 		(ident_data->config & ATA_PROTO_ATAPI) ? "ATAPI" : "ATA";
@@ -522,11 +521,11 @@ void
 ata_print_ident_short_sbuf(struct ata_params *ident_data, struct sbuf *sb)
 {
 
-	sbuf_printf(sb, "<");
+	sbuf_putc(sb, '<');
 	cam_strvis_sbuf(sb, ident_data->model, sizeof(ident_data->model), 0);
-	sbuf_printf(sb, " ");
+	sbuf_putc(sb, ' ');
 	cam_strvis_sbuf(sb, ident_data->revision, sizeof(ident_data->revision), 0);
-	sbuf_printf(sb, ">");
+	sbuf_putc(sb, '>');
 }
 
 void
@@ -546,11 +545,11 @@ semb_print_ident_sbuf(struct sep_identify_data *ident_data, struct sbuf *sb)
 
 	semb_print_ident_short_sbuf(ident_data, sb);
 
-	sbuf_printf(sb, " SEMB ");
+	sbuf_cat(sb, " SEMB ");
 	cam_strvis_sbuf(sb, ident_data->interface_id, 6, 0);
-	sbuf_printf(sb, " ");
+	sbuf_putc(sb, ' ');
 	cam_strvis_sbuf(sb, ident_data->interface_rev, 4, 0);
-	sbuf_printf(sb, " device\n");
+	sbuf_cat(sb, " device\n");
 }
 
 void
@@ -569,15 +568,15 @@ void
 semb_print_ident_short_sbuf(struct sep_identify_data *ident_data, struct sbuf *sb)
 {
 
-	sbuf_printf(sb, "<");
+	sbuf_putc(sb, '<');
 	cam_strvis_sbuf(sb, ident_data->vendor_id, 8, 0);
-	sbuf_printf(sb, " ");
+	sbuf_putc(sb, ' ');
 	cam_strvis_sbuf(sb, ident_data->product_id, 16, 0);
-	sbuf_printf(sb, " ");
+	sbuf_putc(sb, ' ');
 	cam_strvis_sbuf(sb, ident_data->product_rev, 4, 0);
-	sbuf_printf(sb, " ");
+	sbuf_putc(sb, ' ');
 	cam_strvis_sbuf(sb, ident_data->firmware_rev, 4, 0);
-	sbuf_printf(sb, ">");
+	sbuf_putc(sb, '>');
 }
 
 uint32_t

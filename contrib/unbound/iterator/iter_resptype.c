@@ -42,6 +42,7 @@
 #include "config.h"
 #include "iterator/iter_resptype.h"
 #include "iterator/iter_delegpt.h"
+#include "iterator/iterator.h"
 #include "services/cache/dns.h"
 #include "util/net_help.h"
 #include "util/data/dname.h"
@@ -105,7 +106,8 @@ response_type_from_cache(struct dns_msg* msg,
 
 enum response_type 
 response_type_from_server(int rdset,
-	struct dns_msg* msg, struct query_info* request, struct delegpt* dp)
+	struct dns_msg* msg, struct query_info* request, struct delegpt* dp,
+	int* empty_nodata_found)
 {
 	uint8_t* origzone = (uint8_t*)"\000"; /* the default */
 	struct ub_packed_rrset_key* s;
@@ -284,13 +286,22 @@ response_type_from_server(int rdset,
 
 	/* If we've gotten this far, this is NOERROR/NODATA (which could 
 	 * be an entirely empty message) */
-	/* but ignore entirely empty messages, noerror/nodata has a soa
-	 * negative ttl value in the authority section, this makes it try
-	 * again at another authority. And turns it from a 5 second empty
-	 * message into a 5 second servfail response. */
+	/* For entirely empty messages, try again, at first, then accept
+	 * it it happens more. A regular noerror/nodata response has a soa
+	 * negative ttl value in the authority section. This makes it try
+	 * again at another authority. And decides between storing a 5 second
+	 * empty message or a 5 second servfail response. */
 	if(msg->rep->an_numrrsets == 0 && msg->rep->ns_numrrsets == 0 &&
-		msg->rep->ar_numrrsets == 0)
-		return RESPONSE_TYPE_THROWAWAY;
+		msg->rep->ar_numrrsets == 0) {
+		if(empty_nodata_found) {
+			/* detect as throwaway at first, but accept later. */
+			(*empty_nodata_found)++;
+			if(*empty_nodata_found < EMPTY_NODATA_RETRY_COUNT)
+				return RESPONSE_TYPE_THROWAWAY;
+			return RESPONSE_TYPE_ANSWER;
+		}
+		return RESPONSE_TYPE_ANSWER;
+	}
 	/* check if recursive answer; saying it has empty cache */
 	if( (msg->rep->flags&BIT_RA) && !(msg->rep->flags&BIT_AA) && !rdset)
 		return RESPONSE_TYPE_REC_LAME;

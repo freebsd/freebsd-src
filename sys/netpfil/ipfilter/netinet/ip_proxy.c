@@ -97,9 +97,6 @@
 #include "netinet/ip_ipsec_pxy.c"
 #include "netinet/ip_rpcb_pxy.c"
 
-#if !defined(lint)
-static const char rcsid[] = "@(#)$Id$";
-#endif
 
 #define	AP_SESS_SIZE	53
 

@@ -31,7 +31,6 @@
 #include "opt_ddb.h"
 #include "opt_hwpmc_hooks.h"
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/ktr.h>

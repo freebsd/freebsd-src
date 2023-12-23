@@ -27,7 +27,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/disklabel.h>
@@ -62,18 +61,10 @@ getinode(struct uufsd *disk, union dinodep *dp, ino_t inum)
 		ERROR(disk, "inode number out of range");
 		return (-1);
 	}
-	inoblock = disk->d_inoblock;
+	inoblock = (caddr_t)&disk->d_inos[0];
 	min = disk->d_inomin;
 	max = disk->d_inomax;
 
-	if (inoblock == NULL) {
-		inoblock = malloc(fs->fs_bsize);
-		if (inoblock == NULL) {
-			ERROR(disk, "unable to allocate inode block");
-			return (-1);
-		}
-		disk->d_inoblock = inoblock;
-	}
 	if (inum >= min && inum < max)
 		goto gotit;
 	bread(disk, fsbtodb(fs, ino_to_fsba(fs, inum)), inoblock,
@@ -107,14 +98,10 @@ putinode(struct uufsd *disk)
 	struct fs *fs;
 
 	fs = &disk->d_fs;
-	if (disk->d_inoblock == NULL) {
-		ERROR(disk, "No inode block allocated");
-		return (-1);
-	}
 	if (disk->d_ufs == 2)
 		ffs_update_dinode_ckhash(fs, disk->d_dp.dp2);
 	if (bwrite(disk, fsbtodb(fs, ino_to_fsba(&disk->d_fs, disk->d_inomin)),
-	    disk->d_inoblock, disk->d_fs.fs_bsize) <= 0)
+	    (caddr_t)&disk->d_inos[0], disk->d_fs.fs_bsize) <= 0)
 		return (-1);
 	return (0);
 }

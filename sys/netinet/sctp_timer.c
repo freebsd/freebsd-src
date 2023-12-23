@@ -35,8 +35,7 @@
 #define _IP_VHL
 #include <netinet/sctp_os.h>
 #include <netinet/sctp_pcb.h>
-#ifdef INET6
-#endif
+
 #include <netinet/sctp_var.h>
 #include <netinet/sctp_sysctl.h>
 #include <netinet/sctp_timer.h>

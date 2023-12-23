@@ -2,6 +2,7 @@
 
 DIRDEPS = \
 	bin/sh.host \
+	usr.bin/awk.host \
 	usr.bin/xinstall.host \
 
 

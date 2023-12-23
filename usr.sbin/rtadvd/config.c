@@ -1548,5 +1548,4 @@ make_packet(struct rainfo *rai)
 		syslog(LOG_DEBUG, "<%s>: nd_opt_dnssl_len = %d", __func__,
 		    ndopt_dnssl->nd_opt_dnssl_len);
 	}
-	return;
 }

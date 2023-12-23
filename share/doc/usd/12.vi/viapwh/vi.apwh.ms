@@ -29,8 +29,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)vi.apwh.ms	8.2 (Berkeley) 8/18/96
-.\"
 .nr LL 6.5i
 .nr FL 6.5i
 .TL

@@ -35,9 +35,9 @@
 #include "opt_cam.h"
 #endif
 
-#include <sys/cdefs.h>
 #ifndef _KERNEL
 #include <stdbool.h>
+#include <stdio.h>
 #endif
 
 typedef u_int path_id_t;

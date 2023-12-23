@@ -28,10 +28,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vm.h	8.2 (Berkeley) 12/13/93
- *	@(#)vm_prot.h	8.1 (Berkeley) 6/11/93
- *	@(#)vm_inherit.h	8.1 (Berkeley) 6/11/93
- *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
  * All rights reserved.
  *

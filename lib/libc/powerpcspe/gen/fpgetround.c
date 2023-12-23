@@ -30,7 +30,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <machine/spr.h>
 #include <ieeefp.h>

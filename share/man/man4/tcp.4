@@ -31,9 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
-.\"
-.Dd June 29, 2023
+.Dd November 30, 2023
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -466,13 +464,6 @@ See
 Maximum amount of time, in milliseconds, before a delayed ACK is sent.
 .It Va delayed_ack
 Delay ACK to try and piggyback it onto a data packet or another ACK.
-.It Va do_lrd
-Enable Lost Retransmission Detection for SACK-enabled sessions, disabled by
-default.
-Under severe congestion, a retransmission can be lost which then leads to a
-mandatory Retransmission Timeout (RTO), followed by slow-start.
-LRD will try to resend the repeatedly lost packet, preventing the time-consuming
-RTO and performance reducing slow-start.
 .It Va do_prr
 Perform SACK loss recovery using the Proportional Rate Reduction (PRR) algorithm
 described in RFC6937.
@@ -480,12 +471,6 @@ This improves the effectiveness of retransmissions particular in environments
 with ACK thinning or burst loss events, as chances to run out of the ACK clock
 are reduced, preventing lengthy and performance reducing RTO based loss recovery
 (default is true).
-.It Va do_prr_conservative
-While doing Proportional Rate Reduction, remain strictly in a packet conserving
-mode, sending only one new packet for each ACK received.
-Helpful when a misconfigured token bucket traffic policer causes persistent
-high losses leading to RTO, but reduces PRR effectiveness in more common settings
-(default is false).
 .It Va do_tcpdrain
 Flush packets in the
 .Tn TCP
@@ -909,6 +894,13 @@ Global number of TCP SACK holes currently allocated.
 .It Va sack.globalmaxholes
 Maximum number of SACK holes per system, across all connections.
 Defaults to 65536.
+.It Va sack.lrd
+Enable Lost Retransmission Detection for SACK-enabled sessions, enabled by
+default.
+Under severe congestion, a retransmission can be lost which then leads to a
+mandatory Retransmission Timeout (RTO), followed by slow-start.
+LRD will try to resend the repeatedly lost packet, preventing the time-consuming
+RTO and performance reducing slow-start or purge of the SACK scoreboard.
 .It Va sack.maxholes
 Maximum number of SACK holes per connection.
 Defaults to 128.

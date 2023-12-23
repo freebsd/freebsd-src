@@ -378,7 +378,7 @@ typedef struct {
 			abort(); \
 		if (pending_) { \
 			func(); \
-			if (!InitOnceComplete(&once, 0, NULL)) \
+			if (!InitOnceComplete(&once_, 0, NULL)) \
 				abort(); \
 		} \
 	} while (0)

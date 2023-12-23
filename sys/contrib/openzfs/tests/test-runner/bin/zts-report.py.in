@@ -301,12 +301,19 @@ elif sys.platform.startswith('linux'):
             ['SKIP', cfr_reason],
         'block_cloning/block_cloning_copyfilerange_fallback':
             ['SKIP', cfr_reason],
+        'block_cloning/block_cloning_replay':
+            ['SKIP', cfr_reason],
+        'block_cloning/block_cloning_replay_encrypted':
+            ['SKIP', cfr_reason],
+        'block_cloning/block_cloning_lwb_buffer_overflow':
+            ['SKIP', cfr_reason],
         'block_cloning/block_cloning_copyfilerange_cross_dataset':
             ['SKIP', cfr_cross_reason],
         'block_cloning/block_cloning_copyfilerange_fallback_same_txg':
             ['SKIP', cfr_cross_reason],
+        'block_cloning/block_cloning_cross_enc_dataset':
+            ['SKIP', cfr_cross_reason],
     })
-
 
 # Not all Github actions runners have scsi_debug module, so we may skip
 #   some tests which use it.

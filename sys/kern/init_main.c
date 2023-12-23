@@ -39,8 +39,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
  */
 
 #include <sys/cdefs.h>
@@ -562,7 +560,7 @@ proc0_init(void *dummy __unused)
 	curthread->td_ucred = NULL;
 	newcred->cr_prison = &prison0;
 	newcred->cr_users++; /* avoid assertion failure */
-	proc_set_cred_init(p, newcred);
+	p->p_ucred = crcowget(newcred);
 	newcred->cr_users--;
 	crfree(newcred);
 #ifdef AUDIT

@@ -27,6 +27,7 @@
 #define _MLX5_FS_
 
 #include <linux/list.h>
+#include <linux/bitops.h>
 
 #include <dev/mlx5/mlx5_ifc.h>
 #include <dev/mlx5/device.h>
@@ -43,12 +44,20 @@ enum {
 	MLX5_FS_SNIFFER_FLOW_TAG  = 0xFFFFFD,
 };
 
+enum mlx5_rule_fwd_action {
+	MLX5_FLOW_RULE_FWD_ACTION_ALLOW = 0x1,
+	MLX5_FLOW_RULE_FWD_ACTION_DROP = 0x2,
+	MLX5_FLOW_RULE_FWD_ACTION_DEST = 0x4,
+};
+
 enum {
 	MLX5_FS_FLOW_TAG_MASK = 0xFFFFFF,
 };
 
 #define FS_MAX_TYPES		10
 #define FS_MAX_ENTRIES		32000U
+
+#define	FS_REFORMAT_KEYWORD "_reformat"
 
 enum mlx5_flow_namespace_type {
 	MLX5_FLOW_NAMESPACE_BYPASS,
@@ -80,6 +89,26 @@ struct mlx5_flow_destination {
 		struct mlx5_flow_table	*ft;
 		u32			vport_num;
 	};
+};
+
+enum mlx5_flow_act_actions {
+	MLX5_FLOW_ACT_ACTIONS_FLOW_TAG = 1 << 0,
+	MLX5_FLOW_ACT_ACTIONS_MODIFY_HDR = 1 << 1,
+	MLX5_FLOW_ACT_ACTIONS_PACKET_REFORMAT = 1 << 2,
+	MLX5_FLOW_ACT_ACTIONS_COUNT = 1 << 3,
+};
+
+enum MLX5_FLOW_ACT_FLAGS {
+	MLX5_FLOW_ACT_NO_APPEND = 1 << 0,
+};
+
+struct mlx5_flow_act {
+	u32 actions; /* See enum mlx5_flow_act_actions */
+	u32 flags;
+	u32 flow_tag;
+	struct mlx5_modify_hdr *modify_hdr;
+	struct mlx5_pkt_reformat *pkt_reformat;
+	struct mlx5_fc *counter;
 };
 
 #define FT_NAME_STR_SZ 20
@@ -119,7 +148,8 @@ mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 				    int prio,
 				    const char *name,
 				    int num_flow_table_entries,
-				    int max_num_groups);
+				    int max_num_groups,
+				    int num_reserved_entries);
 
 struct mlx5_flow_table *
 mlx5_create_vport_flow_table(struct mlx5_flow_namespace *ns,
@@ -153,8 +183,8 @@ mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 		   u8 match_criteria_enable,
 		   u32 *match_criteria,
 		   u32 *match_value,
-		   u32 action,
-		   u32 flow_tag,
+		   u32 sw_action,
+		   struct mlx5_flow_act *flow_act,
 		   struct mlx5_flow_destination *dest);
 void mlx5_del_flow_rule(struct mlx5_flow_rule **);
 
@@ -227,5 +257,39 @@ bool fs_match_exact_mask(
 		void *mask1,
 		void *mask2);
 /**********end API for sniffer**********/
+struct mlx5_modify_hdr *mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
+						 enum mlx5_flow_namespace_type ns_type,
+						 u8 num_actions,
+						 void *modify_actions);
+void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev,
+				struct mlx5_modify_hdr *modify_hdr);
 
+struct mlx5_pkt_reformat_params {
+        int type;
+        u8 param_0;
+        u8 param_1;
+        size_t size;
+        void *data;
+};
+
+struct mlx5_pkt_reformat *mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,
+						     struct mlx5_pkt_reformat_params *params,
+						     enum mlx5_flow_namespace_type ns_type);
+void mlx5_packet_reformat_dealloc(struct mlx5_core_dev *dev,
+					  struct mlx5_pkt_reformat *pkt_reformat);
+/********** Flow counters API **********/
+struct mlx5_fc;
+struct mlx5_fc *mlx5_fc_create(struct mlx5_core_dev *dev, bool aging);
+
+/* As mlx5_fc_create() but doesn't queue stats refresh thread. */
+struct mlx5_fc *mlx5_fc_create_ex(struct mlx5_core_dev *dev, bool aging);
+
+void mlx5_fc_destroy(struct mlx5_core_dev *dev, struct mlx5_fc *counter);
+u64 mlx5_fc_query_lastuse(struct mlx5_fc *counter);
+void mlx5_fc_query_cached(struct mlx5_fc *counter,
+                          u64 *bytes, u64 *packets, u64 *lastuse);
+int mlx5_fc_query(struct mlx5_core_dev *dev, struct mlx5_fc *counter,
+                  u64 *packets, u64 *bytes);
+u32 mlx5_fc_id(struct mlx5_fc *counter);
+/******* End of Flow counters API ******/
 #endif

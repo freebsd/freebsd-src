@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)usleep.c	8.1 (Berkeley) 6/4/93");
 #include "namespace.h"
 #include <time.h>
 #include <unistd.h>

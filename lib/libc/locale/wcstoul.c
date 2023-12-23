@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>

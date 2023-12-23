@@ -1,4 +1,3 @@
-#include <sys/cdefs.h>
 /*
  * Tell <ctype.h> to generate extern versions of all its inline
  * functions.  The extern versions get called if the system doesn't

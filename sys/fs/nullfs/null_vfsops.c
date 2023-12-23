@@ -30,10 +30,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
- *
- * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
  */
 
 /*

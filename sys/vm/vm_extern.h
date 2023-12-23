@@ -27,8 +27,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
  */
 
 #ifndef _VM_EXTERN_H_
@@ -49,6 +47,7 @@ struct domainset;
 
 /* These operate on kernel virtual addresses only. */
 vm_offset_t kva_alloc(vm_size_t);
+vm_offset_t kva_alloc_aligned(vm_size_t, vm_size_t);
 void kva_free(vm_offset_t, vm_size_t);
 
 /* These operate on pageable virtual addresses. */

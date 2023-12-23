@@ -90,7 +90,12 @@ public:
 
   /// Returns the name of the function decl this code
   /// was generated for.
-  const std::string getName() const { return F->getNameInfo().getAsString(); }
+  const std::string getName() const {
+    if (!F)
+      return "<<expr>>";
+
+    return F->getQualifiedNameAsString();
+  }
 
   /// Returns the location.
   SourceLocation getLoc() const { return Loc; }
@@ -129,33 +134,50 @@ public:
 
   /// Checks if the function is a constructor.
   bool isConstructor() const { return isa<CXXConstructorDecl>(F); }
+  /// Checks if the function is a destructor.
+  bool isDestructor() const { return isa<CXXDestructorDecl>(F); }
+
+  /// Returns the parent record decl, if any.
+  const CXXRecordDecl *getParentDecl() const {
+    if (const auto *MD = dyn_cast<CXXMethodDecl>(F))
+      return MD->getParent();
+    return nullptr;
+  }
 
   /// Checks if the function is fully done compiling.
   bool isFullyCompiled() const { return IsFullyCompiled; }
 
   bool hasThisPointer() const { return HasThisPointer; }
 
-  // Checks if the funtion already has a body attached.
+  /// Checks if the function already has a body attached.
   bool hasBody() const { return HasBody; }
 
+  unsigned getBuiltinID() const { return F->getBuiltinID(); }
+
   unsigned getNumParams() const { return ParamTypes.size(); }
+
+  unsigned getParamOffset(unsigned ParamIndex) const {
+    return ParamOffsets[ParamIndex];
+  }
 
 private:
   /// Construct a function representing an actual function.
   Function(Program &P, const FunctionDecl *F, unsigned ArgSize,
-           llvm::SmallVector<PrimType, 8> &&ParamTypes,
+           llvm::SmallVectorImpl<PrimType> &&ParamTypes,
            llvm::DenseMap<unsigned, ParamDescriptor> &&Params,
-           bool HasThisPointer, bool HasRVO);
+           llvm::SmallVectorImpl<unsigned> &&ParamOffsets, bool HasThisPointer,
+           bool HasRVO);
 
   /// Sets the code of a function.
-  void setCode(unsigned NewFrameSize, std::vector<char> &&NewCode, SourceMap &&NewSrcMap,
-               llvm::SmallVector<Scope, 2> &&NewScopes) {
+  void setCode(unsigned NewFrameSize, std::vector<std::byte> &&NewCode,
+               SourceMap &&NewSrcMap, llvm::SmallVector<Scope, 2> &&NewScopes,
+               bool NewHasBody) {
     FrameSize = NewFrameSize;
     Code = std::move(NewCode);
     SrcMap = std::move(NewSrcMap);
     Scopes = std::move(NewScopes);
     IsValid = true;
-    HasBody = true;
+    HasBody = NewHasBody;
   }
 
   void setIsFullyCompiled(bool FC) { IsFullyCompiled = FC; }
@@ -175,7 +197,7 @@ private:
   /// Size of the argument stack.
   unsigned ArgSize;
   /// Program code.
-  std::vector<char> Code;
+  std::vector<std::byte> Code;
   /// Opcode-to-expression mapping.
   SourceMap SrcMap;
   /// List of block descriptors.
@@ -184,6 +206,8 @@ private:
   llvm::SmallVector<PrimType, 8> ParamTypes;
   /// Map from byte offset to parameter descriptor.
   llvm::DenseMap<unsigned, ParamDescriptor> Params;
+  /// List of parameter offsets.
+  llvm::SmallVector<unsigned, 8> ParamOffsets;
   /// Flag to indicate if the function is valid.
   bool IsValid = false;
   /// Flag to indicate if the function is done being

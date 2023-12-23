@@ -553,7 +553,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	vap->iv_htextcaps = ic->ic_htextcaps;
 
 	/* 11ac capabilities - XXX methodize */
-	vap->iv_vhtcaps = ic->ic_vhtcaps;
+	vap->iv_vht_cap.vht_cap_info = ic->ic_vht_cap.vht_cap_info;
 	vap->iv_vhtextcaps = ic->ic_vhtextcaps;
 
 	vap->iv_opmode = opmode;
@@ -939,14 +939,14 @@ ieee80211_syncflag_vht_locked(struct ieee80211com *ic, int flag)
 
 	bit = 0;
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
-		if (vap->iv_flags_vht & flag) {
+		if (vap->iv_vht_flags & flag) {
 			bit = 1;
 			break;
 		}
 	if (bit)
-		ic->ic_flags_vht |= flag;
+		ic->ic_vht_flags |= flag;
 	else
-		ic->ic_flags_vht &= ~flag;
+		ic->ic_vht_flags &= ~flag;
 }
 
 void
@@ -957,9 +957,9 @@ ieee80211_syncflag_vht(struct ieee80211vap *vap, int flag)
 	IEEE80211_LOCK(ic);
 	if (flag < 0) {
 		flag = -flag;
-		vap->iv_flags_vht &= ~flag;
+		vap->iv_vht_flags &= ~flag;
 	} else
-		vap->iv_flags_vht |= flag;
+		vap->iv_vht_flags |= flag;
 	ieee80211_syncflag_vht_locked(ic, flag);
 	IEEE80211_UNLOCK(ic);
 }

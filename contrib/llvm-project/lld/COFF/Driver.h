@@ -84,6 +84,8 @@ public:
   // config->machine has been set.
   void addWinSysRootLibSearchPaths();
 
+  void addClangLibSearchPaths(const std::string &argv0);
+
   // Used by the resolver to parse .drectve section contents.
   void parseDirectives(InputFile *file);
 
@@ -101,11 +103,11 @@ public:
 
 private:
   // Searches a file from search paths.
-  std::optional<StringRef> findFile(StringRef filename);
-  std::optional<StringRef> findLib(StringRef filename);
-  StringRef doFindFile(StringRef filename);
-  StringRef doFindLib(StringRef filename);
-  StringRef doFindLibMinGW(StringRef filename);
+  std::optional<StringRef> findFileIfNew(StringRef filename);
+  std::optional<StringRef> findLibIfNew(StringRef filename);
+  StringRef findFile(StringRef filename);
+  StringRef findLib(StringRef filename);
+  StringRef findLibMinGW(StringRef filename);
 
   bool findUnderscoreMangle(StringRef sym);
 

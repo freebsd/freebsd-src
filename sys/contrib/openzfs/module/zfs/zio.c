@@ -158,23 +158,22 @@ zio_init(void)
 	zio_link_cache = kmem_cache_create("zio_link_cache",
 	    sizeof (zio_link_t), 0, NULL, NULL, NULL, NULL, NULL, 0);
 
-	/*
-	 * For small buffers, we want a cache for each multiple of
-	 * SPA_MINBLOCKSIZE.  For larger buffers, we want a cache
-	 * for each quarter-power of 2.
-	 */
 	for (c = 0; c < SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT; c++) {
 		size_t size = (c + 1) << SPA_MINBLOCKSHIFT;
+		size_t align, cflags, data_cflags;
+		char name[32];
+
+		/*
+		 * Create cache for each half-power of 2 size, starting from
+		 * SPA_MINBLOCKSIZE.  It should give us memory space efficiency
+		 * of ~7/8, sufficient for transient allocations mostly using
+		 * these caches.
+		 */
 		size_t p2 = size;
-		size_t align = 0;
-		size_t data_cflags, cflags;
-
-		data_cflags = KMC_NODEBUG;
-		cflags = (zio_exclude_metadata || size > zio_buf_debug_limit) ?
-		    KMC_NODEBUG : 0;
-
 		while (!ISP2(p2))
 			p2 &= p2 - 1;
+		if (!IS_P2ALIGNED(size, p2 / 2))
+			continue;
 
 #ifndef _KERNEL
 		/*
@@ -185,47 +184,37 @@ zio_init(void)
 		 */
 		if (arc_watch && !IS_P2ALIGNED(size, PAGESIZE))
 			continue;
-		/*
-		 * Here's the problem - on 4K native devices in userland on
-		 * Linux using O_DIRECT, buffers must be 4K aligned or I/O
-		 * will fail with EINVAL, causing zdb (and others) to coredump.
-		 * Since userland probably doesn't need optimized buffer caches,
-		 * we just force 4K alignment on everything.
-		 */
-		align = 8 * SPA_MINBLOCKSIZE;
-#else
-		if (size < PAGESIZE) {
-			align = SPA_MINBLOCKSIZE;
-		} else if (IS_P2ALIGNED(size, p2 >> 2)) {
-			align = PAGESIZE;
-		}
 #endif
 
-		if (align != 0) {
-			char name[36];
-			if (cflags == data_cflags) {
-				/*
-				 * Resulting kmem caches would be identical.
-				 * Save memory by creating only one.
-				 */
-				(void) snprintf(name, sizeof (name),
-				    "zio_buf_comb_%lu", (ulong_t)size);
-				zio_buf_cache[c] = kmem_cache_create(name,
-				    size, align, NULL, NULL, NULL, NULL, NULL,
-				    cflags);
-				zio_data_buf_cache[c] = zio_buf_cache[c];
-				continue;
-			}
-			(void) snprintf(name, sizeof (name), "zio_buf_%lu",
-			    (ulong_t)size);
-			zio_buf_cache[c] = kmem_cache_create(name, size,
-			    align, NULL, NULL, NULL, NULL, NULL, cflags);
+		if (IS_P2ALIGNED(size, PAGESIZE))
+			align = PAGESIZE;
+		else
+			align = 1 << (highbit64(size ^ (size - 1)) - 1);
 
-			(void) snprintf(name, sizeof (name), "zio_data_buf_%lu",
-			    (ulong_t)size);
-			zio_data_buf_cache[c] = kmem_cache_create(name, size,
-			    align, NULL, NULL, NULL, NULL, NULL, data_cflags);
+		cflags = (zio_exclude_metadata || size > zio_buf_debug_limit) ?
+		    KMC_NODEBUG : 0;
+		data_cflags = KMC_NODEBUG;
+		if (cflags == data_cflags) {
+			/*
+			 * Resulting kmem caches would be identical.
+			 * Save memory by creating only one.
+			 */
+			(void) snprintf(name, sizeof (name),
+			    "zio_buf_comb_%lu", (ulong_t)size);
+			zio_buf_cache[c] = kmem_cache_create(name, size, align,
+			    NULL, NULL, NULL, NULL, NULL, cflags);
+			zio_data_buf_cache[c] = zio_buf_cache[c];
+			continue;
 		}
+		(void) snprintf(name, sizeof (name), "zio_buf_%lu",
+		    (ulong_t)size);
+		zio_buf_cache[c] = kmem_cache_create(name, size, align,
+		    NULL, NULL, NULL, NULL, NULL, cflags);
+
+		(void) snprintf(name, sizeof (name), "zio_data_buf_%lu",
+		    (ulong_t)size);
+		zio_data_buf_cache[c] = kmem_cache_create(name, size, align,
+		    NULL, NULL, NULL, NULL, NULL, data_cflags);
 	}
 
 	while (--c != 0) {
@@ -306,6 +295,53 @@ zio_fini(void)
  * ==========================================================================
  */
 
+#ifdef ZFS_DEBUG
+static const ulong_t zio_buf_canary = (ulong_t)0xdeadc0dedead210b;
+#endif
+
+/*
+ * Use empty space after the buffer to detect overflows.
+ *
+ * Since zio_init() creates kmem caches only for certain set of buffer sizes,
+ * allocations of different sizes may have some unused space after the data.
+ * Filling part of that space with a known pattern on allocation and checking
+ * it on free should allow us to detect some buffer overflows.
+ */
+static void
+zio_buf_put_canary(ulong_t *p, size_t size, kmem_cache_t **cache, size_t c)
+{
+#ifdef ZFS_DEBUG
+	size_t off = P2ROUNDUP(size, sizeof (ulong_t));
+	ulong_t *canary = p + off / sizeof (ulong_t);
+	size_t asize = (c + 1) << SPA_MINBLOCKSHIFT;
+	if (c + 1 < SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT &&
+	    cache[c] == cache[c + 1])
+		asize = (c + 2) << SPA_MINBLOCKSHIFT;
+	for (; off < asize; canary++, off += sizeof (ulong_t))
+		*canary = zio_buf_canary;
+#endif
+}
+
+static void
+zio_buf_check_canary(ulong_t *p, size_t size, kmem_cache_t **cache, size_t c)
+{
+#ifdef ZFS_DEBUG
+	size_t off = P2ROUNDUP(size, sizeof (ulong_t));
+	ulong_t *canary = p + off / sizeof (ulong_t);
+	size_t asize = (c + 1) << SPA_MINBLOCKSHIFT;
+	if (c + 1 < SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT &&
+	    cache[c] == cache[c + 1])
+		asize = (c + 2) << SPA_MINBLOCKSHIFT;
+	for (; off < asize; canary++, off += sizeof (ulong_t)) {
+		if (unlikely(*canary != zio_buf_canary)) {
+			PANIC("ZIO buffer overflow %p (%zu) + %zu %#lx != %#lx",
+			    p, size, (canary - p) * sizeof (ulong_t),
+			    *canary, zio_buf_canary);
+		}
+	}
+#endif
+}
+
 /*
  * Use zio_buf_alloc to allocate ZFS metadata.  This data will appear in a
  * crashdump if the kernel panics, so use it judiciously.  Obviously, it's
@@ -322,7 +358,9 @@ zio_buf_alloc(size_t size)
 	atomic_add_64(&zio_buf_cache_allocs[c], 1);
 #endif
 
-	return (kmem_cache_alloc(zio_buf_cache[c], KM_PUSHPAGE));
+	void *p = kmem_cache_alloc(zio_buf_cache[c], KM_PUSHPAGE);
+	zio_buf_put_canary(p, size, zio_buf_cache, c);
+	return (p);
 }
 
 /*
@@ -338,7 +376,9 @@ zio_data_buf_alloc(size_t size)
 
 	VERIFY3U(c, <, SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT);
 
-	return (kmem_cache_alloc(zio_data_buf_cache[c], KM_PUSHPAGE));
+	void *p = kmem_cache_alloc(zio_data_buf_cache[c], KM_PUSHPAGE);
+	zio_buf_put_canary(p, size, zio_data_buf_cache, c);
+	return (p);
 }
 
 void
@@ -351,6 +391,7 @@ zio_buf_free(void *buf, size_t size)
 	atomic_add_64(&zio_buf_cache_frees[c], 1);
 #endif
 
+	zio_buf_check_canary(buf, size, zio_buf_cache, c);
 	kmem_cache_free(zio_buf_cache[c], buf);
 }
 
@@ -361,6 +402,7 @@ zio_data_buf_free(void *buf, size_t size)
 
 	VERIFY3U(c, <, SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT);
 
+	zio_buf_check_canary(buf, size, zio_data_buf_cache, c);
 	kmem_cache_free(zio_data_buf_cache[c], buf);
 }
 
@@ -910,6 +952,7 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 	zio->io_orig_stage = zio->io_stage = stage;
 	zio->io_orig_pipeline = zio->io_pipeline = pipeline;
 	zio->io_pipeline_trace = ZIO_STAGE_OPEN;
+	zio->io_allocator = ZIO_ALLOCATOR_NONE;
 
 	zio->io_state[ZIO_WAIT_READY] = (stage >= ZIO_STAGE_READY) ||
 	    (pipeline & ZIO_STAGE_READY) == 0;
@@ -1409,23 +1452,10 @@ zio_t *
 zio_ioctl(zio_t *pio, spa_t *spa, vdev_t *vd, int cmd,
     zio_done_func_t *done, void *private, zio_flag_t flags)
 {
-	zio_t *zio;
-	int c;
-
-	if (vd->vdev_children == 0) {
-		zio = zio_create(pio, spa, 0, NULL, NULL, 0, 0, done, private,
-		    ZIO_TYPE_IOCTL, ZIO_PRIORITY_NOW, flags, vd, 0, NULL,
-		    ZIO_STAGE_OPEN, ZIO_IOCTL_PIPELINE);
-
-		zio->io_cmd = cmd;
-	} else {
-		zio = zio_null(pio, spa, NULL, NULL, NULL, flags);
-
-		for (c = 0; c < vd->vdev_children; c++)
-			zio_nowait(zio_ioctl(zio, spa, vd->vdev_child[c], cmd,
-			    done, private, flags));
-	}
-
+	zio_t *zio = zio_create(pio, spa, 0, NULL, NULL, 0, 0, done, private,
+	    ZIO_TYPE_IOCTL, ZIO_PRIORITY_NOW, flags, vd, 0, NULL,
+	    ZIO_STAGE_OPEN, ZIO_IOCTL_PIPELINE);
+	zio->io_cmd = cmd;
 	return (zio);
 }
 
@@ -1596,11 +1626,18 @@ zio_vdev_delegated_io(vdev_t *vd, uint64_t offset, abd_t *data, uint64_t size,
 }
 
 void
-zio_flush(zio_t *zio, vdev_t *vd)
+zio_flush(zio_t *pio, vdev_t *vd)
 {
-	zio_nowait(zio_ioctl(zio, zio->io_spa, vd, DKIOCFLUSHWRITECACHE,
-	    NULL, NULL,
-	    ZIO_FLAG_CANFAIL | ZIO_FLAG_DONT_PROPAGATE | ZIO_FLAG_DONT_RETRY));
+	if (vd->vdev_nowritecache)
+		return;
+	if (vd->vdev_children == 0) {
+		zio_nowait(zio_ioctl(pio, vd->vdev_spa, vd,
+		    DKIOCFLUSHWRITECACHE, NULL, NULL, ZIO_FLAG_CANFAIL |
+		    ZIO_FLAG_DONT_PROPAGATE | ZIO_FLAG_DONT_RETRY));
+	} else {
+		for (uint64_t c = 0; c < vd->vdev_children; c++)
+			zio_flush(pio, vd->vdev_child[c]);
+	}
 }
 
 void
@@ -2018,7 +2055,7 @@ zio_taskq_dispatch(zio_t *zio, zio_taskq_type_t q, boolean_t cutinline)
 	 */
 	ASSERT(taskq_empty_ent(&zio->io_tqent));
 	spa_taskq_dispatch_ent(spa, t, q, zio_execute, zio, flags,
-	    &zio->io_tqent);
+	    &zio->io_tqent, zio);
 }
 
 static boolean_t
@@ -2043,8 +2080,8 @@ zio_taskq_member(zio_t *zio, zio_taskq_type_t q)
 static zio_t *
 zio_issue_async(zio_t *zio)
 {
+	ASSERT((zio->io_type != ZIO_TYPE_WRITE) || ZIO_HAS_ALLOCATOR(zio));
 	zio_taskq_dispatch(zio, ZIO_TASKQ_ISSUE, B_FALSE);
-
 	return (NULL);
 }
 
@@ -2358,6 +2395,9 @@ zio_wait(zio_t *zio)
 	ASSERT0(zio->io_queued_timestamp);
 	zio->io_queued_timestamp = gethrtime();
 
+	if (zio->io_type == ZIO_TYPE_WRITE) {
+		spa_select_allocator(zio);
+	}
 	__zio_execute(zio);
 
 	mutex_enter(&zio->io_lock);
@@ -2410,6 +2450,9 @@ zio_nowait(zio_t *zio)
 
 	ASSERT0(zio->io_queued_timestamp);
 	zio->io_queued_timestamp = gethrtime();
+	if (zio->io_type == ZIO_TYPE_WRITE) {
+		spa_select_allocator(zio);
+	}
 	__zio_execute(zio);
 }
 
@@ -2875,6 +2918,13 @@ zio_gang_issue(zio_t *zio)
 }
 
 static void
+zio_gang_inherit_allocator(zio_t *pio, zio_t *cio)
+{
+	cio->io_allocator = pio->io_allocator;
+	cio->io_wr_iss_tq = pio->io_wr_iss_tq;
+}
+
+static void
 zio_write_gang_member_ready(zio_t *zio)
 {
 	zio_t *pio = zio_unique_parent(zio);
@@ -2945,6 +2995,7 @@ zio_write_gang_block(zio_t *pio, metaslab_class_t *mc)
 		gbh_copies = MIN(2, spa_max_replication(spa));
 	}
 
+	ASSERT(ZIO_HAS_ALLOCATOR(pio));
 	int flags = METASLAB_HINTBP_FAVOR | METASLAB_GANG_HEADER;
 	if (pio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
 		ASSERT(pio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
@@ -3008,6 +3059,8 @@ zio_write_gang_block(zio_t *pio, metaslab_class_t *mc)
 	    zio_write_gang_done, NULL, pio->io_priority,
 	    ZIO_GANG_CHILD_FLAGS(pio), &pio->io_bookmark);
 
+	zio_gang_inherit_allocator(pio, zio);
+
 	/*
 	 * Create and nowait the gang children.
 	 */
@@ -3037,6 +3090,8 @@ zio_write_gang_block(zio_t *pio, metaslab_class_t *mc)
 		    zio_write_gang_member_ready, NULL,
 		    zio_write_gang_done, &gn->gn_child[g], pio->io_priority,
 		    ZIO_GANG_CHILD_FLAGS(pio), &pio->io_bookmark);
+
+		zio_gang_inherit_allocator(zio, cio);
 
 		if (pio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
 			ASSERT(pio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
@@ -3550,6 +3605,7 @@ zio_io_to_allocate(spa_t *spa, int allocator)
 		return (NULL);
 
 	ASSERT(IO_IS_ALLOCATING(zio));
+	ASSERT(ZIO_HAS_ALLOCATOR(zio));
 
 	/*
 	 * Try to place a reservation for this zio. If we're unable to
@@ -3586,21 +3642,12 @@ zio_dva_throttle(zio_t *zio)
 	}
 
 	ASSERT(zio->io_type == ZIO_TYPE_WRITE);
+	ASSERT(ZIO_HAS_ALLOCATOR(zio));
 	ASSERT(zio->io_child_type > ZIO_CHILD_GANG);
 	ASSERT3U(zio->io_queued_timestamp, >, 0);
 	ASSERT(zio->io_stage == ZIO_STAGE_DVA_THROTTLE);
 
-	zbookmark_phys_t *bm = &zio->io_bookmark;
-	/*
-	 * We want to try to use as many allocators as possible to help improve
-	 * performance, but we also want logically adjacent IOs to be physically
-	 * adjacent to improve sequential read performance. We chunk each object
-	 * into 2^20 block regions, and then hash based on the objset, object,
-	 * level, and region to accomplish both of these goals.
-	 */
-	int allocator = (uint_t)cityhash4(bm->zb_objset, bm->zb_object,
-	    bm->zb_level, bm->zb_blkid >> 20) % spa->spa_alloc_count;
-	zio->io_allocator = allocator;
+	int allocator = zio->io_allocator;
 	zio->io_metaslab_class = mc;
 	mutex_enter(&spa->spa_allocs[allocator].spaa_lock);
 	avl_add(&spa->spa_allocs[allocator].spaa_tree, zio);
@@ -3674,6 +3721,7 @@ zio_dva_allocate(zio_t *zio)
 	 * sync write performance.  If a log allocation fails, we will fall
 	 * back to spa_sync() which is abysmal for performance.
 	 */
+	ASSERT(ZIO_HAS_ALLOCATOR(zio));
 	error = metaslab_alloc(spa, mc, zio->io_size, bp,
 	    zio->io_prop.zp_copies, zio->io_txg, NULL, flags,
 	    &zio->io_alloc_list, zio, zio->io_allocator);
@@ -4526,6 +4574,7 @@ zio_ready(zio_t *zio)
 			ASSERT(IO_IS_ALLOCATING(zio));
 			ASSERT(zio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
 			ASSERT(zio->io_metaslab_class != NULL);
+			ASSERT(ZIO_HAS_ALLOCATOR(zio));
 
 			/*
 			 * We were unable to allocate anything, unreserve and
@@ -4612,6 +4661,7 @@ zio_dva_throttle_done(zio_t *zio)
 	}
 
 	ASSERT(IO_IS_ALLOCATING(pio));
+	ASSERT(ZIO_HAS_ALLOCATOR(pio));
 	ASSERT3P(zio, !=, zio->io_logical);
 	ASSERT(zio->io_logical != NULL);
 	ASSERT(!(zio->io_flags & ZIO_FLAG_IO_REPAIR));
@@ -4674,6 +4724,7 @@ zio_done(zio_t *zio)
 		ASSERT(zio->io_type == ZIO_TYPE_WRITE);
 		ASSERT(zio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
 		ASSERT(zio->io_bp != NULL);
+		ASSERT(ZIO_HAS_ALLOCATOR(zio));
 
 		metaslab_group_alloc_verify(zio->io_spa, zio->io_bp, zio,
 		    zio->io_allocator);
@@ -4939,7 +4990,7 @@ zio_done(zio_t *zio)
 			ASSERT(taskq_empty_ent(&zio->io_tqent));
 			spa_taskq_dispatch_ent(zio->io_spa,
 			    ZIO_TYPE_CLAIM, ZIO_TASKQ_ISSUE,
-			    zio_reexecute, zio, 0, &zio->io_tqent);
+			    zio_reexecute, zio, 0, &zio->io_tqent, NULL);
 		}
 		return (NULL);
 	}

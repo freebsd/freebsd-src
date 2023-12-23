@@ -63,6 +63,7 @@
 #include <sys/vdev_rebuild.h>
 #include <sys/vdev_trim.h>
 #include <sys/vdev_disk.h>
+#include <sys/vdev_raidz.h>
 #include <sys/vdev_draid.h>
 #include <sys/metaslab.h>
 #include <sys/metaslab_impl.h>
@@ -99,6 +100,7 @@
 
 #include "zfs_prop.h"
 #include "zfs_comutil.h"
+#include <cityhash.h>
 
 /*
  * spa_thread() existed on Illumos as a parent thread for the various worker
@@ -128,16 +130,16 @@ int zfs_ccw_retry_interval = 300;
 
 typedef enum zti_modes {
 	ZTI_MODE_FIXED,			/* value is # of threads (min 1) */
-	ZTI_MODE_BATCH,			/* cpu-intensive; value is ignored */
 	ZTI_MODE_SCALE,			/* Taskqs scale with CPUs. */
+	ZTI_MODE_SYNC,			/* sync thread assigned */
 	ZTI_MODE_NULL,			/* don't create a taskq */
 	ZTI_NMODES
 } zti_modes_t;
 
 #define	ZTI_P(n, q)	{ ZTI_MODE_FIXED, (n), (q) }
 #define	ZTI_PCT(n)	{ ZTI_MODE_ONLINE_PERCENT, (n), 1 }
-#define	ZTI_BATCH	{ ZTI_MODE_BATCH, 0, 1 }
 #define	ZTI_SCALE	{ ZTI_MODE_SCALE, 0, 1 }
+#define	ZTI_SYNC	{ ZTI_MODE_SYNC, 0, 1 }
 #define	ZTI_NULL	{ ZTI_MODE_NULL, 0, 0 }
 
 #define	ZTI_N(n)	ZTI_P(n, 1)
@@ -158,14 +160,14 @@ static const char *const zio_taskq_types[ZIO_TASKQ_TYPES] = {
  * initializing a pool, we use this table to create an appropriately sized
  * taskq. Some operations are low volume and therefore have a small, static
  * number of threads assigned to their taskqs using the ZTI_N(#) or ZTI_ONE
- * macros. Other operations process a large amount of data; the ZTI_BATCH
+ * macros. Other operations process a large amount of data; the ZTI_SCALE
  * macro causes us to create a taskq oriented for throughput. Some operations
  * are so high frequency and short-lived that the taskq itself can become a
  * point of lock contention. The ZTI_P(#, #) macro indicates that we need an
  * additional degree of parallelism specified by the number of threads per-
  * taskq and the number of taskqs; when dispatching an event in this case, the
- * particular taskq is chosen at random. ZTI_SCALE is similar to ZTI_BATCH,
- * but with number of taskqs also scaling with number of CPUs.
+ * particular taskq is chosen at random. ZTI_SCALE uses a number of taskqs
+ * that scales with the number of CPUs.
  *
  * The different taskq priorities are to handle the different contexts (issue
  * and interrupt) and then to reserve threads for ZIO_PRIORITY_NOW I/Os that
@@ -175,7 +177,7 @@ static const zio_taskq_info_t zio_taskqs[ZIO_TYPES][ZIO_TASKQ_TYPES] = {
 	/* ISSUE	ISSUE_HIGH	INTR		INTR_HIGH */
 	{ ZTI_ONE,	ZTI_NULL,	ZTI_ONE,	ZTI_NULL }, /* NULL */
 	{ ZTI_N(8),	ZTI_NULL,	ZTI_SCALE,	ZTI_NULL }, /* READ */
-	{ ZTI_BATCH,	ZTI_N(5),	ZTI_SCALE,	ZTI_N(5) }, /* WRITE */
+	{ ZTI_SYNC,	ZTI_N(5),	ZTI_SCALE,	ZTI_N(5) }, /* WRITE */
 	{ ZTI_SCALE,	ZTI_NULL,	ZTI_ONE,	ZTI_NULL }, /* FREE */
 	{ ZTI_ONE,	ZTI_NULL,	ZTI_ONE,	ZTI_NULL }, /* CLAIM */
 	{ ZTI_ONE,	ZTI_NULL,	ZTI_ONE,	ZTI_NULL }, /* IOCTL */
@@ -205,6 +207,8 @@ static const uint_t	zio_taskq_basedc = 80;	  /* base duty cycle */
 #ifdef HAVE_SPA_THREAD
 static const boolean_t spa_create_process = B_TRUE; /* no process => no sysdc */
 #endif
+
+static uint_t	zio_taskq_wr_iss_ncpus = 0;
 
 /*
  * Report any spa_load_verify errors found, but do not fail spa_load.
@@ -1054,21 +1058,34 @@ spa_taskqs_init(spa_t *spa, zio_type_t t, zio_taskq_type_t q)
 	uint_t count = ztip->zti_count;
 	spa_taskqs_t *tqs = &spa->spa_zio_taskq[t][q];
 	uint_t cpus, flags = TASKQ_DYNAMIC;
-#ifdef HAVE_SYSDC
-	boolean_t batch = B_FALSE;
-#endif
 
 	switch (mode) {
 	case ZTI_MODE_FIXED:
 		ASSERT3U(value, >, 0);
 		break;
 
-	case ZTI_MODE_BATCH:
-#ifdef HAVE_SYSDC
-		batch = B_TRUE;
-#endif
+	case ZTI_MODE_SYNC:
+
+		/*
+		 * Create one wr_iss taskq for every 'zio_taskq_wr_iss_ncpus',
+		 * not to exceed the number of spa allocators.
+		 */
+		if (zio_taskq_wr_iss_ncpus == 0) {
+			count = MAX(boot_ncpus / spa->spa_alloc_count, 1);
+		} else {
+			count = MAX(1,
+			    boot_ncpus / MAX(1, zio_taskq_wr_iss_ncpus));
+		}
+		count = MAX(count, (zio_taskq_batch_pct + 99) / 100);
+		count = MIN(count, spa->spa_alloc_count);
+
+		/*
+		 * zio_taskq_batch_pct is unbounded and may exceed 100%, but no
+		 * single taskq may have more threads than 100% of online cpus.
+		 */
+		value = (zio_taskq_batch_pct + count / 2) / count;
+		value = MIN(value, 100);
 		flags |= TASKQ_THREADS_CPU_PCT;
-		value = MIN(zio_taskq_batch_pct, 100);
 		break;
 
 	case ZTI_MODE_SCALE:
@@ -1115,7 +1132,7 @@ spa_taskqs_init(spa_t *spa, zio_type_t t, zio_taskq_type_t q)
 
 	default:
 		panic("unrecognized mode for %s_%s taskq (%u:%u) in "
-		    "spa_activate()",
+		    "spa_taskqs_init()",
 		    zio_type_name[t], zio_taskq_types[q], mode, value);
 		break;
 	}
@@ -1137,9 +1154,6 @@ spa_taskqs_init(spa_t *spa, zio_type_t t, zio_taskq_type_t q)
 
 #ifdef HAVE_SYSDC
 		if (zio_taskq_sysdc && spa->spa_proc != &p0) {
-			if (batch)
-				flags |= TASKQ_DC_BATCH;
-
 			(void) zio_taskq_basedc;
 			tq = taskq_create_sysdc(name, value, 50, INT_MAX,
 			    spa->spa_proc, zio_taskq_basedc, flags);
@@ -1200,12 +1214,11 @@ spa_taskqs_fini(spa_t *spa, zio_type_t t, zio_taskq_type_t q)
 /*
  * Dispatch a task to the appropriate taskq for the ZFS I/O type and priority.
  * Note that a type may have multiple discrete taskqs to avoid lock contention
- * on the taskq itself. In that case we choose which taskq at random by using
- * the low bits of gethrtime().
+ * on the taskq itself.
  */
-void
-spa_taskq_dispatch_ent(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
-    task_func_t *func, void *arg, uint_t flags, taskq_ent_t *ent)
+static taskq_t *
+spa_taskq_dispatch_select(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
+    zio_t *zio)
 {
 	spa_taskqs_t *tqs = &spa->spa_zio_taskq[t][q];
 	taskq_t *tq;
@@ -1213,12 +1226,27 @@ spa_taskq_dispatch_ent(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
 	ASSERT3P(tqs->stqs_taskq, !=, NULL);
 	ASSERT3U(tqs->stqs_count, !=, 0);
 
+	if ((t == ZIO_TYPE_WRITE) && (q == ZIO_TASKQ_ISSUE) &&
+	    (zio != NULL) && (zio->io_wr_iss_tq != NULL)) {
+		/* dispatch to assigned write issue taskq */
+		tq = zio->io_wr_iss_tq;
+		return (tq);
+	}
+
 	if (tqs->stqs_count == 1) {
 		tq = tqs->stqs_taskq[0];
 	} else {
 		tq = tqs->stqs_taskq[((uint64_t)gethrtime()) % tqs->stqs_count];
 	}
+	return (tq);
+}
 
+void
+spa_taskq_dispatch_ent(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
+    task_func_t *func, void *arg, uint_t flags, taskq_ent_t *ent,
+    zio_t *zio)
+{
+	taskq_t *tq = spa_taskq_dispatch_select(spa, t, q, zio);
 	taskq_dispatch_ent(tq, func, arg, flags, ent);
 }
 
@@ -1229,20 +1257,8 @@ void
 spa_taskq_dispatch_sync(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
     task_func_t *func, void *arg, uint_t flags)
 {
-	spa_taskqs_t *tqs = &spa->spa_zio_taskq[t][q];
-	taskq_t *tq;
-	taskqid_t id;
-
-	ASSERT3P(tqs->stqs_taskq, !=, NULL);
-	ASSERT3U(tqs->stqs_count, !=, 0);
-
-	if (tqs->stqs_count == 1) {
-		tq = tqs->stqs_taskq[0];
-	} else {
-		tq = tqs->stqs_taskq[((uint64_t)gethrtime()) % tqs->stqs_count];
-	}
-
-	id = taskq_dispatch(tq, func, arg, flags);
+	taskq_t *tq = spa_taskq_dispatch_select(spa, t, q, NULL);
+	taskqid_t id = taskq_dispatch(tq, func, arg, flags);
 	if (id)
 		taskq_wait_id(tq, id);
 }
@@ -1694,6 +1710,10 @@ spa_destroy_aux_threads(spa_t *spa)
 		zthr_destroy(spa->spa_livelist_condense_zthr);
 		spa->spa_livelist_condense_zthr = NULL;
 	}
+	if (spa->spa_raidz_expand_zthr != NULL) {
+		zthr_destroy(spa->spa_raidz_expand_zthr);
+		spa->spa_raidz_expand_zthr = NULL;
+	}
 }
 
 /*
@@ -1845,6 +1865,8 @@ spa_unload(spa_t *spa)
 		spa_strfree(spa->spa_compatibility);
 		spa->spa_compatibility = NULL;
 	}
+
+	spa->spa_raidz_expand = NULL;
 
 	spa_config_exit(spa, SCL_ALL, spa);
 }
@@ -2984,6 +3006,7 @@ spa_spawn_aux_threads(spa_t *spa)
 
 	ASSERT(MUTEX_HELD(&spa_namespace_lock));
 
+	spa_start_raidz_expansion_thread(spa);
 	spa_start_indirect_condensing_thread(spa);
 	spa_start_livelist_destroy_thread(spa);
 	spa_start_livelist_condensing_thread(spa);
@@ -3086,6 +3109,7 @@ spa_load(spa_t *spa, spa_load_state_t state, spa_import_type_t type)
 	spa->spa_load_state = state;
 	(void) spa_import_progress_set_state(spa_guid(spa),
 	    spa_load_state(spa));
+	spa_import_progress_set_notes(spa, "spa_load()");
 
 	gethrestime(&spa->spa_loaded_ts);
 	error = spa_load_impl(spa, type, &ereport);
@@ -3314,7 +3338,7 @@ spa_activity_check(spa_t *spa, uberblock_t *ub, nvlist_t *config)
 	uint64_t mmp_config = ub->ub_mmp_config;
 	uint16_t mmp_seq = MMP_SEQ_VALID(ub) ? MMP_SEQ(ub) : 0;
 	uint64_t import_delay;
-	hrtime_t import_expire;
+	hrtime_t import_expire, now;
 	nvlist_t *mmp_label = NULL;
 	vdev_t *rvd = spa->spa_root_vdev;
 	kcondvar_t cv;
@@ -3352,7 +3376,17 @@ spa_activity_check(spa_t *spa, uberblock_t *ub, nvlist_t *config)
 
 	import_expire = gethrtime() + import_delay;
 
-	while (gethrtime() < import_expire) {
+	spa_import_progress_set_notes(spa, "Checking MMP activity, waiting "
+	    "%llu ms", (u_longlong_t)NSEC2MSEC(import_delay));
+
+	int interations = 0;
+	while ((now = gethrtime()) < import_expire) {
+		if (interations++ % 30 == 0) {
+			spa_import_progress_set_notes(spa, "Checking MMP "
+			    "activity, %llu ms remaining",
+			    (u_longlong_t)NSEC2MSEC(import_expire - now));
+		}
+
 		(void) spa_import_progress_set_mmp_check(spa_guid(spa),
 		    NSEC2SEC(import_expire - gethrtime()));
 
@@ -3738,6 +3772,12 @@ spa_ld_select_uberblock(spa_t *spa, spa_import_type_t type)
 	}
 	spa_load_note(spa, "using uberblock with txg=%llu",
 	    (u_longlong_t)ub->ub_txg);
+	if (ub->ub_raidz_reflow_info != 0) {
+		spa_load_note(spa, "uberblock raidz_reflow_info: "
+		    "state=%u offset=%llu",
+		    (int)RRSS_GET_STATE(ub),
+		    (u_longlong_t)RRSS_GET_OFFSET(ub));
+	}
 
 
 	/*
@@ -4966,6 +5006,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	/*
 	 * Retrieve the checkpoint txg if the pool has a checkpoint.
 	 */
+	spa_import_progress_set_notes(spa, "Loading checkpoint txg");
 	error = spa_ld_read_checkpoint_txg(spa);
 	if (error != 0)
 		return (error);
@@ -4978,6 +5019,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * initiated. Otherwise we could be reading from indirect vdevs before
 	 * we have loaded their mappings.
 	 */
+	spa_import_progress_set_notes(spa, "Loading indirect vdev metadata");
 	error = spa_ld_open_indirect_vdev_metadata(spa);
 	if (error != 0)
 		return (error);
@@ -4986,6 +5028,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * Retrieve the full list of active features from the MOS and check if
 	 * they are all supported.
 	 */
+	spa_import_progress_set_notes(spa, "Checking feature flags");
 	error = spa_ld_check_features(spa, &missing_feat_write);
 	if (error != 0)
 		return (error);
@@ -4994,6 +5037,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * Load several special directories from the MOS needed by the dsl_pool
 	 * layer.
 	 */
+	spa_import_progress_set_notes(spa, "Loading special MOS directories");
 	error = spa_ld_load_special_directories(spa);
 	if (error != 0)
 		return (error);
@@ -5001,6 +5045,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	/*
 	 * Retrieve pool properties from the MOS.
 	 */
+	spa_import_progress_set_notes(spa, "Loading properties");
 	error = spa_ld_get_props(spa);
 	if (error != 0)
 		return (error);
@@ -5009,6 +5054,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * Retrieve the list of auxiliary devices - cache devices and spares -
 	 * and open them.
 	 */
+	spa_import_progress_set_notes(spa, "Loading AUX vdevs");
 	error = spa_ld_open_aux_vdevs(spa, type);
 	if (error != 0)
 		return (error);
@@ -5017,14 +5063,17 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * Load the metadata for all vdevs. Also check if unopenable devices
 	 * should be autoreplaced.
 	 */
+	spa_import_progress_set_notes(spa, "Loading vdev metadata");
 	error = spa_ld_load_vdev_metadata(spa);
 	if (error != 0)
 		return (error);
 
+	spa_import_progress_set_notes(spa, "Loading dedup tables");
 	error = spa_ld_load_dedup_tables(spa);
 	if (error != 0)
 		return (error);
 
+	spa_import_progress_set_notes(spa, "Loading BRT");
 	error = spa_ld_load_brt(spa);
 	if (error != 0)
 		return (error);
@@ -5033,6 +5082,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * Verify the logs now to make sure we don't have any unexpected errors
 	 * when we claim log blocks later.
 	 */
+	spa_import_progress_set_notes(spa, "Verifying Log Devices");
 	error = spa_ld_verify_logs(spa, type, ereport);
 	if (error != 0)
 		return (error);
@@ -5054,6 +5104,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * state. When performing an extreme rewind, we verify the whole pool,
 	 * which can take a very long time.
 	 */
+	spa_import_progress_set_notes(spa, "Verifying pool data");
 	error = spa_ld_verify_pool_data(spa);
 	if (error != 0)
 		return (error);
@@ -5063,6 +5114,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * we write anything to the pool because we'd need to update the space
 	 * accounting using the deflated sizes.
 	 */
+	spa_import_progress_set_notes(spa, "Calculating deflated space");
 	spa_update_dspace(spa);
 
 	/*
@@ -5070,11 +5122,19 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	 * pool. If we are importing the pool in read-write mode, a few
 	 * additional steps must be performed to finish the import.
 	 */
+	spa_import_progress_set_notes(spa, "Starting import");
 	if (spa_writeable(spa) && (spa->spa_load_state == SPA_LOAD_RECOVER ||
 	    spa->spa_load_max_txg == UINT64_MAX)) {
 		uint64_t config_cache_txg = spa->spa_config_txg;
 
 		ASSERT(spa->spa_load_state != SPA_LOAD_TRYIMPORT);
+
+		/*
+		 * Before we do any zio_write's, complete the raidz expansion
+		 * scratch space copying, if necessary.
+		 */
+		if (RRSS_GET_STATE(&spa->spa_uberblock) == RRSS_SCRATCH_VALID)
+			vdev_raidz_reflow_copy_scratch(spa);
 
 		/*
 		 * In case of a checkpoint rewind, log the original txg
@@ -5086,6 +5146,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 			    (u_longlong_t)spa->spa_uberblock.ub_checkpoint_txg);
 		}
 
+		spa_import_progress_set_notes(spa, "Claiming ZIL blocks");
 		/*
 		 * Traverse the ZIL and claim all blocks.
 		 */
@@ -5105,6 +5166,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 		 * will have been set for us by ZIL traversal operations
 		 * performed above.
 		 */
+		spa_import_progress_set_notes(spa, "Syncing ZIL claims");
 		txg_wait_synced(spa->spa_dsl_pool, spa->spa_claim_max_txg);
 
 		/*
@@ -5112,6 +5174,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 		 * next sync, we would update the config stored in vdev labels
 		 * and the cachefile (by default /etc/zfs/zpool.cache).
 		 */
+		spa_import_progress_set_notes(spa, "Updating configs");
 		spa_ld_check_for_config_update(spa, config_cache_txg,
 		    update_config_cache);
 
@@ -5120,6 +5183,7 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 		 * Then check all DTLs to see if anything needs resilvering.
 		 * The resilver will be deferred if a rebuild was started.
 		 */
+		spa_import_progress_set_notes(spa, "Starting resilvers");
 		if (vdev_rebuild_active(spa->spa_root_vdev)) {
 			vdev_rebuild_restart(spa);
 		} else if (!dsl_scan_resilvering(spa->spa_dsl_pool) &&
@@ -5133,6 +5197,8 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 		 */
 		spa_history_log_version(spa, "open", NULL);
 
+		spa_import_progress_set_notes(spa,
+		    "Restarting device removals");
 		spa_restart_removal(spa);
 		spa_spawn_aux_threads(spa);
 
@@ -5145,19 +5211,26 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 		 * auxiliary threads above (from which the livelist
 		 * deletion zthr is part of).
 		 */
+		spa_import_progress_set_notes(spa,
+		    "Cleaning up inconsistent objsets");
 		(void) dmu_objset_find(spa_name(spa),
 		    dsl_destroy_inconsistent, NULL, DS_FIND_CHILDREN);
 
 		/*
 		 * Clean up any stale temporary dataset userrefs.
 		 */
+		spa_import_progress_set_notes(spa,
+		    "Cleaning up temporary userrefs");
 		dsl_pool_clean_tmp_userrefs(spa->spa_dsl_pool);
 
 		spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
+		spa_import_progress_set_notes(spa, "Restarting initialize");
 		vdev_initialize_restart(spa->spa_root_vdev);
+		spa_import_progress_set_notes(spa, "Restarting TRIM");
 		vdev_trim_restart(spa->spa_root_vdev);
 		vdev_autotrim_restart(spa);
 		spa_config_exit(spa, SCL_CONFIG, FTAG);
+		spa_import_progress_set_notes(spa, "Finished importing");
 	}
 
 	spa_import_progress_remove(spa_guid(spa));
@@ -6890,9 +6963,10 @@ spa_vdev_add(spa_t *spa, nvlist_t *nvroot)
 }
 
 /*
- * Attach a device to a mirror.  The arguments are the path to any device
- * in the mirror, and the nvroot for the new device.  If the path specifies
- * a device that is not mirrored, we automatically insert the mirror vdev.
+ * Attach a device to a vdev specified by its guid.  The vdev type can be
+ * a mirror, a raidz, or a leaf device that is also a top-level (e.g. a
+ * single device). When the vdev is a single device, a mirror vdev will be
+ * automatically inserted.
  *
  * If 'replacing' is specified, the new device is intended to replace the
  * existing device; in this case the two devices are made into their own
@@ -6915,7 +6989,7 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 	vdev_t *oldvd, *newvd, *newrootvd, *pvd, *tvd;
 	vdev_ops_t *pvops;
 	char *oldvdpath, *newvdpath;
-	int newvd_isspare;
+	int newvd_isspare = B_FALSE;
 	int error;
 
 	ASSERT(spa_writeable(spa));
@@ -6946,16 +7020,35 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 			    ZFS_ERR_REBUILD_IN_PROGRESS));
 	}
 
-	if (spa->spa_vdev_removal != NULL)
-		return (spa_vdev_exit(spa, NULL, txg, EBUSY));
+	if (spa->spa_vdev_removal != NULL) {
+		return (spa_vdev_exit(spa, NULL, txg,
+		    ZFS_ERR_DEVRM_IN_PROGRESS));
+	}
 
 	if (oldvd == NULL)
 		return (spa_vdev_exit(spa, NULL, txg, ENODEV));
 
-	if (!oldvd->vdev_ops->vdev_op_leaf)
-		return (spa_vdev_exit(spa, NULL, txg, ENOTSUP));
+	boolean_t raidz = oldvd->vdev_ops == &vdev_raidz_ops;
 
-	pvd = oldvd->vdev_parent;
+	if (raidz) {
+		if (!spa_feature_is_enabled(spa, SPA_FEATURE_RAIDZ_EXPANSION))
+			return (spa_vdev_exit(spa, NULL, txg, ENOTSUP));
+
+		/*
+		 * Can't expand a raidz while prior expand is in progress.
+		 */
+		if (spa->spa_raidz_expand != NULL) {
+			return (spa_vdev_exit(spa, NULL, txg,
+			    ZFS_ERR_RAIDZ_EXPAND_IN_PROGRESS));
+		}
+	} else if (!oldvd->vdev_ops->vdev_op_leaf) {
+		return (spa_vdev_exit(spa, NULL, txg, ENOTSUP));
+	}
+
+	if (raidz)
+		pvd = oldvd;
+	else
+		pvd = oldvd->vdev_parent;
 
 	if (spa_config_parse(spa, &newrootvd, nvroot, NULL, 0,
 	    VDEV_ALLOC_ATTACH) != 0)
@@ -7007,11 +7100,13 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 
 	if (!replacing) {
 		/*
-		 * For attach, the only allowable parent is a mirror or the root
-		 * vdev.
+		 * For attach, the only allowable parent is a mirror or
+		 * the root vdev. A raidz vdev can be attached to, but
+		 * you cannot attach to a raidz child.
 		 */
 		if (pvd->vdev_ops != &vdev_mirror_ops &&
-		    pvd->vdev_ops != &vdev_root_ops)
+		    pvd->vdev_ops != &vdev_root_ops &&
+		    !raidz)
 			return (spa_vdev_exit(spa, newrootvd, txg, ENOTSUP));
 
 		pvops = &vdev_mirror_ops;
@@ -7050,7 +7145,8 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 	/*
 	 * Make sure the new device is big enough.
 	 */
-	if (newvd->vdev_asize < vdev_get_min_asize(oldvd))
+	vdev_t *min_vdev = raidz ? oldvd->vdev_child[0] : oldvd;
+	if (newvd->vdev_asize < vdev_get_min_asize(min_vdev))
 		return (spa_vdev_exit(spa, newrootvd, txg, EOVERFLOW));
 
 	/*
@@ -7061,31 +7157,74 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 		return (spa_vdev_exit(spa, newrootvd, txg, ENOTSUP));
 
 	/*
+	 * RAIDZ-expansion-specific checks.
+	 */
+	if (raidz) {
+		if (vdev_raidz_attach_check(newvd) != 0)
+			return (spa_vdev_exit(spa, newrootvd, txg, ENOTSUP));
+
+		/*
+		 * Fail early if a child is not healthy or being replaced
+		 */
+		for (int i = 0; i < oldvd->vdev_children; i++) {
+			if (vdev_is_dead(oldvd->vdev_child[i]) ||
+			    !oldvd->vdev_child[i]->vdev_ops->vdev_op_leaf) {
+				return (spa_vdev_exit(spa, newrootvd, txg,
+				    ENXIO));
+			}
+			/* Also fail if reserved boot area is in-use */
+			if (vdev_check_boot_reserve(spa, oldvd->vdev_child[i])
+			    != 0) {
+				return (spa_vdev_exit(spa, newrootvd, txg,
+				    EADDRINUSE));
+			}
+		}
+	}
+
+	if (raidz) {
+		/*
+		 * Note: oldvdpath is freed by spa_strfree(),  but
+		 * kmem_asprintf() is freed by kmem_strfree(), so we have to
+		 * move it to a spa_strdup-ed string.
+		 */
+		char *tmp = kmem_asprintf("raidz%u-%u",
+		    (uint_t)vdev_get_nparity(oldvd), (uint_t)oldvd->vdev_id);
+		oldvdpath = spa_strdup(tmp);
+		kmem_strfree(tmp);
+	} else {
+		oldvdpath = spa_strdup(oldvd->vdev_path);
+	}
+	newvdpath = spa_strdup(newvd->vdev_path);
+
+	/*
 	 * If this is an in-place replacement, update oldvd's path and devid
 	 * to make it distinguishable from newvd, and unopenable from now on.
 	 */
-	if (strcmp(oldvd->vdev_path, newvd->vdev_path) == 0) {
+	if (strcmp(oldvdpath, newvdpath) == 0) {
 		spa_strfree(oldvd->vdev_path);
-		oldvd->vdev_path = kmem_alloc(strlen(newvd->vdev_path) + 5,
+		oldvd->vdev_path = kmem_alloc(strlen(newvdpath) + 5,
 		    KM_SLEEP);
-		(void) snprintf(oldvd->vdev_path, strlen(newvd->vdev_path) + 5,
-		    "%s/%s", newvd->vdev_path, "old");
+		(void) sprintf(oldvd->vdev_path, "%s/old",
+		    newvdpath);
 		if (oldvd->vdev_devid != NULL) {
 			spa_strfree(oldvd->vdev_devid);
 			oldvd->vdev_devid = NULL;
 		}
+		spa_strfree(oldvdpath);
+		oldvdpath = spa_strdup(oldvd->vdev_path);
 	}
 
 	/*
 	 * If the parent is not a mirror, or if we're replacing, insert the new
 	 * mirror/replacing/spare vdev above oldvd.
 	 */
-	if (pvd->vdev_ops != pvops)
+	if (!raidz && pvd->vdev_ops != pvops) {
 		pvd = vdev_add_parent(oldvd, pvops);
+		ASSERT(pvd->vdev_ops == pvops);
+		ASSERT(oldvd->vdev_parent == pvd);
+	}
 
 	ASSERT(pvd->vdev_top->vdev_parent == rvd);
-	ASSERT(pvd->vdev_ops == pvops);
-	ASSERT(oldvd->vdev_parent == pvd);
 
 	/*
 	 * Extract the new device from its root and add it to pvd.
@@ -7113,41 +7252,66 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 	 */
 	dtl_max_txg = txg + TXG_CONCURRENT_STATES;
 
-	vdev_dtl_dirty(newvd, DTL_MISSING,
-	    TXG_INITIAL, dtl_max_txg - TXG_INITIAL);
+	if (raidz) {
+		/*
+		 * Wait for the youngest allocations and frees to sync,
+		 * and then wait for the deferral of those frees to finish.
+		 */
+		spa_vdev_config_exit(spa, NULL,
+		    txg + TXG_CONCURRENT_STATES + TXG_DEFER_SIZE, 0, FTAG);
 
-	if (newvd->vdev_isspare) {
-		spa_spare_activate(newvd);
-		spa_event_notify(spa, newvd, NULL, ESC_ZFS_VDEV_SPARE);
-	}
+		vdev_initialize_stop_all(tvd, VDEV_INITIALIZE_ACTIVE);
+		vdev_trim_stop_all(tvd, VDEV_TRIM_ACTIVE);
+		vdev_autotrim_stop_wait(tvd);
 
-	oldvdpath = spa_strdup(oldvd->vdev_path);
-	newvdpath = spa_strdup(newvd->vdev_path);
-	newvd_isspare = newvd->vdev_isspare;
+		dtl_max_txg = spa_vdev_config_enter(spa);
 
-	/*
-	 * Mark newvd's DTL dirty in this txg.
-	 */
-	vdev_dirty(tvd, VDD_DTL, newvd, txg);
+		tvd->vdev_rz_expanding = B_TRUE;
 
-	/*
-	 * Schedule the resilver or rebuild to restart in the future. We do
-	 * this to ensure that dmu_sync-ed blocks have been stitched into the
-	 * respective datasets.
-	 */
-	if (rebuild) {
-		newvd->vdev_rebuild_txg = txg;
+		vdev_dirty_leaves(tvd, VDD_DTL, dtl_max_txg);
+		vdev_config_dirty(tvd);
 
-		vdev_rebuild(tvd);
+		dmu_tx_t *tx = dmu_tx_create_assigned(spa->spa_dsl_pool,
+		    dtl_max_txg);
+		dsl_sync_task_nowait(spa->spa_dsl_pool, vdev_raidz_attach_sync,
+		    newvd, tx);
+		dmu_tx_commit(tx);
 	} else {
-		newvd->vdev_resilver_txg = txg;
+		vdev_dtl_dirty(newvd, DTL_MISSING, TXG_INITIAL,
+		    dtl_max_txg - TXG_INITIAL);
 
-		if (dsl_scan_resilvering(spa_get_dsl(spa)) &&
-		    spa_feature_is_enabled(spa, SPA_FEATURE_RESILVER_DEFER)) {
-			vdev_defer_resilver(newvd);
+		if (newvd->vdev_isspare) {
+			spa_spare_activate(newvd);
+			spa_event_notify(spa, newvd, NULL, ESC_ZFS_VDEV_SPARE);
+		}
+
+		newvd_isspare = newvd->vdev_isspare;
+
+		/*
+		 * Mark newvd's DTL dirty in this txg.
+		 */
+		vdev_dirty(tvd, VDD_DTL, newvd, txg);
+
+		/*
+		 * Schedule the resilver or rebuild to restart in the future.
+		 * We do this to ensure that dmu_sync-ed blocks have been
+		 * stitched into the respective datasets.
+		 */
+		if (rebuild) {
+			newvd->vdev_rebuild_txg = txg;
+
+			vdev_rebuild(tvd);
 		} else {
-			dsl_scan_restart_resilver(spa->spa_dsl_pool,
-			    dtl_max_txg);
+			newvd->vdev_resilver_txg = txg;
+
+			if (dsl_scan_resilvering(spa_get_dsl(spa)) &&
+			    spa_feature_is_enabled(spa,
+			    SPA_FEATURE_RESILVER_DEFER)) {
+				vdev_defer_resilver(newvd);
+			} else {
+				dsl_scan_restart_resilver(spa->spa_dsl_pool,
+				    dtl_max_txg);
+			}
 		}
 	}
 
@@ -7472,7 +7636,7 @@ spa_vdev_initialize_impl(spa_t *spa, uint64_t guid, uint64_t cmd_type,
 	 */
 	if (cmd_type == POOL_INITIALIZE_START &&
 	    (vd->vdev_initialize_thread != NULL ||
-	    vd->vdev_top->vdev_removing)) {
+	    vd->vdev_top->vdev_removing || vd->vdev_top->vdev_rz_expanding)) {
 		mutex_exit(&vd->vdev_initialize_lock);
 		return (SET_ERROR(EBUSY));
 	} else if (cmd_type == POOL_INITIALIZE_CANCEL &&
@@ -7594,7 +7758,8 @@ spa_vdev_trim_impl(spa_t *spa, uint64_t guid, uint64_t cmd_type,
 	 * which has completed but the thread is not exited.
 	 */
 	if (cmd_type == POOL_TRIM_START &&
-	    (vd->vdev_trim_thread != NULL || vd->vdev_top->vdev_removing)) {
+	    (vd->vdev_trim_thread != NULL || vd->vdev_top->vdev_removing ||
+	    vd->vdev_top->vdev_rz_expanding)) {
 		mutex_exit(&vd->vdev_trim_lock);
 		return (SET_ERROR(EBUSY));
 	} else if (cmd_type == POOL_TRIM_CANCEL &&
@@ -8497,6 +8662,10 @@ spa_async_suspend(spa_t *spa)
 	if (condense_thread != NULL)
 		zthr_cancel(condense_thread);
 
+	zthr_t *raidz_expand_thread = spa->spa_raidz_expand_zthr;
+	if (raidz_expand_thread != NULL)
+		zthr_cancel(raidz_expand_thread);
+
 	zthr_t *discard_thread = spa->spa_checkpoint_discard_zthr;
 	if (discard_thread != NULL)
 		zthr_cancel(discard_thread);
@@ -8522,6 +8691,10 @@ spa_async_resume(spa_t *spa)
 	zthr_t *condense_thread = spa->spa_condense_zthr;
 	if (condense_thread != NULL)
 		zthr_resume(condense_thread);
+
+	zthr_t *raidz_expand_thread = spa->spa_raidz_expand_zthr;
+	if (raidz_expand_thread != NULL)
+		zthr_resume(raidz_expand_thread);
 
 	zthr_t *discard_thread = spa->spa_checkpoint_discard_zthr;
 	if (discard_thread != NULL)
@@ -9328,6 +9501,27 @@ spa_sync_iterate_to_convergence(spa_t *spa, dmu_tx_t *tx)
 		    != NULL)
 			vdev_sync(vd, txg);
 
+		if (pass == 1) {
+			/*
+			 * dsl_pool_sync() -> dp_sync_tasks may have dirtied
+			 * the config. If that happens, this txg should not
+			 * be a no-op. So we must sync the config to the MOS
+			 * before checking for no-op.
+			 *
+			 * Note that when the config is dirty, it will
+			 * be written to the MOS (i.e. the MOS will be
+			 * dirtied) every time we call spa_sync_config_object()
+			 * in this txg.  Therefore we can't call this after
+			 * dsl_pool_sync() every pass, because it would
+			 * prevent us from converging, since we'd dirty
+			 * the MOS every pass.
+			 *
+			 * Sync tasks can only be processed in pass 1, so
+			 * there's no need to do this in later passes.
+			 */
+			spa_sync_config_object(spa, tx);
+		}
+
 		/*
 		 * Note: We need to check if the MOS is dirty because we could
 		 * have marked the MOS dirty without updating the uberblock
@@ -9647,6 +9841,104 @@ spa_sync_allpools(void)
 		spa_close(spa, FTAG);
 	}
 	mutex_exit(&spa_namespace_lock);
+}
+
+taskq_t *
+spa_sync_tq_create(spa_t *spa, const char *name)
+{
+	kthread_t **kthreads;
+
+	ASSERT(spa->spa_sync_tq == NULL);
+	ASSERT3S(spa->spa_alloc_count, <=, boot_ncpus);
+
+	/*
+	 * - do not allow more allocators than cpus.
+	 * - there may be more cpus than allocators.
+	 * - do not allow more sync taskq threads than allocators or cpus.
+	 */
+	int nthreads = spa->spa_alloc_count;
+	spa->spa_syncthreads = kmem_zalloc(sizeof (spa_syncthread_info_t) *
+	    nthreads, KM_SLEEP);
+
+	spa->spa_sync_tq = taskq_create_synced(name, nthreads, minclsyspri,
+	    nthreads, INT_MAX, TASKQ_PREPOPULATE, &kthreads);
+	VERIFY(spa->spa_sync_tq != NULL);
+	VERIFY(kthreads != NULL);
+
+	spa_taskqs_t *tqs =
+	    &spa->spa_zio_taskq[ZIO_TYPE_WRITE][ZIO_TASKQ_ISSUE];
+
+	spa_syncthread_info_t *ti = spa->spa_syncthreads;
+	for (int i = 0, w = 0; i < nthreads; i++, w++, ti++) {
+		ti->sti_thread = kthreads[i];
+		if (w == tqs->stqs_count) {
+			w = 0;
+		}
+		ti->sti_wr_iss_tq = tqs->stqs_taskq[w];
+	}
+
+	kmem_free(kthreads, sizeof (*kthreads) * nthreads);
+	return (spa->spa_sync_tq);
+}
+
+void
+spa_sync_tq_destroy(spa_t *spa)
+{
+	ASSERT(spa->spa_sync_tq != NULL);
+
+	taskq_wait(spa->spa_sync_tq);
+	taskq_destroy(spa->spa_sync_tq);
+	kmem_free(spa->spa_syncthreads,
+	    sizeof (spa_syncthread_info_t) * spa->spa_alloc_count);
+	spa->spa_sync_tq = NULL;
+}
+
+void
+spa_select_allocator(zio_t *zio)
+{
+	zbookmark_phys_t *bm = &zio->io_bookmark;
+	spa_t *spa = zio->io_spa;
+
+	ASSERT(zio->io_type == ZIO_TYPE_WRITE);
+
+	/*
+	 * A gang block (for example) may have inherited its parent's
+	 * allocator, in which case there is nothing further to do here.
+	 */
+	if (ZIO_HAS_ALLOCATOR(zio))
+		return;
+
+	ASSERT(spa != NULL);
+	ASSERT(bm != NULL);
+
+	/*
+	 * First try to use an allocator assigned to the syncthread, and set
+	 * the corresponding write issue taskq for the allocator.
+	 * Note, we must have an open pool to do this.
+	 */
+	if (spa->spa_sync_tq != NULL) {
+		spa_syncthread_info_t *ti = spa->spa_syncthreads;
+		for (int i = 0; i < spa->spa_alloc_count; i++, ti++) {
+			if (ti->sti_thread == curthread) {
+				zio->io_allocator = i;
+				zio->io_wr_iss_tq = ti->sti_wr_iss_tq;
+				return;
+			}
+		}
+	}
+
+	/*
+	 * We want to try to use as many allocators as possible to help improve
+	 * performance, but we also want logically adjacent IOs to be physically
+	 * adjacent to improve sequential read performance. We chunk each object
+	 * into 2^20 block regions, and then hash based on the objset, object,
+	 * level, and region to accomplish both of these goals.
+	 */
+	uint64_t hv = cityhash4(bm->zb_objset, bm->zb_object, bm->zb_level,
+	    bm->zb_blkid >> 20);
+
+	zio->io_allocator = (uint_t)hv % spa->spa_alloc_count;
+	zio->io_wr_iss_tq = NULL;
 }
 
 /*
@@ -9987,7 +10279,8 @@ spa_activity_in_progress(spa_t *spa, zpool_wait_activity_t activity,
 		    DSS_SCANNING);
 		break;
 	case ZPOOL_WAIT_RESILVER:
-		if ((*in_progress = vdev_rebuild_active(spa->spa_root_vdev)))
+		*in_progress = vdev_rebuild_active(spa->spa_root_vdev);
+		if (*in_progress)
 			break;
 		zfs_fallthrough;
 	case ZPOOL_WAIT_SCRUB:
@@ -10000,6 +10293,12 @@ spa_activity_in_progress(spa_t *spa, zpool_wait_activity_t activity,
 		paused = dsl_scan_is_paused_scrub(scn);
 		*in_progress = (scanning && !paused &&
 		    is_scrub == (activity == ZPOOL_WAIT_SCRUB));
+		break;
+	}
+	case ZPOOL_WAIT_RAIDZ_EXPAND:
+	{
+		vdev_raidz_expand_t *vre = spa->spa_raidz_expand;
+		*in_progress = (vre != NULL && vre->vre_state == DSS_SCANNING);
 		break;
 	}
 	default:
@@ -10242,3 +10541,6 @@ ZFS_MODULE_PARAM(zfs_livelist_condense, zfs_livelist_condense_, new_alloc, INT,
 	"Whether extra ALLOC blkptrs were added to a livelist entry while it "
 	"was being condensed");
 /* END CSTYLED */
+
+ZFS_MODULE_PARAM(zfs_zio, zio_, taskq_wr_iss_ncpus, UINT, ZMOD_RW,
+	"Number of CPUs to run write issue taskqs");

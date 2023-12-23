@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <netdb.h>
 #if defined(NLS)

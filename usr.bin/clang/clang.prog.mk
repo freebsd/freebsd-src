@@ -14,6 +14,8 @@ LIBDEPS+=	llvmminimal
 .else
 LIBDEPS+=	clang
 LIBDEPS+=	llvm
+LIBADD+=	z
+LIBADD+=	zstd
 .endif
 
 .for lib in ${LIBDEPS}
@@ -28,7 +30,5 @@ LIBADD+=	execinfo
 LIBADD+=	ncursesw
 .endif
 LIBADD+=	pthread
-LIBADD+=	z
-LIBADD+=	zstd
 
 .include <bsd.prog.mk>

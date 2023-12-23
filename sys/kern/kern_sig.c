@@ -32,8 +32,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
  */
 
 #include <sys/cdefs.h>
@@ -3971,7 +3969,7 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 				}
 				getcredhostname(td->td_ucred, hostname,
 				    MAXHOSTNAMELEN);
-				sbuf_printf(&sb, "%s", hostname);
+				sbuf_cat(&sb, hostname);
 				break;
 			case 'I':	/* autoincrementing index */
 				if (indexpos != -1) {
@@ -4010,9 +4008,9 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 	sx_sunlock(&corefilename_lock);
 	free(hostname, M_TEMP);
 	if (compress == COMPRESS_GZIP)
-		sbuf_printf(&sb, GZIP_SUFFIX);
+		sbuf_cat(&sb, GZIP_SUFFIX);
 	else if (compress == COMPRESS_ZSTD)
-		sbuf_printf(&sb, ZSTD_SUFFIX);
+		sbuf_cat(&sb, ZSTD_SUFFIX);
 	if (sbuf_error(&sb) != 0) {
 		log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too "
 		    "long\n", (long)pid, comm, (u_long)uid);
@@ -4168,10 +4166,10 @@ coredump(struct thread *td)
 	sb = sbuf_new_auto();
 	if (vn_fullpath_global(p->p_textvp, &fullpath, &freepath) != 0)
 		goto out2;
-	sbuf_printf(sb, "comm=\"");
+	sbuf_cat(sb, "comm=\"");
 	devctl_safe_quote_sb(sb, fullpath);
 	free(freepath, M_TEMP);
-	sbuf_printf(sb, "\" core=\"");
+	sbuf_cat(sb, "\" core=\"");
 
 	/*
 	 * We can't lookup core file vp directly. When we're replacing a core, and
@@ -4190,7 +4188,7 @@ coredump(struct thread *td)
 		sbuf_putc(sb, '/');
 	}
 	devctl_safe_quote_sb(sb, name);
-	sbuf_printf(sb, "\"");
+	sbuf_putc(sb, '"');
 	if (sbuf_finish(sb) == 0)
 		devctl_notify("kernel", "signal", "coredump", sbuf_data(sb));
 out2:
@@ -4298,9 +4296,7 @@ filt_sigattach(struct knote *kn)
 static void
 filt_sigdetach(struct knote *kn)
 {
-	struct proc *p = kn->kn_ptr.p_proc;
-
-	knlist_remove(p->p_klist, kn, 0);
+	knlist_remove(kn->kn_knlist, kn, 0);
 }
 
 /*

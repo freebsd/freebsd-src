@@ -19,9 +19,6 @@
  * SOFTWARE.
  */
 
-#if !defined(lint) && !defined(LINT)
-static const char rcsid[] = "$Id: user.c,v 1.2 1998/08/14 00:32:41 vixie Exp $";
-#endif
 
 /* vix 26jan87 [log is in RCS file]
  */

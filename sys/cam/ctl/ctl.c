@@ -44,7 +44,6 @@
  * Author: Ken Merry <ken@FreeBSD.org>
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ctype.h>
@@ -2535,13 +2534,13 @@ ctl_sbuf_printf_esc(struct sbuf *sb, char *str, int size)
 	for (; *str && str < end; str++) {
 		switch (*str) {
 		case '&':
-			retval = sbuf_printf(sb, "&amp;");
+			retval = sbuf_cat(sb, "&amp;");
 			break;
 		case '>':
-			retval = sbuf_printf(sb, "&gt;");
+			retval = sbuf_cat(sb, "&gt;");
 			break;
 		case '<':
-			retval = sbuf_printf(sb, "&lt;");
+			retval = sbuf_cat(sb, "&lt;");
 			break;
 		default:
 			retval = sbuf_putc(sb, *str);
@@ -2566,13 +2565,13 @@ ctl_id_sbuf(struct ctl_devid *id, struct sbuf *sb)
 	desc = (struct scsi_vpd_id_descriptor *)id->data;
 	switch (desc->id_type & SVPD_ID_TYPE_MASK) {
 	case SVPD_ID_TYPE_T10:
-		sbuf_printf(sb, "t10.");
+		sbuf_cat(sb, "t10.");
 		break;
 	case SVPD_ID_TYPE_EUI64:
-		sbuf_printf(sb, "eui.");
+		sbuf_cat(sb, "eui.");
 		break;
 	case SVPD_ID_TYPE_NAA:
-		sbuf_printf(sb, "naa.");
+		sbuf_cat(sb, "naa.");
 		break;
 	case SVPD_ID_TYPE_SCSI_NAME:
 		break;
@@ -2587,7 +2586,7 @@ ctl_id_sbuf(struct ctl_devid *id, struct sbuf *sb)
 		    (char *)desc->identifier);
 		break;
 	case SVPD_ID_CODESET_UTF8:
-		sbuf_printf(sb, "%s", (char *)desc->identifier);
+		sbuf_cat(sb, (char *)desc->identifier);
 		break;
 	}
 }
@@ -3089,7 +3088,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			break;
 		}
 
-		sbuf_printf(sb, "<ctllunlist>\n");
+		sbuf_cat(sb, "<ctllunlist>\n");
 
 		mtx_lock(&softc->ctl_lock);
 		STAILQ_FOREACH(lun, &softc->lun_list, links) {
@@ -3119,7 +3118,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 				break;
 
 			if (lun->backend == NULL) {
-				retval = sbuf_printf(sb, "</lun>\n");
+				retval = sbuf_cat(sb, "</lun>\n");
 				if (retval != 0)
 					break;
 				continue;
@@ -3138,7 +3137,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			if (retval != 0)
 				break;
 
-			retval = sbuf_printf(sb, "\t<serial_number>");
+			retval = sbuf_cat(sb, "\t<serial_number>");
 
 			if (retval != 0)
 				break;
@@ -3150,12 +3149,12 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			if (retval != 0)
 				break;
 
-			retval = sbuf_printf(sb, "</serial_number>\n");
+			retval = sbuf_cat(sb, "</serial_number>\n");
 		
 			if (retval != 0)
 				break;
 
-			retval = sbuf_printf(sb, "\t<device_id>");
+			retval = sbuf_cat(sb, "\t<device_id>");
 
 			if (retval != 0)
 				break;
@@ -3167,7 +3166,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			if (retval != 0)
 				break;
 
-			retval = sbuf_printf(sb, "</device_id>\n");
+			retval = sbuf_cat(sb, "</device_id>\n");
 
 			if (retval != 0)
 				break;
@@ -3187,13 +3186,13 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 					value = dnvlist_get_string(
 					    lun->be_lun->options, name, NULL);
 					if (value != NULL)
-						sbuf_printf(sb, "%s", value);
+						sbuf_cat(sb, value);
 				}
 
 				sbuf_printf(sb, "</%s>\n", name);
 			}
 
-			retval = sbuf_printf(sb, "</lun>\n");
+			retval = sbuf_cat(sb, "</lun>\n");
 
 			if (retval != 0)
 				break;
@@ -3204,7 +3203,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		mtx_unlock(&softc->ctl_lock);
 
 		if ((retval != 0)
-		 || ((retval = sbuf_printf(sb, "</ctllunlist>\n")) != 0)) {
+		 || ((retval = sbuf_cat(sb, "</ctllunlist>\n")) != 0)) {
 			retval = 0;
 			sbuf_delete(sb);
 			list->status = CTL_LUN_LIST_NEED_MORE_SPACE;
@@ -3354,7 +3353,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			break;
 		}
 
-		sbuf_printf(sb, "<ctlportlist>\n");
+		sbuf_cat(sb, "<ctlportlist>\n");
 
 		mtx_lock(&softc->ctl_lock);
 		STAILQ_FOREACH(port, &softc->port_list, links) {
@@ -3399,15 +3398,15 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 				break;
 
 			if (port->target_devid != NULL) {
-				sbuf_printf(sb, "\t<target>");
+				sbuf_cat(sb, "\t<target>");
 				ctl_id_sbuf(port->target_devid, sb);
-				sbuf_printf(sb, "</target>\n");
+				sbuf_cat(sb, "</target>\n");
 			}
 
 			if (port->port_devid != NULL) {
-				sbuf_printf(sb, "\t<port>");
+				sbuf_cat(sb, "\t<port>");
 				ctl_id_sbuf(port->port_devid, sb);
-				sbuf_printf(sb, "</port>\n");
+				sbuf_cat(sb, "</port>\n");
 			}
 
 			if (port->port_info != NULL) {
@@ -3432,7 +3431,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			}
 
 			if (port->lun_map != NULL) {
-				sbuf_printf(sb, "\t<lun_map>on</lun_map>\n");
+				sbuf_cat(sb, "\t<lun_map>on</lun_map>\n");
 				for (j = 0; j < port->lun_map_size; j++) {
 					plun = ctl_lun_map_from_port(port, j);
 					if (plun == UINT32_MAX)
@@ -3463,14 +3462,14 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			if (retval != 0)
 				break;
 
-			retval = sbuf_printf(sb, "</targ_port>\n");
+			retval = sbuf_cat(sb, "</targ_port>\n");
 			if (retval != 0)
 				break;
 		}
 		mtx_unlock(&softc->ctl_lock);
 
 		if ((retval != 0)
-		 || ((retval = sbuf_printf(sb, "</ctlportlist>\n")) != 0)) {
+		 || ((retval = sbuf_cat(sb, "</ctlportlist>\n")) != 0)) {
 			retval = 0;
 			sbuf_delete(sb);
 			list->status = CTL_LUN_LIST_NEED_MORE_SPACE;

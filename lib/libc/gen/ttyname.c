@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)ttyname.c	8.2 (Berkeley) 1/27/94");
 #include "namespace.h"
 #include <sys/types.h>
 #include <sys/ioctl.h>

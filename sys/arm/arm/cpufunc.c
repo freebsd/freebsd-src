@@ -43,7 +43,7 @@
  *
  * Created      : 30/01/97
  */
-#include <sys/cdefs.h>
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -61,8 +61,8 @@
 
 /* PRIMARY CACHE VARIABLES */
 
-int	arm_dcache_align;
-int	arm_dcache_align_mask;
+unsigned int	arm_dcache_align;
+unsigned int	arm_dcache_align_mask;
 
 #ifdef CPU_MV_PJ4B
 static void pj4bv7_setup(void);
@@ -170,9 +170,8 @@ get_cachetype_cp15(void)
 				    : : "r" (sel));
 				__asm __volatile("mrc p15, 1, %0, c0, c0, 0"
 				    : "=r" (csize));
-				arm_dcache_align = 1 <<
+				arm_dcache_align = 1U <<
 				    (CPUV7_CT_xSIZE_LEN(csize) + 4);
-				arm_dcache_align_mask = arm_dcache_align - 1;
 			}
 			if (type == CACHE_ICACHE || type == CACHE_SEP_CACHE) {
 				sel = (i << 1) | 1;
@@ -195,10 +194,10 @@ get_cachetype_cp15(void)
 			if (dsize & CPU_CT_xSIZE_M)
 				arm_dcache_align = 0; /* not present */
 		}
-
-	out:
-		arm_dcache_align_mask = arm_dcache_align - 1;
 	}
+
+out:
+	arm_dcache_align_mask = arm_dcache_align - 1;
 }
 
 /*
@@ -254,7 +253,7 @@ set_cpufuncs(void)
 	panic("No support for this CPU type (%08x) in kernel", cputype);
 	return(ARCHITECTURE_NOT_PRESENT);
 out:
-	uma_set_align(arm_dcache_align_mask);
+	uma_set_cache_align_mask(arm_dcache_align_mask);
 	return (0);
 }
 

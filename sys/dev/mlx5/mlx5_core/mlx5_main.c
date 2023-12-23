@@ -559,6 +559,19 @@ static int handle_hca_cap_atomic(struct mlx5_core_dev *dev)
 	return err;
 }
 
+static int handle_hca_cap_2(struct mlx5_core_dev *dev)
+{
+	int err;
+
+	if (MLX5_CAP_GEN_MAX(dev, hca_cap_2)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL_2);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int set_hca_ctrl(struct mlx5_core_dev *dev)
 {
 	struct mlx5_reg_host_endianess he_in;
@@ -1136,6 +1149,12 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	err = handle_hca_cap_atomic(dev);
 	if (err) {
 		mlx5_core_err(dev, "handle_hca_cap_atomic failed\n");
+		goto reclaim_boot_pages;
+	}
+
+	err = handle_hca_cap_2(dev);
+	if (err) {
+		mlx5_core_err(dev, "handle_hca_cap_2 failed\n");
 		goto reclaim_boot_pages;
 	}
 

@@ -68,7 +68,7 @@ init_B_body()
 
 	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
 
-	md=$(attach_md -t malloc -s $sectors)
+	attach_md md -t malloc -s $sectors
 
 	# -B none
 	rm -f /var/backups/${md}.eli
@@ -118,7 +118,7 @@ init_J_body()
 	geli_test_setup
 
 	sectors=100
-	md=$(attach_md -t malloc -s `expr $sectors + 1`)
+	attach_md md -t malloc -s `expr $sectors + 1`
 
 	atf_check dd if=/dev/random of=keyfile0 bs=512 count=16 status=none
 	atf_check dd if=/dev/random of=keyfile1 bs=512 count=16 status=none
@@ -303,7 +303,7 @@ init_alias_body()
 {
 	geli_test_setup
 
-	md=$(attach_md -t malloc -s 1024k)
+	attach_md md -t malloc -s 1024k
 	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
 
 	for spec in aes:0:AES-XTS:128 aes:128:AES-XTS:128 aes:256:AES-XTS:256 \
@@ -334,7 +334,7 @@ init_i_P_body()
 	geli_test_setup
 
 	sectors=100
-	md=$(attach_md -t malloc -s `expr $sectors + 1`)
+	attach_md md -t malloc -s `expr $sectors + 1`
 
 	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
 
@@ -357,7 +357,7 @@ nokey_body()
 	geli_test_setup
 
 	sectors=100
-	md=$(attach_md -t malloc -s `expr $sectors + 1`)
+	attach_md md -t malloc -s `expr $sectors + 1`
 
 	atf_check -s not-exit:0 -e match:"No key components given" \
 		geli init -B none -P ${md}

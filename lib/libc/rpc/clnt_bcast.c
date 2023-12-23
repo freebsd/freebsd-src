@@ -33,11 +33,6 @@
  * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-#ident	"@(#)clnt_bcast.c	1.18	94/05/03 SMI"
-static char sccsid[] = "@(#)clnt_bcast.c 1.15 89/04/21 Copyr 1988 Sun Micro";
-#endif
-#include <sys/cdefs.h>
 /*
  * clnt_bcast.c
  * Client interface to broadcast service.

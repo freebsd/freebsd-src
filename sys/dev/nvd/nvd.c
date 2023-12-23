@@ -27,9 +27,9 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bio.h>
+#include <sys/devicestat.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -471,6 +471,10 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 		disk->d_flags |= DISKFLAG_CANDELETE;
 	if (nvme_ns_get_flags(ns) & NVME_NS_FLUSH_SUPPORTED)
 		disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
+	disk->d_devstat = devstat_new_entry(disk->d_name, disk->d_unit,
+	    disk->d_sectorsize, DEVSTAT_ALL_SUPPORTED,
+	    DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_NVME,
+	    DEVSTAT_PRIORITY_DISK);
 
 	/*
 	 * d_ident and d_descr are both far bigger than the length of either

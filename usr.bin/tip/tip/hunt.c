@@ -32,14 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)hunt.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: hunt.c,v 1.13 2006/03/17 19:39:46 deraadt Exp $";
-#endif
-#endif /* not lint */
-
 #include "tip.h"
 
 static	jmp_buf deadline;

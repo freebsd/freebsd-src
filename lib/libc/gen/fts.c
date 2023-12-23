@@ -31,8 +31,6 @@
  * $OpenBSD: fts.c,v 1.22 1999/10/03 19:22:22 millert Exp $
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)fts.c	8.6 (Berkeley) 8/14/94");
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/mount.h>

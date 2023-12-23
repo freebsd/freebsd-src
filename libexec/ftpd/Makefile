@@ -1,4 +1,3 @@
-#	@(#)Makefile	8.2 (Berkeley) 4/4/94
 
 .include <src.opts.mk>
 
@@ -23,7 +22,7 @@ CFLAGS+=-Dmain=ls_main -I${SRCTOP}/bin/ls
 LIBADD+=	m
 
 .if ${MK_BLACKLIST_SUPPORT} != "no"
-CFLAGS+= -DUSE_BLACKLIST -I${SRCTOP}/contrib/blacklist/include
+CFLAGS+= -DUSE_BLACKLIST -I${SRCTOP}/contrib/blocklist/include
 SRCS+= blacklist.c
 LIBADD+= blacklist
 LDFLAGS+=-L${LIBBLACKLISTDIR}

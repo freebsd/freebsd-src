@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 13, 2023
+.Dd December 6, 2023
 .Dt KMSAN 9
 .Os
 .Sh NAME
@@ -56,6 +56,8 @@ kernel configuration file:
 .Fn kmsan_check_ccb "const union ccb *" "const char *descr"
 .Ft void
 .Fn kmsan_check_mbuf "const struct mbuf *" "const char *descr"
+.Ft void
+.Fn kmsan_check_uio "const struct uio *" "const char *descr"
 .Sh DESCRIPTION
 .Nm
 is a subsystem which leverages compiler instrumentation to detect uses of
@@ -306,6 +308,7 @@ f(size_t osz)
 .Xr busdma 9 ,
 .Xr copyout 9 ,
 .Xr KASAN 9 ,
+.Xr uio 9 ,
 .Xr uma 9
 .Rs
 .%A Evgeniy Stepanov

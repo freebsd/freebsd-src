@@ -29,7 +29,7 @@
 /*
  * VM Bus Driver Implementation
  */
-#include <sys/cdefs.h>
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -1393,7 +1393,7 @@ vmbus_doattach(struct vmbus_softc *sc)
 	int ret;
 	device_t dev_res;
 	ACPI_HANDLE handle;
-	unsigned int coherent;
+	unsigned int coherent = 0;
 
 	if (sc->vmbus_flags & VMBUS_FLAG_ATTACHED)
 		return (0);
@@ -1416,10 +1416,12 @@ vmbus_doattach(struct vmbus_softc *sc)
 
 	/* Coherency attribute */
 	dev_res =  devclass_get_device(devclass_find("vmbus_res"), 0);
-	handle = acpi_get_handle(dev_res);
+	if (dev_res != NULL) {
+		handle = acpi_get_handle(dev_res);
 
-	if (ACPI_FAILURE(acpi_GetInteger(handle, "_CCA", &coherent)))
-		coherent = 0;
+		if (ACPI_FAILURE(acpi_GetInteger(handle, "_CCA", &coherent)))
+			coherent = 0;
+	}
 	if (bootverbose)
 		device_printf(sc->vmbus_dev, "Bus is%s cache-coherent\n",
 			coherent ? "" : " not");

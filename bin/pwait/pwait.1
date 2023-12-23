@@ -97,7 +97,7 @@ $ sleep 30 & sleep 3600 &
 [1] 1646
 [2] 1647
 $ pwait -o -t5 1646 1647
-$?
+$ echo $?
 124
 .Ed
 .Pp
@@ -111,7 +111,7 @@ $ sleep 30 & sleep 3600 &
 [2] 1653
 $ pwait -v -t 5 1652 1653
 timeout
-$?
+$ echo $?
 124
 .Ed
 .Pp

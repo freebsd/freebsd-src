@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -56,6 +55,9 @@
 
 u_long __read_frequently elf_hwcap;
 u_long __read_frequently elf_hwcap2;
+/* TODO: Move to a better location */
+u_long __read_frequently linux_elf_hwcap;
+u_long __read_frequently linux_elf_hwcap2;
 
 struct arm64_addr_mask elf64_addr_mask;
 

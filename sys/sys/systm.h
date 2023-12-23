@@ -32,8 +32,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)systm.h	8.7 (Berkeley) 3/29/95
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -379,6 +377,12 @@ void	cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt);
 void	cpu_et_frequency(struct eventtimer *et, uint64_t newfreq);
 extern int	cpu_disable_c2_sleep;
 extern int	cpu_disable_c3_sleep;
+
+extern void	(*tcp_hpts_softclock)(void);
+#define	tcp_hpts_softclock()	do {					\
+		if (tcp_hpts_softclock != NULL)				\
+			tcp_hpts_softclock();				\
+} while (0)
 
 char	*kern_getenv(const char *name);
 void	freeenv(char *env);

@@ -27,8 +27,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -451,7 +449,9 @@ int	getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
 int	getsock(struct thread *td, int fd, cap_rights_t *rightsp,
 	    struct file **fpp);
 void	soabort(struct socket *so);
-int	soaccept(struct socket *so, struct sockaddr **nam);
+int	soaccept(struct socket *so, struct sockaddr *sa);
+int	sopeeraddr(struct socket *so, struct sockaddr *sa);
+int	sosockaddr(struct socket *so, struct sockaddr *sa);
 void	soaio_enqueue(struct task *task);
 void	soaio_rcv(void *context, int pending);
 void	soaio_snd(void *context, int pending);

@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <search.h>
 #include <stdbool.h>
 #include <stddef.h>

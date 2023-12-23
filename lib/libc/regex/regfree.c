@@ -31,14 +31,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)regfree.c	8.3 (Berkeley) 3/20/94
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)regfree.c	8.3 (Berkeley) 3/20/94";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>

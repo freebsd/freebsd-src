@@ -29,7 +29,6 @@
  * and sscanf("nan(...)", ...) work identically.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <fenv.h>
 #include <float.h>

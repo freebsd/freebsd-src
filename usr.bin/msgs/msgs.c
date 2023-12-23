@@ -29,19 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1980, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)msgs.c	8.2 (Berkeley) 4/28/95";
-#endif /* not lint */
-#endif
-
-#include <sys/cdefs.h>
 /*
  * msgs - a user bulletin board program
  *

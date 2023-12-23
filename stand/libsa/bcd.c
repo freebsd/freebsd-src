@@ -3,7 +3,6 @@
  * Cannot be copyrighted.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 u_char const bcd2bin_data[] = {

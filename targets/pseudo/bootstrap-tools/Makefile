@@ -89,6 +89,7 @@ BSTCENV= \
 BSTCARGS= \
 	${BSARGS:NDESTDIR=*:NOBJTOP=*:NOBJROOT=*:NMK_CROSS_COMPILER=*:NMK_CLANG=*} \
 	BUILD_DIRDEPS=yes \
+	LLVM_MIN_TBLGEN=${TOOLSDIR}/usr/bin/llvm-min-tblgen \
 	LLVM_TBLGEN=${TOOLSDIR}/usr/bin/llvm-tblgen \
 	CLANG_TBLGEN=${TOOLSDIR}/usr/bin/clang-tblgen \
 	-DWITH_STAGING \

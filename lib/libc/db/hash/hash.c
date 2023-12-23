@@ -32,10 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)hash.c	8.9 (Berkeley) 6/16/94";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/stat.h>

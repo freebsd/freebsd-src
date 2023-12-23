@@ -5278,6 +5278,9 @@ bbr_stopall(struct tcpcb *tp)
 
 	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
 	bbr->rc_all_timers_stopped = 1;
+
+	tcp_hpts_remove(tp);
+
 	return (0);
 }
 
@@ -9925,6 +9928,8 @@ bbr_init(struct tcpcb *tp, void **ptr)
 	struct inpcb *inp = tptoinpcb(tp);
 	struct tcp_bbr *bbr = NULL;
 	uint32_t cts;
+
+	tcp_hpts_init(tp);
 
 	*ptr = uma_zalloc(bbr_pcb_zone, (M_NOWAIT | M_ZERO));
 	if (*ptr == NULL) {

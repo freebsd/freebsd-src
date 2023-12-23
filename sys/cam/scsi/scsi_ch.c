@@ -65,7 +65,6 @@
  * $NetBSD: ch.c,v 1.34 1998/08/31 22:28:06 cgd Exp $
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/systm.h>

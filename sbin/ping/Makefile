@@ -1,4 +1,3 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/5/93
 
 .include <src.opts.mk>
 
@@ -20,6 +19,7 @@ CFLAGS+= -DINET6 -DKAME_SCOPEID
 SRCS+=	ping6.c
 LIBADD+= md
 LINKS=	${BINDIR}/ping ${BINDIR}/ping6
+MLINKS=	ping.8 ping6.8
 .endif
 
 .if ${MK_DYNAMICROOT} == "no"

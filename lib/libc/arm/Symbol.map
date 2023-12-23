@@ -1,32 +1,11 @@
 /*
- */
-
-/*
  * This only needs to contain symbols that are not listed in
  * symbol maps from other parts of libc (i.e., not found in
  * stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...).
  */
 FBSD_1.0 {
-	/* PSEUDO syscalls */
-	_exit;
-
 	__mcount;
-	_setjmp;
-	_longjmp;
 	alloca;
-	fabs;
-	__infinity;
-	__nan;
-	makecontext;
-	setjmp;
-	longjmp;
-	sigsetjmp;
-	siglongjmp;
-	htonl;
-	htons;
-	ntohl;
-	ntohs;
-	vfork;
 	brk;
 	sbrk;
 };
@@ -51,7 +30,6 @@ FBSDprivate_1.0 {
 
 	__aeabi_read_tp;
 	___longjmp;
-	__makecontext;
 	__longjmp;
 	signalcontext;
 	_signalcontext;

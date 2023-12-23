@@ -30,8 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* #ident	"@(#)rpc_soc.c	1.17	94/04/24 SMI" */
-
 /*
  * Copyright (c) 1986-1991 by Sun Microsystems Inc.
  * In addition, portions of such source code were derived from Berkeley
@@ -39,10 +37,6 @@
  * California.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)rpc_soc.c 1.41 89/05/02 Copyr 1988 Sun Micro";
-#endif
-#include <sys/cdefs.h>
 #ifdef PORTMAP
 /*
  * rpc_soc.c

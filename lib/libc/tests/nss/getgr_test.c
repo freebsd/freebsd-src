@@ -25,7 +25,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <grp.h>

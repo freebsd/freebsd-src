@@ -9,6 +9,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/msun \
+	usr.sbin/bsdinstall/include \
 
 
 .include <dirdeps.mk>

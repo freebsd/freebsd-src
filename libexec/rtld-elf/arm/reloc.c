@@ -1,6 +1,5 @@
 /*	$NetBSD: mdreloc.c,v 1.23 2003/07/26 15:04:38 mrg Exp $	*/
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -280,10 +279,13 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache,
 				return -1;
 
 			tmp = (Elf_Addr)def->st_value + defobj->tlsoffset;
-			if (__predict_true(RELOC_ALIGNED_P(where)))
+			if (__predict_true(RELOC_ALIGNED_P(where))) {
+				tmp += *where;
 				*where = tmp;
-			else
+			} else {
+				tmp += load_ptr(where);
 				store_ptr(where, tmp);
+			}
 			dbg("TLS_TPOFF32 %s in %s --> %p",
 			    obj->strtab + obj->symtab[symnum].st_name,
 			    obj->path, (void *)tmp);

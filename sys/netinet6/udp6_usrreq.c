@@ -65,8 +65,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
  */
 
 #include <sys/cdefs.h>
@@ -1244,7 +1242,7 @@ udp6_disconnect(struct socket *so)
 #define	UDP6_PROTOSW							\
 	.pr_type =		SOCK_DGRAM,				\
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_CAPATTACH,		\
-	.pr_ctloutput =		ip6_ctloutput,				\
+	.pr_ctloutput =		udp_ctloutput,				\
 	.pr_abort =		udp6_abort,				\
 	.pr_attach =		udp6_attach,				\
 	.pr_bind =		udp6_bind,				\

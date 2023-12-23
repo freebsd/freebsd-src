@@ -32,8 +32,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
  */
 
 #include <sys/cdefs.h>
@@ -882,7 +880,7 @@ vfs_lookup_cross_mount(struct nameidata *ndp)
 	 * The vnode has been mounted on, find the root of the mounted
 	 * filesystem.
 	 */
-	for (;;) {
+	do {
 		mp = dp->v_mountedhere;
 		ASSERT_VOP_LOCKED(dp, __func__);
 		VNPASS((vn_irflag_read(dp) & VIRF_MOUNTPOINT) != 0 && mp != NULL, dp);
@@ -915,6 +913,12 @@ vfs_lookup_cross_mount(struct nameidata *ndp)
 					break;
 				}
 				if (dp->v_mountedhere != mp) {
+					/*
+					 * Note that we rely on the
+					 * VIRF_MOUNTPOINT loop condition to
+					 * ensure we stop iterating if dp is
+					 * no longer a mountpoint at all.
+					 */
 					continue;
 				}
 			} else
@@ -939,9 +943,7 @@ vfs_lookup_cross_mount(struct nameidata *ndp)
 		if (error != 0)
 			break;
 		ndp->ni_vp = dp = tdp;
-		if ((vn_irflag_read(dp) & VIRF_MOUNTPOINT) == 0)
-			break;
-	}
+	} while ((vn_irflag_read(dp) & VIRF_MOUNTPOINT) != 0);
 
 	return (error);
 }

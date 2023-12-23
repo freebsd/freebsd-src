@@ -26,8 +26,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)3.t	1.2 (Berkeley) 11/8/90
-.\"
 .ds RH Techniques for Improving Performance
 .NH 1 
 Techniques for Improving Performance

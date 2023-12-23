@@ -1,6 +1,3 @@
-#if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: res_findzonecut.c,v 1.10 2005/10/11 00:10:16 marka Exp $";
-#endif /* not lint */
 
 /*-
  * SPDX-License-Identifier: ISC
@@ -21,7 +18,6 @@ static const char rcsid[] = "$Id: res_findzonecut.c,v 1.10 2005/10/11 00:10:16 m
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 /* Import. */
 
 #include "port_before.h"

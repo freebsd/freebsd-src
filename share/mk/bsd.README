@@ -1,4 +1,3 @@
-#	@(#)bsd.README	8.2 (Berkeley) 4/2/94
 
 This is the README file for the "include" files for the FreeBSD
 source tree.  The files are installed in /usr/share/mk, and are by
@@ -125,15 +124,15 @@ The following variables are common:
 
 AFLAGS.${SRC}
 		Flags dependent on source file name.
-AFLAGS.${TARGET}
+AFLAGS.${.TARGET:T}
 		Flags dependent on output file name.
 ACFLAGS.${SRC}
 		Flags dependent on source file name.
-ACFLAGS.${TARGET}
+ACFLAGS.${.TARGET:T}
 		Flags dependent on output file name.
 CFLAGS.${SRC}
 		Flags dependent on source file name.
-CFLAGS.${TARGET}
+CFLAGS.${.TARGET:T}
 		Flags dependent on output file name.
 CFLAGS.${COMPILER_TYPE}
 		Flags dependent on compiler added to CFLAGS.
@@ -148,7 +147,7 @@ CXXFLAGS.${MACHINE_ARCH}
 		Architectural flags added to CXXFLAGS.
 CXXFLAGS.${SRC}
 		Flags dependent on source file name.
-CXXFLAGS.${TARGET}
+CXXFLAGS.${.TARGET:T}
 		Flags dependent on output file name.
 COMPILER_FEATURES
 		A list of features that the compiler supports. Zero or
@@ -344,21 +343,21 @@ LDADD		Additional loader objects.  Usually used for libraries.
 
 			LDADD=-lutil -lcompat
 
-LDADD.${TARGET}
+LDADD.${.TARGET:T}
 		Loader objects dependent on output file name.
 
 LDFLAGS		Additional loader flags. Passed to the loader via CC,
 		since that's used to link programs as well, so loader
 		specific flags need to be prefixed with -Wl, to work.
 
-LDFLAGS.${TARGET}
+LDFLAGS.${.TARGET:T}
 		Flags dependent on output file name.
 
 LIBADD		Additional libraries.  This is for base system libraries
 		and is only valid inside of the /usr/src tree.
 		Use LIBADD=name instead of LDADD=-lname.
 
-LIBADD.${TARGET}
+LIBADD.${.TARGET:T}
 		Libraries dependent on output file name.
 
 LINKS		The list of binary links; should be full pathnames, the

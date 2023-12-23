@@ -29,9 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-/*static char *sccsid = "from: @(#)malloc.c	5.11 (Berkeley) 2/23/91";*/
-#endif /* LIBC_SCCS and not lint */
 
 /*
  * malloc.c (Caltech) 2/21/82

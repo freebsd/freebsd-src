@@ -29,7 +29,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>

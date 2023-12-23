@@ -54,9 +54,8 @@ int mlx5_cmd_update_root_ft(struct mlx5_core_dev *dev,
 }
 
 int mlx5_cmd_fs_create_ft(struct mlx5_core_dev *dev,
-			  u16 vport,
-			  enum fs_ft_type type, unsigned int level,
-			  unsigned int log_size, unsigned int *table_id)
+			  u16 vport, enum fs_ft_type type, unsigned int level,
+			  unsigned int log_size, const char *name, unsigned int *table_id)
 {
 	u32 in[MLX5_ST_SZ_DW(create_flow_table_in)] = {0};
 	u32 out[MLX5_ST_SZ_DW(create_flow_table_out)] = {0};
@@ -72,6 +71,9 @@ int mlx5_cmd_fs_create_ft(struct mlx5_core_dev *dev,
 	MLX5_SET(create_flow_table_in, in, flow_table_context.level, level);
 	MLX5_SET(create_flow_table_in, in, flow_table_context.log_size,
 		 log_size);
+	if (strstr(name, FS_REFORMAT_KEYWORD) != NULL)
+		MLX5_SET(create_flow_table_in, in,
+			 flow_table_context.reformat_en, 1);
 	if (vport) {
 		MLX5_SET(create_flow_table_in, in, vport_number, vport);
 		MLX5_SET(create_flow_table_in, in, other_vport, 1);
@@ -164,8 +166,8 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 			u32 *match_val,
 			enum fs_ft_type type, unsigned int table_id,
 			unsigned int index, unsigned int group_id,
-			unsigned int flow_tag,
-			unsigned short action, int dest_size,
+			struct mlx5_flow_act *flow_act,
+			u32 sw_action, int dest_size,
 			struct list_head *dests)  /* mlx5_flow_desination */
 {
 	u32 out[MLX5_ST_SZ_DW(set_fte_out)] = {0};
@@ -179,12 +181,28 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 	int opmod = 0;
 	int modify_mask = 0;
 	int atomic_mod_cap;
+	u32 prm_action = 0;
+	int count_list = 0;
 
-	if (action != MLX5_FLOW_CONTEXT_ACTION_FWD_DEST)
+	if (sw_action != MLX5_FLOW_RULE_FWD_ACTION_DEST)
 		dest_size = 0;
 
+	if (sw_action & MLX5_FLOW_RULE_FWD_ACTION_ALLOW)
+		prm_action |= MLX5_FLOW_CONTEXT_ACTION_ALLOW;
+
+	if (sw_action & MLX5_FLOW_RULE_FWD_ACTION_DROP)
+		prm_action |= MLX5_FLOW_CONTEXT_ACTION_DROP;
+
+	if (sw_action & MLX5_FLOW_RULE_FWD_ACTION_DEST)
+		prm_action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+
+	if (flow_act->actions & MLX5_FLOW_ACT_ACTIONS_COUNT) {
+		prm_action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
+		count_list = 1;
+	}
+
 	inlen = MLX5_ST_SZ_BYTES(set_fte_in) +
-		dest_size * MLX5_ST_SZ_BYTES(dest_format_struct);
+		(dest_size + count_list) * MLX5_ST_SZ_BYTES(dest_format_struct);
 
 	if (!dev)
 		return -EINVAL;
@@ -219,15 +237,27 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 
 	in_flow_context = MLX5_ADDR_OF(set_fte_in, in, flow_context);
 	MLX5_SET(flow_context, in_flow_context, group_id, group_id);
-	MLX5_SET(flow_context, in_flow_context, flow_tag, flow_tag);
-	MLX5_SET(flow_context, in_flow_context, action, action);
+	if (flow_act->actions & MLX5_FLOW_ACT_ACTIONS_FLOW_TAG)
+		MLX5_SET(flow_context, in_flow_context, flow_tag, flow_act->flow_tag);
+	if (flow_act->actions & MLX5_FLOW_ACT_ACTIONS_MODIFY_HDR) {
+		MLX5_SET(flow_context, in_flow_context, modify_header_id,
+			 flow_act->modify_hdr->id);
+		prm_action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+	}
+	if (flow_act->actions & MLX5_FLOW_ACT_ACTIONS_PACKET_REFORMAT) {
+		MLX5_SET(flow_context, in_flow_context, packet_reformat_id,
+			 flow_act->pkt_reformat->id);
+		prm_action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+	}
 	MLX5_SET(flow_context, in_flow_context, destination_list_size,
 		 dest_size);
 	in_match_value = MLX5_ADDR_OF(flow_context, in_flow_context,
 				      match_value);
 	memcpy(in_match_value, match_val, MLX5_ST_SZ_BYTES(fte_match_param));
+
+	in_dests = MLX5_ADDR_OF(flow_context, in_flow_context, destination);
+
 	if (dest_size) {
-		in_dests = MLX5_ADDR_OF(flow_context, in_flow_context, destination);
 		list_for_each_entry(dst, dests, base.list) {
 			unsigned int id;
 
@@ -243,6 +273,14 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 		}
 	}
 
+	if (flow_act->actions & MLX5_FLOW_ACT_ACTIONS_COUNT) {
+		MLX5_SET(dest_format_struct, in_dests, destination_id,
+			 mlx5_fc_id(flow_act->counter));
+		in_dests += MLX5_ST_SZ_BYTES(dest_format_struct);
+		MLX5_SET(flow_context, in_flow_context, flow_counter_list_size, 1);
+	}
+
+	MLX5_SET(flow_context, in_flow_context, action, prm_action);
 	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
 	if (!err)
 		*fte_status |= FS_FTE_STATUS_EXISTING;
@@ -282,4 +320,149 @@ int mlx5_cmd_fs_delete_fte(struct mlx5_core_dev *dev,
 		*fte_status = 0;
 
 	return err;
+}
+
+int mlx5_cmd_modify_header_alloc(struct mlx5_core_dev *dev,
+				 enum mlx5_flow_namespace_type namespace,
+				 u8 num_actions,
+				 void *modify_actions,
+				 struct mlx5_modify_hdr *modify_hdr)
+{
+        u32 out[MLX5_ST_SZ_DW(alloc_modify_header_context_out)] = {};
+        int max_actions, actions_size, inlen, err;
+        void *actions_in;
+        u8 table_type;
+        u32 *in;
+
+        switch (namespace) {
+        case MLX5_FLOW_NAMESPACE_FDB:
+                max_actions = MLX5_CAP_ESW_FLOWTABLE_FDB(dev, max_modify_header_actions);
+                table_type = FS_FT_FDB;
+                break;
+        case MLX5_FLOW_NAMESPACE_KERNEL:
+        case MLX5_FLOW_NAMESPACE_BYPASS:
+                max_actions = MLX5_CAP_FLOWTABLE_NIC_RX(dev, max_modify_header_actions);
+                table_type = FS_FT_NIC_RX;
+                break;
+        case MLX5_FLOW_NAMESPACE_ESW_INGRESS:
+                max_actions = MLX5_CAP_ESW_INGRESS_ACL(dev, max_modify_header_actions);
+                table_type = FS_FT_ESW_INGRESS_ACL;
+                break;
+        default:
+                return -EOPNOTSUPP;
+        }
+
+        if (num_actions > max_actions) {
+                mlx5_core_warn(dev, "too many modify header actions %d, max supported %d\n",
+                               num_actions, max_actions);
+                return -EOPNOTSUPP;
+        }
+
+        actions_size = MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto) * num_actions;
+        inlen = MLX5_ST_SZ_BYTES(alloc_modify_header_context_in) + actions_size;
+
+        in = kzalloc(inlen, GFP_KERNEL);
+        if (!in)
+                return -ENOMEM;
+
+        MLX5_SET(alloc_modify_header_context_in, in, opcode,
+                 MLX5_CMD_OP_ALLOC_MODIFY_HEADER_CONTEXT);
+        MLX5_SET(alloc_modify_header_context_in, in, table_type, table_type);
+        MLX5_SET(alloc_modify_header_context_in, in, num_of_actions, num_actions);
+
+        actions_in = MLX5_ADDR_OF(alloc_modify_header_context_in, in, actions);
+        memcpy(actions_in, modify_actions, actions_size);
+
+        err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
+
+        modify_hdr->id = MLX5_GET(alloc_modify_header_context_out, out, modify_header_id);
+        kfree(in);
+
+        return err;
+}
+
+void mlx5_cmd_modify_header_dealloc(struct mlx5_core_dev *dev,
+				    struct mlx5_modify_hdr *modify_hdr)
+{
+	u32 out[MLX5_ST_SZ_DW(dealloc_modify_header_context_out)] = {};
+        u32 in[MLX5_ST_SZ_DW(dealloc_modify_header_context_in)] = {};
+
+        MLX5_SET(dealloc_modify_header_context_in, in, opcode,
+                 MLX5_CMD_OP_DEALLOC_MODIFY_HEADER_CONTEXT);
+        MLX5_SET(dealloc_modify_header_context_in, in, modify_header_id,
+                 modify_hdr->id);
+
+        mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
+
+int mlx5_cmd_packet_reformat_alloc(struct mlx5_core_dev *dev,
+				   struct mlx5_pkt_reformat_params *params,
+				   enum mlx5_flow_namespace_type namespace,
+				   struct mlx5_pkt_reformat *pkt_reformat)
+{
+        u32 out[MLX5_ST_SZ_DW(alloc_packet_reformat_context_out)] = {};
+        void *packet_reformat_context_in;
+        int max_encap_size;
+        void *reformat;
+        int inlen;
+        int err;
+        u32 *in;
+
+        if (namespace == MLX5_FLOW_NAMESPACE_FDB)
+                max_encap_size = MLX5_CAP_ESW(dev, max_encap_header_size);
+        else
+                max_encap_size = MLX5_CAP_FLOWTABLE(dev, max_encap_header_size);
+
+        if (params->size > max_encap_size) {
+                mlx5_core_warn(dev, "encap size %zd too big, max supported is %d\n",
+                               params->size, max_encap_size);
+                return -EINVAL;
+        }
+
+        in = kzalloc(MLX5_ST_SZ_BYTES(alloc_packet_reformat_context_in) +
+                     params->size, GFP_KERNEL);
+        if (!in)
+                return -ENOMEM;
+
+        packet_reformat_context_in = MLX5_ADDR_OF(alloc_packet_reformat_context_in,
+                                                  in, packet_reformat_context);
+        reformat = MLX5_ADDR_OF(packet_reformat_context_in,
+                                packet_reformat_context_in,
+                                reformat_data);
+        inlen = reformat - (void *)in + params->size;
+
+        MLX5_SET(alloc_packet_reformat_context_in, in, opcode,
+                 MLX5_CMD_OP_ALLOC_PACKET_REFORMAT_CONTEXT);
+        MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
+                 reformat_data_size, params->size);
+        MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
+                 reformat_type, params->type);
+        MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
+                 reformat_param_0, params->param_0);
+        MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
+                 reformat_param_1, params->param_1);
+        if (params->data && params->size)
+                memcpy(reformat, params->data, params->size);
+
+        err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
+
+        pkt_reformat->id = MLX5_GET(alloc_packet_reformat_context_out,
+                                    out, packet_reformat_id);
+        kfree(in);
+
+        return err;
+}
+
+void mlx5_cmd_packet_reformat_dealloc(struct mlx5_core_dev *dev,
+				      struct mlx5_pkt_reformat *pkt_reformat)
+{
+        u32 out[MLX5_ST_SZ_DW(dealloc_packet_reformat_context_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(dealloc_packet_reformat_context_in)] = {};
+
+        MLX5_SET(dealloc_packet_reformat_context_in, in, opcode,
+                 MLX5_CMD_OP_DEALLOC_PACKET_REFORMAT_CONTEXT);
+        MLX5_SET(dealloc_packet_reformat_context_in, in, packet_reformat_id,
+                 pkt_reformat->id);
+
+        mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }

@@ -15,5 +15,6 @@ Description: General purpose data compression library
 URL: @PACKAGE_URL@
 Version: @PACKAGE_VERSION@
 Cflags: -I${includedir}
+Cflags.private: -DLZMA_API_STATIC
 Libs: -L${libdir} -llzma
 Libs.private: @PTHREAD_CFLAGS@ @LIBS@

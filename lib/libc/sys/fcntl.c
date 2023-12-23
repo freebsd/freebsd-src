@@ -32,7 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <fcntl.h>
 #include <stdarg.h>
 #include <sys/types.h>

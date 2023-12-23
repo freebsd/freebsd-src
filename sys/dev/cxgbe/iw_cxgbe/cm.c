@@ -145,30 +145,24 @@ static void process_newconn(struct c4iw_listen_ep *master_lep,
 
 #define GET_LOCAL_ADDR(pladdr, so) \
 	do { \
-		struct sockaddr_storage *__a = NULL; \
 		struct  inpcb *__inp = sotoinpcb(so); \
 		KASSERT(__inp != NULL, \
 		   ("GET_LOCAL_ADDR(%s):so:%p, inp = NULL", __func__, so)); \
 		if (__inp->inp_vflag & INP_IPV4) \
-			in_getsockaddr(so, (struct sockaddr **)&__a); \
+			in_getsockaddr(so, (struct sockaddr *)pladdr); \
 		else \
-			in6_getsockaddr(so, (struct sockaddr **)&__a); \
-		*(pladdr) = *__a; \
-		free(__a, M_SONAME); \
+			in6_getsockaddr(so, (struct sockaddr *)pladdr); \
 	} while (0)
 
 #define GET_REMOTE_ADDR(praddr, so) \
 	do { \
-		struct sockaddr_storage *__a = NULL; \
 		struct  inpcb *__inp = sotoinpcb(so); \
 		KASSERT(__inp != NULL, \
 		   ("GET_REMOTE_ADDR(%s):so:%p, inp = NULL", __func__, so)); \
 		if (__inp->inp_vflag & INP_IPV4) \
-			in_getpeeraddr(so, (struct sockaddr **)&__a); \
+			in_getpeeraddr(so, (struct sockaddr *)praddr); \
 		else \
-			in6_getpeeraddr(so, (struct sockaddr **)&__a); \
-		*(praddr) = *__a; \
-		free(__a, M_SONAME); \
+			in6_getpeeraddr(so, (struct sockaddr *)praddr); \
 	} while (0)
 
 static char *states[] = {
@@ -974,7 +968,7 @@ process_newconn(struct c4iw_listen_ep *master_lep, struct socket *new_so)
 {
 	struct c4iw_listen_ep *real_lep = NULL;
 	struct c4iw_ep *new_ep = NULL;
-	struct sockaddr_in *remote = NULL;
+	struct sockaddr_storage remote = { .ss_len = sizeof(remote) };
 	int ret = 0;
 
 	MPASS(new_so != NULL);
@@ -1019,19 +1013,16 @@ process_newconn(struct c4iw_listen_ep *master_lep, struct socket *new_so)
 	new_ep->com.state = MPA_REQ_WAIT;
 
 	setiwsockopt(new_so);
-	ret = soaccept(new_so, (struct sockaddr **)&remote);
+	ret = soaccept(new_so, (struct sockaddr *)&remote);
 	if (ret != 0) {
 		CTR4(KTR_IW_CXGBE,
 				"%s:listen sock:%p, new sock:%p, ret:%d",
 				__func__, master_lep->com.so, new_so, ret);
-		if (remote != NULL)
-			free(remote, M_SONAME);
 		soclose(new_so);
 		c4iw_put_ep(&new_ep->com);
 		c4iw_put_ep(&real_lep->com);
 		return;
 	}
-	free(remote, M_SONAME);
 
 	START_EP_TIMER(new_ep);
 

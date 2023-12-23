@@ -35,16 +35,13 @@ usage()
 
 work()
 (
-    local last off x1 x2 x3 struct field type lastoff lasttype
+    local last off x1 x2 x3 struct field type lastoff lasttype asserts
 
     echo "#ifndef _OFFSET_INC_"
     echo "#define _OFFSET_INC_"
     echo "#if !defined(GENOFFSET) && (!defined(KLD_MODULE) || defined(KLD_TIED))"
     last=
-    temp=$(mktemp -d genoffset.XXXXXXXXXX)
-    trap "rm -rf ${temp}" EXIT
-    # Note: we need to print symbol values in decimal so the numeric sort works
-    ${NM:='nm'} ${NMFLAGS} -t d "$1" | grep __assym_offset__ | sed -e 's/__/ /g' | sort -k 4 -k 1 -n |
+    asserts=
     while read off x1 x2 struct field type x3; do
 	off=$(echo "$off" | sed -E 's/^0+//')
 	if [ "$last" != "$struct" ]; then
@@ -60,12 +57,14 @@ work()
 	printf "%b" "\t${type}\t${field};\n"
 	lastoff="$off"
 	lasttype="$type"
-	echo "_SA(${struct}, ${field}, ${off});" >> "$temp/asserts"
-    done
+	asserts="${asserts}_SA(${struct}, ${field}, ${off});\n"
+    done <<EOT
+$(${NM:='nm'} ${NMFLAGS} -t d "$1" | grep __assym_offset__ | sed -e 's/__/ /g' | sort -k 4 -k 1 -n)
+EOT
     echo "};"
     echo "#define _SA(s,f,o) _Static_assert(__builtin_offsetof(struct s ## _lite, f) == o, \\"
     printf '\t"struct "#s"_lite field "#f" not at offset "#o)\n'
-    cat "$temp/asserts"
+    printf "${asserts}"
     echo "#undef _SA"
     echo "#endif"
     echo "#endif"

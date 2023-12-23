@@ -8,6 +8,7 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libmd \
 	lib/libthr \
+	usr.bin/awk.host \
 
 
 .include <dirdeps.mk>

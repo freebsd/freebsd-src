@@ -1853,9 +1853,8 @@ void ItaniumRecordLayoutBuilder::LayoutBitField(const FieldDecl *D) {
 void ItaniumRecordLayoutBuilder::LayoutField(const FieldDecl *D,
                                              bool InsertExtraPadding) {
   auto *FieldClass = D->getType()->getAsCXXRecordDecl();
-  bool PotentiallyOverlapping = D->hasAttr<NoUniqueAddressAttr>() && FieldClass;
   bool IsOverlappingEmptyField =
-      PotentiallyOverlapping && FieldClass->isEmpty();
+      D->isPotentiallyOverlapping() && FieldClass->isEmpty();
 
   CharUnits FieldOffset =
       (IsUnion || IsOverlappingEmptyField) ? CharUnits::Zero() : getDataSize();
@@ -1916,7 +1915,7 @@ void ItaniumRecordLayoutBuilder::LayoutField(const FieldDecl *D,
 
     // A potentially-overlapping field occupies its dsize or nvsize, whichever
     // is larger.
-    if (PotentiallyOverlapping) {
+    if (D->isPotentiallyOverlapping()) {
       const ASTRecordLayout &Layout = Context.getASTRecordLayout(FieldClass);
       EffectiveFieldSize =
           std::max(Layout.getNonVirtualSize(), Layout.getDataSize());
@@ -2199,11 +2198,19 @@ void ItaniumRecordLayoutBuilder::FinishLayout(const NamedDecl *D) {
           << (InBits ? 1 : 0); // (byte|bit)
     }
 
+    const auto *CXXRD = dyn_cast<CXXRecordDecl>(RD);
+
     // Warn if we packed it unnecessarily, when the unpacked alignment is not
     // greater than the one after packing, the size in bits doesn't change and
     // the offset of each field is identical.
+    // Unless the type is non-POD (for Clang ABI > 15), where the packed
+    // attribute on such a type does allow the type to be packed into other
+    // structures that use the packed attribute.
     if (Packed && UnpackedAlignment <= Alignment &&
-        UnpackedSizeInBits == getSizeInBits() && !HasPackedField)
+        UnpackedSizeInBits == getSizeInBits() && !HasPackedField &&
+        (!CXXRD || CXXRD->isPOD() ||
+         Context.getLangOpts().getClangABICompat() <=
+             LangOptions::ClangABI::Ver15))
       Diag(D->getLocation(), diag::warn_unnecessary_packed)
           << Context.getTypeDeclType(RD);
   }
@@ -2919,8 +2926,7 @@ void MicrosoftRecordLayoutBuilder::layoutNonVirtualBase(
   bool FoundBase = false;
   if (UseExternalLayout) {
     FoundBase = External.getExternalNVBaseOffset(BaseDecl, BaseOffset);
-    if (FoundBase) {
-      assert(BaseOffset >= Size && "base offset already allocated");
+    if (BaseOffset > Size) {
       Size = BaseOffset;
     }
   }
@@ -3716,6 +3722,28 @@ void ASTContext::DumpRecordLayout(const RecordDecl *RD, raw_ostream &OS,
   if (Target->defaultsToAIXPowerAlignment())
     OS << "  PreferredAlignment:" << toBits(Info.getPreferredAlignment())
        << "\n";
+  if (const CXXRecordDecl *CXXRD = dyn_cast<CXXRecordDecl>(RD)) {
+    OS << "  BaseOffsets: [";
+    const CXXRecordDecl *Base = nullptr;
+    for (auto I : CXXRD->bases()) {
+      if (I.isVirtual())
+        continue;
+      if (Base)
+        OS << ", ";
+      Base = I.getType()->getAsCXXRecordDecl();
+      OS << Info.CXXInfo->BaseOffsets[Base].getQuantity();
+    }
+    OS << "]>\n";
+    OS << "  VBaseOffsets: [";
+    const CXXRecordDecl *VBase = nullptr;
+    for (auto I : CXXRD->vbases()) {
+      if (VBase)
+        OS << ", ";
+      VBase = I.getType()->getAsCXXRecordDecl();
+      OS << Info.CXXInfo->VBaseOffsets[VBase].VBaseOffset.getQuantity();
+    }
+    OS << "]>\n";
+  }
   OS << "  FieldOffsets: [";
   for (unsigned i = 0, e = Info.getFieldCount(); i != e; ++i) {
     if (i)

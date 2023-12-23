@@ -32,14 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)cmdtab.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] = "$OpenBSD: cmdtab.c,v 1.7 2006/03/17 14:43:06 moritz Exp $";
-#endif
-#endif /* not lint */
-
 #include "tip.h"
 
 esctable_t etable[] = {

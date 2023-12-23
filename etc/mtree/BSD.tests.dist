@@ -436,6 +436,8 @@
         rc
         ..
         rtld-elf
+            rtld_deepbind
+            ..
         ..
         tftpd
         ..
@@ -795,6 +797,8 @@
                 ..
                 stripe
                 ..
+                union
+                ..
                 uzip
                     etalon
                     ..
@@ -1081,6 +1085,8 @@
         ..
         locale
         ..
+        lockf
+        ..
         m4
         ..
         mkimg
@@ -1170,8 +1176,6 @@
         jail
         ..
         makefs
-        ..
-        mixer
         ..
         newsyslog
         ..

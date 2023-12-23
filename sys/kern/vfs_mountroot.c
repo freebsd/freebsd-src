@@ -39,7 +39,6 @@
 
 #include "opt_rootdevname.h"
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
@@ -895,18 +894,18 @@ vfs_mountroot_conf0(struct sbuf *sb)
 	char *s, *tok, *mnt, *opt;
 	int error;
 
-	sbuf_printf(sb, ".onfail panic\n");
+	sbuf_cat(sb, ".onfail panic\n");
 	sbuf_printf(sb, ".timeout %d\n", root_mount_timeout);
 	if (boothowto & RB_ASKNAME)
-		sbuf_printf(sb, ".ask\n");
+		sbuf_cat(sb, ".ask\n");
 #ifdef ROOTDEVNAME
 	if (boothowto & RB_DFLTROOT)
 		sbuf_printf(sb, "%s\n", ROOTDEVNAME);
 #endif
 	if (boothowto & RB_CDROM) {
-		sbuf_printf(sb, "cd9660:/dev/cd0 ro\n");
-		sbuf_printf(sb, ".timeout 0\n");
-		sbuf_printf(sb, "cd9660:/dev/cd1 ro\n");
+		sbuf_cat(sb, "cd9660:/dev/cd0 ro\n");
+		sbuf_cat(sb, ".timeout 0\n");
+		sbuf_cat(sb, "cd9660:/dev/cd1 ro\n");
 		sbuf_printf(sb, ".timeout %d\n", root_mount_timeout);
 	}
 	s = kern_getenv("vfs.root.mountfrom");
@@ -933,7 +932,7 @@ vfs_mountroot_conf0(struct sbuf *sb)
 		sbuf_printf(sb, "%s\n", ROOTDEVNAME);
 #endif
 	if (!(boothowto & RB_ASKNAME))
-		sbuf_printf(sb, ".ask\n");
+		sbuf_cat(sb, ".ask\n");
 }
 
 static int

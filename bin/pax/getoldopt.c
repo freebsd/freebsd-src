@@ -10,7 +10,6 @@
  * in the Public Domain for your edification and enjoyment.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdio.h>

@@ -150,7 +150,7 @@ static uma_zone_t slabzones[2];
 static uma_zone_t hashzone;
 
 /* The boot-time adjusted value for cache line alignment. */
-int uma_align_cache = 64 - 1;
+static unsigned int uma_cache_align_mask = 64 - 1;
 
 static MALLOC_DEFINE(M_UMAHASH, "UMAHash", "UMA Hash Buckets");
 static MALLOC_DEFINE(M_UMA, "UMA", "UMA Misc");
@@ -3243,20 +3243,44 @@ uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit, uma_fini fini,
 	args.size = size;
 	args.uminit = uminit;
 	args.fini = fini;
-	args.align = (align == UMA_ALIGN_CACHE) ? uma_align_cache : align;
+	args.align = align;
 	args.flags = flags;
 	args.zone = zone;
 	return (zone_alloc_item(kegs, &args, UMA_ANYDOMAIN, M_WAITOK));
 }
 
+
+static void
+check_align_mask(unsigned int mask)
+{
+
+	KASSERT(powerof2(mask + 1),
+	    ("UMA: %s: Not the mask of a power of 2 (%#x)", __func__, mask));
+	/*
+	 * Make sure the stored align mask doesn't have its highest bit set,
+	 * which would cause implementation-defined behavior when passing it as
+	 * the 'align' argument of uma_zcreate().  Such very large alignments do
+	 * not make sense anyway.
+	 */
+	KASSERT(mask <= INT_MAX,
+	    ("UMA: %s: Mask too big (%#x)", __func__, mask));
+}
+
 /* Public functions */
 /* See uma.h */
 void
-uma_set_align(int align)
+uma_set_cache_align_mask(unsigned int mask)
 {
 
-	if (align != UMA_ALIGN_CACHE)
-		uma_align_cache = align;
+	check_align_mask(mask);
+	uma_cache_align_mask = mask;
+}
+
+/* Returns the alignment mask to use to request cache alignment. */
+unsigned int
+uma_get_cache_align_mask(void)
+{
+	return (uma_cache_align_mask);
 }
 
 /* See uma.h */
@@ -3268,8 +3292,7 @@ uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 	struct uma_zctor_args args;
 	uma_zone_t res;
 
-	KASSERT(powerof2(align + 1), ("invalid zone alignment %d for \"%s\"",
-	    align, name));
+	check_align_mask(align);
 
 	/* This stuff is essential for the zone ctor */
 	memset(&args, 0, sizeof(args));
@@ -3445,7 +3468,7 @@ item_ctor(uma_zone_t zone, int uz_flags, int size, void *udata, int flags,
 	skipdbg = uma_dbg_zskip(zone, item);
 	if (!skipdbg && (uz_flags & UMA_ZFLAG_TRASH) != 0 &&
 	    zone->uz_ctor != trash_ctor)
-		trash_ctor(item, size, udata, flags);
+		trash_ctor(item, size, zone, flags);
 #endif
 
 	/* Check flags before loading ctor pointer. */
@@ -3487,7 +3510,7 @@ item_dtor(uma_zone_t zone, void *item, int size, void *udata,
 #ifdef INVARIANTS
 		if (!skipdbg && (zone->uz_flags & UMA_ZFLAG_TRASH) != 0 &&
 		    zone->uz_dtor != trash_dtor)
-			trash_dtor(item, size, udata);
+			trash_dtor(item, size, zone);
 #endif
 	}
 	kasan_mark_item_invalid(zone, item);

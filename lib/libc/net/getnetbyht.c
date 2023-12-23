@@ -39,11 +39,6 @@
  * from getnetent.c	1.1 (Coimbra) 93/06/02
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)getnetent.c	8.1 (Berkeley) 6/4/93";
-static char orig_rcsid[] = "From: Id: getnetent.c,v 8.4 1997/06/01 20:34:37 vixie Exp";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>

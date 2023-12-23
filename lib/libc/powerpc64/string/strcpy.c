@@ -26,6 +26,5 @@
  */
 
 
-#include <sys/cdefs.h>
 #define WEAK_STRCPY
 #include "../../string/strcpy.c"

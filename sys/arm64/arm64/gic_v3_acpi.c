@@ -29,7 +29,6 @@
 
 #include "opt_acpi.h"
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

@@ -29,18 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1992, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)gcore.c	8.2 (Berkeley) 9/23/93";
-#endif /* not lint */
-#endif
-#include <sys/cdefs.h>
 /*
  * Originally written by Eric Cooper in Fall 1981.
  * Inspired by a version 6 program by Len Levin, 1978.

@@ -32,8 +32,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
  */
 
 #include <sys/cdefs.h>
@@ -2238,7 +2236,7 @@ fdinit(void)
  * Build a pwddesc structure from another.
  * Copy the current, root, and jail root vnode references.
  *
- * If pdp is not NULL, return with it shared locked.
+ * If pdp is not NULL and keeplock is true, return with it (exclusively) locked.
  */
 struct pwddesc *
 pdinit(struct pwddesc *pdp, bool keeplock)

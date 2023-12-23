@@ -30,9 +30,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-#
-#	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-#
 # Script to produce VFS front-end sugar.
 #
 # usage: vnode_if.awk <srcfile> [-c | -h | -p | -q]

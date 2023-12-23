@@ -35,7 +35,6 @@
  * This driver is based on the I2C driver for i.MX
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

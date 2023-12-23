@@ -33,7 +33,6 @@
  * NB!  This file must be usable both in kernel and userland.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/diskmbr.h>
 #include <sys/endian.h>

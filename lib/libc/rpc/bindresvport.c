@@ -30,12 +30,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char *sccsid2 = "from: @(#)bindresvport.c 1.8 88/02/08 SMI";
-static char *sccsid = "from: @(#)bindresvport.c	2.2 88/07/29 4.0 RPCSRC";
-#endif
 /* from: $OpenBSD: bindresvport.c,v 1.7 1996/07/30 16:25:47 downsj Exp $ */
-#include <sys/cdefs.h>
 /*
  * Copyright (c) 1987 by Sun Microsystems, Inc.
  *

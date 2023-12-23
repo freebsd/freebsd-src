@@ -23,9 +23,6 @@
 #
 # Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zfs_get_002_pos.ksh	1.6	09/06/22 SMI"
-#
 
 . $STF_SUITE/tests/cli_root/zfs_get/zfs_get_common.kshlib
 . $STF_SUITE/tests/userquota/userquota_common.kshlib

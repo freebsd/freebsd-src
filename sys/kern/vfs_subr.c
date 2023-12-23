@@ -32,8 +32,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
  */
 
 /*
@@ -1224,7 +1222,7 @@ restart:
 		 * If it's been deconstructed already, it's still
 		 * referenced, or it exceeds the trigger, skip it.
 		 * Also skip free vnodes.  We are trying to make space
-		 * to expand the free list, not reduce it.
+		 * for more free vnodes, not reduce their count.
 		 */
 		if (vp->v_usecount > 0 || vp->v_holdcnt == 0 ||
 		    (!reclaim_nc_src && !LIST_EMPTY(&vp->v_cache_src)))
@@ -1319,7 +1317,7 @@ SYSCTL_INT(_vfs_vnode_vnlru, OID_AUTO, max_free_per_call, CTLFLAG_RW,
     "limit on vnode free requests per call to the vnlru_free routine");
 
 /*
- * Attempt to reduce the free list by the requested amount.
+ * Attempt to recycle requested amount of free vnodes.
  */
 static int
 vnlru_free_impl(int count, struct vfsops *mnt_op, struct vnode *mvp, bool isvnlru)
@@ -1761,7 +1759,7 @@ vnlru_proc(void)
 		/*
 		 * If numvnodes is too large (due to desiredvnodes being
 		 * adjusted using its sysctl, or emergency growth), first
-		 * try to reduce it by discarding from the free list.
+		 * try to reduce it by discarding free vnodes.
 		 */
 		if (rnumvnodes > desiredvnodes + 10) {
 			vnlru_free_locked_vnlru(rnumvnodes - desiredvnodes);
@@ -1772,7 +1770,7 @@ vnlru_proc(void)
 		 * Sleep if the vnode cache is in a good state.  This is
 		 * when it is not over-full and has space for about a 4%
 		 * or 9% expansion (by growing its size or inexcessively
-		 * reducing its free list).  Otherwise, try to reclaim
+		 * reducing free vnode count).  Otherwise, try to reclaim
 		 * space for a 10% expansion.
 		 */
 		if (vstir && force == 0) {
@@ -1858,10 +1856,7 @@ SYSINIT(vnlru, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start,
  */
 
 /*
- * Try to recycle a freed vnode.  We abort if anyone picks up a reference
- * before we actually vgone().  This function must be called with the vnode
- * held to prevent the vnode from being returned to the free list midway
- * through vgone().
+ * Try to recycle a freed vnode.
  */
 static int
 vtryrecycle(struct vnode *vp, bool isvnlru)
@@ -1976,14 +1971,10 @@ vn_alloc_hard(struct mount *mp, u_long rnumvnodes, bool bumped)
 	}
 
 	/*
-	 * Grow the vnode cache if it will not be above its target max
-	 * after growing.  Otherwise, if the free list is nonempty, try
-	 * to reclaim 1 item from it before growing the cache (possibly
-	 * above its target max if the reclamation failed or is delayed).
-	 * Otherwise, wait for some space.  In all cases, schedule
-	 * vnlru_proc() if we are getting short of space.  The watermarks
-	 * should be chosen so that we never wait or even reclaim from
-	 * the free list to below its target minimum.
+	 * Grow the vnode cache if it will not be above its target max after
+	 * growing.  Otherwise, if there is at least one free vnode, try to
+	 * reclaim 1 item from it before growing the cache (possibly above its
+	 * target max if the reclamation failed or is delayed).
 	 */
 	if (vnlru_free_locked_direct(1) > 0)
 		goto alloc;
@@ -2038,7 +2029,7 @@ vn_free(struct vnode *vp)
 }
 
 /*
- * Return the next vnode from the free list.
+ * Allocate a new vnode.
  */
 int
 getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
@@ -3221,16 +3212,10 @@ v_init_counters(struct vnode *vp)
 }
 
 /*
- * Grab a particular vnode from the free list, increment its
- * reference count and lock it.  VIRF_DOOMED is set if the vnode
- * is being destroyed.  Only callers who specify LK_RETRY will
- * see doomed vnodes.  If inactive processing was delayed in
- * vput try to do it here.
+ * Get a usecount on a vnode.
  *
- * usecount is manipulated using atomics without holding any locks.
- *
- * holdcnt can be manipulated using atomics without holding any locks,
- * except when transitioning 1<->0, in which case the interlock is held.
+ * vget and vget_finish may fail to lock the vnode if they lose a race against
+ * it being doomed. LK_RETRY can be passed in flags to lock it anyway.
  *
  * Consumers which don't guarantee liveness of the vnode can use SMR to
  * try to get a reference. Note this operation can fail since the vnode
@@ -3882,9 +3867,9 @@ vdbatch_dequeue(struct vnode *vp)
 }
 
 /*
- * Drop the hold count of the vnode.  If this is the last reference to
- * the vnode we place it on the free list unless it has been vgone'd
- * (marked VIRF_DOOMED) in which case we will free it.
+ * Drop the hold count of the vnode.
+ *
+ * It will only get freed if this is the last hold *and* it has been vgone'd.
  *
  * Because the vnode vm object keeps a hold reference on the vnode if
  * there is at least one resident non-cached page, the vnode cannot
@@ -4200,7 +4185,7 @@ loop:
 }
 
 /*
- * Recycle an unused vnode to the front of the free list.
+ * Recycle an unused vnode.
  */
 int
 vrecycle(struct vnode *vp)

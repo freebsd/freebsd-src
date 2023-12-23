@@ -25,12 +25,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * From: @(#)scandir.c	8.3 (Berkeley) 1/2/94
  * From: FreeBSD: head/lib/libc/gen/scandir.c 317372 2017-04-24 14:56:41Z pfg
  */
 
-#include <sys/cdefs.h>
 /*
  * Scan the directory dirname calling select to make a list of selected
  * directory entries then sort using qsort and compare routine dcomp.

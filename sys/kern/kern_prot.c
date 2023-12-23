@@ -35,8 +35,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
  */
 
 /*
@@ -2192,17 +2190,6 @@ cru2xt(struct thread *td, struct xucred *xcr)
 
 	cru2x(td->td_ucred, xcr);
 	xcr->cr_pid = td->td_proc->p_pid;
-}
-
-/*
- * Set initial process credentials.
- * Callers are responsible for providing the reference for provided credentials.
- */
-void
-proc_set_cred_init(struct proc *p, struct ucred *newcred)
-{
-
-	p->p_ucred = crcowget(newcred);
 }
 
 /*

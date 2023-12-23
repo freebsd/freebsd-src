@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <float.h>
 #include <inttypes.h>
 #include <limits.h>

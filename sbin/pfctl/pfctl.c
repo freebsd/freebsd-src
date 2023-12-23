@@ -1367,6 +1367,14 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 				    (unsigned long long)rule.bytes[1],
 				    (uintmax_t)rule.states_tot);
 			}
+
+			if (anchor_call[0] &&
+			    (((p = strrchr(anchor_call, '/')) ?
+			      p[1] == '_' : anchor_call[0] == '_') ||
+			     opts & PF_OPT_RECURSE)) {
+				pfctl_show_rules(dev, npath, opts, format,
+				    anchor_call, depth, rule.anchor_wildcard);
+			}
 			break;
 		}
 		case PFCTL_SHOW_RULES:

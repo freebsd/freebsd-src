@@ -54,12 +54,10 @@ static QualType lookupPromiseType(Sema &S, const FunctionDecl *FD,
   const FunctionProtoType *FnType = FD->getType()->castAs<FunctionProtoType>();
   const SourceLocation FuncLoc = FD->getLocation();
 
-  NamespaceDecl *CoroNamespace = nullptr;
   ClassTemplateDecl *CoroTraits =
-      S.lookupCoroutineTraits(KwLoc, FuncLoc, CoroNamespace);
-  if (!CoroTraits) {
+      S.lookupCoroutineTraits(KwLoc, FuncLoc);
+  if (!CoroTraits)
     return QualType();
-  }
 
   // Form template argument list for coroutine_traits<R, P1, P2, ...> according
   // to [dcl.fct.def.coroutine]3
@@ -117,7 +115,7 @@ static QualType lookupPromiseType(Sema &S, const FunctionDecl *FD,
   QualType PromiseType = S.Context.getTypeDeclType(Promise);
 
   auto buildElaboratedType = [&]() {
-    auto *NNS = NestedNameSpecifier::Create(S.Context, nullptr, CoroNamespace);
+    auto *NNS = NestedNameSpecifier::Create(S.Context, nullptr, S.getStdNamespace());
     NNS = NestedNameSpecifier::Create(S.Context, NNS, false,
                                       CoroTrait.getTypePtr());
     return S.Context.getElaboratedType(ETK_None, NNS, PromiseType);
@@ -142,7 +140,7 @@ static QualType lookupCoroutineHandleType(Sema &S, QualType PromiseType,
   if (PromiseType.isNull())
     return QualType();
 
-  NamespaceDecl *CoroNamespace = S.getCachedCoroNamespace();
+  NamespaceDecl *CoroNamespace = S.getStdNamespace();
   assert(CoroNamespace && "Should already be diagnosed");
 
   LookupResult Result(S, &S.PP.getIdentifierTable().get("coroutine_handle"),
@@ -324,7 +322,7 @@ static ExprResult buildMemberCall(Sema &S, Expr *Base, SourceLocation Loc,
 }
 
 // See if return type is coroutine-handle and if so, invoke builtin coro-resume
-// on its address. This is to enable experimental support for coroutine-handle
+// on its address. This is to enable the support for coroutine-handle
 // returning await_suspend that results in a guaranteed tail call to the target
 // coroutine.
 static Expr *maybeTailCall(Sema &S, QualType RetType, Expr *E,
@@ -432,7 +430,7 @@ static ReadySuspendResumeResult buildCoawaitCalls(Sema &S, VarDecl *CoroPromise,
     //     type Z.
     QualType RetType = AwaitSuspend->getCallReturnType(S.Context);
 
-    // Experimental support for coroutine_handle returning await_suspend.
+    // Support for coroutine_handle returning await_suspend.
     if (Expr *TailCallSuspend =
             maybeTailCall(S, RetType, AwaitSuspend, Loc))
       // Note that we don't wrap the expression with ExprWithCleanups here
@@ -1139,6 +1137,18 @@ void Sema::CheckCompletedCoroutineBody(FunctionDecl *FD, Stmt *&Body) {
   Body = CoroutineBodyStmt::Create(Context, Builder);
 }
 
+static CompoundStmt *buildCoroutineBody(Stmt *Body, ASTContext &Context) {
+  if (auto *CS = dyn_cast<CompoundStmt>(Body))
+    return CS;
+
+  // The body of the coroutine may be a try statement if it is in
+  // 'function-try-block' syntax. Here we wrap it into a compound
+  // statement for consistency.
+  assert(isa<CXXTryStmt>(Body) && "Unimaged coroutine body type");
+  return CompoundStmt::Create(Context, {Body}, FPOptionsOverride(),
+                              SourceLocation(), SourceLocation());
+}
+
 CoroutineStmtBuilder::CoroutineStmtBuilder(Sema &S, FunctionDecl &FD,
                                            sema::FunctionScopeInfo &Fn,
                                            Stmt *Body)
@@ -1146,7 +1156,7 @@ CoroutineStmtBuilder::CoroutineStmtBuilder(Sema &S, FunctionDecl &FD,
       IsPromiseDependentType(
           !Fn.CoroutinePromise ||
           Fn.CoroutinePromise->getType()->isDependentType()) {
-  this->Body = Body;
+  this->Body = buildCoroutineBody(Body, S.getASTContext());
 
   for (auto KV : Fn.CoroutineParameterMoves)
     this->ParamMovesVector.push_back(KV.second);
@@ -1732,12 +1742,22 @@ bool CoroutineStmtBuilder::makeGroDeclAndReturnStmt() {
   assert(!FnRetType->isDependentType() &&
          "get_return_object type must no longer be dependent");
 
+  // The call to get_­return_­object is sequenced before the call to
+  // initial_­suspend and is invoked at most once, but there are caveats
+  // regarding on whether the prvalue result object may be initialized
+  // directly/eager or delayed, depending on the types involved.
+  //
+  // More info at https://github.com/cplusplus/papers/issues/1414
+  bool GroMatchesRetType = S.getASTContext().hasSameType(GroType, FnRetType);
+
   if (FnRetType->isVoidType()) {
     ExprResult Res =
         S.ActOnFinishFullExpr(this->ReturnValue, Loc, /*DiscardedValue*/ false);
     if (Res.isInvalid())
       return false;
 
+    if (!GroMatchesRetType)
+      this->ResultDecl = Res.get();
     return true;
   }
 
@@ -1750,11 +1770,60 @@ bool CoroutineStmtBuilder::makeGroDeclAndReturnStmt() {
     return false;
   }
 
-  StmtResult ReturnStmt = S.BuildReturnStmt(Loc, ReturnValue);
+  StmtResult ReturnStmt;
+  clang::VarDecl *GroDecl = nullptr;
+  if (GroMatchesRetType) {
+    ReturnStmt = S.BuildReturnStmt(Loc, ReturnValue);
+  } else {
+    GroDecl = VarDecl::Create(
+        S.Context, &FD, FD.getLocation(), FD.getLocation(),
+        &S.PP.getIdentifierTable().get("__coro_gro"), GroType,
+        S.Context.getTrivialTypeSourceInfo(GroType, Loc), SC_None);
+    GroDecl->setImplicit();
+
+    S.CheckVariableDeclarationType(GroDecl);
+    if (GroDecl->isInvalidDecl())
+      return false;
+
+    InitializedEntity Entity = InitializedEntity::InitializeVariable(GroDecl);
+    ExprResult Res =
+        S.PerformCopyInitialization(Entity, SourceLocation(), ReturnValue);
+    if (Res.isInvalid())
+      return false;
+
+    Res = S.ActOnFinishFullExpr(Res.get(), /*DiscardedValue*/ false);
+    if (Res.isInvalid())
+      return false;
+
+    S.AddInitializerToDecl(GroDecl, Res.get(),
+                           /*DirectInit=*/false);
+
+    S.FinalizeDeclaration(GroDecl);
+
+    // Form a declaration statement for the return declaration, so that AST
+    // visitors can more easily find it.
+    StmtResult GroDeclStmt =
+        S.ActOnDeclStmt(S.ConvertDeclToDeclGroup(GroDecl), Loc, Loc);
+    if (GroDeclStmt.isInvalid())
+      return false;
+
+    this->ResultDecl = GroDeclStmt.get();
+
+    ExprResult declRef = S.BuildDeclRefExpr(GroDecl, GroType, VK_LValue, Loc);
+    if (declRef.isInvalid())
+      return false;
+
+    ReturnStmt = S.BuildReturnStmt(Loc, declRef.get());
+  }
+
   if (ReturnStmt.isInvalid()) {
     noteMemberDeclaredHere(S, ReturnValue, Fn);
     return false;
   }
+
+  if (!GroMatchesRetType &&
+      cast<clang::ReturnStmt>(ReturnStmt.get())->getNRVOCandidate() == GroDecl)
+    GroDecl->setNRVOVariable(true);
 
   this->ReturnStmt = ReturnStmt.get();
   return true;
@@ -1842,67 +1911,32 @@ StmtResult Sema::BuildCoroutineBodyStmt(CoroutineBodyStmt::CtorArgs Args) {
 }
 
 ClassTemplateDecl *Sema::lookupCoroutineTraits(SourceLocation KwLoc,
-                                               SourceLocation FuncLoc,
-                                               NamespaceDecl *&Namespace) {
-  if (!StdCoroutineTraitsCache) {
-    // Because coroutines moved from std::experimental in the TS to std in
-    // C++20, we look in both places to give users time to transition their
-    // TS-specific code to C++20.  Diagnostics are given when the TS usage is
-    // discovered.
-    // TODO: Become stricter when <experimental/coroutine> is removed.
+                                               SourceLocation FuncLoc) {
+  if (StdCoroutineTraitsCache)
+    return StdCoroutineTraitsCache;
 
-    IdentifierInfo const &TraitIdent =
-        PP.getIdentifierTable().get("coroutine_traits");
+  IdentifierInfo const &TraitIdent =
+      PP.getIdentifierTable().get("coroutine_traits");
 
-    NamespaceDecl *StdSpace = getStdNamespace();
-    LookupResult ResStd(*this, &TraitIdent, FuncLoc, LookupOrdinaryName);
-    bool InStd = StdSpace && LookupQualifiedName(ResStd, StdSpace);
+  NamespaceDecl *StdSpace = getStdNamespace();
+  LookupResult Result(*this, &TraitIdent, FuncLoc, LookupOrdinaryName);
+  bool Found = StdSpace && LookupQualifiedName(Result, StdSpace);
 
-    NamespaceDecl *ExpSpace = lookupStdExperimentalNamespace();
-    LookupResult ResExp(*this, &TraitIdent, FuncLoc, LookupOrdinaryName);
-    bool InExp = ExpSpace && LookupQualifiedName(ResExp, ExpSpace);
-
-    if (!InStd && !InExp) {
-      // The goggles, they found nothing!
-      Diag(KwLoc, diag::err_implied_coroutine_type_not_found)
-          << "std::coroutine_traits";
-      return nullptr;
-    }
-
-    // Prefer ::std to std::experimental.
-    LookupResult &Result = InStd ? ResStd : ResExp;
-    CoroTraitsNamespaceCache = InStd ? StdSpace : ExpSpace;
-
-    // coroutine_traits is required to be a class template.
-    StdCoroutineTraitsCache = Result.getAsSingle<ClassTemplateDecl>();
-    if (!StdCoroutineTraitsCache) {
-      Result.suppressDiagnostics();
-      NamedDecl *Found = *Result.begin();
-      Diag(Found->getLocation(), diag::err_malformed_std_coroutine_traits);
-      return nullptr;
-    }
-
-    if (InExp) {
-      // Found in std::experimental
-      Diag(KwLoc, diag::warn_deprecated_coroutine_namespace)
-          << "coroutine_traits";
-      ResExp.suppressDiagnostics();
-      NamedDecl *Found = *ResExp.begin();
-      Diag(Found->getLocation(), diag::note_entity_declared_at) << Found;
-
-      if (InStd &&
-          StdCoroutineTraitsCache != ResExp.getAsSingle<ClassTemplateDecl>()) {
-        // Also found something different in std
-        Diag(KwLoc,
-             diag::err_mixed_use_std_and_experimental_namespace_for_coroutine);
-        Diag(StdCoroutineTraitsCache->getLocation(),
-             diag::note_entity_declared_at)
-            << StdCoroutineTraitsCache;
-
-        return nullptr;
-      }
-    }
+  if (!Found) {
+    // The goggles, we found nothing!
+    Diag(KwLoc, diag::err_implied_coroutine_type_not_found)
+        << "std::coroutine_traits";
+    return nullptr;
   }
-  Namespace = CoroTraitsNamespaceCache;
+
+  // coroutine_traits is required to be a class template.
+  StdCoroutineTraitsCache = Result.getAsSingle<ClassTemplateDecl>();
+  if (!StdCoroutineTraitsCache) {
+    Result.suppressDiagnostics();
+    NamedDecl *Found = *Result.begin();
+    Diag(Found->getLocation(), diag::err_malformed_std_coroutine_traits);
+    return nullptr;
+  }
+
   return StdCoroutineTraitsCache;
 }

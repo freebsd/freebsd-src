@@ -34,7 +34,6 @@
  * child of that.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -118,7 +117,7 @@ qpi_probe_pcib(device_t dev, int bus)
 	 * the bus is not present.
 	 */
 	for (s = 0; s <= PCI_SLOTMAX; s++) {
-		devid = pci_cfgregread(bus, s, 0, PCIR_DEVVENDOR, 4);
+		devid = pci_cfgregread(0, bus, s, 0, PCIR_DEVVENDOR, 4);
 		if (devid != 0xffffffff)
 			break;
 	}

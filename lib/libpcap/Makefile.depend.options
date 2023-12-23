@@ -2,6 +2,6 @@
 
 DIRDEPS_OPTIONS= OFED
 
-DIRDEPS.OFED.yes= lib/ofed/libibverbs lib/ofed/libmlx5
+DIRDEPS.OFED.yes= lib/ofed/include lib/ofed/libibverbs lib/ofed/libmlx5
 
 .include <dirdeps-options.mk>

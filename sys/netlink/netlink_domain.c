@@ -541,14 +541,6 @@ nl_pru_disconnect(struct socket *so)
 }
 
 static int
-nl_pru_peeraddr(struct socket *so, struct sockaddr **sa)
-{
-	NL_LOG(LOG_DEBUG3, "socket %p, PID %d", so, curproc->p_pid);
-	MPASS(sotonlpcb(so) != NULL);
-	return (ENOTCONN);
-}
-
-static int
 nl_pru_shutdown(struct socket *so)
 {
 	NL_LOG(LOG_DEBUG3, "socket %p, PID %d", so, curproc->p_pid);
@@ -558,16 +550,16 @@ nl_pru_shutdown(struct socket *so)
 }
 
 static int
-nl_pru_sockaddr(struct socket *so, struct sockaddr **sa)
+nl_sockaddr(struct socket *so, struct sockaddr *sa)
 {
-	struct sockaddr_nl *snl;
 
-	snl = malloc(sizeof(struct sockaddr_nl), M_SONAME, M_WAITOK | M_ZERO);
-	/* TODO: set other fields */
-	snl->nl_len = sizeof(struct sockaddr_nl);
-	snl->nl_family = AF_NETLINK;
-	snl->nl_pid = sotonlpcb(so)->nl_port;
-	*sa = (struct sockaddr *)snl;
+	*(struct sockaddr_nl *)sa = (struct sockaddr_nl ){
+		/* TODO: set other fields */
+		.nl_len = sizeof(struct sockaddr_nl),
+		.nl_family = AF_NETLINK,
+		.nl_pid = sotonlpcb(so)->nl_port,
+	};
+
 	return (0);
 }
 
@@ -780,11 +772,10 @@ nl_setsbopt(struct socket *so, struct sockopt *sopt)
 	.pr_connect = nl_pru_connect,				\
 	.pr_detach = nl_pru_detach,				\
 	.pr_disconnect = nl_pru_disconnect,			\
-	.pr_peeraddr = nl_pru_peeraddr,				\
 	.pr_send = nl_pru_send,					\
 	.pr_rcvd = nl_pru_rcvd,					\
 	.pr_shutdown = nl_pru_shutdown,				\
-	.pr_sockaddr = nl_pru_sockaddr,				\
+	.pr_sockaddr = nl_sockaddr,				\
 	.pr_close = nl_pru_close
 
 static struct protosw netlink_raw_sw = {

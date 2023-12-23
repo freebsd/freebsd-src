@@ -1052,7 +1052,7 @@ report_esp_device(bool do_dp, bool do_unix)
 		abspath[strlen(abspath) - strlen(relpath) - 1] = '\0';
 		printf("%s\n", abspath);
 	} else {
-		printf("%s\n", dev);
+		printf("/dev/%s\n", dev);
 	}
 	free(dev);
 	free(relpath);

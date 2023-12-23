@@ -26,7 +26,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
@@ -59,7 +58,6 @@
 #include <cam/scsi/scsi_message.h>
 #include <cam/ata/ata_all.h>
 #include <machine/stdarg.h>	/* for xpt_print below */
-#include "opt_cam.h"
 
 struct ata_quirk_entry {
 	struct scsi_inquiry_pattern inq_pat;
@@ -2143,33 +2141,33 @@ ata_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
 		struct ccb_trans_settings_pata *pata =
 		    &cts.xport_specific.ata;
 
-		sbuf_printf(sb, " (");
+		sbuf_cat(sb, " (");
 		if (pata->valid & CTS_ATA_VALID_MODE)
 			sbuf_printf(sb, "%s, ", ata_mode2string(pata->mode));
 		if ((pata->valid & CTS_ATA_VALID_ATAPI) && pata->atapi != 0)
 			sbuf_printf(sb, "ATAPI %dbytes, ", pata->atapi);
 		if (pata->valid & CTS_ATA_VALID_BYTECOUNT)
 			sbuf_printf(sb, "PIO %dbytes", pata->bytecount);
-		sbuf_printf(sb, ")");
+		sbuf_putc(sb, ')');
 	}
 	if (cts.transport == XPORT_SATA) {
 		struct ccb_trans_settings_sata *sata =
 		    &cts.xport_specific.sata;
 
-		sbuf_printf(sb, " (");
+		sbuf_cat(sb, " (");
 		if (sata->valid & CTS_SATA_VALID_REVISION)
 			sbuf_printf(sb, "SATA %d.x, ", sata->revision);
 		else
-			sbuf_printf(sb, "SATA, ");
+			sbuf_cat(sb, "SATA, ");
 		if (sata->valid & CTS_SATA_VALID_MODE)
 			sbuf_printf(sb, "%s, ", ata_mode2string(sata->mode));
 		if ((sata->valid & CTS_ATA_VALID_ATAPI) && sata->atapi != 0)
 			sbuf_printf(sb, "ATAPI %dbytes, ", sata->atapi);
 		if (sata->valid & CTS_SATA_VALID_BYTECOUNT)
 			sbuf_printf(sb, "PIO %dbytes", sata->bytecount);
-		sbuf_printf(sb, ")");
+		sbuf_putc(sb, ')');
 	}
-	sbuf_printf(sb, "\n");
+	sbuf_putc(sb, '\n');
 }
 
 static void

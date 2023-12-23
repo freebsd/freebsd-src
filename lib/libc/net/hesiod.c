@@ -43,12 +43,7 @@
  * it uses res_send() and accesses _res.
  */
 
-#include <sys/cdefs.h>
 
-#if 0
-static char *orig_rcsid = "$NetBSD: hesiod.c,v 1.9 1999/02/11 06:16:38 simonb Exp $";
-#endif
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <netinet/in.h>
 #include <arpa/nameser.h>

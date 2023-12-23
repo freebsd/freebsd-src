@@ -29,21 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static char copyright[] =
-"@(#) Copyright (c) 1985, 1988, 1990, 1992, 1993, 1994\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-#endif
-
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
-#endif
-#endif /* not lint */
-
-#include <sys/cdefs.h>
 /*
  * FTP server.
  */

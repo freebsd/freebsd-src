@@ -3480,7 +3480,7 @@ dev/xen/bus/xen_intr.c		optional xenhvm
 dev/xen/bus/xenpv.c		optional xenhvm
 dev/xen/console/xen_console.c	optional xenhvm
 dev/xen/control/control.c	optional xenhvm
-dev/xen/cpu/xen_acpi_cpu.c	optional xenhvm
+dev/xen/cpu/xen_acpi_cpu.c	optional xenhvm acpi
 dev/xen/efi/pvefi.c		optional xenhvm xenefi efirt
 dev/xen/grant_table/grant_table.c	optional xenhvm
 dev/xen/netback/netback.c	optional xenhvm
@@ -3795,7 +3795,7 @@ kern/kern_priv.c		standard
 kern/kern_proc.c		standard
 kern/kern_procctl.c		standard
 kern/kern_prot.c		standard
-kern/kern_racct.c		standard
+kern/kern_racct.c		optional racct
 kern/kern_rangelock.c		standard
 kern/kern_rctl.c		standard
 kern/kern_resource.c		standard
@@ -4354,6 +4354,7 @@ netinet/tcp_hostcache.c		optional inet | inet6
 netinet/tcp_input.c		optional inet | inet6
 netinet/tcp_log_buf.c		optional tcp_blackbox inet | tcp_blackbox inet6
 netinet/tcp_lro.c		optional inet | inet6
+netinet/tcp_lro_hpts.c		optional tcphpts inet | tcphpts inet6
 netinet/tcp_output.c		optional inet | inet6
 netinet/tcp_offload.c		optional tcp_offload inet | tcp_offload inet6
 netinet/tcp_hpts.c		optional tcphpts inet | tcphpts inet6
@@ -4362,13 +4363,13 @@ netinet/tcp_pcap.c		optional inet tcppcap | inet6 tcppcap \
 	compile-with "${NORMAL_C} ${NO_WNONNULL}"
 netinet/tcp_reass.c		optional inet | inet6
 netinet/tcp_sack.c		optional inet | inet6
-netinet/tcp_stacks/bbr.c	optional inet tcp_bbr | inet6 tcp_bbr \
+netinet/tcp_stacks/bbr.c	optional inet tcphpts tcp_bbr | inet6 tcphpts tcp_bbr \
 	compile-with "${NORMAL_C} -DMODNAME=tcp_bbr -DSTACKNAME=bbr"
-netinet/tcp_stacks/rack.c	optional inet tcp_bbr | inet6 tcp_bbr \
+netinet/tcp_stacks/rack.c	optional inet tcphpts tcp_rack | inet6 tcphpts tcp_rack \
 	compile-with "${NORMAL_C} -DMODNAME=tcp_rack -DSTACKNAME=rack"
-netinet/tcp_stacks/rack_bbr_common.c	optional inet tcp_bbr | inet tcp_rack | inet6 tcp_bbr | inet6 tcp_rack
-netinet/tcp_stacks/sack_filter.c	optional inet tcp_bbr | inet tcp_rack | inet6 tcp_bbr | inet6 tcp_rack
-netinet/tcp_stacks/tailq_hash.c	optional inet tcp_bbr | inet tcp_rack | inet6 tcp_bbr | inet6 tcp_rack
+netinet/tcp_stacks/rack_bbr_common.c	optional inet tcphpts tcp_bbr | inet tcphpts tcp_rack | inet6 tcphpts tcp_bbr | inet6 tcphpts tcp_rack
+netinet/tcp_stacks/sack_filter.c	optional inet tcphpts tcp_bbr | inet tcphpts tcp_rack | inet6 tcphpts tcp_bbr | inet6 tcphpts tcp_rack
+netinet/tcp_stacks/tailq_hash.c	optional inet tcphpts tcp_bbr | inet tcphpts tcp_rack | inet6 tcphpts tcp_bbr | inet6 tcphpts tcp_rack
 netinet/tcp_stats.c		optional stats inet | stats inet6
 netinet/tcp_subr.c		optional inet | inet6
 netinet/tcp_syncache.c		optional inet | inet6
@@ -4565,6 +4566,8 @@ compat/linuxkpi/common/src/linux_i2c.c		optional compat_linuxkpi \
 compat/linuxkpi/common/src/linux_i2cbb.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_interrupt.c	optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_kobject.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_kthread.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
@@ -4912,7 +4915,11 @@ dev/mlx5/mlx5_core/mlx5_eq.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_eswitch.c		optional mlx5 pci	\
 	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_fc_cmd.c		optional mlx5 pci	\
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_fs_cmd.c		optional mlx5 pci	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_fs_counters.c		optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_fs_tcp.c		optional mlx5 pci	\
 	compile-with "${OFED_C}"

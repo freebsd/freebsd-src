@@ -30,8 +30,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-/* #pragma ident   "@(#)rpcb_stat.c 1.7     94/04/25 SMI" */
-
 /*
  * rpcb_stat.c
  * Allows for gathering of statistics
@@ -79,7 +77,6 @@ rpcbs_procinfo(rpcvers_t rtype, rpcproc_t proc)
 	default: return;
 	}
 	inf[rtype].info[proc]++;
-	return;
 }
 
 void
@@ -88,7 +85,6 @@ rpcbs_set(rpcvers_t rtype, bool_t success)
 	if ((rtype >= RPCBVERS_STAT) || (success == FALSE))
 		return;
 	inf[rtype].setinfo++;
-	return;
 }
 
 void
@@ -97,7 +93,6 @@ rpcbs_unset(rpcvers_t rtype, bool_t success)
 	if ((rtype >= RPCBVERS_STAT) || (success == FALSE))
 		return;
 	inf[rtype].unsetinfo++;
-	return;
 }
 
 void
@@ -194,7 +189,6 @@ rpcbs_rmtcall(rpcvers_t rtype, rpcproc_t rpcbproc, rpcprog_t prog,
 	rl->indirect = 1;
 	rl->next = inf[rtype].rmtinfo;
 	inf[rtype].rmtinfo = rl;
-	return;
 }
 
 void *

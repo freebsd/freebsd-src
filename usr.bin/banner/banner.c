@@ -29,19 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1980, 1993, 1994\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif
-
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)banner.c	8.4 (Berkeley) 4/29/95";
-#endif
-#endif
-
-#include <sys/cdefs.h>
 /*
  * banner - prints large signs
  * banner [-w#] [-d] [-t] message ...

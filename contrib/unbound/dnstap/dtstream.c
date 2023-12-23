@@ -788,7 +788,7 @@ static int dtio_write_ssl(struct dt_io_thread* dtio, uint8_t* buf,
 			}
 			return -1;
 		}
-		log_crypto_err("dnstap io, could not SSL_write");
+		log_crypto_err_io("dnstap io, could not SSL_write", want);
 		return -1;
 	}
 	return r;
@@ -1029,7 +1029,7 @@ static int ssl_read_bytes(struct dt_io_thread* dtio, void* buf, size_t len)
 				"other side");
 			return 0;
 		}
-		log_crypto_err("could not SSL_read");
+		log_crypto_err_io("could not SSL_read", want);
 		verbose(VERB_DETAIL, "dnstap io: output closed by the "
 				"other side");
 		return 0;
@@ -1431,8 +1431,8 @@ static int dtio_ssl_handshake(struct dt_io_thread* dtio,
 		} else {
 			unsigned long err = ERR_get_error();
 			if(!squelch_err_ssl_handshake(err)) {
-				log_crypto_err_code("dnstap io, ssl handshake failed",
-					err);
+				log_crypto_err_io_code("dnstap io, ssl handshake failed",
+					want, err);
 				verbose(VERB_OPS, "dnstap io, ssl handshake failed "
 					"from %s", dtio->ip_str);
 			}

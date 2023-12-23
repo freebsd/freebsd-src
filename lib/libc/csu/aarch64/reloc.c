@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 static void
 crt1_handle_rela(const Elf_Rela *r)
 {

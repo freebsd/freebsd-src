@@ -37,7 +37,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <ctype.h>
 #include <string.h>
 #include "xlocale_private.h"

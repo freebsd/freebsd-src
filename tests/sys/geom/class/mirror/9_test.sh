@@ -15,9 +15,9 @@ dd if=/dev/zero of=$m1 bs=$ddbs count=1024 >/dev/null 2>&1
 dd if=/dev/zero of=$m2 bs=$ddbs count=1024 >/dev/null 2>&1
 dd if=/dev/zero of=$m3 bs=$ddbs count=1024 >/dev/null 2>&1
 
-us0=$(attach_md -t vnode -f $m1) || exit 1
-us1=$(attach_md -t vnode -f $m2) || exit 1
-us2=$(attach_md -t vnode -f $m3) || exit 1
+attach_md us0 -t vnode -f $m1 || exit 1
+attach_md us1 -t vnode -f $m2 || exit 1
+attach_md us2 -t vnode -f $m3 || exit 1
 
 gmirror label $name /dev/$us0 /dev/$us1 || exit 1
 devwait

@@ -39,7 +39,6 @@
 #ifndef _SYS_CAPSICUM_H_
 #define	_SYS_CAPSICUM_H_
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #include <sys/caprights.h>
@@ -336,6 +335,8 @@ cap_rights_t *__cap_rights_clear(cap_rights_t *rights, ...);
 #define	cap_rights_is_set(...)						\
 	__cap_rights_is_set(__VA_ARGS__, 0ULL)
 bool __cap_rights_is_set(const cap_rights_t *rights, ...);
+
+bool cap_rights_is_empty(const cap_rights_t *rights);
 
 bool cap_rights_is_valid(const cap_rights_t *rights);
 cap_rights_t *cap_rights_merge(cap_rights_t *dst, const cap_rights_t *src);

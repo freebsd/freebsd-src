@@ -32,10 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)bt_open.c	8.10 (Berkeley) 8/17/94";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
 /*
  * Implementation of btree access method for 4.4BSD.
  *

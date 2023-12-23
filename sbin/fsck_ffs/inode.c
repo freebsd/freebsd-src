@@ -29,12 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static const char sccsid[] = "@(#)inode.c	8.8 (Berkeley) 4/28/95";
-#endif /* not lint */
-#endif
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/stdint.h>
@@ -48,7 +42,6 @@ static const char sccsid[] = "@(#)inode.c	8.8 (Berkeley) 4/28/95";
 #include <pwd.h>
 #include <string.h>
 #include <time.h>
-#include <libufs.h>
 
 #include "fsck.h"
 
@@ -646,7 +639,7 @@ setinodebuf(int cg, ino_t inosused)
 		inobufsize = blkroundup(&sblock,
 		    MAX(INOBUFSIZE, sblock.fs_bsize));
 		initbarea(&inobuf, BT_INODES);
-		if ((inobuf.b_un.b_buf = Malloc((unsigned)inobufsize)) == NULL)
+		if ((inobuf.b_un.b_buf = Balloc((unsigned)inobufsize)) == NULL)
 			errx(EEXIT, "cannot allocate space for inode buffer");
 	}
 	fullcnt = inobufsize / ((sblock.fs_magic == FS_UFS1_MAGIC) ?

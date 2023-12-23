@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)quotas.ms	8.1 (Berkeley) 6/8/93
-.\"
 .EH 'SMM:4-%''Disc Quotas in a \s-2UNIX\s+2 Environment'
 .OH 'Disc Quotas in a \s-2UNIX\s+2 Environment''SMM:4-%'
 .ND 5th July, 1983

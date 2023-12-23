@@ -21,10 +21,6 @@
  * vix 04mar96 [initial]
  */
 
-#if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: ev_streams.c,v 1.5 2005/04/27 04:56:36 sra Exp $";
-#endif
-#include <sys/cdefs.h>
 #include "port_before.h"
 #ifndef _LIBC
 #include "fd_setsize.h"

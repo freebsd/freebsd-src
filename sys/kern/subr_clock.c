@@ -34,13 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: Utah $Hdr: clock.c 1.18 91/01/21$
- *	from: @(#)clock.c	8.2 (Berkeley) 1/12/94
  *	from: NetBSD: clock_subr.c,v 1.6 2001/07/07 17:04:02 thorpej Exp
  *	and
  *	from: src/sys/i386/isa/clock.c,v 1.176 2001/09/04
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

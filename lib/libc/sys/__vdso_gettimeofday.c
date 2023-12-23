@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/elf.h>
 #include <sys/time.h>
 #include <sys/vdso.h>

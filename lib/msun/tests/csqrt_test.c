@@ -28,7 +28,6 @@
  * Tests for csqrt{,f}()
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 
 #include <complex.h>

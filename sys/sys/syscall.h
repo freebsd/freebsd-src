@@ -73,8 +73,8 @@
 #define	SYS_vfork	66
 				/* 67 is obsolete vread */
 				/* 68 is obsolete vwrite */
-#define	SYS_sbrk	69
-#define	SYS_sstk	70
+				/* 69 is obsolete sbrk */
+				/* 70 is obsolete sstk */
 				/* 71 is old mmap */
 #define	SYS_freebsd11_vadvise	72
 #define	SYS_munmap	73

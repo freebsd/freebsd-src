@@ -451,6 +451,10 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/block_cloning/block_cloning_ficlone.ksh \
 	functional/block_cloning/block_cloning_ficlonerange.ksh \
 	functional/block_cloning/block_cloning_ficlonerange_partial.ksh \
+	functional/block_cloning/block_cloning_cross_enc_dataset.ksh \
+	functional/block_cloning/block_cloning_replay.ksh \
+	functional/block_cloning/block_cloning_replay_encrypted.ksh \
+	functional/block_cloning/block_cloning_lwb_buffer_overflow.ksh \
 	functional/bootfs/bootfs_001_pos.ksh \
 	functional/bootfs/bootfs_002_neg.ksh \
 	functional/bootfs/bootfs_003_pos.ksh \
@@ -1112,6 +1116,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zpool_import/zpool_import_missing_002_pos.ksh \
 	functional/cli_root/zpool_import/zpool_import_missing_003_pos.ksh \
 	functional/cli_root/zpool_import/zpool_import_rename_001_pos.ksh \
+	functional/cli_root/zpool_import/zpool_import_status.ksh \
 	functional/cli_root/zpool_initialize/cleanup.ksh \
 	functional/cli_root/zpool_initialize/zpool_initialize_attach_detach_add_remove.ksh \
 	functional/cli_root/zpool_initialize/zpool_initialize_fault_export_import_online.ksh \
@@ -1365,6 +1370,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/compression/setup.ksh \
 	functional/cp_files/cleanup.ksh \
 	functional/cp_files/cp_files_001_pos.ksh \
+	functional/cp_files/cp_stress.ksh \
 	functional/cp_files/setup.ksh \
 	functional/crtime/cleanup.ksh \
 	functional/crtime/crtime_001_pos.ksh \
@@ -1668,8 +1674,14 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/raidz/cleanup.ksh \
 	functional/raidz/raidz_001_neg.ksh \
 	functional/raidz/raidz_002_pos.ksh \
-	functional/raidz/raidz_003_pos.ksh \
-	functional/raidz/raidz_004_pos.ksh \
+	functional/raidz/raidz_expand_001_pos.ksh \
+	functional/raidz/raidz_expand_002_pos.ksh \
+	functional/raidz/raidz_expand_003_neg.ksh \
+	functional/raidz/raidz_expand_003_pos.ksh \
+	functional/raidz/raidz_expand_004_pos.ksh \
+	functional/raidz/raidz_expand_005_pos.ksh \
+	functional/raidz/raidz_expand_006_neg.ksh \
+	functional/raidz/raidz_expand_007_neg.ksh \
 	functional/raidz/setup.ksh \
 	functional/redacted_send/cleanup.ksh \
 	functional/redacted_send/redacted_compressed.ksh \

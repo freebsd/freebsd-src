@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
@@ -61,7 +60,6 @@
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_pass.h>
 #include <machine/stdarg.h>	/* for xpt_print below */
-#include "opt_cam.h"
 
 struct scsi_quirk_entry {
 	struct scsi_inquiry_pattern inq_pat;
@@ -3119,13 +3117,13 @@ scsi_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
 		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0
 		 && spi->bus_width > 0) {
 			if (freq != 0) {
-				sbuf_printf(sb, ", ");
+				sbuf_cat(sb, ", ");
 			} else {
-				sbuf_printf(sb, " (");
+				sbuf_cat(sb, " (");
 			}
 			sbuf_printf(sb, "%dbit)", 8 * (0x01 << spi->bus_width));
 		} else if (freq != 0) {
-			sbuf_printf(sb, ")");
+			sbuf_putc(sb, ')');
 		}
 	}
 	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_FC) {
@@ -3139,7 +3137,7 @@ scsi_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
 		if (fc->valid & CTS_FC_VALID_PORT)
 			sbuf_printf(sb, " PortID 0x%x", fc->port);
 	}
-	sbuf_printf(sb, "\n");
+	sbuf_putc(sb, '\n');
 }
 
 static void

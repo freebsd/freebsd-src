@@ -25,8 +25,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)2.5.t	8.1 (Berkeley) 6/8/93
-.\"
 .sh "Process and kernel descriptors
 .PP
 The status of the facilities in this section is still under discussion.

@@ -30,10 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char *sccsid2 = "@(#)svc_tcp.c 1.21 87/08/11 Copyr 1984 Sun Micro";
-static char *sccsid = "@(#)svc_tcp.c	2.2 88/08/01 4.0 RPCSRC";
-#endif
 #include <sys/cdefs.h>
 /*
  * svc_vc.c, Server side for Connection Oriented based RPC. 
@@ -73,6 +69,66 @@ static char *sccsid = "@(#)svc_tcp.c	2.2 88/08/01 4.0 RPCSRC";
 #include <rpc/rpc_com.h>
 
 #include <security/mac/mac_framework.h>
+
+SYSCTL_NODE(_kern, OID_AUTO, rpc, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "RPC");
+SYSCTL_NODE(_kern_rpc, OID_AUTO, tls, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "TLS");
+SYSCTL_NODE(_kern_rpc, OID_AUTO, unenc, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "unencrypted");
+
+KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_rx_msgbytes) = 0;
+SYSCTL_U64(_kern_rpc_unenc, OID_AUTO, rx_msgbytes, CTLFLAG_KRPC_VNET | CTLFLAG_RW,
+    &KRPC_VNET_NAME(svc_vc_rx_msgbytes), 0, "Count of non-TLS rx bytes");
+
+KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_rx_msgcnt) = 0;
+SYSCTL_U64(_kern_rpc_unenc, OID_AUTO, rx_msgcnt, CTLFLAG_KRPC_VNET | CTLFLAG_RW,
+    &KRPC_VNET_NAME(svc_vc_rx_msgcnt), 0, "Count of non-TLS rx messages");
+
+KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_tx_msgbytes) = 0;
+SYSCTL_U64(_kern_rpc_unenc, OID_AUTO, tx_msgbytes, CTLFLAG_KRPC_VNET | CTLFLAG_RW,
+    &KRPC_VNET_NAME(svc_vc_tx_msgbytes), 0, "Count of non-TLS tx bytes");
+
+KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_tx_msgcnt) = 0;
+SYSCTL_U64(_kern_rpc_unenc, OID_AUTO, tx_msgcnt, CTLFLAG_KRPC_VNET | CTLFLAG_RW,
+    &KRPC_VNET_NAME(svc_vc_tx_msgcnt), 0, "Count of non-TLS tx messages");
+
+KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_tls_alerts) = 0;
+SYSCTL_U64(_kern_rpc_tls, OID_AUTO, alerts,
+    CTLFLAG_KRPC_VNET | CTLFLAG_RW, &KRPC_VNET_NAME(svc_vc_tls_alerts), 0,
+    "Count of TLS alert messages");
+
+KRPC_VNET_DEFINE(uint64_t, svc_vc_tls_handshake_failed) = 0;
+SYSCTL_U64(_kern_rpc_tls, OID_AUTO, handshake_failed,
+    CTLFLAG_KRPC_VNET | CTLFLAG_RW,
+    &KRPC_VNET_NAME(svc_vc_tls_handshake_failed), 0,
+    "Count of TLS failed handshakes");
+
+KRPC_VNET_DEFINE(uint64_t, svc_vc_tls_handshake_success) = 0;
+SYSCTL_U64(_kern_rpc_tls, OID_AUTO, handshake_success,
+    CTLFLAG_KRPC_VNET | CTLFLAG_RW,
+    &KRPC_VNET_NAME(svc_vc_tls_handshake_success), 0,
+    "Count of TLS successful handshakes");
+
+KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_tls_rx_msgbytes) = 0;
+SYSCTL_U64(_kern_rpc_tls, OID_AUTO, rx_msgbytes,
+    CTLFLAG_KRPC_VNET | CTLFLAG_RW, &KRPC_VNET_NAME(svc_vc_tls_rx_msgbytes), 0,
+    "Count of TLS rx bytes");
+
+KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_tls_rx_msgcnt) = 0;
+SYSCTL_U64(_kern_rpc_tls, OID_AUTO, rx_msgcnt,
+    CTLFLAG_KRPC_VNET | CTLFLAG_RW, &KRPC_VNET_NAME(svc_vc_tls_rx_msgcnt), 0,
+    "Count of TLS rx messages");
+
+KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_tls_tx_msgbytes) = 0;
+SYSCTL_U64(_kern_rpc_tls, OID_AUTO, tx_msgbytes,
+    CTLFLAG_KRPC_VNET | CTLFLAG_RW, &KRPC_VNET_NAME(svc_vc_tls_tx_msgbytes), 0,
+    "Count of TLS tx bytes");
+
+KRPC_VNET_DEFINE_STATIC(uint64_t, svc_vc_tls_tx_msgcnt) = 0;
+SYSCTL_U64(_kern_rpc_tls, OID_AUTO, tx_msgcnt,
+    CTLFLAG_KRPC_VNET | CTLFLAG_RW, &KRPC_VNET_NAME(svc_vc_tls_tx_msgcnt), 0,
+    "Count of TLS tx messages");
 
 static bool_t svc_vc_rendezvous_recv(SVCXPRT *, struct rpc_msg *,
     struct sockaddr **, struct mbuf **);
@@ -150,19 +206,17 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
     size_t recvsize)
 {
 	SVCXPRT *xprt;
-	struct sockaddr* sa;
 	int error;
 
 	SOCK_LOCK(so);
 	if (so->so_state & (SS_ISCONNECTED|SS_ISDISCONNECTED)) {
+		struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
+
 		SOCK_UNLOCK(so);
-		CURVNET_SET(so->so_vnet);
-		error = so->so_proto->pr_peeraddr(so, &sa);
-		CURVNET_RESTORE();
+		error = sopeeraddr(so, (struct sockaddr *)&ss);
 		if (error)
 			return (NULL);
-		xprt = svc_vc_create_conn(pool, so, sa);
-		free(sa, M_SONAME);
+		xprt = svc_vc_create_conn(pool, so, (struct sockaddr *)&ss);
 		return (xprt);
 	}
 	SOCK_UNLOCK(so);
@@ -175,15 +229,11 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	xprt->xp_p2 = NULL;
 	xprt->xp_ops = &svc_vc_rendezvous_ops;
 
-	CURVNET_SET(so->so_vnet);
-	error = so->so_proto->pr_sockaddr(so, &sa);
-	CURVNET_RESTORE();
+	xprt->xp_ltaddr.ss_len = sizeof(xprt->xp_ltaddr);
+	error = sosockaddr(so, (struct sockaddr *)&xprt->xp_ltaddr);
 	if (error) {
 		goto cleanup_svc_vc_create;
 	}
-
-	memcpy(&xprt->xp_ltaddr, sa, sa->sa_len);
-	free(sa, M_SONAME);
 
 	xprt_register(xprt);
 
@@ -211,7 +261,6 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 {
 	SVCXPRT *xprt;
 	struct cf_conn *cd;
-	struct sockaddr* sa = NULL;
 	struct sockopt opt;
 	int one = 1;
 	int error;
@@ -259,14 +308,10 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 
 	memcpy(&xprt->xp_rtaddr, raddr, raddr->sa_len);
 
-	CURVNET_SET(so->so_vnet);
-	error = so->so_proto->pr_sockaddr(so, &sa);
-	CURVNET_RESTORE();
+	xprt->xp_ltaddr.ss_len = sizeof(xprt->xp_ltaddr);
+	error = sosockaddr(so, (struct sockaddr *)&xprt->xp_ltaddr);
 	if (error)
 		goto cleanup_svc_vc_create;
-
-	memcpy(&xprt->xp_ltaddr, sa, sa->sa_len);
-	free(sa, M_SONAME);
 
 	xprt_register(xprt);
 
@@ -364,7 +409,7 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
     struct sockaddr **addrp, struct mbuf **mp)
 {
 	struct socket *so = NULL;
-	struct sockaddr *sa = NULL;
+	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
 	int error;
 	SVCXPRT *new_xprt;
 
@@ -408,15 +453,12 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 	sx_xunlock(&xprt->xp_lock);
 
-	sa = NULL;
-	error = soaccept(so, &sa);
+	error = soaccept(so, (struct sockaddr *)&ss);
 
 	if (error) {
 		/*
 		 * XXX not sure if I need to call sofree or soclose here.
 		 */
-		if (sa)
-			free(sa, M_SONAME);
 		return (FALSE);
 	}
 
@@ -424,14 +466,13 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 	 * svc_vc_create_conn will call xprt_register - we don't need
 	 * to do anything with the new connection except derefence it.
 	 */
-	new_xprt = svc_vc_create_conn(xprt->xp_pool, so, sa);
+	new_xprt = svc_vc_create_conn(xprt->xp_pool, so,
+	    (struct sockaddr *)&ss);
 	if (!new_xprt) {
 		soclose(so);
 	} else {
 		SVC_RELEASE(new_xprt);
 	}
-
-	free(sa, M_SONAME);
 
 	return (FALSE); /* there is never an rpc msg to be processed */
 }
@@ -808,8 +849,11 @@ tryagain:
 		 * This record needs to be handled in userland
 		 * via an SSL_read() call, so do an upcall to the daemon.
 		 */
+		KRPC_CURVNET_SET(so->so_vnet);
 		if ((xprt->xp_tls & RPCTLS_FLAGS_HANDSHAKE) != 0 &&
 		    error == ENXIO) {
+			KRPC_VNET(svc_vc_tls_alerts)++;
+			KRPC_CURVNET_RESTORE();
 			/* Disable reception. */
 			xprt->xp_dontrcv = TRUE;
 			sx_xunlock(&xprt->xp_lock);
@@ -832,6 +876,7 @@ tryagain:
 		}
 
 		if (error) {
+			KRPC_CURVNET_RESTORE();
 			SOCKBUF_LOCK(&so->so_rcv);
 			if (xprt->xp_upcallset) {
 				xprt->xp_upcallset = 0;
@@ -845,6 +890,7 @@ tryagain:
 		}
 
 		if (!m) {
+			KRPC_CURVNET_RESTORE();
 			/*
 			 * EOF - the other end has closed the socket.
 			 */
@@ -870,11 +916,20 @@ tryagain:
 					m_freem(m);
 					m_free(ctrl);
 					rcvflag = MSG_DONTWAIT | MSG_TLSAPPDATA;
+					KRPC_CURVNET_RESTORE();
 					goto tryagain;
 				}
+				KRPC_VNET(svc_vc_tls_rx_msgcnt)++;
+				KRPC_VNET(svc_vc_tls_rx_msgbytes) +=
+				    1000000000 - uio.uio_resid;
 			}
 			m_free(ctrl);
+		} else {
+			KRPC_VNET(svc_vc_rx_msgcnt)++;
+			KRPC_VNET(svc_vc_rx_msgbytes) += 1000000000 -
+			    uio.uio_resid;
 		}
+		KRPC_CURVNET_RESTORE();
 
 		if (cd->mpending)
 			m_last(cd->mpending)->m_next = m;
@@ -963,6 +1018,7 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 			htonl(0x80000000 | (len - sizeof(uint32_t)));
 
 		/* For RPC-over-TLS, copy mrep to a chain of ext_pgs. */
+		KRPC_CURVNET_SET(xprt->xp_socket->so_vnet);
 		if ((xprt->xp_tls & RPCTLS_FLAGS_HANDSHAKE) != 0) {
 			/*
 			 * Copy the mbuf chain to a chain of
@@ -974,7 +1030,13 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 				maxextsiz = min(maxextsiz, maxlen);
 #endif
 			mrep = _rpc_copym_into_ext_pgs(mrep, maxextsiz);
+			KRPC_VNET(svc_vc_tls_tx_msgcnt)++;
+			KRPC_VNET(svc_vc_tls_tx_msgbytes) += len;
+		} else {
+			KRPC_VNET(svc_vc_tx_msgcnt)++;
+			KRPC_VNET(svc_vc_tx_msgbytes) += len;
 		}
+		KRPC_CURVNET_RESTORE();
 		atomic_add_32(&xprt->xp_snd_cnt, len);
 		/*
 		 * sosend consumes mreq.

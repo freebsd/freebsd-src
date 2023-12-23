@@ -36,7 +36,6 @@
  * Serial Management Protocol helper functions.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #ifdef _KERNEL
@@ -213,7 +212,7 @@ smp_command_decode(uint8_t *smp_request, int request_len, struct sbuf *sb,
 		 */
 		if ((cur_len < 6)
 		 && (line_len < (strlen(line_prefix) + 3))) {
-			sbuf_printf(sb, "...");
+			sbuf_cat(sb, "...");
 			return;
 		}
 		if (cur_len < 3) {
@@ -262,7 +261,7 @@ smp_error_sbuf(struct cam_device *device, struct ccb_smpio *smpio,
 	cam_path_string(device, path_str, sizeof(path_str));
 #endif
 	smp_command_sbuf(smpio, sb, path_str, 80 - strlen(path_str), 80);
-	sbuf_printf(sb, "\n");
+	sbuf_putc(sb, '\n');
 
 	sbuf_cat(sb, path_str);
 	sbuf_printf(sb, "SMP Error: %s (0x%x)\n",
@@ -279,7 +278,7 @@ void
 smp_report_general_sbuf(struct smp_report_general_response *response,
 			int response_len, struct sbuf *sb)
 {
-	sbuf_printf(sb, "Report General\n");
+	sbuf_cat(sb, "Report General\n");
 	sbuf_printf(sb, "Response Length: %d words (%d bytes)\n",
 		    response->response_len,
 		    response->response_len * SMP_WORD_LEN);
@@ -421,7 +420,7 @@ smp_report_manuf_info_sbuf(struct smp_report_manuf_info_response *response,
 	char vendor[16], product[48], revision[16];
 	char comp_vendor[16];
 
-	sbuf_printf(sb, "Report Manufacturer Information\n");
+	sbuf_cat(sb, "Report Manufacturer Information\n");
 	sbuf_printf(sb, "Expander Change count: %d\n",
 		    scsi_2btoul(response->expander_change_count));
 	sbuf_printf(sb, "SAS 1.1 Format: %s\n",
@@ -438,7 +437,7 @@ smp_report_manuf_info_sbuf(struct smp_report_manuf_info_response *response,
 		uint8_t *curbyte;
 		int line_start, line_cursor;
 
-		sbuf_printf(sb, "Vendor Specific Data:\n");
+		sbuf_cat(sb, "Vendor Specific Data:\n");
 
 		/*
 		 * Print out the bytes roughly in the style of hd(1), but
@@ -462,14 +461,14 @@ smp_report_manuf_info_sbuf(struct smp_report_manuf_info_response *response,
 			sbuf_printf(sb, "%02x", *curbyte);
 
 			if (line_cursor == 15) {
-				sbuf_printf(sb, "\n");
+				sbuf_putc(sb, '\n');
 				line_start = 1;
 			} else
 				sbuf_printf(sb, " %s", (line_cursor == 7) ?
 					    " " : "");
 		}
 		if (line_cursor != 16)
-			sbuf_printf(sb, "\n");
+			sbuf_putc(sb, '\n');
 		return;
 	}
 

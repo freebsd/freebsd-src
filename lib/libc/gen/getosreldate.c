@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)gethostid.c	8.1 (Berkeley) 6/2/93");
 #include <sys/types.h>
 #include <sys/sysctl.h>
 

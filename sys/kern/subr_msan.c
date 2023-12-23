@@ -375,7 +375,7 @@ kmsan_shadow_check(uintptr_t addr, size_t size, const char *hook)
 	for (i = 0; i < size; i++) {
 		if (__predict_true(shad[i] == 0))
 			continue;
-		orig = (msan_orig_t *)kmsan_md_addr_to_orig((vm_offset_t)&shad[i]);
+		orig = (msan_orig_t *)kmsan_md_addr_to_orig(addr + i);
 		orig = (msan_orig_t *)((uintptr_t)orig & MSAN_ORIG_MASK);
 		kmsan_report_hook((const char *)addr + i, orig, size, i, hook);
 		break;
@@ -585,6 +585,15 @@ kmsan_check_mbuf(const struct mbuf *m, const char *descr)
 	do {
 		kmsan_shadow_check((uintptr_t)mtod(m, void *), m->m_len, descr);
 	} while ((m = m->m_next) != NULL);
+}
+
+void
+kmsan_check_uio(const struct uio *uio, const char *descr)
+{
+	for (int i = 0; i < uio->uio_iovcnt; i++) {
+		kmsan_check(uio->uio_iov[i].iov_base, uio->uio_iov[i].iov_len,
+		    descr);
+	}
 }
 
 void

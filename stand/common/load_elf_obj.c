@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/linker.h>
@@ -35,7 +34,6 @@
 #include <string.h>
 #include <machine/elf.h>
 #include <stand.h>
-#define FREEBSD_ELF
 #include <sys/link_elf.h>
 
 #include "bootstrap.h"

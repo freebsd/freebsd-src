@@ -27,7 +27,6 @@
  * derived from ata_xpt.c: Copyright (c) 2009 Alexander Motin <mav@FreeBSD.org>
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
@@ -59,7 +58,6 @@
 #include <cam/scsi/scsi_message.h>
 #include <cam/nvme/nvme_all.h>
 #include <machine/stdarg.h>	/* for xpt_print below */
-#include "opt_cam.h"
 
 struct nvme_quirk_entry {
 	u_int quirks;
@@ -816,7 +814,7 @@ nvme_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
 			    nvmex->lanes, nvmex->max_lanes,
 			    nvmex->speed, nvmex->max_speed);
 	}
-	sbuf_printf(sb, "\n");
+	sbuf_putc(sb, '\n');
 }
 
 static void

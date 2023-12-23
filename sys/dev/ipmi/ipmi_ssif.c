@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -200,7 +199,7 @@ read_start:
 		goto fail;
 	}
 #ifdef SSIF_DEBUG
-	device_printf("SSIF: READ_START: ok\n");
+	device_printf(dev, "SSIF: READ_START: ok\n");
 #endif
 
 	/*

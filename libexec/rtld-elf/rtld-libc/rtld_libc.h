@@ -32,7 +32,6 @@
 #ifndef _RTLD_AVOID_LIBC_DEPS_H_
 #define _RTLD_AVOID_LIBC_DEPS_H_
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>

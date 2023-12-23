@@ -30,12 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)inet6.c	8.4 (Berkeley) 4/20/94";
-#endif /* not lint */
-#endif
-
 #include <sys/cdefs.h>
 #ifdef INET6
 #include <sys/param.h>
@@ -992,7 +986,7 @@ icmp6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:/bad checksum%s}\n");
 	p(icp6s_badlen, "\t{:dropped-bad-length/%ju} "
 	    "{N:/message%s with bad length}\n");
-	p(icp6s_dropped, "{:dropped-no-entry/%ju} "
+	p(icp6s_dropped, "\t{:dropped-no-entry/%ju} "
 	    "{N:/total packet%s dropped due to failed NDP resolution}\n");
 #define	NELEM (int)(sizeof(icmp6stat.icp6s_inhist)/sizeof(icmp6stat.icp6s_inhist[0]))
 	for (first = 1, i = 0; i < NELEM; i++)

@@ -31,11 +31,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char *sccsid2 = "@(#)clnt_perror.c 1.15 87/10/07 Copyr 1984 Sun Micro";
-static char *sccsid = "@(#)clnt_perror.c	2.1 88/07/29 4.0 RPCSRC";
-#endif
-#include <sys/cdefs.h>
 /*
  * clnt_perror.c
  *

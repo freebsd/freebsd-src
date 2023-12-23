@@ -776,8 +776,8 @@ uint64_t zfs_crc64_table[256];
  * Level 2 ARC
  */
 
-#define	L2ARC_WRITE_SIZE	(8 * 1024 * 1024)	/* initial write max */
-#define	L2ARC_HEADROOM		2			/* num of writes */
+#define	L2ARC_WRITE_SIZE	(32 * 1024 * 1024)	/* initial write max */
+#define	L2ARC_HEADROOM		8			/* num of writes */
 
 /*
  * If we discover during ARC scan any buffers to be compressed, we boost
@@ -885,6 +885,8 @@ static void l2arc_read_done(zio_t *);
 static void l2arc_do_free_on_write(void);
 static void l2arc_hdr_arcstats_update(arc_buf_hdr_t *hdr, boolean_t incr,
     boolean_t state_only);
+
+static void arc_prune_async(uint64_t adjust);
 
 #define	l2arc_hdr_arcstats_increment(hdr) \
 	l2arc_hdr_arcstats_update((hdr), B_TRUE, B_FALSE)
@@ -4516,7 +4518,7 @@ arc_evict_cb_check(void *arg, zthr_t *zthr)
 static void
 arc_evict_cb(void *arg, zthr_t *zthr)
 {
-	(void) arg, (void) zthr;
+	(void) arg;
 
 	uint64_t evicted = 0;
 	fstrans_cookie_t cookie = spl_fstrans_mark();
@@ -4540,9 +4542,13 @@ arc_evict_cb(void *arg, zthr_t *zthr)
 	 * infinite loop.  Additionally, zthr_iscancelled() is
 	 * checked here so that if the arc is shutting down, the
 	 * broadcast will wake any remaining arc evict waiters.
+	 *
+	 * Note we cancel using zthr instead of arc_evict_zthr
+	 * because the latter may not yet be initializd when the
+	 * callback is first invoked.
 	 */
 	mutex_enter(&arc_evict_lock);
-	arc_evict_needed = !zthr_iscancelled(arc_evict_zthr) &&
+	arc_evict_needed = !zthr_iscancelled(zthr) &&
 	    evicted > 0 && aggsum_compare(&arc_sums.arcstat_size, arc_c) > 0;
 	if (!arc_evict_needed) {
 		/*
@@ -6048,6 +6054,56 @@ arc_remove_prune_callback(arc_prune_t *p)
 	ASSERT0(zfs_refcount_count(&p->p_refcnt));
 	zfs_refcount_destroy(&p->p_refcnt);
 	kmem_free(p, sizeof (*p));
+}
+
+/*
+ * Helper function for arc_prune_async() it is responsible for safely
+ * handling the execution of a registered arc_prune_func_t.
+ */
+static void
+arc_prune_task(void *ptr)
+{
+	arc_prune_t *ap = (arc_prune_t *)ptr;
+	arc_prune_func_t *func = ap->p_pfunc;
+
+	if (func != NULL)
+		func(ap->p_adjust, ap->p_private);
+
+	(void) zfs_refcount_remove(&ap->p_refcnt, func);
+}
+
+/*
+ * Notify registered consumers they must drop holds on a portion of the ARC
+ * buffers they reference.  This provides a mechanism to ensure the ARC can
+ * honor the metadata limit and reclaim otherwise pinned ARC buffers.
+ *
+ * This operation is performed asynchronously so it may be safely called
+ * in the context of the arc_reclaim_thread().  A reference is taken here
+ * for each registered arc_prune_t and the arc_prune_task() is responsible
+ * for releasing it once the registered arc_prune_func_t has completed.
+ */
+static void
+arc_prune_async(uint64_t adjust)
+{
+	arc_prune_t *ap;
+
+	mutex_enter(&arc_prune_mtx);
+	for (ap = list_head(&arc_prune_list); ap != NULL;
+	    ap = list_next(&arc_prune_list, ap)) {
+
+		if (zfs_refcount_count(&ap->p_refcnt) >= 2)
+			continue;
+
+		zfs_refcount_add(&ap->p_refcnt, ap->p_pfunc);
+		ap->p_adjust = adjust;
+		if (taskq_dispatch(arc_prune_taskq, arc_prune_task,
+		    ap, TQ_SLEEP) == TASKQID_INVALID) {
+			(void) zfs_refcount_remove(&ap->p_refcnt, ap->p_pfunc);
+			continue;
+		}
+		ARCSTAT_BUMP(arcstat_prune);
+	}
+	mutex_exit(&arc_prune_mtx);
 }
 
 /*
@@ -7664,7 +7720,7 @@ arc_fini(void)
 
 	mutex_enter(&arc_prune_mtx);
 	while ((p = list_remove_head(&arc_prune_list)) != NULL) {
-		zfs_refcount_remove(&p->p_refcnt, &arc_prune_list);
+		(void) zfs_refcount_remove(&p->p_refcnt, &arc_prune_list);
 		zfs_refcount_destroy(&p->p_refcnt);
 		kmem_free(p, sizeof (*p));
 	}
@@ -7979,9 +8035,8 @@ l2arc_write_size(l2arc_dev_t *dev)
 	 */
 	size = l2arc_write_max;
 	if (size == 0) {
-		cmn_err(CE_NOTE, "Bad value for l2arc_write_max, value must "
-		    "be greater than zero, resetting it to the default (%d)",
-		    L2ARC_WRITE_SIZE);
+		cmn_err(CE_NOTE, "l2arc_write_max must be greater than zero, "
+		    "resetting it to the default (%d)", L2ARC_WRITE_SIZE);
 		size = l2arc_write_max = L2ARC_WRITE_SIZE;
 	}
 
@@ -8004,30 +8059,9 @@ l2arc_write_size(l2arc_dev_t *dev)
 	 * device. This is important in l2arc_evict(), otherwise infinite
 	 * iteration can occur.
 	 */
-	if (size > dev->l2ad_end - dev->l2ad_start) {
-		cmn_err(CE_NOTE, "l2arc_write_max or l2arc_write_boost "
-		    "plus the overhead of log blocks (persistent L2ARC, "
-		    "%llu bytes) exceeds the size of the cache device "
-		    "(guid %llu), resetting them to the default (%d)",
-		    (u_longlong_t)l2arc_log_blk_overhead(size, dev),
-		    (u_longlong_t)dev->l2ad_vdev->vdev_guid, L2ARC_WRITE_SIZE);
+	size = MIN(size, (dev->l2ad_end - dev->l2ad_start) / 4);
 
-		size = l2arc_write_max = l2arc_write_boost = L2ARC_WRITE_SIZE;
-
-		if (l2arc_trim_ahead > 1) {
-			cmn_err(CE_NOTE, "l2arc_trim_ahead set to 1");
-			l2arc_trim_ahead = 1;
-		}
-
-		if (arc_warm == B_FALSE)
-			size += l2arc_write_boost;
-
-		size += l2arc_log_blk_overhead(size, dev);
-		if (dev->l2ad_vdev->vdev_has_trim && l2arc_trim_ahead > 0) {
-			size += MAX(64 * 1024 * 1024,
-			    (size * l2arc_trim_ahead) / 100);
-		}
-	}
+	size = P2ROUNDUP(size, 1ULL << dev->l2ad_vdev->vdev_ashift);
 
 	return (size);
 
@@ -8267,7 +8301,8 @@ top:
 			ARCSTAT_BUMPDOWN(arcstat_l2_log_blk_count);
 			zfs_refcount_remove_many(&dev->l2ad_lb_asize, asize,
 			    lb_ptr_buf);
-			zfs_refcount_remove(&dev->l2ad_lb_count, lb_ptr_buf);
+			(void) zfs_refcount_remove(&dev->l2ad_lb_count,
+			    lb_ptr_buf);
 			kmem_free(lb_ptr_buf->lb_ptr,
 			    sizeof (l2arc_log_blkptr_t));
 			kmem_free(lb_ptr_buf, sizeof (l2arc_lb_ptr_buf_t));
@@ -8738,7 +8773,8 @@ retry:
 			ARCSTAT_BUMPDOWN(arcstat_l2_log_blk_count);
 			zfs_refcount_remove_many(&dev->l2ad_lb_asize, asize,
 			    lb_ptr_buf);
-			zfs_refcount_remove(&dev->l2ad_lb_count, lb_ptr_buf);
+			(void) zfs_refcount_remove(&dev->l2ad_lb_count,
+			    lb_ptr_buf);
 			list_remove(&dev->l2ad_lbptr_list, lb_ptr_buf);
 			kmem_free(lb_ptr_buf->lb_ptr,
 			    sizeof (l2arc_log_blkptr_t));

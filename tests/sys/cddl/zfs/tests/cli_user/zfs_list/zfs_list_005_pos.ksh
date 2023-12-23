@@ -23,9 +23,6 @@
 #
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"@(#)zfs_list_005_pos.ksh	1.2	08/11/03 SMI"
-#
 . $STF_SUITE/tests/cli_user/zfs_list/zfs_list.kshlib
 . $STF_SUITE/tests/cli_user/cli_user.kshlib
 

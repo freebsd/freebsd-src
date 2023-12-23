@@ -80,6 +80,7 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 
 #define	ATTR_CONTIGUOUS		(1UL << 52)
 #define	ATTR_DBM		(1UL << 51)
+#define	ATTR_S1_GP		(1UL << 50)
 #define	ATTR_S1_nG		(1 << 11)
 #define	ATTR_AF			(1 << 10)
 #define	ATTR_SH(x)		((x) << 8)
@@ -163,7 +164,11 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 	/* 0x2 also marks an invalid address */
 #define	L3_PAGE		0x3
 
-#define	PMAP_MAPDEV_EARLY_SIZE	(L2_SIZE * 8)
+/*
+ * A substantial portion of this is to make sure that we can cope with 4K
+ * framebuffers in early boot, assuming a common 4K resolution @ 32-bit depth.
+ */
+#define	PMAP_MAPDEV_EARLY_SIZE	(L2_SIZE * 20)
 
 #if PAGE_SIZE == PAGE_SIZE_4K
 #define	L0_ENTRIES_SHIFT 9

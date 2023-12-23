@@ -1,4 +1,3 @@
-/* @(#)s_modf.c 5.1 93/09/24 */
 /*
  * ====================================================
  * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -10,7 +9,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * modf(double x, double *iptr)
  * return fraction part of x, and return x's integral part in *iptr.

@@ -29,16 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-/* From: */
-static char sccsid[] = "@(#)mbufs.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] =
-	"Id: mbufs.c,v 1.5 1997/02/24 20:59:03 wollman Exp";
-#endif /* not lint */
-#endif
-
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>

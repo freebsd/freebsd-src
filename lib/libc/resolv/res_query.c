@@ -66,11 +66,6 @@
  * SOFTWARE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static const char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_query.c,v 1.11 2008/11/14 02:36:51 marka Exp $";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
 #include "port_before.h"
 #include <sys/param.h>
 #include <netinet/in.h>

@@ -31,7 +31,6 @@
 
 #include "opt_inet.h"
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <netinet/in.h>

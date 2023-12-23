@@ -9,7 +9,6 @@
  * 	Dave Airlie
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <stdlib.h>
 #include <string.h>

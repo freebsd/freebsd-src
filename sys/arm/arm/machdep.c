@@ -49,7 +49,6 @@
 #include "opt_platform.h"
 #include "opt_sched.h"
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/buf.h>
 #include <sys/bus.h>

@@ -29,12 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)optr.c	8.2 (Berkeley) 1/6/94";
-#endif
-#endif /* not lint */
-
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/wait.h>

@@ -45,7 +45,6 @@
  * 41256 Rev 3.00 - July 07, 2008
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/cpu.h>

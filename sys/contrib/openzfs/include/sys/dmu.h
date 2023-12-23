@@ -652,6 +652,9 @@ typedef struct dmu_buf_user {
 	 */
 	taskq_ent_t	dbu_tqent;
 
+	/* Size of user data, for inclusion in dbuf_cache accounting. */
+	uint64_t	dbu_size;
+
 	/*
 	 * This instance's eviction function pointers.
 	 *
@@ -732,6 +735,16 @@ void *dmu_buf_replace_user(dmu_buf_t *db,
  * another user currently owns the buffer.
  */
 void *dmu_buf_remove_user(dmu_buf_t *db, dmu_buf_user_t *user);
+
+/*
+ * User data size accounting. This can be used to artifically inflate the size
+ * of the dbuf during cache accounting, so that dbuf_evict_thread evicts enough
+ * to satisfy memory reclaim requests. It's not used for anything else, and
+ * defaults to 0.
+ */
+uint64_t dmu_buf_user_size(dmu_buf_t *db);
+void dmu_buf_add_user_size(dmu_buf_t *db, uint64_t nadd);
+void dmu_buf_sub_user_size(dmu_buf_t *db, uint64_t nsub);
 
 /*
  * Returns the user data (dmu_buf_user_t *) associated with this dbuf.
@@ -1073,8 +1086,7 @@ int dmu_offset_next(objset_t *os, uint64_t object, boolean_t hole,
 int dmu_read_l0_bps(objset_t *os, uint64_t object, uint64_t offset,
     uint64_t length, struct blkptr *bps, size_t *nbpsp);
 int dmu_brt_clone(objset_t *os, uint64_t object, uint64_t offset,
-    uint64_t length, dmu_tx_t *tx, const struct blkptr *bps, size_t nbps,
-    boolean_t replay);
+    uint64_t length, dmu_tx_t *tx, const struct blkptr *bps, size_t nbps);
 
 /*
  * Initial setup and final teardown.

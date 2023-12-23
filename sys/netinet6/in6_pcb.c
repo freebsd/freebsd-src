@@ -62,8 +62,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
  */
 
 #include <sys/cdefs.h>
@@ -503,81 +501,48 @@ in6_pcbdisconnect(struct inpcb *inp)
 	inp->inp_flow &= ~IPV6_FLOWLABEL_MASK;
 }
 
-struct sockaddr *
-in6_sockaddr(in_port_t port, struct in6_addr *addr_p)
-{
-	struct sockaddr_in6 *sin6;
-
-	sin6 = malloc(sizeof *sin6, M_SONAME, M_WAITOK);
-	bzero(sin6, sizeof *sin6);
-	sin6->sin6_family = AF_INET6;
-	sin6->sin6_len = sizeof(*sin6);
-	sin6->sin6_port = port;
-	sin6->sin6_addr = *addr_p;
-	(void)sa6_recoverscope(sin6); /* XXX: should catch errors */
-
-	return (struct sockaddr *)sin6;
-}
-
-struct sockaddr *
-in6_v4mapsin6_sockaddr(in_port_t port, struct in_addr *addr_p)
-{
-	struct sockaddr_in sin;
-	struct sockaddr_in6 *sin6_p;
-
-	bzero(&sin, sizeof sin);
-	sin.sin_family = AF_INET;
-	sin.sin_len = sizeof(sin);
-	sin.sin_port = port;
-	sin.sin_addr = *addr_p;
-
-	sin6_p = malloc(sizeof *sin6_p, M_SONAME,
-		M_WAITOK);
-	in6_sin_2_v4mapsin6(&sin, sin6_p);
-
-	return (struct sockaddr *)sin6_p;
-}
-
 int
-in6_getsockaddr(struct socket *so, struct sockaddr **nam)
+in6_getsockaddr(struct socket *so, struct sockaddr *sa)
 {
 	struct inpcb *inp;
-	struct in6_addr addr;
-	in_port_t port;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("in6_getsockaddr: inp == NULL"));
 
-	INP_RLOCK(inp);
-	port = inp->inp_lport;
-	addr = inp->in6p_laddr;
-	INP_RUNLOCK(inp);
+	*(struct sockaddr_in6 *)sa = (struct sockaddr_in6 ){
+		.sin6_len = sizeof(struct sockaddr_in6),
+		.sin6_family = AF_INET6,
+		.sin6_port = inp->inp_lport,
+		.sin6_addr = inp->in6p_laddr,
+	};
+	/* XXX: should catch errors */
+	(void)sa6_recoverscope((struct sockaddr_in6 *)sa);
 
-	*nam = in6_sockaddr(port, &addr);
-	return 0;
+	return (0);
 }
 
 int
-in6_getpeeraddr(struct socket *so, struct sockaddr **nam)
+in6_getpeeraddr(struct socket *so, struct sockaddr *sa)
 {
 	struct inpcb *inp;
-	struct in6_addr addr;
-	in_port_t port;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("in6_getpeeraddr: inp == NULL"));
 
-	INP_RLOCK(inp);
-	port = inp->inp_fport;
-	addr = inp->in6p_faddr;
-	INP_RUNLOCK(inp);
+	*(struct sockaddr_in6 *)sa = (struct sockaddr_in6 ){
+		.sin6_len = sizeof(struct sockaddr_in6),
+		.sin6_family = AF_INET6,
+		.sin6_port = inp->inp_fport,
+		.sin6_addr = inp->in6p_faddr,
+	};
+	/* XXX: should catch errors */
+	(void)sa6_recoverscope((struct sockaddr_in6 *)sa);
 
-	*nam = in6_sockaddr(port, &addr);
-	return 0;
+	return (0);
 }
 
 int
-in6_mapped_sockaddr(struct socket *so, struct sockaddr **nam)
+in6_mapped_sockaddr(struct socket *so, struct sockaddr *sa)
 {
 	struct	inpcb *inp;
 	int	error;
@@ -587,21 +552,23 @@ in6_mapped_sockaddr(struct socket *so, struct sockaddr **nam)
 
 #ifdef INET
 	if ((inp->inp_vflag & (INP_IPV4 | INP_IPV6)) == INP_IPV4) {
-		error = in_getsockaddr(so, nam);
+		struct sockaddr_in sin;
+
+		error = in_getsockaddr(so, (struct sockaddr *)&sin);
 		if (error == 0)
-			in6_sin_2_v4mapsin6_in_sock(nam);
+			in6_sin_2_v4mapsin6(&sin, (struct sockaddr_in6 *)sa);
 	} else
 #endif
 	{
 		/* scope issues will be handled in in6_getsockaddr(). */
-		error = in6_getsockaddr(so, nam);
+		error = in6_getsockaddr(so, sa);
 	}
 
 	return error;
 }
 
 int
-in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam)
+in6_mapped_peeraddr(struct socket *so, struct sockaddr *sa)
 {
 	struct	inpcb *inp;
 	int	error;
@@ -611,13 +578,15 @@ in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam)
 
 #ifdef INET
 	if ((inp->inp_vflag & (INP_IPV4 | INP_IPV6)) == INP_IPV4) {
-		error = in_getpeeraddr(so, nam);
+		struct sockaddr_in sin;
+
+		error = in_getpeeraddr(so, (struct sockaddr *)&sin);
 		if (error == 0)
-			in6_sin_2_v4mapsin6_in_sock(nam);
+			in6_sin_2_v4mapsin6(&sin, (struct sockaddr_in6 *)sa);
 	} else
 #endif
 	/* scope issues will be handled in in6_getpeeraddr(). */
-	error = in6_getpeeraddr(so, nam);
+	error = in6_getpeeraddr(so, sa);
 
 	return error;
 }

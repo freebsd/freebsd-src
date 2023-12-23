@@ -301,7 +301,9 @@ uma_zone_t uma_zcache_create(const char *name, int size, uma_ctor ctor,
 #define UMA_ALIGN_INT	(sizeof(int) - 1)	/* "" int */
 #define UMA_ALIGN_SHORT	(sizeof(short) - 1)	/* "" short */
 #define UMA_ALIGN_CHAR	(sizeof(char) - 1)	/* "" char */
-#define UMA_ALIGN_CACHE	(0 - 1)			/* Cache line size align */
+#define UMA_ALIGN_CACHE	(uma_get_cache_align_mask()) /* Cache line size align */
+/* Align both to cache line size and an explicit alignment (through mask). */
+#define UMA_ALIGN_CACHE_AND_MASK(mask) (uma_get_cache_align_mask() | (mask))
 #define	UMA_ALIGNOF(type) (_Alignof(type) - 1)	/* Alignment fit for 'type' */
 
 #define	UMA_ANYDOMAIN	-1	/* Special value for domain search. */
@@ -470,12 +472,14 @@ void uma_zone_reclaim_domain(uma_zone_t, int req, int domain);
  * alignment.  Should be called by MD boot code prior to starting VM/UMA.
  *
  * Arguments:
- *	align The alignment mask
+ *	mask The alignment mask
  *
  * Returns:
  *	Nothing
  */
-void uma_set_align(int align);
+void uma_set_cache_align_mask(unsigned int mask);
+
+#include <vm/uma_align_mask.h>
 
 /*
  * Set a reserved number of items to hold for M_USE_RESERVE allocations.  All

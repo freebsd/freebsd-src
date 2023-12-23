@@ -25,12 +25,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * From: @(#)fts.c	8.6 (Berkeley) 8/14/94
  * From: $OpenBSD: fts.c,v 1.22 1999/10/03 19:22:22 millert Exp $
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <sys/param.h>
 #define	_WANT_FREEBSD11_STATFS

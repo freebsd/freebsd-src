@@ -25,10 +25,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifdef __FreeBSD__
-#endif
-
 /*
  * IEEE 802.11n protocol support.
  */
@@ -1935,12 +1931,12 @@ ieee80211_vht_get_vhtflags(struct ieee80211_node *ni, uint32_t htflags)
 	uint32_t vhtflags = 0;
 
 	vhtflags = 0;
-	if (ni->ni_flags & IEEE80211_NODE_VHT && vap->iv_flags_vht & IEEE80211_FVHT_VHT) {
+	if (ni->ni_flags & IEEE80211_NODE_VHT && vap->iv_vht_flags & IEEE80211_FVHT_VHT) {
 		if ((ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_160MHZ) &&
 		    /* XXX 2 means "160MHz and 80+80MHz", 1 means "160MHz" */
-		    (_IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
+		    (_IEEE80211_MASKSHIFT(vap->iv_vht_cap.vht_cap_info,
 		     IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) >= 1) &&
-		    (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT160)) {
+		    (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT160)) {
 			vhtflags = IEEE80211_CHAN_VHT160;
 			/* Mirror the HT40 flags */
 			if (htflags == IEEE80211_CHAN_HT40U) {
@@ -1950,9 +1946,9 @@ ieee80211_vht_get_vhtflags(struct ieee80211_node *ni, uint32_t htflags)
 			}
 		} else if ((ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_80P80MHZ) &&
 		    /* XXX 2 means "160MHz and 80+80MHz" */
-		    (_IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
+		    (_IEEE80211_MASKSHIFT(vap->iv_vht_cap.vht_cap_info,
 		     IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) == 2) &&
-		    (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT80P80)) {
+		    (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT80P80)) {
 			vhtflags = IEEE80211_CHAN_VHT80P80;
 			/* Mirror the HT40 flags */
 			if (htflags == IEEE80211_CHAN_HT40U) {
@@ -1961,7 +1957,7 @@ ieee80211_vht_get_vhtflags(struct ieee80211_node *ni, uint32_t htflags)
 				vhtflags |= IEEE80211_CHAN_HT40D;
 			}
 		} else if ((ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_80MHZ) &&
-		    (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT80)) {
+		    (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT80)) {
 			vhtflags = IEEE80211_CHAN_VHT80;
 			/* Mirror the HT40 flags */
 			if (htflags == IEEE80211_CHAN_HT40U) {
@@ -1979,11 +1975,11 @@ ieee80211_vht_get_vhtflags(struct ieee80211_node *ni, uint32_t htflags)
 			 * 'ht40' as that flag.
 			 */
 			if ((htflags == IEEE80211_CHAN_HT40U) &&
-			    (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT40)) {
+			    (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT40)) {
 				vhtflags = IEEE80211_CHAN_VHT40U
 				    | IEEE80211_CHAN_HT40U;
 			} else if (htflags == IEEE80211_CHAN_HT40D &&
-			    (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT40)) {
+			    (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT40)) {
 				vhtflags = IEEE80211_CHAN_VHT40D
 				    | IEEE80211_CHAN_HT40D;
 			} else if (htflags == IEEE80211_CHAN_HT20) {

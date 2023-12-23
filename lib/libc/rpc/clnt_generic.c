@@ -30,13 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* #ident	"@(#)clnt_generic.c	1.40	99/04/21 SMI" */
-
-#if defined(LIBC_SCCS) && !defined(lint)
-static char *sccsid2 = "from: @(#)clnt_generic.c 1.4 87/08/11 (C) 1987 SMI";
-static char *sccsid = "from: @(#)clnt_generic.c	2.2 88/08/01 4.0 RPCSRC";
-#endif
-#include <sys/cdefs.h>
 /*
  * Copyright (c) 1986-1996,1998 by Sun Microsystems, Inc.
  * All rights reserved.

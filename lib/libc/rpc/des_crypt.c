@@ -36,10 +36,6 @@
 #include <rpc/des_crypt.h>
 #include <rpc/des.h>
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)des_crypt.c	2.2 88/08/10 4.0 RPCSRC; from 1.13 88/02/08 SMI";
-#endif
-#include <sys/cdefs.h>
 static int common_crypt( char *, char *, unsigned, unsigned, struct desparams * );
 int (*__des_crypt_LOCAL)(char *, unsigned, struct desparams *) = 0;
 extern int _des_crypt_call(char *, int, struct desparams *);

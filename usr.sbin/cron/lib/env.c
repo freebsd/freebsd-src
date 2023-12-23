@@ -19,9 +19,6 @@
  * SOFTWARE.
  */
 
-#if !defined(lint) && !defined(LINT)
-static const char rcsid[] = "$Id: env.c,v 1.3 1998/08/14 00:32:39 vixie Exp $";
-#endif
 
 
 #include "cron.h"

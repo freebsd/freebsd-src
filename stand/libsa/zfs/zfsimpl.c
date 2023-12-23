@@ -113,23 +113,18 @@ typedef struct indirect_vsd {
 static vdev_list_t zfs_vdevs;
 
 /*
- * List of ZFS features supported for read
+ * List of supported read-incompatible ZFS features.  Do not add here features
+ * marked as ZFEATURE_FLAG_READONLY_COMPAT, they are irrelevant for read-only!
  */
 static const char *features_for_read[] = {
 	"com.datto:bookmark_v2",
 	"com.datto:encryption",
-	"com.datto:resilver_defer",
 	"com.delphix:bookmark_written",
 	"com.delphix:device_removal",
 	"com.delphix:embedded_data",
 	"com.delphix:extensible_dataset",
 	"com.delphix:head_errlog",
 	"com.delphix:hole_birth",
-	"com.delphix:obsolete_counts",
-	"com.delphix:spacemap_histogram",
-	"com.delphix:spacemap_v2",
-	"com.delphix:zpool_checkpoint",
-	"com.intel:allocation_classes",
 	"com.joyent:multi_vdev_crash_dump",
 	"com.klarasystems:vdev_zaps_v2",
 	"org.freebsd:zstd_compress",
@@ -138,7 +133,6 @@ static const char *features_for_read[] = {
 	"org.illumos:skein",
 	"org.open-zfs:large_blocks",
 	"org.openzfs:blake3",
-	"org.zfsonlinux:allocation_classes",
 	"org.zfsonlinux:large_dnode",
 	NULL
 };

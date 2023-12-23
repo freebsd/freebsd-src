@@ -27,7 +27,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/disklabel.h>
@@ -228,7 +227,8 @@ use_pread(void *devfd, off_t loc, void **bufp, int size)
 	int fd;
 
 	fd = *(int *)devfd;
-	if ((*bufp = malloc(size)) == NULL)
+	BUF_MALLOC(bufp, NULL, size);
+	if (*bufp == NULL)
 		return (ENOSPC);
 	if (pread(fd, *bufp, size, loc) != size)
 		return (EIO);

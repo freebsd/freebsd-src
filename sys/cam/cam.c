@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #ifdef _KERNEL
 #include <sys/systm.h>
@@ -88,10 +87,12 @@ const struct cam_status_entry cam_status_table[] = {
 	{ CAM_REQ_TERMIO,	 "CCB request terminated by the host"	     },
 	{ CAM_UNREC_HBA_ERROR,	 "Unrecoverable Host Bus Adapter Error"	     },
 	{ CAM_REQ_TOO_BIG,	 "The request was too large for this host"   },
-	{ CAM_REQUEUE_REQ,	 "Unconditionally Re-queue Request",	     },
+	{ CAM_REQUEUE_REQ,	 "Unconditionally Re-queue Request"	     },
 	{ CAM_ATA_STATUS_ERROR,	 "ATA Status Error"			     },
 	{ CAM_SCSI_IT_NEXUS_LOST,"Initiator/Target Nexus Lost"               },
 	{ CAM_SMP_STATUS_ERROR,	 "SMP Status Error"                          },
+	{ CAM_REQ_SOFTTIMEOUT,   "Completed w/o error, but took too long"    },
+	{ CAM_NVME_STATUS_ERROR, "NVME Status Error"			     },
 	{ CAM_IDE,		 "Initiator Detected Error Message Received" },
 	{ CAM_RESRC_UNAVAIL,	 "Resource Unavailable"			     },
 	{ CAM_UNACKED_EVENT,	 "Unacknowledged Event by Host"		     },
@@ -417,7 +418,7 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 			    ccb->ccb_h.func_code);
 			break;
 		}
-		sbuf_printf(&sb, "\n");
+		sbuf_putc(&sb, '\n');
 	}
 
 	if (flags & CAM_ESF_CAM_STATUS) {
@@ -448,13 +449,13 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 			if (proto_flags & CAM_EAF_PRINT_STATUS) {
 				sbuf_cat(&sb, path_str);
 				ata_status_sbuf(&ccb->ataio, &sb);
-				sbuf_printf(&sb, "\n");
+				sbuf_putc(&sb, '\n');
 			}
 			if (proto_flags & CAM_EAF_PRINT_RESULT) {
 				sbuf_cat(&sb, path_str);
-				sbuf_printf(&sb, "RES: ");
+				sbuf_cat(&sb, "RES: ");
 				ata_res_sbuf(&ccb->ataio.res, &sb);
-				sbuf_printf(&sb, "\n");
+				sbuf_putc(&sb, '\n');
 			}
 
 			break;

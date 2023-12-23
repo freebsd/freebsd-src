@@ -28,10 +28,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)des_soft.c	2.2 88/08/10 4.0 RPCSRC; from 1.13 88/02/08 SMI";
-#endif
-#include <sys/cdefs.h>
 /*
  * Table giving odd parity in the low bit for ASCII characters
  */

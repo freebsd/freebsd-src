@@ -30,18 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1989, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)primes.c	8.5 (Berkeley) 5/10/95";
-#endif
-#endif /* not lint */
-
 /*
  * primes - generate a table of primes between two values
  *

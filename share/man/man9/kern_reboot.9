@@ -39,7 +39,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd March 20, 2023
+.Dd November 23, 2023
 .Dt REBOOT 9
 .Os
 .Sh NAME
@@ -95,13 +95,6 @@ Set the
 variable to
 .Dv 1 ,
 indicating that the reboot process has begun and cannot be stopped.
-.It
-Set the
-.Va kdb_active
-variable to
-.Dv 0 ,
-indicating that execution has left the kernel debugger, if it was previously
-active.
 .It
 Unless the
 .Dv RB_NOSYNC

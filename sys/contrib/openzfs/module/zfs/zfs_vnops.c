@@ -47,6 +47,7 @@
 #include <sys/fs/zfs.h>
 #include <sys/dmu.h>
 #include <sys/dmu_objset.h>
+#include <sys/dsl_crypt.h>
 #include <sys/spa.h>
 #include <sys/txg.h>
 #include <sys/dbuf.h>
@@ -58,27 +59,20 @@
 #include <sys/zfs_znode.h>
 
 
-static ulong_t zfs_fsync_sync_cnt = 4;
-
 int
 zfs_fsync(znode_t *zp, int syncflag, cred_t *cr)
 {
 	int error = 0;
 	zfsvfs_t *zfsvfs = ZTOZSB(zp);
 
-	(void) tsd_set(zfs_fsyncer_key, (void *)(uintptr_t)zfs_fsync_sync_cnt);
-
 	if (zfsvfs->z_os->os_sync != ZFS_SYNC_DISABLED) {
 		if ((error = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
-			goto out;
+			return (error);
 		atomic_inc_32(&zp->z_sync_writes_cnt);
 		zil_commit(zfsvfs->z_log, zp->z_id);
 		atomic_dec_32(&zp->z_sync_writes_cnt);
 		zfs_exit(zfsvfs, FTAG);
 	}
-out:
-	tsd_set(zfs_fsyncer_key, NULL);
-
 	return (error);
 }
 
@@ -520,6 +514,8 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 
 	uint64_t end_size = MAX(zp->z_size, woff + n);
 	zilog_t *zilog = zfsvfs->z_log;
+	boolean_t commit = (ioflag & (O_SYNC | O_DSYNC)) ||
+	    (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS);
 
 	const uint64_t uid = KUID_TO_SUID(ZTOUID(zp));
 	const uint64_t gid = KGID_TO_SGID(ZTOGID(zp));
@@ -741,7 +737,7 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 		 * zfs_clear_setid_bits_if_necessary must precede any of
 		 * the TX_WRITE records logged here.
 		 */
-		zfs_log_write(zilog, tx, TX_WRITE, zp, woff, tx_bytes, ioflag,
+		zfs_log_write(zilog, tx, TX_WRITE, zp, woff, tx_bytes, commit,
 		    NULL, NULL);
 
 		dmu_tx_commit(tx);
@@ -767,8 +763,7 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 		return (error);
 	}
 
-	if (ioflag & (O_SYNC | O_DSYNC) ||
-	    zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
+	if (commit)
 		zil_commit(zilog, zp->z_id);
 
 	const int64_t nwritten = start_resid - zfs_uio_resid(uio);
@@ -1094,6 +1089,25 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 
 	ASSERT(!outzfsvfs->z_replay);
 
+	/*
+	 * Block cloning from an unencrypted dataset into an encrypted
+	 * dataset and vice versa is not supported.
+	 */
+	if (inos->os_encrypted != outos->os_encrypted) {
+		zfs_exit_two(inzfsvfs, outzfsvfs, FTAG);
+		return (SET_ERROR(EXDEV));
+	}
+
+	/*
+	 * Cloning across encrypted datasets is possible only if they
+	 * share the same master key.
+	 */
+	if (inos != outos && inos->os_encrypted &&
+	    !dmu_objset_crypto_key_equal(inos, outos)) {
+		zfs_exit_two(inzfsvfs, outzfsvfs, FTAG);
+		return (SET_ERROR(EXDEV));
+	}
+
 	error = zfs_verify_zp(inzp);
 	if (error == 0)
 		error = zfs_verify_zp(outzp);
@@ -1277,20 +1291,6 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 			 */
 			break;
 		}
-		/*
-		 * Encrypted data is fine as long as it comes from the same
-		 * dataset.
-		 * TODO: We want to extend it in the future to allow cloning to
-		 * datasets with the same keys, like clones or to be able to
-		 * clone a file from a snapshot of an encrypted dataset into the
-		 * dataset itself.
-		 */
-		if (BP_IS_PROTECTED(&bps[0])) {
-			if (inzfsvfs != outzfsvfs) {
-				error = SET_ERROR(EXDEV);
-				break;
-			}
-		}
 
 		/*
 		 * Start a transaction.
@@ -1324,7 +1324,7 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 		}
 
 		error = dmu_brt_clone(outos, outzp->z_id, outoff, size, tx,
-		    bps, nbps, B_FALSE);
+		    bps, nbps);
 		if (error != 0) {
 			dmu_tx_commit(tx);
 			break;
@@ -1458,7 +1458,7 @@ zfs_clone_range_replay(znode_t *zp, uint64_t off, uint64_t len, uint64_t blksz,
 	if (zp->z_blksz < blksz)
 		zfs_grow_blocksize(zp, blksz, tx);
 
-	dmu_brt_clone(zfsvfs->z_os, zp->z_id, off, len, tx, bps, nbps, B_TRUE);
+	dmu_brt_clone(zfsvfs->z_os, zp->z_id, off, len, tx, bps, nbps);
 
 	zfs_tstamp_update_setup(zp, CONTENT_MODIFIED, mtime, ctime);
 

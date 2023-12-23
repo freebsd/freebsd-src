@@ -25,12 +25,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * From: @(#)readdir.c	8.3 (Berkeley) 9/29/94
  * From: FreeBSD: head/lib/libc/gen/readdir.c 314436 2017-02-28 23:42:47Z imp
  */
 
-#include <sys/cdefs.h>
 #include "namespace.h"
 #include <sys/param.h>
 #define	_WANT_FREEBSD11_DIRENT

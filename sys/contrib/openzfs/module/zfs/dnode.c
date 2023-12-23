@@ -99,6 +99,14 @@ dbuf_compare(const void *x1, const void *x2)
 	if (likely(cmp))
 		return (cmp);
 
+	if (d1->db_state == DB_MARKER) {
+		ASSERT3S(d2->db_state, !=, DB_MARKER);
+		return (TREE_PCMP(d1->db_parent, d2));
+	} else if (d2->db_state == DB_MARKER) {
+		ASSERT3S(d1->db_state, !=, DB_MARKER);
+		return (TREE_PCMP(d1, d2->db_parent));
+	}
+
 	if (d1->db_state == DB_SEARCH) {
 		ASSERT3S(d2->db_state, !=, DB_SEARCH);
 		return (-1);
@@ -1237,9 +1245,11 @@ dnode_check_slots_free(dnode_children_t *children, int idx, int slots)
 	return (B_TRUE);
 }
 
-static void
+static uint_t
 dnode_reclaim_slots(dnode_children_t *children, int idx, int slots)
 {
+	uint_t reclaimed = 0;
+
 	ASSERT3S(idx + slots, <=, DNODES_PER_BLOCK);
 
 	for (int i = idx; i < idx + slots; i++) {
@@ -1251,8 +1261,11 @@ dnode_reclaim_slots(dnode_children_t *children, int idx, int slots)
 			ASSERT3S(dnh->dnh_dnode->dn_type, ==, DMU_OT_NONE);
 			dnode_destroy(dnh->dnh_dnode);
 			dnh->dnh_dnode = DN_SLOT_FREE;
+			reclaimed++;
 		}
 	}
+
+	return (reclaimed);
 }
 
 void
@@ -1565,6 +1578,8 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag, int slots,
 			} else {
 				dn = dnode_create(os, dn_block + idx, db,
 				    object, dnh);
+				dmu_buf_add_user_size(&db->db,
+				    sizeof (dnode_t));
 			}
 		}
 
@@ -1622,8 +1637,13 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag, int slots,
 		 * to be freed.  Single slot dnodes can be safely
 		 * re-purposed as a performance optimization.
 		 */
-		if (slots > 1)
-			dnode_reclaim_slots(dnc, idx + 1, slots - 1);
+		if (slots > 1) {
+			uint_t reclaimed =
+			    dnode_reclaim_slots(dnc, idx + 1, slots - 1);
+			if (reclaimed > 0)
+				dmu_buf_sub_user_size(&db->db,
+				    reclaimed * sizeof (dnode_t));
+		}
 
 		dnh = &dnc->dnc_children[idx];
 		if (DN_SLOT_IS_PTR(dnh->dnh_dnode)) {
@@ -1631,6 +1651,7 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag, int slots,
 		} else {
 			dn = dnode_create(os, dn_block + idx, db,
 			    object, dnh);
+			dmu_buf_add_user_size(&db->db, sizeof (dnode_t));
 		}
 
 		mutex_enter(&dn->dn_mtx);
@@ -1765,7 +1786,14 @@ dnode_try_claim(objset_t *os, uint64_t object, int slots)
 }
 
 /*
- * Checks if the dnode contains any uncommitted dirty records.
+ * Checks if the dnode itself is dirty, or is carrying any uncommitted records.
+ * It is important to check both conditions, as some operations (eg appending
+ * to a file) can dirty both as a single logical unit, but they are not synced
+ * out atomically, so checking one and not the other can result in an object
+ * appearing to be clean mid-way through a commit.
+ *
+ * Do not change this lightly! If you get it wrong, dmu_offset_next() can
+ * detect a hole where there is really data, leading to silent corruption.
  */
 boolean_t
 dnode_is_dirty(dnode_t *dn)
@@ -1773,7 +1801,8 @@ dnode_is_dirty(dnode_t *dn)
 	mutex_enter(&dn->dn_mtx);
 
 	for (int i = 0; i < TXG_SIZE; i++) {
-		if (multilist_link_active(&dn->dn_dirty_link[i])) {
+		if (multilist_link_active(&dn->dn_dirty_link[i]) ||
+		    !list_is_empty(&dn->dn_dirty_records[i])) {
 			mutex_exit(&dn->dn_mtx);
 			return (B_TRUE);
 		}

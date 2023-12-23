@@ -36,8 +36,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	From: @(#)common.c	8.5 (Berkeley) 4/28/95
  */
 
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */

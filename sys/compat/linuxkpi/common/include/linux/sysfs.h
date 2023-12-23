@@ -54,7 +54,10 @@ struct attribute_group {
 	.attr = { .name = __stringify(_name), .mode = _mode },		\
 	.show = _show, .store  = _store,				\
 }
-#define	__ATTR_RO(_name)	__ATTR(_name, 0444, _name##_show, NULL)
+#define	__ATTR_RO(_name) {						\
+	.attr = { .name = __stringify(_name), .mode = 0444 },		\
+	.show = _name##_show,						\
+}
 #define	__ATTR_WO(_name)	__ATTR(_name, 0200, NULL, _name##_store)
 #define	__ATTR_RW(_name)	__ATTR(_name, 0644, _name##_show, _name##_store)
 #define	__ATTR_NULL	{ .attr = { .name = NULL } }
@@ -150,6 +153,15 @@ sysfs_remove_file(struct kobject *kobj, const struct attribute *attr)
 
 	if (kobj->oidp)
 		sysctl_remove_name(kobj->oidp, attr->name, 1, 1);
+}
+
+static inline int
+sysfs_create_link(struct kobject *kobj __unused,
+    struct kobject *target __unused, const char *name __unused)
+{
+	/* TODO */
+
+	return (0);
 }
 
 static inline int

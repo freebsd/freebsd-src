@@ -27,7 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 char *__stpcpy(char * __restrict, const char * __restrict);
 
 char *

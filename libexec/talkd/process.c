@@ -29,12 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)process.c	8.2 (Berkeley) 11/16/93";
-#endif
-#endif /* not lint */
-
 /*
  * process.c handles the requests, which can be of three types:
  *	ANNOUNCE - announce to a user that a talk is wanted

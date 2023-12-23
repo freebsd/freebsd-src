@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -67,7 +66,7 @@ ipmi_isa_identify(driver_t *driver, device_t parent)
 		 * create an isa ipmi device.  For now we hardcode the list
 		 * of bus, device, function tuples.
 		 */
-		devid = pci_cfgregread(0, 4, 2, PCIR_DEVVENDOR, 4);
+		devid = pci_cfgregread(0, 0, 4, 2, PCIR_DEVVENDOR, 4);
 		if (devid != 0xffffffff &&
 		    ipmi_pci_match(devid & 0xffff, devid >> 16) != NULL)
 			return;
