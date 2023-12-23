@@ -125,9 +125,11 @@ iommu_gas_cmp_entries(struct iommu_map_entry *a, struct iommu_map_entry *b)
 	    b, (uintmax_t)b->start, (uintmax_t)b->end));
 	KASSERT(a->end <= b->start || b->end <= a->start ||
 	    a->end == a->start || b->end == b->start,
-	    ("overlapping entries %p (%jx, %jx) %p (%jx, %jx)",
-	    a, (uintmax_t)a->start, (uintmax_t)a->end,
-	    b, (uintmax_t)b->start, (uintmax_t)b->end));
+	    ("overlapping entries %p (%jx, %jx) f %#x %p (%jx, %jx) f %#x"
+	    " domain %p %p",
+	    a, (uintmax_t)a->start, (uintmax_t)a->end, a->flags,
+	    b, (uintmax_t)b->start, (uintmax_t)b->end, b->flags,
+	    a->domain, b->domain));
 
 	if (a->end < b->end)
 		return (-1);
