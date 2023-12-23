@@ -679,17 +679,13 @@ nfsm_mbufuio(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 				    ("len %d, corrupted mbuf?", len));
 			}
 			xfer = (left > len) ? len : left;
-#ifdef notdef
-			/* Not Yet.. */
-			if (uiop->uio_iov->iov_op != NULL)
-				(*(uiop->uio_iov->iov_op))
-				(mbufcp, uiocp, xfer);
-			else
-#endif
 			if (uiop->uio_segflg == UIO_SYSSPACE)
 				NFSBCOPY(mbufcp, uiocp, xfer);
-			else
-				copyout(mbufcp, uiocp, xfer);
+			else {
+				error = copyout(mbufcp, uiocp, xfer);
+				if (error != 0)
+					goto out;
+			}
 			left -= xfer;
 			len -= xfer;
 			mbufcp += xfer;

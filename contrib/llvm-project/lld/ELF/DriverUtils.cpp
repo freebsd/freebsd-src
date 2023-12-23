@@ -16,13 +16,13 @@
 #include "Driver.h"
 #include "lld/Common/CommonLinkerContext.h"
 #include "lld/Common/Reproduce.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/Option/Option.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/Host.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/TimeProfiler.h"
+#include "llvm/TargetParser/Host.h"
+#include "llvm/TargetParser/Triple.h"
 #include <optional>
 
 using namespace llvm;
@@ -192,6 +192,7 @@ std::string elf::createResponseFile(const opt::InputArgList &args) {
     case OPT_export_dynamic_symbol_list:
     case OPT_just_symbols:
     case OPT_library_path:
+    case OPT_remap_inputs_file:
     case OPT_retain_symbols_file:
     case OPT_rpath:
     case OPT_script:
@@ -213,7 +214,7 @@ std::string elf::createResponseFile(const opt::InputArgList &args) {
 static std::optional<std::string> findFile(StringRef path1,
                                            const Twine &path2) {
   SmallString<128> s;
-  if (path1.startswith("="))
+  if (path1.starts_with("="))
     path::append(s, config->sysroot, path1.substr(1), path2);
   else
     path::append(s, path1, path2);
@@ -246,7 +247,7 @@ std::optional<std::string> elf::searchLibraryBaseName(StringRef name) {
 // This is for -l<namespec>.
 std::optional<std::string> elf::searchLibrary(StringRef name) {
   llvm::TimeTraceScope timeScope("Locate library", name);
-  if (name.startswith(":"))
+  if (name.starts_with(":"))
     return findFromSearchPaths(name.substr(1));
   return searchLibraryBaseName(name);
 }

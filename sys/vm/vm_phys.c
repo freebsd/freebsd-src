@@ -1170,24 +1170,6 @@ vm_phys_free_pages(vm_page_t m, int order)
 }
 
 /*
- * Return the largest possible order of a set of pages starting at m.
- */
-static int
-max_order(vm_page_t m)
-{
-
-	/*
-	 * Unsigned "min" is used here so that "order" is assigned
-	 * "VM_NFREEORDER - 1" when "m"'s physical address is zero
-	 * or the low-order bits of its physical address are zero
-	 * because the size of a physical address exceeds the size of
-	 * a long.
-	 */
-	return (min(ffsll(VM_PAGE_TO_PHYS(m) >> PAGE_SHIFT) - 1,
-	    VM_NFREEORDER - 1));
-}
-
-/*
  * Free a contiguous, arbitrarily sized set of physical pages, without
  * merging across set boundaries.
  *
@@ -1211,7 +1193,7 @@ vm_phys_enqueue_contig(vm_page_t m, u_long npages)
 	fl = (*seg->free_queues)[m->pool];
 	m_end = m + npages;
 	/* Free blocks of increasing size. */
-	lo = VM_PAGE_TO_PHYS(m) >> PAGE_SHIFT;
+	lo = atop(VM_PAGE_TO_PHYS(m));
 	if (m < m_end &&
 	    (diff = lo ^ (lo + npages - 1)) != 0) {
 		order = min(flsll(diff) - 1, VM_NFREEORDER - 1);
@@ -1239,18 +1221,22 @@ vm_phys_enqueue_contig(vm_page_t m, u_long npages)
 void
 vm_phys_free_contig(vm_page_t m, u_long npages)
 {
-	int order_start, order_end;
+	vm_paddr_t lo;
 	vm_page_t m_start, m_end;
+	unsigned max_order, order_start, order_end;
 
 	vm_domain_free_assert_locked(vm_pagequeue_domain(m));
 
+	lo = atop(VM_PAGE_TO_PHYS(m));
+	max_order = min(flsll(lo ^ (lo + npages)) - 1, VM_NFREEORDER - 1);
+
 	m_start = m;
-	order_start = max_order(m_start);
-	if (order_start < VM_NFREEORDER - 1)
+	order_start = ffsll(lo) - 1;
+	if (order_start < max_order)
 		m_start += 1 << order_start;
 	m_end = m + npages;
-	order_end = max_order(m_end);
-	if (order_end < VM_NFREEORDER - 1)
+	order_end = ffsll(lo + npages) - 1;
+	if (order_end < max_order)
 		m_end -= 1 << order_end;
 	/*
 	 * Avoid unnecessary coalescing by freeing the pages at the start and
@@ -1258,9 +1244,9 @@ vm_phys_free_contig(vm_page_t m, u_long npages)
 	 */
 	if (m_start < m_end)
 		vm_phys_enqueue_contig(m_start, m_end - m_start);
-	if (order_start < VM_NFREEORDER - 1)
+	if (order_start < max_order)
 		vm_phys_free_pages(m, order_start);
-	if (order_end < VM_NFREEORDER - 1)
+	if (order_end < max_order)
 		vm_phys_free_pages(m_end, order_end);
 }
 

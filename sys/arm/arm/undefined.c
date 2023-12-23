@@ -342,11 +342,11 @@ undefinedinstruction(struct trapframe *frame)
 #else
 			printf("No debugger in kernel.\n");
 #endif
-			return;
-		}
-		else
-			panic("Undefined instruction in kernel (0x%08x).\n",
+		} else if (uh == NULL) {
+			panic("Undefined instruction in kernel (0x%08x)",
 			    fault_instruction);
+		}
+		return;
 	}
 
 	userret(td, frame);

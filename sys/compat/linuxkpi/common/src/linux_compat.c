@@ -131,7 +131,8 @@ static void linux_cdev_deref(struct linux_cdev *ldev);
 static struct vm_area_struct *linux_cdev_handle_find(void *handle);
 
 cpumask_t cpu_online_mask;
-static cpumask_t static_single_cpu_mask[MAXCPU];
+static cpumask_t **static_single_cpu_mask;
+static cpumask_t *static_single_cpu_mask_lcs;
 struct kobject linux_class_root;
 struct device linux_root_device;
 struct class linux_class_misc;
@@ -158,176 +159,6 @@ RB_GENERATE(linux_root, rb_node, __entry, panic_cmp);
 
 INTERVAL_TREE_DEFINE(struct interval_tree_node, rb, unsigned long,, START,
     LAST,, lkpi_interval_tree)
-
-struct kobject *
-kobject_create(void)
-{
-	struct kobject *kobj;
-
-	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
-	if (kobj == NULL)
-		return (NULL);
-	kobject_init(kobj, &linux_kfree_type);
-
-	return (kobj);
-}
-
-
-int
-kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list args)
-{
-	va_list tmp_va;
-	int len;
-	char *old;
-	char *name;
-	char dummy;
-
-	old = kobj->name;
-
-	if (old && fmt == NULL)
-		return (0);
-
-	/* compute length of string */
-	va_copy(tmp_va, args);
-	len = vsnprintf(&dummy, 0, fmt, tmp_va);
-	va_end(tmp_va);
-
-	/* account for zero termination */
-	len++;
-
-	/* check for error */
-	if (len < 1)
-		return (-EINVAL);
-
-	/* allocate memory for string */
-	name = kzalloc(len, GFP_KERNEL);
-	if (name == NULL)
-		return (-ENOMEM);
-	vsnprintf(name, len, fmt, args);
-	kobj->name = name;
-
-	/* free old string */
-	kfree(old);
-
-	/* filter new string */
-	for (; *name != '\0'; name++)
-		if (*name == '/')
-			*name = '!';
-	return (0);
-}
-
-int
-kobject_set_name(struct kobject *kobj, const char *fmt, ...)
-{
-	va_list args;
-	int error;
-
-	va_start(args, fmt);
-	error = kobject_set_name_vargs(kobj, fmt, args);
-	va_end(args);
-
-	return (error);
-}
-
-static int
-kobject_add_complete(struct kobject *kobj, struct kobject *parent)
-{
-	const struct kobj_type *t;
-	int error;
-
-	kobj->parent = parent;
-	error = sysfs_create_dir(kobj);
-	if (error == 0 && kobj->ktype && kobj->ktype->default_attrs) {
-		struct attribute **attr;
-		t = kobj->ktype;
-
-		for (attr = t->default_attrs; *attr != NULL; attr++) {
-			error = sysfs_create_file(kobj, *attr);
-			if (error)
-				break;
-		}
-		if (error)
-			sysfs_remove_dir(kobj);
-	}
-	return (error);
-}
-
-int
-kobject_add(struct kobject *kobj, struct kobject *parent, const char *fmt, ...)
-{
-	va_list args;
-	int error;
-
-	va_start(args, fmt);
-	error = kobject_set_name_vargs(kobj, fmt, args);
-	va_end(args);
-	if (error)
-		return (error);
-
-	return kobject_add_complete(kobj, parent);
-}
-
-void
-linux_kobject_release(struct kref *kref)
-{
-	struct kobject *kobj;
-	char *name;
-
-	kobj = container_of(kref, struct kobject, kref);
-	sysfs_remove_dir(kobj);
-	name = kobj->name;
-	if (kobj->ktype && kobj->ktype->release)
-		kobj->ktype->release(kobj);
-	kfree(name);
-}
-
-static void
-linux_kobject_kfree(struct kobject *kobj)
-{
-	kfree(kobj);
-}
-
-static void
-linux_kobject_kfree_name(struct kobject *kobj)
-{
-	if (kobj) {
-		kfree(kobj->name);
-	}
-}
-
-const struct kobj_type linux_kfree_type = {
-	.release = linux_kobject_kfree
-};
-
-static ssize_t
-lkpi_kobj_attr_show(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	struct kobj_attribute *ka =
-	    container_of(attr, struct kobj_attribute, attr);
-
-	if (ka->show == NULL)
-		return (-EIO);
-
-	return (ka->show(kobj, ka, buf));
-}
-
-static ssize_t
-lkpi_kobj_attr_store(struct kobject *kobj, struct attribute *attr,
-    const char *buf, size_t count)
-{
-	struct kobj_attribute *ka =
-	    container_of(attr, struct kobj_attribute, attr);
-
-	if (ka->store == NULL)
-		return (-EIO);
-
-	return (ka->store(kobj, ka, buf, count));
-}
-
-const struct sysfs_ops kobj_sysfs_ops = {
-	.show	= lkpi_kobj_attr_show,
-	.store	= lkpi_kobj_attr_store,
-};
 
 static void
 linux_device_release(struct device *dev)
@@ -516,26 +347,6 @@ class_create(struct module *owner, const char *name)
 	}
 
 	return (class);
-}
-
-int
-kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
-    struct kobject *parent, const char *fmt, ...)
-{
-	va_list args;
-	int error;
-
-	kobject_init(kobj, ktype);
-	kobj->ktype = ktype;
-	kobj->parent = parent;
-	kobj->name = NULL;
-
-	va_start(args, fmt);
-	error = kobject_set_name_vargs(kobj, fmt, args);
-	va_end(args);
-	if (error)
-		return (error);
-	return kobject_add_complete(kobj, parent);
 }
 
 static void
@@ -2759,17 +2570,19 @@ io_mapping_create_wc(resource_size_t base, unsigned long size)
 #if defined(__i386__) || defined(__amd64__)
 bool linux_cpu_has_clflush;
 struct cpuinfo_x86 boot_cpu_data;
-struct cpuinfo_x86 __cpu_data[MAXCPU];
+struct cpuinfo_x86 *__cpu_data;
 #endif
 
 cpumask_t *
 lkpi_get_static_single_cpu_mask(int cpuid)
 {
 
-	KASSERT((cpuid >= 0 && cpuid < MAXCPU), ("%s: invalid cpuid %d\n",
+	KASSERT((cpuid >= 0 && cpuid <= mp_maxid), ("%s: invalid cpuid %d\n",
+	    __func__, cpuid));
+	KASSERT(!CPU_ABSENT(cpuid), ("%s: cpu with cpuid %d is absent\n",
 	    __func__, cpuid));
 
-	return (&static_single_cpu_mask[cpuid]);
+	return (static_single_cpu_mask[cpuid]);
 }
 
 static void
@@ -2785,7 +2598,9 @@ linux_compat_init(void *arg)
 	boot_cpu_data.x86 = CPUID_TO_FAMILY(cpu_id);
 	boot_cpu_data.x86_model = CPUID_TO_MODEL(cpu_id);
 
-	for (i = 0; i < MAXCPU; i++) {
+	__cpu_data = mallocarray(mp_maxid + 1,
+	    sizeof(*__cpu_data), M_KMALLOC, M_WAITOK | M_ZERO);
+	CPU_FOREACH(i) {
 		__cpu_data[i].x86_clflush_size = cpu_clflush_line_size;
 		__cpu_data[i].x86_max_cores = mp_ncpus;
 		__cpu_data[i].x86 = CPUID_TO_FAMILY(cpu_id);
@@ -2820,13 +2635,92 @@ linux_compat_init(void *arg)
 	CPU_COPY(&all_cpus, &cpu_online_mask);
 	/*
 	 * Generate a single-CPU cpumask_t for each CPU (possibly) in the system.
-	 * CPUs are indexed from 0..(MAXCPU-1).  The entry for cpuid 0 will only
+	 * CPUs are indexed from 0..(mp_maxid).  The entry for cpuid 0 will only
 	 * have itself in the cpumask, cupid 1 only itself on entry 1, and so on.
 	 * This is used by cpumask_of() (and possibly others in the future) for,
 	 * e.g., drivers to pass hints to irq_set_affinity_hint().
 	 */
-	for (i = 0; i < MAXCPU; i++)
-		CPU_SET(i, &static_single_cpu_mask[i]);
+	static_single_cpu_mask = mallocarray(mp_maxid + 1,
+	    sizeof(static_single_cpu_mask), M_KMALLOC, M_WAITOK | M_ZERO);
+
+	/*
+	 * When the number of CPUs reach a threshold, we start to save memory
+	 * given the sets are static by overlapping those having their single
+	 * bit set at same position in a bitset word.  Asymptotically, this
+	 * regular scheme is in O(n²) whereas the overlapping one is in O(n)
+	 * only with n being the maximum number of CPUs, so the gain will become
+	 * huge quite quickly.  The threshold for 64-bit architectures is 128
+	 * CPUs.
+	 */
+	if (mp_ncpus < (2 * _BITSET_BITS)) {
+		cpumask_t *sscm_ptr;
+
+		/*
+		 * This represents 'mp_ncpus * __bitset_words(CPU_SETSIZE) *
+		 * (_BITSET_BITS / 8)' bytes (for comparison with the
+		 * overlapping scheme).
+		 */
+		static_single_cpu_mask_lcs = mallocarray(mp_ncpus,
+		    sizeof(*static_single_cpu_mask_lcs),
+		    M_KMALLOC, M_WAITOK | M_ZERO);
+
+		sscm_ptr = static_single_cpu_mask_lcs;
+		CPU_FOREACH(i) {
+			static_single_cpu_mask[i] = sscm_ptr++;
+			CPU_SET(i, static_single_cpu_mask[i]);
+		}
+	} else {
+		/* Pointer to a bitset word. */
+		__typeof(((cpuset_t *)NULL)->__bits[0]) *bwp;
+
+		/*
+		 * Allocate memory for (static) spans of 'cpumask_t' ('cpuset_t'
+		 * really) with a single bit set that can be reused for all
+		 * single CPU masks by making them start at different offsets.
+		 * We need '__bitset_words(CPU_SETSIZE) - 1' bitset words before
+		 * the word having its single bit set, and the same amount
+		 * after.
+		 */
+		static_single_cpu_mask_lcs = mallocarray(_BITSET_BITS,
+		    (2 * __bitset_words(CPU_SETSIZE) - 1) * (_BITSET_BITS / 8),
+		    M_KMALLOC, M_WAITOK | M_ZERO);
+
+		/*
+		 * We rely below on cpuset_t and the bitset generic
+		 * implementation assigning words in the '__bits' array in the
+		 * same order of bits (i.e., little-endian ordering, not to be
+		 * confused with machine endianness, which concerns bits in
+		 * words and other integers).  This is an imperfect test, but it
+		 * will detect a change to big-endian ordering.
+		 */
+		_Static_assert(
+		    __bitset_word(_BITSET_BITS + 1, _BITSET_BITS) == 1,
+		    "Assumes a bitset implementation that is little-endian "
+		    "on its words");
+
+		/* Initialize the single bit of each static span. */
+		bwp = (__typeof(bwp))static_single_cpu_mask_lcs +
+		    (__bitset_words(CPU_SETSIZE) - 1);
+		for (i = 0; i < _BITSET_BITS; i++) {
+			CPU_SET(i, (cpuset_t *)bwp);
+			bwp += (2 * __bitset_words(CPU_SETSIZE) - 1);
+		}
+
+		/*
+		 * Finally set all CPU masks to the proper word in their
+		 * relevant span.
+		 */
+		CPU_FOREACH(i) {
+			bwp = (__typeof(bwp))static_single_cpu_mask_lcs;
+			/* Find the non-zero word of the relevant span. */
+			bwp += (2 * __bitset_words(CPU_SETSIZE) - 1) *
+			    (i % _BITSET_BITS) +
+			    __bitset_words(CPU_SETSIZE) - 1;
+			/* Shift to find the CPU mask start. */
+			bwp -= (i / _BITSET_BITS);
+			static_single_cpu_mask[i] = (cpuset_t *)bwp;
+		}
+	}
 
 	strlcpy(init_uts_ns.name.release, osrelease, sizeof(init_uts_ns.name.release));
 }
@@ -2838,6 +2732,12 @@ linux_compat_uninit(void *arg)
 	linux_kobject_kfree_name(&linux_class_root);
 	linux_kobject_kfree_name(&linux_root_device.kobj);
 	linux_kobject_kfree_name(&linux_class_misc.kobj);
+
+	free(static_single_cpu_mask_lcs, M_KMALLOC);
+	free(static_single_cpu_mask, M_KMALLOC);
+#if defined(__i386__) || defined(__amd64__)
+	free(__cpu_data, M_KMALLOC);
+#endif
 
 	mtx_destroy(&vmmaplock);
 	spin_lock_destroy(&pci_lock);

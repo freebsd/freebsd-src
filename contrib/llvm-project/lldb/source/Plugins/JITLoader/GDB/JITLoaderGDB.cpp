@@ -101,9 +101,10 @@ public:
   }
 
   EnableJITLoaderGDB GetEnable() const {
-    return (EnableJITLoaderGDB)m_collection_sp->GetPropertyAtIndexAsEnumeration(
-        nullptr, ePropertyEnable,
-        g_jitloadergdb_properties[ePropertyEnable].default_uint_value);
+    return GetPropertyAtIndexAs<EnableJITLoaderGDB>(
+        ePropertyEnable,
+        static_cast<EnableJITLoaderGDB>(
+            g_jitloadergdb_properties[ePropertyEnable].default_uint_value));
   }
 };
 } // namespace
@@ -160,8 +161,7 @@ void JITLoaderGDB::DebuggerInitialize(Debugger &debugger) {
     const bool is_global_setting = true;
     PluginManager::CreateSettingForJITLoaderPlugin(
         debugger, GetGlobalPluginProperties().GetValueProperties(),
-        ConstString("Properties for the JIT LoaderGDB plug-in."),
-        is_global_setting);
+        "Properties for the JIT LoaderGDB plug-in.", is_global_setting);
   }
 }
 

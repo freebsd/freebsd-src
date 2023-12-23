@@ -14,6 +14,7 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/CodeGen/CostTable.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
+#include "llvm/CodeGen/MachineValueType.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DataLayout.h"
@@ -25,11 +26,10 @@
 #include "llvm/IR/IntrinsicsARM.h"
 #include "llvm/IR/PatternMatch.h"
 #include "llvm/IR/Type.h"
-#include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/KnownBits.h"
-#include "llvm/Support/MachineValueType.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/TargetParser/SubtargetFeature.h"
 #include "llvm/Transforms/InstCombine/InstCombiner.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
@@ -205,6 +205,8 @@ ARMTTIImpl::instCombineIntrinsic(InstCombiner &IC, IntrinsicInst &II) const {
           ConstantAsMetadata::get(ConstantInt::get(IntTy32, 0)),
           ConstantAsMetadata::get(ConstantInt::get(IntTy32, 0x10000))};
       II.setMetadata(LLVMContext::MD_range, MDNode::get(II.getContext(), M));
+      II.setMetadata(LLVMContext::MD_noundef,
+                     MDNode::get(II.getContext(), std::nullopt));
       return &II;
     }
     break;
@@ -445,7 +447,7 @@ InstructionCost ARMTTIImpl::getIntImmCostInst(unsigned Opcode, unsigned Idx,
     return 0;
 
   // We can convert <= -1 to < 0, which is generally quite cheap.
-  if (Inst && Opcode == Instruction::ICmp && Idx == 1 && Imm.isAllOnesValue()) {
+  if (Inst && Opcode == Instruction::ICmp && Idx == 1 && Imm.isAllOnes()) {
     ICmpInst::Predicate Pred = cast<ICmpInst>(Inst)->getPredicate();
     if (Pred == ICmpInst::ICMP_SGT || Pred == ICmpInst::ICMP_SLE)
       return std::min(getIntImmCost(Imm, Ty, CostKind),
@@ -1585,9 +1587,11 @@ InstructionCost ARMTTIImpl::getGatherScatterOpCost(
   InstructionCost VectorCost =
       NumElems * LT.first * ST->getMVEVectorCostFactor(CostKind);
   // The scalarization cost should be a lot higher. We use the number of vector
-  // elements plus the scalarization overhead.
+  // elements plus the scalarization overhead. If masking is required then a lot
+  // of little blocks will be needed and potentially a scalarized p0 mask,
+  // greatly increasing the cost.
   InstructionCost ScalarCost =
-      NumElems * LT.first +
+      NumElems * LT.first + (VariableMask ? NumElems * 5 : 0) +
       BaseT::getScalarizationOverhead(VTy, /*Insert*/ true, /*Extract*/ false,
                                       CostKind) +
       BaseT::getScalarizationOverhead(VTy, /*Insert*/ false, /*Extract*/ true,
@@ -1689,7 +1693,7 @@ ARMTTIImpl::getArithmeticReductionCost(unsigned Opcode, VectorType *ValTy,
 
 InstructionCost ARMTTIImpl::getExtendedReductionCost(
     unsigned Opcode, bool IsUnsigned, Type *ResTy, VectorType *ValTy,
-    std::optional<FastMathFlags> FMF, TTI::TargetCostKind CostKind) {
+    FastMathFlags FMF, TTI::TargetCostKind CostKind) {
   EVT ValVT = TLI->getValueType(DL, ValTy);
   EVT ResVT = TLI->getValueType(DL, ResTy);
 
@@ -2238,10 +2242,7 @@ static bool canTailPredicateLoop(Loop *L, LoopInfo *LI, ScalarEvolution &SE,
   return true;
 }
 
-bool ARMTTIImpl::preferPredicateOverEpilogue(
-    Loop *L, LoopInfo *LI, ScalarEvolution &SE, AssumptionCache &AC,
-    TargetLibraryInfo *TLI, DominatorTree *DT, LoopVectorizationLegality *LVL,
-    InterleavedAccessInfo *IAI) {
+bool ARMTTIImpl::preferPredicateOverEpilogue(TailFoldingInfo *TFI) {
   if (!EnableTailPredication) {
     LLVM_DEBUG(dbgs() << "Tail-predication not enabled.\n");
     return false;
@@ -2253,6 +2254,9 @@ bool ARMTTIImpl::preferPredicateOverEpilogue(
   if (!ST->hasMVEIntegerOps())
     return false;
 
+  LoopVectorizationLegality *LVL = TFI->LVL;
+  Loop *L = LVL->getLoop();
+
   // For now, restrict this to single block loops.
   if (L->getNumBlocks() > 1) {
     LLVM_DEBUG(dbgs() << "preferPredicateOverEpilogue: not a single block "
@@ -2262,6 +2266,7 @@ bool ARMTTIImpl::preferPredicateOverEpilogue(
 
   assert(L->isInnermost() && "preferPredicateOverEpilogue: inner-loop expected");
 
+  LoopInfo *LI = LVL->getLoopInfo();
   HardwareLoopInfo HWLoopInfo(L);
   if (!HWLoopInfo.canAnalyze(*LI)) {
     LLVM_DEBUG(dbgs() << "preferPredicateOverEpilogue: hardware-loop is not "
@@ -2269,32 +2274,37 @@ bool ARMTTIImpl::preferPredicateOverEpilogue(
     return false;
   }
 
+  AssumptionCache *AC = LVL->getAssumptionCache();
+  ScalarEvolution *SE = LVL->getScalarEvolution();
+
   // This checks if we have the low-overhead branch architecture
   // extension, and if we will create a hardware-loop:
-  if (!isHardwareLoopProfitable(L, SE, AC, TLI, HWLoopInfo)) {
+  if (!isHardwareLoopProfitable(L, *SE, *AC, TFI->TLI, HWLoopInfo)) {
     LLVM_DEBUG(dbgs() << "preferPredicateOverEpilogue: hardware-loop is not "
                          "profitable.\n");
     return false;
   }
 
-  if (!HWLoopInfo.isHardwareLoopCandidate(SE, *LI, *DT)) {
+  DominatorTree *DT = LVL->getDominatorTree();
+  if (!HWLoopInfo.isHardwareLoopCandidate(*SE, *LI, *DT)) {
     LLVM_DEBUG(dbgs() << "preferPredicateOverEpilogue: hardware-loop is not "
                          "a candidate.\n");
     return false;
   }
 
-  return canTailPredicateLoop(L, LI, SE, DL, LVL->getLAI());
+  return canTailPredicateLoop(L, LI, *SE, DL, LVL->getLAI());
 }
 
-PredicationStyle ARMTTIImpl::emitGetActiveLaneMask() const {
+TailFoldingStyle
+ARMTTIImpl::getPreferredTailFoldingStyle(bool IVUpdateMayOverflow) const {
   if (!ST->hasMVEIntegerOps() || !EnableTailPredication)
-    return PredicationStyle::None;
+    return TailFoldingStyle::DataWithoutLaneMask;
 
   // Intrinsic @llvm.get.active.lane.mask is supported.
   // It is used in the MVETailPredication pass, which requires the number of
   // elements processed by this vector loop to setup the tail-predicated
   // loop.
-  return PredicationStyle::Data;
+  return TailFoldingStyle::Data;
 }
 void ARMTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
                                          TTI::UnrollingPreferences &UP,
@@ -2440,4 +2450,17 @@ InstructionCost ARMTTIImpl::getScalingFactorCost(Type *Ty, GlobalValue *BaseGV,
     return 0;
   }
   return -1;
+}
+
+bool ARMTTIImpl::hasArmWideBranch(bool Thumb) const {
+  if (Thumb) {
+    // B.W is available in any Thumb2-supporting target, and also in every
+    // version of Armv8-M, even Baseline which does not include the rest of
+    // Thumb2.
+    return ST->isThumb2() || ST->hasV8MBaselineOps();
+  } else {
+    // B is available in all versions of the Arm ISA, so the only question is
+    // whether that ISA is available at all.
+    return ST->hasARMOps();
+  }
 }

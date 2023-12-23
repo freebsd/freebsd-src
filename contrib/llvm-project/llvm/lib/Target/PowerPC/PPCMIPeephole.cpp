@@ -193,7 +193,7 @@ static unsigned getKnownLeadingZeroCount(const unsigned Reg,
 
   if (Opcode == PPC::ANDI_rec) {
     uint16_t Imm = MI->getOperand(2).getImm();
-    return 48 + countLeadingZeros(Imm);
+    return 48 + llvm::countl_zero(Imm);
   }
 
   if (Opcode == PPC::CNTLZW || Opcode == PPC::CNTLZW_rec ||
@@ -218,6 +218,20 @@ static unsigned getKnownLeadingZeroCount(const unsigned Reg,
       Opcode == PPC::LBZU  || Opcode == PPC::LBZUX ||
       Opcode == PPC::LBZU8 || Opcode == PPC::LBZUX8)
     return 56;
+
+  if (Opcode == PPC::AND || Opcode == PPC::AND8 || Opcode == PPC::AND_rec ||
+      Opcode == PPC::AND8_rec)
+    return std::max(
+        getKnownLeadingZeroCount(MI->getOperand(1).getReg(), TII, MRI),
+        getKnownLeadingZeroCount(MI->getOperand(2).getReg(), TII, MRI));
+
+  if (Opcode == PPC::OR || Opcode == PPC::OR8 || Opcode == PPC::XOR ||
+      Opcode == PPC::XOR8 || Opcode == PPC::OR_rec ||
+      Opcode == PPC::OR8_rec || Opcode == PPC::XOR_rec ||
+      Opcode == PPC::XOR8_rec)
+    return std::min(
+        getKnownLeadingZeroCount(MI->getOperand(1).getReg(), TII, MRI),
+        getKnownLeadingZeroCount(MI->getOperand(2).getReg(), TII, MRI));
 
   if (TII->isZeroExtended(Reg, MRI))
     return 32;
@@ -641,6 +655,34 @@ bool PPCMIPeephole::simplifyCode() {
           DefMI->getOperand(0).setReg(MI.getOperand(0).getReg());
           LLVM_DEBUG(dbgs() << "Removing redundant splat: ");
           LLVM_DEBUG(MI.dump());
+        } else if (Immed == 2 &&
+                   (DefOpc == PPC::VSPLTB || DefOpc == PPC::VSPLTH ||
+                    DefOpc == PPC::VSPLTW || DefOpc == PPC::XXSPLTW ||
+                    DefOpc == PPC::VSPLTISB || DefOpc == PPC::VSPLTISH ||
+                    DefOpc == PPC::VSPLTISW)) {
+          // Swap of various vector splats, convert to copy.
+          ToErase = &MI;
+          Simplified = true;
+          LLVM_DEBUG(dbgs() << "Optimizing swap(vsplt(is)?[b|h|w]|xxspltw) => "
+                               "copy(vsplt(is)?[b|h|w]|xxspltw): ");
+          LLVM_DEBUG(MI.dump());
+          BuildMI(MBB, &MI, MI.getDebugLoc(), TII->get(PPC::COPY),
+                  MI.getOperand(0).getReg())
+              .add(MI.getOperand(1));
+        } else if ((Immed == 0 || Immed == 3 || Immed == 2) &&
+                   TII->isLoadFromConstantPool(DefMI)) {
+          const Constant *C = TII->getConstantFromConstantPool(DefMI);
+          if (C && C->getType()->isVectorTy() && C->getSplatValue()) {
+            ToErase = &MI;
+            Simplified = true;
+            LLVM_DEBUG(dbgs()
+                       << "Optimizing swap(splat pattern from constant-pool) "
+                          "=> copy(splat pattern from constant-pool): ");
+            LLVM_DEBUG(MI.dump());
+            BuildMI(MBB, &MI, MI.getDebugLoc(), TII->get(PPC::COPY),
+                    MI.getOperand(0).getReg())
+                .add(MI.getOperand(1));
+          }
         }
         break;
       }
@@ -839,7 +881,8 @@ bool PPCMIPeephole::simplifyCode() {
           if (SrcMI->getOperand(1).isGlobal()) {
             const GlobalObject *GO =
                 dyn_cast<GlobalObject>(SrcMI->getOperand(1).getGlobal());
-            if (GO && GO->getAlign() && *GO->getAlign() >= 4)
+            if (GO && GO->getAlign() && *GO->getAlign() >= 4 &&
+                (SrcMI->getOperand(1).getOffset() % 4 == 0))
               IsWordAligned = true;
           } else if (SrcMI->getOperand(1).isImm()) {
             int64_t Value = SrcMI->getOperand(1).getImm();
@@ -1288,13 +1331,16 @@ static bool eligibleForCompareElimination(MachineBasicBlock &MBB,
     if (isEligibleBB(*Pred1MBB) && isEligibleForMoveCmp(*Pred2MBB)) {
       // We assume Pred1MBB is the BB containing the compare to be merged and
       // Pred2MBB is the BB to which we will append a compare instruction.
-      // Hence we can proceed as is.
+      // Proceed as is if Pred1MBB is different from MBB.
     }
     else if (isEligibleBB(*Pred2MBB) && isEligibleForMoveCmp(*Pred1MBB)) {
       // We need to swap Pred1MBB and Pred2MBB to canonicalize.
       std::swap(Pred1MBB, Pred2MBB);
     }
     else return false;
+
+    if (Pred1MBB == &MBB)
+      return false;
 
     // Here, Pred2MBB is the BB to which we need to append a compare inst.
     // We cannot move the compare instruction if operands are not available

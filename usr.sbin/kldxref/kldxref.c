@@ -32,28 +32,24 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/endian.h>
-#include <sys/exec.h>
 #include <sys/queue.h>
-#include <sys/kernel.h>
-#include <sys/reboot.h>
-#include <sys/linker.h>
 #include <sys/stat.h>
 #include <sys/module.h>
-#define FREEBSD_ELF
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
+#include <gelf.h>
+#include <libelf.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <machine/elf.h>
 
 #include "ef.h"
 
@@ -64,6 +60,9 @@ static bool dflag;	/* do not create a hint file, only write on stdout */
 static int verbose;
 
 static FILE *fxref;	/* current hints file */
+static int byte_order;
+static GElf_Ehdr ehdr;
+static char *ehdr_filename;
 
 static const char *xref_file = "linker.hints";
 
@@ -82,6 +81,19 @@ intalign(void)
 }
 
 static void
+write_int(int val)
+{
+	char buf[4];
+
+	assert(byte_order != ELFDATANONE);
+	if (byte_order == ELFDATA2LSB)
+		le32enc(buf, val);
+	else
+		be32enc(buf, val);
+	fwrite(buf, sizeof(buf), 1, fxref);
+}
+
+static void
 record_start(void)
 {
 
@@ -93,11 +105,24 @@ static int
 record_end(void)
 {
 
-	if (recpos == 0)
+	if (recpos == 0) {
+		/*
+		 * Pretend to have written a record in debug mode so
+		 * the architecture check works.
+		 */
+		if (dflag)
+			reccnt++;
 		return (0);
+	}
+
+	if (reccnt == 0) {
+		/* File version record. */
+		write_int(1);
+	}
+
 	reccnt++;
 	intalign();
-	fwrite(&recpos, sizeof(recpos), 1, fxref);
+	write_int(recpos);
 	return (fwrite(recbuf, recpos, 1, fxref) != 1 ? errno : 0);
 }
 
@@ -113,14 +138,21 @@ record_buf(const void *buf, size_t size)
 }
 
 /*
- * An int is stored in host order and aligned
+ * An int is stored in target byte order and aligned
  */
 static int
 record_int(int val)
 {
+	char buf[4];
+
+	assert(byte_order != ELFDATANONE);
+	if (byte_order == ELFDATA2LSB)
+		le32enc(buf, val);
+	else
+		be32enc(buf, val);
 
 	intalign();
-	return (record_buf(&val, sizeof(val)));
+	return (record_buf(buf, sizeof(buf)));
 }
 
 /*
@@ -228,7 +260,8 @@ typedef TAILQ_HEAD(pnp_head, pnp_elt) pnp_list;
  * sign extension to uint32_t to simplify parsing downstream.
  */
 static int
-parse_pnp_list(const char *desc, char **new_desc, pnp_list *list)
+parse_pnp_list(struct elf_file *ef, const char *desc, char **new_desc,
+    pnp_list *list)
 {
 	const char *walker, *ep;
 	const char *colon, *semi;
@@ -238,6 +271,7 @@ parse_pnp_list(const char *desc, char **new_desc, pnp_list *list)
 	size_t new_desc_size;
 	FILE *fp;
 
+	TAILQ_INIT(list);
 	walker = desc;
 	ep = desc + strlen(desc);
 	off = 0;
@@ -274,7 +308,7 @@ parse_pnp_list(const char *desc, char **new_desc, pnp_list *list)
 			printf("Found type %s for name %s\n", type, key);
 		/* Skip pointer place holders */
 		if (strcmp(type, "P") == 0) {
-			off += sizeof(void *);
+			off += elf_pointer_size(ef);
 			continue;
 		}
 
@@ -333,8 +367,8 @@ parse_pnp_list(const char *desc, char **new_desc, pnp_list *list)
 			/* doesn't actually consume space in the table */
 			off = elt->pe_offset;
 		} else {
-			elt->pe_offset = roundup2(elt->pe_offset, sizeof(void *));
-			off = elt->pe_offset + sizeof(void *);
+			elt->pe_offset = roundup2(elt->pe_offset, elf_pointer_size(ef));
+			off = elt->pe_offset + elf_pointer_size(ef);
 		}
 		if (elt->pe_kind & TYPE_PAIRED) {
 			char *word, *ctx, newtype;
@@ -380,33 +414,183 @@ err:
 	errx(1, "Parse error of description string %s", desc);
 }
 
+static void
+free_pnp_list(char *new_desc, pnp_list *list)
+{
+	struct pnp_elt *elt, *elt_tmp;
+
+	TAILQ_FOREACH_SAFE(elt, list, next, elt_tmp) {
+		TAILQ_REMOVE(list, elt, next);
+		free(elt);
+	}
+	free(new_desc);
+}
+
+static uint16_t
+parse_16(const void *p)
+{
+	if (byte_order == ELFDATA2LSB)
+		return (le16dec(p));
+	else
+		return (be16dec(p));
+}
+
+static uint32_t
+parse_32(const void *p)
+{
+	if (byte_order == ELFDATA2LSB)
+		return (le32dec(p));
+	else
+		return (be32dec(p));
+}
+
+static void
+parse_pnp_entry(struct elf_file *ef, struct pnp_elt *elt, const char *walker)
+{
+	uint8_t v1;
+	uint16_t v2;
+	uint32_t v4;
+	int	value;
+	char buffer[1024];
+
+	if (elt->pe_kind == TYPE_W32) {
+		v4 = parse_32(walker + elt->pe_offset);
+		value = v4 & 0xffff;
+		record_int(value);
+		if (verbose > 1)
+			printf("W32:%#x", value);
+		value = (v4 >> 16) & 0xffff;
+		record_int(value);
+		if (verbose > 1)
+			printf(":%#x;", value);
+	} else if (elt->pe_kind & TYPE_INT) {
+		switch (elt->pe_kind & TYPE_SZ_MASK) {
+		case 1:
+			memcpy(&v1, walker + elt->pe_offset, sizeof(v1));
+			if ((elt->pe_kind & TYPE_FLAGGED) && v1 == 0xff)
+				value = -1;
+			else
+				value = v1;
+			break;
+		case 2:
+			v2 = parse_16(walker + elt->pe_offset);
+			if ((elt->pe_kind & TYPE_FLAGGED) && v2 == 0xffff)
+				value = -1;
+			else
+				value = v2;
+			break;
+		case 4:
+			v4 = parse_32(walker + elt->pe_offset);
+			if ((elt->pe_kind & TYPE_FLAGGED) && v4 == 0xffffffff)
+				value = -1;
+			else
+				value = v4;
+			break;
+		default:
+			errx(1, "Invalid size somehow %#x", elt->pe_kind);
+		}
+		if (verbose > 1)
+			printf("I:%#x;", value);
+		record_int(value);
+	} else if (elt->pe_kind == TYPE_T) {
+		/* Do nothing */
+	} else { /* E, Z or D -- P already filtered */
+		if (elt->pe_kind == TYPE_E) {
+			v4 = parse_32(walker + elt->pe_offset);
+			strcpy(buffer, pnp_eisaformat(v4));
+		} else {
+			GElf_Addr address;
+
+			address = elf_address_from_pointer(ef, walker +
+			    elt->pe_offset);
+			buffer[0] = '\0';
+			if (address != 0) {
+				elf_read_string(ef, address, buffer,
+				    sizeof(buffer));
+				buffer[sizeof(buffer) - 1] = '\0';
+			}
+		}
+		if (verbose > 1)
+			printf("%c:%s;", elt->pe_kind == TYPE_E ? 'E' :
+			    (elt->pe_kind == TYPE_Z ? 'Z' : 'D'), buffer);
+		record_string(buffer);
+	}
+}
+
+static void
+record_pnp_info(struct elf_file *ef, const char *cval,
+    struct Gmod_pnp_match_info *pnp, const char *descr)
+{
+	pnp_list list;
+	struct pnp_elt *elt;
+	char *new_descr, *walker;
+	void *table;
+	size_t len;
+	int error, i;
+
+	if (verbose > 1)
+		printf("  pnp info for bus %s format %s %d entries of %d bytes\n",
+		    cval, descr, pnp->num_entry, pnp->entry_len);
+
+	/*
+	 * Parse descr to weed out the chaff and to create a list
+	 * of offsets to output.
+	 */
+	parse_pnp_list(ef, descr, &new_descr, &list);
+	record_int(MDT_PNP_INFO);
+	record_string(cval);
+	record_string(new_descr);
+	record_int(pnp->num_entry);
+	len = pnp->num_entry * pnp->entry_len;
+	error = elf_read_relocated_data(ef, pnp->table, len, &table);
+	if (error != 0) {
+		free_pnp_list(new_descr, &list);
+		return;
+	}
+
+	/*
+	 * Walk the list and output things. We've collapsed all the
+	 * variant forms of the table down to just ints and strings.
+	 */
+	walker = table;
+	for (i = 0; i < pnp->num_entry; i++) {
+		TAILQ_FOREACH(elt, &list, next) {
+			parse_pnp_entry(ef, elt, walker);
+		}
+		if (verbose > 1)
+			printf("\n");
+		walker += pnp->entry_len;
+	}
+
+	/* Now free it */
+	free_pnp_list(new_descr, &list);
+	free(table);
+}
+
 static int
-parse_entry(struct mod_metadata *md, const char *cval,
+parse_entry(struct Gmod_metadata *md, const char *cval,
     struct elf_file *ef, const char *kldname)
 {
-	struct mod_depend mdp;
-	struct mod_version mdv;
-	struct mod_pnp_match_info pnp;
+	struct Gmod_depend mdp;
+	struct Gmod_version mdv;
+	struct Gmod_pnp_match_info pnp;
 	char descr[1024];
-	Elf_Off data;
-	int error, i;
-	size_t len;
-	char *walker;
-	void *table;
+	GElf_Addr data;
+	int error;
 
-	data = (Elf_Off)md->md_data;
+	data = md->md_data;
 	error = 0;
 	record_start();
 	switch (md->md_type) {
 	case MDT_DEPEND:
 		if (!dflag)
 			break;
-		check(EF_SEG_READ(ef, data, sizeof(mdp), &mdp));
+		check(elf_read_mod_depend(ef, data, &mdp));
 		printf("  depends on %s.%d (%d,%d)\n", cval,
 		    mdp.md_ver_preferred, mdp.md_ver_minimum, mdp.md_ver_maximum);
 		break;
 	case MDT_VERSION:
-		check(EF_SEG_READ(ef, data, sizeof(mdv), &mdv));
+		check(elf_read_mod_version(ef, data, &mdv));
 		if (dflag) {
 			printf("  interface %s.%d\n", cval, mdv.mv_version);
 		} else {
@@ -426,117 +610,13 @@ parse_entry(struct mod_metadata *md, const char *cval,
 		}
 		break;
 	case MDT_PNP_INFO:
-		check(EF_SEG_READ_REL(ef, data, sizeof(pnp), &pnp));
-		check(EF_SEG_READ_STRING(ef, (Elf_Off)pnp.descr, sizeof(descr), descr));
-		descr[sizeof(descr) - 1] = '\0';
+		check(elf_read_mod_pnp_match_info(ef, data, &pnp));
+		check(elf_read_string(ef, pnp.descr, descr, sizeof(descr)));
 		if (dflag) {
 			printf("  pnp info for bus %s format %s %d entries of %d bytes\n",
 			    cval, descr, pnp.num_entry, pnp.entry_len);
 		} else {
-			pnp_list list;
-			struct pnp_elt *elt, *elt_tmp;
-			char *new_descr;
-
-			if (verbose > 1)
-				printf("  pnp info for bus %s format %s %d entries of %d bytes\n",
-				    cval, descr, pnp.num_entry, pnp.entry_len);
-			/*
-			 * Parse descr to weed out the chaff and to create a list
-			 * of offsets to output.
-			 */
-			TAILQ_INIT(&list);
-			parse_pnp_list(descr, &new_descr, &list);
-			record_int(MDT_PNP_INFO);
-			record_string(cval);
-			record_string(new_descr);
-			record_int(pnp.num_entry);
-			len = pnp.num_entry * pnp.entry_len;
-			walker = table = malloc(len);
-			check(EF_SEG_READ_REL(ef, (Elf_Off)pnp.table, len, table));
-
-			/*
-			 * Walk the list and output things. We've collapsed all the
-			 * variant forms of the table down to just ints and strings.
-			 */
-			for (i = 0; i < pnp.num_entry; i++) {
-				TAILQ_FOREACH(elt, &list, next) {
-					uint8_t v1;
-					uint16_t v2;
-					uint32_t v4;
-					int	value;
-					char buffer[1024];
-
-					if (elt->pe_kind == TYPE_W32) {
-						memcpy(&v4, walker + elt->pe_offset, sizeof(v4));
-						value = v4 & 0xffff;
-						record_int(value);
-						if (verbose > 1)
-							printf("W32:%#x", value);
-						value = (v4 >> 16) & 0xffff;
-						record_int(value);
-						if (verbose > 1)
-							printf(":%#x;", value);
-					} else if (elt->pe_kind & TYPE_INT) {
-						switch (elt->pe_kind & TYPE_SZ_MASK) {
-						case 1:
-							memcpy(&v1, walker + elt->pe_offset, sizeof(v1));
-							if ((elt->pe_kind & TYPE_FLAGGED) && v1 == 0xff)
-								value = -1;
-							else
-								value = v1;
-							break;
-						case 2:
-							memcpy(&v2, walker + elt->pe_offset, sizeof(v2));
-							if ((elt->pe_kind & TYPE_FLAGGED) && v2 == 0xffff)
-								value = -1;
-							else
-								value = v2;
-							break;
-						case 4:
-							memcpy(&v4, walker + elt->pe_offset, sizeof(v4));
-							if ((elt->pe_kind & TYPE_FLAGGED) && v4 == 0xffffffff)
-								value = -1;
-							else
-								value = v4;
-							break;
-						default:
-							errx(1, "Invalid size somehow %#x", elt->pe_kind);
-						}
-						if (verbose > 1)
-							printf("I:%#x;", value);
-						record_int(value);
-					} else if (elt->pe_kind == TYPE_T) {
-						/* Do nothing */
-					} else { /* E, Z or D -- P already filtered */
-						if (elt->pe_kind == TYPE_E) {
-							memcpy(&v4, walker + elt->pe_offset, sizeof(v4));
-							strcpy(buffer, pnp_eisaformat(v4));
-						} else {
-							char *ptr;
-
-							ptr = *(char **)(walker + elt->pe_offset);
-							buffer[0] = '\0';
-							if (ptr != NULL) {
-								EF_SEG_READ_STRING(ef, (Elf_Off)ptr,
-								    sizeof(buffer), buffer);
-								buffer[sizeof(buffer) - 1] = '\0';
-							}
-						}
-						if (verbose > 1)
-							printf("%c:%s;", elt->pe_kind == TYPE_E ? 'E' : (elt->pe_kind == TYPE_Z ? 'Z' : 'D'), buffer);
-						record_string(buffer);
-					}
-				}
-				if (verbose > 1)
-					printf("\n");
-				walker += pnp.entry_len;
-			}
-			/* Now free it */
-			TAILQ_FOREACH_SAFE(elt, &list, next, elt_tmp) {
-				TAILQ_REMOVE(&list, elt, next);
-				free(elt);
-			}
-			free(table);
+			record_pnp_info(ef, cval, &pnp, descr);
 		}
 		break;
 	default:
@@ -550,34 +630,35 @@ parse_entry(struct mod_metadata *md, const char *cval,
 static int
 read_kld(char *filename, char *kldname)
 {
-	struct mod_metadata md;
+	struct Gmod_metadata md;
 	struct elf_file ef;
-	void **p;
-	int error, eftype;
-	long start, finish, entries, i;
+	GElf_Addr *p;
+	int error;
+	long entries, i;
 	char cval[MAXMODNAME + 1];
 
 	if (verbose || dflag)
 		printf("%s\n", filename);
-	error = ef_open(filename, &ef, verbose);
-	if (error != 0) {
-		error = ef_obj_open(filename, &ef, verbose);
-		if (error != 0) {
-			if (verbose)
-				warnc(error, "elf_open(%s)", filename);
-			return (error);
-		}
+
+	error = elf_open_file(&ef, filename, verbose);
+	if (error != 0)
+		return (error);
+
+	if (reccnt == 0) {
+		ehdr = ef.ef_hdr;
+		byte_order = elf_encoding(&ef);
+		free(ehdr_filename);
+		ehdr_filename = strdup(filename);
+	} else if (!elf_compatible(&ef, &ehdr)) {
+		warnx("%s does not match architecture of %s",
+		    filename, ehdr_filename);
+		elf_close_file(&ef);
+		return (EINVAL);
 	}
-	eftype = EF_GET_TYPE(&ef);
-	if (eftype != EFT_KLD && eftype != EFT_KERNEL)  {
-		EF_CLOSE(&ef);
-		return (0);
-	}
+
 	do {
-		check(EF_LOOKUP_SET(&ef, MDT_SETNAME, &start, &finish,
-		    &entries));
-		check(EF_SEG_READ_ENTRY_REL(&ef, start, sizeof(*p) * entries,
-		    (void *)&p));
+		check(elf_read_linker_set(&ef, MDT_SETNAME, &p, &entries));
+
 		/*
 		 * Do a first pass to find MDT_MODULE.  It is required to be
 		 * ordered first in the output linker.hints stream because it
@@ -597,16 +678,16 @@ read_kld(char *filename, char *kldname)
 		 * in the same kld.
 		 */
 		for (i = 0; i < entries; i++) {
-			check(EF_SEG_READ_REL(&ef, (Elf_Off)p[i], sizeof(md),
-			    &md));
-			check(EF_SEG_READ_STRING(&ef, (Elf_Off)md.md_cval,
-			    sizeof(cval), cval));
+			check(elf_read_mod_metadata(&ef, p[i], &md));
+			check(elf_read_string(&ef, md.md_cval, cval,
+			    sizeof(cval)));
 			if (md.md_type == MDT_MODULE) {
 				parse_entry(&md, cval, &ef, kldname);
 				break;
 			}
 		}
 		if (error != 0) {
+			free(p);
 			warnc(error, "error while reading %s", filename);
 			break;
 		}
@@ -615,10 +696,9 @@ read_kld(char *filename, char *kldname)
 		 * Second pass for all !MDT_MODULE entries.
 		 */
 		for (i = 0; i < entries; i++) {
-			check(EF_SEG_READ_REL(&ef, (Elf_Off)p[i], sizeof(md),
-			    &md));
-			check(EF_SEG_READ_STRING(&ef, (Elf_Off)md.md_cval,
-			    sizeof(cval), cval));
+			check(elf_read_mod_metadata(&ef, p[i], &md));
+			check(elf_read_string(&ef, md.md_cval, cval,
+			    sizeof(cval)));
 			if (md.md_type != MDT_MODULE)
 				parse_entry(&md, cval, &ef, kldname);
 		}
@@ -626,7 +706,7 @@ read_kld(char *filename, char *kldname)
 			warnc(error, "error while reading %s", filename);
 		free(p);
 	} while(0);
-	EF_CLOSE(&ef);
+	elf_close_file(&ef);
 	return (error);
 }
 
@@ -684,7 +764,7 @@ main(int argc, char *argv[])
 	FTS *ftsp;
 	FTSENT *p;
 	char *dot = NULL;
-	int opt, fts_options, ival;
+	int opt, fts_options;
 	struct stat sb;
 
 	fts_options = FTS_PHYSICAL;
@@ -720,6 +800,9 @@ main(int argc, char *argv[])
 		err(1, "%s", argv[0]);
 	}
 
+	if (elf_version(EV_CURRENT) == EV_NONE)
+		errx(1, "unsupported libelf");
+
 	ftsp = fts_open(argv, fts_options, compare);
 	if (ftsp == NULL)
 		exit(1);
@@ -747,8 +830,7 @@ main(int argc, char *argv[])
 			fxref = maketempfile(tempname, ftsp->fts_path);
 			if (fxref == NULL)
 				err(1, "can't create %s", tempname);
-			ival = 1;
-			fwrite(&ival, sizeof(ival), 1, fxref);
+			byte_order = ELFDATANONE;
 			reccnt = 0;
 		}
 		/* skip non-files.. */

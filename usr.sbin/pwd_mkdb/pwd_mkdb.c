@@ -94,10 +94,11 @@ main(int argc, char *argv[])
 	uint32_t store;
 	const char *t;
 	char *p;
-	char buf[MAX(MAXPATHLEN, LINE_MAX * 2)], tbuf[1024];
+	char buf[MAX(MAXPATHLEN, LINE_MAX * 2)];
 	char sbuf[MAX(MAXPATHLEN, LINE_MAX * 2)];
 	char buf2[MAXPATHLEN];
 	char sbuf2[MAXPATHLEN];
+	char tbuf[1024];
 	char *username;
 	u_int method, methoduid;
 	int Cflag, dflag, iflag;

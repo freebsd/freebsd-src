@@ -579,7 +579,7 @@ void CodeGenPassBuilder<Derived>::addISelPasses(AddIRPass &addPass) const {
   if (TM.useEmulatedTLS())
     addPass(LowerEmuTLSPass());
 
-  addPass(PreISelIntrinsicLoweringPass());
+  addPass(PreISelIntrinsicLoweringPass(TM));
 
   derived().addIRPasses(addPass);
   derived().addCodeGenPrepare(addPass);
@@ -714,6 +714,7 @@ template <typename Derived>
 void CodeGenPassBuilder<Derived>::addISelPrepare(AddIRPass &addPass) const {
   derived().addPreISel(addPass);
 
+  addPass(CallBrPrepare());
   // Add both the safe stack and the stack protection passes: each of them will
   // only protect functions that have corresponding attributes.
   addPass(SafeStackPass());

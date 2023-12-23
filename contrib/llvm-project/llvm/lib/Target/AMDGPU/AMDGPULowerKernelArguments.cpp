@@ -70,7 +70,7 @@ bool AMDGPULowerKernelArguments::runOnFunction(Function &F) {
   IRBuilder<> Builder(&*getInsertPt(EntryBlock));
 
   const Align KernArgBaseAlign(16); // FIXME: Increase if necessary
-  const uint64_t BaseOffset = ST.getExplicitKernelArgOffset(F);
+  const uint64_t BaseOffset = ST.getExplicitKernelArgOffset();
 
   Align MaxAlign;
   // FIXME: Alignment is broken with explicit arg offset.;
@@ -86,7 +86,6 @@ bool AMDGPULowerKernelArguments::runOnFunction(Function &F) {
   KernArgSegment->addRetAttr(
       Attribute::getWithDereferenceableBytes(Ctx, TotalKernArgSize));
 
-  unsigned AS = KernArgSegment->getType()->getPointerAddressSpace();
   uint64_t ExplicitArgOffset = 0;
 
   for (Argument &Arg : F.args()) {
@@ -111,8 +110,8 @@ bool AMDGPULowerKernelArguments::runOnFunction(Function &F) {
           Builder.getInt8Ty(), KernArgSegment, EltOffset,
           Arg.getName() + ".byval.kernarg.offset");
 
-      Value *CastOffsetPtr = Builder.CreatePointerBitCastOrAddrSpaceCast(
-          ArgOffsetPtr, Arg.getType());
+      Value *CastOffsetPtr =
+          Builder.CreateAddrSpaceCast(ArgOffsetPtr, Arg.getType());
       Arg.replaceAllUsesWith(CastOffsetPtr);
       continue;
     }
@@ -170,8 +169,6 @@ bool AMDGPULowerKernelArguments::runOnFunction(Function &F) {
       AdjustedArgTy = V4Ty;
     }
 
-    ArgPtr = Builder.CreateBitCast(ArgPtr, AdjustedArgTy->getPointerTo(AS),
-                                   ArgPtr->getName() + ".cast");
     LoadInst *Load =
         Builder.CreateAlignedLoad(AdjustedArgTy, ArgPtr, AdjustedAlign);
     Load->setMetadata(LLVMContext::MD_invariant_load, MDNode::get(Ctx, {}));

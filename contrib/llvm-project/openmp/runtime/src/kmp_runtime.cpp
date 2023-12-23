@@ -405,6 +405,8 @@ void __kmp_print_storage_map_gtid(int gtid, void *p1, void *p2, size_t size,
   }
 #endif /* KMP_PRINT_DATA_PLACEMENT */
   __kmp_release_bootstrap_lock(&__kmp_stdio_lock);
+
+  va_end(ap);
 }
 
 void __kmp_warn(char const *format, ...) {
@@ -550,6 +552,14 @@ static void __kmp_init_allocator() {
   __kmp_init_target_mem();
 }
 static void __kmp_fini_allocator() { __kmp_fini_memkind(); }
+
+/* ------------------------------------------------------------------------ */
+
+#if ENABLE_LIBOMPTARGET
+static void __kmp_init_omptarget() {
+  __kmp_init_target_task();
+}
+#endif
 
 /* ------------------------------------------------------------------------ */
 
@@ -1144,6 +1154,9 @@ void __kmp_serialized_parallel(ident_t *loc, kmp_int32 global_tid) {
   }
   // Reset for next parallel region
   this_thr->th.th_set_proc_bind = proc_bind_default;
+
+  // Reset num_threads for next parallel region
+  this_thr->th.th_set_nproc = 0;
 
 #if OMPT_SUPPORT
   ompt_data_t ompt_parallel_data = ompt_data_none;
@@ -4750,25 +4763,6 @@ static void __kmp_initialize_team(kmp_team_t *team, int new_nproc,
   KF_TRACE(10, ("__kmp_initialize_team: exit: team=%p\n", team));
 }
 
-#if (KMP_OS_LINUX || KMP_OS_FREEBSD) && KMP_AFFINITY_SUPPORTED
-/* Sets full mask for thread and returns old mask, no changes to structures. */
-static void
-__kmp_set_thread_affinity_mask_full_tmp(kmp_affin_mask_t *old_mask) {
-  if (KMP_AFFINITY_CAPABLE()) {
-    int status;
-    if (old_mask != NULL) {
-      status = __kmp_get_system_affinity(old_mask, TRUE);
-      int error = errno;
-      if (status != 0) {
-        __kmp_fatal(KMP_MSG(ChangeThreadAffMaskError), KMP_ERR(error),
-                    __kmp_msg_null);
-      }
-    }
-    __kmp_set_system_affinity(__kmp_affin_fullMask, TRUE);
-  }
-}
-#endif
-
 #if KMP_AFFINITY_SUPPORTED
 
 // __kmp_partition_places() is the heart of the OpenMP 4.0 affinity mechanism.
@@ -5334,12 +5328,6 @@ __kmp_allocate_team(kmp_root_t *root, int new_nproc, int max_nproc,
 #endif
       }
     } else { // team->t.t_nproc < new_nproc
-#if (KMP_OS_LINUX || KMP_OS_FREEBSD) && KMP_AFFINITY_SUPPORTED
-      kmp_affin_mask_t *old_mask;
-      if (KMP_AFFINITY_CAPABLE()) {
-        KMP_CPU_ALLOC(old_mask);
-      }
-#endif
 
       KA_TRACE(20,
                ("__kmp_allocate_team: increasing hot team thread count to %d\n",
@@ -5388,7 +5376,7 @@ __kmp_allocate_team(kmp_root_t *root, int new_nproc, int max_nproc,
            primary thread, so if a lot of workers are created on the single
            core quickly, they don't get a chance to set their own affinity for
            a long time. */
-        __kmp_set_thread_affinity_mask_full_tmp(old_mask);
+        kmp_affinity_raii_t new_temp_affinity{__kmp_affin_fullMask};
 #endif
 
         /* allocate new threads for the hot team */
@@ -5419,11 +5407,8 @@ __kmp_allocate_team(kmp_root_t *root, int new_nproc, int max_nproc,
         }
 
 #if (KMP_OS_LINUX || KMP_OS_FREEBSD) && KMP_AFFINITY_SUPPORTED
-        if (KMP_AFFINITY_CAPABLE()) {
-          /* Restore initial primary thread's affinity mask */
-          __kmp_set_system_affinity(old_mask, TRUE);
-          KMP_CPU_FREE(old_mask);
-        }
+        /* Restore initial primary thread's affinity mask */
+        new_temp_affinity.restore();
 #endif
 #if KMP_NESTED_HOT_TEAMS
       } // end of check of t_nproc vs. new_nproc vs. hot_team_nth
@@ -5444,21 +5429,10 @@ __kmp_allocate_team(kmp_root_t *root, int new_nproc, int max_nproc,
         __kmp_initialize_info(team->t.t_threads[f], team, f,
                               __kmp_gtid_from_tid(f, team));
 
-      if (level) { // set th_task_state for new threads in nested hot team
-        // __kmp_initialize_info() no longer zeroes th_task_state, so we should
-        // only need to set the th_task_state for the new threads. th_task_state
-        // for primary thread will not be accurate until after this in
-        // __kmp_fork_call(), so we look to the primary thread's memo_stack to
-        // get the correct value.
-        for (f = old_nproc; f < team->t.t_nproc; ++f)
-          team->t.t_threads[f]->th.th_task_state =
-              team->t.t_threads[0]->th.th_task_state_memo_stack[level];
-      } else { // set th_task_state for new threads in non-nested hot team
-        // copy primary thread's state
-        kmp_uint8 old_state = team->t.t_threads[0]->th.th_task_state;
-        for (f = old_nproc; f < team->t.t_nproc; ++f)
-          team->t.t_threads[f]->th.th_task_state = old_state;
-      }
+      // set th_task_state for new threads in hot team with older thread's state
+      kmp_uint8 old_state = team->t.t_threads[old_nproc - 1]->th.th_task_state;
+      for (f = old_nproc; f < team->t.t_nproc; ++f)
+        team->t.t_threads[f]->th.th_task_state = old_state;
 
 #ifdef KMP_DEBUG
       for (f = 0; f < team->t.t_nproc; ++f) {
@@ -6103,7 +6077,6 @@ void *__kmp_launch_thread(kmp_info_t *this_thr) {
       __kmp_join_barrier(gtid);
     }
   }
-  TCR_SYNC_PTR((intptr_t)__kmp_global.g.g_done);
 
 #if OMPD_SUPPORT
   if (ompd_state & OMPD_ENABLE_BP)
@@ -7052,6 +7025,11 @@ static void __kmp_do_serial_initialize(void) {
 
   __kmp_validate_locks();
 
+#if ENABLE_LIBOMPTARGET
+  /* Initialize functions from libomptarget */
+  __kmp_init_omptarget();
+#endif
+
   /* Initialize internal memory allocator */
   __kmp_init_allocator();
 
@@ -7308,6 +7286,10 @@ static void __kmp_do_serial_initialize(void) {
   __kmp_init_counter++;
 
   __kmp_init_serial = TRUE;
+
+  if (__kmp_version) {
+    __kmp_print_version_1();
+  }
 
   if (__kmp_settings) {
     __kmp_env_print();
@@ -8825,7 +8807,6 @@ __kmp_determine_reduction_method(
 
   int team_size;
 
-  KMP_DEBUG_ASSERT(loc); // it would be nice to test ( loc != 0 )
   KMP_DEBUG_ASSERT(lck); // it would be nice to test ( lck != 0 )
 
 #define FAST_REDUCTION_ATOMIC_METHOD_GENERATED                                 \
@@ -8877,7 +8858,8 @@ __kmp_determine_reduction_method(
 
 #elif KMP_ARCH_X86 || KMP_ARCH_ARM || KMP_ARCH_AARCH || KMP_ARCH_MIPS
 
-#if KMP_OS_LINUX || KMP_OS_FREEBSD || KMP_OS_WINDOWS || KMP_OS_HURD
+#if KMP_OS_LINUX || KMP_OS_DRAGONFLY || KMP_OS_FREEBSD || KMP_OS_NETBSD ||     \
+    KMP_OS_OPENBSD || KMP_OS_WINDOWS || KMP_OS_HURD
 
     // basic tuning
 

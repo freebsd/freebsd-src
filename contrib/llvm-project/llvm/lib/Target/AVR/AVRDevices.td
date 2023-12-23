@@ -65,11 +65,6 @@ def FeatureMOVW : SubtargetFeature<"movw", "m_hasMOVW", "true",
                                    "The device supports the 16-bit MOVW "
                                    "instruction">;
 
-// The device has a separate flash namespace that must be accessed using special
-// instructions like lpm.
-def FeaturePROGMEM : SubtargetFeature<"progmem", "m_hasPROGMEM", "true",
-                                      "The device has a separate flash namespace">;
-
 // The device supports the `LPM` instruction, with implied destination being r0.
 def FeatureLPM : SubtargetFeature<"lpm", "m_hasLPM", "true",
                                   "The device supports the `LPM` instruction">;
@@ -125,6 +120,12 @@ def FeatureTinyEncoding
                        "The device has Tiny core specific "
                        "instruction encodings">;
 
+// When writing a 16-bit port or storing a 16-bit word, do the low byte first.
+def FeatureLowByteFirst
+    : SubtargetFeature<"lowbytefirst", "m_hasLowByteFirst", "true",
+                       "Do the low byte first when writing a 16-bit port or "
+                       "storing a 16-bit word">;
+
 // The device has CPU registers mapped in data address space
 def FeatureMMR : SubtargetFeature<"memmappedregs", "m_hasMemMappedGPR", "true",
                                   "The device has CPU registers "
@@ -161,7 +162,7 @@ def ELFArchXMEGA7 : ELFArch<"EF_AVR_ARCH_XMEGA7">;
 // device should have.
 def FamilyAVR0 : Family<"avr0", []>;
 
-def FamilyAVR1 : Family<"avr1", [FamilyAVR0, FeatureLPM, FeaturePROGMEM, FeatureMMR]>;
+def FamilyAVR1 : Family<"avr1", [FamilyAVR0, FeatureLPM, FeatureMMR]>;
 
 def FamilyAVR2
     : Family<"avr2",
@@ -197,17 +198,18 @@ def FamilyTiny
               FeatureSmallStack]>;
 
 def FamilyXMEGA3 : Family<"xmega3",
-                          [FamilyAVR0, FeatureLPM, FeaturePROGMEM, FeatureIJMPCALL,
+                          [FamilyAVR0, FeatureLPM, FeatureIJMPCALL,
                            FeatureADDSUBIW, FeatureSRAM, FeatureJMPCALL,
                            FeatureMultiplication, FeatureMOVW, FeatureLPMX,
-                           FeatureBREAK]>;
+                           FeatureBREAK, FeatureLowByteFirst]>;
 
 def FamilyXMEGA : Family<"xmega",
-                         [FamilyAVR0, FeatureLPM, FeaturePROGMEM, FeatureIJMPCALL,
+                         [FamilyAVR0, FeatureLPM, FeatureIJMPCALL,
                           FeatureADDSUBIW, FeatureSRAM, FeatureJMPCALL,
                           FeatureMultiplication, FeatureMOVW, FeatureLPMX,
                           FeatureSPM, FeatureBREAK, FeatureEIJMPCALL,
-                          FeatureSPMX, FeatureDES, FeatureELPM, FeatureELPMX]>;
+                          FeatureSPMX, FeatureDES, FeatureELPM, FeatureELPMX,
+                          FeatureLowByteFirst]>;
 
 def FamilyXMEGAU : Family<"xmegau", [FamilyXMEGA, FeatureRMW]>;
 
