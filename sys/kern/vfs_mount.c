@@ -1230,7 +1230,7 @@ vfs_domount_update(
 			error = EINVAL;
 			goto end;
 		}
-		if (fsidcmp(&fsid_up, &mp->mnt_stat.f_fsid) != 0) {
+		if (fsidcmp(fsid_up, &mp->mnt_stat.f_fsid) != 0) {
 			error = ENOENT;
 			goto end;
 		}
