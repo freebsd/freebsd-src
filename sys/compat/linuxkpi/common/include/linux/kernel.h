@@ -42,6 +42,7 @@
 #include <sys/time.h>
 
 #include <linux/bitops.h>
+#include <linux/build_bug.h>
 #include <linux/compiler.h>
 #include <linux/stringify.h>
 #include <linux/errno.h>
@@ -90,28 +91,6 @@
 #define	U32_C(x) x ## U
 #define	S64_C(x) x ## LL
 #define	U64_C(x) x ## ULL
-
-/*
- * BUILD_BUG_ON() can happen inside functions where _Static_assert() does not
- * seem to work.  Use old-schoold-ish CTASSERT from before commit
- * a3085588a88fa58eb5b1eaae471999e1995a29cf but also make sure we do not
- * end up with an unused typedef or variable. The compiler should optimise
- * it away entirely.
- */
-#define	_O_CTASSERT(x)		_O__CTASSERT(x, __LINE__)
-#define	_O__CTASSERT(x, y)	_O___CTASSERT(x, y)
-#define	_O___CTASSERT(x, y)	while (0) { \
-    typedef char __unused __assert_line_ ## y[(x) ? 1 : -1]; \
-    __assert_line_ ## y _x; \
-    _x[0] = '\0'; \
-}
-
-#define	BUILD_BUG()			do { CTASSERT(0); } while (0)
-#define	BUILD_BUG_ON(x)			do { _O_CTASSERT(!(x)) } while (0)
-#define	BUILD_BUG_ON_MSG(x, msg)	BUILD_BUG_ON(x)
-#define	BUILD_BUG_ON_NOT_POWER_OF_2(x)	BUILD_BUG_ON(!powerof2(x))
-#define	BUILD_BUG_ON_INVALID(expr)	while (0) { (void)(expr); }
-#define	BUILD_BUG_ON_ZERO(x)	((int)sizeof(struct { int:-((x) != 0); }))
 
 #define	BUG()			panic("BUG at %s:%d", __FILE__, __LINE__)
 #define	BUG_ON(cond)		do {				\
