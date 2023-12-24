@@ -264,6 +264,27 @@ bitmap_subset(const unsigned long *pa,
 	return (1);
 }
 
+static inline bool
+bitmap_intersects(const unsigned long *pa, const unsigned long *pb,
+    unsigned size)
+{
+	const unsigned end = BIT_WORD(size);
+	const unsigned tail = size & (BITS_PER_LONG - 1);
+	unsigned i;
+
+	for (i = 0; i != end; i++)
+		if (pa[i] & pb[i])
+			return (true);
+
+	if (tail) {
+		 const unsigned long mask = BITMAP_LAST_WORD_MASK(tail);
+
+		if (pa[end] & pb[end] & mask)
+			return (true);
+	}
+	return (false);
+}
+
 static inline void
 bitmap_complement(unsigned long *dst, const unsigned long *src,
     const unsigned int size)
@@ -304,6 +325,29 @@ bitmap_to_arr32(uint32_t *dst, const unsigned long *src, unsigned int size)
 #endif
 	if ((size % 32) != 0) /* Linux uses BITS_PER_LONG. Seems to be a bug */
 		dst[end - 1] &= (uint32_t)(UINT_MAX >> (32 - (size % 32)));
+}
+
+static inline void
+bitmap_from_arr32(unsigned long *dst, const uint32_t *src,
+    unsigned int size)
+{
+	const unsigned int end = BIT_WORD(size);
+	const unsigned int tail = size & (BITS_PER_LONG - 1);
+
+#ifdef __LP64__
+	const unsigned int end32 = howmany(size, 32);
+	unsigned int i = 0;
+
+	while (i < end32) {
+		dst[i++/2] = (unsigned long) *(src++);
+		if (i < end32)
+			dst[i++/2] |= ((unsigned long) *(src++)) << 32;
+	}
+#else
+	bitmap_copy(dst, (unsigned long *)src, size);
+#endif
+	if ((size % BITS_PER_LONG) != 0)
+		dst[end] &= BITMAP_LAST_WORD_MASK(tail);
 }
 
 static inline void
@@ -348,6 +392,40 @@ bitmap_xor(unsigned long *dst, const unsigned long *src1,
 
 	for (i = 0; i != end; i++)
 		dst[i] = src1[i] ^ src2[i];
+}
+
+static inline void
+bitmap_shift_right(unsigned long *dst, const unsigned long *src,
+    unsigned int shift, unsigned int size)
+{
+	const unsigned int end = BITS_TO_LONGS(size);
+	const unsigned int tail = size & (BITS_PER_LONG - 1);
+	const unsigned long mask = BITMAP_LAST_WORD_MASK(tail);
+	const unsigned int off = BIT_WORD(shift);
+	const unsigned int rem = shift & (BITS_PER_LONG - 1);
+	unsigned long left, right;
+	unsigned int i, srcpos;
+
+	for (i = 0, srcpos = off; srcpos < end; i++, srcpos++) {
+		right = src[srcpos];
+		left = 0;
+
+		if (srcpos == end - 1)
+			right &= mask;
+
+		if (rem != 0) {
+			right >>= rem;
+			if (srcpos + 1 < end) {
+				left = src[srcpos + 1];
+				if (srcpos + 1 == end - 1)
+					left &= mask;
+				left <<= (BITS_PER_LONG - rem);
+			}
+		}
+		dst[i] = left | right;
+	}
+	if (off != 0)
+		memset(dst + end - off, 0, off * sizeof(unsigned long));
 }
 
 static inline unsigned long *
