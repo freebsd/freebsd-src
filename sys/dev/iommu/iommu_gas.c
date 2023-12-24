@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #define	RB_AUGMENT_CHECK(entry) iommu_gas_augment_entry(entry)
 
 #include <sys/param.h>

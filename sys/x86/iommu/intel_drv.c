@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_acpi.h"
 #if defined(__amd64__)
 #define	DEV_APIC
