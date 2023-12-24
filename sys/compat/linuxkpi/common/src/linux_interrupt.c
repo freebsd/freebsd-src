@@ -117,17 +117,20 @@ lkpi_request_irq(struct device *xdev, unsigned int irq,
 	struct resource *res;
 	struct irq_ent *irqe;
 	struct device *dev;
+	unsigned resflags;
 	int error;
 	int rid;
 
-	dev = linux_pci_find_irq_dev(irq);
+	dev = lkpi_pci_find_irq_dev(irq);
 	if (dev == NULL)
 		return -ENXIO;
 	if (xdev != NULL && xdev != dev)
 		return -ENXIO;
 	rid = lkpi_irq_rid(dev, irq);
-	res = bus_alloc_resource_any(dev->bsddev, SYS_RES_IRQ, &rid,
-	    flags | RF_ACTIVE);
+	resflags = RF_ACTIVE;
+	if ((flags & IRQF_SHARED) != 0)
+		resflags |= RF_SHAREABLE;
+	res = bus_alloc_resource_any(dev->bsddev, SYS_RES_IRQ, &rid, resflags);
 	if (res == NULL)
 		return (-ENXIO);
 	if (xdev != NULL)
@@ -167,7 +170,7 @@ lkpi_enable_irq(unsigned int irq)
 	struct irq_ent *irqe;
 	struct device *dev;
 
-	dev = linux_pci_find_irq_dev(irq);
+	dev = lkpi_pci_find_irq_dev(irq);
 	if (dev == NULL)
 		return -EINVAL;
 	irqe = lkpi_irq_ent(dev, irq);
@@ -183,7 +186,7 @@ lkpi_disable_irq(unsigned int irq)
 	struct irq_ent *irqe;
 	struct device *dev;
 
-	dev = linux_pci_find_irq_dev(irq);
+	dev = lkpi_pci_find_irq_dev(irq);
 	if (dev == NULL)
 		return;
 	irqe = lkpi_irq_ent(dev, irq);
@@ -200,7 +203,7 @@ lkpi_bind_irq_to_cpu(unsigned int irq, int cpu_id)
 	struct irq_ent *irqe;
 	struct device *dev;
 
-	dev = linux_pci_find_irq_dev(irq);
+	dev = lkpi_pci_find_irq_dev(irq);
 	if (dev == NULL)
 		return (-ENOENT);
 
@@ -217,7 +220,7 @@ lkpi_free_irq(unsigned int irq, void *device __unused)
 	struct irq_ent *irqe;
 	struct device *dev;
 
-	dev = linux_pci_find_irq_dev(irq);
+	dev = lkpi_pci_find_irq_dev(irq);
 	if (dev == NULL)
 		return;
 	irqe = lkpi_irq_ent(dev, irq);
@@ -233,7 +236,7 @@ lkpi_devm_free_irq(struct device *xdev, unsigned int irq, void *p __unused)
 	struct device *dev;
 	struct irq_ent *irqe;
 
-	dev = linux_pci_find_irq_dev(irq);
+	dev = lkpi_pci_find_irq_dev(irq);
 	if (dev == NULL)
 		return;
 	if (xdev != dev)
