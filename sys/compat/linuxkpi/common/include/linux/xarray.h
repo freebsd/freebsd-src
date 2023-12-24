@@ -95,6 +95,9 @@ void *__xa_next(struct xarray *, unsigned long *, bool);
 #define	xa_erase_irq(xa, index) \
 	xa_erase((xa), (index))
 
+#define	xa_lock_irq(xa)		xa_lock(xa)
+#define	xa_unlock_irq(xa)	xa_unlock(xa)
+
 #define	xa_lock_irqsave(xa, flags) \
 	do { \
 		xa_lock((xa)); \
