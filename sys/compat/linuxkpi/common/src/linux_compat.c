@@ -28,6 +28,7 @@
  */
 
 #include <sys/cdefs.h>
+#include "opt_global.h"
 #include "opt_stack.h"
 
 #include <sys/param.h>
@@ -97,6 +98,15 @@
 #if defined(__i386__) || defined(__amd64__)
 #include <asm/smp.h>
 #include <asm/processor.h>
+#endif
+
+#include <xen/xen.h>
+#ifdef XENHVM
+#undef xen_pv_domain
+#undef xen_initial_domain
+/* xen/xen-os.h redefines __must_check */
+#undef __must_check
+#include <xen/xen-os.h>
 #endif
 
 SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
@@ -2594,6 +2604,26 @@ lkpi_get_static_single_cpu_mask(int cpuid)
 	    __func__, cpuid));
 
 	return (&static_single_cpu_mask[cpuid]);
+}
+
+bool
+lkpi_xen_initial_domain(void)
+{
+#ifdef XENHVM
+	return (xen_initial_domain());
+#else
+	return (false);
+#endif
+}
+
+bool
+lkpi_xen_pv_domain(void)
+{
+#ifdef XENHVM
+	return (xen_pv_domain());
+#else
+	return (false);
+#endif
 }
 
 static void
