@@ -655,6 +655,7 @@ iommu_gas_remove_clip_left(struct iommu_domain *domain, iommu_gaddr_t start,
 	 * asserted that start is below domain end, entry should
 	 * exist.  Then clip it if needed.
 	 */
+	bzero(&fentry, sizeof(fentry));
 	fentry.start = start + 1;
 	fentry.end = start + 1;
 	entry = RB_NFIND(iommu_gas_entries_tree, &domain->rb_root, &fentry);
