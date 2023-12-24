@@ -63,6 +63,7 @@
 #include <machine/stdarg.h>
 
 #if defined(__i386__) || defined(__amd64__)
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #endif
 
@@ -2633,17 +2634,37 @@ linux_compat_init(void *arg)
 	int i;
 
 #if defined(__i386__) || defined(__amd64__)
+	static const uint32_t x86_vendors[X86_VENDOR_NUM] = {
+		[X86_VENDOR_INTEL] = CPU_VENDOR_INTEL,
+		[X86_VENDOR_CYRIX] = CPU_VENDOR_CYRIX,
+		[X86_VENDOR_AMD] = CPU_VENDOR_AMD,
+		[X86_VENDOR_UMC] = CPU_VENDOR_UMC,
+		[X86_VENDOR_CENTAUR] = CPU_VENDOR_CENTAUR,
+		[X86_VENDOR_TRANSMETA] = CPU_VENDOR_TRANSMETA,
+		[X86_VENDOR_NSC] = CPU_VENDOR_NSC,
+		[X86_VENDOR_HYGON] = CPU_VENDOR_HYGON,
+	};
+	uint8_t x86_vendor = X86_VENDOR_UNKNOWN;
+
+	for (i = 0; i < X86_VENDOR_NUM; i++) {
+		if (cpu_vendor_id != 0 && cpu_vendor_id == x86_vendors[i]) {
+			x86_vendor = i;
+			break;
+		}
+	}
 	linux_cpu_has_clflush = (cpu_feature & CPUID_CLFSH);
 	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
 	boot_cpu_data.x86_max_cores = mp_ncpus;
 	boot_cpu_data.x86 = CPUID_TO_FAMILY(cpu_id);
 	boot_cpu_data.x86_model = CPUID_TO_MODEL(cpu_id);
+	boot_cpu_data.x86_vendor = x86_vendor;
 
 	for (i = 0; i < MAXCPU; i++) {
 		__cpu_data[i].x86_clflush_size = cpu_clflush_line_size;
 		__cpu_data[i].x86_max_cores = mp_ncpus;
 		__cpu_data[i].x86 = CPUID_TO_FAMILY(cpu_id);
 		__cpu_data[i].x86_model = CPUID_TO_MODEL(cpu_id);
+		__cpu_data[i].x86_vendor = x86_vendor;
 	}
 #endif
 	rw_init(&linux_vma_lock, "lkpi-vma-lock");
