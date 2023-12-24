@@ -1000,13 +1000,21 @@ unionfs_fsync(struct vop_fsync_args *ap)
 	struct unionfs_node *unp;
 	struct unionfs_node_status *unsp;
 	struct vnode *ovp;
+	enum unionfs_lkupgrade lkstatus;
 
 	KASSERT_UNIONFS_VNODE(ap->a_vp);
 
 	unp = VTOUNIONFS(ap->a_vp);
+	lkstatus = unionfs_upgrade_lock(ap->a_vp);
+	if (lkstatus == UNIONFS_LKUPGRADE_DOOMED) {
+		unionfs_downgrade_lock(ap->a_vp, lkstatus);
+		return (ENOENT);
+	}
 	unionfs_get_node_status(unp, ap->a_td, &unsp);
 	ovp = (unsp->uns_upper_opencnt ? unp->un_uppervp : unp->un_lowervp);
 	unionfs_tryrem_node_status(unp, unsp);
+
+	unionfs_downgrade_lock(ap->a_vp, lkstatus);
 
 	if (ovp == NULLVP)
 		return (EBADF);
