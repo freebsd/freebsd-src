@@ -847,23 +847,6 @@ ig4iic_get_config(ig4iic_softc_t *sc)
 			sc->cfg.txfifo_depth = IG4_PARAM1_TXFIFO_DEPTH(v);
 		if (IG4_PARAM1_RXFIFO_DEPTH(v) != 0)
 			sc->cfg.rxfifo_depth = IG4_PARAM1_RXFIFO_DEPTH(v);
-	} else {
-		/*
-		 * Hardware does not allow FIFO Threshold Levels value to be
-		 * set larger than the depth of the buffer. If an attempt is
-		 * made to do that, the actual value set will be the maximum
-		 * depth of the buffer.
-		 */
-		v = reg_read(sc, IG4_REG_TX_TL);
-		reg_write(sc, IG4_REG_TX_TL, v | IG4_FIFO_MASK);
-		sc->cfg.txfifo_depth =
-		    (reg_read(sc, IG4_REG_TX_TL) & IG4_FIFO_MASK) + 1;
-		reg_write(sc, IG4_REG_TX_TL, v);
-		v = reg_read(sc, IG4_REG_RX_TL);
-		reg_write(sc, IG4_REG_RX_TL, v | IG4_FIFO_MASK);
-		sc->cfg.rxfifo_depth =
-		    (reg_read(sc, IG4_REG_RX_TL) & IG4_FIFO_MASK) + 1;
-		reg_write(sc, IG4_REG_RX_TL, v);
 	}
 
 	/* Override hardware config with IC_clock-based counter values */
@@ -915,8 +898,6 @@ ig4iic_get_config(ig4iic_softc_t *sc)
 		printf("  Fast:  0x%04hx:0x%04hx:0x%04hx\n",
 		    sc->cfg.fs_scl_hcnt, sc->cfg.fs_scl_lcnt,
 		    sc->cfg.fs_sda_hold);
-		printf("  FIFO:  RX:0x%04x: TX:0x%04x\n",
-		    sc->cfg.rxfifo_depth, sc->cfg.txfifo_depth);
 	}
 }
 
@@ -1012,6 +993,36 @@ ig4iic_set_config(ig4iic_softc_t *sc, bool reset)
 	return (0);
 }
 
+static void
+ig4iic_get_fifo(ig4iic_softc_t *sc)
+{
+	uint32_t v;
+
+	/*
+	 * Hardware does not allow FIFO Threshold Levels value to be set larger
+	 * than the depth of the buffer.  If an attempt is made to do that, the
+	 * actual value set will be the maximum depth of the buffer.
+	 */
+	if (sc->cfg.txfifo_depth == 0) {
+		v = reg_read(sc, IG4_REG_TX_TL);
+		reg_write(sc, IG4_REG_TX_TL, v | IG4_FIFO_MASK);
+		sc->cfg.txfifo_depth =
+		    (reg_read(sc, IG4_REG_TX_TL) & IG4_FIFO_MASK) + 1;
+		reg_write(sc, IG4_REG_TX_TL, v);
+	}
+	if (sc->cfg.rxfifo_depth == 0) {
+		v = reg_read(sc, IG4_REG_RX_TL);
+		reg_write(sc, IG4_REG_RX_TL, v | IG4_FIFO_MASK);
+		sc->cfg.rxfifo_depth =
+		    (reg_read(sc, IG4_REG_RX_TL) & IG4_FIFO_MASK) + 1;
+		reg_write(sc, IG4_REG_RX_TL, v);
+	}
+	if (bootverbose) {
+		printf("  FIFO:  RX:0x%04x: TX:0x%04x\n",
+		    sc->cfg.rxfifo_depth, sc->cfg.txfifo_depth);
+	}
+}
+
 /*
  * Called from ig4iic_pci_attach/detach()
  */
@@ -1028,6 +1039,7 @@ ig4iic_attach(ig4iic_softc_t *sc)
 	error = ig4iic_set_config(sc, IG4_HAS_ADDREGS(sc->version));
 	if (error)
 		goto done;
+	ig4iic_get_fifo(sc);
 
 	sc->iicbus = device_add_child(sc->dev, "iicbus", -1);
 	if (sc->iicbus == NULL) {
