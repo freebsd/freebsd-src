@@ -44,6 +44,7 @@
 #include <linux/bitops.h>
 #include <linux/build_bug.h>
 #include <linux/compiler.h>
+#include <linux/container_of.h>
 #include <linux/stringify.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -273,12 +274,6 @@ extern int linuxkpi_debug;
 	unlikely(__ret_warn_on);		\
 })
 #endif
-
-#define container_of(ptr, type, member)				\
-({								\
-	const __typeof(((type *)0)->member) *__p = (ptr);	\
-	(type *)((uintptr_t)__p - offsetof(type, member));	\
-})
 
 #define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
@@ -551,8 +546,6 @@ kstrtou8_from_user(const char __user *s, size_t count, unsigned int base,
 
 #define offsetofend(t, m)	\
         (offsetof(t, m) + sizeof((((t *)0)->m)))
-
-#define	typeof_member(s, e)	typeof(((s *)0)->e)
 
 #define clamp_t(type, _x, min, max)	min_t(type, max_t(type, _x, min), max)
 #define clamp(x, lo, hi)		min( max(x,lo), hi)
