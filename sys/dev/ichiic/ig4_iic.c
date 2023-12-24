@@ -347,6 +347,7 @@ set_slave_addr(ig4iic_softc_t *sc, uint8_t slave)
 	/*
 	 * Wait for TXFIFO to drain before disabling the controller.
 	 */
+	reg_write(sc, IG4_REG_TX_TL, 0);
 	wait_intr(sc, IG4_INTR_TX_EMPTY);
 
 	set_controller(sc, 0);
@@ -434,16 +435,20 @@ ig4iic_read(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 		return (0);
 
 	while (received < len) {
+		/* Ensure we have some free space in TXFIFO */
 		burst = sc->cfg.txfifo_depth -
 		    (reg_read(sc, IG4_REG_TXFLR) & IG4_FIFOLVL_MASK);
 		if (burst <= 0) {
+			reg_write(sc, IG4_REG_TX_TL, IG4_FIFO_LOWAT);
 			error = wait_intr(sc, IG4_INTR_TX_EMPTY);
 			if (error)
 				break;
-			burst = sc->cfg.txfifo_depth;
+			burst = sc->cfg.txfifo_depth -
+			    (reg_read(sc, IG4_REG_TXFLR) & IG4_FIFOLVL_MASK);
 		}
 		/* Ensure we have enough free space in RXFIFO */
-		burst = MIN(burst, sc->cfg.rxfifo_depth - lowat);
+		burst = MIN(burst, sc->cfg.rxfifo_depth -
+		    (requested - received));
 		target = MIN(requested + burst, (int)len);
 		while (requested < target) {
 			cmd = IG4_DATA_COMMAND_RD;
@@ -460,13 +465,15 @@ ig4iic_read(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 			lowat = IG4_FIFO_LOWAT;
 		/* After TXFLR fills up, clear it by reading available data */
 		while (received < requested - lowat) {
-			burst = MIN((int)len - received,
+			burst = MIN(requested - received,
 			    reg_read(sc, IG4_REG_RXFLR) & IG4_FIFOLVL_MASK);
 			if (burst > 0) {
 				while (burst--)
 					buf[received++] = 0xFF &
 					    reg_read(sc, IG4_REG_DATA_CMD);
 			} else {
+				reg_write(sc, IG4_REG_RX_TL,
+				    requested - received - lowat - 1);
 				error = wait_intr(sc, IG4_INTR_RX_FULL);
 				if (error)
 					goto out;
@@ -484,8 +491,7 @@ ig4iic_write(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 	uint32_t cmd;
 	int sent = 0;
 	int burst, target;
-	int error;
-	bool lowat_set = false;
+	int error, lowat;
 
 	if (len == 0)
 		return (0);
@@ -494,12 +500,7 @@ ig4iic_write(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 		burst = sc->cfg.txfifo_depth -
 		    (reg_read(sc, IG4_REG_TXFLR) & IG4_FIFOLVL_MASK);
 		target = MIN(sent + burst, (int)len);
-		/* Leave some data queued to maintain the hardware pipeline */
-		if (!lowat_set && target != len) {
-			lowat_set = true;
-			reg_write(sc, IG4_REG_TX_TL, IG4_FIFO_LOWAT);
-		}
-		while(sent < target) {
+		while (sent < target) {
 			cmd = buf[sent];
 			if (repeated_start && sent == 0)
 				cmd |= IG4_DATA_RESTART;
@@ -509,13 +510,16 @@ ig4iic_write(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 			sent++;
 		}
 		if (sent < len) {
+			if (len - sent <= sc->cfg.txfifo_depth)
+				lowat = sc->cfg.txfifo_depth - (len - sent);
+			else
+				lowat = IG4_FIFO_LOWAT;
+			reg_write(sc, IG4_REG_TX_TL, lowat);
 			error = wait_intr(sc, IG4_INTR_TX_EMPTY);
 			if (error)
 				break;
 		}
 	}
-	if (lowat_set)
-		reg_write(sc, IG4_REG_TX_TL, 0);
 
 	return (error);
 }
@@ -971,13 +975,6 @@ ig4iic_set_config(ig4iic_softc_t *sc, bool reset)
 	    (sc->cfg.bus_speed  & IG4_CTL_SPEED_MASK) == IG4_CTL_SPEED_STD ?
 	      sc->cfg.ss_sda_hold : sc->cfg.fs_sda_hold);
 
-	/*
-	 * Use a threshold of 1 so we get interrupted on each character,
-	 * allowing us to use mtx_sleep() in our poll code.  Not perfect
-	 * but this is better than using DELAY() for receiving data.
-	 *
-	 * See ig4_var.h for details on interrupt handler synchronization.
-	 */
 	reg_write(sc, IG4_REG_RX_TL, 0);
 	reg_write(sc, IG4_REG_TX_TL, 0);
 
