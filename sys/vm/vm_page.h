@@ -730,9 +730,9 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 #define	vm_page_assert_unbusied(m)					\
 	KASSERT((vm_page_busy_fetch(m) & ~VPB_BIT_WAITERS) !=		\
 	    VPB_CURTHREAD_EXCLUSIVE,					\
-	    ("vm_page_assert_xbusied: page %p busy_lock %#x owned"	\
-            " by me @ %s:%d",						\
-	    (m), (m)->busy_lock, __FILE__, __LINE__));			\
+	    ("vm_page_assert_unbusied: page %p busy_lock %#x owned"	\
+	     " by me (%p) @ %s:%d",					\
+	    (m), (m)->busy_lock, curthread, __FILE__, __LINE__));	\
 
 #define	vm_page_assert_xbusied_unchecked(m) do {			\
 	KASSERT(vm_page_xbusied(m),					\
@@ -744,8 +744,8 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 	KASSERT((vm_page_busy_fetch(m) & ~VPB_BIT_WAITERS) ==		\
 	    VPB_CURTHREAD_EXCLUSIVE,					\
 	    ("vm_page_assert_xbusied: page %p busy_lock %#x not owned"	\
-            " by me @ %s:%d",						\
-	    (m), (m)->busy_lock, __FILE__, __LINE__));			\
+	     " by me (%p) @ %s:%d",					\
+	    (m), (m)->busy_lock, curthread, __FILE__, __LINE__));	\
 } while (0)
 
 #define	vm_page_busied(m)						\
