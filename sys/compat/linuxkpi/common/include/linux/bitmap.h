@@ -344,7 +344,7 @@ bitmap_from_arr32(unsigned long *dst, const uint32_t *src,
 			dst[i++/2] |= ((unsigned long) *(src++)) << 32;
 	}
 #else
-	bitmap_copy(dst, (unsigned long *)src, size);
+	bitmap_copy(dst, (const unsigned long *)src, size);
 #endif
 	if ((size % BITS_PER_LONG) != 0)
 		dst[end] &= BITMAP_LAST_WORD_MASK(tail);
