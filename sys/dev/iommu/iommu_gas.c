@@ -1031,3 +1031,48 @@ SYSCTL_INT(_hw_iommu, OID_AUTO, check_free, CTLFLAG_RWTUN,
     &iommu_check_free, 0,
     "Check the GPA RBtree for free_down and free_after validity");
 #endif
+
+#include "opt_ddb.h"
+#ifdef DDB
+
+#include <ddb/ddb.h>
+
+static void
+iommu_debug_dump_gas(struct iommu_domain *domain)
+{
+	struct iommu_map_entry *entry;
+
+	db_printf("iommu_domain %p tree %p iommu %p fl %#x\n", domain,
+	    &domain->rb_root, domain->iommu, domain->flags);
+	db_printf("iommu_domain %p tree %p\n", domain, &domain->rb_root);
+	RB_FOREACH(entry, iommu_gas_entries_tree, &domain->rb_root) {
+		db_printf(
+	    "  e %p [%#jx %#jx] fl %#x first %#jx last %#jx free_down %#jx",
+		    entry, (uintmax_t)entry->start, (uintmax_t)entry->end,
+		    entry->flags,
+		    (uintmax_t)entry->first, (uintmax_t)entry->last,
+		    (uintmax_t)entry->free_down);
+		if (entry == domain->start_gap)
+			db_printf(" start_gap");
+		if (entry == domain->first_place)
+			db_printf(" first_place");
+		if (entry == domain->last_place)
+			db_printf(" last_place");
+		db_printf("\n");
+	}
+}
+
+DB_SHOW_COMMAND(iommu_domain, iommu_domain_show)
+{
+	struct iommu_domain *domain;
+
+	if (!have_addr) {
+		db_printf("show iommu_domain addr\n");
+		return;
+	}
+
+	domain = (void *)addr;
+	iommu_debug_dump_gas(domain);
+}
+
+#endif
