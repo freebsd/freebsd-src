@@ -350,6 +350,7 @@ ioread32be(const volatile void *addr)
 }
 #define	ioread32be(addr)	ioread32be(addr)
 
+#ifdef __LP64__
 #undef ioread64
 static inline uint64_t
 ioread64(const volatile void *addr)
@@ -357,6 +358,7 @@ ioread64(const volatile void *addr)
 	return (readq(addr));
 }
 #define	ioread64(addr)		ioread64(addr)
+#endif
 
 #undef iowrite8
 static inline void
