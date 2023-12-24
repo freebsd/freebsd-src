@@ -348,7 +348,8 @@ unionfs_domount(struct mount *mp)
 	if ((ump->um_lowermp->mnt_flag & MNT_LOCAL) != 0 &&
 	    (ump->um_uppermp->mnt_flag & MNT_LOCAL) != 0)
 		mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_NOMSYNC | MNTK_UNIONFS;
+	mp->mnt_kern_flag |= MNTK_NOMSYNC | MNTK_UNIONFS |
+	    (ump->um_uppermp->mnt_kern_flag & MNTK_SHARED_WRITES);
 	MNT_IUNLOCK(mp);
 
 	/*
