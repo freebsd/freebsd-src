@@ -12,6 +12,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20231224:
+	Commits acc704b36192 and b8e137d8d32d both modified the
+	internal API between the kgssapi and krpc modules.
+	As such, both of these modules need to be rebuilt from
+	sources.
+	As such, __FreeBSD_version has been bumped to 1400502.
+
 20230924:
 	Enable splitting out pkgbase manpages into separate packages by
 	default. To disable this, set WITHOUT_MANSPLITPKG=yes in src.conf.
