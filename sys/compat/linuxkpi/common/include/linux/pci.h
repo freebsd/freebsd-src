@@ -349,6 +349,7 @@ struct pci_dev {
 	char			*path_name;
 
 	TAILQ_HEAD(, pci_mmio_region)	mmio;
+	spinlock_t		pcie_cap_lock;
 };
 
 int pci_request_region(struct pci_dev *pdev, int bar, const char *res_name);
@@ -1012,35 +1013,38 @@ pcie_capability_write_word(struct pci_dev *dev, int pos, u16 val)
 }
 
 static inline int
-pcie_capability_set_word(struct pci_dev *dev, int pos, uint16_t val)
+pcie_capability_clear_and_set_word(struct pci_dev *dev, int pos,
+    uint16_t clear, uint16_t set)
 {
 	int error;
 	uint16_t v;
 
+	if (pos == PCI_EXP_LNKCTL || pos == PCI_EXP_RTCTL)
+		spin_lock(&dev->pcie_cap_lock);
+
 	error = pcie_capability_read_word(dev, pos, &v);
-	if (error != 0)
-		return (error);
+	if (error == 0) {
+		v &= ~clear;
+		v |= set;
+		error = pcie_capability_write_word(dev, pos, v);
+	}
 
-	v |= val;
+	if (pos == PCI_EXP_LNKCTL || pos == PCI_EXP_RTCTL)
+		spin_unlock(&dev->pcie_cap_lock);
 
-	error = pcie_capability_write_word(dev, pos, v);
 	return (error);
+}
+
+static inline int
+pcie_capability_set_word(struct pci_dev *dev, int pos, uint16_t val)
+{
+	return (pcie_capability_clear_and_set_word(dev, pos, 0, val));
 }
 
 static inline int
 pcie_capability_clear_word(struct pci_dev *dev, int pos, uint16_t val)
 {
-	int error;
-	uint16_t v;
-
-	error = pcie_capability_read_word(dev, pos, &v);
-	if (error != 0)
-		return (error);
-
-	v &= ~val;
-
-	error = pcie_capability_write_word(dev, pos, v);
-	return (error);
+	return (pcie_capability_clear_and_set_word(dev, pos, val, 0));
 }
 
 static inline int pcie_get_minimum_link(struct pci_dev *dev,

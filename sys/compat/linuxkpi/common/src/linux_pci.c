@@ -526,6 +526,7 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 		goto out_dma_init;
 
 	TAILQ_INIT(&pdev->mmio);
+	spin_lock_init(&pdev->pcie_cap_lock);
 
 	spin_lock(&pci_lock);
 	list_add(&pdev->links, &pci_devices);
@@ -540,6 +541,7 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 
 out_probe:
 	free(pdev->bus, M_DEVBUF);
+	spin_lock_destroy(&pdev->pcie_cap_lock);
 	linux_pdev_dma_uninit(pdev);
 out_dma_init:
 	spin_lock(&pci_lock);
@@ -580,6 +582,7 @@ linux_pci_detach_device(struct pci_dev *pdev)
 	spin_lock(&pci_lock);
 	list_del(&pdev->links);
 	spin_unlock(&pci_lock);
+	spin_lock_destroy(&pdev->pcie_cap_lock);
 	put_device(&pdev->dev);
 
 	return (0);
