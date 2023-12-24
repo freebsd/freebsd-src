@@ -361,6 +361,38 @@ linux_delayed_work_timer_fn(void *arg)
 }
 
 /*
+ * This function cancels the given work structure in a
+ * non-blocking fashion. It returns non-zero if the work was
+ * successfully cancelled. Else the work may still be busy or already
+ * cancelled.
+ */
+bool
+linux_cancel_work(struct work_struct *work)
+{
+	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
+		[WORK_ST_IDLE] = WORK_ST_IDLE,		/* NOP */
+		[WORK_ST_TIMER] = WORK_ST_TIMER,	/* can't happen */
+		[WORK_ST_TASK] = WORK_ST_IDLE,		/* cancel */
+		[WORK_ST_EXEC] = WORK_ST_EXEC,		/* NOP */
+		[WORK_ST_CANCEL] = WORK_ST_IDLE,	/* can't happen */
+	};
+	struct taskqueue *tq;
+
+	MPASS(atomic_read(&work->state) != WORK_ST_TIMER);
+	MPASS(atomic_read(&work->state) != WORK_ST_CANCEL);
+
+	switch (linux_update_state(&work->state, states)) {
+	case WORK_ST_TASK:
+		tq = work->work_queue->taskqueue;
+		if (taskqueue_cancel(tq, &work->work_task, NULL) == 0)
+			return (true);
+		/* FALLTHROUGH */
+	default:
+		return (false);
+	}
+}
+
+/*
  * This function cancels the given work structure in a synchronous
  * fashion. It returns non-zero if the work was successfully
  * cancelled. Else the work was already cancelled.
