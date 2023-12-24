@@ -106,9 +106,9 @@ enum {
  * sampling_rate_fast value too high as it may result in periodical lags of
  * cursor motion.
  */
-#define	IICHID_SAMPLING_RATE_FAST	60
+#define	IICHID_SAMPLING_RATE_FAST	80
 #define	IICHID_SAMPLING_RATE_SLOW	10
-#define	IICHID_SAMPLING_HYSTERESIS	12	/* ~ 2x fast / slow */
+#define	IICHID_SAMPLING_HYSTERESIS	16	/* ~ 2x fast / slow */
 
 /* 5.1.1 - HID Descriptor Format */
 struct i2c_hid_desc {
@@ -567,7 +567,7 @@ rearm:
 		else
 			rate = sc->sampling_rate_fast;
 		taskqueue_enqueue_timeout_sbt(sc->taskqueue, &sc->periodic_task,
-		    SBT_1S / MAX(rate, 1), 0, C_PREL(1));
+		    SBT_1S / MAX(rate, 1), 0, C_PREL(2));
 	}
 out:
 	if (bus_requested)
