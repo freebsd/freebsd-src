@@ -918,7 +918,24 @@ unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *udvp,
 		goto unionfs_mkshadowdir_abort;
 	unionfs_create_uppervattr_core(ump, &lva, &va, td);
 
+	/*
+	 * Temporarily NUL-terminate the current pathname component.
+	 * This function may be called during lookup operations in which
+	 * the current pathname component is not the leaf, meaning that
+	 * the NUL terminator is some distance beyond the end of the current
+	 * component.  This *should* be fine, as cn_namelen will still
+	 * correctly indicate the length of only the current component,
+	 * but ZFS in particular does not respect cn_namelen in its VOP_MKDIR
+	 * implementation
+	 * Note that this assumes nd.ni_cnd.cn_pnbuf was allocated by
+	 * something like a local namei() operation and the temporary
+	 * NUL-termination will not have an effect on other threads.
+	 */
+	char *pathend = &nd.ni_cnd.cn_nameptr[nd.ni_cnd.cn_namelen];
+	char pathterm = *pathend;
+	*pathend = '\0';
 	error = VOP_MKDIR(udvp, &uvp, &nd.ni_cnd, &va);
+	*pathend = pathterm;
 
 	if (!error) {
 		unionfs_node_update(unp, uvp, td);
