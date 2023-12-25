@@ -28,15 +28,15 @@
 #ifndef __CCU_NG_H__
 #define __CCU_NG_H__
 
-#include <arm/allwinner/clkng/aw_clk.h>
-#include <arm/allwinner/clkng/aw_clk_m.h>
-#include <arm/allwinner/clkng/aw_clk_mipi.h>
-#include <arm/allwinner/clkng/aw_clk_nkmp.h>
-#include <arm/allwinner/clkng/aw_clk_nm.h>
-#include <arm/allwinner/clkng/aw_clk_nmm.h>
-#include <arm/allwinner/clkng/aw_clk_np.h>
-#include <arm/allwinner/clkng/aw_clk_prediv_mux.h>
-#include <arm/allwinner/clkng/aw_clk_frac.h>
+#include <dev/clk/allwinner/aw_clk.h>
+#include <dev/clk/allwinner/aw_clk_m.h>
+#include <dev/clk/allwinner/aw_clk_mipi.h>
+#include <dev/clk/allwinner/aw_clk_nkmp.h>
+#include <dev/clk/allwinner/aw_clk_nm.h>
+#include <dev/clk/allwinner/aw_clk_nmm.h>
+#include <dev/clk/allwinner/aw_clk_np.h>
+#include <dev/clk/allwinner/aw_clk_prediv_mux.h>
+#include <dev/clk/allwinner/aw_clk_frac.h>
 #include <dev/extres/clk/clk_mux.h>
 #include <dev/extres/clk/clk_div.h>
 #include <dev/extres/clk/clk_fixed.h>

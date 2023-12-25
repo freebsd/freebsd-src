@@ -42,7 +42,7 @@
 #include <dev/extres/clk/clk_fixed.h>
 #include <dev/extres/clk/clk_mux.h>
 
-#include <arm/allwinner/clkng/aw_ccung.h>
+#include <dev/clk/allwinner/aw_ccung.h>
 
 #include <dt-bindings/clock/sun4i-a10-ccu.h>
 #include <dt-bindings/clock/sun7i-a20-ccu.h>

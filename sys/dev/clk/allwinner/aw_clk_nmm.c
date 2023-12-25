@@ -31,8 +31,8 @@
 
 #include <dev/extres/clk/clk.h>
 
-#include <arm/allwinner/clkng/aw_clk.h>
-#include <arm/allwinner/clkng/aw_clk_nmm.h>
+#include <dev/clk/allwinner/aw_clk.h>
+#include <dev/clk/allwinner/aw_clk_nmm.h>
 
 #include "clkdev_if.h"
 

@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2017 Emmanuel Vadot <manu@freebsd.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,24 +24,31 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	__AW_CLK_PREDIV_MUX_H__
-#define __AW_CLK_PREDIV_MUX_H__
+#ifndef	__AW_CLK_NKMP_H__
+#define __AW_CLK_NKMP_H__
 
-#include <arm/allwinner/clkng/aw_clk.h>
+#include <dev/clk/allwinner/aw_clk.h>
 
-struct aw_clk_prediv_mux_def {
+struct aw_clk_nkmp_def {
 	struct clknode_init_def clkdef;
+
 	uint32_t		offset;
+
+	struct aw_clk_factor	m;
+	struct aw_clk_factor	k;
+	struct aw_clk_factor	n;
+	struct aw_clk_factor	p;
 
 	uint32_t		mux_shift;
 	uint32_t		mux_width;
-
-	struct aw_clk_factor	div;
-	struct aw_clk_factor	prediv;
+	uint32_t		gate_shift;
+	uint32_t		lock_shift;
+	uint32_t		lock_retries;
+	uint32_t		update_shift;
 
 	uint32_t		flags;
 };
 
-int	aw_clk_prediv_mux_register(struct clkdom *clkdom, struct aw_clk_prediv_mux_def *clkdef);
+int	aw_clk_nkmp_register(struct clkdom *clkdom, struct aw_clk_nkmp_def *clkdef);
 
-#endif /* __AW_CLK_PREDIV_MUX_H__ */
+#endif /* __AW_CLK_NKMP_H__ */

@@ -456,21 +456,21 @@ arm/allwinner/axp81x.c				optional axp81x fdt
 arm/allwinner/if_awg.c				optional awg syscon aw_sid nvmem fdt
 
 # Allwinner clock driver
-arm/allwinner/clkng/aw_ccung.c			optional aw_ccu fdt
-arm/allwinner/clkng/aw_clk_frac.c		optional aw_ccu fdt
-arm/allwinner/clkng/aw_clk_m.c			optional aw_ccu fdt
-arm/allwinner/clkng/aw_clk_mipi.c		optional aw_ccu fdt
-arm/allwinner/clkng/aw_clk_nkmp.c		optional aw_ccu fdt
-arm/allwinner/clkng/aw_clk_nm.c			optional aw_ccu fdt
-arm/allwinner/clkng/aw_clk_nmm.c		optional aw_ccu fdt
-arm/allwinner/clkng/aw_clk_np.c			optional aw_ccu fdt
-arm/allwinner/clkng/aw_clk_prediv_mux.c		optional aw_ccu fdt
-arm/allwinner/clkng/ccu_a64.c			optional soc_allwinner_a64 aw_ccu fdt
-arm/allwinner/clkng/ccu_h3.c			optional soc_allwinner_h5 aw_ccu fdt
-arm/allwinner/clkng/ccu_h6.c			optional soc_allwinner_h6 aw_ccu fdt
-arm/allwinner/clkng/ccu_h6_r.c			optional soc_allwinner_h6 aw_ccu fdt
-arm/allwinner/clkng/ccu_sun8i_r.c		optional aw_ccu fdt
-arm/allwinner/clkng/ccu_de2.c			optional aw_ccu fdt
+dev/clk/allwinner/aw_ccung.c			optional aw_ccu fdt
+dev/clk/allwinner/aw_clk_frac.c			optional aw_ccu fdt
+dev/clk/allwinner/aw_clk_m.c			optional aw_ccu fdt
+dev/clk/allwinner/aw_clk_mipi.c			optional aw_ccu fdt
+dev/clk/allwinner/aw_clk_nkmp.c			optional aw_ccu fdt
+dev/clk/allwinner/aw_clk_nm.c			optional aw_ccu fdt
+dev/clk/allwinner/aw_clk_nmm.c			optional aw_ccu fdt
+dev/clk/allwinner/aw_clk_np.c			optional aw_ccu fdt
+dev/clk/allwinner/aw_clk_prediv_mux.c		optional aw_ccu fdt
+dev/clk/allwinner/ccu_a64.c			optional soc_allwinner_a64 aw_ccu fdt
+dev/clk/allwinner/ccu_h3.c			optional soc_allwinner_h5 aw_ccu fdt
+dev/clk/allwinner/ccu_h6.c			optional soc_allwinner_h6 aw_ccu fdt
+dev/clk/allwinner/ccu_h6_r.c			optional soc_allwinner_h6 aw_ccu fdt
+dev/clk/allwinner/ccu_sun8i_r.c			optional aw_ccu fdt
+dev/clk/allwinner/ccu_de2.c			optional aw_ccu fdt
 
 # Allwinner padconf files
 arm/allwinner/a64/a64_padconf.c			optional soc_allwinner_a64 fdt

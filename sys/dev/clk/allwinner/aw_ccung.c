@@ -49,8 +49,8 @@
 
 #include <dev/extres/hwreset/hwreset.h>
 
-#include <arm/allwinner/clkng/aw_ccung.h>
-#include <arm/allwinner/clkng/aw_clk.h>
+#include <dev/clk/allwinner/aw_ccung.h>
+#include <dev/clk/allwinner/aw_clk.h>
 
 #ifdef __aarch64__
 #include "opt_soc.h"

@@ -48,7 +48,7 @@
 
 #include <dev/extres/hwreset/hwreset.h>
 
-#include <arm/allwinner/clkng/aw_ccung.h>
+#include <dev/clk/allwinner/aw_ccung.h>
 
 #include <dt-bindings/clock/sun8i-de2.h>
 #include <dt-bindings/reset/sun8i-de2.h>

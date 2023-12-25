@@ -50,7 +50,7 @@
 #include "opt_soc.h"
 #endif
 
-#include <arm/allwinner/clkng/aw_ccung.h>
+#include <dev/clk/allwinner/aw_ccung.h>
 
 #include <dt-bindings/clock/sun8i-h3-ccu.h>
 #include <dt-bindings/reset/sun8i-h3-ccu.h>

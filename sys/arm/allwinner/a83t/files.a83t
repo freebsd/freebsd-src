@@ -1,5 +1,5 @@
 
-arm/allwinner/clkng/ccu_a83t.c		standard
-arm/allwinner/clkng/ccu_sun8i_r.c	standard
+dev/clk/allwinner/ccu_a83t.c		standard
+dev/clk/allwinner/ccu_sun8i_r.c		standard
 arm/allwinner/a83t/a83t_padconf.c	standard
 arm/allwinner/a83t/a83t_r_padconf.c	standard
