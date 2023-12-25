@@ -1578,16 +1578,4 @@ tcp_fields_to_net(struct tcphdr *th)
 }
 #endif /* _KERNEL */
 
-static inline uint16_t
-tcp_get_flags(const struct tcphdr *th)
-{
-        return (((uint16_t)th->th_x2 << 8) | th->th_flags);
-}
-
-static inline void
-tcp_set_flags(struct tcphdr *th, uint16_t flags)
-{
-        th->th_x2    = (flags >> 8) & 0x0f;
-        th->th_flags = flags & 0xff;
-}
 #endif /* _NETINET_TCP_VAR_H_ */
