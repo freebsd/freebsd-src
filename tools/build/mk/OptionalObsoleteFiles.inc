@@ -938,6 +938,7 @@ OLD_FILES+=usr/lib/clang/18/include/__stddef_wchar_t.h
 OLD_FILES+=usr/lib/clang/18/include/__stddef_wint_t.h
 OLD_FILES+=usr/lib/clang/18/include/__wmmintrin_aes.h
 OLD_FILES+=usr/lib/clang/18/include/__wmmintrin_pclmul.h
+OLD_FILES+=usr/lib/clang/18/include/adcintrin.h
 OLD_FILES+=usr/lib/clang/18/include/adxintrin.h
 OLD_FILES+=usr/lib/clang/18/include/altivec.h
 OLD_FILES+=usr/lib/clang/18/include/ammintrin.h
