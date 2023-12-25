@@ -380,6 +380,7 @@ dev/psci/psci.c					standard
 dev/psci/smccc_arm64.S				standard
 dev/psci/smccc.c				standard
 
+dev/pwm/controller/allwinner/aw_pwm.c		optional fdt aw_pwm
 dev/pwm/controller//rockchip/rk_pwm.c		optional fdt rk_pwm
 
 dev/random/armv8rng.c				optional armv8_rng !random_loadable
@@ -442,7 +443,6 @@ arm/allwinner/aw_i2s.c				optional fdt sound aw_i2s
 arm/allwinner/aw_mmc.c				optional mmc aw_mmc fdt | mmccam aw_mmc fdt
 arm/allwinner/aw_nmi.c				optional aw_nmi fdt \
 	compile-with "${NORMAL_C} -I$S/contrib/device-tree/include"
-arm/allwinner/aw_pwm.c				optional aw_pwm fdt
 arm/allwinner/aw_r_intc.c			optional aw_r_intc fdt
 arm/allwinner/aw_rsb.c				optional aw_rsb fdt
 arm/allwinner/aw_rtc.c				optional aw_rtc fdt

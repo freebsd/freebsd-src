@@ -1,5 +1,5 @@
 
-.PATH: ${SRCTOP}/sys/arm/allwinner
+.PATH: ${SRCTOP}/sys/dev/pwm/controller/allwinner
 
 KMOD=	aw_pwm
 SRCS=	aw_pwm.c
