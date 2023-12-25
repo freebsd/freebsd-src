@@ -65,6 +65,7 @@ SRCS+=		Support/WithColor.cpp
 SRCS+=		Support/YAMLParser.cpp
 SRCS+=		Support/circular_raw_ostream.cpp
 SRCS+=		Support/raw_ostream.cpp
+SRCS+=		Support/raw_socket_stream.cpp
 SRCS+=		Support/regcomp.c
 SRCS+=		Support/regerror.c
 SRCS+=		Support/regexec.c
