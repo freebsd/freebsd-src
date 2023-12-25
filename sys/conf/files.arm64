@@ -391,6 +391,8 @@ dev/sdhci/sdhci_xenon_fdt.c			optional sdhci_xenon sdhci fdt
 dev/sram/mmio_sram.c				optional fdt mmio_sram
 dev/sram/mmio_sram_if.m				optional fdt mmio_sram
 
+dev/spibus/controller/rockchip/rk_spi.c		optional fdt rk_spi
+
 dev/uart/uart_cpu_arm64.c			optional uart
 dev/uart/uart_dev_mu.c				optional uart uart_mu fdt
 dev/uart/uart_dev_pl011.c			optional uart pl011
@@ -675,7 +677,6 @@ arm64/rockchip/rk_grf.c				optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_r
 arm64/rockchip/rk_pinctrl.c			optional fdt rk_pinctrl soc_rockchip_rk3328 | fdt rk_pinctrl soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
 arm64/rockchip/rk_gpio.c			optional fdt rk_gpio soc_rockchip_rk3328 | fdt rk_gpio soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
 arm64/rockchip/rk_iodomain.c			optional fdt rk_iodomain
-arm64/rockchip/rk_spi.c				optional fdt rk_spi
 arm64/rockchip/rk_usb2phy.c			optional fdt rk_usb2phy soc_rockchip_rk3328 | fdt rk_usb2phy soc_rockchip_rk3399 | fdt rk_usb2phy soc_rockchip_rk3568
 arm64/rockchip/rk_typec_phy.c			optional fdt rk_typec_phy soc_rockchip_rk3399
 arm64/rockchip/rk_tsadc_if.m			optional fdt soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
