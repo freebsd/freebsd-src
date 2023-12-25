@@ -1,5 +1,6 @@
 
-CRTARCH=	${MACHINE_CPUARCH:C/amd64/x86_64/}
+CRTARCH=	${MACHINE_CPUARCH:C/amd64/x86_64/:C/powerpc/ppc/}
+.info DIMDBG: CRTARCH=${CRTARCH}
 
 CRTSRC=		${SRCTOP}/contrib/llvm-project/compiler-rt/lib/builtins
 
@@ -35,13 +36,10 @@ SRCF+=		divmodsi4
 SRCF+=		divmodti4
 SRCF+=		divsc3
 SRCF+=		divsi3
-SRCF+=		divtc3
 SRCF+=		divti3
-SRCF+=		divxc3
 SRCF+=		enable_execute_stack
 SRCF+=		eprintf
 SRCF+=		extendhfsf2
-SRCF+=		extendxftf2
 SRCF+=		ffsdi2
 SRCF+=		ffssi2
 SRCF+=		ffsti2
@@ -55,21 +53,12 @@ SRCF+=		fixunsdfti
 SRCF+=		fixunssfdi
 SRCF+=		fixunssfsi
 SRCF+=		fixunssfti
-SRCF+=		fixunsxfdi
-SRCF+=		fixunsxfsi
-SRCF+=		fixunsxfti
-SRCF+=		fixxfdi
-SRCF+=		fixxfti
-SRCF+=		floatditf
 SRCF+=		floattidf
 SRCF+=		floattisf
-SRCF+=		floattixf
-SRCF+=		floatunditf
 SRCF+=		floatunsidf
 SRCF+=		floatunsisf
 SRCF+=		floatuntidf
 SRCF+=		floatuntisf
-SRCF+=		floatuntixf
 SRCF+=		int_util
 SRCF+=		lshrdi3
 SRCF+=		lshrti3
@@ -82,12 +71,10 @@ SRCF+=		mulodi4
 SRCF+=		mulosi4
 SRCF+=		muloti4
 SRCF+=		mulsc3
-SRCF+=		multc3
 SRCF+=		multi3
 SRCF+=		mulvdi3
 SRCF+=		mulvsi3
 SRCF+=		mulvti3
-SRCF+=		mulxc3
 SRCF+=		negdf2
 SRCF+=		negdi2
 SRCF+=		negsf2
@@ -103,15 +90,12 @@ SRCF+=		popcountsi2
 SRCF+=		popcountti2
 SRCF+=		powidf2
 SRCF+=		powisf2
-SRCF+=		powitf2
-SRCF+=		powixf2
 SRCF+=		subvdi3
 SRCF+=		subvsi3
 SRCF+=		subvti3
 SRCF+=		trampoline_setup
 SRCF+=		truncdfhf2
 SRCF+=		truncsfhf2
-SRCF+=		trunctfxf2
 SRCF+=		ucmpdi2
 SRCF+=		ucmpti2
 SRCF+=		udivdi3
@@ -135,23 +119,50 @@ SRCF+=		atomic
 .if ${MACHINE_CPUARCH} == "i386" && empty(MACHINE_CPU:Msse2)
 SRCS+=		floatdidf.c
 SRCS+=		floatdisf.c
-SRCS+=		floatdixf.c
 SRCS+=		floatundidf.c
 SRCS+=		floatundisf.c
-SRCS+=		floatundixf.c
 .else
 SRCF+=		floatdidf
 SRCF+=		floatdisf
-SRCF+=		floatdixf
 SRCF+=		floatundidf
 SRCF+=		floatundisf
+.endif
+
+#
+# 80-bit long double functions, only used on x86.
+#
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+.info DIMDBG: Enabling 80-bit long double
+SRCF+=		divxc3
+SRCF+=		extendxftf2
+SRCF+=		fixxfdi
+SRCF+=		fixxfti
+SRCF+=		fixunsxfdi
+SRCF+=		fixunsxfsi
+SRCF+=		fixunsxfti
+SRCF+=		floattixf
+SRCF+=		floatuntixf
+SRCF+=		mulxc3
+SRCF+=		powixf2
+SRCF+=		trunctfxf2
+
+# Avoid using SSE2 instructions on i386, if unsupported.
+.if ${MACHINE_CPUARCH} == "i386" && empty(MACHINE_CPU:Msse2)
+SRCS+=		floatdixf.c
+SRCS+=		floatundixf.c
+.else
+SRCF+=		floatdixf
 SRCF+=		floatundixf
+.endif
+.else
+.info DIMDBG: NOT enabling 80-bit long double
 .endif
 
 # __cpu_model support, only used on aarch64 and x86
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
-    ${MACHINE_CPUARCH} == "i386"
-SRCF+=		cpu_model
+.if ${MACHINE_CPUARCH} == "aarch64"
+SRCS+=		cpu_model/aarch64.c
+.elif ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+SRCS+=		cpu_model/x86.c
 .endif
 
 # The fp_mode implementation for amd64 and i386 is shared, while other
@@ -168,8 +179,10 @@ SRCF+=		fp_mode
 #
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
     ${MACHINE_CPUARCH} == "riscv"
+.info DIMDBG: Enabling 128-bit quad precision
 SRCF+=		addtf3
 SRCF+=		comparetf2
+SRCF+=		divtc3
 SRCF+=		divtf3
 SRCF+=		extenddftf2
 SRCF+=		extendhftf2
@@ -180,15 +193,21 @@ SRCF+=		fixtfti
 SRCF+=		fixunstfdi
 SRCF+=		fixunstfsi
 SRCF+=		fixunstfti
+SRCF+=		floatditf
 SRCF+=		floatsitf
 SRCF+=		floattitf
+SRCF+=		floatunditf
 SRCF+=		floatunsitf
 SRCF+=		floatuntitf
+SRCF+=		multc3
 SRCF+=		multf3
+SRCF+=		powitf2
 SRCF+=		subtf3
 SRCF+=		trunctfdf2
 SRCF+=		trunctfhf2
 SRCF+=		trunctfsf2
+.else
+.info DIMDBG: NOT enabling 128-bit quad precision
 .endif
 
 # These are already shipped by libc.a on some architectures.
