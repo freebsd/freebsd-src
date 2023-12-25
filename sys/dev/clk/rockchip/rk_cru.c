@@ -50,11 +50,11 @@
 #include <dev/extres/clk/clk_link.h>
 #include <dev/extres/hwreset/hwreset.h>
 
-#include <arm64/rockchip/clk/rk_clk_composite.h>
-#include <arm64/rockchip/clk/rk_clk_gate.h>
-#include <arm64/rockchip/clk/rk_clk_mux.h>
-#include <arm64/rockchip/clk/rk_clk_pll.h>
-#include <arm64/rockchip/clk/rk_cru.h>
+#include <dev/clk/rockchip/rk_clk_composite.h>
+#include <dev/clk/rockchip/rk_clk_gate.h>
+#include <dev/clk/rockchip/rk_clk_mux.h>
+#include <dev/clk/rockchip/rk_clk_pll.h>
+#include <dev/clk/rockchip/rk_cru.h>
 
 #include "clkdev_if.h"
 #include "hwreset_if.h"

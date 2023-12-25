@@ -12,14 +12,14 @@ dev/pwm/controller/rockchip/rk_pwm.c	standard
 arm64/rockchip/rk_tsadc.c		standard
 arm64/rockchip/rk_tsadc_if.m		standard
 arm64/rockchip/rk_usbphy.c		standard
-arm64/rockchip/clk/rk_clk_armclk.c	standard
-arm64/rockchip/clk/rk_clk_composite.c	standard
-arm64/rockchip/clk/rk_clk_fract.c	standard
-arm64/rockchip/clk/rk_clk_gate.c	standard
-arm64/rockchip/clk/rk_clk_mux.c		standard
-arm64/rockchip/clk/rk_clk_pll.c		standard
-arm64/rockchip/clk/rk_cru.c		standard
-arm64/rockchip/clk/rk3288_cru.c		standard
+dev/clk/rockchip/rk_clk_armclk.c	standard
+dev/clk//rockchip/rk_clk_composite.c	standard
+dev/clk//rockchip/rk_clk_fract.c	standard
+dev/clk//rockchip/rk_clk_gate.c		standard
+dev/clk//rockchip/rk_clk_mux.c		standard
+dev/clk//rockchip/rk_clk_pll.c		standard
+dev/clk//rockchip/rk_cru.c		standard
+dev/clk//rockchip/rk3288_cru.c		standard
 
 dev/dwc/if_dwc_rk.c			standard
 dev/iicbus/pmic/act8846.c		standard

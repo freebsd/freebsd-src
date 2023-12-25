@@ -44,7 +44,7 @@
 #include <dev/extres/clk/clk_fixed.h>
 #include <dev/extres/clk/clk_mux.h>
 
-#include <arm64/rockchip/clk/rk_cru.h>
+#include <dev/clk/rockchip/rk_cru.h>
 
 #include <dt-bindings/clock/rk3288-cru.h>
 

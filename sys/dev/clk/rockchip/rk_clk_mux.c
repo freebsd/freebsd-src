@@ -37,8 +37,8 @@
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/syscon/syscon.h>
 
-#include <arm64/rockchip/clk/rk_cru.h>
-#include <arm64/rockchip/clk/rk_clk_mux.h>
+#include <dev/clk/rockchip/rk_cru.h>
+#include <dev/clk/rockchip/rk_clk_mux.h>
 
 #include "clkdev_if.h"
 #include "syscon_if.h"

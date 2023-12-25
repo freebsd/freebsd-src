@@ -43,7 +43,7 @@
 #include <dev/extres/clk/clk_fixed.h>
 #include <dev/extres/clk/clk_mux.h>
 
-#include <arm64/rockchip/clk/rk_cru.h>
+#include <dev/clk/rockchip/rk_cru.h>
 #include <contrib/device-tree/include/dt-bindings/clock/rk3568-cru.h>
 
 
