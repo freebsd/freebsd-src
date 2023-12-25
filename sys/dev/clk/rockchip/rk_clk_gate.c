@@ -32,7 +32,7 @@
 
 #include <dev/extres/clk/clk.h>
 
-#include <arm64/rockchip/clk/rk_clk_gate.h>
+#include <dev/clk/rockchip/rk_clk_gate.h>
 
 #include "clkdev_if.h"
 

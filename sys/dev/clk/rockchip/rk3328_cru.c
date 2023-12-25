@@ -42,7 +42,7 @@
 #include <dev/extres/clk/clk_fixed.h>
 #include <dev/extres/clk/clk_mux.h>
 
-#include <arm64/rockchip/clk/rk_cru.h>
+#include <dev/clk/rockchip/rk_cru.h>
 
 #define	CRU_CLKSEL_CON(x)	(0x100 + (x) * 0x4)
 #define	CRU_CLKGATE_CON(x)	(0x200 + (x) * 0x4)

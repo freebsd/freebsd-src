@@ -34,12 +34,12 @@
 #include <dev/extres/clk/clk_fixed.h>
 #include <dev/extres/clk/clk_link.h>
 
-#include <arm64/rockchip/clk/rk_clk_armclk.h>
-#include <arm64/rockchip/clk/rk_clk_composite.h>
-#include <arm64/rockchip/clk/rk_clk_fract.h>
-#include <arm64/rockchip/clk/rk_clk_gate.h>
-#include <arm64/rockchip/clk/rk_clk_mux.h>
-#include <arm64/rockchip/clk/rk_clk_pll.h>
+#include <dev/clk/rockchip/rk_clk_armclk.h>
+#include <dev/clk/rockchip/rk_clk_composite.h>
+#include <dev/clk/rockchip/rk_clk_fract.h>
+#include <dev/clk/rockchip/rk_clk_gate.h>
+#include <dev/clk/rockchip/rk_clk_mux.h>
+#include <dev/clk/rockchip/rk_clk_pll.h>
 
 /* Macro for defining various types of clocks. */
 
