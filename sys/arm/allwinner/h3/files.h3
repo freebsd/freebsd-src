@@ -1,5 +1,5 @@
 
-arm/allwinner/clkng/ccu_h3.c		standard
-arm/allwinner/clkng/ccu_sun8i_r.c	standard
+dev/clk/allwinner/ccu_h3.c		standard
+dev/clk/allwinner/ccu_sun8i_r.c		standard
 arm/allwinner/h3/h3_padconf.c		standard
 arm/allwinner/h3/h3_r_padconf.c		standard
