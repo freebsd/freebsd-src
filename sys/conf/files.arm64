@@ -402,7 +402,6 @@ dev/uart/uart_dev_mu.c				optional uart uart_mu fdt
 dev/uart/uart_dev_pl011.c			optional uart pl011
 
 dev/usb/controller/dwc_otg_hisi.c		optional dwcotg fdt soc_hisi_hi6220
-dev/usb/controller/dwc3.c			optional xhci acpi dwc3 | xhci fdt dwc3
 dev/usb/controller/ehci_mv.c			optional ehci_mv fdt
 dev/usb/controller/generic_ehci.c		optional ehci
 dev/usb/controller/generic_ehci_acpi.c		optional ehci acpi
@@ -414,6 +413,10 @@ dev/usb/controller/usb_nop_xceiv.c		optional fdt
 dev/usb/controller/generic_xhci.c		optional xhci
 dev/usb/controller/generic_xhci_acpi.c		optional xhci acpi
 dev/usb/controller/generic_xhci_fdt.c		optional xhci fdt
+
+dev/usb/controller/dwc3/dwc3.c			optional xhci acpi dwc3 | xhci fdt dwc3
+dev/usb/controller/dwc3/aw_dwc3.c		optional xhci fdt dwc3 aw_dwc3
+dev/usb/controller/dwc3/rk_dwc3.c		optional xhci fdt dwc3 rk_dwc3
 
 dev/vnic/mrml_bridge.c				optional vnic fdt
 dev/vnic/nic_main.c				optional vnic pci
@@ -437,7 +440,6 @@ arm/allwinner/a33_codec.c			optional fdt sound a33_codec
 arm/allwinner/a64/sun50i_a64_acodec.c		optional fdt sound a64_codec
 arm/allwinner/sunxi_dma_if.m			optional a31_dmac
 arm/allwinner/aw_cir.c				optional evdev aw_cir fdt
-arm/allwinner/aw_dwc3.c				optional aw_dwc3 fdt
 arm/allwinner/aw_gpio.c				optional gpio aw_gpio fdt
 arm/allwinner/aw_i2s.c				optional fdt sound aw_i2s
 arm/allwinner/aw_mmc.c				optional mmc aw_mmc fdt | mmccam aw_mmc fdt
@@ -664,7 +666,6 @@ arm64/rockchip/rk3399_emmcphy.c			optional fdt rk_emmcphy soc_rockchip_rk3399
 arm64/rockchip/rk3568_combphy.c			optional fdt rk_combphy soc_rockchip_rk3568
 arm64/rockchip/rk3568_pcie.c			optional fdt pci soc_rockchip_rk3568
 arm64/rockchip/rk3568_pciephy.c			optional fdt pci soc_rockchip_rk3568
-arm64/rockchip/rk_dwc3.c			optional fdt rk_dwc3 soc_rockchip_rk3399 | fdt rk_dwc3 soc_rockchip_rk3568
 arm64/rockchip/rk_i2s.c				optional fdt sound soc_rockchip_rk3328 | fdt sound soc_rockchip_rk3399
 arm64/rockchip/rk_otp.c				optional fdt soc_rockchip_rk3568
 arm64/rockchip/rk_otp_if.m			optional fdt soc_rockchip_rk3568
