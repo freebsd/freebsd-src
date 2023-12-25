@@ -74,6 +74,7 @@
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <libgen.h>
 #include <stdlib.h>
@@ -124,6 +125,7 @@ enum compress_types_enum {
 #define	DEFAULT_MARKER	"<default>"
 #define	DEBUG_MARKER	"<debug>"
 #define	INCLUDE_MARKER	"<include>"
+#define	COMPRESS_MARKER	"<compress>"
 #define	DEFAULT_TIMEFNAME_FMT	"%Y%m%dT%H%M%S"
 
 #define	MAX_OLDLOGS 65536	/* Default maximum number of old logfiles */
@@ -248,6 +250,8 @@ static char *archdirname;	/* Directory path to old logfiles archive */
 static char *destdir = NULL;	/* Directory to treat at root for logs */
 static const char *conf;	/* Configuration file to use */
 static enum compress_types_enum compress_type_override = COMPRESS_LEGACY;	/* Compression type */
+static bool compress_type_set = false;
+static bool compress_type_seen = false;
 
 struct ptime_data *dbg_timenow;	/* A "timenow" value set via -D option */
 static struct ptime_data *timenow; /* The time to use for checking at-fields */
@@ -505,6 +509,37 @@ free_clist(struct cflist *list)
 	list = NULL;
 }
 
+static bool
+parse_compression_type(const char *str, enum compress_types_enum *type)
+{
+	int i;
+
+	for (i = 0; i < COMPRESS_TYPES; i++) {
+		if (strcasecmp(str, compress_type[i].name) == 0) {
+			*type = i;
+			break;
+		}
+	}
+	if (i == COMPRESS_TYPES) {
+		if (strcasecmp(str, "legacy") == 0)
+			compress_type_override = COMPRESS_LEGACY;
+		else {
+			return (false);
+		}
+	}
+	return (true);
+}
+
+static const char *
+compression_type_name(enum compress_types_enum type)
+{
+
+	if (type == COMPRESS_LEGACY)
+		return ("legacy");
+	else
+		return (compress_type[type].name);
+}
+
 static fk_entry
 do_entry(struct conf_entry * ent)
 {
@@ -628,8 +663,13 @@ do_entry(struct conf_entry * ent)
 		if (ent->rotate && !norotate) {
 			if (temp_reason[0] != '\0')
 				ent->r_reason = strdup(temp_reason);
-			if (verbose)
-				printf("--> trimming log....\n");
+			if (verbose) {
+				if (ent->compress == COMPRESS_NONE)
+					printf("--> trimming log....\n");
+				else
+					printf("--> trimming log and compressing with %s....\n",
+					    compression_type_name(ent->compress));
+			}
 			if (noaction && !verbose)
 				printf("%s <%d%s>: trimming\n", ent->log,
 				    ent->numlogs,
@@ -647,7 +687,7 @@ do_entry(struct conf_entry * ent)
 static void
 parse_args(int argc, char **argv)
 {
-	int ch, i;
+	int ch;
 	char *p;
 
 	timenow = ptime_init(NULL);
@@ -667,20 +707,11 @@ parse_args(int argc, char **argv)
 			archdirname = optarg;
 			break;
 		case 'c':
-			for (i = 0; i < COMPRESS_TYPES; i++) {
-				if (strcmp(optarg, compress_type[i].name) == 0) {
-					compress_type_override = i;
-					break;
-				}
+			if (!parse_compression_type(optarg, &compress_type_override)) {
+				warnx("Unrecognized compression method '%s'.", optarg);
+				usage();
 			}
-			if (i == COMPRESS_TYPES) {
-				if (strcmp(optarg, "legacy") == 0)
-					compress_type_override = COMPRESS_LEGACY;
-				else {
-					warnx("Unrecognized compression method '%s'.", optarg);
-					usage();
-				}
-			}
+			compress_type_set = true;
 			break;
 		case 'd':
 			destdir = optarg;
@@ -1187,6 +1218,36 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 			} else
 				add_to_queue(q, inclist);
 			continue;
+		} else if (strcasecmp(COMPRESS_MARKER, q) == 0) {
+			enum compress_types_enum result;
+
+			if (verbose)
+				printf("Found: %s", errline);
+			q = parse = missing_field(sob(parse + 1), errline);
+			parse = son(parse);
+			if (!*parse)
+				warnx("compress line specifies no option:\n%s",
+				    errline);
+			else {
+				*parse = '\0';
+				if (parse_compression_type(q, &result)) {
+					if (compress_type_set) {
+						warnx("Ignoring compress line "
+						    "option '%s', using '%s' instead",
+						    q,
+						    compression_type_name(compress_type_override));
+					} else {
+						if (compress_type_seen)
+							warnx("Compress type should appear before all log files:\n%s",
+							    errline);
+						compress_type_override = result;
+						compress_type_set = true;
+					}
+				} else {
+					warnx("Bad compress option '%s'", q);
+				};
+			}
+			continue;
 		}
 
 #define badline(msg, ...) do {		\
@@ -1357,6 +1418,7 @@ no_trimat:
 					working->compress = COMPRESS_BZIP2;
 				else
 					working->compress = compress_type_override;
+				compress_type_seen = true;
 				break;
 			case 'n':
 				working->flags |= CE_NOSIGNAL;
@@ -1381,18 +1443,21 @@ no_trimat:
 					working->compress = COMPRESS_XZ;
 				else
 					working->compress = compress_type_override;
+				compress_type_seen = true;
 				break;
 			case 'y':
 				if (compress_type_override == COMPRESS_LEGACY)
 					working->compress = COMPRESS_ZSTD;
 				else
 					working->compress = compress_type_override;
+				compress_type_seen = true;
 				break;
 			case 'z':
 				if (compress_type_override == COMPRESS_LEGACY)
 					working->compress = COMPRESS_GZIP;
 				else
 					working->compress = compress_type_override;
+				compress_type_seen = true;
 				break;
 			case '-':
 				break;
