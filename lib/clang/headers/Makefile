@@ -38,6 +38,7 @@ INCS+=		__stddef_wchar_t.h
 INCS+=		__stddef_wint_t.h
 INCS+=		__wmmintrin_aes.h
 INCS+=		__wmmintrin_pclmul.h
+INCS+=		adcintrin.h
 INCS+=		adxintrin.h
 INCS+=		altivec.h
 INCS+=		ammintrin.h

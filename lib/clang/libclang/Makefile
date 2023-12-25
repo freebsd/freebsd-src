@@ -429,6 +429,7 @@ SRCS_EXT+=	Format/FormatTokenLexer.cpp
 SRCS_EXT+=	Format/IntegerLiteralSeparatorFixer.cpp
 SRCS_EXT+=	Format/MacroCallReconstructor.cpp
 SRCS_EXT+=	Format/MacroExpander.cpp
+SRCS_EXT+=	Format/MatchFilePath.cpp
 SRCS_EXT+=	Format/NamespaceEndCommentsFixer.cpp
 SRCS_EXT+=	Format/ObjCPropertyAttributeOrderFixer.cpp
 SRCS_EXT+=	Format/QualifierAlignmentFixer.cpp
@@ -996,18 +997,6 @@ clang/Basic/DiagnosticIndexName.inc: \
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 TGHDRS+=	clang/Basic/DiagnosticIndexName.inc
 
-clang/Basic/arm_fp16.inc: ${CLANG_SRCS}/include/clang/Basic/arm_fp16.td
-	${CLANG_TBLGEN} -gen-arm-neon-sema \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
-	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_fp16.td
-TGHDRS+=	clang/Basic/arm_fp16.inc
-
-clang/Basic/arm_neon.inc: ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
-	${CLANG_TBLGEN} -gen-arm-neon-sema \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
-	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
-TGHDRS+=	clang/Basic/arm_neon.inc
-
 clang/Basic/arm_cde_builtin_aliases.inc: \
 	${CLANG_SRCS}/include/clang/Basic/arm_cde.td
 	${CLANG_TBLGEN} -gen-arm-cde-builtin-aliases \
@@ -1033,6 +1022,12 @@ clang/Basic/arm_cde_builtins.inc: ${CLANG_SRCS}/include/clang/Basic/arm_cde.td
 	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_cde.td
 TGHDRS+=	clang/Basic/arm_cde_builtins.inc
+
+clang/Basic/arm_fp16.inc: ${CLANG_SRCS}/include/clang/Basic/arm_fp16.td
+	${CLANG_TBLGEN} -gen-arm-neon-sema \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_fp16.td
+TGHDRS+=	clang/Basic/arm_fp16.inc
 
 clang/Basic/arm_mve_builtin_aliases.inc: \
 	${CLANG_SRCS}/include/clang/Basic/arm_mve.td
@@ -1060,19 +1055,18 @@ clang/Basic/arm_mve_builtins.inc: ${CLANG_SRCS}/include/clang/Basic/arm_mve.td
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_mve.td
 TGHDRS+=	clang/Basic/arm_mve_builtins.inc
 
+clang/Basic/arm_neon.inc: ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
+	${CLANG_TBLGEN} -gen-arm-neon-sema \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
+TGHDRS+=	clang/Basic/arm_neon.inc
+
 clang/Basic/arm_sme_builtin_cg.inc: \
 	${CLANG_SRCS}/include/clang/Basic/arm_sme.td
 	${CLANG_TBLGEN} -gen-arm-sme-builtin-codegen \
 	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sme.td
 TGHDRS+=	clang/Basic/arm_sme_builtin_cg.inc
-
-clang/Basic/arm_sme_sema_rangechecks.inc: \
-	${CLANG_SRCS}/include/clang/Basic/arm_sme.td
-	${CLANG_TBLGEN} -gen-arm-sme-sema-rangechecks \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
-	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sme.td
-TGHDRS+=	clang/Basic/arm_sme_sema_rangechecks.inc
 
 clang/Basic/arm_sme_builtins.inc: \
 	${CLANG_SRCS}/include/clang/Basic/arm_sme.td
@@ -1081,11 +1075,38 @@ clang/Basic/arm_sme_builtins.inc: \
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sme.td
 TGHDRS+=	clang/Basic/arm_sme_builtins.inc
 
+clang/Basic/arm_sme_builtins_za_state.inc: \
+	${CLANG_SRCS}/include/clang/Basic/arm_sme.td
+	${CLANG_TBLGEN} -gen-arm-sme-builtin-za-state \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sme.td
+TGHDRS+=	clang/Basic/arm_sme_builtins_za_state.inc
+
+clang/Basic/arm_sme_sema_rangechecks.inc: \
+	${CLANG_SRCS}/include/clang/Basic/arm_sme.td
+	${CLANG_TBLGEN} -gen-arm-sme-sema-rangechecks \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sme.td
+TGHDRS+=	clang/Basic/arm_sme_sema_rangechecks.inc
+
+clang/Basic/arm_sme_streaming_attrs.inc: \
+	${CLANG_SRCS}/include/clang/Basic/arm_sme.td
+	${CLANG_TBLGEN} -gen-arm-sme-streaming-attrs \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sme.td
+TGHDRS+=	clang/Basic/arm_sme_streaming_attrs.inc
+
 clang/Basic/arm_sve_builtin_cg.inc: ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
 	${CLANG_TBLGEN} -gen-arm-sve-builtin-codegen \
 	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
 TGHDRS+=	clang/Basic/arm_sve_builtin_cg.inc
+
+clang/Basic/arm_sve_builtins.inc: ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
+	${CLANG_TBLGEN} -gen-arm-sve-builtins \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
+TGHDRS+=	clang/Basic/arm_sve_builtins.inc
 
 clang/Basic/arm_sve_sema_rangechecks.inc: \
 	${CLANG_SRCS}/include/clang/Basic/arm_sve.td
@@ -1094,18 +1115,19 @@ clang/Basic/arm_sve_sema_rangechecks.inc: \
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
 TGHDRS+=	clang/Basic/arm_sve_sema_rangechecks.inc
 
+clang/Basic/arm_sve_streaming_attrs.inc: \
+	${CLANG_SRCS}/include/clang/Basic/arm_sve.td
+	${CLANG_TBLGEN} -gen-arm-sve-streaming-attrs \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
+TGHDRS+=	clang/Basic/arm_sve_streaming_attrs.inc
+
 clang/Basic/arm_sve_typeflags.inc: \
 	${CLANG_SRCS}/include/clang/Basic/arm_sve.td
 	${CLANG_TBLGEN} -gen-arm-sve-typeflags \
 	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
 TGHDRS+=	clang/Basic/arm_sve_typeflags.inc
-
-clang/Basic/arm_sve_builtins.inc: ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
-	${CLANG_TBLGEN} -gen-arm-sve-builtins \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
-	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
-TGHDRS+=	clang/Basic/arm_sve_builtins.inc
 
 clang/Basic/riscv_sifive_vector_builtin_cg.inc: \
 	${CLANG_SRCS}/include/clang/Basic/riscv_sifive_vector.td
