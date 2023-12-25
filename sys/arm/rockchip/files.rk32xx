@@ -2,7 +2,7 @@ kern/kern_clocksource.c			standard
 
 arm/rockchip/rk32xx_machdep.c		standard
 arm/rockchip/rk32xx_mp.c		optional	smp
-arm64/rockchip/rk_i2c.c			standard
+dev/iicbus/controller/rockchip/rk_i2c.c	standard
 arm64/rockchip/rk_iodomain.c		standard
 arm64/rockchip/rk_gpio.c		standard
 arm64/rockchip/rk_grf.c			standard
