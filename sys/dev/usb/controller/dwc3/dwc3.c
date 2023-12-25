@@ -53,8 +53,9 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#include <dev/usb/controller/generic_xhci.h>
 #include <dev/usb/controller/xhci.h>
-#include <dev/usb/controller/dwc3.h>
+#include <dev/usb/controller/dwc3/dwc3.h>
 
 #ifdef FDT
 #include <dev/fdt/simplebus.h>
@@ -73,8 +74,6 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <dev/acpica/acpivar.h>
 #endif
-
-#include "generic_xhci.h"
 
 struct snps_dwc3_softc {
 	struct xhci_softc	sc;
