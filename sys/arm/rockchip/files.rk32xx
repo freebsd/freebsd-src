@@ -8,7 +8,7 @@ arm64/rockchip/rk_gpio.c		standard
 arm64/rockchip/rk_grf.c			standard
 arm64/rockchip/rk_pinctrl.c		standard
 arm64/rockchip/rk_pmu.c			standard
-arm64/rockchip/rk_pwm.c			standard
+dev/pwm/controller/rockchip/rk_pwm.c	standard
 arm64/rockchip/rk_tsadc.c		standard
 arm64/rockchip/rk_tsadc_if.m		standard
 arm64/rockchip/rk_usbphy.c		standard

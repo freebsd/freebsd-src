@@ -380,6 +380,8 @@ dev/psci/psci.c					standard
 dev/psci/smccc_arm64.S				standard
 dev/psci/smccc.c				standard
 
+dev/pwm/controller//rockchip/rk_pwm.c		optional fdt rk_pwm
+
 dev/random/armv8rng.c				optional armv8_rng !random_loadable
 
 dev/safexcel/safexcel.c				optional safexcel fdt
@@ -681,7 +683,6 @@ arm64/rockchip/rk_usb2phy.c			optional fdt rk_usb2phy soc_rockchip_rk3328 | fdt 
 arm64/rockchip/rk_typec_phy.c			optional fdt rk_typec_phy soc_rockchip_rk3399
 arm64/rockchip/rk_tsadc_if.m			optional fdt soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
 arm64/rockchip/rk_tsadc.c			optional fdt soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
-arm64/rockchip/rk_pwm.c				optional fdt rk_pwm
 arm64/rockchip/rk_pcie.c			optional fdt pci soc_rockchip_rk3399
 arm64/rockchip/rk_pcie_phy.c			optional fdt pci soc_rockchip_rk3399
 
