@@ -364,13 +364,11 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 	for(s = version; *s && *s != '#'; s++);
 
 	for(us = uap->name->version; *s && *s != ':'; s++) {
-		error = subyte( us++, *s);
-		if (error)
-			return (error);
+		if (subyte(us++, *s) != 0)
+			return (EFAULT);
 	}
-	error = subyte( us++, 0);
-	if (error)
-		return (error);
+	if (subyte(us++, 0) != 0)
+		return (EFAULT);
 
 	name[0] = CTL_HW;
 	name[1] = HW_MACHINE;
