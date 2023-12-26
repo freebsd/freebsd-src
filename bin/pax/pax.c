@@ -69,7 +69,7 @@ int	nflag;			/* select first archive member match */
 int	tflag;			/* restore access time after read */
 int	uflag;			/* ignore older modification time files */
 int	vflag;			/* produce verbose output */
-int	Dflag;			/* same as uflag except inode change time */
+int	Dflag;			/* same as uflag except for inode change time */
 int	Hflag;			/* follow command line symlinks (write only) */
 int	Lflag;			/* follow symlinks when writing */
 int	Oflag;			/* limit to single volume */
