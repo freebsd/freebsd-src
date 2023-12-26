@@ -33,13 +33,15 @@
 
 #define ALIGN_TEXT	.p2align 4,0x90 /* 16-byte alignment, nop filled */
 
-ARCHFUNCS(strcspn)
-	ARCHFUNC(strcspn, scalar)
+	.weak strcspn
+	.set strcspn, __strcspn
+ARCHFUNCS(__strcspn)
+	ARCHFUNC(__strcspn, scalar)
 	NOARCHFUNC
-	ARCHFUNC(strcspn, x86_64_v2)
-ENDARCHFUNCS(strcspn)
+	ARCHFUNC(__strcspn, x86_64_v2)
+ENDARCHFUNCS(__strcspn)
 
-ARCHENTRY(strcspn, scalar)
+ARCHENTRY(__strcspn, scalar)
 	push	%rbp			# align stack to enable function call
 	mov	%rsp, %rbp
 	sub	$256, %rsp		# allocate space for lookup table
@@ -122,7 +124,7 @@ ARCHENTRY(strcspn, scalar)
 	sub	(%rsp), %rax		# length of prefix before match
 	leave
 	ret
-ARCHEND(strcspn, scalar)
+ARCHEND(__strcspn, scalar)
 
 	/*
 	 * This kernel uses pcmpistri to do the heavy lifting.
@@ -134,7 +136,7 @@ ARCHEND(strcspn, scalar)
 	 * 17--32: two pcmpistri per 16 bytes of input
 	 *   >=33: fall back to look up table
 	 */
-ARCHENTRY(strcspn, x86_64_v2)
+ARCHENTRY(__strcspn, x86_64_v2)
 	push		%rbp
 	mov		%rsp, %rbp
 	sub		$256, %rsp
@@ -389,6 +391,6 @@ ARCHENTRY(strcspn, x86_64_v2)
 2:	sub	%rdi, %rax		# number of characters preceding match
 	leave
 	ret
-ARCHEND(strcspn, x86_64_v2)
+ARCHEND(__strcspn, x86_64_v2)
 
 	.section .note.GNU-stack,"",%progbits
