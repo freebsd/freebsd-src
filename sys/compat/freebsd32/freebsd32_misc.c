@@ -2543,9 +2543,9 @@ freebsd32___sysctl(struct thread *td, struct freebsd32___sysctl_args *uap)
 		uap->new, uap->newlen, &j, SCTL_MASK32);
 	if (error)
 		return (error);
-	if (uap->oldlenp)
-		suword32(uap->oldlenp, j);
-	return (0);
+	if (uap->oldlenp != NULL && suword32(uap->oldlenp, j) != 0)
+		error = EFAULT;
+	return (error);
 }
 
 int
