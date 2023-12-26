@@ -5845,7 +5845,22 @@ vop_fsync_debugprepost(struct vnode *vp, const char *name)
 {
 	if (vp->v_type == VCHR)
 		;
-	else if (MNT_EXTENDED_SHARED(vp->v_mount))
+	/*
+	 * The shared vs. exclusive locking policy for fsync()
+	 * is actually determined by vp's write mount as indicated
+	 * by VOP_GETWRITEMOUNT(), which for stacked filesystems
+	 * may not be the same as vp->v_mount.  However, if the
+	 * underlying filesystem which really handles the fsync()
+	 * supports shared locking, the stacked filesystem must also
+	 * be prepared for its VOP_FSYNC() operation to be called
+	 * with only a shared lock.  On the other hand, if the
+	 * stacked filesystem claims support for shared write
+	 * locking but the underlying filesystem does not, and the
+	 * caller incorrectly uses a shared lock, this condition
+	 * should still be caught when the stacked filesystem
+	 * invokes VOP_FSYNC() on the underlying filesystem.
+	 */
+	else if (MNT_SHARED_WRITES(vp->v_mount))
 		ASSERT_VOP_LOCKED(vp, name);
 	else
 		ASSERT_VOP_ELOCKED(vp, name);
