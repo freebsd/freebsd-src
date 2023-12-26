@@ -1682,11 +1682,6 @@ dev/extres/phy/phydev_if.m	optional phy fdt
 dev/extres/phy/phynode_if.m	optional phy
 dev/extres/phy/phy_usb.c	optional phy
 dev/extres/phy/phynode_usb_if.m	optional phy
-dev/extres/regulator/regdev_if.m	optional regulator fdt
-dev/extres/regulator/regnode_if.m	optional regulator
-dev/extres/regulator/regulator.c	optional regulator
-dev/extres/regulator/regulator_bus.c	optional regulator fdt
-dev/extres/regulator/regulator_fixed.c	optional regulator
 dev/extres/syscon/syscon.c		optional syscon
 dev/extres/syscon/syscon_generic.c	optional syscon fdt
 dev/extres/syscon/syscon_if.m		optional syscon
@@ -2800,6 +2795,11 @@ dev/random/fortuna.c		optional !random_loadable !random_fenestrasx
 dev/random/hash.c		optional !random_loadable
 dev/rccgpio/rccgpio.c		optional rccgpio gpio
 dev/re/if_re.c			optional re
+dev/regulator/regdev_if.m	optional regulator fdt
+dev/regulator/regnode_if.m	optional regulator
+dev/regulator/regulator.c	optional regulator
+dev/regulator/regulator_bus.c	optional regulator fdt
+dev/regulator/regulator_fixed.c	optional regulator
 dev/rl/if_rl.c			optional rl pci
 dev/rndtest/rndtest.c		optional rndtest
 #

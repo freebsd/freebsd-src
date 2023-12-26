@@ -24,8 +24,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _DEV_EXTRES_REGULATOR_H_
-#define _DEV_EXTRES_REGULATOR_H_
+#ifndef _DEV_REGULATOR_H_
+#define	_DEV_REGULATOR_H_
+
 #include "opt_platform.h"
 
 #include <sys/kobj.h>
@@ -151,4 +152,4 @@ int regulator_range_volt_to_sel8(struct regulator_range *ranges, int nranges,
 int regulator_range_sel8_to_volt(struct regulator_range *ranges, int nranges,
    uint8_t sel, int *volt);
 
-#endif /* _DEV_EXTRES_REGULATOR_H_ */
+#endif /* _DEV_REGULATOR_H_ */

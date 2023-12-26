@@ -42,7 +42,7 @@
 
 #include <dev/clk/clk.h>
 #include <dev/hwreset/hwreset.h>
-#include <dev/extres/regulator/regulator.h>
+#include <dev/regulator/regulator.h>
 #include <dev/extres/syscon/syscon.h>
 #include <dev/extres/phy/phy.h>
 
