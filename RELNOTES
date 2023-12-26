@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+b8e137d8d32d:
+	This commit added some statistics collection to the NFS-over-TLS
+	code in the NFS server so that sysadmins can moditor usage.
+	The statistics are available via the kern.rpc.tls.* sysctls.
+
 41582f28ddf7:
 	FreeBSD 15.0 will not include support for 32-bit platforms.
 	However, 64-bit systems will still be able to run older 32-bit
