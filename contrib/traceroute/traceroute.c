@@ -539,7 +539,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 	/*
-	 * Do the setuid-required stuff first, then lose priveleges ASAP.
+	 * Do the setuid-required stuff first, then lose privileges ASAP.
 	 * Do error checking for these two calls where they appeared in
 	 * the original code.
 	 */

@@ -1820,7 +1820,7 @@ c_hmatch(Char *str)
 }
 
 /*
- * c_hsetpat(): Set the history seatch pattern
+ * c_hsetpat(): Set the history search pattern
  */
 static void
 c_hsetpat(void)
