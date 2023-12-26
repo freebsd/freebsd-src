@@ -1,8 +1,8 @@
 
 Please note that the content of this file is strictly advisory.
 No locks listed here are valid.  The only strict review requirements
-are granted by core.  These are documented in head/LOCKS and enforced
-by svnadmin/conf/approvers.
+are granted by core.  These are documented in LOCKS and enforced
+by gitadm@.
 
 The source tree is a community effort.  However, some folks go to the
 trouble of looking after particular areas of the tree.  In return for
