@@ -23,8 +23,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _DEV_EXTRES_NVMEM_H_
-#define _DEV_EXTRES_NVMEM_H_
+#ifndef _DEV_NVMEM_H_
+#define	_DEV_NVMEM_H_
 
 int nvmem_get_cell_len(phandle_t node, const char *name);
 int nvmem_read_cell_by_name(phandle_t node, const char *name, void *cell, size_t buflen);
@@ -32,4 +32,4 @@ int nvmem_read_cell_by_idx(phandle_t node, int idx, void *cell, size_t buflen);
 int nvmem_write_cell_by_name(phandle_t node, const char *name, void *cell, size_t buflen);
 int nvmem_write_cell_by_idx(phandle_t node, int idx, void *cell, size_t buflen);
 
-#endif /* _DEV_EXTRES_NVMEM_H_ */
+#endif /* _DEV_NVMEM_H_ */
