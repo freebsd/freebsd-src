@@ -3160,8 +3160,9 @@ ktls_reclaim_thread(void *ctx)
 		 * backlogs of buffers to be encrypted, leading to
 		 * surges of traffic and potential NIC output drops.
 		 */
-		if (!vm_page_reclaim_contig_domain_ext(domain, VM_ALLOC_NORMAL,
-		    atop(ktls_maxlen), 0, ~0ul, PAGE_SIZE, 0, ktls_max_reclaim)) {
+		if (vm_page_reclaim_contig_domain_ext(domain, VM_ALLOC_NORMAL,
+		    atop(ktls_maxlen), 0, ~0ul, PAGE_SIZE, 0,
+		    ktls_max_reclaim) != 0) {
 			vm_wait_domain(domain);
 		} else {
 			sc->reclaims += ktls_max_reclaim;
