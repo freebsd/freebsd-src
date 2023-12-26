@@ -82,7 +82,7 @@ exit_numbers_body()
 		-s exit:124 \
 		timeout .1 sleep 1
 
-	# With preserv status exit should be 128 + TERM aka 143
+	# With preserve status exit should be 128 + TERM aka 143
 	atf_check \
 		-o empty \
 		-e empty \
