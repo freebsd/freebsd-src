@@ -271,7 +271,7 @@ main(int argc, char *argv[])
 			break;
 		case 'B':
 			if (flag_before > 0)
-				errx(EX_USAGE, "Double -A specified");
+				errx(EX_USAGE, "Double -B specified");
 			flag_before = strtol(optarg, NULL, 10);
 			if (flag_before <= 0)
 				errx(EX_USAGE,
