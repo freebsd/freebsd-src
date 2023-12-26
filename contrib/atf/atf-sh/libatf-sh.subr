@@ -358,7 +358,7 @@ atf_require_prog()
 #
 #   Sets the test case's variable 'varname' to the specified values
 #   which are concatenated using a single blank space.  This function
-#   is supposed to be called form the test case's head only.
+#   is supposed to be called from the test case's head only.
 #
 atf_set()
 {
