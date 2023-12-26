@@ -2148,7 +2148,7 @@ freebsd32_do_sendfile(struct thread *td,
 	fdrop(fp, td);
 
 	if (uap->sbytes != NULL)
-		copyout(&sbytes, uap->sbytes, sizeof(off_t));
+		(void)copyout(&sbytes, uap->sbytes, sizeof(off_t));
 
 out:
 	if (hdr_uio)
