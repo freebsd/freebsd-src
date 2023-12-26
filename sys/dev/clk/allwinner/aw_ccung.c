@@ -47,7 +47,7 @@
 #include <dev/clk/clk.h>
 #include <dev/clk/clk_gate.h>
 
-#include <dev/extres/hwreset/hwreset.h>
+#include <dev/hwreset/hwreset.h>
 
 #include <dev/clk/allwinner/aw_ccung.h>
 #include <dev/clk/allwinner/aw_clk.h>

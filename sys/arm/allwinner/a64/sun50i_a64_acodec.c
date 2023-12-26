@@ -41,7 +41,7 @@
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
+#include <dev/hwreset/hwreset.h>
 #include <dev/extres/regulator/regulator.h>
 
 #include "syscon_if.h"

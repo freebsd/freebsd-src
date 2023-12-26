@@ -41,7 +41,7 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
 
-#include <dev/extres/hwreset/hwreset.h>
+#include <dev/hwreset/hwreset.h>
 
 MALLOC_DECLARE(M_HWRESET);
 

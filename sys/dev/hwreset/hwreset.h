@@ -23,8 +23,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef DEV_EXTRES_HWRESET_HWRESET_H
-#define DEV_EXTRES_HWRESET_HWRESET_H
+#ifndef _DEV_HWRESET_HWRESET_H_
+#define	_DEV_HWRESET_HWRESET_H_
 
 #include "opt_platform.h"
 #include <sys/types.h>
@@ -70,4 +70,4 @@ int hwreset_array_get_ofw(device_t consumer_dev, phandle_t cnode,
 #endif
 
 
-#endif /* DEV_EXTRES_HWRESET_HWRESET_H */
+#endif /* _DEV_HWRESET_HWRESET_H_ */

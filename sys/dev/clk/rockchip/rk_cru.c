@@ -48,7 +48,7 @@
 #include <dev/clk/clk_gate.h>
 #include <dev/clk/clk_fixed.h>
 #include <dev/clk/clk_link.h>
-#include <dev/extres/hwreset/hwreset.h>
+#include <dev/hwreset/hwreset.h>
 
 #include <dev/clk/rockchip/rk_clk_composite.h>
 #include <dev/clk/rockchip/rk_clk_gate.h>

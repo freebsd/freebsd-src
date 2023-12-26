@@ -41,7 +41,7 @@
 #include <dev/gpio/gpiobusvar.h>
 
 #include <dev/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
+#include <dev/hwreset/hwreset.h>
 #include <dev/extres/regulator/regulator.h>
 #include <dev/extres/phy/phy_usb.h>
 

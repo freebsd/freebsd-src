@@ -47,7 +47,7 @@
 
 #include <arm/allwinner/a10_dmac.h>
 #include <dev/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
+#include <dev/hwreset/hwreset.h>
 
 #include "sunxi_dma_if.h"
 

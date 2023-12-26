@@ -60,7 +60,7 @@
 #include <machine/bus.h>
 
 #include <dev/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
+#include <dev/hwreset/hwreset.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>

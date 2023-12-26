@@ -44,7 +44,7 @@
 #include <dev/iicbus/iicbus.h>
 
 #include <dev/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
+#include <dev/hwreset/hwreset.h>
 
 #include "iicbus_if.h"
 

@@ -43,7 +43,7 @@
 #include <dev/spibus/spibusvar.h>
 
 #include <dev/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
+#include <dev/hwreset/hwreset.h>
 
 #include "spibus_if.h"
 

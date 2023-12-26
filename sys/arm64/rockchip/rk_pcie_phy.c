@@ -48,7 +48,7 @@
 #include <dev/extres/phy/phy.h>
 #include <dev/extres/phy/phy_internal.h>
 #include <dev/extres/syscon/syscon.h>
-#include <dev/extres/hwreset/hwreset.h>
+#include <dev/hwreset/hwreset.h>
 
 #include "syscon_if.h"
 
