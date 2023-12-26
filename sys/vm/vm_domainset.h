@@ -31,6 +31,7 @@
 struct vm_domainset_iter {
 	struct domainset	*di_domain;
 	unsigned int		*di_iter;
+	domainset_t		di_valid_mask;
 	vm_pindex_t		di_offset;
 	int			di_flags;
 	uint16_t		di_policy;
@@ -47,6 +48,7 @@ void	vm_domainset_iter_policy_init(struct vm_domainset_iter *,
 	    struct domainset *, int *, int *);
 void	vm_domainset_iter_policy_ref_init(struct vm_domainset_iter *,
 	    struct domainset_ref *, int *, int *);
+void	vm_domainset_iter_ignore(struct vm_domainset_iter *, int);
 
 int	vm_wait_doms(const domainset_t *, int mflags);
 

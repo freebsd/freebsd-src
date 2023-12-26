@@ -39,6 +39,7 @@
 #include <netinet/ip6.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
+#include <sys/rman.h>
 #include <sys/socket.h>
 #include <netinet/if_ether.h>
 #include <linux/slab.h>
