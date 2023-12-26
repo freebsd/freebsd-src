@@ -329,6 +329,8 @@ iommu_gas_match_one(struct iommu_gas_match_args *a, iommu_gaddr_t beg,
 	start = roundup2(beg, a->common->alignment);
 	if (start < beg)
 		return (false);
+	if (end < IOMMU_PAGE_SIZE + 1)
+		return (false);
 	end = MIN(end - IOMMU_PAGE_SIZE - 1, ubound);
 	offset = a->offset;
 	size = a->size;
