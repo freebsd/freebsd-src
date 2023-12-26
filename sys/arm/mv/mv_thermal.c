@@ -39,7 +39,7 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>

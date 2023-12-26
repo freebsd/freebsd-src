@@ -43,7 +43,7 @@
 #include <dev/clk/clk.h>
 #include <dev/hwreset/hwreset.h>
 #include <dev/regulator/regulator.h>
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 #include <dev/phy/phy.h>
 
 #include <contrib/device-tree/include/dt-bindings/phy/phy.h>

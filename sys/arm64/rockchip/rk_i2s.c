@@ -41,7 +41,7 @@
 
 #include <dev/clk/clk.h>
 #include <dev/hwreset/hwreset.h>
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 
 #include "syscon_if.h"
 

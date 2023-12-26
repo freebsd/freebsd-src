@@ -46,7 +46,7 @@
 #include <dev/clk/clk.h>
 #include <dev/phy/phy_usb.h>
 #include <dev/regulator/regulator.h>
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 
 #include "clkdev_if.h"
 #include "syscon_if.h"

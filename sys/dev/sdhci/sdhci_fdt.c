@@ -52,7 +52,7 @@
 #include <dev/ofw/ofw_subr.h>
 #include <dev/clk/clk.h>
 #include <dev/clk/clk_fixed.h>
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 #include <dev/phy/phy.h>
 
 #include <dev/mmc/bridge.h>

@@ -45,7 +45,7 @@
 
 #include <dev/clk/clk.h>
 #include <dev/phy/phy_usb.h>
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 #include <dev/hwreset/hwreset.h>
 
 #include "syscon_if.h"

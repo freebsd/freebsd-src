@@ -39,7 +39,7 @@
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 
 #include <dev/fdt/fdt_pinctrl.h>
 

@@ -30,7 +30,7 @@
 #include <sys/bus.h>
 
 #include <dev/clk/clk.h>
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 
 #include <dev/clk/rockchip/rk_clk_composite.h>
 
