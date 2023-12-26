@@ -24,11 +24,11 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _DEV_EXTRES_REGULATOR_FIXED_H_
-#define _DEV_EXTRES_REGULATOR_FIXED_H_
+#ifndef _DEV_REGULATOR_FIXED_H_
+#define	_DEV_REGULATOR_FIXED_H_
 
 #include <dev/gpio/gpiobusvar.h>
-#include <dev/extres/regulator/regulator.h>
+#include <dev/regulator/regulator.h>
 
 struct regnode_fixed_init_def {
 	struct regnode_init_def	reg_init_def;
@@ -39,4 +39,4 @@ struct regnode_fixed_init_def {
 int regnode_fixed_register(device_t dev,
     struct regnode_fixed_init_def *init_def);
 
-#endif /*_DEV_EXTRES_REGULATOR_FIXED_H_*/
+#endif /*_DEV_REGULATOR_FIXED_H_*/

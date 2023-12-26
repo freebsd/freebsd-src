@@ -38,7 +38,7 @@
 #include <dev/clk/clk.h>
 #include <dev/hwreset/hwreset.h>
 #include <dev/extres/phy/phy.h>
-#include <dev/extres/regulator/regulator.h>
+#include <dev/regulator/regulator.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/fdt/fdt_pinctrl.h>
 #include <dev/ofw/openfirm.h>

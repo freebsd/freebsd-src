@@ -36,7 +36,7 @@
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/extres/syscon/syscon.h>
-#include <dev/extres/regulator/regulator.h>
+#include <dev/regulator/regulator.h>
 
 #include "syscon_if.h"
 

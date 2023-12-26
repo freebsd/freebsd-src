@@ -42,7 +42,7 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
 #include <dev/gpio/gpiobusvar.h>
-#include <dev/extres/regulator/regulator_fixed.h>
+#include <dev/regulator/regulator_fixed.h>
 
 #ifdef FDT
 #include "regdev_if.h"
