@@ -383,6 +383,13 @@ gntdev_alloc_gref(struct ioctl_gntdev_alloc_gref *arg)
 		}
 	}
 
+	/* Copy the output values. */
+	arg->index = file_offset;
+	for (i = 0; error == 0 && i < arg->count; i++) {
+		if (suword32(&arg->gref_ids[i], grefs[i].gref_id) != 0)
+			error = EFAULT;
+	}
+
 	if (error != 0) {
 		/*
 		 * If target domain maps the gref (by guessing the gref-id),
@@ -400,11 +407,6 @@ gntdev_alloc_gref(struct ioctl_gntdev_alloc_gref *arg)
 
 		return (error);
 	}
-
-	/* Copy the output values. */
-	arg->index = file_offset;
-	for (i = 0; i < arg->count; i++)
-		suword32(&arg->gref_ids[i], grefs[i].gref_id);
 
 	/* Modify the per user private data. */
 	mtx_lock(&priv_user->user_data_lock);
