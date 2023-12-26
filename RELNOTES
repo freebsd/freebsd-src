@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+1a878807006c:
+	This commit added some statistics collection to the NFS-over-TLS
+	code in the NFS server so that sysadmins can moditor usage.
+	The statistics are available via the kern.rpc.tls.* sysctls.
+
 7c5146da1286:
 	Mountd has been modified to use strunvis(3) to decode directory
 	names in exports(5) file(s).  This allows special characters,
