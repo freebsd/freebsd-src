@@ -1024,7 +1024,7 @@ bail:
 			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_base,
 			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_len);
 		} else {
-			copyout(errmsg,
+			(void)copyout(errmsg,
 			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_base,
 			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_len);
 		}
@@ -1388,7 +1388,7 @@ vfs_domount_update(
 			error = EINVAL;
 			goto end;
 		}
-		if (fsidcmp(&fsid_up, &mp->mnt_stat.f_fsid) != 0) {
+		if (fsidcmp(fsid_up, &mp->mnt_stat.f_fsid) != 0) {
 			error = ENOENT;
 			goto end;
 		}

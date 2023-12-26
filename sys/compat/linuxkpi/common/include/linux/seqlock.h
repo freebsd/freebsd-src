@@ -31,6 +31,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/cdefs.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
@@ -84,8 +85,23 @@ seqcount_mutex_init(struct seqcount_mutex *seqcount, void *mutex __unused)
 	struct seqcount_mutex:	seqc_write_end				\
     )(&(s)->seqc)
 
+static inline void
+lkpi_write_seqcount_invalidate(seqc_t *seqcp)
+{
+	atomic_thread_fence_rel();
+	*seqcp += SEQC_MOD * 2;
+}
+#define	write_seqcount_invalidate(s) lkpi_write_seqcount_invalidate(&(s)->seqc)
+
 #define	read_seqcount_begin(s)	seqc_read(&(s)->seqc)
 #define	raw_read_seqcount(s)	seqc_read_any(&(s)->seqc)
+
+static inline seqc_t
+lkpi_seqprop_sequence(const seqc_t *seqcp)
+{
+	return (atomic_load_int(__DECONST(seqc_t *, seqcp)));
+}
+#define	seqprop_sequence(s)	lkpi_seqprop_sequence(&(s)->seqc)
 
 /*
  * XXX: Are predicts from inline functions still not honored by clang?

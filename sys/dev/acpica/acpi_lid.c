@@ -91,7 +91,7 @@ static driver_t acpi_lid_driver = {
 DRIVER_MODULE(acpi_lid, acpi, acpi_lid_driver, 0, 0);
 MODULE_DEPEND(acpi_lid, acpi, 1, 1, 1);
 
-static void
+static int
 acpi_lid_status_update(struct acpi_lid_softc *sc)
 {
 	ACPI_STATUS status;
@@ -107,9 +107,12 @@ acpi_lid_status_update(struct acpi_lid_softc *sc)
 	status = acpi_GetInteger(sc->lid_handle, "_LID", &lid_status);
 	if (ACPI_FAILURE(status))
 		lid_status = 1;		/* assume lid is opened */
+	else
+		lid_status = (lid_status != 0); /* range check value */
 
-	/* range check value */
-	sc->lid_status = lid_status ? 1 : 0;
+	if (sc->lid_status == lid_status)
+		return (EALREADY);
+	sc->lid_status = lid_status;
 
 	/* Send notification via devd */
 	acpi_UserNotify("Lid", sc->lid_handle, sc->lid_status);
@@ -119,6 +122,7 @@ acpi_lid_status_update(struct acpi_lid_softc *sc)
 	evdev_push_sw(sc->lid_evdev, SW_LID, lid_status ? 0 : 1);
 	evdev_sync(sc->lid_evdev);
 #endif
+	return (0);
 }
 
 static int
@@ -146,6 +150,7 @@ acpi_lid_attach(device_t dev)
     sc = device_get_softc(dev);
     sc->lid_dev = dev;
     acpi_lid_handle = sc->lid_handle = acpi_get_handle(dev);
+    sc->lid_status = -1;
 
 #ifdef EVDEV_SUPPORT
     /* Register evdev device before initial status update */
@@ -219,7 +224,8 @@ acpi_lid_notify_status_changed(void *arg)
     ACPI_SERIAL_BEGIN(lid);
 
     /* Update lid status, if any */
-    acpi_lid_status_update(sc);
+    if (acpi_lid_status_update(sc) != 0)
+	goto out;
 
     acpi_sc = acpi_device_get_parent_softc(sc->lid_dev);
     if (acpi_sc == NULL)
@@ -227,8 +233,6 @@ acpi_lid_notify_status_changed(void *arg)
 
     ACPI_VPRINT(sc->lid_dev, acpi_sc, "Lid %s\n",
 		sc->lid_status ? "opened" : "closed");
-
-    acpi_UserNotify("Lid", sc->lid_handle, sc->lid_status);
 
     if (sc->lid_status == 0)
 	EVENTHANDLER_INVOKE(acpi_sleep_event, acpi_sc->acpi_lid_switch_sx);
