@@ -1155,6 +1155,9 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 {
 	struct trapframe *tf;
 	uintptr_t sp;
+	#ifdef __powerpc64__
+	int error;
+	#endif
 
 	tf = td->td_frame;
 	/* align stack and alloc space for frame ptr and saved LR */
@@ -1182,10 +1185,12 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 			tf->srr0 = (register_t)entry;
 			/* ELFv2 ABI requires that the global entry point be in r12. */
 			tf->fixreg[12] = (register_t)entry;
-		}
-		else {
+		} else {
 			register_t entry_desc[3];
-			(void)copyin((void *)entry, entry_desc, sizeof(entry_desc));
+			error = copyin((void *)entry, entry_desc,
+			    sizeof(entry_desc));
+			if (error != 0)
+				return (error);
 			tf->srr0 = entry_desc[0];
 			tf->fixreg[2] = entry_desc[1];
 			tf->fixreg[11] = entry_desc[2];
