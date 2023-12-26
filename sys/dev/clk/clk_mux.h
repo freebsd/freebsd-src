@@ -24,22 +24,19 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _DEV_EXTRES_CLK_LINK_H_
-#define _DEV_EXTRES_CLK_LINK_H_
+#ifndef _DEV_CLK_MUX_H_
+#define	_DEV_CLK_MUX_H_
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
-/*
- * A linked clock is used as placeholder for not yet available clock.
- * It will be replaced by equally named clock from other domain, created
- * in future stage of system initialization.
-*/
-
-struct clk_link_def {
+struct clk_mux_def {
 	struct clknode_init_def clkdef;
-
+	uint32_t		offset;
+	uint32_t		shift;
+	uint32_t		width;
+	int			mux_flags;
 };
 
-int clknode_link_register(struct clkdom *clkdom, struct clk_link_def *clkdef);
+int clknode_mux_register(struct clkdom *clkdom, struct clk_mux_def *clkdef);
 
-#endif /*_DEV_EXTRES_CLK_LINK_H_*/
+#endif	/* _DEV_CLK_MUX_H_ */

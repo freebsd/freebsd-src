@@ -28,7 +28,7 @@
 #ifndef _TI_CLK_CLKCTRL_H_
 #define _TI_CLK_CLKCTRL_H_
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 struct ti_clk_clkctrl_def {
 	struct clknode_init_def 	clkdef;

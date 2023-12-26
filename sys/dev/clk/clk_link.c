@@ -37,7 +37,7 @@
 
 #include <machine/bus.h>
 
-#include <dev/extres/clk/clk_link.h>
+#include <dev/clk/clk_link.h>
 
 static int clknode_link_init(struct clknode *clk, device_t dev);
 static int clknode_link_recalc(struct clknode *clk, uint64_t *freq);

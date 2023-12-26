@@ -52,7 +52,7 @@
 
 #include <arm/allwinner/aw_machdep.h>
 #include <arm/allwinner/allwinner_pinctrl.h>
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/regulator/regulator.h>
 

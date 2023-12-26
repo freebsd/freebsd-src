@@ -28,11 +28,11 @@
 #ifndef __RK_CRU_H__
 #define __RK_CRU_H__
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/clk/clk_div.h>
-#include <dev/extres/clk/clk_gate.h>
-#include <dev/extres/clk/clk_fixed.h>
-#include <dev/extres/clk/clk_link.h>
+#include <dev/clk/clk.h>
+#include <dev/clk/clk_div.h>
+#include <dev/clk/clk_gate.h>
+#include <dev/clk/clk_fixed.h>
+#include <dev/clk/clk_link.h>
 
 #include <dev/clk/rockchip/rk_clk_armclk.h>
 #include <dev/clk/rockchip/rk_clk_composite.h>

@@ -35,11 +35,11 @@
 
 #include <dev/fdt/simplebus.h>
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/clk/clk_div.h>
-#include <dev/extres/clk/clk_fixed.h>
-#include <dev/extres/clk/clk_gate.h>
-#include <dev/extres/clk/clk_mux.h>
+#include <dev/clk/clk.h>
+#include <dev/clk/clk_div.h>
+#include <dev/clk/clk_fixed.h>
+#include <dev/clk/clk_gate.h>
+#include <dev/clk/clk_mux.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>

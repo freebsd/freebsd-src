@@ -44,10 +44,10 @@
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/extres/clk/clk_div.h>
-#include <dev/extres/clk/clk_fixed.h>
-#include <dev/extres/clk/clk_mux.h>
-#include <dev/extres/clk/clk_link.h>
+#include <dev/clk/clk_div.h>
+#include <dev/clk/clk_fixed.h>
+#include <dev/clk/clk_mux.h>
+#include <dev/clk/clk_link.h>
 
 #include <dt-bindings/clock/qcom,gcc-ipq4019.h>
 

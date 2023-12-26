@@ -40,7 +40,7 @@
 
 #include <dev/fdt/simple_mfd.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/regulator/regulator.h>
 #include <dev/extres/syscon/syscon.h>

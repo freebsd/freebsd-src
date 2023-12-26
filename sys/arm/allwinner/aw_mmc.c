@@ -52,7 +52,7 @@
 #include <dev/mmc/mmc_fdt_helpers.h>
 
 #include <arm/allwinner/aw_mmc.h>
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/regulator/regulator.h>
 

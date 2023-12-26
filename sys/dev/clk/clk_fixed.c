@@ -44,7 +44,7 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
 
-#include <dev/extres/clk/clk_fixed.h>
+#include <dev/clk/clk_fixed.h>
 
 #define	CLK_TYPE_FIXED		1
 #define	CLK_TYPE_FIXED_FACTOR	2

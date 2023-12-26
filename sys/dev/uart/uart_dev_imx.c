@@ -49,7 +49,7 @@
 #endif
 
 #ifdef IMX_ENABLE_CLOCKS
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #endif
 
 #include "uart_if.h"

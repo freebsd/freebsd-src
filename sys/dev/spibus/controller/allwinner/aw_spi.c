@@ -40,7 +40,7 @@
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 
 #include "spibus_if.h"

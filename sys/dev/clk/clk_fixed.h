@@ -24,21 +24,27 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _DEV_EXTRES_CLK_GATE_H_
-#define _DEV_EXTRES_CLK_GATE_H_
+#ifndef _DEV_CLK_FIXED_H_
+#define	_DEV_CLK_FIXED_H_
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
-struct clk_gate_def {
+/*
+ * A fixed clock can represent several different real-world objects, including
+ * an oscillator with a fixed output frequency, a fixed divider (multiplier and
+ * divisor must both be > 0), or a phase-fractional divider within a PLL
+ * (however the code currently divides first, then multiplies, potentially
+ * leading to different roundoff errors than the hardware PLL).
+ */
+
+struct clk_fixed_def {
 	struct clknode_init_def clkdef;
-	uint32_t		offset;
-	uint32_t		shift;
-	uint32_t		mask;
-	uint32_t		on_value;
-	uint32_t		off_value;
-	int			gate_flags;
+	uint64_t		freq;
+	uint32_t		mult;
+	uint32_t		div;
+	int			fixed_flags;
 };
 
-int clknode_gate_register(struct clkdom *clkdom, struct clk_gate_def *clkdef);
+int clknode_fixed_register(struct clkdom *clkdom, struct clk_fixed_def *clkdef);
 
-#endif /* _DEV_EXTRES_CLK_GATE_H_ */
+#endif	/*_DEV_CLK_FIXED_H_*/

@@ -47,7 +47,7 @@
 
 #include <dev/gpio/gpiobusvar.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 
 #include "sunxi_dma_if.h"

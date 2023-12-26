@@ -28,7 +28,7 @@
 #ifndef _RK_CLK_ARMCLK_H_
 #define _RK_CLK_ARMCLK_H_
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 struct rk_clk_armclk_rates {
 	uint64_t	freq;

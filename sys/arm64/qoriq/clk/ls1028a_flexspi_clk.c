@@ -40,7 +40,7 @@
 #include <machine/bus.h>
 #include <machine/cpu.h>
 
-#include <dev/extres/clk/clk_div.h>
+#include <dev/clk/clk_div.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>

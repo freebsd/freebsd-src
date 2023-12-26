@@ -28,11 +28,11 @@
 #ifndef	IMX6_CCM_CLK_H
 #define	IMX6_CCM_CLK_H
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/clk/clk_div.h>
-#include <dev/extres/clk/clk_fixed.h>
-#include <dev/extres/clk/clk_gate.h>
-#include <dev/extres/clk/clk_link.h>
+#include <dev/clk/clk.h>
+#include <dev/clk/clk_div.h>
+#include <dev/clk/clk_fixed.h>
+#include <dev/clk/clk_gate.h>
+#include <dev/clk/clk_link.h>
 
 enum imx_clk_type {
 	IMX_CLK_UNDEFINED = 0,

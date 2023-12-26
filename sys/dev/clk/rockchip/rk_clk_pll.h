@@ -28,7 +28,7 @@
 #ifndef _RK_CLK_PLL_H_
 #define _RK_CLK_PLL_H_
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 struct rk_clk_pll_rate {
 	uint32_t	freq;

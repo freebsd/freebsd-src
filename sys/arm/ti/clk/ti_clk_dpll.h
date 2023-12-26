@@ -30,7 +30,7 @@
 #ifndef _TI_DPLL_CLOCK_H_
 #define _TI_DPLL_CLOCK_H_
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 /* Registers are described in AM335x TRM chapter 8.1.12.2.* */
 

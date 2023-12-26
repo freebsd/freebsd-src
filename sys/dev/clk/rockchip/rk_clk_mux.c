@@ -34,7 +34,7 @@
 
 #include <machine/bus.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #include <dev/extres/syscon/syscon.h>
 
 #include <dev/clk/rockchip/rk_cru.h>

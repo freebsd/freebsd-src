@@ -29,7 +29,7 @@
 #ifndef	_TBG_CLK_PLL_H_
 #define	_TBG_CLK_PLL_H_
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 struct a37x0_tbg_pll_reg_def {
 	uint32_t		offset;

@@ -29,7 +29,7 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #include <dev/clk/rockchip/rk_clk_pll.h>
 

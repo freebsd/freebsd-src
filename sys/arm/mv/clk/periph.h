@@ -29,10 +29,10 @@
 #ifndef	_PERIPH_H_
 #define	_PERIPH_H_
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/clk/clk_mux.h>
-#include <dev/extres/clk/clk_div.h>
-#include <dev/extres/clk/clk_gate.h>
+#include <dev/clk/clk.h>
+#include <dev/clk/clk_mux.h>
+#include <dev/clk/clk_div.h>
+#include <dev/clk/clk_gate.h>
 
 #define TBG_SEL                 0x0
 #define DIV_SEL0                0x4

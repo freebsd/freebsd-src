@@ -63,7 +63,7 @@
 #include <sys/rman.h>
 #include <machine/resource.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>

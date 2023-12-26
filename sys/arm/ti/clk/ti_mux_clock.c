@@ -38,7 +38,7 @@
 #include <machine/bus.h>
 #include <dev/fdt/simplebus.h>
 
-#include <dev/extres/clk/clk_mux.h>
+#include <dev/clk/clk_mux.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 

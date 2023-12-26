@@ -28,7 +28,7 @@
 #ifndef _RK_CLK_COMPOSITE_H_
 #define _RK_CLK_COMPOSITE_H_
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 struct rk_clk_composite_def {
 	struct clknode_init_def	clkdef;
