@@ -25,7 +25,7 @@ elf-vdso32.so.o			optional	compat_freebsd32		\
 #
 ia32_genassym.o			standard				\
 	dependency 	"$S/compat/ia32/ia32_genassym.c offset.inc"		\
-	compile-with	"${CC} ${CFLAGS:N-flto:N-fno-common} -fcommon -c ${.IMPSRC}" \
+	compile-with	"${CC} ${CFLAGS:N-flto*:N-fno-common} -fcommon -c ${.IMPSRC}" \
 	no-obj no-implicit-rule						\
 	clean		"ia32_genassym.o"
 #
