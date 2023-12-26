@@ -48,7 +48,7 @@
 #include <dev/clk/clk.h>
 #include <dev/hwreset/hwreset.h>
 #include <dev/phy/phy_usb.h>
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 
 enum rk_dwc3_type {
 	RK3399 = 1,

@@ -1677,10 +1677,6 @@ dev/evdev/evdev_mt.c			optional evdev
 dev/evdev/evdev_utils.c			optional evdev
 dev/evdev/uinput.c			optional evdev uinput
 dev/exca/exca.c			optional cbb
-dev/extres/syscon/syscon.c		optional syscon
-dev/extres/syscon/syscon_generic.c	optional syscon fdt
-dev/extres/syscon/syscon_if.m		optional syscon
-dev/extres/syscon/syscon_power.c	optional syscon syscon_power
 dev/fb/fbd.c			optional fbd | vt
 dev/fb/fb_if.m			standard
 dev/fb/splash.c			optional sc splash
@@ -3140,6 +3136,10 @@ dev/ste/if_ste.c		optional ste pci
 dev/stge/if_stge.c		optional stge
 dev/sym/sym_hipd.c		optional sym				\
 	dependency	"$S/dev/sym/sym_{conf,defs}.h"
+dev/syscon/syscon.c		optional syscon
+dev/syscon/syscon_generic.c	optional syscon fdt
+dev/syscon/syscon_if.m		optional syscon
+dev/syscon/syscon_power.c	optional syscon syscon_power
 dev/syscons/blank/blank_saver.c	optional blank_saver
 dev/syscons/daemon/daemon_saver.c optional daemon_saver
 dev/syscons/dragon/dragon_saver.c optional dragon_saver

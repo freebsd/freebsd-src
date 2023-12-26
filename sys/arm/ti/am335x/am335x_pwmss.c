@@ -45,7 +45,7 @@
 
 #include <arm/ti/ti_sysc.h>
 
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 #include "syscon_if.h"
 
 #include "am335x_pwm.h"

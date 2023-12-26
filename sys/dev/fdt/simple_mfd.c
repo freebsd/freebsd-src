@@ -50,7 +50,7 @@ struct simplebus_devinfo *simple_mfd_setup_dinfo(device_t dev, phandle_t node,
     struct simplebus_devinfo *di);
 
 #include "syscon_if.h"
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 
 MALLOC_DECLARE(M_SYSCON);
 

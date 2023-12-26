@@ -40,11 +40,11 @@
 #include <dev/hwreset/hwreset.h>
 #include <dev/phy/phy_usb.h>
 #include <dev/regulator/regulator.h>
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 #include <dev/fdt/simple_mfd.h>
 #include "phynode_if.h"
 #include "phynode_usb_if.h"

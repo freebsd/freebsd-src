@@ -47,7 +47,7 @@
 #include <dev/clk/clk.h>
 #include <dev/phy/phy.h>
 #include <dev/phy/phy_internal.h>
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 #include <dev/hwreset/hwreset.h>
 
 #include "syscon_if.h"
