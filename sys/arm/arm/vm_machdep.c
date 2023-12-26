@@ -223,7 +223,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
  * Set that machine state for performing an upcall that starts
  * the entry function with the given argument.
  */
-void
+int
 cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	stack_t *stack)
 {
@@ -233,6 +233,7 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	tf->tf_pc = (int)entry;
 	tf->tf_r0 = (int)arg;
 	tf->tf_spsr = PSR_USR32_MODE;
+	return (0);
 }
 
 int

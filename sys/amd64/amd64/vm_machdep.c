@@ -611,7 +611,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
  * Set that machine state for performing an upcall that starts
  * the entry function with the given argument.
  */
-void
+int
 cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
     stack_t *stack)
 {
@@ -637,13 +637,15 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 		td->td_frame->tf_rip = (uintptr_t)entry;
 
 		/* Return address sentinel value to stop stack unwinding. */
-		suword32((void *)td->td_frame->tf_rsp, 0);
+		if (suword32((void *)td->td_frame->tf_rsp, 0) != 0)
+			return (EFAULT);
 
 		/* Pass the argument to the entry point. */
-		suword32((void *)(td->td_frame->tf_rsp + sizeof(int32_t)),
-		    (uint32_t)(uintptr_t)arg);
-
-		return;
+		if (suword32(
+		    (void *)(td->td_frame->tf_rsp + sizeof(int32_t)),
+		    (uint32_t)(uintptr_t)arg) != 0)
+			return (EFAULT);
+		return (0);
 	}
 #endif
 
@@ -663,10 +665,13 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	td->td_frame->tf_flags = TF_HASSEGS;
 
 	/* Return address sentinel value to stop stack unwinding. */
-	suword((void *)td->td_frame->tf_rsp, 0);
+	if (suword((void *)td->td_frame->tf_rsp, 0) != 0)
+		return (EFAULT);
 
 	/* Pass the argument to the entry point. */
 	td->td_frame->tf_rdi = (register_t)arg;
+
+	return (0);
 }
 
 int

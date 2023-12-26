@@ -1063,7 +1063,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	td->td_md.md_saved_msr = psl_kernset;
 }
 
-void
+int
 cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
     stack_t *stack)
 {
@@ -1116,6 +1116,7 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 
 	td->td_retval[0] = (register_t)entry;
 	td->td_retval[1] = 0;
+	return (0);
 }
 
 static int

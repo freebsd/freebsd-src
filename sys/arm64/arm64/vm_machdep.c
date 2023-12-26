@@ -203,7 +203,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
  * Set that machine state for performing an upcall that starts
  * the entry function with the given argument.
  */
-void
+int
 cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	stack_t *stack)
 {
@@ -216,6 +216,7 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 		tf->tf_sp = STACKALIGN((uintptr_t)stack->ss_sp + stack->ss_size);
 	tf->tf_elr = (register_t)entry;
 	tf->tf_x[0] = (register_t)arg;
+	return (0);
 }
 
 int
