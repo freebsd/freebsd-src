@@ -629,10 +629,12 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 
 				p = (uint8_t *)vmrun->cpuset +
 				    sizeof(cpuset_t);
-				while (error == 0 &&
-				    p < (uint8_t *)vmrun->cpuset +
+				while (p < (uint8_t *)vmrun->cpuset +
 				    vmrun->cpusetsize) {
-					error = subyte(p++, 0);
+					if (subyte(p++, 0) != 0) {
+						error = EFAULT;
+						break;
+					}
 				}
 			}
 		}
