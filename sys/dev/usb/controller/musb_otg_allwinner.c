@@ -60,8 +60,8 @@
 
 #include <dev/clk/clk.h>
 #include <dev/hwreset/hwreset.h>
-#include <dev/extres/phy/phy.h>
-#include <dev/extres/phy/phy_usb.h>
+#include <dev/phy/phy.h>
+#include <dev/phy/phy_usb.h>
 
 #ifdef __arm__
 #include <arm/allwinner/aw_machdep.h>

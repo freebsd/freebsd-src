@@ -24,10 +24,10 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _DEV_EXTRES_PHY_USB_H_
-#define _DEV_EXTRES_PHY_USB_H_
+#ifndef _DEV_PHY_USB_H_
+#define	_DEV_PHY_USB_H_
 
-#include <dev/extres/phy/phy.h>
+#include <dev/phy/phy.h>
 #include "phynode_usb_if.h"
 
 #define	PHY_USB_MODE_UNKNOWN	0
@@ -80,4 +80,4 @@ int phynode_usb_get_mode(struct phynode *phynode, int *usb_mode);
 int phy_usb_set_mode(phy_t phy, int usb_mode);
 int phy_usb_get_mode(phy_t phy, int *usb_mode);
 
-#endif /*_DEV_EXTRES_PHY_USB_H_*/
+#endif /*_DEV_PHY_USB_H_*/

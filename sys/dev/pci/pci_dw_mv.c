@@ -45,7 +45,7 @@
 #include <machine/resource.h>
 
 #include <dev/clk/clk.h>
-#include <dev/extres/phy/phy.h>
+#include <dev/phy/phy.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_pci.h>

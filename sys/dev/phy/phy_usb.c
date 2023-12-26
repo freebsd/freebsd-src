@@ -32,8 +32,8 @@
 #include <sys/sx.h>
 
 
-#include <dev/extres/phy/phy_usb.h>
-#include <dev/extres/phy/phy_internal.h>
+#include <dev/phy/phy_usb.h>
+#include <dev/phy/phy_internal.h>
 
 /*
  * USB phy controller methods.
