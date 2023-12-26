@@ -1682,9 +1682,6 @@ dev/extres/phy/phydev_if.m	optional phy fdt
 dev/extres/phy/phynode_if.m	optional phy
 dev/extres/phy/phy_usb.c	optional phy
 dev/extres/phy/phynode_usb_if.m	optional phy
-dev/extres/hwreset/hwreset.c	optional hwreset
-dev/extres/hwreset/hwreset_array.c	optional hwreset
-dev/extres/hwreset/hwreset_if.m	optional hwreset
 dev/extres/nvmem/nvmem.c	optional nvmem fdt
 dev/extres/nvmem/nvmem_if.m	optional nvmem
 dev/extres/regulator/regdev_if.m	optional regulator fdt
@@ -1783,6 +1780,9 @@ dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
 dev/hwpmc/hwpmc_soft.c		optional hwpmc
+dev/hwreset/hwreset.c		optional hwreset
+dev/hwreset/hwreset_array.c	optional hwreset
+dev/hwreset/hwreset_if.m	optional hwreset
 dev/ichiic/ig4_acpi.c		optional ig4 acpi iicbus
 dev/ichiic/ig4_iic.c		optional ig4 iicbus
 dev/ichiic/ig4_pci.c		optional ig4 pci iicbus

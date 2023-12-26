@@ -45,7 +45,7 @@
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
+#include <dev/hwreset/hwreset.h>
 
 #include <dev/dwc/if_dwcvar.h>
 #include <dev/dwc/dwc1000_reg.h>

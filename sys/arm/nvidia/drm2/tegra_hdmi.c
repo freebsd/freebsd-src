@@ -37,7 +37,7 @@
 #include <machine/bus.h>
 
 #include <dev/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
+#include <dev/hwreset/hwreset.h>
 #include <dev/extres/regulator/regulator.h>
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_crtc.h>

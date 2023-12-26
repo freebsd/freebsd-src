@@ -52,7 +52,7 @@
 #include <dev/mii/miivar.h>
 #include <dev/mdio/mdio.h>
 #include <dev/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
+#include <dev/hwreset/hwreset.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>

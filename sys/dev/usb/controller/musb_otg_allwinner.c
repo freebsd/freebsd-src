@@ -59,7 +59,7 @@
 #include <dev/usb/controller/musb_otg.h>
 
 #include <dev/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
+#include <dev/hwreset/hwreset.h>
 #include <dev/extres/phy/phy.h>
 #include <dev/extres/phy/phy_usb.h>
 

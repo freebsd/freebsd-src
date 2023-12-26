@@ -48,7 +48,7 @@
 #include <dev/gpio/gpiobusvar.h>
 
 #include <dev/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
+#include <dev/hwreset/hwreset.h>
 
 #include "sunxi_dma_if.h"
 #include "mixer_if.h"
