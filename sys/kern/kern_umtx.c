@@ -2961,7 +2961,14 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 	 */
 	error = fueword32(&cv->c_has_waiters, &hasw);
 	if (error == 0 && hasw == 0)
-		suword32(&cv->c_has_waiters, 1);
+		error = suword32(&cv->c_has_waiters, 1);
+	if (error != 0) {
+		umtxq_lock(&uq->uq_key);
+		umtxq_remove(uq);
+		umtxq_unbusy(&uq->uq_key);
+		error = EFAULT;
+		goto out;
+	}
 
 	umtxq_unbusy_unlocked(&uq->uq_key);
 
@@ -2991,7 +2998,9 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 			umtxq_remove(uq);
 			if (oldlen == 1) {
 				umtxq_unlock(&uq->uq_key);
-				suword32(&cv->c_has_waiters, 0);
+				if (suword32(&cv->c_has_waiters, 0) != 0 &&
+				    error == 0)
+					error = EFAULT;
 				umtxq_lock(&uq->uq_key);
 			}
 		}
@@ -2999,7 +3008,7 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 		if (error == ERESTART)
 			error = EINTR;
 	}
-
+out:
 	umtxq_unlock(&uq->uq_key);
 	umtx_key_release(&uq->uq_key);
 	return (error);
@@ -3177,12 +3186,14 @@ sleep:
 		 */
 		rv = fueword32(&rwlock->rw_blocked_readers,
 		    &blocked_readers);
+		if (rv == 0)
+			rv = suword32(&rwlock->rw_blocked_readers,
+			    blocked_readers + 1);
 		if (rv == -1) {
 			umtxq_unbusy_unlocked(&uq->uq_key);
 			error = EFAULT;
 			break;
 		}
-		suword32(&rwlock->rw_blocked_readers, blocked_readers+1);
 
 		while (state & wrflags) {
 			umtxq_lock(&uq->uq_key);
@@ -3207,12 +3218,14 @@ sleep:
 		/* decrease read waiter count, and may clear read contention bit */
 		rv = fueword32(&rwlock->rw_blocked_readers,
 		    &blocked_readers);
+		if (rv == 0)
+			rv = suword32(&rwlock->rw_blocked_readers,
+			    blocked_readers - 1);
 		if (rv == -1) {
 			umtxq_unbusy_unlocked(&uq->uq_key);
 			error = EFAULT;
 			break;
 		}
-		suword32(&rwlock->rw_blocked_readers, blocked_readers-1);
 		if (blocked_readers == 1) {
 			rv = fueword32(&rwlock->rw_state, &state);
 			if (rv == -1) {
@@ -3361,12 +3374,14 @@ do_rw_wrlock(struct thread *td, struct urwlock *rwlock, struct _umtx_time *timeo
 sleep:
 		rv = fueword32(&rwlock->rw_blocked_writers,
 		    &blocked_writers);
+		if (rv == 0)
+			rv = suword32(&rwlock->rw_blocked_writers,
+			    blocked_writers + 1);
 		if (rv == -1) {
 			umtxq_unbusy_unlocked(&uq->uq_key);
 			error = EFAULT;
 			break;
 		}
-		suword32(&rwlock->rw_blocked_writers, blocked_writers + 1);
 
 		while ((state & URWLOCK_WRITE_OWNER) ||
 		    URWLOCK_READER_COUNT(state) != 0) {
@@ -3391,12 +3406,14 @@ sleep:
 
 		rv = fueword32(&rwlock->rw_blocked_writers,
 		    &blocked_writers);
+		if (rv == 0)
+			rv = suword32(&rwlock->rw_blocked_writers,
+			    blocked_writers - 1);
 		if (rv == -1) {
 			umtxq_unbusy_unlocked(&uq->uq_key);
 			error = EFAULT;
 			break;
 		}
-		suword32(&rwlock->rw_blocked_writers, blocked_writers-1);
 		if (blocked_writers == 1) {
 			rv = fueword32(&rwlock->rw_state, &state);
 			if (rv == -1) {
@@ -3575,7 +3592,7 @@ again:
 		rv1 = fueword32(&sem->_count, &count);
 	if (rv == -1 || rv1 == -1 || count != 0 || (rv == 1 && count1 == 0)) {
 		if (rv == 0)
-			suword32(&sem->_has_waiters, 0);
+			rv = suword32(&sem->_has_waiters, 0);
 		umtxq_lock(&uq->uq_key);
 		umtxq_unbusy(&uq->uq_key);
 		umtxq_remove(uq);
