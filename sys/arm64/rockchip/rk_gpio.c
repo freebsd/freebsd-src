@@ -46,7 +46,7 @@
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #include "gpio_if.h"
 #include "pic_if.h"

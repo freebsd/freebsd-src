@@ -28,7 +28,7 @@
 #ifndef	__AW_CLK_NMM_H__
 #define __AW_CLK_NMM_H__
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 struct aw_clk_nmm_def {
 	struct clknode_init_def clkdef;

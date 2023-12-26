@@ -40,7 +40,7 @@
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 
 #include <dev/evdev/input.h>

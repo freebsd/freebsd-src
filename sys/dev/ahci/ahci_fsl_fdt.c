@@ -48,7 +48,7 @@
 
 #include <dev/ahci/ahci.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #define	AHCI_FSL_REG_PHY1	0xa8
 #define	AHCI_FSL_REG_PHY2	0xac

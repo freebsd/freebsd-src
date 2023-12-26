@@ -65,7 +65,7 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_subr.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #include <dev/extres/phy/phy_usb.h>
 #endif
 

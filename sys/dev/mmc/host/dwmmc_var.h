@@ -31,7 +31,7 @@
 #ifndef DEV_MMC_HOST_DWMMC_VAR_H
 #define DEV_MMC_HOST_DWMMC_VAR_H
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/regulator/regulator.h>
 

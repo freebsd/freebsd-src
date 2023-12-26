@@ -42,7 +42,7 @@
 
 #include <machine/bus.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #include <dev/videomode/videomode.h>
 #include <dev/videomode/edidvar.h>

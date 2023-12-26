@@ -43,7 +43,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>

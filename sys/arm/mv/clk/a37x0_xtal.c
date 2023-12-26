@@ -35,8 +35,8 @@
 
 #include <dev/fdt/simplebus.h>
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/clk/clk_fixed.h>
+#include <dev/clk/clk.h>
+#include <dev/clk/clk_fixed.h>
 #include <dev/extres/syscon/syscon.h>
 
 #include <dev/ofw/ofw_bus.h>

@@ -39,7 +39,7 @@
 #include <sys/mutex.h>
 #include <sys/rman.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>

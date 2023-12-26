@@ -24,27 +24,30 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _DEV_EXTRES_CLK_FIXED_H_
-#define _DEV_EXTRES_CLK_FIXED_H_
+#ifndef _DEV_CLK_DIV_H_
+#define	_DEV_CLK_DIV_H_
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
-/*
- * A fixed clock can represent several different real-world objects, including
- * an oscillator with a fixed output frequency, a fixed divider (multiplier and
- * divisor must both be > 0), or a phase-fractional divider within a PLL
- * (however the code currently divides first, then multiplies, potentially
- * leading to different roundoff errors than the hardware PLL).
- */
+#define	CLK_DIV_ZERO_BASED	0x0001 /* Zero based divider. */
+#define	CLK_DIV_WITH_TABLE	0x0002 /* Table to lookup the real value */
 
-struct clk_fixed_def {
-	struct clknode_init_def clkdef;
-	uint64_t		freq;
-	uint32_t		mult;
-	uint32_t		div;
-	int			fixed_flags;
+struct clk_div_table {
+	uint32_t	value;
+	uint32_t	divider;
 };
 
-int clknode_fixed_register(struct clkdom *clkdom, struct clk_fixed_def *clkdef);
+struct clk_div_def {
+	struct clknode_init_def clkdef;
+	uint32_t		offset;		/* Divider register offset */
+	uint32_t		i_shift;	/* Pos of div bits in reg */
+	uint32_t		i_width;	/* Width of div bit field */
+	uint32_t		f_shift;	/* Fractional divide bits, */
+	uint32_t		f_width;	/* set to 0 for int divider */
+	int			div_flags;	/* Divider-specific flags */
+	struct clk_div_table	*div_table;	/* Divider table */
+};
 
-#endif /*_DEV_EXTRES_CLK_FIXED_H_*/
+int clknode_div_register(struct clkdom *clkdom, struct clk_div_def *clkdef);
+
+#endif	/*_DEV_CLK_DIV_H_*/

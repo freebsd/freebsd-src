@@ -51,7 +51,7 @@
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 #include <dev/mdio/mdio.h>
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 
 #include <dev/fdt/fdt_common.h>

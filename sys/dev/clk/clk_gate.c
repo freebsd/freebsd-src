@@ -32,7 +32,7 @@
 
 #include <machine/bus.h>
 
-#include <dev/extres/clk/clk_mux.h>
+#include <dev/clk/clk_gate.h>
 
 #include "clkdev_if.h"
 
@@ -47,83 +47,91 @@
 #define	DEVICE_UNLOCK(_clk)						\
 	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
-static int clknode_mux_init(struct clknode *clk, device_t dev);
-static int clknode_mux_set_mux(struct clknode *clk, int idx);
-
-struct clknode_mux_sc {
+static int clknode_gate_init(struct clknode *clk, device_t dev);
+static int clknode_gate_set_gate(struct clknode *clk, bool enable);
+static int clknode_gate_get_gate(struct clknode *clk, bool *enable);
+struct clknode_gate_sc {
 	uint32_t	offset;
 	uint32_t	shift;
 	uint32_t	mask;
-	int		mux_flags;
+	uint32_t	on_value;
+	uint32_t	off_value;
+	int		gate_flags;
 };
 
-static clknode_method_t clknode_mux_methods[] = {
+static clknode_method_t clknode_gate_methods[] = {
 	/* Device interface */
-	CLKNODEMETHOD(clknode_init, 	clknode_mux_init),
-	CLKNODEMETHOD(clknode_set_mux, 	clknode_mux_set_mux),
+	CLKNODEMETHOD(clknode_init,	clknode_gate_init),
+	CLKNODEMETHOD(clknode_set_gate,	clknode_gate_set_gate),
+	CLKNODEMETHOD(clknode_get_gate,	clknode_gate_get_gate),
 	CLKNODEMETHOD_END
 };
-DEFINE_CLASS_1(clknode_mux, clknode_mux_class, clknode_mux_methods,
-   sizeof(struct clknode_mux_sc), clknode_class);
-
+DEFINE_CLASS_1(clknode_gate, clknode_gate_class, clknode_gate_methods,
+   sizeof(struct clknode_gate_sc), clknode_class);
 
 static int
-clknode_mux_init(struct clknode *clk, device_t dev)
+clknode_gate_init(struct clknode *clk, device_t dev)
 {
-	uint32_t reg;
-	struct clknode_mux_sc *sc;
-	int rv;
 
-	sc = clknode_get_softc(clk);
-
-	DEVICE_LOCK(clk);
-	rv = RD4(clk, sc->offset, &reg);
-	DEVICE_UNLOCK(clk);
-	if (rv != 0) {
-		return (rv);
-	}
-	reg = (reg >> sc->shift) & sc->mask;
-	clknode_init_parent_idx(clk, reg);
+	clknode_init_parent_idx(clk, 0);
 	return(0);
 }
 
 static int
-clknode_mux_set_mux(struct clknode *clk, int idx)
+clknode_gate_set_gate(struct clknode *clk, bool enable)
 {
 	uint32_t reg;
-	struct clknode_mux_sc *sc;
+	struct clknode_gate_sc *sc;
 	int rv;
 
 	sc = clknode_get_softc(clk);
-
 	DEVICE_LOCK(clk);
 	rv = MD4(clk, sc->offset, sc->mask << sc->shift,
-	    (idx & sc->mask) << sc->shift);
+	    (enable ? sc->on_value : sc->off_value) << sc->shift);
 	if (rv != 0) {
 		DEVICE_UNLOCK(clk);
 		return (rv);
 	}
 	RD4(clk, sc->offset, &reg);
 	DEVICE_UNLOCK(clk);
+	return(0);
+}
 
+static int
+clknode_gate_get_gate(struct clknode *clk, bool *enabled)
+{
+	uint32_t reg;
+	struct clknode_gate_sc *sc;
+	int rv;
+
+	sc = clknode_get_softc(clk);
+	DEVICE_LOCK(clk);
+	rv = RD4(clk, sc->offset, &reg);
+	DEVICE_UNLOCK(clk);
+	if (rv != 0)
+		return (rv);
+	reg = (reg >> sc->shift) & sc->mask;
+	*enabled = reg == sc->on_value;
 	return(0);
 }
 
 int
-clknode_mux_register(struct clkdom *clkdom, struct clk_mux_def *clkdef)
+clknode_gate_register(struct clkdom *clkdom, struct clk_gate_def *clkdef)
 {
 	struct clknode *clk;
-	struct clknode_mux_sc *sc;
+	struct clknode_gate_sc *sc;
 
-	clk = clknode_create(clkdom, &clknode_mux_class, &clkdef->clkdef);
+	clk = clknode_create(clkdom, &clknode_gate_class, &clkdef->clkdef);
 	if (clk == NULL)
 		return (1);
 
 	sc = clknode_get_softc(clk);
 	sc->offset = clkdef->offset;
 	sc->shift = clkdef->shift;
-	sc->mask =  (1 << clkdef->width) - 1;
-	sc->mux_flags = clkdef->mux_flags;
+	sc->mask =  clkdef->mask;
+	sc->on_value = clkdef->on_value;
+	sc->off_value = clkdef->off_value;
+	sc->gate_flags = clkdef->gate_flags;
 
 	clknode_register(clkdom, clk);
 	return (0);

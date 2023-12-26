@@ -75,7 +75,7 @@
 #endif
 
 #ifdef IMX_ENABLE_CLOCKS
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #endif
 
 #define I2C_ADDR_REG		0x00 /* I2C slave address register */

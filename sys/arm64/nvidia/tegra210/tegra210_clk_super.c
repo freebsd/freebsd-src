@@ -34,7 +34,7 @@
 
 #include <machine/bus.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #include <dt-bindings/clock/tegra210-car.h>
 #include "tegra210_car.h"

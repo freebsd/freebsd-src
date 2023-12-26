@@ -32,7 +32,7 @@
 #ifndef _TWSI_H_
 #define	_TWSI_H_
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 struct twsi_baud_rate {
 	uint32_t	raw;

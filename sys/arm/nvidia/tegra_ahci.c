@@ -44,7 +44,7 @@
 #include <machine/resource.h>
 
 #include <dev/ahci/ahci.h>
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/phy/phy.h>
 #include <dev/extres/regulator/regulator.h>

@@ -27,7 +27,7 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #include <dev/clk/allwinner/aw_clk.h>
 #include <dev/clk/allwinner/aw_clk_nkmp.h>

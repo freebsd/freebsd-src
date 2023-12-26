@@ -23,19 +23,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#ifndef _DEV_EXTRESF_CLK_MUX_H_
-#define _DEV_EXTRESF_CLK_MUX_H_
 
-#include <dev/extres/clk/clk.h>
+#ifndef _DEV_CLK_GATE_H_
+#define	_DEV_CLK_GATE_H_
 
-struct clk_mux_def {
+#include <dev/clk/clk.h>
+
+struct clk_gate_def {
 	struct clknode_init_def clkdef;
 	uint32_t		offset;
 	uint32_t		shift;
-	uint32_t		width;
-	int			mux_flags;
+	uint32_t		mask;
+	uint32_t		on_value;
+	uint32_t		off_value;
+	int			gate_flags;
 };
 
-int clknode_mux_register(struct clkdom *clkdom, struct clk_mux_def *clkdef);
+int clknode_gate_register(struct clkdom *clkdom, struct clk_gate_def *clkdef);
 
-#endif /* _DEV_EXTRESF_CLK_MUX_H_ */
+#endif	/* _DEV_CLK_GATE_H_ */

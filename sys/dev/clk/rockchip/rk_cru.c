@@ -44,10 +44,10 @@
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/clk/clk_gate.h>
-#include <dev/extres/clk/clk_fixed.h>
-#include <dev/extres/clk/clk_link.h>
+#include <dev/clk/clk.h>
+#include <dev/clk/clk_gate.h>
+#include <dev/clk/clk_fixed.h>
+#include <dev/clk/clk_link.h>
 #include <dev/extres/hwreset/hwreset.h>
 
 #include <dev/clk/rockchip/rk_clk_composite.h>

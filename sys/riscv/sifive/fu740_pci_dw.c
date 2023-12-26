@@ -40,7 +40,7 @@
 #include <machine/intr.h>
 #include <machine/resource.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>

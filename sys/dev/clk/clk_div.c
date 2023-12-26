@@ -32,7 +32,7 @@
 
 #include <machine/bus.h>
 
-#include <dev/extres/clk/clk_div.h>
+#include <dev/clk/clk_div.h>
 
 #include "clkdev_if.h"
 

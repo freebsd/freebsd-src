@@ -37,7 +37,7 @@
 #include <sys/module.h>
 #include <sys/mutex.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #include <dev/fdt/simplebus.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus_subr.h>

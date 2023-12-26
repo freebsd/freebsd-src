@@ -46,7 +46,7 @@
 #include <arm/ti/ti_sysc.h>
 #include "gpio_if.h"
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 

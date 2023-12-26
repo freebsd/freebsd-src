@@ -24,8 +24,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _DEV_EXTRES_CLK_H_
-#define _DEV_EXTRES_CLK_H_
+#ifndef _DEV_CLK_H_
+#define	_DEV_CLK_H_
+
 #include "opt_platform.h"
 
 #include <sys/kobj.h>
@@ -152,4 +153,4 @@ int clk_parse_ofw_out_names(device_t dev, phandle_t node,
 int clk_parse_ofw_clk_name(device_t dev, phandle_t node, const char **name);
 #endif
 
-#endif /* _DEV_EXTRES_CLK_H_ */
+#endif	/* _DEV_CLK_H_ */

@@ -1353,6 +1353,15 @@ dev/cfi/cfi_dev.c		optional cfi
 dev/cfi/cfi_disk.c		optional cfid
 dev/chromebook_platform/chromebook_platform.c	optional chromebook_platform
 dev/ciss/ciss.c			optional ciss
+dev/clk/clk.c			optional clk
+dev/clk/clkdev_if.m		optional clk
+dev/clk/clknode_if.m		optional clk
+dev/clk/clk_bus.c		optional clk fdt
+dev/clk/clk_div.c		optional clk
+dev/clk/clk_fixed.c		optional clk
+dev/clk/clk_gate.c		optional clk
+dev/clk/clk_link.c		optional clk
+dev/clk/clk_mux.c		optional clk
 dev/cpufreq/ichss.c		optional cpufreq pci
 dev/cxgb/cxgb_main.c		optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
@@ -1668,15 +1677,6 @@ dev/evdev/evdev_mt.c			optional evdev
 dev/evdev/evdev_utils.c			optional evdev
 dev/evdev/uinput.c			optional evdev uinput
 dev/exca/exca.c			optional cbb
-dev/extres/clk/clk.c		optional clk
-dev/extres/clk/clkdev_if.m	optional clk
-dev/extres/clk/clknode_if.m	optional clk
-dev/extres/clk/clk_bus.c	optional clk fdt
-dev/extres/clk/clk_div.c	optional clk
-dev/extres/clk/clk_fixed.c	optional clk
-dev/extres/clk/clk_gate.c	optional clk
-dev/extres/clk/clk_link.c	optional clk
-dev/extres/clk/clk_mux.c	optional clk
 dev/extres/phy/phy.c		optional phy
 dev/extres/phy/phydev_if.m	optional phy fdt
 dev/extres/phy/phynode_if.m	optional phy

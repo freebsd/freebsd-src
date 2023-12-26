@@ -46,7 +46,7 @@
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 SYSCTL_NODE(_hw, OID_AUTO, clock, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Clocks");
