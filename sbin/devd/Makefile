@@ -11,10 +11,12 @@ DEVDDIR=	/etc/devd
 DEVD+=	asus.conf
 .endif
 
+.if ${MK_AUTOFS} != "no"
 CONFGROUPS+=		AUTOFS
 AUTOFSDIR=		${DEVDDIR}
 AUTOFS+=		autofs.conf
 AUTOFSPACKAGE=		autofs
+.endif
 
 CONFGROUPS+=		DHCLIENT
 DHCLIENTDIR=		${DEVDDIR}

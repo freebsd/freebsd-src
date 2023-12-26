@@ -262,4 +262,13 @@ ktime_get_raw_ns(void)
 	return (ktime_to_ns(timespec_to_ktime(ts)));
 }
 
+static inline uint64_t
+ktime_get_raw_fast_ns(void)
+{
+	struct timespec ts;
+
+	getnanouptime(&ts);
+	return (ktime_to_ns(timespec_to_ktime(ts)));
+}
+
 #endif /* _LINUXKPI_LINUX_KTIME_H */

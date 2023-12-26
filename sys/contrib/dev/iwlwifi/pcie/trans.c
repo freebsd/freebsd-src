@@ -15,6 +15,7 @@
 #include <linux/wait.h>
 #include <linux/seq_file.h>
 #if defined(__FreeBSD__)
+#include <sys/rman.h>
 #include <linux/delay.h>
 #endif
 

@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 9, 1993
+.Dd December 5, 2023
 .Dt MEMCCPY 3
 .Os
 .Sh NAME
@@ -36,7 +36,12 @@
 .Sh SYNOPSIS
 .In string.h
 .Ft void *
-.Fn memccpy "void *dst" "const void *src" "int c" "size_t len"
+.Fo memccpy
+.Fa "void * restrict dst"
+.Fa "const void * restrict src"
+.Fa "int c"
+.Fa "size_t len"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn memccpy
@@ -59,13 +64,35 @@ is returned.
 Otherwise,
 .Fa len
 bytes are copied, and a NULL pointer is returned.
+If
+.Fa src
+and
+.Fa dst
+overlap, behavior is undefined.
 .Sh SEE ALSO
 .Xr bcopy 3 ,
 .Xr memcpy 3 ,
 .Xr memmove 3 ,
 .Xr strcpy 3
+.Sh STANDARDS
+The
+.Fn memccpy
+function conforms to
+.St -p1003.1-2004
+and
+.\" St -isoC-2024 .
+ISO/IEC 9899:2024 (\(lqISO\~C23\(rq).
 .Sh HISTORY
 The
 .Fn memccpy
 function first appeared in
-.Bx 4.4 .
+.Bx 4.4
+and was first specified in the
+.\" St -svid1 .
+System\~V Interface Definition, First Edition (\(lqSVID1\(rq).
+The
+.Ft restrict
+keyword was added to the prototype in
+.Fx 5.0.0
+in accordance with the updated specification of
+.St -p1003.1-2004 .
