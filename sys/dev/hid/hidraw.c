@@ -674,13 +674,16 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			sc->sc_state.quiet = true;
 		mtx_unlock(&sc->sc_mtx);
 		if (error != 0)
-			return(error);
+			return (error);
 
 		buf = HIDRAW_LOCAL_ALLOC(local_buf, hgd->hgd_maxlen);
-		copyin(hgd->hgd_data, buf, hgd->hgd_maxlen);
-		bus_topo_lock();
-		error = hid_set_report_descr(sc->sc_dev, buf, hgd->hgd_maxlen);
-		bus_topo_unlock();
+		error = copyin(hgd->hgd_data, buf, hgd->hgd_maxlen);
+		if (error == 0) {
+			bus_topo_lock();
+			error = hid_set_report_descr(sc->sc_dev, buf,
+			    hgd->hgd_maxlen);
+			bus_topo_unlock();
+		}
 		HIDRAW_LOCAL_FREE(local_buf, buf);
 
 		/* Realloc hidraw input queue */
@@ -737,8 +740,11 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		default:
 			return (EINVAL);
 		}
-		if (id != 0)
-			copyin(hgd->hgd_data, &id, 1);
+		if (id != 0) {
+			error = copyin(hgd->hgd_data, &id, 1);
+			if (error != 0)
+				return (error);
+		}
 		size = MIN(hgd->hgd_maxlen, size);
 		buf = HIDRAW_LOCAL_ALLOC(local_buf, size);
 		error = hid_get_report(sc->sc_dev, buf, size, NULL,
@@ -775,11 +781,13 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		}
 		size = MIN(hgd->hgd_maxlen, size);
 		buf = HIDRAW_LOCAL_ALLOC(local_buf, size);
-		copyin(hgd->hgd_data, buf, size);
-		if (id != 0)
-			id = *(uint8_t *)buf;
-		error = hid_set_report(sc->sc_dev, buf, size,
-		    hgd->hgd_report_type, id);
+		error = copyin(hgd->hgd_data, buf, size);
+		if (error == 0) {
+			if (id != 0)
+				id = *(uint8_t *)buf;
+			error = hid_set_report(sc->sc_dev, buf, size,
+			    hgd->hgd_report_type, id);
+		}
 		HIDRAW_LOCAL_FREE(local_buf, buf);
 		return (error);
 
