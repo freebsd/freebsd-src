@@ -26,7 +26,7 @@
 INTERFACE phynode;
 
 HEADER {
-	#include <dev/extres/phy/phy.h>
+	#include <dev/phy/phy.h>
 
 	struct phynode;
 }

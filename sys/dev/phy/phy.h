@@ -23,8 +23,9 @@
  *
  */
 
-#ifndef DEV_EXTRES_PHY_H
-#define DEV_EXTRES_PHY_H
+#ifndef _DEV_PHY_H_
+#define	_DEV_PHY_H_
+
 #include "opt_platform.h"
 
 #include <sys/kobj.h>
@@ -148,4 +149,4 @@ int phy_get_by_ofw_property(device_t consumer, phandle_t node, char *name,
     phy_t *phy);
 #endif
 
-#endif /* DEV_EXTRES_PHY_H */
+#endif /* _DEV_PHY_H_ */

@@ -44,7 +44,7 @@
 #include <dev/ofw/ofw_subr.h>
 
 #include <dev/clk/clk.h>
-#include <dev/extres/phy/phy_usb.h>
+#include <dev/phy/phy_usb.h>
 #include <dev/regulator/regulator.h>
 #include <dev/extres/syscon/syscon.h>
 

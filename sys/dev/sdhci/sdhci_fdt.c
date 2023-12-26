@@ -53,7 +53,7 @@
 #include <dev/clk/clk.h>
 #include <dev/clk/clk_fixed.h>
 #include <dev/extres/syscon/syscon.h>
-#include <dev/extres/phy/phy.h>
+#include <dev/phy/phy.h>
 
 #include <dev/mmc/bridge.h>
 

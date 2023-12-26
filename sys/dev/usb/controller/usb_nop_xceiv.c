@@ -43,7 +43,7 @@
 
 #include <dev/clk/clk.h>
 #include <dev/regulator/regulator.h>
-#include <dev/extres/phy/phy_usb.h>
+#include <dev/phy/phy_usb.h>
 
 #include "phynode_if.h"
 

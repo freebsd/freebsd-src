@@ -45,8 +45,8 @@
 #include <dev/ofw/ofw_subr.h>
 
 #include <dev/clk/clk.h>
-#include <dev/extres/phy/phy.h>
-#include <dev/extres/phy/phy_internal.h>
+#include <dev/phy/phy.h>
+#include <dev/phy/phy_internal.h>
 #include <dev/extres/syscon/syscon.h>
 #include <dev/hwreset/hwreset.h>
 

@@ -23,8 +23,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef DEV_EXTRES_PHY_INTERNAL_H
-#define DEV_EXTRES_PHY_INTERNAL_H
+#ifndef _DEV_PHY_INTERNAL_H_
+#define	_DEV_PHY_INTERNAL_H_
 
 /* Forward declarations. */
 struct phy;
@@ -78,4 +78,4 @@ struct phy {
 
 extern struct sx phynode_topo_lock;
 
-#endif /* DEV_EXTRES_PHY_INTERNAL_H */
+#endif /* _DEV_PHY_INTERNAL_H_ */

@@ -47,7 +47,7 @@
 
 #include <dev/clk/clk.h>
 #include <dev/hwreset/hwreset.h>
-#include <dev/extres/phy/phy_usb.h>
+#include <dev/phy/phy_usb.h>
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun50i-h6-dwc3",	1 },

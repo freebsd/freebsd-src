@@ -50,7 +50,7 @@
 #include <dev/pci/pci_dw.h>
 
 #include <dev/clk/clk.h>
-#include <dev/extres/phy/phy.h>
+#include <dev/phy/phy.h>
 #include <dev/regulator/regulator.h>
 #include <dev/hwreset/hwreset.h>
 

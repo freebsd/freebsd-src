@@ -40,8 +40,8 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
 
-#include  <dev/extres/phy/phy.h>
-#include  <dev/extres/phy/phy_internal.h>
+#include  <dev/phy/phy.h>
+#include  <dev/phy/phy_internal.h>
 
 #ifdef FDT
 #include "phydev_if.h"
