@@ -324,7 +324,9 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 		1, 0, 0, 0, 0);
 	if (error)
 		return (error);
-	subyte( uap->name->sysname + sizeof(uap->name->sysname) - 1, 0);
+	error = subyte(uap->name->sysname + sizeof(uap->name->sysname) - 1, 0);
+	if (error)
+		return (EFAULT);
 
 	name[1] = KERN_HOSTNAME;
 	len = sizeof uap->name->nodename;
@@ -332,7 +334,9 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 		1, 0, 0, 0, 0);
 	if (error)
 		return (error);
-	subyte( uap->name->nodename + sizeof(uap->name->nodename) - 1, 0);
+	error = subyte(uap->name->nodename + sizeof(uap->name->nodename) - 1, 0);
+	if (error)
+		return (EFAULT);
 
 	name[1] = KERN_OSRELEASE;
 	len = sizeof uap->name->release;
@@ -340,7 +344,9 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 		1, 0, 0, 0, 0);
 	if (error)
 		return (error);
-	subyte( uap->name->release + sizeof(uap->name->release) - 1, 0);
+	error = subyte(uap->name->release + sizeof(uap->name->release) - 1, 0);
+	if (error)
+		return (EFAULT);
 
 /*
 	name = KERN_VERSION;
@@ -373,7 +379,9 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 		1, 0, 0, 0, 0);
 	if (error)
 		return (error);
-	subyte( uap->name->machine + sizeof(uap->name->machine) - 1, 0);
+	error = subyte(uap->name->machine + sizeof(uap->name->machine) - 1, 0);
+	if (error)
+		return (EFAULT);
 	return (0);
 }
 
