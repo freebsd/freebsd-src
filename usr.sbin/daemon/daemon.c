@@ -65,10 +65,10 @@ enum daemon_mode {
 	MODE_NOCHILD,      /* child is terminated, final state of the event loop */
 };
 
+
 struct daemon_state {
 	unsigned char buf[LBUF_SIZE];
 	size_t pos;
-	int pipe_fd[2];
 	char **argv;
 	const char *child_pidfile;
 	const char *parent_pidfile;
@@ -80,6 +80,8 @@ struct daemon_state {
 	struct pidfh *child_pidfh;
 	enum daemon_mode mode;
 	int pid;
+	int pipe_rd;
+	int pipe_wr;
 	int keep_cur_workdir;
 	int restart_delay;
 	int stdmask;
@@ -367,6 +369,7 @@ daemon_eventloop(struct daemon_state *state)
 	struct kevent event;
 	int kq;
 	int ret;
+	int pipe_fd[2];
 
 	/*
 	 * Try to protect against pageout kill. Ignore the
@@ -375,12 +378,14 @@ daemon_eventloop(struct daemon_state *state)
 	 */
 	(void)madvise(NULL, 0, MADV_PROTECT);
 
-	if (pipe(state->pipe_fd)) {
+	if (pipe(pipe_fd)) {
 		err(1, "pipe");
 	}
+	state->pipe_rd = pipe_fd[0];
+	state->pipe_wr = pipe_fd[1];
 
 	kq = kqueuex(KQUEUE_CLOEXEC);
-	EV_SET(&event, state->pipe_fd[0], EVFILT_READ, EV_ADD|EV_CLEAR, 0, 0,
+	EV_SET(&event, state->pipe_rd, EVFILT_READ, EV_ADD|EV_CLEAR, 0, 0,
 	    NULL);
 	if (kevent(kq, &event, 1, NULL, 0, NULL) == -1) {
 		err(EXIT_FAILURE, "failed to register kevent");
@@ -420,8 +425,8 @@ daemon_eventloop(struct daemon_state *state)
 	}
 
 	/* case: pid > 0; fork succeeded */
-	close(state->pipe_fd[1]);
-	state->pipe_fd[1] = -1;
+	close(state->pipe_wr);
+	state->pipe_wr = -1;
 	setproctitle("%s[%d]", state->title, (int)state->pid);
 	setbuf(stdout, NULL);
 
@@ -495,8 +500,8 @@ daemon_eventloop(struct daemon_state *state)
 	}
 
 	close(kq);
-	close(state->pipe_fd[0]);
-	state->pipe_fd[0] = -1;
+	close(state->pipe_rd);
+	state->pipe_rd = -1;
 }
 
 static void
@@ -592,7 +597,7 @@ listen_child(struct daemon_state *state)
 	assert(state != NULL);
 	assert(state->pos < LBUF_SIZE - 1);
 
-	rv = read(state->pipe_fd[0], state->buf + state->pos, LBUF_SIZE - state->pos - 1);
+	rv = read(state->pipe_rd, state->buf + state->pos, LBUF_SIZE - state->pos - 1);
 	if (rv > 0) {
 		state->pos += rv;
 		assert(state->pos <= LBUF_SIZE - 1);
@@ -691,7 +696,6 @@ daemon_state_init(struct daemon_state *state)
 	*state = (struct daemon_state) {
 		.buf = {0},
 		.pos = 0,
-		.pipe_fd = { -1, -1 },
 		.argv = NULL,
 		.parent_pidfh = NULL,
 		.child_pidfh = NULL,
@@ -702,6 +706,8 @@ daemon_state_init(struct daemon_state *state)
 		.mode = MODE_DAEMON,
 		.restart_enabled = false,
 		.pid = 0,
+		.pipe_rd = -1,
+		.pipe_wr = -1,
 		.keep_cur_workdir = 1,
 		.restart_delay = 1,
 		.stdmask = STDOUT_FILENO | STDERR_FILENO,
@@ -724,12 +730,12 @@ daemon_terminate(struct daemon_state *state)
 	if (state->output_fd >= 0) {
 		close(state->output_fd);
 	}
-	if (state->pipe_fd[0] >= 0) {
-		close(state->pipe_fd[0]);
+	if (state->pipe_rd >= 0) {
+		close(state->pipe_rd);
 	}
 
-	if (state->pipe_fd[1] >= 0) {
-		close(state->pipe_fd[1]);
+	if (state->pipe_wr >= 0) {
+		close(state->pipe_wr);
 	}
 	if (state->syslog_enabled) {
 		closelog();
@@ -769,20 +775,20 @@ static void
 daemon_set_child_pipe(struct daemon_state *state)
 {
 	if (state->stdmask & STDERR_FILENO) {
-		if (dup2(state->pipe_fd[1], STDERR_FILENO) == -1) {
+		if (dup2(state->pipe_wr, STDERR_FILENO) == -1) {
 			err(1, "dup2");
 		}
 	}
 	if (state->stdmask & STDOUT_FILENO) {
-		if (dup2(state->pipe_fd[1], STDOUT_FILENO) == -1) {
+		if (dup2(state->pipe_wr, STDOUT_FILENO) == -1) {
 			err(1, "dup2");
 		}
 	}
-	if (state->pipe_fd[1] != STDERR_FILENO &&
-	    state->pipe_fd[1] != STDOUT_FILENO) {
-		close(state->pipe_fd[1]);
+	if (state->pipe_wr != STDERR_FILENO &&
+	    state->pipe_wr != STDOUT_FILENO) {
+		close(state->pipe_wr);
 	}
 
 	/* The child gets dup'd pipes. */
-	close(state->pipe_fd[0]);
+	close(state->pipe_rd);
 }
