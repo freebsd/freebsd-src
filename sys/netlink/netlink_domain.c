@@ -360,14 +360,6 @@ nl_pru_attach(struct socket *so, int proto, struct thread *td)
 	return (0);
 }
 
-static void
-nl_pru_abort(struct socket *so)
-{
-	NL_LOG(LOG_DEBUG3, "socket %p, PID %d", so, curproc->p_pid);
-	MPASS(sotonlpcb(so) != NULL);
-	soisdisconnected(so);
-}
-
 static int
 nl_pru_bind(struct socket *so, struct sockaddr *sa, struct thread *td)
 {
@@ -494,7 +486,7 @@ destroy_nlpcb_epoch(epoch_context_t ctx)
 
 
 static void
-nl_pru_detach(struct socket *so)
+nl_close(struct socket *so)
 {
 	struct nl_control *ctl = atomic_load_ptr(&V_nl_ctl);
 	MPASS(sotonlpcb(so) != NULL);
@@ -561,14 +553,6 @@ nl_sockaddr(struct socket *so, struct sockaddr *sa)
 	};
 
 	return (0);
-}
-
-static void
-nl_pru_close(struct socket *so)
-{
-	NL_LOG(LOG_DEBUG3, "socket %p, PID %d", so, curproc->p_pid);
-	MPASS(sotonlpcb(so) != NULL);
-	soisdisconnected(so);
 }
 
 static int
@@ -766,17 +750,15 @@ nl_setsbopt(struct socket *so, struct sockopt *sopt)
 	.pr_flags = PR_ATOMIC | PR_ADDR | PR_WANTRCVD,		\
 	.pr_ctloutput = nl_ctloutput,				\
 	.pr_setsbopt = nl_setsbopt,				\
-	.pr_abort = nl_pru_abort,				\
 	.pr_attach = nl_pru_attach,				\
 	.pr_bind = nl_pru_bind,					\
 	.pr_connect = nl_pru_connect,				\
-	.pr_detach = nl_pru_detach,				\
 	.pr_disconnect = nl_pru_disconnect,			\
 	.pr_send = nl_pru_send,					\
 	.pr_rcvd = nl_pru_rcvd,					\
 	.pr_shutdown = nl_pru_shutdown,				\
 	.pr_sockaddr = nl_sockaddr,				\
-	.pr_close = nl_pru_close
+	.pr_close = nl_close
 
 static struct protosw netlink_raw_sw = {
 	.pr_type = SOCK_RAW,
