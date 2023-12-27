@@ -2733,6 +2733,7 @@ cxgbe_vi_detach(struct vi_info *vi)
 #endif
 	cxgbe_uninit_synchronized(vi);
 	callout_drain(&vi->tick);
+	mtx_destroy(&vi->tick_mtx);
 	sysctl_ctx_free(&vi->ctx);
 	vi_full_uninit(vi);
 
