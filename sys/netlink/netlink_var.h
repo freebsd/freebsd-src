@@ -96,18 +96,10 @@ struct nlpcb {
 SYSCTL_DECL(_net_netlink);
 SYSCTL_DECL(_net_netlink_debug);
 
-struct nl_io {
-	struct callout				callout;
-	struct mbuf				*head;
-	struct mbuf 				*last;
-	int64_t					length;
-};
-
 struct nl_control {
 	CK_LIST_HEAD(nl_pid_head, nlpcb)	ctl_port_head;
 	CK_LIST_HEAD(nlpcb_head, nlpcb)		ctl_pcb_head;
 	CK_LIST_ENTRY(nl_control)		ctl_next;
-	struct nl_io				ctl_io;
 	struct rmlock				ctl_lock;
 };
 VNET_DECLARE(struct nl_control *, nl_ctl);
