@@ -48,7 +48,7 @@
 #define	_O__CTASSERT(x, y)	_O___CTASSERT(x, y)
 #define	_O___CTASSERT(x, y)	while (0) { \
     typedef char __assert_line_ ## y[(x) ? 1 : -1]; \
-    __assert_line_ ## y _x; \
+    __assert_line_ ## y _x __unused; \
     _x[0] = '\0'; \
 }
 
