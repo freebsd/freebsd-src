@@ -66,6 +66,8 @@ enum daemon_mode {
 };
 
 struct daemon_state {
+	unsigned char buf[LBUF_SIZE];
+	size_t pos;
 	int pipe_fd[2];
 	char **argv;
 	const char *child_pidfile;
@@ -584,38 +586,36 @@ restrict_process(const char *user)
 static bool
 listen_child(struct daemon_state *state)
 {
-	static unsigned char buf[LBUF_SIZE];
-	static size_t bytes_read = 0;
 	ssize_t rv;
 
 	assert(state != NULL);
-	assert(bytes_read < LBUF_SIZE - 1);
+	assert(state->pos < LBUF_SIZE - 1);
 
-	rv = read(state->pipe_fd[0], buf + bytes_read, LBUF_SIZE - bytes_read - 1);
+	rv = read(state->pipe_fd[0], state->buf + state->pos, LBUF_SIZE - state->pos - 1);
 	if (rv > 0) {
 		unsigned char *cp;
 
-		bytes_read += rv;
-		assert(bytes_read <= LBUF_SIZE - 1);
+		state->pos += rv;
+		assert(state->pos <= LBUF_SIZE - 1);
 		/* Always NUL-terminate just in case. */
-		buf[LBUF_SIZE - 1] = '\0';
+		state->buf[LBUF_SIZE - 1] = '\0';
 		/*
 		 * Chomp line by line until we run out of buffer.
 		 * This does not take NUL characters into account.
 		 */
-		while ((cp = memchr(buf, '\n', bytes_read)) != NULL) {
-			size_t bytes_line = cp - buf + 1;
-			assert(bytes_line <= bytes_read);
-			do_output(buf, bytes_line, state);
-			bytes_read -= bytes_line;
-			memmove(buf, cp + 1, bytes_read);
+		while ((cp = memchr(state->buf, '\n', state->pos)) != NULL) {
+			size_t bytes_line = cp - state->buf + 1;
+			assert(bytes_line <= state->pos);
+			do_output(state->buf, bytes_line, state);
+			state->pos -= bytes_line;
+			memmove(state->buf, cp + 1, state->pos);
 		}
 		/* Wait until the buffer is full. */
-		if (bytes_read < LBUF_SIZE - 1) {
+		if (state->pos < LBUF_SIZE - 1) {
 			return true;
 		}
-		do_output(buf, bytes_read, state);
-		bytes_read = 0;
+		do_output(state->buf, state->pos, state);
+		state->pos = 0;
 		return true;
 	} else if (rv == -1) {
 		/* EINTR should trigger another read. */
@@ -627,9 +627,9 @@ listen_child(struct daemon_state *state)
 		}
 	}
 	/* Upon EOF, we have to flush what's left of the buffer. */
-	if (bytes_read > 0) {
-		do_output(buf, bytes_read, state);
-		bytes_read = 0;
+	if (state->pos > 0) {
+		do_output(state->buf, state->pos, state);
+		state->pos = 0;
 	}
 	return false;
 }
@@ -685,6 +685,8 @@ static void
 daemon_state_init(struct daemon_state *state)
 {
 	*state = (struct daemon_state) {
+		.buf = {0},
+		.pos = 0,
 		.pipe_fd = { -1, -1 },
 		.argv = NULL,
 		.parent_pidfh = NULL,
