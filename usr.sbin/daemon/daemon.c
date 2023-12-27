@@ -455,7 +455,9 @@ daemon_eventloop(struct daemon_state *state)
 					/* child is dead, read all until EOF */
 					state->pid = -1;
 					state->mode = MODE_NOCHILD;
-					while (listen_child(state));
+					while (listen_child(state)) {
+						continue;
+					}
 				}
 				continue;
 			case SIGTERM:
@@ -597,7 +599,8 @@ listen_child(struct daemon_state *state)
 	assert(state != NULL);
 	assert(state->pos < LBUF_SIZE - 1);
 
-	rv = read(state->pipe_rd, state->buf + state->pos, LBUF_SIZE - state->pos - 1);
+	rv = read(state->pipe_rd, state->buf + state->pos,
+	    LBUF_SIZE - state->pos - 1);
 	if (rv > 0) {
 		state->pos += rv;
 		assert(state->pos <= LBUF_SIZE - 1);
