@@ -175,7 +175,6 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 	tp = tcp_newtcpcb(inp);
 	if (tp == NULL) {
 		error = ENOBUFS;
-		in_pcbdetach(inp);
 		in_pcbfree(inp);
 		goto out;
 	}
@@ -213,7 +212,6 @@ tcp_usr_detach(struct socket *so)
 	    ("%s: inp %p not dropped or embryonic", __func__, inp));
 
 	tcp_discardcb(tp);
-	in_pcbdetach(inp);
 	in_pcbfree(inp);
 }
 

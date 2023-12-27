@@ -860,7 +860,6 @@ rip_detach(struct socket *so)
 		ip_rsvp_force_done(so);
 	if (so == V_ip_rsvpd)
 		ip_rsvp_done();
-	in_pcbdetach(inp);
 	in_pcbfree(inp);
 }
 

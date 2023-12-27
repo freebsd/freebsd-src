@@ -1201,7 +1201,6 @@ udp6_detach(struct socket *so)
 	KASSERT(inp != NULL, ("udp6_detach: inp == NULL"));
 
 	INP_WLOCK(inp);
-	in_pcbdetach(inp);
 	in_pcbfree(inp);
 }
 
