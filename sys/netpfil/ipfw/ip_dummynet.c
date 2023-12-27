@@ -1732,7 +1732,7 @@ config_sched(struct dn_sch *_nsch, struct dn_id *arg)
 	int i;
 	struct dn_link p;	/* copy of oldlink */
 	struct dn_profile *pf = NULL;	/* copy of old link profile */
-	/* Used to preserv mask parameter */
+	/* Used to preserve mask parameter */
 	struct ipfw_flow_id new_mask;
 	int new_buckets = 0;
 	int new_flags = 0;
