@@ -143,8 +143,8 @@ check_cat() {
 	if exists "$1"; then
 		use_cat=yes
 		catpage=$found
-		setup_cattool $catpage
-		decho "    Found catpage $catpage"
+		setup_cattool "$catpage"
+		decho "    Found catpage \"$catpage\""
 		return 0
 	else
 		return 1
@@ -169,8 +169,8 @@ check_man() {
 			# cat page found and is newer, use that
 			use_cat=yes
 			catpage=$found
-			setup_cattool $catpage
-			decho "    Using catpage $catpage"
+			setup_cattool "$catpage"
+			decho "    Using catpage \"$catpage\""
 		else
 			# no cat page or is older
 			unset use_cat
@@ -342,10 +342,10 @@ man_display_page() {
 			ret=0
 		else
 			if [ $debug -gt 0 ]; then
-				decho "Command: $cattool $catpage | $MANPAGER"
+				decho "Command: $cattool \"$catpage\" | $MANPAGER"
 				ret=0
 			else
-				eval "$cattool $catpage | $MANPAGER"
+				eval "$cattool \"$catpage\" | $MANPAGER"
 				ret=$?
 			fi
 		fi
@@ -370,7 +370,7 @@ man_display_page() {
 		pipeline="mandoc $mandoc_args | $MANPAGER"
 	fi
 
-	if ! eval "$cattool $manpage | $testline" ;then
+	if ! eval "$cattool \"$manpage\" | $testline" ;then
 		if which -s groff; then
 			man_display_page_groff
 		else
@@ -383,10 +383,10 @@ man_display_page() {
 	fi
 
 	if [ $debug -gt 0 ]; then
-		decho "Command: $cattool $manpage | $pipeline"
+		decho "Command: $cattool \"$manpage\" | $pipeline"
 		ret=0
 	else
-		eval "$cattool $manpage | $pipeline"
+		eval "$cattool \"$manpage\" | $pipeline"
 		ret=$?
 	fi
 }
@@ -476,10 +476,10 @@ man_display_page_groff() {
 	fi
 
 	if [ $debug -gt 0 ]; then
-		decho "Command: $cattool $manpage | $pipeline"
+		decho "Command: $cattool \"$manpage\" | $pipeline"
 		ret=0
 	else
-		eval "$cattool $manpage | $pipeline"
+		eval "$cattool \"$manpage\" | $pipeline"
 		ret=$?
 	fi
 }
