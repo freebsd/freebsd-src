@@ -2450,8 +2450,19 @@ void netmap_uninit_bridges(void);
 #define CSB_READ(csb, field, r) (get_user(r, &csb->field))
 #define CSB_WRITE(csb, field, v) (put_user(v, &csb->field))
 #else  /* ! linux */
-#define CSB_READ(csb, field, r) (r = fuword32(&csb->field))
-#define CSB_WRITE(csb, field, v) (suword32(&csb->field, v))
+#define CSB_READ(csb, field, r) do {				\
+	int32_t v __diagused;					\
+								\
+	v = fuword32(&csb->field);				\
+	KASSERT(v != -1, ("%s: fuword32 failed", __func__));	\
+	r = v;							\
+} while (0)
+#define CSB_WRITE(csb, field, v) do {				\
+	int error __diagused;					\
+								\
+	error = suword32(&csb->field, v);			\
+	KASSERT(error == 0, ("%s: suword32 failed", __func__));	\
+} while (0)
 #endif /* ! linux */
 
 /* some macros that may not be defined */
