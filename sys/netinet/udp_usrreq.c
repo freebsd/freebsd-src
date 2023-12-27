@@ -1634,7 +1634,6 @@ udp_detach(struct socket *so)
 	KASSERT(inp->inp_faddr.s_addr == INADDR_ANY,
 	    ("udp_detach: not disconnected"));
 	INP_WLOCK(inp);
-	in_pcbdetach(inp);
 	in_pcbfree(inp);
 }
 

@@ -803,7 +803,6 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	}
 	inp = sotoinpcb(so);
 	if ((tp = tcp_newtcpcb(inp)) == NULL) {
-		in_pcbdetach(inp);
 		in_pcbfree(inp);
 		sodealloc(so);
 		goto allocfail;
@@ -1050,7 +1049,6 @@ allocfail:
 	return (NULL);
 
 abort:
-	in_pcbdetach(inp);
 	in_pcbfree(inp);
 	sodealloc(so);
 	if ((s = tcp_log_addrs(&sc->sc_inc, NULL, NULL, NULL))) {
