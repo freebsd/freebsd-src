@@ -1749,12 +1749,16 @@ in_pcbfree(struct inpcb *inp)
 #ifdef INET
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
+	DEBUG_POISON_POINTER(inp->inp_options);
 	imo = inp->inp_moptions;
+	DEBUG_POISON_POINTER(inp->inp_moptions);
 #endif
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6PROTO) {
 		ip6_freepcbopts(inp->in6p_outputopts);
+		DEBUG_POISON_POINTER(inp->in6p_outputopts);
 		im6o = inp->in6p_moptions;
+		DEBUG_POISON_POINTER(inp->in6p_moptions);
 	} else
 		im6o = NULL;
 #endif
