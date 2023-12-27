@@ -93,7 +93,7 @@ struct daemon_state {
 static void restrict_process(const char *);
 static int  open_log(const char *);
 static void reopen_log(struct daemon_state *);
-static bool listen_child(int, struct daemon_state *);
+static bool listen_child(struct daemon_state *);
 static int  get_log_mapping(const char *, const CODE *);
 static void open_pid_files(struct daemon_state *);
 static void do_output(const unsigned char *, size_t, struct daemon_state *);
@@ -448,9 +448,7 @@ daemon_eventloop(struct daemon_state *state)
 					/* child is dead, read all until EOF */
 					state->pid = -1;
 					state->mode = MODE_NOCHILD;
-					while (listen_child(state->pipe_fd[0],
-					    state))
-						;
+					while (listen_child(state));
 				}
 				continue;
 			case SIGTERM:
@@ -486,7 +484,7 @@ daemon_eventloop(struct daemon_state *state)
 			 */
 
 			if (event.data > 0) {
-				(void)listen_child(state->pipe_fd[0], state);
+				(void)listen_child(state);
 			}
 			continue;
 		default:
@@ -582,11 +580,9 @@ restrict_process(const char *user)
  *
  * Return value of false is assumed to mean EOF or error, and true indicates to
  * continue reading.
- *
- * TODO: simplify signature - state contains pipefd
  */
 static bool
-listen_child(int fd, struct daemon_state *state)
+listen_child(struct daemon_state *state)
 {
 	static unsigned char buf[LBUF_SIZE];
 	static size_t bytes_read = 0;
@@ -595,7 +591,7 @@ listen_child(int fd, struct daemon_state *state)
 	assert(state != NULL);
 	assert(bytes_read < LBUF_SIZE - 1);
 
-	rv = read(fd, buf + bytes_read, LBUF_SIZE - bytes_read - 1);
+	rv = read(state->pipe_fd[0], buf + bytes_read, LBUF_SIZE - bytes_read - 1);
 	if (rv > 0) {
 		unsigned char *cp;
 
