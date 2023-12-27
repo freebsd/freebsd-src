@@ -6845,7 +6845,7 @@ bbr_update_rtt(struct tcpcb *tp, struct tcp_bbr *bbr,
 	 * Ok its a SACK block that we retransmitted. or a windows
 	 * machine without timestamps. We can tell nothing from the
 	 * time-stamp since its not there or the time the peer last
-	 * recieved a segment that moved forward its cum-ack point.
+	 * received a segment that moved forward its cum-ack point.
 	 *
 	 * Lets look at the last retransmit and see what we can tell
 	 * (with BBR for space we only keep 2 note we have to keep
