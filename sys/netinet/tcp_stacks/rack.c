@@ -8008,7 +8008,7 @@ rack_update_rtt(struct tcpcb *tp, struct tcp_rack *rack,
 		 * Ok its a SACK block that we retransmitted. or a windows
 		 * machine without timestamps. We can tell nothing from the
 		 * time-stamp since its not there or the time the peer last
-		 * recieved a segment that moved forward its cum-ack point.
+		 * received a segment that moved forward its cum-ack point.
 		 */
 ts_not_found:
 		i = rsm->r_rtr_cnt - 1;
