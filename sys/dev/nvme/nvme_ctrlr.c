@@ -1369,15 +1369,19 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	ctrlr->cap_hi = cap_hi = nvme_mmio_read_4(ctrlr, cap_hi);
 	if (bootverbose) {
 		device_printf(dev, "CapHi: 0x%08x: DSTRD %u%s, CSS %x%s, "
-		    "MPSMIN %u, MPSMAX %u%s%s\n", cap_hi,
+		    "CPS %x, MPSMIN %u, MPSMAX %u%s%s%s%s%s\n", cap_hi,
 		    NVME_CAP_HI_DSTRD(cap_hi),
 		    NVME_CAP_HI_NSSRS(cap_hi) ? ", NSSRS" : "",
 		    NVME_CAP_HI_CSS(cap_hi),
 		    NVME_CAP_HI_BPS(cap_hi) ? ", BPS" : "",
+		    NVME_CAP_HI_CPS(cap_hi),
 		    NVME_CAP_HI_MPSMIN(cap_hi),
 		    NVME_CAP_HI_MPSMAX(cap_hi),
 		    NVME_CAP_HI_PMRS(cap_hi) ? ", PMRS" : "",
-		    NVME_CAP_HI_CMBS(cap_hi) ? ", CMBS" : "");
+		    NVME_CAP_HI_CMBS(cap_hi) ? ", CMBS" : "",
+		    NVME_CAP_HI_NSSS(cap_hi) ? ", NSSS" : "",
+		    NVME_CAP_HI_CRWMS(cap_hi) ? ", CRWMS" : "",
+		    NVME_CAP_HI_CRIMS(cap_hi) ? ", CRIMS" : "");
 	}
 	if (bootverbose) {
 		vs = nvme_mmio_read_4(ctrlr, vs);
