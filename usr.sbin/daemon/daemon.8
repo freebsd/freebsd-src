@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 18, 2023
+.Dd December 27, 2023
 .Dt DAEMON 8
 .Os
 .Sh NAME
@@ -151,6 +151,7 @@ option is used or not.
 .It Fl R , Fl -restart-delay Ar restart_delay_seconds
 Supervise and restart the program after the specified delay
 if it has been terminated.
+Valid values are 1-31536000 (up to 1 year).
 .It Fl r , Fl -restart
 Supervise and restart the program after a one-second delay if it has
 been terminated.

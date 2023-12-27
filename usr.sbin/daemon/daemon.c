@@ -30,7 +30,6 @@
  *	From BSDI: daemon.c,v 1.2 1996/08/15 01:11:09 jch Exp
  */
 
-#include <sys/param.h>
 #include <sys/event.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
@@ -49,11 +48,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <strings.h>
 #define SYSLOG_NAMES
 #include <syslog.h>
 #include <time.h>
 #include <assert.h>
+
+/* 1 year in seconds */
+#define MAX_RESTART_DELAY 60*60*24*365
 
 #define LBUF_SIZE 4096
 
@@ -161,7 +162,7 @@ usage(int exitcode)
 int
 main(int argc, char *argv[])
 {
-	char *p = NULL;
+	const char *e = NULL;
 	int ch = 0;
 	struct daemon_state state;
 
@@ -209,9 +210,9 @@ main(int argc, char *argv[])
 			state.mode = MODE_SUPERVISE;
 			break;
 		case 'm':
-			state.stdmask = strtol(optarg, &p, 10);
-			if (p == optarg || state.stdmask < 0 || state.stdmask > 3) {
-				errx(6, "unrecognized listening mask");
+			state.stdmask = (int)strtonum(optarg, 0, 3, &e);
+			if (e != NULL) {
+				errx(6, "unrecognized listening mask: %s", e);
 			}
 			break;
 		case 'o':
@@ -238,9 +239,10 @@ main(int argc, char *argv[])
 			break;
 		case 'R':
 			state.restart_enabled = true;
-			state.restart_delay = strtol(optarg, &p, 0);
-			if (p == optarg || state.restart_delay < 1) {
-				errx(6, "invalid restart delay");
+			state.restart_delay = (int)strtonum(optarg, 1,
+			    MAX_RESTART_DELAY, &e);
+			if (e != NULL) {
+				errx(6, "invalid restart delay: %s", e);
 			}
 			break;
 		case 's':
@@ -347,7 +349,7 @@ daemon_exec(struct daemon_state *state)
 }
 
 /* Main event loop: fork the child and watch for events.
- * After SIGTERM is recieved and propagated to the child there are
+ * After SIGTERM is received and propagated to the child there are
  * several options on what to do next:
  * - read until EOF
  * - read until EOF but only for a while
@@ -434,7 +436,7 @@ daemon_eventloop(struct daemon_state *state)
 
 		if (event.flags & EV_ERROR) {
 			errx(EXIT_FAILURE, "Event error: %s",
-			    strerror(event.data));
+			    strerror((int)event.data));
 		}
 
 		switch (event.filter) {
@@ -588,7 +590,7 @@ listen_child(int fd, struct daemon_state *state)
 {
 	static unsigned char buf[LBUF_SIZE];
 	static size_t bytes_read = 0;
-	int rv;
+	ssize_t rv;
 
 	assert(state != NULL);
 	assert(bytes_read < LBUF_SIZE - 1);
