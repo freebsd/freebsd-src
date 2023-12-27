@@ -575,7 +575,7 @@ pcie_cfgregopen(uint64_t base, uint16_t domain, uint8_t minbus, uint8_t maxbus)
 	    sizeof(*mcfg_regions) * (mcfg_numregions + 1), M_DEVBUF, M_WAITOK);
 
 	region = &mcfg_regions[mcfg_numregions];
-	region->base = base;
+	region->base = base + (minbus << 20);
 	region->domain = domain;
 	region->minbus = minbus;
 	region->maxbus = maxbus;

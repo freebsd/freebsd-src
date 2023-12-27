@@ -298,7 +298,7 @@ pcie_cfgregopen(uint64_t base, uint16_t domain, uint8_t minbus, uint8_t maxbus)
 	region = &mcfg_regions[mcfg_numregions];
 
 	/* XXX: We should make sure this really fits into the direct map. */
-	region->base = pmap_mapdev_pciecfg(base, (maxbus + 1 - minbus) << 20);
+	region->base = pmap_mapdev_pciecfg(base + (minbus << 20), (maxbus + 1 - minbus) << 20);
 	region->domain = domain;
 	region->minbus = minbus;
 	region->maxbus = maxbus;
