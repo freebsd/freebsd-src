@@ -1495,8 +1495,12 @@ saparamsetlist(struct cam_periph *periph, struct mtsetlist *list,
 bailout:
 	if (need_copy != 0) {
 		if (error != EFAULT) {
+			int error1;
+
 			cam_periph_unlock(periph);
-			copyout(params, list->params, list->param_len);
+			error1 = copyout(params, list->params, list->param_len);
+			if (error == 0)
+				error = error1;
 			cam_periph_lock(periph);
 		}
 		free(params, M_SCSISA);
