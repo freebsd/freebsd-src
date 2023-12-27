@@ -1134,7 +1134,7 @@ iichid_attach(device_t dev)
 
 	TASK_INIT(&sc->suspend_task, 0, iichid_suspend_task, sc);
 #ifdef IICHID_SAMPLING
-	sc->taskqueue = taskqueue_create("iichid_tq", M_WAITOK | M_ZERO,
+	sc->taskqueue = taskqueue_create_fast("iichid_tq", M_WAITOK | M_ZERO,
 	    taskqueue_thread_enqueue, &sc->taskqueue);
 	TIMEOUT_TASK_INIT(sc->taskqueue, &sc->sampling_task, 0,
 	    iichid_sampling_task, sc);
