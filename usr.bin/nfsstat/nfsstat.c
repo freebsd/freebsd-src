@@ -512,7 +512,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: nfsstat [-cdemszW] [-w wait]\n");
+	    "usage: nfsstat [-cdEemqszW] [-w wait]\n");
 	exit(1);
 }
 
