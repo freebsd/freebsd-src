@@ -53,7 +53,11 @@ ARCFOUR_string_to_key(krb5_context context,
 	goto out;
     }
 
-    EVP_DigestInit_ex(m, EVP_md4(), NULL);
+    if (EVP_DigestInit_ex(m, EVP_md4(), NULL) == 0) {
+	ret = EOPNOTSUPP;
+	krb5_set_error_message (context, ret, N_("Cannot create digest", ""));
+	goto out;
+    }
 
     ret = wind_utf8ucs2_length(password.data, &len);
     if (ret) {
