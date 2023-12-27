@@ -456,7 +456,7 @@ run_sigio(bool loop, int handle, const char *file)
 	do {
 		if (sigio == 1) {
 			sigio = 0;
-			printf("%s: recieved SIGIO on %s\n", getprogname(),
+			printf("%s: received SIGIO on %s\n", getprogname(),
 			    file);
 			run_read(false, handle, file, 0);
 		}
