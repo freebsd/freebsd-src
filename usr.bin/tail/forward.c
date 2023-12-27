@@ -407,7 +407,7 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 			/*
 			 * In the -F case we set a timeout to ensure that
 			 * we re-stat the file at least once every second.
-			 * If we've recieved EINTR, ignore it. Both reasons
+			 * If we've received EINTR, ignore it. Both reasons
 			 * for its generation are transient.
 			 */
 			do {
