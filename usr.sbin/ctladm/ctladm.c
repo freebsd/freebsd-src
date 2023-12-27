@@ -4145,10 +4145,16 @@ main(int argc, char **argv)
 			goto bailout;
 		}
 #ifdef	WANT_ISCSI
-		else {
+		switch (command) {
+		case CTLADM_CMD_ISLIST:
+		case CTLADM_CMD_ISLOGOUT:
+		case CTLADM_CMD_ISTERMINATE:
 			if (modfind("cfiscsi") == -1 &&
 			    kldload("cfiscsi") == -1)
 				warn("couldn't load cfiscsi");
+			break;
+		default:
+			break;
 		}
 #endif
 	} else if ((command != CTLADM_CMD_HELP)
