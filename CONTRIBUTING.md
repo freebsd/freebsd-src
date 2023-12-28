@@ -150,7 +150,6 @@ Anything that's in the directory `contrib`, `crypto`, `sys/contrib` or
 any subdirectory of these you are submitting patches for to find out the last
 time we merged from upstream. If it is in the last 5 years, upstream is "active"
 and you should submit your patches there and let the last few people to commit
-to this file (especailly merge commits) know. If it's been more than 5 years,
-upstreamm is likely inactive so please submit the patch. We can sort out if it
+to this file (especially merge commits) know. If it's been more than 5 years,
+upstream is likely inactive so please submit the patch. We can sort out if it
 should go into FreeBSD or upstream.
-
