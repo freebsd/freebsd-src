@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2015-2021 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2023 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,6 +73,12 @@
 #define ENA_MIN_ADMIN_POLL_US 100
 
 #define ENA_MAX_ADMIN_POLL_US 5000
+
+/* PHC definitions */
+#define ENA_PHC_DEFAULT_EXPIRE_TIMEOUT_USEC 20
+#define ENA_PHC_DEFAULT_BLOCK_TIMEOUT_USEC 1000
+#define ENA_PHC_TIMESTAMP_ERROR 0xFFFFFFFFFFFFFFFF
+#define ENA_PHC_REQ_ID_OFFSET 0xDEAD
 
 /*****************************************************************************/
 /*****************************************************************************/
@@ -396,7 +402,7 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 			ENA_COM_BOUNCE_BUFFER_CNTRL_CNT;
 		io_sq->bounce_buf_ctrl.next_to_use = 0;
 
-		size = io_sq->bounce_buf_ctrl.buffer_size *
+		size = (size_t)io_sq->bounce_buf_ctrl.buffer_size *
 			io_sq->bounce_buf_ctrl.buffers_num;
 
 		ENA_MEM_ALLOC_NODE(ena_dev->dmadev,
@@ -894,7 +900,7 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 	}
 
 	if (unlikely(i == timeout)) {
-		ena_trc_err(ena_dev, "Reading reg failed for timeout. expected: req id[%hu] offset[%hu] actual: req id[%hu] offset[%hu]\n",
+		ena_trc_err(ena_dev, "Reading reg failed for timeout. expected: req id[%u] offset[%u] actual: req id[%u] offset[%u]\n",
 			    mmio_read->seq_num,
 			    offset,
 			    read_resp->req_id,
@@ -1332,9 +1338,6 @@ static int ena_com_create_io_sq(struct ena_com_dev *ena_dev,
 		(uintptr_t)cmd_completion.sq_doorbell_offset);
 
 	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
-		io_sq->header_addr = (u8 __iomem *)((uintptr_t)ena_dev->mem_bar
-				+ cmd_completion.llq_headers_offset);
-
 		io_sq->desc_addr.pbuf_dev_addr =
 			(u8 __iomem *)((uintptr_t)ena_dev->mem_bar +
 			cmd_completion.llq_descriptors_offset);
@@ -1476,11 +1479,6 @@ int ena_com_create_io_cq(struct ena_com_dev *ena_dev,
 
 	io_cq->unmask_reg = (u32 __iomem *)((uintptr_t)ena_dev->reg_bar +
 		cmd_completion.cq_interrupt_unmask_register_offset);
-
-	if (cmd_completion.cq_head_db_register_offset)
-		io_cq->cq_head_db_reg =
-			(u32 __iomem *)((uintptr_t)ena_dev->reg_bar +
-			cmd_completion.cq_head_db_register_offset);
 
 	if (cmd_completion.numa_node_register_offset)
 		io_cq->numa_node_cfg_reg =
@@ -1777,6 +1775,221 @@ void ena_com_set_admin_auto_polling_mode(struct ena_com_dev *ena_dev,
 	ena_dev->admin_queue.auto_polling = polling;
 }
 
+bool ena_com_phc_supported(struct ena_com_dev *ena_dev)
+{
+	return ena_com_check_supported_feature_id(ena_dev, ENA_ADMIN_PHC_CONFIG);
+}
+
+int ena_com_phc_init(struct ena_com_dev *ena_dev)
+{
+	struct ena_com_phc_info *phc = &ena_dev->phc;
+
+	memset(phc, 0x0, sizeof(*phc));
+
+	/* Allocate shared mem used PHC timestamp retrieved from device */
+	ENA_MEM_ALLOC_COHERENT(ena_dev->dmadev,
+			       sizeof(*phc->virt_addr),
+			       phc->virt_addr,
+			       phc->phys_addr,
+			       phc->mem_handle);
+	if (unlikely(!phc->virt_addr))
+		return ENA_COM_NO_MEM;
+
+	ENA_SPINLOCK_INIT(phc->lock);
+
+	phc->virt_addr->req_id = 0;
+	phc->virt_addr->timestamp = 0;
+
+	return 0;
+}
+
+int ena_com_phc_config(struct ena_com_dev *ena_dev)
+{
+	struct ena_com_phc_info *phc = &ena_dev->phc;
+	struct ena_admin_get_feat_resp get_feat_resp;
+	struct ena_admin_set_feat_resp set_feat_resp;
+	struct ena_admin_set_feat_cmd set_feat_cmd;
+	int ret = 0;
+
+	/* Get device PHC default configuration */
+	ret = ena_com_get_feature(ena_dev, &get_feat_resp, ENA_ADMIN_PHC_CONFIG, 0);
+	if (unlikely(ret)) {
+		ena_trc_err(ena_dev, "Failed to get PHC feature configuration, error: %d\n", ret);
+		return ret;
+	}
+
+	/* Suporting only readless PHC retrieval */
+	if (get_feat_resp.u.phc.type != ENA_ADMIN_PHC_TYPE_READLESS) {
+		ena_trc_err(ena_dev, "Unsupprted PHC type, error: %d\n", ENA_COM_UNSUPPORTED);
+		return ENA_COM_UNSUPPORTED;
+	}
+
+	/* Update PHC doorbell offset according to device value, used to write req_id to PHC bar */
+	phc->doorbell_offset = get_feat_resp.u.phc.doorbell_offset;
+
+	/* Update PHC expire timeout according to device or default driver value */
+	phc->expire_timeout_usec = (get_feat_resp.u.phc.expire_timeout_usec) ?
+				    get_feat_resp.u.phc.expire_timeout_usec :
+				    ENA_PHC_DEFAULT_EXPIRE_TIMEOUT_USEC;
+
+	/* Update PHC block timeout according to device or default driver value */
+	phc->block_timeout_usec = (get_feat_resp.u.phc.block_timeout_usec) ?
+				   get_feat_resp.u.phc.block_timeout_usec :
+				   ENA_PHC_DEFAULT_BLOCK_TIMEOUT_USEC;
+
+	/* Sanity check - expire timeout must not be above skip timeout */
+	if (phc->expire_timeout_usec > phc->block_timeout_usec)
+		phc->expire_timeout_usec = phc->block_timeout_usec;
+
+	/* Prepare PHC feature command with PHC output address */
+	memset(&set_feat_cmd, 0x0, sizeof(set_feat_cmd));
+	set_feat_cmd.aq_common_descriptor.opcode = ENA_ADMIN_SET_FEATURE;
+	set_feat_cmd.feat_common.feature_id = ENA_ADMIN_PHC_CONFIG;
+	set_feat_cmd.u.phc.output_length = sizeof(*phc->virt_addr);
+	ret = ena_com_mem_addr_set(ena_dev, &set_feat_cmd.u.phc.output_address, phc->phys_addr);
+	if (unlikely(ret)) {
+		ena_trc_err(ena_dev, "Failed setting PHC output address, error: %d\n", ret);
+		return ret;
+	}
+
+	/* Send PHC feature command to the device */
+	ret = ena_com_execute_admin_command(&ena_dev->admin_queue,
+					    (struct ena_admin_aq_entry *)&set_feat_cmd,
+					    sizeof(set_feat_cmd),
+					    (struct ena_admin_acq_entry *)&set_feat_resp,
+					    sizeof(set_feat_resp));
+
+	if (unlikely(ret)) {
+		ena_trc_err(ena_dev, "Failed to enable PHC, error: %d\n", ret);
+		return ret;
+	}
+
+	phc->active = true;
+	ena_trc_dbg(ena_dev, "PHC is active in the device\n");
+
+	return ret;
+}
+
+void ena_com_phc_destroy(struct ena_com_dev *ena_dev)
+{
+	struct ena_com_phc_info *phc = &ena_dev->phc;
+
+	phc->active = false;
+
+	/* In case PHC is not supported by the device, silently exiting */
+	if (!phc->virt_addr)
+		return;
+
+	ENA_MEM_FREE_COHERENT(ena_dev->dmadev,
+			      sizeof(*phc->virt_addr),
+			      phc->virt_addr,
+			      phc->phys_addr,
+			      phc->mem_handle);
+	phc->virt_addr = NULL;
+
+	ENA_SPINLOCK_DESTROY(phc->lock);
+}
+
+int ena_com_phc_get(struct ena_com_dev *ena_dev, u64 *timestamp)
+{
+	volatile struct ena_admin_phc_resp *read_resp = ena_dev->phc.virt_addr;
+	struct ena_com_phc_info *phc = &ena_dev->phc;
+	ena_time_high_res_t initial_time = ENA_TIME_INIT_HIGH_RES();
+	static ena_time_high_res_t start_time;
+	unsigned long flags = 0;
+	ena_time_high_res_t expire_time;
+	ena_time_high_res_t block_time;
+	int ret = ENA_COM_OK;
+
+	if (!phc->active) {
+		ena_trc_err(ena_dev, "PHC feature is not active in the device\n");
+		return ENA_COM_UNSUPPORTED;
+	}
+
+	ENA_SPINLOCK_LOCK(phc->lock, flags);
+
+	/* Check if PHC is in blocked state */
+	if (unlikely(ENA_TIME_COMPARE_HIGH_RES(start_time, initial_time))) {
+		/* Check if blocking time expired */
+		block_time = ENA_GET_SYSTEM_TIMEOUT_HIGH_RES(start_time, phc->block_timeout_usec);
+		if (!ENA_TIME_EXPIRE_HIGH_RES(block_time)) {
+			/* PHC is still in blocked state, skip PHC request */
+			phc->stats.phc_skp++;
+			ret = ENA_COM_DEVICE_BUSY;
+			goto skip;
+		}
+
+		/* PHC is in active state, update statistics according to req_id and timestamp */
+		if ((READ_ONCE16(read_resp->req_id) != phc->req_id) ||
+		    (read_resp->timestamp == ENA_PHC_TIMESTAMP_ERROR)) {
+			/* Device didn't update req_id during blocking time or timestamp is invalid,
+			 * this indicates on a device error
+			 */
+			phc->stats.phc_err++;
+		} else {
+			/* Device updated req_id during blocking time with valid timestamp */
+			phc->stats.phc_exp++;
+		}
+	}
+
+	/* Setting relative timeouts */
+	start_time = ENA_GET_SYSTEM_TIME_HIGH_RES();
+	block_time = ENA_GET_SYSTEM_TIMEOUT_HIGH_RES(start_time, phc->block_timeout_usec);
+	expire_time = ENA_GET_SYSTEM_TIMEOUT_HIGH_RES(start_time, phc->expire_timeout_usec);
+
+	/* We expect the device to return this req_id once the new PHC timestamp is updated */
+	phc->req_id++;
+
+	/* Initialize PHC shared memory with different req_id value to be able to identify once the
+	 * device changes it to req_id
+	 */
+	read_resp->req_id = phc->req_id + ENA_PHC_REQ_ID_OFFSET;
+
+	/* Writing req_id to PHC bar */
+	ENA_REG_WRITE32(ena_dev->bus, phc->req_id, ena_dev->reg_bar + phc->doorbell_offset);
+
+	/* Stalling until the device updates req_id */
+	while (1) {
+		if (unlikely(ENA_TIME_EXPIRE_HIGH_RES(expire_time))) {
+			/* Gave up waiting for updated req_id, PHC enters into blocked state until
+			 * passing blocking time
+			 */
+			ret = ENA_COM_DEVICE_BUSY;
+			break;
+		}
+
+		/* Check if req_id was updated by the device */
+		if (READ_ONCE16(read_resp->req_id) != phc->req_id) {
+			/* req_id was not updated by the device, check again on next loop */
+			continue;
+		}
+
+		/* req_id was updated which indicates that PHC timestamp was updated too */
+		*timestamp = read_resp->timestamp;
+
+		/* PHC timestamp validty check */
+		if (unlikely(*timestamp == ENA_PHC_TIMESTAMP_ERROR)) {
+			/* Retrieved invalid PHC timestamp, PHC enters into blocked state until
+			 * passing blocking time
+			 */
+			ret = ENA_COM_DEVICE_BUSY;
+			break;
+		}
+
+		/* Retrieved valid PHC timestamp */
+		phc->stats.phc_cnt++;
+
+		/* This indicates PHC state is active */
+		start_time = initial_time;
+		break;
+	}
+
+skip:
+	ENA_SPINLOCK_UNLOCK(phc->lock, flags);
+
+	return ret;
+}
+
 int ena_com_mmio_reg_read_request_init(struct ena_com_dev *ena_dev)
 {
 	struct ena_com_mmio_read *mmio_read = &ena_dev->mmio_read;
@@ -2011,6 +2224,55 @@ int ena_com_get_link_params(struct ena_com_dev *ena_dev,
 	return ena_com_get_feature(ena_dev, resp, ENA_ADMIN_LINK_CONFIG, 0);
 }
 
+static int ena_get_dev_stats(struct ena_com_dev *ena_dev,
+			     struct ena_com_stats_ctx *ctx,
+			     enum ena_admin_get_stats_type type)
+{
+	struct ena_admin_acq_get_stats_resp *get_resp = &ctx->get_resp;
+	struct ena_admin_aq_get_stats_cmd *get_cmd = &ctx->get_cmd;
+	struct ena_com_admin_queue *admin_queue;
+	int ret;
+
+	admin_queue = &ena_dev->admin_queue;
+
+	get_cmd->aq_common_descriptor.opcode = ENA_ADMIN_GET_STATS;
+	get_cmd->aq_common_descriptor.flags = 0;
+	get_cmd->type = type;
+
+	ret = ena_com_execute_admin_command(admin_queue,
+					    (struct ena_admin_aq_entry *)get_cmd,
+					    sizeof(*get_cmd),
+					    (struct ena_admin_acq_entry *)get_resp,
+					    sizeof(*get_resp));
+
+	if (unlikely(ret))
+		ena_trc_err(ena_dev, "Failed to get stats. error: %d\n", ret);
+
+	return ret;
+}
+
+static void ena_com_set_supported_customer_metrics(struct ena_com_dev *ena_dev)
+{
+	struct ena_customer_metrics *customer_metrics;
+	struct ena_com_stats_ctx ctx;
+	int ret;
+
+	customer_metrics = &ena_dev->customer_metrics;
+	if (!ena_com_get_cap(ena_dev, ENA_ADMIN_CUSTOMER_METRICS)) {
+		customer_metrics->supported_metrics = ENA_ADMIN_CUSTOMER_METRICS_MIN_SUPPORT_MASK;
+		return;
+	}
+
+	memset(&ctx, 0x0, sizeof(ctx));
+	ctx.get_cmd.requested_metrics = ENA_ADMIN_CUSTOMER_METRICS_SUPPORT_MASK;
+	ret = ena_get_dev_stats(ena_dev, &ctx, ENA_ADMIN_GET_STATS_TYPE_CUSTOMER_METRICS);
+	if (likely(ret == 0))
+		customer_metrics->supported_metrics =
+			ctx.get_resp.u.customer_metrics.reported_metrics;
+	else
+		ena_trc_err(ena_dev, "Failed to query customer metrics support. error: %d\n", ret);
+}
+
 int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 			      struct ena_com_dev_get_features_ctx *get_feat_ctx)
 {
@@ -2026,6 +2288,7 @@ int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 	       sizeof(get_resp.u.dev_attr));
 
 	ena_dev->supported_features = get_resp.u.dev_attr.supported_features;
+	ena_dev->capabilities = get_resp.u.dev_attr.capabilities;
 
 	if (ena_dev->supported_features & BIT(ENA_ADMIN_MAX_QUEUES_EXT)) {
 		rc = ena_com_get_feature(ena_dev, &get_resp,
@@ -2090,6 +2353,8 @@ int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 		memset(&get_feat_ctx->llq, 0x0, sizeof(get_feat_ctx->llq));
 	else
 		return rc;
+
+	ena_com_set_supported_customer_metrics(ena_dev);
 
 	return 0;
 }
@@ -2262,44 +2527,42 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 	return 0;
 }
 
-static int ena_get_dev_stats(struct ena_com_dev *ena_dev,
-			     struct ena_com_stats_ctx *ctx,
-			     enum ena_admin_get_stats_type type)
-{
-	struct ena_admin_aq_get_stats_cmd *get_cmd = &ctx->get_cmd;
-	struct ena_admin_acq_get_stats_resp *get_resp = &ctx->get_resp;
-	struct ena_com_admin_queue *admin_queue;
-	int ret;
-
-	admin_queue = &ena_dev->admin_queue;
-
-	get_cmd->aq_common_descriptor.opcode = ENA_ADMIN_GET_STATS;
-	get_cmd->aq_common_descriptor.flags = 0;
-	get_cmd->type = type;
-
-	ret =  ena_com_execute_admin_command(admin_queue,
-					     (struct ena_admin_aq_entry *)get_cmd,
-					     sizeof(*get_cmd),
-					     (struct ena_admin_acq_entry *)get_resp,
-					     sizeof(*get_resp));
-
-	if (unlikely(ret))
-		ena_trc_err(ena_dev, "Failed to get stats. error: %d\n", ret);
-
-	return ret;
-}
-
 int ena_com_get_eni_stats(struct ena_com_dev *ena_dev,
 			  struct ena_admin_eni_stats *stats)
 {
 	struct ena_com_stats_ctx ctx;
 	int ret;
 
+	if (!ena_com_get_cap(ena_dev, ENA_ADMIN_ENI_STATS)) {
+		ena_trc_err(ena_dev, "Capability %d isn't supported\n", ENA_ADMIN_ENI_STATS);
+		return ENA_COM_UNSUPPORTED;
+	}
+
 	memset(&ctx, 0x0, sizeof(ctx));
 	ret = ena_get_dev_stats(ena_dev, &ctx, ENA_ADMIN_GET_STATS_TYPE_ENI);
 	if (likely(ret == 0))
 		memcpy(stats, &ctx.get_resp.u.eni_stats,
 		       sizeof(ctx.get_resp.u.eni_stats));
+
+	return ret;
+}
+
+int ena_com_get_ena_srd_info(struct ena_com_dev *ena_dev,
+			      struct ena_admin_ena_srd_info *info)
+{
+	struct ena_com_stats_ctx ctx;
+	int ret;
+
+	if (!ena_com_get_cap(ena_dev, ENA_ADMIN_ENA_SRD_INFO)) {
+		ena_trc_err(ena_dev, "Capability %d isn't supported\n", ENA_ADMIN_ENA_SRD_INFO);
+		return ENA_COM_UNSUPPORTED;
+	}
+
+	memset(&ctx, 0x0, sizeof(ctx));
+	ret = ena_get_dev_stats(ena_dev, &ctx, ENA_ADMIN_GET_STATS_TYPE_ENA_SRD);
+	if (likely(ret == 0))
+		memcpy(info, &ctx.get_resp.u.ena_srd_info,
+		       sizeof(ctx.get_resp.u.ena_srd_info));
 
 	return ret;
 }
@@ -2363,6 +2626,48 @@ done:
 	return ret;
 }
 #endif
+
+int ena_com_get_customer_metrics(struct ena_com_dev *ena_dev, char *buffer, u32 len)
+{
+	struct ena_admin_aq_get_stats_cmd *get_cmd;
+	struct ena_com_stats_ctx ctx;
+	int ret;
+
+	if (unlikely(len > ena_dev->customer_metrics.buffer_len)) {
+		ena_trc_err(ena_dev, "Invalid buffer size %u. The given buffer is too big.\n", len);
+		return ENA_COM_INVAL;
+	}
+
+	if (!ena_com_get_cap(ena_dev, ENA_ADMIN_CUSTOMER_METRICS)) {
+		ena_trc_err(ena_dev, "Capability %d not supported.\n", ENA_ADMIN_CUSTOMER_METRICS);
+		return ENA_COM_UNSUPPORTED;
+	}
+
+	if (!ena_dev->customer_metrics.supported_metrics) {
+		ena_trc_err(ena_dev, "No supported customer metrics.\n");
+		return ENA_COM_UNSUPPORTED;
+	}
+
+	get_cmd = &ctx.get_cmd;
+	memset(&ctx, 0x0, sizeof(ctx));
+	ret = ena_com_mem_addr_set(ena_dev,
+		&get_cmd->u.control_buffer.address,
+		ena_dev->customer_metrics.buffer_dma_addr);
+	if (unlikely(ret)) {
+		ena_trc_err(ena_dev, "Memory address set failed.\n");
+		return ret;
+	}
+
+	get_cmd->u.control_buffer.length = ena_dev->customer_metrics.buffer_len;
+	get_cmd->requested_metrics = ena_dev->customer_metrics.supported_metrics;
+	ret = ena_get_dev_stats(ena_dev, &ctx, ENA_ADMIN_GET_STATS_TYPE_CUSTOMER_METRICS);
+	if (likely(ret == 0))
+		memcpy(buffer, ena_dev->customer_metrics.buffer_virt_addr, len);
+	else
+		ena_trc_err(ena_dev, "Failed to get customer metrics. error: %d\n", ret);
+
+	return ret;
+}
 
 int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, u32 mtu)
 {
@@ -2503,27 +2808,17 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
 		return ENA_COM_UNSUPPORTED;
 	}
 
-	switch (func) {
-	case ENA_ADMIN_TOEPLITZ:
-		if (key) {
-			if (key_len != sizeof(hash_key->key)) {
-				ena_trc_err(ena_dev, "key len (%hu) doesn't equal the supported size (%zu)\n",
-					     key_len, sizeof(hash_key->key));
-				return ENA_COM_INVAL;
-			}
-			memcpy(hash_key->key, key, key_len);
-			rss->hash_init_val = init_val;
-			hash_key->key_parts = key_len / sizeof(hash_key->key[0]);
+	if ((func == ENA_ADMIN_TOEPLITZ) && key) {
+		if (key_len != sizeof(hash_key->key)) {
+			ena_trc_err(ena_dev, "key len (%u) doesn't equal the supported size (%zu)\n",
+				    key_len, sizeof(hash_key->key));
+			return ENA_COM_INVAL;
 		}
-		break;
-	case ENA_ADMIN_CRC32:
-		rss->hash_init_val = init_val;
-		break;
-	default:
-		ena_trc_err(ena_dev, "Invalid hash function (%d)\n", func);
-		return ENA_COM_INVAL;
+		memcpy(hash_key->key, key, key_len);
+		hash_key->key_parts = key_len / sizeof(hash_key->key[0]);
 	}
 
+	rss->hash_init_val = init_val;
 	old_func = rss->hash_func;
 	rss->hash_func = func;
 	rc = ena_com_set_hash_function(ena_dev);
@@ -2917,6 +3212,22 @@ int ena_com_allocate_debug_area(struct ena_com_dev *ena_dev,
 	return 0;
 }
 
+int ena_com_allocate_customer_metrics_buffer(struct ena_com_dev *ena_dev)
+{
+	struct ena_customer_metrics *customer_metrics = &ena_dev->customer_metrics;
+
+	customer_metrics->buffer_len = ENA_CUSTOMER_METRICS_BUFFER_SIZE;
+	ENA_MEM_ALLOC_COHERENT(ena_dev->dmadev,
+			       customer_metrics->buffer_len,
+			       customer_metrics->buffer_virt_addr,
+			       customer_metrics->buffer_dma_addr,
+			       customer_metrics->buffer_dma_handle);
+	if (!customer_metrics->buffer_virt_addr)
+		return ENA_COM_NO_MEM;
+
+	return 0;
+}
+
 void ena_com_delete_host_info(struct ena_com_dev *ena_dev)
 {
 	struct ena_host_attribute *host_attr = &ena_dev->host_attr;
@@ -2942,6 +3253,20 @@ void ena_com_delete_debug_area(struct ena_com_dev *ena_dev)
 				      host_attr->debug_area_dma_addr,
 				      host_attr->debug_area_dma_handle);
 		host_attr->debug_area_virt_addr = NULL;
+	}
+}
+
+void ena_com_delete_customer_metrics_buffer(struct ena_com_dev *ena_dev)
+{
+	struct ena_customer_metrics *customer_metrics = &ena_dev->customer_metrics;
+
+	if (customer_metrics->buffer_virt_addr) {
+		ENA_MEM_FREE_COHERENT(ena_dev->dmadev,
+				      customer_metrics->buffer_len,
+				      customer_metrics->buffer_virt_addr,
+				      customer_metrics->buffer_dma_addr,
+				      customer_metrics->buffer_dma_handle);
+		customer_metrics->buffer_virt_addr = NULL;
 	}
 }
 
