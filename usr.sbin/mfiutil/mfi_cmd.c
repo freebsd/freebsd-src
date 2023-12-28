@@ -220,7 +220,7 @@ mfi_reconfig_supported(const char *dev)
 		return (1);
 
 	cp += strlen(MFI_TYPE);
-	mfi_unit = strtol(cp, NULL, 10);;
+	mfi_unit = strtol(cp, NULL, 10);
 
 	len = sizeof(dummy);
 	snprintf(mibname, sizeof(mibname),
