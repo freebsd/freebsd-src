@@ -10,13 +10,10 @@
 include		GENERIC
 ident		GENERIC-MMCCAM
 
-# Add CAMDEBUG stuff
-options 	CAMDEBUG
-options 	CAM_DEBUG_FLAGS=(CAM_DEBUG_INFO|CAM_DEBUG_PROBE|CAM_DEBUG_PERIPH)
-
-# pass(4) device
-device		pass
 options 	MMCCAM
+
+# Allow for CAM debugging
+options 	CAMDEBUG
 
 nodevice	mmc
 nodevice	mmcsd
