@@ -527,7 +527,7 @@ find_error(int errnum)
 	ipf_error_entry_t *ie;
 
 	int l = -1, r = IPF_NUM_ERRORS + 1, step;
-	step = (r - l) / 2;;
+	step = (r - l) / 2;
 
 	while (step != 0) {
 		ie = ipf_errors + l + step;
@@ -538,7 +538,7 @@ find_error(int errnum)
 			r = step;
 		else
 			l = step;
-		step = (r - l) / 2;;
+		step = (r - l) / 2;
 	}
 
 	return (NULL);
