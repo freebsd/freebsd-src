@@ -42,6 +42,7 @@
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/timeet.h>
 
 #include <isa/rtc.h>
