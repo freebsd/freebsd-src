@@ -2236,14 +2236,14 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	}
 
 	cam_periph_unlock(periph);
-	cam_periph_unmapmem(ccb, &mapinfo);
+	error = cam_periph_unmapmem(ccb, &mapinfo);
 	cam_periph_lock(periph);
 
 	ccb->ccb_h.cbfcnp = NULL;
 	ccb->ccb_h.periph_priv = inccb->ccb_h.periph_priv;
 	bcopy(ccb, inccb, sizeof(union ccb));
 
-	return(0);
+	return (error);
 }
 
 /*

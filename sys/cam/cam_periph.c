@@ -1013,17 +1013,17 @@ fail:
  * Unmap memory segments mapped into kernel virtual address space by
  * cam_periph_mapmem().
  */
-void
+int
 cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 {
-	int numbufs, i;
+	int error, numbufs, i;
 	uint8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
 	uint32_t lengths[CAM_PERIPH_MAXMAPS];
 	uint32_t dirs[CAM_PERIPH_MAXMAPS];
 
 	if (mapinfo->num_bufs_used <= 0) {
 		/* nothing to free and the process wasn't held. */
-		return;
+		return (0);
 	}
 
 	switch (ccb->ccb_h.func_code) {
@@ -1088,12 +1088,11 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		numbufs = 1;
 		break;
 	default:
-		/* allow ourselves to be swapped once again */
-		PRELE(curproc);
-		return;
-		break; /* NOTREACHED */ 
+		numbufs = 0;
+		break;
 	}
 
+	error = 0;
 	for (i = 0; i < numbufs; i++) {
 		if (mapinfo->bp[i]) {
 			/* unmap the buffer */
@@ -1103,8 +1102,12 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 			uma_zfree(pbuf_zone, mapinfo->bp[i]);
 		} else {
 			if (dirs[i] != CAM_DIR_OUT) {
-				copyout(*data_ptrs[i], mapinfo->orig[i],
+				int error1;
+
+				error1 = copyout(*data_ptrs[i], mapinfo->orig[i],
 				    lengths[i]);
+				if (error == 0)
+					error = error1;
 			}
 			free(*data_ptrs[i], M_CAMPERIPH);
 		}
@@ -1115,6 +1118,8 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 
 	/* allow ourselves to be swapped once again */
 	PRELE(curproc);
+
+	return (error);
 }
 
 int
