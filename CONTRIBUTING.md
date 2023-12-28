@@ -41,7 +41,7 @@ A pull request will be considered if:
 * The commits follow FreeBSD's style guide. See [Style](#Style).
 * Run tools/build/checkstyle9.pl on your Git branch and eliminate all errors.
 * The commits do not introduce trailing white space.
-* If the commmit fixes a bug, please add 'PR: \<bugnumber\>' to the commit message.
+* If the commit fixes a bug, please add 'PR: \<bugnumber\>' to the commit message.
 * If there's a code review in Phabricator, please include a link as a 'Differential Revision: ' line.
 * If you have run FreeBSD's sources through a static analysis tool, please don't submit the raw results. Please also see the chunking up guidelines. Also, please make sure that kyua tests are the same before / after your change. Ideally, you'd also create a test case that shows an actual bug that's being fixed by these changes.
 
