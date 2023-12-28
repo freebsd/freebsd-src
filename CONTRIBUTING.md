@@ -41,7 +41,7 @@ A pull request will be considered if:
 * The commits follow FreeBSD's style guide. See [Style](#Style).
 * Run tools/build/checkstyle9.pl on your Git branch and eliminate all errors
 * The commits do not introduce trailing white space.
-* If the commmit fixes a bug, please add 'PR: \<bugnumber\>' to the commit message.
+* If the commit fixes a bug, please add 'PR: \<bugnumber\>' to the commit message.
 * If there's a code review in Phabricator, please include a link as a 'Differential Revision: ' line.
 
 When updating your pull request, please rebase with a forced push rather than a
