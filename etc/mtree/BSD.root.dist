@@ -94,6 +94,10 @@
         ssh
         ..
         ssl
+            certs
+            ..
+            untrusted
+            ..
         ..
         sysctl.kld.d
         ..
