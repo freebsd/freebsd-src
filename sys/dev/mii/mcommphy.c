@@ -130,7 +130,7 @@ mcommphy_attach(device_t dev)
 	PHY_WRITE(sc, EXT_REG_ADDR, PHY_CLOCK_GATING_REG);
 	data = PHY_READ(sc, EXT_REG_DATA);
 	data &= ~CLK_25M_SEL;
-	data |= SHIFTIN(CLK_25M_SEL_125M, CLK_25M_SEL);;
+	data |= SHIFTIN(CLK_25M_SEL_125M, CLK_25M_SEL);
 	if (sc->mii_flags & MIIF_RX_DELAY) {
 		data |= RX_CLK_DELAY_EN;
 	} else {
