@@ -158,14 +158,14 @@ check_man() {
 	if exists "$1"; then
 		# We have a match, check for a cat page
 		manpage=$found
-		setup_cattool $manpage
-		decho "    Found manpage $manpage"
+		setup_cattool "$manpage"
+		decho "    Found manpage \"$manpage\""
 
 		if [ -n "${use_width}" ]; then
 			# non-standard width
 			unset use_cat
 			decho "    Skipping catpage: non-standard page width"
-		elif exists "$2" && is_newer $found $manpage; then
+		elif exists "$2" && is_newer $found "$manpage"; then
 			# cat page found and is newer, use that
 			use_cat=yes
 			catpage=$found
@@ -308,7 +308,7 @@ man_check_for_so() {
 	# We need to loop to accommodate multiple .so directives.
 	while true
 	do
-		line=$($cattool $manpage | head -1)
+		line=$($cattool "$manpage" | head -1)
 		case "$line" in
 		.so*)	trim "${line#.so}"
 			decho "$manpage includes $tstr"
@@ -338,7 +338,7 @@ man_display_page() {
 	# just zcat the catpage and we are done.
 	if [ -z "$tflag" -a -n "$use_cat" ]; then
 		if [ -n "$wflag" ]; then
-			echo "$catpage (source: $manpage)"
+			echo "$catpage (source: \"$manpage\")"
 			ret=0
 		else
 			if [ $debug -gt 0 ]; then
@@ -496,8 +496,8 @@ man_find_and_display() {
 			decho "Found a usable page, displaying that"
 			unset use_cat
 			manpage="$1"
-			setup_cattool $manpage
-			if man_check_for_so $manpage $(dirname $manpage); then
+			setup_cattool "$manpage"
+			if man_check_for_so "$manpage" "$(dirname \"$manpage"")"; then
 				found_page=yes
 				man_display_page
 			fi
@@ -516,7 +516,7 @@ man_find_and_display() {
 
 				# Check if there is a MACHINE specific manpath.
 				if find_file $p $sect $MACHINE "$1"; then
-					if man_check_for_so $manpage $p; then
+					if man_check_for_so "$manpage" $p; then
 						found_page=yes
 						man_display_page
 						if [ -n "$aflag" ]; then
@@ -530,7 +530,7 @@ man_find_and_display() {
 				# Check if there is a MACHINE_ARCH
 				# specific manpath.
 				if find_file $p $sect $MACHINE_ARCH "$1"; then
-					if man_check_for_so $manpage $p; then
+					if man_check_for_so "$manpage" $p; then
 						found_page=yes
 						man_display_page
 						if [ -n "$aflag" ]; then
@@ -543,7 +543,7 @@ man_find_and_display() {
 
 				# Check plain old manpath.
 				if find_file $p $sect '' "$1"; then
-					if man_check_for_so $manpage $p; then
+					if man_check_for_so "$manpage" $p; then
 						found_page=yes
 						man_display_page
 						if [ -n "$aflag" ]; then
@@ -560,7 +560,7 @@ man_find_and_display() {
 
 	# Nothing? Well, we are done then.
 	if [ -z "$found_page" ]; then
-		echo "No manual entry for $1" >&2
+		echo "No manual entry for \"$1\"" >&2
 		ret=1
 		return
 	fi
@@ -1040,8 +1040,8 @@ do_man() {
 		do_full_search "${REGEXP}"
 	fi
 
-	for page in $pages; do
-		decho "Searching for $page"
+	for page in "$pages"; do
+		decho "Searching for \"$page\""
 		man_find_and_display "$page"
 	done
 
