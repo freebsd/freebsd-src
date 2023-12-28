@@ -111,6 +111,7 @@ typedef enum {
 	CAM_CMD_DEVTYPE,
 	CAM_CMD_AMA,
 	CAM_CMD_DEPOP,
+	CAM_CMD_REQSENSE
 } cam_cmd;
 
 typedef enum {
@@ -233,6 +234,7 @@ static struct camcontrol_opts option_table[] = {
 	{"epc", CAM_CMD_EPC, CAM_ARG_NONE, "c:dDeHp:Pr:sS:T:"},
 	{"timestamp", CAM_CMD_TIMESTAMP, CAM_ARG_NONE, "f:mrsUT:"},
 	{"depop", CAM_CMD_DEPOP, CAM_ARG_NONE, "ac:de:ls"},
+	{"sense", CAM_CMD_REQSENSE, CAM_ARG_NONE, "Dx"},
 	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{"-?", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{"-h", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
@@ -279,6 +281,9 @@ static int print_dev_mmcsd(struct device_match_result *dev_result,
 #ifdef WITH_NVME
 static int print_dev_nvme(struct device_match_result *dev_result, char *tmpstr);
 #endif
+static int requestsense(struct cam_device *device, int argc, char **argv,
+			char *combinedopt, int task_attr, int retry_count,
+			int timeout);
 static int testunitready(struct cam_device *device, int task_attr,
 			 int retry_count, int timeout, int quiet);
 static int scsistart(struct cam_device *device, int startstop, int loadeject,
@@ -839,6 +844,114 @@ print_dev_nvme(struct device_match_result *dev_result, char *tmpstr)
 	return (0);
 }
 #endif
+
+static int
+requestsense(struct cam_device *device, int argc, char **argv,
+	     char *combinedopt, int task_attr, int retry_count, int timeout)
+{
+	int c;
+	int descriptor_sense = 0;
+	int do_hexdump = 0;
+	struct scsi_sense_data sense;
+	union ccb *ccb = NULL;
+	int error = 0;
+	size_t returned_bytes;
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'D':
+			descriptor_sense = 1;
+			break;
+		case 'x':
+			do_hexdump = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	ccb = cam_getccb(device);
+	if (ccb == NULL) {
+		warnx("couldn't allocate CCB");
+		return (1);
+	}
+
+	/* cam_getccb cleans up the header, caller has to zero the payload */
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
+
+	bzero(&sense, sizeof(sense));
+
+	scsi_request_sense(&ccb->csio,
+			   /*retries*/ retry_count,
+			   /*cbfcnp*/ NULL,
+			   /*data_ptr*/ (void *)&sense,
+			   /*dxfer_len*/ sizeof(sense),
+			   /*tag_action*/ task_attr,
+			   /*sense_len*/ SSD_FULL_SIZE,
+			   /*timeout*/ timeout ? timeout : 60000);
+
+	if (descriptor_sense != 0) {
+		struct scsi_request_sense *cdb;
+
+		cdb = (struct scsi_request_sense *)&ccb->csio.cdb_io.cdb_bytes;
+		cdb->byte2 |= SRS_DESC;
+	}
+
+	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
+
+	if (arglist & CAM_ARG_ERR_RECOVER)
+		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
+
+	if (cam_send_ccb(device, ccb) < 0) {
+		warn("error sending REQUEST SENSE command");
+		cam_freeccb(ccb);
+		error = 1;
+		goto bailout;
+	}
+
+	/*
+	 * REQUEST SENSE is not generally supposed to fail.  But there can
+	 * be transport or other errors that might cause it to fail.  It
+	 * may also fail if the user asks for descriptor sense and the
+	 * device doesn't support it.  So we check the CCB status here to see.
+	 */
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		warnx("REQUEST SENSE failed");
+		cam_error_print(device, ccb, CAM_ESF_ALL, CAM_EPF_ALL, stderr);
+		error = 1;
+		goto bailout;
+	}
+
+	returned_bytes = ccb->csio.dxfer_len - ccb->csio.resid;
+
+	if (do_hexdump != 0) {
+		hexdump(&sense, returned_bytes, NULL, 0);
+	} else {
+		char path_str[80];
+		struct sbuf *sb;
+
+		cam_path_string(device, path_str, sizeof(path_str));
+		sb = sbuf_new_auto();
+		if (sb == NULL) {
+			warnx("%s: cannot allocate sbuf", __func__);
+			error = 1;
+			goto bailout;
+		}
+
+		scsi_sense_only_sbuf(&sense, returned_bytes, sb, path_str,
+		    &device->inq_data, scsiio_cdb_ptr(&ccb->csio),
+		    ccb->csio.cdb_len);
+
+		sbuf_finish(sb);
+		printf("%s", sbuf_data(sb));
+		sbuf_delete(sb);
+	}
+bailout:
+	if (ccb != NULL)
+		cam_freeccb(ccb);
+
+	return (error);
+}
 
 static int
 testunitready(struct cam_device *device, int task_attr, int retry_count,
@@ -9869,6 +9982,7 @@ usage(int printlong)
 "        camcontrol devlist    [-b] [-v]\n"
 "        camcontrol periphlist [dev_id][-n dev_name] [-u unit]\n"
 "        camcontrol tur        [dev_id][generic args]\n"
+"        camcontrol sense      [dev_id][generic args][-D][-x]\n"
 "        camcontrol inquiry    [dev_id][generic args] [-D] [-S] [-R]\n"
 "        camcontrol identify   [dev_id][generic args] [-v]\n"
 "        camcontrol reportluns [dev_id][generic args] [-c] [-l] [-r report]\n"
@@ -9957,6 +10071,7 @@ usage(int printlong)
 "Specify one of the following options:\n"
 "devlist     list all CAM devices\n"
 "periphlist  list all CAM peripheral drivers attached to a device\n"
+"sense       send a request sense command to the named device\n"
 "tur         send a test unit ready to the named device\n"
 "inquiry     send a SCSI inquiry command to the named device\n"
 "identify    send a ATA identify command to the named device\n"
@@ -10021,6 +10136,9 @@ usage(int printlong)
 "-f format         specify defect list format (block, bfi or phys)\n"
 "-G                get the grown defect list\n"
 "-P                get the permanent defect list\n"
+"sense arguments:\n"
+"-D                request descriptor sense data\n"
+"-x                do a hexdump of the sense data\n"
 "inquiry arguments:\n"
 "-D                get the standard inquiry data\n"
 "-S                get the serial number\n"
@@ -10490,6 +10608,10 @@ main(int argc, char **argv)
 		break;
 	case CAM_CMD_DEVTYPE:
 		error = getdevtype(cam_dev);
+		break;
+	case CAM_CMD_REQSENSE:
+		error = requestsense(cam_dev, argc, argv, combinedopt,
+		    task_attr, retry_count, timeout);
 		break;
 	case CAM_CMD_TUR:
 		error = testunitready(cam_dev, task_attr, retry_count,
