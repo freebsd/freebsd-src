@@ -134,3 +134,11 @@ contributors. Also, developers that are landing a pull request will use a
 Signed-off-by line to set the author for the commit.
 
 These lines are easy to add with `git commit -s`.
+
+## Submitting as part of class work
+
+If you are a professor or teacher that wishes to have your students submit fixes
+as part of their class work, please contact imp@FreeBSD.org before the semester
+to ensure we allocate the proper resources to process them quickly. We'll give
+you more details when you contact us and thanks for including FreeBSD in your
+class work. It also helps us keep track.
