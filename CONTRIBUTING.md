@@ -142,3 +142,15 @@ as part of their class work, please contact imp@FreeBSD.org before the semester
 to ensure we allocate the proper resources to process them quickly. We'll give
 you more details when you contact us and thanks for including FreeBSD in your
 class work. It also helps us keep track.
+
+## FreeBSD's Upstreams
+
+Anything that's in the directory `contrib`, `crypto`, `sys/contrib` or
+`sys/cddl` likely has an upstream we pull from. Please do a git log --merges in
+any subdirectory of these you are submitting patches for to find out the last
+time we merged from upstream. If it is in the last 5 years, upstream is "active"
+and you should submit your patches there and let the last few people to commit
+to this file (especailly merge commits) know. If it's been more than 5 years,
+upstreamm is likely inactive so please submit the patch. We can sort out if it
+should go into FreeBSD or upstream.
+
