@@ -110,10 +110,12 @@ MLINKS+=inet.3 addr.3 \
 	inet.3 inet_pton.3 \
 	inet.3 network.3 \
 	inet.3 ntoa.3
-MLINKS+= sctp_send.3 sctp_sendx.3
-MLINKS+= sctp_sendmsg.3 sctp_sendmsgx.3
-MLINKS+= sctp_freepaddrs.3 sctp_freeladdrs.3
-MLINKS+= sctp_getpaddrs.3 sctp_getladdrs.3
+MLINKS+=sctp_freepaddrs.3 sctp_freeladdrs.3
+MLINKS+=sctp_getpaddrs.3 sctp_getladdrs.3
+MLINKS+=sctp_recvmsg.3 sctp_recvv.3
+MLINKS+=sctp_sendmsg.3 sctp_sendmsgx.3
+MLINKS+=sctp_send.3 sctp_sendx.3 \
+	sctp_send.3 sctp_sendv.3
 MLINKS+=inet_net.3 inet_net_ntop.3 \
 	inet_net.3 inet_net_pton.3
 MLINKS+=inet6_opt_init.3 inet6_opt_append.3 \

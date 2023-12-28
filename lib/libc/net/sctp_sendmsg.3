@@ -96,13 +96,13 @@ is set to
 the message is not transmitted.
 .Pp
 No indication of failure to deliver is implicit in a
-.Xr sctp_sendmsg 3
+.Fn sctp_sendmsg
 call.
 Locally detected errors are indicated by a return value of -1.
 .Pp
 If no space is available at the socket to hold
 the message to be transmitted, then
-.Xr sctp_sendmsg 3
+.Fn sctp_sendmsg
 normally blocks, unless the socket has been placed in
 non-blocking I/O mode.
 The
