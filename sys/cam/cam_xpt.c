@@ -566,11 +566,9 @@ xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *
 			/*
 			 * Map the buffers back into user space.
 			 */
-			cam_periph_unmapmem(inccb, &mapinfo);
+			error = cam_periph_unmapmem(inccb, &mapinfo);
 
 			inccb->ccb_h.path = old_path;
-
-			error = 0;
 			break;
 		}
 		default:

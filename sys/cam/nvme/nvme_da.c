@@ -438,8 +438,9 @@ ndaioctl(struct disk *dp, u_long cmd, void *data, int fflag,
 		 * Tear down mapping and return status.
 		 */
 		cam_periph_unlock(periph);
-		cam_periph_unmapmem(ccb, &mapinfo);
-		error = cam_ccb_success(ccb) ? 0 : EIO;
+		error = cam_periph_unmapmem(ccb, &mapinfo);
+		if (!cam_ccb_success(ccb))
+			error = EIO;
 out:
 		cam_periph_lock(periph);
 		xpt_release_ccb(ccb);

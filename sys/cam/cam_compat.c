@@ -380,11 +380,13 @@ cam_compat_translate_dev_match_0x18(union ccb *ccb)
 	struct dev_match_result		*dm;
 	struct dev_match_result_0x18	*dm18;
 	struct cam_periph_map_info	mapinfo;
-	int i;
+	int error, i;
 
 	/* Remap the CCB into kernel address space */
 	bzero(&mapinfo, sizeof(mapinfo));
-	cam_periph_mapmem(ccb, &mapinfo, maxphys);
+	error = cam_periph_mapmem(ccb, &mapinfo, maxphys);
+	if (error != 0)
+		return (error);
 
 	dm = ccb->cdm.matches;
 	/* Translate in-place: old fields are smaller */
@@ -432,21 +434,22 @@ cam_compat_translate_dev_match_0x18(union ccb *ccb)
 		}
 	}
 
-	cam_periph_unmapmem(ccb, &mapinfo);
-
-	return (0);
+	return (cam_periph_unmapmem(ccb, &mapinfo));
 }
 
 static int
 cam_compat_handle_0x19(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
     struct thread *td, d_ioctl_t *cbfnp)
 {
+	struct cam_periph_map_info mapinfo;
 	union ccb *ccb = (union ccb *)addr;
-	struct cam_periph_map_info	mapinfo;
+	int error;
 
 	if (cmd == CAMIOCOMMAND && ccb->ccb_h.func_code == XPT_DEV_MATCH) {
 		bzero(&mapinfo, sizeof(mapinfo));
-		cam_periph_mapmem(ccb, &mapinfo, maxphys);
+		error = cam_periph_mapmem(ccb, &mapinfo, maxphys);
+		if (error != 0)
+			return (error);
 		for (int i = 0; i < ccb->cdm.num_patterns; i++) {
 			struct dev_match_pattern *p = &ccb->cdm.patterns[i];
 
@@ -460,7 +463,9 @@ cam_compat_handle_0x19(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			    p->pattern.periph_pattern.flags == 0x01f)
 				p->pattern.periph_pattern.flags = PERIPH_MATCH_ANY;
 		}
-		cam_periph_unmapmem(ccb, &mapinfo);
+		error = cam_periph_unmapmem(ccb, &mapinfo);
+		if (error != 0)
+			return (error);
 	}
 	return ((cbfnp)(dev, cmd, addr, flag, td));
 }
