@@ -1503,6 +1503,7 @@ MLINKS+=\
 	mbuf.9 m_pullup.9 \
 	mbuf.9 m_split.9 \
 	mbuf.9 mtod.9 \
+	mbuf.9 mtodo.9 \
 	mbuf.9 M_TRAILINGSPACE.9 \
 	mbuf.9 m_unshare.9 \
 	mbuf.9 M_WRITABLE.9
