@@ -10,20 +10,24 @@
         defaults
         ..
         dtb
-            allwinner             tags=package=runtime
+            allwinner       tags=package=runtime
             ..
-            overlays              tags=package=runtime
+            overlays        tags=package=runtime
             ..
-            rockchip              tags=package=runtime
+            rockchip        tags=package=runtime
             ..
         ..
         efi
         ..
         firmware
         ..
+        fonts
+        ..
+        images
+        ..
         kernel
         ..
-        loader.conf.d             tags=package=bootloader
+        loader.conf.d   tags=package=bootloader
         ..
         lua
         ..
@@ -57,7 +61,7 @@
         ..
         jail.conf.d
         ..
-        kyua             tags=package=tests
+        kyua            tags=package=tests
         ..
         mail
         ..
