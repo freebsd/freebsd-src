@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 8, 2021
+.Dd December 28, 2023
 .Dt MBUF 9
 .Os
 .\"
@@ -52,7 +52,10 @@
 .Fc
 .\"
 .Ss Mbuf utility macros
+.Ft type
 .Fn mtod "struct mbuf *mbuf" "type"
+.Ft void *
+.Fn mtodo "struct mbuf *mbuf" "offset"
 .Fn M_ALIGN "struct mbuf *mbuf" "u_int len"
 .Fn MH_ALIGN "struct mbuf *mbuf" "u_int len"
 .Ft int
@@ -394,6 +397,14 @@ It is advisable to ensure that there is enough contiguous data in
 See
 .Fn m_pullup
 for details.
+.It Fn mtodo mbuf offset
+Return a data pointer at an offset (in bytes) into the data attached to
+.Fa mbuf .
+Returns a
+.Ft void *
+pointer .
+.Sy Note :
+The caller must ensure that the offset is in bounds of the attached data.
 .It Fn MGET mbuf how type
 Allocate an
 .Vt mbuf
@@ -773,7 +784,9 @@ in the
 are contiguous and lay in the data area of
 .Fa mbuf ,
 so they are accessible with
-.Fn mtod mbuf type .
+.Fn mtod
+or
+.Fn mtodo .
 .Fa len
 must be smaller than, or equal to, the size of an
 .Vt mbuf cluster .
@@ -787,12 +800,13 @@ to the data contained in the returned mbuf is stored in
 If
 .Fa offsetp
 is NULL, the region may be accessed using
-.Fn mtod mbuf type .
+.Fn mtod mbuf type
+or
+.Fn mtodo mbuf 0 .
 If
 .Fa offsetp
 is non-NULL, the region may be accessed using
-.Fn mtod mbuf uint8_t
-+ *offsetp.
+.Fn mtodo mbuf *offsetp .
 The region of the mbuf chain between its beginning and
 .Fa offset
 is not modified, therefore it is safe to hold pointers to data within
