@@ -37,7 +37,7 @@
  * location with the needed alignment, etc. It does this, and then we take over.
  *
  * The linux kernel will helpfully turn off the MMU, flush the caches, disables
- * them, etc. It calls the tramp with two args: FDT blob addresss in x0 and the
+ * them, etc. It calls the tramp with two args: FDT blob address in x0 and the
  * EL2 vectors in x1. Currently, we make use of neither of these parameters: we
  * pass whatever dtb we think we need as part of the module data and we're a bit
  * weak on hypervisor support at the moment. _start's requirements are all
