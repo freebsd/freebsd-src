@@ -1587,7 +1587,7 @@ enic_setup_finish(struct enic *enic)
 	softc->multicast = 0;
 	softc->broadcast = 1;
 	softc->promisc = 0;
-	softc->allmulti = 1;;
+	softc->allmulti = 1;
 	enic_update_packet_filter(enic);
 
 	return 0;
