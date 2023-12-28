@@ -94,7 +94,7 @@ ar9280AniSetup(struct ath_hal *ah)
                 .rssiThrLow             = 7,
                 .period                 = 100,
         };
-	/* NB: disable ANI noise immmunity for reliable RIFS rx */
+	/* NB: disable ANI noise immunity for reliable RIFS rx */
 	AH5416(ah)->ah_ani_function &= ~(1 << HAL_ANI_NOISE_IMMUNITY_LEVEL);
 
         /* NB: ANI is not enabled yet */
