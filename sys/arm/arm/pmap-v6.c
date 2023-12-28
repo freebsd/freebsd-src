@@ -6481,7 +6481,7 @@ pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, bool usermode)
 	}
 #endif
 	/*
-	 * Accesss bits for page and section. Note that the entry
+	 * Access bits for page and section. Note that the entry
 	 * is not in TLB yet, so TLB flush is not necessary.
 	 *
 	 * QQQ: This is hardware emulation, we do not call userret()
