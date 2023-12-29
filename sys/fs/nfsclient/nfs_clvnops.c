@@ -3881,7 +3881,7 @@ generic_copy:
 	if (error == 0)
 		error = ncl_flush(invp, MNT_WAIT, curthread, 1, 0);
 	if (error == 0)
-		error = ncl_flush(outvp, MNT_WAIT, curthread, 1, 0);
+		error = ncl_vinvalbuf(outvp, V_SAVE, curthread, 0);
 
 	/* Do the actual NFSv4.2 RPC. */
 	ret = ret2 = 0;
