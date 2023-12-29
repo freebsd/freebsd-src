@@ -736,6 +736,8 @@ struct mlx5_core_dev {
 	bool dump_copyout;
 	struct mtx dump_lock;
 
+	bool			iov_pf;
+
 	struct sysctl_ctx_list	sysctl_ctx;
 	int			msix_eqvec;
 	int			pwr_status;
