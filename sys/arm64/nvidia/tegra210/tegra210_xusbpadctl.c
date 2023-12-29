@@ -656,7 +656,7 @@ uphy_pex_enable(struct padctl_softc *sc, struct padctl_pad *pad)
 		goto err;
 	}
 
-	/* 5. Enable the PLL (20 µs Lock time) */
+	/* 5. Enable the PLL (20 Î¼s Lock time) */
 	reg = RD4(sc, XUSB_PADCTL_UPHY_PLL_P0_CTL1);
 	reg |= UPHY_PLL_P0_CTL1_PLL0_ENABLE;
 	WR4(sc, XUSB_PADCTL_UPHY_PLL_P0_CTL1, reg);
@@ -891,7 +891,7 @@ uphy_sata_enable(struct padctl_softc *sc, struct padctl_pad *pad, bool usb)
 		goto err;
 	}
 
-	/* 5. Enable the PLL (20 µs Lock time) */
+	/* 5. Enable the PLL (20 Î¼s Lock time) */
 	reg = RD4(sc, XUSB_PADCTL_UPHY_PLL_S0_CTL1);
 	reg |= UPHY_PLL_S0_CTL1_PLL0_ENABLE;
 	WR4(sc, XUSB_PADCTL_UPHY_PLL_S0_CTL1, reg);
