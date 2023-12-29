@@ -12,6 +12,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20231229:
+	Commit 925d9b3abac2 modified the internal API between
+	the nfscommon and nfscl modules.
+	As such, both of these modules need to be rebuilt from
+	sources.  Therefore, the __FreeBSD_version has been bumped
+	to 1400503.
+
 20231224:
 	Commits acc704b36192 and b8e137d8d32d both modified the
 	internal API between the kgssapi and krpc modules.
