@@ -312,26 +312,23 @@ pci_fbuf_parse_config(struct pci_fbuf_softc *sc, nvlist_t *nvl)
 	}
 
 	value = get_config_value_node(nvl, "w");
-	if (value != NULL) {
-		sc->memregs.width = atoi(value);
-		if (sc->memregs.width > COLS_MAX) {
-			EPRINTLN("fbuf: width %d too large", sc->memregs.width);
-			return (-1);
-		}
-		if (sc->memregs.width == 0)
-			sc->memregs.width = 1920;
-	}
+	if (value != NULL)
+		sc->memregs.width = strtol(value, NULL, 10);
 
 	value = get_config_value_node(nvl, "h");
-	if (value != NULL) {
-		sc->memregs.height = atoi(value);
-		if (sc->memregs.height > ROWS_MAX) {
-			EPRINTLN("fbuf: height %d too large",
-			    sc->memregs.height);
-			return (-1);
-		}
-		if (sc->memregs.height == 0)
-			sc->memregs.height = 1080;
+	if (value != NULL)
+		sc->memregs.height = strtol(value, NULL, 10);
+
+	if (sc->memregs.width > COLS_MAX ||
+	    sc->memregs.height > ROWS_MAX) {
+		EPRINTLN("fbuf: max resolution is %ux%u", COLS_MAX, ROWS_MAX);
+		return (-1);
+	}
+	if (sc->memregs.width < COLS_MIN ||
+	    sc->memregs.height < ROWS_MIN) {
+		EPRINTLN("fbuf: minimum resolution is %ux%u",
+		    COLS_MIN, ROWS_MIN);
+		return (-1);
 	}
 
 	value = get_config_value_node(nvl, "password");
