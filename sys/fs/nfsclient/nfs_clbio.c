@@ -1315,7 +1315,7 @@ again:
 			}
 		} else if ((n + on) == biosize || (ioflag & IO_ASYNC) != 0) {
 			bp->b_flags |= B_ASYNC;
-			(void) ncl_writebp(bp, 0, NULL);
+			(void) bwrite(bp);
 		} else {
 			bdwrite(bp);
 		}

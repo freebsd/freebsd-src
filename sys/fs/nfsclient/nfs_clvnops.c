@@ -2949,7 +2949,7 @@ ncl_flush(struct vnode *vp, int waitfor, struct thread *td,
 	 * A b_flags == (B_DELWRI | B_NEEDCOMMIT) block has been written to the
 	 * server, but has not been committed to stable storage on the server
 	 * yet. On the first pass, the byte range is worked out and the commit
-	 * rpc is done. On the second pass, ncl_writebp() is called to do the
+	 * rpc is done. On the second pass, bwrite() is called to do the
 	 * job.
 	 */
 again:
@@ -3463,54 +3463,6 @@ nfs_print(struct vop_print_args *ap)
 }
 
 /*
- * This is the "real" nfs::bwrite(struct buf*).
- * We set B_CACHE if this is a VMIO buffer.
- */
-int
-ncl_writebp(struct buf *bp, int force __unused, struct thread *td)
-{
-	int oldflags, rtval;
-
-	if (bp->b_flags & B_INVAL) {
-		brelse(bp);
-		return (0);
-	}
-
-	oldflags = bp->b_flags;
-	bp->b_flags |= B_CACHE;
-
-	/*
-	 * Undirty the bp.  We will redirty it later if the I/O fails.
-	 */
-	bundirty(bp);
-	bp->b_flags &= ~B_DONE;
-	bp->b_ioflags &= ~BIO_ERROR;
-	bp->b_iocmd = BIO_WRITE;
-
-	bufobj_wref(bp->b_bufobj);
-	curthread->td_ru.ru_oublock++;
-
-	/*
-	 * Note: to avoid loopback deadlocks, we do not
-	 * assign b_runningbufspace.
-	 */
-	vfs_busy_pages(bp, 1);
-
-	BUF_KERNPROC(bp);
-	bp->b_iooffset = dbtob(bp->b_blkno);
-	bstrategy(bp);
-
-	if ((oldflags & B_ASYNC) != 0)
-		return (0);
-
-	rtval = bufwait(bp);
-	if (oldflags & B_DELWRI)
-		reassignbuf(bp);
-	brelse(bp);
-	return (rtval);
-}
-
-/*
  * nfs special file access vnode op.
  * Essentially just get vattr and then imitate iaccess() since the device is
  * local to the client.
@@ -3625,26 +3577,6 @@ nfsfifo_close(struct vop_close_args *ap)
 out:
 	return (fifo_specops.vop_close(ap));
 }
-
-/*
- * Just call ncl_writebp() with the force argument set to 1.
- *
- * NOTE: B_DONE may or may not be set in a_bp on call.
- */
-static int
-nfs_bwrite(struct buf *bp)
-{
-
-	return (ncl_writebp(bp, 1, curthread));
-}
-
-struct buf_ops buf_ops_newnfs = {
-	.bop_name	=	"buf_ops_nfs",
-	.bop_write	=	nfs_bwrite,
-	.bop_strategy	=	bufstrategy,
-	.bop_sync	=	bufsync,
-	.bop_bdflush	=	bufbdflush,
-};
 
 static int
 nfs_getacl(struct vop_getacl_args *ap)
