@@ -754,6 +754,10 @@ SYSCTL_PROC(_kern, OID_AUTO, pid_max, CTLTYPE_INT |
     CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE,
     0, 0, sysctl_kern_pid_max, "I", "Maximum allowed pid");
 
+SYSCTL_INT(_kern, OID_AUTO, pid_max_limit, CTLFLAG_RD,
+    SYSCTL_NULL_INT_PTR, PID_MAX,
+    "Maximum allowed pid (kern.pid_max) top limit");
+
 #include <sys/bio.h>
 #include <sys/buf.h>
 SYSCTL_INT(_debug_sizeof, OID_AUTO, bio, CTLFLAG_RD,
