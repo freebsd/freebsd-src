@@ -77,7 +77,6 @@ extern u_int32_t newnfs_true, newnfs_false, newnfs_xdrneg1;
 extern struct vop_vector newnfs_vnodeops;
 extern struct vop_vector newnfs_fifoops;
 extern uma_zone_t newnfsnode_zone;
-extern struct buf_ops buf_ops_newnfs;
 extern uma_zone_t ncl_pbuf_zone;
 extern short nfsv4_cbport;
 extern int nfscl_enablecallb;
@@ -235,7 +234,6 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 	}
 	vp = nvp;
 	KASSERT(vp->v_bufobj.bo_bsize != 0, ("nfscl_nget: bo_bsize == 0"));
-	vp->v_bufobj.bo_ops = &buf_ops_newnfs;
 	vp->v_data = np;
 	np->n_vnode = vp;
 	/* 
