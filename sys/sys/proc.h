@@ -955,7 +955,7 @@ MALLOC_DECLARE(M_SUBPROC);
  * in a pid_t, as it is used to represent "no process group".
  */
 #define	PID_MAX		99999
-#define	NO_PID		100000
+#define	NO_PID		(PID_MAX + 1)
 #define	THREAD0_TID	NO_PID
 extern pid_t pid_max;
 
