@@ -42,6 +42,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <libutil.h>
 #include <sysexits.h>
 #include <syslog.h>
@@ -110,13 +111,23 @@ main(int argc, char *argv[], char *envp[])
 		mailerconf = _PATH_MAILERCONF;
 
 	if (config == NULL && ((config = fopen(mailerconf, "r")) == NULL)) {
-		addarg(&al, NULL);
+		int serrno = errno;
 		openlog(getprogname(), LOG_PID, LOG_MAIL);
-		syslog(LOG_INFO, "cannot open %s, using %s as default MTA",
-		    mailerconf, _PATH_DEFAULTMTA);
-		closelog();
-		execve(_PATH_DEFAULTMTA, al.argv, envp);
-		err(EX_OSERR, "cannot exec %s", _PATH_DEFAULTMTA);
+
+		if (serrno == ENOENT) {
+			addarg(&al, NULL);
+			syslog(LOG_INFO, "%s does not exist, using %s as default MTA",
+			    mailerconf, _PATH_DEFAULTMTA);
+			closelog();
+			execve(_PATH_DEFAULTMTA, al.argv, envp);
+			err(EX_OSERR, "cannot exec %s", _PATH_DEFAULTMTA);
+		} else {
+			syslog(LOG_INFO, "cannot open %s: %s",
+			    mailerconf, strerror(serrno));
+			closelog();
+			errno = serrno;
+			err(EX_OSERR, "cannot open %s", mailerconf);
+		}
 		/*NOTREACHED*/
 	}
 
