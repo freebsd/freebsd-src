@@ -3731,6 +3731,7 @@ nfs_allocate(struct vop_allocate_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct thread *td = curthread;
+	vm_object_t obj;
 	struct nfsvattr nfsva;
 	struct nfsmount *nmp;
 	struct nfsnode *np;
@@ -3759,8 +3760,15 @@ nfs_allocate(struct vop_allocate_args *ap)
 		 * Flush first to ensure that the allocate adds to the
 		 * file's allocation on the server.
 		 */
-		if (error == 0)
+		if (error == 0) {
+			obj = vp->v_object;
+			if (obj != NULL) {
+				VM_OBJECT_WLOCK(obj);
+				vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
+				VM_OBJECT_WUNLOCK(obj);
+			}
 			error = ncl_flush(vp, MNT_WAIT, td, 1, 0);
+		}
 		if (error == 0)
 			error = nfsrpc_allocate(vp, *ap->a_offset, alen,
 			    &nfsva, &attrflag, ap->a_cred, td, NULL);
@@ -3800,13 +3808,14 @@ nfs_copy_file_range(struct vop_copy_file_range_args *ap)
 	struct vnode *invp = ap->a_invp;
 	struct vnode *outvp = ap->a_outvp;
 	struct mount *mp;
+	vm_object_t invp_obj;
 	struct nfsvattr innfsva, outnfsva;
 	struct vattr *vap;
 	struct uio io;
 	struct nfsmount *nmp;
 	size_t len, len2;
 	ssize_t r;
-	int error, inattrflag, outattrflag, ret, ret2;
+	int error, inattrflag, outattrflag, ret, ret2, invp_lock;
 	off_t inoff, outoff;
 	bool consecutive, must_commit, tryoutcred;
 
@@ -3816,6 +3825,9 @@ generic_copy:
 		return (ENOSYS);
 	}
 
+	invp_lock = LK_SHARED;
+relock:
+
 	/* Lock both vnodes, avoiding risk of deadlock. */
 	do {
 		mp = NULL;
@@ -3823,14 +3835,14 @@ generic_copy:
 		if (error == 0) {
 			error = vn_lock(outvp, LK_EXCLUSIVE);
 			if (error == 0) {
-				error = vn_lock(invp, LK_SHARED | LK_NOWAIT);
+				error = vn_lock(invp, invp_lock | LK_NOWAIT);
 				if (error == 0)
 					break;
 				VOP_UNLOCK(outvp);
 				if (mp != NULL)
 					vn_finished_write(mp);
 				mp = NULL;
-				error = vn_lock(invp, LK_SHARED);
+				error = vn_lock(invp, invp_lock);
 				if (error == 0)
 					VOP_UNLOCK(invp);
 			}
@@ -3878,8 +3890,23 @@ generic_copy:
 	 * stable storage before the Copy RPC.  This is done in case the
 	 * server reboots during the Copy and needs to be redone.
 	 */
-	if (error == 0)
+	if (error == 0) {
+		invp_obj = invp->v_object;
+		if (invp_obj != NULL && vm_object_mightbedirty(invp_obj)) {
+			if (invp_lock != LK_EXCLUSIVE) {
+				invp_lock = LK_EXCLUSIVE;
+				VOP_UNLOCK(invp);
+				VOP_UNLOCK(outvp);
+				if (mp != NULL)
+					vn_finished_write(mp);
+				goto relock;
+			}
+			VM_OBJECT_WLOCK(invp_obj);
+			vm_object_page_clean(invp_obj, 0, 0, OBJPC_SYNC);
+			VM_OBJECT_WUNLOCK(invp_obj);
+		}
 		error = ncl_flush(invp, MNT_WAIT, curthread, 1, 0);
+	}
 	if (error == 0)
 		error = ncl_vinvalbuf(outvp, V_SAVE, curthread, 0);
 
@@ -4021,6 +4048,7 @@ static int
 nfs_ioctl(struct vop_ioctl_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
+	vm_object_t obj;
 	struct nfsvattr nfsva;
 	struct nfsmount *nmp;
 	int attrflag, content, error, ret;
@@ -4038,7 +4066,7 @@ nfs_ioctl(struct vop_ioctl_args *ap)
 		return (ENOTTY);
 	}
 
-	error = vn_lock(vp, LK_SHARED);
+	error = vn_lock(vp, LK_EXCLUSIVE);
 	if (error != 0)
 		return (EBADF);
 
@@ -4064,6 +4092,11 @@ nfs_ioctl(struct vop_ioctl_args *ap)
 		 * server, the LayoutCommit will be done to ensure the file
 		 * size is up to date on the Metadata Server.
 		 */
+
+		obj = vp->v_object;
+		VM_OBJECT_WLOCK(obj);
+		vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
+		VM_OBJECT_WUNLOCK(obj);
 		error = ncl_flush(vp, MNT_WAIT, ap->a_td, 1, 0);
 		if (error == 0)
 			error = nfsrpc_seek(vp, (off_t *)ap->a_data, &eof,
