@@ -211,7 +211,7 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	/* Nflag is name only and doesn't make sense to combind with these */
+	/* Nflag is name only and doesn't make sense to combine with these */
 	/* TODO: few other combinations do not make sense but come back later */
 	if (Nflag && (lflag || nflag))
 		usage();
