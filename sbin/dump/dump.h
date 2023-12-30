@@ -97,7 +97,7 @@ void	quit(const char *fmt, ...) __printflike(1, 2);
 void	timeest(void);
 time_t	unctime(char *str);
 
-/* mapping rouintes */
+/* mapping routines */
 union	dinode;
 int	mapfiles(ino_t maxino, long *tapesize);
 int	mapdirs(ino_t maxino, long *tapesize);
