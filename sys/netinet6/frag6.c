@@ -288,6 +288,20 @@ ip6_deletefraghdr(struct mbuf *m, int offset, int wait __unused)
 	return (0);
 }
 
+static void
+frag6_rmqueue(struct ip6q *q6, uint32_t bucket)
+{
+	IP6QB_LOCK_ASSERT(bucket);
+
+	TAILQ_REMOVE(IP6QB_HEAD(bucket), q6, ip6q_tq);
+	V_ip6qb[bucket].count--;
+#ifdef MAC
+	mac_ip6q_destroy(q6);
+#endif
+	free(q6, M_FRAG6);
+	atomic_subtract_int(&V_frag6_nfragpackets, 1);
+}
+
 /*
  * Free a fragment reassembly header and all associated datagrams.
  */
@@ -324,14 +338,8 @@ frag6_freef(struct ip6q *q6, uint32_t bucket)
 		free(af6, M_FRAG6);
 	}
 
-	TAILQ_REMOVE(IP6QB_HEAD(bucket), q6, ip6q_tq);
-	V_ip6qb[bucket].count--;
 	atomic_subtract_int(&frag6_nfrags, q6->ip6q_nfrag);
-#ifdef MAC
-	mac_ip6q_destroy(q6);
-#endif
-	free(q6, M_FRAG6);
-	atomic_subtract_int(&V_frag6_nfragpackets, 1);
+	frag6_rmqueue(q6, bucket);
 }
 
 /*
@@ -637,15 +645,8 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	if (q6->ip6q_unfrglen >= 0) {
 		/* The 1st fragment has already arrived. */
 		if (q6->ip6q_unfrglen + fragoff + frgpartlen > IPV6_MAXPACKET) {
-			if (only_frag) {
-				TAILQ_REMOVE(head, q6, ip6q_tq);
-				V_ip6qb[bucket].count--;
-				atomic_subtract_int(&V_frag6_nfragpackets, 1);
-#ifdef MAC
-				mac_ip6q_destroy(q6);
-#endif
-				free(q6, M_FRAG6);
-			}
+			if (only_frag)
+				frag6_rmqueue(q6, bucket);
 			IP6QB_UNLOCK(bucket);
 			icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
 			    offset - sizeof(struct ip6_frag) +
@@ -654,15 +655,8 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 			return (IPPROTO_DONE);
 		}
 	} else if (fragoff + frgpartlen > IPV6_MAXPACKET) {
-		if (only_frag) {
-			TAILQ_REMOVE(head, q6, ip6q_tq);
-			V_ip6qb[bucket].count--;
-			atomic_subtract_int(&V_frag6_nfragpackets, 1);
-#ifdef MAC
-			mac_ip6q_destroy(q6);
-#endif
-			free(q6, M_FRAG6);
-		}
+		if (only_frag)
+			frag6_rmqueue(q6, bucket);
 		IP6QB_UNLOCK(bucket);
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
 		    offset - sizeof(struct ip6_frag) +
