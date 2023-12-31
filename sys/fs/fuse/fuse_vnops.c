@@ -907,6 +907,7 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 	if (err)
 		goto unlock;
 
+	vnode_pager_clean_sync(invp);
 	err = fuse_inval_buf_range(outvp, outfilesize, *ap->a_outoffp,
 		*ap->a_outoffp + io.uio_resid);
 	if (err)
