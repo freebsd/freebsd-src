@@ -62,10 +62,20 @@ static char sccsid[] = "@(#)umount.c	8.8 (Berkeley) 5/8/95";
 
 #include "mounttab.h"
 
+/* used by md_detach() */
+#include <sys/ioctl.h>
+#include <sys/mdioctl.h>
+#include <fcntl.h>
+#include <paths.h>
+
+#define DEV_MD     _PATH_DEV   MD_NAME
+#define DEV_MDCTL   _PATH_DEV  MDCTL_NAME
+
 typedef enum { FIND, REMOVE, CHECKUNIQUE } dowhat;
 
 static struct addrinfo *nfshost_ai = NULL;
-static int	fflag, vflag;
+static int	dflag, fflag, vflag;
+static int	all;
 static char	*nfshost;
 
 struct statfs *checkmntlist(char *);
@@ -82,23 +92,27 @@ int	 checkname (char *, char **);
 int	 umountfs(struct statfs *sfs);
 void	 usage (void);
 int	 xdr_dir (XDR *, char *);
+int	 md_detach(const char *);
 
 int
 main(int argc, char *argv[])
 {
-	int all, errs, ch, mntsize, error, nfsforce, ret;
+	int errs, ch, mntsize, error, nfsforce, ret;
 	char **typelist = NULL;
 	struct statfs *mntbuf, *sfs;
 	struct addrinfo hints;
 
 	nfsforce = all = errs = 0;
-	while ((ch = getopt(argc, argv, "AaF:fh:Nnt:v")) != -1)
+	while ((ch = getopt(argc, argv, "AadF:fh:Nnt:v")) != -1)
 		switch (ch) {
 		case 'A':
 			all = 2;
 			break;
 		case 'a':
 			all = 1;
+			break;
+		case 'd':
+			dflag = 1;
 			break;
 		case 'F':
 			setfstab(optarg);
@@ -467,6 +481,16 @@ umountfs(struct statfs *sfs)
 		clnt_destroy(clp);
 	}
 	free(orignfsdirname);
+
+	if (dflag) {
+		if (md_detach(sfs->f_mntfromname) == 0) {
+			if (vflag)
+				(void)printf("%s: detached\n",
+				    sfs->f_mntfromname);
+		} else if (!all)
+			return (-1);
+	}
+
 	return (0);
 }
 
@@ -649,7 +673,47 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: umount [-fNnv] special ... | node ... | fsid ...",
-	    "       umount -a | -A [-F fstab] [-fnv] [-h host] [-t type]");
+	    "usage: umount [-dfNnv] special ... | node ... | fsid ...",
+	    "       umount -a | -A [-F fstab] [-dfnv] [-h host] [-t type]");
 	exit(1);
+}
+
+int
+md_detach(const char *device)
+{
+	struct md_ioctl mdio;
+	char *eptr;
+	int fd;
+
+	memset(&mdio, 0, sizeof(mdio));
+
+	mdio.md_version = MDIOVERSION;
+	mdio.md_options = fflag ? MD_FORCE : 0;
+
+	if (strncmp(device, DEV_MD, sizeof(DEV_MD) - 1)) {
+		if (!all)
+			warnx("invalid md device: %s", device);
+		return (-1);
+	}
+
+	mdio.md_unit = strtoul(device + sizeof(DEV_MD) - 1, &eptr, 0);
+	if (mdio.md_unit == (unsigned)ULONG_MAX || *eptr != '\0') {
+		warnx("invalid md device: %s", device);
+		return (-1);
+	}
+
+	fd = open(DEV_MDCTL, O_RDWR, 0);
+	if (fd < 0) {
+		warn("%s", DEV_MDCTL);
+		return (-1);
+	}
+
+	if (ioctl(fd, MDIOCDETACH, &mdio) < 0) {
+		warn("%s", DEV_MD);
+		close(fd);
+		return (-1);
+	}
+
+	close(fd);
+	return (0);
 }
