@@ -3361,8 +3361,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 		goto out;
 	if (VOP_PATHCONF(invp, _PC_MIN_HOLE_SIZE, &holein) != 0)
 		holein = 0;
-	if (holein > 0)
-		error = vn_getsize_locked(invp, &insize, incred);
+	error = vn_getsize_locked(invp, &insize, incred);
 	VOP_UNLOCK(invp);
 	if (error != 0)
 		goto out;
@@ -3398,7 +3397,11 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 		 */
 		if (error == 0)
 			error = vn_getsize_locked(outvp, &outsize, outcred);
-		if (error == 0 && outsize > *outoffp && outsize <= *outoffp + len) {
+		if (error == 0 && outsize > *outoffp &&
+		    *outoffp <= OFF_MAX - len && outsize <= *outoffp + len &&
+		    *inoffp < insize &&
+		    *outoffp <= OFF_MAX - (insize - *inoffp) &&
+		    outsize <= *outoffp + (insize - *inoffp)) {
 #ifdef MAC
 			error = mac_vnode_check_write(curthread->td_ucred,
 			    outcred, outvp);
