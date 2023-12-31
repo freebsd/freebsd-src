@@ -4575,7 +4575,7 @@ isp_read_flash_data(ispsoftc_t *isp, uint32_t *dwptr, uint32_t faddr, uint32_t d
 		rval = isp_read_flash_dword(isp, faddr, dwptr);
 		if (rval != ISP_SUCCESS)
 			break;
-		htole32(*((uint32_t *)(dwptr)));
+		*dwptr = htole32(*dwptr);
 	}
 
 	return (rval);
