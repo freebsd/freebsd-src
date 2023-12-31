@@ -588,8 +588,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 			goto dropfrag;
 
 		/* Allocate IPv6 fragement packet queue entry. */
-		q6 = (struct ip6q *)malloc(sizeof(struct ip6q), M_FRAG6,
-		    M_NOWAIT | M_ZERO);
+		q6 = malloc(sizeof(struct ip6q), M_FRAG6, M_NOWAIT | M_ZERO);
 		if (q6 == NULL)
 			goto dropfrag;
 #ifdef MAC
@@ -715,8 +714,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	}
 
 	/* Allocate an IPv6 fragement queue entry for this fragmented part. */
-	ip6af = (struct ip6asfrag *)malloc(sizeof(struct ip6asfrag), M_FRAG6,
-	    M_NOWAIT | M_ZERO);
+	ip6af = malloc(sizeof(struct ip6asfrag), M_FRAG6, M_NOWAIT | M_ZERO);
 	if (ip6af == NULL)
 		goto dropfrag;
 	ip6af->ip6af_mff = (ip6f->ip6f_offlg & IP6F_MORE_FRAG) ? true : false;
