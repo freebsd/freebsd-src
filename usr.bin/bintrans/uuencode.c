@@ -35,26 +35,22 @@
  * Encode a file so it can be mailed to a remote system.
  */
 #include <sys/param.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 
-#include <netinet/in.h>
-
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <libgen.h>
-#include <resolv.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-extern int main_encode(int, char *[]);
-extern int main_base64_encode(const char *, const char *);
+#include "bintrans.h"
 
 static void encode(void);
-static void base64_encode(void);
+static void do_base64_encode(encoding_t);
 static int arg_to_col(const char *);
 static void usage(void) __dead2;
 
@@ -65,7 +61,7 @@ static char **av;
 static int columns = 76;
 
 int
-main_base64_encode(const char *in, const char *w)
+main_base64_encode(encoding_t encoding, const char *in, const char *w)
 {
 	raw = 1;
 	if (in != NULL && freopen(in, "r", stdin) == NULL)
@@ -73,30 +69,25 @@ main_base64_encode(const char *in, const char *w)
 	output = stdout;
 	if (w != NULL)
 		columns = arg_to_col(w);
-	base64_encode();
+	do_base64_encode(encoding);
 	if (ferror(output))
 		errx(1, "write error");
 	exit(0);
 }
 
 int
-main_encode(int argc, char *argv[])
+main_encode(encoding_t encoding, int argc, char *argv[])
 {
 	struct stat sb;
-	bool base64;
 	int ch;
 	const char *outfile;
 
-	base64 = false;
 	outfile = NULL;
-
-	if (strcmp(basename(argv[0]), "b64encode") == 0)
-		base64 = 1;
 
 	while ((ch = getopt(argc, argv, "mo:rw:")) != -1) {
 		switch (ch) {
 		case 'm':
-			base64 = true;
+			encoding = BASE64;
 			break;
 		case 'o':
 			outfile = optarg;
@@ -140,12 +131,23 @@ main_encode(int argc, char *argv[])
 			err(1, "unable to open %s for output", outfile);
 	} else
 		output = stdout;
-	if (base64)
-		base64_encode();
-	else
-		encode();
+
+	switch (encoding) {
+		case UUE:
+			encode();
+			break;
+		case BASE64:
+		case BASE64URL:
+			do_base64_encode(encoding);
+			break;
+		default:
+			assert(!"main_encode: invalid encoding_t");
+			/*NOTREACHED*/
+	}
+
 	if (ferror(output))
 		errx(1, "write error");
+
 	exit(0);
 }
 
@@ -156,7 +158,7 @@ main_encode(int argc, char *argv[])
  * Copy from in to out, encoding in base64 as you go along.
  */
 static void
-base64_encode(void)
+do_base64_encode(encoding_t encoding)
 {
 	/*
 	 * This buffer's length should be a multiple of 24 bits to avoid "="
@@ -172,9 +174,9 @@ base64_encode(void)
 	if (!raw)
 		fprintf(output, "begin-base64 %o %s\n", mode, *av);
 	while ((n = fread(buf, 1, sizeof(buf), stdin))) {
-		rv = b64_ntop(buf, n, buf2, nitems(buf2));
+		rv = b64_encode(encoding, buf, n, buf2, nitems(buf2));
 		if (rv == -1)
-			errx(1, "b64_ntop: error encoding base64");
+			errx(1, "do_base64_encode: error encoding base64");
 		if (columns == 0) {
 			fputs(buf2, output);
 			continue;

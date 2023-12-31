@@ -34,11 +34,7 @@
 #include <string.h>
 #include <sysexits.h>
 
-extern int	main_decode(int, char *[]);
-extern int	main_encode(int, char *[]);
-extern int	main_base64_decode(const char *);
-extern int	main_base64_encode(const char *, const char *);
-extern int	main_quotedprintable(int, char*[]);
+#include "bintrans.h"
 
 static int	search(const char *const);
 static void	usage_base64(bool);
@@ -46,7 +42,11 @@ static void	version_base64(void);
 static void	base64_encode_or_decode(int, char *[]);
 
 enum coders {
-	uuencode, uudecode, b64encode, b64decode, base64, qp
+	uuencode, uudecode, b64encode, b64decode,
+#ifdef notyet
+	b64urlencode, b64urldecode,
+#endif
+	base64, qp
 };
 
 int
@@ -62,13 +62,27 @@ main(int argc, char *argv[])
 	}
 	switch (coder) {
 	case uuencode:
+		main_encode(UUE, argc, argv);
+		break;
 	case b64encode:
-		main_encode(argc, argv);
+		main_encode(BASE64, argc, argv);
 		break;
+#ifdef notyet
+	case b64urlencode:
+		main_encode(BASE64URL, argc, argv);
+		break;
+#endif
 	case uudecode:
-	case b64decode:
-		main_decode(argc, argv);
+		main_decode(UUE, argc, argv);
 		break;
+	case b64decode:
+		main_decode(BASE64, argc, argv);
+		break;
+#ifdef notyet
+	case b64urldecode:
+		main_decode(BASE64URL, argc, argv);
+		break;
+#endif
 	case base64:
 		base64_encode_or_decode(argc, argv);
 		break;
@@ -79,6 +93,9 @@ main(int argc, char *argv[])
 		(void)fprintf(stderr,
 		    "usage: %1$s <uuencode | uudecode> ...\n"
 		    "       %1$s <b64encode | b64decode> ...\n"
+#ifdef notyet
+		    "       %1$s <b64urlencode | b64urldecode> ...\n"
+#endif
 		    "       %1$s <base64> ...\n"
 		    "       %1$s <qp> ...\n",
 		    progname);
@@ -95,6 +112,10 @@ search(const char *const progname)
 		DESIGNATE(uudecode),
 		DESIGNATE(b64encode),
 		DESIGNATE(b64decode),
+#ifdef notyet
+		DESIGNATE(b64urlencode),
+		DESIGNATE(b64urldecode),
+#endif
 		DESIGNATE(base64),
 		DESIGNATE(qp)
 	};
@@ -108,7 +129,7 @@ search(const char *const progname)
 static void
 usage_base64(bool failure)
 {
-	(void)fputs("usage: base64 [-w col | --wrap=col] "
+	(void)fputs("usage: base64 [-U] [-w col | --wrap=col] "
 	    "[-d | --decode] [FILE]\n"
 	    "       base64 --help\n"
 	    "       base64 --version\n", stderr);
@@ -129,20 +150,25 @@ base64_encode_or_decode(int argc, char *argv[])
 	bool decode = false;
 	const char *w = NULL;
 	enum { HELP, VERSION };
+	encoding_t encoding = BASE64;
 	static const struct option opts[] =
 	{
 		{"decode",	no_argument,		NULL, 'd'},
 		{"ignore-garbage",no_argument,		NULL, 'i'},
+		{"url",		no_argument,		NULL, 'U'},
 		{"wrap",	required_argument,	NULL, 'w'},
 		{"help",	no_argument,		NULL, HELP},
 		{"version",	no_argument,		NULL, VERSION},
 		{NULL,		no_argument,		NULL, 0}
 	};
 
-	while ((ch = getopt_long(argc, argv, "diw:", opts, NULL)) != -1)
+	while ((ch = getopt_long(argc, argv, "diUw:", opts, NULL)) != -1)
 		switch (ch) {
 		case 'd':
 			decode = true;
+			break;
+		case 'U':
+			encoding = BASE64URL;
 			break;
 		case 'w':
 			w = optarg;
@@ -159,7 +185,7 @@ base64_encode_or_decode(int argc, char *argv[])
 		}
 
 	if (decode)
-		main_base64_decode(argv[optind]);
+		main_base64_decode(encoding, argv[optind]);
 	else
-		main_base64_encode(argv[optind], w);
+		main_base64_encode(encoding, argv[optind], w);
 }
