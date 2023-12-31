@@ -64,7 +64,8 @@ tcp:kernel::debug-input
 	printf("%s", flags & TH_PUSH ? "PUSH," :"");
 	printf("%s", flags & TH_URG ? "URG," :"");
 	printf("%s", flags & TH_ECE ? "ECE," :"");
-	printf("%s", flags & TH_CWR ? "CWR" :"");
+	printf("%s", flags & TH_CWR ? "CWR," :"");
+	printf("%s", flags & TH_AE ? "AE" :"");
 	printf("%s", flags != 0 ? ">" : "");
 
 	printf("\n");
@@ -97,7 +98,8 @@ tcp:kernel::debug-output
 	printf("%s", flags & TH_PUSH ? "PUSH," :"");
 	printf("%s", flags & TH_URG ? "URG," :"");
 	printf("%s", flags & TH_ECE ? "ECE," :"");
-	printf("%s", flags & TH_CWR ? "CWR" :"");
+	printf("%s", flags & TH_CWR ? "CWR," :"");
+	printf("%s", flags & TH_AE ? "AE" :"");
 	printf("%s", flags != 0 ? ">" : "");
 
 	printf("\n");
@@ -135,7 +137,8 @@ tcp:kernel::debug-drop
 	printf("%s", flags & TH_PUSH ? "PUSH," :"");
 	printf("%s", flags & TH_URG ? "URG," :"");
 	printf("%s", flags & TH_ECE ? "ECE," :"");
-	printf("%s", flags & TH_CWR ? "CWR" :"");
+	printf("%s", flags & TH_CWR ? "CWR," :"");
+	printf("%s", flags & TH_AE ? "AE" :"");
 	printf("%s", flags != 0 ? ">" : "");
 
 	printf("\n");
