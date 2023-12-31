@@ -35,7 +35,7 @@
 .Nd unmount file systems
 .Sh SYNOPSIS
 .Nm
-.Op Fl fNnv
+.Op Fl dfNnv
 .Ar special ... | node ... | fsid ...
 .Nm
 .Fl a | A
@@ -73,6 +73,9 @@ except for those mounted at
 .Pa /
 or
 .Pa /dev .
+.It Fl d
+If the filesystem is mounted on a memory disk (see
+.Xr md 4) , detach it after unmount(2).
 .It Fl F Ar fstab
 Specify the
 .Pa fstab
@@ -184,7 +187,8 @@ file system table
 .Xr unmount 2 ,
 .Xr fstab 5 ,
 .Xr autounmountd 8 ,
-.Xr mount 8
+.Xr mount 8 ,
+.Xr mdconfig 8
 .Sh HISTORY
 A
 .Nm
