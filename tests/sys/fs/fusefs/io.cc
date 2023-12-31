@@ -73,7 +73,7 @@ static void compare(const void *tbuf, const void *controlbuf, off_t baseofs,
 	}
 }
 
-typedef tuple<bool, uint32_t, cache_mode> IoParam;
+typedef tuple<bool, uint32_t, cache_mode, uint32_t> IoParam;
 
 class Io: public FuseTest, public WithParamInterface<IoParam> {
 public:
@@ -112,6 +112,7 @@ void SetUp()
 		default:
 			FAIL() << "Unknown cache mode";
 	}
+	m_kernel_minor_version = get<3>(GetParam());
 	m_noatime = true;	// To prevent SETATTR for atime on close
 
 	FuseTest::SetUp();
@@ -120,9 +121,10 @@ void SetUp()
 
 	if (verbosity > 0) {
 		printf("Test Parameters: init_flags=%#x maxwrite=%#x "
-		    "%sasync cache=%s\n",
+		    "%sasync cache=%s kernel_minor_version=%d\n",
 		    m_init_flags, m_maxwrite, m_async? "" : "no",
-		    cache_mode_to_s(get<2>(GetParam())));
+		    cache_mode_to_s(get<2>(GetParam())),
+		    m_kernel_minor_version);
 	}
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
@@ -195,6 +197,30 @@ void SetUp()
 		}, Eq(true)),
 		_)
 	).WillRepeatedly(Invoke(ReturnErrno(0)));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_COPY_FILE_RANGE &&
+				in.header.nodeid == ino &&
+				in.body.copy_file_range.nodeid_out == ino &&
+				in.body.copy_file_range.flags == 0);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto& out) {
+		off_t off_in = in.body.copy_file_range.off_in;
+		off_t off_out = in.body.copy_file_range.off_out;
+		ASSERT_EQ((ssize_t)in.body.copy_file_range.len,
+		    copy_file_range(m_backing_fd, &off_in, m_backing_fd,
+			    &off_out, in.body.copy_file_range.len, 0));
+		SET_OUT_HEADER_LEN(out, write);
+		out.body.write.size = in.body.copy_file_range.len;
+	})));
+	/* Claim that we don't support FUSE_LSEEK */
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_LSEEK);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke(ReturnErrno(ENOSYS)));
 
 	m_test_fd = open(FULLPATH, O_RDWR );
 	EXPECT_LE(0, m_test_fd) << strerror(errno);
@@ -221,6 +247,31 @@ void do_closeopen()
 	ASSERT_EQ(0, close(m_control_fd)) << strerror(errno);
 	m_control_fd = open("control", O_RDWR);
 	ASSERT_LE(0, m_control_fd) << strerror(errno);
+}
+
+void do_copy_file_range(off_t off_in, off_t off_out, size_t size)
+{
+	ssize_t r;
+	off_t test_off_in = off_in;
+	off_t test_off_out = off_out;
+	off_t test_size = size;
+	off_t control_off_in = off_in;
+	off_t control_off_out = off_out;
+	off_t control_size = size;
+
+	while (test_size > 0) {
+		r = copy_file_range(m_test_fd, &test_off_in, m_test_fd,
+				&test_off_out, test_size, 0);
+		ASSERT_GT(r, 0) << strerror(errno);
+		test_size -= r;
+	}
+	while (control_size > 0) {
+		r = copy_file_range(m_control_fd, &control_off_in, m_control_fd,
+				&control_off_out, control_size, 0);
+		ASSERT_GT(r, 0) << strerror(errno);
+		control_size -= r;
+	}
+	m_filesize = std::max(m_filesize, off_out + (off_t)size);
 }
 
 void do_ftruncate(off_t offs)
@@ -339,6 +390,13 @@ void do_write(ssize_t size, off_t offs)
 };
 
 class IoCacheable: public Io {
+public:
+virtual void SetUp() {
+	Io::SetUp();
+}
+};
+
+class IoCopyFileRange: public Io {
 public:
 virtual void SetUp() {
 	Io::SetUp();
@@ -517,16 +575,38 @@ TEST_P(IoCacheable, vnode_pager_generic_putpage_clean_block_at_eof)
 	do_mapwrite(0x1bbc3, 0x3b4e0);
 }
 
+/*
+ * A copy_file_range that follows an mmap write to the input area needs to
+ * flush the mmap buffer first.
+ */
+TEST_P(IoCopyFileRange, copy_file_range_from_mapped_write)
+{
+	do_mapwrite(0x1000, 0);
+	do_copy_file_range(0, 0x1000, 0x1000);
+	do_read(0x1000, 0x1000);
+}
+
+
 INSTANTIATE_TEST_CASE_P(Io, Io,
 	Combine(Bool(),					/* async read */
 		Values(0x1000, 0x10000, 0x20000),	/* m_maxwrite */
-		Values(Uncached, Writethrough, Writeback, WritebackAsync)
+		Values(Uncached, Writethrough, Writeback, WritebackAsync),
+		Values(28)				/* kernel_minor_vers */
 	)
 );
 
 INSTANTIATE_TEST_CASE_P(Io, IoCacheable,
 	Combine(Bool(),					/* async read */
 		Values(0x1000, 0x10000, 0x20000),	/* m_maxwrite */
-		Values(Writethrough, Writeback, WritebackAsync)
+		Values(Writethrough, Writeback, WritebackAsync),
+		Values(28)				/* kernel_minor_vers */
+	)
+);
+
+INSTANTIATE_TEST_CASE_P(Io, IoCopyFileRange,
+	Combine(Bool(),					/* async read */
+		Values(0x10000),			/* m_maxwrite */
+		Values(Writethrough, Writeback, WritebackAsync),
+		Values(27, 28)				/* kernel_minor_vers */
 	)
 );
