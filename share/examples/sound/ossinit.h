@@ -227,7 +227,7 @@ oss_init(config_t *config)
          * If desired frag is smaller than minimum, based on number of channels
          * and format (size in bits: 8, 16, 24, 32), set that as frag. Buffer size
          * is 2^frag, but the real size of the buffer will be read when the
-         * configuration of the device is successfull
+         * configuration of the device is successful
          */
 	int min_frag = size2frag(config->sample_size * config->channels);
 
