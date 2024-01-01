@@ -54,7 +54,7 @@ at_quick_exit(void (*func)(void))
 		return (-1);
 	}
 	h->cleanup = func;
-	while (!atomic_compare_exchange_strong(&handlers, &h->next, h)) {
+	while (!atomic_compare_exchange_weak_explicit(&handlers, &h->next, h, memory_order_release, memory_order_acquire)) {
 		/* nothing */ ;
 	}
 	return (0);
