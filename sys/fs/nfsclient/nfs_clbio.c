@@ -484,9 +484,14 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		on = uio->uio_offset - (lbn * biosize);
 
 		/*
-		 * Start the read ahead(s), as required.
+		 * Start the read ahead(s), as required.  Do not do
+		 * read-ahead if there are writeable mappings, since
+		 * unlocked read by nfsiod could obliterate changes
+		 * done by userspace.
 		 */
-		if (nmp->nm_readahead > 0) {
+		if (nmp->nm_readahead > 0 &&
+		    !vm_object_mightbedirty(vp->v_object) &&
+		    vp->v_object->un_pager.vnp.writemappings == 0) {
 		    for (nra = 0; nra < nmp->nm_readahead && nra < seqcount &&
 			(off_t)(lbn + 1 + nra) * biosize < nsize; nra++) {
 			rabn = lbn + 1 + nra;
@@ -674,6 +679,8 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		 */
 		NFSLOCKNODE(np);
 		if (nmp->nm_readahead > 0 &&
+		    !vm_object_mightbedirty(vp->v_object) &&
+		    vp->v_object->un_pager.vnp.writemappings == 0 &&
 		    (bp->b_flags & B_INVAL) == 0 &&
 		    (np->n_direofoffset == 0 ||
 		    (lbn + 1) * NFS_DIRBLKSIZ < np->n_direofoffset) &&
