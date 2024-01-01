@@ -265,7 +265,7 @@ translator tcpinfo_t < struct tcphdr *p > {
 	tcp_dport =	p == NULL ? 0  : ntohs(p->th_dport);
 	tcp_seq =	p == NULL ? -1 : ntohl(p->th_seq);
 	tcp_ack =	p == NULL ? -1 : ntohl(p->th_ack);
-	tcp_offset =	p == NULL ? -1 : (p->th_off >> 2);
+	tcp_offset =	p == NULL ? -1 : (p->th_off << 2);
 	tcp_flags =	p == NULL ? 0  : ((p->th_x2 << 8) | p->th_flags);
 	tcp_window =	p == NULL ? 0  : ntohs(p->th_win);
 	tcp_checksum =	p == NULL ? 0  : ntohs(p->th_sum);
@@ -284,7 +284,7 @@ translator tcpinfoh_t < struct tcphdr *p > {
 	tcp_dport =	p == NULL ? 0  : ntohs(p->th_dport);
 	tcp_seq =	p == NULL ? -1 : p->th_seq;
 	tcp_ack =	p == NULL ? -1 : p->th_ack;
-	tcp_offset =	p == NULL ? -1 : (p->th_off >> 2);
+	tcp_offset =	p == NULL ? -1 : (p->th_off << 2);
 	tcp_flags =	p == NULL ? 0  : ((p->th_x2 << 8) | p->th_flags);
 	tcp_window =	p == NULL ? 0  : p->th_win;
 	tcp_checksum =	p == NULL ? 0  : ntohs(p->th_sum);
