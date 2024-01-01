@@ -9,8 +9,7 @@ NANO_RAM_TMPVARSIZE=40960
 NANO_PMAKE="make -j 8"
 NANO_LABEL="rescue"
 NANO_RAM_TMPVARSIZE=40960
-#NANO_MEDIASIZE="3932160"
-NANO_MEDIASIZE="16384000"
+NANO_MEDIASIZE="3932160"
 NANO_SECTS="63"
 NANO_HEADS="16"
 NANO_IMAGES="2"
@@ -30,10 +29,12 @@ CONF_INSTALL='
 '
 # Options to put in make.conf during both build- & installworld.                
 CONF_WORLD='                                                                    
-#TARGET_ARCH=i386
 CFLAGS=-O -pipe                                                                
-WITHOUT_TESTS=YES
-ALL_MODULES=YES
+# We do not need these for rescue
+WITHOUT_LIB32=true
+WITHOUT_TESTS=true
+WITHOUT_DEBUG_FILES=t
+WITHOUT_KERNEL_SYMBOLS=t
 '
 
 # Functions
