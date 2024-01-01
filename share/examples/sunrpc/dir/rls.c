@@ -71,7 +71,7 @@ main(argc, argv)
 	}
 
 	/*
-	 * Successfuly got a directory listing.
+	 * Successfully got a directory listing.
 	 * Print it out.
 	 */
 	for (nl = result->readdir_res_u.list; nl != NULL; nl = nl->next) {
