@@ -146,7 +146,7 @@ main(void)
 
 	printf("1..21\n");
 
-	/* We better start up with fd's 0, 1, and 2 open. */
+	/* We'd better start up with fd's 0, 1, and 2 open. */
 	start = devnull();
 	if (start == -1)
 		fail("open", "bad descriptor %d", start);
