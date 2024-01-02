@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2021 Ng Peng Nam Sean
  * Copyright (c) 2022 Alexander V. Chernikov <melifaro@FreeBSD.org>
+ * Copyright (c) 2023 Gleb Smirnoff <glebius@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -666,9 +667,10 @@ nl_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 		.nl_pid = 0 /* comes from the kernel */
 	};
 	struct sockbuf *sb = &so->so_rcv;
-	struct nl_buf *nb;
+	struct nl_buf *first, *last, *nb, *next;
+	struct nlmsghdr *hdr;
 	int flags, error;
-	u_int overflow;
+	u_int len, overflow, partoff, partlen, msgrcv, datalen;
 	bool nonblock, trunc, peek;
 
 	MPASS(mp == NULL && uio != NULL);
@@ -689,8 +691,16 @@ nl_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	if (__predict_false(error))
 		return (error);
 
+	if (controlp != NULL)
+		*controlp = NULL;
+
+	len = 0;
+	overflow = 0;
+	msgrcv = 0;
+	datalen = 0;
+
 	SOCK_RECVBUF_LOCK(so);
-	while ((nb = TAILQ_FIRST(&sb->nl_queue)) == NULL) {
+	while ((first = TAILQ_FIRST(&sb->nl_queue)) == NULL) {
 		if (nonblock) {
 			SOCK_RECVBUF_UNLOCK(so);
 			SOCK_IO_RECV_UNLOCK(so);
@@ -705,44 +715,113 @@ nl_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	}
 
 	/*
-	 * XXXGL
-	 * Here we emulate a PR_ATOMIC behavior of soreceive_generic() where
-	 * we take only the first "record" in the socket buffer and send it
-	 * to uio whole or truncated ignoring how many netlink messages are
-	 * in the record and how much space is left in the uio.
-	 * This needs to be fixed at next refactoring. First, we should perform
-	 * truncation only if the very first message doesn't fit into uio.
-	 * That will help an application with small buffer not to lose data.
-	 * Second, we should continue working on the sb->nl_queue as long as
-	 * there is more space in the uio.  That will boost applications with
-	 * large buffers.
+	 * Netlink socket buffer consists of a queue of nl_bufs, but for the
+	 * userland there should be no boundaries.  However, there are Netlink
+	 * messages, that shouldn't be split.  Internal invariant is that a
+	 * message never spans two nl_bufs.
+	 * If a large userland buffer is provided, we would traverse the queue
+	 * until either queue end is reached or the buffer is fulfilled.  If
+	 * an application provides a buffer that isn't able to fit a single
+	 * message, we would truncate it and lose its tail.  This is the only
+	 * condition where we would lose data.  If buffer is able to fit at
+	 * least one message, we would return it and won't truncate the next.
+	 *
+	 * We use same code for normal and MSG_PEEK case.  At first queue pass
+	 * we scan nl_bufs and count lenght.  In case we can read entire buffer
+	 * at one write everything is trivial.  In case we can not, we save
+	 * pointer to the last (or partial) nl_buf and in the !peek case we
+	 * split the queue into two pieces.  We can safely drop the queue lock,
+	 * as kernel would only append nl_bufs to the end of the queue, and
+	 * we are the exclusive owner of queue beginning due to sleepable lock.
+	 * At the second pass we copy data out and in !peek case free nl_bufs.
+	 *
+	 * XXX: current implementation of control data implies one chunk of
+	 * data per one nl_buf.  This doesn't map well with idea of no
+	 * boundaries between nl_bufs.
 	 */
-	if (__predict_true(!peek)) {
-		TAILQ_REMOVE(&sb->nl_queue, nb, tailq);
-		sb->sb_acc -= nb->datalen;
-		sb->sb_ccc -= nb->datalen;
+	TAILQ_FOREACH(nb, &sb->nl_queue, tailq) {
+		u_int offset;
+
+		/*
+		 * XXXGL: zero length buffer may be at the tail of a queue
+		 * when a writer overflows socket buffer.  When this is
+		 * improved, use MPASS(nb->offset < nb->datalen).
+		 */
+		MPASS(nb->offset <= nb->datalen);
+		offset = nb->offset;
+		while (offset < nb->datalen) {
+			hdr = (struct nlmsghdr *)&nb->data[offset];
+			if (uio->uio_resid < len + hdr->nlmsg_len) {
+				overflow = len + hdr->nlmsg_len -
+				    uio->uio_resid;
+				partoff = nb->offset;
+				if (offset > partoff) {
+					partlen = offset - partoff;
+					if (!peek) {
+						nb->offset = offset;
+						datalen += partlen;
+					}
+				} else if (len == 0 && uio->uio_resid > 0) {
+					flags |= MSG_TRUNC;
+					partlen = uio->uio_resid;
+					if (!peek) {
+						/* XXX: may leave empty nb */
+						nb->offset += hdr->nlmsg_len;
+						datalen += hdr->nlmsg_len;
+					}
+				} else
+					partlen = 0;
+				goto nospace;
+			}
+			len += hdr->nlmsg_len;
+			offset += hdr->nlmsg_len;
+			MPASS(offset <= nb->buflen);
+			msgrcv++;
+		}
+		MPASS(offset == nb->datalen);
+		datalen += nb->datalen;
+	}
+nospace:
+	last = nb;
+	if (!peek) {
+		if (last == NULL)
+			TAILQ_INIT(&sb->nl_queue);
+		else {
+			/* XXXGL: create TAILQ_SPLIT */
+			TAILQ_FIRST(&sb->nl_queue) = last;
+			last->tailq.tqe_prev = &TAILQ_FIRST(&sb->nl_queue);
+		}
+		sb->sb_acc -= datalen;
+		sb->sb_ccc -= datalen;
 	}
 	SOCK_RECVBUF_UNLOCK(so);
 
-	overflow = __predict_false(nb->datalen > uio->uio_resid) ?
-	    nb->datalen - uio->uio_resid : 0;
-	error = uiomove(nb->data, (int)nb->datalen, uio);
-	if (__predict_false(overflow > 0)) {
-		flags |= MSG_TRUNC;
-		if (trunc)
-			uio->uio_resid -= overflow;
-	}
+	for (nb = first; nb != last; nb = next) {
+		next = TAILQ_NEXT(nb, tailq);
 
-	if (controlp != NULL) {
-		*controlp = nb->control;
-		nb->control = NULL;
+		/* XXXGL multiple controls??? */
+		if (controlp != NULL && *controlp == NULL &&
+		    nb->control != NULL && !peek) {
+			*controlp = nb->control;
+			nb->control = NULL;
+		}
+		if (__predict_true(error == 0))
+			error = uiomove(&nb->data[nb->offset],
+			    (int)(nb->datalen - nb->offset), uio);
+		if (!peek)
+			nl_buf_free(nb);
 	}
+	if (last != NULL && partlen > 0 && __predict_true(error == 0))
+		error = uiomove(&nb->data[partoff], (int)partlen, uio);
 
-	if (__predict_true(!peek))
-		nl_buf_free(nb);
+	if (trunc && overflow > 0) {
+		uio->uio_resid -= overflow;
+		MPASS(uio->uio_resid < 0);
+	} else
+		MPASS(uio->uio_resid >= 0);
 
 	if (uio->uio_td)
-		uio->uio_td->td_ru.ru_msgrcv++;
+		uio->uio_td->td_ru.ru_msgrcv += msgrcv;
 
 	if (flagsp != NULL)
 		*flagsp |= flags;
