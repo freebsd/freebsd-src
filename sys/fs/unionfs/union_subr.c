@@ -936,14 +936,21 @@ unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *udvp,
 	*pathend = pathterm;
 
 	if (!error) {
-		unionfs_node_update(unp, uvp, td);
-
 		/*
 		 * XXX The bug which cannot set uid/gid was corrected.
 		 * Ignore errors.
 		 */
 		va.va_type = VNON;
 		VOP_SETATTR(uvp, &va, nd.ni_cnd.cn_cred);
+
+		/*
+		 * VOP_SETATTR() may transiently drop uvp's lock, so it's
+		 * important to call it before unionfs_node_update() transfers
+		 * the unionfs vnode's lock from lvp to uvp; otherwise the
+		 * unionfs vnode itself would be transiently unlocked and
+		 * potentially doomed.
+		 */
+		unionfs_node_update(unp, uvp, td);
 	}
 	vn_finished_write(mp);
 
@@ -955,28 +962,180 @@ unionfs_mkshadowdir_abort:
 	return (error);
 }
 
+static inline void
+unionfs_forward_vop_ref(struct vnode *basevp, int *lkflags)
+{
+	ASSERT_VOP_LOCKED(basevp, __func__);
+	*lkflags = VOP_ISLOCKED(basevp);
+	vref(basevp);
+}
+
+/*
+ * Prepare unionfs to issue a forwarded VOP to either the upper or lower
+ * FS.  This should be used for any VOP which may drop the vnode lock;
+ * it is not required otherwise.
+ * The unionfs vnode shares its lock with the base-layer vnode(s); if the
+ * base FS must transiently drop its vnode lock, the unionfs vnode may
+ * effectively become unlocked.  During that window, a concurrent forced
+ * unmount may doom the unionfs vnode, which leads to two significant
+ * issues:
+ * 1) Completion of, and return from, the unionfs VOP with the unionfs
+ *    vnode completely unlocked.  When the unionfs vnode becomes doomed
+ *    it stops sharing its lock with the base vnode, so even if the
+ *    forwarded VOP reacquires the base vnode lock the unionfs vnode
+ *    lock will no longer be held.  This can lead to violation of the
+ *    caller's sychronization requirements as well as various failed
+ *    locking assertions when DEBUG_VFS_LOCKS is enabled.
+ * 2) Loss of reference on the base vnode.  The caller is expected to
+ *    hold a v_usecount reference on the unionfs vnode, while the
+ *    unionfs vnode holds a reference on the base-layer vnode(s).  But
+ *    these references are released when the unionfs vnode becomes
+ *    doomed, violating the base layer's expectation that its caller
+ *    must hold a reference to prevent vnode recycling.
+ *
+ * basevp1 and basevp2 represent two base-layer vnodes which are
+ * expected to be locked when this function is called.  basevp2
+ * may be NULL, but if not NULL basevp1 and basevp2 should represent
+ * a parent directory and a filed linked to it, respectively.
+ * lkflags1 and lkflags2 are output parameters that will store the
+ * current lock status of basevp1 and basevp2, respectively.  They
+ * are intended to be passed as the lkflags1 and lkflags2 parameters
+ * in the subsequent call to unionfs_forward_vop_finish_pair().
+ * lkflags2 may be NULL iff basevp2 is NULL.
+ */
+void
+unionfs_forward_vop_start_pair(struct vnode *basevp1, int *lkflags1,
+    struct vnode *basevp2, int *lkflags2)
+{
+	/*
+	 * Take an additional reference on the base-layer vnodes to
+	 * avoid loss of reference if the unionfs vnodes are doomed.
+	 */
+	unionfs_forward_vop_ref(basevp1, lkflags1);
+	if (basevp2 != NULL)
+		unionfs_forward_vop_ref(basevp2, lkflags2);
+}
+
+static inline bool
+unionfs_forward_vop_rele(struct vnode *unionvp, struct vnode *basevp,
+    int lkflags)
+{
+	bool unionvp_doomed;
+
+	if (__predict_false(VTOUNIONFS(unionvp) == NULL)) {
+		if ((lkflags & LK_EXCLUSIVE) != 0)
+			ASSERT_VOP_ELOCKED(basevp, __func__);
+		else
+			ASSERT_VOP_LOCKED(basevp, __func__);
+		unionvp_doomed = true;
+	} else {
+		vrele(basevp);
+		unionvp_doomed = false;
+	}
+
+	return (unionvp_doomed);
+}
+
+
+/*
+ * Indicate completion of a forwarded VOP previously prepared by
+ * unionfs_forward_vop_start_pair().
+ * basevp1 and basevp2 must be the same values passed to the prior
+ * call to unionfs_forward_vop_start_pair().  unionvp1 and unionvp2
+ * must be the unionfs vnodes that were initially above basevp1 and
+ * basevp2, respectively.
+ * basevp1 and basevp2 (if not NULL) must be locked when this function
+ * is called, while unionvp1 and/or unionvp2 may be unlocked if either
+ * unionfs vnode has become doomed.
+ * lkflags1 and lkflag2 represent the locking flags that should be
+ * used to re-lock unionvp1 and unionvp2, respectively, if either
+ * vnode has become doomed.
+ *
+ * Returns true if any unionfs vnode was found to be doomed, false
+ * otherwise.
+ */
+bool
+unionfs_forward_vop_finish_pair(
+    struct vnode *unionvp1, struct vnode *basevp1, int lkflags1,
+    struct vnode *unionvp2, struct vnode *basevp2, int lkflags2)
+{
+	bool vp1_doomed, vp2_doomed;
+
+	/*
+	 * If either vnode is found to have been doomed, set
+	 * a flag indicating that it needs to be re-locked.
+	 * Otherwise, simply drop the base-vnode reference that
+	 * was taken in unionfs_forward_vop_start().
+	 */
+	vp1_doomed = unionfs_forward_vop_rele(unionvp1, basevp1, lkflags1);
+
+	if (unionvp2 != NULL)
+		vp2_doomed = unionfs_forward_vop_rele(unionvp2, basevp2, lkflags2);
+	else
+		vp2_doomed = false;
+
+	/*
+	 * If any of the unionfs vnodes need to be re-locked, that
+	 * means the unionfs vnode's lock is now de-coupled from the
+	 * corresponding base vnode.  We therefore need to drop the
+	 * base vnode lock (since nothing else will after this point),
+	 * and also release the reference taken in
+	 * unionfs_forward_vop_start_pair().
+	 */
+	if (__predict_false(vp1_doomed && vp2_doomed))
+		VOP_VPUT_PAIR(basevp1, &basevp2, true);
+	else if (__predict_false(vp1_doomed)) {
+		/*
+		 * If basevp1 needs to be unlocked, then we may not
+		 * be able to safely unlock it with basevp2 still locked,
+		 * for the same reason that an ordinary VFS call would
+		 * need to use VOP_VPUT_PAIR() here.  We might be able
+		 * to use VOP_VPUT_PAIR(..., false) here, but then we
+		 * would need to deal with the possibility of basevp2
+		 * changing out from under us, which could result in
+		 * either the unionfs vnode becoming doomed or its
+		 * upper/lower vp no longer matching basevp2.  Either
+		 * scenario would require at least re-locking the unionfs
+		 * vnode anyway.
+		 */
+		if (unionvp2 != NULL) {
+			VOP_UNLOCK(unionvp2);
+			vp2_doomed = true;
+		}
+		vput(basevp1);
+	} else if (__predict_false(vp2_doomed))
+		vput(basevp2);
+
+	if (__predict_false(vp1_doomed || vp2_doomed))
+		vn_lock_pair(unionvp1, !vp1_doomed, lkflags1,
+		    unionvp2, !vp2_doomed, lkflags2);
+
+	return (vp1_doomed || vp2_doomed);
+}
+
 /*
  * Create a new whiteout.
  * 
- * dvp should be locked on entry and will be locked on return.
+ * udvp and dvp should be locked on entry and will be locked on return.
  */
 int
-unionfs_mkwhiteout(struct vnode *dvp, struct componentname *cnp,
-    struct thread *td, char *path, int pathlen)
+unionfs_mkwhiteout(struct vnode *dvp, struct vnode *udvp,
+    struct componentname *cnp, struct thread *td, char *path, int pathlen)
 {
 	struct vnode   *wvp;
 	struct nameidata nd;
 	struct mount   *mp;
 	int		error;
+	int		lkflags;
 
 	wvp = NULLVP;
 	NDPREINIT(&nd);
-	if ((error = unionfs_relookup(dvp, &wvp, cnp, &nd.ni_cnd, td, path,
+	if ((error = unionfs_relookup(udvp, &wvp, cnp, &nd.ni_cnd, td, path,
 	    pathlen, CREATE))) {
 		return (error);
 	}
 	if (wvp != NULLVP) {
-		if (dvp == wvp)
+		if (udvp == wvp)
 			vrele(wvp);
 		else
 			vput(wvp);
@@ -984,9 +1143,11 @@ unionfs_mkwhiteout(struct vnode *dvp, struct componentname *cnp,
 		return (EEXIST);
 	}
 
-	if ((error = vn_start_write(dvp, &mp, V_WAIT | V_PCATCH)))
+	if ((error = vn_start_write(udvp, &mp, V_WAIT | V_PCATCH)))
 		goto unionfs_mkwhiteout_free_out;
-	error = VOP_WHITEOUT(dvp, &nd.ni_cnd, CREATE);
+	unionfs_forward_vop_start(udvp, &lkflags);
+	error = VOP_WHITEOUT(udvp, &nd.ni_cnd, CREATE);
+	unionfs_forward_vop_finish(dvp, udvp, lkflags);
 
 	vn_finished_write(mp);
 
