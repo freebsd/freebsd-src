@@ -3014,11 +3014,13 @@ unlock:
  *
  *	Reclaim allocated, contiguous physical memory satisfying the specified
  *	conditions by relocating the virtual pages using that physical memory.
- *	Returns true if reclamation is successful and false otherwise.  Since
+ *	Returns 0 if reclamation is successful, ERANGE if the specified domain
+ *	can't possibly satisfy the reclamation request, or ENOMEM if not
+ *	currently able to reclaim the requested number of pages.  Since
  *	relocation requires the allocation of physical pages, reclamation may
- *	fail due to a shortage of free pages.  When reclamation fails, callers
- *	are expected to perform vm_wait() before retrying a failed allocation
- *	operation, e.g., vm_page_alloc_contig().
+ *	fail with ENOMEM due to a shortage of free pages.  When reclamation
+ *	fails in this manner, callers are expected to perform vm_wait() before
+ *	retrying a failed allocation operation, e.g., vm_page_alloc_contig().
  *
  *	The caller must always specify an allocation class through "req".
  *
