@@ -783,4 +783,56 @@ _nlmsg_end_dump(struct nl_writer *nw, int error, struct nlmsghdr *hdr)
 	return (true);
 }
 
+/*
+ * KPI functions.
+ */
+
+int
+nlattr_save_offset(const struct nl_writer *nw)
+{
+	return (nw->offset - ((char *)nw->hdr - nw->data));
+}
+
+void *
+nlmsg_reserve_data_raw(struct nl_writer *nw, size_t sz)
+{
+	sz = NETLINK_ALIGN(sz);
+
+	if (__predict_false(nw->offset + sz > nw->alloc_len)) {
+		if (!nlmsg_refill_buffer(nw, sz))
+			return (NULL);
+	}
+
+	void *data_ptr = &nw->data[nw->offset];
+	nw->offset += sz;
+	bzero(data_ptr, sz);
+
+	return (data_ptr);
+}
+
+bool
+nlattr_add(struct nl_writer *nw, int attr_type, int attr_len, const void *data)
+{
+	int required_len = NLA_ALIGN(attr_len + sizeof(struct nlattr));
+
+	if (__predict_false(nw->offset + required_len > nw->alloc_len)) {
+		if (!nlmsg_refill_buffer(nw, required_len))
+			return (false);
+	}
+
+	struct nlattr *nla = (struct nlattr *)(&nw->data[nw->offset]);
+
+	nla->nla_len = attr_len + sizeof(struct nlattr);
+	nla->nla_type = attr_type;
+	if (attr_len > 0) {
+		if ((attr_len % 4) != 0) {
+			/* clear padding bytes */
+			bzero((char *)nla + required_len - 4, 4);
+		}
+		memcpy((nla + 1), data, attr_len);
+	}
+	nw->offset += required_len;
+	return (true);
+}
+
 #include <netlink/ktest_netlink_message_writer.h>
