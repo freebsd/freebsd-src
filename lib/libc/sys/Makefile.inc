@@ -18,6 +18,7 @@
 #
 NOASM=	exit.o \
 	getlogin.o \
+	sbrk.o \
 	sstk.o \
 	yield.o
 PSEUDO=	_exit.o \
