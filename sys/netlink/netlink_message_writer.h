@@ -193,11 +193,7 @@ nlmsg_reply(struct nl_writer *nw, const struct nlmsghdr *hdr, int payload_len)
  * current (uncompleted) header is guaranteed to be contiguous,
  *  but can be reallocated, thus pointers may need to be readjusted.
  */
-static inline int
-nlattr_save_offset(const struct nl_writer *nw)
-{
-	return (nw->offset - ((char *)nw->hdr - nw->data));
-}
+u_int nlattr_save_offset(const struct nl_writer *nw);
 
 static inline void *
 _nlattr_restore_offset(const struct nl_writer *nw, int off)
@@ -213,22 +209,7 @@ nlattr_set_len(const struct nl_writer *nw, int off)
 	nla->nla_len = nlattr_save_offset(nw) - off;
 }
 
-static inline void *
-nlmsg_reserve_data_raw(struct nl_writer *nw, size_t sz)
-{
-	sz = NETLINK_ALIGN(sz);
-
-	if (__predict_false(nw->offset + sz > nw->alloc_len)) {
-		if (!nlmsg_refill_buffer(nw, sz))
-			return (NULL);
-	}
-
-	void *data_ptr = &nw->data[nw->offset];
-	nw->offset += sz;
-	bzero(data_ptr, sz);
-
-	return (data_ptr);
-}
+void *nlmsg_reserve_data_raw(struct nl_writer *nw, size_t sz);
 #define nlmsg_reserve_object(_ns, _t)	((_t *)nlmsg_reserve_data_raw(_ns, sizeof(_t)))
 #define nlmsg_reserve_data(_ns, _sz, _t)	((_t *)nlmsg_reserve_data_raw(_ns, _sz))
 
@@ -258,30 +239,8 @@ _nlmsg_reserve_attr(struct nl_writer *nw, uint16_t nla_type, uint16_t sz)
 }
 #define	nlmsg_reserve_attr(_ns, _at, _t)	((_t *)_nlmsg_reserve_attr(_ns, _at, NLA_ALIGN(sizeof(_t))))
 
-static inline bool
-nlattr_add(struct nl_writer *nw, int attr_type, int attr_len, const void *data)
-{
-	int required_len = NLA_ALIGN(attr_len + sizeof(struct nlattr));
-
-	if (__predict_false(nw->offset + required_len > nw->alloc_len)) {
-		if (!nlmsg_refill_buffer(nw, required_len))
-			return (false);
-	}
-
-	struct nlattr *nla = (struct nlattr *)(&nw->data[nw->offset]);
-
-	nla->nla_len = attr_len + sizeof(struct nlattr);
-	nla->nla_type = attr_type;
-	if (attr_len > 0) {
-		if ((attr_len % 4) != 0) {
-			/* clear padding bytes */
-			bzero((char *)nla + required_len - 4, 4);
-		}
-		memcpy((nla + 1), data, attr_len);
-	}
-	nw->offset += required_len;
-	return (true);
-}
+bool nlattr_add(struct nl_writer *nw, int attr_type, int attr_len,
+    const void *data);
 
 static inline bool
 nlattr_add_raw(struct nl_writer *nw, const struct nlattr *nla_src)
