@@ -8210,7 +8210,9 @@ done:
 	}
 
 	if (s) {
+		uint8_t log = pd.act.log;
 		memcpy(&pd.act, &s->act, sizeof(struct pf_rule_actions));
+		pd.act.log |= log;
 		tag = s->tag;
 		rt = s->rt;
 	} else {
@@ -8819,7 +8821,9 @@ done:
 	}
 
 	if (s) {
+		uint8_t log = pd.act.log;
 		memcpy(&pd.act, &s->act, sizeof(struct pf_rule_actions));
+		pd.act.log |= log;
 		tag = s->tag;
 		rt = s->rt;
 	} else {
