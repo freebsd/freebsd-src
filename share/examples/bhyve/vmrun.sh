@@ -53,7 +53,7 @@ errmsg() {
 usage() {
 	local msg=$1
 
-	echo "Usage: vmrun.sh [-aAEhiTv] [-c <CPUs>] [-C <console>]" \
+	echo "Usage: vmrun.sh [-aAEhiTuvw] [-c <CPUs>] [-C <console>]" \
 	    "[-d <disk file>]"
 	echo "                [-e <name=value>] [-f <path of firmware>]" \
 	    "[-F <size>]"
@@ -62,6 +62,7 @@ usage() {
 	echo "                [-L <VNC IP for UEFI framebuffer>]"
 	echo "                [-m <memsize>]" \
 	    "[-n <network adapter emulation type>]"
+	echo "                [-p <bus/slot/func>]"
 	echo "                [-P <port>] [-t <tapdev>] <vmname>"
 	echo ""
 	echo "       -h: display this help message"
