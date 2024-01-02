@@ -163,6 +163,12 @@ struct sockbuf {
 			u_int uxdg_ctl;
 			u_int uxdg_mbcnt;
 		};
+		/*
+		 * Netlink socket.
+		 */
+		struct {
+			TAILQ_HEAD(, nl_buf)	nl_queue;
+		};
 	};
 };
 

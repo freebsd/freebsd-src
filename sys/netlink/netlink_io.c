@@ -58,8 +58,7 @@ static const struct sockaddr_nl _nl_empty_src = {
 };
 static const struct sockaddr *nl_empty_src = (const struct sockaddr *)&_nl_empty_src;
 
-static struct mbuf *nl_process_mbuf(struct mbuf *m, struct nlpcb *nlp);
-
+static bool nl_process_nbuf(struct nl_buf *nb, struct nlpcb *nlp);
 
 static void
 queue_push(struct nl_io_queue *q, struct mbuf *mq)
@@ -72,15 +71,6 @@ queue_push(struct nl_io_queue *q, struct mbuf *mq)
 		q->length += m_length(m, NULL);
 		STAILQ_INSERT_TAIL(&q->head, m, m_stailqpkt);
 	}
-}
-
-static void
-queue_push_head(struct nl_io_queue *q, struct mbuf *m)
-{
-	MPASS(m->m_nextpkt == NULL);
-
-	q->length += m_length(m, NULL);
-	STAILQ_INSERT_HEAD(&q->head, m, m_stailqpkt);
 }
 
 static struct mbuf *
@@ -172,7 +162,7 @@ extract_msg_info(struct mbuf *m)
 	return (NULL);
 }
 
-static void
+void
 nl_schedule_taskqueue(struct nlpcb *nlp)
 {
 	if (!nlp->nl_task_pending) {
@@ -182,32 +172,6 @@ nl_schedule_taskqueue(struct nlpcb *nlp)
 	} else {
 		NL_LOG(LOG_DEBUG3, "taskqueue schedule skipped");
 	}
-}
-
-int
-nl_receive_async(struct mbuf *m, struct socket *so)
-{
-	struct nlpcb *nlp = sotonlpcb(so);
-	int error = 0;
-
-	m->m_nextpkt = NULL;
-
-	NLP_LOCK(nlp);
-
-	if ((__predict_true(nlp->nl_active))) {
-		sbappend(&so->so_snd, m, 0);
-		NL_LOG(LOG_DEBUG3, "enqueue %u bytes", m_length(m, NULL));
-		nl_schedule_taskqueue(nlp);
-	} else {
-		NL_LOG(LOG_DEBUG, "ignoring %u bytes on non-active socket",
-		    m_length(m, NULL));
-		m_free(m);
-		error = EINVAL;
-	}
-
-	NLP_UNLOCK(nlp);
-
-	return (error);
 }
 
 static bool
@@ -252,6 +216,9 @@ tx_check_locked(struct nlpcb *nlp)
 static bool
 nl_process_received_one(struct nlpcb *nlp)
 {
+	struct socket *so = nlp->nl_socket;
+	struct sockbuf *sb = &so->so_snd;
+	struct nl_buf *nb;
 	bool reschedule = false;
 
 	NLP_LOCK(nlp);
@@ -263,39 +230,28 @@ nl_process_received_one(struct nlpcb *nlp)
 		return (false);
 	}
 
-	if (queue_empty(&nlp->rx_queue)) {
-		/*
-		 * Grab all data we have from the socket TX queue
-		 * and store it the internal queue, so it can be worked on
-		 * w/o holding socket lock.
-		 */
-		struct sockbuf *sb = &nlp->nl_socket->so_snd;
-
-		SOCKBUF_LOCK(sb);
-		unsigned int avail = sbavail(sb);
-		if (avail > 0) {
-			NL_LOG(LOG_DEBUG3, "grabbed %u bytes", avail);
-			queue_push(&nlp->rx_queue, sbcut_locked(sb, avail));
-		}
-		SOCKBUF_UNLOCK(sb);
-	} else {
-		/* Schedule another pass to read from the socket queue */
-		reschedule = true;
-	}
-
 	int prev_hiwat = nlp->tx_queue.hiwat;
 	NLP_UNLOCK(nlp);
 
-	while (!queue_empty(&nlp->rx_queue)) {
-		struct mbuf *m = queue_pop(&nlp->rx_queue);
-
-		m = nl_process_mbuf(m, nlp);
-		if (m != NULL) {
-			queue_push_head(&nlp->rx_queue, m);
-			reschedule = false;
+	SOCK_SENDBUF_LOCK(so);
+	while ((nb = TAILQ_FIRST(&sb->nl_queue)) != NULL) {
+		TAILQ_REMOVE(&sb->nl_queue, nb, tailq);
+		SOCK_SENDBUF_UNLOCK(so);
+		reschedule = nl_process_nbuf(nb, nlp);
+		SOCK_SENDBUF_LOCK(so);
+		if (reschedule) {
+			sb->sb_acc -= nb->datalen;
+			sb->sb_ccc -= nb->datalen;
+			/* XXXGL: potentially can reduce lock&unlock count. */
+			sowwakeup_locked(so);
+			free(nb, M_NETLINK);
+			SOCK_SENDBUF_LOCK(so);
+		} else {
+			TAILQ_INSERT_HEAD(&sb->nl_queue, nb, tailq);
 			break;
 		}
 	}
+	SOCK_SENDBUF_UNLOCK(so);
 	if (nlp->tx_queue.hiwat > prev_hiwat) {
 		NLP_LOG(LOG_DEBUG, nlp, "TX override peaked to %d", nlp->tx_queue.hiwat);
 
@@ -323,14 +279,12 @@ nl_process_received(struct nlpcb *nlp)
 void
 nl_init_io(struct nlpcb *nlp)
 {
-	STAILQ_INIT(&nlp->rx_queue.head);
 	STAILQ_INIT(&nlp->tx_queue.head);
 }
 
 void
 nl_free_io(struct nlpcb *nlp)
 {
-	queue_free(&nlp->rx_queue);
 	queue_free(&nlp->tx_queue);
 }
 
@@ -529,70 +483,51 @@ npt_clear(struct nl_pstate *npt)
 /*
  * Processes an incoming packet, which can contain multiple netlink messages
  */
-static struct mbuf *
-nl_process_mbuf(struct mbuf *m, struct nlpcb *nlp)
+static bool
+nl_process_nbuf(struct nl_buf *nb, struct nlpcb *nlp)
 {
-	int offset, buffer_length;
 	struct nlmsghdr *hdr;
-	char *buffer;
 	int error;
 
-	NL_LOG(LOG_DEBUG3, "RX netlink mbuf %p on %p", m, nlp->nl_socket);
+	NL_LOG(LOG_DEBUG3, "RX netlink buf %p on %p", nb, nlp->nl_socket);
 
 	struct nl_writer nw = {};
 	if (!nlmsg_get_unicast_writer(&nw, NLMSG_SMALL, nlp)) {
-		m_freem(m);
 		NL_LOG(LOG_DEBUG, "error allocating socket writer");
-		return (NULL);
+		return (true);
 	}
 
 	nlmsg_ignore_limit(&nw);
-	/* TODO: alloc this buf once for nlp */
-	int data_length = m_length(m, NULL);
-	buffer_length = roundup2(data_length, 8) + SCRATCH_BUFFER_SIZE;
-	if (nlp->nl_linux)
-		buffer_length += roundup2(data_length, 8);
-	buffer = malloc(buffer_length, M_NETLINK, M_NOWAIT | M_ZERO);
-	if (buffer == NULL) {
-		m_freem(m);
-		nlmsg_flush(&nw);
-		NL_LOG(LOG_DEBUG, "Unable to allocate %d bytes of memory",
-		    buffer_length);
-		return (NULL);
-	}
-	m_copydata(m, 0, data_length, buffer);
 
 	struct nl_pstate npt = {
 		.nlp = nlp,
-		.lb.base = &buffer[roundup2(data_length, 8)],
-		.lb.size = buffer_length - roundup2(data_length, 8),
+		.lb.base = &nb->data[roundup2(nb->datalen, 8)],
+		.lb.size = nb->buflen - roundup2(nb->datalen, 8),
 		.nw = &nw,
 		.strict = nlp->nl_flags & NLF_STRICT,
 	};
 
-	for (offset = 0; offset + sizeof(struct nlmsghdr) <= data_length;) {
-		hdr = (struct nlmsghdr *)&buffer[offset];
+	for (; nb->offset + sizeof(struct nlmsghdr) <= nb->datalen;) {
+		hdr = (struct nlmsghdr *)&nb->data[nb->offset];
 		/* Save length prior to calling handler */
 		int msglen = NLMSG_ALIGN(hdr->nlmsg_len);
-		NL_LOG(LOG_DEBUG3, "parsing offset %d/%d", offset, data_length);
+		NL_LOG(LOG_DEBUG3, "parsing offset %d/%d",
+		    nb->offset, nb->datalen);
 		npt_clear(&npt);
-		error = nl_receive_message(hdr, data_length - offset, nlp, &npt);
-		offset += msglen;
+		error = nl_receive_message(hdr, nb->datalen - nb->offset, nlp,
+		    &npt);
+		nb->offset += msglen;
 		if (__predict_false(error != 0 || nlp->nl_tx_blocked))
 			break;
 	}
 	NL_LOG(LOG_DEBUG3, "packet parsing done");
-	free(buffer, M_NETLINK);
 	nlmsg_flush(&nw);
 
 	if (nlp->nl_tx_blocked) {
 		NLP_LOCK(nlp);
 		nlp->nl_tx_blocked = false;
 		NLP_UNLOCK(nlp);
-		m_adj(m, offset);
-		return (m);
-	} else {
-		m_freem(m);
-		return (NULL);
-	}
+		return (false);
+	} else
+		return (true);
 }
