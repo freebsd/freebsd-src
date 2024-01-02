@@ -37,60 +37,41 @@
  * It is not meant to be included directly
  */
 
-struct mbuf;
+struct nl_buf;
 struct nl_writer;
-typedef bool nl_writer_cb(struct nl_writer *nw, void *buf, int buflen, int cnt);
+typedef bool nl_writer_cb(struct nl_writer *nw);
 
 struct nl_writer {
-	int			alloc_len;	/* allocated buffer length */
-	int			offset;		/* offset from the start of the buffer */
-	struct nlmsghdr		*hdr;		/* Pointer to the currently-filled msg */
-	char			*data;		/* pointer to the contiguous storage */
-	void			*_storage;	/* Underlying storage pointer */
-	nl_writer_cb		*cb;		/* Callback to flush data */
+	struct nl_buf		*buf;	/* Underlying storage pointer */
+	struct nlmsghdr		*hdr;	/* Pointer to the currently-filled msg */
+	nl_writer_cb		*cb;	/* Callback to flush data */
 	union {
-		void		*ptr;
+		struct nlpcb	*nlp;
 		struct {
 			uint16_t	proto;
 			uint16_t	id;
 		} group;
-	} arg;
-	int			num_messages;	/* Number of messages in the buffer */
-	int			malloc_flag;	/* M_WAITOK or M_NOWAIT */
-	uint8_t			writer_type;	/* NS_WRITER_TYPE_* */
-	uint8_t			writer_target;	/* NS_WRITER_TARGET_*  */
-	bool			ignore_limit;	/* If true, ignores RCVBUF limit */
-	bool			enomem;		/* True if ENOMEM occured */
-	bool			suppress_ack;	/* If true, don't send NLMSG_ERR */
+	};
+	u_int		num_messages;	/* Number of messages in the buffer */
+	int		malloc_flag;	/* M_WAITOK or M_NOWAIT */
+	bool		ignore_limit;	/* If true, ignores RCVBUF limit */
+	bool		enomem;		/* True if ENOMEM occured */
+	bool		suppress_ack;	/* If true, don't send NLMSG_ERR */
 };
-#define	NS_WRITER_TARGET_SOCKET	0
-#define	NS_WRITER_TARGET_GROUP	1
-#define	NS_WRITER_TARGET_CHAIN	2
-
-#define	NS_WRITER_TYPE_MBUF	0
-#define NS_WRITER_TYPE_BUF	1
-#define NS_WRITER_TYPE_LBUF	2
-#define NS_WRITER_TYPE_MBUFC	3
-#define NS_WRITER_TYPE_STUB	4
-
 
 #define	NLMSG_SMALL	128
 #define	NLMSG_LARGE	2048
 
 /* Message and attribute writing */
-
-struct nlpcb;
-
 #if defined(NETLINK) || defined(NETLINK_MODULE)
 /* Provide optimized calls to the functions inside the same linking unit */
 
 bool _nlmsg_get_unicast_writer(struct nl_writer *nw, int expected_size, struct nlpcb *nlp);
 bool _nlmsg_get_group_writer(struct nl_writer *nw, int expected_size, int proto, int group_id);
-bool _nlmsg_get_chain_writer(struct nl_writer *nw, int expected_size, struct mbuf **pm);
 bool _nlmsg_flush(struct nl_writer *nw);
 void _nlmsg_ignore_limit(struct nl_writer *nw);
 
-bool _nlmsg_refill_buffer(struct nl_writer *nw, int required_size);
+bool _nlmsg_refill_buffer(struct nl_writer *nw, u_int required_len);
 bool _nlmsg_add(struct nl_writer *nw, uint32_t portid, uint32_t seq, uint16_t type,
     uint16_t flags, uint32_t len);
 bool _nlmsg_end(struct nl_writer *nw);
@@ -109,12 +90,6 @@ static inline bool
 nlmsg_get_group_writer(struct nl_writer *nw, int expected_size, int proto, int group_id)
 {
 	return (_nlmsg_get_group_writer(nw, expected_size, proto, group_id));
-}
-
-static inline bool
-nlmsg_get_chain_writer(struct nl_writer *nw, int expected_size, struct mbuf **pm)
-{
-	return (_nlmsg_get_chain_writer(nw, expected_size, pm));
 }
 
 static inline bool
@@ -185,8 +160,6 @@ nlmsg_reply(struct nl_writer *nw, const struct nlmsghdr *hdr, int payload_len)
 	return (nlmsg_add(nw, hdr->nlmsg_pid, hdr->nlmsg_seq, hdr->nlmsg_type,
 	    hdr->nlmsg_flags, payload_len));
 }
-
-#define nlmsg_data(_hdr)	((void *)((_hdr) + 1))
 
 /*
  * KPI similar to mtodo():

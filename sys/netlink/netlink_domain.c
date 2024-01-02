@@ -179,29 +179,53 @@ nl_get_groups_compat(struct nlpcb *nlp)
 }
 
 static void
-nl_send_one_group(struct mbuf *m, struct nlpcb *nlp, int num_messages,
-    int io_flags)
+nl_send_one_group(struct nl_writer *nw, struct nl_buf *nb, struct nlpcb *nlp)
 {
 	if (__predict_false(nlp->nl_flags & NLF_MSG_INFO))
-		nl_add_msg_info(m);
-	nl_send_one(m, nlp, num_messages, io_flags);
+		nl_add_msg_info(nb);
+	nw->buf = nb;
+	(void)nl_send_one(nw);
+}
+
+static struct nl_buf *
+nl_buf_copy(struct nl_buf *nb)
+{
+	struct nl_buf *copy;
+
+	copy = nl_buf_alloc(nb->buflen, M_NOWAIT);
+	if (__predict_false(copy == NULL))
+		return (NULL);
+	memcpy(copy, nb, sizeof(*nb) + nb->buflen);
+	if (nb->control != NULL) {
+		copy->control = m_copym(nb->control, 0, M_COPYALL, M_NOWAIT);
+		if (__predict_false(copy->control == NULL)) {
+			nl_buf_free(copy);
+			return (NULL);
+		}
+	}
+
+	return (copy);
 }
 
 /*
- * Broadcasts message @m to the protocol @proto group specified by @group_id
+ * Broadcasts in the writer's buffer.
  */
-void
-nl_send_group(struct mbuf *m, int num_messages, int proto, int group_id)
+bool
+nl_send_group(struct nl_writer *nw)
 {
+	struct nl_buf *nb = nw->buf;
 	struct nlpcb *nlp_last = NULL;
 	struct nlpcb *nlp;
 	NLCTL_TRACKER;
 
 	IF_DEBUG_LEVEL(LOG_DEBUG2) {
-		struct nlmsghdr *hdr = mtod(m, struct nlmsghdr *);
-		NL_LOG(LOG_DEBUG2, "MCAST mbuf len %u msg type %d len %u to group %d/%d",
-		    m->m_len, hdr->nlmsg_type, hdr->nlmsg_len, proto, group_id);
+		struct nlmsghdr *hdr = (struct nlmsghdr *)nb->data;
+		NL_LOG(LOG_DEBUG2, "MCAST len %u msg type %d len %u to group %d/%d",
+		    nb->datalen, hdr->nlmsg_type, hdr->nlmsg_len,
+		    nw->group.proto, nw->group.id);
 	}
+
+	nw->buf = NULL;
 
 	struct nl_control *ctl = atomic_load_ptr(&V_nl_ctl);
 	if (__predict_false(ctl == NULL)) {
@@ -209,23 +233,22 @@ nl_send_group(struct mbuf *m, int num_messages, int proto, int group_id)
 		 * Can be the case when notification is sent within VNET
 		 * which doesn't have any netlink sockets.
 		 */
-		m_freem(m);
-		return;
+		nl_buf_free(nb);
+		return (false);
 	}
 
 	NLCTL_RLOCK(ctl);
 
-	int io_flags = NL_IOF_UNTRANSLATED;
-
 	CK_LIST_FOREACH(nlp, &ctl->ctl_pcb_head, nl_next) {
-		if (nl_isset_group_locked(nlp, group_id) && nlp->nl_proto == proto) {
+		if (nl_isset_group_locked(nlp, nw->group.id) &&
+		    nlp->nl_proto == nw->group.proto) {
 			if (nlp_last != NULL) {
-				struct mbuf *m_copy;
-				m_copy = m_copym(m, 0, M_COPYALL, M_NOWAIT);
-				if (m_copy != NULL)
-					nl_send_one_group(m_copy, nlp_last,
-					    num_messages, io_flags);
-				else {
+				struct nl_buf *copy;
+
+				copy = nl_buf_copy(nb);
+				if (copy != NULL) {
+					nl_send_one_group(nw, copy, nlp_last);
+				} else {
 					NLP_LOCK(nlp_last);
 					if (nlp_last->nl_socket != NULL)
 						sorwakeup(nlp_last->nl_socket);
@@ -236,11 +259,13 @@ nl_send_group(struct mbuf *m, int num_messages, int proto, int group_id)
 		}
 	}
 	if (nlp_last != NULL)
-		nl_send_one_group(m, nlp_last, num_messages, io_flags);
+		nl_send_one_group(nw, nb, nlp_last);
 	else
-		m_freem(m);
+		nl_buf_free(nb);
 
 	NLCTL_RUNLOCK(ctl);
+
+	return (true);
 }
 
 bool
@@ -331,7 +356,7 @@ nl_pru_attach(struct socket *so, int proto, struct thread *td)
 		free(nlp, M_PCB);
 		return (error);
 	}
-	so->so_rcv.sb_mtx = &so->so_rcv_mtx;
+	TAILQ_INIT(&so->so_rcv.nl_queue);
 	TAILQ_INIT(&so->so_snd.nl_queue);
 	so->so_pcb = nlp;
 	nlp->nl_socket = so;
@@ -344,7 +369,6 @@ nl_pru_attach(struct socket *so, int proto, struct thread *td)
 	nlp->nl_need_thread_setup = true;
 	NLP_LOCK_INIT(nlp);
 	refcount_init(&nlp->nl_refcount, 1);
-	nl_init_io(nlp);
 
 	nlp->nl_taskqueue = taskqueue_create("netlink_socket", M_WAITOK,
 	    taskqueue_thread_enqueue, &nlp->nl_taskqueue);
@@ -468,24 +492,15 @@ nl_pru_connect(struct socket *so, struct sockaddr *sa, struct thread *td)
 }
 
 static void
-destroy_nlpcb(struct nlpcb *nlp)
-{
-	NLP_LOCK(nlp);
-	nl_free_io(nlp);
-	NLP_LOCK_DESTROY(nlp);
-	free(nlp, M_PCB);
-}
-
-static void
 destroy_nlpcb_epoch(epoch_context_t ctx)
 {
 	struct nlpcb *nlp;
 
 	nlp = __containerof(ctx, struct nlpcb, nl_epoch_ctx);
 
-	destroy_nlpcb(nlp);
+	NLP_LOCK_DESTROY(nlp);
+	free(nlp, M_PCB);
 }
-
 
 static void
 nl_close(struct socket *so)
@@ -522,9 +537,12 @@ nl_close(struct socket *so)
 
 	while ((nb = TAILQ_FIRST(&so->so_snd.nl_queue)) != NULL) {
 		TAILQ_REMOVE(&so->so_snd.nl_queue, nb, tailq);
-		free(nb, M_NETLINK);
+		nl_buf_free(nb);
 	}
-	sbdestroy(so, SO_RCV);
+	while ((nb = TAILQ_FIRST(&so->so_rcv.nl_queue)) != NULL) {
+		TAILQ_REMOVE(&so->so_rcv.nl_queue, nb, tailq);
+		nl_buf_free(nb);
+	}
 
 	NL_LOG(LOG_DEBUG3, "socket %p, detached", so);
 
@@ -597,10 +615,8 @@ nl_sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	len = roundup2(uio->uio_resid, 8) + SCRATCH_BUFFER_SIZE;
 	if (nlp->nl_linux)
 		len += roundup2(uio->uio_resid, 8);
-	nb = malloc(sizeof(*nb) + len, M_NETLINK, M_WAITOK);
+	nb = nl_buf_alloc(len, M_WAITOK);
 	nb->datalen = uio->uio_resid;
-	nb->buflen = len;
-	nb->offset = 0;
 	error = uiomove(&nb->data[0], uio->uio_resid, uio);
 	if (__predict_false(error))
 		goto out;
@@ -635,19 +651,107 @@ restart:
 
 out:
 	SOCK_IO_SEND_UNLOCK(so);
-	free(nb, M_NETLINK);
+	if (nb != NULL)
+		nl_buf_free(nb);
 	return (error);
 }
 
 static int
-nl_pru_rcvd(struct socket *so, int flags)
+nl_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
+    struct mbuf **mp, struct mbuf **controlp, int *flagsp)
 {
+	static const struct sockaddr_nl nl_empty_src = {
+		.nl_len = sizeof(struct sockaddr_nl),
+		.nl_family = PF_NETLINK,
+		.nl_pid = 0 /* comes from the kernel */
+	};
+	struct sockbuf *sb = &so->so_rcv;
+	struct nl_buf *nb;
+	int flags, error;
+	u_int overflow;
+	bool nonblock, trunc, peek;
+
+	MPASS(mp == NULL && uio != NULL);
+
 	NL_LOG(LOG_DEBUG3, "socket %p, PID %d", so, curproc->p_pid);
-	MPASS(sotonlpcb(so) != NULL);
+
+	if (psa != NULL)
+		*psa = sodupsockaddr((const struct sockaddr *)&nl_empty_src,
+		    M_WAITOK);
+
+	flags = flagsp != NULL ? *flagsp & ~MSG_TRUNC : 0;
+	trunc = flagsp != NULL ? *flagsp & MSG_TRUNC : false;
+	nonblock = (so->so_state & SS_NBIO) ||
+	    (flags & (MSG_DONTWAIT | MSG_NBIO));
+	peek = flags & MSG_PEEK;
+
+	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
+	if (__predict_false(error))
+		return (error);
+
+	SOCK_RECVBUF_LOCK(so);
+	while ((nb = TAILQ_FIRST(&sb->nl_queue)) == NULL) {
+		if (nonblock) {
+			SOCK_RECVBUF_UNLOCK(so);
+			SOCK_IO_RECV_UNLOCK(so);
+			return (EWOULDBLOCK);
+		}
+		error = sbwait(so, SO_RCV);
+		if (error) {
+			SOCK_RECVBUF_UNLOCK(so);
+			SOCK_IO_RECV_UNLOCK(so);
+			return (error);
+		}
+	}
+
+	/*
+	 * XXXGL
+	 * Here we emulate a PR_ATOMIC behavior of soreceive_generic() where
+	 * we take only the first "record" in the socket buffer and send it
+	 * to uio whole or truncated ignoring how many netlink messages are
+	 * in the record and how much space is left in the uio.
+	 * This needs to be fixed at next refactoring. First, we should perform
+	 * truncation only if the very first message doesn't fit into uio.
+	 * That will help an application with small buffer not to lose data.
+	 * Second, we should continue working on the sb->nl_queue as long as
+	 * there is more space in the uio.  That will boost applications with
+	 * large buffers.
+	 */
+	if (__predict_true(!peek)) {
+		TAILQ_REMOVE(&sb->nl_queue, nb, tailq);
+		sb->sb_acc -= nb->datalen;
+		sb->sb_ccc -= nb->datalen;
+	}
+	SOCK_RECVBUF_UNLOCK(so);
+
+	overflow = __predict_false(nb->datalen > uio->uio_resid) ?
+	    nb->datalen - uio->uio_resid : 0;
+	error = uiomove(nb->data, (int)nb->datalen, uio);
+	if (__predict_false(overflow > 0)) {
+		flags |= MSG_TRUNC;
+		if (trunc)
+			uio->uio_resid -= overflow;
+	}
+
+	if (controlp != NULL) {
+		*controlp = nb->control;
+		nb->control = NULL;
+	}
+
+	if (__predict_true(!peek))
+		nl_buf_free(nb);
+
+	if (uio->uio_td)
+		uio->uio_td->td_ru.ru_msgrcv++;
+
+	if (flagsp != NULL)
+		*flagsp |= flags;
+
+	SOCK_IO_RECV_UNLOCK(so);
 
 	nl_on_transmit(sotonlpcb(so));
 
-	return (0);
+	return (error);
 }
 
 static int
@@ -798,8 +902,7 @@ nl_setsbopt(struct socket *so, struct sockopt *sopt)
 }
 
 #define	NETLINK_PROTOSW						\
-	.pr_flags = PR_ATOMIC | PR_ADDR | PR_WANTRCVD |		\
-	    PR_SOCKBUF,						\
+	.pr_flags = PR_ATOMIC | PR_ADDR | PR_SOCKBUF,		\
 	.pr_ctloutput = nl_ctloutput,				\
 	.pr_setsbopt = nl_setsbopt,				\
 	.pr_attach = nl_pru_attach,				\
@@ -807,7 +910,7 @@ nl_setsbopt(struct socket *so, struct sockopt *sopt)
 	.pr_connect = nl_pru_connect,				\
 	.pr_disconnect = nl_pru_disconnect,			\
 	.pr_sosend = nl_sosend,					\
-	.pr_rcvd = nl_pru_rcvd,					\
+	.pr_soreceive = nl_soreceive,				\
 	.pr_shutdown = nl_pru_shutdown,				\
 	.pr_sockaddr = nl_sockaddr,				\
 	.pr_close = nl_close
