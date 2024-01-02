@@ -197,6 +197,7 @@ buildfs() {
 			-o fs=zroot/usr/obj \
 			-o fs=zroot/var\;mountpoint=/var\;canmount=off \
 			-o fs=zroot/var/audit\;setuid=off\;exec=off \
+			-o fs=zroot/var/crash\;setuid=off\;exec=off \
 			-o fs=zroot/var/log\;setuid=off\;exec=off \
 			-o fs=zroot/var/mail\;atime=on \
 			-o fs=zroot/var/tmp\;setuid=off \
