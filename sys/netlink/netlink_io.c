@@ -62,7 +62,6 @@ nl_buf_alloc(size_t len, int mflag)
 	if (__predict_true(nb != NULL)) {
 		nb->buflen = len;
 		nb->datalen = nb->offset = 0;
-		nb->control = NULL;
 	}
 
 	return (nb);
@@ -72,49 +71,7 @@ void
 nl_buf_free(struct nl_buf *nb)
 {
 
-	if (nb->control)
-		m_freem(nb->control);
 	free(nb, M_NETLINK);
-}
-
-void
-nl_add_msg_info(struct nl_buf *nb)
-{
-	/* XXXGL pass nlp as arg? */
-	struct nlpcb *nlp = nl_get_thread_nlp(curthread);
-	NL_LOG(LOG_DEBUG2, "Trying to recover nlp from thread %p: %p",
-	    curthread, nlp);
-
-	if (nlp == NULL)
-		return;
-
-	/* Prepare what we want to encode - PID, socket PID & msg seq */
-	struct {
-		struct nlattr nla;
-		uint32_t val;
-	} data[] = {
-		{
-			.nla.nla_len = sizeof(struct nlattr) + sizeof(uint32_t),
-			.nla.nla_type = NLMSGINFO_ATTR_PROCESS_ID,
-			.val = nlp->nl_process_id,
-		},
-		{
-			.nla.nla_len = sizeof(struct nlattr) + sizeof(uint32_t),
-			.nla.nla_type = NLMSGINFO_ATTR_PORT_ID,
-			.val = nlp->nl_port,
-		},
-	};
-
-
-	nb->control = sbcreatecontrol(data, sizeof(data),
-	    NETLINK_MSG_INFO, SOL_NETLINK, M_NOWAIT);
-
-	if (__predict_true(nb->control != NULL))
-		NL_LOG(LOG_DEBUG2, "Storing %u bytes of control data, ctl: %p",
-		    (unsigned)sizeof(data), nb->control);
-	else
-		NL_LOG(LOG_DEBUG2, "Failed to allocate %u bytes of control",
-		    (unsigned)sizeof(data));
 }
 
 void

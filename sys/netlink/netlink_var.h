@@ -45,7 +45,6 @@ struct ucred;
 
 struct nl_buf {
 	TAILQ_ENTRY(nl_buf)	tailq;
-	struct mbuf		*control;
 	u_int			buflen;
 	u_int			datalen;
 	u_int			offset;
@@ -142,7 +141,6 @@ void nl_taskqueue_handler(void *_arg, int pending);
 void nl_schedule_taskqueue(struct nlpcb *nlp);
 void nl_process_receive_locked(struct nlpcb *nlp);
 void nl_set_source_metadata(struct mbuf *m, int num_messages);
-void nl_add_msg_info(struct nl_buf *nb);
 struct nl_buf *nl_buf_alloc(size_t len, int mflag);
 void nl_buf_free(struct nl_buf *nb);
 

@@ -179,15 +179,6 @@ nl_get_groups_compat(struct nlpcb *nlp)
 	return (groups_mask);
 }
 
-static void
-nl_send_one_group(struct nl_writer *nw, struct nl_buf *nb, struct nlpcb *nlp)
-{
-	if (__predict_false(nlp->nl_flags & NLF_MSG_INFO))
-		nl_add_msg_info(nb);
-	nw->buf = nb;
-	(void)nl_send_one(nw);
-}
-
 static struct nl_buf *
 nl_buf_copy(struct nl_buf *nb)
 {
@@ -197,13 +188,6 @@ nl_buf_copy(struct nl_buf *nb)
 	if (__predict_false(copy == NULL))
 		return (NULL);
 	memcpy(copy, nb, sizeof(*nb) + nb->buflen);
-	if (nb->control != NULL) {
-		copy->control = m_copym(nb->control, 0, M_COPYALL, M_NOWAIT);
-		if (__predict_false(copy->control == NULL)) {
-			nl_buf_free(copy);
-			return (NULL);
-		}
-	}
 
 	return (copy);
 }
@@ -248,7 +232,8 @@ nl_send_group(struct nl_writer *nw)
 
 				copy = nl_buf_copy(nb);
 				if (copy != NULL) {
-					nl_send_one_group(nw, copy, nlp_last);
+					nw->buf = copy;
+					(void)nl_send_one(nw);
 				} else {
 					NLP_LOCK(nlp_last);
 					if (nlp_last->nl_socket != NULL)
@@ -259,9 +244,10 @@ nl_send_group(struct nl_writer *nw)
 			nlp_last = nlp;
 		}
 	}
-	if (nlp_last != NULL)
-		nl_send_one_group(nw, nb, nlp_last);
-	else
+	if (nlp_last != NULL) {
+		nw->buf = nb;
+		(void)nl_send_one(nw);
+	} else
 		nl_buf_free(nb);
 
 	NLCTL_RUNLOCK(ctl);
@@ -657,6 +643,30 @@ out:
 	return (error);
 }
 
+/* Create control data for recvmsg(2) on Netlink socket. */
+static struct mbuf *
+nl_createcontrol(struct nlpcb *nlp)
+{
+	struct {
+		struct nlattr nla;
+		uint32_t val;
+	} data[] = {
+		{
+			.nla.nla_len = sizeof(struct nlattr) + sizeof(uint32_t),
+			.nla.nla_type = NLMSGINFO_ATTR_PROCESS_ID,
+			.val = nlp->nl_process_id,
+		},
+		{
+			.nla.nla_len = sizeof(struct nlattr) + sizeof(uint32_t),
+			.nla.nla_type = NLMSGINFO_ATTR_PORT_ID,
+			.val = nlp->nl_port,
+		},
+	};
+
+	return (sbcreatecontrol(data, sizeof(data), NETLINK_MSG_INFO,
+	    SOL_NETLINK, M_WAITOK));
+}
+
 static int
 nl_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
     struct mbuf **mp, struct mbuf **controlp, int *flagsp)
@@ -667,6 +677,7 @@ nl_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 		.nl_pid = 0 /* comes from the kernel */
 	};
 	struct sockbuf *sb = &so->so_rcv;
+	struct nlpcb *nlp = sotonlpcb(so);
 	struct nl_buf *first, *last, *nb, *next;
 	struct nlmsghdr *hdr;
 	int flags, error;
@@ -681,6 +692,9 @@ nl_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 		*psa = sodupsockaddr((const struct sockaddr *)&nl_empty_src,
 		    M_WAITOK);
 
+	if (controlp != NULL && (nlp->nl_flags & NLF_MSG_INFO))
+		*controlp = nl_createcontrol(nlp);
+
 	flags = flagsp != NULL ? *flagsp & ~MSG_TRUNC : 0;
 	trunc = flagsp != NULL ? *flagsp & MSG_TRUNC : false;
 	nonblock = (so->so_state & SS_NBIO) ||
@@ -690,9 +704,6 @@ nl_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
 	if (__predict_false(error))
 		return (error);
-
-	if (controlp != NULL)
-		*controlp = NULL;
 
 	len = 0;
 	overflow = 0;
@@ -798,13 +809,6 @@ nospace:
 
 	for (nb = first; nb != last; nb = next) {
 		next = TAILQ_NEXT(nb, tailq);
-
-		/* XXXGL multiple controls??? */
-		if (controlp != NULL && *controlp == NULL &&
-		    nb->control != NULL && !peek) {
-			*controlp = nb->control;
-			nb->control = NULL;
-		}
 		if (__predict_true(error == 0))
 			error = uiomove(&nb->data[nb->offset],
 			    (int)(nb->datalen - nb->offset), uio);
