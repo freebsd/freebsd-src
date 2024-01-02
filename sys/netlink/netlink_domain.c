@@ -745,10 +745,6 @@ nl_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	 * as kernel would only append nl_bufs to the end of the queue, and
 	 * we are the exclusive owner of queue beginning due to sleepable lock.
 	 * At the second pass we copy data out and in !peek case free nl_bufs.
-	 *
-	 * XXX: current implementation of control data implies one chunk of
-	 * data per one nl_buf.  This doesn't map well with idea of no
-	 * boundaries between nl_bufs.
 	 */
 	TAILQ_FOREACH(nb, &sb->nl_queue, tailq) {
 		u_int offset;
