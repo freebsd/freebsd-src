@@ -748,7 +748,11 @@ usage(void)
 }
 
 static int
+#ifdef __GLIBC__
+compare(const FTSENT **a, const FTSENT **b)
+#else
 compare(const FTSENT *const *a, const FTSENT *const *b)
+#endif
 {
 
 	if ((*a)->fts_info == FTS_D && (*b)->fts_info != FTS_D)
