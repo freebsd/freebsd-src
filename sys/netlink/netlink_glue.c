@@ -111,7 +111,6 @@ static bool
 get_stub_writer(struct nl_writer *nw)
 {
 	bzero(nw, sizeof(*nw));
-	nw->writer_type = NS_WRITER_TYPE_STUB;
 	nw->enomem = true;
 
 	return (false);

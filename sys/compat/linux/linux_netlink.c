@@ -32,7 +32,6 @@
 #include <sys/ck.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/vnode.h>
 
@@ -44,6 +43,7 @@
 #include <netlink/netlink.h>
 #include <netlink/netlink_ctl.h>
 #include <netlink/netlink_linux.h>
+#include <netlink/netlink_var.h>
 #include <netlink/netlink_route.h>
 
 #include <compat/linux/linux.h>
@@ -187,6 +187,7 @@ handle_default_out(struct nlmsghdr *hdr, struct nl_writer *nw)
 
 	if (out_hdr != NULL) {
 		memcpy(out_hdr, hdr, hdr->nlmsg_len);
+		nw->num_messages++;
 		return (true);
 	}
 	return (false);
@@ -518,8 +519,7 @@ nlmsg_error_to_linux(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_writer *
 }
 
 static bool
-nlmsg_to_linux(int netlink_family, struct nlmsghdr *hdr, struct nlpcb *nlp,
-    struct nl_writer *nw)
+nlmsg_to_linux(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_writer *nw)
 {
 	if (hdr->nlmsg_type < NLMSG_MIN_TYPE) {
 		switch (hdr->nlmsg_type) {
@@ -536,7 +536,7 @@ nlmsg_to_linux(int netlink_family, struct nlmsghdr *hdr, struct nlpcb *nlp,
 		}
 	}
 
-	switch (netlink_family) {
+	switch (nlp->nl_proto) {
 	case NETLINK_ROUTE:
 		return (rtnl_to_linux(hdr, nlp, nw));
 	default:
@@ -544,64 +544,49 @@ nlmsg_to_linux(int netlink_family, struct nlmsghdr *hdr, struct nlpcb *nlp,
 	}
 }
 
-static struct mbuf *
-nlmsgs_to_linux(int netlink_family, char *buf, int data_length, struct nlpcb *nlp)
+static bool
+nlmsgs_to_linux(struct nl_writer *nw, struct nlpcb *nlp)
 {
-	RT_LOG(LOG_DEBUG3, "LINUX: get %p size %d", buf, data_length);
-	struct nl_writer nw = {};
+	struct nl_buf *nb, *orig;
+	u_int offset, msglen, orig_messages __diagused;
 
-	struct mbuf *m = NULL;
-	if (!nlmsg_get_chain_writer(&nw, data_length, &m)) {
-		RT_LOG(LOG_DEBUG, "unable to setup chain writer for size %d",
-		    data_length);
-		return (NULL);
-	}
+	RT_LOG(LOG_DEBUG3, "%p: in %u bytes %u messages", __func__,
+	    nw->buf->datalen, nw->num_messages);
+
+	orig = nw->buf;
+	nb = nl_buf_alloc(orig->datalen + SCRATCH_BUFFER_SIZE, M_NOWAIT);
+	if (__predict_false(nb == NULL))
+		return (false);
+	nw->buf = nb;
+#ifdef INVARIANTS
+	orig_messages = nw->num_messages;
+#endif
+	nw->num_messages = 0;
 
 	/* Assume correct headers. Buffer IS mutable */
-	int count = 0;
-	for (int offset = 0; offset + sizeof(struct nlmsghdr) <= data_length;) {
-		struct nlmsghdr *hdr = (struct nlmsghdr *)&buf[offset];
-		int msglen = NLMSG_ALIGN(hdr->nlmsg_len);
-		count++;
+	for (offset = 0;
+	    offset + sizeof(struct nlmsghdr) <= orig->datalen;
+	    offset += msglen) {
+		struct nlmsghdr *hdr = (struct nlmsghdr *)&orig->data[offset];
 
-		if (!nlmsg_to_linux(netlink_family, hdr, nlp, &nw)) {
+		msglen = NLMSG_ALIGN(hdr->nlmsg_len);
+		if (!nlmsg_to_linux(hdr, nlp, nw)) {
 			RT_LOG(LOG_DEBUG, "failed to process msg type %d",
 			    hdr->nlmsg_type);
-			m_freem(m);
-			return (NULL);
+			nl_buf_free(nb);
+			return (false);
 		}
-		offset += msglen;
 	}
-	nlmsg_flush(&nw);
-	RT_LOG(LOG_DEBUG3, "Processed %d messages, chain size %d", count,
-	    m ? m_length(m, NULL) : 0);
 
-	return (m);
-}
+	MPASS(nw->num_messages == orig_messages);
+	MPASS(nw->buf == nb);
+	nl_buf_free(orig);
+	RT_LOG(LOG_DEBUG3, "%p: out %u bytes", __func__, offset);
 
-static struct mbuf *
-mbufs_to_linux(int netlink_family, struct mbuf *m, struct nlpcb *nlp)
-{
-	/* XXX: easiest solution, not optimized for performance */
-	int data_length = m_length(m, NULL);
-	char *buf = malloc(data_length, M_LINUX, M_NOWAIT);
-	if (buf == NULL) {
-		RT_LOG(LOG_DEBUG, "unable to allocate %d bytes, dropping message",
-		    data_length);
-		m_freem(m);
-		return (NULL);
-	}
-	m_copydata(m, 0, data_length, buf);
-	m_freem(m);
-
-	m = nlmsgs_to_linux(netlink_family, buf, data_length, nlp);
-	free(buf, M_LINUX);
-
-	return (m);
+	return (true);
 }
 
 static struct linux_netlink_provider linux_netlink_v1 = {
-	.mbufs_to_linux = mbufs_to_linux,
 	.msgs_to_linux = nlmsgs_to_linux,
 	.msg_from_linux = nlmsg_from_linux,
 };

@@ -43,14 +43,9 @@
 
 struct ucred;
 
-struct nl_io_queue {
-	STAILQ_HEAD(, mbuf)	head;
-	int			length;
-	int			hiwat;
-};
-
 struct nl_buf {
 	TAILQ_ENTRY(nl_buf)	tailq;
+	struct mbuf		*control;
 	u_int			buflen;
 	u_int			datalen;
 	u_int			offset;
@@ -72,7 +67,6 @@ struct nlpcb {
 	bool			nl_linux; /* true if running under compat */
 	bool			nl_unconstrained_vnet; /* true if running under VNET jail (or without jail) */
 	bool			nl_need_thread_setup;
-	struct nl_io_queue	tx_queue;
 	struct taskqueue	*nl_taskqueue;
 	struct task		nl_task;
 	struct ucred		*nl_cred; /* Copy of nl_socket->so_cred */
@@ -131,7 +125,7 @@ struct nl_proto_handler {
 extern struct nl_proto_handler *nl_handlers;
 
 /* netlink_domain.c */
-void nl_send_group(struct mbuf *m, int cnt, int proto, int group_id);
+bool nl_send_group(struct nl_writer *);
 void nl_osd_register(void);
 void nl_osd_unregister(void);
 void nl_set_thread_nlp(struct thread *td, struct nlpcb *nlp);
@@ -139,22 +133,18 @@ void nl_set_thread_nlp(struct thread *td, struct nlpcb *nlp);
 /* netlink_io.c */
 #define	NL_IOF_UNTRANSLATED	0x01
 #define	NL_IOF_IGNORE_LIMIT	0x02
-bool nl_send_one(struct mbuf *m, struct nlpcb *nlp, int cnt, int io_flags);
+bool nl_send_one(struct nl_writer *);
 void nlmsg_ack(struct nlpcb *nlp, int error, struct nlmsghdr *nlmsg,
     struct nl_pstate *npt);
 void nl_on_transmit(struct nlpcb *nlp);
-void nl_init_io(struct nlpcb *nlp);
-void nl_free_io(struct nlpcb *nlp);
 
 void nl_taskqueue_handler(void *_arg, int pending);
 void nl_schedule_taskqueue(struct nlpcb *nlp);
 void nl_process_receive_locked(struct nlpcb *nlp);
 void nl_set_source_metadata(struct mbuf *m, int num_messages);
-void nl_add_msg_info(struct mbuf *m);
-
-/* netlink_message_writer.c */
-void nl_init_msg_zone(void);
-void nl_destroy_msg_zone(void);
+void nl_add_msg_info(struct nl_buf *nb);
+struct nl_buf *nl_buf_alloc(size_t len, int mflag);
+void nl_buf_free(struct nl_buf *nb);
 
 /* netlink_generic.c */
 struct genl_family {
