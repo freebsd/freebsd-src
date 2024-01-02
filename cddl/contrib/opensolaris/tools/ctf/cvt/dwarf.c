@@ -1004,7 +1004,9 @@ die_sou_create(dwarf_t *dw, Dwarf_Die str, Dwarf_Off off, tdesc_t *tdp,
 		else
 			ml->ml_size = tdesc_bitsize(ml->ml_type);
 
-		if (die_unsigned(dw, mem, DW_AT_bit_offset, &bitoff, 0)) {
+		if (die_unsigned(dw, mem, DW_AT_data_bit_offset, &bitoff, 0)) {
+			ml->ml_offset += bitoff;
+		} else if (die_unsigned(dw, mem, DW_AT_bit_offset, &bitoff, 0)) {
 #if BYTE_ORDER == _BIG_ENDIAN
 			ml->ml_offset += bitoff;
 #else
