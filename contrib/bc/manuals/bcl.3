@@ -29,17 +29,14 @@
 .nh
 .ad l
 .SH NAME
-.PP
 bcl - library of arbitrary precision decimal arithmetic
 .SH SYNOPSIS
 .SS Use
-.PP
 \f[I]#include <bcl.h>\f[R]
 .PP
 Link with \f[I]-lbcl\f[R], and on POSIX systems, \f[I]-lpthread\f[R] is
 also required.
 .SS Setup
-.PP
 These items allow clients to set up bcl(3).
 .PP
 \f[B]BclError bcl_start(\f[R]\f[I]void\f[R]\f[B]);\f[R]
@@ -65,7 +62,6 @@ These items allow clients to set up bcl(3).
 .PP
 \f[B]void bcl_setDigitClamp(bool\f[R] \f[I]digitClamp\f[R]\f[B]);\f[R]
 .SS Contexts
-.PP
 These items will allow clients to handle contexts, which are isolated
 from each other.
 This allows more than one client to use bcl(3) in the same program.
@@ -101,14 +97,12 @@ size_t\f[R] \f[I]ibase\f[R]\f[B]);\f[R]
 \f[B]void bcl_ctxt_setObase(BclContext\f[R] \f[I]ctxt\f[R]\f[B],
 size_t\f[R] \f[I]obase\f[R]\f[B]);\f[R]
 .SS Errors
-.PP
 These items allow clients to handle errors.
 .PP
 \f[B]typedef enum BclError BclError;\f[R]
 .PP
 \f[B]BclError bcl_err(BclNumber\f[R] \f[I]n\f[R]\f[B]);\f[R]
 .SS Numbers
-.PP
 These items allow clients to manipulate and query the
 arbitrary-precision numbers managed by bcl(3).
 .PP
@@ -130,7 +124,6 @@ size_t\f[R] \f[I]scale\f[R]\f[B]);\f[R]
 .PP
 \f[B]size_t bcl_num_len(BclNumber\f[R] \f[I]n\f[R]\f[B]);\f[R]
 .SS Conversion
-.PP
 These items allow clients to convert numbers into and from strings and
 integers.
 .PP
@@ -149,7 +142,6 @@ integers.
 .PP
 \f[B]BclNumber bcl_bigdig2num(BclBigDig\f[R] \f[I]val\f[R]\f[B]);\f[R]
 .SS Math
-.PP
 These items allow clients to run math on numbers.
 .PP
 \f[B]BclNumber bcl_add(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R]
@@ -218,7 +210,6 @@ BclNumber\f[R] \f[I]b\f[R]\f[B], BclNumber\f[R] \f[I]c\f[R]\f[B]);\f[R]
 \f[B]BclNumber bcl_modexp_keep(BclNumber\f[R] \f[I]a\f[R]\f[B],
 BclNumber\f[R] \f[I]b\f[R]\f[B], BclNumber\f[R] \f[I]c\f[R]\f[B]);\f[R]
 .SS Miscellaneous
-.PP
 These items are miscellaneous.
 .PP
 \f[B]void bcl_zero(BclNumber\f[R] \f[I]n\f[R]\f[B]);\f[R]
@@ -233,7 +224,6 @@ These items are miscellaneous.
 .PP
 \f[B]BclNumber bcl_dup(BclNumber\f[R] \f[I]s\f[R]\f[B]);\f[R]
 .SS Pseudo-Random Number Generator
-.PP
 These items allow clients to manipulate the seeded pseudo-random number
 generator in bcl(3).
 .PP
@@ -275,7 +265,6 @@ size_t\f[R] \f[I]places\f[R]\f[B]);\f[R]
 \f[B]BclRandInt bcl_rand_bounded(BclRandInt\f[R]
 \f[I]bound\f[R]\f[B]);\f[R]
 .SH DESCRIPTION
-.PP
 bcl(3) is a library that implements arbitrary-precision decimal math, as
 standardized by POSIX
 (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html) in
@@ -459,7 +448,6 @@ Garbage collects cached instances of arbitrary-precision numbers.
 This only frees the memory of numbers that are \f[I]not\f[R] in use, so
 it is safe to call at any time.
 .SS Contexts
-.PP
 All procedures that take a \f[B]BclContext\f[R] parameter a require a
 valid context as an argument.
 .TP
@@ -587,7 +575,6 @@ If there was no error, it will return \f[B]BCL_ERROR_NONE\f[R].
 There must be a valid current context.
 .RE
 .SS Numbers
-.PP
 All procedures in this section require a valid current context.
 .TP
 \f[B]BclNumber\f[R]
@@ -651,7 +638,6 @@ Otherwise, this function can return:
 Returns the number of \f[I]significant decimal digits\f[R] in
 \f[I]n\f[R].
 .SS Conversion
-.PP
 All procedures in this section require a valid current context.
 .PP
 All procedures in this section without the \f[B]_keep\f[R] suffix in
@@ -748,7 +734,6 @@ Possible errors include:
 \f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
 .RE
 .SS Math
-.PP
 All procedures in this section require a valid current context.
 .PP
 All procedures in this section without the \f[B]_keep\f[R] suffix in
@@ -1370,7 +1355,6 @@ Possible errors include:
 \f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
 .RE
 .SS Pseudo-Random Number Generator
-.PP
 The pseudo-random number generator in bcl(3) is a \f[I]seeded\f[R] PRNG.
 Given the same seed twice, it will produce the same sequence of
 pseudo-random numbers twice.
@@ -1644,18 +1628,15 @@ Bias is removed before returning the integer.
 This procedure cannot fail.
 .RE
 .SS Consumption and Propagation
-.PP
 Some functions are listed as consuming some or all of their arguments.
 This means that the arguments are freed, regardless of if there were
 errors or not.
 .PP
 This is to enable compact code like the following:
 .IP
-.nf
-\f[C]
+.EX
 BclNumber n = bcl_num_add(bcl_num_mul(a, b), bcl_num_div(c, d));
-\f[R]
-.fi
+.EE
 .PP
 If arguments to those functions were not consumed, memory would be
 leaked until reclaimed with \f[B]bcl_ctxt_freeNums(BclContext)\f[R].
@@ -1664,16 +1645,13 @@ When errors occur, they are propagated through.
 The result should always be checked with \f[B]bcl_err(BclNumber)\f[R],
 so the example above should properly be:
 .IP
-.nf
-\f[C]
+.EX
 BclNumber n = bcl_num_add(bcl_num_mul(a, b), bcl_num_div(c, d));
 if (bcl_err(n) != BCL_ERROR_NONE) {
     // Handle the error.
 }
-\f[R]
-.fi
+.EE
 .SH ERRORS
-.PP
 Most functions in bcl(3) return, directly or indirectly, any one of the
 error codes defined in \f[B]BclError\f[R].
 The complete list of codes is the following:
@@ -1761,7 +1739,6 @@ It is highly recommended that client libraries do \f[I]not\f[R] activate
 this behavior.
 .RE
 .SH ATTRIBUTES
-.PP
 bcl(3) is \f[I]MT-Safe\f[R]: it is safe to call any functions from more
 than one thread.
 However, is is \f[I]not\f[R] safe to pass any data between threads
@@ -1773,7 +1750,6 @@ safe with multiple threads.
 If it is necessary to be able to interrupt bcl(3), spawn a separate
 thread to run the calculation.
 .SH PERFORMANCE
-.PP
 Most bc(1) implementations use \f[B]char\f[R] types to calculate the
 value of \f[B]1\f[R] decimal digit at a time, but that can be slow.
 bcl(3) does something different.
@@ -1793,7 +1769,6 @@ checking.
 This integer type depends on the value of \f[B]BC_LONG_BIT\f[R], but is
 always at least twice as large as the integer type used to store digits.
 .SH LIMITS
-.PP
 The following are the limits on bcl(3):
 .TP
 \f[B]BC_LONG_BIT\f[R]
@@ -1844,10 +1819,8 @@ large (at least on 64-bit machines) that there should not be any point
 at which they become a problem.
 In fact, memory should be exhausted before these limits should be hit.
 .SH SEE ALSO
-.PP
 bc(1) and dc(1)
 .SH STANDARDS
-.PP
 bcl(3) is compliant with the arithmetic defined in the IEEE Std
 1003.1-2017 (\[lq]POSIX.1-2017\[rq]) specification at
 https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html for
@@ -1858,10 +1831,10 @@ numbers that use a period (\f[B].\f[R]) as a radix point, regardless of
 the value of \f[B]LC_NUMERIC\f[R].
 This is also true of bcl(3).
 .SH BUGS
-.PP
 None are known.
 Report bugs at https://git.gavinhoward.com/gavin/bc.
 .SH AUTHORS
-.PP
-Gavin D.
-Howard <gavin@gavinhoward.com> and contributors.
+Gavin D. Howard \c
+.MT gavin@gavinhoward.com
+.ME \c
+\ and contributors.

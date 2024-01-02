@@ -29,10 +29,8 @@
 .nh
 .ad l
 .SH Name
-.PP
 dc - arbitrary-precision decimal reverse-Polish notation calculator
 .SH SYNOPSIS
-.PP
 \f[B]dc\f[R] [\f[B]-cChiPRvVx\f[R]] [\f[B]--version\f[R]]
 [\f[B]--help\f[R]] [\f[B]--digit-clamp\f[R]]
 [\f[B]--no-digit-clamp\f[R]] [\f[B]--interactive\f[R]]
@@ -43,7 +41,6 @@ dc - arbitrary-precision decimal reverse-Polish notation calculator
 [\f[B]--file\f[R]=\f[I]file\f[R]\&...]
 [\f[I]file\f[R]\&...]
 .SH DESCRIPTION
-.PP
 dc(1) is an arbitrary-precision calculator.
 It uses a stack (reverse Polish notation) to store numbers and results
 of computations.
@@ -60,7 +57,6 @@ For example, if a user wants the \f[B]scale\f[R] always set to
 \f[B]10\f[R], they can set \f[B]DC_ENV_ARGS\f[R] to \f[B]-e 10k\f[R],
 and this dc(1) will always start with a \f[B]scale\f[R] of \f[B]10\f[R].
 .SH OPTIONS
-.PP
 The following are the options that dc(1) accepts.
 .TP
 \f[B]-C\f[R], \f[B]--no-digit-clamp\f[R]
@@ -261,7 +257,6 @@ This is a \f[B]non-portable extension\f[R].
 .PP
 All long options are \f[B]non-portable extensions\f[R].
 .SH STDIN
-.PP
 If no files are given on the command-line and no files or expressions
 are given by the \f[B]-f\f[R], \f[B]--file\f[R], \f[B]-e\f[R], or
 \f[B]--expression\f[R] options, then dc(1) reads from \f[B]stdin\f[R].
@@ -274,7 +269,6 @@ ended.
 This means that, except for escaped brackets, all brackets must be
 balanced before dc(1) parses and executes.
 .SH STDOUT
-.PP
 Any non-error output is written to \f[B]stdout\f[R].
 In addition, if history (see the \f[B]HISTORY\f[R] section) and the
 prompt (see the \f[B]TTY MODE\f[R] section) are enabled, both are output
@@ -283,7 +277,7 @@ to \f[B]stdout\f[R].
 \f[B]Note\f[R]: Unlike other dc(1) implementations, this dc(1) will
 issue a fatal error (see the \f[B]EXIT STATUS\f[R] section) if it cannot
 write to \f[B]stdout\f[R], so if \f[B]stdout\f[R] is closed, as in
-\f[B]dc >&-\f[R], it will quit with an error.
+\f[B]dc  >&-\f[R], it will quit with an error.
 This is done so that dc(1) can report problems when \f[B]stdout\f[R] is
 redirected to a file.
 .PP
@@ -291,13 +285,12 @@ If there are scripts that depend on the behavior of other dc(1)
 implementations, it is recommended that those scripts be changed to
 redirect \f[B]stdout\f[R] to \f[B]/dev/null\f[R].
 .SH STDERR
-.PP
 Any error output is written to \f[B]stderr\f[R].
 .PP
 \f[B]Note\f[R]: Unlike other dc(1) implementations, this dc(1) will
 issue a fatal error (see the \f[B]EXIT STATUS\f[R] section) if it cannot
 write to \f[B]stderr\f[R], so if \f[B]stderr\f[R] is closed, as in
-\f[B]dc 2>&-\f[R], it will quit with an error.
+\f[B]dc  2>&-\f[R], it will quit with an error.
 This is done so that dc(1) can exit with an error code when
 \f[B]stderr\f[R] is redirected to a file.
 .PP
@@ -305,7 +298,6 @@ If there are scripts that depend on the behavior of other dc(1)
 implementations, it is recommended that those scripts be changed to
 redirect \f[B]stderr\f[R] to \f[B]/dev/null\f[R].
 .SH SYNTAX
-.PP
 Each item in the input source code, either a number (see the
 \f[B]NUMBERS\f[R] section) or a command (see the \f[B]COMMANDS\f[R]
 section), is processed and executed, in order.
@@ -340,11 +332,9 @@ precision of any operations (with exceptions).
 The max allowable value for \f[B]scale\f[R] can be queried in dc(1)
 programs with the \f[B]V\f[R] command.
 .SS Comments
-.PP
 Comments go from \f[B]#\f[R] until, and not including, the next newline.
 This is a \f[B]non-portable extension\f[R].
 .SH NUMBERS
-.PP
 Numbers are strings made up of digits, uppercase letters up to
 \f[B]F\f[R], and at most \f[B]1\f[R] period for a radix.
 Numbers can have up to \f[B]DC_NUM_MAX\f[R] digits.
@@ -391,10 +381,8 @@ value of \f[B]ibase\f[R].
 If clamping is on, and the clamped value of a character is needed, use a
 leading zero, i.e., for \f[B]A\f[R], use \f[B]0A\f[R].
 .SH COMMANDS
-.PP
 The valid commands are listed below.
 .SS Printing
-.PP
 These commands are used for printing.
 .TP
 \f[B]p\f[R]
@@ -431,7 +419,6 @@ without altering anything.
 Users should use this command when they get lost.
 .RE
 .SS Arithmetic
-.PP
 These are the commands used for arithmetic.
 .TP
 \f[B]+\f[R]
@@ -621,7 +608,6 @@ a short-circuit operator.
 This is a \f[B]non-portable extension\f[R].
 .RE
 .SS Stack Control
-.PP
 These commands control the stack.
 .TP
 \f[B]c\f[R]
@@ -637,7 +623,6 @@ Swaps (\[lq]reverses\[rq]) the two top items on the stack.
 \f[B]R\f[R]
 Pops (\[lq]removes\[rq]) the top value from the stack.
 .SS Register Control
-.PP
 These commands control registers (see the \f[B]REGISTERS\f[R] section).
 .TP
 \f[B]s\f[R]\f[I]r\f[R]
@@ -659,7 +644,6 @@ push it onto the main stack.
 The previous value in the stack for register \f[I]r\f[R], if any, is now
 accessible via the \f[B]l\f[R]\f[I]r\f[R] command.
 .SS Parameters
-.PP
 These commands control the values of \f[B]ibase\f[R], \f[B]obase\f[R],
 and \f[B]scale\f[R].
 Also see the \f[B]SYNTAX\f[R] section.
@@ -726,7 +710,6 @@ stack.
 This is a \f[B]non-portable extension\f[R].
 .RE
 .SS Strings
-.PP
 The following commands control strings.
 .PP
 dc(1) can work with both numbers and strings, and registers (see the
@@ -943,7 +926,6 @@ to make dc(1) exit with the \f[B]Q\f[R] command, so the sequence
 This is a \f[B]non-portable extension\f[R].
 .RE
 .SS Status
-.PP
 These commands query status of the stack or its top value.
 .TP
 \f[B]Z\f[R]
@@ -1004,7 +986,6 @@ This means that this command will never push \f[B]0\f[R].
 This is a \f[B]non-portable extension\f[R].
 .RE
 .SS Arrays
-.PP
 These commands manipulate arrays.
 .TP
 \f[B]:\f[R]\f[I]r\f[R]
@@ -1024,7 +1005,6 @@ Pushes the length of the array \f[I]r\f[R] onto the stack.
 This is a \f[B]non-portable extension\f[R].
 .RE
 .SS Global Settings
-.PP
 These commands retrieve global settings.
 These are the only commands that require multiple specific characters,
 and all of them begin with the letter \f[B]g\f[R].
@@ -1047,7 +1027,6 @@ Pushes \f[B]0\f[R] onto the stack if the leading zero setting has not
 been enabled with the \f[B]-z\f[R] or \f[B]--leading-zeroes\f[R] options
 (see the \f[B]OPTIONS\f[R] section), non-zero otherwise.
 .SH REGISTERS
-.PP
 Registers are names that can store strings, numbers, and arrays.
 (Number/string registers do not interfere with array registers.)
 .PP
@@ -1063,7 +1042,6 @@ The only exceptions are: a newline (\f[B]`\[rs]n'\f[R]) and a left
 bracket (\f[B]`['\f[R]); it is a parse error for a newline or a left
 bracket to be used as a register name.
 .SS Extended Register Mode
-.PP
 Unlike most other dc(1) implentations, this dc(1) provides nearly
 unlimited amounts of registers, if extended register mode is enabled.
 .PP
@@ -1078,7 +1056,6 @@ In that case, the register name is found according to the regex
 \f[B][a-z][a-z0-9_]*\f[R] (like bc(1) identifiers), and it is a parse
 error if the next non-space characters do not match that regex.
 .SH RESET
-.PP
 When dc(1) encounters an error or a signal that it has a non-default
 handler for, it resets.
 This means that several things happen.
@@ -1095,7 +1072,6 @@ Then, if it is interactive mode, and the error was not a fatal error
 (see the \f[B]EXIT STATUS\f[R] section), it asks for more input;
 otherwise, it exits with the appropriate return code.
 .SH PERFORMANCE
-.PP
 Most dc(1) implementations use \f[B]char\f[R] types to calculate the
 value of \f[B]1\f[R] decimal digit at a time, but that can be slow.
 This dc(1) does something different.
@@ -1115,7 +1091,6 @@ checking.
 This integer type depends on the value of \f[B]DC_LONG_BIT\f[R], but is
 always at least twice as large as the integer type used to store digits.
 .SH LIMITS
-.PP
 The following are the limits on dc(1):
 .TP
 \f[B]DC_LONG_BIT\f[R]
@@ -1177,7 +1152,6 @@ large (at least on 64-bit machines) that there should not be any point
 at which they become a problem.
 In fact, memory should be exhausted before these limits should be hit.
 .SH ENVIRONMENT VARIABLES
-.PP
 As \f[B]non-portable extensions\f[R], dc(1) recognizes the following
 environment variables:
 .TP
@@ -1300,7 +1274,6 @@ This environment variable overrides the default, which can be queried
 with the \f[B]-h\f[R] or \f[B]--help\f[R] options.
 .RE
 .SH EXIT STATUS
-.PP
 dc(1) returns the following exit statuses:
 .TP
 \f[B]0\f[R]
@@ -1367,7 +1340,6 @@ These exit statuses allow dc(1) to be used in shell scripting with error
 checking, and its normal behavior can be forced by using the
 \f[B]-i\f[R] flag or \f[B]--interactive\f[R] option.
 .SH INTERACTIVE MODE
-.PP
 Like bc(1), dc(1) has an interactive mode and a non-interactive mode.
 Interactive mode is turned on automatically when both \f[B]stdin\f[R]
 and \f[B]stdout\f[R] are hooked to a terminal, but the \f[B]-i\f[R] flag
@@ -1380,7 +1352,6 @@ dc(1) may also reset on \f[B]SIGINT\f[R] instead of exit, depending on
 the contents of, or default for, the \f[B]DC_SIGINT_RESET\f[R]
 environment variable (see the \f[B]ENVIRONMENT VARIABLES\f[R] section).
 .SH TTY MODE
-.PP
 If \f[B]stdin\f[R], \f[B]stdout\f[R], and \f[B]stderr\f[R] are all
 connected to a TTY, then \[lq]TTY mode\[rq] is considered to be
 available, and thus, dc(1) can turn on TTY mode, subject to some
@@ -1404,7 +1375,6 @@ required in the bc(1) specification (see the \f[B]STANDARDS\f[R]
 section), and interactive mode requires only \f[B]stdin\f[R] and
 \f[B]stdout\f[R] to be connected to a terminal.
 .SS Prompt
-.PP
 If TTY mode is available, then a prompt can be enabled.
 Like TTY mode itself, it can be turned on or off with an environment
 variable: \f[B]DC_PROMPT\f[R] (see the \f[B]ENVIRONMENT VARIABLES\f[R]
@@ -1425,7 +1395,6 @@ and \f[B]--no-read-prompt\f[R] options.
 See the \f[B]ENVIRONMENT VARIABLES\f[R] and \f[B]OPTIONS\f[R] sections
 for more details.
 .SH SIGNAL HANDLING
-.PP
 Sending a \f[B]SIGINT\f[R] will cause dc(1) to do one of two things.
 .PP
 If dc(1) is not in interactive mode (see the \f[B]INTERACTIVE MODE\f[R]
@@ -1457,19 +1426,17 @@ the user to continue.
 \f[B]SIGTERM\f[R] and \f[B]SIGQUIT\f[R] cause dc(1) to clean up and
 exit, and it uses the default handler for all other signals.
 .SH SEE ALSO
-.PP
 bc(1)
 .SH STANDARDS
-.PP
 The dc(1) utility operators and some behavior are compliant with the
 operators in the IEEE Std 1003.1-2017 (\[lq]POSIX.1-2017\[rq]) bc(1)
 specification at
 https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html .
 .SH BUGS
-.PP
 None are known.
 Report bugs at https://git.gavinhoward.com/gavin/bc .
 .SH AUTHOR
-.PP
-Gavin D.
-Howard <gavin@gavinhoward.com> and contributors.
+Gavin D. Howard \c
+.MT gavin@gavinhoward.com
+.ME \c
+\ and contributors.
