@@ -68,7 +68,11 @@ def prepare_ipv4(dst_address, send_params):
     flags = send_params.get('flags')
     tos = send_params.get('tc')
     ttl = send_params.get('hlim')
-    ip = sp.IP(dst=dst_address)
+    opt = send_params.get('nop')
+    options = ''
+    if opt:
+        options='\x00'
+    ip = sp.IP(dst=dst_address, options=options)
     if src_address:
         ip.src = src_address
     if flags:
@@ -443,6 +447,8 @@ def parse_args():
         help='IPv6 Traffic Class or IPv4 DiffServ / ToS')
     parser_send.add_argument('--send-tcpopt-unaligned', action='store_true',
          help='Include unaligned TCP options')
+    parser_send.add_argument('--send-nop', action='store_true',
+         help='Include a NOP IPv4 option')
 
     # Expectations
     parser_expect = parser.add_argument_group('Values expected in sniffed packets')
@@ -489,6 +495,7 @@ def main():
 
     expect_params['length'] = send_params['length']
     send_params['tcpopt_unaligned'] = args.send_tcpopt_unaligned
+    send_params['nop'] = args.send_nop
     send_params['src_address'] = args.fromaddr[0] if args.fromaddr else None
 
     # We may not have a default route. Tell scapy where to start looking for routes
