@@ -1513,7 +1513,7 @@ The extended library is a **non-portable extension**.
 **bnot8(x)**
 
 :   Does a bitwise not of the truncated absolute value of **x** as though it has
-    **8** binary digits (1 unsigned byte).
+    **8** binary digits (**1** unsigned byte).
 
     If you want to a use signed two's complement argument, use **s2u(x)** to
     convert.
@@ -1521,7 +1521,7 @@ The extended library is a **non-portable extension**.
 **bnot16(x)**
 
 :   Does a bitwise not of the truncated absolute value of **x** as though it has
-    **16** binary digits (2 unsigned bytes).
+    **16** binary digits (**2** unsigned bytes).
 
     If you want to a use signed two's complement argument, use **s2u(x)** to
     convert.
@@ -1529,7 +1529,7 @@ The extended library is a **non-portable extension**.
 **bnot32(x)**
 
 :   Does a bitwise not of the truncated absolute value of **x** as though it has
-    **32** binary digits (4 unsigned bytes).
+    **32** binary digits (**4** unsigned bytes).
 
     If you want to a use signed two's complement argument, use **s2u(x)** to
     convert.
@@ -1537,7 +1537,7 @@ The extended library is a **non-portable extension**.
 **bnot64(x)**
 
 :   Does a bitwise not of the truncated absolute value of **x** as though it has
-    **64** binary digits (8 unsigned bytes).
+    **64** binary digits (**8** unsigned bytes).
 
     If you want to a use signed two's complement argument, use **s2u(x)** to
     convert.
@@ -1561,7 +1561,7 @@ The extended library is a **non-portable extension**.
 **brev8(x)**
 
 :   Runs a bit reversal on the truncated absolute value of **x** as though it
-    has 8 binary digits (1 unsigned byte).
+    has 8 binary digits (**1** unsigned byte).
 
     If you want to a use signed two's complement argument, use **s2u(x)** to
     convert.
@@ -1569,7 +1569,7 @@ The extended library is a **non-portable extension**.
 **brev16(x)**
 
 :   Runs a bit reversal on the truncated absolute value of **x** as though it
-    has 16 binary digits (2 unsigned bytes).
+    has 16 binary digits (**2** unsigned bytes).
 
     If you want to a use signed two's complement argument, use **s2u(x)** to
     convert.
@@ -1577,7 +1577,7 @@ The extended library is a **non-portable extension**.
 **brev32(x)**
 
 :   Runs a bit reversal on the truncated absolute value of **x** as though it
-    has 32 binary digits (4 unsigned bytes).
+    has 32 binary digits (**4** unsigned bytes).
 
     If you want to a use signed two's complement argument, use **s2u(x)** to
     convert.
@@ -1585,7 +1585,7 @@ The extended library is a **non-portable extension**.
 **brev64(x)**
 
 :   Runs a bit reversal on the truncated absolute value of **x** as though it
-    has 64 binary digits (8 unsigned bytes).
+    has 64 binary digits (**8** unsigned bytes).
 
     If you want to a use signed two's complement argument, use **s2u(x)** to
     convert.
@@ -1632,7 +1632,7 @@ The extended library is a **non-portable extension**.
 **brol32(x, p)**
 
 :   Does a left bitwise rotatation of the truncated absolute value of **x**, as
-    though it has **32** binary digits (**2** unsigned bytes), by the number of
+    though it has **32** binary digits (**4** unsigned bytes), by the number of
     places equal to the truncated absolute value of **p** modded by **2** to the
     power of **32**.
 
@@ -1642,7 +1642,7 @@ The extended library is a **non-portable extension**.
 **brol64(x, p)**
 
 :   Does a left bitwise rotatation of the truncated absolute value of **x**, as
-    though it has **64** binary digits (**2** unsigned bytes), by the number of
+    though it has **64** binary digits (**8** unsigned bytes), by the number of
     places equal to the truncated absolute value of **p** modded by **2** to the
     power of **64**.
 
