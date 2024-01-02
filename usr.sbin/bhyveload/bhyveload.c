@@ -160,15 +160,22 @@ cb_open(void *arg __unused, const char *filename, void **hp)
 {
 	struct cb_file *cf;
 	char path[PATH_MAX];
+	size_t len;
 
 	if (!host_base)
 		return (ENOENT);
 
 	strlcpy(path, host_base, PATH_MAX);
-	if (path[strlen(path) - 1] == '/')
-		path[strlen(path) - 1] = 0;
+
+	len = strlen(path);
+	if (path[len - 1] == '/')
+		path[len - 1] = 0;
+
 	strlcat(path, filename, PATH_MAX);
 	cf = malloc(sizeof(struct cb_file));
+	if (cf == NULL)
+		return (ENOMEM);
+
 	if (stat(path, &cf->cf_stat) < 0) {
 		free(cf);
 		return (errno);
