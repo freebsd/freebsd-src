@@ -49,6 +49,14 @@ struct nl_io_queue {
 	int			hiwat;
 };
 
+struct nl_buf {
+	TAILQ_ENTRY(nl_buf)	tailq;
+	u_int			buflen;
+	u_int			datalen;
+	u_int			offset;
+	char			data[];
+};
+
 #define	NLP_MAX_GROUPS		128
 
 struct nlpcb {
@@ -58,14 +66,12 @@ struct nlpcb {
 	uint32_t	        nl_flags;
 	uint32_t	        nl_process_id;
         int                     nl_proto;
-        bool			nl_active;
 	bool			nl_bound;
         bool			nl_task_pending;
 	bool			nl_tx_blocked; /* No new requests accepted */
 	bool			nl_linux; /* true if running under compat */
 	bool			nl_unconstrained_vnet; /* true if running under VNET jail (or without jail) */
 	bool			nl_need_thread_setup;
-	struct nl_io_queue	rx_queue;
 	struct nl_io_queue	tx_queue;
 	struct taskqueue	*nl_taskqueue;
 	struct task		nl_task;
@@ -141,7 +147,7 @@ void nl_init_io(struct nlpcb *nlp);
 void nl_free_io(struct nlpcb *nlp);
 
 void nl_taskqueue_handler(void *_arg, int pending);
-int nl_receive_async(struct mbuf *m, struct socket *so);
+void nl_schedule_taskqueue(struct nlpcb *nlp);
 void nl_process_receive_locked(struct nlpcb *nlp);
 void nl_set_source_metadata(struct mbuf *m, int num_messages);
 void nl_add_msg_info(struct mbuf *m);

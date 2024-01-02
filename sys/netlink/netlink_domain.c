@@ -47,6 +47,7 @@
 #include <sys/sysent.h>
 #include <sys/syslog.h>
 #include <sys/priv.h> /* priv_check */
+#include <sys/uio.h>
 
 #include <netlink/netlink.h>
 #include <netlink/netlink_ctl.h>
@@ -330,6 +331,8 @@ nl_pru_attach(struct socket *so, int proto, struct thread *td)
 		free(nlp, M_PCB);
 		return (error);
 	}
+	so->so_rcv.sb_mtx = &so->so_rcv_mtx;
+	TAILQ_INIT(&so->so_snd.nl_queue);
 	so->so_pcb = nlp;
 	nlp->nl_socket = so;
 	/* Copy so_cred to avoid having socket_var.h in every header */
@@ -337,7 +340,6 @@ nl_pru_attach(struct socket *so, int proto, struct thread *td)
 	nlp->nl_proto = proto;
 	nlp->nl_process_id = curproc->p_pid;
 	nlp->nl_linux = is_linux;
-	nlp->nl_active = true;
 	nlp->nl_unconstrained_vnet = !jailed_without_vnet(so->so_cred);
 	nlp->nl_need_thread_setup = true;
 	NLP_LOCK_INIT(nlp);
@@ -491,6 +493,7 @@ nl_close(struct socket *so)
 	struct nl_control *ctl = atomic_load_ptr(&V_nl_ctl);
 	MPASS(sotonlpcb(so) != NULL);
 	struct nlpcb *nlp;
+	struct nl_buf *nb;
 
 	NL_LOG(LOG_DEBUG2, "detaching socket %p, PID %d", so, curproc->p_pid);
 	nlp = sotonlpcb(so);
@@ -498,7 +501,6 @@ nl_close(struct socket *so)
 	/* Mark as inactive so no new work can be enqueued */
 	NLP_LOCK(nlp);
 	bool was_bound = nlp->nl_bound;
-	nlp->nl_active = false;
 	NLP_UNLOCK(nlp);
 
 	/* Wait till all scheduled work has been completed  */
@@ -517,6 +519,12 @@ nl_close(struct socket *so)
 	NLCTL_WUNLOCK(ctl);
 
 	so->so_pcb = NULL;
+
+	while ((nb = TAILQ_FIRST(&so->so_snd.nl_queue)) != NULL) {
+		TAILQ_REMOVE(&so->so_snd.nl_queue, nb, tailq);
+		free(nb, M_NETLINK);
+	}
+	sbdestroy(so, SO_RCV);
 
 	NL_LOG(LOG_DEBUG3, "socket %p, detached", so);
 
@@ -556,36 +564,79 @@ nl_sockaddr(struct socket *so, struct sockaddr *sa)
 }
 
 static int
-nl_pru_output(struct mbuf *m, struct socket *so, ...)
+nl_sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
+    struct mbuf *m, struct mbuf *control, int flags, struct thread *td)
 {
+	struct nlpcb *nlp = sotonlpcb(so);
+	struct sockbuf *sb = &so->so_snd;
+	struct nl_buf *nb;
+	u_int len;
+	int error;
 
-	if (__predict_false(m == NULL ||
-	    ((m->m_len < sizeof(struct nlmsghdr)) &&
-		(m = m_pullup(m, sizeof(struct nlmsghdr))) == NULL)))
-		return (ENOBUFS);
-	MPASS((m->m_flags & M_PKTHDR) != 0);
+	MPASS(m == NULL && uio != NULL);
 
-	NL_LOG(LOG_DEBUG3, "sending message to kernel async processing");
-	nl_receive_async(m, so);
-	return (0);
-}
-
-
-static int
-nl_pru_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *sa,
-    struct mbuf *control, struct thread *td)
-{
         NL_LOG(LOG_DEBUG2, "sending message to kernel");
 
 	if (__predict_false(control != NULL)) {
-		if (control->m_len) {
-			m_freem(control);
-			return (EINVAL);
-		}
 		m_freem(control);
+		return (EINVAL);
 	}
 
-	return (nl_pru_output(m, so));
+	if (__predict_false(flags & MSG_OOB))	/* XXXGL: or just ignore? */
+		return (EOPNOTSUPP);
+
+	if (__predict_false(uio->uio_resid < sizeof(struct nlmsghdr)))
+		return (ENOBUFS);		/* XXXGL: any better error? */
+
+	NL_LOG(LOG_DEBUG3, "sending message to kernel async processing");
+
+	error = SOCK_IO_SEND_LOCK(so, SBLOCKWAIT(flags));
+	if (error)
+		return (error);
+
+	len = roundup2(uio->uio_resid, 8) + SCRATCH_BUFFER_SIZE;
+	if (nlp->nl_linux)
+		len += roundup2(uio->uio_resid, 8);
+	nb = malloc(sizeof(*nb) + len, M_NETLINK, M_WAITOK);
+	nb->datalen = uio->uio_resid;
+	nb->buflen = len;
+	nb->offset = 0;
+	error = uiomove(&nb->data[0], uio->uio_resid, uio);
+	if (__predict_false(error))
+		goto out;
+
+	SOCK_SENDBUF_LOCK(so);
+restart:
+	if (sb->sb_hiwat - sb->sb_ccc >= nb->datalen) {
+		TAILQ_INSERT_TAIL(&sb->nl_queue, nb, tailq);
+		sb->sb_acc += nb->datalen;
+		sb->sb_ccc += nb->datalen;
+		nb = NULL;
+	} else if ((so->so_state & SS_NBIO) ||
+	    (flags & (MSG_NBIO | MSG_DONTWAIT)) != 0) {
+		SOCK_SENDBUF_UNLOCK(so);
+		error = EWOULDBLOCK;
+		goto out;
+	} else {
+		if ((error = sbwait(so, SO_SND)) != 0) {
+			SOCK_SENDBUF_UNLOCK(so);
+			goto out;
+		} else
+			goto restart;
+	}
+	SOCK_SENDBUF_UNLOCK(so);
+
+	if (nb == NULL) {
+		NL_LOG(LOG_DEBUG3, "enqueue %u bytes", nb->datalen);
+		NLP_LOCK(nlp);
+		nl_schedule_taskqueue(nlp);
+		NLP_UNLOCK(nlp);
+	}
+
+out:
+	SOCK_IO_SEND_UNLOCK(so);
+	free(nb, M_NETLINK);
+	return (error);
 }
 
 static int
@@ -747,14 +798,15 @@ nl_setsbopt(struct socket *so, struct sockopt *sopt)
 }
 
 #define	NETLINK_PROTOSW						\
-	.pr_flags = PR_ATOMIC | PR_ADDR | PR_WANTRCVD,		\
+	.pr_flags = PR_ATOMIC | PR_ADDR | PR_WANTRCVD |		\
+	    PR_SOCKBUF,						\
 	.pr_ctloutput = nl_ctloutput,				\
 	.pr_setsbopt = nl_setsbopt,				\
 	.pr_attach = nl_pru_attach,				\
 	.pr_bind = nl_pru_bind,					\
 	.pr_connect = nl_pru_connect,				\
 	.pr_disconnect = nl_pru_disconnect,			\
-	.pr_send = nl_pru_send,					\
+	.pr_sosend = nl_sosend,					\
 	.pr_rcvd = nl_pru_rcvd,					\
 	.pr_shutdown = nl_pru_shutdown,				\
 	.pr_sockaddr = nl_sockaddr,				\
