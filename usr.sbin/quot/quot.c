@@ -576,42 +576,47 @@ main(int argc, char *argv[])
 	struct statfs *mp;
 	struct fstab *fs;
 	int cnt;
+	int ch;
+
+	if (argc == 1)
+		usage();
 
 	func = douser;
 #ifndef	COMPAT
 	header = getbsize(&headerlen,&blocksize);
 #endif
-	while (--argc > 0 && **++argv == '-') {
-		while (*++*argv) {
-			switch (**argv) {
-			case 'n':
-				func = donames;
-				break;
-			case 'c':
-				func = dofsizes;
-				break;
-			case 'a':
-				all = 1;
-				break;
-			case 'f':
-				count = 1;
-				break;
-			case 'h':
-				estimate = 1;
-				break;
+	while ((ch = getopt(argc, argv, "acfhknv")) != -1) {
+		switch (ch) {
+		case 'a':
+			all = 1;
+			break;
+		case 'c':
+			func = dofsizes;
+			break;
+		case 'f':
+			count = 1;
+			break;
+		case 'h':
+			estimate = 1;
+			break;
 #ifndef	COMPAT
-			case 'k':
-				blocksize = 1024;
-				break;
+		case 'k':
+			blocksize = 1024;
+			break;
 #endif	/* COMPAT */
-			case 'v':
-				unused = 1;
-				break;
-			default:
-				usage();
-			}
+		case 'n':
+			func = donames;
+			break;
+		case 'v':
+			unused = 1;
+			break;
+		default:
+			usage();
 		}
 	}
+	argc -= optind;
+	argv += optind;
+
 	if (all) {
 		cnt = getmntinfo(&mp,MNT_NOWAIT);
 		for (; --cnt >= 0; mp++) {
