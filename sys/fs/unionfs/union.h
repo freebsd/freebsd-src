@@ -146,8 +146,8 @@ int	unionfs_create_uppervattr(struct unionfs_mount *, struct vnode *,
 	    struct vattr *, struct ucred *, struct thread *);
 int	unionfs_mkshadowdir(struct unionfs_mount *, struct vnode *,
 	    struct unionfs_node *, struct componentname *, struct thread *);
-int	unionfs_mkwhiteout(struct vnode *, struct componentname *,
-	    struct thread *, char *, int);
+int	unionfs_mkwhiteout(struct vnode *, struct vnode *,
+	    struct componentname *, struct thread *, char *, int);
 int	unionfs_relookup(struct vnode *, struct vnode **,
 	    struct componentname *, struct componentname *, struct thread *,
 	    char *, int, u_long);
@@ -157,6 +157,24 @@ int	unionfs_relookup_for_delete(struct vnode *, struct componentname *,
 	    struct thread *);
 int	unionfs_relookup_for_rename(struct vnode *, struct componentname *,
 	    struct thread *);
+void	unionfs_forward_vop_start_pair(struct vnode *, int *,
+	    struct vnode *, int *);
+bool	unionfs_forward_vop_finish_pair(struct vnode *, struct vnode *, int,
+	    struct vnode *, struct vnode *, int);
+
+static inline void
+unionfs_forward_vop_start(struct vnode *basevp, int *lkflags)
+{
+	unionfs_forward_vop_start_pair(basevp, lkflags, NULL, NULL);
+}
+
+static inline bool
+unionfs_forward_vop_finish(struct vnode *unionvp, struct vnode *basevp,
+    int lkflags)
+{
+	return (unionfs_forward_vop_finish_pair(unionvp, basevp, lkflags,
+	    NULL, NULL, 0));
+}
 
 #define	UNIONFSVPTOLOWERVP(vp) (VTOUNIONFS(vp)->un_lowervp)
 #define	UNIONFSVPTOUPPERVP(vp) (VTOUNIONFS(vp)->un_uppervp)
