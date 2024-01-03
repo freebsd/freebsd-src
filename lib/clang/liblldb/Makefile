@@ -349,6 +349,7 @@ SRCS+=		Plugins/Architecture/Arm/ArchitectureArm.cpp
 SRCS+=		Plugins/Architecture/Mips/ArchitectureMips.cpp
 SRCS+=		Plugins/Architecture/PPC64/ArchitecturePPC64.cpp
 SRCS+=		Plugins/Disassembler/LLVMC/DisassemblerLLVMC.cpp
+SRCS+=		Plugins/DynamicLoader/FreeBSD-Kernel/DynamicLoaderFreeBSDKernel.cpp
 SRCS+=		Plugins/DynamicLoader/POSIX-DYLD/DYLDRendezvous.cpp
 SRCS+=		Plugins/DynamicLoader/POSIX-DYLD/DynamicLoaderPOSIXDYLD.cpp
 SRCS+=		Plugins/DynamicLoader/Static/DynamicLoaderStatic.cpp

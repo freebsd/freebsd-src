@@ -108,6 +108,8 @@ class X86AsmParser : public MCTargetAsmParser {
 
   // Does this instruction use apx extended register?
   bool UseApxExtendedReg = false;
+  // Is this instruction explicitly required not to update flags?
+  bool ForcedNoFlag = false;
 
 private:
   SMLoc consumeToken() {
@@ -2312,8 +2314,7 @@ bool X86AsmParser::ParseIntelDotOperator(IntelExprStateMachine &SM,
 
   // Drop the optional '.'.
   StringRef DotDispStr = Tok.getString();
-  if (DotDispStr.starts_with("."))
-    DotDispStr = DotDispStr.drop_front(1);
+  DotDispStr.consume_front(".");
   StringRef TrailingDot;
 
   // .Imm gets lexed as a real.
@@ -3126,6 +3127,7 @@ bool X86AsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
   ForcedVEXEncoding = VEXEncoding_Default;
   ForcedDispEncoding = DispEncoding_Default;
   UseApxExtendedReg = false;
+  ForcedNoFlag = false;
 
   // Parse pseudo prefixes.
   while (true) {
@@ -3150,6 +3152,8 @@ bool X86AsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
         ForcedDispEncoding = DispEncoding_Disp8;
       else if (Prefix == "disp32")
         ForcedDispEncoding = DispEncoding_Disp32;
+      else if (Prefix == "nf")
+        ForcedNoFlag = true;
       else
         return Error(NameLoc, "unknown prefix");
 
@@ -3996,6 +4000,8 @@ unsigned X86AsmParser::checkTargetMatchPredicate(MCInst &Inst) {
   const MCInstrDesc &MCID = MII.get(Opc);
 
   if (UseApxExtendedReg && !X86II::canUseApxExtendedReg(MCID))
+    return Match_Unsupported;
+  if (ForcedNoFlag != !!(MCID.TSFlags & X86II::EVEX_NF))
     return Match_Unsupported;
 
   if (ForcedVEXEncoding == VEXEncoding_EVEX &&
