@@ -18,7 +18,9 @@
 .\" CDDL HEADER END
 .\" Copyright (c) 2006, Sun Microsystems, Inc. All Rights Reserved.
 .\"
-.Dd February 24, 2023
+.\" $FreeBSD$
+.\"
+.Dd September 8, 2023
 .Dt DTRACE 1
 .Os
 .Sh NAME
@@ -27,7 +29,8 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl 32 | Fl 64
-.Op Fl aACdeFGhHlqSvVwZ
+.Op Fl aACdeFGhHlOqSvVwZ
+.Op Fl -libxo
 .Op Fl b Ar bufsz
 .Op Fl c Ar cmd
 .Op Fl D Ar name Op Ns = Ns value
@@ -355,6 +358,11 @@ writing D programs.
 The specified
 .Ar path
 is added after the default library search path.
+.It Fl -libxo
+Generate output via
+.Xr libxo 3 .
+This option is the same as specifying
+.Sy oformat .
 .It Fl m Oo Ar provider : Oc Ar module Oo Oo Ar predicate Oc Ar action Oc
 Specify module name to trace or list
 .Fl ( l
@@ -398,6 +406,14 @@ argument can be suffixed with an optional D probe clause.
 More than one
 .Fl n
 option can be specified on the command line at a time.
+.It Fl O
+This option causes
+.Nm
+to print all the aggregations upon exiting if
+.Sy oformat
+or
+.Fl -libxo
+are specified.
 .It Fl o Ar output
 Specify the
 .Ar output
@@ -650,6 +666,32 @@ Number of whitespace characters to use when indenting
 and
 .Fn ustack
 output.
+.It Sy oformat Ns = Ns Ar format
+Specify the format to use for output.
+Setting
+.Sy oformat
+to
+.Ql text
+makes
+.Nm
+use regular human-readable output which is its default behavior.
+The options passed to
+.Sy oformat
+are directly forwarded to
+.Xr libxo 3 .
+Some of the supported formatters include
+.Ql json ,
+.Ql xml
+and
+.Ql html .
+Note that this option will cause
+.Nm
+to not produce any output unless printing functions are explicitly called,
+or the
+.Fl O
+flag is specified.
+For more information see
+.Sx STRUCTURED OUTPUT .
 .It Sy statusrate Ns = Ns Ar time
 Rate of status checking.
 .It Sy switchrate Ns = Ns Ar time
@@ -776,6 +818,376 @@ or
 .Fl i
 options) contain descriptions that do not match any known probes.
 .El
+.Sh STRUCTURED OUTPUT
+.Nm
+supports structured output using
+.Xr libxo 3 .
+The output will always have a top-level object called
+.Dq dtrace ,
+followed by a list of objects
+.Dq probes .
+Each of the probe objects will to have a timestamp which is generated at
+output time rather than probe firing time, an identifier for the CPU on
+which the probe was executed, and the probe's full specification:
+.Bd -literal
+{
+  "dtrace": {
+    "probes": [
+      {
+        "timestamp": ...,
+        "cpu": ...,
+        "id": ...,
+        "provider": ...,
+        "module": ...,
+        "function": ...,
+        "name": ...,
+        "output": [
+           ... (script-specific output)
+        ]
+      }
+    ]
+  }
+}
+
+<?xml version="1.0"?>
+<dtrace>
+  <probes>
+    <timestamp>...</timestamp>
+    <cpu>...</cpu>
+    <id>...</id>
+    <provider>...</provider>
+    <module>...</module>
+    <function>...</function>
+    <name>...</name>
+    <output>
+      ... (script-specific output)
+    </output>
+  </probes>
+</dtrace>
+.Ed
+.Pp
+It is also possible for XML output to take the following form if some
+of the fields are empty (in this example, module and function values
+are absent):
+.Bd -literal
+<?xml version="1.0"?>
+<dtrace>
+  <probes>
+    ...
+    <module/>
+    <function/>
+    ...
+    <output>
+      ... (script-specific output)
+    </output>
+  </probes>
+</dtrace>
+.Ed
+.Pp
+Similarly,
+.Sy oformat
+can be used to generate HTML:
+.Bd -literal
+<div class="line">
+<div class="data" data-tag="timestamp">...</div>
+<div class="text"></div>
+<div class="data" data-tag="cpu">...</div>
+<div class="text"></div>
+<div class="data" data-tag="id">...</div>
+<div class="text"></div>
+<div class="data" data-tag="provider">...</div>
+<div class="text"></div>
+<div class="data" data-tag="module">...</div>
+<div class="text"></div>
+<div class="data" data-tag="function">...</div>
+<div class="text"></div>
+<div class="data" data-tag="name">...</div>
+<div class="data" data-tag="... (script-specific output)">...</div>
+</div>
+.Ed
+.Pp
+Unlike JSON and XML, the
+.Dq output
+array is not present.
+Instead, data is simply formatted into a div of class
+.Dq data
+and a data-tag is associated with each of the keys.
+.Pp
+The
+.Dq output
+array's contents depend on the probes' actions and is explained below.
+The examples here are presented in JSON form as opposed to XML or HTML,
+however the conversion explained above applies for all output formats.
+.Pp
+Any scalar output, such as output produced by the
+.Fn trace
+action is of form:
+.Bd -literal
+{
+  "value": ...
+}
+.Ed
+.Pp
+The
+.Fn printf
+action begins with an object containing the formatted output of the
+.Fn printf
+action.
+Subsequent objects contains the value of each of the arguments to
+.Fn printf
+in its raw form as if the
+.Fn trace
+action was used instead.
+A
+.Fn printf
+statement which contains no arguments other than the message will only have
+one object following the message object and its value will always be 0.
+This is an artefact of the implementation and can safely be ignored.
+.Bd -literal
+# dtrace --libxo json,pretty -n 'BEGIN { printf("... %Y, ..", walltimestamp); }'
+
+{
+  "message": "... 2023 Sep  7 16:49:02, .."
+},
+{
+  "value": 1694105342633402400
+},
+{
+  ...
+}
+.Ed
+.Pp
+Scalar aggregations are aggregations which produce a single value for a given
+key.
+These aggregations include
+.Fn count ,
+.Fn min ,
+.Fn max ,
+.Fn stddev
+and
+.Fn sum .
+Each one of them is represented by the key containing their name.
+For example, the output of a
+.Fn stddev
+aggregation will contain a key
+.Dq stddev
+inside an
+.Dq aggregation-data
+object:
+.Bd -literal
+{
+  "aggregation-data": [
+    {
+      "keys": [
+        ...
+      ],
+      "stddev": ...
+    }
+  ],
+  "aggregation-name": ...
+}
+.Ed
+.Pp
+The
+.Dq keys
+field remains consistent across all aggregations, however
+.Fn quantize ,
+.Fn lquantize
+and
+.Fn llquantize
+need to be treated differently.
+.Sy oformat
+will create a new array of objects called
+.Dq buckets .
+Each of the objects contains a
+.Dq value
+and a
+.Dq count
+field which are
+the left-hand side and the right-hand side of human-readable
+.Nm
+output respectively.
+The full object has the following format:
+.Bd -literal
+{
+  "aggregation-data": [
+    ...
+    {
+      "keys": [
+        ...
+      ],
+      "buckets": [
+        {
+          "value": 32,
+          "count": 0
+        },
+        {
+          "value": 64,
+          "count": 17
+        },
+        ...
+      ],
+    },
+    ...
+  ]
+  "aggregation-name": ...
+}
+.Ed
+.Pp
+Similar to scalar aggregations, named scalar actions such as
+.Fn mod ,
+.Fn umod ,
+.Fn usym ,
+.Fn tracemem
+and
+.Fn printm
+will output an object with the key being equal to the
+name of the action.
+For example,
+.Fn printm
+output would produce the following object:
+.Bd -literal
+{
+  "printm": "0x4054171100"
+}
+.Ed
+.Pp
+.Fn sym
+is slightly different.
+While it will create a
+.Dq sym
+field which contains its value, in some cases it will also create additional
+fields
+.Dq object ,
+.Dq name
+and
+.Dq offset :
+.Bd -literal
+# dtrace -x oformat=json,pretty -On 'BEGIN { sym((uintptr_t)&`prison0); }'
+
+{
+  "sym": "kernel`prison0",
+  "object": "kernel",
+  "name": "prison0"
+}
+
+# dtrace --libxo json,pretty -On 'BEGIN { sym((uintptr_t)curthread); }'
+
+{
+  "sym": "0xfffffe00c18d2000",
+  "offset": "0xfffffe00c18d2000"
+}
+.Ed
+.Pp
+.Fn stack
+and
+.Fn ustack
+actions unroll each of the stack frames into its own object in an array.
+The only real difference between them is that the
+.Fn stack
+action will produce a list called
+.Dq stack-frames
+while
+.Fn ustack
+will produce one called
+.Dq ustack-frames .
+The following is an example of their
+.Sy oformat
+output:
+.Bd -literal
+{
+  "stack-frames": [
+    {
+      "symbol": "dtrace.ko`dtrace_dof_create+0x35",
+      "module": "dtrace.ko",
+      "name": "dtrace_dof_create",
+      "offset": "0x35"
+    },
+    {
+      "symbol": "dtrace.ko`dtrace_ioctl+0x81c",
+      "module": "dtrace.ko",
+      "name": "dtrace_ioctl",
+      "offset": "0x81c"
+    },
+    ...
+  ]
+}
+
+{
+  "ustack-frames": [
+    {
+      "symbol": "libc.so.7`ioctl+0xa",
+      "module": "libc.so.7",
+      "name": "ioctl",
+      "offset": "0xa"
+    },
+    {
+      "symbol": "libdtrace.so.2`dtrace_go+0xf3",
+      "module": "libdtrace.so.2",
+      "name": "dtrace_go",
+      "offset": "0xf3"
+    },
+    ...
+  ]
+}
+.Ed
+.Pp
+The
+.Fn print
+action produces a
+.Dq type
+list in the following form:
+.Bd -literal
+{
+  "type": [
+    {
+      "object-name": "kernel",
+      "name": "struct thread",
+      "ctfid": 2372
+    },
+    {
+      "member-name": "td_lock",
+      "name": "struct mtx *volatile",
+      "ctfid": 2035,
+      "value": "0xffffffff82158440"
+    },
+    ...
+}
+.Ed
+.Pp
+If the type is invalid, a
+.Dq warning
+object will be produced containing the diagnostic message as well as two
+possible optional fields:
+.Dq type-identifier
+which contains the CTF identifier of the type and
+.Dq size containing the size of an integer, enum or float.
+The fields generated will depend on the kind of error that was encountered
+while processing the trace data.
+.Pp
+Finally,
+.Sy oformat
+provides a special pseudo-probe to represent drops.
+As
+.Nm
+polls for various kinds of drops
+.Sy oformat
+will produce output similar to the following in order to represent drops:
+.Bd -literal
+{
+  "cpu": -1,
+  "id": -1,
+  "provider": "dtrace",
+  "module": "INTERNAL",
+  "function": "INTERNAL",
+  "name": "DROP",
+  "timestamp": ...,
+  "count": ...,
+  "total": ...,
+  "kind": 2,
+  "msg": "... dynamic variable drops\n"
+}
+.Ed
 .Sh OPERANDS
 You can specify zero or more additional arguments on the
 .Nm
