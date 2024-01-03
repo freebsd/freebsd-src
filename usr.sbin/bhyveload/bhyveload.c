@@ -61,6 +61,7 @@
 #include <machine/specialreg.h>
 #include <machine/vmm.h>
 
+#include <assert.h>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <errno.h>
@@ -87,11 +88,11 @@
 
 #define	NDISKS	32
 
-static char *host_base;
 static struct termios term, oldterm;
 static int disk_fd[NDISKS];
 static int ndisks;
 static int consin_fd, consout_fd;
+static int hostbase_fd = -1;
 
 static int need_reinit;
 
@@ -157,42 +158,61 @@ static int
 cb_open(void *arg __unused, const char *filename, void **hp)
 {
 	struct cb_file *cf;
-	char path[PATH_MAX];
+	struct stat sb;
+	int fd, flags;
 
-	if (!host_base)
+	cf = NULL;
+	fd = -1;
+	flags = O_RDONLY | O_RESOLVE_BENEATH;
+	if (hostbase_fd == -1)
 		return (ENOENT);
 
-	strlcpy(path, host_base, PATH_MAX);
-	if (path[strlen(path) - 1] == '/')
-		path[strlen(path) - 1] = 0;
-	strlcat(path, filename, PATH_MAX);
-	cf = malloc(sizeof(struct cb_file));
-	if (stat(path, &cf->cf_stat) < 0) {
-		free(cf);
+	/* Absolute paths are relative to our hostbase, chop off leading /. */
+	if (filename[0] == '/')
+		filename++;
+
+	/* Lookup of /, use . instead. */
+	if (filename[0] == '\0')
+		filename = ".";
+
+	if (fstatat(hostbase_fd, filename, &sb, AT_RESOLVE_BENEATH) < 0)
 		return (errno);
+
+	if (!S_ISDIR(sb.st_mode) && !S_ISREG(sb.st_mode))
+		return (EINVAL);
+
+	if (S_ISDIR(sb.st_mode))
+		flags |= O_DIRECTORY;
+
+	/* May be opening the root dir */
+	fd = openat(hostbase_fd, filename, flags);
+	if (fd < 0)
+		return (errno);
+
+	cf = malloc(sizeof(struct cb_file));
+	if (cf == NULL) {
+		close(fd);
+		return (ENOMEM);
 	}
 
+	cf->cf_stat = sb;
 	cf->cf_size = cf->cf_stat.st_size;
+
 	if (S_ISDIR(cf->cf_stat.st_mode)) {
 		cf->cf_isdir = 1;
-		cf->cf_u.dir = opendir(path);
-		if (!cf->cf_u.dir)
-			goto out;
-		*hp = cf;
-		return (0);
-	}
-	if (S_ISREG(cf->cf_stat.st_mode)) {
+		cf->cf_u.dir = fdopendir(fd);
+		if (cf->cf_u.dir == NULL) {
+			close(fd);
+			free(cf);
+			return (ENOMEM);
+		}
+	} else {
+		assert(S_ISREG(cf->cf_stat.st_mode));
 		cf->cf_isdir = 0;
-		cf->cf_u.fd = open(path, O_RDONLY);
-		if (cf->cf_u.fd < 0)
-			goto out;
-		*hp = cf;
-		return (0);
+		cf->cf_u.fd = fd;
 	}
-
-out:
-	free(cf);
-	return (EINVAL);
+	*hp = cf;
+	return (0);
 }
 
 static int
@@ -710,6 +730,17 @@ usage(void)
 	exit(1);
 }
 
+static void
+hostbase_open(const char *base)
+{
+
+	if (hostbase_fd != -1)
+		close(hostbase_fd);
+	hostbase_fd = open(base, O_DIRECTORY | O_PATH);
+	if (hostbase_fd == -1)
+		err(EX_OSERR, "open");
+}
+
 int
 main(int argc, char** argv)
 {
@@ -744,7 +775,7 @@ main(int argc, char** argv)
 			break;
 
 		case 'h':
-			host_base = optarg;
+			hostbase_open(optarg);
 			break;
 
 		case 'l':
