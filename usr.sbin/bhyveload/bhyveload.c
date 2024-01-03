@@ -94,11 +94,9 @@ static int ndisks;
 static int consin_fd, consout_fd;
 static int hostbase_fd = -1;
 
-static int need_reinit;
-
 static void *loader_hdl;
 static char *loader;
-static int explicit_loader;
+static int explicit_loader_fd = -1;
 static jmp_buf jb;
 
 static char *vmname, *progname;
@@ -618,7 +616,7 @@ cb_swap_interpreter(void *arg __unused, const char *interp_req)
 	 * not try to pivot to a different loader on them.
 	 */
 	free(loader);
-	if (explicit_loader == 1) {
+	if (explicit_loader_fd != -1) {
 		perror("requested loader interpreter does not match guest userboot");
 		cb_exit(NULL, 1);
 	}
@@ -627,9 +625,8 @@ cb_swap_interpreter(void *arg __unused, const char *interp_req)
 		cb_exit(NULL, 1);
 	}
 
-	if (asprintf(&loader, "/boot/userboot_%s.so", interp_req) == -1)
+	if (asprintf(&loader, "userboot_%s.so", interp_req) == -1)
 		err(EX_OSERR, "malloc");
-	need_reinit = 1;
 	longjmp(jb, 1);
 }
 
@@ -744,13 +741,38 @@ hostbase_open(const char *base)
 		err(EX_OSERR, "open");
 }
 
+static void
+loader_open(int bootfd)
+{
+	int fd;
+
+	if (loader == NULL) {
+		loader = strdup("userboot.so");
+		if (loader == NULL)
+			err(EX_OSERR, "malloc");
+	}
+
+	assert(bootfd >= 0 || explicit_loader_fd >= 0);
+	if (explicit_loader_fd >= 0)
+		fd = explicit_loader_fd;
+	else
+		fd = openat(bootfd, loader, O_RDONLY | O_RESOLVE_BENEATH);
+	if (fd == -1)
+		err(EX_OSERR, "openat");
+
+	loader_hdl = fdlopen(fd, RTLD_LOCAL);
+	if (!loader_hdl)
+		errx(EX_OSERR, "dlopen: %s", dlerror());
+}
+
 int
 main(int argc, char** argv)
 {
 	void (*func)(struct loader_callbacks *, void *, int, int);
 	uint64_t mem_size;
-	int opt, error, memflags;
+	int bootfd, opt, error, memflags, need_reinit;
 
+	bootfd = -1;
 	progname = basename(argv[0]);
 
 	memflags = 0;
@@ -787,7 +809,9 @@ main(int argc, char** argv)
 			loader = strdup(optarg);
 			if (loader == NULL)
 				err(EX_OSERR, "malloc");
-			explicit_loader = 1;
+			explicit_loader_fd = open(loader, O_RDONLY);
+			if (explicit_loader_fd == -1)
+				err(EX_OSERR, "%s", loader);
 			break;
 
 		case 'm':
@@ -830,6 +854,18 @@ main(int argc, char** argv)
 		exit(1);
 	}
 
+	/*
+	 * If we weren't given an explicit loader to use, we need to support the
+	 * guest requesting a different one.
+	 */
+	if (explicit_loader_fd == -1) {
+		bootfd = open("/boot", O_DIRECTORY | O_PATH);
+		if (bootfd == -1) {
+			perror("open");
+			exit(1);
+		}
+	}
+
 	vcpu = vm_vcpu_open(ctx, BSP);
 
 	/*
@@ -837,7 +873,12 @@ main(int argc, char** argv)
 	 * cb_swap_interpreter will swap out loader as appropriate and set
 	 * need_reinit so that we end up in a clean state once again.
 	 */
-	setjmp(jb);
+	if (setjmp(jb) != 0) {
+		dlclose(loader_hdl);
+		loader_hdl = NULL;
+
+		need_reinit = 1;
+	}
 
 	if (need_reinit) {
 		error = vm_reinit(ctx);
@@ -854,19 +895,7 @@ main(int argc, char** argv)
 		exit(1);
 	}
 
-	if (loader == NULL) {
-		loader = strdup("/boot/userboot.so");
-		if (loader == NULL)
-			err(EX_OSERR, "malloc");
-	}
-	if (loader_hdl != NULL)
-		dlclose(loader_hdl);
-	loader_hdl = dlopen(loader, RTLD_LOCAL);
-	if (!loader_hdl) {
-		printf("%s\n", dlerror());
-		free(loader);
-		return (1);
-	}
+	loader_open(bootfd);
 	func = dlsym(loader_hdl, "loader_main");
 	if (!func) {
 		printf("%s\n", dlerror());
