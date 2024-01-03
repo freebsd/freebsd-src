@@ -39,6 +39,7 @@ TESTS_SUBDIRS+= aggs \
 		misc \
 		multiaggs \
 		offsetof \
+		oformat \
 		operators \
 		pid \
 		plockstat \
