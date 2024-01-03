@@ -3358,7 +3358,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 		    *outoffp <= OFF_MAX - len && va.va_size <= *outoffp + len &&
 		    *inoffp < inva.va_size &&
 		    *outoffp <= OFF_MAX - (inva.va_size - *inoffp) &&
-		    outsize <= *outoffp + (inva.va_size - *inoffp)) {
+		    va.va_size <= *outoffp + (inva.va_size - *inoffp)) {
 #ifdef MAC
 			error = mac_vnode_check_write(curthread->td_ucred,
 			    outcred, outvp);
