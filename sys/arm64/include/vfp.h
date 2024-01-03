@@ -78,6 +78,7 @@ void	vfp_new_thread(struct thread *, struct thread *, bool);
 void	vfp_reset_state(struct thread *, struct pcb *);
 void	vfp_restore_state(void);
 void	vfp_save_state(struct thread *, struct pcb *);
+void	vfp_save_state_savectx(struct pcb *);
 
 struct fpu_kern_ctx;
 

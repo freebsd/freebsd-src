@@ -270,9 +270,7 @@ ENTRY(savectx)
 	/* Store the VFP registers */
 #ifdef VFP
 	mov	x28, lr
-	mov	x1, x0			/* move pcb to the correct register */
-	mov	x0, xzr			/* td = NULL */
-	bl	vfp_save_state
+	bl	vfp_save_state_savectx
 	mov	lr, x28
 #endif
 
