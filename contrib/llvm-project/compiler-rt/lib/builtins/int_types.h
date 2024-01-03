@@ -268,5 +268,5 @@ typedef struct {
 #define COMPLEXTF_IMAGINARY(x) (x).imaginary
 #endif
 
-#endif
+#endif // CRT_HAS_FLOATING_POINT
 #endif // INT_TYPES_H

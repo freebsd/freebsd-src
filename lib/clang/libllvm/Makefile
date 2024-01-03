@@ -169,6 +169,7 @@ SRCS_MIN+=	AsmParser/Parser.cpp
 SRCS_MIN+=	BinaryFormat/AMDGPUMetadataVerifier.cpp
 SRCS_MIN+=	BinaryFormat/COFF.cpp
 SRCS_MIN+=	BinaryFormat/Dwarf.cpp
+SRCS_XDB+=	BinaryFormat/ELF.cpp
 SRCS_MIN+=	BinaryFormat/MachO.cpp
 SRCS_MIN+=	BinaryFormat/Magic.cpp
 SRCS_MIN+=	BinaryFormat/MsgPackDocument.cpp
