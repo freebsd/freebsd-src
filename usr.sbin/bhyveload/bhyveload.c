@@ -78,6 +78,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include <capsicum_helpers.h>
 #include <vmmapi.h>
 
 #include "userboot.h"
@@ -861,6 +862,12 @@ main(int argc, char** argv)
 			perror("open");
 			exit(1);
 		}
+	}
+
+	caph_cache_catpages();
+	if (caph_enter() < 0) {
+		perror("caph_enter");
+		exit(1);
 	}
 
 	/*
