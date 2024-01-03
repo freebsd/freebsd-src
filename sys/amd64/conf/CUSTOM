@@ -1,0 +1,6 @@
+include MINIMAL
+ident CUSTOM
+
+nooptions PROCFS
+
+options 	FFS			# Berkeley Fast Filesystem
