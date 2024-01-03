@@ -397,13 +397,14 @@ doskip(const char *fname, int statok)
 	if (statok) {
 		if (fstat(fileno(stdin), &sb))
 			err(1, "%s", fname);
-		if (S_ISREG(sb.st_mode) && skip > sb.st_size) {
+		if (S_ISREG(sb.st_mode) && skip > sb.st_size && sb.st_size > 0) {
 			address += sb.st_size;
 			skip -= sb.st_size;
 			return;
 		}
 	}
-	if (!statok || S_ISFIFO(sb.st_mode) || S_ISSOCK(sb.st_mode)) {
+	if (!statok || S_ISFIFO(sb.st_mode) || S_ISSOCK(sb.st_mode) || \
+	    (S_ISREG(sb.st_mode) && sb.st_size == 0)) {
 		noseek();
 		return;
 	}
