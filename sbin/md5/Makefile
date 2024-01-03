@@ -59,15 +59,18 @@ MLINKS=	md5.1 md5sum.1 \
 
 LIBADD=	md
 
-.ifndef(BOOTSTRAPPING)
+.include <src.opts.mk>
+
+.if ${MK_CASPER} != "no" && !defined(RESCUE) && !defined(BOOTSTRAPPING)
 # Avoid depending on capsicum during bootstrap. caph_limit_stdout() is not
 # available when building for Linux/MacOS or older FreeBSD hosts.
 # We need to bootstrap md5 when building on Linux since the md5sum command there
 # produces different output.
 CFLAGS+=-DHAVE_CAPSICUM
+CFLAGS+=-DWITH_CASPER
+LIBADD+=	casper
+LIBADD+=	cap_fileargs
 .endif
-
-.include <src.opts.mk>
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
