@@ -1092,7 +1092,7 @@ iommu_debug_dump_gas(struct iommu_domain *domain)
 	}
 }
 
-DB_SHOW_COMMAND(iommu_domain, iommu_domain_show)
+DB_SHOW_COMMAND(iommu_domain, iommu_domain_show1)
 {
 	struct iommu_domain *domain;
 
