@@ -360,7 +360,7 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 			if (cnp->cn_flags & AUDITVNODE2)
 				AUDIT_ARG_ATFD2(ndp->ni_dirfd);
 
-			error = fgetvp_lookup(ndp->ni_dirfd, ndp, dpp);
+			error = fgetvp_lookup(ndp, dpp);
 		}
 		if (error == 0 && (*dpp)->v_type != VDIR &&
 		    (cnp->cn_pnbuf[0] != '\0' ||
