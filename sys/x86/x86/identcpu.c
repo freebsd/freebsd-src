@@ -158,7 +158,7 @@ SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD,
 #endif
 
 char cpu_model[128];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD | CTLFLAG_MPSAFE,
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD | CTLFLAG_CAPRD | CTLFLAG_MPSAFE,
     cpu_model, 0, "Machine model");
 
 static int hw_clockrate;
