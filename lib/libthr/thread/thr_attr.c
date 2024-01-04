@@ -551,7 +551,7 @@ _pthread_attr_setaffinity_np(pthread_attr_t *pattr, size_t cpusetsize,
 				return (EINVAL);
 	}
 	if (attr->cpuset == NULL) {
-		attr->cpuset = calloc(1, kern_size);
+		attr->cpuset = malloc(kern_size);
 		if (attr->cpuset == NULL)
 			return (errno);
 		attr->cpusetsize = kern_size;
