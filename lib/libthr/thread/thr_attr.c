@@ -117,8 +117,7 @@ _thr_attr_destroy(pthread_attr_t *attr)
 	if (attr == NULL || *attr == NULL)
 		return (EINVAL);
 
-	if ((*attr)->cpuset != NULL)
-		free((*attr)->cpuset);
+	free((*attr)->cpuset);
 	free(*attr);
 	*attr = NULL;
 	return (0);
@@ -151,7 +150,7 @@ _thr_attr_get_np(pthread_t pthread, pthread_attr_t *dstattr)
 		return (error);
 
 	attr = pthread->attr;
-	if (pthread->flags & THR_FLAGS_DETACHED)
+	if ((pthread->flags & THR_FLAGS_DETACHED) != 0)
 		attr.flags |= PTHREAD_DETACHED;
 
 	error = cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, TID(pthread),
@@ -180,7 +179,7 @@ _thr_attr_getdetachstate(const pthread_attr_t *attr, int *detachstate)
 	if (attr == NULL || *attr == NULL || detachstate == NULL)
 		return (EINVAL);
 
-	if ((*attr)->flags & PTHREAD_DETACHED)
+	if (((*attr)->flags & PTHREAD_DETACHED) != 0)
 		*detachstate = PTHREAD_CREATE_DETACHED;
 	else
 		*detachstate = PTHREAD_CREATE_JOINABLE;
@@ -258,7 +257,7 @@ _thr_attr_getscope(const pthread_attr_t * __restrict attr,
 	if (attr == NULL || *attr == NULL || contentionscope == NULL)
 		return (EINVAL);
 
-	*contentionscope = (*attr)->flags & PTHREAD_SCOPE_SYSTEM ?
+	*contentionscope = ((*attr)->flags & PTHREAD_SCOPE_SYSTEM) != 0 ?
 	    PTHREAD_SCOPE_SYSTEM : PTHREAD_SCOPE_PROCESS;
 	return (0);
 }
@@ -321,7 +320,7 @@ _thr_attr_init(pthread_attr_t *attr)
 	if ((pattr = malloc(sizeof(*pattr))) == NULL)
 		return (ENOMEM);
 
-	memcpy(pattr, &_pthread_attr_default, sizeof(struct pthread_attr));
+	memcpy(pattr, &_pthread_attr_default, sizeof(*pattr));
 	*attr = pattr;
 	return (0);
 }
@@ -449,7 +448,7 @@ _thr_attr_setscope(pthread_attr_t *attr, int contentionscope)
 		return (EINVAL);
 
 	if (contentionscope == PTHREAD_SCOPE_SYSTEM)
-		(*attr)->flags |= contentionscope;
+		(*attr)->flags |= PTHREAD_SCOPE_SYSTEM;
 	else
 		(*attr)->flags &= ~PTHREAD_SCOPE_SYSTEM;
 	return (0);
@@ -546,6 +545,7 @@ _pthread_attr_setaffinity_np(pthread_attr_t *pattr, size_t cpusetsize,
 	if (cpusetsize > kern_size) {
 		/* Kernel checks invalid bits, we check it here too. */
 		size_t i;
+
 		for (i = kern_size; i < cpusetsize; ++i)
 			if (((const char *)cpusetp)[i] != 0)
 				return (EINVAL);
