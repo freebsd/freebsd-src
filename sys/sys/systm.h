@@ -282,17 +282,17 @@ void	*memmove_early(void * _Nonnull dest, const void * _Nonnull src, size_t n);
 	((__r >= __len) ? ENAMETOOLONG : 0);			\
 })
 
-int	copyinstr(const void * __restrict udaddr,
-	    void * _Nonnull __restrict kaddr, size_t len,
-	    size_t * __restrict lencopied);
-int	copyin(const void * __restrict udaddr,
-	    void * _Nonnull __restrict kaddr, size_t len);
-int	copyin_nofault(const void * __restrict udaddr,
-	    void * _Nonnull __restrict kaddr, size_t len);
-int	copyout(const void * _Nonnull __restrict kaddr,
-	    void * __restrict udaddr, size_t len);
-int	copyout_nofault(const void * _Nonnull __restrict kaddr,
-	    void * __restrict udaddr, size_t len);
+int __result_use_check copyinstr(const void * __restrict udaddr,
+    void * _Nonnull __restrict kaddr, size_t len,
+    size_t * __restrict lencopied);
+int __result_use_check copyin(const void * __restrict udaddr,
+    void * _Nonnull __restrict kaddr, size_t len);
+int __result_use_check copyin_nofault(const void * __restrict udaddr,
+    void * _Nonnull __restrict kaddr, size_t len);
+int __result_use_check copyout(const void * _Nonnull __restrict kaddr,
+    void * __restrict udaddr, size_t len);
+int __result_use_check copyout_nofault(const void * _Nonnull __restrict kaddr,
+    void * __restrict udaddr, size_t len);
 
 #ifdef SAN_NEEDS_INTERCEPTORS
 int	SAN_INTERCEPTOR(copyin)(const void *, void *, size_t);
@@ -310,14 +310,14 @@ long	fuword(volatile const void *base);
 int	fuword16(volatile const void *base);
 int32_t	fuword32(volatile const void *base);
 int64_t	fuword64(volatile const void *base);
-int	fueword(volatile const void *base, long *val);
-int	fueword32(volatile const void *base, int32_t *val);
-int	fueword64(volatile const void *base, int64_t *val);
-int	subyte(volatile void *base, int byte);
-int	suword(volatile void *base, long word);
-int	suword16(volatile void *base, int word);
-int	suword32(volatile void *base, int32_t word);
-int	suword64(volatile void *base, int64_t word);
+int __result_use_check fueword(volatile const void *base, long *val);
+int __result_use_check fueword32(volatile const void *base, int32_t *val);
+int __result_use_check fueword64(volatile const void *base, int64_t *val);
+int __result_use_check subyte(volatile void *base, int byte);
+int __result_use_check suword(volatile void *base, long word);
+int __result_use_check suword16(volatile void *base, int word);
+int __result_use_check suword32(volatile void *base, int32_t word);
+int __result_use_check suword64(volatile void *base, int64_t word);
 uint32_t casuword32(volatile uint32_t *base, uint32_t oldval, uint32_t newval);
 u_long	casuword(volatile u_long *p, u_long oldval, u_long newval);
 int	casueword32(volatile uint32_t *base, uint32_t oldval, uint32_t *oldvalp,
