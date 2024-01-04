@@ -634,8 +634,8 @@ targstart(struct cam_periph *periph, union ccb *start_ccb)
 			xpt_print(periph->path,
 			    "targsendccb failed, err %d\n", error);
 			xpt_release_ccb(start_ccb);
-			suword(&descr->user_ccb->ccb_h.status,
-			       CAM_REQ_CMP_ERR);
+			(void)suword(&descr->user_ccb->ccb_h.status,
+			    CAM_REQ_CMP_ERR);
 			TAILQ_INSERT_TAIL(&softc->abort_queue, descr, tqe);
 			notify_user(softc);
 		}
@@ -867,7 +867,10 @@ targread(struct cdev *dev, struct uio *uio, int ioflag)
 		CAM_DEBUG(softc->path, CAM_DEBUG_PERIPH,
 			  ("targread aborted descr %p (%p)\n",
 			  user_descr, user_ccb));
-		suword(&user_ccb->ccb_h.status, CAM_REQ_ABORTED);
+		if (suword(&user_ccb->ccb_h.status, CAM_REQ_ABORTED) != 0) {
+			error = EFAULT;
+			goto read_fail;
+		}
 		cam_periph_unlock(softc->periph);
 		error = uiomove((caddr_t)&user_ccb, sizeof(user_ccb), uio);
 		cam_periph_lock(softc->periph);
