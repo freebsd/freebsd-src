@@ -1,5 +1,14 @@
 # News
 
+## 6.7.5
+
+This is a production release to fix one small bug.
+
+The bug is that sometimes numbers are printed to incorrect line lengths. The
+number is always correct; the line is just longer than the limit.
+
+Users who do not care do not need to update.
+
 ## 6.7.4
 
 This is a production release to fix problems in the `bc` manual.

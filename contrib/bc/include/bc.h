@@ -276,7 +276,7 @@ bc_lex_token(BcLex* l);
  * @return   True if i is an expression token, false otherwise.
  */
 #define BC_PARSE_EXPR(i) \
-	(bc_parse_exprs[(((i) & (uchar) ~(0x07)) >> 3)] & (1 << (7 - ((i) &0x07))))
+	(bc_parse_exprs[(((i) & (uchar) ~(0x07)) >> 3)] & (1 << (7 - ((i) & 0x07))))
 
 /**
  * Returns the operator (by lex token) that is at the top of the operator

@@ -100,6 +100,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
+      <AdditionalOptions>/std:c17 /MP $(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=1;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BC_ENABLE_EDITLINE=0;BC_ENABLE_READLINE=0;BUILD_TYPE=N;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;BC_DEFAULT_DIGIT_CLAMP=1;DC_DEFAULT_DIGIT_CLAMP=1;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -119,6 +120,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
+      <AdditionalOptions>/std:c17 /MP $(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -142,6 +144,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
+      <AdditionalOptions>/std:c17 /MP $(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=1;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BC_ENABLE_EDITLINE=0;BC_ENABLE_READLINE=0;BUILD_TYPE=N;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;BC_DEFAULT_DIGIT_CLAMP=1;DC_DEFAULT_DIGIT_CLAMP=1;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -161,6 +164,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
+      <AdditionalOptions>/std:c17 /MP $(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>

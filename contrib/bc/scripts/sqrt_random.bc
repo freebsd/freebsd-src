@@ -1,0 +1,129 @@
+#! /usr/bin/bc
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+
+scale = 0
+
+bits = rand()
+
+# This extracts a bit and takes it out of the original value.
+#
+# Here, I am getting a bit to say whether we should have a value that is less
+# than 1.
+bits = divmod(bits, 2, negpow[])
+
+# Get a bit that will say whether the value should be an exact square.
+bits = divmod(bits, 2, square[])
+
+# See below. This is to help bias toward small numbers.
+pow = 4
+
+# I want to bias toward small numbers, so let's give a 50 percent chance to
+# values below 16 or so.
+bits = divmod(bits, 2, small[])
+
+# Let's keep raising the power limit by 2^4 when the bit is zero.
+while (!small[0])
+{
+	pow += 4
+	bits = divmod(bits, 2, small[])
+}
+
+limit = 2^pow
+
+# Okay, this is the starting number.
+num = irand(limit) + 1
+
+# Figure out if we should have (more) fractional digits.
+bits = divmod(bits, 2, extra_digits[])
+
+if (square[0])
+{
+	# Okay, I lied. If we need a perfect square, square now.
+	num *= num
+
+	# If we need extra digits, we need to multiply by an even power of 10.
+	if (extra_digits[0])
+	{
+		extra = (irand(8) + 1) * 2
+	}
+	else
+	{
+		extra = 0
+	}
+
+	# If we need a number less than 1, just take the inverse, which will still
+	# be a perfect square.
+	if (negpow[0])
+	{
+		scale = length(num) + 5
+		num = 1/num
+		scale = 0
+
+		num >>= extra
+	}
+	else
+	{
+		num <<= extra
+	}
+}
+else
+{
+	# Get this for later.
+	l = length(num)
+
+	# If we need extra digits.
+	if (extra_digits[0])
+	{
+		# Add up to 32 decimal places.
+		num += frand(irand(32) + 1)
+	}
+
+	# If we need a value less than 1...
+	if (negpow[0])
+	{
+		# Move right until the number is
+		num >>= l
+	}
+}
+
+bits = divmod(bits, 2, zero_scale[])
+
+# Do we want a zero scale?
+if (zero_scale[0])
+{
+	print "scale = 0\n"
+}
+else
+{
+	print "scale = 20\n"
+}
+
+print "sqrt(", num, ")\n"
+
+halt
