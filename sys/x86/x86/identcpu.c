@@ -157,7 +157,7 @@ SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD,
     machine, 0, "Machine class");
 #endif
 
-static char cpu_model[128];
+char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD | CTLFLAG_MPSAFE,
     cpu_model, 0, "Machine model");
 

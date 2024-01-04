@@ -58,6 +58,7 @@ extern	u_int	cpu_mxcsr_mask;
 extern	u_int	cpu_procinfo;
 extern	u_int	cpu_procinfo2;
 extern	char	cpu_vendor[];
+extern	char	cpu_model[];
 extern	u_int	cpu_vendor_id;
 extern	u_int	cpu_mon_mwait_flags;
 extern	u_int	cpu_mon_min_size;
