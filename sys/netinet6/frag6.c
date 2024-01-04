@@ -862,10 +862,6 @@ postinsert:
 		ip6->ip6_flow |= htonl(IPTOS_ECN_CE << 20);
 	nxt = q6->ip6q_nxt;
 
-	TAILQ_REMOVE(head, q6, ip6q_tq);
-	V_ip6qb[bucket].count--;
-	atomic_subtract_int(&frag6_nfrags, q6->ip6q_nfrag);
-
 	ip6_deletefraghdr(m, offset, M_NOWAIT);
 
 	/* Set nxt(-hdr field value) to the original value. */
@@ -874,10 +870,9 @@ postinsert:
 
 #ifdef MAC
 	mac_ip6q_reassemble(q6, m);
-	mac_ip6q_destroy(q6);
 #endif
-	free(q6, M_FRAG6);
-	atomic_subtract_int(&V_frag6_nfragpackets, 1);
+	atomic_subtract_int(&frag6_nfrags, q6->ip6q_nfrag);
+	frag6_rmqueue(q6, bucket);
 
 	if (m->m_flags & M_PKTHDR) { /* Isn't it always true? */
 
