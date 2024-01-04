@@ -50,10 +50,16 @@
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "libpfctl.h"
+
+struct pfctl_handle {
+	int fd;
+	struct snl_state ss;
+};
 
 const char* PFCTL_SYNCOOKIES_MODE_NAMES[] = {
 	"never",
@@ -63,6 +69,38 @@ const char* PFCTL_SYNCOOKIES_MODE_NAMES[] = {
 
 static int	_pfctl_clear_states(int , const struct pfctl_kill *,
 		    unsigned int *, uint64_t);
+
+struct pfctl_handle *
+pfctl_open(const char *pf_device)
+{
+	struct pfctl_handle *h;
+
+	h = calloc(1, sizeof(struct pfctl_handle));
+	h->fd = -1;
+
+	h->fd = open(pf_device, O_RDWR);
+	if (h->fd < 0)
+		goto error;
+
+	if (!snl_init(&h->ss, NETLINK_GENERIC))
+		goto error;
+
+	return (h);
+error:
+	close(h->fd);
+	snl_free(&h->ss);
+	free(h);
+
+	return (NULL);
+}
+
+void
+pfctl_close(struct pfctl_handle *h)
+{
+	close(h->fd);
+	snl_free(&h->ss);
+	free(h);
+}
 
 static int
 pfctl_do_ioctl(int dev, uint cmd, size_t size, nvlist_t **nvl)
@@ -183,21 +221,19 @@ pf_nvuint_64_array(const nvlist_t *nvl, const char *name, size_t maxelems,
 }
 
 int
-pfctl_startstop(int start)
+pfctl_startstop(struct pfctl_handle *h, int start)
 {
-	struct snl_state ss = {};
 	struct snl_errmsg_data e = {};
 	struct snl_writer nw;
 	struct nlmsghdr *hdr;
 	uint32_t seq_id;
 	int family_id;
 
-	snl_init(&ss, NETLINK_GENERIC);
-	family_id = snl_get_genl_family(&ss, PFNL_FAMILY_NAME);
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
 	if (family_id == 0)
 		return (ENOTSUP);
 
-	snl_init_writer(&ss, &nw);
+	snl_init_writer(&h->ss, &nw);
 	hdr = snl_create_genl_msg_request(&nw, family_id,
 	    start ? PFNL_CMD_START : PFNL_CMD_STOP);
 
@@ -206,9 +242,9 @@ pfctl_startstop(int start)
 		return (ENOMEM);
 	seq_id = hdr->nlmsg_seq;
 
-	snl_send_message(&ss, hdr);
+	snl_send_message(&h->ss, hdr);
 
-	while ((hdr = snl_read_reply_multi(&ss, seq_id, &e)) != NULL) {
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
 	}
 
 	return (e.error);
@@ -1288,17 +1324,13 @@ pfctl_get_creators_nl(struct snl_state *ss, uint32_t *creators, size_t *len)
 }
 
 int
-pfctl_get_creatorids(uint32_t *creators, size_t *len)
+pfctl_get_creatorids(struct pfctl_handle *h, uint32_t *creators, size_t *len)
 {
-	struct snl_state ss = {};
 	int error;
 
-	snl_init(&ss, NETLINK_GENERIC);
-	error = pfctl_get_creators_nl(&ss, creators, len);
-	snl_free(&ss);
+	error = pfctl_get_creators_nl(&h->ss, creators, len);
 
 	return (error);
-
 }
 
 static void
