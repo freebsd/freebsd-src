@@ -56,7 +56,7 @@ SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD,
 	machine, 0, "Machine class");
 
 static char cpu_model[64];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD | CTLFLAG_CAPRD,
     cpu_model, sizeof(cpu_model), "Machine model");
 
 static char hw_buf[81];

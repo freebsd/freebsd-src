@@ -107,7 +107,7 @@ SYSCTL_PROC(_hw, HW_MACHINE, machine, CTLTYPE_STRING | CTLFLAG_RD |
 	 "Machine class");
 
 static char cpu_model[64];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD | CTLFLAG_CAPRD,
 	cpu_model, sizeof(cpu_model), "Machine model");
 
 #define	MAX_CACHES	8	/* Maximum number of caches supported
