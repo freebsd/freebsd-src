@@ -2568,15 +2568,13 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			    &find->fw_ver);
 			if (rc) {
 				iod->hdr.rc = rc;
-				copyout(&iod->hdr.rc, &ioh->rc,
+				rc = copyout(&iod->hdr.rc, &ioh->rc,
 				    sizeof(ioh->rc));
-			}
-			else {
+			} else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, iol);
+				rc = copyout(iod, ioh, iol);
 			}
 
-			rc = 0;
 			goto exit;
 		}
 		case BNXT_HWRM_NVM_READ:
@@ -2601,22 +2599,20 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 				    rd->offset + offset, csize, &dma_data);
 				if (rc) {
 					iod->hdr.rc = rc;
-					copyout(&iod->hdr.rc, &ioh->rc,
+					rc = copyout(&iod->hdr.rc, &ioh->rc,
 					    sizeof(ioh->rc));
 					break;
-				}
-				else {
-					copyout(dma_data.idi_vaddr,
+				} else {
+					rc = copyout(dma_data.idi_vaddr,
 					    rd->data + offset, csize);
-					iod->hdr.rc = 0;
+					iod->hdr.rc = rc;
 				}
 				remain -= csize;
 			}
-			if (iod->hdr.rc == 0)
-				copyout(iod, ioh, iol);
+			if (rc == 0)
+				rc = copyout(iod, ioh, iol);
 
 			iflib_dma_free(&dma_data);
-			rc = 0;
 			goto exit;
 		}
 		case BNXT_HWRM_FW_RESET:
@@ -2628,15 +2624,13 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			    &rst->selfreset);
 			if (rc) {
 				iod->hdr.rc = rc;
-				copyout(&iod->hdr.rc, &ioh->rc,
+				rc = copyout(&iod->hdr.rc, &ioh->rc,
 				    sizeof(ioh->rc));
-			}
-			else {
+			} else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, iol);
+				rc = copyout(iod, ioh, iol);
 			}
 
-			rc = 0;
 			goto exit;
 		}
 		case BNXT_HWRM_FW_QSTATUS:
@@ -2648,15 +2642,13 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			    &qstat->selfreset);
 			if (rc) {
 				iod->hdr.rc = rc;
-				copyout(&iod->hdr.rc, &ioh->rc,
+				rc = copyout(&iod->hdr.rc, &ioh->rc,
 				    sizeof(ioh->rc));
-			}
-			else {
+			} else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, iol);
+				rc = copyout(iod, ioh, iol);
 			}
 
-			rc = 0;
 			goto exit;
 		}
 		case BNXT_HWRM_NVM_WRITE:
@@ -2670,15 +2662,14 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			    &wr->item_length, &wr->index);
 			if (rc) {
 				iod->hdr.rc = rc;
-				copyout(&iod->hdr.rc, &ioh->rc,
+				rc = copyout(&iod->hdr.rc, &ioh->rc,
 				    sizeof(ioh->rc));
 			}
 			else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, iol);
+				rc = copyout(iod, ioh, iol);
 			}
 
-			rc = 0;
 			goto exit;
 		}
 		case BNXT_HWRM_NVM_ERASE_DIR_ENTRY:
@@ -2689,15 +2680,13 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			rc = bnxt_hwrm_nvm_erase_dir_entry(softc, erase->index);
 			if (rc) {
 				iod->hdr.rc = rc;
-				copyout(&iod->hdr.rc, &ioh->rc,
+				rc = copyout(&iod->hdr.rc, &ioh->rc,
 				    sizeof(ioh->rc));
-			}
-			else {
+			} else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, iol);
+				rc = copyout(iod, ioh, iol);
 			}
 
-			rc = 0;
 			goto exit;
 		}
 		case BNXT_HWRM_NVM_GET_DIR_INFO:
@@ -2709,15 +2698,13 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			    &info->entry_length);
 			if (rc) {
 				iod->hdr.rc = rc;
-				copyout(&iod->hdr.rc, &ioh->rc,
+				rc = copyout(&iod->hdr.rc, &ioh->rc,
 				    sizeof(ioh->rc));
-			}
-			else {
+			} else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, iol);
+				rc = copyout(iod, ioh, iol);
 			}
 
-			rc = 0;
 			goto exit;
 		}
 		case BNXT_HWRM_NVM_GET_DIR_ENTRIES:
@@ -2734,18 +2721,17 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			    &get->entry_length, &dma_data);
 			if (rc) {
 				iod->hdr.rc = rc;
-				copyout(&iod->hdr.rc, &ioh->rc,
+				rc = copyout(&iod->hdr.rc, &ioh->rc,
 				    sizeof(ioh->rc));
-			}
-			else {
-				copyout(dma_data.idi_vaddr, get->data,
+			} else {
+				rc = copyout(dma_data.idi_vaddr, get->data,
 				    get->entry_length * get->entries);
-				iod->hdr.rc = 0;
-				copyout(iod, ioh, iol);
+				iod->hdr.rc = rc;
+				if (rc == 0)
+					rc = copyout(iod, ioh, iol);
 			}
 			iflib_dma_free(&dma_data);
 
-			rc = 0;
 			goto exit;
 		}
 		case BNXT_HWRM_NVM_VERIFY_UPDATE:
@@ -2757,15 +2743,13 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			    vrfy->ordinal, vrfy->ext);
 			if (rc) {
 				iod->hdr.rc = rc;
-				copyout(&iod->hdr.rc, &ioh->rc,
+				rc = copyout(&iod->hdr.rc, &ioh->rc,
 				    sizeof(ioh->rc));
-			}
-			else {
+			} else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, iol);
+				rc = copyout(iod, ioh, iol);
 			}
 
-			rc = 0;
 			goto exit;
 		}
 		case BNXT_HWRM_NVM_INSTALL_UPDATE:
@@ -2779,15 +2763,13 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			    &inst->reset_required);
 			if (rc) {
 				iod->hdr.rc = rc;
-				copyout(&iod->hdr.rc, &ioh->rc,
+				rc = copyout(&iod->hdr.rc, &ioh->rc,
 				    sizeof(ioh->rc));
-			}
-			else {
+			} else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, iol);
+				rc = copyout(iod, ioh, iol);
 			}
 
-			rc = 0;
 			goto exit;
 		}
 		case BNXT_HWRM_NVM_MODIFY:
@@ -2798,15 +2780,13 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			    mod->offset, mod->data, true, mod->length);
 			if (rc) {
 				iod->hdr.rc = rc;
-				copyout(&iod->hdr.rc, &ioh->rc,
+				rc = copyout(&iod->hdr.rc, &ioh->rc,
 				    sizeof(ioh->rc));
-			}
-			else {
+			} else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, iol);
+				rc = copyout(iod, ioh, iol);
 			}
 
-			rc = 0;
 			goto exit;
 		}
 		case BNXT_HWRM_FW_GET_TIME:
@@ -2819,15 +2799,13 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			    &gtm->second, &gtm->millisecond, &gtm->zone);
 			if (rc) {
 				iod->hdr.rc = rc;
-				copyout(&iod->hdr.rc, &ioh->rc,
+				rc = copyout(&iod->hdr.rc, &ioh->rc,
 				    sizeof(ioh->rc));
-			}
-			else {
+			} else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, iol);
+				rc = copyout(iod, ioh, iol);
 			}
 
-			rc = 0;
 			goto exit;
 		}
 		case BNXT_HWRM_FW_SET_TIME:
@@ -2840,15 +2818,13 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 			    stm->second, stm->millisecond, stm->zone);
 			if (rc) {
 				iod->hdr.rc = rc;
-				copyout(&iod->hdr.rc, &ioh->rc,
+				rc = copyout(&iod->hdr.rc, &ioh->rc,
 				    sizeof(ioh->rc));
-			}
-			else {
+			} else {
 				iod->hdr.rc = 0;
-				copyout(iod, ioh, iol);
+				rc = copyout(iod, ioh, iol);
 			}
 
-			rc = 0;
 			goto exit;
 		}
 		}
