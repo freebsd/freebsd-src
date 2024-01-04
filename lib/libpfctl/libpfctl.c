@@ -1117,19 +1117,36 @@ int
 pfctl_add_rule(int dev __unused, const struct pfctl_rule *r, const char *anchor,
     const char *anchor_call, uint32_t ticket, uint32_t pool_ticket)
 {
+	struct pfctl_handle *h;
+	int ret;
+
+	h = pfctl_open(PF_DEVICE);
+	if (h == NULL)
+		return (ENODEV);
+
+	ret = pfctl_add_rule_h(h, r, anchor, anchor_call, ticket, pool_ticket);
+
+	pfctl_close(h);
+
+	return (ret);
+}
+
+int
+pfctl_add_rule_h(struct pfctl_handle *h, const struct pfctl_rule *r,
+	    const char *anchor, const char *anchor_call, uint32_t ticket,
+	    uint32_t pool_ticket)
+{
 	struct snl_writer nw;
-	struct snl_state ss = {};
 	struct snl_errmsg_data e = {};
 	struct nlmsghdr *hdr;
 	uint32_t seq_id;
 	int family_id;
 
-	snl_init(&ss, NETLINK_GENERIC);
-	family_id = snl_get_genl_family(&ss, PFNL_FAMILY_NAME);
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
 	if (family_id == 0)
 		return (ENOTSUP);
 
-	snl_init_writer(&ss, &nw);
+	snl_init_writer(&h->ss, &nw);
 	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_ADDRULE);
 	hdr->nlmsg_flags |= NLM_F_DUMP;
 	snl_add_msg_attr_u32(&nw, PF_ART_TICKET, ticket);
@@ -1144,10 +1161,10 @@ pfctl_add_rule(int dev __unused, const struct pfctl_rule *r, const char *anchor,
 
 	seq_id = hdr->nlmsg_seq;
 
-	if (! snl_send_message(&ss, hdr))
+	if (! snl_send_message(&h->ss, hdr))
 		return (ENXIO);
 
-	while ((hdr = snl_read_reply_multi(&ss, seq_id, &e)) != NULL) {
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
 	}
 
 	return (e.error);

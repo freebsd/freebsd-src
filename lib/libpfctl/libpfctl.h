@@ -421,6 +421,9 @@ int	pfctl_get_clear_rule(int dev, uint32_t nr, uint32_t ticket,
 int	pfctl_add_rule(int dev, const struct pfctl_rule *r,
 	    const char *anchor, const char *anchor_call, uint32_t ticket,
 	    uint32_t pool_ticket);
+int	pfctl_add_rule_h(struct pfctl_handle *h, const struct pfctl_rule *r,
+	    const char *anchor, const char *anchor_call, uint32_t ticket,
+	    uint32_t pool_ticket);
 int	pfctl_set_keepcounters(int dev, bool keep);
 int	pfctl_get_creatorids(struct pfctl_handle *h, uint32_t *creators, size_t *len);
 
