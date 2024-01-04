@@ -97,7 +97,7 @@ static int hostbase_fd = -1;
 
 static void *loader_hdl;
 static char *loader;
-static int explicit_loader_fd;
+static int explicit_loader_fd = -1;
 static jmp_buf jb;
 
 static char *vmname, *progname;
