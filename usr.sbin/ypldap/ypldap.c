@@ -142,7 +142,7 @@ main_start_update(struct env *env)
 
 /*
  * XXX: Currently this function should only be called when updating is
- * finished. A notification should be send to ldapclient that it should stop
+ * finished. A notification should be sent to ldapclient that it should stop
  * sending new pwd/grp entries before it can be called from different places.
  */
 void
