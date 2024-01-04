@@ -31,6 +31,9 @@
  * Supported cards: AIO, RayDAT.
  */
 
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pci/hdspe.h>
 #include <dev/sound/chip.h>
@@ -39,6 +42,31 @@
 #include <dev/pci/pcivar.h>
 
 #include <mixer_if.h>
+
+static struct hdspe_clock_source hdspe_clock_source_table_rd[] = {
+	{ "internal", 0 << 1 | 1, HDSPE_STATUS1_CLOCK(15),       0,       0 },
+	{ "word",     0 << 1 | 0, HDSPE_STATUS1_CLOCK( 0), 1 << 24, 1 << 25 },
+	{ "aes",      1 << 1 | 0, HDSPE_STATUS1_CLOCK( 1),  1 << 0,  1 << 8 },
+	{ "spdif",    2 << 1 | 0, HDSPE_STATUS1_CLOCK( 2),  1 << 1,  1 << 9 },
+	{ "adat1",    3 << 1 | 0, HDSPE_STATUS1_CLOCK( 3),  1 << 2, 1 << 10 },
+	{ "adat2",    4 << 1 | 0, HDSPE_STATUS1_CLOCK( 4),  1 << 3, 1 << 11 },
+	{ "adat3",    5 << 1 | 0, HDSPE_STATUS1_CLOCK( 5),  1 << 4, 1 << 12 },
+	{ "adat4",    6 << 1 | 0, HDSPE_STATUS1_CLOCK( 6),  1 << 5, 1 << 13 },
+	{ "tco",      9 << 1 | 0, HDSPE_STATUS1_CLOCK( 9), 1 << 26, 1 << 27 },
+	{ "sync_in", 10 << 1 | 0, HDSPE_STATUS1_CLOCK(10),       0,       0 },
+	{ NULL,       0 << 1 | 0, HDSPE_STATUS1_CLOCK( 0),       0,       0 },
+};
+
+static struct hdspe_clock_source hdspe_clock_source_table_aio[] = {
+	{ "internal", 0 << 1 | 1, HDSPE_STATUS1_CLOCK(15),       0,       0 },
+	{ "word",     0 << 1 | 0, HDSPE_STATUS1_CLOCK( 0), 1 << 24, 1 << 25 },
+	{ "aes",      1 << 1 | 0, HDSPE_STATUS1_CLOCK( 1),  1 << 0,  1 << 8 },
+	{ "spdif",    2 << 1 | 0, HDSPE_STATUS1_CLOCK( 2),  1 << 1,  1 << 9 },
+	{ "adat",     3 << 1 | 0, HDSPE_STATUS1_CLOCK( 3),  1 << 2, 1 << 10 },
+	{ "tco",      9 << 1 | 0, HDSPE_STATUS1_CLOCK( 9), 1 << 26, 1 << 27 },
+	{ "sync_in", 10 << 1 | 0, HDSPE_STATUS1_CLOCK(10),       0,       0 },
+	{ NULL,       0 << 1 | 0, HDSPE_STATUS1_CLOCK( 0),       0,       0 },
+};
 
 static struct hdspe_channel chan_map_aio[] = {
 	{  0,  1,   "line", 1, 1 },
@@ -225,6 +253,169 @@ hdspe_map_dmabuf(struct sc_info *sc)
 }
 
 static int
+hdspe_sysctl_clock_preference(SYSCTL_HANDLER_ARGS)
+{
+	struct sc_info *sc;
+	struct hdspe_clock_source *clock_table, *clock;
+	char buf[16] = "invalid";
+	int error;
+	uint32_t setting;
+
+	sc = oidp->oid_arg1;
+
+	/* Select sync ports table for device type. */
+	if (sc->type == HDSPE_AIO)
+		clock_table = hdspe_clock_source_table_aio;
+	else if (sc->type == HDSPE_RAYDAT)
+		clock_table = hdspe_clock_source_table_rd;
+	else
+		return (ENXIO);
+
+	/* Extract preferred clock source from settings register. */
+	setting = sc->settings_register & HDSPE_SETTING_CLOCK_MASK;
+	for (clock = clock_table; clock->name != NULL; ++clock) {
+		if (clock->setting == setting)
+			break;
+	}
+	if (clock->name != NULL)
+		strlcpy(buf, clock->name, sizeof(buf));
+
+	/* Process sysctl string request. */
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	/* Find clock source matching the sysctl string. */
+	for (clock = clock_table; clock->name != NULL; ++clock) {
+		if (strncasecmp(buf, clock->name, sizeof(buf)) == 0)
+			break;
+	}
+
+	/* Set preferred clock source in settings register. */
+	if (clock->name != NULL) {
+		setting = clock->setting & HDSPE_SETTING_CLOCK_MASK;
+		snd_mtxlock(sc->lock);
+		sc->settings_register &= ~HDSPE_SETTING_CLOCK_MASK;
+		sc->settings_register |= setting;
+		hdspe_write_4(sc, HDSPE_SETTINGS_REG, sc->settings_register);
+		snd_mtxunlock(sc->lock);
+	}
+	return (0);
+}
+
+static int
+hdspe_sysctl_clock_source(SYSCTL_HANDLER_ARGS)
+{
+	struct sc_info *sc;
+	struct hdspe_clock_source *clock_table, *clock;
+	char buf[16] = "invalid";
+	uint32_t status;
+
+	sc = oidp->oid_arg1;
+
+	/* Select sync ports table for device type. */
+	if (sc->type == HDSPE_AIO)
+		clock_table = hdspe_clock_source_table_aio;
+	else if (sc->type == HDSPE_RAYDAT)
+		clock_table = hdspe_clock_source_table_rd;
+	else
+		return (ENXIO);
+
+	/* Read current (autosync) clock source from status register. */
+	snd_mtxlock(sc->lock);
+	status = hdspe_read_4(sc, HDSPE_STATUS1_REG);
+	status &= HDSPE_STATUS1_CLOCK_MASK;
+	snd_mtxunlock(sc->lock);
+
+	/* Translate status register value to clock source. */
+	for (clock = clock_table; clock->name != NULL; ++clock) {
+		/* In clock master mode, override with internal clock source. */
+		if (sc->settings_register & HDSPE_SETTING_MASTER) {
+			if (clock->setting & HDSPE_SETTING_MASTER)
+				break;
+		} else if (clock->status == status)
+			break;
+	}
+
+	/* Process sysctl string request. */
+	if (clock->name != NULL)
+		strlcpy(buf, clock->name, sizeof(buf));
+	return (sysctl_handle_string(oidp, buf, sizeof(buf), req));
+}
+
+static int
+hdspe_sysctl_clock_list(SYSCTL_HANDLER_ARGS)
+{
+	struct sc_info *sc;
+	struct hdspe_clock_source *clock_table, *clock;
+	char buf[256];
+	int n;
+
+	sc = oidp->oid_arg1;
+	n = 0;
+
+	/* Select clock source table for device type. */
+	if (sc->type == HDSPE_AIO)
+		clock_table = hdspe_clock_source_table_aio;
+	else if (sc->type == HDSPE_RAYDAT)
+		clock_table = hdspe_clock_source_table_rd;
+	else
+		return (ENXIO);
+
+	/* List available clock sources. */
+	buf[0] = 0;
+	for (clock = clock_table; clock->name != NULL; ++clock) {
+		if (n > 0)
+			n += strlcpy(buf + n, ",", sizeof(buf) - n);
+		n += strlcpy(buf + n, clock->name, sizeof(buf) - n);
+	}
+	return (sysctl_handle_string(oidp, buf, sizeof(buf), req));
+}
+
+static int
+hdspe_sysctl_sync_status(SYSCTL_HANDLER_ARGS)
+{
+	struct sc_info *sc;
+	struct hdspe_clock_source *clock_table, *clock;
+	char buf[256];
+	char *state;
+	int n;
+	uint32_t status;
+
+	sc = oidp->oid_arg1;
+	n = 0;
+
+	/* Select sync ports table for device type. */
+	if (sc->type == HDSPE_AIO)
+		clock_table = hdspe_clock_source_table_aio;
+	else if (sc->type == HDSPE_RAYDAT)
+		clock_table = hdspe_clock_source_table_rd;
+	else
+		return (ENXIO);
+
+	/* Read current lock and sync bits from status register. */
+	snd_mtxlock(sc->lock);
+	status = hdspe_read_4(sc, HDSPE_STATUS1_REG);
+	snd_mtxunlock(sc->lock);
+
+	/* List clock sources with lock and sync state. */
+	for (clock = clock_table; clock->name != NULL; ++clock) {
+		if (clock->sync_bit != 0) {
+			if (n > 0)
+				n += strlcpy(buf + n, ",", sizeof(buf) - n);
+			state = "none";
+			if ((clock->sync_bit & status) != 0)
+				state = "sync";
+			else if ((clock->lock_bit & status) != 0)
+				state = "lock";
+			n += snprintf(buf + n, sizeof(buf) - n, "%s(%s)",
+			    clock->name, state);
+		}
+	}
+	return (sysctl_handle_string(oidp, buf, sizeof(buf), req));
+}
+
+static int
 hdspe_probe(device_t dev)
 {
 	uint32_t rev;
@@ -250,9 +441,6 @@ hdspe_init(struct sc_info *sc)
 {
 	long long period;
 
-	/* Set defaults. */
-	sc->ctrl_register |= HDSPM_CLOCK_MODE_MASTER;
-
 	/* Set latency. */
 	sc->period = 32;
 	sc->ctrl_register = hdspe_encode_latency(7);
@@ -264,8 +452,8 @@ hdspe_init(struct sc_info *sc)
 	hdspe_write_4(sc, HDSPE_CONTROL_REG, sc->ctrl_register);
 
 	switch (sc->type) {
-	case RAYDAT:
-	case AIO:
+	case HDSPE_RAYDAT:
+	case HDSPE_AIO:
 		period = HDSPE_FREQ_AIO;
 		break;
 	default:
@@ -305,11 +493,11 @@ hdspe_attach(device_t dev)
 	rev = pci_get_revid(dev);
 	switch (rev) {
 	case PCI_REVISION_AIO:
-		sc->type = AIO;
+		sc->type = HDSPE_AIO;
 		chan_map = chan_map_aio;
 		break;
 	case PCI_REVISION_RAYDAT:
-		sc->type = RAYDAT;
+		sc->type = HDSPE_RAYDAT;
 		chan_map = chan_map_rd;
 		break;
 	default:
@@ -335,6 +523,30 @@ hdspe_attach(device_t dev)
 	}
 
 	hdspe_map_dmabuf(sc);
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "sync_status", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    sc, 0, hdspe_sysctl_sync_status, "A",
+	    "List clock source signal lock and sync status");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "clock_source", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    sc, 0, hdspe_sysctl_clock_source, "A",
+	    "Currently effective clock source");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "clock_preference", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    sc, 0, hdspe_sysctl_clock_preference, "A",
+	    "Set 'internal' (master) or preferred autosync clock source");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "clock_list", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    sc, 0, hdspe_sysctl_clock_list, "A",
+	    "List of supported clock sources");
 
 	return (bus_generic_attach(dev));
 }
