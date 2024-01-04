@@ -3,6 +3,7 @@ divide.bc
 subtract.bc
 add.bc
 print.bc
+print2.bc
 parse.bc
 root.bc
 array.bc
