@@ -731,12 +731,17 @@ usage(void)
 static void
 hostbase_open(const char *base)
 {
+	cap_rights_t rights;
 
 	if (hostbase_fd != -1)
 		close(hostbase_fd);
 	hostbase_fd = open(base, O_DIRECTORY | O_PATH);
 	if (hostbase_fd == -1)
 		err(EX_OSERR, "open");
+
+	if (caph_rights_limit(hostbase_fd, cap_rights_init(&rights, CAP_FSTATAT,
+	    CAP_LOOKUP, CAP_READ)) < 0)
+		err(EX_OSERR, "caph_rights_limit");
 }
 
 static void
@@ -857,9 +862,22 @@ main(int argc, char** argv)
 	 * guest requesting a different one.
 	 */
 	if (explicit_loader_fd == -1) {
+		cap_rights_t rights;
+
 		bootfd = open("/boot", O_DIRECTORY | O_PATH);
 		if (bootfd == -1) {
 			perror("open");
+			exit(1);
+		}
+
+		/*
+		 * bootfd will be used to do a lookup of our loader and do an
+		 * fdlopen(3) on the loader; thus, we need mmap(2) in addition
+		 * to the more usual lookup rights.
+		 */
+		if (caph_rights_limit(bootfd, cap_rights_init(&rights,
+		    CAP_FSTATAT, CAP_LOOKUP, CAP_MMAP_RX, CAP_READ)) < 0) {
+			perror("caph_rights_limit");
 			exit(1);
 		}
 	}
