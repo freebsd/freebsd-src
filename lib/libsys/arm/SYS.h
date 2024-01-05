@@ -45,11 +45,13 @@
 
 #define	CERROR		_C_LABEL(cerror)
 
+#ifndef _SYSCALL_BODY
 #define _SYSCALL_BODY(x)						\
 	_SYSCALL(x);							\
 	it	cs;							\
 	bcs PIC_SYM(CERROR, PLT);					\
 	RET
+#endif
 
 #define PSEUDO(x)							\
 	ENTRY(__CONCAT(__sys_, x));					\

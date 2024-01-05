@@ -40,10 +40,12 @@
 	li	0,(SYS_##name);					\
 	sc
 
+#ifndef _SYSCALL_BODY
 #define	_SYSCALL_BODY(name)					\
 	_SYSCALL(name);						\
 	bnslr;							\
 	b	CNAME(HIDENAME(cerror))
+#endif
 
 #define	PSEUDO(name)						\
 	.text;							\

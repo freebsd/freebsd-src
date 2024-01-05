@@ -34,6 +34,7 @@
 	mov	x8, SYS_ ## name;				\
 	svc	0
 
+#ifndef _SYSCALL_BODY
 /*
  * Conditional jumps can only go up to one megabyte in either
  * direction, and cerror can be located anywhere, so we have
@@ -45,6 +46,7 @@
 	b.cs	1f;						\
 	ret;							\
 1:	b	cerror
+#endif
 
 #define	PSEUDO(name)						\
 ENTRY(__sys_##name);						\
