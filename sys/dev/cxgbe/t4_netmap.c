@@ -1003,7 +1003,7 @@ cxgbe_nm_tx(struct adapter *sc, struct sge_nm_txq *nm_txq,
 			usgl->cmd_nsge = htobe32(V_ULPTX_CMD(ULP_TX_SC_DSGL) |
 			    V_ULPTX_NSGE(1));
 			usgl->len0 = htobe32(slot->len);
-			usgl->addr0 = htobe64(ba);
+			usgl->addr0 = htobe64(ba + nm_get_offset(kring, slot));
 
 			slot->flags &= ~(NS_REPORT | NS_BUF_CHANGED);
 			cpl = (void *)(usgl + 1);
@@ -1269,7 +1269,7 @@ cxgbe_nm_attach(struct vi_info *vi)
 	bzero(&na, sizeof(na));
 
 	na.ifp = vi->ifp;
-	na.na_flags = NAF_BDG_MAYSLEEP;
+	na.na_flags = NAF_BDG_MAYSLEEP | NAF_OFFSETS;
 
 	/* Netmap doesn't know about the space reserved for the status page. */
 	na.num_tx_desc = vi->qsize_txq - sc->params.sge.spg_len / EQ_ESIZE;
@@ -1286,7 +1286,7 @@ cxgbe_nm_attach(struct vi_info *vi)
 	na.nm_register = cxgbe_netmap_reg;
 	na.num_tx_rings = vi->nnmtxq;
 	na.num_rx_rings = vi->nnmrxq;
-	na.rx_buf_maxsize = MAX_MTU;
+	na.rx_buf_maxsize = MAX_MTU + sc->params.sge.fl_pktshift;
 	netmap_attach(&na);	/* This adds IFCAP_NETMAP to if_capabilities */
 }
 
@@ -1368,6 +1368,14 @@ service_nm_rxq(struct sge_nm_rxq *nm_rxq)
 				handle_nm_sge_egr_update(sc, ifp, cpl);
 				break;
 			case CPL_RX_PKT:
+				/*
+				 * Note that the application must have netmap
+				 * offsets (NETMAP_REQ_OPT_OFFSETS) enabled on
+				 * the ring or its rx will not work correctly
+				 * when fl_pktshift > 0.
+				 */
+				nm_write_offset(kring, &ring->slot[fl_cidx],
+				    sc->params.sge.fl_pktshift);
 				ring->slot[fl_cidx].len = G_RSPD_LEN(lq) -
 				    sc->params.sge.fl_pktshift;
 				ring->slot[fl_cidx].flags = 0;
