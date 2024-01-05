@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-add.1,v 1.84 2022/02/04 02:49:17 dtucker Exp $
+.\"	$OpenBSD: ssh-add.1,v 1.85 2023/12/18 14:46:56 djm Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: February 4 2022 $
+.Dd $Mdocdate: December 18 2023 $
 .Dt SSH-ADD 1
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd adds private key identities to the OpenSSH authentication agent
 .Sh SYNOPSIS
 .Nm ssh-add
-.Op Fl cDdKkLlqvXx
+.Op Fl cCDdKkLlqvXx
 .Op Fl E Ar fingerprint_hash
 .Op Fl H Ar hostkey_file
 .Op Fl h Ar destination_constraint
@@ -52,6 +52,8 @@
 .Op Ar
 .Nm ssh-add
 .Fl s Ar pkcs11
+.Op Fl vC
+.Op Ar certificate ...
 .Nm ssh-add
 .Fl e Ar pkcs11
 .Nm ssh-add
@@ -100,6 +102,9 @@ Confirmation is performed by
 Successful confirmation is signaled by a zero exit status from
 .Xr ssh-askpass 1 ,
 rather than text entered into the requester.
+.It Fl C
+When loading keys into or deleting keys from the agent, process
+certificates only and skip plain keys.
 .It Fl D
 Deletes all identities from the agent.
 .It Fl d
@@ -228,6 +233,9 @@ internal USB HID support.
 .It Fl s Ar pkcs11
 Add keys provided by the PKCS#11 shared library
 .Ar pkcs11 .
+Certificate files may optionally be listed as command-line arguments.
+If these are present, then they will be loaded into the agent using any
+corresponding private keys loaded from the PKCS#11 token.
 .It Fl T Ar pubkey ...
 Tests whether the private keys that correspond to the specified
 .Ar pubkey
