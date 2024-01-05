@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.126 2023/09/06 23:36:09 djm Exp $
+#	$OpenBSD: Makefile,v 1.131 2023/12/18 14:50:08 djm Exp $
 
 tests:		prep file-tests t-exec unit
 
@@ -10,12 +10,15 @@ file-tests: $(REGRESS_TARGETS)
 # Interop tests are not run by default
 interop interop-tests: t-exec-interop
 
+extra extra-tests: t-extra
+
 prep:
 	test "x${USE_VALGRIND}" = "x" || mkdir -p $(OBJ)/valgrind-out
 
 clean:
 	for F in $(CLEANFILES); do rm -f $(OBJ)$$F; done
 	rm -rf $(OBJ).putty
+	rm -rf $(OBJ).dropbear
 
 distclean:	clean
 
@@ -104,9 +107,12 @@ LTESTS= 	connect \
 		hostbased \
 		channel-timeout \
 		connection-timeout \
-		match-subsystem
+		match-subsystem \
+		agent-pkcs11-restrict \
+		agent-pkcs11-cert
 
 INTEROP_TESTS=	putty-transfer putty-ciphers putty-kex conch-ciphers
+INTEROP_TESTS+=	dropbear-ciphers dropbear-kex
 #INTEROP_TESTS+=ssh-com ssh-com-client ssh-com-keygen ssh-com-sftp
 
 EXTRA_TESTS=	agent-pkcs11

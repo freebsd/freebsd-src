@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.600 2023/03/08 04:43:12 guenther Exp $ */
+/* $OpenBSD: sshd.c,v 1.601 2023/12/18 14:45:49 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -2505,7 +2505,9 @@ do_ssh2_kex(struct ssh *ssh)
 	/* start key exchange */
 	if ((r = kex_setup(ssh, myproposal)) != 0)
 		fatal_r(r, "kex_setup");
+	kex_set_server_sig_algs(ssh, options.pubkey_accepted_algos);
 	kex = ssh->kex;
+
 #ifdef WITH_OPENSSL
 	kex->kex[KEX_DH_GRP1_SHA1] = kex_gen_server;
 	kex->kex[KEX_DH_GRP14_SHA1] = kex_gen_server;
