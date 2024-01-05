@@ -1465,11 +1465,14 @@ cr_bsd_visible(struct ucred *u1, struct ucred *u2)
 {
 	int error;
 
-	if ((error = cr_canseeotheruids(u1, u2)))
+	error = cr_canseeotheruids(u1, u2);
+	if (error != 0)
 		return (error);
-	if ((error = cr_canseeothergids(u1, u2)))
+	error = cr_canseeothergids(u1, u2);
+	if (error != 0)
 		return (error);
-	if ((error = cr_canseejailproc(u1, u2)))
+	error = cr_canseejailproc(u1, u2);
+	if (error != 0)
 		return (error);
 	return (0);
 }
