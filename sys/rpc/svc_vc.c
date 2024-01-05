@@ -35,7 +35,7 @@
  * svc_vc.c, Server side for Connection Oriented based RPC. 
  *
  * Actually implements two flavors of transporter -
- * a tcp rendezvouser (a listner and connection establisher)
+ * a tcp rendezvouser (a listener and connection establisher)
  * and a record/tcp stream.
  */
 
