@@ -223,6 +223,9 @@ arm_install_base() {
 	echo 'sendmail_outbound_enable="NO"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
 	echo 'sendmail_msp_queue_enable="NO"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
 	echo 'growfs_enable="YES"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	if [ -n "${CONFIG_POWERD_ENABLE}" ]; then
+		echo 'powerd_enable="YES"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	fi
 
 	sync
 	umount_loop ${CHROOTDIR}/${DESTDIR}
