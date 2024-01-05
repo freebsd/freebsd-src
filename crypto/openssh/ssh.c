@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.594 2023/09/03 23:59:32 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.599 2023/12/18 14:47:44 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -624,6 +624,41 @@ ssh_conn_info_free(struct ssh_conn_info *cinfo)
 	free(cinfo);
 }
 
+static int
+valid_hostname(const char *s)
+{
+	size_t i;
+
+	if (*s == '-')
+		return 0;
+	for (i = 0; s[i] != 0; i++) {
+		if (strchr("'`\"$\\;&<>|(){}", s[i]) != NULL ||
+		    isspace((u_char)s[i]) || iscntrl((u_char)s[i]))
+			return 0;
+	}
+	return 1;
+}
+
+static int
+valid_ruser(const char *s)
+{
+	size_t i;
+
+	if (*s == '-')
+		return 0;
+	for (i = 0; s[i] != 0; i++) {
+		if (strchr("'`\";&<>|(){}", s[i]) != NULL)
+			return 0;
+		/* Disallow '-' after whitespace */
+		if (isspace((u_char)s[i]) && s[i + 1] == '-')
+			return 0;
+		/* Disallow \ in last position */
+		if (s[i] == '\\' && s[i + 1] == '\0')
+			return 0;
+	}
+	return 1;
+}
+
 /*
  * Main program for the ssh client.
  */
@@ -1116,6 +1151,10 @@ main(int ac, char **av)
 	if (!host)
 		usage();
 
+	if (!valid_hostname(host))
+		fatal("hostname contains invalid characters");
+	if (options.user != NULL && !valid_ruser(options.user))
+		fatal("remote username contains invalid characters");
 	options.host_arg = xstrdup(host);
 
 	/* Initialize the command to execute on remote host. */
