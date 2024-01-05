@@ -531,7 +531,7 @@ nscontrollers(const struct cmd *f, int argc, char *argv[])
 /*
  * NS MGMT Command specific status values:
  * 0xa = Invalid Format
- * 0x15 = Namespace Insuffience capacity
+ * 0x15 = Namespace Insufficient capacity
  * 0x16 = Namespace ID  unavailable (number namespaces exceeded)
  * 0xb = Thin Provisioning Not supported
  */
