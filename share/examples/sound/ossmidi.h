@@ -33,7 +33,7 @@
 #define NOTE_ON 0x90
 #define NOTE_OFF 0x80
 #define CHANNEL_MASK 0xF
-#define CONTROLER_ON 0xB0
+#define CONTROLLER_ON 0xB0
 
 typedef struct midi_event {
 	unsigned char type;
