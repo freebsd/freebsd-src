@@ -89,6 +89,16 @@
 
 #define	NDISKS	32
 
+/*
+ * Reason for our loader reload and reentry, though these aren't really used
+ * at the moment.
+ */
+enum {
+	/* 0 cannot be allocated; setjmp(3) return. */
+	JMP_SWAPLOADER = 0x01,
+	JMP_REBOOT,
+};
+
 static struct termios term, oldterm;
 static int disk_fd[NDISKS];
 static int ndisks;
@@ -543,6 +553,8 @@ cb_exit(void *arg __unused, int v)
 {
 
 	tcsetattr(consout_fd, TCSAFLUSH, &oldterm);
+	if (v == USERBOOT_EXIT_REBOOT)
+		longjmp(jb, JMP_REBOOT);
 	exit(v);
 }
 
@@ -628,7 +640,7 @@ cb_swap_interpreter(void *arg __unused, const char *interp_req)
 
 	if (asprintf(&loader, "userboot_%s.so", interp_req) == -1)
 		err(EX_OSERR, "malloc");
-	longjmp(jb, 1);
+	longjmp(jb, JMP_SWAPLOADER);
 }
 
 static struct loader_callbacks cb = {
@@ -769,6 +781,8 @@ loader_open(int bootfd)
 	loader_hdl = fdlopen(fd, RTLD_LOCAL);
 	if (!loader_hdl)
 		errx(EX_OSERR, "dlopen: %s", dlerror());
+	if (fd != explicit_loader_fd)
+		close(fd);
 }
 
 int
