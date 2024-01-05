@@ -40,12 +40,14 @@
 	li	t0, SYS_ ## name;				\
 	ecall
 
+#ifndef _SYSCALL_BODY
 #define	_SYSCALL_BODY(name)					\
 	_SYSCALL(name);						\
 	bnez	t0, 1f; 					\
 	ret;							\
 1:	la	t1, cerror;					\
 	jr	t1
+#endif
 
 #define	PSEUDO(name)						\
 ENTRY(__sys_##name);						\

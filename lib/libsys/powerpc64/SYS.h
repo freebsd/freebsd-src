@@ -40,6 +40,7 @@
 	li	0,(SYS_##name);					\
 	sc
 
+#ifndef _SYSCALL_BODY
 #define _SYSCALL_BODY(name)					\
 	_SYSCALL(name);						\
 	bnslr;							\
@@ -52,6 +53,7 @@
 	ld	%r0,16(%r1);					\
 	mtlr	%r0;						\
 	blr
+#endif
 
 #define	PSEUDO(name)						\
 	.text;							\

@@ -40,10 +40,12 @@
 			movq %rcx, %r10;				\
 			syscall
 
+#ifndef _SYSCALL_BODY
 #define	_SYSCALL_BODY(name)						\
 			_SYSCALL(name);					\
 			jb HIDENAME(cerror);				\
 			ret
+#endif
 
 #define	RSYSCALL(name)	ENTRY(__sys_##name);				\
 			WEAK_REFERENCE(__sys_##name, name);		\
