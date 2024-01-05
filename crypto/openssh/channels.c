@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.433 2023/09/04 00:01:46 djm Exp $ */
+/* $OpenBSD: channels.c,v 1.435 2023/12/18 14:47:20 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -894,6 +894,23 @@ channel_still_open(struct ssh *ssh)
 			fatal_f("bad channel type %d", c->type);
 			/* NOTREACHED */
 		}
+	}
+	return 0;
+}
+
+/* Returns true if a channel with a TTY is open. */
+int
+channel_tty_open(struct ssh *ssh)
+{
+	u_int i;
+	Channel *c;
+
+	for (i = 0; i < ssh->chanctxt->channels_alloc; i++) {
+		c = ssh->chanctxt->channels[i];
+		if (c == NULL || c->type != SSH_CHANNEL_OPEN)
+			continue;
+		if (c->client_tty)
+			return 1;
 	}
 	return 0;
 }
@@ -3390,11 +3407,20 @@ channel_input_data(int type, u_int32_t seq, struct ssh *ssh)
 		return 0;
 	}
 	if (win_len > c->local_window) {
-		logit("channel %d: rcvd too much data %zu, win %u",
-		    c->self, win_len, c->local_window);
-		return 0;
+		c->local_window_exceeded += win_len - c->local_window;
+		logit("channel %d: rcvd too much data %zu, win %u/%u "
+		    "(excess %u)", c->self, win_len, c->local_window,
+		    c->local_window_max, c->local_window_exceeded);
+		c->local_window = 0;
+		/* Allow 10% grace before bringing the hammer down */
+		if (c->local_window_exceeded > (c->local_window_max / 10)) {
+			ssh_packet_disconnect(ssh, "channel %d: peer ignored "
+			    "channel window", c->self);
+		}
+	} else {
+		c->local_window -= win_len;
+		c->local_window_exceeded = 0;
 	}
-	c->local_window -= win_len;
 
 	if (c->datagram) {
 		if ((r = sshbuf_put_string(c->output, data, data_len)) != 0)
