@@ -57,7 +57,7 @@ extern long	volno;		/* current volume being read */
 extern long	ntrec;		/* number of TP_BSIZE records per tape block */
 extern time_t	dumptime;	/* time that this dump begins */
 extern time_t	dumpdate;	/* time that this dump was made */
-extern char	command;	/* opration being performed */
+extern char	command;	/* operation being performed */
 extern FILE	*terminal;	/* file descriptor for the terminal input */
 extern int	Bcvt;		/* need byte swapping on inodes and dirs */
 extern int	oldinofmt;	/* reading tape with FreeBSD 1 format inodes */
@@ -71,7 +71,7 @@ struct entry {
 	char	e_type;			/* type of this entry, see below */
 	short	e_flags;		/* status flags, see below */
 	ino_t	e_ino;			/* inode number in previous file sys */
-	long	e_index;		/* unique index (for dumpped table) */
+	long	e_index;		/* unique index (for dumped table) */
 	struct	entry *e_parent;	/* pointer to parent directory (..) */
 	struct	entry *e_sibling;	/* next element in this directory (.) */
 	struct	entry *e_links;		/* hard links to this inode */
