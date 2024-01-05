@@ -184,9 +184,10 @@ usage(void)
 "           [-c cipher_spec] [-D [bind_address:]port] [-E log_file]\n"
 "           [-e escape_char] [-F configfile] [-I pkcs11] [-i identity_file]\n"
 "           [-J destination] [-L address] [-l login_name] [-m mac_spec]\n"
-"           [-O ctl_cmd] [-o option] [-P tag] [-p port] [-Q query_option]\n"
-"           [-R address] [-S ctl_path] [-W host:port] [-w local_tun[:remote_tun]]\n"
+"           [-O ctl_cmd] [-o option] [-P tag] [-p port] [-R address]\n"
+"           [-S ctl_path] [-W host:port] [-w local_tun[:remote_tun]]\n"
 "           destination [command [argument ...]]\n"
+"       ssh [-Q query_option]\n"
 	);
 	exit(255);
 }
@@ -621,6 +622,7 @@ ssh_conn_info_free(struct ssh_conn_info *cinfo)
 	free(cinfo->remuser);
 	free(cinfo->homedir);
 	free(cinfo->locuser);
+	free(cinfo->jmphost);
 	free(cinfo);
 }
 
@@ -1433,13 +1435,15 @@ main(int ac, char **av)
 	    (unsigned long long)pw->pw_uid);
 	cinfo->keyalias = xstrdup(options.host_key_alias ?
 	    options.host_key_alias : options.host_arg);
-	cinfo->conn_hash_hex = ssh_connection_hash(cinfo->thishost, host,
-	    cinfo->portstr, options.user);
 	cinfo->host_arg = xstrdup(options.host_arg);
 	cinfo->remhost = xstrdup(host);
 	cinfo->remuser = xstrdup(options.user);
 	cinfo->homedir = xstrdup(pw->pw_dir);
 	cinfo->locuser = xstrdup(pw->pw_name);
+	cinfo->jmphost = xstrdup(options.jump_host == NULL ?
+	    "" : options.jump_host);
+	cinfo->conn_hash_hex = ssh_connection_hash(cinfo->thishost,
+	    cinfo->remhost, cinfo->portstr, cinfo->remuser, cinfo->jmphost);
 
 	/* Find canonic host name. */
 	if (strchr(host, '.') == NULL) {
@@ -1638,6 +1642,20 @@ main(int ac, char **av)
 		timeout_ms = INT_MAX;
 	else
 		timeout_ms = options.connection_timeout * 1000;
+
+	/* Apply channels timeouts, if set */
+	channel_clear_timeouts(ssh);
+	for (j = 0; j < options.num_channel_timeouts; j++) {
+		debug3("applying channel timeout %s",
+		    options.channel_timeouts[j]);
+		if (parse_pattern_interval(options.channel_timeouts[j],
+		    &cp, &i) != 0) {
+			fatal_f("internal error: bad timeout %s",
+			    options.channel_timeouts[j]);
+		}
+		channel_add_timeout(ssh, cp, i);
+		free(cp);
+	}
 
 	/* Open a connection to the remote host. */
 	if (ssh_connect(ssh, host, options.host_arg, addrs, &hostaddr,

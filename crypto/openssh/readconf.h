@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.152 2023/08/28 03:31:16 djm Exp $ */
+/* $OpenBSD: readconf.h,v 1.154 2023/10/12 02:18:18 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -184,6 +184,9 @@ typedef struct {
 	int	enable_escape_commandline;	/* ~C commandline */
 	int	obscure_keystroke_timing_interval;
 
+	char	**channel_timeouts;	/* inactivity timeout by channel type */
+	u_int	num_channel_timeouts;
+
 	char	*ignored_unknown; /* Pattern list of unknown tokens to ignore */
 }       Options;
 
@@ -232,7 +235,7 @@ typedef struct {
 
 const char *kex_default_pk_alg(void);
 char	*ssh_connection_hash(const char *thishost, const char *host,
-    const char *portstr, const char *user);
+    const char *portstr, const char *user, const char *jump_host);
 void     initialize_options(Options *);
 int      fill_default_options(Options *);
 void	 fill_default_options_for_canonicalization(Options *);
