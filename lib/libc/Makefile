@@ -117,6 +117,7 @@ NOASM=
 .include "${LIBC_SRCTOP}/stdlib/Makefile.inc"
 .include "${LIBC_SRCTOP}/stdtime/Makefile.inc"
 .include "${LIBC_SRCTOP}/string/Makefile.inc"
+SHARED_CFLAGS+=	-D'_SYSCALL_BODY(name)='
 .include "${LIBSYS_SRCTOP}/Makefile.sys"
 .include "${LIBC_SRCTOP}/secure/Makefile.inc"
 .include "${LIBC_SRCTOP}/rpc/Makefile.inc"
