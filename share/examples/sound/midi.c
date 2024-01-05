@@ -49,7 +49,7 @@ main()
 		switch (event.type) {
 		case NOTE_ON:
 		case NOTE_OFF:
-		case CONTROLER_ON:
+		case CONTROLLER_ON:
 			if ((l = read(midi_config.fd, &(event.note), sizeof(event.note))) == -1) {
 				perror("Error reading MIDI note");
 				exit(1);
@@ -65,7 +65,7 @@ main()
 		case NOTE_OFF:
 			printf("Channel %d, note %d, velocity %d\n", event.channel, event.note, event.velocity);
 			break;
-		case CONTROLER_ON:
+		case CONTROLLER_ON:
 			printf("Channel %d, controller %d, value %d\n", event.channel, event.controller, event.value);
 			break;
 		default:
