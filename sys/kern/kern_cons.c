@@ -239,14 +239,30 @@ cnremove(struct consdev *cn)
 {
 	struct cn_device *cnd;
 	int i;
+	bool primary = true;
 
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
-		if (cnd->cnd_cn != cn)
+		if (cnd->cnd_cn != cn) {
+			primary = false;
 			continue;
-		if (STAILQ_FIRST(&cn_devlist) == cnd)
-			ttyconsdev_select(NULL);
+		}
+
 		STAILQ_REMOVE(&cn_devlist, cnd, cn_device, cnd_next);
 		cnd->cnd_cn = NULL;
+
+		/*
+		 * We only need to select a new console if we've removed all
+		 * consoles or if we're removing the primary console.
+		 */
+		if (primary) {
+			struct cn_device *next;
+
+			next = STAILQ_FIRST(&cn_devlist);
+			if (next == NULL)
+				ttyconsdev_select(NULL);
+			else
+				ttyconsdev_select(next->cnd_cn->cn_name);
+		}
 
 		/* Remove this device from available mask. */
 		for (i = 0; i < CNDEVTAB_SIZE; i++) 
@@ -356,8 +372,6 @@ sysctl_kern_console(SYSCTL_HANDLER_ARGS)
 				error = 0;
 			} else {
 				error = cnadd(cp);
-				if (error == 0)
-					cnselect(cp);
 			}
 			break;
 		}
