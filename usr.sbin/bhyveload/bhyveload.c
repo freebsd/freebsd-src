@@ -891,7 +891,7 @@ main(int argc, char** argv)
 		 * bootfd will be used to do a lookup of our loader and do an
 		 * fdlopen(3) on the loader; thus, we need mmap(2) in addition
 		 * to the more usual lookup rights.
-		*/
+		 */
 		if (caph_rights_limit(bootfd, cap_rights_init(&rights,
 		    CAP_FSTATAT, CAP_LOOKUP, CAP_MMAP_RX, CAP_READ)) < 0) {
 			perror("caph_rights_limit");
