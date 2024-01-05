@@ -707,7 +707,7 @@ node-local multicast group ff01::1.
 1.4.2 Stateless address autoconfiguration on hosts
 
 In IPv6 specification, nodes are separated into two categories:
-routers and hosts.  Routers forward packets addressed to others, hosts does
+routers and hosts.  Routers forward packets addressed to others, hosts do
 not forward the packets.  net.inet6.ip6.forwarding defines whether this
 node is a router or a host (router if it is 1, host if it is 0).
 
@@ -1481,7 +1481,7 @@ Users can join groups by using appropriate system calls like setsockopt(2).
 
 1.15.2 Router case
 
-In addition to the above, routers needs to handle the following items.
+In addition to the above, routers need to handle the following items.
 
 The following items need to be configured manually by using ifconfig(8).
 o The subnet-router anycast addresses for the interfaces it is configured
