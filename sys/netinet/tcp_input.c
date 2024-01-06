@@ -2499,7 +2499,8 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 			goto dropafterack;
 		}
 		if (tcp_is_sack_recovery(tp, &to)) {
-			if (((sack_changed = tcp_sack_doack(tp, &to, th->th_ack)) != 0) &&
+			sack_changed = tcp_sack_doack(tp, &to, th->th_ack);
+			if ((sack_changed != SACK_NOCHANGE) &&
 			    (tp->t_flags & TF_LRD)) {
 				tcp_sack_lost_retransmission(tp, th);
 			}
