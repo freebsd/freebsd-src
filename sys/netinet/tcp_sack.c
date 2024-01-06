@@ -909,6 +909,25 @@ tcp_free_sackholes(struct tcpcb *tp)
 }
 
 /*
+ * Resend all the currently existing SACK holes of
+ * the scoreboard. This is in line with the Errata to
+ * RFC 2018, which allows the use of SACK data past
+ * an RTO to good effect typically.
+ */
+void
+tcp_resend_sackholes(struct tcpcb *tp)
+{
+	struct sackhole *p;
+
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
+	TAILQ_FOREACH(p, &tp->snd_holes, scblink) {
+		p->rxmit = p->start;
+	}
+	tp->sackhint.nexthole = TAILQ_FIRST(&tp->snd_holes);
+	tp->sackhint.sack_bytes_rexmit = 0;
+}
+
+/*
  * Partial ack handling within a sack recovery episode.  Keeping this very
  * simple for now.  When a partial ack is received, force snd_cwnd to a value
  * that will allow the sender to transmit no more than 2 segments.  If
