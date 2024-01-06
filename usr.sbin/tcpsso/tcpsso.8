@@ -74,12 +74,10 @@ and value
 on a TCP endpoint from the command line.
 .Pp
 TCP endpoints in the
-.Dv TIME_WAIT
-state can not be handled by
-.Nm .
-TCP endpoints in the
 .Dv SYN_RCVD
-state can only be handled if their prior state was
+state can only be handled by
+.Nm
+if their prior state was
 .Dv SYN_SENT .
 .Pp
 .Op Ar level
@@ -176,7 +174,9 @@ is one of
 .Dv FIN_WAIT_1 ,
 .Dv CLOSING ,
 .Dv LAST_ACK ,
-.Dv FIN_WAIT_2 .
+.Dv FIN_WAIT_2,
+or
+.Dv TIME_WAIT .
 Using
 .Dv SYN_RCVD
 only applies to TCP endpoints in the state
