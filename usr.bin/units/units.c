@@ -117,7 +117,8 @@ readunits(const char *userfile)
 {
 	FILE *unitfile;
 	char line[512], *lineptr;
-	int len, linenum, i;
+	int linenum, i;
+	size_t len0, len1;
 	cap_rights_t unitfilerights;
 
 	unitcount = 0;
@@ -161,16 +162,18 @@ readunits(const char *userfile)
 		if (*lineptr == '/' || *lineptr == '#')
 			continue;
 		lineptr += strspn(lineptr, " \n\t");
-		len = strcspn(lineptr, " \n\t");
-		lineptr[len] = 0;
-		if (!strlen(lineptr))
+		len0 = strcspn(lineptr, " \n\t");
+		lineptr[len0] = 0;
+
+		len1 = strlen(lineptr);
+		if (!len1)
 			continue;
-		if (lineptr[strlen(lineptr) - 1] == '-') { /* it's a prefix */
+		if (lineptr[len1 - 1] == '-') { /* it's a prefix */
 			if (prefixcount == MAXPREFIXES) {
 				warnx("memory for prefixes exceeded in line %d", linenum);
 				continue;
 			}
-			lineptr[strlen(lineptr) - 1] = 0;
+			lineptr[len1 - 1] = 0;
 			prefixtable[prefixcount].prefixname = dupstr(lineptr);
 			for (i = 0; i < prefixcount; i++)
 				if (!strcmp(prefixtable[i].prefixname, lineptr)) {
@@ -178,15 +181,15 @@ readunits(const char *userfile)
 					    lineptr, linenum);
 					continue;
 				}
-			lineptr += len + 1;
+			lineptr += len0 + 1;
 			lineptr += strspn(lineptr, " \n\t");
-			len = strcspn(lineptr, "\n\t");
-			if (len == 0) {
+			len0 = strcspn(lineptr, "\n\t");
+			if (len0 == 0) {
 				warnx("unexpected end of prefix on line %d",
 				    linenum);
 				continue;
 			}
-			lineptr[len] = 0;
+			lineptr[len0] = 0;
 			prefixtable[prefixcount++].prefixval = dupstr(lineptr);
 		}
 		else {		/* it's not a prefix */
@@ -201,15 +204,15 @@ readunits(const char *userfile)
 					    lineptr, linenum);
 					continue;
 				}
-			lineptr += len + 1;
+			lineptr += len0 + 1;
 			lineptr += strspn(lineptr, " \n\t");
 			if (!strlen(lineptr)) {
 				warnx("unexpected end of unit on line %d",
 				    linenum);
 				continue;
 			}
-			len = strcspn(lineptr, "\n\t");
-			lineptr[len] = 0;
+			len0 = strcspn(lineptr, "\n\t");
+			lineptr[len0] = 0;
 			unittable[unitcount++].uval = dupstr(lineptr);
 		}
 	}
@@ -312,6 +315,7 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 	char *item;
 	char *divider, *slash, *offset;
 	int doingtop;
+	size_t len;
 
 	if (!strlen(toadd))
 		return 1;
@@ -392,11 +396,12 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 			}
 			else {	/* item is not a number */
 				int repeat = 1;
+				len = strlen(item);
 
 				if (strchr("23456789",
-				    item[strlen(item) - 1])) {
-					repeat = item[strlen(item) - 1] - '0';
-					item[strlen(item) - 1] = 0;
+				    item[len - 1])) {
+					repeat = item[len - 1] - '0';
+					item[len - 1] = 0;
 				}
 				for (; repeat; repeat--) {
 					if (addsubunit(doingtop ^ flip ? theunit->numerator : theunit->denominator, item)) {
@@ -480,13 +485,15 @@ lookupunit(const char *unit)
 {
 	int i;
 	char *copy;
+	size_t len0, len1;
 
 	for (i = 0; i < unitcount; i++) {
 		if (!strcmp(unittable[i].uname, unit))
 			return unittable[i].uval;
 	}
 
-	if (unit[strlen(unit) - 1] == '^') {
+	len0 = strlen(unit);
+	if (unit[len0 - 1] == '^') {
 		copy = dupstr(unit);
 		copy[strlen(copy) - 1] = 0;
 		for (i = 0; i < unitcount; i++) {
@@ -497,9 +504,8 @@ lookupunit(const char *unit)
 			}
 		}
 		free(copy);
-	}
-	if (unit[strlen(unit) - 1] == 's') {
-		copy = dupstr(unit);
+	} else if (unit[len0 - 1] == 's') {
+	        copy = dupstr(unit);
 		copy[strlen(copy) - 1] = 0;
 		for (i = 0; i < unitcount; i++) {
 			if (!strcmp(unittable[i].uname, copy)) {
@@ -508,8 +514,9 @@ lookupunit(const char *unit)
 				return buffer;
 			}
 		}
-		if (copy[strlen(copy) - 1] == 'e') {
-			copy[strlen(copy) - 1] = 0;
+		len1 = strlen(copy);
+		if (copy[len1 - 1] == 'e') {
+			copy[len1 - 1] = 0;
 			for (i = 0; i < unitcount; i++) {
 				if (!strcmp(unittable[i].uname, copy)) {
 					strlcpy(buffer, copy, sizeof(buffer));
@@ -521,11 +528,11 @@ lookupunit(const char *unit)
 		free(copy);
 	}
 	for (i = 0; i < prefixcount; i++) {
-		size_t len = strlen(prefixtable[i].prefixname);
-		if (!strncmp(prefixtable[i].prefixname, unit, len)) {
-			if (!strlen(unit + len) || lookupunit(unit + len)) {
+	        len1 = strlen(prefixtable[i].prefixname);
+		if (!strncmp(prefixtable[i].prefixname, unit, len1)) {
+			if (!strlen(unit + len1) || lookupunit(unit + len1)) {
 				snprintf(buffer, sizeof(buffer), "%s %s",
-				    prefixtable[i].prefixval, unit + len);
+				    prefixtable[i].prefixval, unit + len1);
 				return buffer;
 			}
 		}
