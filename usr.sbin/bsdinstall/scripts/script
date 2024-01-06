@@ -88,10 +88,15 @@ shift
 f_dprintf "Began Installation at %s" "$( date )"
 rm -rf $BSDINSTALL_TMPETC
 mkdir $BSDINSTALL_TMPETC
+rm -f $TMPDIR/bsdinstall-installscript-setup
 
-split -a 2 -p '^#!.*' "$SCRIPT" $TMPDIR/bsdinstall-installscript-
+# split script into preamble and setup script at first shebang
+awk 'BEGIN {pathb=ARGV[2]; ARGV[2]=""} /^#!/{b=1} {
+    if (b) print >pathb; else print}' \
+    "$SCRIPT" $TMPDIR/bsdinstall-installscript-setup \
+    >$TMPDIR/bsdinstall-installscript-preamble
 
-. $TMPDIR/bsdinstall-installscript-aa
+. $TMPDIR/bsdinstall-installscript-preamble
 : ${DISTRIBUTIONS="kernel.txz base.txz"}; export DISTRIBUTIONS
 export BSDINSTALL_DISTDIR
 
@@ -158,8 +163,9 @@ if [ ! -f $BSDINSTALL_CHROOT/etc/resolv.conf -a -f /etc/resolv.conf ]; then
 fi
 
 # Run post-install script
-if [ -f $TMPDIR/bsdinstall-installscript-ab ]; then
-	cp $TMPDIR/bsdinstall-installscript-ab $BSDINSTALL_CHROOT/tmp/installscript
+if [ -f $TMPDIR/bsdinstall-installscript-setup ]; then
+	cp $TMPDIR/bsdinstall-installscript-setup \
+	    $BSDINSTALL_CHROOT/tmp/installscript
 	chmod a+x $BSDINSTALL_CHROOT/tmp/installscript
 	chroot $BSDINSTALL_CHROOT /tmp/installscript $@ 2>&1
 	rm $BSDINSTALL_CHROOT/tmp/installscript
