@@ -2,7 +2,7 @@ name: Cross-build Kernel
 
 on:
   push:
-    branches: [ main, 'stable/13' ]
+    branches: [ main, 'stable/13', 'stable/14' ]
   pull_request:
     branches: [ main ]
 
