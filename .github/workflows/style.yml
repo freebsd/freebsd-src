@@ -7,8 +7,6 @@ name: Style Checker
 # is proving elusive, so optimizations welcome.
 
 on:
-  push:
-    branches: [ main, 'stable/13', 'stable/14' ]
   pull_request: # maybe pull_request_target
     branches: [ main ]
     types: [ opened, reopened, edited ]
@@ -26,10 +24,6 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
-      - name: Dump GitHub context
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-        run: echo "$GITHUB_CONTEXT"
       - name: Install packages
         run: |
           sudo apt-get update --quiet || true
