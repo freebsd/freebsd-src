@@ -1410,7 +1410,7 @@ sub process {
 	                checkfilename($realfile, \$acpi_testexpected, \$acpi_nontestexpected);
 
 			$p1_prefix = $1;
-			if (!$file && $tree && $p1_prefix ne '' &&
+			if (!$file && $tree && $p1_prefix ne '' && defined $root &&
 			    -e "$root/$p1_prefix") {
 				WARN("patch prefix '$p1_prefix' exists, appears to be a -p0 patch\n");
 			}
