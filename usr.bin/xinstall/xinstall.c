@@ -65,7 +65,7 @@
 #include "mtree.h"
 
 /*
- * Memory strategy threshold, in pages: if physmem is larger then this, use a
+ * Memory strategy threshold, in pages: if physmem is larger than this, use a
  * large buffer.
  */
 #define PHYSPAGES_THRESHOLD (32*1024)
