@@ -889,7 +889,7 @@ hn_rndis_init(struct hn_softc *sc)
 
 	if (sc->hn_rndis_agg_align < sizeof(uint32_t)) {
 		/*
-		 * The RNDIS packet messsage encap assumes that the RNDIS
+		 * The RNDIS packet message encap assumes that the RNDIS
 		 * packet message is at least 4 bytes aligned.  Fix up the
 		 * alignment here, if the remote side sets the alignment
 		 * too low.

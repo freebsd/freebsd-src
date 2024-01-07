@@ -40,23 +40,22 @@
 	li	t0, SYS_ ## name;				\
 	ecall
 
-#define	PSEUDO(name)						\
-ENTRY(__sys_##name);						\
-	WEAK_REFERENCE(__sys_##name, _##name);			\
+#define	_SYSCALL_BODY(name)					\
 	_SYSCALL(name);						\
 	bnez	t0, 1f; 					\
 	ret;							\
 1:	la	t1, cerror;					\
-	jr	t1;						\
+	jr	t1
+
+#define	PSEUDO(name)						\
+ENTRY(__sys_##name);						\
+	WEAK_REFERENCE(__sys_##name, _##name);			\
+	_SYSCALL_BODY(name);					\
 END(__sys_##name)
 
 #define	RSYSCALL(name)						\
 ENTRY(__sys_##name);						\
 	WEAK_REFERENCE(__sys_##name, name);			\
 	WEAK_REFERENCE(__sys_##name, _##name);			\
-	_SYSCALL(name);						\
-	bnez	t0, 1f; 					\
-	ret;							\
-1:	la	t1, cerror;					\
-	jr	t1;						\
+	_SYSCALL_BODY(name);					\
 END(__sys_##name)

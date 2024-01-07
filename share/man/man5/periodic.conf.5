@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 9, 2022
+.Dd December 31, 2023
 .Dt PERIODIC.CONF 5
 .Os
 .Sh NAME
@@ -639,6 +639,14 @@ but specific to the pool
 Set to a list of extra scripts that should be run after all other
 daily scripts.
 All scripts must be absolute path names.
+.It Va daily_diff_flags
+.Pq Vt str
+Set to the arguments to pass to the
+.Xr diff 1
+utility when generating differences.
+The default is
+.Fl b
+.Fl U Cm 0 .
 .El
 .Pp
 The following variables are used by the standard scripts that reside in
@@ -807,7 +815,8 @@ Set to the arguments to pass to the
 .Xr diff 1
 utility when generating differences.
 The default is
-.Fl b u .
+.Fl b
+.Fl U Cm 0 .
 .It Va security_status_chksetuid_enable
 .Pq Vt bool
 Set to

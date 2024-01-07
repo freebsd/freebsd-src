@@ -156,11 +156,6 @@ nmreq_header_decode(const char **pifname, struct nmreq_header *h, struct nmctx *
 	for (pipesep = vpname; pipesep != scan && !index("{}", *pipesep); pipesep++)
 		;
 
-	if (!nm_is_identifier(vpname, pipesep)) {
-		nmctx_ferror(ctx, "%s: invalid port name '%.*s'", *pifname,
-				pipesep - vpname, vpname);
-		goto fail;
-	}
 	if (pipesep != scan) {
 		pipesep++;
 		if (*pipesep == '\0') {

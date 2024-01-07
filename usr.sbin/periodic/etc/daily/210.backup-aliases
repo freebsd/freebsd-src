@@ -34,7 +34,7 @@ case "$daily_backup_aliases_enable" in
 	    then
 		[ $rc -lt 1 ] && rc=1
 		echo "$host aliases diffs:"
-		diff -u $bak/aliases.bak /etc/mail/aliases
+		diff ${daily_diff_flags} $bak/aliases.bak /etc/mail/aliases
 		mv $bak/aliases.bak $bak/aliases.bak2
 		cp -p /etc/mail/aliases $bak/aliases.bak || rc=3
 	    fi

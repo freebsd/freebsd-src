@@ -3,5 +3,3 @@
 *.cpp  diff=cpp
 *.hpp  diff=cpp
 *.py   diff=python
-. svn-properties=svn:keywords=tools/build/options/WITHOUT_LOADER_ZFS
-.clang-format svn-properties=svn:keywords=FreeBSD=%H

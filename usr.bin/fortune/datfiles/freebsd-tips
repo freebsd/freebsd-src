@@ -388,7 +388,7 @@ You can make a log of your terminal session with script(1).
 You can often get answers to your questions about FreeBSD by searching in the
 FreeBSD mailing list archives at
 
-	http://freebsd.markmail.org
+	https://lists.freebsd.org/search
 %
 You can open up a new split-screen window in (n)vi with :N or :E and then
 use ^w to switch between the two.

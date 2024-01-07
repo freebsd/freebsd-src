@@ -55,7 +55,7 @@ static time_t mailtime[MAXMBOXES];	/* times of mailboxes */
 
 /*
  * Print appropriate message(s) if mail has arrived.  If the argument is
- * nozero, then the value of MAIL has changed, so we just update the
+ * non-zero, then the value of MAIL has changed, so we just update the
  * values.
  */
 

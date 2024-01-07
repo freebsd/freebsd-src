@@ -362,7 +362,7 @@ done
 # so if the cpio archive is present, it prevents the files from dir/
 # from being copied.
 
-+PATH=${PATH}:/rescue
+PATH=${PATH}:/rescue
 
 for i in ${templates} ; do
     for j in /conf/$i/* ; do

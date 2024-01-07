@@ -30,6 +30,7 @@
 #include <sys/param.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/socket.h>
 #include <sys/ucred.h>
 
@@ -194,6 +195,14 @@ dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
 	nlattr_add_u64(nw, PF_ST_PACKETS1, s->packets[1]);
 	nlattr_add_u64(nw, PF_ST_BYTES0, s->bytes[0]);
 	nlattr_add_u64(nw, PF_ST_BYTES1, s->bytes[1]);
+	nlattr_add_u32(nw, PF_ST_RTABLEID, s->act.rtableid);
+	nlattr_add_u8(nw, PF_ST_MIN_TTL, s->act.min_ttl);
+	nlattr_add_u16(nw, PF_ST_MAX_MSS, s->act.max_mss);
+	nlattr_add_u16(nw, PF_ST_DNPIPE, s->act.dnpipe);
+	nlattr_add_u16(nw, PF_ST_DNRPIPE, s->act.dnrpipe);
+	nlattr_add_u8(nw, PF_ST_RT, s->rt);
+	if (s->rt_kif != NULL)
+		nlattr_add_string(nw, PF_ST_RT_IFNAME, s->rt_kif->pfik_name);
 
 	if (!dump_state_peer(nw, PF_ST_PEER_SRC, &s->src))
 		goto enomem;
@@ -704,36 +713,42 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_name = "GETSTATES",
 		.cmd_cb = pf_handle_getstates,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
 	},
 	{
 		.cmd_num = PFNL_CMD_GETCREATORS,
 		.cmd_name = "GETCREATORS",
 		.cmd_cb = pf_handle_getcreators,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
 	},
 	{
 		.cmd_num = PFNL_CMD_START,
 		.cmd_name = "START",
 		.cmd_cb = pf_handle_start,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
 	},
 	{
 		.cmd_num = PFNL_CMD_STOP,
 		.cmd_name = "STOP",
 		.cmd_cb = pf_handle_stop,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
 	},
 	{
 		.cmd_num = PFNL_CMD_ADDRULE,
 		.cmd_name = "ADDRULE",
 		.cmd_cb = pf_handle_addrule,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
 	},
 	{
 		.cmd_num = PFNL_CMD_GETRULES,
 		.cmd_name = "GETRULES",
 		.cmd_cb = pf_handle_getrules,
 		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
 	},
 };
 

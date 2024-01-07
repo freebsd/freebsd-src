@@ -1149,12 +1149,15 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	td->td_md.md_saved_msr = psl_kernset;
 }
 
-void
+int
 cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
     stack_t *stack)
 {
 	struct trapframe *tf;
 	uintptr_t sp;
+	#ifdef __powerpc64__
+	int error;
+	#endif
 
 	tf = td->td_frame;
 	/* align stack and alloc space for frame ptr and saved LR */
@@ -1182,10 +1185,12 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 			tf->srr0 = (register_t)entry;
 			/* ELFv2 ABI requires that the global entry point be in r12. */
 			tf->fixreg[12] = (register_t)entry;
-		}
-		else {
+		} else {
 			register_t entry_desc[3];
-			(void)copyin((void *)entry, entry_desc, sizeof(entry_desc));
+			error = copyin((void *)entry, entry_desc,
+			    sizeof(entry_desc));
+			if (error != 0)
+				return (error);
 			tf->srr0 = entry_desc[0];
 			tf->fixreg[2] = entry_desc[1];
 			tf->fixreg[11] = entry_desc[2];
@@ -1201,6 +1206,7 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 
 	td->td_retval[0] = (register_t)entry;
 	td->td_retval[1] = 0;
+	return (0);
 }
 
 static int

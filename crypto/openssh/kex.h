@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.h,v 1.119 2023/08/28 03:28:43 djm Exp $ */
+/* $OpenBSD: kex.h,v 1.121 2023/12/18 14:45:49 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -112,6 +112,7 @@ enum kex_exchange {
 #define KEX_RSA_SHA2_256_SUPPORTED 	0x0008 /* only set in server for now */
 #define KEX_RSA_SHA2_512_SUPPORTED 	0x0010 /* only set in server for now */
 #define KEX_HAS_PING		 	0x0020
+#define KEX_HAS_EXT_INFO_IN_AUTH 	0x0040
 
 struct sshenc {
 	char	*name;
@@ -149,6 +150,9 @@ struct kex {
 	u_int	kex_type;
 	char	*server_sig_algs;
 	int	ext_info_c;
+	int	ext_info_s;
+	int	kex_strict;
+	int	ext_info_received;
 	struct sshbuf *my;
 	struct sshbuf *peer;
 	struct sshbuf *client_version;
@@ -208,6 +212,8 @@ int	 kex_protocol_error(int, u_int32_t, struct ssh *);
 int	 kex_derive_keys(struct ssh *, u_char *, u_int, const struct sshbuf *);
 int	 kex_send_newkeys(struct ssh *);
 int	 kex_start_rekex(struct ssh *);
+int	 kex_server_update_ext_info(struct ssh *);
+void	 kex_set_server_sig_algs(struct ssh *, const char *);
 
 int	 kexgex_client(struct ssh *);
 int	 kexgex_server(struct ssh *);

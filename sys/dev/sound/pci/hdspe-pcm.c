@@ -519,8 +519,8 @@ hdspechan_setspeed(kobj_t obj, void *data, uint32_t speed)
 	}
 
 	switch (sc->type) {
-	case RAYDAT:
-	case AIO:
+	case HDSPE_RAYDAT:
+	case HDSPE_AIO:
 		period = HDSPE_FREQ_AIO;
 		break;
 	default:

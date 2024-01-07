@@ -584,3 +584,9 @@ tcp_lro_hpts_init(void)
 {
 	tcp_lro_flush_tcphpts = _tcp_lro_flush_tcphpts;
 }
+
+void
+tcp_lro_hpts_uninit(void)
+{
+	atomic_store_ptr(&tcp_lro_flush_tcphpts, NULL);
+}

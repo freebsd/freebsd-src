@@ -18,7 +18,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd February 26, 2021
+.Dd December 25, 2023
 .Dt NEWSYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -67,11 +67,24 @@ The fields of the configuration file are as follows:
 .Bl -tag -width indent
 .It Ar logfile_name
 Name of the system log file to be archived,
-or one of the literal strings
-.Dq Aq Li default ,
+or one of the special strings
+.Dq Li <compress> ,
+.Dq Li <default> ,
 or
-.Dq Aq Li include .
-The special default entry will only be used if a log file
+.Dq Li <include> .
+The <compress> entry,
+which should be placed at the beginning of the
+.Nm
+configuration file,
+sets the global compress method.
+This method is applied when a log file is flagged as
+compressible,
+which has the same effect of passing a compress method to the
+.Fl c
+option on the
+.Xr newsyslog 8
+command line.
+The special <default> entry will only be used if a log file
 name is given as a command line argument to
 .Xr newsyslog 8 ,
 and if that log file name is not matched by any other
@@ -308,8 +321,11 @@ for details on syntax and matching rules.
 .It Cm J
 indicates that
 .Xr newsyslog 8
-should attempt to save disk space by compressing the rotated
-log file using
+should consider the rotated log file as compressible.
+In legacy mode,
+this also tells
+.Xr newsyslog 8
+to use
 .Xr bzip2 1 .
 .It Cm N
 indicates that there is no process which needs to be signaled
@@ -337,20 +353,29 @@ be a negative value to distinguish it from a process ID.
 .It Cm X
 indicates that
 .Xr newsyslog 8
-should attempt to save disk space by compressing the rotated
-log file using
+should consider the rotated log file as compressible.
+In legacy mode,
+this also tells
+.Xr newsyslog 8
+to use
 .Xr xz 1 .
 .It Cm Y
 indicates that
 .Xr newsyslog 8
-should attempt to save disk space by compressing the rotated
-log file using
+should consider the rotated log file as compressible.
+In legacy mode,
+this also tells
+.Xr newsyslog 8
+to use
 .Xr zstd 1 .
 .It Cm Z
 indicates that
 .Xr newsyslog 8
-should attempt to save disk space by compressing the rotated
-log file using
+should consider the rotated log file as compressible.
+In legacy mode,
+this also tells
+.Xr newsyslog 8
+to use
 .Xr gzip 1 .
 .It Fl
 a minus sign will not cause any special processing, but it

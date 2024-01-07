@@ -4475,7 +4475,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 		KASSERT(nk != NULL, ("%s: null nk", __func__));
 
 		if (nr->log) {
-			PFLOG_PACKET(kif, m, af, PFRES_MATCH, nr, a,
+			PFLOG_PACKET(kif, m, af, PF_PASS, PFRES_MATCH, nr, a,
 			    ruleset, pd, 1);
 		}
 
@@ -4703,7 +4703,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 					pf_rule_to_actions(r, &pd->act);
 					if (r->log)
 						PFLOG_PACKET(kif, m, af,
-						    PFRES_MATCH, r,
+						    r->action, PFRES_MATCH, r,
 						    a, ruleset, pd, 1);
 				} else {
 					match = 1;
@@ -4735,7 +4735,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 	if (r->log) {
 		if (rewrite)
 			m_copyback(m, off, hdrlen, pd->hdr.any);
-		PFLOG_PACKET(kif, m, af, reason, r, a, ruleset, pd, 1);
+		PFLOG_PACKET(kif, m, af, r->action, reason, r, a, ruleset, pd, 1);
 	}
 
 	if ((r->action == PF_DROP) &&
@@ -5149,7 +5149,7 @@ pf_test_fragment(struct pf_krule **rm, struct pfi_kkif *kif,
 					pf_rule_to_actions(r, &pd->act);
 					if (r->log)
 						PFLOG_PACKET(kif, m, af,
-						    PFRES_MATCH, r,
+						    r->action, PFRES_MATCH, r,
 						    a, ruleset, pd, 1);
 				} else {
 					match = 1;
@@ -5179,7 +5179,7 @@ pf_test_fragment(struct pf_krule **rm, struct pfi_kkif *kif,
 	pf_rule_to_actions(r, &pd->act);
 
 	if (r->log)
-		PFLOG_PACKET(kif, m, af, reason, r, a, ruleset, pd, 1);
+		PFLOG_PACKET(kif, m, af, r->action, reason, r, a, ruleset, pd, 1);
 
 	if (r->action != PF_PASS)
 		return (PF_DROP);
@@ -8210,7 +8210,9 @@ done:
 	}
 
 	if (s) {
+		uint8_t log = pd.act.log;
 		memcpy(&pd.act, &s->act, sizeof(struct pf_rule_actions));
+		pd.act.log |= log;
 		tag = s->tag;
 		rt = s->rt;
 	} else {
@@ -8330,13 +8332,13 @@ done:
 			lr = r;
 
 		if (pd.act.log & PF_LOG_FORCE || lr->log & PF_LOG_ALL)
-			PFLOG_PACKET(kif, m, AF_INET, reason, lr, a, ruleset,
-			    &pd, (s == NULL));
+			PFLOG_PACKET(kif, m, AF_INET, action, reason, lr, a,
+			    ruleset, &pd, (s == NULL));
 		if (s) {
 			SLIST_FOREACH(ri, &s->match_rules, entry)
 				if (ri->r->log & PF_LOG_ALL)
-					PFLOG_PACKET(kif, m, AF_INET, reason,
-					    ri->r, a, ruleset, &pd, 0);
+					PFLOG_PACKET(kif, m, AF_INET, action,
+					    reason, ri->r, a, ruleset, &pd, 0);
 		}
 	}
 
@@ -8819,7 +8821,9 @@ done:
 	}
 
 	if (s) {
+		uint8_t log = pd.act.log;
 		memcpy(&pd.act, &s->act, sizeof(struct pf_rule_actions));
+		pd.act.log |= log;
 		tag = s->tag;
 		rt = s->rt;
 	} else {
@@ -8892,12 +8896,12 @@ done:
 			lr = r;
 
 		if (pd.act.log & PF_LOG_FORCE || lr->log & PF_LOG_ALL)
-			PFLOG_PACKET(kif, m, AF_INET6, reason, lr, a, ruleset,
+			PFLOG_PACKET(kif, m, AF_INET6, action, reason, lr, a, ruleset,
 			    &pd, (s == NULL));
 		if (s) {
 			SLIST_FOREACH(ri, &s->match_rules, entry)
 				if (ri->r->log & PF_LOG_ALL)
-					PFLOG_PACKET(kif, m, AF_INET6, reason,
+					PFLOG_PACKET(kif, m, AF_INET6, action, reason,
 					    ri->r, a, ruleset, &pd, 0);
 		}
 	}

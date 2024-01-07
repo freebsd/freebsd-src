@@ -208,6 +208,14 @@ if the server is using the ``<user>@<domain>'' form of user/group strings or
 is using the ``-manage-gids'' option for
 .Xr nfsuserd 8 .
 .Pp
+In addition, you can set:
+.sp
+.Bd -literal -offset indent -compact
+nfsv4_server_only="YES"
+.Ed
+.sp
+to disable support for NFSv2 and NFSv3.
+.Pp
 You will also need to add at least one ``V4:'' line to the
 .Xr exports 5
 file for

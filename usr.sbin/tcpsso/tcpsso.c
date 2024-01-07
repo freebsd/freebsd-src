@@ -115,10 +115,6 @@ tcpssoall(const char *ca_name, const char *stack, int state,
 			continue;
 
 
-		/* Skip endpoints in TIME WAIT. */
-		if (xtp->t_state == TCPS_TIME_WAIT)
-			continue;
-
 		/* If requested, skip sockets not having the requested state. */
 		if ((state != -1) && (xtp->t_state != state))
 			continue;
@@ -453,7 +449,6 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 	if ((state == TCP_NSTATES) ||
-	    (state == TCPS_TIME_WAIT) ||
 	    (argc < 2) || (argc > 3) ||
 	    (apply_all && apply_subset) ||
 	    (apply_all && apply_specific) ||

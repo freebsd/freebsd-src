@@ -37,60 +37,41 @@
  * It is not meant to be included directly
  */
 
-struct mbuf;
+struct nl_buf;
 struct nl_writer;
-typedef bool nl_writer_cb(struct nl_writer *nw, void *buf, int buflen, int cnt);
+typedef bool nl_writer_cb(struct nl_writer *nw);
 
 struct nl_writer {
-	int			alloc_len;	/* allocated buffer length */
-	int			offset;		/* offset from the start of the buffer */
-	struct nlmsghdr		*hdr;		/* Pointer to the currently-filled msg */
-	char			*data;		/* pointer to the contiguous storage */
-	void			*_storage;	/* Underlying storage pointer */
-	nl_writer_cb		*cb;		/* Callback to flush data */
+	struct nl_buf		*buf;	/* Underlying storage pointer */
+	struct nlmsghdr		*hdr;	/* Pointer to the currently-filled msg */
+	nl_writer_cb		*cb;	/* Callback to flush data */
 	union {
-		void		*ptr;
+		struct nlpcb	*nlp;
 		struct {
 			uint16_t	proto;
 			uint16_t	id;
 		} group;
-	} arg;
-	int			num_messages;	/* Number of messages in the buffer */
-	int			malloc_flag;	/* M_WAITOK or M_NOWAIT */
-	uint8_t			writer_type;	/* NS_WRITER_TYPE_* */
-	uint8_t			writer_target;	/* NS_WRITER_TARGET_*  */
-	bool			ignore_limit;	/* If true, ignores RCVBUF limit */
-	bool			enomem;		/* True if ENOMEM occured */
-	bool			suppress_ack;	/* If true, don't send NLMSG_ERR */
+	};
+	u_int		num_messages;	/* Number of messages in the buffer */
+	int		malloc_flag;	/* M_WAITOK or M_NOWAIT */
+	bool		ignore_limit;	/* If true, ignores RCVBUF limit */
+	bool		enomem;		/* True if ENOMEM occured */
+	bool		suppress_ack;	/* If true, don't send NLMSG_ERR */
 };
-#define	NS_WRITER_TARGET_SOCKET	0
-#define	NS_WRITER_TARGET_GROUP	1
-#define	NS_WRITER_TARGET_CHAIN	2
-
-#define	NS_WRITER_TYPE_MBUF	0
-#define NS_WRITER_TYPE_BUF	1
-#define NS_WRITER_TYPE_LBUF	2
-#define NS_WRITER_TYPE_MBUFC	3
-#define NS_WRITER_TYPE_STUB	4
-
 
 #define	NLMSG_SMALL	128
 #define	NLMSG_LARGE	2048
 
 /* Message and attribute writing */
-
-struct nlpcb;
-
 #if defined(NETLINK) || defined(NETLINK_MODULE)
 /* Provide optimized calls to the functions inside the same linking unit */
 
 bool _nlmsg_get_unicast_writer(struct nl_writer *nw, int expected_size, struct nlpcb *nlp);
 bool _nlmsg_get_group_writer(struct nl_writer *nw, int expected_size, int proto, int group_id);
-bool _nlmsg_get_chain_writer(struct nl_writer *nw, int expected_size, struct mbuf **pm);
 bool _nlmsg_flush(struct nl_writer *nw);
 void _nlmsg_ignore_limit(struct nl_writer *nw);
 
-bool _nlmsg_refill_buffer(struct nl_writer *nw, int required_size);
+bool _nlmsg_refill_buffer(struct nl_writer *nw, u_int required_len);
 bool _nlmsg_add(struct nl_writer *nw, uint32_t portid, uint32_t seq, uint16_t type,
     uint16_t flags, uint32_t len);
 bool _nlmsg_end(struct nl_writer *nw);
@@ -109,12 +90,6 @@ static inline bool
 nlmsg_get_group_writer(struct nl_writer *nw, int expected_size, int proto, int group_id)
 {
 	return (_nlmsg_get_group_writer(nw, expected_size, proto, group_id));
-}
-
-static inline bool
-nlmsg_get_chain_writer(struct nl_writer *nw, int expected_size, struct mbuf **pm)
-{
-	return (_nlmsg_get_chain_writer(nw, expected_size, pm));
 }
 
 static inline bool
@@ -186,18 +161,12 @@ nlmsg_reply(struct nl_writer *nw, const struct nlmsghdr *hdr, int payload_len)
 	    hdr->nlmsg_flags, payload_len));
 }
 
-#define nlmsg_data(_hdr)	((void *)((_hdr) + 1))
-
 /*
  * KPI similar to mtodo():
  * current (uncompleted) header is guaranteed to be contiguous,
  *  but can be reallocated, thus pointers may need to be readjusted.
  */
-static inline int
-nlattr_save_offset(const struct nl_writer *nw)
-{
-	return (nw->offset - ((char *)nw->hdr - nw->data));
-}
+u_int nlattr_save_offset(const struct nl_writer *nw);
 
 static inline void *
 _nlattr_restore_offset(const struct nl_writer *nw, int off)
@@ -213,22 +182,7 @@ nlattr_set_len(const struct nl_writer *nw, int off)
 	nla->nla_len = nlattr_save_offset(nw) - off;
 }
 
-static inline void *
-nlmsg_reserve_data_raw(struct nl_writer *nw, size_t sz)
-{
-	sz = NETLINK_ALIGN(sz);
-
-	if (__predict_false(nw->offset + sz > nw->alloc_len)) {
-		if (!nlmsg_refill_buffer(nw, sz))
-			return (NULL);
-	}
-
-	void *data_ptr = &nw->data[nw->offset];
-	nw->offset += sz;
-	bzero(data_ptr, sz);
-
-	return (data_ptr);
-}
+void *nlmsg_reserve_data_raw(struct nl_writer *nw, size_t sz);
 #define nlmsg_reserve_object(_ns, _t)	((_t *)nlmsg_reserve_data_raw(_ns, sizeof(_t)))
 #define nlmsg_reserve_data(_ns, _sz, _t)	((_t *)nlmsg_reserve_data_raw(_ns, _sz))
 
@@ -258,30 +212,8 @@ _nlmsg_reserve_attr(struct nl_writer *nw, uint16_t nla_type, uint16_t sz)
 }
 #define	nlmsg_reserve_attr(_ns, _at, _t)	((_t *)_nlmsg_reserve_attr(_ns, _at, NLA_ALIGN(sizeof(_t))))
 
-static inline bool
-nlattr_add(struct nl_writer *nw, int attr_type, int attr_len, const void *data)
-{
-	int required_len = NLA_ALIGN(attr_len + sizeof(struct nlattr));
-
-	if (__predict_false(nw->offset + required_len > nw->alloc_len)) {
-		if (!nlmsg_refill_buffer(nw, required_len))
-			return (false);
-	}
-
-	struct nlattr *nla = (struct nlattr *)(&nw->data[nw->offset]);
-
-	nla->nla_len = attr_len + sizeof(struct nlattr);
-	nla->nla_type = attr_type;
-	if (attr_len > 0) {
-		if ((attr_len % 4) != 0) {
-			/* clear padding bytes */
-			bzero((char *)nla + required_len - 4, 4);
-		}
-		memcpy((nla + 1), data, attr_len);
-	}
-	nw->offset += required_len;
-	return (true);
-}
+bool nlattr_add(struct nl_writer *nw, int attr_type, int attr_len,
+    const void *data);
 
 static inline bool
 nlattr_add_raw(struct nl_writer *nw, const struct nlattr *nla_src)

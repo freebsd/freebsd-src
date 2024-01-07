@@ -81,21 +81,23 @@ inline int TCP_STATE_TIME_WAIT =	TCPS_TIME_WAIT;
 
 /* TCP segment flags. */
 #pragma D binding "1.6.3" TH_FIN
-inline uint8_t TH_FIN =		0x01;
+inline uint16_t TH_FIN =	0x01;
 #pragma D binding "1.6.3" TH_SYN
-inline uint8_t TH_SYN =		0x02;
+inline uint16_t TH_SYN =	0x02;
 #pragma D binding "1.6.3" TH_RST
-inline uint8_t TH_RST =		0x04;
+inline uint16_t TH_RST =	0x04;
 #pragma D binding "1.6.3" TH_PUSH
-inline uint8_t TH_PUSH =	0x08;
+inline uint16_t TH_PUSH =	0x08;
 #pragma D binding "1.6.3" TH_ACK
-inline uint8_t TH_ACK =		0x10;
+inline uint16_t TH_ACK =	0x10;
 #pragma D binding "1.6.3" TH_URG
-inline uint8_t TH_URG =		0x20;
+inline uint16_t TH_URG =	0x20;
 #pragma D binding "1.6.3" TH_ECE
-inline uint8_t TH_ECE =		0x40;
+inline uint16_t TH_ECE =	0x40;
 #pragma D binding "1.6.3" TH_CWR
-inline uint8_t TH_CWR =		0x80;
+inline uint16_t TH_CWR =	0x80;
+#pragma D binding "1.6.3" TH_AE
+inline uint16_t TH_AE =		0x100;
 
 /* TCP connection state strings. */
 #pragma D binding "1.6.3" tcp_state_string
@@ -173,7 +175,7 @@ typedef struct tcpinfo {
 	uint32_t tcp_seq;		/* sequence number */
 	uint32_t tcp_ack;		/* acknowledgment number */
 	uint8_t tcp_offset;		/* data offset, in bytes */
-	uint8_t tcp_flags;		/* flags */
+	uint16_t tcp_flags;		/* flags */
 	uint16_t tcp_window;		/* window size */
 	uint16_t tcp_checksum;		/* checksum */
 	uint16_t tcp_urgent;		/* urgent data pointer */
@@ -192,7 +194,7 @@ typedef struct tcpinfoh {
 	uint32_t tcp_seq;		/* sequence number */
 	uint32_t tcp_ack;		/* acknowledgment number */
 	uint8_t tcp_offset;		/* data offset, in bytes */
-	uint8_t tcp_flags;		/* flags */
+	uint16_t tcp_flags;		/* flags */
 	uint16_t tcp_window;		/* window size */
 	uint16_t tcp_checksum;		/* checksum */
 	uint16_t tcp_urgent;		/* urgent data pointer */
@@ -263,8 +265,8 @@ translator tcpinfo_t < struct tcphdr *p > {
 	tcp_dport =	p == NULL ? 0  : ntohs(p->th_dport);
 	tcp_seq =	p == NULL ? -1 : ntohl(p->th_seq);
 	tcp_ack =	p == NULL ? -1 : ntohl(p->th_ack);
-	tcp_offset =	p == NULL ? -1 : (p->th_off >> 2);
-	tcp_flags =	p == NULL ? 0  : p->th_flags;
+	tcp_offset =	p == NULL ? -1 : (p->th_off << 2);
+	tcp_flags =	p == NULL ? 0  : ((p->th_x2 << 8) | p->th_flags);
 	tcp_window =	p == NULL ? 0  : ntohs(p->th_win);
 	tcp_checksum =	p == NULL ? 0  : ntohs(p->th_sum);
 	tcp_urgent =	p == NULL ? 0  : ntohs(p->th_urp);
@@ -282,8 +284,8 @@ translator tcpinfoh_t < struct tcphdr *p > {
 	tcp_dport =	p == NULL ? 0  : ntohs(p->th_dport);
 	tcp_seq =	p == NULL ? -1 : p->th_seq;
 	tcp_ack =	p == NULL ? -1 : p->th_ack;
-	tcp_offset =	p == NULL ? -1 : (p->th_off >> 2);
-	tcp_flags =	p == NULL ? 0  : p->th_flags;
+	tcp_offset =	p == NULL ? -1 : (p->th_off << 2);
+	tcp_flags =	p == NULL ? 0  : ((p->th_x2 << 8) | p->th_flags);
 	tcp_window =	p == NULL ? 0  : p->th_win;
 	tcp_checksum =	p == NULL ? 0  : ntohs(p->th_sum);
 	tcp_urgent =	p == NULL ? 0  : p->th_urp;
@@ -311,17 +313,17 @@ inline int TA_DROP =	4;
 
 /* direction strings. */
 
-#pragma D binding "1.12.1" tcpdebug_dir_string
+#pragma D binding "1.13" tcpdebug_dir_string
 inline string tcpdebug_dir_string[uint8_t direction] =
 	direction == TA_INPUT ?	"input" :
 	direction == TA_OUTPUT ? "output" :
 	direction == TA_USER ? "user" :
 	direction == TA_RESPOND ? "respond" :
-	direction == TA_OUTPUT ? "drop" :
+	direction == TA_DROP ? "drop" :
 	"unknown" ;
 
-#pragma D binding "1.12.1" tcpflag_string
-inline string tcpflag_string[uint8_t flags] =
+#pragma D binding "1.13" tcpflag_string
+inline string tcpflag_string[uint16_t flags] =
 	flags & TH_FIN ?	"FIN" :
 	flags & TH_SYN ?	"SYN" :
 	flags & TH_RST ?	"RST" :
@@ -330,6 +332,7 @@ inline string tcpflag_string[uint8_t flags] =
 	flags & TH_URG ?	"URG" :
 	flags & TH_ECE ?	"ECE" :
 	flags & TH_CWR ?	"CWR" :
+	flags & TH_AE ? 	"AE" :
 	"unknown" ;
 
 #pragma D binding "1.12.1" PRU_ATTACH

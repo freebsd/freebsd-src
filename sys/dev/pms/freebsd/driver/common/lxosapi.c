@@ -331,7 +331,7 @@ osGLOBAL U32 ostiFreeMemory( tiRoot_t *ptiRoot,
       return tiInvalidHandle;
   }
 
-  AGTIAPI_PRINTK( "ostiFreeMemory: debug messsage %p ### \n",
+  AGTIAPI_PRINTK( "ostiFreeMemory: debug message %p ### \n",
                   (void*)pMem->dmaPhysAddr );
 
   // mark as unused

@@ -245,7 +245,7 @@ in the
 and
 .Va virt_size
 fields.
-The number of contigous physical memory segments and the address of the first
+The number of contiguous physical memory segments and the address of the first
 segment are returned in the
 .Va phys_nsegs
 and
@@ -261,8 +261,8 @@ fields.
 The behaviour of this operation banks heavily on how
 .Xr bus_dmamem_alloc 9
 is implemented, which means that memory is currently always allocated as a
-single contigous region of physical memory.
-In practice this also tends to give a single contigous region in bus space.
+single contiguous region of physical memory.
+In practice this also tends to give a single contiguous region in bus space.
 This may change over time.
 .It PROTO_IOC_BUSDMA_MEM_FREE
 Free previously allocated memory and destroy the memory descriptor.
@@ -293,7 +293,7 @@ Destroy the previously created memory descriptor specified by the
 field.
 When the memory descriptor is still loaded, it is unloaded first.
 .It PROTO_IOC_BUSDMA_MD_LOAD
-Load a contigous region of memory in the memory descriptor specified by the
+Load a contiguous region of memory in the memory descriptor specified by the
 .Va key
 field.
 The size and address in the process' virtual address space are specified

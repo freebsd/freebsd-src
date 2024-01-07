@@ -172,7 +172,7 @@ socket option set.
 .Pp
 In addition to the facilities defined in RFC7413, this implementation supports a
 pre-shared key (PSK) mode of operation in which the TFO server requires the
-client to be in posession of a shared secret in order for the client to be able
+client to be in possession of a shared secret in order for the client to be able
 to successfully open TFO connections with the server.
 This is useful, for example, in environments where TFO servers are exposed to
 both internal and external clients and only wish to allow TFO connections from
@@ -380,7 +380,7 @@ Changes NUMA affinity filtering for an established TCP listen
 socket.
 This option takes a single integer argument which specifies
 the NUMA domain to filter on for this listen socket.
-The argument can also have the follwing special values:
+The argument can also have the following special values:
 .Bl -tag -width "Dv TCP_REUSPORT_LB_NUMA"
 .It Dv TCP_REUSPORT_LB_NUMA_NODOM
 Remove NUMA filtering for this listen socket.
@@ -662,7 +662,7 @@ cache.
 Time in seconds between pruning expired host cache entries.
 Defaults to 300 (5 minutes).
 .It Va hostcache.purge
-Expire all entires on next pruning of host cache entries.
+Expire all entries on next pruning of host cache entries.
 Any non-zero setting will be reset to zero, once the purge
 is running.
 .Bl -tag -compact

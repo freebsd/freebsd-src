@@ -64,8 +64,7 @@ ENTRY(rfork_thread)
 	 */
 	pushl	8(%ebp)
 	pushl	$0
-	movl	$SYS_rfork, %eax
-	KERNCALL
+	_SYSCALL(rfork)
 	jb 	2f
 
 	/*
@@ -96,8 +95,7 @@ ENTRY(rfork_thread)
 	 */
 	pushl	%eax
 	pushl	$0
-	movl	$SYS_exit, %eax
-	KERNCALL
+	_SYSCALL(exit)
 
 	/*
 	 * Branch here if the thread creation fails:

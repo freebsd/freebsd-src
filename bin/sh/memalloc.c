@@ -283,7 +283,7 @@ growstackblock(int min)
 
 
 /*
- * The following routines are somewhat easier to use that the above.
+ * The following routines are somewhat easier to use than the above.
  * The user declares a variable of type STACKSTR, which may be declared
  * to be a register.  The macro STARTSTACKSTR initializes things.  Then
  * the user uses the macro STPUTC to add characters to the string.  In

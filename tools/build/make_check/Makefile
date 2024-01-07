@@ -58,10 +58,6 @@ all:
 	@echo "ok 14 shell # Test shell detected no regression."
 	@${SMAKE} shell_1 || ${SMAKE} failure
 	@echo "ok 15 shell_1 # Test shell_1 detected no regression."
-.if !defined(.PARSEDIR)
-	@${SMAKE} shell_2 || ${SMAKE} failure
-	@echo "ok 16 shell_2 # Test shell_2 detected no regression."
-.endif
 
 .if make(C_check)
 C_check:
@@ -101,28 +97,12 @@ notdef:
 .endif
 
 .if make(modifiers)
-.if defined(.PARSEDIR)
 # check if bmake can expand plain variables
 .MAKE.EXPAND_VARIABLES= yes
 x!= ${SMAKE} -V .CURDIR:H
 modifiers:
 .if ${.CURDIR:H} != "$x"
 	@false
-.endif
-.else
-# See if make(1) supports the C modifier.
-modifiers: dollarV
-	@if ${SMAKE} -V .CURDIR:C/.// 2>&1 >/dev/null | \
-	    grep -q "Unknown modifier 'C'"; then \
-		false; \
-	fi
-
-# check that make -V '${VAR}' works
-V_expn != V_OK=ok ${SMAKE} -r -f /dev/null -V '$${V_OK}'
-dollarV:
-.if ${V_expn} == ""
-	@false
-.endif
 .endif
 .endif
 

@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 1, 2023
+.Dd December 28, 2023
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -50,6 +50,12 @@
 .Ic tur
 .Op device id
 .Op generic args
+.Nm
+.Ic sense
+.Op device id
+.Op generic args
+.Op Fl D
+.Op Fl x
 .Nm
 .Ic inquiry
 .Op device id
@@ -488,6 +494,15 @@ Send the SCSI test unit ready (0x00) command to the given device.
 The
 .Nm
 utility will report whether the device is ready or not.
+.It Ic sense
+Send a SCSI REQUEST SENSE command (0x03) to a device.
+The decoded sense (or hexdump) is printed to stdout.
+.Bl -tag -width 4n
+.It Fl D
+Request descriptor sense instead of fixed sense.
+.It Fl x
+Do a hexdump of the returned sense data.
+.El
 .It Ic inquiry
 Send a SCSI inquiry command (0x12) to a device.
 By default,
@@ -745,7 +760,7 @@ Disable block descriptors for mode sense.
 Display/edit block descriptors instead of mode page.
 .It Fl L
 Use long LBA block descriptors.
-Allows number of LBAs bigger then 2^^32.
+Allows number of LBAs bigger than 2^^32.
 .It Fl b
 Displays mode page data in binary format.
 .It Fl e
@@ -762,7 +777,7 @@ The editor will be invoked if
 detects that standard input is terminal.
 .It Fl l
 Lists all available mode pages.
-If specified more then once, also lists subpages.
+If specified more than once, also lists subpages.
 .It Fl m Ar page[,subpage]
 This specifies the number of the mode page and optionally subpage the user
 would like to view and/or edit.
@@ -1685,6 +1700,8 @@ Tested with Constellation ES (ST32000444SS), ES.2 (ST33000651SS) and
 ES.3 (ST1000NM0023) drives.
 .It SmrtStor
 Tested with 400GB Optimus SSDs (TXA2D20400GA6001).
+.It TOSHIBA
+Tested with 22TB MG10SFA22TE SAS drives.
 .El
 .Pp
 .Em WARNING! WARNING! WARNING!

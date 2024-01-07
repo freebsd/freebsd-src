@@ -1,4 +1,4 @@
-/* $OpenBSD: scp.c,v 1.259 2023/09/10 23:12:32 djm Exp $ */
+/* $OpenBSD: scp.c,v 1.260 2023/10/11 05:42:08 djm Exp $ */
 /*
  * scp - secure remote copy.  This is basically patched BSD rcp which
  * uses ssh to do the data transfer (instead of using rcmd).
@@ -1813,8 +1813,16 @@ sink(int argc, char **argv, const char *src)
 				    fnmatch(patterns[n], cp, 0) == 0)
 					break;
 			}
-			if (n >= npatterns)
+			if (n >= npatterns) {
+				debug2_f("incoming filename \"%s\" does not "
+				    "match any of %zu expected patterns", cp,
+				    npatterns);
+				for (n = 0; n < npatterns; n++) {
+					debug3_f("expected pattern %zu: \"%s\"",
+					    n, patterns[n]);
+				}
 				SCREWUP("filename does not match request");
+			}
 		}
 		if (targisdir) {
 			static char *namebuf;
