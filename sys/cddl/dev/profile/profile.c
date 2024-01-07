@@ -58,6 +58,8 @@
 #include <sys/dtrace.h>
 #include <sys/dtrace_bsd.h>
 
+#include <cddl/dev/dtrace/dtrace_cddl.h>
+
 #define	PROF_NAMELEN		15
 
 #define	PROF_PROFILE		0
@@ -246,12 +248,15 @@ profile_probe(profile_probe_t *prof, hrtime_t late)
 	if (frame != NULL) {
 		if (TRAPF_USERMODE(frame))
 			upc = TRAPF_PC(frame);
-		else
+		else {
 			pc = TRAPF_PC(frame);
+			td->t_dtrace_trapframe = frame;
+		}
 	} else if (TD_IS_IDLETHREAD(td))
 		pc = (uintfptr_t)&cpu_idle;
 
 	dtrace_probe(prof->prof_id, pc, upc, late, 0, 0);
+	td->t_dtrace_trapframe = NULL;
 }
 
 static void
