@@ -423,7 +423,7 @@ k_hasafs(void)
     /*
      * Probe kernel for AFS specific syscalls,
      * they (currently) come in two flavors.
-     * If the syscall is absent we recive a SIGSYS.
+     * If the syscall is absent we receive a SIGSYS.
      */
     afs_entry_point = NO_ENTRY_POINT;
 
