@@ -32,6 +32,7 @@
 
 // Warn if a compiler version is used that is not supported anymore
 // LLVM RELEASE Update the minimum compiler versions
+#if defined(_LIBCPP_ENABLE_COMPILER_VERSION_CHECKS) // FreeBSD customization
 #  if defined(_LIBCPP_CLANG_VER)
 #    if _LIBCPP_CLANG_VER < 1600
 #      warning "Libc++ only supports Clang 16 and later"
@@ -45,6 +46,7 @@
 #      warning "Libc++ only supports GCC 13 and later"
 #    endif
 #  endif
+#endif // _LIBCPP_ENABLE_COMPILER_VERSION_CHECKS
 
 // The attributes supported by clang are documented at https://clang.llvm.org/docs/AttributeReference.html
 
@@ -725,7 +727,8 @@ typedef __char32_t char32_t;
 #      define _LIBCPP_TEMPLATE_VIS
 #    endif
 
-#    if !defined(_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS) && __has_attribute(__type_visibility__)
+#    if !defined(_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS) && __has_attribute(__type_visibility__) \
+        && _LIBCPP_CLANG_VER >= 1500 // FreeBSD customization
 #      define _LIBCPP_TYPE_VISIBILITY_DEFAULT __attribute__((__type_visibility__("default")))
 #    else
 #      define _LIBCPP_TYPE_VISIBILITY_DEFAULT
