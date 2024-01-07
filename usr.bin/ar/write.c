@@ -121,7 +121,7 @@ create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
 
 	/*
 	 * When option '-u' is specified and member is not newer than the
-	 * existing one, the replace will not happen. While if mtime == 0,
+	 * existing one, the replacement will not happen. While if mtime == 0,
 	 * which indicates that this is to "replace a none exist member",
 	 * the replace will proceed regardless of '-u'.
 	 */
