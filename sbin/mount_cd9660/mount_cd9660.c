@@ -58,8 +58,11 @@ static char sccsid[] = "@(#)mount_cd9660.c	8.7 (Berkeley) 5/1/95";
 
 #include <arpa/inet.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <grp.h>
+#include <pwd.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -74,6 +77,9 @@ static struct mntopt mopts[] = {
 	MOPT_END
 };
 
+static gid_t	a_gid(const char *);
+static uid_t	a_uid(const char *);
+static mode_t	a_mask(const char *);
 static int	get_ssector(const char *dev);
 static int	set_charset(struct iovec **, int *iovlen, const char *);
 void	usage(void);
@@ -94,7 +100,7 @@ main(int argc, char **argv)
 	mntflags = verbose = 0;
 	ssector = -1;
 
-	while ((ch = getopt(argc, argv, "begjo:rs:vC:")) != -1)
+	while ((ch = getopt(argc, argv, "begG:jm:M:o:rs:U:vC:")) != -1)
 		switch (ch) {
 		case 'b':
 			build_iovec(&iov, &iovlen, "brokenjoliet", NULL, (size_t)-1);
@@ -104,6 +110,15 @@ main(int argc, char **argv)
 			break;
 		case 'g':
 			build_iovec(&iov, &iovlen, "gens", NULL, (size_t)-1);
+			break;
+		case 'G':
+		        build_iovec_argf(&iov, &iovlen, "gid", "%d", a_gid(optarg));
+			break;
+		case 'm':
+			build_iovec_argf(&iov, &iovlen, "mask", "%u", a_mask(optarg));
+			break;
+		case 'M':
+			build_iovec_argf(&iov, &iovlen, "dirmask", "%u", a_mask(optarg));
 			break;
 		case 'j':
 			build_iovec(&iov, &iovlen, "nojoliet", NULL, (size_t)-1);
@@ -123,6 +138,9 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			ssector = atoi(optarg);
+			break;
+		case 'U':
+		        build_iovec_argf(&iov, &iovlen, "uid", "%d", a_uid(optarg));
 			break;
 		case 'v':
 			verbose++;
@@ -187,8 +205,8 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: mount_cd9660 [-begjrv] [-C charset] [-o options] [-s startsector]\n"
-"                    special node\n");
+"usage: mount_cd9660 [-begjrv] [-C charset] [-G gid] [-m mask] [-M mask]\n"
+"                    [-o options] [-U uid] [-s startsector] special node\n");
 	exit(EX_USAGE);
 }
 
@@ -267,4 +285,59 @@ set_charset(struct iovec **iov, int *iovlen, const char *localcs)
 	build_iovec(iov, iovlen, "cs_local", cs_local, (size_t)-1);
 
 	return (0);
+}
+
+static gid_t
+a_gid(const char *s)
+{
+	struct group *gr;
+	const char *gname;
+	gid_t gid;
+
+	if ((gr = getgrnam(s)) != NULL)
+		gid = gr->gr_gid;
+	else {
+		for (gname = s; *s && isdigit(*s); ++s);
+		if (!*s)
+			gid = atoi(gname);
+		else
+			errx(EX_NOUSER, "unknown group id: %s", gname);
+	}
+	return (gid);
+}
+
+static uid_t
+a_uid(const char *s)
+{
+	struct passwd *pw;
+	const char *uname;
+	uid_t uid;
+
+	if ((pw = getpwnam(s)) != NULL)
+		uid = pw->pw_uid;
+	else {
+		for (uname = s; *s && isdigit(*s); ++s);
+		if (!*s)
+			uid = atoi(uname);
+		else
+			errx(EX_NOUSER, "unknown user id: %s", uname);
+	}
+	return (uid);
+}
+
+static mode_t
+a_mask(const char *s)
+{
+	int done, rv;
+	char *ep;
+
+	done = 0;
+	rv = -1;
+	if (*s >= '0' && *s <= '7') {
+		done = 1;
+		rv = strtol(optarg, &ep, 8);
+	}
+	if (!done || rv < 0 || *ep)
+		errx(EX_USAGE, "invalid file mode: %s", s);
+	return (rv);
 }
