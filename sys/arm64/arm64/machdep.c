@@ -138,6 +138,15 @@ struct kva_md_info kmi;
 int64_t dczva_line_size;	/* The size of cache line the dc zva zeroes */
 int has_pan;
 
+#if defined(SOCDEV_PA)
+/*
+ * This is the virtual address used to access SOCDEV_PA. As it's set before
+ * .bss is cleared we need to ensure it's preserved. To do this use
+ * __read_mostly as it's only ever set once but read in the putc functions.
+ */
+uintptr_t socdev_va __read_mostly;
+#endif
+
 /*
  * Physical address of the EFI System Table. Stashed from the metadata hints
  * passed into the kernel and used by the EFI code to call runtime services.
