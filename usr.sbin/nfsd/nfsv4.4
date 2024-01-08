@@ -154,8 +154,8 @@ either client or server, this daemon must be running.
 The form where the numbers are in the strings can only be used for AUTH_SYS.
 To configure your systems this way, the
 .Xr nfsuserd 8
-daemon does not need to be running on the server, but the following sysctls need to be
-set to 1 on the server.
+daemon does not need to be running on the server, but the following sysctls
+need to be set to 1 on the server.
 .sp
 .Bd -literal -offset indent -compact
 vfs.nfs.enable_uidtostring
@@ -177,8 +177,8 @@ report a lot of ``nobody'' and ``nogroup'' ownerships.
 .Pp
 Although uid/gid numbers are no longer used in the
 .Nm
-protocol except optionally in the above strings, they will still be in the RPC authentication fields when
-using AUTH_SYS (sec=sys), which is the default.
+protocol except optionally in the above strings, they will still be in the RPC
+authentication fields when using AUTH_SYS (sec=sys), which is the default.
 As such, in this case both the user/group name and number spaces must
 be consistent between the client and server.
 .Pp
@@ -306,7 +306,8 @@ are set in
 Without a functioning callback path, a server will never issue Delegations
 to a client.
 .sp
-For NFSv4.0, by default, the callback address will be set to the IP address acquired via
+For NFSv4.0, by default, the callback address will be set to the IP address
+acquired via
 .Fn rtalloc
 in the kernel and port# 7745.
 To override the default port#, a command line option for
@@ -324,9 +325,9 @@ N.N.N.N.N.N
 where the first 4 Ns are the host IP address and the last two are the
 port# in network byte order (all decimal #s in the range 0-255).
 .Pp
-For NFSv4.1 and NFSv4.2, the callback path (called a backchannel) uses the same TCP connection as the mount,
-so none of the above applies and should work through gateways without
-any issues.
+For NFSv4.1 and NFSv4.2, the callback path (called a backchannel) uses the
+same TCP connection as the mount, so none of the above applies and should
+work through gateways without any issues.
 .Pp
 To build a kernel with the client that supports
 .Nm
@@ -354,7 +355,7 @@ It occurs when an nfsd thread tries to do an NFSv4
 .Fn VOP_RECLAIM
 / Close RPC as part of acquiring a new vnode.
 If all other nfsd threads are blocked waiting for lock(s) held by this nfsd
-thread, then there isn't an nfsd thread to service the Close RPC.
+thread, then there is no nfsd thread to service the Close RPC.
 .Sh FILES
 .Bl -tag -width /var/db/nfs-stablerestart.bak -compact
 .It Pa /var/db/nfs-stablerestart
