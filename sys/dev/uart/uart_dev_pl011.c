@@ -332,7 +332,7 @@ static kobj_method_t uart_pl011_methods[] = {
 };
 
 static struct uart_class uart_pl011_class = {
-	"uart_pl011",
+	"pl011",
 	uart_pl011_methods,
 	sizeof(struct uart_pl011_softc),
 	.uc_ops = &uart_pl011_ops,
@@ -340,6 +340,7 @@ static struct uart_class uart_pl011_class = {
 	.uc_rclk = 0,
 	.uc_rshift = 2
 };
+DATA_SET(uart_class_set, uart_pl011_class);
 
 #ifdef FDT
 static struct ofw_compat_data fdt_compat_data[] = {
