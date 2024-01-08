@@ -47,6 +47,8 @@
 #include <sys/taskqueue.h>
 #include <sys/vnode.h>
 
+#include <vm/vm_param.h>
+#include <vm/vnode_pager.h>
 #include <vm/uma.h>
 
 #include <fs/nfs/nfsport.h>
@@ -236,7 +238,6 @@ ncl_inactive(struct vop_inactive_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct nfsnode *np;
 	struct thread *td;
-	boolean_t retv;
 
 	td = curthread;
 	np = VTONFS(vp);
@@ -250,17 +251,9 @@ ncl_inactive(struct vop_inactive_args *ap)
 		 * buffers/pages must be flushed before the close, so that the
 		 * stateid is available for the writes.
 		 */
-		if (vp->v_object != NULL) {
-			VM_OBJECT_WLOCK(vp->v_object);
-			retv = vm_object_page_clean(vp->v_object, 0, 0,
-			    OBJPC_SYNC);
-			VM_OBJECT_WUNLOCK(vp->v_object);
-		} else
-			retv = TRUE;
-		if (retv == TRUE) {
-			(void)ncl_flush(vp, MNT_WAIT, td, 1, 0);
-			(void)nfsrpc_close(vp, 1, td);
-		}
+		vnode_pager_clean_sync(vp);
+		(void)ncl_flush(vp, MNT_WAIT, td, 1, 0);
+		(void)nfsrpc_close(vp, 1, td);
 	}
 
 	NFSLOCKNODE(np);

@@ -1690,3 +1690,30 @@ vnode_pager_getvp(vm_object_t object, struct vnode **vpp, bool *vp_heldp)
 {
 	*vpp = object->handle;
 }
+
+static void
+vnode_pager_clean1(struct vnode *vp, int sync_flags)
+{
+	struct vm_object *obj;
+
+	ASSERT_VOP_LOCKED(vp, "needs lock for writes");
+	obj = vp->v_object;
+	if (obj == NULL)
+		return;
+
+	VM_OBJECT_WLOCK(obj);
+	vm_object_page_clean(obj, 0, 0, sync_flags);
+	VM_OBJECT_WUNLOCK(obj);
+}
+
+void
+vnode_pager_clean_sync(struct vnode *vp)
+{
+	vnode_pager_clean1(vp, OBJPC_SYNC);
+}
+
+void
+vnode_pager_clean_async(struct vnode *vp)
+{
+	vnode_pager_clean1(vp, 0);
+}

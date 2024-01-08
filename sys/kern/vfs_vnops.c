@@ -88,6 +88,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vnode_pager.h>
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
@@ -2575,7 +2576,6 @@ int
 vn_bmap_seekhole_locked(struct vnode *vp, u_long cmd, off_t *off,
     struct ucred *cred)
 {
-	vm_object_t obj;
 	off_t size;
 	daddr_t bn, bnp;
 	uint64_t bsize;
@@ -2600,12 +2600,7 @@ vn_bmap_seekhole_locked(struct vnode *vp, u_long cmd, off_t *off,
 	}
 
 	/* See the comment in ufs_bmap_seekdata(). */
-	obj = vp->v_object;
-	if (obj != NULL) {
-		VM_OBJECT_WLOCK(obj);
-		vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
-		VM_OBJECT_WUNLOCK(obj);
-	}
+	vnode_pager_clean_sync(vp);
 
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 	for (bn = noff / bsize; noff < size; bn++, noff += bsize -
