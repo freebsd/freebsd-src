@@ -134,6 +134,14 @@ static delay_func *delay_impl;
 static void *delay_arg;
 #endif
 
+#if defined(SOCDEV_PA)
+#if !defined(SOCDEV_VA)
+#error SOCDEV_PA defined, but not SOCDEV_VA
+#endif
+uintptr_t socdev_va = SOCDEV_VA;
+#endif
+
+
 struct kva_md_info kmi;
 /*
  * arm32_vector_init:
