@@ -1439,11 +1439,9 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	/*
 	 * Now, flush as required.
 	 */
-	if ((flags & (V_SAVE | V_VMIO)) == V_SAVE &&
-	     vp->v_bufobj.bo_object != NULL) {
-		VM_OBJECT_WLOCK(vp->v_bufobj.bo_object);
-		vm_object_page_clean(vp->v_bufobj.bo_object, 0, 0, OBJPC_SYNC);
-		VM_OBJECT_WUNLOCK(vp->v_bufobj.bo_object);
+	if ((flags & (V_SAVE | V_VMIO)) == V_SAVE) {
+		vnode_pager_clean_sync(vp);
+
 		/*
 		 * If the page clean was interrupted, fail the invalidation.
 		 * Not doing so, we run the risk of losing dirty pages in the

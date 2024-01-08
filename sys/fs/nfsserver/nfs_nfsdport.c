@@ -52,6 +52,8 @@
 #include <sys/sysctl.h>
 #include <nlm/nlm_prot.h>
 #include <nlm/nlm.h>
+#include <vm/vm_param.h>
+#include <vm/vnode_pager.h>
 
 FEATURE(nfsd, "NFSv4 server");
 
@@ -1716,11 +1718,7 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 		/*
 		 * Give up and do the whole thing
 		 */
-		if (vp->v_object && vm_object_mightbedirty(vp->v_object)) {
-			VM_OBJECT_WLOCK(vp->v_object);
-			vm_object_page_clean(vp->v_object, 0, 0, OBJPC_SYNC);
-			VM_OBJECT_WUNLOCK(vp->v_object);
-		}
+		vnode_pager_clean_sync(vp);
 		error = VOP_FSYNC(vp, MNT_WAIT, td);
 	} else {
 		/*
