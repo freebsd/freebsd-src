@@ -7,6 +7,9 @@
 #endif
 
 #include <linux/pci.h>
+#if defined(__FreeBSD__)
+#include <sys/rman.h>
+#endif
 
 #include "mac.h"
 #include "pci.h"

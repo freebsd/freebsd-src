@@ -15,6 +15,7 @@
 #include <linux/bitops.h>
 #if defined(__FreeBSD__)
 #include <linux/delay.h>
+#include <sys/rman.h>
 #endif
 
 #include "core.h"
