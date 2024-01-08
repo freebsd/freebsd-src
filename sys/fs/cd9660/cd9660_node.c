@@ -149,8 +149,9 @@ cd9660_defattr(struct iso_directory_record *isodir, struct iso_node *inop,
 	}
 	if (!ap) {
 		inop->inode.iso_mode |= S_IRUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
-		inop->inode.iso_uid = (uid_t)0;
-		inop->inode.iso_gid = (gid_t)0;
+		/* Let the user that mounted the filesystem be the owner */
+		inop->inode.iso_uid = inop->i_mnt->im_mountp->mnt_cred->cr_ruid;
+		inop->inode.iso_gid = inop->i_mnt->im_mountp->mnt_cred->cr_rgid;
 	}
 	if (bp2)
 		brelse(bp2);
