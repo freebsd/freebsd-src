@@ -47,6 +47,7 @@
 #define	UART_TAG_SB	8
 #define	UART_TAG_XO	9
 #define	UART_TAG_BD	10
+#define	UART_TAG_RW	11
 
 static bus_addr_t
 uart_parse_addr(const char **p)
@@ -148,6 +149,10 @@ uart_parse_tag(const char **p)
 		tag = UART_TAG_RS;
 		goto out;
 	}
+	if ((*p)[0] == 'r' && (*p)[1] == 'w') {
+		tag = UART_TAG_RW;
+		goto out;
+	}
 	if ((*p)[0] == 's' && (*p)[1] == 'b') {
 		tag = UART_TAG_SB;
 		goto out;
@@ -225,6 +230,7 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 	/* Set defaults. */
 	di->bas.chan = 0;
 	di->bas.regshft = 0;
+	di->bas.regiowidth = 1;
 	di->bas.rclk = 0;
 	di->baudrate = 0;
 	di->databits = 8;
@@ -263,6 +269,9 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 			break;
 		case UART_TAG_RS:
 			di->bas.regshft = uart_parse_long(&spec);
+			break;
+		case UART_TAG_RW:
+			di->bas.regiowidth = uart_parse_long(&spec);
 			break;
 		case UART_TAG_SB:
 			di->stopbits = uart_parse_long(&spec);
