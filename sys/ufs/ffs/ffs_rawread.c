@@ -26,23 +26,21 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
+#include <sys/buf.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/proc.h>
+#include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
-#include <sys/vnode.h>
-#include <sys/conf.h>
-#include <sys/filio.h>
-#include <sys/ttycom.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
+#include <sys/proc.h>
 #include <sys/rwlock.h>
+#include <sys/stat.h>
+#include <sys/sysctl.h>
+#include <sys/vnode.h>
+
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
@@ -54,8 +52,6 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
 
 static int ffs_rawread_readahead(struct vnode *vp,
 				 caddr_t udata,
