@@ -239,6 +239,11 @@ struct iso_mnt {
 	struct g_consumer *im_cp;
 	struct bufobj *im_bo;
 
+	uid_t	im_uid;
+	gid_t	im_gid;
+	mode_t	im_fmask;
+	mode_t	im_dmask;
+
 	int logical_block_size;
 	int im_bshift;
 	int im_bmask;

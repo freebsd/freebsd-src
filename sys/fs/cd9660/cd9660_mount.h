@@ -42,6 +42,10 @@
 struct iso_args {
 	char	*fspec;			/* block special device to mount */
 	struct	oexport_args export;	/* network export info */
+	uid_t   uid;		    	/* uid that owns ISO-9660 files */
+	gid_t   gid;		    	/* gid that owns ISO-9660 files */
+	mode_t  fmask;		  	/* file mask to be applied for files */
+	mode_t  dmask;		  	/* file mask to be applied for directories */
 	int	flags;			/* mounting flags, see below */
 	int	ssector;		/* starting sector, 0 for 1st session */
 	char	*cs_disk;		/* disk charset for Joliet cs conversion */
@@ -53,3 +57,6 @@ struct iso_args {
 #define ISOFSMNT_NOJOLIET 0x00000008	/* disable Joliet Ext.*/
 #define ISOFSMNT_BROKENJOLIET 0x00000010/* allow broken Joliet disks */
 #define	ISOFSMNT_KICONV 0x00000020	/* Use libiconv to convert chars */
+
+#define ISOFSMNT_UID	0x00000100	/* override uid */
+#define ISOFSMNT_GID	0x00000200	/* override gid */
