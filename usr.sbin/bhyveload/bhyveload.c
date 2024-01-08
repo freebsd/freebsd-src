@@ -861,18 +861,14 @@ main(int argc, char** argv)
 	need_reinit = 0;
 	error = vm_create(vmname);
 	if (error) {
-		if (errno != EEXIST) {
-			perror("vm_create");
-			exit(1);
-		}
+		if (errno != EEXIST)
+			err(1, "vm_create");
 		need_reinit = 1;
 	}
 
 	ctx = vm_open(vmname);
-	if (ctx == NULL) {
-		perror("vm_open");
-		exit(1);
-	}
+	if (ctx == NULL)
+		err(1, "vm_open");
 
 	/*
 	 * If we weren't given an explicit loader to use, we need to support the
@@ -882,10 +878,8 @@ main(int argc, char** argv)
 		cap_rights_t rights;
 
 		bootfd = open("/boot", O_DIRECTORY | O_PATH);
-		if (bootfd == -1) {
-			perror("open");
-			exit(1);
-		}
+		if (bootfd == -1)
+			err(1, "open");
 
 		/*
 		 * bootfd will be used to do a lookup of our loader and do an
@@ -893,19 +887,15 @@ main(int argc, char** argv)
 		 * to the more usual lookup rights.
 		 */
 		if (caph_rights_limit(bootfd, cap_rights_init(&rights,
-		    CAP_FSTATAT, CAP_LOOKUP, CAP_MMAP_RX, CAP_READ)) < 0) {
-			perror("caph_rights_limit");
-			exit(1);
-		}
+		    CAP_FSTATAT, CAP_LOOKUP, CAP_MMAP_RX, CAP_READ)) < 0)
+			err(1, "caph_rights_limit");
 	}
 
 	vcpu = vm_vcpu_open(ctx, BSP);
 
 	caph_cache_catpages();
-	if (caph_enter() < 0) {
-		perror("caph_enter");
-		exit(1);
-	}
+	if (caph_enter() < 0)
+		err(1, "caph_enter");
 
 	/*
 	 * setjmp in the case the guest wants to swap out interpreter,
@@ -921,26 +911,19 @@ main(int argc, char** argv)
 
 	if (need_reinit) {
 		error = vm_reinit(ctx);
-		if (error) {
-			perror("vm_reinit");
-			exit(1);
-		}
+		if (error)
+			err(1, "vm_reinit");
 	}
 
 	vm_set_memflags(ctx, memflags);
 	error = vm_setup_memory(ctx, mem_size, VM_MMAP_ALL);
-	if (error) {
-		perror("vm_setup_memory");
-		exit(1);
-	}
+	if (error)
+		err(1, "vm_setup_memory");
 
 	loader_open(bootfd);
 	func = dlsym(loader_hdl, "loader_main");
-	if (!func) {
-		printf("%s\n", dlerror());
-		free(loader);
-		return (1);
-	}
+	if (!func)
+		errx(1, "dlsym: %s", dlerror());
 
 	tcgetattr(consout_fd, &term);
 	oldterm = term;
