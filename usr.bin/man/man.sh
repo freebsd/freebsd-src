@@ -1040,7 +1040,7 @@ do_man() {
 		do_full_search "${REGEXP}"
 	fi
 
-	for page in "$pages"; do
+	for page in "$@"; do
 		decho "Searching for \"$page\""
 		man_find_and_display "$page"
 	done
