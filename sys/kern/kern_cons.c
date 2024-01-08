@@ -72,6 +72,18 @@
 #include <machine/cpu.h>
 #include <machine/clock.h>
 
+/*
+ * Check for 'options EARLY_PRINTF' that may have been used in old kernel
+ * config files. If you are hitting this error you should update your
+ * config to use 'options EARLY_PRINTF=<device name>', e.g. with the
+ * Arm pl011 use:
+ *
+ * options EARLY_PRINTF=pl011
+ */
+#if CHECK_EARLY_PRINTF(1)
+#error Update your config to use 'options EARLY_PRINTF=<device name>'
+#endif
+
 static MALLOC_DEFINE(M_TTYCONS, "tty console", "tty console handling");
 
 struct cn_device {

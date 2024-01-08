@@ -54,18 +54,16 @@ struct snps_softc {
 /*
  * To use early printf on 64 bits Allwinner SoC, add to kernel config
  * options SOCDEV_PA=0x0
- * options SOCDEV_VA=0x40000000
- * options EARLY_PRINTF
+ * options EARLY_PRINTF=snps
  *
  * To use early printf on 32 bits Allwinner SoC, add to kernel config
  * options SOCDEV_PA=0x01C00000
  * options SOCDEV_VA=0x10000000
- * options EARLY_PRINTF
+ * options EARLY_PRINTF=snps
  *
  * remove the if 0
 */
-#if 0
-#ifdef EARLY_PRINTF
+#if CHECK_EARLY_PRINTF(snps)
 static void
 uart_snps_early_putc(int c)
 {
@@ -73,12 +71,12 @@ uart_snps_early_putc(int c)
 	volatile uint32_t *tx;
 
 #ifdef ALLWINNER_64
-	stat = (uint32_t *) (SOCDEV_VA + 0x1C2807C);
-	tx = (uint32_t *) (SOCDEV_VA + 0x1C28000);
+	stat = (uint32_t *) (socdev_va + 0x1C2807C);
+	tx = (uint32_t *) (socdev_va + 0x1C28000);
 #endif
 #ifdef ALLWINNER_32
-	stat = (uint32_t *) (SOCDEV_VA + 0x2807C);
-	tx = (uint32_t *) (SOCDEV_VA + 0x28000);
+	stat = (uint32_t *) (socdev_va + 0x2807C);
+	tx = (uint32_t *) (socdev_va + 0x28000);
 #endif
 
 	while ((*stat & (1 << 2)) == 0)
@@ -86,8 +84,7 @@ uart_snps_early_putc(int c)
 	*tx = c;
 }
 early_putc_t *early_putc = uart_snps_early_putc;
-#endif /* EARLY_PRINTF */
-#endif
+#endif /* CHECK_EARLY_PRINTF */
 
 static kobj_method_t snps_methods[] = {
 	KOBJMETHOD(uart_probe,		ns8250_bus_probe),

@@ -104,18 +104,15 @@
 /*
  * For debugging purposes
  */
-#if 0
-#ifdef EARLY_PRINTF
-#if defined(SOCDEV_PA) && defined(SOCDEV_VA)
-#define	UART_REG_OFFSET 0x12000
+#if CHECK_EARLY_PRINTF(mvebu)
 static void
 uart_mvebu_early_putc(int c)
 {
 	volatile uint32_t *tsh;
 	volatile uint32_t *stat;
 
-	tsh = (uint32_t *)(SOCDEV_VA + UART_REG_OFFSET + UART_TSH);
-	stat = (uint32_t *)(SOCDEV_VA + UART_REG_OFFSET + UART_STAT);
+	tsh = (uint32_t *)(socdev_va + UART_REG_OFFSET + UART_TSH);
+	stat = (uint32_t *)(socdev_va + UART_REG_OFFSET + UART_STAT);
 
 	while(!(*stat & STAT_TX_RDY))
 		;
@@ -124,8 +121,6 @@ uart_mvebu_early_putc(int c)
 }
 
 early_putc_t *early_putc = uart_mvebu_early_putc;
-#endif
-#endif
 #endif
 
 /*
