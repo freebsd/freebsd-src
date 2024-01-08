@@ -309,6 +309,7 @@ struct uart_class uart_z8530_class = {
 	.uc_rclk = DEFAULT_RCLK,
 	.uc_rshift = 0
 };
+DATA_SET(uart_class_set, uart_z8530_class);
 
 #define	SIGCHG(c, i, s, d)				\
 	if (c) {					\
