@@ -35,6 +35,10 @@ typedef int (*cfgread_handler)(struct passthru_softc *sc,
     struct pci_devinst *pi, int coff, int bytes, uint32_t *rv);
 typedef int (*cfgwrite_handler)(struct passthru_softc *sc,
     struct pci_devinst *pi, int coff, int bytes, uint32_t val);
+typedef uint64_t (*passthru_read_handler)(struct pci_devinst *pi, int baridx,
+    uint64_t offset, int size);
+typedef void (*passthru_write_handler)(struct pci_devinst *pi, int baridx, uint64_t offset,
+    int size, uint64_t val);
 
 uint32_t pci_host_read_config(const struct pcisel *sel, long reg, int width);
 void pci_host_write_config(const struct pcisel *sel, long reg, int width,
