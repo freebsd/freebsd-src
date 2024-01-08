@@ -107,6 +107,12 @@ cd9660_cmount(struct mntarg *ma, void *data, uint64_t flags)
 
 	ma = mount_argsu(ma, "from", args.fspec, MAXPATHLEN);
 	ma = mount_arg(ma, "export", &args.export, sizeof(args.export));
+	if (args.flags & ISOFSMNT_UID)
+		ma = mount_argf(ma, "uid", "%d", args.uid);
+	if (args.flags & ISOFSMNT_GID)
+		ma = mount_argf(ma, "gid", "%d", args.gid);
+	ma = mount_argf(ma, "mask", "%d", args.fmask);
+	ma = mount_argf(ma, "dirmask", "%d", args.dmask);
 	ma = mount_argsu(ma, "cs_disk", args.cs_disk, 64);
 	ma = mount_argsu(ma, "cs_local", args.cs_local, 64);
 	ma = mount_argf(ma, "ssector", "%u", args.ssector);
@@ -221,6 +227,7 @@ iso_mountfs(struct vnode *devvp, struct mount *mp)
 	struct g_consumer *cp;
 	struct bufobj *bo;
 	char *cs_local, *cs_disk;
+	int v;
 
 	dev = devvp->v_rdev;
 	dev_ref(dev);
@@ -390,12 +397,28 @@ iso_mountfs(struct vnode *devvp, struct mount *mp)
 	isomp->im_mountp = mp;
 	isomp->im_dev = dev;
 	isomp->im_devvp = devvp;
+	isomp->im_fmask = isomp->im_dmask = ACCESSPERMS;
 
 	vfs_flagopt(mp->mnt_optnew, "norrip", &isomp->im_flags, ISOFSMNT_NORRIP);
 	vfs_flagopt(mp->mnt_optnew, "gens", &isomp->im_flags, ISOFSMNT_GENS);
 	vfs_flagopt(mp->mnt_optnew, "extatt", &isomp->im_flags, ISOFSMNT_EXTATT);
 	vfs_flagopt(mp->mnt_optnew, "nojoliet", &isomp->im_flags, ISOFSMNT_NOJOLIET);
 	vfs_flagopt(mp->mnt_optnew, "kiconv", &isomp->im_flags, ISOFSMNT_KICONV);
+
+	if (vfs_scanopt(mp->mnt_optnew, "uid", "%d", &v) == 1) {
+		isomp->im_flags |= ISOFSMNT_UID;
+		isomp->im_uid = v;
+	}
+	if (vfs_scanopt(mp->mnt_optnew, "gid", "%d", &v) == 1) {
+		isomp->im_flags |= ISOFSMNT_GID;
+		isomp->im_gid = v;
+	}
+	if (vfs_scanopt(mp->mnt_optnew, "mask", "%d", &v) == 1) {
+		isomp->im_fmask &= v;
+	}
+	if (vfs_scanopt(mp->mnt_optnew, "dirmask", "%d", &v) == 1) {
+		isomp->im_dmask &= v;
+	}
 
 	/* Check the Rock Ridge Extension support */
 	if (!(isomp->im_flags & ISOFSMNT_NORRIP)) {
