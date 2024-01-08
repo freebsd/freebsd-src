@@ -67,6 +67,7 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
+#include <vm/vnode_pager.h>
 
 #include <fs/nfs/nfsport.h>
 #include <fs/nfsclient/nfsnode.h>
@@ -766,9 +767,7 @@ nfs_open(struct vop_open_args *ap)
 				if (VN_IS_DOOMED(vp))
 					return (EBADF);
 			}
-			VM_OBJECT_WLOCK(obj);
-			vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
-			VM_OBJECT_WUNLOCK(obj);
+			vnode_pager_clean_sync(vp);
 		}
 
 		/* Now, flush the buffer cache. */
@@ -854,9 +853,7 @@ nfs_close(struct vop_close_args *ap)
 			if (VN_IS_DOOMED(vp) && ap->a_fflag != FNONBLOCK)
 				return (EBADF);
 		}
-		VM_OBJECT_WLOCK(vp->v_object);
-		vm_object_page_clean(vp->v_object, 0, 0, 0);
-		VM_OBJECT_WUNLOCK(vp->v_object);
+		vnode_pager_clean_async(vp);
 	    }
 	    NFSLOCKNODE(np);
 	    if (np->n_flag & NMODIFIED) {
@@ -3637,7 +3634,6 @@ nfs_allocate(struct vop_allocate_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct thread *td = curthread;
-	vm_object_t obj;
 	struct nfsvattr nfsva;
 	struct nfsmount *nmp;
 	struct nfsnode *np;
@@ -3667,12 +3663,7 @@ nfs_allocate(struct vop_allocate_args *ap)
 		 * file's allocation on the server.
 		 */
 		if (error == 0) {
-			obj = vp->v_object;
-			if (obj != NULL) {
-				VM_OBJECT_WLOCK(obj);
-				vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
-				VM_OBJECT_WUNLOCK(obj);
-			}
+			vnode_pager_clean_sync(vp);
 			error = ncl_flush(vp, MNT_WAIT, td, 1, 0);
 		}
 		if (error == 0)
@@ -3908,9 +3899,7 @@ relock:
 					vn_finished_write(mp);
 				goto relock;
 			}
-			VM_OBJECT_WLOCK(invp_obj);
-			vm_object_page_clean(invp_obj, 0, 0, OBJPC_SYNC);
-			VM_OBJECT_WUNLOCK(invp_obj);
+			vnode_pager_clean_sync(invp);
 		}
 		error = ncl_flush(invp, MNT_WAIT, curthread, 1, 0);
 	}
@@ -4069,7 +4058,6 @@ static int
 nfs_ioctl(struct vop_ioctl_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	vm_object_t obj;
 	struct nfsvattr nfsva;
 	struct nfsmount *nmp;
 	int attrflag, content, error, ret;
@@ -4114,10 +4102,7 @@ nfs_ioctl(struct vop_ioctl_args *ap)
 		 * size is up to date on the Metadata Server.
 		 */
 
-		obj = vp->v_object;
-		VM_OBJECT_WLOCK(obj);
-		vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
-		VM_OBJECT_WUNLOCK(obj);
+		vnode_pager_clean_sync(vp);
 		error = ncl_flush(vp, MNT_WAIT, ap->a_td, 1, 0);
 		if (error == 0)
 			error = nfsrpc_seek(vp, (off_t *)ap->a_data, &eof,
