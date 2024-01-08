@@ -121,6 +121,10 @@ device		uart_ns8250	# ns8250-type UART driver
 device		uart_snps
 device		pl011
 
+# Early printf using the pl011 uart under the Arm FVP
+options 	SOCDEV_PA=0x1c090000
+options 	EARLY_PRINTF=pl011
+
 # USB support
 device		aw_usbphy		# Allwinner USB PHY
 device		dwcotg			# DWC OTG controller
