@@ -507,6 +507,16 @@ TEST_P(Io, resize_a_valid_buffer_while_extending)
 	close(m_test_fd);
 }
 
+/*
+ * mmap of a suitable region could trigger a panic.  I'm not sure what
+ * combination of size and offset counts as "suitable".  Regression test for
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=276191
+ */
+TEST_P(IoCacheable, vnode_pager_generic_putpage_clean_block_at_eof)
+{
+	do_mapwrite(0x1bbc3, 0x3b4e0);
+}
+
 INSTANTIATE_TEST_CASE_P(Io, Io,
 	Combine(Bool(),					/* async read */
 		Values(0x1000, 0x10000, 0x20000),	/* m_maxwrite */
