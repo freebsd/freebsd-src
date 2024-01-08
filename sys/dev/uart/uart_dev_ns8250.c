@@ -81,9 +81,12 @@ SYSCTL_INT(_hw, OID_AUTO, broken_txfifo, CTLFLAG_RWTUN,
  * To use early printf on x86, add the following to your kernel config:
  *
  * options UART_NS8250_EARLY_PORT=0x3f8
- * options EARLY_PRINTF
+ * options EARLY_PRINTF=ns8250
 */
-#if defined(EARLY_PRINTF) && (defined(__amd64__) || defined(__i386__))
+#if CHECK_EARLY_PRINTF(ns8250)
+#if !(defined(__amd64__) || defined(__i386__))
+#error ns8250 early putc is x86 specific as it uses inb/outb
+#endif
 static void
 uart_ns8250_early_putc(int c)
 {
