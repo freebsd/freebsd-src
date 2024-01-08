@@ -483,6 +483,7 @@ cc_post_recovery(struct tcpcb *tp, struct tcphdr *th)
 	/* XXXLAS: EXIT_RECOVERY ? */
 	tp->t_bytes_acked = 0;
 	tp->sackhint.delivered_data = 0;
+	tp->sackhint.prr_delivered = 0;
 	tp->sackhint.prr_out = 0;
 }
 
