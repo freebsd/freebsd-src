@@ -493,7 +493,7 @@
 /* #undef HAVE_EVP_CIPHER_CTX_GET_IV */
 
 /* Define to 1 if you have the `EVP_CIPHER_CTX_get_updated_iv' function. */
-#define HAVE_EVP_CIPHER_CTX_GET_UPDATED_IV 1
+/* #undef HAVE_EVP_CIPHER_CTX_GET_UPDATED_IV */
 
 /* Define to 1 if you have the `EVP_CIPHER_CTX_iv' function. */
 #define HAVE_EVP_CIPHER_CTX_IV 1
@@ -1414,7 +1414,7 @@
 #define HAVE_SYS_CDEFS_H 1
 
 /* Define to 1 if you have the <sys/dir.h> header file. */
-#define HAVE_SYS_DIR_H 1
+/* #undef HAVE_SYS_DIR_H */
 
 /* Define if your system defines sys_errlist[] */
 #define HAVE_SYS_ERRLIST 1
