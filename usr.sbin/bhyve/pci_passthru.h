@@ -53,3 +53,6 @@ struct passthru_mmio_mapping *passthru_get_mmio(struct passthru_softc *sc,
 struct pcisel *passthru_get_sel(struct passthru_softc *sc);
 int set_pcir_handler(struct passthru_softc *sc, int reg, int len,
     cfgread_handler rhandler, cfgwrite_handler whandler);
+int passthru_set_bar_handler(struct passthru_softc *sc, int baridx,
+    uint64_t off, uint64_t size, passthru_read_handler rhandler,
+    passthru_write_handler whandler);
