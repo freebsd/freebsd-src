@@ -82,6 +82,7 @@
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vnode_pager.h>
 #include <vm/uma.h>
 
 #include <fs/devfs/devfs.h>
@@ -3529,11 +3530,7 @@ retry:
 		goto drop;
 	vn_lock(vp, vn_lktype_write(mp, vp) | LK_RETRY);
 	AUDIT_ARG_VNODE1(vp);
-	if (vp->v_object != NULL) {
-		VM_OBJECT_WLOCK(vp->v_object);
-		vm_object_page_clean(vp->v_object, 0, 0, 0);
-		VM_OBJECT_WUNLOCK(vp->v_object);
-	}
+	vnode_pager_clean_async(vp);
 	error = fullsync ? VOP_FSYNC(vp, MNT_WAIT, td) : VOP_FDATASYNC(vp, td);
 	VOP_UNLOCK(vp);
 	vn_finished_write(mp);

@@ -68,6 +68,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
+#include <vm/vnode_pager.h>
 #include <vm/uma.h>
 #include <sys/aio.h>
 
@@ -718,7 +719,6 @@ static int
 aio_fsync_vnode(struct thread *td, struct vnode *vp, int op)
 {
 	struct mount *mp;
-	vm_object_t obj;
 	int error;
 
 	for (;;) {
@@ -726,12 +726,7 @@ aio_fsync_vnode(struct thread *td, struct vnode *vp, int op)
 		if (error != 0)
 			break;
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-		obj = vp->v_object;
-		if (obj != NULL) {
-			VM_OBJECT_WLOCK(obj);
-			vm_object_page_clean(obj, 0, 0, 0);
-			VM_OBJECT_WUNLOCK(obj);
-		}
+		vnode_pager_clean_async(vp);
 		if (op == LIO_DSYNC)
 			error = VOP_FDATASYNC(vp, td);
 		else
