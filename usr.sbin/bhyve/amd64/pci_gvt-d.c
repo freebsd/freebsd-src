@@ -39,9 +39,46 @@
 #define PCIM_BDSM_GSM_ALIGNMENT \
 	0x00100000 /* Graphics Stolen Memory is 1 MB aligned */
 
+#define BDSM_GEN11_MMIO_ADDRESS 0x1080C0
+
 #define GVT_D_MAP_GSM 0
 #define GVT_D_MAP_OPREGION 1
 #define GVT_D_MAP_VBT 2
+
+static uint64_t
+gvt_d_dsmbase_read(struct pci_devinst *pi, int baridx __unused, uint64_t offset,
+    int size)
+{
+	switch (size) {
+	case 1:
+		return (pci_get_cfgdata8(pi, PCIR_BDSM_GEN11 + offset));
+	case 2:
+		return (pci_get_cfgdata16(pi, PCIR_BDSM_GEN11 + offset));
+	case 4:
+		return (pci_get_cfgdata32(pi, PCIR_BDSM_GEN11 + offset));
+	default:
+		return (UINT64_MAX);
+	}
+}
+
+static void
+gvt_d_dsmbase_write(struct pci_devinst *pi, int baridx __unused,
+    uint64_t offset, int size, uint64_t val)
+{
+	switch (size) {
+	case 1:
+		pci_set_cfgdata8(pi, PCIR_BDSM_GEN11 + offset, val);
+		break;
+	case 2:
+		pci_set_cfgdata16(pi, PCIR_BDSM_GEN11 + offset, val);
+		break;
+	case 4:
+		pci_set_cfgdata32(pi, PCIR_BDSM_GEN11 + offset, val);
+		break;
+	default:
+		break;
+	}
+}
 
 static int
 set_bdsm_gen3(struct pci_devinst *const pi, vm_paddr_t bdsm_gpa)
@@ -82,6 +119,14 @@ set_bdsm_gen11(struct pci_devinst *const pi, vm_paddr_t bdsm_gpa)
 	    passthru_cfgwrite_emulate);
 	if (error) {
 		warnx("%s: Failed to setup handler for BDSM register!\n", __func__);
+		return (error);
+	}
+
+	/* Protect the BDSM register in MMIO space. */
+	error = passthru_set_bar_handler(sc, 0, BDSM_GEN11_MMIO_ADDRESS, sizeof(uint64_t),
+	    gvt_d_dsmbase_read, gvt_d_dsmbase_write);
+	if (error) {
+		warnx("%s: Failed to setup handler for BDSM mirror!\n", __func__);
 		return (error);
 	}
 
