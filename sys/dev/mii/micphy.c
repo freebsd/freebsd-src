@@ -276,6 +276,8 @@ micphy_attach(device_t dev)
 	else
 		ksz9021_load_values(sc, cfg->phynode);
 
+	mii_fdt_free_config(cfg);
+
 	return (0);
 }
 
