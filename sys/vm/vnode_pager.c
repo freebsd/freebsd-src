@@ -1394,12 +1394,13 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 start_write:
 		if (next_offset > poffset + maxsize)
 			next_offset = poffset + maxsize;
+		if (prev_offset == next_offset)
+			goto write_done;
 
 		/*
 		 * Getting here requires finding a dirty block in the
 		 * 'skip clean blocks' loop.
 		 */
-		MPASS(prev_offset < next_offset);
 
 		aiov.iov_base = NULL;
 		auio.uio_iovcnt = 1;
