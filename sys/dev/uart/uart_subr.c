@@ -48,11 +48,6 @@
 #define	UART_TAG_XO	9
 #define	UART_TAG_BD	10
 
-static struct uart_class *uart_classes[] = {
-	&uart_ns8250_class,
-	&uart_z8530_class,
-};
-
 static bus_addr_t
 uart_parse_addr(const char **p)
 {
@@ -62,13 +57,12 @@ uart_parse_addr(const char **p)
 static struct uart_class *
 uart_parse_class(struct uart_class *class, const char **p)
 {
-	struct uart_class *uc;
+	struct uart_class **puc, *uc;
 	const char *nm;
 	size_t len;
-	u_int i;
 
-	for (i = 0; i < nitems(uart_classes); i++) {
-		uc = uart_classes[i];
+	SET_FOREACH(puc, uart_class_set) {
+		uc = *puc;
 		nm = uart_getname(uc);
 		if (nm == NULL || *nm == '\0')
 			continue;
