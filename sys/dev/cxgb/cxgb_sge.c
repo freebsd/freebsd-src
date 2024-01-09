@@ -1838,7 +1838,7 @@ check_desc_avail(adapter_t *adap, struct sge_txq *q,
 	 * the control queue is only used for binding qsets which happens
 	 * at init time so we are guaranteed enough descriptors
 	 */
-	if (__predict_false(mbufq_len(&q->sendq))) {
+	if (__predict_false(!mbufq_empty(&q->sendq))) {
 addq_exit:	(void )mbufq_enqueue(&q->sendq, m);
 		return 1;
 	}
@@ -1954,7 +1954,7 @@ again:	reclaim_completed_tx_imm(q);
 		}
 		q->in_use++;
 	}
-	if (mbufq_len(&q->sendq)) {
+	if (!mbufq_empty(&q->sendq)) {
 		setbit(&qs->txq_stopped, TXQ_CTRL);
 
 		if (should_restart_tx(q) &&

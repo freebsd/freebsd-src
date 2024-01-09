@@ -222,7 +222,7 @@ _db_show_rxampdu(const char *sep, int ix, const struct ieee80211_rx_ampdu *rap)
 	db_printf("%s  age %d nframes %d\n", sep,
 		rap->rxa_age, rap->rxa_nframes);
 	for (i = 0; i < IEEE80211_AGGR_BAWMAX; i++)
-		if (mbufq_len(&rap->rxa_mq[i]) > 0) {
+		if (!mbufq_empty(&rap->rxa_mq[i])) {
 			db_printf("%s  m[%2u:%4u] ", sep, i,
 			    IEEE80211_SEQ_ADD(rap->rxa_start, i));
 			STAILQ_FOREACH(m, &rap->rxa_mq[i].mq_head,

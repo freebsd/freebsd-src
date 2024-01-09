@@ -177,7 +177,7 @@ epair_tx_start_deferred(void *arg, int pending)
 	 * end up starving ourselves in a multi-epair routing configuration.
 	 */
 	mtx_lock(&q->mtx);
-	if (mbufq_len(&q->q) > 0) {
+	if (!mbufq_empty(&q->q)) {
 		resched = true;
 		q->state = EPAIR_QUEUE_WAKING;
 	} else {
