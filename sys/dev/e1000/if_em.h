@@ -480,8 +480,6 @@ struct e1000_softc {
 	u16			num_vlans;
 	u32			txd_cmd;
 
-	u32			tx_process_limit;
-	u32			rx_process_limit;
 	u32			rx_mbuf_sz;
 
 	/* Management and WOL features */
