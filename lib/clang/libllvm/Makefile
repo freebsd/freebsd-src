@@ -1251,6 +1251,7 @@ SRCS_MIN+=	Target/AArch64/AArch64ISelDAGToDAG.cpp
 SRCS_MIN+=	Target/AArch64/AArch64ISelLowering.cpp
 SRCS_MIN+=	Target/AArch64/AArch64InstrInfo.cpp
 SRCS_MIN+=	Target/AArch64/AArch64LoadStoreOptimizer.cpp
+SRCS_MIN+=	Target/AArch64/AArch64LoopIdiomTransform.cpp
 SRCS_MIN+=	Target/AArch64/AArch64LowerHomogeneousPrologEpilog.cpp
 SRCS_MIN+=	Target/AArch64/AArch64MCInstLower.cpp
 SRCS_MIN+=	Target/AArch64/AArch64MIPeepholeOpt.cpp
@@ -1609,10 +1610,10 @@ SRCS_MIN+=	Target/X86/X86AvoidTrailingCall.cpp
 SRCS_MIN+=	Target/X86/X86CallFrameOptimization.cpp
 SRCS_MIN+=	Target/X86/X86CallingConv.cpp
 SRCS_MIN+=	Target/X86/X86CmovConversion.cpp
+SRCS_MIN+=	Target/X86/X86CompressEVEX.cpp
 SRCS_MIN+=	Target/X86/X86DiscriminateMemOps.cpp
 SRCS_MIN+=	Target/X86/X86DomainReassignment.cpp
 SRCS_MIN+=	Target/X86/X86DynAllocaExpander.cpp
-SRCS_MIN+=	Target/X86/X86EvexToVex.cpp
 SRCS_MIN+=	Target/X86/X86ExpandPseudo.cpp
 SRCS_MIN+=	Target/X86/X86FastISel.cpp
 SRCS_MIN+=	Target/X86/X86FastPreTileConfig.cpp
@@ -2117,10 +2118,10 @@ beforebuild:
 	AsmWriter1/-gen-asm-writer,-asmwriternum=1 \
 	CallingConv/-gen-callingconv \
 	CodeEmitter/-gen-emitter \
+	CompressEVEXTables/-gen-x86-compress-evex-tables \
 	CompressInstEmitter/-gen-compress-inst-emitter \
 	DAGISel/-gen-dag-isel \
 	DisassemblerTables/-gen-disassembler \
-	EVEX2VEXTables/-gen-x86-EVEX2VEX-tables \
 	FastISel/-gen-fast-isel \
 	FoldTables/-gen-x86-fold-tables,-asmwriternum=1 \
 	GlobalISel/-gen-global-isel \
@@ -2254,9 +2255,9 @@ TGHDRS+=	X86GenAsmMatcher.inc
 TGHDRS+=	X86GenAsmWriter.inc
 TGHDRS+=	X86GenAsmWriter1.inc
 TGHDRS+=	X86GenCallingConv.inc
+TGHDRS+=	X86GenCompressEVEXTables.inc
 TGHDRS+=	X86GenDAGISel.inc
 TGHDRS+=	X86GenDisassemblerTables.inc
-TGHDRS+=	X86GenEVEX2VEXTables.inc
 TGHDRS+=	X86GenFastISel.inc
 TGHDRS+=	X86GenFoldTables.inc
 TGHDRS+=	X86GenGlobalISel.inc
