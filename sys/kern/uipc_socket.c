@@ -3007,7 +3007,7 @@ soshutdown(struct socket *so, int how)
 	pr = so->so_proto;
 	if (pr->pr_flush != NULL)
 		pr->pr_flush(so, how);
-	if (how != SHUT_WR)
+	if (how != SHUT_WR && !(pr->pr_flags & PR_SOCKBUF))
 		sorflush(so);
 	if (how != SHUT_RD) {
 		error = pr->pr_shutdown(so);
