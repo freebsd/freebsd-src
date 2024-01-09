@@ -44,13 +44,15 @@ static void
 check_recvmsg(int cs, int ss, struct sockaddr *sa, const size_t sizes[],
     size_t nsizes)
 {
-	char buf[4096];
+	char buf[9000];
 
 	memset(buf, 0xFF, sizeof(buf));
 	for (size_t i = 0; i < nsizes; i++) {
 		ssize_t rc;
 		size_t sz = sizes[i];
 		char tbuf[1];
+
+		ATF_REQUIRE(sz <= sizeof(buf));
 
 		rc = sendto(cs, buf, sz, 0, sa, sa->sa_len);
 		ATF_REQUIRE_MSG(rc != -1, "sendto failed: %s", strerror(errno));
