@@ -1351,6 +1351,7 @@ Error WasmObjectFile::parseExportSection(ReadContext &Ctx) {
       break;
     case wasm::WASM_EXTERNAL_TABLE:
       Info.Kind = wasm::WASM_SYMBOL_TYPE_TABLE;
+      Info.ElementIndex = Ex.Index;
       break;
     default:
       return make_error<GenericBinaryError>("unexpected export kind",

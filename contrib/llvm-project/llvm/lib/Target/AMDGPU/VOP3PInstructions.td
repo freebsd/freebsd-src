@@ -125,15 +125,6 @@ defm V_PK_LSHRREV_B16 : VOP3PInst<"v_pk_lshrrev_b16", VOP3P_Profile<VOP_V2I16_V2
 
 let SubtargetPredicate = HasVOP3PInsts in {
 
-// Undo sub x, c -> add x, -c canonicalization since c is more likely
-// an inline immediate than -c.
-// The constant will be emitted as a mov, and folded later.
-// TODO: We could directly encode the immediate now
-def : GCNPat<
-  (add (v2i16 (VOP3PMods v2i16:$src0, i32:$src0_modifiers)), NegSubInlineConstV216:$src1),
-  (V_PK_SUB_U16 $src0_modifiers, $src0, SRCMODS.OP_SEL_1, NegSubInlineConstV216:$src1)
->;
-
 // Integer operations with clamp bit set.
 class VOP3PSatPat<SDPatternOperator pat, Instruction inst> : GCNPat<
   (pat (v2i16 (VOP3PMods v2i16:$src0, i32:$src0_modifiers)),
@@ -632,12 +623,12 @@ multiclass MAIInst<string OpName, string P, SDPatternOperator node,
     // FP32 denorm mode is respected, rounding mode is not. Exceptions are not supported.
     let Constraints = !if(NoDstOverlap, "@earlyclobber $vdst", "") in {
       def _e64 : MAIInst<OpName, !cast<VOPProfileMAI>("VOPProfileMAI_" # P),
-                         !if(NoDstOverlap, null_frag, AgprMAIFrag<node>)>,
+                         !if(!or(NoDstOverlap, !eq(node, null_frag)), null_frag, AgprMAIFrag<node>)>,
                  MFMATable<0, NAME # "_e64">;
 
       let SubtargetPredicate = isGFX90APlus, Mnemonic = OpName in
       def _vgprcd_e64 : MAIInst<OpName # "_vgprcd", !cast<VOPProfileMAI>("VOPProfileMAI_" # P # "_VCD"),
-                                !if(NoDstOverlap, null_frag, VgprMAIFrag<node>)>,
+                                !if(!or(NoDstOverlap, !eq(node, null_frag)), null_frag, VgprMAIFrag<node>)>,
                         MFMATable<0, NAME # "_vgprcd_e64">;
     }
 
@@ -645,12 +636,13 @@ multiclass MAIInst<string OpName, string P, SDPatternOperator node,
       let Constraints = !if(NoDstOverlap, "$vdst = $src2", ""),
           isConvertibleToThreeAddress = NoDstOverlap,
           Mnemonic = OpName in {
-        def "_mac_e64" : MAIInst<OpName # "_mac", !cast<VOPProfileMAI>("VOPProfileMAI_" # P), AgprMAIFrag<node>>,
+        def "_mac_e64" : MAIInst<OpName # "_mac", !cast<VOPProfileMAI>("VOPProfileMAI_" # P),
+                                 !if(!eq(node, null_frag), null_frag, AgprMAIFrag<node>)>,
                          MFMATable<1, NAME # "_e64">;
 
         let SubtargetPredicate = isGFX90APlus in
         def _mac_vgprcd_e64 : MAIInst<OpName # "_mac_vgprcd", !cast<VOPProfileMAI>("VOPProfileMAI_" # P # "_VCD"),
-                                      VgprMAIFrag<node>>,
+                                      !if(!eq(node, null_frag), null_frag, VgprMAIFrag<node>)>,
                               MFMATable<1, NAME # "_vgprcd_e64">;
       }
     }
