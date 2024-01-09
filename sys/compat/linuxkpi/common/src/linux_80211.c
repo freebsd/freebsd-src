@@ -3198,7 +3198,7 @@ lkpi_ic_node_free(struct ieee80211_node *ni)
 
 	/* Flush mbufq (make sure to release ni refs!). */
 #ifdef __notyet__
-	KASSERT(mbufq_len(&lsta->txq) == 0, ("%s: lsta %p has txq len %d != 0\n",
+	KASSERT(mbufq_empty(&lsta->txq), ("%s: lsta %p has txq len %d != 0\n",
 	    __func__, lsta, mbufq_len(&lsta->txq)));
 #endif
 	/* Drain taskq. */
