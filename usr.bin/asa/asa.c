@@ -1,4 +1,4 @@
-/*	$NetBSD: asa.c,v 1.11 1997/09/20 14:55:00 lukem Exp $	*/
+/*	$NetBSD: asa.c,v 1.17 2016/09/05 00:40:28 sevan Exp $	*/
 
 /*-
  * SPDX-License-Identifier: BSD-4-Clause
@@ -32,13 +32,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#if 0
-#ifndef lint
-__RCSID("$NetBSD: asa.c,v 1.11 1997/09/20 14:55:00 lukem Exp $");
-#endif
-#endif
 #include <err.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,38 +45,33 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-	int ch, exval;
 	FILE *fp;
-	const char *fn;
+	int ch, exval;
 
 	while ((ch = getopt(argc, argv, "")) != -1) {
 		switch (ch) {
-		case '?':
 		default:
 			usage();
-			/*NOTREACHED*/
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
 	exval = 0;
-	if (argc == 0)
+	if (*argv == NULL) {
 		asa(stdin);
-	else {
-		while ((fn = *argv++) != NULL) {
-			if (strcmp(fn, "-") == 0) {
+	} else {
+		do {
+			if (strcmp(*argv, "-") == 0) {
 				asa(stdin);
+			} else if ((fp = fopen(*argv, "r")) == NULL) {
+				warn("%s", *argv);
+				exval = 1;
 			} else {
-				if ((fp = fopen(fn, "r")) == NULL) {
-					warn("%s", fn);
-					exval = 1;
-					continue;
-				}
 				asa(fp);
 				fclose(fp);
 			}
-		}
+		} while (*++argv != NULL);
 	}
 
 	if (fflush(stdout) != 0)
@@ -93,7 +83,6 @@ main(int argc, char *argv[])
 static void
 usage(void)
 {
-
 	fprintf(stderr, "usage: asa [file ...]\n");
 	exit(1);
 }
@@ -101,52 +90,53 @@ usage(void)
 static void
 asa(FILE *f)
 {
-	size_t len;
 	char *buf;
+	size_t len;
+	bool eol = false;
 
-	if ((buf = fgetln(f, &len)) != NULL) {
-		if (buf[len - 1] == '\n')
-			buf[--len] = '\0';
-		/* special case the first line */
+	while ((buf = fgetln(f, &len)) != NULL) {
+		/* in all cases but '+', terminate previous line, if any */
+		if (buf[0] != '+' && eol)
+			putchar('\n');
+		/* examine and translate the control character */
 		switch (buf[0]) {
+		default:
+			/*
+			 * “It is suggested that implementations treat
+			 * characters other than 0, 1, and '+' as <space>
+			 * in the absence of any compelling reason to do
+			 * otherwise” (POSIX.1-2017)
+			 */
+		case ' ':
+			/* nothing */
+			break;
 		case '0':
 			putchar('\n');
 			break;
 		case '1':
 			putchar('\f');
 			break;
-		}
-
-		if (len > 1 && buf[0] && buf[1])
-			printf("%.*s", (int)(len - 1), buf + 1);
-
-		while ((buf = fgetln(f, &len)) != NULL) {
-			if (buf[len - 1] == '\n')
-				buf[--len] = '\0';
-			switch (buf[0]) {
-			default:
-			case ' ':
-				putchar('\n');
-				break;
-			case '0':
-				putchar('\n');
-				putchar('\n');
-				break;
-			case '1':
-				putchar('\f');
-				break;
-			case '+':
+		case '+':
+			/*
+			 * “If the '+' is the first character in the
+			 * input, it shall be equivalent to <space>.”
+			 * (POSIX.1-2017)
+			 */
+			if (eol)
 				putchar('\r');
-				break;
-			}
-
-			if (len > 1 && buf[0] && buf[1])
-				printf("%.*s", (int)(len - 1), buf + 1);
+			break;
 		}
-
-		putchar('\n');
+		/* trim newline if there is one */
+		if ((eol = (buf[len - 1] == '\n')))
+			--len;
+		/* print the rest of the input line */
+		if (len > 1 && buf[0] && buf[1])
+			fwrite(buf + 1, 1, len - 1, stdout);
 	}
-
+	/* terminate the last line, if any */
+	if (eol)
+		putchar('\n');
+	/* check for output errors */
 	if (ferror(stdout) != 0)
 		err(1, "stdout");
 }
