@@ -546,15 +546,6 @@ nl_pru_disconnect(struct socket *so)
 }
 
 static int
-nl_pru_shutdown(struct socket *so)
-{
-	NL_LOG(LOG_DEBUG3, "socket %p, PID %d", so, curproc->p_pid);
-	MPASS(sotonlpcb(so) != NULL);
-	socantsendmore(so);
-	return (0);
-}
-
-static int
 nl_sockaddr(struct socket *so, struct sockaddr *sa)
 {
 
@@ -990,7 +981,6 @@ nl_setsbopt(struct socket *so, struct sockopt *sopt)
 	.pr_disconnect = nl_pru_disconnect,			\
 	.pr_sosend = nl_sosend,					\
 	.pr_soreceive = nl_soreceive,				\
-	.pr_shutdown = nl_pru_shutdown,				\
 	.pr_sockaddr = nl_sockaddr,				\
 	.pr_close = nl_close
 
