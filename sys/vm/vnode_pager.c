@@ -1358,7 +1358,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 {
 	vm_object_t object;
 	vm_page_t m;
-	vm_ooffset_t maxblksz, next_offset, poffset, prev_offset;
+	vm_ooffset_t max_offset, next_offset, poffset, prev_offset;
 	struct uio auio;
 	struct iovec aiov;
 	off_t prev_resid, wrsz;
@@ -1433,15 +1433,15 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	auio.uio_segflg = UIO_NOCOPY;
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_td = NULL;
-	maxblksz = roundup2(poffset + maxsize, DEV_BSIZE);
+	max_offset = roundup2(poffset + maxsize, DEV_BSIZE);
 
-	for (prev_offset = poffset; prev_offset < maxblksz;) {
+	for (prev_offset = poffset; prev_offset < max_offset;) {
 		/* Skip clean blocks. */
-		for (in_hole = true; in_hole && prev_offset < maxblksz;) {
+		for (in_hole = true; in_hole && prev_offset < max_offset;) {
 			m = ma[OFF_TO_IDX(prev_offset - poffset)];
 			for (i = vn_off2bidx(prev_offset);
 			    i < sizeof(vm_page_bits_t) * NBBY &&
-			    prev_offset < maxblksz; i++) {
+			    prev_offset < max_offset; i++) {
 				if (vn_dirty_blk(m, prev_offset)) {
 					in_hole = false;
 					break;
@@ -1453,11 +1453,11 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 			goto write_done;
 
 		/* Find longest run of dirty blocks. */
-		for (next_offset = prev_offset; next_offset < maxblksz;) {
+		for (next_offset = prev_offset; next_offset < max_offset;) {
 			m = ma[OFF_TO_IDX(next_offset - poffset)];
 			for (i = vn_off2bidx(next_offset);
 			    i < sizeof(vm_page_bits_t) * NBBY &&
-			    next_offset < maxblksz; i++) {
+			    next_offset < max_offset; i++) {
 				if (!vn_dirty_blk(m, next_offset))
 					goto start_write;
 				next_offset += DEV_BSIZE;
