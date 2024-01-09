@@ -521,7 +521,7 @@ ampdu_rx_purge_slot(struct ieee80211_rx_ampdu *rap, int i)
 	struct mbuf *m;
 
 	/* Walk the queue, removing frames as appropriate */
-	while (mbufq_len(&rap->rxa_mq[i]) != 0) {
+	for (;;) {
 		m = mbufq_dequeue(&rap->rxa_mq[i]);
 		if (m == NULL)
 			break;
@@ -816,7 +816,7 @@ ampdu_dispatch_slot(struct ieee80211_rx_ampdu *rap, struct ieee80211_node *ni,
 	struct mbuf *m;
 	int n = 0;
 
-	while (mbufq_len(&rap->rxa_mq[i]) != 0) {
+	for (;;) {
 		m = mbufq_dequeue(&rap->rxa_mq[i]);
 		if (m == NULL)
 			break;
