@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240112: remove pmap_pinit2()
+OLD_FILES+=usr/share/man/man9/pmap_pinit2.9.gz
+
 # 20240112: replaced NetBSD tests for uniq with our own
 OLD_FILES+=usr/tests/usr.bin/uniq/d_basic.in
 OLD_FILES+=usr/tests/usr.bin/uniq/d_basic.out
