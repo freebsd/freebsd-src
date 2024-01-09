@@ -557,11 +557,58 @@ athn_vap_delete(struct ieee80211vap *vap)
 	free(uvp, M_80211_VAP);
 }
 
+static int
+athn_usb_get_fw_ver(struct athn_softc *sc, struct ar_wmi_fw_version *version)
+{
+	struct athn_usb_softc *usc = (struct athn_usb_softc *)sc;
+	struct ar_wmi_fw_version cmd_rsp;
+	int error;
+
+	device_printf(sc->sc_dev, "%s: called \n", __func__);
+
+	ATHN_LOCK(&usc->sc_sc);
+	error = athn_usb_wmi_xcmd(usc, AR_WMI_GET_FW_VERSION, NULL, 0, version);
+	ATHN_UNLOCK(&usc->sc_sc);
+
+	version->major = bswap16(version->major);
+	version->minor = bswap16(version->minor);
+
+	if (error != 0) {
+		device_printf(sc->sc_dev,  "%s: error = %d\n", __func__, error);
+		version->major = 0;
+		version->minor = 0;
+	}
+
+	return error;
+}
+
+/* Read fw version from module and compare it with passed image version */
+static int
+athn_usb_verify_fw_ver(struct athn_softc *sc, struct ar_wmi_fw_version *img_ver)
+{
+	struct athn_usb_softc *usc = (struct athn_usb_softc *)sc;
+	struct ar_wmi_fw_version fw_ver;
+	int error;
+
+	device_printf(sc->sc_dev, "%s: called \n", __func__);
+
+	error = athn_usb_get_fw_ver(sc, &fw_ver);
+
+	if ((img_ver->major != fw_ver.major) ||
+	    (img_ver->minor != fw_ver.minor)) {
+		device_printf(sc->sc_dev, "%s: Image fw version %d.%d differs from module fw version %d.%d\n",
+			      __func__, img_ver->major, img_ver->minor, fw_ver.major, fw_ver.minor);
+		return -1;
+	}
+	return error;
+}
+
 void
 athn_usb_attachhook(device_t self)
 {
 	struct athn_usb_softc *usc = device_get_softc(self);
 	struct athn_softc *sc = &usc->sc_sc;
+	struct ar_wmi_fw_version img_ver;
 	struct athn_ops *ops = &sc->ops;
 	uint32_t val = 104;
 #ifdef notyet
@@ -571,7 +618,7 @@ athn_usb_attachhook(device_t self)
 	int s, i, error;
 
 	/* Load firmware. */
-	error = athn_usb_load_firmware(usc);
+	error = athn_usb_load_firmware(usc, &img_ver);
 	if (error != 0) {
 		printf("Could not load firmware\n");
 		return;
@@ -580,6 +627,7 @@ athn_usb_attachhook(device_t self)
 	// TODO MichalP: this can be used as a starting point for echo command or firmware command
 //	ATHN_LOCK(&usc->sc_sc);
 //	device_printf(sc->sc_dev, " %s:val = %d\n", __func__, val);
+//  NOTE: command below is invalid because athn_usb_read has different arguments but let's keep that note about echo
 //	val = athn_usb_read(sc, AR_WMI_CMD_ECHO);
 //	device_printf(sc->sc_dev, "%s: returned val = %d\n", __func__, val);
 //	val = *(uint32_t*)usc->obuf;
@@ -592,6 +640,17 @@ athn_usb_attachhook(device_t self)
 	error = athn_usb_htc_setup(usc);
 	if (error != 0)
 		return;
+
+// TODO: MikolajF:I couldn't read a FW version before the firmware upload because 
+// the module never responded to the WMI request, even if I moved the htc setup 
+// before loading the FW. I don't know why, but checking it at this point is not
+//  useful and adds to the initialization time. It's not critical and can be
+// investigated or ignored in the future.
+#if 0
+	error = athn_usb_verify_fw_ver(sc, &img_ver);
+	if (error != 0)
+		return;
+#endif
 
 	/* We're now ready to attach the bus agnostic driver. */
 #if OpenBSD_IEEE80211_API
@@ -1013,7 +1072,8 @@ athn_if_intr_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 		STAILQ_REMOVE_HEAD(&usc->sc_cmd_active, next);
 		// MichalP TODO: this still needs some thinking maybe separate function
 		// different object that the thread sleeps on (cmd?)
-		if (usc->wait_msg_id == AR_HTC_MSG_CONN_SVC_RSP) {
+		if ((usc->wait_msg_id == AR_HTC_MSG_CONN_SVC_RSP) ||
+		    (usc->wait_msg_id == AR_WMI_CMD_MSG)) {
 			device_printf(sc->sc_dev, "%s: we are waiting for a response cmd: %p\n", __func__, cmd);
 			STAILQ_INSERT_TAIL(&usc->sc_cmd_waiting, cmd, next);
 		} else {
@@ -1374,6 +1434,7 @@ athn_usb_htc_setup(struct athn_usb_softc *usc)
 
 	error = athn_usb_htc_msg(usc, AR_HTC_MSG_SETUP_COMPLETE, NULL, 0);
 	if (error != 0) {
+		ATHN_UNLOCK(&usc->sc_sc);
 		printf("%s: could not complete setup\n",
 		    device_get_name(usc->usb_dev));
 		return (error);
@@ -1473,10 +1534,12 @@ athn_usb_wmi_xcmd(struct athn_usb_softc *usc, uint16_t cmd_id, void *ibuf,
 	wmi->cmd_id = htobe16(cmd_id);
 	usc->wmi_seq_no++;
 	wmi->seq_no = usc->wmi_seq_no;
+	usc->wait_msg_id = AR_WMI_CMD_MSG;
 
 	memcpy(&wmi[1], ibuf, ilen);
 
-	usc->wait_cmd_id = htobe16(cmd_id);
+	usc->wait_cmd_id = cmd_id;
+	usc->obuf = obuf;
 	STAILQ_INSERT_TAIL(&usc->sc_cmd_pending, data, next);
 	usbd_transfer_start(usc->sc_xfer[ATHN_BULK_CMD]);
 
@@ -1484,7 +1547,7 @@ athn_usb_wmi_xcmd(struct athn_usb_softc *usc, uint16_t cmd_id, void *ibuf,
 	 * Wait for WMI command complete interrupt. In case it does not fire
 	 * wait until the USB transfer times out to avoid racing the transfer.
 	 */
-	error = msleep(&usc->wait_cmd_id, &usc->sc_sc.sc_mtx, PCATCH, "athnwmi", hz);
+	error = msleep(&usc->wait_cmd_id, &usc->sc_sc.sc_mtx, PCATCH, "athnwmi", 2*hz);
 	if (error == EWOULDBLOCK) {
 		printf("%s: firmware command 0x%x timed out\n",
 			device_get_name(usc->usb_dev), cmd_id);
@@ -1492,12 +1555,13 @@ athn_usb_wmi_xcmd(struct athn_usb_softc *usc, uint16_t cmd_id, void *ibuf,
 	}
 
 	device_printf(sc->sc_dev, "%s: aftersleep\n", __func__);
-	obuf = usc->obuf;
 
 	/*
 	 * Both the WMI command and transfer are done or have timed out.
 	 * Allow other threads to enter this function and use data->xfer.
 	 */
+	usc->obuf = NULL;
+	usc->wait_msg_id = 0;
 	usc->wait_cmd_id = 0;
 	wakeup(&usc->wait_cmd_id);
 

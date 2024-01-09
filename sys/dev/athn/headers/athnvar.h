@@ -15,6 +15,8 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#ifndef IF_ATHNVAR_H
+#define IF_ATHNVAR_H
 
 //#include <openbsd/openbsd_queue.h>
 #include <sys/bus.h>
@@ -628,3 +630,4 @@ extern void	athn_detach(struct athn_softc *);
 extern void	athn_suspend(struct athn_softc *);
 extern void	athn_wakeup(struct athn_softc *);
 extern int	athn_intr(void *);
+#endif

@@ -16,6 +16,8 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#ifndef IF_ATHN_USB_H
+#define IF_ATHN_USB_H
 
 /* Maximum number of STAs firmware can handle. */
 #define AR_USB_MAX_STA	8
@@ -227,6 +229,10 @@ struct ar_htc_msg_hdr {
 #define AR_HTC_MSG_SETUP_COMPLETE	0x0004
 #define AR_HTC_MSG_CONF_PIPE		0x0005
 #define AR_HTC_MSG_CONF_PIPE_RSP	0x0006
+/* TODO: Mikolaj F.: Created to wait for result of AR_WMI_GET_FW_VERSION command.
+ * Consider if every WMI command shall have own id or a 1 common is fine. 
+ */
+#define AR_WMI_CMD_MSG				0x0007
 } __packed;
 
 /* Structure for services AR_SVC_WMI_DATA_{VO,VI,BE,BK}. */
@@ -362,6 +368,11 @@ struct ar_rx_status {
 	uint32_t	rs_evm[AR_MAX_CHAINS];
 } __packed __attribute__((aligned(4)));
 
+/* Structure to read major and minor version via WMI */
+struct ar_wmi_fw_version {
+	uint16_t major;
+	uint16_t minor;
+} __packed;
 
 /*
  * Driver definitions.
@@ -515,3 +526,5 @@ struct athn_usb_softc {
 					    struct ieee80211_node *);
 	int				sc_key_tasks;
 };
+
+#endif
