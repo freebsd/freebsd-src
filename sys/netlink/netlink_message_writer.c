@@ -65,6 +65,13 @@ nlmsg_get_buf(struct nl_writer *nw, u_int len, bool waitok)
 	return (true);
 }
 
+static bool
+nl_send_one(struct nl_writer *nw)
+{
+
+	return (nl_send(nw, nw->nlp));
+}
+
 bool
 _nlmsg_get_unicast_writer(struct nl_writer *nw, int size, struct nlpcb *nlp)
 {

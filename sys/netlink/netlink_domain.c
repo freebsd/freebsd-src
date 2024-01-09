@@ -233,7 +233,7 @@ nl_send_group(struct nl_writer *nw)
 				copy = nl_buf_copy(nb);
 				if (copy != NULL) {
 					nw->buf = copy;
-					(void)nl_send_one(nw);
+					(void)nl_send(nw, nlp_last);
 				} else {
 					NLP_LOCK(nlp_last);
 					if (nlp_last->nl_socket != NULL)
@@ -246,7 +246,7 @@ nl_send_group(struct nl_writer *nw)
 	}
 	if (nlp_last != NULL) {
 		nw->buf = nb;
-		(void)nl_send_one(nw);
+		(void)nl_send(nw, nlp_last);
 	} else
 		nl_buf_free(nb);
 

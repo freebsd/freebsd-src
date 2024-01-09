@@ -194,9 +194,8 @@ nl_taskqueue_handler(void *_arg, int pending)
  * If no queue overrunes happened, wakes up socket owner.
  */
 bool
-nl_send_one(struct nl_writer *nw)
+nl_send(struct nl_writer *nw, struct nlpcb *nlp)
 {
-	struct nlpcb *nlp = nw->nlp;
 	struct socket *so = nlp->nl_socket;
 	struct sockbuf *sb = &so->so_rcv;
 	struct nl_buf *nb;

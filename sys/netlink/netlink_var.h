@@ -130,9 +130,7 @@ void nl_osd_unregister(void);
 void nl_set_thread_nlp(struct thread *td, struct nlpcb *nlp);
 
 /* netlink_io.c */
-#define	NL_IOF_UNTRANSLATED	0x01
-#define	NL_IOF_IGNORE_LIMIT	0x02
-bool nl_send_one(struct nl_writer *);
+bool nl_send(struct nl_writer *, struct nlpcb *);
 void nlmsg_ack(struct nlpcb *nlp, int error, struct nlmsghdr *nlmsg,
     struct nl_pstate *npt);
 void nl_on_transmit(struct nlpcb *nlp);
