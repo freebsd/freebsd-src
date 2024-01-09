@@ -7,7 +7,7 @@
  * of Cambridge Computer Laboratory (Department of Computer Science
  * and Technology) under Defense Advanced Research Projects Agency
  * (DARPA) contract HR0011-18-C-0016 ("ECATS"), as part of the DARPA
- * SSITH research programme and under DARPA Contract No. HR001122S0003
+ * SSITH research programme and under DARPA Contract No. HR001123C0031
  * ("MTSS").
  *
  * Redistribution and use in source and binary forms, with or without
