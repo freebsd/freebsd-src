@@ -323,8 +323,8 @@ release_offload_resources(struct toepcb *toep)
 	 * that a normal connection's socket's so_snd would have been purged or
 	 * drained.  Do _not_ clean up here.
 	 */
-	MPASS(mbufq_len(&toep->ulp_pduq) == 0);
-	MPASS(mbufq_len(&toep->ulp_pdu_reclaimq) == 0);
+	MPASS(mbufq_empty(&toep->ulp_pduq));
+	MPASS(mbufq_empty(&toep->ulp_pdu_reclaimq));
 #ifdef INVARIANTS
 	if (ulp_mode(toep) == ULP_MODE_TCPDDP)
 		ddp_assert_empty(toep);
