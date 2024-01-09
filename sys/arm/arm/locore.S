@@ -98,6 +98,16 @@
 	.globl	btext
 btext:
 ASENTRY_NP(_start)
+	.rept 8			/* zImage header */
+	mov r0, r0
+	.endr
+
+	b start
+
+	.word 0x016f2818
+	.word 0                 /* absolute load/run zImage address or 0 or PIC */
+	.word (_edata - btext)
+start:
 	STOP_UNWINDING		/* Can't unwind into the bootloader! */
 
 	/* Make sure interrupts are disabled. */
