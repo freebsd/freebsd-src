@@ -2989,7 +2989,7 @@ mld_v2_dispatch_general_query(struct mld_ifsoftc *mli)
 	 * many packets, we should finish sending them before starting of
 	 * queuing the new reply.
 	 */
-	if (mbufq_len(&mli->mli_gq) != 0)
+	if (!mbufq_empty(&mli->mli_gq))
 		goto send;
 
 	ifp = mli->mli_ifp;

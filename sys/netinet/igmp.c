@@ -3364,7 +3364,7 @@ igmp_v3_dispatch_general_query(struct igmp_ifsoftc *igi)
 	 * many packets, we should finish sending them before starting of
 	 * queuing the new reply.
 	 */
-	if (mbufq_len(&igi->igi_gq) != 0)
+	if (!mbufq_empty(&igi->igi_gq))
 		goto send;
 
 	ifp = igi->igi_ifp;
