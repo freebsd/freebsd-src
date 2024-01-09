@@ -370,9 +370,9 @@ _WRAP_HOST_TOOL=	${_LINK_HOST_TOOL}
 .endif
 .for var in CC CXX CPP LD
 .for X in $${_empty_var_} X
-.if !empty(${X}${var}) && !${${X}${var}:M/*} && \
-	!${_toolchain_tools_to_symlink:U:M${${X}${var}}}
-_toolchain_tools_to_symlink+=	${${X}${var}}
+.if !empty(${X}${var}) && !${${X}${var}:[1]:M/*} && \
+	!${_toolchain_tools_to_symlink:U:M${${X}${var}:[1]}}
+_toolchain_tools_to_symlink+=	${${X}${var}:[1]}
 .endif
 .endfor
 .endfor
