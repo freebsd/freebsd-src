@@ -1813,8 +1813,7 @@ MLINKS+=pmap_extract.9 pmap_extract_and_hold.9
 MLINKS+=pmap_kextract.9 vtophys.9
 MLINKS+=pmap_init.9 pmap_init2.9
 MLINKS+=pmap_is_modified.9 pmap_ts_referenced.9
-MLINKS+=pmap_pinit.9 pmap_pinit0.9 \
-	pmap_pinit.9 pmap_pinit2.9
+MLINKS+=pmap_pinit.9 pmap_pinit0.9
 MLINKS+=pmap_qenter.9 pmap_qremove.9
 MLINKS+=pmap_quick_enter_page.9 pmap_quick_remove_page.9
 MLINKS+=pmap_remove.9 pmap_remove_all.9 \
