@@ -19,6 +19,9 @@ EMUL_SWP			opt_global.h
 # EFI Runtime services support
 EFIRT				opt_efirt.h
 
+# Bhyve
+VMM				opt_global.h
+
 # SoC Support
 SOC_ALLWINNER_A64		opt_soc.h
 SOC_ALLWINNER_H5		opt_soc.h

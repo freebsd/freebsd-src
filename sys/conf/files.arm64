@@ -116,6 +116,39 @@ arm64/iommu/smmu_quirks.c			optional iommu
 dev/iommu/busdma_iommu.c			optional iommu
 dev/iommu/iommu_gas.c				optional iommu
 
+arm64/vmm/vmm.c					optional vmm
+arm64/vmm/vmm_dev.c				optional vmm
+arm64/vmm/vmm_instruction_emul.c		optional vmm
+arm64/vmm/vmm_stat.c				optional vmm
+arm64/vmm/vmm_arm64.c				optional vmm
+arm64/vmm/vmm_reset.c				optional vmm
+arm64/vmm/vmm_call.S				optional vmm
+arm64/vmm/vmm_hyp_exception.S			optional vmm		\
+	compile-with	"${NORMAL_C:N-fsanitize*:N-mbranch-protection*} -fpie"		\
+	no-obj
+arm64/vmm/vmm_hyp.c				optional vmm		\
+	compile-with	"${NORMAL_C:N-fsanitize*:N-mbranch-protection*} -fpie"		\
+	no-obj
+vmm_hyp_blob.elf.full				optional vmm		\
+	dependency	"vmm_hyp.o vmm_hyp_exception.o"			\
+	compile-with	"${SYSTEM_LD_BASECMD} -o ${.TARGET} ${.ALLSRC} --defsym=text_start='0x0'"	\
+	no-obj no-implicit-rule
+vmm_hyp_blob.elf				optional vmm		\
+	dependency	"vmm_hyp_blob.elf.full"				\
+	compile-with	"${OBJCOPY} --strip-debug ${.ALLSRC} ${.TARGET}" \
+	no-obj no-implicit-rule
+vmm_hyp_blob.bin				optional vmm		\
+	dependency	vmm_hyp_blob.elf				\
+	compile-with	"${OBJCOPY} --output-target=binary ${.ALLSRC} ${.TARGET}" \
+	no-obj no-implicit-rule
+arm64/vmm/vmm_hyp_el2.S				optional vmm		\
+	dependency	vmm_hyp_blob.bin
+arm64/vmm/vmm_mmu.c				optional vmm
+arm64/vmm/io/vgic.c				optional vmm
+arm64/vmm/io/vgic_v3.c				optional vmm
+arm64/vmm/io/vgic_if.m				optional vmm
+arm64/vmm/io/vtimer.c				optional vmm
+
 crypto/armv8/armv8_crypto.c			optional armv8crypto
 armv8_crypto_wrap.o				optional armv8crypto	\
 	dependency	"$S/crypto/armv8/armv8_crypto_wrap.c"		\
