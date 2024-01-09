@@ -646,10 +646,6 @@ pf_handle_addrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (error);
 }
 
-struct nl_parsed_getrules {
-	char		*anchor;
-	uint8_t		 action;
-};
 #define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct pfioc_rule, _field)
 static const struct nlattr_parser nla_p_getrules[] = {
