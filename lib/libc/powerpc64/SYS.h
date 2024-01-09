@@ -40,11 +40,7 @@
 	li	0,(SYS_##name);					\
 	sc
 
-#define	PSEUDO(name)						\
-	.text;							\
-	.align 2;						\
-ENTRY(__sys_##name);						\
-	WEAK_REFERENCE(__sys_##name, _##name);			\
+#define _SYSCALL_BODY(name)					\
 	_SYSCALL(name);						\
 	bnslr;							\
 	mflr	%r0;						\
@@ -55,7 +51,14 @@ ENTRY(__sys_##name);						\
 	addi	%r1,%r1,48;					\
 	ld	%r0,16(%r1);					\
 	mtlr	%r0;						\
-	blr;							\
+	blr
+
+#define	PSEUDO(name)						\
+	.text;							\
+	.align 2;						\
+ENTRY(__sys_##name);						\
+	WEAK_REFERENCE(__sys_##name, _##name);			\
+	_SYSCALL_BODY(name);					\
 END(__sys_##name)
 
 #define	RSYSCALL(name)						\
@@ -64,16 +67,5 @@ END(__sys_##name)
 ENTRY(__sys_##name);						\
 	WEAK_REFERENCE(__sys_##name, name);			\
 	WEAK_REFERENCE(__sys_##name, _##name);			\
-	_SYSCALL(name);						\
-	bnslr;							\
-								\
-	mflr	%r0;						\
-	std	%r0,16(%r1);					\
-	stdu	%r1,-48(%r1);					\
-	bl	CNAME(HIDENAME(cerror));			\
-	nop;							\
-	addi	%r1,%r1,48;					\
-	ld	%r0,16(%r1);					\
-	mtlr	%r0;						\
-	blr;							\
+	_SYSCALL_BODY(name);					\
 END(__sys_##name)
