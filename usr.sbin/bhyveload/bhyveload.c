@@ -755,7 +755,7 @@ hostbase_open(const char *base)
 		err(EX_OSERR, "open");
 
 	if (caph_rights_limit(hostbase_fd, cap_rights_init(&rights, CAP_FSTATAT,
-	    CAP_LOOKUP, CAP_READ)) < 0)
+	    CAP_LOOKUP, CAP_PREAD)) < 0)
 		err(EX_OSERR, "caph_rights_limit");
 }
 
@@ -887,7 +887,7 @@ main(int argc, char** argv)
 		 * to the more usual lookup rights.
 		 */
 		if (caph_rights_limit(bootfd, cap_rights_init(&rights,
-		    CAP_FSTATAT, CAP_LOOKUP, CAP_MMAP_RX, CAP_READ)) < 0)
+		    CAP_FSTATAT, CAP_LOOKUP, CAP_MMAP_RX, CAP_PREAD)) < 0)
 			err(1, "caph_rights_limit");
 	}
 
