@@ -1277,11 +1277,9 @@ acpi_reserve_resources(device_t dev)
     struct resource_list_entry *rle;
     struct resource_list *rl;
     struct acpi_device *ad;
-    struct acpi_softc *sc;
     device_t *children;
     int child_count, i;
 
-    sc = device_get_softc(dev);
     if (device_get_children(dev, &children, &child_count) != 0)
 	return;
     for (i = 0; i < child_count; i++) {
@@ -1323,14 +1321,12 @@ acpi_reserve_resources(device_t dev)
 	}
     }
     free(children, M_TEMP);
-    sc->acpi_resources_reserved = 1;
 }
 
 static int
 acpi_set_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t start, rman_res_t count)
 {
-    struct acpi_softc *sc = device_get_softc(dev);
     struct acpi_device *ad = device_get_ivars(child);
     struct resource_list *rl = &ad->ad_rl;
     ACPI_DEVICE_INFO *devinfo;
@@ -1386,38 +1382,6 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
     /* Add the resource. */
     end = (start + count - 1);
     resource_list_add(rl, type, rid, start, end, count);
-
-    /* Don't reserve resources until the system resources are allocated. */
-    if (!sc->acpi_resources_reserved)
-	return (0);
-
-    /* Don't reserve system resources. */
-    if (ACPI_ID_PROBE(dev, child, sysres_ids, NULL) <= 0)
-	return (0);
-
-    /*
-     * Don't reserve IRQ resources.  There are many sticky things to
-     * get right otherwise (e.g. IRQs for psm, atkbd, and HPET when
-     * using legacy routing).
-     */
-    if (type == SYS_RES_IRQ)
-	return (0);
-
-    /*
-     * Don't reserve resources for CPU devices.  Some of these
-     * resources need to be allocated as shareable, but reservations
-     * are always non-shareable.
-     */
-    if (device_get_devclass(child) == devclass_find("cpu"))
-	return (0);
-
-    /*
-     * Reserve the resource.
-     *
-     * XXX: Ignores failure for now.  Failure here is probably a
-     * BIOS/firmware bug?
-     */
-    resource_list_reserve(rl, dev, child, type, &rid, start, end, count, 0);
     return (0);
 }
 
