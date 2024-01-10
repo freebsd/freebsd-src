@@ -12,6 +12,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240218:
+	MFC of 713db49d06de changed 'struct ieee80211vap' internals in net80211.
+	Given we do not have enough spares and the struct is allocated by
+	drivers, all wireless drivers have to be recompiled.
+	__FreeBSD_version is updated to 1303501 to track this change.
+
 20240207:
 	sendmail 8.18.1 has been imported and merged.  This version enforces
 	stricter RFC compliance by default, especially with respect to line

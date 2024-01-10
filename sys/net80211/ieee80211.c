@@ -729,6 +729,7 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = vap->iv_ifp;
+	int i;
 
 	CURVNET_SET(ifp->if_vnet);
 
@@ -743,7 +744,8 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	/*
 	 * Flush any deferred vap tasks.
 	 */
-	ieee80211_draintask(ic, &vap->iv_nstate_task);
+	for (i = 0; i < NET80211_IV_NSTATE_NUM; i++)
+		ieee80211_draintask(ic, &vap->iv_nstate_task[i]);
 	ieee80211_draintask(ic, &vap->iv_swbmiss_task);
 	ieee80211_draintask(ic, &vap->iv_wme_task);
 	ieee80211_draintask(ic, &ic->ic_parent_task);
