@@ -24,16 +24,31 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 29, 2023
+.Dd September 12, 2023
 .Dt "NETWORKING" 7
 .Os
 .Sh NAME
 .Nm networking ,
 .Nm wifi
 .Nd quickstart guide to connecting to a network
+.Sh DESCRIPTION
+.Fx
+names network interfaces according to the driver that loads them.
+In the following examples, it is assumed that we are connecting to Ethernet
+with the first interface found by the
+.Xr em 4
+driver, and Wi-Fi with the first interface found by the
+.Xr iwn 4
+driver, though your equipment almost certainly will vary.
 .Sh EXAMPLES
 .Ss Connecting to an Ethernet network with DHCP:
 .Dl # dhclient em0
+.Ss Connecting to a cellular network with USB tethering:
+Load the USB tethering driver,
+.Xr urndis 4 :
+.Dl # kldload urndis
+Ask for a DHCP lease on the USB tethering interface:
+.Dl # dhclient ue0
 .Ss Connecting to a Wi-Fi network:
 Identify your Wi-Fi hardware:
 .Dl % sysctl net.wlan.devices
@@ -43,7 +58,7 @@ Set that interface to negotiate a DHCP lease with
 .Xr wpa_supplicant 8 :
 .Dl # sysrc ifconfig_wlan0="WPA SYNCDHCP"
 Enter the details of the Wi-Fi network:
-.Dl # echo "network={ssid="myssid" psk="mypsk"} >> wpa_supplicant.conf
+.Dl # wpa_passphrase myssid mypsk >> wpa_supplicant.conf
 Restart the network interface daemon:
 .Dl # service netif restart
 .Ss Scanning for Wi-Fi networks:
@@ -54,7 +69,22 @@ Restart the network interface daemon:
 .Xr bsdconfig 8 ,
 .Xr dhclient 8 ,
 .Xr ifconfig 8 ,
+.Xr wpa_passphrase 8 ,
 .Xr wpa_supplicant 8
 .Pp
+The Advanced Networking chapter of the
 .Fx
-The Advanced Networking chapter of the FreeBSD Handbook
+Handbook.
+.Sh CAVEATS
+Shell Special Characters in the ssid or psk will need to be escaped for
+.Xr wpa_passphrase 8 ,
+commonly using
+.Ql / ,
+see the manual page for your shell for more details.
+.Pp
+Currently
+.Ql service netif restart
+does not restart routing.
+A common workaround is to issue
+.Ql service netif restart && service routing restart
+instead.
