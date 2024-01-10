@@ -2950,25 +2950,22 @@ sysctl_setsockopt(SYSCTL_HANDLER_ARGS, struct inpcbinfo *pcbinfo,
 			    htons(params->sop_inc.inc6_zoneid & 0xffff);
 	}
 #endif
-	if (params->sop_inc.inc_lport != htons(0)) {
-		if (params->sop_inc.inc_fport == htons(0))
-			inpi.hash = INP_PCBHASH_WILD(params->sop_inc.inc_lport,
+	if (params->sop_inc.inc_lport != htons(0) &&
+	    params->sop_inc.inc_fport != htons(0)) {
+#ifdef INET6
+		if (params->sop_inc.inc_flags & INC_ISIPV6)
+			inpi.hash = INP6_PCBHASH(
+			    &params->sop_inc.inc6_faddr,
+			    params->sop_inc.inc_lport,
+			    params->sop_inc.inc_fport,
 			    pcbinfo->ipi_hashmask);
 		else
-#ifdef INET6
-			if (params->sop_inc.inc_flags & INC_ISIPV6)
-				inpi.hash = INP6_PCBHASH(
-				    &params->sop_inc.inc6_faddr,
-				    params->sop_inc.inc_lport,
-				    params->sop_inc.inc_fport,
-				    pcbinfo->ipi_hashmask);
-			else
 #endif
-				inpi.hash = INP_PCBHASH(
-				    &params->sop_inc.inc_faddr,
-				    params->sop_inc.inc_lport,
-				    params->sop_inc.inc_fport,
-				    pcbinfo->ipi_hashmask);
+			inpi.hash = INP_PCBHASH(
+			    &params->sop_inc.inc_faddr,
+			    params->sop_inc.inc_lport,
+			    params->sop_inc.inc_fport,
+			    pcbinfo->ipi_hashmask);
 	}
 	while ((inp = inp_next(&inpi)) != NULL)
 		if (inp->inp_gencnt == params->sop_id) {
