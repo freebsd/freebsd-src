@@ -39,7 +39,8 @@ Identify your Wi-Fi hardware:
 .Dl % sysctl net.wlan.devices
 Configure your Wi-Fi hardware as wlan0 interface:
 .Dl # sysrc wlans_iwn0="wlan0"
-Set that interface to negotiate a dhcp lease with wpa supplicant:
+Set that interface to negotiate a DHCP lease with
+.Xr wpa_supplicant 8 :
 .Dl # sysrc ifconfig_wlan0="WPA SYNCDHCP"
 Enter the details of the Wi-Fi network:
 .Dl # echo "network={ssid="myssid" psk="mypsk"} >> wpa_supplicant.conf
