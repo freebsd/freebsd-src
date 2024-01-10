@@ -119,6 +119,10 @@ test stdout:
 --
 $(cat $STDOUT)
 --
+test stdout diff:
+--
+$(diff -u $EXOUT $STDOUT)
+--
 __EOF__
     fi
     if [ $(stat -f '%z' $STDERR) -gt 0 ]; then
