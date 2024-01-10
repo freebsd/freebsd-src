@@ -614,10 +614,12 @@ rtwn_vap_delete(struct ieee80211vap *vap)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct rtwn_softc *sc = ic->ic_softc;
 	struct rtwn_vap *uvp = RTWN_VAP(vap);
+	int i;
 
 	/* Put vap into INIT state + stop device if needed. */
 	ieee80211_stop(vap);
-	ieee80211_draintask(ic, &vap->iv_nstate_task);
+	for (i = 0; i < NET80211_IV_NSTATE_NUM; i++)
+		ieee80211_draintask(ic, &vap->iv_nstate_task[i]);
 	ieee80211_draintask(ic, &ic->ic_parent_task);
 
 	RTWN_LOCK(sc);
