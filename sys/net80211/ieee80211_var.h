@@ -410,9 +410,16 @@ struct ieee80211vap {
 	uint32_t		iv_com_state;	/* com usage / detached flag */
 	enum ieee80211_opmode	iv_opmode;	/* operation mode */
 	enum ieee80211_state	iv_state;	/* state machine state */
-	enum ieee80211_state	iv_nstate;	/* pending state */
-	int			iv_nstate_arg;	/* pending state arg */
-	struct task		iv_nstate_task;	/* deferred state processing */
+
+	/* Deferred state processing. */
+	enum ieee80211_state	iv_nstate;		/* next pending state (historic) */
+#define	NET80211_IV_NSTATE_NUM	8
+	int			iv_nstate_b;		/* First filled slot. */
+	int			iv_nstate_n;		/* # of filled slots. */
+	enum ieee80211_state	iv_nstates[NET80211_IV_NSTATE_NUM];	/* queued pending state(s) */
+	int			iv_nstate_args[NET80211_IV_NSTATE_NUM];	/* queued pending state(s) arg */
+	struct task		iv_nstate_task[NET80211_IV_NSTATE_NUM];
+
 	struct task		iv_swbmiss_task;/* deferred iv_bmiss call */
 	struct callout		iv_mgtsend;	/* mgmt frame response timer */
 						/* inactivity timer settings */
