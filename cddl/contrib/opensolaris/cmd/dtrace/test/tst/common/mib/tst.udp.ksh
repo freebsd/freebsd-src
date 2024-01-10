@@ -54,7 +54,7 @@ rupper()
 {
 	while true; do
 		rup localhost
-		/usr/bin/sleep 1
+		sleep 1
 	done
 }
 
