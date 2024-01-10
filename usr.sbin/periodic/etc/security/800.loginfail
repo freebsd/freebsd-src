@@ -49,12 +49,7 @@ catmsgs() {
 	    sort -t. -r -n -k 2,2 |
 	    while read f
 	    do
-		case $f in
-		    *.gz)	zcat -f $f;;
-		    *.bz2)	bzcat -f $f;;
-		    *.xz)	xzcat -f $f;;
-		    *.zst)	zstdcat -f $f;;
-		esac
+		zcat -f $f
 	    done
 	[ -f ${LOG}/auth.log ] && cat $LOG/auth.log
 }
