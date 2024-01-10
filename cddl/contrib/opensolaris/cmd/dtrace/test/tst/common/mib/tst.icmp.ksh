@@ -59,7 +59,7 @@ pinger()
 {
 	while true; do
 		ping -A inet localhost
-		/usr/bin/sleep 1
+		sleep 1
 	done
 }
 
