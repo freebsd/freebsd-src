@@ -336,7 +336,8 @@ ieee80211_proto_vattach(struct ieee80211vap *vap)
 	vap->iv_bmiss_max = IEEE80211_BMISS_MAX;
 	callout_init_mtx(&vap->iv_swbmiss, IEEE80211_LOCK_OBJ(ic), 0);
 	callout_init(&vap->iv_mgtsend, 1);
-	TASK_INIT(&vap->iv_nstate_task, 0, ieee80211_newstate_cb, vap);
+	for (i = 0; i < NET80211_IV_NSTATE_NUM; i++)
+		TASK_INIT(&vap->iv_nstate_task[i], 0, ieee80211_newstate_cb, vap);
 	TASK_INIT(&vap->iv_swbmiss_task, 0, beacon_swmiss, vap);
 	TASK_INIT(&vap->iv_wme_task, 0, vap_update_wme, vap);
 	TASK_INIT(&vap->iv_slot_task, 0, vap_update_slot, vap);
@@ -2493,6 +2494,51 @@ wakeupwaiting(struct ieee80211vap *vap0)
 	}
 }
 
+static int
+_ieee80211_newstate_get_next_empty_slot(struct ieee80211vap *vap)
+{
+	int nstate_num;
+
+	IEEE80211_LOCK_ASSERT(vap->iv_ic);
+
+	if (vap->iv_nstate_n >= NET80211_IV_NSTATE_NUM)
+		return (-1);
+
+	nstate_num = vap->iv_nstate_b + vap->iv_nstate_n;
+	nstate_num %= NET80211_IV_NSTATE_NUM;
+	vap->iv_nstate_n++;
+
+	return (nstate_num);
+}
+
+static int
+_ieee80211_newstate_get_next_pending_slot(struct ieee80211vap *vap)
+{
+	int nstate_num;
+
+	IEEE80211_LOCK_ASSERT(vap->iv_ic);
+
+	KASSERT(vap->iv_nstate_n > 0, ("%s: vap %p iv_nstate_n %d\n",
+	    __func__, vap, vap->iv_nstate_n));
+
+	nstate_num = vap->iv_nstate_b;
+	vap->iv_nstate_b++;
+	if (vap->iv_nstate_b >= NET80211_IV_NSTATE_NUM)
+		vap->iv_nstate_b = 0;
+	vap->iv_nstate_n--;
+
+	return (nstate_num);
+}
+
+static int
+_ieee80211_newstate_get_npending(struct ieee80211vap *vap)
+{
+
+	IEEE80211_LOCK_ASSERT(vap->iv_ic);
+
+	return (vap->iv_nstate_n);
+}
+
 /*
  * Handle post state change work common to all operating modes.
  */
@@ -2502,17 +2548,25 @@ ieee80211_newstate_cb(void *xvap, int npending)
 	struct ieee80211vap *vap = xvap;
 	struct ieee80211com *ic = vap->iv_ic;
 	enum ieee80211_state nstate, ostate;
-	int arg, rc;
+	int arg, rc, nstate_num;
 
+	KASSERT(npending == 1, ("%s: vap %p with npending %d != 1\n",
+	    __func__, vap, npending));
 	IEEE80211_LOCK(ic);
-	nstate = vap->iv_nstate;
-	arg = vap->iv_nstate_arg;
+	nstate_num = _ieee80211_newstate_get_next_pending_slot(vap);
+
+	/*
+	 * Update the historic fields for now as they are used in some
+	 * drivers and reduce code changes for now.
+	 */
+	vap->iv_nstate = nstate = vap->iv_nstates[nstate_num];
+	arg = vap->iv_nstate_args[nstate_num];
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
 	    "%s:%d: running state update %s -> %s (%d)\n",
 	    __func__, __LINE__,
 	    ieee80211_state_name[vap->iv_state],
-	    ieee80211_state_name[vap->iv_nstate],
+	    ieee80211_state_name[nstate],
 	    npending);
 
 	if (vap->iv_flags_ext & IEEE80211_FEXT_REINIT) {
@@ -2523,9 +2577,10 @@ ieee80211_newstate_cb(void *xvap, int npending)
 		/* Deny any state changes while we are here. */
 		vap->iv_nstate = IEEE80211_S_INIT;
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
-		    "%s: %s -> %s arg %d\n", __func__,
+		    "%s: %s -> %s arg %d -> %s arg %d\n", __func__,
 		    ieee80211_state_name[vap->iv_state],
-		    ieee80211_state_name[vap->iv_nstate], arg);
+		    ieee80211_state_name[vap->iv_nstate], 0,
+		    ieee80211_state_name[nstate], arg);
 		vap->iv_newstate(vap, vap->iv_nstate, 0);
 		IEEE80211_LOCK_ASSERT(ic);
 		vap->iv_flags_ext &= ~(IEEE80211_FEXT_REINIT |
@@ -2666,7 +2721,7 @@ ieee80211_new_state_locked(struct ieee80211vap *vap,
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211vap *vp;
 	enum ieee80211_state ostate;
-	int nrunning, nscanning;
+	int nrunning, nscanning, nstate_num;
 
 	IEEE80211_LOCK_ASSERT(ic);
 
@@ -2688,14 +2743,6 @@ ieee80211_new_state_locked(struct ieee80211vap *vap,
 			    ieee80211_state_name[nstate],
 			    ieee80211_state_name[vap->iv_nstate]);
 			return -1;
-		} else if (vap->iv_state != vap->iv_nstate) {
-			/* Warn if the previous state hasn't completed. */
-			IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
-			    "%s:%d: pending %s -> %s (now to %s) transition lost\n",
-			    __func__, __LINE__,
-			    ieee80211_state_name[vap->iv_state],
-			    ieee80211_state_name[vap->iv_nstate],
-			    ieee80211_state_name[nstate]);
 		}
 	}
 
@@ -2718,7 +2765,16 @@ ieee80211_new_state_locked(struct ieee80211vap *vap,
 				nscanning++;
 		}
 	}
-	ostate = vap->iv_state;
+	/*
+	 * Look ahead for the "old state" at that point when the last queued
+	 * state transition is run.
+	 */
+	if (vap->iv_nstate_n == 0) {
+		ostate = vap->iv_state;
+	} else {
+		nstate_num = (vap->iv_nstate_b + vap->iv_nstate_n - 1) % NET80211_IV_NSTATE_NUM;
+		ostate = vap->iv_nstates[nstate_num];
+	}
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
 	    "%s: %s -> %s (arg %d) (nrunning %d nscanning %d)\n", __func__,
 	    ieee80211_state_name[ostate], ieee80211_state_name[nstate], arg,
@@ -2812,11 +2868,37 @@ ieee80211_new_state_locked(struct ieee80211vap *vap,
 	default:
 		break;
 	}
-	/* defer the state change to a thread */
-	vap->iv_nstate = nstate;
-	vap->iv_nstate_arg = arg;
+	/*
+	 * Defer the state change to a thread.
+	 * We support up-to NET80211_IV_NSTATE_NUM pending state changes
+	 * using a separate task for each. Otherwise, if we enqueue
+	 * more than one state change they will be folded together,
+	 * npedning will be > 1 and we may run then out of sequence with
+	 * other events.
+	 * This is kind-of a hack after 10 years but we know how to provoke
+	 * these cases now (and seen them in the wild).
+	 */
+	nstate_num = _ieee80211_newstate_get_next_empty_slot(vap);
+	if (nstate_num == -1) {
+		/*
+		 * This is really bad and we should just go kaboom.
+		 * Instead drop it.  No one checks the return code anyway.
+		 */
+		ic_printf(ic, "%s:%d: pending %s -> %s (now to %s) "
+		    "transition lost. %d/%d pending state changes:\n",
+		    __func__, __LINE__,
+		    ieee80211_state_name[vap->iv_state],
+		    ieee80211_state_name[vap->iv_nstate],
+		    ieee80211_state_name[nstate],
+		    _ieee80211_newstate_get_npending(vap),
+		    NET80211_IV_NSTATE_NUM);
+
+		return (EAGAIN);
+	}
+	vap->iv_nstates[nstate_num] = nstate;
+	vap->iv_nstate_args[nstate_num] = arg;
 	vap->iv_flags_ext |= IEEE80211_FEXT_STATEWAIT;
-	ieee80211_runtask(ic, &vap->iv_nstate_task);
+	ieee80211_runtask(ic, &vap->iv_nstate_task[nstate_num]);
 	return EINPROGRESS;
 }
 

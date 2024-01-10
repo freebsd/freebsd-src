@@ -470,7 +470,8 @@ _db_show_vap(const struct ieee80211vap *vap, int showmesh, int showprocs)
 	if (vap->iv_opmode == IEEE80211_M_MBSS)
 		db_printf("(%p)", vap->iv_mesh);
 #endif
-	db_printf(" state %s", ieee80211_state_name[vap->iv_state]);
+	db_printf(" state %#x %s", vap->iv_state,
+	    ieee80211_state_name[vap->iv_state]);
 	db_printf(" ifp %p(%s)", vap->iv_ifp, if_name(vap->iv_ifp));
 	db_printf("\n");
 
@@ -482,6 +483,16 @@ _db_show_vap(const struct ieee80211vap *vap, int showmesh, int showprocs)
 	struct sysctllog	*iv_sysctl;	/* dynamic sysctl context */
 #endif
 	db_printf("\n");
+
+	db_printf("\tiv_nstate %#x %s iv_nstate_b %d iv_nstate_n %d\n",
+	    vap->iv_nstate, ieee80211_state_name[vap->iv_nstate], /* historic */
+	    vap->iv_nstate_b, vap->iv_nstate_n);
+	for (i = 0; i < NET80211_IV_NSTATE_NUM; i++) {
+		db_printf("\t [%d] iv_nstates %#x %s _task %p _args %d\n", i,
+		    vap->iv_nstates[i], ieee80211_state_name[vap->iv_nstates[i]],
+		    &vap->iv_nstate_task[i], vap->iv_nstate_args[i]);
+	}
+
 	db_printf("\tdebug=%b\n", vap->iv_debug, IEEE80211_MSG_BITS);
 
 	db_printf("\tflags=%b\n", vap->iv_flags, IEEE80211_F_BITS);
