@@ -41,7 +41,8 @@
 #include "local.h"
 
 int
-vasprintf_l(char **str, locale_t locale, const char *fmt, __va_list ap)
+vasprintf_l(char **__restrict str, locale_t locale, const char *__restrict fmt,
+    __va_list ap)
 {
 	FILE f = FAKE_FILE;
 	int ret;
@@ -67,7 +68,7 @@ vasprintf_l(char **str, locale_t locale, const char *fmt, __va_list ap)
 	return (ret);
 }
 int
-vasprintf(char **str, const char *fmt, __va_list ap)
+vasprintf(char **__restrict str, const char *__restrict fmt, __va_list ap)
 {
 	return vasprintf_l(str, __get_locale(), fmt, ap);
 }

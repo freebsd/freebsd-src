@@ -34,7 +34,7 @@
 
 #include <sys/types.h>
 
-typedef	intptr_t word;		/* "word" used for optimal copy speed */
+typedef uintptr_t word; /* "word" used for optimal copy speed */
 
 #define	wsize	sizeof(word)
 #define	wmask	(wsize - 1)
@@ -46,14 +46,14 @@ typedef	intptr_t word;		/* "word" used for optimal copy speed */
  */
 #if defined(MEMCOPY) || defined(MEMMOVE)
 #include <string.h>
-
-void *
-#ifdef MEMCOPY
-memcpy
-#else
-memmove
 #endif
-(void *dst0, const void *src0, size_t length)
+
+#ifdef MEMCOPY
+void *
+memcpy(void *__restrict dst0, const void *__restrict src0, size_t length)
+#elif defined(MEMMOVE)
+void *
+memmove(void *dst0, const void *src0, size_t length)
 #else
 #include <strings.h>
 
@@ -61,8 +61,8 @@ void
 bcopy(const void *src0, void *dst0, size_t length)
 #endif
 {
-	char *dst = dst0;
-	const char *src = src0;
+	unsigned char *dst = dst0;
+	const unsigned char *src = src0;
 	size_t t;
 
 	if (length == 0 || dst == src)		/* nothing to do */

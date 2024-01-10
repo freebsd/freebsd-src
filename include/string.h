@@ -118,7 +118,7 @@ char	*strnstr(const char *, const char *, size_t) __pure;
 char	*strpbrk(const char *, const char *) __pure;
 char	*strrchr(const char *, int) __pure;
 #if __BSD_VISIBLE
-char	*strsep(char **, const char *);
+char *strsep(char **__restrict, const char *__restrict);
 #endif
 #if __POSIX_VISIBLE >= 200809
 char	*strsignal(int);
@@ -127,7 +127,7 @@ size_t	 strspn(const char *, const char *) __pure;
 char	*strstr(const char *, const char *) __pure;
 char	*strtok(char * __restrict, const char * __restrict);
 #if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE >= 500
-char	*strtok_r(char *, const char *, char **);
+char *strtok_r(char *__restrict, const char *__restrict, char **__restrict);
 #endif
 size_t	 strxfrm(char * __restrict, const char * __restrict, size_t);
 #if __BSD_VISIBLE

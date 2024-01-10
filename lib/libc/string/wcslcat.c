@@ -46,7 +46,7 @@ __RCSID("$NetBSD: wcslcat.c,v 1.1 2000/12/23 23:14:36 itojun Exp $");
  * truncation occurred.
  */
 size_t
-wcslcat(wchar_t *dst, const wchar_t *src, size_t siz)
+wcslcat(wchar_t *__restrict dst, const wchar_t *__restrict src, size_t siz)
 {
 	wchar_t *d = dst;
 	const wchar_t *s = src;

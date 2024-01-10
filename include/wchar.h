@@ -156,8 +156,7 @@ wchar_t	*wcsrchr(const wchar_t *, wchar_t) __pure;
 size_t	wcsrtombs(char * __restrict, const wchar_t ** __restrict, size_t,
 	    mbstate_t * __restrict);
 size_t	wcsspn(const wchar_t *, const wchar_t *) __pure;
-wchar_t	*wcsstr(const wchar_t * __restrict, const wchar_t * __restrict)
-	    __pure;
+wchar_t *wcsstr(const wchar_t *, const wchar_t *) __pure;
 size_t	wcsxfrm(wchar_t * __restrict, const wchar_t * __restrict, size_t);
 int	wctob(wint_t);
 double	wcstod(const wchar_t * __restrict, wchar_t ** __restrict);
@@ -230,8 +229,8 @@ size_t	wcsnrtombs(char * __restrict, const wchar_t ** __restrict, size_t,
 
 #if __BSD_VISIBLE
 wchar_t	*fgetwln(FILE * __restrict, size_t * __restrict);
-size_t	wcslcat(wchar_t *, const wchar_t *, size_t);
-size_t	wcslcpy(wchar_t *, const wchar_t *, size_t);
+size_t	wcslcat(wchar_t *__restrict, const wchar_t *__restrict, size_t);
+size_t	wcslcpy(wchar_t *__restrict, const wchar_t *__restrict, size_t);
 #endif
 
 #if __POSIX_VISIBLE >= 200809 || defined(_XLOCALE_H_)

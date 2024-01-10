@@ -35,7 +35,7 @@
 #include <sys/malloc.h>
 
 char *
-strndup(const char *string, size_t maxlen, struct malloc_type *type)
+strndup(const char *__restrict string, size_t maxlen, struct malloc_type *type)
 {
 	size_t len;
 	char *copy;

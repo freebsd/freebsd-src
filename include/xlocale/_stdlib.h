@@ -42,13 +42,13 @@ size_t			 mbstowcs_l(wchar_t * __restrict,
 			    const char * __restrict, size_t, locale_t);
 int			 mbtowc_l(wchar_t * __restrict,
 			    const char * __restrict, size_t, locale_t);
-double			 strtod_l(const char *, char **, locale_t);
-float			 strtof_l(const char *, char **, locale_t);
-long			 strtol_l(const char *, char **, int, locale_t);
-long double		 strtold_l(const char *, char **, locale_t);
-long long		 strtoll_l(const char *, char **, int, locale_t);
-unsigned long		 strtoul_l(const char *, char **, int, locale_t);
-unsigned long long	 strtoull_l(const char *, char **, int, locale_t);
+double			 strtod_l(const char *__restrict, char **__restrict, locale_t);
+float			 strtof_l(const char *__restrict, char **__restrict, locale_t);
+long			 strtol_l(const char *__restrict, char **__restrict, int, locale_t);
+long double		 strtold_l(const char *__restrict, char **__restrict, locale_t);
+long long		 strtoll_l(const char *__restrict, char **__restrict, int, locale_t);
+unsigned long		 strtoul_l(const char *__restrict, char **__restrict, int, locale_t);
+unsigned long long	 strtoull_l(const char *__restrict, char **__restrict, int, locale_t);
 size_t			 wcstombs_l(char * __restrict,
 			    const wchar_t * __restrict, size_t, locale_t);
 int			 wctomb_l(char *, wchar_t, locale_t);

@@ -40,12 +40,13 @@
 #endif
 #include <string.h>
 
-char	*__strtok_r(char *, const char *, char **);
+char *__strtok_r(char *__restrict, const char *__restrict, char **__restrict);
 
 __weak_reference(__strtok_r, strtok_r);
 
 char *
-__strtok_r(char *s, const char *delim, char **last)
+__strtok_r(char *__restrict s, const char *__restrict delim,
+    char **__restrict last)
 {
 	char *spanp, *tok;
 	int c, sc;
@@ -91,7 +92,7 @@ cont:
 }
 
 char *
-strtok(char *s, const char *delim)
+strtok(char *__restrict s, const char *__restrict delim)
 {
 	static char *last;
 

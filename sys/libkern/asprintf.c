@@ -31,7 +31,8 @@
 #include <machine/stdarg.h>
 
 int
-vasprintf(char **buf, struct malloc_type *mtp, const char *format, va_list va)
+vasprintf(char **__restrict buf, struct malloc_type *mtp,
+    const char *__restrict format, va_list va)
 {
 	int len, ret;
 	va_list tmp_va;
@@ -61,7 +62,8 @@ vasprintf(char **buf, struct malloc_type *mtp, const char *format, va_list va)
 }
 
 int
-asprintf(char **buf, struct malloc_type *mtp, const char *format, ...)
+asprintf(char **__restrict buf, struct malloc_type *mtp,
+    const char *__restrict format, ...)
 {
 	int ret;
 	va_list va;

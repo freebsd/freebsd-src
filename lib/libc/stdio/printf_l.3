@@ -53,7 +53,7 @@
 .Ft int
 .Fn sprintf_l "char * restrict str" "locale_t loc" "const char * restrict format" "..."
 .Ft int
-.Fn vasprintf_l "char **ret" "locale_t loc" "const char *format" "va_list ap"
+.Fn vasprintf_l "char ** restrict ret" "locale_t loc" "const char *restrict format" "va_list ap"
 .Ft int
 .Fn vfprintf_l "FILE * restrict stream" "locale_t loc" "const char * restrict format" "va_list ap"
 .Ft int

@@ -59,7 +59,7 @@
 .Ft int
 .Fn snprintf "char * restrict str" "size_t size" "const char * restrict format" ...
 .Ft int
-.Fn asprintf "char **ret" "const char *format" ...
+.Fn asprintf "char ** restrict ret" "const char * restrict format" ...
 .Ft int
 .Fn dprintf "int fd" "const char * restrict format" ...
 .In stdarg.h
@@ -72,7 +72,7 @@
 .Ft int
 .Fn vsnprintf "char * restrict str" "size_t size" "const char * restrict format" "va_list ap"
 .Ft int
-.Fn vasprintf "char **ret" "const char *format" "va_list ap"
+.Fn vasprintf "char **restrict ret" "const char *restrict format" "va_list ap"
 .Ft int
 .Fn vdprintf "int fd" "const char * restrict format" "va_list ap"
 .Sh DESCRIPTION
@@ -732,7 +732,7 @@ To allocate a 128 byte string and print into it:
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-char *newfmt(const char *fmt, ...)
+char *newfmt(const char *__restrict fmt, ...)
 {
 	char *p;
 	va_list ap;

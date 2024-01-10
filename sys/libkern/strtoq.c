@@ -44,7 +44,7 @@
  * alphabets and digits are each contiguous.
  */
 quad_t
-strtoq(const char *nptr, char **endptr, int base)
+strtoq(const char *__restrict nptr, char **__restrict endptr, int base)
 {
 	const char *s;
 	u_quad_t acc;

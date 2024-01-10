@@ -38,7 +38,7 @@
  * Find the first occurrence of find in s.
  */
 wchar_t *
-wcsstr(const wchar_t * __restrict s, const wchar_t * __restrict find)
+wcsstr(const wchar_t *s, const wchar_t *find)
 {
 	wchar_t c, sc;
 	size_t len;

@@ -61,11 +61,11 @@
  * These functions must be provided for the consumer to do disassembly.
  */
 #ifdef DIS_TEXT
-extern char *strncpy(char *, const char *, size_t);
+extern char *strncpy(char *__restrict, const char *__restrict, size_t);
 extern size_t strlen(const char *);
 extern int strcmp(const char *, const char *);
 extern int strncmp(const char *, const char *, size_t);
-extern size_t strlcat(char *, const char *, size_t);
+extern size_t strlcat(char *__restrict, const char *__restrict, size_t);
 #endif
 
 

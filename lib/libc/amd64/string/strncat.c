@@ -11,7 +11,7 @@
 void *__memccpy(void *restrict, const void *restrict, int, size_t);
 
 char *
-strncat(char *dest, const char *src, size_t n)
+strncat(char *restrict dest, const char *restrict src, size_t n)
 {
 	size_t len;
 	char *endptr;
