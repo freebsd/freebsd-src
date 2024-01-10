@@ -32,39 +32,68 @@
 .Nm wifi
 .Nd quickstart guide to connecting to a network
 .Sh DESCRIPTION
-.Fx
-names network interfaces according to the driver that loads them.
 In the following examples, it is assumed that we are connecting to Ethernet
 with the first interface found by the
 .Xr em 4
 driver, and Wi-Fi with the first interface found by the
 .Xr iwn 4
-driver, though your equipment almost certainly will vary.
+driver, though your hardware will vary.
 .Sh EXAMPLES
-.Ss Connecting to an Ethernet network with DHCP:
-.Dl # dhclient em0
-.Ss Connecting to a cellular network with USB tethering:
+.Bl -tag -width 0n
+.It Sy Connecting to an Ethernet network with DHCP:
+.Bd -literal -offset 2n
+.Ic # dhclient em0
+.Ed
+.It Sy Connecting to a cellular network with USB tethering:
+.Pp
 Load the USB tethering driver,
 .Xr urndis 4 :
-.Dl # kldload urndis
+.Bd -literal -offset 2n
+.Ic # kldload urndis
+.Ed
+.Pp
 Ask for a DHCP lease on the USB tethering interface:
-.Dl # dhclient ue0
-.Ss Connecting to a Wi-Fi network:
+.Bd -literal -offset 2n
+.Ic # dhclient ue0
+.Ed
+.It Sy Connecting to a Wi-Fi network:
+.Pp
 Identify your Wi-Fi hardware:
-.Dl % sysctl net.wlan.devices
+.Bd -literal -offset 2n
+.Ic % sysctl net.wlan.devices
+.Ed
+.Pp
 Configure your Wi-Fi hardware as wlan0 interface:
-.Dl # sysrc wlans_iwn0="wlan0"
+.Ed
+.Bd -literal -offset 2n
+.Ic # sysrc wlans_iwn0="wlan0"
+.Ed
+.Pp
 Set that interface to negotiate a DHCP lease with
 .Xr wpa_supplicant 8 :
-.Dl # sysrc ifconfig_wlan0="WPA SYNCDHCP"
+.Bd -literal -offset 2n
+.Ic # sysrc ifconfig_wlan0="WPA SYNCDHCP"
+.Ed
+.Pp
 Enter the details of the Wi-Fi network:
-.Dl # wpa_passphrase myssid mypsk >> wpa_supplicant.conf
+.Bd -literal -offset 2n
+.Ic # wpa_passphrase "myssid" "mypassphrase" >> wpa_supplicant.conf
+.Ed
+.Pp
 Restart the network interface daemon:
-.Dl # service netif restart
-.Ss Scanning for Wi-Fi networks:
-.Dl % ifconfig wlan0 scan
-.Ss Airplane mode:
-.Dl # service netif stop
+.Bd -literal -offset 2n
+.Ic # service netif restart
+.Ed
+.Pp
+.It Sy Scanning for Wi-Fi networks:
+.Bd -literal -offset 2n
+.Ic % ifconfig wlan0 scan
+.Ed
+.It Sy Airplane mode:
+.Bd -literal -offset 2n
+.Ic # service netif stop
+.Ed
+.El
 .Sh SEE ALSO
 .Xr bsdconfig 8 ,
 .Xr dhclient 8 ,
@@ -76,15 +105,19 @@ The Advanced Networking chapter of the
 .Fx
 Handbook.
 .Sh CAVEATS
-Shell Special Characters in the SSID or PSK will need to be escaped for
+Shell Special Characters in the
+.Ar SSID
+or
+.Ar passphrase
+will need to be escaped for
 .Xr wpa_passphrase 8 ,
 commonly using
-.Ql / ,
+.Ql \e ,
 see the manual page for your shell for more details.
 .Pp
 Currently
-.Ql service netif restart
+.Ql Ic service netif restart
 does not restart routing.
 A common workaround is to issue
-.Ql service netif restart && service routing restart
+.Ql Ic service netif restart && service routing restart
 instead.
