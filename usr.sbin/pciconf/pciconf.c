@@ -826,9 +826,9 @@ load_vendors(void)
 
 		if ((ch = strchr(buf, '#')) != NULL)
 			*ch = '\0';
-		ch = strchr(buf, '\0') - 1;
+		ch = buf + strlen(buf);
 		while (ch > buf && isspace(*ch))
-			*ch-- = '\0';
+			*--ch = '\0';
 		if (ch <= buf)
 			continue;
 

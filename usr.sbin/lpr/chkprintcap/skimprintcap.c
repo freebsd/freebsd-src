@@ -108,7 +108,7 @@ skim_printcap(const char *pcap_fname, int verbosity)
 		if (lastchar != NULL)
 			*lastchar = '\0';
 		else {
-			lastchar = strchr(curline, '\0');
+			lastchar = curline + strlen(lastchar);
 			missing_nl = 1;
 		}
 		if (curline < lastchar)

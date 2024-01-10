@@ -541,7 +541,7 @@ inetprint(struct sockaddr *sa, const char *proto)
 		break;
 	}
 	snprintf(line, sizeof(line), "%.*s.", 16, inetname(sa));
-	cp = strchr(line, '\0');
+	cp = line + strlen(line);
 	if (!nflag && port)
 		sp = getservbyport(port, proto);
 	if (sp || port == 0)
@@ -551,7 +551,7 @@ inetprint(struct sockaddr *sa, const char *proto)
 		snprintf(cp, sizeof(line) - (cp - line), "%d",
 		    ntohs((u_short)port));
 	/* pad to full column to clear any garbage */
-	cp = strchr(line, '\0');
+	cp = line + strlen(line);
 	while (cp - line < 22)
 		*cp++ = ' ';
 	line[22] = '\0';

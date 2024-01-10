@@ -1478,9 +1478,8 @@ do_ed_script(void)
 			if (*t == 's') {
 				for (;;) {
 					continuation = 0;
-					t = strchr(buf, '\0') - 1;
-					while (--t >= buf && *t == '\\')
-						continuation = !continuation;
+					for (t = buf; *t && *t == '\\'; t++)
+						continuation ^= 1;
 					if (!continuation ||
 					    pgets(true) == 0)
 						break;

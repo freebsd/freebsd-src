@@ -6740,7 +6740,7 @@ mp_ndesc_handler(SYSCTL_HANDLER_ARGS)
 			break;
 		if (i)
 			strcat(buf, ",");
-		sprintf(strchr(buf, 0), "%d", ndesc[i]);
+		sprintf(buf + strlen(buf), "%d", ndesc[i]);
 	}
 
 	rc = sysctl_handle_string(oidp, buf, sizeof(buf), req);

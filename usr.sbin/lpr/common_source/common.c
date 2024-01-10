@@ -561,8 +561,8 @@ trstat_write(struct printer *pp, tr_sendrecv sendrecv, size_t bytecnt,
 	const char *lprhost, *recvdev, *recvhost, *rectype;
 	const char *sendhost, *statfname;
 #define UPD_EOSTAT(xStr) do {         \
-	eostat = strchr(xStr, '\0');  \
-	remspace = eostat - xStr;     \
+	remspace = strlen(xStr);          \
+	eostat = xStr + remspace;         \
 } while(0)
 
 	lpd_gettime(&pp->tr_done, NULL, (size_t)0);

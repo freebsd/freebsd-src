@@ -806,7 +806,7 @@ passthru_lookup_pptdev(const char *name, int *bus, int *slot, int *func)
 	 * the driver name.  Walk backwards from the end of the name to
 	 * find the start of the unit.
 	 */
-	cp = strchr(name, '\0');
+	cp = cp + strlen(cp);
 	assert(cp != NULL);
 	while (cp != name && isdigit(cp[-1]))
 		cp--;
