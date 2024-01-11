@@ -484,25 +484,25 @@ ALG+=		${HDRDIR}/__algorithm/${hdr}
 
 INCSGROUPS+=	PSB
 PSBDIR=		${CXXINCLUDEDIR}/__algorithm/pstl_backends
-PSB_HEADERS+=   cpu_backend.h
+PSB_HEADERS+=	cpu_backend.h
 .for hdr in ${PSB_HEADERS}
 PSB+=		${HDRDIR}/__algorithm/pstl_backends/${hdr}
 .endfor
 
 INCSGROUPS+=	PCB
 PCBDIR=		${CXXINCLUDEDIR}/__algorithm/pstl_backends/cpu_backends
-PCB_HEADERS+=   any_of.h
-PCB_HEADERS+=   backend.h
-PCB_HEADERS+=   fill.h
-PCB_HEADERS+=   find_if.h
-PCB_HEADERS+=   for_each.h
-PCB_HEADERS+=   libdispatch.h
-PCB_HEADERS+=   merge.h
-PCB_HEADERS+=   serial.h
-PCB_HEADERS+=   stable_sort.h
-PCB_HEADERS+=   thread.h
-PCB_HEADERS+=   transform.h
-PCB_HEADERS+=   transform_reduce.h
+PCB_HEADERS+=	any_of.h
+PCB_HEADERS+=	backend.h
+PCB_HEADERS+=	fill.h
+PCB_HEADERS+=	find_if.h
+PCB_HEADERS+=	for_each.h
+PCB_HEADERS+=	libdispatch.h
+PCB_HEADERS+=	merge.h
+PCB_HEADERS+=	serial.h
+PCB_HEADERS+=	stable_sort.h
+PCB_HEADERS+=	thread.h
+PCB_HEADERS+=	transform.h
+PCB_HEADERS+=	transform_reduce.h
 .for hdr in ${PCB_HEADERS}
 PCB+=		${HDRDIR}/__algorithm/pstl_backends/cpu_backends/${hdr}
 .endfor
@@ -645,7 +645,7 @@ CON+=		${HDRDIR}/__concepts/${hdr}
 
 INCSGROUPS+=	CND
 CNDDIR=		${CXXINCLUDEDIR}/__condition_variable
-CND_HEADERS+=   condition_variable.h
+CND_HEADERS+=	condition_variable.h
 .for hdr in ${CND_HEADERS}
 CND+=		${HDRDIR}/__condition_variable/${hdr}
 .endfor
@@ -663,18 +663,18 @@ COR+=		${HDRDIR}/__coroutine/${hdr}
 INCSGROUPS+=	DBG
 DBGDIR=		${CXXINCLUDEDIR}/__debug_utils
 DBG_HEADERS+=	randomize_range.h
-DBG_HEADERS+=   strict_weak_ordering_check.h
+DBG_HEADERS+=	strict_weak_ordering_check.h
 .for hdr in ${DBG_HEADERS}
 DBG+=		${HDRDIR}/__debug_utils/${hdr}
 .endfor
 
 INCSGROUPS+=	EXC
 EXCDIR=		${CXXINCLUDEDIR}/__exception
-EXC_HEADERS+=   exception.h
-EXC_HEADERS+=   exception_ptr.h
-EXC_HEADERS+=   nested_exception.h
-EXC_HEADERS+=   operations.h
-EXC_HEADERS+=   terminate.h
+EXC_HEADERS+=	exception.h
+EXC_HEADERS+=	exception_ptr.h
+EXC_HEADERS+=	nested_exception.h
+EXC_HEADERS+=	operations.h
+EXC_HEADERS+=	terminate.h
 .for hdr in ${EXC_HEADERS}
 EXC+=		${HDRDIR}/__exception/${hdr}
 .endfor
