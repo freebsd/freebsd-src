@@ -339,7 +339,6 @@ static int verbose;
 static int waittime = 5;		/* time to wait for response (in seconds) */
 static int nflag;			/* print addresses numerically */
 static int useproto = IPPROTO_UDP;	/* protocol to use to send packet */
-static int lflag;			/* print both numerical address & hostname */
 static int as_path;			/* print as numbers for each hop */
 static int ecnflag;			/* ECN bleaching detection flag */
 static char *as_server = NULL;
@@ -462,7 +461,6 @@ main(int argc, char *argv[])
 			useproto = IPPROTO_ICMPV6;
 			break;
 		case 'l':
-			lflag++;
 			break;
 		case 'm':
 			ep = NULL;
@@ -1584,10 +1582,8 @@ print(struct msghdr *mhdr, int cc)
 		printf(" [AS%u]", as_lookup(asn, hbuf, AF_INET6));
 	if (nflag)
 		printf(" %s", hbuf);
-	else if (lflag)
-		printf(" %s (%s)", inetname((struct sockaddr *)from), hbuf);
 	else
-		printf(" %s", inetname((struct sockaddr *)from));
+		printf(" %s (%s)", inetname((struct sockaddr *)from), hbuf);
 
 	if (verbose) {
 #ifdef OLDRAWSOCKET
