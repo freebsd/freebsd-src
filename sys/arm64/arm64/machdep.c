@@ -215,6 +215,14 @@ has_hyp(void)
 	return (boot_el == 2 && (hcr_el2 & HCR_E2H) == 0);
 }
 
+bool
+in_vhe(void)
+{
+	/* If we are currently in EL2 then must be in VHE */
+	return ((READ_SPECIALREG(CurrentEL) & CURRENTEL_EL_MASK) ==
+	    CURRENTEL_EL_EL2);
+}
+
 static void
 cpu_startup(void *dummy)
 {
