@@ -1289,7 +1289,7 @@ has_trailing_escape(char *s, char *t)
 }
 
 
-/* strip_escapes: return copy of escaped string of at most length PATH_MAX */
+/* strip_escapes: return a copy of escaped string of at most length PATH_MAX */
 char *
 strip_escapes(char *s)
 {
