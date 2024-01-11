@@ -762,11 +762,23 @@ nl_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 				} else if (len == 0 && uio->uio_resid > 0) {
 					flags |= MSG_TRUNC;
 					partlen = uio->uio_resid;
-					if (!peek) {
-						/* XXX: may leave empty nb */
+					if (peek)
+						goto nospace;
+					datalen += hdr->nlmsg_len;
+					if (nb->offset + hdr->nlmsg_len ==
+					    nb->datalen) {
+						/*
+						 * Avoid leaving empty nb.
+						 * Process last nb normally.
+						 * Trust uiomove() to care
+						 * about negative uio_resid.
+						 */
+						nb = TAILQ_NEXT(nb, tailq);
+						overflow = 0;
+						partlen = 0;
+					} else
 						nb->offset += hdr->nlmsg_len;
-						datalen += hdr->nlmsg_len;
-					}
+					msgrcv++;
 				} else
 					partlen = 0;
 				goto nospace;
