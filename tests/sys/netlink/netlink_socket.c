@@ -256,6 +256,19 @@ ATF_TC_BODY(sizes, tc)
 	cmsg_check(&msg);
 }
 
+static struct nlattr *
+nla_RTA_DST(struct nlattr *start, ssize_t len)
+{
+	struct nlattr *nla;
+
+	for (nla = start; (char *)nla < (char *)start + len;
+	    nla = (struct nlattr *)((char *)nla + NLA_ALIGN(nla->nla_len))) {
+		if (nla->nla_type == RTA_DST)
+			return (nla);
+	}
+
+	return (NULL);
+}
 /*
  * Check that NETLINK_ADD_MEMBERSHIP subscribes us.  Add & delete a temporary
  * route and check if announcements came in.
@@ -270,7 +283,7 @@ ATF_TC_BODY(membership, tc)
 		struct in_addr dst;
 		struct nlattr rta_oif;
 		uint32_t oif;
-	} msg = {
+	} reply, msg = {
 		.hdr.nlmsg_type = RTM_NEWROUTE,
 		.hdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_EXCL,
 		.hdr.nlmsg_len = sizeof(msg),
@@ -286,19 +299,32 @@ ATF_TC_BODY(membership, tc)
 		.rta_oif.nla_len = sizeof(uint32_t) + sizeof(struct nlattr),
 		.oif = 1,
 	};
+	struct nlattr *nla;
 	int fd;
 
 	ATF_REQUIRE((fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE)) != -1);
 	ATF_REQUIRE(setsockopt(fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP,
 	    &(int){RTNLGRP_IPV4_ROUTE}, sizeof(int)) == 0);
+
 	ATF_REQUIRE(send(fd, &msg, sizeof(msg), 0) == sizeof(msg));
+	ATF_REQUIRE(recv(fd, &reply, sizeof(reply), 0) == sizeof(reply));
+	ATF_REQUIRE(reply.hdr.nlmsg_type == msg.hdr.nlmsg_type);
+	ATF_REQUIRE(reply.rtm.rtm_type == msg.rtm.rtm_type);
+	ATF_REQUIRE(reply.rtm.rtm_dst_len == msg.rtm.rtm_dst_len);
+	ATF_REQUIRE(nla = nla_RTA_DST(&reply.rta_dst, sizeof(reply)));
+	ATF_REQUIRE(memcmp(&msg.dst, (char *)nla + sizeof(struct nlattr),
+	    sizeof(struct in_addr)) == 0);
+
 	msg.hdr.nlmsg_type = RTM_DELROUTE;
 	msg.hdr.nlmsg_len -= sizeof(struct nlattr) + sizeof(uint32_t);
 	ATF_REQUIRE(send(fd, &msg, msg.hdr.nlmsg_len, 0) == msg.hdr.nlmsg_len);
-	ATF_REQUIRE(recv(fd, &msg, sizeof(msg), 0) == sizeof(msg));
-	ATF_REQUIRE(msg.hdr.nlmsg_type == RTM_NEWROUTE);
-	ATF_REQUIRE(recv(fd, &msg, sizeof(msg), 0) == sizeof(msg));
-	ATF_REQUIRE(msg.hdr.nlmsg_type == RTM_DELROUTE);
+	ATF_REQUIRE(recv(fd, &reply, sizeof(reply), 0) == sizeof(reply));
+	ATF_REQUIRE(reply.hdr.nlmsg_type == msg.hdr.nlmsg_type);
+	ATF_REQUIRE(reply.rtm.rtm_type == msg.rtm.rtm_type);
+	ATF_REQUIRE(reply.rtm.rtm_dst_len == msg.rtm.rtm_dst_len);
+	ATF_REQUIRE(nla = nla_RTA_DST(&reply.rta_dst, sizeof(reply)));
+	ATF_REQUIRE(memcmp(&msg.dst, (char *)nla + sizeof(struct nlattr),
+	    sizeof(struct in_addr)) == 0);
 }
 
 ATF_TP_ADD_TCS(tp)
