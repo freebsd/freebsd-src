@@ -234,10 +234,59 @@ nat_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "rule" "cleanup"
+rule_head()
+{
+	atf_set descr 'Test per-rule pflow option'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+rule_body()
+{
+	pflow_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.2/24 up
+	ifconfig ${epair}a alias 192.0.2.3/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"pass in from 192.0.2.2 keep state (pflow)" \
+		"pass in from 192.0.2.3 keep state"
+
+	pflow=$(jexec alcatraz pflowctl -c)
+	jexec alcatraz pflowctl -s ${pflow} dst 192.0.2.2:2055
+
+	# No flow is generated if we ping from 192.0.2.3
+	ping -c 1 -S 192.0.2.3 192.0.2.1
+
+	atf_check -o match:"No data" \
+	    $(atf_get_srcdir)/pft_read_ipfix.py --recvif ${epair}a --port 2055
+
+	# But there is one if we ping from 192.0.2.2
+	ping -c 1 -S 192.0.2.2 192.0.2.1
+
+	atf_check -o match:".*v=5.*" \
+	    $(atf_get_srcdir)/pft_read_ipfix.py --recvif ${epair}a --port 2055
+}
+
+rule_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
 	atf_add_test_case "state_defaults"
 	atf_add_test_case "v6"
 	atf_add_test_case "nat"
+	atf_add_test_case "rule"
 }
