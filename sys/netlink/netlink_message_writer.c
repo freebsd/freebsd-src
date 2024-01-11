@@ -100,6 +100,7 @@ _nlmsg_ignore_limit(struct nl_writer *nw)
 bool
 _nlmsg_flush(struct nl_writer *nw)
 {
+	bool result;
 
 	if (__predict_false(nw->hdr != NULL)) {
 		/* Last message has not been completed, skip it. */
@@ -109,8 +110,14 @@ _nlmsg_flush(struct nl_writer *nw)
 		nw->hdr = NULL;
         }
 
-	NL_LOG(LOG_DEBUG2, "OUT");
-	bool result = nw->cb(nw);
+	if (nw->buf->datalen == 0) {
+		MPASS(nw->num_messages == 0);
+		nl_buf_free(nw->buf);
+		nw->buf = NULL;
+		return (true);
+	}
+
+	result = nw->cb(nw);
 	nw->num_messages = 0;
 
 	if (!result) {

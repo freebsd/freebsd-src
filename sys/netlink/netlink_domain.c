@@ -740,12 +740,7 @@ nl_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	TAILQ_FOREACH(nb, &sb->nl_queue, tailq) {
 		u_int offset;
 
-		/*
-		 * XXXGL: zero length buffer may be at the tail of a queue
-		 * when a writer overflows socket buffer.  When this is
-		 * improved, use MPASS(nb->offset < nb->datalen).
-		 */
-		MPASS(nb->offset <= nb->datalen);
+		MPASS(nb->offset < nb->datalen);
 		offset = nb->offset;
 		while (offset < nb->datalen) {
 			hdr = (struct nlmsghdr *)&nb->data[offset];

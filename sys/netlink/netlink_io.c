@@ -201,6 +201,8 @@ nl_send(struct nl_writer *nw, struct nlpcb *nlp)
 	struct nl_buf *nb;
 
 	MPASS(nw->hdr == NULL);
+	MPASS(nw->buf != NULL);
+	MPASS(nw->buf->datalen > 0);
 
 	IF_DEBUG_LEVEL(LOG_DEBUG2) {
 		struct nlmsghdr *hdr = (struct nlmsghdr *)nw->buf->data;
