@@ -48,6 +48,7 @@ class TestRtNlRoute(NetlinkTestTemplate, SingleVnetTestTemplate):
 
     @pytest.mark.timeout(5)
     def test_add_route6_ll_if_gw(self):
+        self.require_module("if_tun")
         tun_ifname = IfaceFactory().create_iface("", "tun")[0].name
         tun_ifindex = socket.if_nametoindex(tun_ifname)
 
@@ -68,6 +69,7 @@ class TestRtNlRoute(NetlinkTestTemplate, SingleVnetTestTemplate):
 
     @pytest.mark.timeout(5)
     def test_add_route4_ll_if_gw(self):
+        self.require_module("if_tun")
         tun_ifname = IfaceFactory().create_iface("", "tun")[0].name
         tun_ifindex = socket.if_nametoindex(tun_ifname)
 
