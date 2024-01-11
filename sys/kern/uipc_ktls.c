@@ -1644,7 +1644,9 @@ out:
 
 	if (ifp != NULL)
 		if_rele(ifp);
+	CURVNET_SET(so->so_vnet);
 	sorele(so);
+	CURVNET_RESTORE();
 	ktls_free(tls);
 }
 
