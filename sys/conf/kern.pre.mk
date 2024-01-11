@@ -125,8 +125,10 @@ KMSAN_ENABLED!= grep KMSAN opt_global.h || true ; echo
 # Disable -fno-sanitize-memory-param-retval until interceptors have been
 # updated to work properly with it.
 SAN_CFLAGS+=	-DSAN_NEEDS_INTERCEPTORS -DSAN_INTERCEPTOR_PREFIX=kmsan \
-		-fsanitize=kernel-memory \
-		-fno-sanitize-memory-param-retval
+		-fsanitize=kernel-memory
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 160000
+SAN_CFLAGS+=	-fno-sanitize-memory-param-retval
+.endif
 .endif
 
 KUBSAN_ENABLED!=	grep KUBSAN opt_global.h || true ; echo
