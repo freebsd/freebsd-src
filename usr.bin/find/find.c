@@ -167,6 +167,7 @@ find_execute(PLAN *plan, char *paths[])
 {
 	FTSENT *entry;
 	PLAN *p;
+	size_t counter = 0;
 	int e;
 
 	tree = fts_open(paths, ftsoptions, (issort ? find_compare : NULL));
@@ -208,6 +209,14 @@ find_execute(PLAN *plan, char *paths[])
 			continue;
 #endif /* FTS_W */
 		}
+
+		if (showinfo) {
+			fprintf(stderr, "Scanning: %s/%s\n", entry->fts_path, entry->fts_name);
+			fprintf(stderr, "Scanned: %lu\n\n", counter);
+			showinfo = 0;
+		}
+		++counter;
+
 #define	BADCH	" \t\n\\'\""
 		if (isxargs && strpbrk(entry->fts_path, BADCH)) {
 			(void)fflush(stdout);
