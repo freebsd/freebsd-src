@@ -744,6 +744,7 @@ nl_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 		offset = nb->offset;
 		while (offset < nb->datalen) {
 			hdr = (struct nlmsghdr *)&nb->data[offset];
+			MPASS(nb->offset + hdr->nlmsg_len <= nb->datalen);
 			if (uio->uio_resid < len + hdr->nlmsg_len) {
 				overflow = len + hdr->nlmsg_len -
 				    uio->uio_resid;
@@ -784,7 +785,7 @@ nl_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 			msgrcv++;
 		}
 		MPASS(offset == nb->datalen);
-		datalen += nb->datalen;
+		datalen += nb->datalen - nb->offset;
 	}
 nospace:
 	last = nb;
@@ -796,6 +797,7 @@ nospace:
 			TAILQ_FIRST(&sb->nl_queue) = last;
 			last->tailq.tqe_prev = &TAILQ_FIRST(&sb->nl_queue);
 		}
+		MPASS(sb->sb_acc >= datalen);
 		sb->sb_acc -= datalen;
 		sb->sb_ccc -= datalen;
 	}
