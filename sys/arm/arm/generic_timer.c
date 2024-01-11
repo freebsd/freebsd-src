@@ -564,6 +564,8 @@ arm_tmr_acpi_identify(driver_t *driver, device_t parent)
 	    gtdt->NonSecureEl1Interrupt);
 	arm_tmr_acpi_add_irq(parent, dev, GT_VIRT,
 	    gtdt->VirtualTimerInterrupt);
+	arm_tmr_acpi_add_irq(parent, dev, GT_HYP_PHYS,
+	    gtdt->NonSecureEl2Interrupt);
 
 out:
 	acpi_unmap_table(gtdt);
