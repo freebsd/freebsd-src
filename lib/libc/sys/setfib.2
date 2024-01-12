@@ -37,7 +37,7 @@
 .Sh DESCRIPTION
 The
 .Fn setfib
-system call sets the associated fib for all sockets opened
+system call sets the associated FIB (routing table) for all sockets opened
 subsequent to the call, to be that of the argument
 .Fa fib .
 The
@@ -69,9 +69,9 @@ packet header, however it is not suggested that one use such a large number
 as memory is allocated for every FIB regardless of whether it is used, and
 there are places where all FIBs are iterated over.
 .Pp
-The default fib of the process will be applied to all protocol families
-that support multiple fibs, and ignored by those that do not.
-The default fib for a process may be overridden for a socket with the use
+The default FIB of the process will be applied to all protocol families
+that support multiple FIBs, and ignored by those that do not.
+The default FIB for a process may be overridden for a socket with the use
 of the
 .Dv SO_SETFIB
 socket option.

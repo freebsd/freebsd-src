@@ -57,7 +57,7 @@ if [ -f /etc/installerconfig ]; then
 	exit 
 fi
 
-bsddialog --backtitle "FreeBSD Installer" --title "Welcome" --extra-button --extra-label "Shell" --ok-label "Install" --cancel-label "Live CD" --yesno "Welcome to FreeBSD! Would you like to begin an installation or use the live CD?" 0 0
+bsddialog --backtitle "FreeBSD Installer" --title "Welcome" --extra-button --extra-label "Shell" --ok-label "Install" --cancel-label "Live System" --yesno "Welcome to FreeBSD! Would you like to begin an installation or use the live system?" 0 0
 
 case $? in
 $BSDDIALOG_OK)	# Install
@@ -70,7 +70,7 @@ $BSDDIALOG_OK)	# Install
 	trap true SIGINT	# Ignore cntrl-C here
 	bsdinstall
 	if [ $? -eq 0 ]; then
-		bsddialog --backtitle "FreeBSD Installer" --title "Complete" --ok-label "Reboot" --extra-button --extra-label "Shutdown" --cancel-label "Live CD" --yesno "Installation of FreeBSD complete! Would you like to reboot into the installed system now?" 0 0
+		bsddialog --backtitle "FreeBSD Installer" --title "Complete" --ok-label "Reboot" --extra-button --extra-label "Shutdown" --cancel-label "Live System" --yesno "Installation of FreeBSD complete! Would you like to reboot into the installed system now?" 0 0
 
 		case $? in
 		$BSDDIALOG_OK)		# Reboot
@@ -90,7 +90,7 @@ $BSDDIALOG_OK)	# Install
 				sleep 1
 			done
 			;;
-		$BSDDIALOG_CANCEL)	# Live CD
+		$BSDDIALOG_CANCEL)	# Live System
 			exit 0
 			;;
 		esac
@@ -98,7 +98,7 @@ $BSDDIALOG_OK)	# Install
 		. "$0"
 	fi
 	;;
-$BSDDIALOG_CANCEL)	# Live CD
+$BSDDIALOG_CANCEL)	# Live System
 	exit 0
 	;;
 $BSDDIALOG_EXTRA)	# Shell

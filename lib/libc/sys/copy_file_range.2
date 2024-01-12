@@ -23,13 +23,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 2, 2021
+.Dd December 28, 2023
 .Dt COPY_FILE_RANGE 2
 .Os
 .Sh NAME
 .Nm copy_file_range
-.Nd kernel copy of a byte range from one file to another
-or within one file
+.Nd kernel copy of a byte range from one regular file to another
+or within one regular file
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -178,9 +178,17 @@ are reset to the initial values for the system call.
 .Fa infd
 and
 .Fa outfd
-refer to the same file and the byte ranges overlap or
+refer to the same file and the byte ranges overlap.
+.It Bq Er EINVAL
+The
 .Fa flags
-is not zero.
+argument is not zero.
+.It Bq Er EINVAL
+Either
+.Fa infd
+or
+.Fa outfd
+refers to a file object that is not a regular file.
 .It Bq Er EIO
 An I/O error occurred while reading/writing the files.
 .It Bq Er EINTEGRITY

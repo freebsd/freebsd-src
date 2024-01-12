@@ -687,7 +687,6 @@ rip6_detach(struct socket *so)
 	/* xxx: RSVP */
 	INP_WLOCK(inp);
 	free(inp->in6p_icmp6filt, M_PCB);
-	in_pcbdetach(inp);
 	in_pcbfree(inp);
 }
 

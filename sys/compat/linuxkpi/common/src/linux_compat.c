@@ -28,6 +28,7 @@
  */
 
 #include <sys/cdefs.h>
+#include "opt_global.h"
 #include "opt_stack.h"
 
 #include <sys/param.h>
@@ -62,6 +63,7 @@
 #include <machine/stdarg.h>
 
 #if defined(__i386__) || defined(__amd64__)
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #endif
 
@@ -97,6 +99,15 @@
 #if defined(__i386__) || defined(__amd64__)
 #include <asm/smp.h>
 #include <asm/processor.h>
+#endif
+
+#include <xen/xen.h>
+#ifdef XENHVM
+#undef xen_pv_domain
+#undef xen_initial_domain
+/* xen/xen-os.h redefines __must_check */
+#undef __must_check
+#include <xen/xen-os.h>
 #endif
 
 SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
@@ -2585,6 +2596,26 @@ lkpi_get_static_single_cpu_mask(int cpuid)
 	return (static_single_cpu_mask[cpuid]);
 }
 
+bool
+lkpi_xen_initial_domain(void)
+{
+#ifdef XENHVM
+	return (xen_initial_domain());
+#else
+	return (false);
+#endif
+}
+
+bool
+lkpi_xen_pv_domain(void)
+{
+#ifdef XENHVM
+	return (xen_pv_domain());
+#else
+	return (false);
+#endif
+}
+
 static void
 linux_compat_init(void *arg)
 {
@@ -2592,11 +2623,30 @@ linux_compat_init(void *arg)
 	int i;
 
 #if defined(__i386__) || defined(__amd64__)
+	static const uint32_t x86_vendors[X86_VENDOR_NUM] = {
+		[X86_VENDOR_INTEL] = CPU_VENDOR_INTEL,
+		[X86_VENDOR_CYRIX] = CPU_VENDOR_CYRIX,
+		[X86_VENDOR_AMD] = CPU_VENDOR_AMD,
+		[X86_VENDOR_UMC] = CPU_VENDOR_UMC,
+		[X86_VENDOR_CENTAUR] = CPU_VENDOR_CENTAUR,
+		[X86_VENDOR_TRANSMETA] = CPU_VENDOR_TRANSMETA,
+		[X86_VENDOR_NSC] = CPU_VENDOR_NSC,
+		[X86_VENDOR_HYGON] = CPU_VENDOR_HYGON,
+	};
+	uint8_t x86_vendor = X86_VENDOR_UNKNOWN;
+
+	for (i = 0; i < X86_VENDOR_NUM; i++) {
+		if (cpu_vendor_id != 0 && cpu_vendor_id == x86_vendors[i]) {
+			x86_vendor = i;
+			break;
+		}
+	}
 	linux_cpu_has_clflush = (cpu_feature & CPUID_CLFSH);
 	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
 	boot_cpu_data.x86_max_cores = mp_ncpus;
 	boot_cpu_data.x86 = CPUID_TO_FAMILY(cpu_id);
 	boot_cpu_data.x86_model = CPUID_TO_MODEL(cpu_id);
+	boot_cpu_data.x86_vendor = x86_vendor;
 
 	__cpu_data = mallocarray(mp_maxid + 1,
 	    sizeof(*__cpu_data), M_KMALLOC, M_WAITOK | M_ZERO);
@@ -2605,6 +2655,7 @@ linux_compat_init(void *arg)
 		__cpu_data[i].x86_max_cores = mp_ncpus;
 		__cpu_data[i].x86 = CPUID_TO_FAMILY(cpu_id);
 		__cpu_data[i].x86_model = CPUID_TO_MODEL(cpu_id);
+		__cpu_data[i].x86_vendor = x86_vendor;
 	}
 #endif
 	rw_init(&linux_vma_lock, "lkpi-vma-lock");

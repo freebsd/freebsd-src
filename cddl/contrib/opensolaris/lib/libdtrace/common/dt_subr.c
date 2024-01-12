@@ -50,6 +50,7 @@
 #include <stdint.h>
 
 #include <dt_impl.h>
+#include <dt_oformat.h>
 
 static const struct {
 	size_t dtps_offset;
@@ -991,4 +992,45 @@ dtrace_uaddr2str(dtrace_hdl_t *dtp, pid_t pid,
 	dt_proc_release(dtp, P);
 
 	return (dt_string2str(c, str, nbytes));
+}
+
+int
+dtrace_oformat_configure(dtrace_hdl_t *dtp)
+{
+
+	dtp->dt_oformat = xo_get_style(NULL) == XO_STYLE_TEXT ?
+	    DTRACE_OFORMAT_TEXT :
+	    DTRACE_OFORMAT_STRUCTURED;
+	xo_set_flags(NULL, XOF_DTRT);
+	return (0);
+}
+
+int
+dtrace_oformat(dtrace_hdl_t *dtp)
+{
+
+	return (dtp->dt_oformat != DTRACE_OFORMAT_TEXT);
+}
+
+void
+dtrace_set_outfp(const FILE *ofp)
+{
+
+	xo_set_file((FILE *)ofp);
+}
+
+void
+dtrace_oformat_setup(dtrace_hdl_t *dtp)
+{
+
+	xo_open_container("dtrace");
+	xo_open_list("probes");
+}
+
+void
+dtrace_oformat_teardown(dtrace_hdl_t *dtp)
+{
+
+	xo_close_list("probes");
+	xo_close_container("dtrace");
 }

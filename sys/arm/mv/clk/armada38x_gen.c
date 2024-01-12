@@ -30,7 +30,7 @@
 
 #include <machine/bus.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #include <arm/mv/clk/armada38x_gen.h>
 

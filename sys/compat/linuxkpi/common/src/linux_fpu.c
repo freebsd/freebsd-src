@@ -30,11 +30,13 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>
 
+#include <linux/compat.h>
 #include <linux/sched.h>
 
 #include <asm/fpu/api.h>
 
-#if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
+#if defined(__aarch64__) || defined(__arm__) || defined(__amd64__) ||	\
+    defined(__i386__) || defined(__powerpc64__)
 
 #include <machine/fpu.h>
 
@@ -47,15 +49,20 @@
 void
 lkpi_kernel_fpu_begin(void)
 {
-	if ((current->fpu_ctx_level)++ == 0)
-		fpu_kern_enter(curthread, NULL, FPU_KERN_NOCTX);
+	int err;
+
+	if ((current->fpu_ctx_level)++ == 0) {
+		err = linux_set_fpu_ctx(current);
+		fpu_kern_enter(curthread, current->fpu_ctx,
+		    err == 0 ? FPU_KERN_KTHR : FPU_KERN_NOCTX);
+	}
 }
 
 void
 lkpi_kernel_fpu_end(void)
 {
 	if (--(current->fpu_ctx_level) == 0)
-		fpu_kern_leave(curthread, NULL);
+		fpu_kern_leave(curthread, current->fpu_ctx);
 }
 
 #else

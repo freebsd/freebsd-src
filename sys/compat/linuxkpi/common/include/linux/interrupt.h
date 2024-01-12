@@ -40,7 +40,7 @@
 
 typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 
-#define	IRQF_SHARED	RF_SHAREABLE
+#define	IRQF_SHARED		0x0004	/* Historically */
 #define	IRQF_NOBALANCING	0
 
 #define	IRQ_DISABLE_UNLAZY	0

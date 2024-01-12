@@ -40,14 +40,17 @@
 	li	0,(SYS_##name);					\
 	sc
 
+#define	_SYSCALL_BODY(name)					\
+	_SYSCALL(name);						\
+	bnslr;							\
+	b	CNAME(HIDENAME(cerror))
+
 #define	PSEUDO(name)						\
 	.text;							\
 	.align 2;						\
 ENTRY(__sys_##name);						\
 	WEAK_REFERENCE(__sys_##name, _##name);			\
-	_SYSCALL(name);						\
-	bnslr;							\
-	b	CNAME(HIDENAME(cerror));			\
+	_SYSCALL_BODY(name);					\
 END(__sys_##name)
 
 #define	RSYSCALL(name)						\
@@ -56,7 +59,5 @@ END(__sys_##name)
 ENTRY(__sys_##name);						\
 	WEAK_REFERENCE(__sys_##name, name);			\
 	WEAK_REFERENCE(__sys_##name, _##name);			\
-	_SYSCALL(name);						\
-	bnslr;							\
-	b	CNAME(HIDENAME(cerror));			\
+	_SYSCALL_BODY(name);					\
 END(__sys_##name)

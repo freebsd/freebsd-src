@@ -88,6 +88,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vnode_pager.h>
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
@@ -2575,7 +2576,6 @@ int
 vn_bmap_seekhole_locked(struct vnode *vp, u_long cmd, off_t *off,
     struct ucred *cred)
 {
-	vm_object_t obj;
 	off_t size;
 	daddr_t bn, bnp;
 	uint64_t bsize;
@@ -2600,12 +2600,7 @@ vn_bmap_seekhole_locked(struct vnode *vp, u_long cmd, off_t *off,
 	}
 
 	/* See the comment in ufs_bmap_seekdata(). */
-	obj = vp->v_object;
-	if (obj != NULL) {
-		VM_OBJECT_WLOCK(obj);
-		vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
-		VM_OBJECT_WUNLOCK(obj);
-	}
+	vnode_pager_clean_sync(vp);
 
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 	for (bn = noff / bsize; noff < size; bn++, noff += bsize -
@@ -3361,8 +3356,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 		goto out;
 	if (VOP_PATHCONF(invp, _PC_MIN_HOLE_SIZE, &holein) != 0)
 		holein = 0;
-	if (holein > 0)
-		error = vn_getsize_locked(invp, &insize, incred);
+	error = vn_getsize_locked(invp, &insize, incred);
 	VOP_UNLOCK(invp);
 	if (error != 0)
 		goto out;
@@ -3398,7 +3392,11 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 		 */
 		if (error == 0)
 			error = vn_getsize_locked(outvp, &outsize, outcred);
-		if (error == 0 && outsize > *outoffp && outsize <= *outoffp + len) {
+		if (error == 0 && outsize > *outoffp &&
+		    *outoffp <= OFF_MAX - len && outsize <= *outoffp + len &&
+		    *inoffp < insize &&
+		    *outoffp <= OFF_MAX - (insize - *inoffp) &&
+		    outsize <= *outoffp + (insize - *inoffp)) {
 #ifdef MAC
 			error = mac_vnode_check_write(curthread->td_ucred,
 			    outcred, outvp);

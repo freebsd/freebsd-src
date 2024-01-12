@@ -29,7 +29,10 @@
 #ifndef	_LINUXKPI_LINUX_SHMEM_FS_H_
 #define	_LINUXKPI_LINUX_SHMEM_FS_H_
 
+#include <linux/file.h>
+#include <linux/mempolicy.h>
 #include <linux/pagemap.h>
+#include <linux/swap.h>
 
 /* Shared memory support */
 struct page *linux_shmem_read_mapping_page_gfp(vm_object_t obj, int pindex,

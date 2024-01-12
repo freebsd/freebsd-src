@@ -75,7 +75,7 @@
 #include <dev/mii/miivar.h>
 #include <dev/mii/mii_fdt.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #if BUS_SPACE_MAXADDR > BUS_SPACE_MAXADDR_32BIT
 #define CGEM64

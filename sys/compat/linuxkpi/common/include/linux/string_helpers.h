@@ -39,4 +39,31 @@ str_yes_no(bool value)
 		return "no";
 }
 
-#endif	/* _LINUXKPI_LINUX_STRING_HELPERS_H_ */
+static inline const char *
+str_on_off(bool value)
+{
+	if (value)
+		return "on";
+	else
+		return "off";
+}
+
+static inline const char *
+str_enabled_disabled(bool value)
+{
+	if (value)
+		return "enabled";
+	else
+		return "disabled";
+}
+
+static inline const char *
+str_enable_disable(bool value)
+{
+	if (value)
+		return "enable";
+	else
+		return "disable";
+}
+
+#endif

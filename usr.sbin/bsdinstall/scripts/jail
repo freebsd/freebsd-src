@@ -61,11 +61,16 @@ export BSDINSTALL_CHROOT=$1
 rm -rf $BSDINSTALL_TMPETC
 mkdir $BSDINSTALL_TMPETC
 mkdir -p $1 || error "mkdir failed for $1"
+rm -f $TMPDIR/bsdinstall-installscript-setup
 
-if [ -n "$SCRIPT" ]
-then
-        split -a 2 -p '^#!.*' "$SCRIPT" $TMPDIR/bsdinstall-installscript-
-        . $TMPDIR/bsdinstall-installscript-aa
+if [ -n "$SCRIPT" ]; then
+	# split script into preamble and setup script at first shebang
+	awk 'BEGIN {pathb=ARGV[2]; ARGV[2]=""} /^#!/{b=1} {
+	    if (b) print >pathb; else print}' \
+	    "$SCRIPT" $TMPDIR/bsdinstall-installscript-setup \
+	    >$TMPDIR/bsdinstall-installscript-preamble
+
+	. $TMPDIR/bsdinstall-installscript-preamble
 fi
 
 test ! -d $BSDINSTALL_DISTDIR && mkdir -p $BSDINSTALL_DISTDIR
@@ -146,8 +151,9 @@ cp /etc/localtime $1/etc
 cp /var/db/zoneinfo $1/var/db
 
 # Run post-install script
-if [ -f $TMPDIR/bsdinstall-installscript-ab ]; then
-	cp $TMPDIR/bsdinstall-installscript-ab $BSDINSTALL_CHROOT/tmp/installscript
+if [ -f $TMPDIR/bsdinstall-installscript-setup ]; then
+	cp $TMPDIR/bsdinstall-installscript-setup \
+	    $BSDINSTALL_CHROOT/tmp/installscript
 	chmod a+x $BSDINSTALL_CHROOT/tmp/installscript
 	mount -t devfs devfs "$BSDINSTALL_CHROOT/dev"
 	chroot $BSDINSTALL_CHROOT /tmp/installscript $@ 2>&1

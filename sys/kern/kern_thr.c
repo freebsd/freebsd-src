@@ -146,6 +146,7 @@ thr_new_initthr(struct thread *td, void *thunk)
 {
 	stack_t stack;
 	struct thr_param *param;
+	int error;
 
 	/*
 	 * Here we copy out tid to two places, one for child and one
@@ -165,7 +166,9 @@ thr_new_initthr(struct thread *td, void *thunk)
 	stack.ss_sp = param->stack_base;
 	stack.ss_size = param->stack_size;
 	/* Set upcall address to user thread entry function. */
-	cpu_set_upcall(td, param->start_func, param->arg, &stack);
+	error = cpu_set_upcall(td, param->start_func, param->arg, &stack);
+	if (error != 0)
+		return (error);
 	/* Setup user TLS address and TLS pointer register. */
 	return (cpu_set_user_tls(td, param->tls_base));
 }
@@ -312,8 +315,8 @@ sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
 
 	/* Signal userland that it can free the stack. */
 	if ((void *)uap->state != NULL) {
-		suword_lwpid(uap->state, 1);
-		kern_umtx_wake(td, uap->state, INT_MAX, 0);
+		(void)suword_lwpid(uap->state, 1);
+		(void)kern_umtx_wake(td, uap->state, INT_MAX, 0);
 	}
 
 	return (kern_thr_exit(td));

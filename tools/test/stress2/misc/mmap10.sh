@@ -40,18 +40,22 @@ sed '1,/^EOF/d' < $here/$0 > mmap10.c
 mycc -o mmap10 -Wall -Wextra -O2 -g mmap10.c -lpthread || exit 1
 rm -f mmap10.c
 
-daemon sh -c "(cd $here/../testcases/swap; ./swap -t 2m -i 20 -k)"
+daemon sh -c "(cd $here/../testcases/swap; ./swap -t 2m -i 20 -k > /dev/null)"
+ulimit -c 0
 sleep `jot -r 1 0 9`
 for i in `jot 2`; do
-	/tmp/mmap10 &
+	su $testuser -c /tmp/mmap10 &
 done
-sleep 300
+start=`date +%s`
 while pgrep -q mmap10; do
-	pkill -9 mmap10
+	[ $((`date +%s` - start)) -ge 300 ] && break
+	sleep 2
+done
+while pgrep -q 'mmap10|swap'; do
+	pkill -9 mmap10 swap
 	sleep 2
 done
 wait
-killall -q swap
 
 rm -f /tmp/mmap10 /tmp/mmap10.core
 exit 0
@@ -76,6 +80,7 @@ EOF
 #define N (128 * 1024 / (int)sizeof(u_int32_t))
 #define PARALLEL 50
 
+static int debug = 0; /* set to "1" for debug output */
 void *p;
 u_int32_t r[N];
 
@@ -169,7 +174,7 @@ tmlock(void *arg __unused)
 			if (munlock(makeptr(), len) == 0)
 				n++;
 	}
-	if (n < 10)
+	if (debug == 1 && n < 10)
 		fprintf(stderr, "Note: tmlock() only succeeded %d times.\n",
 		    n);
 
@@ -193,7 +198,7 @@ tmprotect(void *arg __unused)
 			n++;
 		usleep(1000);
 	}
-	if (n < 10)
+	if (debug == 1 && n < 10)
 		fprintf(stderr, "Note: tmprotect() only succeeded %d times.\n",
 		    n);
 
@@ -215,7 +220,7 @@ tmlockall(void *arg __unused)
 		munlockall();
 		usleep(1000);
 	}
-	if (n < 10)
+	if (debug == 1 && n < 10)
 		fprintf(stderr, "Note: tmlockall() only succeeded %d times.\n",
 		    n);
 

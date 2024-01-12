@@ -35,6 +35,7 @@
 #include <machine/vm.h>
 
 #include <linux/compiler.h>
+#include <linux/err.h>
 #include <linux/types.h>
 #if !defined(__arm__)
 #include <asm/set_memory.h>
@@ -349,6 +350,16 @@ ioread32be(const volatile void *addr)
 }
 #define	ioread32be(addr)	ioread32be(addr)
 
+#ifdef __LP64__
+#undef ioread64
+static inline uint64_t
+ioread64(const volatile void *addr)
+{
+	return (readq(addr));
+}
+#define	ioread64(addr)		ioread64(addr)
+#endif
+
 #undef iowrite8
 static inline void
 iowrite8(uint8_t v, volatile void *addr)
@@ -519,6 +530,8 @@ memunmap(void *addr)
 	/* XXX May need to check if this is RAM */
 	iounmap(addr);
 }
+
+#define	IOMEM_ERR_PTR(err)	(void __iomem *)ERR_PTR(err)
 
 #define	__MTRR_ID_BASE	1
 int lkpi_arch_phys_wc_add(unsigned long, unsigned long);

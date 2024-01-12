@@ -45,7 +45,7 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#include <dev/extres/regulator/regulator.h>
+#include <dev/regulator/regulator.h>
 
 #include <dev/mmc/bridge.h>
 #include <dev/mmc/mmcbrvar.h>

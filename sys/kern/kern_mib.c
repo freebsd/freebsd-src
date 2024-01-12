@@ -92,20 +92,20 @@ SYSCTL_ROOT_NODE(OID_AUTO, regression, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Regression test MIB");
 #endif
 
-SYSCTL_STRING(_kern, OID_AUTO, ident, CTLFLAG_RD|CTLFLAG_MPSAFE,
+SYSCTL_STRING(_kern, OID_AUTO, ident, CTLFLAG_RD,
     kern_ident, 0, "Kernel identifier");
 
-SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD|CTLFLAG_CAPRD,
+SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD | CTLFLAG_CAPRD,
     SYSCTL_NULL_INT_PTR, BSD, "Operating system revision");
 
-SYSCTL_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD|CTLFLAG_MPSAFE,
+SYSCTL_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD,
     version, 0, "Kernel version");
 
-SYSCTL_STRING(_kern, OID_AUTO, compiler_version, CTLFLAG_RD|CTLFLAG_MPSAFE,
+SYSCTL_STRING(_kern, OID_AUTO, compiler_version, CTLFLAG_RD,
     compiler_version, 0, "Version of compiler used to compile kernel");
 
-SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD|CTLFLAG_MPSAFE|
-    CTLFLAG_CAPRD, ostype, 0, "Operating system type");
+SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD | CTLFLAG_CAPRD,
+    ostype, 0, "Operating system type");
 
 SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &maxproc, 0, "Maximum number of processes");
@@ -139,7 +139,7 @@ SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids, CTLFLAG_RD|CTLFLAG_CAPRD,
 
 char kernelname[MAXPATHLEN] = PATH_KERNEL;	/* XXX bloat */
 
-SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile, CTLFLAG_RW | CTLFLAG_MPSAFE,
+SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile, CTLFLAG_RW,
     kernelname, sizeof kernelname, "Name of kernel file booted");
 
 #ifdef COMPAT_FREEBSD12
@@ -456,7 +456,7 @@ SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel,
 /* Actual kernel configuration options. */
 extern char kernconfstring[];
 
-SYSCTL_STRING(_kern, OID_AUTO, conftxt, CTLFLAG_RD | CTLFLAG_MPSAFE,
+SYSCTL_STRING(_kern, OID_AUTO, conftxt, CTLFLAG_RD,
     kernconfstring, 0, "Kernel configuration file");
 #endif
 
@@ -753,6 +753,10 @@ sysctl_kern_pid_max(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, OID_AUTO, pid_max, CTLTYPE_INT |
     CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE,
     0, 0, sysctl_kern_pid_max, "I", "Maximum allowed pid");
+
+SYSCTL_INT(_kern, OID_AUTO, pid_max_limit, CTLFLAG_RD,
+    SYSCTL_NULL_INT_PTR, PID_MAX,
+    "Maximum allowed pid (kern.pid_max) top limit");
 
 #include <sys/bio.h>
 #include <sys/buf.h>

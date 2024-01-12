@@ -34,7 +34,7 @@ CFLAGS+=	-fsanitize=address -fsanitize=undefined
 LDFLAGS+=	-fsanitize=address -fsanitize=undefined
 .endif
 
-LIBADD=	dtrace ctf elf proc spl
+LIBADD=	dtrace ctf elf proc spl xo
 
 .if ${MK_DTRACE_TESTS} != "no"
 SUBDIR+=	tests

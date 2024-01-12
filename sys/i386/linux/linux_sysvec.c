@@ -126,11 +126,14 @@ linux_fixup(uintptr_t *stack_base, struct image_params *imgp)
 	argv = base;
 	envp = base + (imgp->args->argc + 1);
 	base--;
-	suword(base, (intptr_t)envp);
+	if (suword(base, (intptr_t)envp) != 0)
+		return (EFAULT);
 	base--;
-	suword(base, (intptr_t)argv);
+	if (suword(base, (intptr_t)argv) != 0)
+		return (EFAULT);
 	base--;
-	suword(base, imgp->args->argc);
+	if (suword(base, imgp->args->argc) != 0)
+		return (EFAULT);
 	*stack_base = (uintptr_t)base;
 	return (0);
 }

@@ -36,6 +36,7 @@
 #endif
 
 #include <dt_impl.h>
+#include <dt_oformat.h>
 #include <dt_program.h>
 
 static const char _dt_errprog[] =
@@ -315,6 +316,7 @@ dt_handle_cpudrop(dtrace_hdl_t *dtp, processorid_t cpu,
 	dtrace_dropdata_t drop;
 	char str[80], *s;
 	int size;
+	struct timeval tv;
 
 	assert(what == DTRACEDROP_PRINCIPAL || what == DTRACEDROP_AGGREGATION);
 
@@ -338,6 +340,15 @@ dt_handle_cpudrop(dtrace_hdl_t *dtp, processorid_t cpu,
 	    (u_longlong_t)howmany,
 	    what == DTRACEDROP_PRINCIPAL ? "" : "aggregation ",
 	    howmany > 1 ? "s" : "", cpu);
+
+	if (dtp->dt_oformat) {
+		(void) gettimeofday(&tv, NULL);
+		xo_emit("{:timestamp/%ld.%06ld} {:count/%ju} "
+			"{:total/%ju} {:kind/%d} {:msg/%s}",
+		    tv.tv_sec, tv.tv_usec, (uintmax_t)drop.dtdda_drops,
+		    (uintmax_t)drop.dtdda_total, drop.dtdda_kind,
+		    drop.dtdda_msg);
+	}
 
 	if (dtp->dt_drophdlr == NULL)
 		return (dt_set_errno(dtp, EDT_DROPABORT));
@@ -396,6 +407,7 @@ dt_handle_status(dtrace_hdl_t *dtp, dtrace_status_t *old, dtrace_status_t *new)
 	char str[80], *s;
 	uintptr_t base = (uintptr_t)new, obase = (uintptr_t)old;
 	int i, size;
+	struct timeval tv;
 
 	bzero(&drop, sizeof (drop));
 	drop.dtdda_handle = dtp;
@@ -407,6 +419,8 @@ dt_handle_status(dtrace_hdl_t *dtp, dtrace_status_t *old, dtrace_status_t *new)
 	 */
 	if (new->dtst_killed && !old->dtst_killed)
 		return (dt_set_errno(dtp, EDT_BRICKED));
+
+	(void) gettimeofday(&tv, NULL);
 
 	for (i = 0; _dt_droptab[i].dtdrt_str != NULL; i++) {
 		uintptr_t naddr = base + _dt_droptab[i].dtdrt_offset;
@@ -438,12 +452,31 @@ dt_handle_status(dtrace_hdl_t *dtp, dtrace_status_t *old, dtrace_status_t *new)
 		drop.dtdda_total = nval;
 		drop.dtdda_drops = nval - oval;
 
-		if (dtp->dt_drophdlr == NULL)
+		if (dtp->dt_oformat) {
+			xo_open_instance("probes");
+			dt_oformat_drop(dtp, DTRACE_CPUALL);
+			xo_emit("{:timestamp/%ld.%06ld} {:count/%ju} "
+				"{:total/%ju} {:kind/%d} {:msg/%s}",
+			    tv.tv_sec, tv.tv_usec, (uintmax_t)drop.dtdda_drops,
+			    (uintmax_t)drop.dtdda_total, drop.dtdda_kind,
+			    drop.dtdda_msg);
+		}
+
+		if (dtp->dt_drophdlr == NULL) {
+			if (dtp->dt_oformat)
+				xo_close_instance("probes");
 			return (dt_set_errno(dtp, EDT_DROPABORT));
+		}
 
 		if ((*dtp->dt_drophdlr)(&drop,
-		    dtp->dt_droparg) == DTRACE_HANDLE_ABORT)
+		    dtp->dt_droparg) == DTRACE_HANDLE_ABORT) {
+			if (dtp->dt_oformat)
+				xo_close_instance("probes");
 			return (dt_set_errno(dtp, EDT_DROPABORT));
+		}
+
+		if (dtp->dt_oformat)
+			xo_close_instance("probes");
 	}
 
 	return (0);
