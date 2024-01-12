@@ -26,6 +26,7 @@ ATF_TESTS_C+=	ptrace_test
 TEST_METADATA.ptrace_test+=		timeout="15"
 ATF_TESTS_C+=	reaper
 ATF_TESTS_C+=	sched_affinity
+ATF_TESTS_C+=	shutdown_dgram
 ATF_TESTS_C+=	sigaltstack
 ATF_TESTS_C+=	sigwait
 ATF_TESTS_C+=	socket_accept
@@ -75,6 +76,7 @@ LIBADD.unix_seqpacket_test+=		pthread
 LIBADD.kcov+=				pthread
 CFLAGS.ktls_test+=			-DOPENSSL_API_COMPAT=0x10100000L
 LIBADD.ktls_test+=			crypto util
+LIBADD.shutdown_dgram+=			pthread
 LIBADD.socket_msg_waitall+=		pthread
 LIBADD.sendfile_helper+=		pthread
 LIBADD.fdgrowtable_test+=		util pthread kvm procstat
