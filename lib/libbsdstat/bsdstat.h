@@ -36,7 +36,7 @@
  */
 
 /*
- * Statistic definition/description.  The are defined
+ * Statistic definition/description.  These are defined
  * for stats that correspond 1-1 w/ a collected stat
  * and for stats that are calculated indirectly.
  */
