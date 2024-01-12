@@ -212,7 +212,7 @@ find_execute(PLAN *plan, char *paths[])
 
 		if (showinfo) {
 			fprintf(stderr, "Scanning: %s/%s\n", entry->fts_path, entry->fts_name);
-			fprintf(stderr, "Scanned: %lu\n\n", counter);
+			fprintf(stderr, "Scanned: %zu\n\n", counter);
 			showinfo = 0;
 		}
 		++counter;
