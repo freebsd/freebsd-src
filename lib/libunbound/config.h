@@ -484,7 +484,7 @@
 /* Define to 1 if you have the <poll.h> header file. */
 #define HAVE_POLL_H 1
 
-/* Define if you have POSIX threads libraries and header files. */
+/* Define to 1 if you have POSIX threads libraries and header files. */
 #define HAVE_PTHREAD 1
 
 /* Have PTHREAD_PRIO_INHERIT. */
@@ -931,7 +931,7 @@
 /* Define to 1 to use ipset support */
 /* #undef USE_IPSET */
 
-/* Define if you enable libevent */
+/* Define to 1 if you enable libevent */
 #define USE_LIBEVENT 1
 
 /* Define this to enable use of /proc/sys/net/ipv4/ip_local_port_range as a
@@ -942,7 +942,7 @@
    distributions) the use of non-ephemeral ports. */
 /* #undef USE_LINUX_IP_LOCAL_PORT_RANGE */
 
-/* Define if you want to use internal select based events */
+/* Define to 1 if you want to use internal select based events */
 #define USE_MINI_EVENT 1
 
 /* Define this to enable client TCP Fast Open. */
