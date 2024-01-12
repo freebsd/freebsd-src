@@ -136,6 +136,7 @@ static kobj_method_t tegra_methods[] = {
 	KOBJMETHOD(uart_receive,	ns8250_bus_receive),
 	KOBJMETHOD(uart_setsig,		ns8250_bus_setsig),
 	KOBJMETHOD(uart_transmit,	ns8250_bus_transmit),
+	KOBJMETHOD(uart_txbusy,		ns8250_bus_txbusy),
 	KOBJMETHOD(uart_grab,		tegra_uart_grab),
 	KOBJMETHOD(uart_ungrab,		tegra_uart_ungrab),
 	KOBJMETHOD_END
@@ -237,7 +238,7 @@ static device_method_t tegra_uart_bus_methods[] = {
 	DEVMETHOD(device_probe,		tegra_uart_probe),
 	DEVMETHOD(device_attach,	uart_bus_attach),
 	DEVMETHOD(device_detach,	tegra_uart_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t tegra_uart_driver = {

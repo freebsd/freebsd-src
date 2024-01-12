@@ -433,9 +433,10 @@ static kobj_method_t ns8250_methods[] = {
 	KOBJMETHOD(uart_receive,	ns8250_bus_receive),
 	KOBJMETHOD(uart_setsig,		ns8250_bus_setsig),
 	KOBJMETHOD(uart_transmit,	ns8250_bus_transmit),
+	KOBJMETHOD(uart_txbusy,		ns8250_bus_txbusy),
 	KOBJMETHOD(uart_grab,		ns8250_bus_grab),
 	KOBJMETHOD(uart_ungrab,		ns8250_bus_ungrab),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 struct uart_class uart_ns8250_class = {
@@ -1068,6 +1069,17 @@ ns8250_bus_transmit(struct uart_softc *sc)
 	if (broken_txfifo)
 		uart_sched_softih(sc, SER_INT_TXIDLE);
 	return (0);
+}
+
+bool
+ns8250_bus_txbusy(struct uart_softc *sc)
+{
+	struct uart_bas *bas = &sc->sc_bas;
+
+	if ((uart_getreg(bas, REG_LSR) & (LSR_TEMT | LSR_THRE)) !=
+	    (LSR_TEMT | LSR_THRE))
+		return (true);
+	return (false);
 }
 
 void

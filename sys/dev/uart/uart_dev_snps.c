@@ -101,6 +101,7 @@ static kobj_method_t snps_methods[] = {
 	KOBJMETHOD(uart_receive,	ns8250_bus_receive),
 	KOBJMETHOD(uart_setsig,		ns8250_bus_setsig),
 	KOBJMETHOD(uart_transmit,	ns8250_bus_transmit),
+	KOBJMETHOD(uart_txbusy,		ns8250_bus_txbusy),
 	KOBJMETHOD(uart_grab,		ns8250_bus_grab),
 	KOBJMETHOD(uart_ungrab,		ns8250_bus_ungrab),
 	KOBJMETHOD_END

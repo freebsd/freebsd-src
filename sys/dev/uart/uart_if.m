@@ -38,6 +38,17 @@
 
 INTERFACE uart;
 
+CODE {
+	static uart_txbusy_t uart_default_txbusy;
+
+	static bool
+	uart_default_txbusy(struct uart_softc *this __unused)
+	{
+
+		return (false);
+	}
+};
+
 # attach() - attach hardware.
 # This method is called when the device is being attached. All resources
 # have been allocated. The transmit and receive buffers exist, but no
@@ -140,6 +151,16 @@ METHOD int setsig {
 METHOD int transmit {
 	struct uart_softc *this;
 };
+
+# txbusy() - report if Tx is still busy.
+# This method is called by the tty glue for reporting upward that output is
+# still being drained despite sc_txbusy unset. Non-DEFAULT implementations
+# allow for extra checks, i. e. beyond what can be determined in ipend(),
+# that the Tx path actually is idle. For example, whether the last character
+# has left the transmit shift register in addition to the FIFO being empty.
+METHOD bool txbusy {
+	struct uart_softc *this;
+} DEFAULT uart_default_txbusy;
 
 # grab() - Up call from the console to the upper layers of the driver when
 # the kernel asks to grab the console. This is valid only for console
