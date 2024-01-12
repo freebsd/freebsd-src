@@ -239,7 +239,7 @@ static void	cpu_6xx_print_cacheinfo(u_int, uint16_t);
 static int	cpu_feature_bit(SYSCTL_HANDLER_ARGS);
 
 static char model[64];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, model, 0, "");
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD | CTLFLAG_CAPRD, model, 0, "");
 
 static const struct cputab	*cput;
 

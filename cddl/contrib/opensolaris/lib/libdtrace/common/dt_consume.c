@@ -24,6 +24,7 @@
  */
 
 /*
+ * Copyright (c) 2023, Domagoj Stolfa. All rights reserved.
  * Copyright (c) 2017, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
@@ -40,11 +41,49 @@
 #endif
 #include <dt_impl.h>
 #include <dt_pq.h>
+#include <dt_oformat.h>
 #ifndef illumos
 #include <libproc_compat.h>
 #endif
 
 #define	DT_MASK_LO 0x00000000FFFFFFFFULL
+
+#define	dt_format_sym(dtp, addr) dt_print_sym((dtp), NULL, NULL, addr)
+
+typedef struct dt_prepare_args {
+	int first_bin;
+	int last_bin;
+	union {
+		struct lquantize_args {
+#define lquantize_step		u.lquantize.step
+#define lquantize_levels	u.lquantize.levels
+#define lquantize_base		u.lquantize.base
+			int base;
+			uint16_t step;
+			uint16_t levels;
+		} lquantize;
+		struct llquantize_args {
+#define	llquantize_next		u.llquantize.next
+#define	llquantize_step		u.llquantize.step
+#define	llquantize_value	u.llquantize.value
+#define	llquantize_levels	u.llquantize.levels
+#define	llquantize_order	u.llquantize.order
+#define	llquantize_factor	u.llquantize.factor
+#define	llquantize_low		u.llquantize.low
+#define	llquantize_high		u.llquantize.high
+#define	llquantize_nsteps	u.llquantize.nsteps
+			int64_t next;
+			int64_t step;
+			int64_t value;
+			int levels;
+			int order;
+			uint16_t factor;
+			uint16_t low;
+			uint16_t high;
+			uint16_t nsteps;
+		} llquantize;
+	} u;
+} dt_prepare_args_t;
 
 /*
  * We declare this here because (1) we need it and (2) we want to avoid a
@@ -761,17 +800,17 @@ dt_print_packed(dtrace_hdl_t *dtp, FILE *fp,
 	return (dt_printf(dtp, fp, "%c", ascii[(uint_t)(val + 0.5)]));
 }
 
-int
-dt_print_quantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
-    size_t size, uint64_t normal)
+static const int64_t *
+dt_format_quantize_prepare(dtrace_hdl_t *dtp, const void *addr, size_t size,
+    dt_prepare_args_t *args)
 {
 	const int64_t *data = addr;
-	int i, first_bin = 0, last_bin = DTRACE_QUANTIZE_NBUCKETS - 1;
-	long double total = 0;
-	char positives = 0, negatives = 0;
+	int first_bin = 0, last_bin = DTRACE_QUANTIZE_NBUCKETS - 1;
 
-	if (size != DTRACE_QUANTIZE_NBUCKETS * sizeof (uint64_t))
-		return (dt_set_errno(dtp, EDT_DMISMATCH));
+	if (size != DTRACE_QUANTIZE_NBUCKETS * sizeof (uint64_t)) {
+		(void) dt_set_errno(dtp, EDT_DMISMATCH);
+		return (NULL);
+	}
 
 	while (first_bin < DTRACE_QUANTIZE_NBUCKETS - 1 && data[first_bin] == 0)
 		first_bin++;
@@ -794,6 +833,58 @@ dt_print_quantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 		if (last_bin < DTRACE_QUANTIZE_NBUCKETS - 1)
 			last_bin++;
 	}
+
+	args->first_bin = first_bin;
+	args->last_bin = last_bin;
+	return (data);
+}
+
+int
+dt_format_quantize(dtrace_hdl_t *dtp, const void *addr, size_t size,
+    uint64_t normal)
+{
+	const int64_t *data;
+	dt_prepare_args_t args = { 0 };
+	int i, first_bin = 0, last_bin = DTRACE_QUANTIZE_NBUCKETS - 1;
+
+	data = dt_format_quantize_prepare(dtp, addr, size, &args);
+	/* dt_errno is set for us */
+	if (data == NULL)
+		return (-1);
+
+	first_bin = args.first_bin;
+	last_bin = args.last_bin;
+
+	xo_open_list("buckets");
+	for (i = first_bin; i <= last_bin; i++) {
+		long long value = (long long)DTRACE_QUANTIZE_BUCKETVAL(i);
+		xo_open_instance("buckets");
+		xo_emit("{:value/%lld} {:count/%lld}", value,
+		    (long long)data[i] / normal);
+		xo_close_instance("buckets");
+	}
+	xo_close_list("buckets");
+
+	return (0);
+}
+
+int
+dt_print_quantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
+    size_t size, uint64_t normal)
+{
+	const int64_t *data;
+	dt_prepare_args_t args = { 0 };
+	int i, first_bin = 0, last_bin = DTRACE_QUANTIZE_NBUCKETS - 1;
+	long double total = 0;
+	char positives = 0, negatives = 0;
+
+	data = dt_format_quantize_prepare(dtp, addr, size, &args);
+	/* dt_errno is set for us */
+	if (data == NULL)
+		return (-1);
+
+	first_bin = args.first_bin;
+	last_bin = args.last_bin;
 
 	for (i = first_bin; i <= last_bin; i++) {
 		positives |= (data[i] > 0);
@@ -859,19 +950,19 @@ dt_print_quantize_packed(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 	return (0);
 }
 
-int
-dt_print_lquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
-    size_t size, uint64_t normal)
+static const int64_t *
+dt_format_lquantize_prepare(dtrace_hdl_t *dtp, const void *addr, size_t size,
+    dt_prepare_args_t *args)
 {
 	const int64_t *data = addr;
-	int i, first_bin, last_bin, base;
+	int first_bin = 0, last_bin = DTRACE_QUANTIZE_NBUCKETS - 1, base;
 	uint64_t arg;
-	long double total = 0;
 	uint16_t step, levels;
-	char positives = 0, negatives = 0;
 
-	if (size < sizeof (uint64_t))
-		return (dt_set_errno(dtp, EDT_DMISMATCH));
+	if (size < sizeof (uint64_t)) {
+		(void) dt_set_errno(dtp, EDT_DMISMATCH);
+		return (NULL);
+	}
 
 	arg = *data++;
 	size -= sizeof (uint64_t);
@@ -883,8 +974,10 @@ dt_print_lquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 	first_bin = 0;
 	last_bin = levels + 1;
 
-	if (size != sizeof (uint64_t) * (levels + 2))
-		return (dt_set_errno(dtp, EDT_DMISMATCH));
+	if (size != sizeof (uint64_t) * (levels + 2)) {
+		(void) dt_set_errno(dtp, EDT_DMISMATCH);
+		return (NULL);
+	}
 
 	while (first_bin <= levels + 1 && data[first_bin] == 0)
 		first_bin++;
@@ -902,6 +995,80 @@ dt_print_lquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 		if (last_bin < levels + 1)
 			last_bin++;
 	}
+
+	args->first_bin = first_bin;
+	args->last_bin = last_bin;
+	args->lquantize_base = base;
+	args->lquantize_step = step;
+	args->lquantize_levels = levels;
+	return (data);
+}
+
+int
+dt_format_lquantize(dtrace_hdl_t *dtp, const void *addr, size_t size,
+    uint64_t normal)
+{
+	const int64_t *data;
+	dt_prepare_args_t args = { 0 };
+	int i, first_bin, last_bin, base;
+	uint16_t step, levels;
+
+	data = dt_format_lquantize_prepare(dtp, addr, size, &args);
+	/* dt_errno is set for us */
+	if (data == NULL)
+		return (-1);
+
+	first_bin = args.first_bin;
+	last_bin = args.last_bin;
+	step = args.lquantize_step;
+	levels = args.lquantize_levels;
+	base = args.lquantize_base;
+
+	xo_open_list("buckets");
+	for (i = first_bin; i <= last_bin; i++) {
+		char c[32];
+		int err;
+
+		xo_open_instance("buckets");
+		if (i == 0) {
+			xo_emit("{:value/%d} {:operator/%s}", base, "<");
+		} else if (i == levels + 1) {
+			xo_emit("{:value/%d} {:operator/%s}",
+			    base + (levels * step), ">=");
+		} else {
+			xo_emit("{:value/%d}", base + (i - 1) * step);
+		}
+
+		xo_emit("{:count/%lld}", (long long)data[i] / normal);
+		xo_close_instance("buckets");
+	}
+	xo_close_list("buckets");
+
+	return (0);
+}
+
+int
+dt_print_lquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
+    size_t size, uint64_t normal)
+{
+	const int64_t *data;
+	dt_prepare_args_t args = { 0 };
+	int i, first_bin, last_bin, base;
+	uint64_t arg;
+	long double total = 0;
+	uint16_t step, levels;
+	char positives = 0, negatives = 0;
+
+	data = dt_format_lquantize_prepare(dtp, addr, size, &args);
+	/* dt_errno is set for us */
+	if (data == NULL)
+		return (-1);
+
+	first_bin = args.first_bin;
+	last_bin = args.last_bin;
+	step = args.lquantize_step;
+	levels = args.lquantize_levels;
+	base = args.lquantize_base;
 
 	for (i = first_bin; i <= last_bin; i++) {
 		positives |= (data[i] > 0);
@@ -990,21 +1157,20 @@ dt_print_lquantize_packed(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 	return (dt_printf(dtp, fp, ": %-8s | %lld\n", c, (long long)count));
 }
 
-int
-dt_print_llquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
-    size_t size, uint64_t normal)
+static const int64_t *
+dt_format_llquantize_prepare(dtrace_hdl_t *dtp, const void *addr, size_t size,
+    dt_prepare_args_t *args)
 {
 	int i, first_bin, last_bin, bin = 1, order, levels;
 	uint16_t factor, low, high, nsteps;
 	const int64_t *data = addr;
 	int64_t value = 1, next, step;
-	char positives = 0, negatives = 0;
-	long double total = 0;
 	uint64_t arg;
-	char c[32];
 
-	if (size < sizeof (uint64_t))
-		return (dt_set_errno(dtp, EDT_DMISMATCH));
+	if (size < sizeof(uint64_t)) {
+		(void) dt_set_errno(dtp, EDT_DMISMATCH);
+		return (NULL);
+	}
 
 	arg = *data++;
 	size -= sizeof (uint64_t);
@@ -1019,8 +1185,10 @@ dt_print_llquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 	 * but sanity check them (to a degree) nonetheless.
 	 */
 	if (size > INT32_MAX || factor < 2 || low >= high ||
-	    nsteps == 0 || factor > nsteps)
-		return (dt_set_errno(dtp, EDT_DMISMATCH));
+	    nsteps == 0 || factor > nsteps) {
+		(void) dt_set_errno(dtp, EDT_DMISMATCH);
+		return (NULL);
+	}
 
 	levels = (int)size / sizeof (uint64_t);
 
@@ -1044,6 +1212,133 @@ dt_print_llquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 			last_bin++;
 	}
 
+	for (order = 0; order < low; order++)
+		value *= factor;
+
+	next = value * factor;
+	step = next > nsteps ? next / nsteps : 1;
+
+	args->first_bin = first_bin;
+	args->last_bin = last_bin;
+	args->llquantize_factor = factor;
+	args->llquantize_low = low;
+	args->llquantize_high = high;
+	args->llquantize_nsteps = nsteps;
+	args->llquantize_levels = levels;
+	args->llquantize_order = order;
+	args->llquantize_next = next;
+	args->llquantize_step = step;
+	args->llquantize_value = value;
+
+	return (data);
+}
+
+int
+dt_format_llquantize(dtrace_hdl_t *dtp, const void *addr, size_t size,
+    uint64_t normal)
+{
+	int first_bin, last_bin, bin = 1, order, levels;
+	uint16_t factor, low, high, nsteps;
+	const int64_t *data;
+	dt_prepare_args_t args = { 0 };
+	int64_t value = 1, next, step;
+	uint64_t arg;
+	char c[32];
+
+	data = dt_format_llquantize_prepare(dtp, addr, size, &args);
+	/* dt_errno is set for us */
+	if (data == NULL)
+		return (-1);
+
+	first_bin = args.first_bin;
+	last_bin = args.last_bin;
+	factor = args.llquantize_factor;
+	low = args.llquantize_low;
+	high = args.llquantize_high;
+	nsteps = args.llquantize_nsteps;
+	levels = args.llquantize_levels;
+	order = args.llquantize_order;
+	next = args.llquantize_next;
+	step = args.llquantize_step;
+	value = args.llquantize_value;
+
+	xo_open_list("buckets");
+	if (first_bin == 0) {
+		/*
+		 * We have to represent < value somehow in JSON, so we bundle an
+		 * optional "operator" in llquantize buckets.
+		 */
+		xo_open_instance("buckets");
+		xo_emit("{:value/%lld} {:count/%lld} {:operator/%s}",
+		    (long long)value, (long long)data[0] / normal, "<");
+		xo_close_instance("buckets");
+	}
+
+	while (order <= high) {
+		if (bin >= first_bin && bin <= last_bin) {
+			xo_open_instance("buckets");
+			xo_emit("{:value/%lld} {:count/%lld}", (long long)value,
+			    (long long)data[bin] / normal);
+			xo_close_instance("buckets");
+		}
+
+		assert(value < next);
+		bin++;
+
+		if ((value += step) != next)
+			continue;
+
+		next = value * factor;
+		step = next > nsteps ? next / nsteps : 1;
+		order++;
+	}
+
+	if (last_bin < bin) {
+		xo_close_list("buckets");
+		return (0);
+	}
+
+	assert(last_bin == bin);
+	xo_open_instance("buckets");
+	xo_emit("{:value/%lld} {:count/%lld} {:operator/%s}", (long long)value,
+	    (long long)data[bin] / normal, ">=");
+	xo_close_instance("buckets");
+
+	xo_close_list("buckets");
+	return (0);
+}
+
+int
+dt_print_llquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
+    size_t size, uint64_t normal)
+{
+	int i, first_bin, last_bin, bin = 1, order, levels;
+	uint16_t factor, low, high, nsteps;
+	const int64_t *data;
+	dt_prepare_args_t args = { 0 };
+	int64_t value = 1, next, step;
+	char positives = 0, negatives = 0;
+	long double total = 0;
+	uint64_t arg;
+	char c[32];
+
+	data = dt_format_llquantize_prepare(dtp, addr, size, &args);
+	/* dt_errno is set for us */
+	if (data == NULL)
+		return (-1);
+
+	first_bin = args.first_bin;
+	last_bin = args.last_bin;
+	factor = args.llquantize_factor;
+	low = args.llquantize_low;
+	high = args.llquantize_high;
+	nsteps = args.llquantize_nsteps;
+	levels = args.llquantize_levels;
+	order = args.llquantize_order;
+	next = args.llquantize_next;
+	step = args.llquantize_step;
+	value = args.llquantize_value;
+
 	for (i = first_bin; i <= last_bin; i++) {
 		positives |= (data[i] > 0);
 		negatives |= (data[i] < 0);
@@ -1053,12 +1348,6 @@ dt_print_llquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 	if (dt_printf(dtp, fp, "\n%16s %41s %-9s\n", "value",
 	    "------------- Distribution -------------", "count") < 0)
 		return (-1);
-
-	for (order = 0; order < low; order++)
-		value *= factor;
-
-	next = value * factor;
-	step = next > nsteps ? next / nsteps : 1;
 
 	if (first_bin == 0) {
 		(void) snprintf(c, sizeof (c), "< %lld", (long long)value);
@@ -1105,6 +1394,16 @@ dt_print_llquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 	    total, positives, negatives));
 }
 
+static int
+dt_format_average(dtrace_hdl_t *dtp, caddr_t addr, size_t size, uint64_t normal)
+{
+	int64_t *data = (int64_t *)addr;
+
+	xo_emit("{:average/%lld}",
+	    data[0] ? (long long)(data[1] / (int64_t)normal / data[0]) : 0);
+	return (0);
+}
+
 /*ARGSUSED*/
 static int
 dt_print_average(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr,
@@ -1115,6 +1414,16 @@ dt_print_average(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr,
 
 	return (dt_printf(dtp, fp, " %16lld", data[0] ?
 	    (long long)(data[1] / (int64_t)normal / data[0]) : 0));
+}
+
+static int
+dt_format_stddev(dtrace_hdl_t *dtp, caddr_t addr, size_t size, uint64_t normal)
+{
+	uint64_t *data = (uint64_t *)addr;
+
+	xo_emit("{:stddev/%llu}",
+	    data[0] ? (unsigned long long)dt_stddev(data, normal) : 0);
+	return (0);
 }
 
 /*ARGSUSED*/
@@ -1246,6 +1555,185 @@ raw:
 	}
 
 	return (0);
+}
+
+int
+dt_format_stack(dtrace_hdl_t *dtp, caddr_t addr, int depth, int size)
+{
+	dtrace_syminfo_t dts;
+	GElf_Sym sym;
+	int i;
+	uint64_t pc;
+
+	xo_open_list("stack-frames");
+	for (i = 0; i < depth; i++) {
+		switch (size) {
+		case sizeof (uint32_t):
+			pc = *((uint32_t *)addr);
+			break;
+
+		case sizeof (uint64_t):
+			pc = *((uint64_t *)addr);
+			break;
+
+		default:
+			return (dt_set_errno(dtp, EDT_BADSTACKPC));
+		}
+
+		if (pc == 0)
+			break;
+
+		addr += size;
+
+		xo_open_instance("stack-frames");
+		if (dtrace_lookup_by_addr(dtp, pc, &sym, &dts) == 0) {
+			if (pc > sym.st_value) {
+				xo_emit("{:symbol/%s`%s+0x%llx} {:module/%s} "
+					"{:name/%s} {:offset/0x%llx}",
+				    dts.dts_object, dts.dts_name,
+				    (u_longlong_t)(pc - sym.st_value),
+				    dts.dts_object, dts.dts_name,
+				    (u_longlong_t)(pc - sym.st_value));
+			} else {
+				xo_emit("{:symbol/%s`%s} {:module/%s} "
+					"{:name/%s}",
+				    dts.dts_object, dts.dts_name,
+				    dts.dts_object, dts.dts_name);
+			}
+		} else {
+			/*
+			 * We'll repeat the lookup, but this time we'll specify
+			 * a NULL GElf_Sym -- indicating that we're only
+			 * interested in the containing module.
+			 */
+			if (dtrace_lookup_by_addr(dtp, pc, NULL, &dts) == 0) {
+				xo_emit("{:symbol/%s`0x%llx} {:module/%s} "
+					"{:offset/0x%llx}",
+				    dts.dts_object, (u_longlong_t)pc,
+				    dts.dts_object, (u_longlong_t)pc);
+			} else {
+				xo_emit("{:symbol/0x%llx} {:offset/0x%llx}",
+				    (u_longlong_t)pc, (u_longlong_t)pc);
+			}
+		}
+		xo_close_instance("stack-frames");
+	}
+	xo_close_list("stack-frames");
+
+	return (0);
+}
+
+int
+dt_format_ustack(dtrace_hdl_t *dtp, caddr_t addr, uint64_t arg)
+{
+	uint64_t *pc = (uint64_t *)addr;
+	uint32_t depth = DTRACE_USTACK_NFRAMES(arg);
+	uint32_t strsize = DTRACE_USTACK_STRSIZE(arg);
+	const char *strbase = addr + (depth + 1) * sizeof (uint64_t);
+	const char *str = strsize ? strbase : NULL;
+	int err = 0;
+
+	char name[PATH_MAX], objname[PATH_MAX], c[PATH_MAX * 2];
+	struct ps_prochandle *P;
+	GElf_Sym sym;
+	int i, indent;
+	pid_t pid;
+
+	if (depth == 0)
+		return (0);
+
+	pid = (pid_t)*pc++;
+
+	/*
+	 * Ultimately, we need to add an entry point in the library vector for
+	 * determining <symbol, offset> from <pid, address>.  For now, if
+	 * this is a vector open, we just print the raw address or string.
+	 */
+	if (dtp->dt_vector == NULL)
+		P = dt_proc_grab(dtp, pid, PGRAB_RDONLY | PGRAB_FORCE, 0);
+	else
+		P = NULL;
+
+	if (P != NULL)
+		dt_proc_lock(dtp, P); /* lock handle while we perform lookups */
+
+	xo_open_list("ustack-frames");
+	for (i = 0; i < depth && pc[i] != 0; i++) {
+		const prmap_t *map;
+
+		xo_open_instance("ustack-frames");
+		if (P != NULL && Plookup_by_addr(P, pc[i],
+		    name, sizeof (name), &sym) == 0) {
+			(void) Pobjname(P, pc[i], objname, sizeof (objname));
+
+			if (pc[i] > sym.st_value) {
+				xo_emit("{:symbol/%s`%s+0x%llx} {:module/%s} "
+					"{:name/%s} {:offset/0x%llx}",
+				    dt_basename(objname), name,
+				    (u_longlong_t)(pc[i] - sym.st_value),
+				    dt_basename(objname), name,
+				    (u_longlong_t)(pc[i] - sym.st_value));
+			} else {
+				xo_emit("{:symbol/%s`%s} {:module/%s} "
+					"{:name/%s}",
+				    dt_basename(objname), name,
+				    dt_basename(objname), name);
+			}
+		} else if (str != NULL && str[0] != '\0' && str[0] != '@' &&
+		    (P != NULL && ((map = Paddr_to_map(P, pc[i])) == NULL ||
+		    (map->pr_mflags & MA_WRITE)))) {
+			/*
+			 * If the current string pointer in the string table
+			 * does not point to an empty string _and_ the program
+			 * counter falls in a writable region, we'll use the
+			 * string from the string table instead of the raw
+			 * address.  This last condition is necessary because
+			 * some (broken) ustack helpers will return a string
+			 * even for a program counter that they can't
+			 * identify.  If we have a string for a program
+			 * counter that falls in a segment that isn't
+			 * writable, we assume that we have fallen into this
+			 * case and we refuse to use the string.
+			 */
+			xo_emit("{:symbol/%s}", str);
+		} else {
+			if (P != NULL && Pobjname(P, pc[i], objname,
+			    sizeof (objname)) != 0) {
+				xo_emit("{:symbol/%s`0x%llx} {:module/%s} "
+					"{:offset/0x%llx}",
+				    dt_basename(objname), (u_longlong_t)pc[i],
+				    dt_basename(objname), (u_longlong_t)pc[i]);
+			} else {
+				xo_emit("{:symbol/0x%llx} {:offset/0x%llx}",
+				    (u_longlong_t)pc[i], (u_longlong_t)pc[i]);
+			}
+		}
+
+		if (str != NULL && str[0] == '@') {
+			/*
+			 * If the first character of the string is an "at" sign,
+			 * then the string is inferred to be an annotation --
+			 * and it is printed out beneath the frame and offset
+			 * with brackets.
+			 */
+			xo_emit("{:annotation/%s}", &str[1]);
+		}
+
+		if (str != NULL) {
+			str += strlen(str) + 1;
+			if (str - strbase >= strsize)
+				str = NULL;
+		}
+		xo_close_instance("ustack-frames");
+	}
+	xo_close_list("ustack-frames");
+
+	if (P != NULL) {
+		dt_proc_unlock(dtp, P);
+		dt_proc_release(dtp, P);
+	}
+
+	return (err);
 }
 
 int
@@ -1461,6 +1949,41 @@ dt_print_ustack(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 }
 
 static int
+dt_format_usym(dtrace_hdl_t *dtp, caddr_t addr, dtrace_actkind_t act)
+{
+	uint64_t pid = ((uint64_t *)addr)[0];
+	uint64_t pc = ((uint64_t *)addr)[1];
+	char *s;
+	int n, len = 256;
+
+	if (act == DTRACEACT_USYM && dtp->dt_vector == NULL) {
+		struct ps_prochandle *P;
+
+		if ((P = dt_proc_grab(dtp, pid,
+		    PGRAB_RDONLY | PGRAB_FORCE, 0)) != NULL) {
+			GElf_Sym sym;
+
+			dt_proc_lock(dtp, P);
+
+			if (Plookup_by_addr(P, pc, NULL, 0, &sym) == 0)
+				pc = sym.st_value;
+
+			dt_proc_unlock(dtp, P);
+			dt_proc_release(dtp, P);
+		}
+	}
+
+	do {
+		n = len;
+		s = alloca(n);
+	} while ((len = dtrace_uaddr2str(dtp, pid, pc, s, n)) > n);
+
+	xo_emit("{:usym/%s}", s);
+	return (0);
+}
+
+
+static int
 dt_print_usym(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr, dtrace_actkind_t act)
 {
 	/* LINTED - alignment */
@@ -1494,6 +2017,42 @@ dt_print_usym(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr, dtrace_actkind_t act)
 	} while ((len = dtrace_uaddr2str(dtp, pid, pc, s, n)) > n);
 
 	return (dt_printf(dtp, fp, format, s));
+}
+
+int
+dt_format_umod(dtrace_hdl_t *dtp, caddr_t addr)
+{
+	uint64_t pid = ((uint64_t *)addr)[0];
+	uint64_t pc = ((uint64_t *)addr)[1];
+	int err = 0;
+
+	char objname[PATH_MAX];
+	struct ps_prochandle *P;
+
+	/*
+	 * See the comment in dt_print_ustack() for the rationale for
+	 * printing raw addresses in the vectored case.
+	 */
+	if (dtp->dt_vector == NULL)
+		P = dt_proc_grab(dtp, pid, PGRAB_RDONLY | PGRAB_FORCE, 0);
+	else
+		P = NULL;
+
+	if (P != NULL)
+		dt_proc_lock(dtp, P); /* lock handle while we perform lookups */
+
+	if (P != NULL && Pobjname(P, pc, objname, sizeof (objname)) != 0) {
+		xo_emit("{:umod/%s}", dt_basename(objname));
+	} else {
+		xo_emit("{:umod/0x%llx}", (u_longlong_t)pc);
+	}
+
+	if (P != NULL) {
+		dt_proc_unlock(dtp, P);
+		dt_proc_release(dtp, P);
+	}
+
+	return (0);
 }
 
 int
@@ -1552,8 +2111,13 @@ dt_print_sym(dtrace_hdl_t *dtp, FILE *fp, const char *format, caddr_t addr)
 		format = "  %-50s";
 
 	if (dtrace_lookup_by_addr(dtp, pc, &sym, &dts) == 0) {
-		(void) snprintf(c, sizeof (c), "%s`%s",
-		    dts.dts_object, dts.dts_name);
+		if (dtp->dt_oformat)
+			xo_emit("{:sym/%s`%s} {:object/%s} {:name/%s}",
+			    dts.dts_object, dts.dts_name, dts.dts_object,
+			    dts.dts_name);
+		else
+			(void) snprintf(c, sizeof (c), "%s`%s",
+			    dts.dts_object, dts.dts_name);
 	} else {
 		/*
 		 * We'll repeat the lookup, but this time we'll specify a
@@ -1561,16 +2125,42 @@ dt_print_sym(dtrace_hdl_t *dtp, FILE *fp, const char *format, caddr_t addr)
 		 * the containing module.
 		 */
 		if (dtrace_lookup_by_addr(dtp, pc, NULL, &dts) == 0) {
-			(void) snprintf(c, sizeof (c), "%s`0x%llx",
-			    dts.dts_object, (u_longlong_t)pc);
+			if (dtp->dt_oformat)
+				xo_emit("{:sym/%s`0x%llx} {:object/%s} "
+					"{:offset/0x%llx}",
+				    dts.dts_object, (u_longlong_t)pc,
+				    dts.dts_object, (u_longlong_t)pc);
+			else
+				(void) snprintf(c, sizeof (c), "%s`0x%llx",
+				    dts.dts_object, (u_longlong_t)pc);
 		} else {
-			(void) snprintf(c, sizeof (c), "0x%llx",
-			    (u_longlong_t)pc);
+			if (dtp->dt_oformat)
+				xo_emit("{:sym/0x%llx} {:offset/0x%llx}",
+				    (u_longlong_t)pc, (u_longlong_t)pc);
+			else
+				(void) snprintf(c, sizeof (c), "0x%llx",
+				    (u_longlong_t)pc);
 		}
 	}
 
-	if (dt_printf(dtp, fp, format, c) < 0)
+	if (dtp->dt_oformat != 0 && dt_printf(dtp, fp, format, c) < 0)
 		return (-1);
+
+	return (0);
+}
+
+int
+dt_format_mod(dtrace_hdl_t *dtp, caddr_t addr)
+{
+	/* LINTED - alignment */
+	uint64_t pc = *((uint64_t *)addr);
+	dtrace_syminfo_t dts;
+
+	if (dtrace_lookup_by_addr(dtp, pc, NULL, &dts) == 0) {
+		xo_emit("{:mod/%s}", dts.dts_object);
+	} else {
+		xo_emit("{:mod/0x%llx}", (u_longlong_t)pc);
+	}
 
 	return (0);
 }
@@ -1594,6 +2184,74 @@ dt_print_mod(dtrace_hdl_t *dtp, FILE *fp, const char *format, caddr_t addr)
 
 	if (dt_printf(dtp, fp, format, c) < 0)
 		return (-1);
+
+	return (0);
+}
+
+static char *
+dt_format_bytes_get(dtrace_hdl_t *dtp, caddr_t addr, size_t nbytes)
+{
+	char *s = dt_alloc(dtp, nbytes * 2 + 2 + 1); /* 2 bytes per byte + 0x + '\0' */
+	char t[6];
+	char *c = (char *)addr;
+	size_t i, j;
+
+	if (s == NULL)
+		return (NULL);
+
+	/*
+	 * XXX: Some duplication with dt_print_bytes().
+	 */
+	for (i = 0; i < nbytes; i++) {
+		if (isprint(c[i]) || isspace(c[i]) || c[i] == '\b' || c[i] == '\a')
+			continue;
+
+		if (c[i] == '\0' && i > 0) {
+			for (j = i + 1; j < nbytes; j++) {
+				if (c[j] != '\0')
+					break;
+			}
+
+			if (j != nbytes)
+				break;
+
+			memcpy(s, c, nbytes);
+			return (s);
+		}
+
+		break;
+	}
+
+	if (i == nbytes) {
+		memcpy(s, c, nbytes);
+		s[nbytes] = '\0';
+		return (s);
+	}
+
+	s[0] = '0';
+	s[1] = 'x';
+	for (i = 0; i < nbytes; i++) {
+		snprintf(t, sizeof(t), "%02x", (uchar_t)c[i]);
+		memcpy(s + (i * 2) + 2, t, 2);
+	}
+
+	s[nbytes * 2 + 2] = 0;
+	return (s);
+}
+
+static int
+dt_format_memory(dtrace_hdl_t *dtp, caddr_t addr)
+{
+
+	size_t nbytes = *((uintptr_t *) addr);
+	char *s;
+
+	s = dt_format_bytes_get(dtp, addr + sizeof(uintptr_t), nbytes);
+	if (s == NULL)
+		return (-1);
+
+	xo_emit("{:printm/%s}", s);
+	dt_free(dtp, s);
 
 	return (0);
 }
@@ -1803,6 +2461,90 @@ dt_trunc(dtrace_hdl_t *dtp, caddr_t base, dtrace_recdesc_t *rec)
 }
 
 static int
+dt_format_datum(dtrace_hdl_t *dtp, dtrace_recdesc_t *rec, caddr_t addr,
+    size_t size, const dtrace_aggdata_t *aggdata, uint64_t normal,
+    dt_print_aggdata_t *pd)
+{
+	dtrace_actkind_t act = rec->dtrd_action;
+	boolean_t packed = pd->dtpa_agghist || pd->dtpa_aggpack;
+	dtrace_aggdesc_t *agg = aggdata->dtada_desc;
+	char fmt[512];
+	char *s;
+
+	if (packed && pd->dtpa_agghisthdr != agg->dtagd_varid)
+		pd->dtpa_agghisthdr = agg->dtagd_varid;
+
+	switch (act) {
+	case DTRACEACT_STACK:
+		return (dt_format_stack(dtp, addr, rec->dtrd_arg,
+		    rec->dtrd_size / rec->dtrd_arg));
+
+	case DTRACEACT_USTACK:
+	case DTRACEACT_JSTACK:
+		return (dt_format_ustack(dtp, addr, rec->dtrd_arg));
+
+	case DTRACEACT_USYM:
+	case DTRACEACT_UADDR:
+		return (dt_format_usym(dtp, addr, act));
+
+	case DTRACEACT_UMOD:
+		return (dt_format_umod(dtp, addr));
+
+	case DTRACEACT_SYM:
+		return (dt_format_sym(dtp, addr));
+	case DTRACEACT_MOD:
+		return (dt_format_mod(dtp, addr));
+
+	case DTRACEAGG_QUANTIZE:
+		return (dt_format_quantize(dtp, addr, size, normal));
+
+	case DTRACEAGG_LQUANTIZE:
+		return (dt_format_lquantize(dtp, addr, size, normal));
+
+	case DTRACEAGG_LLQUANTIZE:
+		return (dt_format_llquantize(dtp, addr, size, normal));
+
+	case DTRACEAGG_AVG:
+		return (dt_format_average(dtp, addr, size, normal));
+
+	case DTRACEAGG_STDDEV:
+		return (dt_format_stddev(dtp, addr, size, normal));
+
+	default:
+		break;
+	}
+
+	switch (size) {
+	case sizeof (uint64_t):
+		snprintf(fmt, sizeof(fmt), "{:%s/%%lld}", pd->dtpa_keyname);
+		xo_emit(fmt, (long long)*((uint64_t *)addr) / normal);
+		break;
+	case sizeof (uint32_t):
+		snprintf(fmt, sizeof(fmt), "{:%s/%%d}", pd->dtpa_keyname);
+		xo_emit(fmt, *((uint32_t *)addr) / (uint32_t)normal);
+		break;
+	case sizeof (uint16_t):
+		snprintf(fmt, sizeof(fmt), "{:%s/%%d}", pd->dtpa_keyname);
+		xo_emit(fmt, *((uint16_t *)addr) / (uint32_t)normal);
+		break;
+	case sizeof (uint8_t):
+		snprintf(fmt, sizeof(fmt), "{:%s/%%d}", pd->dtpa_keyname);
+		xo_emit(fmt, *((uint8_t *)addr) / (uint32_t)normal);
+		break;
+	default:
+		s = dt_format_bytes_get(dtp, addr, size);
+		if (s == NULL)
+			return (-1);
+
+		xo_emit("{:value/%s}", s);
+		dt_free(dtp, s);
+		break;
+	}
+
+	return (0);
+}
+
+static int
 dt_print_datum(dtrace_hdl_t *dtp, FILE *fp, dtrace_recdesc_t *rec,
     caddr_t addr, size_t size, const dtrace_aggdata_t *aggdata,
     uint64_t normal, dt_print_aggdata_t *pd)
@@ -1957,6 +2699,119 @@ dt_print_datum(dtrace_hdl_t *dtp, FILE *fp, dtrace_recdesc_t *rec,
 }
 
 int
+dt_format_aggs(const dtrace_aggdata_t **aggsdata, int naggvars, void *arg)
+{
+	int i, aggact = 0;
+	dt_print_aggdata_t *pd = arg;
+	const dtrace_aggdata_t *aggdata = aggsdata[0];
+	dtrace_aggdesc_t *agg = aggdata->dtada_desc;
+	dtrace_hdl_t *dtp = pd->dtpa_dtp;
+	dtrace_recdesc_t *rec;
+	dtrace_actkind_t act;
+	caddr_t addr;
+	size_t size;
+
+	if (pd->dtpa_aggname == NULL)
+		pd->dtpa_aggname = agg->dtagd_name;
+
+	xo_open_instance("aggregation-data");
+	strcpy(pd->dtpa_keyname, "value");
+	xo_open_list("keys");
+
+	/*
+	 * Iterate over each record description in the key, printing the traced
+	 * data, skipping the first datum (the tuple member created by the
+	 * compiler).
+	 */
+	for (i = 1; i < agg->dtagd_nrecs; i++) {
+		rec = &agg->dtagd_rec[i];
+		act = rec->dtrd_action;
+		addr = aggdata->dtada_data + rec->dtrd_offset;
+		size = rec->dtrd_size;
+
+		if (DTRACEACT_ISAGG(act)) {
+			aggact = i;
+			break;
+		}
+
+		xo_open_instance("keys");
+		if (dt_format_datum(dtp, rec, addr,
+		    size, aggdata, 1, pd) < 0) {
+			xo_close_instance("keys");
+			xo_close_instance("aggregation-data");
+			return (-1);
+		}
+		xo_close_instance("keys");
+
+		if (dt_buffered_flush(dtp, NULL, rec, aggdata,
+		    DTRACE_BUFDATA_AGGKEY) < 0) {
+			xo_close_instance("aggregation-data");
+			return (-1);
+		}
+	}
+	xo_close_list("keys");
+
+	assert(aggact != 0);
+
+	for (i = (naggvars == 1 ? 0 : 1); i < naggvars; i++) {
+		uint64_t normal;
+
+		aggdata = aggsdata[i];
+		agg = aggdata->dtada_desc;
+		rec = &agg->dtagd_rec[aggact];
+		act = rec->dtrd_action;
+		addr = aggdata->dtada_data + rec->dtrd_offset;
+		size = rec->dtrd_size;
+
+		assert(DTRACEACT_ISAGG(act));
+
+		switch (act) {
+		case DTRACEAGG_MIN:
+			strcpy(pd->dtpa_keyname, "min");
+			break;
+		case DTRACEAGG_MAX:
+			strcpy(pd->dtpa_keyname, "max");
+			break;
+		case DTRACEAGG_COUNT:
+			strcpy(pd->dtpa_keyname, "count");
+			break;
+		case DTRACEAGG_SUM:
+			strcpy(pd->dtpa_keyname, "sum");
+			break;
+		default:
+			strcpy(pd->dtpa_keyname, "UNKNOWN");
+			break;
+		}
+
+		normal = aggdata->dtada_normal;
+
+		if (dt_format_datum(dtp, rec, addr, size,
+		    aggdata, normal, pd) < 0) {
+			xo_close_instance("aggregation-data");
+			return (-1);
+		}
+
+		if (dt_buffered_flush(dtp, NULL, rec, aggdata,
+		    DTRACE_BUFDATA_AGGVAL) < 0) {
+			xo_close_instance("aggregation-data");
+			return (-1);
+		}
+
+		if (!pd->dtpa_allunprint)
+			agg->dtagd_flags |= DTRACE_AGD_PRINTED;
+	}
+
+	if (dt_buffered_flush(dtp, NULL, NULL, aggdata,
+	    DTRACE_BUFDATA_AGGFORMAT | DTRACE_BUFDATA_AGGLAST) < 0) {
+		xo_close_instance("aggregation-data");
+		return (-1);
+	}
+
+	xo_close_instance("aggregation-data");
+	return (0);
+}
+
+int
 dt_print_aggs(const dtrace_aggdata_t **aggsdata, int naggvars, void *arg)
 {
 	int i, aggact = 0;
@@ -2038,6 +2893,33 @@ dt_print_aggs(const dtrace_aggdata_t **aggsdata, int naggvars, void *arg)
 }
 
 int
+dt_format_agg(const dtrace_aggdata_t *aggdata, void *arg)
+{
+	dt_print_aggdata_t *pd = arg;
+	dtrace_aggdesc_t *agg = aggdata->dtada_desc;
+	dtrace_aggvarid_t aggvarid = pd->dtpa_id;
+
+	if (pd->dtpa_allunprint) {
+		if (agg->dtagd_flags & DTRACE_AGD_PRINTED)
+			return (0);
+	} else {
+		/*
+		 * If we're not printing all unprinted aggregations, then the
+		 * aggregation variable ID denotes a specific aggregation
+		 * variable that we should print -- skip any other aggregations
+		 * that we encounter.
+		 */
+		if (agg->dtagd_nrecs == 0)
+			return (0);
+
+		if (aggvarid != agg->dtagd_varid)
+			return (0);
+	}
+
+	return (dt_format_aggs(&aggdata, 1, arg));
+}
+
+int
 dt_print_agg(const dtrace_aggdata_t *aggdata, void *arg)
 {
 	dt_print_aggdata_t *pd = arg;
@@ -2101,6 +2983,33 @@ dt_setopt(dtrace_hdl_t *dtp, const dtrace_probedata_t *data,
 	return (rval);
 }
 
+/*
+ * Helper functions to help maintain style(9) in dt_consume_cpu().
+ */
+static int
+dt_oformat_agg_sorted(dtrace_hdl_t *dtp, dtrace_aggregate_f *func,
+    dt_print_aggdata_t *pd)
+{
+	int r;
+
+	r = dtrace_aggregate_walk_sorted(dtp, dt_format_agg, pd);
+	if (r < 0) {
+		xo_close_list("aggregation-data");
+		xo_emit("{:aggregation-name/%s}", pd->dtpa_aggname);
+		xo_close_instance("output");
+	}
+
+	return (r);
+}
+
+static void
+dt_oformat_agg_name(dt_print_aggdata_t *pd)
+{
+
+	xo_close_list("aggregation-data");
+	xo_emit("{:aggregation-name/%s}", pd->dtpa_aggname);
+}
+
 static int
 dt_consume_cpu(dtrace_hdl_t *dtp, FILE *fp, int cpu,
     dtrace_bufdesc_t *buf, boolean_t just_one,
@@ -2114,6 +3023,7 @@ dt_consume_cpu(dtrace_hdl_t *dtp, FILE *fp, int cpu,
 	uint64_t tracememsize = 0;
 	dtrace_probedata_t data;
 	uint64_t drops;
+	size_t skip_format;
 
 	bzero(&data, sizeof (data));
 	data.dtpda_handle = dtp;
@@ -2145,6 +3055,8 @@ dt_consume_cpu(dtrace_hdl_t *dtp, FILE *fp, int cpu,
 
 		epd = data.dtpda_edesc;
 		data.dtpda_data = buf->dtbd_data + offs;
+		data.dtpda_timestamp = DTRACE_RECORD_LOAD_TIMESTAMP(
+		    (struct dtrace_rechdr *)data.dtpda_data);
 
 		if (data.dtpda_edesc->dtepd_uarg != DT_ECB_DEFAULT) {
 			rval = dt_handle(dtp, &data);
@@ -2160,6 +3072,8 @@ dt_consume_cpu(dtrace_hdl_t *dtp, FILE *fp, int cpu,
 			(void) dt_flowindent(dtp, &data, dtp->dt_last_epid,
 			    buf, offs);
 
+		if (dtp->dt_oformat)
+			xo_open_instance("probes");
 		rval = (*efunc)(&data, arg);
 
 		if (flow) {
@@ -2176,10 +3090,16 @@ dt_consume_cpu(dtrace_hdl_t *dtp, FILE *fp, int cpu,
 		if (rval != DTRACE_CONSUME_THIS)
 			return (dt_set_errno(dtp, EDT_BADRVAL));
 
+		skip_format = 0;
+		if (dtp->dt_oformat)
+			xo_open_list("output");
 		for (i = 0; i < epd->dtepd_nrecs; i++) {
 			caddr_t addr;
 			dtrace_recdesc_t *rec = &epd->dtepd_rec[i];
 			dtrace_actkind_t act = rec->dtrd_action;
+
+			if (skip_format > 0)
+				skip_format--;
 
 			data.dtpda_data = buf->dtbd_data + offs +
 			    rec->dtrd_offset;
@@ -2301,54 +3221,109 @@ dt_consume_cpu(dtrace_hdl_t *dtp, FILE *fp, int cpu,
 			if (rval != DTRACE_CONSUME_THIS)
 				return (dt_set_errno(dtp, EDT_BADRVAL));
 
+			if (dtp->dt_oformat && rec->dtrd_size > 0)
+				xo_open_instance("output");
 			if (act == DTRACEACT_STACK) {
 				int depth = rec->dtrd_arg;
 
-				if (dt_print_stack(dtp, fp, NULL, addr, depth,
-				    rec->dtrd_size / depth) < 0)
+				if (dtp->dt_oformat) {
+					if (dt_format_stack(dtp, addr, depth,
+					    rec->dtrd_size / depth) < 0) {
+						xo_close_instance("output");
+						return (-1);
+					}
+				} else {
+					if (dt_print_stack(dtp,
+					    fp, NULL, addr, depth,
+					    rec->dtrd_size / depth) < 0)
 					return (-1);
+				}
 				goto nextrec;
 			}
 
 			if (act == DTRACEACT_USTACK ||
 			    act == DTRACEACT_JSTACK) {
-				if (dt_print_ustack(dtp, fp, NULL,
-				    addr, rec->dtrd_arg) < 0)
-					return (-1);
+				if (dtp->dt_oformat) {
+					if (dt_format_ustack(dtp, addr,
+					    rec->dtrd_arg) < 0) {
+						xo_close_instance("output");
+						return (-1);
+					}
+				} else {
+					if (dt_print_ustack(dtp, fp, NULL,
+					    addr, rec->dtrd_arg) < 0)
+						return (-1);
+				}
 				goto nextrec;
 			}
 
 			if (act == DTRACEACT_SYM) {
-				if (dt_print_sym(dtp, fp, NULL, addr) < 0)
-					return (-1);
+				if (dtp->dt_oformat) {
+					if (dt_format_sym(dtp, addr) < 0) {
+						xo_close_instance("output");
+						return (-1);
+					}
+				} else {
+					if (dt_print_sym(dtp, fp, NULL, addr) < 0)
+						return (-1);
+				}
 				goto nextrec;
 			}
 
 			if (act == DTRACEACT_MOD) {
-				if (dt_print_mod(dtp, fp, NULL, addr) < 0)
-					return (-1);
+				if (dtp->dt_oformat) {
+					if (dt_format_mod(dtp, addr) < 0) {
+						xo_close_instance("output");
+						return (-1);
+					}
+				} else {
+					if (dt_print_mod(dtp, fp, NULL, addr) < 0)
+						return (-1);
+				}
 				goto nextrec;
 			}
 
 			if (act == DTRACEACT_USYM || act == DTRACEACT_UADDR) {
-				if (dt_print_usym(dtp, fp, addr, act) < 0)
-					return (-1);
+				if (dtp->dt_oformat) {
+					if (dt_format_usym(dtp, addr, act) < 0) {
+						xo_close_instance("output");
+						return (-1);
+					}
+				} else {
+					if (dt_print_usym(dtp, fp, addr, act) < 0)
+						return (-1);
+				}
 				goto nextrec;
 			}
 
 			if (act == DTRACEACT_UMOD) {
-				if (dt_print_umod(dtp, fp, NULL, addr) < 0)
-					return (-1);
+				if (dtp->dt_oformat) {
+					if (dt_format_umod(dtp, addr) < 0) {
+						xo_close_instance("output");
+						return (-1);
+					}
+				} else {
+					if (dt_print_umod(dtp, fp, NULL, addr) < 0)
+						return (-1);
+				}
 				goto nextrec;
 			}
 
 			if (act == DTRACEACT_PRINTM) {
-				if (dt_print_memory(dtp, fp, addr) < 0)
-					return (-1);
+				if (dtp->dt_oformat) {
+					if (dt_format_memory(dtp, addr) < 0) {
+						xo_close_instance("output");
+						return (-1);
+					}
+				} else {
+					if (dt_print_memory(dtp, fp, addr) < 0)
+						return (-1);
+				}
 				goto nextrec;
 			}
 
-			if (DTRACEACT_ISPRINTFLIKE(act)) {
+			if (dtp->dt_oformat == DTRACE_OFORMAT_TEXT &&
+			    DTRACEACT_ISPRINTFLIKE(act)) {
 				void *fmtdata;
 				int (*func)(dtrace_hdl_t *, FILE *, void *,
 				    const dtrace_probedata_t *,
@@ -2388,6 +3363,54 @@ dt_consume_cpu(dtrace_hdl_t *dtp, FILE *fp, int cpu,
 			}
 
 			/*
+			 * We don't care about a formatted printa, system or
+			 * freopen for oformat.
+			 */
+			if (dtp->dt_oformat && act == DTRACEACT_PRINTF &&
+			    skip_format == 0) {
+				void *fmtdata;
+				if ((fmtdata = dt_format_lookup(dtp,
+				    rec->dtrd_format)) == NULL)
+					goto nofmt;
+
+				n = dtrace_sprintf(dtp, fp, fmtdata, rec,
+				    epd->dtepd_nrecs - i,
+				    (uchar_t *)buf->dtbd_data + offs,
+				    buf->dtbd_size - offs);
+
+				if (n < 0) {
+					xo_close_instance("output");
+					return (-1); /* errno is set for us */
+				}
+
+				xo_emit("{:message/%s}", dtp->dt_sprintf_buf);
+				skip_format += n;
+
+				/*
+				 * We want the "message" object to be its own
+				 * thing, but we still want to process the
+				 * current DIFEXPR in case there is a value
+				 * attached to it. If there is, we need to
+				 * re-open a new output instance, as otherwise
+				 * the message ends up bundled with the first
+				 * value.
+				 *
+				 * XXX: There is an edge case where a
+				 * printf("hello"); will produce a DIFO that
+				 * returns 0 attached to it and we have no good
+				 * way to determine if this 0 value is because
+				 * there's no real data attached to the printf
+				 * as an argument, or it's because the argument
+				 * actually returns 0.
+				 */
+				if (skip_format == 0)
+					goto nextrec;
+
+				xo_close_instance("output");
+				xo_open_instance("output");
+			}
+
+			/*
 			 * If this is a DIF expression, and the record has a
 			 * format set, this indicates we have a CTF type name
 			 * associated with the data and we should try to print
@@ -2397,8 +3420,14 @@ dt_consume_cpu(dtrace_hdl_t *dtp, FILE *fp, int cpu,
 				const char *strdata = dt_strdata_lookup(dtp,
 				    rec->dtrd_format);
 				if (strdata != NULL) {
-					n = dtrace_print(dtp, fp, strdata,
-					    addr, rec->dtrd_size);
+					if (dtp->dt_oformat)
+						n = dtrace_format_print(dtp, fp,
+						    strdata, addr,
+						    rec->dtrd_size);
+					else
+						n = dtrace_print(dtp, fp,
+						    strdata, addr,
+						    rec->dtrd_size);
 
 					/*
 					 * dtrace_print() will return -1 on
@@ -2408,8 +3437,12 @@ dt_consume_cpu(dtrace_hdl_t *dtp, FILE *fp, int cpu,
 					 * should fall through to the normal
 					 * trace method.
 					 */
-					if (n < 0)
+					if (n < 0) {
+						if (dtp->dt_oformat)
+							xo_close_instance(
+							    "output");
 						return (-1);
+					}
 
 					if (n > 0)
 						goto nextrec;
@@ -2424,8 +3457,11 @@ nofmt:
 				size_t size = ((epd->dtepd_nrecs - i) *
 				    sizeof (dtrace_aggvarid_t));
 
-				if ((aggvars = dt_alloc(dtp, size)) == NULL)
+				if ((aggvars = dt_alloc(dtp, size)) == NULL) {
+					if (dtp->dt_oformat)
+						xo_close_instance("output");
 					return (-1);
+				}
 
 				/*
 				 * This might be a printa() with multiple
@@ -2443,6 +3479,9 @@ nofmt:
 						break;
 
 					if (nrec->dtrd_action != act) {
+						if (dtp->dt_oformat)
+							xo_close_instance(
+							    "output");
 						return (dt_set_errno(dtp,
 						    EDT_BADAGG));
 					}
@@ -2462,24 +3501,50 @@ nofmt:
 
 				assert(naggvars >= 1);
 
+				if (dtp->dt_oformat)
+					xo_open_list("aggregation-data");
 				if (naggvars == 1) {
 					pd.dtpa_id = aggvars[0];
 					dt_free(dtp, aggvars);
 
-					if (dt_printf(dtp, fp, "\n") < 0 ||
-					    dtrace_aggregate_walk_sorted(dtp,
-					    dt_print_agg, &pd) < 0)
-						return (-1);
+					if (dtp->dt_oformat) {
+						n = dt_oformat_agg_sorted(dtp,
+						    dt_format_agg, &pd);
+						if (n < 0)
+							return (-1);
+					} else {
+						if (dt_printf(dtp, fp, "\n") < 0 ||
+						    dtrace_aggregate_walk_sorted(dtp,
+						    dt_print_agg, &pd) < 0)
+							return (-1);
+					}
+
+					if (dtp->dt_oformat)
+						dt_oformat_agg_name(&pd);
 					goto nextrec;
 				}
 
-				if (dt_printf(dtp, fp, "\n") < 0 ||
-				    dtrace_aggregate_walk_joined(dtp, aggvars,
-				    naggvars, dt_print_aggs, &pd) < 0) {
-					dt_free(dtp, aggvars);
-					return (-1);
+				if (dtp->dt_oformat) {
+					if (dtrace_aggregate_walk_joined(dtp,
+					    aggvars, naggvars,
+					    dt_format_aggs, &pd) < 0) {
+						dt_oformat_agg_name(&pd);
+						xo_close_instance("output");
+						dt_free(dtp, aggvars);
+						return (-1);
+					}
+				} else {
+					if (dt_printf(dtp, fp, "\n") < 0 ||
+					    dtrace_aggregate_walk_joined(dtp,
+					    aggvars, naggvars,
+					    dt_print_aggs, &pd) < 0) {
+						dt_free(dtp, aggvars);
+						return (-1);
+					}
 				}
 
+				if (dtp->dt_oformat)
+					dt_oformat_agg_name(&pd);
 				dt_free(dtp, aggvars);
 				goto nextrec;
 			}
@@ -2490,8 +3555,17 @@ nofmt:
 					tracememsize = rec->dtrd_size;
 				}
 
-				n = dt_print_bytes(dtp, fp, addr,
-				    tracememsize, -33, quiet, 1);
+				if (dtp->dt_oformat) {
+					char *s;
+
+					s = dt_format_bytes_get(dtp, addr,
+					    tracememsize);
+					n = xo_emit("{:tracemem/%s}", s);
+					dt_free(dtp, s);
+				} else {
+					n = dt_print_bytes(dtp, fp, addr,
+					    tracememsize, -33, quiet, 1);
+				}
 
 				tracememsize = 0;
 
@@ -2503,30 +3577,66 @@ nofmt:
 
 			switch (rec->dtrd_size) {
 			case sizeof (uint64_t):
-				n = dt_printf(dtp, fp,
-				    quiet ? "%lld" : " %16lld",
-				    /* LINTED - alignment */
-				    *((unsigned long long *)addr));
+				if (dtp->dt_oformat) {
+					xo_emit("{:value/%lld}",
+					    *((unsigned long long *)addr));
+					n = 0;
+				} else
+					n = dt_printf(dtp, fp,
+					    quiet ? "%lld" : " %16lld",
+					    /* LINTED - alignment */
+					    *((unsigned long long *)addr));
 				break;
 			case sizeof (uint32_t):
-				n = dt_printf(dtp, fp, quiet ? "%d" : " %8d",
-				    /* LINTED - alignment */
-				    *((uint32_t *)addr));
+				if (dtp->dt_oformat) {
+					xo_emit("{:value/%d}",
+					    *((uint32_t *)addr));
+					n = 0;
+				} else
+					n = dt_printf(dtp, fp,
+					    quiet ? "%d" : " %8d",
+					    /* LINTED - alignment */
+					    *((uint32_t *)addr));
 				break;
 			case sizeof (uint16_t):
-				n = dt_printf(dtp, fp, quiet ? "%d" : " %5d",
-				    /* LINTED - alignment */
-				    *((uint16_t *)addr));
+				if (dtp->dt_oformat) {
+					xo_emit("{:value/%d}",
+					    *((uint16_t *)addr));
+					n = 0;
+				} else
+					n = dt_printf(dtp, fp,
+					    quiet ? "%d" : " %5d",
+					    /* LINTED - alignment */
+					    *((uint16_t *)addr));
 				break;
 			case sizeof (uint8_t):
-				n = dt_printf(dtp, fp, quiet ? "%d" : " %3d",
-				    *((uint8_t *)addr));
+				if (dtp->dt_oformat) {
+					xo_emit("{:value/%d}",
+					    *((uint8_t *)addr));
+					n = 0;
+				} else
+					n = dt_printf(dtp, fp,
+					    quiet ? "%d" : " %3d",
+					    *((uint8_t *)addr));
 				break;
 			default:
-				n = dt_print_bytes(dtp, fp, addr,
-				    rec->dtrd_size, -33, quiet, 0);
+				if (dtp->dt_oformat && rec->dtrd_size > 0) {
+					char *s;
+
+					s = dt_format_bytes_get(dtp, addr,
+					    rec->dtrd_size);
+					xo_emit("{:value/%s}", s);
+					dt_free(dtp, s);
+					n = 0;
+				} else {
+					n = dt_print_bytes(dtp, fp, addr,
+					    rec->dtrd_size, -33, quiet, 0);
+				}
 				break;
 			}
+
+			if (dtp->dt_oformat && rec->dtrd_size > 0)
+				xo_close_instance("output");
 
 			if (n < 0)
 				return (-1); /* errno is set for us */
@@ -2544,6 +3654,12 @@ nextrec:
 nextepid:
 		offs += epd->dtepd_size;
 		dtp->dt_last_epid = id;
+
+		if (dtp->dt_oformat) {
+			xo_close_list("output");
+			xo_close_instance("probes");
+			xo_flush();
+		}
 		if (just_one) {
 			buf->dtbd_oldest = offs;
 			break;
@@ -2562,7 +3678,12 @@ nextepid:
 	 */
 	buf->dtbd_drops = 0;
 
-	return (dt_handle_cpudrop(dtp, cpu, DTRACEDROP_PRINCIPAL, drops));
+	xo_open_instance("probes");
+	dt_oformat_drop(dtp, cpu);
+	rval = dt_handle_cpudrop(dtp, cpu, DTRACEDROP_PRINCIPAL, drops);
+	xo_close_instance("probes");
+
+	return (rval);
 }
 
 /*
@@ -3065,8 +4186,12 @@ dtrace_consume(dtrace_hdl_t *dtp, FILE *fp,
 		/* Consume drops. */
 		for (i = 0; i < max_ncpus; i++) {
 			if (drops[i] != 0) {
-				int error = dt_handle_cpudrop(dtp, i,
+				int error;
+				xo_open_instance("probes");
+				dt_oformat_drop(dtp, i);
+				error = dt_handle_cpudrop(dtp, i,
 				    DTRACEDROP_PRINCIPAL, drops[i]);
+				xo_close_instance("probes");
 				if (error != 0)
 					return (error);
 			}
@@ -3081,4 +4206,23 @@ dtrace_consume(dtrace_hdl_t *dtp, FILE *fp,
 	}
 
 	return (0);
+}
+
+void
+dtrace_oformat_probe(dtrace_hdl_t *dtp __unused, const dtrace_probedata_t *data,
+    processorid_t cpu, dtrace_probedesc_t *pd)
+{
+
+	xo_emit("{:timestamp/%llu} {:cpu/%d} {:id/%d} {:provider/%s} "
+		"{:module/%s} {:function/%s} {:name/%s}",
+	    (unsigned long long)data->dtpda_timestamp, cpu, pd->dtpd_id,
+	    pd->dtpd_provider, pd->dtpd_mod, pd->dtpd_func, pd->dtpd_name);
+}
+
+void
+dt_oformat_drop(dtrace_hdl_t *dtp, processorid_t cpu)
+{
+	xo_emit("{:cpu/%d} {:id/%d} {:provider/%s} "
+		"{:module/%s} {:function/%s} {:name/%s}",
+	    cpu, -1, "dtrace", "INTERNAL", "INTERNAL", "DROP");
 }

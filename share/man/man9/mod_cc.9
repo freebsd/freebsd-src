@@ -217,8 +217,8 @@ Note that currently not all TCP stacks call the
 .Va rttsample
 and
 .Va newround
-function so dependancy on these functions is also
-dependant upon which TCP stack is in use.
+function so dependency on these functions is also
+dependent upon which TCP stack is in use.
 .Pp
 The
 .Fn DECLARE_CC_MODULE
@@ -259,7 +259,7 @@ function should return 0.
 .Pp
 The stack will skip calling any function pointer which is NULL, so there is no
 requirement to implement any of the function pointers (with the exception of
-the cb_init <-> cc_data_sz dependancy noted above).
+the cb_init <-> cc_data_sz dependency noted above).
 Using the C99 designated initialiser feature to set fields is encouraged.
 .Pp
 Each function pointer which deals with congestion control state is passed a

@@ -1,6 +1,4 @@
-#	$OpenBSD: Makefile.inc,v 1.14 2019/11/25 10:32:35 djm Exp $
-
-REGRESS_FAIL_EARLY?=	yes
+#	$OpenBSD: Makefile.inc,v 1.15 2023/09/24 08:14:13 claudio Exp $
 
 .include <bsd.own.mk>
 .include <bsd.obj.mk>

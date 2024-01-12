@@ -102,7 +102,7 @@ static sig_t old_winch_handler;
 #define	SNAPSHOT_CHUNK	(4 * MB)
 #define	PROG_BUF_SZ	(8192)
 
-#define	SNAPSHOT_BUFFER_SIZE (20 * MB)
+#define	SNAPSHOT_BUFFER_SIZE (40 * MB)
 
 #define	JSON_KERNEL_ARR_KEY		"kern_structs"
 #define	JSON_DEV_ARR_KEY		"devices"

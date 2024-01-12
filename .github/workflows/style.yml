@@ -1,0 +1,34 @@
+name: Style Checker
+
+# Runs my simple style(9) checker on any pushes or pull requests.  It could be
+# optimized by fetching the pull request head branch back to main revisions and
+# running on that. That would reduce the run time from 3-4 minutes down to 30-40
+# seconds. Getting the right series of clone + fetches to get that iteratively
+# is proving elusive, so optimizations welcome.
+
+on:
+  pull_request: # maybe pull_request_target
+    branches: [ main ]
+    types: [ opened, reopened, edited ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Style Checker
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Install packages
+        run: |
+          sudo apt-get update --quiet || true
+          sudo apt-get -yq --no-install-suggests --no-install-recommends install perl
+      - name: Run checker
+        run: |
+          sha=$(git merge-base ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+          tools/build/checkstyle9.pl ${sha}..${{ github.event.pull_request.head.sha }}

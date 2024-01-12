@@ -72,7 +72,7 @@
 #include <net/if_media.h>
 #include <net/if_types.h>
 
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 #include "syscon_if.h"
 #include <arm/ti/am335x/am335x_scm.h>
 

@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 13, 2012
+.Dd December 30, 2023
 .Dt SND_HDSPE 4
 .Os
 .Sh NAME
@@ -59,6 +59,45 @@ RME HDSPe AIO
 .It
 RME HDSPe RayDAT
 .El
+.Sh SYSCTL TUNABLES
+These settings and informational values can be accessed at runtime with the
+.Xr sysctl 8
+command.
+If multiple RME HDSPe sound cards are installed, each device has a separate
+configuration.
+To adjust the following sysctl identifiers for a specific sound card, insert
+the respective device number in place of
+.Ql 0 .
+.Bl -tag -width indent
+.It Va dev.hdspe.0.clock_list
+Lists possible clock sources to sync with, depending on the hardware model.
+This includes internal and external master clocks as well as incoming digital
+audio signals like AES, S/PDIF and ADAT.
+.It Va dev.hdspe.0.clock_preference
+Select a preferred clock source from the clock list.
+HDSPe cards will sync to this clock source when available, but fall back to
+auto-sync with any other digital clock signal they receive.
+Set this to
+.Ql internal
+if the HDSPe card should act as master clock.
+.It Va dev.hdspe.0.clock_source
+Shows the actual clock source in use (read only).
+This differs from what is set as clock preference when in auto-sync mode.
+.It Va dev.hdspe.0.sync_status
+Display the current sync status of all external clock sources.
+Status indications are
+.Ql none
+for no signal at all,
+.Ql lock
+for when a valid signal is present, and
+.Ql sync
+for accurately synchronized signals (required for recording digital
+audio).
+.El
+.Pp
+Where appropriate these sysctl values are modeled after official RME software on
+other platforms, and adopt their terminology.
+Consult the RME user manuals for additional information.
 .Sh SEE ALSO
 .Xr sound 4
 .Sh HISTORY

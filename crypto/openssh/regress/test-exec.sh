@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.98 2023/03/02 11:10:27 dtucker Exp $
+#	$OpenBSD: test-exec.sh,v 1.105 2023/10/31 04:15:40 dtucker Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -96,9 +96,13 @@ SCP=scp
 SSH_REGRESS_TMP=
 
 # Interop testing
-PLINK=plink
-PUTTYGEN=puttygen
-CONCH=conch
+PLINK=/usr/local/bin/plink
+PUTTYGEN=/usr/local/bin/puttygen
+CONCH=/usr/local/bin/conch
+DROPBEAR=/usr/local/bin/dropbear
+DBCLIENT=/usr/local/bin/dbclient
+DROPBEARKEY=/usr/local/bin/dropbearkey
+DROPBEARCONVERT=/usr/local/bin/dropbearconvert
 
 # Tools used by multiple tests
 NC=$OBJ/netcat
@@ -133,25 +137,25 @@ if [ "x$TEST_SSH_SCP" != "x" ]; then
 	SCP="${TEST_SSH_SCP}"
 fi
 if [ "x$TEST_SSH_PLINK" != "x" ]; then
-	# Find real binary, if it exists
-	case "${TEST_SSH_PLINK}" in
-	/*) PLINK="${TEST_SSH_PLINK}" ;;
-	*) PLINK=`which ${TEST_SSH_PLINK} 2>/dev/null` ;;
-	esac
+	PLINK="${TEST_SSH_PLINK}"
 fi
 if [ "x$TEST_SSH_PUTTYGEN" != "x" ]; then
-	# Find real binary, if it exists
-	case "${TEST_SSH_PUTTYGEN}" in
-	/*) PUTTYGEN="${TEST_SSH_PUTTYGEN}" ;;
-	*) PUTTYGEN=`which ${TEST_SSH_PUTTYGEN} 2>/dev/null` ;;
-	esac
+	PUTTYGEN="${TEST_SSH_PUTTYGEN}"
 fi
 if [ "x$TEST_SSH_CONCH" != "x" ]; then
-	# Find real binary, if it exists
-	case "${TEST_SSH_CONCH}" in
-	/*) CONCH="${TEST_SSH_CONCH}" ;;
-	*) CONCH=`which ${TEST_SSH_CONCH} 2>/dev/null` ;;
-	esac
+	CONCH="${TEST_SSH_CONCH}"
+fi
+if [ "x$TEST_SSH_DROPBEAR" != "x" ]; then
+	DROPBEAR="${TEST_SSH_DROPBEAR}"
+fi
+if [ "x$TEST_SSH_DBCLIENT" != "x" ]; then
+	DBCLIENT="${TEST_SSH_DBCLIENT}"
+fi
+if [ "x$TEST_SSH_DROPBEARKEY" != "x" ]; then
+	DROPBEARKEY="${TEST_SSH_DROPBEARKEY}"
+fi
+if [ "x$TEST_SSH_DROPBEARCONVERT" != "x" ]; then
+	DROPBEARCONVERT="${TEST_SSH_DROPBEARCONVERT}"
 fi
 if [ "x$TEST_SSH_PKCS11_HELPER" != "x" ]; then
 	SSH_PKCS11_HELPER="${TEST_SSH_PKCS11_HELPER}"
@@ -317,6 +321,8 @@ cat >$SSHDLOGWRAP <<EOD
 timestamp="\`$OBJ/timestamp\`"
 logfile="${TEST_SSH_LOGDIR}/\${timestamp}.sshd.\$\$.log"
 rm -f $TEST_SSHD_LOGFILE
+touch \$logfile
+test -z "$SUDO" || chown $USER \$logfile
 ln -f -s \${logfile} $TEST_SSHD_LOGFILE
 echo "Executing: ${SSHD} \$@" log \${logfile} >>$TEST_REGRESS_LOGFILE
 echo "Executing: ${SSHD} \$@" >>\${logfile}
@@ -498,6 +504,12 @@ save_debug_log ()
 	testname=`echo $tid | tr ' ' _`
 	tarname="$OBJ/failed-$testname-logs.tar"
 
+	for logfile in $TEST_SSH_LOGDIR $TEST_REGRESS_LOGFILE \
+	    $TEST_SSH_LOGFILE $TEST_SSHD_LOGFILE; do
+		if [ ! -z "$SUDO" ] && [ -f "$logfile" ]; then
+			$SUDO chown -R $USER $logfile
+		fi
+	done
 	echo $@ >>$TEST_REGRESS_LOGFILE
 	echo $@ >>$TEST_SSH_LOGFILE
 	echo $@ >>$TEST_SSHD_LOGFILE
@@ -786,6 +798,30 @@ if test "$REGRESS_INTEROP_PUTTY" = "yes" ; then
 	export PUTTYDIR
 fi
 
+REGRESS_INTEROP_DROPBEAR=no
+if test -x "$DROPBEARKEY" -a -x "$DBCLIENT" -a -x "$DROPBEARCONVERT"; then
+	REGRESS_INTEROP_DROPBEAR=yes
+fi
+case "$SCRIPT" in
+*dropbear*)	;;
+*)		REGRESS_INTEROP_DROPBEAR=no ;;
+esac
+
+if test "$REGRESS_INTEROP_DROPBEAR" = "yes" ; then
+	trace Create dropbear keys and add to authorized_keys
+	mkdir -p $OBJ/.dropbear
+	for i in rsa ecdsa ed25519 dss; do
+		if [ ! -f "$OBJ/.dropbear/id_$i" ]; then
+			($DROPBEARKEY -t $i -f $OBJ/.dropbear/id_$i
+			$DROPBEARCONVERT dropbear openssh \
+			    $OBJ/.dropbear/id_$i $OBJ/.dropbear/ossh.id_$i
+			) > /dev/null 2>&1
+		fi
+		$SSHKEYGEN -y -f $OBJ/.dropbear/ossh.id_$i \
+		   >>$OBJ/authorized_keys_$USER
+	done
+fi
+
 # create a proxy version of the client config
 (
 	cat $OBJ/ssh_config
@@ -794,6 +830,12 @@ fi
 
 # check proxy config
 ${SSHD} -t -f $OBJ/sshd_proxy	|| fatal "sshd_proxy broken"
+
+# extract proxycommand into separate shell script for use by Dropbear.
+echo '#!/bin/sh' >$OBJ/ssh_proxy.sh
+awk '/^proxycommand/' $OBJ/ssh_proxy | sed 's/^proxycommand//' \
+   >>$OBJ/ssh_proxy.sh
+chmod a+x $OBJ/ssh_proxy.sh
 
 start_sshd ()
 {
@@ -811,6 +853,95 @@ start_sshd ()
 	done
 
 	test -f $PIDFILE || fatal "no sshd running on port $PORT"
+}
+
+# Find a PKCS#11 library.
+p11_find_lib() {
+	TEST_SSH_PKCS11=""
+	for _lib in "$@" ; do
+		if test -f "$_lib" ; then
+			TEST_SSH_PKCS11="$_lib"
+			return
+		fi
+	done
+}
+
+# Perform PKCS#11 setup: prepares a softhsm2 token configuration, generated
+# keys and loads them into the virtual token.
+PKCS11_OK=
+export PKCS11_OK
+p11_setup() {
+	p11_find_lib \
+		/usr/local/lib/softhsm/libsofthsm2.so \
+		/usr/lib64/pkcs11/libsofthsm2.so \
+		/usr/lib/x86_64-linux-gnu/softhsm/libsofthsm2.so
+	test -z "$TEST_SSH_PKCS11" && return 1
+	verbose "using token library $TEST_SSH_PKCS11"
+	TEST_SSH_PIN=1234
+	TEST_SSH_SOPIN=12345678
+	if [ "x$TEST_SSH_SSHPKCS11HELPER" != "x" ]; then
+		SSH_PKCS11_HELPER="${TEST_SSH_SSHPKCS11HELPER}"
+		export SSH_PKCS11_HELPER
+	fi
+
+	# setup environment for softhsm2 token
+	SSH_SOFTHSM_DIR=$OBJ/SOFTHSM
+	export SSH_SOFTHSM_DIR
+	rm -rf $SSH_SOFTHSM_DIR
+	TOKEN=$SSH_SOFTHSM_DIR/tokendir
+	mkdir -p $TOKEN
+	SOFTHSM2_CONF=$SSH_SOFTHSM_DIR/softhsm2.conf
+	export SOFTHSM2_CONF
+	cat > $SOFTHSM2_CONF << EOF
+# SoftHSM v2 configuration file
+directories.tokendir = ${TOKEN}
+objectstore.backend = file
+# ERROR, WARNING, INFO, DEBUG
+log.level = DEBUG
+# If CKF_REMOVABLE_DEVICE flag should be set
+slots.removable = false
+EOF
+	out=$(softhsm2-util --init-token --free --label token-slot-0 --pin "$TEST_SSH_PIN" --so-pin "$TEST_SSH_SOPIN")
+	slot=$(echo -- $out | sed 's/.* //')
+	trace "generating keys"
+	# RSA key
+	RSA=${SSH_SOFTHSM_DIR}/RSA
+	RSAP8=${SSH_SOFTHSM_DIR}/RSAP8
+	$OPENSSL_BIN genpkey -algorithm rsa > $RSA 2>/dev/null || \
+	    fatal "genpkey RSA fail"
+	$OPENSSL_BIN pkcs8 -nocrypt -in $RSA > $RSAP8 || fatal "pkcs8 RSA fail"
+	softhsm2-util --slot "$slot" --label 01 --id 01 --pin "$TEST_SSH_PIN" \
+	    --import $RSAP8 >/dev/null || fatal "softhsm import RSA fail"
+	chmod 600 $RSA
+	ssh-keygen -y -f $RSA > ${RSA}.pub
+	# ECDSA key
+	ECPARAM=${SSH_SOFTHSM_DIR}/ECPARAM
+	EC=${SSH_SOFTHSM_DIR}/EC
+	ECP8=${SSH_SOFTHSM_DIR}/ECP8
+	$OPENSSL_BIN genpkey -genparam -algorithm ec \
+	    -pkeyopt ec_paramgen_curve:prime256v1 > $ECPARAM || \
+	    fatal "param EC fail"
+	$OPENSSL_BIN genpkey -paramfile $ECPARAM > $EC || \
+	    fatal "genpkey EC fail"
+	$OPENSSL_BIN pkcs8 -nocrypt -in $EC > $ECP8 || fatal "pkcs8 EC fail"
+	softhsm2-util --slot "$slot" --label 02 --id 02 --pin "$TEST_SSH_PIN" \
+	    --import $ECP8 >/dev/null || fatal "softhsm import EC fail"
+	chmod 600 $EC
+	ssh-keygen -y -f $EC > ${EC}.pub
+	# Prepare askpass script to load PIN.
+	PIN_SH=$SSH_SOFTHSM_DIR/pin.sh
+	cat > $PIN_SH << EOF
+#!/bin/sh
+echo "${TEST_SSH_PIN}"
+EOF
+	chmod 0700 "$PIN_SH"
+	PKCS11_OK=yes
+	return 0
+}
+
+# Peforms ssh-add with the right token PIN.
+p11_ssh_add() {
+	env SSH_ASKPASS="$PIN_SH" SSH_ASKPASS_REQUIRE=force ${SSHADD} "$@"
 }
 
 # source test body

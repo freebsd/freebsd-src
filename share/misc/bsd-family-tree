@@ -459,32 +459,32 @@ FreeBSD 15 -current   |  NetBSD -current   OpenBSD -current    DragonFly -curren
 Time
 ----------------
 
-Time tolerance +/- 6 months, depending on which book/article you read; if it
-was the announcement in Usenet or if it was available as tape.
+Time tolerance +/- 6 months, depending on which book/article you read; if it was
+the announcement in Usenet or if it was available as tape.
 
-[44B] McKusick, Marshall Kirk, Keith Bostic, Michael J Karels,
-	and John Quarterman. The Design and Implementation of
-	the 4.4BSD Operating System.
-[APL] Apple website [https://www.apple.com/macosx/]
+[44B]  McKusick, Marshall Kirk, Keith Bostic, Michael J Karels, and John
+	Quarterman. The Design and Implementation of the 4.4BSD Operating System.
+[APL]  Apple website [https://www.apple.com/macosx/]
 [BSDI] Berkeley Software Design, Inc.
-[DFB] DragonFlyBSD Project, The.
-[DOC] README, COPYRIGHT on tape.
-[FBD] FreeBSD Project, The.
-[KB]  Keith Bostic. BSD2.10 available from Usenix. comp.unix.sources,
-	Volume 11, Info 4, April, 1987.
-[KKK] Mike Karels, Kirk McKusick, and Keith Bostic. tahoe announcement.
+[DFB]  DragonFlyBSD Project, The.
+[DOC]  README, COPYRIGHT on tape.
+[FBD]  FreeBSD Project, The.
+[KB]   Keith Bostic. BSD2.10 available from Usenix. comp.unix.sources, Volume 11,
+	Info 4, April, 1987.
+[KKK]  Mike Karels, Kirk McKusick, and Keith Bostic. tahoe announcement.
 	comp.bugs.4bsd.ucb-fixes, June 15, 1988.
-[KSJ] Michael J. Karels, Carl F. Smith, and William F. Jolitz.
-	Changes in the Kernel in 2.9BSD. Second Berkeley Software
-	Distribution UNIX Version 2.9, July, 1983.
-[NBD] NetBSD Project, The.
-[OBD] OpenBSD Project, The.
-[QCU] Salus, Peter H. A quarter century of UNIX.
-[SMS] Steven M. Schultz. 2.11BSD, UNIX for the PDP-11.
-[TUHS] The Unix Historical Society.  https://minnie.tuhs.org/Unix_History/.
-[USE] Usenet announcement.
-[WRS] Wind River Systems, Inc.
-[dmr] Dennis Ritchie, via E-Mail
+[KSJ]  Michael J. Karels, Carl F. Smith, and William F. Jolitz. Changes in the
+	Kernel in 2.9BSD. Second Berkeley Software Distribution UNIX Version 2.9,
+	July, 1983.
+[NBD]  NetBSD Project, The.
+[OBD]  OpenBSD Project, The.
+[QCU]  Salus, Peter H. A quarter century of UNIX. ISBN 0201547775, EAN
+	9780201547771
+[SMS]  Steven M. Schultz. 2.11BSD, UNIX for the PDP-11.
+[TUHS] The Unix Historical Society. https://minnie.tuhs.org/Unix_History/.
+[USE]  Usenet announcement.
+[WRS]  Wind River Systems, Inc.
+[dmr]  Dennis Ritchie, via E-Mail
 
 Multics                 1965
 UNIX                    Summer 1969
@@ -918,8 +918,8 @@ Die freien BSD-Varianten von Unix. c't April 1997, page 368ff.
 FreeBSD Release Information 
 URL: https://www.FreeBSD.org/releases/
 
-FreeBSD Manual Pages
-URL: https://man.freebsd.org/cgi/man.cgi
+Manual pages for FreeBSD and ports
+URL: https://man.FreeBSD.org/cgi/man.cgi
 
 UNIX history graphing project
 URL: https://minnie.tuhs.org/Unix_History/index.html

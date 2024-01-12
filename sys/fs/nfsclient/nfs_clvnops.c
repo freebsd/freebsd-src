@@ -67,6 +67,7 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
+#include <vm/vnode_pager.h>
 
 #include <fs/nfs/nfsport.h>
 #include <fs/nfsclient/nfsnode.h>
@@ -766,9 +767,7 @@ nfs_open(struct vop_open_args *ap)
 				if (VN_IS_DOOMED(vp))
 					return (EBADF);
 			}
-			VM_OBJECT_WLOCK(obj);
-			vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
-			VM_OBJECT_WUNLOCK(obj);
+			vnode_pager_clean_sync(vp);
 		}
 
 		/* Now, flush the buffer cache. */
@@ -854,9 +853,7 @@ nfs_close(struct vop_close_args *ap)
 			if (VN_IS_DOOMED(vp) && ap->a_fflag != FNONBLOCK)
 				return (EBADF);
 		}
-		VM_OBJECT_WLOCK(vp->v_object);
-		vm_object_page_clean(vp->v_object, 0, 0, 0);
-		VM_OBJECT_WUNLOCK(vp->v_object);
+		vnode_pager_clean_async(vp);
 	    }
 	    NFSLOCKNODE(np);
 	    if (np->n_flag & NMODIFIED) {
@@ -2925,7 +2922,7 @@ ncl_flush(struct vnode *vp, int waitfor, struct thread *td,
 	 * A b_flags == (B_DELWRI | B_NEEDCOMMIT) block has been written to the
 	 * server, but has not been committed to stable storage on the server
 	 * yet. On the first pass, the byte range is worked out and the commit
-	 * rpc is done. On the second pass, ncl_writebp() is called to do the
+	 * rpc is done. On the second pass, bwrite() is called to do the
 	 * job.
 	 */
 again:
@@ -3439,54 +3436,6 @@ nfs_print(struct vop_print_args *ap)
 }
 
 /*
- * This is the "real" nfs::bwrite(struct buf*).
- * We set B_CACHE if this is a VMIO buffer.
- */
-int
-ncl_writebp(struct buf *bp, int force __unused, struct thread *td)
-{
-	int oldflags, rtval;
-
-	if (bp->b_flags & B_INVAL) {
-		brelse(bp);
-		return (0);
-	}
-
-	oldflags = bp->b_flags;
-	bp->b_flags |= B_CACHE;
-
-	/*
-	 * Undirty the bp.  We will redirty it later if the I/O fails.
-	 */
-	bundirty(bp);
-	bp->b_flags &= ~B_DONE;
-	bp->b_ioflags &= ~BIO_ERROR;
-	bp->b_iocmd = BIO_WRITE;
-
-	bufobj_wref(bp->b_bufobj);
-	curthread->td_ru.ru_oublock++;
-
-	/*
-	 * Note: to avoid loopback deadlocks, we do not
-	 * assign b_runningbufspace.
-	 */
-	vfs_busy_pages(bp, 1);
-
-	BUF_KERNPROC(bp);
-	bp->b_iooffset = dbtob(bp->b_blkno);
-	bstrategy(bp);
-
-	if ((oldflags & B_ASYNC) != 0)
-		return (0);
-
-	rtval = bufwait(bp);
-	if (oldflags & B_DELWRI)
-		reassignbuf(bp);
-	brelse(bp);
-	return (rtval);
-}
-
-/*
  * nfs special file access vnode op.
  * Essentially just get vattr and then imitate iaccess() since the device is
  * local to the client.
@@ -3602,26 +3551,6 @@ out:
 	return (fifo_specops.vop_close(ap));
 }
 
-/*
- * Just call ncl_writebp() with the force argument set to 1.
- *
- * NOTE: B_DONE may or may not be set in a_bp on call.
- */
-static int
-nfs_bwrite(struct buf *bp)
-{
-
-	return (ncl_writebp(bp, 1, curthread));
-}
-
-struct buf_ops buf_ops_newnfs = {
-	.bop_name	=	"buf_ops_nfs",
-	.bop_write	=	nfs_bwrite,
-	.bop_strategy	=	bufstrategy,
-	.bop_sync	=	bufsync,
-	.bop_bdflush	=	bufbdflush,
-};
-
 static int
 nfs_getacl(struct vop_getacl_args *ap)
 {
@@ -3733,8 +3662,10 @@ nfs_allocate(struct vop_allocate_args *ap)
 		 * Flush first to ensure that the allocate adds to the
 		 * file's allocation on the server.
 		 */
-		if (error == 0)
+		if (error == 0) {
+			vnode_pager_clean_sync(vp);
 			error = ncl_flush(vp, MNT_WAIT, td, 1, 0);
+		}
 		if (error == 0)
 			error = nfsrpc_allocate(vp, *ap->a_offset, alen,
 			    &nfsva, &attrflag, ap->a_cred, td);
@@ -3872,13 +3803,14 @@ nfs_copy_file_range(struct vop_copy_file_range_args *ap)
 	struct vnode *invp = ap->a_invp;
 	struct vnode *outvp = ap->a_outvp;
 	struct mount *mp;
+	vm_object_t invp_obj;
 	struct nfsvattr innfsva, outnfsva;
 	struct vattr va, *vap;
 	struct uio io;
 	struct nfsmount *nmp;
 	size_t len, len2;
 	ssize_t r;
-	int error, inattrflag, outattrflag, ret, ret2;
+	int error, inattrflag, outattrflag, ret, ret2, invp_lock;
 	off_t inoff, outoff;
 	bool consecutive, must_commit, tryoutcred;
 
@@ -3891,6 +3823,9 @@ generic_copy:
 		return (ENOSYS);
 	}
 
+	invp_lock = LK_SHARED;
+relock:
+
 	/* Lock both vnodes, avoiding risk of deadlock. */
 	do {
 		mp = NULL;
@@ -3898,14 +3833,14 @@ generic_copy:
 		if (error == 0) {
 			error = vn_lock(outvp, LK_EXCLUSIVE);
 			if (error == 0) {
-				error = vn_lock(invp, LK_SHARED | LK_NOWAIT);
+				error = vn_lock(invp, invp_lock | LK_NOWAIT);
 				if (error == 0)
 					break;
 				VOP_UNLOCK(outvp);
 				if (mp != NULL)
 					vn_finished_write(mp);
 				mp = NULL;
-				error = vn_lock(invp, LK_SHARED);
+				error = vn_lock(invp, invp_lock);
 				if (error == 0)
 					VOP_UNLOCK(invp);
 			}
@@ -3953,10 +3888,23 @@ generic_copy:
 	 * stable storage before the Copy RPC.  This is done in case the
 	 * server reboots during the Copy and needs to be redone.
 	 */
-	if (error == 0)
+	if (error == 0) {
+		invp_obj = invp->v_object;
+		if (invp_obj != NULL && vm_object_mightbedirty(invp_obj)) {
+			if (invp_lock != LK_EXCLUSIVE) {
+				invp_lock = LK_EXCLUSIVE;
+				VOP_UNLOCK(invp);
+				VOP_UNLOCK(outvp);
+				if (mp != NULL)
+					vn_finished_write(mp);
+				goto relock;
+			}
+			vnode_pager_clean_sync(invp);
+		}
 		error = ncl_flush(invp, MNT_WAIT, curthread, 1, 0);
+	}
 	if (error == 0)
-		error = ncl_flush(outvp, MNT_WAIT, curthread, 1, 0);
+		error = ncl_vinvalbuf(outvp, V_SAVE, curthread, 0);
 
 	/* Do the actual NFSv4.2 RPC. */
 	ret = ret2 = 0;
@@ -3986,18 +3934,22 @@ generic_copy:
 			 */
 			if (inoff >= vap->va_size) {
 				*ap->a_lenp = len = 0;
-				VATTR_NULL(&va);
-				va.va_atime.tv_sec = va.va_atime.tv_nsec = 0;
-				va.va_vaflags = VA_UTIMES_NULL;
-				inattrflag = 0;
-				error = nfsrpc_setattr(invp, &va, NULL,
-				    ap->a_incred, curthread, &innfsva,
-				    &inattrflag);
-				if (inattrflag != 0)
-					ret = nfscl_loadattrcache(&invp,
-					    &innfsva, NULL, 0, 1);
-				if (error == 0 && ret != 0)
-					error = ret;
+				if ((nmp->nm_mountp->mnt_flag & MNT_NOATIME) ==
+				    0) {
+					VATTR_NULL(&va);
+					va.va_atime.tv_sec = 0;
+					va.va_atime.tv_nsec = 0;
+					va.va_vaflags = VA_UTIMES_NULL;
+					inattrflag = 0;
+					error = nfsrpc_setattr(invp, &va, NULL,
+					    ap->a_incred, curthread, &innfsva,
+					    &inattrflag);
+					if (inattrflag != 0)
+						ret = nfscl_loadattrcache(&invp,
+						    &innfsva, NULL, 0, 1);
+					if (error == 0 && ret != 0)
+						error = ret;
+				}
 			} else if (inoff + len > vap->va_size)
 				*ap->a_lenp = len = vap->va_size - inoff;
 		} else
@@ -4127,7 +4079,7 @@ nfs_ioctl(struct vop_ioctl_args *ap)
 		return (ENOTTY);
 	}
 
-	error = vn_lock(vp, LK_SHARED);
+	error = vn_lock(vp, LK_EXCLUSIVE);
 	if (error != 0)
 		return (EBADF);
 
@@ -4153,6 +4105,8 @@ nfs_ioctl(struct vop_ioctl_args *ap)
 		 * server, the LayoutCommit will be done to ensure the file
 		 * size is up to date on the Metadata Server.
 		 */
+
+		vnode_pager_clean_sync(vp);
 		error = ncl_flush(vp, MNT_WAIT, ap->a_td, 1, 0);
 		if (error == 0)
 			error = nfsrpc_seek(vp, (off_t *)ap->a_data, &eof,
