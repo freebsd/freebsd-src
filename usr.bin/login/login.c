@@ -110,6 +110,8 @@ static u_int		timeout = 300;
 /* Buffer for signal handling of timeout */
 static jmp_buf		 timeout_buf;
 
+char			 pwbuf[1024];
+struct passwd		 pwres;
 struct passwd		*pwd;
 static int		 failures;
 
@@ -315,7 +317,7 @@ main(int argc, char *argv[])
 			bail(NO_SLEEP_EXIT, 1);
 		}
 
-		pwd = getpwnam(username);
+		(void)getpwnam_r(username, &pwres, pwbuf, sizeof(pwbuf), &pwd);
 		if (pwd != NULL && pwd->pw_uid == 0)
 			rootlogin = 1;
 
@@ -338,7 +340,7 @@ main(int argc, char *argv[])
 			(void)setpriority(PRIO_PROCESS, 0, 0);
 		}
 
-		if (pwd && rval == 0)
+		if (pwd != NULL && rval == 0)
 			break;
 
 		pam_cleanup();
