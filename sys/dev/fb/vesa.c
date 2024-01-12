@@ -1732,11 +1732,15 @@ set_palette(video_adapter_t *adp, int base, int count,
 	r = malloc(count * 3, M_DEVBUF, M_WAITOK | M_ZERO);
 	g = r + count;
 	b = g + count;
-	(void)copyin(red, r, count);
-	(void)copyin(green, g, count);
-	(void)copyin(blue, b, count);
+	if (copyin(red, r, count) != 0 ||
+	    copyin(green, g, count) != 0 ||
+	    copyin(blue, b, count) != 0) {
+		error = 1;
+		goto out;
+	}
 
 	error = vesa_bios_load_palette2(base, count, r, g, b, bits);
+out:
 	free(r, M_DEVBUF);
 
 	return (error);
