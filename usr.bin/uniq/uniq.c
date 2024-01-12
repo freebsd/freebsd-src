@@ -84,7 +84,7 @@ main (int argc, char *argv[])
 	int ch, comp;
 	size_t prevbuflen, thisbuflen, b1;
 	char *prevline, *thisline, *p;
-	const char *errstr, *ifn;
+	const char *errstr, *ifn, *ofn;
 	cap_rights_t rights;
 
 	(void) setlocale(LC_ALL, "");
@@ -142,6 +142,7 @@ main (int argc, char *argv[])
 	ifp = stdin;
 	ifn = "stdin";
 	ofp = stdout;
+	ofn = "stdout";
 	if (argc > 0 && strcmp(argv[0], "-") != 0)
 		ifp = file(ifn = argv[0], "r");
 	cap_rights_init(&rights, CAP_FSTAT, CAP_READ);
@@ -149,7 +150,7 @@ main (int argc, char *argv[])
 		err(1, "unable to limit rights for %s", ifn);
 	cap_rights_init(&rights, CAP_FSTAT, CAP_WRITE);
 	if (argc > 1)
-		ofp = file(argv[1], "w");
+		ofp = file(ofn = argv[1], "w");
 	else
 		cap_rights_set(&rights, CAP_IOCTL);
 	if (caph_rights_limit(fileno(ofp), &rights) < 0) {
@@ -240,6 +241,8 @@ main (int argc, char *argv[])
 	    (!dflag || (cflag && repeats > 0)) &&
 	    (!uflag || repeats == 0))
 		show(ofp, prevline);
+	if (fflush(ofp) != 0)
+		err(1, "%s", ofn);
 	exit(0);
 }
 
