@@ -55,6 +55,9 @@ Scrt1_c.o: ${CRT1SRC}
 Scrt1.o: Scrt1_c.o ${CRT1OBJS} ${CRT1OBJ}
 	${LD} ${_LDFLAGS} -o ${.TARGET} -r ${.ALLSRC:M*.o}
 
+# __FreeBSD_version is recorded in crt1.o et al via crtbrand.
+crtbrand.o: ${SRCTOP}/sys/sys/param.h
+
 crtbegin.o: crtbegin.c
 crtbeginS.o: crtbegin.c
 crtbeginT.o: crtbegin.c
