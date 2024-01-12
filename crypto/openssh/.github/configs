@@ -108,9 +108,19 @@ case "$config" in
 	SKIP_LTESTS=sftp-chroot
 	;;
     gcc-11-Werror)
-	CC="gcc"
+	CC="gcc-11"
 	# -Wnoformat-truncation in gcc 7.3.1 20180130 fails on fmt_scaled
-	CFLAGS="-Wall -Wextra -O2 -Wno-format-truncation -Wimplicit-fallthrough=4 -Wno-unused-parameter"
+	# -Wunused-result ignores (void) so is not useful.  See
+	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66425
+	CFLAGS="-O2 -Wno-format-truncation -Wimplicit-fallthrough=4 -Wno-unused-parameter -Wno-unused-result"
+	CONFIGFLAGS="--with-pam --with-Werror"
+	;;
+    gcc-12-Werror)
+	CC="gcc-12"
+	# -Wnoformat-truncation in gcc 7.3.1 20180130 fails on fmt_scaled
+	# -Wunused-result ignores (void) so is not useful.  See
+	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66425
+	CFLAGS="-O2 -Wno-format-truncation -Wimplicit-fallthrough=4 -Wno-unused-parameter -Wno-unused-result"
 	CONFIGFLAGS="--with-pam --with-Werror"
 	;;
     clang*|gcc*)

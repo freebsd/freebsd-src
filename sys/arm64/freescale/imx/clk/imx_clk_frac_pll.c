@@ -29,7 +29,7 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #include <arm64/freescale/imx/clk/imx_clk_frac_pll.h>
 

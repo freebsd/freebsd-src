@@ -98,7 +98,7 @@ public:
 	/**
 	 * Open a connection to devd's unix domain socket.
 	 *
-	 * \return  True if the connection attempt is successsful.  Otherwise
+	 * \return  True if the connection attempt is successful.  Otherwise
 	 *          false.
 	 */
 	bool ConnectToDevd();

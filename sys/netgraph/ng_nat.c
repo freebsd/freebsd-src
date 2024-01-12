@@ -862,9 +862,9 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 		 * doesn't have any idea about checksum offloading
 		 * in kernel. To workaround this, we do not do
 		 * checksumming in LibAlias, but only mark the
-		 * packets in th_x2 field. If we receive a marked
-		 * packet, we calculate correct checksum for it
-		 * aware of offloading.
+		 * packets with TH_RES1 in the th_x2 field. If we
+		 * receive a marked packet, we calculate correct
+		 * checksum for it aware of offloading.
 		 *
 		 * Why do I do such a terrible hack instead of
 		 * recalculating checksum for each packet?
@@ -875,10 +875,10 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 		 * has this problem, too.
 		 */
 
-		if (th->th_x2) {
+		if (tcp_get_flags(th) & TH_RES1) {
 			uint16_t ip_len = ntohs(ip->ip_len);
 
-			th->th_x2 = 0;
+			tcp_set_flags(th, tcp_get_flags(th) & ~TH_RES1);
 			th->th_sum = in_pseudo(ip->ip_src.s_addr,
 			    ip->ip_dst.s_addr, htons(IPPROTO_TCP +
 			    ip_len - (ip->ip_hl << 2)));

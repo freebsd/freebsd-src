@@ -517,7 +517,7 @@ ampdu_rx_purge_slot(struct ieee80211_rx_ampdu *rap, int i)
 	struct mbuf *m;
 
 	/* Walk the queue, removing frames as appropriate */
-	while (mbufq_len(&rap->rxa_mq[i]) != 0) {
+	for (;;) {
 		m = mbufq_dequeue(&rap->rxa_mq[i]);
 		if (m == NULL)
 			break;
@@ -567,7 +567,7 @@ ampdu_rx_add_slot(struct ieee80211_rx_ampdu *rap, int off, int tid,
 	/*
 	 * Get the rxs of the final mbuf in the slot, if one exists.
 	 */
-	if (mbufq_len(&rap->rxa_mq[off]) != 0) {
+	if (!mbufq_empty(&rap->rxa_mq[off])) {
 		rxs_final = ieee80211_get_rx_params_ptr(mbufq_last(&rap->rxa_mq[off]));
 	}
 
@@ -597,7 +597,7 @@ ampdu_rx_add_slot(struct ieee80211_rx_ampdu *rap, int off, int tid,
 	 * If the list is empty OR we have determined we can put more
 	 * driver decap'ed AMSDU frames in here, then insert.
 	 */
-	if ((mbufq_len(&rap->rxa_mq[off]) == 0) || (toss_dup == 0)) {
+	if (mbufq_empty(&rap->rxa_mq[off]) || (toss_dup == 0)) {
 		if (mbufq_enqueue(&rap->rxa_mq[off], m) != 0) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT | IEEE80211_MSG_11N,
 			    ni->ni_macaddr,
@@ -812,7 +812,7 @@ ampdu_dispatch_slot(struct ieee80211_rx_ampdu *rap, struct ieee80211_node *ni,
 	struct mbuf *m;
 	int n = 0;
 
-	while (mbufq_len(&rap->rxa_mq[i]) != 0) {
+	for (;;) {
 		m = mbufq_dequeue(&rap->rxa_mq[i]);
 		if (m == NULL)
 			break;
@@ -1075,7 +1075,7 @@ again:
 			/*
 			 * Dispatch as many packets as we can.
 			 */
-			KASSERT((mbufq_len(&rap->rxa_mq[0]) == 0), ("unexpected dup"));
+			KASSERT(mbufq_empty(&rap->rxa_mq[0]), ("unexpected dup"));
 			ampdu_dispatch(ni, m);
 			ampdu_rx_dispatch(rap, ni);
 			return CONSUMED;

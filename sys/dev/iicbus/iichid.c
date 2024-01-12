@@ -182,8 +182,7 @@ struct iichid_softc {
 	bool			callout_setup;		/* iicbus lock */
 	uint8_t			*dup_buf;
 	struct taskqueue	*taskqueue;
-	struct timeout_task	periodic_task;		/* iicbus lock */
-	struct task		event_task;
+	struct timeout_task	sampling_task;		/* iicbus lock */
 #endif
 
 	struct task		suspend_task;
@@ -520,7 +519,7 @@ iichid_cmd_set_report(struct iichid_softc* sc, const void *buf,
 
 #ifdef IICHID_SAMPLING
 static void
-iichid_event_task(void *context, int pending)
+iichid_sampling_task(void *context, int pending)
 {
 	struct iichid_softc *sc;
 	device_t parent;
@@ -566,7 +565,7 @@ rearm:
 			rate = sc->sampling_rate_slow;
 		else
 			rate = sc->sampling_rate_fast;
-		taskqueue_enqueue_timeout_sbt(sc->taskqueue, &sc->periodic_task,
+		taskqueue_enqueue_timeout_sbt(sc->taskqueue, &sc->sampling_task,
 		    SBT_1S / MAX(rate, 1), 0, C_PREL(2));
 	}
 out:
@@ -742,7 +741,7 @@ iichid_reset_callout(struct iichid_softc *sc)
 	sc->missing_samples = sc->sampling_hysteresis;
 	sc->dup_samples = 0;
 	sc->dup_size = 0;
-	taskqueue_enqueue(sc->taskqueue, &sc->event_task);
+	taskqueue_enqueue_timeout(sc->taskqueue, &sc->sampling_task, 0);
 
 	return (0);
 }
@@ -752,7 +751,7 @@ iichid_teardown_callout(struct iichid_softc *sc)
 {
 
 	sc->callout_setup = false;
-	taskqueue_cancel_timeout(sc->taskqueue, &sc->periodic_task, NULL);
+	taskqueue_cancel_timeout(sc->taskqueue, &sc->sampling_task, NULL);
 	DPRINTF(sc, "tore callout down\n");
 }
 
@@ -1135,12 +1134,10 @@ iichid_attach(device_t dev)
 
 	TASK_INIT(&sc->suspend_task, 0, iichid_suspend_task, sc);
 #ifdef IICHID_SAMPLING
-	TASK_INIT(&sc->event_task, 0, iichid_event_task, sc);
-	/* taskqueue_create can't fail with M_WAITOK mflag passed. */
-	sc->taskqueue = taskqueue_create("iichid_tq", M_WAITOK | M_ZERO,
+	sc->taskqueue = taskqueue_create_fast("iichid_tq", M_WAITOK | M_ZERO,
 	    taskqueue_thread_enqueue, &sc->taskqueue);
-	TIMEOUT_TASK_INIT(sc->taskqueue, &sc->periodic_task, 0,
-	    iichid_event_task, sc);
+	TIMEOUT_TASK_INIT(sc->taskqueue, &sc->sampling_task, 0,
+	    iichid_sampling_task, sc);
 
 	sc->sampling_rate_slow = -1;
 	sc->sampling_rate_fast = IICHID_SAMPLING_RATE_FAST;

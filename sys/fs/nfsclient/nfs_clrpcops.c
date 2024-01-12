@@ -8728,7 +8728,7 @@ nfsrpc_copyrpc(vnode_t invp, off_t inoff, vnode_t outvp, off_t outoff,
     int *outattrflagp, bool consecutive, int *commitp, struct ucred *cred,
     NFSPROC_T *p)
 {
-	uint32_t *tl;
+	uint32_t *tl, *opcntp;
 	int error;
 	struct nfsrv_descript nfsd;
 	struct nfsrv_descript *nd = &nfsd;
@@ -8737,14 +8737,15 @@ nfsrpc_copyrpc(vnode_t invp, off_t inoff, vnode_t outvp, off_t outoff,
 	struct vattr va;
 	uint64_t len;
 
-	nmp = VFSTONFS(outvp->v_mount);
+	nmp = VFSTONFS(invp->v_mount);
 	*inattrflagp = *outattrflagp = 0;
 	*commitp = NFSWRITE_UNSTABLE;
 	len = *lenp;
 	*lenp = 0;
 	if (len > nfs_maxcopyrange)
 		len = nfs_maxcopyrange;
-	NFSCL_REQSTART(nd, NFSPROC_COPY, invp, cred);
+	nfscl_reqstart(nd, NFSPROC_COPY, nmp, VTONFS(invp)->n_fhp->nfh_fh,
+	    VTONFS(invp)->n_fhp->nfh_len, &opcntp, NULL, 0, 0, cred);
 	/*
 	 * First do a Setattr of atime to the server's clock
 	 * time.  The FreeBSD "collective" was of the opinion
@@ -8753,13 +8754,17 @@ nfsrpc_copyrpc(vnode_t invp, off_t inoff, vnode_t outvp, off_t outoff,
 	 * handled well if the server replies NFSERR_DELAY to
 	 * the Setattr operation.
 	 */
-	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
-	*tl = txdr_unsigned(NFSV4OP_SETATTR);
-	nfsm_stateidtom(nd, instateidp, NFSSTATEID_PUTSTATEID);
-	VATTR_NULL(&va);
-	va.va_atime.tv_sec = va.va_atime.tv_nsec = 0;
-	va.va_vaflags = VA_UTIMES_NULL;
-	nfscl_fillsattr(nd, &va, invp, 0, 0);
+	if ((nmp->nm_mountp->mnt_flag & MNT_NOATIME) == 0) {
+		NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+		*tl = txdr_unsigned(NFSV4OP_SETATTR);
+		nfsm_stateidtom(nd, instateidp, NFSSTATEID_PUTSTATEID);
+		VATTR_NULL(&va);
+		va.va_atime.tv_sec = va.va_atime.tv_nsec = 0;
+		va.va_vaflags = VA_UTIMES_NULL;
+		nfscl_fillsattr(nd, &va, invp, 0, 0);
+		/* Bump opcnt from 7 to 8. */
+		*opcntp = txdr_unsigned(8);
+	}
 
 	/* Now Getattr the invp attributes. */
 	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
@@ -8798,7 +8803,8 @@ nfsrpc_copyrpc(vnode_t invp, off_t inoff, vnode_t outvp, off_t outoff,
 	if (error != 0)
 		return (error);
 	/* Skip over the Setattr reply. */
-	if ((nd->nd_flag & ND_NOMOREDATA) == 0) {
+	if ((nd->nd_flag & ND_NOMOREDATA) == 0 &&
+	    (nmp->nm_mountp->mnt_flag & MNT_NOATIME) == 0) {
 		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 		if (*(tl + 1) == 0) {
 			error = nfsrv_getattrbits(nd, &attrbits, NULL, NULL);

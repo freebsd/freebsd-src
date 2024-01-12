@@ -293,17 +293,27 @@ machine_init(struct statics *statics)
 	size = sizeof(carc_en);
 	if (arc_enabled &&
 	    sysctlbyname("vfs.zfs.compressed_arc_enabled", &carc_en, &size,
-	    NULL, 0) == 0 && carc_en == 1)
-		carc_enabled = 1;
+	    NULL, 0) == 0 && carc_en == 1) {
+		uint64_t uncomp_sz;
+
+		/*
+		 * Don't report compression stats if no data is in the ARC.
+		 * Otherwise, we end up printing a blank line.
+		 */
+		size = sizeof(uncomp_sz);
+		if (sysctlbyname("kstat.zfs.misc.arcstats.uncompressed_size",
+		    &uncomp_sz, &size, NULL, 0) == 0 && uncomp_sz != 0)
+			carc_enabled = 1;
+	}
 
 	kd = kvm_open(NULL, _PATH_DEVNULL, NULL, O_RDONLY, "kvm_open");
 	if (kd == NULL)
 		return (-1);
 
 	size = sizeof(nswapdev);
-	if (sysctlbyname("vm.nswapdev", &nswapdev, &size, NULL,
-		0) == 0 && nswapdev != 0)
-			has_swap = 1;
+	if (sysctlbyname("vm.nswapdev", &nswapdev, &size, NULL, 0) == 0 &&
+	    nswapdev != 0)
+		has_swap = 1;
 
 	GETSYSCTL("kern.ccpu", ccpu);
 

@@ -132,6 +132,17 @@ functions using
 .Sh HISTORY
 These functions first appeared in
 .Ox 2.1 .
+.Fn arc4random
+first appeared in
+.Fx 3.0 .
+.Fn arc4random_buf
+and
+.Fn arc4random_uniform
+first appeared in
+.Fx 8.0 .
+.Fn arc4random_stir
+was removed in
+.Fx 12.0 .
 .Pp
 The original version of this random number generator used the
 RC4 (also known as ARC4) algorithm.

@@ -760,7 +760,7 @@ out:
 	SOCKBUF_UNLOCK(sb);
 	SOCK_IO_RECV_UNLOCK(so);
 
-	/* We recieved a FIN in this call */
+	/* We received a FIN in this call */
 	if (so->so_error == ESHUTDOWN) {
 		if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 			/* Send has already closed */

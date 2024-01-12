@@ -6920,6 +6920,7 @@ OLD_FILES+=usr/lib/libncurses_p.a
 OLD_FILES+=usr/lib/libncursesw_p.a
 OLD_FILES+=usr/lib/libnetgraph_p.a
 OLD_FILES+=usr/lib/libnetmap_p.a
+OLD_FILES+=usr/lib/libnss_tacplus_p.a
 OLD_FILES+=usr/lib/libnv_p.a
 OLD_FILES+=usr/lib/libnvpair_p.a
 OLD_FILES+=usr/lib/libopencsd_p.a

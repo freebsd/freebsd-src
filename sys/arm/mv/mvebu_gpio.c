@@ -43,7 +43,7 @@
 #include <machine/intr.h>
 #include <machine/resource.h>
 
-#include <dev/extres/syscon/syscon.h>
+#include <dev/syscon/syscon.h>
 
 #include <dev/gpio/gpiobusvar.h>
 

@@ -1,75 +1,95 @@
 
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
-SUBDIR+=	include
-SUBDIR+=	asan
-SUBDIR+=	asan-preinit
-SUBDIR+=	asan_cxx
-SUBDIR+=	asan_dynamic
-SUBDIR+=	asan_static
-SUBDIR+=	cfi
-SUBDIR+=	cfi_diag
-SUBDIR+=	safestack
-SUBDIR+=	stats
-SUBDIR+=	stats_client
-SUBDIR+=	ubsan_minimal
-SUBDIR+=	ubsan_standalone
-SUBDIR+=	ubsan_standalone_cxx
-.endif # amd64 || i386
+SD_ASAN+=	asan
+SD_ASAN+=	asan-preinit
+SD_ASAN+=	asan_cxx
+SD_ASAN+=	asan_dynamic
+SD_ASAN+=	asan_static
 
-.if ${MACHINE_CPUARCH} == "amd64"
-SUBDIR+=	dd
-SUBDIR+=	fuzzer
-SUBDIR+=	fuzzer_interceptors
-SUBDIR+=	fuzzer_no_main
-SUBDIR+=	msan
-SUBDIR+=	msan_cxx
-SUBDIR+=	tsan
-SUBDIR+=	tsan_cxx
-SUBDIR+=	xray
-SUBDIR+=	xray-basic
-SUBDIR+=	xray-fdr
-SUBDIR+=	xray-profiling
-.endif # amd64
+SD_CFI+=	cfi
+SD_CFI+= 	cfi_diag
 
-.if ${MACHINE_ARCH} == "powerpc64" || ${MACHINE_ARCH} == "powerpc64le"
-SUBDIR+=	include
-SUBDIR+=	asan
-SUBDIR+=	asan-preinit
-SUBDIR+=	asan_cxx
-SUBDIR+=	asan_dynamic
-SUBDIR+=	asan_static
-SUBDIR+=	msan
-SUBDIR+=	msan_cxx
-SUBDIR+=	stats
-SUBDIR+=	stats_client
-SUBDIR+=	tsan
-SUBDIR+=	tsan_cxx
-SUBDIR+=	ubsan_minimal
-SUBDIR+=	ubsan_standalone
-SUBDIR+=	ubsan_standalone_cxx
-.endif # powerpc64 || powerpc64le
+SD_DD+=		dd
 
-.if ${MACHINE_ARCH} == "powerpc64le"
-SUBDIR+=	xray
-SUBDIR+=	xray-basic
-SUBDIR+=	xray-fdr
-SUBDIR+=	xray-profiling
-.endif # powerpc64le
+SD_FUZZER+=	fuzzer
+SD_FUZZER+=	fuzzer_interceptors
+SD_FUZZER+=	fuzzer_no_main
 
-.if ${MACHINE_CPUARCH} == "riscv"
-SUBDIR+=	include
-SUBDIR+=	asan
-SUBDIR+=	asan-preinit
-SUBDIR+=	asan_cxx
-SUBDIR+=	asan_dynamic
-SUBDIR+=	stats
-SUBDIR+=	stats_client
-SUBDIR+=	ubsan_minimal
-SUBDIR+=	ubsan_standalone
-SUBDIR+=	ubsan_standalone_cxx
-.endif # riscv
+SD_INCLUDE+=	include
 
-SUBDIR+=	profile
+SD_MSAN+=	msan
+SD_MSAN+=	msan_cxx
+
+SD_PROFILE+=	profile
+
+SD_SAFESTACK+=	safestack
+
+SD_STATS+=	stats
+SD_STATS+=	stats_client
+
+SD_TSAN+=	tsan
+SD_TSAN+=	tsan_cxx
+
+SD_UBSAN+=	ubsan_minimal
+SD_UBSAN+=	ubsan_standalone
+SD_UBSAN+=	ubsan_standalone_cxx
+
+SD_XRAY+=	xray
+SD_XRAY+=	xray-basic
+SD_XRAY+=	xray-fdr
+SD_XRAY+=	xray-profiling
+
+.if ${MACHINE_CPUARCH} == "aarch64"
+SUBDIR+=	${SD_ASAN}
+SUBDIR+=	${SD_CFI}
+SUBDIR+=	${SD_FUZZER}
+SUBDIR+=	${SD_MSAN}
+SUBDIR+=	${SD_SAFESTACK}
+SUBDIR+=	${SD_STATS}
+SUBDIR+=	${SD_TSAN}
+SUBDIR+=	${SD_UBSAN}
+SUBDIR+=	${SD_XRAY}
+.elif ${MACHINE_CPUARCH} == "amd64"
+SUBDIR+=	${SD_ASAN}
+SUBDIR+=	${SD_CFI}
+SUBDIR+=	${SD_DD}
+SUBDIR+=	${SD_FUZZER}
+SUBDIR+=	${SD_MSAN}
+SUBDIR+=	${SD_SAFESTACK}
+SUBDIR+=	${SD_STATS}
+SUBDIR+=	${SD_TSAN}
+SUBDIR+=	${SD_UBSAN}
+SUBDIR+=	${SD_XRAY}
+.elif ${MACHINE_CPUARCH} == "arm"
+# nothing for 32-bit arm
+.elif ${MACHINE_CPUARCH} == "i386"
+SUBDIR+=	${SD_ASAN}
+SUBDIR+=	${SD_CFI}
+SUBDIR+=	${SD_SAFESTACK}
+SUBDIR+=	${SD_STATS}
+SUBDIR+=	${SD_UBSAN}
+.elif ${MACHINE_CPUARCH} == "powerpc"
+# nothing for 32-bit powerpc
+.elif ${MACHINE_ARCH} == "powerpc64"
+SUBDIR+=	${SD_ASAN}
+SUBDIR+=	${SD_MSAN}
+SUBDIR+=	${SD_STATS}
+SUBDIR+=	${SD_TSAN}
+SUBDIR+=	${SD_UBSAN}
+.elif ${MACHINE_ARCH} == "powerpc64le"
+SUBDIR+=	${SD_ASAN}
+SUBDIR+=	${SD_MSAN}
+SUBDIR+=	${SD_STATS}
+SUBDIR+=	${SD_TSAN}
+SUBDIR+=	${SD_UBSAN}
+SUBDIR+=	${SD_XRAY}
+.elif ${MACHINE_CPUARCH} == "riscv"
+SUBDIR+=	${SD_ASAN}
+SUBDIR+=	${SD_STATS}
+SUBDIR+=	${SD_UBSAN}
+.endif
+
+SUBDIR+=	${SD_INCLUDE}
+SUBDIR+=	${SD_PROFILE}
 
 SUBDIR_PARALLEL=
 
