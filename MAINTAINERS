@@ -56,7 +56,6 @@ etc/sendmail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
 fetch		des	Pre-commit review requested, email only.
 fusefs(5)	asomers	Pre-commit review requested.
 geli		pjd	Pre-commit review requested (both sys/geom/eli/ and sbin/geom/class/eli/).
-isci(4)		jimharris	Pre-commit review requested.
 iwm(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 iwn(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 kqueue		jmg	Pre-commit review requested.  Documentation Required.
@@ -71,9 +70,9 @@ lpr		gad	Pre-commit review requested, particularly for
 nanobsd		imp	Pre-commit phabricator review requested.
 net80211	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 nfs		freebsd-fs@FreeBSD.org, rmacklem is best for reviews.
-nvd(4)		jimharris	Pre-commit review requested.
-nvme(4)		jimharris	Pre-commit review requested.
-nvmecontrol(8)	jimharris	Pre-commit review requested.
+nvd(4)		imp	Pre-commit review requested.
+nvme(4)		imp	Pre-commit review requested.
+nvmecontrol(8)	imp	Pre-commit review requested.
 opencrypto	jmg	Pre-commit review requested.  Documentation Required.
 openssh		des	Pre-commit review requested, email only.
 openssl		benl	Pre-commit review requested.
@@ -128,8 +127,6 @@ autofs(5)	trasz	Pre-commit review recommended.
 iscsi(4)	trasz	Pre-commit review recommended.
 rctl(8)		trasz	Pre-commit review recommended.
 sys/dev/ofw	nwhitehorn	Pre-commit review recommended.
-sys/dev/drm*	imp	Pre-commit review requested in phabricator. Changes need to
-			be mirrored in github repo.
 sys/dev/usb/wlan adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 sys/arm/allwinner	manu	Pre-commit review requested
 sys/arm64/rockchip	manu	Pre-commit review requested

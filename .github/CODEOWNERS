@@ -57,6 +57,7 @@
 /lib/libpam/		@dag-erling
 /lib/libvmmapi	@bsdjhb @grehan-freebsd
 /libexec/rc/rc.d/rctl/	@trasz
+/sbin/nvmecontrol @bsdimp
 /sbin/mount_fusefs @asomers
 /secure/usr.bin/openssl/	@juikim
 /share/mk	@bsdimp @bapt @bdrewery @emaste
@@ -73,6 +74,8 @@
 /sys/crypto/openssl/	@juikim
 /sys/dev/drm2	@bsdimp
 /sys/dev/iscsi/	@trasz
+/sys/dev/nvd	@bsdimp
+/sys/dev/nvme	@bsdimp
 /sys/dev/pci	@bsdimp @bsdjhb
 /sys/fs/autofs/	@trasz
 /sys/fs/fuse/	@asomers
