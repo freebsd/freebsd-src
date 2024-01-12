@@ -19,7 +19,7 @@
 .\" OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 .\" THE SOFTWARE.
 .\"
-.Dd April 29, 2022
+.Dd January 12, 2024
 .Dt MIXER 8
 .Os
 .Sh NAME
@@ -218,6 +218,13 @@ opens when the
 option has not been specified.
 .El
 .Sh EXAMPLES
+Increase the volume for the
+.Cm vol
+device of the first mixer found by 5%:
+.Bd -literal -offset indent
+$ mixer vol=+0.05
+.Ed
+.Pp
 Change the volume for the
 .Cm vol
 device of the
