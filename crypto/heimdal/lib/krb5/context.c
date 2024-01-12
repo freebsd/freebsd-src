@@ -392,10 +392,6 @@ krb5_init_context(krb5_context *context)
     }
     HEIMDAL_MUTEX_init(p->mutex);
 
-    ret = fbsd_ossl_provider_load();
-    if(ret)
-	goto out;
-
     p->flags |= KRB5_CTX_F_HOMEDIR_ACCESS;
 
     ret = krb5_get_default_config_files(&files);

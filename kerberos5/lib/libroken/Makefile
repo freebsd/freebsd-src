@@ -2,7 +2,7 @@
 PACKAGE=	kerberos-lib
 
 LIB=	roken
-LIBADD=	crypt crypto
+LIBADD=	crypt
 VERSION_MAP=	${KRB5DIR}/lib/roken/version-script.map
 INCS=	roken.h \
 	roken-common.h \
@@ -74,19 +74,14 @@ SRCS=	base64.c \
 	vis.c \
 	warnerr.c \
 	write_pid.c \
-	xfree.c \
-	fbsd_ossl_provider_load.c
+	xfree.c
 
-CFLAGS+=-I${KRB5DIR}/lib/roken \
-	-I${SRCTOP}/kerberos5/include \
-	-I${KRB5DIR}/lib/krb5 \
-	-I${SRCTOP}/crypto/openssl/include -I.
+CFLAGS+=-I${KRB5DIR}/lib/roken -I.
 
 CLEANFILES= roken.h
 
 roken.h:
 	${MAKE_ROKEN} > ${.TARGET}
-
 
 .include <bsd.lib.mk>
 
