@@ -245,7 +245,7 @@ enum libusb_log_level {
 /* XXX */
 /* libusb_set_debug should take parameters from libusb_log_level
  * above according to
- *   http://libusb.sourceforge.net/api-1.0/group__lib.html
+ *   https://libusb.sourceforge.io/api-1.0/group__libusb__lib.html
  */
 enum libusb_debug_level {
 	LIBUSB_DEBUG_NO=0,
