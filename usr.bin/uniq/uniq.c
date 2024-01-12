@@ -42,6 +42,7 @@
 #include <limits.h>
 #include <locale.h>
 #include <nl_types.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,14 +52,9 @@
 #include <wchar.h>
 #include <wctype.h>
 
-static int Dflag, cflag, dflag, uflag, iflag;
-static int numchars, numfields, repeats;
-
-/* Dflag values */
-#define	DF_NONE		0
-#define	DF_NOSEP	1
-#define	DF_PRESEP	2
-#define	DF_POSTSEP	3
+static enum { DF_NONE, DF_NOSEP, DF_PRESEP, DF_POSTSEP } Dflag;
+static bool cflag, dflag, uflag, iflag;
+static long long numchars, numfields, repeats;
 
 static const struct option long_opts[] =
 {
@@ -88,7 +84,7 @@ main (int argc, char *argv[])
 	int ch, comp;
 	size_t prevbuflen, thisbuflen, b1;
 	char *prevline, *thisline, *p;
-	const char *ifn, *errstr;;
+	const char *errstr, *ifn;
 	cap_rights_t rights;
 
 	(void) setlocale(LC_ALL, "");
@@ -108,13 +104,13 @@ main (int argc, char *argv[])
 				usage();
 			break;
 		case 'c':
-			cflag = 1;
+			cflag = true;
 			break;
 		case 'd':
-			dflag = 1;
+			dflag = true;
 			break;
 		case 'i':
-			iflag = 1;
+			iflag = true;
 			break;
 		case 'f':
 			numfields = strtonum(optarg, 0, INT_MAX, &errstr);
@@ -127,7 +123,7 @@ main (int argc, char *argv[])
 				errx(1, "character skip value is %s: %s", errstr, optarg);
 			break;
 		case 'u':
-			uflag = 1;
+			uflag = true;
 			break;
 		case '?':
 		default:
@@ -139,6 +135,9 @@ main (int argc, char *argv[])
 
 	if (argc > 2)
 		usage();
+
+	if (Dflag && dflag)
+		dflag = false;
 
 	ifp = stdin;
 	ifn = "stdin";
@@ -180,6 +179,8 @@ main (int argc, char *argv[])
 			err(1, "%s", ifn);
 		exit(0);
 	}
+	if (!cflag && !Dflag && !dflag && !uflag)
+		show(ofp, prevline);
 	tprev = convert(prevline);
 
 	tthis = NULL;
@@ -199,7 +200,11 @@ main (int argc, char *argv[])
 			/* If different, print; set previous to new value. */
 			if (Dflag == DF_POSTSEP && repeats > 0)
 				fputc('\n', ofp);
-			if (!Dflag)
+			if (!cflag && !Dflag && !dflag && !uflag)
+				show(ofp, thisline);
+			else if (!Dflag &&
+			    (!dflag || (cflag && repeats > 0)) &&
+			    (!uflag || repeats == 0))
 				show(ofp, prevline);
 			p = prevline;
 			b1 = prevbuflen;
@@ -220,13 +225,20 @@ main (int argc, char *argv[])
 					show(ofp, prevline);
 				}
 				show(ofp, thisline);
+			} else if (dflag && !cflag) {
+				if (repeats == 0)
+					show(ofp, prevline);
 			}
 			++repeats;
 		}
 	}
 	if (ferror(ifp))
 		err(1, "%s", ifn);
-	if (!Dflag)
+	if (!cflag && !Dflag && !dflag && !uflag)
+		/* already printed */ ;
+	else if (!Dflag &&
+	    (!dflag || (cflag && repeats > 0)) &&
+	    (!uflag || repeats == 0))
 		show(ofp, prevline);
 	exit(0);
 }
@@ -291,11 +303,8 @@ inlcmp(const char *s1, const char *s2)
 static void
 show(FILE *ofp, const char *str)
 {
-
-	if ((!Dflag && dflag && repeats == 0) || (uflag && repeats > 0))
-		return;
 	if (cflag)
-		(void)fprintf(ofp, "%4d %s", repeats + 1, str);
+		(void)fprintf(ofp, "%4lld %s", repeats + 1, str);
 	else
 		(void)fprintf(ofp, "%s", str);
 }
@@ -303,7 +312,7 @@ show(FILE *ofp, const char *str)
 static wchar_t *
 skip(wchar_t *str)
 {
-	int nchars, nfields;
+	long long nchars, nfields;
 
 	for (nfields = 0; *str != L'\0' && nfields++ != numfields; ) {
 		while (iswblank(*str))

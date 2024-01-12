@@ -133,6 +133,30 @@ count_unique_body() {
 	atf_check_uniq --count --unique
 }
 
+atf_test_case interactive
+interactive_head() {
+	atf_set descr "test interactive use"
+}
+interactive_body() {
+	sh -c 'yes | stdbuf -oL uniq >actual' &
+	pid=$!
+	sleep 1
+	kill $!
+	atf_check -o inline:"y\n" cat actual
+}
+
+atf_test_case interactive_repeated
+interactive_repeated_head() {
+	atf_set descr "test interactive use with -d"
+}
+interactive_repeated_body() {
+	sh -c 'yes | stdbuf -oL uniq -d >actual' &
+	pid=$!
+	sleep 1
+	kill $!
+	atf_check -o inline:"y\n" cat actual
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case basic
@@ -146,4 +170,6 @@ atf_init_test_cases()
 	atf_add_test_case skip_chars
 	atf_add_test_case unique
 	atf_add_test_case count_unique
+	atf_add_test_case interactive
+	atf_add_test_case interactive_repeated
 }
