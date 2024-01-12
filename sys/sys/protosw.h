@@ -32,8 +32,6 @@
 #ifndef _SYS_PROTOSW_H_
 #define _SYS_PROTOSW_H_
 
-#include <sys/queue.h>
-
 /* Forward declare these structures referenced from prototypes below. */
 struct kaiocb;
 struct mbuf;
