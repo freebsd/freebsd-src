@@ -1499,6 +1499,7 @@ struct sackhole *tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt);
 void	 tcp_do_prr_ack(struct tcpcb *, struct tcphdr *, struct tcpopt *, sackstatus_t);
 void	 tcp_lost_retransmission(struct tcpcb *, struct tcphdr *);
 void	 tcp_sack_partialack(struct tcpcb *, struct tcphdr *);
+void	 tcp_resend_sackholes(struct tcpcb *tp);
 void	 tcp_free_sackholes(struct tcpcb *tp);
 void	 tcp_sack_lost_retransmission(struct tcpcb *, struct tcphdr *);
 int	 tcp_newreno(struct tcpcb *, struct tcphdr *);
@@ -1578,16 +1579,4 @@ tcp_fields_to_net(struct tcphdr *th)
 }
 #endif /* _KERNEL */
 
-static inline uint16_t
-tcp_get_flags(const struct tcphdr *th)
-{
-        return (((uint16_t)th->th_x2 << 8) | th->th_flags);
-}
-
-static inline void
-tcp_set_flags(struct tcphdr *th, uint16_t flags)
-{
-        th->th_x2    = (flags >> 8) & 0x0f;
-        th->th_flags = flags & 0xff;
-}
 #endif /* _NETINET_TCP_VAR_H_ */

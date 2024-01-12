@@ -10,6 +10,31 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+61174ad88e33:
+	newsyslog(8) now supports specifying a global compression method directly
+	at the beginning of the newsyslog.conf file, which will make newsyslog(8)
+	to behave like the corresponding option was passed to the newly added
+	'-c' option. For example:
+
+	<compress> none
+
+906748d208d3:
+	newsyslog(8) now accepts a new option, '-c' which overrides all historical
+	compression flags by treating their meaning as "treat the file as compressible"
+	rather than "compress the file with that specific method."
+
+	The following choices are available:
+	 * none: Do not compress, regardless of flag.
+	 * legacy: Historical behavior (J=bzip2, X=xz, Y=zstd, Z=gzip).
+	 * bzip2, xz, zstd, gzip: apply the specified compression method.
+
+	We plan to change the default to 'none' in FreeBSD 15.0.
+
+1a878807006c:
+	This commit added some statistics collection to the NFS-over-TLS
+	code in the NFS server so that sysadmins can moditor usage.
+	The statistics are available via the kern.rpc.tls.* sysctls.
+
 7c5146da1286:
 	Mountd has been modified to use strunvis(3) to decode directory
 	names in exports(5) file(s).  This allows special characters,

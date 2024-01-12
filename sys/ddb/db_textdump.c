@@ -141,7 +141,7 @@ SYSCTL_INT(_debug_ddb_textdump, OID_AUTO, pending, CTLFLAG_RW,
 #define	TAR_USTAR	"ustar"
 
 #define	TAR_CONFIG_FILENAME	"config.txt"	/* Kernel configuration. */
-#define	TAR_MSGBUF_FILENAME	"msgbuf.txt"	/* Kernel messsage buffer. */
+#define	TAR_MSGBUF_FILENAME	"msgbuf.txt"	/* Kernel message buffer. */
 #define	TAR_PANIC_FILENAME	"panic.txt"	/* Panic message. */
 #define	TAR_VERSION_FILENAME	"version.txt"	/* Kernel version. */
 

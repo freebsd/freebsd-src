@@ -12,7 +12,7 @@ t(void)
 	/*
 	 * Old indent wrapped the URL near where this sentence ends.
 	 *
-	 * https://www.freebsd.org/cgi/man.cgi?query=indent&apropos=0&sektion=0&manpath=FreeBSD+12-current&arch=default&format=html
+	 * https://man.freebsd.org/cgi/man.cgi?query=indent&apropos=0&sektion=0&manpath=freebsd-current&arch=default&format=html&x
 	 */
 
 	/*

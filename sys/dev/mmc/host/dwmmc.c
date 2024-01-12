@@ -60,7 +60,7 @@
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #include <dev/mmc/host/dwmmc_reg.h>
 #include <dev/mmc/host/dwmmc_var.h>

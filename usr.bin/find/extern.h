@@ -121,3 +121,4 @@ extern int exitstatus;
 extern time_t now;
 extern int dotfd;
 extern FTS *tree;
+extern volatile sig_atomic_t showinfo;

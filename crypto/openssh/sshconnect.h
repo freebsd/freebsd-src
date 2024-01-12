@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.h,v 1.46 2020/12/22 00:15:23 djm Exp $ */
+/* $OpenBSD: sshconnect.h,v 1.47 2023/10/12 02:18:18 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -42,6 +42,7 @@ struct ssh_conn_info {
 	char *remuser;
 	char *homedir;
 	char *locuser;
+	char *jmphost;
 };
 
 struct addrinfo;
@@ -61,7 +62,8 @@ struct ssh_conn_info;
 	"d", conn_info->homedir, \
 	"h", conn_info->remhost, \
 	"r", conn_info->remuser, \
-	"u", conn_info->locuser
+	"u", conn_info->locuser, \
+	"j", conn_info->jmphost
 
 int	 ssh_connect(struct ssh *, const char *, const char *,
 	    struct addrinfo *, struct sockaddr_storage *, u_short,

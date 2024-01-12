@@ -578,7 +578,7 @@ dumphex(FILE *log, int dopts, char *buf, int len)
 		}
 
 		if ((j + 1) & 0xf)
-			*t++ = ' ';;
+			*t++ = ' ';
 	}
 
 	if (j & 0xf) {

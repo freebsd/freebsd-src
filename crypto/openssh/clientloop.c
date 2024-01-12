@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.398 2023/09/10 03:51:55 djm Exp $ */
+/* $OpenBSD: clientloop.c,v 1.402 2023/11/24 00:31:30 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -211,6 +211,7 @@ quit_message(const char *fmt, ...)
 
 	if ((r = sshbuf_putf(stderr_buffer, "%s\r\n", msg)) != 0)
 		fatal_fr(r, "sshbuf_putf");
+	free(msg);
 	quit_pending = 1;
 }
 
@@ -589,7 +590,7 @@ obfuscate_keystroke_timing(struct ssh *ssh, struct timespec *timeout,
 	if (options.obscure_keystroke_timing_interval <= 0)
 		return 1;	/* disabled in config */
 
-	if (!channel_still_open(ssh) || quit_pending) {
+	if (!channel_tty_open(ssh) || quit_pending) {
 		/* Stop if no channels left of we're waiting for one to close */
 		stop_reason = "no active channels";
 	} else if (ssh_packet_is_rekeying(ssh)) {
@@ -681,7 +682,7 @@ obfuscate_keystroke_timing(struct ssh *ssh, struct timespec *timeout,
 static void
 client_wait_until_can_do_something(struct ssh *ssh, struct pollfd **pfdp,
     u_int *npfd_allocp, u_int *npfd_activep, int channel_did_enqueue,
-    int *conn_in_readyp, int *conn_out_readyp)
+    sigset_t *sigsetp, int *conn_in_readyp, int *conn_out_readyp)
 {
 	struct timespec timeout;
 	int ret, oready;
@@ -728,7 +729,7 @@ client_wait_until_can_do_something(struct ssh *ssh, struct pollfd **pfdp,
 		    ssh_packet_get_rekey_timeout(ssh));
 	}
 
-	ret = ppoll(*pfdp, *npfd_activep, ptimeout_get_tsp(&timeout), NULL);
+	ret = ppoll(*pfdp, *npfd_activep, ptimeout_get_tsp(&timeout), sigsetp);
 
 	if (ret == -1) {
 		/*
@@ -1448,6 +1449,7 @@ client_loop(struct ssh *ssh, int have_pty, int escape_char_arg,
 	int channel_did_enqueue = 0, r, len;
 	u_int64_t ibytes, obytes;
 	int conn_in_ready, conn_out_ready;
+	sigset_t bsigset, osigset;
 
 	debug("Entering interactive session.");
 	session_ident = ssh2_chan_id;
@@ -1533,6 +1535,13 @@ client_loop(struct ssh *ssh, int have_pty, int escape_char_arg,
 
 	schedule_server_alive_check();
 
+	if (sigemptyset(&bsigset) == -1 ||
+	    sigaddset(&bsigset, SIGHUP) == -1 ||
+	    sigaddset(&bsigset, SIGINT) == -1 ||
+	    sigaddset(&bsigset, SIGQUIT) == -1 ||
+	    sigaddset(&bsigset, SIGTERM) == -1)
+		error_f("bsigset setup: %s", strerror(errno));
+
 	/* Main loop of the client for the interactive session mode. */
 	while (!quit_pending) {
 		channel_did_enqueue = 0;
@@ -1564,17 +1573,20 @@ client_loop(struct ssh *ssh, int have_pty, int escape_char_arg,
 			 * message about it to the server if so.
 			 */
 			client_check_window_change(ssh);
-
-			if (quit_pending)
-				break;
 		}
 		/*
 		 * Wait until we have something to do (something becomes
 		 * available on one of the descriptors).
 		 */
+		if (sigprocmask(SIG_BLOCK, &bsigset, &osigset) == -1)
+			error_f("bsigset sigprocmask: %s", strerror(errno));
+		if (quit_pending)
+			break;
 		client_wait_until_can_do_something(ssh, &pfd, &npfd_alloc,
-		    &npfd_active, channel_did_enqueue,
+		    &npfd_active, channel_did_enqueue, &osigset,
 		    &conn_in_ready, &conn_out_ready);
+		if (sigprocmask(SIG_UNBLOCK, &bsigset, &osigset) == -1)
+			error_f("osigset sigprocmask: %s", strerror(errno));
 
 		if (quit_pending)
 			break;
@@ -1801,7 +1813,7 @@ client_request_x11(struct ssh *ssh, const char *request_type, int rchan)
 	sock = x11_connect_display(ssh);
 	if (sock < 0)
 		return NULL;
-	c = channel_new(ssh, "x11",
+	c = channel_new(ssh, "x11-connection",
 	    SSH_CHANNEL_X11_OPEN, sock, sock, -1,
 	    CHAN_TCP_WINDOW_DEFAULT, CHAN_X11_PACKET_DEFAULT, 0, "x11", 1);
 	c->force_drain = 1;
@@ -1836,7 +1848,7 @@ client_request_agent(struct ssh *ssh, const char *request_type, int rchan)
 	else
 		debug2_fr(r, "ssh_agent_bind_hostkey");
 
-	c = channel_new(ssh, "authentication agent connection",
+	c = channel_new(ssh, "agent-connection",
 	    SSH_CHANNEL_OPEN, sock, sock, -1,
 	    CHAN_X11_WINDOW_DEFAULT, CHAN_TCP_PACKET_DEFAULT, 0,
 	    "authentication agent connection", 1);
@@ -1864,7 +1876,7 @@ client_request_tun_fwd(struct ssh *ssh, int tun_mode,
 	}
 	debug("Tunnel forwarding using interface %s", ifname);
 
-	c = channel_new(ssh, "tun", SSH_CHANNEL_OPENING, fd, fd, -1,
+	c = channel_new(ssh, "tun-connection", SSH_CHANNEL_OPENING, fd, fd, -1,
 	    CHAN_TCP_WINDOW_DEFAULT, CHAN_TCP_PACKET_DEFAULT, 0, "tun", 1);
 	c->datagram = 1;
 

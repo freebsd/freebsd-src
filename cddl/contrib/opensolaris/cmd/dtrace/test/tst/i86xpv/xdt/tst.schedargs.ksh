@@ -45,7 +45,7 @@ outf=/tmp/sched.args.$$
 
 script()
 {
-	$dtrace -c '/usr/bin/sleep 10' -o $outf -qs /dev/stdin <<EOF
+	$dtrace -c 'sleep 10' -o $outf -qs /dev/stdin <<EOF
 	xdt:sched::off-cpu,
 	xdt:sched::on-cpu,
 	xdt:sched::block,

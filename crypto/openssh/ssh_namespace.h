@@ -189,6 +189,7 @@
 #define channel_setup_remote_fwd_listener	Fssh_channel_setup_remote_fwd_listener
 #define channel_still_open			Fssh_channel_still_open
 #define channel_stop_listening			Fssh_channel_stop_listening
+#define channel_tty_open			Fssh_channel_tty_open
 #define channel_update_permission		Fssh_channel_update_permission
 #define check_hostkeys_by_key_or_type		Fssh_check_hostkeys_by_key_or_type
 #define check_key_in_hostkeys			Fssh_check_key_in_hostkeys
@@ -204,7 +205,6 @@
 #define cipher_ctx_is_plaintext			Fssh_cipher_ctx_is_plaintext
 #define cipher_free				Fssh_cipher_free
 #define cipher_get_keyiv			Fssh_cipher_get_keyiv
-#define cipher_get_keyiv_len			Fssh_cipher_get_keyiv_len
 #define cipher_get_length			Fssh_cipher_get_length
 #define cipher_init				Fssh_cipher_init
 #define cipher_is_cbc				Fssh_cipher_is_cbc
@@ -368,6 +368,8 @@
 #define kex_ready				Fssh_kex_ready
 #define kex_send_kexinit			Fssh_kex_send_kexinit
 #define kex_send_newkeys			Fssh_kex_send_newkeys
+#define kex_server_update_ext_info		Fssh_kex_server_update_ext_info
+#define kex_set_server_sig_algs			Fssh_kex_set_server_sig_algs
 #define kex_setup				Fssh_kex_setup
 #define kex_start_rekex				Fssh_kex_start_rekex
 #define kex_verify_host_key			Fssh_kex_verify_host_key
@@ -444,6 +446,7 @@
 #define ossl_error				Fssh_ossl_error
 #define parse_absolute_time			Fssh_parse_absolute_time
 #define parse_ipqos				Fssh_parse_ipqos
+#define parse_pattern_interval			Fssh_parse_pattern_interval
 #define parse_prime				Fssh_parse_prime
 #define parse_revoked_certs			Fssh_parse_revoked_certs
 #define parse_uri				Fssh_parse_uri
@@ -691,7 +694,6 @@
 #define ssh_packet_put				Fssh_ssh_packet_put
 #define ssh_packet_rdomain_in			Fssh_ssh_packet_rdomain_in
 #define ssh_packet_read				Fssh_ssh_packet_read
-#define ssh_packet_read_expect			Fssh_ssh_packet_read_expect
 #define ssh_packet_read_poll2			Fssh_ssh_packet_read_poll2
 #define ssh_packet_read_poll_seqnr		Fssh_ssh_packet_read_poll_seqnr
 #define ssh_packet_read_seqnr			Fssh_ssh_packet_read_seqnr
@@ -699,6 +701,7 @@
 #define ssh_packet_send2			Fssh_ssh_packet_send2
 #define ssh_packet_send2_wrapped		Fssh_ssh_packet_send2_wrapped
 #define ssh_packet_send_debug			Fssh_ssh_packet_send_debug
+#define ssh_packet_send_mux			Fssh_ssh_packet_send_mux
 #define ssh_packet_set_alive_timeouts		Fssh_ssh_packet_set_alive_timeouts
 #define ssh_packet_set_authenticated		Fssh_ssh_packet_set_authenticated
 #define ssh_packet_set_connection		Fssh_ssh_packet_set_connection

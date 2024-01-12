@@ -97,6 +97,8 @@ static void unput(int);
  */
 %}
 
+%option yylineno
+
 %e 1500		/* maximum nodes */
 %p 4900		/* maximum positions */
 %n 600		/* maximum states */

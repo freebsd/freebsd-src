@@ -36,8 +36,8 @@
 #include <machine/bus.h>
 #include <machine/cpu.h>
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/regulator/regulator.h>
+#include <dev/clk/clk.h>
+#include <dev/regulator/regulator.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/nvidia/tegra_efuse.h>

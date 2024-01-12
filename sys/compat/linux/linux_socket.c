@@ -2117,7 +2117,6 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		name = linux_to_bsd_tcp_sockopt(args->optname);
 		break;
 	case SOL_NETLINK:
-		level = SOL_SOCKET;
 		name = args->optname;
 		break;
 	default:

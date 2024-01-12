@@ -1047,6 +1047,22 @@ tryagain:
 			NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
 			error = ENXIO;
 		}
+	} else if (stat == RPC_AUTHERROR) {
+		/* Check for a session slot that needs to be free'd. */
+		if ((nd->nd_flag & (ND_NFSV41 | ND_HASSLOTID)) ==
+		    (ND_NFSV41 | ND_HASSLOTID) && nmp != NULL &&
+		    nd->nd_procnum != NFSPROC_NULL) {
+			/*
+			 * This can occur when a Kerberos/RPCSEC_GSS session
+			 * expires, due to TGT expiration.
+			 * Free the slot, resetting the slot's sequence#.
+			 */
+			if (sep == NULL)
+				sep = nfsmnt_mdssession(nmp);
+			nfsv4_freeslot(sep, nd->nd_slotid, true);
+		}
+		NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
+		error = EACCES;
 	} else {
 		NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
 		error = EACCES;

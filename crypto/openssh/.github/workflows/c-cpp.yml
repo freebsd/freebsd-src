@@ -47,7 +47,8 @@ jobs:
           - { target: ubuntu-20.04, config: gcc-7 }
           - { target: ubuntu-20.04, config: gcc-8 }
           - { target: ubuntu-20.04, config: gcc-10 }
-          - { target: ubuntu-20.04, config: gcc-11-Werror }
+          - { target: ubuntu-22.04, config: gcc-11-Werror }
+          - { target: ubuntu-22.04, config: gcc-12-Werror }
           - { target: ubuntu-20.04, config: pam }
           - { target: ubuntu-20.04, config: kitchensink }
           - { target: ubuntu-22.04, config: hardenedmalloc }
@@ -61,18 +62,20 @@ jobs:
           - { target: ubuntu-latest, config: libressl-3.5.3 }
           - { target: ubuntu-latest, config: libressl-3.6.1 }
           - { target: ubuntu-latest, config: libressl-3.7.2 }
+          - { target: ubuntu-latest, config: libressl-3.8.2 }
           - { target: ubuntu-latest, config: openssl-master }
           - { target: ubuntu-latest, config: openssl-noec }
           - { target: ubuntu-latest, config: openssl-1.1.1 }
-          - { target: ubuntu-latest, config: openssl-1.1.1k }
-          - { target: ubuntu-latest, config: openssl-1.1.1n }
-          - { target: ubuntu-latest, config: openssl-1.1.1q }
           - { target: ubuntu-latest, config: openssl-1.1.1t }
+          - { target: ubuntu-latest, config: openssl-1.1.1w }
           - { target: ubuntu-latest, config: openssl-3.0.0 }
-          - { target: ubuntu-latest, config: openssl-3.0.7 }
+          - { target: ubuntu-latest, config: openssl-3.0.12 }
           - { target: ubuntu-latest, config: openssl-3.1.0 }
+          - { target: ubuntu-latest, config: openssl-3.1.4 }
+          - { target: ubuntu-latest, config: openssl-3.2.0 }
           - { target: ubuntu-latest, config: openssl-1.1.1_stable }
           - { target: ubuntu-latest, config: openssl-3.0 }  # stable branch
+          - { target: ubuntu-latest, config: openssl-3.2 }  # stable branch
           - { target: ubuntu-latest, config: zlib-develop }
           - { target: ubuntu-22.04, config: pam }
           - { target: ubuntu-22.04, config: krb5 }
@@ -108,7 +111,7 @@ jobs:
     - name: make clean
       run: make clean
     - name: make
-      run: make -j2
+      run: make
     - name: make tests
       run: sh ./.github/run_test.sh ${{ matrix.config }}
       env:
