@@ -2635,10 +2635,9 @@ ${_bt}-usr.bin/grep: ${_bt}-lib/libbz2
 _other_bootstrap_tools+=lib/libz
 ${_bt}-lib/libdwarf: ${_bt}-lib/libz
 
-# libroken depends on libcrypt and libcrypto
+# libroken depends on libcrypt
 _other_bootstrap_tools+=lib/libcrypt
-_other_bootstrap_tools+=secure/lib/libcrypto
-${_bt}-lib/libroken: ${_bt}-lib/libcrypt ${_bt}-lib/libcrypto
+${_bt}-lib/libroken: ${_bt}-lib/libcrypt
 .else
 # All tools in _basic_bootstrap_tools have the same name as the subdirectory
 # so we can use :T to get the name of the symlinks that we need to create.
@@ -3284,7 +3283,7 @@ kerberos5/lib/libkrb5__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
     lib/libcrypt__L secure/lib/libcrypto__L kerberos5/lib/libhx509__L \
     kerberos5/lib/libroken__L kerberos5/lib/libwind__L \
     kerberos5/lib/libheimbase__L kerberos5/lib/libheimipcc__L
-kerberos5/lib/libroken__L: lib/libcrypt__L secure/lib/libcrypto__L
+kerberos5/lib/libroken__L: lib/libcrypt__L
 kerberos5/lib/libwind__L: kerberos5/lib/libroken__L lib/libcom_err__L
 kerberos5/lib/libheimbase__L: lib/libthr__L
 kerberos5/lib/libheimipcc__L: kerberos5/lib/libroken__L kerberos5/lib/libheimbase__L lib/libthr__L

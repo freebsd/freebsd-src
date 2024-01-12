@@ -13,7 +13,6 @@ HEIMDAL_ROKEN_1.0 {
 		ct_memcmp;
 		err;
 		errx;
-		fbsd_ossl_provider_load;
 		free_getarg_strings;
 		get_default_username;
 		get_window_size;

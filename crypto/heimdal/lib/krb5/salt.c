@@ -43,8 +43,6 @@ krb5_salttype_to_string (krb5_context context,
     struct _krb5_encryption_type *e;
     struct salt_type *st;
 
-    (void) fbsd_ossl_provider_load();
-
     e = _krb5_find_enctype (etype);
     if (e == NULL) {
 	krb5_set_error_message(context, KRB5_PROG_ETYPE_NOSUPP,
@@ -76,8 +74,6 @@ krb5_string_to_salttype (krb5_context context,
 {
     struct _krb5_encryption_type *e;
     struct salt_type *st;
-
-    (void) fbsd_ossl_provider_load();
 
     e = _krb5_find_enctype (etype);
     if (e == NULL) {
@@ -200,7 +196,6 @@ krb5_string_to_key_data_salt_opaque (krb5_context context,
 			       enctype);
 	return KRB5_PROG_ETYPE_NOSUPP;
     }
-    (void) fbsd_ossl_provider_load();
     for(st = et->keytype->string_to_key; st && st->type; st++)
 	if(st->type == salt.salttype)
 	    return (*st->string_to_key)(context, enctype, password,

@@ -17,9 +17,5 @@
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
 #include <openssl/ecdh.h>
-#if defined(OPENSSL_VERSION_MAJOR) && (OPENSSL_VERSION_MAJOR >= 3)
-#include <openssl/provider.h>
-#include "fbsd_ossl_provider.h"
-#endif
 
 #endif /* __crypto_headers_h__ */
