@@ -3,18 +3,18 @@ env:
 
 task:
   matrix:
+    - name: 14.0-RELEASE
+      freebsd_instance:
+        image_family: freebsd-14-0
+    - name: 14.0-STABLE
+      freebsd_instance:
+        image_family: freebsd-14-0-snap
     - name: 13.2-RELEASE
       freebsd_instance:
-        image_family: freebsd-13-1
+        image_family: freebsd-13-2
     - name: 13.2-STABLE
       freebsd_instance:
         image_family: freebsd-13-2-snap
-    - name: 12.4-STABLE
-      freebsd_instance:
-        image_family: freebsd-12-4-snap
-    - name: 12.4-RELEASE
-      freebsd_instance:
-        image_family: freebsd-12-4
   env:
     DO: distcheck
   install_script:
