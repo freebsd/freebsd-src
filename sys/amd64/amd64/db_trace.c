@@ -206,7 +206,8 @@ db_nextframe(db_addr_t *fp, db_addr_t *ip, struct thread *td)
 	 */
 	tf_addr = *fp + 16;
 
-	if (!__is_aligned(tf_addr, _Alignof(*tf)) || !INKERNEL(tf_addr)) {
+	if (!__is_aligned(tf_addr, _Alignof(struct trapframe)) ||
+	    !INKERNEL(tf_addr)) {
 		db_printf("--- invalid trapframe %p\n", (void *)tf_addr);
 		*ip = 0;
 		*fp = 0;
