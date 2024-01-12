@@ -401,6 +401,42 @@ static const struct nlattr_parser nla_p_addr_wrap[] = {
 NL_DECLARE_ATTR_PARSER(addr_wrap_parser, nla_p_addr_wrap);
 #undef _OUT
 
+static bool
+nlattr_add_addr_wrap(struct nl_writer *nw, int attrtype, struct pf_addr_wrap *a)
+{
+	int off = nlattr_add_nested(nw, attrtype);
+	int num;
+
+	nlattr_add_in6_addr(nw, PF_AT_ADDR, &a->v.a.addr.v6);
+	nlattr_add_in6_addr(nw, PF_AT_MASK, &a->v.a.mask.v6);
+	nlattr_add_u8(nw, PF_AT_TYPE, a->type);
+	nlattr_add_u8(nw, PF_AT_IFLAGS, a->iflags);
+
+	if (a->type == PF_ADDR_DYNIFTL) {
+		nlattr_add_string(nw, PF_AT_IFNAME, a->v.ifname);
+		num = 0;
+		if (a->p.dyn != NULL)
+			num = a->p.dyn->pfid_acnt4 + a->p.dyn->pfid_acnt6;
+		nlattr_add_u32(nw, PF_AT_DYNCNT, num);
+	} else if (a->type == PF_ADDR_TABLE) {
+		struct pfr_ktable *kt;
+
+		nlattr_add_string(nw, PF_AT_TABLENAME, a->v.tblname);
+		num = -1;
+		kt = a->p.tbl;
+		if ((kt->pfrkt_flags & PFR_TFLAG_ACTIVE) &&
+		    kt->pfrkt_root != NULL)
+			kt = kt->pfrkt_root;
+		if (kt->pfrkt_flags & PFR_TFLAG_ACTIVE)
+			num = kt->pfrkt_cnt;
+		nlattr_add_u32(nw, PF_AT_TBLCNT, num);
+	}
+
+	nlattr_set_len(nw, off);
+
+	return (true);
+}
+
 #define _OUT(_field)	offsetof(struct pf_rule_addr, _field)
 static const struct nlattr_parser nla_p_ruleaddr[] = {
 	{ .type = PF_RAT_ADDR, .off = _OUT(addr), .arg = &addr_wrap_parser, .cb = nlattr_get_nested },
@@ -412,6 +448,22 @@ static const struct nlattr_parser nla_p_ruleaddr[] = {
 NL_DECLARE_ATTR_PARSER(rule_addr_parser, nla_p_ruleaddr);
 #undef _OUT
 
+static bool
+nlattr_add_rule_addr(struct nl_writer *nw, int attrtype, struct pf_rule_addr *r)
+{
+	int off = nlattr_add_nested(nw, attrtype);
+
+	nlattr_add_addr_wrap(nw, PF_RAT_ADDR, &r->addr);
+	nlattr_add_u16(nw, PF_RAT_SRC_PORT, r->port[0]);
+	nlattr_add_u16(nw, PF_RAT_DST_PORT, r->port[1]);
+	nlattr_add_u8(nw, PF_RAT_NEG, r->neg);
+	nlattr_add_u8(nw, PF_RAT_OP, r->port_op);
+
+	nlattr_set_len(nw, off);
+
+	return (true);
+}
+
 #define _OUT(_field)	offsetof(struct pf_mape_portset, _field)
 static const struct nlattr_parser nla_p_mape_portset[] = {
 	{ .type = PF_MET_OFFSET, .off = _OUT(offset), .cb = nlattr_get_uint8 },
@@ -420,6 +472,20 @@ static const struct nlattr_parser nla_p_mape_portset[] = {
 };
 NL_DECLARE_ATTR_PARSER(mape_portset_parser, nla_p_mape_portset);
 #undef _OUT
+
+static bool
+nlattr_add_mape_portset(struct nl_writer *nw, int attrtype, const struct pf_mape_portset *m)
+{
+	int off = nlattr_add_nested(nw, attrtype);
+
+	nlattr_add_u8(nw, PF_MET_OFFSET, m->offset);
+	nlattr_add_u8(nw, PF_MET_PSID_LEN, m->psidlen);
+	nlattr_add_u16(nw, PF_MET_PSID, m->psid);
+
+	nlattr_set_len(nw, off);
+
+	return (true);
+}
 
 struct nl_parsed_labels
 {
@@ -468,6 +534,23 @@ nlattr_get_nested_pf_rule_labels(struct nlattr *nla, struct nl_pstate *npt, cons
 	return (0);
 }
 
+static bool
+nlattr_add_labels(struct nl_writer *nw, int attrtype, const struct pf_krule *r)
+{
+	int off = nlattr_add_nested(nw, attrtype);
+	int i = 0;
+
+	while (r->label[i][0] != 0
+	    && i < PF_RULE_MAX_LABEL_COUNT) {
+		nlattr_add_string(nw, PF_LT_LABEL, r->label[i]);
+		i++;
+	}
+
+	nlattr_set_len(nw, off);
+
+	return (true);
+}
+
 #define _OUT(_field)	offsetof(struct pf_kpool, _field)
 static const struct nlattr_parser nla_p_pool[] = {
 	{ .type = PF_PT_KEY, .off = _OUT(key), .arg = (void *)sizeof(struct pf_poolhashkey), .cb = nlattr_get_bytes },
@@ -481,6 +564,24 @@ static const struct nlattr_parser nla_p_pool[] = {
 NL_DECLARE_ATTR_PARSER(pool_parser, nla_p_pool);
 #undef _OUT
 
+static bool
+nlattr_add_pool(struct nl_writer *nw, int attrtype, const struct pf_kpool *pool)
+{
+	int off = nlattr_add_nested(nw, attrtype);
+
+	nlattr_add(nw, PF_PT_KEY, sizeof(struct pf_poolhashkey), &pool->key);
+	nlattr_add_in6_addr(nw, PF_PT_COUNTER, (const struct in6_addr *)&pool->counter);
+	nlattr_add_u32(nw, PF_PT_TBLIDX, pool->tblidx);
+	nlattr_add_u16(nw, PF_PT_PROXY_SRC_PORT, pool->proxy_port[0]);
+	nlattr_add_u16(nw, PF_PT_PROXY_DST_PORT, pool->proxy_port[1]);
+	nlattr_add_u8(nw, PF_PT_OPTS, pool->opts);
+	nlattr_add_mape_portset(nw, PF_PT_MAPE, &pool->mape);
+
+	nlattr_set_len(nw, off);
+
+	return (true);
+}
+
 #define _OUT(_field)	offsetof(struct pf_rule_uid, _field)
 static const struct nlattr_parser nla_p_rule_uid[] = {
 	{ .type = PF_RUT_UID_LOW, .off = _OUT(uid[0]), .cb = nlattr_get_uint32 },
@@ -489,6 +590,20 @@ static const struct nlattr_parser nla_p_rule_uid[] = {
 };
 NL_DECLARE_ATTR_PARSER(rule_uid_parser, nla_p_rule_uid);
 #undef _OUT
+
+static bool
+nlattr_add_rule_uid(struct nl_writer *nw, int attrtype, const struct pf_rule_uid *u)
+{
+	int off = nlattr_add_nested(nw, attrtype);
+
+	nlattr_add_u32(nw, PF_RUT_UID_LOW, u->uid[0]);
+	nlattr_add_u32(nw, PF_RUT_UID_HIGH, u->uid[1]);
+	nlattr_add_u8(nw, PF_RUT_OP, u->op);
+
+	nlattr_set_len(nw, off);
+
+	return (true);
+}
 
 struct nl_parsed_timeouts
 {
@@ -534,6 +649,19 @@ nlattr_get_nested_timeouts(struct nlattr *nla, struct nl_pstate *npt, const void
 	memcpy(target, parsed_timeouts.timeouts, sizeof(parsed_timeouts.timeouts));
 
 	return (0);
+}
+
+static bool
+nlattr_add_timeout(struct nl_writer *nw, int attrtype, uint32_t *timeout)
+{
+	int off = nlattr_add_nested(nw, attrtype);
+
+	for (int i = 0; i < PFTM_MAX; i++)
+		nlattr_add_u32(nw, PF_RT_TIMEOUT, timeout[i]);
+
+	nlattr_set_len(nw, off);
+
+	return (true);
 }
 
 #define _OUT(_field)	offsetof(struct pf_krule, _field)
@@ -654,6 +782,7 @@ static const struct nlattr_parser nla_p_getrules[] = {
 };
 static const struct nlfield_parser nlf_p_getrules[] = {
 };
+#undef _OUT
 NL_DECLARE_PARSER(getrules_parser, struct genlmsghdr, nlf_p_getrules, nla_p_getrules);
 
 static int
@@ -690,6 +819,182 @@ pf_handle_getrules(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	return (0);
 
+out:
+	nlmsg_abort(nw);
+	return (error);
+}
+
+struct nl_parsed_get_rule {
+	char anchor[MAXPATHLEN];
+	uint8_t action;
+	uint32_t nr;
+	uint32_t ticket;
+	uint8_t clear;
+};
+#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
+#define	_OUT(_field)	offsetof(struct nl_parsed_get_rule, _field)
+static const struct nlattr_parser nla_p_getrule[] = {
+	{ .type = PF_GR_ANCHOR, .off = _OUT(anchor), .arg = (void *)MAXPATHLEN, .cb = nlattr_get_chara },
+	{ .type = PF_GR_ACTION, .off = _OUT(action), .cb = nlattr_get_uint8 },
+	{ .type = PF_GR_NR, .off = _OUT(nr), .cb = nlattr_get_uint32 },
+	{ .type = PF_GR_TICKET, .off = _OUT(ticket), .cb = nlattr_get_uint32 },
+	{ .type = PF_GR_CLEAR, .off = _OUT(clear), .cb = nlattr_get_uint8 },
+};
+static const struct nlfield_parser nlf_p_getrule[] = {
+};
+NL_DECLARE_PARSER(getrule_parser, struct genlmsghdr, nlf_p_getrule, nla_p_getrule);
+
+static int
+pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	char				 anchor_call[MAXPATHLEN];
+	struct nl_parsed_get_rule	 attrs = {};
+	struct nl_writer		*nw = npt->nw;
+	struct genlmsghdr		*ghdr_new;
+	struct pf_kruleset		*ruleset;
+	struct pf_krule			*rule;
+	int				 rs_num;
+	int				 error;
+
+	error = nl_parse_nlmsg(hdr, &getrule_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_GETRULE;
+	ghdr_new->version = 0;
+	ghdr_new->reserved = 0;
+
+	PF_RULES_WLOCK();
+	ruleset = pf_find_kruleset(attrs.anchor);
+	if (ruleset == NULL) {
+		PF_RULES_WUNLOCK();
+		error = ENOENT;
+		goto out;
+	}
+
+	rs_num = pf_get_ruleset_number(attrs.action);
+	if (rs_num >= PF_RULESET_MAX) {
+		PF_RULES_WUNLOCK();
+		error = EINVAL;
+		goto out;
+	}
+
+	if (attrs.ticket != ruleset->rules[rs_num].active.ticket) {
+		PF_RULES_WUNLOCK();
+		error = EBUSY;
+		goto out;
+	}
+
+	rule = TAILQ_FIRST(ruleset->rules[rs_num].active.ptr);
+	while ((rule != NULL) && (rule->nr != attrs.nr))
+		rule = TAILQ_NEXT(rule, entries);
+	if (rule == NULL) {
+		PF_RULES_WUNLOCK();
+		error = EBUSY;
+		goto out;
+	}
+
+	nlattr_add_rule_addr(nw, PF_RT_SRC, &rule->src);
+	nlattr_add_rule_addr(nw, PF_RT_DST, &rule->dst);
+	nlattr_add_u32(nw, PF_RT_RIDENTIFIER, rule->ridentifier);
+	nlattr_add_labels(nw, PF_RT_LABELS, rule);
+	nlattr_add_string(nw, PF_RT_IFNAME, rule->ifname);
+	nlattr_add_string(nw, PF_RT_QNAME, rule->qname);
+	nlattr_add_string(nw, PF_RT_PQNAME, rule->pqname);
+	nlattr_add_string(nw, PF_RT_TAGNAME, rule->tagname);
+	nlattr_add_string(nw, PF_RT_MATCH_TAGNAME, rule->match_tagname);
+	nlattr_add_string(nw, PF_RT_OVERLOAD_TBLNAME, rule->overload_tblname);
+	nlattr_add_pool(nw, PF_RT_RPOOL, &rule->rpool);
+	nlattr_add_u32(nw, PF_RT_OS_FINGERPRINT, rule->os_fingerprint);
+	nlattr_add_u32(nw, PF_RT_RTABLEID, rule->rtableid);
+	nlattr_add_timeout(nw, PF_RT_TIMEOUT, rule->timeout);
+	nlattr_add_u32(nw, PF_RT_MAX_STATES, rule->max_states);
+	nlattr_add_u32(nw, PF_RT_MAX_SRC_NODES, rule->max_src_nodes);
+	nlattr_add_u32(nw, PF_RT_MAX_SRC_STATES, rule->max_src_states);
+	nlattr_add_u32(nw, PF_RT_MAX_SRC_CONN_RATE_LIMIT, rule->max_src_conn_rate.limit);
+	nlattr_add_u32(nw, PF_RT_MAX_SRC_CONN_RATE_SECS, rule->max_src_conn_rate.seconds);
+
+	nlattr_add_u16(nw, PF_RT_DNPIPE, rule->dnpipe);
+	nlattr_add_u16(nw, PF_RT_DNRPIPE, rule->dnrpipe);
+	nlattr_add_u32(nw, PF_RT_DNFLAGS, rule->free_flags);
+
+	nlattr_add_u32(nw, PF_RT_NR, rule->nr);
+	nlattr_add_u32(nw, PF_RT_PROB, rule->prob);
+	nlattr_add_u32(nw, PF_RT_CUID, rule->cuid);
+	nlattr_add_u32(nw, PF_RT_CPID, rule->cpid);
+
+	nlattr_add_u16(nw, PF_RT_RETURN_ICMP, rule->return_icmp);
+	nlattr_add_u16(nw, PF_RT_RETURN_ICMP6, rule->return_icmp6);
+	nlattr_add_u16(nw, PF_RT_RETURN_ICMP6, rule->return_icmp6);
+	nlattr_add_u16(nw, PF_RT_MAX_MSS, rule->max_mss);
+	nlattr_add_u16(nw, PF_RT_SCRUB_FLAGS, rule->scrub_flags);
+
+	nlattr_add_rule_uid(nw, PF_RT_UID, &rule->uid);
+	nlattr_add_rule_uid(nw, PF_RT_GID, (const struct pf_rule_uid *)&rule->gid);
+
+	nlattr_add_u32(nw, PF_RT_RULE_FLAG, rule->rule_flag);
+	nlattr_add_u8(nw, PF_RT_ACTION, rule->action);
+	nlattr_add_u8(nw, PF_RT_DIRECTION, rule->direction);
+	nlattr_add_u8(nw, PF_RT_LOG, rule->log);
+	nlattr_add_u8(nw, PF_RT_LOGIF, rule->logif);
+	nlattr_add_u8(nw, PF_RT_QUICK, rule->quick);
+	nlattr_add_u8(nw, PF_RT_IF_NOT, rule->ifnot);
+	nlattr_add_u8(nw, PF_RT_MATCH_TAG_NOT, rule->match_tag_not);
+	nlattr_add_u8(nw, PF_RT_NATPASS, rule->natpass);
+	nlattr_add_u8(nw, PF_RT_KEEP_STATE, rule->keep_state);
+
+	nlattr_add_u8(nw, PF_RT_AF, rule->af);
+	nlattr_add_u8(nw, PF_RT_PROTO, rule->proto);
+	nlattr_add_u8(nw, PF_RT_TYPE, rule->type);
+	nlattr_add_u8(nw, PF_RT_CODE, rule->code);
+	nlattr_add_u8(nw, PF_RT_FLAGS, rule->flags);
+	nlattr_add_u8(nw, PF_RT_FLAGSET, rule->flagset);
+	nlattr_add_u8(nw, PF_RT_MIN_TTL, rule->min_ttl);
+	nlattr_add_u8(nw, PF_RT_ALLOW_OPTS, rule->allow_opts);
+	nlattr_add_u8(nw, PF_RT_RT, rule->rt);
+	nlattr_add_u8(nw, PF_RT_RETURN_TTL, rule->return_ttl);
+	nlattr_add_u8(nw, PF_RT_TOS, rule->tos);
+	nlattr_add_u8(nw, PF_RT_SET_TOS, rule->set_tos);
+	nlattr_add_u8(nw, PF_RT_ANCHOR_RELATIVE, rule->anchor_relative);
+	nlattr_add_u8(nw, PF_RT_ANCHOR_WILDCARD, rule->anchor_wildcard);
+	nlattr_add_u8(nw, PF_RT_FLUSH, rule->flush);
+	nlattr_add_u8(nw, PF_RT_PRIO, rule->prio);
+	nlattr_add_u8(nw, PF_RT_SET_PRIO, rule->set_prio[0]);
+	nlattr_add_u8(nw, PF_RT_SET_PRIO_REPLY, rule->set_prio[1]);
+
+	nlattr_add_in6_addr(nw, PF_RT_DIVERT_ADDRESS, &rule->divert.addr.v6);
+	nlattr_add_u16(nw, PF_RT_DIVERT_PORT, rule->divert.port);
+
+	nlattr_add_u64(nw, PF_RT_PACKETS_IN, pf_counter_u64_fetch(&rule->packets[0]));
+	nlattr_add_u64(nw, PF_RT_PACKETS_OUT, pf_counter_u64_fetch(&rule->packets[1]));
+	nlattr_add_u64(nw, PF_RT_BYTES_IN, pf_counter_u64_fetch(&rule->bytes[0]));
+	nlattr_add_u64(nw, PF_RT_BYTES_OUT, pf_counter_u64_fetch(&rule->bytes[1]));
+	nlattr_add_u64(nw, PF_RT_EVALUATIONS, pf_counter_u64_fetch(&rule->evaluations));
+	nlattr_add_u64(nw, PF_RT_TIMESTAMP, pf_get_timestamp(rule));
+	nlattr_add_u64(nw, PF_RT_STATES_CUR, counter_u64_fetch(rule->states_cur));
+	nlattr_add_u64(nw, PF_RT_STATES_TOTAL, counter_u64_fetch(rule->states_tot));
+	nlattr_add_u64(nw, PF_RT_SRC_NODES, counter_u64_fetch(rule->src_nodes));
+
+	error = pf_kanchor_copyout(ruleset, rule, anchor_call);
+	MPASS(error == 0);
+
+	nlattr_add_string(nw, PF_RT_ANCHOR_CALL, anchor_call);
+
+	if (attrs.clear)
+		pf_krule_clear_counters(rule);
+
+	PF_RULES_WUNLOCK();
+
+	if (!nlmsg_end(nw)) {
+		error = ENOMEM;
+		goto out;
+	}
+
+	return (0);
 out:
 	nlmsg_abort(nw);
 	return (error);
@@ -743,6 +1048,13 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_num = PFNL_CMD_GETRULES,
 		.cmd_name = "GETRULES",
 		.cmd_cb = pf_handle_getrules,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_GETRULE,
+		.cmd_name = "GETRULE",
+		.cmd_cb = pf_handle_getrule,
 		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
