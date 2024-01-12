@@ -3934,18 +3934,22 @@ relock:
 			 */
 			if (inoff >= vap->va_size) {
 				*ap->a_lenp = len = 0;
-				VATTR_NULL(&va);
-				va.va_atime.tv_sec = va.va_atime.tv_nsec = 0;
-				va.va_vaflags = VA_UTIMES_NULL;
-				inattrflag = 0;
-				error = nfsrpc_setattr(invp, &va, NULL,
-				    ap->a_incred, curthread, &innfsva,
-				    &inattrflag);
-				if (inattrflag != 0)
-					ret = nfscl_loadattrcache(&invp,
-					    &innfsva, NULL, 0, 1);
-				if (error == 0 && ret != 0)
-					error = ret;
+				if ((nmp->nm_mountp->mnt_flag & MNT_NOATIME) ==
+				    0) {
+					VATTR_NULL(&va);
+					va.va_atime.tv_sec = 0;
+					va.va_atime.tv_nsec = 0;
+					va.va_vaflags = VA_UTIMES_NULL;
+					inattrflag = 0;
+					error = nfsrpc_setattr(invp, &va, NULL,
+					    ap->a_incred, curthread, &innfsva,
+					    &inattrflag);
+					if (inattrflag != 0)
+						ret = nfscl_loadattrcache(&invp,
+						    &innfsva, NULL, 0, 1);
+					if (error == 0 && ret != 0)
+						error = ret;
+				}
 			} else if (inoff + len > vap->va_size)
 				*ap->a_lenp = len = vap->va_size - inoff;
 		} else
