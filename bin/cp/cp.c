@@ -340,7 +340,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 			 * noexist/dir/foo (where foo is a file in dir), which
 			 * is the case where the target exists.
 			 *
-			 * Also, check for "..".  This is for correct path
+			 * Also, check for "..".  This is for the correct path
 			 * concatenation for paths ending in "..", e.g.
 			 *	cp -R .. /tmp
 			 * Paths ending in ".." are changed to ".".  This is
