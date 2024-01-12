@@ -340,7 +340,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 			 * noexist/dir/foo (where foo is a file in dir), which
 			 * is the case where the target exists.
 			 *
-			 * Also, check for "..".  This is for correct path
+			 * Also, check for "..".  This is for the correct path
 			 * concatenation for paths ending in "..", e.g.
 			 *	cp -R .. /tmp
 			 * Paths ending in ".." are changed to ".".  This is
@@ -427,7 +427,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 			/*
 			 * If -p is in effect, set all the attributes.
 			 * Otherwise, set the correct permissions, limited
-			 * by the umask.  Optimise by avoiding a chmod()
+			 * by the umask.  Optimize by avoiding a chmod()
 			 * if possible (which is usually the case if we
 			 * made the directory).  Note that mkdir() does not
 			 * honour setuid, setgid and sticky bits, but we
