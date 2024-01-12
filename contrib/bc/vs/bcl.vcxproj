@@ -130,6 +130,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
+      <AdditionalOptions>/std:c17 /MP $(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=0;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=1;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -143,6 +144,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMD|Win32'">
     <ClCompile>
+      <AdditionalOptions>/std:c17 /MP $(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -160,6 +162,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'">
     <ClCompile>
+      <AdditionalOptions>/std:c17 /MP $(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -178,6 +181,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
+      <AdditionalOptions>/std:c17 /MP $(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=0;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=1;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -191,6 +195,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMD|x64'">
     <ClCompile>
+      <AdditionalOptions>/std:c17 /MP $(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -208,6 +213,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'">
     <ClCompile>
+      <AdditionalOptions>/std:c17 /MP $(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>

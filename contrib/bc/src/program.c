@@ -3780,7 +3780,7 @@ bc_program_printStr(const BcProgram* p, const char* restrict code,
 	size_t idx = bc_program_index(code, bgn);
 	char* s;
 
-	s = *((char**) bc_vec_item(p->strs, idx));
+	s = *((char**) bc_vec_item(&p->strs, idx));
 
 	bc_vm_printf(" (\"%s\") ", s);
 }
@@ -3803,7 +3803,7 @@ bc_program_printInst(const BcProgram* p, const char* restrict code,
 	else if (inst == BC_INST_NUM)
 	{
 		size_t idx = bc_program_index(code, bgn);
-		BcConst* c = bc_vec_item(p->consts, idx);
+		BcConst* c = bc_vec_item(&p->consts, idx);
 		bc_vm_printf("(%s)", c->val);
 	}
 	else if (inst == BC_INST_CALL ||

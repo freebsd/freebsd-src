@@ -33,7 +33,7 @@
 
 #include <machine/bus.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 #include <dt-bindings/clock/tegra124-car.h>
 #include "tegra124_car.h"

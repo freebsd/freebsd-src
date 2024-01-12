@@ -1663,6 +1663,8 @@ timer:
 				if (flags & TH_FIN)
 					tp->snd_nxt--;
 			}
+			if (IN_RECOVERY(tp->t_flags))
+				tp->sackhint.prr_out -= len;
 		}
 		SOCKBUF_UNLOCK_ASSERT(&so->so_snd);	/* Check gotos. */
 		switch (error) {
@@ -2087,7 +2089,7 @@ tcp_m_copym(struct mbuf *m, int32_t off0, int32_t *plen,
 		}
 		n->m_len = mlen;
 		len_cp += n->m_len;
-		if (m->m_flags & (M_EXT|M_EXTPG)) {
+		if (m->m_flags & (M_EXT | M_EXTPG)) {
 			n->m_data = m->m_data + off;
 			mb_dupcl(n, m);
 		} else

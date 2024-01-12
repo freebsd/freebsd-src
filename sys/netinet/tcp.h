@@ -79,6 +79,24 @@ struct tcphdr {
 	u_short	th_urp;			/* urgent pointer */
 };
 
+static __inline uint16_t
+__tcp_get_flags(const struct tcphdr *th)
+{
+	return (((uint16_t)th->th_x2 << 8) | th->th_flags);
+}
+
+static __inline void
+__tcp_set_flags(struct tcphdr *th, uint16_t flags)
+{
+	th->th_x2 = (flags >> 8) & 0x0f;
+	th->th_flags = flags & 0xff;
+}
+
+#ifdef _KERNEL
+#define tcp_get_flags(th) __tcp_get_flags(th)
+#define tcp_set_flags(th, flags) __tcp_set_flags(th, flags)
+#endif
+
 #define	PADTCPOLEN(len)		((((len) / 4) + !!((len) % 4)) * 4)
 
 #define	TCPOPT_EOL		0
@@ -442,7 +460,7 @@ struct tcp_fastopen {
 	int enable;
 	uint8_t psk[TCP_FASTOPEN_PSK_LEN];
 };
-#endif
+
 #define TCP_FUNCTION_NAME_LEN_MAX 32
 
 struct tcp_function_set {
@@ -529,4 +547,5 @@ struct tcp_hybrid_req {
 #define TCP_REUSPORT_LB_NUMA_NODOM	(-2) /* remove numa binding */
 #define TCP_REUSPORT_LB_NUMA_CURDOM	(-1) /* bind to current domain */
 
+#endif /* __BSD_VISIBLE */
 #endif /* !_NETINET_TCP_H_ */

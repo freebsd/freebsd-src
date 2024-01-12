@@ -28,7 +28,7 @@
 #ifndef _IMX_CLK_MUX_H_
 #define _IMX_CLK_MUX_H_
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 struct imx_clk_mux_def {
 	struct clknode_init_def clkdef;

@@ -94,6 +94,7 @@
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_kern.h>
+#include <vm/vnode_pager.h>
 #include <vm/uma.h>
 
 #if defined(DEBUG_VFS_LOCKS) && (!defined(INVARIANTS) || !defined(WITNESS))
@@ -2549,9 +2550,12 @@ restart_unlocked:
 		;
 
 	if (length > 0) {
+		/*
+		 * Write out vnode metadata, e.g. indirect blocks.
+		 */
 restartsync:
 		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
-			if (bp->b_lblkno > 0)
+			if (bp->b_lblkno >= 0)
 				continue;
 			/*
 			 * Since we hold the vnode lock this should only
@@ -3345,14 +3349,11 @@ vref(struct vnode *vp)
 void
 vrefact(struct vnode *vp)
 {
+	int old __diagused;
 
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-#ifdef INVARIANTS
-	int old = atomic_fetchadd_int(&vp->v_usecount, 1);
+	old = refcount_acquire(&vp->v_usecount);
 	VNASSERT(old > 0, vp, ("%s: wrong use count %d", __func__, old));
-#else
-	refcount_acquire(&vp->v_usecount);
-#endif
 }
 
 void
@@ -3989,7 +3990,6 @@ vdrop_recycle(struct vnode *vp)
 static int
 vinactivef(struct vnode *vp)
 {
-	struct vm_object *obj;
 	int error;
 
 	ASSERT_VOP_ELOCKED(vp, "vinactive");
@@ -3999,6 +3999,7 @@ vinactivef(struct vnode *vp)
 	vp->v_iflag |= VI_DOINGINACT;
 	vp->v_iflag &= ~VI_OWEINACT;
 	VI_UNLOCK(vp);
+
 	/*
 	 * Before moving off the active list, we must be sure that any
 	 * modified pages are converted into the vnode's dirty
@@ -4009,12 +4010,9 @@ vinactivef(struct vnode *vp)
 	 * point that VOP_INACTIVE() is called, there could still be
 	 * pending I/O and dirty pages in the object.
 	 */
-	if ((obj = vp->v_object) != NULL && (vp->v_vflag & VV_NOSYNC) == 0 &&
-	    vm_object_mightbedirty(obj)) {
-		VM_OBJECT_WLOCK(obj);
-		vm_object_page_clean(obj, 0, 0, 0);
-		VM_OBJECT_WUNLOCK(obj);
-	}
+	if ((vp->v_vflag & VV_NOSYNC) == 0)
+		vnode_pager_clean_async(vp);
+
 	error = VOP_INACTIVE(vp);
 	VI_LOCK(vp);
 	VNPASS(vp->v_iflag & VI_DOINGINACT, vp);
@@ -4112,11 +4110,7 @@ loop:
 		 * vnodes open for writing.
 		 */
 		if (flags & WRITECLOSE) {
-			if (vp->v_object != NULL) {
-				VM_OBJECT_WLOCK(vp->v_object);
-				vm_object_page_clean(vp->v_object, 0, 0, 0);
-				VM_OBJECT_WUNLOCK(vp->v_object);
-			}
+			vnode_pager_clean_async(vp);
 			do {
 				error = VOP_FSYNC(vp, MNT_WAIT, td);
 			} while (error == ERELOOKUP);
@@ -5094,17 +5088,12 @@ static void __noinline
 vfs_periodic_msync_inactive(struct mount *mp, int flags)
 {
 	struct vnode *vp, *mvp;
-	struct vm_object *obj;
-	int lkflags, objflags;
+	int lkflags;
 	bool seen_defer;
 
 	lkflags = LK_EXCLUSIVE | LK_INTERLOCK;
-	if (flags != MNT_WAIT) {
+	if (flags != MNT_WAIT)
 		lkflags |= LK_NOWAIT;
-		objflags = OBJPC_NOSYNC;
-	} else {
-		objflags = OBJPC_SYNC;
-	}
 
 	MNT_VNODE_FOREACH_LAZY(vp, mp, mvp, vfs_periodic_msync_inactive_filter, NULL) {
 		seen_defer = false;
@@ -5120,11 +5109,11 @@ vfs_periodic_msync_inactive(struct mount *mp, int flags)
 			continue;
 		}
 		if (vget(vp, lkflags) == 0) {
-			obj = vp->v_object;
-			if (obj != NULL && (vp->v_vflag & VV_NOSYNC) == 0) {
-				VM_OBJECT_WLOCK(obj);
-				vm_object_page_clean(obj, 0, 0, objflags);
-				VM_OBJECT_WUNLOCK(obj);
+			if ((vp->v_vflag & VV_NOSYNC) == 0) {
+				if (flags == MNT_WAIT)
+					vnode_pager_clean_sync(vp);
+				else
+					vnode_pager_clean_async(vp);
 			}
 			vput(vp);
 			if (seen_defer)

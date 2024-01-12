@@ -14,9 +14,8 @@
 .\" WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
 .\"	$Id: traceroute.8,v 1.19 2000/09/21 08:44:19 leres Exp $
-.\"	$FreeBSD$
 .\"
-.Dd November 25, 2020
+.Dd October 25, 2023
 .Dt TRACEROUTE 8
 .Os
 .Sh NAME
@@ -25,7 +24,7 @@
 .Sh SYNOPSIS
 .Nm
 .Bk -words
-.Op Fl adDeFISnrvx
+.Op Fl adDeEFISnrvx
 .Op Fl f Ar first_ttl
 .Op Fl g Ar gateway
 .Op Fl M Ar first_ttl
@@ -67,6 +66,22 @@ default.
 Firewall evasion mode.
 Use fixed destination ports for UDP, UDP-Lite, TCP and SCTP probes.
 The destination port does NOT increment with each packet sent.
+.It Fl E
+Detect ECN bleaching.
+Set the
+.Em IPTOS_ECN_ECT1
+Explicit Congestion Notification (ECN) bits
+.Pq Dv 01 ,
+and report if the hop has bleached
+.Pq Dv 00
+or mangled
+.Pq Dv 10
+them, or if it is experiencing congestion
+.Pq Dv 11 .
+Otherwise, report that it passed the bits appropriately.
+If
+.Fl t
+is also specified, the corresponding ECN bits will be replaced.
 .It Fl f Ar first_ttl
 Set the initial time-to-live used in the first outgoing probe packet.
 .It Fl F
