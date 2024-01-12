@@ -160,6 +160,20 @@ interactive_repeated_body() {
 	atf_check -o inline:"y\n" cat actual
 }
 
+atf_test_case stdout
+stdout_head() {
+	atf_set descr "error writing to stdout"
+}
+stdout_body() {
+	(
+		trap "" PIPE
+		echo a | uniq 2>stderr
+		echo $? >result
+	) | true
+	atf_check -o inline:"1\n" cat result
+	atf_check -o match:"stdout" cat stderr
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case basic
@@ -175,4 +189,5 @@ atf_init_test_cases()
 	atf_add_test_case count_unique
 	atf_add_test_case interactive
 	atf_add_test_case interactive_repeated
+	atf_add_test_case stdout
 }
