@@ -58,10 +58,10 @@
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/controller/musb_otg.h>
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
-#include <dev/extres/phy/phy.h>
-#include <dev/extres/phy/phy_usb.h>
+#include <dev/clk/clk.h>
+#include <dev/hwreset/hwreset.h>
+#include <dev/phy/phy.h>
+#include <dev/phy/phy_usb.h>
 
 #ifdef __arm__
 #include <arm/allwinner/aw_machdep.h>

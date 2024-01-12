@@ -27,7 +27,7 @@
 #ifndef _ARMADA38X_GEN_H_
 #define _ARMADA38X_GEN_H_
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 
 struct armada38x_gen_clknode_def
 {

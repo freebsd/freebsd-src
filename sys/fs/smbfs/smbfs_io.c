@@ -636,12 +636,7 @@ smbfs_vinvalbuf(struct vnode *vp, struct thread *td)
 	}
 	np->n_flag |= NFLUSHINPROG;
 
-	if (vp->v_bufobj.bo_object != NULL) {
-		VM_OBJECT_WLOCK(vp->v_bufobj.bo_object);
-		vm_object_page_clean(vp->v_bufobj.bo_object, 0, 0, OBJPC_SYNC);
-		VM_OBJECT_WUNLOCK(vp->v_bufobj.bo_object);
-	}
-
+	vnode_pager_clean_sync(vp);
 	error = vinvalbuf(vp, V_SAVE, PCATCH, 0);
 	while (error) {
 		if (error == ERESTART || error == EINTR) {

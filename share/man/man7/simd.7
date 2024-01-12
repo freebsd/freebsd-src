@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE
 .
-.Dd September 2, 2023
+.Dd December 6, 2023
 .Dt SIMD 7
 .Os
 .Sh NAME
@@ -48,7 +48,7 @@ the environment variable
 .Ev ARCHLEVEL
 can be used to override this mechanism.
 .Pp
-Enhanced functions are present in the following architectures:
+Enhanced functions are present for the following architectures:
 .Bl -column FUNCTION_________ aarch64_ arm_ amd64_ i386_ ppc64_ -offset indent
 .It Em FUNCTION          Ta Em AARCH64 Ta Em ARM Ta Em AMD64  Ta Em I386 Ta Em PPC64
 .It    bcmp              Ta            Ta        Ta    S1     Ta    S
@@ -58,24 +58,32 @@ Enhanced functions are present in the following architectures:
 .It    index             Ta    S       Ta        Ta    S1
 .It    ldiv              Ta            Ta        Ta    S      Ta    S
 .It    lldiv             Ta            Ta        Ta    S
-.It    memchr            Ta            Ta        Ta    S1
-.It    memcmp            Ta            Ta    S   Ta    S1     Ta    S
+.It    memchr            Ta    S       Ta        Ta    S1
+.It    memcmp            Ta    S       Ta    S   Ta    S1     Ta    S
+.It    memccpy           Ta            Ta        Ta    S1
 .It    memcpy            Ta    S       Ta    S   Ta    S      Ta    S    Ta    SV
 .It    memmove           Ta    S       Ta    S   Ta    S      Ta    S    Ta    SV
-.It    memset            Ta            Ta    S   Ta    S      Ta    S
-.It    rindex            Ta    S
-.It    stpcpy            Ta            Ta        Ta    S1
-.It    strcat            Ta            Ta        Ta    S      Ta    S
+.It    memrchr           Ta            Ta        Ta    S1
+.It    memset            Ta    S       Ta    S   Ta    S      Ta    S
+.It    rindex            Ta    S       Ta        Ta    S1     Ta    S
+.It    stpcpy            Ta    S       Ta        Ta    S1
+.It    stpncpy           Ta            Ta        Ta    S1
+.It    strcat            Ta            Ta        Ta    S1     Ta    S
 .It    strchr            Ta    S       Ta        Ta    S1     Ta    S
-.It    strchrnul         Ta            Ta        Ta    S1
-.It    strcmp            Ta            Ta    S   Ta    S      Ta    S
-.It    strcpy            Ta            Ta        Ta    S1     Ta    S    Ta    S2
+.It    strchrnul         Ta    S       Ta        Ta    S1
+.It    strcmp            Ta    S       Ta    S   Ta    S1     Ta    S
+.It    strcpy            Ta    S       Ta        Ta    S1     Ta    S    Ta    S2
 .It    strcspn           Ta            Ta        Ta    S2
-.It    strlen            Ta            Ta    S   Ta    S1
-.It    strncmp           Ta            Ta    S   Ta           Ta    S
-.It    strncpy           Ta            Ta        Ta           Ta         Ta    S2
-.It    strnlen           Ta            Ta        Ta    S1
-.It    strrchr           Ta    S       Ta        Ta           Ta    S
+.It    strlcat           Ta            Ta        Ta    S1
+.It    strlcpy           Ta            Ta        Ta    S1
+.It    strlen            Ta    S       Ta    S   Ta    S1
+.It    strncat           Ta            Ta        Ta    S1
+.It    strncmp           Ta    S       Ta    S   Ta    S1     Ta    S
+.It    strncpy           Ta            Ta        Ta    S1     Ta         Ta    S2
+.It    strnlen           Ta    S       Ta        Ta    S1
+.It    strrchr           Ta    S       Ta        Ta    S1     Ta    S
+.It    strpbrk           Ta            Ta        Ta    S2
+.It    strsep            Ta            Ta        Ta    S2
 .It    strspn            Ta            Ta        Ta    S2
 .It    swab              Ta            Ta        Ta           Ta    S
 .It    timingsafe_bcmp   Ta            Ta        Ta    S1
@@ -207,14 +215,14 @@ SIMD-enhanced functions were first added with
 for
 .Cm powerpc64
 and with
-.Fx 14.0
+.Fx 14.1
 for
 .Cm amd64 .
 .Pp
 A
 .Nm
 manual page appeared in
-.Fx 14.0 .
+.Fx 14.1 .
 .
 .Sh AUTHOR
 .An Robert Clausecker Aq Mt fuz@FreeBSD.org

@@ -213,7 +213,7 @@ struct ctl_wwpn_iid {
  */
 struct ctl_port {
 	struct ctl_softc *ctl_softc;
-	struct ctl_frontend *frontend;
+	struct ctl_frontend *frontend;		/* passed to CTL */
 	ctl_port_type	port_type;		/* passed to CTL */
 	int		num_requested_ctl_io;	/* passed to CTL */
 	char		*port_name;		/* passed to CTL */

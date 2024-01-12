@@ -350,6 +350,7 @@ set_slave_addr(ig4iic_softc_t *sc, uint8_t slave)
 	/*
 	 * Wait for TXFIFO to drain before disabling the controller.
 	 */
+	reg_write(sc, IG4_REG_TX_TL, 0);
 	wait_intr(sc, IG4_INTR_TX_EMPTY);
 
 	set_controller(sc, 0);
@@ -437,16 +438,20 @@ ig4iic_read(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 		return (0);
 
 	while (received < len) {
+		/* Ensure we have some free space in TXFIFO */
 		burst = sc->cfg.txfifo_depth -
 		    (reg_read(sc, IG4_REG_TXFLR) & IG4_FIFOLVL_MASK);
 		if (burst <= 0) {
+			reg_write(sc, IG4_REG_TX_TL, IG4_FIFO_LOWAT);
 			error = wait_intr(sc, IG4_INTR_TX_EMPTY);
 			if (error)
 				break;
-			burst = sc->cfg.txfifo_depth;
+			burst = sc->cfg.txfifo_depth -
+			    (reg_read(sc, IG4_REG_TXFLR) & IG4_FIFOLVL_MASK);
 		}
 		/* Ensure we have enough free space in RXFIFO */
-		burst = MIN(burst, sc->cfg.rxfifo_depth - lowat);
+		burst = MIN(burst, sc->cfg.rxfifo_depth -
+		    (requested - received));
 		target = MIN(requested + burst, (int)len);
 		while (requested < target) {
 			cmd = IG4_DATA_COMMAND_RD;
@@ -463,13 +468,15 @@ ig4iic_read(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 			lowat = IG4_FIFO_LOWAT;
 		/* After TXFLR fills up, clear it by reading available data */
 		while (received < requested - lowat) {
-			burst = MIN((int)len - received,
+			burst = MIN(requested - received,
 			    reg_read(sc, IG4_REG_RXFLR) & IG4_FIFOLVL_MASK);
 			if (burst > 0) {
 				while (burst--)
 					buf[received++] = 0xFF &
 					    reg_read(sc, IG4_REG_DATA_CMD);
 			} else {
+				reg_write(sc, IG4_REG_RX_TL,
+				    requested - received - lowat - 1);
 				error = wait_intr(sc, IG4_INTR_RX_FULL);
 				if (error)
 					goto out;
@@ -487,8 +494,7 @@ ig4iic_write(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 	uint32_t cmd;
 	int sent = 0;
 	int burst, target;
-	int error;
-	bool lowat_set = false;
+	int error, lowat;
 
 	if (len == 0)
 		return (0);
@@ -497,12 +503,7 @@ ig4iic_write(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 		burst = sc->cfg.txfifo_depth -
 		    (reg_read(sc, IG4_REG_TXFLR) & IG4_FIFOLVL_MASK);
 		target = MIN(sent + burst, (int)len);
-		/* Leave some data queued to maintain the hardware pipeline */
-		if (!lowat_set && target != len) {
-			lowat_set = true;
-			reg_write(sc, IG4_REG_TX_TL, IG4_FIFO_LOWAT);
-		}
-		while(sent < target) {
+		while (sent < target) {
 			cmd = buf[sent];
 			if (repeated_start && sent == 0)
 				cmd |= IG4_DATA_RESTART;
@@ -512,13 +513,16 @@ ig4iic_write(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
 			sent++;
 		}
 		if (sent < len) {
+			if (len - sent <= sc->cfg.txfifo_depth)
+				lowat = sc->cfg.txfifo_depth - (len - sent);
+			else
+				lowat = IG4_FIFO_LOWAT;
+			reg_write(sc, IG4_REG_TX_TL, lowat);
 			error = wait_intr(sc, IG4_INTR_TX_EMPTY);
 			if (error)
 				break;
 		}
 	}
-	if (lowat_set)
-		reg_write(sc, IG4_REG_TX_TL, 0);
 
 	return (error);
 }
@@ -850,23 +854,6 @@ ig4iic_get_config(ig4iic_softc_t *sc)
 			sc->cfg.txfifo_depth = IG4_PARAM1_TXFIFO_DEPTH(v);
 		if (IG4_PARAM1_RXFIFO_DEPTH(v) != 0)
 			sc->cfg.rxfifo_depth = IG4_PARAM1_RXFIFO_DEPTH(v);
-	} else {
-		/*
-		 * Hardware does not allow FIFO Threshold Levels value to be
-		 * set larger than the depth of the buffer. If an attempt is
-		 * made to do that, the actual value set will be the maximum
-		 * depth of the buffer.
-		 */
-		v = reg_read(sc, IG4_REG_TX_TL);
-		reg_write(sc, IG4_REG_TX_TL, v | IG4_FIFO_MASK);
-		sc->cfg.txfifo_depth =
-		    (reg_read(sc, IG4_REG_TX_TL) & IG4_FIFO_MASK) + 1;
-		reg_write(sc, IG4_REG_TX_TL, v);
-		v = reg_read(sc, IG4_REG_RX_TL);
-		reg_write(sc, IG4_REG_RX_TL, v | IG4_FIFO_MASK);
-		sc->cfg.rxfifo_depth =
-		    (reg_read(sc, IG4_REG_RX_TL) & IG4_FIFO_MASK) + 1;
-		reg_write(sc, IG4_REG_RX_TL, v);
 	}
 
 	/* Override hardware config with IC_clock-based counter values */
@@ -918,8 +905,6 @@ ig4iic_get_config(ig4iic_softc_t *sc)
 		printf("  Fast:  0x%04hx:0x%04hx:0x%04hx\n",
 		    sc->cfg.fs_scl_hcnt, sc->cfg.fs_scl_lcnt,
 		    sc->cfg.fs_sda_hold);
-		printf("  FIFO:  RX:0x%04x: TX:0x%04x\n",
-		    sc->cfg.rxfifo_depth, sc->cfg.txfifo_depth);
 	}
 }
 
@@ -993,13 +978,6 @@ ig4iic_set_config(ig4iic_softc_t *sc, bool reset)
 	    (sc->cfg.bus_speed  & IG4_CTL_SPEED_MASK) == IG4_CTL_SPEED_STD ?
 	      sc->cfg.ss_sda_hold : sc->cfg.fs_sda_hold);
 
-	/*
-	 * Use a threshold of 1 so we get interrupted on each character,
-	 * allowing us to use mtx_sleep() in our poll code.  Not perfect
-	 * but this is better than using DELAY() for receiving data.
-	 *
-	 * See ig4_var.h for details on interrupt handler synchronization.
-	 */
 	reg_write(sc, IG4_REG_RX_TL, 0);
 	reg_write(sc, IG4_REG_TX_TL, 0);
 
@@ -1013,6 +991,36 @@ ig4iic_set_config(ig4iic_softc_t *sc, bool reset)
 	sc->slave_valid = false;
 
 	return (0);
+}
+
+static void
+ig4iic_get_fifo(ig4iic_softc_t *sc)
+{
+	uint32_t v;
+
+	/*
+	 * Hardware does not allow FIFO Threshold Levels value to be set larger
+	 * than the depth of the buffer.  If an attempt is made to do that, the
+	 * actual value set will be the maximum depth of the buffer.
+	 */
+	if (sc->cfg.txfifo_depth == 0) {
+		v = reg_read(sc, IG4_REG_TX_TL);
+		reg_write(sc, IG4_REG_TX_TL, v | IG4_FIFO_MASK);
+		sc->cfg.txfifo_depth =
+		    (reg_read(sc, IG4_REG_TX_TL) & IG4_FIFO_MASK) + 1;
+		reg_write(sc, IG4_REG_TX_TL, v);
+	}
+	if (sc->cfg.rxfifo_depth == 0) {
+		v = reg_read(sc, IG4_REG_RX_TL);
+		reg_write(sc, IG4_REG_RX_TL, v | IG4_FIFO_MASK);
+		sc->cfg.rxfifo_depth =
+		    (reg_read(sc, IG4_REG_RX_TL) & IG4_FIFO_MASK) + 1;
+		reg_write(sc, IG4_REG_RX_TL, v);
+	}
+	if (bootverbose) {
+		printf("  FIFO:  RX:0x%04x: TX:0x%04x\n",
+		    sc->cfg.rxfifo_depth, sc->cfg.txfifo_depth);
+	}
 }
 
 /*
@@ -1031,6 +1039,7 @@ ig4iic_attach(ig4iic_softc_t *sc)
 	error = ig4iic_set_config(sc, IG4_HAS_ADDREGS(sc->version));
 	if (error)
 		goto done;
+	ig4iic_get_fifo(sc);
 
 	sc->iicbus = device_add_child(sc->dev, "iicbus", -1);
 	if (sc->iicbus == NULL) {

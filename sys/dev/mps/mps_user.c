@@ -715,9 +715,9 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	}	
 
 	mps_unlock(sc);
-	copyout(rpl, cmd->rpl, sz);
-	if (buf != NULL)
-		copyout(buf, cmd->buf, cmd->len);
+	err = copyout(rpl, cmd->rpl, sz);
+	if (buf != NULL && err == 0)
+		err = copyout(buf, cmd->buf, cmd->len);
 	mps_dprint(sc, MPS_USER, "%s: reply size %d\n", __func__, sz);
 
 RetFreeUnlocked:
@@ -847,7 +847,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 		/*
 		 * Copy the reply data and sense data to user space.
 		 */
-		if ((cm != NULL) && (cm->cm_reply != NULL)) {
+		if (err == 0 && cm != NULL && cm->cm_reply != NULL) {
 			rpl = (MPI2_DEFAULT_REPLY *)cm->cm_reply;
 			sz = rpl->MsgLength * 4;
 
@@ -857,8 +857,11 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 				    __func__, data->ReplySize, sz);
 			}
 			mps_unlock(sc);
-			copyout(cm->cm_reply, PTRIN(data->PtrReply),
+			err = copyout(cm->cm_reply, PTRIN(data->PtrReply),
 			    MIN(sz, data->ReplySize));
+			if (err != 0)
+				mps_dprint(sc, MPS_FAULT,
+				    "%s: copyout failed\n", __func__);
 			mps_lock(sc);
 		}
 		mpssas_free_tm(sc, cm);
@@ -1001,7 +1004,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 	/*
 	 * Copy the reply data and sense data to user space.
 	 */
-	if (cm->cm_reply != NULL) {
+	if (err == 0 && cm->cm_reply != NULL) {
 		rpl = (MPI2_DEFAULT_REPLY *)cm->cm_reply;
 		sz = rpl->MsgLength * 4;
 
@@ -1011,12 +1014,16 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 			    data->ReplySize, sz);
 		}
 		mps_unlock(sc);
-		copyout(cm->cm_reply, PTRIN(data->PtrReply),
+		err = copyout(cm->cm_reply, PTRIN(data->PtrReply),
 		    MIN(sz, data->ReplySize));
 		mps_lock(sc);
+		if (err != 0)
+			mps_dprint(sc, MPS_FAULT, "%s: failed to copy "
+			    "IOCTL data to user space\n", __func__);
 
-		if ((function == MPI2_FUNCTION_SCSI_IO_REQUEST) ||
-		    (function == MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH)) {
+		if (err == 0 &&
+		    (function == MPI2_FUNCTION_SCSI_IO_REQUEST ||
+		    function == MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH)) {
 			if (((MPI2_SCSI_IO_REPLY *)rpl)->SCSIState &
 			    MPI2_SCSI_STATE_AUTOSENSE_VALID) {
 				sense_len =
@@ -1024,9 +1031,13 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 				    SenseCount)), sizeof(struct
 				    scsi_sense_data));
 				mps_unlock(sc);
-				copyout(cm->cm_sense, (PTRIN(data->PtrReply +
+				err = copyout(cm->cm_sense, (PTRIN(data->PtrReply +
 				    sizeof(MPI2_SCSI_IO_REPLY))), sense_len);
 				mps_lock(sc);
+				if (err != 0)
+					mps_dprint(sc, MPS_FAULT,
+					    "%s: failed to copy IOCTL data to "
+					    "user space\n", __func__);
 			}
 		}
 	}

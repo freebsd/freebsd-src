@@ -36,7 +36,7 @@
 
 #include <machine/bus.h>
 
-#include <dev/extres/regulator/regulator.h>
+#include <dev/regulator/regulator.h>
 #include <dev/gpio/gpiobusvar.h>
 
 #include <dt-bindings/mfd/as3722.h>

@@ -607,6 +607,7 @@ static boolean_t pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struc
 static void pmap_invalidate_page(pmap_t pmap, vm_offset_t start);
 static void pmap_invalidate_all(pmap_t pmap);
 static int pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, bool flush);
+static void pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte);
 
 /*
  * Internal flags for pmap_enter()'s helper functions.
@@ -3183,6 +3184,7 @@ pmap_enter_l3e(pmap_t pmap, vm_offset_t va, pml3_entry_t newpde, u_int flags,
 	struct spglist free;
 	pml3_entry_t oldl3e, *l3e;
 	vm_page_t mt, pdpg;
+	vm_page_t uwptpg;
 
 	KASSERT((newpde & (PG_M | PG_RW)) != PG_RW,
 	    ("pmap_enter_pde: newpde is missing PG_M"));
@@ -3237,6 +3239,26 @@ pmap_enter_l3e(pmap_t pmap, vm_offset_t va, pml3_entry_t newpde, u_int flags,
 			KASSERT(be64toh(*l3e) == 0, ("pmap_enter_pde: non-zero pde %p",
 			    l3e));
 	}
+
+	/*
+	 * Allocate leaf ptpage for wired userspace pages.
+	 */
+	uwptpg = NULL;
+	if ((newpde & PG_W) != 0 && pmap != kernel_pmap) {
+		uwptpg = vm_page_alloc_noobj(VM_ALLOC_WIRED);
+		if (uwptpg == NULL)
+			return (KERN_RESOURCE_SHORTAGE);
+		uwptpg->pindex = pmap_l3e_pindex(va);
+		if (pmap_insert_pt_page(pmap, uwptpg)) {
+			vm_page_unwire_noq(uwptpg);
+			vm_page_free(uwptpg);
+			return (KERN_RESOURCE_SHORTAGE);
+		}
+		pmap_resident_count_inc(pmap, 1);
+		uwptpg->ref_count = NPTEPG;
+		pmap_fill_ptp((pt_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(uwptpg)),
+		    newpde);
+	}
 	if ((newpde & PG_MANAGED) != 0) {
 		/*
 		 * Abort this mapping if its PV entry could not be created.
@@ -3252,6 +3274,16 @@ pmap_enter_l3e(pmap_t pmap, vm_offset_t va, pml3_entry_t newpde, u_int flags,
 				 */
 				pmap_invalidate_page(pmap, va);
 				vm_page_free_pages_toq(&free, true);
+			}
+			if (uwptpg != NULL) {
+				mt = pmap_remove_pt_page(pmap, va);
+				KASSERT(mt == uwptpg,
+				    ("removed pt page %p, expected %p", mt,
+				    uwptpg));
+				pmap_resident_count_dec(pmap, 1);
+				uwptpg->ref_count = 1;
+				vm_page_unwire_noq(uwptpg);
+				vm_page_free(uwptpg);
 			}
 			CTR2(KTR_PMAP, "pmap_enter_pde: failure for va %#lx"
 			    " in pmap %p", va, pmap);

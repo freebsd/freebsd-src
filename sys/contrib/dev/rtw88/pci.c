@@ -17,6 +17,7 @@
 #include "ps.h"
 #include "debug.h"
 #if defined(__FreeBSD__)
+#include <sys/rman.h>
 #include <linux/pm.h>
 #endif
 

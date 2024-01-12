@@ -86,6 +86,7 @@ static int
 ocs_process_sli_config (ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd, ocs_dma_t *dma)
 {
 	sli4_cmd_sli_config_t *sli_config = (sli4_cmd_sli_config_t *)mcmd->payload;
+	int error;
 
 	if (sli_config->emb) {
 		sli4_req_hdr_t	*req = (sli4_req_hdr_t *)sli_config->payload.embed;
@@ -127,7 +128,13 @@ ocs_process_sli_config (ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd, ocs_dma_t *dma)
 			wrobj->host_buffer_descriptor[0].u.data.buffer_address_high = ocs_addr32_hi(dma->phys);
 
 			/* copy the data into the DMA buffer */
-			copyin((void *)(uintptr_t)mcmd->in_addr, dma->virt, mcmd->in_bytes);
+			error = copyin((void *)(uintptr_t)mcmd->in_addr, dma->virt, mcmd->in_bytes);
+			if (error != 0) {
+				device_printf(ocs->dev, "%s: COMMON_WRITE_OBJECT - copyin failed: %d\n",
+						__func__, error);
+				ocs_dma_free(ocs, dma);
+				return error;
+			}
 		}
 			break;
 		case SLI4_OPC_COMMON_DELETE_OBJECT:
@@ -170,7 +177,13 @@ ocs_process_sli_config (ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd, ocs_dma_t *dma)
 			return ENXIO;
 		}
 
-		copyin((void *)(uintptr_t)mcmd->in_addr, dma->virt, mcmd->in_bytes);
+		error = copyin((void *)(uintptr_t)mcmd->in_addr, dma->virt, mcmd->in_bytes);
+		if (error != 0) {
+			device_printf(ocs->dev, "%s: non-embedded - copyin failed: %d\n",
+					__func__, error);
+			ocs_dma_free(ocs, dma);
+			return error;
+		}
 
 		sli_config->payload.mem.address_low  = ocs_addr32_lo(dma->phys);
 		sli_config->payload.mem.address_high = ocs_addr32_hi(dma->phys);
@@ -184,6 +197,9 @@ static int
 ocs_process_mbx_ioctl(ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd)
 {
 	ocs_dma_t	dma = { 0 };
+	int error;
+
+	error = 0;
 
 	if ((ELXU_BSD_MAGIC != mcmd->magic) ||
 			(sizeof(ocs_ioctl_elxu_mbox_t) != mcmd->size)) {
@@ -238,13 +254,13 @@ ocs_process_mbx_ioctl(ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd)
 
 	if( SLI4_MBOX_COMMAND_SLI_CONFIG == ((sli4_mbox_command_header_t *)mcmd->payload)->command
 	  		&& mcmd->out_bytes && dma.virt) {
-		copyout(dma.virt, (void *)(uintptr_t)mcmd->out_addr, mcmd->out_bytes);
+		error = copyout(dma.virt, (void *)(uintptr_t)mcmd->out_addr, mcmd->out_bytes);
 	}
 
 no_support:
 	ocs_dma_free(ocs, &dma);
 
-	return 0;
+	return error;
 }
 
 /**

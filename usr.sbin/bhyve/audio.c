@@ -80,6 +80,7 @@ audio_init(const char *dev_name, uint8_t dir)
 #endif
 	};
 #endif
+	size_t nlen;
 
 	assert(dev_name);
 
@@ -87,8 +88,9 @@ audio_init(const char *dev_name, uint8_t dir)
 	if (!aud)
 		return NULL;
 
-	if (strlen(dev_name) < sizeof(aud->dev_name))
-		memcpy(aud->dev_name, dev_name, strlen(dev_name) + 1);
+	nlen = strlen(dev_name);
+	if (nlen < sizeof(aud->dev_name))
+		memcpy(aud->dev_name, dev_name, nlen + 1);
 	else {
 		DPRINTF("dev_name too big");
 		free(aud);

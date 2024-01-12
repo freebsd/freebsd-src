@@ -385,7 +385,13 @@ struct pfctl_syncookies {
 	uint32_t			halfopen_states;
 };
 
-int	pfctl_startstop(int start);
+#define	PF_DEVICE	"/dev/pf"
+
+struct pfctl_handle;
+struct pfctl_handle	*pfctl_open(const char *pf_device);
+void	pfctl_close(struct pfctl_handle *);
+
+int	pfctl_startstop(struct pfctl_handle *h, int start);
 struct pfctl_status* pfctl_get_status(int dev);
 uint64_t pfctl_status_counter(struct pfctl_status *status, int id);
 uint64_t pfctl_status_lcounter(struct pfctl_status *status, int id);
@@ -415,8 +421,11 @@ int	pfctl_get_clear_rule(int dev, uint32_t nr, uint32_t ticket,
 int	pfctl_add_rule(int dev, const struct pfctl_rule *r,
 	    const char *anchor, const char *anchor_call, uint32_t ticket,
 	    uint32_t pool_ticket);
+int	pfctl_add_rule_h(struct pfctl_handle *h, const struct pfctl_rule *r,
+	    const char *anchor, const char *anchor_call, uint32_t ticket,
+	    uint32_t pool_ticket);
 int	pfctl_set_keepcounters(int dev, bool keep);
-int	pfctl_get_creatorids(uint32_t *creators, size_t *len);
+int	pfctl_get_creatorids(struct pfctl_handle *h, uint32_t *creators, size_t *len);
 
 struct pfctl_state_filter {
 	char			ifname[IFNAMSIZ];

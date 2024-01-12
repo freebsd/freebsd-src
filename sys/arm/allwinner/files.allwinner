@@ -33,16 +33,16 @@ arm/allwinner/aw_thermal.c		optional	aw_thermal
 arm/allwinner/aw_cir.c			optional	aw_cir evdev
 
 arm/allwinner/aw_reset.c		standard
-arm/allwinner/aw_ccu.c			standard
+dev/clk/allwinner/aw_ccu.c		standard
 arm/allwinner/aw_gmacclk.c		standard
 
-arm/allwinner/clkng/aw_ccung.c		standard
-arm/allwinner/clkng/aw_clk_frac.c	standard
-arm/allwinner/clkng/aw_clk_m.c		standard
-arm/allwinner/clkng/aw_clk_mipi.c	standard
-arm/allwinner/clkng/aw_clk_nkmp.c	standard
-arm/allwinner/clkng/aw_clk_nm.c		standard
-arm/allwinner/clkng/aw_clk_np.c		standard
-arm/allwinner/clkng/aw_clk_nmm.c	standard
-arm/allwinner/clkng/aw_clk_prediv_mux.c	standard
-arm/allwinner/clkng/ccu_de2.c		standard
+dev/clk/allwinner/aw_ccung.c		standard
+dev/clk/allwinner/aw_clk_frac.c		standard
+dev/clk/allwinner/aw_clk_m.c		standard
+dev/clk/allwinner/aw_clk_mipi.c		standard
+dev/clk/allwinner/aw_clk_nkmp.c		standard
+dev/clk/allwinner/aw_clk_nm.c		standard
+dev/clk/allwinner/aw_clk_np.c		standard
+dev/clk/allwinner/aw_clk_nmm.c		standard
+dev/clk/allwinner/aw_clk_prediv_mux.c	standard
+dev/clk/allwinner/ccu_de2.c		standard

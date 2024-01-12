@@ -512,6 +512,9 @@ static void
 enable_idle(struct acpi_cpu_softc *sc)
 {
 
+    if (sc->cpu_cx_count > sc->cpu_non_c3 + 1 &&
+	(cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0)
+	    AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_RLD, 1);
     sc->cpu_disable_idle = FALSE;
 }
 
@@ -1164,14 +1167,13 @@ acpi_cpu_idle(sbintime_t sbt)
     }
 
     /*
-     * For C3, disable bus master arbitration and enable bus master wake
-     * if BM control is available, otherwise flush the CPU cache.
+     * For C3, disable bus master arbitration if BM control is available.
+     * CPU may have to wake up to handle it. Otherwise flush the CPU cache.
      */
     if (cx_next->type == ACPI_STATE_C3) {
-	if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
+	if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0)
 	    AcpiWriteBitRegister(ACPI_BITREG_ARB_DISABLE, 1);
-	    AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_RLD, 1);
-	} else
+	else
 	    ACPI_FLUSH_CPU_CACHE();
     }
 
@@ -1206,12 +1208,10 @@ acpi_cpu_idle(sbintime_t sbt)
     else
 	end_ticks = cpu_ticks();
 
-    /* Enable bus master arbitration and disable bus master wakeup. */
+    /* Enable bus master arbitration. */
     if (cx_next->type == ACPI_STATE_C3 &&
-      (cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
+      (cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0)
 	AcpiWriteBitRegister(ACPI_BITREG_ARB_DISABLE, 0);
-	AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_RLD, 0);
-    }
     ACPI_ENABLE_IRQS();
 
     if (cx_next->type == ACPI_STATE_C3)

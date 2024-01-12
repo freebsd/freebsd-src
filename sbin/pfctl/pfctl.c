@@ -132,7 +132,7 @@ static const char	*showopt;
 static const char	*debugopt;
 static char		*anchoropt;
 static const char	*optiopt = NULL;
-static const char	*pf_device = "/dev/pf";
+static const char	*pf_device = PF_DEVICE;
 static char		*ifaceopt;
 static char		*tableopt;
 static const char	*tblcmdopt;
@@ -144,6 +144,7 @@ int			 loadopt;
 int			 altqsupport;
 
 int			 dev = -1;
+struct pfctl_handle	*pfh = NULL;
 static int		 first_title = 1;
 static int		 labels = 0;
 
@@ -312,7 +313,7 @@ pfctl_enable(int dev, int opts)
 {
 	int ret;
 
-	if ((ret = pfctl_startstop(1)) != 0) {
+	if ((ret = pfctl_startstop(pfh, 1)) != 0) {
 		if (ret == EEXIST)
 			errx(1, "pf already enabled");
 		else if (ret == ESRCH)
@@ -335,7 +336,7 @@ pfctl_disable(int dev, int opts)
 {
 	int ret;
 
-	if ((ret = pfctl_startstop(0)) != 0) {
+	if ((ret = pfctl_startstop(pfh, 0)) != 0) {
 		if (ret == ENOENT)
 			errx(1, "pf not enabled");
 		else
@@ -1665,7 +1666,7 @@ pfctl_show_creators(int opts)
 	uint32_t creators[16];
 	size_t count = nitems(creators);
 
-	ret = pfctl_get_creatorids(creators, &count);
+	ret = pfctl_get_creatorids(pfh, creators, &count);
 	if (ret != 0)
 		errx(ret, "Failed to retrieve creators");
 
@@ -3079,6 +3080,9 @@ main(int argc, char *argv[])
 		altqsupport = 1;
 #endif
 	}
+	pfh = pfctl_open(pf_device);
+	if (pfh == NULL)
+		err(1, "Failed to open netlink");
 
 	if (opts & PF_OPT_DISABLE)
 		if (pfctl_disable(dev, opts))

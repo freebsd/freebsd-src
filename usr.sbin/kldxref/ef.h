@@ -100,6 +100,7 @@ struct elf_file {
 	int ef_fd;
 };
 
+#define	elf_machine(ef)		((ef)->ef_hdr.e_machine)
 #define	elf_class(ef)		((ef)->ef_hdr.e_ident[EI_CLASS])
 #define	elf_encoding(ef)	((ef)->ef_hdr.e_ident[EI_DATA])
 

@@ -36,6 +36,8 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/wait.h>
+#include <linux/workqueue.h>
 
 struct kobject;
 struct kset;

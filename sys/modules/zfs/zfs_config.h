@@ -433,8 +433,14 @@
 /* Define if compiler supports -Winfinite-recursion */
 /* #undef HAVE_INFINITE_RECURSION */
 
+/* inode_get_atime() exists in linux/fs.h */
+/* #undef HAVE_INODE_GET_ATIME */
+
 /* inode_get_ctime() exists in linux/fs.h */
 /* #undef HAVE_INODE_GET_CTIME */
+
+/* inode_get_mtime() exists in linux/fs.h */
+/* #undef HAVE_INODE_GET_MTIME */
 
 /* yes */
 /* #undef HAVE_INODE_LOCK_SHARED */
@@ -448,6 +454,9 @@
 /* inode_owner_or_capable() takes user_ns */
 /* #undef HAVE_INODE_OWNER_OR_CAPABLE_USERNS */
 
+/* inode_set_atime_to_ts() exists in linux/fs.h */
+/* #undef HAVE_INODE_SET_ATIME_TO_TS */
+
 /* inode_set_ctime_to_ts() exists in linux/fs.h */
 /* #undef HAVE_INODE_SET_CTIME_TO_TS */
 
@@ -456,6 +465,9 @@
 
 /* inode_set_iversion() exists */
 /* #undef HAVE_INODE_SET_IVERSION */
+
+/* inode_set_mtime_to_ts() exists in linux/fs.h */
+/* #undef HAVE_INODE_SET_MTIME_TO_TS */
 
 /* inode->i_*time's are timespec64 */
 /* #undef HAVE_INODE_TIMESPEC64_TIMES */
@@ -552,6 +564,9 @@
 
 /* Define if compiler supports -Winfinite-recursion */
 /* #undef HAVE_KERNEL_INFINITE_RECURSION */
+
+/* kernel has kernel_neon_* functions */
+/* #undef HAVE_KERNEL_NEON */
 
 /* kernel does stack verification */
 /* #undef HAVE_KERNEL_OBJTOOL */
@@ -772,6 +787,9 @@
 /* set_special_state() exists */
 /* #undef HAVE_SET_SPECIAL_STATE */
 
+/* shrinker_register exists */
+/* #undef HAVE_SHRINKER_REGISTER */
+
 /* struct shrink_control exists */
 /* #undef HAVE_SHRINK_CONTROL_STRUCT */
 
@@ -836,6 +854,12 @@
 
 /* submit_bio is member of struct block_device_operations */
 /* #undef HAVE_SUBMIT_BIO_IN_BLOCK_DEVICE_OPERATIONS */
+
+/* have super_block s_shrink */
+/* #undef HAVE_SUPER_BLOCK_S_SHRINK */
+
+/* have super_block s_shrink pointer */
+/* #undef HAVE_SUPER_BLOCK_S_SHRINK_PTR */
 
 /* super_setup_bdi_name() exits */
 /* #undef HAVE_SUPER_SETUP_BDI_NAME */
@@ -1113,7 +1137,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.99-270-FreeBSD_gdbda45160"
+#define ZFS_META_ALIAS "zfs-2.2.99-288-FreeBSD_ga382e2119"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1143,7 +1167,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "270-FreeBDS_gdbda45160"
+#define ZFS_META_RELEASE "288-FreeBSD_ga382e2119"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.2.99"

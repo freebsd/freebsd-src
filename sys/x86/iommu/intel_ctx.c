@@ -237,6 +237,9 @@ domain_init_rmrr(struct dmar_domain *domain, device_t dev, int bus,
 	vm_pindex_t size, i;
 	int error, error1;
 
+	if (!dmar_rmrr_enable)
+		return (0);
+
 	error = 0;
 	TAILQ_INIT(&rmrr_entries);
 	dmar_dev_parse_rmrr(domain, dev_domain, dev_busno, dev_path,

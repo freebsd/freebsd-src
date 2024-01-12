@@ -30,8 +30,8 @@
 #ifndef	_QORIQ_CLKGEN_H_
 #define	_QORIQ_CLKGEN_H_
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/clk/clk_mux.h>
+#include <dev/clk/clk.h>
+#include <dev/clk/clk_mux.h>
 
 #include <arm64/qoriq/clk/qoriq_clk_pll.h>
 

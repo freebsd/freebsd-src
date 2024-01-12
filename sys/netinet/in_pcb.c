@@ -1404,26 +1404,6 @@ in_pcbdisconnect(struct inpcb *inp)
 #endif /* INET */
 
 /*
- * in_pcbdetach() is responsibe for disassociating a socket from an inpcb.
- * For most protocols, this will be invoked immediately prior to calling
- * in_pcbfree().  However, with TCP the inpcb may significantly outlive the
- * socket, in which case in_pcbfree() is deferred.
- */
-void
-in_pcbdetach(struct inpcb *inp)
-{
-
-	KASSERT(inp->inp_socket != NULL, ("%s: inp_socket == NULL", __func__));
-
-#ifdef RATELIMIT
-	if (inp->inp_snd_tag != NULL)
-		in_pcbdetach_txrtlmt(inp);
-#endif
-	inp->inp_socket->so_pcb = NULL;
-	inp->inp_socket = NULL;
-}
-
-/*
  * inpcb hash lookups are protected by SMR section.
  *
  * Once desired pcb has been found, switching from SMR section to a pcb
@@ -1733,19 +1713,30 @@ in_pcbfree(struct inpcb *inp)
 #endif
 
 	INP_WLOCK_ASSERT(inp);
-	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
+	KASSERT(inp->inp_socket != NULL, ("%s: inp_socket == NULL", __func__));
 	KASSERT((inp->inp_flags & INP_FREED) == 0,
 	    ("%s: called twice for pcb %p", __func__, inp));
 
-	inp->inp_flags |= INP_FREED;
+	/*
+	 * in_pcblookup_local() and in6_pcblookup_local() may return an inpcb
+	 * from the hash without acquiring inpcb lock, they rely on the hash
+	 * lock, thus in_pcbremhash() should be the first action.
+	 */
+	if (inp->inp_flags & INP_INHASHLIST)
+		in_pcbremhash(inp);
 	INP_INFO_WLOCK(pcbinfo);
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	pcbinfo->ipi_count--;
 	CK_LIST_REMOVE(inp, inp_list);
 	INP_INFO_WUNLOCK(pcbinfo);
 
-	if (inp->inp_flags & INP_INHASHLIST)
-		in_pcbremhash(inp);
+#ifdef RATELIMIT
+	if (inp->inp_snd_tag != NULL)
+		in_pcbdetach_txrtlmt(inp);
+#endif
+	inp->inp_flags |= INP_FREED;
+	inp->inp_socket->so_pcb = NULL;
+	inp->inp_socket = NULL;
 
 	RO_INVALIDATE_CACHE(&inp->inp_route);
 #ifdef MAC
@@ -1758,12 +1749,16 @@ in_pcbfree(struct inpcb *inp)
 #ifdef INET
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
+	DEBUG_POISON_POINTER(inp->inp_options);
 	imo = inp->inp_moptions;
+	DEBUG_POISON_POINTER(inp->inp_moptions);
 #endif
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6PROTO) {
 		ip6_freepcbopts(inp->in6p_outputopts);
+		DEBUG_POISON_POINTER(inp->in6p_outputopts);
 		im6o = inp->in6p_moptions;
+		DEBUG_POISON_POINTER(inp->in6p_moptions);
 	} else
 		im6o = NULL;
 #endif
@@ -2955,25 +2950,22 @@ sysctl_setsockopt(SYSCTL_HANDLER_ARGS, struct inpcbinfo *pcbinfo,
 			    htons(params->sop_inc.inc6_zoneid & 0xffff);
 	}
 #endif
-	if (params->sop_inc.inc_lport != htons(0)) {
-		if (params->sop_inc.inc_fport == htons(0))
-			inpi.hash = INP_PCBHASH_WILD(params->sop_inc.inc_lport,
+	if (params->sop_inc.inc_lport != htons(0) &&
+	    params->sop_inc.inc_fport != htons(0)) {
+#ifdef INET6
+		if (params->sop_inc.inc_flags & INC_ISIPV6)
+			inpi.hash = INP6_PCBHASH(
+			    &params->sop_inc.inc6_faddr,
+			    params->sop_inc.inc_lport,
+			    params->sop_inc.inc_fport,
 			    pcbinfo->ipi_hashmask);
 		else
-#ifdef INET6
-			if (params->sop_inc.inc_flags & INC_ISIPV6)
-				inpi.hash = INP6_PCBHASH(
-				    &params->sop_inc.inc6_faddr,
-				    params->sop_inc.inc_lport,
-				    params->sop_inc.inc_fport,
-				    pcbinfo->ipi_hashmask);
-			else
 #endif
-				inpi.hash = INP_PCBHASH(
-				    &params->sop_inc.inc_faddr,
-				    params->sop_inc.inc_lport,
-				    params->sop_inc.inc_fport,
-				    pcbinfo->ipi_hashmask);
+			inpi.hash = INP_PCBHASH(
+			    &params->sop_inc.inc_faddr,
+			    params->sop_inc.inc_lport,
+			    params->sop_inc.inc_fport,
+			    pcbinfo->ipi_hashmask);
 	}
 	while ((inp = inp_next(&inpi)) != NULL)
 		if (inp->inp_gencnt == params->sop_id) {

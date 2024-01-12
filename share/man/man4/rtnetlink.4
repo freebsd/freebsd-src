@@ -175,7 +175,7 @@ RTA_KNH_ID	Kernel-specific index of the nexthop
 (uint32_t) Fib number of the route.
 Default route table is
 .Dv RT_TABLE_MAIN .
-To explicitely specify "all tables" one needs to set the value to
+To explicitly specify "all tables" one needs to set the value to
 .Dv RT_TABLE_UNSPEC .
 .It Dv RTA_EXPIRES
 (uint32_t) seconds till path expiration.
@@ -201,7 +201,7 @@ struct nhmsg {
 .Ed
 The
 .Va nh_family
-specificies the gateway address family.
+specifies the gateway address family.
 It can be different from route address family for IPv4 routes with IPv6
 nexthops.
 The
@@ -273,7 +273,7 @@ struct ifinfomsg {
 	unsigned char	ifi_family;	/* not used, set to 0 */
 	unsigned char	__ifi_pad;
 	unsigned short	ifi_type;	/* ARPHRD_* */
-	int		ifi_index;	/* Inteface index */
+	int		ifi_index;	/* Interface index */
 	unsigned	ifi_flags;	/* IFF_* flags */
 	unsigned	ifi_change;	/* IFF_* change mask */
 };
@@ -428,7 +428,7 @@ Set for IPv4 and p2p addresses.
 .It Dv IFA_LABEL
 (string) interface name.
 .It Dv IFA_BROADCAST
-(binary) broacast interface address.
+(binary) broadcast interface address.
 .El
 .Ss Groups
 The following groups are defined:
@@ -476,7 +476,7 @@ Available flags:
 .Bd -literal -offset indent -compact
 NTF_SELF		local station (LLE_IFADDR)
 NTF_PROXY		proxy entry (LLE_PUB)
-NTF_STICKY		permament entry (LLE_STATIC)
+NTF_STICKY		permanent entry (LLE_STATIC)
 NTF_ROUTER		dst indicated itself as a router
 .Ed
 .Ss RTM_NEWNEIGH
@@ -532,7 +532,7 @@ The
 protocol family appeared in
 .Fx 13.2 .
 .Sh AUTHORS
-The netlink was implementated by
+The netlink was implemented by
 .An -nosplit
 .An Alexander Chernikov Aq Mt melifaro@FreeBSD.org .
 It was derived from the Google Summer of Code 2021 project by

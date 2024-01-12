@@ -35,6 +35,7 @@
  */
 
 #include <sys/cdefs.h>
+#include <netinet/tcp.h>
 /**
  * \file netback_unit_tests.c
  *
@@ -2311,9 +2312,8 @@ xnb_fill_tcp(struct mbuf *m)
 	tcp->th_dport = htons(2222);
 	tcp->th_seq = htonl(0x00f72b10);
 	tcp->th_ack = htonl(0x7f37ba6c);
-	tcp->th_x2 = 0;
+	tcp_set_flags(tcp, TH_ACK | TH_PUSH);
 	tcp->th_off = 8;
-	tcp->th_flags = 0x18;
 	tcp->th_win = htons(0x410);
 	/* th_sum is incorrect; will be inserted by function under test */
 	tcp->th_sum = htons(0xbaad);

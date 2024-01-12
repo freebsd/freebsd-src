@@ -6,8 +6,6 @@ subsystem       login   expires  notes
 --------------------------------------
 
 Special cases:
-releng/*				Requires Security Officer approval.
-head/sys/dev/random			Requires Security Officer approval.
-head/sys/libkern/arc4random.c		Requires Security Officer approval.
-stable/*/sys/dev/random			Requires Security Officer approval.
-stable/*/sys/libkern/arc4random.c	Requires Security Officer approval.
+releng/* branches				Requires Security Officer approval.
+/sys/dev/random			Requires Security Officer approval.
+/sys/libkern/arc4random.c		Requires Security Officer approval.

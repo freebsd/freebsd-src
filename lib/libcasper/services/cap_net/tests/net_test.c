@@ -858,7 +858,7 @@ ATF_TC_BODY(capnet__limits_name2addr_hosts_servnames_mix, tc)
 	ATF_REQUIRE(test_getaddrinfo(capnet, AF_INET, TEST_DOMAIN_1, "snmp") ==
 	    ENOTCAPABLE);
 
-	/* Limit to HTTTP servname only. */
+	/* Limit to HTTP servname only. */
 	limit = cap_net_limit_init(capnet, CAPNET_NAME2ADDR);
 	ATF_REQUIRE(limit != NULL);
 	cap_net_limit_name2addr(limit, NULL, "http");

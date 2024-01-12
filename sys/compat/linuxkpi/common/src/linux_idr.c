@@ -754,10 +754,9 @@ ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
 	unsigned int max;
 
 	MPASS((int)start >= 0);
-	MPASS((int)end >= 0);
 
-	if (end == 0)
-		max = 0x80000000;
+	if ((int)end <= 0)
+		max = INT_MAX;
 	else {
 		MPASS(end > start);
 		max = end - 1;

@@ -632,7 +632,7 @@ static struct sa_prot_map *safindprotent(char *name, struct sa_prot_map *table,
 					 int table_ents);
 static int		sasetprotents(struct cam_periph *periph,
 				      struct mtparamset *ps, int num_params);
-static struct sa_param_ent *safindparament(struct mtparamset *ps);
+static const struct sa_param_ent *safindparament(struct mtparamset *ps);
 static int		saparamsetlist(struct cam_periph *periph,
 				       struct mtsetlist *list, int need_copy);
 static	int		saextget(struct cdev *dev, struct cam_periph *periph,
@@ -1355,7 +1355,7 @@ typedef enum {
 	SA_PARAM_TYPE_NODE
 } sa_param_type;
 
-struct sa_param_ent {
+static const struct sa_param_ent {
 	char *name;
 	sa_param_type param_type;
 	int (*set_func)(struct cam_periph *periph, struct mtparamset *ps,
@@ -1366,7 +1366,7 @@ struct sa_param_ent {
 	{"protection.", SA_PARAM_TYPE_NODE, sasetprotents }
 };
 
-static struct sa_param_ent *
+static const struct sa_param_ent *
 safindparament(struct mtparamset *ps)
 {
 	unsigned int i;
@@ -1402,7 +1402,7 @@ saparamsetlist(struct cam_periph *periph, struct mtsetlist *list,
 	int i, contig_ents;
 	int error;
 	struct mtparamset *params, *first;
-	struct sa_param_ent *first_ent;
+	const struct sa_param_ent *first_ent;
 
 	error = 0;
 	params = NULL;
@@ -1443,7 +1443,7 @@ saparamsetlist(struct cam_periph *periph, struct mtsetlist *list,
 	first = NULL;
 	first_ent = NULL;
 	for (i = 0; i < list->num_params; i++) {
-		struct sa_param_ent *ent;
+		const struct sa_param_ent *ent;
 
 		ent = safindparament(&params[i]);
 		if (ent == NULL) {
@@ -1494,8 +1494,12 @@ saparamsetlist(struct cam_periph *periph, struct mtsetlist *list,
 bailout:
 	if (need_copy != 0) {
 		if (error != EFAULT) {
+			int error1;
+
 			cam_periph_unlock(periph);
-			copyout(params, list->params, list->param_len);
+			error1 = copyout(params, list->params, list->param_len);
+			if (error == 0)
+				error = error1;
 			cam_periph_lock(periph);
 		}
 		free(params, M_SCSISA);

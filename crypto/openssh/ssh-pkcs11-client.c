@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11-client.c,v 1.18 2023/07/19 14:03:45 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11-client.c,v 1.19 2023/12/18 14:46:56 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  * Copyright (c) 2014 Pedro Martelletto. All rights reserved.
@@ -424,6 +424,60 @@ wrap_key(struct helper *helper, struct sshkey *k)
 	k->flags |= SSHKEY_FLAG_EXT;
 	debug3_f("provider %s remaining keys: %zu RSA %zu ECDSA",
 	    helper->path, helper->nrsa, helper->nec);
+}
+
+/*
+ * Make a private PKCS#11-backed certificate by grafting a previously-loaded
+ * PKCS#11 private key and a public certificate key.
+ */
+int
+pkcs11_make_cert(const struct sshkey *priv,
+    const struct sshkey *certpub, struct sshkey **certprivp)
+{
+	struct helper *helper = NULL;
+	struct sshkey *ret;
+	int r;
+
+	debug3_f("private key type %s cert type %s", sshkey_type(priv),
+	    sshkey_type(certpub));
+	*certprivp = NULL;
+	if (!sshkey_is_cert(certpub) || sshkey_is_cert(priv) ||
+	    !sshkey_equal_public(priv, certpub)) {
+		error_f("private key %s doesn't match cert %s",
+		    sshkey_type(priv), sshkey_type(certpub));
+		return SSH_ERR_INVALID_ARGUMENT;
+	}
+	*certprivp = NULL;
+	if (priv->type == KEY_RSA) {
+		if ((helper = helper_by_rsa(priv->rsa)) == NULL ||
+		    helper->fd == -1)
+			fatal_f("no helper for PKCS11 RSA key");
+		if ((r = sshkey_from_private(priv, &ret)) != 0)
+			fatal_fr(r, "copy key");
+		RSA_set_method(ret->rsa, helper->rsa_meth);
+		if (helper->nrsa++ >= INT_MAX)
+			fatal_f("RSA refcount error");
+	} else if (priv->type == KEY_ECDSA) {
+		if ((helper = helper_by_ec(priv->ecdsa)) == NULL ||
+		    helper->fd == -1)
+			fatal_f("no helper for PKCS11 EC key");
+		if ((r = sshkey_from_private(priv, &ret)) != 0)
+			fatal_fr(r, "copy key");
+		EC_KEY_set_method(ret->ecdsa, helper->ec_meth);
+		if (helper->nec++ >= INT_MAX)
+			fatal_f("EC refcount error");
+	} else
+		fatal_f("unknown key type %s", sshkey_type(priv));
+
+	ret->flags |= SSHKEY_FLAG_EXT;
+	if ((r = sshkey_to_certified(ret)) != 0 ||
+	    (r = sshkey_cert_copy(certpub, ret)) != 0)
+		fatal_fr(r, "graft certificate");
+	debug3_f("provider %s remaining keys: %zu RSA %zu ECDSA",
+	    helper->path, helper->nrsa, helper->nec);
+	/* success */
+	*certprivp = ret;
+	return 0;
 }
 
 static int

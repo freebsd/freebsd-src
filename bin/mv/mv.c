@@ -172,7 +172,7 @@ do_move(const char *from, const char *to)
 	 */
 	if (!fflg && !access(to, F_OK)) {
 
-		/* prompt only if source exist */
+		/* prompt only if source exists */
 	        if (lstat(from, &sb) == -1) {
 			warn("%s", from);
 			return (1);

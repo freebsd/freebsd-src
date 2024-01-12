@@ -32,7 +32,7 @@
 
 #include <machine/bus.h>
 
-#include <dev/extres/clk/clk.h>
+#include <dev/clk/clk.h>
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_crtc_helper.h>
 #include <dev/drm2/drm_fb_helper.h>
@@ -94,7 +94,7 @@ tegra_bo_alloc_contig(size_t npages, u_long alignment, vm_memattr_t memattr,
     vm_page_t **ret_page)
 {
 	vm_page_t m;
-	int tries, i;
+	int err, i, tries;
 	vm_paddr_t low, high, boundary;
 
 	low = 0;
@@ -106,9 +106,12 @@ retry:
 	    low, high, alignment, boundary, memattr);
 	if (m == NULL) {
 		if (tries < 3) {
-			if (!vm_page_reclaim_contig(0, npages, low, high,
-			    alignment, boundary))
+			err = vm_page_reclaim_contig(0, npages, low, high,
+			    alignment, boundary);
+			if (err == ENOMEM)
 				vm_wait(NULL);
+			else if (err != 0)
+				return (ENOMEM);
 			tries++;
 			goto retry;
 		}
