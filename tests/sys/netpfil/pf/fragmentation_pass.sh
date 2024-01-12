@@ -468,6 +468,44 @@ reassemble_slowpath_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "dummynet" "cleanup"
+dummynet_head()
+{
+	atf_set descr 'dummynet + reassembly test'
+	atf_set require.user root
+}
+
+dummynet_body()
+{
+	pft_init
+	dummynet_init
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}a
+
+	ifconfig ${epair}b inet 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair}a 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	jexec alcatraz dnctl pipe 1 config bw 600Byte/s
+	jexec alcatraz dnctl pipe 2 config bw 700Byte/s
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"set reassemble yes" \
+		"block" \
+		"pass inet proto icmp all icmp-type echoreq dnpipe (1, 2)"
+
+	atf_check -s exit:0 -o ignore ping -s 2000 -c 1 192.0.2.2
+}
+
+dummynet_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "too_many_fragments"
@@ -479,4 +517,5 @@ atf_init_test_cases()
 	atf_add_test_case "reassemble"
 	atf_add_test_case "no_df"
 	atf_add_test_case "reassemble_slowpath"
+	atf_add_test_case "dummynet"
 }
