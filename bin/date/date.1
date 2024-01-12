@@ -223,8 +223,8 @@ day, week day, month or year according to
 .Ar val .
 If
 .Ar val
-is preceded with a plus or minus sign,
-the date is adjusted forwards or backwards according to the remaining string,
+is preceded by a plus or minus sign,
+the date is adjusted forward or backward according to the remaining string,
 otherwise the relevant part of the date is set.
 The date can be adjusted as many times as required using these flags.
 Flags are processed in the order given.
@@ -284,7 +284,7 @@ will be necessary to reach October 29, 2:30.
 .Pp
 When the date is adjusted to a specific value that does not actually exist
 (for example March 26, 1:30 BST 2000 in the Europe/London timezone),
-the date will be silently adjusted forwards in units of one hour until it
+the date will be silently adjusted forward in units of one hour until it
 reaches a valid time.
 When the date is adjusted to a specific value that occurs twice
 (for example October 29, 1:30 2000),
