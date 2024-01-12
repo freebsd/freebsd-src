@@ -1867,6 +1867,17 @@ pf_krule_free(struct pf_krule *rule)
 	free(rule, M_PFRULE);
 }
 
+void
+pf_krule_clear_counters(struct pf_krule *rule)
+{
+	pf_counter_u64_zero(&rule->evaluations);
+	for (int i = 0; i < 2; i++) {
+		pf_counter_u64_zero(&rule->packets[i]);
+		pf_counter_u64_zero(&rule->bytes[i]);
+	}
+	counter_u64_zero(rule->states_tot);
+}
+
 static void
 pf_kpooladdr_to_pooladdr(const struct pf_kpooladdr *kpool,
     struct pf_pooladdr *pool)
@@ -3266,14 +3277,9 @@ DIOCADDRULENV_error:
 			ERROUT(ENOSPC);
 		}
 
-		if (clear_counter) {
-			pf_counter_u64_zero(&rule->evaluations);
-			for (int i = 0; i < 2; i++) {
-				pf_counter_u64_zero(&rule->packets[i]);
-				pf_counter_u64_zero(&rule->bytes[i]);
-			}
-			counter_u64_zero(rule->states_tot);
-		}
+		if (clear_counter)
+			pf_krule_clear_counters(rule);
+
 		PF_RULES_WUNLOCK();
 
 		error = copyout(nvlpacked, nv->data, nv->len);

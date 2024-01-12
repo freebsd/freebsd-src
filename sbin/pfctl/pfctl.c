@@ -1303,7 +1303,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 	}
 
 	for (nr = 0; nr < ri.nr; ++nr) {
-		if (pfctl_get_clear_rule(dev, nr, ri.ticket, path, PF_SCRUB,
+		if (pfctl_get_clear_rule_h(pfh, nr, ri.ticket, path, PF_SCRUB,
 		    &rule, anchor_call, opts & PF_OPT_CLRRULECTRS)) {
 			warn("DIOCGETRULENV");
 			goto error;
@@ -1334,7 +1334,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		goto error;
 	}
 	for (nr = 0; nr < ri.nr; ++nr) {
-		if (pfctl_get_clear_rule(dev, nr, ri.ticket, path, PF_PASS,
+		if (pfctl_get_clear_rule_h(pfh, nr, ri.ticket, path, PF_PASS,
 		    &rule, anchor_call, opts & PF_OPT_CLRRULECTRS)) {
 			warn("DIOCGETRULE");
 			goto error;

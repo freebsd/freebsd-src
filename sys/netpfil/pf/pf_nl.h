@@ -42,6 +42,7 @@ enum {
 	PFNL_CMD_STOP = 4,
 	PFNL_CMD_ADDRULE = 5,
 	PFNL_CMD_GETRULES = 6,
+	PFNL_CMD_GETRULE = 7,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -117,6 +118,8 @@ enum pf_addr_type_t {
 	PF_AT_TABLENAME		= 4, /* string */
 	PF_AT_TYPE		= 5, /* u8 */
 	PF_AT_IFLAGS		= 6, /* u8 */
+	PF_AT_TBLCNT		= 7, /* u32 */
+	PF_AT_DYNCNT		= 8, /* u32 */
 };
 
 enum pfrule_addr_type_t {
@@ -229,6 +232,16 @@ enum pf_rule_type_t {
 	PF_RT_SET_PRIO_REPLY	= 60, /* u8 */
 	PF_RT_DIVERT_ADDRESS	= 61, /* in6_addr */
 	PF_RT_DIVERT_PORT	= 62, /* u16 */
+	PF_RT_PACKETS_IN	= 63, /* u64 */
+	PF_RT_PACKETS_OUT	= 64, /* u64 */
+	PF_RT_BYTES_IN		= 65, /* u64 */
+	PF_RT_BYTES_OUT		= 66, /* u64 */
+	PF_RT_EVALUATIONS	= 67, /* u64 */
+	PF_RT_TIMESTAMP		= 68, /* u64 */
+	PF_RT_STATES_CUR	= 69, /* u64 */
+	PF_RT_STATES_TOTAL	= 70, /* u64 */
+	PF_RT_SRC_NODES		= 71, /* u64 */
+	PF_RT_ANCHOR_CALL	= 72, /* string */
 };
 
 enum pf_addrule_type_t {
@@ -246,6 +259,7 @@ enum pf_getrules_type_t {
 	PF_GR_ACTION		= 2, /* u8 */
 	PF_GR_NR		= 3, /* u32 */
 	PF_GR_TICKET		= 4, /* u32 */
+	PF_GR_CLEAR		= 5, /* u8 */
 };
 
 #ifdef _KERNEL
