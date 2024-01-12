@@ -51,8 +51,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *
  */
 
 #include <sys/cdefs.h>
@@ -397,6 +395,7 @@ static int oct16550_bus_probe(struct uart_softc *);
 static int oct16550_bus_receive(struct uart_softc *);
 static int oct16550_bus_setsig(struct uart_softc *, int);
 static int oct16550_bus_transmit(struct uart_softc *);
+static bool oct16550_bus_txbusy(struct uart_softc *);
 static void oct16550_bus_grab(struct uart_softc *);
 static void oct16550_bus_ungrab(struct uart_softc *);
 
@@ -412,9 +411,10 @@ static kobj_method_t oct16550_methods[] = {
 	KOBJMETHOD(uart_receive,	oct16550_bus_receive),
 	KOBJMETHOD(uart_setsig,		oct16550_bus_setsig),
 	KOBJMETHOD(uart_transmit,	oct16550_bus_transmit),
+	KOBJMETHOD(uart_txbusy,		oct16550_bus_txbusy),
 	KOBJMETHOD(uart_grab,		oct16550_bus_grab),
 	KOBJMETHOD(uart_ungrab,		oct16550_bus_ungrab),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 struct uart_class uart_oct16550_class = {
@@ -810,6 +810,17 @@ oct16550_bus_transmit (struct uart_softc *sc)
 #endif
 	uart_unlock(sc->sc_hwmtx);
 	return (0);
+}
+
+static bool
+oct16550_bus_txbusy(struct uart_softc *sc)
+{
+	struct uart_bas *bas = &sc->sc_bas;
+
+	if ((uart_getreg(bas, REG_LSR) & (LSR_TEMT | LSR_THRE)) !=
+	    (LSR_TEMT | LSR_THRE))
+		return (true);
+	return (false);
 }
 
 static void

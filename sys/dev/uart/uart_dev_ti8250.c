@@ -106,6 +106,7 @@ static kobj_method_t ti8250_methods[] = {
 	KOBJMETHOD(uart_receive,	ns8250_bus_receive),
 	KOBJMETHOD(uart_setsig,		ns8250_bus_setsig),
 	KOBJMETHOD(uart_transmit,	ns8250_bus_transmit),
+	KOBJMETHOD(uart_txbusy,		ns8250_bus_txbusy),
 	KOBJMETHOD_END
 };
 

@@ -93,6 +93,7 @@ static kobj_method_t jz4780_uart_methods[] = {
 	KOBJMETHOD(uart_receive,	ns8250_bus_receive),
 	KOBJMETHOD(uart_setsig,		ns8250_bus_setsig),
 	KOBJMETHOD(uart_transmit,	ns8250_bus_transmit),
+	KOBJMETHOD(uart_txbusy,		ns8250_bus_txbusy),
 	KOBJMETHOD(uart_grab,		ns8250_bus_grab),
 	KOBJMETHOD(uart_ungrab,		ns8250_bus_ungrab),
 	KOBJMETHOD_END
@@ -205,7 +206,7 @@ static device_method_t jz4780_uart_bus_methods[] = {
 	DEVMETHOD(device_probe,		jz4780_uart_probe),
 	DEVMETHOD(device_attach,	uart_bus_attach),
 	DEVMETHOD(device_detach,	jz4780_uart_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t jz4780_uart_driver = {
