@@ -30,7 +30,7 @@
 .\"
 .\"     From: @(#)uniq.1	8.1 (Berkeley) 6/6/93
 .\"
-.Dd June 7, 2020
+.Dd January 12, 2024
 .Dt UNIQ 1
 .Os
 .Sh NAME
@@ -74,6 +74,9 @@ Precede each output line with the count of the number of times the line
 occurred in the input, followed by a single space.
 .It Fl d , Fl -repeated
 Output a single copy of each line that is repeated in the input.
+Ignored if
+.Fl D
+is also specified.
 .It Fl D , Fl -all-repeated Op Ar septype
 Output all lines that are repeated (like
 .Fl d ,
