@@ -338,29 +338,25 @@ file(const char *name, const char *mode)
 static void
 obsolete(char *argv[])
 {
-	int len;
-	char *ap, *p, *start;
+	char *ap, *p;
 
 	while ((ap = *++argv)) {
 		/* Return if "--" or not an option of any form. */
 		if (ap[0] != '-') {
 			if (ap[0] != '+')
 				return;
-		} else if (ap[1] == '-')
+		} else if (ap[1] == '-') {
 			return;
+		}
 		if (!isdigit((unsigned char)ap[1]))
 			continue;
 		/*
 		 * Digit signifies an old-style option.  Malloc space for dash,
 		 * new option and argument.
 		 */
-		len = strlen(ap);
-		if ((start = p = malloc(len + 3)) == NULL)
+		if (asprintf(&p, "-%c%s", ap[0] == '+' ? 's' : 'f', ap + 1) < 0)
 			err(1, "malloc");
-		*p++ = '-';
-		*p++ = ap[0] == '+' ? 's' : 'f';
-		(void)strcpy(p, ap + 1);
-		*argv = start;
+		*argv = p;
 	}
 }
 

@@ -74,6 +74,7 @@ skip_fields_head() {
 skip_fields_body() {
 	printf "1 a\n2 a\n3 b\n4 b\n5 a\n6 a\n" >input
 	printf "1 a\n3 b\n5 a\n" >expected
+	atf_check_uniq -1
 	atf_check_uniq -f 1
 	atf_check_uniq --skip-fields 1
 }
@@ -85,6 +86,7 @@ skip_fields_tab_head() {
 skip_fields_tab_body() {
 	printf "1\ta\n2\ta\n3\tb\n4\tb\n5\ta\n6\ta\n" >input
 	printf "1\ta\n3\tb\n5\ta\n" >expected
+	atf_check_uniq -1
 	atf_check_uniq -f 1
 	atf_check_uniq --skip-fields 1
 }
@@ -107,6 +109,7 @@ skip_chars_head() {
 skip_chars_body() {
 	printf "1 a\n2 a\n3 b\n4 b\n5 a\n6 a\n" >input
 	printf "1 a\n3 b\n5 a\n" >expected
+	atf_check_uniq +2
 	atf_check_uniq -s 2
 	atf_check_uniq --skip-chars 2
 }
