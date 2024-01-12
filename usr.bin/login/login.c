@@ -704,8 +704,10 @@ auth_pam(void)
 		pam_err = pam_get_item(pamh, PAM_USER, &item);
 		if (pam_err == PAM_SUCCESS) {
 			tmpl_user = (const char *)item;
-			if (strcmp(username, tmpl_user) != 0)
-				pwd = getpwnam(tmpl_user);
+			if (strcmp(username, tmpl_user) != 0) {
+				(void)getpwnam_r(tmpl_user, &pwres, pwbuf,
+				    sizeof(pwbuf), &pwd);
+			}
 		} else {
 			pam_syslog("pam_get_item(PAM_USER)");
 		}
