@@ -1,0 +1,13 @@
+diff --git a/sbin/growfs/growfs.c b/sbin/growfs/growfs.c
+index daa3931df30..a609b1effc0 100644
+--- a/sbin/growfs/growfs.c
++++ b/sbin/growfs/growfs.c
+@@ -232,7 +232,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
+ 	 *
+ 	 * We probably should rather change the summary for the cylinder group
+ 	 * statistics here to the value of what would be in there, if the file
+-	 * system were created initially with the new size. Therefor we still
++	 * system were created initially with the new size. Therefore we still
+ 	 * need to find an easy way of calculating that.
+ 	 * Possibly we can try to read the first superblock copy and apply the
+ 	 * "diffed" stats between the old and new superblock by still copying
