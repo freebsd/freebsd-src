@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 9, 2021
+.Dd January 23, 2024
 .Dt SERVICE 8
 .Os
 .Sh NAME
@@ -63,6 +63,13 @@ see
 .Pc .
 It can also be used to list
 the scripts using various criteria.
+.Pp
+The set of permissible values for
+.Ar command
+depends on the particular rc.d script being invoked.
+For a list of standard commands which are supported by most rc.d
+scripts, see
+.Xr rc 8 .
 .Pp
 The options are as follows:
 .Bl -tag -width F1
@@ -129,13 +136,44 @@ option is used, the corresponding variable is set accordingly.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
-The following are examples of typical usage of the
-.Nm
-command:
+These are some examples of the most common service commands.
+For a full list of commands available in most rc.d scripts, see
+.Xr rc 8 .
+.Pp
+Enable a service, then start it:
+.Bd -literal -offset -indent
+service sshd enable
+service sshd start
+.Ed
+.Pp
+Stop a service, then disable it:
+.Bd -literal -offset -indent
+service sshd stop
+service sshd disable
+.Ed
+.Pp
+Start a service which is not enabled:
+.Bd -literal -offset -indent
+service sshd onestart
+.Ed
+.Pp
+Report the status of a service:
 .Bd -literal -offset -ident
 service named status
-service -j dns named status
+.Ed
+.Pp
+Restart a service running in a jail:
+.Bd -literal -offset -indent
+service -j dns named restart
+.Ed
+.Pp
+Start a service with a specific environment variable set:
+.Bd -literal -offset -indent
 service -E LC_ALL=C.UTF-8 named start
+.Ed
+.Pp
+Report a verbose listing of all available services:
+.Bd -literal -offset -indent
 service -rv
 .Ed
 .Pp
@@ -161,10 +199,10 @@ _service () {
 complete -F _service service
 .Ed
 .Sh SEE ALSO
-.Xr bash 1 Pq Pa ports/shells/bash ,
 .Xr rc.conf 5 ,
 .Xr rc 8 ,
-.Xr rcorder 8
+.Xr rcorder 8 ,
+.Xr sysrc 8 .
 .Sh HISTORY
 The
 .Nm
