@@ -733,7 +733,7 @@ updjcg(int cylno, time_t modtime, int fsi, int fso, unsigned int Nflag)
 	}
 
 	/*
-	 * Handle the last new block if there are stll some new fragments left.
+	 * Handle the last new block if there are still some new fragments left.
 	 * Here we don't have to bother about the cluster summary or the even
 	 * the rotational layout table.
 	 */
