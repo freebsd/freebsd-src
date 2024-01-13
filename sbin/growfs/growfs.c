@@ -232,7 +232,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	 *
 	 * We probably should rather change the summary for the cylinder group
 	 * statistics here to the value of what would be in there, if the file
-	 * system were created initially with the new size. Therefor we still
+	 * system were created initially with the new size. Therefore we still
 	 * need to find an easy way of calculating that.
 	 * Possibly we can try to read the first superblock copy and apply the
 	 * "diffed" stats between the old and new superblock by still copying
@@ -679,7 +679,7 @@ updjcg(int cylno, time_t modtime, int fsi, int fso, unsigned int Nflag)
 				    sblock.fs_frag);
 			} else {
 				/*
-				 * Lets rejoin a possible partially growed
+				 * Lets rejoin a possible partially grown
 				 * fragment.
 				 */
 				k = 0;
@@ -705,7 +705,7 @@ updjcg(int cylno, time_t modtime, int fsi, int fso, unsigned int Nflag)
 				j++;
 			}
 			/*
-			 * Lets rejoin a possible partially growed fragment.
+			 * Lets rejoin a possible partially grown fragment.
 			 */
 			k = 0;
 			while (isset(cg_blksfree(&acg), i) &&
@@ -733,7 +733,7 @@ updjcg(int cylno, time_t modtime, int fsi, int fso, unsigned int Nflag)
 	}
 
 	/*
-	 * Handle the last new block if there are stll some new fragments left.
+	 * Handle the last new block if there are still some new fragments left.
 	 * Here we don't have to bother about the cluster summary or the even
 	 * the rotational layout table.
 	 */
