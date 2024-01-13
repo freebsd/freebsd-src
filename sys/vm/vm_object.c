@@ -64,10 +64,8 @@
  *	Virtual memory object module.
  */
 
-#include <sys/cdefs.h>
 #include "opt_vm.h"
 
-#include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/blockcount.h>
 #include <sys/cpuset.h>
@@ -76,19 +74,18 @@
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/kernel.h>
-#include <sys/pctrie.h>
-#include <sys/sysctl.h>
 #include <sys/mutex.h>
-#include <sys/proc.h>		/* for curproc, pageproc */
+#include <sys/pctrie.h>
+#include <sys/proc.h>
 #include <sys/refcount.h>
-#include <sys/socket.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/resourcevar.h>
 #include <sys/refcount.h>
 #include <sys/rwlock.h>
 #include <sys/user.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
-#include <sys/sx.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -2613,8 +2610,7 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		}
 
 		strlcpy(kvo->kvo_path, fullpath, sizeof(kvo->kvo_path));
-		if (freepath != NULL)
-			free(freepath, M_TEMP);
+		free(freepath, M_TEMP);
 
 		/* Pack record size down */
 		kvo->kvo_structsize = offsetof(struct kinfo_vmobject, kvo_path)
