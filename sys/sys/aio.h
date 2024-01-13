@@ -51,6 +51,9 @@
 #define	LIO_DSYNC		(0x10 | LIO_SYNC)
 #define	LIO_MLOCK		0x20
 #endif
+#if __BSD_VISIBLE
+#define	LIO_FOFFSET		0x40
+#endif
 
 /*
  * LIO modes
@@ -129,6 +132,7 @@ struct kaiocb {
 	TAILQ_ENTRY(kaiocb) plist;	/* (a) lists of pending / done jobs */
 	TAILQ_ENTRY(kaiocb) allist;	/* (a) list of all jobs in proc */
 	int	jobflags;		/* (a) job flags */
+	int	ioflags;		/* (*) io flags */
 	int	inblock;		/* (*) input blocks */
 	int	outblock;		/* (*) output blocks */
 	int	msgsnd;			/* (*) messages sent */
