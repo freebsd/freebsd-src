@@ -1,0 +1,13 @@
+diff --git a/sbin/growfs/growfs.c b/sbin/growfs/growfs.c
+index daa3931df30..21e7384c09f 100644
+--- a/sbin/growfs/growfs.c
++++ b/sbin/growfs/growfs.c
+@@ -679,7 +679,7 @@ updjcg(int cylno, time_t modtime, int fsi, int fso, unsigned int Nflag)
+ 				    sblock.fs_frag);
+ 			} else {
+ 				/*
+-				 * Lets rejoin a possible partially growed
++				 * Lets rejoin a possible partially grown
+ 				 * fragment.
+ 				 */
+ 				k = 0;
