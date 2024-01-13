@@ -191,7 +191,9 @@ decho() {
 }
 
 # Usage: exists glob
-# Returns true if glob resolves to a real file.
+#
+# Returns true if glob resolves to a real file and store the first
+# found filename in the variable $found
 exists() {
 	local IFS
 
@@ -201,13 +203,15 @@ exists() {
 	# Use some globbing tricks in the shell to determine if a file
 	# exists or not.
 	set +f
-	set -- "$1" $1
+	for file in "$1"*
+	do
+		if [ -r "$file" ]; then
+			found="$file"
+			set -f
+			return 0
+		fi
+	done
 	set -f
-
-	if [ "$1" != "$2" -a -r "$2" ]; then
-		found="$2"
-		return 0
-	fi
 
 	return 1
 }
@@ -230,10 +234,10 @@ find_file() {
 	fi
 	decho "  Searching directory $manroot" 2
 
-	mann="$manroot/$4.$2*"
-	man0="$manroot/$4.0*"
-	catn="$catroot/$4.$2*"
-	cat0="$catroot/$4.0*"
+	mann="$manroot/$4.$2"
+	man0="$manroot/$4.0"
+	catn="$catroot/$4.$2"
+	cat0="$catroot/$4.0"
 
 	# This is the behavior as seen by the original man utility.
 	# Let's not change that which doesn't seem broken.
@@ -313,7 +317,7 @@ man_check_for_so() {
 		.so*)	trim "${line#.so}"
 			decho "$manpage includes $tstr"
 			# Glob and check for the file.
-			if ! check_man "$path/$tstr*" ""; then
+			if ! check_man "$path/$tstr" ""; then
 				decho "  Unable to find $tstr"
 				return 1
 			fi
