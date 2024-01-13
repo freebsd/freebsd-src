@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 22, 2021
+.Dd January 13, 2024
 .Dt LIO_LISTIO 2
 .Os
 .Sh NAME
@@ -76,6 +76,19 @@ Write data as if by a call to
 Write data as if by a call to
 .Xr aio_writev 2 .
 .El
+.Pp
+If the
+.Dv LIO_READ ,
+.Dv LIO_READV ,
+.Dv LIO_WRITE ,
+.Dv LIO_WRITEV
+opcodes are or-ed with the
+.Dv LIO_FOFFSET
+flag, the corresponding read or write operation uses the current file
+descriptor offset instead of
+.Va aio_offset
+from
+.Vt aiocb .
 .Pp
 If the
 .Fa mode
