@@ -705,7 +705,7 @@ updjcg(int cylno, time_t modtime, int fsi, int fso, unsigned int Nflag)
 				j++;
 			}
 			/*
-			 * Lets rejoin a possible partially growed fragment.
+			 * Lets rejoin a possible partially grown fragment.
 			 */
 			k = 0;
 			while (isset(cg_blksfree(&acg), i) &&
