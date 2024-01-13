@@ -67,6 +67,7 @@
 #include <sys/systm.h>
 #include <sys/blockcount.h>
 #include <sys/cpuset.h>
+#include <sys/jail.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mman.h>
@@ -2515,6 +2516,7 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 	vm_page_t m;
 	u_long sp;
 	int count, error;
+	bool want_path;
 
 	if (req->oldptr == NULL) {
 		/*
@@ -2533,6 +2535,7 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		    count * 11 / 10));
 	}
 
+	want_path = !(swap_only || jailed(curthread->td_ucred));
 	kvo = malloc(sizeof(*kvo), M_TEMP, M_WAITOK | M_ZERO);
 	error = 0;
 
@@ -2584,7 +2587,8 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		freepath = NULL;
 		fullpath = "";
 		vp = NULL;
-		kvo->kvo_type = vm_object_kvme_type(obj, swap_only ? NULL : &vp);
+		kvo->kvo_type = vm_object_kvme_type(obj, want_path ? &vp :
+		    NULL);
 		if (vp != NULL) {
 			vref(vp);
 		} else if ((obj->flags & OBJ_ANON) != 0) {
