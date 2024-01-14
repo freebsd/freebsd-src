@@ -1599,8 +1599,8 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
               set the read-only attribute on the global variables specified as
               sources.
 
-     [1m.SHELL   [22mSets the shell that [1mbmake [22muses to execute commands in jobs mode.
-              The sources are a set of [4mfield[24m[1m=[4m[22mvalue[24m pairs.
+     [1m.SHELL   [22mSets the shell that [1mbmake [22muses to execute commands.  The sources
+              are a set of [4mfield[24m[1m=[4m[22mvalue[24m pairs.
 
               name        This is the minimal specification, used to select
                           one of the built-in shell specs; sh, ksh, and csh.
@@ -1759,4 +1759,4 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      attempt to suppress a cascade of unnecessary errors, can result in a
      seemingly unexplained `*** Error code 6'
 
-FreeBSD 13.0                   September 9, 2023                  FreeBSD 13.0
+FreeBSD 13.0                   December 24, 2023                  FreeBSD 13.0

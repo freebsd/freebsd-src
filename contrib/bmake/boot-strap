@@ -82,8 +82,22 @@
 #
 #	Possibly useful configure_args:
 #
+#	--without-makefile
+#		do not generate 'makefile'.
+#
+#		'makefile' is used to enable the classic
+#		'./configure; make; make install' dance, but on
+#		systems with case insensitive filesystems it can lead
+#		to infinite recursion.
+#
+#		It is disabled by default on Darwin, and Cygwin.
+#
 #	--without-meta
 #		disable use of meta mode.
+#
+#		Even without filemon(9) meta mode is very useful
+#		both for debugging build and improving reliability of
+#		update builds.
 #
 #	--without-filemon
 #		disable use of filemon(9) which is currently only
@@ -119,7 +133,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: boot-strap,v 1.58 2023/06/27 21:02:19 sjg Exp $
+#	$Id: boot-strap,v 1.59 2023/11/26 18:19:43 sjg Exp $
 #
 #	@(#) Copyright (c) 2001 Simon J. Gerraty
 #

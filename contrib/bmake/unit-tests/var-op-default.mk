@@ -1,4 +1,4 @@
-# $NetBSD: var-op-default.mk,v 1.3 2020/12/07 21:35:43 rillig Exp $
+# $NetBSD: var-op-default.mk,v 1.5 2023/11/19 22:32:44 rillig Exp $
 #
 # Tests for the ?= variable assignment operator, which only assigns
 # if the variable is still undefined.
@@ -45,7 +45,7 @@ i?=		default
 # and 'VAR.${param}' expand to 'VAR.param', and the second '?=' assignment
 # has no effect.
 #
-# Since 2000.05.11.07.43.42 it has been possible to use nested variable
+# Since 2000.05.11.07.43.42 it has been possible to use nested
 # expressions in variable names, which made make much more versatile.
 # On 2008.03.31.00.12.21, this particular case of the '?=' operator has been
 # fixed.  Before, the '?=' operator had not expanded the variable name
@@ -61,8 +61,8 @@ VAR.${:Uparam}?=	not used
 
 # Now demonstrate that the variable name is indeed expanded exactly once.
 # This is tricky to measure correctly since there are many inconsistencies
-# in and around the code that expands variable expressions in the various
-# places where variable expressions can occur.  If in doubt, enable the
+# in and around the code that expands expressions in the various
+# places where expressions can occur.  If in doubt, enable the
 # following debug flags to see what happens:
 #.MAKEFLAGS: -dcpv
 EXPAND_NAME=		EXPAND.$$$$	# The full variable name is EXPAND.$$

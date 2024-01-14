@@ -1,40 +1,46 @@
-# $NetBSD: varmod-assign.mk,v 1.15 2022/02/09 21:09:24 rillig Exp $
+# $NetBSD: varmod-assign.mk,v 1.19 2024/01/07 11:42:22 rillig Exp $
 #
 # Tests for the obscure ::= variable modifiers, which perform variable
 # assignments during evaluation, just like the = operator in C.
+
+.if !make(target)
 
 all:	mod-assign-empty
 all:	mod-assign-parse
 all:	mod-assign-shell-error
 
-# The modifier '::?=' applies the assignment operator '?=' 3 times. The
+# In the following loop expression,
+# the '::?=' modifier applies the assignment operator '?=' 3 times. The
 # operator '?=' only has an effect for the first time, therefore the variable
 # FIRST ends up with the value 1.
 .if "${1 2 3:L:@i@${FIRST::?=$i}@} first=${FIRST}" != " first=1"
 .  error
 .endif
 
-# The modifier '::=' applies the assignment operator '=' 3 times. The
+# In the following loop expression,
+# the modifier '::=' applies the assignment operator '=' 3 times. The
 # operator '=' overwrites the previous value, therefore the variable LAST ends
 # up with the value 3.
 .if "${1 2 3:L:@i@${LAST::=$i}@} last=${LAST}" != " last=3"
 .  error
 .endif
 
-# The modifier '::+=' applies the assignment operator '+=' 3 times. The
+# In the following loop expression,
+# the modifier '::+=' applies the assignment operator '+=' 3 times. The
 # operator '+=' appends 3 times to the variable, therefore the variable
 # APPENDED ends up with the value "1 2 3".
 .if "${1 2 3:L:@i@${APPENDED::+=$i}@} appended=${APPENDED}" != " appended=1 2 3"
 .  error
 .endif
 
-# The modifier '::!=' applies the assignment operator '!=' 3 times. Just as
+# In the following loop expression,
+# the modifier '::!=' applies the assignment operator '!=' 3 times. Just as
 # with the modifier '::=', the last value is stored in the RAN variable.
 .if "${1 2 3:L:@i@${RAN::!=${i:%=echo '<%>';}}@} ran=${RAN}" != " ran=<3>"
 .  error
 .endif
 
-# The assignments were performed as part of .if conditions and thus happened
+# When a '::=' modifier is evaluated as part of an .if condition, it happens
 # in the command line scope.
 .if "${FIRST}, ${LAST}, ${APPENDED}, ${RAN}" != "1, 3, 1 2 3, <3>"
 .  error
@@ -116,7 +122,7 @@ APPEND.dollar=		$${APPEND.indirect}
 .endif
 
 
-# The assignment modifier can be used in a variable expression that is
+# The assignment modifier can be used in an expression that is
 # enclosed in parentheses.  In such a case, parsing stops at the first ')',
 # not at the first '}'.
 VAR=	previous
@@ -149,3 +155,54 @@ ${VARNAME}=	initial-value	# Sets 'VAR.${param}' to 'expanded'.
 .  error
 .endif
 .MAKEFLAGS: -d0
+
+
+# Conditional directives are evaluated in command line scope.  An assignment
+# modifier that creates a new variable creates it in the command line scope.
+# Existing variables are updated in their previous scope, and environment
+# variables are created in the global scope, as in other situations.
+.MAKEFLAGS: CMD_CMD_VAR=cmd-value
+CMD_GLOBAL_VAR=global-value
+export CMD_ENV_VAR=env-value
+.MAKEFLAGS: -dv
+# expect-reset
+# expect: Command: CMD_CMD_VAR = new-value
+# expect: Global: CMD_GLOBAL_VAR = new-value
+# expect: Global: CMD_ENV_VAR = new-value
+# expect: Global: ignoring delete 'CMD_NEW_VAR' as it is not found
+# expect: Command: CMD_NEW_VAR = new-value
+.if ${CMD_CMD_VAR::=new-value} \
+  || ${CMD_GLOBAL_VAR::=new-value} \
+  || ${CMD_ENV_VAR::=new-value} \
+  || "${CMD_NEW_VAR::=new-value}"
+.  error
+.endif
+.MAKEFLAGS: -d0
+
+# Run the 'target' test in a separate sub-make, with reduced debug logging.
+all: run-target
+run-target: .PHONY
+	@${MAKE} -r -f ${MAKEFILE} -dv target 2>&1 | grep ': TARGET_'
+
+.else # make(target)
+
+# The commands of a target are evaluated in target scope.  An assignment
+# modifier that creates a new variable creates it in the target scope.
+# Existing variables are updated in their previous scope, and environment
+# variables are created in the global scope, as in other situations.
+#
+# expect: target: TARGET_TARGET_VAR = new-value
+# expect: Global: TARGET_GLOBAL_VAR = new-value
+# expect: Global: TARGET_ENV_VAR = new-value
+# expect: target: TARGET_NEW_VAR = new-value
+.MAKEFLAGS: TARGET_CMD_VAR=cmd-value
+TARGET_GLOBAL_VAR=global-value
+export TARGET_ENV_VAR=env-value
+target: .PHONY TARGET_TARGET_VAR=target-value
+	: ${TARGET_TARGET_VAR::=new-value}
+	: ${TARGET_CMD_VAR::=new-value}
+	: ${TARGET_GLOBAL_VAR::=new-value}
+	: ${TARGET_ENV_VAR::=new-value}
+	: ${TARGET_NEW_VAR::=new-value}
+
+.endif

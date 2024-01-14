@@ -3,7 +3,7 @@ false
 *** [nested] Error code 1
 
 make: stopped in unit-tests
-1 error
+make: 1 error
 
 make: stopped in unit-tests
 

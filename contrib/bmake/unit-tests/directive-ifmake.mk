@@ -1,4 +1,4 @@
-# $NetBSD: directive-ifmake.mk,v 1.11 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: directive-ifmake.mk,v 1.12 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for the .ifmake directive, which provides a shortcut for asking
 # whether a certain target is requested to be made from the command line.
@@ -75,7 +75,7 @@
 .  error
 .endif
 
-# A condition that consists of a variable expression only (without any
+# A condition that consists of an expression only (without any
 # comparison operator) can be used with .if and the other .ifxxx directives.
 .ifmake ${:Ufirst}
 # expect+1: ok

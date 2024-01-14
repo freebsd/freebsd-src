@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.59 2023/08/19 17:35:32 sjg Exp $
+# $Id: meta.autodep.mk,v 1.60 2024/01/09 23:42:22 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -305,7 +305,7 @@ ${_DEPENDFILE}: .PRECIOUS
 CLEANFILES += *.meta filemon.* *.db
 
 # these make it easy to gather some stats
-now_utc = ${%s:L:localtime}
+now_utc ?= ${%s:L:localtime}
 start_utc := ${now_utc}
 
 meta_stats= meta=${empty(.MAKE.META.FILES):?0:${.MAKE.META.FILES:[#]}} \

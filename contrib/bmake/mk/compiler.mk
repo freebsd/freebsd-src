@@ -1,4 +1,4 @@
-# $Id: compiler.mk,v 1.11 2022/09/09 17:44:29 sjg Exp $
+# $Id: compiler.mk,v 1.12 2023/10/03 18:47:48 sjg Exp $
 #
 #	@(#) Copyright (c) 2019, Simon J. Gerraty
 #
@@ -32,7 +32,7 @@ COMPILER_TYPE = gcc
 .endif
 .endif
 .if empty(COMPILER_VERSION)
-COMPILER_VERSION != echo "${_v:M[1-9].[0-9]*}:[1]" | \
+COMPILER_VERSION != echo "${_v:M[1-9][0-9]*.[0-9]*}:[1]" | \
 	awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3;}'
 .endif
 .undef _v

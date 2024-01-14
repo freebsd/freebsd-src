@@ -14,7 +14,7 @@ Modifier part: "${8_DOLLARS}"
 ModifyWords: split "$$$$$$$$" into 1 word
 Global: var = $$$$$$$$
 Var_Parse: ${8_DOLLARS} (eval-keep-undefined)
-ModifyWord_Loop: in "$$$$$$$$", replace "var" with "${8_DOLLARS}" to "$$$$"
+ModifyWord_Loop: expand "${8_DOLLARS}" to "$$$$"
 Global: delete var
 Result of ${VAR:@var@${8_DOLLARS}@} is "$$$$" (eval-keep-dollar-and-undefined, regular)
 Global: VAR = $$$$

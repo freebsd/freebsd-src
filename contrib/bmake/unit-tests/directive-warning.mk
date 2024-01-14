@@ -1,4 +1,4 @@
-# $NetBSD: directive-warning.mk,v 1.8 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: directive-warning.mk,v 1.9 2023/12/17 09:44:00 rillig Exp $
 #
 # Tests for the .warning directive.
 #
@@ -16,7 +16,7 @@
 .warnin	message			# misspelled
 # expect+1: Missing argument for ".warning"
 .warning			# "Missing argument"
-.warning message		# expect+0: message
+.warning message		# expect+0: warning: message
 # expect+1: Unknown directive "warnings"
 .warnings			# misspelled
 # expect+1: Unknown directive "warnings"

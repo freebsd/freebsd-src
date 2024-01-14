@@ -1,4 +1,4 @@
-# $NetBSD: recursive.mk,v 1.6 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: recursive.mk,v 1.7 2023/10/19 18:24:33 rillig Exp $
 #
 # In -dL mode, a variable may get expanded before it makes sense.
 # This would stop make from doing anything since the "recursive" error
@@ -8,21 +8,22 @@
 # whether there are unclosed variables.  The variable value is therefore
 # parsed with VARE_PARSE_ONLY for that purpose.
 #
-# Seen in pkgsrc/x11/libXfixes, and probably many more package that use
-# GNU Automake.
 
 .MAKEFLAGS: -dL
+
 
 AM_V_lt=	${am__v_lt_${V}}
 am__v_lt_=	${am__v_lt_${AM_DEFAULT_VERBOSITY}}
 am__v_lt_0=	--silent
 am__v_lt_1=
 
-# On 2020-08-06, make reported: "Variable am__v_lt_ is recursive."
+# Since parse.c 1.243 from 2020-07-31 and before parse.c 1.249 from
+# 2020-08-06, when make ran in -dL mode, it reported: "Variable am__v_lt_ is
+# recursive."
+#
+# Seen in pkgsrc/x11/libXfixes, and probably many more package that use
+# GNU Automake.
 libXfixes_la_LINK=	... ${AM_V_lt} ...
-
-# somewhere later ...
-AM_DEFAULT_VERBOSITY=	1
 
 
 # The purpose of the -dL flag is to detect unclosed variables.  This

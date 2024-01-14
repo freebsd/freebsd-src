@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.207 2023/09/09 16:44:03 sjg Exp $
+# $Id: Makefile,v 1.210 2024/01/08 18:28:08 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.341 2023/09/09 16:41:04 sjg Exp $
+# $NetBSD: Makefile,v 1.342 2024/01/07 02:07:44 sjg Exp $
 #
 # Unit tests for make(1)
 #
@@ -217,7 +217,7 @@ TESTS+=		hanoi-include
 TESTS+=		impsrc
 TESTS+=		include-main
 TESTS+=		job-flags
-#TESTS+=		job-output-long-lines
+TESTS+=		job-output-long-lines
 TESTS+=		job-output-null
 TESTS+=		jobs-empty-commands
 TESTS+=		jobs-empty-commands-error
@@ -249,7 +249,7 @@ TESTS+=		opt-debug-graph1
 TESTS+=		opt-debug-graph2
 TESTS+=		opt-debug-graph3
 TESTS+=		opt-debug-hash
-#TESTS+=		opt-debug-jobs
+TESTS+=		opt-debug-jobs
 TESTS+=		opt-debug-lint
 TESTS+=		opt-debug-loud
 TESTS+=		opt-debug-meta
@@ -821,6 +821,7 @@ _SED_CMDS+=	-e 's,${.OBJDIR},<curdir>,g' -e 's,${.OBJDIR:tA},<curdir>,g'
 _SED_CMDS+=	-e 's,^${TEST_MAKE:T:S,.,\\.,g}[][0-9]*:,make:,'
 _SED_CMDS+=	-e 's,${TEST_MAKE:S,.,\\.,g},make,'
 _SED_CMDS+=	-e 's,^usage: ${TEST_MAKE:T:S,.,\\.,g} ,usage: make ,'
+_SED_CMDS+=	-e 's,${TEST_MAKE:T:S,.,\\.,g}\(\[[1-9][0-9]*\]:\),make\1,'
 _SED_CMDS+=	-e 's,<curdir>/,,g'
 _SED_CMDS+=	-e 's,${UNIT_TESTS:S,.,\\.,g}/,,g'
 _SED_CMDS+=	-e '/MAKE_VERSION/d'

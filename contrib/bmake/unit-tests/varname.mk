@@ -1,4 +1,4 @@
-# $NetBSD: varname.mk,v 1.13 2023/08/19 11:09:02 rillig Exp $
+# $NetBSD: varname.mk,v 1.14 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for special variables, such as .MAKE or .PARSEDIR.
 # And for variable names in general.
@@ -12,7 +12,7 @@ VAR{{{}}}=	3 braces
 .  error
 .endif
 
-# In variable expressions, the parser works differently.  It doesn't treat
+# In expressions, the parser works differently.  It doesn't treat
 # braces and parentheses equally, therefore the first closing brace already
 # marks the end of the variable name.
 VARNAME=	VAR(((

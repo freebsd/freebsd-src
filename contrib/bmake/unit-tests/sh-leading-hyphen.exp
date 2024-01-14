@@ -6,6 +6,6 @@ unknown-command: not found
 *** Error code 127 (ignored)
 unknown-long-option 'needed for needshell in compat.c'
 unknown-long-option: not found
-whitespace in leading part
 *** Error code 127 (ignored)
+whitespace in leading part
 exit status 0

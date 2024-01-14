@@ -1,4 +1,4 @@
-# $NetBSD: var-op-assign.mk,v 1.10 2023/08/19 10:52:14 rillig Exp $
+# $NetBSD: var-op-assign.mk,v 1.11 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for the = variable assignment operator, which overwrites an existing
 # variable or creates it.
@@ -66,7 +66,7 @@ VARIABLE NAME=	variable value
 # neither contain parentheses nor braces.  This is only a side-effect from
 # the implementation of the parser, which cheats when parsing a variable
 # name.  It only counts parentheses and braces instead of properly parsing
-# nested variable expressions such as VAR.${param}.
+# nested expressions such as VAR.${param}.
 #
 VAR(spaces in parentheses)=	()
 VAR{spaces in braces}=		{}

@@ -1,4 +1,4 @@
-# $NetBSD: opt-debug-jobs.mk,v 1.5 2020/11/12 21:54:52 rillig Exp $
+# $NetBSD: opt-debug-jobs.mk,v 1.6 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for the -dj command line option, which adds debug logging about
 # running jobs in multiple shells.
@@ -11,7 +11,7 @@
 
 all:
 	# Only the actual command is logged.
-	# To see the evaluation of the variable expressions, use -dv.
+	# To see the evaluation of the expressions, use -dv.
 	: ${:Uexpanded} expression
 
 	# Undefined variables expand to empty strings.

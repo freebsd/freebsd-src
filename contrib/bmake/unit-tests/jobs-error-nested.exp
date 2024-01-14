@@ -3,13 +3,13 @@ false
 *** [nested] Error code 1
 
 make: stopped in unit-tests
-1 error
+make: 1 error
 
 make: stopped in unit-tests
 *** [all] Error code 2
 
 make: stopped in unit-tests
-1 error
+make: 1 error
 
 make: stopped in unit-tests
 exit status 2

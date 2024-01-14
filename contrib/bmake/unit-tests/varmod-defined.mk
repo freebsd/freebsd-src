@@ -1,4 +1,4 @@
-# $NetBSD: varmod-defined.mk,v 1.13 2022/08/24 20:22:10 rillig Exp $
+# $NetBSD: varmod-defined.mk,v 1.16 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for the :D variable modifier, which returns the given string
 # if the variable is defined.  It is closely related to the :U modifier.
@@ -46,10 +46,10 @@ DEF=	defined
 .  error
 .endif
 
-# Like in several other places in variable expressions, when
+# Like in several other places in expressions, when
 # ApplyModifier_Defined calls Var_Parse, double dollars lead to a parse
 # error that is silently ignored.  This makes all dollar signs disappear,
-# except for the last, which is a well-formed variable expression.
+# except for the last, which is a well-formed expression.
 #
 .if ${DEF:D$$$$$${DEF}} != "defined"
 .  error
@@ -58,7 +58,7 @@ DEF=	defined
 # Any other text is written without any further escaping.  In contrast
 # to the :M modifier, parentheses and braces do not need to be nested.
 # Instead, the :D modifier is implemented sanely by parsing nested
-# expressions as such, without trying any shortcuts. See ApplyModifier_Match
+# expressions as such, without trying any shortcuts. See ParseModifier_Match
 # for an inferior variant.
 #
 .if ${DEF:D!&((((} != "!&(((("
@@ -106,7 +106,7 @@ VAR:=		${VAR:@var@${8_DOLLARS}@}
 
 
 # Before var.c 1.1030 from 2022-08-24, the following expression caused an
-# out-of-bounds read when parsing the indirect ':D' modifier.
+# out-of-bounds read when parsing the indirect ':U' modifier.
 M_U_backslash:=	${:UU\\}
 .if ${:${M_U_backslash}} != "\\"
 .  error

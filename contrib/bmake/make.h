@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.325 2023/09/10 11:52:29 rillig Exp $	*/
+/*	$NetBSD: make.h,v 1.327 2023/12/17 09:02:26 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -882,7 +882,6 @@ void PrintLocation(FILE *, bool, const GNode *);
 void PrintStackTrace(bool);
 void Parse_Error(ParseErrorLevel, const char *, ...) MAKE_ATTR_PRINTFLIKE(2, 3);
 bool Parse_VarAssign(const char *, bool, GNode *) MAKE_ATTR_USE;
-void Parse_AddIncludeDir(const char *);
 void Parse_File(const char *, int);
 void Parse_PushInput(const char *, unsigned, unsigned, Buffer,
 		     struct ForLoop *);
@@ -1064,7 +1063,7 @@ void PrintOnError(GNode *, const char *);
 void Main_ExportMAKEFLAGS(bool);
 bool Main_SetObjdir(bool, const char *, ...) MAKE_ATTR_PRINTFLIKE(2, 3);
 int mkTempFile(const char *, char *, size_t) MAKE_ATTR_USE;
-int str2Lst_Append(StringList *, char *);
+void AppendWords(StringList *, char *);
 void GNode_FprintDetails(FILE *, const char *, const GNode *, const char *);
 bool GNode_ShouldExecute(GNode *gn) MAKE_ATTR_USE;
 

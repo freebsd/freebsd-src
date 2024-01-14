@@ -1,4 +1,4 @@
-# $NetBSD: directive-ifndef.mk,v 1.8 2023/06/19 20:44:06 rillig Exp $
+# $NetBSD: directive-ifndef.mk,v 1.9 2023/10/19 18:24:33 rillig Exp $
 #
 # Tests for the .ifndef directive, which can be used for multiple-inclusion
 # guards.  In contrast to C, where #ifndef and #define nicely line up the
@@ -49,5 +49,39 @@ DEFINED=
 .else
 .  error
 .endif
+
+
+# The negation from the 'if-not-defined' directive only applies to bare words,
+# but not to numbers, quoted strings or expressions.  Those are evaluated
+# without extra negation, just like in a plain '.if' directive.
+.ifndef 0
+.  error
+.endif
+.ifndef 1
+.else
+.  error
+.endif
+.ifndef ""
+.  error
+.endif
+.ifndef "word"
+.else
+.  error
+.endif
+.ifndef ${:UUNDEFINED}
+.else
+.  error
+.endif
+.ifndef ${:UDEFINED}
+.  error
+.endif
+.ifndef ${:U0}
+.  error
+.endif
+.ifndef ${:U1}
+.else
+.  error
+.endif
+
 
 all:

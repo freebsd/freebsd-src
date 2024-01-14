@@ -1,26 +1,26 @@
 Parsing line 10: ORIG_SHELL:=	${.SHELL}
 Global: ORIG_SHELL = # (empty)
 Var_Parse: ${.SHELL} (eval-keep-dollar-and-undefined)
-Global: delete .SHELL (not found)
+Global: ignoring delete '.SHELL' as it is not found
 Command: .SHELL = (details omitted)
 Global: ORIG_SHELL = (details omitted)
 Parsing line 12: .SHELL=		overwritten
-Global: .SHELL = overwritten
+Global: ignoring '.SHELL = overwritten' due to a command line variable of the same name
 CondParser_Eval: ${.SHELL} != ${ORIG_SHELL}
 Var_Parse: ${.SHELL} != ${ORIG_SHELL} (eval-defined)
 Var_Parse: ${ORIG_SHELL} (eval-defined)
 Comparing "(details omitted)" != "(details omitted)"
 Parsing line 19: .MAKEFLAGS: .SHELL+=appended
 ParseDependency(.MAKEFLAGS: .SHELL+=appended)
-Ignoring append to .SHELL since it is read-only
+Command: ignoring '.SHELL += appended' as it is read-only
 CondParser_Eval: ${.SHELL} != ${ORIG_SHELL}
 Var_Parse: ${.SHELL} != ${ORIG_SHELL} (eval-defined)
 Var_Parse: ${ORIG_SHELL} (eval-defined)
 Comparing "(details omitted)" != "(details omitted)"
 Parsing line 27: .undef .SHELL
-Global: delete .SHELL
+Global: ignoring delete '.SHELL' as it is not found
 Parsing line 28: .SHELL=		newly overwritten
-Global: .SHELL = newly overwritten
+Global: ignoring '.SHELL = newly overwritten' due to a command line variable of the same name
 CondParser_Eval: ${.SHELL} != ${ORIG_SHELL}
 Var_Parse: ${.SHELL} != ${ORIG_SHELL} (eval-defined)
 Var_Parse: ${ORIG_SHELL} (eval-defined)

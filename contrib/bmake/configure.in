@@ -1,11 +1,11 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.97 2023/07/25 20:12:32 sjg Exp $
+dnl	$Id: configure.in,v 1.101 2024/01/04 23:04:07 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 AC_PREREQ([2.71])
-AC_INIT([bmake],[20230723],[sjg@NetBSD.org])
+AC_INIT([bmake],[20240101],[sjg@NetBSD.org])
 AC_CONFIG_HEADERS(config.h)
 
 dnl make srcdir absolute
@@ -62,7 +62,7 @@ no)    ;;
 esac])
 dnl
 case "$OS" in
-CYGWIN*|MINGW*) use_makefile=no;;
+CYGWIN*|Darwin|MINGW*) use_makefile=no;;
 *) use_makefile=yes;;
 esac
 AC_ARG_WITH(makefile,
@@ -114,6 +114,13 @@ dev) ;;
 *) filemon_h=no;;
 esac
 ])
+dnl some systems have broken/incomplete strftime
+AC_ARG_WITH(bmake_strftime,
+[ --with-bmake-strftime force use of bmake strftime],
+[case "${withval}" in
+yes|no) bmake_strftime=$withval;;
+esac])
+dnl
 dnl echo "Note: use_meta=$use_meta use_filemon=$use_filemon filemon_h=$filemon_h" >&6
 case "$use_meta" in
 yes)
@@ -188,6 +195,9 @@ bmake_path_max=${bmake_path_max:-1024}
 if test $bmake_path_max -gt 1024; then
    # this is all we expect
    bmake_path_max=1024
+fi
+if test ${bmake_strftime:-no} = yes; then
+   CPPFLAGS="${CPPFLAGS} -DFORCE_BMAKE_STRFTIME"
 fi
 echo "Using: BMAKE_PATH_MAX=$bmake_path_max" >&6
 AC_SUBST(bmake_path_max)dnl

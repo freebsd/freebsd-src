@@ -16,6 +16,7 @@ make: *** deptgt-delete_on_error-regular-delete removed
 
 Stop.
 make: stopped in unit-tests
+*** Error code 1 (ignored)
 
 Parallel mode
 > deptgt-delete_on_error-regular; false
@@ -44,6 +45,5 @@ make: stopped in unit-tests
 *** [deptgt-delete_on_error-precious-delete] Error code 1
 
 make: stopped in unit-tests
-*** Error code 1 (ignored)
 *** Error code 1 (ignored)
 exit status 0

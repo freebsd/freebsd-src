@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.165 2023/08/19 17:35:32 sjg Exp $
+# $Id: dirdeps.mk,v 1.166 2024/01/05 23:16:34 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -754,7 +754,6 @@ _cache_script = echo '\# ${DEP_RELDIR}.${DEP_TARGET_SPEC}';
 # guard against _new_dirdeps being too big for a single command line
 _new_dirdeps := ${_build_all_dirs:@x@${target($x):?:$x}@:S,^${SRCTOP}/,,}
 _cache_xtra_deps := ${_build_xtra_dirs:S,^${SRCTOP}/,,}
-.export _cache_xtra_deps _new_dirdeps
 .if !empty(DIRDEPS_EXPORT_VARS) || !empty(DEP_EXPORT_VARS)
 # Discouraged, but there are always exceptions.
 # Handle it here rather than explain how.
@@ -804,15 +803,27 @@ ${_this_dir}.$m: ${_build_dirs:M*.$q}
 .if ${BUILD_DIRDEPS_CACHE} == "yes"
 .if !empty(_build_dirs)
 _cache_deps += ${_build_dirs:M*.$m:N${_this_dir}.$m:S,^${SRCTOP}/,,}
+# anything in _{build,env}_xtra_dirs is hooked to dirdeps: only
+.if ${MAKE_VERSION} < 20240105
 .if !empty(_cache_deps)
 .export _cache_deps
 _cache_script += for x in $$_cache_deps; do echo "	_{SRCTOP}/$$x \\"; done;
 .endif
-# anything in _{build,env}_xtra_dirs is hooked to dirdeps: only
+.export _cache_xtra_deps _new_dirdeps
 x!= echo; { echo; ${_cache_script} echo; echo '${_this_dir}.$m: $${DIRDEPS.${_this_dir}.$m}'; \
 	echo; echo 'dirdeps: ${_this_dir}.$m \'; \
 	for x in $$_cache_xtra_deps; do echo "	_{SRCTOP}/$$x \\"; done; \
 	echo; for x in $$_new_dirdeps; do echo "_{SRCTOP}/$$x: _DIRDEP_USE"; done; } >&3
+.else
+# we do not have the same limits on command lines
+.if !empty(_cache_deps)
+_cache_script += for x in ${_cache_deps}; do echo "	_{SRCTOP}/$$x \\"; done;
+.endif
+x!= echo; { echo; ${_cache_script} echo; echo '${_this_dir}.$m: $${DIRDEPS.${_this_dir}.$m}'; \
+	echo; echo 'dirdeps: ${_this_dir}.$m \'; \
+	for x in ${_cache_xtra_deps}; do echo "	_{SRCTOP}/$$x \\"; done; \
+	echo; for x in ${_new_dirdeps}; do echo "_{SRCTOP}/$$x: _DIRDEP_USE"; done; } >&3
+.endif
 .endif
 .else
 ${_this_dir}.$m: ${_build_dirs:M*.$m:N${_this_dir}.$m}

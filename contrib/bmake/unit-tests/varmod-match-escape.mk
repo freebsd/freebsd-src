@@ -1,8 +1,8 @@
-# $NetBSD: varmod-match-escape.mk,v 1.10 2023/06/23 04:56:54 rillig Exp $
+# $NetBSD: varmod-match-escape.mk,v 1.12 2023/11/19 21:47:52 rillig Exp $
 #
 # As of 2020-08-01, the :M and :N modifiers interpret backslashes differently,
-# depending on whether there was a variable expression somewhere before the
-# first backslash or not.  See ApplyModifier_Match, "copy = true".
+# depending on whether there was an expression somewhere before the
+# first backslash or not.  See ParseModifier_Match, "copy = true".
 #
 # Apart from the different and possibly confusing debug output, there is no
 # difference in behavior.  When parsing the modifier text, only \{, \} and \:
@@ -18,23 +18,23 @@ SPECIALS=	\: : \\ * \*
 .endif
 
 # And now both cases combined: A single modifier with both an escaped ':'
-# as well as a variable expression that expands to a ':'.
+# as well as an expression that expands to a ':'.
 #
-# XXX: As of 2020-11-01, when an escaped ':' occurs before the variable
+# XXX: As of 2020-11-01, when an escaped ':' occurs before the
 # expression, the whole modifier text is subject to unescaping '\:' to ':',
-# before the variable expression is expanded.  This means that the '\:' in
-# the variable expression is expanded as well, turning ${:U\:} into a simple
+# before the expression is expanded.  This means that the '\:' in
+# the expression is expanded as well, turning ${:U\:} into a simple
 # ${:U:}, which silently expands to an empty string, instead of generating
 # an error message.
 #
 # XXX: As of 2020-11-01, the modifier on the right-hand side of the
-# comparison is parsed differently though.  First, the variable expression
+# comparison is parsed differently though.  First, the expression
 # is parsed, resulting in ':' and needSubst=true.  After that, the escaped
 # ':' is seen, and this time, copy=true is not executed but stays copy=false.
 # Therefore the escaped ':' is kept as-is, and the final pattern becomes
 # ':\:'.
 #
-# If ApplyModifier_Match had used the same parsing algorithm as Var_Subst,
+# If ParseModifier_Match had used the same parsing algorithm as Var_Subst,
 # both patterns would end up as '::'.
 #
 VALUES=		: :: :\:
@@ -53,7 +53,7 @@ VALUES=		: :: :\:
 .endif
 
 # XXX: As of 2020-11-01, unlike all other variable modifiers, '\$' is not
-# parsed as an escaped '$'.  Instead, ApplyModifier_Match first scans for
+# parsed as an escaped '$'.  Instead, ParseModifier_Match first scans for
 # the ':' at the end of the modifier, which results in the pattern '\$'.
 # No unescaping takes place since the pattern neither contained '\:' nor
 # '\{' nor '\}'.  But the text is expanded, and a lonely '$' at the end

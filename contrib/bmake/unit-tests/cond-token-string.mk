@@ -1,4 +1,4 @@
-# $NetBSD: cond-token-string.mk,v 1.8 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: cond-token-string.mk,v 1.9 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for quoted string literals in .if conditions.
 #
@@ -26,7 +26,7 @@
 .endif
 
 # The 'x' produces a "Malformed conditional" since the left-hand side of a
-# comparison in an .if directive must be either a variable expression, a
+# comparison in an .if directive must be either an expression, a
 # quoted string literal or a number that starts with a digit.
 # expect+1: Malformed conditional (x${:Uvalue} == "")
 .if x${:Uvalue} == ""
@@ -73,8 +73,8 @@
 .endif
 
 .if "${:Uvalue}"
-# expect+1: A nonempty variable expression evaluates to true.
-.  info A nonempty variable expression evaluates to true.
+# expect+1: A nonempty expression evaluates to true.
+.  info A nonempty expression evaluates to true.
 .else
 .  error
 .endif
@@ -87,7 +87,7 @@
 .endif
 
 # A non-empty string evaluates to true, no matter if it's a literal string or
-# if it contains variable expressions.  The parentheses are not necessary for
+# if it contains expressions.  The parentheses are not necessary for
 # the parser, in this case their only purpose is to make the code harder to
 # read for humans.
 VAR=	value

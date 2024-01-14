@@ -1,4 +1,4 @@
-# $NetBSD: varmod-subst-regex.mk,v 1.7 2021/06/21 08:17:39 rillig Exp $
+# $NetBSD: varmod-subst-regex.mk,v 1.11 2023/12/18 11:13:51 rillig Exp $
 #
 # Tests for the :C,from,to, variable modifier.
 
@@ -10,7 +10,7 @@ all: mod-regex-limits
 all: mod-regex-errors
 all: unmatched-subexpression
 
-# The variable expression expands to 4 words.  Of these words, none matches
+# The expression expands to 4 words.  Of these words, none matches
 # the regular expression "a b" since these words don't contain any
 # whitespace.
 .if ${:Ua b b c:C,a b,,} != "a b b c"
@@ -18,7 +18,7 @@ all: unmatched-subexpression
 .endif
 
 # Using the '1' modifier does not change anything.  The '1' modifier just
-# means to apply at most 1 replacement in the whole variable expression.
+# means to apply at most 1 replacement in the whole expression.
 .if ${:Ua b b c:C,a b,,1} != "a b b c"
 .  error
 .endif
@@ -84,9 +84,54 @@ all: unmatched-subexpression
 .  error
 .endif
 
+
+# Like the ':S' modifier, the ':C' modifier matches on an expression
+# that contains no words at all, but only if the regular expression matches an
+# empty string, for example, when the regular expression is anchored at the
+# beginning or the end of the word.  An unanchored regular expression that
+# matches the empty string is uncommon in practice, as it would match before
+# each character of the word.
+.if "<${:U:S,,unanchored,}> <${:U:C,.?,unanchored,}>" != "<> <unanchored>"
+.  error
+.endif
+.if "<${:U:S,^,prefix,}> <${:U:C,^,prefix,}>" != "<prefix> <prefix>"
+.  error
+.endif
+.if "<${:U:S,$,suffix,}> <${:U:C,$,suffix,}>" != "<suffix> <suffix>"
+.  error
+.endif
+.if "<${:U:S,^$,whole,}> <${:U:C,^$,whole,}>" != "<whole> <whole>"
+.  error
+.endif
+.if "<${:U:S,,unanchored,g}> <${:U:C,.?,unanchored,g}>" != "<> <unanchored>"
+.  error
+.endif
+.if "<${:U:S,^,prefix,g}> <${:U:C,^,prefix,g}>" != "<prefix> <prefix>"
+.  error
+.endif
+.if "<${:U:S,$,suffix,g}> <${:U:C,$,suffix,g}>" != "<suffix> <suffix>"
+.  error
+.endif
+.if "<${:U:S,^$,whole,g}> <${:U:C,^$,whole,g}>" != "<whole> <whole>"
+.  error
+.endif
+.if "<${:U:S,,unanchored,W}> <${:U:C,.?,unanchored,W}>" != "<> <unanchored>"
+.  error
+.endif
+.if "<${:U:S,^,prefix,W}> <${:U:C,^,prefix,W}>" != "<prefix> <prefix>"
+.  error
+.endif
+.if "<${:U:S,$,suffix,W}> <${:U:C,$,suffix,W}>" != "<suffix> <suffix>"
+.  error
+.endif
+.if "<${:U:S,^$,whole,W}> <${:U:C,^$,whole,W}>" != "<whole> <whole>"
+.  error
+.endif
+
+
 # Multiple asterisks form an invalid regular expression.  This produces an
 # error message and (as of 2020-08-28) stops parsing in the middle of the
-# variable expression.  The unparsed part of the expression is then copied
+# expression.  The unparsed part of the expression is then copied
 # verbatim to the output, which is unexpected and can lead to strange shell
 # commands being run.
 mod-regex-compile-error:
@@ -101,7 +146,7 @@ mod-regex-limits:
 	@echo $@:22-missing:${:U1 23 456:C,(.).,\2\2,:Q}
 	@echo $@:22-ok:${:U1 23 456:C,(.)(.),\2\2,:Q}
 	# The :C modifier only handles single-digit capturing groups,
-	# which is more than enough for daily use.
+	# which is enough for all practical use cases.
 	@echo $@:capture:${:UabcdefghijABCDEFGHIJrest:C,(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.),\9\8\7\6\5\4\3\2\1\0\10\11\12,}
 
 mod-regex-errors:
@@ -109,7 +154,7 @@ mod-regex-errors:
 
 	# If the replacement pattern produces a parse error because of an
 	# unknown modifier, the parse error is ignored in ParseModifierPart
-	# and the faulty variable expression expands to "".
+	# and the faulty expression expands to "".
 	@echo $@: ${word:L:C,.*,x${:U:Z}y,W}
 
 # In regular expressions with alternatives, not all capturing groups are

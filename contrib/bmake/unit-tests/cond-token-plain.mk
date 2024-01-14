@@ -1,4 +1,4 @@
-# $NetBSD: cond-token-plain.mk,v 1.18 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: cond-token-plain.mk,v 1.19 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for plain tokens (that is, string literals without quotes)
 # in .if conditions.  These are also called bare words.
@@ -115,7 +115,7 @@ VAR=	defined
 .  error
 .endif
 
-# Bare words may be intermixed with variable expressions.
+# Bare words may be intermixed with expressions.
 .if V${:UA}R
 # expect+1: ok
 .  info ok
@@ -135,13 +135,13 @@ VAR=	defined
 .if 0${:Ux00}
 .  error
 .else
-# expect+1: Numbers can be composed from literals and variable expressions.
-.  info Numbers can be composed from literals and variable expressions.
+# expect+1: Numbers can be composed from literals and expressions.
+.  info Numbers can be composed from literals and expressions.
 .endif
 
 .if 0${:Ux01}
-# expect+1: Numbers can be composed from literals and variable expressions.
-.  info Numbers can be composed from literals and variable expressions.
+# expect+1: Numbers can be composed from literals and expressions.
+.  info Numbers can be composed from literals and expressions.
 .else
 .  error
 .endif
@@ -205,7 +205,7 @@ ${:U\\\\}=	backslash
 # expect+1: Malformed conditional (left == right)
 .if left == right
 .endif
-# Before cond.c 1.276 from 2021-09-21, a variable expression containing the
+# Before cond.c 1.276 from 2021-09-21, an expression containing the
 # modifier ':?:' allowed unquoted string literals for the rest of the
 # condition.  This was an unintended implementation mistake.
 # expect+1: Malformed conditional (${0:?:} || left == right)
@@ -245,7 +245,7 @@ ${:U\\\\}=	backslash
 # A different situation is when CondParser.leftUnquotedOK is true.  This
 # situation arises in expressions of the form ${cond:?yes:no}.  As of
 # 2021-12-30, the condition in such an expression is evaluated before parsing
-# the condition, see varmod-ifelse.mk.  To pass a variable expression to the
+# the condition, see varmod-ifelse.mk.  To pass an expression to the
 # condition parser, it needs to be escaped.  This rarely happens in practice,
 # in most cases the conditions are simple enough that it doesn't matter
 # whether the condition is first evaluated and then parsed, or vice versa.

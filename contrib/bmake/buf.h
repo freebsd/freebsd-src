@@ -1,4 +1,4 @@
-/*	$NetBSD: buf.h,v 1.48 2023/06/01 07:44:10 rillig Exp $	*/
+/*	$NetBSD: buf.h,v 1.49 2023/12/19 19:33:39 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -96,7 +96,7 @@ Buf_Clear(Buffer *buf)
 	buf->data[0] = '\0';
 }
 
-/* Buf_AddByte adds a single byte to a buffer. */
+/* Adds a single byte to a buffer. */
 MAKE_INLINE void
 Buf_AddByte(Buffer *buf, char byte)
 {
