@@ -170,7 +170,6 @@ MAN=	aac.4 \
 	genetlink.4 \
 	geom.4 \
 	geom_linux_lvm.4 \
-	geom_map.4 \
 	geom_uzip.4 \
 	gif.4 \
 	${_gve.4} \

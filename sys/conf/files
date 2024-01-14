@@ -3618,7 +3618,6 @@ geom/geom_event.c		standard
 geom/geom_flashmap.c		optional fdt cfi | fdt mx25l | mmcsd | fdt n25q | fdt at45d
 geom/geom_io.c			standard
 geom/geom_kern.c		standard
-geom/geom_map.c			optional geom_map
 geom/geom_redboot.c		optional geom_redboot
 geom/geom_slice.c		standard
 geom/geom_subr.c		standard
