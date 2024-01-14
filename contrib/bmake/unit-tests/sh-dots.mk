@@ -1,4 +1,4 @@
-# $NetBSD: sh-dots.mk,v 1.3 2020/10/25 22:04:24 rillig Exp $
+# $NetBSD: sh-dots.mk,v 1.4 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for the special shell command line "...", which does not run the
 # commands below it but appends them to the list of commands that are run
@@ -29,8 +29,8 @@ commented: .IGNORE
 	...	# Run the below commands later
 	@echo commented delayed ${.TARGET}
 
-# The dots don't have to be written literally, they can also come from a
-# variable expression.
+# The dots don't have to be written literally, they can also come from an
+# expression.
 indirect:
 	@echo indirect regular
 	${:U...}

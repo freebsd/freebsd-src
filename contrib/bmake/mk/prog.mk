@@ -1,4 +1,4 @@
-#	$Id: prog.mk,v 1.39 2023/04/20 23:45:56 sjg Exp $
+#	$Id: prog.mk,v 1.40 2023/10/02 21:35:43 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__: .NOTMAIN
@@ -75,11 +75,8 @@ ${CXX_SUFFIXES:%=%.o}:
 
 .if defined(PROG_CXX)
 PROG=		${PROG_CXX}
-_CCLINK=	${CXX}
 _SUPCXX?=	-lstdc++ -lm
 .endif
-
-_CCLINK?=	${CC}
 
 .if defined(PROG)
 BINDIR ?= ${prefix}/bin

@@ -1,3 +1,45 @@
+2024-01-05  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240105
+	* dirdeps.mk: for MAKE_VERSION 20240105 we do not have the same
+	limits on command line length, so skip export of lists to env.
+
+2023-12-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* man.mk: add logic for staging man pages
+
+2023-11-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* jobs.mk: avoid C suffix in JOB_MAX_C if factor is floating
+	point.  This keeps JOB_MAX numeric incase another makefile does
+	comparisons.
+
+2023-11-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dpadd.mk: add support for DPLIBS_QUALIFIER_LIST
+
+	* gendirdeps.mk: if META_XTRAS is passed to us, add to META_FILES
+
+2023-10-03  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* compiler.mk (COMPILER_VERSION): clang at least is into
+	double digit major versions.
+
+2023-10-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20231001
+
+	* set _CCLINK in init.mk so lib.mk can use it for default SHLIB_LD
+
+	* lib.mk (cleanlib): use LD_solink so we remove all the right files.
+	Use -Wl for -soname since we now default to linking with CC
+	We should not need SHLIB_LDSTARTFILE or SHLIB_LDENDFILE when linking
+	with CC.
+
+2023-09-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* init.mk (QUALIFIED_VAR_LIST): Add SRCS
+
 2023-09-09  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* jobs.mk (JOB_MAX): use -jC if we can

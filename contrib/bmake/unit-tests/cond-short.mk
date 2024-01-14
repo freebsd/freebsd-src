@@ -1,4 +1,4 @@
-# $NetBSD: cond-short.mk,v 1.20 2023/03/04 13:42:36 rillig Exp $
+# $NetBSD: cond-short.mk,v 1.23 2023/11/19 22:32:44 rillig Exp $
 #
 # Demonstrates that in conditions, the right-hand side of an && or ||
 # is only evaluated if it can actually influence the result.
@@ -9,9 +9,9 @@
 # Before 2020-06-28, the right-hand side of an && or || operator was always
 # evaluated, which was wrong.  In cond.c 1.69 and var.c 1.197 on 2015-10-11,
 # Var_Parse got a new parameter named 'wantit'.  Since then it would have been
-# possible to skip evaluation of irrelevant variable expressions and only
+# possible to skip evaluation of irrelevant expressions and only
 # parse them.  They were still evaluated though, the only difference to
-# relevant variable expressions was that in the irrelevant variable
+# relevant expressions was that in the irrelevant
 # expressions, undefined variables were allowed.  This allowed for conditions
 # like 'defined(VAR) && ${VAR:S,from,to,} != ""', which no longer produced an
 # error message 'Malformed conditional', but the irrelevant expression was
@@ -177,6 +177,23 @@ INDIR_UNDEF=	${UNDEF}
 .if defined(UNDEF) && ${INDIR_UNDEF:U2} < ${NUMBER}
 .  error
 .endif
+
+
+# Since cond.c 1.76 from 2020.06.28 and before var.c 1.225 from 2020.07.01,
+# the following snippet resulted in the error message 'Variable VAR is
+# recursive'.  The condition '0' evaluated to false, which made the right-hand
+# side of the '&&' irrelevant.  Back then, irrelevant condition parts were
+# still evaluated, but in "irrelevant mode", which allowed undefined variables
+# to occur in expressions.  In this mode, the variable name 'VAR' was
+# unnecessarily evaluated, resulting in the expression '${VAR${:U1}}'.  In
+# this expression, the variable name was 'VAR${:U1}', and of this variable
+# name, only the fixed part 'VAR' was evaluated, without the part '${:U1}'.
+# This partial evaluation led to the wrong error message about 'VAR' being
+# recursive.
+VAR=	${VAR${:U1}}
+.if 0 && !empty(VAR)
+.endif
+
 
 # Enclosing the expression in double quotes changes how that expression is
 # evaluated.  In irrelevant expressions that are enclosed in double quotes,

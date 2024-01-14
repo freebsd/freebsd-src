@@ -1,12 +1,12 @@
-# $NetBSD: directive-for-empty.mk,v 1.2 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: directive-for-empty.mk,v 1.3 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for .for loops containing conditions of the form 'empty(var:...)'.
 #
-# When a .for loop is expanded, variable expressions in the body of the loop
+# When a .for loop is expanded, expressions in the body of the loop
 # are replaced with expressions containing the variable values.  This
 # replacement is a bit naive but covers most of the practical cases.  The one
 # popular exception is the condition 'empty(var:Modifiers)', which does not
-# look like a variable expression and is thus not replaced.
+# look like an expression and is thus not replaced.
 #
 # See also:
 #	https://gnats.netbsd.org/43821
@@ -24,7 +24,7 @@
 .endfor
 
 
-# In conditions, the function call to 'empty' does not look like a variable
+# In conditions, the function call to 'empty' does not look like an
 # expression, therefore it is not replaced.  Since there is no global variable
 # named 'i', this expression makes for a leaky abstraction.  If the .for
 # variables were real variables, calling 'empty' would work on them as well.
@@ -51,8 +51,8 @@
 # loop would be naive and require many special cases, as there are many cases
 # that need to be considered when deciding whether the token 'empty' is a
 # function call or not, as demonstrated by the following examples.  For
-# variable expressions like '${i:Modifiers}', this is simpler as a single
-# dollar almost always starts a variable expression.  For counterexamples and
+# expressions like '${i:Modifiers}', this is simpler as a single
+# dollar almost always starts an expression.  For counterexamples and
 # edge cases, see directive-for-escape.mk.  Adding another such tricky detail
 # is out of the question.
 .MAKEFLAGS: -df

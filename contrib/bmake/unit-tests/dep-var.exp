@@ -22,7 +22,7 @@ Var_Parse: $): (parse-only)
 Global: .ALLTARGETS =  all ${DEF2} a-${DEF2}-b ${UNDEF3} 1-${INDIRECT_1}-1 $$) undef1 def2 a-def2-b 1-2-$INDIRECT_2-2-1 $)
 Global: .MAKEFLAGS =  -r -k -d v -d
 Global: .MAKEFLAGS =  -r -k -d v -d 0
-make: Malformed variable expression at "$)"
+make: Malformed expression at "$)"
 def2
 a-def2-b
 1-2-NDIRECT_2-2-1

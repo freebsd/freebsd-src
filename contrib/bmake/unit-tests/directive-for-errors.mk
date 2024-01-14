@@ -1,4 +1,4 @@
-# $NetBSD: directive-for-errors.mk,v 1.6 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: directive-for-errors.mk,v 1.9 2023/12/19 19:33:40 rillig Exp $
 #
 # Tests for error handling in .for loops.
 
@@ -9,7 +9,7 @@
 .fori in 1 2 3
 .  warning <${i}>
 .endfor
-# expect-2: <>
+# expect-2: warning: <>
 # expect-2: for-less endfor
 
 
@@ -35,7 +35,7 @@
 #
 # The '$$' was not replaced with the values '1' or '3' from the .for loop,
 # instead it was kept as-is, and when the .info directive expanded its
-# argument, each '$$' got replaced with a single '$'.  The "long variable
+# argument, each '$$' got replaced with a single '$'.  The "long
 # expression" ${$} got replaced though, even though this would be a parse
 # error everywhere outside a .for loop.
 ${:U\$}=	dollar		# see whether the "variable" '$' is local
@@ -67,7 +67,7 @@ ${:U\\}=	backslash	# see whether the "variable" '\' is local
 
 
 # The list of values after the 'in' may be empty, no matter if this emptiness
-# comes from an empty expansion or even from a syntactically empty line.
+# comes from an expanded expression or from a syntactically empty line.
 .for i in
 .  info Would be reached if there were items to loop over.
 .endfor
@@ -89,6 +89,6 @@ ${:U\\}=	backslash	# see whether the "variable" '\' is local
 .for i in 1 2 ${:U3:Z} 4
 .  warning Should not be reached.
 .endfor
-# expect-2: Should not be reached.
-# expect-3: Should not be reached.
-# expect-4: Should not be reached.
+# expect-2: warning: Should not be reached.
+# expect-3: warning: Should not be reached.
+# expect-4: warning: Should not be reached.

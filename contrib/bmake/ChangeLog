@@ -1,3 +1,105 @@
+2024-01-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240108
+	Merge with NetBSD make, pick up
+	o miscellaneous cleanups
+
+2024-01-06  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240106
+	Merge with NetBSD make, pick up
+	o fix duplicate progname when reporting an unknown target
+	o unit tests for Cmd_Exec using temp file
+
+2024-01-05  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240105
+	Merge with NetBSD make, pick up
+	o main.c: Cmd_Exec write cmd to a file if too big
+	avoid blowing commandline/env limits
+
+2024-01-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240101
+	o util.c: flesh out more of strftime
+	* configure.in: add --with-bmake-strftime
+	it is not a full implementation but enough to pass all
+	the unit-tests.
+	* parse.c: LoadFile do not append \n to empty buffer.
+
+2023-12-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20231230
+	Merge with NetBSD make, pick up
+	o simplify memory allocation for string buffers
+	o fix declared types of list nodes
+	o suff.c: clean up freeing of suffixes
+	o var.c: simplify debug message for the ':@var@...@' modifier
+	clean up variable handling
+
+2023-12-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20231226
+	Merge with NetBSD make, pick up
+	o compat.c: ensure make's output is correctly ordered with that of
+	the target when not going to a tty
+	o main.c: check for shellPath whether to call Shell_Init()
+
+2023-12-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20231224
+	Merge with NetBSD make, pick up
+	o compat.c: check for shellPath whether to call Shell_Init()
+	tweak the unit test to detect the bug thus fixed.
+	o make.1: do not claim .SHELL is only used by jobs mode.
+
+2023-12-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20231220
+	Merge with NetBSD make, pick up
+	o str.c: speed up pattern matching in the ':M' modifier
+	o var.c: fix confusing debug logging when deleting a variable
+	use consistent debug messages style when ignoring variables
+
+2023-12-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20231210
+	Merge with NetBSD make, pick up
+	o var.c: avoid segfault on empty :C match expression
+	explain in debug log why variable assignment is ignored.
+
+2023-12-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20231208
+	Merge with NetBSD make, pick up
+	o var.c: ensure fromCmd is set correctly for variables set on
+	command line.
+
+2023-11-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* configure.in: disable generation of 'makefile' for
+	Darwin by default.
+
+	* boot-strap: docuement --without-makefile
+
+2023-11-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20231124
+	Merge with NetBSD make, pick up
+	o main.c: cleanup processing of -j
+	fix lint warning about strchr
+	o var.c: more accurate error message for invalid ':mtime' argument
+	cleanup :[...] modifier
+	avoid reading beyond substring when comparing
+	o unit-tests cover all cases of :mtime, test and explain exporting
+	of variables
+	o cleanup comments
+
+2023-09-17  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* bsd.after-import.mk (ECHO_TAG): FreeBSD no longer uses
+	$FreeBSD$ tag, so avoid adding it.
+
 2023-09-09  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20230909

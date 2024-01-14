@@ -1,4 +1,4 @@
-# $NetBSD: directive.mk,v 1.8 2023/08/19 11:09:02 rillig Exp $
+# $NetBSD: directive.mk,v 1.9 2023/11/19 22:32:44 rillig Exp $
 #
 # Tests for the preprocessing directives, such as .if or .info.
 
@@ -13,7 +13,7 @@
 # expect+1: Unknown directive "indented"
 .	indented tab
 
-# Directives must be written directly, not indirectly via variable
+# Directives must be written directly, not indirectly via
 # expressions.
 # expect+1: Unknown directive ""
 .${:Uinfo} directives cannot be indirect

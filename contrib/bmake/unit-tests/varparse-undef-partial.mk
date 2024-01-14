@@ -1,7 +1,7 @@
-# $NetBSD: varparse-undef-partial.mk,v 1.3 2020/11/04 05:10:01 rillig Exp $
+# $NetBSD: varparse-undef-partial.mk,v 1.5 2024/01/07 11:39:04 rillig Exp $
 
 # When an undefined variable is expanded in a ':=' assignment, only the
-# initial '$' of the variable expression is skipped by the parser, while
+# initial '$' of the expression is skipped by the parser, while
 # the remaining expression is evaluated.  In edge cases this can lead to
 # a completely different interpretation of the partially expanded text.
 
@@ -11,11 +11,10 @@ PARAM=	:Q
 
 # The expression ${VAR.${PARAM}} refers to the variable named "VAR.:Q",
 # with the ":Q" being part of the name.  This variable is not defined,
-# therefore the initial '$' of that whole expression is skipped by the
-# parser (see Var_Subst, the Buf_AddByte in the else branch) and the rest
-# of the expression is expanded as usual.
+# therefore the initial '$' of that whole expression is skipped by the parser
+# (see VarSubstExpr) and the rest of the expression is expanded as usual.
 #
-# The resulting variable expression is ${VAR.:Q}, which means that the
+# The resulting expression is ${VAR.:Q}, which means that the
 # interpretation of the ":Q" has changed from being part of the variable
 # name to being a variable modifier.  This is a classical code injection.
 EVAL:=	${LIST}
@@ -37,7 +36,7 @@ ${:UVAR.\:Q}=	var-dot with parameter :Q
 # In contrast to the previous line, evaluating the original LIST again now
 # produces a different result since the variable named "VAR.:Q" is now
 # defined.  It is expanded as usual, interpreting the ":Q" as part of the
-# variable name, as would be expected from reading the variable expression.
+# variable name, as would be expected from reading the expression.
 EVAL:=	${LIST}
 .if ${EVAL} != "defined  var-dot with parameter :Q end"
 .  error ${EVAL}

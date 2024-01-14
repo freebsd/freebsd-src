@@ -35,9 +35,9 @@ make: "cond-token-plain.mk" line 121: ok
 CondParser_Eval: V${UNDEF}AR
 make: "cond-token-plain.mk" line 130: Undefined variables in bare words expand to an empty string.
 CondParser_Eval: 0${:Ux00}
-make: "cond-token-plain.mk" line 139: Numbers can be composed from literals and variable expressions.
+make: "cond-token-plain.mk" line 139: Numbers can be composed from literals and expressions.
 CondParser_Eval: 0${:Ux01}
-make: "cond-token-plain.mk" line 144: Numbers can be composed from literals and variable expressions.
+make: "cond-token-plain.mk" line 144: Numbers can be composed from literals and expressions.
 CondParser_Eval: "" ==
 make: "cond-token-plain.mk" line 151: Missing right-hand side of operator '=='
 CondParser_Eval: == ""

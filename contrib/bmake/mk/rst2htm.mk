@@ -1,4 +1,4 @@
-# $Id: rst2htm.mk,v 1.13 2023/09/13 18:55:42 sjg Exp $
+# $Id: rst2htm.mk,v 1.14 2023/09/19 22:27:28 sjg Exp $
 #
 #	@(#) Copyright (c) 2009, Simon J. Gerraty
 #
@@ -44,6 +44,7 @@ RST_SUFFIXES ?= .rst .txt
 CLEANFILES += ${HTMFILES} ${PDFFILES}
 
 html:	${HTMFILES}
+pdf:	${PDFFILES}
 
 .SUFFIXES: ${RST_SUFFIXES} .htm .pdf
 

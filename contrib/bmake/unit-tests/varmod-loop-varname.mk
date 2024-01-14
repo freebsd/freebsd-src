@@ -1,4 +1,4 @@
-# $NetBSD: varmod-loop-varname.mk,v 1.5 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: varmod-loop-varname.mk,v 1.6 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for the first part of the variable modifier ':@var@...@', which
 # contains the variable name to use during the loop.
@@ -112,7 +112,7 @@ RES3=		3
 #
 # As of 2020-10-18, the :@ modifier is implemented by actually setting a
 # variable in the scope of the expression and deleting it again after the
-# loop.  This is different from the .for loops, which substitute the variable
+# loop.  This is different from the .for loops, which substitute the
 # expression with ${:Uvalue}, leading to different unwanted side effects.
 #
 # To make the behavior more predictable, the :@ modifier should restore the

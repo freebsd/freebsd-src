@@ -1,4 +1,4 @@
-# $NetBSD: varmod-sysv.mk,v 1.15 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: varmod-sysv.mk,v 1.16 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for the variable modifier ':from=to', which replaces the suffix
 # "from" with "to".  It can also use '%' as a wildcard.
@@ -49,7 +49,7 @@
 .  error
 .endif
 
-# In the modifier ':from=to', both parts can contain variable expressions.
+# In the modifier ':from=to', both parts can contain expressions.
 .if ${one two:L:${:Uone}=${:U1}} != "1 two"
 .  error
 .endif
@@ -69,7 +69,7 @@
 .endif
 
 # The replacement string can contain spaces, thereby changing the number
-# of words in the variable expression.
+# of words in the expression.
 .if ${In:L:%=% ${:Uthe Sun}} != "In the Sun"
 .  error
 .endif
@@ -206,7 +206,7 @@
 .  error
 .endif
 
-# This is not a SysV modifier since the nested variable expression expands
+# This is not a SysV modifier since the nested expression expands
 # to an empty string.  The '=' in it should be irrelevant during parsing.
 # XXX: As of 2020-12-05, this expression generates an "Unfinished modifier"
 # error, while the correct error message would be "Unknown modifier" since
@@ -221,7 +221,7 @@
 # "fromto}...".  The next modifier is a SysV modifier.  ApplyModifier_SysV
 # parses the modifier as "from${:D=}to", ending at the '}'.  Next, the two
 # parts of the modifier are parsed using ParseModifierPart, which scans
-# differently, properly handling nested variable expressions.  The two parts
+# differently, properly handling nested expressions.  The two parts
 # are now "fromto}..." and "replaced".
 .if "${:Ufromto\}...:from${:D=}to}...=replaced}" != "replaced"
 .  error

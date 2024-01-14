@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.75 2023/09/11 05:20:23 sjg Exp $
+# $Id: lib.mk,v 1.81 2023/10/03 18:18:57 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__: .NOTMAIN
@@ -62,6 +62,10 @@ META_NOECHO?= echo
 #		 	(usually just ${CPPPICFLAGS} ${CPICFLAGS})
 # APICFLAGS:		flags for ${AS} to assemble .[sS] to ${PICO} objects.
 
+# we simplify life by letting the toolchain do most of the work
+# _CCLINK is set by init.mk based on whether we are doing C++ or not
+SHLIB_LD ?= ${_CCLINK}
+
 .if ${TARGET_OSNAME} == "NetBSD"
 .if ${MACHINE_ARCH} == "alpha"
 		# Alpha-specific shared library flags
@@ -111,7 +115,7 @@ APICFLAGS?= -k
 # Platform-independent linker flags for ELF shared libraries
 .if ${OBJECT_FMT} == "ELF"
 SHLIB_SOVERSION=	${SHLIB_MAJOR}
-SHLIB_SHFLAGS=		-soname lib${LIB}.so.${SHLIB_SOVERSION}
+SHLIB_SHFLAGS=		-Wl,-soname,lib${LIB}.so.${SHLIB_SOVERSION}
 SHLIB_LDSTARTFILE?=	/usr/lib/crtbeginS.o
 SHLIB_LDENDFILE?=	/usr/lib/crtendS.o
 .endif
@@ -125,7 +129,7 @@ LD_shared=${SHLIB_SHFLAGS}
 .if ${TARGET_OSNAME} == "FreeBSD"
 .if ${OBJECT_FMT} == "ELF"
 SHLIB_SOVERSION=	${SHLIB_MAJOR}
-SHLIB_SHFLAGS=		-soname lib${LIB}.so.${SHLIB_SOVERSION}
+SHLIB_SHFLAGS=		-Wl,-soname,lib${LIB}.so.${SHLIB_SOVERSION}
 .else
 SHLIB_SHFLAGS=		-assert pure-text
 .endif
@@ -168,7 +172,6 @@ AR_cq= -cqs
 .elif ${TARGET_OSNAME} == "FreeBSD"
 LD_solib= lib${LIB}_pic.a
 .elif ${TARGET_OSNAME} == "Linux"
-SHLIB_LD = ${CC}
 # this is ambiguous of course
 LD_shared=-shared -Wl,-soname,lib${LIB}.so.${SHLIB_MAJOR}
 LD_solib= -Wl,--whole-archive lib${LIB}_pic.a -Wl,--no-whole-archive
@@ -180,7 +183,6 @@ LD_pobjs = ${POBJS}
 LD_sobjs = ${SOBJS}
 .endif
 .elif ${TARGET_OSNAME} == "Darwin"
-SHLIB_LD = ${CC}
 SHLIB_INSTALL_VERSION ?= ${SHLIB_MAJOR}
 SHLIB_COMPATABILITY_VERSION ?= ${SHLIB_MAJOR}.${SHLIB_MINOR:U0}
 SHLIB_COMPATABILITY ?= \
@@ -212,8 +214,6 @@ PICFLAG ?= -fPIC -fno-common
 .endif
 RANLIB = :
 .endif
-
-SHLIB_LD ?= ${LD}
 
 .if !empty(SHLIB_MAJOR)
 .if ${NEED_SOLINKS} && empty(SHLIB_LINKS)
@@ -441,8 +441,6 @@ lib${LIB}_pic.a: ${SOBJS}
 	@${AR} ${AR_cq} ${.TARGET} ${LD_sobjs}
 	${RANLIB} ${.TARGET}
 
-#SHLIB_LDADD?= ${LDADD}
-
 # bound to be non-portable...
 # this is known to work for NetBSD 1.6 and FreeBSD 4.2
 lib${LIB}.${LD_so}: ${SOLIB} ${DPADD}
@@ -450,10 +448,9 @@ lib${LIB}.${LD_so}: ${SOLIB} ${DPADD}
 	@rm -f ${.TARGET}
 .if ${TARGET_OSNAME:NFreeBSD:NNetBSD} == ""
 .if ${OBJECT_FMT} == "ELF"
-	${SHLIB_LD} -x -shared ${SHLIB_SHFLAGS} ${LDFLAGS} -o ${.TARGET} \
-	    ${SHLIB_LDSTARTFILE} \
-	    --whole-archive ${SOLIB} --no-whole-archive \
-	    ${LDADD} ${SHLIB_LDADD} ${SHLIB_LDENDFILE}
+	${SHLIB_LD} -shared -Wl,-x ${SHLIB_SHFLAGS} ${LDFLAGS} -o ${.TARGET} \
+	    -Wl,--whole-archive ${SOLIB} -Wl,--no-whole-archive \
+	    ${LDADD} ${SHLIB_LDADD}
 .else
 	${SHLIB_LD} ${LD_x} ${LD_shared} ${LDFLAGS} \
 	    -o ${.TARGET} ${SOLIB} ${LDADD} ${SHLIB_LDADD}
@@ -480,7 +477,7 @@ cleanlib: .PHONY
 	rm -f a.out [Ee]rrs mklog core *.core ${CLEANFILES}
 	rm -f lib${LIB}.a ${OBJS}
 	rm -f lib${LIB}_p.a ${POBJS}
-	rm -f lib${LIB}_pic.a lib${LIB}.so.*.* ${SOBJS}
+	rm -f lib${LIB}_pic.a lib${LIB}*${LD_solink} lib${LIB}*${LD_solink}.* ${SOBJS}
 	rm -f llib-l${LIB}.ln ${LOBJS}
 .if !empty(SHLIB_LINKS)
 	rm -f ${SHLIB_LINKS}
