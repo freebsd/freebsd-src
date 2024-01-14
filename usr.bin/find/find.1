@@ -759,7 +759,7 @@ Slashes
 .Pq Dq Li /
 are treated as normal characters and do not have to be
 matched explicitly.
-.It Ic -perm Oo Cm - Ns | Ns Cm + Oc Ns Ar mode
+.It Ic -perm Oo Cm - Ns | Ns Cm + Ns | Ns Cm / Oc Ns Ar mode
 The
 .Ar mode
 may be either symbolic (see
@@ -788,7 +788,10 @@ are set in the file's mode bits.
 If the
 .Ar mode
 is preceded by a plus
-.Pq Dq Li + ,
+.Pq Dq Li +
+or a slash
+.Pq Dq Li /
+(for GNU compatibility),
 this primary evaluates to true
 if any of the bits in the
 .Ar mode
