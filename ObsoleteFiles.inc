@@ -59,6 +59,9 @@ OLD_FILES+=usr/tests/usr.bin/uniq/d_input.in
 OLD_FILES+=usr/tests/usr.bin/uniq/d_show_duplicates.out
 OLD_FILES+=usr/tests/usr.bin/uniq/d_show_uniques.out
 
+# 20240114: Removal of geom_map(4)
+OLD_FILES+=usr/share/man/man4/geom_map.4
+
 # 20240107: new clang import which bumps version from 16 to 17
 OLD_FILES+=usr/lib/clang/16/include/__clang_cuda_builtin_vars.h
 OLD_FILES+=usr/lib/clang/16/include/__clang_cuda_cmath.h
