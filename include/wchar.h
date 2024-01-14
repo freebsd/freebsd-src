@@ -156,8 +156,7 @@ wchar_t	*wcsrchr(const wchar_t *, wchar_t) __pure;
 size_t	wcsrtombs(char * __restrict, const wchar_t ** __restrict, size_t,
 	    mbstate_t * __restrict);
 size_t	wcsspn(const wchar_t *, const wchar_t *) __pure;
-wchar_t	*wcsstr(const wchar_t * __restrict, const wchar_t * __restrict)
-	    __pure;
+wchar_t *wcsstr(const wchar_t *, const wchar_t *) __pure;
 size_t	wcsxfrm(wchar_t * __restrict, const wchar_t * __restrict, size_t);
 int	wctob(wint_t);
 double	wcstod(const wchar_t * __restrict, wchar_t ** __restrict);
