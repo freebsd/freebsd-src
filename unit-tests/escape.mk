@@ -1,4 +1,4 @@
-# $NetBSD: escape.mk,v 1.14 2020/11/03 17:38:45 rillig Exp $
+# $NetBSD: escape.mk,v 1.15 2023/10/19 18:24:33 rillig Exp $
 #
 # Test backslash escaping.
 
@@ -53,7 +53,7 @@ should continue the comment. \
 
 __printvars: .USE .MADE
 	@echo ${.TARGET}
-	${.ALLSRC:@v@ printf "%s=:%s:\n" ${v:Q} ${${v}:Q}; @}
+	@${.ALLSRC:@v@ printf "%s=:%s:\n" ${v:Q} ${${v}:Q}; @}
 
 # Embedded backslash in variable should be taken literally.
 #
@@ -83,7 +83,8 @@ all: var-2bs
 var-2bs: .PHONY __printvars VAR2BS VAR2BSa VAR2BSA VAR2BSda VAR2BSdA \
 	VAR2BSc VAR2BSsc
 
-# Backslash-newline in a variable setting is replaced by a single space.
+# In a variable assignment, when the sequence <backslash><newline> occurs at
+# the end of a physical line, it is replaced with a single space.
 #
 VAR1BSNL=	111\
 111

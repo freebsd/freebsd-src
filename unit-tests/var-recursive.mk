@@ -1,6 +1,6 @@
-# $NetBSD: var-recursive.mk,v 1.5 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: var-recursive.mk,v 1.6 2023/11/19 21:47:52 rillig Exp $
 #
-# Tests for variable expressions that refer to themselves and thus
+# Tests for expressions that refer to themselves and thus
 # cannot be evaluated.
 
 TESTS=	direct indirect conditional short target

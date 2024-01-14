@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.282 2023/06/23 04:56:54 rillig Exp $	*/
+/*	$NetBSD: dir.c,v 1.286 2023/12/29 18:53:24 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -83,7 +83,7 @@
  *
  *	Dir_End		Clean up the module.
  *
- *	Dir_SetPATH	Set ${.PATH} to reflect state of dirSearchPath.
+ *	Dir_SetPATH	Set ${.PATH} to reflect the state of dirSearchPath.
  *
  *	Dir_HasWildcards
  *			Returns true if the name given it needs to
@@ -94,13 +94,12 @@
  *			from the search path.
  *
  *	Dir_FindFile	Searches for a file on a given search path.
- *			If it exists, the entire path is returned.
- *			Otherwise NULL is returned.
+ *			If it exists, returns the entire path, otherwise NULL.
  *
  *	Dir_FindHereOrAbove
- *			Search for a path in the current directory and
- *			then all the directories above it in turn until
- *			the path is found or we reach the root ("/").
+ *			Search for a path in the current directory and then
+ *			all the directories above it in turn, until the path
+ *			is found or the root directory ("/") is reached.
  *
  *	Dir_UpdateMTime
  *			Update the modification time and path of a node with
@@ -113,11 +112,6 @@
  *			a string with each of the directories in the path
  *			preceded by the command flag and all of them
  *			separated by a space.
- *
- *	Dir_Destroy	Destroy an element of a search path. Frees up all
- *			things that can be freed for the element as long
- *			as the element is no longer referenced by any other
- *			search path.
  *
  *	SearchPath_Clear
  *			Resets a search path to the empty list.
@@ -138,7 +132,7 @@
 #include "job.h"
 
 /*	"@(#)dir.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: dir.c,v 1.282 2023/06/23 04:56:54 rillig Exp $");
+MAKE_RCSID("$NetBSD: dir.c,v 1.286 2023/12/29 18:53:24 rillig Exp $");
 
 /*
  * A search path is a list of CachedDir structures. A CachedDir has in it the
@@ -152,26 +146,21 @@ MAKE_RCSID("$NetBSD: dir.c,v 1.282 2023/06/23 04:56:54 rillig Exp $");
  * All previously-read directories are kept in openDirs, which is checked
  * first before a directory is opened.
  *
- * The need for the caching of whole directories is brought about by the
- * multi-level transformation code in suff.c, which tends to search for far
- * more files than regular make does. In the initial implementation, the
- * amount of time spent performing "stat" calls was truly astronomical.
- * The problem with caching at the start is, of course, that pmake doesn't
- * then detect changes to these directories during the course of the make.
- * Three possibilities suggest themselves:
+ * This cache is used by the multi-level transformation code in suff.c, which
+ * tends to search for far more files than in regular explicit targets. After
+ * a directory has been cached, any later changes to that directory are not
+ * reflected in the cache. To keep the cache up to date, there are several
+ * ideas:
  *
  * 1)	just use stat to test for a file's existence. As mentioned above,
- *	this is very inefficient due to the number of checks engendered by
+ *	this is very inefficient due to the number of checks performed by
  *	the multi-level transformation code.
  *
- * 2)	use readdir() and company to search the directories, keeping them
- *	open between checks. I have tried this and while it didn't slow down
- *	the process too much, it could severely affect the amount of
- *	parallelism available as each directory open would take another file
- *	descriptor out of play for handling I/O for another job. Given that
- *	it is only recently (as of 1993 or earlier) that UNIX OS's have taken
- *	to allowing more than 20 or 32 file descriptors for a process, this
- *	doesn't seem acceptable to me.
+ * 2)	use readdir() to search the directories, keeping them open between
+ *	checks. Around 1993 or earlier, this didn't slow down the process too
+ *	much, but it consumed one file descriptor per open directory, which
+ *	was critical on the then-current operating systems, as many limited
+ *	the number of open file descriptors to 20 or 32.
  *
  * 3)	record the mtime of the directory in the CachedDir structure and
  *	verify the directory hasn't changed since the contents were cached.
@@ -184,9 +173,9 @@ MAKE_RCSID("$NetBSD: dir.c,v 1.282 2023/06/23 04:56:54 rillig Exp $");
  *	number of reloadings and if the number goes over a (small) limit,
  *	resort to using stat in its place.
  *
- * An additional thing to consider is that pmake is used primarily to create
- * C programs and until recently (as of 1993 or earlier) pcc-based compilers
- * refused to allow you to specify where the resulting object file should be
+ * An additional thing to consider is that make is used primarily to create
+ * C programs and until recently (as of 1993 or earlier), pcc-based compilers
+ * didn't have an option to specify where the resulting object file should be
  * placed. This forced all objects to be created in the current directory.
  * This isn't meant as a full excuse, just an explanation of some of the
  * reasons for the caching used here.
@@ -212,7 +201,7 @@ MAKE_RCSID("$NetBSD: dir.c,v 1.282 2023/06/23 04:56:54 rillig Exp $");
 /* A cache for the filenames in a directory. */
 struct CachedDir {
 	/*
-	 * Name of directory, either absolute or relative to the current
+	 * Name of the directory, either absolute or relative to the current
 	 * directory. The name is not normalized in any way, that is, "."
 	 * and "./." are different.
 	 *
@@ -237,8 +226,6 @@ struct CachedDir {
 
 typedef List CachedDirList;
 typedef ListNode CachedDirListNode;
-
-typedef ListNode SearchPathNode;
 
 /* A list of cached directories, with fast lookup by directory name. */
 typedef struct OpenDirs {
@@ -273,8 +260,7 @@ static CachedDir *dotLast = NULL;
  *
  * XXX: If this is done way early, there's a chance other rules will have
  * already updated the file, in which case we'll update it again. Generally,
- * there won't be two rules to update a single file, so this should be ok,
- * but...
+ * there won't be two rules to update a single file, so this should be ok.
  */
 static HashTable mtimes;
 
@@ -338,7 +324,7 @@ CachedDir_Unref(CachedDir *dir)
 	free(dir);
 }
 
-/* Update the value of the CachedDir variable, updating the reference counts. */
+/* Update the value of 'var', updating the reference counts. */
 static void
 CachedDir_Assign(CachedDir **var, CachedDir *dir)
 {
@@ -475,9 +461,7 @@ Dir_Init(void)
 	CachedDir_Assign(&dotLast, CachedDir_New(".DOTLAST"));
 }
 
-/*
- * Called by Dir_InitDir and whenever .CURDIR is assigned to.
- */
+/* Called by Dir_InitDir and whenever .CURDIR is assigned to. */
 void
 Dir_InitCur(const char *newCurdir)
 {
@@ -487,7 +471,7 @@ Dir_InitCur(const char *newCurdir)
 		return;
 
 	/*
-	 * Our build directory is not the same as our source directory.
+	 * The build directory is not the same as the source directory.
 	 * Keep this one around too.
 	 */
 	dir = SearchPath_Add(NULL, newCurdir);
@@ -498,7 +482,7 @@ Dir_InitCur(const char *newCurdir)
 }
 
 /*
- * (Re)initialize "dot" (current/object directory) path hash.
+ * (Re)initialize "dot" (the current/object directory).
  * Some directories may be cached.
  */
 void
@@ -599,8 +583,6 @@ Dir_SetSYSPATH(void)
  * XXX: This code is not 100% correct ([^]] fails etc.). I really don't think
  * that make(1) should be expanding patterns, because then you have to set a
  * mechanism for escaping the expansion!
- *
- * Return true if the word should be expanded, false otherwise.
  */
 bool
 Dir_HasWildcards(const char *name)
@@ -637,20 +619,14 @@ Dir_HasWildcards(const char *name)
 }
 
 /*
- * See if any files match the pattern and add their names to the 'expansions'
- * list if they do.
+ * See if any files as seen from 'dir' match 'pattern', and add their names
+ * to 'expansions' if they do.
  *
- * This is incomplete -- wildcards are only expanded in the final path
- * component, but not in directories like src/lib*c/file*.c, but it
- * will do for now (now being 1993 until at least 2020). To expand these,
+ * Wildcards are only expanded in the final path component, but not in
+ * directories like src/lib*c/file*.c. To expand these wildcards,
  * delegate the work to the shell, using the '!=' variable assignment
  * operator, the ':sh' variable modifier or the ':!...!' variable modifier,
  * such as in ${:!echo src/lib*c/file*.c!}.
- *
- * Input:
- *	pattern		Pattern to look for
- *	dir		Directory to search
- *	expansion	Place to store the results
  */
 static void
 DirMatchFiles(const char *pattern, CachedDir *dir, StringList *expansions)
@@ -696,21 +672,18 @@ DirMatchFiles(const char *pattern, CachedDir *dir, StringList *expansions)
 	}
 }
 
-/*
- * Find the next closing brace in the string, taking nested braces into
- * account.
- */
+/* Find the next closing brace in 'p', taking nested braces into account. */
 static const char *
 closing_brace(const char *p)
 {
-	int nest = 0;
+	int depth = 0;
 	while (*p != '\0') {
-		if (*p == '}' && nest == 0)
+		if (*p == '}' && depth == 0)
 			break;
 		if (*p == '{')
-			nest++;
+			depth++;
 		if (*p == '}')
-			nest--;
+			depth--;
 		p++;
 	}
 	return p;
@@ -723,14 +696,14 @@ closing_brace(const char *p)
 static const char *
 separator_comma(const char *p)
 {
-	int nest = 0;
+	int depth = 0;
 	while (*p != '\0') {
-		if ((*p == '}' || *p == ',') && nest == 0)
+		if ((*p == '}' || *p == ',') && depth == 0)
 			break;
 		if (*p == '{')
-			nest++;
+			depth++;
 		if (*p == '}')
-			nest--;
+			depth--;
 		p++;
 	}
 	return p;
@@ -787,7 +760,7 @@ DirExpandCurly(const char *word, const char *brace, SearchPath *path,
 	const char *prefix, *middle, *piece, *middle_end, *suffix;
 	size_t prefix_len, suffix_len;
 
-	/* Split the word into prefix '{' middle '}' suffix. */
+	/* Split the word into prefix, '{', middle, '}' and suffix. */
 
 	middle = brace + 1;
 	middle_end = closing_brace(middle);
@@ -824,11 +797,11 @@ DirExpandCurly(const char *word, const char *brace, SearchPath *path,
 }
 
 
-/* Expand the pattern in each of the directories from the path. */
+/* Expand 'pattern' in each of the directories from 'path'. */
 static void
 DirExpandPath(const char *pattern, SearchPath *path, StringList *expansions)
 {
-	SearchPathNode *ln;
+	CachedDirListNode *ln;
 	for (ln = path->dirs.first; ln != NULL; ln = ln->next) {
 		CachedDir *dir = ln->datum;
 		DirMatchFiles(pattern, dir, expansions);
@@ -861,11 +834,6 @@ SearchPath_ExpandMiddle(SearchPath *path, const char *pattern,
 
 	prefix = bmake_strsedup(pattern, wildcardComponent + 1);
 	/*
-	 * XXX: Check the "the directory is added to the path" part.
-	 * It is probably surprising that the directory before a
-	 * wildcard gets added to the path.
-	 */
-	/*
 	 * XXX: Only the first match of the prefix in the path is
 	 * taken, any others are ignored.  The expectation may be
 	 * that the pattern is expanded in the whole path.
@@ -880,7 +848,7 @@ SearchPath_ExpandMiddle(SearchPath *path, const char *pattern,
 	 * path contains ../Etc/Object and we're looking for Etc, it won't
 	 * be found.  Ah well.  Probably not important.
 	 *
-	 * XXX: Check whether the above comment is still true.
+	 * TODO: Check whether the above comment is still true.
 	 */
 	if (dirpath == NULL)
 		return;
@@ -921,15 +889,9 @@ SearchPath_Expand(SearchPath *path, const char *pattern, StringList *expansions)
 		goto done;
 	}
 
-	/* At this point, the pattern does not contain '{'. */
-
 	slash = strchr(pattern, '/');
 	if (slash == NULL) {
-		/* The pattern has no directory component. */
-
-		/* First the files in dot. */
 		DirMatchFiles(pattern, dot, expansions);
-		/* Then the files in every other directory on the path. */
 		DirExpandPath(pattern, path, expansions);
 		goto done;
 	}
@@ -972,13 +934,13 @@ done:
 }
 
 /*
- * Find if the file with the given name exists in the given path.
+ * Find if 'base' exists in 'dir'.
  * Return the freshly allocated path to the file, or NULL.
  */
 static char *
 DirLookup(CachedDir *dir, const char *base)
 {
-	char *file;		/* the current filename to check */
+	char *file;
 
 	DEBUG1(DIR, "   %s ...\n", dir->name);
 
@@ -994,7 +956,7 @@ DirLookup(CachedDir *dir, const char *base)
 
 
 /*
- * Find if the file with the given name exists in the given directory.
+ * Find if 'name' exists in 'dir'.
  * Return the freshly allocated path to the file, or NULL.
  */
 static char *
@@ -1016,12 +978,12 @@ DirLookupSubdir(CachedDir *dir, const char *name)
 }
 
 /*
- * Find if the file with the given name exists in the given path.
- * Return the freshly allocated path to the file, the empty string, or NULL.
- * Returning the empty string means that the search should be terminated.
+ * Find if 'name' (which has basename 'base') exists in 'dir'.
+ * Return the freshly allocated path to the file, an empty string, or NULL.
+ * Returning an empty string means that the search should be terminated.
  */
 static char *
-DirLookupAbs(CachedDir *dir, const char *name, const char *cp)
+DirLookupAbs(CachedDir *dir, const char *name, const char *base)
 {
 	const char *dnp;	/* pointer into dir->name */
 	const char *np;		/* pointer into name */
@@ -1037,10 +999,10 @@ DirLookupAbs(CachedDir *dir, const char *name, const char *cp)
 	for (dnp = dir->name, np = name;
 	     *dnp != '\0' && *dnp == *np; dnp++, np++)
 		continue;
-	if (*dnp != '\0' || np != cp - 1)
+	if (*dnp != '\0' || np != base - 1)
 		return NULL;
 
-	if (!HashSet_Contains(&dir->files, cp)) {
+	if (!HashSet_Contains(&dir->files, base)) {
 		DEBUG0(DIR, "   must be here but isn't -- returning\n");
 		return bmake_strdup("");	/* to terminate the search */
 	}
@@ -1080,7 +1042,7 @@ static bool
 FindFileRelative(SearchPath *path, bool seenDotLast,
 		 const char *name, char **out_file)
 {
-	SearchPathNode *ln;
+	CachedDirListNode *ln;
 	bool checkedDot = false;
 	char *file;
 
@@ -1090,11 +1052,11 @@ FindFileRelative(SearchPath *path, bool seenDotLast,
 		if (dot != NULL) {
 			checkedDot = true;
 			if ((file = DirLookupSubdir(dot, name)) != NULL)
-				goto found;
+				goto done;
 		}
 		if (cur != NULL &&
 		    (file = DirLookupSubdir(cur, name)) != NULL)
-			goto found;
+			goto done;
 	}
 
 	for (ln = path->dirs.first; ln != NULL; ln = ln->next) {
@@ -1107,18 +1069,18 @@ FindFileRelative(SearchPath *path, bool seenDotLast,
 			checkedDot = true;
 		}
 		if ((file = DirLookupSubdir(dir, name)) != NULL)
-			goto found;
+			goto done;
 	}
 
 	if (seenDotLast) {
 		if (dot != NULL && !checkedDot) {
 			checkedDot = true;
 			if ((file = DirLookupSubdir(dot, name)) != NULL)
-				goto found;
+				goto done;
 		}
 		if (cur != NULL &&
 		    (file = DirLookupSubdir(cur, name)) != NULL)
-			goto found;
+			goto done;
 	}
 
 	if (checkedDot) {
@@ -1128,12 +1090,12 @@ FindFileRelative(SearchPath *path, bool seenDotLast,
 		 */
 		DEBUG0(DIR, "   Checked . already, returning NULL\n");
 		file = NULL;
-		goto found;
+		goto done;
 	}
 
 	return false;
 
-found:
+done:
 	*out_file = file;
 	return true;
 }
@@ -1143,18 +1105,8 @@ FindFileAbsolute(SearchPath *path, bool seenDotLast,
 		 const char *name, const char *base, char **out_file)
 {
 	char *file;
-	SearchPathNode *ln;
+	CachedDirListNode *ln;
 
-	/*
-	 * For absolute names, compare directory path prefix against
-	 * the the directory path of each member on the search path
-	 * for an exact match. If we have an exact match on any member
-	 * of the search path, use the cached contents of that member
-	 * to lookup the final file component. If that lookup fails we
-	 * can safely assume that the file does not exist at all.
-	 * This is signified by DirLookupAbs() returning an empty
-	 * string.
-	 */
 	DEBUG0(DIR, "   Trying exact path matches...\n");
 
 	if (!seenDotLast && cur != NULL &&
@@ -1187,13 +1139,6 @@ found:
 /*
  * Find the file with the given name along the given search path.
  *
- * If the file is found in a directory that is not on the path
- * already (either 'name' is absolute or it is a relative path
- * [ dir1/.../dirn/file ] which exists below one of the directories
- * already on the search path), its directory is added to the end
- * of the path, on the assumption that there will be more files in
- * that directory later on. Sometimes this is true. Sometimes not.
- *
  * Input:
  *	name		the file to find
  *	path		the directories to search, or NULL
@@ -1206,7 +1151,7 @@ Dir_FindFile(const char *name, SearchPath *path)
 {
 	char *file;		/* the current filename to check */
 	bool seenDotLast = false; /* true if we should search dot last */
-	struct cached_stat cst;	/* Buffer for stat, if necessary */
+	struct cached_stat cst;
 	const char *trailing_dot = ".";
 	const char *base = str_basename(name);
 
@@ -1233,21 +1178,19 @@ Dir_FindFile(const char *name, SearchPath *path)
 	 * of each of the directories on the search path.
 	 */
 	if (base == name || (base - name == 2 && *name == '.')) {
-		SearchPathNode *ln;
+		CachedDirListNode *ln;
 
 		/*
-		 * We look through all the directories on the path seeking one
+		 * Look through all the directories on the path seeking one
 		 * which contains the final component of the given name.  If
-		 * such a file is found, we concatenate the directory name
-		 * and the final component and return the resulting string.
-		 * If we don't find any such thing, we go on to phase two.
+		 * such a file is found, return its pathname.
+		 * If there is no such file, go on to phase two.
 		 *
-		 * No matter what, we always look for the file in the current
-		 * directory before anywhere else (unless we found the magic
-		 * DOTLAST path, in which case we search it last) and we *do
-		 * not* add the ./ to it if it exists.
+		 * No matter what, always look for the file in the current
+		 * directory before anywhere else (unless the path contains
+		 * the magic '.DOTLAST', in which case search it last).
 		 * This is so there are no conflicts between what the user
-		 * specifies (fish.c) and what pmake finds (./fish.c).
+		 * specifies (fish.c) and what make finds (./fish.c).
 		 */
 		if (!seenDotLast && (file = DirFindDot(name, base)) != NULL)
 			return file;
@@ -1264,30 +1207,14 @@ Dir_FindFile(const char *name, SearchPath *path)
 			return file;
 	}
 
-	/*
-	 * We didn't find the file on any directory in the search path.
-	 * If the name doesn't contain a slash, that means it doesn't exist.
-	 * If it *does* contain a slash, however, there is still hope: it
-	 * could be in a subdirectory of one of the members of the search
-	 * path. (eg. /usr/include and sys/types.h. The above search would
-	 * fail to turn up types.h in /usr/include, but it *is* in
-	 * /usr/include/sys/types.h).
-	 * [ This no longer applies: If we find such a file, we assume there
-	 * will be more (what else can we assume?) and add all but the last
-	 * component of the resulting name onto the search path (at the
-	 * end).]
-	 * This phase is only performed if the file is *not* absolute.
-	 */
 	if (base == name) {
 		DEBUG0(DIR, "   failed.\n");
 		misses++;
 		return NULL;
 	}
 
-	if (*base == '\0') {
-		/* we were given a trailing "/" */
-		base = trailing_dot;
-	}
+	if (*base == '\0')
+		base = trailing_dot;	/* we were given a trailing "/" */
 
 	if (name[0] != '/') {
 		if (FindFileRelative(path, seenDotLast, name, &file))
@@ -1298,16 +1225,7 @@ Dir_FindFile(const char *name, SearchPath *path)
 	}
 
 	/*
-	 * Didn't find it that way, either. Sigh. Phase 3. Add its directory
-	 * onto the search path in any case, just in case, then look for the
-	 * thing in the hash table. If we find it, grand. We return a new
-	 * copy of the name. Otherwise we sadly return a NULL pointer. Sigh.
-	 * Note that if the directory holding the file doesn't exist, this
-	 * will do an extra search of the final directory on the path. Unless
-	 * something weird happens, this search won't succeed and life will
-	 * be groovy.
-	 *
-	 * Sigh. We cannot add the directory onto the search path because
+	 * We cannot add the directory onto the search path because
 	 * of this amusing case:
 	 * $(INSTALLDIR)/$(FILE): $(FILE)
 	 *
@@ -1315,75 +1233,40 @@ Dir_FindFile(const char *name, SearchPath *path)
 	 * When searching for $(FILE), we will find it in $(INSTALLDIR)
 	 * b/c we added it here. This is not good...
 	 */
-#if 0
-	{
-		CachedDir *dir;
-		char *prefix;
 
-		if (base == trailing_dot) {
-			base = strrchr(name, '/');
-			base++;
-		}
-		prefix = bmake_strsedup(name, base - 1);
-		(void)SearchPath_Add(path, prefix);
-		free(prefix);
-
-		bigmisses++;
-		if (path->last == NULL)
-			return NULL;
-
-		dir = path->last->datum;
-		if (HashSet_Contains(&dir->files, base))
-			return bmake_strdup(name);
-		return NULL;
-	}
-#else
 	DEBUG1(DIR, "   Looking for \"%s\" ...\n", name);
 
 	bigmisses++;
-	if (cached_stat(name, &cst) == 0) {
+	if (cached_stat(name, &cst) == 0)
 		return bmake_strdup(name);
-	}
 
 	DEBUG0(DIR, "   failed. Returning NULL\n");
 	return NULL;
-#endif
 }
 
 
 /*
- * Search for a path starting at a given directory and then working our way
- * up towards the root.
- *
- * Input:
- *	here		starting directory
- *	search_path	the relative path we are looking for
- *
- * Results:
- *	The found path, or NULL.
+ * Search for 'needle' starting at the directory 'here' and then working our
+ * way up towards the root directory. Return the allocated path, or NULL.
  */
 char *
-Dir_FindHereOrAbove(const char *here, const char *search_path)
+Dir_FindHereOrAbove(const char *here, const char *needle)
 {
 	struct cached_stat cst;
 	char *dirbase, *dirbase_end;
 	char *try, *try_end;
 
-	/* copy out our starting point */
 	dirbase = bmake_strdup(here);
 	dirbase_end = dirbase + strlen(dirbase);
 
-	/* loop until we determine a result */
 	for (;;) {
-
-		/* try and stat(2) it ... */
-		try = str_concat3(dirbase, "/", search_path);
+		try = str_concat3(dirbase, "/", needle);
 		if (cached_stat(try, &cst) != -1) {
-			/*
-			 * success!  if we found a file, chop off
-			 * the filename so we return a directory.
-			 */
 			if ((cst.cst_mode & S_IFMT) != S_IFDIR) {
+				/*
+				 * Chop off the filename, to return a
+				 * directory.
+				 */
 				try_end = try + strlen(try);
 				while (try_end > try && *try_end != '/')
 					try_end--;
@@ -1396,16 +1279,10 @@ Dir_FindHereOrAbove(const char *here, const char *search_path)
 		}
 		free(try);
 
-		/*
-		 * nope, we didn't find it.  if we used up dirbase we've
-		 * reached the root and failed.
-		 */
 		if (dirbase_end == dirbase)
 			break;	/* failed! */
 
-		/*
-		 * truncate dirbase from the end to move up a dir
-		 */
+		/* Truncate dirbase from the end to move up a dir. */
 		while (dirbase_end > dirbase && *dirbase_end != '/')
 			dirbase_end--;
 		*dirbase_end = '\0';	/* chop! */
@@ -1476,10 +1353,10 @@ ResolveFullName(GNode *gn)
 }
 
 /*
- * Search gn along dirSearchPath and store its modification time in gn->mtime.
- * If no file is found, store 0 instead.
+ * Search 'gn' along 'dirSearchPath' and store its modification time in
+ * 'gn->mtime'. If no file is found, store 0 instead.
  *
- * The found file is stored in gn->path, unless the node already had a path.
+ * The found file is stored in 'gn->path', unless the node already had a path.
  */
 void
 Dir_UpdateMTime(GNode *gn, bool forceRefresh)
@@ -1562,14 +1439,14 @@ CacheNewDir(const char *name, SearchPath *path)
 }
 
 /*
- * Read the list of filenames in the directory and store the result
- * in openDirs.
+ * Read the list of filenames in the directory 'name' and store the result
+ * in 'openDirs'.
  *
- * If a path is given, append the directory to that path.
+ * If a search path is given, append the directory to that path.
  *
  * Input:
  *	path		The path to which the directory should be
- *			added, or NULL to only add the directory to openDirs
+ *			added, or NULL to only add the directory to openDirs.
  *	name		The name of the directory to add.
  *			The name is not normalized in any way.
  * Output:
@@ -1584,7 +1461,7 @@ SearchPath_Add(SearchPath *path, const char *name)
 {
 
 	if (path != NULL && strcmp(name, ".DOTLAST") == 0) {
-		SearchPathNode *ln;
+		CachedDirListNode *ln;
 
 		/* XXX: Linear search gets slow with thousands of entries. */
 		for (ln = path->dirs.first; ln != NULL; ln = ln->next) {
@@ -1617,7 +1494,7 @@ SearchPath *
 Dir_CopyDirSearchPath(void)
 {
 	SearchPath *path = SearchPath_New();
-	SearchPathNode *ln;
+	CachedDirListNode *ln;
 	for (ln = dirSearchPath.dirs.first; ln != NULL; ln = ln->next) {
 		CachedDir *dir = ln->datum;
 		Lst_Append(&path->dirs, CachedDir_Ref(dir));
@@ -1628,22 +1505,14 @@ Dir_CopyDirSearchPath(void)
 /*
  * Make a string by taking all the directories in the given search path and
  * preceding them by the given flag. Used by the suffix module to create
- * variables for compilers based on suffix search paths.
- *
- * Input:
- *	flag		flag which should precede each directory
- *	path		list of directories
- *
- * Results:
- *	The string mentioned above. Note that there is no space between the
- *	given flag and each directory. The empty string is returned if things
- *	don't go well.
+ * variables for compilers based on suffix search paths. Note that there is no
+ * space between the given flag and each directory.
  */
 char *
 SearchPath_ToFlags(SearchPath *path, const char *flag)
 {
 	Buffer buf;
-	SearchPathNode *ln;
+	CachedDirListNode *ln;
 
 	Buf_Init(&buf);
 
@@ -1663,7 +1532,7 @@ SearchPath_ToFlags(SearchPath *path, const char *flag)
 void
 SearchPath_Free(SearchPath *path)
 {
-	SearchPathNode *ln;
+	CachedDirListNode *ln;
 
 	for (ln = path->dirs.first; ln != NULL; ln = ln->next) {
 		CachedDir *dir = ln->datum;
@@ -1694,7 +1563,7 @@ SearchPath_Clear(SearchPath *path)
 void
 SearchPath_AddAll(SearchPath *dst, SearchPath *src)
 {
-	SearchPathNode *ln;
+	CachedDirListNode *ln;
 
 	for (ln = src->dirs.first; ln != NULL; ln = ln->next) {
 		CachedDir *dir = ln->datum;
@@ -1709,7 +1578,6 @@ percentage(int num, int den)
 	return den != 0 ? num * 100 / den : 0;
 }
 
-/********** DEBUG INFO **********/
 void
 Dir_PrintDirectories(void)
 {
@@ -1732,7 +1600,7 @@ Dir_PrintDirectories(void)
 void
 SearchPath_Print(const SearchPath *path)
 {
-	SearchPathNode *ln;
+	CachedDirListNode *ln;
 
 	for (ln = path->dirs.first; ln != NULL; ln = ln->next) {
 		const CachedDir *dir = ln->datum;

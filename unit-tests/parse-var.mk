@@ -1,6 +1,6 @@
-# $NetBSD: parse-var.mk,v 1.8 2023/02/18 11:16:09 rillig Exp $
+# $NetBSD: parse-var.mk,v 1.9 2023/11/19 21:47:52 rillig Exp $
 #
-# Tests for parsing variable expressions.
+# Tests for parsing expressions.
 #
 # TODO: Add systematic tests for all of the below combinations.
 #
@@ -77,7 +77,7 @@
 .MAKEFLAGS: -dL
 
 # In variable assignments, there may be spaces in the middle of the left-hand
-# side of the assignment, but only if they occur inside variable expressions.
+# side of the assignment, but only if they occur inside expressions.
 # Leading spaces (but not tabs) are possible but unusual.
 # Trailing spaces are common in some coding styles, others omit them.
 VAR.${:U param }=	value

@@ -1,4 +1,4 @@
-# $NetBSD: cond-token-number.mk,v 1.9 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: cond-token-number.mk,v 1.10 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for number tokens in .if conditions.
 #
@@ -52,13 +52,13 @@
 .  error
 .endif
 
-# When the number comes from a variable expression though, it may be signed.
+# When the number comes from an expression though, it may be signed.
 # XXX: This is inconsistent.
 .if ${:U+0}
 .  error
 .endif
 
-# When the number comes from a variable expression though, it may be signed.
+# When the number comes from an expression though, it may be signed.
 # XXX: This is inconsistent.
 .if !${:U+1}
 .  error

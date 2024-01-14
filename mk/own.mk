@@ -1,4 +1,4 @@
-# $Id: own.mk,v 1.44 2021/12/08 05:56:50 sjg Exp $
+# $Id: own.mk,v 1.45 2023/12/30 02:10:38 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__: .NOTMAIN
@@ -119,6 +119,7 @@ OPTIONS_DEFAULT_DEPENDENT+= \
 	PICINSTALL/LINKLIB \
 	PICLIB/PIC \
 	PROFILE/LINKLIB \
+	STAGING_MAN/STAGING \
 	STAGING_PROG/STAGING \
 
 .include <options.mk>

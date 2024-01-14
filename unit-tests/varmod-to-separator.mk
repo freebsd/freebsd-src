@@ -1,4 +1,4 @@
-# $NetBSD: varmod-to-separator.mk,v 1.12 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: varmod-to-separator.mk,v 1.13 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for the :ts variable modifier, which joins the words of the variable
 # using an arbitrary character as word separator.
@@ -39,7 +39,7 @@ WORDS=	one two three four five six
 # quote though, or other special characters like dollar or backslash.
 #
 # This example also demonstrates that the closing brace is not interpreted
-# as a separator, but as the closing delimiter of the whole variable
+# as a separator, but as the closing delimiter of the whole
 # expression.
 .if ${WORDS:tu:ts} != "ONETWOTHREEFOURFIVESIX"
 .  warning Colon as separator does not work.
