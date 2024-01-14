@@ -10,7 +10,6 @@
  *
  */
 
-#include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
 #include <paths.h>
@@ -26,7 +25,7 @@ format_track(int fd, int cyl, int secs, int head, int rate,
      int gaplen, int secsize, int fill, int interleave)
 {
     struct fd_formb f;
-    register int i,j;
+    int i,j;
     int il[100];
 
     memset(il,0,sizeof il);
@@ -68,7 +67,7 @@ main(int argc, char **argv)
     int bpt, verbose=1, nbytes=0, track;
     int interactive = 1;
     const char *device= "/dev/fd0";
-    char *trackbuf = 0,*vrfybuf = 0;
+    char *trackbuf = NULL,*vrfybuf = NULL;
     struct fd_type fdt;
     FILE *tty;
 
@@ -192,5 +191,8 @@ main(int argc, char **argv)
     }
     if(verbose)
 	printf("%d bytes on %d flopp%s\n",nbytes,fdn,fdn==1?"y":"ies");
+
+    free(trackbuf);
+    free(vrfybuf);
     exit(0);
 }
