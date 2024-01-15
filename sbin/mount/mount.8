@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 4, 2023
+.Dd January 15, 2024
 .Dt MOUNT 8
 .Os
 .Sh NAME
@@ -559,6 +559,7 @@ support for a particular file system might be provided either on a static
 .Xr setfacl 1 ,
 .Xr nmount 2 ,
 .Xr acl 3 ,
+.Xr getmntinfo 3 ,
 .Xr libxo 3 ,
 .Xr xo_parse_args 3 ,
 .Xr mac 4 ,
@@ -579,6 +580,7 @@ support for a particular file system might be provided either on a static
 .Xr mount_smbfs 8 ,
 .Xr mount_udf 8 ,
 .Xr mount_unionfs 8 ,
+.Xr quotacheck 8 ,
 .Xr umount 8 ,
 .Xr zfs 8 ,
 .Xr zpool 8
@@ -611,3 +613,17 @@ only when the file system is mounted via
 .Nm .
 .Sh BUGS
 It is possible for a corrupted file system to cause a crash.
+.Pp
+The
+.Fl p
+option will not list
+.Cm userquota
+or
+.Cm groupquota
+items from
+.Xr fstab 5
+because they are not true mount options and are not information returned by
+.Xr getmntinfo 3 .
+At boot
+.Xr quotacheck 8 ,
+processes these items.
