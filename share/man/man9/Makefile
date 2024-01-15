@@ -154,6 +154,7 @@ MAN=	accept_filter.9 \
 	g_bio.9 \
 	g_consumer.9 \
 	g_data.9 \
+	GENERIC.9 \
 	get_cyclecount.9 \
 	getenv.9 \
 	getnewvnode.9 \
@@ -224,6 +225,7 @@ MAN=	accept_filter.9 \
 	microseq.9 \
 	microtime.9 \
 	microuptime.9 \
+	MINIMAL.9 \
 	mi_switch.9 \
 	mod_cc.9 \
 	module.9 \
@@ -1133,6 +1135,12 @@ MLINKS+=g_consumer.9 g_destroy_consumer.9 \
 	g_consumer.9 g_new_consumer.9
 MLINKS+=g_data.9 g_read_data.9 \
 	g_data.9 g_write_data.9
+MLINKS+=GENERIC.9 GENERIC-DEBUG.9 \
+	GENERIC.9 GENERIC-MMCCAM.9 \
+	GENERIC.9 GENERIC-MMCCAM-DEBUG.9 \
+	GENERIC.9 GENERIC-MMCCAM-NODEBUG.9 \
+	GENERIC.9 GENERIC-NODEBUG.9 \
+	GENERIC.9 GENERIC-UP.9
 MLINKS+=getenv.9 freeenv.9 \
 	getenv.9 getenv_int.9 \
 	getenv.9 getenv_long.9 \
@@ -1567,6 +1575,7 @@ MLINKS+=microuptime.9 binuptime.9 \
 	microuptime.9 getsbinuptime.9 \
 	microuptime.9 nanouptime.9 \
 	microuptime.9 sbinuptime.9
+MLINKS+=MINIMAL.9 MINIMALUP.9
 MLINKS+=mi_switch.9 cpu_switch.9 \
 	mi_switch.9 cpu_throw.9
 MLINKS+=mod_cc.9 CCV.9 \
