@@ -448,7 +448,7 @@ TEST_F(Setattr, truncate) {
 TEST_F(Setattr, truncate_discards_cached_data) {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
-	void *w0buf, *r0buf, *r1buf, *expected;
+	char *w0buf, *r0buf, *r1buf, *expected;
 	off_t w0_offset = 0;
 	size_t w0_size = 0x30000;
 	off_t r0_offset = 0;
@@ -463,18 +463,13 @@ TEST_F(Setattr, truncate_discards_cached_data) {
 	int fd, r;
 	bool should_have_data = false;
 
-	w0buf = malloc(w0_size);
-	ASSERT_NE(nullptr, w0buf) << strerror(errno);
+	w0buf = new char[w0_size];
 	memset(w0buf, 'X', w0_size);
 
-	r0buf = malloc(r0_size);
-	ASSERT_NE(nullptr, r0buf) << strerror(errno);
-	r1buf = malloc(r1_size);
-	ASSERT_NE(nullptr, r1buf) << strerror(errno);
+	r0buf = new char[r0_size];
+	r1buf = new char[r1_size];
 
-	expected = malloc(r1_size);
-	ASSERT_NE(nullptr, expected) << strerror(errno);
-	memset(expected, 0, r1_size);
+	expected = new char[r1_size]();
 
 	expect_lookup(RELPATH, ino, mode, 0, 1);
 	expect_open(ino, O_RDWR, 1);
@@ -558,10 +553,10 @@ TEST_F(Setattr, truncate_discards_cached_data) {
 	r = memcmp(expected, r1buf, r1_size);
 	ASSERT_EQ(0, r);
 
-	free(expected);
-	free(r1buf);
-	free(r0buf);
-	free(w0buf);
+	delete[] expected;
+	delete[] r1buf;
+	delete[] r0buf;
+	delete[] w0buf;
 
 	leak(fd);
 }

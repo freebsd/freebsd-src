@@ -311,10 +311,8 @@ TEST_F(Write, append_to_cached)
 	uint64_t oldsize = m_maxbcachebuf / 2;
 	int fd;
 
-	oldcontents = (char*)calloc(1, oldsize);
-	ASSERT_NE(nullptr, oldcontents) << strerror(errno);
-	oldbuf = (char*)malloc(oldsize);
-	ASSERT_NE(nullptr, oldbuf) << strerror(errno);
+	oldcontents = new char[oldsize]();
+	oldbuf = new char[oldsize];
 
 	expect_lookup(RELPATH, ino, oldsize);
 	expect_open(ino, 0, 1);
@@ -332,8 +330,8 @@ TEST_F(Write, append_to_cached)
 	/* Write the new data.  There should be no more read operations */
 	ASSERT_EQ(BUFSIZE, write(fd, CONTENTS, BUFSIZE)) << strerror(errno);
 	leak(fd);
-	free(oldbuf);
-	free(oldcontents);
+	delete[] oldbuf;
+	delete[] oldcontents;
 }
 
 TEST_F(Write, append_direct_io)
@@ -659,7 +657,7 @@ TEST_P(WriteEofDuringVnopStrategy, eof_during_vop_strategy)
 	const char RELPATH[] = "some_file.txt";
 	Sequence seq;
 	const off_t filesize = 2 * m_maxbcachebuf;
-	void *contents;
+	char *contents;
 	uint64_t ino = 42;
 	uint64_t attr_valid = 0;
 	uint64_t attr_valid_nsec = 0;
@@ -668,7 +666,7 @@ TEST_P(WriteEofDuringVnopStrategy, eof_during_vop_strategy)
 	int ngetattrs;
 
 	ngetattrs = GetParam();
-	contents = calloc(1, filesize);
+	contents = new char[filesize]();
 
 	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
 	.WillRepeatedly(Invoke(
@@ -742,14 +740,12 @@ TEST_F(Write, mmap)
 	void *p;
 	uint64_t offset = 10;
 	size_t len;
-	void *zeros, *expected;
+	char *zeros, *expected;
 
 	len = getpagesize();
 
-	zeros = calloc(1, len);
-	ASSERT_NE(nullptr, zeros);
-	expected = calloc(1, len);
-	ASSERT_NE(nullptr, expected);
+	zeros = new char[len]();
+	expected = new char[len]();
 	memmove((uint8_t*)expected + offset, CONTENTS, bufsize);
 
 	expect_lookup(RELPATH, ino, len);
@@ -774,8 +770,8 @@ TEST_F(Write, mmap)
 	ASSERT_EQ(0, munmap(p, len)) << strerror(errno);
 	close(fd);	// Write mmap'd data on close
 
-	free(expected);
-	free(zeros);
+	delete[] expected;
+	delete[] zeros;
 
 	leak(fd);
 }
@@ -867,8 +863,7 @@ TEST_F(WriteMaxWrite, write)
 	if (halfbufsize >= m_maxbcachebuf || halfbufsize >= m_maxphys)
 		GTEST_SKIP() << "Must lower m_maxwrite for this test";
 	bufsize = halfbufsize * 2;
-	contents = (int*)malloc(bufsize);
-	ASSERT_NE(nullptr, contents);
+	contents = new int[bufsize / sizeof(int)];
 	for (int i = 0; i < (int)bufsize / (int)sizeof(i); i++) {
 		contents[i] = i;
 	}
@@ -885,7 +880,7 @@ TEST_F(WriteMaxWrite, write)
 	ASSERT_EQ(bufsize, write(fd, contents, bufsize)) << strerror(errno);
 	leak(fd);
 
-	free(contents);
+	delete[] contents;
 }
 
 TEST_F(Write, write_nothing)
@@ -966,15 +961,13 @@ TEST_F(WriteCluster, clustering)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 	int i, fd;
-	void *wbuf, *wbuf2x;
+	char *wbuf, *wbuf2x;
 	ssize_t bufsize = m_maxbcachebuf;
 	off_t filesize = 5 * bufsize;
 
-	wbuf = malloc(bufsize);
-	ASSERT_NE(nullptr, wbuf) << strerror(errno);
+	wbuf = new char[bufsize];
 	memset(wbuf, 'X', bufsize);
-	wbuf2x = malloc(2 * bufsize);
-	ASSERT_NE(nullptr, wbuf2x) << strerror(errno);
+	wbuf2x = new char[2 * bufsize];
 	memset(wbuf2x, 'X', 2 * bufsize);
 
 	expect_lookup(RELPATH, ino, filesize);
@@ -997,8 +990,8 @@ TEST_F(WriteCluster, clustering)
 			<< strerror(errno);
 	}
 	close(fd);
-	free(wbuf2x);
-	free(wbuf);
+	delete[] wbuf2x;
+	delete[] wbuf;
 }
 
 /* 
@@ -1015,12 +1008,11 @@ TEST_F(WriteCluster, cluster_write_err)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 	int i, fd;
-	void *wbuf;
+	char *wbuf;
 	ssize_t bufsize = m_maxbcachebuf;
 	off_t filesize = 4 * bufsize;
 
-	wbuf = malloc(bufsize);
-	ASSERT_NE(nullptr, wbuf) << strerror(errno);
+	wbuf = new char[bufsize];
 	memset(wbuf, 'X', bufsize);
 
 	expect_lookup(RELPATH, ino, filesize);
@@ -1042,7 +1034,7 @@ TEST_F(WriteCluster, cluster_write_err)
 			<< strerror(errno);
 	}
 	close(fd);
-	free(wbuf);
+	delete[] wbuf;
 }
 
 /*
@@ -1179,11 +1171,11 @@ TEST_F(WriteBack, mmap_direct_io)
 	int fd;
 	size_t len;
 	ssize_t bufsize = strlen(CONTENTS);
-	void *p, *zeros;
+	char *zeros;
+	void *p;
 
 	len = getpagesize();
-	zeros = calloc(1, len);
-	ASSERT_NE(nullptr, zeros);
+	zeros = new char[len]();
 
 	expect_lookup(RELPATH, ino, len);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
@@ -1203,7 +1195,7 @@ TEST_F(WriteBack, mmap_direct_io)
 	ASSERT_EQ(0, munmap(p, len)) << strerror(errno);
 	close(fd);	// Write mmap'd data on close
 
-	free(zeros);
+	delete[] zeros;
 }
 
 /*
@@ -1252,10 +1244,9 @@ TEST_F(WriteBackAsync, direct_io_ignores_unrelated_cached)
 	ssize_t bufsize = strlen(CONTENTS0) + 1;
 	ssize_t fsize = 2 * m_maxbcachebuf;
 	char readbuf[bufsize];
-	void *zeros;
+	char *zeros;
 
-	zeros = calloc(1, m_maxbcachebuf);
-	ASSERT_NE(nullptr, zeros);
+	zeros = new char[m_maxbcachebuf]();
 
 	expect_lookup(RELPATH, ino, fsize);
 	expect_open(ino, 0, 1);
@@ -1282,7 +1273,7 @@ TEST_F(WriteBackAsync, direct_io_ignores_unrelated_cached)
 	ASSERT_STREQ(readbuf, CONTENTS0);
 
 	leak(fd);
-	free(zeros);
+	delete[] zeros;
 }
 
 /*
@@ -1298,20 +1289,15 @@ TEST_F(WriteBackAsync, direct_io_partially_overlaps_cached_block)
 	int fd;
 	off_t bs = m_maxbcachebuf;
 	ssize_t fsize = 3 * bs;
-	void *readbuf, *zeros, *ones, *zeroones, *onezeros;
+	char *readbuf, *zeros, *ones, *zeroones, *onezeros;
 
-	readbuf = malloc(bs);
-	ASSERT_NE(nullptr, readbuf) << strerror(errno);
-	zeros = calloc(1, 3 * bs);
-	ASSERT_NE(nullptr, zeros);
-	ones = calloc(1, 2 * bs);
-	ASSERT_NE(nullptr, ones);
+	readbuf = new char[bs];
+	zeros = new char[3 * bs]();
+	ones = new char[2 * bs];
 	memset(ones, 1, 2 * bs);
-	zeroones = calloc(1, bs);
-	ASSERT_NE(nullptr, zeroones);
+	zeroones = new char[bs]();
 	memset((uint8_t*)zeroones + bs / 2, 1, bs / 2);
-	onezeros = calloc(1, bs);
-	ASSERT_NE(nullptr, onezeros);
+	onezeros = new char[bs]();
 	memset(onezeros, 1, bs / 2);
 
 	expect_lookup(RELPATH, ino, fsize);
@@ -1356,11 +1342,11 @@ TEST_F(WriteBackAsync, direct_io_partially_overlaps_cached_block)
 	EXPECT_EQ(0, memcmp(ones, readbuf, bs / 2));
 
 	leak(fd);
-	free(zeroones);
-	free(onezeros);
-	free(ones);
-	free(zeros);
-	free(readbuf);
+	delete[] zeroones;
+	delete[] onezeros;
+	delete[] ones;
+	delete[] zeros;
+	delete[] readbuf;
 }
 
 /*
