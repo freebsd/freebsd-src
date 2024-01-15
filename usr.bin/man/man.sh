@@ -973,7 +973,7 @@ do_man() {
 	fi
 	man_setup
 
-	for page in "$@"; do
+	for page in "$pages"; do
 		decho "Searching for \"$page\""
 		man_find_and_display "$page"
 	done
