@@ -183,19 +183,21 @@ main( int argc, char *argv[] )
 	    if ( strcmp( optarg, "mesg") == 0 )
 	        dmesg = 1;
 	    else
-	        dmesg = 0;
+		usage();
 	    break;
 	case 'h':
-	    if ( strcmp( optarg, "elp") == 0 )
-	        usage();
-	    break;
+	    usage();
 	case 'g':
 	    if ( strcmp( optarg, "rope") == 0 )
 	        grope = 1;
+	    else
+		usage();
 	    break;
 	case 'v':
 	    if ( strcmp( optarg, "erbose") == 0 )
 	        verbose = 1;
+	    else
+		usage();
 	    break;
 	default:
 	    usage();
