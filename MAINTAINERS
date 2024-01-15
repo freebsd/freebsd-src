@@ -96,9 +96,7 @@ share/mk/*.test.mk	imp,bapt,bdrewery,	Pre-commit review requested.
 stand/forth		dteske	Pre-commit review requested.
 stand/lua		kevans	Pre-commit review requested
 stand			imp	Pre-commit review strongly requested.
-sys/compat/linuxkpi		pre-commit review requested via
-				#x11 phabricator group.
-				(to avoid drm graphics drivers impact)
+sys/compat/linuxkpi		pre-commit review requested via #linuxkpi phabricator group.
 sys/contrib/dev/ice	erj	Pre-commit phabricator review requested.
 sys/netpfil/ipfilter	cy	Pre-commit review requested.
 sys/dev/e1000	erj	Pre-commit phabricator review requested.
