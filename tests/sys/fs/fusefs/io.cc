@@ -281,7 +281,7 @@ void do_ftruncate(off_t offs)
 	m_filesize = offs;
 }
 
-void do_mapread(ssize_t size, off_t offs)
+void do_mapread(off_t offs, ssize_t size)
 {
 	void *control_buf, *p;
 	off_t pg_offset, page_mask;
@@ -307,7 +307,7 @@ void do_mapread(ssize_t size, off_t offs)
 	free(control_buf);
 }
 
-void do_read(ssize_t size, off_t offs)
+void do_read(off_t offs, ssize_t size)
 {
 	void *test_buf, *control_buf;
 	ssize_t r;
@@ -331,7 +331,7 @@ void do_read(ssize_t size, off_t offs)
 	free(test_buf);
 }
 
-void do_mapwrite(ssize_t size, off_t offs)
+void do_mapwrite(off_t offs, ssize_t size)
 {
 	char *buf;
 	void *p;
@@ -368,7 +368,7 @@ void do_mapwrite(ssize_t size, off_t offs)
 	ASSERT_EQ(0, munmap(p, map_size)) << strerror(errno);
 }
 
-void do_write(ssize_t size, off_t offs)
+void do_write(off_t offs, ssize_t size)
 {
 	char *buf;
 	long i;
@@ -416,9 +416,9 @@ TEST_P(Io, extend_from_dirty_page)
 	ssize_t rsize = 0x9b22;
 	off_t truncsize = 0x28702;
 
-	do_write(wsize, wofs);
+	do_write(wofs, wsize);
 	do_ftruncate(truncsize);
-	do_read(rsize, rofs);
+	do_read(rofs, rsize);
 }
 
 /*
@@ -428,9 +428,9 @@ TEST_P(Io, extend_from_dirty_page)
  */
 TEST_P(IoCacheable, extend_by_mapwrite)
 {
-	do_mapwrite(0x849e, 0x29a3a);	/* [0x29a3a, 0x31ed7] */
-	do_mapwrite(0x3994, 0x3c7d8);	/* [0x3c7d8, 0x4016b] */
-	do_read(0xf556, 0x30c16);	/* [0x30c16, 0x4016b] */
+	do_mapwrite(0x29a3a, 0x849e);	/* [0x29a3a, 0x31ed7] */
+	do_mapwrite(0x3c7d8, 0x3994);	/* [0x3c7d8, 0x4016b] */
+	do_read(0x30c16, 0xf556);	/* [0x30c16, 0x4016b] */
 }
 
 /*
@@ -442,9 +442,9 @@ TEST_P(IoCacheable, extend_by_mapwrite)
  */
 TEST_P(Io, last_page)
 {
-	do_write(0xcc77, 0x1134f);	/* [0x1134f, 0x1dfc5] */
-	do_write(0xdfa7, 0x2096a);	/* [0x2096a, 0x2e910] */
-	do_read(0xb5b7, 0x1a3aa);	/* [0x1a3aa, 0x25960] */
+	do_write(0x1134f, 0xcc77);	/* [0x1134f, 0x1dfc5] */
+	do_write(0x2096a, 0xdfa7);	/* [0x2096a, 0x2e910] */
+	do_read(0x1a3aa, 0xb5b7);	/* [0x1a3aa, 0x25960] */
 }
 
 /*
@@ -454,8 +454,8 @@ TEST_P(Io, last_page)
  */
 TEST_P(IoCacheable, mapread_hole)
 {
-	do_write(0x123b7, 0xf205);	/* [0xf205, 0x215bb] */
-	do_mapread(0xeeea, 0x2f4c);	/* [0x2f4c, 0x11e35] */
+	do_write(0xf205, 0x123b7);	/* [0xf205, 0x215bb] */
+	do_mapread(0x2f4c, 0xeeea);	/* [0x2f4c, 0x11e35] */
 }
 
 /* 
@@ -470,8 +470,8 @@ TEST_P(Io, read_hole_from_cached_block)
 	off_t rofs = 0x472e;
 	ssize_t rsize = 0xd8d5;
 
-	do_write(wsize, wofs);
-	do_read(rsize, rofs);
+	do_write(wofs, wsize);
+	do_read(rofs, rsize);
 }
 
 /*
@@ -491,10 +491,10 @@ TEST_P(Io, truncate_into_dirty_buffer)
 	ssize_t rsize = 0x29ff;
 	off_t truncsize1 = 0x152b4;
 
-	do_write(wsize0, wofs0);
-	do_write(wsize1, wofs1);
+	do_write(wofs0, wsize0);
+	do_write(wofs1, wsize1);
 	do_ftruncate(truncsize0);
-	do_read(rsize, rofs);
+	do_read(rofs, rsize);
 	do_ftruncate(truncsize1);
 	close(m_test_fd);
 }
@@ -523,11 +523,11 @@ TEST_P(Io, truncate_into_dirty_buffer2)
 	 * Creates a dirty buffer.  The part in lbn 2 doesn't flush
 	 * synchronously.
 	 */
-	do_write(wsize, wofs);
+	do_write(wofs, wsize);
 	/* Truncates part of the dirty buffer created in step 2 */
 	do_ftruncate(truncsize1);
 	/* XXX ?I don't know why this is necessary? */
-	do_read(rsize2, rofs2);
+	do_read(rofs2, rsize2);
 	/* Truncates the dirty buffer */
 	do_ftruncate(truncsize2);
 	close(m_test_fd);
@@ -558,10 +558,10 @@ TEST_P(Io, truncate_into_dirty_buffer2)
  */
 TEST_P(Io, resize_a_valid_buffer_while_extending)
 {
-	do_write(0x14530, 0x36ee6);	/* [0x36ee6, 0x4b415] */
-	do_write(0x1507c, 0x33256);	/* [0x33256, 0x482d1] */
-	do_write(0x175c, 0x4c03d);	/* [0x4c03d, 0x4d798] */
-	do_read(0xe277, 0x3599c);	/* [0x3599c, 0x43c12] */
+	do_write(0x36ee6, 0x14530);	/* [0x36ee6, 0x4b415] */
+	do_write(0x33256, 0x1507c);	/* [0x33256, 0x482d1] */
+	do_write(0x4c03d, 0x175c);	/* [0x4c03d, 0x4d798] */
+	do_read(0x3599c, 0xe277);	/* [0x3599c, 0x43c12] */
 	close(m_test_fd);
 }
 
@@ -572,7 +572,7 @@ TEST_P(Io, resize_a_valid_buffer_while_extending)
  */
 TEST_P(IoCacheable, vnode_pager_generic_putpage_clean_block_at_eof)
 {
-	do_mapwrite(0x1bbc3, 0x3b4e0);
+	do_mapwrite(0x3b4e0, 0x1bbc3);
 }
 
 /*
@@ -581,7 +581,7 @@ TEST_P(IoCacheable, vnode_pager_generic_putpage_clean_block_at_eof)
  */
 TEST_P(IoCopyFileRange, copy_file_range_from_mapped_write)
 {
-	do_mapwrite(0x1000, 0);
+	do_mapwrite(0, 0x1000);
 	do_copy_file_range(0, 0x1000, 0x1000);
 	do_read(0x1000, 0x1000);
 }
