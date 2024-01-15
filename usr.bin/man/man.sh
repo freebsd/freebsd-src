@@ -312,7 +312,7 @@ man_check_for_so() {
 	# We need to loop to accommodate multiple .so directives.
 	while true
 	do
-		line=$($cattool "$manpage" | head -1)
+		line=$($cattool "$manpage" | head -n1)
 		case "$line" in
 		.so*)	trim "${line#.so}"
 			decho "$manpage includes $tstr"
@@ -897,11 +897,11 @@ search_whatis() {
 	bad=${bad#\\n}
 
 	if [ -n "$good" ]; then
-		echo -e "$good" | $MANPAGER
+		printf '%b\n' "$good" | $MANPAGER
 	fi
 
 	if [ -n "$bad" ]; then
-		echo -e "$bad" >&2
+		printf '%b\n' "$bad" >&2
 	fi
 
 	exit $rval
