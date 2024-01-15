@@ -197,7 +197,7 @@ TEST_F(CopyFileRange, evicts_cache)
 	const char RELPATH1[] = "src.txt";
 	const char FULLPATH2[] = "mountpoint/dst.txt";
 	const char RELPATH2[] = "dst.txt";
-	void *buf0, *buf1, *buf;
+	char *buf0, *buf1, *buf;
 	const uint64_t ino1 = 42;
 	const uint64_t ino2 = 43;
 	const uint64_t fh1 = 0xdeadbeef1a7ebabe;
@@ -209,7 +209,7 @@ TEST_F(CopyFileRange, evicts_cache)
 	ssize_t len = m_maxbcachebuf;
 	int fd1, fd2;
 
-	buf0 = malloc(m_maxbcachebuf);
+	buf0 = new char[m_maxbcachebuf];
 	memset(buf0, 42, m_maxbcachebuf);
 
 	expect_lookup(RELPATH1, ino1, S_IFREG | 0644, fsize1, 1);
@@ -240,7 +240,7 @@ TEST_F(CopyFileRange, evicts_cache)
 	fd2 = open(FULLPATH2, O_RDWR);
 
 	// Prime cache
-	buf = malloc(m_maxbcachebuf);
+	buf = new char[m_maxbcachebuf];
 	ASSERT_EQ(m_maxbcachebuf, pread(fd2, buf, m_maxbcachebuf, start2))
 		<< strerror(errno);
 	EXPECT_EQ(0, memcmp(buf0, buf, m_maxbcachebuf));
@@ -249,7 +249,7 @@ TEST_F(CopyFileRange, evicts_cache)
 	ASSERT_EQ(len, copy_file_range(fd1, &start1, fd2, &start2, len, 0));
 
 	// Read again.  This should bypass the cache and read direct from server
-	buf1 = malloc(m_maxbcachebuf);
+	buf1 = new char[m_maxbcachebuf];
 	memset(buf1, 69, m_maxbcachebuf);
 	start2 -= len;
 	expect_read(ino2, start2, m_maxbcachebuf, m_maxbcachebuf, buf1, -1,
@@ -258,9 +258,9 @@ TEST_F(CopyFileRange, evicts_cache)
 		<< strerror(errno);
 	EXPECT_EQ(0, memcmp(buf1, buf, m_maxbcachebuf));
 
-	free(buf1);
-	free(buf0);
-	free(buf);
+	delete[] buf1;
+	delete[] buf0;
+	delete[] buf;
 	leak(fd1);
 	leak(fd2);
 }
@@ -343,8 +343,8 @@ TEST_F(CopyFileRange, mmap_write)
 	int fd;
 	const mode_t mode = 0644;
 
-	fbuf = (uint8_t*)calloc(1, fsize);
-	wbuf = (uint8_t*)malloc(wsize);
+	fbuf = new uint8_t[fsize]();
+	wbuf = new uint8_t[wsize];
 	memset(wbuf, 1, wsize);
 
 	expect_lookup(RELPATH, ino, S_IFREG | mode, fsize, 1);
@@ -383,8 +383,8 @@ TEST_F(CopyFileRange, mmap_write)
 	r = copy_file_range(fd, &offset2_in, fd, &offset2_out, copysize, 0);
 	ASSERT_EQ(copysize, (size_t)r) << strerror(errno);
 
-	free(wbuf);
-	free(fbuf);
+	delete[] wbuf;
+	delete[] fbuf;
 }
 
 

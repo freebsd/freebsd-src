@@ -283,7 +283,8 @@ void do_ftruncate(off_t offs)
 
 void do_mapread(off_t offs, ssize_t size)
 {
-	void *control_buf, *p;
+	char *control_buf;
+	void *p;
 	off_t pg_offset, page_mask;
 	size_t map_size;
 
@@ -295,8 +296,7 @@ void do_mapread(off_t offs, ssize_t size)
 	    offs - pg_offset);
 	ASSERT_NE(p, MAP_FAILED) << strerror(errno);
 
-	control_buf = malloc(size);
-	ASSERT_NE(nullptr, control_buf) << strerror(errno);
+	control_buf = new char[size];
 
 	ASSERT_EQ(size, pread(m_control_fd, control_buf, size, offs))
 		<< strerror(errno);
@@ -304,18 +304,16 @@ void do_mapread(off_t offs, ssize_t size)
 	compare((void*)((char*)p + pg_offset), control_buf, offs, size);
 
 	ASSERT_EQ(0, munmap(p, map_size)) << strerror(errno);
-	free(control_buf);
+	delete[] control_buf;
 }
 
 void do_read(off_t offs, ssize_t size)
 {
-	void *test_buf, *control_buf;
+	char *test_buf, *control_buf;
 	ssize_t r;
 
-	test_buf = malloc(size);
-	ASSERT_NE(nullptr, test_buf) << strerror(errno);
-	control_buf = malloc(size);
-	ASSERT_NE(nullptr, control_buf) << strerror(errno);
+	test_buf = new char[size];
+	control_buf = new char[size];
 
 	errno = 0;
 	r = pread(m_test_fd, test_buf, size, offs);
@@ -327,8 +325,8 @@ void do_read(off_t offs, ssize_t size)
 
 	compare(test_buf, control_buf, offs, size);
 
-	free(control_buf);
-	free(test_buf);
+	delete[] control_buf;
+	delete[] test_buf;
 }
 
 void do_mapwrite(off_t offs, ssize_t size)
@@ -343,8 +341,7 @@ void do_mapwrite(off_t offs, ssize_t size)
 	pg_offset = offs & page_mask;
 	map_size = pg_offset + size;
 
-	buf = (char*)malloc(size);
-	ASSERT_NE(nullptr, buf) << strerror(errno);
+	buf = new char[size];
 	for (i=0; i < size; i++)
 		buf[i] = random();
 
@@ -364,7 +361,7 @@ void do_mapwrite(off_t offs, ssize_t size)
 	ASSERT_EQ(size, pwrite(m_control_fd, buf, size, offs))
 		<< strerror(errno);
 
-	free(buf);
+	delete[] buf;
 	ASSERT_EQ(0, munmap(p, map_size)) << strerror(errno);
 }
 
@@ -373,8 +370,7 @@ void do_write(off_t offs, ssize_t size)
 	char *buf;
 	long i;
 
-	buf = (char*)malloc(size);
-	ASSERT_NE(nullptr, buf) << strerror(errno);
+	buf = new char[size];
 	for (i=0; i < size; i++)
 		buf[i] = random();
 
@@ -384,7 +380,7 @@ void do_write(off_t offs, ssize_t size)
 		<< strerror(errno);
 	m_filesize = std::max(m_filesize, offs + size);
 
-	free(buf);
+	delete[] buf;
 }
 
 };
