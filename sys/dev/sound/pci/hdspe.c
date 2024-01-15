@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2012-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2023-2024 Florian Walpen <dev@submerge.ch>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,47 +70,22 @@ static struct hdspe_clock_source hdspe_clock_source_table_aio[] = {
 };
 
 static struct hdspe_channel chan_map_aio[] = {
-	{  0,  1,   "line", 1, 1 },
-	{  6,  7,  "phone", 1, 0 },
-	{  8,  9,    "aes", 1, 1 },
-	{ 10, 11, "s/pdif", 1, 1 },
-	{ 12, 16,   "adat", 1, 1 },
-
-	/* Single or double speed. */
-	{ 14, 18,   "adat", 1, 1 },
-
-	/* Single speed only. */
-	{ 13, 15,   "adat", 1, 1 },
-	{ 17, 19,   "adat", 1, 1 },
-
-	{  0,  0,     NULL, 0, 0 },
+	{ HDSPE_CHAN_AIO_LINE,    "line" },
+	{ HDSPE_CHAN_AIO_PHONE,  "phone" },
+	{ HDSPE_CHAN_AIO_AES,      "aes" },
+	{ HDSPE_CHAN_AIO_SPDIF, "s/pdif" },
+	{ HDSPE_CHAN_AIO_ADAT,    "adat" },
+	{ 0,                        NULL },
 };
 
 static struct hdspe_channel chan_map_rd[] = {
-	{   0, 1,    "aes", 1, 1 },
-	{   2, 3, "s/pdif", 1, 1 },
-	{   4, 5,   "adat", 1, 1 },
-	{   6, 7,   "adat", 1, 1 },
-	{   8, 9,   "adat", 1, 1 },
-	{ 10, 11,   "adat", 1, 1 },
-
-	/* Single or double speed. */
-	{ 12, 13,   "adat", 1, 1 },
-	{ 14, 15,   "adat", 1, 1 },
-	{ 16, 17,   "adat", 1, 1 },
-	{ 18, 19,   "adat", 1, 1 },
-
-	/* Single speed only. */
-	{ 20, 21,   "adat", 1, 1 },
-	{ 22, 23,   "adat", 1, 1 },
-	{ 24, 25,   "adat", 1, 1 },
-	{ 26, 27,   "adat", 1, 1 },
-	{ 28, 29,   "adat", 1, 1 },
-	{ 30, 31,   "adat", 1, 1 },
-	{ 32, 33,   "adat", 1, 1 },
-	{ 34, 35,   "adat", 1, 1 },
-
-	{ 0,  0,      NULL, 0, 0 },
+	{ HDSPE_CHAN_RAY_AES,      "aes" },
+	{ HDSPE_CHAN_RAY_SPDIF, "s/pdif" },
+	{ HDSPE_CHAN_RAY_ADAT1,  "adat1" },
+	{ HDSPE_CHAN_RAY_ADAT2,  "adat2" },
+	{ HDSPE_CHAN_RAY_ADAT3,  "adat3" },
+	{ HDSPE_CHAN_RAY_ADAT4,  "adat4" },
+	{ 0,                        NULL },
 };
 
 static void
