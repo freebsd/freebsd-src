@@ -215,13 +215,15 @@ echo
 sed -ne '/^  Panic String: /{s//panic: /;p;}' $INFO
 echo
 
-# XXX: /bin/sh on 7.0+ is broken so we can't simply pipe the commands to
-# kgdb via stdin and have to use a temporary file instead.
 file=`mktemp /tmp/crashinfo.XXXXXX`
 if [ $? -eq 0 ]; then
+	scriptdir=/usr/libexec/kgdb
+
 	echo "bt -full" >> $file
+	echo "source ${scriptdir}/acttrace.py" >> $file
+	echo "acttrace" >> $file
 	echo "quit" >> $file
-	${GDB%gdb}kgdb $KERNEL $VMCORE < $file
+	${GDB%gdb}kgdb -q $KERNEL $VMCORE < $file
 	rm -f $file
 	echo
 fi
