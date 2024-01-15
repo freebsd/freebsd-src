@@ -143,6 +143,17 @@ __EOF__
 }
 
 #
+# Filter the output of call-conduit to remove the warnings that are generated
+# for some installations where openssl module is mysteriously installed twice so
+# a warning is generated. It's likely a local config error, but we should work
+# in the face of that.
+#
+arc_call_conduit()
+{
+    arc call-conduit "$@" | grep -v '^Warning: '
+}
+
+#
 # Filter the output of arc list to remove the warnings as above, as well as any
 # stray escape sequences that are in the list (it interferes with the parsing)
 #
@@ -161,7 +172,7 @@ diff2phid()
     fi
 
     echo '{"names":["'"$diff"'"]}' |
-        arc call-conduit -- phid.lookup |
+        arc_call_conduit -- phid.lookup |
         jq -r "select(.response != []) | .response.${diff}.phid"
 }
 
@@ -176,7 +187,7 @@ diff2status()
 
     tmp=$(mktemp)
     echo '{"names":["'"$diff"'"]}' |
-        arc call-conduit -- phid.lookup > "$tmp"
+        arc_call_conduit -- phid.lookup > "$tmp"
     status=$(jq -r "select(.response != []) | .response.${diff}.status" < "$tmp")
     summary=$(jq -r "select(.response != []) |
          .response.${diff}.fullName" < "$tmp")
@@ -280,7 +291,7 @@ create_one_review()
                     "value": ["'"${parentphid}"'"]
                 }
              ]}' |
-            arc call-conduit -- differential.revision.edit >&3
+            arc_call_conduit -- differential.revision.edit >&3
     fi
     rm -f "$msg"
     return 0
@@ -298,13 +309,13 @@ diff2reviewers()
                   "constraints": {"phids": ["'"$reviewid"'"]},
                   "attachments": {"reviewers": true}
               }' |
-        arc call-conduit -- differential.revision.search |
+        arc_call_conduit -- differential.revision.search |
         jq '.response.data[0].attachments.reviewers.reviewers[] | select(.status == "accepted").reviewerPHID')
     if [ -n "$userids" ]; then
         echo '{
                   "constraints": {"phids": ['"$(echo -n "$userids" | tr '[:space:]' ',')"']}
               }' |
-            arc call-conduit -- user.search |
+            arc_call_conduit -- user.search |
             jq -r '.response.data[].fields.username'
     fi
 }
