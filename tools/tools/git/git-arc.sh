@@ -142,6 +142,15 @@ __EOF__
     exit 1
 }
 
+#
+# Filter the output of arc list to remove the warnings as above, as well as any
+# stray escape sequences that are in the list (it interferes with the parsing)
+#
+arc_list()
+{
+    arc list "$@" | sed 's/\x1b\[[0-9;]*m//g' | grep -v '^Warning: '
+}
+
 diff2phid()
 {
     local diff
@@ -194,8 +203,7 @@ title2diff()
     local title
 
     title=$(echo $1 | sed 's/"/\\"/g')
-    # arc list output always includes ANSI escape sequences, strip them.
-    arc list | sed 's/\x1b\[[0-9;]*m//g' | \
+    arc_list |
         awk -F': ' '{
             if (substr($0, index($0, FS) + length(FS)) == "'"$title"'") {
                 print substr($1, match($1, "D[1-9][0-9]*"))
@@ -406,7 +414,7 @@ gitarc__list()
     local chash commit commits diff openrevs title
 
     commits=$(build_commit_list "$@")
-    openrevs=$(arc list)
+    openrevs=$(arc_list)
 
     for commit in $commits; do
         chash=$(git show -s --format='%C(auto)%h' "$commit")
@@ -422,7 +430,7 @@ gitarc__list()
         # differently and keep the entire status.
         title=$(git show -s --format=%s "$commit")
         diff=$(echo "$openrevs" | \
-            awk -F'D[1-9][0-9]*:\.\\[m ' \
+            awk -F'D[1-9][0-9]*: ' \
                 '{if ($2 == "'"$(echo $title | sed 's/"/\\"/g')"'") print $0}')
         if [ -z "$diff" ]; then
             echo "No Review      : $title"
