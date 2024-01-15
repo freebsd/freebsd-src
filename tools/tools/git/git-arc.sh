@@ -51,7 +51,7 @@ Usage: git arc [-vy] <command> <arguments>
 Commands:
   create [-l] [-r <reviewer1>[,<reviewer2>...]] [-s subscriber[,...]] [<commit>|<commit range>]
   list <commit>|<commit range>
-  patch <diff1> [<diff2> ...]
+  patch [-c] <diff1> [<diff2> ...]
   stage [-b branch] [<commit>|<commit range>]
   update [-m message] [<commit>|<commit range>]
 
@@ -132,6 +132,11 @@ Examples:
   it.
 
   $ git arc patch D12345
+
+  Apply the patch in review D12345 to the currently checked-out tree, and
+  commit it using the review's title, summary and author.
+
+  $ git arc patch -c D12345
 
   List the status of reviews for all the commits in the branch "feature":
 
@@ -455,18 +460,162 @@ gitarc__list()
     done
 }
 
+# Try to guess our way to a good author name. The DWIM is strong in this
+# function, but these heuristics seem to generally produce the right results, in
+# the sample of src commits I checked out.
+find_author()
+{
+    local addr name email author_addr author_name
+
+    addr="$1"
+    name="$2"
+    author_addr="$3"
+    author_name="$4"
+
+    # The Phabricator interface doesn't have a simple way to get author name and
+    # address, so we have to try a number of heuristics to get the right result.
+
+    # Choice 1: It's a FreeBSD committer. These folks have no '.' in their phab
+    # username/addr. Sampled data in phab suggests that there's a high rate of
+    # these people having their local config pointing at something other than
+    # freebsd.org (which isn't surprising for ports committers getting src
+    # commits reviewed).
+    case "${addr}" in
+    *.*) ;;		# external user
+    *)
+	echo "${name} <${addr}@FreeBSD.org>"
+	return
+	;;
+    esac
+
+    # Choice 2: author_addr and author_name were set in the bundle, so use
+    # that. We may need to filter some known bogus ones, should they crop up.
+    if [ -n "$author_name" -a -n "$author_addr" ]; then
+	echo "${author_name} <${author_addr}>"
+	return
+    fi
+
+    # Choice 3: We can find this user in the FreeBSD repo. They've submited
+    # something before, and they happened to use an email that's somewhat
+    # similar to their phab username.
+    email=$(git log -1 --author "$(echo ${addr} | tr _ .)" --pretty="%aN <%aE>")
+    if [ -n "${email}" ]; then
+	echo "${email}"
+	return
+    fi
+
+    # Choice 4: We know this user. They've committed before, and they happened
+    # to use the same name, unless the name has the word 'user' in it. This
+    # might not be a good idea, since names can be somewhat common (there
+    # are two Andrew Turners that have contributed to FreeBSD, for example).
+    if ! (echo "${name}" | grep -w "[Uu]ser" -q); then
+	email=$(git log -1 --author "${name}" --pretty="%aN <%aE>")
+	if [ -n "$email" ]; then
+	    echo "$email"
+	    return
+	fi
+    fi
+
+    # Choice 5: Wing it as best we can. In this scenario, we replace the last _
+    # with a @, and call it the email address...
+    # Annoying fun fact: Phab replaces all non alpha-numerics with _, so we
+    # don't know if the prior _ are _ or + or any number of other characters.
+    # Since there's issues here, prompt
+    a=$(printf "%s <%s>\n" "${name}" $(echo "$addr" | sed -e 's/\(.*\)_/\1@/'))
+    echo "Making best guess: Truning ${addr} to ${a}"
+    if ! prompt; then
+       echo "ABORT"
+       return
+    fi
+    echo "${a}"
+}
+
+patch_commit()
+{
+    local diff reviewid review_data authorid user_data user_addr user_name author
+    local tmp author_addr author_name
+
+    diff=$1
+    reviewid=$(diff2phid "$diff")
+    # Get the author phid for this patch
+    review_data=$(echo '{
+                  "constraints": {"phids": ["'"$reviewid"'"]}
+		}' |
+        arc_call_conduit -- differential.revision.search)
+    authorid=$(echo "$review_data" | jq -r '.response.data[].fields.authorPHID' )
+    # Get metadata about the user that submitted this patch
+    user_data=$(echo '{
+                  "constraints": {"phids": ["'"$authorid"'"]}
+		}' |
+            arc call-conduit -- user.search | grep -v ^Warning: |
+            jq -r '.response.data[].fields')
+    user_addr=$(echo "$user_data" | jq -r '.username')
+    user_name=$(echo "$user_data" | jq -r '.realName')
+    # Dig the data out of querydiffs api endpoint, although it's deprecated,
+    # since it's one of the few places we can get email addresses. It's unclear
+    # if we can expect multiple difference ones of these. Some records don't
+    # have this data, so we remove all the 'null's. We sort the results and
+    # remove duplicates 'just to be sure' since we've not seen multiple
+    # records that match.
+    diff_data=$(echo '{
+		"revisionIDs": [ '"${diff#D}"' ]
+		}' | arc_call_conduit -- differential.querydiffs |
+	     jq -r '.response | flatten | .[]')
+    author_addr=$(echo "$diff_data" | jq -r ".authorEmail?" | sort -u)
+    author_name=$(echo "$diff_data" | jq -r ".authorName?" | sort -u)
+    author=$(find_author "$user_addr" "$user_name" "$author_addr" "$author_name")
+
+    # If we had to guess, and the user didn't want to guess, abort
+    if [ "${author}" = "ABORT" ]; then
+	warn "Not committing due to uncertainty over author name"
+	exit 1
+    fi
+
+    tmp=$(mktemp)
+    echo "$review_data" | jq -r '.response.data[].fields.title' > $tmp
+    echo >> $tmp
+    echo "$review_data" | jq -r '.response.data[].fields.summary' >> $tmp
+    echo >> $tmp
+    # XXX this leaves an extra newline in some cases.
+    reviewers=$(diff2reviewers "$diff" | sed '/^$/d' | paste -sd ',' - | sed 's/,/, /g')
+    if [ -n "$reviewers" ]; then
+        printf "Reviewed by:\t%s\n" "${reviewers}" >> "$tmp"
+    fi
+    # XXX TODO refactor with gitarc__stage maybe?
+    printf "Differential Revision:\thttps://reviews.freebsd.org/%s\n" "${diff}" >> "$tmp"
+    git commit --author "${author}" --file "$tmp"
+    rm "$tmp"
+}
+
 gitarc__patch()
 {
-    local rev
+    local rev commit
 
     if [ $# -eq 0 ]; then
         err_usage
     fi
 
+    commit=false
+    while getopts c o; do
+        case "$o" in
+        c)
+	    require_clean_work_tree "patch -c"
+            commit=true
+            ;;
+        *)
+            err_usage
+            ;;
+        esac
+    done
+    shift $((OPTIND-1))
+
     for rev in "$@"; do
         arc patch --skip-dependencies --nocommit --nobranch --force "$rev"
         echo "Applying ${rev}..."
         [ $? -eq 0 ] || break
+	if ${commit}; then
+	    patch_commit $rev
+	fi
     done
 }
 

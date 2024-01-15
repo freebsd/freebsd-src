@@ -41,7 +41,9 @@
 .Nm
 .Cm list Ar commit ... Ns | Ns Ar commit-range
 .Nm
-.Cm patch Ar diff1 Ns Op Cm \&, Ns Ar diff2
+.Cm patch
+.Op Fl c
+.Ar diff1 Ns Op Cm \&, Ns Ar diff2
 .Nm
 .Cm stage
 .Op Fl b Ar branch
@@ -209,6 +211,15 @@ Apply the patch in review D12345 to the currently checked-out tree,
 and stage it:
 .Bd -literal -offset indent
 $ git arc patch D12345
+.Ed
+.Pp
+Apply the patch in review D23456 to the currently checked-out tree,
+and commit it to the tree with the commit message in the review and
+make the best guess for what to use for author.
+If the guess is considered unreliable, the user is prompted to see
+if they wish to use it (or abort).
+.Bd -literal -offset indent
+$ git arc patch -c D23456
 .Ed
 .Pp
 List the status of reviews for all the commits in the branch
