@@ -1338,7 +1338,7 @@ c_perm(OPTION *option, char ***argvp)
 	if (*perm == '-') {
 		new->flags |= F_ATLEAST;
 		++perm;
-	} else if (*perm == '+') {
+	} else if (*perm == '+' || *perm == '/') {
 		new->flags |= F_ANY;
 		++perm;
 	}
