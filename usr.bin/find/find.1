@@ -30,7 +30,7 @@
 .\"
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\"
-.Dd December 22, 2023
+.Dd January 15, 2024
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -759,7 +759,7 @@ Slashes
 .Pq Dq Li /
 are treated as normal characters and do not have to be
 matched explicitly.
-.It Ic -perm Oo Cm - Ns | Ns Cm + Oc Ns Ar mode
+.It Ic -perm Oo Cm - Ns | Ns Cm + Ns | Ns Cm / Oc Ns Ar mode
 The
 .Ar mode
 may be either symbolic (see
@@ -788,11 +788,14 @@ are set in the file's mode bits.
 If the
 .Ar mode
 is preceded by a plus
-.Pq Dq Li + ,
+.Pq Dq Li +
 this primary evaluates to true
 if any of the bits in the
 .Ar mode
 are set in the file's mode bits.
+A slash
+.Pq Dq Li /
+is also accepted with the same meaning as plus for compatibility with GNU find.
 Otherwise, this primary evaluates to true if
 the bits in the
 .Ar mode
@@ -1118,6 +1121,16 @@ option was inspired by the equivalent
 and
 .Xr sed 1
 options.
+.Pp
+The
+.Ic -perm
+primary accepts a leading slash
+.Pq Dq Li /
+as an alias for a leading plus
+.Pq Dq Li +
+for its argument as an extension of
+.St -p1003.1-2001
+to be compatible with GNU find.
 .Sh HISTORY
 A simple
 .Nm
