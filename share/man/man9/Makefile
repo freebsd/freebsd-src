@@ -1012,6 +1012,7 @@ MLINKS+=device_get_sysctl.9 device_get_sysctl_ctx.9 \
 MLINKS+=device_quiet.9 device_is_quiet.9 \
 	device_quiet.9 device_verbose.9
 MLINKS+=device_set_desc.9 device_get_desc.9 \
+	device_set_desc.9 device_set_descf.9 \
 	device_set_desc.9 device_set_desc_copy.9
 MLINKS+=device_set_flags.9 device_get_flags.9
 MLINKS+=devstat.9 devicestat.9 \
