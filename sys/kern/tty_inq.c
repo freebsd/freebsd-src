@@ -165,7 +165,8 @@ ttyinq_read_uio(struct ttyinq *ti, struct tty *tp, struct uio *uio,
     size_t rlen, size_t flen)
 {
 
-	MPASS(rlen <= uio->uio_resid);
+	/* rlen includes flen, flen bytes will be trimmed from the end. */
+	MPASS(rlen - flen <= uio->uio_resid);
 
 	while (rlen > 0) {
 		int error;
@@ -191,6 +192,14 @@ ttyinq_read_uio(struct ttyinq *ti, struct tty *tp, struct uio *uio,
 		clen = cend - cbegin;
 		MPASS(clen >= flen);
 		rlen -= clen;
+
+		/*
+		 * Caller shouldn't request that we trim anything if we might be
+		 * reading across blocks.  We could handle it, but today we do
+		 * not.
+		 */
+		if (flen > 0)
+			MPASS(rlen == 0);
 
 		/*
 		 * We can prevent buffering in some cases:
