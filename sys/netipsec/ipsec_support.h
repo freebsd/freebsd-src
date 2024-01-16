@@ -164,10 +164,10 @@ extern const struct ipsec_support * const ipv6_ipsec_support;
 #define	IPSEC_CTLINPUT(proto, param)		\
     (*(proto ## _ipsec_support)->methods->ctlinput)(param)
 
-#define	UDPENCAP_INPUT(m, ...)			\
-    (*ipv4_ipsec_support->methods->udp_input)(m, __VA_ARGS__)
-#define	UDPENCAP_PCBCTL(inp, sopt)		\
-    (*ipv4_ipsec_support->methods->udp_pcbctl)(inp, sopt)
+#define	UDPENCAP_INPUT(proto, m, ...)			\
+    (*(proto ## _ipsec_support)->methods->udp_input)(m, __VA_ARGS__)
+#define	UDPENCAP_PCBCTL(proto, inp, sopt)		\
+    (*(proto ## _ipsec_support)->methods->udp_pcbctl)(inp, sopt)
 
 #elif defined(IPSEC_SUPPORT)
 struct ipsec_support {
@@ -196,10 +196,10 @@ int ipsec_kmod_udp_input(struct ipsec_support * const, struct mbuf *, int, int);
 int ipsec_kmod_udp_pcbctl(struct ipsec_support * const, struct inpcb *,
     struct sockopt *);
 
-#define	UDPENCAP_INPUT(m, ...)		\
-    ipsec_kmod_udp_input(ipv4_ipsec_support, m, __VA_ARGS__)
-#define	UDPENCAP_PCBCTL(inp, sopt)	\
-    ipsec_kmod_udp_pcbctl(ipv4_ipsec_support, inp, sopt)
+#define	UDPENCAP_INPUT(proto, m, ...)		\
+    ipsec_kmod_udp_input(proto ## _ipsec_support, m, __VA_ARGS__)
+#define	UDPENCAP_PCBCTL(proto, inp, sopt)	\
+    ipsec_kmod_udp_pcbctl(proto ## _ipsec_support, inp, sopt)
 
 #define	IPSEC_INPUT(proto, ...)		\
     ipsec_kmod_input(proto ## _ipsec_support, __VA_ARGS__)

@@ -4429,7 +4429,7 @@ netipsec/keysock.c		optional ipsec inet | ipsec inet6 | \
 	ipsec_support inet | ipsec_support inet6
 netipsec/subr_ipsec.c		optional ipsec inet | ipsec inet6 | \
 	ipsec_support inet | ipsec_support inet6
-netipsec/udpencap.c		optional ipsec inet
+netipsec/udpencap.c		optional ipsec inet | ipsec inet6
 netipsec/xform_ah.c		optional ipsec inet | ipsec inet6
 netipsec/xform_esp.c		optional ipsec inet | ipsec inet6
 netipsec/xform_ipcomp.c		optional ipsec inet | ipsec inet6

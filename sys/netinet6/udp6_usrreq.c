@@ -75,6 +75,7 @@
 #include "opt_rss.h"
 
 #include <sys/param.h>
+#include <sys/domain.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -158,12 +159,21 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 		if (filtered)
 			return (in_pcbrele_rlocked(inp));
 	}
+
+	off += sizeof(struct udphdr);
+
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/* Check AH/ESP integrity. */
 	if (IPSEC_ENABLED(ipv6)) {
 		if (IPSEC_CHECK_POLICY(ipv6, n, inp) != 0) {
 			m_freem(n);
 			return (0);
+		}
+
+		/* IPSec UDP encaps. */
+		if ((up->u_flags & UF_ESPINUDP) != 0 &&
+		    UDPENCAP_INPUT(ipv6, n, off, AF_INET6) != 0) {
+			return (0); /* Consumed. */
 		}
 	}
 #endif /* IPSEC */
@@ -189,7 +199,7 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
                                 opts = tmp_opts;
                 }
 	}
-	m_adj(n, off + sizeof(struct udphdr));
+	m_adj(n, off);
 
 	so = inp->inp_socket;
 	SOCKBUF_LOCK(&so->so_rcv);

@@ -267,7 +267,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	}
 	if (up->u_flags & UF_ESPINUDP) {/* IPSec UDP encaps. */
 		if (IPSEC_ENABLED(ipv4) &&
-		    UDPENCAP_INPUT(n, off, AF_INET) != 0)
+		    UDPENCAP_INPUT(ipv4, n, off, AF_INET) != 0)
 			return (0);	/* Consumed. */
 	}
 #endif /* IPSEC */
@@ -893,19 +893,32 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 	case SOPT_SET:
 		switch (sopt->sopt_name) {
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
-#ifdef INET
+#if defined(INET) || defined(INET6)
 		case UDP_ENCAP:
-			if (!INP_CHECK_SOCKAF(so, AF_INET)) {
-				INP_WUNLOCK(inp);
-				return (EINVAL);
+#ifdef INET
+			if (INP_SOCKAF(so) == AF_INET) {
+				if (!IPSEC_ENABLED(ipv4)) {
+					INP_WUNLOCK(inp);
+					return (ENOPROTOOPT);
+				}
+				error = UDPENCAP_PCBCTL(ipv4, inp, sopt);
+				break;
 			}
-			if (!IPSEC_ENABLED(ipv4)) {
-				INP_WUNLOCK(inp);
-				return (ENOPROTOOPT);
-			}
-			error = UDPENCAP_PCBCTL(inp, sopt);
-			break;
 #endif /* INET */
+#ifdef INET6
+			if (INP_SOCKAF(so) == AF_INET6) {
+				if (!IPSEC_ENABLED(ipv6)) {
+					INP_WUNLOCK(inp);
+					return (ENOPROTOOPT);
+				}
+				error = UDPENCAP_PCBCTL(ipv6, inp, sopt);
+				break;
+			}
+#endif /* INET6 */
+			INP_WUNLOCK(inp);
+			return (EINVAL);
+#endif /* INET || INET6 */
+
 #endif /* IPSEC */
 		case UDPLITE_SEND_CSCOV:
 		case UDPLITE_RECV_CSCOV:
@@ -944,19 +957,32 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 	case SOPT_GET:
 		switch (sopt->sopt_name) {
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
-#ifdef INET
+#if defined(INET) || defined(INET6)
 		case UDP_ENCAP:
-			if (!INP_CHECK_SOCKAF(so, AF_INET)) {
-				INP_WUNLOCK(inp);
-				return (EINVAL);
+#ifdef INET
+			if (INP_SOCKAF(so) == AF_INET) {
+				if (!IPSEC_ENABLED(ipv4)) {
+					INP_WUNLOCK(inp);
+					return (ENOPROTOOPT);
+				}
+				error = UDPENCAP_PCBCTL(ipv4, inp, sopt);
+				break;
 			}
-			if (!IPSEC_ENABLED(ipv4)) {
-				INP_WUNLOCK(inp);
-				return (ENOPROTOOPT);
-			}
-			error = UDPENCAP_PCBCTL(inp, sopt);
-			break;
 #endif /* INET */
+#ifdef INET6
+			if (INP_SOCKAF(so) == AF_INET6) {
+				if (!IPSEC_ENABLED(ipv6)) {
+					INP_WUNLOCK(inp);
+					return (ENOPROTOOPT);
+				}
+				error = UDPENCAP_PCBCTL(ipv6, inp, sopt);
+				break;
+			}
+#endif /* INET6 */
+			INP_WUNLOCK(inp);
+			return (EINVAL);
+#endif /* INET || INET6 */
+
 #endif /* IPSEC */
 		case UDPLITE_SEND_CSCOV:
 		case UDPLITE_RECV_CSCOV:
