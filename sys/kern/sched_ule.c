@@ -2215,9 +2215,8 @@ sched_switch(struct thread *td, int flags)
 		TD_SET_CAN_RUN(td);
 	} else if (TD_IS_RUNNING(td)) {
 		MPASS(mtx == TDQ_LOCKPTR(tdq));
-		srqflag = preempted ?
-		    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
-		    SRQ_OURSELF|SRQ_YIELDING;
+		srqflag = SRQ_OURSELF | SRQ_YIELDING |
+		    (preempted ? SRQ_PREEMPTED : 0);
 #ifdef SMP
 		if (THREAD_CAN_MIGRATE(td) && (!THREAD_CAN_SCHED(td, ts->ts_cpu)
 		    || pickcpu))
