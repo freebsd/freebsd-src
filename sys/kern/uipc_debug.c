@@ -242,7 +242,6 @@ db_print_domain(struct domain *d, const char *domain_name, int indent)
 
 	db_print_indent(indent);
 	db_printf("dom_externalize: %p   ", d->dom_externalize);
-	db_printf("dom_dispose: %p\n", d->dom_dispose);
 
 	db_print_indent(indent);
 	db_printf("dom_protosw: %p   ", d->dom_protosw);
@@ -276,10 +275,6 @@ db_print_prflags(short pr_flags)
 	}
 	if (pr_flags & PR_WANTRCVD) {
 		db_printf("%sPR_WANTRCVD", comma ? ", " : "");
-		comma = 1;
-	}
-	if (pr_flags & PR_RIGHTS) {
-		db_printf("%sPR_RIGHTS", comma ? ", " : "");
 		comma = 1;
 	}
 	if (pr_flags & PR_IMPLOPCL) {

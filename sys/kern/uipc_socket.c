@@ -1201,10 +1201,6 @@ sofree(struct socket *so)
 		so->so_dtor(so);
 
 	VNET_SO_ASSERT(so);
-	if ((pr->pr_flags & PR_RIGHTS) && !SOLISTENING(so)) {
-		MPASS(pr->pr_domain->dom_dispose != NULL);
-		(*pr->pr_domain->dom_dispose)(so);
-	}
 	if (pr->pr_detach != NULL)
 		pr->pr_detach(so);
 
@@ -2981,7 +2977,6 @@ soshutdown(struct socket *so, enum shutdown_how how)
 void
 sorflush(struct socket *so)
 {
-	struct protosw *pr;
 	int error;
 
 	VNET_SO_ASSERT(so);
@@ -3001,14 +2996,8 @@ sorflush(struct socket *so)
 		return;
 	}
 
-	pr = so->so_proto;
-	if (pr->pr_flags & PR_RIGHTS) {
-		MPASS(pr->pr_domain->dom_dispose != NULL);
-		(*pr->pr_domain->dom_dispose)(so);
-	} else {
-		sbrelease(so, SO_RCV);
-		SOCK_IO_RECV_UNLOCK(so);
-	}
+	sbrelease(so, SO_RCV);
+	SOCK_IO_RECV_UNLOCK(so);
 
 }
 
