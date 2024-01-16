@@ -26,11 +26,12 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 16, 1998
+.Dd January 9, 2024
 .Dt DEVICE_SET_DESC 9
 .Os
 .Sh NAME
 .Nm device_set_desc ,
+.Nm device_set_descf ,
 .Nm device_set_desc_copy ,
 .Nm device_get_desc
 .Nd access the description of a device
@@ -39,6 +40,8 @@
 .In sys/bus.h
 .Ft void
 .Fn device_set_desc "device_t dev" "const char *desc"
+.Ft void
+.Fn device_set_descf "device_t dev" "const char *fmt" "..."
 .Ft void
 .Fn device_set_desc_copy "device_t dev" "const char *desc"
 .Ft const char *
@@ -54,6 +57,9 @@ is used to set the description if the string passed is a temporary
 buffer which will be overwritten.
 In this case, the system will copy
 the string, otherwise the pointer passed will be used directly.
+.Fn device_set_descf
+is a printf-like version of
+.Fn device_set_desc .
 .Sh SEE ALSO
 .Xr device 9
 .Sh AUTHORS

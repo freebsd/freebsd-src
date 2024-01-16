@@ -660,6 +660,7 @@ int	device_quiesce(device_t dev);
 void	device_quiet(device_t dev);
 void	device_quiet_children(device_t dev);
 void	device_set_desc(device_t dev, const char* desc);
+void	device_set_descf(device_t dev, const char* fmt, ...) __printflike(2, 3);
 void	device_set_desc_copy(device_t dev, const char* desc);
 int	device_set_devclass(device_t dev, const char *classname);
 int	device_set_devclass_fixed(device_t dev, const char *classname);
