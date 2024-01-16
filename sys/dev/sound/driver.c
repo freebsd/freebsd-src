@@ -43,7 +43,6 @@ snd_modevent(module_t mod, int type, void *data)
 		break;
 	default:
 		return (ENOTSUP);
-		break;
 	}
 	return 0;
 }
@@ -68,6 +67,7 @@ MODULE_DEPEND(snd_driver, snd_envy24ht, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_es137x, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_fm801, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_hda, 1, 1, 1);
+MODULE_DEPEND(snd_driver, snd_hdspe, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_ich, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_maestro3, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_neomagic, 1, 1, 1);
@@ -77,3 +77,4 @@ MODULE_DEPEND(snd_driver, snd_t4dwave, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_via8233, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_via82c686, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_vibes, 1, 1, 1);
+MODULE_DEPEND(snd_driver, snd_uaudio, 1, 1, 1);
