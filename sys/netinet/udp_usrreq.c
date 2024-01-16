@@ -1670,16 +1670,42 @@ udp_disconnect(struct socket *so)
 #endif /* INET */
 
 int
-udp_shutdown(struct socket *so)
+udp_shutdown(struct socket *so, enum shutdown_how how)
 {
-	struct inpcb *inp;
+	int error;
 
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("udp_shutdown: inp == NULL"));
-	INP_WLOCK(inp);
-	socantsendmore(so);
-	INP_WUNLOCK(inp);
-	return (0);
+	SOCK_LOCK(so);
+	if (!(so->so_state & SS_ISCONNECTED))
+		/*
+		 * POSIX mandates us to just return ENOTCONN when shutdown(2) is
+		 * invoked on a datagram sockets, however historically we would
+		 * actually tear socket down.  This is known to be leveraged by
+		 * some applications to unblock process waiting in recv(2) by
+		 * other process that it shares that socket with.  Try to meet
+		 * both backward-compatibility and POSIX requirements by forcing
+		 * ENOTCONN but still flushing buffers and performing wakeup(9).
+		 *
+		 * XXXGL: it remains unknown what applications expect this
+		 * behavior and is this isolated to unix/dgram or inet/dgram or
+		 * both.  See: D10351, D3039.
+		 */
+		error = ENOTCONN;
+	else
+		error = 0;
+	SOCK_UNLOCK(so);
+
+	switch (how) {
+	case SHUT_RD:
+		sorflush(so);
+		break;
+	case SHUT_RDWR:
+		sorflush(so);
+		/* FALLTHROUGH */
+	case SHUT_WR:
+		socantsendmore(so);
+	}
+
+	return (error);
 }
 
 #ifdef INET

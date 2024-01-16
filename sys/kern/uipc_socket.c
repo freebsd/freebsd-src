@@ -2966,59 +2966,18 @@ soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 int
 soshutdown(struct socket *so, enum shutdown_how how)
 {
-	struct protosw *pr;
-	int error, soerror_enotconn;
-
-	soerror_enotconn = 0;
-	SOCK_LOCK(so);
-	if ((so->so_state &
-	    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0) {
-		/*
-		 * POSIX mandates us to return ENOTCONN when shutdown(2) is
-		 * invoked on a datagram sockets, however historically we would
-		 * actually tear socket down. This is known to be leveraged by
-		 * some applications to unblock process waiting in recvXXX(2)
-		 * by other process that it shares that socket with. Try to meet
-		 * both backward-compatibility and POSIX requirements by forcing
-		 * ENOTCONN but still asking protocol to perform pru_shutdown().
-		 */
-		if (so->so_type != SOCK_DGRAM && !SOLISTENING(so)) {
-			SOCK_UNLOCK(so);
-			return (ENOTCONN);
-		}
-		soerror_enotconn = 1;
-	}
-
-	if (SOLISTENING(so)) {
-		if (how != SHUT_WR) {
-			so->so_error = ECONNABORTED;
-			solisten_wakeup(so);	/* unlocks so */
-		} else {
-			SOCK_UNLOCK(so);
-		}
-		goto done;
-	}
-	SOCK_UNLOCK(so);
+	int error;
 
 	CURVNET_SET(so->so_vnet);
-	pr = so->so_proto;
-	if (pr->pr_flush != NULL)
-		pr->pr_flush(so, how);
-	if (how != SHUT_WR && !(pr->pr_flags & PR_SOCKBUF))
-		sorflush(so);
-	if (how != SHUT_RD) {
-		error = pr->pr_shutdown(so);
-		wakeup(&so->so_timeo);
-		CURVNET_RESTORE();
-		return ((error == 0 && soerror_enotconn) ? ENOTCONN : error);
-	}
-	wakeup(&so->so_timeo);
+	error = so->so_proto->pr_shutdown(so, how);
 	CURVNET_RESTORE();
 
-done:
-	return (soerror_enotconn ? ENOTCONN : 0);
+	return (error);
 }
 
+/*
+ * Used by several pr_shutdown implementations that use generic socket buffers.
+ */
 void
 sorflush(struct socket *so)
 {

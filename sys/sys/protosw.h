@@ -39,6 +39,7 @@ struct thread;
 struct sockaddr;
 struct socket;
 struct sockopt;
+enum shutdown_how;
 
 /*#ifdef _KERNEL*/
 /*
@@ -84,8 +85,7 @@ typedef int	pr_send_t(struct socket *, int, struct mbuf *,
 		    struct sockaddr *, struct mbuf *, struct thread *);
 typedef int	pr_ready_t(struct socket *, struct mbuf *, int);
 typedef int	pr_sense_t(struct socket *, struct stat *);
-typedef int	pr_shutdown_t(struct socket *);
-typedef int	pr_flush_t(struct socket *, int);
+typedef int	pr_shutdown_t(struct socket *, enum shutdown_how);
 typedef int	pr_sockaddr_t(struct socket *, struct sockaddr *);
 typedef int	pr_sosend_t(struct socket *, struct sockaddr *, struct uio *,
 		    struct mbuf *, struct mbuf *, int, struct thread *);
@@ -137,7 +137,6 @@ struct protosw {
 	pr_peeraddr_t	*pr_peeraddr;	/* getpeername(2) */
 	pr_sockaddr_t	*pr_sockaddr;	/* getsockname(2) */
 	pr_sense_t	*pr_sense;	/* stat(2) */
-	pr_flush_t	*pr_flush;	/* XXXGL: merge with pr_shutdown_t! */
 	pr_sosetlabel_t	*pr_sosetlabel;	/* MAC, XXXGL: remove */
 	pr_setsbopt_t	*pr_setsbopt;	/* Socket buffer ioctls */
 };
