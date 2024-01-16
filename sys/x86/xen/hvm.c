@@ -155,24 +155,13 @@ xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 {
 	uint32_t regs[4];
 
-	/* Legacy PVH will get here without the cpuid leaf being set. */
-	if (xen_cpuid_base == 0)
-		xen_cpuid_base = xen_hvm_cpuid_base();
+	if (xen_cpuid_base != 0)
+		/* Already setup. */
+		goto out;
+
+	xen_cpuid_base = xen_hvm_cpuid_base();
 	if (xen_cpuid_base == 0)
 		return (ENXIO);
-
-	if (xen_domain() && init_type == XEN_HVM_INIT_LATE) {
-		/*
-		 * If the domain type is already set we can assume that the
-		 * hypercall page has been populated too, so just print the
-		 * version (and apply any quirks) and exit.
-		 */
-		hypervisor_version();
-		return 0;
-	}
-
-	if (init_type == XEN_HVM_INIT_LATE)
-		hypervisor_version();
 
 	/*
 	 * Find the hypercall pages.
@@ -185,6 +174,8 @@ xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 	    ? (vm_paddr_t)((uintptr_t)&hypercall_page - KERNBASE)
 	    : vtophys(&hypercall_page));
 
+out:
+	hypervisor_version();
 	return (0);
 }
 
@@ -334,7 +325,8 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 	int error;
 	int i;
 
-	if (init_type == XEN_HVM_INIT_CANCELLED_SUSPEND)
+	if (!xen_domain() ||
+	    init_type == XEN_HVM_INIT_CANCELLED_SUSPEND)
 		return;
 
 	error = xen_hvm_init_hypercall_stubs(init_type);
@@ -343,15 +335,6 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 	case XEN_HVM_INIT_LATE:
 		if (error != 0)
 			return;
-
-		/*
-		 * If the Xen domain type is not set at this point
-		 * it means we are inside a (PV)HVM guest, because
-		 * for PVH the guest type is set much earlier
-		 * (see hammer_time_xen).
-		 */
-		if (!xen_domain())
-			vm_guest = VM_GUEST_XEN;
 
 		setup_xen_features();
 #ifdef SMP
