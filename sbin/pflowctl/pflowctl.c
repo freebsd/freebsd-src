@@ -47,11 +47,11 @@
 
 static int get(int id);
 
+extern char *__progname;
+
 static void
 usage(void)
 {
-	extern char *__progname;
-
 	fprintf(stderr,
 "usage: %s [-la] [-d id]\n",
 	    __progname);
