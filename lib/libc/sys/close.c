@@ -40,6 +40,5 @@ __weak_reference(__sys_close, __close);
 int
 close(int fd)
 {
-
-	return (((int (*)(int))__libc_interposing[INTERPOS_close])(fd));
+	return (((int (*)(int))__libsys_interposing[INTERPOS_close])(fd));
 }

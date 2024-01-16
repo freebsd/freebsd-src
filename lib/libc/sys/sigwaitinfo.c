@@ -39,7 +39,6 @@ __weak_reference(__sys_sigwaitinfo, __sigwaitinfo);
 int
 sigwaitinfo(const sigset_t * __restrict set, siginfo_t * __restrict info)
 {
-
 	return (((int (*)(const sigset_t *, siginfo_t *))
-	    __libc_interposing[INTERPOS_sigwaitinfo])(set, info));
+	    __libsys_interposing[INTERPOS_sigwaitinfo])(set, info));
 }

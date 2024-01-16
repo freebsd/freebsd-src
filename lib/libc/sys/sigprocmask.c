@@ -40,7 +40,6 @@ __weak_reference(sigprocmask, __libc_sigprocmask);
 int
 sigprocmask(int how, const sigset_t *set, sigset_t *oset)
 {
-
 	return (((int (*)(int, const sigset_t *, sigset_t *))
-	    __libc_interposing[INTERPOS_sigprocmask])(how, set, oset));
+	    __libsys_interposing[INTERPOS_sigprocmask])(how, set, oset));
 }

@@ -50,5 +50,5 @@ fcntl(int fd, int cmd, ...)
 	va_end(args);
 
 	return (((int (*)(int, int, ...))
-	    __libc_interposing[INTERPOS_fcntl])(fd, cmd, arg));
+	    __libsys_interposing[INTERPOS_fcntl])(fd, cmd, arg));
 }

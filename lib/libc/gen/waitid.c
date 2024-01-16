@@ -47,7 +47,7 @@ __waitid(idtype_t idtype, id_t id, siginfo_t *info, int flags)
 	pid_t ret;
 
 	ret = ((pid_t (*)(idtype_t, id_t, int *, int, struct __wrusage *,
-	    siginfo_t *))__libc_interposing[INTERPOS_wait6])(idtype, id,
+	    siginfo_t *))__libsys_interposing[INTERPOS_wait6])(idtype, id,
 	    &status, flags, NULL, info);
 
 	/*

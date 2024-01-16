@@ -40,7 +40,6 @@ __weak_reference(sigsuspend, __libc_sigsuspend);
 int
 sigsuspend(const sigset_t *set)
 {
-
 	return (((int (*)(const sigset_t *))
-	    __libc_interposing[INTERPOS_sigsuspend])(set));
+	    __libsys_interposing[INTERPOS_sigsuspend])(set));
 }

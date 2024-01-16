@@ -63,7 +63,7 @@ lockf(int filedes, int function, off_t size)
 	case F_TEST:
 		fl.l_type = F_WRLCK;
 		if (((int (*)(int, int, ...))
-		    __libc_interposing[INTERPOS_fcntl])(filedes, F_GETLK, &fl)
+		    __libsys_interposing[INTERPOS_fcntl])(filedes, F_GETLK, &fl)
 		    == -1)
 			return (-1);
 		if (fl.l_type == F_UNLCK || (fl.l_sysid == 0 &&
@@ -79,5 +79,5 @@ lockf(int filedes, int function, off_t size)
 	}
 
 	return (((int (*)(int, int, ...))
-	    __libc_interposing[INTERPOS_fcntl])(filedes, cmd, &fl));
+	    __libsys_interposing[INTERPOS_fcntl])(filedes, cmd, &fl));
 }
