@@ -346,6 +346,55 @@ ttyinq_canonicalize(struct ttyinq *ti)
 	ti->ti_startblock = ti->ti_reprintblock = ti->ti_lastblock;
 }
 
+/*
+ * Canonicalize at one of the break characters; we'll work backwards from the
+ * lastblock to firstblock to try and find the latest one.
+ */
+void
+ttyinq_canonicalize_break(struct ttyinq *ti, const char *breakc)
+{
+	struct ttyinq_block *tib = ti->ti_lastblock;
+	unsigned int canon, off;
+	unsigned int boff;
+
+	/* No block, no change needed. */
+	if (tib == NULL || ti->ti_end == 0)
+		return;
+
+	/* Start just past the end... */
+	off = ti->ti_end;
+	canon = ti->ti_begin;
+
+	while (off > ti->ti_begin) {
+		off--;
+		boff = off % TTYINQ_DATASIZE;
+
+		if (strchr(breakc, tib->tib_data[boff]) && !GETBIT(tib, boff)) {
+			canon = off + 1;
+			break;
+		}
+
+		if (off != ti->ti_begin && boff == 0)
+			tib = tib->tib_prev;
+	}
+
+	MPASS(canon > ti->ti_begin || off == ti->ti_begin);
+
+	/*
+	 * We should only be able to hit canon == ti_begin if we walked
+	 * everything we have and didn't find any of the break characters, so
+	 * if canon == ti_begin then tib is already the correct block and we
+	 * should avoid touching it.
+	 *
+	 * For all other scenarios, if canon lies on a block boundary then tib
+	 * has already advanced to the previous block.
+	 */
+	if (canon != ti->ti_begin && (canon % TTYINQ_DATASIZE) == 0)
+		tib = tib->tib_next;
+	ti->ti_linestart = ti->ti_reprint = canon;
+	ti->ti_startblock = ti->ti_reprintblock = tib;
+}
+
 size_t
 ttyinq_findchar(struct ttyinq *ti, const char *breakc, size_t maxlen,
     char *lastc)
