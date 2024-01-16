@@ -40,7 +40,6 @@ __weak_reference(__sys_sendmsg, __sendmsg);
 ssize_t
 sendmsg(int s, const struct msghdr *msg, int flags)
 {
-
 	return (((int (*)(int, const struct msghdr *, int))
-	    __libc_interposing[INTERPOS_sendmsg])(s, msg, flags));
+	    __libsys_interposing[INTERPOS_sendmsg])(s, msg, flags));
 }

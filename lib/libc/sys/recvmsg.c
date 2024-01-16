@@ -40,7 +40,6 @@ __weak_reference(__sys_recvmsg, __recvmsg);
 ssize_t
 recvmsg(int s, struct msghdr *msg, int flags)
 {
-
 	return (((int (*)(int, struct msghdr *, int))
-	    __libc_interposing[INTERPOS_recvmsg])(s, msg, flags));
+	    __libsys_interposing[INTERPOS_recvmsg])(s, msg, flags));
 }

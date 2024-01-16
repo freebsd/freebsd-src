@@ -44,6 +44,6 @@ send(int s, const void *msg, size_t len, int flags)
 	 */
 	return (((ssize_t (*)(int, const void *, size_t, int,
 	    const struct sockaddr *, socklen_t))
-	    __libc_interposing[INTERPOS_sendto])(s, msg, len, flags,
+	    __libsys_interposing[INTERPOS_sendto])(s, msg, len, flags,
 	    NULL, 0));
 }

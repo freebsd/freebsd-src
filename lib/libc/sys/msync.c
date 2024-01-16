@@ -40,7 +40,6 @@ __weak_reference(__sys_msync, __msync);
 int
 msync(void *addr, size_t len, int flags)
 {
-
 	return (((int (*)(void *, size_t, int))
-	    __libc_interposing[INTERPOS_msync])(addr, len, flags));
+	    __libsys_interposing[INTERPOS_msync])(addr, len, flags));
 }

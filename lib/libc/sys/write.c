@@ -40,7 +40,6 @@ __weak_reference(__sys_write, __write);
 ssize_t
 write(int fd, const void *buf, size_t nbytes)
 {
-
 	return (((ssize_t (*)(int, const void *, size_t))
-	    __libc_interposing[INTERPOS_write])(fd, buf, nbytes));
+	    __libsys_interposing[INTERPOS_write])(fd, buf, nbytes));
 }
