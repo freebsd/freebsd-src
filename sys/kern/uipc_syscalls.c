@@ -1172,6 +1172,9 @@ kern_shutdown(struct thread *td, int s, int how)
 	struct file *fp;
 	int error;
 
+	if (__predict_false(how < SHUT_RD || how > SHUT_RDWR))
+		return (EINVAL);
+
 	AUDIT_ARG_FD(s);
 	error = getsock(td, s, &cap_shutdown_rights, &fp);
 	if (error == 0) {
