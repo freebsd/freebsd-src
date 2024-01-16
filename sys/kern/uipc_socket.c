@@ -95,9 +95,9 @@
  *
  * NOTE: With regard to VNETs the general rule is that callers do not set
  * curvnet. Exceptions to this rule include soabort(), sodisconnect(),
- * sofree() (and with that sorele(), sotryfree()), as well as sonewconn()
- * and sorflush(), which are usually called from a pre-set VNET context.
- * sopoll() currently does not need a VNET context to be set.
+ * sofree() (and with that sorele(), sotryfree()), as well as sonewconn(),
+ * which are usually called from a pre-set VNET context. sopoll() currently
+ * does not need a VNET context to be set.
  */
 
 #include <sys/cdefs.h>
@@ -2969,36 +2969,6 @@ soshutdown(struct socket *so, enum shutdown_how how)
 	CURVNET_RESTORE();
 
 	return (error);
-}
-
-/*
- * Used by several pr_shutdown implementations that use generic socket buffers.
- */
-void
-sorflush(struct socket *so)
-{
-	int error;
-
-	VNET_SO_ASSERT(so);
-
-	/*
-	 * Dislodge threads currently blocked in receive and wait to acquire
-	 * a lock against other simultaneous readers before clearing the
-	 * socket buffer.  Don't let our acquire be interrupted by a signal
-	 * despite any existing socket disposition on interruptable waiting.
-	 */
-	socantrcvmore(so);
-
-	error = SOCK_IO_RECV_LOCK(so, SBL_WAIT | SBL_NOINTR);
-	if (error != 0) {
-		KASSERT(SOLISTENING(so),
-		    ("%s: soiolock(%p) failed", __func__, so));
-		return;
-	}
-
-	sbrelease(so, SO_RCV);
-	SOCK_IO_RECV_UNLOCK(so);
-
 }
 
 /*

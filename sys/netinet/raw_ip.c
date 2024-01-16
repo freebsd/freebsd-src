@@ -994,10 +994,12 @@ rip_shutdown(struct socket *so, enum shutdown_how how)
 
 	switch (how) {
 	case SHUT_RD:
-		sorflush(so);
+		socantrcvmore(so);
+		sbrelease(so, SO_RCV);
 		break;
 	case SHUT_RDWR:
-		sorflush(so);
+		socantrcvmore(so);
+		sbrelease(so, SO_RCV);
 		/* FALLTHROUGH */
 	case SHUT_WR:
 		socantsendmore(so);
