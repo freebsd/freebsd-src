@@ -68,8 +68,7 @@ static inline int	 applies(struct s_command *);
 static void		 do_tr(struct s_tr *);
 static void		 flush_appends(void);
 static void		 lputs(char *, size_t);
-static int		 regexec_e(regex_t *, const char *, int, int, size_t,
-			     size_t);
+static int		 regexec_e(regex_t *, char *, int, int, size_t, size_t);
 static void		 regsub(SPACE *, char *, char *);
 static int		 substitute(struct s_command *);
 
@@ -660,7 +659,7 @@ lputs(char *s, size_t len)
 }
 
 static int
-regexec_e(regex_t *preg, const char *string, int eflags, int nomatch,
+regexec_e(regex_t *preg, char *string, int eflags, int nomatch,
 	size_t start, size_t stop)
 {
 	int eval;
@@ -672,11 +671,23 @@ regexec_e(regex_t *preg, const char *string, int eflags, int nomatch,
 		defpreg = preg;
 
 	/* Set anchors */
+#ifndef REG_STARTEND /* in cross-build tools */
+	char old = string[stop];
+	string[stop] = '\0';
+	eval = regexec(defpreg, string + start,
+	    nomatch ? 0 : maxnsub + 1, match, eflags);
+	string[stop] = old;
+	for (size_t i = 0; i <= (nomatch ? 0 : maxnsub); ++i) {
+		match[i].rm_so += start;
+		match[i].rm_eo += start;
+	}
+#else
 	match[0].rm_so = start;
 	match[0].rm_eo = stop;
 
 	eval = regexec(defpreg, string,
 	    nomatch ? 0 : maxnsub + 1, match, eflags | REG_STARTEND);
+#endif
 	switch(eval) {
 	case 0:
 		return (1);
