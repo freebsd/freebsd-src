@@ -310,9 +310,24 @@ key_detach(struct socket *so)
 }
 
 static int
-key_shutdown(struct socket *so)
+key_shutdown(struct socket *so, enum shutdown_how how)
 {
-	socantsendmore(so);
+	/*
+	 * Note: key socket marks itself as connected through its lifetime.
+	 */
+	switch (how) {
+	case SHUT_RD:
+		socantrcvmore(so);
+		sbrelease(so, SO_RCV);
+		break;
+	case SHUT_RDWR:
+		socantrcvmore(so);
+		sbrelease(so, SO_RCV);
+		/* FALLTHROUGH */
+	case SHUT_WR:
+		socantsendmore(so);
+	}
+
 	return (0);
 }
 
