@@ -167,6 +167,28 @@ ttydisc_bytesavail(struct tty *tp)
 	return (clen);
 }
 
+void
+ttydisc_canonicalize(struct tty *tp)
+{
+	char breakc[4];
+
+	/*
+	 * If we're in non-canonical mode, it's as easy as just canonicalizing
+	 * the current partial line.
+	 */
+	if (!CMP_FLAG(l, ICANON)) {
+		ttyinq_canonicalize(&tp->t_inq);
+		return;
+	}
+
+	/*
+	 * For canonical mode, we need to rescan the buffer for the last EOL
+	 * indicator.
+	 */
+	ttydisc_read_break(tp, &breakc[0], sizeof(breakc));
+	ttyinq_canonicalize_break(&tp->t_inq, breakc);
+}
+
 static int
 ttydisc_read_canonical(struct tty *tp, struct uio *uio, int ioflag)
 {
