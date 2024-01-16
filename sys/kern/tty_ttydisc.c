@@ -112,15 +112,20 @@ ttydisc_close(struct tty *tp)
 		ttyhook_close(tp);
 }
 
-static int
-ttydisc_read_canonical(struct tty *tp, struct uio *uio, int ioflag)
+/*
+ * Populate our break array; it should likely be at least 4 bytes in size to
+ * allow for \n, VEOF, and VEOL.
+ */
+static void
+ttydisc_read_break(struct tty *tp, char *breakc, size_t breaksz)
 {
-	char breakc[4] = { CNL }; /* enough to hold \n, VEOF and VEOL. */
-	int error;
-	size_t clen, flen = 0, n = 1;
-	unsigned char lastc = _POSIX_VDISABLE;
+	size_t n = 0;
 
+	MPASS(breaksz != 0);
+
+	breakc[n++] = CNL;
 #define BREAK_ADD(c) do { \
+	MPASS(n < breaksz - 1);	/* NUL terminated */	\
 	if (tp->t_termios.c_cc[c] != _POSIX_VDISABLE)	\
 		breakc[n++] = tp->t_termios.c_cc[c];	\
 } while (0)
@@ -128,7 +133,48 @@ ttydisc_read_canonical(struct tty *tp, struct uio *uio, int ioflag)
 	BREAK_ADD(VEOF);
 	BREAK_ADD(VEOL);
 #undef BREAK_ADD
+
 	breakc[n] = '\0';
+}
+
+size_t
+ttydisc_bytesavail(struct tty *tp)
+{
+	size_t clen;
+	char breakc[4];
+	unsigned char lastc = _POSIX_VDISABLE;
+
+	clen = ttyinq_bytescanonicalized(&tp->t_inq);
+	if (!CMP_FLAG(l, ICANON) || clen == 0)
+		return (clen);
+
+	ttydisc_read_break(tp, &breakc[0], sizeof(breakc));
+	clen = ttyinq_findchar(&tp->t_inq, breakc, clen, &lastc);
+
+	/*
+	 * We might have a partial line canonicalized in the input queue if we,
+	 * for instance, switched to ICANON after taking some input in raw mode.
+	 * In this case, read(2) will block because we only have a partial line.
+	 */
+	if (lastc == _POSIX_VDISABLE)
+		return (0);
+
+	/* If VEOF was our terminal, it must be discarded (not counted). */
+	if (CMP_CC(VEOF, lastc))
+		clen--;
+
+	return (clen);
+}
+
+static int
+ttydisc_read_canonical(struct tty *tp, struct uio *uio, int ioflag)
+{
+	char breakc[4]; /* enough to hold \n, VEOF and VEOL. */
+	int error;
+	size_t clen, flen = 0;
+	unsigned char lastc = _POSIX_VDISABLE;
+
+	ttydisc_read_break(tp, &breakc[0], sizeof(breakc));
 
 	do {
 		error = tty_wait_background(tp, curthread, SIGTTIN);
@@ -153,7 +199,7 @@ ttydisc_read_canonical(struct tty *tp, struct uio *uio, int ioflag)
 		 * cause the TTY layer to return data in chunks using
 		 * the blocksize (except the first and last blocks).
 		 */
-		clen = ttyinq_findchar(&tp->t_inq, breakc, uio->uio_resid,
+		clen = ttyinq_findchar(&tp->t_inq, breakc, uio->uio_resid + 1,
 		    &lastc);
 
 		/* No more data. */
@@ -169,10 +215,20 @@ ttydisc_read_canonical(struct tty *tp, struct uio *uio, int ioflag)
 			continue;
 		}
 
-		/* Don't send the EOF char back to userspace. */
+		/*
+		 * Don't send the EOF char back to userspace.  Our above call to
+		 * ttyinq_findchar overreads by 1 character in case we would
+		 * otherwise be leaving an EOF for the next read().  We'll trim
+		 * clen back down to uio_resid whether we find our EOF or not.
+		 */
 		if (CMP_CC(VEOF, lastc))
 			flen = 1;
 
+		/*
+		 * Trim clen back down to the buffer size, since we had
+		 * intentionally over-read.
+		 */
+		clen = MIN(uio->uio_resid + flen, clen);
 		MPASS(flen <= clen);
 
 		/* Read and throw away the EOF character. */
