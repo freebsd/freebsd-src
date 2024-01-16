@@ -867,11 +867,14 @@ ieee80211_sta_join1(struct ieee80211_node *selbs)
 		struct ieee80211_node_table *nt = obss->ni_table;
 
 		copy_bss(selbs, obss);
-		ieee80211_node_decref(obss);	/* iv_bss reference */
-
-		IEEE80211_NODE_LOCK(nt);
-		node_reclaim(nt, obss);		/* station table reference */
-		IEEE80211_NODE_UNLOCK(nt);
+		if (nt != NULL) {
+			ieee80211_node_decref(obss);	/* iv_bss reference */
+			IEEE80211_NODE_LOCK(nt);
+			node_reclaim(nt, obss);		/* station table reference */
+			IEEE80211_NODE_UNLOCK(nt);
+		} else {
+			ieee80211_free_node(obss);	/* iv_bss reference */
+		}
 
 		obss = NULL;		/* NB: guard against later use */
 	}
