@@ -259,8 +259,6 @@ udp_ipsec_output(struct mbuf *m, struct secasvar *sav)
 #endif
 #ifdef INET6
 	case AF_INET6:
-		KASSERT(ip6->ip6_nxt == IPPROTO_ESP,
-		    ("unexpected next header type %d", ip->ip6_nxt));
 		hlen = sizeof(struct ip6_hdr);
 		break;
 #endif
@@ -297,6 +295,8 @@ udp_ipsec_output(struct mbuf *m, struct secasvar *sav)
 		struct ip6_hdr *ip6;
 
 		ip6 = mtod(m, struct ip6_hdr *);
+		KASSERT(ip6->ip6_nxt == IPPROTO_ESP,
+		    ("unexpected next header type %d", ip6->ip6_nxt));
 		ip6->ip6_plen = htons(m->m_pkthdr.len);
 		ip6->ip6_nxt = IPPROTO_UDP;
 		udp->uh_sum = in6_cksum_pseudo(ip6,
