@@ -38,6 +38,7 @@ ATF_TESTS_C+=	subr_physmem_test
 PLAIN_TESTS_C+=	subr_unit_test
 ATF_TESTS_C+=	sysctl_kern_proc
 ATF_TESTS_C+=	sys_getrandom
+ATF_TESTS_C+=	tty_pts
 ATF_TESTS_C+=	unix_dgram
 ATF_TESTS_C+=	unix_passfd_dgram
 TEST_METADATA.unix_passfd_dgram+=	is_exclusive="true"
@@ -85,6 +86,8 @@ NETBSD_ATF_TESTS_C+=	sysv_test
 
 CFLAGS.mqueue_test+=	-I${SRCTOP}/tests
 LIBADD.mqueue_test+=	rt
+
+LIBADD.tty_pts+=	atf_c util
 
 ATF_TESTS_C+=	libkern_crc32
 SRCS.libkern_crc32+=	libkern_crc32.c
