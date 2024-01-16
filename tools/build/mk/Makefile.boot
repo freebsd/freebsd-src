@@ -46,6 +46,10 @@ CFLAGS+=	-I${SRCTOP}/tools/build/cross-build/include/linux
 CFLAGS+=	-D_GNU_SOURCE=1
 # Needed for sem_init, etc. on Linux (used by usr.bin/sort)
 LDADD+=	-pthread
+.if exists(/usr/lib/libfts.so) || exists(/usr/lib/libfts.a) || exists(/lib/libfts.so) || exists(/lib/libfts.a)
+# Needed for fts_open, etc. on musl (used by usr.bin/grep)
+LDADD+=	-lfts
+.endif
 
 .elif ${.MAKE.OS} == "Darwin"
 CFLAGS+=	-D_DARWIN_C_SOURCE=1

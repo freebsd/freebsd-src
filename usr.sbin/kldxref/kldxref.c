@@ -748,7 +748,7 @@ usage(void)
 }
 
 static int
-#ifdef __GLIBC__
+#ifdef __linux__
 compare(const FTSENT **a, const FTSENT **b)
 #else
 compare(const FTSENT *const *a, const FTSENT *const *b)
