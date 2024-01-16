@@ -2126,9 +2126,9 @@ emu_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd %s",
+	snprintf(status, SND_STATUSLEN, "port 0x%jx irq %jd on %s",
 	    rman_get_start(sc->reg), rman_get_start(sc->irq),
-	    PCM_KLDSTRING(snd_emu10k1));
+	    device_get_nameunit(device_get_parent(dev)));
 
 	if (pcm_register(dev, sc, sc->nchans, gotmic ? 3 : 2)) goto bad;
 	for (i = 0; i < sc->nchans; i++)

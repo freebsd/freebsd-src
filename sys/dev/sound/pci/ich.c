@@ -686,9 +686,10 @@ ich_setstatus(struct sc_info *sc)
 	char status[SND_STATUSLEN];
 
 	snprintf(status, SND_STATUSLEN,
-	    "at io 0x%jx, 0x%jx irq %jd bufsz %u %s",
+	    "port 0x%jx,0x%jx irq %jd on %s",
 	    rman_get_start(sc->nambar), rman_get_start(sc->nabmbar),
-	    rman_get_start(sc->irq), sc->bufsz,PCM_KLDSTRING(snd_ich));
+	    rman_get_start(sc->irq),
+	    device_get_nameunit(device_get_parent(sc->dev)));
 
 	if (bootverbose && (sc->flags & ICH_DMA_NOCACHE))
 		device_printf(sc->dev,

@@ -1856,10 +1856,10 @@ es_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	snprintf(status, SND_STATUSLEN, "at %s 0x%jx irq %jd %s",
-	    (es->regtype == SYS_RES_IOPORT)? "io" : "memory",
+	snprintf(status, SND_STATUSLEN, "%s 0x%jx irq %jd on %s",
+	    (es->regtype == SYS_RES_IOPORT)? "port" : "mem",
 	    rman_get_start(es->reg), rman_get_start(es->irq),
-	    PCM_KLDSTRING(snd_es137x));
+	    device_get_nameunit(device_get_parent(dev)));
 
 	if (pcm_register(dev, es, numplay, 1))
 		goto bad;

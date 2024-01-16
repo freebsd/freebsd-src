@@ -1204,9 +1204,8 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 	    usb_get_product(sc->sc_udev));
 	device_set_desc_copy(dev, desc);
 
-	snprintf(status, sizeof(status), "at %s %s",
-	    device_get_nameunit(device_get_parent(dev)),
-	    PCM_KLDSTRING(snd_uaudio));
+	snprintf(status, sizeof(status), "on %s",
+	    device_get_nameunit(device_get_parent(dev)));
 
 	if (pcm_register(dev, sc,
 	    (sc->sc_play_chan[i].num_alt > 0) ? 1 : 0,

@@ -598,12 +598,6 @@ int	sound_oss_card_info(oss_card_info *);
 	PCM_GIANT_EXIT(x);						\
 } while (0)
 
-#ifdef KLD_MODULE
-#define PCM_KLDSTRING(a) ("kld " # a)
-#else
-#define PCM_KLDSTRING(a) ""
-#endif
-
 #endif /* _KERNEL */
 
 #endif	/* _OS_H_ */

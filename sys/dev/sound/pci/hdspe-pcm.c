@@ -1043,10 +1043,10 @@ hdspe_pcm_attach(device_t dev)
 		scp->chnum++;
 	}
 
-	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd %s",
+	snprintf(status, SND_STATUSLEN, "port 0x%jx irq %jd on %s",
 	    rman_get_start(scp->sc->cs),
 	    rman_get_start(scp->sc->irq),
-	    PCM_KLDSTRING(snd_hdspe));
+	    device_get_nameunit(device_get_parent(dev)));
 	pcm_setstatus(dev, status);
 
 	mixer_init(dev, &hdspemixer_class, scp);

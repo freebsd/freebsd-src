@@ -7114,9 +7114,8 @@ hdaa_pcm_attach(device_t dev)
 		hdaa_unlock(devinfo);
 	}
 
-	snprintf(status, SND_STATUSLEN, "on %s %s",
-	    device_get_nameunit(device_get_parent(dev)),
-	    PCM_KLDSTRING(snd_hda));
+	snprintf(status, SND_STATUSLEN, "on %s",
+	    device_get_nameunit(device_get_parent(dev)));
 	pcm_setstatus(dev, status);
 
 	return (0);
