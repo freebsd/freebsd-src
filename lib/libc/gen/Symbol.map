@@ -567,6 +567,8 @@ FBSDprivate_1.0 {
 	__waitpid;
 	_waitpid;
 
+	__libc_interposing_slot;
+
 	_libc_sem_init_compat;
 	_libc_sem_destroy_compat;
 	_libc_sem_open_compat;
