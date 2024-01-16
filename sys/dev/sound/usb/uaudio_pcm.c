@@ -201,7 +201,6 @@ ua_probe(device_t dev)
 	    (func->func != SCF_PCM)) {
 		return (ENXIO);
 	}
-	device_set_desc(dev, "USB audio");
 
 	return (BUS_PROBE_DEFAULT);
 }
