@@ -99,7 +99,6 @@ SRCS+=	__getosreldate.c \
 	lcong48.c \
 	libc_dlopen.c \
 	libc_interposing_table.c  \
-	lockf.c \
 	lrand48.c \
 	memalign.c \
 	memfd_create.c \
@@ -121,7 +120,6 @@ SRCS+=	__getosreldate.c \
 	readdir.c \
 	readdir-compat11.c \
 	readpassphrase.c \
-	recvmmsg.c \
 	rewinddir.c \
 	scandir.c \
 	scandir_b.c \
@@ -131,7 +129,6 @@ SRCS+=	__getosreldate.c \
 	seed48.c \
 	seekdir.c \
 	semctl.c \
-	sendmmsg.c \
 	setdomainname.c \
 	sethostname.c \
 	setjmperr.c \
@@ -142,7 +139,6 @@ SRCS+=	__getosreldate.c \
 	siglist.c \
 	signal.c \
 	sigsetops.c \
-	sleep.c \
 	srand48.c \
 	statvfs.c \
 	stringlist.c \
@@ -166,14 +162,9 @@ SRCS+=	__getosreldate.c \
 	ulimit.c \
 	uname.c \
 	unvis-compat.c \
-	usleep.c \
 	utime.c \
 	utxdb.c \
 	valloc.c \
-	wait.c \
-	wait3.c \
-	waitpid.c \
-	waitid.c \
 	wordexp.c
 
 CFLAGS.arc4random.c= -I${SRCTOP}/sys -I${SRCTOP}/sys/crypto/chacha20
@@ -267,7 +258,6 @@ MAN+=	alarm.3 \
 	initgroups.3 \
 	isgreater.3 \
 	ldexp.3 \
-	lockf.3 \
 	makecontext.3 \
 	modf.3 \
 	nice.3 \
@@ -304,7 +294,6 @@ MAN+=	alarm.3 \
 	siginterrupt.3 \
 	signal.3 \
 	sigsetops.3 \
-	sleep.3 \
 	statvfs.3 \
 	stringlist.3 \
 	strtofflags.3 \
@@ -330,7 +319,6 @@ MAN+=	alarm.3 \
 	ulimit.3 \
 	uname.3 \
 	unvis.3 \
-	usleep.3 \
 	utime.3 \
 	valloc.3 \
 	vis.3 \
@@ -501,7 +489,6 @@ MLINKS+=rand48.3 _rand48.3 \
 	rand48.3 nrand48.3 \
 	rand48.3 seed48.3 \
 	rand48.3 srand48.3
-MLINKS+=recv.2 recvmmsg.2
 MLINKS+=scandir.3 alphasort.3 \
 	scandir.3 scandirat.3 \
 	scandir.3 scandir_b.3 \
@@ -510,7 +497,6 @@ MLINKS+=sem_open.3 sem_close.3 \
 	sem_open.3 sem_unlink.3
 MLINKS+=sem_wait.3 sem_trywait.3
 MLINKS+=sem_timedwait.3 sem_clockwait_np.3
-MLINKS+=send.2 sendmmsg.2
 MLINKS+=setjmp.3 _longjmp.3 \
 	setjmp.3 _setjmp.3 \
 	setjmp.3 longjmp.3 \
