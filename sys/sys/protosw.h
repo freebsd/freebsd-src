@@ -157,7 +157,7 @@ struct protosw {
 #define	PR_ADDR		0x02		/* addresses given with messages */
 #define	PR_CONNREQUIRED	0x04		/* connection required by protocol */
 #define	PR_WANTRCVD	0x08		/* want PRU_RCVD calls */
-#define	PR_RIGHTS	0x10		/* passes capabilities */
+/* was	PR_RIGHTS	0x10		   passes capabilities */
 #define PR_IMPLOPCL	0x20		/* implied open/close */
 /* was	PR_LASTHDR	0x40		   enforce ipsec policy; last header */
 #define	PR_CAPATTACH	0x80		/* socket can attach in cap mode */
