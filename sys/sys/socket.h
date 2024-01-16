@@ -634,14 +634,6 @@ enum shutdown_how {
 };
 
 #if __BSD_VISIBLE
-/* for SCTP */
-/* we cheat and use the SHUT_XX defines for these */
-#define PRU_FLUSH_RD     SHUT_RD
-#define PRU_FLUSH_WR     SHUT_WR
-#define PRU_FLUSH_RDWR   SHUT_RDWR
-#endif
-
-#if __BSD_VISIBLE
 /*
  * sendfile(2) header/trailer struct
  */
