@@ -34,6 +34,10 @@ SRCS+=	\
 
 SRCS+= getdents.c lstat.c mknod.c stat.c
 
+SRCS+=	creat.c
+SRCS+=	lockf.c sleep.c usleep.c wait.c wait3.c waitpid.c waitid.c
+SRCS+=	recv.c recvmmsg.c send.c sendmmsg.c
+
 NOASM+=  sched_getcpu.o
 PSEUDO+= _sched_getcpu.o
 
@@ -177,6 +181,7 @@ MAN+=	abort2.2 \
 	cpuset.2 \
 	cpuset_getaffinity.2 \
 	cpuset_getdomain.2 \
+	creat.2 \
 	dup.2 \
 	eventfd.2 \
 	execve.2 \
@@ -355,6 +360,11 @@ MAN+=	abort2.2 \
 	wait.2 \
 	write.2 \
 	_umtx_op.2
+
+MAN+= \
+	lockf.3 \
+	sleep.3 \
+	usleep.3
 
 MLINKS+=aio_read.2 aio_readv.2
 MLINKS+=aio_write.2 aio_writev.2
