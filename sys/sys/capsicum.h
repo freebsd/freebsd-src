@@ -40,6 +40,7 @@
 #define	_SYS_CAPSICUM_H_
 
 #include <sys/param.h>
+#include <sys/types.h>
 
 #include <sys/caprights.h>
 #include <sys/file.h>
