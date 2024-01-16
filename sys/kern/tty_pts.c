@@ -271,12 +271,7 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 		return (0);
 	case FIONREAD:
 		tty_lock(tp);
-		if (psc->pts_flags & PTS_FINISHED) {
-			/* Force read() to be called. */
-			*(int *)data = 1;
-		} else {
-			*(int *)data = ttydisc_getc_poll(tp);
-		}
+		*(int *)data = ttydisc_getc_poll(tp);
 		tty_unlock(tp);
 		return (0);
 	case FIODGNAME:
