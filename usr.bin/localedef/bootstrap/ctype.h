@@ -44,13 +44,23 @@
  * However, only do so if they are not already define as a macro (as is the
  * case on Linux).
  */
-#ifndef isxdigit
 __BEGIN_DECLS
+#ifndef isalpha
 int	isalpha(int);
-int	isascii(int);
-int	isdigit(int);
-int	isgraph(int);
-int	islower(int);
-int	isxdigit(int);
-__END_DECLS
 #endif
+#ifndef isascii
+int	isascii(int);
+#endif
+#ifndef isdigit
+int	isdigit(int);
+#endif
+#ifndef isgraph
+int	isgraph(int);
+#endif
+#ifndef islower
+int	islower(int);
+#endif
+#ifndef isxdigit
+int	isxdigit(int);
+#endif
+__END_DECLS
