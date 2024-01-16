@@ -1049,7 +1049,6 @@ FBSDprivate_1.0 {
 	__sys_writev;
 
 	/* Things that aren't system calls (in sort(1) order) */
-	__libc_interposing_slot;
 	__libc_sigwait;
 	__libsys_interposing_slot;
 	__set_error_selector;
