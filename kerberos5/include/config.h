@@ -1,3 +1,5 @@
+#include <resolv.h>
+
 /* include/config.h.  Generated from config.h.in by configure.  */
 /* include/config.h.in.  Generated from configure.ac by autoheader.  */
 
@@ -694,7 +696,9 @@
 #define HAVE_RES_NDESTROY 1
 
 /* Define to 1 if you have the `res_nsearch' function. */
+#if __RES >= 19991006
 #define HAVE_RES_NSEARCH 1
+#endif
 
 /* Define to 1 if you have the `res_search' function. */
 #define HAVE_RES_SEARCH 1
