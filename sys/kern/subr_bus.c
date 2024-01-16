@@ -1997,7 +1997,7 @@ device_log(device_t dev, int pri, const char * fmt, ...)
  * @internal
  */
 static void
-device_set_desc_internal(device_t dev, const char* desc, int copy)
+device_set_desc_internal(device_t dev, const char *desc, bool allocated)
 {
 	if (dev->desc && (dev->flags & DF_DESCMALLOCED)) {
 		free(dev->desc, M_BUS);
@@ -2005,16 +2005,9 @@ device_set_desc_internal(device_t dev, const char* desc, int copy)
 		dev->desc = NULL;
 	}
 
-	if (copy && desc) {
-		dev->desc = malloc(strlen(desc) + 1, M_BUS, M_NOWAIT);
-		if (dev->desc) {
-			strcpy(dev->desc, desc);
-			dev->flags |= DF_DESCMALLOCED;
-		}
-	} else {
-		/* Avoid a -Wcast-qual warning */
-		dev->desc = (char *)(uintptr_t) desc;
-	}
+	if (allocated && desc)
+		dev->flags |= DF_DESCMALLOCED;
+	dev->desc = __DECONST(char *, desc);
 
 	bus_data_generation_update();
 }
@@ -2027,9 +2020,26 @@ device_set_desc_internal(device_t dev, const char* desc, int copy)
  * call to device_set_desc() or device_set_desc_copy()).
  */
 void
-device_set_desc(device_t dev, const char* desc)
+device_set_desc(device_t dev, const char *desc)
 {
-	device_set_desc_internal(dev, desc, FALSE);
+	device_set_desc_internal(dev, desc, false);
+}
+
+/**
+ * @brief Set the device's description
+ *
+ * A printf-like version of device_set_desc().
+ */
+void
+device_set_descf(device_t dev, const char *fmt, ...)
+{
+	va_list ap;
+	char *buf = NULL;
+
+	va_start(ap, fmt);
+	vasprintf(&buf, M_BUS, fmt, ap);
+	va_end(ap);
+	device_set_desc_internal(dev, buf, true);
 }
 
 /**
@@ -2039,9 +2049,12 @@ device_set_desc(device_t dev, const char* desc)
  * the device description is generated, (e.g. with sprintf()).
  */
 void
-device_set_desc_copy(device_t dev, const char* desc)
+device_set_desc_copy(device_t dev, const char *desc)
 {
-	device_set_desc_internal(dev, desc, TRUE);
+	char *buf;
+
+	buf = strdup_flags(desc, M_BUS, M_NOWAIT);
+	device_set_desc_internal(dev, buf, true);
 }
 
 /**
