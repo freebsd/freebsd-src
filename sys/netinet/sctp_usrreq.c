@@ -868,11 +868,7 @@ sctp_shutdown(struct socket *so, enum shutdown_how how)
 			SCTP_TCB_UNLOCK(stcb);
 		}
 		SCTP_INP_WUNLOCK(inp);
-		/*
-		 * XXXGL: does SCTP need sorflush()? This is what old
-		 * soshutdown() used to do for all kinds of sockets.
-		 */
-		sorflush(so);
+		socantrcvmore(so);
 		if (how == SHUT_RD)
 			break;
 		/* FALLTHROUGH */
