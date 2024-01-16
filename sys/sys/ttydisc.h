@@ -47,6 +47,7 @@ void	ttydisc_close(struct tty *tp);
 size_t	ttydisc_bytesavail(struct tty *tp);
 int	ttydisc_read(struct tty *tp, struct uio *uio, int ioflag);
 int	ttydisc_write(struct tty *tp, struct uio *uio, int ioflag);
+void	ttydisc_canonicalize(struct tty *tp);
 void	ttydisc_optimize(struct tty *tp);
 
 /* Bottom half routines. */
