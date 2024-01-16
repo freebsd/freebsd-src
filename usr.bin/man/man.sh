@@ -297,7 +297,7 @@ manpath_warnings() {
 	fi
 }
 
-# Usage: man_check_for_so page path
+# Usage: man_check_for_so path
 # Returns: True if able to resolve the file, false if it ended in tears.
 # Detects the presence of the .so directive and causes the file to be
 # redirected to another source file.
@@ -317,7 +317,7 @@ man_check_for_so() {
 		.so*)	trim "${line#.so}"
 			decho "$manpage includes $tstr"
 			# Glob and check for the file.
-			if ! check_man "$path/$tstr" ""; then
+			if ! check_man "$1/$tstr" ""; then
 				decho "  Unable to find $tstr"
 				return 1
 			fi
@@ -501,7 +501,12 @@ man_find_and_display() {
 			unset use_cat
 			manpage="$1"
 			setup_cattool "$manpage"
-			if man_check_for_so "$manpage" "$(dirname \"$manpage"")"; then
+			p=$(cd "$(dirname "$manpage")" && pwd)
+			case "$(basename "$p")" in
+				man*|cat*) p=$p/.. ;;
+				*) p=$p/../.. ;;
+			esac
+			if man_check_for_so "$p"; then
 				found_page=yes
 				man_display_page
 			fi
@@ -520,7 +525,7 @@ man_find_and_display() {
 
 				# Check if there is a MACHINE specific manpath.
 				if find_file $p $sect $MACHINE "$1"; then
-					if man_check_for_so "$manpage" $p; then
+					if man_check_for_so $p; then
 						found_page=yes
 						man_display_page
 						if [ -n "$aflag" ]; then
@@ -534,7 +539,7 @@ man_find_and_display() {
 				# Check if there is a MACHINE_ARCH
 				# specific manpath.
 				if find_file $p $sect $MACHINE_ARCH "$1"; then
-					if man_check_for_so "$manpage" $p; then
+					if man_check_for_so $p; then
 						found_page=yes
 						man_display_page
 						if [ -n "$aflag" ]; then
@@ -547,7 +552,7 @@ man_find_and_display() {
 
 				# Check plain old manpath.
 				if find_file $p $sect '' "$1"; then
-					if man_check_for_so "$manpage" $p; then
+					if man_check_for_so $p; then
 						found_page=yes
 						man_display_page
 						if [ -n "$aflag" ]; then
