@@ -194,6 +194,9 @@ SRCS+=	stringlist.c setmode.c
 SRCS+=	strtonum.c merge.c heapsort.c reallocf.c
 .PATH: ${LIBC_SRCTOP}/locale
 SRCS+=	rpmatch.c
+# glibc provides b64_pton/b64_ntop in libresolv, but musl does not:
+.PATH: ${LIBC_SRCTOP}/net
+SRCS+=	base64.c
 
 .if ${.MAKE.OS} == "Linux"
 # On Linux, glibc does not provide strmode. It only provides strlcpy

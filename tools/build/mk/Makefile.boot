@@ -41,10 +41,6 @@ CWARNFLAGS.clang+=-Wno-typedef-redefinition
 CWARNFLAGS+=	-Wno-system-headers
 CWARNFLAGS.clang+=-Werror=incompatible-pointer-types-discards-qualifiers
 
-# b64_pton and b64_ntop is in libresolv on MacOS and Linux:
-# TODO: only needed for uuencode and uudecode
-LDADD+=-lresolv
-
 .if ${.MAKE.OS} == "Linux"
 CFLAGS+=	-I${SRCTOP}/tools/build/cross-build/include/linux
 CFLAGS+=	-D_GNU_SOURCE=1
