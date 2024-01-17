@@ -940,6 +940,21 @@ fail:
 
 #ifdef INET6
 int
+pf_max_frag_size(struct mbuf *m)
+{
+	struct m_tag *tag;
+	struct pf_fragment_tag *ftag;
+
+	tag = m_tag_find(m, PACKET_TAG_PF_REASSEMBLED, NULL);
+	if (tag == NULL)
+		return (m->m_pkthdr.len);
+
+	ftag = (struct pf_fragment_tag *)(tag + 1);
+
+	return (ftag->ft_maxlen);
+}
+
+int
 pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag,
     bool forward)
 {
