@@ -1487,21 +1487,23 @@ mana_poll_tx_cq(struct mana_cq *cq)
 		case CQE_TX_VPORT_DISABLED:
 		case CQE_TX_VLAN_TAGGING_VIOLATION:
 			sa_drop ++;
-			mana_err(NULL,
+			mana_dbg(NULL,
 			    "TX: txq %d CQE error %d, ntc = %d, "
 			    "pending sends = %d: err ignored.\n",
 			    txq_idx, cqe_oob->cqe_hdr.cqe_type,
 			    next_to_complete, txq->pending_sends);
+			counter_u64_add(txq->stats.cqe_err, 1);
 			break;
 
 		default:
-			/* If the CQE type is unexpected, log an error,
-			 * and go through the error path.
+			/* If the CQE type is unknown, log a debug msg,
+			 * and still free the mbuf, etc.
 			 */
-			mana_err(NULL,
-			    "ERROR: TX: Unexpected CQE type %d: HW BUG?\n",
+			mana_dbg(NULL,
+			    "ERROR: TX: Unknown CQE type %d\n",
 			    cqe_oob->cqe_hdr.cqe_type);
-			return;
+			counter_u64_add(txq->stats.cqe_unknown_type, 1);
+			break;
 		}
 		if (txq->gdma_txq_id != completions[i].wq_num) {
 			mana_dbg(NULL,
