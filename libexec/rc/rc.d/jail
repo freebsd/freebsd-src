@@ -268,6 +268,13 @@ parse_options()
 		extract_var $_jv enforce_statfs enforce_statfs - 2
 		extract_var $_jv osreldate osreldate
 		extract_var $_jv osrelease osrelease
+
+		_zfs_dataset="$(eval echo \$jail_${_jv}_zfs_dataset)"
+		if [ -n "$_zfs_dataset" ]; then
+			for ds in $_zfs_dataset; do
+				echo "	zfs.dataset += ${ds};"
+			done
+		fi
 		for _p in $_parameters; do
 			echo "	${_p%\;};"
 		done
