@@ -44,6 +44,7 @@
 #ifdef COMPAT_43TTY
 #include <sys/ioctl_compat.h>
 #endif /* COMPAT_43TTY */
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
