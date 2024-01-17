@@ -39,7 +39,6 @@
 #endif
 #define DEFAULT_URWLOCK {0,0,0,0,{0,0,0,0}}
 
-int _umtx_op_err(void *, int op, u_long, void *, void *) __hidden;
 int __thr_umutex_lock(struct umutex *mtx, uint32_t id) __hidden;
 int __thr_umutex_lock_spin(struct umutex *mtx, uint32_t id) __hidden;
 int __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,

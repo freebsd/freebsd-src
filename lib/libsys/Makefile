@@ -59,6 +59,13 @@ NOASM=
 
 .include "${LIBSYS_SRCTOP}/Makefile.sys"
 
+SYM_MAPS+=	${LIBSYS_SRCTOP}/Symbol.thr.map
+.PATH: ${LIBSYS_SRCTOP}/${MACHINE_CPUARCH}
+.sinclude "${LIBSYS_SRCTOP}/${MACHINE_CPUARCH}/Makefile.thr"
+.if !${SRCS:M_umtx_op_err.S}
+SRCS+=_umtx_op_err.c
+.endif
+
 VERSION_DEF=${LIBC_SRCTOP}/Versions.def
 SYMBOL_MAPS=${SYM_MAPS}
 

@@ -142,7 +142,7 @@ CRUNCH_PROGS_usr.sbin+= zdb
 
 CRUNCH_LIBS+= -l80211 -lalias -lcam -lncursesw -ldevstat -lipsec -llzma
 .if ${MK_ZFS} != "no"
-CRUNCH_LIBS+= -lavl -lpthread -luutil -lumem -ltpool -lspl -lrt
+CRUNCH_LIBS+= -lavl -lpthread -lsys -luutil -lumem -ltpool -lspl -lrt
 CRUNCH_LIBS_zfs+=	${LIBBE} \
 			${LIBZPOOL} \
 			${LIBZFS} \
@@ -156,7 +156,7 @@ CRUNCH_LIBS_zpool+=	${CRUNCH_LIBS_zfs}
 CRUNCH_LIBS_zdb+=	${CRUNCH_LIBS_zfs}
 .else
 # liblzma needs pthread
-CRUNCH_LIBS+= -lpthread
+CRUNCH_LIBS+= -lpthread -lsys
 .endif
 CRUNCH_LIBS+= -lgeom -lbsdxml -lkiconv
 .if ${MK_OPENSSL} == "no"
