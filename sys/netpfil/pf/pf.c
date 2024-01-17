@@ -8510,6 +8510,18 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 		return (PF_PASS);
 	}
 
+	/*
+	 * If we end up changing IP addresses (e.g. binat) the stack may get
+	 * confused and fail to send the icmp6 packet too big error. Just send
+	 * it here, before we do any NAT.
+	 */
+	if (dir == PF_OUT && IN6_LINKMTU(ifp) < pf_max_frag_size(m)) {
+		PF_RULES_RUNLOCK();
+		*m0 = NULL;
+		icmp6_error(m, ICMP6_PACKET_TOO_BIG, 0, IN6_LINKMTU(ifp));
+		return (PF_DROP);
+	}
+
 	memset(&pd, 0, sizeof(pd));
 	TAILQ_INIT(&pd.sctp_multihome_jobs);
 	if (default_actions != NULL)
