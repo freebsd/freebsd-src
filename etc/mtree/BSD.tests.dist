@@ -33,6 +33,8 @@
         ..
         expr
         ..
+        hostname
+        ..
         ln
         ..
         ls
