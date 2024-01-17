@@ -21,40 +21,42 @@
 #
 
 #
-# Copyright (c) 2023, Klara Inc.
+# Copyright (c) 2023 by Proxmox. All rights reserved.
 #
 
 . $STF_SUITE/include/libtest.shlib
-. $STF_SUITE/tests/functional/block_cloning/block_cloning.kshlib
+
+# DESCRIPTION:
+# Verify that nfs shares persist after zfs mount -a
+#
+# STRATEGY:
+# 1. Verify that the filesystem is not shared.
+# 2. Enable the 'sharenfs' property
+# 3. Verify filesystem is shared
+# 4. Invoke 'zfs mount -a'
+# 5. Verify filesystem is still shared
 
 verify_runnable "global"
 
-if is_linux && [[ $(linux_version) -lt $(linux_version "4.5") ]]; then
-  log_unsupported "copy_file_range not available before Linux 4.5"
-fi
-
-claim="The copy_file_range syscall can clone whole files."
-
-log_assert $claim
-
 function cleanup
 {
-	datasetexists $TESTPOOL && destroy_pool $TESTPOOL
+	log_must zfs set sharenfs=off $TESTPOOL/$TESTFS
+	is_shared $TESTPOOL/$TESTFS && \
+		log_must unshare_fs $TESTPOOL/$TESTFS
+	log_must zfs share -a
 }
+
 
 log_onexit cleanup
 
-log_must zpool create -o feature@block_cloning=enabled $TESTPOOL $DISKS
+cleanup
 
-log_must dd if=/dev/urandom of=/$TESTPOOL/file1 bs=128K count=4
-log_must sync_pool $TESTPOOL
+log_must zfs set sharenfs="on" $TESTPOOL/$TESTFS
+log_must is_shared $TESTPOOL/$TESTFS
+log_must is_exported $TESTPOOL/$TESTFS
 
-log_must clonefile -f /$TESTPOOL/file1 /$TESTPOOL/file2 0 0 524288
-log_must sync_pool $TESTPOOL
+log_must zfs mount -a
+log_must is_shared $TESTPOOL/$TESTFS
+log_must is_exported $TESTPOOL/$TESTFS
 
-log_must have_same_content /$TESTPOOL/file1 /$TESTPOOL/file2
-
-typeset blocks=$(get_same_blocks $TESTPOOL file1 $TESTPOOL file2)
-log_must [ "$blocks" = "0 1 2 3" ]
-
-log_pass $claim
+log_pass "Verify that nfs shares persist after zfs mount -a"
