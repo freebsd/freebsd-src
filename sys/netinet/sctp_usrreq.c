@@ -874,6 +874,7 @@ sctp_shutdown(struct socket *so, enum shutdown_how how)
 		/* FALLTHROUGH */
 
 	case SHUT_WR:
+		SCTP_INP_RLOCK(inp);
 		socantsendmore(so);
 		stcb = LIST_FIRST(&inp->sctp_asoc_list);
 		if (stcb == NULL) {
