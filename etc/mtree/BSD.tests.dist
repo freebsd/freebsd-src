@@ -21,6 +21,8 @@
         ..
         expr
         ..
+        hostname
+        ..
         ln
         ..
         ls
