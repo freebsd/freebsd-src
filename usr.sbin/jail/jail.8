@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 29, 2023
+.Dd January 17, 2024
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -918,6 +918,15 @@ may also be specified, in the form
 .It Va vnet.interface
 A network interface to give to a vnet-enabled jail after is it created.
 The interface will automatically be released when the jail is removed.
+.It Va zfs.dataset
+A list of ZFS datasets to be attached to the jail.
+This requires
+.Va allow.mount.zfs
+to be set.
+See 
+.Xr zfs-jail 8
+for information on how to configure a ZFS dataset to be operated from
+within a jail.
 .It Va ip_hostname
 Resolve the
 .Va host.hostname
@@ -1431,6 +1440,7 @@ environment of the first jail.
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
 .Xr umount 8 ,
+.Xr zfs-jail 8 ,
 .Xr extattr 9
 .Sh HISTORY
 The
