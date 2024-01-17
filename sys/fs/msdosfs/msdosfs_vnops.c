@@ -1203,7 +1203,10 @@ relock:
 	MPASS(error == 0);
 	error = removede(fdip, fip);
 	if (error != 0) {
-		/* XXX should downgrade to ro here, fs is corrupt */
+		printf("%s: removede %s %s err %d\n",
+		    pmp->pm_mountp->mnt_stat.f_mntonname,
+		    fdip->de_Name, fip->de_Name, error);
+		msdosfs_integrity_error(pmp);
 		goto unlock;
 	}
 	if (!doingdirectory) {
@@ -1237,7 +1240,10 @@ relock:
 		error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster,
 		    NOCRED, &bp);
 		if (error != 0) {
-			/* XXX should downgrade to ro here, fs is corrupt */
+			printf("%s: block read error %d while renaming dir\n",
+			    pmp->pm_mountp->mnt_stat.f_mntonname,
+			    error);
+			msdosfs_integrity_error(pmp);
 			goto unlock;
 		}
 		dotdotp = (struct direntry *)bp->b_data + 1;
@@ -1250,7 +1256,10 @@ relock:
 		if (DOINGASYNC(fvp))
 			bdwrite(bp);
 		else if ((error = bwrite(bp)) != 0) {
-			/* XXX should downgrade to ro here, fs is corrupt */
+			printf("%s: block write error %d while renaming dir\n",
+			    pmp->pm_mountp->mnt_stat.f_mntonname,
+			    error);
+			msdosfs_integrity_error(pmp);
 			goto unlock;
 		}
 	}
