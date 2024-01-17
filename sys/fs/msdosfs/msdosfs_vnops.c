@@ -1180,8 +1180,8 @@ relock:
 	memcpy(oldname, fip->de_Name, 11);
 	memcpy(fip->de_Name, toname, 11);	/* update denode */
 	error = msdosfs_lookup_ino(tdvp, NULL, tcnp, &scn, &blkoff);
-	MPASS(error == EJUSTRETURN);
-	error = createde(fip, tdip, NULL, tcnp);
+	if (error == EJUSTRETURN)
+		error = createde(fip, tdip, NULL, tcnp);
 	if (error != 0) {
 		memcpy(fip->de_Name, oldname, 11);
 		goto unlock;
