@@ -98,6 +98,7 @@ static const enum intparam startcommands[] = {
     IP_EXEC_PRESTART,
     IP__OP,
     IP_EXEC_CREATED,
+    IP_ZFS_DATASET,
     IP_VNET_INTERFACE,
     IP_EXEC_START,
     IP_COMMAND,
