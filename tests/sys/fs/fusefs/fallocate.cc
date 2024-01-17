@@ -201,6 +201,7 @@ TEST_F(PosixFallocate, erofs)
 	build_iovec(&iov, &iovlen, "fspath", (void*)statbuf.f_mntonname, -1);
 	build_iovec(&iov, &iovlen, "from", __DECONST(void *, "/dev/fuse"), -1);
 	ASSERT_EQ(0, nmount(iov, iovlen, newflags)) << strerror(errno);
+	free_iovec(&iov, &iovlen);
 
 	EXPECT_EQ(EROFS, posix_fallocate(fd, offset, length));
 
