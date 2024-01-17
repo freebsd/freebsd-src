@@ -52,6 +52,4 @@ _get_curthread(void)
 	return (thr);
 }
 
-#define	HAS__UMTX_OP_ERR	1
-
 #endif

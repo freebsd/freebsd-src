@@ -1,6 +1,3 @@
-
-SRCS+=	_umtx_op_err.S
-
 # With the current compiler and libthr code, using SSE in libthr
 # does not provide enough performance improvement to outweigh
 # the extra context switch cost.  This can measurably impact

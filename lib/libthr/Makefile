@@ -12,6 +12,9 @@ MK_SSP=	no
 
 LIB=thr
 SHLIB_MAJOR= 3
+
+LIBADD=	sys
+
 NO_WTHREAD_SAFETY=1
 NO_WCAST_ALIGN.gcc=1    # for gcc 4.2
 CFLAGS+=-DPTHREAD_KERNEL
@@ -66,6 +69,14 @@ PRECIOUSLIB=
 .include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/thread/Makefile.inc"
 SRCS+= rtld_malloc.c
+
+LIBSYS_SRCTOP=	${.CURDIR:H}/libsys
+.if exists(${LIBSYS_SRCTOP}/${MACHINE_CPUARCH}/_umtx_op_err.S)
+.PATH: ${LIBSYS_SRCTOP}/${MACHINE_CPUARCH}
+.else
+.PATH: ${LIBSYS_SRCTOP}
+.endif
+STATICOBJS+=	_umtx_op_err.o
 
 .if ${MK_INSTALLLIB} != "no"
 SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
