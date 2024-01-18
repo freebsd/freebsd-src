@@ -35,8 +35,7 @@
 
 #ifdef _KERNEL
 extern const char *panicstr;	/* panic message */
-extern bool panicked;
-#define	KERNEL_PANICKED()	__predict_false(panicked)
+#define	KERNEL_PANICKED()	__predict_false(panicstr != NULL)
 
 /*
  * Trap accesses going through a pointer. Moreover if kasan is available trap
