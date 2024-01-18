@@ -93,6 +93,7 @@ struct udpstat {
 #ifdef _KERNEL
 #include <netinet/in_pcb.h>
 #include <sys/counter.h>
+#include <netinet/in_kdtrace.h>
 struct mbuf;
 
 typedef bool	udp_tun_func_t(struct mbuf *, int, struct inpcb *,
@@ -127,16 +128,23 @@ VNET_PCPUSTAT_DECLARE(struct udpstat, udpstat);
  * In-kernel consumers can use these accessor macros directly to update
  * stats.
  */
-#define	UDPSTAT_ADD(name, val)  \
-    VNET_PCPUSTAT_ADD(struct udpstat, udpstat, name, (val))
-#define	UDPSTAT_INC(name)	UDPSTAT_ADD(name, 1)
+#define UDPSTAT_ADD(name, val)                                           \
+	do {                                                             \
+		MIB_SDT_PROBE1(udp, count, name, (val));                 \
+		VNET_PCPUSTAT_ADD(struct udpstat, udpstat, name, (val)); \
+	} while (0)
+#define UDPSTAT_INC(name) UDPSTAT_ADD(name, 1)
 
 /*
  * Kernel module consumers must use this accessor macro.
  */
 void	kmod_udpstat_inc(int statnum);
-#define	KMOD_UDPSTAT_INC(name)	\
-    kmod_udpstat_inc(offsetof(struct udpstat, name) / sizeof(uint64_t))
+#define KMOD_UDPSTAT_INC(name)                                          \
+	do {                                                            \
+		MIB_SDT_PROBE1(udp, count, name, 1);                    \
+		kmod_udpstat_inc(                                       \
+		    offsetof(struct udpstat, name) / sizeof(uint64_t)); \
+	} while (0)
 
 SYSCTL_DECL(_net_inet_udp);
 

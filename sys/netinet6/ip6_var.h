@@ -263,13 +263,22 @@ struct	ip6stat {
 
 #ifdef _KERNEL
 #include <sys/counter.h>
+#include <netinet/in_kdtrace.h>
 
 VNET_PCPUSTAT_DECLARE(struct ip6stat, ip6stat);
-#define	IP6STAT_ADD(name, val)	\
-    VNET_PCPUSTAT_ADD(struct ip6stat, ip6stat, name, (val))
-#define	IP6STAT_SUB(name, val)	IP6STAT_ADD(name, -(val))
+#define	IP6STAT_ADD(name, val)                                           \
+	do {                                                             \
+		MIB_SDT_PROBE1(ip6, count, name, (val));                 \
+		VNET_PCPUSTAT_ADD(struct ip6stat, ip6stat, name, (val)); \
+	} while (0)
+#define IP6STAT_SUB(name, val) IP6STAT_ADD(name, -(val))
 #define	IP6STAT_INC(name)	IP6STAT_ADD(name, 1)
-#define	IP6STAT_DEC(name)	IP6STAT_SUB(name, 1)
+#define IP6STAT_INC2(name, type)                                     \
+	do {                                                         \
+		MIB_SDT_PROBE2(ip6, count, name, 1, type);           \
+		VNET_PCPUSTAT_ADD(struct ip6stat, ip6stat, name, 1); \
+	} while (0)
+#define IP6STAT_DEC(name) IP6STAT_SUB(name, 1)
 #endif
 
 #ifdef _KERNEL

@@ -623,7 +623,7 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 	    &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighborsolicit);
-	ICMP6STAT_INC(icp6s_outhist[ND_NEIGHBOR_SOLICIT]);
+	ICMP6STAT_INC2(icp6s_outhist, ND_NEIGHBOR_SOLICIT);
 
 	return;
 
@@ -1116,7 +1116,7 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	ip6_output(m, NULL, NULL, 0, &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighboradvert);
-	ICMP6STAT_INC(icp6s_outhist[ND_NEIGHBOR_ADVERT]);
+	ICMP6STAT_INC2(icp6s_outhist, ND_NEIGHBOR_ADVERT);
 
 	return;
 

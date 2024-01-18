@@ -115,6 +115,9 @@ extern volatile bool sdt_probes_enabled;
 #define	SDT_PROBE7(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4, arg5,  \
     arg6)
 
+#define	MIB_SDT_PROBE1(...)
+#define	MIB_SDT_PROBE2(...)
+
 #define	SDT_PROBE_DEFINE0_XLATE(prov, mod, func, name)
 #define	SDT_PROBE_DEFINE1_XLATE(prov, mod, func, name, arg0, xarg0)
 #define	SDT_PROBE_DEFINE2_XLATE(prov, mod, func, name, arg0, xarg0,     \
@@ -341,6 +344,14 @@ SET_DECLARE(sdt_argtypes_set, struct sdt_argtype);
 			    (uintptr_t)arg3, (uintptr_t)arg4, (uintptr_t)arg5, \
 			    (uintptr_t)arg6);				       \
 	} while (0)
+
+#ifndef KDTRACE_NO_MIB_SDT
+#define	MIB_SDT_PROBE1(...)	SDT_PROBE1(mib, __VA_ARGS__)
+#define	MIB_SDT_PROBE2(...)	SDT_PROBE2(mib, __VA_ARGS__)
+#else
+#define	MIB_SDT_PROBE1(...)
+#define	MIB_SDT_PROBE2(...)
+#endif
 
 #define	DTRACE_PROBE_IMPL_START(name, arg0, arg1, arg2, arg3, arg4)	do { \
 	static SDT_PROBE_DEFINE(sdt, , , name);				     \
