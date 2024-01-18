@@ -5,6 +5,7 @@
 #include <openssl/provider.h>
 
 #if defined(OPENSSL_VERSION_MAJOR) && (OPENSSL_VERSION_MAJOR >= 3)
+#define CRYPTO_LIBRARY "/lib/libcrypto.so.30"
 static void fbsd_ossl_provider_unload(void);
 static void print_dlerror(char *);
 static OSSL_PROVIDER *legacy;
@@ -46,7 +47,7 @@ fbsd_ossl_provider_load(void)
 {
 #if defined(OPENSSL_VERSION_MAJOR) && (OPENSSL_VERSION_MAJOR >= 3)
 	if (crypto_lib_handle == NULL) {
-		if (!(crypto_lib_handle = dlopen("/usr/lib/libcrypto.so",
+		if (!(crypto_lib_handle = dlopen(CRYPTO_LIBRARY,
 		    RTLD_LAZY|RTLD_GLOBAL))) {
 			print_dlerror("Unable to load libcrypto.so");
 			return (EINVAL);
