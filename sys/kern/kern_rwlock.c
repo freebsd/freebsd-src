@@ -307,7 +307,7 @@ __rw_try_wlock_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 
 	td = curthread;
 	tid = (uintptr_t)td;
-	if (SCHEDULER_STOPPED_TD(td))
+	if (SCHEDULER_STOPPED())
 		return (1);
 
 	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(td),
@@ -666,7 +666,7 @@ __rw_rlock_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 
 	td = curthread;
 
-	KASSERT(kdb_active != 0 || SCHEDULER_STOPPED_TD(td) ||
+	KASSERT(kdb_active != 0 || SCHEDULER_STOPPED() ||
 	    !TD_IS_IDLETHREAD(td),
 	    ("rw_rlock() by idle thread %p on rwlock %s @ %s:%d",
 	    td, rw->lock_object.lo_name, file, line));

@@ -270,7 +270,7 @@ struct thread {
 	const char	*td_wmesg;	/* (t) Reason for sleep. */
 	volatile u_char td_owepreempt;  /* (k*) Preempt on last critical_exit */
 	u_char		td_tsqueue;	/* (t) Turnstile queue blocked on. */
-	u_char		td_stopsched;	/* (k) Scheduler stopped. */
+	u_char		_td_pad0[2];	/* Available. */
 	int		td_locks;	/* (k) Debug: count of non-spin locks */
 	int		td_rw_rlocks;	/* (k) Count of rwlock read locks. */
 	int		td_sx_slocks;	/* (k) Count of sx shared locks. */
@@ -429,7 +429,7 @@ do {									\
 
 #define	TD_LOCKS_INC(td)	((td)->td_locks++)
 #define	TD_LOCKS_DEC(td) do {						\
-	KASSERT(SCHEDULER_STOPPED_TD(td) || (td)->td_locks > 0,		\
+	KASSERT(SCHEDULER_STOPPED() || (td)->td_locks > 0,		\
 	    ("Thread %p owns no locks", (td)));				\
 	(td)->td_locks--;						\
 } while (0)
