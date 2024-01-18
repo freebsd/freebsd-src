@@ -572,22 +572,6 @@ do {								\
  * Variables related to this implementation
  * of the internet control message protocol version 6.
  */
-struct icmp6errstat {
-	uint64_t icp6errs_dst_unreach_noroute;
-	uint64_t icp6errs_dst_unreach_admin;
-	uint64_t icp6errs_dst_unreach_beyondscope;
-	uint64_t icp6errs_dst_unreach_addr;
-	uint64_t icp6errs_dst_unreach_noport;
-	uint64_t icp6errs_packet_too_big;
-	uint64_t icp6errs_time_exceed_transit;
-	uint64_t icp6errs_time_exceed_reassembly;
-	uint64_t icp6errs_paramprob_header;
-	uint64_t icp6errs_paramprob_nextheader;
-	uint64_t icp6errs_paramprob_option;
-	uint64_t icp6errs_redirect; /* we regard redirect as an error here */
-	uint64_t icp6errs_unknown;
-};
-
 struct icmp6stat {
 /* statistics related to icmp6 packets generated */
 	uint64_t icp6s_error;		/* # of calls to icmp6_error */
@@ -607,25 +591,19 @@ struct icmp6stat {
 	uint64_t icp6s_reflect;
 	uint64_t icp6s_inhist[256];
 	uint64_t icp6s_nd_toomanyopt;	/* too many ND options */
-	struct icmp6errstat icp6s_outerrhist;
-#define icp6s_odst_unreach_noroute \
-	icp6s_outerrhist.icp6errs_dst_unreach_noroute
-#define icp6s_odst_unreach_admin icp6s_outerrhist.icp6errs_dst_unreach_admin
-#define icp6s_odst_unreach_beyondscope \
-	icp6s_outerrhist.icp6errs_dst_unreach_beyondscope
-#define icp6s_odst_unreach_addr icp6s_outerrhist.icp6errs_dst_unreach_addr
-#define icp6s_odst_unreach_noport icp6s_outerrhist.icp6errs_dst_unreach_noport
-#define icp6s_opacket_too_big icp6s_outerrhist.icp6errs_packet_too_big
-#define icp6s_otime_exceed_transit \
-	icp6s_outerrhist.icp6errs_time_exceed_transit
-#define icp6s_otime_exceed_reassembly \
-	icp6s_outerrhist.icp6errs_time_exceed_reassembly
-#define icp6s_oparamprob_header icp6s_outerrhist.icp6errs_paramprob_header
-#define icp6s_oparamprob_nextheader \
-	icp6s_outerrhist.icp6errs_paramprob_nextheader
-#define icp6s_oparamprob_option icp6s_outerrhist.icp6errs_paramprob_option
-#define icp6s_oredirect icp6s_outerrhist.icp6errs_redirect
-#define icp6s_ounknown icp6s_outerrhist.icp6errs_unknown
+	uint64_t icp6s_odst_unreach_noroute;
+	uint64_t icp6s_odst_unreach_admin;
+	uint64_t icp6s_odst_unreach_beyondscope;
+	uint64_t icp6s_odst_unreach_addr;
+	uint64_t icp6s_odst_unreach_noport;
+	uint64_t icp6s_opacket_too_big;
+	uint64_t icp6s_otime_exceed_transit;
+	uint64_t icp6s_otime_exceed_reassembly;
+	uint64_t icp6s_oparamprob_header;
+	uint64_t icp6s_oparamprob_nextheader;
+	uint64_t icp6s_oparamprob_option;
+	uint64_t icp6s_oredirect;
+	uint64_t icp6s_ounknown;
 	uint64_t icp6s_pmtuchg;		/* path MTU changes */
 	uint64_t icp6s_nd_badopt;	/* bad ND options */
 	uint64_t icp6s_badns;		/* bad neighbor solicitation */
@@ -643,6 +621,7 @@ struct icmp6stat {
 
 #ifdef _KERNEL
 #include <sys/counter.h>
+#include <netinet/in_kdtrace.h>
 
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_inet6_icmp6);
@@ -653,16 +632,28 @@ VNET_PCPUSTAT_DECLARE(struct icmp6stat, icmp6stat);
  * In-kernel consumers can use these accessor macros directly to update
  * stats.
  */
-#define	ICMP6STAT_ADD(name, val)	\
-    VNET_PCPUSTAT_ADD(struct icmp6stat, icmp6stat, name, (val))
-#define	ICMP6STAT_INC(name)		ICMP6STAT_ADD(name, 1)
+#define ICMP6STAT_ADD(name, val)                                             \
+	do {                                                                 \
+		MIB_SDT_PROBE1(icmp6, count, name, (val));                   \
+		VNET_PCPUSTAT_ADD(struct icmp6stat, icmp6stat, name, (val)); \
+	} while (0)
+#define ICMP6STAT_INC(name) ICMP6STAT_ADD(name, 1)
+#define ICMP6STAT_INC2(name, type)                                       \
+	do {                                                             \
+		MIB_SDT_PROBE2(icmp6, count, name, 1, type);             \
+		VNET_PCPUSTAT_ADD(struct icmp6stat, icmp6stat, name, 1); \
+	} while (0)
 
 /*
  * Kernel module consumers must use this accessor macro.
  */
 void	kmod_icmp6stat_inc(int statnum);
-#define	KMOD_ICMP6STAT_INC(name)	\
-    kmod_icmp6stat_inc(offsetof(struct icmp6stat, name) / sizeof(uint64_t))
+#define KMOD_ICMP6STAT_INC(name)                                          \
+	do {                                                              \
+		MIB_SDT_PROBE1(icmp6, count, name, 1);                    \
+		kmod_icmp6stat_inc(                                       \
+		    offsetof(struct icmp6stat, name) / sizeof(uint64_t)); \
+	} while (0)
 #endif
 
 /*

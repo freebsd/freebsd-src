@@ -344,7 +344,7 @@ stdreply:	icmpelen = max(8, min(V_icmp_quotelen, ntohs(oip->ip_len) -
 	 */
 	M_SETFIB(m, M_GETFIB(n));
 	icp = mtod(m, struct icmp *);
-	ICMPSTAT_INC(icps_outhist[type]);
+	ICMPSTAT_INC2(icps_outhist, type);
 	icp->icmp_type = type;
 	if (type == ICMP_REDIRECT)
 		icp->icmp_gwaddr.s_addr = dest;
@@ -528,7 +528,7 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 	icmpgw.sin_len = sizeof(struct sockaddr_in);
 	icmpgw.sin_family = AF_INET;
 
-	ICMPSTAT_INC(icps_inhist[icp->icmp_type]);
+	ICMPSTAT_INC2(icps_inhist, icp->icmp_type);
 	code = icp->icmp_code;
 	switch (icp->icmp_type) {
 	case ICMP_UNREACH:
@@ -663,7 +663,7 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		}
 reflect:
 		ICMPSTAT_INC(icps_reflect);
-		ICMPSTAT_INC(icps_outhist[icp->icmp_type]);
+		ICMPSTAT_INC2(icps_outhist, icp->icmp_type);
 		icmp_reflect(m);
 		return (IPPROTO_DONE);
 

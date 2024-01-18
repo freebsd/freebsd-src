@@ -535,7 +535,7 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	if (inp->inp_ip_p == IPPROTO_ICMPV6) {
 		if (oifp)
 			icmp6_ifoutstat_inc(oifp, type, code);
-		ICMP6STAT_INC(icp6s_outhist[type]);
+		ICMP6STAT_INC2(icp6s_outhist, type);
 	} else
 		RIP6STAT_INC(rip6s_opackets);
 

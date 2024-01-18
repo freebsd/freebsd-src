@@ -573,7 +573,7 @@ ip6_input(struct mbuf *m)
 			int ifindex = ifp->if_index;
 			if (ifindex >= IP6S_M2MMAX)
 				ifindex = 0;
-			IP6STAT_INC(ip6s_m2m[ifindex]);
+			IP6STAT_INC2(ip6s_m2m, ifindex);
 		} else
 			IP6STAT_INC(ip6s_m1);
 	}
@@ -617,7 +617,7 @@ ip6_input(struct mbuf *m)
 		goto bad;
 	}
 
-	IP6STAT_INC(ip6s_nxthist[ip6->ip6_nxt]);
+	IP6STAT_INC2(ip6s_nxthist, ip6->ip6_nxt);
 	IP_PROBE(receive, NULL, NULL, ip6, rcvif, NULL, ip6);
 
 	/*

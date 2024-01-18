@@ -152,7 +152,7 @@ static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
  * an entry to the caller for later use.
  */
 #define REPLACE(r) do {\
-	IP6STAT_INC(ip6s_sources_rule[(r)]); \
+	IP6STAT_INC2(ip6s_sources_rule, (r)); \
 	/* { \
 	char ip6buf[INET6_ADDRSTRLEN], ip6b[INET6_ADDRSTRLEN]; \
 	printf("in6_selectsrc: replace %s with %s by %d\n", ia_best ? ip6_sprintf(ip6buf, &ia_best->ia_addr.sin6_addr) : "none", ip6_sprintf(ip6b, &ia->ia_addr.sin6_addr), (r)); \
@@ -167,7 +167,7 @@ static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
 	goto next;		/* XXX: we can't use 'continue' here */ \
 } while(0)
 #define BREAK(r) do { \
-	IP6STAT_INC(ip6s_sources_rule[(r)]); \
+	IP6STAT_INC2(ip6s_sources_rule, (r)); \
 	goto out;		/* XXX: we can't use 'break' here */ \
 } while(0)
 
@@ -523,15 +523,15 @@ in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 
 	bcopy(&tmp, srcp, sizeof(*srcp));
 	if (ia->ia_ifp == ifp)
-		IP6STAT_INC(ip6s_sources_sameif[best_scope]);
+		IP6STAT_INC2(ip6s_sources_sameif, best_scope);
 	else
-		IP6STAT_INC(ip6s_sources_otherif[best_scope]);
+		IP6STAT_INC2(ip6s_sources_otherif, best_scope);
 	if (dst_scope == best_scope)
-		IP6STAT_INC(ip6s_sources_samescope[best_scope]);
+		IP6STAT_INC2(ip6s_sources_samescope, best_scope);
 	else
-		IP6STAT_INC(ip6s_sources_otherscope[best_scope]);
+		IP6STAT_INC2(ip6s_sources_otherscope, best_scope);
 	if (IFA6_IS_DEPRECATED(ia))
-		IP6STAT_INC(ip6s_sources_deprecated[best_scope]);
+		IP6STAT_INC2(ip6s_sources_deprecated, best_scope);
 	IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
 	return (0);
 }

@@ -3133,7 +3133,7 @@ mld_dispatch_packet(struct mbuf *m)
 		CTR3(KTR_MLD, "%s: ip6_output(%p) = %d", __func__, m0, error);
 		goto out;
 	}
-	ICMP6STAT_INC(icp6s_outhist[type]);
+	ICMP6STAT_INC2(icp6s_outhist, type);
 	if (oifp != NULL) {
 		icmp6_ifstat_inc(oifp, ifs6_out_msg);
 		switch (type) {
