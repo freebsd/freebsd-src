@@ -68,7 +68,7 @@ uiocopy(void *p, size_t n, enum uio_rw rw, struct uio *uio, size_t *cbytes)
 	error = vn_io_fault_uiomove(p, n, uio_clone);
 	*cbytes = uio->uio_resid - uio_clone->uio_resid;
 	if (uio_clone != &small_uio_clone)
-		free(uio_clone, M_IOV);
+		freeuio(uio_clone);
 	return (error);
 }
 

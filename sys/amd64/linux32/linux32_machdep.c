@@ -106,7 +106,7 @@ linux_readv(struct thread *td, struct linux_readv_args *uap)
 	if (error)
 		return (error);
 	error = kern_readv(td, uap->fd, auio);
-	free(auio, M_IOV);
+	freeuio(auio);
 	return (error);
 }
 

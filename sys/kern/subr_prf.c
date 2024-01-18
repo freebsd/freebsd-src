@@ -386,7 +386,7 @@ log_console(struct uio *uio)
 		msglogstr(consbuffer, pri, /*filter_cr*/ 1);
 	}
 	msgbuftrigger = 1;
-	free(uio, M_IOV);
+	freeuio(uio);
 	free(consbuffer, M_TEMP);
 }
 

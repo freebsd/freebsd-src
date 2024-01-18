@@ -1331,8 +1331,8 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 		(void)copyout(&sbytes, uap->sbytes, sizeof(off_t));
 
 out:
-	free(hdr_uio, M_IOV);
-	free(trl_uio, M_IOV);
+	freeuio(hdr_uio);
+	freeuio(trl_uio);
 	return (error);
 }
 
