@@ -229,8 +229,8 @@ SYSCTL_INT(_kern, OID_AUTO, kerneldump_gzlevel, CTLFLAG_RWTUN,
 const char *panicstr;
 bool __read_frequently panicked;
 
-int __read_mostly dumping;		/* system is dumping */
-int rebooting;				/* system is rebooting */
+int dumping __read_mostly;		/* system is dumping */
+int rebooting __read_mostly;		/* system is rebooting */
 /*
  * Used to serialize between sysctl kern.shutdown.dumpdevname and list
  * modifications via ioctl.
