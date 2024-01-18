@@ -376,21 +376,20 @@ copyinuio(const struct iovec *iovp, u_int iovcnt, struct uio **uiop)
 	if (iovcnt > UIO_MAXIOV)
 		return (EINVAL);
 	iovlen = iovcnt * sizeof(struct iovec);
-	uio = malloc(iovlen + sizeof(*uio), M_IOV, M_WAITOK);
-	iov = (struct iovec *)(uio + 1);
+	uio = allocuio(iovcnt);
+	iov = uio->uio_iov;
 	error = copyin(iovp, iov, iovlen);
-	if (error) {
-		free(uio, M_IOV);
+	if (error != 0) {
+		freeuio(uio);
 		return (error);
 	}
-	uio->uio_iov = iov;
 	uio->uio_iovcnt = iovcnt;
 	uio->uio_segflg = UIO_USERSPACE;
 	uio->uio_offset = -1;
 	uio->uio_resid = 0;
 	for (i = 0; i < iovcnt; i++) {
 		if (iov->iov_len > IOSIZE_MAX - uio->uio_resid) {
-			free(uio, M_IOV);
+			freeuio(uio);
 			return (EINVAL);
 		}
 		uio->uio_resid += iov->iov_len;
@@ -401,15 +400,38 @@ copyinuio(const struct iovec *iovp, u_int iovcnt, struct uio **uiop)
 }
 
 struct uio *
-cloneuio(struct uio *uiop)
+allocuio(u_int iovcnt)
 {
 	struct uio *uio;
 	int iovlen;
 
-	iovlen = uiop->uio_iovcnt * sizeof(struct iovec);
+	KASSERT(iovcnt <= UIO_MAXIOV,
+	    ("Requested %u iovecs exceed UIO_MAXIOV", iovcnt));
+	iovlen = iovcnt * sizeof(struct iovec);
 	uio = malloc(iovlen + sizeof(*uio), M_IOV, M_WAITOK);
-	*uio = *uiop;
 	uio->uio_iov = (struct iovec *)(uio + 1);
+
+	return (uio);
+}
+
+void
+freeuio(struct uio *uio)
+{
+	free(uio, M_IOV);
+}
+
+struct uio *
+cloneuio(struct uio *uiop)
+{
+	struct iovec *iov;
+	struct uio *uio;
+	int iovlen;
+
+	iovlen = uiop->uio_iovcnt * sizeof(struct iovec);
+	uio = allocuio(uiop->uio_iovcnt);
+	iov = uio->uio_iov;
+	*uio = *uiop;
+	uio->uio_iov = iov;
 	bcopy(uiop->uio_iov, uio->uio_iov, iovlen);
 	return (uio);
 }

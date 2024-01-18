@@ -1444,7 +1444,7 @@ vn_io_fault1(struct vnode *vp, struct uio *uio, struct vn_io_fault_args *args,
 	td->td_ma_cnt = prev_td_ma_cnt;
 	curthread_pflags_restore(saveheld);
 out:
-	free(uio_clone, M_IOV);
+	freeuio(uio_clone);
 	return (error);
 }
 

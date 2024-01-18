@@ -78,6 +78,8 @@ struct vm_object;
 struct vm_page;
 struct bus_dma_segment;
 
+struct uio *allocuio(u_int iovcnt);
+void	freeuio(struct uio *uio);
 struct uio *cloneuio(struct uio *uiop);
 int	copyiniov(const struct iovec *iovp, u_int iovcnt, struct iovec **iov,
 	    int error);

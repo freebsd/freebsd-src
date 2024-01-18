@@ -534,7 +534,7 @@ sys_jail_set(struct thread *td, struct jail_set_args *uap)
 	if (error)
 		return (error);
 	error = kern_jail_set(td, auio, uap->flags);
-	free(auio, M_IOV);
+	freeuio(auio);
 	return (error);
 }
 
@@ -2264,8 +2264,8 @@ sys_jail_get(struct thread *td, struct jail_get_args *uap)
 	error = kern_jail_get(td, auio, uap->flags);
 	if (error == 0)
 		error = copyout(auio->uio_iov, uap->iovp,
-		    uap->iovcnt * sizeof (struct iovec));
-	free(auio, M_IOV);
+		    uap->iovcnt * sizeof(struct iovec));
+	freeuio(auio);
 	return (error);
 }
 

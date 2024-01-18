@@ -559,7 +559,7 @@ aio_free_entry(struct kaiocb *job)
 		fdrop(job->fd_file, curthread);
 	crfree(job->cred);
 	if (job->uiop != &job->uio)
-		free(job->uiop, M_IOV);
+		freeuio(job->uiop);
 	uma_zfree(aiocb_zone, job);
 	AIO_LOCK(ki);
 
@@ -1736,7 +1736,7 @@ err3:
 	knlist_delete(&job->klist, curthread, 0);
 err2:
 	if (job->uiop != &job->uio)
-		free(job->uiop, M_IOV);
+		freeuio(job->uiop);
 	uma_zfree(aiocb_zone, job);
 err1:
 	ops->store_error(ujob, error);
