@@ -46,7 +46,7 @@ static int fetch_files(int nfiles, char **urls);
 int
 main(void)
 {
-	char *diststring;
+	char *diststring, *dists, *distdir, *distsite;
 	char **urls;
 	int i;
 	int ndists = 0;
@@ -54,17 +54,24 @@ main(void)
 	char error[PATH_MAX + 512];
 	struct bsddialog_conf conf;
 
-	if (getenv("DISTRIBUTIONS") == NULL)
+	if ((dists = getenv("DISTRIBUTIONS")) == NULL)
 		errx(EXIT_FAILURE, "DISTRIBUTIONS variable is not set");
 
-	diststring = strdup(getenv("DISTRIBUTIONS"));
+	if ((distdir = getenv("BSDINSTALL_DISTDIR")) == NULL)
+		errx(EXIT_FAILURE, "BSDINSTALL_DISTDIR variable is not set");
+
+	if ((distsite = getenv("BSDINSTALL_DISTSITE")) == NULL)
+		errx(EXIT_FAILURE, "BSDINSTALL_DISTSITE variable is not set");
+
+	if ((diststring = strdup(dists)) == NULL)
+		errx(EXIT_FAILURE, "Error: diststring variable out of memory!");
+
 	for (i = 0; diststring[i] != 0; i++)
 		if (isspace(diststring[i]) && !isspace(diststring[i+1]))
 			ndists++;
 	ndists++; /* Last one */
 
-	urls = calloc(ndists, sizeof(const char *));
-	if (urls == NULL) {
+	if ((urls = calloc(ndists, sizeof(char *))) == NULL) {
 		free(diststring);
 		errx(EXIT_FAILURE, "Error: distfetch URLs out of memory!");
 	}
@@ -72,21 +79,27 @@ main(void)
 	if (bsddialog_init() == BSDDIALOG_ERROR) {
 		free(diststring);
 		errx(EXIT_FAILURE, "Error libbsddialog: %s\n",
-		    bsddialog_geterror());
+		     bsddialog_geterror());
 	}
 	bsddialog_initconf(&conf);
 	bsddialog_backtitle(&conf, OSNAME " Installer");
 
 	for (i = 0; i < ndists; i++) {
-		urls[i] = malloc(PATH_MAX);
+	        if ((urls[i] = malloc(PATH_MAX)) == NULL) {
+		        free(urls);
+			free(diststring);
+			bsddialog_end();
+			errx(EXIT_FAILURE, "Error: distfetch URLs out of memory!");
+		}
+
 		snprintf(urls[i], PATH_MAX, "%s/%s",
-		    getenv("BSDINSTALL_DISTSITE"), strsep(&diststring, " \t"));
+			 distsite, strsep(&diststring, " \t"));
 	}
 
-	if (chdir(getenv("BSDINSTALL_DISTDIR")) != 0) {
+	if (chdir(distdir) != 0) {
 		snprintf(error, sizeof(error),
-		    "Could not change to directory %s: %s\n",
-		    getenv("BSDINSTALL_DISTDIR"), strerror(errno));
+			 "Could not change to directory %s: %s\n",
+			 distdir, strerror(errno));
 		conf.title = "Error";
 		bsddialog_msgbox(&conf, error, 0, 0);
 		bsddialog_end();
