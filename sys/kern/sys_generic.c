@@ -271,7 +271,7 @@ sys_readv(struct thread *td, struct readv_args *uap)
 	if (error)
 		return (error);
 	error = kern_readv(td, uap->fd, auio);
-	free(auio, M_IOV);
+	freeuio(auio);
 	return (error);
 }
 
@@ -310,7 +310,7 @@ sys_preadv(struct thread *td, struct preadv_args *uap)
 	if (error)
 		return (error);
 	error = kern_preadv(td, uap->fd, auio, uap->offset);
-	free(auio, M_IOV);
+	freeuio(auio);
 	return (error);
 }
 
@@ -473,7 +473,7 @@ sys_writev(struct thread *td, struct writev_args *uap)
 	if (error)
 		return (error);
 	error = kern_writev(td, uap->fd, auio);
-	free(auio, M_IOV);
+	freeuio(auio);
 	return (error);
 }
 
@@ -512,7 +512,7 @@ sys_pwritev(struct thread *td, struct pwritev_args *uap)
 	if (error)
 		return (error);
 	error = kern_pwritev(td, uap->fd, auio, uap->offset);
-	free(auio, M_IOV);
+	freeuio(auio);
 	return (error);
 }
 
