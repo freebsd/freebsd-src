@@ -95,7 +95,8 @@ pci_docfgregread(int domain, int bus, int slot, int func, int reg, int bytes)
  * Read configuration space register
  */
 u_int32_t
-pci_cfgregread(int domain, int bus, int slot, int func, int reg, int bytes)
+pci_cfgregread_domain(int domain, int bus, int slot, int func, int reg,
+    int bytes)
 {
 	uint32_t line;
 
@@ -121,8 +122,8 @@ pci_cfgregread(int domain, int bus, int slot, int func, int reg, int bytes)
  * Write configuration space register 
  */
 void
-pci_cfgregwrite(int domain, int bus, int slot, int func, int reg, uint32_t data,
-    int bytes)
+pci_cfgregwrite_domain(int domain, int bus, int slot, int func, int reg,
+    uint32_t data, int bytes)
 {
 	if (domain == 0 && bus == 0 && (1 << slot & pcie_badslots) != 0) {
 		pcireg_cfgwrite(bus, slot, func, reg, data, bytes);
@@ -332,4 +333,24 @@ pciereg_cfgwrite(int domain, int bus, unsigned slot, unsigned func,
 		    : "a" ((uint8_t)data));
 		break;
 	}
+}
+
+/* ABI compatibility shims. */
+#undef pci_cfgregread
+#undef pci_cfgregwrite
+
+u_int32_t pci_cfgregread(int bus, int slot, int func, int reg, int bytes);
+void	pci_cfgregwrite(int bus, int slot, int func, int reg, uint32_t data,
+    int bytes);
+
+u_int32_t
+pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
+{
+	return (pci_cfgregread_domain(0, bus, slot, func, reg, bytes));
+}
+
+void
+pci_cfgregwrite(int bus, int slot, int func, int reg, uint32_t data, int bytes)
+{
+	return (pci_cfgregwrite_domain(0, bus, slot, func, reg, data, bytes));
 }
