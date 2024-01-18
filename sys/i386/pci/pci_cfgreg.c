@@ -640,3 +640,23 @@ pciereg_cfgwrite(int domain, int bus, unsigned slot, unsigned func,
 
 	critical_exit();
 }
+
+/* ABI compatibility shims. */
+#undef pci_cfgregread
+#undef pci_cfgregwrite
+
+u_int32_t pci_cfgregread(int bus, int slot, int func, int reg, int bytes);
+void	pci_cfgregwrite(int bus, int slot, int func, int reg, uint32_t data,
+    int bytes);
+
+u_int32_t
+pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
+{
+	return (pci_cfgregread_domain(0, bus, slot, func, reg, bytes));
+}
+
+void
+pci_cfgregwrite(int bus, int slot, int func, int reg, uint32_t data, int bytes)
+{
+	return (pci_cfgregwrite_domain(0, bus, slot, func, reg, data, bytes));
+}
