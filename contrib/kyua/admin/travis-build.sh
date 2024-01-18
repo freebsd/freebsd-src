@@ -61,7 +61,7 @@ syntax(2)
 parallelism = 4
 EOF
     [ "${UNPRIVILEGED_USER:-no}" = no ] || \
-        echo "unprivileged_user = 'travis'" >>kyua.conf
+        echo "unprivileged_user = 'nobody'" >>kyua.conf
 
     local f=
     f="${f} CFLAGS='${archflags}'"

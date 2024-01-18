@@ -392,6 +392,11 @@ codes above 1 can be returned.
 .Xr atf 7 ,
 .Xr tests 7
 .Sh AUTHORS
+The original author of
+.Nm
+was
+.An Julio Merino .
+.Pp
 For more details on the people that made
 .Nm
 possible and the license terms, run:

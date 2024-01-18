@@ -1,0 +1,25 @@
+env:
+  ARCH: amd64
+
+task:
+  matrix:
+    - name: 14.0-RELEASE
+      freebsd_instance:
+        image_family: freebsd-14-0
+    - name: 14.0-STABLE
+      freebsd_instance:
+        image_family: freebsd-14-0-snap
+    - name: 13.2-RELEASE
+      freebsd_instance:
+        image_family: freebsd-13-2
+    - name: 13.2-STABLE
+      freebsd_instance:
+        image_family: freebsd-13-2-snap
+  env:
+    DO: distcheck
+  install_script:
+    - sed -i.bak -e 's,pkg+http://pkg.FreeBSD.org/\${ABI}/quarterly,pkg+http://pkg.FreeBSD.org/\${ABI}/latest,' /etc/pkg/FreeBSD.conf
+    - ASSUME_ALWAYS_YES=yes pkg bootstrap -f
+    - pkg install -y autoconf automake atf lutok pkgconf sqlite3
+  script:
+    - ./admin/travis-build.sh

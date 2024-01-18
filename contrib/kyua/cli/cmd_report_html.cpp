@@ -54,6 +54,7 @@
 #include "utils/fs/operations.hpp"
 #include "utils/fs/path.hpp"
 #include "utils/optional.ipp"
+#include "utils/text/operations.hpp"
 #include "utils/text/templates.hpp"
 
 namespace cmdline = utils::cmdline;
@@ -365,12 +366,12 @@ public:
         {
             const std::string stdout_text = iter.stdout_contents();
             if (!stdout_text.empty())
-                templates.add_variable("stdout", stdout_text);
+                templates.add_variable("stdout", text::escape_xml(stdout_text));
         }
         {
             const std::string stderr_text = iter.stderr_contents();
             if (!stderr_text.empty())
-                templates.add_variable("stderr", stderr_text);
+                templates.add_variable("stderr", text::escape_xml(stderr_text));
         }
 
         generate(templates, "test_result.html",
