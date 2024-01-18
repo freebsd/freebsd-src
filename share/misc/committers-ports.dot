@@ -52,6 +52,7 @@ daichi [label="Daichi Goto\ndaichi@FreeBSD.org\n2002/10/17\n2018/06/01"]
 dhn [label="Dennis Herrmann\ndhn@FreeBSD.org\n2009/03/03\n2015/06/11"]
 dryice [label="Dryice Dong Liu\ndryice@FreeBSD.org\n2006/12/25\n2018/11/06"]
 dteske [label="Devin Teske\ndteske@FreeBSD.org\n2018/03/01\n2019/11/05"]
+dutra [label="Gabriel M. Dutra\ndutra@FreeBSD.org\n2024/01/12"]
 edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2002/10/22\n2016/11/16"]
 eik [label="Oliver Eikemeier\neik@FreeBSD.org\n2003/11/12\n2006/12/14"]
 erwin [label="Erwin Lansing\nerwin@FreeBSD.org\n2003/06/04\n2016/10/12"]
@@ -414,6 +415,7 @@ culot -> wg
 db -> tj
 db -> shurd
 
+dbaio -> dutra
 dbaio -> eduardo
 
 decke -> sperber
@@ -491,6 +493,7 @@ gabor -> scheidell
 garga -> acm
 garga -> alepulver
 garga -> dbaio
+garga -> dutra
 garga -> eduardo
 garga -> mandree
 garga -> mm
