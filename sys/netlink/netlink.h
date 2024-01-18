@@ -204,7 +204,7 @@ enum nlmsginfo_attrs {
 
 #define	NL_ITEM_OK(_ptr, _len, _hlen, _LEN_M)	\
 	((_len) >= _hlen && _LEN_M(_ptr) >= _hlen && _LEN_M(_ptr) <= (_len))
-#define	NL_ITEM_NEXT(_ptr, _LEN_M)	((typeof(_ptr))((char *)(_ptr) + _LEN_M(_ptr)))
+#define	NL_ITEM_NEXT(_ptr, _LEN_M)	((__typeof(_ptr))((char *)(_ptr) + _LEN_M(_ptr)))
 #define	NL_ITEM_ITER(_ptr, _len, _LEN_MACRO)	\
 	((_len) -= _LEN_MACRO(_ptr), NL_ITEM_NEXT(_ptr, _LEN_MACRO))
 
