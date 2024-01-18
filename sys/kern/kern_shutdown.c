@@ -225,6 +225,7 @@ SYSCTL_INT(_kern, OID_AUTO, kerneldump_gzlevel, CTLFLAG_RWTUN,
  * to indicate that the kernel has already called panic.
  */
 const char *panicstr __read_mostly;
+bool scheduler_stopped __read_frequently;
 
 int dumping __read_mostly;		/* system is dumping */
 int rebooting __read_mostly;		/* system is rebooting */
@@ -926,7 +927,7 @@ vpanic(const char *fmt, va_list ap)
 	 * Ensure that the scheduler is stopped while panicking, even if panic
 	 * has been entered from kdb.
 	 */
-	td->td_stopsched = 1;
+	scheduler_stopped = true;
 
 	bootopt = RB_AUTOBOOT;
 	newpanic = 0;

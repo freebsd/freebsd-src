@@ -120,7 +120,7 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
 
-	if (SCHEDULER_STOPPED_TD(td))
+	if (SCHEDULER_STOPPED())
 		return;
 
 #ifdef KTRACE
@@ -184,7 +184,7 @@ _cv_wait_unlock(struct cv *cvp, struct lock_object *lock)
 	    ("cv_wait_unlock cannot be used with Giant"));
 	class = LOCK_CLASS(lock);
 
-	if (SCHEDULER_STOPPED_TD(td)) {
+	if (SCHEDULER_STOPPED()) {
 		class->lc_unlock(lock);
 		return;
 	}
@@ -241,7 +241,7 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
 
-	if (SCHEDULER_STOPPED_TD(td))
+	if (SCHEDULER_STOPPED())
 		return (0);
 
 #ifdef KTRACE
@@ -309,7 +309,7 @@ _cv_timedwait_sbt(struct cv *cvp, struct lock_object *lock, sbintime_t sbt,
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
 
-	if (SCHEDULER_STOPPED_TD(td))
+	if (SCHEDULER_STOPPED())
 		return (0);
 
 #ifdef KTRACE
@@ -379,7 +379,7 @@ _cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock,
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
 
-	if (SCHEDULER_STOPPED_TD(td))
+	if (SCHEDULER_STOPPED())
 		return (0);
 
 #ifdef KTRACE
