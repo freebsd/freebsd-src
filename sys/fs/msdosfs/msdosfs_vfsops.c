@@ -1008,7 +1008,9 @@ msdosfs_remount_ro(void *arg, int pending)
 	}
 	MSDOSFS_UNLOCK_MP(pmp);
 
-	vfs_unbusy(pmp->pm_mountp);
+	do {
+		vfs_unbusy(pmp->pm_mountp);
+	} while (--pending >= 0);
 }
 
 void
@@ -1017,11 +1019,19 @@ msdosfs_integrity_error(struct msdosfsmount *pmp)
 	int error;
 
 	error = vfs_busy(pmp->pm_mountp, MBF_NOWAIT);
-	if (error == 0)
-		taskqueue_enqueue(taskqueue_thread, &pmp->pm_rw2ro_task);
-	else
+	if (error == 0) {
+		error = taskqueue_enqueue(taskqueue_thread,
+		    &pmp->pm_rw2ro_task);
+		if (error != 0) {
+			printf("%s: integrity error scheduling failed, "
+			    "error %d\n",
+			    pmp->pm_mountp->mnt_stat.f_mntfromname, error);
+			vfs_unbusy(pmp->pm_mountp);
+		}
+	} else {
 		printf("%s: integrity error busying failed, error %d\n",
 		    pmp->pm_mountp->mnt_stat.f_mntfromname, error);
+	}
 }
 
 static int
