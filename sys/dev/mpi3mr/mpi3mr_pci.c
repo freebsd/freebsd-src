@@ -89,6 +89,7 @@ struct mpi3mr_ident {
 } mpi3mr_identifiers[] = {
 	{ MPI3_MFGPAGE_VENDORID_BROADCOM, MPI3_MFGPAGE_DEVID_SAS4116,
 	    0xffff, 0xffff, 0, "Broadcom MPIMR 3.0 controller" },
+	{ 0 }
 };
 
 DRIVER_MODULE(mpi3mr, pci, mpi3mr_pci_driver, 0, 0);
