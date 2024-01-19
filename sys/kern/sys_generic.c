@@ -65,6 +65,7 @@
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/vnode.h>
+#include <sys/unistd.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/condvar.h>
@@ -2070,4 +2071,90 @@ kern_posix_error(struct thread *td, int error)
 	td->td_pflags |= TDP_NERRNO;
 	td->td_retval[0] = error;
 	return (0);
+}
+
+int
+kcmp_cmp(uintptr_t a, uintptr_t b)
+{
+	if (a == b)
+		return (0);
+	else if (a < b)
+		return (1);
+	return (2);
+}
+
+static int
+kcmp_pget(struct thread *td, pid_t pid, struct proc **pp)
+{
+	if (pid == td->td_proc->p_pid) {
+		*pp = td->td_proc;
+		return (0);
+	}
+	return (pget(pid, PGET_CANDEBUG | PGET_NOTWEXIT | PGET_HOLD, pp));
+}
+
+int
+kern_kcmp(struct thread *td, pid_t pid1, pid_t pid2, int type,
+    uintptr_t idx1, uintptr_t idx2)
+{
+	struct proc *p1, *p2;
+	struct file *fp1, *fp2;
+	int error, res;
+
+	res = -1;
+	p1 = p2 = NULL;
+	error = kcmp_pget(td, pid1, &p1);
+	if (error == 0)
+		error = kcmp_pget(td, pid2, &p2);
+	if (error != 0)
+		goto out;
+
+	switch (type) {
+	case KCMP_FILE:
+	case KCMP_FILEOBJ:
+		error = fget_remote(td, p1, idx1, &fp1);
+		if (error == 0) {
+			error = fget_remote(td, p2, idx2, &fp2);
+			if (error == 0) {
+				if (type == KCMP_FILEOBJ)
+					res = fo_cmp(fp1, fp2, td);
+				else
+					res = kcmp_cmp((uintptr_t)fp1,
+					    (uintptr_t)fp2);
+				fdrop(fp2, td);
+			}
+			fdrop(fp1, td);
+		}
+		break;
+	case KCMP_FILES:
+		res = kcmp_cmp((uintptr_t)p1->p_fd, (uintptr_t)p2->p_fd);
+		break;
+	case KCMP_SIGHAND:
+		res = kcmp_cmp((uintptr_t)p1->p_sigacts,
+		    (uintptr_t)p2->p_sigacts);
+		break;
+	case KCMP_VM:
+		res = kcmp_cmp((uintptr_t)p1->p_vmspace,
+		    (uintptr_t)p2->p_vmspace);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+
+out:
+	if (p1 != NULL && p1 != td->td_proc)
+		PRELE(p1);
+	if (p2 != NULL && p2 != td->td_proc)
+		PRELE(p2);
+
+	td->td_retval[0] = res;
+	return (error);
+}
+
+int
+sys_kcmp(struct thread *td, struct kcmp_args *uap)
+{
+	return (kern_kcmp(td, uap->pid1, uap->pid2, uap->type,
+	    uap->idx1, uap->idx2));
 }
