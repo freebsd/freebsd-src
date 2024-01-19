@@ -112,6 +112,7 @@ struct fileops	socketops = {
 	.fo_sendfile = invfo_sendfile,
 	.fo_fill_kinfo = soo_fill_kinfo,
 	.fo_aio_queue = soo_aio_queue,
+	.fo_cmp = file_kcmp_generic,
 	.fo_flags = DFLAG_PASSABLE
 };
 

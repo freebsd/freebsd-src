@@ -2160,3 +2160,11 @@ sys_kcmp(struct thread *td, struct kcmp_args *uap)
 	return (kern_kcmp(td, uap->pid1, uap->pid2, uap->type,
 	    uap->idx1, uap->idx2));
 }
+
+int
+file_kcmp_generic(struct file *fp1, struct file *fp2, struct thread *td)
+{
+	if (fp1->f_type != fp2->f_type)
+		return (3);
+	return (kcmp_cmp((uintptr_t)fp1->f_data, (uintptr_t)fp2->f_data));
+}
