@@ -97,6 +97,7 @@ static fo_kqfilter_t	procdesc_kqfilter;
 static fo_stat_t	procdesc_stat;
 static fo_close_t	procdesc_close;
 static fo_fill_kinfo_t	procdesc_fill_kinfo;
+static fo_cmp_t		procdesc_cmp;
 
 static struct fileops procdesc_ops = {
 	.fo_read = invfo_rdwr,
@@ -111,6 +112,7 @@ static struct fileops procdesc_ops = {
 	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
 	.fo_fill_kinfo = procdesc_fill_kinfo,
+	.fo_cmp = procdesc_cmp,
 	.fo_flags = DFLAG_PASSABLE,
 };
 
@@ -555,4 +557,16 @@ procdesc_fill_kinfo(struct file *fp, struct kinfo_file *kif,
 	pdp = fp->f_data;
 	kif->kf_un.kf_proc.kf_pid = pdp->pd_pid;
 	return (0);
+}
+
+static int
+procdesc_cmp(struct file *fp1, struct file *fp2, struct thread *td)
+{
+	struct procdesc *pdp1, *pdp2;
+
+	if (fp2->f_type != DTYPE_PROCDESC)
+		return (3);
+	pdp1 = fp1->f_data;
+	pdp2 = fp2->f_data;
+	return (kcmp_cmp((uintptr_t)pdp1->pd_pid, (uintptr_t)pdp2->pd_pid));
 }
