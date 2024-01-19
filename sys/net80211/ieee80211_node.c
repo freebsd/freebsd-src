@@ -171,6 +171,10 @@ ieee80211_node_vattach(struct ieee80211vap *vap)
 void
 ieee80211_node_latevattach(struct ieee80211vap *vap)
 {
+
+	/* XXX should ieee80211_vap_attach(), our only caller hold the lock? */
+	IEEE80211_UNLOCK_ASSERT(vap->iv_ic);
+
 	if (vap->iv_opmode == IEEE80211_M_HOSTAP) {
 		/* XXX should we allow max aid to be zero? */
 		if (vap->iv_max_aid < IEEE80211_AID_MIN) {
@@ -191,7 +195,9 @@ ieee80211_node_latevattach(struct ieee80211vap *vap)
 		}
 	}
 
+	IEEE80211_LOCK(vap->iv_ic);
 	ieee80211_reset_bss(vap);
+	IEEE80211_UNLOCK(vap->iv_ic);
 
 	vap->iv_auth = ieee80211_authenticator_get(vap->iv_bss->ni_authmode);
 }
@@ -201,11 +207,16 @@ ieee80211_node_vdetach(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 
+	/* XXX should ieee80211_vap_detach(), our only caller hold the lock? */
+	IEEE80211_UNLOCK_ASSERT(vap->iv_ic);
+
 	ieee80211_node_table_reset(&ic->ic_sta, vap);
+	IEEE80211_LOCK(ic);
 	if (vap->iv_bss != NULL) {
 		ieee80211_free_node(vap->iv_bss);
 		vap->iv_update_bss(vap, NULL);
 	}
+	IEEE80211_UNLOCK(ic);
 	if (vap->iv_aid_bitmap != NULL) {
 		IEEE80211_FREE(vap->iv_aid_bitmap, M_80211_NODE);
 		vap->iv_aid_bitmap = NULL;
@@ -454,6 +465,8 @@ ieee80211_reset_bss(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_node *ni, *obss;
+
+	IEEE80211_LOCK_ASSERT(ic);
 
 	ieee80211_node_table_reset(&ic->ic_sta, vap);
 	/* XXX multi-bss: wrong */
@@ -854,7 +867,9 @@ ieee80211_sta_join1(struct ieee80211_node *selbs)
 	/*
 	 * Committed to selbs, setup state.
 	 */
+	IEEE80211_LOCK(ic);			/* XXX may recurse here, check callers. */
 	obss = vap->iv_update_bss(vap, selbs);	/* NB: caller assumed to bump refcnt */
+	IEEE80211_UNLOCK(ic);
 	/*
 	 * Check if old+new node have the same address in which
 	 * case we can reassociate when operating in sta mode.

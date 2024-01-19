@@ -830,6 +830,8 @@ vap_update_bss(struct ieee80211vap *vap, struct ieee80211_node *ni)
 {
 	struct ieee80211_node *obss;
 
+	IEEE80211_LOCK_ASSERT(vap->iv_ic);
+
 	obss = vap->iv_bss;
 	vap->iv_bss = ni;
 
