@@ -125,6 +125,7 @@ struct 	fileops vnops = {
 	.fo_mmap = vn_mmap,
 	.fo_fallocate = vn_fallocate,
 	.fo_fspacectl = vn_fspacectl,
+	.fo_cmp = vn_cmp,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
@@ -4229,4 +4230,12 @@ vn_lktype_write(struct mount *mp, struct vnode *vp)
 	    (mp == NULL && MNT_SHARED_WRITES(vp->v_mount)))
 		return (LK_SHARED);
 	return (LK_EXCLUSIVE);
+}
+
+int
+vn_cmp(struct file *fp1, struct file *fp2, struct thread *td)
+{
+	if (fp2->f_type != DTYPE_VNODE)
+		return (3);
+	return (kcmp_cmp((uintptr_t)fp1->f_vnode, (uintptr_t)fp2->f_vnode));
 }

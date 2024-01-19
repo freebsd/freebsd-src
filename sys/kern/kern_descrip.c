@@ -5287,6 +5287,7 @@ struct fileops path_fileops = {
 	.fo_chown = badfo_chown,
 	.fo_sendfile = badfo_sendfile,
 	.fo_fill_kinfo = vn_fill_kinfo,
+	.fo_cmp = vn_cmp,
 	.fo_flags = DFLAG_PASSABLE,
 };
 
