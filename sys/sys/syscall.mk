@@ -427,4 +427,5 @@ MIASM =  \
 	membarrier.o \
 	timerfd_create.o \
 	timerfd_gettime.o \
-	timerfd_settime.o
+	timerfd_settime.o \
+	kcmp.o
