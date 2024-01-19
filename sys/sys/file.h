@@ -277,6 +277,7 @@ fo_seek_t	vn_seek;
 fo_fill_kinfo_t	vn_fill_kinfo;
 fo_kqfilter_t	vn_kqfilter_opath;
 int vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif);
+int file_kcmp_generic(struct file *fp1, struct file *fp2, struct thread *td);
 
 void finit(struct file *, u_int, short, void *, struct fileops *);
 void finit_vnode(struct file *, u_int, void *, struct fileops *);

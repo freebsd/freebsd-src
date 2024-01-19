@@ -168,6 +168,7 @@ struct fileops pipeops = {
 	.fo_chown = pipe_chown,
 	.fo_sendfile = invfo_sendfile,
 	.fo_fill_kinfo = pipe_fill_kinfo,
+	.fo_cmp = file_kcmp_generic,
 	.fo_flags = DFLAG_PASSABLE
 };
 
