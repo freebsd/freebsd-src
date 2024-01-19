@@ -2,7 +2,7 @@
 PACKAGE=	kerberos-lib
 
 LIB=	roken
-LIBADD=	crypt
+LIBADD=	crypt crypto
 VERSION_MAP=	${KRB5DIR}/lib/roken/version-script.map
 INCS=	roken.h \
 	roken-common.h \
