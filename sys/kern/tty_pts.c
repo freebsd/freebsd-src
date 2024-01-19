@@ -610,6 +610,7 @@ static struct fileops ptsdev_ops = {
 	.fo_chown	= invfo_chown,
 	.fo_sendfile	= invfo_sendfile,
 	.fo_fill_kinfo	= ptsdev_fill_kinfo,
+	.fo_cmp		= file_kcmp_generic,
 	.fo_flags	= DFLAG_PASSABLE,
 };
 

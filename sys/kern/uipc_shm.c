@@ -169,6 +169,7 @@ struct fileops shm_ops = {
 	.fo_add_seals = shm_add_seals,
 	.fo_fallocate = shm_fallocate,
 	.fo_fspacectl = shm_fspacectl,
+	.fo_cmp = file_kcmp_generic,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE,
 };
 
