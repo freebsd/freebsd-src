@@ -487,6 +487,8 @@ int poll_no_poll(int events);
 /* XXX: Should be void nanodelay(u_int nsec); */
 void	DELAY(int usec);
 
+int kcmp_cmp(uintptr_t a, uintptr_t b);
+
 /* Root mount holdback API */
 struct root_hold_token {
 	int				flags;

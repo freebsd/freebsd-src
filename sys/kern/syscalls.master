@@ -3338,6 +3338,14 @@
 		    _Out_opt_ _Contains_long_timet_ struct itimerspec *old_value
 		);
 	}
-
+588	AUE_NULL	STD {
+		int kcmp(
+		    pid_t pid1,
+		    pid_t pid2,
+		    int type,
+		    uintptr_t idx1,
+		    uintptr_t idx2
+		);
+	}
 
 ; vim: syntax=off
