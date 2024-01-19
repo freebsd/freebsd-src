@@ -129,6 +129,7 @@ typedef int fo_fallocate_t(struct file *fp, off_t offset, off_t len,
 typedef int fo_fspacectl_t(struct file *fp, int cmd,
 		    off_t *offset, off_t *length, int flags,
 		    struct ucred *active_cred, struct thread *td);
+typedef int fo_cmp_t(struct file *fp, struct file *fp1, struct thread *td);
 typedef int fo_spare_t(struct file *fp);
 typedef	int fo_flags_t;
 
@@ -152,6 +153,7 @@ struct fileops {
 	fo_get_seals_t	*fo_get_seals;
 	fo_fallocate_t	*fo_fallocate;
 	fo_fspacectl_t	*fo_fspacectl;
+	fo_cmp_t	*fo_cmp;
 	fo_spare_t	*fo_spares[8];	/* Spare slots */
 	fo_flags_t	fo_flags;	/* DFLAG_* below */
 };
@@ -489,6 +491,15 @@ fo_fspacectl(struct file *fp, int cmd, off_t *offset, off_t *length,
 		return (ENODEV);
 	return ((*fp->f_ops->fo_fspacectl)(fp, cmd, offset, length, flags,
 	    active_cred, td));
+}
+
+static __inline int
+fo_cmp(struct file *fp1, struct file *fp2, struct thread *td)
+{
+
+	if (fp1->f_ops->fo_cmp == NULL)
+		return (ENODEV);
+	return ((*fp1->f_ops->fo_cmp)(fp1, fp2, td));
 }
 
 #endif /* _KERNEL */
