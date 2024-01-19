@@ -1178,4 +1178,12 @@
 580	AUE_NULL	UNIMPL	fspacectl
 581	AUE_NULL	NOPROTO	{ int sched_getcpu(void); }
 582	AUE_NULL	UNIMPL	swapoff
+583	AUE_NULL	UNIMPL	kqueuex
+584	AUE_NULL	UNIMPL	membarrier
+585	AUE_NULL	UNIMPL  timerfd_create
+586	AUE_NULL	UNIMPL  timerfd_gettime
+587	AUE_NULL	UNIMPL  timerfd_settime
+588	AUE_NULL	NOPROTO { int kcmp(pid_t pid1, pid_t pid2, int type, \
+				    u_int idx1, u_int idx2); }
+
 ; vim: syntax=off

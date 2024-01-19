@@ -3294,7 +3294,18 @@
 		    int cpu_id
 		);
 	}
-
+585	AUE_NULL	UNIMPL timerfd_create
+586	AUE_NULL	UNIMPL timerfd_gettime
+587	AUE_NULL	UNIMPL timerfd_settime
+588	AUE_NULL	STD {
+		int kcmp(
+		    pid_t pid1,
+		    pid_t pid2,
+		    int type,
+		    uintptr_t idx1,
+		    uintptr_t idx2
+		);
+	}
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
