@@ -1353,6 +1353,15 @@ dev/cfi/cfi_dev.c		optional cfi
 dev/cfi/cfi_disk.c		optional cfid
 dev/chromebook_platform/chromebook_platform.c	optional chromebook_platform
 dev/ciss/ciss.c			optional ciss
+dev/clk/clk.c			optional clk
+dev/clk/clkdev_if.m		optional clk
+dev/clk/clknode_if.m		optional clk
+dev/clk/clk_bus.c		optional clk fdt
+dev/clk/clk_div.c		optional clk
+dev/clk/clk_fixed.c		optional clk
+dev/clk/clk_gate.c		optional clk
+dev/clk/clk_link.c		optional clk
+dev/clk/clk_mux.c		optional clk
 dev/cpufreq/ichss.c		optional cpufreq pci
 dev/cxgb/cxgb_main.c		optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
@@ -1455,7 +1464,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.27.4.0.bin"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.27.5.0.bin"	\
 	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1489,7 +1498,7 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.27.4.0.bin"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.27.5.0.bin"	\
 	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
@@ -1523,7 +1532,7 @@ t6fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t6fw.fwo"
 t6fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t6fw-1.27.4.0.bin"	\
+	dependency	"$S/dev/cxgbe/firmware/t6fw-1.27.5.0.bin"	\
 	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
 	no-obj no-implicit-rule						\
 	clean		"t6fw.fw"
@@ -1668,34 +1677,6 @@ dev/evdev/evdev_mt.c			optional evdev
 dev/evdev/evdev_utils.c			optional evdev
 dev/evdev/uinput.c			optional evdev uinput
 dev/exca/exca.c			optional cbb
-dev/extres/clk/clk.c		optional clk
-dev/extres/clk/clkdev_if.m	optional clk
-dev/extres/clk/clknode_if.m	optional clk
-dev/extres/clk/clk_bus.c	optional clk fdt
-dev/extres/clk/clk_div.c	optional clk
-dev/extres/clk/clk_fixed.c	optional clk
-dev/extres/clk/clk_gate.c	optional clk
-dev/extres/clk/clk_link.c	optional clk
-dev/extres/clk/clk_mux.c	optional clk
-dev/extres/phy/phy.c		optional phy
-dev/extres/phy/phydev_if.m	optional phy fdt
-dev/extres/phy/phynode_if.m	optional phy
-dev/extres/phy/phy_usb.c	optional phy
-dev/extres/phy/phynode_usb_if.m	optional phy
-dev/extres/hwreset/hwreset.c	optional hwreset
-dev/extres/hwreset/hwreset_array.c	optional hwreset
-dev/extres/hwreset/hwreset_if.m	optional hwreset
-dev/extres/nvmem/nvmem.c	optional nvmem fdt
-dev/extres/nvmem/nvmem_if.m	optional nvmem
-dev/extres/regulator/regdev_if.m	optional regulator fdt
-dev/extres/regulator/regnode_if.m	optional regulator
-dev/extres/regulator/regulator.c	optional regulator
-dev/extres/regulator/regulator_bus.c	optional regulator fdt
-dev/extres/regulator/regulator_fixed.c	optional regulator
-dev/extres/syscon/syscon.c		optional syscon
-dev/extres/syscon/syscon_generic.c	optional syscon fdt
-dev/extres/syscon/syscon_if.m		optional syscon
-dev/extres/syscon/syscon_power.c	optional syscon syscon_power
 dev/fb/fbd.c			optional fbd | vt
 dev/fb/fb_if.m			standard
 dev/fb/splash.c			optional sc splash
@@ -1783,6 +1764,9 @@ dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
 dev/hwpmc/hwpmc_soft.c		optional hwpmc
+dev/hwreset/hwreset.c		optional hwreset
+dev/hwreset/hwreset_array.c	optional hwreset
+dev/hwreset/hwreset_if.m	optional hwreset
 dev/ichiic/ig4_acpi.c		optional ig4 acpi iicbus
 dev/ichiic/ig4_iic.c		optional ig4 iicbus
 dev/ichiic/ig4_pci.c		optional ig4 pci iicbus
@@ -2531,6 +2515,8 @@ dev/nvme/nvme_sim.c		optional nvme scbus
 dev/nvme/nvme_sysctl.c		optional nvme
 dev/nvme/nvme_test.c		optional nvme
 dev/nvme/nvme_util.c		optional nvme
+dev/nvmem/nvmem.c		optional nvmem fdt
+dev/nvmem/nvmem_if.m		optional nvmem
 dev/oce/oce_hw.c		optional oce pci
 dev/oce/oce_if.c		optional oce pci
 dev/oce/oce_mbox.c		optional oce pci
@@ -2596,6 +2582,11 @@ dev/pci/pci_user.c		optional pci
 dev/pci/pcib_if.m		standard
 dev/pci/pcib_support.c		standard
 dev/pci/vga_pci.c		optional pci
+dev/phy/phy.c			optional phy
+dev/phy/phydev_if.m		optional phy fdt
+dev/phy/phynode_if.m		optional phy
+dev/phy/phy_usb.c		optional phy
+dev/phy/phynode_usb_if.m	optional phy
 dev/pms/freebsd/driver/ini/src/agtiapi.c		optional pmspcv \
 	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
 dev/pms/RefTisa/sallsdk/spc/sadisc.c			optional pmspcv \
@@ -2724,7 +2715,7 @@ dev/pwm/pwmbus.c		optional pwm | pwmbus
 dev/pwm/pwmbus_if.m		optional pwm | pwmbus
 dev/pwm/ofw_pwm.c		optional pwm fdt | pwmbus fdt
 dev/pwm/ofw_pwmbus.c		optional pwm fdt | pwmbus fdt
-dev/pwm/pwm_backlight.c		optional pwm pwm_backlight fdt
+dev/pwm/pwm_backlight.c		optional pwm pwm_backlight fdt backlight
 dev/quicc/quicc_core.c		optional quicc
 dev/ral/rt2560.c		optional ral
 dev/ral/rt2661.c		optional ral
@@ -2800,6 +2791,11 @@ dev/random/fortuna.c		optional !random_loadable !random_fenestrasx
 dev/random/hash.c		optional !random_loadable
 dev/rccgpio/rccgpio.c		optional rccgpio gpio
 dev/re/if_re.c			optional re
+dev/regulator/regdev_if.m	optional regulator fdt
+dev/regulator/regnode_if.m	optional regulator
+dev/regulator/regulator.c	optional regulator
+dev/regulator/regulator_bus.c	optional regulator fdt
+dev/regulator/regulator_fixed.c	optional regulator
 dev/rl/if_rl.c			optional rl pci
 dev/rndtest/rndtest.c		optional rndtest
 #
@@ -3140,6 +3136,10 @@ dev/ste/if_ste.c		optional ste pci
 dev/stge/if_stge.c		optional stge
 dev/sym/sym_hipd.c		optional sym				\
 	dependency	"$S/dev/sym/sym_{conf,defs}.h"
+dev/syscon/syscon.c		optional syscon
+dev/syscon/syscon_generic.c	optional syscon fdt
+dev/syscon/syscon_if.m		optional syscon
+dev/syscon/syscon_power.c	optional syscon syscon_power
 dev/syscons/blank/blank_saver.c	optional blank_saver
 dev/syscons/daemon/daemon_saver.c optional daemon_saver
 dev/syscons/dragon/dragon_saver.c optional dragon_saver
@@ -3618,8 +3618,6 @@ geom/geom_event.c		standard
 geom/geom_flashmap.c		optional fdt cfi | fdt mx25l | mmcsd | fdt n25q | fdt at45d
 geom/geom_io.c			standard
 geom/geom_kern.c		standard
-geom/geom_map.c			optional geom_map
-geom/geom_redboot.c		optional geom_redboot
 geom/geom_slice.c		standard
 geom/geom_subr.c		standard
 geom/geom_vfs.c			standard
@@ -4431,7 +4429,7 @@ netipsec/keysock.c		optional ipsec inet | ipsec inet6 | \
 	ipsec_support inet | ipsec_support inet6
 netipsec/subr_ipsec.c		optional ipsec inet | ipsec inet6 | \
 	ipsec_support inet | ipsec_support inet6
-netipsec/udpencap.c		optional ipsec inet
+netipsec/udpencap.c		optional ipsec inet | ipsec inet6
 netipsec/xform_ah.c		optional ipsec inet | ipsec inet6
 netipsec/xform_esp.c		optional ipsec inet | ipsec inet6
 netipsec/xform_ipcomp.c		optional ipsec inet | ipsec inet6
@@ -4513,6 +4511,7 @@ netpfil/pf/pf_osfp.c		optional pf inet
 netpfil/pf/pf_ruleset.c		optional pf inet
 netpfil/pf/pf_syncookies.c	optional pf inet
 netpfil/pf/pf_table.c		optional pf inet
+netpfil/pf/pflow.c		optional pflow pf inet
 netpfil/pf/pfsync_nv.c		optional pfsync pf inet
 netpfil/pf/in4_cksum.c		optional pf inet
 netsmb/smb_conn.c		optional netsmb

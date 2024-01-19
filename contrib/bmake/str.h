@@ -1,4 +1,4 @@
-/*	$NetBSD: str.h,v 1.17 2023/06/23 04:56:54 rillig Exp $	*/
+/*	$NetBSD: str.h,v 1.19 2024/01/05 21:56:55 rillig Exp $	*/
 
 /*
  Copyright (c) 2021 Roland Illig <rillig@NetBSD.org>
@@ -76,27 +76,24 @@ typedef struct StrMatchResult {
 } StrMatchResult;
 
 
-MAKE_INLINE FStr
-FStr_Init(const char *str, void *freeIt)
-{
-	FStr fstr;
-	fstr.str = str;
-	fstr.freeIt = freeIt;
-	return fstr;
-}
-
 /* Return a string that is the sole owner of str. */
 MAKE_INLINE FStr
 FStr_InitOwn(char *str)
 {
-	return FStr_Init(str, str);
+	FStr fstr;
+	fstr.str = str;
+	fstr.freeIt = str;
+	return fstr;
 }
 
 /* Return a string that refers to the shared str. */
 MAKE_INLINE FStr
 FStr_InitRefer(const char *str)
 {
-	return FStr_Init(str, NULL);
+	FStr fstr;
+	fstr.str = str;
+	fstr.freeIt = NULL;
+	return fstr;
 }
 
 MAKE_INLINE void
@@ -154,14 +151,6 @@ Substring_Eq(Substring sub, Substring str)
 	       memcmp(sub.start, str.start, len) == 0;
 }
 
-MAKE_STATIC Substring
-Substring_Sub(Substring sub, size_t start, size_t end)
-{
-	assert(start <= Substring_Length(sub));
-	assert(end <= Substring_Length(sub));
-	return Substring_Init(sub.start + start, sub.start + end);
-}
-
 MAKE_STATIC bool
 Substring_HasPrefix(Substring sub, Substring prefix)
 {
@@ -198,7 +187,7 @@ Substring_SkipFirst(Substring sub, char ch)
 }
 
 MAKE_STATIC const char *
-Substring_LastIndex(Substring sub, char ch)
+Substring_FindLast(Substring sub, char ch)
 {
 	const char *p;
 

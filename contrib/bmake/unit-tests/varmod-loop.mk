@@ -1,4 +1,4 @@
-# $NetBSD: varmod-loop.mk,v 1.23 2023/02/18 11:55:20 rillig Exp $
+# $NetBSD: varmod-loop.mk,v 1.24 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for the expression modifier ':@var@body@', which replaces each word of
 # the expression with the expanded body, which may contain references to the
@@ -52,7 +52,7 @@ mod-loop-dollar:
 #
 # As of 2020-10-18, the :@ modifier is implemented by actually setting a
 # variable in the scope of the expression and deleting it again after the
-# loop.  This is different from the .for loops, which substitute the variable
+# loop.  This is different from the .for loops, which substitute the
 # expression with ${:Uvalue}, leading to different unwanted side effects.
 #
 # To make the behavior more predictable, the :@ modifier should restore the
@@ -111,7 +111,7 @@ SUBST_CONTAINING_LOOP:= ${USE_8_DOLLARS}
 # The variable SUBST_CONTAINING_LOOP therefore gets assigned the raw value
 # "$$$$ $$$$$$$$ $$$$$$$$".
 #
-# The variable expression in the condition then expands this raw stored value
+# The expression in the condition then expands this raw stored value
 # once, resulting in "$$ $$$$ $$$$".  The effects from VARE_KEEP_DOLLAR no
 # longer take place since they had only been active during the evaluation of
 # the variable assignment.

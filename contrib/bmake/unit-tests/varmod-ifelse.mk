@@ -1,4 +1,4 @@
-# $NetBSD: varmod-ifelse.mk,v 1.23 2023/07/01 09:06:34 rillig Exp $
+# $NetBSD: varmod-ifelse.mk,v 1.26 2023/12/10 20:12:28 rillig Exp $
 #
 # Tests for the ${cond:?then:else} variable modifier, which evaluates either
 # the then-expression or the else-expression, depending on the condition.
@@ -13,19 +13,19 @@
 # The variable name of the expression is expanded and then taken as the
 # condition.  In the below example it becomes:
 #
-#	variable expression == "literal"
+#	bare words == "literal"
 #
 # This confuses the parser, which expects an operator instead of the bare
 # word "expression".  If the name were expanded lazily, everything would be
 # fine since the condition would be:
 #
-#	${:Uvariable expression} == "literal"
+#	${:Ubare words} == "literal"
 #
 # Evaluating the variable name lazily would require additional code in
 # Var_Parse and ParseVarname, it would be more useful and predictable
 # though.
-# expect+1: Malformed conditional (${${:Uvariable expression} == "literal":?bad:bad})
-.if ${${:Uvariable expression} == "literal":?bad:bad}
+# expect+1: Malformed conditional (${${:Ubare words} == "literal":?bad:bad})
+.if ${${:Ubare words} == "literal":?bad:bad}
 .  error
 .else
 .  error
@@ -61,7 +61,7 @@ COND:=	${${UNDEF} == "":?bad-assign:bad-assign}
 
 # This line generates 2 error messages.  The first comes from evaluating the
 # malformed conditional "1 == == 2", which is reported as "Bad conditional
-# expression" by ApplyModifier_IfElse.  The variable expression containing that
+# expression" by ApplyModifier_IfElse.  The expression containing that
 # conditional therefore returns a parse error from Var_Parse, and this parse
 # error propagates to CondEvalExpression, where the "Malformed conditional"
 # comes from.
@@ -79,7 +79,7 @@ COND:=	${${UNDEF} == "":?bad-assign:bad-assign}
 # XXX: The left-hand side is enclosed in quotes.  This results in Var_Parse
 # being called without VARE_UNDEFERR.  When ApplyModifier_IfElse
 # returns AMR_CLEANUP as result, Var_Parse returns varUndefined since the
-# value of the variable expression is still undefined.  CondParser_String is
+# value of the expression is still undefined.  CondParser_String is
 # then supposed to do proper error handling, but since varUndefined is local
 # to var.c, it cannot distinguish this return value from an ordinary empty
 # string.  The left-hand side of the comparison is therefore just an empty
@@ -98,7 +98,7 @@ COND:=	${${UNDEF} == "":?bad-assign:bad-assign}
 .MAKEFLAGS: -d0
 
 # As of 2020-12-10, the variable "VAR" is first expanded, and the result of
-# this expansion is then taken as the condition.  To force the variable
+# this expansion is then taken as the condition.  To force the
 # expression in the condition to be evaluated at exactly the right point,
 # the '$' of the intended '${VAR}' escapes from the parser in form of the
 # expression ${:U\$}.  Because of this escaping, the variable "VAR" and thus
@@ -157,17 +157,17 @@ NUMBER=		no		# not really a number
 # expect+1: no.
 .info ${${STRING} == "literal" && ${NUMBER} >= 10:?yes:no}.
 # expect+3: Comparison with '>=' requires both operands 'no' and '10' to be numeric
-# expect: make: Bad conditional expression 'string == "literal" || no >= 10' in 'string == "literal" || no >= 10?yes:no'
+# expect: make: Bad conditional expression 'string == "literal" || no >= 10' before '?yes:no'
 # expect+1: .
 .info ${${STRING} == "literal" || ${NUMBER} >= 10:?yes:no}.
 
 # The following situation occasionally occurs with MKINET6 or similar
 # variables.
 NUMBER=		# empty, not really a number either
-# expect: make: Bad conditional expression 'string == "literal" &&  >= 10' in 'string == "literal" &&  >= 10?yes:no'
+# expect: make: Bad conditional expression 'string == "literal" &&  >= 10' before '?yes:no'
 # expect+1: .
 .info ${${STRING} == "literal" && ${NUMBER} >= 10:?yes:no}.
-# expect: make: Bad conditional expression 'string == "literal" ||  >= 10' in 'string == "literal" ||  >= 10?yes:no'
+# expect: make: Bad conditional expression 'string == "literal" ||  >= 10' before '?yes:no'
 # expect+1: .
 .info ${${STRING} == "literal" || ${NUMBER} >= 10:?yes:no}.
 
@@ -291,3 +291,17 @@ INDIRECT_COND2=	$${DELAYED} == "two"
 
 
 .MAKEFLAGS: -d0
+
+
+# In the modifier parts for the 'then' and 'else' branches, subexpressions are
+# parsed in by inspecting the actual modifiers.  In 2008, 2015, 2020, 2022 and
+# 2023, the exact parsing algorithm switched a few times, counting balanced
+# braces instead of proper subexpressions, which meant that unbalanced braces
+# were parsed differently, depending on whether the branch was active or not.
+BRACES=	}}}
+NO=	${0:?${BRACES:S,}}},yes,}:${BRACES:S,}}},no,}}
+YES=	${1:?${BRACES:S,}}},yes,}:${BRACES:S,}}},no,}}
+BOTH=	<${YES}> <${NO}>
+.if ${BOTH} != "<yes> <no>"
+.  error
+.endif

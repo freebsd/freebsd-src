@@ -909,6 +909,25 @@ tcp_free_sackholes(struct tcpcb *tp)
 }
 
 /*
+ * Resend all the currently existing SACK holes of
+ * the scoreboard. This is in line with the Errata to
+ * RFC 2018, which allows the use of SACK data past
+ * an RTO to good effect typically.
+ */
+void
+tcp_resend_sackholes(struct tcpcb *tp)
+{
+	struct sackhole *p;
+
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
+	TAILQ_FOREACH(p, &tp->snd_holes, scblink) {
+		p->rxmit = p->start;
+	}
+	tp->sackhint.nexthole = TAILQ_FIRST(&tp->snd_holes);
+	tp->sackhint.sack_bytes_rexmit = 0;
+}
+
+/*
  * Partial ack handling within a sack recovery episode.  Keeping this very
  * simple for now.  When a partial ack is received, force snd_cwnd to a value
  * that will allow the sender to transmit no more than 2 segments.  If
@@ -974,32 +993,6 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 	}
 	(void) tcp_output(tp);
 }
-
-#if 0
-/*
- * Debug version of tcp_sack_output() that walks the scoreboard.  Used for
- * now to sanity check the hint.
- */
-static struct sackhole *
-tcp_sack_output_debug(struct tcpcb *tp, int *sack_bytes_rexmt)
-{
-	struct sackhole *p;
-
-	INP_WLOCK_ASSERT(tptoinpcb(tp));
-	*sack_bytes_rexmt = 0;
-	TAILQ_FOREACH(p, &tp->snd_holes, scblink) {
-		if (SEQ_LT(p->rxmit, p->end)) {
-			if (SEQ_LT(p->rxmit, tp->snd_una)) {/* old SACK hole */
-				continue;
-			}
-			*sack_bytes_rexmt += (p->rxmit - p->start);
-			break;
-		}
-		*sack_bytes_rexmt += (SEQ_MIN(p->rxmit, p->end) - p->start);
-	}
-	return (p);
-}
-#endif
 
 /*
  * Returns the next hole to retransmit and the number of retransmitted bytes

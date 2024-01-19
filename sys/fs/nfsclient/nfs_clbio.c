@@ -414,6 +414,18 @@ out:
 	return (error);
 }
 
+static bool
+ncl_bioread_dora(struct vnode *vp)
+{
+	vm_object_t obj;
+
+	obj = vp->v_object;
+	if (obj == NULL)
+		return (true);
+	return (!vm_object_mightbedirty(vp->v_object) &&
+	    vp->v_object->un_pager.vnp.writemappings == 0);
+}
+
 /*
  * Vnode op for read using bio
  */
@@ -481,9 +493,12 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		on = uio->uio_offset - (lbn * biosize);
 
 		/*
-		 * Start the read ahead(s), as required.
+		 * Start the read ahead(s), as required.  Do not do
+		 * read-ahead if there are writeable mappings, since
+		 * unlocked read by nfsiod could obliterate changes
+		 * done by userspace.
 		 */
-		if (nmp->nm_readahead > 0) {
+		if (nmp->nm_readahead > 0 && ncl_bioread_dora(vp)) {
 		    for (nra = 0; nra < nmp->nm_readahead && nra < seqcount &&
 			(off_t)(lbn + 1 + nra) * biosize < nsize; nra++) {
 			rabn = lbn + 1 + nra;
@@ -670,7 +685,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		 *  directory offset cookie of the next block.)
 		 */
 		NFSLOCKNODE(np);
-		if (nmp->nm_readahead > 0 &&
+		if (nmp->nm_readahead > 0 && ncl_bioread_dora(vp) &&
 		    (bp->b_flags & B_INVAL) == 0 &&
 		    (np->n_direofoffset == 0 ||
 		    (lbn + 1) * NFS_DIRBLKSIZ < np->n_direofoffset) &&
@@ -1312,7 +1327,7 @@ again:
 			}
 		} else if ((n + on) == biosize || (ioflag & IO_ASYNC) != 0) {
 			bp->b_flags |= B_ASYNC;
-			(void) ncl_writebp(bp, 0, NULL);
+			(void) bwrite(bp);
 		} else {
 			bdwrite(bp);
 		}
@@ -1421,11 +1436,9 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	/*
 	 * Now, flush as required.
 	 */
-	if ((flags & (V_SAVE | V_VMIO)) == V_SAVE &&
-	     vp->v_bufobj.bo_object != NULL) {
-		VM_OBJECT_WLOCK(vp->v_bufobj.bo_object);
-		vm_object_page_clean(vp->v_bufobj.bo_object, 0, 0, OBJPC_SYNC);
-		VM_OBJECT_WUNLOCK(vp->v_bufobj.bo_object);
+	if ((flags & (V_SAVE | V_VMIO)) == V_SAVE) {
+		vnode_pager_clean_sync(vp);
+
 		/*
 		 * If the page clean was interrupted, fail the invalidation.
 		 * Not doing so, we run the risk of losing dirty pages in the

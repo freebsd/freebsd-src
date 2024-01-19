@@ -113,26 +113,14 @@ __weak_reference(_thr_attr_destroy, pthread_attr_destroy);
 int
 _thr_attr_destroy(pthread_attr_t *attr)
 {
-	int	ret;
 
-	/* Check for invalid arguments: */
 	if (attr == NULL || *attr == NULL)
-		/* Invalid argument: */
-		ret = EINVAL;
-	else {
-		if ((*attr)->cpuset != NULL)
-			free((*attr)->cpuset);
-		/* Free the memory allocated to the attribute object: */
-		free(*attr);
+		return (EINVAL);
 
-		/*
-		 * Leave the attribute pointer NULL now that the memory
-		 * has been freed:
-		 */
-		*attr = NULL;
-		ret = 0;
-	}
-	return (ret);
+	free((*attr)->cpuset);
+	free(*attr);
+	*attr = NULL;
+	return (0);
 }
 
 __weak_reference(_thr_attr_get_np, pthread_attr_get_np);
@@ -141,36 +129,53 @@ __weak_reference(_thr_attr_get_np, _pthread_attr_get_np);
 int
 _thr_attr_get_np(pthread_t pthread, pthread_attr_t *dstattr)
 {
+	struct pthread_attr *dst;
 	struct pthread *curthread;
-	struct pthread_attr attr, *dst;
-	int	ret;
-	size_t	kern_size;
+	cpuset_t *cpuset;
+	size_t kern_size;
+	int error;
 
 	if (pthread == NULL || dstattr == NULL || (dst = *dstattr) == NULL)
 		return (EINVAL);
+
 	kern_size = _get_kern_cpuset_size();
 	if (dst->cpuset == NULL) {
-		dst->cpuset = calloc(1, kern_size);
-		dst->cpusetsize = kern_size;
-	}
+		if ((cpuset = malloc(kern_size)) == NULL)
+			return (ENOMEM);
+	} else
+		cpuset = dst->cpuset;
+
 	curthread = _get_curthread();
-	if ((ret = _thr_find_thread(curthread, pthread, /*include dead*/0)) != 0)
-		return (ret);
-	attr = pthread->attr;
-	if (pthread->flags & THR_FLAGS_DETACHED)
-		attr.flags |= PTHREAD_DETACHED;
-	ret = cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, TID(pthread),
-		dst->cpusetsize, dst->cpuset);
-	if (ret == -1)
-		ret = errno;
-	THR_THREAD_UNLOCK(curthread, pthread);
-	if (ret == 0) {
-		memcpy(&dst->pthread_attr_start_copy, 
-			&attr.pthread_attr_start_copy, 
-			offsetof(struct pthread_attr, pthread_attr_end_copy) -
-			offsetof(struct pthread_attr, pthread_attr_start_copy));
+	/* Arg 0 is to include dead threads. */
+	if ((error = _thr_find_thread(curthread, pthread, 0)) != 0)
+		goto free_and_exit;
+
+	error = cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, TID(pthread),
+	    kern_size, cpuset);
+	if (error == -1) {
+		THR_THREAD_UNLOCK(curthread, pthread);
+		error = errno;
+		goto free_and_exit;
 	}
-	return (ret);
+
+	/*
+	 * From this point on, we can't fail, so we can start modifying 'dst'.
+	 */
+
+	*dst = pthread->attr;
+	if ((pthread->flags & THR_FLAGS_DETACHED) != 0)
+		dst->flags |= PTHREAD_DETACHED;
+
+	THR_THREAD_UNLOCK(curthread, pthread);
+
+	dst->cpuset = cpuset;
+	dst->cpusetsize = kern_size;
+	return (0);
+
+free_and_exit:
+	if (dst->cpuset == NULL)
+		free(cpuset);
+	return (error);
 }
 
 __weak_reference(_thr_attr_getdetachstate, pthread_attr_getdetachstate);
@@ -179,22 +184,15 @@ __weak_reference(_thr_attr_getdetachstate, _pthread_attr_getdetachstate);
 int
 _thr_attr_getdetachstate(const pthread_attr_t *attr, int *detachstate)
 {
-	int	ret;
 
-	/* Check for invalid arguments: */
 	if (attr == NULL || *attr == NULL || detachstate == NULL)
-		ret = EINVAL;
-	else {
-		/* Check if the detached flag is set: */
-		if ((*attr)->flags & PTHREAD_DETACHED)
-			/* Return detached: */
-			*detachstate = PTHREAD_CREATE_DETACHED;
-		else
-			/* Return joinable: */
-			*detachstate = PTHREAD_CREATE_JOINABLE;
-		ret = 0;
-	}
-	return (ret);
+		return (EINVAL);
+
+	if (((*attr)->flags & PTHREAD_DETACHED) != 0)
+		*detachstate = PTHREAD_CREATE_DETACHED;
+	else
+		*detachstate = PTHREAD_CREATE_JOINABLE;
+	return (0);
 }
 
 __weak_reference(_thr_attr_getguardsize, pthread_attr_getguardsize);
@@ -204,17 +202,12 @@ int
 _thr_attr_getguardsize(const pthread_attr_t * __restrict attr,
     size_t * __restrict guardsize)
 {
-	int	ret;
 
-	/* Check for invalid arguments: */
 	if (attr == NULL || *attr == NULL || guardsize == NULL)
-		ret = EINVAL;
-	else {
-		/* Return the guard size: */
-		*guardsize = (*attr)->guardsize_attr;
-		ret = 0;
-	}
-	return (ret);
+		return (EINVAL);
+
+	*guardsize = (*attr)->guardsize_attr;
+	return (0);
 }
 
 __weak_reference(_thr_attr_getinheritsched, pthread_attr_getinheritsched);
@@ -224,14 +217,12 @@ int
 _thr_attr_getinheritsched(const pthread_attr_t * __restrict attr,
     int * __restrict sched_inherit)
 {
-	int ret = 0;
 
-	if ((attr == NULL) || (*attr == NULL))
-		ret = EINVAL;
-	else
-		*sched_inherit = (*attr)->sched_inherit;
+	if (attr == NULL || *attr == NULL)
+		return (EINVAL);
 
-	return (ret);
+	*sched_inherit = (*attr)->sched_inherit;
+	return (0);
 }
 
 __weak_reference(_thr_attr_getschedparam, pthread_attr_getschedparam);
@@ -241,14 +232,12 @@ int
 _thr_attr_getschedparam(const pthread_attr_t * __restrict attr,
     struct sched_param * __restrict param)
 {
-	int ret = 0;
 
-	if ((attr == NULL) || (*attr == NULL) || (param == NULL))
-		ret = EINVAL;
-	else
-		param->sched_priority = (*attr)->prio;
+	if (attr == NULL || *attr == NULL || param == NULL)
+		return (EINVAL);
 
-	return (ret);
+	param->sched_priority = (*attr)->prio;
+	return (0);
 }
 
 __weak_reference(_thr_attr_getschedpolicy, pthread_attr_getschedpolicy);
@@ -258,14 +247,12 @@ int
 _thr_attr_getschedpolicy(const pthread_attr_t * __restrict attr,
     int * __restrict policy)
 {
-	int ret = 0;
 
-	if ((attr == NULL) || (*attr == NULL) || (policy == NULL))
-		ret = EINVAL;
-	else
-		*policy = (*attr)->sched_policy;
+	if (attr == NULL || *attr == NULL || policy == NULL)
+		return (EINVAL);
 
-	return (ret);
+	*policy = (*attr)->sched_policy;
+	return (0);
 }
 
 __weak_reference(_thr_attr_getscope, pthread_attr_getscope);
@@ -275,17 +262,13 @@ int
 _thr_attr_getscope(const pthread_attr_t * __restrict attr,
     int * __restrict contentionscope)
 {
-	int ret = 0;
 
-	if ((attr == NULL) || (*attr == NULL) || (contentionscope == NULL))
-		/* Return an invalid argument: */
-		ret = EINVAL;
+	if (attr == NULL || *attr == NULL || contentionscope == NULL)
+		return (EINVAL);
 
-	else
-		*contentionscope = (*attr)->flags & PTHREAD_SCOPE_SYSTEM ?
-		    PTHREAD_SCOPE_SYSTEM : PTHREAD_SCOPE_PROCESS;
-
-	return (ret);
+	*contentionscope = ((*attr)->flags & PTHREAD_SCOPE_SYSTEM) != 0 ?
+	    PTHREAD_SCOPE_SYSTEM : PTHREAD_SCOPE_PROCESS;
+	return (0);
 }
 
 __weak_reference(_pthread_attr_getstack, pthread_attr_getstack);
@@ -294,19 +277,14 @@ int
 _pthread_attr_getstack(const pthread_attr_t * __restrict attr,
     void ** __restrict stackaddr, size_t * __restrict stacksize)
 {
-	int     ret;
 
-	/* Check for invalid arguments: */
-	if (attr == NULL || *attr == NULL || stackaddr == NULL
-	    || stacksize == NULL )
-		ret = EINVAL;
-	else {
-		/* Return the stack address and size */
-		*stackaddr = (*attr)->stackaddr_attr;
-		*stacksize = (*attr)->stacksize_attr;
-		ret = 0;
-	}
-	return (ret);
+	if (attr == NULL || *attr == NULL || stackaddr == NULL ||
+	    stacksize == NULL)
+		return (EINVAL);
+
+	*stackaddr = (*attr)->stackaddr_attr;
+	*stacksize = (*attr)->stacksize_attr;
+	return (0);
 }
 
 __weak_reference(_thr_attr_getstackaddr, pthread_attr_getstackaddr);
@@ -315,17 +293,12 @@ __weak_reference(_thr_attr_getstackaddr, _pthread_attr_getstackaddr);
 int
 _thr_attr_getstackaddr(const pthread_attr_t *attr, void **stackaddr)
 {
-	int	ret;
 
-	/* Check for invalid arguments: */
 	if (attr == NULL || *attr == NULL || stackaddr == NULL)
-		ret = EINVAL;
-	else {
-		/* Return the stack address: */
-		*stackaddr = (*attr)->stackaddr_attr;
-		ret = 0;
-	}
-	return (ret);
+		return (EINVAL);
+
+	*stackaddr = (*attr)->stackaddr_attr;
+	return (0);
 }
 
 __weak_reference(_thr_attr_getstacksize, pthread_attr_getstacksize);
@@ -335,17 +308,12 @@ int
 _thr_attr_getstacksize(const pthread_attr_t * __restrict attr,
     size_t * __restrict stacksize)
 {
-	int	ret;
 
-	/* Check for invalid arguments: */
-	if (attr == NULL || *attr == NULL || stacksize  == NULL)
-		ret = EINVAL;
-	else {
-		/* Return the stack size: */
-		*stacksize = (*attr)->stacksize_attr;
-		ret = 0;
-	}
-	return (ret);
+	if (attr == NULL || *attr == NULL || stacksize == NULL)
+		return (EINVAL);
+
+	*stacksize = (*attr)->stacksize_attr;
+	return (0);
 }
 
 __weak_reference(_thr_attr_init, pthread_attr_init);
@@ -354,40 +322,30 @@ __weak_reference(_thr_attr_init, _pthread_attr_init);
 int
 _thr_attr_init(pthread_attr_t *attr)
 {
-	int	ret;
-	pthread_attr_t	pattr;
+	pthread_attr_t pattr;
 
 	_thr_check_init();
 
-	/* Allocate memory for the attribute object: */
-	if ((pattr = (pthread_attr_t) malloc(sizeof(struct pthread_attr))) == NULL)
-		/* Insufficient memory: */
-		ret = ENOMEM;
-	else {
-		/* Initialise the attribute object with the defaults: */
-		memcpy(pattr, &_pthread_attr_default, sizeof(struct pthread_attr));
+	if ((pattr = malloc(sizeof(*pattr))) == NULL)
+		return (ENOMEM);
 
-		/* Return a pointer to the attribute object: */
-		*attr = pattr;
-		ret = 0;
-	}
-	return (ret);
+	memcpy(pattr, &_pthread_attr_default, sizeof(*pattr));
+	*attr = pattr;
+	return (0);
 }
 
-__weak_reference(_pthread_attr_setcreatesuspend_np, pthread_attr_setcreatesuspend_np);
+__weak_reference(_pthread_attr_setcreatesuspend_np,			\
+    pthread_attr_setcreatesuspend_np);
 
 int
 _pthread_attr_setcreatesuspend_np(pthread_attr_t *attr)
 {
-	int	ret;
 
-	if (attr == NULL || *attr == NULL) {
-		ret = EINVAL;
-	} else {
-		(*attr)->suspend = THR_CREATE_SUSPENDED;
-		ret = 0;
-	}
-	return (ret);
+	if (attr == NULL || *attr == NULL)
+		return (EINVAL);
+
+	(*attr)->suspend = THR_CREATE_SUSPENDED;
+	return (0);
 }
 
 __weak_reference(_thr_attr_setdetachstate, pthread_attr_setdetachstate);
@@ -396,24 +354,17 @@ __weak_reference(_thr_attr_setdetachstate, _pthread_attr_setdetachstate);
 int
 _thr_attr_setdetachstate(pthread_attr_t *attr, int detachstate)
 {
-	int	ret;
 
-	/* Check for invalid arguments: */
 	if (attr == NULL || *attr == NULL ||
 	    (detachstate != PTHREAD_CREATE_DETACHED &&
 	    detachstate != PTHREAD_CREATE_JOINABLE))
-		ret = EINVAL;
-	else {
-		/* Check if detached state: */
-		if (detachstate == PTHREAD_CREATE_DETACHED)
-			/* Set the detached flag: */
-			(*attr)->flags |= PTHREAD_DETACHED;
-		else
-			/* Reset the detached flag: */
-			(*attr)->flags &= ~PTHREAD_DETACHED;
-		ret = 0;
-	}
-	return (ret);
+		return (EINVAL);
+
+	if (detachstate == PTHREAD_CREATE_DETACHED)
+		(*attr)->flags |= PTHREAD_DETACHED;
+	else
+		(*attr)->flags &= ~PTHREAD_DETACHED;
+	return (0);
 }
 
 __weak_reference(_thr_attr_setguardsize, pthread_attr_setguardsize);
@@ -422,17 +373,12 @@ __weak_reference(_thr_attr_setguardsize, _pthread_attr_setguardsize);
 int
 _thr_attr_setguardsize(pthread_attr_t *attr, size_t guardsize)
 {
-	int	ret;
 
-	/* Check for invalid arguments. */
 	if (attr == NULL || *attr == NULL)
-		ret = EINVAL;
-	else {
-		/* Save the stack size. */
-		(*attr)->guardsize_attr = guardsize;
-		ret = 0;
-	}
-	return (ret);
+		return (EINVAL);
+
+	(*attr)->guardsize_attr = guardsize;
+	return (0);
 }
 
 __weak_reference(_thr_attr_setinheritsched, pthread_attr_setinheritsched);
@@ -441,17 +387,14 @@ __weak_reference(_thr_attr_setinheritsched, _pthread_attr_setinheritsched);
 int
 _thr_attr_setinheritsched(pthread_attr_t *attr, int sched_inherit)
 {
-	int ret = 0;
 
-	if ((attr == NULL) || (*attr == NULL))
-		ret = EINVAL;
-	else if (sched_inherit != PTHREAD_INHERIT_SCHED &&
-		 sched_inherit != PTHREAD_EXPLICIT_SCHED)
-		ret = ENOTSUP;
-	else
-		(*attr)->sched_inherit = sched_inherit;
+	if (attr == NULL || *attr == NULL ||
+	    (sched_inherit != PTHREAD_INHERIT_SCHED &&
+	    sched_inherit != PTHREAD_EXPLICIT_SCHED))
+		return (EINVAL);
 
-	return (ret);
+	(*attr)->sched_inherit = sched_inherit;
+	return (0);
 }
 
 __weak_reference(_thr_attr_setschedparam, pthread_attr_setschedparam);
@@ -463,18 +406,15 @@ _thr_attr_setschedparam(pthread_attr_t * __restrict attr,
 {
 	int policy;
 
-	if ((attr == NULL) || (*attr == NULL))
+	if (attr == NULL || *attr == NULL || param == NULL)
 		return (EINVAL);
-
-	if (param == NULL)
-		return (ENOTSUP);
 
 	policy = (*attr)->sched_policy;
 
 	if (policy == SCHED_FIFO || policy == SCHED_RR) {
 		if (param->sched_priority < _thr_priorities[policy-1].pri_min ||
 		    param->sched_priority > _thr_priorities[policy-1].pri_max)
-		return (ENOTSUP);
+			return (EINVAL);
 	} else {
 		/*
 		 * Ignore it for SCHED_OTHER now, patches for glib ports
@@ -494,17 +434,14 @@ __weak_reference(_thr_attr_setschedpolicy, _pthread_attr_setschedpolicy);
 int
 _thr_attr_setschedpolicy(pthread_attr_t *attr, int policy)
 {
-	int ret = 0;
 
-	if ((attr == NULL) || (*attr == NULL))
-		ret = EINVAL;
-	else if ((policy < SCHED_FIFO) || (policy > SCHED_RR)) {
-		ret = ENOTSUP;
-	} else {
-		(*attr)->sched_policy = policy;
-		(*attr)->prio = _thr_priorities[policy-1].pri_default;
-	}
-	return (ret);
+	if (attr == NULL || *attr == NULL ||
+	    policy < SCHED_FIFO || policy > SCHED_RR)
+		return (EINVAL);
+
+	(*attr)->sched_policy = policy;
+	(*attr)->prio = _thr_priorities[policy-1].pri_default;
+	return (0);
 }
 
 __weak_reference(_thr_attr_setscope, pthread_attr_setscope);
@@ -513,41 +450,33 @@ __weak_reference(_thr_attr_setscope, _pthread_attr_setscope);
 int
 _thr_attr_setscope(pthread_attr_t *attr, int contentionscope)
 {
-	int ret = 0;
 
-	if ((attr == NULL) || (*attr == NULL)) {
-		/* Return an invalid argument: */
-		ret = EINVAL;
-	} else if ((contentionscope != PTHREAD_SCOPE_PROCESS) &&
-	    (contentionscope != PTHREAD_SCOPE_SYSTEM)) {
-		ret = EINVAL;
-	} else if (contentionscope == PTHREAD_SCOPE_SYSTEM) {
-		(*attr)->flags |= contentionscope;
-	} else {
+	if (attr == NULL || *attr == NULL ||
+	    (contentionscope != PTHREAD_SCOPE_PROCESS &&
+	    contentionscope != PTHREAD_SCOPE_SYSTEM))
+		return (EINVAL);
+
+	if (contentionscope == PTHREAD_SCOPE_SYSTEM)
+		(*attr)->flags |= PTHREAD_SCOPE_SYSTEM;
+	else
 		(*attr)->flags &= ~PTHREAD_SCOPE_SYSTEM;
-	}
-	return (ret);
+	return (0);
 }
 
 __weak_reference(_pthread_attr_setstack, pthread_attr_setstack);
 
 int
 _pthread_attr_setstack(pthread_attr_t *attr, void *stackaddr,
-                        size_t stacksize)
+    size_t stacksize)
 {
-	int     ret;
 
-	/* Check for invalid arguments: */
-	if (attr == NULL || *attr == NULL || stackaddr == NULL
-	    || stacksize < PTHREAD_STACK_MIN)
-		ret = EINVAL;
-	else {
-		/* Save the stack address and stack size */
-		(*attr)->stackaddr_attr = stackaddr;
-		(*attr)->stacksize_attr = stacksize;
-		ret = 0;
-	}
-	return (ret);
+	if (attr == NULL || *attr == NULL || stackaddr == NULL ||
+	    stacksize < PTHREAD_STACK_MIN)
+		return (EINVAL);
+
+	(*attr)->stackaddr_attr = stackaddr;
+	(*attr)->stacksize_attr = stacksize;
+	return (0);
 }
 
 __weak_reference(_thr_attr_setstackaddr, pthread_attr_setstackaddr);
@@ -556,17 +485,12 @@ __weak_reference(_thr_attr_setstackaddr, _pthread_attr_setstackaddr);
 int
 _thr_attr_setstackaddr(pthread_attr_t *attr, void *stackaddr)
 {
-	int	ret;
 
-	/* Check for invalid arguments: */
 	if (attr == NULL || *attr == NULL || stackaddr == NULL)
-		ret = EINVAL;
-	else {
-		/* Save the stack address: */
-		(*attr)->stackaddr_attr = stackaddr;
-		ret = 0;
-	}
-	return(ret);
+		return (EINVAL);
+
+	(*attr)->stackaddr_attr = stackaddr;
+	return (0);
 }
 
 __weak_reference(_thr_attr_setstacksize, pthread_attr_setstacksize);
@@ -575,17 +499,12 @@ __weak_reference(_thr_attr_setstacksize, _pthread_attr_setstacksize);
 int
 _thr_attr_setstacksize(pthread_attr_t *attr, size_t stacksize)
 {
-	int	ret;
 
-	/* Check for invalid arguments: */
 	if (attr == NULL || *attr == NULL || stacksize < PTHREAD_STACK_MIN)
-		ret = EINVAL;
-	else {
-		/* Save the stack size: */
-		(*attr)->stacksize_attr = stacksize;
-		ret = 0;
-	}
-	return (ret);
+		return (EINVAL);
+
+	(*attr)->stacksize_attr = stacksize;
+	return (0);
 }
 
 static size_t
@@ -608,71 +527,70 @@ _get_kern_cpuset_size(void)
 }
 
 __weak_reference(_pthread_attr_setaffinity_np, pthread_attr_setaffinity_np);
+
 int
 _pthread_attr_setaffinity_np(pthread_attr_t *pattr, size_t cpusetsize,
-	const cpuset_t *cpusetp)
+    const cpuset_t *cpusetp)
 {
 	pthread_attr_t attr;
-	int ret;
+	size_t kern_size;
 
 	if (pattr == NULL || (attr = (*pattr)) == NULL)
-		ret = EINVAL;
-	else {
-		if (cpusetsize == 0 || cpusetp == NULL) {
-			if (attr->cpuset != NULL) {
-				free(attr->cpuset);
-				attr->cpuset = NULL;
-				attr->cpusetsize = 0;
-			}
-			return (0);
+		return (EINVAL);
+
+	if (cpusetsize == 0 || cpusetp == NULL) {
+		if (attr->cpuset != NULL) {
+			free(attr->cpuset);
+			attr->cpuset = NULL;
+			attr->cpusetsize = 0;
 		}
-		size_t kern_size = _get_kern_cpuset_size();
-		/* Kernel rejects small set, we check it here too. */
-		if (cpusetsize < kern_size)
-			return (ERANGE);
-		if (cpusetsize > kern_size) {
-			/* Kernel checks invalid bits, we check it here too. */
-			size_t i;
-			for (i = kern_size; i < cpusetsize; ++i) {
-				if (((const char *)cpusetp)[i])
-					return (EINVAL);
-			}
-		}
-		if (attr->cpuset == NULL) {
-			attr->cpuset = calloc(1, kern_size);
-			if (attr->cpuset == NULL)
-				return (errno);
-			attr->cpusetsize = kern_size;
-		}
-		memcpy(attr->cpuset, cpusetp, kern_size);
-		ret = 0;
+		return (0);
 	}
-	return (ret);
+
+	kern_size = _get_kern_cpuset_size();
+	/* Kernel rejects small set, we check it here too. */
+	if (cpusetsize < kern_size)
+		return (ERANGE);
+	if (cpusetsize > kern_size) {
+		/* Kernel checks invalid bits, we check it here too. */
+		size_t i;
+
+		for (i = kern_size; i < cpusetsize; ++i)
+			if (((const char *)cpusetp)[i] != 0)
+				return (EINVAL);
+	}
+	if (attr->cpuset == NULL) {
+		attr->cpuset = malloc(kern_size);
+		if (attr->cpuset == NULL)
+			return (errno);
+		attr->cpusetsize = kern_size;
+	}
+	memcpy(attr->cpuset, cpusetp, kern_size);
+	return (0);
 }
 
 __weak_reference(_pthread_attr_getaffinity_np, pthread_attr_getaffinity_np);
+
 int
 _pthread_attr_getaffinity_np(const pthread_attr_t *pattr, size_t cpusetsize,
-	cpuset_t *cpusetp)
+    cpuset_t *cpusetp)
 {
 	pthread_attr_t attr;
-	int ret = 0;
 
 	if (pattr == NULL || (attr = (*pattr)) == NULL)
-		ret = EINVAL;
-	else {
-		/* Kernel rejects small set, we check it here too. */
-		size_t kern_size = _get_kern_cpuset_size();
-		if (cpusetsize < kern_size)
-			return (ERANGE);
-		if (attr->cpuset != NULL)
-			memcpy(cpusetp, attr->cpuset, MIN(cpusetsize,
-			   attr->cpusetsize));
-		else
-			memset(cpusetp, -1, kern_size);
-		if (cpusetsize > kern_size)
-			memset(((char *)cpusetp) + kern_size, 0,
-				cpusetsize - kern_size);
-	}
-	return (ret);
+		return (EINVAL);
+
+	/* Kernel rejects small set, we check it here too. */
+	size_t kern_size = _get_kern_cpuset_size();
+	if (cpusetsize < kern_size)
+		return (ERANGE);
+	if (attr->cpuset != NULL)
+		memcpy(cpusetp, attr->cpuset, MIN(cpusetsize,
+		    attr->cpusetsize));
+	else
+		memset(cpusetp, -1, kern_size);
+	if (cpusetsize > kern_size)
+		memset(((char *)cpusetp) + kern_size, 0,
+		    cpusetsize - kern_size);
+	return (0);
 }

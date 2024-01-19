@@ -3,6 +3,7 @@ divide.bc
 subtract.bc
 add.bc
 print.bc
+print2.bc
 parse.bc
 root.bc
 array.bc
@@ -19,3 +20,4 @@ strings2.bc
 ifs.bc
 ifs2.bc
 afl1.bc
+i2rand.bc

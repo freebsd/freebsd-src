@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20240111:
+	Commit cc760de2183f changed the internal interface between
+	the nfscommon and nfscl modules.  As such, both need to be
+	rebuilt from sources.  Therefore, __FreeBSD_version was
+	bumped to 1500010.
+
 20231120:
 	If you have an arm64 system that uses ACPI, you will need to update your
 	loader.efi in the ESP when you update past this point.  Detection of ACPI

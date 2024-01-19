@@ -46,6 +46,8 @@
 #ifdef HAVE_CAPSICUM
 #include <sys/capsicum.h>
 #include <capsicum_helpers.h>
+#include <libcasper.h>
+#include <casper/cap_fileargs.h>
 #endif
 
 /*
@@ -310,6 +312,7 @@ gnu_check(const char *checksumsfile)
 	const char	*digestname;
 	size_t	digestnamelen;
 	size_t	hashstrlen;
+	struct stat st;
 
 	if (strcmp(checksumsfile, "-") == 0)
 		inp = stdin;
@@ -357,6 +360,15 @@ gnu_check(const char *checksumsfile)
 		rec = malloc(sizeof(*rec));
 		if (rec == NULL)
 			errx(1, "malloc failed");
+
+		if (*filename == '*' ||
+		    *filename == ' ' ||
+		    *filename == 'U' ||
+		    *filename == '^') {
+			if (lstat(filename, &st) != 0)
+				filename++;
+		}
+
 		rec->chksum = strdup(hashstr);
 		rec->filename = strdup(filename);
 		if (rec->chksum == NULL || rec->filename == NULL)
@@ -384,6 +396,7 @@ main(int argc, char *argv[])
 {
 #ifdef HAVE_CAPSICUM
 	cap_rights_t	rights;
+	fileargs_t	*fa = NULL;
 #endif
 	const struct option *longopts;
 	const char *shortopts;
@@ -584,24 +597,25 @@ main(int argc, char *argv[])
 		rec = head;
 	}
 
+#ifdef HAVE_CAPSICUM
+	fa = fileargs_init(argc, argv, O_RDONLY, 0,
+	    cap_rights_init(&rights, CAP_READ, CAP_FSTAT, CAP_FCNTL), FA_OPEN | FA_LSTAT);
+	if (fa == NULL)
+		err(1, "Unable to initialize casper");
+	if (caph_enter_casper() < 0)
+		err(1, "Unable to enter capability mode");
+#endif
+
 	if (*argv) {
 		do {
-			struct stat st;
 			const char *filename = *argv;
 			const char *filemode = "rb";
 
-			if (*filename == '*' ||
-			    *filename == ' ' ||
-			    *filename == 'U' ||
-			    *filename == '^') {
-				if (lstat(filename, &st) != 0) {
-					input_mode = (int)*filename;
-					filename++;
-				}
-			}
-			if (input_mode == input_text)
-				filemode = "r";
+#ifdef HAVE_CAPSICUM
+			if ((f = fileargs_fopen(fa, filename, filemode)) == NULL) {
+#else
 			if ((f = fopen(filename, filemode)) == NULL) {
+#endif
 				if (errno != ENOENT || !(cflag && ignoreMissing)) {
 					warn("%s", filename);
 					failed = true;
@@ -610,20 +624,10 @@ main(int argc, char *argv[])
 					rec = rec->next;
 				continue;
 			}
-			/*
-			 * XXX Enter capability mode on the last argv file.
-			 * When a casper file service or other approach is
-			 * available, switch to that and enter capability mode
-			 * earlier.
-			 */
-			if (*(argv + 1) == NULL) {
 #ifdef HAVE_CAPSICUM
-				cap_rights_init(&rights, CAP_READ, CAP_FSTAT);
-				if (caph_rights_limit(fileno(f), &rights) < 0 ||
-				    caph_enter() < 0)
-					err(1, "capsicum");
+			if (caph_rights_limit(fileno(f), &rights) < 0)
+				err(1, "capsicum");
 #endif
-			}
 			if (cflag && mode != mode_bsd) {
 				checkAgainst = rec->chksum;
 				rec = rec->next;
@@ -634,7 +638,7 @@ main(int argc, char *argv[])
 		} while (*++argv);
 	} else if (!cflag && string == NULL && !skip) {
 #ifdef HAVE_CAPSICUM
-		if (caph_limit_stdin() < 0 || caph_enter() < 0)
+		if (caph_limit_stdin() < 0)
 			err(1, "capsicum");
 #endif
 		if (mode == mode_bsd)
@@ -658,6 +662,9 @@ main(int argc, char *argv[])
 		if (checksFailed != 0 || (strict && malformed > 0))
 			return (1);
 	}
+#ifdef HAVE_CAPSICUM
+	fileargs_free(fa);
+#endif
 	if (failed)
 		return (1);
 	if (checksFailed > 0)

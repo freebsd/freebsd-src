@@ -1663,6 +1663,8 @@ timer:
 				if (flags & TH_FIN)
 					tp->snd_nxt--;
 			}
+			if (IN_RECOVERY(tp->t_flags))
+				tp->sackhint.prr_out -= len;
 		}
 		SOCKBUF_UNLOCK_ASSERT(&so->so_snd);	/* Check gotos. */
 		switch (error) {

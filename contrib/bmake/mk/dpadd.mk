@@ -1,6 +1,6 @@
-# $Id: dpadd.mk,v 1.30 2021/12/08 05:56:50 sjg Exp $
+# $Id: dpadd.mk,v 1.31 2023/11/25 01:07:49 sjg Exp $
 #
-#	@(#) Copyright (c) 2004, Simon J. Gerraty
+#	@(#) Copyright (c) 2004-2023, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -75,6 +75,10 @@
 #	and -L${STAGE_OBJTOP}/usr/lib are sufficient, and we should
 #	have no need of anything else.
 #
+#	Sometimes things are more complicated so allow for
+#	DPLIBS to be qualified with each of the variables in
+#	DPLIBS_QUALIFIER_LIST (default is VAR_QUALIFIER_LIST same as
+#	init.mk)
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__: .NOTMAIN
@@ -110,7 +114,9 @@ CXXFLAGS_LAST += ${CXXFLAGS_DEBUG_XTRA}
 .-include <local.dpadd.mk>
 
 # DPLIBS helps us ensure we keep DPADD and LDADD in sync
-DPLIBS+= ${DPLIBS_LAST}
+DPLIBS_QUALIFIER_LIST ?= ${VAR_QUALIFIER_LIST}
+DPLIBS += ${DPLIBS_QUALIFIER_LIST:u:@Q@${DPLIBS.$Q:U}@}
+DPLIBS+= ${DPLIBS_LAST} ${DPLIBS_QUALIFIER_LIST:u:@Q@${DPLIBS_LAST.$Q:U}@}
 DPADD+= ${DPLIBS:N-*}
 .for __lib in ${DPLIBS}
 .if "${__lib:M-*}" != ""
@@ -131,7 +137,7 @@ __dpadd_libs := ${DPADD:M*/lib*}
 # dups will be dealt with later.
 # Note: libfoo_pic uses DPLIBS_libfoo
 __ldadd_all_xtras=
-.for __lib in ${__dpadd_libs:@d@${DPLIBS_${d:T:R:S,_pic,,}}@}
+.for __lib in ${__dpadd_libs:@d@${DPLIBS_${d:T:R:S,_pic,,}} ${DPLIBS_QUALIFIER_LIST:u:@Q@${DPLIBS_${d:T:R:S,_pic,,}.$Q:U}@}@}
 __ldadd_all_xtras+= ${LDADD_${__lib}:U${__lib:T:R:S/lib/-l/:C/\.so.*//}}
 .if "${DPADD:M${__lib}}" == ""
 DPADD+= ${__lib}

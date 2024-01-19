@@ -296,7 +296,7 @@ static struct {
 	{ NFSV4OP_OPEN, 8, "CreateLayGet", 12, },
 	{ NFSV4OP_IOADVISE, 1, "Advise", 6, },
 	{ NFSV4OP_ALLOCATE, 2, "Allocate", 8, },
-	{ NFSV4OP_SAVEFH, 6, "Copy", 4, },
+	{ NFSV4OP_SAVEFH, 5, "Copy", 4, },
 	{ NFSV4OP_SEEK, 2, "Seek", 4, },
 	{ NFSV4OP_SEEK, 1, "SeekDS", 6, },
 	{ NFSV4OP_GETXATTR, 2, "Getxattr", 8, },

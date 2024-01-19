@@ -559,7 +559,6 @@ tcp_timer_rexmt(struct tcpcb *tp)
 
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	CURVNET_SET(inp->inp_vnet);
-	tcp_free_sackholes(tp);
 	if (tp->t_fb->tfb_tcp_rexmit_tmr) {
 		/* The stack has a timer action too. */
 		(*tp->t_fb->tfb_tcp_rexmit_tmr)(tp);
@@ -619,8 +618,11 @@ tcp_timer_rexmt(struct tcpcb *tp)
 		 * the retransmitted packet's to_tsval to by tcp_output
 		 */
 		tp->t_flags |= TF_PREVVALID;
-	} else
+		tcp_resend_sackholes(tp);
+	} else {
 		tp->t_flags &= ~TF_PREVVALID;
+		tcp_free_sackholes(tp);
+	}
 	TCPSTAT_INC(tcps_rexmttimeo);
 	if ((tp->t_state == TCPS_SYN_SENT) ||
 	    (tp->t_state == TCPS_SYN_RECEIVED))

@@ -1,4 +1,4 @@
-# $NetBSD: varmod-undefined.mk,v 1.8 2022/08/06 21:26:05 rillig Exp $
+# $NetBSD: varmod-undefined.mk,v 1.9 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for the :U variable modifier, which returns the given string
 # if the variable is undefined.
@@ -19,14 +19,14 @@
 .endif
 # .endfor
 
-# The variable expressions in the text of the :U modifier may be arbitrarily
+# The expressions in the text of the :U modifier may be arbitrarily
 # nested.
 
 .if ${:U${:Unested}${${${:Udeeply}}}} != nested
 .  error
 .endif
 
-# The nested variable expressions may contain braces, and these braces don't
+# The nested expressions may contain braces, and these braces don't
 # need to match pairwise.  In the following example, the :S modifier uses '{'
 # as delimiter, which confuses both editors and humans because the opening
 # and closing braces don't match anymore.  It's syntactically valid though.

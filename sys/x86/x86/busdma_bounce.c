@@ -117,6 +117,23 @@ static MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
 
 #include "../../kern/subr_busdma_bounce.c"
 
+/*
+ * On i386 kernels without 'options PAE' we need to also bounce any
+ * physical addresses above 4G.
+ *
+ * NB: vm_paddr_t is required here since bus_addr_t is only 32 bits in
+ * i386 kernels without 'options PAE'.
+ */
+static __inline bool
+must_bounce(bus_dma_tag_t dmat, vm_paddr_t paddr)
+{
+#if defined(__i386__) && !defined(PAE)
+	if (paddr > BUS_SPACE_MAXADDR)
+		return (true);
+#endif
+	return (addr_needs_bounce(dmat, paddr));
+}
+
 static int
 bounce_bus_dma_zone_setup(bus_dma_tag_t dmat)
 {
@@ -491,7 +508,7 @@ _bus_dmamap_pagesneeded(bus_dma_tag_t dmat, vm_paddr_t buf, bus_size_t buflen,
 	curaddr = buf;
 	while (buflen != 0) {
 		sgsize = MIN(buflen, dmat->common.maxsegsz);
-		if (addr_needs_bounce(dmat, curaddr)) {
+		if (must_bounce(dmat, curaddr)) {
 			sgsize = MIN(sgsize,
 			    PAGE_SIZE - (curaddr & PAGE_MASK));
 			if (pagesneeded == NULL)
@@ -547,7 +564,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 				paddr = pmap_kextract(vaddr);
 			else
 				paddr = pmap_extract(pmap, vaddr);
-			if (addr_needs_bounce(dmat, paddr)) {
+			if (must_bounce(dmat, paddr)) {
 				sg_len = roundup2(sg_len,
 				    dmat->common.alignment);
 				map->pagesneeded++;
@@ -584,7 +601,7 @@ _bus_dmamap_count_ma(bus_dma_tag_t dmat, bus_dmamap_t map, struct vm_page **ma,
 			sg_len = PAGE_SIZE - ma_offs;
 			max_sgsize = MIN(buflen, dmat->common.maxsegsz);
 			sg_len = MIN(sg_len, max_sgsize);
-			if (addr_needs_bounce(dmat, paddr)) {
+			if (must_bounce(dmat, paddr)) {
 				sg_len = roundup2(sg_len,
 				    dmat->common.alignment);
 				sg_len = MIN(sg_len, max_sgsize);
@@ -685,7 +702,7 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 		sgsize = MIN(buflen, dmat->common.maxsegsz);
 		if ((dmat->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0 &&
 		    map->pagesneeded != 0 &&
-		    addr_needs_bounce(dmat, curaddr)) {
+		    must_bounce(dmat, curaddr)) {
 			sgsize = MIN(sgsize, PAGE_SIZE - (curaddr & PAGE_MASK));
 			curaddr = add_bounce_page(dmat, map, 0, curaddr, 0,
 			    sgsize);
@@ -753,7 +770,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
 		if ((dmat->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0 &&
 		    map->pagesneeded != 0 &&
-		    addr_needs_bounce(dmat, curaddr)) {
+		    must_bounce(dmat, curaddr)) {
 			sgsize = roundup2(sgsize, dmat->common.alignment);
 			sgsize = MIN(sgsize, max_sgsize);
 			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr, 0,
@@ -820,7 +837,7 @@ bounce_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
 		sgsize = PAGE_SIZE - ma_offs;
 		if ((dmat->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0 &&
 		    map->pagesneeded != 0 &&
-		    addr_needs_bounce(dmat, paddr)) {
+		    must_bounce(dmat, paddr)) {
 			sgsize = roundup2(sgsize, dmat->common.alignment);
 			sgsize = MIN(sgsize, max_sgsize);
 			KASSERT(vm_addr_align_ok(sgsize,

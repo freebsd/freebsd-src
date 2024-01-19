@@ -111,7 +111,6 @@ int ncl_readdirrpc(struct vnode *, struct uio *, struct ucred *,
     struct thread *);
 int ncl_readdirplusrpc(struct vnode *, struct uio *, struct ucred *,
     struct thread *);
-int ncl_writebp(struct buf *, int, struct thread *);
 int ncl_commit(struct vnode *, u_quad_t, int, struct ucred *, struct thread *);
 void ncl_clearcommit(struct mount *);
 int ncl_fsinfo(struct nfsmount *, struct vnode *, struct ucred *,

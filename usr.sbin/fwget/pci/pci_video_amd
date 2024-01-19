@@ -135,5 +135,13 @@ pci_video_amd()
 		0x742*|0x743*)
 			addpkg "gpu-firmware-amd-kmod-beige-goby"
 			;;
+		0x744c)
+			addpkg "gpu-firmware-amd-kmod-dcn-3-2-0"
+			addpkg "gpu-firmware-amd-kmod-gc-11-0-0"
+			addpkg "gpu-firmware-amd-kmod-psp-13-0-0"
+			addpkg "gpu-firmware-amd-kmod-sdma-6-0-0"
+			addpkg "gpu-firmware-amd-kmod-smu-13-0-0"
+			addpkg "gpu-firmware-amd-kmod-vcn-4-0-0"
+			;;
 	esac
 }

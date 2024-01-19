@@ -267,7 +267,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	}
 	if (up->u_flags & UF_ESPINUDP) {/* IPSec UDP encaps. */
 		if (IPSEC_ENABLED(ipv4) &&
-		    UDPENCAP_INPUT(n, off, AF_INET) != 0)
+		    UDPENCAP_INPUT(ipv4, n, off, AF_INET) != 0)
 			return (0);	/* Consumed. */
 	}
 #endif /* IPSEC */
@@ -893,19 +893,32 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 	case SOPT_SET:
 		switch (sopt->sopt_name) {
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
-#ifdef INET
+#if defined(INET) || defined(INET6)
 		case UDP_ENCAP:
-			if (!INP_CHECK_SOCKAF(so, AF_INET)) {
-				INP_WUNLOCK(inp);
-				return (EINVAL);
+#ifdef INET
+			if (INP_SOCKAF(so) == AF_INET) {
+				if (!IPSEC_ENABLED(ipv4)) {
+					INP_WUNLOCK(inp);
+					return (ENOPROTOOPT);
+				}
+				error = UDPENCAP_PCBCTL(ipv4, inp, sopt);
+				break;
 			}
-			if (!IPSEC_ENABLED(ipv4)) {
-				INP_WUNLOCK(inp);
-				return (ENOPROTOOPT);
-			}
-			error = UDPENCAP_PCBCTL(inp, sopt);
-			break;
 #endif /* INET */
+#ifdef INET6
+			if (INP_SOCKAF(so) == AF_INET6) {
+				if (!IPSEC_ENABLED(ipv6)) {
+					INP_WUNLOCK(inp);
+					return (ENOPROTOOPT);
+				}
+				error = UDPENCAP_PCBCTL(ipv6, inp, sopt);
+				break;
+			}
+#endif /* INET6 */
+			INP_WUNLOCK(inp);
+			return (EINVAL);
+#endif /* INET || INET6 */
+
 #endif /* IPSEC */
 		case UDPLITE_SEND_CSCOV:
 		case UDPLITE_RECV_CSCOV:
@@ -944,19 +957,32 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 	case SOPT_GET:
 		switch (sopt->sopt_name) {
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
-#ifdef INET
+#if defined(INET) || defined(INET6)
 		case UDP_ENCAP:
-			if (!INP_CHECK_SOCKAF(so, AF_INET)) {
-				INP_WUNLOCK(inp);
-				return (EINVAL);
+#ifdef INET
+			if (INP_SOCKAF(so) == AF_INET) {
+				if (!IPSEC_ENABLED(ipv4)) {
+					INP_WUNLOCK(inp);
+					return (ENOPROTOOPT);
+				}
+				error = UDPENCAP_PCBCTL(ipv4, inp, sopt);
+				break;
 			}
-			if (!IPSEC_ENABLED(ipv4)) {
-				INP_WUNLOCK(inp);
-				return (ENOPROTOOPT);
-			}
-			error = UDPENCAP_PCBCTL(inp, sopt);
-			break;
 #endif /* INET */
+#ifdef INET6
+			if (INP_SOCKAF(so) == AF_INET6) {
+				if (!IPSEC_ENABLED(ipv6)) {
+					INP_WUNLOCK(inp);
+					return (ENOPROTOOPT);
+				}
+				error = UDPENCAP_PCBCTL(ipv6, inp, sopt);
+				break;
+			}
+#endif /* INET6 */
+			INP_WUNLOCK(inp);
+			return (EINVAL);
+#endif /* INET || INET6 */
+
 #endif /* IPSEC */
 		case UDPLITE_SEND_CSCOV:
 		case UDPLITE_RECV_CSCOV:
@@ -1061,6 +1087,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	uint16_t cscov = 0;
 	uint32_t flowid = 0;
 	uint8_t flowtype = M_HASHTYPE_NONE;
+	bool use_cached_route;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_send: inp == NULL"));
@@ -1097,9 +1124,8 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	 * We will need network epoch in either case, to safely lookup into
 	 * pcb hash.
 	 */
-	if (sin == NULL ||
-	    (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0) ||
-	    (flags & PRUS_IPV6) != 0)
+	use_cached_route = sin == NULL || (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0);
+	if (use_cached_route || (flags & PRUS_IPV6) != 0)
 		INP_WLOCK(inp);
 	else
 		INP_RLOCK(inp);
@@ -1450,7 +1476,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	else
 		UDP_PROBE(send, NULL, inp, &ui->ui_i, inp, &ui->ui_u);
 	error = ip_output(m, inp->inp_options,
-	    INP_WLOCKED(inp) ? &inp->inp_route : NULL, ipflags,
+	    use_cached_route ? &inp->inp_route : NULL, ipflags,
 	    inp->inp_moptions, inp);
 	INP_UNLOCK(inp);
 	NET_EPOCH_EXIT(et);
@@ -1670,16 +1696,44 @@ udp_disconnect(struct socket *so)
 #endif /* INET */
 
 int
-udp_shutdown(struct socket *so)
+udp_shutdown(struct socket *so, enum shutdown_how how)
 {
-	struct inpcb *inp;
+	int error;
 
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("udp_shutdown: inp == NULL"));
-	INP_WLOCK(inp);
-	socantsendmore(so);
-	INP_WUNLOCK(inp);
-	return (0);
+	SOCK_LOCK(so);
+	if (!(so->so_state & SS_ISCONNECTED))
+		/*
+		 * POSIX mandates us to just return ENOTCONN when shutdown(2) is
+		 * invoked on a datagram sockets, however historically we would
+		 * actually tear socket down.  This is known to be leveraged by
+		 * some applications to unblock process waiting in recv(2) by
+		 * other process that it shares that socket with.  Try to meet
+		 * both backward-compatibility and POSIX requirements by forcing
+		 * ENOTCONN but still flushing buffers and performing wakeup(9).
+		 *
+		 * XXXGL: it remains unknown what applications expect this
+		 * behavior and is this isolated to unix/dgram or inet/dgram or
+		 * both.  See: D10351, D3039.
+		 */
+		error = ENOTCONN;
+	else
+		error = 0;
+	SOCK_UNLOCK(so);
+
+	switch (how) {
+	case SHUT_RD:
+		socantrcvmore(so);
+		sbrelease(so, SO_RCV);
+		break;
+	case SHUT_RDWR:
+		socantrcvmore(so);
+		sbrelease(so, SO_RCV);
+		/* FALLTHROUGH */
+	case SHUT_WR:
+		socantsendmore(so);
+	}
+
+	return (error);
 }
 
 #ifdef INET

@@ -162,6 +162,8 @@
                     ..
                     offsetof
                     ..
+                    oformat
+                    ..
                     operators
                     ..
                     pid

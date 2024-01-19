@@ -33,7 +33,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd March 31, 2023
+.Dd January 2, 2024
 
 .Dt MAKEFS 8
 .Os
@@ -566,7 +566,7 @@ The root of the staged directory tree is mapped to
 .Va rootpath .
 .Pp
 Dataset properties, as described in
-.Xr zfsprops 8 ,
+.Xr zfsprops 7 ,
 may be specified following the dataset name.
 The following properties may be set for a dataset:
 .Pp
@@ -580,11 +580,11 @@ The following properties may be set for a dataset:
 .El
 .Sh SEE ALSO
 .Xr mtree 5 ,
+.Xr zfsconcepts 7 ,
+.Xr zfsprops 7 ,
+.Xr zpoolprops 7 ,
 .Xr mtree 8 ,
-.Xr newfs 8 ,
-.Xr zfsconcepts 8 ,
-.Xr zfsprops 8 ,
-.Xr zpoolprops 8
+.Xr newfs 8
 .Sh HISTORY
 The
 .Nm

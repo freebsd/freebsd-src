@@ -95,9 +95,9 @@
  *
  * NOTE: With regard to VNETs the general rule is that callers do not set
  * curvnet. Exceptions to this rule include soabort(), sodisconnect(),
- * sofree() (and with that sorele(), sotryfree()), as well as sonewconn()
- * and sorflush(), which are usually called from a pre-set VNET context.
- * sopoll() currently does not need a VNET context to be set.
+ * sofree() (and with that sorele(), sotryfree()), as well as sonewconn(),
+ * which are usually called from a pre-set VNET context. sopoll() currently
+ * does not need a VNET context to be set.
  */
 
 #include <sys/cdefs.h>
@@ -1201,10 +1201,6 @@ sofree(struct socket *so)
 		so->so_dtor(so);
 
 	VNET_SO_ASSERT(so);
-	if ((pr->pr_flags & PR_RIGHTS) && !SOLISTENING(so)) {
-		MPASS(pr->pr_domain->dom_dispose != NULL);
-		(*pr->pr_domain->dom_dispose)(so);
-	}
 	if (pr->pr_detach != NULL)
 		pr->pr_detach(so);
 
@@ -2964,96 +2960,15 @@ soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 }
 
 int
-soshutdown(struct socket *so, int how)
+soshutdown(struct socket *so, enum shutdown_how how)
 {
-	struct protosw *pr;
-	int error, soerror_enotconn;
-
-	if (!(how == SHUT_RD || how == SHUT_WR || how == SHUT_RDWR))
-		return (EINVAL);
-
-	soerror_enotconn = 0;
-	SOCK_LOCK(so);
-	if ((so->so_state &
-	    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0) {
-		/*
-		 * POSIX mandates us to return ENOTCONN when shutdown(2) is
-		 * invoked on a datagram sockets, however historically we would
-		 * actually tear socket down. This is known to be leveraged by
-		 * some applications to unblock process waiting in recvXXX(2)
-		 * by other process that it shares that socket with. Try to meet
-		 * both backward-compatibility and POSIX requirements by forcing
-		 * ENOTCONN but still asking protocol to perform pru_shutdown().
-		 */
-		if (so->so_type != SOCK_DGRAM && !SOLISTENING(so)) {
-			SOCK_UNLOCK(so);
-			return (ENOTCONN);
-		}
-		soerror_enotconn = 1;
-	}
-
-	if (SOLISTENING(so)) {
-		if (how != SHUT_WR) {
-			so->so_error = ECONNABORTED;
-			solisten_wakeup(so);	/* unlocks so */
-		} else {
-			SOCK_UNLOCK(so);
-		}
-		goto done;
-	}
-	SOCK_UNLOCK(so);
-
-	CURVNET_SET(so->so_vnet);
-	pr = so->so_proto;
-	if (pr->pr_flush != NULL)
-		pr->pr_flush(so, how);
-	if (how != SHUT_WR)
-		sorflush(so);
-	if (how != SHUT_RD) {
-		error = pr->pr_shutdown(so);
-		wakeup(&so->so_timeo);
-		CURVNET_RESTORE();
-		return ((error == 0 && soerror_enotconn) ? ENOTCONN : error);
-	}
-	wakeup(&so->so_timeo);
-	CURVNET_RESTORE();
-
-done:
-	return (soerror_enotconn ? ENOTCONN : 0);
-}
-
-void
-sorflush(struct socket *so)
-{
-	struct protosw *pr;
 	int error;
 
-	VNET_SO_ASSERT(so);
+	CURVNET_SET(so->so_vnet);
+	error = so->so_proto->pr_shutdown(so, how);
+	CURVNET_RESTORE();
 
-	/*
-	 * Dislodge threads currently blocked in receive and wait to acquire
-	 * a lock against other simultaneous readers before clearing the
-	 * socket buffer.  Don't let our acquire be interrupted by a signal
-	 * despite any existing socket disposition on interruptable waiting.
-	 */
-	socantrcvmore(so);
-
-	error = SOCK_IO_RECV_LOCK(so, SBL_WAIT | SBL_NOINTR);
-	if (error != 0) {
-		KASSERT(SOLISTENING(so),
-		    ("%s: soiolock(%p) failed", __func__, so));
-		return;
-	}
-
-	pr = so->so_proto;
-	if (pr->pr_flags & PR_RIGHTS) {
-		MPASS(pr->pr_domain->dom_dispose != NULL);
-		(*pr->pr_domain->dom_dispose)(so);
-	} else {
-		sbrelease(so, SO_RCV);
-		SOCK_IO_RECV_UNLOCK(so);
-	}
-
+	return (error);
 }
 
 /*

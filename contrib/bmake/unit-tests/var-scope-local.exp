@@ -1,8 +1,8 @@
 Global: .ALLTARGETS =  all target-rule.ext dir/subdir/target-rule.ext target-rule.ir-gen-from dir/subdir/target-rule-dir.ir-gen-from inference-rule.ir-to dir/subdir/inference-rule.ir-to inference-rule.ir-from dir/subdir/inference-rule.ir-from inference-rule-chain.ir-to dir/subdir/inference-rule-chain.ir-to inference-rule-chain.ir-gen-from dir/subdir/inference-rule-chain.ir-gen-from one
 Global: .ALLTARGETS =  all target-rule.ext dir/subdir/target-rule.ext target-rule.ir-gen-from dir/subdir/target-rule-dir.ir-gen-from inference-rule.ir-to dir/subdir/inference-rule.ir-to inference-rule.ir-from dir/subdir/inference-rule.ir-from inference-rule-chain.ir-to dir/subdir/inference-rule-chain.ir-to inference-rule-chain.ir-gen-from dir/subdir/inference-rule-chain.ir-gen-from one two
 Var_Parse: ${.MAKE.TARGET_LOCAL_VARIABLES} (eval)
-Var_SetExpand: variable name "" expands to empty string, with value "three" - ignored
-Var_SetExpand: variable name "" expands to empty string, with value "three" - ignored
+one: ignoring ' = three' as the variable name '' expands to empty
+two: ignoring ' = three' as the variable name '' expands to empty
 Global: one two = # (empty)
 Global: one two = three
 Global: .MAKEFLAGS =  -r -k -d v -d

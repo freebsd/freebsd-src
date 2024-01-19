@@ -1,10 +1,10 @@
-# $Id: varmisc.mk,v 1.25 2021/12/07 00:03:11 sjg Exp $
-# $NetBSD: varmisc.mk,v 1.32 2021/12/05 10:02:51 rillig Exp $
+# $Id: varmisc.mk,v 1.26 2023/11/25 01:39:31 sjg Exp $
+# $NetBSD: varmisc.mk,v 1.33 2023/10/19 18:24:33 rillig Exp $
 #
 # Miscellaneous variable tests.
 
 all: unmatched_var_paren D_true U_true D_false U_false Q_lhs Q_rhs NQ_none \
-	strftime cmpv manok
+	cmpv
 all: save-dollars
 all: export-appended
 all: parse-dynamic
@@ -47,13 +47,6 @@ NQ_none:
 	@echo do not evaluate or expand :? if discarding
 	@echo ${VSET:U${1:L:?${True}:${False}}}
 
-April1=	1459494000
-
-# slightly contorted syntax to use utc via variable
-strftime:
-	@echo ${year=%Y month=%m day=%d:L:gmtime=1459494000}
-	@echo date=${%Y%m%d:L:${gmtime=${April1}:L}}
-
 # big jumps to handle 3 digits per step
 M_cmpv.units=	1 1000 1000000
 M_cmpv=		S,., ,g:_:range:@i@+ $${_:[-$$i]} \* $${M_cmpv.units:[$$i]}@:S,^,expr 0 ,1:sh
@@ -66,17 +59,6 @@ cmpv:
 	@echo Literal=3.4.5 == ${3.4.5:L:${M_cmpv}}
 	@echo We have ${${.TARGET:T}.only}
 
-# catch mishandling of nested variables in .for loop
-MAN=
-MAN1=	make.1
-.for s in 1 2
-.  if defined(MAN$s) && !empty(MAN$s)
-MAN+=	${MAN$s}
-.  endif
-.endfor
-
-manok:
-	@echo MAN=${MAN}
 
 # Test parsing of boolean values.
 # begin .MAKE.SAVE_DOLLARS; see Var_SetWithFlags and ParseBoolean.
@@ -131,10 +113,10 @@ VAR.${PARAM}+=	2
 .if ${VAR.+} != "1 2"
 .  error "${VAR.+}"
 .endif
-.for param in + ! ?
+.for param in : + ! ?
 VAR.${param}=	${param}
 .endfor
-.if ${VAR.+} != "+" || ${VAR.!} != "!" || ${VAR.?} != "?"
+.if ${VAR.${:U\:}} != ":" || ${VAR.+} != "+" || ${VAR.!} != "!" || ${VAR.?} != "?"
 .  error "${VAR.+}" "${VAR.!}" "${VAR.?}"
 .endif
 

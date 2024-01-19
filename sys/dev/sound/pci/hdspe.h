@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2012-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2023-2024 Florian Walpen <dev@submerge.ch>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,8 +33,8 @@
 #define	PCI_REVISION_AIO		212
 #define	PCI_REVISION_RAYDAT		211
 
-#define	AIO				0
-#define	RAYDAT				1
+#define	HDSPE_AIO			0
+#define	HDSPE_RAYDAT			1
 
 /* Hardware mixer */
 #define	HDSPE_OUT_ENABLE_BASE		512
@@ -95,15 +96,13 @@
 #define	HDSP_PhoneGainMinus6dB		(HDSP_PhoneGain0)
 #define	HDSP_PhoneGainMinus12dB		0
 
-#define	HDSPM_statusRegister		0
-#define	HDSPM_statusRegister2		192
-
 /* Settings */
 #define	HDSPE_SETTINGS_REG		0
 #define	HDSPE_CONTROL_REG		64
 #define	HDSPE_STATUS_REG		0
+#define	HDSPE_STATUS1_REG		64
+#define	HDSPE_STATUS2_REG		192
 #define	HDSPE_ENABLE			(1 << 0)
-#define	HDSPM_CLOCK_MODE_MASTER		(1 << 4)
 
 /* Interrupts */
 #define	HDSPE_AUDIO_IRQ_PENDING		(1 << 0)
@@ -118,12 +117,51 @@
 #define	HDSPE_CHANBUF_SIZE		(4 * HDSPE_CHANBUF_SAMPLES)
 #define	HDSPE_DMASEGSIZE		(HDSPE_CHANBUF_SIZE * HDSPE_MAX_SLOTS)
 
+#define	HDSPE_CHAN_AIO_LINE		(1 << 0)
+#define	HDSPE_CHAN_AIO_PHONE		(1 << 1)
+#define	HDSPE_CHAN_AIO_AES		(1 << 2)
+#define	HDSPE_CHAN_AIO_SPDIF		(1 << 3)
+#define	HDSPE_CHAN_AIO_ADAT		(1 << 4)
+#define	HDSPE_CHAN_AIO_ALL_REC		(HDSPE_CHAN_AIO_LINE | \
+					HDSPE_CHAN_AIO_AES | \
+					HDSPE_CHAN_AIO_SPDIF | \
+					HDSPE_CHAN_AIO_ADAT)
+#define	HDSPE_CHAN_AIO_ALL		(HDSPE_CHAN_AIO_ALL_REC | \
+					HDSPE_CHAN_AIO_PHONE) \
+
+#define	HDSPE_CHAN_RAY_AES		(1 << 5)
+#define	HDSPE_CHAN_RAY_SPDIF		(1 << 6)
+#define	HDSPE_CHAN_RAY_ADAT1		(1 << 7)
+#define	HDSPE_CHAN_RAY_ADAT2		(1 << 8)
+#define	HDSPE_CHAN_RAY_ADAT3		(1 << 9)
+#define	HDSPE_CHAN_RAY_ADAT4		(1 << 10)
+#define	HDSPE_CHAN_RAY_ALL		(HDSPE_CHAN_RAY_AES | \
+					HDSPE_CHAN_RAY_SPDIF | \
+					HDSPE_CHAN_RAY_ADAT1 | \
+					HDSPE_CHAN_RAY_ADAT2 | \
+					HDSPE_CHAN_RAY_ADAT3 | \
+					HDSPE_CHAN_RAY_ADAT4)
+
 struct hdspe_channel {
-	uint32_t	left;
-	uint32_t	right;
+	uint32_t	ports;
 	char		*descr;
-	uint32_t	play;
-	uint32_t	rec;
+};
+
+/* Clock sources */
+#define	HDSPE_SETTING_MASTER		(1 << 0)
+#define	HDSPE_SETTING_CLOCK_MASK	0x1f
+
+#define	HDSPE_STATUS1_CLOCK_SHIFT	28
+#define	HDSPE_STATUS1_CLOCK_MASK	(0x0f << HDSPE_STATUS1_CLOCK_SHIFT)
+#define	HDSPE_STATUS1_CLOCK(n)		(((n) << HDSPE_STATUS1_CLOCK_SHIFT) & \
+					HDSPE_STATUS1_CLOCK_MASK)
+
+struct hdspe_clock_source {
+	char		*name;
+	uint32_t	setting;
+	uint32_t	status;
+	uint32_t	lock_bit;
+	uint32_t	sync_bit;
 };
 
 static MALLOC_DEFINE(M_HDSPE, "hdspe", "hdspe audio");
@@ -135,10 +173,11 @@ struct sc_chinfo {
 	struct sc_pcminfo	*parent;
 
 	/* Channel information */
+	struct pcmchan_caps	*caps;
+	uint32_t	cap_fmts[4];
 	uint32_t	dir;
 	uint32_t	format;
-	uint32_t	lslot;
-	uint32_t	rslot;
+	uint32_t	ports;
 	uint32_t	lvol;
 	uint32_t	rvol;
 

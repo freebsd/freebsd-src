@@ -17,12 +17,9 @@ false
 FALSE
 do not evaluate or expand :? if discarding
 is set
-year=2016 month=04 day=01
-date=20160401
 Version=123.456.789 == 123456789
 Literal=3.4.5 == 3004005
 We have target specific vars
-MAN= make.1
 save-dollars: 0        = $
 save-dollars: 1        = $$
 save-dollars: 2        = $$
@@ -54,7 +51,7 @@ make: Unclosed variable "UNCLOSED"
 make: Unclosed variable "UNCLOSED"
 
 make: Unclosed variable "PATTERN"
-make: Unclosed variable expression, expecting '}' for modifier "M${PATTERN" of variable "UNCLOSED" with value ""
+make: Unclosed expression, expecting '}' for modifier "M${PATTERN" of variable "UNCLOSED" with value ""
 
 make: Unclosed variable "param"
 make: Unclosed variable "UNCLOSED."
