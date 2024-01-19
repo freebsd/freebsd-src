@@ -198,6 +198,8 @@ int	kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data);
 int	kern_jail(struct thread *td, struct jail *j);
 int	kern_jail_get(struct thread *td, struct uio *options, int flags);
 int	kern_jail_set(struct thread *td, struct uio *options, int flags);
+int	kern_kcmp(struct thread *td, pid_t pid1, pid_t pid2, int type,
+	    uintptr_t idx1, uintptr_t idx2);
 int	kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 	    struct kevent_copyops *k_ops, const struct timespec *timeout);
 int	kern_kevent_anonymous(struct thread *td, int nevents,
