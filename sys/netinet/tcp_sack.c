@@ -994,32 +994,6 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 	(void) tcp_output(tp);
 }
 
-#if 0
-/*
- * Debug version of tcp_sack_output() that walks the scoreboard.  Used for
- * now to sanity check the hint.
- */
-static struct sackhole *
-tcp_sack_output_debug(struct tcpcb *tp, int *sack_bytes_rexmt)
-{
-	struct sackhole *p;
-
-	INP_WLOCK_ASSERT(tptoinpcb(tp));
-	*sack_bytes_rexmt = 0;
-	TAILQ_FOREACH(p, &tp->snd_holes, scblink) {
-		if (SEQ_LT(p->rxmit, p->end)) {
-			if (SEQ_LT(p->rxmit, tp->snd_una)) {/* old SACK hole */
-				continue;
-			}
-			*sack_bytes_rexmt += (p->rxmit - p->start);
-			break;
-		}
-		*sack_bytes_rexmt += (SEQ_MIN(p->rxmit, p->end) - p->start);
-	}
-	return (p);
-}
-#endif
-
 /*
  * Returns the next hole to retransmit and the number of retransmitted bytes
  * from the scoreboard.  We store both the next hole and the number of
