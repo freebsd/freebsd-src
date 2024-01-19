@@ -1721,6 +1721,19 @@ linux_iminor(struct inode *inode)
 	return (minor(ldev->dev));
 }
 
+static int
+linux_file_kcmp(struct file *fp1, struct file *fp2, struct thread *td)
+{
+	struct linux_file *filp1, *filp2;
+
+	if (fp2->f_type != DTYPE_DEV)
+		return (3);
+
+	filp1 = fp1->f_data;
+	filp2 = fp2->f_data;
+	return (kcmp_cmp((uintptr_t)filp1->f_cdev, (uintptr_t)filp2->f_cdev));
+}
+
 struct fileops linuxfileops = {
 	.fo_read = linux_file_read,
 	.fo_write = linux_file_write,
@@ -1735,6 +1748,7 @@ struct fileops linuxfileops = {
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
+	.fo_cmp = linux_file_kcmp,
 	.fo_flags = DFLAG_PASSABLE,
 };
 
