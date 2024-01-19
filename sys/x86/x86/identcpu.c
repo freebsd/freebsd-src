@@ -1385,6 +1385,8 @@ identify_hypervisor_cpuid_base(void)
 			regs[0] = leaf + 1;
 
 		if (regs[0] >= leaf) {
+			enum VM_GUEST prev_vm_guest = vm_guest;
+
 			for (i = 0; i < nitems(vm_cpuids); i++)
 				if (strncmp((const char *)&regs[1],
 				    vm_cpuids[i].vm_cpuid, 12) == 0) {
@@ -1397,7 +1399,7 @@ identify_hypervisor_cpuid_base(void)
 			 * specific hypervisor, record the base, high value,
 			 * and vendor identifier.
 			 */
-			if (vm_guest != VM_GUEST_VM || leaf == 0x40000000) {
+			if (vm_guest != prev_vm_guest || leaf == 0x40000000) {
 				hv_base = leaf;
 				hv_high = regs[0];
 				((u_int *)&hv_vendor)[0] = regs[1];
@@ -1409,7 +1411,18 @@ identify_hypervisor_cpuid_base(void)
 				 * If we found a specific hypervisor, then
 				 * we are finished.
 				 */
-				if (vm_guest != VM_GUEST_VM)
+				if (vm_guest != VM_GUEST_VM &&
+				    /*
+				     * Xen and other hypervisors can expose the
+				     * HyperV signature in addition to the
+				     * native one in order to support Viridian
+				     * extensions for Windows guests.
+				     *
+				     * Do the full cpuid scan if HyperV is
+				     * detected, as the native hypervisor is
+				     * preferred.
+				     */
+				    vm_guest != VM_GUEST_HV)
 					return;
 			}
 		}
