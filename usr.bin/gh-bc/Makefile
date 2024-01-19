@@ -61,7 +61,8 @@ CFLAGS+=	-DNLSPATH=/usr/share/nls/%L/%N.cat
 CFLAGS+=	-I${BCDIR}/include
 
 # prevent floating point incompatibilities caused by -flto on some architectures
-.if ${MACHINE_ARCH} != riscv64
+.if ${MACHINE_ARCH:Mmips*} == "" && ${MACHINE_ARCH} != powerpc64 && \
+       ${MACHINE_ARCH} != riscv64
 CFLAGS+=	-flto
 .endif
 
