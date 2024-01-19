@@ -24,6 +24,16 @@ LOCALEDEF_ENDIAN= -b
 # during the bootstrap phases (apart from one place that's adequately protected
 # in bsd.compiler.mk) where we're building the bootstrap tools.
 #
-CAP_MKDB_ENDIAN= -B	# Poisoned value, invalid flags for both cap_mkdb
-LOCALEDEF_ENDIAN= -B	# and localedef.
+.if !defined(TARGET_ENDIANNESS)
+TARGET_ENDIANESS!=echo "__BYTE_ORDER__" | ${CC} -E -P -
+.if ${TARGET_ENDIANNESS} == "1234"
+CAP_MKDB_ENDIAN= -l
+LOCALEDEF_ENDIAN= -l
+.elif ${TARGET_ENDIANNESS} == "4321"
+CAP_MKDB_ENDIAN= -b
+LOCALEDEF_ENDIAN= -b
+.else
+.error Don't know the endian of this architecture
+.endif
+.endif
 .endif
