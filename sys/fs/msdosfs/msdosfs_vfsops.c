@@ -1006,9 +1006,8 @@ msdosfs_remount_ro(void *arg, int pending)
 	}
 	MSDOSFS_UNLOCK_MP(pmp);
 
-	do {
+	while (--pending >= 0)
 		vfs_unbusy(pmp->pm_mountp);
-	} while (--pending >= 0);
 }
 
 void
