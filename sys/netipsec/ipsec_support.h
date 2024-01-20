@@ -49,9 +49,11 @@ int ipsec_init_pcbpolicy(struct inpcb *);
 int ipsec_delete_pcbpolicy(struct inpcb *);
 int ipsec_copy_pcbpolicy(struct inpcb *, struct inpcb *);
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 int udp_ipsec_input(struct mbuf *, int, int);
 int udp_ipsec_pcbctl(struct inpcb *, struct sockopt *);
+#endif
+#ifdef INET
 int ipsec4_in_reject(const struct mbuf *, struct inpcb *);
 int ipsec4_input(struct mbuf *, int, int);
 int ipsec4_forward(struct mbuf *);
