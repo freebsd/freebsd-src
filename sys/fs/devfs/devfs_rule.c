@@ -45,7 +45,7 @@
  *
  * A note on "special" identifiers: Ruleset 0 is the NULL, or empty,
  * ruleset; it cannot be deleted or changed in any way.  This may be
- * assumed inside the code; e.g., a ruleset of 0 may be interpeted to
+ * assumed inside the code; e.g., a ruleset of 0 may be interpreted to
  * mean "no ruleset".  The interpretation of rule 0 is
  * command-dependent, but in no case is there a real rule with number
  * 0.
