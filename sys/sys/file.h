@@ -479,8 +479,9 @@ fo_fallocate(struct file *fp, off_t offset, off_t len, struct thread *td)
 	return ((*fp->f_ops->fo_fallocate)(fp, offset, len, td));
 }
 
-static __inline int fo_fspacectl(struct file *fp, int cmd, off_t *offset,
-    off_t *length, int flags, struct ucred *active_cred, struct thread *td)
+static __inline int
+fo_fspacectl(struct file *fp, int cmd, off_t *offset, off_t *length,
+    int flags, struct ucred *active_cred, struct thread *td)
 {
 
 	if (fp->f_ops->fo_fspacectl == NULL)
@@ -488,7 +489,6 @@ static __inline int fo_fspacectl(struct file *fp, int cmd, off_t *offset,
 	return ((*fp->f_ops->fo_fspacectl)(fp, cmd, offset, length, flags,
 	    active_cred, td));
 }
-
 
 #endif /* _KERNEL */
 
