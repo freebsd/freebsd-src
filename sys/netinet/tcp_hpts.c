@@ -47,7 +47,7 @@
  *
  * tcp_hpts_insert(tp, HPTS_USEC_TO_SLOTS(550));
  *
- * The above would schedule tcp_ouput() to be called in 550 useconds.
+ * The above would schedule tcp_output() to be called in 550 useconds.
  * Note that if using this mechanism the stack will want to add near
  * its top a check to prevent unwanted calls (from user land or the
  * arrival of incoming ack's). So it would add something like:
