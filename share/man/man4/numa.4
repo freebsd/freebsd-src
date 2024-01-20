@@ -130,11 +130,17 @@ It was then modified in
 to implement a round-robin allocation policy and was also not configurable.
 .Pp
 The
-.Xr numa_getaffinity 2
+.Eo
+.Sy numa_getaffinity 2
+.Ec
 and
-.Xr numa_setaffinity 2
+.Eo
+.Sy numa_setaffinity 2
+.Ec
 syscalls and the
-.Xr numactl 1
+.Eo
+.Sy numactl 1
+.Ec
 tool first appeared in
 .Fx 11.0
 and were removed in
