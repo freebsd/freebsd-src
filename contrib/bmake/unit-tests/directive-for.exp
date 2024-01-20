@@ -17,14 +17,15 @@ make: "directive-for.mk" line 146: }{ }{ }{
 make: "directive-for.mk" line 166: invalid character ':' in .for loop variable name
 make: "directive-for.mk" line 173: invalid character '$' in .for loop variable name
 make: "directive-for.mk" line 185: invalid character '$' in .for loop variable name
-make: "directive-for.mk" line 196: Unknown modifier "Z"
-make: "directive-for.mk" line 197: XXX: Not reached word1
-make: "directive-for.mk" line 197: XXX: Not reached word3
-make: "directive-for.mk" line 204: no iteration variables in for
-make: "directive-for.mk" line 230: 1 open conditional
-make: "directive-for.mk" line 246: for-less endfor
-make: "directive-for.mk" line 247: if-less endif
-make: "directive-for.mk" line 255: if-less endif
+make: "directive-for.mk" line 210: Unknown modifier "Z"
+make: "directive-for.mk" line 211: XXX: Should not reach word1
+make: "directive-for.mk" line 211: XXX: Should not reach before--after
+make: "directive-for.mk" line 211: XXX: Should not reach word3
+make: "directive-for.mk" line 219: no iteration variables in for
+make: "directive-for.mk" line 245: 1 open conditional
+make: "directive-for.mk" line 261: for-less endfor
+make: "directive-for.mk" line 262: if-less endif
+make: "directive-for.mk" line 270: if-less endif
 For: new loop 2
 For: end for 2
 For: end for 1
@@ -35,7 +36,7 @@ For: loop body with outer = o:
    endfor
 For: end for 1
 For: loop body with inner = i:
-make: "directive-for.mk" line 303: newline-item=(a)
+make: "directive-for.mk" line 318: newline-item=(a)
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

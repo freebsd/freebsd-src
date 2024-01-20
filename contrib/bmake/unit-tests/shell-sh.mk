@@ -1,9 +1,9 @@
-# $NetBSD: shell-sh.mk,v 1.1 2020/10/03 14:39:36 rillig Exp $
+# $NetBSD: shell-sh.mk,v 1.2 2023/12/24 16:48:30 sjg Exp $
 #
 # Tests for using a bourne shell for running the commands.
 # This is the default shell, so there's nothing surprising.
 
-.SHELL: name="sh" path="sh"
+.SHELL: name="sh"
 
 all:
 	: normal

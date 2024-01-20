@@ -1,6 +1,6 @@
-# $NetBSD: cmdline-undefined.mk,v 1.3 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: cmdline-undefined.mk,v 1.4 2023/11/19 21:47:52 rillig Exp $
 #
-# Tests for undefined variable expressions in the command line.
+# Tests for undefined expressions in the command line.
 
 all:
 	# When the command line is parsed, variable assignments using the

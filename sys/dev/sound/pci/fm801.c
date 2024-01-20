@@ -636,9 +636,10 @@ fm801_pci_attach(device_t dev)
 		goto oops;
 	}
 
-	snprintf(status, 64, "at %s 0x%jx irq %jd %s",
-		(fm801->regtype == SYS_RES_IOPORT)? "io" : "memory",
-		rman_get_start(fm801->reg), rman_get_start(fm801->irq),PCM_KLDSTRING(snd_fm801));
+	snprintf(status, SND_STATUSLEN, "%s 0x%jx irq %jd on %s",
+		(fm801->regtype == SYS_RES_IOPORT)? "port" : "mem",
+		rman_get_start(fm801->reg), rman_get_start(fm801->irq),
+		device_get_nameunit(device_get_parent(dev)));
 
 #define FM801_MAXPLAYCH	1
 	if (pcm_register(dev, fm801, FM801_MAXPLAYCH, 1)) goto oops;

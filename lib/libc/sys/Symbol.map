@@ -594,7 +594,6 @@ FBSDprivate_1.0 {
 	__sys_fchown;
 	_fcntl;
 	__sys_fcntl;
-	__fcntl_compat;
 	_fhopen;
 	__sys_fhopen;
 	_fhstat;

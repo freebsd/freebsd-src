@@ -172,7 +172,8 @@ enum	{ PF_STATE_OPT_MAX, PF_STATE_OPT_NOSYNC, PF_STATE_OPT_SRCTRACK,
 	    PF_STATE_OPT_MAX_SRC_STATES, PF_STATE_OPT_MAX_SRC_CONN,
 	    PF_STATE_OPT_MAX_SRC_CONN_RATE, PF_STATE_OPT_MAX_SRC_NODES,
 	    PF_STATE_OPT_OVERLOAD, PF_STATE_OPT_STATELOCK,
-	    PF_STATE_OPT_TIMEOUT, PF_STATE_OPT_SLOPPY, };
+	    PF_STATE_OPT_TIMEOUT, PF_STATE_OPT_SLOPPY,
+	    PF_STATE_OPT_PFLOW };
 
 enum	{ PF_SRCTRACK_NONE, PF_SRCTRACK, PF_SRCTRACK_GLOBAL, PF_SRCTRACK_RULE };
 
@@ -512,7 +513,7 @@ int	parseport(char *, struct range *r, int);
 %token	DNPIPE DNQUEUE RIDENTIFIER
 %token	LOAD RULESET_OPTIMIZATION PRIO
 %token	STICKYADDRESS MAXSRCSTATES MAXSRCNODES SOURCETRACK GLOBAL RULE
-%token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY
+%token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY PFLOW
 %token	TAGGED TAG IFBOUND FLOATING STATEPOLICY STATEDEFAULTS ROUTE SETTOS
 %token	DIVERTTO DIVERTREPLY BRIDGE_TO
 %token	<v.string>		STRING
@@ -2615,6 +2616,14 @@ pfrule		: action dir logquick interface route af proto fromto
 					}
 					r.rule_flag |= PFRULE_STATESLOPPY;
 					break;
+				case PF_STATE_OPT_PFLOW:
+					if (r.rule_flag & PFRULE_PFLOW) {
+						yyerror("state pflow option: "
+						    "multiple definitions");
+						YYERROR;
+					}
+					r.rule_flag |= PFRULE_PFLOW;
+					break;
 				case PF_STATE_OPT_TIMEOUT:
 					if (o->data.timeout.number ==
 					    PFTM_ADAPTIVE_START ||
@@ -4368,6 +4377,14 @@ state_opt_item	: MAXIMUM NUMBER		{
 			$$->next = NULL;
 			$$->tail = $$;
 		}
+		| PFLOW {
+			$$ = calloc(1, sizeof(struct node_state_opt));
+			if ($$ == NULL)
+				err(1, "state_opt_item: calloc");
+			$$->type = PF_STATE_OPT_PFLOW;
+			$$->next = NULL;
+			$$->tail = $$;
+		}
 		| STRING NUMBER			{
 			int	i;
 
@@ -4663,6 +4680,7 @@ natrule		: nataction interface af proto fromto tag tagged rtable
 		    redirpool pool_opts
 		{
 			struct pfctl_rule	r;
+			struct node_state_opt	*o;
 
 			if (check_rulestate(PFCTL_STATE_NAT))
 				YYERROR;
@@ -4836,6 +4854,21 @@ natrule		: nataction interface af proto fromto tag tagged rtable
 					YYERROR;
 				}
 				r.rpool.mape = $10.mape;
+			}
+
+			o = keep_state_defaults;
+			while (o) {
+				switch (o->type) {
+				case PF_STATE_OPT_PFLOW:
+					if (r.rule_flag & PFRULE_PFLOW) {
+						yyerror("state pflow option: "
+						    "multiple definitions");
+						YYERROR;
+					}
+					r.rule_flag |= PFRULE_PFLOW;
+					break;
+				}
+				o = o->next;
 			}
 
 			expand_rule(&r, $2, $9 == NULL ? NULL : $9->host, $4,
@@ -6318,6 +6351,7 @@ lookup(char *s)
 		{ "out",		OUT},
 		{ "overload",		OVERLOAD},
 		{ "pass",		PASS},
+		{ "pflow",		PFLOW},
 		{ "port",		PORT},
 		{ "prio",		PRIO},
 		{ "priority",		PRIORITY},

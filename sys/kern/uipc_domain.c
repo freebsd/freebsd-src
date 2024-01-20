@@ -151,7 +151,7 @@ pr_ready_notsupp(struct socket *so, struct mbuf *m, int count)
 }
 
 static int
-pr_shutdown_notsupp(struct socket *so)
+pr_shutdown_notsupp(struct socket *so, enum shutdown_how how)
 {
 	return (EOPNOTSUPP);
 }

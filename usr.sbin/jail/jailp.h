@@ -107,6 +107,7 @@ enum intparam {
 	IP_MOUNT_FSTAB,		/* A standard fstab(5) file */
 	IP_STOP_TIMEOUT,	/* Time to wait after sending SIGTERM */
 	IP_VNET_INTERFACE,	/* Assign interface(s) to vnet jail */
+	IP_ZFS_DATASET,		/* Jail ZFS datasets */
 #ifdef INET
 	IP__IP4_IFADDR,		/* Copy of ip4.addr with interface/netmask */
 #endif

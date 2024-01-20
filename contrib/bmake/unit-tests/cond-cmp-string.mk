@@ -1,4 +1,4 @@
-# $NetBSD: cond-cmp-string.mk,v 1.17 2023/03/28 14:38:29 rillig Exp $
+# $NetBSD: cond-cmp-string.mk,v 1.18 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for string comparisons in .if conditions.
 
@@ -20,11 +20,11 @@
 .  error
 .endif
 
-# The left-hand side of the comparison requires that any variable expression
+# The left-hand side of the comparison requires that any expression
 # is defined.
 #
 # The variable named "" is never defined, nevertheless it can be used as a
-# starting point for variable expressions.  Applying the :U modifier to such
+# starting point for expressions.  Applying the :U modifier to such
 # an undefined expression turns it into a defined expression.
 #
 # See ApplyModifier_Defined and DEF_DEFINED.
@@ -63,13 +63,13 @@
 .  error
 .endif
 
-# A variable expression can be enclosed in double quotes.
+# An expression can be enclosed in double quotes.
 .if ${:Uword} != "${:Uword}"
 .  error
 .endif
 
 # Between 2003-01-01 (maybe even earlier) and 2020-10-30, adding one of the
-# characters " \t!=><" directly after a variable expression resulted in a
+# characters " \t!=><" directly after an expression resulted in a
 # "Malformed conditional", even though the string was well-formed.
 .if ${:Uword } != "${:Uword} "
 .  error
@@ -89,12 +89,12 @@
 .  error
 .endif
 
-# Adding another variable expression to the string literal works though.
+# Adding another expression to the string literal works though.
 .if ${:Uword} != "${:Uwo}${:Urd}"
 .  error
 .endif
 
-# Adding a space at the beginning of the quoted variable expression works
+# Adding a space at the beginning of the quoted expression works
 # though.
 .if ${:U word } != " ${:Uword} "
 .  error
