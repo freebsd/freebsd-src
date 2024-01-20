@@ -129,7 +129,7 @@ g_journal_record_entries_sysctl(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_geom_journal, OID_AUTO, record_entries,
     CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     g_journal_record_entries_sysctl, "I",
-    "Maximum number of entires in one journal record");
+    "Maximum number of entries in one journal record");
 SYSCTL_UINT(_kern_geom_journal, OID_AUTO, optimize, CTLFLAG_RW,
     &g_journal_do_optimize, 0, "Try to combine bios on flush and copy");
 
