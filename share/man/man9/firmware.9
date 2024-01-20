@@ -21,7 +21,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 27, 2021
+.Dd January 19, 2024
 .Dt FIRMWARE 9
 .Os
 .Sh NAME
@@ -252,26 +252,24 @@ colon-separated tuples indicating the image_file's to be embedded
 in the module, the imagename and version of each firmware image.
 .Pp
 If you need to embed firmware images into a system, you should write
-appropriate entries in the <files.arch> file, e.g. this example is
+appropriate entries in the <files.arch> or <files> file, e.g. this example is
 from
-.Nm sys/arm/xscale/ixp425/files.ixp425 :
+.Nm sys/conf/files
 .Bd -literal
-ixp425_npe_fw.c                         optional npe_fw                 \\
-        compile-with    "${AWK} -f $S/tools/fw_stub.awk			\\
-			IxNpeMicrocode.dat:npe_fw -mnpe -c${.TARGET}"	\\
-        no-implicit-rule before-depend local                            \\
-        clean           "ixp425_npe_fw.c"
+iwn1000fw.c			optional iwn1000fw | iwnfw		\\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn1000.fw:iwn1000fw -miwn1000fw -c${.TARGET}" \\
+	no-ctfconvert no-implicit-rule before-depend local		\\
+	clean		"iwn1000fw.c"
 #
 # NB: ld encodes the path in the binary symbols generated for the
 #     firmware image so link the file to the object directory to
 #     get known values for reference in the _fw.c file.
 #
-IxNpeMicrocode.fwo  optional npe_fw					\\
-        dependency      "IxNpeMicrocode.dat"				\\
-        compile-with    "${LD} -b binary -d -warn-common		\\
-			    -r -d -o ${.TARGET} IxNpeMicrocode.dat"	\\
-        no-implicit-rule                                                \\
-        clean           "IxNpeMicrocode.fwo"
+iwn1000fw.fwo			optional iwn1000fw | iwnfw		\\
+	dependency	"iwn1000.fw"					\\
+	compile-with	"${NORMAL_FWO}"					\\
+	no-implicit-rule						\\
+	clean		"iwn1000fw.fwo"
 .Ed
 .Pp
 Firmware was previously committed to the source tree as uuencoded files,
