@@ -8,7 +8,9 @@
 .Nd timezone information
 .Sh DESCRIPTION
 The timezone information files used by
-.Xr tzset 3
+.Ec
+.Sy tzset 3
+.Eo
 are found under
 .Pa /usr/share/zoneinfo .
 These files use the format described in Internet RFC 8536.
@@ -215,7 +217,9 @@ the earliest transition time.
 .Ss Version 3 format
 For version-3-format timezone files, the POSIX-TZ-style string may
 use two minor extensions to the POSIX TZ format, as described in
-.Xr newtzset 3 .
+.Ec
+.Sy newtzset 3 .
+.Eo
 First, the hours part of its transition times may be signed and range from
 \-167 through 167 instead of the POSIX-required unsigned values
 from 0 through 24.
