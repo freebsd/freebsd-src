@@ -251,7 +251,7 @@ int	kern_ogetdirentries(struct thread *td, struct ogetdirentries_args *uap,
 	    long *ploff);
 int	kern_ommap(struct thread *td, uintptr_t hint, int len, int oprot,
 	    int oflags, int fd, long pos);
-int	kern_openat(struct thread *td, int fd, const char *path,
+int	kern_openat(struct thread *td, int dirfd, const char *path,
 	    enum uio_seg pathseg, int flags, int mode);
 int	kern_pathconf(struct thread *td, const char *path,
 	    enum uio_seg pathseg, int name, u_long flags, long *valuep);
