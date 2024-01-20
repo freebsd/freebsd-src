@@ -3618,8 +3618,6 @@ geom/geom_event.c		standard
 geom/geom_flashmap.c		optional fdt cfi | fdt mx25l | mmcsd | fdt n25q | fdt at45d
 geom/geom_io.c			standard
 geom/geom_kern.c		standard
-geom/geom_map.c			optional geom_map
-geom/geom_redboot.c		optional geom_redboot
 geom/geom_slice.c		standard
 geom/geom_subr.c		standard
 geom/geom_vfs.c			standard
@@ -4431,7 +4429,7 @@ netipsec/keysock.c		optional ipsec inet | ipsec inet6 | \
 	ipsec_support inet | ipsec_support inet6
 netipsec/subr_ipsec.c		optional ipsec inet | ipsec inet6 | \
 	ipsec_support inet | ipsec_support inet6
-netipsec/udpencap.c		optional ipsec inet
+netipsec/udpencap.c		optional ipsec inet | ipsec inet6
 netipsec/xform_ah.c		optional ipsec inet | ipsec inet6
 netipsec/xform_esp.c		optional ipsec inet | ipsec inet6
 netipsec/xform_ipcomp.c		optional ipsec inet | ipsec inet6
@@ -4513,6 +4511,7 @@ netpfil/pf/pf_osfp.c		optional pf inet
 netpfil/pf/pf_ruleset.c		optional pf inet
 netpfil/pf/pf_syncookies.c	optional pf inet
 netpfil/pf/pf_table.c		optional pf inet
+netpfil/pf/pflow.c		optional pflow pf inet
 netpfil/pf/pfsync_nv.c		optional pfsync pf inet
 netpfil/pf/in4_cksum.c		optional pf inet
 netsmb/smb_conn.c		optional netsmb

@@ -292,6 +292,12 @@ mana_sysctl_add_queues(struct mana_port_context *apc)
 		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 		    "alt_reset", CTLFLAG_RD,
 		    &tx_stats->alt_reset, "Reset to self txq");
+		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+		    "cqe_err", CTLFLAG_RD,
+		    &tx_stats->cqe_err, "Error CQE count");
+		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+		    "cqe_unknown_type", CTLFLAG_RD,
+		    &tx_stats->cqe_unknown_type, "Unknown CQE count");
 
 		/* RX stats */
 		rx_node = SYSCTL_ADD_NODE(ctx, queue_list, OID_AUTO,

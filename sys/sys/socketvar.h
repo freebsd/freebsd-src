@@ -434,6 +434,7 @@ struct mbuf;
 struct sockaddr;
 struct ucred;
 struct uio;
+enum shutdown_how;
 
 /* Return values for socket upcalls. */
 #define	SU_OK		0
@@ -500,7 +501,6 @@ int	soreceive_generic(struct socket *so, struct sockaddr **paddr,
 void	sorele_locked(struct socket *so);
 void	sodealloc(struct socket *);
 int	soreserve(struct socket *so, u_long sndcc, u_long rcvcc);
-void	sorflush(struct socket *so);
 int	sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	    struct mbuf *top, struct mbuf *control, int flags,
 	    struct thread *td);
@@ -512,7 +512,7 @@ int	sosend_dgram(struct socket *so, struct sockaddr *addr,
 int	sosend_generic(struct socket *so, struct sockaddr *addr,
 	    struct uio *uio, struct mbuf *top, struct mbuf *control,
 	    int flags, struct thread *td);
-int	soshutdown(struct socket *so, int how);
+int	soshutdown(struct socket *so, enum shutdown_how);
 void	soupcall_clear(struct socket *, sb_which);
 void	soupcall_set(struct socket *, sb_which, so_upcall_t, void *);
 void	solisten_upcall_set(struct socket *, so_upcall_t, void *);

@@ -799,31 +799,59 @@ tcp6_usr_accept(struct socket *so, struct sockaddr *sa)
  * Mark the connection as being incapable of further output.
  */
 static int
-tcp_usr_shutdown(struct socket *so)
+tcp_usr_shutdown(struct socket *so, enum shutdown_how how)
 {
-	int error = 0;
-	struct inpcb *inp;
-	struct tcpcb *tp;
 	struct epoch_tracker et;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp = intotcpcb(inp);
+	int error = 0;
 
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("inp == NULL"));
-	INP_WLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
-		INP_WUNLOCK(inp);
-		return (ECONNRESET);
+	SOCK_LOCK(so);
+	if ((so->so_state &
+	    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0) {
+		SOCK_UNLOCK(so);
+		return (ENOTCONN);
 	}
-	tp = intotcpcb(inp);
+	if (SOLISTENING(so)) {
+		if (how != SHUT_WR) {
+			so->so_error = ECONNABORTED;
+			solisten_wakeup(so);	/* unlocks so */
+		} else
+			SOCK_UNLOCK(so);
+		return (0);
+	}
+	SOCK_UNLOCK(so);
 
-	NET_EPOCH_ENTER(et);
-	socantsendmore(so);
-	tcp_usrclosed(tp);
-	if (!(inp->inp_flags & INP_DROPPED))
+	switch (how) {
+	case SHUT_RD:
+		socantrcvmore(so);
+		sbrelease(so, SO_RCV);
+		break;
+	case SHUT_RDWR:
+		socantrcvmore(so);
+		sbrelease(so, SO_RCV);
+		/* FALLTHROUGH */
+	case SHUT_WR:
+		/*
+		 * XXXGL: mimicing old soshutdown() here. But shouldn't we
+		 * return ECONNRESEST for SHUT_RD as well?
+		 */
+		INP_WLOCK(inp);
+		if (inp->inp_flags & INP_DROPPED) {
+			INP_WUNLOCK(inp);
+			return (ECONNRESET);
+		}
+
+		socantsendmore(so);
+		NET_EPOCH_ENTER(et);
+		tcp_usrclosed(tp);
 		error = tcp_output_nodrop(tp);
-	tcp_bblog_pru(tp, PRU_SHUTDOWN, error);
-	TCP_PROBE2(debug__user, tp, PRU_SHUTDOWN);
-	error = tcp_unlock_or_drop(tp, error);
-	NET_EPOCH_EXIT(et);
+		tcp_bblog_pru(tp, PRU_SHUTDOWN, error);
+		TCP_PROBE2(debug__user, tp, PRU_SHUTDOWN);
+		error = tcp_unlock_or_drop(tp, error);
+		NET_EPOCH_EXIT(et);
+	}
+	wakeup(&so->so_timeo);
 
 	return (error);
 }

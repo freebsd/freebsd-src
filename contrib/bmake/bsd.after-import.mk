@@ -1,4 +1,4 @@
-# $Id: bsd.after-import.mk,v 1.17 2021/10/22 06:31:32 sjg Exp $
+# $Id: bsd.after-import.mk,v 1.18 2023/09/18 05:29:23 sjg Exp $
 
 # This makefile is for use when integrating bmake into a BSD build
 # system.  Use this makefile after importing bmake.
@@ -68,18 +68,25 @@ MAKEFILE_SED = 	sed -e '/^MACHINE/d' \
 # These are the simple files we want to capture
 configured_files= config.h Makefile.config unit-tests/Makefile.config
 
+# FreeBSD has dropped their tag with svn
+.if ${HOST_OS:NFreeBSD} == ""
+ECHO_TAG= :
+.else
+ECHO_TAG?= echo
+.endif
+
 after-import: bootstrap ${MAKEFILE}
 .for f in ${configured_files:M*.[ch]}
 	@echo Capturing $f
 	@mkdir -p ${${.CURDIR}/$f:L:H}
-	@(echo '/* $$${HOST_OS}$$ */'; cat ${HOST_OS}/$f) > ${.CURDIR}/$f
+	@(${ECHO_TAG} '/* $$${HOST_OS}$$ */'; cat ${HOST_OS}/$f) > ${.CURDIR}/$f
 .endfor
 .for f in ${configured_files:M*Makefile*}
 	@echo Capturing $f
 	@mkdir -p ${${.CURDIR}/$f:L:H}
 	@(echo '# This is a generated file, do NOT edit!'; \
 	echo '# See ${_this:S,${SRCTOP}/,,}'; \
-	echo '#'; echo '# $$${HOST_OS}$$'; echo; \
+	echo '#'; ${ECHO_TAG} '# $$${HOST_OS}$$'; echo; \
 	echo 'SRCTOP?= $${.CURDIR:${${.CURDIR}/$f:L:H:S,${SRCTOP}/,,:C,[^/]+,H,g:S,/,:,g}}'; echo; \
 	${MAKEFILE_SED} ${HOST_OS}/$f ) > ${.CURDIR}/$f
 .endfor
@@ -89,7 +96,7 @@ _makefile:	bootstrap ${MAKEFILE}
 	@echo Generating ${.CURDIR}/Makefile
 	@(echo '# This is a generated file, do NOT edit!'; \
 	echo '# See ${_this:S,${SRCTOP}/,,}'; \
-	echo '#'; echo '# $$${HOST_OS}$$'; \
+	echo '#'; ${ECHO_TAG} '# $$${HOST_OS}$$'; \
 	echo; echo 'SRCTOP?= $${.CURDIR:${.CURDIR:S,${SRCTOP}/,,:C,[^/]+,H,g:S,/,:,g}}'; \
 	echo; echo '# look here first for config.h'; \
 	echo 'CFLAGS+= -I$${.CURDIR}'; echo; \
@@ -115,7 +122,7 @@ _utmakefile: bootstrap ${MAKEFILE}
 	@mkdir -p ${.CURDIR}/unit-tests
 	@(echo '# This is a generated file, do NOT edit!'; \
 	echo '# See ${_this:S,${SRCTOP}/,,}'; \
-	echo '#'; echo '# $$${HOST_OS}$$'; \
+	echo '#'; ${ECHO_TAG} '# $$${HOST_OS}$$'; \
 	${MAKEFILE_SED} \
 	-e '/^UNIT_TESTS/s,=.*,= $${srcdir},' \
 	${BMAKE_SRC}/unit-tests/Makefile ) > ${.TARGET}

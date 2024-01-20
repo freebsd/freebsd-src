@@ -1,4 +1,4 @@
-/*	$NetBSD: buf.c,v 1.56 2023/06/01 07:44:10 rillig Exp $	*/
+/*	$NetBSD: buf.c,v 1.57 2023/12/19 19:33:39 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -69,13 +69,13 @@
  * SUCH DAMAGE.
  */
 
-/* Automatically-expanding null-terminated character buffers. */
+/* Automatically growing null-terminated buffers of characters. */
 
 #include <limits.h>
 #include "make.h"
 
 /*	"@(#)buf.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: buf.c,v 1.56 2023/06/01 07:44:10 rillig Exp $");
+MAKE_RCSID("$NetBSD: buf.c,v 1.57 2023/12/19 19:33:39 rillig Exp $");
 
 /* Make space in the buffer for adding at least 16 more bytes. */
 void

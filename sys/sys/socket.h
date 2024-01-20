@@ -627,17 +627,11 @@ struct omsghdr {
 /*
  * howto arguments for shutdown(2), specified by Posix.1g.
  */
-#define	SHUT_RD		0		/* shut down the reading side */
-#define	SHUT_WR		1		/* shut down the writing side */
-#define	SHUT_RDWR	2		/* shut down both sides */
-
-#if __BSD_VISIBLE
-/* for SCTP */
-/* we cheat and use the SHUT_XX defines for these */
-#define PRU_FLUSH_RD     SHUT_RD
-#define PRU_FLUSH_WR     SHUT_WR
-#define PRU_FLUSH_RDWR   SHUT_RDWR
-#endif
+enum shutdown_how {
+	SHUT_RD = 0,		/* shut down the reading side */
+	SHUT_WR,		/* shut down the writing side */
+	SHUT_RDWR		/* shut down both sides */
+};
 
 #if __BSD_VISIBLE
 /*

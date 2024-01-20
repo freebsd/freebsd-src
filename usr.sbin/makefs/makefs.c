@@ -164,7 +164,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'D':
-			dupsok = 1;
+			dupsok++;
 			break;
 
 		case 'd':

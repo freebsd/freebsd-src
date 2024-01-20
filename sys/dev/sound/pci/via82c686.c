@@ -580,9 +580,9 @@ via_attach(device_t dev)
 	    NSEGS * sizeof(struct via_dma_op), dma_cb, via, 0) != 0)
 		goto bad;
 
-	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd %s",
+	snprintf(status, SND_STATUSLEN, "port 0x%jx irq %jd on %s",
 		 rman_get_start(via->reg), rman_get_start(via->irq),
-		 PCM_KLDSTRING(snd_via82c686));
+		 device_get_nameunit(device_get_parent(dev)));
 
 	/* Register */
 	if (pcm_register(dev, via, 1, 1)) goto bad;

@@ -1,0 +1,93 @@
+.\" $OpenBSD: pflow.4,v 1.19 2014/03/29 11:26:03 florian Exp $
+.\"
+.\" Copyright (c) 2008 Henning Brauer <henning@openbsd.org>
+.\" Copyright (c) 2008 Joerg Goltermann <jg@osn.de>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: January 08 2024 $
+.Dt PFLOWCTL 8
+.Os
+.Sh NAME
+.Nm pflowctl
+.Nd control pflow data export
+.Sh SYNOPSIS
+.Nm pflowctl
+.Bk -words
+.Op Fl lc
+.Op Fl d Ar id
+.Op Fl s Ar id ...
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+utility creates, configures and deletes netflow accounting data export using the
+.Xr pflow 4
+subsystem.
+.Pp
+The
+.Nm
+utility provides several commands.
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl c
+Create a new
+.Xr pflow 4
+exporter.
+.It Fl d Ar id
+Remove an existing
+.Xr pflow 4
+exporter.
+The
+.Ar id
+may be either numeric or the full pflowX name.
+.It Fl l
+List all existing
+.Xr pflow 4
+exporters.
+.It Fl s Ar id ...
+Configure an existing
+.Xr pflow 4
+exporter.
+This takes the following keywords:
+.Pp
+.Bl -tag -width xxxxxxxxxxxx -compact
+.It Cm src
+set the source IP address (and optionally port).
+.It Cm dst
+set the destination IP address (and optionally port).
+.It Cm proto
+set the protocol version.
+Valid values are 5 and 10.
+.It Cm domain
+set the observation domain.
+.El
+.Pp
+Multiple keywords may be passed in the same command invocation.
+.Pp
+For example, the following command sets 10.0.0.1 as the source
+and 10.0.0.2:1234 as destination:
+.Bd -literal -offset indent
+# pflowctl -s pflow0 src 10.0.0.1 dst 10.0.0.2:1234
+.Ed
+.Sh SEE ALSO
+.Xr netintro 4 ,
+.Xr pf 4 ,
+.Xr pflow 4 ,
+.Xr udp 4 ,
+.Xr pf.conf 5
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 15.0 .

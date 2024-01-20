@@ -1,4 +1,4 @@
-# $Id: jobs.mk,v 1.14 2023/09/11 16:52:44 sjg Exp $
+# $Id: jobs.mk,v 1.16 2023/11/29 15:59:50 sjg Exp $
 #
 #	@(#) Copyright (c) 2012-2023, Simon J. Gerraty
 #
@@ -78,7 +78,8 @@ JOB_MAX = ${.MAKE.JOBS}
 # This should be derrived from number of cpu's
 .if ${.MAKE.JOBS.C:Uno} == "yes"
 # 1.2 - 1.5 times nCPU works well on most machines that support -jC
-JOB_MAX_C ?= 1.33C
+# if the factor is floating point, the C suffix isn't needed
+JOB_MAX_C ?= 1.33
 JOB_MAX ?= ${JOB_MAX_C}
 .endif
 JOB_MAX ?= 8

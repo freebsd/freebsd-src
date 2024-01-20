@@ -1,4 +1,4 @@
-# $NetBSD: var-eval-short.mk,v 1.10 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: var-eval-short.mk,v 1.11 2023/10/19 18:24:33 rillig Exp $
 #
 # Tests for each variable modifier to ensure that they only do the minimum
 # necessary computations.  If the result of the expression is irrelevant,
@@ -18,7 +18,7 @@ FAIL=	${:!echo unexpected 1>&2!}
 # is ignored as well.  To do that, it is necessary to step through the code of
 # each modifier.
 
-# TODO: Test the modifiers in the same order as they appear in ApplyModifier.
+# TODO: Test the modifiers in the same order as they occur in ApplyModifier.
 
 .if 0 && ${FAIL}
 .endif

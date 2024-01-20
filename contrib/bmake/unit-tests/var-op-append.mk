@@ -1,4 +1,4 @@
-# $NetBSD: var-op-append.mk,v 1.10 2023/06/21 07:30:50 rillig Exp $
+# $NetBSD: var-op-append.mk,v 1.12 2023/11/02 05:46:26 rillig Exp $
 #
 # Tests for the '+=' variable assignment operator, which appends to a
 # variable, creating it if necessary.
@@ -39,7 +39,7 @@ VAR+=	# empty
 # '+=' assignment operator.  As far as possible, the '+' is interpreted as
 # part of the assignment operator.
 #
-# See Parse_Var
+# See Parse_Var, AdjustVarassignOp.
 C++=	value
 .if ${C+} != "value" || defined(C++)
 .  error
@@ -55,5 +55,34 @@ VAR.${:U\$\$\$\$\$\$\$\$}+=	dollars
 .if ${VAR.${:U\$\$\$\$\$\$\$\$}} != "dollars"
 .  error
 .endif
+
+
+# Appending to an environment variable in the global scope creates a global
+# variable of the same name, taking its initial value from the environment
+# variable.  After the assignment, the environment variable is left as-is,
+# the value of the global variable is not synced back to the environment
+# variable.
+export ENV_PLUS_GLOBAL=from-env-value
+ENV_PLUS_GLOBAL+=	appended-value
+.if ${ENV_PLUS_GLOBAL} != "from-env-value appended-value"
+.  error
+.endif
+EXPORTED!=	echo "$$ENV_PLUS_GLOBAL"
+.if ${EXPORTED} != "from-env-value"
+.  error
+.endif
+
+# Appending to an environment variable in the command line scope ignores the
+# environment variable.
+export ENV_PLUS_COMMAND=from-env-value
+.MAKEFLAGS: ENV_PLUS_COMMAND+=appended-command
+.if ${ENV_PLUS_COMMAND} != "appended-command"
+.  error ${ENV_PLUS_COMMAND}
+.endif
+EXPORTED!=	echo "$$ENV_PLUS_GLOBAL"
+.if ${EXPORTED} != "from-env-value"
+.  error
+.endif
+
 
 all:

@@ -9,13 +9,13 @@ make: Unknown modifier "Z"
 VAR:Z=before-inner}-after
 
 unclosed-direct:
-want: Unclosed variable expression, expecting '}' for modifier "S,V,v," of variable "VAR" with value "Thevariable"
-make: Unclosed variable expression, expecting '}' for modifier "S,V,v," of variable "VAR" with value "Thevariable"
+want: Unclosed expression, expecting '}' for modifier "S,V,v," of variable "VAR" with value "Thevariable"
+make: Unclosed expression, expecting '}' for modifier "S,V,v," of variable "VAR" with value "Thevariable"
 VAR:S,V,v,=Thevariable
 
 unclosed-indirect:
-want: Unclosed variable expression after indirect modifier, expecting '}' for variable "VAR"
-make: Unclosed variable expression after indirect modifier, expecting '}' for variable "VAR"
+want: Unclosed expression after indirect modifier, expecting '}' for variable "VAR"
+make: Unclosed expression after indirect modifier, expecting '}' for variable "VAR"
 VAR:S,V,v,=Thevariable
 
 unfinished-indirect:
@@ -33,7 +33,7 @@ make: Unfinished modifier for "UNDEF" ('@' missing)
 1 2 3
 
 loop-close:
-make: Unclosed variable expression, expecting '}' for modifier "@var@${var}}...@" of variable "UNDEF" with value "1}... 2}... 3}..."
+make: Unclosed expression, expecting '}' for modifier "@var@${var}}...@" of variable "UNDEF" with value "1}... 2}... 3}..."
 1}... 2}... 3}...
 1}... 2}... 3}...
 
@@ -67,7 +67,7 @@ make: Unfinished modifier for "VAR" (',' missing)
 4:
 make: Unfinished modifier for "VAR" (',' missing)
 5:
-make: Unclosed variable expression, expecting '}' for modifier "S,from,to," of variable "VAR" with value "TheVariable"
+make: Unclosed expression, expecting '}' for modifier "S,from,to," of variable "VAR" with value "TheVariable"
 6: TheVariable
 7: TheVariable
 
@@ -82,7 +82,7 @@ make: Unfinished modifier for "VAR" (',' missing)
 4:
 make: Unfinished modifier for "VAR" (',' missing)
 5:
-make: Unclosed variable expression, expecting '}' for modifier "C,from,to," of variable "VAR" with value "TheVariable"
+make: Unclosed expression, expecting '}' for modifier "C,from,to," of variable "VAR" with value "TheVariable"
 6: TheVariable
 7: TheVariable
 
@@ -124,13 +124,13 @@ make: Unknown modifier "__"
 
 mod-sysv-parse:
 make: Unknown modifier "3"
-make: Unclosed variable expression, expecting '}' for modifier "3" of variable "FIB" with value ""
+make: Unclosed expression, expecting '}' for modifier "3" of variable "FIB" with value ""
 
 make: Unknown modifier "3="
-make: Unclosed variable expression, expecting '}' for modifier "3=" of variable "FIB" with value ""
+make: Unclosed expression, expecting '}' for modifier "3=" of variable "FIB" with value ""
 
 make: Unknown modifier "3=x3"
-make: Unclosed variable expression, expecting '}' for modifier "3=x3" of variable "FIB" with value ""
+make: Unclosed expression, expecting '}' for modifier "3=x3" of variable "FIB" with value ""
 
 1 1 2 x3 5 8 1x3 21 34
 

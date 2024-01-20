@@ -150,11 +150,15 @@ static const struct nlhdr_parser _name = {		\
 	.np_size = NL_ARRAY_LEN(_np),			\
 }
 
-#define	NL_DECLARE_ATTR_PARSER(_name, _np)		\
+#define	NL_DECLARE_ATTR_PARSER_EXT(_name, _np, _pp)	\
 static const struct nlhdr_parser _name = {		\
 	.np = &((_np)[0]),				\
 	.np_size = NL_ARRAY_LEN(_np),			\
+	.post_parse = (_pp)				\
 }
+
+#define	NL_DECLARE_ATTR_PARSER(_name, _np)		\
+	NL_DECLARE_ATTR_PARSER_EXT(_name, _np, NULL)
 
 #define	NL_ATTR_BMASK_SIZE	128
 BITSET_DEFINE(nlattr_bmask, NL_ATTR_BMASK_SIZE);
