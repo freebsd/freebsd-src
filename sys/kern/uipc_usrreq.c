@@ -724,6 +724,9 @@ uipc_detach(struct socket *so)
 	vp = NULL;
 	vplock = NULL;
 
+	if (!SOLISTENING(so))
+		unp_dispose(so);
+
 	UNP_LINK_WLOCK();
 	LIST_REMOVE(unp, unp_link);
 	if (unp->unp_gcflag & UNPGC_DEAD)
@@ -1660,18 +1663,62 @@ uipc_sense(struct socket *so, struct stat *sb)
 }
 
 static int
-uipc_shutdown(struct socket *so)
+uipc_shutdown(struct socket *so, enum shutdown_how how)
 {
-	struct unpcb *unp;
+	struct unpcb *unp = sotounpcb(so);
+	int error;
 
-	unp = sotounpcb(so);
-	KASSERT(unp != NULL, ("uipc_shutdown: unp == NULL"));
+	SOCK_LOCK(so);
+	if ((so->so_state &
+	    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0) {
+		/*
+		 * POSIX mandates us to just return ENOTCONN when shutdown(2) is
+		 * invoked on a datagram sockets, however historically we would
+		 * actually tear socket down.  This is known to be leveraged by
+		 * some applications to unblock process waiting in recv(2) by
+		 * other process that it shares that socket with.  Try to meet
+		 * both backward-compatibility and POSIX requirements by forcing
+		 * ENOTCONN but still flushing buffers and performing wakeup(9).
+		 *
+		 * XXXGL: it remains unknown what applications expect this
+		 * behavior and is this isolated to unix/dgram or inet/dgram or
+		 * both.  See: D10351, D3039.
+		 */
+		error = ENOTCONN;
+		if (so->so_type != SOCK_DGRAM) {
+			SOCK_UNLOCK(so);
+			return (error);
+		}
+	} else
+		error = 0;
+	if (SOLISTENING(so)) {
+		if (how != SHUT_WR) {
+			so->so_error = ECONNABORTED;
+			solisten_wakeup(so);    /* unlocks so */
+		} else
+			SOCK_UNLOCK(so);
+		return (0);
+	}
+	SOCK_UNLOCK(so);
 
-	UNP_PCB_LOCK(unp);
-	socantsendmore(so);
-	unp_shutdown(unp);
-	UNP_PCB_UNLOCK(unp);
-	return (0);
+	switch (how) {
+	case SHUT_RD:
+		socantrcvmore(so);
+		unp_dispose(so);
+		break;
+	case SHUT_RDWR:
+		socantrcvmore(so);
+		unp_dispose(so);
+		/* FALLTHROUGH */
+	case SHUT_WR:
+		UNP_PCB_LOCK(unp);
+		socantsendmore(so);
+		unp_shutdown(unp);
+		UNP_PCB_UNLOCK(unp);
+	}
+	wakeup(&so->so_timeo);
+
+	return (error);
 }
 
 static int
@@ -3146,7 +3193,8 @@ unp_gc(__unused void *arg, int pending)
 
 		so = unref[i]->f_data;
 		CURVNET_SET(so->so_vnet);
-		sorflush(so);
+		socantrcvmore(so);
+		unp_dispose(so);
 		CURVNET_RESTORE();
 	}
 
@@ -3203,15 +3251,15 @@ unp_dispose(struct socket *so)
 		 * XXXGL Mark sb with SBS_CANTRCVMORE.  This is needed to
 		 * prevent uipc_sosend_dgram() or unp_disconnect() adding more
 		 * data to the socket.
-		 * We are now in dom_dispose and it could be a call from
-		 * soshutdown() or from the final sofree().  The sofree() case
-		 * is simple as it guarantees that no more sends will happen,
-		 * however we can race with unp_disconnect() from our peer.
-		 * The shutdown(2) case is more exotic.  It would call into
-		 * dom_dispose() only if socket is SS_ISCONNECTED.  This is
-		 * possible if we did connect(2) on this socket and we also
-		 * had it bound with bind(2) and receive connections from other
-		 * sockets.  Because soshutdown() violates POSIX (see comment
+		 * We came here either through shutdown(2) or from the final
+		 * sofree().  The sofree() case is simple as it guarantees
+		 * that no more sends will happen, however we can race with
+		 * unp_disconnect() from our peer.  The shutdown(2) case is
+		 * more exotic.  It would call into unp_dispose() only if
+		 * socket is SS_ISCONNECTED.  This is possible if we did
+		 * connect(2) on this socket and we also had it bound with
+		 * bind(2) and receive connections from other sockets.
+		 * Because uipc_shutdown() violates POSIX (see comment
 		 * there) we will end up here shutting down our receive side.
 		 * Of course this will have affect not only on the peer we
 		 * connect(2)ed to, but also on all of the peers who had
@@ -3288,8 +3336,7 @@ unp_scan(struct mbuf *m0, void (*op)(struct filedescent **, int))
  */
 static struct protosw streamproto = {
 	.pr_type =		SOCK_STREAM,
-	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS|
-				    PR_CAPATTACH,
+	.pr_flags =		PR_CONNREQUIRED | PR_WANTRCVD | PR_CAPATTACH,
 	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_abort = 		uipc_abort,
 	.pr_accept =		uipc_peeraddr,
@@ -3315,8 +3362,7 @@ static struct protosw streamproto = {
 
 static struct protosw dgramproto = {
 	.pr_type =		SOCK_DGRAM,
-	.pr_flags =		PR_ATOMIC | PR_ADDR |PR_RIGHTS | PR_CAPATTACH |
-				    PR_SOCKBUF,
+	.pr_flags =		PR_ATOMIC | PR_ADDR | PR_CAPATTACH | PR_SOCKBUF,
 	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_abort = 		uipc_abort,
 	.pr_accept =		uipc_peeraddr,
@@ -3344,8 +3390,8 @@ static struct protosw seqpacketproto = {
 	 * due to our use of sbappendaddr.  A new sbappend variants is needed
 	 * that supports both atomic record writes and control data.
 	 */
-	.pr_flags =		PR_ADDR|PR_ATOMIC|PR_CONNREQUIRED|
-				    PR_WANTRCVD|PR_RIGHTS|PR_CAPATTACH,
+	.pr_flags =		PR_ADDR | PR_ATOMIC | PR_CONNREQUIRED |
+				PR_WANTRCVD | PR_CAPATTACH,
 	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_abort =		uipc_abort,
 	.pr_accept =		uipc_peeraddr,
@@ -3372,7 +3418,6 @@ static struct domain localdomain = {
 	.dom_family =		AF_LOCAL,
 	.dom_name =		"local",
 	.dom_externalize =	unp_externalize,
-	.dom_dispose =		unp_dispose,
 	.dom_nprotosw =		3,
 	.dom_protosw =		{
 		&streamproto,

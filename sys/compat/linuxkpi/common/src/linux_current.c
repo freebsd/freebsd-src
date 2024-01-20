@@ -315,7 +315,7 @@ linux_current_init(void *arg __unused)
 	uma_zone_reserve(linux_current_zone, lkpi_task_resrv);
 	uma_prealloc(linux_current_zone, lkpi_task_resrv);
 	linux_mm_zone = uma_zcreate("lkpimm",
-	    sizeof(struct task_struct), NULL, NULL, NULL, NULL,
+	    sizeof(struct mm_struct), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 	uma_zone_reserve(linux_mm_zone, lkpi_task_resrv);
 	uma_prealloc(linux_mm_zone, lkpi_task_resrv);

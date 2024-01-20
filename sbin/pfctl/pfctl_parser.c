@@ -1051,6 +1051,8 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 		opts = 1;
 	if (r->rule_flag & PFRULE_STATESLOPPY)
 		opts = 1;
+	if (r->rule_flag & PFRULE_PFLOW)
+		opts = 1;
 	for (i = 0; !opts && i < PFTM_MAX; ++i)
 		if (r->timeout[i])
 			opts = 1;
@@ -1121,6 +1123,12 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 			if (!opts)
 				printf(", ");
 			printf("sloppy");
+			opts = 0;
+		}
+		if (r->rule_flag & PFRULE_PFLOW) {
+			if (!opts)
+				printf(", ");
+			printf("pflow");
 			opts = 0;
 		}
 		for (i = 0; i < PFTM_MAX; ++i)

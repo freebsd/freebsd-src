@@ -775,14 +775,39 @@ sctp_disconnect(struct socket *so)
 }
 
 int
-sctp_flush(struct socket *so, int how)
+sctp_shutdown(struct socket *so, enum shutdown_how how)
 {
+	struct sctp_inpcb *inp = (struct sctp_inpcb *)so->so_pcb;
 	struct epoch_tracker et;
 	struct sctp_tcb *stcb;
+	struct sctp_association *asoc;
+	struct sctp_nets *netp;
 	struct sctp_queued_to_read *control, *ncontrol;
-	struct sctp_inpcb *inp;
 	struct mbuf *m, *op_err;
 	bool need_to_abort = false;
+	int error = 0;
+
+	MPASS(inp);
+
+	if (!((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+	    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)))
+		return (EOPNOTSUPP);
+
+	SOCK_LOCK(so);
+	if ((so->so_state &
+	    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0) {
+		SOCK_UNLOCK(so);
+		return (ENOTCONN);
+	}
+	if (SOLISTENING(so)) {
+		if (how != SHUT_WR) {
+			so->so_error = ECONNABORTED;
+			solisten_wakeup(so);	/* unlocks so */
+		} else
+			SOCK_UNLOCK(so);
+		return (0);
+	}
+	SOCK_UNLOCK(so);
 
 	/*
 	 * For 1-to-1 style sockets, flush the read queue and trigger an
@@ -790,106 +815,67 @@ sctp_flush(struct socket *so, int how)
 	 * messages are lost. Loosing notifications does not need to be
 	 * signalled to the peer.
 	 */
-	if (how == PRU_FLUSH_WR) {
-		/* This function is only relevant for the read directions. */
-		return (0);
-	}
-	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == NULL) {
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
-		return (EINVAL);
-	}
-	SCTP_INP_WLOCK(inp);
-	if (inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) {
-		/* For 1-to-many style sockets this function does nothing. */
-		SCTP_INP_WUNLOCK(inp);
-		return (0);
-	}
-	stcb = LIST_FIRST(&inp->sctp_asoc_list);
-	if (stcb != NULL) {
-		SCTP_TCB_LOCK(stcb);
-	}
-	SCTP_INP_READ_LOCK(inp);
-	inp->sctp_flags |= SCTP_PCB_FLAGS_SOCKET_CANT_READ;
-	SOCK_LOCK(so);
-	TAILQ_FOREACH_SAFE(control, &inp->read_queue, next, ncontrol) {
-		if ((control->spec_flags & M_NOTIFICATION) == 0) {
-			need_to_abort = true;
+	switch (how) {
+	case SHUT_RD:
+	case SHUT_RDWR:
+		SCTP_INP_WLOCK(inp);
+		stcb = LIST_FIRST(&inp->sctp_asoc_list);
+		if (stcb != NULL) {
+			SCTP_TCB_LOCK(stcb);
 		}
-		TAILQ_REMOVE(&inp->read_queue, control, next);
-		control->on_read_q = 0;
-		for (m = control->data; m; m = SCTP_BUF_NEXT(m)) {
-			sctp_sbfree(control, control->stcb, &so->so_rcv, m);
-		}
-		if (control->on_strm_q == 0) {
-			sctp_free_remote_addr(control->whoFrom);
-			if (control->data) {
-				sctp_m_freem(control->data);
-				control->data = NULL;
+		SCTP_INP_READ_LOCK(inp);
+		inp->sctp_flags |= SCTP_PCB_FLAGS_SOCKET_CANT_READ;
+		SOCK_LOCK(so);
+		TAILQ_FOREACH_SAFE(control, &inp->read_queue, next, ncontrol) {
+			if ((control->spec_flags & M_NOTIFICATION) == 0) {
+				need_to_abort = true;
 			}
-			sctp_free_a_readq(stcb, control);
-		} else {
-			stcb->asoc.size_on_all_streams += control->length;
+			TAILQ_REMOVE(&inp->read_queue, control, next);
+			control->on_read_q = 0;
+			for (m = control->data; m; m = SCTP_BUF_NEXT(m)) {
+				sctp_sbfree(control, control->stcb,
+				    &so->so_rcv, m);
+			}
+			if (control->on_strm_q == 0) {
+				sctp_free_remote_addr(control->whoFrom);
+				if (control->data) {
+					sctp_m_freem(control->data);
+					control->data = NULL;
+				}
+				sctp_free_a_readq(stcb, control);
+			} else {
+				stcb->asoc.size_on_all_streams +=
+				    control->length;
+			}
 		}
-	}
-	SOCK_UNLOCK(so);
-	SCTP_INP_READ_UNLOCK(inp);
-	if (need_to_abort && (stcb != NULL)) {
-		inp->last_abort_code = SCTP_FROM_SCTP_USRREQ + SCTP_LOC_6;
+		SOCK_UNLOCK(so);
+		SCTP_INP_READ_UNLOCK(inp);
+		if (need_to_abort && (stcb != NULL)) {
+			inp->last_abort_code = SCTP_FROM_SCTP_USRREQ +
+			    SCTP_LOC_6;
+			SCTP_INP_WUNLOCK(inp);
+			op_err = sctp_generate_cause(SCTP_CAUSE_OUT_OF_RESC,
+			    "");
+			NET_EPOCH_ENTER(et);
+			sctp_abort_an_association(inp, stcb, op_err, false,
+			    SCTP_SO_LOCKED);
+			NET_EPOCH_EXIT(et);
+
+			error = ECONNABORTED;
+			goto out;
+		}
+		if (stcb != NULL) {
+			SCTP_TCB_UNLOCK(stcb);
+		}
 		SCTP_INP_WUNLOCK(inp);
-		op_err = sctp_generate_cause(SCTP_CAUSE_OUT_OF_RESC, "");
-		NET_EPOCH_ENTER(et);
-		sctp_abort_an_association(inp, stcb, op_err, false, SCTP_SO_LOCKED);
-		NET_EPOCH_EXIT(et);
-		return (ECONNABORTED);
-	}
-	if (stcb != NULL) {
-		SCTP_TCB_UNLOCK(stcb);
-	}
-	SCTP_INP_WUNLOCK(inp);
-	return (0);
-}
+		socantrcvmore(so);
+		if (how == SHUT_RD)
+			break;
+		/* FALLTHROUGH */
 
-int
-sctp_shutdown(struct socket *so)
-{
-	struct sctp_inpcb *inp;
-
-	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == NULL) {
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
-		return (EINVAL);
-	}
-	SCTP_INP_RLOCK(inp);
-	/* For UDP model this is a invalid call */
-	if (!((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
-	    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL))) {
-		/* Restore the flags that the soshutdown took away. */
-		SOCKBUF_LOCK(&so->so_rcv);
-		so->so_rcv.sb_state &= ~SBS_CANTRCVMORE;
-		SOCKBUF_UNLOCK(&so->so_rcv);
-		/* This proc will wakeup for read and do nothing (I hope) */
-		SCTP_INP_RUNLOCK(inp);
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EOPNOTSUPP);
-		return (EOPNOTSUPP);
-	} else {
-		/*
-		 * Ok, if we reach here its the TCP model and it is either a
-		 * SHUT_WR or SHUT_RDWR. This means we put the shutdown flag
-		 * against it.
-		 */
-		struct epoch_tracker et;
-		struct sctp_tcb *stcb;
-		struct sctp_association *asoc;
-		struct sctp_nets *netp;
-
-		if ((so->so_state &
-		    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0) {
-			SCTP_INP_RUNLOCK(inp);
-			return (ENOTCONN);
-		}
+	case SHUT_WR:
+		SCTP_INP_RLOCK(inp);
 		socantsendmore(so);
-
 		stcb = LIST_FIRST(&inp->sctp_asoc_list);
 		if (stcb == NULL) {
 			/*
@@ -898,14 +884,14 @@ sctp_shutdown(struct socket *so)
 			 * now.
 			 */
 			SCTP_INP_RUNLOCK(inp);
-			return (0);
+			goto out;
 		}
 		SCTP_TCB_LOCK(stcb);
 		asoc = &stcb->asoc;
 		if (asoc->state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 			SCTP_TCB_UNLOCK(stcb);
 			SCTP_INP_RUNLOCK(inp);
-			return (0);
+			goto out;
 		}
 		if ((SCTP_GET_STATE(stcb) != SCTP_STATE_COOKIE_WAIT) &&
 		    (SCTP_GET_STATE(stcb) != SCTP_STATE_COOKIE_ECHOED) &&
@@ -916,7 +902,7 @@ sctp_shutdown(struct socket *so)
 			 */
 			SCTP_TCB_UNLOCK(stcb);
 			SCTP_INP_RUNLOCK(inp);
-			return (0);
+			goto out;
 		}
 		NET_EPOCH_ENTER(et);
 		if (stcb->asoc.alternate) {
@@ -961,7 +947,7 @@ sctp_shutdown(struct socket *so)
 				sctp_abort_an_association(stcb->sctp_ep, stcb,
 				    op_err, false, SCTP_SO_LOCKED);
 				NET_EPOCH_EXIT(et);
-				return (0);
+				goto out;
 			}
 		}
 		/*
@@ -972,8 +958,11 @@ sctp_shutdown(struct socket *so)
 		SCTP_TCB_UNLOCK(stcb);
 		SCTP_INP_RUNLOCK(inp);
 		NET_EPOCH_EXIT(et);
-		return (0);
 	}
+out:
+	wakeup(&so->so_timeo);
+
+	return (error);
 }
 
 /*
@@ -7523,7 +7512,6 @@ sctp_peeraddr(struct socket *so, struct sockaddr *sa)
 	.pr_close =	sctp_close,				\
 	.pr_detach =	sctp_close,				\
 	.pr_sopoll =	sopoll_generic,				\
-	.pr_flush =	sctp_flush,				\
 	.pr_disconnect = sctp_disconnect,			\
 	.pr_listen =	sctp_listen,				\
 	.pr_peeraddr =	sctp_peeraddr,				\

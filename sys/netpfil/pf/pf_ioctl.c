@@ -304,6 +304,7 @@ VNET_DEFINE(pfsync_update_state_t *, pfsync_update_state_ptr);
 VNET_DEFINE(pfsync_delete_state_t *, pfsync_delete_state_ptr);
 VNET_DEFINE(pfsync_clear_states_t *, pfsync_clear_states_ptr);
 VNET_DEFINE(pfsync_defer_t *, pfsync_defer_ptr);
+VNET_DEFINE(pflow_export_state_t *, pflow_export_state_ptr);
 pfsync_detach_ifnet_t *pfsync_detach_ifnet_ptr;
 
 /* pflog */
@@ -5482,7 +5483,7 @@ pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_
 	/* copy from state */
 	strlcpy(sp->pfs_1301.ifname, st->kif->pfik_name, sizeof(sp->pfs_1301.ifname));
 	bcopy(&st->rt_addr, &sp->pfs_1301.rt_addr, sizeof(sp->pfs_1301.rt_addr));
-	sp->pfs_1301.creation = htonl(time_uptime - st->creation);
+	sp->pfs_1301.creation = htonl(time_uptime - (st->creation / 1000));
 	sp->pfs_1301.expire = pf_state_expires(st);
 	if (sp->pfs_1301.expire <= time_uptime)
 		sp->pfs_1301.expire = htonl(0);
@@ -5573,7 +5574,7 @@ pf_state_export(struct pf_state_export *sp, struct pf_kstate *st)
 	strlcpy(sp->orig_ifname, st->orig_kif->pfik_name,
 	    sizeof(sp->orig_ifname));
 	bcopy(&st->rt_addr, &sp->rt_addr, sizeof(sp->rt_addr));
-	sp->creation = htonl(time_uptime - st->creation);
+	sp->creation = htonl(time_uptime - (st->creation / 1000));
 	sp->expire = pf_state_expires(st);
 	if (sp->expire <= time_uptime)
 		sp->expire = htonl(0);
@@ -5784,9 +5785,11 @@ done:
 static void
 pf_clear_all_states(void)
 {
+	struct epoch_tracker	 et;
 	struct pf_kstate	*s;
 	u_int i;
 
+	NET_EPOCH_ENTER(et);
 	for (i = 0; i <= pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 relock:
@@ -5800,6 +5803,7 @@ relock:
 		}
 		PF_HASHROW_UNLOCK(ih);
 	}
+	NET_EPOCH_EXIT(et);
 }
 
 static int
@@ -5943,6 +5947,8 @@ pf_clear_states(const struct pf_kstate_kill *kill)
 	int		 idx;
 	unsigned int	 killed = 0, dir;
 
+	NET_EPOCH_ASSERT();
+
 	for (unsigned int i = 0; i <= pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 
@@ -6006,6 +6012,7 @@ pf_killstates(struct pf_kstate_kill *kill, unsigned int *killed)
 {
 	struct pf_kstate	*s;
 
+	NET_EPOCH_ASSERT();
 	if (kill->psk_pfcmp.id) {
 		if (kill->psk_pfcmp.creatorid == 0)
 			kill->psk_pfcmp.creatorid = V_pf_status.hostid;
@@ -6019,14 +6026,13 @@ pf_killstates(struct pf_kstate_kill *kill, unsigned int *killed)
 
 	for (unsigned int i = 0; i <= pf_hashmask; i++)
 		*killed += pf_killstates_row(kill, &V_pf_idhash[i]);
-
-	return;
 }
 
 static int
 pf_killstates_nv(struct pfioc_nv *nv)
 {
 	struct pf_kstate_kill	 kill;
+	struct epoch_tracker	 et;
 	nvlist_t		*nvl = NULL;
 	void			*nvlpacked = NULL;
 	int			 error = 0;
@@ -6053,7 +6059,9 @@ pf_killstates_nv(struct pfioc_nv *nv)
 	if (error)
 		ERROUT(error);
 
+	NET_EPOCH_ENTER(et);
 	pf_killstates(&kill, &killed);
+	NET_EPOCH_EXIT(et);
 
 	free(nvlpacked, M_NVLIST);
 	nvlpacked = NULL;
@@ -6085,6 +6093,7 @@ static int
 pf_clearstates_nv(struct pfioc_nv *nv)
 {
 	struct pf_kstate_kill	 kill;
+	struct epoch_tracker	 et;
 	nvlist_t		*nvl = NULL;
 	void			*nvlpacked = NULL;
 	int			 error = 0;
@@ -6111,7 +6120,9 @@ pf_clearstates_nv(struct pfioc_nv *nv)
 	if (error)
 		ERROUT(error);
 
+	NET_EPOCH_ENTER(et);
 	killed = pf_clear_states(&kill);
+	NET_EPOCH_EXIT(et);
 
 	free(nvlpacked, M_NVLIST);
 	nvlpacked = NULL;

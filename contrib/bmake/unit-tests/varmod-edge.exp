@@ -1,7 +1,7 @@
 make: "varmod-edge.mk" line 184: ok M-paren
 make: "varmod-edge.mk" line 184: ok M-mixed
 make: "varmod-edge.mk" line 184: ok M-unescape
-make: Unclosed variable expression, expecting '}' for modifier "U*)" of variable "" with value "*)"
+make: Unclosed expression, expecting '}' for modifier "U*)" of variable "" with value "*)"
 make: "varmod-edge.mk" line 184: ok M-nest-mix
 make: "varmod-edge.mk" line 184: ok M-nest-brk
 make: "varmod-edge.mk" line 184: ok M-pat-err

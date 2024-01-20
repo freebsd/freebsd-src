@@ -1059,8 +1059,8 @@ _cleanworldtmp: .PHONY
 .if ${USING_SYSTEM_COMPILER} == "yes"
 .for cc in cc c++
 	if [ -x ${WORLDTMP}/usr/bin/${cc} ]; then \
-		inum=$$(stat -f %i ${WORLDTMP}/usr/bin/${cc}); \
-		find ${WORLDTMP}/usr/bin -inum $${inum} -delete; \
+		inum=$$(ls -i ${WORLDTMP}/usr/bin/${cc}); \
+		find ${WORLDTMP}/usr/bin -inum $${inum%% *} -delete; \
 	fi
 .endfor
 .endif	# ${USING_SYSTEM_COMPILER} == "yes"

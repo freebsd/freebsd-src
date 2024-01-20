@@ -827,16 +827,29 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 }
 
 static int
-rip6_shutdown(struct socket *so)
+rip6_shutdown(struct socket *so, enum shutdown_how how)
 {
-	struct inpcb *inp;
 
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("rip6_shutdown: inp == NULL"));
+	SOCK_LOCK(so);
+	if (!(so->so_state & SS_ISCONNECTED)) {
+		SOCK_UNLOCK(so);
+		return (ENOTCONN);
+	}
+	SOCK_UNLOCK(so);
 
-	INP_WLOCK(inp);
-	socantsendmore(so);
-	INP_WUNLOCK(inp);
+	switch (how) {
+	case SHUT_RD:
+		socantrcvmore(so);
+		sbrelease(so, SO_RCV);
+		break;
+	case SHUT_RDWR:
+		socantrcvmore(so);
+		sbrelease(so, SO_RCV);
+		/* FALLTHROUGH */
+	case SHUT_WR:
+		socantsendmore(so);
+	}
+
 	return (0);
 }
 

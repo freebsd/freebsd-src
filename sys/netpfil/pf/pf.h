@@ -614,6 +614,7 @@ struct pf_rule {
 #define	PFRULE_SET_TOS		0x00002000
 #define	PFRULE_IFBOUND		0x00010000 /* if-bound */
 #define	PFRULE_STATESLOPPY	0x00020000 /* sloppy state tracking */
+#define	PFRULE_PFLOW		0x00040000
 
 #ifdef _KERNEL
 #define	PFRULE_REFS		0x0080	/* rule has references */
@@ -626,7 +627,7 @@ struct pf_rule {
 /* pf_state->state_flags, pf_rule_actions->flags, pf_krule->scrub_flags */
 #define	PFSTATE_ALLOWOPTS	0x0001
 #define	PFSTATE_SLOPPY		0x0002
-/*  was	PFSTATE_PFLOW		0x0004 */
+#define	PFSTATE_PFLOW		0x0004
 #define	PFSTATE_NOSYNC		0x0008
 #define	PFSTATE_ACK		0x0010
 #define	PFSTATE_NODF		0x0020
