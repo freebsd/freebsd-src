@@ -55,7 +55,7 @@ mach_indep_targets = [
     "cleanuniverse",
     "universe",
     "universe-toolchain",
-    "tinderbox"
+    "tinderbox",
     "worlds",
     "kernels",
     "kernel-toolchains",
