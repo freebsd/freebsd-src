@@ -26,6 +26,7 @@
 
 #include <sys/cdefs.h>
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_ipsec.h"
 
 #include <sys/param.h>
@@ -42,10 +43,13 @@
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+
+#include <netinet6/ip6_var.h>
 
 #include <net/vnet.h>
 
@@ -116,7 +120,6 @@ udp_ipsec_input(struct mbuf *m, int off, int af)
 	union sockaddr_union dst;
 	struct secasvar *sav;
 	struct udphdr *udp;
-	struct ip *ip;
 	uint32_t spi;
 	int hlen;
 
@@ -141,7 +144,9 @@ udp_ipsec_input(struct mbuf *m, int off, int af)
 	dst.sa.sa_family = af;
 	switch (af) {
 #ifdef INET
-	case AF_INET:
+	case AF_INET: {
+		struct ip *ip;
+
 		dst.sin.sin_len = sizeof(struct sockaddr_in);
 		ip = mtod(m, struct ip *);
 		ip->ip_p = IPPROTO_ESP;
@@ -149,11 +154,20 @@ udp_ipsec_input(struct mbuf *m, int off, int af)
 		hlen = ip->ip_hl << 2;
 		dst.sin.sin_addr = ip->ip_dst;
 		break;
+	}
 #endif
 #ifdef INET6
-	case AF_INET6:
-		/* Not yet */
-		/* FALLTHROUGH */
+	case AF_INET6: {
+		struct ip6_hdr *ip6;
+
+		dst.sin6.sin6_len = sizeof(struct sockaddr_in6);
+		ip6 = mtod(m, struct ip6_hdr *);
+		ip6->ip6_nxt = IPPROTO_ESP;
+		off = offsetof(struct ip6_hdr, ip6_nxt);
+		hlen = sizeof(struct ip6_hdr);
+		dst.sin6.sin6_addr = ip6->ip6_dst;
+		break;
+	}
 #endif
 	default:
 		ESPSTAT_INC(esps_nopf);
@@ -192,12 +206,30 @@ udp_ipsec_input(struct mbuf *m, int off, int af)
 	 *   <-skip->
 	 */
 	m_striphdr(m, hlen, sizeof(*udp));
+
 	/*
 	 * We cannot yet update the cksums so clear any h/w cksum flags
 	 * as they are no longer valid.
 	 */
-	if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID)
-		m->m_pkthdr.csum_flags &= ~(CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+	switch (af) {
+#ifdef INET
+	case AF_INET:
+		if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID)
+			m->m_pkthdr.csum_flags &= ~(CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+		break;
+#endif /* INET */
+#ifdef INET6
+	case AF_INET6:
+		if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID_IPV6)
+			m->m_pkthdr.csum_flags &= ~(CSUM_DATA_VALID_IPV6 | CSUM_PSEUDO_HDR);
+		break;
+#endif /* INET6 */
+	default:
+		ESPSTAT_INC(esps_nopf);
+		m_freem(m);
+		return (EPFNOSUPPORT);
+	}
+
 	/*
 	 * We can update ip_len and ip_sum here, but ipsec4_input_cb()
 	 * will do this anyway, so don't touch them here.
@@ -212,16 +244,29 @@ udp_ipsec_output(struct mbuf *m, struct secasvar *sav)
 {
 	struct udphdr *udp;
 	struct mbuf *n;
-	struct ip *ip;
 	int hlen, off;
 
 	IPSEC_ASSERT(sav->natt != NULL, ("UDP encapsulation isn't required."));
 
-	if (sav->sah->saidx.dst.sa.sa_family == AF_INET6)
+	switch (sav->sah->saidx.dst.sa.sa_family) {
+#ifdef INET
+	case AF_INET: {
+		struct ip *ip;
+		ip = mtod(m, struct ip *);
+		hlen = ip->ip_hl << 2;
+		break;
+	}
+#endif
+#ifdef INET6
+	case AF_INET6:
+		hlen = sizeof(struct ip6_hdr);
+		break;
+#endif
+	default:
+		ESPSTAT_INC(esps_nopf);
 		return (EAFNOSUPPORT);
+	}
 
-	ip = mtod(m, struct ip *);
-	hlen = ip->ip_hl << 2;
 	n = m_makespace(m, hlen, sizeof(*udp), &off);
 	if (n == NULL) {
 		DPRINTF(("%s: m_makespace for udphdr failed\n", __func__));
@@ -234,9 +279,38 @@ udp_ipsec_output(struct mbuf *m, struct secasvar *sav)
 	udp->uh_sum = 0;
 	udp->uh_ulen = htons(m->m_pkthdr.len - hlen);
 
-	ip = mtod(m, struct ip *);
-	ip->ip_len = htons(m->m_pkthdr.len);
-	ip->ip_p = IPPROTO_UDP;
+	switch (sav->sah->saidx.dst.sa.sa_family) {
+#ifdef INET
+	case AF_INET: {
+		struct ip *ip;
+
+		ip = mtod(m, struct ip *);
+		ip->ip_len = htons(m->m_pkthdr.len);
+		ip->ip_p = IPPROTO_UDP;
+		break;
+	}
+#endif
+#ifdef INET6
+	case AF_INET6: {
+		struct ip6_hdr *ip6;
+
+		ip6 = mtod(m, struct ip6_hdr *);
+		KASSERT(ip6->ip6_nxt == IPPROTO_ESP,
+		    ("unexpected next header type %d", ip6->ip6_nxt));
+		ip6->ip6_plen = htons(m->m_pkthdr.len);
+		ip6->ip6_nxt = IPPROTO_UDP;
+		udp->uh_sum = in6_cksum_pseudo(ip6,
+		    m->m_pkthdr.len - hlen, ip6->ip6_nxt, 0);
+		m->m_pkthdr.csum_flags = CSUM_UDP_IPV6;
+		m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
+		break;
+	}
+#endif
+	default:
+		ESPSTAT_INC(esps_nopf);
+		return (EAFNOSUPPORT);
+	}
+
 	return (0);
 }
 
@@ -244,7 +318,6 @@ void
 udp_ipsec_adjust_cksum(struct mbuf *m, struct secasvar *sav, int proto,
     int skip)
 {
-	struct ip *ip;
 	uint16_t cksum, off;
 
 	IPSEC_ASSERT(sav->natt != NULL, ("NAT-T isn't required"));
@@ -270,22 +343,67 @@ udp_ipsec_adjust_cksum(struct mbuf *m, struct secasvar *sav, int proto,
 			if (proto == IPPROTO_TCP) {
 				/* Ignore for TCP. */
 				m->m_pkthdr.csum_data = 0xffff;
-				m->m_pkthdr.csum_flags |= (CSUM_DATA_VALID |
-				    CSUM_PSEUDO_HDR);
+				switch (sav->sah->saidx.dst.sa.sa_family) {
+#ifdef INET
+				case AF_INET:
+					m->m_pkthdr.csum_flags |= (CSUM_DATA_VALID |
+					    CSUM_PSEUDO_HDR);
+					break;
+#endif
+#ifdef INET6
+				case AF_INET6:
+					m->m_pkthdr.csum_flags |= (CSUM_DATA_VALID_IPV6 |
+					    CSUM_PSEUDO_HDR);
+					break;
+#endif
+				default:
+					break;
+				}
 				return;
 			}
 			cksum = 0; /* Reset for UDP. */
 		}
 		m_copyback(m, skip + off, sizeof(cksum), (caddr_t)&cksum);
 	} else { /* Fully recompute */
-		ip = mtod(m, struct ip *);
-		cksum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
-		    htons(m->m_pkthdr.len - skip + proto));
-		m_copyback(m, skip + off, sizeof(cksum), (caddr_t)&cksum);
-		m->m_pkthdr.csum_flags =
-		    (proto == IPPROTO_UDP) ? CSUM_UDP: CSUM_TCP;
-		m->m_pkthdr.csum_data = off;
-		in_delayed_cksum(m);
-		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+		switch (sav->sah->saidx.dst.sa.sa_family) {
+#ifdef INET
+		case AF_INET: {
+			struct ip *ip;
+
+			ip = mtod(m, struct ip *);
+			cksum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
+			    htons(m->m_pkthdr.len - skip + proto));
+			m_copyback(m, skip + off, sizeof(cksum),
+		            (caddr_t)&cksum);
+			m->m_pkthdr.csum_flags =
+			    (proto == IPPROTO_UDP) ? CSUM_UDP : CSUM_TCP;
+			m->m_pkthdr.csum_data = off;
+			in_delayed_cksum(m);
+			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+			break;
+		}
+#endif
+#ifdef INET6
+		case AF_INET6: {
+			struct ip6_hdr *ip6;
+
+			ip6 = mtod(m, struct ip6_hdr *);
+			cksum = in6_cksum_pseudo(ip6, m->m_pkthdr.len - skip,
+			   proto, 0);
+			m_copyback(m, skip + off, sizeof(cksum),
+			   (caddr_t)&cksum);
+			m->m_pkthdr.csum_flags =
+			   (proto == IPPROTO_UDP) ? CSUM_UDP_IPV6 : CSUM_TCP_IPV6;
+			m->m_pkthdr.csum_data = off;
+			in6_delayed_cksum(m,
+			   m->m_pkthdr.len - sizeof(struct ip6_hdr),
+			   sizeof(struct ip6_hdr));
+			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
+			break;
+		}
+#endif
+		default:
+			break;
+		}
 	}
 }

@@ -636,14 +636,6 @@ div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 }
 
 static int
-div_shutdown(struct socket *so)
-{
-
-	socantsendmore(so);
-	return 0;
-}
-
-static int
 div_pcblist(SYSCTL_HANDLER_ARGS)
 {
 	struct xinpgen xig;
@@ -720,7 +712,6 @@ static struct protosw div_protosw = {
 	.pr_bind =		div_bind,
 	.pr_detach =		div_detach,
 	.pr_send =		div_send,
-	.pr_shutdown =		div_shutdown,
 };
 
 static struct domain divertdomain = {

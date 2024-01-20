@@ -168,7 +168,7 @@ udp_get_inpcbinfo(int protocol)
 int		udp_ctloutput(struct socket *, struct sockopt *);
 void		udplite_input(struct mbuf *, int);
 struct inpcb	*udp_notify(struct inpcb *inp, int errno);
-int		udp_shutdown(struct socket *so);
+int		udp_shutdown(struct socket *, enum shutdown_how);
 
 int		udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f,
 		    udp_tun_icmp_t i, void *ctx);

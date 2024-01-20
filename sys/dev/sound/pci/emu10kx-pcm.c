@@ -1477,7 +1477,8 @@ emu_pcm_attach(device_t dev)
 	if (route == RT_MCHRECORD)
 		pcm_addchan(dev, PCMDIR_REC, &emufxrchan_class, sc);
 
-	snprintf(status, SND_STATUSLEN, "on %s", device_get_nameunit(device_get_parent(dev)));
+	snprintf(status, SND_STATUSLEN, "on %s",
+	    device_get_nameunit(device_get_parent(dev)));
 	pcm_setstatus(dev, status);
 
 	return (0);

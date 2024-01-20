@@ -1,4 +1,4 @@
-# $Id: init.mk,v 1.27 2022/01/01 17:32:18 sjg Exp $
+# $Id: init.mk,v 1.30 2023/10/03 16:25:01 sjg Exp $
 #
 #	@(#) Copyright (c) 2002, Simon J. Gerraty
 #
@@ -32,6 +32,11 @@ _this_mk_dir := ${.PARSEDIR}
 # should have been set by sys.mk
 CXX_SUFFIXES?= .cc .cpp .cxx .C
 
+.if defined(PROG_CXX) || ${SRCS:Uno:${CXX_SUFFIXES:S,^,N*,:ts:}} != ${SRCS:Uno:N/}
+_CCLINK ?=	${CXX}
+.endif
+_CCLINK ?=	${CC}
+
 .if !empty(WARNINGS_SET) || !empty(WARNINGS_SET_${MACHINE_ARCH})
 .include <warnings.mk>
 .endif
@@ -51,6 +56,7 @@ QUALIFIED_VAR_LIST += \
 	CPPFLAGS \
 	CPUFLAGS \
 	LDFLAGS \
+	SRCS \
 
 # a final :U avoids errors if someone uses :=
 .for V in ${QUALIFIED_VAR_LIST:O:u:@q@$q $q_LAST@}

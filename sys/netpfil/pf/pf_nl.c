@@ -169,7 +169,7 @@ dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
 	nlattr_add_string(nw, PF_ST_IFNAME, s->kif->pfik_name);
 	nlattr_add_string(nw, PF_ST_ORIG_IFNAME, s->orig_kif->pfik_name);
 	dump_addr(nw, PF_ST_RT_ADDR, &s->rt_addr, af);
-	nlattr_add_u32(nw, PF_ST_CREATION, time_uptime - s->creation);
+	nlattr_add_u32(nw, PF_ST_CREATION, time_uptime - (s->creation / 1000));
 	uint32_t expire = pf_state_expires(s);
 	if (expire > time_uptime)
 		expire = expire - time_uptime;
@@ -646,10 +646,6 @@ pf_handle_addrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (error);
 }
 
-struct nl_parsed_getrules {
-	char		*anchor;
-	uint8_t		 action;
-};
 #define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct pfioc_rule, _field)
 static const struct nlattr_parser nla_p_getrules[] = {

@@ -787,24 +787,50 @@ sdp_accept(struct socket *so, struct sockaddr *sa)
  * Mark the connection as being incapable of further output.
  */
 static int
-sdp_shutdown(struct socket *so)
+sdp_shutdown(struct socket *so, enum shutdown_how how)
 {
+	struct sdp_sock *ssk = sdp_sk(so);
 	int error = 0;
-	struct sdp_sock *ssk;
 
-	ssk = sdp_sk(so);
-	SDP_WLOCK(ssk);
-	if (ssk->flags & (SDP_TIMEWAIT | SDP_DROPPED)) {
-		error = ECONNRESET;
-		goto out;
+	SOCK_LOCK(so);
+	if ((so->so_state &
+	    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0) {
+		SOCK_UNLOCK(so);
+		return (ENOTCONN);
 	}
-	socantsendmore(so);
-	sdp_usrclosed(ssk);
-	if (!(ssk->flags & SDP_DROPPED))
-		sdp_output_disconnect(ssk);
+	if (SOLISTENING(so)) {
+		if (how != SHUT_WR) {
+			so->so_error = ECONNABORTED;
+			solisten_wakeup(so);	/* unlocks so */
+		} else
+			SOCK_UNLOCK(so);
+		return (0);
+	}
+	SOCK_UNLOCK(so);
 
-out:
-	SDP_WUNLOCK(ssk);
+	switch (how) {
+	case SHUT_RD:
+		socantrcvmore(so);
+		sbrelease(so, SO_RCV);
+		break;
+	case SHUT_RDWR:
+		socantrcvmore(so);
+		sbrelease(so, SO_RCV);
+		/* FALLTHROUGH */
+	case SHUT_WR:
+		SDP_WLOCK(ssk);
+		if (ssk->flags & (SDP_TIMEWAIT | SDP_DROPPED)) {
+			SDP_WUNLOCK(ssk);
+			error = ECONNRESET;
+			break;
+		}
+		socantsendmore(so);
+		sdp_usrclosed(ssk);
+		if (!(ssk->flags & SDP_DROPPED))
+			sdp_output_disconnect(ssk);
+		SDP_WUNLOCK(ssk);
+	}
+	wakeup(&so->so_timeo);
 
 	return (error);
 }

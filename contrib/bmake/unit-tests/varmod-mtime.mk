@@ -1,4 +1,4 @@
-# $NetBSD: varmod-mtime.mk,v 1.5 2023/08/19 08:19:25 rillig Exp $
+# $NetBSD: varmod-mtime.mk,v 1.9 2023/12/17 14:07:22 rillig Exp $
 #
 # Tests for the ':mtime' variable modifier, which maps each word of the
 # expression to that file's modification time.
@@ -41,6 +41,16 @@ not_found_mtime:=	${no/such/file:L:mtime}
 .endif
 
 
+# The fallback timestamp must only be an integer, without trailing characters.
+# expect+2: Invalid argument '123x' for modifier ':mtime'
+# expect+1: Malformed conditional (${no/such/file:L:mtime=123x})
+.if ${no/such/file:L:mtime=123x}
+.  error
+.else
+.  error
+.endif
+
+
 # The timestamp of a newly created file must be at least as great as the
 # timestamp when parsing of this makefile started.
 COOKIE=	${TMPDIR:U/tmp}/varmod-mtime.cookie
@@ -74,9 +84,42 @@ _!=	rm -f ${COOKIE}
 .endif
 
 
+# Only the word 'error' can be used as a fallback argument to the modifier.
+# expect+2: Invalid argument 'warn' for modifier ':mtime'
+# expect+1: Malformed conditional (${MAKEFILE:mtime=warn} > 0)
+.if ${MAKEFILE:mtime=warn} > 0
+.  error
+.else
+.  error
+.endif
+
+
 # Ensure that the fallback for a missing modification time is indeed the
 # current time, and not any later time.
 end:=	${%s:L:gmtime}
 .if ${not_found_mtime} > ${end}
+.  error
+.endif
+
+
+# If the expression is irrelevant, the ':mtime' modifier is only parsed, it
+# does not perform any filesystem operations.
+.if 0 && ${no/such/file:L:mtime=error}
+.  error
+.endif
+
+
+# If there is a typo in the modifier name, it does not match.
+# expect+2: Unknown modifier "mtim"
+# expect+1: Malformed conditional (${anything:L:mtim})
+.if ${anything:L:mtim}
+.  error
+.else
+.  error
+.endif
+
+
+# An empty word list results in an empty mtime list.
+.if ${:U:mtime} != ""
 .  error
 .endif

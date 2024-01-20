@@ -1,4 +1,4 @@
-# $NetBSD: moderrs.mk,v 1.30 2021/06/21 08:28:37 rillig Exp $
+# $NetBSD: moderrs.mk,v 1.31 2023/11/19 22:32:44 rillig Exp $
 #
 # various modifier error tests
 
@@ -34,11 +34,11 @@ mod-unknown-indirect: print-header print-footer
 	@echo 'VAR:${MOD_UNKN}=before-${VAR:${MOD_UNKN}:inner}-after'
 
 unclosed-direct: print-header print-footer
-	@echo 'want: Unclosed variable expression, expecting $'}$' for modifier "S,V,v," of variable "VAR" with value "Thevariable"'
+	@echo 'want: Unclosed expression, expecting $'}$' for modifier "S,V,v," of variable "VAR" with value "Thevariable"'
 	@echo VAR:S,V,v,=${VAR:S,V,v,
 
 unclosed-indirect: print-header print-footer
-	@echo 'want: Unclosed variable expression after indirect modifier, expecting $'}$' for variable "VAR"'
+	@echo 'want: Unclosed expression after indirect modifier, expecting $'}$' for variable "VAR"'
 	@echo VAR:${MOD_TERM},=${VAR:${MOD_S}
 
 unfinished-indirect: print-header print-footer

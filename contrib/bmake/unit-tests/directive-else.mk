@@ -1,4 +1,4 @@
-# $NetBSD: directive-else.mk,v 1.8 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: directive-else.mk,v 1.9 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for the .else directive.
 #
@@ -45,7 +45,7 @@
 .else # comment
 .endif
 
-# A variable expression does count as an argument, even if it is empty.
+# An expression does count as an argument, even if it is empty.
 .if 0
 # expect+1: The .else directive does not take arguments
 .else ${:U}

@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 11, 2018
+.Dd January 2, 2024
 .Dt MOUNT_CD9660 8
 .Os
 .Sh NAME
@@ -39,8 +39,12 @@
 .Nm
 .Op Fl begjrv
 .Op Fl C Ar charset
+.Op Fl G Ar gid
+.Op Fl m Ar mask
+.Op Fl M Ar mask
 .Op Fl o Ar options
 .Op Fl s Ar startsector
+.Op Fl U Ar uid
 .Ar special node
 .Sh DESCRIPTION
 The
@@ -66,6 +70,37 @@ Do not strip version numbers on files.
 only the last one will be listed.)
 In either case, files may be opened without explicitly stating a
 version number.
+.It Fl G Ar group
+Set the group of the files in the file system to
+.Ar group .
+The default gid on non-Rockridge volumes is zero.
+.It Fl U Ar user
+Set the owner of the files in the file system to
+.Ar user .
+The default uid on non-Rockridge volumes is zero.
+.It Fl m Ar mask
+Specify the maximum file permissions for files
+in the file system.
+(For example, a
+.Ar mask
+of
+.Li 755
+specifies that, by default, the owner should have
+read, write, and execute permissions for files, but
+others should only have read and execute permissions).
+See
+.Xr chmod 1
+for more information about octal file modes.
+Only the nine low-order bits of
+.Ar mask
+are used.
+The default
+.Ar mask
+on non-Rockridge volumes is 755.
+.It Fl M Ar mask
+Specify the maximum file permissions for directories
+in the file system.
+See the previous option's description for details.
 .It Fl j
 Do not use any Joliet extensions included in the file system.
 .It Fl o

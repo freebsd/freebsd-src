@@ -10,6 +10,16 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+0b49e504a32d:
+	rc.d/jail now supports the legacy variable jail_${jailname}_zfs_dataset
+	to allow unmaintained jail managers like ezjail to make use of this
+	feature (simply rename jail_${jailname}_zfs_datasets in the ezjail
+	config to jail_${jailname}_zfs_dataset.
+
+e0dfe185cbca:
+	jail(8) now support zfs.dataset to add a list of ZFS datasets to a
+        jail.
+
 61174ad88e33:
 	newsyslog(8) now supports specifying a global compression method directly
 	at the beginning of the newsyslog.conf file, which will make newsyslog(8)
