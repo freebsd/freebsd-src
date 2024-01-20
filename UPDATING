@@ -12,6 +12,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240119:
+	Commit d34f4baaf138 changed the internal interface between
+	the nfscommon and nfscl modules.  As such, both need to be
+	rebuilt from sources.  Therefore, bump __FreeBSD_version
+	to 1400506.
+
 20231229:
 	Commit 925d9b3abac2 modified the internal API between
 	the nfscommon and nfscl modules.
