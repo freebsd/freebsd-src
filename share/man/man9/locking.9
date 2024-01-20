@@ -274,7 +274,9 @@ for details.
 Giant is a special mutex used to protect data structures that do not
 yet have their own locks.
 Since it provides semantics akin to the old
-.Xr spl 9
+.Ec
+.Sy spl 9
+.Eo
 interface,
 Giant has special characteristics:
 .Bl -enum
