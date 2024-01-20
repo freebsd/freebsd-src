@@ -124,14 +124,20 @@ db_read_bytes(vm_offset_t addr, size_t size, char *data)
 
 	if (ret == 0) {
 		src = (const char *)addr;
+
+		/*
+		 * Perform a native-sized memory access, if possible. This
+		 * enables reading from MMIO devices that don't support single
+		 * byte access.
+		 */
 		if (size == 8 && (addr & 7) == 0) {
-			tmp64 = *((const int *)src);
+			tmp64 = *((const uint64_t *)src);
 			src = (const char *)&tmp64;
 		} else if (size == 4 && (addr & 3) == 0) {
-			tmp32 = *((const int *)src);
+			tmp32 = *((const uint32_t *)src);
 			src = (const char *)&tmp32;
 		} else if (size == 2 && (addr & 1) == 0) {
-			tmp16 = *((const short *)src);
+			tmp16 = *((const uint16_t *)src);
 			src = (const char *)&tmp16;
 		}
 		while (size-- > 0)

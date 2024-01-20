@@ -414,6 +414,18 @@ out:
 	return (error);
 }
 
+static bool
+ncl_bioread_dora(struct vnode *vp)
+{
+	vm_object_t obj;
+
+	obj = vp->v_object;
+	if (obj == NULL)
+		return (true);
+	return (!vm_object_mightbedirty(vp->v_object) &&
+	    vp->v_object->un_pager.vnp.writemappings == 0);
+}
+
 /*
  * Vnode op for read using bio
  */
@@ -486,9 +498,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		 * unlocked read by nfsiod could obliterate changes
 		 * done by userspace.
 		 */
-		if (nmp->nm_readahead > 0 &&
-		    !vm_object_mightbedirty(vp->v_object) &&
-		    vp->v_object->un_pager.vnp.writemappings == 0) {
+		if (nmp->nm_readahead > 0 && ncl_bioread_dora(vp)) {
 		    for (nra = 0; nra < nmp->nm_readahead && nra < seqcount &&
 			(off_t)(lbn + 1 + nra) * biosize < nsize; nra++) {
 			rabn = lbn + 1 + nra;
@@ -675,9 +685,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		 *  directory offset cookie of the next block.)
 		 */
 		NFSLOCKNODE(np);
-		if (nmp->nm_readahead > 0 &&
-		    !vm_object_mightbedirty(vp->v_object) &&
-		    vp->v_object->un_pager.vnp.writemappings == 0 &&
+		if (nmp->nm_readahead > 0 && ncl_bioread_dora(vp) &&
 		    (bp->b_flags & B_INVAL) == 0 &&
 		    (np->n_direofoffset == 0 ||
 		    (lbn + 1) * NFS_DIRBLKSIZ < np->n_direofoffset) &&

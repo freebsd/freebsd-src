@@ -164,7 +164,8 @@ ttyinq_read_uio(struct ttyinq *ti, struct tty *tp, struct uio *uio,
     size_t rlen, size_t flen)
 {
 
-	MPASS(rlen <= uio->uio_resid);
+	/* rlen includes flen, flen bytes will be trimmed from the end. */
+	MPASS(rlen - flen <= uio->uio_resid);
 
 	while (rlen > 0) {
 		int error;
@@ -190,6 +191,14 @@ ttyinq_read_uio(struct ttyinq *ti, struct tty *tp, struct uio *uio,
 		clen = cend - cbegin;
 		MPASS(clen >= flen);
 		rlen -= clen;
+
+		/*
+		 * Caller shouldn't request that we trim anything if we might be
+		 * reading across blocks.  We could handle it, but today we do
+		 * not.
+		 */
+		if (flen > 0)
+			MPASS(rlen == 0);
 
 		/*
 		 * We can prevent buffering in some cases:
@@ -343,6 +352,55 @@ ttyinq_canonicalize(struct ttyinq *ti)
 
 	ti->ti_linestart = ti->ti_reprint = ti->ti_end;
 	ti->ti_startblock = ti->ti_reprintblock = ti->ti_lastblock;
+}
+
+/*
+ * Canonicalize at one of the break characters; we'll work backwards from the
+ * lastblock to firstblock to try and find the latest one.
+ */
+void
+ttyinq_canonicalize_break(struct ttyinq *ti, const char *breakc)
+{
+	struct ttyinq_block *tib = ti->ti_lastblock;
+	unsigned int canon, off;
+	unsigned int boff;
+
+	/* No block, no change needed. */
+	if (tib == NULL || ti->ti_end == 0)
+		return;
+
+	/* Start just past the end... */
+	off = ti->ti_end;
+	canon = 0;
+
+	while (off > 0) {
+		if ((off % TTYINQ_DATASIZE) == 0)
+			tib = tib->tib_prev;
+
+		off--;
+		boff = off % TTYINQ_DATASIZE;
+
+		if (strchr(breakc, tib->tib_data[boff]) && !GETBIT(tib, boff)) {
+			canon = off + 1;
+			break;
+		}
+	}
+
+	MPASS(canon > 0 || off == 0);
+
+	/*
+	 * We should only be able to hit bcanon == 0 if we walked everything we
+	 * have and didn't find any of the break characters, so if bcanon == 0
+	 * then tib is already the correct block and we should avoid touching
+	 * it.
+	 *
+	 * For all other scenarios, if canon lies on a block boundary then tib
+	 * has already advanced to the previous block.
+	 */
+	if (canon != 0 && (canon % TTYINQ_DATASIZE) == 0)
+		tib = tib->tib_next;
+	ti->ti_linestart = ti->ti_reprint = canon;
+	ti->ti_startblock = ti->ti_reprintblock = tib;
 }
 
 size_t

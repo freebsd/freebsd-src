@@ -1329,6 +1329,9 @@ getaddr(int idx, char *str, int nrflags)
 	q = strchr(str,'/');
 	if (q != NULL && idx == RTAX_DST) {
 		/* A.B.C.D/NUM */
+		struct sockaddr_in *mask;
+		uint32_t mask_bits;
+
 		*q = '\0';
 		if (inet_aton(str, &sin->sin_addr) == 0)
 			errx(EX_NOHOST, "bad address: %s", str);
@@ -1338,6 +1341,20 @@ getaddr(int idx, char *str, int nrflags)
 			errx(EX_NOHOST, "bad mask length: %s", q + 1);
 
 		inet_makemask((struct sockaddr_in *)&so[RTAX_NETMASK],masklen);
+
+		/*
+		 * Check for bogus destination such as "10/8"; heuristic is
+		 * that there are bits set in the host part, and no dot
+		 * is present.
+		 */
+		mask = ((struct sockaddr_in *) &so[RTAX_NETMASK]);
+		mask_bits = ntohl(mask->sin_addr.s_addr);
+		if ((ntohl(sin->sin_addr.s_addr) & ~mask_bits) != 0 &&
+		    strchr(str, '.') == NULL)
+			errx(EX_NOHOST,
+			    "malformed address, bits set after mask;"
+			    " %s means %s",
+			    str, inet_ntoa(sin->sin_addr));
 		return (0);
 	}
 	if (inet_aton(str, &sin->sin_addr) != 0)

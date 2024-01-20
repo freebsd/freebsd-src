@@ -1,7 +1,7 @@
-# $NetBSD: opt-debug-lint.mk,v 1.15 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: opt-debug-lint.mk,v 1.16 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for the -dL command line option, which runs additional checks
-# to catch common mistakes, such as unclosed variable expressions.
+# to catch common mistakes, such as unclosed expressions.
 
 .MAKEFLAGS: -dL
 
@@ -91,7 +91,7 @@ ${UNDEF}: ${UNDEF}
 #
 # Before var.c 1.856 from 2021-03-14, this regular expression was then
 # compiled even though that was not necessary for checking the syntax at the
-# level of variable expressions.  The unexpanded '$' then resulted in a wrong
+# level of expressions.  The unexpanded '$' then resulted in a wrong
 # error message.
 #
 # This only happened in lint mode since in default mode the early check for

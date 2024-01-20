@@ -78,6 +78,7 @@ size_t	ttyinq_write(struct ttyinq *ti, const void *buf, size_t len,
 int	ttyinq_write_nofrag(struct ttyinq *ti, const void *buf, size_t len,
     int quote);
 void	ttyinq_canonicalize(struct ttyinq *ti);
+void	ttyinq_canonicalize_break(struct ttyinq *ti, const char *breakc);
 size_t	ttyinq_findchar(struct ttyinq *ti, const char *breakc, size_t maxlen,
     char *lastc);
 void	ttyinq_flush(struct ttyinq *ti);

@@ -81,6 +81,7 @@ SUBDIR.${MK_NVME}+=	nvmecontrol
 SUBDIR.${MK_OPENSSL}+=	decryptcore
 SUBDIR.${MK_PF}+=	pfctl
 SUBDIR.${MK_PF}+=	pflogd
+SUBDIR.${MK_PF}+=	pflowctl
 SUBDIR.${MK_QUOTAS}+=	quotacheck
 SUBDIR.${MK_ROUTED}+=	routed
 SUBDIR.${MK_VERIEXEC}+=	veriexec

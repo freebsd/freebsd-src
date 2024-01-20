@@ -1,4 +1,4 @@
-# $NetBSD: deptgt-makeflags.mk,v 1.7 2021/11/29 00:17:10 rillig Exp $
+# $NetBSD: deptgt-makeflags.mk,v 1.9 2023/11/19 22:32:44 rillig Exp $
 #
 # Tests for the special target .MAKEFLAGS in dependency declarations,
 # which adds command line options later, at parse time.
@@ -65,9 +65,9 @@
 .endif
 
 # Next try at defining another newline variable.  Since whitespace around the
-# variable value is trimmed, two empty variable expressions ${:U} surround the
+# variable value is trimmed, two empty expressions ${:U} surround the
 # literal newline now.  This prevents the newline from being skipped during
-# parsing.  The ':=' assignment operator expands the empty variable
+# parsing.  The ':=' assignment operator expands the empty
 # expressions, leaving only the newline as the variable value.
 #
 # This is one of the very few ways (maybe even the only one) to inject literal

@@ -56,7 +56,6 @@ etc/sendmail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
 fetch		des	Pre-commit review requested, email only.
 fusefs(5)	asomers	Pre-commit review requested.
 geli		pjd	Pre-commit review requested (both sys/geom/eli/ and sbin/geom/class/eli/).
-isci(4)		jimharris	Pre-commit review requested.
 iwm(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 iwn(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 kqueue		jmg	Pre-commit review requested.  Documentation Required.
@@ -71,9 +70,9 @@ lpr		gad	Pre-commit review requested, particularly for
 nanobsd		imp	Pre-commit phabricator review requested.
 net80211	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 nfs		freebsd-fs@FreeBSD.org, rmacklem is best for reviews.
-nvd(4)		jimharris	Pre-commit review requested.
-nvme(4)		jimharris	Pre-commit review requested.
-nvmecontrol(8)	jimharris	Pre-commit review requested.
+nvd(4)		imp	Pre-commit review requested.
+nvme(4)		imp	Pre-commit review requested.
+nvmecontrol(8)	imp	Pre-commit review requested.
 opencrypto	jmg	Pre-commit review requested.  Documentation Required.
 openssh		des	Pre-commit review requested, email only.
 openssl		benl	Pre-commit review requested.
@@ -97,19 +96,13 @@ share/mk/*.test.mk	imp,bapt,bdrewery,	Pre-commit review requested.
 stand/forth		dteske	Pre-commit review requested.
 stand/lua		kevans	Pre-commit review requested
 stand			imp	Pre-commit review strongly requested.
-sys/compat/linuxkpi	hselasky		If in doubt, ask.
-			zeising, johalun	pre-commit review requested via
-						#x11 phabricator group.
-						(to avoid drm graphics drivers
-						impact)
+sys/compat/linuxkpi		pre-commit review requested via #linuxkpi phabricator group.
 sys/contrib/dev/ice	erj	Pre-commit phabricator review requested.
 sys/netpfil/ipfilter	cy	Pre-commit review requested.
 sys/dev/e1000	erj	Pre-commit phabricator review requested.
 sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
 sys/dev/ixl	erj	Pre-commit phabricator review requested.
 sys/dev/ice	erj	Pre-commit phabricator review requested.
-sys/dev/sound/usb	hselasky	If in doubt, ask.
-sys/dev/usb	hselasky	If in doubt, ask.
 sys/dev/xen	royger		Pre-commit review recommended.
 sys/netinet/ip_carp.c	glebius	Pre-commit review recommended.
 sys/netpfil/pf	kp,glebius	Pre-commit review recommended.
@@ -132,8 +125,6 @@ autofs(5)	trasz	Pre-commit review recommended.
 iscsi(4)	trasz	Pre-commit review recommended.
 rctl(8)		trasz	Pre-commit review recommended.
 sys/dev/ofw	nwhitehorn	Pre-commit review recommended.
-sys/dev/drm*	imp	Pre-commit review requested in phabricator. Changes need to
-			be mirrored in github repo.
 sys/dev/usb/wlan adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 sys/arm/allwinner	manu	Pre-commit review requested
 sys/arm64/rockchip	manu	Pre-commit review requested

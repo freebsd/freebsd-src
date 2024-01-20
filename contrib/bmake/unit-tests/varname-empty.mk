@@ -1,9 +1,9 @@
-# $NetBSD: varname-empty.mk,v 1.9 2021/04/04 10:13:09 rillig Exp $
+# $NetBSD: varname-empty.mk,v 1.10 2023/11/19 21:47:52 rillig Exp $
 #
 # Tests for the special variable with the empty name.
 #
 # There is no variable named "" at all, and this fact is used a lot in
-# variable expressions of the form ${:Ufallback}.  These expressions are
+# expressions of the form ${:Ufallback}.  These expressions are
 # based on the variable named "" and use the :U modifier to assign a
 # fallback value to the expression (but not to the variable).
 #

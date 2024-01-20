@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 30, 2023
+.Dd January 8, 2024
 .Dt SND_HDSPE 4
 .Os
 .Sh NAME
@@ -59,6 +59,13 @@ RME HDSPe AIO
 .It
 RME HDSPe RayDAT
 .El
+.Pp
+By default, each
+.Xr pcm 4
+device corresponds to a physical port on the sound card.
+For ADAT ports, 8 channel, 4 channel and 2 channel formats are supported.
+Depending on sample rate and channel format selected, not all pcm channels can
+be mapped to ADAT channels and vice versa.
 .Sh SYSCTL TUNABLES
 These settings and informational values can be accessed at runtime with the
 .Xr sysctl 8
@@ -111,3 +118,5 @@ The
 .Nm
 driver was written by
 .An Ruslan Bukin <br@bsdpad.com> .
+.An Florian Walpen <dev@submerge.ch>
+contributed clock source settings and restructured the pcm device mapping.
