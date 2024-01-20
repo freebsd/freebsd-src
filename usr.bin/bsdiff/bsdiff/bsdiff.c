@@ -39,6 +39,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -116,7 +117,7 @@ int main(int argc,char *argv[])
 {
 	int fd;
 	u_char *old,*new;
-	off_t oldsize,newsize;
+	off_t oldsize,newsize,xnewsize;
 	saidx_t *I;
 	off_t scan,pos,len;
 	off_t lastscan,lastpos,lastoffset;
@@ -148,10 +149,9 @@ int main(int argc,char *argv[])
 		err(1, "%s", argv[1]);
 	}
 
-	if (((old=malloc(oldsize+1))==NULL) ||
-		(lseek(fd,0,SEEK_SET)!=0) ||
-		(read(fd,old,oldsize)!=oldsize) ||
-		(close(fd)==-1)) err(1,"%s",argv[1]);
+	old = mmap(NULL, oldsize+1, PROT_READ, MAP_SHARED, fd, 0);
+	if (old == MAP_FAILED || close(fd) == -1)
+		err(1, "%s", argv[1]);
 
 	if(((I=malloc((oldsize+1)*sizeof(saidx_t)))==NULL)) err(1,NULL);
 
@@ -169,10 +169,9 @@ int main(int argc,char *argv[])
 		err(1, "%s", argv[2]);
 	}
 
-	if (((new=malloc(newsize+1))==NULL) ||
-		(lseek(fd,0,SEEK_SET)!=0) ||
-		(read(fd,new,newsize)!=newsize) ||
-		(close(fd)==-1)) err(1,"%s",argv[2]);
+	new = mmap(NULL, newsize+1, PROT_READ, MAP_SHARED, fd, 0);
+	if (new == MAP_FAILED || close(fd) == -1)
+		err(1, "%s", argv[2]);
 
 	if(((db=malloc(newsize+1))==NULL) ||
 		((eb=malloc(newsize+1))==NULL)) err(1,NULL);
@@ -305,9 +304,9 @@ int main(int argc,char *argv[])
 		errx(1, "BZ2_bzWriteClose, bz2err = %d", bz2err);
 
 	/* Compute size of compressed diff data */
-	if ((newsize = ftello(pf)) == -1)
+	if ((xnewsize = ftello(pf)) == -1)
 		err(1, "ftello");
-	offtout(newsize - len, header + 16);
+	offtout(xnewsize - len, header + 16);
 
 	/* Write compressed extra data */
 	if ((pfbz2 = BZ2_bzWriteOpen(&bz2err, pf, 9, 0, 0)) == NULL)
@@ -331,8 +330,8 @@ int main(int argc,char *argv[])
 	free(db);
 	free(eb);
 	free(I);
-	free(old);
-	free(new);
+	munmap(old, oldsize+1);
+	munmap(new, newsize+1);
 
 	return 0;
 }
