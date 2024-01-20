@@ -982,7 +982,7 @@ readDosDirSection(struct fat_descriptor *fat, struct dosDirEntry *dir)
 				n->next = pendingDirectories;
 				n->dir = d;
 				pendingDirectories = n;
-			} else {
+			} else if (!(mod & FSERROR)) {
 				mod |= k = checksize(fat, p, &dirent);
 				if (k & FSDIRMOD)
 					mod |= THISMOD;
