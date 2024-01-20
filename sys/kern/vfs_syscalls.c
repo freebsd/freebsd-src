@@ -1111,8 +1111,8 @@ sys_openat(struct thread *td, struct openat_args *uap)
 }
 
 int
-kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
-    int flags, int mode)
+kern_openat(struct thread *td, int dirfd, const char *path,
+    enum uio_seg pathseg, int flags, int mode)
 {
 	struct proc *p = td->td_proc;
 	struct filedesc *fdp;
@@ -1159,7 +1159,7 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 	fp->f_flag = flags & FMASK;
 	cmode = ((mode & ~pdp->pd_cmask) & ALLPERMS) & ~S_ISTXT;
 	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | AUDITVNODE1 | WANTIOCTLCAPS,
-	    pathseg, path, fd, &rights);
+	    pathseg, path, dirfd, &rights);
 	td->td_dupfd = -1;		/* XXX check for fdopen */
 	error = vn_open_cred(&nd, &flags, cmode, VN_OPEN_WANTIOCTLCAPS,
 	    td->td_ucred, fp);
