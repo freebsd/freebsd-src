@@ -2456,7 +2456,7 @@ dyn_send_keepalive_ipv4(struct ip_fw_chain *chain)
 		CK_SLIST_FOREACH(s, &V_dyn_ipv4[bucket], entry) {
 			/*
 			 * Only established TCP connections that will
-			 * become expired withing dyn_keepalive_interval.
+			 * become expired within dyn_keepalive_interval.
 			 */
 			if (s->proto != IPPROTO_TCP ||
 			    (s->data->state & BOTH_SYN) != BOTH_SYN ||
@@ -2563,7 +2563,7 @@ dyn_send_keepalive_ipv6(struct ip_fw_chain *chain)
 		CK_SLIST_FOREACH(s, &V_dyn_ipv6[bucket], entry) {
 			/*
 			 * Only established TCP connections that will
-			 * become expired withing dyn_keepalive_interval.
+			 * become expired within dyn_keepalive_interval.
 			 */
 			if (s->proto != IPPROTO_TCP ||
 			    (s->data->state & BOTH_SYN) != BOTH_SYN ||
