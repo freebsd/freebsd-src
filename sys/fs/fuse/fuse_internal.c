@@ -997,7 +997,7 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 		 * But there would be little payoff.
 		 */
 		SDT_PROBE2(fusefs, , internal, trace, 1,
-			"userpace version too low");
+			"userspace version too low");
 		err = EPROTONOSUPPORT;
 		goto out;
 	}
