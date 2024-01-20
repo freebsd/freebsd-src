@@ -1107,16 +1107,18 @@ int
 kern_openat(struct thread *td, int dirfd, const char *path,
     enum uio_seg pathseg, int flags, int mode)
 {
-	struct proc *p = td->td_proc;
+	struct proc *p;
 	struct filedesc *fdp;
 	struct pwddesc *pdp;
 	struct file *fp;
 	struct vnode *vp;
+	struct filecaps *fcaps;
 	struct nameidata nd;
 	cap_rights_t rights;
 	int cmode, error, indx;
 
 	indx = -1;
+	p = td->td_proc;
 	fdp = p->p_fd;
 	pdp = p->p_pd;
 
@@ -1222,8 +1224,6 @@ success:
 	 * If we haven't already installed the FD (for dupfdopen), do so now.
 	 */
 	if (indx == -1) {
-		struct filecaps *fcaps;
-
 #ifdef CAPABILITIES
 		if ((nd.ni_resflags & NIRES_STRICTREL) != 0)
 			fcaps = &nd.ni_filecaps;
