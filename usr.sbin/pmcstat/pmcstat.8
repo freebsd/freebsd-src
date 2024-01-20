@@ -485,16 +485,16 @@ The number of callchain records that had an
 value for a return address.
 .It "#exec handling errors"
 The number of
-.Xr exec 2
+.Xr exec 3
 events in the log file that named executables that could not be
 analyzed.
 .It "#exec/elf"
 The number of
-.Xr exec 2
+.Xr exec 3
 events that named ELF executables.
 .It "#exec/unknown"
 The number of
-.Xr exec 2
+.Xr exec 3
 events that named executables with unrecognized formats.
 .It "#samples/total"
 The total number of samples in the log file.
@@ -524,6 +524,7 @@ files are also only meaningful for native executables.
 .Xr gprof 1 ,
 .Xr nc 1 ,
 .Xr execvp 3 ,
+.Xr exec 3 ,
 .Xr pmc 3 ,
 .Xr pmclog 3 ,
 .Xr hwpmc 4 ,
