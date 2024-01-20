@@ -2325,9 +2325,7 @@ property of a zvol.
 When adding a zvol to the system, prefetch this many bytes
 from the start and end of the volume.
 Prefetching these regions of the volume is desirable,
-because they are likely to be accessed immediately by
-.Xr blkid 8
-or the kernel partitioner.
+because they are likely to be accessed immediately by the kernel partitioner.
 .
 .It Sy zvol_request_sync Ns = Ns Sy 0 Ns | Ns 1 Pq uint
 When processing I/O requests for a zvol, submit them synchronously.
