@@ -8,7 +8,7 @@
  * USB on the other.
  *
  * Thanx to FTDI (http://www.ftdi.co.uk) for so kindly providing details
- * of the protocol required to talk to the device and ongoing assistence
+ * of the protocol required to talk to the device and ongoing assistance
  * during development.
  *
  * Bill Ryder - bryder@sgi.com of Silicon Graphics, Inc. is the original
