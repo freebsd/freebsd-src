@@ -2537,8 +2537,7 @@ variable set, the variable name is \%\fBCOMMAND_LINE\fR\% and
 contains (as its name indicates) contents of the current (already
 typed in) command line. One can examine and use contents of the
 \%\fBCOMMAND_LINE\fR\% variable in her custom script to build more
-sophisticated completions (see completion for svn(1) included in
-this package).
+sophisticated completions.
 .PP
 Now for some examples.  Some commands take only directories as arguments,
 so there's no point completing plain files.
@@ -5350,7 +5349,7 @@ To detect looping, the shell restricts the number of \fIalias\fR
 substitutions on a single line to 20.
 .SH "SEE ALSO"
 csh(1), emacs(1), ls(1), newgrp(1), sh(1), setpath(1), stty(1), su(1),
-tset(1), vi(1), x(1), access(2), execve(2), fork(2), killpg(2),
+tset(1), vi(1), access(2), execve(2), fork(2), killpg(2),
 pipe(2), setrlimit(2), sigvec(2), stat(2), umask(2), vfork(2), wait(2),
 malloc(3), setlocale(3), tty(4), a.out(5), termcap(5), environ(7),
 termio(7), Introduction to the C Shell
