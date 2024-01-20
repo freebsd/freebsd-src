@@ -228,7 +228,7 @@ int     kern_nanosleep(struct thread *td, struct timespec *rqt,
 int	kern_ntp_adjtime(struct thread *td, struct timex *ntv, int *retvalp);
 int	kern_ogetdirentries(struct thread *td, struct ogetdirentries_args *uap,
 	    long *ploff);
-int	kern_openat(struct thread *td, int fd, const char *path,
+int	kern_openat(struct thread *td, int dirfd, const char *path,
 	    enum uio_seg pathseg, int flags, int mode);
 int	kern_pathconf(struct thread *td, const char *path,
 	    enum uio_seg pathseg, int name, u_long flags, long *valuep);
