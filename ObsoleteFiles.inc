@@ -51,6 +51,23 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240114: Removal of geom_map(4)
+OLD_FILES+=usr/share/man/man4/geom_map.4
+
+# 20240112: remove pmap_init2()
+OLD_FILES+=usr/share/man/man9/pmap_init2.9.gz
+
+# 20240112: remove pmap_pinit2()
+OLD_FILES+=usr/share/man/man9/pmap_pinit2.9.gz
+
+# 20240112: replaced NetBSD tests for uniq with our own
+OLD_FILES+=usr/tests/usr.bin/uniq/d_basic.in
+OLD_FILES+=usr/tests/usr.bin/uniq/d_basic.out
+OLD_FILES+=usr/tests/usr.bin/uniq/d_counts.out
+OLD_FILES+=usr/tests/usr.bin/uniq/d_input.in
+OLD_FILES+=usr/tests/usr.bin/uniq/d_show_duplicates.out
+OLD_FILES+=usr/tests/usr.bin/uniq/d_show_uniques.out
+
 # 20231208: new clang import which bumps version from 16 to 17
 OLD_FILES+=usr/lib/clang/16/include/__clang_cuda_builtin_vars.h
 OLD_FILES+=usr/lib/clang/16/include/__clang_cuda_cmath.h

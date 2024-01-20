@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 .include <bsd.compat.pre.mk>
@@ -11,6 +10,7 @@ SUBDIR=	${_atf} \
 	flua \
 	getty \
 	${_hyperv} \
+	kgdb \
 	${_mail.local} \
 	${_makewhatis.local} \
 	${_mknetid} \

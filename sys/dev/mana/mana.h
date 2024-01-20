@@ -137,6 +137,8 @@ struct mana_stats {
 	counter_u64_t			mbuf_alloc_fail;	/* rx */
 	counter_u64_t			alt_chg;		/* tx */
 	counter_u64_t			alt_reset;		/* tx */
+	counter_u64_t			cqe_err;		/* tx */
+	counter_u64_t			cqe_unknown_type;	/* tx */
 };
 
 struct mana_txq {

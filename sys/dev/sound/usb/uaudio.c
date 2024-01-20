@@ -1171,7 +1171,7 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 {
 	struct uaudio_softc *sc = device_get_softc(device_get_parent(dev));
 	unsigned i = uaudio_get_child_index_by_dev(sc, dev);
-	char status[SND_STATUSLEN];
+	char status[SND_STATUSLEN], desc[128];
 
 	uaudio_mixer_init(sc, i);
 
@@ -1199,7 +1199,13 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 
 	mixer_hwvol_init(dev);
 
-	snprintf(status, sizeof(status), "at ? %s", PCM_KLDSTRING(snd_uaudio));
+	snprintf(desc, sizeof(desc), "%s %s",
+	    usb_get_manufacturer(sc->sc_udev),
+	    usb_get_product(sc->sc_udev));
+	device_set_desc_copy(dev, desc);
+
+	snprintf(status, sizeof(status), "on %s",
+	    device_get_nameunit(device_get_parent(dev)));
 
 	if (pcm_register(dev, sc,
 	    (sc->sc_play_chan[i].num_alt > 0) ? 1 : 0,
@@ -6224,10 +6230,10 @@ uaudio_hid_detach(struct uaudio_softc *sc)
 	usbd_transfer_unsetup(sc->sc_hid.xfer, UAUDIO_HID_N_TRANSFER);
 }
 
-DRIVER_MODULE_ORDERED(uaudio, uhub, uaudio_driver, NULL, NULL, SI_ORDER_ANY);
-MODULE_DEPEND(uaudio, usb, 1, 1, 1);
-MODULE_DEPEND(uaudio, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
-MODULE_DEPEND(uaudio, hid, 1, 1, 1);
-MODULE_VERSION(uaudio, 1);
+DRIVER_MODULE_ORDERED(snd_uaudio, uhub, uaudio_driver, NULL, NULL, SI_ORDER_ANY);
+MODULE_DEPEND(snd_uaudio, usb, 1, 1, 1);
+MODULE_DEPEND(snd_uaudio, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_uaudio, hid, 1, 1, 1);
+MODULE_VERSION(snd_uaudio, 1);
 USB_PNP_HOST_INFO(uaudio_devs);
 USB_PNP_HOST_INFO(uaudio_vendor_midi);

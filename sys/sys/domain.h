@@ -54,8 +54,6 @@ struct domain {
 	int	(*dom_probe)(void);	/* check for support (optional) */
 	int	(*dom_externalize)	/* externalize access rights */
 		(struct mbuf *, struct mbuf **, int);
-	void	(*dom_dispose)		/* dispose of internalized rights */
-		(struct socket *);
 	struct rib_head *(*dom_rtattach)	/* initialize routing table */
 		(uint32_t);
 	void	(*dom_rtdetach)		/* clean up routing table */

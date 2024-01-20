@@ -9,7 +9,7 @@ name: Style Checker
 on:
   pull_request: # maybe pull_request_target
     branches: [ main ]
-    types: [ opened, reopened, edited ]
+    types: [ opened, reopened, edited, synchronize ]
 
 permissions:
   contents: read

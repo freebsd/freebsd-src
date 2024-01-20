@@ -450,10 +450,24 @@ rts_disconnect(struct socket *so)
 }
 
 static int
-rts_shutdown(struct socket *so)
+rts_shutdown(struct socket *so, enum shutdown_how how)
 {
+	/*
+	 * Note: route socket marks itself as connected through its lifetime.
+	 */
+	switch (how) {
+	case SHUT_RD:
+		socantrcvmore(so);
+		sbrelease(so, SO_RCV);
+		break;
+	case SHUT_RDWR:
+		socantrcvmore(so);
+		sbrelease(so, SO_RCV);
+		/* FALLTHROUGH */
+	case SHUT_WR:
+		socantsendmore(so);
+	}
 
-	socantsendmore(so);
 	return (0);
 }
 
