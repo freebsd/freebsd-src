@@ -1918,9 +1918,13 @@ enables directory-based extended attributes.
 This style of extended attribute imposes no practical limit
 on either the size or number of attributes which can be set on a file.
 Although under Linux the
-.Xr getxattr 2
+.Eo
+.Sy getxattr 2
+.Ec
 and
-.Xr setxattr 2
+.Eo
+.Sy setxattr 2
+.Ec
 system calls limit the maximum size to
 .Sy 64K .
 This is the most compatible
