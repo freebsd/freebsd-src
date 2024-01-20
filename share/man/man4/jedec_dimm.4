@@ -170,23 +170,31 @@ dev.jedec_dimm.6.type: DDR4
 .Sh COMPATIBILITY
 .Nm
 implements a superset of the functionality of the now-deleted
-.Xr jedec_ts 4 .
+.Eo
+.Sy jedec_ts 4 ,
+.Ec
 Hints for
-.Xr jedec_ts 4
+.Eo
+.Sy jedec_ts 4
+.Ec
 can be mechanically converted for use with
 .Nm .
 Two changes are required:
 .Bl -enum
 .It
 In all
-.Xr jedec_ts 4
+.Eo
+.Sy jedec_ts 4
+.Ec
 hints, replace
 .Dq jedec_ts
 with
 .Dq jedec_dimm
 .It
 In
-.Xr jedec_ts 4
+.Eo
+.Sy jedec_ts 4
+.Ec
 .Dq addr
 hints, replace the TSOD DTI
 .Dq 0x3
@@ -242,6 +250,8 @@ The
 driver and this manual page were written by
 .An Ravi Pokala Aq Mt rpokala@freebsd.org .
 They are both based in part on the now-deleted
-.Xr jedec_ts 4
+.Eo
+.Sy jedec_ts 4
+.Ec
 driver and manual page, written by
 .An Andriy Gapon Aq Mt avg@FreeBSD.org .
