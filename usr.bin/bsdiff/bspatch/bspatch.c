@@ -42,6 +42,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -220,12 +221,13 @@ int main(int argc, char *argv[])
 		errx(1, "BZ2_bzReadOpen, bz2err = %d", ebz2err);
 
 	if ((oldsize = lseek(oldfd, 0, SEEK_END)) == -1 ||
-	    oldsize > SSIZE_MAX ||
-	    (old = malloc(oldsize)) == NULL ||
-	    lseek(oldfd, 0, SEEK_SET) != 0 ||
-	    read(oldfd, old, oldsize) != oldsize ||
-	    close(oldfd) == -1)
+	    oldsize > SSIZE_MAX)
 		err(1, "%s", argv[1]);
+
+	old = mmap(NULL, oldsize+1, PROT_READ, MAP_SHARED, oldfd, 0);
+	if (old == MAP_FAILED || close(oldfd) != 0)
+		err(1, "%s", argv[1]);
+
 	if ((new = malloc(newsize)) == NULL)
 		err(1, NULL);
 
@@ -294,7 +296,7 @@ int main(int argc, char *argv[])
 	newfile = NULL;
 
 	free(new);
-	free(old);
+	munmap(old, oldsize+1);
 
 	return (0);
 }
