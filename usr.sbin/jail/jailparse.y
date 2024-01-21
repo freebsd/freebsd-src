@@ -234,16 +234,19 @@ extern int YYLEX_DECL();
 static void
 YYERROR_DECL()
 {
+	struct cflex *cflex = yyget_extra(scanner);
+
 	if (!yyget_text(scanner))
 		warnx("%s line %d: %s",
-		    yyget_extra(scanner)->cfname, yyget_lineno(scanner), s);
+		    cflex->cfname, yyget_lineno(scanner), s);
 	else if (!yyget_text(scanner)[0])
 		warnx("%s: unexpected EOF",
-		    yyget_extra(scanner)->cfname);
+		    cflex->cfname);
 	else
 		warnx("%s line %d: %s: %s",
-		    yyget_extra(scanner)->cfname, yyget_lineno(scanner),
+		    cflex->cfname, yyget_lineno(scanner),
 		    yyget_text(scanner), s);
+	cflex->error = 1;
 }
 
 /* Handle special parameters (i.e. the include directive).
