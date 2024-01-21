@@ -80,6 +80,7 @@ static OPTION const options[] = {
 	{ "-empty",	c_empty,	f_empty,	0 },
 	{ "-exec",	c_exec,		f_exec,		0 },
 	{ "-execdir",	c_exec,		f_exec,		F_EXECDIR },
+	{ "-executable", c_simple,	f_executable,	0 },
 	{ "-false",	c_simple,	f_false,	0 },
 #if HAVE_STRUCT_STAT_ST_FLAGS
 	{ "-flags",	c_flags,	f_flags,	0 },
@@ -154,6 +155,7 @@ static OPTION const options[] = {
 // -printf
 	{ "-prune",	c_simple,	f_prune,	0 },
 	{ "-quit",	c_simple,	f_quit,		0 },
+	{ "-readable",	c_simple,	f_readable,	0 },
 	{ "-regex",	c_regex,	f_regex,	0 },
 	{ "-samefile",	c_samefile,	f_inum,		0 },
 	{ "-size",	c_size,		f_size,		0 },
@@ -163,6 +165,7 @@ static OPTION const options[] = {
 	{ "-uid",	c_user,		f_user,		0 },
 	{ "-user",	c_user,		f_user,		0 },
 	{ "-wholename",	c_name,		f_path,		0 },
+	{ "-writable",	c_simple,	f_writable,	0 },
 	{ "-xdev",	c_xdev,		f_always_true,	0 },
 // -xtype
 };
