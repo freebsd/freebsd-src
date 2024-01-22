@@ -1395,7 +1395,7 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 
 	/*
 	 * Check if we received a PREP w/ AE and store target external address.
-	 * We may store target external address if recevied PREP w/ AE
+	 * We may store target external address if received PREP w/ AE
 	 * and we are not final destination
 	 */
 	if (prep->prep_flags & IEEE80211_MESHPREP_FLAGS_AE) {
