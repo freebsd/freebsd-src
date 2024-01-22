@@ -282,6 +282,37 @@ rule_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "max_entries" "cleanup"
+max_entries_head()
+{
+	atf_set descr 'Test that we can only create X pflow senders'
+	atf_set require.user root
+}
+
+max_entries_body()
+{
+	pflow_init
+
+	vnet_mkjail alcatraz
+
+	for i in `seq 1 128`
+	do
+		atf_check -s exit:0 -o ignore \
+		    jexec alcatraz pflowctl -c
+	done
+
+	# We cannot create the 129th pflow sender
+	atf_check -s exit:1 -o ignore -e ignore \
+	    jexec alcatraz pflowctl -c
+
+	jexec alcatraz pflowctl -l
+}
+
+max_entries_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "obs_dom" "cleanup"
 obs_dom_head()
 {
@@ -313,5 +344,6 @@ atf_init_test_cases()
 	atf_add_test_case "v6"
 	atf_add_test_case "nat"
 	atf_add_test_case "rule"
+	atf_add_test_case "max_entries"
 	atf_add_test_case "obs_dom"
 }

@@ -176,7 +176,7 @@ vnet_pflowattach(void)
 	CK_LIST_INIT(&V_pflowif_list);
 	mtx_init(&V_pflowif_list_mtx, "pflow interface list mtx", NULL, MTX_DEF);
 
-	V_pflow_unr = new_unrhdr(0, INT_MAX, &V_pflowif_list_mtx);
+	V_pflow_unr = new_unrhdr(0, PFLOW_MAX_ENTRIES - 1, &V_pflowif_list_mtx);
 
 	for (int i = 0; i < pflow_ncounters; i++)
 		V_pflowstats.c[i] = counter_u64_alloc(M_WAITOK);
@@ -1343,6 +1343,10 @@ pflow_nl_create(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	ghdr_new->reserved = 0;
 
 	unit = alloc_unr(V_pflow_unr);
+	if (unit == -1) {
+		nlmsg_abort(nw);
+		return (ENOMEM);
+	}
 
 	error = pflow_create(unit);
 	if (error != 0) {
