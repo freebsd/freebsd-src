@@ -2874,6 +2874,7 @@ wg_clone_destroy(struct if_clone *ifc, if_t ifp, uint32_t flags)
 
 	if (cred != NULL)
 		crfree(cred);
+	bpfdetach(sc->sc_ifp);
 	if_detach(sc->sc_ifp);
 	if_free(sc->sc_ifp);
 
