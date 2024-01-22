@@ -525,7 +525,7 @@ in6_getscopezone(const struct ifnet *ifp, int scope)
 }
 
 /*
- * Extracts scope from adddress @dst, stores cleared address
+ * Extracts scope from address @dst, stores cleared address
  * inside @dst and zone inside @scopeid
  */
 void
