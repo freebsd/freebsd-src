@@ -138,6 +138,13 @@ struct putchar_arg {
 	size_t	n_next;
 };
 
+void __weak_symbol
+xen_emergency_print(const char *str, size_t size)
+{
+	KASSERT((xen_domain()), ("call to xc_printf from non Xen guest"));
+	HYPERVISOR_console_write(str, size);
+}
+
 static void
 putchar(int c, void *arg)
 {
@@ -150,12 +157,12 @@ putchar(int c, void *arg)
 		 * We have no buffer, output directly to the
 		 * console char by char.
 		 */
-		HYPERVISOR_console_write((char *)&c, 1);
+		xen_emergency_print((char *)&c, 1);
 	} else {
 		pca->buf[pca->n_next++] = c;
 		if ((pca->size == pca->n_next) || (c = '\0')) {
 			/* Flush the buffer */
-			HYPERVISOR_console_write(pca->buf, pca->n_next);
+			xen_emergency_print(pca->buf, pca->n_next);
 			pca->n_next = 0;
 		}
 	}
@@ -177,15 +184,13 @@ xc_printf(const char *fmt, ...)
 	pca.size = 0;
 #endif
 
-	KASSERT((xen_domain()), ("call to xc_printf from non Xen guest"));
-
 	va_start(ap, fmt);
 	kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
 
 #ifdef PRINTF_BUFR_SIZE
 	if (pca.n_next != 0)
-		HYPERVISOR_console_write(buf, pca.n_next);
+		xen_emergency_print(buf, pca.n_next);
 #endif
 }
 

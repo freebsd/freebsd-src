@@ -95,6 +95,11 @@ TUNABLE_INT("hw.xen.disable_pv_nics", &xen_disable_pv_nics);
 
 /*---------------------- XEN Hypervisor Probe and Setup ----------------------*/
 
+void xen_emergency_print(const char *str, size_t size)
+{
+	outsb(XEN_HVM_DEBUGCONS_IOPORT, str, size);
+}
+
 uint32_t xen_cpuid_base;
 
 static uint32_t
