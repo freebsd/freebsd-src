@@ -1000,23 +1000,20 @@ hdspe_pcm_attach(device_t dev)
 {
 	char status[SND_STATUSLEN];
 	struct sc_pcminfo *scp;
-	char desc[64];
+	const char *buf;
 	int err;
 	int play, rec;
 
 	scp = device_get_ivars(dev);
 	scp->ih = &hdspe_pcm_intr;
 
-	bzero(desc, sizeof(desc));
 	if (scp->hc->ports & HDSPE_CHAN_AIO_ALL)
-		snprintf(desc, sizeof(desc), "HDSPe AIO [%s]",
-		    scp->hc->descr);
+		buf = "AIO";
 	else if (scp->hc->ports & HDSPE_CHAN_RAY_ALL)
-		snprintf(desc, sizeof(desc), "HDSPe RayDAT [%s]",
-		    scp->hc->descr);
+		buf = "RayDAT";
 	else
-		snprintf(desc, sizeof(desc), "HDSPe ? [%s]", scp->hc->descr);
-	device_set_desc_copy(dev, desc);
+		buf = "?";
+	device_set_descf(dev, "HDSPe %s [%s]", buf, scp->hc->descr);
 
 	/*
 	 * We don't register interrupt handler with snd_setup_intr

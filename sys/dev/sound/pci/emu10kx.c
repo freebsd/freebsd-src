@@ -2985,7 +2985,6 @@ emu_write_ivar(device_t bus __unused, device_t dev __unused,
 static int
 emu_pci_probe(device_t dev)
 {
-	struct sbuf *s;
 	unsigned int thiscard = 0;
 	uint16_t vendor;
 
@@ -2997,15 +2996,8 @@ emu_pci_probe(device_t dev)
 	if (thiscard == 0)
 		return (ENXIO);
 
-	s = sbuf_new(NULL, NULL, 4096, 0);
-	if (s == NULL)
-		return (ENOMEM);
-	sbuf_printf(s, "Creative %s [%s]", emu_cards[thiscard].desc, emu_cards[thiscard].SBcode);
-	sbuf_finish(s);
-
-	device_set_desc_copy(dev, sbuf_data(s));
-
-	sbuf_delete(s);
+	device_set_descf(dev, "Creative %s [%s]",
+	    emu_cards[thiscard].desc, emu_cards[thiscard].SBcode);
 
 	return (BUS_PROBE_DEFAULT);
 }

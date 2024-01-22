@@ -1298,7 +1298,6 @@ emu_pcm_probe(device_t dev)
 {
 	uintptr_t func, route;
 	const char *rt;
-	char buffer[255];
 
 	BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_FUNC, &func);
 
@@ -1328,8 +1327,7 @@ emu_pcm_probe(device_t dev)
 		break;
 	}
 
-	snprintf(buffer, 255, "EMU10Kx DSP %s PCM interface", rt);
-	device_set_desc_copy(dev, buffer);
+	device_set_descf(dev, "EMU10Kx DSP %s PCM interface", rt);
 	return (0);
 }
 

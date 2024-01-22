@@ -6577,14 +6577,12 @@ static int
 hdaa_probe(device_t dev)
 {
 	const char *pdesc;
-	char buf[128];
 
 	if (hda_get_node_type(dev) != HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO)
 		return (ENXIO);
 	pdesc = device_get_desc(device_get_parent(dev));
-	snprintf(buf, sizeof(buf), "%.*s Audio Function Group",
+	device_set_descf(dev, "%.*s Audio Function Group",
 	    (int)(strlen(pdesc) - 10), pdesc);
-	device_set_desc_copy(dev, buf);
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -6939,7 +6937,6 @@ hdaa_pcm_probe(device_t dev)
 	struct hdaa_devinfo *devinfo = pdevinfo->devinfo;
 	const char *pdesc;
 	char chans1[8], chans2[8];
-	char buf[128];
 	int loc1, loc2, t1, t2;
 
 	if (pdevinfo->playas >= 0)
@@ -6984,7 +6981,7 @@ hdaa_pcm_probe(device_t dev)
 	if (pdevinfo->digital)
 		t1 = -2;
 	pdesc = device_get_desc(device_get_parent(dev));
-	snprintf(buf, sizeof(buf), "%.*s (%s%s%s%s%s%s%s%s%s)",
+	device_set_descf(dev, "%.*s (%s%s%s%s%s%s%s%s%s)",
 	    (int)(strlen(pdesc) - 21), pdesc,
 	    loc1 >= 0 ? HDA_LOCS[loc1] : "", loc1 >= 0 ? " " : "",
 	    (pdevinfo->digital == 0x7)?"HDMI/DP":
@@ -6994,7 +6991,6 @@ hdaa_pcm_probe(device_t dev)
 	    chans1[0] ? " " : "", chans1,
 	    chans2[0] ? "/" : "", chans2,
 	    t1 >= 0 ? " " : "", t1 >= 0 ? HDA_DEVS[t1] : "");
-	device_set_desc_copy(dev, buf);
 	return (BUS_PROBE_SPECIFIC);
 }
 
