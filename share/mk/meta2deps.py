@@ -184,7 +184,7 @@ class MetaFile:
 
     def __init__(self, name, conf={}):
         """if name is set we will parse it now.
-        conf can have the follwing keys:
+        conf can have the following keys:
 
         SRCTOPS list of tops of the src tree(s).
 
