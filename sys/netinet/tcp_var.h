@@ -535,16 +535,6 @@ typedef enum {
 #define	TCP_FUNC_OUTPUT_CANDROP	0x02   	/* tfb_tcp_output may ask tcp_drop */
 
 /**
- * If defining the optional tcp_timers, in the
- * tfb_tcp_timer_stop call you must use the
- * callout_async_drain() function with the
- * tcp_timer_discard callback. You should check
- * the return of callout_async_drain() and if 0
- * increment tt_draincnt. Since the timer sub-system
- * does not know your callbacks you must provide a
- * stop_all function that loops through and calls
- * tcp_timer_stop() with each of your defined timers.
- *
  * Adding a tfb_tcp_handoff_ok function allows the socket
  * option to change stacks to query you even if the
  * connection is in a later stage. You return 0 to
