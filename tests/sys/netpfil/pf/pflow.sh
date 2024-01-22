@@ -282,6 +282,30 @@ rule_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "obs_dom" "cleanup"
+obs_dom_head()
+{
+	atf_set descr 'Test configuring observation domain values'
+	atf_set require.user root
+}
+
+obs_dom_body()
+{
+	pflow_init
+
+	vnet_mkjail alcatraz
+
+	pflow=$(jexec alcatraz pflowctl -c)
+	jexec alcatraz pflowctl -s ${pflow} domain 2300000000
+	atf_check -o match:".*domain 2300000000.*" -s exit:0 \
+	    jexec alcatraz pflowctl -l
+}
+
+obs_dom_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
@@ -289,4 +313,5 @@ atf_init_test_cases()
 	atf_add_test_case "v6"
 	atf_add_test_case "nat"
 	atf_add_test_case "rule"
+	atf_add_test_case "obs_dom"
 }

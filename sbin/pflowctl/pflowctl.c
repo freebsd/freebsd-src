@@ -340,7 +340,7 @@ get(int id)
 		if (! snl_parse_nlmsg(&ss, hdr, &get_parser, &g))
 			continue;
 
-		printf("pflow%d: version %d domain %d", g.id, g.version, g.obs_dom);
+		printf("pflow%d: version %d domain %u", g.id, g.version, g.obs_dom);
 		print_sockaddr(" src ", &g.src.storage);
 		print_sockaddr(" dst ", &g.dst.storage);
 		printf("\n");
