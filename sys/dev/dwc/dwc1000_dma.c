@@ -363,7 +363,7 @@ dwc_rxfinish_one(struct dwc_softc *sc, struct dwc_hwdesc *desc,
 		    (RDESC0_FS | RDESC0_LS)) {
 		/*
 		 * Something very wrong happens. The whole packet should be
-		 * recevied in one descriptr. Report problem.
+		 * received in one descriptor. Report problem.
 		 */
 		device_printf(sc->dev,
 		    "%s: RX descriptor without FIRST and LAST bit set: 0x%08X",
