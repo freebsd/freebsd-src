@@ -1098,7 +1098,7 @@ ipf_pool_flush(ipf_main_softc_t *softc, void *arg, iplookupflush_t *fp)
 /*              ipo(I) - pointer to pool structure                          */
 /* Locks:       WRITE(ipf_poolrw) or WRITE(ipf_global)                      */
 /*                                                                          */
-/* Deletes the pool strucutre passed in from the list of pools and deletes  */
+/* Deletes the pool structure passed in from the list of pools and deletes  */
 /* all of the address information stored in it, including any tree data     */
 /* structures also allocated.                                               */
 /*                                                                          */
