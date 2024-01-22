@@ -85,7 +85,7 @@
 
 bool __read_frequently trap_enotcap;
 SYSCTL_BOOL(_kern, OID_AUTO, trap_enotcap, CTLFLAG_RWTUN, &trap_enotcap, 0,
-    "Deliver SIGTRAP on ENOTCAPABLE");
+    "Deliver SIGTRAP on ECAPMODE and ENOTCAPABLE");
 
 #ifdef CAPABILITY_MODE
 
