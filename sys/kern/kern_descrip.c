@@ -3055,6 +3055,38 @@ get_locked:
 	return (error);
 }
 
+int
+fget_remote(struct thread *td, struct proc *p, int fd, struct file **fpp)
+{
+	struct filedesc *fdp;
+	struct file *fp;
+	int error;
+
+	if (p == td->td_proc)	/* curproc */
+		return (fget_unlocked(p->p_fd, fd, &cap_no_rights, fpp));
+
+	PROC_LOCK(p);
+	fdp = fdhold(p);
+	PROC_UNLOCK(p);
+	if (fdp == NULL)
+		return (ENOENT);
+	FILEDESC_SLOCK(fdp);
+	if (refcount_load(&fdp->fd_refcnt) != 0) {
+		fp = fget_locked(fdp, fd);
+		if (fp != NULL && fhold(fp)) {
+			*fpp = fp;
+			error = 0;
+		} else {
+			error = EBADF;
+		}
+	} else {
+		error = ENOENT;
+	}
+	FILEDESC_SUNLOCK(fdp);
+	fddrop(fdp);
+	return (error);
+}
+
 #ifdef CAPABILITIES
 int
 fgetvp_lookup_smr(int fd, struct nameidata *ndp, struct vnode **vpp, bool *fsearch)
