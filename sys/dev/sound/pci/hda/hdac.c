@@ -1101,10 +1101,8 @@ hdac_probe(device_t dev)
 		snprintf(desc, sizeof(desc), "Generic (0x%08x)", model);
 		result = BUS_PROBE_GENERIC;
 	}
-	if (result != ENXIO) {
-		strlcat(desc, " HDA Controller", sizeof(desc));
-		device_set_desc_copy(dev, desc);
-	}
+	if (result != ENXIO)
+		device_set_descf(dev, "%s HDA Controller", desc);
 
 	return (result);
 }

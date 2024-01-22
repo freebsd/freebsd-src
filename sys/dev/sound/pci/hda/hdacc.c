@@ -472,8 +472,7 @@ hdacc_probe(device_t dev)
 			    hdacc_codecs[i].name, hda_get_device_id(dev));
 	} else
 		snprintf(buf, sizeof(buf), "Generic (0x%04x)", id);
-	strlcat(buf, " HDA CODEC", sizeof(buf));
-	device_set_desc_copy(dev, buf);
+	device_set_descf(dev, "%s HDA CODEC", buf);
 	return (BUS_PROBE_DEFAULT);
 }
 
