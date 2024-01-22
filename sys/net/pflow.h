@@ -39,6 +39,8 @@
 #include <netinet/ip.h>
 #endif
 
+#define PFLOW_MAX_ENTRIES	128
+
 #define PFLOW_ID_LEN	sizeof(u_int64_t)
 
 #define PFLOW_MAXFLOWS 30
