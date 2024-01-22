@@ -329,7 +329,7 @@ dump_generic(fp, generic)
  *
  * The addresses are printed in standard ASCII "dot" notation and separated
  * from one another by a single space.  A single leading space is also
- * printed before the first adddress.
+ * printed before the first address.
  *
  * Null lists produce no output (and no error).
  */
