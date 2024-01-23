@@ -28,9 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)disklabel.8	8.2 (Berkeley) 4/19/94
-.\"
-.Dd October 5, 2016
+.Dd March 25, 2024
 .Dt BSDLABEL 8
 .Os
 .Sh NAME
@@ -61,6 +59,22 @@
 .Op Fl f
 .Ar disk | Fl f Ar file
 .Ar protofile
+.Sh DEPRECATION NOTICE
+.Nm
+is deprecated and is not available in
+.Fx 15.0
+or later.
+Use
+.Xr gpart 8
+instead
+.Po
+with the
+.Cm BSD
+partitioning scheme
+.Pc ,
+or install the
+.Pa freebsd-bsdlabel
+port or package.
 .Sh DESCRIPTION
 The
 .Nm
