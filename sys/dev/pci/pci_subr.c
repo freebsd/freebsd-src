@@ -379,6 +379,38 @@ pci_domain_release_bus(int domain, device_t dev, int rid, struct resource *r)
 #endif
 	return (rman_release_resource(r));
 }
+
+int
+pci_domain_activate_bus(int domain, device_t dev, int rid, struct resource *r)
+{
+#ifdef INVARIANTS
+	struct pci_domain *d;
+#endif
+
+	if (domain < 0 || domain > PCI_DOMAINMAX)
+		return (EINVAL);
+#ifdef INVARIANTS
+	d = pci_find_domain(domain);
+	KASSERT(rman_is_region_manager(r, &d->pd_bus_rman), ("bad resource"));
+#endif
+	return (rman_activate_resource(r));
+}
+
+int
+pci_domain_deactivate_bus(int domain, device_t dev, int rid, struct resource *r)
+{
+#ifdef INVARIANTS
+	struct pci_domain *d;
+#endif
+
+	if (domain < 0 || domain > PCI_DOMAINMAX)
+		return (EINVAL);
+#ifdef INVARIANTS
+	d = pci_find_domain(domain);
+	KASSERT(rman_is_region_manager(r, &d->pd_bus_rman), ("bad resource"));
+#endif
+	return (rman_deactivate_resource(r));
+}
 #endif /* PCI_RES_BUS */
 
 #endif /* NEW_PCIB */
