@@ -63,7 +63,7 @@ static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 #include <sys/disk.h>
 #define DKTYPENAMES
 #define FSTYPENAMES
-#define MAXPARTITIONS	20
+#define MAXPARTITIONS	8 /* XXX should be 20, but see PR276517 */
 #include <sys/disklabel.h>
 
 #include <unistd.h>
