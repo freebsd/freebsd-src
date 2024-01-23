@@ -80,15 +80,23 @@ static int  macio_probe(device_t);
 static int  macio_attach(device_t);
 static int  macio_print_child(device_t dev, device_t child);
 static void macio_probe_nomatch(device_t, device_t);
+static struct rman *macio_get_rman(device_t, int, u_int);
 static struct   resource *macio_alloc_resource(device_t, device_t, int, int *,
 					       rman_res_t, rman_res_t, rman_res_t,
 					       u_int);
+static int  macio_adjust_resource(device_t, device_t, int, struct resource *,
+				  rman_res_t, rman_res_t);
 static int  macio_activate_resource(device_t, device_t, int, int,
 				    struct resource *);
 static int  macio_deactivate_resource(device_t, device_t, int, int,
 				      struct resource *);
 static int  macio_release_resource(device_t, device_t, int, int,
 				   struct resource *);
+static int  macio_map_resource(device_t, device_t, int, struct resource *,
+			       struct resource_map_request *,
+			       struct resource_map *);
+static int  macio_unmap_resource(device_t, device_t, int, struct resource *,
+				 struct resource_map *);
 static struct resource_list *macio_get_resource_list (device_t, device_t);
 static ofw_bus_get_devinfo_t macio_get_devinfo;
 #if !defined(__powerpc64__) && defined(SMP)
@@ -113,10 +121,14 @@ static device_method_t macio_methods[] = {
 	DEVMETHOD(bus_setup_intr,       bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,    bus_generic_teardown_intr),	
 
+	DEVMETHOD(bus_get_rman,		macio_get_rman),
         DEVMETHOD(bus_alloc_resource,   macio_alloc_resource),
+	DEVMETHOD(bus_adjust_resource,	macio_adjust_resource),
         DEVMETHOD(bus_release_resource, macio_release_resource),
         DEVMETHOD(bus_activate_resource, macio_activate_resource),
         DEVMETHOD(bus_deactivate_resource, macio_deactivate_resource),
+	DEVMETHOD(bus_map_resource,	macio_map_resource),
+	DEVMETHOD(bus_unmap_resource,	macio_unmap_resource),
         DEVMETHOD(bus_get_resource_list, macio_get_resource_list),	
 
 	DEVMETHOD(bus_child_pnpinfo,	ofw_bus_gen_child_pnpinfo),
@@ -495,24 +507,31 @@ macio_probe_nomatch(device_t dev, device_t child)
 	}
 }
 
+static struct rman *
+macio_get_rman(device_t bus, int type, u_int flags)
+{
+	struct		macio_softc *sc;
+
+	sc = device_get_softc(bus);
+	switch (type) {
+	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
+		return (&sc->sc_mem_rman);
+	default:
+		return (NULL);
+	}
+}
+
 static struct resource *
 macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		     rman_res_t start, rman_res_t end, rman_res_t count,
 		     u_int flags)
 {
-	struct		macio_softc *sc;
-	int		needactivate;
-	struct		resource *rv;
-	struct		rman *rm;
-	u_long		adjstart, adjend, adjcount;
+	rman_res_t	adjstart, adjend, adjcount;
 	struct		macio_devinfo *dinfo;
 	struct		resource_list_entry *rle;
 
-	sc = device_get_softc(bus);
 	dinfo = device_get_ivars(child);
-
-	needactivate = flags & RF_ACTIVE;
-	flags &= ~RF_ACTIVE;
 
 	switch (type) {
 	case SYS_RES_MEMORY:
@@ -541,8 +560,8 @@ macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 		adjcount = adjend - adjstart;
 
-		rm = &sc->sc_mem_rman;
-		break;
+		return (bus_generic_rman_alloc_resource(bus, child, type, rid,
+		    adjstart, adjend, adjcount, flags));
 
 	case SYS_RES_IRQ:
 		/* Check for passthrough from subattachments like macgpio */
@@ -574,84 +593,134 @@ macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			      device_get_nameunit(child));
 		return (NULL);
 	}
+}
 
-	rv = rman_reserve_resource(rm, adjstart, adjend, adjcount, flags,
-	    child);
-	if (rv == NULL) {
-		device_printf(bus,
-		    "failed to reserve resource %#lx - %#lx (%#lx) for %s\n",
-		    adjstart, adjend, adjcount, device_get_nameunit(child));
-		return (NULL);
+static int
+macio_adjust_resource(device_t bus, device_t child, int type,
+    struct resource *r, rman_res_t start, rman_res_t end)
+{
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		return (bus_generic_rman_adjust_resource(bus, child, type, r,
+		    start, end));
+	case SYS_RES_IRQ:
+		return (bus_generic_adjust_resource(bus, child, type, r, start,
+		    end));
+	default:
+		return (EINVAL);
 	}
-
-	rman_set_rid(rv, *rid);
-
-	if (needactivate) {
-		if (bus_activate_resource(child, type, *rid, rv) != 0) {
-                        device_printf(bus,
-				      "failed to activate resource for %s\n",
-				      device_get_nameunit(child));
-			rman_release_resource(rv);
-			return (NULL);
-                }
-        }
-
-	return (rv);
 }
 
 static int
 macio_release_resource(device_t bus, device_t child, int type, int rid,
 		       struct resource *res)
 {
-	if (rman_get_flags(res) & RF_ACTIVE) {
-		int error = bus_deactivate_resource(child, type, rid, res);
-		if (error)
-			return error;
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		return (bus_generic_rman_release_resource(bus, child, type, rid,
+		    res));
+	case SYS_RES_IRQ:
+		return (bus_generic_rl_release_resource(bus, child, type, rid,
+		    res));
+	default:
+		return (EINVAL);
 	}
-
-	return (rman_release_resource(res));
 }
 
 static int
 macio_activate_resource(device_t bus, device_t child, int type, int rid,
 			   struct resource *res)
 {
-	struct macio_softc *sc;
-	void    *p;
-
-	sc = device_get_softc(bus);
-
-	if (type == SYS_RES_IRQ)
-                return (bus_activate_resource(bus, type, rid, res));
-
-	if ((type == SYS_RES_MEMORY) || (type == SYS_RES_IOPORT)) {
-		p = pmap_mapdev((vm_paddr_t)rman_get_start(res) + sc->sc_base,
-				(vm_size_t)rman_get_size(res));
-		if (p == NULL)
-			return (ENOMEM);
-		rman_set_virtual(res, p);
-		rman_set_bustag(res, &bs_le_tag);
-		rman_set_bushandle(res, (u_long)p);
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		return (bus_generic_rman_activate_resource(bus, child, type,
+		    rid, res));
+	case SYS_RES_IRQ:
+		return (bus_generic_activate_resource(bus, child, type, rid,
+		    res));
+	default:
+		return (EINVAL);
 	}
-
-	return (rman_activate_resource(res));
 }
 
 static int
 macio_deactivate_resource(device_t bus, device_t child, int type, int rid,
 			  struct resource *res)
 {
-        /*
-         * If this is a memory resource, unmap it.
-         */
-        if ((type == SYS_RES_MEMORY) || (type == SYS_RES_IOPORT)) {
-		u_int32_t psize;
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		return (bus_generic_rman_deactivate_resource(bus, child, type,
+		    rid, res));
+	case SYS_RES_IRQ:
+		return (bus_generic_deactivate_resource(bus, child, type, rid,
+		    res));
+	default:
+		return (EINVAL);
+	}
+}
 
-		psize = rman_get_size(res);
-		pmap_unmapdev(rman_get_virtual(res), psize);
+static int
+macio_map_resource(device_t bus, device_t child, int type,
+    struct resource *r, struct resource_map_request *argsp,
+    struct resource_map *map)
+{
+	struct resource_map_request args;
+	struct macio_softc *sc;
+	rman_res_t length, start;
+	int error;
+
+	/* Resources must be active to be mapped. */
+	if (!(rman_get_flags(r) & RF_ACTIVE))
+		return (ENXIO);
+
+	/* Mappings are only supported on I/O and memory resources. */
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		break;
+	default:
+		return (EINVAL);
 	}
 
-	return (rman_deactivate_resource(res));
+	resource_init_map_request(&args);
+	error = resource_validate_map_request(r, argsp, &args, &start, &length);
+	if (error)
+		return (error);
+
+	if (bootverbose)
+		printf("nexus mapdev: start %jx, len %jd\n",
+		    (uintmax_t)start, (uintmax_t)length);
+
+	sc = device_get_softc(bus);
+	map->r_vaddr = pmap_mapdev_attr((vm_paddr_t)start + sc->sc_base,
+	    length, args.memattr);
+	if (map->r_vaddr == NULL)
+		return (ENOMEM);
+	map->r_bustag = &bs_le_tag;
+	map->r_bushandle = (bus_space_handle_t)map->r_vaddr;
+	return (0);
+}
+
+static int
+macio_unmap_resource(device_t bus, device_t child, int type,
+    struct resource *r, struct resource_map *map)
+{
+	/*
+	 * If this is a memory resource, unmap it.
+	 */
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		pmap_unmapdev(map->r_vaddr, map->r_size);
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (0);
 }
 
 static struct resource_list *
