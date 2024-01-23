@@ -275,14 +275,20 @@ nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
 		panic("%s:%d SYS_RES_IOPORT handling not implemented", __func__, __LINE__);
 		/*   XXX: untested
 		map->r_bushandle = start;
-		map->r_bustag = nexus_get_bus_tag(NULL, NULL);
+		if ((rman_get_flags(r) & RF_LITTLEENDIAN) != 0)
+			map->r_bustag = &bs_le_tag;
+		else
+			map->r_bustag = nexus_get_bus_tag(NULL, NULL);
 		map->r_size = length;
 		map->r_vaddr = NULL;
 		*/
 		break;
 	case SYS_RES_MEMORY:
 		map->r_vaddr = pmap_mapdev_attr(start, length, args.memattr);
-		map->r_bustag = nexus_get_bus_tag(NULL, NULL);
+		if ((rman_get_flags(r) & RF_LITTLEENDIAN) != 0)
+			map->r_bustag = &bs_le_tag;
+		else
+			map->r_bustag = nexus_get_bus_tag(NULL, NULL);
 		map->r_size = length;
 		map->r_bushandle = (bus_space_handle_t)map->r_vaddr;
 		break;
