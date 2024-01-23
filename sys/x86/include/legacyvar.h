@@ -62,6 +62,10 @@ int	legacy_pcib_adjust_resource(device_t dev, device_t child, int type,
     struct resource *r, rman_res_t start, rman_res_t end);
 int	legacy_pcib_release_resource(device_t dev, device_t child, int type,
     int rid, struct resource *r);
+int	legacy_pcib_activate_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *r);
+int	legacy_pcib_deactivate_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *r);
 int	legacy_pcib_alloc_msi(device_t pcib, device_t dev, int count,
     int maxcount, int *irqs);
 int	legacy_pcib_alloc_msix(device_t pcib, device_t dev, int *irq);
