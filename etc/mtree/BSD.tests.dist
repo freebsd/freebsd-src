@@ -1225,8 +1225,6 @@
         ..
         makefs
         ..
-        mixer
-        ..
         newsyslog
         ..
         nmtree
