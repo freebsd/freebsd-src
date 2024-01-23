@@ -57,13 +57,18 @@ static int	ps3bus_attach(device_t);
 static int	ps3bus_print_child(device_t dev, device_t child);
 static int	ps3bus_read_ivar(device_t bus, device_t child, int which,
 		    uintptr_t *result);
+static struct rman *ps3bus_get_rman(device_t bus, int type, u_int flags);
 static struct resource *ps3bus_alloc_resource(device_t bus, device_t child,
 		    int type, int *rid, rman_res_t start, rman_res_t end,
 		    rman_res_t count, u_int flags);
-static int	ps3bus_activate_resource(device_t bus, device_t child, int type,
-		    int rid, struct resource *res);
+static int	ps3bus_map_resource(device_t bus, device_t child, int type,
+		    struct resource *r, struct resource_map_request *argsp,
+		    struct resource_map *map);
+static int	ps3bus_unmap_resource(device_t bus, device_t child, int type,
+		    struct resource *r, struct resource_map *map);
 static bus_dma_tag_t ps3bus_get_dma_tag(device_t dev, device_t child);
-static int	ps3_iommu_map(device_t dev, bus_dma_segment_t *segs, int *nsegs,		    bus_addr_t min, bus_addr_t max, bus_size_t alignment,
+static int	ps3_iommu_map(device_t dev, bus_dma_segment_t *segs, int *nsegs,
+		    bus_addr_t min, bus_addr_t max, bus_size_t alignment,
 		    bus_addr_t boundary, void *cookie);
 static int	ps3_iommu_unmap(device_t dev, bus_dma_segment_t *segs,
 		    int nsegs, void *cookie);
@@ -109,8 +114,14 @@ static device_method_t ps3bus_methods[] = {
 	DEVMETHOD(bus_get_dma_tag,	ps3bus_get_dma_tag),
 	DEVMETHOD(bus_print_child,	ps3bus_print_child),
 	DEVMETHOD(bus_read_ivar,	ps3bus_read_ivar),
+	DEVMETHOD(bus_get_rman,		ps3bus_get_rman),
 	DEVMETHOD(bus_alloc_resource,	ps3bus_alloc_resource),
-	DEVMETHOD(bus_activate_resource, ps3bus_activate_resource),
+	DEVMETHOD(bus_adjust_resource,	bus_generic_rman_adjust_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_rman_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_rman_deactivate_resource),
+	DEVMETHOD(bus_map_resource,	ps3bus_map_resource),
+	DEVMETHOD(bus_unmap_resource,	ps3bus_unmap_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_rman_release_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
@@ -519,22 +530,31 @@ ps3bus_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 	return (0);
 }
 
+static struct rman *
+ps3bus_get_rman(device_t bus, int type, u_int flags)
+{
+	struct	ps3bus_softc *sc;
+
+	sc = device_get_softc(bus);
+	switch (type) {
+	case SYS_RES_MEMORY:
+		return (&sc->sc_mem_rman);
+	case SYS_RES_IRQ:
+		return (&sc->sc_intr_rman);
+	default:
+		return (NULL);
+	}
+}
+
 static struct resource *
 ps3bus_alloc_resource(device_t bus, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct	ps3bus_devinfo *dinfo;
-	struct	ps3bus_softc *sc;
-	int	needactivate;
-        struct	resource *rv;
-        struct	rman *rm;
         rman_res_t	adjstart, adjend, adjcount;
         struct	resource_list_entry *rle;
 
-	sc = device_get_softc(bus);
 	dinfo = device_get_ivars(child);
-	needactivate = flags & RF_ACTIVE;
-	flags &= ~RF_ACTIVE;
 
 	switch (type) {
 	case SYS_RES_MEMORY:
@@ -561,13 +581,10 @@ ps3bus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			adjend = end;
 
 		adjcount = adjend - adjstart;
-
-		rm = &sc->sc_mem_rman;
 		break;
 	case SYS_RES_IRQ:
 		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ,
 		    *rid);
-		rm = &sc->sc_intr_rman;
 		adjstart = rle->start;
 		adjcount = ulmax(count, rle->count);
 		adjend = ulmax(rle->end, rle->start + adjcount - 1);
@@ -578,58 +595,59 @@ ps3bus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		return (NULL);
         }
 
-	rv = rman_reserve_resource(rm, adjstart, adjend, adjcount, flags,
-	    child);
-	if (rv == NULL) {
-		device_printf(bus,
-			"failed to reserve resource %#lx - %#lx (%#lx)"
-			" for %s\n", adjstart, adjend, adjcount,
-			device_get_nameunit(child));
-		return (NULL);
-	}
-
-	rman_set_rid(rv, *rid);
-
-	if (needactivate) {
-		if (bus_activate_resource(child, type, *rid, rv) != 0) {
-			device_printf(bus,
-				"failed to activate resource for %s\n",
-				device_get_nameunit(child));
-				rman_release_resource(rv);
-			return (NULL);
-		}
-	}
-
-	return (rv);
+	return (bus_generic_rman_alloc_resource(bus, child, type, rid, adjstart,
+	    adjend, adjcount, flags));
 }
 
 static int
-ps3bus_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *res)
+ps3bus_map_resource(device_t bus, device_t child, int type, struct resource *r,
+    struct resource_map_request *argsp, struct resource_map *map)
 {
-	void *p;
+	struct resource_map_request args;
+	rman_res_t length, start;
+	int error;
 
-	if (type == SYS_RES_IRQ)
-		return (bus_activate_resource(bus, type, rid, res));
+	/* Resources must be active to be mapped. */
+	if (!(rman_get_flags(r) & RF_ACTIVE))
+		return (ENXIO);
 
-	if (type == SYS_RES_MEMORY) {
-		vm_offset_t start;
-
-		start = (vm_offset_t) rman_get_start(res);
-
-		if (bootverbose)
-			printf("ps3 mapdev: start %zx, len %ld\n", start,
-			       rman_get_size(res));
-
-		p = pmap_mapdev(start, (vm_size_t) rman_get_size(res));
-		if (p == NULL)
-			return (ENOMEM);
-		rman_set_virtual(res, p);
-		rman_set_bustag(res, &bs_be_tag);
-		rman_set_bushandle(res, (rman_res_t)p);
+	/* Mappings are only supported on memory resources. */
+	switch (type) {
+	case SYS_RES_MEMORY:
+		break;
+	default:
+		return (EINVAL);
 	}
 
-	return (rman_activate_resource(res));
+	resource_init_map_request(&args);
+	error = resource_validate_map_request(r, argsp, &args, &start, &length);
+	if (error)
+		return (error);
+
+	if (bootverbose)
+		printf("ps3 mapdev: start %jx, len %jd\n", start, length);
+
+	map->r_vaddr = pmap_mapdev_attr(start, length, args.memattr);
+	if (map->r_vaddr == NULL)
+		return (ENOMEM);
+	map->r_bustag = &bs_be_tag;
+	map->r_bushandle = (vm_offset_t)map->r_vaddr;
+	map->r_size = length;
+	return (0);
+}
+
+static int
+ps3bus_unmap_resource(device_t bus, device_t child, int type,
+    struct resource *r, struct resource_map *map)
+{
+
+	switch (type) {
+	case SYS_RES_MEMORY:
+		pmap_unmapdev(map->r_vaddr, map->r_size);
+		return (0);
+	default:
+		return (EINVAL);
+	}
 }
 
 static bus_dma_tag_t
