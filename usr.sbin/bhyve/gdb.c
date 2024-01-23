@@ -134,58 +134,34 @@ static struct vcpu **vcpus;
 static int cur_vcpu, stopped_vcpu;
 static bool gdb_active = false;
 
-static const int gdb_regset[] = {
-	VM_REG_GUEST_RAX,
-	VM_REG_GUEST_RBX,
-	VM_REG_GUEST_RCX,
-	VM_REG_GUEST_RDX,
-	VM_REG_GUEST_RSI,
-	VM_REG_GUEST_RDI,
-	VM_REG_GUEST_RBP,
-	VM_REG_GUEST_RSP,
-	VM_REG_GUEST_R8,
-	VM_REG_GUEST_R9,
-	VM_REG_GUEST_R10,
-	VM_REG_GUEST_R11,
-	VM_REG_GUEST_R12,
-	VM_REG_GUEST_R13,
-	VM_REG_GUEST_R14,
-	VM_REG_GUEST_R15,
-	VM_REG_GUEST_RIP,
-	VM_REG_GUEST_RFLAGS,
-	VM_REG_GUEST_CS,
-	VM_REG_GUEST_SS,
-	VM_REG_GUEST_DS,
-	VM_REG_GUEST_ES,
-	VM_REG_GUEST_FS,
-	VM_REG_GUEST_GS
-};
-
-static const int gdb_regsize[] = {
-	8,
-	8,
-	8,
-	8,
-	8,
-	8,
-	8,
-	8,
-	8,
-	8,
-	8,
-	8,
-	8,
-	8,
-	8,
-	8,
-	8,
-	4,
-	4,
-	4,
-	4,
-	4,
-	4,
-	4
+static const struct gdb_reg {
+	enum vm_reg_name id;
+	int size;
+} gdb_regset[] = {
+	{ .id = VM_REG_GUEST_RAX, .size = 8 },
+	{ .id = VM_REG_GUEST_RBX, .size = 8 },
+	{ .id = VM_REG_GUEST_RCX, .size = 8 },
+	{ .id = VM_REG_GUEST_RDX, .size = 8 },
+	{ .id = VM_REG_GUEST_RSI, .size = 8 },
+	{ .id = VM_REG_GUEST_RDI, .size = 8 },
+	{ .id = VM_REG_GUEST_RBP, .size = 8 },
+	{ .id = VM_REG_GUEST_RSP, .size = 8 },
+	{ .id = VM_REG_GUEST_R8, .size = 8 },
+	{ .id = VM_REG_GUEST_R9, .size = 8 },
+	{ .id = VM_REG_GUEST_R10, .size = 8 },
+	{ .id = VM_REG_GUEST_R11, .size = 8 },
+	{ .id = VM_REG_GUEST_R12, .size = 8 },
+	{ .id = VM_REG_GUEST_R13, .size = 8 },
+	{ .id = VM_REG_GUEST_R14, .size = 8 },
+	{ .id = VM_REG_GUEST_R15, .size = 8 },
+	{ .id = VM_REG_GUEST_RIP, .size = 8 },
+	{ .id = VM_REG_GUEST_RFLAGS, .size = 4 },
+	{ .id = VM_REG_GUEST_CS, .size = 4 },
+	{ .id = VM_REG_GUEST_SS, .size = 4 },
+	{ .id = VM_REG_GUEST_DS, .size = 4 },
+	{ .id = VM_REG_GUEST_ES, .size = 4 },
+	{ .id = VM_REG_GUEST_FS, .size = 4 },
+	{ .id = VM_REG_GUEST_GS, .size = 4 },
 };
 
 #ifdef GDB_LOG
@@ -1031,15 +1007,18 @@ static void
 gdb_read_regs(void)
 {
 	uint64_t regvals[nitems(gdb_regset)];
+	int regnums[nitems(gdb_regset)];
 
+	for (size_t i = 0; i < nitems(gdb_regset); i++)
+		regnums[i] = gdb_regset[i].id;
 	if (vm_get_register_set(vcpus[cur_vcpu], nitems(gdb_regset),
-	    gdb_regset, regvals) == -1) {
+	    regnums, regvals) == -1) {
 		send_error(errno);
 		return;
 	}
 	start_packet();
-	for (size_t i = 0; i < nitems(regvals); i++)
-		append_unsigned_native(regvals[i], gdb_regsize[i]);
+	for (size_t i = 0; i < nitems(gdb_regset); i++)
+		append_unsigned_native(regvals[i], gdb_regset[i].size);
 	finish_packet();
 }
 
