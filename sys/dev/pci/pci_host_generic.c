@@ -504,8 +504,18 @@ static int
 generic_pcie_activate_resource(device_t dev, device_t child, int type,
     int rid, struct resource *r)
 {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	struct generic_pcie_core_softc *sc;
+#endif
 	rman_res_t start, end;
 	int res;
+
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	sc = device_get_softc(dev);
+	if (type == PCI_RES_BUS) {
+		return (pci_domain_activate_bus(sc->ecam, child, rid, r));
+	}
+#endif
 
 	if ((res = rman_activate_resource(r)) != 0)
 		return (res);
@@ -529,8 +539,17 @@ static int
 generic_pcie_deactivate_resource(device_t dev, device_t child, int type,
     int rid, struct resource *r)
 {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	struct generic_pcie_core_softc *sc;
+#endif
 	int res;
 
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	sc = device_get_softc(dev);
+	if (type == PCI_RES_BUS) {
+		return (pci_domain_deactivate_bus(sc->ecam, child, rid, r));
+	}
+#endif
 	if ((res = rman_deactivate_resource(r)) != 0)
 		return (res);
 
