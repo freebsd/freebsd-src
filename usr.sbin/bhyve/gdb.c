@@ -70,6 +70,13 @@
  */
 #define	GDB_SIGNAL_TRAP		5
 
+#define	GDB_BP_SIZE		1
+#define	GDB_BP_INSTR		(uint8_t []){0xcc}
+#define	GDB_PC_REGNAME		VM_REG_GUEST_RIP
+
+_Static_assert(sizeof(GDB_BP_INSTR) == GDB_BP_SIZE,
+    "GDB_BP_INSTR has wrong size");
+
 static void gdb_resume_vcpus(void);
 static void check_command(int fd);
 
@@ -96,7 +103,7 @@ struct io_buffer {
 
 struct breakpoint {
 	uint64_t gpa;
-	uint8_t shadow_inst;
+	uint8_t shadow_inst[GDB_BP_SIZE];
 	TAILQ_ENTRY(breakpoint) link;
 };
 
@@ -262,6 +269,12 @@ guest_vaddr2paddr(struct vcpu *vcpu, uint64_t vaddr, uint64_t *paddr)
 	if (fault)
 		return (0);
 	return (1);
+}
+
+static uint64_t
+guest_pc(struct vm_exit *vme)
+{
+	return (vme->rip);
 }
 
 static void
@@ -932,7 +945,7 @@ gdb_cpu_breakpoint(struct vcpu *vcpu, struct vm_exit *vmexit)
 	}
 	vcpuid = vcpu_id(vcpu);
 	pthread_mutex_lock(&gdb_lock);
-	error = guest_vaddr2paddr(vcpu, vmexit->rip, &gpa);
+	error = guest_vaddr2paddr(vcpu, guest_pc(vmexit), &gpa);
 	assert(error == 1);
 	bp = find_breakpoint(gpa);
 	if (bp != NULL) {
@@ -941,11 +954,11 @@ gdb_cpu_breakpoint(struct vcpu *vcpu, struct vm_exit *vmexit)
 		assert(vs->stepped == false);
 		assert(vs->hit_swbreak == false);
 		vs->hit_swbreak = true;
-		vm_set_register(vcpu, VM_REG_GUEST_RIP, vmexit->rip);
+		vm_set_register(vcpu, GDB_PC_REGNAME, guest_pc(vmexit));
 		for (;;) {
 			if (stopped_vcpu == -1) {
 				debug("$vCPU %d reporting breakpoint at rip %#lx\n",
-				    vcpuid, vmexit->rip);
+				    vcpuid, guest_pc(vmexit));
 				stopped_vcpu = vcpuid;
 				gdb_suspend_vcpus();
 			}
@@ -964,7 +977,7 @@ gdb_cpu_breakpoint(struct vcpu *vcpu, struct vm_exit *vmexit)
 		gdb_cpu_resume(vcpu);
 	} else {
 		debug("$vCPU %d injecting breakpoint at rip %#lx\n", vcpuid,
-		    vmexit->rip);
+		    guest_pc(vmexit));
 		error = vm_set_register(vcpu, VM_REG_GUEST_ENTRY_INST_LENGTH,
 		    vmexit->u.bpt.inst_length);
 		assert(error == 0);
@@ -1278,8 +1291,8 @@ remove_all_sw_breakpoints(void)
 
 	TAILQ_FOREACH_SAFE(bp, &breakpoints, link, nbp) {
 		debug("remove breakpoint at %#lx\n", bp->gpa);
-		cp = paddr_guest2host(ctx, bp->gpa, 1);
-		*cp = bp->shadow_inst;
+		cp = paddr_guest2host(ctx, bp->gpa, sizeof(bp->shadow_inst));
+		memcpy(cp, bp->shadow_inst, sizeof(bp->shadow_inst));
 		TAILQ_REMOVE(&breakpoints, bp, link);
 		free(bp);
 	}
@@ -1295,7 +1308,7 @@ update_sw_breakpoint(uint64_t gva, int kind, bool insert)
 	uint8_t *cp;
 	int error;
 
-	if (kind != 1) {
+	if (kind != GDB_BP_SIZE) {
 		send_error(EINVAL);
 		return;
 	}
@@ -1310,7 +1323,7 @@ update_sw_breakpoint(uint64_t gva, int kind, bool insert)
 		return;
 	}
 
-	cp = paddr_guest2host(ctx, gpa, 1);
+	cp = paddr_guest2host(ctx, gpa, sizeof(bp->shadow_inst));
 
 	/* Only permit breakpoints in guest RAM. */
 	if (cp == NULL) {
@@ -1334,15 +1347,15 @@ update_sw_breakpoint(uint64_t gva, int kind, bool insert)
 			}
 			bp = malloc(sizeof(*bp));
 			bp->gpa = gpa;
-			bp->shadow_inst = *cp;
-			*cp = 0xcc;	/* INT 3 */
+			memcpy(bp->shadow_inst, cp, sizeof(bp->shadow_inst));
+			memcpy(cp, GDB_BP_INSTR, sizeof(bp->shadow_inst));
 			TAILQ_INSERT_TAIL(&breakpoints, bp, link);
 			debug("new breakpoint at %#lx\n", gpa);
 		}
 	} else {
 		if (bp != NULL) {
 			debug("remove breakpoint at %#lx\n", gpa);
-			*cp = bp->shadow_inst;
+			memcpy(cp, bp->shadow_inst, sizeof(bp->shadow_inst));
 			TAILQ_REMOVE(&breakpoints, bp, link);
 			free(bp);
 			if (TAILQ_EMPTY(&breakpoints))
