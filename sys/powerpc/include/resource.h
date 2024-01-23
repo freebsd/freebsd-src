@@ -41,4 +41,11 @@
 #define	SYS_RES_IOPORT	4	/* i/o ports */
 #define	PCI_RES_BUS	5	/* PCI bus numbers */
 
+/*
+ * A powerpc-specific resource flag to request little-endian bus tags
+ * for a resource.
+ */
+
+#define	RF_LITTLEENDIAN		RF_SPARE1
+
 #endif /* !_MACHINE_RESOURCE_H_ */
