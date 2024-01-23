@@ -69,13 +69,20 @@ static MALLOC_DEFINE(M_LBC, "localbus", "localbus devices information");
 static int lbc_probe(device_t);
 static int lbc_attach(device_t);
 static int lbc_shutdown(device_t);
-static int lbc_activate_resource(device_t bus __unused, device_t child __unused,
-    int type, int rid __unused, struct resource *r);
-static int lbc_deactivate_resource(device_t bus __unused,
-    device_t child __unused, int type __unused, int rid __unused,
+static int lbc_map_resource(device_t, device_t, int, struct resource *,
+    struct resource_map_request *, struct resource_map *);
+static int lbc_unmap_resource(device_t, device_t, int, struct resource *,
+    struct resource_map *map);
+static int lbc_activate_resource(device_t bus, device_t child,
+    int type, int rid, struct resource *r);
+static int lbc_deactivate_resource(device_t bus,
+    device_t child, int type __unused, int rid,
     struct resource *r);
+static struct rman *lbc_get_rman(device_t, int, u_int);
 static struct resource *lbc_alloc_resource(device_t, device_t, int, int *,
     rman_res_t, rman_res_t, rman_res_t, u_int);
+static int lbc_adjust_resource(device_t, device_t, int, struct resource *,
+    rman_res_t, rman_res_t);
 static int lbc_print_child(device_t, device_t);
 static int lbc_release_resource(device_t, device_t, int, int,
     struct resource *);
@@ -95,10 +102,14 @@ static device_method_t lbc_methods[] = {
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	NULL),
 
+	DEVMETHOD(bus_get_rman,		lbc_get_rman),
 	DEVMETHOD(bus_alloc_resource,	lbc_alloc_resource),
+	DEVMETHOD(bus_adjust_resource,	lbc_adjust_resource),
 	DEVMETHOD(bus_release_resource,	lbc_release_resource),
 	DEVMETHOD(bus_activate_resource, lbc_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, lbc_deactivate_resource),
+	DEVMETHOD(bus_map_resource,	lbc_map_resource),
+	DEVMETHOD(bus_unmap_resource,	lbc_unmap_resource),
 
 	/* OFW bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	lbc_get_devinfo),
@@ -672,22 +683,31 @@ lbc_shutdown(device_t dev)
 	return(0);
 }
 
+static struct rman *
+lbc_get_rman(device_t bus, int type, u_int flags)
+{
+	struct lbc_softc *sc;
+
+	sc = device_get_softc(bus);
+	switch (type) {
+	case SYS_RES_MEMORY:
+		return (&sc->sc_rman);
+	default:
+		return (NULL);
+	}
+}
+
 static struct resource *
 lbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
-	struct lbc_softc *sc;
 	struct lbc_devinfo *di;
 	struct resource_list_entry *rle;
-	struct resource *res;
-	struct rman *rm;
-	int needactivate;
 
 	/* We only support default allocations. */
 	if (!RMAN_IS_DEFAULT_RANGE(start, end))
 		return (NULL);
 
-	sc = device_get_softc(bus);
 	if (type == SYS_RES_IRQ)
 		return (bus_alloc_resource(bus, type, rid, start, end, count,
 		    flags));
@@ -702,6 +722,10 @@ lbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (type == SYS_RES_IOPORT)
 		type = SYS_RES_MEMORY;
 
+	/*
+	 * XXX: We are supposed to return a value to the user, so this
+	 * doesn't seem right.
+	 */
 	rid = &di->di_bank;
 
 	rle = resource_list_find(&di->di_res, type, *rid);
@@ -714,32 +738,8 @@ lbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	count = rle->count;
 	end = start + count - 1;
 
-	sc = device_get_softc(bus);
-
-	needactivate = flags & RF_ACTIVE;
-	flags &= ~RF_ACTIVE;
-
-	rm = &sc->sc_rman;
-
-	res = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (res == NULL) {
-		device_printf(bus, "failed to reserve resource %#jx - %#jx "
-		    "(%#jx)\n", start, end, count);
-		return (NULL);
-	}
-
-	rman_set_rid(res, *rid);
-	rman_set_bustag(res, &bs_be_tag);
-	rman_set_bushandle(res, rman_get_start(res));
-
-	if (needactivate)
-		if (bus_activate_resource(child, type, *rid, res)) {
-			device_printf(child, "resource activation failed\n");
-			rman_release_resource(res);
-			return (NULL);
-		}
-
-	return (res);
+	return (bus_generic_rman_alloc_resource(bus, child, type, rid, start,
+	    end, count, flags));
 }
 
 static int
@@ -762,35 +762,124 @@ lbc_print_child(device_t dev, device_t child)
 }
 
 static int
+lbc_adjust_resource(device_t dev, device_t child, int type, struct resource *r,
+    rman_res_t start, rman_res_t end)
+{
+	switch (type) {
+	case SYS_RES_IOPORT:
+		type = SYS_RES_MEMORY;
+		/* FALLTHROUGH */
+	case SYS_RES_MEMORY:
+		return (bus_generic_rman_adjust_resource(dev, child, type, r,
+		    start, end));
+	case SYS_RES_IRQ:
+		return (bus_adjust_resource(dev, type, r, start, end));
+	default:
+		return (EINVAL);
+	}
+}
+
+static int
 lbc_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *res)
 {
-	int err;
+	switch (type) {
+	case SYS_RES_IOPORT:
+		type = SYS_RES_MEMORY;
+		/* FALLTHROUGH */
+	case SYS_RES_MEMORY:
+		return (bus_generic_rman_release_resource(dev, child, type,
+		    rid, res));
+	case SYS_RES_IRQ:
+		return (bus_release_resource(dev, type, rid, res));
+	default:
+		return (EINVAL);
+	}
+}
 
-	if (rman_get_flags(res) & RF_ACTIVE) {
-		err = bus_deactivate_resource(child, type, rid, res);
-		if (err)
-			return (err);
+static int
+lbc_activate_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *r)
+{
+	switch (type) {
+	case SYS_RES_IOPORT:
+		type = SYS_RES_MEMORY;
+		/* FALLTHROUGH */
+	case SYS_RES_MEMORY:
+		return (bus_generic_rman_activate_resource(bus, child, type,
+		    rid, r));
+	case SYS_RES_IRQ:
+		return (bus_activate_resource(bus, type, rid, r));
+	default:
+		return (EINVAL);
+	}
+}
+
+static int
+lbc_deactivate_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *r)
+{
+	switch (type) {
+	case SYS_RES_IOPORT:
+		type = SYS_RES_MEMORY;
+		/* FALLTHROUGH */
+	case SYS_RES_MEMORY:
+		return (bus_generic_rman_deactivate_resource(bus, child, type,
+		    rid, r));
+	case SYS_RES_IRQ:
+		return (bus_deactivate_resource(bus, type, rid, r));
+	default:
+		return (EINVAL);
+	}
+}
+
+static int
+lbc_map_resource(device_t bus, device_t child, int type, struct resource *r,
+    struct resource_map_request *argsp, struct resource_map *map)
+{
+	struct resource_map_request args;
+	rman_res_t length, start;
+	int error;
+
+	/* Resources must be active to be mapped. */
+	if (!(rman_get_flags(r) & RF_ACTIVE))
+		return (ENXIO);
+
+	/* Mappings are only supported on I/O and memory resources. */
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		break;
+	default:
+		return (EINVAL);
 	}
 
-	return (rman_release_resource(res));
+	resource_init_map_request(&args);
+	error = resource_validate_map_request(r, argsp, &args, &start, &length);
+	if (error)
+		return (error);
+
+	map->r_bustag = &bs_be_tag;
+	map->r_bushandle = start;
+	map->r_size = length;
+	map->r_vaddr = NULL;
+	return (0);
 }
 
 static int
-lbc_activate_resource(device_t bus __unused, device_t child __unused,
-    int type __unused, int rid __unused, struct resource *r)
+lbc_unmap_resource(device_t bus, device_t child, int type, struct resource *r,
+    struct resource_map *map)
 {
 
-	/* Child resources were already mapped, just activate. */
-	return (rman_activate_resource(r));
-}
-
-static int
-lbc_deactivate_resource(device_t bus __unused, device_t child __unused,
-    int type __unused, int rid __unused, struct resource *r)
-{
-
-	return (rman_deactivate_resource(r));
+	/* Mappings are only supported on I/O and memory resources. */
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (0);
 }
 
 static const struct ofw_bus_devinfo *
