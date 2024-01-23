@@ -342,10 +342,21 @@ static int mv_pcib_mem_init(struct mv_pcib_softc *);
 static int mv_pcib_probe(device_t);
 static int mv_pcib_attach(device_t);
 
+static struct rman *mv_pcib_get_rman(device_t, int, u_int);
 static struct resource *mv_pcib_alloc_resource(device_t, device_t, int, int *,
     rman_res_t, rman_res_t, rman_res_t, u_int);
+static int mv_pcib_adjust_resource(device_t, device_t, int, struct resource *,
+    rman_res_t, rman_res_t);
 static int mv_pcib_release_resource(device_t, device_t, int, int,
     struct resource *);
+static int mv_pcib_activate_resource(device_t, device_t, int, int,
+    struct resource *r);
+static int mv_pcib_deactivate_resource(device_t, device_t, int, int,
+    struct resource *r);
+static int mv_pcib_map_resource(device_t, device_t, int, struct resource *,
+    struct resource_map_request *, struct resource_map *);
+static int mv_pcib_unmap_resource(device_t, device_t, int, struct resource *,
+    struct resource_map *);
 static int mv_pcib_read_ivar(device_t, device_t, int, uintptr_t *);
 static int mv_pcib_write_ivar(device_t, device_t, int, uintptr_t);
 
@@ -370,10 +381,14 @@ static device_method_t mv_pcib_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,		mv_pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar,		mv_pcib_write_ivar),
+	DEVMETHOD(bus_get_rman,			mv_pcib_get_rman),
 	DEVMETHOD(bus_alloc_resource,		mv_pcib_alloc_resource),
+	DEVMETHOD(bus_adjust_resource,		mv_pcib_adjust_resource),
 	DEVMETHOD(bus_release_resource,		mv_pcib_release_resource),
-	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
+	DEVMETHOD(bus_activate_resource,	mv_pcib_activate_resource),
+	DEVMETHOD(bus_deactivate_resource,	mv_pcib_deactivate_resource),
+	DEVMETHOD(bus_map_resource,		mv_pcib_map_resource),
+	DEVMETHOD(bus_unmap_resource,		mv_pcib_unmap_resource),
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
 
@@ -876,20 +891,30 @@ mv_pcib_init_all_bars(struct mv_pcib_softc *sc, int bus, int slot,
 	return (0);
 }
 
+static struct rman *
+mv_pcib_get_rman(device_t dev, int type, u_int flags)
+{
+	struct mv_pcib_softc *sc = device_get_softc(dev);
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+		return (&sc->sc_io_rman);
+	case SYS_RES_MEMORY:
+		return (&sc->sc_mem_rman);
+	default:
+		return (NULL);
+	}
+}
+
 static struct resource *
 mv_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct mv_pcib_softc *sc = device_get_softc(dev);
-	struct rman *rm = NULL;
-	struct resource *res;
 
 	switch (type) {
 	case SYS_RES_IOPORT:
-		rm = &sc->sc_io_rman;
-		break;
 	case SYS_RES_MEMORY:
-		rm = &sc->sc_mem_rman;
 		break;
 #ifdef PCI_RES_BUS
 	case PCI_RES_BUS:
@@ -911,21 +936,32 @@ mv_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	    (end > sc->sc_mem_base + sc->sc_mem_size - 1))
 		return (NULL);
 
-	res = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (res == NULL)
-		return (NULL);
+	return (bus_generic_rman_alloc_resource(dev, child, type, rid,
+	    start, end, count, flags));
+}
 
-	rman_set_rid(res, *rid);
-	rman_set_bustag(res, fdtbus_bs_tag);
-	rman_set_bushandle(res, start);
+static int
+mv_pcib_adjust_resource(device_t dev, device_t child, int type,
+    struct resource *r, rman_res_t start, rman_res_t end)
+{
+#ifdef PCI_RES_BUS
+	struct mv_pcib_softc *sc = device_get_softc(dev);
+#endif
 
-	if (flags & RF_ACTIVE)
-		if (bus_activate_resource(child, type, *rid, res)) {
-			rman_release_resource(res);
-			return (NULL);
-		}
-
-	return (res);
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		return (bus_generic_rman_adjust_resource(dev, child, type, r,
+		    start, end));
+#ifdef PCI_RES_BUS
+	case PCI_RES_BUS:
+		return (pci_domain_adjust_bus(sc->ap_segment, child, r, start,
+		    end));
+#endif
+	default:
+		return (bus_generic_adjust_resource(dev, child, type, r,
+		    start, end));
+	}
 }
 
 static int
@@ -934,15 +970,113 @@ mv_pcib_release_resource(device_t dev, device_t child, int type, int rid,
 {
 #ifdef PCI_RES_BUS
 	struct mv_pcib_softc *sc = device_get_softc(dev);
+#endif
 
-	if (type == PCI_RES_BUS)
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		return (bus_generic_rman_release_resource(dev, child, type,
+		    rid, res));
+#ifdef PCI_RES_BUS
+	case PCI_RES_BUS:
 		return (pci_domain_release_bus(sc->ap_segment, child, rid, res));
 #endif
-	if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY)
+	default:
 		return (BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
 		    type, rid, res));
+	}
+}
 
-	return (rman_release_resource(res));
+static int
+mv_pcib_activate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+#ifdef PCI_RES_BUS
+	struct mv_pcib_softc *sc = device_get_softc(dev);
+#endif
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		return (bus_generic_rman_activate_resource(dev, child, type,
+		    rid, r));
+#ifdef PCI_RES_BUS
+	case PCI_RES_BUS:
+		return (pci_domain_activate_bus(sc->ap_segment, child, rid, r));
+#endif
+	default:
+		return (bus_generic_activate_resource(dev, child, type, rid,
+		    r));
+	}
+}
+
+static int
+mv_pcib_deactivate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+#ifdef PCI_RES_BUS
+	struct mv_pcib_softc *sc = device_get_softc(dev);
+#endif
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		return (bus_generic_rman_deactivate_resource(dev, child, type,
+		    rid, r));
+#ifdef PCI_RES_BUS
+	case PCI_RES_BUS:
+		return (pci_domain_deactivate_bus(sc->ap_segment, child, rid,
+		    r));
+#endif
+	default:
+		return (bus_generic_deactivate_resource(dev, child, type, rid,
+		    r));
+	}
+}
+
+static int
+mv_pcib_map_resource(device_t dev, device_t child, int type, struct resource *r,
+    struct resource_map_request *argsp, struct resource_map *map)
+{
+	struct resource_map_request args;
+	rman_res_t length, start;
+	int error;
+
+	/* Resources must be active to be mapped. */
+	if (!(rman_get_flags(r) & RF_ACTIVE))
+		return (ENXIO);
+
+	/* Mappings are only supported on I/O and memory resources. */
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	resource_init_map_request(&args);
+	error = resource_validate_map_request(r, argsp, &args, &start, &length);
+	if (error)
+		return (error);
+
+	map->r_bustag = fdtbus_bs_tag;
+	map->r_bushandle = start;
+	map->r_size = length;
+	return (0);
+}
+
+static int
+mv_pcib_unmap_resource(device_t dev, device_t child, int type,
+    struct resource *r, struct resource_map *map)
+{
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		return (0);
+	default:
+		return (EINVAL);
+	}
 }
 
 static int
