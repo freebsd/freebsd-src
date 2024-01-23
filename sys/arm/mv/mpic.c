@@ -149,7 +149,6 @@ static void	mpic_unmask_irq_err(uintptr_t nb);
 static boolean_t mpic_irq_is_percpu(uintptr_t);
 static int	mpic_intr(void *arg);
 static void	mpic_unmask_msi(void);
-void mpic_init_secondary(device_t);
 void mpic_ipi_send(device_t, struct intr_irqsrc*, cpuset_t, u_int);
 int mpic_ipi_read(int);
 void mpic_ipi_clear(int);
@@ -384,7 +383,6 @@ static device_method_t mv_mpic_methods[] = {
 	DEVMETHOD(pic_post_filter,	mpic_post_filter),
 	DEVMETHOD(pic_post_ithread,	mpic_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	mpic_pre_ithread),
-	DEVMETHOD(pic_init_secondary,	mpic_init_secondary),
 	DEVMETHOD(pic_ipi_send,		mpic_ipi_send),
 	{ 0, 0 }
 };
@@ -563,11 +561,6 @@ mv_msi_data(int irq, uint64_t *addr, uint32_t *data)
 	*data = MPIC_SOFT_INT_DRBL1 | irq;
 
 	return (0);
-}
-
-void
-mpic_init_secondary(device_t dev)
-{
 }
 
 void
