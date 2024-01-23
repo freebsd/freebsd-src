@@ -548,7 +548,7 @@ tmpfs_update(struct vnode *vp)
  * without a size limit.
  */
 #if !defined(TMPFS_MEM_PERCENT)
-#define TMPFS_MEM_PERCENT		95
+#define TMPFS_MEM_PERCENT		100
 #endif
 
 /*
