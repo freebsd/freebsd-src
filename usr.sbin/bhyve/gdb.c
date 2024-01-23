@@ -1052,6 +1052,8 @@ gdb_read_mem(const uint8_t *data, size_t len)
 	bool started;
 	int error;
 
+	assert(len >= 1);
+
 	/* Skip 'm' */
 	data += 1;
 	len -= 1;
@@ -1162,6 +1164,8 @@ gdb_write_mem(const uint8_t *data, size_t len)
 	uint8_t *cp;
 	size_t resid, todo, bytes;
 	int error;
+
+	assert(len >= 1);
 
 	/* Skip 'M' */
 	data += 1;
@@ -1557,7 +1561,7 @@ gdb_query(const uint8_t *data, size_t len)
 
 		data += strlen("qThreadExtraInfo");
 		len -= strlen("qThreadExtraInfo");
-		if (*data != ',') {
+		if (len == 0 || *data != ',') {
 			send_error(EINVAL);
 			return;
 		}
@@ -1608,7 +1612,7 @@ handle_command(const uint8_t *data, size_t len)
 	case 'H': {
 		int tid;
 
-		if (data[1] != 'g' && data[1] != 'c') {
+		if (len < 2 || (data[1] != 'g' && data[1] != 'c')) {
 			send_error(EINVAL);
 			break;
 		}
