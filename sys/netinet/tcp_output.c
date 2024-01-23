@@ -651,8 +651,7 @@ after_sack_rexmit:
 	 * Don't send an independent window update if a delayed
 	 * ACK is pending (it will get piggy-backed on it) or the
 	 * remote side already has done a half-close and won't send
-	 * more data.  Skip this if the connection is in T/TCP
-	 * half-open state.
+	 * more data.
 	 */
 	if (recwin > 0 && !(tp->t_flags & TF_NEEDSYN) &&
 	    !(tp->t_flags & TF_DELACK) &&
