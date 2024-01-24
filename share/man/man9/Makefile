@@ -810,7 +810,6 @@ MLINKS+=byteorder.9 be16dec.9 \
 	byteorder.9 le64enc.9 \
 	byteorder.9 le64toh.9
 MLINKS+=callout.9 callout_active.9 \
-	callout.9 callout_async_drain.9 \
 	callout.9 callout_deactivate.9 \
 	callout.9 callout_drain.9 \
 	callout.9 callout_init.9 \
