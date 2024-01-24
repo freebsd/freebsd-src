@@ -98,6 +98,7 @@ SRCS_MIN+=	AST/Interp/ByteCodeStmtGen.cpp
 SRCS_MIN+=	AST/Interp/Context.cpp
 SRCS_MIN+=	AST/Interp/Descriptor.cpp
 SRCS_MIN+=	AST/Interp/EvalEmitter.cpp
+SRCS_MIN+=	AST/Interp/EvaluationResult.cpp
 SRCS_MIN+=	AST/Interp/Floating.cpp
 SRCS_MIN+=	AST/Interp/Frame.cpp
 SRCS_MIN+=	AST/Interp/Function.cpp
@@ -966,11 +967,11 @@ clang/Basic/AttrSubMatchRulesList.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Basic/AttrSubMatchRulesList.inc
 
-clang/Basic/AttrTokenKinds.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} -gen-clang-attr-token-kinds \
+clang/Basic/RegularKeywordAttrInfo.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -gen-clang-regular-keyword-attr-info \
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
-TGHDRS+=	clang/Basic/AttrTokenKinds.inc
+TGHDRS+=	clang/Basic/RegularKeywordAttrInfo.inc
 
 .for hdr in \
 	AST Analysis Comment Common CrossTU Driver Frontend Lex Parse \
