@@ -405,7 +405,7 @@ bcm_intc_attach(device_t dev)
 	sc->intc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE);
 	if (sc->intc_irq_res == NULL) {
-		if (intr_pic_claim_root(dev, xref, bcm2835_intc_intr, sc, 0) != 0) {
+		if (intr_pic_claim_root(dev, xref, bcm2835_intc_intr, sc) != 0) {
 			/* XXX clean up */
 			device_printf(dev, "could not set PIC as a root\n");
 			return (ENXIO);

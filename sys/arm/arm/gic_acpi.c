@@ -227,8 +227,7 @@ gic_acpi_attach(device_t dev)
 	/*
 	 * Controller is root:
 	 */
-	if (intr_pic_claim_root(dev, xref, arm_gic_intr, sc,
-	    GIC_LAST_SGI - GIC_FIRST_SGI + 1) != 0) {
+	if (intr_pic_claim_root(dev, xref, arm_gic_intr, sc) != 0) {
 		device_printf(dev, "could not set PIC as a root\n");
 		intr_pic_deregister(dev, xref);
 		goto cleanup;

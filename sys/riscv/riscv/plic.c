@@ -368,7 +368,7 @@ plic_attach(device_t dev)
 
 	csr_set(sie, SIE_SEIE);
 
-	return (intr_pic_claim_root(sc->dev, xref, plic_intr, sc, 0));
+	return (intr_pic_claim_root(sc->dev, xref, plic_intr, sc));
 }
 
 static void
