@@ -74,6 +74,7 @@ GENHDRS=	\
 	hashsize.h \
 	init_keytry.h \
 	ncurses_def.h \
+	ncurses_dll.h \
 	nomacros.h \
 	parametrized.h \
 	term.h \
@@ -170,9 +171,8 @@ CWARNFLAGS.comp_parse.c= ${NO_WUNUSED_BUT_SET_VARIABLE}
 CWARNFLAGS.read_entry.c= ${NO_WUNUSED_BUT_SET_VARIABLE}
 
 # Installed
-HEADERS=	curses.h term.h termcap.h unctrl.h
-SRCHDRS=	ncurses_dll.h
-CLEANFILES+=	ncurses_dll.h
+HEADERS=	curses.h ncurses_dll.h term.h termcap.h unctrl.h
+SRCHDRS=
 
 INCS=		${HEADERS} ${SRCHDRS}
 INCSLINKS=	curses.h ${INCLUDEDIR}/ncurses.h
@@ -213,6 +213,14 @@ FILESGROUPS=	DOCS
 
 # Generated source
 .ORDER: names.c codes.c
+
+# Serialize the build just a little bit; there's nothing stopping the build from
+# proceeding before ncurses_dll.h and curses.h are actually generated on a clean
+# build since we have no dependency information to prevent it.
+.ORDER: ncurses_dll.h curses.h
+.for f in ${SRCS:M*.c}
+.ORDER: curses.h ${f}
+.endfor
 
 names.c: MKnames.awk
 	${AWK} -f ${NCURSES_DIR}/ncurses/tinfo/MKnames.awk bigstrings=${USE_BIG_STRINGS} ${NCURSES_DIR}/include/Caps > names.c
