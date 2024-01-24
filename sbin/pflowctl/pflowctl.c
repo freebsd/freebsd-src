@@ -53,7 +53,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-"usage: %s [-la] [-d id]\n",
+"usage: %s [-lc] [-d id] [-s id ...]\n",
 	    __progname);
 
 	exit(1);
