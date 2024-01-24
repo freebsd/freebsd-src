@@ -3329,6 +3329,19 @@
 		    _Out_opt_ _Contains_long_timet_ struct itimerspec *old_value
 		);
 	}
+588 AUE_NULL STD {
+		int helloworld(
+			int len,
+		    _Out_writes_z_(len) char *buf
+		);
+	}
+589 AUE_NULL STD {
+		int dbquery(
+			_In_z_ const char *query,
+			_Out_writes_z(reslen) char *buf,
+			int reslen
+		);
+	}
 
 
 ; vim: syntax=off

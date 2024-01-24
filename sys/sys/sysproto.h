@@ -1870,6 +1870,15 @@ struct timerfd_settime_args {
 	char new_value_l_[PADL_(const struct itimerspec *)]; const struct itimerspec * new_value; char new_value_r_[PADR_(const struct itimerspec *)];
 	char old_value_l_[PADL_(struct itimerspec *)]; struct itimerspec * old_value; char old_value_r_[PADR_(struct itimerspec *)];
 };
+struct helloworld_args {
+	char len_l_[PADL_(int)]; int len; char len_r_[PADR_(int)];
+	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
+};
+struct dbquery_args {
+	char query_l_[PADL_(const char *)]; const char * query; char query_r_[PADR_(const char *)];
+	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
+	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
+};
 int	sys_exit(struct thread *, struct exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);
@@ -2268,6 +2277,8 @@ int	sys_membarrier(struct thread *, struct membarrier_args *);
 int	sys_timerfd_create(struct thread *, struct timerfd_create_args *);
 int	sys_timerfd_gettime(struct thread *, struct timerfd_gettime_args *);
 int	sys_timerfd_settime(struct thread *, struct timerfd_settime_args *);
+int	sys_helloworld(struct thread *, struct helloworld_args *);
+int	sys_dbquery(struct thread *, struct dbquery_args *);
 
 #ifdef COMPAT_43
 
@@ -3246,6 +3257,8 @@ int	freebsd13_swapoff(struct thread *, struct freebsd13_swapoff_args *);
 #define	SYS_AUE_timerfd_create	AUE_TIMERFD
 #define	SYS_AUE_timerfd_gettime	AUE_TIMERFD
 #define	SYS_AUE_timerfd_settime	AUE_TIMERFD
+#define	SYS_AUE_helloworld	AUE_NULL
+#define	SYS_AUE_dbquery	AUE_NULL
 
 #undef PAD_
 #undef PADL_

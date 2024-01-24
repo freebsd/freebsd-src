@@ -3444,6 +3444,23 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
+	/* helloworld */
+	case 588: {
+		struct helloworld_args *p = params;
+		iarg[a++] = p->len; /* int */
+		uarg[a++] = (intptr_t)p->buf; /* char * */
+		*n_args = 2;
+		break;
+	}
+	/* dbquery */
+	case 589: {
+		struct dbquery_args *p = params;
+		uarg[a++] = (intptr_t)p->query; /* const char * */
+		uarg[a++] = (intptr_t)p->buf; /* char * */
+		iarg[a++] = p->reslen; /* int */
+		*n_args = 3;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -9212,6 +9229,35 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* helloworld */
+	case 588:
+		switch (ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "userland char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbquery */
+	case 589:
+		switch (ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland char *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -11177,6 +11223,16 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* timerfd_settime */
 	case 587:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* helloworld */
+	case 588:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbquery */
+	case 589:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

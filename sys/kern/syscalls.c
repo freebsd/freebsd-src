@@ -593,4 +593,6 @@ const char *syscallnames[] = {
 	"timerfd_create",			/* 585 = timerfd_create */
 	"timerfd_gettime",			/* 586 = timerfd_gettime */
 	"timerfd_settime",			/* 587 = timerfd_settime */
+	"helloworld",			/* 588 = helloworld */
+	"dbquery",			/* 589 = dbquery */
 };
