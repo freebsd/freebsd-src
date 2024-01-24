@@ -25,9 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
-.\"
-.Dd October 4, 2023
+.Dd January 24, 2024
 .Dt MOUNT 8
 .Os
 .Sh NAME
@@ -157,6 +155,9 @@ For this reason, the
 .Cm async
 flag should be used sparingly, and only when some data recovery
 mechanism is present.
+.It Cm atime
+Update the file access time when reading from a file.
+This is the default.
 .It Cm automounted
 This flag indicates that the file system was mounted by
 .Xr automountd 8 .
