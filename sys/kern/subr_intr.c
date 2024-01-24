@@ -2,6 +2,11 @@
  * Copyright (c) 2015-2016 Svatopluk Kraus
  * Copyright (c) 2015-2016 Michal Meloun
  * All rights reserved.
+ * Copyright (c) 2015-2016 The FreeBSD Foundation
+ * Copyright (c) 2021 Jessica Clarke <jrtc27@FreeBSD.org>
+ *
+ * Portions of this software were developed by Andrew Turner under
+ * sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -124,6 +129,18 @@ struct intr_pic {
 	SLIST_HEAD(, intr_pic_child) pic_children;
 };
 
+#ifdef SMP
+#define INTR_IPI_NAMELEN	(MAXCOMLEN + 1)
+
+struct intr_ipi {
+	intr_ipi_handler_t	*ii_handler;
+	void			*ii_handler_arg;
+	struct intr_irqsrc	*ii_isrc;
+	char			ii_name[INTR_IPI_NAMELEN];
+	u_long			*ii_count;
+};
+#endif
+
 static struct mtx pic_list_lock;
 static SLIST_HEAD(, intr_pic) pic_list;
 
@@ -140,6 +157,8 @@ static bool irq_assign_cpu = true;
 #else
 static bool irq_assign_cpu = false;
 #endif
+
+static struct intr_ipi ipi_sources[INTR_IPI_COUNT];
 #endif
 
 u_int intr_nirq = NIRQ;
@@ -297,39 +316,6 @@ isrc_release_counters(struct intr_irqsrc *isrc)
 
 	bit_nclear(intrcnt_bitmap, idx, idx + 1);
 }
-
-#ifdef SMP
-/*
- *  Virtualization for interrupt source IPI counters setup.
- */
-u_long *
-intr_ipi_setup_counters(const char *name)
-{
-	u_int index, i;
-	char str[INTRNAME_LEN];
-
-	mtx_lock(&isrc_table_lock);
-
-	/*
-	 * We should never have a problem finding mp_maxid + 1 contiguous
-	 * counters, in practice. Interrupts will be allocated sequentially
-	 * during boot, so the array should fill from low to high index. Once
-	 * reserved, the IPI counters will never be released. Similarly, we
-	 * will not need to allocate more IPIs once the system is running.
-	 */
-	bit_ffc_area(intrcnt_bitmap, nintrcnt, mp_maxid + 1, &index);
-	if (index == -1)
-		panic("Failed to allocate %d counters. Array exhausted?",
-		    mp_maxid + 1);
-	bit_nset(intrcnt_bitmap, index, index + mp_maxid);
-	for (i = 0; i < mp_maxid + 1; i++) {
-		snprintf(str, INTRNAME_LEN, "cpu%d:%s", i, name);
-		intrcnt_setname(str, index + i);
-	}
-	mtx_unlock(&isrc_table_lock);
-	return (&intrcnt[index]);
-}
-#endif
 
 /*
  *  Main interrupt dispatch handler. It's called straight
@@ -1774,3 +1760,139 @@ intr_map_init(void *dummy __unused)
 	    M_INTRNG, M_WAITOK | M_ZERO);
 }
 SYSINIT(intr_map_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_map_init, NULL);
+
+#ifdef SMP
+/* Virtualization for interrupt source IPI counter increment. */
+static inline void
+intr_ipi_increment_count(u_long *counter, u_int cpu)
+{
+
+	KASSERT(cpu < mp_maxid + 1, ("%s: too big cpu %u", __func__, cpu));
+	counter[cpu]++;
+}
+
+/*
+ *  Virtualization for interrupt source IPI counters setup.
+ */
+static u_long *
+intr_ipi_setup_counters(const char *name)
+{
+	u_int index, i;
+	char str[INTRNAME_LEN];
+
+	mtx_lock(&isrc_table_lock);
+
+	/*
+	 * We should never have a problem finding mp_maxid + 1 contiguous
+	 * counters, in practice. Interrupts will be allocated sequentially
+	 * during boot, so the array should fill from low to high index. Once
+	 * reserved, the IPI counters will never be released. Similarly, we
+	 * will not need to allocate more IPIs once the system is running.
+	 */
+	bit_ffc_area(intrcnt_bitmap, nintrcnt, mp_maxid + 1, &index);
+	if (index == -1)
+		panic("Failed to allocate %d counters. Array exhausted?",
+		    mp_maxid + 1);
+	bit_nset(intrcnt_bitmap, index, index + mp_maxid);
+	for (i = 0; i < mp_maxid + 1; i++) {
+		snprintf(str, INTRNAME_LEN, "cpu%d:%s", i, name);
+		intrcnt_setname(str, index + i);
+	}
+	mtx_unlock(&isrc_table_lock);
+	return (&intrcnt[index]);
+}
+
+/*
+ *  Lookup IPI source.
+ */
+static struct intr_ipi *
+intr_ipi_lookup(u_int ipi)
+{
+
+	if (ipi >= INTR_IPI_COUNT)
+		panic("%s: no such IPI %u", __func__, ipi);
+
+	return (&ipi_sources[ipi]);
+}
+
+/*
+ *  Setup IPI handler on interrupt controller.
+ *
+ *  Not SMP coherent.
+ */
+void
+intr_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
+    void *arg)
+{
+	struct intr_irqsrc *isrc;
+	struct intr_ipi *ii;
+	int error;
+
+	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
+	KASSERT(hand != NULL, ("%s: ipi %u no handler", __func__, ipi));
+
+	error = PIC_IPI_SETUP(intr_irq_root_dev, ipi, &isrc);
+	if (error != 0)
+		return;
+
+	isrc->isrc_handlers++;
+
+	ii = intr_ipi_lookup(ipi);
+	KASSERT(ii->ii_count == NULL, ("%s: ipi %u reused", __func__, ipi));
+
+	ii->ii_handler = hand;
+	ii->ii_handler_arg = arg;
+	ii->ii_isrc = isrc;
+	strlcpy(ii->ii_name, name, INTR_IPI_NAMELEN);
+	ii->ii_count = intr_ipi_setup_counters(name);
+
+	PIC_ENABLE_INTR(intr_irq_root_dev, isrc);
+}
+
+void
+intr_ipi_send(cpuset_t cpus, u_int ipi)
+{
+	struct intr_ipi *ii;
+
+	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
+
+	ii = intr_ipi_lookup(ipi);
+	if (ii->ii_count == NULL)
+		panic("%s: not setup IPI %u", __func__, ipi);
+
+	/*
+	 * XXX: Surely needed on other architectures too? Either way should be
+	 * some kind of MI hook defined in an MD header, or the responsibility
+	 * of the MD caller if not widespread.
+	 */
+#ifdef __aarch64__
+	/*
+	 * Ensure that this CPU's stores will be visible to IPI
+	 * recipients before starting to send the interrupts.
+	 */
+	dsb(ishst);
+#endif
+
+	PIC_IPI_SEND(intr_irq_root_dev, ii->ii_isrc, cpus, ipi);
+}
+
+/*
+ *  interrupt controller dispatch function for IPIs. It should
+ *  be called straight from the interrupt controller, when associated
+ *  interrupt source is learned. Or from anybody who has an interrupt
+ *  source mapped.
+ */
+void
+intr_ipi_dispatch(u_int ipi)
+{
+	struct intr_ipi *ii;
+
+	ii = intr_ipi_lookup(ipi);
+	if (ii->ii_count == NULL)
+		panic("%s: not setup IPI %u", __func__, ipi);
+
+	intr_ipi_increment_count(ii->ii_count, PCPU_GET(cpuid));
+
+	ii->ii_handler(ii->ii_handler_arg);
+}
+#endif

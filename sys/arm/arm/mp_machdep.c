@@ -300,11 +300,11 @@ release_aps(void *dummy __unused)
 	if (mp_ncpus == 1)
 		return;
 
-	intr_pic_ipi_setup(IPI_RENDEZVOUS, "rendezvous", ipi_rendezvous, NULL);
-	intr_pic_ipi_setup(IPI_AST, "ast", ipi_ast, NULL);
-	intr_pic_ipi_setup(IPI_STOP, "stop", ipi_stop, NULL);
-	intr_pic_ipi_setup(IPI_PREEMPT, "preempt", ipi_preempt, NULL);
-	intr_pic_ipi_setup(IPI_HARDCLOCK, "hardclock", ipi_hardclock, NULL);
+	intr_ipi_setup(IPI_RENDEZVOUS, "rendezvous", ipi_rendezvous, NULL);
+	intr_ipi_setup(IPI_AST, "ast", ipi_ast, NULL);
+	intr_ipi_setup(IPI_STOP, "stop", ipi_stop, NULL);
+	intr_ipi_setup(IPI_PREEMPT, "preempt", ipi_preempt, NULL);
+	intr_ipi_setup(IPI_HARDCLOCK, "hardclock", ipi_hardclock, NULL);
 
 	atomic_store_rel_int(&aps_ready, 1);
 	/* Wake the other threads up */

@@ -148,21 +148,18 @@ int intr_release_msix(device_t, device_t, intptr_t, int);
 int intr_bind_irq(device_t, struct resource *, int);
 
 void intr_pic_init_secondary(void);
-
-/* Virtualization for interrupt source IPI counter increment. */
-static inline void
-intr_ipi_increment_count(u_long *counter, u_int cpu)
-{
-
-	KASSERT(cpu < MAXCPU, ("%s: too big cpu %u", __func__, cpu));
-	counter[cpu]++;
-}
-
-/* Virtualization for interrupt source IPI counters setup. */
-u_long * intr_ipi_setup_counters(const char *name);
-
 #endif
 
 extern u_int	intr_nirq;	/* number of IRQs on intrng platforms */
+
+/* Intr interface for IPIs. */
+#ifdef SMP
+typedef void intr_ipi_handler_t(void *);
+
+void intr_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
+    void *arg);
+void intr_ipi_send(cpuset_t cpus, u_int ipi);
+void intr_ipi_dispatch(u_int ipi);
+#endif
 
 #endif	/* _SYS_INTR_H */
