@@ -219,6 +219,7 @@ MAN+=	abort2.2 \
 	ioctl.2 \
 	issetugid.2 \
 	jail.2 \
+	kcmp.2 \
 	kenv.2 \
 	kill.2 \
 	kldfind.2 \
