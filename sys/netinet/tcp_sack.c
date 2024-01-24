@@ -936,13 +936,18 @@ tcp_resend_sackholes(struct tcpcb *tp)
  * the midst of sack recovery.
  */
 void
-tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
+tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th, u_int *maxsegp)
 {
 	struct sackhole *temp;
 	int num_segs = 1;
-	u_int maxseg = tcp_maxseg(tp);
+	u_int maxseg;
 
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
+
+	if (*maxsegp == 0) {
+		*maxsegp = tcp_maxseg(tp);
+	}
+	maxseg = *maxsegp;
 	tcp_timer_activate(tp, TT_REXMT, 0);
 	tp->t_rtttime = 0;
 	/* Send one or 2 segments based on how much new data was acked. */

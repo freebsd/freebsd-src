@@ -1529,7 +1529,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 	struct mbuf *mfree;
 	struct tcpopt to;
 	int tfo_syn;
-	u_int maxseg;
+	u_int maxseg = 0;
 
 	thflags = tcp_get_flags(th);
 	tp->sackhint.last_sack_ack = 0;
@@ -2596,7 +2596,8 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 					if (V_tcp_do_prr &&
 					    IN_FASTRECOVERY(tp->t_flags) &&
 					    (tp->t_flags & TF_SACK_PERMIT)) {
-						tcp_do_prr_ack(tp, th, &to, sack_changed);
+						tcp_do_prr_ack(tp, th, &to,
+						    sack_changed, &maxseg);
 					} else if (tcp_is_sack_recovery(tp, &to) &&
 					    IN_FASTRECOVERY(tp->t_flags)) {
 						int awnd;
@@ -2801,19 +2802,24 @@ resume_partialack:
 		 */
 		if (IN_FASTRECOVERY(tp->t_flags)) {
 			if (SEQ_LT(th->th_ack, tp->snd_recover)) {
-				if (tp->t_flags & TF_SACK_PERMIT)
+				if (tp->t_flags & TF_SACK_PERMIT) {
 					if (V_tcp_do_prr && to.to_flags & TOF_SACK) {
 						tcp_timer_activate(tp, TT_REXMT, 0);
 						tp->t_rtttime = 0;
-						tcp_do_prr_ack(tp, th, &to, sack_changed);
+						tcp_do_prr_ack(tp, th, &to,
+						    sack_changed, &maxseg);
 						tp->t_flags |= TF_ACKNOW;
 						(void) tcp_output(tp);
-					} else
-						tcp_sack_partialack(tp, th);
-				else
+					} else {
+						tcp_sack_partialack(tp, th,
+						    &maxseg);
+					}
+				} else {
 					tcp_newreno_partial_ack(tp, th);
-			} else
+				}
+			} else {
 				cc_post_recovery(tp, th);
+			}
 		} else if (IN_CONGRECOVERY(tp->t_flags)) {
 			if (SEQ_LT(th->th_ack, tp->snd_recover)) {
 				if (V_tcp_do_prr) {
@@ -2823,11 +2829,13 @@ resume_partialack:
 					 * During ECN cwnd reduction
 					 * always use PRR-SSRB
 					 */
-					tcp_do_prr_ack(tp, th, &to, SACK_CHANGE);
+					tcp_do_prr_ack(tp, th, &to, SACK_CHANGE,
+					    &maxseg);
 					(void) tcp_output(tp);
 				}
-			} else
+			} else {
 				cc_post_recovery(tp, th);
+			}
 		}
 		/*
 		 * If we reach this point, ACK is not a duplicate,
@@ -3946,13 +3954,18 @@ tcp_mssopt(struct in_conninfo *inc)
 }
 
 void
-tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to, sackstatus_t sack_changed)
+tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to,
+    sackstatus_t sack_changed, u_int *maxsegp)
 {
 	int snd_cnt = 0, limit = 0, del_data = 0, pipe = 0;
-	int maxseg = tcp_maxseg(tp);
+	u_int maxseg;
 
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
+	if (*maxsegp == 0) {
+		*maxsegp = tcp_maxseg(tp);
+	}
+	maxseg = *maxsegp;
 	/*
 	 * Compute the amount of data that this ACK is indicating
 	 * (del_data) and an estimate of how many bytes are in the
