@@ -156,6 +156,7 @@ extern u_int	intr_nirq;	/* number of IRQs on intrng platforms */
 #ifdef SMP
 typedef void intr_ipi_handler_t(void *);
 
+int intr_ipi_pic_register(device_t dev, u_int priority);
 void intr_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
     void *arg);
 void intr_ipi_send(cpuset_t cpus, u_int ipi);

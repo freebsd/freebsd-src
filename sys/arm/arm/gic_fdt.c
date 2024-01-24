@@ -158,6 +158,13 @@ gic_fdt_attach(device_t dev)
 			intr_pic_deregister(dev, xref);
 			goto cleanup;
 		}
+
+#ifdef SMP
+		if (intr_ipi_pic_register(dev, 0) != 0) {
+			device_printf(dev, "could not register for IPIs\n");
+			goto cleanup;
+		}
+#endif
 	} else {
 		if (sc->base.gic_res[2] == NULL) {
 			device_printf(dev,

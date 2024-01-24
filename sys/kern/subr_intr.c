@@ -139,6 +139,10 @@ struct intr_ipi {
 	char			ii_name[INTR_IPI_NAMELEN];
 	u_long			*ii_count;
 };
+
+static device_t intr_ipi_dev;
+static u_int intr_ipi_dev_priority;
+static bool intr_ipi_dev_frozen;
 #endif
 
 static struct mtx pic_list_lock;
@@ -380,7 +384,8 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 
 	KASSERT(isrc != NULL, ("%s: no source", __func__));
 
-	isrc_increment_count(isrc);
+	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
+		isrc_increment_count(isrc);
 
 #ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL) {
@@ -396,7 +401,8 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 			return (0);
 	}
 
-	isrc_increment_straycount(isrc);
+	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
+		isrc_increment_straycount(isrc);
 	return (EINVAL);
 }
 
@@ -1815,6 +1821,20 @@ intr_ipi_lookup(u_int ipi)
 	return (&ipi_sources[ipi]);
 }
 
+int
+intr_ipi_pic_register(device_t dev, u_int priority)
+{
+	if (intr_ipi_dev_frozen) {
+		device_printf(dev, "IPI device already frozen");
+		return (EBUSY);
+	}
+
+	if (intr_ipi_dev == NULL || priority > intr_ipi_dev_priority)
+		intr_ipi_dev = dev;
+
+	return (0);
+}
+
 /*
  *  Setup IPI handler on interrupt controller.
  *
@@ -1828,10 +1848,17 @@ intr_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
 	struct intr_ipi *ii;
 	int error;
 
-	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
+	if (!intr_ipi_dev_frozen) {
+		if (intr_ipi_dev == NULL)
+			panic("%s: no IPI PIC attached", __func__);
+
+		intr_ipi_dev_frozen = true;
+		device_printf(intr_ipi_dev, "using for IPIs\n");
+	}
+
 	KASSERT(hand != NULL, ("%s: ipi %u no handler", __func__, ipi));
 
-	error = PIC_IPI_SETUP(intr_irq_root_dev, ipi, &isrc);
+	error = PIC_IPI_SETUP(intr_ipi_dev, ipi, &isrc);
 	if (error != 0)
 		return;
 
@@ -1846,7 +1873,7 @@ intr_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
 	strlcpy(ii->ii_name, name, INTR_IPI_NAMELEN);
 	ii->ii_count = intr_ipi_setup_counters(name);
 
-	PIC_ENABLE_INTR(intr_irq_root_dev, isrc);
+	PIC_ENABLE_INTR(intr_ipi_dev, isrc);
 }
 
 void
@@ -1854,7 +1881,8 @@ intr_ipi_send(cpuset_t cpus, u_int ipi)
 {
 	struct intr_ipi *ii;
 
-	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
+	KASSERT(intr_ipi_dev_frozen,
+	    ("%s: IPI device not yet frozen", __func__));
 
 	ii = intr_ipi_lookup(ipi);
 	if (ii->ii_count == NULL)
@@ -1873,7 +1901,7 @@ intr_ipi_send(cpuset_t cpus, u_int ipi)
 	dsb(ishst);
 #endif
 
-	PIC_IPI_SEND(intr_irq_root_dev, ii->ii_isrc, cpus, ipi);
+	PIC_IPI_SEND(intr_ipi_dev, ii->ii_isrc, cpus, ipi);
 }
 
 /*
