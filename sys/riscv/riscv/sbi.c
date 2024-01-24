@@ -31,6 +31,7 @@
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/reboot.h>
 
@@ -43,6 +44,10 @@
 
 struct sbi_softc {
 	device_t		dev;
+};
+
+struct sbi_devinfo {
+	struct resource_list	rl;
 };
 
 static struct sbi_softc *sbi_softc = NULL;
@@ -347,6 +352,10 @@ static int
 sbi_attach(device_t dev)
 {
 	struct sbi_softc *sc;
+#ifdef SMP
+	device_t child;
+	struct sbi_devinfo *di;
+#endif
 
 	if (sbi_softc != NULL)
 		return (ENXIO);
@@ -358,7 +367,30 @@ sbi_attach(device_t dev)
 	EVENTHANDLER_REGISTER(shutdown_final, sbi_shutdown_final, NULL,
 	    SHUTDOWN_PRI_LAST);
 
+#ifdef SMP
+	di = malloc(sizeof(*di), M_DEVBUF, M_WAITOK | M_ZERO);
+	resource_list_init(&di->rl);
+	child = device_add_child(dev, "sbi_ipi", -1);
+	if (child == NULL) {
+		device_printf(dev, "Could not add sbi_ipi child\n");
+		return (ENXIO);
+	}
+
+	device_set_ivars(child, di);
+#endif
+
 	return (0);
+}
+
+static struct resource_list *
+sbi_get_resource_list(device_t bus, device_t child)
+{
+	struct sbi_devinfo *di;
+
+	di = device_get_ivars(child);
+	KASSERT(di != NULL, ("%s: No devinfo", __func__));
+
+	return (&di->rl);
 }
 
 static device_method_t sbi_methods[] = {
@@ -366,6 +398,17 @@ static device_method_t sbi_methods[] = {
 	DEVMETHOD(device_identify,	sbi_identify),
 	DEVMETHOD(device_probe,		sbi_probe),
 	DEVMETHOD(device_attach,	sbi_attach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_alloc_resource,	bus_generic_rl_alloc_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_get_resource_list, sbi_get_resource_list),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 
 	DEVMETHOD_END
 };
