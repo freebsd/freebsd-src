@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2019 Mitchell Horne <mhorne@FreeBSD.org>
+ * Copyright (c) 2021 Jessica Clarke <jrtc27@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,10 +27,11 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/types.h>
+#include <sys/bus.h>
 #include <sys/eventhandler.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/reboot.h>
 
 #include <machine/md_var.h>
@@ -39,9 +41,15 @@
 #define	OPENSBI_VERSION_MAJOR_OFFSET	16
 #define	OPENSBI_VERSION_MINOR_MASK	0xFFFF
 
-u_long sbi_spec_version;
-u_long sbi_impl_id;
-u_long sbi_impl_version;
+struct sbi_softc {
+	device_t		dev;
+};
+
+static struct sbi_softc *sbi_softc = NULL;
+
+static u_long sbi_spec_version;
+static u_long sbi_impl_id;
+static u_long sbi_impl_version;
 
 static bool has_time_extension = false;
 static bool has_ipi_extension = false;
@@ -315,10 +323,53 @@ sbi_init(void)
 }
 
 static void
-sbi_late_init(void *dummy __unused)
+sbi_identify(driver_t *driver, device_t parent)
 {
-	EVENTHANDLER_REGISTER(shutdown_final, sbi_shutdown_final, NULL,
-	    SHUTDOWN_PRI_LAST);
+	device_t dev;
+
+	if (device_find_child(parent, "sbi", -1) != NULL)
+		return;
+
+	dev = BUS_ADD_CHILD(parent, 0, "sbi", -1);
+	if (dev == NULL)
+		device_printf(parent, "Can't add sbi child\n");
 }
 
-SYSINIT(sbi, SI_SUB_KLD, SI_ORDER_ANY, sbi_late_init, NULL);
+static int
+sbi_probe(device_t dev)
+{
+	device_set_desc(dev, "RISC-V Supervisor Binary Interface");
+
+	return (BUS_PROBE_NOWILDCARD);
+}
+
+static int
+sbi_attach(device_t dev)
+{
+	struct sbi_softc *sc;
+
+	if (sbi_softc != NULL)
+		return (ENXIO);
+
+	sc = device_get_softc(dev);
+	sc->dev = dev;
+	sbi_softc = sc;
+
+	EVENTHANDLER_REGISTER(shutdown_final, sbi_shutdown_final, NULL,
+	    SHUTDOWN_PRI_LAST);
+
+	return (0);
+}
+
+static device_method_t sbi_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_identify,	sbi_identify),
+	DEVMETHOD(device_probe,		sbi_probe),
+	DEVMETHOD(device_attach,	sbi_attach),
+
+	DEVMETHOD_END
+};
+
+DEFINE_CLASS_0(sbi, sbi_driver, sbi_methods, sizeof(struct sbi_softc));
+EARLY_DRIVER_MODULE(sbi, nexus, sbi_driver, 0, 0,
+    BUS_PASS_CPU + BUS_PASS_ORDER_FIRST);
