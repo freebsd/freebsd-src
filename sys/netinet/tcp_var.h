@@ -1481,14 +1481,16 @@ sackstatus_t
 	 tcp_sack_doack(struct tcpcb *, struct tcpopt *, tcp_seq);
 int	 tcp_dsack_block_exists(struct tcpcb *);
 void	 tcp_update_dsack_list(struct tcpcb *, tcp_seq, tcp_seq);
-void	 tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_laststart, tcp_seq rcv_lastend);
+void	 tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_laststart,
+	    tcp_seq rcv_lastend);
 void	 tcp_clean_dsack_blocks(struct tcpcb *tp);
 void	 tcp_clean_sackreport(struct tcpcb *tp);
 void	 tcp_sack_adjust(struct tcpcb *tp);
 struct sackhole *tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt);
-void	 tcp_do_prr_ack(struct tcpcb *, struct tcphdr *, struct tcpopt *, sackstatus_t);
+void	 tcp_do_prr_ack(struct tcpcb *, struct tcphdr *, struct tcpopt *,
+	    sackstatus_t, u_int *);
 void	 tcp_lost_retransmission(struct tcpcb *, struct tcphdr *);
-void	 tcp_sack_partialack(struct tcpcb *, struct tcphdr *);
+void	 tcp_sack_partialack(struct tcpcb *, struct tcphdr *, u_int *);
 void	 tcp_resend_sackholes(struct tcpcb *tp);
 void	 tcp_free_sackholes(struct tcpcb *tp);
 void	 tcp_sack_lost_retransmission(struct tcpcb *, struct tcphdr *);
