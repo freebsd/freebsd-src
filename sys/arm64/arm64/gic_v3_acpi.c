@@ -351,6 +351,14 @@ gic_v3_acpi_attach(device_t dev)
 		goto error;
 	}
 
+#ifdef SMP
+	err = intr_ipi_pic_register(dev, 0);
+	if (err != 0) {
+		device_printf(dev, "could not register for IPIs\n");
+		goto error;
+	}
+#endif
+
 	/*
 	 * Try to register the ITS driver to this GIC. The GIC will act as
 	 * a bus in that case. Failure here will not affect the main GIC

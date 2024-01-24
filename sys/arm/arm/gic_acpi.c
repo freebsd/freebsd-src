@@ -232,6 +232,14 @@ gic_acpi_attach(device_t dev)
 		intr_pic_deregister(dev, xref);
 		goto cleanup;
 	}
+
+#ifdef SMP
+	if (intr_ipi_pic_register(dev, 0) != 0) {
+		device_printf(dev, "could not register for IPIs\n");
+		goto cleanup;
+	}
+#endif
+
 	/* If we have children probe and attach them */
 	if (arm_gic_add_children(dev)) {
 		bus_generic_probe(dev);
