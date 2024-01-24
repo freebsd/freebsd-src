@@ -646,7 +646,7 @@ bcm_lintc_pic_attach(struct bcm_lintc_softc *sc)
 	if (pic == NULL)
 		return (ENXIO);
 
-	return (intr_pic_claim_root(sc->bls_dev, xref, bcm_lintc_intr, sc, 0));
+	return (intr_pic_claim_root(sc->bls_dev, xref, bcm_lintc_intr, sc));
 }
 
 static int
