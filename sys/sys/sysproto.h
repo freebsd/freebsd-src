@@ -1861,6 +1861,13 @@ struct membarrier_args {
 	char flags_l_[PADL_(unsigned)]; unsigned flags; char flags_r_[PADR_(unsigned)];
 	char cpu_id_l_[PADL_(int)]; int cpu_id; char cpu_id_r_[PADR_(int)];
 };
+struct kcmp_args {
+	char pid1_l_[PADL_(pid_t)]; pid_t pid1; char pid1_r_[PADR_(pid_t)];
+	char pid2_l_[PADL_(pid_t)]; pid_t pid2; char pid2_r_[PADR_(pid_t)];
+	char type_l_[PADL_(int)]; int type; char type_r_[PADR_(int)];
+	char idx1_l_[PADL_(uintptr_t)]; uintptr_t idx1; char idx1_r_[PADR_(uintptr_t)];
+	char idx2_l_[PADL_(uintptr_t)]; uintptr_t idx2; char idx2_r_[PADR_(uintptr_t)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_sys_exit(struct thread *, struct sys_exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
@@ -2259,6 +2266,7 @@ int	sys_sched_getcpu(struct thread *, struct sched_getcpu_args *);
 int	sys_swapoff(struct thread *, struct swapoff_args *);
 int	sys_kqueuex(struct thread *, struct kqueuex_args *);
 int	sys_membarrier(struct thread *, struct membarrier_args *);
+int	sys_kcmp(struct thread *, struct kcmp_args *);
 
 #ifdef COMPAT_43
 
@@ -3207,6 +3215,7 @@ int	freebsd12_closefrom(struct thread *, struct freebsd12_closefrom_args *);
 #define	SYS_AUE_swapoff	AUE_SWAPOFF
 #define	SYS_AUE_kqueuex	AUE_KQUEUE
 #define	SYS_AUE_membarrier	AUE_NULL
+#define	SYS_AUE_kcmp	AUE_NULL
 
 #undef PAD_
 #undef PADL_

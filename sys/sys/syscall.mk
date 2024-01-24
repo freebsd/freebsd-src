@@ -425,4 +425,5 @@ MIASM =  \
 	sched_getcpu.o \
 	swapoff.o \
 	kqueuex.o \
-	membarrier.o
+	membarrier.o \
+	kcmp.o

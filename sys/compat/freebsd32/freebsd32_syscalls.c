@@ -618,4 +618,10 @@ const char *freebsd32_syscallnames[] = {
 	"#580",			/* 580 = fspacectl */
 	"sched_getcpu",			/* 581 = sched_getcpu */
 	"#582",			/* 582 = swapoff */
+	"#583",			/* 583 = kqueuex */
+	"#584",			/* 584 = membarrier */
+	"#585",			/* 585 = timerfd_create */
+	"#586",			/* 586 = timerfd_gettime */
+	"#587",			/* 587 = timerfd_settime */
+	"kcmp",			/* 588 = kcmp */
 };

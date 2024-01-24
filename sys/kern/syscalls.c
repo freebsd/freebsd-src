@@ -590,4 +590,8 @@ const char *syscallnames[] = {
 	"swapoff",			/* 582 = swapoff */
 	"kqueuex",			/* 583 = kqueuex */
 	"membarrier",			/* 584 = membarrier */
+	"#585",			/* 585 = timerfd_create */
+	"#586",			/* 586 = timerfd_gettime */
+	"#587",			/* 587 = timerfd_settime */
+	"kcmp",			/* 588 = kcmp */
 };
