@@ -100,7 +100,6 @@ void intr_irq_handler(struct trapframe *tf);
 device_t intr_irq_root_dev;
 static intr_irq_filter_t *irq_root_filter;
 static void *irq_root_arg;
-static u_int irq_root_ipicount;
 
 struct intr_pic_child {
 	SLIST_ENTRY(intr_pic_child)	 pc_next;
@@ -884,7 +883,7 @@ intr_pic_deregister(device_t dev, intptr_t xref)
  */
 int
 intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
-    void *arg, u_int ipicount)
+    void *arg)
 {
 	struct intr_pic *pic;
 
@@ -916,7 +915,6 @@ intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
 	intr_irq_root_dev = dev;
 	irq_root_filter = filter;
 	irq_root_arg = arg;
-	irq_root_ipicount = ipicount;
 
 	debugf("irq root set to %s\n", device_get_nameunit(dev));
 	return (0);

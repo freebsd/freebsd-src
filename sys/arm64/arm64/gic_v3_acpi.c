@@ -345,8 +345,8 @@ gic_v3_acpi_attach(device_t dev)
 		}
 	}
 
-	if (intr_pic_claim_root(dev, ACPI_INTR_XREF, arm_gic_v3_intr, sc,
-	    GIC_LAST_SGI - GIC_FIRST_SGI + 1) != 0) {
+	if (intr_pic_claim_root(dev, ACPI_INTR_XREF, arm_gic_v3_intr, sc)
+	    != 0) {
 		err = ENXIO;
 		goto error;
 	}
