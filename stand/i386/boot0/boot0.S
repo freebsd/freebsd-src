@@ -672,7 +672,7 @@ ticks:		.word TICKS			# Delay
 
 		.org PRT_OFF
 /*
- * Here is the 64 byte partition table that fdisk would fiddle with.
+ * Here is the 64 byte MBR partition table.
  */
 partbl:		.fill 0x40,0x1,0x0		# Partition table
 		.word MAGIC			# Magic number
