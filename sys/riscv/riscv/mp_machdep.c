@@ -83,7 +83,11 @@ static device_identify_t riscv64_cpu_identify;
 static device_probe_t riscv64_cpu_probe;
 static device_attach_t riscv64_cpu_attach;
 
-static int ipi_handler(void *);
+static void ipi_ast(void *);
+static void ipi_hardclock(void *);
+static void ipi_preempt(void *);
+static void ipi_rendezvous(void *);
+static void ipi_stop(void *);
 
 extern uint32_t boot_hart;
 extern cpuset_t all_harts;
@@ -191,8 +195,13 @@ release_aps(void *dummy __unused)
 	if (mp_ncpus == 1)
 		return;
 
-	/* Setup the IPI handler */
-	riscv_setup_ipihandler(ipi_handler);
+	/* Setup the IPI handlers */
+	intr_ipi_setup(IPI_AST, "ast", ipi_ast, NULL);
+	intr_ipi_setup(IPI_PREEMPT, "preempt", ipi_preempt, NULL);
+	intr_ipi_setup(IPI_RENDEZVOUS, "rendezvous", ipi_rendezvous, NULL);
+	intr_ipi_setup(IPI_STOP, "stop", ipi_stop, NULL);
+	intr_ipi_setup(IPI_STOP_HARD, "stop hard", ipi_stop, NULL);
+	intr_ipi_setup(IPI_HARDCLOCK, "hardclock", ipi_hardclock, NULL);
 
 	atomic_store_rel_int(&aps_ready, 1);
 
@@ -244,16 +253,13 @@ init_secondary(uint64_t hart)
 	pcpup->pc_curthread = pcpup->pc_idlethread;
 	schedinit_ap();
 
-	/* Enable software interrupts */
-	riscv_unmask_ipi();
+	/* Setup and enable interrupts */
+	intr_pic_init_secondary();
 
 #ifndef EARLY_AP_STARTUP
 	/* Start per-CPU event timers. */
 	cpu_initclocks_ap();
 #endif
-
-	/* Enable external (PLIC) interrupts */
-	csr_set(sie, SIE_SEIE);
 
 	/* Activate this hart in the kernel pmap. */
 	CPU_SET_ATOMIC(hart, &kernel_pmap->pm_active);
@@ -308,74 +314,59 @@ smp_after_idle_runnable(void *arg __unused)
 SYSINIT(smp_after_idle_runnable, SI_SUB_SMP, SI_ORDER_ANY,
     smp_after_idle_runnable, NULL);
 
-static int
-ipi_handler(void *arg)
+static void
+ipi_ast(void *dummy __unused)
 {
-	u_int ipi_bitmap;
-	u_int cpu, ipi;
-	int bit;
+	CTR0(KTR_SMP, "IPI_AST");
+}
 
-	csr_clear(sip, SIP_SSIP);
+static void
+ipi_preempt(void *dummy __unused)
+{
+	CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
+	sched_preempt(curthread);
+}
+
+static void
+ipi_rendezvous(void *dummy __unused)
+{
+	CTR0(KTR_SMP, "IPI_RENDEZVOUS");
+	smp_rendezvous_action();
+}
+
+static void
+ipi_stop(void *dummy __unused)
+{
+	u_int cpu;
+
+	CTR0(KTR_SMP, "IPI_STOP");
 
 	cpu = PCPU_GET(cpuid);
+	savectx(&stoppcbs[cpu]);
 
-	mb();
+	/* Indicate we are stopped */
+	CPU_SET_ATOMIC(cpu, &stopped_cpus);
 
-	ipi_bitmap = atomic_readandclear_int(PCPU_PTR(pending_ipis));
-	if (ipi_bitmap == 0)
-		return (FILTER_HANDLED);
+	/* Wait for restart */
+	while (!CPU_ISSET(cpu, &started_cpus))
+		cpu_spinwait();
 
-	while ((bit = ffs(ipi_bitmap))) {
-		bit = (bit - 1);
-		ipi = (1 << bit);
-		ipi_bitmap &= ~ipi;
+	CPU_CLR_ATOMIC(cpu, &started_cpus);
+	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
+	CTR0(KTR_SMP, "IPI_STOP (restart)");
 
-		mb();
+	/*
+	 * The kernel debugger might have set a breakpoint,
+	 * so flush the instruction cache.
+	 */
+	fence_i();
+}
 
-		switch (ipi) {
-		case IPI_AST:
-			CTR0(KTR_SMP, "IPI_AST");
-			break;
-		case IPI_PREEMPT:
-			CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
-			sched_preempt(curthread);
-			break;
-		case IPI_RENDEZVOUS:
-			CTR0(KTR_SMP, "IPI_RENDEZVOUS");
-			smp_rendezvous_action();
-			break;
-		case IPI_STOP:
-		case IPI_STOP_HARD:
-			CTR0(KTR_SMP, (ipi == IPI_STOP) ? "IPI_STOP" : "IPI_STOP_HARD");
-			savectx(&stoppcbs[cpu]);
-
-			/* Indicate we are stopped */
-			CPU_SET_ATOMIC(cpu, &stopped_cpus);
-
-			/* Wait for restart */
-			while (!CPU_ISSET(cpu, &started_cpus))
-				cpu_spinwait();
-
-			CPU_CLR_ATOMIC(cpu, &started_cpus);
-			CPU_CLR_ATOMIC(cpu, &stopped_cpus);
-			CTR0(KTR_SMP, "IPI_STOP (restart)");
-
-			/*
-			 * The kernel debugger might have set a breakpoint,
-			 * so flush the instruction cache.
-			 */
-			fence_i();
-			break;
-		case IPI_HARDCLOCK:
-			CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
-			hardclockintr();
-			break;
-		default:
-			panic("Unknown IPI %#0x on cpu %d", ipi, curcpu);
-		}
-	}
-
-	return (FILTER_HANDLED);
+static void
+ipi_hardclock(void *dummy __unused)
+{
+	CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
+	hardclockintr();
 }
 
 struct cpu_group *
@@ -573,4 +564,35 @@ cpu_mp_setmaxid(void)
 			mp_maxid = cores - 1;
 		}
 	}
+}
+
+void
+ipi_all_but_self(u_int ipi)
+{
+	cpuset_t other_cpus;
+
+	other_cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+
+	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
+	intr_ipi_send(other_cpus, ipi);
+}
+
+void
+ipi_cpu(int cpu, u_int ipi)
+{
+	cpuset_t cpus;
+
+	CPU_ZERO(&cpus);
+	CPU_SET(cpu, &cpus);
+
+	CTR3(KTR_SMP, "%s: cpu: %d, ipi: %x", __func__, cpu, ipi);
+	intr_ipi_send(cpus, ipi);
+}
+
+void
+ipi_selected(cpuset_t cpus, u_int ipi)
+{
+	CTR1(KTR_SMP, "ipi_selected: ipi: %x", ipi);
+	intr_ipi_send(cpus, ipi);
 }

@@ -243,8 +243,6 @@ rcons_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	csr_set(sie, SIE_SSIE);
-
 	bus_generic_attach(sc->dev);
 
 	return (0);
