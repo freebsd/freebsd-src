@@ -3055,6 +3055,7 @@ struct FormatStyle {
   bool isProto() const {
     return Language == LK_Proto || Language == LK_TextProto;
   }
+  bool isTableGen() const { return Language == LK_TableGen; }
 
   /// Language, this format style is targeted at.
   /// \version 3.5
@@ -3396,6 +3397,10 @@ struct FormatStyle {
   /// The penalty for breaking after ``(``.
   /// \version 14
   unsigned PenaltyBreakOpenParenthesis;
+
+  /// The penalty for breaking after ``::``.
+  /// \version 18
+  unsigned PenaltyBreakScopeResolution;
 
   /// The penalty for each line break introduced inside a string literal.
   /// \version 3.7
@@ -3926,6 +3931,10 @@ struct FormatStyle {
   /// \endcode
   /// \version 13
   unsigned ShortNamespaceLines;
+
+  /// Do not format macro definition body.
+  /// \version 18
+  bool SkipMacroDefinitionBody;
 
   /// Include sorting options.
   enum SortIncludesOptions : int8_t {
@@ -4872,6 +4881,7 @@ struct FormatStyle {
            PenaltyBreakComment == R.PenaltyBreakComment &&
            PenaltyBreakFirstLessLess == R.PenaltyBreakFirstLessLess &&
            PenaltyBreakOpenParenthesis == R.PenaltyBreakOpenParenthesis &&
+           PenaltyBreakScopeResolution == R.PenaltyBreakScopeResolution &&
            PenaltyBreakString == R.PenaltyBreakString &&
            PenaltyBreakTemplateDeclaration ==
                R.PenaltyBreakTemplateDeclaration &&
@@ -4889,6 +4899,7 @@ struct FormatStyle {
            RequiresExpressionIndentation == R.RequiresExpressionIndentation &&
            SeparateDefinitionBlocks == R.SeparateDefinitionBlocks &&
            ShortNamespaceLines == R.ShortNamespaceLines &&
+           SkipMacroDefinitionBody == R.SkipMacroDefinitionBody &&
            SortIncludes == R.SortIncludes &&
            SortJavaStaticImport == R.SortJavaStaticImport &&
            SpaceAfterCStyleCast == R.SpaceAfterCStyleCast &&

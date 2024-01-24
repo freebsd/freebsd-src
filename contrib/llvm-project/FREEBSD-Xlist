@@ -4,6 +4,7 @@
 .clang-format
 .clang-tidy
 .git-blame-ignore-revs
+.gitattributes
 .github/
 .gitignore
 .mailmap
@@ -266,7 +267,6 @@ libcxx/include/__config_site.in
 libcxx/include/__support/
 libcxx/lib/
 libcxx/modules/CMakeLists.txt
-libcxx/modules/CMakeLists.txt.in
 libcxx/modules/README.md
 libcxx/src/CMakeLists.txt
 libcxx/src/support/win32/
@@ -549,7 +549,8 @@ llvm/lib/CodeGen/MIRParser/CMakeLists.txt
 llvm/lib/CodeGen/README.txt
 llvm/lib/CodeGen/SelectionDAG/CMakeLists.txt
 llvm/lib/DWARFLinker/CMakeLists.txt
-llvm/lib/DWARFLinkerParallel/CMakeLists.txt
+llvm/lib/DWARFLinker/Classic/CMakeLists.txt
+llvm/lib/DWARFLinker/Parallel/CMakeLists.txt
 llvm/lib/DWP/CMakeLists.txt
 llvm/lib/DebugInfo/BTF/CMakeLists.txt
 llvm/lib/DebugInfo/CMakeLists.txt
@@ -751,6 +752,7 @@ llvm/lib/TargetParser/CMakeLists.txt
 llvm/lib/Testing/Annotations/CMakeLists.txt
 llvm/lib/Testing/CMakeLists.txt
 llvm/lib/Testing/Support/CMakeLists.txt
+llvm/lib/TextAPI/BinaryReader/CMakeLists.txt
 llvm/lib/TextAPI/CMakeLists.txt
 llvm/lib/ToolDrivers/CMakeLists.txt
 llvm/lib/ToolDrivers/llvm-dlltool/CMakeLists.txt
@@ -936,6 +938,7 @@ llvm/utils/llvm-native-gxx
 llvm/utils/llvm-original-di-preservation.py
 llvm/utils/llvm.grm
 llvm/utils/merge-stats.py
+llvm/utils/mlgo-utils/
 llvm/utils/not/
 llvm/utils/pipeline.py
 llvm/utils/prepare-code-coverage-artifact.py
