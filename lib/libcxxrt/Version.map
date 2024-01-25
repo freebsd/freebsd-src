@@ -283,6 +283,10 @@ CXXABI_1.3.9 {
     };
 } CXXABI_1.3.6;
 
+CXXABI_1.3.11 {
+    __cxa_init_primary_exception;
+} CXXABI_1.3.9;
+
 CXXRT_1.0 {
 
     extern "C++" {
