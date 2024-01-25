@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 08 2024 $
+.Dd $Mdocdate: January 25 2024 $
 .Dt PFLOWCTL 8
 .Os
 .Sh NAME
@@ -24,6 +24,7 @@
 .Sh SYNOPSIS
 .Nm pflowctl
 .Bk -words
+.Op Fl v
 .Op Fl lc
 .Op Fl d Ar id
 .Op Fl s Ar id ...
@@ -40,6 +41,8 @@ The
 utility provides several commands.
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl v
+Produce verbose output.
 .It Fl c
 Create a new
 .Xr pflow 4
