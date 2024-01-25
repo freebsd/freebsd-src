@@ -234,6 +234,7 @@ META_TGT_WHITELIST+=	build${libcompat}
 .ORDER: buildkernel installkernel.debug
 .ORDER: buildkernel reinstallkernel
 .ORDER: buildkernel reinstallkernel.debug
+.ORDER: kernel-toolchain buildkernel
 
 # Only sanitize PATH on FreeBSD.
 # PATH may include tools that are required to cross-build
