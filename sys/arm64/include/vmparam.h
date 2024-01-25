@@ -83,11 +83,13 @@
 #define	VM_FREEPOOL_DIRECT	1
 
 /*
- * Create one free page lists: VM_FREELIST_DEFAULT is for all physical
- * pages.
+ * Create two free page lists: VM_FREELIST_DMA32 is for physical pages that have
+ * physical addresses below 4G, and VM_FREELIST_DEFAULT is for all other
+ * physical pages.
  */
-#define	VM_NFREELIST		1
+#define	VM_NFREELIST		2
 #define	VM_FREELIST_DEFAULT	0
+#define	VM_FREELIST_DMA32	1
 
 /*
  * When PAGE_SIZE is 4KB, an allocation size of 16MB is supported in order
