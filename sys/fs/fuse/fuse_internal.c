@@ -326,7 +326,6 @@ fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
 	else
 		return;
 
-	vattr_null(vp_cache_at);
 	vp_cache_at->va_fsid = mp->mnt_stat.f_fsid.val[0];
 	vp_cache_at->va_fileid = attr->ino;
 	vp_cache_at->va_mode = attr->mode & ~S_IFMT;
