@@ -330,9 +330,6 @@ again:
 			    __func__, off));
 			sack_rxmit = 1;
 			sendalot = 1;
-			TCPSTAT_INC(tcps_sack_rexmits);
-			TCPSTAT_ADD(tcps_sack_rexmit_bytes,
-			    min(len, tcp_maxseg(tp)));
 		}
 	}
 after_sack_rexmit:
@@ -1036,6 +1033,10 @@ send:
 			tp->t_sndrexmitpack++;
 			TCPSTAT_INC(tcps_sndrexmitpack);
 			TCPSTAT_ADD(tcps_sndrexmitbyte, len);
+			if (sack_rxmit) {
+				TCPSTAT_INC(tcps_sack_rexmits);
+				TCPSTAT_ADD(tcps_sack_rexmit_bytes, len);
+			}
 #ifdef STATS
 			stats_voi_update_abs_u32(tp->t_stats, VOI_TCP_RETXPB,
 			    len);
