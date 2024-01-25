@@ -135,9 +135,11 @@ tcp_ecn_input_syn_sent(struct tcpcb *tp, uint16_t thflags, int iptos)
 	case 3:
 		/* FALLTHROUGH */
 	case 4:
-		/* decoding Accurate ECN according to
+		/*
+		 * Decoding Accurate ECN according to
 		 * table in section 3.1.1
-		 * on the SYN,ACK, process the AccECN
+		 *
+		 * On the SYN,ACK, process the AccECN
 		 * flags indicating the state the SYN
 		 * was delivered.
 		 * Reactions to Path ECN mangling can
@@ -382,8 +384,7 @@ tcp_ecn_output_syn_sent(struct tcpcb *tp)
 				thflags = TH_ECE|TH_CWR;
 		} else
 			thflags = TH_ECE|TH_CWR;
-	} else
-	if (V_tcp_do_ecn == 3) {
+	} else if (V_tcp_do_ecn == 3) {
 		/* Send an Accurate ECN setup <SYN> packet */
 		if (tp->t_rxtshift >= 1) {
 			if (tp->t_rxtshift <= V_tcp_ecn_maxretries)
