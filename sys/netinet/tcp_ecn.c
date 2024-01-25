@@ -96,6 +96,9 @@
 #include <netinet/tcpip.h>
 #include <netinet/tcp_ecn.h>
 
+static inline int  tcp_ecn_get_ace(uint16_t);
+static inline void tcp_ecn_set_ace(uint16_t *, uint32_t);
+
 static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, ecn,
     CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP ECN");
@@ -116,22 +119,24 @@ SYSCTL_INT(_net_inet_tcp_ecn, OID_AUTO, maxretries,
 void
 tcp_ecn_input_syn_sent(struct tcpcb *tp, uint16_t thflags, int iptos)
 {
-
-	if (V_tcp_do_ecn == 0)
+	switch (V_tcp_do_ecn) {
+	case 0:
 		return;
-	if ((V_tcp_do_ecn == 1) ||
-	    (V_tcp_do_ecn == 2)) {
+	case 1:
+		/* FALLTHROUGH */
+	case 2:
 		/* RFC3168 ECN handling */
 		if ((thflags & (TH_CWR | TH_ECE)) == (0 | TH_ECE)) {
 			tp->t_flags2 |= TF2_ECN_PERMIT;
 			tp->t_flags2 &= ~TF2_ACE_PERMIT;
 			TCPSTAT_INC(tcps_ecn_shs);
 		}
-	} else
-	/* decoding Accurate ECN according to table in section 3.1.1 */
-	if ((V_tcp_do_ecn == 3) ||
-	    (V_tcp_do_ecn == 4)) {
-		/*
+		break;
+	case 3:
+		/* FALLTHROUGH */
+	case 4:
+		/* decoding Accurate ECN according to
+		 * table in section 3.1.1
 		 * on the SYN,ACK, process the AccECN
 		 * flags indicating the state the SYN
 		 * was delivered.
@@ -208,6 +213,7 @@ tcp_ecn_input_syn_sent(struct tcpcb *tp, uint16_t thflags, int iptos)
 			tp->t_rcep = 0b110;
 			break;
 		}
+		break;
 	}
 }
 
@@ -219,10 +225,12 @@ tcp_ecn_input_parallel_syn(struct tcpcb *tp, uint16_t thflags, int iptos)
 {
 	if (thflags & TH_ACK)
 		return;
-	if (V_tcp_do_ecn == 0)
+	switch (V_tcp_do_ecn) {
+	case 0:
 		return;
-	if ((V_tcp_do_ecn == 1) ||
-	    (V_tcp_do_ecn == 2)) {
+	case 1:
+		/* FALLTHROUGH */
+	case 2:
 		/* RFC3168 ECN handling */
 		if ((thflags & (TH_CWR | TH_ECE)) == (TH_CWR | TH_ECE)) {
 			tp->t_flags2 |= TF2_ECN_PERMIT;
@@ -230,9 +238,10 @@ tcp_ecn_input_parallel_syn(struct tcpcb *tp, uint16_t thflags, int iptos)
 			tp->t_flags2 |= TF2_ECN_SND_ECE;
 			TCPSTAT_INC(tcps_ecn_shs);
 		}
-	} else
-	if ((V_tcp_do_ecn == 3) ||
-	    (V_tcp_do_ecn == 4)) {
+		break;
+	case 3:
+		/* FALLTHROUGH */
+	case 4:
 		/* AccECN handling */
 		switch (thflags & (TH_AE | TH_CWR | TH_ECE)) {
 		default:
@@ -272,6 +281,7 @@ tcp_ecn_input_parallel_syn(struct tcpcb *tp, uint16_t thflags, int iptos)
 			}
 			break;
 		}
+		break;
 	}
 }
 
@@ -418,13 +428,7 @@ tcp_ecn_output_established(struct tcpcb *tp, uint16_t *thflags, int len, bool rx
 	 * Reply with proper ECN notifications.
 	 */
 	if (tp->t_flags2 & TF2_ACE_PERMIT) {
-		*thflags &= ~(TH_AE|TH_CWR|TH_ECE);
-		if (tp->t_rcep & 0x01)
-			*thflags |= TH_ECE;
-		if (tp->t_rcep & 0x02)
-			*thflags |= TH_CWR;
-		if (tp->t_rcep & 0x04)
-			*thflags |= TH_AE;
+		tcp_ecn_set_ace(thflags, tp->t_rcep);
 		if (!(tp->t_flags2 & TF2_ECN_PERMIT)) {
 			/*
 			 * here we process the final
@@ -475,9 +479,6 @@ tcp_ecn_syncache_socket(struct tcpcb *tp, struct syncache *sc)
 			tp->t_flags2 |= TF2_ACE_PERMIT;
 			tp->t_scep = 6;
 			tp->t_rcep = 6;
-			break;
-		/* undefined SCF codepoint */
-		default:
 			break;
 		}
 	}
@@ -591,24 +592,20 @@ tcp_ecn_syncache_respond(uint16_t thflags, struct syncache *sc)
 			TCPSTAT_INC(tcps_ecn_shs);
 			TCPSTAT_INC(tcps_ace_ce);
 			break;
-		/* undefined SCF codepoint */
-		default:
-			break;
 		}
 	}
 	return thflags;
 }
 
-int
+static inline int
 tcp_ecn_get_ace(uint16_t thflags)
 {
-	int ace = 0;
+	return ((thflags & (TH_AE|TH_CWR|TH_ECE)) >> TH_ACE_SHIFT);
+}
 
-	if (thflags & TH_ECE)
-		ace += 1;
-	if (thflags & TH_CWR)
-		ace += 2;
-	if (thflags & TH_AE)
-		ace += 4;
-	return ace;
+static inline void
+tcp_ecn_set_ace(uint16_t *thflags, uint32_t t_rcep)
+{
+	*thflags &= ~(TH_AE|TH_CWR|TH_ECE);
+	*thflags |= ((t_rcep << TH_ACE_SHIFT) & (TH_AE|TH_CWR|TH_ECE));
 }
