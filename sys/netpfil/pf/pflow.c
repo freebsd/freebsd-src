@@ -1485,6 +1485,7 @@ pflow_nl_get(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		nlattr_add_sockaddr(nw, PFLOWNL_GET_DST, sc->sc_flowdst);
 	nlattr_add_u32(nw, PFLOWNL_GET_OBSERVATION_DOMAIN,
 	    sc->sc_observation_dom);
+	nlattr_add_u8(nw, PFLOWNL_GET_SOCKET_STATUS, sc->so != NULL);
 
 	if (! nlmsg_end(nw)) {
 		nlmsg_abort(nw);
