@@ -150,21 +150,10 @@ void		athn_ani_restart(struct athn_softc *);
 void		athn_ani_monitor(struct athn_softc *);
 
 /* Extern functions. */
-int		ar5416_attach(struct athn_softc *);
-int		ar9280_attach(struct athn_softc *);
 int		ar9285_attach(struct athn_softc *);
-int		ar9287_attach(struct athn_softc *);
-int		ar9380_attach(struct athn_softc *);
-int		ar5416_init_calib(struct athn_softc *,
-		    struct ieee80211_channel *, struct ieee80211_channel *);
 int		ar9285_init_calib(struct athn_softc *,
 		    struct ieee80211_channel *, struct ieee80211_channel *);
-int		ar9003_init_calib(struct athn_softc *);
-void		ar9285_pa_calib(struct athn_softc *);
 void		ar9271_pa_calib(struct athn_softc *);
-void		ar9287_1_3_enable_async_fifo(struct athn_softc *);
-void		ar9287_1_3_setup_async_fifo(struct athn_softc *);
-void		ar9003_reset_txsring(struct athn_softc *);
 
 
 // TODO missing in sys/device.h
@@ -265,22 +254,13 @@ athn_attach(struct athn_softc *sc)
 		return (error);
 	}
 
-	if (AR_SREV_5416(sc) || AR_SREV_9160(sc))
-		error = ar5416_attach(sc);
-	else if (AR_SREV_9280(sc))
-		error = ar9280_attach(sc);
-	else if (AR_SREV_9285(sc))
-		error = ar9285_attach(sc);
 #if NATHN_USB > 0
-	else if (AR_SREV_9271(sc))
+	if (AR_SREV_9271(sc))
 		error = ar9285_attach(sc);
-#endif
-	else if (AR_SREV_9287(sc))
-		error = ar9287_attach(sc);
-	else if (AR_SREV_9380(sc) || AR_SREV_9485(sc))
-		error = ar9380_attach(sc);
+
 	else
 		error = ENOTSUP;
+#endif
 	if (error != 0) {
 		// TOTO missing field 'dv_xname' in 'struct device'
 		// printf("%s: could not attach chip\n", sc->sc_dev.dv_xname);
@@ -1416,14 +1396,10 @@ athn_calib_to(void *arg)
 	s = splnet();
 
 	/* Do periodic (every 4 minutes) PA calibration. */
-	if (AR_SREV_9285_11_OR_LATER(sc) &&
-	    !AR_SREV_9380_10_OR_LATER(sc) &&
-	    (ticks - (sc->pa_calib_ticks + 240 * hz)) >= 0) {
+	if ((ticks - (sc->pa_calib_ticks + 240 * hz)) >= 0) {
 		sc->pa_calib_ticks = ticks;
 		if (AR_SREV_9271(sc))
 			ar9271_pa_calib(sc);
-		else
-			ar9285_pa_calib(sc);
 	}
 
 	/* Do periodic (every 4 minutes) NF calibration. */
@@ -1481,26 +1457,17 @@ athn_init_calib(struct athn_softc *sc, struct ieee80211_channel *c,
 	struct athn_ops *ops = &sc->ops;
 	int error;
 
-	if (AR_SREV_9380_10_OR_LATER(sc))
-		error = ar9003_init_calib(sc);
-	else if (AR_SREV_9285_10_OR_LATER(sc))
+	if (AR_SREV_9285_10_OR_LATER(sc))
 		error = ar9285_init_calib(sc, c, extc);
-	else
-		error = ar5416_init_calib(sc, c, extc);
 	if (error != 0)
 		return (error);
 
-	if (!AR_SREV_9380_10_OR_LATER(sc)) {
-		/* Do PA calibration. */
-		if (AR_SREV_9285_11_OR_LATER(sc)) {
-			extern volatile int ticks;
-			sc->pa_calib_ticks = ticks;
-			if (AR_SREV_9271(sc))
-				ar9271_pa_calib(sc);
-			else
-				ar9285_pa_calib(sc);
+	if (AR_SREV_9285_11_OR_LATER(sc)) {
+		extern volatile int ticks;
+		sc->pa_calib_ticks = ticks;
+		if (AR_SREV_9271(sc))
+			ar9271_pa_calib(sc);
 		}
-	}
 
 	/* Do noisefloor calibration. */
 	ops->init_noisefloor_calib(sc);
@@ -1878,10 +1845,6 @@ athn_init_dma(struct athn_softc *sc)
 		    AR_PCU_TXBUF_CTRL_USABLE_SIZE);
 	}
 	AR_WRITE_BARRIER(sc);
-
-	/* Reset Tx status ring. */
-	if (AR_SREV_9380_10_OR_LATER(sc))
-		ar9003_reset_txsring(sc);
 }
 
 void
@@ -2398,9 +2361,6 @@ athn_hw_reset(struct athn_softc *sc, struct ieee80211_channel *c,
 	if (AR_SREV_9280_10_OR_LATER(sc))
 		AR_SETBITS(sc, sc->gpio_input_en_off, AR_GPIO_JTAG_DISABLE);
 
-	if (AR_SREV_9287_13_OR_LATER(sc) && !AR_SREV_9380_10_OR_LATER(sc))
-		ar9287_1_3_enable_async_fifo(sc);
-
 	/* Write init values to hardware. */
 	ops->hw_init(sc, c, extc);
 
@@ -2498,8 +2458,6 @@ athn_hw_reset(struct athn_softc *sc, struct ieee80211_channel *c,
 	athn_setsifs(sc);
 	athn_updateslot(ic);
 	athn_setclockrate(sc);
-	if (AR_SREV_9287_13_OR_LATER(sc) && !AR_SREV_9380_10_OR_LATER(sc))
-		ar9287_1_3_setup_async_fifo(sc);
 
 	/* Disable sequence number generation in hardware. */
 	AR_SETBITS(sc, AR_STA_ID1, AR_STA_ID1_PRESERVE_SEQNUM);

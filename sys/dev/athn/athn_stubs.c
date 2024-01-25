@@ -22,38 +22,7 @@
 #include "athnvar.h"
 
 
-int		ar5416_attach(struct athn_softc *sc)
-{
-	printf("%s is stub", __FUNCTION__);
-	return 0;
-}
-
-int		ar9280_attach(struct athn_softc *sc)
-{
-	printf("%s is stub", __FUNCTION__);
-	return 0;
-}
-
 int		ar9285_attach(struct athn_softc *sc)
-{
-	printf("%s is stub", __FUNCTION__);
-	return 0;
-}
-
-int		ar9287_attach(struct athn_softc *sc)
-{
-	printf("%s is stub", __FUNCTION__);
-	return 0;
-}
-
-int		ar9380_attach(struct athn_softc *sc)
-{
-	printf("%s is stub", __FUNCTION__);
-	return 0;
-}
-
-int		ar5416_init_calib(struct athn_softc *sc,
-struct ieee80211_channel *c, struct ieee80211_channel *extc)
 {
 	printf("%s is stub", __FUNCTION__);
 	return 0;
@@ -66,33 +35,7 @@ struct ieee80211_channel *c, struct ieee80211_channel *extc)
 	return 0;
 }
 
-int		ar9003_init_calib(struct athn_softc *sc)
-{
-	printf("%s is stub", __FUNCTION__);
-	return 0;
-}
-
-void		ar9285_pa_calib(struct athn_softc *sc)
-{
-	printf("%s is stub", __FUNCTION__);
-}
-
 void		ar9271_pa_calib(struct athn_softc *sc)
-{
-	printf("%s is stub", __FUNCTION__);
-}
-
-void		ar9287_1_3_enable_async_fifo(struct athn_softc *sc)
-{
-	printf("%s is stub", __FUNCTION__);
-}
-
-void		ar9287_1_3_setup_async_fifo(struct athn_softc *sc)
-{
-	printf("%s is stub", __FUNCTION__);
-}
-
-void		ar9003_reset_txsring(struct athn_softc *sc)
 {
 	printf("%s is stub", __FUNCTION__);
 }
