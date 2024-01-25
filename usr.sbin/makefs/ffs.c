@@ -340,6 +340,9 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 		/* set FFS defaults */
 	if (fsopts->sectorsize == -1)
 		fsopts->sectorsize = DFL_SECSIZE;
+	if (fsopts->sectorsize != DFL_SECSIZE)
+		warnx("sectorsize %d may produce nonfunctional image",
+		    fsopts->sectorsize);
 	if (ffs_opts->fsize == -1)
 		ffs_opts->fsize = MAX(DFL_FRAGSIZE, fsopts->sectorsize);
 	if (ffs_opts->bsize == -1)
