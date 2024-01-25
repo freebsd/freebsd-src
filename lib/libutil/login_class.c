@@ -461,7 +461,7 @@ setlogincontext(login_cap_t *lc, const struct passwd *pwd, unsigned long flags)
 static void
 setclasspriority(login_cap_t * const lc, struct passwd const * const pwd)
 {
-	const rlim_t def_val = LOGIN_DEFPRI, err_val = INT64_MIN;
+	const rlim_t def_val = 0, err_val = INT64_MIN;
 	rlim_t p;
 	int rc;
 

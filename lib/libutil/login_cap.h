@@ -32,7 +32,6 @@
 #define LOGIN_MECLASS		"me"
 #define LOGIN_DEFSTYLE		"passwd"
 #define LOGIN_DEFSERVICE	"login"
-#define LOGIN_DEFPRI		0
 #define _PATH_LOGIN_CONF	"/etc/login.conf"
 #define _FILE_LOGIN_CONF	".login_conf"
 #define _PATH_AUTHPROG		"/usr/libexec/login_"
