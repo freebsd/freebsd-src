@@ -349,7 +349,7 @@ man_display_page() {
 				decho "Command: $cattool \"$catpage\" | $MANPAGER"
 				ret=0
 			else
-				eval "$cattool \"$catpage\" | $MANPAGER"
+				$cattool "$catpage" | $MANPAGER
 				ret=$?
 			fi
 		fi
@@ -374,7 +374,7 @@ man_display_page() {
 		pipeline="mandoc $mandoc_args | $MANPAGER"
 	fi
 
-	if ! eval "$cattool \"$manpage\" | $testline" ;then
+	if ! $cattool "$manpage" | eval "$testline"; then
 		if which -s groff; then
 			man_display_page_groff
 		else
@@ -387,10 +387,10 @@ man_display_page() {
 	fi
 
 	if [ $debug -gt 0 ]; then
-		decho "Command: $cattool \"$manpage\" | $pipeline"
+		decho "Command: $cattool \"$manpage\" | eval \"$pipeline\""
 		ret=0
 	else
-		eval "$cattool \"$manpage\" | $pipeline"
+		$cattool "$manpage" | eval "$pipeline"
 		ret=$?
 	fi
 }
@@ -480,10 +480,10 @@ man_display_page_groff() {
 	fi
 
 	if [ $debug -gt 0 ]; then
-		decho "Command: $cattool \"$manpage\" | $pipeline"
+		decho "Command: $cattool \"$manpage\" | eval \"$pipeline\""
 		ret=0
 	else
-		eval "$cattool \"$manpage\" | $pipeline"
+		$cattool "$manpage" | eval "$pipeline"
 		ret=$?
 	fi
 }
