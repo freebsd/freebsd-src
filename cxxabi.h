@@ -78,6 +78,13 @@ struct __cxa_exception
 {
 #if __LP64__
 	/**
+	 * Now _Unwind_Exception is marked with __attribute__((aligned)), which
+	 * implies __cxa_exception is also aligned.  Insert padding in the
+	 * beginning of the struct, rather than before unwindHeader.
+	 */
+	void *reserve;
+
+	/**
 	 * Reference count.  Used to support the C++11 exception_ptr class.  This
 	 * is prepended to the structure in 64-bit mode and squeezed in to the
 	 * padding left before the 64-bit aligned _Unwind_Exception at the end in
@@ -195,6 +202,14 @@ __cxa_eh_globals *__cxa_get_globals(void);
 __cxa_eh_globals *__cxa_get_globals_fast(void);
 
 std::type_info * __cxa_current_exception_type();
+
+
+void *__cxa_allocate_exception(size_t thrown_size);
+
+void __cxa_free_exception(void* thrown_exception);
+
+__cxa_exception *__cxa_init_primary_exception(
+		void *object, std::type_info* tinfo, void (*dest)(void *));
 
 /**
  * Throws an exception returned by __cxa_current_primary_exception().  This

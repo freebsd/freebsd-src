@@ -162,6 +162,7 @@ struct __cxa_thread_info
 	terminate_handler terminateHandler;
 	/** The unexpected exception handler for this thread. */
 	unexpected_handler unexpectedHandler;
+#ifndef LIBCXXRT_NO_EMERGENCY_MALLOC
 	/**
 	 * The number of emergency buffers held by this thread.  This is 0 in
 	 * normal operation - the emergency buffers are only used when malloc()
@@ -170,6 +171,7 @@ struct __cxa_thread_info
 	 * in ABI spec [3.3.1]).
 	 */
 	int emergencyBuffersHeld;
+#endif
 	/**
 	 * The exception currently running in a cleanup.
 	 */
@@ -197,6 +199,7 @@ struct __cxa_thread_info
 struct __cxa_dependent_exception
 {
 #if __LP64__
+	void *reserve;
 	void *primaryException;
 #endif
 	std::type_info *exceptionType;
@@ -219,6 +222,17 @@ struct __cxa_dependent_exception
 #endif
 	_Unwind_Exception unwindHeader;
 };
+static_assert(sizeof(__cxa_exception) == sizeof(__cxa_dependent_exception),
+    "__cxa_exception and __cxa_dependent_exception should have the same size");
+static_assert(offsetof(__cxa_exception, referenceCount) ==
+    offsetof(__cxa_dependent_exception, primaryException),
+    "referenceCount and primaryException should have the same offset");
+static_assert(offsetof(__cxa_exception, unwindHeader) ==
+    offsetof(__cxa_dependent_exception, unwindHeader),
+    "unwindHeader fields should have the same offset");
+static_assert(offsetof(__cxa_dependent_exception, unwindHeader) ==
+    offsetof(__cxa_dependent_exception, adjustedPtr) + 8,
+    "there should be no padding before unwindHeader");
 
 
 namespace std
@@ -433,6 +447,23 @@ extern "C" __cxa_eh_globals *ABI_NAMESPACE::__cxa_get_globals_fast(void)
 	return &(thread_info_fast()->globals);
 }
 
+#ifdef LIBCXXRT_NO_EMERGENCY_MALLOC
+static char *alloc_or_die(size_t size)
+{
+	char *buffer = static_cast<char*>(calloc(1, size));
+
+	if (buffer == nullptr)
+	{
+		fputs("Out of memory attempting to allocate exception\n", stderr);
+		std::terminate();
+	}
+	return buffer;
+}
+static void free_exception(char *e)
+{
+	free(e);
+}
+#else
 /**
  * An emergency allocation reserved for when malloc fails.  This is treated as
  * 16 buffers of 1KB each.
@@ -572,6 +603,7 @@ static void free_exception(char *e)
 		free(e);
 	}
 }
+#endif
 
 /**
  * Allocates an exception structure.  Returns a pointer to the space that can
@@ -759,6 +791,21 @@ static void throw_exception(__cxa_exception *ex)
 	report_failure(err, ex);
 }
 
+extern "C" __cxa_exception *__cxa_init_primary_exception(
+		void *object, std::type_info* tinfo, void (*dest)(void *)) {
+	__cxa_exception *ex = reinterpret_cast<__cxa_exception*>(object) - 1;
+
+	ex->referenceCount = 0;
+	ex->exceptionType = tinfo;
+
+	ex->exceptionDestructor = dest;
+
+	ex->unwindHeader.exception_class = exception_class;
+	ex->unwindHeader.exception_cleanup = exception_cleanup;
+
+	return ex;
+}
+
 
 /**
  * ABI function for throwing an exception.  Takes the object to be thrown (the
@@ -769,15 +816,8 @@ extern "C" void __cxa_throw(void *thrown_exception,
                             std::type_info *tinfo,
                             void(*dest)(void*))
 {
-	__cxa_exception *ex = reinterpret_cast<__cxa_exception*>(thrown_exception) - 1;
-
+	__cxa_exception *ex = __cxa_init_primary_exception(thrown_exception, tinfo, dest);
 	ex->referenceCount = 1;
-	ex->exceptionType = tinfo;
-	
-	ex->exceptionDestructor = dest;
-	
-	ex->unwindHeader.exception_class = exception_class;
-	ex->unwindHeader.exception_cleanup = exception_cleanup;
 
 	throw_exception(ex);
 }
@@ -1563,8 +1603,10 @@ asm (
 ".type __cxa_end_cleanup, \"function\"   \n"
 "__cxa_end_cleanup:                      \n"
 "	push {r1, r2, r3, r4}                \n"
+"	mov r4, lr                           \n"
 "	bl __cxa_get_cleanup                 \n"
-"	push {r1, r2, r3, r4}                \n"
+"	mov lr, r4                           \n"
+"	pop {r1, r2, r3, r4}                 \n"
 "	b _Unwind_Resume                     \n"
 "	bl abort                             \n"
 ".popsection                             \n"
