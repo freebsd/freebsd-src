@@ -204,12 +204,12 @@ __cxa_eh_globals *__cxa_get_globals_fast(void);
 std::type_info * __cxa_current_exception_type();
 
 
-void *__cxa_allocate_exception(size_t thrown_size);
+void *__cxa_allocate_exception(size_t thrown_size) throw();
 
-void __cxa_free_exception(void* thrown_exception);
+void __cxa_free_exception(void* thrown_exception) throw();
 
 __cxa_exception *__cxa_init_primary_exception(
-		void *object, std::type_info* tinfo, void (*dest)(void *));
+		void *object, std::type_info* tinfo, void (*dest)(void *)) throw();
 
 /**
  * Throws an exception returned by __cxa_current_primary_exception().  This
