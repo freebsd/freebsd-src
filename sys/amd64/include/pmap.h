@@ -498,7 +498,6 @@ void	pmap_page_array_startup(long count);
 vm_page_t pmap_page_alloc_below_4g(bool zeroed);
 
 #if defined(KASAN) || defined(KMSAN)
-void	pmap_san_bootstrap(void);
 void	pmap_san_enter(vm_offset_t);
 #endif
 

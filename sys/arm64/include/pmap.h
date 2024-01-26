@@ -194,7 +194,6 @@ struct arm64_bootparams;
 
 void	pmap_bootstrap_san(vm_paddr_t);
 void	pmap_san_enter(vm_offset_t);
-void	pmap_san_bootstrap(struct arm64_bootparams *);
 #endif
 
 #endif	/* _KERNEL */
