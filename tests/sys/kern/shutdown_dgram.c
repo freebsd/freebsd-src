@@ -39,7 +39,7 @@
  * shutdown(2) on SOCK_DGRAM shall return ENOTCONN per POSIX.  However, there
  * is historical behavior of the shutdown(2) also unblocking any ongoing
  * recv(2) syscall on the socket.  It is known that some programs rely on this
- * behavior, but exact list of problems isn't known.  Neither we know if the
+ * behavior, but exact list of programs isn't known.  Neither we know if the
  * "feature" is required on PF_UNIX sockets or on PF_INET/INET6 sockets or
  * on both kinds.  Feel free to improve this comment if you know any details.
  *
