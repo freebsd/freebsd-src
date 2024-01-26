@@ -87,7 +87,7 @@ SECTIONS
      get relocated with -mrelocatable. Also put in the .fixup pointers.
      The current compiler no longer needs this, but keep it around for 2.7.2  */
                 PROVIDE (_GOT2_START_ = .);
-  .got2           :  { *(.got2) }
+  .got2           :  { *(.got2) } :kernel
                 PROVIDE (__CTOR_LIST__ = .);
   .ctors          : { *(.ctors) }
                 PROVIDE (__CTOR_END__ = .);
@@ -101,7 +101,7 @@ SECTIONS
   /* We want the small data sections together, so single-instruction offsets
      can access them all, and initialized data all before uninitialized, so
      we can shorten the on-disk segment size.  */
-  .sdata     : { *(.sdata) } :kernel
+  .sdata     : { *(.sdata) }
   _edata  =  .;
   PROVIDE (edata = .);
   .sbss      :

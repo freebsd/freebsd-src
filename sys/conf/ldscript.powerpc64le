@@ -7,15 +7,15 @@ SEARCH_DIR(/usr/lib);
 PROVIDE (__stack = 0);
 PHDRS
 {
-	text PT_LOAD ;
-	dynamic PT_DYNAMIC ;
+	kernel PT_LOAD;
+	dynamic PT_DYNAMIC;
 }
 SECTIONS
 {
 
   /* Low-address wrapper for bootloaders (kexec/kboot) that can't parse ELF */
   . = kernbase - 0x100;
-  .kboot : { *(.text.kboot) } :text
+  .kboot : { *(.text.kboot) } :kernel
 
   /* Read-only sections, merged into text segment: */
   . = kernbase;
@@ -36,9 +36,6 @@ SECTIONS
   /* Do not emit PT_INTERP section, which confuses some loaders (kexec-lite) */
   /DISCARD/   : { *(.interp)	} 
 
-  /* Also delete notes */
-  /DISCARD/   : { *(.note.*)	} 
-
   .hash          : { *(.hash)		}
   .dynsym        : { *(.dynsym)		}
   .dynstr        : { *(.dynstr)		}
@@ -50,6 +47,10 @@ SECTIONS
     *(.note.gnu.build-id)
     PROVIDE (__build_id_end = .);
   }
+
+  /* Do not emit any additional notes. */
+  /DISCARD/   : { *(.note.*)	} 
+
   .rela.text     :
     { *(.rela.text) *(.rela.gnu.linkonce.t*) }
   .rela.data     :
@@ -105,12 +106,12 @@ SECTIONS
   .got       : ALIGN(8) { __tocbase = .; *(.got) }
   .toc       : ALIGN(8) { *(.toc) }
 
-  .dynamic        : { *(.dynamic) } :text :dynamic
+  .dynamic        : { *(.dynamic) } :kernel :dynamic
   /* Put .ctors and .dtors next to the .got2 section, so that the pointers
      get relocated with -mrelocatable. Also put in the .fixup pointers.
      The current compiler no longer needs this, but keep it around for 2.7.2  */
                 PROVIDE (_GOT2_START_ = .);
-  .got2           :  { *(.got2) }
+  .got2           :  { *(.got2) } :kernel
                 PROVIDE (__CTOR_LIST__ = .);
   .ctors          : { *(.ctors) }
                 PROVIDE (__CTOR_END__ = .);
