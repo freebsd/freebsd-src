@@ -4468,6 +4468,35 @@ SYSCTL_PROC(_security_jail, OID_AUTO, devfs_ruleset,
     sysctl_jail_default_level, "I",
     "Ruleset for the devfs filesystem in jail (deprecated)");
 
+SYSCTL_NODE(_security_jail, OID_AUTO, children, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Limits and stats of child jails");
+
+static int
+sysctl_jail_children(SYSCTL_HANDLER_ARGS)
+{
+	struct prison *pr;
+	int i;
+
+	pr = req->td->td_ucred->cr_prison;
+
+	switch (oidp->oid_kind & CTLTYPE) {
+	case CTLTYPE_INT:
+		i = *(int *)((char *)pr + arg2);
+		return (SYSCTL_OUT(req, &i, sizeof(i)));
+	}
+
+	return (0);
+}
+
+SYSCTL_PROC(_security_jail_children, OID_AUTO, max,
+    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, offsetof(struct prison, pr_childmax), sysctl_jail_children,
+    "I", "Maximum number of child jails");
+SYSCTL_PROC(_security_jail_children, OID_AUTO, cur,
+    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, offsetof(struct prison, pr_childcount), sysctl_jail_children,
+    "I", "Current number of child jails");
+
 /*
  * Nodes to describe jail parameters.  Maximum length of string parameters
  * is returned in the string itself, and the other parameters exist merely
