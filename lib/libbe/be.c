@@ -175,6 +175,9 @@ libbe_init(const char *root)
 	    strcmp(altroot, "-") != 0)
 		lbh->altroot_len = strlen(altroot);
 
+	(void) lzbe_get_boot_device(zpool_get_name(lbh->active_phandle),
+	    &lbh->bootonce);
+
 	return (lbh);
 err:
 	if (lbh != NULL) {
@@ -199,6 +202,8 @@ libbe_close(libbe_handle_t *lbh)
 	if (lbh->active_phandle != NULL)
 		zpool_close(lbh->active_phandle);
 	libzfs_fini(lbh->lzh);
+
+	free(lbh->bootonce);
 	free(lbh);
 }
 
@@ -443,6 +448,12 @@ be_destroy_internal(libbe_handle_t *lbh, const char *name, int options,
 				return (set_error(lbh, BE_ERR_DESTROYMNT));
 			}
 		}
+
+		/* Handle destroying bootonce */
+		if (lbh->bootonce != NULL &&
+		    strcmp(path, lbh->bootonce) == 0)
+			(void) lzbe_set_boot_device(
+			    zpool_get_name(lbh->active_phandle), lzbe_add, NULL);
 	} else {
 		/*
 		 * If we're initially destroying a snapshot, origin options do
@@ -1021,11 +1032,17 @@ be_rename(libbe_handle_t *lbh, const char *old, const char *new)
 		.nounmount = 1,
 	};
 	err = zfs_rename(zfs_hdl, full_new, flags);
-
-	zfs_close(zfs_hdl);
 	if (err != 0)
-		return (set_error(lbh, BE_ERR_UNKNOWN));
-	return (0);
+		goto error;
+
+	/* handle renaming bootonce */
+	if (lbh->bootonce != NULL &&
+	    strcmp(full_old, lbh->bootonce) == 0)
+		err = be_activate(lbh, new, true);
+
+error:
+	zfs_close(zfs_hdl);
+	return (set_error(lbh, err));
 }
 
 

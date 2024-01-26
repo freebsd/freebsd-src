@@ -181,8 +181,8 @@ prop_list_builder_cb(zfs_handle_t *zfs_hdl, void *data_p)
 	dataset = zfs_get_name(zfs_hdl);
 	nvlist_add_string(props, "dataset", dataset);
 
-	if (data->bootonce != NULL &&
-	    strcmp(dataset, data->bootonce) == 0)
+	if (data->lbh->bootonce != NULL &&
+	    strcmp(dataset, data->lbh->bootonce) == 0)
 		nvlist_add_boolean_value(props, "bootonce", true);
 
 	name = strrchr(dataset, '/') + 1;
@@ -251,9 +251,6 @@ be_proplist_update(prop_data_t *data)
 	if ((root_hdl = zfs_open(data->lbh->lzh, data->lbh->root,
 	    ZFS_TYPE_FILESYSTEM)) == NULL)
 		return (BE_ERR_ZFSOPEN);
-
-	(void) lzbe_get_boot_device(zpool_get_name(data->lbh->active_phandle),
-	    &data->bootonce);
 
 	/* XXX TODO: some error checking here */
 	zfs_iter_filesystems(root_hdl, prop_list_builder_cb, data);

@@ -93,7 +93,6 @@ bectl_cleanup()
 atf_test_case bectl_create cleanup
 bectl_create_head()
 {
-
 	atf_set "descr" "Check the various forms of bectl create"
 	atf_set "require.user" root
 }
@@ -157,7 +156,6 @@ bectl_create_cleanup()
 atf_test_case bectl_destroy cleanup
 bectl_destroy_head()
 {
-
 	atf_set "descr" "Check bectl destroy"
 	atf_set "require.user" root
 }
@@ -240,14 +238,12 @@ bectl_destroy_body()
 }
 bectl_destroy_cleanup()
 {
-
 	bectl_cleanup $(get_zpool_name)
 }
 
 atf_test_case bectl_export_import cleanup
 bectl_export_import_head()
 {
-
 	atf_set "descr" "Check bectl export and import"
 	atf_set "require.user" root
 }
@@ -278,14 +274,12 @@ bectl_export_import_body()
 }
 bectl_export_import_cleanup()
 {
-
 	bectl_cleanup $(get_zpool_name)
 }
 
 atf_test_case bectl_list cleanup
 bectl_list_head()
 {
-
 	atf_set "descr" "Check bectl list"
 	atf_set "require.user" root
 }
@@ -323,14 +317,12 @@ bectl_list_body()
 }
 bectl_list_cleanup()
 {
-
 	bectl_cleanup $(get_zpool_name)
 }
 
 atf_test_case bectl_mount cleanup
 bectl_mount_head()
 {
-
 	atf_set "descr" "Check bectl mount/unmount"
 	atf_set "require.user" root
 }
@@ -367,14 +359,12 @@ bectl_mount_body()
 }
 bectl_mount_cleanup()
 {
-
 	bectl_cleanup $(get_zpool_name)
 }
 
 atf_test_case bectl_rename cleanup
 bectl_rename_head()
 {
-
 	atf_set "descr" "Check bectl rename"
 	atf_set "require.user" root
 }
@@ -403,14 +393,12 @@ bectl_rename_body()
 }
 bectl_rename_cleanup()
 {
-
 	bectl_cleanup $(get_zpool_name)
 }
 
 atf_test_case bectl_jail cleanup
 bectl_jail_head()
 {
-
 	atf_set "descr" "Check bectl rename"
 	atf_set "require.user" root
 	atf_set "require.progs" jail
@@ -577,6 +565,94 @@ bectl_promotion_cleanup()
 	bectl_cleanup $(get_zpool_name)
 }
 
+atf_test_case bectl_destroy_bootonce cleanup
+bectl_destroy_bootonce_head()
+{
+	atf_set "descr" "Check bectl destroy (bootonce)"
+	atf_set "require.user" root
+}
+bectl_destroy_bootonce_body()
+{
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ]; then
+		atf_skip "https://bugs.freebsd.org/249055"
+	fi
+
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "armv7" ]; then
+		atf_skip "https://bugs.freebsd.org/249229"
+	fi
+
+	cwd=$(realpath .)
+	zpool=$(make_zpool_name)
+	disk=${cwd}/disk.img
+	mount=${cwd}/mnt
+	root=${mount}/root
+
+	be=default2
+
+	bectl_create_setup ${zpool} ${disk} ${mount}
+	atf_check -s exit:0 -o empty bectl -r ${zpool}/ROOT create -e default ${be}
+
+	# Create boot environment and bootonce activate it
+	atf_check -s exit:0 -o ignore bectl -r ${zpool}/ROOT activate -t ${be}
+	atf_check -s exit:0 -o inline:"zfs:${zpool}/ROOT/${be}:\n" zfsbootcfg -z ${zpool}
+
+	# Destroy it
+	atf_check -s exit:0 -o ignore bectl -r ${zpool}/ROOT destroy ${be}
+
+	# Should be empty
+	atf_check -s exit:0 -o empty zfsbootcfg -z ${zpool}
+}
+bectl_destroy_bootonce_cleanup()
+{
+	bectl_cleanup $(get_zpool_name)
+}
+
+atf_test_case bectl_rename_bootonce cleanup
+bectl_rename_bootonce_head()
+{
+	atf_set "descr" "Check bectl destroy (bootonce)"
+	atf_set "require.user" root
+}
+bectl_rename_bootonce_body()
+{
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ]; then
+		atf_skip "https://bugs.freebsd.org/249055"
+	fi
+
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "armv7" ]; then
+		atf_skip "https://bugs.freebsd.org/249229"
+	fi
+
+	cwd=$(realpath .)
+	zpool=$(make_zpool_name)
+	disk=${cwd}/disk.img
+	mount=${cwd}/mnt
+	root=${mount}/root
+
+	be=default2
+
+	bectl_create_setup ${zpool} ${disk} ${mount}
+	atf_check -s exit:0 -o empty bectl -r ${zpool}/ROOT create -e default ${be}
+
+	# Create boot environment and bootonce activate it
+	atf_check -s exit:0 -o ignore bectl -r ${zpool}/ROOT activate -t ${be}
+	atf_check -s exit:0 -o inline:"zfs:${zpool}/ROOT/${be}:\n" zfsbootcfg -z ${zpool}
+
+	# Rename it
+	atf_check -s exit:0 -o ignore bectl -r ${zpool}/ROOT rename ${be} ${be}_renamed
+
+	# Should be renamed
+	atf_check -s exit:0 -o inline:"zfs:${zpool}/ROOT/${be}_renamed:\n" zfsbootcfg -z ${zpool}
+}
+bectl_rename_bootonce_cleanup()
+{
+	bectl_cleanup $(get_zpool_name)
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case bectl_create
@@ -587,4 +663,6 @@ atf_init_test_cases()
 	atf_add_test_case bectl_rename
 	atf_add_test_case bectl_jail
 	atf_add_test_case bectl_promotion
+	atf_add_test_case bectl_destroy_bootonce
+	atf_add_test_case bectl_rename_bootonce
 }
