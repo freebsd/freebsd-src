@@ -481,6 +481,10 @@ The system file table is full.
 .It Bq Er EMLINK
 .Dv O_NOFOLLOW
 was specified and the target is a symbolic link.
+.Tn POSIX
+specifies a different error for this case; see the note in
+.Sx STANDARDS
+below.
 .It Bq Er ENXIO
 The named file is a character special or block
 special file, and the device associated with this special file
@@ -643,6 +647,7 @@ is set, and the process is in capability mode.
 .Sh STANDARDS
 These functions are specified by
 .St -p1003.1-2008 .
+.Pp
 .Fx
 sets
 .Va errno
