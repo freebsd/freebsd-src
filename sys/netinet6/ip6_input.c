@@ -894,8 +894,6 @@ passin:
 		if (pfil_mbuf_out(V_inet6_local_pfil_head, &m, V_loif, NULL) !=
 		    PFIL_PASS)
 			return;
-		if (m == NULL)			/* consumed by filter */
-			return;
 		ip6 = mtod(m, struct ip6_hdr *);
 	}
 

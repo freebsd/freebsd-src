@@ -878,7 +878,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	/* Do not grab PROMISC frames in case we are re-entered. */
 	if (PFIL_HOOKED_IN(V_link_pfil_head) && !(m->m_flags & M_PROMISC)) {
 		i = pfil_mbuf_in(V_link_pfil_head, &m, ifp, NULL);
-		if (i != 0 || m == NULL)
+		if (i != PFIL_PASS)
 			return;
 	}
 

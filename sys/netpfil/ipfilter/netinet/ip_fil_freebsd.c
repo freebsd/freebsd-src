@@ -133,6 +133,8 @@ ipf_check_wrapper(struct mbuf **mp, struct ifnet *ifp, int flags,
 	rv = ipf_check(&V_ipfmain, ip, ip->ip_hl << 2, ifp,
 	    !!(flags & PFIL_OUT), mp);
 	CURVNET_RESTORE();
+	if (rv == 0 && *mp == NULL)
+		return (PFIL_CONSUMED);
 	return (rv == 0 ? PFIL_PASS : PFIL_DROPPED);
 }
 
@@ -147,6 +149,8 @@ ipf_check_wrapper6(struct mbuf **mp, struct ifnet *ifp, int flags,
 	rv = ipf_check(&V_ipfmain, mtod(*mp, struct ip *),
 	    sizeof(struct ip6_hdr), ifp, !!(flags & PFIL_OUT), mp);
 	CURVNET_RESTORE();
+	if (rv == 0 && *mp == NULL)
+		return (PFIL_CONSUMED);
 
 	return (rv == 0 ? PFIL_PASS : PFIL_DROPPED);
 }
