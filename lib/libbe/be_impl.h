@@ -36,6 +36,7 @@ struct libbe_handle {
 	char root[BE_MAXPATHLEN];
 	char rootfs[BE_MAXPATHLEN];
 	char bootfs[BE_MAXPATHLEN];
+	char *bootonce;
 	size_t altroot_len;
 	zpool_handle_t *active_phandle;
 	libzfs_handle_t *lzh;
