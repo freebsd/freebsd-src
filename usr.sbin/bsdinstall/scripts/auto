@@ -153,36 +153,10 @@ trap true SIGINT	# This section is optional
 trap error SIGINT	# Catch cntrl-C here
 if [ -z "$BSDINSTALL_SKIP_HOSTNAME" ]; then bsdinstall hostname || error "Set hostname failed"; fi
 
-export DISTRIBUTIONS="${DISTRIBUTIONS:-base.txz kernel.txz}"
-if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
-	DISTMENU=`awk -F'\t' '!/^(kernel\.txz|base\.txz)/{print $1,$5,$6}' $BSDINSTALL_DISTDIR/MANIFEST`
-	DISTMENU="$(echo ${DISTMENU} | sed -E 's/\.txz//g')"
-
-	if [ -n "$DISTMENU" ]; then
-		exec 5>&1
-		EXTRA_DISTS=$( eval bsddialog \
-		    --backtitle \"$OSNAME Installer\" \
-		    --title \"Distribution Select\" --nocancel --separate-output \
-		    --checklist \"Choose optional system components to install:\" \
-		    0 0 0 $DISTMENU \
-		2>&1 1>&5 )
-		for dist in $EXTRA_DISTS; do
-			export DISTRIBUTIONS="$DISTRIBUTIONS $dist.txz"
-		done
-	fi
-fi
-
-FETCH_DISTRIBUTIONS=""
-for dist in $DISTRIBUTIONS; do
-	if [ ! -f $BSDINSTALL_DISTDIR/$dist ]; then
-		FETCH_DISTRIBUTIONS="$FETCH_DISTRIBUTIONS $dist"
-	fi
-done
-
-if [ -n "$FETCH_DISTRIBUTIONS" -a -n "$BSDINSTALL_CONFIGCURRENT" ]; then
-	bsddialog --backtitle "$OSNAME Installer" --title "Network Installation" --msgbox "Some installation files were not found on the boot volume. The next few screens will allow you to configure networking so that they can be downloaded from the Internet." 0 0
-	bsdinstall netconfig || error
-	NETCONFIG_DONE=yes
+if [ -n "$BSDINSTALL_USE_DISTRIBUTIONS" ]; then
+	exec 5>&1
+	export DISTRIBUTIONS=$( `dirname $0`/selectdists 2>&1 1>&5 )
+	exec 5>&-
 fi
 
 rm -f $PATH_FSTAB
@@ -347,8 +321,10 @@ if [ -n "$FETCH_DISTRIBUTIONS" ]; then
 
 	[ $FETCH_RESULT -ne 0 ] && error "Could not fetch remote distributions"
 fi
-bsdinstall checksum || error "Distribution checksum failed"
-bsdinstall distextract || error "Distribution extract failed"
+if [ -n "$BSDINSTALL_USE_DISTRIBUTIONS" ]; then
+	bsdinstall checksum || error "Distribution checksum failed"
+	bsdinstall distextract || error "Distribution extract failed"
+fi
 
 # Set up boot loader
 bsdinstall bootconfig || error "Failed to configure bootloader"
