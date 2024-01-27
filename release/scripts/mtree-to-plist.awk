@@ -23,9 +23,13 @@
 		}
 	}
 	if (kernel != "") {
-		tags="package=kernel"
-		if (_kernconf != "") {
-			tags=tags""_kernconf
+		if ($1 ~ /^\/boot\/dtb\//) {
+			tags="package=dtb"
+		} else {
+			tags="package=kernel"
+			if (_kernconf != "") {
+				tags=tags""_kernconf
+			}
 		}
 	}
 	if (length(tags) == 0)
@@ -36,8 +40,12 @@
 		for (i in a) {
 			if (a[i] ~ /^package=/) {
 				pkgname=a[i]
-				if ($1 ~ /^\/boot\//)
-					pkgname="bootloader"
+				if ($1 ~ /^\/boot\//) {
+					if ($1 ~ /^\/boot\/dtb\//)
+						pkgname="dtb"
+					else
+						pkgname="bootloader"
+				}
 				gsub(/package=/, "", pkgname)
 			} else if (a[i] == "config") {
 				type="config"
@@ -64,7 +72,7 @@
 		print "No packages specified in line: $0"
 		next
 	}
-	if (kernel != "") {
+	if (kernel != "" && pkgname != "dtb") {
 		output="kernel"
 		if (_kernconf != "") {
 			output=output"."_kernconf
