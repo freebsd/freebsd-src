@@ -175,10 +175,15 @@ All Internet addresses are returned in network
 order (bytes ordered from left to right).
 All network numbers and local address parts are
 returned as machine byte order integer values.
-.Sh INTERNET ADDRESSES
-Values specified using the
+.Sh INTERNET ADDRESSES (IP VERSION 4)
+The
+.Fn inet_aton 
+and
+.Fn inet_addr
+functions accept IPv4
+values specified using the
 .Ql .\&
-notation take one
+notation in one
 of the following forms:
 .Bd -literal -offset indent
 a.b.c.d
@@ -212,6 +217,13 @@ may be decimal, octal, or hexadecimal, as specified
 in the C language (i.e., a leading 0x or 0X implies
 hexadecimal; otherwise, a leading 0 implies octal;
 otherwise, the number is interpreted as decimal).
+.Pp
+Note that
+.Fn inet_pton
+does not accept 1-, 2-, or 3-part dotted addresses; all four parts
+must be specified and are interpreted only as decimal values.
+This is a narrower input set than that accepted by
+.Fn inet_aton .
 .Sh DIAGNOSTICS
 The constant
 .Dv INADDR_NONE
@@ -258,12 +270,6 @@ and
 .Fn inet_pton
 functions conform to
 .St -xns5.2 .
-Note that
-.Fn inet_pton
-does not accept 1-, 2-, or 3-part dotted addresses; all four parts
-must be specified and are interpreted only as decimal values.
-This is a narrower input set than that accepted by
-.Fn inet_aton .
 .Sh HISTORY
 These
 functions appeared in
