@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2020-2024 The FreeBSD Foundation
- * Copyright (c) 2020-2022 Bjoern A. Zeeb
+ * Copyright (c) 2020-2024 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -4681,30 +4681,36 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	ic->ic_node_free = lkpi_ic_node_free;
 
 #ifdef LKPI_80211_HT
-	lhw->ic_recv_action = ic->ic_recv_action;
-	ic->ic_recv_action = lkpi_ic_recv_action;
-	lhw->ic_send_action = ic->ic_send_action;
-	ic->ic_send_action = lkpi_ic_send_action;
+	/*
+	 * Only attach if the driver/firmware supports (*ampdu_action)().
+	 * Otherwise it is in the hands of net80211.
+	 */
+	if (lhw->ops->ampdu_action != NULL) {
+		lhw->ic_recv_action = ic->ic_recv_action;
+		ic->ic_recv_action = lkpi_ic_recv_action;
+		lhw->ic_send_action = ic->ic_send_action;
+		ic->ic_send_action = lkpi_ic_send_action;
 
-	lhw->ic_ampdu_enable = ic->ic_ampdu_enable;
-	ic->ic_ampdu_enable = lkpi_ic_ampdu_enable;
+		lhw->ic_ampdu_enable = ic->ic_ampdu_enable;
+		ic->ic_ampdu_enable = lkpi_ic_ampdu_enable;
 
-	lhw->ic_addba_request = ic->ic_addba_request;
-	ic->ic_addba_request = lkpi_ic_addba_request;
-	lhw->ic_addba_response = ic->ic_addba_response;
-	ic->ic_addba_response = lkpi_ic_addba_response;
-	lhw->ic_addba_stop = ic->ic_addba_stop;
-	ic->ic_addba_stop = lkpi_ic_addba_stop;
-	lhw->ic_addba_response_timeout = ic->ic_addba_response_timeout;
-	ic->ic_addba_response_timeout = lkpi_ic_addba_response_timeout;
+		lhw->ic_addba_request = ic->ic_addba_request;
+		ic->ic_addba_request = lkpi_ic_addba_request;
+		lhw->ic_addba_response = ic->ic_addba_response;
+		ic->ic_addba_response = lkpi_ic_addba_response;
+		lhw->ic_addba_stop = ic->ic_addba_stop;
+		ic->ic_addba_stop = lkpi_ic_addba_stop;
+		lhw->ic_addba_response_timeout = ic->ic_addba_response_timeout;
+		ic->ic_addba_response_timeout = lkpi_ic_addba_response_timeout;
 
-	lhw->ic_bar_response = ic->ic_bar_response;
-	ic->ic_bar_response = lkpi_ic_bar_response;
+		lhw->ic_bar_response = ic->ic_bar_response;
+		ic->ic_bar_response = lkpi_ic_bar_response;
 
-	lhw->ic_ampdu_rx_start = ic->ic_ampdu_rx_start;
-	ic->ic_ampdu_rx_start = lkpi_ic_ampdu_rx_start;
-	lhw->ic_ampdu_rx_stop = ic->ic_ampdu_rx_stop;
-	ic->ic_ampdu_rx_stop = lkpi_ic_ampdu_rx_stop;
+		lhw->ic_ampdu_rx_start = ic->ic_ampdu_rx_start;
+		ic->ic_ampdu_rx_start = lkpi_ic_ampdu_rx_start;
+		lhw->ic_ampdu_rx_stop = ic->ic_ampdu_rx_stop;
+		ic->ic_ampdu_rx_stop = lkpi_ic_ampdu_rx_stop;
+	}
 #endif
 
 	lkpi_radiotap_attach(lhw);
