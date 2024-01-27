@@ -130,6 +130,7 @@ tabthorpe [label="Thomas Abthorpe\ntabthorpe@FreeBSD.org\n2007/08/20\n2018/02/23
 tj [label="Tom Judge\ntj@FreeBSD.org\n2012/05/28\n2018/11/06"]
 tmclaugh [label="Tom McLaughlin\ntmclaugh@FreeBSD.org\n2005/09/15\n2011/04/16"]
 trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2007/04/12\n2022/06/06"]
+uzsolt [label="Zsolt Udvari\nuzsolt@FreeBSD.org\n2024/01/12"]
 vg [label="Veniamin Gvozdikov\nvg@FreeBSD.org\n2013/06/11\n2018/02/23"]
 wg [label="William Grzybowski\nwg@FreeBSD.org\n2013/04/01\n2022/06/06"]
 will [label="Will Andrews\nwill@FreeBSD.org\n2000/03/20\n2006/09/01"]
@@ -389,6 +390,8 @@ beech -> mva
 billf -> sobomax
 billf -> will
 
+bofh -> uzsolt
+
 brooks -> kmoore
 
 clement -> tdb
@@ -425,6 +428,8 @@ delphij -> nemoliu
 delphij -> rafan
 
 demon -> mat
+
+diizzy -> uzsolt
 
 eadler -> ak
 eadler -> antoine
