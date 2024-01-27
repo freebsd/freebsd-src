@@ -67,6 +67,7 @@
 #define	D80211_TRACEX		(D80211_TRACE_TX|D80211_TRACE_RX)
 #define	D80211_TRACEX_DUMP	(D80211_TRACE_TX_DUMP|D80211_TRACE_RX_DUMP)
 #define	D80211_TRACE_STA	0x00010000
+#define	D80211_TRACE_HW_CRYPTO	0x00020000
 #define	D80211_TRACE_MO		0x00100000
 #define	D80211_TRACE_MODE	0x0f000000
 #define	D80211_TRACE_MODE_HT	0x01000000
@@ -151,7 +152,7 @@ struct lkpi_sta {
 	struct mbufq		txq;
 	struct mtx		txq_mtx;
 
-	struct ieee80211_key_conf *kc;
+	struct ieee80211_key_conf *kc[IEEE80211_WEP_NKID];
 	enum ieee80211_sta_state state;
 	bool			txq_ready;			/* Can we run the taskq? */
 	bool			added_to_drv;			/* Driver knows; i.e. we called ...(). */
