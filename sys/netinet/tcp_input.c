@@ -474,13 +474,12 @@ cc_post_recovery(struct tcpcb *tp, struct tcphdr *th)
 {
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
-	/* XXXLAS: KASSERT that we're in recovery? */
-
 	if (CC_ALGO(tp)->post_recovery != NULL) {
 		tp->t_ccv.curack = th->th_ack;
 		CC_ALGO(tp)->post_recovery(&tp->t_ccv);
 	}
-	/* XXXLAS: EXIT_RECOVERY ? */
+	EXIT_RECOVERY(tp->t_flags);
+
 	tp->t_bytes_acked = 0;
 	tp->sackhint.delivered_data = 0;
 	tp->sackhint.prr_delivered = 0;
@@ -2813,11 +2812,13 @@ resume_partialack:
 		 * If the congestion window was inflated to account
 		 * for the other side's cached packets, retract it.
 		 */
-		if (IN_FASTRECOVERY(tp->t_flags)) {
-			if (SEQ_LT(th->th_ack, tp->snd_recover)) {
+		if (SEQ_LT(th->th_ack, tp->snd_recover)) {
+			if (IN_FASTRECOVERY(tp->t_flags)) {
 				if (tp->t_flags & TF_SACK_PERMIT) {
-					if (V_tcp_do_prr && to.to_flags & TOF_SACK) {
-						tcp_timer_activate(tp, TT_REXMT, 0);
+					if (V_tcp_do_prr &&
+					    (to.to_flags & TOF_SACK)) {
+						tcp_timer_activate(tp,
+						    TT_REXMT, 0);
 						tp->t_rtttime = 0;
 						tcp_do_prr_ack(tp, th, &to,
 						    sack_changed, &maxseg);
@@ -2830,24 +2831,18 @@ resume_partialack:
 				} else {
 					tcp_newreno_partial_ack(tp, th);
 				}
-			} else {
-				cc_post_recovery(tp, th);
-			}
-		} else if (IN_CONGRECOVERY(tp->t_flags)) {
-			if (SEQ_LT(th->th_ack, tp->snd_recover)) {
-				if (V_tcp_do_prr) {
-					tp->sackhint.delivered_data = BYTES_THIS_ACK(tp, th);
-					tp->snd_fack = th->th_ack;
-					/*
-					 * During ECN cwnd reduction
-					 * always use PRR-SSRB
-					 */
-					tcp_do_prr_ack(tp, th, &to, SACK_CHANGE,
-					    &maxseg);
-					(void) tcp_output(tp);
-				}
-			} else {
-				cc_post_recovery(tp, th);
+			} else if (IN_CONGRECOVERY(tp->t_flags) &&
+				    (V_tcp_do_prr)) {
+				tp->sackhint.delivered_data =
+				    BYTES_THIS_ACK(tp, th);
+				tp->snd_fack = th->th_ack;
+				/*
+				 * During ECN cwnd reduction
+				 * always use PRR-SSRB
+				 */
+				tcp_do_prr_ack(tp, th, &to, SACK_CHANGE,
+				    &maxseg);
+				(void) tcp_output(tp);
 			}
 		}
 		/*
@@ -2999,12 +2994,11 @@ process_ACK:
 		    SEQ_GT(tp->snd_una, tp->snd_recover) &&
 		    SEQ_LEQ(th->th_ack, tp->snd_recover))
 			tp->snd_recover = th->th_ack - 1;
-		/* XXXLAS: Can this be moved up into cc_post_recovery? */
+		tp->snd_una = th->th_ack;
 		if (IN_RECOVERY(tp->t_flags) &&
 		    SEQ_GEQ(th->th_ack, tp->snd_recover)) {
-			EXIT_RECOVERY(tp->t_flags);
+			cc_post_recovery(tp, th);
 		}
-		tp->snd_una = th->th_ack;
 		if (tp->t_flags & TF_SACK_PERMIT) {
 			if (SEQ_GT(tp->snd_una, tp->snd_recover))
 				tp->snd_recover = tp->snd_una;
