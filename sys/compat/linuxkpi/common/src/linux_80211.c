@@ -3992,7 +3992,7 @@ lkpi_ic_recv_action(struct ieee80211_node *ni, const struct ieee80211_frame *wh,
 	ic = ni->ni_ic;
 	lhw = ic->ic_softc;
 
-	IMPROVE_HT();
+	IMPROVE_HT("recv_action called; nothing to do in lkpi; make debugging");
 
 	return (lhw->ic_recv_action(ni, wh, frm, efrm));
 }
@@ -4006,7 +4006,7 @@ lkpi_ic_send_action(struct ieee80211_node *ni, int category, int action, void *s
 	ic = ni->ni_ic;
 	lhw = ic->ic_softc;
 
-	IMPROVE_HT();
+	IMPROVE_HT("send_action called; nothing to do in lkpi; make debugging");
 
 	return (lhw->ic_send_action(ni, category, action, sa));
 }
@@ -4021,52 +4021,207 @@ lkpi_ic_ampdu_enable(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	ic = ni->ni_ic;
 	lhw = ic->ic_softc;
 
-	IMPROVE_HT();
+	IMPROVE_HT("ieee80211_ampdu_enable called; nothing to do in lkpi for now; make debugging");
 
 	return (lhw->ic_ampdu_enable(ni, tap));
 }
 
+/*
+ * (*ic_addba_request)() is called by ieee80211_ampdu_request() before
+ * calling send_action(CAT_BA, BA_ADDBA_REQUEST).
+ *
+ * NB: returns 0 on ERROR!
+ */
 static int
 lkpi_ic_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int dialogtoken, int baparamset, int batimeout)
 {
 	struct ieee80211com *ic;
 	struct lkpi_hw *lhw;
+	struct ieee80211_hw *hw;
+	struct ieee80211vap *vap;
+	struct lkpi_vif *lvif;
+	struct ieee80211_vif *vif;
+	struct lkpi_sta *lsta;
+	struct ieee80211_sta *sta;
+	struct ieee80211_ampdu_params params = { };
+	int error;
 
 	ic = ni->ni_ic;
 	lhw = ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+	vap = ni->ni_vap;
+	lvif = VAP_TO_LVIF(vap);
+	vif = LVIF_TO_VIF(lvif);
+	lsta = ni->ni_drv_data;
+	sta = LSTA_TO_STA(lsta);
 
-	IMPROVE_HT();
+	if (!lsta->added_to_drv) {
+		ic_printf(ic, "%s: lsta %p ni %p, sta %p not added to firmware\n",
+		    __func__, lsta, ni, sta);
+		return (0);
+	}
+
+	params.sta = sta;
+	params.action = IEEE80211_AMPDU_TX_START;
+	/* Keep 0 here! */
+	params.buf_size = 0;
+	params.timeout = 0;
+	params.ssn = tap->txa_start & (IEEE80211_SEQ_RANGE-1);
+	params.tid = tap->txa_tid;
+	params.amsdu = false;
+
+	IEEE80211_UNLOCK(ic);
+	LKPI_80211_LHW_LOCK(lhw);
+	error = lkpi_80211_mo_ampdu_action(hw, vif, &params);
+	LKPI_80211_LHW_UNLOCK(lhw);
+	IEEE80211_LOCK(ic);
+	if (error != 0) {
+		ic_printf(ic, "%s: mo_ampdu_action returned %d. ni %p tap %p\n",
+		    __func__, error, ni, tap);
+		return (0);
+	}
 
 	return (lhw->ic_addba_request(ni, tap, dialogtoken, baparamset, batimeout));
 }
 
+/*
+ * (*ic_addba_response)() is called from ht_recv_action_ba_addba_response()
+ * and calls the default ieee80211_addba_response() which always returns 1.
+ *
+ * NB: No error checking in net80211!
+ * Staying with 0 is an error.
+ */
 static int
 lkpi_ic_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int status, int baparamset, int batimeout)
 {
 	struct ieee80211com *ic;
 	struct lkpi_hw *lhw;
+	struct ieee80211_hw *hw;
+	struct ieee80211vap *vap;
+	struct lkpi_vif *lvif;
+	struct ieee80211_vif *vif;
+	struct lkpi_sta *lsta;
+	struct ieee80211_sta *sta;
+	struct ieee80211_ampdu_params params = { };
+	int error;
 
 	ic = ni->ni_ic;
 	lhw = ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+	vap = ni->ni_vap;
+	lvif = VAP_TO_LVIF(vap);
+	vif = LVIF_TO_VIF(lvif);
+	lsta = ni->ni_drv_data;
+	sta = LSTA_TO_STA(lsta);
 
-	IMPROVE_HT();
+	if (!lsta->added_to_drv) {
+		ic_printf(ic, "%s: lsta %p ni %p, sta %p not added to firmware\n",
+		    __func__, lsta, ni, sta);
+		return (0);
+	}
+
+	if (status == IEEE80211_STATUS_SUCCESS) {
+		params.sta = sta;
+		params.action = IEEE80211_AMPDU_TX_OPERATIONAL;
+		params.buf_size = tap->txa_wnd;
+		params.timeout = 0;
+		params.ssn = 0;
+		params.tid = tap->txa_tid;
+		if ((tap->txa_flags & IEEE80211_AGGR_AMSDU) != 0)
+			params.amsdu = true;
+		else
+			params.amsdu = false;
+	} else {
+		/* We need to free the allocated resources. */
+		params.sta = sta;
+		switch (status) {
+			/* params.action = FLUSH, FLUSH_CONT */
+		default:
+			params.action = IEEE80211_AMPDU_TX_STOP_CONT;
+			break;
+		}
+		params.buf_size = 0;
+		params.timeout = 0;
+		params.ssn = 0;
+		params.tid = tap->txa_tid;
+		params.amsdu = false;
+	}
+
+	IEEE80211_UNLOCK(ic);
+	LKPI_80211_LHW_LOCK(lhw);
+	error = lkpi_80211_mo_ampdu_action(hw, vif, &params);
+	LKPI_80211_LHW_UNLOCK(lhw);
+	IEEE80211_LOCK(ic);
+	if (error != 0) {
+		ic_printf(ic, "%s: mo_ampdu_action returned %d. ni %p tap %p\n",
+		    __func__, error, ni, tap);
+		return (0);
+	}
+
+	IMPROVE_HT("who unleashes the TXQ? and when?, do we need to ni->ni_txseqs[tid] = tap->txa_start & 0xfff;");
 
 	return (lhw->ic_addba_response(ni, tap, status, baparamset, batimeout));
 }
 
+/*
+ * (*ic_addba_stop)() is called from ampdu_tx_stop(), ht_recv_action_ba_delba(),
+ * and ieee80211_ampdu_stop() and calls the default ieee80211_addba_stop().
+ */
 static void
 lkpi_ic_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 {
 	struct ieee80211com *ic;
 	struct lkpi_hw *lhw;
+	struct ieee80211_hw *hw;
+	struct ieee80211vap *vap;
+	struct lkpi_vif *lvif;
+	struct ieee80211_vif *vif;
+	struct lkpi_sta *lsta;
+	struct ieee80211_sta *sta;
+	struct ieee80211_ampdu_params params = { };
+	int error;
 
 	ic = ni->ni_ic;
 	lhw = ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+	vap = ni->ni_vap;
+	lvif = VAP_TO_LVIF(vap);
+	vif = LVIF_TO_VIF(lvif);
+	lsta = ni->ni_drv_data;
+	sta = LSTA_TO_STA(lsta);
 
-	IMPROVE_HT();
+	if (!lsta->added_to_drv) {
+		ic_printf(ic, "%s: lsta %p ni %p, sta %p not added to firmware\n",
+		    __func__, lsta, ni, sta);
+		goto n80211;
+	}
 
+	/* We need to free the allocated resources. */
+	params.sta = sta;
+	IMPROVE("net80211 does not provide a reason to us");
+	params.action = IEEE80211_AMPDU_TX_STOP_CONT; /* params.action = FLUSH, FLUSH_CONT */
+	params.buf_size = 0;
+	params.timeout = 0;
+	params.ssn = 0;
+	params.tid = tap->txa_tid;
+	params.amsdu = false;
+
+	IEEE80211_UNLOCK(ic);
+	LKPI_80211_LHW_LOCK(lhw);
+	error = lkpi_80211_mo_ampdu_action(hw, vif, &params);
+	LKPI_80211_LHW_UNLOCK(lhw);
+	IEEE80211_LOCK(ic);
+	if (error != 0) {
+		ic_printf(ic, "%s: mo_ampdu_action returned %d. ni %p tap %p\n",
+		    __func__, error, ni, tap);
+		goto n80211;
+	}
+
+	IMPROVE_HT("anyting else?");
+
+n80211:
 	lhw->ic_addba_stop(ni, tap);
 }
 
@@ -4110,8 +4265,8 @@ lkpi_ic_ampdu_rx_start(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap
 	struct lkpi_vif *lvif;
 	struct ieee80211_vif *vif;
 	struct lkpi_sta *lsta;
-        struct ieee80211_sta *sta;
-	struct ieee80211_ampdu_params params;
+	struct ieee80211_sta *sta;
+	struct ieee80211_ampdu_params params = { };
 	int error;
 
 	ic = ni->ni_ic;
@@ -4123,6 +4278,14 @@ lkpi_ic_ampdu_rx_start(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap
 	lsta = ni->ni_drv_data;
 	sta = LSTA_TO_STA(lsta);
 
+	IEEE80211_UNLOCK_ASSERT(ic);
+
+	if (!lsta->added_to_drv) {
+		ic_printf(ic, "%s: lsta %p ni %p vap %p, sta %p not added to firmware\n",
+		    __func__, lsta, ni, vap, sta);
+		return (-ENXIO);
+	}
+
 	params.sta = sta;
 	params.action = IEEE80211_AMPDU_RX_START;
 	params.buf_size = _IEEE80211_MASKSHIFT(le16toh(baparamset), IEEE80211_BAPS_BUFSIZ);
@@ -4130,22 +4293,33 @@ lkpi_ic_ampdu_rx_start(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap
 		params.buf_size = IEEE80211_MAX_AMPDU_BUF_HT;
 	else
 		params.buf_size = min(params.buf_size, IEEE80211_MAX_AMPDU_BUF_HT);
-	if (params.buf_size > hw->max_rx_aggregation_subframes)
+	if (hw->max_rx_aggregation_subframes > 0 &&
+	    params.buf_size > hw->max_rx_aggregation_subframes)
 		params.buf_size = hw->max_rx_aggregation_subframes;
 	params.timeout = le16toh(batimeout);
 	params.ssn = _IEEE80211_MASKSHIFT(le16toh(baseqctl), IEEE80211_BASEQ_START);
 	params.tid = _IEEE80211_MASKSHIFT(le16toh(baparamset), IEEE80211_BAPS_TID);
-	params.amsdu = false;
 
-	IMPROVE_HT("Do we need to distinguish based on SUPPORTS_REORDERING_BUFFER?");
+	/* Based on net80211::ampdu_rx_start(). */
+	if ((vap->iv_htcaps & IEEE80211_HTC_RX_AMSDU_AMPDU) &&
+	    (_IEEE80211_MASKSHIFT(baparamset, IEEE80211_BAPS_AMSDU)))
+		params.amsdu = true;
+	else
+		params.amsdu = false;
 
-	/* This may call kalloc.  Make sure we can sleep. */
+	LKPI_80211_LHW_LOCK(lhw);
 	error = lkpi_80211_mo_ampdu_action(hw, vif, &params);
+	LKPI_80211_LHW_UNLOCK(lhw);
 	if (error != 0) {
 		ic_printf(ic, "%s: mo_ampdu_action returned %d. ni %p rap %p\n",
 		    __func__, error, ni, rap);
 		return (error);
 	}
+
+	if (!ieee80211_hw_check(hw, SUPPORTS_REORDERING_BUFFER)) {
+		IMPROVE("%s: TODO: SUPPORTS_REORDERING_BUFFER not set; check net80211\n", __func__);
+	}
+
 	IMPROVE_HT("net80211 is missing the error check on return and assumes success");
 
 	error = lhw->ic_ampdu_rx_start(ni, rap, baparamset, batimeout, baseqctl);
@@ -4162,8 +4336,8 @@ lkpi_ic_ampdu_rx_stop(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap)
 	struct lkpi_vif *lvif;
 	struct ieee80211_vif *vif;
 	struct lkpi_sta *lsta;
-        struct ieee80211_sta *sta;
-	struct ieee80211_ampdu_params params;
+	struct ieee80211_sta *sta;
+	struct ieee80211_ampdu_params params = { };
 	int error;
 	uint8_t tid;
 
@@ -4203,7 +4377,11 @@ lkpi_ic_ampdu_rx_stop(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap)
 	params.tid = tid;
 	params.amsdu = false;
 
+	// IEEE80211_UNLOCK(ic);
+	LKPI_80211_LHW_LOCK(lhw);
 	error = lkpi_80211_mo_ampdu_action(hw, vif, &params);
+	LKPI_80211_LHW_UNLOCK(lhw);
+	// IEEE80211_LOCK(ic);
 	if (error != 0)
 		ic_printf(ic, "%s: mo_ampdu_action returned %d. ni %p rap %p\n",
 		    __func__, error, ni, rap);
