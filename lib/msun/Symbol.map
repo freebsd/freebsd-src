@@ -88,7 +88,6 @@ FBSD_1.0 {
 	exp2f;
 	expm1;
 	expm1f;
-	fabs;
 	fabsf;
 	fabsl;
 	fdim;
