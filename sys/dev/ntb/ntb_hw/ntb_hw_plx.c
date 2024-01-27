@@ -880,17 +880,33 @@ static int
 ntb_plx_spad_write(device_t dev, unsigned int idx, uint32_t val)
 {
 	struct ntb_plx_softc *sc = device_get_softc(dev);
-	u_int off;
+	u_int off, t;
 
 	if (idx >= sc->spad_count1 + sc->spad_count2)
 		return (EINVAL);
 
-	if (idx < sc->spad_count1)
+	if (idx < sc->spad_count1) {
 		off = sc->spad_off1 + idx * 4;
-	else
+		bus_write_4(sc->conf_res, off, val);
+		return (0);
+	} else {
 		off = sc->spad_off2 + (idx - sc->spad_count1) * 4;
-	bus_write_4(sc->conf_res, off, val);
-	return (0);
+		/*
+		 * For some reason when link goes down Test Pattern registers
+		 * we use as additional scratchpad become read-only for about
+		 * 100us.  I see no explanation in specs, so just wait a bit.
+		 */
+		for (t = 0; t <= 1000; t++) {
+			bus_write_4(sc->conf_res, off, val);
+			if (bus_read_4(sc->conf_res, off) == val)
+				return (0);
+			DELAY(1);
+		}
+		device_printf(dev,
+		    "Can't write Physical Layer User Test Pattern (0x%x)\n",
+		    off);
+		return (EIO);
+	}
 }
 
 static void

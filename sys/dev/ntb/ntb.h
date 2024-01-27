@@ -281,7 +281,7 @@ int ntb_mw_set_wc(device_t ntb, unsigned mw_idx, vm_memattr_t mode);
 uint8_t ntb_spad_count(device_t ntb);
 
 /*
- * ntb_get_max_spads() - zero local scratch registers
+ * ntb_spad_clear() - zero local scratch registers
  * @ntb: pointer to ntb_softc instance
  *
  * This functions overwrites all local scratchpad registers with zeroes.
