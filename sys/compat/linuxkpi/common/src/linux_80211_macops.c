@@ -684,6 +684,8 @@ lkpi_80211_mo_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct lkpi_hw *lhw;
 	int error;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->set_key == NULL) {
 		error = EOPNOTSUPP;

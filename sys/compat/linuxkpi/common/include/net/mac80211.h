@@ -555,6 +555,9 @@ enum ieee802111_key_flag {
 };
 
 struct ieee80211_key_conf {
+#if defined(__FreeBSD__)
+	const struct ieee80211_key	*_k;		/* backpointer to net80211 */
+#endif
 	atomic64_t			tx_pn;
 	uint32_t			cipher;
 	uint8_t				icv_len;	/* __unused nowadays? */
@@ -1154,7 +1157,7 @@ void linuxkpi_ieee80211_iterate_keys(struct ieee80211_hw *,
     struct ieee80211_vif *,
     void(*iterfunc)(struct ieee80211_hw *, struct ieee80211_vif *,
         struct ieee80211_sta *, struct ieee80211_key_conf *, void *),
-    void *);
+    void *, bool);
 void linuxkpi_ieee80211_iterate_chan_contexts(struct ieee80211_hw *,
     void(*iterfunc)(struct ieee80211_hw *,
 	struct ieee80211_chanctx_conf *, void *),
@@ -1520,25 +1523,22 @@ ieee80211_iterate_interfaces(struct ieee80211_hw *hw,
 	linuxkpi_ieee80211_iterate_interfaces(hw, flags, iterfunc, arg);
 }
 
-static __inline void
+static inline void
 ieee80211_iter_keys(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
     void(*iterfunc)(struct ieee80211_hw *, struct ieee80211_vif *,
         struct ieee80211_sta *, struct ieee80211_key_conf *, void *),
     void *arg)
 {
-
-	linuxkpi_ieee80211_iterate_keys(hw, vif, iterfunc, arg);
+	linuxkpi_ieee80211_iterate_keys(hw, vif, iterfunc, arg, false);
 }
 
-static __inline void
+static inline void
 ieee80211_iter_keys_rcu(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
     void(*iterfunc)(struct ieee80211_hw *, struct ieee80211_vif *,
         struct ieee80211_sta *, struct ieee80211_key_conf *, void *),
     void *arg)
 {
-
-	IMPROVE();	/* "rcu" */
-	linuxkpi_ieee80211_iterate_keys(hw, vif, iterfunc, arg);
+	linuxkpi_ieee80211_iterate_keys(hw, vif, iterfunc, arg, true);
 }
 
 static __inline void
@@ -2095,33 +2095,6 @@ ieee80211_sta_set_buffered(struct ieee80211_sta *sta, uint8_t tid, bool t)
 }
 
 static __inline void
-ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf, uint8_t tid,
-    struct ieee80211_key_seq *seq)
-{
-
-	KASSERT(keyconf != NULL && seq != NULL, ("%s: keyconf %p seq %p\n",
-	    __func__, keyconf, seq));
-
-	TODO();
-	switch (keyconf->cipher) {
-	case WLAN_CIPHER_SUITE_CCMP:
-	case WLAN_CIPHER_SUITE_CCMP_256:
-		memset(seq->ccmp.pn, 0xfa, sizeof(seq->ccmp.pn));	/* XXX TODO */
-		break;
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-		memset(seq->aes_cmac.pn, 0xfa, sizeof(seq->aes_cmac.pn));	/* XXX TODO */
-		break;
-	case WLAN_CIPHER_SUITE_TKIP:
-		seq->tkip.iv32 = 0xfa;		/* XXX TODO */
-		seq->tkip.iv16 = 0xfa;		/* XXX TODO */
-		break;
-	default:
-		pr_debug("%s: unsupported cipher suite %d\n", __func__, keyconf->cipher);
-		break;
-	}
-}
-
-static __inline void
 ieee80211_sched_scan_results(struct ieee80211_hw *hw)
 {
 	TODO();
@@ -2464,6 +2437,44 @@ static __inline void
 ieee80211_remove_key(struct ieee80211_key_conf *key)
 {
         TODO();
+}
+
+static inline void
+ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf, int8_t tid,
+    struct ieee80211_key_seq *seq)
+{
+	const struct ieee80211_key *k;
+	const uint8_t *p;
+
+	KASSERT(keyconf != NULL && seq != NULL, ("%s: keyconf %p seq %p\n",
+	    __func__, keyconf, seq));
+	KASSERT(tid <= IEEE80211_NUM_TIDS, ("%s: tid out of bounds %d\n",
+	    __func__, tid));
+	k = keyconf->_k;
+	KASSERT(k != NULL, ("%s: keyconf %p ieee80211_key is NULL\n", __func__, keyconf));
+
+	switch (keyconf->cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+		if (tid < 0)
+			p = (const uint8_t *)&k->wk_keyrsc[IEEE80211_NUM_TIDS];	/* IEEE80211_NONQOS_TID */
+		else
+			p = (const uint8_t *)&k->wk_keyrsc[tid];
+		memcpy(seq->ccmp.pn, p, sizeof(seq->ccmp.pn));
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		TODO();
+		memset(seq->aes_cmac.pn, 0xfa, sizeof(seq->aes_cmac.pn));	/* XXX TODO */
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+		TODO();
+		seq->tkip.iv32 = 0xfa;		/* XXX TODO */
+		seq->tkip.iv16 = 0xfa;		/* XXX TODO */
+		break;
+	default:
+		pr_debug("%s: unsupported cipher suite %d\n", __func__, keyconf->cipher);
+		break;
+	}
 }
 
 static __inline void
