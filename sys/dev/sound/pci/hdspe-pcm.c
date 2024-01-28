@@ -891,6 +891,9 @@ hdspechan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 
 	blocksize /= 4 /* samples */;
 
+	if (sc->force_period > 0)
+		blocksize = sc->force_period;
+
 	/* First look for equal latency. */
 	for (i = 0; latency_map[i].period != 0; i++) {
 		if (latency_map[i].period == blocksize)

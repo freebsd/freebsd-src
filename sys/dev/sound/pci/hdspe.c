@@ -229,6 +229,31 @@ hdspe_map_dmabuf(struct sc_info *sc)
 }
 
 static int
+hdspe_sysctl_period(SYSCTL_HANDLER_ARGS)
+{
+	struct sc_info *sc = oidp->oid_arg1;
+	int error;
+	unsigned int period;
+
+	period = sc->force_period;
+
+	/* Process sysctl (unsigned) integer request. */
+	error = sysctl_handle_int(oidp, &period, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	/* Period is from 2^5 to 2^14, 0 falls back to pcm latency settings. */
+	sc->force_period = 0;
+	if (period > 0) {
+		sc->force_period = 32;
+		while (sc->force_period < period && sc->force_period < 4096)
+			sc->force_period <<= 1;
+	}
+
+	return (0);
+}
+
+static int
 hdspe_sysctl_clock_preference(SYSCTL_HANDLER_ARGS)
 {
 	struct sc_info *sc;
@@ -419,6 +444,13 @@ hdspe_init(struct sc_info *sc)
 
 	/* Set latency. */
 	sc->period = 32;
+	/*
+	 * The pcm channel latency settings propagate unreliable blocksizes,
+	 * different for recording and playback, and skewed due to rounding
+	 * and total buffer size limits.
+	 * Force period to a consistent default until these issues are fixed.
+	 */
+	sc->force_period = 256;
 	sc->ctrl_register = hdspe_encode_latency(7);
 
 	/* Set rate. */
@@ -523,6 +555,12 @@ hdspe_attach(device_t dev)
 	    "clock_list", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    sc, 0, hdspe_sysctl_clock_list, "A",
 	    "List of supported clock sources");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "period", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    sc, 0, hdspe_sysctl_period, "A",
+	    "Force period of samples per interrupt (32, 64, ... 4096)");
 
 	return (bus_generic_attach(dev));
 }
