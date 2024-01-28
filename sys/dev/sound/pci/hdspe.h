@@ -227,6 +227,7 @@ struct sc_info {
 	bus_dmamap_t		rmap;
 	uint32_t		period;
 	uint32_t		speed;
+	uint32_t		force_period;
 };
 
 #define	hdspe_read_1(sc, regno)						\
