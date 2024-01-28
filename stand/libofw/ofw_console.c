@@ -83,7 +83,7 @@ ofw_cons_putchar(int c)
 static int saved_char = -1;
 
 int
-ofw_cons_getchar()
+ofw_cons_getchar(void)
 {
 	unsigned char ch = '\0';
 	int l;
@@ -105,7 +105,7 @@ ofw_cons_getchar()
 }
 
 int
-ofw_cons_poll()
+ofw_cons_poll(void)
 {
 	unsigned char ch;
 
