@@ -1,13 +1,13 @@
 /*
  * Copyright (c) 2008 The DragonFly Project.  All rights reserved.
- * 
+ *
  * This code is derived from software contributed to The DragonFly Project
  * by Matthew Dillon <dillon@backplane.com>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
@@ -17,7 +17,7 @@
  * 3. Neither the name of The DragonFly Project nor the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific, prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -30,8 +30,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
- * $DragonFly: src/usr.bin/monitor/monitor.c,v 1.1 2008/10/16 17:23:20 dillon Exp $
+ *
  */
 
 #include <sys/types.h>
@@ -69,7 +68,7 @@ main(int ac, char **av)
 	int i;
 
 	while ((ch = getopt(ac, av, "qvx")) != -1) {
-		switch(ch) {
+		switch (ch) {
 		case 'q':
 			if (VerboseOpt > 0)
 				--VerboseOpt;
@@ -132,10 +131,10 @@ monitor_add(const char *path)
 		printf("%s\tnot found\n", path);
 		return;
 	}
-	EV_SET(&kev, elm->fd, EVFILT_VNODE, EV_ADD|EV_ENABLE|EV_CLEAR,
-	       NOTE_DELETE|NOTE_WRITE|NOTE_EXTEND|NOTE_ATTRIB|
-	       NOTE_LINK|NOTE_RENAME|NOTE_REVOKE,
-	       0, NULL);
+	EV_SET(&kev, elm->fd, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_CLEAR,
+		NOTE_DELETE | NOTE_WRITE | NOTE_EXTEND | NOTE_ATTRIB |
+		NOTE_LINK | NOTE_RENAME | NOTE_REVOKE,
+		0, NULL);
 	n = kevent(KQueueFd, &kev, 1, NULL, 0, NULL);
 	if (n < 0) {
 		perror("kqueue");
@@ -176,7 +175,7 @@ monitor_events(void)
 			printf(" ");
 			--bno;
 			kev->fflags &= ~(1 << bno);
-			switch(1 << bno) {
+			switch (1 << bno) {
 			case NOTE_DELETE:
 				printf("delete");
 				break;
@@ -211,8 +210,9 @@ static
 void
 usage(int exit_code)
 {
-	fprintf(stderr, 
+	fprintf(stderr,
 		"monitor [-vx] files...\n"
+		"    -q      Be more quiet\n"
 		"    -v      Be more verbose\n"
 		"    -x      Exit after first event reported\n"
 	);
