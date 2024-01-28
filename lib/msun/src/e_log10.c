@@ -11,7 +11,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * Return the base 10 logarithm of x.  See e_log.c and k_log.h for most
  * comments.

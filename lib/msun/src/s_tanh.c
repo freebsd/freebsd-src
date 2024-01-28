@@ -10,7 +10,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /* Tanh(x)
  * Return the Hyperbolic Tangent of x
  *

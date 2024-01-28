@@ -11,7 +11,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * __kernel_rem_pio2(x,y,e0,nx,prec)
  * double x[],y[]; int e0,nx,prec;

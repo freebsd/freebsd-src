@@ -12,7 +12,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 /* acosh(x)
  * Method :
  *	Based on 

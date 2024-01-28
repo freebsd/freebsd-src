@@ -10,7 +10,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /* j0(x), y0(x)
  * Bessel function of the first and second kinds of order zero.
  * Method -- j0(x):

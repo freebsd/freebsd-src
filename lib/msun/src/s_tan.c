@@ -10,7 +10,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /* tan(x)
  * Return tangent function of x.
  *

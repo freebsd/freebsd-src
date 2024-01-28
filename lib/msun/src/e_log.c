@@ -11,7 +11,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /* log(x)
  * Return the logrithm of x
  *

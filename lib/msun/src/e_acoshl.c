@@ -13,7 +13,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 /*
  * See e_acosh.c for complete comments.
  *

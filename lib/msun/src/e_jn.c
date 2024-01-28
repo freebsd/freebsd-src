@@ -10,7 +10,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * jn(n, x), yn(n, x)
  * floating point Bessel's function of the 1st and 2nd kind

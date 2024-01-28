@@ -10,7 +10,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * trunc(x)
  * Return x rounded toward 0 to integral value

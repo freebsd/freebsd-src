@@ -9,7 +9,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * Float version of k_log.h.  See the latter for most comments.
  */

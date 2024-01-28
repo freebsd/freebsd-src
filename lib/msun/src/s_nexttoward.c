@@ -10,7 +10,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * We assume that a long double has a 15-bit exponent.  On systems
  * where long double is the same as double, nexttoward() is an alias

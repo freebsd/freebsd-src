@@ -11,7 +11,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * scalb(x, fn) is provide for
  * passing various standard test suite. One 

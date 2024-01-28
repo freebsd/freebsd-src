@@ -30,7 +30,6 @@
  * Hyperbolic tangent of a complex argument z.  See s_ctanh.c for details.
  */
 
-#include <sys/cdefs.h>
 #include <complex.h>
 #include <math.h>
 

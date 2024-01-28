@@ -9,7 +9,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * Float version of e_log10.c.  See the latter for most comments.
  */

@@ -13,7 +13,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 /*
  * See comments in e_atan2.c.
  * Converted to long double by David Schultz <das@FreeBSD.ORG>.

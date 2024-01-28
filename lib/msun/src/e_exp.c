@@ -10,7 +10,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /* exp(x)
  * Returns the exponential of x.
  *

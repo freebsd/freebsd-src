@@ -10,7 +10,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * double logb(x)
  * IEEE 754 logb. Included to pass IEEE test suite. Not recommend.

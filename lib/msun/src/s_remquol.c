@@ -10,7 +10,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 #include <float.h>
 #include <stdint.h>
 

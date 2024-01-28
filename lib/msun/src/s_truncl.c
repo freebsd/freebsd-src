@@ -11,7 +11,6 @@
  * From: @(#)s_floor.c 5.1 93/09/24
  */
 
-#include <sys/cdefs.h>
 /*
  * truncl(x)
  * Return x rounded toward 0 to integral value

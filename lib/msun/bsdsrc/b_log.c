@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-/* @(#)log.c	8.2 (Berkeley) 11/30/93 */
-#include <sys/cdefs.h>
 /* Table-driven natural logarithm.
  *
  * This code was derived, with minor modifications, from:

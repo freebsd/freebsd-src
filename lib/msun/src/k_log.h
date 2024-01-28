@@ -11,7 +11,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * k_log1p(f):
  * Return log(1+f) - f for 1+f in ~[sqrt(2)/2, sqrt(2)].

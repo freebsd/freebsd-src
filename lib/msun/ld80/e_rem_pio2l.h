@@ -13,7 +13,6 @@
  * Optimized by Bruce D. Evans.
  */
 
-#include <sys/cdefs.h>
 /* ld80 version of __ieee754_rem_pio2l(x,y)
  * 
  * return the remainder of x rem pi/2 in y[0]+y[1] 

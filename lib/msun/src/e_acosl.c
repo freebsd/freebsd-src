@@ -12,7 +12,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * See comments in e_acos.c.
  * Converted to long double by David Schultz <das@FreeBSD.ORG>.

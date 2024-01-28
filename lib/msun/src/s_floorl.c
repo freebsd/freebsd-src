@@ -11,7 +11,6 @@
  * From: @(#)s_floor.c 5.1 93/09/24
  */
 
-#include <sys/cdefs.h>
 /*
  * floorl(x)
  * Return x rounded toward -inf to integral value
