@@ -14,7 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 #include <math.h>
 
 #include "math_private.h"
@@ -114,7 +113,6 @@ __p1evll(long double x, long double *PP, int n)
  *
  */
 
-#include <sys/cdefs.h>
 #include <float.h>
 #include <math.h>
 

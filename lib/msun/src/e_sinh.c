@@ -10,7 +10,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /* sinh(x)
  * Method : 
  * mathematically sinh(x) if defined to be (exp(x)-exp(-x))/2

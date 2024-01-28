@@ -9,7 +9,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /* cos(x)
  * Return cosine function of x.
  *

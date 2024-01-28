@@ -11,7 +11,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 /* atanh(x)
  * Method :
  *    1.Reduced x to positive by atanh(-x) = -atanh(x)

@@ -26,7 +26,6 @@
  * s_sinl.c and s_cosl.c merged by Steven G. Kargl.
  */
 
-#include <sys/cdefs.h>
 #include <float.h>
 #ifdef __i386__
 #include <ieeefp.h>

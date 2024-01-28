@@ -9,7 +9,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /* ilogb(double x)
  * return the binary exponent of non-zero x
  * ilogb(0) = FP_ILOGB0

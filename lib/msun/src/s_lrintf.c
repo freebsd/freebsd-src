@@ -1,4 +1,3 @@
-#include <sys/cdefs.h>
 #define type		float
 #define	roundit		rintf
 #define dtype		long

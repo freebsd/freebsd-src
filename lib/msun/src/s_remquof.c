@@ -9,7 +9,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 #include "math.h"
 #include "math_private.h"
 

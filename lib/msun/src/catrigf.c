@@ -40,7 +40,6 @@
  * a few comments on the right of declarations remain.
  */
 
-#include <sys/cdefs.h>
 #include <complex.h>
 #include <float.h>
 

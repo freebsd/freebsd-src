@@ -11,7 +11,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 /* gamma(x)
  * Return the logarithm of the Gamma function of x.
  *

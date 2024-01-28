@@ -12,7 +12,6 @@
  * k_sinl.c and k_cosl.c merged by Steven G. Kargl
  */
 
-#include <sys/cdefs.h>
 #if LDBL_MANT_DIG == 64		/* ld80 version of k_sincosl.c. */
 
 #if defined(__amd64__) || defined(__i386__)

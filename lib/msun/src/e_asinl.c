@@ -11,7 +11,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * See comments in e_asin.c.
  * Converted to long double by David Schultz <das@FreeBSD.ORG>.

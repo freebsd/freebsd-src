@@ -9,7 +9,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /* double log1p(double x)
  *
  * Method :

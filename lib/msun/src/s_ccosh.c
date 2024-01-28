@@ -38,7 +38,6 @@
  * must satisfy both cosh(conj(z)) == conj(cosh(z)) and cosh(-z) == cosh(z).
  */
 
-#include <sys/cdefs.h>
 #include <complex.h>
 #include <math.h>
 

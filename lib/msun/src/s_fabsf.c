@@ -13,7 +13,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * fabsf(x) returns the absolute value of x.
  */

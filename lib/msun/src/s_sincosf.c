@@ -15,7 +15,6 @@
  * Merged s_sinf.c and s_cosf.c by Steven G. Kargl.
  */
 
-#include <sys/cdefs.h>
 #include <float.h>
 
 #include "math.h"

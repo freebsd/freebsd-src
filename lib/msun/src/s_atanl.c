@@ -10,7 +10,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * See comments in s_atan.c.
  * Converted to long double by David Schultz <das@FreeBSD.ORG>.

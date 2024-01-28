@@ -9,7 +9,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * rint(x)
  * Return x rounded to integral value according to the prevailing

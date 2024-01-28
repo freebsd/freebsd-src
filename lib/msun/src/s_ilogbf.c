@@ -13,7 +13,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 #include <limits.h>
 
 #include "math.h"

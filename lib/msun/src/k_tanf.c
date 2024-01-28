@@ -13,10 +13,6 @@
  * ====================================================
  */
 
-#ifndef INLINE_KERNEL_TANDF
-#include <sys/cdefs.h>
-#endif
-
 #include "math.h"
 #include "math_private.h"
 

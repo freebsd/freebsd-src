@@ -10,7 +10,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * ld128 version of k_sin.c.  See ../src/k_sin.c for most comments.
  */
