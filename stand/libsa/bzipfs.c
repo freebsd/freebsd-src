@@ -366,7 +366,7 @@ bz_internal_error(int errorcode)
 
 #ifdef REGRESSION
 /* Small test case, open and decompress test.bz2 */
-int main()
+int main(void)
 {
     struct open_file f;
     char buf[1024];

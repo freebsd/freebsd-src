@@ -111,7 +111,7 @@ static const struct cmdtab commands[] = {
 static char cwd[FDT_CWD_LEN] = "/";
 
 static vm_offset_t
-fdt_find_static_dtb()
+fdt_find_static_dtb(void)
 {
 	Elf_Ehdr *ehdr;
 	Elf_Shdr *shdr;
@@ -428,7 +428,7 @@ fdt_check_overlay_compatible(void *base_fdt, void *overlay_fdt)
  * Returns the number of overlays successfully applied
  */
 int
-fdt_apply_overlays()
+fdt_apply_overlays(void)
 {
 	struct preloaded_file *fp;
 	size_t max_overlay_size, next_fdtp_size;
@@ -551,7 +551,7 @@ fdt_is_setup(void)
 }
 
 int
-fdt_setup_fdtp()
+fdt_setup_fdtp(void)
 {
 	struct preloaded_file *bfp;
 	vm_offset_t va;

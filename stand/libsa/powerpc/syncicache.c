@@ -54,7 +54,7 @@ int cacheline_size = 0;
 static void getcachelinesize(void);
 
 static void
-getcachelinesize()
+getcachelinesize(void)
 {
 	static int	cachemib[] = { CTL_MACHDEP, CPU_CACHELINE };
 	int		clen;
