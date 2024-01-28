@@ -21,7 +21,6 @@ INSTALLFLAGS=	-b
 SRCS=	\
 		bootinfo.c \
 		conf.c \
-		crt1.c \
 		gfx_fb_stub.c \
 		host_syscalls.c \
 		hostcons.c \
@@ -63,7 +62,7 @@ CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/arch/${MACHINE_ARCH}
 
 CFLAGS+=	-Wall
 
-DPADD=		${LDR_INTERP} ${LIBOFW} ${LIBSAFDT} ${LIBSA}
-LDADD=		${LDR_INTERP} ${LIBOFW} ${LIBSAFDT} ${LIBSA}
+DPADD=		${LDR_INTERP} ${LIBOFW} ${LIBSAFDT} ${LIBSA} ${LIBKBOOT}
+LDADD=		${LDR_INTERP} ${LIBOFW} ${LIBSAFDT} ${LIBSA} ${LIBKBOOT}
 
 .include <bsd.prog.mk>
