@@ -22,7 +22,6 @@ SRCS=	\
 		bootinfo.c \
 		conf.c \
 		gfx_fb_stub.c \
-		host_syscalls.c \
 		hostcons.c \
 		hostdisk.c \
 		hostfs.c \

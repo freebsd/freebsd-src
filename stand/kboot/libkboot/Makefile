@@ -7,7 +7,8 @@ WARNS?= 4
 CFLAGS+=-I${.CURDIR} -I${.CURDIR}/arch/${MACHINE_ARCH}
 
 SRCS=	crt1.c \
-	host_syscall.S
+	host_syscall.S \
+	host_syscalls.c
 
 .sinclude "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
 
