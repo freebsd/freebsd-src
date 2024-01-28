@@ -95,6 +95,7 @@ SUBDIR=	alias \
 	mkimg \
 	mktemp \
 	mkuzip \
+	monitor \
 	mt \
 	ncal \
 	ncurses \
