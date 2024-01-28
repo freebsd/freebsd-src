@@ -5428,7 +5428,6 @@ hdaa_pcmchannel_setup(struct hdaa_chan *ch)
 		if (HDA_PARAM_SUPP_STREAM_FORMATS_AC3(fmtcap)) {
 			ch->fmtlist[i++] = SND_FORMAT(AFMT_AC3, 2, 0);
 			if (channels >= 8) {
-				ch->fmtlist[i++] = SND_FORMAT(AFMT_AC3, 8, 0);
 				ch->fmtlist[i++] = SND_FORMAT(AFMT_AC3, 8, 1);
 			}
 		}
