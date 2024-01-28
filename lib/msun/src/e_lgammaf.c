@@ -13,7 +13,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /* lgammaf(x)
  * Return the logarithm of the Gamma function of x.
  *

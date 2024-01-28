@@ -10,7 +10,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * Return the base 2 logarithm of x.  See e_log.c and k_log.h for most
  * comments.

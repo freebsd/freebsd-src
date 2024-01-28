@@ -9,7 +9,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * significand(x) computes just
  * 	scalb(x, (double) -ilogb(x)),

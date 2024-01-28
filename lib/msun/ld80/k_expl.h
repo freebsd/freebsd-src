@@ -30,7 +30,6 @@
  * Optimized by Bruce D. Evans.
  */
 
-#include <sys/cdefs.h>
 /*
  * See s_expl.c for more comments about __k_expl().
  *

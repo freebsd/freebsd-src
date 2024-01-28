@@ -9,7 +9,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * ld80 version of k_tan.c.  See ../src/k_tan.c for most comments.
  */

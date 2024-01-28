@@ -9,7 +9,6 @@
  * ====================================================
  */
 
-#include <sys/cdefs.h>
 /*
  * floor(x)
  * Return x rounded toward -inf to integral value

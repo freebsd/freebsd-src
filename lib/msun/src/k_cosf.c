@@ -14,10 +14,6 @@
  * ====================================================
  */
 
-#ifndef INLINE_KERNEL_COSDF
-#include <sys/cdefs.h>
-#endif
-
 #include "math.h"
 #include "math_private.h"
 
