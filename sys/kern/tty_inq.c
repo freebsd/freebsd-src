@@ -371,12 +371,9 @@ ttyinq_canonicalize_break(struct ttyinq *ti, const char *breakc)
 
 	/* Start just past the end... */
 	off = ti->ti_end;
-	canon = 0;
+	canon = ti->ti_begin;
 
-	while (off > 0) {
-		if ((off % TTYINQ_DATASIZE) == 0)
-			tib = tib->tib_prev;
-
+	while (off > ti->ti_begin) {
 		off--;
 		boff = off % TTYINQ_DATASIZE;
 
@@ -384,20 +381,23 @@ ttyinq_canonicalize_break(struct ttyinq *ti, const char *breakc)
 			canon = off + 1;
 			break;
 		}
+
+		if (off != ti->ti_begin && boff == 0)
+			tib = tib->tib_prev;
 	}
 
-	MPASS(canon > 0 || off == 0);
+	MPASS(canon > ti->ti_begin || off == ti->ti_begin);
 
 	/*
-	 * We should only be able to hit bcanon == 0 if we walked everything we
-	 * have and didn't find any of the break characters, so if bcanon == 0
-	 * then tib is already the correct block and we should avoid touching
-	 * it.
+	 * We should only be able to hit canon == ti_begin if we walked
+	 * everything we have and didn't find any of the break characters, so
+	 * if canon == ti_begin then tib is already the correct block and we
+	 * should avoid touching it.
 	 *
 	 * For all other scenarios, if canon lies on a block boundary then tib
 	 * has already advanced to the previous block.
 	 */
-	if (canon != 0 && (canon % TTYINQ_DATASIZE) == 0)
+	if (canon != ti->ti_begin && (canon % TTYINQ_DATASIZE) == 0)
 		tib = tib->tib_next;
 	ti->ti_linestart = ti->ti_reprint = canon;
 	ti->ti_startblock = ti->ti_reprintblock = tib;

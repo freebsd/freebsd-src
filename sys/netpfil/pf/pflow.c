@@ -176,7 +176,7 @@ vnet_pflowattach(void)
 	CK_LIST_INIT(&V_pflowif_list);
 	mtx_init(&V_pflowif_list_mtx, "pflow interface list mtx", NULL, MTX_DEF);
 
-	V_pflow_unr = new_unrhdr(0, INT_MAX, &V_pflowif_list_mtx);
+	V_pflow_unr = new_unrhdr(0, PFLOW_MAX_ENTRIES - 1, &V_pflowif_list_mtx);
 
 	for (int i = 0; i < pflow_ncounters; i++)
 		V_pflowstats.c[i] = counter_u64_alloc(M_WAITOK);
@@ -1343,6 +1343,10 @@ pflow_nl_create(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	ghdr_new->reserved = 0;
 
 	unit = alloc_unr(V_pflow_unr);
+	if (unit == -1) {
+		nlmsg_abort(nw);
+		return (ENOMEM);
+	}
 
 	error = pflow_create(unit);
 	if (error != 0) {
@@ -1481,6 +1485,7 @@ pflow_nl_get(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		nlattr_add_sockaddr(nw, PFLOWNL_GET_DST, sc->sc_flowdst);
 	nlattr_add_u32(nw, PFLOWNL_GET_OBSERVATION_DOMAIN,
 	    sc->sc_observation_dom);
+	nlattr_add_u8(nw, PFLOWNL_GET_SOCKET_STATUS, sc->so != NULL);
 
 	if (! nlmsg_end(nw)) {
 		nlmsg_abort(nw);

@@ -76,20 +76,20 @@ static char *chop_string(char *string);		/* strip leading and trailing blanks */
 
 /* List of functions that implement the options. Add yours here. */
 
-static void user_option();		/* execute "user name.group" option */
-static void group_option();		/* execute "group name" option */
-static void umask_option();		/* execute "umask mask" option */
-static void linger_option();		/* execute "linger time" option */
-static void keepalive_option();		/* execute "keepalive" option */
-static void spawn_option();		/* execute "spawn command" option */
-static void twist_option();		/* execute "twist command" option */
-static void rfc931_option();		/* execute "rfc931" option */
-static void setenv_option();		/* execute "setenv name value" */
-static void nice_option();		/* execute "nice" option */
-static void severity_option();		/* execute "severity value" */
-static void allow_option();		/* execute "allow" option */
-static void deny_option();		/* execute "deny" option */
-static void banners_option();		/* execute "banners path" option */
+static void user_option(char *, struct request_info *);		/* user name.group */
+static void group_option(char *, struct request_info *);	/* group name */
+static void umask_option(char *, struct request_info *);	/* umask mask */
+static void linger_option(char *, struct request_info *);	/* linger time */
+static void keepalive_option(char *, struct request_info *);	/* keepalive */
+static void spawn_option(char *, struct request_info *);	/* spawn command */
+static void twist_option(char *, struct request_info *);	/* twist command */
+static void rfc931_option(char *, struct request_info *);	/* rfc931 */
+static void setenv_option(char *, struct request_info *);	/* setenv name value */
+static void nice_option(char *, struct request_info *);		/* nice */
+static void severity_option(char *, struct request_info *);	/* severity value */
+static void allow_option(char *, struct request_info *);	/* allow */
+static void deny_option(char *, struct request_info *);		/* deny */
+static void banners_option(char *, struct request_info *);	/* banners path */
 
 /* Structure of the options table. */
 
@@ -197,9 +197,7 @@ void    process_options(char *options, struct request_info *request)
 
 /* ARGSUSED */
 
-static void allow_option(value, request)
-char   *value;
-struct request_info *request;
+static void allow_option(char *value, struct request_info *request)
 {
     longjmp(tcpd_buf, AC_PERMIT);
 }
@@ -208,9 +206,7 @@ struct request_info *request;
 
 /* ARGSUSED */
 
-static void deny_option(value, request)
-char   *value;
-struct request_info *request;
+static void deny_option(char *value, struct request_info *request)
 {
     longjmp(tcpd_buf, AC_DENY);
 }
@@ -250,7 +246,6 @@ static void banners_option(char *value, struct request_info *request)
 static void group_option(char *value, struct request_info *request)
 {
     struct group *grp;
-    struct group *getgrnam();
 
     if ((grp = getgrnam(value)) == 0)
 	tcpd_jump("unknown group: \"%s\"", value);
@@ -267,7 +262,6 @@ static void group_option(char *value, struct request_info *request)
 static void user_option(char *value, struct request_info *request)
 {
     struct passwd *pwd;
-    struct passwd *getpwnam();
     char   *group;
 
     if ((group = split_at(value, '.')) != 0)

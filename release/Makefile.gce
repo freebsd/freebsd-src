@@ -73,7 +73,7 @@ gce-do-upload-${_FS}:
 		gs://${GCE_BUCKET}/
 	/usr/local/bin/gcloud compute images create ${GCE_TARGET_${_FS}} \
 		--family=${GCE_FAMILY}${GCE_FAMILY_SUFX} ${GCE_LICENSE} \
-		--guest-os-features=GVNIC \
+		--guest-os-features=GVNIC,UEFI_COMPATIBLE \
 		--source-uri gs://${GCE_BUCKET}/${GCE_TARGET_${_FS}}.tar.gz
 	touch ${.OBJDIR}/${.TARGET}
 .endfor

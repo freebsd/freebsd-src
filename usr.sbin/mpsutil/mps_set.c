@@ -28,7 +28,6 @@
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <err.h>
-#include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

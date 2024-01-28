@@ -424,7 +424,7 @@ _mtx_trylock_flags_int(struct mtx *m, int opts LOCK_FILE_LINE_ARG_DEF)
 
 	td = curthread;
 	tid = (uintptr_t)td;
-	if (SCHEDULER_STOPPED_TD(td))
+	if (SCHEDULER_STOPPED())
 		return (1);
 
 	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(td),
@@ -534,7 +534,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 	doing_lockprof = 1;
 #endif
 
-	if (SCHEDULER_STOPPED_TD(td))
+	if (SCHEDULER_STOPPED())
 		return;
 
 	if (__predict_false(v == MTX_UNOWNED))
