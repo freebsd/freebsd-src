@@ -57,7 +57,6 @@ HELP_FILENAME=	loader.help.kboot
 
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
-.PATH:		${SYSDIR}/libkern
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/arch/${MACHINE_ARCH}
 
 CFLAGS+=	-Wall
