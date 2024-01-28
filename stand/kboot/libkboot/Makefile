@@ -3,9 +3,11 @@
 LIB=	kboot
 WARNS?= 4
 
+.PATH:	${.CURDIR}/arch/${MACHINE_ARCH}
 CFLAGS+=-I${.CURDIR} -I${.CURDIR}/arch/${MACHINE_ARCH}
 
-SRCS=	crt1.c
+SRCS=	crt1.c \
+	host_syscall.S
 
 .sinclude "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
 

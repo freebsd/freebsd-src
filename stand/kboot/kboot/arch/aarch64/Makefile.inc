@@ -1,4 +1,4 @@
-SRCS+=		host_syscall.S tramp.S exec.c load_addr.c fdt_arch.c
+SRCS+=		tramp.S exec.c load_addr.c fdt_arch.c
 
 .PATH:	${BOOTSRC}/arm64/libarm64
 CFLAGS+=-I${BOOTSRC}/arm64/libarm64
