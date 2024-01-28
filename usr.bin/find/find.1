@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 15, 2024
+.Dd January 21, 2024
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -465,6 +465,12 @@ if at least one invocation of
 returns a non-zero exit status,
 .Nm
 will return a non-zero exit status.
+.It Ic -executable
+Matches files which are executable by the current user.
+This test makes use of the
+.Xr access 2
+system call, and so can be fooled by NFS servers which do UID mapping (or root-squashing).
+This is a GNU find extension.
 .It Ic -flags Oo Cm - Ns | Ns Cm + Oc Ns Ar flags , Ns Ar notflags
 The flags are specified using symbolic names (see
 .Xr chflags 1 ) .
@@ -829,6 +835,12 @@ option was specified.
 Causes
 .Nm
 to terminate immediately.
+.It Ic -readable
+Matches files which are readable by the current user.
+This test makes use of the
+.Xr access 2
+system call, and so can be fooled by NFS servers which do UID mapping (or root-squashing).
+This is a GNU find extension.
 .It Ic -regex Ar pattern
 True if the whole path of the file matches
 .Ar pattern
@@ -925,6 +937,12 @@ is treated as a user ID.
 The same thing as
 .Ic -path ,
 for GNU find compatibility.
+.It Ic -writable
+Matches files which are writable by the current user.
+This test makes use of the
+.Xr access 2
+system call, and so can be fooled by NFS servers which do UID mapping (or root-squashing).
+This is a GNU find extension.
 .El
 .Sh OPERATORS
 The primaries may be combined using the following operators.

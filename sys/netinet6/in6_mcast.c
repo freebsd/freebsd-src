@@ -101,8 +101,8 @@ RB_GENERATE(ip6_msource_tree, ip6_msource, im6s_link, ip6_msource_cmp);
 
 /*
  * Locking:
- * - Lock order is: Giant, IN6_MULTI_LOCK, INP_WLOCK,
- *   IN6_MULTI_LIST_LOCK, MLD_LOCK, IF_ADDR_LOCK.
+ * - Lock order is: IN6_MULTI_LOCK, INP_WLOCK, IN6_MULTI_LIST_LOCK, MLD_LOCK,
+ *                  IF_ADDR_LOCK.
  * - The IF_ADDR_LOCK is implicitly taken by in6m_lookup() earlier, however
  *   it can be taken by code in net/if.c also.
  * - ip6_moptions and in6_mfilter are covered by the INP_WLOCK.
@@ -1418,8 +1418,6 @@ in6_leavegroup_locked(struct in6_multi *inm, /*const*/ struct in6_mfilter *imf)
  * The delta-based API applies only to exclusive-mode memberships.
  * An MLD downcall will be performed.
  *
- * SMPng: NOTE: Must take Giant as a join may create a new ifma.
- *
  * Return 0 if successful, otherwise return an appropriate error code.
  */
 static int
@@ -1581,7 +1579,6 @@ out_in6p_locked:
  * Given an inpcb, return its multicast options structure pointer.  Accepts
  * an unlocked inpcb pointer, but will return it locked.  May sleep.
  *
- * SMPng: NOTE: Potentially calls malloc(M_WAITOK) with Giant held.
  * SMPng: NOTE: Returns with the INP write lock held.
  */
 static struct ip6_moptions *

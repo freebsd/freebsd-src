@@ -131,7 +131,7 @@ acpi_battinfo(int num)
 	if (ACPI_BIX_REV_MIN_CHECK(battio.bix.rev, ACPI_BIX_REV_0)) {
 		if (battio.bix.cycles != ACPI_BATT_UNKNOWN)
 			printf("Cycle Count:\t\t%d\n", battio.bix.cycles);
-		printf("Measurement Accuracy:\t%d %%\n",
+		printf("Measurement Accuracy:\t%d%%\n",
 		    battio.bix.accuracy / 1000);
 		if (battio.bix.stmax != ACPI_BATT_UNKNOWN)
 			printf("Max Sampling Time:\t%d ms\n",

@@ -1870,6 +1870,13 @@ struct timerfd_settime_args {
 	char new_value_l_[PADL_(const struct itimerspec *)]; const struct itimerspec * new_value; char new_value_r_[PADR_(const struct itimerspec *)];
 	char old_value_l_[PADL_(struct itimerspec *)]; struct itimerspec * old_value; char old_value_r_[PADR_(struct itimerspec *)];
 };
+struct kcmp_args {
+	char pid1_l_[PADL_(pid_t)]; pid_t pid1; char pid1_r_[PADR_(pid_t)];
+	char pid2_l_[PADL_(pid_t)]; pid_t pid2; char pid2_r_[PADR_(pid_t)];
+	char type_l_[PADL_(int)]; int type; char type_r_[PADR_(int)];
+	char idx1_l_[PADL_(uintptr_t)]; uintptr_t idx1; char idx1_r_[PADR_(uintptr_t)];
+	char idx2_l_[PADL_(uintptr_t)]; uintptr_t idx2; char idx2_r_[PADR_(uintptr_t)];
+};
 int	sys_exit(struct thread *, struct exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);
@@ -2268,6 +2275,7 @@ int	sys_membarrier(struct thread *, struct membarrier_args *);
 int	sys_timerfd_create(struct thread *, struct timerfd_create_args *);
 int	sys_timerfd_gettime(struct thread *, struct timerfd_gettime_args *);
 int	sys_timerfd_settime(struct thread *, struct timerfd_settime_args *);
+int	sys_kcmp(struct thread *, struct kcmp_args *);
 
 #ifdef COMPAT_43
 
@@ -3246,6 +3254,7 @@ int	freebsd13_swapoff(struct thread *, struct freebsd13_swapoff_args *);
 #define	SYS_AUE_timerfd_create	AUE_TIMERFD
 #define	SYS_AUE_timerfd_gettime	AUE_TIMERFD
 #define	SYS_AUE_timerfd_settime	AUE_TIMERFD
+#define	SYS_AUE_kcmp	AUE_NULL
 
 #undef PAD_
 #undef PADL_

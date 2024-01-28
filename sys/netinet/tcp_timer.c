@@ -299,7 +299,7 @@ tcp_output_locked(struct tcpcb *tp)
 		KASSERT(tp->t_fb->tfb_flags & TCP_FUNC_OUTPUT_CANDROP,
 		    ("TCP stack %s requested tcp_drop(%p)",
 		    tp->t_fb->tfb_tcp_block_name, tp));
-		tp = tcp_drop(tp, rv);
+		tp = tcp_drop(tp, -rv);
 	}
 
 	return (tp != NULL);

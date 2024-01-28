@@ -535,16 +535,6 @@ typedef enum {
 #define	TCP_FUNC_OUTPUT_CANDROP	0x02   	/* tfb_tcp_output may ask tcp_drop */
 
 /**
- * If defining the optional tcp_timers, in the
- * tfb_tcp_timer_stop call you must use the
- * callout_async_drain() function with the
- * tcp_timer_discard callback. You should check
- * the return of callout_async_drain() and if 0
- * increment tt_draincnt. Since the timer sub-system
- * does not know your callbacks you must provide a
- * stop_all function that loops through and calls
- * tcp_timer_stop() with each of your defined timers.
- *
  * Adding a tfb_tcp_handoff_ok function allows the socket
  * option to change stacks to query you even if the
  * connection is in a later stage. You return 0 to
@@ -1491,14 +1481,16 @@ sackstatus_t
 	 tcp_sack_doack(struct tcpcb *, struct tcpopt *, tcp_seq);
 int	 tcp_dsack_block_exists(struct tcpcb *);
 void	 tcp_update_dsack_list(struct tcpcb *, tcp_seq, tcp_seq);
-void	 tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_laststart, tcp_seq rcv_lastend);
+void	 tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_laststart,
+	    tcp_seq rcv_lastend);
 void	 tcp_clean_dsack_blocks(struct tcpcb *tp);
 void	 tcp_clean_sackreport(struct tcpcb *tp);
 void	 tcp_sack_adjust(struct tcpcb *tp);
 struct sackhole *tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt);
-void	 tcp_do_prr_ack(struct tcpcb *, struct tcphdr *, struct tcpopt *, sackstatus_t);
+void	 tcp_do_prr_ack(struct tcpcb *, struct tcphdr *, struct tcpopt *,
+	    sackstatus_t, u_int *);
 void	 tcp_lost_retransmission(struct tcpcb *, struct tcphdr *);
-void	 tcp_sack_partialack(struct tcpcb *, struct tcphdr *);
+void	 tcp_sack_partialack(struct tcpcb *, struct tcphdr *, u_int *);
 void	 tcp_resend_sackholes(struct tcpcb *tp);
 void	 tcp_free_sackholes(struct tcpcb *tp);
 void	 tcp_sack_lost_retransmission(struct tcpcb *, struct tcphdr *);

@@ -1110,20 +1110,27 @@ sys_openat(struct thread *td, struct openat_args *uap)
 	    uap->mode));
 }
 
-int
-kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
-    int flags, int mode)
+/*
+ * If fpp != NULL, opened file is not installed into the file
+ * descriptor table, instead it is returned in *fpp.  This is
+ * incompatible with fdopen(), in which case we return EINVAL.
+ */
+static int
+openatfp(struct thread *td, int dirfd, const char *path,
+    enum uio_seg pathseg, int flags, int mode, struct file **fpp)
 {
-	struct proc *p = td->td_proc;
+	struct proc *p;
 	struct filedesc *fdp;
 	struct pwddesc *pdp;
 	struct file *fp;
 	struct vnode *vp;
+	struct filecaps *fcaps;
 	struct nameidata nd;
 	cap_rights_t rights;
 	int cmode, error, indx;
 
 	indx = -1;
+	p = td->td_proc;
 	fdp = p->p_fd;
 	pdp = p->p_pd;
 
@@ -1159,7 +1166,7 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 	fp->f_flag = flags & FMASK;
 	cmode = ((mode & ~pdp->pd_cmask) & ALLPERMS) & ~S_ISTXT;
 	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | AUDITVNODE1 | WANTIOCTLCAPS,
-	    pathseg, path, fd, &rights);
+	    pathseg, path, dirfd, &rights);
 	td->td_dupfd = -1;		/* XXX check for fdopen */
 	error = vn_open_cred(&nd, &flags, cmode, VN_OPEN_WANTIOCTLCAPS,
 	    td->td_ucred, fp);
@@ -1184,6 +1191,7 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 		if ((nd.ni_resflags & NIRES_STRICTREL) == 0 &&
 		    (error == ENODEV || error == ENXIO) &&
 		    td->td_dupfd >= 0) {
+			MPASS(fpp == NULL);
 			error = dupfdopen(td, fdp, td->td_dupfd, flags, error,
 			    &indx);
 			if (error == 0)
@@ -1225,12 +1233,17 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 			goto bad;
 	}
 success:
+	if (fpp != NULL) {
+		MPASS(error == 0);
+		NDFREE_IOCTLCAPS(&nd);
+		*fpp = fp;
+		return (0);
+	}
+
 	/*
 	 * If we haven't already installed the FD (for dupfdopen), do so now.
 	 */
 	if (indx == -1) {
-		struct filecaps *fcaps;
-
 #ifdef CAPABILITIES
 		if ((nd.ni_resflags & NIRES_STRICTREL) != 0)
 			fcaps = &nd.ni_filecaps;
@@ -1253,6 +1266,26 @@ bad:
 	KASSERT(indx == -1, ("indx=%d, should be -1", indx));
 	NDFREE_IOCTLCAPS(&nd);
 	falloc_abort(td, fp);
+	return (error);
+}
+
+int
+kern_openat(struct thread *td, int dirfd, const char *path,
+    enum uio_seg pathseg, int flags, int mode)
+{
+	return (openatfp(td, dirfd, path, pathseg, flags, mode, NULL));
+}
+
+int
+kern_openatfp(struct thread *td, int dirfd, const char *path,
+    enum uio_seg pathseg, int flags, int mode, struct file **fpp)
+{
+	int error, old_dupfd;
+
+	old_dupfd = td->td_dupfd;
+	td->td_dupfd = -1;
+	error = openatfp(td, dirfd, path, pathseg, flags, mode, fpp);
+	td->td_dupfd = old_dupfd;
 	return (error);
 }
 

@@ -78,6 +78,11 @@ static struct named_resolution {
 		.height = 1080,
 	},
 	{
+		.name = "1440p",
+		.width = 2560,
+		.height = 1440,
+	},
+	{
 		.name = "2160p",
 		.alias = "4k",
 		.width = 3840,

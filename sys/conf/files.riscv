@@ -43,7 +43,7 @@ riscv/riscv/elf_machdep.c	standard
 riscv/riscv/exception.S		standard
 riscv/riscv/exec_machdep.c	standard
 riscv/riscv/gdb_machdep.c	optional	gdb
-riscv/riscv/intr_machdep.c	standard
+riscv/riscv/intc.c		standard
 riscv/riscv/identcpu.c		standard
 riscv/riscv/locore.S		standard	no-obj
 riscv/riscv/machdep.c		standard
@@ -58,6 +58,7 @@ riscv/riscv/ptrace_machdep.c	standard
 riscv/riscv/riscv_console.c	optional	rcons
 riscv/riscv/riscv_syscon.c	optional	syscon riscv_syscon fdt
 riscv/riscv/sbi.c		standard
+riscv/riscv/sbi_ipi.c		optional	smp
 riscv/riscv/stack_machdep.c	optional	ddb | stack
 riscv/riscv/support.S		standard
 riscv/riscv/swtch.S		standard
