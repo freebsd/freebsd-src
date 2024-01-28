@@ -687,7 +687,7 @@ eqos_rxintr(struct eqos_softc *sc)
 			break;
 
 		if (rdes3 & (EQOS_RDES3_OE | EQOS_RDES3_RE))
-			printf("Receive errer rdes3=%08x\n", rdes3);
+			printf("Receive error rdes3=%08x\n", rdes3);
 
 		bus_dmamap_sync(sc->rx.buf_tag,
 		    sc->rx.buf_map[sc->rx.head].map, BUS_DMASYNC_POSTREAD);
