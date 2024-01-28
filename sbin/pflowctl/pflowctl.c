@@ -47,13 +47,15 @@
 
 static int get(int id);
 
+static bool verbose = false;
+
 extern char *__progname;
 
 static void
 usage(void)
 {
 	fprintf(stderr,
-"usage: %s [-la] [-d id]\n",
+"usage: %s [-lc] [-d id] [-s id ...] [-v]\n",
 	    __progname);
 
 	exit(1);
@@ -253,6 +255,7 @@ struct pflowctl_get {
 	struct pflowctl_sockaddr src;
 	struct pflowctl_sockaddr dst;
 	uint32_t obs_dom;
+	uint8_t so_status;
 };
 #define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct pflowctl_get, _field)
@@ -262,6 +265,7 @@ static struct snl_attr_parser ap_get[] = {
 	{ .type = PFLOWNL_GET_SRC, .off = _OUT(src), .arg = &sockaddr_parser, .cb = snl_attr_get_nested },
 	{ .type = PFLOWNL_GET_DST, .off = _OUT(dst), .arg = &sockaddr_parser, .cb = snl_attr_get_nested },
 	{ .type = PFLOWNL_GET_OBSERVATION_DOMAIN, .off = _OUT(obs_dom), .cb = snl_attr_get_uint32 },
+	{ .type = PFLOWNL_GET_SOCKET_STATUS, .off = _OUT(so_status), .cb = snl_attr_get_uint8 },
 };
 static struct snl_field_parser fp_get[] = {};
 #undef _IN
@@ -340,10 +344,14 @@ get(int id)
 		if (! snl_parse_nlmsg(&ss, hdr, &get_parser, &g))
 			continue;
 
-		printf("pflow%d: version %d domain %d", g.id, g.version, g.obs_dom);
+		printf("pflow%d: version %d domain %u", g.id, g.version, g.obs_dom);
 		print_sockaddr(" src ", &g.src.storage);
 		print_sockaddr(" dst ", &g.dst.storage);
 		printf("\n");
+		if (verbose) {
+			printf("\tsocket: %s\n",
+			    g.so_status ? "connected" : "disconnected");
+		}
 	}
 
 	if (e.error)
@@ -533,10 +541,20 @@ static const struct snl_hdr_parser *all_parsers[] = {
 	&get_parser,
 };
 
+enum pflowctl_op_t {
+	OP_HELP,
+	OP_LIST,
+	OP_CREATE,
+	OP_DELETE,
+	OP_SET,
+};
 int
 main(int argc, char *argv[])
 {
 	int ch;
+	enum pflowctl_op_t op = OP_HELP;
+	char **set_args = NULL;
+	size_t set_arg_count = 0;
 
 	SNL_VERIFY_PARSERS(all_parsers);
 
@@ -544,17 +562,39 @@ main(int argc, char *argv[])
 		usage();
 
 	while ((ch = getopt(argc, argv,
-	    "lcd:s:")) != -1) {
+	    "lcd:s:v")) != -1) {
 		switch (ch) {
 		case 'l':
-			return (list());
+			op = OP_LIST;
+			break;
 		case 'c':
-			return (create());
+			op = OP_CREATE;
+			break;
 		case 'd':
-			return (del(optarg));
+			op = OP_DELETE;
+			break;
 		case 's':
-			return (set(optarg, argc - optind, argv + optind));
+			op = OP_SET;
+			set_arg_count = argc - optind;
+			set_args = argv + optind;
+		case 'v':
+			verbose = true;
+			break;
 		}
+	}
+
+	switch (op) {
+	case OP_LIST:
+		return (list());
+	case OP_CREATE:
+		return (create());
+	case OP_DELETE:
+		return (del(optarg));
+	case OP_SET:
+		return (set(optarg, set_arg_count, set_args));
+	case OP_HELP:
+		usage();
+		break;
 	}
 
 	return (0);

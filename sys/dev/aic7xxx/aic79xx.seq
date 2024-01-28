@@ -1198,7 +1198,7 @@ mesgin_complete:
 	test	SEQ_FLAGS, NOT_IDENTIFIED jnz mesgin_proto_violation;
 
 	/*
-	 * If we recevied good status but never successfully sent the
+	 * If we received good status but never successfully sent the
 	 * cdb, abort the command.
 	 */
 	test	SCB_SCSI_STATUS,0xff	jnz complete_accepted;

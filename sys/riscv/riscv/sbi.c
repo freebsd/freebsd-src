@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2019 Mitchell Horne <mhorne@FreeBSD.org>
+ * Copyright (c) 2021 Jessica Clarke <jrtc27@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,10 +27,12 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/types.h>
+#include <sys/bus.h>
 #include <sys/eventhandler.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/reboot.h>
 
 #include <machine/md_var.h>
@@ -39,9 +42,19 @@
 #define	OPENSBI_VERSION_MAJOR_OFFSET	16
 #define	OPENSBI_VERSION_MINOR_MASK	0xFFFF
 
-u_long sbi_spec_version;
-u_long sbi_impl_id;
-u_long sbi_impl_version;
+struct sbi_softc {
+	device_t		dev;
+};
+
+struct sbi_devinfo {
+	struct resource_list	rl;
+};
+
+static struct sbi_softc *sbi_softc = NULL;
+
+static u_long sbi_spec_version;
+static u_long sbi_impl_id;
+static u_long sbi_impl_version;
 
 static bool has_time_extension = false;
 static bool has_ipi_extension = false;
@@ -315,10 +328,91 @@ sbi_init(void)
 }
 
 static void
-sbi_late_init(void *dummy __unused)
+sbi_identify(driver_t *driver, device_t parent)
 {
-	EVENTHANDLER_REGISTER(shutdown_final, sbi_shutdown_final, NULL,
-	    SHUTDOWN_PRI_LAST);
+	device_t dev;
+
+	if (device_find_child(parent, "sbi", -1) != NULL)
+		return;
+
+	dev = BUS_ADD_CHILD(parent, 0, "sbi", -1);
+	if (dev == NULL)
+		device_printf(parent, "Can't add sbi child\n");
 }
 
-SYSINIT(sbi, SI_SUB_KLD, SI_ORDER_ANY, sbi_late_init, NULL);
+static int
+sbi_probe(device_t dev)
+{
+	device_set_desc(dev, "RISC-V Supervisor Binary Interface");
+
+	return (BUS_PROBE_NOWILDCARD);
+}
+
+static int
+sbi_attach(device_t dev)
+{
+	struct sbi_softc *sc;
+#ifdef SMP
+	device_t child;
+	struct sbi_devinfo *di;
+#endif
+
+	if (sbi_softc != NULL)
+		return (ENXIO);
+
+	sc = device_get_softc(dev);
+	sc->dev = dev;
+	sbi_softc = sc;
+
+	EVENTHANDLER_REGISTER(shutdown_final, sbi_shutdown_final, NULL,
+	    SHUTDOWN_PRI_LAST);
+
+#ifdef SMP
+	di = malloc(sizeof(*di), M_DEVBUF, M_WAITOK | M_ZERO);
+	resource_list_init(&di->rl);
+	child = device_add_child(dev, "sbi_ipi", -1);
+	if (child == NULL) {
+		device_printf(dev, "Could not add sbi_ipi child\n");
+		return (ENXIO);
+	}
+
+	device_set_ivars(child, di);
+#endif
+
+	return (0);
+}
+
+static struct resource_list *
+sbi_get_resource_list(device_t bus, device_t child)
+{
+	struct sbi_devinfo *di;
+
+	di = device_get_ivars(child);
+	KASSERT(di != NULL, ("%s: No devinfo", __func__));
+
+	return (&di->rl);
+}
+
+static device_method_t sbi_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_identify,	sbi_identify),
+	DEVMETHOD(device_probe,		sbi_probe),
+	DEVMETHOD(device_attach,	sbi_attach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_alloc_resource,	bus_generic_rl_alloc_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_get_resource_list, sbi_get_resource_list),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+
+	DEVMETHOD_END
+};
+
+DEFINE_CLASS_0(sbi, sbi_driver, sbi_methods, sizeof(struct sbi_softc));
+EARLY_DRIVER_MODULE(sbi, nexus, sbi_driver, 0, 0,
+    BUS_PASS_CPU + BUS_PASS_ORDER_FIRST);

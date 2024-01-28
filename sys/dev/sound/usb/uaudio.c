@@ -1171,7 +1171,7 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 {
 	struct uaudio_softc *sc = device_get_softc(device_get_parent(dev));
 	unsigned i = uaudio_get_child_index_by_dev(sc, dev);
-	char status[SND_STATUSLEN], desc[128];
+	char status[SND_STATUSLEN];
 
 	uaudio_mixer_init(sc, i);
 
@@ -1199,10 +1199,9 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 
 	mixer_hwvol_init(dev);
 
-	snprintf(desc, sizeof(desc), "%s %s",
+	device_set_descf(dev, "%s %s",
 	    usb_get_manufacturer(sc->sc_udev),
 	    usb_get_product(sc->sc_udev));
-	device_set_desc_copy(dev, desc);
 
 	snprintf(status, sizeof(status), "on %s",
 	    device_get_nameunit(device_get_parent(dev)));

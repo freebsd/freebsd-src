@@ -50,7 +50,7 @@
 #include <sys/disk.h>
 #define DKTYPENAMES
 #define FSTYPENAMES
-#define MAXPARTITIONS	20
+#define MAXPARTITIONS	8 /* XXX should be 20, but see PR276517 */
 #include <sys/disklabel.h>
 
 #include <unistd.h>

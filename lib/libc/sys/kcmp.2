@@ -1,0 +1,230 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024 The FreeBSD Foundation
+.\"
+.\" This documentation was written by
+.\" Mark Johnston <markj@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd January 23, 2024
+.Dt KCMP 2
+.Os
+.Sh NAME
+.Nm kcmp
+.Nd compare two kernel objects
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In unistd.h
+.Ft int
+.Fn kcmp "pid_t pid1" "pid_t pid2" "int type" "uintptr_t idx1" "uintptr_t idx2"
+.Sh DESCRIPTION
+The
+.Nm
+system call allows the caller to determine whether the two processes with
+PIDs
+.Fa pid1
+and
+.Fa pid2
+reference the same kernel object.
+The
+.Fa type
+parameter specifies the type of object, and
+.Fa idx1
+and
+.Fa idx2
+are identifiers which refer to some object in the context of process
+.Fa pid1
+and
+.Fa pid2 ,
+respectively.
+.Pp
+The following values for
+.Fa type
+may be specified:
+.Bl -tag -width KCMP_FILE
+.It Dv KCMP_FILE
+Compare two file descriptions referred to by file descriptors
+.Fa idx1
+and
+.Fa idx2 .
+They may be equivalent if, for example, one of the descriptors was
+created by applying
+.Xr dup 2
+to the other descriptor.
+.It Dv KCMP_FILEOBJ
+Perform a
+.Dq deep comparison
+of the file descriptions referred to by file descriptors
+.Fa idx1
+and
+.Fa idx2 .
+This tests whether the underlying object referred to by the file descriptions
+is the same.
+For example, if the same filesystem path is opened twice, the kernel will create
+two separate file descriptions to back the two file descriptors, but they will
+refer to the same underlying object, a
+.Xr vnode 9 .
+When compared using the
+.Dv KCMP_FILE
+type, these descriptors will be different, but using the
+.Dv KCMP_FILEOBJ
+type, they will be equal (assuming that the path was not unlinked in between
+the two opens).
+.It Dv KCMP_FILES
+Determine whether the two processes share the same file descriptor table.
+This will be the case if one of the processes was created by
+.Xr rfork 2
+without specifying the
+.Dv RFFDG
+flag.
+The
+.Fa idx1
+and
+.Fa idx2
+parameters are ignored.
+.It Dv KCMP_SIGHAND
+Determine whether the two processes share the same signal handler table.
+This will be the case if one of the processes was created using the
+.Dv RFSIGSHARE
+flag to
+.Xr rfork 2 .
+The
+.Fa idx1
+and
+.Fa idx2
+parameters are ignored.
+.It Dv KCMP_VM
+Determine whether the two processes share a virtual memory address space.
+This may be the case if one of the processes created the other using
+.Xr vfork 2
+or
+.Xr rfork 2
+with the
+.Dv RFMEM
+flag.
+The
+.Fa idx1
+and
+.Fa idx2
+parameters are ignored.
+.El
+The caller of
+.Nm
+must have permission to debug both processes, otherwise the system call
+will fail.
+.Sh RETURN VALUES
+If
+.Fa idx1
+and
+.Fa idx2
+refer to the same object,
+.Nm
+returns 0.
+If the object referred to by
+.Fa pid1
+and
+.Fa idx1
+is less or greater than the object referred to by
+.Fa pid2
+and
+.Fa idx2 ,
+.Nm
+returns the values 1 and 2, respectively.
+The order is defined internally by the kernel and is stable until the system
+reboots.
+If the two objects cannot be compared for some reason,
+.Nm
+returns 3.
+For example, if
+.Fa type
+is
+.Dv KCMP_FILEOBJ
+and
+.Fa idx1
+and
+.Fa idx2
+are different descriptor types, e.g., a socket and a file, then
+.Nm
+will return 3.
+.Pp
+If an error occurs, the value -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Nm
+may fail with the following errors:
+.Bl -tag -width Er
+.It Bq Er ENODEV
+.Dv KCMP_FILEOBJ
+was specified and
+.Fa idx1
+refers to a file descriptor which does not implement a comparison operator.
+.It Bq Er EINVAL
+The value of
+.Fa type
+is invalid.
+.It Bq Er EBADF
+One of the file descriptors referred to by
+.Fa idx1
+or
+.Fa idx2
+is not valid.
+.It Bq Er ESRCH
+One of the processes referred to by
+.Fa pid1
+or
+.Fa pid2
+does not exist or is not visible (e.g., due to jail restrictions).
+.It Bq Er EPERM
+The caller does not have permission to access one of the processes referred to
+by
+.Fa pid1
+or
+.Fa pid2 .
+.El
+.Sh SEE ALSO
+.Xr dup 2 ,
+.Xr fcntl 2 ,
+.Xr fork 2 ,
+.Xr rfork 2 ,
+.Xr vfork 2
+.Sh STANDARDS
+The
+.Nm
+system call originated in Linux.
+This implementation aims to be source-compatible with the Linux implementation.
+.Fx
+implements only a subset of the possible values for
+.Fa type
+supported in Linux.
+More values may be added in the future.
+The
+.Dv KCMP_FILEOBJ
+type is a FreeBSD extension.
+.Sh HISTORY
+The
+.Nm
+function was introduced in
+.Fx 14.1 .

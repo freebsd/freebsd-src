@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240122: callout_async_drain() removed
+OLD_FILES+=usr/share/man/man9/callout_async_drain.9.gz
+
 # 20240114: Removal of geom_map(4)
 OLD_FILES+=usr/share/man/man4/geom_map.4
 
