@@ -1,3 +1,7 @@
+/*
+ * This file is in the public domain.  It only recounts facts in the only way
+ * possible.
+ */
 #define SYS_close		 57
 #define	SYS_dup			 23
 #define SYS_exit		 93
