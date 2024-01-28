@@ -142,7 +142,6 @@ static u_int __read_mostly callwheelmask;
  */
 struct cc_exec {
 	struct callout		*cc_curr;
-	callout_func_t		*cc_drain;
 	void			*cc_last_func;
 	void			*cc_last_arg;
 #ifdef SMP
@@ -180,7 +179,6 @@ struct callout_cpu {
 #define	cc_exec_curr(cc, dir)		cc->cc_exec_entity[dir].cc_curr
 #define	cc_exec_last_func(cc, dir)	cc->cc_exec_entity[dir].cc_last_func
 #define	cc_exec_last_arg(cc, dir)	cc->cc_exec_entity[dir].cc_last_arg
-#define	cc_exec_drain(cc, dir)		cc->cc_exec_entity[dir].cc_drain
 #define	cc_exec_next(cc)		cc->cc_next
 #define	cc_exec_cancel(cc, dir)		cc->cc_exec_entity[dir].cc_cancel
 #define	cc_exec_waiting(cc, dir)	cc->cc_exec_entity[dir].cc_waiting
@@ -631,7 +629,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
     int direct)
 {
 	struct rm_priotracker tracker;
-	callout_func_t *c_func, *drain;
+	callout_func_t *c_func;
 	void *c_arg;
 	struct lock_class *class;
 	struct lock_object *c_lock;
@@ -673,7 +671,6 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	cc_exec_last_func(cc, direct) = c_func;
 	cc_exec_last_arg(cc, direct) = c_arg;
 	cc_exec_cancel(cc, direct) = false;
-	cc_exec_drain(cc, direct) = NULL;
 	CC_UNLOCK(cc);
 	if (c_lock != NULL) {
 		class->lc_lock(c_lock, lock_status);
@@ -739,13 +736,6 @@ skip:
 	CC_LOCK(cc);
 	KASSERT(cc_exec_curr(cc, direct) == c, ("mishandled cc_curr"));
 	cc_exec_curr(cc, direct) = NULL;
-	if (cc_exec_drain(cc, direct)) {
-		drain = cc_exec_drain(cc, direct);
-		cc_exec_drain(cc, direct) = NULL;
-		CC_UNLOCK(cc);
-		drain(c_arg);
-		CC_LOCK(cc);
-	}
 	if (cc_exec_waiting(cc, direct)) {
 		/*
 		 * There is someone waiting for the
@@ -969,7 +959,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t prec,
 		 */
 		if (c->c_lock != NULL && !cc_exec_cancel(cc, direct))
 			cancelled = cc_exec_cancel(cc, direct) = true;
-		if (cc_exec_waiting(cc, direct) || cc_exec_drain(cc, direct)) {
+		if (cc_exec_waiting(cc, direct)) {
 			/*
 			 * Someone has called callout_drain to kill this
 			 * callout.  Don't reschedule.
@@ -1080,7 +1070,7 @@ callout_schedule(struct callout *c, int to_ticks)
 }
 
 int
-_callout_stop_safe(struct callout *c, int flags, callout_func_t *drain)
+_callout_stop_safe(struct callout *c, int flags)
 {
 	struct callout_cpu *cc, *old_cc;
 	struct lock_class *class;
@@ -1090,9 +1080,6 @@ _callout_stop_safe(struct callout *c, int flags, callout_func_t *drain)
 	if ((flags & CS_DRAIN) != 0)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, c->c_lock,
 		    "calling %s", __func__);
-
-	KASSERT((flags & CS_DRAIN) == 0 || drain == NULL,
-	    ("Cannot set drain callback and CS_DRAIN flag at the same time"));
 
 	/*
 	 * Some old subsystems don't hold Giant while running a callout_stop(),
@@ -1228,8 +1215,7 @@ again:
 				goto again;
 			}
 			c->c_flags &= ~CALLOUT_ACTIVE;
-		} else if (use_lock &&
-			   !cc_exec_cancel(cc, direct) && (drain == NULL)) {
+		} else if (use_lock && !cc_exec_cancel(cc, direct)) {
 			
 			/*
 			 * The current callout is waiting for its
@@ -1237,8 +1223,7 @@ again:
 			 * and return.  After our caller drops the
 			 * lock, the callout will be skipped in
 			 * softclock(). This *only* works with a
-			 * callout_stop() *not* callout_drain() or
-			 * callout_async_drain().
+			 * callout_stop() *not* with callout_drain().
 			 */
 			cc_exec_cancel(cc, direct) = true;
 			CTR3(KTR_CALLOUT, "cancelled %p func %p arg %p",
@@ -1284,23 +1269,11 @@ again:
 #endif
 			CTR3(KTR_CALLOUT, "postponing stop %p func %p arg %p",
 			    c, c->c_func, c->c_arg);
- 			if (drain) {
-				KASSERT(cc_exec_drain(cc, direct) == NULL,
-				    ("callout drain function already set to %p",
-				    cc_exec_drain(cc, direct)));
-				cc_exec_drain(cc, direct) = drain;
-			}
 			CC_UNLOCK(cc);
 			return (0);
 		} else {
 			CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
 			    c, c->c_func, c->c_arg);
-			if (drain) {
-				KASSERT(cc_exec_drain(cc, direct) == NULL,
-				    ("callout drain function already set to %p",
-				    cc_exec_drain(cc, direct)));
-				cc_exec_drain(cc, direct) = drain;
-			}
 		}
 		KASSERT(!sq_locked, ("sleepqueue chain still locked"));
 		cancelled = 0;

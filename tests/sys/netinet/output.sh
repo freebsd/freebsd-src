@@ -386,7 +386,7 @@ output_udp_flowid_mpath_success_body()
 
 	script_name=`dirname $0`/../common/net_receiver.py
 	script_name=`realpath ${script_name}`
-	jname="v4t-output_tcp_flowid_mpath_success"
+	jname="v4t-output_udp_flowid_mpath_success"
 
 	epair0=$(vnet_mkepair)
 	epair1=$(vnet_mkepair)
@@ -510,7 +510,7 @@ output_raw_flowid_mpath_success_body()
 	plen=24
 	text="testtesttst"
 
-	jname="v4t-output_tcp_flowid_mpath_success"
+	jname="v4t-output_raw_flowid_mpath_success"
 
 	epair0=$(vnet_mkepair)
 	epair1=$(vnet_mkepair)

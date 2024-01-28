@@ -103,6 +103,12 @@ static int		acpi_pcib_acpi_adjust_resource(device_t dev,
 static int		acpi_pcib_acpi_release_resource(device_t dev,
 			    device_t child, int type, int rid,
 			    struct resource *r);
+static int		acpi_pcib_acpi_activate_resource(device_t dev,
+			    device_t child, int type, int rid,
+			    struct resource *r);
+static int		acpi_pcib_acpi_deactivate_resource(device_t dev,
+			    device_t child, int type, int rid,
+			    struct resource *r);
 #endif
 #endif
 static int		acpi_pcib_request_feature(device_t pcib, device_t dev,
@@ -128,11 +134,13 @@ static device_method_t acpi_pcib_acpi_methods[] = {
 #endif
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
     DEVMETHOD(bus_release_resource,	acpi_pcib_acpi_release_resource),
+    DEVMETHOD(bus_activate_resource,	acpi_pcib_acpi_activate_resource),
+    DEVMETHOD(bus_deactivate_resource,	acpi_pcib_acpi_deactivate_resource),
 #else
     DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-#endif
     DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
     DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
+#endif
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
     DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
     DEVMETHOD(bus_get_cpus,		acpi_pcib_get_cpus),
@@ -763,6 +771,31 @@ acpi_pcib_acpi_release_resource(device_t dev, device_t child, int type, int rid,
 	if (type == PCI_RES_BUS)
 		return (pci_domain_release_bus(sc->ap_segment, child, rid, r));
 	return (bus_generic_release_resource(dev, child, type, rid, r));
+}
+
+int
+acpi_pcib_acpi_activate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	struct acpi_hpcib_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (type == PCI_RES_BUS)
+		return (pci_domain_activate_bus(sc->ap_segment, child, rid, r));
+	return (bus_generic_activate_resource(dev, child, type, rid, r));
+}
+
+int
+acpi_pcib_acpi_deactivate_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *r)
+{
+	struct acpi_hpcib_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (type == PCI_RES_BUS)
+		return (pci_domain_deactivate_bus(sc->ap_segment, child, rid,
+		    r));
+	return (bus_generic_deactivate_resource(dev, child, type, rid, r));
 }
 #endif
 #endif

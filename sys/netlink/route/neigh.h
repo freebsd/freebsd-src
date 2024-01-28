@@ -82,7 +82,7 @@ enum {
 #define	NTF_PROXY		0x0008	/* proxy entry */
 #define	NTF_EXT_LEARNED		0x0010	/* not used */
 #define	NTF_OFFLOADED		0x0020	/* not used */
-#define	NTF_STICKY		0x0040	/* permament entry */
+#define	NTF_STICKY		0x0040	/* permanent entry */
 #define	NTF_ROUTER		0x0080	/* dst indicated itself as a router */
 /* start of NDA_FLAGS_EXT */
 #define	NTF_EXT_MANAGED		0x0100	/* not used */

@@ -39,6 +39,8 @@
 #include <netinet/ip.h>
 #endif
 
+#define PFLOW_MAX_ENTRIES	128
+
 #define PFLOW_ID_LEN	sizeof(u_int64_t)
 
 #define PFLOW_MAXFLOWS 30
@@ -360,7 +362,8 @@ enum pflow_get_type_t {
 	PFLOWNL_GET_VERSION	= 2, /* u16 */
 	PFLOWNL_GET_SRC		= 3, /* struct sockaddr_storage */
 	PFLOWNL_GET_DST		= 4, /* struct sockaddr_storage */
-	PFLOWNL_GET_OBSERVATION_DOMAIN = 5, /* u32 */
+	PFLOWNL_GET_OBSERVATION_DOMAIN	= 5, /* u32 */
+	PFLOWNL_GET_SOCKET_STATUS	= 6, /* u8 */
 };
 
 enum pflow_set_type_t {

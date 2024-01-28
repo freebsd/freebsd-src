@@ -1808,3 +1808,42 @@ f_quit(PLAN *plan __unused, FTSENT *entry __unused)
 }
 
 /* c_quit == c_simple */
+
+/*
+ * -readable
+ *
+ *  	File is readable
+ */
+int
+f_readable(PLAN *plan __unused, FTSENT *entry)
+{
+	return (access(entry->fts_path, R_OK) == 0);
+}
+
+/* c_readable == c_simple */
+
+/*
+ * -writable
+ *
+ *  	File is writable
+ */
+int
+f_writable(PLAN *plan __unused, FTSENT *entry)
+{
+	return (access(entry->fts_path, W_OK) == 0);
+}
+
+/* c_writable == c_simple */
+
+/*
+ * -executable
+ *
+ *  	File is executable
+ */
+int
+f_executable(PLAN *plan __unused, FTSENT *entry)
+{
+	return (access(entry->fts_path, X_OK) == 0);
+}
+
+/* c_executable == c_simple */

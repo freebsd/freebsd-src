@@ -1712,6 +1712,18 @@ vmbus_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
+vmbus_pcib_adjust_resource(device_t dev, device_t child, int type,
+    struct resource *r, rman_res_t start, rman_res_t end)
+{
+	struct vmbus_pcib_softc *sc = device_get_softc(dev);
+
+	if (type == PCI_RES_BUS)
+		return (pci_domain_adjust_bus(sc->hbus->pci_domain, child, r,
+		    start, end));
+	return (bus_generic_adjust_resource(dev, child, type, r, start, end));
+}
+
+static int
 vmbus_pcib_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
@@ -1725,6 +1737,30 @@ vmbus_pcib_release_resource(device_t dev, device_t child, int type, int rid,
 		return (EINVAL);
 
 	return (bus_generic_release_resource(dev, child, type, rid, r));
+}
+
+static int
+vmbus_pcib_activate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	struct vmbus_pcib_softc *sc = device_get_softc(dev);
+
+	if (type == PCI_RES_BUS)
+		return (pci_domain_activate_bus(sc->hbus->pci_domain, child,
+		    rid, r));
+	return (bus_generic_activate_resource(dev, child, type, rid, r));
+}
+
+static int
+vmbus_pcib_deactivate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	struct vmbus_pcib_softc *sc = device_get_softc(dev);
+
+	if (type == PCI_RES_BUS)
+		return (pci_domain_deactivate_bus(sc->hbus->pci_domain, child,
+		    rid, r));
+	return (bus_generic_deactivate_resource(dev, child, type, rid, r));
 }
 
 static int
@@ -1970,9 +2006,10 @@ static device_method_t vmbus_pcib_methods[] = {
 	DEVMETHOD(bus_read_ivar,		vmbus_pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar,		vmbus_pcib_write_ivar),
 	DEVMETHOD(bus_alloc_resource,		vmbus_pcib_alloc_resource),
+	DEVMETHOD(bus_adjust_resource,		vmbus_pcib_adjust_resource),
 	DEVMETHOD(bus_release_resource,		vmbus_pcib_release_resource),
-	DEVMETHOD(bus_activate_resource,   bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_activate_resource,   	vmbus_pcib_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, 	vmbus_pcib_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	   bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	   bus_generic_teardown_intr),
 	DEVMETHOD(bus_get_cpus,			vmbus_pcib_get_cpus),
