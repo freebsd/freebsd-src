@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2022-2024, Netflix, Inc.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
 #include "host_syscall.h"
 #include "syscall_nr.h"
 #include <stand.h>
