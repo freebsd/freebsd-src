@@ -36,10 +36,9 @@
 #include <sys/cdefs.h>
 #include <sys/ioctl.h>
 #include <sys/stdint.h>
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/sbuf.h>
-#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/chio.h>
 
