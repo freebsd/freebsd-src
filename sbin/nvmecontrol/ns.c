@@ -579,14 +579,12 @@ nscreate(const struct cmd *f, int argc, char *argv[])
 		/* Default to the first format, whatever it is. */
 		nsdata.flbas = 0;
 		if (create_opt.lbaf != NONE) {
-			nsdata.flbas |= (create_opt.lbaf &
-			    NVME_NS_DATA_FLBAS_FORMAT_MASK)
-			    << NVME_NS_DATA_FLBAS_FORMAT_SHIFT;
+			nsdata.flbas |= NVMEF(NVME_NS_DATA_FLBAS_FORMAT,
+			    create_opt.lbaf);
 		}
 		if (create_opt.mset != NONE) {
-			nsdata.flbas |= (create_opt.mset &
-			    NVME_NS_DATA_FLBAS_EXTENDED_MASK)
-			    << NVME_NS_DATA_FLBAS_EXTENDED_SHIFT;
+			nsdata.flbas |= NVMEF(NVME_NS_DATA_FLBAS_EXTENDED,
+			    create_opt.mset);
 		}
 	}
 	if (create_opt.dps != NONE) {
@@ -595,22 +593,19 @@ nscreate(const struct cmd *f, int argc, char *argv[])
 		/* Default to protection disabled. */
 		nsdata.dps = 0;
 		if (create_opt.pi != NONE) {
-			nsdata.dps |= (create_opt.pi &
-			    NVME_NS_DATA_DPS_MD_START_MASK)
-			    << NVME_NS_DATA_DPS_MD_START_SHIFT;
+			nsdata.dps |= NVMEF(NVME_NS_DATA_DPS_MD_START,
+			    create_opt.pi);
 		}
 		if (create_opt.pil != NONE) {
-			nsdata.dps |= (create_opt.pil &
-			    NVME_NS_DATA_DPS_PIT_MASK)
-			    << NVME_NS_DATA_DPS_PIT_SHIFT;
+			nsdata.dps |= NVMEF(NVME_NS_DATA_DPS_PIT,
+			    create_opt.pil);
 		}
 	}
 	if (create_opt.nmic != NONE) {
 		nsdata.nmic = create_opt.nmic;
 	} else {
 		/* Allow namespaces sharing if Multi-Path I/O is supported. */
-		nsdata.nmic = cd.mic ? (NVME_NS_DATA_NMIC_MAY_BE_SHARED_MASK <<
-		     NVME_NS_DATA_NMIC_MAY_BE_SHARED_SHIFT) : 0;
+		nsdata.nmic = NVMEF(NVME_NS_DATA_NMIC_MAY_BE_SHARED, !!cd.mic);
 	}
 	nvme_namespace_data_swapbytes(&nsdata);
 
