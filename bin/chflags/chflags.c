@@ -182,9 +182,11 @@ main(int argc, char *argv[])
 		if (newflags == p->fts_statp->st_flags)
 			continue;
 		if (chflagsat(AT_FDCWD, p->fts_accpath, newflags,
-		    atflag) == -1 && !fflag) {
-			warn("%s", p->fts_path);
-			rval = 1;
+		    atflag) == -1) {
+			if (!fflag) {
+				warn("%s", p->fts_path);
+				rval = 1;
+			}
 		} else if (vflag || siginfo) {
 			(void)printf("%s", p->fts_path);
 			if (vflag > 1 || siginfo)
