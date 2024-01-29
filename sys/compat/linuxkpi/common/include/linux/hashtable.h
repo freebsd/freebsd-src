@@ -92,8 +92,6 @@ __hash_node_type_assert(struct hlist_node *node)
 #define	hash_add_rcu(ht, node, key) do {				\
 	struct lkpi_hash_head *__head = &(ht)[hash_min(key, HASH_BITS(ht))]; \
 	__hash_node_type_assert(node); \
-	KASSERT(((struct lkpi_hash_entry *)(node))->entry.cle_prev == NULL, \
-	    ("node is already on list or was not zeroed")); \
 	CK_LIST_INSERT_HEAD(&__head->head, \
 	    (struct lkpi_hash_entry *)(node), entry); \
 } while (0)
