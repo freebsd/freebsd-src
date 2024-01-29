@@ -477,7 +477,11 @@ struct iwl_mvm_wep_key_cmd {
 	u8 decryption_type;
 	u8 flags;
 	u8 reserved;
+#if defined(__linux__)
 	struct iwl_mvm_wep_key wep_key[];
+#elif defined(__FreeBSD__)
+	struct iwl_mvm_wep_key wep_key[0];
+#endif
 } __packed; /* SEC_CURR_WEP_KEY_CMD_API_S_VER_2 */
 
 /**
