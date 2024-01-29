@@ -133,7 +133,11 @@ enum wlan_ht_cap_sm_ps {
 #define	WLAN_KEY_LEN_TKIP			32
 #define	WLAN_KEY_LEN_CCMP			16
 #define	WLAN_KEY_LEN_GCMP			16
+#define	WLAN_KEY_LEN_AES_CMAC			16
 #define	WLAN_KEY_LEN_GCMP_256			32
+#define	WLAN_KEY_LEN_BIP_CMAC_256		32
+#define	WLAN_KEY_LEN_BIP_GMAC_128		16
+#define	WLAN_KEY_LEN_BIP_GMAC_256		32
 
 /* 802.11-2020, 9.4.2.55.3, Table 9-185 Subfields of the A-MPDU Parameters field */
 enum ieee80211_min_mpdu_start_spacing {
