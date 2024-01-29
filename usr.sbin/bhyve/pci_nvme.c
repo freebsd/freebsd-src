@@ -1065,7 +1065,7 @@ pci_nvme_init_controller(struct pci_nvme_softc *sc)
 	 * cleared to 0h produces undefined results" for both ACQS and
 	 * ASQS. If zero, set CFS and do not become ready.
 	 */
-	asqs = ONE_BASED(sc->regs.aqa & NVME_AQA_REG_ASQS_MASK);
+	asqs = ONE_BASED(NVMEV(NVME_AQA_REG_ASQS, sc->regs.aqa));
 	if (asqs < 2) {
 		EPRINTLN("%s: illegal ASQS value %#x (aqa=%#x)", __func__,
 		    asqs - 1, sc->regs.aqa);
