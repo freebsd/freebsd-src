@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 29, 2023
+.Dd January 29, 2024
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -314,6 +314,12 @@ may not be used for any read operations like
 The primary use for this descriptor will be as the lookup descriptor for the
 .Fn *at
 family of functions.
+If
+.Dv O_SEARCH
+was not requested at open time, then the
+.Fn *at
+functions use the current directory permissions for the directory referenced
+by the descriptor at the time of the call.
 .Pp
 .Dv O_PATH
 returns a file descriptor that can be used as a directory file descriptor for
@@ -661,6 +667,23 @@ when
 is set in flags and the final component of pathname is a symbolic link
 to distinguish it from the case of too many symbolic link traversals
 in one of its non-final components.
+.Pp
+The Open Group Extended API Set 2 specification, that introduced the
+.Fn *at
+API, required that the test for whether
+.Fa fd
+is searchable is based on whether
+.Fa fd
+is open for searching, not whether the underlying directory currently
+permits searches.
+The present implementation of the
+.Fa openat
+system call is believed to be compatible with
+.St -p1003.1-2017 ,
+which specifies that behavior for
+.Dv O_SEARCH ,
+in the absence of the flag the implementation checks the current
+permissions of a directory.
 .Sh HISTORY
 The
 .Fn open
@@ -673,17 +696,6 @@ function was introduced in
 .Dv O_DSYNC
 appeared in 13.0.
 .Sh BUGS
-The Open Group Extended API Set 2 specification requires that the test
-for whether
-.Fa fd
-is searchable is based on whether
-.Fa fd
-is open for searching, not whether the underlying directory currently
-permits searches.
-The present implementation of the
-.Fa openat
-checks the current permissions of directory instead.
-.Pp
 The
 .Fa mode
 argument is variadic and may result in different calling conventions
