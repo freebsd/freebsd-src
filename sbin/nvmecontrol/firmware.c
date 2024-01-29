@@ -277,21 +277,18 @@ firmware(const struct cmd *f, int argc, char *argv[])
 	if (read_controller_data(fd, &cdata))
 		errx(EX_IOERR, "Identify request failed");
 
-	oacs_fw = (cdata.oacs >> NVME_CTRLR_DATA_OACS_FIRMWARE_SHIFT) &
-		NVME_CTRLR_DATA_OACS_FIRMWARE_MASK;
+	oacs_fw = NVMEV(NVME_CTRLR_DATA_OACS_FIRMWARE, cdata.oacs);
 
 	if (oacs_fw == 0)
 		errx(EX_UNAVAILABLE,
 		    "controller does not support firmware activate/download");
 
-	fw_slot1_ro = (cdata.frmw >> NVME_CTRLR_DATA_FRMW_SLOT1_RO_SHIFT) &
-		NVME_CTRLR_DATA_FRMW_SLOT1_RO_MASK;
+	fw_slot1_ro = NVMEV(NVME_CTRLR_DATA_FRMW_SLOT1_RO, cdata.frmw);
 
 	if (opt.fw_img && opt.slot == 1 && fw_slot1_ro)
 		errx(EX_UNAVAILABLE, "slot %d is marked as read only", opt.slot);
 
-	fw_num_slots = (cdata.frmw >> NVME_CTRLR_DATA_FRMW_NUM_SLOTS_SHIFT) &
-		NVME_CTRLR_DATA_FRMW_NUM_SLOTS_MASK;
+	fw_num_slots = NVMEV(NVME_CTRLR_DATA_FRMW_NUM_SLOTS, cdata.frmw);
 
 	if (opt.slot > fw_num_slots)
 		errx(EX_UNAVAILABLE,

@@ -99,8 +99,7 @@ selftest(const struct cmd *f, int argc, char *argv[])
 	if (read_controller_data(fd, &cdata))
 		errx(EX_IOERR, "Identify request failed");
 
-	if (((cdata.oacs >> NVME_CTRLR_DATA_OACS_SELFTEST_SHIFT) &
-	     NVME_CTRLR_DATA_OACS_SELFTEST_MASK) == 0)
+	if (NVMEV(NVME_CTRLR_DATA_OACS_SELFTEST, cdata.oacs) == 0)
 		errx(EX_UNAVAILABLE, "controller does not support self-test");
 
 	selftest_op(fd, nsid, opt.stc);

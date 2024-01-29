@@ -82,10 +82,8 @@ ns_get_sector_size(struct nvme_namespace_data *nsdata)
 {
 	uint8_t flbas_fmt, lbads;
 
-	flbas_fmt = (nsdata->flbas >> NVME_NS_DATA_FLBAS_FORMAT_SHIFT) &
-		NVME_NS_DATA_FLBAS_FORMAT_MASK;
-	lbads = (nsdata->lbaf[flbas_fmt] >> NVME_NS_DATA_LBAF_LBADS_SHIFT) &
-		NVME_NS_DATA_LBAF_LBADS_MASK;
+	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsdata->flbas);
+	lbads = NVMEV(NVME_NS_DATA_LBAF_LBADS, nsdata->lbaf[flbas_fmt]);
 
 	return (1 << lbads);
 }
