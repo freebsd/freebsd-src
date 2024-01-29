@@ -295,7 +295,7 @@ nvme_ctrlr_disable(struct nvme_controller *ctrlr)
 			return (err);
 	}
 
-	cc &= ~NVME_CC_REG_EN_MASK;
+	cc &= ~NVMEM(NVME_CC_REG_EN);
 	nvme_mmio_write_4(ctrlr, cc, cc);
 
 	/*
@@ -1215,7 +1215,7 @@ nvme_pt_done(void *arg, const struct nvme_completion *cpl)
 	pt->cpl.cdw0 = cpl->cdw0;
 
 	status = cpl->status;
-	status &= ~NVME_STATUS_P_MASK;
+	status &= ~NVMEM(NVME_STATUS_P);
 	pt->cpl.status = status;
 
 	mtx_lock(mtx);
@@ -1556,7 +1556,7 @@ nvme_ctrlr_shutdown(struct nvme_controller *ctrlr)
 	int		timeout;
 
 	cc = nvme_mmio_read_4(ctrlr, cc);
-	cc &= ~(NVME_CC_REG_SHN_MASK << NVME_CC_REG_SHN_SHIFT);
+	cc &= ~NVMEM(NVME_CC_REG_SHN);
 	cc |= NVME_SHN_NORMAL << NVME_CC_REG_SHN_SHIFT;
 	nvme_mmio_write_4(ctrlr, cc, cc);
 
