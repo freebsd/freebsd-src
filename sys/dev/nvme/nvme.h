@@ -605,7 +605,7 @@ enum nvme_critical_warning_state {
 #define NVME_FEAT_SET_FID_MASK				(0xff)
 
 /* Helper macro to combine *_MASK and *_SHIFT defines */
-#define NVMEB(name)	(name##_MASK << name##_SHIFT)
+#define NVMEM(name)	(name##_MASK << name##_SHIFT)
 
 /* Helper macro to extract value from x */
 #define NVMEV(name, x)  (((x) >> name##_SHIFT) & name##_MASK)
