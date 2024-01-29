@@ -610,6 +610,9 @@ enum nvme_critical_warning_state {
 /* Helper macro to extract value from x */
 #define NVMEV(name, x)  (((x) >> name##_SHIFT) & name##_MASK)
 
+/* Helper macro to construct a field value */
+#define	NVMEF(name, x)	(((x) & name##_MASK) << name##_SHIFT)
+
 /* CC register SHN field values */
 enum shn_value {
 	NVME_SHN_NORMAL		= 0x1,
