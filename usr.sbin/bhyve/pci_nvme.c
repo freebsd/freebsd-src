@@ -538,12 +538,12 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 
 	cd->cntrltype = NVME_CNTRLTYPE_IO;
 	cd->oacs = 1 << NVME_CTRLR_DATA_OACS_FORMAT_SHIFT;
-	cd->oaes = NVMEB(NVME_CTRLR_DATA_OAES_NS_ATTR);
+	cd->oaes = NVMEM(NVME_CTRLR_DATA_OAES_NS_ATTR);
 	cd->acl = 2;
 	cd->aerl = 4;
 
 	/* Advertise 1, Read-only firmware slot */
-	cd->frmw = NVMEB(NVME_CTRLR_DATA_FRMW_SLOT1_RO) |
+	cd->frmw = NVMEM(NVME_CTRLR_DATA_FRMW_SLOT1_RO) |
 	    (1 << NVME_CTRLR_DATA_FRMW_NUM_SLOTS_SHIFT);
 	cd->lpa = 0;	/* TODO: support some simple things like SMART */
 	cd->elpe = 0;	/* max error log page entries */
