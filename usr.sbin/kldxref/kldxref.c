@@ -842,10 +842,11 @@ main(int argc, char *argv[])
 			continue;
 		/*
 		 * Skip files that generate errors like .debug, .symbol and .pkgsave
-		 * by generally skipping all files with 2 dots.
+		 * by generally skipping all files not ending with ".ko" or that have
+		 * no dots in the name (like kernel).
 		 */
-		dot = strchr(p->fts_name, '.');
-		if (dot && strchr(dot + 1, '.') != NULL)
+		dot = strrchr(p->fts_name, '.');
+		if (dot != NULL && strcmp(dot, ".ko") != 0)
 			continue;
 		read_kld(p->fts_path, p->fts_name);
 	}
