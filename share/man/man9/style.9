@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 28, 2022
+.Dd January 29, 2024
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -107,12 +107,6 @@ lines should only be added when making substantial changes to the file,
 not for trivial changes.
 .Pp
 After any copyright and license comment, there is a blank line.
-Include
-.Li $\&FreeBSD$
-or
-.Li __FBSDID("$\&FreeBSD$");
-only if you are certain the new code will be merged to stable/12.
-The tag will be removed from legacy code in the future.
 Non-C/C++ source files follow the example above, while C/C++ source files
 follow the one below.
 Version control system ID tags should only exist once in a file
