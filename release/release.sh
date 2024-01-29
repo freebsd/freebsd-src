@@ -89,11 +89,9 @@ env_setup() {
 	SRC_CONF="/dev/null"
 
 	# The number of make(1) jobs, defaults to the number of CPUs available
-	# for buildworld, and half of number of CPUs available for buildkernel
-	# and 'make release'.
+	# for buildworld, and half of number of CPUs available for buildkernel.
 	WORLD_FLAGS="-j$(sysctl -n hw.ncpu)"
 	KERNEL_FLAGS="-j$(( $(( $(sysctl -n hw.ncpu) + 1 )) / 2))"
-	RELEASE_FLAGS="-j$(( $(( $(sysctl -n hw.ncpu) + 1 )) / 2))"
 
 	MAKE_FLAGS="-s"
 
@@ -192,7 +190,7 @@ env_check() {
 		${CONF_FILES}"
 	RELEASE_KMAKEFLAGS="${MAKE_FLAGS} ${KERNEL_FLAGS} \
 		KERNCONF=\"${KERNEL}\" ${ARCH_FLAGS} ${CONF_FILES}"
-	RELEASE_RMAKEFLAGS="${ARCH_FLAGS} ${RELEASE_FLAGS} \
+	RELEASE_RMAKEFLAGS="${ARCH_FLAGS} \
 		KERNCONF=\"${KERNEL}\" ${CONF_FILES} ${SRCPORTS} \
 		WITH_DVD=${WITH_DVD} WITH_VMIMAGES=${WITH_VMIMAGES} \
 		WITH_CLOUDWARE=${WITH_CLOUDWARE} XZ_THREADS=${XZ_THREADS}"
