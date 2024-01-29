@@ -74,15 +74,15 @@ build_ack_entry(struct tcp_ackent *ae, struct tcphdr *th, struct mbuf *m,
 		ae->flags |= TSTMP_LRO;
 	else if (m->m_flags & M_TSTMP)
 		ae->flags |= TSTMP_HDWR;
-	ae->seq = ntohl(th->th_seq);
-	ae->ack = ntohl(th->th_ack);
+	ae->seq = th->th_seq;
+	ae->ack = th->th_ack;
 	ae->flags |= tcp_get_flags(th);
 	if (ts_ptr != NULL) {
 		ae->ts_value = ntohl(ts_ptr[1]);
 		ae->ts_echo = ntohl(ts_ptr[2]);
 		ae->flags |= HAS_TSTMP;
 	}
-	ae->win = ntohs(th->th_win);
+	ae->win = th->th_win;
 	ae->codepoint = iptos;
 }
 
@@ -310,6 +310,7 @@ do_bpf_strip_and_compress(struct tcpcb *tp, struct lro_ctrl *lc,
 	th = tcp_lro_get_th(m);
 
 	th->th_sum = 0;		/* TCP checksum is valid. */
+	tcp_fields_to_host(th);
 
 	/* Check if ACK can be compressed */
 	can_compress = tcp_lro_ack_valid(m, th, &ts_ptr, &other_opts);
