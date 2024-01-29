@@ -1047,7 +1047,7 @@ vap_update_preamble(void *arg, int npending)
 	IEEE80211_UNLOCK(ic);
 
 	/* Driver notification */
-	if (vap->iv_erp_protmode_update != NULL)
+	if (vap->iv_preamble_update != NULL)
 		vap->iv_preamble_update(vap);
 }
 
@@ -1187,7 +1187,7 @@ vap_update_ht_protmode(void *arg, int npending)
 	  ic->ic_curhtprotmode);
 
 	/* Driver update */
-	if (vap->iv_erp_protmode_update != NULL)
+	if (vap->iv_ht_protmode_update != NULL)
 		vap->iv_ht_protmode_update(vap);
 }
 
