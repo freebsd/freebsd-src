@@ -415,10 +415,6 @@ skip_vnet:
 				break;
 #endif
 			} /* end switch */
-			/*
-			 * Convert TCP protocol specific fields to host format.
-			 */
-			tcp_fields_to_host(th);
 			off = th->th_off << 2;
 			if (off < sizeof (struct tcphdr) || off > tlen) {
 				printf("off:%d < hdrlen:%zu || > tlen:%u -- dump\n",
