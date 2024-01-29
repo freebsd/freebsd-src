@@ -344,25 +344,25 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	qsize = ctrlr->adminq.num_entries - 1;
 
 	aqa = 0;
-	aqa = (qsize & NVME_AQA_REG_ACQS_MASK) << NVME_AQA_REG_ACQS_SHIFT;
-	aqa |= (qsize & NVME_AQA_REG_ASQS_MASK) << NVME_AQA_REG_ASQS_SHIFT;
+	aqa |= NVMEF(NVME_AQA_REG_ACQS, qsize);
+	aqa |= NVMEF(NVME_AQA_REG_ASQS, qsize);
 	nvme_mmio_write_4(ctrlr, aqa, aqa);
 
 	/* Initialization values for CC */
 	cc = 0;
-	cc |= 1 << NVME_CC_REG_EN_SHIFT;
-	cc |= 0 << NVME_CC_REG_CSS_SHIFT;
-	cc |= 0 << NVME_CC_REG_AMS_SHIFT;
-	cc |= 0 << NVME_CC_REG_SHN_SHIFT;
-	cc |= 6 << NVME_CC_REG_IOSQES_SHIFT; /* SQ entry size == 64 == 2^6 */
-	cc |= 4 << NVME_CC_REG_IOCQES_SHIFT; /* CQ entry size == 16 == 2^4 */
+	cc |= NVMEF(NVME_CC_REG_EN, 1);
+	cc |= NVMEF(NVME_CC_REG_CSS, 0);
+	cc |= NVMEF(NVME_CC_REG_AMS, 0);
+	cc |= NVMEF(NVME_CC_REG_SHN, 0);
+	cc |= NVMEF(NVME_CC_REG_IOSQES, 6); /* SQ entry size == 64 == 2^6 */
+	cc |= NVMEF(NVME_CC_REG_IOCQES, 4); /* CQ entry size == 16 == 2^4 */
 
 	/*
 	 * Use the Memory Page Size selected during device initialization.  Note
 	 * that value stored in mps is suitable to use here without adjusting by
 	 * NVME_MPS_SHIFT.
 	 */
-	cc |= ctrlr->mps << NVME_CC_REG_MPS_SHIFT;
+	cc |= NVMEF(NVME_CC_REG_MPS, ctrlr->mps);
 
 	nvme_ctrlr_barrier(ctrlr, BUS_SPACE_BARRIER_WRITE);
 	nvme_mmio_write_4(ctrlr, cc, cc);
@@ -1557,7 +1557,7 @@ nvme_ctrlr_shutdown(struct nvme_controller *ctrlr)
 
 	cc = nvme_mmio_read_4(ctrlr, cc);
 	cc &= ~NVMEM(NVME_CC_REG_SHN);
-	cc |= NVME_SHN_NORMAL << NVME_CC_REG_SHN_SHIFT;
+	cc |= NVMEF(NVME_CC_REG_SHN, NVME_SHN_NORMAL);
 	nvme_mmio_write_4(ctrlr, cc, cc);
 
 	timeout = ticks + (ctrlr->cdata.rtd3e == 0 ? 5 * hz :

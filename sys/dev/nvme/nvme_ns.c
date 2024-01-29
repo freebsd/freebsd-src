@@ -286,7 +286,8 @@ nvme_bio_child_inbed(struct bio *parent, int bio_error)
 		bzero(&parent_cpl, sizeof(parent_cpl));
 		if (parent->bio_flags & BIO_ERROR) {
 			parent_cpl.status &= ~NVMEM(NVME_STATUS_SC);
-			parent_cpl.status |= (NVME_SC_DATA_TRANSFER_ERROR) << NVME_STATUS_SC_SHIFT;
+			parent_cpl.status |= NVMEF(NVME_STATUS_SC,
+			    NVME_SC_DATA_TRANSFER_ERROR);
 		}
 		nvme_ns_bio_done(parent, &parent_cpl);
 	}
