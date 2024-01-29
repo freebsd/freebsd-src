@@ -265,4 +265,12 @@ memcpy_and_pad(void *dst, size_t dstlen, const void *src, size_t len, int ch)
 	memset(_ptr + _o, _c, sizeof(*(ptr)) - _o);			\
 })
 
+#define	memset_after(ptr, bytepat, smember)				\
+({									\
+	uint8_t *_ptr = (uint8_t *)(ptr);				\
+	int _c = (int)(bytepat);					\
+	size_t _o = offsetofend(typeof(*(ptr)), smember);		\
+	memset(_ptr + _o, _c, sizeof(*(ptr)) - _o);			\
+})
+
 #endif	/* _LINUXKPI_LINUX_STRING_H_ */
