@@ -369,15 +369,15 @@ static void pci_nvme_io_done(struct blockif_req *, int);
 
 /* Controller Configuration utils */
 #define	NVME_CC_GET_EN(cc) \
-	((cc) >> NVME_CC_REG_EN_SHIFT & NVME_CC_REG_EN_MASK)
+	NVMEV(NVME_CC_REG_EN, cc)
 #define	NVME_CC_GET_CSS(cc) \
-	((cc) >> NVME_CC_REG_CSS_SHIFT & NVME_CC_REG_CSS_MASK)
+	NVMEV(NVME_CC_REG_CSS, cc)
 #define	NVME_CC_GET_SHN(cc) \
-	((cc) >> NVME_CC_REG_SHN_SHIFT & NVME_CC_REG_SHN_MASK)
+	NVMEV(NVME_CC_REG_SHN, cc)
 #define	NVME_CC_GET_IOSQES(cc) \
-	((cc) >> NVME_CC_REG_IOSQES_SHIFT & NVME_CC_REG_IOSQES_MASK)
+	NVMEV(NVME_CC_REG_IOSQES, cc)
 #define	NVME_CC_GET_IOCQES(cc) \
-	((cc) >> NVME_CC_REG_IOCQES_SHIFT & NVME_CC_REG_IOCQES_MASK)
+	NVMEV(NVME_CC_REG_IOCQES, cc)
 
 #define	NVME_CC_WRITE_MASK \
 	((NVME_CC_REG_EN_MASK << NVME_CC_REG_EN_SHIFT) | \
@@ -391,7 +391,7 @@ static void pci_nvme_io_done(struct blockif_req *, int);
 
 /* Controller Status utils */
 #define	NVME_CSTS_GET_RDY(sts) \
-	((sts) >> NVME_CSTS_REG_RDY_SHIFT & NVME_CSTS_REG_RDY_MASK)
+	NVMEV(NVME_CSTS_REG_RDY, sts)
 
 #define	NVME_CSTS_RDY	(1 << NVME_CSTS_REG_RDY_SHIFT)
 #define	NVME_CSTS_CFS	(1 << NVME_CSTS_REG_CFS_SHIFT)
@@ -1085,8 +1085,7 @@ pci_nvme_init_controller(struct pci_nvme_softc *sc)
 	DPRINTF("%s mapping Admin-SQ guest 0x%lx, host: %p",
 	        __func__, sc->regs.asq, sc->submit_queues[0].qbase);
 
-	acqs = ONE_BASED((sc->regs.aqa >> NVME_AQA_REG_ACQS_SHIFT) &
-	    NVME_AQA_REG_ACQS_MASK);
+	acqs = ONE_BASED(NVMEV(NVME_AQA_REG_ACQS, sc->regs.aqa));
 	if (acqs < 2) {
 		EPRINTLN("%s: illegal ACQS value %#x (aqa=%#x)", __func__,
 		    acqs - 1, sc->regs.aqa);
@@ -2083,8 +2082,8 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 			break;
 		case NVME_OPC_FORMAT_NVM:
 			DPRINTF("%s command FORMAT_NVM", __func__);
-			if ((sc->ctrldata.oacs &
-			    (1 << NVME_CTRLR_DATA_OACS_FORMAT_SHIFT)) == 0) {
+			if (NVMEV(NVME_CTRLR_DATA_OACS_FORMAT,
+			    sc->ctrldata.oacs) == 0) {
 				pci_nvme_status_genc(&compl.status, NVME_SC_INVALID_OPCODE);
 				break;
 			}
