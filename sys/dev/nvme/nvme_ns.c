@@ -180,10 +180,8 @@ nvme_ns_get_sector_size(struct nvme_namespace *ns)
 {
 	uint8_t flbas_fmt, lbads;
 
-	flbas_fmt = (ns->data.flbas >> NVME_NS_DATA_FLBAS_FORMAT_SHIFT) &
-		NVME_NS_DATA_FLBAS_FORMAT_MASK;
-	lbads = (ns->data.lbaf[flbas_fmt] >> NVME_NS_DATA_LBAF_LBADS_SHIFT) &
-		NVME_NS_DATA_LBAF_LBADS_MASK;
+	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, ns->data.flbas);
+	lbads = NVMEV(NVME_NS_DATA_LBAF_LBADS, ns->data.lbaf[flbas_fmt]);
 
 	return (1 << lbads);
 }
@@ -230,8 +228,7 @@ nvme_ns_get_stripesize(struct nvme_namespace *ns)
 {
 	uint32_t ss;
 
-	if (((ns->data.nsfeat >> NVME_NS_DATA_NSFEAT_NPVALID_SHIFT) &
-	    NVME_NS_DATA_NSFEAT_NPVALID_MASK) != 0) {
+	if (NVMEV(NVME_NS_DATA_NSFEAT_NPVALID, ns->data.nsfeat) != 0) {
 		ss = nvme_ns_get_sector_size(ns);
 		if (ns->data.npwa != 0)
 			return ((ns->data.npwa + 1) * ss);
@@ -551,8 +548,8 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	if (ns->data.nsze == 0)
 		return (ENXIO);
 
-	flbas_fmt = (ns->data.flbas >> NVME_NS_DATA_FLBAS_FORMAT_SHIFT) &
-		NVME_NS_DATA_FLBAS_FORMAT_MASK;
+	flbas_fmt = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, ns->data.flbas);
+
 	/*
 	 * Note: format is a 0-based value, so > is appropriate here,
 	 *  not >=.
@@ -584,8 +581,7 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	if (nvme_ctrlr_has_dataset_mgmt(&ctrlr->cdata))
 		ns->flags |= NVME_NS_DEALLOCATE_SUPPORTED;
 
-	vwc_present = (ctrlr->cdata.vwc >> NVME_CTRLR_DATA_VWC_PRESENT_SHIFT) &
-		NVME_CTRLR_DATA_VWC_PRESENT_MASK;
+	vwc_present = NVMEV(NVME_CTRLR_DATA_VWC_PRESENT, ctrlr->cdata.vwc);
 	if (vwc_present)
 		ns->flags |= NVME_NS_FLUSH_SUPPORTED;
 

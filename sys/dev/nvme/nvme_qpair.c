@@ -1068,7 +1068,7 @@ nvme_qpair_timeout(void *arg)
 		 * usually doesn't).
 		 */
 		csts = nvme_mmio_read_4(ctrlr, csts);
-		cfs = (csts >> NVME_CSTS_REG_CFS_SHIFT) & NVME_CSTS_REG_CFS_MASK;
+		cfs = NVMEV(NVME_CSTS_REG_CFS, csts);
 		if (csts == NVME_GONE || cfs == 1)
 			goto do_reset;
 

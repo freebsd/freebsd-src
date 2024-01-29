@@ -247,8 +247,7 @@ nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr, int desired_val)
 		csts = nvme_mmio_read_4(ctrlr, csts);
 		if (csts == NVME_GONE)		/* Hot unplug. */
 			return (ENXIO);
-		if (((csts >> NVME_CSTS_REG_RDY_SHIFT) & NVME_CSTS_REG_RDY_MASK)
-		    == desired_val)
+		if (NVMEV(NVME_CSTS_REG_RDY, csts) == desired_val)
 			break;
 		if (timeout - ticks < 0) {
 			nvme_printf(ctrlr, "controller ready did not become %d "
@@ -274,8 +273,8 @@ nvme_ctrlr_disable(struct nvme_controller *ctrlr)
 	cc = nvme_mmio_read_4(ctrlr, cc);
 	csts = nvme_mmio_read_4(ctrlr, csts);
 
-	en = (cc >> NVME_CC_REG_EN_SHIFT) & NVME_CC_REG_EN_MASK;
-	rdy = (csts >> NVME_CSTS_REG_RDY_SHIFT) & NVME_CSTS_REG_RDY_MASK;
+	en = NVMEV(NVME_CC_REG_EN, cc);
+	rdy = NVMEV(NVME_CSTS_REG_RDY, csts);
 
 	/*
 	 * Per 3.1.5 in NVME 1.3 spec, transitioning CC.EN from 0 to 1
@@ -321,8 +320,8 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	cc = nvme_mmio_read_4(ctrlr, cc);
 	csts = nvme_mmio_read_4(ctrlr, csts);
 
-	en = (cc >> NVME_CC_REG_EN_SHIFT) & NVME_CC_REG_EN_MASK;
-	rdy = (csts >> NVME_CSTS_REG_RDY_SHIFT) & NVME_CSTS_REG_RDY_MASK;
+	en = NVMEV(NVME_CC_REG_EN, cc);
+	rdy = NVMEV(NVME_CSTS_REG_RDY, csts);
 
 	/*
 	 * See note in nvme_ctrlr_disable. Short circuit if we're already enabled.
