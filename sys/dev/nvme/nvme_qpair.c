@@ -493,9 +493,9 @@ nvme_qpair_manual_complete_tracker(
 
 	cpl.sqid = qpair->id;
 	cpl.cid = tr->cid;
-	cpl.status |= (sct & NVME_STATUS_SCT_MASK) << NVME_STATUS_SCT_SHIFT;
-	cpl.status |= (sc & NVME_STATUS_SC_MASK) << NVME_STATUS_SC_SHIFT;
-	cpl.status |= (dnr & NVME_STATUS_DNR_MASK) << NVME_STATUS_DNR_SHIFT;
+	cpl.status |= NVMEF(NVME_STATUS_SCT, sct);
+	cpl.status |= NVMEF(NVME_STATUS_SC, sc);
+	cpl.status |= NVMEF(NVME_STATUS_DNR, dnr);
 	/* M=0 : this is artificial so no data in error log page */
 	/* CRD=0 : this is artificial and no delayed retry support anyway */
 	/* P=0 : phase not checked */
@@ -511,8 +511,8 @@ nvme_qpair_manual_complete_request(struct nvme_qpair *qpair,
 
 	memset(&cpl, 0, sizeof(cpl));
 	cpl.sqid = qpair->id;
-	cpl.status |= (sct & NVME_STATUS_SCT_MASK) << NVME_STATUS_SCT_SHIFT;
-	cpl.status |= (sc & NVME_STATUS_SC_MASK) << NVME_STATUS_SC_SHIFT;
+	cpl.status |= NVMEF(NVME_STATUS_SCT, sct);
+	cpl.status |= NVMEF(NVME_STATUS_SC, sc);
 
 	error = nvme_completion_is_error(&cpl);
 
