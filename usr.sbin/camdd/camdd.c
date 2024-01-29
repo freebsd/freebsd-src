@@ -1430,9 +1430,8 @@ camdd_probe_pass_nvme(struct cam_device *cam_dev, union ccb *ccb,
 
 	*maxsector = nsdata.nsze;
 	/* The LBA Data Size (LBADS) is reported as a power of 2 */
-	format = nsdata.flbas & NVME_NS_DATA_FLBAS_FORMAT_MASK;
-	lbads = (nsdata.lbaf[format] >> NVME_NS_DATA_LBAF_LBADS_SHIFT) &
-	    NVME_NS_DATA_LBAF_LBADS_MASK;
+	format = NVMEV(NVME_NS_DATA_FLBAS_FORMAT, nsdata.flbas);
+	lbads = NVMEV(NVME_NS_DATA_LBAF_LBADS, nsdata.lbaf[format]);
 	*block_len = 1 << lbads;
 
 	retval = 0;
