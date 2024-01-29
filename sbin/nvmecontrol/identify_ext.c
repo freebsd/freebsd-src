@@ -56,41 +56,27 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	uint8_t fwug;
 
 	oncs = cdata->oncs;
-	compare = (oncs >> NVME_CTRLR_DATA_ONCS_COMPARE_SHIFT) &
-		NVME_CTRLR_DATA_ONCS_COMPARE_MASK;
-	write_unc = (oncs >> NVME_CTRLR_DATA_ONCS_WRITE_UNC_SHIFT) &
-		NVME_CTRLR_DATA_ONCS_WRITE_UNC_MASK;
-	dsm = (oncs >> NVME_CTRLR_DATA_ONCS_DSM_SHIFT) &
-		NVME_CTRLR_DATA_ONCS_DSM_MASK;
+	compare = NVMEV(NVME_CTRLR_DATA_ONCS_COMPARE, oncs);
+	write_unc = NVMEV(NVME_CTRLR_DATA_ONCS_WRITE_UNC, oncs);
+	dsm = NVMEV(NVME_CTRLR_DATA_ONCS_DSM, oncs);
 
 	oacs = cdata->oacs;
-	security = (oacs >> NVME_CTRLR_DATA_OACS_SECURITY_SHIFT) &
-		NVME_CTRLR_DATA_OACS_SECURITY_MASK;
-	fmt = (oacs >> NVME_CTRLR_DATA_OACS_FORMAT_SHIFT) &
-		NVME_CTRLR_DATA_OACS_FORMAT_MASK;
-	fw = (oacs >> NVME_CTRLR_DATA_OACS_FIRMWARE_SHIFT) &
-		NVME_CTRLR_DATA_OACS_FIRMWARE_MASK;
-	nsmgmt = (oacs >> NVME_CTRLR_DATA_OACS_NSMGMT_SHIFT) &
-		NVME_CTRLR_DATA_OACS_NSMGMT_MASK;
+	security = NVMEV(NVME_CTRLR_DATA_OACS_SECURITY, oacs);
+	fmt = NVMEV(NVME_CTRLR_DATA_OACS_FORMAT, oacs);
+	fw = NVMEV(NVME_CTRLR_DATA_OACS_FIRMWARE, oacs);
+	nsmgmt = NVMEV(NVME_CTRLR_DATA_OACS_NSMGMT, oacs);
 
-	fw_num_slots = (cdata->frmw >> NVME_CTRLR_DATA_FRMW_NUM_SLOTS_SHIFT) &
-		NVME_CTRLR_DATA_FRMW_NUM_SLOTS_MASK;
-	fw_slot1_ro = (cdata->frmw >> NVME_CTRLR_DATA_FRMW_SLOT1_RO_SHIFT) &
-		NVME_CTRLR_DATA_FRMW_SLOT1_RO_MASK;
+	fw_num_slots = NVMEV(NVME_CTRLR_DATA_FRMW_NUM_SLOTS, cdata->frmw);
+	fw_slot1_ro = NVMEV(NVME_CTRLR_DATA_FRMW_SLOT1_RO, cdata->frmw);
 	fwug = cdata->fwug;
 
-	ns_smart = (cdata->lpa >> NVME_CTRLR_DATA_LPA_NS_SMART_SHIFT) &
-		NVME_CTRLR_DATA_LPA_NS_SMART_MASK;
+	ns_smart = NVMEV(NVME_CTRLR_DATA_LPA_NS_SMART, cdata->lpa);
 
-	sqes_min = (cdata->sqes >> NVME_CTRLR_DATA_SQES_MIN_SHIFT) &
-		NVME_CTRLR_DATA_SQES_MIN_MASK;
-	sqes_max = (cdata->sqes >> NVME_CTRLR_DATA_SQES_MAX_SHIFT) &
-		NVME_CTRLR_DATA_SQES_MAX_MASK;
+	sqes_min = NVMEV(NVME_CTRLR_DATA_SQES_MIN, cdata->sqes);
+	sqes_max = NVMEV(NVME_CTRLR_DATA_SQES_MAX, cdata->sqes);
 
-	cqes_min = (cdata->cqes >> NVME_CTRLR_DATA_CQES_MIN_SHIFT) &
-		NVME_CTRLR_DATA_CQES_MIN_MASK;
-	cqes_max = (cdata->cqes >> NVME_CTRLR_DATA_CQES_MAX_SHIFT) &
-		NVME_CTRLR_DATA_CQES_MAX_MASK;
+	cqes_min = NVMEV(NVME_CTRLR_DATA_CQES_MIN, cdata->cqes);
+	cqes_max = NVMEV(NVME_CTRLR_DATA_CQES_MAX, cdata->cqes);
 
 	printf("Controller Capabilities/Features\n");
 	printf("================================\n");
@@ -107,14 +93,14 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 		cdata->ieee[2], cdata->ieee[1], cdata->ieee[0]);
 	printf("Multi-Path I/O Capabilities: %s%s%s%s%s\n",
 	    (cdata->mic == 0) ? "Not Supported" : "",
-	    ((cdata->mic >> NVME_CTRLR_DATA_MIC_ANAR_SHIFT) &
-	     NVME_CTRLR_DATA_MIC_SRIOVVF_MASK) ? "Asymmetric, " : "",
-	    ((cdata->mic >> NVME_CTRLR_DATA_MIC_SRIOVVF_SHIFT) &
-	     NVME_CTRLR_DATA_MIC_SRIOVVF_MASK) ? "SR-IOV VF, " : "",
-	    ((cdata->mic >> NVME_CTRLR_DATA_MIC_MCTRLRS_SHIFT) &
-	     NVME_CTRLR_DATA_MIC_MCTRLRS_MASK) ? "Multiple controllers, " : "",
-	    ((cdata->mic >> NVME_CTRLR_DATA_MIC_MPORTS_SHIFT) &
-	     NVME_CTRLR_DATA_MIC_MPORTS_MASK) ? "Multiple ports" : "");
+	    NVMEV(NVME_CTRLR_DATA_MIC_ANAR, cdata->mic) != 0 ?
+	    "Asymmetric, " : "",
+	    NVMEV(NVME_CTRLR_DATA_MIC_SRIOVVF, cdata->mic) != 0 ?
+	    "SR-IOV VF, " : "",
+	    NVMEV(NVME_CTRLR_DATA_MIC_MCTRLRS, cdata->mic) != 0 ?
+	    "Multiple controllers, " : "",
+	    NVMEV(NVME_CTRLR_DATA_MIC_MPORTS, cdata->mic) != 0 ?
+	    "Multiple ports" : "");
 	/* TODO: Use CAP.MPSMIN to determine true memory page size. */
 	printf("Max Data Transfer Size:      ");
 	if (cdata->mdts == 0)
@@ -122,24 +108,19 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	else
 		printf("%ld bytes\n", PAGE_SIZE * (1L << cdata->mdts));
 	printf("Sanitize Crypto Erase:       %s\n",
-		((cdata->sanicap >> NVME_CTRLR_DATA_SANICAP_CES_SHIFT) &
-		    NVME_CTRLR_DATA_SANICAP_CES_MASK) ?
-		    "Supported" : "Not Supported");
+	    NVMEV(NVME_CTRLR_DATA_SANICAP_CES, cdata->sanicap) != 0 ?
+	    "Supported" : "Not Supported");
 	printf("Sanitize Block Erase:        %s\n",
-		((cdata->sanicap >> NVME_CTRLR_DATA_SANICAP_BES_SHIFT) &
-		    NVME_CTRLR_DATA_SANICAP_BES_MASK) ?
-		    "Supported" : "Not Supported");
+	    NVMEV(NVME_CTRLR_DATA_SANICAP_BES, cdata->sanicap) != 0 ?
+	    "Supported" : "Not Supported");
 	printf("Sanitize Overwrite:          %s\n",
-		((cdata->sanicap >> NVME_CTRLR_DATA_SANICAP_OWS_SHIFT) &
-		    NVME_CTRLR_DATA_SANICAP_OWS_MASK) ?
-		    "Supported" : "Not Supported");
+	    NVMEV(NVME_CTRLR_DATA_SANICAP_OWS, cdata->sanicap) != 0 ?
+	    "Supported" : "Not Supported");
 	printf("Sanitize NDI:                %s\n",
-		((cdata->sanicap >> NVME_CTRLR_DATA_SANICAP_NDI_SHIFT) &
-		    NVME_CTRLR_DATA_SANICAP_NDI_MASK) ?
-		    "Supported" : "Not Supported");
+	    NVMEV(NVME_CTRLR_DATA_SANICAP_NDI, cdata->sanicap) != 0 ?
+	    "Supported" : "Not Supported");
 	printf("Sanitize NODMMAS:            ");
-	switch (((cdata->sanicap >> NVME_CTRLR_DATA_SANICAP_NODMMAS_SHIFT) &
-	    NVME_CTRLR_DATA_SANICAP_NODMMAS_MASK)) {
+	switch (NVMEV(NVME_CTRLR_DATA_SANICAP_NODMMAS, cdata->sanicap)) {
 	case NVME_CTRLR_DATA_SANICAP_NODMMAS_UNDEF:
 		printf("Undefined\n");
 		break;
@@ -170,32 +151,26 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	printf("Namespace Management:        %s\n",
 		nsmgmt ? "Supported" : "Not Supported");
 	printf("Device Self-test:            %sSupported\n",
-	    ((oacs >> NVME_CTRLR_DATA_OACS_SELFTEST_SHIFT) &
-	     NVME_CTRLR_DATA_OACS_SELFTEST_MASK) ? "" : "Not ");
+	    NVMEV(NVME_CTRLR_DATA_OACS_SELFTEST, oacs) != 0 ? "" : "Not ");
 	printf("Directives:                  %sSupported\n",
-	    ((oacs >> NVME_CTRLR_DATA_OACS_DIRECTIVES_SHIFT) &
-	     NVME_CTRLR_DATA_OACS_DIRECTIVES_MASK) ? "" : "Not ");
+	    NVMEV(NVME_CTRLR_DATA_OACS_DIRECTIVES, oacs) != 0 ? "" : "Not ");
 	printf("NVMe-MI Send/Receive:        %sSupported\n",
-	    ((oacs >> NVME_CTRLR_DATA_OACS_NVMEMI_SHIFT) &
-	     NVME_CTRLR_DATA_OACS_NVMEMI_MASK) ? "" : "Not ");
+	    NVMEV(NVME_CTRLR_DATA_OACS_NVMEMI, oacs) != 0 ? "" : "Not ");
 	printf("Virtualization Management:   %sSupported\n",
-	    ((oacs >> NVME_CTRLR_DATA_OACS_VM_SHIFT) &
-	     NVME_CTRLR_DATA_OACS_VM_MASK) ? "" : "Not ");
+	    NVMEV(NVME_CTRLR_DATA_OACS_VM, oacs) != 0 ? "" : "Not ");
 	printf("Doorbell Buffer Config:      %sSupported\n",
-	    ((oacs >> NVME_CTRLR_DATA_OACS_DBBUFFER_SHIFT) &
-	     NVME_CTRLR_DATA_OACS_DBBUFFER_MASK) ? "" : "Not ");
+	    NVMEV(NVME_CTRLR_DATA_OACS_DBBUFFER, oacs) != 0 ? "" : "Not ");
 	printf("Get LBA Status:              %sSupported\n",
-	    ((oacs >> NVME_CTRLR_DATA_OACS_GETLBA_SHIFT) &
-	     NVME_CTRLR_DATA_OACS_GETLBA_MASK) ? "" : "Not ");
+	    NVMEV(NVME_CTRLR_DATA_OACS_GETLBA, oacs) != 0 ? "" : "Not ");
 	printf("Sanitize:                    ");
 	if (cdata->sanicap != 0) {
 		printf("%s%s%s\n",
-		    ((cdata->sanicap >> NVME_CTRLR_DATA_SANICAP_CES_SHIFT) &
-		     NVME_CTRLR_DATA_SANICAP_CES_MASK) ? "crypto, " : "",
-		    ((cdata->sanicap >> NVME_CTRLR_DATA_SANICAP_BES_SHIFT) &
-		     NVME_CTRLR_DATA_SANICAP_BES_MASK) ? "block, " : "",
-		    ((cdata->sanicap >> NVME_CTRLR_DATA_SANICAP_OWS_SHIFT) &
-		     NVME_CTRLR_DATA_SANICAP_OWS_MASK) ? "overwrite" : "");
+		    NVMEV(NVME_CTRLR_DATA_SANICAP_CES, cdata->sanicap) != 0 ?
+		    "crypto, " : "",
+		    NVMEV(NVME_CTRLR_DATA_SANICAP_BES, cdata->sanicap) != 0 ?
+		    "block, " : "",
+		    NVMEV(NVME_CTRLR_DATA_SANICAP_OWS, cdata->sanicap) != 0 ?
+		    "overwrite" : "");
 	} else {
 		printf("Not Supported\n");
 	}
@@ -244,36 +219,30 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	printf("Dataset Management Command:  %s\n",
 		dsm ? "Supported" : "Not Supported");
 	printf("Write Zeroes Command:        %sSupported\n",
-	    ((oncs >> NVME_CTRLR_DATA_ONCS_WRZERO_SHIFT) &
-	     NVME_CTRLR_DATA_ONCS_WRZERO_MASK) ? "" : "Not ");
+	    NVMEV(NVME_CTRLR_DATA_ONCS_WRZERO, oncs) != 0 ? "" : "Not ");
 	printf("Save Features:               %sSupported\n",
-	    ((oncs >> NVME_CTRLR_DATA_ONCS_SAVEFEAT_SHIFT) &
-	     NVME_CTRLR_DATA_ONCS_SAVEFEAT_MASK) ? "" : "Not ");
+	    NVMEV(NVME_CTRLR_DATA_ONCS_SAVEFEAT, oncs) != 0 ? "" : "Not ");
 	printf("Reservations:                %sSupported\n",
-	    ((oncs >> NVME_CTRLR_DATA_ONCS_RESERV_SHIFT) &
-	     NVME_CTRLR_DATA_ONCS_RESERV_MASK) ? "" : "Not ");
+	    NVMEV(NVME_CTRLR_DATA_ONCS_RESERV, oncs) != 0 ? "" : "Not ");
 	printf("Timestamp feature:           %sSupported\n",
-	    ((oncs >> NVME_CTRLR_DATA_ONCS_TIMESTAMP_SHIFT) &
-	     NVME_CTRLR_DATA_ONCS_TIMESTAMP_MASK) ? "" : "Not ");
+	    NVMEV(NVME_CTRLR_DATA_ONCS_TIMESTAMP, oncs) != 0 ? "" : "Not ");
 	printf("Verify feature:              %sSupported\n",
-	    ((oncs >> NVME_CTRLR_DATA_ONCS_VERIFY_SHIFT) &
-	     NVME_CTRLR_DATA_ONCS_VERIFY_MASK) ? "" : "Not ");
+	    NVMEV(NVME_CTRLR_DATA_ONCS_VERIFY, oncs) != 0 ? "" : "Not ");
 	printf("Fused Operation Support:     %s%s\n",
 	    (cdata->fuses == 0) ? "Not Supported" : "",
-	    ((cdata->fuses >> NVME_CTRLR_DATA_FUSES_CNW_SHIFT) &
-	     NVME_CTRLR_DATA_FUSES_CNW_MASK) ? "Compare and Write" : "");
+	    NVMEV(NVME_CTRLR_DATA_FUSES_CNW, cdata->fuses) != 0 ?
+	    "Compare and Write" : "");
 	printf("Format NVM Attributes:       %s%s Erase, %s Format\n",
-	    ((cdata->fna >> NVME_CTRLR_DATA_FNA_CRYPTO_ERASE_SHIFT) &
-	     NVME_CTRLR_DATA_FNA_CRYPTO_ERASE_MASK) ? "Crypto Erase, " : "",
-	    ((cdata->fna >> NVME_CTRLR_DATA_FNA_ERASE_ALL_SHIFT) &
-	     NVME_CTRLR_DATA_FNA_ERASE_ALL_MASK) ? "All-NVM" : "Per-NS",
-	    ((cdata->fna >> NVME_CTRLR_DATA_FNA_FORMAT_ALL_SHIFT) &
-	     NVME_CTRLR_DATA_FNA_FORMAT_ALL_MASK) ? "All-NVM" : "Per-NS");
-	t = (cdata->vwc >> NVME_CTRLR_DATA_VWC_ALL_SHIFT) &
-	    NVME_CTRLR_DATA_VWC_ALL_MASK;
+	    NVMEV(NVME_CTRLR_DATA_FNA_CRYPTO_ERASE, cdata->fna) != 0 ?
+	    "Crypto Erase, " : "",
+	    NVMEV(NVME_CTRLR_DATA_FNA_ERASE_ALL, cdata->fna) != 0 ?
+	    "All-NVM" : "Per-NS",
+	    NVMEV(NVME_CTRLR_DATA_FNA_FORMAT_ALL, cdata->fna) != 0 ?
+	    "All-NVM" : "Per-NS");
+	t = NVMEV(NVME_CTRLR_DATA_VWC_ALL, cdata->vwc);
 	printf("Volatile Write Cache:        %s%s\n",
-	    ((cdata->vwc >> NVME_CTRLR_DATA_VWC_PRESENT_SHIFT) &
-	     NVME_CTRLR_DATA_VWC_PRESENT_MASK) ? "Present" : "Not Present",
+	    NVMEV(NVME_CTRLR_DATA_VWC_PRESENT, cdata->vwc) != 0 ?
+	    "Present" : "Not Present",
 	    (t == NVME_CTRLR_DATA_VWC_ALL_NO) ? ", no flush all" :
 	    (t == NVME_CTRLR_DATA_VWC_ALL_YES) ? ", flush all" : "");
 
