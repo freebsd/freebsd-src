@@ -380,14 +380,14 @@ static void pci_nvme_io_done(struct blockif_req *, int);
 	NVMEV(NVME_CC_REG_IOCQES, cc)
 
 #define	NVME_CC_WRITE_MASK \
-	((NVME_CC_REG_EN_MASK << NVME_CC_REG_EN_SHIFT) | \
-	 (NVME_CC_REG_IOSQES_MASK << NVME_CC_REG_IOSQES_SHIFT) | \
-	 (NVME_CC_REG_IOCQES_MASK << NVME_CC_REG_IOCQES_SHIFT))
+	(NVMEM(NVME_CC_REG_EN) | \
+	 NVMEM(NVME_CC_REG_IOSQES) | \
+	 NVMEM(NVME_CC_REG_IOCQES))
 
 #define	NVME_CC_NEN_WRITE_MASK \
-	((NVME_CC_REG_CSS_MASK << NVME_CC_REG_CSS_SHIFT) | \
-	 (NVME_CC_REG_MPS_MASK << NVME_CC_REG_MPS_SHIFT) | \
-	 (NVME_CC_REG_AMS_MASK << NVME_CC_REG_AMS_SHIFT))
+	(NVMEM(NVME_CC_REG_CSS) | \
+	 NVMEM(NVME_CC_REG_MPS) | \
+	 NVMEM(NVME_CC_REG_AMS))
 
 /* Controller Status utils */
 #define	NVME_CSTS_GET_RDY(sts) \
@@ -399,11 +399,10 @@ static void pci_nvme_io_done(struct blockif_req *, int);
 /* Completion Queue status word utils */
 #define	NVME_STATUS_P	(1 << NVME_STATUS_P_SHIFT)
 #define	NVME_STATUS_MASK \
-	((NVME_STATUS_SCT_MASK << NVME_STATUS_SCT_SHIFT) |\
-	 (NVME_STATUS_SC_MASK << NVME_STATUS_SC_SHIFT))
+	(NVMEM(NVME_STATUS_SCT) | \
+	 NVMEM(NVME_STATUS_SC))
 
-#define NVME_ONCS_DSM	(NVME_CTRLR_DATA_ONCS_DSM_MASK << \
-	NVME_CTRLR_DATA_ONCS_DSM_SHIFT)
+#define NVME_ONCS_DSM	NVMEM(NVME_CTRLR_DATA_ONCS_DSM)
 
 static void nvme_feature_invalid_cb(struct pci_nvme_softc *,
     struct nvme_feature_obj *,
@@ -580,8 +579,7 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 		break;
 	}
 
-	cd->fna = NVME_CTRLR_DATA_FNA_FORMAT_ALL_MASK <<
-	    NVME_CTRLR_DATA_FNA_FORMAT_ALL_SHIFT;
+	cd->fna = NVMEM(NVME_CTRLR_DATA_FNA_FORMAT_ALL);
 
 	cd->vwc = NVME_CTRLR_DATA_VWC_ALL_NO << NVME_CTRLR_DATA_VWC_ALL_SHIFT;
 
@@ -2732,8 +2730,7 @@ pci_nvme_handle_io_cmd(struct pci_nvme_softc* sc, uint16_t idx)
 		if ((nsid == 0) || (nsid > sc->ctrldata.nn)) {
 			pci_nvme_status_genc(&status,
 			    NVME_SC_INVALID_NAMESPACE_OR_FORMAT);
-			status |=
-			    NVME_STATUS_DNR_MASK << NVME_STATUS_DNR_SHIFT;
+			status |= NVMEM(NVME_STATUS_DNR);
 			goto complete;
  		}
 
@@ -2957,8 +2954,7 @@ pci_nvme_write_bar_0(struct pci_nvme_softc *sc, uint64_t offset, int size,
 
 		if (NVME_CC_GET_SHN(ccreg)) {
 			/* perform shutdown - flush out data to backend */
-			sc->regs.csts &= ~(NVME_CSTS_REG_SHST_MASK <<
-			    NVME_CSTS_REG_SHST_SHIFT);
+			sc->regs.csts &= ~NVMEM(NVME_CSTS_REG_SHST);
 			sc->regs.csts |= NVME_SHST_COMPLETE <<
 			    NVME_CSTS_REG_SHST_SHIFT;
 		}
