@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -467,6 +467,7 @@ TrLinkOpChildren (
     UINT32                  i;
     BOOLEAN                 FirstChild;
 
+    ACPI_FUNCTION_NAME (TrLinkOpChildren);
 
     va_start (ap, NumChildren);
 
@@ -624,7 +625,7 @@ TrLinkOpChildren (
     if (AcpiGbl_CaptureComments)
     {
         AslGbl_CommentState.LatestParseOp = Op;
-        CvDbgPrint ("TrLinkOpChildren=====Set latest parse op to this op.\n");
+        CvDbgPrint ("%s=====Set latest parse op to this op.\n",  ACPI_GET_FUNCTION_NAME);
     }
 
     return (Op);

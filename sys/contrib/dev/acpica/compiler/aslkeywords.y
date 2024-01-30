@@ -9,7 +9,7 @@ NoEcho('
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -461,4 +461,15 @@ XferTypeKeyword
     : PARSEOP_XFERTYPE_8                    {$$ = TrCreateLeafOp (PARSEOP_XFERTYPE_8);}
     | PARSEOP_XFERTYPE_8_16                 {$$ = TrCreateLeafOp (PARSEOP_XFERTYPE_8_16);}
     | PARSEOP_XFERTYPE_16                   {$$ = TrCreateLeafOp (PARSEOP_XFERTYPE_16);}
+    ;
+
+ClockScaleKeyword
+    : PARSEOP_CLOCK_HZ                      {$$ = TrCreateLeafOp (PARSEOP_CLOCK_HZ);}
+    | PARSEOP_CLOCK_KHZ                     {$$ = TrCreateLeafOp (PARSEOP_CLOCK_KHZ);}
+    | PARSEOP_CLOCK_MHZ                     {$$ = TrCreateLeafOp (PARSEOP_CLOCK_MHZ);}
+    ;
+
+ClockModeKeyword
+    : PARSEOP_CLOCK_FIXED                   {$$ = TrCreateLeafOp (PARSEOP_CLOCK_FIXED);}
+    | PARSEOP_CLOCK_VARIABLE                {$$ = TrCreateLeafOp (PARSEOP_CLOCK_VARIABLE);}
     ;

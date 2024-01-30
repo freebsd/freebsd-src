@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -337,7 +337,7 @@ RsDoInterruptDescriptor (
     Descriptor->ExtendedIrq.InterruptCount  = 0;
 
     Rover = ACPI_CAST_PTR (AML_RESOURCE,
-        (&(Descriptor->ExtendedIrq.Interrupts[0])));
+        (&(Descriptor->ExtendedIrq.u.Interrupts[0])));
 
     /* Process all child initialization nodes */
 
@@ -466,7 +466,7 @@ RsDoInterruptDescriptor (
 
                 RsCreateDwordField (InitializerOp, ACPI_RESTAG_INTERRUPT,
                     CurrentByteOffset +
-                    ASL_RESDESC_OFFSET (ExtendedIrq.Interrupts[0]));
+                    ASL_RESDESC_OFFSET (ExtendedIrq.u.Interrupts[0]));
             }
         }
 
@@ -494,7 +494,7 @@ RsDoInterruptDescriptor (
     }
 
     Rnode->BufferLength =
-        (ASL_RESDESC_OFFSET (ExtendedIrq.Interrupts[0]) -
+        (ASL_RESDESC_OFFSET (ExtendedIrq.u.Interrupts[0]) -
         ASL_RESDESC_OFFSET (ExtendedIrq.DescriptorType))
         + OptionIndex + StringLength;
     return (Rnode);

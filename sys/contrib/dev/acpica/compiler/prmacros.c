@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -393,9 +393,9 @@ PrAddMacro (
     UINT16                  UseCount = 0;
     UINT16                  ArgCount = 0;
     UINT32                  Depth = 1;
+    /*UINT32                  Depth = 1;*/
     UINT32                  EndOfArgList;
     char                    BufferChar;
-
 
     /* Find the end of the arguments list */
 
@@ -437,6 +437,7 @@ PrAddMacro (
     for (i = 0; i < PR_MAX_MACRO_ARGS; i++)
     {
         Token = PrGetNextToken (NULL, PR_MACRO_SEPARATORS, Next);
+
         if (!Token)
         {
             /* This is the case for a NULL macro body */
@@ -454,14 +455,13 @@ PrAddMacro (
         }
 
         DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
-            "Macro arg: %s \n",
+            "Macro param: %s \n",
             AslGbl_CurrentLineNumber, Token);
 
         Args[i].Name = UtLocalCalloc (strlen (Token) + 1);
         strcpy (Args[i].Name, Token);
 
         Args[i].UseCount = 0;
-
         ArgCount++;
         if (ArgCount >= PR_MAX_MACRO_ARGS)
         {
@@ -476,7 +476,6 @@ PrAddMacro (
 
     /* Match each method arg in the macro body for later use */
 
-    Token = PrGetNextToken (NULL, PR_MACRO_SEPARATORS, Next);
     while (Token)
     {
         /* Search the macro arg list for matching arg */
@@ -496,12 +495,14 @@ PrAddMacro (
                 Args[i].Offset[UseCount] =
                     (Token - AslGbl_MainTokenBuffer) - MacroBodyOffset;
 
+
                 DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
                     "Macro Arg #%u: %s UseCount %u Offset %u \n",
                     AslGbl_CurrentLineNumber, i, Token,
                     UseCount+1, Args[i].Offset[UseCount]);
 
                 Args[i].UseCount++;
+
                 if (Args[i].UseCount >= PR_MAX_ARG_INSTANCES)
                 {
                     PrError (ASL_ERROR, ASL_MSG_TOO_MANY_ARGUMENTS,
@@ -596,7 +597,8 @@ PrDoMacroInvocation (
     UINT32                  TokenOffset;
     UINT32                  Length;
     UINT32                  i;
-
+    UINT32                  Diff1;
+    UINT32                  Diff2;
 
     /* Take a copy of the macro body for expansion */
 
@@ -610,6 +612,7 @@ PrDoMacroInvocation (
         /* This macro has no arguments */
 
         Token = PrGetNextToken (NULL, PR_MACRO_ARGUMENTS, Next);
+
         if (!Token)
         {
             goto BadInvocation;
@@ -634,21 +637,35 @@ PrDoMacroInvocation (
             goto BadInvocation;
         }
 
+        /*
+         * Avoid optimizing using just 1 signed int due to specific
+         * non-portable implementations of signed ints
+         */
+        Diff1 = strlen (Args->Name) > strlen (Token) ? strlen (Args->Name) -
+            strlen (Token) : 0;
+
+        Diff2 = strlen (Args->Name) < strlen (Token) ? strlen (Token) -
+            strlen (Args->Name) : 0;
+
         /* Replace all instances of this argument */
 
         for (i = 0; i < Args->UseCount; i++)
         {
-            /* Offset zero indicates "arg not used" */
-            /* TBD: Not really needed now, with UseCount available */
+            /*
+             * To test the output of the preprocessed macro function that
+             * is passed to the compiler
+             */
 
-            if (Args->Offset[i] == 0)
-            {
-                break;
-            }
+             /*
+              * fprintf (stderr, "Current token = %s \t Current arg_name = %s \
+              * \t strlen (Token) = %u \t strlen (Args->Name) = %u \t Offset = %u \
+              * \t UseCount = %u \t", Token, Args->Name, strlen (Token), \
+              *     strlen (Args->Name), Args->Offset[i], Args->UseCount);
+              */
 
-            PrReplaceData (
-                &AslGbl_MacroTokenBuffer[Args->Offset[i]], strlen (Args->Name),
-                Token, strlen (Token));
+            AslGbl_MacroTokenReplaceBuffer = (char *) calloc ((strlen (AslGbl_MacroTokenBuffer)), sizeof (char));
+
+            PrReplaceResizeSubstring (Args, Diff1, Diff2, i, Token);
 
             DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
                 "ExpandArg: %s \n",
@@ -657,8 +674,6 @@ PrDoMacroInvocation (
 
         Args++;
     }
-
-    /* TBD: need to make sure macro was not invoked with too many arguments */
 
     if (!Token)
     {
@@ -675,7 +690,6 @@ PrDoMacroInvocation (
         AslGbl_MacroTokenBuffer, strlen (AslGbl_MacroTokenBuffer));
 
     return;
-
 
 BadInvocation:
     PrError (ASL_ERROR, ASL_MSG_INVALID_INVOCATION,

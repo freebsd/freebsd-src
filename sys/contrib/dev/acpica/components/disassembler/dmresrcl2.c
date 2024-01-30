@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -523,6 +523,46 @@ AcpiDmGpioDescriptor (
         AcpiOsPrintf ("Unknown GPIO type\n");
         break;
     }
+}
+
+void
+AcpiDmClockInputDescriptor (
+    ACPI_OP_WALK_INFO       *Info,
+    AML_RESOURCE            *Resource,
+    UINT32                  Length,
+    UINT32                  Level)
+{
+    char                    *DeviceName = NULL;
+    UINT8                   *ResourceIndex = NULL;
+    AcpiDmIndent (Level);
+
+    AcpiOsPrintf ("ClockInput (");
+
+    AcpiOsPrintf ("0x%8.8X, ", Resource->ClockInput.FrequencyNumerator);
+
+    AcpiOsPrintf ("0x%4.4X, ", Resource->ClockInput.FrequencyDivisor);
+
+    AcpiOsPrintf ("%s, ",
+        AcpiGbl_ClockInputScale [ACPI_EXTRACT_2BIT_FLAG (Resource->ClockInput.Flags, 1)]);
+
+    AcpiOsPrintf ("%s, ",
+        AcpiGbl_ClockInputMode [ACPI_GET_1BIT_FLAG (Resource->ClockInput.Flags)]);
+
+    if (Length > sizeof(Resource->ClockInput))
+    {
+        DeviceName = ACPI_ADD_PTR (char,
+            Resource, sizeof(Resource->ClockInput)+1),
+        AcpiUtPrintString (DeviceName, ACPI_UINT16_MAX);
+
+        AcpiOsPrintf (", ");
+        ResourceIndex = ACPI_ADD_PTR (UINT8,
+            Resource, sizeof(Resource->ClockInput)),
+
+        AcpiOsPrintf ("0x%2.2X", *ResourceIndex);
+    }
+
+    AcpiOsPrintf (")\n");
+
 }
 
 /*******************************************************************************

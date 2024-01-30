@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -171,7 +171,7 @@ ACPI_RSCONVERT_INFO     AcpiRsGetIrq[9] =
 
     /* Get the IRQ mask (bytes 1:2) */
 
-    {ACPI_RSC_BITMASK16,ACPI_RS_OFFSET (Data.Irq.Interrupts[0]),
+    {ACPI_RSC_BITMASK16,ACPI_RS_OFFSET (Data.Irq.u.Interrupts[0]),
                         AML_OFFSET (Irq.IrqMask),
                         ACPI_RS_OFFSET (Data.Irq.InterruptCount)},
 
@@ -227,7 +227,7 @@ ACPI_RSCONVERT_INFO     AcpiRsSetIrq[14] =
 
     /* Convert interrupt list to 16-bit IRQ bitmask */
 
-    {ACPI_RSC_BITMASK16,ACPI_RS_OFFSET (Data.Irq.Interrupts[0]),
+    {ACPI_RSC_BITMASK16,ACPI_RS_OFFSET (Data.Irq.u.Interrupts[0]),
                         AML_OFFSET (Irq.IrqMask),
                         ACPI_RS_OFFSET (Data.Irq.InterruptCount)},
 
@@ -345,14 +345,14 @@ ACPI_RSCONVERT_INFO     AcpiRsConvertExtIrq[10] =
 
     /* Copy every IRQ in the table, each is 32 bits */
 
-    {ACPI_RSC_MOVE32,   ACPI_RS_OFFSET (Data.ExtendedIrq.Interrupts[0]),
-                        AML_OFFSET (ExtendedIrq.Interrupts[0]),
+    {ACPI_RSC_MOVE32,   ACPI_RS_OFFSET (Data.ExtendedIrq.u.Interrupts[0]),
+                        AML_OFFSET (ExtendedIrq.u.Interrupts[0]),
                         0},
 
     /* Optional ResourceSource (Index and String) */
 
     {ACPI_RSC_SOURCEX,  ACPI_RS_OFFSET (Data.ExtendedIrq.ResourceSource),
-                        ACPI_RS_OFFSET (Data.ExtendedIrq.Interrupts[0]),
+                        ACPI_RS_OFFSET (Data.ExtendedIrq.u.Interrupts[0]),
                         sizeof (AML_RESOURCE_EXTENDED_IRQ)}
 };
 
@@ -389,7 +389,7 @@ ACPI_RSCONVERT_INFO     AcpiRsConvertDma[6] =
 
     /* DMA channel mask bits */
 
-    {ACPI_RSC_BITMASK,  ACPI_RS_OFFSET (Data.Dma.Channels[0]),
+    {ACPI_RSC_BITMASK,  ACPI_RS_OFFSET (Data.Dma.u.Channels[0]),
                         AML_OFFSET (Dma.DmaChannelMask),
                         ACPI_RS_OFFSET (Data.Dma.ChannelCount)}
 };

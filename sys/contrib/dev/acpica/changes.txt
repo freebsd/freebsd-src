@@ -1,4 +1,109 @@
 ----------------------------------------
+31 March 2023. Summary of changes for version 20230331:
+
+This release is available at https://acpica.org/downloads
+
+0) Global changes:
+
+
+Update all copyright notices to the year 2023. This effects all source 
+modules, as well as utility signons.
+Add OS-specific support for Zephyr RTOS.
+Fix miscellaneous code that accesses various objects.
+Remove some dead code.
+Add C ?Flexible Array? support.
+Add support for 64 bit LoongArch compilation.
+Add first batch of RISC-V related definitions.
+Performed a global automated update to remove tabs, fix indentation 
+issues, etc.
+
+1) ACPICA kernel-resident subsystem:
+
+hwvalid: Drop port I/O validation.
+
+2) ACPICA tools and utilities:
+
+iASL: Added full macro support in the preprocessor. Example:
+#define ABCD(a,b,c,d) a+b+c-d
+
+Known macro support limitations (at this time):
+	No support for multi-line #define macros (backslash continuation 
+lines)
+	No support for the C-style ternary operator
+	No support for the stringizing operator (#)
+	No support for the concatenation (token pasting) operator (##)
+	No support for variable number of macro arguments
+
+Add support for AMD Secure Processor Table (ASPT) version 1.
+Add support for Arm's MPAM ACPI table version 2.
+ACPI 6.5: MADT: add support for trace buffer extension in GICC.
+Headers: Delete bogus NodeArray array of pointers from AEST table.
+PHAT table support is still ongoing.
+
+
+----------------------------------------
+20 October 2022. Summary of changes for version 20221020:
+
+This release is available at https://acpica.org/downloads
+
+0) Global changes:
+
+Allow disabling of -Werror. For distro maintainers having `-Werror` can 
+delay update of GCC. Since every GCC release might add new warnings that 
+were not yet captured, it might break the build of packages. With this 
+change, distros can now build with `NOWERROR=TRUE` instead of patching 
+either the errors or the makefiles. The default behavior keeps on using 
+`-Werror`.
+
+1) ACPICA kernel-resident subsystem:
+
+Added support for FFH Operation Region special context data. FFH(Fixed 
+Function Hardware) Opregion is approved to be added in ACPI 6.5 via code 
+first approach[1]. It requires special context data similar to GPIO and 
+Generic Serial Bus as it needs to know platform specific offset and 
+length.
+
+Reverted this commit "executer/exsystem: Warn about sleeps greater than 
+10 ms." Due to user complaints about valid sleeps greater than 10ms seen 
+in some existing machines -- generating lots of warnings.
+
+Do not touch VGA memory when EBDA < 1KiB. The ACPICA code assumes that 
+EBDA region must be at least 1KiB in size. Because this is not 
+guaranteed, it might happen that while scanning the memory for RSDP 
+pointer, the kernel touches memory above 640KiB. This is unwanted as the 
+VGA memory range may not be decoded or even present when running under 
+virtualization.
+
+Check that EBDA pointer is in valid memory. If the memory at 0x40e is 
+uninitialized, the retrieved physical memory address of EBDA may be 
+beyond the low memory (i.e. above 640K). If so, the kernel may 
+unintentionally access the VGA memory, that might not be decoded or even 
+present in case of virtualization.
+
+2) iASL Compiler/Disassembler and ACPICA tools:
+
+Completed the existing partial support for the CDAT "table". Although 
+this isn't technically an ACPI table (It doesn't go into the XSDT), it is 
+possible to support this table in the Data Table compiler. Created one 
+new file, "utilities/utcksum.c", used to centralize checksum 
+generation/validation into one location. Includes changes to makefiles 
+and MSVC project files.
+
+Updated support for the IORT table - update to version E.e
+
+Added CXL 3.0 structures (CXIMS & RDPAS) to the CEDT table 
+
+iASL: Added CCEL table to both compiler/disassembler.
+
+iASL: NHLT table: Fixed compilation of optional undocumented fields
+
+iASL: Fix iASL compile error due to ACPI_TDEL_OFFSET. Commit # 10e4763 
+("iASL: Add CCEL table to both compiler/disassembler") introduced the 
+iASL build issue. The issue is due to using ACPI_TDEL_OFFSET for CCEL 
+table member reference. To fix it,  change ACPI_TDEL_OFFSET with 
+ACPI_CCEL_OFFSET.
+
+----------------------------------------
 31 March 2022. Summary of changes for version 20220331:
 
 0) Global changes:
