@@ -176,6 +176,13 @@ AeInstallPciHandler (
     void                    *Context,
     void                    **ReturnValue);
 
+static ACPI_STATUS
+AeInstallGedHandler (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue);
+
 
 BOOLEAN                     AcpiGbl_DisplayRegionAccess = FALSE;
 ACPI_CONNECTION_INFO        AeMyContext;
@@ -343,6 +350,110 @@ AeInstallRegionHandlers (
     }
 }
 
+/*******************************************************************************
+ *
+ * FUNCTION:    AeInstallGedHandler
+ *
+ * PARAMETERS:  ACPI_WALK_NAMESPACE callback
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Walk entire namespace, install a handler for every GED
+ *              device found.
+ *
+ ******************************************************************************/
+static ACPI_STATUS
+AeInstallGedHandler (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue)
+{
+
+	ACPI_BUFFER             ReturnBuffer;
+	ACPI_STATUS Status;
+	ACPI_RESOURCE *ResourceList;
+	ACPI_RESOURCE_EXTENDED_IRQ *extended_irq_rsc;
+    ACPI_NAMESPACE_NODE     *Node;
+	ACPI_NAMESPACE_NODE		*EvtMethodNode;
+
+    ACPI_FUNCTION_ENTRY();
+
+	/* Obtain the Namespace Node of this GED object handle. */
+	Node = AcpiNsValidateHandle (ObjHandle);
+	if (!Node)
+	{
+		return (AE_BAD_PARAMETER);
+	}
+
+	/*
+	 * A GED device must have one _EVT method.
+	 * Obtain the _EVT method and store it in the global
+	 * GED register.
+	 */
+	Status = AcpiNsSearchOneScope (
+		*ACPI_CAST_PTR (ACPI_NAME, METHOD_NAME__EVT),
+		Node,
+		ACPI_TYPE_METHOD,
+		&EvtMethodNode
+	);
+	if (ACPI_FAILURE (Status))
+	{
+		AcpiOsPrintf ("Failed to obtain _EVT method for the GED device.\n");
+		return Status;
+	}
+
+	ReturnBuffer.Pointer = NULL;
+    ReturnBuffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
+
+	Status = AcpiGetCurrentResources (ObjHandle, &ReturnBuffer);
+	if (ACPI_FAILURE (Status))
+	{
+		AcpiOsPrintf ("AcpiGetCurrentResources failed: %s\n",
+			AcpiFormatException (Status));
+		return Status;
+	}
+
+	/* Traverse the _CRS resource list */
+	ResourceList = ACPI_CAST_PTR (ACPI_RESOURCE, ReturnBuffer.Pointer);
+	while (ResourceList->Type != ACPI_RESOURCE_TYPE_END_TAG) {
+
+		switch (ResourceList->Type) {
+		 case ACPI_RESOURCE_TYPE_EXTENDED_IRQ: {
+
+			/*
+			 * Found an Interrupt resource. Link the interrupt resource
+			 * and the _EVT method of this GED device in the GED event handler list.
+			 */
+			ACPI_GED_HANDLER_INFO *GedHandler =
+			ACPI_ALLOCATE (sizeof (ACPI_SCI_HANDLER_INFO));
+			if (!GedHandler)
+			{
+				return AE_NO_MEMORY;
+			}
+
+			GedHandler->Next = AcpiGbl_GedHandlerList;
+			AcpiGbl_GedHandlerList = GedHandler;
+
+			extended_irq_rsc = &ResourceList->Data.ExtendedIrq;
+
+			GedHandler->IntId = extended_irq_rsc->Interrupts[0];
+			GedHandler->EvtMethod = EvtMethodNode;
+
+			AcpiOsPrintf ("Interrupt ID %d\n", extended_irq_rsc->Interrupts[0]);
+
+			break;
+		 }
+		 default:
+
+			AcpiOsPrintf ("Resource type %X\n", ResourceList->Type);
+		}
+
+		ResourceList = ACPI_NEXT_RESOURCE (ResourceList);
+	}
+
+	return AE_OK;
+}
 
 /*******************************************************************************
  *
@@ -352,7 +463,7 @@ AeInstallRegionHandlers (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Install handlers for all EC and PCI devices in the namespace
+ * DESCRIPTION: Install handlers for all EC, PCI and GED devices in the namespace
  *
  ******************************************************************************/
 
@@ -368,6 +479,11 @@ AeInstallDeviceHandlers (
     /* Install a PCI handler */
 
     AcpiGetDevices ("PNP0A08", AeInstallPciHandler, NULL, NULL);
+
+    /* Install a GED handler */
+
+    AcpiGetDevices ("ACPI0013", AeInstallGedHandler, NULL, NULL);
+
     return (AE_OK);
 }
 

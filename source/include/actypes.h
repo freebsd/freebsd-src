@@ -873,8 +873,7 @@ typedef UINT32                          ACPI_EVENT_TYPE;
 #define ACPI_EVENT_POWER_BUTTON         2
 #define ACPI_EVENT_SLEEP_BUTTON         3
 #define ACPI_EVENT_RTC                  4
-#define ACPI_EVENT_PCIE_WAKE            5
-#define ACPI_EVENT_MAX                  5
+#define ACPI_EVENT_MAX                  4
 #define ACPI_NUM_FIXED_EVENTS           ACPI_EVENT_MAX + 1
 
 /*

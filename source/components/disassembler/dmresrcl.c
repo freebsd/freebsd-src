@@ -1112,7 +1112,7 @@ AcpiDmInterruptDescriptor (
     {
         AcpiDmIndent (Level + 1);
         AcpiOsPrintf ("0x%8.8X,\n",
-            (UINT32) Resource->ExtendedIrq.u.Interrupts[i]);
+            (UINT32) Resource->ExtendedIrq.Interrupts[i]);
     }
 
     AcpiDmIndent (Level);

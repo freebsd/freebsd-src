@@ -430,6 +430,9 @@ static const char           *AcpiDmMadtSubnames[] =
     "Bridge I/O Interrupt Controller",  /* ACPI_MADT_TYPE_BIO_PIC */
     "LPC Interrupt Controller",         /* ACPI_MADT_TYPE_LPC_PIC */
     "RISC-V Interrupt Controller",      /* ACPI_MADT_TYPE_RINTC */
+    "RISC-V Incoming MSI Controller",   /* ACPI_MADT_TYPE_IMSIC */
+    "RISC-V APLIC Controller",          /* ACPI_MADT_TYPE_APLIC */
+    "RISC-V PLIC Controller",           /* ACPI_MADT_TYPE_PLIC */
     "Unknown Subtable Type",            /* Reserved */
     "Types 80-FF are used for OEM data" /* Reserved for OEM data */
 };
@@ -667,6 +670,14 @@ static const char           *AcpiDmGasAccessWidth[] =
     "DWord Access:32",
     "QWord Access:64",
     "Unknown Width Encoding"
+};
+
+static const char           *AcpiDmRhctSubnames[] =
+{
+    "RISC-V ISA string structure",  /* ACPI_RHCT_ISA_STRING */
+    "RISC-V CMO node structure",    /* ACPI_RHCT_CMO_NODE */
+    "RISC-V MMU node structure",    /* ACPI_RHCT_MMU_NODE */
+    "RISC-V Hart Info structure",   /* ACPI_RHCT_HART_INFO */
 };
 
 
@@ -1190,6 +1201,7 @@ AcpiDmDumpTable (
         case ACPI_DMT_NFIT:
         case ACPI_DMT_NHLT1e:
         case ACPI_DMT_PHAT:
+        case ACPI_DMT_RHCT:
 
             ByteLength = 2;
             break;
@@ -2167,6 +2179,20 @@ AcpiDmDumpTable (
 
             AcpiOsPrintf (UINT8_FORMAT, *Target,
                 AcpiDmRgrtSubnames[Temp8]);
+            break;
+
+        case ACPI_DMT_RHCT:
+
+            /* RHCT subtable types */
+
+            Temp16 = ACPI_GET16 (Target);
+            if (Temp16 == ACPI_RHCT_NODE_TYPE_HART_INFO)
+            {
+                Temp16 = ACPI_RHCT_NODE_TYPE_RESERVED;
+            }
+
+            AcpiOsPrintf (UINT16_FORMAT, ACPI_GET16 (Target),
+                AcpiDmRhctSubnames[Temp16]);
             break;
 
         case ACPI_DMT_SDEV:
