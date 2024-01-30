@@ -600,7 +600,9 @@ athn_get_chipid(struct athn_softc *sc)
 {
 	uint32_t reg;
 
+	ATHN_LOCK(sc);
 	reg = AR_READ(sc, AR_SREV);
+	ATHN_UNLOCK(sc);
 	if (MS(reg, AR_SREV_ID) == 0xff) {
 		sc->mac_ver = MS(reg, AR_SREV_VERSION2);
 		sc->mac_rev = MS(reg, AR_SREV_REVISION2);
@@ -667,6 +669,7 @@ athn_reset_power_on(struct athn_softc *sc)
 {
 	int ntries;
 
+	ATHN_LOCK(sc);
 	/* Set force wake. */
 	AR_WRITE(sc, AR_RTC_FORCE_WAKE,
 	    AR_RTC_FORCE_WAKE_EN | AR_RTC_FORCE_WAKE_ON_INT);
@@ -690,6 +693,7 @@ athn_reset_power_on(struct athn_softc *sc)
 			break;
 		DELAY(10);
 	}
+	ATHN_UNLOCK(sc);
 	if (ntries == 1000) {
 		DPRINTF(("RTC not waking up\n"));
 		return (ETIMEDOUT);
@@ -739,11 +743,14 @@ athn_set_power_awake(struct athn_softc *sc)
 {
 	int ntries, error;
 
+	ATHN_LOCK(sc);
 	/* Do a Power-On-Reset if shutdown. */
 	if ((AR_READ(sc, AR_RTC_STATUS) & AR_RTC_STATUS_M) ==
 	    AR_RTC_STATUS_SHUTDOWN) {
-		if ((error = athn_reset_power_on(sc)) != 0)
+		if ((error = athn_reset_power_on(sc)) != 0) {
+			ATHN_UNLOCK(sc);
 			return (error);
+		}
 		if (!AR_SREV_9380_10_OR_LATER(sc))
 			athn_init_pll(sc, NULL);
 	}
@@ -761,17 +768,20 @@ athn_set_power_awake(struct athn_softc *sc)
 	}
 	if (ntries == 4000) {
 		DPRINTF(("RTC not waking up\n"));
+		ATHN_UNLOCK(sc);
 		return (ETIMEDOUT);
 	}
 
 	AR_CLRBITS(sc, AR_STA_ID1, AR_STA_ID1_PWR_SAV);
 	AR_WRITE_BARRIER(sc);
+	ATHN_UNLOCK(sc);
 	return (0);
 }
 
 void
 athn_set_power_sleep(struct athn_softc *sc)
 {
+	ATHN_LOCK(sc);
 	AR_SETBITS(sc, AR_STA_ID1, AR_STA_ID1_PWR_SAV);
 	/* Allow the MAC to go to sleep. */
 	AR_CLRBITS(sc, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_EN);
@@ -784,6 +794,7 @@ athn_set_power_sleep(struct athn_softc *sc)
 	if (!AR_SREV_5416(sc) && !AR_SREV_9271(sc))
 		AR_CLRBITS(sc, AR_RTC_RESET, AR_RTC_RESET_EN);
 	AR_WRITE_BARRIER(sc);
+	ATHN_UNLOCK(sc);
 }
 
 void
@@ -791,6 +802,7 @@ athn_init_pll(struct athn_softc *sc, const struct ieee80211_channel *c)
 {
 	uint32_t pll;
 
+	ATHN_LOCK(sc);
 	if (AR_SREV_9380_10_OR_LATER(sc)) {
 		if (AR_SREV_9485(sc))
 			AR_WRITE(sc, AR_RTC_PLL_CONTROL2, 0x886666);
@@ -832,6 +844,7 @@ athn_init_pll(struct athn_softc *sc, const struct ieee80211_channel *c)
 	DELAY(100);
 	AR_WRITE(sc, AR_RTC_SLEEP_CLK, AR_RTC_FORCE_DERIVED_CLK);
 	AR_WRITE_BARRIER(sc);
+	ATHN_UNLOCK(sc);
 }
 
 void
@@ -840,9 +853,11 @@ athn_write_serdes(struct athn_softc *sc, const struct athn_serdes *serdes)
 	int i;
 
 	/* Write sequence to Serializer/Deserializer. */
+	ATHN_LOCK(sc);
 	for (i = 0; i < serdes->nvals; i++)
 		AR_WRITE(sc, serdes->regs[i], serdes->vals[i]);
 	AR_WRITE_BARRIER(sc);
+	ATHN_UNLOCK(sc);
 }
 
 void
@@ -852,6 +867,7 @@ athn_config_pcie(struct athn_softc *sc)
 	athn_write_serdes(sc, sc->serdes);
 
 	DELAY(1000);
+	ATHN_LOCK(sc);
 	/* Allow forcing of PCIe core into L1 state. */
 	AR_SETBITS(sc, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
 
@@ -861,6 +877,7 @@ athn_config_pcie(struct athn_softc *sc)
 	AR_WRITE(sc, AR_WA, ATHN_PCIE_WAEN);
 #endif
 	AR_WRITE_BARRIER(sc);
+	ATHN_UNLOCK(sc);
 }
 
 /*
