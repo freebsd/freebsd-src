@@ -1533,6 +1533,7 @@ ENTRY(rdmsr_safe)
 /* int rdmsr_safe(u_int msr, uint64_t *data) */
 	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%r8
+	movq	PCB_ONFAULT(%r8),%r9
 	movq	$msr_onfault,PCB_ONFAULT(%r8)
 	movl	%edi,%ecx
 	rdmsr			/* Read MSR pointed by %ecx. Returns
@@ -1541,8 +1542,8 @@ ENTRY(rdmsr_safe)
 	movl	%eax,%eax	/* zero-extend %eax -> %rax */
 	orq	%rdx,%rax
 	movq	%rax,(%rsi)
-	xorq	%rax,%rax
-	movq	%rax,PCB_ONFAULT(%r8)
+	movq	%r9,PCB_ONFAULT(%r8)
+	xorl	%eax,%eax
 	POP_FRAME_POINTER
 	ret
 
@@ -1554,6 +1555,7 @@ ENTRY(wrmsr_safe)
 /* int wrmsr_safe(u_int msr, uint64_t data) */
 	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%r8
+	movq	PCB_ONFAULT(%r8),%r9
 	movq	$msr_onfault,PCB_ONFAULT(%r8)
 	movl	%edi,%ecx
 	movl	%esi,%eax
@@ -1561,8 +1563,8 @@ ENTRY(wrmsr_safe)
 	movl	%esi,%edx
 	wrmsr			/* Write MSR pointed by %ecx. Accepts
 				   hi byte in edx, lo in %eax. */
-	xorq	%rax,%rax
-	movq	%rax,PCB_ONFAULT(%r8)
+	movq	%r9,PCB_ONFAULT(%r8)
+	xorl	%eax,%eax
 	POP_FRAME_POINTER
 	ret
 
@@ -1571,7 +1573,7 @@ ENTRY(wrmsr_safe)
  */
 	ALIGN_TEXT
 msr_onfault:
-	movq	$0,PCB_ONFAULT(%r8)
+	movq	%r9,PCB_ONFAULT(%r8)
 	movl	$EFAULT,%eax
 	POP_FRAME_POINTER
 	ret
