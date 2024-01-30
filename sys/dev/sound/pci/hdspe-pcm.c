@@ -814,6 +814,9 @@ hdspechan_setspeed(kobj_t obj, void *data, uint32_t speed)
 	if (hdspe_running(sc) == 1)
 		goto end;
 
+	if (sc->force_speed > 0)
+		speed = sc->force_speed;
+
 	/* First look for equal frequency. */
 	for (i = 0; rate_map[i].speed != 0; i++) {
 		if (rate_map[i].speed == speed)

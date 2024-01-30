@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 19, 2024
+.Dd January 29, 2024
 .Dt SND_HDSPE 4
 .Os
 .Sh NAME
@@ -76,6 +76,10 @@ To adjust the following sysctl identifiers for a specific sound card, insert
 the respective device number in place of
 .Ql 0 .
 .Bl -tag -width indent
+.It Va dev.hdspe.0.sample_rate
+Set a fixed sample rate from 32000, 44100, 48000, up to 192000.
+This is usually required for digital connections (AES, S/PDIF, ADAT).
+The default value of 0 adjusts the sample rate according to pcm device settings.
 .It Va dev.hdspe.0.period
 The number of samples processed per interrupt, from 32, 64, 128, up to 4096.
 Setting a lower value here results in less latency, but increases system load

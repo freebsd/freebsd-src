@@ -228,6 +228,7 @@ struct sc_info {
 	uint32_t		period;
 	uint32_t		speed;
 	uint32_t		force_period;
+	uint32_t		force_speed;
 };
 
 #define	hdspe_read_1(sc, regno)						\
