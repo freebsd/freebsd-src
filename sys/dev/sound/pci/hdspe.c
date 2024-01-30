@@ -229,6 +229,41 @@ hdspe_map_dmabuf(struct sc_info *sc)
 }
 
 static int
+hdspe_sysctl_sample_rate(SYSCTL_HANDLER_ARGS)
+{
+	struct sc_info *sc = oidp->oid_arg1;
+	int error;
+	unsigned int speed, multiplier;
+
+	speed = sc->force_speed;
+
+	/* Process sysctl (unsigned) integer request. */
+	error = sysctl_handle_int(oidp, &speed, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	/* Speed from 32000 to 192000, 0 falls back to pcm speed setting. */
+	sc->force_speed = 0;
+	if (speed > 0) {
+		multiplier = 1;
+		if (speed > (96000 + 128000) / 2)
+			multiplier = 4;
+		else if (speed > (48000 + 64000) / 2)
+			multiplier = 2;
+
+		if (speed < ((32000 + 44100) / 2) * multiplier)
+			sc->force_speed = 32000 * multiplier;
+		else if (speed < ((44100 + 48000) / 2) * multiplier)
+			sc->force_speed = 44100 * multiplier;
+		else
+			sc->force_speed = 48000 * multiplier;
+	}
+
+	return (0);
+}
+
+
+static int
 hdspe_sysctl_period(SYSCTL_HANDLER_ARGS)
 {
 	struct sc_info *sc = oidp->oid_arg1;
@@ -455,6 +490,7 @@ hdspe_init(struct sc_info *sc)
 
 	/* Set rate. */
 	sc->speed = HDSPE_SPEED_DEFAULT;
+	sc->force_speed = 0;
 	sc->ctrl_register &= ~HDSPE_FREQ_MASK;
 	sc->ctrl_register |= HDSPE_FREQ_MASK_DEFAULT;
 	hdspe_write_4(sc, HDSPE_CONTROL_REG, sc->ctrl_register);
@@ -561,6 +597,12 @@ hdspe_attach(device_t dev)
 	    "period", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    sc, 0, hdspe_sysctl_period, "A",
 	    "Force period of samples per interrupt (32, 64, ... 4096)");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "sample_rate", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    sc, 0, hdspe_sysctl_sample_rate, "A",
+	    "Force sample rate (32000, 44100, 48000, ... 192000)");
 
 	return (bus_generic_attach(dev));
 }
