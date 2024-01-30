@@ -108,6 +108,12 @@
 /* bdev_max_secure_erase_sectors() is available */
 /* #undef HAVE_BDEV_MAX_SECURE_ERASE_SECTORS */
 
+/* bdev_open_by_path() exists */
+/* #undef HAVE_BDEV_OPEN_BY_PATH */
+
+/* bdev_release() exists */
+/* #undef HAVE_BDEV_RELEASE */
+
 /* block_device_operations->submit_bio() returns void */
 /* #undef HAVE_BDEV_SUBMIT_BIO_RETURNS_VOID */
 
@@ -427,6 +433,9 @@
 /* APIs for idmapped mount are present */
 /* #undef HAVE_IDMAP_MNT_API */
 
+/* mnt_idmap does not have user_namespace */
+/* #undef HAVE_IDMAP_NO_USERNS */
+
 /* Define if compiler supports -Wimplicit-fallthrough */
 /* #undef HAVE_IMPLICIT_FALLTHROUGH */
 
@@ -576,6 +585,12 @@
 
 /* kernel_read() take loff_t pointer */
 /* #undef HAVE_KERNEL_READ_PPOS */
+
+/* strlcpy() exists */
+/* #undef HAVE_KERNEL_STRLCPY */
+
+/* strscpy() exists */
+/* #undef HAVE_KERNEL_STRSCPY */
 
 /* timer_list.function gets a timer_list */
 /* #undef HAVE_KERNEL_TIMER_FUNCTION_TIMER_LIST */
@@ -1137,7 +1152,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.99-313-FreeBSD_ga4bf6baae"
+#define ZFS_META_ALIAS "zfs-2.2.99-333-FreeBSD_g2e6b3c4d9"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1146,7 +1161,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.6"
+#define ZFS_META_KVER_MAX "6.7"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -1167,7 +1182,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "313-FreeBSD_ga4bf6baae"
+#define ZFS_META_RELEASE "333-FreeBSD_g2e6b3c4d9"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.2.99"
