@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+4347ef60501f:
+	The powerd(8) utility is now enabled in /etc/rc.conf by default on
+	images for the arm64 Raspberry Pi's (arm64-aarch64-RPI img files).
+	This prevents the CPU clock from running slow all the time.
+
 0b49e504a32d:
 	rc.d/jail now supports the legacy variable jail_${jailname}_zfs_dataset
 	to allow unmaintained jail managers like ezjail to make use of this
