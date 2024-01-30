@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -195,7 +195,7 @@ AslParserCleanup (
  *
  * DESCRIPTION: Handle #line directives emitted by the preprocessor.
  *
- * The #line directive is emitted by the preprocesser, and is used to
+ * The #line directive is emitted by the preprocessor, and is used to
  * pass through line numbers from the original source code file to the
  * preprocessor output file (.i). This allows any compiler-generated
  * error messages to be displayed with the correct line number.

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -789,6 +789,7 @@ AdDoExternalFileList (
             AcpiDmFinishNamespaceLoad (AcpiGbl_ParseOpRoot,
                 AcpiGbl_RootNode, OwnerId);
             AcpiPsDeleteParseTree (AcpiGbl_ParseOpRoot);
+            AcpiGbl_ParseOpRoot = NULL;
 
             ExternalListHead = ExternalListHead->Next;
         }

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -1129,6 +1129,124 @@ AcpiDmDumpMcfg (
     }
 }
 
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpMpam
+ *
+ * PARAMETERS:  Table               - A MPAM table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a MPAM table
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpMpam (
+    ACPI_TABLE_HEADER          *Table)
+{
+    ACPI_STATUS                Status;
+    ACPI_MPAM_MSC_NODE         *MpamMscNode;
+    ACPI_MPAM_RESOURCE_NODE    *MpamResourceNode;
+    ACPI_DMTABLE_INFO          *InfoTable;
+    UINT32                     Offset = sizeof(ACPI_TABLE_HEADER);
+    UINT32                     MpamResourceNodeLength = 0;
+
+    while (Offset < Table->Length)
+    {
+        MpamMscNode = ACPI_ADD_PTR (ACPI_MPAM_MSC_NODE, Table, Offset);
+
+        /* Subtable: MSC */
+        Status = AcpiDmDumpTable (MpamMscNode->Length, 0, MpamMscNode, 0,
+            AcpiDmTableInfoMpam0);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        /* Offset the start of the array of resources */
+        Offset += sizeof(ACPI_MPAM_MSC_NODE);
+
+        /* Subtable: MSC RIS(es) */
+        for (UINT32 ResourceIdx = 0; ResourceIdx < MpamMscNode->NumResouceNodes; ResourceIdx++)
+        {
+            MpamResourceNode = ACPI_ADD_PTR (ACPI_MPAM_RESOURCE_NODE, Table, Offset);
+
+            MpamResourceNodeLength = sizeof(ACPI_MPAM_RESOURCE_NODE) +
+                MpamResourceNode->NumFunctionalDeps * sizeof(ACPI_MPAM_FUNC_DEPS);
+
+            Offset += MpamResourceNodeLength;
+
+            /* Subtable: MSC RIS */
+            Status = AcpiDmDumpTable (MpamResourceNodeLength, 0, MpamResourceNode, 0,
+                AcpiDmTableInfoMpam1);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
+
+            switch (MpamResourceNode->LocatorType)
+            {
+                case ACPI_MPAM_LOCATION_TYPE_PROCESSOR_CACHE:
+                    InfoTable = AcpiDmTableInfoMpam1A;
+                    break;
+                case ACPI_MPAM_LOCATION_TYPE_MEMORY:
+                    InfoTable = AcpiDmTableInfoMpam1B;
+                    break;
+                case ACPI_MPAM_LOCATION_TYPE_SMMU:
+                    InfoTable = AcpiDmTableInfoMpam1C;
+                    break;
+                case ACPI_MPAM_LOCATION_TYPE_MEMORY_CACHE:
+                    InfoTable = AcpiDmTableInfoMpam1D;
+                    break;
+                case ACPI_MPAM_LOCATION_TYPE_ACPI_DEVICE:
+                    InfoTable = AcpiDmTableInfoMpam1E;
+                    break;
+                case ACPI_MPAM_LOCATION_TYPE_INTERCONNECT:
+                    InfoTable = AcpiDmTableInfoMpam1F;
+                    break;
+                case ACPI_MPAM_LOCATION_TYPE_UNKNOWN:
+                    InfoTable = AcpiDmTableInfoMpam1G;
+                default:
+                    AcpiOsPrintf ("\n**** Unknown MPAM locator type 0x%X\n",
+                        MpamResourceNode->LocatorType);
+                    return;
+            }
+
+            /* Subtable: MSC Resource Locator(s) */
+            Status = AcpiDmDumpTable (sizeof(ACPI_MPAM_RESOURCE_LOCATOR), 0,
+                &MpamResourceNode->Locator, 0, InfoTable);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
+
+            /* Get the number of functional dependencies of an RIS */
+            Status = AcpiDmDumpTable (sizeof(UINT32), 0, &MpamResourceNode->NumFunctionalDeps, 0,
+                AcpiDmTableInfoMpam1Deps);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
+
+            /* Subtable: MSC functional dependencies */
+            for (UINT32 funcDep = 0; funcDep < MpamResourceNode->NumFunctionalDeps; funcDep++)
+            {
+                Status = AcpiDmDumpTable (sizeof(ACPI_MPAM_FUNC_DEPS), 0,
+                    &MpamResourceNode->NumFunctionalDeps, 0, AcpiDmTableInfoMpam2);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
+            }
+
+            AcpiOsPrintf ("\n\n");
+        }
+
+    }
+
+    return;
+}
 
 /*******************************************************************************
  *
@@ -1420,7 +1538,7 @@ AcpiDmDumpNfit (
             /* Has a variable number of 64-bit addresses at the end */
 
             InfoTable = AcpiDmTableInfoNfit6;
-            FieldOffset = sizeof (ACPI_NFIT_FLUSH_ADDRESS) - sizeof (UINT64);
+            FieldOffset = sizeof (ACPI_NFIT_FLUSH_ADDRESS);
             break;
 
         case ACPI_NFIT_TYPE_CAPABILITIES:    /* ACPI 6.0A */
@@ -1474,12 +1592,12 @@ AcpiDmDumpNfit (
         case ACPI_NFIT_TYPE_SMBIOS:
 
             Length = Subtable->Length -
-                sizeof (ACPI_NFIT_SMBIOS) + sizeof (UINT8);
+                sizeof (ACPI_NFIT_SMBIOS);
 
             if (Length)
             {
                 Status = AcpiDmDumpTable (Table->Length,
-                    sizeof (ACPI_NFIT_SMBIOS) - sizeof (UINT8),
+                    sizeof (ACPI_NFIT_SMBIOS),
                     SmbiosInfo,
                     Length, AcpiDmTableInfoNfit3a);
                 if (ACPI_FAILURE (Status))
@@ -2623,6 +2741,122 @@ AcpiDmDumpRgrt (
     if (ACPI_FAILURE (Status))
     {
         return;
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpRhct
+ *
+ * PARAMETERS:  Table               - A RHCT table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a RHCT.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpRhct (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    ACPI_RHCT_NODE_HEADER   *Subtable;
+    ACPI_RHCT_HART_INFO     *RhctHartInfo;
+    ACPI_RHCT_ISA_STRING    *RhctIsaString;
+    UINT32                  Length = Table->Length;
+    UINT8                   SubtableOffset, IsaPadOffset;
+    UINT32                  Offset = sizeof (ACPI_TABLE_RHCT);
+    UINT32                  i;
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoRhct);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* Subtables */
+
+    while (Offset < Table->Length)
+    {
+        AcpiOsPrintf ("\n");
+
+        /* Common subtable header */
+
+        Subtable = ACPI_ADD_PTR (ACPI_RHCT_NODE_HEADER, Table, Offset);
+        if (Subtable->Length < sizeof (ACPI_RHCT_NODE_HEADER))
+        {
+            AcpiOsPrintf ("Invalid subtable length\n");
+            return;
+        }
+        Status = AcpiDmDumpTable (Table->Length, Offset, Subtable,
+            Subtable->Length, AcpiDmTableInfoRhctNodeHdr);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        Length = sizeof (ACPI_RHCT_NODE_HEADER);
+
+        if (Subtable->Length < Length)
+        {
+            AcpiOsPrintf ("Invalid subtable length\n");
+            return;
+        }
+        SubtableOffset = (UINT8) Length;
+
+        switch (Subtable->Type)
+        {
+        case ACPI_RHCT_NODE_TYPE_HART_INFO:
+            Status = AcpiDmDumpTable (Table->Length, Offset + SubtableOffset,
+                    ACPI_ADD_PTR (ACPI_RHCT_HART_INFO, Subtable, SubtableOffset),
+                    sizeof (ACPI_RHCT_HART_INFO), AcpiDmTableInfoRhctHartInfo1);
+
+            RhctHartInfo = ACPI_ADD_PTR (ACPI_RHCT_HART_INFO, Subtable, SubtableOffset);
+
+            if ((UINT16)(Subtable->Length - SubtableOffset) <
+                (UINT16)(RhctHartInfo->NumOffsets * 4))
+            {
+                AcpiOsPrintf ("Invalid number of offsets\n");
+                return;
+            }
+            SubtableOffset += sizeof (ACPI_RHCT_HART_INFO);
+            for (i = 0; i < RhctHartInfo->NumOffsets; i++)
+            {
+                Status = AcpiDmDumpTable (Table->Length, Offset + SubtableOffset,
+                    ACPI_ADD_PTR (UINT32, Subtable, SubtableOffset),
+                    4, AcpiDmTableInfoRhctHartInfo2);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
+
+                SubtableOffset += 4;
+            }
+            break;
+
+        case ACPI_RHCT_NODE_TYPE_ISA_STRING:
+            RhctIsaString = ACPI_ADD_PTR (ACPI_RHCT_ISA_STRING, Subtable, SubtableOffset);
+            IsaPadOffset = (UINT8) (SubtableOffset + 2 + RhctIsaString->IsaLength);
+            Status = AcpiDmDumpTable (Table->Length, Offset + SubtableOffset,
+                    RhctIsaString, RhctIsaString->IsaLength, AcpiDmTableInfoRhctIsa1);
+            if (Subtable->Length > IsaPadOffset)
+            {
+                Status = AcpiDmDumpTable (Table->Length, Offset + SubtableOffset,
+                         ACPI_ADD_PTR (UINT8, Subtable, IsaPadOffset),
+                         (Subtable->Length - IsaPadOffset), AcpiDmTableInfoRhctIsaPad);
+            }
+
+        default:
+            break;
+        }
+
+        /* Point to next subtable */
+
+        Offset += Subtable->Length;
     }
 }
 

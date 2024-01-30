@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -785,9 +785,14 @@ AcpiDsInitAmlWalk (
 
 
     WalkState->ParserState.Aml =
-    WalkState->ParserState.AmlStart = AmlStart;
+    WalkState->ParserState.AmlStart =
     WalkState->ParserState.AmlEnd =
-    WalkState->ParserState.PkgEnd = AmlStart + AmlLength;
+    WalkState->ParserState.PkgEnd = AmlStart;
+    /* Avoid undefined behavior: applying zero offset to null pointer */
+    if (AmlLength != 0) {
+      WalkState->ParserState.AmlEnd += AmlLength;
+      WalkState->ParserState.PkgEnd += AmlLength;
+    }
 
     /* The NextOp of the NextWalk will be the beginning of the method */
 

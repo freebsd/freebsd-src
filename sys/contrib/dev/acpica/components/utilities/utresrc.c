@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -204,6 +204,8 @@ const UINT8                 AcpiGbl_ResourceAmlSizes[] =
     ACPI_AML_SIZE_LARGE (AML_RESOURCE_PIN_GROUP),
     ACPI_AML_SIZE_LARGE (AML_RESOURCE_PIN_GROUP_FUNCTION),
     ACPI_AML_SIZE_LARGE (AML_RESOURCE_PIN_GROUP_CONFIG),
+    ACPI_AML_SIZE_LARGE (AML_RESOURCE_CLOCK_INPUT),
+
 };
 
 const UINT8                 AcpiGbl_ResourceAmlSerialBusSizes[] =
@@ -264,6 +266,7 @@ static const UINT8          AcpiGbl_ResourceTypes[] =
     ACPI_VARIABLE_LENGTH,           /* 10 PinGroup */
     ACPI_VARIABLE_LENGTH,           /* 11 PinGroupFunction */
     ACPI_VARIABLE_LENGTH,           /* 12 PinGroupConfig */
+    ACPI_VARIABLE_LENGTH,           /* 13 ClockInput */
 };
 
 
@@ -529,16 +532,21 @@ AcpiUtValidateResource (
     AmlResource = ACPI_CAST_PTR (AML_RESOURCE, Aml);
     if (ResourceType == ACPI_RESOURCE_NAME_SERIAL_BUS)
     {
+        /* Avoid undefined behavior: member access within misaligned address */
+
+        AML_RESOURCE_COMMON_SERIALBUS CommonSerialBus;
+        memcpy(&CommonSerialBus, AmlResource, sizeof(CommonSerialBus));
+
         /* Validate the BusType field */
 
-        if ((AmlResource->CommonSerialBus.Type == 0) ||
-            (AmlResource->CommonSerialBus.Type > AML_RESOURCE_MAX_SERIALBUSTYPE))
+        if ((CommonSerialBus.Type == 0) ||
+            (CommonSerialBus.Type > AML_RESOURCE_MAX_SERIALBUSTYPE))
         {
             if (WalkState)
             {
                 ACPI_ERROR ((AE_INFO,
                     "Invalid/unsupported SerialBus resource descriptor: BusType 0x%2.2X",
-                    AmlResource->CommonSerialBus.Type));
+                    CommonSerialBus.Type));
             }
             return (AE_AML_INVALID_RESOURCE_TYPE);
         }

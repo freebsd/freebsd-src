@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -290,7 +290,10 @@ typedef struct acpi_resource_irq
     UINT8                           Shareable;
     UINT8                           WakeCapable;
     UINT8                           InterruptCount;
-    UINT8                           Interrupts[1];
+    union {
+        UINT8                       Interrupt;
+        ACPI_FLEX_ARRAY(UINT8,      Interrupts);
+    } u;
 
 } ACPI_RESOURCE_IRQ;
 
@@ -300,7 +303,10 @@ typedef struct acpi_resource_dma
     UINT8                           BusMaster;
     UINT8                           Transfer;
     UINT8                           ChannelCount;
-    UINT8                           Channels[1];
+    union {
+        UINT8                       Channel;
+        ACPI_FLEX_ARRAY(UINT8,      Channels);
+    } u;
 
 } ACPI_RESOURCE_DMA;
 
@@ -357,7 +363,7 @@ typedef struct acpi_resource_fixed_dma
 typedef struct acpi_resource_vendor
 {
     UINT16                          ByteLength;
-    UINT8                           ByteData[1];
+    UINT8                           ByteData[];
 
 } ACPI_RESOURCE_VENDOR;
 
@@ -368,7 +374,7 @@ typedef struct acpi_resource_vendor_typed
     UINT16                          ByteLength;
     UINT8                           UuidSubtype;
     UINT8                           Uuid[ACPI_UUID_LENGTH];
-    UINT8                           ByteData[1];
+    UINT8                           ByteData[];
 
 } ACPI_RESOURCE_VENDOR_TYPED;
 
@@ -538,7 +544,10 @@ typedef struct acpi_resource_extended_irq
     UINT8                           WakeCapable;
     UINT8                           InterruptCount;
     ACPI_RESOURCE_SOURCE            ResourceSource;
-    UINT32                          Interrupts[1];
+    union {
+        UINT32                      Interrupt;
+        ACPI_FLEX_ARRAY(UINT32,     Interrupts);
+    } u;
 
 } ACPI_RESOURCE_EXTENDED_IRQ;
 
@@ -770,6 +779,16 @@ typedef struct acpi_resource_pin_config
 
 } ACPI_RESOURCE_PIN_CONFIG;
 
+typedef struct acpi_resource_clock_input
+{
+    UINT8                           RevisionId;
+    UINT8                           Mode;
+    UINT8                           Scale;
+    UINT16                          FrequencyDivisor;
+    UINT32                          FrequencyNumerator;
+    ACPI_RESOURCE_SOURCE            ResourceSource;
+} ACPI_RESOURCE_CLOCK_INPUT;
+
 /* Values for PinConfigType field above */
 
 #define ACPI_PIN_CONFIG_DEFAULT                 0
@@ -853,7 +872,8 @@ typedef struct acpi_resource_pin_group_config
 #define ACPI_RESOURCE_TYPE_PIN_GROUP            22  /* ACPI 6.2 */
 #define ACPI_RESOURCE_TYPE_PIN_GROUP_FUNCTION   23  /* ACPI 6.2 */
 #define ACPI_RESOURCE_TYPE_PIN_GROUP_CONFIG     24  /* ACPI 6.2 */
-#define ACPI_RESOURCE_TYPE_MAX                  24
+#define ACPI_RESOURCE_TYPE_CLOCK_INPUT          25  /* ACPI 6.5 */
+#define ACPI_RESOURCE_TYPE_MAX                  25
 
 /* Master union for resource descriptors */
 
@@ -888,6 +908,7 @@ typedef union acpi_resource_data
     ACPI_RESOURCE_PIN_GROUP                 PinGroup;
     ACPI_RESOURCE_PIN_GROUP_FUNCTION        PinGroupFunction;
     ACPI_RESOURCE_PIN_GROUP_CONFIG          PinGroupConfig;
+    ACPI_RESOURCE_CLOCK_INPUT               ClockInput;
 
     /* Common fields */
 
@@ -927,8 +948,10 @@ typedef struct acpi_pci_routing_table
     UINT32                          Pin;
     UINT64                          Address;        /* here for 64-bit alignment */
     UINT32                          SourceIndex;
-    char                            Source[4];      /* pad to 64 bits so sizeof() works in all cases */
-
+    union {
+                                    char Pad[4];    /* pad to 64 bits so sizeof() works in all cases */
+                                    ACPI_FLEX_ARRAY(char, Source);
+    } u;
 } ACPI_PCI_ROUTING_TABLE;
 
 #endif /* __ACRESTYP_H__ */

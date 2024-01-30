@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -432,6 +432,57 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoAsf4[] =
     ACPI_DMT_TERMINATOR
 };
 
+
+/*******************************************************************************
+ *
+ * ASPT - AMD Secure Processor table (Signature "ASPT")
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAspt[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_ASPT_OFFSET(NumEntries),               "Number of Subtables", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* Common Subtable header (one per Subtable) */
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAsptHdr[] =
+{
+    {ACPI_DMT_ASPT,     ACPI_ASPTH_OFFSET(Type),                    "Type", 0},
+    {ACPI_DMT_UINT16,   ACPI_ASPTH_OFFSET(Length),                  "Length", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 0: ASPT Global Registers */
+ACPI_DMTABLE_INFO AcpiDmTableInfoAspt0[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_ASPT0_OFFSET(Reserved),                "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_ASPT0_OFFSET(FeatureRegAddr),          "Feature Register Address", 0},
+    {ACPI_DMT_UINT64,   ACPI_ASPT0_OFFSET(IrqEnRegAddr),            "Interrupt Enable Register Address", 0},
+    {ACPI_DMT_UINT64,   ACPI_ASPT0_OFFSET(IrqStRegAddr),            "Interrupt Status Register Address", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 1: ASPT SEV Mailbox Registers */
+ACPI_DMTABLE_INFO AcpiDmTableInfoAspt1[] =
+{
+    {ACPI_DMT_UINT8,    ACPI_ASPT1_OFFSET(MboxIrqId),               "Mailbox Interrupt ID", 0},
+    {ACPI_DMT_UINT24,   ACPI_ASPT1_OFFSET(Reserved[0]),             "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_ASPT1_OFFSET(CmdRespRegAddr),          "CmdResp Register Address", 0},
+    {ACPI_DMT_UINT64,   ACPI_ASPT1_OFFSET(CmdBufLoRegAddr),         "CmdBufAddr_Lo Register Address", 0},
+    {ACPI_DMT_UINT64,   ACPI_ASPT1_OFFSET(CmdBufHiRegAddr),         "CmdBufAddr_Hi Register Address", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 2: ASPT ACPI Maiblox Registers */
+ACPI_DMTABLE_INFO AcpiDmTableInfoAspt2[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_ASPT2_OFFSET(Reserved1),               "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_ASPT2_OFFSET(CmdRespRegAddr),          "CmdResp Register Address", 0},
+    {ACPI_DMT_UINT64,   ACPI_ASPT2_OFFSET(Reserved2[0]),           "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_ASPT2_OFFSET(Reserved2[1]),           "Reserved", 0},
+    ACPI_DMT_TERMINATOR
+};
 
 /*******************************************************************************
  *
@@ -896,7 +947,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoDmar4[] =
 {
     {ACPI_DMT_UINT24,   ACPI_DMAR4_OFFSET (Reserved[0]),            "Reserved", 0},
     {ACPI_DMT_UINT8,    ACPI_DMAR4_OFFSET (DeviceNumber),           "Device Number", 0},
-    {ACPI_DMT_STRING,   ACPI_DMAR4_OFFSET (DeviceName[0]),          "Device Name", 0},
+    {ACPI_DMT_STRING,   ACPI_DMAR4_OFFSET (u.DeviceName[0]),          "Device Name", 0},
     ACPI_DMT_TERMINATOR
 };
 

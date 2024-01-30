@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -182,7 +182,7 @@ ACPI_RSDUMP_INFO        AcpiRsDumpIrq[7] =
     {ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (Irq.Polarity),                     "Polarity",                 AcpiGbl_LlDecode},
     {ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET (Irq.Shareable),                    "Sharing",                  AcpiGbl_ShrDecode},
     {ACPI_RSD_UINT8 ,   ACPI_RSD_OFFSET (Irq.InterruptCount),               "Interrupt Count",          NULL},
-    {ACPI_RSD_SHORTLIST,ACPI_RSD_OFFSET (Irq.Interrupts[0]),                "Interrupt List",           NULL}
+    {ACPI_RSD_SHORTLIST,ACPI_RSD_OFFSET (Irq.u.Interrupts[0]),                "Interrupt List",           NULL}
 };
 
 ACPI_RSDUMP_INFO        AcpiRsDumpDma[6] =
@@ -192,7 +192,7 @@ ACPI_RSDUMP_INFO        AcpiRsDumpDma[6] =
     {ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (Dma.BusMaster),                    "Mastering",                AcpiGbl_BmDecode},
     {ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET (Dma.Transfer),                     "Transfer Type",            AcpiGbl_SizDecode},
     {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (Dma.ChannelCount),                 "Channel Count",            NULL},
-    {ACPI_RSD_SHORTLIST,ACPI_RSD_OFFSET (Dma.Channels[0]),                  "Channel List",             NULL}
+    {ACPI_RSD_SHORTLIST,ACPI_RSD_OFFSET (Dma.u.Channels[0]),                  "Channel List",             NULL}
 };
 
 ACPI_RSDUMP_INFO        AcpiRsDumpStartDpf[4] =
@@ -327,7 +327,7 @@ ACPI_RSDUMP_INFO        AcpiRsDumpExtIrq[8] =
     {ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET (ExtendedIrq.Shareable),            "Sharing",                  AcpiGbl_ShrDecode},
     {ACPI_RSD_SOURCE,   ACPI_RSD_OFFSET (ExtendedIrq.ResourceSource),       NULL,                       NULL},
     {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (ExtendedIrq.InterruptCount),       "Interrupt Count",          NULL},
-    {ACPI_RSD_DWORDLIST,ACPI_RSD_OFFSET (ExtendedIrq.Interrupts[0]),        "Interrupt List",           NULL}
+    {ACPI_RSD_DWORDLIST,ACPI_RSD_OFFSET (ExtendedIrq.u.Interrupts[0]),        "Interrupt List",           NULL}
 };
 
 ACPI_RSDUMP_INFO        AcpiRsDumpGenericReg[6] =
@@ -372,6 +372,17 @@ ACPI_RSDUMP_INFO        AcpiRsDumpPinFunction[10] =
     {ACPI_RSD_WORDLIST, ACPI_RSD_OFFSET (PinFunction.PinTable),             "PinTable",                 NULL},
     {ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (PinFunction.VendorLength),         "VendorLength",             NULL},
     {ACPI_RSD_SHORTLISTX,ACPI_RSD_OFFSET (PinFunction.VendorData),          "VendorData",               NULL},
+};
+
+ACPI_RSDUMP_INFO        AcpiRsDumpClockInput[7] =
+{
+    {ACPI_RSD_TITLE,    ACPI_RSD_TABLE_SIZE (AcpiRsDumpClockInput),         "ClockInput",            NULL},
+    {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (ClockInput.RevisionId),            "RevisionId",            NULL},
+    {ACPI_RSD_UINT32,   ACPI_RSD_OFFSET (ClockInput.FrequencyNumerator),    "FrequencyNumerator",    NULL},
+    {ACPI_RSD_UINT32,   ACPI_RSD_OFFSET (ClockInput.FrequencyDivisor),      "FrequencyDivisor",      NULL},
+    {ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (ClockInput.Scale),                 "Scale",                 AcpiGbl_ClockInputScale},
+    {ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (ClockInput.Mode),                  "Mode",                  AcpiGbl_ClockInputMode},
+    {ACPI_RSD_SOURCE,   ACPI_RSD_OFFSET (ClockInput.ResourceSource),        "ResourceSource",        NULL},
 };
 
 ACPI_RSDUMP_INFO        AcpiRsDumpPinConfig[11] =
@@ -544,7 +555,7 @@ ACPI_RSDUMP_INFO        AcpiRsDumpPrt[5] =
     {ACPI_RSD_TITLE,    ACPI_RSD_TABLE_SIZE (AcpiRsDumpPrt),                NULL,                       NULL},
     {ACPI_RSD_UINT64,   ACPI_PRT_OFFSET (Address),                          "Address",                  NULL},
     {ACPI_RSD_UINT32,   ACPI_PRT_OFFSET (Pin),                              "Pin",                      NULL},
-    {ACPI_RSD_STRING,   ACPI_PRT_OFFSET (Source[0]),                        "Source",                   NULL},
+    {ACPI_RSD_STRING,   ACPI_PRT_OFFSET (u.Source[0]),                        "Source",                   NULL},
     {ACPI_RSD_UINT32,   ACPI_PRT_OFFSET (SourceIndex),                      "Source Index",             NULL}
 };
 

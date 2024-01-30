@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -260,6 +260,7 @@ typedef enum
     ACPI_DMT_AEST_XRUPT,
     ACPI_DMT_AGDI,
     ACPI_DMT_ASF,
+    ACPI_DMT_ASPT,
     ACPI_DMT_CDAT,
     ACPI_DMT_CEDT,
     ACPI_DMT_DMAR,
@@ -280,6 +281,7 @@ typedef enum
     ACPI_DMT_IVRS_UNTERMINATED_STRING,
     ACPI_DMT_LPIT,
     ACPI_DMT_MADT,
+    ACPI_DMT_MPAM_LOCATOR,
     ACPI_DMT_NFIT,
     ACPI_DMT_NHLT1,
     ACPI_DMT_NHLT1a,
@@ -294,6 +296,7 @@ typedef enum
     ACPI_DMT_PMTT_VENDOR,
     ACPI_DMT_PPTT,
     ACPI_DMT_RGRT,
+    ACPI_DMT_RHCT,
     ACPI_DMT_SDEI,
     ACPI_DMT_SDEV,
     ACPI_DMT_SLIC,
@@ -399,6 +402,11 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAsf2a[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAsf3[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAsf4[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAsfHdr[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAspt[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAsptHdr[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAspt0[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAspt1[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAspt2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoBdat[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoBoot[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoBert[];
@@ -550,6 +558,17 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadtHdr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMcfg[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMcfg0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMchi[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMpam0[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMpam1[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMpam1A[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMpam1B[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMpam1C[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMpam1D[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMpam1E[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMpam1F[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMpam1G[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMpam1Deps[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMpam2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMpst[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMpst0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMpst0A[];
@@ -623,6 +642,12 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPrmtHandler[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRasf[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRgrt[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRgrt0[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRhct[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRhctNodeHdr[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRhctIsa1[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRhctIsaPad[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRhctHartInfo1[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRhctHartInfo2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRsdp1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRsdp2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoS3pt[];
@@ -759,6 +784,10 @@ AcpiDmDumpAsf (
     ACPI_TABLE_HEADER       *Table);
 
 void
+AcpiDmDumpAspt (
+    ACPI_TABLE_HEADER       *Table);
+
+void
 AcpiDmDumpCcel (
     ACPI_TABLE_HEADER       *Table);
 
@@ -839,6 +868,10 @@ AcpiDmDumpMcfg (
     ACPI_TABLE_HEADER       *Table);
 
 void
+AcpiDmDumpMpam (
+    ACPI_TABLE_HEADER       *Table);
+
+void
 AcpiDmDumpMpst (
     ACPI_TABLE_HEADER       *Table);
 
@@ -880,6 +913,10 @@ AcpiDmDumpPrmt (
 
 void
 AcpiDmDumpRgrt (
+    ACPI_TABLE_HEADER       *Table);
+
+void
+AcpiDmDumpRhct (
     ACPI_TABLE_HEADER       *Table);
 
 UINT32
@@ -1323,6 +1360,12 @@ AcpiDmVendorCommon (
     UINT32                  Length,
     UINT32                  Level);
 
+void
+AcpiDmClockInputDescriptor (
+    ACPI_OP_WALK_INFO       *Info,
+    AML_RESOURCE            *Resource,
+    UINT32                  Length,
+    UINT32                  Level);
 
 /*
  * dmresrcs

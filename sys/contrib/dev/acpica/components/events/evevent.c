@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -438,7 +438,7 @@ AcpiEvFixedEventDispatch (
         (void) AcpiWriteBitRegister (
             AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
             (Event == ACPI_EVENT_PCIE_WAKE) ?
-	    ACPI_ENABLE_EVENT : ACPI_DISABLE_EVENT);
+            ACPI_ENABLE_EVENT : ACPI_DISABLE_EVENT);
 
         ACPI_ERROR ((AE_INFO,
             "No installed handler for fixed event - %s (%u), disabling",

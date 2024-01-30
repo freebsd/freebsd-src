@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -1112,7 +1112,7 @@ AcpiDmInterruptDescriptor (
     {
         AcpiDmIndent (Level + 1);
         AcpiOsPrintf ("0x%8.8X,\n",
-            (UINT32) Resource->ExtendedIrq.Interrupts[i]);
+            (UINT32) Resource->ExtendedIrq.u.Interrupts[i]);
     }
 
     AcpiDmIndent (Level);

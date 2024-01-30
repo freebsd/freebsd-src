@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -569,9 +569,11 @@ AcpiDsExecEndOp (
 
         /*
          * All opcodes require operand resolution, with the only exceptions
-         * being the ObjectType and SizeOf operators.
+         * being the ObjectType and SizeOf operators as well as opcodes that
+         * take no arguments.
          */
-        if (!(WalkState->OpInfo->Flags & AML_NO_OPERAND_RESOLVE))
+        if (!(WalkState->OpInfo->Flags & AML_NO_OPERAND_RESOLVE) &&
+            (WalkState->OpInfo->Flags & AML_HAS_ARGS))
         {
             /* Resolve all operands */
 

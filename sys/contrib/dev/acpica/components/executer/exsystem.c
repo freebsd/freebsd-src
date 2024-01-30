@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -303,10 +303,10 @@ AcpiExSystemDoStall (
     else
     {
         if (HowLongUs > 100)
-	{
+        {
             ACPI_WARNING ((AE_INFO,
                 "Time parameter %u us > 100 us violating ACPI spec, please fix the firmware.", HowLongUs));
-	}
+        }
         AcpiOsStall (HowLongUs);
     }
 

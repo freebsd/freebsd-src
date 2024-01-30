@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -163,13 +163,14 @@
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiInstallAddressSpaceHandler
+ * FUNCTION:    AcpiInstallAddressSpaceHandlerInternal
  *
  * PARAMETERS:  Device          - Handle for the device
  *              SpaceId         - The address space ID
  *              Handler         - Address of the handler
  *              Setup           - Address of the setup function
  *              Context         - Value passed to the handler on each access
+ *              Run_Reg         - Run _REG methods for this address space?
  *
  * RETURN:      Status
  *
@@ -180,16 +181,19 @@
  * are executed here, and these methods can only be safely executed after
  * the default handlers have been installed and the hardware has been
  * initialized (via AcpiEnableSubsystem.)
+ * To avoid this problem pass FALSE for Run_Reg and later on call
+ * AcpiExecuteRegMethods() to execute _REG.
  *
  ******************************************************************************/
 
-ACPI_STATUS
-AcpiInstallAddressSpaceHandler (
+static ACPI_STATUS
+AcpiInstallAddressSpaceHandlerInternal (
     ACPI_HANDLE             Device,
     ACPI_ADR_SPACE_TYPE     SpaceId,
     ACPI_ADR_SPACE_HANDLER  Handler,
     ACPI_ADR_SPACE_SETUP    Setup,
-    void                    *Context)
+    void                    *Context,
+    BOOLEAN                 Run_Reg)
 {
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_STATUS             Status;
@@ -231,15 +235,41 @@ AcpiInstallAddressSpaceHandler (
 
     /* Run all _REG methods for this address space */
 
-    AcpiEvExecuteRegMethods (Node, SpaceId, ACPI_REG_CONNECT);
-
+    if (Run_Reg)
+    {
+        AcpiEvExecuteRegMethods (Node, SpaceId, ACPI_REG_CONNECT);
+    }
 
 UnlockAndExit:
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
     return_ACPI_STATUS (Status);
 }
 
+ACPI_STATUS
+AcpiInstallAddressSpaceHandler (
+    ACPI_HANDLE             Device,
+    ACPI_ADR_SPACE_TYPE     SpaceId,
+    ACPI_ADR_SPACE_HANDLER  Handler,
+    ACPI_ADR_SPACE_SETUP    Setup,
+    void                    *Context)
+{
+    return AcpiInstallAddressSpaceHandlerInternal (Device, SpaceId, Handler, Setup, Context, TRUE);
+}
+
 ACPI_EXPORT_SYMBOL (AcpiInstallAddressSpaceHandler)
+
+ACPI_STATUS
+AcpiInstallAddressSpaceHandlerNo_Reg (
+    ACPI_HANDLE             Device,
+    ACPI_ADR_SPACE_TYPE     SpaceId,
+    ACPI_ADR_SPACE_HANDLER  Handler,
+    ACPI_ADR_SPACE_SETUP    Setup,
+    void                    *Context)
+{
+    return AcpiInstallAddressSpaceHandlerInternal (Device, SpaceId, Handler, Setup, Context, FALSE);
+}
+
+ACPI_EXPORT_SYMBOL (AcpiInstallAddressSpaceHandlerNo_Reg)
 
 
 /*******************************************************************************
@@ -387,3 +417,62 @@ UnlockAndExit:
 }
 
 ACPI_EXPORT_SYMBOL (AcpiRemoveAddressSpaceHandler)
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiExecuteRegMethods
+ *
+ * PARAMETERS:  Device          - Handle for the device
+ *              SpaceId         - The address space ID
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Execute _REG for all OpRegions of a given SpaceId.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiExecuteRegMethods (
+    ACPI_HANDLE             Device,
+    ACPI_ADR_SPACE_TYPE     SpaceId)
+{
+    ACPI_NAMESPACE_NODE     *Node;
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE (AcpiExecuteRegMethods);
+
+
+    /* Parameter validation */
+
+    if (!Device)
+    {
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
+
+    Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Convert and validate the device handle */
+
+    Node = AcpiNsValidateHandle (Device);
+    if (Node)
+    {
+        /* Run all _REG methods for this address space */
+
+        AcpiEvExecuteRegMethods (Node, SpaceId, ACPI_REG_CONNECT);
+    }
+    else
+    {
+        Status = AE_BAD_PARAMETER;
+    }
+
+    (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+    return_ACPI_STATUS (Status);
+}
+
+ACPI_EXPORT_SYMBOL (AcpiExecuteRegMethods)

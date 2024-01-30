@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -480,6 +480,13 @@ AcpiRsGetAmlLength (
 
             break;
 
+        case ACPI_RESOURCE_TYPE_CLOCK_INPUT:
+
+            TotalSize = (ACPI_RS_LENGTH) (TotalSize +
+                Resource->Data.ClockInput.ResourceSource.StringLength);
+
+            break;
+
 
         case ACPI_RESOURCE_TYPE_SERIAL_BUS:
 
@@ -733,14 +740,19 @@ AcpiRsGetListLength (
             }
             break;
 
-        case ACPI_RESOURCE_NAME_SERIAL_BUS:
+        case ACPI_RESOURCE_NAME_SERIAL_BUS: {
+            /* Avoid undefined behavior: member access within misaligned address */
+
+            AML_RESOURCE_COMMON_SERIALBUS CommonSerialBus;
+            memcpy(&CommonSerialBus, AmlResource, sizeof(CommonSerialBus));
 
             MinimumAmlResourceLength = AcpiGbl_ResourceAmlSerialBusSizes[
-                AmlResource->CommonSerialBus.Type];
+                CommonSerialBus.Type];
             ExtraStructBytes +=
-                AmlResource->CommonSerialBus.ResourceLength -
+                CommonSerialBus.ResourceLength -
                 MinimumAmlResourceLength;
             break;
+        }
 
         case ACPI_RESOURCE_NAME_PIN_CONFIG:
 
@@ -789,6 +801,12 @@ AcpiRsGetListLength (
 
             break;
 
+        case ACPI_RESOURCE_NAME_CLOCK_INPUT:
+            ExtraStructBytes = AcpiRsStreamOptionLength (
+                ResourceLength, MinimumAmlResourceLength);
+
+            break;
+
         default:
 
             break;
@@ -803,8 +821,13 @@ AcpiRsGetListLength (
         if (AcpiUtGetResourceType (AmlBuffer) ==
             ACPI_RESOURCE_NAME_SERIAL_BUS)
         {
+            /* Avoid undefined behavior: member access within misaligned address */
+
+            AML_RESOURCE_COMMON_SERIALBUS CommonSerialBus;
+            memcpy(&CommonSerialBus, AmlResource, sizeof(CommonSerialBus));
+
             BufferSize = AcpiGbl_ResourceStructSerialBusSizes[
-                AmlResource->CommonSerialBus.Type] + ExtraStructBytes;
+                CommonSerialBus.Type] + ExtraStructBytes;
         }
         else
         {
