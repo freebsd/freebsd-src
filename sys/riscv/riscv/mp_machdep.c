@@ -79,10 +79,6 @@ static enum {
 #endif
 } cpu_enum_method;
 
-static device_identify_t riscv64_cpu_identify;
-static device_probe_t riscv64_cpu_probe;
-static device_attach_t riscv64_cpu_attach;
-
 static void ipi_ast(void *);
 static void ipi_hardclock(void *);
 static void ipi_preempt(void *);
@@ -95,7 +91,6 @@ extern cpuset_t all_harts;
 #ifdef INVARIANTS
 static uint32_t cpu_reg[MAXCPU][2];
 #endif
-static device_t cpu_list[MAXCPU];
 
 void mpentry(u_long hartid);
 void init_secondary(uint64_t);
@@ -114,77 +109,6 @@ static volatile int aps_ready;
 
 /* Temporary variables for init_secondary()  */
 void *dpcpu[MAXCPU - 1];
-
-static device_method_t riscv64_cpu_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_identify,	riscv64_cpu_identify),
-	DEVMETHOD(device_probe,		riscv64_cpu_probe),
-	DEVMETHOD(device_attach,	riscv64_cpu_attach),
-
-	DEVMETHOD_END
-};
-
-static driver_t riscv64_cpu_driver = {
-	"riscv64_cpu",
-	riscv64_cpu_methods,
-	0
-};
-
-DRIVER_MODULE(riscv64_cpu, cpu, riscv64_cpu_driver, 0, 0);
-
-static void
-riscv64_cpu_identify(driver_t *driver, device_t parent)
-{
-
-	if (device_find_child(parent, "riscv64_cpu", -1) != NULL)
-		return;
-	if (BUS_ADD_CHILD(parent, 0, "riscv64_cpu", -1) == NULL)
-		device_printf(parent, "add child failed\n");
-}
-
-static int
-riscv64_cpu_probe(device_t dev)
-{
-	u_int cpuid;
-
-	cpuid = device_get_unit(dev);
-	if (cpuid >= MAXCPU || cpuid > mp_maxid)
-		return (EINVAL);
-
-	device_quiet(dev);
-	return (0);
-}
-
-static int
-riscv64_cpu_attach(device_t dev)
-{
-	const uint32_t *reg;
-	size_t reg_size;
-	u_int cpuid;
-	int i;
-
-	cpuid = device_get_unit(dev);
-
-	if (cpuid >= MAXCPU || cpuid > mp_maxid)
-		return (EINVAL);
-	KASSERT(cpu_list[cpuid] == NULL, ("Already have cpu %u", cpuid));
-
-	reg = cpu_get_cpuid(dev, &reg_size);
-	if (reg == NULL)
-		return (EINVAL);
-
-	if (bootverbose) {
-		device_printf(dev, "register <");
-		for (i = 0; i < reg_size; i++)
-			printf("%s%x", (i == 0) ? "" : " ", reg[i]);
-		printf(">\n");
-	}
-
-	/* Set the device to start it later */
-	cpu_list[cpuid] = dev;
-
-	return (0);
-}
 
 static void
 release_aps(void *dummy __unused)
