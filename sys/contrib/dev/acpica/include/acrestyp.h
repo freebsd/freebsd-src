@@ -293,7 +293,7 @@ typedef struct acpi_resource_irq
     union {
         UINT8                       Interrupt;
         ACPI_FLEX_ARRAY(UINT8,      Interrupts);
-    } u;
+    };
 
 } ACPI_RESOURCE_IRQ;
 
@@ -306,7 +306,7 @@ typedef struct acpi_resource_dma
     union {
         UINT8                       Channel;
         ACPI_FLEX_ARRAY(UINT8,      Channels);
-    } u;
+    };
 
 } ACPI_RESOURCE_DMA;
 
@@ -547,7 +547,7 @@ typedef struct acpi_resource_extended_irq
     union {
         UINT32                      Interrupt;
         ACPI_FLEX_ARRAY(UINT32,     Interrupts);
-    } u;
+    };
 
 } ACPI_RESOURCE_EXTENDED_IRQ;
 
@@ -951,7 +951,7 @@ typedef struct acpi_pci_routing_table
     union {
                                     char Pad[4];    /* pad to 64 bits so sizeof() works in all cases */
                                     ACPI_FLEX_ARRAY(char, Source);
-    } u;
+    };
 } ACPI_PCI_ROUTING_TABLE;
 
 #endif /* __ACRESTYP_H__ */

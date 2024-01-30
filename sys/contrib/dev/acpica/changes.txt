@@ -1,4 +1,34 @@
 ----------------------------------------
+28 June 2023. Summary of changes for version 20230628:
+
+0) Global changes:
+
+Fixed a problem with the ASL/AML Timer() operator. Discovered by UBSAN: ?array-index-out-of-bounds in acpica/dswexec.c:401:12 index -1 is out of range for type 'acpi_operand_object?. Added AML_NO_OPERAND_RESOLVE flag to Timer (since there are no runtime arguments). Reported by: Abhishek Mainkar abmainkar@nvidia.com.
+
+Added a define for size of acpi_srat_generic_affinity DeviceHandle. Replaced a magic number with a define. The Linux kernel code will utilize this. Reported by Dave Jiang dave.jiang@intel.com. 
+
+Added support for _DSC (Deepest State for Configuration) as per ACPI 6.5.
+
+1) ACPICA kernel-resident subsystem:
+
+Added port definitions for CDAT SSLBIS. Add upstream port and any port definitions for SSLBIS. Reported by: Dave Jiang dave.jiang@intel.com.
+
+Fixed misspelled CDAT DSMAS define: ACPI_CEDT_DSMAS_NON_VOLATILE -> ACPI_CDAT_DSMAS_NON_VOLATILE. Reported by: Dave Jiang dave.jiang@intel.com.
+
+1) ACPICA kernel-resident subsystem:
+
+Fix GCC 12 dangling-pointer warning.  We're storing a persistent pointer to an ephemeral local variable which technically is a dangling pointer and the compiler is correct. However, since we never indirect the pointer, this is a safe operation and we can suppress the warning.
+
+Also, some C run-times (like MUSL) aren't including <stdint.h> indirectly so we must include it explicitly or we won't have the type definition for uintptr_t.
+
+2) iASL Compiler/Disassembler and ACPICA tools:. 
+
+IASL/RHCT: Enable dumping and compiling newly added nodes. The RHCT table is updated with new nodes. Add compile and dump functionality for these new structures.
+
+AcpiExec: Added a new command, ?interrupt?. The Interrupt command simulates an interrupt with a IntID (GSIV) equal to the first argument of the call/invocation. The acpiexec code simulates the behavior by OSPM: execute the _EVT method of the GED device associated with that IntID. Submitted by: Jose Marinho jose.marinho@arm.com.
+
+AcpiExec: Detect GED device and keep track of _EVT. The GED device is described by a _HID of ACPI0013. This code traverses the namespace identifying all GED devices. For each GED device in the namespace we record the Interrupt object and the _EVT method. This information is used when an interrupt is simulated via the ?interrupt? command. Submitted by: Jose Marinho jose.marinho@arm.com.
+----------------------------------------
 31 March 2023. Summary of changes for version 20230331:
 
 This release is available at https://acpica.org/downloads

@@ -1136,7 +1136,10 @@ enum AcpiMadtType
     ACPI_MADT_TYPE_BIO_PIC                  = 22,
     ACPI_MADT_TYPE_LPC_PIC                  = 23,
     ACPI_MADT_TYPE_RINTC                    = 24,
-    ACPI_MADT_TYPE_RESERVED                 = 25,   /* 25 to 0x7F are reserved */
+    ACPI_MADT_TYPE_IMSIC                    = 25,
+    ACPI_MADT_TYPE_APLIC                    = 26,
+    ACPI_MADT_TYPE_PLIC                     = 27,
+    ACPI_MADT_TYPE_RESERVED                 = 28,   /* 28 to 0x7F are reserved */
     ACPI_MADT_TYPE_OEM_RESERVED             = 0x80  /* 0x80 to 0xFF are reserved for OEM use */
 };
 
@@ -1550,14 +1553,17 @@ enum AcpiMadtLpcPicVersion {
 };
 
 /* 24: RISC-V INTC */
-struct acpi_madt_rintc {
+typedef struct acpi_madt_rintc {
     ACPI_SUBTABLE_HEADER    Header;
     UINT8                   Version;
     UINT8                   Reserved;
     UINT32                  Flags;
     UINT64                  HartId;
     UINT32                  Uid;                /* ACPI processor UID */
-};
+    UINT32                  ExtIntcId;          /* External INTC Id */
+    UINT64                  ImsicAddr;          /* IMSIC base address */
+    UINT32                  ImsicSize;          /* IMSIC size */
+} ACPI_MADT_RINTC;
 
 /* Values for RISC-V INTC Version field above */
 
@@ -1566,6 +1572,49 @@ enum AcpiMadtRintcVersion {
     ACPI_MADT_RINTC_VERSION_V1         = 1,
     ACPI_MADT_RINTC_VERSION_RESERVED   = 2	/* 2 and greater are reserved */
 };
+
+/* 25: RISC-V IMSIC */
+typedef struct acpi_madt_imsic {
+    ACPI_SUBTABLE_HEADER    Header;
+    UINT8                   Version;
+    UINT8                   Reserved;
+    UINT32                  Flags;
+    UINT16                  NumIds;
+    UINT16                  NumGuestIds;
+    UINT8                   GuestIndexBits;
+    UINT8                   HartIndexBits;
+    UINT8                   GroupIndexBits;
+    UINT8                   GroupIndexShift;
+} ACPI_MADT_IMSIC;
+
+/* 26: RISC-V APLIC */
+typedef struct acpi_madt_aplic {
+    ACPI_SUBTABLE_HEADER    Header;
+    UINT8                   Version;
+    UINT8                   Id;
+    UINT32                  Flags;
+    UINT8                   HwId[8];
+    UINT16                  NumIdcs;
+    UINT16                  NumSources;
+    UINT32                  GsiBase;
+    UINT64                  BaseAddr;
+    UINT32                  Size;
+} ACPI_MADT_APLIC;
+
+/* 27: RISC-V PLIC */
+typedef struct acpi_madt_plic {
+    ACPI_SUBTABLE_HEADER    Header;
+    UINT8                   Version;
+    UINT8                   Id;
+    UINT8                   HwId[8];
+    UINT16                  NumIrqs;
+    UINT16                  MaxPrio;
+    UINT32                  Flags;
+    UINT32                  Size;
+    UINT64                  BaseAddr;
+    UINT32                  GsiBase;
+} ACPI_MADT_PLIC;
+
 
 /* 80: OEM data */
 
@@ -3285,12 +3334,15 @@ enum AcpiRgrtImageType
 
 typedef struct acpi_table_rhct {
     ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
-    UINT32                  Reserved;
+    UINT32                  Flags;              /* RHCT flags */
     UINT64                  TimeBaseFreq;
     UINT32                  NodeCount;
     UINT32                  NodeOffset;
 } ACPI_TABLE_RHCT;
 
+/* RHCT Flags */
+
+#define ACPI_RHCT_TIMER_CANNOT_WAKEUP_CPU       (1)
 /*
  * RHCT subtables
  */
@@ -3304,6 +3356,9 @@ typedef struct acpi_rhct_node_header {
 
 enum acpi_rhct_node_type {
     ACPI_RHCT_NODE_TYPE_ISA_STRING = 0x0000,
+    ACPI_RHCT_NODE_TYPE_CMO        = 0x0001,
+    ACPI_RHCT_NODE_TYPE_MMU        = 0x0002,
+    ACPI_RHCT_NODE_TYPE_RESERVED   = 0x0003,
     ACPI_RHCT_NODE_TYPE_HART_INFO  = 0xFFFF,
 };
 
@@ -3316,6 +3371,24 @@ typedef struct acpi_rhct_isa_string {
     UINT16                  IsaLength;
     char                    Isa[];
 } ACPI_RHCT_ISA_STRING;
+
+typedef struct acpi_rhct_cmo_node {
+    UINT8                  Reserved;           /* Must be zero */
+    UINT8                  CbomSize;           /* CBOM size in powerof 2 */
+    UINT8                  CbopSize;           /* CBOP size in powerof 2 */
+    UINT8                  CbozSize;           /* CBOZ size in powerof 2 */
+} ACPI_RHCT_CMO_NODE;
+
+typedef struct acpi_rhct_mmu_node {
+    UINT8                   Reserved;          /* Must be zero */
+    UINT8                   MmuType;           /* Virtual Address Scheme */
+} ACPI_RHCT_MMU_NODE;
+
+enum acpi_rhct_mmu_type {
+    ACPI_RHCT_MMU_TYPE_SV39 = 0,
+    ACPI_RHCT_MMU_TYPE_SV48 = 1,
+    ACPI_RHCT_MMU_TYPE_SV57 = 2
+};
 
 /* Hart Info node structure */
 typedef struct acpi_rhct_hart_info {

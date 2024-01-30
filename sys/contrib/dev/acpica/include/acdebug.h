@@ -619,4 +619,8 @@ AcpiDbUint32ToHexString (
     UINT32                  Value,
     char                    *Buffer);
 
+void
+AcpiDbGenerateInterrupt (
+    char                    *GsivArg);
+
 #endif  /* __ACDEBUG_H__ */

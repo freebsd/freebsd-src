@@ -436,7 +436,7 @@ const ACPI_OPCODE_INFO    AcpiGbl_AmlOpInfo[AML_NUM_OPCODES] =
 
 /* ACPI 3.0 opcodes */
 
-/* 7E */ ACPI_OP ("Timer",              ARGP_TIMER_OP,             ARGI_TIMER_OP,              ACPI_TYPE_ANY,               AML_CLASS_EXECUTE,         AML_TYPE_EXEC_0A_0T_1R,   AML_FLAGS_EXEC_0A_0T_1R),
+/* 7E */ ACPI_OP ("Timer",              ARGP_TIMER_OP,             ARGI_TIMER_OP,              ACPI_TYPE_ANY,               AML_CLASS_EXECUTE,         AML_TYPE_EXEC_0A_0T_1R,   AML_FLAGS_EXEC_0A_0T_1R | AML_NO_OPERAND_RESOLVE),
 
 /* ACPI 5.0 opcodes */
 

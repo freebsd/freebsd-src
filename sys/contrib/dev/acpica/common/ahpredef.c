@@ -234,6 +234,7 @@ const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
     AH_PREDEF ("_DMA",    "Direct Memory Access", "Returns device current resources for DMA transactions, and resource field"),
     AH_PREDEF ("_DOD",    "Display Output Devices", "Enumerate all devices attached to the display adapter"),
     AH_PREDEF ("_DOS",    "Disable Output Switching", "Sets the display output switching mode"),
+    AH_PREDEF ("_DSC",    "Deepest State for Configuration", "Returns the deepest D-state of the device to the OSPM"),
     AH_PREDEF ("_DPL",    "Device Selection Polarity", "Polarity of Device Selection signal, Resource Descriptor field"),
     AH_PREDEF ("_DRS",    "Drive Strength", "Drive Strength setting for GPIO connection, Resource Descriptor field"),
     AH_PREDEF ("_DSD",    "Device-Specific Data", "Returns a list of device property information"),

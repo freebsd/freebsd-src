@@ -947,7 +947,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoDmar4[] =
 {
     {ACPI_DMT_UINT24,   ACPI_DMAR4_OFFSET (Reserved[0]),            "Reserved", 0},
     {ACPI_DMT_UINT8,    ACPI_DMAR4_OFFSET (DeviceNumber),           "Device Number", 0},
-    {ACPI_DMT_STRING,   ACPI_DMAR4_OFFSET (u.DeviceName[0]),          "Device Name", 0},
+    {ACPI_DMT_STRING,   ACPI_DMAR4_OFFSET (DeviceName[0]),          "Device Name", 0},
     ACPI_DMT_TERMINATOR
 };
 

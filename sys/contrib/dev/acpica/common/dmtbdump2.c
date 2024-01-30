@@ -990,6 +990,61 @@ AcpiDmDumpMadt (
             InfoTable = AcpiDmTableInfoMadt16;
             break;
 
+        case ACPI_MADT_TYPE_CORE_PIC:
+
+            InfoTable = AcpiDmTableInfoMadt17;
+            break;
+
+        case ACPI_MADT_TYPE_LIO_PIC:
+
+            InfoTable = AcpiDmTableInfoMadt18;
+            break;
+
+        case ACPI_MADT_TYPE_HT_PIC:
+
+            InfoTable = AcpiDmTableInfoMadt19;
+            break;
+
+        case ACPI_MADT_TYPE_EIO_PIC:
+
+            InfoTable = AcpiDmTableInfoMadt20;
+            break;
+
+        case ACPI_MADT_TYPE_MSI_PIC:
+
+            InfoTable = AcpiDmTableInfoMadt21;
+            break;
+
+        case ACPI_MADT_TYPE_BIO_PIC:
+
+            InfoTable = AcpiDmTableInfoMadt22;
+            break;
+
+        case ACPI_MADT_TYPE_LPC_PIC:
+
+            InfoTable = AcpiDmTableInfoMadt23;
+            break;
+
+        case ACPI_MADT_TYPE_RINTC:
+
+            InfoTable = AcpiDmTableInfoMadt24;
+            break;
+
+        case ACPI_MADT_TYPE_IMSIC:
+
+            InfoTable = AcpiDmTableInfoMadt25;
+            break;
+
+        case ACPI_MADT_TYPE_APLIC:
+
+            InfoTable = AcpiDmTableInfoMadt26;
+            break;
+
+        case ACPI_MADT_TYPE_PLIC:
+
+            InfoTable = AcpiDmTableInfoMadt27;
+            break;
+
         default:
 
             if ((Subtable->Type >= ACPI_MADT_TYPE_RESERVED) &&
@@ -1021,7 +1076,7 @@ AcpiDmDumpMadt (
             /* Dump the OEM data */
 
             Status = AcpiDmDumpTable (Length, Offset, ACPI_CAST_PTR (UINT8, Table) + Offset,
-                Subtable->Length - sizeof (ACPI_SUBTABLE_HEADER), AcpiDmTableInfoMadt17);
+                Subtable->Length - sizeof (ACPI_SUBTABLE_HEADER), AcpiDmTableInfoMadt128);
             if (ACPI_FAILURE (Status))
             {
                 return;
@@ -1058,16 +1113,16 @@ NextSubtable:
         Subtable = ACPI_ADD_PTR (ACPI_SUBTABLE_HEADER, Subtable,
             Subtable->Length);
 
-        DbgPrint (ASL_PARSE_OUTPUT, "//[5) Next Subtable %p, length %X]\n",
-            Subtable, Subtable->Length);
-        DbgPrint (ASL_PARSE_OUTPUT, "//[5B) Offset from table start: 0x%8.8X%8.8X (%p)]\n",
-            ACPI_FORMAT_UINT64 (ACPI_CAST_PTR (char, Subtable) - ACPI_CAST_PTR (char, Table)), Subtable);
-
         Offset = ACPI_CAST_PTR (char, Subtable) - ACPI_CAST_PTR (char, Table);
         if (Offset >= Table->Length)
         {
             return;
         }
+
+        DbgPrint (ASL_PARSE_OUTPUT, "//[5) Next Subtable %p, length %X]\n",
+            Subtable, Subtable->Length);
+        DbgPrint (ASL_PARSE_OUTPUT, "//[5B) Offset from table start: 0x%8.8X%8.8X (%p)]\n",
+            ACPI_FORMAT_UINT64 (ACPI_CAST_PTR (char, Subtable) - ACPI_CAST_PTR (char, Table)), Subtable);
     }
 }
 
@@ -2765,6 +2820,8 @@ AcpiDmDumpRhct (
     ACPI_RHCT_NODE_HEADER   *Subtable;
     ACPI_RHCT_HART_INFO     *RhctHartInfo;
     ACPI_RHCT_ISA_STRING    *RhctIsaString;
+    ACPI_RHCT_CMO_NODE      *RhctCmoNode;
+    ACPI_RHCT_MMU_NODE      *RhctMmuNode;
     UINT32                  Length = Table->Length;
     UINT8                   SubtableOffset, IsaPadOffset;
     UINT32                  Offset = sizeof (ACPI_TABLE_RHCT);
@@ -2849,6 +2906,20 @@ AcpiDmDumpRhct (
                          ACPI_ADD_PTR (UINT8, Subtable, IsaPadOffset),
                          (Subtable->Length - IsaPadOffset), AcpiDmTableInfoRhctIsaPad);
             }
+
+            break;
+
+        case ACPI_RHCT_NODE_TYPE_CMO:
+            RhctCmoNode = ACPI_ADD_PTR (ACPI_RHCT_CMO_NODE, Subtable, SubtableOffset);
+            Status = AcpiDmDumpTable (Table->Length, Offset + SubtableOffset,
+                                      RhctCmoNode, 4, AcpiDmTableInfoRhctCmo1);
+            break;
+
+        case ACPI_RHCT_NODE_TYPE_MMU:
+            RhctMmuNode = ACPI_ADD_PTR (ACPI_RHCT_MMU_NODE, Subtable, SubtableOffset);
+            Status = AcpiDmDumpTable (Table->Length, Offset + SubtableOffset,
+                                      RhctMmuNode, 2, AcpiDmTableInfoRhctMmu1);
+            break;
 
         default:
             break;

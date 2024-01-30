@@ -268,6 +268,7 @@ ACPI_GLOBAL (ACPI_TABLE_HANDLER,        AcpiGbl_TableHandler);
 ACPI_GLOBAL (void *,                    AcpiGbl_TableHandlerContext);
 ACPI_GLOBAL (ACPI_INTERFACE_HANDLER,    AcpiGbl_InterfaceHandler);
 ACPI_GLOBAL (ACPI_SCI_HANDLER_INFO *,   AcpiGbl_SciHandlerList);
+ACPI_GLOBAL (ACPI_GED_HANDLER_INFO *,   AcpiGbl_GedHandlerList);
 
 /* Owner ID support */
 

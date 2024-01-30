@@ -506,7 +506,7 @@ typedef struct aml_resource_extended_irq
     union {
         UINT32                      Interrupt;
         ACPI_FLEX_ARRAY(UINT32,     Interrupts);
-    } u;
+    };
     /* ResSourceIndex, ResSource optional fields follow */
 
 } AML_RESOURCE_EXTENDED_IRQ;

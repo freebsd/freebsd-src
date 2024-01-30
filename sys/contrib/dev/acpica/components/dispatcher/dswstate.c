@@ -310,8 +310,8 @@ AcpiDsResultPush (
     if (!Object)
     {
         ACPI_ERROR ((AE_INFO,
-            "Null Object! Obj=%p State=%p Num=%u",
-            Object, WalkState, WalkState->ResultCount));
+            "Null Object! State=%p Num=%u",
+            WalkState, WalkState->ResultCount));
         return (AE_BAD_PARAMETER);
     }
 
