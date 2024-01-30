@@ -2674,6 +2674,7 @@ cdmediaprobedone(struct cam_periph *periph)
 		softc->flags &= ~CD_FLAG_MEDIA_WAIT;
 		wakeup(&softc->toc);
 	}
+	cam_periph_release_locked(periph);
 }
 
 /*
@@ -2691,31 +2692,29 @@ cdcheckmedia(struct cam_periph *periph, bool do_wait)
 	softc = (struct cd_softc *)periph->softc;
 	error = 0;
 
-	if ((do_wait != 0)
-	 && ((softc->flags & CD_FLAG_MEDIA_WAIT) == 0)) {
+	/* Released by cdmediaprobedone(). */
+	error = cam_periph_acquire(periph);
+	if (error != 0)
+		return (error);
+
+	if (do_wait)
 		softc->flags |= CD_FLAG_MEDIA_WAIT;
-	}
 	if ((softc->flags & CD_FLAG_MEDIA_SCAN_ACT) == 0) {
 		softc->state = CD_STATE_MEDIA_PREVENT;
 		softc->flags |= CD_FLAG_MEDIA_SCAN_ACT;
 		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 	}
-
-	if (do_wait == 0)
-		goto bailout;
+	if (!do_wait)
+		return (0);
 
 	error = msleep(&softc->toc, cam_periph_mtx(periph), PRIBIO,"cdmedia",0);
-
-	if (error != 0)
-		goto bailout;
 
 	/*
 	 * Check to see whether we have a valid size from the media.  We
 	 * may or may not have a valid TOC.
 	 */
-	if ((softc->flags & CD_FLAG_VALID_MEDIA) == 0)
+	if (error == 0 && (softc->flags & CD_FLAG_VALID_MEDIA) == 0)
 		error = EINVAL;
-bailout:
 
 	return (error);
 }
