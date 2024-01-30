@@ -51,7 +51,7 @@
 typedef struct fsid { int32_t val[2]; } fsid_t;	/* filesystem id type */
 
 /* Returns non-zero if fsids are different. */
-static inline int
+static __inline int
 fsidcmp(const fsid_t *a, const fsid_t *b)
 {
 	return (a->val[0] != b->val[0] || a->val[1] != b->val[1]);
