@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -654,6 +654,91 @@ DtCompileAsf (
     return (AE_OK);
 }
 
+/******************************************************************************
+ *
+ * FUNCTION:    DtCompileAspt
+ *
+ * PARAMETERS:  List                - Current field list pointer
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile ASPT.
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompileAspt (
+    void                    **List)
+{
+    ACPI_ASPT_HEADER        *AsptTable;
+    DT_SUBTABLE             *Subtable;
+    DT_SUBTABLE             *ParentTable;
+    ACPI_DMTABLE_INFO       *InfoTable;
+    ACPI_STATUS             Status;
+    DT_FIELD                **PFieldList = (DT_FIELD **) List;
+    DT_FIELD                *SubtableStart;
+
+    Status = DtCompileTable (PFieldList, AcpiDmTableInfoAspt, &Subtable);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    ParentTable = DtPeekSubtable ();
+    DtInsertSubtable (ParentTable, Subtable);
+
+    while (*PFieldList)
+    {
+        SubtableStart = *PFieldList;
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoAsptHdr,
+            &Subtable);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        ParentTable = DtPeekSubtable ();
+        DtInsertSubtable (ParentTable, Subtable);
+        DtPushSubtable (Subtable);
+
+        AsptTable = ACPI_CAST_PTR (ACPI_ASPT_HEADER, Subtable->Buffer);
+
+        switch (AsptTable->Type) /* Mask off top bit */
+        {
+        case ACPI_ASPT_TYPE_GLOBAL_REGS:
+
+            InfoTable = AcpiDmTableInfoAspt0;
+            break;
+
+        case ACPI_ASPT_TYPE_SEV_MBOX_REGS:
+
+            InfoTable = AcpiDmTableInfoAspt1;
+            break;
+
+        case ACPI_ASPT_TYPE_ACPI_MBOX_REGS:
+
+            InfoTable = AcpiDmTableInfoAspt2;
+            break;
+
+        default:
+
+            DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "ASPT");
+            return (AE_ERROR);
+        }
+
+        Status = DtCompileTable (PFieldList, InfoTable, &Subtable);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+        ParentTable = DtPeekSubtable ();
+        DtInsertSubtable (ParentTable, Subtable);
+        DtPopSubtable ();
+    }
+
+    return (AE_OK);
+}
+
 
 /******************************************************************************
  *
@@ -854,7 +939,7 @@ DtCompileCedt (
             /* Look in buffer for the number of targets */
             offset = (unsigned int) ACPI_OFFSET (ACPI_CEDT_CFMWS, InterleaveWays);
             dump = (unsigned char *) Subtable->Buffer - 4;     /* place at beginning of cedt1 */
-            max = 0x01 << dump[offset];     /* 2^max, so 0=1, 1=2, 2=4, 3=8.  8 is MAX */
+            max = 0x01 << dump[offset];     /* 2^max, so 0=1, 1=2, 2=4, 3=8. 8 is MAX */
             if (max > 8)    max=1;          /* Error in encoding Interleaving Ways. */
             if (max == 1)                   /* if only one target, then break here. */
                 break;                      /* break if only one target. */
@@ -2009,7 +2094,7 @@ DtCompileHmat (
         DtInsertSubtable (ParentTable, Subtable);
         HmatStruct->Length += Subtable->Length;
 
-        /* Compile HMAT structure additionals */
+        /* Compile HMAT structure additional */
 
         switch (HmatStruct->Type)
         {

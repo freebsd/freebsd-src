@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -253,6 +253,50 @@ ACPI_RSCONVERT_INFO     AcpiRsConvertGpio[18] =
                         AML_OFFSET (Gpio.VendorOffset),
                         0},
 };
+
+/*******************************************************************************
+ *
+ * AcpiRsConvertClockInput
+ *
+ ******************************************************************************/
+
+ACPI_RSCONVERT_INFO     AcpiRsConvertClockInput[8] =
+{
+    {ACPI_RSC_INITGET,  ACPI_RESOURCE_TYPE_CLOCK_INPUT,
+                        ACPI_RS_SIZE (ACPI_RESOURCE_CLOCK_INPUT),
+                        ACPI_RSC_TABLE_SIZE (AcpiRsConvertClockInput)},
+
+    {ACPI_RSC_INITSET,  ACPI_RESOURCE_NAME_CLOCK_INPUT,
+                        sizeof (AML_RESOURCE_CLOCK_INPUT),
+                        0},
+
+    {ACPI_RSC_MOVE8,    ACPI_RS_OFFSET (Data.ClockInput.RevisionId),
+                        AML_OFFSET (ClockInput.RevisionId),
+                        1},
+
+    {ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET (Data.ClockInput.Mode),
+                        AML_OFFSET (ClockInput.Flags),
+                        0},
+
+    {ACPI_RSC_2BITFLAG, ACPI_RS_OFFSET (Data.ClockInput.Scale),
+                        AML_OFFSET (ClockInput.Flags),
+                        1},
+
+    {ACPI_RSC_MOVE16,   ACPI_RS_OFFSET (Data.ClockInput.FrequencyDivisor),
+                        AML_OFFSET (ClockInput.FrequencyDivisor),
+                        2},
+
+    {ACPI_RSC_MOVE32,   ACPI_RS_OFFSET (Data.ClockInput.FrequencyNumerator),
+                        AML_OFFSET (ClockInput.FrequencyNumerator),
+                        4},
+
+    /* Resource Source */
+    {ACPI_RSC_SOURCE,    ACPI_RS_OFFSET (Data.ClockInput.ResourceSource),
+                        0,
+                        sizeof(AML_RESOURCE_CLOCK_INPUT)},
+
+};
+
 
 /*******************************************************************************
  *

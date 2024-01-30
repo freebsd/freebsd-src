@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -1452,7 +1452,8 @@ typedef struct acpi_port_info
 #define ACPI_RESOURCE_NAME_PIN_GROUP            0x90
 #define ACPI_RESOURCE_NAME_PIN_GROUP_FUNCTION   0x91
 #define ACPI_RESOURCE_NAME_PIN_GROUP_CONFIG     0x92
-#define ACPI_RESOURCE_NAME_LARGE_MAX            0x92
+#define ACPI_RESOURCE_NAME_CLOCK_INPUT          0x93
+#define ACPI_RESOURCE_NAME_LARGE_MAX            0x94
 
 
 /*****************************************************************************

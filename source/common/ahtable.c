@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -202,6 +202,7 @@ const AH_TABLE      AcpiGbl_SupportedTables[] =
     {ACPI_SIG_AEST, "Arm Error Source Table"},
     {ACPI_SIG_AGDI, "Arm Generic Diagnostic Dump and Reset Device Interface Table"},
     {ACPI_SIG_ASF,  "Alert Standard Format Table"},
+    {ACPI_SIG_ASPT, "AMD Secure Processor Table"},
     {ACPI_SIG_BDAT, "BIOS Data ACPI Table"},
     {ACPI_SIG_BERT, "Boot Error Record Table"},
     {ACPI_SIG_BGRT, "Boot Graphics Resource Table"},
@@ -232,6 +233,7 @@ const AH_TABLE      AcpiGbl_SupportedTables[] =
     {ACPI_SIG_MADT, "Multiple APIC Description Table (MADT)"},
     {ACPI_SIG_MCFG, "Memory Mapped Configuration Table"},
     {ACPI_SIG_MCHI, "Management Controller Host Interface Table"},
+    {ACPI_SIG_MPAM, "Memory System Resource Partitioning and Monitoring Table"},
     {ACPI_SIG_MPST, "Memory Power State Table"},
     {ACPI_SIG_MSCT, "Maximum System Characteristics Table"},
     {ACPI_SIG_MSDM, "Microsoft Data Management Table"},
@@ -244,6 +246,7 @@ const AH_TABLE      AcpiGbl_SupportedTables[] =
     {ACPI_SIG_PPTT, "Processor Properties Topology Table"},
     {ACPI_SIG_PRMT, "Platform Runtime Mechanism Table"},
     {ACPI_SIG_RASF, "RAS Features Table"},
+    {ACPI_SIG_RHCT, "RISC-V Hart Capabilities Table"},
     {ACPI_SIG_RGRT, "Regulatory Graphics Resource Table"},
     {ACPI_RSDP_NAME,"Root System Description Pointer"},
     {ACPI_SIG_RSDT, "Root System Description Table"},

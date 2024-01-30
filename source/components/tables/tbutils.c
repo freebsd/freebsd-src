@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -323,6 +323,7 @@ AcpiTbGetRootTableEntry (
     UINT8                   *TableEntry,
     UINT32                  TableEntrySize)
 {
+    UINT32                  Address32;
     UINT64                  Address64;
 
 
@@ -336,8 +337,8 @@ AcpiTbGetRootTableEntry (
          * 32-bit platform, RSDT: Return 32-bit table entry
          * 64-bit platform, RSDT: Expand 32-bit to 64-bit and return
          */
-        return ((ACPI_PHYSICAL_ADDRESS) (*ACPI_CAST_PTR (
-            UINT32, TableEntry)));
+        ACPI_MOVE_32_TO_32(&Address32, TableEntry);
+        return Address32;
     }
     else
     {

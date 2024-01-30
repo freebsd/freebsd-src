@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acmacosx.h - OS specific defines, etc. for Mac OS X
+ * Module Name: aczephyr.h - OS specific defines, etc.
  *
  *****************************************************************************/
 
@@ -149,17 +149,44 @@
  *
  *****************************************************************************/
 
-#ifndef __ACMACOSX_H__
-#define __ACMACOSX_H__
+#ifndef __ACZEPHYR_H__
+#define __ACZEPHYR_H__
 
-#include "aclinux.h"
+#define SEEK_SET FS_SEEK_SET
+#define SEEK_END FS_SEEK_END
 
-#ifdef __APPLE__
-#define ACPI_USE_ALTERNATE_TIMEOUT
-#endif /* __APPLE__ */
+#define ACPI_MACHINE_WIDTH      64
 
-#ifdef __clang__
-#pragma clang diagnostic ignored "-Wformat-nonliteral"
+#define ACPI_NO_ERROR_MESSAGES
+#undef ACPI_DEBUG_OUTPUT
+#define ACPI_USE_SYSTEM_CLIBRARY
+#undef ACPI_DBG_TRACK_ALLOCATIONS
+#define ACPI_SINGLE_THREADED
+#define ACPI_USE_NATIVE_RSDP_POINTER
+
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <zephyr/fs/fs.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/sys/__assert.h>
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiEnableDbgPrint
+ *
+ * PARAMETERS:  Enable, 	            - Enable/Disable debug print
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Enable/disable debug print
+ *
+ *****************************************************************************/
+
+void AcpiEnableDbgPrint (
+    bool Enable);
 #endif
-
-#endif /* __ACMACOSX_H__ */
