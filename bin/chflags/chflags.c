@@ -74,7 +74,7 @@ main(int argc, char *argv[])
 	u_long clear, newflags, set;
 	long val;
 	int Hflag, Lflag, Rflag, fflag, hflag, vflag, xflag;
-	int ch, fts_options, oct, rval;
+	int ch, e, fts_options, oct, rval;
 	char *flags, *ep;
 
 	Hflag = Lflag = Rflag = fflag = hflag = vflag = xflag = 0;
@@ -196,9 +196,15 @@ main(int argc, char *argv[])
 			continue;
 		if (chflagsat(AT_FDCWD, p->fts_accpath, newflags,
 		    atflag) == -1) {
+			e = errno;
 			if (!fflag) {
-				warn("%s", p->fts_path);
+				warnc(e, "%s", p->fts_path);
 				rval = 1;
+			}
+			if (siginfo) {
+				(void)printf("%s: %s\n", p->fts_path,
+				    strerror(e));
+				siginfo = 0;
 			}
 		} else if (vflag || siginfo) {
 			(void)printf("%s", p->fts_path);
