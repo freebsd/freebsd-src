@@ -153,7 +153,7 @@ clnt_vc_create(
 	ct->ct_upcallrefs = 0;
 	ct->ct_rcvstate = RPCRCVSTATE_NORMAL;
 
-	if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0) {
+	if ((so->so_state & SS_ISCONNECTED) == 0) {
 		error = soconnect(so, raddr, curthread);
 		SOCK_LOCK(so);
 		interrupted = 0;

@@ -1412,7 +1412,7 @@ kern_getpeername(struct thread *td, int fd, struct sockaddr *sa)
 	if (error != 0)
 		return (error);
 	so = fp->f_data;
-	if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0) {
+	if ((so->so_state & SS_ISCONNECTED) == 0) {
 		error = ENOTCONN;
 		goto done;
 	}

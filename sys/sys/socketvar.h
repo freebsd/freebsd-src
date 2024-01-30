@@ -211,7 +211,7 @@ struct socket {
 #define	SS_ISDISCONNECTING	0x0008	/* in process of disconnecting */
 #define	SS_NBIO			0x0100	/* non-blocking ops */
 #define	SS_ASYNC		0x0200	/* async i/o notify */
-#define	SS_ISCONFIRMING		0x0400	/* deciding to accept connection req */
+/* was	SS_ISCONFIRMING		0x0400	*/
 #define	SS_ISDISCONNECTED	0x2000	/* socket disconnected from peer */
 
 #ifdef _KERNEL

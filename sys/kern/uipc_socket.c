@@ -792,7 +792,7 @@ solisten_clone(struct socket *head)
 	return (so);
 }
 
-/* Connstatus may be 0, or SS_ISCONFIRMING, or SS_ISCONNECTED. */
+/* Connstatus may be 0 or SS_ISCONNECTED. */
 struct socket *
 sonewconn(struct socket *head, int connstatus)
 {
@@ -1516,8 +1516,7 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 		 */
 		if ((so->so_proto->pr_flags & PR_CONNREQUIRED) &&
 		    (so->so_proto->pr_flags & PR_IMPLOPCL) == 0) {
-			if ((so->so_state & SS_ISCONFIRMING) == 0 &&
-			    !(resid == 0 && clen != 0)) {
+			if (!(resid == 0 && clen != 0)) {
 				SOCKBUF_UNLOCK(&so->so_snd);
 				error = ENOTCONN;
 				goto out;
@@ -1725,8 +1724,7 @@ restart:
 			 */
 			if ((so->so_proto->pr_flags & PR_CONNREQUIRED) &&
 			    (so->so_proto->pr_flags & PR_IMPLOPCL) == 0) {
-				if ((so->so_state & SS_ISCONFIRMING) == 0 &&
-				    !(resid == 0 && clen != 0)) {
+				if (!(resid == 0 && clen != 0)) {
 					SOCKBUF_UNLOCK(&so->so_snd);
 					error = ENOTCONN;
 					goto release;
@@ -2068,11 +2066,6 @@ soreceive_generic(struct socket *so, struct sockaddr **psa, struct uio *uio,
 		return (soreceive_rcvoob(so, uio, flags));
 	if (mp != NULL)
 		*mp = NULL;
-	if ((pr->pr_flags & PR_WANTRCVD) && (so->so_state & SS_ISCONFIRMING)
-	    && uio->uio_resid) {
-		VNET_SO_ASSERT(so);
-		pr->pr_rcvd(so, 0);
-	}
 
 	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
 	if (error)
@@ -3862,7 +3855,7 @@ soisconnected(struct socket *so)
 	bool last __diagused;
 
 	SOCK_LOCK(so);
-	so->so_state &= ~(SS_ISCONNECTING|SS_ISDISCONNECTING|SS_ISCONFIRMING);
+	so->so_state &= ~(SS_ISCONNECTING|SS_ISDISCONNECTING);
 	so->so_state |= SS_ISCONNECTED;
 
 	if (so->so_qstate == SQ_INCOMP) {
