@@ -475,9 +475,9 @@ AcpiRsCreatePciRoutingTable (
                 /* Use *remaining* length of the buffer as max for pathname */
 
                 PathBuffer.Length = OutputBuffer->Length -
-                    (UINT32) ((UINT8 *) UserPrt->u.Source -
+                    (UINT32) ((UINT8 *) UserPrt->Source -
                     (UINT8 *) OutputBuffer->Pointer);
-                PathBuffer.Pointer = UserPrt->u.Source;
+                PathBuffer.Pointer = UserPrt->Source;
 
                 Status = AcpiNsHandleToPathname (
                     (ACPI_HANDLE) Node, &PathBuffer, FALSE);
@@ -488,12 +488,12 @@ AcpiRsCreatePciRoutingTable (
 
                 /* +1 to include null terminator */
 
-                UserPrt->Length += (UINT32) strlen (UserPrt->u.Source) + 1;
+                UserPrt->Length += (UINT32) strlen (UserPrt->Source) + 1;
                 break;
 
             case ACPI_TYPE_STRING:
 
-                strcpy (UserPrt->u.Source, ObjDesc->String.Pointer);
+                strcpy (UserPrt->Source, ObjDesc->String.Pointer);
 
                 /*
                  * Add to the Length field the length of the string

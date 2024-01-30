@@ -152,7 +152,6 @@
 #ifndef __ACGCC_H__
 #define __ACGCC_H__
 
-#ifndef _KERNEL
 /*
  * Use compiler specific <stdarg.h> is a good practice for even when
  * -nostdinc is specified (i.e., ACPI_USE_STANDARD_HEADERS undefined.
@@ -165,6 +164,7 @@ typedef __builtin_va_list       va_list;
 #define va_arg(v, l)            __builtin_va_arg(v, l)
 #define va_copy(d, s)           __builtin_va_copy(d, s)
 #else
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
 #include <stdarg.h>
 #endif
 #endif

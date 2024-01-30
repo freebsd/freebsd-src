@@ -185,7 +185,12 @@ AcpiUtInitStackPtrTrace (
     ACPI_SIZE               CurrentSp;
 
 
+#pragma GCC diagnostic push
+#if defined(__GNUC__) && __GNUC__ >= 12
+#pragma GCC diagnostic ignored "-Wdangling-pointer="
+#endif
     AcpiGbl_EntryStackPointer = &CurrentSp;
+#pragma GCC diagnostic pop
 }
 
 
