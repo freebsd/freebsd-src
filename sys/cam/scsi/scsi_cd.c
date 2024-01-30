@@ -262,7 +262,7 @@ static	union cd_pages	*cdgetpage(struct cd_mode_params *mode_params);
 static	int		cdgetpagesize(int page_num);
 static	void		cdprevent(struct cam_periph *periph, int action);
 static	void		cdmediaprobedone(struct cam_periph *periph);
-static	int		cdcheckmedia(struct cam_periph *periph, int do_wait);
+static	int		cdcheckmedia(struct cam_periph *periph, bool do_wait);
 #if 0
 static	int		cdsize(struct cam_periph *periph, uint32_t *size);
 #endif
@@ -773,7 +773,7 @@ cdopen(struct disk *dp)
 	 * if we don't have media, but then we don't allow anything but the
 	 * CDIOCEJECT/CDIOCCLOSE ioctls if there is no media.
 	 */
-	cdcheckmedia(periph, /*do_wait*/ 1);
+	cdcheckmedia(periph, /*do_wait*/ true);
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("leaving cdopen\n"));
 	cam_periph_unhold(periph);
@@ -879,7 +879,7 @@ cdstrategy(struct bio *bp)
 	 * check first.  The I/O will get executed after the media check.
 	 */
 	if ((softc->flags & CD_FLAG_VALID_MEDIA) == 0)
-		cdcheckmedia(periph, /*do_wait*/ 0);
+		cdcheckmedia(periph, /*do_wait*/ false);
 	else
 		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 
@@ -1781,7 +1781,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 	 && ((cmd != CDIOCCLOSE)
 	  && (cmd != CDIOCEJECT))
 	 && (IOCGROUP(cmd) == 'c')) {
-		error = cdcheckmedia(periph, /*do_wait*/ 1);
+		error = cdcheckmedia(periph, /*do_wait*/ true);
 		if (error != 0) {
 			cam_periph_unhold(periph);
 			cam_periph_unlock(periph);
@@ -2682,7 +2682,7 @@ cdmediaprobedone(struct cam_periph *periph)
  */
 
 static int
-cdcheckmedia(struct cam_periph *periph, int do_wait)
+cdcheckmedia(struct cam_periph *periph, bool do_wait)
 {
 	struct cd_softc *softc;
 	int error;
