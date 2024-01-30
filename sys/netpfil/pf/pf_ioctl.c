@@ -6706,13 +6706,8 @@ pf_unload_vnet(void)
 	V_pf_allrulecount--;
 	LIST_REMOVE(V_pf_rulemarker, allrulelist);
 
-	/*
-	 * There are known pf rule leaks when running the test suite.
-	 */
-#ifdef notyet
 	MPASS(LIST_EMPTY(&V_pf_allrulelist));
 	MPASS(V_pf_allrulecount == 0);
-#endif
 
 	PF_RULES_WUNLOCK();
 
