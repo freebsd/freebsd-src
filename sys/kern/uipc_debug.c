@@ -176,10 +176,6 @@ db_print_sostate(short so_state)
 		db_printf("%sSS_ASYNC", comma ? ", " : "");
 		comma = 1;
 	}
-	if (so_state & SS_ISCONFIRMING) {
-		db_printf("%sSS_ISCONFIRMING", comma ? ", " : "");
-		comma = 1;
-	}
 }
 
 static void

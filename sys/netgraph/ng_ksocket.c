@@ -782,8 +782,7 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			/* Get function */
 			if (msg->header.cmd == NGM_KSOCKET_GETPEERNAME) {
-				if ((so->so_state
-				    & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0)
+				if ((so->so_state & SS_ISCONNECTED) == 0)
 					ERROUT(ENOTCONN);
 				func = sopeeraddr;
 			} else
