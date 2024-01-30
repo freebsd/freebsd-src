@@ -6,7 +6,7 @@
 .\" This manual page was written by Mitchell Horne <mhorne@FreeBSD.org> under
 .\" sponsorship from the FreeBSD Foundation.
 .\"
-.Dd August 7, 2023
+.Dd January 30, 2024
 .Dt INTRO 9
 .Os
 .Sh NAME
@@ -457,11 +457,9 @@ and Kernel Memory Sanitizer
 are supported.
 .Pp
 The
-.Cd LOCK_PROFILING
+.Xr LOCK_PROFILING 9
 kernel config option enables extra code to assist with profiling and/or
-debugging lock performance;
-see
-.Xr LOCK_PROFILING 9 .
+debugging lock performance.
 .Ss Driver Tools
 Defined functions/APIs for specific types of devices.
 .Bl -tag -width "Xr usbdi 9"
