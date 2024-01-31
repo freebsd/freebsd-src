@@ -44,6 +44,7 @@
 #include <sys/selinfo.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
