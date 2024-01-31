@@ -180,6 +180,15 @@ SRCS+=  explicit_bzero.c crc32_libkern.c
 .include "${SASRC}/zfs/Makefile.inc"
 .endif
 
+# Crypto hashing functions
+# sha256 and sha512 from sys/crypto
+.PATH: ${SYSDIR}/crypto/sha2
+SRCS+=		sha256c.c sha512c.c
+
+# md5 from libmd
+.PATH: ${SRCTOP}/lib/libmd
+SRCS+=		md5c.c
+
 .if ${DO32:U0} == 0
 MAN=libsa.3
 .endif
