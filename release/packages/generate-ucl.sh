@@ -30,16 +30,9 @@ main() {
 
 	shift $(( ${OPTIND} - 1 ))
 
-	vital="false"
-
 	case "${outname}" in
 		bootloader)
 			pkgdeps=""
-			;;
-		clibs)
-			vital="true"
-			# clibs should not have any dependencies or anything
-			# else imposed on it.
 			;;
 		certctl)
 			pkgdeps="caroot openssl"
@@ -68,7 +61,6 @@ main() {
 		runtime)
 			outname="runtime"
 			_descr="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESCR)"
-			vital="true"
 			;;
 		*-lib32_dev)
 			outname="${outname%%-lib32_dev}"
@@ -111,10 +103,7 @@ main() {
 	desc="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESC)"
 	comment="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_COMMENT)"
 
-	uclsource="${srctree}/release/packages/${outname}.ucl"
-	if [ ! -e "${uclsource}" ]; then
-		uclsource="${srctree}/release/packages/template.ucl"
-	fi
+	uclsource="${srctree}/release/packages/template.ucl"
 
 	if [ ! -z "${debug}" ]; then
 		echo ""
@@ -153,16 +142,19 @@ EOF
 		echo '}' >> ${uclfile}
 	fi
 	cap_arg="$( make -f ${srctree}/share/mk/bsd.endian.mk -VCAP_MKDB_ENDIAN )"
-	sed -i '' -e "s/%VERSION%/${PKG_VERSION}/" \
-		-e "s/%PKGNAME%/${origname}/" \
-		-e "s/%COMMENT%/${comment}/" \
-		-e "s/%DESC%/${desc}/" \
-		-e "s/%VITAL%/${vital}/" \
-		-e "s/%CAP_MKDB_ENDIAN%/${cap_arg}/g" \
-		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
-		-e "s|%PKG_WWW%|${PKG_WWW}|" \
-		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
-		${uclfile}
+	${srctree}/release/packages/generate-ucl.lua \
+		VERSION "${PKG_VERSION}" \
+		PKGNAME "${origname}" \
+		PKGGENNAME "${outname}" \
+		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
+		COMMENT "${comment}" \
+		DESC "${desc}" \
+		CAP_MKDB_ENDIAN "${cap_arg}" \
+		PKG_WWW "${PKG_WWW}" \
+		PKG_MAINTAINER "${PKG_MAINTAINER}" \
+		UCLFILES "${srctree}/release/packages/" \
+		${uclsource} ${uclfile}
+
 	return 0
 }
 
