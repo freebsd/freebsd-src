@@ -108,32 +108,6 @@ SRCS+=	${i}
 SRCS+=	lz4.c
 CFLAGS.lz4.c+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
 
-# Create a subset of includes that are safe, as well as adjusting those that aren't
-# The lists may drive people nuts, but they are explicitly opt-in
-FAKE_DIRS=xlocale arpa
-SAFE_INCS=a.out.h assert.h elf.h inttypes.h limits.h nlist.h setjmp.h stddef.h stdbool.h string.h strings.h time.h unistd.h uuid.h
-STAND_H_INC=ctype.h fcntl.h signal.h stdio.h stdlib.h
-OTHER_INC=stdarg.h errno.h stdint.h
-
-beforedepend:
-	mkdir -p ${FAKE_DIRS}; \
-	for i in ${SAFE_INCS}; do \
-		ln -sf ${SRCTOP}/include/$$i $$i; \
-	done; \
-	ln -sf ${SYSDIR}/${MACHINE}/include/stdarg.h stdarg.h; \
-	ln -sf ${SYSDIR}/sys/errno.h errno.h; \
-	ln -sf ${SYSDIR}/sys/stdint.h stdint.h; \
-	ln -sf ${SRCTOP}/include/arpa/inet.h arpa/inet.h; \
-	ln -sf ${SRCTOP}/include/arpa/tftp.h arpa/tftp.h; \
-	for i in _time.h _strings.h _string.h; do \
-		[ -f xlocale/$$i ] || :> xlocale/$$i; \
-	done; \
-	for i in ${STAND_H_INC}; do \
-		ln -sf ${SASRC}/stand.h $$i; \
-	done
-CLEANDIRS+=${FAKE_DIRS}
-CLEANFILES+= ${SAFE_INCS} ${STAND_H_INC} ${OTHER_INC}
-
 # io routines
 SRCS+=	closeall.c dev.c ioctl.c nullfs.c stat.c mount.c \
 	fstat.c close.c lseek.c open.c read.c write.c readdir.c preload.c
@@ -209,5 +183,31 @@ SRCS+=  explicit_bzero.c crc32_libkern.c
 .if ${DO32:U0} == 0
 MAN=libsa.3
 .endif
+
+# Create a subset of includes that are safe, as well as adjusting those that aren't
+# The lists may drive people nuts, but they are explicitly opt-in
+FAKE_DIRS=xlocale arpa
+SAFE_INCS=a.out.h assert.h elf.h inttypes.h limits.h nlist.h setjmp.h stddef.h stdbool.h string.h strings.h time.h unistd.h uuid.h
+STAND_H_INC=ctype.h fcntl.h signal.h stdio.h stdlib.h
+OTHER_INC=stdarg.h errno.h stdint.h
+
+beforedepend:
+	mkdir -p ${FAKE_DIRS}; \
+	for i in ${SAFE_INCS}; do \
+		ln -sf ${SRCTOP}/include/$$i $$i; \
+	done; \
+	ln -sf ${SYSDIR}/${MACHINE}/include/stdarg.h stdarg.h; \
+	ln -sf ${SYSDIR}/sys/errno.h errno.h; \
+	ln -sf ${SYSDIR}/sys/stdint.h stdint.h; \
+	ln -sf ${SRCTOP}/include/arpa/inet.h arpa/inet.h; \
+	ln -sf ${SRCTOP}/include/arpa/tftp.h arpa/tftp.h; \
+	for i in _time.h _strings.h _string.h; do \
+		[ -f xlocale/$$i ] || :> xlocale/$$i; \
+	done; \
+	for i in ${STAND_H_INC}; do \
+		ln -sf ${SASRC}/stand.h $$i; \
+	done
+CLEANDIRS+=${FAKE_DIRS}
+CLEANFILES+= ${SAFE_INCS} ${STAND_H_INC} ${OTHER_INC}
 
 .include <bsd.lib.mk>
