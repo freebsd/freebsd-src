@@ -686,6 +686,8 @@ struct sge_ofld_rxq {
 	uint64_t rx_iscsi_padding_errors;
 	uint64_t rx_iscsi_header_digest_errors;
 	uint64_t rx_iscsi_data_digest_errors;
+	uint64_t rx_aio_ddp_jobs;
+	uint64_t rx_aio_ddp_octets;
 	u_long	rx_toe_tls_records;
 	u_long	rx_toe_tls_octets;
 } __aligned(CACHE_LINE_SIZE);
@@ -752,6 +754,8 @@ struct sge_ofld_txq {
 	counter_u64_t tx_iscsi_pdus;
 	counter_u64_t tx_iscsi_octets;
 	counter_u64_t tx_iscsi_iso_wrs;
+	counter_u64_t tx_aio_jobs;
+	counter_u64_t tx_aio_octets;
 	counter_u64_t tx_toe_tls_records;
 	counter_u64_t tx_toe_tls_octets;
 } __aligned(CACHE_LINE_SIZE);
