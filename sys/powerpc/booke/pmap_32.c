@@ -128,13 +128,13 @@ static struct ptbl_buf *ptbl_buf_alloc(void);
 static void ptbl_buf_free(struct ptbl_buf *);
 static void ptbl_free_pmap_ptbl(pmap_t, pte_t *);
 
-static pte_t *ptbl_alloc(pmap_t, unsigned int, boolean_t);
+static pte_t *ptbl_alloc(pmap_t, unsigned int, bool);
 static void ptbl_free(pmap_t, unsigned int);
 static void ptbl_hold(pmap_t, unsigned int);
 static int ptbl_unhold(pmap_t, unsigned int);
 
 static vm_paddr_t pte_vatopa(pmap_t, vm_offset_t);
-static int pte_enter(pmap_t, vm_page_t, vm_offset_t, uint32_t, boolean_t);
+static int pte_enter(pmap_t, vm_page_t, vm_offset_t, uint32_t, bool);
 static int pte_remove(pmap_t, vm_offset_t, uint8_t);
 static pte_t *pte_find(pmap_t, vm_offset_t);
 
@@ -235,7 +235,7 @@ ptbl_free_pmap_ptbl(pmap_t pmap, pte_t *ptbl)
 
 /* Allocate page table. */
 static pte_t *
-ptbl_alloc(pmap_t pmap, unsigned int pdir_idx, boolean_t nosleep)
+ptbl_alloc(pmap_t pmap, unsigned int pdir_idx, bool nosleep)
 {
 	vm_page_t mtbl[PTBL_PAGES];
 	vm_page_t m;
@@ -498,7 +498,7 @@ pte_remove(pmap_t pmap, vm_offset_t va, uint8_t flags)
  */
 static int
 pte_enter(pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
-    boolean_t nosleep)
+    bool nosleep)
 {
 	unsigned int pdir_idx = PDIR_IDX(va);
 	unsigned int ptbl_idx = PTBL_IDX(va);
@@ -760,7 +760,7 @@ mmu_booke_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 				m = PHYS_TO_VM_PAGE(pa);
 				PMAP_LOCK(pmap);
 				pte_enter(pmap, m, addr,
-				    PTE_SR | PTE_VALID, FALSE);
+				    PTE_SR | PTE_VALID, false);
 				__syncicache((void *)(addr + (va & PAGE_MASK)),
 				    sync_sz);
 				pte_remove(pmap, addr, PTBL_UNHOLD);

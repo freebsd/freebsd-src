@@ -557,7 +557,7 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	pmap_methods_ptr->pm_bootstrap(firstaddr);
 }
 
-boolean_t
+bool
 pmap_is_valid_memattr(pmap_t pmap, vm_memattr_t mode)
 {
 
@@ -565,7 +565,7 @@ pmap_is_valid_memattr(pmap_t pmap, vm_memattr_t mode)
 }
 
 int
-pmap_cache_bits(pmap_t pmap, int mode, boolean_t is_pde)
+pmap_cache_bits(pmap_t pmap, int mode, bool is_pde)
 {
 
 	return (pmap_methods_ptr->pm_cache_bits(pmap, mode, is_pde));
@@ -716,7 +716,7 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	pmap_methods_ptr->pm_unwire(pmap, sva, eva);
 }
 
-boolean_t
+bool
 pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
 
@@ -730,7 +730,7 @@ pmap_page_wired_mappings(vm_page_t m)
 	return (pmap_methods_ptr->pm_page_wired_mappings(m));
 }
 
-boolean_t
+bool
 pmap_page_is_mapped(vm_page_t m)
 {
 
@@ -744,21 +744,21 @@ pmap_remove_pages(pmap_t pmap)
 	pmap_methods_ptr->pm_remove_pages(pmap);
 }
 
-boolean_t
+bool
 pmap_is_modified(vm_page_t m)
 {
 
 	return (pmap_methods_ptr->pm_is_modified(m));
 }
 
-boolean_t
+bool
 pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 {
 
 	return (pmap_methods_ptr->pm_is_prefaultable(pmap, addr));
 }
 
-boolean_t
+bool
 pmap_is_referenced(vm_page_t m)
 {
 

@@ -138,7 +138,7 @@ static void ptbl_hold(pmap_t, pte_t *);
 static int ptbl_unhold(pmap_t, vm_offset_t);
 
 static vm_paddr_t pte_vatopa(pmap_t, vm_offset_t);
-static int pte_enter(pmap_t, vm_page_t, vm_offset_t, uint32_t, boolean_t);
+static int pte_enter(pmap_t, vm_page_t, vm_offset_t, uint32_t, bool);
 static int pte_remove(pmap_t, vm_offset_t, uint8_t);
 static pte_t *pte_find(pmap_t, vm_offset_t);
 static pte_t *pte_find_next(pmap_t, vm_offset_t *);
@@ -440,7 +440,7 @@ pte_remove(pmap_t pmap, vm_offset_t va, u_int8_t flags)
  */
 static int
 pte_enter(pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
-    boolean_t nosleep)
+    bool nosleep)
 {
 	unsigned int	ptbl_idx = PTBL_IDX(va);
 	pte_t          *ptbl, *pte, pte_tmp;

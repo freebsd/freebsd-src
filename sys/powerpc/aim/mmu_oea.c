@@ -214,7 +214,7 @@ static int	moea_bpvo_pool_index = 0;
 #define	VSID_NBPW	(sizeof(u_int32_t) * 8)
 static u_int	moea_vsid_bitmap[NPMAPS / VSID_NBPW];
 
-static boolean_t moea_initialized = FALSE;
+static bool	moea_initialized = false;
 
 /*
  * Statistics.
@@ -266,7 +266,7 @@ static struct	pte *moea_pvo_to_pte(const struct pvo_entry *, int);
 static int		moea_enter_locked(pmap_t, vm_offset_t, vm_page_t,
 			    vm_prot_t, u_int, int8_t);
 static void		moea_syncicache(vm_paddr_t, vm_size_t);
-static boolean_t	moea_query_bit(vm_page_t, int);
+static bool		moea_query_bit(vm_page_t, int);
 static u_int		moea_clear_bit(vm_page_t, int);
 static void		moea_kremove(vm_offset_t);
 int		moea_pte_spill(vm_offset_t);
@@ -286,13 +286,13 @@ void moea_enter_quick(pmap_t, vm_offset_t, vm_page_t, vm_prot_t);
 vm_paddr_t moea_extract(pmap_t, vm_offset_t);
 vm_page_t moea_extract_and_hold(pmap_t, vm_offset_t, vm_prot_t);
 void moea_init(void);
-boolean_t moea_is_modified(vm_page_t);
-boolean_t moea_is_prefaultable(pmap_t, vm_offset_t);
-boolean_t moea_is_referenced(vm_page_t);
+bool moea_is_modified(vm_page_t);
+bool moea_is_prefaultable(pmap_t, vm_offset_t);
+bool moea_is_referenced(vm_page_t);
 int moea_ts_referenced(vm_page_t);
 vm_offset_t moea_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
 static int moea_mincore(pmap_t, vm_offset_t, vm_paddr_t *);
-boolean_t moea_page_exists_quick(pmap_t, vm_page_t);
+bool moea_page_exists_quick(pmap_t, vm_page_t);
 void moea_page_init(vm_page_t);
 int moea_page_wired_mappings(vm_page_t);
 int moea_pinit(pmap_t);
@@ -324,7 +324,7 @@ void moea_dumpsys_map(vm_paddr_t pa, size_t sz, void **va);
 void moea_scan_init(void);
 vm_offset_t moea_quick_enter_page(vm_page_t m);
 void moea_quick_remove_page(vm_offset_t addr);
-boolean_t moea_page_is_mapped(vm_page_t m);
+bool moea_page_is_mapped(vm_page_t m);
 bool moea_ps_enabled(pmap_t pmap);
 static int moea_map_user_ptr(pmap_t pm,
     volatile const void *uaddr, void **kaddr, size_t ulen, size_t *klen);
@@ -1116,7 +1116,7 @@ moea_quick_remove_page(vm_offset_t addr)
 {
 }
 
-boolean_t
+bool
 moea_page_is_mapped(vm_page_t m)
 {
 	return (!LIST_EMPTY(&(m)->md.mdpg_pvoh));
@@ -1318,13 +1318,13 @@ moea_init(void)
 	moea_mpvo_zone = uma_zcreate("MPVO entry", sizeof(struct pvo_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	moea_initialized = TRUE;
+	moea_initialized = true;
 }
 
-boolean_t
+bool
 moea_is_referenced(vm_page_t m)
 {
-	boolean_t rv;
+	bool rv;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_is_referenced: page %p is not managed", m));
@@ -1334,10 +1334,10 @@ moea_is_referenced(vm_page_t m)
 	return (rv);
 }
 
-boolean_t
+bool
 moea_is_modified(vm_page_t m)
 {
-	boolean_t rv;
+	bool rv;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_is_modified: page %p is not managed", m));
@@ -1346,7 +1346,7 @@ moea_is_modified(vm_page_t m)
 	 * If the page is not busied then this check is racy.
 	 */
 	if (!pmap_page_is_write_mapped(m))
-		return (FALSE);
+		return (false);
 
 	rw_wlock(&pvh_global_lock);
 	rv = moea_query_bit(m, PTE_CHG);
@@ -1354,11 +1354,11 @@ moea_is_modified(vm_page_t m)
 	return (rv);
 }
 
-boolean_t
+bool
 moea_is_prefaultable(pmap_t pmap, vm_offset_t va)
 {
 	struct pvo_entry *pvo;
-	boolean_t rv;
+	bool rv;
 
 	PMAP_LOCK(pmap);
 	pvo = moea_pvo_find_va(pmap, va & ~ADDR_POFF, NULL);
@@ -1657,21 +1657,21 @@ moea_map(vm_offset_t *virt, vm_paddr_t pa_start,
  * is only necessary that true be returned for a small
  * subset of pmaps for proper page aging.
  */
-boolean_t
+bool
 moea_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
         int loops;
 	struct pvo_entry *pvo;
-	boolean_t rv;
+	bool rv;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_page_exists_quick: page %p is not managed", m));
 	loops = 0;
-	rv = FALSE;
+	rv = false;
 	rw_wlock(&pvh_global_lock);
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		if (pvo->pvo_pmap == pmap) {
-			rv = TRUE;
+			rv = true;
 			break;
 		}
 		if (++loops >= 16)
@@ -2525,7 +2525,7 @@ moea_pte_insert(u_int ptegidx, struct pte *pvo_pt)
 	return (victim_idx & 7);
 }
 
-static boolean_t
+static bool
 moea_query_bit(vm_page_t m, int ptebit)
 {
 	struct	pvo_entry *pvo;
@@ -2533,7 +2533,7 @@ moea_query_bit(vm_page_t m, int ptebit)
 
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
 	if (moea_attr_fetch(m) & ptebit)
-		return (TRUE);
+		return (true);
 
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		/*
@@ -2542,7 +2542,7 @@ moea_query_bit(vm_page_t m, int ptebit)
 		 */
 		if (pvo->pvo_pte.pte.pte_lo & ptebit) {
 			moea_attr_save(m, ptebit);
-			return (TRUE);
+			return (true);
 		}
 	}
 
@@ -2564,12 +2564,12 @@ moea_query_bit(vm_page_t m, int ptebit)
 			mtx_unlock(&moea_table_mutex);
 			if (pvo->pvo_pte.pte.pte_lo & ptebit) {
 				moea_attr_save(m, ptebit);
-				return (TRUE);
+				return (true);
 			}
 		}
 	}
 
-	return (FALSE);
+	return (false);
 }
 
 static u_int
