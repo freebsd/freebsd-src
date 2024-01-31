@@ -12,6 +12,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240207:
+	sendmail 8.18.1 has been imported and merged.  This version enforces
+	stricter RFC compliance by default, especially with respect to line
+	endings.  This may cause issues with receiving messages from
+	non-compliant MTAs; please see the first 8.18.1 release note in
+	contrib/sendmail/RELEASE_NOTES for mitigations.
+
 20240119:
 	Commit d34f4baaf138 changed the internal interface between
 	the nfscommon and nfscl modules.  As such, both need to be

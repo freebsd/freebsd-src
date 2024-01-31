@@ -351,7 +351,6 @@ mci_clear(mci)
 	mactabclear(&mci->mci_macro);
 }
 
-
 /*
 **  MCI_GET -- get information about a particular host
 **
@@ -617,6 +616,7 @@ struct mcifbits
 };
 static struct mcifbits	MciFlags[] =
 {
+	{ MCIF_OCC_INCR,	"OCC_INCR"	},
 	{ MCIF_CACHED,		"CACHED"	},
 	{ MCIF_ESMTP,		"ESMTP"		},
 	{ MCIF_EXPN,		"EXPN"		},
@@ -630,7 +630,6 @@ static struct mcifbits	MciFlags[] =
 	{ MCIF_CVT7TO8,		"CVT7TO8"	},
 	{ MCIF_INMIME,		"INMIME"	},
 	{ MCIF_AUTH,		"AUTH"		},
-	{ MCIF_AUTH2,		"AUTH2"		},
 	{ MCIF_AUTHACT,		"AUTHACT"	},
 	{ MCIF_ENHSTAT,		"ENHSTAT"	},
 	{ MCIF_PIPELINED,	"PIPELINED"	},
@@ -640,8 +639,16 @@ static struct mcifbits	MciFlags[] =
 	{ MCIF_TLSACT,		"TLSACT"	},
 #endif
 	{ MCIF_DLVR_BY,		"DLVR_BY"	},
+#if _FFR_IGNORE_EXT_ON_HELO
+	{ MCIF_HELO,		"HELO"		},
+#endif
 	{ MCIF_INLONGLINE,	"INLONGLINE"	},
+	{ MCIF_AUTH2,		"AUTH2"		},
+	{ MCIF_ONLY_EHLO,	"ONLY_EHLO"	},
 	{ MCIF_NOTSTICKY,	"NOTSTICKY"	},
+#if USE_EAI
+	{ MCIF_EAI,		"EAI"		},
+#endif
 	{ 0,			NULL		}
 };
 
@@ -1200,7 +1207,7 @@ mci_traverse_persistent(action, pathname)
 		struct dirent *e;
 		char newpath[MAXPATHLEN];
 #if MAXPATHLEN <= MAXNAMLEN - 3
-# ERROR "MAXPATHLEN <= MAXNAMLEN - 3"
+# error "MAXPATHLEN <= MAXNAMLEN - 3"
 #endif
 
 		if ((d = opendir(pathname)) == NULL)

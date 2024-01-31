@@ -25,12 +25,7 @@ SM_RCSID("@(#)$Id: daemon.c,v 8.698 2013-11-22 20:51:55 ca Exp $")
 # if NETINET || NETINET6
 #  include <arpa/inet.h>
 # endif
-# if NAMED_BIND
-#  ifndef NO_DATA
-#   define NO_DATA	NO_ADDRESS
-#  endif
-# endif /* NAMED_BIND */
-#endif /* defined(USE_SOCK_STREAM) */
+#endif
 
 #if STARTTLS
 # include <openssl/rand.h>
@@ -169,7 +164,6 @@ getrequests(e)
 	extern int ControlSocket;
 #endif
 	extern ENVELOPE BlankEnvelope;
-
 
 	/* initialize data for function that generates queue ids */
 	init_qid_alg();
@@ -868,7 +862,6 @@ getrequests(e)
 			}
 			else
 				setbitn(t, Daemons[curdaemon].d_flags);
-
 #endif /* _FFR_XCNCT */
 
 #if XLA
@@ -1871,12 +1864,18 @@ static struct dflags	DaemonFlags[] =
 	{ "UNQUALOK",		D_UNQUALOK	},
 	{ "NOAUTH",		D_NOAUTH	},
 	{ "NOCANON",		D_NOCANON	},
+	{ "NODANE",		D_NODANE	},
 	{ "NOETRN",		D_NOETRN	},
+	{ "NOSTS",		D_NOSTS		},
 	{ "NOTLS",		D_NOTLS		},
 	{ "ETRNONLY",		D_ETRNONLY	},
 	{ "OPTIONAL",		D_OPTIONAL	},
 	{ "DISABLE",		D_DISABLE	},
 	{ "ISSET",		D_ISSET		},
+#if _FFR_XCNCT
+	{ "XCNCT",		D_XCNCT		},
+	{ "XCNCT_M",		D_XCNCT_M	},
+#endif
 	{ NULL,			0		}
 };
 
@@ -2160,7 +2159,7 @@ makeconnection(host, port, mci, e, enough
 #if NETINET6
 	volatile bool v6found = false;
 #endif
-	volatile int family = InetMode;
+	volatile int family;
 	SOCKADDR_LEN_T len;
 	volatile SOCKADDR_LEN_T socksize = 0;
 	volatile bool clt_bind;
@@ -2179,8 +2178,14 @@ makeconnection(host, port, mci, e, enough
 #if DANE
 	SM_REQUIRE(ptlsa_flags != NULL);
 	tlsa_flags = *ptlsa_flags;
-	*ptlsa_flags &= ~(TLSAFLALWAYS|TLSAFLSECURE);
+	*ptlsa_flags &= ~TLSAFLADIP;
 #endif
+#if _FFR_M_ONLY_IPV4
+	if (bitnset(M_ONLY_IPV4, mci->mci_mailer->m_flags))
+		family = AF_INET;
+	else
+#endif
+		family = InetMode;
 
 	/* retranslate {daemon_flags} into bitmap */
 	clrbitmap(d_flags);
@@ -2385,7 +2390,7 @@ makeconnection(host, port, mci, e, enough
 			p = &host[strlen(host) - 1];
 #if DANE
 			if (tTd(16, 40))
-				sm_dprintf("makeconnection: tlsa_flags=%lX, host=%s\n",
+				sm_dprintf("makeconnection: tlsa_flags=%#lx, host=%s\n",
 					tlsa_flags, host);
 			if (DANEMODE(tlsa_flags) == DANE_SECURE
 # if DNSSEC_TEST
@@ -2408,13 +2413,16 @@ makeconnection(host, port, mci, e, enough
 
 				if (rr != NULL && rr->dns_r_h.ad == 1)
 				{
-					*ptlsa_flags |= DANE_SECURE;
+					*ptlsa_flags |= TLSAFLADIP;
 					if ((TLSAFLTEMP & *ptlsa_flags) != 0)
 					{
 						dns_free_data(rr);
 						rr = NULL;
 						return EX_TEMPFAIL;
 					}
+				}
+				if (rr != NULL)
+				{
 					hp = dns2he(rr, family);
 # if NETINET6
 					hs = hp;
@@ -2428,7 +2436,7 @@ makeconnection(host, port, mci, e, enough
 				dns_free_data(rr);
 				rr = NULL;
 			}
-#endif
+#endif /* DANE */
 			if (hp == NULL)
 				hp = sm_gethostbyname(host, family);
 			if (hp == NULL && *p == '.')
@@ -2544,21 +2552,21 @@ gothostent:
 	}
 
 #if _FFR_TESTS
-		/*
-		**  Hack for testing.
-		**  Hardcoded:
-		**  10.1.1.12: see meta1.tns XREF IP address
-		**  8754: see common.sh XREF SNKPORT2
-		*/
+	/*
+	**  Hack for testing.
+	**  Hardcoded:
+	**  10.1.1.12: see meta1.tns XREF IP address
+	**  8754: see common.sh XREF SNKPORT2
+	*/
 
-		if (tTd(77, 101) && hp != NULL && hp->h_addrtype == AF_INET &&
-		    addr.sin.sin_addr.s_addr == inet_addr("10.1.1.12"))
-		{
-			addr.sin.sin_addr.s_addr = inet_addr("127.0.0.1");
-			port = htons(8754);
-			sm_dprintf("hack host=%s addr=[%s].%d\n", host,
-				anynet_ntoa(&addr), ntohs(port));
-		}
+	if (tTd(77, 101) && hp != NULL && hp->h_addrtype == AF_INET &&
+	    addr.sin.sin_addr.s_addr == inet_addr("10.1.1.12"))
+	{
+		addr.sin.sin_addr.s_addr = inet_addr("127.0.0.1");
+		port = htons(8754);
+		sm_dprintf("hack host=%s addr=[%s].%d\n", host,
+			anynet_ntoa(&addr), ntohs(port));
+	}
 #endif
 
 	/*
@@ -2568,16 +2576,34 @@ gothostent:
 	if (port == 0)
 	{
 #ifdef NO_GETSERVBYNAME
-		port = htons(25);
+# if _FFR_SMTPS_CLIENT
+		if (bitnset(M_SMTPS_CLIENT, mci->mci_mailer->m_flags))
+			port = htons(465);
+		else
+# endif /* _FFR_SMTPS_CLIENT */
+			port = htons(25);
 #else /* NO_GETSERVBYNAME */
-		register struct servent *sp = getservbyname("smtp", "tcp");
+		register struct servent *sp;
+
+# if _FFR_SMTPS_CLIENT
+		if (bitnset(M_SMTPS_CLIENT, mci->mci_mailer->m_flags))
+			p = "smtps";
+		else
+# endif /* _FFR_SMTPS_CLIENT */
+			p = "smtp";
+		sp = getservbyname(p, "tcp");
 
 		if (sp == NULL)
 		{
 			if (LogLevel > 2)
 				sm_syslog(LOG_ERR, NOQID,
-					  "makeconnection: service \"smtp\" unknown");
-			port = htons(25);
+					  "makeconnection: service \"%s\" unknown", p);
+# if _FFR_SMTPS_CLIENT
+			if (bitnset(M_SMTPS_CLIENT, mci->mci_mailer->m_flags))
+				port = htons(465);
+			else
+# endif /* _FFR_SMTPS_CLIENT */
+				port = htons(25);
 		}
 		else
 			port = sp->s_port;
@@ -2787,6 +2813,9 @@ gothostent:
 		if (setjmp(CtxConnectTimeout) == 0)
 		{
 			int i;
+#if _FFR_TESTS
+			int c_errno;
+#endif
 
 			if (e->e_ntries <= 0 && TimeOuts.to_iconnect != 0)
 				ev = sm_setevent(TimeOuts.to_iconnect,
@@ -2796,6 +2825,28 @@ gothostent:
 						 connecttimeout, 0);
 			else
 				ev = NULL;
+#if _FFR_TESTS
+			i = 0;
+			c_errno = 0;
+			if (tTd(77, 101)
+			    /* && AF_INET == addr.sin.sin_family */
+			    && ntohl(addr.sin.sin_addr.s_addr) >=
+				ntohl(inet_addr("255.255.255.1"))
+			    && ntohl(addr.sin.sin_addr.s_addr) <=
+				ntohl(inet_addr("255.255.255.255"))
+			   )
+			{
+				i = -1;
+				c_errno = ntohl(addr.sin.sin_addr.s_addr) -
+					ntohl(inet_addr("255.255.255.0"));
+				sm_dprintf("hack: fail connection=%d, ip=%#x, lower=%#x\n",
+					c_errno
+					, ntohl(addr.sin.sin_addr.s_addr)
+					, ntohl(inet_addr("255.255.255.0")));
+			}
+			else
+#endif /* _FFR_TESTS */
+			/* "else" in #if code above */
 
 			switch (ConnectOnlyTo.sa.sa_family)
 			{
@@ -2829,24 +2880,11 @@ gothostent:
 					anynet_ntoa(&addr), ntohs(port));
 
 #if _FFR_TESTS
-			if (tTd(77, 101)
-			    /* && AF_INET == addr.sin.sin_family */
-			    && addr.sin.sin_addr.s_addr >=
-				inet_addr("255.255.255.1")
-			    && addr.sin.sin_addr.s_addr <=
-				inet_addr("255.255.255.255")
-			   )
-			{
-				i = -1;
-				save_errno = ntohl(addr.sin.sin_addr.s_addr) -
-					ntohl(inet_addr("255.255.255.0"));
-				sm_dprintf("hack: fail connection=%d\n",
-					save_errno);
-				errno = save_errno;
-			}
+			if (-1 == i)
+				errno = c_errno;
 			else
-				/* Watch out of changes below! */
-#endif /* _FFR_TESTS */
+#endif
+			/* "else" in #if code above */
 			i = connect(s, (struct sockaddr *) &addr, addrlen);
 			save_errno = errno;
 			if (ev != NULL)
@@ -4200,7 +4238,7 @@ host_map_lookup(map, name, av, statp)
 #if USE_EAI
 		bool utf8;
 
-		utf8 = !addr_is_ascii(name);
+		utf8 = !str_is_print(name);
 		if (utf8)
 		{
 			(void) sm_strlcpy(hbuf, hn2alabel(name), sizeof(hbuf));
@@ -4313,7 +4351,6 @@ host_map_lookup(map, name, av, statp)
 			sm_dprintf("FOUND %s\n", ans);
 		return cp;
 	}
-
 
 	/* No match found */
 	s->s_namecanon.nc_errno = errno;

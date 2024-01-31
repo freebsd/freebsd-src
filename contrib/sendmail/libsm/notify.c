@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Proofpoint, Inc. and its suppliers.
+ * Copyright (c) 2020 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -10,11 +10,12 @@
 
 #include <sm/gen.h>
 
-#if _FFR_DMTRIGGER
+#if _FFR_DMTRIGGER && _FFR_NOTIFY < 2
 #include <sm/conf.h>	/* FDSET_CAST */
 #include <sm/fdset.h>
 #include <sm/assert.h>
 #include <sm/notify.h>
+#include "notify.h"
 #include <sm/time.h>
 #include <sm/string.h>
 
@@ -27,12 +28,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>	/* for memset() */
-
-#if SM_NOTIFY_DEBUG
-#define SM_DBG(p)	fprintf p
-#else
-#define SM_DBG(p)	
-#endif
 
 static int	Notifypipe[2];
 #define NotifyRDpipe Notifypipe[0]
@@ -129,9 +124,6 @@ sm_notify_stop(owner, flags)
 **		<0: -errno
 */
 
-#define MAX_NETSTR 1024
-#define NETSTRPRE 5
-
 int
 sm_notify_snd(buf, buflen)
 	char *buf;
@@ -152,7 +144,7 @@ sm_notify_snd(buf, buflen)
 	len = sm_snprintf(netstr, sizeof(netstr), "%04d:%s,", (int)buflen, buf);
 	r = write(NotifyWRpipe, netstr, len);
 	save_errno = errno;
-	SM_DBG((stderr, "write=%d, fd=%d, e=%d\n", r, NotifyWRpipe, save_errno));
+	SM_DBG((stderr, "pid=%ld, write=%d, fd=%d, e=%d\n", (long)getpid(), r, NotifyWRpipe, save_errno));
 	return r >= 0 ? 0 : -save_errno;
 }
 
@@ -165,7 +157,8 @@ sm_notify_snd(buf, buflen)
 **		tmo -- timeout (micro seconds)
 **
 **	Returns:
-**		0: success
+**		0: EOF (XXX need to provide info about client)
+**		>0: length of received data
 **		<0: -errno
 */
 
@@ -186,55 +179,14 @@ sm_notify_rcv(buf, buflen, tmo)
 		return -EINVAL;
 	FD_ZERO(&readfds);
 	SM_FD_SET(NotifyRDpipe, &readfds);
-	if (tmo < 0)
-		tval = NULL;
-	else
-	{
-		timeout.tv_sec = (long) (tmo / SM_MICROS);
-		timeout.tv_usec = tmo % SM_MICROS;
-		tval = &timeout;
-	}
+	SM_MICROS2TVAL(tmo, tval, timeout);
 
 	do {
 		r = select(NotifyRDpipe + 1, FDSET_CAST &readfds, NULL, NULL, tval);
 		save_errno = errno;
-		SM_DBG((stderr, "select=%d, fd=%d, e=%d\n", r, NotifyRDpipe, save_errno));
+		SM_DBG((stderr, "pid=%ld, select=%d, fd=%d, e=%d\n", (long)getpid(), r, NotifyRDpipe, save_errno));
 	} while (r < 0 && save_errno == EINTR);
 
-	if (r <= 0)
-	{
-		SM_DBG((stderr, "select=%d, e=%d\n", r, save_errno));
-		return -ETIMEDOUT;
-	}
-
-	/* bogus... need to check again? */
-	if (!FD_ISSET(NotifyRDpipe, &readfds))
-		return -ETIMEDOUT;
-
-	r = read(NotifyRDpipe, buf, NETSTRPRE);
-	if (NETSTRPRE != r)
-		return -1;	/* ??? */
-
-	if (sm_io_sscanf(buf, "%4u:", &len) != 1)
-		return -EINVAL;	/* ??? */
-	if (len >= MAX_NETSTR)
-		return -E2BIG;	/* ??? */
-	if (len >= buflen - 1)
-		return -E2BIG;	/* ??? */
-	if (len <= 0)
-		return -EINVAL;	/* ??? */
-	r = read(NotifyRDpipe, buf, len + 1);
-	save_errno = errno;
-	SM_DBG((stderr, "read=%d, e=%d\n", r, save_errno));
-	if (r == 0)
-		return -1;	/* ??? */
-	if (r < 0)
-		return -save_errno;
-	if (len + 1 != r)
-		return -1;	/* ??? */
-	if (buf[len] != ',')
-		return -EINVAL;	/* ??? */
-	buf[len] = '\0';
-	return r;
+	RDNETSTR(r, NotifyRDpipe, (void)0);
 }
-#endif /* _FFR_DMTRIGGER */
+#endif /* _FFR_DMTRIGGER && _FFR_NOTIFY < 2 */

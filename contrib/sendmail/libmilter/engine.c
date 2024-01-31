@@ -60,32 +60,32 @@ typedef struct cmdfct_t cmdfct;
 #define	CI_MAIL		2
 #define CI_RCPT		3
 #define CI_DATA		4
-#define CI_EOM		5
-#define CI_EOH		6
-#define CI_LAST		CI_EOH
+#define CI_EOH		5
+#define CI_EOM		6
+#define CI_LAST		CI_EOM
 #if CI_LAST < CI_DATA
-# ERROR "do not compile with CI_LAST < CI_DATA"
+# error "do not compile with CI_LAST < CI_DATA"
 #endif
 #if CI_LAST < CI_EOM
-# ERROR "do not compile with CI_LAST < CI_EOM"
+# error "do not compile with CI_LAST < CI_EOM"
 #endif
 #if CI_LAST < CI_EOH
-# ERROR "do not compile with CI_LAST < CI_EOH"
+# error "do not compile with CI_LAST < CI_EOH"
 #endif
 #if CI_LAST < CI_RCPT
-# ERROR "do not compile with CI_LAST < CI_RCPT"
+# error "do not compile with CI_LAST < CI_RCPT"
 #endif
 #if CI_LAST < CI_MAIL
-# ERROR "do not compile with CI_LAST < CI_MAIL"
+# error "do not compile with CI_LAST < CI_MAIL"
 #endif
 #if CI_LAST < CI_HELO
-# ERROR "do not compile with CI_LAST < CI_HELO"
+# error "do not compile with CI_LAST < CI_HELO"
 #endif
 #if CI_LAST < CI_CONN
-# ERROR "do not compile with CI_LAST < CI_CONN"
+# error "do not compile with CI_LAST < CI_CONN"
 #endif
 #if CI_LAST >= MAX_MACROS_ENTRIES
-# ERROR "do not compile with CI_LAST >= MAX_MACROS_ENTRIES"
+# error "do not compile with CI_LAST >= MAX_MACROS_ENTRIES"
 #endif
 
 /* function prototypes */
@@ -111,7 +111,7 @@ static int	dec_arg2 __P((char *, size_t, char **, char **));
 static void	mi_clr_symlist __P((SMFICTX_PTR));
 
 #if _FFR_WORKERS_POOL
-static bool     mi_rd_socket_ready __P((int));
+static bool	mi_rd_socket_ready __P((int));
 #endif
 
 /* states */

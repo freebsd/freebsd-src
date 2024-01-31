@@ -549,7 +549,7 @@ smdb_db_open_internal(db_name, db_type, db_flags, db_params, db)
 **	Parameters:
 **		database -- An unallocated database pointer to a pointer.
 **		db_name -- The name of the database without extension.
-**		mode -- File permisions for a created database.
+**		mode -- File permissions for a created database.
 **		mode_mask -- Mode bits that must match on an opened database.
 **		sff -- Flags for safefile.
 **		type -- The type of database to open
