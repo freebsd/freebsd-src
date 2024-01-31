@@ -50,7 +50,7 @@ export host
 # If we were called normally, then create a lock file for each argument
 # in turn and reinvoke ourselves with the LOCKED argument.  This prevents
 # very long running jobs from being overlapped by another run as this is
-# will lead the system running progressivly slower and more and more jobs
+# will lead the system running progressively slower and more and more jobs
 # are run at once.
 if [ $1 != "LOCKED" ]; then
     ret=0
