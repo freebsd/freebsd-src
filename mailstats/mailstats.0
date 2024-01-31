@@ -1,4 +1,4 @@
-MAILSTATS(8)                System Manager's Manual               MAILSTATS(8)
+MAILSTATS(8)                                                      MAILSTATS(8)
 
 
 
@@ -27,25 +27,25 @@ DDEESSCCRRIIPPTTIIOONN
               MMaaiilleerr      The name of the mailer.
 
        After this display, a line totaling the values for all of  the  mailers
-       is  displayed  (preceded with a ``T''), separated from the previous in-
-       formation by a line containing only equals (``='') characters.  Another
-       line preceded with a ``C'' lists the number of TCP connections.
+       is  displayed  (preceded  with  a  ``T''),  separated from the previous
+       information by  a  line  containing  only  equals  (``='')  characters.
+       Another line preceded with a ``C'' lists the number of TCP connections.
 
        The options are as follows:
 
        --CC     Read the specified file instead of the default sseennddmmaaiill configu-
               ration file.
 
-       --cc     Try to use submit.cf instead of the default sseennddmmaaiill  configura-
+       --cc     Try  to use submit.cf instead of the default sseennddmmaaiill configura-
               tion file.
 
-       --ff     Read  the  specified  statistics  file instead of the statistics
+       --ff     Read the specified statistics file  instead  of  the  statistics
               file specified in the sseennddmmaaiill configuration file.
 
-       --PP     Output information in  program-readable  mode  without  clearing
+       --PP     Output  information  in  program-readable  mode without clearing
               statistics.
 
-       --pp     Output  information  in  program-readable mode and clear statis-
+       --pp     Output information in program-readable mode  and  clear  statis-
               tics.
 
        --oo     Don't display the name of the mailer in the output.

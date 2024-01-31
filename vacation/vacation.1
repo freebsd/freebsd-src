@@ -210,6 +210,12 @@ Sendmail(8)
 includes this
 ``From''
 line automatically.
+It also scans the headers for a
+``Return-Path:''
+header to determine the sender.
+If both are present, the sender from the 
+``Return-Path:''
+header is used.
 .PP
 No message will be sent unless
 .I login
@@ -234,10 +240,18 @@ or
 ``MAILER-DAEMON''
 will be replied to (where these strings are
 case insensitive) nor is a notification sent if a
-``Precedence: bulk''
+``Precedence: bulk'',
+``Precedence: list'',
 or
 ``Precedence: junk''
 line is included in the mail headers.
+Likewise, a response will not be sent if the headers contain a
+``Auto-Submitted:''
+header with any value except
+``no''
+or a
+``List-Id:''
+header is found.
 The people who have sent you messages are maintained as a
 db(3)
 or
@@ -265,6 +279,15 @@ I am on vacation until July 22.  If you have something urgent,
 please contact Keith Bostic <bostic@CS.Berkeley.EDU>.
 --eric
 .fi
+.PP
+Any occurrence of the string
+``$SUBJECT''
+in
+.IR .vacation.msg
+will be replaced by the first line of the subject of the message
+that triggered the
+.B vacation
+program.
 .SH FILES
 .TP 1.8i
 ~/.vacation.db

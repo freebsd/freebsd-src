@@ -21,7 +21,7 @@ APPENDDEF(`confENVDEF', `-UNIS')
 dnl #####################################################################
 dnl ###                                                               ###
 dnl ### The next group of statements illustrates how to add support   ###
-dnl ### for a particular map class.
+dnl ### for a particular map class.                                   ###
 dnl ###                                                               ###
 dnl ### Note that the map define goes in confMAPDEF, and that any     ###
 dnl ### special library must be defined.  Note, also that include     ###

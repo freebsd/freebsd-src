@@ -170,7 +170,7 @@ LINE:	while (<DOMAIN>)
 			warn "Bogus line $line in $virts/$domain\n";
 		}
 
-		# Variable subsitution
+		# Variable substitution
 		$key =~ s/\$DOMAIN/$domain/g;
 		$value =~ s/\$DOMAIN/$domain/g;
 		$value =~ s/\$LHS/$lhs/g;

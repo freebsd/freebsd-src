@@ -30,7 +30,7 @@ check_PROGRAMS=bldCHECK_PROGRAMS')
 ifdef(`bldCHECK_TARGETS',`dnl
 TESTS=bldCHECK_TARGETS')
 
-VPATH=${srcdir}
+VPATH=${srcdir}:${srcdir}/tests
 changequote([[, ]])
 check-TESTS: $(TESTS)
 	@failed=0; all=0; xfail=0; xpass=0; skip=0; \
@@ -39,6 +39,7 @@ check-TESTS: $(TESTS)
 	if test -n "$$list"; then \
 	  for tst in $$list; do \
 	    if test -f ./$$tst; then dir=./; \
+	    elif test -f "$(srcdir)/tests/$$tst"; then dir="$(srcdir)/tests/"; \
 	    elif test -f $$tst; then dir=; \
 	    else dir="$(srcdir)/"; fi; \
 	    if $(TESTS_ENVIRONMENT) $${dir}$$tst; then \

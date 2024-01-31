@@ -1,4 +1,4 @@
-MAKEMAP(8)                  System Manager's Manual                 MAKEMAP(8)
+MAKEMAP(8)                                                          MAKEMAP(8)
 
 
 
@@ -7,7 +7,7 @@ NNAAMMEE
 
 SSYYNNOOPPSSIISS
        mmaakkeemmaapp  [--CC  _f_i_l_e] [--NN] [--cc _c_a_c_h_e_s_i_z_e] [--dd] [--DD _c_o_m_m_e_n_t_c_h_a_r] [--ee] [--ff]
-       [--ll] [--oo] [--rr] [--ss] [--tt _d_e_l_i_m] [--uu] [--vv] _m_a_p_t_y_p_e _m_a_p_n_a_m
+       [--ii _t_y_p_e] [--ll] [--oo] [--rr] [--ss] [--tt _d_e_l_i_m] [--uu] [--vv] _m_a_p_t_y_p_e _m_a_p_n_a_m
 
 DDEESSCCRRIIPPTTIIOONN
        MMaakkeemmaapp creates the database maps used by  the  keyed  map  lookups  in
@@ -19,36 +19,36 @@ DDEESSCCRRIIPPTTIIOONN
 
        dbm    DBM format maps.  This requires the ndbm(3) library.
 
-       btree  B-Tree format maps.  This requires the new Berkeley DB library.
+       btree  B-Tree  format maps.  This requires the new Berkeley DB library.
 
        hash   Hash format maps.  This also requires the Berkeley DB library.
 
-       cdb    CDB  (Constant DataBase) format maps.  This requires the tinycdb
+       cdb    CDB (Constant DataBase) format maps.  This requires the  tinycdb
               library.
 
        implicit
-              The first available format in the following  order:  hash,  dbm,
+              The  first  available  format in the following order: hash, dbm,
               and cdb.
 
        In all cases, mmaakkeemmaapp reads lines from the standard input consisting of
        two words separated by white space.  The first is the database key, the
-       second  is the value.  The value may contain ``%_n'' strings to indicate
-       parameter substitution.  Literal percents should be  doubled  (``%%'').
+       second is the value.  The value may contain ``%_n'' strings to  indicate
+       parameter  substitution.   Literal percents should be doubled (``%%'').
        Blank lines and lines beginning with ``#'' are ignored.
 
-       Notice:  do  nnoott  use  mmaakkeemmaapp  to  create  the  aliases data base, but
-       nneewwaalliiaasseess which puts a special token into the data base  that  is  re-
-       quired by sseennddmmaaiill..
+       Notice: do nnoott use  mmaakkeemmaapp  to  create  the  aliases  data  base,  but
+       nneewwaalliiaasseess  which  puts  a  special  token  into  the data base that is
+       required by sseennddmmaaiill..
 
        If the _T_r_u_s_t_e_d_U_s_e_r option is set in the sendmail configuration file and
-       mmaakkeemmaapp is invoked as root, the generated files will be  owned  by  the
+       mmaakkeemmaapp  is  invoked  as root, the generated files will be owned by the
        specified _T_r_u_s_t_e_d_U_s_e_r_.
 
    FFllaaggss
        --CC     Use the specified sseennddmmaaiill configuration file for looking up the
               TrustedUser option.
 
-       --NN     Include the null byte that terminates strings in the map.   This
+       --NN     Include  the null byte that terminates strings in the map.  This
               must match the -N flag in the sendmail.cf ``K'' line.
 
        --cc     Use the specified hash and B-Tree cache size.
@@ -57,15 +57,18 @@ DDEESSCCRRIIPPTTIIOONN
               is ignored) instead of the default of '#'.
 
        --dd     Allow duplicate keys in the map.  This is only allowed on B-Tree
-              format  maps.  If two identical keys are read, they will both be
+              format maps.  If two identical keys are read, they will both  be
               inserted into the map.
 
        --ee     Allow empty value (right hand side).
 
-       --ff     Normally all upper case letters in the key are folded  to  lower
-              case.   This  flag disables that behaviour.  This is intended to
-              mesh with the -f flag in the KK line in sendmail.cf.   The  value
+       --ff     Normally  all  upper case letters in the key are folded to lower
+              case.  This flag disables that behaviour.  This is  intended  to
+              mesh  with  the -f flag in the KK line in sendmail.cf.  The value
               is never case folded.
+
+       --ii     Use the specified type as fallback if the given _m_a_p_t_y_p_e  is  not
+              available.
 
        --ll     List supported map types.
 
@@ -86,6 +89,7 @@ DDEESSCCRRIIPPTTIIOONN
        --uu     dump (unmap) the content of the database to standard output.
 
        --vv     Verbosely print what it is doing.
+
 
 EExxaammppllee
        makemap hash /etc/mail/access < /etc/mail/access

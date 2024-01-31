@@ -49,8 +49,7 @@ configuration step by specifying the -S flag with the Build command.
 The OS subtree contains definitions for variations on a standard
 model for system installation.  The M4 variables that can be defined
 and their defaults before referencing the appropriate OS definitions
-are listed below.  Note that variables preceded by an asterisk (*)
-are currently not used in the open source distribution.
+are listed below.
 
 confBEFORE	    [empty]		Files to create before sendmail is
 					compiled.  The methods must be defined
@@ -86,7 +85,7 @@ confBUILDBIN	    ../../devtools/bin	The location of the build support
 					directory.
 confCC		    cc			The C compiler to use.
 confCCOPTS	    [empty]		Additional options to pass to confCC.
-*confCCOPTS_SO	    [empty]		Additional options for compiling
+confCCOPTS_SO	    [empty]		Additional options for compiling
 					shared object libraries.
 confCCLINK	    confCC		Linker to use (for executables).
 confCOPY	    cp			A program that copies files.
@@ -127,9 +126,9 @@ confINSTALL	    install		The BSD-compatible install program.
 					Use ${BUILDBIN}/install.sh if none
 					is available on your system.
 confINSTALL_RAWMAN  [undefined]		Install the unformatted manual pages.
-*confLD		    confCC		Linker to use (for libraries).
+confLD		    confCC		Linker to use (for libraries).
 confLDOPTS	    [empty]		Linker options.
-*confLDOPTS_SO	    [empty]		Additional linker options for
+confLDOPTS_SO	    [empty]		Additional linker options for
 					linking shared object libraries.
 confLIBDIR	    /usr/lib		Where to install library files.
 confLIBDIRS	    [empty]		-L flags passed to ld.
@@ -214,9 +213,9 @@ confSBINOWN	    root		The owner for set-user-ID binaries.
 confSETUSERID_INSTALL	[undefined]	Needs to be defined to enable the
 					install-set-user-id target for
 					sendmail.  See sendmail/SECURITY.
-confSHAREDLIB_EXT   .so              	Shared library file extenion name.
+confSHAREDLIB_EXT   .so              	Shared library file extension name.
 confSHAREDLIB_SUFFIX [empty]		Shared object version suffix.
-confSHAREDLIBDIR    /usr/lib/		Directory for installing shared
+confSHAREDLIBDIR   /usr/lib/		Directory for installing shared
 					library.  Note: if the value is
 					not empty, it must end with a
 					slash ('/') otherwise it will not

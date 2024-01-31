@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@lab.smi.sendmail.com on Sun Aug 15 23:04:59 PDT 2021
-##### in /var/tmp/ca/sm8.head/sendmail/OpenSource/sendmail-8.17.1/cf/cf
+##### built by xbuild@xenon14.us.proofpoint.com on Tue Jan 30 22:39:25 PST 2024
+##### in /export/jenkins/jenkins3/workspace/pps-sendmail/OpenSource/sendmail-8.18.1/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -125,10 +125,12 @@ C{E}root
 DnMAILER-DAEMON
 
 
+
 CPREDIRECT
+EOPENSSL_CONF=/etc/mail/sendmail.ossl
 
 # Configuration version number
-DZ8.17.1
+DZ8.18.1
 
 
 ###############
@@ -1261,6 +1263,7 @@ Stry_tls
 
 
 
+
 ######################################################################
 ###  tls_rcpt: is connection with server "good" enough?
 ###	(done in client, per recipient)
@@ -1269,7 +1272,10 @@ Stry_tls
 ###		$1: recipient
 ######################################################################
 Stls_rcpt
-
+R$*			$: $1 $| $&{verify}
+R$* $| DANE_NOTLS	$#error $@ 4.7.0 $: "454 DANE: missing STARTTLS."
+R$* $| DANE_TEMP	$#error $@ 4.7.0 $: "454 DANE check failed temporarily."
+R$* $| DANE_FAIL	$#error $@ 4.7.0 $: "454 DANE check failed."
 
 ######################################################################
 ###  tls_client: is connection with client "good" enough?
@@ -1301,7 +1307,6 @@ R$*		$@ $>"TLS_connection" $1
 ######################################################################
 STLS_connection
 RSOFTWARE	$#error $@ 4.7.0 $: "454 TLS handshake failed."
-RDANE_FAIL	$#error $@ 4.7.0 $: "454 DANE check failed."
 RPROTOCOL	$#error $@ 4.7.0 $: "454 STARTTLS failed."
 RCONFIG		$#error $@ 4.7.0 $: "454 STARTTLS temporarily not possible."
 

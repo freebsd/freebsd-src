@@ -1686,7 +1686,7 @@ hashname(name)
 	MD5_CTX ctx;
 	unsigned char md5[18];
 #  if MAXPATHLEN <= 24
-#    ERROR "MAXPATHLEN <= 24"
+#    error "MAXPATHLEN <= 24"
 #  endif
 	char b64[24];
 	MD5_LONG bits;

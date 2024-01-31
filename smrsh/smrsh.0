@@ -1,4 +1,4 @@
-SMRSH(8)                    System Manager's Manual                   SMRSH(8)
+SMRSH(8)                                                              SMRSH(8)
 
 
 
@@ -22,24 +22,24 @@ DDEESSCCRRIIPPTTIIOONN
        acceptable  commands,  and  to  the  shell  builtin  commands ``exec'',
        ``exit'', and ``echo''.  It also rejects any commands with the  charac-
        ters ``', `<', `>', `;', `$', `(', `)', `\r' (carriage return), or `\n'
-       (newline) on the command line to prevent ``end run'' attacks.   It  al-
-       lows  ``||''  and  ``&&''  to  enable  commands like: ``"|exec /usr/lo-
-       cal/bin/filter || exit 75"''
+       (newline) on the command line  to  prevent  ``end  run''  attacks.   It
+       allows   ``||''   and   ``&&''   to   enable  commands  like:  ``"|exec
+       /usr/local/bin/filter || exit 75"''
 
        Initial  pathnames  on  programs  are  stripped,   so   forwarding   to
-       ``/usr/ucb/vacation'',     ``/usr/bin/vacation'',    ``/home/server/my-
-       dir/bin/vacation'',  and   ``vacation''   all   actually   forward   to
-       ``/usr/adm/sm.bin/vacation''.
+       ``/usr/ucb/vacation'',                           ``/usr/bin/vacation'',
+       ``/home/server/mydir/bin/vacation'', and ``vacation'' all actually for-
+       ward to ``/usr/adm/sm.bin/vacation''.
 
        System  administrators  should  be  conservative  about  populating the
        sm.bin directory.  For example, a reasonable additions is  _v_a_c_a_t_i_o_n(1),
        and  the like.  No matter how brow-beaten you may be, never include any
        shell or shell-like program (such as _p_e_r_l(1)) in the sm.bin  directory.
        Note  that  this  does not restrict the use of shell or perl scripts in
-       the sm.bin directory (using the ``#!'' syntax); it simply disallows ex-
-       ecution of arbitrary programs.  Also, including mail filtering programs
-       such as _p_r_o_c_m_a_i_l(1) is a very bad idea.  _p_r_o_c_m_a_i_l(1)  allows  users  to
-       run arbitrary programs in their _p_r_o_c_m_a_i_l_r_c(5).
+       the sm.bin directory (using the ``#!''  syntax);  it  simply  disallows
+       execution  of  arbitrary programs.  Also, including mail filtering pro-
+       grams such as _p_r_o_c_m_a_i_l(1) is a very bad idea.  _p_r_o_c_m_a_i_l(1) allows users
+       to run arbitrary programs in their _p_r_o_c_m_a_i_l_r_c(5).
 
 CCOOMMPPIILLAATTIIOONN
        Compilation  should  be  trivial  on most systems.  You may need to use
@@ -50,10 +50,10 @@ CCOOMMPPIILLAATTIIOONN
 FFIILLEESS
        /usr/adm/sm.bin - default directory for restricted programs on most OSs
 
-       /var/adm/sm.bin - directory for restricted programs on HP  UX  and  So-
-       laris
+       /var/adm/sm.bin  -  directory  for  restricted  programs  on  HP UX and
+       Solaris
 
-       /usr/libexec/sm.bin  - directory for restricted programs on FreeBSD (>=
+       /usr/libexec/sm.bin - directory for restricted programs on FreeBSD  (>=
        3.3) and DragonFly BSD
 
 

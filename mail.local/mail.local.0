@@ -1,4 +1,4 @@
-MAIL.LOCAL(8)               System Manager's Manual              MAIL.LOCAL(8)
+MAIL.LOCAL(8)                                                    MAIL.LOCAL(8)
 
 
 
@@ -63,8 +63,8 @@ DDEESSCCRRIIPPTTIIOONN
        line (that is, a line beginning with the five characters ``From '' fol-
        lowing a blank line).
 
-       The mail files are exclusively locked with flock(2) while mail  is  ap-
-       pended,  and  a  uusseerr..lloocckk  file  also  is created while the mailbox is
+       The mail files are exclusively  locked  with  flock(2)  while  mail  is
+       appended,  and  a  uusseerr..lloocckk  file also is created while the mailbox is
        locked for compatibility with older MUAs.
 
        If the ``biff'' service  is  returned  by  getservbyname(3),  the  biff
@@ -89,8 +89,8 @@ WWAARRNNIINNGG
        the local mailer in the sendmail.cf file.
 
 HHIISSTTOORRYY
-       A  superset of mmaaiill..llooccaall (handling mailbox reading as well as mail de-
-       livery) appeared in Version 7 AT&T UNIX as the program mmaaiill.
+       A  superset  of  mmaaiill..llooccaall  (handling  mailbox reading as well as mail
+       delivery) appeared in Version 7 AT&T UNIX as the program mmaaiill.
 
 
 

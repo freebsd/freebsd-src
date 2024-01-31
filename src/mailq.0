@@ -1,4 +1,4 @@
-MAILQ(1)                    General Commands Manual                   MAILQ(1)
+MAILQ(1)                                                              MAILQ(1)
 
 
 
@@ -11,13 +11,13 @@ SSYYNNOOPPSSIISS
 DDEESSCCRRIIPPTTIIOONN
        MMaaiillqq prints a summary of the mail messages queued for future delivery.
 
-       The  first  line printed for each message shows the internal identifier
+       The first line printed for each message shows the  internal  identifier
        used on this host for the message with a possible status character, the
-       size  of  the  message  in bytes, the date and time the message was ac-
-       cepted into the queue, and the envelope sender  of  the  message.   The
-       second  line shows the error message that caused this message to be re-
-       tained in the queue; it will not be present if  the  message  is  being
-       processed  for  the  first time.  The status characters are either ** to
+       size of the message in  bytes,  the  date  and  time  the  message  was
+       accepted  into  the queue, and the envelope sender of the message.  The
+       second line shows the error message that  caused  this  message  to  be
+       retained  in  the queue; it will not be present if the message is being
+       processed for the first time.  The status characters are  either  **  to
        indicate the job is being processed; XX to indicate that the load is too
        high to process the job; and -- to indicate that the job is too young to
        process.  The following lines show message recipients, one per line.
@@ -26,22 +26,22 @@ DDEESSCCRRIIPPTTIIOONN
 
        The relevant options are as follows:
 
-       --AAcc    Show the mail submission queue specified in  _/_e_t_c_/_m_a_i_l_/_s_u_b_m_i_t_._c_f
+       --AAcc    Show  the mail submission queue specified in _/_e_t_c_/_m_a_i_l_/_s_u_b_m_i_t_._c_f
               instead of the MTA queue specified in _/_e_t_c_/_m_a_i_l_/_s_e_n_d_m_a_i_l_._c_f.
 
-       --qqLL    Show  the  "lost"  items in the mail queue instead of the normal
+       --qqLL    Show the "lost" items in the mail queue instead  of  the  normal
               queue items.
 
        --qqQQ    Show the quarantined items in the mail queue instead of the nor-
               mal queue items.
 
        --qq[_!]I substr
-              Limit  processed  jobs to those containing _s_u_b_s_t_r as a substring
+              Limit processed jobs to those containing _s_u_b_s_t_r as  a  substring
               of the queue id or not when _!  is specified.
 
        --qq[_!]Q substr
-              Limit processed jobs to quarantined jobs containing _s_u_b_s_t_r as  a
-              substring of the quarantine reason or not when _!  is specified.
+              Limit  processed jobs to quarantined jobs containing _s_u_b_s_t_r as a
+              substring of the quarantine reason or not when _!  is  specified.
 
        --qq[_!]R substr
               Limit  processed  jobs to those containing _s_u_b_s_t_r as a substring

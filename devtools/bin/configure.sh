@@ -167,7 +167,7 @@ then
 	echo "define(\`confRANLIB', \`ranlib')dnl"
 fi
 
-roff_progs="groff nroff"
+roff_progs="groff nroff mandoc"
 for roff_prog in $roff_progs
 do
 	if [ ! -z "`$SHELL $find_prog $roff_prog`" ]
@@ -179,7 +179,7 @@ done
 
 case $found_roff
 in
-	groff)
+	groff|mandoc)
 		echo "ifdef(\`confNROFF',,\`define(\`confNROFF', \`$found_roff -Tascii')')dnl"
 		;;
 	nroff)

@@ -1,4 +1,4 @@
-SENDMAIL(8)                 System Manager's Manual                SENDMAIL(8)
+SENDMAIL(8)                                                        SENDMAIL(8)
 
 
 
@@ -43,10 +43,10 @@ DDEESSCCRRIIPPTTIIOONN
        --BB_t_y_p_e Set the body type to _t_y_p_e.  Current legal  values  are  7BIT  or
               8BITMIME.
 
-       --bbaa    Go  into  ARPANET  mode.  All input lines must end with a CR-LF,
-              and all messages will be generated with  a  CR-LF  at  the  end.
-              Also,  the ``From:'' and ``Sender:'' fields are examined for the
-              name of the sender.
+       --bbaa    Go into ARPANET mode.  All input lines must end with a CRLF, and
+              all messages will be generated with a CRLF at  the  end.   Also,
+              the  ``From:''  and ``Sender:'' fields are examined for the name
+              of the sender.
 
        --bbCC    Check the configuration file.
 
@@ -58,7 +58,7 @@ DDEESSCCRRIIPPTTIIOONN
 
        --bbhh    Print the persistent host status database.
 
-       --bbHH    Purge expired entries from the persistent host status database.
+       --bbHH    Purge expired entries from the persistent host status  database.
 
        --bbii    Initialize the alias database.
 
@@ -66,70 +66,70 @@ DDEESSCCRRIIPPTTIIOONN
 
        --bbpp    Print a listing of the queue(s).
 
-       --bbPP    Print number of entries in the  queue(s);  only  available  with
+       --bbPP    Print  number  of  entries  in the queue(s); only available with
               shared memory support.
 
-       --bbss    Use  the  SMTP protocol as described in RFC821 on standard input
-              and output.  This flag implies all the  operations  of  the  --bbaa
+       --bbss    Use the SMTP protocol as described in RFC821 on  standard  input
+              and  output.   This  flag  implies all the operations of the --bbaa
               flag that are compatible with SMTP.
 
-       --bbtt    Run  in  address test mode.  This mode reads addresses and shows
-              the steps in parsing; it is used for debugging configuration ta-
-              bles.
+       --bbtt    Run in address test mode.  This mode reads addresses  and  shows
+              the  steps  in  parsing;  it is used for debugging configuration
+              tables.
 
-       --bbvv    Verify  names only - do not try to collect or deliver a message.
-              Verify mode is normally used for  validating  users  or  mailing
+       --bbvv    Verify names only - do not try to collect or deliver a  message.
+              Verify  mode  is  normally  used for validating users or mailing
               lists.
 
-       --CC_f_i_l_e Use  alternate  configuration  file.   SSeennddmmaaiill gives up any en-
-              hanced (set-user-ID or set-group-ID) privileges if an  alternate
-              configuration file is specified.
+       --CC_f_i_l_e Use  alternate  configuration  file.   SSeennddmmaaiill  gives  up   any
+              enhanced  (set-user-ID  or set-group-ID) privileges if an alter-
+              nate configuration file is specified.
 
        --DD _l_o_g_f_i_l_e
-              Send  debugging output to the indicated log file instead of std-
+              Send debugging output to the indicated log file instead of  std-
               out.
 
        --dd_c_a_t_e_g_o_r_y.._l_e_v_e_l_._._.
-              Set the debugging flag for _c_a_t_e_g_o_r_y to _l_e_v_e_l.  _C_a_t_e_g_o_r_y  is  ei-
-              ther an integer or a name specifying the topic, and _l_e_v_e_l an in-
-              teger specifying the level of debugging output desired.   Higher
-              levels  generally  mean  more output.  More than one flag can be
-              specified by separating them with commas.  A list of numeric de-
-              bugging  categories  can  be found in the TRACEFLAGS file in the
-              sendmail source distribution.
-              The option --dd00..11 prints the version of sseennddmmaaiill and the  options
+              Set  the  debugging  flag  for  _c_a_t_e_g_o_r_y  to _l_e_v_e_l.  _C_a_t_e_g_o_r_y is
+              either an integer or a name specifying the topic, and  _l_e_v_e_l  an
+              integer  specifying  the  level  of  debugging  output  desired.
+              Higher levels generally mean more output.  More  than  one  flag
+              can  be  specified  by  separating  them with commas.  A list of
+              numeric debugging categories can be found in the TRACEFLAGS file
+              in the sendmail source distribution.
+              The  option --dd00..11 prints the version of sseennddmmaaiill and the options
               it was compiled with.
-              Most  other  categories are only useful with, and documented in,
+              Most other categories are only useful with, and  documented  in,
               sseennddmmaaiill's source code.
 
        --FF_f_u_l_l_n_a_m_e
               Set the full name of the sender.
 
-       --ff_n_a_m_e Sets the name of the ``from'' person (i.e., the envelope  sender
+       --ff_n_a_m_e Sets  the name of the ``from'' person (i.e., the envelope sender
               of the mail).  This address may also be used in the From: header
-              if that header is missing during initial submission.  The  enve-
+              if  that header is missing during initial submission.  The enve-
               lope sender address is used as the recipient for delivery status
-              notifications and may also appear in a Return-Path: header.   --ff
+              notifications  and may also appear in a Return-Path: header.  --ff
               should only be used by ``trusted'' users (normally _r_o_o_t, _d_a_e_m_o_n,
-              and _n_e_t_w_o_r_k) or if the person you are trying to  become  is  the
-              same  as  the  person  you are.  Otherwise, an X-Authentication-
+              and  _n_e_t_w_o_r_k)  or  if the person you are trying to become is the
+              same as the person you  are.   Otherwise,  an  X-Authentication-
               Warning header will be added to the message.
 
-       --GG     Relay (gateway) submission of a message, e.g., when rrmmaaiill  calls
+       --GG     Relay  (gateway) submission of a message, e.g., when rrmmaaiill calls
               sseennddmmaaiill ..
 
        --hh_N    Set the hop count to _N.  The hop count is incremented every time
-              the mail is processed.  When it reaches a limit, the mail is re-
-              turned  with  an  error message, the victim of an aliasing loop.
+              the  mail  is  processed.   When it reaches a limit, the mail is
+              returned with an error message, the victim of an aliasing  loop.
               If  not  specified,  ``Received:''  lines  in  the  message  are
               counted.
 
-       --ii     Do  not strip a leading dot from lines in incoming messages, and
+       --ii     Do not strip a leading dot from lines in incoming messages,  and
               do not treat a dot on a line by itself as the end of an incoming
-              message.   This  should  be  set  if you are reading data from a
+              message.  This should be set if you  are  reading  data  from  a
               file.
 
-       --LL _t_a_g Set the identifier used in syslog messages to the supplied _t_a_g.
+       --LL _t_a_g Set  the identifier used in syslog messages to the supplied _t_a_g.
 
        --NN _d_s_n Set delivery status notification conditions to _d_s_n, which can be
               `never'  for  no  notifications or a comma separated list of the
@@ -183,105 +183,105 @@ DDEESSCCRRIIPPTTIIOONN
 
        --qq[_!]Q_s_u_b_s_t_r
               Limit  processed jobs to quarantined jobs containing _s_u_b_s_t_r as a
-              substring of the quarantine reason or not when _!  is specified.
+              substring of the quarantine reason or not when _!  is  specified.
 
        --qq[_!]R_s_u_b_s_t_r
-              Limit processed jobs to those containing _s_u_b_s_t_r as  a  substring
+              Limit  processed  jobs to those containing _s_u_b_s_t_r as a substring
               of one of the recipients or not when _!  is specified.
 
        --qq[_!]S_s_u_b_s_t_r
-              Limit  processed  jobs to those containing _s_u_b_s_t_r as a substring
+              Limit processed jobs to those containing _s_u_b_s_t_r as  a  substring
               of the sender or not when _!  is specified.
 
        --QQ[reason]
               Quarantine a normal queue items with the given reason or unquar-
-              antine  quarantined  queue  items  if  no reason is given.  This
-              should only be used with some sort of item matching using as de-
-              scribed above.
+              antine quarantined queue items if  no  reason  is  given.   This
+              should  only  be  used  with some sort of item matching using as
+              described above.
 
        --RR _r_e_t_u_r_n
-              Set  the  amount  of  the  message to be returned if the message
-              bounces.  The _r_e_t_u_r_n parameter can be `full' to return  the  en-
-              tire  message or `hdrs' to return only the headers.  In the lat-
-              ter case also local bounces return only the headers.
+              Set the amount of the message to  be  returned  if  the  message
+              bounces.   The  _r_e_t_u_r_n  parameter  can  be  `full' to return the
+              entire message or `hdrs' to return only  the  headers.   In  the
+              latter case also local bounces return only the headers.
 
        --rr_n_a_m_e An alternate and obsolete form of the --ff flag.
 
-       --tt     Read message for recipients.  To:, Cc:, and Bcc: lines  will  be
-              scanned  for recipient addresses.  The Bcc: line will be deleted
+       --tt     Read  message  for recipients.  To:, Cc:, and Bcc: lines will be
+              scanned for recipient addresses.  The Bcc: line will be  deleted
               before transmission.
 
-       --UU     If a mail submission via the command line requires  the  use  of
-              the  SSMMTTPPUUTTFF88  argument  for  the  MMAAIILL command, e.g., because a
-              header uses UTF-8 encoding, but the  addresses  on  the  command
-              line  are all ASCII, then this option must be used.  Only avail-
-              able if EEAAII support is enabled, and the SSMMTTPPUUTTFF88 option is set.
+       --UU     If  a  mail  submission via the command line requires the use of
+              the SSMMTTPPUUTTFF88 argument for the  MMAAIILL  command,  e.g.,  because  a
+              header  uses  UTF-8  encoding,  but the addresses on the command
+              line are all ASCII, then this option must be used.  Only  avail-
+              able  if EEAAII support is enabled, and the SSMMTTPPUUTTFF88 option is set.
 
        --VV _e_n_v_i_d
               Set the original envelope id.  This is propagated across SMTP to
               servers that support DSNs and is returned in DSN-compliant error
               messages.
 
-       --vv     Go into verbose mode.  Alias expansions will be announced, etc.
+       --vv     Go into verbose mode.  Alias expansions will be announced,  etc.
 
        --XX _l_o_g_f_i_l_e
               Log all traffic in and out of mailers in the indicated log file.
-              This  should  only be used as a last resort for debugging mailer
+              This should only be used as a last resort for  debugging  mailer
               bugs.  It will log a lot of data very quickly.
 
-       ----     Stop processing command flags and use the rest of the  arguments
+       ----     Stop  processing command flags and use the rest of the arguments
               as addresses.
 
    OOppttiioonnss
-       There  are  also  a number of processing options that may be set.  Nor-
-       mally these will only be used by a system administrator.   Options  may
-       be  set either on the command line using the --oo flag (for short names),
-       the --OO flag (for long names), or in the configuration file.  This is  a
-       partial  list  limited to those options that are likely to be useful on
-       the command line and only shows the long names;  for  a  complete  list
-       (and  details),  consult the _S_e_n_d_m_a_i_l _I_n_s_t_a_l_l_a_t_i_o_n _a_n_d _O_p_e_r_a_t_i_o_n _G_u_i_d_e.
+       There are also a number of processing options that may  be  set.   Nor-
+       mally  these  will only be used by a system administrator.  Options may
+       be set either on the command line using the --oo flag (for short  names),
+       the  --OO flag (for long names), or in the configuration file.  This is a
+       partial list limited to those options that are likely to be  useful  on
+       the  command  line  and  only shows the long names; for a complete list
+       (and details), consult the _S_e_n_d_m_a_i_l _I_n_s_t_a_l_l_a_t_i_o_n _a_n_d  _O_p_e_r_a_t_i_o_n  _G_u_i_d_e.
        The options are:
 
        AliasFile=_f_i_l_e
               Use alternate alias file.
 
        HoldExpensive
-              On mailers that are  considered  ``expensive''  to  connect  to,
+              On  mailers  that  are  considered  ``expensive'' to connect to,
               don't initiate immediate connection.  This requires queueing.
 
        CheckpointInterval=_N
-              Checkpoint  the  queue  file after every _N successful deliveries
-              (default 10).  This avoids excessive duplicate  deliveries  when
+              Checkpoint the queue file after every  _N  successful  deliveries
+              (default  10).   This avoids excessive duplicate deliveries when
               sending to long mailing lists interrupted by system crashes.
 
        DeliveryMode=_x
               Set the delivery mode to _x.  Delivery modes are `i' for interac-
-              tive (synchronous) delivery, `b' for  background  (asynchronous)
+              tive  (synchronous)  delivery, `b' for background (asynchronous)
               delivery, `q' for queue only - i.e., actual delivery is done the
-              next time the queue is run, and `d' for deferred - the  same  as
-              `q'  except that database lookups for maps which have set the -D
+              next  time  the queue is run, and `d' for deferred - the same as
+              `q' except that database lookups for maps which have set the  -D
               option (default for the host map) are avoided.
 
        ErrorMode=_x
-              Set error processing to mode _x.  Valid modes  are  `m'  to  mail
-              back  the error message, `w' to ``write'' back the error message
-              (or mail it back if the sender is not logged in), `p'  to  print
-              the  errors  on  the terminal (default), `q' to throw away error
-              messages (only exit status is returned), and `e' to  do  special
-              processing  for  the BerkNet.  If the text of the message is not
-              mailed back by modes `m' or `w' and if the sender  is  local  to
-              this  machine,  a  copy  of  the message is appended to the file
+              Set  error  processing  to  mode _x.  Valid modes are `m' to mail
+              back the error message, `w' to ``write'' back the error  message
+              (or  mail  it back if the sender is not logged in), `p' to print
+              the errors on the terminal (default), `q' to  throw  away  error
+              messages  (only  exit status is returned), and `e' to do special
+              processing for the BerkNet.  If the text of the message  is  not
+              mailed  back  by  modes `m' or `w' and if the sender is local to
+              this machine, a copy of the message  is  appended  to  the  file
               _d_e_a_d_._l_e_t_t_e_r in the sender's home directory.
 
        SaveFromLine
               Save UNIX-style From lines at the front of messages.
 
        MaxHopCount=_N
-              The maximum number of times a message is allowed to ``hop''  be-
-              fore we decide it is in a loop.
+              The  maximum  number  of  times  a message is allowed to ``hop''
+              before we decide it is in a loop.
 
        IgnoreDots
-              Do  not  take dots on a line by themselves as a message termina-
+              Do not take dots on a line by themselves as a  message  termina-
               tor.
 
        SendMimeErrors
@@ -354,11 +354,11 @@ DDEESSCCRRIIPPTTIIOONN
 
        NoRecipientAction=_a_c_t_i_o_n
               Set the behaviour when there are no recipient headers (To:,  Cc:
-              or  Bcc:)  in the message to _a_c_t_i_o_n: none leaves the message un-
-              changed, add-to adds a To: header with the envelope  recipients,
-              add-apparently-to  adds  an Apparently-To: header with the enve-
-              lope recipients, add-bcc adds an empty Bcc: header, and  add-to-
-              undisclosed  adds  a  header  reading  `To:  undisclosed-recipi-
+              or  Bcc:)  in  the  message  to  _a_c_t_i_o_n: none leaves the message
+              unchanged, add-to adds a To: header with  the  envelope  recipi-
+              ents,  add-apparently-to  adds an Apparently-To: header with the
+              envelope recipients, add-bcc adds an empty Bcc: header, and add-
+              to-undisclosed  adds  a  header reading `To: undisclosed-recipi-
               ents:;'.
 
        MaxDaemonChildren=_N
@@ -420,11 +420,11 @@ DDEESSCCRRIIPPTTIIOONN
        mmaaiill will act as a daemon, as if the --bbdd option were specified.
 
 NNOOTTEESS
-       sseennddmmaaiill  often gets blamed for many problems that are actually the re-
-       sult of other problems, such as overly permissive modes on directories.
-       For  this  reason,  sseennddmmaaiill checks the modes on system directories and
-       files to determine if they can be trusted.  Although these  checks  can
-       be  turned  off  and  your system security reduced by setting the DDoonntt--
+       sseennddmmaaiill  often  gets  blamed  for  many problems that are actually the
+       result of other problems, such as overly permissive modes  on  directo-
+       ries.  For this reason, sseennddmmaaiill checks the modes on system directories
+       and files to determine if they can be trusted.  Although  these  checks
+       can be turned off and your system security reduced by setting the DDoonntt--
        BBllaammeeSSeennddmmaaiill option, the permission problems  should  be  fixed.   For
        more information, see the _S_e_n_d_m_a_i_l _I_n_s_t_a_l_l_a_t_i_o_n _a_n_d _O_p_e_r_a_t_i_o_n _G_u_i_d_e
 
@@ -432,6 +432,7 @@ FFIILLEESS
        Except  for  the  file _/_e_t_c_/_m_a_i_l_/_s_e_n_d_m_a_i_l_._c_f itself the following path-
        names are all specified in _/_e_t_c_/_m_a_i_l_/_s_e_n_d_m_a_i_l_._c_f.  Thus,  these  values
        are only approximations.
+
 
         /etc/mail/aliases
               raw data for alias names
