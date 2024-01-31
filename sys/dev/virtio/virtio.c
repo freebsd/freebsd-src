@@ -66,6 +66,12 @@ static struct virtio_ident {
 	{ VIRTIO_ID_INPUT,		"Input"				},
 	{ VIRTIO_ID_VSOCK,		"VSOCK Transport"		},
 	{ VIRTIO_ID_CRYPTO,		"Crypto"			},
+	{ VIRTIO_ID_IOMMU,		"IOMMU"				},
+	{ VIRTIO_ID_SOUND,		"Sound"				},
+	{ VIRTIO_ID_FS,			"Filesystem"			},
+	{ VIRTIO_ID_PMEM,		"Persistent Memory"		},
+	{ VIRTIO_ID_RPMB,		"RPMB"				},
+	{ VIRTIO_ID_GPIO,		"GPIO"				},
 
 	{ 0, NULL }
 };
