@@ -17,6 +17,7 @@ SM_RCSID("@(#)$Id: setvbuf.c,v 1.33 2013-11-22 20:51:43 ca Exp $")
 #include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sm/limits.h>
 #include <sm/io.h>
 #include <sm/heap.h>
 #include <sm/assert.h>
@@ -67,7 +68,7 @@ sm_io_setvbuf(fp, timeout, buf, mode, size)
 
 	if (mode != SM_IO_NBF)
 		if ((mode != SM_IO_FBF && mode != SM_IO_LBF &&
-		    mode != SM_IO_NOW) || (int) size < 0)
+		    mode != SM_IO_NOW) || size > INT_MAX)
 			return SM_IO_EOF;
 
 	/*

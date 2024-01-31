@@ -83,7 +83,6 @@ int		NextMacroId = 0240;	/* codes for long named macros */
 #define NEXTMACROID(mid)	((mid) + 1)
 #endif /* _FFR_MORE_MACROS */
 
-
 /*
 **  INITMACROS -- initialize the macro system
 **
@@ -411,6 +410,9 @@ mactabclear(mac)
 **		id -- Macro id.  This is a single character macro name
 **			such as 'g', or a value returned by macid().
 **		value -- Macro value: either NULL, or a string.
+**
+**	Returns:
+**		none.
 */
 
 void
@@ -442,8 +444,8 @@ macdefine(mac, vclass, id, value)
 		sm_dprintf(")\n");
 	}
 #if USE_EAI && 0
-	if (('j' == id || 'm' == id) && !addr_is_ascii(value))
-		return an error/warning to caller and let them handle it.
+//	if (('j' == id || 'm' == id) && !addr_is_ascii(value))
+//		return an error/warning to caller and let them handle it.
 #endif
 
 	if (mac->mac_rpool == NULL)
@@ -504,6 +506,9 @@ macdefine(mac, vclass, id, value)
 **		mac -- Macro table.
 **		i -- Macro name, specified as an integer offset.
 **		value -- Macro value: either NULL, or a string.
+**
+**	Returns:
+**		none.
 */
 
 void
@@ -758,7 +763,51 @@ wordinclass(str, cl)
 	int cl;
 {
 	STAB *s;
+#if _FFR_DYN_CLASS
+	MAP *map;
+	int status;
+	char *p;
+	char key[MAXLINE];
 
-	s = stab(str, ST_CLASS, ST_FIND);
-	return s != NULL && bitnset(bitidx(cl), s->s_class);
+	p = macname(cl);
+	s = stab(p, ST_DYNMAP, ST_FIND);
+	if (NULL == s)
+	{
+#endif
+		s = stab(str, ST_CLASS, ST_FIND);
+		return s != NULL && bitnset(bitidx(cl), s->s_class);
+#if _FFR_DYN_CLASS
+	}
+	map = &s->s_dynclass;
+	SM_REQUIRE(NULL != map);
+	SM_REQUIRE(!SM_IS_EMPTY(str));
+	if (bitset(MF_OPENBOGUS, map->map_mflags))
+	{
+		/* need to set some error! */
+		return false;
+	}
+
+	key[0] = '\0';
+	if (!SM_IS_EMPTY(map->map_tag))
+	{
+		sm_strlcpy(key, map->map_tag, sizeof(key));
+		sm_strlcat(key, ":", sizeof(key));
+	}
+	sm_strlcat(key, str, sizeof(key));
+	status = EX_OK;
+	p = (map->map_class->map_lookup)(map, key, NULL, &status);
+	if (NULL != p)
+		return true;
+	if ((EX_OK == status && NULL == p) || EX_NOTFOUND == status)
+		return false;
+
+	sm_syslog(LOG_WARNING, CurEnv->e_id,
+		"dynamic class: A{%s}: map lookup failed: key=%s, status=%d",
+		map->map_mname, key, status);
+
+	/* Note: this error is shown to the client, so do not "leak" info */
+	usrerr("451 4.3.1 temporary error");
+
+	return false;
+#endif
 }

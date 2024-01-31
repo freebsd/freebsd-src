@@ -17,7 +17,7 @@
 #include <sm/ixlen.h>
 
 /*
-**  SM_STRCASEEQ -- are two strings equal (case-insenstive)?
+**  SM_STRCASEEQ -- are two strings equal (case-insensitive)?
 **
 **	Parameters:
 **		s1 -- string
@@ -63,7 +63,7 @@ sm_strcaseeq(s1, s2)
 }
 
 /*
-**  SM_STRNCASEEQ -- are two strings (up to a length) equal (case-insenstive)?
+**  SM_STRNCASEEQ -- are two strings (up to a length) equal (case-insensitive)?
 **
 **	Parameters:
 **		s1 -- string
@@ -86,13 +86,13 @@ sm_strncaseeq(s1, s2, n)
 
 	if (0 == n)
 		return true;
-	if (asciistr(s1))
+	if (asciinstr(s1, n))
 	{
-		if (!asciistr(s2))
+		if (!asciinstr(s2, n))
 			return false;
 		return (sm_strncasecmp(s1, s2, n) == 0);
 	}
-	if (asciistr(s2))
+	if (asciinstr(s2, n))
 		return false;
 	l1 = sm_lowercase(s1);
 	if (l1 != s1)
@@ -104,7 +104,7 @@ sm_strncaseeq(s1, s2, n)
 		f1 = NULL;
 	l2 = sm_lowercase(s2);
 
-	while (*l1 == *l2 && '\0' != *l1 && n-- > 0)
+	while (*l1 == *l2 && '\0' != *l1 && --n > 0)
 		l1++, l2++;
 	same = *l1 == *l2;
 

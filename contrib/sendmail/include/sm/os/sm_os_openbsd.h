@@ -18,20 +18,6 @@
 
 #define SM_OS_NAME	"openbsd"
 
-/* 
-**  Temporary HACK for newer icu4c versions which include stdbool.h:
-**  pretend that it is already included
-**  otherwise compilation will break because bool is then
-**  redefined between the prototype declaration and
-**  the function definition, e.g.,
-**	lowercase.c: error: conflicting types for 'asciistr'
-**	../../include/sm/ixlen.h:29:13: note: previous declaration is here
-*/
-
-#if USE_EAI && !SM_CONF_STDBOOL_H
-# define _STDBOOL_H_	1
-#endif
-
 #define SM_CONF_SYS_CDEFS_H	1
 #ifndef SM_CONF_SHM
 # define SM_CONF_SHM	1

@@ -43,10 +43,10 @@
 
 /* $Id: sm_resolve.h,v 8.9 2013-11-22 20:51:56 ca Exp $ */
 
-#if DNSMAP || DANE
-# ifndef __ROKEN_RESOLVE_H__
-#  define __ROKEN_RESOLVE_H__
+#ifndef SM_RESOLVE_H
+#define SM_RESOLVE_H
 
+#if DNSMAP || DANE
 /* We use these, but they are not always present in <arpa/nameser.h> */
 
 #  ifndef T_TXT
@@ -166,14 +166,6 @@ int getttlfromstring __P((const char *));
 int tstdns_search __P((const char *, int, int, u_char *, int));
 int tstdns_querydomain  __P((const char *, const char *, int, int, unsigned char *, int));
 
-#   ifdef _DEFINE_SMR_GLOBALS
-#    define SMR_EXTERN
-#   else
-#    define SMR_EXTERN extern
-#   endif
-SMR_EXTERN char *NameSearchList;
-#   undef SMR_EXTERN
-extern int	nsportip __P((char *));
 #  endif /* DNSSEC_TEST*/
 
 #ifndef RES_TRUSTAD
@@ -181,5 +173,17 @@ extern int	nsportip __P((char *));
 #endif
 #define SM_RES_DNSSEC (RES_USE_EDNS0|RES_USE_DNSSEC|RES_TRUSTAD)
 
-# endif /* ! __ROKEN_RESOLVE_H__ */
 #endif /* DNSMAP || DANE */
+
+#if DNSSEC_TEST || _FFR_NAMESERVER
+# ifdef _DEFINE_SMR_GLOBALS
+#  define SMR_EXTERN
+# else
+#  define SMR_EXTERN extern
+# endif
+SMR_EXTERN char *NameSearchList;
+# undef SMR_EXTERN
+extern int	nsportip __P((char *));
+#endif /* DNSSEC_TEST || _FFR_NAMESERVER */
+
+#endif /* ! SM_RESOLVE_H */

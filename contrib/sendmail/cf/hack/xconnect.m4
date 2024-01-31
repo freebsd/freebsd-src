@@ -20,6 +20,8 @@ LOCAL_RULESETS
 #
 # x_connect ruleset for looking up XConnect: tag in access DB to enable
 # XCONNECT support in MTA
+# if the RHS of the map entry is haproxy1,
+# then HAproxy protocol version 1 is used
 #
 Sx_connect
 dnl workspace: {client_name} $| {client_addr}
@@ -32,6 +34,6 @@ R<?> <$+>		$: $>A < $1 > <?> <! XConnect> <>	no: another lookup
 dnl workspace: <result-of-lookup> (<>|<{client_addr}>)
 R<?> <$*>		$# no					found nothing
 dnl workspace: <result-of-lookup> (<>|<{client_addr}>) | OK
-R<$+> <$*>		$@ yes					found in access DB',
+R<$+> <$*>		$@ $1					found in access DB',
 	`errprint(`*** ERROR: HACK(xconnect) requires FEATURE(access_db)
 ')')

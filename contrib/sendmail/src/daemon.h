@@ -13,7 +13,7 @@
 #define DAEMON_H 1
 
 #if DAEMON_C
-# define EXTERN 
+# define EXTERN
 #else
 # define EXTERN extern
 #endif

@@ -347,7 +347,7 @@ mime8to7(mci, header, e, boundaries, flags, level)
 				goto writeerr;
 			if (tTd(43, 35))
 				sm_dprintf("  ...%s\n", buf);
-			collect(e->e_dfp, false, &hdr, e, false);
+			collect(e->e_dfp, SMTPMODE_NO, &hdr, e, false);
 			if (tTd(43, 101))
 				putline("+++after collect", mci);
 			if (!putheader(mci, hdr, e, flags))
@@ -409,7 +409,7 @@ mime8to7(mci, header, e, boundaries, flags, level)
 				goto writeerr;
 
 			mci->mci_flags |= MCIF_INMIME;
-			collect(e->e_dfp, false, &hdr, e, false);
+			collect(e->e_dfp, SMTPMODE_NO, &hdr, e, false);
 			if (tTd(43, 101))
 				putline("+++after collect", mci);
 			if (!putheader(mci, hdr, e, flags))
@@ -483,7 +483,7 @@ mime8to7(mci, header, e, boundaries, flags, level)
 	**	If more than 1/8 of the total characters have the
 	**	eighth bit set, use base64; else use quoted-printable.
 	**	However, only encode binary encoded data as base64,
-	**	since otherwise the NL=>CRLF mapping will be a problem.
+	**	since otherwise the LF=>CRLF mapping will be a problem.
 	*/
 
 	if (tTd(43, 8))
@@ -837,7 +837,7 @@ mime_getchar(fp, boundaries, btp)
 	return *bp++;
 }
 /*
-**  MIME_GETCHAR_CRLF -- do mime_getchar, but translate NL => CRLF
+**  MIME_GETCHAR_CRLF -- do mime_getchar, but translate LF => CRLF
 **
 **	Parameters:
 **		fp -- the input file.
