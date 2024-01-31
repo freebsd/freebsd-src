@@ -505,7 +505,6 @@ int t4_aio_queue_ddp(struct socket *, struct kaiocb *);
 void t4_ddp_mod_load(void);
 void t4_ddp_mod_unload(void);
 void ddp_assert_empty(struct toepcb *);
-void ddp_init_toep(struct toepcb *);
 void ddp_uninit_toep(struct toepcb *);
 void ddp_queue_toep(struct toepcb *);
 void release_ddp_resources(struct toepcb *toep);

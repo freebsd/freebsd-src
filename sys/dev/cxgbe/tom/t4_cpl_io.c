@@ -1753,17 +1753,18 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		if (changed) {
 			if (toep->ddp.flags & DDP_SC_REQ)
 				toep->ddp.flags ^= DDP_ON | DDP_SC_REQ;
-			else {
-				KASSERT(cpl->ddp_off == 1,
-				    ("%s: DDP switched on by itself.",
-				    __func__));
-
+			else if (cpl->ddp_off == 1) {
 				/* Fell out of DDP mode */
 				toep->ddp.flags &= ~DDP_ON;
 				CTR1(KTR_CXGBE, "%s: fell out of DDP mode",
 				    __func__);
 
 				insert_ddp_data(toep, ddp_placed);
+			} else {
+				/*
+				 * Data was received while still
+				 * ULP_MODE_NONE, just fall through.
+				 */
 			}
 		}
 
