@@ -45,5 +45,11 @@
 #define VIRTIO_ID_INPUT		18
 #define VIRTIO_ID_VSOCK		19
 #define VIRTIO_ID_CRYPTO	20
+#define VIRTIO_ID_IOMMU		23
+#define VIRTIO_ID_SOUND		25
+#define VIRTIO_ID_FS		26
+#define VIRTIO_ID_PMEM		27
+#define VIRTIO_ID_RPMB		28
+#define VIRTIO_ID_GPIO		41
 
 #endif /* _VIRTIO_IDS_H_ */
