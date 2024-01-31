@@ -192,7 +192,7 @@ free_ddp_buffer(struct tom_data *td, struct ddp_buffer *db)
 		free_pageset(td, db->ps);
 }
 
-void
+static void
 ddp_init_toep(struct toepcb *toep)
 {
 
@@ -808,6 +808,78 @@ do_rx_ddp_complete(struct sge_iq *iq, const struct rss_header *rss,
 	handle_ddp_data(toep, cpl->ddp_report, cpl->rcv_nxt, 0);
 
 	return (0);
+}
+
+static bool
+set_ddp_ulp_mode(struct toepcb *toep)
+{
+	struct adapter *sc = toep->vi->adapter;
+	struct wrqe *wr;
+	struct work_request_hdr *wrh;
+	struct ulp_txpkt *ulpmc;
+	int fields, len;
+
+	if (!sc->tt.ddp)
+		return (false);
+
+	fields = 0;
+
+	/* Overlay region including W_TCB_RX_DDP_FLAGS */
+	fields += 3;
+
+	/* W_TCB_ULP_TYPE */
+	fields++;
+
+#ifdef USE_DDP_RX_FLOW_CONTROL
+	/* W_TCB_T_FLAGS */
+	fields++;
+#endif
+
+	len = sizeof(*wrh) + fields * roundup2(LEN__SET_TCB_FIELD_ULP, 16);
+	KASSERT(len <= SGE_MAX_WR_LEN,
+	    ("%s: WR with %d TCB field updates too large", __func__, fields));
+
+	wr = alloc_wrqe(len, toep->ctrlq);
+	if (wr == NULL)
+		return (false);
+
+	CTR(KTR_CXGBE, "%s: tid %u", __func__, toep->tid);
+
+	wrh = wrtod(wr);
+	INIT_ULPTX_WRH(wrh, len, 1, 0);	/* atomic */
+	ulpmc = (struct ulp_txpkt *)(wrh + 1);
+
+	/*
+	 * Words 26/27 are zero except for the DDP_OFF flag in
+	 * W_TCB_RX_DDP_FLAGS (27).
+	 */
+	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, 26,
+	    0xffffffffffffffff, (uint64_t)V_TF_DDP_OFF(1) << 32);
+
+	/* Words 28/29 are zero. */
+	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, 28,
+	    0xffffffffffffffff, 0);
+
+	/* Words 30/31 are zero. */
+	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, 30,
+	    0xffffffffffffffff, 0);
+
+	/* Set the ULP mode to ULP_MODE_TCPDDP. */
+	toep->params.ulp_mode = ULP_MODE_TCPDDP;
+	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, W_TCB_ULP_TYPE,
+	    V_TCB_ULP_TYPE(M_TCB_ULP_TYPE),
+	    V_TCB_ULP_TYPE(ULP_MODE_TCPDDP));
+
+#ifdef USE_DDP_RX_FLOW_CONTROL
+	/* Set TF_RX_FLOW_CONTROL_DDP. */
+	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, W_TCB_T_FLAGS,
+	    V_TF_RX_FLOW_CONTROL_DDP(1), V_TF_RX_FLOW_CONTROL_DDP(1));
+#endif
+
+	ddp_init_toep(toep);
+
+	t4_wrq_tx(sc, wr);
+	return (true);
 }
 
 static void
@@ -2203,13 +2275,23 @@ t4_aio_cancel_queued(struct kaiocb *job)
 int
 t4_aio_queue_ddp(struct socket *so, struct kaiocb *job)
 {
-	struct tcpcb *tp = sototcpcb(so);
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp = intotcpcb(inp);
 	struct toepcb *toep = tp->t_toe;
 
 
 	/* Ignore writes. */
 	if (job->uaiocb.aio_lio_opcode != LIO_READ)
 		return (EOPNOTSUPP);
+
+	INP_WLOCK(inp);
+	if (__predict_false(ulp_mode(toep) == ULP_MODE_NONE)) {
+		if (!set_ddp_ulp_mode(toep)) {
+			INP_WUNLOCK(inp);
+			return (EOPNOTSUPP);
+		}
+	}
+	INP_WUNLOCK(inp);
 
 	DDP_LOCK(toep);
 
