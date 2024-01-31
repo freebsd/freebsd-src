@@ -324,7 +324,7 @@ static struct mtx PMAP2mutex;
 #define	PMAP_ENTER_NOREPLACE	0x2000000	/* Don't replace mappings. */
 
 static __inline void pt2_wirecount_init(vm_page_t m);
-static boolean_t pmap_demote_pte1(pmap_t pmap, pt1_entry_t *pte1p,
+static bool pmap_demote_pte1(pmap_t pmap, pt1_entry_t *pte1p,
     vm_offset_t va);
 static int pmap_enter_pte1(pmap_t pmap, vm_offset_t va, pt1_entry_t pte1,
     u_int flags, vm_page_t m);
@@ -397,7 +397,7 @@ CTASSERT(VM_MEMATTR_SO == 3);
 CTASSERT(VM_MEMATTR_WRITE_THROUGH == 4);
 #define	VM_MEMATTR_END	(VM_MEMATTR_WRITE_THROUGH + 1)
 
-boolean_t
+bool
 pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
 {
 
@@ -2294,15 +2294,15 @@ pmap_pinit(pmap_t pmap)
 }
 
 #ifdef INVARIANTS
-static boolean_t
+static bool
 pt2tab_user_is_empty(pt2_entry_t *tab)
 {
 	u_int i, end;
 
 	end = pt2tab_index(VM_MAXUSER_ADDRESS);
 	for (i = 0; i < end; i++)
-		if (tab[i] != 0) return (FALSE);
-	return (TRUE);
+		if (tab[i] != 0) return (false);
+	return (true);
 }
 #endif
 /*
@@ -2437,14 +2437,14 @@ pt2_wirecount_get(vm_page_t m, uint32_t pte1_idx)
 	return (m->md.pt2_wirecount[pte1_idx & PT2PG_MASK]);
 }
 
-static __inline boolean_t
+static __inline bool
 pt2_is_empty(vm_page_t m, vm_offset_t va)
 {
 
 	return (m->md.pt2_wirecount[pte1_index(va) & PT2PG_MASK] == 0);
 }
 
-static __inline boolean_t
+static __inline bool
 pt2_is_full(vm_page_t m, vm_offset_t va)
 {
 
@@ -2452,7 +2452,7 @@ pt2_is_full(vm_page_t m, vm_offset_t va)
 	    NPTE2_IN_PT2);
 }
 
-static __inline boolean_t
+static __inline bool
 pt2pg_is_empty(vm_page_t m)
 {
 
@@ -2645,10 +2645,10 @@ pmap_unwire_pt2pg(pmap_t pmap, vm_offset_t va, vm_page_t m)
 /*
  *  Decrements a L2 page table page's wire count, which is used to record the
  *  number of valid page table entries within the page.  If the wire count
- *  drops to zero, then the page table page is unmapped.  Returns TRUE if the
- *  page table page was unmapped and FALSE otherwise.
+ *  drops to zero, then the page table page is unmapped.  Returns true if the
+ *  page table page was unmapped and false otherwise.
  */
-static __inline boolean_t
+static __inline bool
 pmap_unwire_pt2(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 {
 	pt2_wirecount_dec(m, pte1_index(va));
@@ -2661,9 +2661,9 @@ pmap_unwire_pt2(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 		 */
 		pmap_unwire_pt2pg(pmap, va, m);
 		pmap_add_delayed_free_list(m, free);
-		return (TRUE);
+		return (true);
 	} else
-		return (FALSE);
+		return (false);
 }
 
 /*
@@ -2716,14 +2716,14 @@ pmap_unwire_pt2_all(pmap_t pmap, vm_offset_t va, vm_page_t m,
  *  After removing a L2 page table entry, this routine is used to
  *  conditionally free the page, and manage the hold/wire counts.
  */
-static boolean_t
+static bool
 pmap_unuse_pt2(pmap_t pmap, vm_offset_t va, struct spglist *free)
 {
 	pt1_entry_t pte1;
 	vm_page_t mpte;
 
 	if (va >= VM_MAXUSER_ADDRESS)
-		return (FALSE);
+		return (false);
 	pte1 = pte1_load(pmap_pte1(pmap, va));
 	mpte = PHYS_TO_VM_PAGE(pte1_link_pa(pte1));
 	return (pmap_unwire_pt2(pmap, va, mpte, free));
@@ -2993,7 +2993,7 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
  *  when needed.
  */
 static pv_entry_t
-get_pv_entry(pmap_t pmap, boolean_t try)
+get_pv_entry(pmap_t pmap, bool try)
 {
 	static const struct timeval printinterval = { 60, 0 };
 	static struct timeval lastprint;
@@ -3077,7 +3077,7 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	pv = get_pv_entry(pmap, FALSE);
+	pv = get_pv_entry(pmap, false);
 	pv->pv_va = va;
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 }
@@ -3193,7 +3193,7 @@ pmap_pv_promote_pte1(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 /*
  *  Conditionally create a pv entry.
  */
-static boolean_t
+static bool
 pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
 	pv_entry_t pv;
@@ -3201,12 +3201,12 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if (pv_entry_count < pv_entry_high_water &&
-	    (pv = get_pv_entry(pmap, TRUE)) != NULL) {
+	    (pv = get_pv_entry(pmap, true)) != NULL) {
 		pv->pv_va = va;
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
-		return (TRUE);
+		return (true);
 	} else
-		return (FALSE);
+		return (false);
 }
 
 /*
@@ -3662,7 +3662,7 @@ pmap_fill_pt2(pt2_entry_t *fpte2p, pt2_entry_t npte2)
  *  Tries to demote a 1MB page mapping. If demotion fails, the
  *  1MB page mapping is invalidated.
  */
-static boolean_t
+static bool
 pmap_demote_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va)
 {
 	pt1_entry_t opte1, npte1;
@@ -3696,7 +3696,7 @@ pmap_demote_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va)
 			vm_page_free_pages_toq(&free, false);
 			CTR3(KTR_PMAP, "%s: failure for va %#x in pmap %p",
 			    __func__, va, pmap);
-			return (FALSE);
+			return (false);
 		}
 		m->pindex = pte1_index(va) & ~PT2PG_MASK;
 		if (va < VM_MAXUSER_ADDRESS)
@@ -3819,7 +3819,7 @@ pmap_demote_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va)
 
 	PDEBUG(6, printf("%s(%p): success for va %#x pte1 %#x(%#x) at %p\n",
 	    __func__, pmap, va, npte1, pte1_load(pte1p), pte1p));
-	return (TRUE);
+	return (true);
 }
 
 /*
@@ -3975,7 +3975,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 */
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		if (pv == NULL) {
-			pv = get_pv_entry(pmap, FALSE);
+			pv = get_pv_entry(pmap, false);
 			pv->pv_va = va;
 		}
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
@@ -4399,7 +4399,7 @@ pmap_remove_pages(pmap_t pmap)
 	int field, idx;
 	int32_t bit;
 	uint32_t inuse, bitmask;
-	boolean_t allfree;
+	bool allfree;
 
 	/*
 	 * Assert that the given pmap is only active on the current
@@ -4427,7 +4427,7 @@ pmap_remove_pages(pmap_t pmap)
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_list, npc) {
 		KASSERT(pc->pc_pmap == pmap, ("%s: wrong pmap %p %p",
 		    __func__, pmap, pc->pc_pmap));
-		allfree = TRUE;
+		allfree = true;
 		for (field = 0; field < _NPCM; field++) {
 			inuse = (~(pc->pc_map[field])) & pc_freemask[field];
 			while (inuse != 0) {
@@ -4445,7 +4445,7 @@ pmap_remove_pages(pmap_t pmap)
 				pte1 = pte1_load(pte1p);
 				if (pte1_is_section(pte1)) {
 					if (pte1_is_wired(pte1))  {
-						allfree = FALSE;
+						allfree = false;
 						continue;
 					}
 					pte1_clear(pte1p);
@@ -4464,7 +4464,7 @@ pmap_remove_pages(pmap_t pmap)
 					}
 
 					if (pte2_is_wired(pte2))   {
-						allfree = FALSE;
+						allfree = false;
 						continue;
 					}
 					pte2_clear(pte2p);
@@ -4932,7 +4932,7 @@ pmap_protect_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t sva,
 void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
-	boolean_t pv_lists_locked;
+	bool pv_lists_locked;
 	vm_offset_t nextva;
 	pt1_entry_t *pte1p, pte1;
 	pt2_entry_t *pte2p, opte2, npte2;
@@ -4948,9 +4948,9 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		return;
 
 	if (pmap_is_current(pmap))
-		pv_lists_locked = FALSE;
+		pv_lists_locked = false;
 	else {
-		pv_lists_locked = TRUE;
+		pv_lists_locked = true;
 resume:
 		rw_wlock(&pvh_global_lock);
 		sched_pin();
@@ -4985,7 +4985,7 @@ resume:
 				continue;
 			} else {
 				if (!pv_lists_locked) {
-					pv_lists_locked = TRUE;
+					pv_lists_locked = true;
 					if (!rw_try_wlock(&pvh_global_lock)) {
 						PMAP_UNLOCK(pmap);
 						goto resume;
@@ -5118,21 +5118,21 @@ pmap_page_wired_mappings(vm_page_t m)
 }
 
 /*
- *  Returns TRUE if any of the given mappings were used to modify
- *  physical memory.  Otherwise, returns FALSE.  Both page and 1mpage
+ *  Returns true if any of the given mappings were used to modify
+ *  physical memory.  Otherwise, returns false.  Both page and 1mpage
  *  mappings are supported.
  */
-static boolean_t
+static bool
 pmap_is_modified_pvh(struct md_page *pvh)
 {
 	pv_entry_t pv;
 	pt1_entry_t pte1;
 	pt2_entry_t pte2;
 	pmap_t pmap;
-	boolean_t rv;
+	bool rv;
 
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
-	rv = FALSE;
+	rv = false;
 	sched_pin();
 	TAILQ_FOREACH(pv, &pvh->pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
@@ -5160,10 +5160,10 @@ pmap_is_modified_pvh(struct md_page *pvh)
  *	Return whether or not the specified physical page was modified
  *	in any physical maps.
  */
-boolean_t
+bool
 pmap_is_modified(vm_page_t m)
 {
-	boolean_t rv;
+	bool rv;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("%s: page %p is not managed", __func__, m));
@@ -5172,7 +5172,7 @@ pmap_is_modified(vm_page_t m)
 	 * If the page is not busied then this check is racy.
 	 */
 	if (!pmap_page_is_write_mapped(m))
-		return (FALSE);
+		return (false);
 	rw_wlock(&pvh_global_lock);
 	rv = pmap_is_modified_pvh(&m->md) ||
 	    ((m->flags & PG_FICTITIOUS) == 0 &&
@@ -5187,14 +5187,14 @@ pmap_is_modified(vm_page_t m)
  *	Return whether or not the specified virtual address is eligible
  *	for prefault.
  */
-boolean_t
+bool
 pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 {
 	pt1_entry_t pte1;
 	pt2_entry_t pte2;
-	boolean_t rv;
+	bool rv;
 
-	rv = FALSE;
+	rv = false;
 	PMAP_LOCK(pmap);
 	pte1 = pte1_load(pmap_pte1(pmap, addr));
 	if (pte1_is_link(pte1)) {
@@ -5206,10 +5206,10 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 }
 
 /*
- *  Returns TRUE if any of the given mappings were referenced and FALSE
+ *  Returns true if any of the given mappings were referenced and false
  *  otherwise. Both page and 1mpage mappings are supported.
  */
-static boolean_t
+static bool
 pmap_is_referenced_pvh(struct md_page *pvh)
 {
 
@@ -5217,10 +5217,10 @@ pmap_is_referenced_pvh(struct md_page *pvh)
 	pt1_entry_t pte1;
 	pt2_entry_t pte2;
 	pmap_t pmap;
-	boolean_t rv;
+	bool rv;
 
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
-	rv = FALSE;
+	rv = false;
 	sched_pin();
 	TAILQ_FOREACH(pv, &pvh->pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
@@ -5246,10 +5246,10 @@ pmap_is_referenced_pvh(struct md_page *pvh)
  *	Return whether or not the specified physical page was referenced
  *	in any physical maps.
  */
-boolean_t
+bool
 pmap_is_referenced(vm_page_t m)
 {
-	boolean_t rv;
+	bool rv;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("%s: page %p is not managed", __func__, m));
@@ -5396,12 +5396,12 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	vm_offset_t nextva;
 	pt1_entry_t *pte1p, pte1;
 	pt2_entry_t *pte2p, pte2;
-	boolean_t pv_lists_locked;
+	bool pv_lists_locked;
 
 	if (pmap_is_current(pmap))
-		pv_lists_locked = FALSE;
+		pv_lists_locked = false;
 	else {
-		pv_lists_locked = TRUE;
+		pv_lists_locked = true;
 resume:
 		rw_wlock(&pvh_global_lock);
 		sched_pin();
@@ -5437,7 +5437,7 @@ resume:
 				continue;
 			} else {
 				if (!pv_lists_locked) {
-					pv_lists_locked = TRUE;
+					pv_lists_locked = true;
 					if (!rw_try_wlock(&pvh_global_lock)) {
 						PMAP_UNLOCK(pmap);
 						/* Repeat sva. */
@@ -5559,14 +5559,14 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 	pt2_entry_t *pte2p, pte2;
 	vm_offset_t pdnxt;
 	vm_page_t m;
-	boolean_t pv_lists_locked;
+	bool pv_lists_locked;
 
 	if (advice != MADV_DONTNEED && advice != MADV_FREE)
 		return;
 	if (pmap_is_current(pmap))
-		pv_lists_locked = FALSE;
+		pv_lists_locked = false;
 	else {
-		pv_lists_locked = TRUE;
+		pv_lists_locked = true;
 resume:
 		rw_wlock(&pvh_global_lock);
 		sched_pin();
@@ -5584,7 +5584,7 @@ resume:
 			if (!pte1_is_managed(opte1))
 				continue;
 			if (!pv_lists_locked) {
-				pv_lists_locked = TRUE;
+				pv_lists_locked = true;
 				if (!rw_try_wlock(&pvh_global_lock)) {
 					PMAP_UNLOCK(pmap);
 					goto resume;
@@ -5769,16 +5769,16 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
  */
 
 /*
- *  Returns TRUE if the given page is mapped individually or as part of
- *  a 1mpage.  Otherwise, returns FALSE.
+ *  Returns true if the given page is mapped individually or as part of
+ *  a 1mpage.  Otherwise, returns false.
  */
-boolean_t
+bool
 pmap_page_is_mapped(vm_page_t m)
 {
-	boolean_t rv;
+	bool rv;
 
 	if ((m->oflags & VPO_UNMANAGED) != 0)
-		return (FALSE);
+		return (false);
 	rw_wlock(&pvh_global_lock);
 	rv = !TAILQ_EMPTY(&m->md.pv_list) ||
 	    ((m->flags & PG_FICTITIOUS) == 0 &&
@@ -5794,21 +5794,21 @@ pmap_page_is_mapped(vm_page_t m)
  *  is only necessary that true be returned for a small
  *  subset of pmaps for proper page aging.
  */
-boolean_t
+bool
 pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
 	struct md_page *pvh;
 	pv_entry_t pv;
 	int loops = 0;
-	boolean_t rv;
+	bool rv;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("%s: page %p is not managed", __func__, m));
-	rv = FALSE;
+	rv = false;
 	rw_wlock(&pvh_global_lock);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		if (PV_PMAP(pv) == pmap) {
-			rv = TRUE;
+			rv = true;
 			break;
 		}
 		loops++;
@@ -5819,7 +5819,7 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 		pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 		TAILQ_FOREACH(pv, &pvh->pv_list, pv_next) {
 			if (PV_PMAP(pv) == pmap) {
-				rv = TRUE;
+				rv = true;
 				break;
 			}
 			loops++;
@@ -6756,7 +6756,7 @@ dump_section(pmap_t pmap, uint32_t pte1_idx)
 }
 
 static void
-dump_link(pmap_t pmap, uint32_t pte1_idx, boolean_t invalid_ok)
+dump_link(pmap_t pmap, uint32_t pte1_idx, bool invalid_ok)
 {
 	uint32_t i;
 	vm_offset_t va;
@@ -6788,14 +6788,14 @@ dump_link(pmap_t pmap, uint32_t pte1_idx, boolean_t invalid_ok)
 	}
 }
 
-static __inline boolean_t
+static __inline bool
 is_pv_chunk_space(vm_offset_t va)
 {
 
 	if ((((vm_offset_t)pv_chunkbase) <= va) &&
 	    (va < ((vm_offset_t)pv_chunkbase + PAGE_SIZE * pv_maxchunks)))
-		return (TRUE);
-	return (FALSE);
+		return (true);
+	return (false);
 }
 
 DB_SHOW_COMMAND(pmap, pmap_pmap_print)
@@ -6807,7 +6807,7 @@ DB_SHOW_COMMAND(pmap, pmap_pmap_print)
 	vm_offset_t va, eva;
 	vm_page_t m;
 	uint32_t i;
-	boolean_t invalid_ok, dump_link_ok, dump_pv_chunk;
+	bool invalid_ok, dump_link_ok, dump_pv_chunk;
 
 	if (have_addr) {
 		pmap_t pm;
@@ -6822,7 +6822,7 @@ DB_SHOW_COMMAND(pmap, pmap_pmap_print)
 		pmap = PCPU_GET(curpmap);
 
 	eva = (modif[0] == 'u') ? VM_MAXUSER_ADDRESS : 0xFFFFFFFF;
-	dump_pv_chunk = FALSE; /* XXX evaluate from modif[] */
+	dump_pv_chunk = false; /* XXX evaluate from modif[] */
 
 	printf("pmap: 0x%08X\n", (uint32_t)pmap);
 	printf("PT2MAP: 0x%08X\n", (uint32_t)PT2MAP);
@@ -6841,8 +6841,8 @@ DB_SHOW_COMMAND(pmap, pmap_pmap_print)
 			    !!(pte1 & PTE1_S), !(pte1 & PTE1_NG));
 			dump_section(pmap, i);
 		} else if (pte1_is_link(pte1)) {
-			dump_link_ok = TRUE;
-			invalid_ok = FALSE;
+			dump_link_ok = true;
+			invalid_ok = false;
 			pte2 = pte2_load(pmap_pt2tab_entry(pmap, va));
 			m = PHYS_TO_VM_PAGE(pte1_link_pa(pte1));
 			printf("0x%08X: Link 0x%08X, pt2tab: 0x%08X m: %p",
@@ -6850,9 +6850,9 @@ DB_SHOW_COMMAND(pmap, pmap_pmap_print)
 			if (is_pv_chunk_space(va)) {
 				printf(" - pv_chunk space");
 				if (dump_pv_chunk)
-					invalid_ok = TRUE;
+					invalid_ok = true;
 				else
-					dump_link_ok = FALSE;
+					dump_link_ok = false;
 			}
 			else if (m != NULL)
 				printf(" w:%d w2:%u", m->ref_count,

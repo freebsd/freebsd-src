@@ -315,7 +315,7 @@ static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte, struct rwlock **lockp);
 static int pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t sva,
     pd_entry_t ptepde, struct spglist *free, struct rwlock **lockp);
-static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
+static bool pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
     vm_page_t m, struct rwlock **lockp);
 
 static vm_page_t _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex,
@@ -1175,8 +1175,7 @@ pmap_ps_enabled(pmap_t pmap __unused)
  * physical memory manager after the TLB has been updated.
  */
 static __inline void
-pmap_add_delayed_free_list(vm_page_t m, struct spglist *free,
-    boolean_t set_PG_ZERO)
+pmap_add_delayed_free_list(vm_page_t m, struct spglist *free, bool set_PG_ZERO)
 {
 
 	if (set_PG_ZERO)
@@ -1232,10 +1231,10 @@ pmap_remove_pt_page(pmap_t pmap, vm_offset_t va)
 /*
  * Decrements a page table page's reference count, which is used to record the
  * number of valid page table entries within the page.  If the reference count
- * drops to zero, then the page table page is unmapped.  Returns TRUE if the
- * page table page was unmapped and FALSE otherwise.
+ * drops to zero, then the page table page is unmapped.  Returns true if the
+ * page table page was unmapped and false otherwise.
  */
-static inline boolean_t
+static inline bool
 pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 {
 	KASSERT(m->ref_count > 0,
@@ -1244,9 +1243,9 @@ pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 	--m->ref_count;
 	if (m->ref_count == 0) {
 		_pmap_unwire_ptp(pmap, va, m, free);
-		return (TRUE);
+		return (true);
 	} else {
-		return (FALSE);
+		return (false);
 	}
 }
 
@@ -1297,7 +1296,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 	 * Put page on a list so that it is released after
 	 * *ALL* TLB shootdown is done
 	 */
-	pmap_add_delayed_free_list(m, free, TRUE);
+	pmap_add_delayed_free_list(m, free, true);
 }
 
 /*
@@ -2014,7 +2013,7 @@ pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
  * Conditionally create the PV entry for a 4KB page mapping if the required
  * memory can be allocated without resorting to reclamation.
  */
-static boolean_t
+static bool
 pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m,
     struct rwlock **lockp)
 {
@@ -2028,9 +2027,9 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 		m->md.pv_gen++;
-		return (TRUE);
+		return (true);
 	} else
-		return (FALSE);
+		return (false);
 }
 
 /*
@@ -2247,7 +2246,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 			    ("pmap_remove_l2: l3 page ref count error"));
 			ml3->ref_count = 1;
 			vm_page_unwire_noq(ml3);
-			pmap_add_delayed_free_list(ml3, free, FALSE);
+			pmap_add_delayed_free_list(ml3, free, false);
 		}
 	}
 	return (pmap_unuse_pt(pmap, sva, l1e, free));
@@ -3776,24 +3775,24 @@ pmap_quick_remove_page(vm_offset_t addr)
  * is only necessary that true be returned for a small
  * subset of pmaps for proper page aging.
  */
-boolean_t
+bool
 pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
 	struct md_page *pvh;
 	struct rwlock *lock;
 	pv_entry_t pv;
 	int loops = 0;
-	boolean_t rv;
+	bool rv;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_page_exists_quick: page %p is not managed", m));
-	rv = FALSE;
+	rv = false;
 	rw_rlock(&pvh_global_lock);
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	rw_rlock(lock);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		if (PV_PMAP(pv) == pmap) {
-			rv = TRUE;
+			rv = true;
 			break;
 		}
 		loops++;
@@ -3804,7 +3803,7 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 		pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 		TAILQ_FOREACH(pv, &pvh->pv_list, pv_next) {
 			if (PV_PMAP(pv) == pmap) {
-				rv = TRUE;
+				rv = true;
 				break;
 			}
 			loops++;
@@ -3935,7 +3934,7 @@ pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
 			KASSERT(mpte->ref_count == Ln_ENTRIES,
 			    ("pmap_remove_pages: pte page ref count error"));
 			mpte->ref_count = 0;
-			pmap_add_delayed_free_list(mpte, free, FALSE);
+			pmap_add_delayed_free_list(mpte, free, false);
 		}
 	} else {
 		pmap_resident_count_dec(pmap, 1);
@@ -4073,7 +4072,7 @@ pmap_remove_pages(pmap_t pmap)
 }
 
 static bool
-pmap_page_test_mappings(vm_page_t m, boolean_t accessed, boolean_t modified)
+pmap_page_test_mappings(vm_page_t m, bool accessed, bool modified)
 {
 	struct md_page *pvh;
 	struct rwlock *lock;
@@ -4090,7 +4089,7 @@ pmap_page_test_mappings(vm_page_t m, boolean_t accessed, boolean_t modified)
 	if (accessed)
 		mask |= PTE_A;
 
-	rv = FALSE;
+	rv = false;
 	rw_rlock(&pvh_global_lock);
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	rw_rlock(lock);
@@ -4151,7 +4150,7 @@ out:
  *	Return whether or not the specified physical page was modified
  *	in any physical maps.
  */
-boolean_t
+bool
 pmap_is_modified(vm_page_t m)
 {
 
@@ -4162,8 +4161,8 @@ pmap_is_modified(vm_page_t m)
 	 * If the page is not busied then this check is racy.
 	 */
 	if (!pmap_page_is_write_mapped(m))
-		return (FALSE);
-	return (pmap_page_test_mappings(m, FALSE, TRUE));
+		return (false);
+	return (pmap_page_test_mappings(m, false, true));
 }
 
 /*
@@ -4172,21 +4171,21 @@ pmap_is_modified(vm_page_t m)
  *	Return whether or not the specified virtual address is eligible
  *	for prefault.
  */
-boolean_t
+bool
 pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 {
 	pt_entry_t *l3;
-	boolean_t rv;
+	bool rv;
 
 	/*
-	 * Return TRUE if and only if the L3 entry for the specified virtual
+	 * Return true if and only if the L3 entry for the specified virtual
 	 * address is allocated but invalid.
 	 */
-	rv = FALSE;
+	rv = false;
 	PMAP_LOCK(pmap);
 	l3 = pmap_l3(pmap, addr);
 	if (l3 != NULL && pmap_load(l3) == 0) {
-		rv = TRUE;
+		rv = true;
 	}
 	PMAP_UNLOCK(pmap);
 	return (rv);
@@ -4198,13 +4197,13 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
  *	Return whether or not the specified physical page was referenced
  *	in any physical maps.
  */
-boolean_t
+bool
 pmap_is_referenced(vm_page_t m)
 {
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_referenced: page %p is not managed", m));
-	return (pmap_page_test_mappings(m, TRUE, FALSE));
+	return (pmap_page_test_mappings(m, true, false));
 }
 
 /*
@@ -4900,7 +4899,7 @@ pmap_unmap_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 	}
 }
 
-boolean_t
+bool
 pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
 {
 

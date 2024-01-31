@@ -318,12 +318,12 @@ int		pmap_decode_kernel_ptr(vm_offset_t addr, int *is_user,
 void		pmap_deactivate(struct thread *);
 vm_paddr_t	pmap_kextract(vm_offset_t);
 int		pmap_dev_direct_mapped(vm_paddr_t, vm_size_t);
-boolean_t	pmap_mmu_install(char *name, int prio);
+bool		pmap_mmu_install(char *name, int prio);
 void		pmap_mmu_init(void);
 const char	*pmap_mmu_name(void);
 bool		pmap_ps_enabled(pmap_t pmap);
 int		pmap_nofault(pmap_t pmap, vm_offset_t va, vm_prot_t flags);
-boolean_t	pmap_page_is_mapped(vm_page_t m);
+bool		pmap_page_is_mapped(vm_page_t m);
 #define	pmap_map_delete(pmap, sva, eva)	pmap_remove(pmap, sva, eva)
 
 void		pmap_page_array_startup(long count);

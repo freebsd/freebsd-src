@@ -135,12 +135,12 @@ DEFINE_PMAP_IFUNC(vm_paddr_t, kextract, (vm_offset_t));
 DEFINE_PMAP_IFUNC(void, kremove, (vm_offset_t));
 DEFINE_PMAP_IFUNC(void, object_init_pt, (pmap_t, vm_offset_t, vm_object_t, vm_pindex_t,
 	vm_size_t));
-DEFINE_PMAP_IFUNC(boolean_t, is_modified, (vm_page_t));
-DEFINE_PMAP_IFUNC(boolean_t, is_prefaultable, (pmap_t, vm_offset_t));
-DEFINE_PMAP_IFUNC(boolean_t, is_referenced, (vm_page_t));
-DEFINE_PMAP_IFUNC(boolean_t, page_exists_quick, (pmap_t, vm_page_t));
+DEFINE_PMAP_IFUNC(bool, is_modified, (vm_page_t));
+DEFINE_PMAP_IFUNC(bool, is_prefaultable, (pmap_t, vm_offset_t));
+DEFINE_PMAP_IFUNC(bool, is_referenced, (vm_page_t));
+DEFINE_PMAP_IFUNC(bool, page_exists_quick, (pmap_t, vm_page_t));
 DEFINE_PMAP_IFUNC(void, page_init, (vm_page_t));
-DEFINE_PMAP_IFUNC(boolean_t, page_is_mapped, (vm_page_t));
+DEFINE_PMAP_IFUNC(bool, page_is_mapped, (vm_page_t));
 DEFINE_PMAP_IFUNC(int, page_wired_mappings, (vm_page_t));
 DEFINE_PMAP_IFUNC(void, protect, (pmap_t, vm_offset_t, vm_offset_t, vm_prot_t));
 DEFINE_PMAP_IFUNC(bool, ps_enabled, (pmap_t));
@@ -196,7 +196,7 @@ DEFINE_DUMPSYS_IFUNC(void *, dump_pmap, (void *, void *, u_long *));
  */
 SET_DECLARE(mmu_set, struct mmu_kobj);
 
-boolean_t
+bool
 pmap_mmu_install(char *name, int prio)
 {
 	mmu_t	*mmupp, mmup;
@@ -213,11 +213,11 @@ pmap_mmu_install(char *name, int prio)
 		    (prio >= curr_prio || mmu_obj == NULL)) {
 			curr_prio = prio;
 			mmu_obj = mmup;
-			return (TRUE);
+			return (true);
 		}
 	}
 
-	return (FALSE);
+	return (false);
 }
 
 /* MMU "pre-bootstrap" init, used to install extra resolvers, etc. */
@@ -236,7 +236,7 @@ pmap_mmu_name(void)
 
 int unmapped_buf_allowed;
 
-boolean_t
+bool
 pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
 {
 
@@ -248,9 +248,9 @@ pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
 	case VM_MEMATTR_WRITE_BACK:
 	case VM_MEMATTR_WRITE_THROUGH:
 	case VM_MEMATTR_PREFETCHABLE:
-		return (TRUE);
+		return (true);
 	default:
-		return (FALSE);
+		return (false);
 	}
 }
 

@@ -242,7 +242,7 @@ SYSCTL_INT(_machdep, OID_AUTO, moea64_allocated_bpvo_entries, CTLFLAG_RD,
 #endif
 static u_int	moea64_vsid_bitmap[NVSIDS / VSID_NBPW];
 
-static boolean_t moea64_initialized = FALSE;
+static bool	moea64_initialized = false;
 
 #ifdef MOEA64_STATS
 /*
@@ -288,7 +288,7 @@ static struct	pvo_entry *moea64_pvo_find_va(pmap_t, vm_offset_t);
 /*
  * Utility routines.
  */
-static boolean_t	moea64_query_bit(vm_page_t, uint64_t);
+static bool		moea64_query_bit(vm_page_t, uint64_t);
 static u_int		moea64_clear_bit(vm_page_t, uint64_t);
 static void		moea64_kremove(vm_offset_t);
 static void		moea64_syncicache(pmap_t pmap, vm_offset_t va,
@@ -397,12 +397,12 @@ void moea64_enter_quick(pmap_t, vm_offset_t, vm_page_t, vm_prot_t);
 vm_paddr_t moea64_extract(pmap_t, vm_offset_t);
 vm_page_t moea64_extract_and_hold(pmap_t, vm_offset_t, vm_prot_t);
 void moea64_init(void);
-boolean_t moea64_is_modified(vm_page_t);
-boolean_t moea64_is_prefaultable(pmap_t, vm_offset_t);
-boolean_t moea64_is_referenced(vm_page_t);
+bool moea64_is_modified(vm_page_t);
+bool moea64_is_prefaultable(pmap_t, vm_offset_t);
+bool moea64_is_referenced(vm_page_t);
 int moea64_ts_referenced(vm_page_t);
 vm_offset_t moea64_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
-boolean_t moea64_page_exists_quick(pmap_t, vm_page_t);
+bool moea64_page_exists_quick(pmap_t, vm_page_t);
 void moea64_page_init(vm_page_t);
 int moea64_page_wired_mappings(vm_page_t);
 int moea64_pinit(pmap_t);
@@ -436,7 +436,7 @@ void moea64_scan_init(void);
 vm_offset_t moea64_quick_enter_page(vm_page_t m);
 vm_offset_t moea64_quick_enter_page_dmap(vm_page_t m);
 void moea64_quick_remove_page(vm_offset_t addr);
-boolean_t moea64_page_is_mapped(vm_page_t m);
+bool moea64_page_is_mapped(vm_page_t m);
 static int moea64_map_user_ptr(pmap_t pm,
     volatile const void *uaddr, void **kaddr, size_t ulen, size_t *klen);
 static int moea64_decode_kernel_ptr(vm_offset_t addr,
@@ -1629,7 +1629,7 @@ moea64_quick_remove_page(vm_offset_t addr)
 	sched_unpin();	
 }
 
-boolean_t
+bool
 moea64_page_is_mapped(vm_page_t m)
 {
 	return (!LIST_EMPTY(&(m)->md.mdpg_pvoh));
@@ -1984,10 +1984,10 @@ moea64_init(void)
 	elf32_nxstack = 1;
 #endif
 
-	moea64_initialized = TRUE;
+	moea64_initialized = true;
 }
 
-boolean_t
+bool
 moea64_is_referenced(vm_page_t m)
 {
 
@@ -1997,7 +1997,7 @@ moea64_is_referenced(vm_page_t m)
 	return (moea64_query_bit(m, LPTE_REF));
 }
 
-boolean_t
+bool
 moea64_is_modified(vm_page_t m)
 {
 
@@ -2008,21 +2008,21 @@ moea64_is_modified(vm_page_t m)
 	 * If the page is not busied then this check is racy.
 	 */
 	if (!pmap_page_is_write_mapped(m))
-		return (FALSE);
+		return (false);
 
 	return (moea64_query_bit(m, LPTE_CHG));
 }
 
-boolean_t
+bool
 moea64_is_prefaultable(pmap_t pmap, vm_offset_t va)
 {
 	struct pvo_entry *pvo;
-	boolean_t rv = TRUE;
+	bool rv = true;
 
 	PMAP_LOCK(pmap);
 	pvo = moea64_pvo_find_va(pmap, va & ~ADDR_POFF);
 	if (pvo != NULL)
-		rv = FALSE;
+		rv = false;
 	PMAP_UNLOCK(pmap);
 	return (rv);
 }
@@ -2376,21 +2376,21 @@ moea64_map(vm_offset_t *virt, vm_paddr_t pa_start,
  * is only necessary that true be returned for a small
  * subset of pmaps for proper page aging.
  */
-boolean_t
+bool
 moea64_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
         int loops;
 	struct pvo_entry *pvo;
-	boolean_t rv;
+	bool rv;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea64_page_exists_quick: page %p is not managed", m));
 	loops = 0;
-	rv = FALSE;
+	rv = false;
 	PV_PAGE_LOCK(m);
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		if (!(pvo->pvo_vaddr & PVO_DEAD) && pvo->pvo_pmap == pmap) {
-			rv = TRUE;
+			rv = true;
 			break;
 		}
 		if (++loops >= 16)
@@ -3031,12 +3031,12 @@ moea64_pvo_find_va(pmap_t pm, vm_offset_t va)
 	return (RB_FIND(pvo_tree, &pm->pmap_pvo, &key));
 }
 
-static boolean_t
+static bool
 moea64_query_bit(vm_page_t m, uint64_t ptebit)
 {
 	struct	pvo_entry *pvo;
 	int64_t ret;
-	boolean_t rv;
+	bool rv;
 	vm_page_t sp;
 
 	/*
@@ -3048,13 +3048,13 @@ moea64_query_bit(vm_page_t m, uint64_t ptebit)
 	    ((sp = PHYS_TO_VM_PAGE(VM_PAGE_TO_PHYS(m) & ~HPT_SP_MASK)) != NULL &&
 	     (sp->md.mdpg_attrs & (ptebit | MDPG_ATTR_SP)) ==
 	     (ptebit | MDPG_ATTR_SP)))
-		return (TRUE);
+		return (true);
 
 	/*
 	 * Examine each PTE.  Sync so that any pending REF/CHG bits are
 	 * flushed to the PTEs.
 	 */
-	rv = FALSE;
+	rv = false;
 	powerpc_sync();
 	PV_PAGE_LOCK(m);
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
@@ -3065,7 +3065,7 @@ moea64_query_bit(vm_page_t m, uint64_t ptebit)
 			 */
 			if (ret != -1) {
 				if ((ret & ptebit) != 0) {
-					rv = TRUE;
+					rv = true;
 					break;
 				}
 				continue;
@@ -3089,7 +3089,7 @@ moea64_query_bit(vm_page_t m, uint64_t ptebit)
 			atomic_set_32(&m->md.mdpg_attrs,
 			    ret & (LPTE_CHG | LPTE_REF));
 			if (ret & ptebit) {
-				rv = TRUE;
+				rv = true;
 				break;
 			}
 		}
