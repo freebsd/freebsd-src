@@ -5726,18 +5726,15 @@ set_params__post_init(struct adapter *sc)
 	}
 #endif
 
-#ifdef KERN_TLS
-	if (sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS &&
-	    sc->toecaps & FW_CAPS_CONFIG_TOE) {
-		/*
-		 * Limit TOE connections to 2 reassembly "islands".
-		 * This is required to permit migrating TOE
-		 * connections to UPL_MODE_TLS.
-		 */
-		t4_tp_wr_bits_indirect(sc, A_TP_FRAG_CONFIG,
-		    V_PASSMODE(M_PASSMODE), V_PASSMODE(2));
-	}
+	/*
+	 * Limit TOE connections to 2 reassembly "islands".  This is
+	 * required to permit migrating TOE connections to either
+	 * ULP_MODE_TCPDDP or UPL_MODE_TLS.
+	 */
+	t4_tp_wr_bits_indirect(sc, A_TP_FRAG_CONFIG, V_PASSMODE(M_PASSMODE),
+	    V_PASSMODE(2));
 
+#ifdef KERN_TLS
 	if (is_ktls(sc)) {
 		sc->tlst.inline_keys = t4_tls_inline_keys;
 		sc->tlst.combo_wrs = t4_tls_combo_wrs;
