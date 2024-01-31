@@ -219,13 +219,13 @@ int	kern_lseek(struct thread *td, int fd, off_t offset, int whence);
 int	kern_lutimes(struct thread *td, const char *path, enum uio_seg pathseg,
 	    const struct timeval *tptr, enum uio_seg tptrseg);
 int	kern_madvise(struct thread *td, uintptr_t addr, size_t len, int behav);
+int	kern_membarrier(struct thread *td, int cmd, unsigned flags,
+	    int cpu_id);
 int	kern_mincore(struct thread *td, uintptr_t addr, size_t len, char *vec);
 int	kern_minherit(struct thread *td, uintptr_t addr, size_t len,
 	    int inherit);
 int	kern_mkdirat(struct thread *td, int fd, const char *path,
 	    enum uio_seg segflg, int mode);
-int	kern_membarrier(struct thread *td, int cmd, unsigned flags,
-	    int cpu_id);
 int	kern_mkfifoat(struct thread *td, int fd, const char *path,
 	    enum uio_seg pathseg, int mode);
 int	kern_mknodat(struct thread *td, int fd, const char *path,
