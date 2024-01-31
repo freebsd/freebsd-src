@@ -333,10 +333,9 @@ smdb_lock_file(lock_fd, db_name, mode, sff, extension)
 
 	return SMDBE_OK;
 }
+
 /*
-**  SMDB_UNLOCK_FILE -- Unlocks a file
-**
-**	Unlocks a file.
+**  SMDB_UNLOCK_FILE -- Unlocks a file - via close()
 **
 **	Parameters:
 **		lock_fd -- The descriptor for the locked file.
@@ -488,7 +487,7 @@ smdb_filechanged(db_name, extension, db_fd, stat_info)
 **  SMDB_PRINT_AVAILABLE_TYPES -- Prints the names of the available types.
 **
 **	Parameters:
-**		None
+**		ext - also show extension?
 **
 **	Returns:
 **		None

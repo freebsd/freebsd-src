@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006, 2008 Proofpoint, Inc. and its suppliers.
+ * Copyright (c) 1998-2006, 2008, 2023, 2024 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -34,7 +34,7 @@ static SM_FILE_T *collect_eoh __P((ENVELOPE *, int, int));
 **		numhdrs -- number of headers
 **		hdrslen -- length of headers
 **
-**	Results:
+**	Returns:
 **		NULL, or handle to open data file
 **
 **	Side Effects:
@@ -82,7 +82,7 @@ collect_eoh(e, numhdrs, hdrslen)
 **	Parameters:
 **		e -- envelope
 **
-**	Results:
+**	Returns:
 **		none.
 **
 **	Side Effects:
@@ -179,7 +179,7 @@ collect_doheader(e)
 **	Parameters:
 **		e -- envelope
 **
-**	Results:
+**	Returns:
 **		NULL, or a pointer to an open data file,
 **		into which the message body will be written by collect().
 **
@@ -233,6 +233,70 @@ collect_dfopen(e)
 }
 
 /*
+**  INCBUFLEN -- increase buflen for the header buffer in collect()
+**
+**	Parameters:
+**		buflen -- current size of buffer
+**
+**	Returns:
+**		new buflen
+*/
+
+static int incbuflen __P((int));
+static int
+incbuflen(buflen)
+	int buflen;
+{
+	int newlen;
+
+	/* this also handles the case of MaxMessageSize == 0 */
+	if (MaxMessageSize <= MEMCHUNKSIZE)
+	{
+		if (buflen < MEMCHUNKSIZE)
+			return buflen * 2;
+		else
+			return buflen + MEMCHUNKSIZE;
+	}
+
+	/* MaxMessageSize > MEMCHUNKSIZE */
+	newlen = buflen * 2;
+	if (newlen > 0 && newlen < MaxMessageSize)
+		return newlen;
+	else
+		return MaxMessageSize;
+}
+
+#if _FFR_TESTS
+/* just for testing/debug output */
+static const char *
+makeprint(c)
+	char c;
+{
+	static char prt[6];
+
+	prt[1] = '\0';
+	prt[2] = '\0';
+	if (isprint((unsigned char)c))
+		prt[0] = c;
+	else if ('\n' == c)
+	{
+		prt[0] = 'L';
+		prt[1] = 'F';
+	}
+	else if ('\r' == c)
+	{
+		prt[0] = 'C';
+		prt[1] = 'R';
+	}
+	else
+		snprintf(prt, sizeof(prt), "%o", c);
+	return prt;
+}
+#else /* _FFR_TESTS */
+# define makeprint(c)	"X"
+#endif /* _FFR_TESTS */
+
+/*
 **  COLLECT -- read & parse message header & make temp file.
 **
 **	Creates a temporary file name and copies the standard
@@ -241,10 +305,10 @@ collect_dfopen(e)
 **
 **	Parameters:
 **		fp -- file to read.
-**		smtpmode -- if set, we are running SMTP: give an RFC821
-**			style message to say we are ready to collect
-**			input, and never ignore a single dot to mean
-**			end of message.
+**		smtpmode -- if >= SMTPMODE_LAX we are running SMTP:
+**			give an RFC821 style message to say we are
+**			ready to collect input, and never ignore
+**			a single dot to mean end of message.
 **		hdrp -- the location to stash the header.
 **		e -- the current envelope.
 **		rsetsize -- reset e_msgsize?
@@ -267,20 +331,26 @@ collect_dfopen(e)
 /* values for input state machine */
 #define IS_NORM		0	/* middle of line */
 #define IS_BOL		1	/* beginning of line */
-#define IS_DOT		2	/* read a dot at beginning of line */
+#define IS_DOT		2	/* read "." at beginning of line */
 #define IS_DOTCR	3	/* read ".\r" at beginning of line */
-#define IS_CR		4	/* read a carriage return */
+#define IS_CR		4	/* read "\r" */
+
+/* hack to enhance readability of debug output */
+static const char *istates[] = { "NORM", "BOL", "DOT", "DOTCR", "CR" };
+#define ISTATE istates[istate]
 
 /* values for message state machine */
 #define MS_UFROM	0	/* reading Unix from line */
 #define MS_HEADER	1	/* reading message header */
 #define MS_BODY		2	/* reading message body */
 #define MS_DISCARD	3	/* discarding rest of message */
+#define BARE_LF_MSG "Bare linefeed (LF) not allowed"
+#define BARE_CR_MSG "Bare carriage return (CR) not allowed"
 
 void
 collect(fp, smtpmode, hdrp, e, rsetsize)
 	SM_FILE_T *fp;
-	bool smtpmode;
+	int smtpmode;
 	HDR **hdrp;
 	register ENVELOPE *e;
 	bool rsetsize;
@@ -306,12 +376,26 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 #if _FFR_REJECT_NUL_BYTE
 	bool hasNUL;		/* has at least one NUL input byte */
 #endif
+	int bare_lf, bare_cr;
+
+#define SMTPMODE	(smtpmode >= SMTPMODE_LAX)
+#define SMTPMODE_STRICT	((smtpmode & SMTPMODE_CRLF) != 0)
+#define BARE_LF_421	((smtpmode & SMTPMODE_LF_421) != 0)
+#define BARE_CR_421	((smtpmode & SMTPMODE_CR_421) != 0)
+#define BARE_LF_SP	((smtpmode & SMTPMODE_LF_SP) != 0)
+#define BARE_CR_SP	((smtpmode & SMTPMODE_CR_SP) != 0)
+
+/* for bare_{lf,cr} */
+#define BARE_IN_HDR	0x01
+#define BARE_IN_BDY	0x02
+#define BARE_WHERE	((MS_BODY == mstate) ? BARE_IN_BDY : BARE_IN_HDR)
 
 	df = NULL;
-	ignrdot = smtpmode ? false : IgnrDot;
+	ignrdot = SMTPMODE ? false : IgnrDot;
+	bare_lf = bare_cr = 0;
 
 	/* timeout for I/O functions is in milliseconds */
-	dbto = smtpmode ? ((int) TimeOuts.to_datablock * 1000)
+	dbto = SMTPMODE ? ((int) TimeOuts.to_datablock * 1000)
 			: SM_TIME_FOREVER;
 	sm_io_setinfo(fp, SM_IO_WHAT_TIMEOUT, &dbto);
 	old_rd_tmo = set_tls_rd_tmo(TimeOuts.to_datablock);
@@ -334,15 +418,15 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 	**  Tell ARPANET to go ahead.
 	*/
 
-	if (smtpmode)
-		message("354 Enter mail, end with \".\" on a line by itself");
+	if (SMTPMODE)
+		message("354 End data with <CR><LF>.<CR><LF>");
 
 	/* simulate an I/O timeout when used as sink */
 	if (tTd(83, 101))
 		sleep(319);
 
 	if (tTd(30, 2))
-		sm_dprintf("collect\n");
+		sm_dprintf("collect, smtpmode=%#x\n", smtpmode);
 
 	/*
 	**  Read the message.
@@ -358,7 +442,7 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 	for (;;)
 	{
 		if (tTd(30, 35))
-			sm_dprintf("top, istate=%d, mstate=%d\n", istate,
+			sm_dprintf("top, istate=%s, mstate=%d\n", ISTATE,
 				   mstate);
 		for (;;)
 		{
@@ -379,7 +463,7 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 
 					/* timeout? */
 					if (c == SM_IO_EOF && errno == EAGAIN
-					    && smtpmode)
+					    && SMTPMODE)
 					{
 						/*
 						**  Override e_message in
@@ -417,15 +501,32 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 					hasNUL = true;
 #endif
 				if (c == SM_IO_EOF)
-					goto readerr;
-				if (SevenBitInput)
+					goto readdone;
+				if (SevenBitInput ||
+				    bitset(EF_7BITBODY, e->e_flags))
 					c &= 0x7f;
 				else
 					HasEightBits |= bitset(0x80, c);
 			}
 			if (tTd(30, 94))
-				sm_dprintf("istate=%d, c=%c (0x%x)\n",
-					istate, (char) c, c);
+				sm_dprintf("istate=%s, c=%s (0x%x)\n",
+					ISTATE, makeprint((char) c), c);
+			if ('\n' == c && SMTPMODE &&
+			    !(IS_CR == istate || IS_DOTCR == istate))
+			{
+				bare_lf |= BARE_WHERE;
+				if (BARE_LF_421)
+				{
+					inputerr = true;
+					goto readabort;
+				}
+				if (BARE_LF_SP)
+				{
+					if (TTD(30, 64))
+						sm_dprintf("LF: c=%s %#x\n", makeprint((char) c), c);
+					c = ' ';
+				}
+			}
 			switch (istate)
 			{
 			  case IS_BOL:
@@ -437,8 +538,8 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 				break;
 
 			  case IS_DOT:
-				if (c == '\n' && !ignrdot)
-					goto readerr;
+				if (c == '\n' && !ignrdot && !SMTPMODE_STRICT)
+					goto readdone;
 				else if (c == '\r')
 				{
 					istate = IS_DOTCR;
@@ -460,7 +561,7 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 
 			  case IS_DOTCR:
 				if (c == '\n' && !ignrdot)
-					goto readerr;
+					goto readdone;
 				else
 				{
 					/* push back the ".\rx" */
@@ -483,12 +584,30 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 
 			  case IS_CR:
 				if (c == '\n')
+				{
+					if (TTD(30, 64))
+						sm_dprintf("state=CR, c=%s %#x -> BOL\n", makeprint((char) c), c);
 					istate = IS_BOL;
+				}
 				else
 				{
+					if (TTD(30, 64))
+						sm_dprintf("state=CR, c=%s %#x -> NORM\n", makeprint((char) c), c);
+					if (SMTPMODE)
+					{
+						bare_cr |= BARE_WHERE;
+						if (BARE_CR_421)
+						{
+							inputerr = true;
+							goto readabort;
+						}
+					}
 					(void) sm_io_ungetc(fp, SM_TIME_DEFAULT,
 							    c);
-					c = '\r';
+					if (BARE_CR_SP)
+						c = ' ';
+					else
+						c = '\r';
 					istate = IS_NORM;
 				}
 				goto bufferchar;
@@ -499,7 +618,7 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 				istate = IS_CR;
 				continue;
 			}
-			else if (c == '\n')
+			else if (c == '\n' && !SMTPMODE_STRICT)
 				istate = IS_BOL;
 			else
 				istate = IS_NORM;
@@ -524,7 +643,8 @@ bufferchar:
 				if (!bitset(EF_TOOBIG, e->e_flags))
 					(void) sm_io_putc(df, SM_TIME_DEFAULT,
 							  c);
-
+				if (TTD(30, 64))
+					sm_dprintf("state=%s, put=%s %#x\n", ISTATE, makeprint((char) c), c);
 				/* FALLTHROUGH */
 
 			  case MS_DISCARD:
@@ -540,10 +660,9 @@ bufferchar:
 
 				/* out of space for header */
 				obuf = buf;
-				if (buflen < MEMCHUNKSIZE)
-					buflen *= 2;
-				else
-					buflen += MEMCHUNKSIZE;
+				buflen = incbuflen(buflen);
+				if (tTd(30, 32))
+					sm_dprintf("buflen=%d, hdrslen=%d\n", buflen, hdrslen);
 				if (buflen <= 0)
 				{
 					sm_syslog(LOG_NOTICE, e->e_id,
@@ -592,8 +711,8 @@ bufferchar:
 
 nextstate:
 		if (tTd(30, 35))
-			sm_dprintf("nextstate, istate=%d, mstate=%d, line=\"%s\"\n",
-				istate, mstate, buf);
+			sm_dprintf("nextstate, istate=%s, mstate=%d, line=\"%s\"\n",
+				ISTATE, mstate, buf);
 		switch (mstate)
 		{
 		  case MS_UFROM:
@@ -624,7 +743,7 @@ nextstate:
 
 				/* timeout? */
 				if (c == SM_IO_EOF && errno == EAGAIN
-				    && smtpmode)
+				    && SMTPMODE)
 				{
 					/*
 					**  Override e_message in
@@ -653,7 +772,7 @@ nextstate:
 			/* guaranteed by isheader(buf) */
 			SM_ASSERT(*(bp - 1) != '\n' || bp > buf + 1);
 
-			/* trim off trailing CRLF or NL */
+			/* trim off trailing CRLF or LF */
 			if (*--bp != '\n' || *--bp != '\r')
 				bp++;
 			*bp = '\0';
@@ -673,7 +792,7 @@ nextstate:
 				sm_dprintf("EOH\n");
 
 			if (headeronly)
-				goto readerr;
+				goto readdone;
 
 			df = collect_eoh(e, numhdrs, hdrslen);
 			if (df == NULL)
@@ -700,8 +819,8 @@ nextstate:
 		bp = buf;
 	}
 
-readerr:
-	if ((sm_io_eof(fp) && smtpmode) || sm_io_error(fp))
+readdone:
+	if ((sm_io_eof(fp) && SMTPMODE) || sm_io_error(fp))
 	{
 		const char *errmsg;
 
@@ -741,7 +860,7 @@ readerr:
 	}
 	else if (SuperSafe == SAFE_NO ||
 		 SuperSafe == SAFE_INTERACTIVE ||
-		 (SuperSafe == SAFE_REALLY_POSTMILTER && smtpmode))
+		 (SuperSafe == SAFE_REALLY_POSTMILTER && SMTPMODE))
 	{
 		/* skip next few clauses */
 		/* EMPTY */
@@ -806,33 +925,43 @@ readerr:
   readabort:
 	if (inputerr && (OpMode == MD_SMTP || OpMode == MD_DAEMON))
 	{
-		char *host;
 		char *problem;
 		ADDRESS *q;
-
-		host = RealHostName;
-		if (host == NULL)
-			host = "localhost";
 
 		if (sm_io_eof(fp))
 			problem = "unexpected close";
 		else if (sm_io_error(fp))
 			problem = "I/O error";
+		else if (0 != bare_lf)
+			problem = BARE_LF_MSG;
+		else if (0 != bare_cr)
+			problem = BARE_CR_MSG;
 		else
 			problem = "read timeout";
-		if (LogLevel > 0 && sm_io_eof(fp))
+
+#define LOG_CLT ((NULL != RealHostName) ? RealHostName: "localhost")
+#define CONN_ERR_TXT	"collect: relay=%s, from=%s, info=%s%s%s%s"
+#define CONN_ERR_CODE	"421 4.4.1 "
+#define CONN_LOG_FROM	shortenstring(e->e_from.q_paddr, MAXSHORTSTR)
+#define CONN_ERR_BARE (0 != bare_lf) ? BARE_LF_MSG : ((0 != bare_cr) ? BARE_CR_MSG : "")
+#define CONN_ERR_WHERE(bare_xy) (BARE_IN_HDR==(bare_xy) ? "header" : \
+	(BARE_IN_BDY==(bare_xy) ? "body" : "header+body"))
+
+#define HAS_BARE_XY (0 != (bare_lf | bare_cr))
+#define CONN_ERR_ARGS LOG_CLT, CONN_LOG_FROM, problem, \
+	HAS_BARE_XY ? ", where=" : "", \
+	HAS_BARE_XY ? CONN_ERR_WHERE(bare_lf|bare_cr) : "", \
+	HAS_BARE_XY ? ", status=tempfail" : ""
+
+		if (LogLevel > 0 && (sm_io_eof(fp) || (0 != (bare_lf | bare_cr))))
 			sm_syslog(LOG_NOTICE, e->e_id,
-				"collect: %s on connection from %.100s, sender=%s",
-				problem, host,
-				shortenstring(e->e_from.q_paddr, MAXSHORTSTR));
-		if (sm_io_eof(fp))
-			usrerr("421 4.4.1 collect: %s on connection from %s, from=%s",
-				problem, host,
-				shortenstring(e->e_from.q_paddr, MAXSHORTSTR));
+				CONN_ERR_TXT, CONN_ERR_ARGS);
+		if (0 != (bare_lf | bare_cr))
+			usrerr("421 4.5.0 %s", CONN_ERR_BARE);
+		else if (sm_io_eof(fp))
+			usrerr(CONN_ERR_CODE CONN_ERR_TXT, CONN_ERR_ARGS);
 		else
-			syserr("421 4.4.1 collect: %s on connection from %s, from=%s",
-				problem, host,
-				shortenstring(e->e_from.q_paddr, MAXSHORTSTR));
+			syserr(CONN_ERR_CODE CONN_ERR_TXT, CONN_ERR_ARGS);
 		flush_errors(true);
 
 		/* don't return an error indication */
@@ -862,6 +991,21 @@ readerr:
 		logsender(e, e->e_msgid);
 		e->e_flags &= ~EF_LOGSENDER;
 	}
+
+#define LOG_BARE_XY(bare_xy, bare_xy_sp, bare_xy_msg)	\
+	do	\
+	{	\
+		if ((0 != bare_xy) && LogLevel > 8)	\
+			sm_syslog(LOG_NOTICE, e->e_id, \
+				"collect: relay=%s, from=%s, info=%s, where=%s%s" \
+				, LOG_CLT, CONN_LOG_FROM, bare_xy_msg	\
+				, CONN_ERR_WHERE(bare_xy)	\
+				, bare_xy_sp ? ", status=replaced" : ""	\
+				);	\
+	} while (0)
+
+	LOG_BARE_XY(bare_lf, BARE_LF_SP, BARE_LF_MSG);
+	LOG_BARE_XY(bare_cr, BARE_CR_SP, BARE_CR_MSG);
 
 	/* check for message too large */
 	if (bitset(EF_TOOBIG, e->e_flags))
@@ -947,7 +1091,7 @@ readerr:
 /*
 **  DFERROR -- signal error on writing the data file.
 **
-**	Called by collect().  Collect() always terminates the process
+**	Called by collect().  collect() always terminates the process
 **	immediately after calling dferror(), which means that the SMTP
 **	session will be terminated, which means that any error message
 **	issued by dferror must be a 421 error, as per RFC 821.

@@ -757,25 +757,29 @@ printav(fp, av)
 
 			for (cp = *av++; *cp != '\0'; cp++) {
 				v = (unsigned char)(*cp & 0x00ff);
-				sm_dprintf("%c", v);
+				(void) sm_io_putc(fp, SM_TIME_DEFAULT, v);
 # if 0
 				if (isascii(v) && isprint(v))
-					sm_dprintf("%c", v);
+					(void) sm_io_putc(fp, SM_TIME_DEFAULT,
+							v);
 				else
-					sm_dprintf("\\x%hhx", v);
+					(void) sm_io_fprintf(fp,
+						SM_TIME_DEFAULT, "\\x%hhx", v);
 # endif
 			}
 			if (*av != NULL)
-				sm_dprintf(" ");
+				(void) sm_io_putc(fp, SM_TIME_DEFAULT, ' ');
 			continue;
 		}
 #endif /* _FFR_8BITENVADDR */
 		if (tTd(0, 44))
-			sm_dprintf("\n\t%08lx=", (unsigned long) *av);
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
+				"\n\t%08lx=", (unsigned long) *av);
 		else
 			(void) sm_io_putc(fp, SM_TIME_DEFAULT, ' ');
 		if (tTd(0, 99))
-			sm_dprintf("%s", str2prt(*av++));
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
+				"%s", str2prt(*av++));
 		else
 			xputs(fp, *av++);
 	}
@@ -1026,7 +1030,6 @@ makelower_a(pp, rpool)
 	return orig;
 }
 
-
 #if 0
 makelower: Optimization for EAI case?
 
@@ -1084,15 +1087,15 @@ makelower_buf(str, buf, buflen)
 }
 
 /*
-**  FIXCRLF -- fix <CR><LF> in line.
+**  FIXCRLF -- fix CRLF in line.
 **
 **	XXX: Could this be a problem for EAI? That is, can there
 **		be a string with \n and the previous octet is \n
 **		but is part of a UTF8 "char"?
 **
-**	Looks for the <CR><LF> combination and turns it into the
-**	UNIX canonical <NL> character.  It only takes one line,
-**	i.e., it is assumed that the first <NL> found is the end
+**	Looks for the CRLF combination and turns it into the
+**	UNIX canonical LF character.  It only takes one line,
+**	i.e., it is assumed that the first LF found is the end
 **	of the line.
 **
 **	Parameters:
@@ -1126,7 +1129,7 @@ fixcrlf(line, stripnl)
 /*
 **  PUTLINE -- put a line like fputs obeying SMTP conventions
 **
-**	This routine always guarantees outputing a newline (or CRLF,
+**	This routine always guarantees outputting a newline (or CRLF,
 **	as appropriate) at the end of the string.
 **
 **	Parameters:
@@ -1151,7 +1154,7 @@ putline(l, mci)
 /*
 **  PUTXLINE -- putline with flags bits.
 **
-**	This routine always guarantees outputing a newline (or CRLF,
+**	This routine always guarantees outputting a newline (or CRLF,
 **	as appropriate) at the end of the string.
 **
 **	Parameters:
@@ -1171,7 +1174,6 @@ putline(l, mci)
 **	Side Effects:
 **		output of l to mci->mci_out.
 */
-
 
 #define PUTX(limit)							\
 	do								\
@@ -1420,7 +1422,6 @@ xunlink(f)
 **		buf otherwise.
 */
 
-
 char *
 sfgets(buf, siz, fp, timeout, during)
 	char *buf;
@@ -1461,9 +1462,7 @@ sfgets(buf, siz, fp, timeout, during)
 					  CURHOSTNAME,
 					  during);
 			buf[0] = '\0';
-#if XDEBUG
 			checkfd012(during);
-#endif
 			if (TrafficLogFile != NULL)
 				(void) sm_io_fprintf(TrafficLogFile,
 						     SM_TIME_DEFAULT,
@@ -1531,7 +1530,7 @@ sfgets(buf, siz, fp, timeout, during)
 **	Side Effects:
 **		buf gets lines from f, with continuation lines (lines
 **		with leading white space) appended.  CRLF's are mapped
-**		into single newlines.  Any trailing NL is stripped.
+**		into single newlines.  Any trailing LF is stripped.
 **		Increases LineNumber for each line.
 */
 
@@ -1774,6 +1773,7 @@ strcontainedin(icase, a, b)
 	return false;
 }
 
+#if XDEBUG
 /*
 **  CHECKFD012 -- check low numbered file descriptors
 **
@@ -1791,12 +1791,10 @@ void
 checkfd012(where)
 	char *where;
 {
-#if XDEBUG
 	register int i;
 
 	for (i = 0; i < 3; i++)
 		fill_fd(i, where);
-#endif /* XDEBUG */
 }
 
 /*
@@ -1815,7 +1813,6 @@ checkfdopen(fd, where)
 	int fd;
 	char *where;
 {
-#if XDEBUG
 	struct stat st;
 
 	if (fstat(fd, &st) < 0 && errno == EBADF)
@@ -1823,8 +1820,8 @@ checkfdopen(fd, where)
 		syserr("checkfdopen(%d): %s not open as expected!", fd, where);
 		printopenfds(true);
 	}
-#endif /* XDEBUG */
 }
+#endif /* XDEBUG */
 
 /*
 **  CHECKFDS -- check for new or missing file descriptors
@@ -2772,7 +2769,6 @@ proc_list_drop(pid, st, other)
 		}
 	}
 
-
 	if (type == PROC_CONTROL && WIFEXITED(st))
 	{
 		/* if so, see if we need to restart or shutdown */
@@ -2926,7 +2922,7 @@ proc_list_display(out, prefix)
 **		type -- type of process to signal
 **		signal -- the type of signal to send
 **
-**	Results:
+**	Returns:
 **		none.
 **
 **	NOTE:	THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
@@ -3025,9 +3021,21 @@ count_open_connections(hostaddr)
 **		inchannel -- FILE to check
 **
 **	Returns:
+**		>0 if X-CONNECT/PROXY was used successfully (D_XCNCT*)
+**		0 if X-CONNECT/PROXY was not given
 **		-1 on error
-**		0 if X-CONNECT was not given
-**		>0 if X-CONNECT was used successfully (D_XCNCT*)
+**		-2 PROXY UNKNOWN
+*/
+
+/*
+**  HA proxy version 1:
+**
+**  PROXY TCP[4|6] IPv[4|6]-src-addr IPv[4|6]-dst-addr src-port dst-port\r\n
+**  PROXY UNKNOWN ...
+**  examples:
+**	"PROXY TCP4 255.255.255.255 255.255.255.255 65535 65535\r\n"
+**	"PROXY TCP6 ffff:f...f:ffff ffff:f...f:ffff 65535 65535\r\n"
+**	"PROXY UNKNOWN\r\n"
 */
 
 int
@@ -3041,6 +3049,11 @@ xconnect(inchannel)
 	char pvpbuf[PSBUFSIZE];
 	char *peerhostname;	/* name of SMTP peer or "localhost" */
 	extern ENVELOPE BlankEnvelope;
+#if _FFR_HAPROXY
+	int haproxy = AF_UNSPEC;
+# define HAPROXY "PROXY "
+# define HAPROXYLEN (sizeof(HAPROXY) - 1)
+#endif
 
 #define XCONNECT "X-CONNECT "
 #define XCNNCTLEN (sizeof(XCONNECT) - 1)
@@ -3071,6 +3084,13 @@ xconnect(inchannel)
 		return 0;
 	}
 
+#if _FFR_HAPROXY
+	if (pvp != NULL && pvp[0] != NULL && strcasecmp(pvp[0], "haproxy1") == 0)
+	{
+		haproxy = AF_LOCAL;
+	}
+#endif
+
 # if _FFR_XCNCT > 1
 	if (pvp != NULL && pvp[0] != NULL &&
 	    pvp[0][0] == '2' && pvp[0][1] == '2' && pvp[0][2] == '0')
@@ -3089,12 +3109,46 @@ xconnect(inchannel)
 	p = sfgets(inp, sizeof(inp), InChannel, TimeOuts.to_nextcommand, "pre");
 	if (tTd(75, 6))
 		sm_syslog(LOG_INFO, NOQID, "x-connect: input=%s", p);
+#if _FFR_HAPROXY
+	if (AF_UNSPEC != haproxy)
+	{
+		if (p == NULL || strncasecmp(p, HAPROXY, HAPROXYLEN) != 0)
+			return -1;
+		p += HAPROXYLEN;
+# define HAPUNKNOWN "UNKNOWN"
+# define HAPUNKNOWNLEN (sizeof(HAPUNKNOWN) - 1)
+		if (strncasecmp(p, HAPUNKNOWN, HAPUNKNOWNLEN) == 0)
+		{
+			/* how to handle this? */
+			sm_syslog(LOG_INFO, NOQID, "haproxy: input=%s, status=ignored", p);
+			return -2;
+		}
+# define HAPTCP4 "TCP4 "
+# define HAPTCP6 "TCP6 "
+# define HAPTCPNLEN (sizeof(HAPTCP4) - 1)
+		if (strncasecmp(p, HAPTCP4, HAPTCPNLEN) == 0)
+			haproxy = AF_INET;
+# if NETINET6
+		if (strncasecmp(p, HAPTCP6, HAPTCPNLEN) == 0)
+			haproxy = AF_INET6;
+# endif
+		if (AF_LOCAL != haproxy)
+		{
+			p += HAPTCPNLEN;
+			goto getip;
+		}
+		return -1;
+	}
+#endif
 	if (p == NULL || strncasecmp(p, XCONNECT, XCNNCTLEN) != 0)
 		return -1;
 	p += XCNNCTLEN;
 	while (SM_ISSPACE(*p))
 		p++;
 
+#if _FFR_HAPROXY
+  getip:
+#endif
 	/* parameters: IPAddress [Hostname[ M]] */
 	b = p;
 	while (*p != '\0' && isascii(*p) &&
@@ -3122,6 +3176,42 @@ xconnect(inchannel)
 # endif
 	else
 		return -1;
+#if _FFR_HAPROXY
+	if (AF_UNSPEC != haproxy)
+	{
+		/*
+		**  dst-addr and dst-port are ignored because
+		**  they are not really worth to check:
+		**  IPv[4|6]-dst-addr: must be one of "our" addresses,
+		**  dst-port: must be the DaemonPort.
+		**  We also do not check whether
+		**  haproxy == addr.sa.sa_family
+		*/
+
+		if (' ' == delim)
+		{
+			b = ++p;
+			while (*p != '\0' && !SM_ISSPACE(*p))
+				++p;
+			if (*p != '\0' && SM_ISSPACE(*p))
+				++p;
+			if (*p != '\0')
+			{
+				unsigned short port;
+
+				port = htons(atoi(p));
+				if (AF_INET == haproxy)
+					RealHostAddr.sin.sin_port = port;
+#  if NETINET6
+				if (AF_INET6 == haproxy)
+					RealHostAddr.sin6.sin6_port = port;
+#  endif
+			}
+		}
+		SM_FREE(RealHostName);
+		return D_XCNCT;
+	}
+#endif
 
 	/* more parameters? */
 	if (delim != ' ')
