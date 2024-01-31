@@ -25,7 +25,7 @@ This list is not guaranteed to be complete.
   For Linux the default is to use fcntl() for file locking.  However,
   this does not work with Berkeley DB 5.x and probably later.
   Switching to flock(), i.e., compile with -DHASFLOCK fixes this
-  (however, the have been problems with flock() on some Linux
+  (however, there have been problems with flock() on some Linux
   versions). Alternatively, use CDB or an earlier BDB version.
 
 * Delivery to programs that generate too much output may cause problems
@@ -105,11 +105,6 @@ Kresolve sequence dnsmx canon
   DSN does not contain the illegal address, but only the valid
   address(es).
 
-* \231 considered harmful.
-
-  Header addresses that have the \231 character (and possibly others
-  in the range \201 - \237) behave in odd and usually unexpected ways.
-
 * AuthRealm for Cyrus SASL may not work as expected. The man page
   and the actual usage for sasl_server_new() seem to differ.
   Feedback for the "correct" usage is welcome, a patch to match
@@ -178,11 +173,11 @@ Kresolve sequence dnsmx canon
 
 * Client ignores SIZE parameter.
 
-  When sendmail acts as client and the server specifies a limit
-  for the mail size, sendmail will ignore this and try to send the
-  mail anyway.  The server will usually reject the MAIL command
-  which specifies the size of the message and hence this problem
-  is not significant.
+  When sendmail acts as client and the server specifies a limit for
+  the mail size, sendmail will ignore this and try to send the mail
+  anyway (unless _FFR_CLIENT_SIZE is used).  The server will usually
+  reject the MAIL command which specifies the size of the message
+  and hence this problem is not significant.
 
 * Paths to programs being executed and the mode of program files are
   not checked.  Essentially, the RunProgramInUnsafeDirPath and

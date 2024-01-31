@@ -15,10 +15,11 @@
 #include <sm/string.h>
 #include <sm/heap.h>
 #if USE_EAI
-# include <sm/ixlen.h>
+# include <sm/limits.h>
 # include <unicode/ucasemap.h>
 # include <unicode/ustring.h>
 # include <unicode/uchar.h>
+# include <sm/ixlen.h>
 
 /*
 **  ASCIISTR -- check whether a string is printable ASCII
@@ -41,6 +42,38 @@ asciistr(str)
 	while ((ch = (unsigned char)*str) != '\0' && ch >= 32 && ch < 127)
 		str++;
 	return ch == '\0';
+}
+
+/*
+**  ASCIINSTR -- check whether a string is printable ASCII up to len
+**
+**	Parameters:
+**		str -- string
+**		len -- length to check
+**
+**	Returns:
+**		TRUE iff printable ASCII
+*/
+
+bool
+asciinstr(str, len)
+	const char *str;
+	size_t len;
+{
+	unsigned char ch;
+	int n;
+
+	if (str == NULL)
+		return true;
+	SM_REQUIRE(len < INT_MAX);
+	n = 0;
+	while (n < len && (ch = (unsigned char)*str) != '\0'
+	       && ch >= 32 && ch < 127)
+	{
+		n++;
+		str++;
+	}
+	return n == len || ch == '\0';
 }
 #endif /* USE_EAI */
 

@@ -163,6 +163,8 @@ extern void *
 sm_rpool_malloc __P((
 	SM_RPOOL_T *_rpool,
 	size_t _size));
+#  define sm_rpool_malloc_tagged(rpool, size, file, line, group)	sm_rpool_malloc(rpool, size)
+#  define sm_rpool_malloc_tagged_x(rpool, size, file, line, group)	sm_rpool_malloc_x(rpool, size)
 # endif /* SM_HEAP_CHECK */
 
 #if DO_NOT_USE_STRCPY

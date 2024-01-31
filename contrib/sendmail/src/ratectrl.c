@@ -228,7 +228,7 @@ gen_hash(saddr)
 		}
 	}
 #else /* HASH_ALG == 1 */
-# ERROR "unsupported HASH_ALG"
+# error "unsupported HASH_ALG"
 	hv = ((hv << 1) ^ (*p & 0377)) % cctx->cc_size; ???
 #endif /* HASH_ALG == 1 */
 
@@ -418,7 +418,6 @@ conn_limits(e, now, saddr, clflags, hashary, ratelimit, conclimit)
 			--chBest->ch_oc;
 	}
 #endif
-
 
 #if RATECTL_DEBUG
 	logit = true;

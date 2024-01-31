@@ -14,12 +14,12 @@ people who are very security conscious (you should be...).
 Even though sendmail goes through great lengths to assure that it
 can't be compromised even if the system it is running on is
 incorrectly or insecurely configured, it can't work around everything.
-This has been demonstrated by recent OS problems which have
-subsequently been used to compromise the root account using sendmail
-as a vector.  One way to minimize the possibility of such problems
-is to install sendmail without set-user-ID root, which avoids local
-exploits.  This configuration, which is the default starting with
-8.12, is described in the first section of this security guide.
+This has been demonstrated by OS problems which have subsequently
+been used to compromise the root account using sendmail as a vector.
+One way to minimize the possibility of such problems is to install
+sendmail without set-user-ID root, which avoids local exploits.
+This configuration, which is the default starting with 8.12, is
+described in the first section of this security guide.
 
 
 *****************************************************
@@ -112,6 +112,7 @@ information.)  You can start this program as root, it will change
 its user id to RunAsUser (smmsp by default, recommended uid: 25).
 This way smmsp does not need a valid shell.
 
+
 Summary
 -------
 
@@ -185,6 +186,7 @@ You can use
 
 to install a sendmail program to act as daemon etc under the name
 sm-mta.
+
 
 Set-User-Id
 -----------

@@ -314,7 +314,7 @@ sendmail_mpe_getpwnam(name)
 /*
 **  SENDMAIL_MPE_GETPWUID -- shadow function for getpwuid()
 **
-**	Initializes the uninitalized fields in the passwd struct.
+**	Initializes the uninitialized fields in the passwd struct.
 **
 **	Parameters:
 **		uid -- uid to obtain passwd data for

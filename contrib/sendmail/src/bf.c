@@ -61,7 +61,7 @@ struct bf
 	int	bf_buffilled;	/* Bytes of buffer actually filled */
 	char	*bf_filename;	/* Name of buffered file, if ever committed */
 	MODE_T	bf_filemode;	/* Mode of buffered file, if ever committed */
-	off_t	bf_offset;	/* Currect file offset */
+	off_t	bf_offset;	/* Current file offset */
 	int	bf_size;	/* Total current size of file */
 };
 

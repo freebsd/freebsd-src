@@ -172,7 +172,7 @@ extern void	sm_sasl_free __P((void *));
 **		buf -- the location to place the decrypted information
 **		size -- the number of bytes to read after decryption
 **
-**	Results:
+**	Returns:
 **		-1 on error
 **		otherwise the number of bytes read
 */
@@ -561,7 +561,7 @@ tls_close(fp)
 **		err -- SSL error
 **		where -- description of operation
 **
-**	Results:
+**	Returns:
 **		>0 on success
 **		0 on timeout
 **		<0 on error
@@ -676,7 +676,7 @@ tls_retry(ssl, rfd, wfd, tlsstart, timeout, err, where)
 **	Parameters:
 **		rd_tmo -- read timeout
 **
-**	Results:
+**	Returns:
 **		previous read timeout
 **	This is a hack: there is no way to pass it in
 */
@@ -702,7 +702,7 @@ set_tls_rd_tmo(rd_tmo)
 **		buf -- the location to place the data
 **		size -- the number of bytes to read from connection
 **
-**	Results:
+**	Returns:
 **		-1 on error
 **		otherwise the number of bytes read
 */

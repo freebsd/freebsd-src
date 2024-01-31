@@ -92,7 +92,7 @@ Version \\$2
 ..
 .rm Ve
 .sp
-For Sendmail Version 8.17
+For Sendmail Version 8.18
 .)l
 .(f
 Sendmail is a trademark of Proofpoint, Inc.
@@ -1690,22 +1690,17 @@ Blank lines and lines beginning with a sharp sign
 .q # )
 are comments.
 .pp
-The second form is processed by the
+The second form is processed by one of the available map types,
+e.g.,
 .i ndbm \|(3)\**
 .(f
 \**The
 .i gdbm
 package does not work.
 .)f
-or the Berkeley DB library.
-This form is in the file
-.i /etc/mail/aliases.db
-(if using NEWDB)
+the Berkeley DB library,
 or
-.i /etc/mail/aliases.dir
-and
-.i /etc/mail/aliases.pag
-(if using NDBM).
+.i cdb .
 This is the form that
 .i sendmail
 actually uses to resolve aliases.
@@ -3246,6 +3241,9 @@ often cannot assume that a given file was created by the owner,
 particularly when it is in a writable directory.
 You can set this flag if you know that file giveaway is restricted
 on your system.
+.ip CertOwner
+Accept certificate public and private key files
+which are not owned by RunAsUser for STARTTLS.
 .ip ClassFileInUnsafeDirPath
 When reading class files (using the
 .b F
@@ -4415,17 +4413,18 @@ It can accept or reject the command.
 The
 .i clt_features
 ruleset is called with the server's host name
-when sendmail connects to it.
+before sendmail connects to it
+(only if sendmail is compiled with STARTTLS or SASL).
 This ruleset should return
 .b $#
 followed by a list of options
-(single characters delimited by white space).
+(in general, single characters delimited by white space).
 If the return value starts with anything else it is silently ignored.
 Generally upper case characters turn off a feature
 while lower case characters turn it on.
 Options `D'/`M' cause the client to not use DANE/MTA-STS,
 respectively,
-which is useful to interact with MTAs/MUs that have broken
+which is useful to interact with MTAs that have broken
 DANE/MTA-STS setups by simply not using it.
 Note:
 The
@@ -4454,15 +4453,18 @@ not passed on to the next relay.
 .pp
 The
 .i tls_client
-ruleset is called when sendmail acts as server, after a STARTTLS command
-has been issued, and from
+ruleset is called when sendmail acts as server:
+after a STARTTLS command has been issued and the TLS handshake
+was performed,
+and from
 .i check_mail.
 The parameter is the value of
 .b ${verify}
 and STARTTLS or MAIL, respectively.
 If the ruleset does resolve to the
 .q error
-mailer, the appropriate error code is returned to the client.
+mailer, the appropriate error code is returned to the client,
+for STARTTLS this happens for (most) subsequent commands.
 .sh 4 "tls_server"
 .pp
 The
@@ -4506,8 +4508,8 @@ ruleset is called with the connecting client's host name
 when a client connects to sendmail.
 This ruleset should return
 .b $#
-followed by a list of options (single characters
-delimited by white space).
+followed by a list of options
+(in general, single characters delimited by white space).
 If the return value starts with anything else it is silently ignored.
 Generally upper case characters turn off a feature
 while lower case characters turn it on.
@@ -4526,6 +4528,40 @@ If a client sends one of the (HTTP) commands GET, POST, CONNECT, or USER
 the connection is immediately terminated in the following cases:
 if sent as first command, if sent as first command after STARTTLS,
 or if the 'h' option is set.
+Option 'F' disables SMTP transaction stuffing protection which is
+enabled by default.
+The protection checks for clients which try to send commands
+without waiting for the server HELO/EHLO and DATA response.
+Option 'o' causes the server to accept only
+CRLF . CRLF
+as end of an SMTP message as required by the RFCs
+which is also a defense against SMTP smuggling (CVE-2023-51765).
+Option 'O' allows the server to accept a single dot on a line by itself
+as end of an SMTP message.
+Option 'g' instructs the server to fail SMTP messages
+which have a LF without a CR directly before it ("bare LF")
+by dropping the session with a 421 error.
+Option 'G' accepts SMTP messages which have a "bare LF".
+Option 'u' instructs the server to fail SMTP messages
+which have a CR without a LF directly after it ("bare CR")
+by dropping the session with a 421 error.
+Option 'U' accepts SMTP messages which have a "bare CR".
+There is a variant for the options 'u' and 'g':
+a '2' can be appended to the single character,
+in which case the server will replace the offending bare CR
+or bare LF with a space.
+This allows to accept mail from broken systems,
+but the message is modified to avoid SMTP smuggling.
+If needed, systems with broken SMTP implementations
+can be allowed some violations, e.g., a combination of
+.(b
+G U g2 u2 O
+.)b
+A command like
+.(b
+egrep 'Bare.*(CR|LF).*not allowed' $MAILLOG
+.)b
+can be used to find hosts which send bare CR or LF.
 .(b
 .ta 9n
 A	Do not offer AUTH
@@ -4539,13 +4575,24 @@ D	Do not offer DSN
 d	Offer DSN (default)
 E	Do not offer ETRN
 e	Offer ETRN (default)
+F	Disable transaction stuffing protection
+f	Enforce transaction stuffing protection (default)
+G	Accept "bare LF"s in a message
+g	Do not accept "bare LF"s in a message (default)
+g2	Replace "bare LF" in a message with space
 h	Terminate session after HTTP commands
 L	Do not require AUTH (default)
 l	Require AUTH
+O	Accept a single dot on a line by itself
+	as end of an SMTP message
+o	Require CRLF . CRLF as end of an SMTP message (default)
 P	Do not offer PIPELINING
 p	Offer PIPELINING (default)
 S	Do not offer STARTTLS
 s	Offer STARTTLS (default)
+U	Accept "bare CR"s in a message
+u	Do not accept "bare CR"s in a message (default)
+u2	Replace "bare CR" in a message with space
 V	Do not request a client certificate
 v	Request a client certificate (default)
 X	Do not offer EXPN
@@ -4566,6 +4613,7 @@ accept email.
 The
 .i try_tls
 ruleset is called when sendmail connects to another MTA.
+The argument for the ruleset is the name of the server.
 If the ruleset does resolve to the
 .q error
 mailer, sendmail does not try STARTTLS even if it is offered.
@@ -4667,6 +4715,10 @@ specifying only one is an error.
 The
 .i authinfo
 ruleset is called when sendmail tries to authenticate to another MTA.
+The arguments for the ruleset are the host name and IP address
+of the server separated by
+.b $|
+(which is a metacharacter).
 It should return
 .b $#
 followed by a list of tokens that are used for SMTP AUTH.
@@ -4713,6 +4765,10 @@ The
 .i greet_pause
 ruleset is used to specify the amount of time to pause before sending the
 initial SMTP 220 greeting.
+The arguments for the ruleset are the host name and IP address
+of the client separated by
+.b $|
+(which is a metacharacter).
 If any traffic is received during that pause, an SMTP 554 rejection
 response is given instead of the 220 greeting and all SMTP commands are
 rejected during that connection.
@@ -4967,26 +5023,6 @@ a richer set of operators is
 which adds support for UUCP, the %-hack, and X.400 addresses.
 .ip $p
 Sendmail's process id.
-.ip $q\(dg
-Default format of sender address.
-The
-.b $q
-macro specifies how an address should appear in a message
-when it is defaulted.
-Defaults to
-.q "<$g>" .
-It is commonly redefined to be
-.q "$?x$x <$g>$|$g$."
-or
-.q "$g$?x ($x)$." ,
-corresponding to the following two formats:
-.(b
-Eric Allman <eric@CS.Berkeley.EDU>
-eric@CS.Berkeley.EDU (Eric Allman)
-.)b
-.i Sendmail
-properly quotes names that have special characters
-if the first form is used.
 .ip $r
 Protocol used to receive the message.
 Set from the
@@ -5356,16 +5392,21 @@ Possible values are:
 .(b
 .ta 13n
 TRUSTED	verification via DANE succeeded.
+DANE_FAIL	verification via DANE failed.
+DANE_TEMP	verification via DANE failed temporarily.
+DANE_NOTLS	DANE required but STARTTLS was not available.
 OK	verification succeeded.
 NO	no cert presented.
 NOT	no cert requested.
 FAIL	cert presented but could not be verified,
 	e.g., the signing CA is missing.
 NONE	STARTTLS has not been performed.
-CLEAR	STARTTLS has been disabled internally for a clear text delivery attempt.
+CLEAR	STARTTLS has been disabled internally
+	for a clear text delivery attempt.
 TEMP	temporary error occurred.
 PROTOCOL	some protocol error occurred
 	at the ESMTP level (not TLS).
+CONFIG	tls_*_features failed due to a syntax error.
 SOFTWARE	STARTTLS handshake failed,
 	which is a fatal error for this session,
 	the e-mail will be queued.
@@ -5670,7 +5711,7 @@ will fill the class
 .b $={VirtHosts}
 from an LDAP map lookup and
 .b $={MyClass}
-from a hash database map lookup of the
+from a hash database map lookup of the key
 .b foo .
 There is also a built-in schema that can be accessed by only specifying:
 .(b
@@ -5703,7 +5744,7 @@ Some classes have internal meaning to
 .nr ii 0.5i
 .\".ip $=b
 .\"A set of Content-Types that will not have the newline character
-.\"translated to CR-LF before encoding into base64 MIME.
+.\"translated to CRLF before encoding into base64 MIME.
 .\"The class can have major times
 .\"(e.g.,
 .\".q image )
@@ -5793,6 +5834,24 @@ file into a class, use
 FL/etc/passwd %[^:]
 .)b
 which reads every line up to the first colon.
+.sh 2 "E \*- Set or Propagate Environment Variables"
+.pp
+.b E
+configuration lines set or propagate environment variables into children.
+.(b F
+.b E \c
+.i name
+.)b
+will propagate the named variable from the environment when
+.i sendmail
+was invoked into any children it calls;
+.(b F
+.b E \c
+.i name =\c
+.i value
+.)b
+sets the named variable to the indicated value.
+Any variables not explicitly named will not be in the child environment.
 .sh 2 "M \*- Define Mailer"
 .pp
 Programs and interfaces to mailers
@@ -5819,7 +5878,7 @@ Path	The pathname of the mailer
 Flags	Special flags for this mailer
 Sender	Rewriting set(s) for sender addresses
 Recipient	Rewriting set(s) for recipient addresses
-recipients	Maximum number of recipients per connection
+recipients	Maximum number of recipients per envelope
 Argv	An argument vector to pass to this mailer
 Eol	The end-of-line string for this mailer
 Maxsize	The maximum message length to this mailer
@@ -6146,7 +6205,7 @@ Do not apply
 .b FallbackMXhost
 either.
 .ip 1
-Don't send null characters ('\\0') to this mailer.
+Strip null characters ('\\0') when sending to this mailer.
 .ip 2
 Don't use ESMTP even if offered; this is useful for broken
 systems that offer ESMTP but fail on EHLO (without recovering
@@ -6187,7 +6246,7 @@ do
 7\(->8 bit MIME conversions.
 These conversions are limited to text/plain data.
 .ip :
-Check addresses to see if they begin
+Check addresses to see if they begin with
 .q :include: ;
 if they do, convert them to the
 .q *include*
@@ -6679,13 +6738,11 @@ If it does not appear in the
 .i timeout
 interval issue a warning.
 .ip AllowBogusHELO
-[no short name]
 If set, allow HELO SMTP commands that don't include a host name.
 Setting this violates RFC 1123 section 5.2.5,
 but is necessary to interoperate with several SMTP clients.
 If there is a value, it is still checked for legitimacy.
 .ip AuthMaxBits=\fIN\fP
-[no short name]
 Limit the maximum encryption strength for the security layer in
 SMTP AUTH (SASL). Default is essentially unlimited.
 This allows to turn off additional encryption in SASL if
@@ -6698,7 +6755,6 @@ Hence setting
 .b AuthMaxBits
 to 168 will disable any encryption in SASL.
 .ip AuthMechanisms
-[no short name]
 List of authentication mechanisms for AUTH (separated by spaces).
 The advertised list of authentication mechanisms will be the
 intersection of this list and the list of available mechanisms as
@@ -6706,7 +6762,6 @@ determined by the Cyrus SASL library.
 If STARTTLS is active, EXTERNAL will be added to this list.
 In that case, the value of {cert_subject} is used as authentication id.
 .ip AuthOptions
-[no short name]
 List of options for SMTP AUTH consisting of single characters
 with intervening white space or commas.
 .(b
@@ -6743,14 +6798,12 @@ The options 'a', 'c', 'd', 'f', 'p', and 'y' refer to properties of the
 selected SASL mechanisms.
 Explanations of these properties can be found in the Cyrus SASL documentation.
 .ip AuthRealm
-[no short name]
 The authentication realm that is passed to the Cyrus SASL library.
 If no realm is specified,
 .b $j
 is used.
 See also KNOWNBUGS.
 .ip BadRcptThrottle=\fIN\fP
-[no short name]
 If set and the specified number of recipients in a single SMTP
 transaction have been rejected, sleep for one second after each subsequent
 RCPT command in that transaction.
@@ -6761,12 +6814,10 @@ Set the blank substitution character to
 Unquoted spaces in addresses are replaced by this character.
 Defaults to space (i.e., no change is made).
 .ip CACertPath
-[no short name]
 Path to directory with certificates of CAs.
 This directory directory must contain the hashes of each CA certificate
 as filenames (or as links to them).
 .ip CACertFile
-[no short name]
 File containing one or more CA certificates;
 see section about STARTTLS for more information.
 .ip CertFingerprintAlgorithm
@@ -6811,19 +6862,16 @@ and subtracted from the priority.
 Thus, messages with a higher Priority: will be favored.
 Defaults to 1800.
 .ip ClientCertFile
-[no short name]
 File containing the certificate of the client, i.e., this certificate
 is used when
 .i sendmail
 acts as client (for STARTTLS).
 .ip ClientKeyFile
-[no short name]
 File containing the private key belonging to the client certificate
 (for STARTTLS if
 .i sendmail
 runs as client).
 .ip ClientPortOptions=\fIoptions\fP
-[no short name]
 Set client SMTP options.
 The options are
 .i key=value
@@ -6886,7 +6934,6 @@ Options can be cleared by preceding them with a minus sign.
 It is also possible to specify numerical values, e.g.,
 .b -0x0010 .
 .ip ColonOkInAddr
-[no short name]
 If set, colons are acceptable in e-mail addresses
 (e.g.,
 .q host:user ).
@@ -6935,11 +6982,9 @@ and avoid using up excessive resources
 on the other end.
 The default is five minutes.
 .ip ConnectOnlyTo=\fIaddress\fP
-[no short name]
 This can be used to
 override the connection address (for testing purposes).
 .ip ConnectionRateThrottle=\fIN\fP
-[no short name]
 If set to a positive value,
 allow no more than
 .i N
@@ -6948,12 +6993,10 @@ This is intended to flatten out peaks
 and allow the load average checking to cut in.
 Defaults to zero (no limits).
 .ip ConnectionRateWindowSize=\fIN\fP
-[no short name]
 Define the length of the interval for which
 the number of incoming connections is maintained.
 The default is 60 seconds.
 .ip ControlSocketName=\fIname\fP
-[no short name]
 Name of the control socket for daemon management.
 A running
 .i sendmail
@@ -6974,13 +7017,11 @@ and the load average of the machine expressed as an integer.
 If not set, no control socket will be available.
 Solaris and pre-4.4BSD kernel users should see the note in sendmail/README .
 .ip CRLFile=\fIname\fP
-[no short name]
 Name of file that contains certificate
 revocation status, useful for X.509v3 authentication.
 Note: if a CRLFile is specified but the file is unusable,
 STARTTLS is disabled.
 .ip CRLPath=\fIname\fP
-[no short name]
 Name of directory that contains hashes pointing to
 certificate revocation status files.
 Symbolic links can be generated with the following
@@ -7142,7 +7183,6 @@ The modifier ``O'' causes sendmail to ignore a socket
 if it can't be opened.
 This applies to failures from the socket(2) and bind(2) calls.
 .ip DefaultAuthInfo
-[no short name]
 Filename that contains default authentication information for outgoing
 connections. This file must contain the user id, the authorization id,
 the password (plain text), the realm and the list of mechanisms to use
@@ -7162,7 +7202,6 @@ will complain).
 Use the authinfo ruleset instead which provides more control over
 the usage of the data anyway.
 .ip DefaultCharSet=\fIcharset\fP
-[no short name]
 When a message that has 8-bit characters but is not in MIME format
 is converted to MIME
 (see the EightBitMode option)
@@ -7174,7 +7213,6 @@ If this option is not set, the value
 .q unknown-8bit
 is used.
 .ip DataFileBufferSize=\fIthreshold\fP
-[no short name]
 Set the
 .i threshold ,
 in bytes,
@@ -7183,7 +7221,6 @@ queue data file
 becomes disk-based.
 The default is 4096 bytes.
 .ip DeadLetterDrop=\fIfile\fP
-[no short name]
 Defines the location of the system-wide dead.letter file,
 formerly hardcoded to /usr/tmp/dead.letter.
 If this option is not set (the default),
@@ -7224,14 +7261,12 @@ option has been combined into the
 option.
 .)f
 .ip DelayLA=\fILA\fP
-[no short name]
 When the system load average exceeds
 .i LA ,
 .i sendmail
 will sleep for one second on most SMTP commands and
 before accepting connections.
 .ip DeliverByMin=\fItime\fP
-[no short name]
 Set minimum time for Deliver By SMTP Service Extension (RFC 2852).
 If 0, no time is listed, if less than 0, the extension is not offered,
 if greater than 0, it is listed as minimum time
@@ -7260,7 +7295,6 @@ Note: for internal reasons,
 if a milter is enabled which can reject or delete recipients.
 In that case the mode will be changed to ``b''.
 .ip DialDelay=\fIsleeptime\fP
-[no short name]
 Dial-on-demand network connections can see timeouts
 if a connection is opened before the call is set up.
 If this is set to an interval and a connection times out
@@ -7287,7 +7321,6 @@ is either "CC f" if the option
 is used or "c u" otherwise.
 Note that only the "CC", "c", "f", and "u" flags are checked.
 .ip DontBlameSendmail=\fIoption,option,...\fP
-[no short name]
 In order to avoid possible cracking attempts
 caused by world- and group-writable files and directories,
 .i sendmail
@@ -7304,7 +7337,6 @@ The details of these flags are described above.
 .\"XXX should have more here!!!  XXX
 .b "Use of this option is not recommended."
 .ip DontExpandCnames
-[no short name]
 The standards say that all host addresses used in a mail message
 must be fully canonical.
 For example, if your host is named
@@ -7322,7 +7354,6 @@ so the behavior may become acceptable.
 Please note that hosts downstream may still rewrite the address
 to be the true canonical name however.
 .ip DontInitGroups
-[no short name]
 If set,
 .i sendmail
 will avoid using the initgroups(3) call.
@@ -7334,7 +7365,6 @@ will be their primary group (the one in the password file),
 which will make file access permissions somewhat more restrictive.
 Has no effect on systems that don't have group lists.
 .ip DontProbeInterfaces
-[no short name]
 .i Sendmail
 normally finds the names of all interfaces active on your machine
 when it starts up
@@ -7375,7 +7405,6 @@ and the mail will be sent to the first address in the route,
 even if later addresses are known.
 This may be useful if you are caught behind a firewall.
 .ip DoubleBounceAddress=\fIerror-address\fP
-[no short name]
 If an error occurs when sending an error message,
 send the error report
 (termed a
@@ -7483,7 +7512,7 @@ background delivery.
 If specified, the
 .i fallbackhost
 acts like a very low priority MX
-on every host.
+on a host.
 MX records will be looked up for this host,
 unless the name is surrounded by square brackets.
 This is intended to be used by sites with poor network connectivity.
@@ -7493,12 +7522,11 @@ also go to the FallbackMXhost.
 .ip FallBackSmartHost=\fIhostname\fP
 If specified, the
 .i FallBackSmartHost
-will be used in a last-ditch effort for each host.
+will be used in a last-ditch effort for a host.
 This is intended to be used by sites with "fake internal DNS",
 e.g., a company whose DNS accurately reflects the world
 inside that company's domain but not outside.
 .ip FastSplit
-[no short name]
 If set to a value greater than zero (the default is one),
 it suppresses the MX lookups on addresses
 when they are initially sorted, i.e., for the first delivery attempt.
@@ -7538,7 +7566,6 @@ and then in
 .i ~username /.forward
 (but only if the first file does not exist).
 .ip HeloName=\fIname\fP
-[no short name]
 Set the name to be used for HELO/EHLO (instead of $j).
 .ip HelpFile=\fIfile\fP
 [H]
@@ -7555,7 +7582,6 @@ To avoid providing this information to a client specify an empty file.
 If an outgoing mailer is marked as being expensive,
 don't connect immediately.
 .ip HostsFile=\fIpath\fP
-[no short name]
 The path to the hosts database,
 normally
 .q /etc/hosts .
@@ -7573,7 +7599,6 @@ that is under the control of the system
 .i gethostbyname (3)
 routine.
 .ip HostStatusDirectory=\fIpath\fP
-[no short name]
 The location of the long term host status information.
 When set,
 information about the status of hosts
@@ -7592,16 +7617,15 @@ A suggested value for sites desiring persistent host status is
 (i.e., a subdirectory of the queue directory).
 .ip IgnoreDots
 [i]
-Ignore dots in incoming messages.
-This is always disabled (that is, dots are always accepted)
-when reading SMTP mail.
+Do not treat leading dots in incoming messages in a special way,
+e.g., as end of a message if it is the only character in a line.
+This is always disabled when reading SMTP mail.
 .ip InputMailFilters=\fIname,name,...\fP
 A comma separated list of filters which determines which filters
 (see the "X \*- Mail Filter (Milter) Definitions" section)
 and the invocation sequence are contacted for incoming SMTP messages.
 If none are set, no filters will be contacted.
 .ip LDAPDefaultSpec=\fIspec\fP
-[no short name]
 Sets a default map specification for LDAP maps.
 The value should only contain LDAP specific settings
 such as
@@ -7625,14 +7649,12 @@ The
 .b \-M
 flag is preferred.
 .ip MailboxDatabase
-[no short name]
 Type of lookup to find information about local mailboxes,
 defaults to ``pw'' which uses
 .i getpwnam .
 Other types can be introduced by adding them to the source code,
 see libsm/mbdb.c for details.
 .ip UseMSP
-[no short name]
 Use as mail submission program, i.e.,
 allow group writable queue files
 if the group is the same as that of a set-group-ID sendmail binary.
@@ -7653,10 +7675,8 @@ This also requires that MATCHGECOS
 be turned on during compilation.
 This option is not recommended.
 .ip MaxAliasRecursion=\fIN\fP
-[no short name]
 The maximum depth of alias recursion (default: 10).
 .ip MaxDaemonChildren=\fIN\fP
-[no short name]
 If set,
 .i sendmail
 will refuse connections when it has more than
@@ -7676,7 +7696,6 @@ other than background must be used.
 If not set, there is no limit to the number of children --
 that is, the system load average controls this.
 .ip MaxHeadersLength=\fIN\fP
-[no short name]
 If set to a value greater than zero it specifies
 the maximum length of the sum of all headers.
 This can be used to prevent a denial of service attack.
@@ -7689,7 +7708,6 @@ Messages that have been processed more than
 times are assumed to be in a loop and are rejected.
 Defaults to 25.
 .ip MaxMessageSize=\fIN\fP
-[no short name]
 Specify the maximum message size
 to be advertised in the ESMTP EHLO response.
 Messages larger than this will be rejected.
@@ -7698,7 +7716,6 @@ that value will be listed in the SIZE response,
 otherwise SIZE is advertised in the ESMTP EHLO response
 without a parameter.
 .ip MaxMimeHeaderLength=\fIN[/M]\fP
-[no short name]
 Sets the maximum length of certain MIME header field values to
 .i N
 characters.
@@ -7724,7 +7741,6 @@ for the number of
 commands, see Section
 "Measures against Denial of Service Attacks".
 .ip MaxQueueChildren=\fIN\fP
-[no short name]
 When set, this limits the number of concurrent queue runner processes to
 .i N.
 This helps to control the amount of system resources used when processing
@@ -7748,7 +7764,6 @@ imposed by
 This discrepancy can be large if some queue runners have to wait
 for a slow server and if short intervals are used.
 .ip MaxQueueRunSize=\fIN\fP
-[no short name]
 The maximum number of jobs that will be processed
 in a single queue run.
 If not set, there is no limit on the size.
@@ -7773,14 +7788,12 @@ then only
 .b N
 entries are printed per queue group.
 .ip MaxRecipientsPerMessage=\fIN\fP
-[no short name]
 The maximum number of recipients that will be accepted per message
 in an SMTP transaction.
 Note: setting this too low can interfere with sending mail from
 MUAs that use SMTP for initial submission.
 If not set, there is no limit on the number of recipients per envelope.
 .ip MaxRunnersPerQueue=\fIN\fP
-[no short name]
 This sets the default maximum number of queue runners for queue groups.
 Up to
 .i N
@@ -7799,7 +7812,6 @@ even if I am in an alias expansion.
 This option is deprecated
 and will be removed from a future version.
 .ip Milter
-[no short name]
 This option has several sub(sub)options.
 The names of the suboptions are separated by dots.
 At the first level the following options are available:
@@ -7840,14 +7852,12 @@ gives a 452 response
 to the MAIL command.
 This invites the sender to try again later.
 .ip MaxQueueAge=\fIage\fP
-[no short name]
 If this is set to a value greater than zero,
 entries in the queue will be retried during a queue run
 only if the individual retry time has been reached
 which is doubled for each attempt.
 The maximum retry time is limited by the specified value.
 .ip MinQueueAge=\fIage\fP
-[no short name]
 Don't process any queued jobs
 that have been in the queue less than the indicated time interval.
 This is intended to allow you to get responsiveness
@@ -7859,7 +7869,6 @@ This option is ignored for queue runs that select a subset
 of the queue, i.e.,
 .q \-q[!][I|R|S|Q][string]
 .ip MustQuoteChars=\fIs\fP
-[no short name]
 Sets the list of characters that must be quoted if used in a full name
 that is in the phrase part of a ``phrase <address>'' syntax.
 The default is ``\'.''.
@@ -7871,11 +7880,9 @@ O MustQuoteChars=.
 .)b
 Moreover, relaxed header signing should be used for DKIM signatures.
 .ip NiceQueueRun
-[no short name]
 The priority of queue runners (nice(3)).
 This value must be greater or equal zero.
 .ip NoRecipientAction
-[no short name]
 The action to take when you receive a message that has no valid
 recipient headers (To:, Cc:, Bcc:, or Apparently-To: \(em
 the last included for back compatibility with old
@@ -7933,7 +7940,6 @@ are always operators.
 Note that OperatorChars must be set in the
 configuration file before any rulesets.
 .ip PidFile=\fIfilename\fP
-[no short name]
 Filename of the pid file.
 (default is _PATH_SENDMAILPID).
 The
@@ -8029,7 +8035,6 @@ Authentication Warnings add warnings about various conditions
 that may indicate attempts to spoof the mail system,
 such as using a non-standard queue directory.
 .ip ProcessTitlePrefix=\fIstring\fP
-[no short name]
 Prefix the process title shown on 'ps' listings with
 .i string .
 The
@@ -8092,12 +8097,10 @@ Defaults to 8 multiplied by
 the number of processors online on the system
 (if that can be determined).
 .ip QueueFileMode=\fImode\fP
-[no short name]
 Default permissions for queue files (octal).
 If not set, sendmail uses 0600 unless its real
 and effective uid are different in which case it uses 0644.
 .ip QueueSortOrder=\fIalgorithm\fP
-[no short name]
 Sets the
 .i algorithm
 used for sorting the queue.
@@ -8142,7 +8145,6 @@ Use that form instead of the
 .q QueueTimeout
 form.
 .ip RandFile
-[no short name]
 Name of file containing random data or the name of the UNIX socket
 if EGD is used.
 A (required) prefix "egd:" or "file:" specifies the type.
@@ -8191,7 +8193,6 @@ Notice: it might be necessary to apply the same (or similar) options to
 .i submit.cf
 too.
 .ip RequiresDirfsync
-[no short name]
 This option can be used to override the compile time flag
 .b REQUIRES_DIR_FSYNC
 at runtime by setting it to
@@ -8205,14 +8206,12 @@ it is enabled by default for Linux.
 According to some information this flag is not needed
 anymore for kernel 2.4.16 and newer.
 .ip RrtImpliesDsn
-[no short name]
 If this option is set, a
 .q Return-Receipt-To:
 header causes the request of a DSN, which is sent to
 the envelope sender as required by RFC 1891,
 not to the address given in the header.
 .ip RunAsUser=\fIuser\fP
-[no short name]
 The
 .i user
 parameter may be a user name
@@ -8276,7 +8275,6 @@ Defaults to 12 multiplied by
 the number of processors online on the system
 (if that can be determined).
 .ip RejectLogInterval=\fItimeout\fP
-[no short name]
 Log interval when refusing connections for this long
 (default: 3h).
 .ip RetryFactor=\fIfact\fP
@@ -8292,7 +8290,6 @@ In most environments this should be positive,
 since hosts that are down are all too often down for a long time.
 Defaults to 90000.
 .ip SafeFileEnvironment=\fIdir\fP
-[no short name]
 If this option is set,
 .i sendmail
 will do a
@@ -8332,12 +8329,10 @@ will not return the DSN keyword in response to an EHLO
 and will not do Delivery Status Notification processing as described in
 RFC 1891.
 .ip ServerCertFile
-[no short name]
 File containing the certificate of the server, i.e., this certificate
 is used when sendmail acts as server
 (used for STARTTLS).
 .ip ServerKeyFile
-[no short name]
 File containing the private key belonging to the server certificate
 (used for STARTTLS).
 .ip ServerSSLOptions
@@ -8357,7 +8352,6 @@ Options can be cleared by preceding them with a minus sign.
 It is also possible to specify numerical values, e.g.,
 .b -0x0010 .
 .ip ServiceSwitchFile=\fIfilename\fP
-[no short name]
 If your host operating system has a service switch abstraction
 (e.g., /etc/nsswitch.conf on Solaris
 or /etc/svc.conf on Ultrix and DEC OSF/1)
@@ -8397,7 +8391,6 @@ The default file is
 Strip input to seven bits for compatibility with old systems.
 This shouldn't be necessary.
 .ip SharedMemoryKey
-[no short name]
 Key to use for shared memory segment;
 if not set (or 0), shared memory will not be used.
 If set to
@@ -8417,7 +8410,6 @@ This allows for more efficient program execution, since only
 one process needs to update the data instead of each individual
 process gathering the data each time it is required.
 .ip SharedMemoryKeyFile
-[no short name]
 If
 .b SharedMemoryKey
 is set to
@@ -8425,13 +8417,11 @@ is set to
 then the automatically selected shared memory key will be stored
 in the specified file.
 .ip SingleLineFromHeader
-[no short name]
 If set, From: lines that have embedded newlines are unwrapped
 onto one line.
 This is to get around a botch in Lotus Notes
 that apparently cannot understand legally wrapped RFC 822 headers.
 .ip SingleThreadDelivery
-[no short name]
 If set, a client machine will never try to open two SMTP connections
 to a single server machine at the same time,
 even in different processes.
@@ -8532,7 +8522,6 @@ PostMilter is useful only when
 is running as an SMTP server; in all other situations it
 acts the same as True.
 .ip TLSFallbacktoClear
-[no short name]
 If set,
 .i sendmail
 immediately tries an outbound connection again without STARTTLS
@@ -8548,7 +8537,6 @@ Hence such requirements will cause an error on a retry without STARTTLS.
 Therefore they should only trigger a temporary failure so the connection
 is later on tried again.
 .ip TLSSrvOptions
-[no short name]
 List of options for SMTP STARTTLS for the server
 consisting of single characters
 with intervening white space or commas.
@@ -8587,7 +8575,6 @@ the TZ environment variable is cleared (so the system default is used);
 if set but null, the user's TZ variable is used,
 and if set and non-null the TZ variable is set to this value.
 .ip TrustedUser=\fIuser\fP
-[no short name]
 The
 .i user
 parameter may be a user name
@@ -8633,7 +8620,6 @@ Defaults to
 Don't change this unless your system uses a different UNIX mailbox format
 (very unlikely).
 .ip UnsafeGroupWrites
-[no short name]
 If set (default),
 :include: and .forward files that are group writable are considered
 .q unsafe ,
@@ -8645,7 +8631,6 @@ Note: use
 .b DontBlameSendmail
 instead; this option is deprecated.
 .ip UseCompressedIPv6Addresses
-[no short name]
 If set, the compressed format of IPv6 addresses,
 such as IPV6:::1, will be used,
 instead of the uncompressed format,
@@ -8699,7 +8684,6 @@ SMTP command with a suitable
 .b PrivacyOptions
 setting.
 .ip XscriptFileBufferSize=\fIthreshold\fP
-[no short name]
 Set the
 .i threshold ,
 in bytes,
@@ -9004,7 +8988,7 @@ For example, the rule
 .ta 1.5i
 R$\- ! $+	$: $(uucp $1 $@ $2 $: $2 @ $1 . UUCP $)
 .)b
-Looks up the UUCP name in a (user defined) UUCP map;
+looks up the UUCP name in a (user defined) UUCP map;
 if not found it turns it into
 .q \&.UUCP
 form.
@@ -10226,7 +10210,7 @@ the new version of the DBM library
 that allows multiple databases will be used.
 If neither CDB, NDBM, nor NEWDB are set,
 a much less efficient method of alias lookup is used.
-.ip CWDB
+.ip CDB
 If set, use the cdb (tinycdb) package.
 .ip NEWDB
 If set, use the new database package from Berkeley (from 4.4BSD).
@@ -11251,12 +11235,30 @@ as well as
 {auth_authen} and {auth_author}.
 .sh 2 "DANE"
 .pp
-Initial support for DANE (see RFC 7672 et.al.)
+Support for DANE (see RFC 7672 et.al.)
 is available if
 .i sendmail
 is compiled with the option
 .b DANE .
-Only TLSA RR 3-1-x (DANE-EE) is currently implemented.
+If OpenSSL 1.1.1 or at least 3.0.0 are used,
+then full DANE support for DANE-EE and DANE-TA
+(as required by RFC 7672)
+is available via the functions
+provided by those OpenSSL versions
+(run
+.(b
+sendmail -bt -d0.3 < /dev/null
+.)b
+and check that HAVE_SSL_CTX_dane_enable is in the output),
+otherwise support for TLSA RR 3-1-x
+is implemented directly in 
+.i sendmail .
+Note: if OpenSSL functions related to DANE cause a failure,
+then the macro
+.b ${verify}
+is set to
+.b DANE_TEMP .
+This also applies if TLS cannot be initialized at all.
 The option
 .(b
 O DANE=true
@@ -11270,8 +11272,10 @@ to
 .(b
 O ResolverOptions
 .)b
-This requires a (preferrably local)
-validating DNS resolver which supports those options.
+This requires a DNSSEC-validating recursive resolver
+which supports those options.
+The resolver must be reachable via a trusted connection,
+hence it is best to run it locally.
 
 If the client finds a usable TLSA RR and the check
 succeeds the macro
@@ -11281,9 +11285,8 @@ is set to
 All non-DNS maps are considered
 .i secure
 just like DNS lookups with DNSSEC.
-Be aware that the implementation might not handle all
-error conditions as required by the RFCs.
-Moreover, TLSA RRs are not looked up for some features,
+Be aware that
+TLSA RRs are not looked up for some features,
 e.g.,
 .i FallBackSmartHost .
 .sh 2 "EAI"
@@ -11943,6 +11946,8 @@ and
 .ip Z
 The original envelope id (from the ESMTP transaction).
 For Deliver Status Notifications only.
+.ip !
+Information for Deliver-By SMTP extension.
 .pp
 As an example,
 the following is a queue file sent to

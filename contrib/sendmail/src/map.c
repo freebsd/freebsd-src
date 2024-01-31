@@ -60,7 +60,7 @@ static bool	extract_canonname __P((char *, char *, char *, char[], int));
 static void	map_close __P((STAB *, int));
 static void	map_init __P((STAB *, int));
 #ifdef LDAPMAP
-static STAB *	ldapmap_findconn __P((SM_LDAP_STRUCT *));
+static STAB	*ldapmap_findconn __P((SM_LDAP_STRUCT *));
 #endif
 #if NISPLUS
 static bool	nisplus_getcanonname __P((char *, int, int *));
@@ -89,6 +89,176 @@ static STAB	*socket_map_findconn __P((const char*));
 #  define SM_EMAPCANTWRITE	ENXIO
 # endif
 #endif /* ENOSYS */
+
+/*
+**  MAP_HAS_CHGED -- check whether fd was updated or fn refers to a different file
+**
+**	Parameters:
+**		map -- map being checked
+**		fn -- (full) file name of map.
+**		fd -- fd of map.
+**
+**	Returns:
+**		true iff file referenced by fd was updated
+**		     or fn refers to a different file.
+*/
+
+static bool map_has_chged __P((MAP *, const char *, int));
+
+static bool
+map_has_chged(map, fn, fd)
+	MAP *map;
+	const char *fn;
+	int fd;
+{
+	struct stat stbuf;
+#if _FFR_MAP_CHK_FILE
+	struct stat nstbuf;
+#endif
+
+#if _FFR_MAP_CHK_FILE > 1
+	if (tTd(38, 8))
+		sm_dprintf("map_has_chged: fn=%s, fd=%d, checked=%d\n",
+			fn, fd, bitset(MF_CHKED_CHGD, map->map_mflags));
+	if (fd < 0)
+		return true;
+
+	/* XXX check can be disabled via -d38.101 for testing */
+	if (bitset(MF_CHKED_CHGD, map->map_mflags) && !tTd(38, 101))
+		return false;
+	map->map_mflags |= MF_CHKED_CHGD;
+#endif
+	if (fd < 0 || fstat(fd, &stbuf) < 0 || stbuf.st_mtime > map->map_mtime)
+	{
+		if (tTd(38, 4))
+			sm_dprintf("reopen map: name=%s, fd=%d\n", map->map_mname, fd);
+		return true;
+	}
+#if _FFR_MAP_CHK_FILE
+	if (stat(fn, &nstbuf) == 0 &&
+	    (nstbuf.st_dev != stbuf.st_dev || nstbuf.st_ino != stbuf.st_ino))
+	{
+		if (tTd(38, 4) && stat(fn, &nstbuf) == 0)
+			sm_dprintf("reopen map: fn=%s, ndev=%d, dev=%d, nino=%d, ino=%d\n",
+				fn, (int) nstbuf.st_dev, (int) stbuf.st_dev,
+				(int) nstbuf.st_ino, (int) stbuf.st_ino);
+		return true;
+	}
+#endif
+	return false;
+}
+
+#if _FFR_MAP_CHK_FILE > 1
+
+/*
+**  MAP_RESET_CHGD -- reset MF_CHKED_CHGD in a map
+**
+**	Parameters:
+**		s -- STAB entry: if map: reset MF_CHKED_CHGD
+**		unused -- unused variable
+**
+**	Returns:
+**		none.
+*/
+
+static void map_reset_chged __P((STAB *, int));
+
+/* ARGSUSED1 */
+static void
+map_reset_chged(s, unused)
+	STAB *s;
+	int unused;
+{
+	MAP *map;
+
+	/* has to be a map */
+	if (ST_MAP != s->s_symtype
+#if _FFR_DYN_CLASS
+	   && ST_DYNMAP != s->s_symtype
+#endif
+	   )
+		return;
+	map = &s->s_map;
+	if (!bitset(MF_VALID, map->map_mflags))
+		return;
+	if (tTd(38, 8))
+		sm_dprintf("map_reset_chged: name=%s, checked=%d\n",
+			map->map_mname, bitset(MF_CHKED_CHGD, map->map_mflags));
+	map->map_mflags &= ~MF_CHKED_CHGD;
+}
+
+/*
+**  MAPS_RESET_CHGD -- reset MF_CHKED_CHGD in all maps
+**
+**	Parameters:
+**		msg - caller (for debugging)
+**
+**	Returns:
+**		none.
+*/
+
+void
+maps_reset_chged(msg)
+	const char *msg;
+{
+	if (tTd(38, 16))
+		sm_dprintf("maps_reset_chged: msg=%s\n", msg);
+	stabapply(map_reset_chged, 0);
+}
+#endif /* _FFR_MAP_CHK_FILE > 1 */
+
+
+#if NEWDB || CDB || (NDBM && _FFR_MAP_CHK_FILE)
+static bool	smdb_add_extension __P((char *, int, char *, char *));
+
+/*
+**  SMDB_ADD_EXTENSION -- Adds an extension to a file name.
+**
+**	Just adds a . followed by a string to a db_name if there
+**	is room and the db_name does not already have that extension.
+**
+**	Parameters:
+**		full_name -- The final file name.
+**		max_full_name_len -- The max length for full_name.
+**		db_name -- The name of the db.
+**		extension -- The extension to add.
+**
+**	Returns:
+**		SMDBE_OK -- Success.
+**		Anything else is an error. Look up more info about the
+**		error in the comments for the specific open() used.
+*/
+
+static bool
+smdb_add_extension(full_name, max_full_name_len, db_name, extension)
+	char *full_name;
+	int max_full_name_len;
+	char *db_name;
+	char *extension;
+{
+	int extension_len;
+	int db_name_len;
+
+	if (full_name == NULL || db_name == NULL || extension == NULL)
+		return false; /* SMDBE_INVALID_PARAMETER; */
+
+	extension_len = strlen(extension);
+	db_name_len = strlen(db_name);
+
+	if (extension_len + db_name_len + 2 > max_full_name_len)
+		return false; /* SMDBE_DB_NAME_TOO_LONG; */
+
+	if (db_name_len < extension_len + 1 ||
+	    db_name[db_name_len - extension_len - 1] != '.' ||
+	    strcmp(&db_name[db_name_len - extension_len], extension) != 0)
+		(void) sm_snprintf(full_name, max_full_name_len, "%s.%s",
+				   db_name, extension);
+	else
+		(void) sm_strlcpy(full_name, db_name, max_full_name_len);
+
+	return true;
+}
+#endif /* NEWDB || CDB || (NDBM && _FFR_MAP_CHK_FILE) */
 
 /*
 **  MAP.C -- implementations for various map classes.
@@ -130,6 +300,7 @@ static STAB	*socket_map_findconn __P((const char*));
 **	to be more properly integrated into the map structure.
 */
 
+/* XREF: conf.c must use the same expression */
 #if O_EXLOCK && HASFLOCK && !BOGUS_O_EXCL
 # define LOCK_ON_OPEN	1	/* we can open/create a locked file */
 #else
@@ -459,6 +630,52 @@ map_rewrite(map, s, slen, av)
 		sm_dprintf("map_rewrite => %s\n", buf);
 	return buf;
 }
+
+/*
+**  MAPCHOWN -- if available fchown() the fds to TrustedUid
+**
+**	Parameters:
+**		mapname - name of map (for error reporting)
+**		fd0 - first fd (must be valid)
+**		fd1 - second fd (<0: do not use)
+**		filename - name of file (for error reporting)
+**
+**	Returns:
+**		none.
+*/
+
+static void mapchown __P((const char *, int, int, const char *));
+
+static void
+mapchown(mapname, fd0, fd1, filename)
+	const char *mapname;
+	int fd0;
+	int fd1;
+	const char *filename;
+{
+	if (!(geteuid() == 0 && TrustedUid != 0))
+		return;
+#if HASFCHOWN
+	if (fchown(fd0, TrustedUid, -1) < 0 ||
+	    (fd1 >= 0 && fchown(fd1, TrustedUid, -1) < 0))
+	{
+		int err = errno;
+
+		sm_syslog(LOG_ALERT, NOQID,
+			  "ownership change on %s failed: %s",
+			  filename, sm_errstring(err));
+		message("050 ownership change on %s failed: %s",
+			filename, sm_errstring(err));
+	}
+#else /* HASFCHOWN */
+	sm_syslog(LOG_ALERT, NOQID,
+		  "no fchown(): cannot change ownership on %s",
+		  mapname);
+	message("050 no fchown(): cannot change ownership on %s",
+		mapname);
+#endif /* HASFCHOWN */
+}
+
 /*
 **  INITMAPS -- rebuild alias maps
 **
@@ -472,14 +689,11 @@ map_rewrite(map, s, slen, av)
 void
 initmaps()
 {
-#if XDEBUG
 	checkfd012("entering initmaps");
-#endif
 	stabapply(map_init, 0);
-#if XDEBUG
 	checkfd012("exiting initmaps");
-#endif
 }
+
 /*
 **  MAP_INIT -- rebuild a map
 **
@@ -533,7 +747,7 @@ map_init(s, unused)
 		map->map_mflags &= ~(MF_OPEN|MF_WRITABLE|MF_CLOSING);
 	}
 
-	(void) rebuildaliases(map, false);
+	(void) rebuildaliases(map);
 	return;
 }
 /*
@@ -692,7 +906,7 @@ map_close(s, bogus)
 		map->map_mflags |= MF_CLOSING;
 		map->map_class->map_close(map);
 	}
-	map->map_mflags &= ~(MF_OPEN|MF_WRITABLE|MF_OPENBOGUS|MF_CLOSING);
+	map->map_mflags &= ~(MF_OPEN|MF_WRITABLE|MF_OPENBOGUS|MF_CLOSING|MF_CHKED_CHGD);
 }
 
 #if defined(SUN_EXTENSIONS) && defined(SUN_INIT_DOMAIN)
@@ -1072,14 +1286,14 @@ dns_map_parseargs(map,args)
 			break;
 		switch (*++p)
 		{
-#  if DNSSEC_TEST
+#  if DNSSEC_TEST || _FFR_NAMESERVER
 		  case '@':
 			++p;
 			if (nsportip(p) < 0)
 				syserr("dns map %s: nsportip(%s)=failed",
 					map->map_mname, p);
 			break;
-#  endif /* DNSSEC_TEST */
+#  endif /* DNSSEC_TEST || _FFR_NAMESERVER */
 
 		  case 'A':
 			map->map_mflags |= MF_APPEND;
@@ -1243,7 +1457,7 @@ dns_map_parseargs(map,args)
 **
 **	Parameters:
 **		map -- pointer to MAP
-**		name -- name to lookup
+**		name -- name to look up
 **		av -- arguments to interpolate into buf.
 **		statp -- pointer to status (EX_)
 **
@@ -1694,28 +1908,7 @@ ndbm_map_open(map, mode)
 	else
 	{
 		map->map_mflags |= MF_LOCKED;
-		if (geteuid() == 0 && TrustedUid != 0)
-		{
-# if HASFCHOWN
-			if (fchown(dfd, TrustedUid, -1) < 0 ||
-			    fchown(pfd, TrustedUid, -1) < 0)
-			{
-				int err = errno;
-
-				sm_syslog(LOG_ALERT, NOQID,
-					  "ownership change on %s failed: %s",
-					  map->map_file, sm_errstring(err));
-				message("050 ownership change on %s failed: %s",
-					map->map_file, sm_errstring(err));
-			}
-# else /* HASFCHOWN */
-			sm_syslog(LOG_ALERT, NOQID,
-				  "no fchown(): cannot change ownership on %s",
-				  map->map_file);
-			message("050 no fchown(): cannot change ownership on %s",
-				map->map_file);
-# endif /* HASFCHOWN */
-		}
+		mapchown(map->map_file, dfd, pfd, map->map_file);
 	}
 	return true;
 }
@@ -1735,7 +1928,10 @@ ndbm_map_lookup(map, name, av, statp)
 	datum key, val;
 	int dfd, pfd;
 	char keybuf[MAXNAME + 1];	/* EAI:ok */
-	struct stat stbuf;
+# if _FFR_MAP_CHK_FILE
+	char buf[MAXPATHLEN];
+# endif
+	const char *fn = NULL;
 
 	if (tTd(38, 20))
 		sm_dprintf("ndbm_map_lookup(%s, %s)\n",
@@ -1752,13 +1948,24 @@ ndbm_map_lookup(map, name, av, statp)
 		makelower_buf(keybuf, keybuf, sizeof(keybuf));
 		key.dptr = keybuf;
 	}
+# if _FFR_MAP_CHK_FILE
+	if (!smdb_add_extension(buf, sizeof(buf), map->map_file, "pag"))
+	{
+		errno = 0;
+		if (!bitset(MF_OPTIONAL, map->map_mflags))
+			syserr("ndbm map \"%s\": map file %s name too long",
+				map->map_mname, map->map_file);
+		return NULL;
+	}
+	fn = buf;
+# endif
 lockdbm:
 	dfd = dbm_dirfno((DBM *) map->map_db1);
 	if (dfd >= 0 && !bitset(MF_LOCKED, map->map_mflags))
 		(void) lockfile(dfd, map->map_file, ".dir", LOCK_SH);
 	pfd = dbm_pagfno((DBM *) map->map_db1);
-	if (pfd < 0 || fstat(pfd, &stbuf) < 0 ||
-	    stbuf.st_mtime > map->map_mtime)
+
+	if (map_has_chged(map, fn, pfd))
 	{
 		/* Reopen the database to sync the cache */
 		int omode = bitset(map->map_mflags, MF_WRITABLE) ? O_RDWR
@@ -2070,25 +2277,13 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 	char buf[MAXPATHLEN];
 
 	/* do initial file and directory checks */
-	if (sm_strlcpy(buf, map->map_file, sizeof(buf)) >= sizeof(buf))
+	if (!smdb_add_extension(buf, sizeof(buf), map->map_file, "db"))
 	{
 		errno = 0;
 		if (!bitset(MF_OPTIONAL, map->map_mflags))
-			syserr("map \"%s\": map file %s name too long",
+			syserr("db map \"%s\": map file %s name too long",
 				map->map_mname, map->map_file);
 		return false;
-	}
-	i = strlen(buf);
-	if (i < 3 || strcmp(&buf[i - 3], ".db") != 0)
-	{
-		if (sm_strlcat(buf, ".db", sizeof(buf)) >= sizeof(buf))
-		{
-			errno = 0;
-			if (!bitset(MF_OPTIONAL, map->map_mflags))
-				syserr("map \"%s\": map file %s name too long",
-					map->map_mname, map->map_file);
-			return false;
-		}
 	}
 
 	mode &= O_ACCMODE;
@@ -2121,7 +2316,7 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 		if (i == ENOENT)
 			prob = "missing";
 		if (tTd(38, 2))
-			sm_dprintf("\t%s map file: %s\n", prob, sm_errstring(i));
+			sm_dprintf("\t%s map file %s: %s\n", prob, buf, sm_errstring(i));
 		errno = i;
 		if (!bitset(MF_OPTIONAL, map->map_mflags))
 			syserr("%s map \"%s\": %s map file %s",
@@ -2299,36 +2494,14 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 		map->map_mflags |= MF_LOCKED;
 # if LOCK_ON_OPEN
 	if (fd >= 0 && mode == O_RDONLY)
-	{
 		(void) lockfile(fd, buf, NULL, LOCK_UN);
-	}
-# endif /* LOCK_ON_OPEN */
+# endif
 
 	/* try to make sure that at least the database header is on disk */
 	if (mode == O_RDWR)
 	{
 		(void) db->sync(db, 0);
-		if (geteuid() == 0 && TrustedUid != 0)
-		{
-# if HASFCHOWN
-			if (fchown(fd, TrustedUid, -1) < 0)
-			{
-				int err = errno;
-
-				sm_syslog(LOG_ALERT, NOQID,
-					  "ownership change on %s failed: %s",
-					  buf, sm_errstring(err));
-				message("050 ownership change on %s failed: %s",
-					buf, sm_errstring(err));
-			}
-# else /* HASFCHOWN */
-			sm_syslog(LOG_ALERT, NOQID,
-				  "no fchown(): cannot change ownership on %s",
-				  map->map_file);
-			message("050 no fchown(): cannot change ownership on %s",
-				map->map_file);
-# endif /* HASFCHOWN */
-		}
+		mapchown(map->map_file, fd, -1, buf);
 	}
 
 	map->map_db2 = (ARBPTR_T) db;
@@ -2341,6 +2514,18 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 
 	if (fd >= 0 && fstat(fd, &st) >= 0)
 		map->map_mtime = st.st_mtime;
+
+# if _FFR_TESTS
+	if (tTd(68, 101) && fd >= 0 && mode == O_RDONLY)
+	{
+		int sl;
+
+		sl = tTdlevel(68) - 100;
+		/* XXX test checks for map type!!! */
+		sm_dprintf("hash_map_open: sleep=%d\n", sl);
+		sleep(sl);
+	}
+# endif
 
 	if (mode == O_RDONLY && bitset(MF_ALIAS, map->map_mflags) &&
 	    !aliaswait(map, ".db", true))
@@ -2362,11 +2547,9 @@ db_map_lookup(map, name, av, statp)
 {
 	DBT key, val;
 	register DB *db = (DB *) map->map_db2;
-	int i;
 	int st;
 	int save_errno;
 	int fd;
-	struct stat stbuf;
 	char keybuf[MAXNAME + 1];	/* EAI:ok */
 	char buf[MAXPATHLEN];
 
@@ -2376,18 +2559,14 @@ db_map_lookup(map, name, av, statp)
 	if (tTd(38, 20))
 		sm_dprintf("db_map_lookup(%s, %s)\n",
 			map->map_mname, name);
-
-	if (sm_strlcpy(buf, map->map_file, sizeof(buf)) >= sizeof(buf))
+	if (!smdb_add_extension(buf, sizeof(buf), map->map_file, "db"))
 	{
 		errno = 0;
 		if (!bitset(MF_OPTIONAL, map->map_mflags))
-			syserr("map \"%s\": map file %s name too long",
+			syserr("db map \"%s\": map file %s name too long",
 				map->map_mname, map->map_file);
 		return NULL;
 	}
-	i = strlen(buf);
-	if (i > 3 && strcmp(&buf[i - 3], ".db") == 0)
-		buf[i - 3] = '\0';
 
 	key.size = strlen(name);
 	if (key.size > sizeof(keybuf) - 1)
@@ -2405,15 +2584,15 @@ db_map_lookup(map, name, av, statp)
 	errno = db->fd(db, &fd);
 # endif /* DB_VERSION_MAJOR < 2 */
 	if (fd >= 0 && !bitset(MF_LOCKED, map->map_mflags))
-		(void) lockfile(fd, buf, ".db", LOCK_SH);
-	if (fd < 0 || fstat(fd, &stbuf) < 0 || stbuf.st_mtime > map->map_mtime)
+		(void) lockfile(fd, buf, NULL, LOCK_SH);
+	if (map_has_chged(map, buf, fd))
 	{
 		/* Reopen the database to sync the cache */
 		int omode = bitset(map->map_mflags, MF_WRITABLE) ? O_RDWR
 								 : O_RDONLY;
 
 		if (fd >= 0 && !bitset(MF_LOCKED, map->map_mflags))
-			(void) lockfile(fd, buf, ".db", LOCK_UN);
+			(void) lockfile(fd, buf, NULL, LOCK_UN);
 		map->map_mflags |= MF_CLOSING;
 		map->map_class->map_close(map);
 		map->map_mflags &= ~(MF_OPEN|MF_WRITABLE|MF_CLOSING);
@@ -2498,7 +2677,7 @@ db_map_lookup(map, name, av, statp)
 	}
 	save_errno = errno;
 	if (fd >= 0 && !bitset(MF_LOCKED, map->map_mflags))
-		(void) lockfile(fd, buf, ".db", LOCK_UN);
+		(void) lockfile(fd, buf, NULL, LOCK_UN);
 	if (st != 0)
 	{
 		errno = save_errno;
@@ -2686,56 +2865,6 @@ db_map_close(map)
 **  CDB Modules
 */
 
-static bool	smdb_add_extension __P((char *, int, char *, char *));
-
-/*
-**  SMDB_ADD_EXTENSION -- Adds an extension to a file name.
-**
-**	Just adds a . followed by a string to a db_name if there
-**	is room and the db_name does not already have that extension.
-**
-**	Parameters:
-**		full_name -- The final file name.
-**		max_full_name_len -- The max length for full_name.
-**		db_name -- The name of the db.
-**		extension -- The extension to add.
-**
-**	Returns:
-**		SMDBE_OK -- Success.
-**		Anything else is an error. Look up more info about the
-**		error in the comments for the specific open() used.
-*/
-
-static bool
-smdb_add_extension(full_name, max_full_name_len, db_name, extension)
-	char *full_name;
-	int max_full_name_len;
-	char *db_name;
-	char *extension;
-{
-	int extension_len;
-	int db_name_len;
-
-	if (full_name == NULL || db_name == NULL || extension == NULL)
-		return false; /* SMDBE_INVALID_PARAMETER; */
-
-	extension_len = strlen(extension);
-	db_name_len = strlen(db_name);
-
-	if (extension_len + db_name_len + 2 > max_full_name_len)
-		return false; /* SMDBE_DB_NAME_TOO_LONG; */
-
-	if (db_name_len < extension_len + 1 ||
-	    db_name[db_name_len - extension_len - 1] != '.' ||
-	    strcmp(&db_name[db_name_len - extension_len], extension) != 0)
-		(void) sm_snprintf(full_name, max_full_name_len, "%s.%s",
-				   db_name, extension);
-	else
-		(void) sm_strlcpy(full_name, db_name, max_full_name_len);
-
-	return true;
-}
-
 bool
 cdb_map_open(map, mode)
 	MAP *map;
@@ -2748,8 +2877,9 @@ cdb_map_open(map, mode)
 	char buf[MAXPATHLEN];
 
 	if (tTd(38, 2))
-		sm_dprintf("cdb_map_open(%s, %s, %d)\n",
-			map->map_mname, map->map_file, mode);
+		sm_dprintf("cdb_map_open(%s, %s, %s)\n",
+			map->map_mname, map->map_file,
+			O_RDWR == (mode & O_ACCMODE) ? "rdwr" : "rdonly");
 	map->map_db1 = (ARBPTR_T)NULL;
 	map->map_db2 = (ARBPTR_T)NULL;
 
@@ -2844,6 +2974,10 @@ cdb_map_open(map, mode)
 	/* actually lock the opened file */
 	if (!lockfile(fd, buf, NULL, mode == O_RDONLY ? LOCK_SH : LOCK_EX))
 		syserr("cdb_map_open: cannot lock %s", buf);
+# else /* !LOCK_ON_OPEN */
+	if (tTd(55, 60))
+		sm_dprintf("lockopen(%s, fd=%d, action=nb, type=%s): SUCCESS\n",
+			buf, fd, mode == O_RDONLY ? "rd" : "wr");
 # endif /* !LOCK_ON_OPEN */
 
 	map->map_lockfd = fd;
@@ -2867,8 +3001,20 @@ cdb_map_open(map, mode)
 		}
 
 		map->map_db2 = (ARBPTR_T)cdbmp;
+		mapchown(map->map_file, fd, -1, buf);
 		return true;
 	}
+	(void) lockfile(fd, buf, NULL, LOCK_UN);
+# if _FFR_TESTS
+	if (tTd(68, 101))
+	{
+		int sl;
+
+		sl = tTdlevel(68) - 100;
+		sm_dprintf("cdb_map_open: sleep=%d\n", sl);
+		sleep(sl);
+	}
+# endif
 
 	cdbp = (struct cdb *) xalloc(sizeof(*cdbp));
 	status = cdb_init(cdbp, fd);
@@ -2879,7 +3025,13 @@ cdb_map_open(map, mode)
 			syserr("initialization of cdb map failed");
 		return false;
 	}
+
 	map->map_db1 = (ARBPTR_T)cdbp;
+	if (bitset(MF_ALIAS, map->map_mflags) && !aliaswait(map, CDBEXT, true))
+	{
+		close(fd);	/* XXX more error handling needed? */
+		return false;
+	}
 	return true;
 }
 
@@ -2896,7 +3048,6 @@ cdb_map_lookup(map, name, av, statp)
 	int st, fd;
 	char key[MAXNAME + 1];	/* EAI:ok */
 	char buf[MAXPATHLEN];
-	struct stat stbuf;
 
 	data = NULL;
 	cdbmap = map->map_db1;
@@ -2909,7 +3060,7 @@ cdb_map_lookup(map, name, av, statp)
 		if (!bitset(MF_OPTIONAL, map->map_mflags))
 			syserr("cdb map \"%s\": map file %s name too long",
 				map->map_mname, map->map_file);
-		return false;
+		return NULL;
 	}
 
 	klen = strlen(name);
@@ -2925,8 +3076,7 @@ cdb_map_lookup(map, name, av, statp)
 	fd = map->map_lockfd;
 	if (fd >= 0 && !bitset(MF_LOCKED, map->map_mflags))
 		(void) lockfile(fd, buf, NULL, LOCK_SH);
-
-	if (fd < 0 || fstat(fd, &stbuf) < 0 || stbuf.st_mtime > map->map_mtime)
+	if (map_has_chged(map, buf, fd))
 	{
 		/* Reopen the database to sync the cache */
 		int omode = bitset(map->map_mflags, MF_WRITABLE) ? O_RDWR
@@ -3097,7 +3247,7 @@ cdb_map_close(map)
 # endif
 
 /*
-**  NIS_MAP_OPEN -- open DBM map
+**  NIS_MAP_OPEN -- open NIS map
 */
 
 bool
@@ -4037,7 +4187,7 @@ ldapmap_lookup(map, name, av, statp)
 	char *argv[SM_LDAP_ARGS];
 	char keybuf[MAXKEY];
 # if SM_LDAP_ARGS != MAX_MAP_ARGS
-#  ERROR "SM_LDAP_ARGS must be the same as MAX_MAP_ARGS"
+#  error "SM_LDAP_ARGS must be the same as MAX_MAP_ARGS"
 # endif
 
 # define AV_FREE(av)	\

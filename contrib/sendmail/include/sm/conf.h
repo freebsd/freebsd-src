@@ -473,8 +473,8 @@ typedef int		pid_t;
 #   ifndef HASGETUSERSHELL
 #    define HASGETUSERSHELL 0	/* getusershell(3) causes core dumps pre-2.7 */
 #   endif
-#   if SOLARIS < 21200
-#    define SIGWAIT_TAKES_1_ARG	1	/* S12 moves to UNIX V7 semantic */
+#   if SOLARIS < 21140
+#    define SIGWAIT_TAKES_1_ARG	1	/* S11.4 moves to UNIX V7 semantic */
 #   endif
 
 #  else /* SOLARIS */
@@ -1575,8 +1575,10 @@ extern void		*malloc();
 #  if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,0,36)) && !defined(HASFCHMOD)
 #    define HASFCHMOD	1	/* fchmod(2) */
 #  endif
+#  if (__GLIBC__ >= 2 && __GLIBC_MINOR__ >= 19) && !defined(HAS_GETHOSTBYNAME2)
+#   define HAS_GETHOSTBYNAME2 1
+#  endif
 # endif /* __linux__ */
-
 
 /*
 **  DELL SVR4 Issue 2.2, and others

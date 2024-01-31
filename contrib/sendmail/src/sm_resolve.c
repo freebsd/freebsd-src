@@ -43,14 +43,17 @@
 
 #include <sendmail.h>
 #include <sm/sendmail.h>
-#if DNSMAP || DANE
-# if NAMED_BIND
-#  if NETINET
-#   include <netinet/in_systm.h>
-#   include <netinet/ip.h>
-#  endif
+
+#if NAMED_BIND
+# if NETINET
+#  include <netinet/in_systm.h>
+#  include <netinet/ip.h>
+# endif
+# if DNSSEC_TEST || _FFR_NAMESERVER
 #  define _DEFINE_SMR_GLOBALS 1
-#  include "sm_resolve.h"
+# endif
+# include "sm_resolve.h"
+# if DNSMAP || DANE
 
 #include <arpa/inet.h>
 
@@ -733,92 +736,6 @@ getttlfromstring(str)
 	return strtoul(str + strlen(TTL_PRE), NULL, 10);
 }
 
-/*
-**  DNS_SETNS -- set one NS in resolver context
-**
-**	Parameters:
-**		ns -- (IPv4 address of) nameserver
-**		port -- nameserver port
-**
-**	Returns:
-**		None.
-*/
-
-static void dns_setns __P((struct in_addr *, unsigned int));
-
-static void
-dns_setns(ns, port)
-	struct in_addr *ns;
-	unsigned int port;
-{
-	_res.nsaddr_list[0].sin_family = AF_INET;
-	_res.nsaddr_list[0].sin_addr = *ns;
-	if (port != 0)
-		_res.nsaddr_list[0].sin_port = htons(port);
-	_res.nscount = 1;
-	if (tTd(8, 61))
-		sm_dprintf("dns_setns(%s,%u)\n", inet_ntoa(*ns), port);
-}
-
-/*
-**  NSPORTIP -- parse port@IPv4 and set NS accordingly
-**
-**	Parameters:
-**		p -- port@Ipv4
-**
-**	Returns:
-**		<0: error
-**		>0: ok
-**
-**	Side Effects:
-**		sets NS for DNS lookups
-*/
-
-/*
-**  There should be a generic function for this...
-**  milter_open(), socket_map_open(), others?
-*/
-
-int
-nsportip(p)
-	char *p;
-{
-	char *h;
-	int r;
-	unsigned short port;
-	struct in_addr nsip;
-
-	if (SM_IS_EMPTY(p))
-		return -1;
-
-	port = 0;
-	while (SM_ISSPACE(*p))
-		p++;
-	if (*p == '\0')
-		return -1;
-	h = strchr(p, '@');
-	if (h != NULL)
-	{
-		*h = '\0';
-		if (isascii(*p) && isdigit(*p))
-			port = atoi(p);
-		*h = '@';
-		p = h + 1;
-	}
-	h = strchr(p, ' ');
-	if (h != NULL)
-		*h = '\0';
-	r = inet_pton(AF_INET, p, &nsip);
-	if (r > 0)
-	{
-		if ((_res.options & RES_INIT) == 0)
-			(void) res_init();
-		dns_setns(&nsip, port);
-	}
-	if (h != NULL)
-		*h = ' ';
-	return r > 0 ? 0 : -1;
-}
 
 #   if defined(T_TLSA)
 /*
@@ -1286,7 +1203,7 @@ tstdns_querydomain(name, domain, class, type, answer, anslen)
 **  DNS_LOOKUP_INT -- perform DNS lookup
 **
 **	Parameters:
-**		domain -- name to lookup
+**		domain -- name to look up
 **		rr_class -- resource record class
 **		rr_type -- resource record type
 **		retrans -- retransmission timeout
@@ -1435,7 +1352,7 @@ dns_lookup_int(domain, rr_class, rr_type, retrans, retry, options, flags, err, h
 **  DNS_LOOKUP_MAP -- perform DNS map lookup
 **
 **	Parameters:
-**		domain -- name to lookup
+**		domain -- name to look up
 **		rr_class -- resource record class
 **		rr_type -- resource record type
 **		retrans -- retransmission timeout
@@ -1633,5 +1550,100 @@ dns2he(dr, family)
 	return h;
 }
 #  endif /* DANE */
-# endif /* NAMED_BIND */
-#endif /* DNSMAP || DANE */
+# endif /* DNSMAP || DANE */
+
+# if DNSSEC_TEST || _FFR_NAMESERVER
+/*
+**  DNS_ADDNS -- add one NS in resolver context
+**
+**	Parameters:
+**		ns -- (IPv4 address of) nameserver
+**		port -- nameserver port (host order)
+**
+**	Returns:
+**		None.
+*/
+
+static void dns_addns __P((struct in_addr *, unsigned int));
+static int nsidx = 0;
+#ifndef MAXNS
+# define MAXNS	3
+#endif
+static void
+dns_addns(ns, port)
+	struct in_addr *ns;
+	unsigned int port;
+{
+	if (nsidx >= MAXNS)
+		syserr("too many NameServers defined (%d max)", MAXNS);
+	_res.nsaddr_list[nsidx].sin_family = AF_INET;
+	_res.nsaddr_list[nsidx].sin_addr = *ns;
+	if (port != 0)
+		_res.nsaddr_list[nsidx].sin_port = htons(port);
+	_res.nscount = ++nsidx;
+	if (tTd(8, 61))
+		sm_dprintf("dns_addns: nsidx=%d, ns=%s:%u\n",
+			   nsidx - 1, inet_ntoa(*ns), port);
+}
+
+/*
+**  NSPORTIP -- parse port@IPv4 and set NS accordingly
+**
+**	Parameters:
+**		p -- port@IPv4
+**
+**	Returns:
+**		<0: error
+**		>=0: ok
+**
+**	Side Effects:
+**		sets NS for DNS lookups
+*/
+
+/*
+**  There should be a generic function for this...
+**  milter_open(), socket_map_open(), others?
+*/
+
+int
+nsportip(p)
+	char *p;
+{
+	char *h;
+	int r;
+	unsigned short port;
+	struct in_addr nsip;
+
+	if (SM_IS_EMPTY(p))
+		return -1;
+
+	port = 0;
+	while (SM_ISSPACE(*p))
+		p++;
+	if (*p == '\0')
+		return -1;
+	h = strchr(p, '@');
+	if (h != NULL)
+	{
+		*h = '\0';
+		if (isascii(*p) && isdigit(*p))
+			port = atoi(p);
+		*h = '@';
+		p = h + 1;
+	}
+	h = strchr(p, ' ');
+	if (h != NULL)
+		*h = '\0';
+	r = inet_pton(AF_INET, p, &nsip);
+	if (r > 0)
+	{
+		if ((_res.options & RES_INIT) == 0)
+			(void) res_init();
+		dns_addns(&nsip, port);
+	}
+	if (h != NULL)
+		*h = ' ';
+	return r > 0 ? 0 : -1;
+}
+# endif /* DNSSEC_TEST || _FFR_NAMESERVER */
+#endif /* NAMED_BIND */

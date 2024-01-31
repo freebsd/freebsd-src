@@ -409,7 +409,7 @@ smcdb_cursor(database, cursor, flags)
 **	Parameters:
 **		database -- An unallocated database pointer to a pointer.
 **		db_name -- The name of the database without extension.
-**		mode -- File permisions for a created database.
+**		mode -- File permissions for a created database.
 **		mode_mask -- Mode bits that must match on an opened database.
 **		sff -- Flags for safefile.
 **		type -- The type of database to open

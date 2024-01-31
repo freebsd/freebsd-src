@@ -101,7 +101,7 @@ main(argc, argv)
 	**  the copy.
 	*/
 	(void) strlcpy(source,
-		" This is the longer string that will be used for catenation and copying for the the performace testing. The longer the string being catenated or copied the greater the difference in measureable performance\n",
+		" This is the longer string that will be used for catenation and copying for the the performance testing. The longer the string being catenated or copied the greater the difference in measureable performance\n",
 		SRC_SIZE - 1);
 
 	/* Run-time comments to the user */

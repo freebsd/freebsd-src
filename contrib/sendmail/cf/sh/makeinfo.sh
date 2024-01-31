@@ -57,4 +57,4 @@ fi
 echo '#####' built by $user@$host
 echo '#####' in `pwd` | sed 's/\/tmp_mnt//'
 echo '#####' using $1 as configuration include directory | sed 's/\/tmp_mnt//'
-echo "define(\`__HOST__', $host)dnl"
+echo "define(\`__HOST__', \`$host')dnl"

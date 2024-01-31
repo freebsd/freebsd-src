@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2010, 2012-2014 Proofpoint, Inc. and its suppliers.
+ * Copyright (c) 1998-2010, 2012-2014,2021-2024 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -52,30 +52,36 @@ static bool	NotFirstDelivery = false;
 #endif
 
 /* server features */
-#define SRV_NONE	0x0000	/* none... */
-#define SRV_OFFER_TLS	0x0001	/* offer STARTTLS */
-#define SRV_VRFY_CLT	0x0002	/* request a cert */
-#define SRV_OFFER_AUTH	0x0004	/* offer AUTH */
-#define SRV_OFFER_ETRN	0x0008	/* offer ETRN */
-#define SRV_OFFER_VRFY	0x0010	/* offer VRFY (not yet used) */
-#define SRV_OFFER_EXPN	0x0020	/* offer EXPN */
-#define SRV_OFFER_VERB	0x0040	/* offer VERB */
-#define SRV_OFFER_DSN	0x0080	/* offer DSN */
+#define SRV_NONE	0x00000000	/* none... */
+#define SRV_OFFER_TLS	0x00000001	/* offer STARTTLS */
+#define SRV_VRFY_CLT	0x00000002	/* request a cert */
+#define SRV_OFFER_AUTH	0x00000004	/* offer AUTH */
+#define SRV_OFFER_ETRN	0x00000008	/* offer ETRN */
+#define SRV_OFFER_VRFY	0x00000010	/* offer VRFY (not yet used) */
+#define SRV_OFFER_EXPN	0x00000020	/* offer EXPN */
+#define SRV_OFFER_VERB	0x00000040	/* offer VERB */
+#define SRV_OFFER_DSN	0x00000080	/* offer DSN */
 #if PIPELINING
-# define SRV_OFFER_PIPE	0x0100	/* offer PIPELINING */
+# define SRV_OFFER_PIPE	0x00000100	/* offer PIPELINING */
 # if _FFR_NO_PIPE
-#  define SRV_NO_PIPE	0x0200	/* disable PIPELINING, sleep if used */
+#  define SRV_NO_PIPE	0x00000200	/* disable PIPELINING, sleep if used */
 # endif
 #endif /* PIPELINING */
-#define SRV_REQ_AUTH	0x0400	/* require AUTH */
-#define SRV_REQ_SEC	0x0800	/* require security - equiv to AuthOptions=p */
-#define SRV_TMP_FAIL	0x1000	/* ruleset caused a temporary failure */
+#define SRV_REQ_AUTH	0x00000400	/* require AUTH */
+#define SRV_REQ_SEC	0x00000800	/* require security - equiv to AuthOptions=p */
+#define SRV_TMP_FAIL	0x00001000	/* ruleset caused a temporary failure */
 #if USE_EAI
-# define SRV_OFFER_EAI	0x2000	/* offer SMTPUTF8 */
+# define SRV_OFFER_EAI	0x00002000	/* offer SMTPUTF8 */
 #endif
-#define SRV_NO_HTTP_CMD	0x4000	/* always reject HTTP commands */
+#define SRV_NO_HTTP_CMD	0x00004000	/* always reject HTTP commands */
+#define SRV_BAD_PIPELINE	0x00008000	/* reject bad pipelining (see comment below) */
+#define SRV_REQ_CRLF	0x00010000	/* require CRLF as EOL */
+#define SRV_BARE_LF_421	0x00020000	/* bare LF - drop connection */
+#define SRV_BARE_CR_421	0x00040000	/* bare CR - drop connection */
+#define SRV_BARE_LF_SP	0x00080000
+#define SRV_BARE_CR_SP	0x00100000
 
-static unsigned int	srvfeatures __P((ENVELOPE *, char *, unsigned int));
+static unsigned long	srvfeatures __P((ENVELOPE *, char *, unsigned long));
 
 #define	STOP_ATTACK	((time_t) -1)
 static time_t	checksmtpattack __P((volatile unsigned int *, unsigned int,
@@ -83,6 +89,7 @@ static time_t	checksmtpattack __P((volatile unsigned int *, unsigned int,
 static void	printvrfyaddr __P((ADDRESS *, bool, bool));
 static char	*skipword __P((char *volatile, char *));
 static void	setup_smtpd_io __P((void));
+static struct timeval	*channel_readable __P((SM_FILE_T *, int));
 
 #if SASL
 # ifndef MAX_AUTH_USER_LEN
@@ -165,25 +172,43 @@ extern ENVELOPE	BlankEnvelope;
 
 #if USE_EAI
 /*
-**  ADDR_IS_ASCII -- check whether an address is 100% printable ASCII
+**  ADDR_IS_ASCII -- check whether a string (address) is ASCII
 **
 **	Parameters:
-**		a -- an address (or other string)
+**		str -- a string
 **
 **	Returns:
-**		TRUE if a is non-NULL and points to only printable ASCII
-**		FALSE if a is NULL and points to printable ASCII
-**		FALSE if a is non-NULL and points to something containing 8-bittery
+**		TRUE iff str is non-NULL and points to only ASCII
 */
 
 bool
-addr_is_ascii(a)
-	const char *a;
+addr_is_ascii(str)
+	const char *str;
 {
-	while (a != NULL && *a != '\0' && *a >= ' ' && (unsigned char)*a < 127)
-		a++;
-	return (a != NULL && *a == '\0');
+	while (str != NULL && *str != '\0' && isascii((unsigned char)*str))
+		str++;
+	return (str != NULL && *str == '\0');
 }
+
+/*
+**  STR_IS_PRINT -- check whether a string is printable ASCII
+**
+**	Parameters:
+**		str -- a string
+**
+**	Returns:
+**		TRUE iff str is non-NULL and points to only printable ASCII
+*/
+
+bool
+str_is_print(str)
+	const char *str;
+{
+	while (str != NULL && *str != '\0' && *str >= ' ' && (unsigned char)*str < 127)
+		str++;
+	return (str != NULL && *str == '\0');
+}
+
 
 # define CHECK_UTF8_ADDR(a, q)	\
 	do	\
@@ -191,7 +216,7 @@ addr_is_ascii(a)
 		q = NULL;	\
 		if (addr_is_ascii(a))	\
 			break;	\
-		if (!SMTPUTF8)	\
+		if (!SMTP_UTF8)	\
 			break;	\
 		if (!e->e_smtputf8)	\
 			q = "553 5.6.7 Address requires SMTPUTF8";	\
@@ -199,7 +224,7 @@ addr_is_ascii(a)
 		{	\
 			char str[MAXNAME];	\
 			dequote_internal_chars(a, str, sizeof(str));	\
-			if (!utf8_valid(str, strlen(str)) && SMTPUTF8 <= 1) \
+			if (!utf8_valid(str, strlen(str)) && SMTP_UTF8 <= 1) \
 				q = "553 5.6.7 Address not valid UTF8";	\
 		}	\
 	} while (0)
@@ -456,6 +481,90 @@ rcptmods(rcpt, e)
 # define rcptmods(a, e)
 #endif /* _FFR_RCPTFLAGS */
 
+#if _FFR_8BITENVADDR
+
+/*
+**  SEP_ARGS -- separate address and argument string for MAIL/RCPT command
+**
+**	Parameters:
+**		args -- arguments (converted to and from internal format)
+**		orig -- string after command (original data)
+**		id -- envelope id (for logging only)
+**		addr -- for logging only: address (original data)
+**
+**	Returns:
+**		nothing
+*/
+
+static void sep_args __P((char *, char *, const char *, const char *));
+
+static void
+sep_args(args, orig, id, addr)
+	char *args;
+	char *orig;
+	const char *id;
+	const char *addr;
+{
+	int lr, lo;
+	char *q;
+
+	lr = strlen(args);
+	lo = strlen(orig);
+	if (lr >= lo)
+	{
+		sm_syslog(LOG_ERR, id,
+			"ERROR=ARGS_NOT_FOUND, address='%s', rest='%s', orig='%s', strlen(rest)=%d, strlen(orig)=%d",
+			addr, args, orig, lr, lo);
+		return;
+	}
+
+	q = orig + (lo - lr);
+	if (!(q > orig && *--q == ' '))
+	{
+		sm_syslog(LOG_INFO, id,
+			"ERROR=ARGS_DO_NOT_MATCH, address='%s', rest='%s', orig='%s', q='%s', strlen(rest)=%d, strlen(orig)=%d, cmp=%d",
+			addr, args, orig, q, lr, lo, strcmp(args, q));
+		return;
+	}
+
+	for (; q > orig && *q == ' '; q--)
+		*q = '\0';
+}
+#endif /* _FFR_8BITENVADDR */
+
+/*
+**  CHANNEL_READBLE -- determine if data is readable from the SMTP channel
+**
+**	Parameters:
+**		channel -- connect channel for reading
+**		timeout -- how long to pause for data in milliseconds
+**
+**	Returns:
+**		timeval contained how long we waited if data detected,
+**			NULL otherwise
+*/
+
+static struct timeval *
+channel_readable(channel, timeout)
+	SM_FILE_T *channel;
+	int timeout;
+{
+	struct timeval bp, ep; /* {begin,end} pause */
+	static struct timeval tp; /* total pause */
+	int eoftest;
+
+	/* check if data is on the channel during the pause */
+	gettimeofday(&bp, NULL);
+	if ((eoftest = sm_io_getc(channel, timeout)) != SM_IO_EOF)
+	{
+		gettimeofday(&ep, NULL);
+		sm_io_ungetc(channel, SM_TIME_DEFAULT, eoftest);
+		timersub(&ep, &bp, &tp);
+		return &tp;
+	}
+	return NULL;
+}
+
 /*
 **  SMTP -- run the SMTP protocol.
 **
@@ -579,7 +688,7 @@ static char	*CurSmtpClient;		/* who's at the other end of channel */
 # define MAXSHIFT 8
 #endif
 #if MAXSHIFT > 31
-# ERROR "MAXSHIFT > 31 is invalid"
+# error "MAXSHIFT > 31 is invalid"
 #endif
 
 
@@ -616,7 +725,7 @@ typedef struct
 	char		*sm_quarmsg;	/* carry quarantining across messages */
 } SMTP_T;
 
-static bool	smtp_data __P((SMTP_T *, ENVELOPE *));
+static bool	smtp_data __P((SMTP_T *, ENVELOPE *, bool));
 
 #define MSG_TEMPFAIL "451 4.3.2 Please try again later"
 
@@ -822,8 +931,6 @@ do								\
 	    : (tls_active ? "ESMTPS"  : "ESMTP"))
 #endif /* USE_EAI */
 
-static bool SevenBitInput_Saved;	/* saved version of SevenBitInput */
-
 #if _FFR_NOREFLECT
 # define SHOWCMDINREPLY(inp) (bitset(PRIV_NOREFLECTION, PrivacyFlags) ? \
 		"(suppressed)" : inp)
@@ -874,7 +981,7 @@ smtp(nullserver, d_flags, e)
 	char *args[MAXSMTPARGS];
 	char inp[MAXINPLINE];
 #if MAXINPLINE < MAXLINE
-# ERROR "MAXINPLINE must NOT be less than MAXLINE"
+# error "MAXINPLINE must NOT be less than MAXLINE"
 #endif
 	char cmdbuf[MAXLINE];
 #if SASL
@@ -914,6 +1021,7 @@ smtp(nullserver, d_flags, e)
 	int rfd, wfd;
 	volatile bool tls_active = false;
 	volatile bool smtps = bitnset(D_SMTPS, d_flags);
+	bool gotostarttls = false;
 	bool saveQuickAbort;
 	bool saveSuprErrs;
 	time_t tlsstart;
@@ -921,11 +1029,9 @@ smtp(nullserver, d_flags, e)
 	int save_errno;
 	extern int TLSsslidx;
 #endif /* STARTTLS */
-	volatile unsigned int features;
-#if PIPELINING
-# if _FFR_NO_PIPE
+	volatile unsigned long features;
+#if PIPELINING && _FFR_NO_PIPE
 	int np_log = 0;
-# endif
 #endif
 	volatile time_t log_delay = (time_t) 0;
 #if MILTER
@@ -940,9 +1046,9 @@ smtp(nullserver, d_flags, e)
 #if _FFR_BADRCPT_SHUTDOWN
 	int n_badrcpts_adj;
 #endif
+	bool gotodoquit = false;
 
 	RESET_AUTH_FAIL_LOG_USER;
-	SevenBitInput_Saved = SevenBitInput;
 	smtp.sm_nrcpts = 0;
 #if MILTER
 	smtp.sm_milterize = (nullserver == NULL);
@@ -985,7 +1091,15 @@ smtp(nullserver, d_flags, e)
 
 	sm_setproctitle(true, e, "server %s startup", CurSmtpClient);
 
-	/* Set default features for server. */
+	maps_reset_chged("server:smtp");
+
+	/*
+	**  Set default features for server.
+	**
+	**  Changing SRV_BARE_LF_421 | SRV_BARE_CR_421 below also
+	**  requires changing srvfeatures() variant code.
+	*/
+
 	features = ((bitset(PRIV_NOETRN, PrivacyFlags) ||
 		     bitnset(D_NOETRN, d_flags)) ? SRV_NONE : SRV_OFFER_ETRN)
 		| (bitnset(D_AUTHREQ, d_flags) ? SRV_REQ_AUTH : SRV_NONE)
@@ -1003,14 +1117,16 @@ smtp(nullserver, d_flags, e)
 #if PIPELINING
 		| SRV_OFFER_PIPE
 #endif
+		| SRV_BAD_PIPELINE
 #if STARTTLS
 		| (bitnset(D_NOTLS, d_flags) ? SRV_NONE : SRV_OFFER_TLS)
 		| (bitset(TLS_I_NO_VRFY, TLS_Srv_Opts) ? SRV_NONE
 						       : SRV_VRFY_CLT)
 #endif
 #if USE_EAI
-		| (SMTPUTF8 ? SRV_OFFER_EAI : 0)
+		| (SMTP_UTF8 ? SRV_OFFER_EAI : 0)
 #endif
+		| SRV_REQ_CRLF | SRV_BARE_LF_421 | SRV_BARE_CR_421
 		;
 	if (nullserver == NULL)
 	{
@@ -1025,15 +1141,13 @@ smtp(nullserver, d_flags, e)
 		}
 		else
 		{
-#if PIPELINING
-# if _FFR_NO_PIPE
+#if PIPELINING && _FFR_NO_PIPE
 			if (bitset(SRV_NO_PIPE, features))
 			{
 				/* for consistency */
 				features &= ~SRV_OFFER_PIPE;
 			}
-# endif /* _FFR_NO_PIPE */
-#endif /* PIPELINING */
+#endif /* PIPELINING && _FFR_NO_PIPE */
 #if SASL
 			if (bitset(SRV_REQ_SEC, features))
 				SASLOpts |= SASL_SEC_NOPLAINTEXT;
@@ -1046,7 +1160,8 @@ smtp(nullserver, d_flags, e)
 	{
 		/* Can't use ("%s", ...) due to message() requirements */
 		message(nullserver);
-		goto doquit;
+		gotodoquit = true;
+		goto cmdloop;
 	}
 
 	e->e_features = features;
@@ -1248,7 +1363,8 @@ smtp(nullserver, d_flags, e)
 			/* arrange to ignore send list */
 			e->e_sendqueue = NULL;
 			lognullconnection = false;
-			goto doquit;
+			gotodoquit = true;
+			goto cmdloop;
 		}
 	}
 
@@ -1313,7 +1429,8 @@ smtp(nullserver, d_flags, e)
 
 				/* arrange to ignore send list */
 				e->e_sendqueue = NULL;
-				goto doquit;
+				gotodoquit = true;
+				goto cmdloop;
 			}
 			else
 			{
@@ -1366,7 +1483,8 @@ smtp(nullserver, d_flags, e)
 
 			/* arrange to ignore send list */
 			e->e_sendqueue = NULL;
-			goto doquit;
+			gotodoquit = true;
+			goto cmdloop;
 		}
 		if (response != NULL)
 			sm_free(response);
@@ -1401,46 +1519,23 @@ smtp(nullserver, d_flags, e)
 
 		if (msecs > 0)
 		{
-			int fd;
-			fd_set readfds;
-			struct timeval timeout;
-			struct timeval bp, ep, tp; /* {begin,end,total}pause */
-			int eoftest;
+			struct timeval *tp; /* total pause */
 
-			/* pause for a moment */
-			timeout.tv_sec = msecs / 1000;
-			timeout.tv_usec = (msecs % 1000) * 1000;
-
-			/* Obey RFC 2821: 4.3.5.2: 220 timeout of 5 minutes */
-			if (timeout.tv_sec >= 300)
-			{
-				timeout.tv_sec = 300;
-				timeout.tv_usec = 0;
-			}
+			/* Obey RFC 2821: 4.5.3.2: 220 timeout of 5 minutes (300 seconds) */
+			if (msecs >= 300000)
+				msecs = 300000;
 
 			/* check if data is on the socket during the pause */
-			fd = sm_io_getinfo(InChannel, SM_IO_WHAT_FD, NULL);
-			FD_ZERO(&readfds);
-			SM_FD_SET(fd, &readfds);
-			gettimeofday(&bp, NULL);
-			if (select(fd + 1, FDSET_CAST &readfds,
-			    NULL, NULL, &timeout) > 0 &&
-			    FD_ISSET(fd, &readfds) &&
-			    (eoftest = sm_io_getc(InChannel, SM_TIME_DEFAULT))
-			    != SM_IO_EOF)
+			if ((tp = channel_readable(InChannel, msecs)) != NULL)
 			{
-				sm_io_ungetc(InChannel, SM_TIME_DEFAULT,
-					     eoftest);
-				gettimeofday(&ep, NULL);
-				timersub(&ep, &bp, &tp);
 				greetcode = "554";
 				nullserver = "Command rejected";
 				sm_syslog(LOG_INFO, e->e_id,
 					  "rejecting commands from %s [%s] due to pre-greeting traffic after %d seconds",
 					  peerhostname,
 					  anynet_ntoa(&RealHostAddr),
-					  (int) tp.tv_sec +
-						(tp.tv_usec >= 500000 ? 1 : 0)
+					  (int) tp->tv_sec +
+						(tp->tv_usec >= 500000 ? 1 : 0)
 					 );
 			}
 		}
@@ -1460,7 +1555,8 @@ smtp(nullserver, d_flags, e)
 		first = true;
 		gothello = false;
 		smtp.sm_gotmail = false;
-		goto starttls;
+		gotostarttls = true;
+		goto cmdloop;
 	}
 
   greeting:
@@ -1522,6 +1618,8 @@ smtp(nullserver, d_flags, e)
 	smtp.sm_gotmail = false;
 	for (;;)
 	{
+
+  cmdloop:
 	    SM_TRY
 	    {
 		QuickAbort = false;
@@ -1539,6 +1637,19 @@ smtp(nullserver, d_flags, e)
 		Errors = 0;
 		FileName = NULL;
 		(void) sm_io_flush(smioout, SM_TIME_DEFAULT);
+
+		if (gotodoquit)
+		{
+			gotodoquit = false;
+			goto doquit;
+		}
+#if STARTTLS
+		if (gotostarttls)
+		{
+			gotostarttls = false;
+			goto starttls;
+		}
+#endif
 
 		/* read the input line */
 		SmtpPhase = "server cmd read";
@@ -1635,14 +1746,10 @@ smtp(nullserver, d_flags, e)
 		/* clean up end of line */
 		fixcrlf(inp, true);
 
-#if PIPELINING
-# if _FFR_NO_PIPE
+#if PIPELINING && _FFR_NO_PIPE
 		/*
 		**  if there is more input and pipelining is disabled:
 		**	delay ... (and maybe discard the input?)
-		**  XXX this doesn't really work, at least in tests using
-		**  telnet SM_IO_IS_READABLE only returns 1 if there were
-		**  more than 2 input lines available.
 		*/
 
 		if (bitset(SRV_NO_PIPE, features) &&
@@ -1654,9 +1761,7 @@ smtp(nullserver, d_flags, e)
 					   CurSmtpClient);
 			sleep(1);
 		}
-
-# endif /* _FFR_NO_PIPE */
-#endif /* PIPELINING */
+#endif /* PIPELINING && _FFR_NO_PIPE */
 
 #if SASL
 		if (authenticating == SASL_PROC_AUTH)
@@ -2014,7 +2119,7 @@ smtp(nullserver, d_flags, e)
 				message("503 5.3.3 AUTH not available");
 				break;
 			}
-			if (authenticating == SASL_IS_AUTH)
+			if (auth_active)
 			{
 				message("503 5.5.0 Already Authenticated");
 				break;
@@ -2249,11 +2354,15 @@ smtp(nullserver, d_flags, e)
 				tlslogerr(LOG_WARNING, 8, "server");
 				goto tls_done;
 			}
+# if DANE
+			tlsi_ctx.tlsi_dvc.dane_vrfy_dane_enabled = false;
+			tlsi_ctx.tlsi_dvc.dane_vrfy_chk = DANE_NEVER;
+# endif
 			if (get_tls_se_features(e, srv_ssl, &tlsi_ctx, true)
 			    != EX_OK)
 			{
 				/* do not offer too much info to client */
-				message("454 4.3.3 TLS curently not available");
+				message("454 4.3.3 TLS currently not available");
 				SMTLSFAILED;
 			}
 			r = SSL_set_ex_data(srv_ssl, TLSsslidx, &tlsi_ctx);
@@ -2262,8 +2371,8 @@ smtp(nullserver, d_flags, e)
 				if (LogLevel > 5)
 				{
 					sm_syslog(LOG_ERR, NOQID,
-						"STARTTLS=server, error: SSL_set_ex_data failed=%d",
-						r);
+						"STARTTLS=server, error: SSL_set_ex_data failed=%d, TLSsslidx=%d",
+						r, TLSsslidx);
 					tlslogerr(LOG_WARNING, 9, "server");
 				}
 				SMTLSFAILED;
@@ -2468,6 +2577,30 @@ smtp(nullserver, d_flags, e)
 			/* avoid denial-of-service */
 			STOP_IF_ATTACK(checksmtpattack(&n_helo, MAXHELOCOMMANDS,
 							true, "HELO/EHLO", e));
+
+			/*
+			**  Despite the fact that the name indicates this
+			**  a PIPELINE related feature, do not enclose
+			**  it in #if PIPELINING so we can protect SMTP
+			**  servers not compiled with PIPELINE support
+			**  from transaction stuffing.
+			*/
+
+			/* check if data is on the socket before the EHLO reply */
+			if (bitset(SRV_BAD_PIPELINE, features) &&
+			    sm_io_getinfo(InChannel, SM_IO_IS_READABLE, NULL) > 0)
+			{
+				sm_syslog(LOG_INFO, e->e_id,
+					"rejecting %s from %s [%s] due to traffic before response",
+					SmtpPhase, CurHostName,
+					anynet_ntoa(&RealHostAddr));
+				usrerr("554 5.5.0 SMTP protocol error");
+				nullserver = "Command rejected";
+#if MILTER
+				smtp.sm_milterize = false;
+#endif
+				break;
+			}
 
 #if 0
 			/* RFC2821 4.1.4 allows duplicate HELO/EHLO */
@@ -2726,6 +2859,7 @@ smtp(nullserver, d_flags, e)
 			p = skipword(p, "from");
 			if (p == NULL)
 				break;
+			maps_reset_chged("server:MAIL");
 			if (tempfail)
 			{
 				if (LogLevel > 9)
@@ -2817,6 +2951,7 @@ smtp(nullserver, d_flags, e)
 #if _FFR_8BITENVADDR
 				len = sizeof(iaddr) - (delimptr - iaddr);
 				(void) dequote_internal_chars(delimptr, delimptr, len);
+				sep_args(delimptr, origp, e->e_id, p);
 #endif
 			}
 			if (Errors > 0)
@@ -2862,7 +2997,7 @@ smtp(nullserver, d_flags, e)
 			}
 
 			/* reset to default value */
-			SevenBitInput = SevenBitInput_Saved;
+			e->e_flags &= ~EF_7BITBODY;
 
 			/* now parse ESMTP arguments */
 			e->e_msgsize = 0;
@@ -3154,6 +3289,7 @@ smtp(nullserver, d_flags, e)
 #if _FFR_8BITENVADDR
 				len = sizeof(iaddr) - (delimptr - iaddr);
 				(void) dequote_internal_chars(delimptr, delimptr, len);
+				sep_args(delimptr, origp, e->e_id, p);
 #endif
 			}
 
@@ -3381,7 +3517,8 @@ smtp(nullserver, d_flags, e)
 
 		  case CMDDATA:		/* data -- text of mail */
 			DELAY_CONN("DATA");
-			if (!smtp_data(&smtp, e))
+			if (!smtp_data(&smtp, e,
+					bitset(SRV_BAD_PIPELINE, features)))
 				goto doquit;
 			break;
 
@@ -3663,7 +3800,7 @@ smtp(nullserver, d_flags, e)
 			}
 #endif /* STARTTLS */
 #if SASL
-			if (authenticating == SASL_IS_AUTH)
+			if (auth_active)
 			{
 				sasl_dispose(&conn);
 				authenticating = SASL_NOT_AUTH;
@@ -3671,7 +3808,7 @@ smtp(nullserver, d_flags, e)
 			}
 #endif /* SASL */
 
-doquit:
+  doquit:
 			/* avoid future 050 messages */
 			disconnect(1, e);
 
@@ -3861,6 +3998,7 @@ doquit:
 **	Parameters:
 **		smtp -- status of SMTP connection.
 **		e -- envelope.
+**		check_stuffing -- check for transaction stuffing.
 **
 **	Returns:
 **		true iff SMTP session can continue.
@@ -3870,9 +4008,10 @@ doquit:
 */
 
 static bool
-smtp_data(smtp, e)
+smtp_data(smtp, e, check_stuffing)
 	SMTP_T *smtp;
 	ENVELOPE *e;
+	bool check_stuffing;
 {
 #if MILTER
 	bool milteraccept;
@@ -3884,7 +4023,7 @@ smtp_data(smtp, e)
 	ENVELOPE *ee;
 	char *id;
 	char *oldid;
-	unsigned int features;
+	unsigned long features;
 	char buf[32];
 
 	SmtpPhase = "server DATA";
@@ -3898,6 +4037,18 @@ smtp_data(smtp, e)
 		usrerr("503 5.0.0 Need RCPT (recipient)");
 		return true;
 	}
+
+	/* check if data is on the socket before the DATA reply */
+	if (check_stuffing &&
+	    sm_io_getinfo(InChannel, SM_IO_IS_READABLE, NULL) > 0)
+	{
+		sm_syslog(LOG_INFO, e->e_id,
+			"rejecting %s from %s [%s] due to traffic before response",
+			SmtpPhase, CurHostName, anynet_ntoa(&RealHostAddr));
+		usrerr("554 5.5.0 SMTP protocol error");
+		return false;
+	}
+
 	(void) sm_snprintf(buf, sizeof(buf), "%u", smtp->sm_nrcpts);
 	if (rscheck("check_data", buf, NULL, e,
 		    RSF_RMCOMM|RSF_UNSTRUCTURED|RSF_COUNT, 3, NULL,
@@ -4018,7 +4169,13 @@ smtp_data(smtp, e)
 	SmtpPhase = "collect";
 	buffer_errors();
 
-	collect(InChannel, true, NULL, e, true);
+	collect(InChannel, SMTPMODE_LAX
+		| (bitset(SRV_BARE_LF_421, e->e_features) ? SMTPMODE_LF_421 : 0)
+		| (bitset(SRV_BARE_CR_421, e->e_features) ? SMTPMODE_CR_421 : 0)
+		| (bitset(SRV_BARE_LF_SP, e->e_features) ? SMTPMODE_LF_SP : 0)
+		| (bitset(SRV_BARE_CR_SP, e->e_features) ? SMTPMODE_CR_SP : 0)
+		| (bitset(SRV_REQ_CRLF, e->e_features) ? SMTPMODE_CRLF : 0),
+		NULL, e, true);
 
 	/* redefine message size */
 	(void) sm_snprintf(buf, sizeof(buf), "%ld", PRT_NONNEGL(e->e_msgsize));
@@ -4810,7 +4967,7 @@ skipword(p, w)
 }
 
 /*
-**  RESET_MAIL_ESMTP_ARGS -- process ESMTP arguments from MAIL line
+**  RESET_MAIL_ESMTP_ARGS -- reset ESMTP arguments for MAIL
 **
 **	Parameters:
 **		e -- the envelope.
@@ -4826,7 +4983,7 @@ reset_mail_esmtp_args(e)
 	/* "size": no reset */
 
 	/* "body" */
-	SevenBitInput = SevenBitInput_Saved;
+	e->e_flags &= ~EF_7BITBODY;
 	e->e_bodytype = NULL;
 
 	/* "envid" */
@@ -4901,13 +5058,9 @@ mail_esmtp_args(a, kp, vp, e)
 			/* NOTREACHED */
 		}
 		else if (SM_STRCASEEQ(vp, "8bitmime"))
-		{
-			SevenBitInput = false;
-		}
+			;
 		else if (SM_STRCASEEQ(vp, "7bit"))
-		{
-			SevenBitInput = true;
-		}
+			e->e_flags |= EF_7BITBODY;
 		else
 		{
 			usrerr("501 5.5.4 Unknown BODY type %s",
@@ -5504,39 +5657,50 @@ initsrvtls(tls_ok)
 static struct
 {
 	char		srvf_opt;
-	unsigned int	srvf_flag;
+	unsigned long	srvf_flag;
+	unsigned long	srvf_flag2;
 } srv_feat_table[] =
 {
-	{ 'A',	SRV_OFFER_AUTH	},
-	{ 'B',	SRV_OFFER_VERB	},
-	{ 'C',	SRV_REQ_SEC	},
-	{ 'D',	SRV_OFFER_DSN	},
-	{ 'E',	SRV_OFFER_ETRN	},
-	{ 'H',	SRV_NO_HTTP_CMD	},
+	{ 'A',	SRV_OFFER_AUTH	, 0	},
+	{ 'B',	SRV_OFFER_VERB	, 0	},
+	{ 'C',	SRV_REQ_SEC	, 0	},
+	{ 'D',	SRV_OFFER_DSN	, 0	},
+	{ 'E',	SRV_OFFER_ETRN	, 0	},
+	{ 'F',	SRV_BAD_PIPELINE	, 0	},
+	{ 'G',	SRV_BARE_LF_421 , SRV_BARE_LF_SP	},
+	{ 'H',	SRV_NO_HTTP_CMD	, 0	},
 #if USE_EAI
-	{ 'I',	SRV_OFFER_EAI	},
+	{ 'I',	SRV_OFFER_EAI	, 0	},
 #endif
-	{ 'L',	SRV_REQ_AUTH	},
+/*	{ 'J',	0	, 0	},	*/
+/*	{ 'K',	0	, 0	},	*/
+	{ 'L',	SRV_REQ_AUTH	, 0	},
+/*	{ 'M',	0	, 0	},	*/
+#if PIPELINING && _FFR_NO_PIPE
+	{ 'N',	SRV_NO_PIPE	, 0	},
+#endif
+	{ 'O',	SRV_REQ_CRLF	, 0	},	/* eOl */
 #if PIPELINING
-# if _FFR_NO_PIPE
-	{ 'N',	SRV_NO_PIPE	},
-# endif
-	{ 'P',	SRV_OFFER_PIPE	},
-#endif /* PIPELINING */
-	{ 'R',	SRV_VRFY_CLT	},	/* same as V; not documented */
-	{ 'S',	SRV_OFFER_TLS	},
-/*	{ 'T',	SRV_TMP_FAIL	},	*/
-	{ 'V',	SRV_VRFY_CLT	},
-	{ 'X',	SRV_OFFER_EXPN	},
-/*	{ 'Y',	SRV_OFFER_VRFY	},	*/
-	{ '\0',	SRV_NONE	}
+	{ 'P',	SRV_OFFER_PIPE	, 0	},
+#endif
+/*	{ 'Q',	0	, 0	},	*/
+	{ 'R',	SRV_VRFY_CLT	, 0	},	/* same as V; not documented */
+	{ 'S',	SRV_OFFER_TLS	, 0	},
+/*	{ 'T',	SRV_TMP_FAIL	, 0	},	*/
+	{ 'U',	SRV_BARE_CR_421 , SRV_BARE_CR_SP	},
+	{ 'V',	SRV_VRFY_CLT	, 0	},
+/*	{ 'W',	0	, 0	},	*/
+	{ 'X',	SRV_OFFER_EXPN	, 0	},
+/*	{ 'Y',	SRV_OFFER_VRFY	, 0	},	*/
+/*	{ 'Z',	0	, 0	},	*/
+	{ '\0',	SRV_NONE	, 0	}
 };
 
-static unsigned int
+static unsigned long
 srvfeatures(e, clientname, features)
 	ENVELOPE *e;
 	char *clientname;
-	unsigned int features;
+	unsigned long features;
 {
 	int r, i, j;
 	char **pvp, c, opt;
@@ -5570,7 +5734,7 @@ srvfeatures(e, clientname, features)
 			{
 				if (LogLevel > 9)
 					sm_syslog(LOG_WARNING, e->e_id,
-						  "srvfeatures: unknown feature %s",
+						  "srv_features: unknown feature %s",
 						  pvp[i]);
 				break;
 			}
@@ -5579,9 +5743,40 @@ srvfeatures(e, clientname, features)
 				features &= ~(srv_feat_table[j].srvf_flag);
 				break;
 			}
+
+			/*
+			**  Note: the "noflag" code below works ONLY for
+			**  the current situation:
+			**  - _flag itself is set by default
+			**    (drop session if bare CR or LF is found)
+			**  - _flag2 is only "effective" if _flag is not set,
+			**    hence using it turns off _flag.
+			**  If that situation changes, the code must be changed!
+			*/
+
 			if (c == tolower(opt))
 			{
-				features |= srv_feat_table[j].srvf_flag;
+				unsigned long flag, noflag;
+
+				c = pvp[i][1];
+				flag = noflag = 0;
+				if ('2' == c)
+				{
+					flag = srv_feat_table[j].srvf_flag2;
+					noflag = srv_feat_table[j].srvf_flag;
+				}
+				else if ('\0' == c)
+					flag = srv_feat_table[j].srvf_flag;
+				if (0 != flag)
+				{
+					features |= flag;
+					if (0 != noflag)
+						features &= ~noflag;
+				}
+				else if (LogLevel > 9)
+					sm_syslog(LOG_WARNING, e->e_id,
+						  "srv_features: unknown variant %s",
+						  pvp[i]);
 				break;
 			}
 			++j;
@@ -5748,7 +5943,7 @@ reset_saslconn(sasl_conn_t **conn, char *hostname,
 	       sasl_external_properties_t * ext_ssf)
 # endif /* SASL >= 20000 */
 #else /* __STDC__ */
-# ERROR "SASL requires __STDC__"
+# error "SASL requires __STDC__"
 #endif /* __STDC__ */
 {
 	int result;

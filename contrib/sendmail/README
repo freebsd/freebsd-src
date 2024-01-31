@@ -4,10 +4,11 @@
 This directory has the latest sendmail(TM) software from Proofpoint, Inc.
 
 Report any bugs to sendmail-bugs-YYYY@support.sendmail.org
-where YYYY is the current year, e.g., 2005.
+where YYYY is the current year, e.g., 2023.
 
-There is a web site at http://www.sendmail.org/ -- see that site for
+There is a web site at https://www.sendmail.org/ -- see that site for
 the latest updates.
+
 
 +--------------+
 | INTRODUCTION |
@@ -39,6 +40,7 @@ the latest updates.
 
 Sendmail is a trademark of Proofpoint, Inc.
 US Patent Numbers 6865671, 6986037.
+
 
 +-----------------------+
 | DIRECTORY PERMISSIONS |
@@ -197,14 +199,6 @@ There are other files you should read.  Rooted in this directory are:
 
 	This sets a word in a smaller pointsize.
 
-	- with new groff versions (1.18 seems affected)
-
-	GROFF_NO_SGR=1
-
-	needs to be set, e.g., in doc/op/Makefile:
-
-	ROFF_CMD=	GROFF_NO_SGR=1 groff
-
 
 +--------------+
 | RELATED RFCS |
@@ -248,6 +242,13 @@ Important RFCs for electronic mail are:
 	RFC2822 Internet Message Format
 	RFC2852 Deliver By SMTP Service Extension
 	RFC2920 SMTP Service Extension for Command Pipelining
+	RFC5321 Simple Mail Transfer Protocol
+	RFC5322 Internet Message Format
+	RFC6530 Overview and Framework for Internationalized Email
+	RFC6531 SMTP Extension for Internationalized Email
+	RFC6532 Internationalized Email Headers
+	RFC6533 Internationalized Delivery Status and Disposition Notifications
+	RFC8461 SMTP MTA Strict Transport Security (MTA-STS)
 
 Other standards that may be of interest (but which are less directly
 relevant to sendmail) are:
@@ -325,6 +326,10 @@ DB 2.X and 3.X.  If you are upgrading from one of those versions, you must
 recreate your database file(s).  Do this by rebuilding all maps with
 makemap and rebuilding the alias file with newaliases.
 
+File locking using fcntl() does not interoperate with Berkeley DB
+5.x (and probably later).  Use CDB, flock() (-DHASFLOCK), or an
+earlier Berkeley DB version.
+
 
 +--------------------+
 | HOST NAME SERVICES |
@@ -390,6 +395,7 @@ CommuniGate Pro
 
 	in .mc file if you have compiled sendmail with Cyrus SASL
 	and you communicate with CommuniGate Pro servers.
+
 
 +---------------------+
 | DIRECTORY STRUCTURE |

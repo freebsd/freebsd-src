@@ -54,6 +54,10 @@ extern char	*macro_map_lookup __P((MAP *, char *, char **, int *));
 
 extern bool	map_parseargs __P((MAP *, char *));
 
+#if LDAPMAP
+extern bool	ldapmap_parseargs __P((MAP *, char *));
+#endif
+
 #if NDBM
 extern char	*ndbm_map_lookup __P((MAP *, char *, char **, int *));
 extern void	ndbm_map_store __P((MAP *, char *, char *));
@@ -67,6 +71,10 @@ extern bool	null_map_open __P((MAP *, int));
 extern void	null_map_close __P((MAP *));
 extern char	*null_map_lookup __P((MAP *, char *, char **, int *));
 extern void	null_map_store __P((MAP *, char *, char *));
+
+#if PH_MAP
+extern bool	ph_map_parseargs __P((MAP *, char *));
+#endif
 
 extern char	*prog_map_lookup __P((MAP *, char *, char **, int *));
 

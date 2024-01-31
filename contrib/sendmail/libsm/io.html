@@ -481,7 +481,7 @@ close file descriptors 0, 1 and 2).
 Thus <tt>sm_io_open()</tt> should
 never be called: the named file pointers should be used directly.
 Calls to <b>stdio</b> are safe to make when using these three<b>sm_io</b>
-file pointers though no code is shared between the two libaries.
+file pointers though no code is shared between the two libraries.
 However, the input and output between <i>sm_io</i> and <i>stdio</i> is
 coordinated for these three file pointers: <i>smiostdin</i>,
 <i>smiostdout</i> and <i>smiostderr</i> are layered on-top-of
@@ -574,10 +574,12 @@ SM_FILE_T. The file pointer content (internal structure members) of an active
 file should only be set and observed with the "info" functions.
 The two exceptions to the above statement are the structure members
 <i>cookie</i> and <i>ival</i>. <i>Cookie</i> is of type <tt>void *</tt>
-while <i>ival</i> is of type <tt>int</tt>. These two structure members exist
-specificly for your created file type to use. The <i>sm_io</i> functions
-will not change or set these two structure members; only specific file type
-will change or set these variables.
+while <i>ival</i> is of type <tt>int</tt>.
+These two structure members exist specifically
+for your created file type to use.
+The <i>sm_io</i> functions
+will not change or set these two structure members;
+only specific file type will change or set these variables.
 </p>
 <p>
 For maintaining information privately about status for a file type the
@@ -598,7 +600,7 @@ For the <i>cookie</i> to be passed to all members of a function type
 cleanly the location of the cookie must assigned during
 the call to open. The file type functions should not attempt to
 maintain the <i>cookie</i> internally since the file type may have
-serveral instances (file pointers).
+several instances (file pointers).
 </p>
 <p>
 The SM_FILE_T's member <i>ival</i> may be used in a manner similar to

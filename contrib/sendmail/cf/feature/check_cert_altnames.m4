@@ -13,5 +13,5 @@ divert(0)dnl
 VERSIONID(`$Id: check_cert_altnames.m4 1.0 2019-01-01 01:01:01 ca Exp $')
 divert(-1)
 define(`_FFR_TLS_ALTNAMES', `1')
-divert(6)dnl
+LOCAL_CONFIG
 O SetCertAltnames=true

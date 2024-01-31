@@ -74,7 +74,7 @@ sm_print(fp, timeout, uio)
 }
 
 /*
-**  SM_BPRINTF -- allow formating to an unbuffered file.
+**  SM_BPRINTF -- allow formatting to an unbuffered file.
 **
 **  Helper function for `fprintf to unbuffered unix file': creates a
 **  temporary buffer (via a "fake" file pointer).
@@ -84,11 +84,11 @@ sm_print(fp, timeout, uio)
 **	Parameters:
 **		fp -- the file to send the o/p to
 **		fmt -- format instructions for the o/p
-**		ap -- vectors of data units used for formating
+**		ap -- vectors of data units used for formatting
 **
 **	Results:
 **		Failure: SM_IO_EOF and errno set
-**		Success: number of data units used in the formating
+**		Success: number of data units used in the formatting
 **
 **	Side effects:
 **		formatted o/p can be SM_IO_BUFSIZ length maximum
@@ -156,13 +156,13 @@ sm_bprintf(fp, fmt, ap)
 #define FPT		0x100		/* Floating point number */
 
 /*
-**  SM_IO_VFPRINTF -- performs actual formating for o/p
+**  SM_IO_VFPRINTF -- performs actual formatting for o/p
 **
 **	Parameters:
 **		fp -- file pointer for o/p
 **		timeout -- time to complete the print
-**		fmt0 -- formating directives
-**		ap -- vectors with data units for formating
+**		fmt0 -- formatting directives
+**		ap -- vectors with data units for formatting
 **
 **	Results:
 **		Success: number of data units used for formatting
@@ -816,8 +816,8 @@ error:
 **  It will be replaced with a malloc-ed one if it overflows.
 **
 **	Parameters:
-**		fmt0 -- formating directives
-**		ap -- vector list of data unit for formating consumption
+**		fmt0 -- formatting directives
+**		ap -- vector list of data unit for formatting consumption
 **		argtable -- an indexable table (returned) of 'ap'
 **
 **	Results:

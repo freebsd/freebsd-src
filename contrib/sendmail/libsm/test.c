@@ -96,7 +96,7 @@ sm_test_begin(argc, argv, testname)
 **  SM_TEST -- single test.
 **
 **	Parameters:
-**		success -- did test succeeed?
+**		success -- did test succeed?
 **		expr -- expression that has been evaluated.
 **		filename -- guess...
 **		lineno -- line number.

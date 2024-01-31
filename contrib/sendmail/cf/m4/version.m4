@@ -15,4 +15,4 @@ VERSIONID(`$Id: version.m4,v 8.237 2014-01-27 12:55:17 ca Exp $')
 #
 divert(0)
 # Configuration version number
-DZ8.17.1`'ifdef(`confCF_VERSION', `/confCF_VERSION')
+DZ8.18.1`'ifdef(`confCF_VERSION', `/confCF_VERSION')

@@ -12,6 +12,13 @@
 
 PRG=./t-streq
 R=0
+# format:
+# two lines:
+# len:string1
+# result:string2
+# result:
+# 1: equal
+# 0: not equal
 ${PRG} <<EOF
 0:a
 1:X
@@ -23,6 +30,18 @@ ${PRG} <<EOF
 1:AC
 2:aB
 0:AC
+2:aB\n
+1:AB
+20:xabcez@uabcey.por.az\n
+1:xabcez@uabcey.por.az
+7:ünchen\n
+1:ünchen
+7:ünchen\n
+0:üncheX
+22:iseadmin@somest.sld.br>\n
+1:iseadmin@somest.sld.br
+22:iseadmin@somest.sld.br
+1:iseadmin@somest.sld.br>\n
 EOF
 R=$?
 

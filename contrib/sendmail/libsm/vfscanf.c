@@ -655,7 +655,7 @@ literal:
 				c = *fp->f_p;
 
 				/*
-				**  This code mimicks the integer conversion
+				**  This code mimics the integer conversion
 				**  code, but is much simpler.
 				*/
 

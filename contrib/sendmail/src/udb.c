@@ -40,7 +40,6 @@ DBT
 **	This depends on the 4.4BSD db package.
 */
 
-
 struct udbent
 {
 	char	*udb_spec;		/* string version of spec */
@@ -68,7 +67,7 @@ struct udbent
 # define udb_fwdhost	udb_u.udb_forward._udb_fwdhost
 
 # if NEWDB
-		/* type UE_FETCH -- lookup in local database */
+		/* type UE_FETCH -- look up in local database */
 		struct
 		{
 			char	*_udb_dbname;	/* pathname of database */
@@ -88,7 +87,6 @@ struct udbent
 # define UDB_HESIOD	5	/* look up via hesiod */
 
 # define MAXUDBENT	10	/* maximum number of UDB entries */
-
 
 struct udb_option
 {
@@ -580,7 +578,7 @@ udbsender(sender, rpool)
 **
 **	Parameters:
 **		user -- the name of the user.
-**		field -- the field to lookup.
+**		field -- the field to look up.
 **		rpool -- resource pool from which to allocate result
 **
 **	Returns:
@@ -598,11 +596,13 @@ udbmatch(user, field, rpool)
 	char *field;
 	SM_RPOOL_T *rpool;
 {
-	register char *p;
 	register struct udbent *up;
-	int i;
+# if NEWDB || HESIOD
+	register char *p;
 	int keylen;
 	DBT key, info;
+# endif
+	int i;
 	char keybuf[MAXUDBKEY];
 
 	if (tTd(28, 1))
@@ -635,7 +635,9 @@ udbmatch(user, field, rpool)
 
 	/* build database key */
 	(void) sm_strlcpyn(keybuf, sizeof(keybuf), 3, user, ":", field);
+# if NEWDB || HESIOD
 	keylen = strlen(keybuf);
+# endif
 
 	for (up = UdbEnts; up->udb_type != UDB_EOLIST; up++)
 	{
@@ -707,7 +709,9 @@ udbmatch(user, field, rpool)
 
 	/* build database key */
 	(void) sm_strlcpyn(keybuf, sizeof(keybuf), 2, user, ":maildrop");
+# if NEWDB || HESIOD
 	keylen = strlen(keybuf);
+# endif
 
 	for (up = UdbEnts; up->udb_type != UDB_EOLIST; up++)
 	{

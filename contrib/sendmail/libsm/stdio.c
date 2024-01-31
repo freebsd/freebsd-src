@@ -162,7 +162,7 @@ sm_stdwrite(fp, buf, n)
 /*
 **  SM_STDSEEK -- set the file offset position
 **
-**	Parmeters:
+**	Parameters:
 **		fp -- file pointer to position
 **		offset -- how far to position from "base" (set by 'whence')
 **		whence -- indicates where the "base" of the 'offset' to start

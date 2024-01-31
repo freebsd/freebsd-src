@@ -89,7 +89,7 @@ parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 #if _FFR_8BITENVADDR
 	if (bitset(RF_IS_EXT, flags) && addr != NULL)
 	{
-		int len = 0;
+		int len;
 
 		addr = quote_internal_chars(addr, NULL, &len, NULL);
 	}
@@ -155,8 +155,9 @@ parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 
 	a = buildaddr(pvp, a, flags, e);
 #if _FFR_8BITENVADDR
+	if (NULL != a->q_user)
 	{
-		int len = 0;
+		int len;
 
 		a->q_user = quote_internal_chars(a->q_user, NULL, &len, e->e_rpool); /* EAI: ok */
 	}
@@ -267,7 +268,7 @@ parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 **		isrcpt -- true iff the address is for a recipient.
 **
 **	Returns:
-**		true -- if the address has characters that are reservered
+**		true -- if the address has characters that are reserved
 **			for macros or is too long.
 **		false -- otherwise.
 */
@@ -398,7 +399,7 @@ hasctrlchar(addr, isrcpt, complain)
 				break;
 			}
 		}
-		if (!SMTPUTF8 && !EightBitAddrOK && (*addr & 0340) == 0200)
+		if (!SMTP_UTF8 && !EightBitAddrOK && (*addr & 0340) == 0200)
 		{
 			setstat(EX_USAGE);
 			result = "8-bit character";
@@ -447,7 +448,7 @@ allocaddr(a, flags, paddr, e)
 	ENVELOPE *e;
 {
 	if (tTd(24, 4))
-		sm_dprintf("allocaddr(flags=%x, paddr=%s, ad=%d)\n", flags, paddr, bitset(EF_SECURE, e->e_flags));
+		sm_dprintf("allocaddr: flags=%x, paddr=%s, ad=%d\n", flags, paddr, bitset(EF_SECURE, e->e_flags));
 
 	a->q_paddr = paddr;
 
@@ -687,7 +688,6 @@ unsigned char	TokTypeNoC[256] =
     /*  p   q   r   s   t   u   v   w    x   y   z   {   |   }   ~   del  */
 	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,ATM,ATM,ATM,ATM,ATM,ATM,ONE
 };
-
 
 #define NOCHAR		(-1)	/* signal nothing in lookahead token */
 
@@ -2015,6 +2015,9 @@ buildaddr(tv, a, flags, e)
 	char **hostp;
 	char hbuf[MAXNAME + 1];	/* EAI:ok */
 	static char ubuf[MAXNAME_I + 2];
+#if _FFR_8BITENVADDR
+	int len;
+#endif
 
 	if (tTd(24, 5))
 	{
@@ -2211,7 +2214,12 @@ badaddr:
 	}
 
 	/* rewrite according recipient mailer rewriting rules */
-	macdefine(&e->e_macro, A_PERM, 'h', a->q_host);
+#if _FFR_8BITENVADDR
+	p = quote_internal_chars(a->q_host, NULL, &len, NULL);
+#else
+	p = a->q_host;
+#endif
+	macdefine(&e->e_macro, A_PERM, 'h', p);
 
 	if (ConfigLevel >= 10 ||
 	    !bitset(RF_SENDERADDR|RF_HEADERADDR, flags))
@@ -2477,7 +2485,6 @@ static struct qflags	AddressFlags[] =
 	{ "QEXPANDED",		QEXPANDED	},
 	{ "QDELIVERED",		QDELIVERED	},
 	{ "QDELAYED",		QDELAYED	},
-	{ "QTHISPASS",		QTHISPASS	},
 	{ "QALIAS",		QALIAS		},
 	{ "QBYTRACE",		QBYTRACE	},
 	{ "QBYNDELAY",		QBYNDELAY	},
@@ -2485,9 +2492,11 @@ static struct qflags	AddressFlags[] =
 	{ "QINTBCC",		QINTBCC		},
 	{ "QDYNMAILER",		QDYNMAILER	},
 	{ "QSECURE",		QSECURE		},
+	{ "QQUEUED",		QQUEUED		},
+	{ "QINTREPLY",		QINTREPLY	},
+	{ "QMXSECURE",		QMXSECURE	},
 	{ "QTHISPASS",		QTHISPASS	},
 	{ "QRCPTOK",		QRCPTOK		},
-	{ "QQUEUED",		QQUEUED		},
 	{ NULL,			0		}
 };
 
@@ -2880,7 +2889,11 @@ maplocaluser(a, sendq, aliaslevel, e)
 {
 	register char **pvp;
 	register ADDRESS *SM_NONVOLATILE a1 = NULL;
+	char *p;
 	char pvpbuf[PSBUFSIZE];
+#if _FFR_8BITENVADDR
+	int len;
+#endif
 
 	if (tTd(29, 1))
 	{
@@ -2897,7 +2910,12 @@ maplocaluser(a, sendq, aliaslevel, e)
 		return;
 	}
 
-	macdefine(&e->e_macro, A_PERM, 'h', a->q_host);
+#if _FFR_8BITENVADDR
+	p = quote_internal_chars(a->q_host, NULL, &len, NULL);
+#else
+	p = a->q_host;
+#endif
+	macdefine(&e->e_macro, A_PERM, 'h', p);
 	macdefine(&e->e_macro, A_PERM, 'u', a->q_user);
 	macdefine(&e->e_macro, A_PERM, 'z', a->q_home);
 
@@ -3321,8 +3339,10 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid, addr, addrstr)
 					  rwset, p1, lbuf, ubuf);
 			else
 				sm_syslog(LOG_NOTICE, logid,
-					  "ruleset=%s, arg1=%s%s, reject=%s",
-					  rwset, p1, lbuf, MsgBuf);
+					  "ruleset=%s, arg1=%s%s, %s=%s",
+					  rwset, p1, lbuf,
+					  bitset(RSF_STATUS, flags) ? "status" : "reject",
+					  MsgBuf);
 		}
 
 	 finis: ;
