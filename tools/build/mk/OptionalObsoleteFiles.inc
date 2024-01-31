@@ -7845,6 +7845,7 @@ OLD_FILES+=usr/share/sendmail/cf/feature/delay_checks.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/dnsbl.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/domaintable.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/enhdnsbl.m4
+OLD_FILES+=usr/share/sendmail/cf/feature/fips3.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/generics_entire_domain.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/genericstable.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/greet_pause.m4

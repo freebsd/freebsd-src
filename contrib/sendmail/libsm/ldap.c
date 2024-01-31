@@ -36,6 +36,8 @@ SM_DEBUG_T SmLDAPTrace = SM_DEBUG_INITIALIZER("sm_trace_ldap",
 static bool	sm_ldap_has_objectclass __P((SM_LDAP_STRUCT *, LDAPMessage *, char *));
 static SM_LDAP_RECURSE_ENTRY *sm_ldap_add_recurse __P((SM_LDAP_RECURSE_LIST **, char *, int, SM_RPOOL_T *));
 
+static char *sm_ldap_geterror __P((LDAP *));
+
 /*
 **  SM_LDAP_CLEAR -- set default values for SM_LDAP_STRUCT
 **
@@ -49,10 +51,10 @@ static SM_LDAP_RECURSE_ENTRY *sm_ldap_add_recurse __P((SM_LDAP_RECURSE_LIST **, 
 
 # if _FFR_LDAP_VERSION
 #  if defined(LDAP_VERSION_MAX) && _FFR_LDAP_VERSION > LDAP_VERSION_MAX
-#   ERROR "_FFR_LDAP_VERSION > LDAP_VERSION_MAX"
+#   error "_FFR_LDAP_VERSION > LDAP_VERSION_MAX"
 #  endif
 #  if defined(LDAP_VERSION_MIN) && _FFR_LDAP_VERSION < LDAP_VERSION_MIN
-#   ERROR "_FFR_LDAP_VERSION < LDAP_VERSION_MAX"
+#   error "_FFR_LDAP_VERSION < LDAP_VERSION_MAX"
 #  endif
 #  define SM_LDAP_VERSION_DEFAULT	_FFR_LDAP_VERSION
 # else /* _FFR_LDAP_VERSION */
@@ -79,6 +81,9 @@ sm_ldap_clear(lmap)
 	lmap->ldap_options = 0;
 # endif
 	lmap->ldap_attrsep = '\0';
+# if LDAP_NETWORK_TIMEOUT
+	lmap->ldap_networktmo = 0;
+# endif
 	lmap->ldap_binddn = NULL;
 	lmap->ldap_secret = NULL;
 	lmap->ldap_method = LDAP_AUTH_SIMPLE;
@@ -229,6 +234,23 @@ sm_ldap_setopts(ld, lmap)
 #  ifdef LDAP_OPT_RESTART
 	ldap_set_option(ld, LDAP_OPT_RESTART, LDAP_OPT_ON);
 #  endif
+#  if _FFR_TESTS
+	if (sm_debug_active(&SmLDAPTrace, 101))
+	{
+		char *cert;
+		char buf[PATH_MAX];
+
+		cert = getcwd(buf, sizeof(buf));
+		if (NULL != cert)
+		{
+			int r;
+
+			(void) sm_strlcat(buf, "/ldaps.pem", sizeof(buf));
+			r = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTFILE, cert);
+			sm_dprintf("LDAP_OPT_X_TLS_CACERTFILE(%s)=%d\n", cert, r);
+		}
+	}
+#  endif /* _FFR_TESTS */
 
 # else /* USE_LDAP_SET_OPTION */
 	/* From here on in we can use ldap internal timelimits */
@@ -305,6 +327,7 @@ sm_ldap_start(name, lmap)
 {
 	int save_errno = 0;
 	char *id;
+	char *errmsg;
 # if !USE_LDAP_INIT || !LDAP_NETWORK_TIMEOUT
 	SM_EVENT *ev = NULL;
 # endif
@@ -312,6 +335,7 @@ sm_ldap_start(name, lmap)
 	struct timeval tmo;
 	int msgid, err, r;
 
+	errmsg = NULL;
 	if (sm_debug_active(&SmLDAPTrace, 2))
 		sm_dprintf("ldapmap_start(%s)\n", name == NULL ? "" : name);
 
@@ -439,37 +463,66 @@ sm_ldap_start(name, lmap)
 			lmap->ldap_method);
 	save_errno = errno;
 	if (sm_debug_active(&SmLDAPTrace, 9))
-		sm_dprintf("ldap_bind(%s)=%d, errno=%d, tmo=%ld\n",
+	{
+		errmsg = sm_ldap_geterror(ld);
+		sm_dprintf("ldap_bind(%s)=%d, errno=%d, ldaperr=%d, ld_error=%s, tmo=%lld\n",
 			lmap->ldap_uri, msgid, save_errno,
-			(long) tmo.tv_sec);
+			sm_ldap_geterrno(ld), errmsg, (long long) tmo.tv_sec);
+		if (NULL != errmsg)
+		{
+			ldap_memfree(errmsg);
+			errmsg = NULL;
+		}
+	}
 	if (-1 == msgid)
 	{
 		r = -1;
+		err = sm_ldap_geterrno(ld);
+		if (LDAP_SUCCESS != err)
+			save_errno = err + E_LDAPBASE;
 		goto fail;
 	}
 
 	errno = 0;
 	r = ldap_result(ld, msgid, LDAP_MSG_ALL,
 			tmo.tv_sec == 0 ? NULL : &(tmo), &(lmap->ldap_res));
+	save_errno = errno;
 	if (sm_debug_active(&SmLDAPTrace, 9))
-		sm_dprintf("ldap_result(%s)=%d, errno=%d\n", lmap->ldap_uri, r, errno);
+	{
+		errmsg = sm_ldap_geterror(ld);
+		sm_dprintf("ldap_result(%s)=%d, errno=%d, ldaperr=%d, ld_error=%s\n",
+			lmap->ldap_uri, r, errno,
+			sm_ldap_geterrno(ld), errmsg);
+		if (NULL != errmsg)
+		{
+			ldap_memfree(errmsg);
+			errmsg = NULL;
+		}
+	}
 	if (-1 == r)
+	{
+		err = sm_ldap_geterrno(ld);
+		if (LDAP_SUCCESS != err)
+			save_errno = err + E_LDAPBASE;
 		goto fail;
+	}
 	if (0 == r)
 	{
 		save_errno = ETIMEDOUT;
 		r = -1;
 		goto fail;
 	}
-	r = ldap_parse_result(ld, lmap->ldap_res, &err, NULL, NULL, NULL, NULL,
-				1);
+	r = ldap_parse_result(ld, lmap->ldap_res, &err, NULL, &errmsg, NULL,
+				NULL, 1);
+	save_errno = errno;
 	if (sm_debug_active(&SmLDAPTrace, 9))
-		sm_dprintf("ldap_parse_result(%s)=%d, err=%d\n", lmap->ldap_uri, r, err);
+		sm_dprintf("ldap_parse_result(%s)=%d, err=%d, errmsg=%s\n",
+				lmap->ldap_uri, r, err, errmsg);
 	if (r != LDAP_SUCCESS)
 		goto fail;
 	if (err != LDAP_SUCCESS)
 	{
-		r = -1;
+		r = err;
 		goto fail;
 	}
 
@@ -487,12 +540,22 @@ sm_ldap_start(name, lmap)
 			errno = save_errno;
 		else
 			errno = r + E_LDAPBASE;
+		if (NULL != errmsg)
+		{
+			ldap_memfree(errmsg);
+			errmsg = NULL;
+		}
 		return false;
 	}
 
 	/* Save PID to make sure only this PID closes the LDAP connection */
 	lmap->ldap_pid = getpid();
 	lmap->ldap_ld = ld;
+	if (NULL != errmsg)
+	{
+		ldap_memfree(errmsg);
+		errmsg = NULL;
+	}
 	return true;
 }
 
@@ -536,7 +599,7 @@ sm_ldap_search_m(lmap, argv)
 		if (lmap->ldap_multi_args)
 		{
 # if SM_LDAP_ARGS < 10
-#  ERROR _SM_LDAP_ARGS must be 10
+#  error _SM_LDAP_ARGS must be 10
 # endif
 			if (q[1] == 's')
 				key = argv[0];
@@ -1559,7 +1622,6 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 **
 **	Returns:
 **		None.
-**
 */
 
 void
@@ -1574,6 +1636,7 @@ sm_ldap_close(lmap)
 	lmap->ldap_ld = NULL;
 	lmap->ldap_pid = 0;
 }
+
 /*
 **  SM_LDAP_GETERRNO -- get ldap errno value
 **
@@ -1582,7 +1645,6 @@ sm_ldap_close(lmap)
 **
 **	Returns:
 **		LDAP errno.
-**
 */
 
 int
@@ -1614,4 +1676,28 @@ sm_ldap_geterrno(ld)
 # endif /* defined(LDAP_VERSION_MAX) && LDAP_VERSION_MAX >= 3 */
 	return err;
 }
+
+/*
+**  SM_LDAP_GETERROR -- get ldap error value
+**
+**	Parameters:
+**		ld -- LDAP session handle
+**
+**	Returns:
+**		LDAP error
+*/
+
+static char *
+sm_ldap_geterror(ld)
+	LDAP *ld;
+{
+	char *error = NULL;
+
+# if defined(LDAP_OPT_DIAGNOSTIC_MESSAGE)
+	(void) ldap_get_option(ld, LDAP_OPT_DIAGNOSTIC_MESSAGE, &error);
+# endif
+	return error;
+}
+
+
 #endif /* LDAPMAP */

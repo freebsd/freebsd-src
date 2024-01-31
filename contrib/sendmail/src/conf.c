@@ -81,7 +81,6 @@ static struct hostent *sm_getipnodebyaddr __P((const void *, size_t, int, int *)
 **		this file too much, you may be making a mistake!
 */
 
-
 /*
 **  Header info table
 **	Final (null) entry contains the flags used for any other field.
@@ -164,14 +163,14 @@ struct prival PrivacyValues[] =
 	{ "needvrfyhelo",	PRIV_NEEDVRFYHELO	},
 	{ "noexpn",		PRIV_NOEXPN		},
 	{ "novrfy",		PRIV_NOVRFY		},
-	{ "restrictexpand",	PRIV_RESTRICTEXPAND	},
+	{ "authwarnings",	PRIV_AUTHWARNINGS	},
+	{ "noverb",		PRIV_NOVERB		},
 	{ "restrictmailq",	PRIV_RESTRICTMAILQ	},
 	{ "restrictqrun",	PRIV_RESTRICTQRUN	},
+	{ "restrictexpand",	PRIV_RESTRICTEXPAND	},
 	{ "noetrn",		PRIV_NOETRN		},
-	{ "noverb",		PRIV_NOVERB		},
-	{ "authwarnings",	PRIV_AUTHWARNINGS	},
-	{ "noreceipts",		PRIV_NORECEIPTS		},
 	{ "nobodyreturn",	PRIV_NOBODYRETN		},
+	{ "noreceipts",		PRIV_NORECEIPTS		},
 	{ "goaway",		PRIV_GOAWAY		},
 	{ "noactualrecipient",	PRIV_NOACTUALRECIPIENT	},
 #if _FFR_NOREFLECT
@@ -196,7 +195,6 @@ struct dbsval DontBlameSendmailValues[] =
 	{ "groupwritablealiasfile",	DBS_GROUPWRITABLEALIASFILE	},
 	{ "worldwritablealiasfile",	DBS_WORLDWRITABLEALIASFILE	},
 	{ "forwardfileinunsafedirpath",	DBS_FORWARDFILEINUNSAFEDIRPATH	},
-	{ "includefileinunsafedirpath",	DBS_INCLUDEFILEINUNSAFEDIRPATH	},
 	{ "mapinunsafedirpath",		DBS_MAPINUNSAFEDIRPATH	},
 	{ "linkedaliasfileinwritabledir",
 					DBS_LINKEDALIASFILEINWRITABLEDIR },
@@ -228,6 +226,7 @@ struct dbsval DontBlameSendmailValues[] =
 					DBS_INCLUDEFILEINUNSAFEDIRPATHSAFE },
 	{ "runprograminunsafedirpath",	DBS_RUNPROGRAMINUNSAFEDIRPATH	},
 	{ "runwritableprogram",		DBS_RUNWRITABLEPROGRAM		},
+	{ "includefileinunsafedirpath",	DBS_INCLUDEFILEINUNSAFEDIRPATH	},
 	{ "nonrootsafeaddr",		DBS_NONROOTSAFEADDR		},
 	{ "truststickybit",		DBS_TRUSTSTICKYBIT		},
 	{ "dontwarnforwardfileinunsafedirpath",
@@ -242,6 +241,7 @@ struct dbsval DontBlameSendmailValues[] =
 	{ "groupreadablekeyfile",	DBS_GROUPREADABLEKEYFILE	},
 	{ "groupreadabledefaultauthinfofile",
 					DBS_GROUPREADABLEAUTHINFOFILE	},
+	{ "certowner",			DBS_CERTOWNER			},
 	{ NULL,				0				}
 };
 
@@ -1409,7 +1409,6 @@ init_md(argc, argv)
 # endif /* _SCO_unix_ */
 #endif /* SECUREWARE || defined(_SCO_unix_) */
 
-
 #ifdef VENDOR_DEFAULT
 	VendorCode = VENDOR_DEFAULT;
 #else
@@ -2317,7 +2316,6 @@ refuseconnections(e, dn, active)
 			conncnt[dn] = 0;
 	}
 
-
 #if _FFR_MEMSTAT
 	if (RefuseLowMem > 0 &&
 	    sm_memstat_get(MemoryResource, &memfree) >= 0 &&
@@ -2431,7 +2429,6 @@ refuseconnections(e, dn, active)
 #ifndef SPT_TYPE
 # define SPT_TYPE	SPT_REUSEARGV
 #endif
-
 
 #if SPT_TYPE != SPT_NONE && SPT_TYPE != SPT_BUILTIN
 
@@ -3057,7 +3054,6 @@ dgux_inet_addr(host)
  * specifies the terms and conditions for redistribution.
  */
 
-
 /*
 **  this version hacked to add `atend' flag to allow state machine
 **  to reset if invoked by the program to scan args for a 2nd time
@@ -3637,8 +3633,11 @@ lockfile(fd, filename, ext, type)
 		action = F_SETLKW;
 
 	if (tTd(55, 60))
-		sm_dprintf("lockfile(%s%s, action=%d, type=%d): ",
-			filename, ext, action, lfd.l_type);
+		sm_dprintf("lockfile(%s%s, fd=%d, action=%s, type=%s): ",
+			filename, ext, fd,
+			bitset(LOCK_NB, type) ? "nb" : "block",
+			bitset(LOCK_UN, type) ? "unlock" :
+				(bitset(LOCK_EX, type) ? "wr" : "rd"));
 	while ((i = fcntl(fd, action, &lfd)) < 0 && errno == EINTR)
 		continue;
 	if (i >= 0)
@@ -3684,7 +3683,9 @@ lockfile(fd, filename, ext, type)
 		ext = "";
 
 	if (tTd(55, 60))
-		sm_dprintf("lockfile(%s%s, type=%o): ", filename, ext, type);
+		sm_dprintf("lockfile(%s%s, fd=%d, type=%s): ", filename, ext,
+			fd, bitset(LOCK_UN, type) ? "unlock" :
+				(bitset(LOCK_EX, type) ? "wr" : "rd"));
 
 	while ((i = flock(fd, type)) < 0 && errno == EINTR)
 		continue;
@@ -3980,7 +3981,6 @@ vendor_pre_defaults(e)
 	sm_setuserenv("SYSTYPE", NULL);
 #endif /* apollo */
 }
-
 
 void
 vendor_post_defaults(e)
@@ -4701,7 +4701,7 @@ add_hostnames(sa)
 	char **ha;
 	char hnb[MAXHOSTNAMELEN];
 
-	/* lookup name with IP address */
+	/* look up name with IP address */
 	switch (sa->sa.sa_family)
 	{
 #if NETINET
@@ -5290,8 +5290,12 @@ isloopback(sa)
 	SOCKADDR sa;
 {
 	/* XXX how to correctly extract IN_LOOPBACKNET part? */
-#define SM_IS_IPV4_LOOP(a) (((ntohl(a) & IN_CLASSA_NET) \
+#ifdef IN_LOOPBACK
+# define SM_IS_IPV4_LOOP(a) IN_LOOPBACK(ntohl(a))
+#else /* IN_LOOPBACK */
+# define SM_IS_IPV4_LOOP(a) (((ntohl(a) & IN_CLASSA_NET) \
 	     >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET)
+# endif /* IN_LOOPBACK */
 #if NETINET6
 	if (sa.sa.sa_family == AF_INET6 &&
 	    IN6_IS_ADDR_V4MAPPED(&sa.sin6.sin6_addr) &&
@@ -5524,7 +5528,7 @@ sm_syslog(level, id, fmt, va_alist)
 
 	/* clean up buf after it has been expanded with args */
 #if _FFR_LOGASIS >= 5
-/* for testing! */
+	/* for testing! maybe make it an -d option (hence runtime)? */
 	newstring = buf;
 #else
 	newstring = str2prt(buf);
@@ -5850,6 +5854,12 @@ char	*CompileOptions[] =
 #if DANE
 	"DANE",
 #endif
+#if HAVE_SSL_CTX_dane_enable
+	"HAVE_SSL_CTX_dane_enable",
+#endif
+#if MAX_TLSA_RR
+	"MAX_TLSA_RR=" SM_XSTR(MAX_TLSA_RR),
+#endif
 #if NAMED_BIND
 # if DNSMAP
 	"DNSMAP",
@@ -5875,19 +5885,11 @@ char	*CompileOptions[] =
 	"LDAPMAP",
 #endif
 #if LDAP_NETWORK_TIMEOUT
-# if LDAPMAP
 	/* set LDAP_OPT_NETWORK_TIMEOUT if available (-c) */
 	"LDAP_NETWORK_TIMEOUT",
-# else
-#  ERROR "LDAP_NETWORK_TIMEOUT requires LDAPMAP"
-# endif
 #endif
 #if LDAP_REFERRALS
-# if LDAPMAP
 	"LDAP_REFERRALS",
-# else
-#  ERROR "LDAP_REFERRALS requires LDAPMAP"
-# endif
 #endif
 #if LOG
 	"LOG",
@@ -5921,6 +5923,10 @@ char	*CompileOptions[] =
 #endif
 #if NAMED_BIND
 	"NAMED_BIND",
+#else
+# if DANE
+#  error "DANE requires NAMED_BIND"
+# endif
 #endif
 #if NDBM
 	"NDBM",
@@ -5951,8 +5957,23 @@ char	*CompileOptions[] =
 #endif
 #if NEWDB
 # if defined(DB_VERSION_MAJOR) && defined(DB_VERSION_MINOR)
-#  if DB_VERSION_MAJOR >= 5 && !HASFLOCK
-#    ERROR "Berkeley DB file locking needs flock() for version 5.x (and greater?)"
+#  if DB_VERSION_MAJOR >= 5 && !defined(SOLARIS) && !HASFLOCK && !ACCEPT_BROKEN_BDB_LOCKING
+
+/*
+**  NOTE: disabling this check by setting ACCEPT_BROKEN_BDB_LOCKING
+**	means you are taking full responsibility for any problems
+**	which may arise!
+**
+**	Map locking will not work, and making a change to a map
+**	while sendmail is using it can break mail handling.
+**	At least you must stop all sendmail processes when using
+**	makemap or newaliases - but there might be other things
+**	which could break.
+**
+**	You have been warned - use at your own risk!
+*/
+
+#    error "Berkeley DB file locking needs flock() for version 5.x (and greater?)"
 #  endif
 	"NEWDB=" SM_XSTR(DB_VERSION_MAJOR) "." SM_XSTR(DB_VERSION_MINOR),
 # else
@@ -6015,8 +6036,12 @@ char	*CompileOptions[] =
 	"TLS_NO_RSA",
 #endif
 #if TLS_EC
+# if NO_DH
+#  error "NO_DH disables TLS_EC"
+# else
 	/* elliptic curves */
 	"TLS_EC",
+# endif
 #endif
 #if TLS_VRFY_PER_CTX
 	"TLS_VRFY_PER_CTX",
@@ -6033,10 +6058,10 @@ char	*CompileOptions[] =
 	*/
 
 # if !ALLOW_255
-#  ERROR "USE_EAI requires ALLOW_255"
+#  error "USE_EAI requires ALLOW_255"
 # endif
 # if _FFR_EIGHT_BIT_ADDR_OK
-#  ERROR "Cannot enable both USE_EAI and _FFR_EIGHT_BIT_ADDR_OK"
+#  error "Cannot enable both USE_EAI and _FFR_EIGHT_BIT_ADDR_OK"
 # endif
 	"USE_EAI",
 #endif
@@ -6054,7 +6079,6 @@ char	*CompileOptions[] =
 #endif
 	NULL
 };
-
 
 /*
 **  OS compile options.
@@ -6333,7 +6357,7 @@ char	*FFRCompileOptions[] =
 #endif
 #if _FFR_ALLOW_SASLINFO
 	/* DefaultAuthInfo can be specified by user. */
-	/* DefaultAuthInfo doesn't really work in 8.13 anymore. */
+	/* DefaultAuthInfo doesn't really work in 8.13ff anymore. */
 	"_FFR_ALLOW_SASLINFO",
 #endif
 #if _FFR_BADRCPT_SHUTDOWN
@@ -6360,6 +6384,10 @@ char	*FFRCompileOptions[] =
 #if _FFR_CHK_QUEUE
 	/* Stricter checks about queue directory permissions. */
 	"_FFR_CHK_QUEUE",
+#endif
+#if _FFR_CLASS_RM_ENTRY
+	/* WIP: remove entries from a class: C-{name}entry */
+	"_FFR_CLASS_RM_ENTRY",
 #endif
 #if _FFR_CLIENTCA
 	/*
@@ -6441,8 +6469,17 @@ char	*FFRCompileOptions[] =
 
 	"_FFR_DROP_TRUSTUSER_WARNING",
 #endif
+#if _FFR_DYN_CLASS
+	/* dynamic classes based on maps */
+	"_FFR_DYN_CLASS",
+#endif
 #if _FFR_EIGHT_BIT_ADDR_OK
-	/* EightBitAddrOK: allow 8-bit e-mail addresses */
+	/*
+	**  EightBitAddrOK: allow all 8-bit e-mail addresses.
+	**  By default only ((ch & 0340) == 0200) is blocked
+	**  because that range is used for "META" chars.
+	*/
+
 	"_FFR_EIGHT_BIT_ADDR_OK",
 #endif
 #if _FFR_EXPAND_HELONAME
@@ -6523,6 +6560,10 @@ char	*FFRCompileOptions[] =
 	/* Local daemon mode (-bl) which only accepts loopback connections */
 	"_FFR_LOCAL_DAEMON",
 #endif
+#if _FFR_LOG_FAILOVER
+	/* WIP: log reason why trying another host */
+	"_FFR_LOG_FAILOVER",
+#endif
 #if _FFR_LOG_MORE1
 	/* log some TLS/AUTH info in from= too */
 	"_FFR_LOG_MORE1=" SM_XSTR(_FFR_LOG_MORE1),
@@ -6531,9 +6572,17 @@ char	*FFRCompileOptions[] =
 	/* log some TLS info in to= too */
 	"_FFR_LOG_MORE2=" SM_XSTR(_FFR_LOG_MORE2),
 #endif
+#if _FFR_LOG_STAGE
+	/* log protocol stage for delivery problems */
+	"_FFR_LOG_STAGE",
+#endif
 #if _FFR_MAIL_MACRO
 	/* make the "real" sender address available in {mail_from} */
 	"_FFR_MAIL_MACRO",
+#endif
+#if _FFR_MAP_CHK_FILE
+	/* check whether the underlying map file was changed */
+	"_FFR_MAP_CHK_FILE=" SM_XSTR(_FFR_MAP_CHK_FILE),
 #endif
 #if _FFR_MAXDATASIZE
 	/*
@@ -6564,6 +6613,7 @@ char	*FFRCompileOptions[] =
 	"_FFR_MEMSTAT",
 #endif
 #if _FFR_MILTER_CHECK
+	/* for (lib)milter testing */
 	"_FFR_MILTER_CHECK",
 #endif
 #if _FFR_MILTER_CONNECT_REPLYCODE
@@ -6619,13 +6669,13 @@ char	*FFRCompileOptions[] =
 #endif
 #if _FFR_MTA_STS
 # if !MAP_REGEX
-#  ERROR "_FFR_MTA_STS requires MAP_REGEX"
+#  error "_FFR_MTA_STS requires MAP_REGEX"
 # endif
 # if !STARTTLS
-#  ERROR "_FFR_MTA_STS requires STARTTLS"
+#  error "_FFR_MTA_STS requires STARTTLS"
 # endif
 # if !_FFR_TLS_ALTNAMES
-#  ERROR "_FFR_MTA_STS requires _FFR_TLS_ALTNAMES"
+#  error "_FFR_MTA_STS requires _FFR_TLS_ALTNAMES"
 # endif
 	/* MTA STS support */
 	"_FFR_MTA_STS",
@@ -6667,7 +6717,7 @@ char	*FFRCompileOptions[] =
 	/* outgoing connection control (not yet working) */
 	"_FFR_OCC",
 # else
-#  ERROR "_FFR_OCC requires SM_CONF_SHM"
+#  error "_FFR_OCC requires SM_CONF_SHM"
 # endif
 #endif
 #if _FFR_PROXY
@@ -6741,12 +6791,19 @@ char	*FFRCompileOptions[] =
 	"_FFR_SESSID",
 #endif
 #if _FFR_SETANYOPT
+	/*
+	**  if _FFR_SETOPT_MAP is used: allow to set any option
+	**  (which probably does not work as expected for many options).
+	*/
+
 	"_FFR_SETANYOPT",
 #endif
 #if _FFR_SETDEBUG_MAP
+	/* enable setdebug map to set debug levels from rules */
 	"_FFR_SETDEBUG_MAP",
 #endif
 #if _FFR_SETOPT_MAP
+	/* enable setopt map to set options from rules */
 	"_FFR_SETOPT_MAP",
 #endif
 #if _FFR_SHM_STATUS
@@ -6762,11 +6819,11 @@ char	*FFRCompileOptions[] =
 	"_FFR_SLEEP_USE_SELECT",
 #endif
 #if _FFR_SM_LDAP_DBG
-# if LDAPMAP && defined(LBER_OPT_LOG_PRINT_FN)
+# if defined(LBER_OPT_LOG_PRINT_FN)
 	/* LDAP debugging */
 	"_FFR_SM_LDAP_DBG",
 # else
-#  ERROR "_FFR_SM_LDAP_DBG requires LDAPMAP and LBER_OPT_LOG_PRINT_FN"
+#  error "_FFR_SM_LDAP_DBG requires LBER_OPT_LOG_PRINT_FN"
 # endif
 #endif
 #if _FFR_SPT_ALIGN
@@ -6846,7 +6903,7 @@ char	*FFRCompileOptions[] =
 # if defined(X509_V_FLAG_TRUSTED_FIRST)
 	"_FFR_VRFY_TRUSTED_FIRST",
 # else
-#  ERROR "_FFR_VRFY_TRUSTED_FIRST set but X509_V_FLAG_TRUSTED_FIRST not defined"
+#  error "_FFR_VRFY_TRUSTED_FIRST set but X509_V_FLAG_TRUSTED_FIRST not defined"
 # endif
 #endif
 
@@ -6863,11 +6920,20 @@ char	*FFRCompileOptions[] =
 	/* X-Connect support */
 	"_FFR_XCNCT",
 #endif
+#if _FFR_HAPROXY
+	/* HAproxy support */
+	"_FFR_HAPROXY",
+#endif
 #if _FFR_LOGASIS
+	/* only convert char <= 31 to something printable for logging etc */
 	"_FFR_LOGASIS=" SM_XSTR(_FFR_LOGASIS),
 #endif
+#if _FFR_NAMESERVER
+	/* Allow to override nameserver set by OS */
+	"_FFR_NAMESERVER",
+#endif
 #if _FFR_NOREFLECT
-	/* Don't forget to update docs for "goaway" to include this */
+	/* Do not include input from a client in a reply of the server */
 	"_FFR_NOREFLECT",
 #endif
 #if _FFR_AUTH_PASSING
@@ -6880,8 +6946,8 @@ char	*FFRCompileOptions[] =
 #endif
 #if _FFR_MSP_PARANOIA
 	/*
-	**  Forbid queue groups, multiple queues, and dangerous queue permissions
-	**  when operating as an MSP
+	**  Forbid queue groups, multiple queues, and
+	**  dangerous queue permissions when operating as an MSP
 	*/
 
 	"_FFR_MSP_PARANOIA",
@@ -6901,6 +6967,14 @@ char	*FFRCompileOptions[] =
 	*/
 
 	"_FFR_MIME_CR_OK",
+#endif
+#if _FFR_M_ONLY_IPV4
+	/* mailer flag 4: use only IPv4 for delivery attempts */
+	"_FFR_M_ONLY_IPV4",
+#endif
+#if _FFR_SMTPS_CLIENT
+	/* SMTP over TLS client (defaults to port 465/tcp outbound) */
+	"_FFR_SMTPS_CLIENT",
 #endif
 	NULL
 };

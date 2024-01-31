@@ -64,7 +64,7 @@ Hence even if a trailing '\0' is added, C string functions may still fail
 to work as expected.
 <LI>Since message bodies can be very large, defining xxfi_body can
 significantly impact filter performance.
-<LI>End-of-lines are represented as received from SMTP (normally CR/LF).
+<LI>End-of-lines are represented as received from SMTP (normally CRLF).
 <LI>Later filters will see body changes made by earlier ones.
 <LI>Message bodies may be sent in multiple chunks, with one call to
     xxfi_body per chunk.

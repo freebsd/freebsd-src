@@ -26,6 +26,8 @@ makemap
 .IR commentchar ]
 .RB [ \-e ]
 .RB [ \-f ]
+.RB [ \-i
+.IR type ]
 .RB [ \-l ]
 .RB [ \-o ]
 .RB [ \-r ]
@@ -143,6 +145,12 @@ This is intended to mesh with the
 .B K 
 line in sendmail.cf.  
 The value is never case folded.
+.TP
+.B \-i
+Use the specified type as fallback
+if the given
+.I maptype
+is not available.
 .TP
 .B \-l
 List supported map types.
