@@ -12026,6 +12026,8 @@ clear_stats(struct adapter *sc, u_int port_id)
 				counter_u64_zero(ofld_txq->tx_iscsi_pdus);
 				counter_u64_zero(ofld_txq->tx_iscsi_octets);
 				counter_u64_zero(ofld_txq->tx_iscsi_iso_wrs);
+				counter_u64_zero(ofld_txq->tx_aio_jobs);
+				counter_u64_zero(ofld_txq->tx_aio_octets);
 				counter_u64_zero(ofld_txq->tx_toe_tls_records);
 				counter_u64_zero(ofld_txq->tx_toe_tls_octets);
 			}
@@ -12043,6 +12045,8 @@ clear_stats(struct adapter *sc, u_int port_id)
 				ofld_rxq->rx_iscsi_ddp_octets = 0;
 				ofld_rxq->rx_iscsi_fl_pdus = 0;
 				ofld_rxq->rx_iscsi_fl_octets = 0;
+				ofld_rxq->rx_aio_ddp_jobs = 0;
+				ofld_rxq->rx_aio_ddp_octets = 0;
 				ofld_rxq->rx_toe_tls_records = 0;
 				ofld_rxq->rx_toe_tls_octets = 0;
 			}
