@@ -2101,22 +2101,28 @@ create-source-packages: _pkgbootstrap .PHONY
 		( echo "@override_prefix /usr/src" ; \
 		${GIT_CMD} ls-files --recurse-submodules "sys/" ) \
 		> ${SSTAGEDIR}/src-sys.plist
-	sed -e "s/%VERSION%/${PKG_VERSION}/" \
-		-e "s/%DESC%/FreeBSD sources/" \
-		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
-		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
-		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
-		-e "s|%PKG_WWW%|${PKG_WWW}|" \
-		${SRCDIR}/release/packages/src.ucl \
-		> ${SSTAGEDIR}/src.ucl
-	sed -e "s/%VERSION%/${PKG_VERSION}/" \
-		-e "s/%DESC%/FreeBSD Kernel sources/" \
-		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
-		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
-		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
-		-e "s|%PKG_WWW%|${PKG_WWW}|" \
-		${SRCDIR}/release/packages/src-sys.ucl \
-		> ${SSTAGEDIR}/src-sys.ucl
+	${SRCDIR}/release/packages/generate-ucl.lua \
+		PKGNAME "src" \
+		PKGGENNAME "src" \
+		VERSION "${PKG_VERSION}" \
+		DESC "FreeBSD Kernel Sources" \
+		COMMENT "FreeBSD Userland Sources" \
+		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
+		PKG_MAINTAINER "${PKG_MAINTAINER}" \
+		PKG_WWW "${PKG_WWW}" \
+		${SRCDIR}/release/packages/template.ucl \
+		${SSTAGEDIR}/src.ucl
+	${SRCDIR}/release/packages/generate-ucl.lua \
+		PKGNAME "src-sys" \
+		PKGGENNAME "src" \
+		VERSION "${PKG_VERSION}" \
+		DESC "FreeBSD Kernel Sources" \
+		COMMENT "FreeBSD Kernel Sources" \
+		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
+		PKG_MAINTAINER "${PKG_MAINTAINER}" \
+		PKG_WWW "${PKG_WWW}" \
+		${SRCDIR}/release/packages/template.ucl \
+		${SSTAGEDIR}/src-sys.ucl
 	${PKG_CMD} -o ABI=${PKG_ABI} \
 		-o OSVERSION="${SRCRELDATE}" \
 		create -f ${PKG_FORMAT} \
@@ -2212,17 +2218,17 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 	${METALOG_SORT_CMD} ${KSTAGEDIR}/kernel.meta | \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${INSTALLKERNEL} ; \
-	sed -e "s/%VERSION%/${PKG_VERSION}/" \
-		-e "s/%PKGNAME%/kernel-${INSTALLKERNEL:tl}${flavor}/" \
-		-e "s/%KERNELDIR%/kernel/" \
-		-e "s/%COMMENT%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
-		-e "s/%DESC%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
-		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
-		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
-		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
-		-e "s|%PKG_WWW%|${PKG_WWW}|" \
-		${SRCDIR}/release/packages/kernel.ucl \
-		> ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
+	${SRCDIR}/release/packages/generate-ucl.lua \
+		PKGNAME "kernel-${INSTALLKERNEL:tl}${flavor}" \
+		VERSION "${PKG_VERSION}" \
+		KERNELDIR "kernel" \
+		COMMENT "FreeBSD ${INSTALLKERNEL} kernel ${flavor}" \
+		DESC "FreeBSD ${INSTALLKERNEL} kernel ${flavor}" \
+		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
+		PKG_MAINTAINER "${PKG_MAINTAINER}" \
+		PKG_WWW "${PKG_WWW}" \
+		${SRCDIR}/release/packages/template.ucl \
+		 ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
 	awk -F\" ' \
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
