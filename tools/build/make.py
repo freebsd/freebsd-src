@@ -81,8 +81,8 @@ def bootstrap_bmake(source_root, objdir_prefix):
     bmake_config = bmake_install_dir / ".make-py-config"
 
     bmake_source_version = subprocess.run([
-        "sh", "-c", ". \"$0\"/VERSION; echo $_MAKE_VERSION",
-        bmake_source_dir], capture_output=True).stdout.strip()
+        "sh", "-c", ". \"$0\"/VERSION; echo $_MAKE_VERSION", bmake_source_dir],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.strip()
     try:
         bmake_source_version = int(bmake_source_version)
     except ValueError:
@@ -92,7 +92,7 @@ def bootstrap_bmake(source_root, objdir_prefix):
     if bmake_binary.exists():
         bmake_installed_version = subprocess.run([
             bmake_binary, "-r", "-f", "/dev/null", "-V", "MAKE_VERSION"],
-            capture_output=True).stdout.strip()
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.strip()
         try:
             bmake_installed_version = int(bmake_installed_version.strip())
         except ValueError:
@@ -187,8 +187,9 @@ def default_cross_toolchain():
     # default to homebrew-installed clang on MacOS if available
     if sys.platform.startswith("darwin"):
         if shutil.which("brew"):
-            llvm_dir = subprocess.run(["brew", "--prefix", "llvm"],
-                                      capture_output=True).stdout.strip()
+            llvm_dir = subprocess.run([
+                "brew", "--prefix", "llvm"],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.strip()
             debug("Inferred LLVM dir as", llvm_dir)
             try:
                 if llvm_dir and Path(llvm_dir.decode("utf-8"), "bin").exists():
