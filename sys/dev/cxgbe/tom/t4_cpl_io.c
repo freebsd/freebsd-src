@@ -2189,6 +2189,7 @@ t4_aiotx_process_job(struct toepcb *toep, struct socket *so, struct kaiocb *job)
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	struct mbuf *m;
+	u_int sent;
 	int error, len;
 	bool moretocome, sendmore;
 
@@ -2292,7 +2293,9 @@ sendanother:
 		goto out;
 	}
 
-	job->aio_sent += m_length(m, NULL);
+	sent = m_length(m, NULL);
+	job->aio_sent += sent;
+	counter_u64_add(toep->ofld_txq->tx_aio_octets, sent);
 
 	sbappendstream(sb, m, 0);
 	m = NULL;
@@ -2339,6 +2342,7 @@ sendanother:
 	 * socket.
 	 */
 	aiotx_free_job(job);
+	counter_u64_add(toep->ofld_txq->tx_aio_jobs, 1);
 
 out:
 	if (error) {
