@@ -7362,6 +7362,12 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	}
 
 	/*
+	 * Make sure dummynet gets the correct direction, in case it needs to
+	 * re-inject later.
+	 */
+	pd->dir = PF_OUT;
+
+	/*
 	 * If small enough for interface, or the interface will take
 	 * care of the fragmentation for us, we can just send directly.
 	 */
