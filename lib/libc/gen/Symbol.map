@@ -458,6 +458,8 @@ FBSD_1.7 {
 };
 
 FBSD_1.8 {
+	aio_read2;
+	aio_write2;
 	execvpe;
 };
 
