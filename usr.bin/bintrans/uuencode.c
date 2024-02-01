@@ -86,7 +86,7 @@ main_base64_encode(const char *in, const char *w)
 	if (w != NULL)
 		columns = arg_to_col(w);
 	base64_encode();
-	if (ferror(output))
+	if (fflush(output) != 0)
 		errx(1, "write error");
 	exit(0);
 }
@@ -156,7 +156,7 @@ main_encode(int argc, char *argv[])
 		base64_encode();
 	else
 		encode();
-	if (ferror(output))
+	if (fflush(output) != 0)
 		errx(1, "write error");
 	exit(0);
 }
