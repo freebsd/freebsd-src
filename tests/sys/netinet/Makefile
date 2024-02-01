@@ -11,6 +11,7 @@ ATF_TESTS_C=	ip_reass_test \
 		so_reuseport_lb_test \
 		socket_afinet \
 		tcp_connect_port_test \
+		tcp_implied_connect \
 		tcp_md5_getsockopt
 
 ATF_TESTS_SH=	arp \
