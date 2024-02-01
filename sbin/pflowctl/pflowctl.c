@@ -577,6 +577,7 @@ main(int argc, char *argv[])
 			op = OP_SET;
 			set_arg_count = argc - optind;
 			set_args = argv + optind;
+			break;
 		case 'v':
 			verbose = true;
 			break;
