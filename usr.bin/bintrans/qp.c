@@ -90,9 +90,9 @@ decode_quoted_printable(const char *body, FILE *fpo)
 static void
 encode_quoted_printable(const char *body, FILE *fpo)
 {
-	char prev;
 	const char *end = body + strlen(body);
 	size_t linelen = 0;
+	char prev = '\0';
 
 	while (*body != '\0') {
 		if (linelen == 75) {
