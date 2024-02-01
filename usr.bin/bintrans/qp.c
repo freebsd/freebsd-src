@@ -138,12 +138,11 @@ qp(FILE *fp, FILE *fpo, bool encode)
 {
 	char *line = NULL;
 	size_t linecap = 0;
-	ssize_t linelen;
 	void (*codec)(const char *line, FILE *f);
 
 	codec = encode ? encode_quoted_printable : decode_quoted_printable ;
 
-	while ((linelen = getline(&line, &linecap, fp)) > 0)
+	while (getline(&line, &linecap, fp) > 0)
 		codec(line, fpo);
 	free(line);
 }
