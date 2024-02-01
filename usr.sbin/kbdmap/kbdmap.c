@@ -399,7 +399,7 @@ show_dialog(struct keymap **km_sorted, int num_keymaps)
 	case BSDDIALOG_OK:
 		for (i = 0; i < num_keymaps; i++) {
 			if (listitems[i].on) {
-				if (!strcmp(program, "kdbmap"))
+				if (!strcmp(program, "kbdmap"))
 					do_kbdcontrol(km_sorted[i]);
 				else
 					do_vidfont(km_sorted[i]);
