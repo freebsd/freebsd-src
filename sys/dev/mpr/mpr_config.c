@@ -547,8 +547,8 @@ mpr_config_get_dpm_pg0(struct mpr_softc *sc, Mpi2ConfigReply_t *mpi_reply,
 	request->ExtPageType = MPI2_CONFIG_EXTPAGETYPE_DRIVER_MAPPING;
 	request->Header.PageNumber = 0;
 	request->ExtPageLength = request->Header.PageVersion = 0;
-	request->PageAddress = sc->max_dpm_entries <<
-	    MPI2_DPM_PGAD_ENTRY_COUNT_SHIFT;
+	request->PageAddress = htole32(sc->max_dpm_entries <<
+	    MPI2_DPM_PGAD_ENTRY_COUNT_SHIFT);
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	cm->cm_data = NULL;
 	error = mpr_wait_command(sc, &cm, 60, CAN_SLEEP);
@@ -597,8 +597,8 @@ mpr_config_get_dpm_pg0(struct mpr_softc *sc, Mpi2ConfigReply_t *mpi_reply,
 	request->ExtPageType = MPI2_CONFIG_EXTPAGETYPE_DRIVER_MAPPING;
 	request->Header.PageNumber = 0;
 	request->Header.PageVersion = mpi_reply->Header.PageVersion;
-	request->PageAddress = sc->max_dpm_entries <<
-	    MPI2_DPM_PGAD_ENTRY_COUNT_SHIFT;
+	request->PageAddress = htole32(sc->max_dpm_entries <<
+	    MPI2_DPM_PGAD_ENTRY_COUNT_SHIFT);
 	request->ExtPageLength = mpi_reply->ExtPageLength;
 	cm->cm_length = le16toh(request->ExtPageLength) * 4;
 	cm->cm_sge = &request->PageBufferSGE;
@@ -684,9 +684,8 @@ int mpr_config_set_dpm_pg0(struct mpr_softc *sc, Mpi2ConfigReply_t *mpi_reply,
 	request->ExtPageType = MPI2_CONFIG_EXTPAGETYPE_DRIVER_MAPPING;
 	request->Header.PageNumber = 0;
 	request->ExtPageLength = request->Header.PageVersion = 0;
-	/* We can remove below two lines ????*/
-	request->PageAddress = 1 << MPI2_DPM_PGAD_ENTRY_COUNT_SHIFT;
-	request->PageAddress |= htole16(entry_idx);
+	request->PageAddress = htole32(
+		(1 << MPI2_DPM_PGAD_ENTRY_COUNT_SHIFT) | entry_idx);
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	cm->cm_data = NULL;
 	error = mpr_wait_command(sc, &cm, 60, CAN_SLEEP);
@@ -736,8 +735,8 @@ int mpr_config_set_dpm_pg0(struct mpr_softc *sc, Mpi2ConfigReply_t *mpi_reply,
 	request->Header.PageNumber = 0;
 	request->Header.PageVersion = mpi_reply->Header.PageVersion;
 	request->ExtPageLength = mpi_reply->ExtPageLength;
-	request->PageAddress = 1 << MPI2_DPM_PGAD_ENTRY_COUNT_SHIFT;
-	request->PageAddress |= htole16(entry_idx);
+	request->PageAddress = htole32(
+		(1 << MPI2_DPM_PGAD_ENTRY_COUNT_SHIFT) | entry_idx);
 	cm->cm_length = le16toh(mpi_reply->ExtPageLength) * 4;
 	cm->cm_sge = &request->PageBufferSGE;
 	cm->cm_sglsize = sizeof(MPI2_SGE_IO_UNION);
