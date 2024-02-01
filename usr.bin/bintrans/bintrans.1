@@ -65,7 +65,7 @@
 .Fl o Ar output_file
 .Op Ar file
 .Nm base64
-.Op Fl d
+.Op Fl dU
 .Op Fl w Ar column
 .Op Ar file
 .Sh DESCRIPTION
@@ -210,13 +210,27 @@ deletes any prefix ending with the last slash '/' for security
 reasons.
 .El
 .Pp
+The following options are available for
+.Nm base64 :
+.Bl -tag -width indent
+.It Fl d
+Decode base64-encoded data (the default is to encode).
+.It Fl U
+Use the 'URL-safe' Base64 variant, where the characters '+' and '/' are
+replaced by '-' and '_'.  This flag must be used when both encoding and
+decoding data.
+.El
+.Pp
 Additionally,
+.Nm base64
+and
 .Nm b64encode
-accepts the following option:
+accept the following option:
 .Bl -tag -width ident
 .It Fl w Ar column
 Wrap encoded output after
-.Ar column .
+.Ar column
+characters.
 .El
 .Pp
 .Nm

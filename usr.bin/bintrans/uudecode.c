@@ -36,41 +36,36 @@
  * used with uuencode.
  */
 #include <sys/param.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 
-#include <netinet/in.h>
-
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
 #include <pwd.h>
-#include <resolv.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-extern int main_decode(int, char *[]);
-extern int main_base64_decode(const char *);
+#include "bintrans.h"
 
 static const char *infile, *outfile;
 static FILE *infp, *outfp;
-static bool base64, cflag, iflag, oflag, pflag, rflag, sflag;
+static bool cflag, iflag, oflag, pflag, rflag, sflag;
 
 static void	usage(void);
-static int	decode(void);
+static int	decode(encoding_t);
 static int	decode2(void);
 static int	uu_decode(void);
-static int	base64_decode(void);
+static int	do_base64_decode(encoding_t);
 
 int
-main_base64_decode(const char *in)
+main_base64_decode(encoding_t encoding, const char *in)
 {
-	base64 = 1;
 	rflag = 1;
 	if (in != NULL) {
 		infile = in;
@@ -81,16 +76,13 @@ main_base64_decode(const char *in)
 		infile = "stdin";
 		infp = stdin;
 	}
-	exit(decode());
+	exit(decode(encoding));
 }
 
 int
-main_decode(int argc, char *argv[])
+main_decode(encoding_t encoding, int argc, char *argv[])
 {
 	int rval, ch;
-
-	if (strcmp(basename(argv[0]), "b64decode") == 0)
-		base64 = true;
 
 	while ((ch = getopt(argc, argv, "cimo:prs")) != -1) {
 		switch (ch) {
@@ -103,7 +95,7 @@ main_decode(int argc, char *argv[])
 			iflag = true; /* ask before override files */
 			break;
 		case 'm':
-			base64 = true;
+			encoding = BASE64;
 			break;
 		case 'o':
 			if (cflag || pflag || rflag || sflag)
@@ -143,19 +135,19 @@ main_decode(int argc, char *argv[])
 				rval = 1;
 				continue;
 			}
-			rval |= decode();
+			rval |= decode(encoding);
 			fclose(infp);
 		} while (*++argv);
 	} else {
 		infile = "stdin";
 		infp = stdin;
-		rval = decode();
+		rval = decode(encoding);
 	}
 	exit(rval);
 }
 
 static int
-decode(void)
+decode(encoding_t encoding)
 {
 	int r, v;
 
@@ -163,10 +155,16 @@ decode(void)
 		/* relaxed alternative to decode2() */
 		outfile = "/dev/stdout";
 		outfp = stdout;
-		if (base64)
-			return (base64_decode());
-		else
-			return (uu_decode());
+		switch (encoding) {
+			case BASE64:
+			case BASE64URL:
+				return (do_base64_decode(encoding));
+			case UUE:
+				return (uu_decode());
+			default:
+				assert(!"decode: invalid encoding_t");
+				/*NOTREACHED*/
+		}
 	}
 	v = decode2();
 	if (v == EOF) {
@@ -191,15 +189,15 @@ decode2(void)
 	struct passwd *pw;
 	struct stat st;
 	char buf[MAXPATHLEN + 1];
+	encoding_t encoding = UUE;
 
-	base64 = false;
 	/* search for header line */
 	for (;;) {
 		if (fgets(buf, sizeof(buf), infp) == NULL)
 			return (EOF);
 		p = buf;
 		if (strncmp(p, "begin-base64 ", 13) == 0) {
-			base64 = true;
+			encoding = BASE64;
 			p += 13;
 		} else if (strncmp(p, "begin ", 6) == 0)
 			p += 6;
@@ -302,8 +300,8 @@ decode2(void)
 		}
 	}
 
-	if (base64)
-		return (base64_decode());
+	if (encoding == BASE64)
+		return (do_base64_decode(encoding));
 	else
 		return (uu_decode());
 }
@@ -417,7 +415,7 @@ uu_decode(void)
 }
 
 static int
-base64_decode(void)
+do_base64_decode(encoding_t encoding)
 {
 	int n, count, count4;
 	char inbuf[MAXPATHLEN + 1], *p;
@@ -441,9 +439,11 @@ base64_decode(void)
 		while (*p != '\0') {
 			/*
 			 * Base64 encoded strings have the following
-			 * characters in them: A-Z, a-z, 0-9 and +, / and =
+			 * characters in them: A-Z, a-z, 0-9 and +, / (for
+			 * BASE64) or -, _ (for BASE64URL) and =
 			 */
-			if (isalnum(*p) || *p == '+' || *p == '/' || *p == '=')
+			if (isalnum(*p) || *p == '+' || *p == '/' || *p == '-'
+					|| *p == '_' || *p == '=')
 				count++;
 			if (count % 4 == 0)
 				count4 = p - inbuf;
@@ -453,7 +453,7 @@ base64_decode(void)
 		strcpy(leftover, inbuf + count4 + 1);
 		inbuf[count4 + 1] = 0;
 
-		n = b64_pton(inbuf, outbuf, sizeof(outbuf));
+		n = b64_decode(encoding, inbuf, outbuf, sizeof(outbuf));
 
 		if (n < 0)
 			break;
