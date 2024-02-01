@@ -13,6 +13,8 @@ SRCS+= \
 	_rand48.c \
 	_spinlock_stub.c \
 	_thread_init.c \
+	aio_read2.c \
+	aio_write2.c \
 	alarm.c \
 	arc4random.c \
 	arc4random-compat.c \

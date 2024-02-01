@@ -55,6 +55,11 @@
 #define	LIO_FOFFSET		0x40
 #endif
 
+/* aio_read2/aio_write2 flags */
+#if __BSD_VISIBLE
+#define	AIO_OP2_FOFFSET		0x00000001
+#endif
+
 /*
  * LIO modes
  */
@@ -275,6 +280,8 @@ int	aio_mlock(struct aiocb *);
 
 #if __BSD_VISIBLE
 ssize_t	aio_waitcomplete(struct aiocb **, struct timespec *);
+int	aio_read2(struct aiocb *, int);
+int	aio_write2(struct aiocb *, int);
 #endif
 
 int	aio_fsync(int op, struct aiocb *aiocbp);
