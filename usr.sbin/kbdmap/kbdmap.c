@@ -399,7 +399,6 @@ show_dialog(struct keymap **km_sorted, int num_keymaps)
 	case BSDDIALOG_OK:
 		for (i = 0; i < num_keymaps; i++) {
 			if (listitems[i].on) {
-				printf("ici\n");
 				if (!strcmp(program, "kdbmap"))
 					do_kbdcontrol(km_sorted[i]);
 				else
@@ -409,7 +408,6 @@ show_dialog(struct keymap **km_sorted, int num_keymaps)
 		}
 		break;
 	default:
-		printf("la\n");
 		if (font != NULL && strcmp(font, font_current))
 			/* Cancelled, restore old font */
 			vidcontrol(font_current);
