@@ -50,7 +50,7 @@ close_test_client(void *arg)
 
 		n = recv(s, buf, buflen, MSG_WAITALL);
 		ATF_REQUIRE_MSG(n == (ssize_t)p->msglen,
-		    "recv: %s", strerror(errno));
+		    "recv: got %zd expected %zd", n, (ssize_t)p->msglen);
 
 		ATF_REQUIRE(close(s) == 0);
 	}
