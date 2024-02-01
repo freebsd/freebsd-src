@@ -12,6 +12,7 @@ divert(-1)
 #  This is the FreeBSD configuration for a set-group-ID sm-msp sendmail
 #  that acts as a initial mail submission program.
 #
+# Last updated: 2024-02-01
 
 divert(0)dnl
 define(`confCF_VERSION', `Submit')dnl
