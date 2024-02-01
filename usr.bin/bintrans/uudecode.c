@@ -331,11 +331,22 @@ checkend(const char *ptr, const char *end, const char *msg)
 		warnx("%s: %s: %s", infile, outfile, msg);
 		return (1);
 	}
-	if (fclose(outfp) != 0) {
-		warn("%s: %s", infile, outfile);
-		return (1);
-	}
 	return (0);
+}
+
+static int
+checkout(int rval)
+{
+	if (fflush(outfp) != 0) {
+		warn("%s: %s", infile, outfile);
+		rval = 1;
+	}
+	if (outfp != stdout) {
+		(void)fclose(outfp);
+		outfp = stdout;
+	}
+	outfile = "/dev/stdout";
+	return (rval);
 }
 
 static int
@@ -349,9 +360,9 @@ uu_decode(void)
 	for (;;) {
 		switch (get_line(buf, sizeof(buf))) {
 		case 0:
-			return (0);
+			return (checkout(0));
 		case 1:
-			return (1);
+			return (checkout(1));
 		}
 
 #define	DEC(c)		(((c) - ' ') & 077)	/* single character decode */
@@ -408,11 +419,11 @@ uu_decode(void)
 	}
 	switch (get_line(buf, sizeof(buf))) {
 	case 0:
-		return (0);
+		return (checkout(0));
 	case 1:
-		return (1);
+		return (checkout(1));
 	default:
-		return (checkend(buf, "end", "no \"end\" line"));
+		return (checkout(checkend(buf, "end", "no \"end\" line")));
 	}
 }
 
@@ -430,9 +441,9 @@ base64_decode(void)
 		switch (get_line(inbuf + strlen(inbuf),
 		    sizeof(inbuf) - strlen(inbuf))) {
 		case 0:
-			return (0);
+			return (checkout(0));
 		case 1:
-			return (1);
+			return (checkout(1));
 		}
 
 		count = 0;
@@ -459,7 +470,7 @@ base64_decode(void)
 			break;
 		fwrite(outbuf, 1, n, outfp);
 	}
-	return (checkend(inbuf, "====", "error decoding base64 input stream"));
+	return (checkout(checkend(inbuf, "====", "error decoding base64 input stream")));
 }
 
 static void
