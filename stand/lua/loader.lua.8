@@ -1,0 +1,234 @@
+.\"
+.\" Copyright (c) 2024 Netflix, Inc.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd February 1, 2024
+.Dt LOADER.LUA 8
+.Os
+.Sh NAME
+.Nm loader.lua
+.Nd Fx Lua loader module
+.Sh DESCRIPTION
+The built-in Lua bindings for the
+.Fx
+boot loaders using the Lua interpreter
+are available via the
+.Ic loader
+table.
+.Pp
+The
+.Ic loader
+table is always available in Lua scripts.
+There is no need to require it like other loader-specific modules.
+.Ss Exported Variables
+The following variables are exported from in the
+.Nm loader
+table:
+.Bl -tag -width machine_arch
+.It Ic machine
+The target's
+.Va hw.machine
+.Xr sysctl 8
+value.
+.It Ic machine_arch
+The target's
+.Va hw.machine_arch
+.Xr sysctl 8
+value.
+Some boot loaders are 32-bit applications that then load a 64-bit
+kernel.
+In these cases,
+.Ic machine_arch
+represents the 32-bit architecture, not the 64-bit architecture.
+.It Ic lua_path
+The current lua loading path.
+.It Ic version
+The version of the boot program.
+.El
+.Ss Exported Functions
+The following functions are exported in the
+.Nm loader
+table.
+.Bl -tag -width term_putimage
+.It Fn delay usec
+Delay for
+.Va usec
+microseconds.
+.It Fn command_error
+Returns the error string from the last command to fail.
+.It Fn command argc argv
+Like
+.Fn perform
+but the arguments are already parsed onto the stack.
+.It Fn interpret str
+Execute the loader builtin command
+.Va str
+as if it were typed by the user.
+This will first try to execute
+.Va str
+as Lua.
+If that fails, it will attempt to execute it as a cli command,
+including those defined by the
+.Xr cli.lua 8
+mechanism.
+If that fails, it will attempt to execute it as a builtin command
+and return the same values as
+.Fn perform .
+.It Fn parse str
+Parses the command
+.Va str
+into its words and return those words on the stack.
+.It Fn getenv name
+Obtains the value of the environment variable
+.Va name .
+.It Fn has_command cmd
+returns
+.Va true
+if
+.Va commmand
+is present in the interpreter as a builtin.
+Otherwise it returns
+.Va nil
+and an error string.
+It does not check the
+.Dq cli
+table to see if a user defined command has been created.
+.It Fn has_feature feature
+returns
+.Va true
+if the
+.Va feature
+is enabled.
+Otherwise it returns
+.Va nil
+and an error string.
+.It Fn perform str
+Execute the loader builtin command
+.Va str .
+Returns the result of the command, one of the following values:
+.Bl -tag -width loader -offset indent
+.It loader.CMD_OK
+The command completed successfully.
+.It loader.CMD_WARN
+The command was successful, but the user stopped its output
+prematurely.
+.It loader.CMD_ERROR
+The command did not complete successfully.
+Use
+.Va command_error
+to retrieve the error.
+.It loader.CMD_CRIT
+The command returned a critical error that was already printed.
+.It loader.CMD_FATAL
+The command determined continuation was not possible
+and the loader panicked.
+In practice, though
+.Fn panic
+does not return.
+.El
+.It Fn printc str
+Outputs the string using the loader's
+.Fn putchar
+function.
+This function is also available globally as
+.Fn printc .
+.It Fn setenv name value
+Insert or reset the environment variable
+.Va name
+into the loader's environment list.
+If no environment variable with this name exists, one is created.
+If one exists, its value is replaced and any change callback
+function registers at creation is called.
+.It Fn time
+Returns the loader's notion of time, in seconds since 1970.
+The value of loader's notion varies somewhat between different loading
+environments.
+.It Fn unsetenv name
+Removes the environment variable
+.Va name
+from the loader's environment list.
+.It Fn fb_bezier x0 y0 x1 y1 x2 y2 width
+Draw a bezier curve through the points
+.Pq Va x0 , Va y0 ,
+.Pq Va x1 , Va y1 ,
+and
+.Pq Va x1 , Va y1
+of width
+.Va width .
+.It Fn fb_drawrect x0 y0 x1 y1 fill
+Fill in a rectangle with the pixel
+.Va fill
+with the corners
+.Pq Va x0 , Va y0
+and
+.Pq Va x1 , Va y1 .
+.It Fn fb_line x0 y0 x1 y1 width
+Draw a line from
+.Pq Va x0 , Va y0
+to
+.Pq Va x1 , Va y1
+with a width of
+.Va width .
+.It Fn fb_putimage name x1 y1 x2 y2 f
+Load the PNG file
+.Va name
+and place it in the rectangle
+with the corners
+.Pq Va x1 , Va y1
+and
+.Pq Va x2 , Va y2
+and fill with pixel
+.Va f .
+.It Fn fb_set_pixel x y
+Sets the pixel at
+.Pq Va x , Va y .
+.It Fn term_drawrect x0 y0 x1 y1
+Draw the outline of a rectangle with the text coordinate corners of
+.Pq Va x0 , Va y0
+and
+.Pq Va x1 , Va y1 .
+.It Fn term_putimage name x1 y1 x2 y2 f
+Load the PNG file
+.Va name
+and place it in the rectangle
+with the text coordinate corners
+.Pq Va x1 , Va y1
+and
+.Pq Va x2 , Va y2
+and fill with pixel
+.Va f .
+.El
+.Pp
+The functions starting with
+.Fn fb_
+and
+.Fn term_
+are optional.
+They should only be used if they are non-nil and if
+.Fn core.isFramebufferConsole
+is true.
+.Ss Default File
+In addition, the Lua interpreters start with the file
+.Pa /boot/lua/loader.lua
+when they start to boot the system.
+The default one will fixup the screen, load the configuration files, check for a
+password, and then load the menu or load the kernel file and then return.
+If autoboot is enabled, the loaded files will boot.
+.Sh SEE ALSO
+.Xr loader.conf 5 ,
+.Xr core.lua 8 ,
+.Xr loader 8 ,
+.Xr sysctl 8
+.Sh AUTHORS
+The
+.Nm
+man page was written by
+.An Warner Losh Aq Mt imp@FreeBSD.org .
+.Sh BUGS
+.Fn command
+and
+.Fn perform
+should return a tuple when there's
+.Va CMD_ERROR
+or worse..
