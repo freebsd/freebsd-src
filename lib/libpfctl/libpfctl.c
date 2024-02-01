@@ -965,8 +965,8 @@ snl_add_msg_attr_rule_labels(struct snl_writer *nw, uint32_t type, const char la
 
 	off = snl_add_msg_attr_nested(nw, type);
 
-	while (labels[i][0] != 0 &&
-	    i < PF_RULE_MAX_LABEL_COUNT) {
+	while (i < PF_RULE_MAX_LABEL_COUNT &&
+	    labels[i][0] != 0) {
 		snl_add_msg_attr_string(nw, PF_LT_LABEL, labels[i]);
 		i++;
 	}
