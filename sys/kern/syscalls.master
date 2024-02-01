@@ -1277,7 +1277,6 @@
 217	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
 218	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
 219	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
-
 220	AUE_SEMCTL	COMPAT7|NOSTD {
 		int __semctl(
 		    int semid,
@@ -2300,19 +2299,16 @@
 		    int sig
 		);
 	}
-
 434	AUE_NULL	COMPAT10 {
 		int _umtx_lock(
 		    _Inout_ struct umtx *umtx
 		);
 	}
-
 435	AUE_NULL	COMPAT10 {
 		int _umtx_unlock(
 		    _Inout_ struct umtx *umtx
 		);
 	}
-
 436	AUE_JAIL_ATTACH	STD {
 		int jail_attach(
 		    int jid
@@ -2437,7 +2433,6 @@
 		    _In_ void *value
 		);
 	}
-
 457	AUE_MQ_OPEN	NOSTD {
 		int kmq_open(
 		    _In_z_ const char *path,
