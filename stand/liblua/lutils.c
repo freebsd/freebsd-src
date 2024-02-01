@@ -439,7 +439,6 @@ int
 luaopen_loader(lua_State *L)
 {
 	luaL_newlib(L, loaderlib);
-	luaopen_gfx(L);
 	/* Add loader.machine and loader.machine_arch properties */
 	lua_pushstring(L, MACHINE);
 	lua_setfield(L, -2, "machine");
