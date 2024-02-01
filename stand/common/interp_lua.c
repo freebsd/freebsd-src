@@ -27,7 +27,7 @@
 
 #include <sys/cdefs.h>
 #include <stand.h>
-#include "dbootstrap.h"
+#include "bootstrap.h"
 
 #define lua_c
 
