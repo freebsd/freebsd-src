@@ -1182,7 +1182,8 @@ sub report {
 	$output .= MAGENTA if $do_color && $level eq 'WARNING';
 	$output .= $level . ':' if !$github;
 	$output .= RESET if $do_color;
-	$output .= ' ' . $msg . "\n";
+	$output .= ' ' if (!$github);
+	$output .= $msg . "\n";
 
 	$output = (split('\n', $output))[0] . "\n" if ($terse);
 
