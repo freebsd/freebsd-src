@@ -210,11 +210,48 @@ early_init_vtop(void *addr)
 	    );
 }
 
+static int
+map_shared_info(void)
+{
+	/*
+	 * TODO shared info page should be mapped in an unpopulated (IOW:
+	 * non-RAM) address.  But finding one at this point in boot is
+	 * complicated, hence re-use a RAM address for the time being.  This
+	 * sadly causes super-page shattering in the second stage translation
+	 * page tables.
+	 */
+	static union {
+		shared_info_t shared_info;
+		uint8_t raw[PAGE_SIZE];
+	} shared_page __attribute__((aligned(PAGE_SIZE)));
+	static struct xen_add_to_physmap xatp = {
+	    .domid = DOMID_SELF,
+	    .space = XENMAPSPACE_shared_info,
+	};
+	int rc;
+
+	_Static_assert(sizeof(shared_page) == PAGE_SIZE,
+	    "invalid Xen shared_info struct size");
+
+	if (xatp.gpfn == 0)
+		xatp.gpfn = atop(early_init_vtop(&shared_page.shared_info));
+
+	rc = HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp);
+	if (rc != 0) {
+		xc_printf("cannot map shared info page: %d\n", rc);
+		HYPERVISOR_shared_info = NULL;
+	} else if (HYPERVISOR_shared_info == NULL)
+		HYPERVISOR_shared_info = &shared_page.shared_info;
+
+	return (rc);
+}
+
 /* Early initialization when running as a Xen guest. */
 void
 xen_early_init(void)
 {
 	uint32_t regs[4];
+	int rc;
 
 	xen_cpuid_base = xen_hvm_cpuid_base();
 	if (xen_cpuid_base == 0)
@@ -230,6 +267,12 @@ xen_early_init(void)
 	}
 
 	wrmsr(regs[1], early_init_vtop(&hypercall_page));
+
+	rc = map_shared_info();
+	if (rc != 0) {
+		vm_guest = VM_GUEST_VM;
+		return;
+	}
 }
 
 static void
