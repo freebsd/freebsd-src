@@ -25,6 +25,7 @@ my $chk_patch = undef;
 my $chk_branch = undef;
 my $tst_only;
 my $emacs = 0;
+my $github = 0;
 my $terse = 0;
 my $file = undef;
 my $color = "auto";
@@ -91,6 +92,7 @@ GetOptions(
 	'patch!'	=> \$chk_patch,
 	'branch!'	=> \$chk_branch,
 	'emacs!'	=> \$emacs,
+	'github!'	=> \$github,
 	'terse!'	=> \$terse,
 	'f|file!'	=> \$file,
 	'strict!'	=> \$no_warnings,
@@ -1395,6 +1397,8 @@ sub process {
 #make up the handle for any error we report on this line
 		$prefix = "$filename:$realline: " if ($emacs && $file);
 		$prefix = "$filename:$linenr: " if ($emacs && !$file);
+		$prefix = "::error file=$filename:line=$realline:\:" if ($github && $file);
+		$prefix = "::error file=$realfile:line=$linenr:\:" if ($github && !$file);
 
 		$here = "#$linenr: " if (!$file);
 		$here = "#$realline: " if ($file);
