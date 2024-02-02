@@ -41,8 +41,10 @@
 
 #include <dev/pci/pcivar.h>
 
+#include <machine/_inttypes.h>
 #include <machine/cpufunc.h>
 #include <machine/cpu.h>
+#include <machine/md_var.h>
 #include <machine/smp.h>
 
 #include <x86/apicreg.h>
@@ -182,6 +184,52 @@ xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 out:
 	hypervisor_version();
 	return (0);
+}
+
+/*
+ * Translate linear to physical address when still running on the bootloader
+ * created page-tables.
+ */
+static vm_paddr_t
+early_init_vtop(void *addr)
+{
+
+	/*
+	 * Using a KASSERT won't print anything, as this is before console
+	 * initialization.
+	 */
+	if (__predict_false((uintptr_t)addr < KERNBASE)) {
+		xc_printf("invalid linear address: %#lx\n", (uintptr_t)addr);
+		halt();
+	}
+
+	return ((uintptr_t)addr - KERNBASE
+#ifdef __amd64__
+	    + kernphys - KERNLOAD
+#endif
+	    );
+}
+
+/* Early initialization when running as a Xen guest. */
+void
+xen_early_init(void)
+{
+	uint32_t regs[4];
+
+	xen_cpuid_base = xen_hvm_cpuid_base();
+	if (xen_cpuid_base == 0)
+		return;
+
+	/* Find the hypercall pages. */
+	do_cpuid(xen_cpuid_base + 2, regs);
+	if (regs[0] != 1) {
+		xc_printf("Invalid number of hypercall pages %u\n",
+		    regs[0]);
+		vm_guest = VM_GUEST_VM;
+		return;
+	}
+
+	wrmsr(regs[1], early_init_vtop(&hypercall_page));
 }
 
 static void

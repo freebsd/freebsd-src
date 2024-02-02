@@ -96,6 +96,9 @@ xen_pv_nics_disabled(void)
 
 bool xen_has_iommu_maps(void);
 
+/* (Very) early initialization. */
+void xen_early_init(void);
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _MACHINE_X86_XEN_XEN_OS_H_ */

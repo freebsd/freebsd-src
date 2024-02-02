@@ -162,14 +162,13 @@ hammer_time_xen(vm_paddr_t start_info_paddr)
 	struct xen_add_to_physmap xatp;
 	uint64_t physfree;
 	char *kenv;
-	int rc;
 
 	if (isxen()) {
 		vm_guest = VM_GUEST_XEN;
-		rc = xen_hvm_init_hypercall_stubs(XEN_HVM_INIT_EARLY);
-		if (rc) {
-			xc_printf("ERROR: failed to initialize hypercall page: %d\n",
-			    rc);
+		xen_early_init();
+		if (xen_cpuid_base == 0) {
+			xc_printf(
+			    "ERROR: failed to initialize hypercall page\n");
 			HYPERVISOR_shutdown(SHUTDOWN_crash);
 		}
 	}
