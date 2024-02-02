@@ -321,7 +321,7 @@ regcomp_internal(regex_t * __restrict preg,
 		computejumps(p, g);
 		computematchjumps(p, g);
 		if(g->matchjump == NULL && g->charjump != NULL) {
-			free(g->charjump);
+			free(&g->charjump[CHAR_MIN]);
 			g->charjump = NULL;
 		}
 	}
