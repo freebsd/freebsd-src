@@ -423,6 +423,13 @@ BOUND_IFACE(struct pf_kstate *st, struct pfi_kkif *k)
 	if (! (st->rule.ptr->rule_flag & PFRULE_IFBOUND))
 		return (V_pfi_all);
 
+	/*
+	 * Initially set to all, because we don't know what interface we'll be
+	 * sending this out when we create the state.
+	 */
+	if (st->rule.ptr->rt == PF_REPLYTO)
+		return (V_pfi_all);
+
 	/* Don't overrule the interface for states created on incoming packets. */
 	if (st->direction == PF_IN)
 		return (k);
@@ -7317,15 +7324,27 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 			dst.sin_addr.s_addr = naddr.v4.s_addr;
 		ifp = nkif ? nkif->pfik_ifp : NULL;
 	} else {
+		struct pfi_kkif *kif;
+
 		if (!PF_AZERO(&s->rt_addr, AF_INET))
 			dst.sin_addr.s_addr =
 			    s->rt_addr.v4.s_addr;
 		ifp = s->rt_kif ? s->rt_kif->pfik_ifp : NULL;
+		kif = s->rt_kif;
 		/* If pfsync'd */
 		if (ifp == NULL && r->rpool.cur != NULL) {
 			ifp = r->rpool.cur->kif ?
 			    r->rpool.cur->kif->pfik_ifp : NULL;
+			kif = r->rpool.cur->kif;
 		}
+		if (ifp != NULL && kif != NULL &&
+		    r->rule_flag & PFRULE_IFBOUND &&
+		    r->rt == PF_REPLYTO &&
+		    s->kif == V_pfi_all) {
+			s->kif = kif;
+			s->orig_kif = oifp->if_pf_kif;
+		}
+
 		PF_STATE_UNLOCK(s);
 	}
 
@@ -7538,14 +7557,26 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 			    &naddr, AF_INET6);
 		ifp = nkif ? nkif->pfik_ifp : NULL;
 	} else {
+		struct pfi_kkif *kif;
+
 		if (!PF_AZERO(&s->rt_addr, AF_INET6))
 			PF_ACPY((struct pf_addr *)&dst.sin6_addr,
 			    &s->rt_addr, AF_INET6);
 		ifp = s->rt_kif ? s->rt_kif->pfik_ifp : NULL;
+		kif = s->rt_kif;
 		/* If pfsync'd */
-		if (ifp == NULL && r->rpool.cur != NULL)
+		if (ifp == NULL && r->rpool.cur != NULL) {
 			ifp = r->rpool.cur->kif ?
 			    r->rpool.cur->kif->pfik_ifp : NULL;
+			kif = r->rpool.cur->kif;
+		}
+		if (ifp != NULL && kif != NULL &&
+		    r->rule_flag & PFRULE_IFBOUND &&
+		    r->rt == PF_REPLYTO &&
+		    s->kif == V_pfi_all) {
+			s->kif = kif;
+			s->orig_kif = oifp->if_pf_kif;
+		}
 	}
 
 	if (s)
