@@ -32,6 +32,7 @@ www/links
 x11-drivers/xf86-video-vmware
 x11/gnome
 x11/kde5
+x11/sddm
 x11/xorg"
 
 # If NOPORTS is set for the release, do not attempt to build pkg(8).
