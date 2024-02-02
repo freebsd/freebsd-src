@@ -221,3 +221,29 @@ void
 gfx_interp_md(void)
 {
 }
+
+static void
+gfx_init_md(lua_State *L)
+{
+	luaL_requiref(L, "gfx", luaopen_gfx, 1);
+	lua_pop(L, 1);	/* Remove lib */
+	/*
+	 * Add in the compatbility references in the loader table.  Doing it with
+	 * a pseudo-embedded script is easier than the raw calls.
+	 */
+	if (luaL_dostring(L,
+		"loader.fb_bezier = gfx.fb_bezier\n"
+		"loader.fb_drawrect = gfx.fb_drawrect\n"
+		"loader.fb_line = gfx.fb_line\n"
+		"loader.fb_putimage = gfx.fb_putimage\n"
+		"loader.fb_setpixel = gfx.fb_setpixel\n"
+		"loader.term_drawrect = gfx.term_drawrect\n"
+		"loader.term_putimage = gfx.term_putimage") != 0) {
+		lua_pop(L, 1);
+		const char *errstr = lua_tostring(L, -1);
+		errstr = errstr == NULL ? "unknown" : errstr;
+		printf("Error adding compat loader bindings: %s.\n", errstr);
+	}
+}
+
+LUA_COMPILE_SET(gfx_init_md);
