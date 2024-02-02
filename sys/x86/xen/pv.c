@@ -319,87 +319,6 @@ xen_pvh_parse_symtab(void)
 }
 #endif
 
-static void
-fixup_console(void)
-{
-	struct xen_platform_op op = {
-		.cmd = XENPF_get_dom0_console,
-	};
-	xenpf_dom0_console_t *console = &op.u.dom0_console;
-	union {
-		struct efi_fb efi;
-		struct vbe_fb vbe;
-	} *fb = NULL;
-	int size;
-	caddr_t kmdp;
-
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	if (kmdp == NULL) {
-		xc_printf("Unable to find kernel metadata\n");
-		return;
-	}
-
-	size = HYPERVISOR_platform_op(&op);
-	if (size < 0) {
-		xc_printf("Failed to get video console info: %d\n", size);
-		return;
-	}
-
-	switch (console->video_type) {
-	case XEN_VGATYPE_VESA_LFB:
-		fb = (__typeof__ (fb))preload_search_info(kmdp,
-		    MODINFO_METADATA | MODINFOMD_VBE_FB);
-
-		if (fb == NULL) {
-			xc_printf("No VBE FB in kernel metadata\n");
-			return;
-		}
-
-		_Static_assert(offsetof(struct vbe_fb, fb_bpp) ==
-		    offsetof(struct efi_fb, fb_mask_reserved) +
-		    sizeof(fb->efi.fb_mask_reserved),
-		    "Bad structure overlay\n");
-		fb->vbe.fb_bpp = console->u.vesa_lfb.bits_per_pixel;
-		/* FALLTHROUGH */
-	case XEN_VGATYPE_EFI_LFB:
-		if (fb == NULL) {
-			fb = (__typeof__ (fb))preload_search_info(kmdp,
-			    MODINFO_METADATA | MODINFOMD_EFI_FB);
-			if (fb == NULL) {
-				xc_printf("No EFI FB in kernel metadata\n");
-				return;
-			}
-		}
-
-		fb->efi.fb_addr = console->u.vesa_lfb.lfb_base;
-		if (size >
-		    offsetof(xenpf_dom0_console_t, u.vesa_lfb.ext_lfb_base))
-			fb->efi.fb_addr |=
-			    (uint64_t)console->u.vesa_lfb.ext_lfb_base << 32;
-		fb->efi.fb_size = console->u.vesa_lfb.lfb_size << 16;
-		fb->efi.fb_height = console->u.vesa_lfb.height;
-		fb->efi.fb_width = console->u.vesa_lfb.width;
-		fb->efi.fb_stride = (console->u.vesa_lfb.bytes_per_line << 3) /
-		    console->u.vesa_lfb.bits_per_pixel;
-#define FBMASK(c) \
-    ((~0u << console->u.vesa_lfb.c ## _pos) & \
-    (~0u >> (32 - console->u.vesa_lfb.c ## _pos - \
-    console->u.vesa_lfb.c ## _size)))
-		fb->efi.fb_mask_red = FBMASK(red);
-		fb->efi.fb_mask_green = FBMASK(green);
-		fb->efi.fb_mask_blue = FBMASK(blue);
-		fb->efi.fb_mask_reserved = FBMASK(rsvd);
-#undef FBMASK
-		break;
-
-	default:
-		xc_printf("Video console type unsupported\n");
-		return;
-	}
-}
-
 static caddr_t
 xen_pvh_parse_preload_data(uint64_t modulep)
 {
@@ -479,8 +398,6 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 		    strlcpy(bootmethod, "UEFI", sizeof(bootmethod));
 		else
 		    strlcpy(bootmethod, "BIOS", sizeof(bootmethod));
-
-		fixup_console();
 	} else {
 		/* Parse the extra boot information given by Xen */
 		if (start_info->cmdline_paddr != 0)
