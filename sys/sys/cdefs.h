@@ -394,6 +394,17 @@
 #endif
 
 /*
+ * noexcept keyword added in C++11.
+ */
+#if defined(__cplusplus) && __cplusplus >= 201103L
+#define __noexcept noexcept
+#define __noexcept_if(__c) noexcept(__c)
+#else
+#define __noexcept
+#define __noexcept_if(__c)
+#endif
+
+/*
  * nodiscard attribute added in C++17 and C23, but supported by both LLVM and
  * GCC in earlier language versions, so we use __has_c{,pp}_attribute to test
  * for it.
