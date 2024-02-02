@@ -1343,6 +1343,7 @@ SYSINIT(hook_tsc_freq, SI_SUB_CONFIGURE, SI_ORDER_ANY, hook_tsc_freq, NULL);
 static struct {
 	const char	*vm_cpuid;
 	int		vm_guest;
+	void		(*init)(void);
 } vm_cpuids[] = {
 	{ "XenVMMXenVMM",	VM_GUEST_XEN },		/* XEN */
 	{ "Microsoft Hv",	VM_GUEST_HV },		/* Microsoft Hyper-V */
@@ -1355,6 +1356,7 @@ static struct {
 static void
 identify_hypervisor_cpuid_base(void)
 {
+	void (*init_fn)(void) = NULL;
 	u_int leaf, regs[4];
 	int i;
 
@@ -1391,6 +1393,7 @@ identify_hypervisor_cpuid_base(void)
 				if (strncmp((const char *)&regs[1],
 				    vm_cpuids[i].vm_cpuid, 12) == 0) {
 					vm_guest = vm_cpuids[i].vm_guest;
+					init_fn = vm_cpuids[i].init;
 					break;
 				}
 
@@ -1423,10 +1426,13 @@ identify_hypervisor_cpuid_base(void)
 				     * preferred.
 				     */
 				    vm_guest != VM_GUEST_HV)
-					return;
+					break;
 			}
 		}
 	}
+
+	if (init_fn != NULL)
+		init_fn();
 }
 
 void
