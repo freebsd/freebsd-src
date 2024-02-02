@@ -2178,9 +2178,35 @@ _default_flavor=	-default
 . if ${MK_DEBUG_FILES} != "no"
 _debug=-dbg
 . endif
+
+create-dtb-package:
+	@if [ -f ${KSTAGEDIR}/${DISTDIR}/dtb.plist ]; then \
+	sed -e "s/%VERSION%/${PKG_VERSION}/" \
+		-e "s/%PKGNAME%/dtb/" \
+		-e "s/%COMMENT%/FreeBSD Devicetree Blobs/" \
+		-e "s/%DESC%/FreeBSD Devicetree Blobs/" \
+		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
+		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
+		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
+		-e "s|%PKG_WWW%|${PKG_WWW}|" \
+		${SRCDIR}/release/packages/dtb.ucl \
+		> ${KSTAGEDIR}/${DISTDIR}/dtb.ucl ; \
+	awk -F\" ' \
+		/name/ { printf("===> Creating %s-", $$2); next } \
+		/version/ {print $$2; next } ' \
+		${KSTAGEDIR}/${DISTDIR}/dtb.ucl ; \
+	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
+		-o OSVERSION="${SRCRELDATE}" \
+		create -f ${PKG_FORMAT} \
+		-M ${KSTAGEDIR}/${DISTDIR}/dtb.ucl \
+		-p ${KSTAGEDIR}/${DISTDIR}/dtb.plist \
+		-r ${KSTAGEDIR}/${DISTDIR} \
+		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR} ; \
+	fi
+
 create-kernel-packages:	.PHONY
 . for flavor in "" ${_debug}
-create-kernel-packages: create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}
+create-kernel-packages: create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},} create-dtb-package
 create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap .PHONY
 	@cd ${KSTAGEDIR}/${DISTDIR} ; \
 	${METALOG_SORT_CMD} ${KSTAGEDIR}/kernel.meta | \
