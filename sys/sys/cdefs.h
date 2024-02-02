@@ -359,6 +359,17 @@
 #endif
 
 /*
+ * noexcept keyword added in C++11.
+ */
+#if defined(__cplusplus) && __cplusplus >= 201103L
+#define __noexcept noexcept
+#define __noexcept_if(__c) noexcept(__c)
+#else
+#define __noexcept
+#define __noexcept_if(__c)
+#endif
+
+/*
  * We use `__restrict' as a way to define the `restrict' type qualifier
  * without disturbing older software that is unaware of C99 keywords.
  * GCC also provides `__restrict' as an extension to support C99-style
