@@ -39,6 +39,7 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -133,7 +134,14 @@ monitor_add(const char *path)
 	}
 	EV_SET(&kev, elm->fd, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_CLEAR,
 		NOTE_DELETE | NOTE_WRITE | NOTE_EXTEND | NOTE_ATTRIB |
-		NOTE_LINK | NOTE_RENAME | NOTE_REVOKE,
+		NOTE_LINK | NOTE_RENAME | NOTE_REVOKE |
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+		NOTE_OPEN | NOTE_CLOSE | NOTE_CLOSE_WRITE | NOTE_READ,
+#elif defined(__OpenBSD__)
+		NOTE_TRUNCATE,
+#else
+		0,
+#endif
 		0, NULL);
 	n = kevent(KQueueFd, &kev, 1, NULL, 0, NULL);
 	if (n < 0) {
@@ -197,6 +205,25 @@ monitor_events(void)
 			case NOTE_REVOKE:
 				printf("revoke");
 				break;
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+			case NOTE_OPEN:
+				printf("open");
+				break;
+			case NOTE_CLOSE:
+				printf("close");
+				break;
+			case NOTE_CLOSE_WRITE:
+				printf("closew");
+				break;
+			case NOTE_READ:
+				printf("read");
+				break;
+#endif
+#ifdef NOTE_TRUNCATE
+			case NOTE_TRUNCATE:
+				printf("truncate");
+				break;
+#endif
 			default:
 				printf("%08x", 1 << bno);
 				break;
