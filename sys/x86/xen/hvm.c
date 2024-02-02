@@ -147,7 +147,7 @@ hypervisor_version(void)
 	uint32_t regs[4];
 	int major, minor;
 
-	do_cpuid(xen_cpuid_base + 1, regs);
+	do_cpuid(hv_base + 1, regs);
 
 	major = regs[0] >> 16;
 	minor = regs[0] & 0xffff;
@@ -595,8 +595,8 @@ xen_hvm_cpu_init(void)
 	 * Set vCPU ID. If available fetch the ID from CPUID, if not just use
 	 * the ACPI ID.
 	 */
-	KASSERT(xen_cpuid_base != 0, ("Invalid base Xen CPUID leaf"));
-	cpuid_count(xen_cpuid_base + 4, 0, regs);
+	KASSERT(hv_base != 0, ("Invalid base Xen CPUID leaf"));
+	cpuid_count(hv_base + 4, 0, regs);
 	KASSERT((regs[0] & XEN_HVM_CPUID_VCPU_ID_PRESENT) ||
 	    !xen_pv_domain(),
 	    ("Xen PV domain without vcpu_id in cpuid"));
@@ -626,8 +626,8 @@ xen_has_iommu_maps(void)
 {
 	uint32_t regs[4];
 
-	KASSERT(xen_cpuid_base != 0, ("Invalid base Xen CPUID leaf"));
-	cpuid_count(xen_cpuid_base + 4, 0, regs);
+	KASSERT(hv_base != 0, ("Invalid base Xen CPUID leaf"));
+	cpuid_count(hv_base + 4, 0, regs);
 
 	return (regs[0] & XEN_HVM_CPUID_IOMMU_MAPPINGS);
 }
