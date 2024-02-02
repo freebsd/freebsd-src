@@ -1175,12 +1175,13 @@ sub report {
 	}
 
 	my $output = '';
-	$output .= BOLD if $color;
+	my $do_color = $color && !$github;
+	$output .= BOLD if $do_color;
 	$output .= $prefix;
-	$output .= RED if $color && $level eq 'ERROR';
-	$output .= MAGENTA if $color && $level eq 'WARNING';
-	$output .= $level . ':';
-	$output .= RESET if $color;
+	$output .= RED if $do_color && $level eq 'ERROR';
+	$output .= MAGENTA if $do_color && $level eq 'WARNING';
+	$output .= $level . ':' if !$github;
+	$output .= RESET if $do_color;
 	$output .= ' ' . $msg . "\n";
 
 	$output = (split('\n', $output))[0] . "\n" if ($terse);
@@ -1397,8 +1398,8 @@ sub process {
 #make up the handle for any error we report on this line
 		$prefix = "$filename:$realline: " if ($emacs && $file);
 		$prefix = "$filename:$linenr: " if ($emacs && !$file);
-		$prefix = "::error file=$filename:line=$realline:\:" if ($github && $file);
-		$prefix = "::error file=$realfile:line=$linenr:\:" if ($github && !$file);
+		$prefix = "::error file=$filename,line=$realline:\:" if ($github && $file);
+		$prefix = "::error file=$realfile,line=$linenr:\:" if ($github && !$file);
 
 		$here = "#$linenr: " if (!$file);
 		$here = "#$realline: " if ($file);
