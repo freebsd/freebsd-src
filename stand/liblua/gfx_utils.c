@@ -216,3 +216,8 @@ luaopen_gfx(lua_State *L)
 	luaL_newlib(L, gfxlib);
 	return 1;
 }
+
+void
+gfx_interp_md(void)
+{
+}
