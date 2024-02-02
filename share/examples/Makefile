@@ -8,7 +8,6 @@ FILESDIR=	${SHAREDIR}/examples
 
 LDIRS=	BSD_daemon \
 	FreeBSD_version \
-	IPv6 \
 	bootforth \
 	csh \
 	drivers \
@@ -56,9 +55,6 @@ SE_FREEBSD_VERSION= \
 	FreeBSD_version.c \
 	Makefile \
 	README
-
-SE_DIRS+=	IPv6
-SE_IPV6=	USAGE
 
 SE_DIRS+=	bootforth
 SE_BOOTFORTH= \
