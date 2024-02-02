@@ -159,7 +159,6 @@ uint64_t
 hammer_time_xen(vm_paddr_t start_info_paddr)
 {
 	struct hvm_modlist_entry *mod;
-	struct xen_add_to_physmap xatp;
 	uint64_t physfree;
 	char *kenv;
 
@@ -208,19 +207,6 @@ hammer_time_xen(vm_paddr_t start_info_paddr)
 		for (i = 0; i < start_info->nr_modules; i++)
 			physfree = MAX(roundup2(mod[i].paddr + mod[i].size,
 			    PAGE_SIZE), physfree);
-	}
-
-	if (isxen()) {
-		xatp.domid = DOMID_SELF;
-		xatp.idx = 0;
-		xatp.space = XENMAPSPACE_shared_info;
-		xatp.gpfn = atop(physfree);
-		if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp)) {
-			xc_printf("ERROR: failed to setup shared_info page\n");
-			HYPERVISOR_shutdown(SHUTDOWN_crash);
-		}
-		HYPERVISOR_shared_info = (shared_info_t *)(physfree + KERNBASE);
-		physfree += PAGE_SIZE;
 	}
 
 	/*
