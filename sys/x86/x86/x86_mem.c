@@ -183,7 +183,7 @@ x86_mr_split_dmap(struct mem_range_softc *sc __unused)
 	mrd = sc->mr_desc + i;
 	for (; i < sc->mr_ndesc; i++, mrd++) {
 		if ((mrd->mr_flags & (MDF_ACTIVE | MDF_BOGUS)) == MDF_ACTIVE)
-			pmap_demote_DMAP(mrd->mr_base, mrd->mr_len, TRUE);
+			pmap_demote_DMAP(mrd->mr_base, mrd->mr_len, true);
 	}
 #endif
 }
