@@ -1766,7 +1766,7 @@ pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode)
 
 	pte = vtopte(va);
 	pte_store(pte, pa | PG_RW | PG_V | pmap_cache_bits(kernel_pmap,
-	    mode, 0));
+	    mode, false));
 }
 
 /*
@@ -1862,7 +1862,7 @@ __CONCAT(PMTYPE, qenter)(vm_offset_t sva, vm_page_t *ma, int count)
 	while (pte < endpte) {
 		m = *ma++;
 		pa = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(kernel_pmap,
-		    m->md.pat_mode, 0);
+		    m->md.pat_mode, false);
 		if ((*pte & (PG_FRAME | PG_PTE_CACHE)) != pa) {
 			oldpte |= *pte;
 			pte_store(pte, pa | pg_nx | PG_RW | PG_V);
@@ -3918,8 +3918,8 @@ pmap_enter_4mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 	pd_entry_t newpde;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	newpde = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(pmap, m->md.pat_mode, 1) |
-	    PG_PS | PG_V;
+	newpde = VM_PAGE_TO_PHYS(m) |
+	    pmap_cache_bits(pmap, m->md.pat_mode, true) | PG_PS | PG_V;
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		newpde |= PG_MANAGED;
 #ifdef PMAP_PAE_COMP
@@ -4233,7 +4233,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	pmap->pm_stats.resident_count++;
 
 	newpte = VM_PAGE_TO_PHYS(m) | PG_V |
-	    pmap_cache_bits(pmap, m->md.pat_mode, 0);
+	    pmap_cache_bits(pmap, m->md.pat_mode, false);
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		newpte |= PG_MANAGED;
 #ifdef PMAP_PAE_COMP
@@ -4339,7 +4339,7 @@ __CONCAT(PMTYPE, object_init_pt)(pmap_t pmap, vm_offset_t addr,
 		 * "pa" will not affect the termination of this loop.
 		 */
 		PMAP_LOCK(pmap);
-		for (pa = ptepa | pmap_cache_bits(pmap, pat_mode, 1);
+		for (pa = ptepa | pmap_cache_bits(pmap, pat_mode, true);
 		    pa < ptepa + size; pa += NBPDR) {
 			pde = pmap_pde(pmap, addr);
 			if (*pde == 0) {
@@ -4596,7 +4596,7 @@ __CONCAT(PMTYPE, zero_page)(vm_page_t m)
 	if (*cmap_pte2)
 		panic("pmap_zero_page: CMAP2 busy");
 	*cmap_pte2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M |
-	    pmap_cache_bits(kernel_pmap, m->md.pat_mode, 0);
+	    pmap_cache_bits(kernel_pmap, m->md.pat_mode, false);
 	invlcaddr(pc->pc_cmap_addr2);
 	pagezero(pc->pc_cmap_addr2);
 	*cmap_pte2 = 0;
@@ -4627,7 +4627,7 @@ __CONCAT(PMTYPE, zero_page_area)(vm_page_t m, int off, int size)
 	if (*cmap_pte2)
 		panic("pmap_zero_page_area: CMAP2 busy");
 	*cmap_pte2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M |
-	    pmap_cache_bits(kernel_pmap, m->md.pat_mode, 0);
+	    pmap_cache_bits(kernel_pmap, m->md.pat_mode, false);
 	invlcaddr(pc->pc_cmap_addr2);
 	if (off == 0 && size == PAGE_SIZE) 
 		pagezero(pc->pc_cmap_addr2);
@@ -4657,10 +4657,10 @@ __CONCAT(PMTYPE, copy_page)(vm_page_t src, vm_page_t dst)
 	if (*cmap_pte2)
 		panic("pmap_copy_page: CMAP2 busy");
 	*cmap_pte1 = PG_V | VM_PAGE_TO_PHYS(src) | PG_A |
-	    pmap_cache_bits(kernel_pmap, src->md.pat_mode, 0);
+	    pmap_cache_bits(kernel_pmap, src->md.pat_mode, false);
 	invlcaddr(pc->pc_cmap_addr1);
 	*cmap_pte2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(dst) | PG_A | PG_M |
-	    pmap_cache_bits(kernel_pmap, dst->md.pat_mode, 0);
+	    pmap_cache_bits(kernel_pmap, dst->md.pat_mode, false);
 	invlcaddr(pc->pc_cmap_addr2);
 	bcopy(pc->pc_cmap_addr1, pc->pc_cmap_addr2, PAGE_SIZE);
 	*cmap_pte1 = 0;
@@ -4697,10 +4697,11 @@ __CONCAT(PMTYPE, copy_pages)(vm_page_t ma[], vm_offset_t a_offset,
 		b_pg_offset = b_offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
 		*cmap_pte1 = PG_V | VM_PAGE_TO_PHYS(a_pg) | PG_A |
-		    pmap_cache_bits(kernel_pmap, a_pg->md.pat_mode, 0);
+		    pmap_cache_bits(kernel_pmap, a_pg->md.pat_mode, false);
 		invlcaddr(pc->pc_cmap_addr1);
 		*cmap_pte2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(b_pg) | PG_A |
-		    PG_M | pmap_cache_bits(kernel_pmap, b_pg->md.pat_mode, 0);
+		    PG_M | pmap_cache_bits(kernel_pmap, b_pg->md.pat_mode,
+		    false);
 		invlcaddr(pc->pc_cmap_addr2);
 		a_cp = pc->pc_cmap_addr1 + a_pg_offset;
 		b_cp = pc->pc_cmap_addr2 + b_pg_offset;
@@ -5663,7 +5664,7 @@ __CONCAT(PMTYPE, flush_page)(vm_page_t m)
 			panic("pmap_flush_page: CMAP2 busy");
 		*cmap_pte2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) |
 		    PG_A | PG_M | pmap_cache_bits(kernel_pmap, m->md.pat_mode,
-		    0);
+		    false);
 		invlcaddr(pc->pc_cmap_addr2);
 		sva = (vm_offset_t)pc->pc_cmap_addr2;
 		eva = sva + PAGE_SIZE;
@@ -5724,8 +5725,8 @@ __CONCAT(PMTYPE, change_attr)(vm_offset_t va, vm_size_t size, int mode)
 	if (base < VM_MIN_KERNEL_ADDRESS)
 		return (EINVAL);
 
-	cache_bits_pde = pmap_cache_bits(kernel_pmap, mode, 1);
-	cache_bits_pte = pmap_cache_bits(kernel_pmap, mode, 0);
+	cache_bits_pde = pmap_cache_bits(kernel_pmap, mode, true);
+	cache_bits_pte = pmap_cache_bits(kernel_pmap, mode, false);
 	changed = false;
 
 	/*
@@ -5939,7 +5940,7 @@ __CONCAT(PMTYPE, quick_enter_page)(vm_page_t m)
 	KASSERT(*pte == 0,
 	    ("pmap_quick_enter_page: PTE busy %#jx", (uintmax_t)*pte));
 	*pte = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M |
-	    pmap_cache_bits(kernel_pmap, pmap_page_get_memattr(m), 0);
+	    pmap_cache_bits(kernel_pmap, pmap_page_get_memattr(m), false);
 	invlpg(qaddr);
 
 	return (qaddr);
@@ -6085,7 +6086,7 @@ __CONCAT(PMTYPE, sf_buf_map)(struct sf_buf *sf)
 	ptep = vtopte(sf->kva);
 	opte = *ptep;
 	*ptep = VM_PAGE_TO_PHYS(sf->m) | PG_RW | PG_V |
-	    pmap_cache_bits(kernel_pmap, sf->m->md.pat_mode, 0);
+	    pmap_cache_bits(kernel_pmap, sf->m->md.pat_mode, false);
 
 	/*
 	 * Avoid unnecessary TLB invalidations: If the sf_buf's old
