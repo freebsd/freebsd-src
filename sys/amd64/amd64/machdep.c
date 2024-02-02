@@ -982,10 +982,11 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 		if (physmap[i + 1] < end)
 			end = trunc_page(physmap[i + 1]);
 		for (pa = round_page(physmap[i]); pa < end; pa += PAGE_SIZE) {
-			int tmp, page_bad, full;
 			int *ptr = (int *)CADDR1;
+			int tmp;
+			bool full, page_bad;
 
-			full = FALSE;
+			full = false;
 			/*
 			 * block out kernel memory as not available.
 			 */
@@ -1000,7 +1001,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 			    && pa < dcons_addr + dcons_size)
 				goto do_dump_avail;
 
-			page_bad = FALSE;
+			page_bad = false;
 			if (memtest == 0)
 				goto skip_memtest;
 
@@ -1024,25 +1025,25 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 			 */
 			*(volatile int *)ptr = 0xaaaaaaaa;
 			if (*(volatile int *)ptr != 0xaaaaaaaa)
-				page_bad = TRUE;
+				page_bad = true;
 			/*
 			 * Test for alternating 0's and 1's
 			 */
 			*(volatile int *)ptr = 0x55555555;
 			if (*(volatile int *)ptr != 0x55555555)
-				page_bad = TRUE;
+				page_bad = true;
 			/*
 			 * Test for all 1's
 			 */
 			*(volatile int *)ptr = 0xffffffff;
 			if (*(volatile int *)ptr != 0xffffffff)
-				page_bad = TRUE;
+				page_bad = true;
 			/*
 			 * Test for all 0's
 			 */
 			*(volatile int *)ptr = 0x0;
 			if (*(volatile int *)ptr != 0x0)
-				page_bad = TRUE;
+				page_bad = true;
 			/*
 			 * Restore original value.
 			 */
@@ -1052,7 +1053,7 @@ skip_memtest:
 			/*
 			 * Adjust array of valid/good pages.
 			 */
-			if (page_bad == TRUE)
+			if (page_bad == true)
 				continue;
 			/*
 			 * If this good page is a continuation of the
@@ -1073,7 +1074,7 @@ skip_memtest:
 					printf(
 		"Too many holes in the physical address space, giving up\n");
 					pa_indx--;
-					full = TRUE;
+					full = true;
 					goto do_dump_avail;
 				}
 				phys_avail[pa_indx++] = pa;	/* start */
