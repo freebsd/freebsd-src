@@ -1177,6 +1177,8 @@ sub report {
 	my $output = '';
 	my $do_color = $color && !$github;
 	$output .= BOLD if $do_color;
+	$output .= "::error " if $github && $level eq 'ERROR';
+	$output .= "::warning " if $github && $level eq 'WARNING';
 	$output .= $prefix;
 	$output .= RED if $do_color && $level eq 'ERROR';
 	$output .= MAGENTA if $do_color && $level eq 'WARNING';
@@ -1399,8 +1401,8 @@ sub process {
 #make up the handle for any error we report on this line
 		$prefix = "$filename:$realline: " if ($emacs && $file);
 		$prefix = "$filename:$linenr: " if ($emacs && !$file);
-		$prefix = "::error file=$filename,line=$realline:\:" if ($github && $file);
-		$prefix = "::error file=$realfile,line=$linenr:\:" if ($github && !$file);
+		$prefix = "file=$filename,line=$realline:\:" if ($github && $file);
+		$prefix = "file=$realfile,line=$realline:\:" if ($github && !$file);
 
 		$here = "#$linenr: " if (!$file);
 		$here = "#$realline: " if ($file);
