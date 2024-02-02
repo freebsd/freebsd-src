@@ -165,7 +165,7 @@ void *	aligned_alloc(size_t, size_t) __malloc_like __alloc_align(1)
 	    __alloc_size(2);
 int	at_quick_exit(void (*)(void)) __noexcept;
 _Noreturn void
-	quick_exit(int) __noexcept;
+	quick_exit(int) /* __noexcept -- not ready ABI issues? */;
 #endif /* __ISO_C_VISIBLE >= 2011 */
 /*
  * Extensions made by POSIX relative to C.
