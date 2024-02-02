@@ -11,8 +11,8 @@ BASE_SRCS=	dict.c ficl.c fileaccess.c float.c loader.c math64.c \
 SRCS=		${BASE_SRCS} sysdep.c softcore.c
 CLEANFILES+=	softcore.c testmain testmain.o
 
-CFLAGS.loader.c += -I${SRCTOP}/sys/teken
-CFLAGS.loader.c += -I${SRCTOP}/contrib/pnglite
+CFLAGS.gfx_loader.c += -I${SRCTOP}/sys/teken
+CFLAGS.gfx_loader.c += -I${SRCTOP}/contrib/pnglite
 .ifmake testmain
 CFLAGS=	-DTESTMAIN -D_TESTMAIN
 CFLAGS+=	-I${FICLSRC} -I${FICLSRC}/${FICL_CPUARCH} -I${LDRSRC}
@@ -21,6 +21,7 @@ PROG=		testmain
 .include <bsd.prog.mk>
 .else
 LIB=		ficl
+BASE_SRCS+=	gfx_loader.c	# Not TESTMAINable
 .include <bsd.lib.mk>
 .endif
 
