@@ -407,6 +407,61 @@ ifbound_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "ifbound_reply_to" "cleanup"
+ifbound_reply_to_head()
+{
+	atf_set descr 'Test that reply-to states bind to the expected interface'
+	atf_set require.user root
+}
+
+ifbound_reply_to_body()
+{
+	pft_init
+
+	j="route_to:ifbound_reply_to"
+
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+	ifconfig ${epair_one}b inet 192.0.2.2/24 up
+	ifconfig ${epair_two}b up
+
+	vnet_mkjail $j ${epair_one}a ${epair_two}a
+	jexec $j ifconfig ${epair_one}a 192.0.2.1/24 up
+	jexec $j ifconfig ${epair_two}a 198.51.100.1/24 up
+	jexec $j route add default 198.51.100.254
+
+	jexec $j pfctl -e
+	pft_set_rules $j \
+		"set state-policy if-bound" \
+		"block" \
+		"pass in on ${epair_one}a reply-to (${epair_one}a 192.0.2.2) inet from any to 192.0.2.0/24 keep state"
+
+	atf_check -s exit:0 -o ignore \
+	    ping -c 3 192.0.2.1
+
+	atf_check -s exit:0 \
+	    ${common_dir}/pft_ping.py \
+	    --to 192.0.2.1 \
+	    --from 203.0.113.2 \
+	    --sendif ${epair_one}b \
+	    --replyif ${epair_one}b
+
+	# pft_ping uses the same ID every time, so this will look like more traffic in the same state
+	atf_check -s exit:0 \
+	    ${common_dir}/pft_ping.py \
+	    --to 192.0.2.1 \
+	    --from 203.0.113.2 \
+	    --sendif ${epair_one}b \
+	    --replyif ${epair_one}b
+
+	jexec $j pfctl -ss -vv
+}
+
+ifbound_reply_to_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "dummynet_frag" "cleanup"
 dummynet_frag_head()
 {
@@ -465,5 +520,6 @@ atf_init_test_cases()
 	atf_add_test_case "icmp_nat"
 	atf_add_test_case "dummynet"
 	atf_add_test_case "ifbound"
+	atf_add_test_case "ifbound_reply_to"
 	atf_add_test_case "dummynet_frag"
 }
