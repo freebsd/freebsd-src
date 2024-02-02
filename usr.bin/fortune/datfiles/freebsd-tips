@@ -533,9 +533,10 @@ Run "etcupdate extract" once when your sources match your running system, then r
 Do you want to do a binary upgrade of your running FreeBSD installation? Use freebsd-update(8).
 
 To install updates and patches for the running branch use
-# freebsd-update fetch install
+# freebsd-update fetch
+# freebsd-update install
 
-To upgrade to a newer release use
+Then, to upgrade to a newer release use
 # freebsd-update upgrade -r ${name_of_release}
 
 		-- Lars Engels <lme@FreeBSD.org>
