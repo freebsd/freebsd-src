@@ -13,6 +13,7 @@ then
 fi
 
 bak_dir=/var/backups
+rc=0
 
 rotate() {
 	base_name=$1
@@ -20,12 +21,13 @@ rotate() {
 	file="$bak_dir/$base_name"
 
 	if [ -f "${file}.bak" ] ; then
-		rc=0
 		if cmp -s "${file}.bak" "${file}.tmp"; then
 			rm "${file}.tmp"
 		else
-			rc=1
-			[ -n "$show_diff" ] && diff ${daily_diff_flags} "${file}.bak" "${file}.tmp"
+			if [ -n "$show_diff" ]; then
+				rc=1
+				diff ${daily_diff_flags} "${file}.bak" "${file}.tmp"
+			fi
 			mv "${file}.bak" "${file}.bak2" || rc=3
 			mv "${file}.tmp" "${file}.bak" || rc=3
 		fi
@@ -36,6 +38,7 @@ rotate() {
 	fi
 }
 
+show=""
 case "$daily_backup_zfs_verbose" in
 	[Yy][Ee][Ss]) show="YES"
 esac
@@ -43,9 +46,9 @@ esac
 case "$daily_backup_zfs_enable" in
 	[Yy][Ee][Ss])
 
-    zpools=$(zpool list $daily_backup_zpool_list_flags)
+	zpools=$(zpool list $daily_backup_zpool_list_flags)
 
-	if [ -z "$zpools"  ]; then
+	if [ -z "$zpools" ]; then
 		echo 'daily_backup_zfs_enable is set to YES but no zpools found.'
 		rc=2
 	else
@@ -59,18 +62,17 @@ case "$daily_backup_zfs_enable" in
 		rotate "zfs_list" $show
 	fi
 	;;
-	*)  rc=0;;
 esac
 
 case "$daily_backup_zfs_props_enable" in
-    [Yy][Ee][Ss])
+	[Yy][Ee][Ss])
 
-    zfs get $daily_backup_zfs_get_flags > "$bak_dir/zfs_props.tmp"
-    rotate "zfs_props"
+	zfs get $daily_backup_zfs_get_flags > "$bak_dir/zfs_props.tmp"
+	rotate "zfs_props" $show
 
-    zpool get $daily_backup_zpool_get_flags > "$bak_dir/zpool_props.tmp"
-    rotate "zpool_props"
-    ;;
+	zpool get $daily_backup_zpool_get_flags > "$bak_dir/zpool_props.tmp"
+	rotate "zpool_props" $show
+	;;
 esac
 
 exit $rc
