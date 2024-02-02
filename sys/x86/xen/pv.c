@@ -147,12 +147,9 @@ isxen(void)
 }
 
 #define CRASH(...) do {					\
-	if (isxen()) {					\
+	if (isxen())					\
 		xc_printf(__VA_ARGS__);			\
-		HYPERVISOR_shutdown(SHUTDOWN_crash);	\
-	} else {					\
-		halt();					\
-	}						\
+	halt();						\
 } while (0)
 
 uint64_t
@@ -161,16 +158,6 @@ hammer_time_xen(vm_paddr_t start_info_paddr)
 	struct hvm_modlist_entry *mod;
 	uint64_t physfree;
 	char *kenv;
-
-	if (isxen()) {
-		vm_guest = VM_GUEST_XEN;
-		xen_early_init();
-		if (xen_cpuid_base == 0) {
-			xc_printf(
-			    "ERROR: failed to initialize hypercall page\n");
-			HYPERVISOR_shutdown(SHUTDOWN_crash);
-		}
-	}
 
 	start_info = (struct hvm_start_info *)(start_info_paddr + KERNBASE);
 	if (start_info->magic != XEN_HVM_START_MAGIC_VALUE) {

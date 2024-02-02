@@ -104,22 +104,6 @@ void xen_emergency_print(const char *str, size_t size)
 	outsb(XEN_HVM_DEBUGCONS_IOPORT, str, size);
 }
 
-uint32_t xen_cpuid_base;
-
-static uint32_t
-xen_hvm_cpuid_base(void)
-{
-	uint32_t base, regs[4];
-
-	for (base = 0x40000000; base < 0x40010000; base += 0x100) {
-		do_cpuid(base, regs);
-		if (!memcmp("XenVMMXenVMM", &regs[1], 12)
-		    && (regs[0] - base) >= 2)
-			return (base);
-	}
-	return (0);
-}
-
 static void
 hypervisor_quirks(unsigned int major, unsigned int minor)
 {
@@ -154,38 +138,6 @@ hypervisor_version(void)
 	printf("XEN: Hypervisor version %d.%d detected.\n", major, minor);
 
 	hypervisor_quirks(major, minor);
-}
-
-/*
- * Allocate and fill in the hypcall page.
- */
-int
-xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
-{
-	uint32_t regs[4];
-
-	if (xen_cpuid_base != 0)
-		/* Already setup. */
-		goto out;
-
-	xen_cpuid_base = xen_hvm_cpuid_base();
-	if (xen_cpuid_base == 0)
-		return (ENXIO);
-
-	/*
-	 * Find the hypercall pages.
-	 */
-	do_cpuid(xen_cpuid_base + 2, regs);
-	if (regs[0] != 1)
-		return (EINVAL);
-
-	wrmsr(regs[1], (init_type == XEN_HVM_INIT_EARLY)
-	    ? (vm_paddr_t)((uintptr_t)&hypercall_page - KERNBASE)
-	    : vtophys(&hypercall_page));
-
-out:
-	hypervisor_version();
-	return (0);
 }
 
 /*
@@ -336,12 +288,14 @@ xen_early_init(void)
 	uint32_t regs[4];
 	int rc;
 
-	xen_cpuid_base = xen_hvm_cpuid_base();
-	if (xen_cpuid_base == 0)
+	if (hv_high < hv_base + 2) {
+		xc_printf("Invalid maximum leaves for hv_base\n");
+		vm_guest = VM_GUEST_VM;
 		return;
+	}
 
 	/* Find the hypercall pages. */
-	do_cpuid(xen_cpuid_base + 2, regs);
+	do_cpuid(hv_base + 2, regs);
 	if (regs[0] != 1) {
 		xc_printf("Invalid number of hypercall pages %u\n",
 		    regs[0]);
@@ -360,33 +314,6 @@ xen_early_init(void)
 	if (xen_initial_domain())
 	    /* Fixup video console information in case Xen changed the mode. */
 	    fixup_console();
-}
-
-static void
-xen_hvm_init_shared_info_page(void)
-{
-	struct xen_add_to_physmap xatp;
-
-	if (xen_pv_domain()) {
-		/*
-		 * Already setup in the PV case, shared_info is passed inside
-		 * of the start_info struct at start of day.
-		 */
-		return;
-	}
-
-	if (HYPERVISOR_shared_info == NULL) {
-		HYPERVISOR_shared_info = malloc(PAGE_SIZE, M_XENHVM, M_NOWAIT);
-		if (HYPERVISOR_shared_info == NULL)
-			panic("Unable to allocate Xen shared info page");
-	}
-
-	xatp.domid = DOMID_SELF;
-	xatp.idx = 0;
-	xatp.space = XENMAPSPACE_shared_info;
-	xatp.gpfn = vtophys(HYPERVISOR_shared_info) >> PAGE_SHIFT;
-	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
-		panic("HYPERVISOR_memory_op failed");
 }
 
 static int
@@ -505,32 +432,29 @@ xen_hvm_disable_emulated_devices(void)
 static void
 xen_hvm_init(enum xen_hvm_init_type init_type)
 {
-	int error;
-	int i;
+	unsigned int i;
 
 	if (!xen_domain() ||
 	    init_type == XEN_HVM_INIT_CANCELLED_SUSPEND)
 		return;
 
-	error = xen_hvm_init_hypercall_stubs(init_type);
+	hypervisor_version();
 
 	switch (init_type) {
 	case XEN_HVM_INIT_LATE:
-		if (error != 0)
-			return;
-
 		setup_xen_features();
 #ifdef SMP
 		cpu_ops = xen_hvm_cpu_ops;
 #endif
 		break;
 	case XEN_HVM_INIT_RESUME:
-		if (error != 0)
-			panic("Unable to init Xen hypercall stubs on resume");
-
 		/* Clear stale vcpu_info. */
 		CPU_FOREACH(i)
 			DPCPU_ID_SET(i, vcpu_info, NULL);
+
+		if (map_shared_info() != 0)
+			panic("cannot map Xen shared info page");
+
 		break;
 	default:
 		panic("Unsupported HVM initialization type");
@@ -540,13 +464,6 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 	xen_evtchn_needs_ack = false;
 	xen_hvm_set_callback(NULL);
 
-	/*
-	 * On (PV)HVM domains we need to request the hypervisor to
-	 * fill the shared info page, for PVH guest the shared_info page
-	 * is passed inside the start_info struct and is already set, so this
-	 * functions are no-ops.
-	 */
-	xen_hvm_init_shared_info_page();
 	xen_hvm_disable_emulated_devices();
 } 
 
