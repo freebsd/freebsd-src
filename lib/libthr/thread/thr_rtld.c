@@ -238,6 +238,7 @@ _thr_rtld_init(void)
 
 	mprotect(NULL, 0, 0);
 	_rtld_get_stack_prot();
+	thr_wake(-1);
 
 	li.rtli_version = RTLI_VERSION;
 	li.lock_create  = _thr_rtld_lock_create;
