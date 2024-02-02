@@ -45,7 +45,7 @@ END {
  for (zone in zone_data) {
     data = zone_data[zone]
     if (!zonenow[data]) {
-      printf "checknow.tab should have one of:%s\n", zones[data]
+      printf "zonenow.tab should have one of:%s\n", zones[data]
       zonenow[data] = zone # This suppresses duplicate diagnostics.
       status = 1
     }
