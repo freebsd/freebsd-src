@@ -126,6 +126,8 @@ SDT_PROBE_DEFINE4(pf, ip, test6, done, "int", "int", "struct pf_krule *",
 SDT_PROBE_DEFINE5(pf, ip, state, lookup, "struct pfi_kkif *",
     "struct pf_state_key_cmp *", "int", "struct pf_pdesc *",
     "struct pf_kstate *");
+SDT_PROBE_DEFINE2(pf, ip, , bound_iface, "struct pf_kstate *",
+    "struct pfi_kkif *");
 SDT_PROBE_DEFINE4(pf, sctp, multihome, test, "struct pfi_kkif *",
     "struct pf_krule *", "struct mbuf *", "int");
 
@@ -415,6 +417,8 @@ VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 static struct pfi_kkif *
 BOUND_IFACE(struct pf_kstate *st, struct pfi_kkif *k)
 {
+	SDT_PROBE2(pf, ip, , bound_iface, st, k);
+
 	/* Floating unless otherwise specified. */
 	if (! (st->rule.ptr->rule_flag & PFRULE_IFBOUND))
 		return (V_pfi_all);
