@@ -630,7 +630,8 @@ function config.readConf(file, loaded_files)
 		return
 	end
 
-	local top_level = next(loaded_files) == nil -- Are we the top-level readConf?
+	-- We'll process loader_conf_dirs at the top-level readConf
+	local load_conf_dirs = next(loaded_files) == nil
 	print("Loading " .. file)
 
 	-- The final value of loader_conf_files is not important, so just
@@ -655,7 +656,7 @@ function config.readConf(file, loaded_files)
 		end
 	end
 
-	if top_level then
+	if load_conf_dirs then
 		local loader_conf_dirs = getEnv("loader_conf_dirs")
 
 		-- If product_vars is set, it must be a list of environment variable names
@@ -681,7 +682,6 @@ function config.readConf(file, loaded_files)
 			end
 		end
 
-		-- Process "loader_conf_dirs" extra-directories
 		if loader_conf_dirs ~= nil then
 			for name in loader_conf_dirs:gmatch("[%w%p]+") do
 				if lfs.attributes(name, "mode") ~= "directory" then
@@ -698,15 +698,6 @@ function config.readConf(file, loaded_files)
 					end
 				end
 				::nextdir::
-			end
-		end
-
-		-- Always allow overriding with local config files, e.g.,
-		-- /boot/loader.conf.local.
-		local local_loader_conf_files = getEnv("local_loader_conf_files")
-		if local_loader_conf_files then
-			for name in local_loader_conf_files:gmatch("[%w%p]+") do
-				config.readConf(name, loaded_files)
 			end
 		end
 	end
