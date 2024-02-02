@@ -67,7 +67,7 @@
 .p2align PAGE_SHIFT, 0x90	/* Hypercall_page needs to be PAGE aligned */
 
 ENTRY(hypercall_page)
-	.skip	0x1000, 0x90	/* Fill with "nop"s */
+	.skip	0x1000, 0xcc	/* Fill with `int3` to generate a #BP trap. */
 
 /* PVH entry point. */
 	.code32
