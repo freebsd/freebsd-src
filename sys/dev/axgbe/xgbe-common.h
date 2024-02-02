@@ -1363,6 +1363,10 @@
 #define MDIO_VEND2_PMA_CDR_CONTROL	0x8056
 #endif
 
+#ifndef MDIO_VEND2_PMA_MISC_CTRL0
+#define MDIO_VEND2_PMA_MISC_CTRL0	0x8090
+#endif
+
 #ifndef MDIO_CTRL1_SPEED1G
 #define MDIO_CTRL1_SPEED1G		(MDIO_CTRL1_SPEED10G & ~BMCR_SPEED100)
 #endif
@@ -1414,6 +1418,10 @@
 #define XGBE_PMA_CDR_TRACK_EN_MASK	0x01
 #define XGBE_PMA_CDR_TRACK_EN_OFF	0x00
 #define XGBE_PMA_CDR_TRACK_EN_ON	0x01
+
+#define XGBE_PMA_PLL_CTRL_MASK		BIT(15)
+#define XGBE_PMA_PLL_CTRL_ENABLE	BIT(15)
+#define XGBE_PMA_PLL_CTRL_DISABLE	0x0000
 
 /* Bit setting and getting macros
  *  The get macro will extract the current bit field value from within
