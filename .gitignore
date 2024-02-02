@@ -28,3 +28,4 @@ tags
 .cache
 .clangd
 .ccls-cache
+sys/*/compile
