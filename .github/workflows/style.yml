@@ -31,4 +31,4 @@ jobs:
       - name: Run checker
         run: |
           sha=$(git merge-base ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
-          tools/build/checkstyle9.pl ${sha}..${{ github.event.pull_request.head.sha }}
+          tools/build/checkstyle9.pl --github ${sha}..${{ github.event.pull_request.head.sha }}
