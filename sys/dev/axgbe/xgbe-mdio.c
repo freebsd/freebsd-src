@@ -734,11 +734,6 @@ xgbe_an37_state_machine(struct xgbe_prv_data *pdata)
 	if (pdata->an_int & XGBE_AN_CL37_INT_CMPLT) {
 		pdata->an_state = XGBE_AN_COMPLETE;
 		pdata->an_int &= ~XGBE_AN_CL37_INT_CMPLT;
-
-		/* If SGMII is enabled, check the link status */
-		if ((pdata->an_mode == XGBE_AN_MODE_CL37_SGMII) &&
-		    !(pdata->an_status & XGBE_SGMII_AN_LINK_STATUS))
-			pdata->an_state = XGBE_AN_NO_LINK;
 	}
 
 	axgbe_printf(2, "%s: CL37 AN %s\n", __func__,
@@ -1364,6 +1359,7 @@ xgbe_phy_status(struct xgbe_prv_data *pdata)
 	if (test_bit(XGBE_LINK_ERR, &pdata->dev_state)) {
 		axgbe_error("%s: LINK_ERR\n", __func__);
 		pdata->phy.link = 0;
+		clear_bit(XGBE_LINK_ERR, &pdata->dev_state);
 		goto adjust_link;
 	}
 
@@ -1443,7 +1439,10 @@ xgbe_phy_stop(struct xgbe_prv_data *pdata)
 static int
 xgbe_phy_start(struct xgbe_prv_data *pdata)
 {
-	int ret;
+	int ret = 0;
+
+	if (pdata->phy_started)
+		return (ret);
 
 	DBGPR("-->xgbe_phy_start\n");
 
@@ -1588,6 +1587,7 @@ xgbe_phy_init(struct xgbe_prv_data *pdata)
 		pdata->phy.duplex = DUPLEX_FULL;
 	}
 
+	pdata->phy_started = 0;
 	pdata->phy.link = 0;
 
 	pdata->phy.pause_autoneg = pdata->pause_autoneg;
