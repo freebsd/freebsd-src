@@ -335,7 +335,7 @@ xen_pvh_parse_symtab(void)
 #endif
 
 static void
-fixup_console(caddr_t kmdp)
+fixup_console(void)
 {
 	struct xen_platform_op op = {
 		.cmd = XENPF_get_dom0_console,
@@ -346,10 +346,19 @@ fixup_console(caddr_t kmdp)
 		struct vbe_fb vbe;
 	} *fb = NULL;
 	int size;
+	caddr_t kmdp;
+
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp == NULL)
+		kmdp = preload_search_by_type("elf64 kernel");
+	if (kmdp == NULL) {
+		xc_printf("Unable to find kernel metadata\n");
+		return;
+	}
 
 	size = HYPERVISOR_platform_op(&op);
 	if (size < 0) {
-		xc_printf("Failed to get dom0 video console info: %d\n", size);
+		xc_printf("Failed to get video console info: %d\n", size);
 		return;
 	}
 
@@ -486,7 +495,7 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 		else
 		    strlcpy(bootmethod, "BIOS", sizeof(bootmethod));
 
-		fixup_console(kmdp);
+		fixup_console();
 	} else {
 		/* Parse the extra boot information given by Xen */
 		if (start_info->cmdline_paddr != 0)
