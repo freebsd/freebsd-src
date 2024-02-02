@@ -67,6 +67,10 @@
 #include <x86/isa/icu.h>
 #include <x86/vmware.h>
 
+#ifdef XENHVM
+#include <xen/xen-os.h>
+#endif
+
 #ifdef __i386__
 #define	IDENTBLUE_CYRIX486	0
 #define	IDENTBLUE_IBMCPU	1
@@ -1345,7 +1349,11 @@ static struct {
 	int		vm_guest;
 	void		(*init)(void);
 } vm_cpuids[] = {
-	{ "XenVMMXenVMM",	VM_GUEST_XEN },		/* XEN */
+	{ "XenVMMXenVMM",	VM_GUEST_XEN,
+#ifdef XENHVM
+	  &xen_early_init,
+#endif
+	},						/* XEN */
 	{ "Microsoft Hv",	VM_GUEST_HV },		/* Microsoft Hyper-V */
 	{ "VMwareVMware",	VM_GUEST_VMWARE },	/* VMware VM */
 	{ "KVMKVMKVM",		VM_GUEST_KVM },		/* KVM */
