@@ -359,8 +359,10 @@ MAN+=	abort2.2 \
 	write.2 \
 	_umtx_op.2
 
-MLINKS+=aio_read.2 aio_readv.2
-MLINKS+=aio_write.2 aio_writev.2
+MLINKS+=aio_read.2 aio_readv.2 \
+	aio_read.2 aio_read2.2
+MLINKS+=aio_write.2 aio_writev.2 \
+	aio_write.2 aio_write2.2
 MLINKS+=accept.2 accept4.2
 MLINKS+=access.2 eaccess.2 \
 	access.2 faccessat.2
