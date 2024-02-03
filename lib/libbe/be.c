@@ -1167,7 +1167,7 @@ be_create_child_noent(libbe_handle_t *lbh, const char *active,
 static int
 be_create_child_cloned(libbe_handle_t *lbh, const char *active)
 {
-	char buf[BE_MAXPATHLEN], tmp[BE_MAXPATHLEN];;
+	char buf[BE_MAXPATHLEN], tmp[BE_MAXPATHLEN];
 	zfs_handle_t *zfs;
 	int err;
 
