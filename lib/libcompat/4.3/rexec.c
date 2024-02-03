@@ -49,7 +49,6 @@
 #include <unistd.h>
 
 int	rexecoptions;
-char	*getpass(), *getlogin();
 
 /*
  * Options and other state info.
@@ -130,8 +129,7 @@ token()
 }
 
 static int
-ruserpass(host, aname, apass, aacct)
-	char *host, **aname, **apass, **aacct;
+ruserpass(char *host, char **aname, char **apass, char **aacct)
 {
 	char *hdir, buf[BUFSIZ], *tmp;
 	char myname[MAXHOSTNAMELEN], *mydomain;
@@ -289,11 +287,7 @@ bad:
 }
 
 int
-rexec(ahost, rport, name, pass, cmd, fd2p)
-	char **ahost;
-	int rport;
-	char *name, *pass, *cmd;
-	int *fd2p;
+rexec(char **ahost, int rport, char *name, char *pass, char *cmd, int *fd2p)
 {
 	struct sockaddr_in sin, sin2, from;
 	struct hostent *hp;
