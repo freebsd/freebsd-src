@@ -38,10 +38,8 @@
 #include <sys/sockio.h>
 #include <sys/time.h>				/* concession to AIX */
 
-#if __STDC__
 struct mbuf;
 struct rtentry;
-#endif
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -60,13 +58,13 @@ struct rtentry;
  * Return the interface list
  */
 int
-ifaddrlist(register struct ifaddrlist **ipaddrp, register char *errbuf)
+ifaddrlist(struct ifaddrlist **ipaddrp, char *errbuf)
 {
-	register int fd, nipaddr;
+	int fd, nipaddr;
 	size_t n;
-	register struct ifreq *ifrp, *ifend, *ifnext;
-	register struct sockaddr_in *sin;
-	register struct ifaddrlist *al;
+	struct ifreq *ifrp, *ifend, *ifnext;
+	struct sockaddr_in *sin;
+	struct ifaddrlist *al;
 	struct ifconf ifc;
 	struct ifreq ibuf[(32 * 1024) / sizeof(struct ifreq)], ifr;
 #define MAX_IPADDR ((int)(sizeof(ibuf) / sizeof(ibuf[0])))

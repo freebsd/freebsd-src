@@ -21,6 +21,4 @@
  * @(#) $Id: traceroute.h,v 1.1 2000/11/23 20:06:54 leres Exp $ (LBL)
  */
 
-extern char *prog;
-
 void	setsin(struct sockaddr_in *, u_int32_t);

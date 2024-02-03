@@ -50,8 +50,7 @@
  * best-guessing ourselves.
  */
 const char *
-findsaddr(register const struct sockaddr_in *to,
-    register struct sockaddr_in *from)
+findsaddr(const struct sockaddr_in *to, struct sockaddr_in *from)
 {
 	const char *errstr;
 	struct sockaddr_in cto, cfrom;

@@ -118,9 +118,9 @@ as_setup(const char *server)
 }
 
 unsigned int
-as_lookup(void *_asn, char *addr, sa_family_t family)
+as_lookup(void const *_asn, char *addr, sa_family_t family)
 {
-	struct aslookup *asn = _asn;
+	struct aslookup const *asn = _asn;
 	char buf[1024];
 	unsigned int as;
 	int rc, dlen, plen;

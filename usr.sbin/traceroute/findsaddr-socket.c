@@ -40,10 +40,8 @@
 #include <sys/sockio.h>
 #include <sys/time.h>				/* concession to AIX */
 
-#if __STDC__
 struct mbuf;
 struct rtentry;
-#endif
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -83,16 +81,15 @@ static struct rtmsg rtmsg = {
  * Return the source address for the given destination address
  */
 const char *
-findsaddr(register const struct sockaddr_in *to,
-    register struct sockaddr_in *from)
+findsaddr(const struct sockaddr_in *to, struct sockaddr_in *from)
 {
-	register struct rt_msghdr *rp;
-	register u_char *cp;
+	struct rt_msghdr *rp;
+	u_char *cp;
 
-	register struct sockaddr_in *sp, *ifa;
-	register struct sockaddr *sa;
-	register int s, size, cc, seq, i;
-	register pid_t pid;
+	struct sockaddr_in *sp, *ifa;
+	struct sockaddr *sa;
+	int s, size, cc, seq, i;
+	pid_t pid;
 	static char errbuf[512];
 
 	s = socket(PF_ROUTE, SOCK_RAW, AF_UNSPEC);
