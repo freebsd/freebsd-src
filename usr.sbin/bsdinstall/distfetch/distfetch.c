@@ -79,14 +79,14 @@ main(void)
 	if (bsddialog_init() == BSDDIALOG_ERROR) {
 		free(diststring);
 		errx(EXIT_FAILURE, "Error libbsddialog: %s\n",
-		     bsddialog_geterror());
+		    bsddialog_geterror());
 	}
 	bsddialog_initconf(&conf);
 	bsddialog_backtitle(&conf, OSNAME " Installer");
 
 	for (i = 0; i < ndists; i++) {
-	        if ((urls[i] = malloc(PATH_MAX)) == NULL) {
-		        free(urls);
+		if ((urls[i] = malloc(PATH_MAX)) == NULL) {
+			free(urls);
 			free(diststring);
 			bsddialog_end();
 			errx(EXIT_FAILURE, "Error: distfetch URLs out of memory!");
