@@ -63,7 +63,7 @@ if [ $? -eq $BSDDIALOG_OK ]; then
 			exec $0 ${INTERFACE} "${IFCONFIG_PREFIX}"
 		fi
 	fi
-	sysrc -f $BSDINSTALL_TMPETC/._rc.conf.net ifconfig_$INTERFACE "${IFCONFIG_PREFIX}DHCP"
+	sysrc -f $BSDINSTALL_TMPETC/._rc.conf.net ifconfig_$INTERFACE="${IFCONFIG_PREFIX}DHCP"
 	exit 0
 fi
 
