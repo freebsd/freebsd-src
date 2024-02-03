@@ -1975,7 +1975,7 @@ linux_sched_setaffinity(struct thread *td,
 	PROC_UNLOCK(tdt->td_proc);
 
 	len = min(args->len, sizeof(cpuset_t));
-	mask = malloc(sizeof(cpuset_t), M_TEMP, M_WAITOK | M_ZERO);;
+	mask = malloc(sizeof(cpuset_t), M_TEMP, M_WAITOK | M_ZERO);
 	error = copyin(args->user_mask_ptr, mask, len);
 	if (error != 0)
 		goto out;
