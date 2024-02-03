@@ -147,6 +147,8 @@ struct lkpi_vif {
 	struct ieee80211_node *	(*iv_update_bss)(struct ieee80211vap *,
 				    struct ieee80211_node *);
 	TAILQ_HEAD(, lkpi_sta)	lsta_head;
+	struct lkpi_sta		*lvif_bss;
+	bool			lvif_bss_synched;
 	bool			added_to_drv;			/* Driver knows; i.e. we called add_interface(). */
 
 	bool			hw_queue_stopped[IEEE80211_NUM_ACS];
