@@ -19,16 +19,6 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef lint
-static const char copyright[] =
-    "@(#) Copyright (c) 1988, 1989, 1991, 1994, 1995, 1996, 1997, 1998, 1999, 2000\n\
-The Regents of the University of California.  All rights reserved.\n";
-#if 0
-static const char rcsid[] =
-    "@(#)$Id: traceroute.c,v 1.68 2000/12/14 08:04:33 leres Exp $ (LBL)";
-#endif
-#endif
-
 /*
  * traceroute host  - trace the route ip packets follow going to "host".
  *
