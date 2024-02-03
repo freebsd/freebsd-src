@@ -2148,9 +2148,6 @@ pkt_compare(const u_char *a, int la, const u_char *b, int lb) {
 void
 usage(void)
 {
-	extern char version[];
-
-	Fprintf(stderr, "Version %s\n", version);
 	Fprintf(stderr,
 	    "Usage: %s [-adDeEFInrSvx] [-f first_ttl] [-g gateway] [-i iface]\n"
 	    "\t[-m max_ttl] [-p port] [-P proto] [-q nqueries] [-s src_addr]\n"

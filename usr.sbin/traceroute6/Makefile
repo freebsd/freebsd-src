@@ -14,8 +14,7 @@
 
 .include <src.opts.mk>
 
-TRACEROUTE_DISTDIR?= ${SRCTOP}/contrib/traceroute
-.PATH: ${TRACEROUTE_DISTDIR}
+.PATH: ${SRCTOP}/usr.sbin/traceroute
 
 PACKAGE=	runtime
 PROG=	traceroute6
@@ -25,7 +24,7 @@ BINOWN=	root
 BINMODE= 4555
 
 CFLAGS+= -DIPSEC -DHAVE_POLL
-CFLAGS+= -I${.CURDIR} -I${TRACEROUTE_DISTDIR} -I.
+CFLAGS+= -I${.CURDIR} -I${SRCTOP}/usr.sbin/traceroute -I.
 
 .if ${MK_CASPER} != "no"
 LIBADD+=	casper

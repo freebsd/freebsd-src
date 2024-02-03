@@ -1,16 +1,12 @@
 
 .include <src.opts.mk>
 
-TRACEROUTE_DISTDIR?= ${SRCTOP}/contrib/traceroute
-.PATH: ${TRACEROUTE_DISTDIR}
-
 PACKAGE=	runtime
 PROG=	traceroute
 MAN=	traceroute.8
-SRCS=	as.c version.c traceroute.c ifaddrlist.c findsaddr-udp.c
+SRCS=	as.c traceroute.c ifaddrlist.c findsaddr-udp.c
 BINOWN=	root
 BINMODE=4555
-CLEANFILES=	version.c
 
 CFLAGS+= -DHAVE_SYS_SELECT_H=1 -DHAVE_SYS_SOCKIO_H=1 \
 	 -DHAVE_NET_ROUTE_H=1 -DHAVE_NET_IF_DL_H=1 \
@@ -36,14 +32,6 @@ LIBADD+=	cap_dns
 CFLAGS+=-DWITH_CASPER
 .endif
 
-CFLAGS+= -I${TRACEROUTE_DISTDIR}
-
 WARNS?=	3
-
-version.c: ${TRACEROUTE_DISTDIR}/VERSION
-	@rm -f ${.TARGET}
-	head -1 ${TRACEROUTE_DISTDIR}/VERSION | \
-	    sed -e 's/.*/char version[] = "&";/' \
-	    > ${.TARGET}
 
 .include <bsd.prog.mk>
