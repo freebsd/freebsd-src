@@ -1404,7 +1404,7 @@ struct iscsi_conn_update_ramrod_params
 	__le32 max_recv_pdu_length /* Maximum PDU size. Valid for the RX */;
 	__le32 first_seq_length /* Initial sequence length */;
 	__le32 exp_stat_sn /* ExpStatSn - Option1 Only */;
-	union dif_configuration_params dif_on_imme_params /* dif on immmediate params - Target mode Only */;
+	union dif_configuration_params dif_on_imme_params /* dif on immediate params - Target mode Only */;
 };
 
 /*
