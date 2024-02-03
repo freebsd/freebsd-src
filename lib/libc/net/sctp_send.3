@@ -25,12 +25,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 15, 2006
+.Dd February 2, 2024
 .Dt SCTP_SEND 3
 .Os
 .Sh NAME
 .Nm sctp_send ,
-.Nm sctp_sendx
+.Nm sctp_sendx ,
+.Nm sctp_sendv
 .Nd send a message from an SCTP socket
 .Sh LIBRARY
 .Lb libc
@@ -48,11 +49,27 @@
 .Fa "int sd" "const void *msg" "size_t len" "struct sockaddr *addrs"
 .Fa "int addrcnt" "const struct sctp_sndrcvinfo *sinfo" "int flags"
 .Fc
+.Ft ssize_t
+.Fo sctp_sendv
+.Fa "int sd" "const struct iovec *iov" "int iocnt" "struct sockaddr *addrs"
+.Fa "int addrcnt" "void *info" "socklen_t infolen" "unsigned int infotype"
+.Fa "int flags"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn sctp_send
 system call
 is used to transmit a message to another SCTP endpoint.
+The
+.Fn sctp_sendx
+function is used to specify multiple peer addresses when creating an implicit
+association, as in
+.Xr sctp_connectx 3 .
+The
+.Fn sctp_sendv
+function is used to transmit a message whose data is gathered from the
+provided I/O buffers.
+.Pp
 .Fn sctp_send
 may be used to send data to an existing association for both
 one-to-many (SOCK_SEQPACKET) and one-to-one (SOCK_STREAM) socket types.
@@ -253,6 +270,7 @@ and
 .Fa sinfo->sinfo_cumtsn
 are used only when receiving messages and are thus ignored by
 .Fn sctp_send .
+.Pp
 The function
 .Fn sctp_sendx
 has the same properties as
@@ -281,6 +299,156 @@ the association in place of the association id.
 If both
 an address and an association id are specified, the association
 id has priority.
+.Pp
+The function
+.Fn sctp_sendv
+works as
+.Fn sctp_sendx ,
+with two differences.
+Firstly, the data to be written is passed as an array containing
+.Vt iocnt
+objects of type
+.Vt struct iovec ,
+which will be gathered for sending in the same manner as
+.Xr writev 2 .
+Secondly, the
+.Fa info
+argument is replaced by the tuple
+.Fa sinfo ,
+.Fa infolen ,
+.Fa infotype ,
+where
+.Fa sinfo
+is a pointer to a struct of size
+.Fa infolen
+whose type is indicated by the
+.Fa infotype
+argument.
+.Pp
+If no information is passed, set
+.Fa infotype
+to
+.Va SCTP_SENDV_NOINFO .
+.Fa sinfo
+may be a null pointer.
+.Pp
+If
+.Fa sinfo
+points to a
+.Vt struct sctp_sndinfo ,
+set
+.Fa infotype
+to
+.Va SCTP_SENDV_SNDINFO .
+The
+.Vt sctp_sndinfo
+structure has the following format:
+.Bd -literal
+struct sctp_sndinfo {
+	uint16_t snd_sid;		/* stream identifier */
+	uint16_t snd_flags;		/* Flags */
+	uint32_t snd_ppid;		/* ppid field */
+	uint32_t snd_context;		/* context field */
+	sctp_assoc_t snd_assoc_id;	/* association id */
+};
+.Ed
+.Pp
+The meaning of these fields is the same as in
+.Vt struct sctp_sndrcvinfo ,
+described above.
+.Pp
+If
+.Fa sinfo
+points to a
+.Vt struct sctp_authinfo ,
+set
+.Fa infotype
+to
+.Va SCTP_SENDV_AUTHINFO .
+The
+.Vt sctp_authinfo
+struct has the following format:
+.Bd -literal
+struct sctp_authinfo {
+	uint16_t auth_keynumber;	/* Shared key identifier */
+};
+.Ed
+.Pp
+The
+.Va auth_keynumber
+field specifies the shared key identifier that will be used for sending the
+message.
+.Pp
+If
+.Fa sinfo
+points to a
+.Vt struct sctp_prinfo ,
+set
+.Fa infotype
+to
+.Va SCTP_SENDV_PRINFO .
+The
+.Vt sctp_prinfo
+structure has the following format:
+.Bd -literal
+struct sctp_prinfo {
+	uint16_t pr_policy;	/* PR-SCTP policy */
+	uint32_t pr_value;	/* PR-SCTP Policy option */
+};
+.Ed
+.Pp
+The
+.Va pr_policy
+field should be set to either
+.Va SCTP_PR_SCTP_NONE
+to use reliable transmission (in which case the field
+.Va pr_value
+is ignored), or
+.Va SCTP_PR_SCTP_TTL
+to use RFC 3758 timed reliability, in which case the field
+.Va pr_value
+contains the lifetime in milliseconds.
+.Pp
+To pass two or more types in
+.Fa sinfo ,
+set
+.Fa infotype
+to
+.Va SCTP_SENDV_SPA
+and pass a pointer to a
+.Vt struct sctp_sendv_spa
+in
+.Fa sinfo .
+The
+.Ft sctp_sendv_spa
+structure has the following format:
+.Bd -literal
+struct sctp_sendv_spa {
+	uint32_t sendv_flags;
+	struct sctp_sndinfo sendv_sndinfo;
+	struct sctp_prinfo sendv_prinfo;
+	struct sctp_authinfo sendv_authinfo;
+};
+.Ed
+.Pp
+The
+.Va sendv_flags
+member should be set to the bitwise OR of the flags
+.Va SCTP_SEND_SNDINFO_VALID ,
+.Va SCTP_SEND_PRINFO_VALID ,
+and
+.Va SCTP_SEND_AUTHINFO_VALID
+to indicate which fields of the struct contain valid data.
+.Pp
+If
+.Fa infotype
+is set to SCTP_SENDV_NOINFO, the
+.Fa infolen
+argument should be set to zero.
+Otherwise,
+.Fa infolen
+should be set to the length of the data structure pointed to by
+.Fa info .
 .Sh RETURN VALUES
 The call returns the number of characters sent, or -1
 if an error occurred.
@@ -329,6 +497,14 @@ has been set on the socket).
 This typically means that the socket
 is not connected and is a one-to-one style socket.
 .El
+.Sh NOTES
+The functions
+.Fn sctp_send
+and
+.Fn sctp_sendx
+are deprecated.
+New applications should use
+.Fn sctp_sendv .
 .Sh SEE ALSO
 .Xr getsockopt 2 ,
 .Xr recv 2 ,
@@ -340,6 +516,18 @@ is not connected and is a one-to-one style socket.
 .Xr sctp_recvmsg 3 ,
 .Xr sctp_sendmsg 3 ,
 .Xr sctp 4
+.Rs
+.%A R. Stewart
+.%A M. Tuexen
+.%A K. Poon
+.%A P. Lei
+.%A V. Yasevich
+.%T Sockets API Extensions for the Stream Control Transmission Protocol (SCTP)
+.%R RFC 6458
+.%D December 2011
+.Re
+.Sh STANDARDS
+The functions described in this document conform to RFC 6458.
 .Sh BUGS
 Because
 .Fn sctp_send

@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 14, 2015
+.Dd February 2, 2024
 .Dt SCTP_BINDX 3
 .Os
 .Sh NAME
@@ -105,3 +105,17 @@ is not a socket.
 .Sh SEE ALSO
 .Xr bind 2 ,
 .Xr sctp 4
+.Rs
+.%A R. Stewart
+.%A M. Tuexen
+.%A K. Poon
+.%A P. Lei
+.%A V. Yasevich
+.%T Sockets API Extensions for the Stream Control Transmission Protocol (SCTP)
+.%R RFC 6458
+.%D December 2011
+.Re
+.Sh STANDARDS
+The
+.Fn sctp_bindx
+function conforms to RFC 6458.
