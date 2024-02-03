@@ -322,6 +322,7 @@ MAN=	aac.4 \
 	mps.4 \
 	mpt.4 \
 	mrsas.4 \
+	msdosfs.4 \
 	msk.4 \
 	mtio.4 \
 	multicast.4 \
@@ -712,6 +713,7 @@ MLINKS+=mfi.4 mfi_linux.4 \
 	mfi.4 mfip.4
 MLINKS+=mlx5en.4 mce.4
 MLINKS+=mos.4 if_mos.4
+MLINKS+=msdosfs.5 msdos.5
 MLINKS+=msk.4 if_msk.4
 MLINKS+=mwl.4 if_mwl.4
 MLINKS+=mxge.4 if_mxge.4
