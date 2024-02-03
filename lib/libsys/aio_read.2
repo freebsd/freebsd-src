@@ -22,11 +22,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 15, 2023
+.Dd February 1, 2024
 .Dt AIO_READ 2
 .Os
 .Sh NAME
 .Nm aio_read ,
+.Nm aio_read2 ,
 .Nm aio_readv
 .Nd asynchronous read from a file (REALTIME)
 .Sh LIBRARY
@@ -35,21 +36,34 @@
 .In aio.h
 .Ft int
 .Fn aio_read "struct aiocb *iocb"
+.Ft int
+.Fn aio_read2 "struct aiocb *iocb" "int flags"
 .In sys/uio.h
 .Ft int
 .Fn aio_readv "struct aiocb *iocb"
 .Sh DESCRIPTION
 The
-.Fn aio_read
+.Fn aio_read ,
+.Fn aio_read2
 and
 .Fn aio_readv
 system calls allow the calling process to read
 from the descriptor
-.Fa iocb->aio_fildes
-beginning at the offset
-.Fa iocb->aio_offset .
+.Fa iocb->aio_fildes .
+The syscalls return immediately after the read request has
+been enqueued to the descriptor; the read may or may not have
+completed at the time the call returns.
+.Pp
+For the
 .Fn aio_read
-will read
+and
+.Fn aio_readv
+calls, the read begins at the offset
+.Fa iocb->aio_offset .
+.Pp
+The
+.Fn aio_read
+call will read
 .Fa iocb->aio_nbytes
 into the buffer pointed to by
 .Fa iocb->aio_buf ,
@@ -60,16 +74,39 @@ reads the data into the
 buffers specified by the members of the
 .Fa iocb->aio_iov
 array.
-Both syscalls return immediately after the read request has
-been enqueued to the descriptor; the read may or may not have
-completed at the time the call returns.
-.Pp
 For
 .Fn aio_readv
 the
 .Fa iovec
 structure is defined in
 .Xr readv 2 .
+.Pp
+The
+.Fn aio_read2
+call takes the
+.Fa flags
+argument.
+If
+.Fa flags
+is passed as zero, the call behaves identically to
+.Fn aio_read .
+The following flags can be specified by logical or:
+.Bl -tag -width AIO_OP2_VECTORED
+.It AIO_OP2_FOFFSET
+The read occurs at the file descriptor offset,
+which is advanced by the operation as done by the
+.Xr read 2
+syscall.
+The
+.Fa iocb->aio_offset
+field is ignored.
+.It AIO_OP2_VECTORED
+Similar to
+.Fn aio_readv ,
+the read buffers are specified by the
+.Fa aiocb->aio_iov
+array.
+.El
 .Pp
 The
 .Fa iocb
@@ -103,9 +140,8 @@ operation has completed.
 .Pp
 The asynchronous I/O control buffer
 .Fa iocb
-should be zeroed before the
-.Fn aio_read
-call to avoid passing bogus context information to the kernel.
+should be zeroed before the system
+calls to avoid passing bogus context information to the kernel.
 .Pp
 Modifications of the Asynchronous I/O Control Block structure or the
 buffer contents are not allowed while the request is queued.
@@ -116,12 +152,13 @@ is past the offset maximum for
 .Fa iocb->aio_fildes ,
 no I/O will occur.
 .Sh RETURN VALUES
-.Rv -std aio_read aio_readv
+.Rv -std aio_read aio_read2 aio_readv
 .Sh DIAGNOSTICS
 None.
 .Sh ERRORS
 The
-.Fn aio_read
+.Fn aio_read ,
+.Fn aio_read2 ,
 and
 .Fn aio_readv
 system calls will fail if:
@@ -149,10 +186,7 @@ or
 system call is made, or asynchronously, at any time thereafter.
 If they
 are detected at call time,
-.Fn aio_read
-or
-.Fn aio_readv
-returns -1 and sets
+The calls return -1 and set
 .Va errno
 appropriately; otherwise the
 .Fn aio_return
@@ -226,8 +260,11 @@ system call is expected to conform to the
 .St -p1003.1
 standard.
 The
+.Fn aio_read2
+and
 .Fn aio_readv
-system call is a FreeBSD extension, and should not be used in portable code.
+system calls are FreeBSD extensions,
+and should not be used in portable code.
 .Sh HISTORY
 The
 .Fn aio_read
@@ -237,6 +274,10 @@ The
 .Fn aio_readv
 system call first appeared in
 .Fx 13.0 .
+The
+.Fn aio_read2
+system call first appeared in
+.Fx 14.1 .
 .Sh AUTHORS
 This
 manual page was written by
