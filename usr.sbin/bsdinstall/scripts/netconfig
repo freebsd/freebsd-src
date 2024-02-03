@@ -64,7 +64,7 @@ done
 
 if [ -z "$INTERFACES" ]; then
 	dialog --backtitle 'FreeBSD Installer' \
-	    --title 'Network Configuration Error' \
+	    --title 'Network Configuration' \
 	    --msgbox 'No network interfaces present to configure.' 0 0
 	exit 1
 fi
