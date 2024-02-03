@@ -33,17 +33,15 @@
 
 #include <atf-c.h>
 
-static struct sockaddr_in sin = {
-	.sin_family = AF_INET,
-	.sin_len = sizeof(sin),
-};
-
-static const char buf[] = "hello";
-static char repl[sizeof(buf)];
-
 ATF_TC_WITHOUT_HEAD(tcp_implied_connect);
 ATF_TC_BODY(tcp_implied_connect, tc)
 {
+	struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(sin),
+	};
+	const char buf[] = "hello";
+	char repl[sizeof(buf)];
 	socklen_t len;
 	int s, c, a;
 
