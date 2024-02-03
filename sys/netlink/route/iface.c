@@ -864,7 +864,7 @@ get_sa_plen(const struct sockaddr *sa)
 #ifdef INET
         case AF_INET:
                 paddr = &(((const struct sockaddr_in *)sa)->sin_addr);
-                return bitcount32(paddr->s_addr);;
+                return bitcount32(paddr->s_addr);
 #endif
 #ifdef INET6
         case AF_INET6:
