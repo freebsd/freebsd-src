@@ -3136,7 +3136,7 @@ pf_send_sctp_abort(sa_family_t af, struct pf_pdesc *pd,
 	off += sizeof(*chunk);
 	m->m_pkthdr.len = m->m_len = off;
 
-	pf_sctp_checksum(m, off - sizeof(*hdr) - sizeof(*chunk));;
+	pf_sctp_checksum(m, off - sizeof(*hdr) - sizeof(*chunk));
 
 	if (rtableid >= 0)
 		M_SETFIB(m, rtableid);
