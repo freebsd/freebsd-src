@@ -31,11 +31,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-    "@(#) $Id: ifaddrlist.c,v 1.9 2000/11/23 20:01:55 leres Exp $ (LBL)";
-#endif
-
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
