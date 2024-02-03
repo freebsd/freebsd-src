@@ -1356,7 +1356,7 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 			}
 			timersub(&timeout, &now, &delta);
 			deltams = delta.tv_sec * 1000 +
-			    delta.tv_usec / 1000;;
+			    delta.tv_usec / 1000;
 		}
 		errno = 0;
 		pfd.revents = 0;
