@@ -37,13 +37,15 @@ aio_read2(struct aiocb *iocb, int flags)
 {
 	int error;
 
-	if ((flags & ~(AIO_OP2_FOFFSET)) != 0) {
+	if ((flags & ~(AIO_OP2_FOFFSET | AIO_OP2_VECTORED)) != 0) {
 		errno = EINVAL;
 		return (-1);
 	}
 	iocb->aio_lio_opcode = LIO_READ;
 	if ((flags & AIO_OP2_FOFFSET) != 0)
 		iocb->aio_lio_opcode |= LIO_FOFFSET;
+	if ((flags & AIO_OP2_VECTORED) != 0)
+		iocb->aio_lio_opcode |= LIO_VECTORED;
 
 	error = lio_listio(LIO_NOWAIT, &iocb, 1, NULL);
 	if (error == -1 && errno == EIO) {

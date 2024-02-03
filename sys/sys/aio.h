@@ -58,6 +58,7 @@
 /* aio_read2/aio_write2 flags */
 #if __BSD_VISIBLE
 #define	AIO_OP2_FOFFSET		0x00000001
+#define	AIO_OP2_VECTORED	0x00000002
 #endif
 
 /*
