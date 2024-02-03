@@ -501,6 +501,7 @@ int	soreceive_generic(struct socket *so, struct sockaddr **paddr,
 void	sorele_locked(struct socket *so);
 void	sodealloc(struct socket *);
 int	soreserve(struct socket *so, u_long sndcc, u_long rcvcc);
+void	sorflush(struct socket *so);
 int	sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	    struct mbuf *top, struct mbuf *control, int flags,
 	    struct thread *td);

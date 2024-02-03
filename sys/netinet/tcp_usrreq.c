@@ -824,12 +824,10 @@ tcp_usr_shutdown(struct socket *so, enum shutdown_how how)
 
 	switch (how) {
 	case SHUT_RD:
-		socantrcvmore(so);
-		sbrelease(so, SO_RCV);
+		sorflush(so);
 		break;
 	case SHUT_RDWR:
-		socantrcvmore(so);
-		sbrelease(so, SO_RCV);
+		sorflush(so);
 		/* FALLTHROUGH */
 	case SHUT_WR:
 		/*
