@@ -91,7 +91,7 @@ struct vt_mode smode;
   if (VGLOldModeInfo.vi_flags & V_INFO_GRAPHICS) {
     size[0] = VGLOldVInfo.mv_csz;
     size[1] = VGLOldVInfo.mv_rsz;
-    size[2] = VGLOldVInfo.font_size;;
+    size[2] = VGLOldVInfo.font_size;
     ioctl(0, KDRASTER, size);
   }
   if (VGLModeInfo.vi_mem_model != V_INFO_MM_DIRECT)
