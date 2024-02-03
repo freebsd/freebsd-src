@@ -22,11 +22,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 15, 2023
+.Dd February 1, 2024
 .Dt AIO_WRITE 2
 .Os
 .Sh NAME
 .Nm aio_write ,
+.Nm aio_write2 ,
 .Nm aio_writev
 .Nd asynchronous write to a file (REALTIME)
 .Sh LIBRARY
@@ -35,19 +36,27 @@
 .In aio.h
 .Ft int
 .Fn aio_write "struct aiocb *iocb"
+.Ft int
+.Fn aio_write2 "struct aiocb *iocb" "int flags"
 .In sys/uio.h
 .Ft int
 .Fn aio_writev "struct aiocb *iocb"
 .Sh DESCRIPTION
 The
-.Fn aio_write
+.Fn aio_write ,
+.Fn aio_write2 ,
 and
 .Fn aio_writev
 system calls allow the calling process to write
 to the descriptor
 .Fa iocb->aio_fildes .
+The syscalls return immediately after the write request has been enqueued
+to the descriptor; the write may or may not have completed at the time
+the call returns.
+.Pp
+The
 .Fn aio_write
-will write
+call will write
 .Fa iocb->aio_nbytes
 from the buffer pointed to by
 .Fa iocb->aio_buf ,
@@ -58,9 +67,7 @@ gathers the data from the
 buffers specified by the members of the
 .Fa iocb->aio_iov
 array.
-Both syscalls return immediately after the write request has been enqueued
-to the descriptor; the write may or may not have completed at the time
-the call returns.
+.Pp
 If the request could not be enqueued, generally due
 to invalid arguments, the call returns without having enqueued the
 request.
@@ -80,9 +87,40 @@ write operations append to the file in the same order as the calls were
 made.
 If
 .Dv O_APPEND
-is not set for the file descriptor, the write operation will occur at
+is not set for the file descriptor, the write operation for
+.Fn aio_write
+will occur at
 the absolute position from the beginning of the file plus
 .Fa iocb->aio_offset .
+.Pp
+The
+.Fn aio_write2
+call takes the
+.Fa flags
+argument.
+If
+.Fa flags
+is passed as zero, the call behaves identically to
+.Fn aio_write .
+The following flags can be specified by logical or:
+.Bl -tag -width AIO_OP2_VECTORED
+.It AIO_OP2_FOFFSET
+The write for non
+.Dv O_APPEND
+file descriptors occurs at the file descriptor offset,
+which is advanced by the operation as done by the
+.Xr write 2
+syscall.
+The
+.Fa iocb->aio_offset
+field is ignored.
+.It AIO_OP2_VECTORED
+Similar to
+.Fn aio_writev ,
+the write buffers are specified by the
+.Fa aiocb->aio_iov
+array.
+.El
 .Pp
 The
 .Fa iocb
@@ -114,10 +152,7 @@ operation has completed.
 The asynchronous I/O control buffer
 .Fa iocb
 should be zeroed before the
-.Fn aio_write
-or
-.Fn aio_writev
-system call to avoid passing bogus context information to the kernel.
+system calls to avoid passing bogus context information to the kernel.
 .Pp
 Modifications of the Asynchronous I/O Control Block structure or the
 buffer contents are not allowed while the request is queued.
@@ -131,7 +166,8 @@ no I/O will occur.
 .Rv -std aio_write aio_writev
 .Sh ERRORS
 The
-.Fn aio_write
+.Fn aio_write ,
+.Fn aio_write2 ,
 and
 .Fn aio_writev
 system calls will fail if:
@@ -153,16 +189,13 @@ are unsafe and unsafe asynchronous I/O operations are disabled.
 .El
 .Pp
 The following conditions may be synchronously detected when the
-.Fn aio_write
+.Fn aio_write ,
+.Fn aio_write2 ,
 or
 .Fn aio_writev
 system call is made, or asynchronously, at any time thereafter.
 If they
-are detected at call time,
-.Fn aio_write
-or
-.Fn aio_writev
-returns -1 and sets
+are detected at call time, the calls return -1 and set
 .Va errno
 appropriately; otherwise the
 .Fn aio_return
@@ -229,8 +262,11 @@ is expected to conform to the
 standard.
 .Pp
 The
+.Fn aio_write2
+and
 .Fn aio_writev
-system call is a FreeBSD extension, and should not be used in portable code.
+system calls are FreeBSD extensions,
+and should not be used in portable code.
 .Sh HISTORY
 The
 .Fn aio_write
@@ -240,6 +276,10 @@ The
 .Fn aio_writev
 system call first appeared in
 .Fx 13.0 .
+The
+.Fn aio_write2
+system call first appeared in
+.Fx 14.1 .
 .Sh AUTHORS
 This manual page was written by
 .An Wes Peters Aq Mt wes@softweyr.com .
