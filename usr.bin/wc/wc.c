@@ -230,7 +230,8 @@ cnt(const char *file)
 			(void)close(fd);
 			return (1);
 		}
-		if (S_ISREG(sb.st_mode)) {
+		/* pseudo-filesystems advertize a zero size */
+		if (S_ISREG(sb.st_mode) && sb.st_size > 0) {
 			reset_siginfo();
 			charct = sb.st_size;
 			show_cnt(file, linect, wordct, charct, llct);
