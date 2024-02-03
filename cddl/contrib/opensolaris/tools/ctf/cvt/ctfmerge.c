@@ -886,7 +886,7 @@ main(int argc, char **argv)
 
 	for (i = 0; i < nifiles; i++)
 		tifiles[i] = argv[optind + i];
-	qsort(tifiles, nifiles, sizeof (char *), (int (*)())strcompare);
+	qsort(tifiles, nifiles, sizeof (char *), strcompare);
 
 	ifiles[0] = tifiles[0];
 	for (idx = 0, tidx = 1; tidx < nifiles; tidx++) {
