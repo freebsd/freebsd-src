@@ -601,7 +601,7 @@ unionfs_close(struct vop_close_args *ap)
 	struct vnode   *vp;
 	struct vnode   *ovp;
 	int		error;
-	enum unionfs_lkupgrade lkstatus;;
+	enum unionfs_lkupgrade lkstatus;
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_close: enter\n");
 
