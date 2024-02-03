@@ -49,7 +49,8 @@ for IF in `ifconfig -l`; do
 	INTERFACES="$INTERFACES $IF"
 done
 
-INTERFACES="$INTERFACES $(sysctl -in net.wlan.devices)"
+WIRELESS_INTERFACES="$(sysctl -in net.wlan.devices)"
+INTERFACES="$INTERFACES${WIRELESS_INTERFACES:+ }$WIRELESS_INTERFACES"
 is_wireless_if() {
 	for IF in $(sysctl -in net.wlan.devices); do
 		if [ $IF = $1 ]; then
