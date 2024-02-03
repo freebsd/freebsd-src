@@ -204,7 +204,7 @@ rk_gpio_write_4(struct rk_gpio_softc *sc, int reg, uint32_t value)
 static int
 rk_gpio_intr(void *arg)
 {
-	struct rk_gpio_softc *sc = (struct rk_gpio_softc *)arg;;
+	struct rk_gpio_softc *sc = (struct rk_gpio_softc *)arg;
 	struct trapframe *tf = curthread->td_intr_frame;
 	uint32_t status;
 
