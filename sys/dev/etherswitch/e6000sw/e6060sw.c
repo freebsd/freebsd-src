@@ -162,7 +162,6 @@ e6060sw_probe(device_t dev)
 	struct e6060sw_softc *sc;
 	int devid, i;
 	char *devname;
-	char desc[80];
 
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(*sc));
@@ -193,9 +192,8 @@ e6060sw_probe(device_t dev)
 	else
 		return (ENXIO);
 
-	sprintf(desc, "Marvell %s MDIO switch driver at 0x%02x",
+	device_set_descf(dev, "Marvell %s MDIO switch driver at 0x%02x",
 	    devname, sc->smi_offset);
-	device_set_desc_copy(dev, desc);
 
 	return (BUS_PROBE_DEFAULT);
 }

@@ -100,7 +100,7 @@ mtkswitch_probe(device_t dev)
 	bzero(sc, sizeof(*sc));
 	sc->sc_switchtype = switch_type;
 
-	device_set_desc_copy(dev, "MTK Switch Driver");
+	device_set_desc(dev, "MTK Switch Driver");
 
 	return (0);
 }

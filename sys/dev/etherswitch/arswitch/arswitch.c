@@ -95,7 +95,7 @@ arswitch_probe(device_t dev)
 {
 	struct arswitch_softc *sc;
 	uint32_t id;
-	char *chipname, desc[256];
+	char *chipname;
 
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(*sc));
@@ -132,12 +132,9 @@ arswitch_probe(device_t dev)
 
 	DPRINTF(sc, ARSWITCH_DBG_ANY, "chipname=%s, id=%08x\n", chipname, id);
 	if (chipname != NULL) {
-		snprintf(desc, sizeof(desc),
+		device_set_descf(dev,
 		    "Atheros %s Ethernet Switch (ver %d rev %d)",
-		    chipname,
-		    sc->chip_ver,
-		    sc->chip_rev);
-		device_set_desc_copy(dev, desc);
+		    chipname, sc->chip_ver, sc->chip_rev);
 		return (BUS_PROBE_DEFAULT);
 	}
 	return (ENXIO);

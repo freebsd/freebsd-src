@@ -197,7 +197,7 @@ ksz8995ma_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	device_set_desc_copy(dev, "Micrel KSZ8995MA SPI switch driver");
+	device_set_desc(dev, "Micrel KSZ8995MA SPI switch driver");
 	return (BUS_PROBE_DEFAULT);
 }
 
