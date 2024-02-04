@@ -227,7 +227,6 @@ MODULE_DEPEND(if_qlnxev, ether, 1, 1, 1);
 
 MALLOC_DEFINE(M_QLNXBUF, "qlnxbuf", "Buffers for qlnx driver");
 
-char qlnx_dev_str[128];
 char qlnx_ver_str[VER_SIZE];
 char qlnx_name_str[NAME_SIZE];
 
@@ -374,60 +373,48 @@ qlnx_pci_probe(device_t dev)
 #ifndef QLNX_VF
 
         case QLOGIC_PCI_DEVICE_ID_1644:
-		snprintf(qlnx_dev_str, sizeof(qlnx_dev_str), "%s v%d.%d.%d",
+		device_set_descf(dev, "%s v%d.%d.%d",
 			"Qlogic 100GbE PCI CNA Adapter-Ethernet Function",
 			QLNX_VERSION_MAJOR, QLNX_VERSION_MINOR,
 			QLNX_VERSION_BUILD);
-                device_set_desc_copy(dev, qlnx_dev_str);
-
                 break;
 
         case QLOGIC_PCI_DEVICE_ID_1634:
-		snprintf(qlnx_dev_str, sizeof(qlnx_dev_str), "%s v%d.%d.%d",
+		device_set_descf(dev, "%s v%d.%d.%d",
 			"Qlogic 40GbE PCI CNA Adapter-Ethernet Function",
 			QLNX_VERSION_MAJOR, QLNX_VERSION_MINOR,
 			QLNX_VERSION_BUILD);
-                device_set_desc_copy(dev, qlnx_dev_str);
-
                 break;
 
         case QLOGIC_PCI_DEVICE_ID_1656:
-		snprintf(qlnx_dev_str, sizeof(qlnx_dev_str), "%s v%d.%d.%d",
+		device_set_descf(dev, "%s v%d.%d.%d",
 			"Qlogic 25GbE PCI CNA Adapter-Ethernet Function",
 			QLNX_VERSION_MAJOR, QLNX_VERSION_MINOR,
 			QLNX_VERSION_BUILD);
-                device_set_desc_copy(dev, qlnx_dev_str);
-
                 break;
 
         case QLOGIC_PCI_DEVICE_ID_1654:
-		snprintf(qlnx_dev_str, sizeof(qlnx_dev_str), "%s v%d.%d.%d",
+		device_set_descf(dev, "%s v%d.%d.%d",
 			"Qlogic 50GbE PCI CNA Adapter-Ethernet Function",
 			QLNX_VERSION_MAJOR, QLNX_VERSION_MINOR,
 			QLNX_VERSION_BUILD);
-                device_set_desc_copy(dev, qlnx_dev_str);
-
                 break;
 
 	case QLOGIC_PCI_DEVICE_ID_8070:
-		snprintf(qlnx_dev_str, sizeof(qlnx_dev_str), "%s v%d.%d.%d",
+		device_set_descf(dev, "%s v%d.%d.%d",
 			"Qlogic 10GbE/25GbE/40GbE PCI CNA (AH)"
 			" Adapter-Ethernet Function",
 			QLNX_VERSION_MAJOR, QLNX_VERSION_MINOR,
 			QLNX_VERSION_BUILD);
-		device_set_desc_copy(dev, qlnx_dev_str);
-
 		break;
 
 #else
 	case QLOGIC_PCI_DEVICE_ID_8090:
-		snprintf(qlnx_dev_str, sizeof(qlnx_dev_str), "%s v%d.%d.%d",
+		device_set_descf(dev, "%s v%d.%d.%d",
 			"Qlogic SRIOV PCI CNA (AH) "
 			"Adapter-Ethernet Function",
 			QLNX_VERSION_MAJOR, QLNX_VERSION_MINOR,
 			QLNX_VERSION_BUILD);
-		device_set_desc_copy(dev, qlnx_dev_str);
-
 		break;
 
 #endif /* #ifndef QLNX_VF */
