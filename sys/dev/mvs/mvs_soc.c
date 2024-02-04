@@ -74,7 +74,6 @@ static struct {
 static int
 mvs_probe(device_t dev)
 {
-	char buf[64];
 	int i;
 	uint32_t devid, revid;
 
@@ -88,9 +87,8 @@ mvs_probe(device_t dev)
 	for (i = 0; mvs_ids[i].id != 0; i++) {
 		if (mvs_ids[i].id == devid &&
 		    mvs_ids[i].rev <= revid) {
-			snprintf(buf, sizeof(buf), "%s SATA controller",
+			device_set_descf(dev, "%s SATA controller",
 			    mvs_ids[i].name);
-			device_set_desc_copy(dev, buf);
 			return (BUS_PROBE_DEFAULT);
 		}
 	}
