@@ -722,7 +722,10 @@ setenv_int(const char *key, int val)
  * Parse ConOut (the list of consoles active) and see if we can find a
  * serial port and/or a video port. It would be nice to also walk the
  * ACPI name space to map the UID for the serial port to a port. The
- * latter is especially hard.
+ * latter is especially hard. Also check for ConIn as well. This will
+ * be enough to determine if we have serial, and if we don't, we default
+ * to video. If there's a dual-console situation with ConIn, this will
+ * currently fail.
  */
 int
 parse_uefi_con_out(void)
@@ -741,6 +744,8 @@ parse_uefi_con_out(void)
 	rv = efi_global_getenv("ConOut", buf, &sz);
 	if (rv != EFI_SUCCESS)
 		rv = efi_global_getenv("ConOutDev", buf, &sz);
+	if (rv != EFI_SUCCESS)
+		rv = efi_global_getenv("ConIn", buf, &sz);
 	if (rv != EFI_SUCCESS) {
 		/*
 		 * If we don't have any ConOut default to both. If we have GOP
