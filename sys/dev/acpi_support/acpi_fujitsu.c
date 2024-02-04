@@ -222,14 +222,12 @@ static int
 acpi_fujitsu_probe(device_t dev)
 {
 	char *name;
-	char buffer[64];
 	int rv;
 
 	rv =  ACPI_ID_PROBE(device_get_parent(dev), dev, fujitsu_ids, &name);
 	if (acpi_disabled("fujitsu") || rv > 0 || device_get_unit(dev) > 1)
 		return (ENXIO);
-	sprintf(buffer, "Fujitsu Function Hotkeys %s", name);
-	device_set_desc_copy(dev, buffer);
+	device_set_descf(dev, "Fujitsu Function Hotkeys %s", name);
 
 	return (rv);
 }

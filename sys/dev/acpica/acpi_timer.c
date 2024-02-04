@@ -159,7 +159,6 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 static int
 acpi_timer_probe(device_t dev)
 {
-    char desc[40];
     int i, j, rid, rtype;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -219,10 +218,9 @@ acpi_timer_probe(device_t dev)
     }
     tc_init(&acpi_timer_timecounter);
 
-    sprintf(desc, "%d-bit timer at %u.%06uMHz",
+    device_set_descf(dev, "%d-bit timer at %u.%06uMHz",
 	(AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) != 0 ? 32 : 24,
 	acpi_timer_frequency / 1000000, acpi_timer_frequency % 1000000);
-    device_set_desc_copy(dev, desc);
 
     /* Release the resource, we'll allocate it again during attach. */
     bus_release_resource(dev, rtype, rid, acpi_timer_reg);

@@ -43,7 +43,6 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/sbuf.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -535,7 +534,6 @@ acpi_asus_probe(device_t dev)
 {
 	struct acpi_asus_model	*model;
 	struct acpi_asus_softc	*sc;
-	struct sbuf		*sb;
 	ACPI_BUFFER		Buf;
 	ACPI_OBJECT		Arg, *Obj;
 	ACPI_OBJECT_LIST	Args;
@@ -599,24 +597,17 @@ acpi_asus_probe(device_t dev)
 		}
 	}
 
-	sb = sbuf_new_auto();
-	if (sb == NULL)
-		return (ENOMEM);
-
 	/*
 	 * Asus laptops are simply identified by name, easy!
 	 */
 	for (model = acpi_asus_models; model->name != NULL; model++) {
 		if (strncmp(Obj->String.Pointer, model->name, 3) == 0) {
 good:
-			sbuf_printf(sb, "Asus %s Laptop Extras",
-			    Obj->String.Pointer);
-			sbuf_finish(sb);
-
 			sc->model = model;
-			device_set_desc_copy(dev, sbuf_data(sb));
 
-			sbuf_delete(sb);
+			device_set_descf(dev, "Asus %s Laptop Extras",
+			    Obj->String.Pointer);
+
 			AcpiOsFree(Buf.Pointer);
 			return (rv);
 		}
@@ -695,12 +686,9 @@ good:
 		}
 	}
 
-	sbuf_printf(sb, "Unsupported Asus laptop: %s\n", Obj->String.Pointer);
-	sbuf_finish(sb);
+	device_printf(dev, "Unsupported Asus laptop: %s\n",
+	    Obj->String.Pointer);
 
-	device_printf(dev, "%s", sbuf_data(sb));
-
-	sbuf_delete(sb);
 	AcpiOsFree(Buf.Pointer);
 
 	return (ENXIO);

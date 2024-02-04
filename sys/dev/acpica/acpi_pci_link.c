@@ -143,7 +143,7 @@ acpi_short_name(ACPI_HANDLE handle, char *buffer, size_t buflen)
 static int
 acpi_pci_link_probe(device_t dev)
 {
-	char descr[28], name[12];
+	char name[12];
 	int rv;
 
 	/*
@@ -157,10 +157,9 @@ acpi_pci_link_probe(device_t dev)
 	  return (rv);
 
 	if (ACPI_SUCCESS(acpi_short_name(acpi_get_handle(dev), name,
-	    sizeof(name)))) {
-		snprintf(descr, sizeof(descr), "ACPI PCI Link %s", name);
-		device_set_desc_copy(dev, descr);
-	} else
+	    sizeof(name))))
+		device_set_descf(dev, "ACPI PCI Link %s", name);
+	else
 		device_set_desc(dev, "ACPI PCI Link");
 	device_quiet(dev);
 	return (rv);
