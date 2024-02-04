@@ -248,7 +248,6 @@ am335x_dmtimer_tc_init(struct am335x_dmtimer_softc *sc)
 static int
 am335x_dmtimer_probe(device_t dev)
 {
-	char strbuf[32];
 	int tmr_num;
 	uint64_t rev_address;
 
@@ -276,8 +275,7 @@ am335x_dmtimer_probe(device_t dev)
 			return (ENXIO);
 	}
 
-	snprintf(strbuf, sizeof(strbuf), "AM335x DMTimer%d", tmr_num);
-	device_set_desc_copy(dev, strbuf);
+	device_set_descf("AM335x DMTimer%d", tmr_num);
 
 	return(BUS_PROBE_DEFAULT);
 }
