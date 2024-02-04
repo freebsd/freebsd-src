@@ -32,7 +32,6 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-#include <sys/sbuf.h>
 
 #include <isa/isavar.h>
 #include <isa/pnpvar.h>
@@ -62,7 +61,6 @@ static char **proto_isa_devnames;
 static int
 proto_isa_probe(device_t dev)
 {
-	struct sbuf *sb;
 	struct resource *res;
 	int rid, type;
 
@@ -76,11 +74,7 @@ proto_isa_probe(device_t dev)
 	if (res == NULL)
 		return (ENODEV);
 
-	sb = sbuf_new_auto();
-	sbuf_printf(sb, "%s:%#jx", proto_isa_prefix, rman_get_start(res));
-	sbuf_finish(sb);
-	device_set_desc_copy(dev, sbuf_data(sb));
-	sbuf_delete(sb);
+	device_set_descf(dev, "%s:%#jx", proto_isa_prefix, rman_get_start(res));
 	bus_release_resource(dev, type, rid, res);
 	return (proto_probe(dev, proto_isa_prefix, &proto_isa_devnames));
 }
