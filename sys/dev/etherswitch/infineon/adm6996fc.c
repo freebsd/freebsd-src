@@ -153,7 +153,7 @@ adm6996fc_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	device_set_desc_copy(dev, "Infineon ADM6996FC/M/MX MDIO switch driver");
+	device_set_desc(dev, "Infineon ADM6996FC/M/MX MDIO switch driver");
 	return (BUS_PROBE_DEFAULT);
 }
 
