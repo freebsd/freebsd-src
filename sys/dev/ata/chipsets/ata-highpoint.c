@@ -81,7 +81,7 @@ ata_highpoint_probe(device_t dev)
      { ATA_HPT366, 0x00, HPT_366, HPT_OLD, ATA_UDMA4, "HPT366" },
      { ATA_HPT302, 0x01, HPT_372, 0,       ATA_UDMA6, "HPT302" },
      { 0, 0, 0, 0, 0, 0}};
-    char buffer[64];
+    const char *channel;
 
     if (pci_get_vendor(dev) != ATA_HIGHPOINT_ID)
         return ENXIO;
@@ -89,16 +89,15 @@ ata_highpoint_probe(device_t dev)
     if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    strcpy(buffer, "HighPoint ");
-    strcat(buffer, idx->text);
+    channel = "";
     if (idx->cfg1 == HPT_374) {
 	if (pci_get_function(dev) == 0)
-	    strcat(buffer, " (channel 0+1)");
-	if (pci_get_function(dev) == 1)
-	    strcat(buffer, " (channel 2+3)");
+	    channel = " (channel 0+1)";
+	else if (pci_get_function(dev) == 1)
+	    channel = " (channel 2+3)";
     }
-    sprintf(buffer, "%s %s controller", buffer, ata_mode2str(idx->max_dma));
-    device_set_desc_copy(dev, buffer);
+    device_set_descf(dev, "Highpoint %s%s %s controller",
+	idx->text, channel, ata_mode2str(idx->max_dma));
     ctlr->chip = idx;
     ctlr->chipinit = ata_highpoint_chipinit;
     return (BUS_PROBE_LOW_PRIORITY);

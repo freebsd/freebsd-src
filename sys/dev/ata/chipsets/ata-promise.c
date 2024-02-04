@@ -166,7 +166,7 @@ ata_promise_probe(device_t dev)
      { ATA_PDC40719,  0, PR_MIO, PR_SATA2, ATA_SA300, "PDC40719" },
      { ATA_PDC40779,  0, PR_MIO, PR_SATA2, ATA_SA300, "PDC40779" },
      { 0, 0, 0, 0, 0, 0}};
-    char buffer[64];
+    const char *channel;
     uintptr_t devid = 0;
 
     if (pci_get_vendor(dev) != ATA_PROMISE_ID)
@@ -182,10 +182,8 @@ ata_promise_probe(device_t dev)
 	devid == ATA_I960RM) 
 	return ENXIO;
 
-    strcpy(buffer, "Promise ");
-    strcat(buffer, idx->text);
-
     /* if we are on a FastTrak TX4, adjust the interrupt resource */
+    channel = NULL;
     if ((idx->cfg2 & PR_TX4) && pci_get_class(GRANDPARENT(dev))==PCIC_BRIDGE &&
 	!BUS_READ_IVAR(device_get_parent(GRANDPARENT(dev)),
 		       GRANDPARENT(dev), PCI_IVAR_DEVID, &devid) &&
@@ -194,18 +192,18 @@ ata_promise_probe(device_t dev)
 
 	if (pci_get_slot(dev) == 1) {
 	    bus_get_resource(dev, SYS_RES_IRQ, 0, &start, &end);
-	    strcat(buffer, " (channel 0+1)");
+	    channel = " (channel 0+1)";
 	}
 	else if (pci_get_slot(dev) == 2 && start && end) {
 	    bus_set_resource(dev, SYS_RES_IRQ, 0, start, end);
-	    strcat(buffer, " (channel 2+3)");
+	    channel = " (channel 2+3)";
 	}
 	else {
 	    start = end = 0;
 	}
     }
-    sprintf(buffer, "%s %s controller", buffer, ata_mode2str(idx->max_dma));
-    device_set_desc_copy(dev, buffer);
+    device_set_descf(dev, "Promise %s%s %s controller", idx->text,
+	channel == NULL ? "" : channel, ata_mode2str(idx->max_dma));
     ctlr->chip = idx;
     ctlr->chipinit = ata_promise_chipinit;
     return (BUS_PROBE_LOW_PRIORITY);
