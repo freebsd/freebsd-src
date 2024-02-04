@@ -46,13 +46,13 @@ It is typically called from the VM paging code.
 .Sh IMPLEMENTATION NOTES
 The PV count used above may be changed upwards or downwards in future;
 it is only necessary that
-.Dv TRUE
+.Dv true
 be returned for a small subset of pmaps for proper page aging.
 .Sh RETURN VALUES
 The
 .Fn pmap_page_exists_quick
 returns
-.Dv TRUE
+.Dv true
 only if the PV entry for the physical map
 .Fa pmap
 is one of the first 16 PVs linked from the page
