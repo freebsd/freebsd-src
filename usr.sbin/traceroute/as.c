@@ -29,24 +29,36 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+
 #include <netdb.h>
 #include <unistd.h>
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <err.h>
 #include <stdio.h>
+#include <stdbool.h>
 
-#include "as.h"
+#include "traceroute.h"
 
 #define DEFAULT_AS_SERVER "whois.radb.net"
-#undef AS_DEBUG_FILE
+//#undef AS_DEBUG_FILE
+#define AS_DEBUG_FILE "as.log"
 
+#ifdef AS_DEBUG_FILE
+#define AS_DEBUG_PRINT(...)	 					\
+	do {								\
+		if (asn->as_debug) {					\
+			(void)fprintf(asn->as_debug, __VA_ARGS__);	\
+			(void)fflush(asn->as_debug);			\
+		}							\
+	} while (false)
+#else
+#define AS_DEBUG_PRINT(...) do {} while (false)
+#endif
+
+			
 struct aslookup {
 	FILE *as_f;
 #ifdef AS_DEBUG_FILE
@@ -122,80 +134,49 @@ as_lookup(void const *_asn, char *addr, sa_family_t family)
 {
 	struct aslookup const *asn = _asn;
 	char buf[1024];
-	unsigned int as;
-	int rc, dlen, plen;
+	unsigned as = 0;
+	int rc = 0, dlen = 0, plen;
 
-	as = 0;
-	rc = dlen = 0;
 	plen = (family == AF_INET6) ? 128 : 32;
 	(void)fprintf(asn->as_f, "!r%s/%d,l\n", addr, plen);
 	(void)fflush(asn->as_f);
 
-#ifdef AS_DEBUG_FILE
-	if (asn->as_debug) {
-		(void)fprintf(asn->as_debug, ">> !r%s/%d,l\n", addr, plen);
-		(void)fflush(asn->as_debug);
-	}
-#endif /* AS_DEBUG_FILE */
+	AS_DEBUG_PRINT(">> !r%s/%d,l\n", addr, plen);
 
 	while (fgets(buf, sizeof(buf), asn->as_f) != NULL) {
 		buf[sizeof(buf) - 1] = '\0';
 
-#ifdef AS_DEBUG_FILE
-		if (asn->as_debug) {
-			(void)fprintf(asn->as_debug, "<< %s", buf);
-			(void)fflush(asn->as_debug);
-		}
-#endif /* AS_DEBUG_FILE */
+		AS_DEBUG_PRINT("<< [dlen=%d] %s", dlen, buf);
 
-		if (rc == 0) {
-			rc = buf[0];
-			switch (rc) {
-			    case 'A':
+		if (dlen == 0) {
+			rc = (unsigned char)buf[0];
+			if (rc == 'A') {
 				/* A - followed by # bytes of answer */
-				sscanf(buf, "A%d\n", &dlen);
-#ifdef AS_DEBUG_FILE
-				if (asn->as_debug) {
-					(void)fprintf(asn->as_debug,
-					     "dlen: %d\n", dlen);
-					(void)fflush(asn->as_debug);
-				}
-#endif /* AS_DEBUG_FILE */
-				break;
-			    case 'C':
-			    case 'D':
-			    case 'E':
-			    case 'F':
+				int r = sscanf(buf, "A%d\n", &dlen);
+				if (r != 1)
+					// protocol error
+					break;
+				AS_DEBUG_PRINT("dlen: %d\n", dlen);
+				/* skip to next input line */
+				continue;
+			} else
 				/* C - no data returned */
 				/* D - key not found */
 				/* E - multiple copies of key */
 				/* F - some other error */
 				break;
-			}
-			if (rc == 'A')
-				/* skip to next input line */
-				continue;
 		}
-
-		if (dlen == 0)
-			/* out of data, next char read is end code */
-			rc = buf[0];
-		if (rc != 'A')
-			/* either an error off the bat, or a done code */
-			break;
 
 		/* data received, thank you */
 		dlen -= strlen(buf);
 
 		/* origin line is the interesting bit */
 		if (as == 0 && strncasecmp(buf, "origin:", 7) == 0) {
-			sscanf(buf + 7, " AS%u", &as);
-#ifdef AS_DEBUG_FILE
-			if (asn->as_debug) {
-				(void)fprintf(asn->as_debug, "as: %d\n", as);
-				(void)fflush(asn->as_debug);
-			}
-#endif /* AS_DEBUG_FILE */
+			int r = sscanf(buf + 7, " AS%u", &as);
+			if (r != 1)
+				// protocol error
+				break;
+			AS_DEBUG_PRINT("as: %d\n", as);
 		}
 	}
 
