@@ -43,7 +43,7 @@ int
 mtx_init(mtx_t *mtx, int type)
 {
 	pthread_mutexattr_t attr;
-	int mt;
+	int mt, res;
 
 	switch (type) {
 	case mtx_plain:
@@ -60,11 +60,12 @@ mtx_init(mtx_t *mtx, int type)
 
 	if (pthread_mutexattr_init(&attr) != 0)
 		return (thrd_error);
-	if (pthread_mutexattr_settype(&attr, mt) != 0)
-		return (thrd_error);
-	if (pthread_mutex_init(mtx, &attr) != 0)
-		return (thrd_error);
-	return (thrd_success);
+	res = thrd_success;
+	if (pthread_mutexattr_settype(&attr, mt) != 0 ||
+	    pthread_mutex_init(mtx, &attr) != 0)
+		res = thrd_error;
+	pthread_mutexattr_destroy(&attr);
+	return (res);
 }
 
 int
