@@ -152,7 +152,7 @@ ip17x_probe(device_t dev)
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "mii-poll", &sc->miipoll);
 #endif
-	device_set_desc_copy(dev, "IC+ IP17x switch driver");
+	device_set_desc(dev, "IC+ IP17x switch driver");
 	return (BUS_PROBE_DEFAULT);
 }
 
