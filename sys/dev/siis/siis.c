@@ -120,15 +120,13 @@ static struct {
 static int
 siis_probe(device_t dev)
 {
-	char buf[64];
 	int i;
 	uint32_t devid = pci_get_devid(dev);
 
 	for (i = 0; siis_ids[i].id != 0; i++) {
 		if (siis_ids[i].id == devid) {
-			snprintf(buf, sizeof(buf), "%s SATA controller",
+			device_set_descf(dev, "%s SATA controller",
 			    siis_ids[i].name);
-			device_set_desc_copy(dev, buf);
 			return (BUS_PROBE_DEFAULT);
 		}
 	}
@@ -449,7 +447,7 @@ static int
 siis_ch_probe(device_t dev)
 {
 
-	device_set_desc_copy(dev, "SIIS channel");
+	device_set_desc(dev, "SIIS channel");
 	return (BUS_PROBE_DEFAULT);
 }
 
