@@ -2522,11 +2522,9 @@ reset_adapter_task(void *arg, int pending)
 static int
 cxgbe_probe(device_t dev)
 {
-	char buf[128];
 	struct port_info *pi = device_get_softc(dev);
 
-	snprintf(buf, sizeof(buf), "port %d", pi->port_id);
-	device_set_desc_copy(dev, buf);
+	device_set_descf(dev, "port %d", pi->port_id);
 
 	return (BUS_PROBE_DEFAULT);
 }
@@ -3499,12 +3497,10 @@ done:
 static int
 vcxgbe_probe(device_t dev)
 {
-	char buf[128];
 	struct vi_info *vi = device_get_softc(dev);
 
-	snprintf(buf, sizeof(buf), "port %d vi %td", vi->pi->port_id,
+	device_set_descf(dev, "port %d vi %td", vi->pi->port_id,
 	    vi - vi->pi->vi);
-	device_set_desc_copy(dev, buf);
 
 	return (BUS_PROBE_DEFAULT);
 }
@@ -5768,12 +5764,9 @@ set_params__post_init(struct adapter *sc)
 static void
 t4_set_desc(struct adapter *sc)
 {
-	char buf[128];
 	struct adapter_params *p = &sc->params;
 
-	snprintf(buf, sizeof(buf), "Chelsio %s", p->vpd.id);
-
-	device_set_desc_copy(sc->dev, buf);
+	device_set_descf(sc->dev, "Chelsio %s", p->vpd.id);
 }
 
 static inline void
