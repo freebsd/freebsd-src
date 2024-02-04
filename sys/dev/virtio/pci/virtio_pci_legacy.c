@@ -190,7 +190,6 @@ DRIVER_MODULE(virtio_pci_legacy, pci, vtpci_legacy_driver, 0, 0);
 static int
 vtpci_legacy_probe(device_t dev)
 {
-	char desc[64];
 	const char *name;
 
 	if (pci_get_vendor(dev) != VIRTIO_PCI_VENDORID)
@@ -207,8 +206,7 @@ vtpci_legacy_probe(device_t dev)
 	if (name == NULL)
 		name = "Unknown";
 
-	snprintf(desc, sizeof(desc), "VirtIO PCI (legacy) %s adapter", name);
-	device_set_desc_copy(dev, desc);
+	device_set_descf(dev, "VirtIO PCI (legacy) %s adapter", name);
 
 	/* Prefer transitional modern VirtIO PCI. */
 	return (BUS_PROBE_LOW_PRIORITY);
