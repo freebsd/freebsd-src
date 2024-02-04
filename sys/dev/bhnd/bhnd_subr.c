@@ -1765,18 +1765,10 @@ void
 bhnd_set_custom_core_desc(device_t dev, const char *dev_name)
 {
 	const char *vendor_name;
-	char *desc;
 
 	vendor_name = bhnd_get_vendor_name(dev);
-	asprintf(&desc, M_BHND, "%s %s, rev %hhu", vendor_name, dev_name,
+	device_set_descf(dev, "%s %s, rev %hhu", vendor_name, dev_name,
 	    bhnd_get_hwrev(dev));
-
-	if (desc != NULL) {
-		device_set_desc_copy(dev, desc);
-		free(desc, M_BHND);
-	} else {
-		device_set_desc(dev, dev_name);
-	}
 }
 
 /**
@@ -1802,7 +1794,6 @@ void
 bhnd_set_default_bus_desc(device_t dev, const struct bhnd_chipid *chip_id)
 {
 	const char	*bus_name;
-	char		*desc;
 	char		 chip_name[BHND_CHIPID_MAX_NAMELEN];
 
 	/* Determine chip type's bus name */
@@ -1827,14 +1818,7 @@ bhnd_set_default_bus_desc(device_t dev, const struct bhnd_chipid *chip_id)
 	     chip_id->chip_id);
 
 	/* Format and set device description */
-	asprintf(&desc, M_BHND, "%s %s", chip_name, bus_name);
-	if (desc != NULL) {
-		device_set_desc_copy(dev, desc);
-		free(desc, M_BHND);
-	} else {
-		device_set_desc(dev, bus_name);
-	}
-
+	device_set_descf(dev, "%s %s", chip_name, bus_name);
 }
 
 /**
