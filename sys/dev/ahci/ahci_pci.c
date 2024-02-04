@@ -399,7 +399,6 @@ ahci_pci_ctlr_reset(device_t dev)
 static int
 ahci_probe(device_t dev)
 {
-	char buf[64];
 	int i, valid = 0;
 	uint32_t devid = pci_get_devid(dev);
 	uint8_t revid = pci_get_revid(dev);
@@ -430,22 +429,20 @@ ahci_probe(device_t dev)
 			    (ahci_ids[i].quirks & AHCI_Q_NOFORCE) &&
 			    (pci_read_config(dev, 0xdf, 1) & 0x40) == 0)
 				return (ENXIO);
-			snprintf(buf, sizeof(buf), "%s AHCI SATA controller",
+			device_set_descf(dev, "%s AHCI SATA controller",
 			    ahci_ids[i].name);
-			device_set_desc_copy(dev, buf);
 			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	if (valid != 1)
 		return (ENXIO);
-	device_set_desc_copy(dev, "AHCI SATA controller");
+	device_set_desc(dev, "AHCI SATA controller");
 	return (BUS_PROBE_DEFAULT);
 }
 
 static int
 ahci_ata_probe(device_t dev)
 {
-	char buf[64];
 	int i;
 	uint32_t devid = pci_get_devid(dev);
 	uint8_t revid = pci_get_revid(dev);
@@ -456,13 +453,12 @@ ahci_ata_probe(device_t dev)
 	for (i = 0; ahci_ids[i].id != 0; i++) {
 		if (ahci_ids[i].id == devid &&
 		    ahci_ids[i].rev <= revid) {
-			snprintf(buf, sizeof(buf), "%s AHCI SATA controller",
+			device_set_descf(dev, "%s AHCI SATA controller",
 			    ahci_ids[i].name);
-			device_set_desc_copy(dev, buf);
 			return (BUS_PROBE_DEFAULT);
 		}
 	}
-	device_set_desc_copy(dev, "AHCI SATA controller");
+	device_set_desc(dev, "AHCI SATA controller");
 	return (BUS_PROBE_DEFAULT);
 }
 

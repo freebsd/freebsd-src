@@ -765,7 +765,7 @@ static int
 ahci_ch_probe(device_t dev)
 {
 
-	device_set_desc_copy(dev, "AHCI channel");
+	device_set_desc(dev, "AHCI channel");
 	return (BUS_PROBE_DEFAULT);
 }
 

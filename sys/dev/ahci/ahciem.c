@@ -63,7 +63,7 @@ static int
 ahci_em_probe(device_t dev)
 {
 
-	device_set_desc_copy(dev, "AHCI enclosure management bridge");
+	device_set_desc(dev, "AHCI enclosure management bridge");
 	return (BUS_PROBE_DEFAULT);
 }
 

@@ -76,7 +76,7 @@ ahci_fdt_probe(device_t dev)
 	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 
-	device_set_desc_copy(dev, "AHCI SATA controller");
+	device_set_desc(dev, "AHCI SATA controller");
 	node = ofw_bus_get_node(dev);
 	ctlr->dma_coherent = OF_hasprop(node, "dma-coherent");
 	return (BUS_PROBE_DEFAULT);
@@ -107,7 +107,7 @@ ahci_acpi_probe(device_t dev)
 	if (pci_get_class(dev) == PCIC_STORAGE &&
 	    pci_get_subclass(dev) == PCIS_STORAGE_SATA &&
 	    pci_get_progif(dev) == PCIP_STORAGE_SATA_AHCI_1_0) {
-		device_set_desc_copy(dev, "AHCI SATA controller");
+		device_set_desc(dev, "AHCI SATA controller");
 		if (ACPI_FAILURE(acpi_GetInteger(h, "_CCA",
 		      &ctlr->dma_coherent)))
 			ctlr->dma_coherent = 0;
