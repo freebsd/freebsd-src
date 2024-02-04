@@ -101,7 +101,6 @@ ata_sis_probe(device_t dev)
      { 0, 0, 0, 0, 0, 0 }};
     static struct ata_chip_id id[] =
     {{ ATA_SISSOUTH, 0x10, 0, 0, 0, "" }, { 0, 0, 0, 0, 0, 0 }};
-    char buffer[64];
     int found = 0;
 
     if (pci_get_class(dev) != PCIC_STORAGE)
@@ -122,8 +121,8 @@ ata_sis_probe(device_t dev)
     	    memcpy(&id[0], idx, sizeof(id[0]));
 	    id[0].cfg1 = SIS_133NEW;
 	    id[0].max_dma = ATA_UDMA6;
-	    sprintf(buffer, "SiS 962/963 %s controller",
-		    ata_mode2str(idx->max_dma));
+	    device_set_descf(dev, "SiS 962/963 %s controller",
+		ata_mode2str(idx->max_dma));
 	}
 	pci_write_config(dev, 0x57, reg57, 1);
     }
@@ -140,17 +139,17 @@ ata_sis_probe(device_t dev)
 		id[0].cfg1 = SIS_100NEW;
 		id[0].max_dma = ATA_UDMA5;
 	    }
-	    sprintf(buffer, "SiS 961 %s controller",ata_mode2str(idx->max_dma));
+	    device_set_descf(dev, "SiS 961 %s controller",
+		ata_mode2str(idx->max_dma));
 	}
 	pci_write_config(dev, 0x4a, reg4a, 1);
     }
     if (!found)
-	sprintf(buffer,"SiS %s %s controller",
-		idx->text, ata_mode2str(idx->max_dma));
+	device_set_descf(dev, "SiS %s %s controller",
+	    idx->text, ata_mode2str(idx->max_dma));
     else
 	idx = &id[0];
 
-    device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_sis_chipinit;
     return (BUS_PROBE_LOW_PRIORITY);
