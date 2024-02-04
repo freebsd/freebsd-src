@@ -91,7 +91,7 @@ struct dom_binding {
 
 bool_t xdr_ypresp_all_seq(XDR *xdrs, u_long *objp);
 
-int (*ypresp_allfn)();
+int (*ypresp_allfn)(unsigned long, char *, int, char *, int, void *);
 void *ypresp_data;
 
 static void _yp_unbind(struct dom_binding *);
