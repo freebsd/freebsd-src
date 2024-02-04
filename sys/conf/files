@@ -3629,7 +3629,6 @@ geom/label/g_label_flashmap.c	optional geom_label
 geom/label/g_label_iso9660.c	optional geom_label
 geom/label/g_label_msdosfs.c	optional geom_label
 geom/label/g_label_ntfs.c	optional geom_label
-geom/label/g_label_reiserfs.c	optional geom_label
 geom/label/g_label_ufs.c	optional geom_label
 geom/label/g_label_gpt.c	optional geom_label | geom_label_gpt
 geom/label/g_label_disk_ident.c	optional geom_label
