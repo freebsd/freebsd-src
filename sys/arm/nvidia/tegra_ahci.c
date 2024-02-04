@@ -651,7 +651,7 @@ tegra_ahci_probe(device_t dev)
 	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 
-	device_set_desc_copy(dev, "AHCI SATA controller");
+	device_set_desc(dev, "AHCI SATA controller");
 	return (BUS_PROBE_DEFAULT);
 }
 
