@@ -232,7 +232,13 @@ vtnet_software_lro(struct vtnet_softc *sc)
  */
 #define VTNET_VLAN_FILTER_NWORDS	(4096 / 32)
 
-/* We depend on these being the same size (and same layout). */
+/*
+ * We depend on all of the hdr structures being even, and matching the standard
+ * length. As well, we depend on two being identally sized (with the same
+ * layout).
+ */
+CTASSERT(sizeof(struct virtio_net_hdr_v1) == 12);
+CTASSERT(sizeof(struct virtio_net_hdr) == 10);
 CTASSERT(sizeof(struct virtio_net_hdr_mrg_rxbuf) ==
     sizeof(struct virtio_net_hdr_v1));
 
