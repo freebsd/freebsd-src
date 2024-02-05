@@ -82,13 +82,13 @@ extern "C" {
  *
  * These strings are defined separately to allow them to be parsable.
  */
-# define OPENSSL_RELEASE_DATE "24 Oct 2023"
+# define OPENSSL_RELEASE_DATE "30 Jan 2024"
 
 /*
  * SECTION 4: BACKWARD COMPATIBILITY
  */
 
-# define OPENSSL_VERSION_TEXT "OpenSSL 3.0.13 24 Oct 2023"
+# define OPENSSL_VERSION_TEXT "OpenSSL 3.0.13 30 Jan 2024"
 
 /* Synthesize OPENSSL_VERSION_NUMBER with the layout 0xMNN00PPSL */
 # ifdef OPENSSL_VERSION_PRE_RELEASE
