@@ -247,25 +247,14 @@ lkpi_lsta_dump(struct lkpi_sta *lsta, struct ieee80211_node *ni,
 static void
 lkpi_lsta_remove(struct lkpi_sta *lsta, struct lkpi_vif *lvif)
 {
-	struct ieee80211_node *ni;
 
-	IMPROVE("XXX-BZ remove tqe_prev check once ni-sta-state-sync is fixed");
-
-	ni = lsta->ni;
 
 	LKPI_80211_LVIF_LOCK(lvif);
-	if (lsta->lsta_entry.tqe_prev != NULL)
-		TAILQ_REMOVE(&lvif->lsta_head, lsta, lsta_entry);
+	KASSERT(lsta->lsta_entry.tqe_prev != NULL,
+	    ("%s: lsta %p lsta_entry.tqe_prev %p ni %p\n", __func__,
+	    lsta, lsta->lsta_entry.tqe_prev, lsta->ni));
+	TAILQ_REMOVE(&lvif->lsta_head, lsta, lsta_entry);
 	LKPI_80211_LVIF_UNLOCK(lvif);
-
-	lsta->ni = NULL;
-	ni->ni_drv_data = NULL;
-	if (ni != NULL)
-		ieee80211_free_node(ni);
-
-	IMPROVE("more from lkpi_ic_node_free() should happen here.");
-
-	free(lsta, M_LKPI80211);
 }
 
 static struct lkpi_sta *
@@ -287,13 +276,16 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 
 	lsta->added_to_drv = false;
 	lsta->state = IEEE80211_STA_NOTEXIST;
-#if 0
 	/*
-	 * This needs to be done in node_init() as ieee80211_alloc_node()
-	 * will initialise the refcount after us.
+	 * Link the ni to the lsta here without taking a reference.
+	 * For one we would have to take the reference in node_init()
+	 * as ieee80211_alloc_node() will initialise the refcount after us.
+	 * For the other a ni and an lsta are 1:1 mapped and always together
+	 * from [ic_]node_alloc() to [ic_]node_free() so we are essentally
+	 * using the ni references for the lsta as well despite it being
+	 * two separate allocations.
 	 */
-	lsta->ni = ieee80211_ref_node(ni);
-#endif
+	lsta->ni = ni;
 	/* The back-pointer "drv_data" to net80211_node let's us get lsta. */
 	ni->ni_drv_data = lsta;
 
@@ -378,6 +370,7 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 	mtx_init(&lsta->txq_mtx, "lsta_txq", NULL, MTX_DEF);
 	TASK_INIT(&lsta->txq_task, 0, lkpi_80211_txq_task, lsta);
 	mbufq_init(&lsta->txq, IFQ_MAXLEN);
+	lsta->txq_ready = true;
 
 	return (lsta);
 
@@ -392,6 +385,54 @@ cleanup:
 	free(lsta, M_LKPI80211);
 	return (NULL);
 }
+
+static void
+lkpi_lsta_free(struct lkpi_sta *lsta, struct ieee80211_node *ni)
+{
+	struct mbuf *m;
+
+	if (lsta->added_to_drv)
+		panic("%s: Trying to free an lsta still known to firmware: "
+		    "lsta %p ni %p added_to_drv %d\n",
+		    __func__, lsta, ni, lsta->added_to_drv);
+
+	/* XXX-BZ free resources, ... */
+	IMPROVE();
+
+	/* XXX locking */
+	lsta->txq_ready = false;
+
+	/* Drain taskq, won't be restarted until added_to_drv is set again. */
+	while (taskqueue_cancel(taskqueue_thread, &lsta->txq_task, NULL) != 0)
+		taskqueue_drain(taskqueue_thread, &lsta->txq_task);
+
+	/* Flush mbufq (make sure to release ni refs!). */
+	m = mbufq_dequeue(&lsta->txq);
+	while (m != NULL) {
+		struct ieee80211_node *nim;
+
+		nim = (struct ieee80211_node *)m->m_pkthdr.rcvif;
+		if (nim != NULL)
+			ieee80211_free_node(nim);
+		m_freem(m);
+		m = mbufq_dequeue(&lsta->txq);
+	}
+	KASSERT(mbufq_empty(&lsta->txq), ("%s: lsta %p has txq len %d != 0\n",
+	    __func__, lsta, mbufq_len(&lsta->txq)));
+
+	/* Drain sta->txq[] */
+	mtx_destroy(&lsta->txq_mtx);
+
+	/* Remove lsta from vif; that is done by the state machine.  Should assert it? */
+
+	IMPROVE("Make sure everything is cleaned up.");
+
+	/* Free lsta. */
+	lsta->ni = NULL;
+	ni->ni_drv_data = NULL;
+	free(lsta, M_LKPI80211);
+}
+
 
 static enum nl80211_band
 lkpi_net80211_chan_to_nl80211_band(struct ieee80211_channel *c)
@@ -1052,11 +1093,17 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		ic_printf(vap->iv_ic, "%s: no iv_bss for vap %p\n", __func__, vap);
 		return (EINVAL);
 	}
+	/*
+	 * Keep the ni alive locally.  In theory (and practice) iv_bss can change
+	 * once we unlock here.  This is due to net80211 allowing state changes
+	 * and new join1() despite having an active node as well as due to
+	 * the fact that the iv_bss can be swapped under the hood in (*iv_update_bss).
+	 */
 	ni = ieee80211_ref_node(vap->iv_bss);
 	if (ni->ni_chan == NULL || ni->ni_chan == IEEE80211_CHAN_ANYC) {
 		ic_printf(vap->iv_ic, "%s: no channel set for iv_bss ni %p "
 		    "on vap %p\n", __func__, ni, vap);
-		ieee80211_free_node(ni);
+		ieee80211_free_node(ni);	/* Error handling for the local ni. */
 		return (EINVAL);
 	}
 
@@ -1065,13 +1112,25 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	if (chan == NULL) {
 		ic_printf(vap->iv_ic, "%s: failed to get LKPI channel from "
 		    "iv_bss ni %p on vap %p\n", __func__, ni, vap);
-		ieee80211_free_node(ni);
+		ieee80211_free_node(ni);	/* Error handling for the local ni. */
 		return (ESRCH);
 	}
 
 	hw = LHW_TO_HW(lhw);
 	lvif = VAP_TO_LVIF(vap);
 	vif = LVIF_TO_VIF(lvif);
+
+	LKPI_80211_LVIF_LOCK(lvif);
+	/* XXX-BZ KASSERT later? */
+	if (lvif->lvif_bss_synched || lvif->lvif_bss != NULL) {
+		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
+		    "lvif_bss->ni %p synched %d\n", __func__, __LINE__,
+		    lvif, vap, vap->iv_bss, lvif->lvif_bss,
+		    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
+		    lvif->lvif_bss_synched);
+		return (EBUSY);
+	}
+	LKPI_80211_LVIF_UNLOCK(lvif);
 
 	IEEE80211_UNLOCK(vap->iv_ic);
 	LKPI_80211_LHW_LOCK(lhw);
@@ -1200,32 +1259,17 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
 
 	/*
-	 * This is a bandaid for now.  If we went through (*iv_update_bss)()
-	 * and then removed the lsta we end up here without a lsta and have
-	 * to manually allocate and link it in as lkpi_ic_node_alloc()/init()
-	 * would normally do.
-	 * XXX-BZ I do not like this but currently we have no good way of
-	 * intercepting the bss swap and state changes and packets going out
-	 * workflow so live with this.  It is a compat layer after all.
+	 * Given ni and lsta are 1:1 from alloc to free we can assert that
+	 * ni always has lsta data attach despite net80211 node swapping
+	 * under the hoods.
 	 */
-	if (ni->ni_drv_data == NULL) {
-		ic_printf(vap->iv_ic, "%s:%d: lkpi_lsta_alloc to be called: "
-		    "ni %p lsta %p\n", __func__, __LINE__, ni, ni->ni_drv_data);
-		lsta = lkpi_lsta_alloc(vap, ni->ni_macaddr, hw, ni);
-		if (lsta == NULL) {
-			error = ENOMEM;
-			ic_printf(vap->iv_ic, "%s:%d: lkpi_lsta_alloc "
-			    "failed: %d\n", __func__, __LINE__, error);
-			goto out;
-		}
-		lsta->ni = ieee80211_ref_node(ni);
-	} else {
-		lsta = ni->ni_drv_data;
-	}
+	KASSERT(ni->ni_drv_data != NULL, ("%s: ni %p ni_drv_data %p\n",
+	    __func__, ni, ni->ni_drv_data));
+	lsta = ni->ni_drv_data;
 
 	LKPI_80211_LVIF_LOCK(lvif);
-	/* XXX-BZ KASSERT later? */
-	/* XXX-BZ this should have caught the upper lkpi_lsta_alloc() too! */
+	/* Re-check given (*iv_update_bss) could have happened. */
+	/* XXX-BZ KASSERT later? or deal as error? */
 	if (lvif->lvif_bss_synched || lvif->lvif_bss != NULL)
 		ic_printf(vap->iv_ic, "%s:%d: lvif %p vap %p iv_bss %p lvif_bss %p "
 		    "lvif_bss->ni %p synched %d, ni %p lsta %p\n", __func__, __LINE__,
@@ -1233,8 +1277,13 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
 		    lvif->lvif_bss_synched, ni, lsta);
 
-	/* Reference the ni for this cache of lsta. */
-	ieee80211_ref_node(vap->iv_bss);
+	/*
+	 * Reference the ni for this cache of lsta/ni on lvif->lvif_bss
+	 * essentially out lsta version of the iv_bss.
+	 * Do NOT use iv_bss here anymore as that may have diverged from our
+	 * function local ni already and would lead to inconsistencies.
+	 */
+	ieee80211_ref_node(ni);
 	lvif->lvif_bss = lsta;
 	lvif->lvif_bss_synched = true;
 
@@ -1287,6 +1336,10 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 out:
 	LKPI_80211_LHW_UNLOCK(lhw);
 	IEEE80211_LOCK(vap->iv_ic);
+	/*
+	 * Release the reference that keop the ni stable locally
+	 * during the work of this function.
+	 */
 	if (ni != NULL)
 		ieee80211_free_node(ni);
 	return (error);
@@ -1381,9 +1434,13 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	lvif->lvif_bss = NULL;
 	lvif->lvif_bss_synched = false;
 	LKPI_80211_LVIF_UNLOCK(lvif);
-	ieee80211_free_node(ni);		/* was lvif->lvif_bss->ni */
-
 	lkpi_lsta_remove(lsta, lvif);
+	/*
+	 * The very last release the reference on the ni for the ni/lsta on
+	 * lvif->lvif_bss.  Upon return from this both ni and lsta are invalid
+	 * and potentially freed.
+	 */
+	ieee80211_free_node(ni);
 
 	/* conf_tx */
 
@@ -1719,9 +1776,13 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 	lvif->lvif_bss = NULL;
 	lvif->lvif_bss_synched = false;
 	LKPI_80211_LVIF_UNLOCK(lvif);
-	ieee80211_free_node(ni);		/* was lvif->lvif_bss->ni */
-
 	lkpi_lsta_remove(lsta, lvif);
+	/*
+	 * The very last release the reference on the ni for the ni/lsta on
+	 * lvif->lvif_bss.  Upon return from this both ni and lsta are invalid
+	 * and potentially freed.
+	 */
+	ieee80211_free_node(ni);
 
 	/* conf_tx */
 
@@ -2260,9 +2321,13 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 	lvif->lvif_bss = NULL;
 	lvif->lvif_bss_synched = false;
 	LKPI_80211_LVIF_UNLOCK(lvif);
-	ieee80211_free_node(ni);		/* was lvif->lvif_bss->ni */
-
 	lkpi_lsta_remove(lsta, lvif);
+	/*
+	 * The very last release the reference on the ni for the ni/lsta on
+	 * lvif->lvif_bss.  Upon return from this both ni and lsta are invalid
+	 * and potentially freed.
+	 */
+	ieee80211_free_node(ni);
 
 	/* conf_tx */
 
@@ -3409,7 +3474,6 @@ lkpi_ic_node_init(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic;
 	struct lkpi_hw *lhw;
-	struct lkpi_sta *lsta;
 	int error;
 
 	ic = ni->ni_ic;
@@ -3420,11 +3484,6 @@ lkpi_ic_node_init(struct ieee80211_node *ni)
 		if (error != 0)
 			return (error);
 	}
-
-	lsta = ni->ni_drv_data;
-
-	/* Now take the reference before linking it to the table. */
-	lsta->ni = ieee80211_ref_node(ni);
 
 	/* XXX-BZ Sync other state over. */
 	IMPROVE();
@@ -3458,30 +3517,15 @@ lkpi_ic_node_free(struct ieee80211_node *ni)
 	ic = ni->ni_ic;
 	lhw = ic->ic_softc;
 	lsta = ni->ni_drv_data;
-	if (lsta == NULL)
-		goto out;
 
-	/* XXX-BZ free resources, ... */
-	IMPROVE();
+	/* KASSERT lsta is not NULL here. Print ni/ni__refcnt. */
 
-	/* Flush mbufq (make sure to release ni refs!). */
-#ifdef __notyet__
-	KASSERT(mbufq_empty(&lsta->txq), ("%s: lsta %p has txq len %d != 0\n",
-	    __func__, lsta, mbufq_len(&lsta->txq)));
-#endif
-	/* Drain taskq. */
+	/*
+	 * Pass in the original ni just in case of error we could check that
+	 * it is the same as lsta->ni.
+	 */
+	lkpi_lsta_free(lsta, ni);
 
-	/* Drain sta->txq[] */
-	mtx_destroy(&lsta->txq_mtx);
-
-	/* Remove lsta if added_to_drv. */
-
-	/* Remove lsta from vif */
-	/* Remove ref from lsta node... */
-	/* Free lsta. */
-	lkpi_lsta_remove(lsta, VAP_TO_LVIF(ni->ni_vap));
-
-out:
 	if (lhw->ic_node_free != NULL)
 		lhw->ic_node_free(ni);
 }
@@ -3493,6 +3537,11 @@ lkpi_ic_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct lkpi_sta *lsta;
 
 	lsta = ni->ni_drv_data;
+	/* XXX locking */
+	if (!lsta->txq_ready) {
+		m_free(m);
+		return (ENETDOWN);
+	}
 
 	/* Queue the packet and enqueue the task to handle it. */
 	LKPI_80211_LSTA_LOCK(lsta);
