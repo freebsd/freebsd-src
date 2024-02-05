@@ -56,6 +56,14 @@
 #include "ifdi_if.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_rss.h"
+
+#ifdef RSS
+
+#include <net/rss_config.h>
+#include <netinet/in_rss.h>
+
+#endif
 
 MALLOC_DEFINE(M_AXGBE, "axgbe", "axgbe data");
 
@@ -103,6 +111,7 @@ static bool axgbe_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 #endif
 static void axgbe_set_counts(if_ctx_t);
 static void axgbe_init_iflib_softc_ctx(struct axgbe_if_softc *);
+static void axgbe_initialize_rss_mapping(struct xgbe_prv_data *);
 
 /* MII interface registered functions */
 static int axgbe_miibus_readreg(device_t, int, int);
@@ -277,11 +286,11 @@ axgbe_register(device_t dev)
 		 * No tunable found, generate one with default values
 		 * Note: only a reboot will reveal the new kenv
 		 */
-		error = kern_setenv("dev.ax.sph_enable", "1");
+		error = kern_setenv("dev.ax.sph_enable", "0");
 		if (error) {
 			printf("Error setting tunable, using default driver values\n");
 		}
-		axgbe_sph_enable = 1;
+		axgbe_sph_enable = 0;
 	}
 
 	if (!axgbe_sph_enable) {
@@ -389,6 +398,7 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 	if_softc_ctx_t		scctx;
 	if_shared_ctx_t		sctx;
 	device_t		dev;
+	device_t		rdev;
 	unsigned int		ma_lo, ma_hi;
 	unsigned int		reg;
 	int			ret;
@@ -431,8 +441,15 @@ axgbe_if_attach_pre(if_ctx_t ctx)
         sc->pdata.xpcs_res = mac_res[1];
 
         /* Set the PCS indirect addressing definition registers*/
-	pdata->xpcs_window_def_reg = PCS_V2_WINDOW_DEF;
-	pdata->xpcs_window_sel_reg = PCS_V2_WINDOW_SELECT;
+	rdev = pci_find_dbsf(0, 0, 0, 0);
+	if (rdev && pci_get_device(rdev) == 0x15d0
+		&& pci_get_vendor(rdev) == 0x1022) {
+		pdata->xpcs_window_def_reg = PCS_V2_RV_WINDOW_DEF;
+		pdata->xpcs_window_sel_reg = PCS_V2_RV_WINDOW_SELECT;
+	} else {
+		pdata->xpcs_window_def_reg = PCS_V2_WINDOW_DEF;
+		pdata->xpcs_window_sel_reg = PCS_V2_WINDOW_SELECT;
+	}
 
         /* Configure the PCS indirect addressing support */
 	reg = XPCS32_IOREAD(pdata, pdata->xpcs_window_def_reg);
@@ -712,6 +729,47 @@ axgbe_init_iflib_softc_ctx(struct axgbe_if_softc *sc)
 	scctx->isc_nrxqsets_max = XGBE_MAX_QUEUES;
 
 	scctx->isc_txrx = &axgbe_txrx;
+}
+
+static void
+axgbe_initialize_rss_mapping(struct xgbe_prv_data *pdata)
+{
+	int i;
+
+	/* Get RSS key */
+#ifdef	RSS
+	int	qid;
+	uint32_t	rss_hash_config = 0;
+
+	rss_getkey((uint8_t *)&pdata->rss_key);
+
+	rss_hash_config = rss_gethashconfig();
+
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV4)
+		XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, IP2TE, 1);
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV4)
+		XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, TCP4TE, 1);
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4)
+		XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, UDP4TE, 1);
+#else
+	arc4rand(&pdata->rss_key, ARRAY_SIZE(pdata->rss_key), 0);
+
+	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, IP2TE, 1);
+	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, TCP4TE, 1);
+	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, UDP4TE, 1);
+#endif
+
+	/* Setup RSS lookup table */
+	for (i = 0; i < XGBE_RSS_MAX_TABLE_SIZE; i++) {
+#ifdef	RSS
+		qid = rss_get_indirection_to_bucket(i) % pdata->rx_ring_count;
+		XGMAC_SET_BITS(pdata->rss_table[i], MAC_RSSDR, DMCH, qid);
+#else
+		XGMAC_SET_BITS(pdata->rss_table[i], MAC_RSSDR, DMCH,
+				i % pdata->rx_ring_count);
+#endif
+	}
+
 }
 
 static int
@@ -1336,11 +1394,9 @@ xgbe_default_config(struct xgbe_prv_data *pdata)
         pdata->tx_sf_mode = MTL_TSF_ENABLE;
         pdata->tx_threshold = MTL_TX_THRESHOLD_64;
         pdata->tx_osp_mode = DMA_OSP_ENABLE;
-        pdata->rx_sf_mode = MTL_RSF_DISABLE;
+        pdata->rx_sf_mode = MTL_RSF_ENABLE;
         pdata->rx_threshold = MTL_RX_THRESHOLD_64;
         pdata->pause_autoneg = 1;
-        pdata->tx_pause = 1;
-        pdata->rx_pause = 1;
         pdata->phy_speed = SPEED_UNKNOWN;
         pdata->power_down = 0;
         pdata->enable_rss = 1;
@@ -1355,7 +1411,7 @@ axgbe_if_attach_post(if_ctx_t ctx)
         struct xgbe_phy_if	*phy_if = &pdata->phy_if;
 	struct xgbe_hw_if 	*hw_if = &pdata->hw_if;
 	if_softc_ctx_t		scctx = sc->scctx;
-	int i, ret;
+	int ret;
 
 	/* set split header support based on tunable */
 	pdata->sph_enable = axgbe_sph_enable;
@@ -1372,6 +1428,8 @@ axgbe_if_attach_post(if_ctx_t ctx)
 	ret = hw_if->exit(&sc->pdata);
 	if (ret)
 		axgbe_error("%s: exit error %d\n", __func__, ret);
+
+	axgbe_sysctl_init(pdata);
 
 	/* Configure the defaults */
 	xgbe_default_config(pdata);
@@ -1408,15 +1466,7 @@ axgbe_if_attach_post(if_ctx_t ctx)
 	    scctx->isc_nrxqsets);
 	DBGPR("Channel count set to: %u\n", pdata->channel_count);
 
-	/* Get RSS key */
-#ifdef	RSS
-	rss_getkey((uint8_t *)pdata->rss_key);
-#else
-	arc4rand(&pdata->rss_key, ARRAY_SIZE(pdata->rss_key), 0);
-#endif
-	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, IP2TE, 1);
-	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, TCP4TE, 1);
-	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, UDP4TE, 1);
+	axgbe_initialize_rss_mapping(pdata);
 
 	/* Initialize the PHY device */
 	pdata->sysctl_an_cdr_workaround = pdata->vdata->an_cdr_workaround;
@@ -1452,11 +1502,6 @@ axgbe_if_attach_post(if_ctx_t ctx)
 	pdata->rx_buf_size = ret;
 	DBGPR("%s: rx_buf_size %d\n", __func__, ret);
 
-	/* Setup RSS lookup table */
-	for (i = 0; i < XGBE_RSS_MAX_TABLE_SIZE; i++)
-		XGMAC_SET_BITS(pdata->rss_table[i], MAC_RSSDR, DMCH,
-				i % pdata->rx_ring_count);
-
 	/* 
 	 * Mark the device down until it is initialized, which happens
 	 * when the device is accessed first (for configuring the iface,
@@ -1467,8 +1512,6 @@ axgbe_if_attach_post(if_ctx_t ctx)
 	DBGPR("mtu %d\n", if_getmtu(ifp));
 	scctx->isc_max_frame_size = if_getmtu(ifp) + 18;
 	scctx->isc_min_frame_size = XGMAC_MIN_PACKET;
-
-	axgbe_sysctl_init(pdata);
 
 	axgbe_pci_init(pdata);
 
