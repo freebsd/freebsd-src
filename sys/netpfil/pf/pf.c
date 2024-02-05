@@ -413,25 +413,22 @@ VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 	} while (0)
 
 static struct pfi_kkif *
-BOUND_IFACE(struct pf_krule *r, struct pfi_kkif *k, struct pf_pdesc *pd)
+BOUND_IFACE(struct pf_kstate *st, struct pfi_kkif *k)
 {
 	/* Floating unless otherwise specified. */
-	if (! (r->rule_flag & PFRULE_IFBOUND))
+	if (! (st->rule.ptr->rule_flag & PFRULE_IFBOUND))
 		return (V_pfi_all);
 
 	/* Don't overrule the interface for states created on incoming packets. */
-	if (pd->dir == PF_IN)
+	if (st->direction == PF_IN)
 		return (k);
 
-	/* No route-to, so don't overrrule. */
-	if (r->rt != PF_ROUTETO)
-		return (k);
-
-	if (r->rpool.cur == NULL)
+	/* No route-to, so don't overrule. */
+	if (st->rt != PF_ROUTETO)
 		return (k);
 
 	/* Bind to the route-to interface. */
-	return (r->rpool.cur->kif);
+	return (st->rt_kif);
 }
 
 #define	STATE_INC_COUNTERS(s)						\
@@ -5018,7 +5015,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		    __func__, nr, sk, nk));
 
 	/* Swap sk/nk for PF_OUT. */
-	if (pf_state_insert(BOUND_IFACE(r, kif, pd), kif,
+	if (pf_state_insert(BOUND_IFACE(s, kif), kif,
 	    (pd->dir == PF_IN) ? sk : nk,
 	    (pd->dir == PF_IN) ? nk : sk, s)) {
 		REASON_SET(&reason, PFRES_STATEINS);
