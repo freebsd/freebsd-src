@@ -1232,6 +1232,15 @@ vtnet_rx_cluster_size(struct vtnet_softc *sc, int mtu)
 	} else
 		framesz = sizeof(struct vtnet_rx_header);
 	framesz += sizeof(struct ether_vlan_header) + mtu;
+#ifndef __NO_STRICT_ALIGNMENT
+	/*
+	 * Account for the offsetting we'll do elsewhere so we allocate the
+	 * right size for the mtu.
+	 */
+	if (sc->vtnet_hdr_size % 4 == 0) {
+		framesz += ETHER_ALIGN;
+	}
+#endif
 
 	if (framesz <= MCLBYTES)
 		return (MCLBYTES);
