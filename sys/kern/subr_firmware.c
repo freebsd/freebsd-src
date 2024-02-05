@@ -27,20 +27,20 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/queue.h>
-#include <sys/taskqueue.h>
-#include <sys/systm.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/errno.h>
-#include <sys/linker.h>
+#include <sys/eventhandler.h>
 #include <sys/firmware.h>
+#include <sys/kernel.h>
+#include <sys/linker.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/module.h>
-#include <sys/eventhandler.h>
+#include <sys/queue.h>
+#include <sys/systm.h>
+#include <sys/taskqueue.h>
 
 #include <sys/filedesc.h>
 #include <sys/vnode.h>
