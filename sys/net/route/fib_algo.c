@@ -1382,7 +1382,7 @@ rebuild_fd_flm(struct fib_data *fd, struct fib_lookup_module *flm_new)
 	if (flm_new == fd->fd_flm)
 		fd_tmp = fd;
 	else
-		FD_PRINTF(LOG_NOTICE, fd, "switching algo to %s", flm_new->flm_name);
+		FD_PRINTF(LOG_INFO, fd, "switching algo to %s", flm_new->flm_name);
 
 	result = setup_fd_instance(flm_new, fd->fd_rh, fd_tmp, &fd_new, true);
 	if (result != FLM_SUCCESS) {
