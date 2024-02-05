@@ -166,6 +166,7 @@ evtchn_cpu_mask_port(u_int cpu, evtchn_port_t port)
 	struct xen_intr_pcpu_data *pcpu;
 
 	pcpu = DPCPU_ID_PTR(cpu, xen_intr_pcpu);
+	KASSERT(is_valid_evtchn(port), ("Invalid event channel port"));
 	xen_clear_bit(port, pcpu->evtchn_enabled);
 }
 
@@ -188,6 +189,7 @@ evtchn_cpu_unmask_port(u_int cpu, evtchn_port_t port)
 	struct xen_intr_pcpu_data *pcpu;
 
 	pcpu = DPCPU_ID_PTR(cpu, xen_intr_pcpu);
+	KASSERT(is_valid_evtchn(port), ("Invalid event channel port"));
 	xen_set_bit(port, pcpu->evtchn_enabled);
 }
 
@@ -619,7 +621,8 @@ void
 xen_intr_disable_intr(struct xenisrc *isrc)
 {
 
-	evtchn_mask_port(isrc->xi_port);
+	if (__predict_true(is_valid_evtchn(isrc->xi_port)))
+		evtchn_mask_port(isrc->xi_port);
 }
 
 /**
@@ -706,7 +709,8 @@ xen_intr_disable_source(struct xenisrc *isrc)
 	 * unmasked by the generic interrupt code. The event channel
 	 * device will unmask them when needed.
 	 */
-	isrc->xi_masked = !!evtchn_test_and_set_mask(isrc->xi_port);
+	if (__predict_true(is_valid_evtchn(isrc->xi_port)))
+		isrc->xi_masked = !!evtchn_test_and_set_mask(isrc->xi_port);
 }
 
 /*
