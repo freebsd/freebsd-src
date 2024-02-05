@@ -134,6 +134,7 @@ struct lkpi_sta {
 
 	struct ieee80211_key_conf *kc;
 	enum ieee80211_sta_state state;
+	bool			txq_ready;			/* Can we run the taskq? */
 	bool			added_to_drv;			/* Driver knows; i.e. we called ...(). */
 	bool			in_mgd;				/* XXX-BZ should this be per-vif? */
 
