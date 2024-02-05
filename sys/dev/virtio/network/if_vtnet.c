@@ -90,6 +90,12 @@
 #include <machine/in_cksum.h>
 #endif
 
+#ifdef __NO_STRICT_ALIGNMENT
+#define VTNET_ETHER_ALIGN 0
+#else /* Strict alignment */
+#define VTNET_ETHER_ALIGN ETHER_ALIGN
+#endif
+
 static int	vtnet_modevent(module_t, int, void *);
 
 static int	vtnet_probe(device_t);
@@ -1232,15 +1238,13 @@ vtnet_rx_cluster_size(struct vtnet_softc *sc, int mtu)
 	} else
 		framesz = sizeof(struct vtnet_rx_header);
 	framesz += sizeof(struct ether_vlan_header) + mtu;
-#ifndef __NO_STRICT_ALIGNMENT
 	/*
 	 * Account for the offsetting we'll do elsewhere so we allocate the
 	 * right size for the mtu.
 	 */
-	if (sc->vtnet_hdr_size % 4 == 0) {
-		framesz += ETHER_ALIGN;
+	if (VTNET_ETHER_ALIGN != 0 && sc->vtnet_hdr_size % 4 == 0) {
+		framesz += VTNET_ETHER_ALIGN;
 	}
-#endif
 
 	if (framesz <= MCLBYTES)
 		return (MCLBYTES);
@@ -1552,15 +1556,13 @@ vtnet_rx_alloc_buf(struct vtnet_softc *sc, int nbufs, struct mbuf **m_tailp)
 		}
 
 		m->m_len = size;
-#ifndef __NO_STRICT_ALIGNMENT
 		/*
 		 * Need to offset the mbuf if the header we're going to add
 		 * will misalign.
 		 */
-		if (sc->vtnet_hdr_size % 4 == 0) {
-			m_adj(m, ETHER_ALIGN);
+		if (VTNET_ETHER_ALIGN != 0 && sc->vtnet_hdr_size % 4 == 0) {
+			m_adj(m, VTNET_ETHER_ALIGN);
 		}
-#endif
 		if (m_head != NULL) {
 			m_tail->m_next = m;
 			m_tail = m;
@@ -1587,14 +1589,12 @@ vtnet_rxq_replace_lro_nomrg_buf(struct vtnet_rxq *rxq, struct mbuf *m0,
 
 	sc = rxq->vtnrx_sc;
 	clustersz = sc->vtnet_rx_clustersz;
-#ifndef __NO_STRICT_ALIGNMENT
 	/*
 	 * Need to offset the mbuf if the header we're going to add will
 	 * misalign, account for that here.
 	 */
-	if (sc->vtnet_hdr_size % 4 == 0)
-		clustersz -= ETHER_ALIGN;
-#endif
+	if (VTNET_ETHER_ALIGN != 0 && sc->vtnet_hdr_size % 4 == 0)
+		clustersz -= VTNET_ETHER_ALIGN;
 
 	m_prev = NULL;
 	m_tail = NULL;
