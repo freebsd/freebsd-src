@@ -121,12 +121,6 @@ rest(int centisecs)
  * except possibly at physical block boundaries.
  */
 
-#ifndef  __bool_true_false_are_defined
-typedef int	bool;
-#endif
-#define TRUE	1
-#define FALSE	0
-
 #define dtoi(c)		((c) - '0')
 
 static int octave;	/* currently selected octave */
@@ -182,8 +176,8 @@ playinit(void)
     whole = (100 * SECS_PER_MIN * WHOLE_NOTE) / DFLT_TEMPO;
     fill = NORMAL;
     value = DFLT_VALUE;
-    octtrack = FALSE;
-    octprefix = TRUE;	/* act as though there was an initial O(n) */
+    octtrack = false;
+    octprefix = true;	/* act as though there was an initial O(n) */
 }
 
 /* 
@@ -280,7 +274,7 @@ playstring(char *cp, size_t slen)
 					pitch -= OCTAVE_NOTES;
 				}
 			}
-			octprefix = FALSE;
+			octprefix = false;
 			lastpitch = pitch;
 
 			/* ...which may in turn be followed by an override time value */
@@ -309,29 +303,29 @@ playstring(char *cp, size_t slen)
 			break;
 		case 'O':
 			if (cp[1] == 'N' || cp[1] == 'n') {
-				octprefix = octtrack = FALSE;
+				octprefix = octtrack = false;
 				++cp;
 				slen--;
 			} else if (cp[1] == 'L' || cp[1] == 'l') {
-				octtrack = TRUE;
+				octtrack = true;
 				++cp;
 				slen--;
 			} else {
 				GETNUM(cp, octave);
 				if (octave >= nitems(pitchtab) / OCTAVE_NOTES)
 					octave = DFLT_OCTAVE;
-				octprefix = TRUE;
+				octprefix = true;
 			}
 			break;
 		case '>':
 			if (octave < nitems(pitchtab) / OCTAVE_NOTES - 1)
 				octave++;
-			octprefix = TRUE;
+			octprefix = true;
 			break;
 		case '<':
 			if (octave > 0)
 				octave--;
-			octprefix = TRUE;
+			octprefix = true;
 			break;
 		case 'N':
 			GETNUM(cp, pitch);
@@ -396,7 +390,7 @@ playstring(char *cp, size_t slen)
  * endtone(), and rest() functions defined above.
  */
 
-static int spkr_active = FALSE; /* exclusion flag */
+static bool spkr_active = false; /* exclusion flag */
 static char *spkr_inbuf;  /* incoming buf */
 
 static int
@@ -414,7 +408,7 @@ spkropen(struct cdev *dev, int flags, int fmt, struct thread *td)
 #endif /* DEBUG */
 		playinit();
 		spkr_inbuf = malloc(DEV_BSIZE, M_SPKR, M_WAITOK);
-		spkr_active = TRUE;
+		spkr_active = true;
 		return(0);
     	}
 }
@@ -455,7 +449,7 @@ spkrclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 	wakeup(&endtone);
 	wakeup(&endrest);
 	free(spkr_inbuf, M_SPKR);
-	spkr_active = FALSE;
+	spkr_active = false;
 	return(0);
 }
 
