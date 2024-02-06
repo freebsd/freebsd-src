@@ -37,7 +37,7 @@ arm/arm/identcpu-v6.c		standard
 arm/arm/in_cksum_arm.S		optional	inet | inet6
 arm/arm/in_cksum_machdep.c	optional	inet | inet6
 kern/subr_intr.c		standard
-arm/arm/locore.S		standard	no-obj
+arm/arm/locore-v6.S		standard	no-obj
 arm/arm/hypervisor-stub.S	standard
 arm/arm/machdep.c		standard
 arm/arm/machdep_boot.c		standard
