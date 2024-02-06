@@ -87,11 +87,10 @@ static char sccsid[] = "@(#)msgs.c	8.2 (Berkeley) 4/28/95";
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include "pathnames.h"
 
 #define	CMODE	0644		/* bounds file creation	mode */
-#define NO	0
-#define YES	1
 #define SUPERUSER	0	/* superuser uid */
 #define DAEMON		1	/* daemon uid */
 #define NLINES	24		/* default number of lines/crt screen */
@@ -102,8 +101,6 @@ static char sccsid[] = "@(#)msgs.c	8.2 (Berkeley) 4/28/95";
 #define NEXT	"Next message? [yq]"
 #define MORE	"More? [ynq]"
 #define NOMORE	"(No more) [q] ?"
-
-typedef	char	bool;
 
 static FILE	*msgsrc;
 static FILE	*newmsg;
@@ -122,11 +119,11 @@ static bool	totty;
 static bool	seenfrom;
 static bool	seensubj;
 static bool	blankline;
-static bool	printing = NO;
-static bool	mailing = NO;
-static bool	quitit = NO;
-static bool	sending = NO;
-static bool	intrpflg = NO;
+static bool	printing = false;
+static bool	mailing = false;
+static bool	quitit = false;
+static bool	sending = false;
+static bool	intrpflg = false;
 static uid_t	uid;
 static int	msg;
 static int	prevmsg;
@@ -137,14 +134,14 @@ static time_t	t;
 static time_t	keep;
 
 /* option initialization */
-static bool	hdrs = NO;
-static bool	qopt = NO;
-static bool	hush = NO;
-static bool	send_msg = NO;
-static bool	locomode = NO;
-static bool	use_pager = NO;
-static bool	clean = NO;
-static bool	lastcmd = NO;
+static bool	hdrs = false;
+static bool	qopt = false;
+static bool	hush = false;
+static bool	send_msg = false;
+static bool	locomode = false;
+static bool	use_pager = false;
+static bool	clean = false;
+static bool	lastcmd = false;
 static jmp_buf	tstpbuf;
 
 static void	ask(const char *);
@@ -200,35 +197,35 @@ main(int argc, char *argv[])
 				if (uid != SUPERUSER && uid != DAEMON)
 					errx(1,
 				"only the super-user can use the c flag");
-				clean = YES;
+				clean = true;
 				break;
 
 			case 'f':		/* silently */
-				hush = YES;
+				hush = true;
 				break;
 
 			case 'h':		/* headers only */
-				hdrs = YES;
+				hdrs = true;
 				break;
 
 			case 'l':		/* local msgs only */
-				locomode = YES;
+				locomode = true;
 				break;
 
 			case 'o':		/* option to save last message */
-				lastcmd = YES;
+				lastcmd = true;
 				break;
 
 			case 'p':		/* pipe thru 'more' during long msgs */
-				use_pager = YES;
+				use_pager = true;
 				break;
 
 			case 'q':		/* query only */
-				qopt = YES;
+				qopt = true;
 				break;
 
 			case 's':		/* sending TO msgs */
-				send_msg = YES;
+				send_msg = true;
 				break;
 
 			default:
@@ -246,13 +243,13 @@ main(int argc, char *argv[])
 	/*
 	 * Test access rights to the bounds file
 	 * This can be a little tricky.  if(send_msg), then
-	 * we will create it.  We assume that if(send_msg),	
+	 * we will create it.  We assume that if(send_msg),
 	 * then you have write permission there.
 	 * Else, it better be there, or we bail.
 	 */
-	if (send_msg != YES) {
+	if (!send_msg) {
 		if (stat(fname, &buf) < 0) {
-			if (hush != YES) {
+			if (!hush) {
 				err(errno, "%s", fname);
 			} else {
 				exit(1);
@@ -273,7 +270,7 @@ main(int argc, char *argv[])
 	if (clean || bounds == NULL) {	/* relocate message bounds */
 		struct dirent *dp;
 		struct stat stbuf;
-		bool seenany = NO;
+		bool seenany = false;
 		DIR	*dirp;
 
 		dirp = opendir(_PATH_MSGS);
@@ -314,7 +311,7 @@ main(int argc, char *argv[])
 				lastmsg = i;
 			if (i < firstmsg)
 				firstmsg = i;
-			seenany = YES;
+			seenany = true;
 		}
 		closedir(dirp);
 
@@ -354,7 +351,7 @@ main(int argc, char *argv[])
 		fprintf(bounds, "%d %d\n", firstmsg, nextmsg);
 		fclose(bounds);
 
-		sending = YES;
+		sending = true;
 		if (ruptible)
 			signal(SIGINT, onintr);
 
@@ -368,10 +365,10 @@ main(int argc, char *argv[])
 			fflush(stdout);
 			fprintf(newmsg, "From %s %sSubject: %s\n",
 				ptr, ctime(&t), inbuf);
-			blankline = seensubj = YES;
+			blankline = seensubj = true;
 		}
 		else
-			blankline = seensubj = NO;
+			blankline = seensubj = false;
 		for (;;) {
 			fgets(inbuf, sizeof inbuf, stdin);
 			if (feof(stdin) || ferror(stdin))
@@ -407,20 +404,20 @@ main(int argc, char *argv[])
 	snprintf(fname, sizeof(fname), "%s/%s", cp, MSGSRC);
 	msgsrc = fopen(fname, "r");
 	if (msgsrc) {
-		newrc = NO;
+		newrc = false;
 		fscanf(msgsrc, "%d\n", &nextmsg);
 		fclose(msgsrc);
 		if (nextmsg > lastmsg+1) {
 			printf("Warning: bounds have been reset (%d, %d)\n",
 				firstmsg, lastmsg);
 			truncate(fname, (off_t)0);
-			newrc = YES;
+			newrc = true;
 		}
 		else if (!rcfirst)
 			rcfirst = nextmsg - rcback;
 	}
 	else
-		newrc = YES;
+		newrc = true;
 	msgsrc = fopen(fname, "r+");
 	if (msgsrc == NULL)
 		msgsrc = fopen(fname, "w");
@@ -457,9 +454,9 @@ main(int argc, char *argv[])
 #endif
 	Lpp -= 6;	/* for headers, etc. */
 
-	already = NO;
+	already = false;
 	prevmsg = firstmsg;
-	printing = YES;
+	printing = true;
 	if (ruptible)
 		signal(SIGINT, onintr);
 
@@ -493,7 +490,7 @@ main(int argc, char *argv[])
 		if (totty)
 			signal(SIGTSTP, onsusp);
 		(void) setjmp(tstpbuf);
-		already = YES;
+		already = true;
 		nlines = 2;
 		if (seenfrom) {
 			printf("Message %d:\nFrom %s %s", msg, from, date);
@@ -548,7 +545,7 @@ cmnd:
 			case 'q':
 				/* FALLTHROUGH */
 			case 'Q':
-				quitit = YES;
+				quitit = true;
 				printf("--Postponed--\n");
 				exit(0);
 				/* NOTREACHED */
@@ -695,7 +692,7 @@ onintr(int unused __unused)
 		sep = "Interrupt";
 		if (newmsg)
 			fseeko(newmsg, (off_t)0, SEEK_END);
-		intrpflg = YES;
+		intrpflg = true;
 	}
 }
 
@@ -746,7 +743,7 @@ ask(const char *prompt)
 
 	printf("%s ", prompt);
 	fflush(stdout);
-	intrpflg = NO;
+	intrpflg = false;
 	(void) fgets(inbuf, sizeof inbuf, stdin);
 	if ((n = strlen(inbuf)) > 0 && inbuf[n - 1] == '\n')
 		inbuf[n - 1] = '\0';
@@ -792,14 +789,14 @@ ask(const char *prompt)
 			if (fd != -1) {
 				snprintf(cmdbuf, sizeof(cmdbuf), _PATH_MAIL,
 				    fname);
-				mailing = YES;
+				mailing = true;
 			}
 		}
 		if (fd == -1 || (cpto = fdopen(fd, "a")) == NULL) {
 			if (fd != -1)
 				close(fd);
 			warn("%s", fname);
-			mailing = NO;
+			mailing = false;
 			fseeko(newmsg, oldpos, SEEK_SET);
 			ask(prompt);
 			fclose(cpfrom);
@@ -817,7 +814,7 @@ ask(const char *prompt)
 		else {
 			system(cmdbuf);
 			unlink(fname);
-			mailing = NO;
+			mailing = false;
 		}
 		ask(prompt);
 	}
@@ -829,8 +826,8 @@ gfrsub(FILE *infile)
 	off_t frompos;
 	int count;
 
-	seensubj = seenfrom = NO;
-	local = YES;
+	seensubj = seenfrom = false;
+	local = true;
 	subj[0] = from[0] = date[0] = '\0';
 
 	/*
@@ -841,7 +838,7 @@ gfrsub(FILE *infile)
 			/*
 			 * expected form starts with From
 			 */
-			seenfrom = YES;
+			seenfrom = true;
 			frompos = ftello(infile);
 			ptr = from;
 			in = nxtfld(inbuf);
@@ -850,7 +847,7 @@ gfrsub(FILE *infile)
 				while (*in && *in > ' ' && count-- > 0) {
 					if (*in == ':' || *in == '@' ||
 					    *in == '!')
-						local = NO;
+						local = false;
 					*ptr++ = *in++;
 				}
 			}
@@ -885,7 +882,7 @@ gfrsub(FILE *infile)
 		 * extract Subject line
 		 */
 		if (!seensubj && strncmp(inbuf, "Subj", 4)==0) {
-			seensubj = YES;
+			seensubj = true;
 			frompos = ftello(infile);
 			strlcpy(subj, nxtfld(inbuf), sizeof subj);
 		}
