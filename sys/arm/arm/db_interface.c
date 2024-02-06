@@ -34,14 +34,12 @@
  * Interface to new debugger.
  */
 
-#include <sys/cdefs.h>
 #include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/cons.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
-#include <sys/systm.h>	/* just for boothowto */
 #include <sys/exec.h>
 #ifdef KDB
 #include <sys/kdb.h>
