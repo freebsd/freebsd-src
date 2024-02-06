@@ -262,10 +262,10 @@ shutdown_conf(void *unused)
 
 	EVENTHANDLER_REGISTER(shutdown_final, poweroff_wait, NULL,
 	    SHUTDOWN_PRI_FIRST);
-	EVENTHANDLER_REGISTER(shutdown_final, shutdown_halt, NULL,
-	    SHUTDOWN_PRI_LAST + 100);
 	EVENTHANDLER_REGISTER(shutdown_final, shutdown_panic, NULL,
 	    SHUTDOWN_PRI_LAST + 100);
+	EVENTHANDLER_REGISTER(shutdown_final, shutdown_halt, NULL,
+	    SHUTDOWN_PRI_LAST + 200);
 }
 
 SYSINIT(shutdown_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, shutdown_conf, NULL);
