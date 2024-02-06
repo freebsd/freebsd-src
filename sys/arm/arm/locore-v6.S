@@ -92,13 +92,12 @@
 
 /*
  * On entry for FreeBSD boot ABI:
- *	r0 - metadata pointer or 0 (boothowto on AT91's boot2)
+ *	r0 - metadata pointer or 0
  *	r1 - if (r0 == 0) then metadata pointer
  * On entry for Linux boot ABI:
  *	r0 - 0
  *	r1 - machine type (passed as arg2 to initarm)
  *	r2 - Pointer to a tagged list or dtb image (phys addr) (passed as arg1 initarm)
- *
  * For both types of boot we gather up the args, put them in a struct arm_boot_params
  * structure and pass that to initarm.
  */
