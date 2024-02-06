@@ -5,6 +5,7 @@ SHLIBDIR?= /lib
 .include <src.opts.mk>
 
 LIBC_SRCTOP?= ${.CURDIR}
+LIBSYS_SRCTOP?=	${.CURDIR:H}/libsys
 
 # Pick the current architecture directory for libc. In general, this is named
 # MACHINE_CPUARCH, but some ABIs are different enough to require their own libc,
@@ -38,6 +39,7 @@ SHLIB_LDSCRIPT_LINKS=libxnet.so
 WARNS?=	2
 CFLAGS+=-I${LIBC_SRCTOP}/include -I${SRCTOP}/include
 CFLAGS+=-I${LIBC_SRCTOP}/${LIBC_ARCH}
+CFLAGS+=-I${LIBSYS_SRCTOP}/${LIBC_ARCH}
 .if ${MK_NLS} != "no"
 CFLAGS+=-DNLS
 .endif
@@ -60,6 +62,9 @@ CFLAGS+= -ftls-model=initial-exec
 #
 LDFLAGS+= -nodefaultlibs
 LIBADD+=	compiler_rt
+LIBADD+=	sys
+
+LDFLAGS+=-Wl,--auxiliary,libsys.so
 
 .if ${MK_SSP} != "no" && \
     (${LIBC_ARCH} == "i386" || ${LIBC_ARCH:Mpowerpc*} != "")
@@ -112,7 +117,8 @@ NOASM=
 .include "${LIBC_SRCTOP}/stdlib/Makefile.inc"
 .include "${LIBC_SRCTOP}/stdtime/Makefile.inc"
 .include "${LIBC_SRCTOP}/string/Makefile.inc"
-.include "${LIBC_SRCTOP}/sys/Makefile.inc"
+SHARED_CFLAGS+=	-D'_SYSCALL_BODY(name)='
+.include "${LIBSYS_SRCTOP}/Makefile.sys"
 .include "${LIBC_SRCTOP}/secure/Makefile.inc"
 .include "${LIBC_SRCTOP}/rpc/Makefile.inc"
 .include "${LIBC_SRCTOP}/uuid/Makefile.inc"
@@ -121,7 +127,6 @@ NOASM=
 .include "${LIBC_SRCTOP}/softfloat/Makefile.inc"
 .endif
 .if ${LIBC_ARCH} == "i386" || ${LIBC_ARCH} == "amd64"
-.include "${LIBC_SRCTOP}/x86/sys/Makefile.inc"
 .include "${LIBC_SRCTOP}/x86/gen/Makefile.inc"
 .endif
 .if ${MK_NIS} != "no"

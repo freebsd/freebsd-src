@@ -6,8 +6,6 @@
 FBSD_1.0 {
 	__mcount;
 	alloca;
-	brk;
-	sbrk;
 };
 
 FBSD_1.3 {
@@ -25,18 +23,12 @@ FBSD_1.6 {
 };
 
 FBSDprivate_1.0 {
-	/* PSEUDO syscalls */
-	_getlogin;
-
 	__aeabi_read_tp;
 	___longjmp;
 	__longjmp;
 	signalcontext;
 	_signalcontext;
 	__siglongjmp;
-	_vfork;
-	_brk;
-	_sbrk;
 
 	_libc_arm_fpu_present;
 };

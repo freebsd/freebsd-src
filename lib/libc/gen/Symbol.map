@@ -159,7 +159,6 @@ FBSD_1.0 {
 	endnetgrent;
 	innetgr;
 	getosreldate;
-	getpagesize;
 	getpeereid;
 	_getprogname;
 	getprogname;
@@ -339,7 +338,6 @@ FBSD_1.1 {
 FBSD_1.2 {
 	cfmakesane;
 	endutxent;
-	getpagesizes;
 	getutxent;
 	getutxid;
 	getutxline;
@@ -404,7 +402,6 @@ FBSD_1.5 {
 	devname;
 	devname_r;
 	dirname;
-	elf_aux_info;
 	fts_children;
 	fts_close;
 	fts_get_clientptr;
@@ -567,6 +564,8 @@ FBSDprivate_1.0 {
 	__waitpid;
 	_waitpid;
 
+	__libc_interposing_slot;
+
 	_libc_sem_init_compat;
 	_libc_sem_destroy_compat;
 	_libc_sem_open_compat;
@@ -580,7 +579,6 @@ FBSDprivate_1.0 {
 
 	__libc_tcdrain;
 
-	__elf_aux_vector;
 	__pthread_distribute_static_tls;
 	__pthread_map_stacks_exec;
 	__fillcontextx;

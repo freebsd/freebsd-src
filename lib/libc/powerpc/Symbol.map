@@ -11,8 +11,6 @@ FBSD_1.0 {
 	fpgetsticky;
 	fpsetmask;
 	fpsetround;
-	brk;
-	sbrk;
 };
 
 FBSD_1.3 {
@@ -20,9 +18,6 @@ FBSD_1.3 {
 };
 
 FBSDprivate_1.0 {
-	/* PSEUDO syscalls */
-	_getlogin;
-
 	_fpgetsticky;
 	__longjmp;
 	signalcontext;

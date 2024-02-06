@@ -904,7 +904,7 @@ static int create_qp_ex_common(struct verbs_qp *qp,
 	return 0;
 }
 
-static int create_qp_handle_resp_common_cleanup(struct verbs_qp *qp)
+static void create_qp_handle_resp_common_cleanup(struct verbs_qp *qp)
 {
 	pthread_cond_destroy(&qp->qp.cond);
 	pthread_mutex_destroy(&qp->qp.mutex);
