@@ -87,6 +87,9 @@ device		miibus			# MII bus support
 # Note that 'bpf' is required for DHCP.
 device		bpf		# Berkeley packet filter
 
+# Netmap provides direct access to TX/RX rings on supported NICs
+device		netmap			# netmap(4) support
+
 # USB support
 options 	USB_DEBUG		# enable debug msgs
 options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
