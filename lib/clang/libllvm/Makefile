@@ -1562,7 +1562,6 @@ SRCS_MIN+=	Target/RISCV/RISCVInsertVSETVLI.cpp
 SRCS_MIN+=	Target/RISCV/RISCVInsertWriteVXRM.cpp
 SRCS_MIN+=	Target/RISCV/RISCVInstrInfo.cpp
 SRCS_MIN+=	Target/RISCV/RISCVMachineFunctionInfo.cpp
-SRCS_MIN+=	Target/RISCV/RISCVMacroFusion.cpp
 SRCS_MIN+=	Target/RISCV/RISCVMakeCompressible.cpp
 SRCS_MIN+=	Target/RISCV/RISCVMergeBaseOffset.cpp
 SRCS_MIN+=	Target/RISCV/RISCVMoveMerger.cpp
@@ -2133,6 +2132,7 @@ beforebuild:
 	InstrInfo/-gen-instr-info${arch:MX86/X86:C/X86\/X86/,-instr-info-expand-mi-operand-info=0/} \
 	MCCodeEmitter/-gen-emitter \
 	MCPseudoLowering/-gen-pseudo-lowering \
+	MacroFusion/-gen-macro-fusion-pred \
 	MnemonicTables/-gen-x86-mnemonic-tables,-asmwriternum=1 \
 	O0PreLegalizeGICombiner/-gen-global-isel-combiner,-combiners=${arch:H}O0PreLegalizerCombiner \
 	PostLegalizeGICombiner/-gen-global-isel-combiner,-combiners=${arch:H}PostLegalizerCombiner \
@@ -2246,6 +2246,7 @@ TGHDRS+=	RISCVGenGlobalISel.inc
 TGHDRS+=	RISCVGenInstrInfo.inc
 TGHDRS+=	RISCVGenMCCodeEmitter.inc
 TGHDRS+=	RISCVGenMCPseudoLowering.inc
+TGHDRS+=	RISCVGenMacroFusion.inc
 TGHDRS+=	RISCVGenO0PreLegalizeGICombiner.inc
 TGHDRS+=	RISCVGenPostLegalizeGICombiner.inc
 TGHDRS+=	RISCVGenPreLegalizeGICombiner.inc

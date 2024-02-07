@@ -72,7 +72,7 @@ def FeatureStdExtZicntr
                        [FeatureStdExtZicsr]>;
 
 def FeatureStdExtZicond
-    : SubtargetFeature<"experimental-zicond", "HasStdExtZicond", "true",
+    : SubtargetFeature<"zicond", "HasStdExtZicond", "true",
                        "'Zicond' (Integer Conditional Operations)">;
 def HasStdExtZicond : Predicate<"Subtarget->hasStdExtZicond()">,
                       AssemblerPredicate<(all_of FeatureStdExtZicond),
@@ -1043,30 +1043,6 @@ def Experimental
 def TuneDLenFactor2
    : SubtargetFeature<"dlen-factor-2", "DLenFactor2", "true",
                       "Vector unit DLEN(data path width) is half of VLEN">;
-
-def TuneLUIADDIFusion
-    : SubtargetFeature<"lui-addi-fusion", "HasLUIADDIFusion",
-                       "true", "Enable LUI+ADDI macrofusion">;
-
-def TuneAUIPCADDIFusion
-    : SubtargetFeature<"auipc-addi-fusion", "HasAUIPCADDIFusion",
-                       "true", "Enable AUIPC+ADDI macrofusion">;
-
-def TuneZExtHFusion
-    : SubtargetFeature<"zexth-fusion", "HasZExtHFusion",
-                       "true", "Enable SLLI+SRLI to be fused to zero extension of halfword">;
-
-def TuneZExtWFusion
-    : SubtargetFeature<"zextw-fusion", "HasZExtWFusion",
-                       "true", "Enable SLLI+SRLI to be fused to zero extension of word">;
-
-def TuneShiftedZExtWFusion
-    : SubtargetFeature<"shifted-zextw-fusion", "HasShiftedZExtWFusion",
-                       "true", "Enable SLLI+SRLI to be fused when computing (shifted) zero extension of word">;
-
-def TuneLDADDFusion
-    : SubtargetFeature<"ld-add-fusion", "HasLDADDFusion",
-                       "true", "Enable LD+ADD macrofusion.">;
 
 def TuneNoDefaultUnroll
     : SubtargetFeature<"no-default-unroll", "EnableDefaultUnroll", "false",
