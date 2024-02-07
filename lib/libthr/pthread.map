@@ -298,6 +298,9 @@ FBSDprivate_1.0 {
 
 	/* ABI bug workaround, indicate that pli->rtli_version is valid */
 	_pli_rtli_version;
+
+	/* Expose stub for libsys filter */
+	_umtx_op_err;
 };
 
 FBSD_1.1 {
