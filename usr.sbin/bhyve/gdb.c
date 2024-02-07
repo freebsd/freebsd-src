@@ -1037,6 +1037,29 @@ gdb_read_regs(void)
 }
 
 static void
+gdb_read_one_reg(const uint8_t *data, size_t len)
+{
+	uint64_t regval;
+	uintmax_t reg;
+
+	reg = parse_integer(data, len);
+	if (reg >= nitems(gdb_regset)) {
+		send_error(EINVAL);
+		return;
+	}
+
+	if (vm_get_register(vcpus[cur_vcpu], gdb_regset[reg].id, &regval) ==
+	    -1) {
+		send_error(errno);
+		return;
+	}
+
+	start_packet();
+	append_unsigned_native(regval, gdb_regset[reg].size);
+	finish_packet();
+}
+
+static void
 gdb_read_mem(const uint8_t *data, size_t len)
 {
 	uint64_t gpa, gva, val;
@@ -1598,10 +1621,12 @@ handle_command(const uint8_t *data, size_t len)
 
 		/* TODO: Resume any stopped CPUs. */
 		break;
-	case 'g': {
+	case 'g':
 		gdb_read_regs();
 		break;
-	}
+	case 'p':
+		gdb_read_one_reg(data + 1, len - 1);
+		break;
 	case 'H': {
 		int tid;
 
@@ -1673,7 +1698,6 @@ handle_command(const uint8_t *data, size_t len)
 	case 'v':
 		/* Handle 'vCont' */
 		/* 'vCtrlC' */
-	case 'p': /* TODO */
 	case 'P': /* TODO */
 	case 'Q': /* TODO */
 	case 't': /* TODO */
