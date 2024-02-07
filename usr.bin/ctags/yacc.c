@@ -54,7 +54,7 @@ y_entries(void)
 	bool	in_rule;
 	char	tok[MAXTOKEN];
 
-	in_rule = NO;
+	in_rule = false;
 
 	while (GETC(!=, EOF))
 		switch (c) {
@@ -68,12 +68,12 @@ y_entries(void)
 			break;
 		case '{':
 			if (skip_key('}'))
-				in_rule = NO;
+				in_rule = false;
 			break;
 		case '\'':
 		case '"':
 			if (skip_key(c))
-				in_rule = NO;
+				in_rule = false;
 			break;
 		case '%':
 			if (GETC(==, '%'))
@@ -88,7 +88,7 @@ y_entries(void)
 			break;
 		case '|':
 		case ';':
-			in_rule = NO;
+			in_rule = false;
 			break;
 		default:
 			if (in_rule || (!isalpha(c) && c != '.' && c != '_'))
@@ -107,7 +107,7 @@ y_entries(void)
 			}
 			if (c == ':') {
 				pfnote(tok, lineno);
-				in_rule = YES;
+				in_rule = true;
 			}
 			else
 				(void)ungetc(c, inf);
