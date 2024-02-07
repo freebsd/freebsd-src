@@ -87,6 +87,7 @@
 enum ntb_device_type {
 	NTB_XEON_GEN1,
 	NTB_XEON_GEN3,
+	NTB_XEON_GEN4,
 	NTB_ATOM
 };
 
@@ -171,6 +172,7 @@ struct ntb_reg {
 struct ntb_alt_reg {
 	uint32_t	db_bell;
 	uint32_t	db_mask;
+	uint32_t	db_clear;
 	uint32_t	spad;
 };
 
@@ -356,9 +358,12 @@ static struct ntb_hw_info *intel_ntb_get_device_info(uint32_t device_id);
 static void intel_ntb_detect_max_mw(struct ntb_softc *ntb);
 static int intel_ntb_detect_xeon(struct ntb_softc *ntb);
 static int intel_ntb_detect_xeon_gen3(struct ntb_softc *ntb);
+static int intel_ntb_detect_xeon_gen4(struct ntb_softc *ntb);
+static int intel_ntb_detect_xeon_gen4_cfg(struct ntb_softc *ntb);
 static int intel_ntb_detect_atom(struct ntb_softc *ntb);
 static int intel_ntb_xeon_init_dev(struct ntb_softc *ntb);
 static int intel_ntb_xeon_gen3_init_dev(struct ntb_softc *ntb);
+static int intel_ntb_xeon_gen4_init_dev(struct ntb_softc *ntb);
 static int intel_ntb_atom_init_dev(struct ntb_softc *ntb);
 static void intel_ntb_teardown_xeon(struct ntb_softc *ntb);
 static void configure_atom_secondary_side_bars(struct ntb_softc *ntb);
@@ -371,6 +376,7 @@ static void xeon_set_pbar_xlat(struct ntb_softc *, uint64_t base_addr,
 static int xeon_setup_b2b_mw(struct ntb_softc *,
     const struct ntb_b2b_addr *addr, const struct ntb_b2b_addr *peer_addr);
 static int xeon_gen3_setup_b2b_mw(struct ntb_softc *);
+static int xeon_gen4_setup_b2b_mw(struct ntb_softc *);
 static int intel_ntb_mw_set_trans(device_t dev, unsigned idx, bus_addr_t addr,
     size_t size);
 static inline bool link_is_up(struct ntb_softc *ntb);
@@ -482,12 +488,15 @@ SYSCTL_INT(_hw_ntb, OID_AUTO, b2b_mw_idx, CTLFLAG_RDTUN, &g_ntb_mw_idx,
 #define NTB_SDOORBELL_LOCKUP	(1 << 1)
 #define NTB_SB01BASE_LOCKUP	(1 << 2)
 #define NTB_B2BDOORBELL_BIT14	(1 << 3)
+#define NTB_BAR_ALIGN		(1 << 4)
+#define NTB_LTR_BAD			(1 << 5)
 /* Software/configuration owns the top 16 bits. */
 #define NTB_SPLIT_BAR		(1ull << 16)
 #define NTB_ONE_MSIX		(1ull << 17)
 
 #define NTB_FEATURES_STR \
-    "\20\21SPLIT_BAR4\04B2B_DOORBELL_BIT14\03SB01BASE_LOCKUP" \
+    "\20\21SPLIT_BAR4\06LTR_BAD\05BAR_ALIGN"  \
+	"\04B2B_DOORBELL_BIT14\03SB01BASE_LOCKUP" \
     "\02SDOORBELL_LOCKUP\01BAR_SIZE_4K"
 
 static struct ntb_hw_info pci_ids[] = {
@@ -511,6 +520,9 @@ static struct ntb_hw_info pci_ids[] = {
 
 	{ 0x201C8086, "SKL Xeon E5 V5 Non-Transparent Bridge B2B",
 		NTB_XEON_GEN3, 0 },
+
+	{ 0x347e8086, "ICX/SPR Xeon Non-Transparent Bridge B2B",
+	    NTB_XEON_GEN4, 0 },
 };
 
 static const struct ntb_reg atom_reg = {
@@ -626,6 +638,32 @@ static const struct ntb_xlat_reg xeon_gen3_sec_xlat = {
 	.bar4_xlat = XEON_GEN3_REG_IMBAR2XBASE,
 };
 
+static const struct ntb_reg xeon_gen4_reg = {
+	.ntb_ctl = XEON_GEN4_REG_IMNTB_CTL,
+	.lnk_sta = XEON_GEN4_REG_LINK_STATUS, /* mmio */
+	.db_size = sizeof(uint32_t),
+	.mw_bar = { NTB_B2B_BAR_1, NTB_B2B_BAR_2 },
+};
+
+static const struct ntb_alt_reg xeon_gen4_pri_reg = {
+	.db_clear = XEON_GEN4_REG_IMINT_STATUS,
+	.db_mask = XEON_GEN4_REG_IMINT_DISABLE,
+	.spad = XEON_GEN4_REG_IMSPAD,
+};
+
+static const struct ntb_alt_reg xeon_gen4_b2b_reg = {
+	.db_bell = XEON_GEN4_REG_IMDOORBELL,
+	.spad = XEON_GEN4_REG_EMSPAD,
+};
+
+static const struct ntb_xlat_reg xeon_gen4_sec_xlat = {
+	.bar2_limit = XEON_GEN4_REG_IMBAR1XLIMIT,
+	.bar2_xlat = XEON_GEN4_REG_IMBAR1XBASE,
+
+	.bar4_limit = XEON_GEN4_REG_IMBAR1XLIMIT,
+	.bar4_xlat = XEON_GEN4_REG_IMBAR2XBASE,
+};
+
 SYSCTL_NODE(_hw_ntb, OID_AUTO, xeon_b2b, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "B2B MW segment overrides -- MUST be the same on both sides");
 
@@ -704,6 +742,8 @@ intel_ntb_attach(device_t device)
 		error = intel_ntb_detect_atom(ntb);
 	else if (ntb->type == NTB_XEON_GEN3)
 		error = intel_ntb_detect_xeon_gen3(ntb);
+	else if (ntb->type == NTB_XEON_GEN4)
+		error = intel_ntb_detect_xeon_gen4(ntb);
 	else
 		error = intel_ntb_detect_xeon(ntb);
 	if (error != 0)
@@ -720,6 +760,8 @@ intel_ntb_attach(device_t device)
 		error = intel_ntb_atom_init_dev(ntb);
 	else if (ntb->type == NTB_XEON_GEN3)
 		error = intel_ntb_xeon_gen3_init_dev(ntb);
+	else if (ntb->type == NTB_XEON_GEN4)
+		error = intel_ntb_xeon_gen4_init_dev(ntb);
 	else
 		error = intel_ntb_xeon_init_dev(ntb);
 	if (error != 0)
@@ -873,6 +915,10 @@ intel_ntb_map_pci_bars(struct ntb_softc *ntb)
 		bar->psz_off = XEON_GEN3_INT_REG_IMBAR1SZ;
 		bar->ssz_off = XEON_GEN3_INT_REG_EMBAR1SZ;
 		bar->pbarxlat_off = XEON_GEN3_REG_EMBAR1XBASE;
+	} else if (ntb->type == NTB_XEON_GEN4) {
+		bar->psz_off = XEON_GEN4_CFG_REG_IMBAR1SZ;
+		bar->ssz_off = XEON_GEN4_CFG_REG_EMBAR1SZ;
+		bar->pbarxlat_off = XEON_GEN4_REG_EXT_BAR1BASE;
 	} else {
 		bar->psz_off = XEON_PBAR23SZ_OFFSET;
 		bar->ssz_off = XEON_SBAR23SZ_OFFSET;
@@ -888,6 +934,10 @@ intel_ntb_map_pci_bars(struct ntb_softc *ntb)
 		bar->psz_off = XEON_GEN3_INT_REG_IMBAR2SZ;
 		bar->ssz_off = XEON_GEN3_INT_REG_EMBAR2SZ;
 		bar->pbarxlat_off = XEON_GEN3_REG_EMBAR2XBASE;
+	} else if (ntb->type == NTB_XEON_GEN4) {
+		bar->psz_off = XEON_GEN4_CFG_REG_IMBAR2SZ;
+		bar->ssz_off = XEON_GEN4_CFG_REG_EMBAR2SZ;
+		bar->pbarxlat_off = XEON_GEN4_REG_EXT_BAR2BASE;
 	} else {
 		bar->psz_off = XEON_PBAR4SZ_OFFSET;
 		bar->ssz_off = XEON_SBAR4SZ_OFFSET;
@@ -897,7 +947,8 @@ intel_ntb_map_pci_bars(struct ntb_softc *ntb)
 	if (!HAS_FEATURE(ntb, NTB_SPLIT_BAR))
 		goto out;
 
-	if (ntb->type == NTB_XEON_GEN3) {
+	if (ntb->type == NTB_XEON_GEN3 ||
+	    ntb->type == NTB_XEON_GEN4) {
 		device_printf(ntb->device, "no split bar support\n");
 		return (ENXIO);
 	}
@@ -1176,7 +1227,63 @@ intel_ntb_xeon_gen3_init_isr(struct ntb_softc *ntb)
 		return (ENXIO);
 	}
 
-	return (0);
+	return (rc);
+}
+
+static int
+intel_ntb_xeon_gen4_init_isr(struct ntb_softc *ntb)
+{
+	uint64_t i, reg;
+	uint32_t desired_vectors, num_vectors;
+	int rc;
+
+	ntb->allocated_interrupts = 0;
+	ntb->last_ts = ticks;
+
+	/* Mask all the interrupts, including hardware interrupt */
+	intel_ntb_reg_write(8, XEON_GEN4_REG_IMINT_DISABLE, ~0ULL);
+
+	/* Clear Interrupt Status */
+	reg = intel_ntb_reg_read(8, XEON_GEN4_REG_IMINT_STATUS);
+	intel_ntb_reg_write(8, XEON_GEN4_REG_IMINT_STATUS, reg);
+
+	num_vectors = desired_vectors = MIN(pci_msix_count(ntb->device),
+	    XEON_GEN4_DB_MSIX_VECTOR_COUNT);
+
+	rc = pci_alloc_msix(ntb->device, &num_vectors);
+	if (rc != 0) {
+		device_printf(ntb->device,
+		    "Interrupt allocation failed %d\n", rc);
+		return (rc);
+	}
+	if (desired_vectors != num_vectors) {
+		device_printf(ntb->device, "Couldn't get %d vectors\n",
+		    XEON_GEN4_DB_MSIX_VECTOR_COUNT);
+		return (ENXIO);
+	}
+	if (num_vectors != XEON_GEN4_DB_MSIX_VECTOR_COUNT) {
+		device_printf(ntb->device,
+		    "Need to remap interrupts, giving up\n");
+		return (ENXIO);
+	}
+
+	/*
+	 * The MSIX vectors and the interrupt status bits are not lined up
+	 * on Gen3 (Skylake) and Gen4. By default the link status bit is bit
+	 * 32, however it is by default MSIX vector0. We need to fixup to
+	 * line them up. The vectors at reset is 1-32,0. We need to reprogram
+	 * to 0-32.
+	 */
+	for (i = 0; i < XEON_GEN4_DB_MSIX_VECTOR_COUNT; i++)
+		intel_ntb_reg_write(1, XEON_GEN4_REG_INTVEC + i, i);
+
+	intel_ntb_create_msix_vec(ntb, num_vectors);
+	rc = intel_ntb_setup_msix(ntb, num_vectors);
+
+	/* enable all interrupts */
+	intel_ntb_reg_write(8, XEON_GEN4_REG_IMINT_DISABLE, 0ULL);
+
+	return (rc);
 }
 
 static int
@@ -1304,6 +1411,7 @@ db_ioread(struct ntb_softc *ntb, uint64_t regoff)
 	switch (ntb->type) {
 	case NTB_ATOM:
 	case NTB_XEON_GEN3:
+	case NTB_XEON_GEN4:
 		return (intel_ntb_reg_read(8, regoff));
 	case NTB_XEON_GEN1:
 		return (intel_ntb_reg_read(2, regoff));
@@ -1332,6 +1440,7 @@ db_iowrite_raw(struct ntb_softc *ntb, uint64_t regoff, uint64_t val)
 	switch (ntb->type) {
 	case NTB_ATOM:
 	case NTB_XEON_GEN3:
+	case NTB_XEON_GEN4:
 		intel_ntb_reg_write(8, regoff, val);
 		break;
 	case NTB_XEON_GEN1:
@@ -1448,7 +1557,8 @@ intel_ntb_interrupt(struct ntb_softc *ntb, uint32_t vec)
 	ntb->last_ts = ticks;
 	vec_mask = intel_ntb_vec_mask(ntb, vec);
 
-	if (ntb->type == NTB_XEON_GEN3 && vec == XEON_GEN3_LINK_VECTOR_INDEX)
+	if ((ntb->type == NTB_XEON_GEN3 || ntb->type == NTB_XEON_GEN4) &&
+	    vec == XEON_GEN3_LINK_VECTOR_INDEX)
 		vec_mask |= ntb->db_link_mask;
 	if ((vec_mask & ntb->db_link_mask) != 0) {
 		if (intel_ntb_poll_link(ntb))
@@ -1456,6 +1566,9 @@ intel_ntb_interrupt(struct ntb_softc *ntb, uint32_t vec)
 		if (ntb->type == NTB_XEON_GEN3)
 			intel_ntb_reg_write(8, XEON_GEN3_REG_IMINT_STATUS,
 			    intel_ntb_reg_read(8, XEON_GEN3_REG_IMINT_STATUS));
+		if (ntb->type == NTB_XEON_GEN4)
+			intel_ntb_reg_write(8, XEON_GEN4_REG_IMINT_STATUS,
+			    intel_ntb_reg_read(8, XEON_GEN4_REG_IMINT_STATUS));
 	}
 
 	if (HAS_FEATURE(ntb, NTB_SB01BASE_LOCKUP) &&
@@ -1591,6 +1704,7 @@ intel_ntb_detect_max_mw(struct ntb_softc *ntb)
 			ntb->mw_count = XEON_SNB_MW_COUNT;
 		break;
 	case NTB_XEON_GEN3:
+	case NTB_XEON_GEN4:
 		if (HAS_FEATURE(ntb, NTB_SPLIT_BAR))
 			ntb->mw_count = XEON_GEN3_SPLIT_MW_COUNT;
 		else
@@ -1721,6 +1835,86 @@ intel_ntb_detect_xeon_gen3(struct ntb_softc *ntb)
 }
 
 static int
+intel_ntb_is_ICX(struct ntb_softc *ntb)
+{
+	uint8_t revision;
+
+	revision = pci_get_revid(ntb->device);
+	if (ntb->type == NTB_XEON_GEN4 &&
+	    revision >= PCI_DEV_REV_ICX_MIN &&
+	    revision <= PCI_DEV_REV_ICX_MAX)
+		return (1);
+
+	return (0);
+}
+
+static int
+intel_ntb_is_SPR(struct ntb_softc *ntb)
+{
+	uint8_t revision;
+
+	revision = pci_get_revid(ntb->device);
+	if (ntb->type == NTB_XEON_GEN4 &&
+	    revision > PCI_DEV_REV_ICX_MAX)
+		return (1);
+
+	return (0);
+}
+
+static int
+intel_ntb_detect_xeon_gen4(struct ntb_softc *ntb)
+{
+	if (intel_ntb_is_ICX(ntb)) {
+		ntb->features |= NTB_BAR_ALIGN;
+		ntb->features |= NTB_LTR_BAD;
+	}
+	return (0);
+}
+
+static int
+intel_ntb_detect_xeon_gen4_cfg(struct ntb_softc *ntb)
+{
+	uint32_t ppd1;
+
+	ppd1 = intel_ntb_reg_read(4, XEON_GEN4_REG_PPD1);
+	ntb->ppd = ppd1;
+	if (intel_ntb_is_ICX(ntb)) {
+		if ((ppd1 & GEN4_PPD_TOPO_MASK) == GEN4_PPD_TOPO_B2B_USD) {
+			/* NTB Port is configured as USD/DSP */
+			ntb->conn_type = NTB_CONN_B2B;
+			ntb->dev_type = NTB_DEV_USD;
+		} else if ((ppd1 & GEN4_PPD_TOPO_MASK) == GEN4_PPD_TOPO_B2B_DSD) {
+			/* NTB Port is configured as DSD/USP */
+			ntb->conn_type = NTB_CONN_B2B;
+			ntb->dev_type = NTB_DEV_DSD;
+		} else {
+			device_printf(ntb->device, "Unsupported connection type: %u\n",
+			    (ppd1 & GEN4_PPD_CONN_MASK));
+			return (ENXIO);
+		}
+	} else if (intel_ntb_is_SPR(ntb)) {
+		if ((ppd1 & SPR_PPD_TOPO_MASK) == SPR_PPD_TOPO_B2B_USD) {
+			/* NTB Port is configured as USD/DSP */
+			ntb->conn_type = NTB_CONN_B2B;
+			ntb->dev_type = NTB_DEV_USD;
+		} else if ((ppd1 & SPR_PPD_TOPO_MASK) == SPR_PPD_TOPO_B2B_DSD) {
+			/* NTB Port is configured as DSD/USP */
+			ntb->conn_type = NTB_CONN_B2B;
+			ntb->dev_type = NTB_DEV_DSD;
+		} else {
+			device_printf(ntb->device, "Unsupported connection type: %u\n",
+			    (ppd1 & SPR_PPD_CONN_MASK));
+			return (ENXIO);
+		}
+	}
+
+	device_printf(ntb->device, "conn type 0x%02x, dev type 0x%02x,"
+	    "features 0x%02x\n", ntb->conn_type, ntb->dev_type, ntb->features);
+
+	return (0);
+}
+
+static int
 intel_ntb_xeon_init_dev(struct ntb_softc *ntb)
 {
 	int rc;
@@ -1837,6 +2031,39 @@ intel_ntb_xeon_gen3_init_dev(struct ntb_softc *ntb)
 	/* Setup Interrupt */
 	rc = intel_ntb_xeon_gen3_init_isr(ntb);
 
+	return (rc);
+}
+
+static int
+intel_ntb_xeon_gen4_init_dev(struct ntb_softc *ntb)
+{
+	int rc;
+	uint16_t lnkctl;
+
+	ntb->spad_count = XEON_GEN4_SPAD_COUNT;
+	ntb->db_count = XEON_GEN4_DB_COUNT;
+	ntb->db_link_mask = XEON_GEN4_DB_LINK_BIT;
+	ntb->db_vec_count = XEON_GEN4_DB_MSIX_VECTOR_COUNT;
+	ntb->db_vec_shift = XEON_GEN4_DB_MSIX_VECTOR_SHIFT;
+
+	if (intel_ntb_detect_xeon_gen4_cfg(ntb) != 0)
+		return (ENXIO);
+
+	ntb->reg = &xeon_gen4_reg;
+	ntb->self_reg = &xeon_gen4_pri_reg;
+	ntb->peer_reg = &xeon_gen4_b2b_reg;
+	ntb->xlat_reg = &xeon_gen4_sec_xlat;
+
+	ntb->db_valid_mask = (1ULL << ntb->db_count) - 1;
+	xeon_gen4_setup_b2b_mw(ntb);
+
+	/* init link setup */
+	lnkctl = intel_ntb_reg_read(2, XEON_GEN4_REG_LINK_CTRL);
+	lnkctl |= GEN4_LINK_CTRL_LINK_DISABLE;
+	intel_ntb_reg_write(2, XEON_GEN4_REG_LINK_CTRL, lnkctl);
+
+	/* Setup Interrupt */
+	rc = intel_ntb_xeon_gen4_init_isr(ntb);
 	return (rc);
 }
 
@@ -2181,6 +2408,47 @@ xeon_gen3_setup_b2b_mw(struct ntb_softc *ntb)
 	return (0);
 }
 
+static int
+xeon_gen4_setup_b2b_mw(struct ntb_softc *ntb)
+{
+	uint32_t embarsz, imbarsz;
+
+	/* IMBAR23SZ should be equal to EMBAR23SZ */
+	imbarsz = pci_read_config(ntb->device, XEON_GEN4_CFG_REG_IMBAR1SZ, 1);
+	embarsz = pci_read_config(ntb->device, XEON_GEN4_CFG_REG_EMBAR1SZ, 1);
+	if (embarsz != imbarsz) {
+		device_printf(ntb->device,
+		    "IMBAR23SZ (%u) should be equal to EMBAR23SZ (%u)\n",
+		    imbarsz, embarsz);
+		return (EIO);
+	}
+	/* IMBAR45SZ should be equal to EMBAR45SZ */
+	imbarsz = pci_read_config(ntb->device, XEON_GEN4_CFG_REG_IMBAR2SZ, 1);
+	embarsz = pci_read_config(ntb->device, XEON_GEN4_CFG_REG_EMBAR2SZ, 1);
+	if (embarsz != imbarsz) {
+		device_printf(ntb->device,
+		    "IMBAR45SZ (%u) should be equal to EMBAR45SZ (%u)\n",
+		    imbarsz, embarsz);
+		return (EIO);
+	}
+
+	/* Client will provide the incoming IMBARXBASE, zero it for now */
+	intel_ntb_reg_write(8, XEON_GEN4_REG_IMBAR1XBASE, 0);
+	intel_ntb_reg_write(8, XEON_GEN4_REG_IMBAR2XBASE, 0);
+
+	/*
+	 * If the value in IMBARXLIMIT is set equal to the value in IMBARXBASE,
+	 * the local memory window exposure from EMBAR is disabled.
+	 * Note: It is needed to avoid malicious access.
+	 */
+	intel_ntb_reg_write(8, XEON_GEN4_REG_IMBAR1XLIMIT, 0);
+	intel_ntb_reg_write(8, XEON_GEN4_REG_IMBAR2XLIMIT, 0);
+
+	/* EMBARXLIMIT & EMBARXBASE are gone for gen4, noop here */
+
+	return (0);
+}
+
 static inline bool
 _xeon_link_is_up(struct ntb_softc *ntb)
 {
@@ -2194,7 +2462,9 @@ static inline bool
 link_is_up(struct ntb_softc *ntb)
 {
 
-	if (ntb->type == NTB_XEON_GEN1 || ntb->type == NTB_XEON_GEN3)
+	if (ntb->type == NTB_XEON_GEN1 ||
+	    ntb->type == NTB_XEON_GEN3 ||
+	    ntb->type == NTB_XEON_GEN4)
 		return (_xeon_link_is_up(ntb) && (ntb->peer_msix_good ||
 		    !HAS_FEATURE(ntb, NTB_SB01BASE_LOCKUP)));
 
@@ -2327,6 +2597,52 @@ intel_ntb_peer_port_idx(device_t dev, int port)
 }
 
 static int
+intel_ntb4_link_enable(device_t dev, enum ntb_speed speed __unused,
+    enum ntb_width width __unused)
+{
+	struct ntb_softc *ntb = device_get_softc(dev);
+	uint32_t cntl, ppd0, ltr;
+	uint16_t lnkctl;
+
+	if (!HAS_FEATURE(ntb, NTB_LTR_BAD)) {
+		/* Setup active snoop LTR values */
+		ltr = NTB_LTR_ACTIVE_REQMNT | NTB_LTR_ACTIVE_VAL | NTB_LTR_ACTIVE_LATSCALE;
+		/* Setup active non-snoop values */
+		ltr = (ltr << NTB_LTR_NS_SHIFT) | ltr;
+		intel_ntb_reg_write(4, XEON_GEN4_REG_EXT_LTR_ACTIVE, ltr);
+
+		/* Setup idle snoop LTR values */
+		ltr = NTB_LTR_IDLE_VAL | NTB_LTR_IDLE_LATSCALE | NTB_LTR_IDLE_REQMNT;
+		/* Setup idle non-snoop values */
+		ltr = (ltr << NTB_LTR_NS_SHIFT) | ltr;
+		intel_ntb_reg_write(4, XEON_GEN4_REG_EXT_LTR_IDLE, ltr);
+
+		/* setup PCIe LTR to active */
+		intel_ntb_reg_write(4, XEON_GEN4_REG_EXT_LTR_SWSEL, NTB_LTR_SWSEL_ACTIVE);
+	}
+
+	cntl = NTB_CTL_E2I_BAR23_SNOOP | NTB_CTL_I2E_BAR23_SNOOP;
+	cntl |= NTB_CTL_E2I_BAR45_SNOOP | NTB_CTL_I2E_BAR45_SNOOP;
+	intel_ntb_reg_write(4, ntb->reg->ntb_ctl, cntl);
+
+	lnkctl = intel_ntb_reg_read(2, XEON_GEN4_REG_LINK_CTRL);
+	lnkctl &= ~GEN4_LINK_CTRL_LINK_DISABLE;
+	intel_ntb_reg_write(2, XEON_GEN4_REG_LINK_CTRL, lnkctl);
+
+	/* start link training in PPD0 */
+	ppd0 = intel_ntb_reg_read(4, XEON_GEN4_REG_PPD0);
+	ppd0 |= GEN4_PPD_LINKTRN;
+	intel_ntb_reg_write(4, XEON_GEN4_REG_PPD0, ppd0);
+
+	/* make sure link training has started */
+	ppd0 = intel_ntb_reg_read(4, XEON_GEN4_REG_PPD0);
+	if (!(ppd0 & GEN4_PPD_LINKTRN))
+		intel_ntb_printf(2, "Link is not training\n");
+
+	return (0);
+}
+
+static int
 intel_ntb_link_enable(device_t dev, enum ntb_speed speed __unused,
     enum ntb_width width __unused)
 {
@@ -2334,6 +2650,9 @@ intel_ntb_link_enable(device_t dev, enum ntb_speed speed __unused,
 	uint32_t cntl;
 
 	intel_ntb_printf(2, "%s\n", __func__);
+
+	if (ntb->type == NTB_XEON_GEN4)
+		return (intel_ntb4_link_enable(dev, speed, width));
 
 	if (ntb->type == NTB_ATOM) {
 		pci_write_config(ntb->device, NTB_PPD_OFFSET,
@@ -2357,12 +2676,39 @@ intel_ntb_link_enable(device_t dev, enum ntb_speed speed __unused,
 }
 
 static int
+intel_ntb4_link_disable(device_t dev)
+{
+	struct ntb_softc *ntb = device_get_softc(dev);
+	uint32_t cntl;
+	uint16_t lnkctl;
+
+	/* clear the snoop bits */
+	cntl = intel_ntb_reg_read(4, ntb->reg->ntb_ctl);
+	cntl &= ~(NTB_CTL_E2I_BAR23_SNOOP | NTB_CTL_I2E_BAR23_SNOOP);
+	cntl &= ~(NTB_CTL_E2I_BAR45_SNOOP | NTB_CTL_I2E_BAR45_SNOOP);
+	intel_ntb_reg_write(4, ntb->reg->ntb_ctl, cntl);
+
+	lnkctl = intel_ntb_reg_read(2, XEON_GEN4_REG_LINK_CTRL);
+	lnkctl |= GEN4_LINK_CTRL_LINK_DISABLE;
+	intel_ntb_reg_write(2, XEON_GEN4_REG_LINK_CTRL, lnkctl);
+
+	/* set LTR to idle */
+	if (!HAS_FEATURE(ntb, NTB_LTR_BAD))
+		intel_ntb_reg_write(4, XEON_GEN4_REG_EXT_LTR_SWSEL, NTB_LTR_SWSEL_IDLE);
+
+	return (0);
+}
+
+static int
 intel_ntb_link_disable(device_t dev)
 {
 	struct ntb_softc *ntb = device_get_softc(dev);
 	uint32_t cntl;
 
 	intel_ntb_printf(2, "%s\n", __func__);
+
+	if (ntb->type == NTB_XEON_GEN4)
+		return (intel_ntb4_link_disable(dev));
 
 	if (ntb->conn_type == NTB_CONN_TRANSPARENT) {
 		ntb_link_event(dev);
@@ -2392,6 +2738,11 @@ intel_ntb_link_enabled(device_t dev)
 
 	if (ntb->conn_type == NTB_CONN_TRANSPARENT)
 		return (true);
+
+	if (ntb->type == NTB_XEON_GEN4) {
+		cntl = intel_ntb_reg_read(2, XEON_GEN4_REG_LINK_CTRL);
+		return ((cntl & GEN4_LINK_CTRL_LINK_DISABLE) == 0);
+	}
 
 	cntl = intel_ntb_reg_read(4, ntb->reg->ntb_ctl);
 	return ((cntl & NTB_CNTL_LINK_DISABLE) == 0);
@@ -2445,43 +2796,86 @@ retry:
  * Polls the HW link status register(s); returns true if something has changed.
  */
 static bool
-intel_ntb_poll_link(struct ntb_softc *ntb)
+intel_ntb_atom_poll_link(struct ntb_softc *ntb)
 {
 	uint32_t ntb_cntl;
+
+	ntb_cntl = intel_ntb_reg_read(4, ntb->reg->ntb_ctl);
+	if (ntb_cntl == ntb->ntb_ctl)
+		return (false);
+
+	ntb->ntb_ctl = ntb_cntl;
+	ntb->lnk_sta = intel_ntb_reg_read(4, ntb->reg->lnk_sta);
+	return (true);
+}
+
+static bool
+intel_ntb_xeon_gen1_poll_link(struct ntb_softc *ntb)
+{
 	uint16_t reg_val;
 
-	if (ntb->type == NTB_ATOM) {
-		ntb_cntl = intel_ntb_reg_read(4, ntb->reg->ntb_ctl);
-		if (ntb_cntl == ntb->ntb_ctl)
-			return (false);
+	if (ntb->type == NTB_XEON_GEN1)
+		db_iowrite_raw(ntb, ntb->self_reg->db_bell,
+			ntb->db_link_mask);
 
-		ntb->ntb_ctl = ntb_cntl;
-		ntb->lnk_sta = intel_ntb_reg_read(4, ntb->reg->lnk_sta);
-	} else {
-		if (ntb->type == NTB_XEON_GEN1)
-			db_iowrite_raw(ntb, ntb->self_reg->db_bell,
-			    ntb->db_link_mask);
+	reg_val = pci_read_config(ntb->device, ntb->reg->lnk_sta, 2);
+	if (reg_val == ntb->lnk_sta)
+		return (false);
 
-		reg_val = pci_read_config(ntb->device, ntb->reg->lnk_sta, 2);
-		if (reg_val == ntb->lnk_sta)
-			return (false);
+	ntb->lnk_sta = reg_val;
 
-		ntb->lnk_sta = reg_val;
-
-		if (HAS_FEATURE(ntb, NTB_SB01BASE_LOCKUP)) {
-			if (_xeon_link_is_up(ntb)) {
-				if (!ntb->peer_msix_good) {
-					callout_reset(&ntb->peer_msix_work, 0,
-					    intel_ntb_exchange_msix, ntb);
-					return (false);
-				}
-			} else {
-				ntb->peer_msix_good = false;
-				ntb->peer_msix_done = false;
+	if (HAS_FEATURE(ntb, NTB_SB01BASE_LOCKUP)) {
+		if (_xeon_link_is_up(ntb)) {
+			if (!ntb->peer_msix_good) {
+				callout_reset(&ntb->peer_msix_work, 0,
+				    intel_ntb_exchange_msix, ntb);
+				return (false);
 			}
+		} else {
+			ntb->peer_msix_good = false;
+			ntb->peer_msix_done = false;
 		}
 	}
 	return (true);
+}
+
+static bool
+intel_ntb_xeon_gen4_poll_link(struct ntb_softc *ntb)
+{
+	uint16_t reg_val;
+
+	/*
+	* We need to write to DLLSCS bit in the SLOTSTS before we
+	* can clear the hardware link interrupt on ICX NTB.
+	*/
+	intel_ntb_reg_write(2, XEON_GEN4_REG_SLOTSTS, GEN4_SLOTSTS_DLLSCS);
+	db_iowrite_raw(ntb, ntb->self_reg->db_clear, ntb->db_link_mask);
+
+	reg_val = intel_ntb_reg_read(2, ntb->reg->lnk_sta);
+	if (reg_val == ntb->lnk_sta)
+		return (false);
+
+	ntb->lnk_sta = reg_val;
+	return (true);
+}
+
+static bool
+intel_ntb_poll_link(struct ntb_softc *ntb)
+{
+	bool val;
+
+	switch(ntb->type) {
+	case NTB_ATOM:
+		val = intel_ntb_atom_poll_link(ntb);
+		break;
+	case NTB_XEON_GEN4:
+		val = intel_ntb_xeon_gen4_poll_link(ntb);
+		break;
+	default:
+		val = intel_ntb_xeon_gen1_poll_link(ntb);
+		break;
+	}
+	return (val);
 }
 
 static inline enum ntb_speed
@@ -3231,7 +3625,7 @@ intel_ntb_mw_set_trans(device_t dev, unsigned idx, bus_addr_t addr, size_t size)
 
 	limit = 0;
 	if (bar_is_64bit(ntb, bar_num)) {
-		if (ntb->type == NTB_XEON_GEN3)
+		if (ntb->type == NTB_XEON_GEN3 || ntb->type == NTB_XEON_GEN4)
 			base = addr;
 		else
 			base = intel_ntb_reg_read(8, base_reg) & BAR_HIGH_MASK;
@@ -3259,7 +3653,7 @@ intel_ntb_mw_set_trans(device_t dev, unsigned idx, bus_addr_t addr, size_t size)
 		}
 	} else {
 		/* Configure 32-bit (split) BAR MW */
-		if (ntb->type == NTB_XEON_GEN3)
+		if (ntb->type == NTB_XEON_GEN3 || ntb->type == NTB_XEON_GEN4)
 			return (EIO);
 
 		if ((addr & UINT32_MAX) != addr)
@@ -3376,7 +3770,7 @@ intel_ntb_peer_db_set(device_t dev, uint64_t bits)
 		return;
 	}
 
-	if (ntb->type == NTB_XEON_GEN3) {
+	if (ntb->type == NTB_XEON_GEN3 || ntb->type == NTB_XEON_GEN4) {
 		while (bits != 0) {
 			db = ffsll(bits);
 
