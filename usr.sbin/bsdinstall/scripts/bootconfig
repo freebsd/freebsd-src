@@ -132,6 +132,9 @@ if [ -n "$(awk '{if ($2=="/boot/efi") printf("%s\n",$1);}' $PATH_FSTAB)" ]; then
 	#
 	if [ ! -f "${mntpt}/${BOOTNAME}" ]; then
 		cp "$BSDINSTALL_CHROOT/boot/loader.efi" "${mntpt}/${BOOTNAME}"
+		if [ -e "$BSDINSTALL_CHROOT/boot/loader-ia32.efi" ]; then
+			cp "$BSDINSTALL_CHROOT/boot/loader-ia32.efi" "${mntpt}/${BOOTDIR}/bootia32.efi"
+		fi
 	fi
 
 	if [ "$BSDINSTALL_CONFIGCURRENT" ]; then

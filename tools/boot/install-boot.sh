@@ -60,6 +60,10 @@ make_esp_file() {
     mkdir -p "${stagedir}/EFI/BOOT"
     efibootname=$(get_uefi_bootname)
     cp "${loader}" "${stagedir}/EFI/BOOT/${efibootname}.efi"
+    loader=$(echo ${loader} | sed s,.efi,-ia32.efi,)
+    if [ -e ${loader} ]; then
+        cp "${loader}" "${stagedir}/EFI/BOOT/bootia32.efi"
+    fi
     makefs -t msdos \
 	-o fat_type=${fatbits} \
 	-o sectors_per_cluster=1 \
