@@ -39,6 +39,7 @@
 
 #include "vmm_ktr.h"
 
+#include "vlapic.h"
 #include "vmcb.h"
 #include "svm.h"
 #include "svm_softc.h"
@@ -229,6 +230,22 @@ vmcb_read(struct svm_vcpu *vcpu, int ident, uint64_t *retval)
 		KASSERT(seg != NULL, ("%s: unable to get segment %d from VMCB",
 		    __func__, ident));
 		*retval = seg->selector;
+		break;
+
+	case VM_REG_GUEST_FS_BASE:
+	case VM_REG_GUEST_GS_BASE:
+		seg = vmcb_segptr(vmcb, ident == VM_REG_GUEST_FS_BASE ?
+		    VM_REG_GUEST_FS : VM_REG_GUEST_GS);
+		KASSERT(seg != NULL, ("%s: unable to get segment %d from VMCB",
+		    __func__, ident));
+		*retval = seg->base;
+		break;
+	case VM_REG_GUEST_KGS_BASE:
+		*retval = state->kernelgsbase;
+		break;
+
+	case VM_REG_GUEST_TPR:
+		*retval = vlapic_get_cr8(vm_lapic(vcpu->vcpu));
 		break;
 
 	case VM_REG_GUEST_GDTR:
