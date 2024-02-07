@@ -87,6 +87,15 @@ efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	BS = ST->BootServices;
 	RS = ST->RuntimeServices;
 
+#ifdef __i386__
+	/* Check for long mode */
+	asm("cpuid" : "=d"(status) : "a"(0x80000001) : "%ebx", "%ecx");
+	if (!(status & 0x20000000)) {
+		ST->ConOut->OutputString(ST->ConOut, (CHAR16 *)L"No long mode.\r\n");
+		BS->Exit(IH, EFI_UNSUPPORTED, 0, NULL);
+	}
+#endif
+
 	status = BS->LocateProtocol(&console_control_protocol, NULL,
 	    (VOID **)&console_control);
 	if (status == EFI_SUCCESS)

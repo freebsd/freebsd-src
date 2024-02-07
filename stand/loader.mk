@@ -167,9 +167,13 @@ CFLAGS+=	-DELF_VERBOSE
 .error Define HELP_FILENAME before including loader.mk
 .endif
 
+CFLAGS+=	-DHELP_FILENAME=\"${HELP_FILENAME}\"
+
+# If we are making the ia32 loader, we dont need to make another
+# help file.
+.if ${DO32:U0} == 1 && ${MK_LOADER_IA32} != "no"
 HELP_FILES+=	${LDRSRC}/help.common
 
-CFLAGS+=	-DHELP_FILENAME=\"${HELP_FILENAME}\"
 .if ${INSTALL_LOADER_HELP_FILE:Uyes} == "yes"
 CLEANFILES+=	${HELP_FILENAME}
 FILES+=		${HELP_FILENAME}
@@ -177,3 +181,4 @@ FILES+=		${HELP_FILENAME}
 
 ${HELP_FILENAME}: ${HELP_FILES}
 	cat ${HELP_FILES} | awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
+.endif
