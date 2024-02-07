@@ -214,7 +214,7 @@ The following example shows how to create an infiniband failover interface.
 .Ed
 .Pp
 Configure two ethernets for failover with static IP in
-.Xr /etc/rc.conf 5 :
+/etc/rc.conf:
 .Bd -literal -offset indent
 cloned_interfaces="lagg0"
 ifconfig_lagg0="laggproto failover laggport bge0 laggport bge1 \e
