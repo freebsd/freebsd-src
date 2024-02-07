@@ -41,14 +41,14 @@ static void takeprec(void);
 
 char *lbp;				/* line buffer pointer */
 
-int
+bool
 PF_funcs(void)
 {
 	bool	pfcnt;			/* pascal/fortran functions found */
 	char	*cp;
 	char	tok[MAXTOKEN];
 
-	for (pfcnt = NO;;) {
+	for (pfcnt = false;;) {
 		lineftell = ftell(inf);
 		if (!fgets(lbuf, sizeof(lbuf), inf))
 			return (pfcnt);
@@ -120,7 +120,7 @@ PF_funcs(void)
 		(void)strlcpy(tok, lbp, sizeof(tok));	/* possible trunc */
 		get_line();			/* process line for ex(1) */
 		pfnote(tok, lineno);
-		pfcnt = YES;
+		pfcnt = true;
 	}
 	/*NOTREACHED*/
 }
@@ -129,7 +129,7 @@ PF_funcs(void)
  * cicmp --
  *	do case-independent strcmp
  */
-int
+bool
 cicmp(const char *cp)
 {
 	int	len;
@@ -140,9 +140,9 @@ cicmp(const char *cp)
 		continue;
 	if (!*cp) {
 		lbp += len;
-		return (YES);
+		return (true);
 	}
-	return (NO);
+	return (false);
 }
 
 static void

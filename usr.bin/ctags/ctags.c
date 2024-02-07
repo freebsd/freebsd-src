@@ -86,8 +86,8 @@ main(int argc, char **argv)
 
 	setlocale(LC_ALL, "");
 
-	aflag = uflag = NO;
-	tflag = YES;
+	aflag = uflag = false;
+	tflag = true;
 	while ((ch = getopt(argc, argv, "BFTadf:tuwvx")) != -1)
 		switch(ch) {
 		case 'B':
@@ -97,7 +97,7 @@ main(int argc, char **argv)
 			searchar = '/';
 			break;
 		case 'T':
-			tflag = NO;
+			tflag = false;
 			break;
 		case 'a':
 			aflag++;
@@ -109,7 +109,7 @@ main(int argc, char **argv)
 			outfile = optarg;
 			break;
 		case 't':
-			tflag = YES;
+			tflag = true;
 			break;
 		case 'u':
 			uflag++;
@@ -251,24 +251,24 @@ init(void)
 	const unsigned char	*sp;
 
 	for (i = 0; i < 256; i++) {
-		_wht[i] = _etk[i] = _itk[i] = _btk[i] = NO;
-		_gd[i] = YES;
+		_wht[i] = _etk[i] = _itk[i] = _btk[i] = false;
+		_gd[i] = true;
 	}
 #define	CWHITE	" \f\t\n"
 	for (sp = CWHITE; *sp; sp++)	/* white space chars */
-		_wht[*sp] = YES;
+		_wht[*sp] = true;
 #define	CTOKEN	" \t\n\"'#()[]{}=-+%*/&|^~!<>;,.:?"
 	for (sp = CTOKEN; *sp; sp++)	/* token ending chars */
-		_etk[*sp] = YES;
+		_etk[*sp] = true;
 #define	CINTOK	"ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz0123456789"
 	for (sp = CINTOK; *sp; sp++)	/* valid in-token chars */
-		_itk[*sp] = YES;
+		_itk[*sp] = true;
 #define	CBEGIN	"ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz"
 	for (sp = CBEGIN; *sp; sp++)	/* token starting chars */
-		_btk[*sp] = YES;
+		_btk[*sp] = true;
 #define	CNOTGD	",;"
 	for (sp = CNOTGD; *sp; sp++)	/* invalid after-function chars */
-		_gd[*sp] = NO;
+		_gd[*sp] = false;
 }
 
 /*
