@@ -3404,8 +3404,16 @@ vmx_getreg(void *vcpui, int reg, uint64_t *retval)
 		panic("vmx_getreg: %s%d is running", vm_name(vmx->vm),
 		    vcpu->vcpuid);
 
-	if (reg == VM_REG_GUEST_INTR_SHADOW)
+	switch (reg) {
+	case VM_REG_GUEST_INTR_SHADOW:
 		return (vmx_get_intr_shadow(vcpu, running, retval));
+	case VM_REG_GUEST_KGS_BASE:
+		*retval = vcpu->guest_msrs[IDX_MSR_KGSBASE];
+		return (0);
+	case VM_REG_GUEST_TPR:
+		*retval = vlapic_get_cr8(vm_lapic(vcpu->vcpu));
+		return (0);
+	}
 
 	if (vmxctx_getreg(&vcpu->ctx, reg, retval) == 0)
 		return (0);
