@@ -1088,6 +1088,9 @@ def op_sel_hi0 : ArrayOperand0<"op_sel_hi", "OpSelHi">;
 def neg_lo0 : ArrayOperand0<"neg_lo", "NegLo">;
 def neg_hi0 : ArrayOperand0<"neg_hi", "NegHi">;
 
+def IndexKey16bit : CustomOperand<i32, 1>;
+def IndexKey8bit : CustomOperand<i32, 1>;
+
 def dpp8 : CustomOperand<i32, 0, "DPP8">;
 def dpp_ctrl : CustomOperand<i32, 0, "DPPCtrl">;
 
@@ -1343,6 +1346,13 @@ def VOP3PMods  : ComplexPattern<untyped, 2, "SelectVOP3PMods">;
 def VOP3PModsDOT  : ComplexPattern<untyped, 2, "SelectVOP3PModsDOT">;
 def VOP3PModsNeg  : ComplexPattern<untyped, 1, "SelectVOP3PModsNeg">;
 def WMMAOpSelVOP3PMods  : ComplexPattern<untyped, 1, "SelectWMMAOpSelVOP3PMods">;
+
+def WMMAModsF32NegAbs  : ComplexPattern<untyped, 2, "SelectWMMAModsF32NegAbs">;
+def WMMAModsF16Neg  : ComplexPattern<untyped, 2, "SelectWMMAModsF16Neg">;
+def WMMAModsF16NegAbs  : ComplexPattern<untyped, 2, "SelectWMMAModsF16NegAbs">;
+def WMMAVISrc  : ComplexPattern<untyped, 1, "SelectWMMAVISrc">;
+def SWMMACIndex8  : ComplexPattern<untyped, 2, "SelectSWMMACIndex8">;
+def SWMMACIndex16  : ComplexPattern<untyped, 2, "SelectSWMMACIndex16">;
 
 def VOP3OpSel  : ComplexPattern<untyped, 2, "SelectVOP3OpSel">;
 
@@ -1684,8 +1694,9 @@ class getIns64 <RegisterOperand Src0RC, RegisterOperand Src1RC,
         !if(HasOMod,
           (ins Src0Mod:$src0_modifiers, Src0RC:$src0,
                clampmod0:$clamp, omod0:$omod),
-          (ins Src0Mod:$src0_modifiers, Src0RC:$src0,
-               clampmod0:$clamp))
+          !if (HasClamp,
+            (ins Src0Mod:$src0_modifiers, Src0RC:$src0, clampmod0:$clamp),
+            (ins Src0Mod:$src0_modifiers, Src0RC:$src0)))
       /* else */,
         // VOP1 without modifiers
         !if (HasClamp,
@@ -2278,6 +2289,9 @@ class VOPProfile <list<ValueType> _ArgVT, bit _EnableClamp = 0> {
   field bit IsDOT = 0;
   field bit IsSingle = 0;
   field bit IsWMMA = 0;
+  field bit IsSWMMAC = 0;
+
+  field bit IsFP8 = 0;
 
   field bit HasDst = !ne(DstVT.Value, untyped.Value);
   field bit HasDst32 = HasDst;
