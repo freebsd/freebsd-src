@@ -2003,7 +2003,8 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 				/*
 				 * Found?
 				 */
-				if (prison_equal_ip4(cred->cr_prison,
+				if (cred == NULL ||
+				    prison_equal_ip4(cred->cr_prison,
 				    inp->inp_cred->cr_prison))
 					return (inp);
 			}
@@ -2035,7 +2036,8 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 			 */
 			CK_LIST_FOREACH(inp, &phd->phd_pcblist, inp_portlist) {
 				wildcard = 0;
-				if (!prison_equal_ip4(inp->inp_cred->cr_prison,
+				if (cred != NULL &&
+				    !prison_equal_ip4(inp->inp_cred->cr_prison,
 				    cred->cr_prison))
 					continue;
 #ifdef INET6
