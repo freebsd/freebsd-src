@@ -20,6 +20,7 @@ SUBDIR.${MK_ZFS}+= \
 	libtpool \
 	libumem \
 	libuutil \
+	libzdb \
 	libzfs \
 	libzfs_core \
 	libzfsbootenv \

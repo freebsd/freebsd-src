@@ -1239,6 +1239,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zpool_status/zpool_status_005_pos.ksh \
 	functional/cli_root/zpool_status/zpool_status_006_pos.ksh \
 	functional/cli_root/zpool_status/zpool_status_007_pos.ksh \
+	functional/cli_root/zpool_status/zpool_status_008_pos.ksh \
 	functional/cli_root/zpool_status/zpool_status_features_001_pos.ksh \
 	functional/cli_root/zpool_sync/cleanup.ksh \
 	functional/cli_root/zpool_sync/setup.ksh \
@@ -1394,6 +1395,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/compression/setup.ksh \
 	functional/cp_files/cleanup.ksh \
 	functional/cp_files/cp_files_001_pos.ksh \
+	functional/cp_files/cp_files_002_pos.ksh \
 	functional/cp_files/cp_stress.ksh \
 	functional/cp_files/setup.ksh \
 	functional/crtime/cleanup.ksh \
