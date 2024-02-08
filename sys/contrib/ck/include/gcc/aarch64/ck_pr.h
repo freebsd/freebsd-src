@@ -137,8 +137,8 @@ CK_PR_LOAD_S_64(double, double, "ldr")
 	CK_CC_INLINE static void				\
 	ck_pr_md_store_##S(M *target, T v)			\
 	{							\
-		__asm__ __volatile__(I " %w1, [%0]"		\
-					:			\
+		__asm__ __volatile__(I " %w2, [%1]"		\
+					: "=m" (*(T *)target)	\
 					: "r" (target),		\
 					  "r" (v)		\
 					: "memory");		\
@@ -148,8 +148,8 @@ CK_PR_LOAD_S_64(double, double, "ldr")
 	CK_CC_INLINE static void				\
 	ck_pr_md_store_##S(M *target, T v)			\
 	{							\
-		__asm__ __volatile__(I " %1, [%0]"		\
-					:			\
+		__asm__ __volatile__(I " %2, [%1]"		\
+					: "=m" (*(T *)target)	\
 					: "r" (target),		\
 					  "r" (v)		\
 					: "memory");		\
