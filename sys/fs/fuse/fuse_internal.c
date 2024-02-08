@@ -269,10 +269,10 @@ fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
 
 	if (vnode_isreg(vp) &&
 	    fvdat->cached_attrs.va_size != VNOVAL &&
+	    fvdat->flag & FN_SIZECHANGE &&
 	    attr->size != fvdat->cached_attrs.va_size)
 	{
-		if ( data->cache_mode == FUSE_CACHE_WB &&
-		    fvdat->flag & FN_SIZECHANGE)
+		if (data->cache_mode == FUSE_CACHE_WB)
 		{
 			const char *msg;
 
