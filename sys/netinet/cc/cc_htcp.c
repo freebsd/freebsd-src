@@ -284,7 +284,7 @@ htcp_cong_signal(struct cc_var *ccv, uint32_t type)
 	u_int mss;
 
 	htcp_data = ccv->cc_data;
-	mss = tcp_maxseg(ccv->ccvc.tcp);
+	mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
 
 	switch (type) {
 	case CC_NDUPACK:

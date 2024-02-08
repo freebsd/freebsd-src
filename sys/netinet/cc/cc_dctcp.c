@@ -245,7 +245,7 @@ dctcp_cong_signal(struct cc_var *ccv, uint32_t type)
 	if (CCV(ccv, t_flags2) & TF2_ECN_PERMIT) {
 		dctcp_data = ccv->cc_data;
 		cwin = CCV(ccv, snd_cwnd);
-		mss = tcp_maxseg(ccv->ccvc.tcp);
+		mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
 
 		switch (type) {
 		case CC_NDUPACK:
