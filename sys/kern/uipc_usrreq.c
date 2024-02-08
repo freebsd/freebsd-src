@@ -999,8 +999,8 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	switch (so->so_type) {
 	case SOCK_STREAM:
 		if (control != NULL) {
-			sbappendcontrol_locked(&so2->so_rcv, m,
-			    control, flags);
+			sbappendcontrol_locked(&so2->so_rcv,
+			    m->m_len > 0 ?  m : NULL, control, flags);
 			control = NULL;
 		} else
 			sbappend_locked(&so2->so_rcv, m, flags);
