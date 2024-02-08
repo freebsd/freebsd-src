@@ -40,9 +40,10 @@
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
-#include <sys/proc.h>
 #include <sys/memdesc.h>
+#include <sys/msan.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 
@@ -104,6 +105,9 @@ struct bus_dmamap {
 #define	DMAMAP_FROM_DMAMEM	(1 << 1)
 #define	DMAMAP_MBUF		(1 << 2)
 	int			sync_count;
+#ifdef KMSAN
+	struct memdesc	       kmsan_mem;
+#endif
 	struct sync_list	slist[];
 };
 
@@ -1149,7 +1153,19 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 		 */
 		dsb(sy);
 	}
+
+	kmsan_bus_dmamap_sync(&map->kmsan_mem, op);
 }
+
+#ifdef KMSAN
+static void
+bounce_bus_dmamap_load_kmsan(bus_dmamap_t map, struct memdesc *mem)
+{
+	if (map == NULL)
+		return;
+	memcpy(&map->kmsan_mem, mem, sizeof(map->kmsan_mem));
+}
+#endif
 
 struct bus_dma_impl bus_dma_bounce_impl = {
 	.tag_create = bounce_bus_dma_tag_create,
@@ -1166,5 +1182,8 @@ struct bus_dma_impl bus_dma_bounce_impl = {
 	.map_waitok = bounce_bus_dmamap_waitok,
 	.map_complete = bounce_bus_dmamap_complete,
 	.map_unload = bounce_bus_dmamap_unload,
-	.map_sync = bounce_bus_dmamap_sync
+	.map_sync = bounce_bus_dmamap_sync,
+#ifdef KMSAN
+	.load_kmsan = bounce_bus_dmamap_load_kmsan,
+#endif
 };
