@@ -912,7 +912,7 @@ ATF_TC_BODY(empty_rights_message, tc)
 	/* Only the non-empty message should be received. */
 	len = recvmsg(fd[1], &msghdr, 0);
 	ATF_REQUIRE_MSG(len == 0, "recvmsg failed: %s", strerror(errno));
-	ATF_REQUIRE(msghdr.msg_controllen = CMSG_SPACE(sizeof(int)));
+	ATF_REQUIRE(msghdr.msg_controllen == CMSG_SPACE(sizeof(int)));
 	error = close(*(int *)CMSG_DATA(msghdr.msg_control));
 	ATF_REQUIRE_MSG(error == 0, "close failed: %s", strerror(errno));
 
@@ -938,7 +938,7 @@ ATF_TC_BODY(empty_rights_message, tc)
 	/* Only the non-empty message should be received. */
 	len = recvmsg(fd[1], &msghdr, 0);
 	ATF_REQUIRE_MSG(len == 0, "recvmsg failed: %s", strerror(errno));
-	ATF_REQUIRE(msghdr.msg_controllen = CMSG_SPACE(sizeof(int)));
+	ATF_REQUIRE(msghdr.msg_controllen == CMSG_SPACE(sizeof(int)));
 	error = close(*(int *)CMSG_DATA(msghdr.msg_control));
 	ATF_REQUIRE_MSG(error == 0, "close failed: %s", strerror(errno));
 
