@@ -153,7 +153,7 @@ CRUNCH_LIBS_zfs+=	${LIBBE} \
 			${LIBNVPAIR}
 CRUNCH_LIBS_bectl+=	${CRUNCH_LIBS_zfs}
 CRUNCH_LIBS_zpool+=	${CRUNCH_LIBS_zfs}
-CRUNCH_LIBS_zdb+=	${CRUNCH_LIBS_zfs}
+CRUNCH_LIBS_zdb+=	${CRUNCH_LIBS_zfs} ${LIBZDB}
 .else
 # liblzma needs pthread
 CRUNCH_LIBS+= -lpthread
