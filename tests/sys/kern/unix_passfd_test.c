@@ -204,7 +204,7 @@ localcreds(int sockfd)
 	return (val != 0);
 }
 
-static void
+static ssize_t
 recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen,
     size_t cmsgsz, int recvmsg_flags)
 {
@@ -230,8 +230,6 @@ recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen,
 
 	len = recvmsg(sockfd, &msghdr, recvmsg_flags);
 	ATF_REQUIRE_MSG(len != -1, "recvmsg failed: %s", strerror(errno));
-	ATF_REQUIRE_MSG((size_t)len == buflen,
-	    "recvmsg: %zd bytes received; expected %zd", len, buflen);
 
 	cmsghdr = CMSG_FIRSTHDR(&msghdr);
 	ATF_REQUIRE_MSG(cmsghdr != NULL,
@@ -254,15 +252,20 @@ recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen,
 	    "recvmsg: expected credentials were not received");
 	ATF_REQUIRE_MSG((msghdr.msg_flags & MSG_TRUNC) == 0,
 	    "recvmsg: MSG_TRUNC is set while buffer is sufficient");
+
+	return (len);
 }
 
 static void
 recvfd(int sockfd, int *recv_fd, int flags)
 {
+	ssize_t len;
 	char ch = 0;
 
-	recvfd_payload(sockfd, recv_fd, &ch, sizeof(ch),
+	len = recvfd_payload(sockfd, recv_fd, &ch, sizeof(ch),
 	    CMSG_SPACE(sizeof(int)), flags);
+	ATF_REQUIRE_MSG((size_t)len == sizeof(ch),
+	    "recvmsg: %zd bytes received; expected %zd", len, sizeof(ch));
 }
 
 #if TEST_PROTO == SOCK_STREAM
@@ -632,7 +635,7 @@ ATF_TC_BODY(rights_creds_payload, tc)
 {
 	const int on = 1;
 	u_long sendspace;
-	ssize_t len;
+	ssize_t len, rlen;
 	void *buf;
 	int fd[2], getfd, putfd, rc;
 
@@ -651,20 +654,19 @@ ATF_TC_BODY(rights_creds_payload, tc)
 	    strerror(errno));
 
 	len = sendfd_payload(fd[0], putfd, buf, sendspace);
-#if TEST_PROTO == SOCK_STREAM
 	ATF_REQUIRE_MSG(len != -1 , "sendmsg failed: %s", strerror(errno));
+#if TEST_PROTO == SOCK_STREAM
 	ATF_REQUIRE_MSG((size_t)len < sendspace,
 	    "sendmsg: %zd bytes sent", len);
-	recvfd_payload(fd[1], &getfd, buf, len,
-	    CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + CMSG_SPACE(sizeof(int)), 0);
 #endif
 #if TEST_PROTO == SOCK_DGRAM
-	ATF_REQUIRE_MSG(len != -1 , "sendmsg failed: %s", strerror(errno));
 	ATF_REQUIRE_MSG((size_t)len == sendspace,
 	    "sendmsg: %zd bytes sent", len);
-	recvfd_payload(fd[1], &getfd, buf, len,
-	    CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + CMSG_SPACE(sizeof(int)), 0);
 #endif
+	rlen = recvfd_payload(fd[1], &getfd, buf, len,
+	    CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + CMSG_SPACE(sizeof(int)), 0);
+	ATF_REQUIRE_MSG(rlen == len,
+	    "recvmsg: %zd bytes received; expected %zd", rlen, len);
 
 	close(putfd);
 	close(getfd);
@@ -945,6 +947,37 @@ ATF_TC_BODY(empty_rights_message, tc)
 	(void)close(putfd);
 }
 
+/*
+ * Check that sending control creates records in a stream socket, making it
+ * behave like a seqpacket socket.  If we stack several control+data writes
+ * on a stream socket, we won't be able to read them all at once, even if we
+ * provide a buffer large enough to receive all at once.
+ *
+ * XXXGL: adding MSG_WAITALL to the recvmsg() flags will make this test stuck.
+ */
+ATF_TC_WITHOUT_HEAD(control_creates_records);
+ATF_TC_BODY(control_creates_records, tc)
+{
+	int fd[2], putfd, getfd;
+	char buf[2];
+	ssize_t rlen;
+
+	domainsocketpair(fd);
+	tempfile(&putfd);
+
+	for (int i = 1; i <= 2; i++)
+		ATF_REQUIRE(sendfd_payload(fd[0], putfd, buf, 1) == 1);
+	ATF_REQUIRE(close(putfd) == 0);
+	for (int i = 1; i <= 2; i++) {
+		rlen = recvfd_payload(fd[1], &getfd, buf, 2,
+		    CMSG_SPACE(sizeof(int)) * 2, 0);
+		ATF_REQUIRE_MSG(rlen == 1,
+		    "recvmsg: %zd bytes received; expected 1", rlen);
+		ATF_REQUIRE(close(getfd) == 0);
+	}
+	closesocketpair(fd);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -963,6 +996,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, truncated_rights);
 	ATF_TP_ADD_TC(tp, copyout_rights_error);
 	ATF_TP_ADD_TC(tp, empty_rights_message);
+	ATF_TP_ADD_TC(tp, control_creates_records);
 
 	return (atf_no_error());
 }
