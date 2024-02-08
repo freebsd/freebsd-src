@@ -32,6 +32,8 @@
 
 #ifdef _KERNEL
 
+#include <sys/_timespec.h>
+
 /*
  * The umtx_key structure is used by both the Linux futex code and the
  * umtx implementation to map userland addresses to unique keys.
