@@ -953,8 +953,17 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th, u_int *maxsegp)
 	/* Send one or 2 segments based on how much new data was acked. */
 	if ((BYTES_THIS_ACK(tp, th) / maxseg) >= 2)
 		num_segs = 2;
-	tp->snd_cwnd = (tp->sackhint.sack_bytes_rexmit +
-	    (tp->snd_nxt - tp->snd_recover) + num_segs * maxseg);
+	if (V_tcp_do_newsack) {
+		tp->snd_cwnd = imax(tp->snd_nxt - th->th_ack +
+				tp->sackhint.sack_bytes_rexmit -
+				tp->sackhint.sacked_bytes -
+				tp->sackhint.lost_bytes, maxseg) +
+				num_segs * maxseg;
+	} else {
+		tp->snd_cwnd = (tp->sackhint.sack_bytes_rexmit +
+		    imax(0, tp->snd_nxt - tp->snd_recover) +
+		    num_segs * maxseg);
+	}
 	if (tp->snd_cwnd > tp->snd_ssthresh)
 		tp->snd_cwnd = tp->snd_ssthresh;
 	tp->t_flags |= TF_ACKNOW;
