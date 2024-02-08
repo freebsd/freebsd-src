@@ -14,7 +14,7 @@
 
 .include <src.opts.mk>
 
-TRACEROUTE_DISTDIR?= ${SRCTOP}/contrib/traceroute
+TRACEROUTE_DISTDIR?= ${SRCTOP}/usr.sbin/traceroute
 .PATH: ${TRACEROUTE_DISTDIR}
 
 PACKAGE=	runtime
