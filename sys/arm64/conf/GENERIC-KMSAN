@@ -1,0 +1,5 @@
+include GENERIC
+
+ident   GENERIC-KMSAN
+
+options 	KMSAN
