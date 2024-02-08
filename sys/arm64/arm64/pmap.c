@@ -114,6 +114,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
+#include <sys/msan.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/physmem.h>
@@ -1321,9 +1322,9 @@ pmap_bootstrap(vm_size_t kernlen)
 	cpu_tlb_flushID();
 }
 
-#ifdef KASAN
+#if defined(KASAN) || defined(KMSAN)
 static void
-pmap_bootstrap_allocate_kasan_l2(vm_paddr_t start_pa, vm_paddr_t end_pa,
+pmap_bootstrap_allocate_san_l2(vm_paddr_t start_pa, vm_paddr_t end_pa,
     vm_offset_t *vap, vm_offset_t eva)
 {
 	vm_paddr_t pa;
@@ -1392,7 +1393,7 @@ pmap_bootstrap_san1(vm_offset_t va, int scale)
 		if (kernstart >= plow && kernstart < phigh)
 			phigh = kernstart;
 		if (phigh - plow >= L2_SIZE) {
-			pmap_bootstrap_allocate_kasan_l2(plow, phigh, &va, eva);
+			pmap_bootstrap_allocate_san_l2(plow, phigh, &va, eva);
 			if (va >= eva)
 				break;
 		}
@@ -1403,7 +1404,7 @@ pmap_bootstrap_san1(vm_offset_t va, int scale)
 	/*
 	 * Done. We should now have a valid shadow address mapped for all KVA
 	 * that has been mapped so far, i.e., KERNBASE to virtual_avail. Thus,
-	 * shadow accesses by the kasan(9) runtime will succeed for this range.
+	 * shadow accesses by the sanitizer runtime will succeed for this range.
 	 * When the kernel virtual address range is later expanded, as will
 	 * happen in vm_mem_init(), the shadow map will be grown as well. This
 	 * is handled by pmap_san_enter().
@@ -1413,7 +1414,32 @@ pmap_bootstrap_san1(vm_offset_t va, int scale)
 void
 pmap_bootstrap_san(void)
 {
+#ifdef KASAN
 	pmap_bootstrap_san1(KASAN_MIN_ADDRESS, KASAN_SHADOW_SCALE);
+#else
+	static uint8_t kmsan_shad_ptp[PAGE_SIZE * 2] __aligned(PAGE_SIZE);
+	static uint8_t kmsan_orig_ptp[PAGE_SIZE * 2] __aligned(PAGE_SIZE);
+	pd_entry_t *l0, *l1;
+
+	if (virtual_avail - VM_MIN_KERNEL_ADDRESS > L1_SIZE)
+		panic("initial kernel map is too large");
+
+	l0 = pmap_l0(kernel_pmap, KMSAN_SHAD_MIN_ADDRESS);
+	pmap_store(l0, L0_TABLE | PHYS_TO_PTE(
+	    pmap_early_vtophys((vm_offset_t)kmsan_shad_ptp)));
+	l1 = pmap_l0_to_l1(l0, KMSAN_SHAD_MIN_ADDRESS);
+	pmap_store(l1, L1_TABLE | PHYS_TO_PTE(
+	    pmap_early_vtophys((vm_offset_t)kmsan_shad_ptp + PAGE_SIZE)));
+	pmap_bootstrap_san1(KMSAN_SHAD_MIN_ADDRESS, 1);
+
+	l0 = pmap_l0(kernel_pmap, KMSAN_ORIG_MIN_ADDRESS);
+	pmap_store(l0, L0_TABLE | PHYS_TO_PTE(
+	    pmap_early_vtophys((vm_offset_t)kmsan_orig_ptp)));
+	l1 = pmap_l0_to_l1(l0, KMSAN_ORIG_MIN_ADDRESS);
+	pmap_store(l1, L1_TABLE | PHYS_TO_PTE(
+	    pmap_early_vtophys((vm_offset_t)kmsan_orig_ptp + PAGE_SIZE)));
+	pmap_bootstrap_san1(KMSAN_ORIG_MIN_ADDRESS, 1);
+#endif
 }
 #endif
 
@@ -2717,8 +2743,10 @@ pmap_growkernel(vm_offset_t addr)
 	addr = roundup2(addr, L2_SIZE);
 	if (addr - 1 >= vm_map_max(kernel_map))
 		addr = vm_map_max(kernel_map);
-	if (kernel_vm_end < addr)
+	if (kernel_vm_end < addr) {
 		kasan_shadow_map(kernel_vm_end, addr - kernel_vm_end);
+		kmsan_shadow_map(kernel_vm_end, addr - kernel_vm_end);
+	}
 	while (kernel_vm_end < addr) {
 		l0 = pmap_l0(kernel_pmap, kernel_vm_end);
 		KASSERT(pmap_load(l0) != 0,
@@ -7856,7 +7884,7 @@ pmap_pte_bti(pmap_t pmap, vm_offset_t va __diagused)
 	return (0);
 }
 
-#if defined(KASAN)
+#if defined(KASAN) || defined(KMSAN)
 static pd_entry_t	*pmap_san_early_l2;
 
 #define	SAN_BOOTSTRAP_L2_SIZE	(1 * L2_SIZE)
@@ -7930,7 +7958,7 @@ pmap_san_enter_alloc_l2(void)
 	    Ln_ENTRIES, 0, ~0ul, L2_SIZE, 0, VM_MEMATTR_DEFAULT));
 }
 
-void __nosanitizeaddress
+void __nosanitizeaddress __nosanitizememory
 pmap_san_enter(vm_offset_t va)
 {
 	pd_entry_t *l1, *l2;
@@ -7992,7 +8020,7 @@ pmap_san_enter(vm_offset_t va)
 	    PMAP_SAN_PTE_BITS | L3_PAGE);
 	dmb(ishst);
 }
-#endif /* KASAN */
+#endif /* KASAN || KMSAN */
 
 /*
  * Track a range of the kernel's virtual address space that is contiguous

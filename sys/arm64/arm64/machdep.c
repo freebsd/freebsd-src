@@ -972,7 +972,7 @@ initarm(struct arm64_bootparams *abp)
 	 * we'll end up searching for segments that we can safely use.  Those
 	 * segments also get excluded from phys_avail.
 	 */
-#if defined(KASAN)
+#if defined(KASAN) || defined(KMSAN)
 	pmap_bootstrap_san();
 #endif
 
