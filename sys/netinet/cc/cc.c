@@ -440,7 +440,7 @@ newreno_cc_after_idle(struct cc_var *ccv)
 	 * maximum of the former ssthresh or 3/4 of the old cwnd, to
 	 * not exit slow-start prematurely.
 	 */
-	rw = tcp_compute_initwnd(tcp_maxseg(ccv->ccvc.tcp));
+	rw = tcp_compute_initwnd(tcp_fixed_maxseg(ccv->ccvc.tcp));
 
 	CCV(ccv, snd_ssthresh) = max(CCV(ccv, snd_ssthresh),
 	    CCV(ccv, snd_cwnd)-(CCV(ccv, snd_cwnd)>>2));
