@@ -420,7 +420,7 @@ static void
 cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 {
 	struct cubic *cubic_data;
-	u_int mss;
+	uint32_t mss, pipe;
 
 	cubic_data = ccv->cc_data;
 	mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
@@ -476,12 +476,20 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 			cubic_data->undo_cwnd_prior = cubic_data->cwnd_prior;
 			cubic_data->undo_W_max = cubic_data->W_max;
 			cubic_data->undo_K = cubic_data->K;
+			if (V_tcp_do_newsack) {
+				pipe = tcp_compute_pipe(ccv->ccvc.tcp);
+			} else {
+				pipe = CCV(ccv, snd_nxt) -
+					CCV(ccv, snd_fack) +
+					CCV(ccv, sackhint.sack_bytes_rexmit);
+			}
+			CCV(ccv, snd_ssthresh) = max(2,
+				(((uint64_t)min(CCV(ccv, snd_wnd), pipe) *
+				CUBIC_BETA) >> CUBIC_SHIFT) / mss) * mss;
 		}
 		cubic_data->flags |= CUBICFLAG_CONG_EVENT | CUBICFLAG_RTO_EVENT;
 		cubic_data->undo_W_max = cubic_data->W_max;
 		cubic_data->num_cong_events++;
-			CCV(ccv, snd_ssthresh) = ((uint64_t)CCV(ccv, snd_cwnd) *
-					  CUBIC_BETA) >> CUBIC_SHIFT;
 		CCV(ccv, snd_cwnd) = mss;
 		break;
 

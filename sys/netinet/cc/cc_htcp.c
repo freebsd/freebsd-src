@@ -281,7 +281,7 @@ static void
 htcp_cong_signal(struct cc_var *ccv, uint32_t type)
 {
 	struct htcp *htcp_data;
-	u_int mss;
+	uint32_t mss, pipe;
 
 	htcp_data = ccv->cc_data;
 	mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
@@ -323,9 +323,17 @@ htcp_cong_signal(struct cc_var *ccv, uint32_t type)
 		break;
 
 	case CC_RTO:
-		CCV(ccv, snd_ssthresh) = max(min(CCV(ccv, snd_wnd),
-						 CCV(ccv, snd_cwnd)) / 2 / mss,
-					     2) * mss;
+		if (CCV(ccv, t_rxtshift) == 1) {
+			if (V_tcp_do_newsack) {
+				pipe = tcp_compute_pipe(ccv->ccvc.tcp);
+			} else {
+				pipe = CCV(ccv, snd_nxt) -
+					CCV(ccv, snd_fack) +
+					CCV(ccv, sackhint.sack_bytes_rexmit);
+			}
+			CCV(ccv, snd_ssthresh) = max(2,
+				min(CCV(ccv, snd_wnd), pipe) / 2 / mss) * mss;
+		}
 		CCV(ccv, snd_cwnd) = mss;
 		/*
 		 * Grab the current time and record it so we know when the

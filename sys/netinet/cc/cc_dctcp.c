@@ -240,7 +240,7 @@ static void
 dctcp_cong_signal(struct cc_var *ccv, uint32_t type)
 {
 	struct dctcp *dctcp_data;
-	u_int cwin, mss;
+	uint32_t cwin, mss, pipe;
 
 	if (CCV(ccv, t_flags2) & TF2_ECN_PERMIT) {
 		dctcp_data = ccv->cc_data;
@@ -292,9 +292,17 @@ dctcp_cong_signal(struct cc_var *ccv, uint32_t type)
 			dctcp_data->ece_curr = 1;
 			break;
 		case CC_RTO:
-			CCV(ccv, snd_ssthresh) = max(min(CCV(ccv, snd_wnd),
-							 CCV(ccv, snd_cwnd)) / 2 / mss,
-						     2) * mss;
+			if (CCV(ccv, t_rxtshift) == 1) {
+				if (V_tcp_do_newsack) {
+					pipe = tcp_compute_pipe(ccv->ccvc.tcp);
+				} else {
+					pipe = CCV(ccv, snd_nxt) -
+						CCV(ccv, snd_fack) +
+						CCV(ccv, sackhint.sack_bytes_rexmit);
+				}
+				CCV(ccv, snd_ssthresh) = max(2,
+					min(CCV(ccv, snd_wnd), pipe) / 2 / mss) * mss;
+			}
 			CCV(ccv, snd_cwnd) = mss;
 			dctcp_update_alpha(ccv);
 			dctcp_data->save_sndnxt += CCV(ccv, t_maxseg);

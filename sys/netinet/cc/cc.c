@@ -454,8 +454,7 @@ newreno_cc_after_idle(struct cc_var *ccv)
 void
 newreno_cc_cong_signal(struct cc_var *ccv, uint32_t type)
 {
-	uint32_t cwin, factor;
-	u_int mss;
+	uint32_t cwin, factor, mss, pipe;
 
 	cwin = CCV(ccv, snd_cwnd);
 	mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
@@ -489,9 +488,17 @@ newreno_cc_cong_signal(struct cc_var *ccv, uint32_t type)
 		}
 		break;
 	case CC_RTO:
-		CCV(ccv, snd_ssthresh) = max(min(CCV(ccv, snd_wnd),
-						 CCV(ccv, snd_cwnd)) / 2 / mss,
-					     2) * mss;
+		if (CCV(ccv, t_rxtshift) == 1) {
+			if (V_tcp_do_newsack) {
+				pipe = tcp_compute_pipe(ccv->ccvc.tcp);
+			} else {
+				pipe = CCV(ccv, snd_nxt) -
+					CCV(ccv, snd_fack) +
+					CCV(ccv, sackhint.sack_bytes_rexmit);
+			}
+			CCV(ccv, snd_ssthresh) = max(2,
+				min(CCV(ccv, snd_wnd), pipe) / 2 / mss) * mss;
+		}
 		CCV(ccv, snd_cwnd) = mss;
 		break;
 	}

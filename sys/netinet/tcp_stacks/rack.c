@@ -5948,8 +5948,11 @@ rack_cong_signal(struct tcpcb *tp, uint32_t type, uint32_t ack, int line)
 		tp->t_bytes_acked = 0;
 		rack->r_fast_output = 0;
 		EXIT_RECOVERY(tp->t_flags);
-		tp->snd_ssthresh = max(2, min(tp->snd_wnd, rack->r_ctl.cwnd_to_use) / 2 /
-		    ctf_fixed_maxseg(tp)) * ctf_fixed_maxseg(tp);
+		if (tp->t_rxtshift == 1) {
+			tp->snd_ssthresh = max(2,
+			    min(tp->snd_wnd, rack->r_ctl.cwnd_to_use) / 2 /
+			    ctf_fixed_maxseg(tp)) * ctf_fixed_maxseg(tp);
+		}
 		orig_cwnd = tp->snd_cwnd;
 		tp->snd_cwnd = ctf_fixed_maxseg(tp);
 		rack_log_to_prr(rack, 16, orig_cwnd, line);
