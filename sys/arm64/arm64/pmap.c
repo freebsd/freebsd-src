@@ -8175,6 +8175,12 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 		else if (i == pmap_l0_index(KASAN_MIN_ADDRESS))
 			sbuf_printf(sb, "\nKASAN shadow map:\n");
 #endif
+#ifdef KMSAN
+		else if (i == pmap_l0_index(KMSAN_SHAD_MIN_ADDRESS))
+			sbuf_printf(sb, "\nKMSAN shadow map:\n");
+		else if (i == pmap_l0_index(KMSAN_ORIG_MIN_ADDRESS))
+			sbuf_printf(sb, "\nKMSAN origin map:\n");
+#endif
 
 		l0e = kernel_pmap->pm_l0[i];
 		if ((l0e & ATTR_DESCR_VALID) == 0) {
