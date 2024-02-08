@@ -657,11 +657,20 @@ ATF_TC_BODY(rights_creds_payload, tc)
 	ATF_REQUIRE_MSG(len != -1 , "sendmsg failed: %s", strerror(errno));
 #if TEST_PROTO == SOCK_STREAM
 	ATF_REQUIRE_MSG((size_t)len < sendspace,
-	    "sendmsg: %zd bytes sent", len);
+	    "sendmsg: %zd bytes sent, expected < %lu", len, sendspace);
 #endif
 #if TEST_PROTO == SOCK_DGRAM
+	/*
+	 * sendmsg(2) can't truncate datagrams, only recvmsg(2) can.  There are
+	 * two options for the kernel here: either accept the datagram with
+	 * slight overcommit of the socket buffer space or return ENOBUFS for a
+	 * datagram that is smaller or equal to the socket buffer space.  Our
+	 * implementation does overcommit.  Explanation is simple: from our
+	 * side we see space available, we have no idea that remote side has
+	 * LOCAL_CREDS set.  From our side we expect sendmsg(2) to succeed.
+	 */
 	ATF_REQUIRE_MSG((size_t)len == sendspace,
-	    "sendmsg: %zd bytes sent", len);
+	    "sendmsg: %zd bytes sent, expected %lu", len, sendspace);
 #endif
 	rlen = recvfd_payload(fd[1], &getfd, buf, len,
 	    CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + CMSG_SPACE(sizeof(int)), 0);
