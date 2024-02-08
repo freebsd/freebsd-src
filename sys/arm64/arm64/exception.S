@@ -193,55 +193,89 @@
 2:
 .endm
 
+#ifdef KMSAN
+/*
+ * The KMSAN runtime relies on a TLS block to track initialization and origin
+ * state for function parameters and return values.  To keep this state
+ * consistent in the face of asynchronous kernel-mode traps, the runtime
+ * maintains a stack of blocks: when handling an exception or interrupt,
+ * kmsan_intr_enter() pushes the new block to be used until the handler is
+ * complete, at which point kmsan_intr_leave() restores the previous block.
+ *
+ * Thus, KMSAN_ENTER/LEAVE hooks are required only in handlers for events that
+ * may have happened while in kernel-mode.  In particular, they are not required
+ * around amd64_syscall() or ast() calls.  Otherwise, kmsan_intr_enter() can be
+ * called unconditionally, without distinguishing between entry from user-mode
+ * or kernel-mode.
+ */
+#define	KMSAN_ENTER	bl kmsan_intr_enter
+#define	KMSAN_LEAVE	bl kmsan_intr_leave
+#else
+#define	KMSAN_ENTER
+#define	KMSAN_LEAVE
+#endif
+
 ENTRY(handle_el1h_sync)
 	save_registers 1
+	KMSAN_ENTER
 	ldr	x0, [x18, #PC_CURTHREAD]
 	mov	x1, sp
 	bl	do_el1h_sync
+	KMSAN_LEAVE
 	restore_registers 1
 	ERET
 END(handle_el1h_sync)
 
 ENTRY(handle_el1h_irq)
 	save_registers 1
+	KMSAN_ENTER
 	mov	x0, sp
 	bl	intr_irq_handler
+	KMSAN_LEAVE
 	restore_registers 1
 	ERET
 END(handle_el1h_irq)
 
 ENTRY(handle_el0_sync)
 	save_registers 0
+	KMSAN_ENTER
 	ldr	x0, [x18, #PC_CURTHREAD]
 	mov	x1, sp
 	str	x1, [x0, #TD_FRAME]
 	bl	do_el0_sync
 	do_ast
+	KMSAN_LEAVE
 	restore_registers 0
 	ERET
 END(handle_el0_sync)
 
 ENTRY(handle_el0_irq)
 	save_registers 0
+	KMSAN_ENTER
 	mov	x0, sp
 	bl	intr_irq_handler
 	do_ast
+	KMSAN_LEAVE
 	restore_registers 0
 	ERET
 END(handle_el0_irq)
 
 ENTRY(handle_serror)
 	save_registers 0
+	KMSAN_ENTER
 	mov	x0, sp
 1:	bl	do_serror
 	b	1b
+	KMSAN_LEAVE
 END(handle_serror)
 
 ENTRY(handle_empty_exception)
 	save_registers 0
+	KMSAN_ENTER
 	mov	x0, sp
 1:	bl	unhandled_exception
 	b	1b
+	KMSAN_LEAVE
 END(handle_empty_exception)
 
 .macro	vector	name, el
