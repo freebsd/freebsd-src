@@ -69,12 +69,4 @@ SRCS+=_umtx_op_err.c
 VERSION_DEF=${LIBC_SRCTOP}/Versions.def
 SYMBOL_MAPS=${SYM_MAPS}
 
-# XXX: let libc install the manpages for now
-MAN=
-MLINKS=
-
-# XXX: move sys tests?
-#HAS_TESTS=
-#SUBDIR.${MK_TESTS}+= tests
-
 .include <bsd.lib.mk>
