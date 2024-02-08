@@ -17,7 +17,8 @@ VMDK_DESC=	VMWare, VirtualBox disk image
 QCOW2_DESC=	Qemu, KVM disk image
 RAW_DESC=	Unformatted raw disk image
 
-CLOUDWARE_TYPES?= BASIC-CI \
+CLOUDWARE_TYPES?= AZURE \
+		BASIC-CI \
 		EC2 \
 		GCE \
 		OCI \
