@@ -30,7 +30,7 @@
 #include <sys/syscall.h>
 
 static int
-simple_test(int expected)
+simple_test(int exit_status)
 {
     pid_t pid;
     int status;
@@ -40,15 +40,17 @@ simple_test(int expected)
     if (pid == -1) {
         return (0);
     } else if (pid == 0) {
-        syscall(SYS_exit, expected);
+        syscall(SYS_exit, exit_status);
     } else {
         syscall(SYS_wait4, pid, &status, 0, NULL);
         if (WIFEXITED(status)) {
-            return (WEXITSTATUS(status) == expected);
+            return (WEXITSTATUS(status) == exit_status);
         }
     }
     return (0);
 }
+
+
 
 ATF_TC(test_simple_test_89);
 ATF_TC_HEAD(test_simple_test_89, tc) {
