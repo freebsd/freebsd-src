@@ -728,6 +728,18 @@ pmap_ps_enabled(pmap_t pmap)
 	if (pmap->pm_stage != PM_STAGE1)
 		return (false);
 
+#ifdef KMSAN
+	/*
+	 * The break-before-make in pmap_update_entry() results in a situation
+	 * where a CPU may call into the KMSAN runtime while the entry is
+	 * invalid.  If the entry is used to map the current thread structure,
+	 * then the runtime will attempt to access unmapped memory.  Avoid this
+	 * by simply disabling superpage promotion for the kernel map.
+	 */
+	if (pmap == kernel_pmap)
+		return (false);
+#endif
+
 	return (superpages_enabled != 0);
 }
 
