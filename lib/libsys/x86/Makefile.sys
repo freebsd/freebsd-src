@@ -5,8 +5,10 @@ SRCS+= \
 	pkru.c \
 	sched_getcpu_x86.c
 
+.if ${LIB} == "sys"
 MAN+=	\
 	pkru.3
+.endif # ${LIB} == "sys"
 
 # Note: vdso support for hyperv only on amd64
 .if ${MACHINE_CPUARCH} == "amd64" && ${MK_HYPERV} != "no"
