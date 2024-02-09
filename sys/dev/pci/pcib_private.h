@@ -174,19 +174,9 @@ void		pcib_bridge_init(device_t dev);
 #ifdef NEW_PCIB
 const char	*pcib_child_name(device_t child);
 #endif
-int		pcib_child_present(device_t dev, device_t child);
 int		pcib_detach(device_t dev);
 int		pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
 int		pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
-struct resource *pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 
-					    rman_res_t start, rman_res_t end,
-					    rman_res_t count, u_int flags);
-#ifdef NEW_PCIB
-int		pcib_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *r, rman_res_t start, rman_res_t end);
-int		pcib_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r);
-#endif
 int		pcib_maxslots(device_t dev);
 int		pcib_maxfuncs(device_t dev);
 int		pcib_route_interrupt(device_t pcib, device_t dev, int pin);
