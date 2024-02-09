@@ -1542,7 +1542,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	    }
 	}
     } else
-	res = BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type, rid,
+	res = bus_generic_alloc_resource(bus, child, type, rid,
 	    start, end, count, flags);
 
     /*
