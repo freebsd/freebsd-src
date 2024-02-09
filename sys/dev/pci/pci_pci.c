@@ -60,6 +60,15 @@
 static int		pcib_probe(device_t dev);
 static int		pcib_suspend(device_t dev);
 static int		pcib_resume(device_t dev);
+
+static bus_child_present_t	pcib_child_present;
+static bus_alloc_resource_t	pcib_alloc_resource;
+#ifdef NEW_PCIB
+static bus_adjust_resource_t	pcib_adjust_resource;
+static bus_release_resource_t	pcib_release_resource;
+#endif
+static int		pcib_reset_child(device_t dev, device_t child, int flags);
+
 static int		pcib_power_for_sleep(device_t pcib, device_t dev,
 			    int *pstate);
 static int		pcib_ari_get_id(device_t pcib, device_t dev,
@@ -81,7 +90,6 @@ static void		pcib_pcie_dll_timeout(void *arg, int pending);
 #endif
 static int		pcib_request_feature_default(device_t pcib, device_t dev,
 			    enum pci_feature feature);
-static int		pcib_reset_child(device_t dev, device_t child, int flags);
 
 static device_method_t pcib_methods[] = {
     /* Device interface */
@@ -2269,7 +2277,7 @@ updatewin:
  * We have to trap resource allocation requests and ensure that the bridge
  * is set up to, or capable of handling them.
  */
-struct resource *
+static struct resource *
 pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
@@ -2358,7 +2366,7 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	return (r);
 }
 
-int
+static int
 pcib_adjust_resource(device_t bus, device_t child, int type, struct resource *r,
     rman_res_t start, rman_res_t end)
 {
@@ -2426,7 +2434,7 @@ pcib_adjust_resource(device_t bus, device_t child, int type, struct resource *r,
 	return (rman_adjust_resource(r, start, end));
 }
 
-int
+static int
 pcib_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
@@ -2449,7 +2457,7 @@ pcib_release_resource(device_t dev, device_t child, int type, int rid,
  * We have to trap resource allocation requests and ensure that the bridge
  * is set up to, or capable of handling them.
  */
-struct resource *
+static struct resource *
 pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
