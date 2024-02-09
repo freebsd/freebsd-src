@@ -462,8 +462,7 @@ EVENTHANDLER_DECLARE(acpi_video_event, acpi_event_handler_t);
 /* Device power control. */
 ACPI_STATUS	acpi_pwr_wake_enable(ACPI_HANDLE consumer, int enable);
 ACPI_STATUS	acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state);
-int		acpi_device_pwr_for_sleep(device_t bus, device_t dev,
-		    int *dstate);
+acpi_pwr_for_sleep_t	acpi_device_pwr_for_sleep;
 int		acpi_set_powerstate(device_t child, int state);
 
 /* APM emulation */
@@ -578,9 +577,8 @@ int		acpi_pxm_get_cpu_locality(int apic_id);
  * Returns the VM domain ID if found, or -1 if not found / invalid.
  */
 int		acpi_map_pxm_to_vm_domainid(int pxm);
-int		acpi_get_cpus(device_t dev, device_t child, enum cpu_sets op,
-		    size_t setsize, cpuset_t *cpuset);
-int		acpi_get_domain(device_t dev, device_t child, int *domain);
+bus_get_cpus_t		acpi_get_cpus;
+bus_get_domain_t	acpi_get_domain;
 
 #ifdef __aarch64__
 /*
