@@ -108,6 +108,7 @@
 #define	ID_TIGERLAKE			0xa0a3
 #define	ID_TIGERLAKE2			0x43a3
 #define	ID_GEMINILAKE			0x31d4
+#define	ID_CEDARFORK			0x18df
 #define	ID_ICELAKE			0x34a3
 #define	ID_ALDERLAKE			0x7aa3
 #define	ID_ALDERLAKE2			0x51a3
@@ -204,6 +205,8 @@ static const struct pci_device_table ichsmb_devices[] = {
 	  PCI_DESCR("Intel Tiger Lake SMBus controller") },
 	{ PCI_DEV(PCI_VENDOR_INTEL, ID_GEMINILAKE),
 	  PCI_DESCR("Intel Gemini Lake SMBus controller") },
+	{ PCI_DEV(PCI_VENDOR_INTEL, ID_CEDARFORK),
+	  PCI_DESCR("Intel Cedar Fork SMBus controller") },
 	{ PCI_DEV(PCI_VENDOR_INTEL, ID_ICELAKE),
 	  PCI_DESCR("Intel Ice Lake SMBus controller") },
 	{ PCI_DEV(PCI_VENDOR_INTEL, ID_ALDERLAKE),
