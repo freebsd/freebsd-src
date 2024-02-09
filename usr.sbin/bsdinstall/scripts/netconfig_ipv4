@@ -40,6 +40,7 @@ f_include $BSDCFG_SHARE/dialog.subr
 
 INTERFACE=$1
 IFCONFIG_PREFIX="$2"
+AUTO="${3:-}"
 test -z "$IFCONFIG_PREFIX" || IFCONFIG_PREFIX="$2 "
 case "${INTERFACE}" in
 "")	bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' \
@@ -47,9 +48,27 @@ case "${INTERFACE}" in
 	exit 1
 	;;
 esac
+case "$AUTO" in
+""|auto)
+	;;
+*)
+	bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' \
+	    --msgbox "Bad auto option '$AUTO'." 0 0
+	exit 1
+	;;
+esac
 
-bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' --yesno 'Would you like to use DHCP to configure this interface?' 0 0
-if [ $? -eq $BSDDIALOG_OK ]; then
+if [ -n "$AUTO" ]; then
+	DHCP=1
+else
+	bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' --yesno 'Would you like to use DHCP to configure this interface?' 0 0
+	if [ $? -eq $BSDDIALOG_OK ]; then
+		DHCP=1
+	else
+		DHCP=0
+	fi
+fi
+if [ $DHCP -eq 1 ]; then
 	if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
 		# XXX: get interface down otherwise after installation restart
 		# dhclient does not build a new resolv.conf (see PR262262).
@@ -59,6 +78,9 @@ if [ $? -eq $BSDDIALOG_OK ]; then
 		err=$( pkill -F /var/run/dhclient/dhclient.${INTERFACE}.pid; dhclient $INTERFACE 2>&1 )
 		if [ $? -ne 0 ]; then
 			f_dprintf "%s" "$err"
+			if [ -n "$AUTO" ]; then
+				exit 1
+			fi
 			bsddialog --backtitle "$OSNAME Installer" --msgbox "DHCP lease acquisition failed." 0 0
 			exec $0 ${INTERFACE} "${IFCONFIG_PREFIX}"
 		fi
