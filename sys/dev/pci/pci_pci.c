@@ -654,14 +654,14 @@ pcib_setup_secbus(device_t dev, struct pcib_secbus *bus, int min_count)
 	 */
 	rid = 0;
 	bus->res = bus_alloc_resource_anywhere(dev, PCI_RES_BUS, &rid,
-	    min_count, 0);
+	    min_count, RF_ACTIVE);
 	if (bus->res == NULL) {
 		/*
 		 * Fall back to just allocating a range of a single bus
 		 * number.
 		 */
 		bus->res = bus_alloc_resource_anywhere(dev, PCI_RES_BUS, &rid,
-		    1, 0);
+		    1, RF_ACTIVE);
 	} else if (rman_get_size(bus->res) < min_count)
 		/*
 		 * Attempt to grow the existing range to satisfy the
