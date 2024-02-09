@@ -913,6 +913,8 @@ xpt_init(void *dummy)
 	 * perform other XPT functions.
 	 */
 	devq = cam_simq_alloc(16);
+	if (devq == NULL)
+		return (ENOMEM);
 	xpt_sim = cam_sim_alloc(xptaction,
 				xptpoll,
 				"xpt",
