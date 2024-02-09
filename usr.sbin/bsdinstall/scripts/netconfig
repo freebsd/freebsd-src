@@ -73,8 +73,21 @@ if [ -z "$INTERFACES" ]; then
 fi
 
 exec 5>&1
-INTERFACE=`echo $BSDDIALOG_ITEMS | xargs -o bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' --menu 'Please select a network interface to configure:' 0 0 0 2>&1 1>&5`
-if [ $? -eq $BSDDIALOG_CANCEL ]; then exit 1; fi
+INTERFACE=$(echo $BSDDIALOG_ITEMS | xargs -o bsddialog \
+    --backtitle "$OSNAME Installer" --title 'Network Configuration' \
+    --ok-label 'Auto' --extra-button --extra-label 'Manual' \
+    --menu 'Please select a network interface to configure:' 0 0 0 2>&1 1>&5)
+# xargs collapses exit codes to 0/1 (ignoring signals and 255), so exploit
+# bsddialog output being empty when cancelling to distinguish Manual (Extra)
+# from Cancel.
+if [ $? -eq $BSDDIALOG_OK ]; then
+	AUTO=auto
+else
+	if [ -z "$INTERFACE" ]; then
+		exit 1
+	fi
+	AUTO=
+fi
 exec 5>&-
 
 : > $BSDINSTALL_TMPETC/._rc.conf.net
@@ -103,14 +116,22 @@ case $? in
 0)	IPV4_AVAIL=1 ;;
 esac
 
-if [ ${IPV4_AVAIL} -eq 1 ]; then
+AUTO_FAIL=
+if [ ${IPV4_AVAIL} -eq 1 -a -z "$AUTO" ]; then
 	bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' \
 	    --yesno 'Would you like to configure IPv4 for this interface?' 0 0
-	if [ $? -eq $BSDDIALOG_OK ]; then
-		bsdinstall netconfig_ipv4 ${INTERFACE} "${IFCONFIG_PREFIX}" || \
-		exec $0
-	else
+	if [ $? -ne $BSDDIALOG_OK ]; then
 		IPV4_AVAIL=0
+	fi
+fi
+if [ ${IPV4_AVAIL} -eq 1 ]; then
+	bsdinstall netconfig_ipv4 ${INTERFACE} "${IFCONFIG_PREFIX}" $AUTO
+	if [ $? -ne $BSDDIALOG_OK ]; then
+		if [ -z "$AUTO" ]; then
+			exec $0
+		fi
+		IPV4_AVAIL=0
+		AUTO_FAIL="$AUTO_FAIL${AUTO_FAIL:+, }IPv4"
 	fi
 fi
 # In case wlanconfig left an option and we do not support IPv4 we need to write
@@ -118,13 +139,21 @@ fi
 if [ ${IPV4_AVAIL} -eq 0 -a -n ${IFCONFIG_PREFIX} ]; then
 	sysrc -f $BSDINSTALL_TMPETC/._rc.conf.net ifconfig_$INTERFACE="${IFCONFIG_PREFIX}"
 fi
-if [ ${IPV6_AVAIL} -eq 1 ]; then
+if [ ${IPV6_AVAIL} -eq 1 -a -z "$AUTO" ]; then
 	bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' \
 	    --yesno 'Would you like to configure IPv6 for this interface?' 0 0
-	if [ $? -eq $BSDDIALOG_OK ]; then
-		bsdinstall netconfig_ipv6 ${INTERFACE} || exec $0
-	else
+	if [ $? -ne $BSDDIALOG_OK ]; then
 		IPV6_AVAIL=0
+	fi
+fi
+if [ ${IPV6_AVAIL} -eq 1 ]; then
+	bsdinstall netconfig_ipv6 ${INTERFACE} $AUTO
+	if [ $? -ne $BSDDIALOG_OK ]; then
+		if [ -z "$AUTO" ]; then
+			exec $0
+		fi
+		IPV6_AVAIL=0
+		AUTO_FAIL="$AUTO_FAIL${AUTO_FAIL:+, }IPv6"
 	fi
 fi
 
@@ -180,16 +209,28 @@ elif [ ${IPV4_AVAIL} -eq 1 ]; then
 	    'IPv4 DNS #1' 2 1 \"${IP4_1}\" 2 16 16 16 0
 	    'IPv4 DNS #2' 3 1 \"${IP4_2}\" 3 16 16 16 0"
 else
+	if [ -n "$AUTO_FAIL" ]; then
+		bsddialog --backtitle "$OSNAME Installer" \
+		    --msgbox "Failed to automatically configure interface (tried $AUTO_FAIL)." 0 0
+		exec $0
+	fi
 	exit 0
 fi
 
-exec 5>&1
-RESOLV=$(echo "${RESOLV}" | xargs -o bsddialog --backtitle "$OSNAME Installer" \
-	--title 'Network Configuration' \
-	--mixedform 'Resolver Configuration' 0 0 0 \
-2>&1 1>&5)
-if [ $? -eq $BSDDIALOG_CANCEL ]; then exec $0; fi
-exec 5>&-
+# Auto only guaranteed to have IPv4 and/or IPv6 address; may not have
+# nameserver available
+if [ -n "$AUTO" ] && [ -n "${IP4_1}" -o -n "${IP6_1}" ]; then
+	# Convert from bsddialog arguments to default output
+	RESOLV=$(echo "${RESOLV}" | xargs -n9 sh -c 'echo "$4"' '')
+else
+	exec 5>&1
+	RESOLV=$(echo "${RESOLV}" | xargs -o bsddialog --backtitle "$OSNAME Installer" \
+		--title 'Network Configuration' \
+		--mixedform 'Resolver Configuration' 0 0 0 \
+	2>&1 1>&5)
+	if [ $? -eq $BSDDIALOG_CANCEL ]; then exec $0; fi
+	exec 5>&-
+fi
 
 echo ${RESOLV} | tr ' ' '\n' | \
 awk '

@@ -48,19 +48,38 @@ f_include $BSDCFG_SHARE/dialog.subr
 #
 
 INTERFACE=$1
+AUTO="${2:-}"
 case "${INTERFACE}" in
 "")	bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' \
 	    --msgbox 'No interface specified for IPv6 configuration.' 0 0
 	exit 1
 	;;
 esac
+case "$AUTO" in
+""|auto)
+	;;
+*)
+	bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' \
+	    --msgbox "Bad auto option '$AUTO'." 0 0
+	exit 1
+	;;
+esac
 
 AGAIN=""
 while : ; do
-	MSG="Would you like to try stateless address autoconfiguration (SLAAC)${AGAIN}?"
-	bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' \
-	    --yesno "${MSG}" 0 0
-	if [ $? -eq $BSDDIALOG_OK ]; then
+	if [ -n "$AUTO" ]; then
+		SLAAC=1
+	else
+		MSG="Would you like to try stateless address autoconfiguration (SLAAC)${AGAIN}?"
+		bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' \
+		    --yesno "${MSG}" 0 0
+		if [ $? -eq $BSDDIALOG_OK ]; then
+			SLAAC=1
+		else
+			SLAAC=0
+		fi
+	fi
+	if [ $SLAAC -eq 1 ]; then
 		if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
 			bsddialog --backtitle "$OSNAME Installer" \
 			    --infobox "Sending Router Solicitation ..." 0 0
@@ -68,6 +87,9 @@ while : ; do
 			err=$( rtsol -F $INTERFACE 2>&1 )
 			if [ $? -ne 0 ]; then
 				f_dprintf "%s" "$err"
+				if [ -n "$AUTO" ]; then
+					exit 1
+				fi
 				bsddialog --backtitle "$OSNAME Installer" --msgbox "SLAAC failed." 0 0
 				AGAIN=" again"
 				continue
