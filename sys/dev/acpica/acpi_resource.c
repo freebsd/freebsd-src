@@ -737,8 +737,6 @@ acpi_res_set_end_dependent(device_t dev, void *context)
  * private rman.
  */
 
-static int	acpi_sysres_rid = 100;
-
 static int	acpi_sysres_probe(device_t dev);
 static int	acpi_sysres_attach(device_t dev);
 
@@ -780,6 +778,7 @@ static int
 acpi_sysres_attach(device_t dev)
 {
     device_t bus;
+    struct acpi_softc *bus_sc;
     struct resource_list_entry *bus_rle, *dev_rle;
     struct resource_list *bus_rl, *dev_rl;
     int done, type;
@@ -794,7 +793,8 @@ acpi_sysres_attach(device_t dev)
      */
     bus = device_get_parent(dev);
     dev_rl = BUS_GET_RESOURCE_LIST(bus, dev);
-    bus_rl = BUS_GET_RESOURCE_LIST(device_get_parent(bus), bus);
+    bus_sc = acpi_device_get_parent_softc(dev);
+    bus_rl = &bus_sc->sysres_rl;
     STAILQ_FOREACH(dev_rle, dev_rl, link) {
 	if (dev_rle->type != SYS_RES_IOPORT && dev_rle->type != SYS_RES_MEMORY)
 	    continue;
@@ -834,7 +834,7 @@ acpi_sysres_attach(device_t dev)
 
 	/* If we didn't merge with anything, add this resource. */
 	if (bus_rle == NULL)
-	    bus_set_resource(bus, type, acpi_sysres_rid++, start, count);
+	    resource_list_add_next(bus_rl, type, start, end, count);
     }
 
     /* After merging/moving resources to the parent, free the list. */
