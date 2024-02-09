@@ -111,52 +111,46 @@ static BOOLEAN	acpi_sleep_states[ACPI_S_STATE_COUNT];
 
 static void	acpi_lookup(void *arg, const char *name, device_t *dev);
 static int	acpi_modevent(struct module *mod, int event, void *junk);
-static int	acpi_probe(device_t dev);
-static int	acpi_attach(device_t dev);
-static int	acpi_suspend(device_t dev);
-static int	acpi_resume(device_t dev);
-static int	acpi_shutdown(device_t dev);
-static device_t	acpi_add_child(device_t bus, u_int order, const char *name,
-			int unit);
-static int	acpi_print_child(device_t bus, device_t child);
-static void	acpi_probe_nomatch(device_t bus, device_t child);
-static void	acpi_driver_added(device_t dev, driver_t *driver);
-static void	acpi_child_deleted(device_t dev, device_t child);
-static int	acpi_read_ivar(device_t dev, device_t child, int index,
-			uintptr_t *result);
-static int	acpi_write_ivar(device_t dev, device_t child, int index,
-			uintptr_t value);
-static struct resource_list *acpi_get_rlist(device_t dev, device_t child);
+
+static device_probe_t		acpi_probe;
+static device_attach_t		acpi_attach;
+static device_suspend_t		acpi_suspend;
+static device_resume_t		acpi_resume;
+static device_shutdown_t	acpi_shutdown;
+
+static bus_add_child_t		acpi_add_child;
+static bus_print_child_t	acpi_print_child;
+static bus_probe_nomatch_t	acpi_probe_nomatch;
+static bus_driver_added_t	acpi_driver_added;
+static bus_child_deleted_t	acpi_child_deleted;
+static bus_read_ivar_t		acpi_read_ivar;
+static bus_write_ivar_t		acpi_write_ivar;
+static bus_get_resource_list_t	acpi_get_rlist;
+static bus_set_resource_t	acpi_set_resource;
+static bus_alloc_resource_t	acpi_alloc_resource;
+static bus_adjust_resource_t	acpi_adjust_resource;
+static bus_release_resource_t	acpi_release_resource;
+static bus_delete_resource_t	acpi_delete_resource;
+static bus_child_pnpinfo_t	acpi_child_pnpinfo_method;
+static bus_child_location_t	acpi_child_location_method;
+static bus_hint_device_unit_t	acpi_hint_device_unit;
+static bus_get_property_t	acpi_bus_get_prop;
+static bus_get_device_path_t	acpi_get_device_path;
+
+static acpi_id_probe_t		acpi_device_id_probe;
+static acpi_evaluate_object_t	acpi_device_eval_obj;
+static acpi_get_property_t	acpi_device_get_prop;
+static acpi_scan_children_t	acpi_device_scan_children;
+
+static isa_pnp_probe_t		acpi_isa_pnp_probe;
+
 static void	acpi_reserve_resources(device_t dev);
 static int	acpi_sysres_alloc(device_t dev);
-static int	acpi_set_resource(device_t dev, device_t child, int type,
-			int rid, rman_res_t start, rman_res_t count);
-static struct resource *acpi_alloc_resource(device_t bus, device_t child,
-			int type, int *rid, rman_res_t start, rman_res_t end,
-			rman_res_t count, u_int flags);
-static int	acpi_adjust_resource(device_t bus, device_t child, int type,
-			struct resource *r, rman_res_t start, rman_res_t end);
-static int	acpi_release_resource(device_t bus, device_t child, int type,
-			int rid, struct resource *r);
-static void	acpi_delete_resource(device_t bus, device_t child, int type,
-		    int rid);
 static uint32_t	acpi_isa_get_logicalid(device_t dev);
 static int	acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count);
-static ssize_t acpi_bus_get_prop(device_t bus, device_t child, const char *propname,
-		    void *propvalue, size_t size, device_property_type_t type);
-static int	acpi_device_id_probe(device_t bus, device_t dev, char **ids, char **match);
-static ACPI_STATUS acpi_device_eval_obj(device_t bus, device_t dev,
-		    ACPI_STRING pathname, ACPI_OBJECT_LIST *parameters,
-		    ACPI_BUFFER *ret);
-static ACPI_STATUS acpi_device_get_prop(device_t bus, device_t dev,
-		    ACPI_STRING propname, const ACPI_OBJECT **value);
 static ACPI_STATUS acpi_device_scan_cb(ACPI_HANDLE h, UINT32 level,
 		    void *context, void **retval);
-static ACPI_STATUS acpi_device_scan_children(device_t bus, device_t dev,
-		    int max_depth, acpi_scan_cb_t user_fn, void *arg);
 static ACPI_STATUS acpi_find_dsd(struct acpi_device *ad);
-static int	acpi_isa_pnp_probe(device_t bus, device_t child,
-		    struct isa_pnp_id *ids);
 static void	acpi_platform_osc(device_t dev);
 static void	acpi_probe_children(device_t bus);
 static void	acpi_probe_order(ACPI_HANDLE handle, int *order);
@@ -181,15 +175,7 @@ static int	acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_debug_objects_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_pm_func(u_long cmd, void *arg, ...);
-static int	acpi_child_location_method(device_t acdev, device_t child,
-		    struct sbuf *sb);
-static int	acpi_child_pnpinfo_method(device_t acdev, device_t child,
-		    struct sbuf *sb);
-static int	acpi_get_device_path(device_t bus, device_t child,
-		    const char *locator, struct sbuf *sb);
 static void	acpi_enable_pcie(void);
-static void	acpi_hint_device_unit(device_t acdev, device_t child,
-		    const char *name, int *unitp);
 static void	acpi_reset_interfaces(device_t dev);
 
 static device_method_t acpi_methods[] = {
