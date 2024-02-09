@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd August 16, 2022
+.Dd January 31, 2024
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -47,7 +47,13 @@
 .It
 .Ic check_process Ar procname Op Ar interpreter
 .It
+.Ic DebugOn Ar tag ...
+.It
+.Ic DebugOff Ar tag ...
+.It
 .Ic debug Ar message
+.It
+.Ic dot Ar file ...
 .It
 .Ic err Ar exitval Ar message
 .It
@@ -55,13 +61,19 @@
 .It
 .Ic info Ar message
 .It
+.Ic is_verified Ar file
+.It
 .Ic load_kld Oo Fl e Ar regex Oc Oo Fl m Ar module Oc Ar file
 .It
-.Ic load_rc_config Op Ar service
+.Ic load_rc_config Oo Ar flag Oc Op Ar service
 .It
 .Ic load_rc_config_var Ar name Ar var
 .It
 .Ic mount_critical_filesystems Ar type
+.It
+.Ic rc_log Ar message
+.It
+.It rc_trace Ar level Ar message
 .It
 .Ic rc_usage Ar command ...
 .It
@@ -71,7 +83,15 @@
 .It
 .Ic run_rc_script Ar file Ar argument
 .It
+.Ic run_rc_scripts Oo options Oc Ar file ...
+.It
+.Ic safe_dot Ar file ...
+.It
+.Ic sdot Ar file ...
+.It
 .Ic startmsg Oo Fl n Oc Ar message
+.It
+.Ic vdot Ar file ...
 .It
 .Ic wait_for_pids Op Ar pid ...
 .It
@@ -191,6 +211,43 @@ argument that matches
 .Ar interpreter
 is handled as per
 .Ic check_pidfile .
+.It Ic DebugOn Ar tag ...
+Enable tracing if not already enabled,
+and any
+.Ar tag
+is found in
+.Va DEBUG_SH
+(a comma separated list of tags).
+.Pp
+Record the
+.Ar tag
+that caused it to be enabled in
+.Va DEBUG_ON ,
+set
+.Va DEBUG_DO
+empty and
+.Va DEBUG_SKIP
+to
+.Ql \&: .
+.Pp
+See
+.Xr debug.sh 8
+for more details.
+.It Ic DebugOff Ar tag ...
+Disable tracing if enabled and any
+.Ar tag
+matches
+.Va DEBUG_ON ,
+which means it was the reason tracing was enabled.
+.Pp
+Set
+.Va DEBUG_DO
+to
+.Ql \&: ,
+and
+.Va DEBUG_ON ,
+.Va DEBUG_SKIP
+empty.
 .It Ic debug Ar message
 Display a debugging message to
 .Va stderr ,
@@ -212,6 +269,23 @@ by the
 .Xr rc.conf 5
 variable
 .Va rc_debug .
+.It Ic dot Ar file ...
+For reading in unverified files.
+.Pp
+Ensure shell
+.Li verify
+option is off.
+This option is only meaningful when
+.Xr mac_veriexec 4
+is active.
+.Pp
+Read each
+.Ar file
+if it exists.
+.Pp
+Restore previous state of the
+.Li verify
+option.
 .It Ic err Ar exitval message
 Display an error message to
 .Va stderr ,
@@ -248,6 +322,18 @@ If the script fails for any reason it will output a warning
 and return with a return value of 1.
 If it was successful
 it will return 0.
+.It Ic is_verified Ar file
+If
+.Xr veriexec 8
+does not exist, or
+.Xr mac_veriexec 4
+is not active, just return success.
+Otherwise use
+.Xr veriexec 8
+to check if
+.Ar file
+is verified.
+If not verified the return code will be 80 (EAUTH).
 .It Ic info Ar message
 Display an informational message to
 .Va stdout ,
@@ -279,7 +365,7 @@ regular expression matching the module name can be supplied via
 By default, the module is assumed to have the same name as
 .Ar file ,
 which is not always the case.
-.It Ic load_rc_config Op Ar service
+.It Ic load_rc_config Oo Ar flag Oc Op Ar service
 Source in the configuration file(s) for
 .Ar service .
 If no
@@ -298,6 +384,26 @@ arguments defined by the calling script, to provide an easy
 mechanism for an administrator to override the behaviour of a given
 .Xr rc.d 8
 script without requiring the editing of that script.
+.Pp
+The function
+.Ic dot
+is used to read configuration unless
+.Ar flag
+is:
+.Bl -tag -width Ds
+.It Fl s
+use
+.Ic sdot
+to read configuration,
+because we want verified configuration or
+to use
+.Ic safe_dot
+to read an unverified configuration.
+.It Fl v
+use
+.Ic vdot
+to read in configuration only if it is verified.
+.El
 .It Ic load_rc_config_var Ar name Ar var
 Read the
 .Xr rc.conf 5
@@ -317,6 +423,34 @@ variable
 .Va critical_filesystems_ Ns Ar type ,
 mounting each one that
 is not currently mounted.
+.It Ic rc_log Ar message
+Output
+.Ar message
+with a timestamp, which is both human readable and
+easily parsed for post processing, using:
+.Bd -literal -offset indent
+date "+@ %s [%Y-%m-%d %H:%M:%S %Z] $*"
+.Ed
+.It Ic rc_trace Ar level Ar message
+If the file
+.Pa /etc/rc.conf.d/rc_trace
+exists and is not empty attempt to set
+.Va RC_LEVEL
+based on its content.
+If the file is empty or does not contain
+a value for
+.Va RC_LEVEL ,
+set it to
+Li 0 .
+.Pp
+If
+.Ar level
+is greater than or equal to
+.Va RC_LEVEL
+pass
+.Ar message
+to
+.Ic rc_log .
 .It Ic rc_usage Ar command ...
 Print a usage message for
 .Va $0 ,
@@ -849,6 +983,16 @@ is started:
 .Ar argument Ns Va _postcmd .
 .Ed
 .Pp
+Call
+.Ic rc_trace
+to indicate that
+.Ar file
+is to be run.
+.Pp
+However, if
+.Ic is_verified Ar file
+fails, just return.
+.Pp
 The startup behaviour of
 .Ar file
 depends upon the following checks:
@@ -885,6 +1029,54 @@ otherwise source
 .Ar file
 into the current shell.
 .El
+.It Ic run_rc_scripts Oo options Oc file ...
+Call
+.Ic run_rc_script
+for each
+.Ar file ,
+unless it is already recorded as having been run.
+.Pp
+The
+.Ar options
+are:
+.Bl -tag -width "--break break"
+.It Ic --arg Ar arg
+Pass
+.Ar arg
+to
+.Ic run_rc_script ,
+default is
+.Ar _boot
+set by
+.Xr rc 8 .
+.It Ic --break Ar break
+Stop processing if any
+.Ar file
+matches any
+.Ar break
+.El
+.It Ic safe_dot Ar file ...
+Used by
+.Ic sdot
+when
+.Xr mac_veriexec 4
+is active and
+.Ar file
+is not verified.
+.Pp
+This function limits the input from
+.Ar file
+to simple variable assignments with any
+non-alphanumeric characters replaced with
+.Ql _ .
+.It Ic sdot Ar file ...
+For reading in configuration files.
+Skip files that do not exist or are empty.
+Try using
+.Ic vdot
+and if that fails (the file is unverified)
+fall back to using
+.Ic safe_dot .
 .It Ic startmsg Oo Fl n Oc Ar message
 Display a start message to
 .Va stdout .
@@ -914,6 +1106,27 @@ signal is sent to the parent
 process, which is assumed to be
 .Xr rc 8 .
 Otherwise, the shell exits with a non-zero status.
+.It Ic vdot Ar file ...
+For reading in only verified files.
+.Pp
+Ensure shell
+.Li verify
+option is on.
+This option is only meaningful when
+.Xr mac_veriexec 4
+is active,
+otherwise this function is effectively the same as
+.Ic dot .
+.Pp
+Read in each
+.Ar file
+if it exists and
+.Ic is_verfied Ar file
+is successful, otherwise set return code to 80 (EAUTH).
+.Pp
+Restore previous state of the
+.Li verify
+option.
 .It Ic wait_for_pids Op Ar pid ...
 Wait until all of the provided
 .Ar pids
@@ -943,6 +1156,7 @@ file resides in
 .Pa /etc .
 .El
 .Sh SEE ALSO
+.Xr debug.sh 8 ,
 .Xr rc.conf 5 ,
 .Xr rc 8
 .Sh HISTORY
