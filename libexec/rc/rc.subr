@@ -66,6 +66,122 @@ rc_service="$0"
 #	functions
 #	---------
 
+# is_verified file
+#	if VERIEXEC is active check that $file is verified
+#
+VERIEXEC="/sbin/veriexec"
+if test -x $VERIEXEC && $VERIEXEC -i active > /dev/null 2>&1; then
+	is_verified() { $VERIEXEC -x $1; }
+else
+	is_verified() { return 0; }
+fi
+
+# indicate that we have vdot
+_VDOT_SH=:
+
+# current state of O_VERIFY
+o_verify()
+{
+	set -o | sed -n '/^verify/s,.*[[:space:]],,p'
+}
+
+##
+# o_verify_set want [save]
+#
+# record current state of verify in $save
+# and set it to $want if different
+#
+o_verify_set() {
+	local x=$(o_verify)
+
+	[ -z "$x" ] && return 0
+	[ -z "$2" ] || eval $2=$x
+	[ "$x" = "$1" ] && return 0
+	case "$1" in
+	on)
+		set -o verify
+		;;
+	off)
+		set +o verify
+		;;
+	esac
+}
+
+# for unverified files
+dotted=
+dot()
+{
+	local f verify
+
+	o_verify_set off verify
+	for f in "$@"; do
+		if [ -f $f -a -s $f ]; then
+			dotted="$dotted $f"
+			. $f
+		fi
+	done
+	o_verify_set $verify
+}
+
+# try for verified, fallback to safe
+sdot()
+{
+	local f
+
+	for f in "$@"; do
+		[ -f $f -a -s $f ] || continue
+		vdot $f || safe_dot $f
+	done
+}
+
+# convenience function - skip if not verified
+vdot()
+{
+	local f rc=0 verify
+
+	o_verify_set on verify
+	for f in "$@"; do
+		[ -f $f -a -s $f ] || continue
+		if is_verified $f 2> /dev/null; then
+			dotted="$dotted $f"
+			. $f
+		else
+			rc=80	# EAUTH
+		fi
+	done
+	o_verify_set $verify
+	return $rc
+}
+
+# do we have $1 (could be a function)
+have()
+{
+       type "$1" > /dev/null 2>&1
+}
+
+# provide consistent means of logging progress
+rc_log()
+{
+	date "+@ %s [%Y-%m-%d %H:%M:%S %Z] $*"
+}
+
+# only rc_log if tracing enabled
+# and $level >= $RC_LEVEL
+rc_trace()
+{
+	local level=$1; shift
+	local cf=/etc/rc.conf.d/rc_trace
+
+	if [ -z "$RC_LEVEL" ]; then
+		[ -f $cf ] || return
+		[ -s $cf ] && \
+		RC_LEVEL=$(sed -n '/^RC_LEVEL=/ { s/.*=//p;q; }' $cf)
+		RC_LEVEL=${RC_LEVEL:-0}
+	fi
+	[ ${RC_LEVEL:-0} -ge ${level:-0} ] || return
+	rc_log "$@"
+}
+
 # list_vars pattern
 #	List variables matching glob pattern.
 #
@@ -924,6 +1040,8 @@ run_rc_command()
 		err 3 'run_rc_command: $name is not set.'
 	fi
 
+	DebugOn rc:$name rc:$name:$rc_arg $name:$rc_arg
+
 	# Don't repeat the first argument when passing additional command-
 	# line arguments to the command subroutines.
 	#
@@ -1077,6 +1195,7 @@ run_rc_command()
 		     _postcmd=\$${rc_arg}_postcmd
 
 		if [ -n "$_cmd" ]; then
+			rc_trace 1 "$_cmd"
 			if [ -n "$_env" ]; then
 				eval "export -- $_env"
 			fi
@@ -1449,6 +1568,10 @@ run_rc_script()
 		required_vars
 	eval unset ${_arg}_cmd ${_arg}_precmd ${_arg}_postcmd
 
+	rc_trace 0 "$_file $_arg"
+	# don't use it if we don't trust it
+	is_verified $_file || return
+
 	rc_service="$_file"
 	case "$_file" in
 	/etc/rc.d/*.sh)			# no longer allowed in the base
@@ -1459,6 +1582,8 @@ run_rc_script()
 		;;
 	*)				# run in subshell
 		if [ -x $_file ]; then
+			DebugOn $_file $_file:$_arg rc:${_file##*/} rc:${_file##*/}:$_arg ${_file##*/} ${_file##*/}:$_arg
+
 			if [ -n "$rc_boottrace" ]; then
 				boottrace_fn "$_file" "$_arg"
 			elif [ -n "$rc_fast_and_loose" ]; then
@@ -1469,9 +1594,63 @@ run_rc_script()
 				  trap "echo Script $_file running >&2" 29
 				  set $_arg; . $_file )
 			fi
+			DebugOff $_file $_file:$_arg rc:${_file##*/} rc:${_file##*/}:$_arg ${_file##*/} ${_file##*/}:$_arg
 		fi
 		;;
 	esac
+}
+
+#
+# run_rc_scripts [options] file [...]
+#
+# Call `run_rc_script' for each "file" unless already listed in
+# $_rc_elem_done.
+#
+# Options:
+#
+#	--arg "arg"
+#		Pass "arg" to `run_rc_script' default is $_boot.
+#
+#	--break "marker"
+#		If any "file" matches "marker" stop processing.
+#
+_rc_elem_done=
+run_rc_scripts()
+{
+	local _arg=${_boot}
+	local _rc_elem
+	local _rc_breaks=
+
+	while :; do
+		case "$1" in
+		--arg)
+                        _arg="$2"
+                        shift 2
+                        ;;
+		--break)
+                        _rc_breaks="$_rc_breaks $2"
+                        shift 2
+                        ;;
+		*)
+                        break
+                        ;;
+		esac
+	done
+	for _rc_elem in "$@"; do
+		: _rc_elem=$_rc_elem
+		case " $_rc_elem_done " in
+		*" $_rc_elem "*)
+                        continue
+                        ;;
+		esac
+		run_rc_script ${_rc_elem} ${_arg}
+		_rc_elem_done="$_rc_elem_done $_rc_elem"
+		case " $_rc_breaks " in
+		*" ${_rc_elem##*/} "*)
+                        break
+                        ;;
+		esac
+	done
 }
 
 boottrace_fn()
@@ -1502,19 +1681,42 @@ boottrace_sysctl()
 #
 load_rc_config()
 {
-	local _name _rcvar_val _var _defval _v _msg _new _d
+	local _name _rcvar_val _var _defval _v _msg _new _d _dot
 	_name=$1
+	_dot=${load_rc_config_reader:-dot}
+
+	case "$_dot" in
+	dot|[sv]dot)
+		;;
+	*)	warn "Ignoring invalid load_rc_config_reader"
+		_dot=dot
+		;;
+	esac
+	case "$1" in
+	-s|--safe)
+                _dot=sdot
+                _name=$2
+                shift
+                ;;
+	-v|--verify)
+                _dot=vdot
+                _name=$2
+                shift
+                ;;
+	esac
+
+	DebugOn rc:$_name $_name
 
 	if ${_rc_conf_loaded:-false}; then
 		:
 	else
 		if [ -r /etc/defaults/rc.conf ]; then
 			debug "Sourcing /etc/defaults/rc.conf"
-			. /etc/defaults/rc.conf
+			$_dot /etc/defaults/rc.conf
 			source_rc_confs
 		elif [ -r /etc/rc.conf ]; then
 			debug "Sourcing /etc/rc.conf (/etc/defaults/rc.conf doesn't exist)."
-			. /etc/rc.conf
+			$_dot /etc/rc.conf
 		fi
 		_rc_conf_loaded=true
 	fi
@@ -1526,13 +1728,13 @@ load_rc_config()
 			_d=${_d%/rc.d}
 			if [ -f ${_d}/rc.conf.d/"$_name" ]; then
 				debug "Sourcing ${_d}/rc.conf.d/$_name"
-				. ${_d}/rc.conf.d/"$_name"
+				$_dot ${_d}/rc.conf.d/"$_name"
 			elif [ -d ${_d}/rc.conf.d/"$_name" ] ; then
 				local _rc
 				for _rc in ${_d}/rc.conf.d/"$_name"/* ; do
 					if [ -f "$_rc" ] ; then
 						debug "Sourcing $_rc"
-						. "$_rc"
+						$_dot "$_rc"
 					fi
 				done
 			fi
@@ -2285,4 +2487,25 @@ fi
 boottrace_cmd=`command -v boottrace`
 if [ -n "$boottrace_cmd" ] && [ "`${SYSCTL_N} -q kern.boottrace.enabled`" = "1" ]; then
 	rc_boottrace=YES
+fi
+
+# Allow for local additions and overrides.
+# Use vdot to ensure the file has not been tampered with.
+vdot /etc/local.rc.subr
+
+# safe_eval.sh provides safe_dot - for untrusted files
+$_SAFE_EVAL_SH vdot /libexec/safe_eval.sh
+$_DEBUG_SH vdot /libexec/debug.sh
+
+# Ensure we can still operate if debug.sh and
+# safe_eval.sh are not found.
+if have DebugOn; then
+	# allow DEBUG_SH to be set from loader prompt
+	DEBUG_SH=${DEBUG_SH:-$(kenv -q DEBUG_SH)}
+else
+	DebugOn() { return 0; }
+	DebugOff() { return 0; }
+fi
+if ! have save_dot; then
+	safe_dot() { dot "$@"; }
 fi
