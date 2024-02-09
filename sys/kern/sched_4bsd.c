@@ -981,15 +981,9 @@ void
 sched_lend_user_prio_cond(struct thread *td, u_char prio)
 {
 
-	if (td->td_lend_user_pri != prio)
-		goto lend;
-	if (td->td_user_pri != min(prio, td->td_base_user_pri))
-		goto lend;
-	if (td->td_priority != td->td_user_pri)
-		goto lend;
-	return;
+	if (td->td_lend_user_pri == prio)
+		return;
 
-lend:
 	thread_lock(td);
 	sched_lend_user_prio(td, prio);
 	thread_unlock(td);
