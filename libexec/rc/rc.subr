@@ -82,7 +82,10 @@ _VDOT_SH=:
 # current state of O_VERIFY
 o_verify()
 {
-	set -o | sed -n '/^verify/s,.*[[:space:]],,p'
+	case $(echo $(set -o)) in
+	*verify" "off*) echo off;;
+	*verify" "on*) echo on;;
+	esac
 }
 
 ##
@@ -174,9 +177,15 @@ rc_trace()
 
 	if [ -z "$RC_LEVEL" ]; then
 		[ -f $cf ] || return
-		[ -s $cf ] && \
-		RC_LEVEL=$(sed -n '/^RC_LEVEL=/ { s/.*=//p;q; }' $cf)
-		RC_LEVEL=${RC_LEVEL:-0}
+		if [ -s $cf ]; then
+			# don't try to set RC_LEVEL without sed
+			if [ -x /usr/bin/sed ]; then
+				RC_LEVEL=$(sed -n '/^RC_LEVEL=/ { s/.*=//p;q; }' $cf)
+				RC_LEVEL=${RC_LEVEL:-0}
+			fi
+		else
+			RC_LEVEL=0
+		fi
 	fi
 	[ ${RC_LEVEL:-0} -ge ${level:-0} ] || return
 	rc_log "$@"
@@ -2493,8 +2502,22 @@ fi
 # Use vdot to ensure the file has not been tampered with.
 vdot /etc/local.rc.subr
 
-# safe_eval.sh provides safe_dot - for untrusted files
-$_SAFE_EVAL_SH vdot /libexec/safe_eval.sh
+# Avoid noise - when we do not have /usr mounted,
+# and we cannot use safe_dot without sed.
+if ! have basename; then
+	basename()
+	{
+		local b=${1%$2}
+		echo ${b##*/}
+	}
+	tty()
+	{
+		return 0
+	}
+else
+	# safe_eval.sh provides safe_dot - for untrusted files
+	$_SAFE_EVAL_SH vdot /libexec/safe_eval.sh
+fi
 $_DEBUG_SH vdot /libexec/debug.sh
 
 # Ensure we can still operate if debug.sh and
