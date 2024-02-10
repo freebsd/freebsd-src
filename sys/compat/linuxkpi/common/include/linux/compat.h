@@ -41,22 +41,28 @@ extern int linux_alloc_current(struct thread *, int flags);
 extern void linux_free_current(struct task_struct *);
 extern struct domainset *linux_get_vm_domain_set(int node);
 
+#define	__current_unallocated(td)	\
+	__predict_false((td)->td_lkpi_task == NULL)
+
 static inline void
 linux_set_current(struct thread *td)
 {
-	if (__predict_false(td->td_lkpi_task == NULL))
+	if (__current_unallocated(td))
 		lkpi_alloc_current(td, M_WAITOK);
 }
 
 static inline int
 linux_set_current_flags(struct thread *td, int flags)
 {
-	if (__predict_false(td->td_lkpi_task == NULL))
+	if (__current_unallocated(td))
 		return (lkpi_alloc_current(td, flags));
 	return (0);
 }
 
 #define	compat_ptr(x)		((void *)(uintptr_t)x)
 #define	ptr_to_compat(x)	((uintptr_t)x)
+
+typedef void fpu_safe_exec_cb_t(void *ctx);
+void lkpi_fpu_safe_exec(fpu_safe_exec_cb_t func, void *ctx);
 
 #endif	/* _LINUXKPI_LINUX_COMPAT_H_ */
