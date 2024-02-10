@@ -43,10 +43,6 @@
 #include <sys/sysctl.h>
 #include <vm/uma.h>
 
-#ifdef LKPI_HAVE_FPU_CTX
-#include <machine/fpu.h>
-#endif
-
 #ifdef DEV_APIC
 extern u_int first_msi_irq, num_msi_irqs;
 #endif
@@ -157,16 +153,6 @@ linux_alloc_current(struct thread *td, int flags)
 	return (0);
 }
 
-int
-linux_set_fpu_ctx(struct task_struct *task)
-{
-#ifdef LKPI_HAVE_FPU_CTX
-	if (task->fpu_ctx == NULL && curthread->td_critnest == 0)
-		task->fpu_ctx = fpu_kern_alloc_ctx(FPU_KERN_NOWAIT);
-#endif
-	return (task->fpu_ctx != NULL ? 0 : ENOMEM);
-}
-
 struct mm_struct *
 linux_get_task_mm(struct task_struct *task)
 {
@@ -190,10 +176,6 @@ void
 linux_free_current(struct task_struct *ts)
 {
 	mmput(ts->mm);
-#ifdef LKPI_HAVE_FPU_CTX
-	if (ts->fpu_ctx != NULL)
-		fpu_kern_free_ctx(ts->fpu_ctx);
-#endif
 	uma_zfree(linux_current_zone, ts);
 }
 
