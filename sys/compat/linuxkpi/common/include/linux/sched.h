@@ -64,7 +64,6 @@
 #define	TASK_COMM_LEN		(MAXCOMLEN + 1)
 
 struct seq_file;
-struct fpu_kern_ctx;
 
 struct work_struct;
 struct task_struct {
@@ -90,7 +89,6 @@ struct task_struct {
 	struct task_struct *group_leader;
 	unsigned rcu_section[TS_RCU_TYPE_MAX];
 	unsigned int fpu_ctx_level;
-	struct fpu_kern_ctx *fpu_ctx;
 };
 
 #define	current	({ \
