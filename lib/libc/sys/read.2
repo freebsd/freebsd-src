@@ -25,9 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)read.2	8.4 (Berkeley) 2/26/94
-.\"
-.Dd June 4, 2020
+.Dd February 10, 2024
 .Dt READ 2
 .Os
 .Sh NAME
@@ -222,7 +220,12 @@ for this file system.
 The value
 .Fa nbytes
 is greater than
-.Dv INT_MAX .
+.Dv SSIZE_MAX
+(or greater than
+.Dv INT_MAX ,
+if the sysctl
+.Va debug.iosize_max_clamp
+is non-zero).
 .El
 .Pp
 In addition,
@@ -248,7 +251,13 @@ The sum of the
 .Fa iov_len
 values in the
 .Fa iov
-array overflowed a 32-bit integer.
+array is greater than
+.Dv SSIZE_MAX
+(or greater than
+.Dv INT_MAX ,
+if the sysctl
+.Va debug.iosize_max_clamp
+is non-zero).
 .It Bq Er EFAULT
 Part of the
 .Fa iov
