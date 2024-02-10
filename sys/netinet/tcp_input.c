@@ -3022,6 +3022,7 @@ process_ACK:
 				 * we'll hang forever.
 				 */
 				if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
+					tcp_free_sackholes(tp);
 					soisdisconnected(so);
 					tcp_timer_activate(tp, TT_2MSL,
 					    (tcp_fast_finwait2_recycle ?
