@@ -2383,9 +2383,8 @@ tcp_discardcb(struct tcpcb *tp)
 #endif
 
 	INP_WLOCK_ASSERT(inp);
+	MPASS(!callout_active(&tp->t_callout));
 	MPASS(TAILQ_EMPTY(&tp->snd_holes));
-
-	tcp_timer_stop(tp);
 
 	/* free the reassembly queue, if any */
 	tcp_reass_flush(tp);
@@ -2522,6 +2521,7 @@ tcp_close(struct tcpcb *tp)
 		tcp_fastopen_decrement_counter(tp->t_tfo_pending);
 		tp->t_tfo_pending = NULL;
 	}
+	tcp_timer_stop(tp);
 	if (tp->t_fb->tfb_tcp_timer_stop_all != NULL)
 		tp->t_fb->tfb_tcp_timer_stop_all(tp);
 	in_pcbdrop(inp);
