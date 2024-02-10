@@ -25,6 +25,7 @@
  */
 
 #include <sys/cdefs.h>
+#include <linux/compat.h>
 #include <linux/slab.h>
 #include <linux/rcupdate.h>
 #include <linux/kernel.h>
@@ -204,6 +205,29 @@ linux_kmem_cache_destroy(struct linux_kmem_cache *c)
 	taskqueue_drain(linux_irq_work_tq, &c->cache_task);
 	uma_zdestroy(c->cache_zone);
 	free(c, M_KMALLOC);
+}
+
+struct lkpi_kmalloc_ctx {
+	size_t size;
+	gfp_t flags;
+	void *addr;
+};
+
+static void
+lkpi_kmalloc_cb(void *ctx)
+{
+	struct lkpi_kmalloc_ctx *lmc = ctx;
+
+	lmc->addr = __kmalloc(lmc->size, lmc->flags);
+}
+
+void *
+lkpi_kmalloc(size_t size, gfp_t flags)
+{
+	struct lkpi_kmalloc_ctx lmc = { .size = size, .flags = flags };
+
+	lkpi_fpu_safe_exec(&lkpi_kmalloc_cb, &lmc);
+	return(lmc.addr);
 }
 
 static void
