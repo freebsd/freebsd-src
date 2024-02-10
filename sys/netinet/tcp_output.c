@@ -1516,9 +1516,13 @@ out:
 		tcp_account_for_send(tp, len, (tp->snd_nxt != tp->snd_max), 0, hw_tls);
 	/*
 	 * In transmit state, time the transmission and arrange for
-	 * the retransmit.  In persist state, just set snd_max.
+	 * the retransmit.  In persist state, just set snd_max.  In a closed
+	 * state just return.
 	 */
-	if ((tp->t_flags & TF_FORCEDATA) == 0 ||
+	if (flags & TH_RST) {
+		TCPSTAT_INC(tcps_sndtotal);
+		return (0);
+	} else if ((tp->t_flags & TF_FORCEDATA) == 0 ||
 	    !tcp_timer_active(tp, TT_PERSIST)) {
 		tcp_seq startseq = tp->snd_nxt;
 
