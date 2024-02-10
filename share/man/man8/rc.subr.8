@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 31, 2024
+.Dd February 10, 2024
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -385,8 +385,10 @@ mechanism for an administrator to override the behaviour of a given
 .Xr rc.d 8
 script without requiring the editing of that script.
 .Pp
-The function
-.Ic dot
+The function named by
+.Va load_rc_config_reader
+(default is
+.Ic dot )
 is used to read configuration unless
 .Ar flag
 is:
@@ -404,6 +406,12 @@ use
 .Ic vdot
 to read in configuration only if it is verified.
 .El
+.Pp
+.Ic DebugOn
+will be called with tags derived from
+.Ar name
+to enable tracing if any appear in
+.Va DEBUG_SH .
 .It Ic load_rc_config_var Ar name Ar var
 Read the
 .Xr rc.conf 5
@@ -441,7 +449,7 @@ If the file is empty or does not contain
 a value for
 .Va RC_LEVEL ,
 set it to
-Li 0 .
+.Li 0 .
 .Pp
 If
 .Ar level
@@ -992,6 +1000,14 @@ is to be run.
 However, if
 .Ic is_verified Ar file
 fails, just return.
+.Pp
+.Ic DebugOn
+will be called with tags derrived from
+.Va name
+and
+.Va rc_arg
+to enable tracing if any of those tags appear in
+.Va DEBUG_SH .
 .Pp
 The startup behaviour of
 .Ar file
