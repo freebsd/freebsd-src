@@ -2709,6 +2709,7 @@ __elfN(note_procstat_auxv)(void *arg, struct sbuf *sb, size_t *sizep)
 	}
 }
 
+#define	MAX_NOTES_LOOP	4096
 bool
 __elfN(parse_notes)(struct image_params *imgp, Elf_Note *checknote,
     const char *note_vendor, const Elf_Phdr *pnote,
@@ -2748,9 +2749,15 @@ __elfN(parse_notes)(struct image_params *imgp, Elf_Note *checknote,
 		    pnote->p_offset + pnote->p_filesz);
 		buf = NULL;
 	}
-	for (i = 0; i < 100 && note >= note0 && note < note_end; i++) {
-		if (!aligned(note, Elf32_Addr) || (const char *)note_end -
-		    (const char *)note < sizeof(Elf_Note)) {
+	for (i = 0; i < MAX_NOTES_LOOP && note >= note0 && note < note_end;
+	    i++) {
+		if (!aligned(note, Elf32_Addr)) {
+			uprintf("Unaligned ELF note\n");
+			goto retf;
+		}
+		if ((const char *)note_end - (const char *)note <
+		    sizeof(Elf_Note)) {
+			uprintf("ELF note to short\n");
 			goto retf;
 		}
 		if (note->n_namesz != checknote->n_namesz ||
@@ -2770,6 +2777,8 @@ nextnote:
 		    roundup2(note->n_namesz, ELF_NOTE_ROUNDSIZE) +
 		    roundup2(note->n_descsz, ELF_NOTE_ROUNDSIZE));
 	}
+	if (i >= MAX_NOTES_LOOP)
+		uprintf("ELF note parser reached %d notes\n", i);
 retf:
 	res = false;
 ret:
