@@ -907,6 +907,7 @@ tcp_timer_activate(struct tcpcb *tp, tt_which which, u_int delta)
 #endif
 
 	INP_WLOCK_ASSERT(inp);
+	MPASS(tp->t_state > TCPS_CLOSED);
 
 	if (delta > 0) {
 		what = TT_STARTING;
