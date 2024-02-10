@@ -2383,6 +2383,7 @@ tcp_discardcb(struct tcpcb *tp)
 #endif
 
 	INP_WLOCK_ASSERT(inp);
+	MPASS(TAILQ_EMPTY(&tp->snd_holes));
 
 	tcp_timer_stop(tp);
 
@@ -2394,9 +2395,6 @@ tcp_discardcb(struct tcpcb *tp)
 	if (tp->t_flags & TF_TOE)
 		tcp_offload_detach(tp);
 #endif
-
-	tcp_free_sackholes(tp);
-
 #ifdef TCPPCAP
 	/* Free the TCP PCAP queues. */
 	tcp_pcap_drain(&(tp->t_inpkts));
@@ -2531,6 +2529,7 @@ tcp_close(struct tcpcb *tp)
 	if (tp->t_state != TCPS_CLOSED)
 		tcp_state_change(tp, TCPS_CLOSED);
 	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
+	tcp_free_sackholes(tp);
 	soisdisconnected(so);
 	if (inp->inp_flags & INP_SOCKREF) {
 		inp->inp_flags &= ~INP_SOCKREF;
