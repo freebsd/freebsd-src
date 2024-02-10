@@ -33,6 +33,11 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 
+#if defined(__aarch64__) || defined(__arm__) || defined(__amd64__) ||	\
+    defined(__i386__) || defined(__powerpc64__)
+#define	LKPI_HAVE_FPU_CTX
+#endif
+
 struct domainset;
 struct thread;
 struct task_struct;
