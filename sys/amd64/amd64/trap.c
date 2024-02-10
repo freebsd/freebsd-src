@@ -624,7 +624,7 @@ trap(struct trapframe *frame)
 	ksi.ksi_addr = (void *)addr;
 	if (uprintf_signal) {
 		uprintf("pid %d comm %s: signal %d err %#lx code %d type %d "
-		    "addr %#lx rsp %#lx rip %#lx rax %#lx"
+		    "addr %#lx rsp %#lx rip %#lx rax %#lx "
 		    "<%02x %02x %02x %02x %02x %02x %02x %02x>\n",
 		    p->p_pid, p->p_comm, signo, frame->tf_err, ucode, type,
 		    addr, frame->tf_rsp, frame->tf_rip, frame->tf_rax,
