@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
-#include "estrin.h"
+#include "poly_scalar_f64.h"
 #include "math_config.h"
 #include "pl_sig.h"
 #include "pl_test.h"
@@ -21,7 +21,6 @@
 #define Rt2MOne 0x3fda827999fcef32
 #define AbsMask 0x7fffffffffffffff
 #define ExpM63 0x3c00
-#define C(i) __log1p_data.coeffs[i]
 
 static inline double
 eval_poly (double f)
@@ -29,7 +28,7 @@ eval_poly (double f)
   double f2 = f * f;
   double f4 = f2 * f2;
   double f8 = f4 * f4;
-  return ESTRIN_18 (f, f2, f4, f8, f8 * f8, C);
+  return estrin_18_f64 (f, f2, f4, f8, f8 * f8, __log1p_data.coeffs);
 }
 
 /* log1p approximation using polynomial on reduced interval. Largest
@@ -126,11 +125,7 @@ log1p (double x)
 
 PL_SIG (S, D, 1, log1p, -0.9, 10.0)
 PL_TEST_ULP (log1p, 1.26)
-PL_TEST_INTERVAL (log1p, -10.0, 10.0, 10000)
-PL_TEST_INTERVAL (log1p, 0.0, 0x1p-23, 50000)
-PL_TEST_INTERVAL (log1p, 0x1p-23, 0.001, 50000)
-PL_TEST_INTERVAL (log1p, 0.001, 1.0, 50000)
-PL_TEST_INTERVAL (log1p, 0.0, -0x1p-23, 50000)
-PL_TEST_INTERVAL (log1p, -0x1p-23, -0.001, 50000)
-PL_TEST_INTERVAL (log1p, -0.001, -1.0, 50000)
-PL_TEST_INTERVAL (log1p, -1.0, inf, 5000)
+PL_TEST_SYM_INTERVAL (log1p, 0.0, 0x1p-23, 50000)
+PL_TEST_SYM_INTERVAL (log1p, 0x1p-23, 0.001, 50000)
+PL_TEST_SYM_INTERVAL (log1p, 0.001, 1.0, 50000)
+PL_TEST_SYM_INTERVAL (log1p, 1.0, inf, 5000)
