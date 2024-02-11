@@ -1,4 +1,5 @@
 
+.include <bsd.init.mk>
 .include "../lldb.pre.mk"
 
 LIB=		lldb

@@ -1,5 +1,5 @@
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
 .include "../clang.pre.mk"
 
 LIB=		clang
