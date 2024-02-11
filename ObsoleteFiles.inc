@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240213: caroot bundle updated
+OLD_FILES+=usr/share/certs/trusted/Security_Communication_Root_CA.pem
+
 # 20240112: replaced NetBSD tests for uniq with our own
 OLD_FILES+=usr/tests/usr.bin/uniq/d_basic.in
 OLD_FILES+=usr/tests/usr.bin/uniq/d_basic.out
