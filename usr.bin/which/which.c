@@ -45,7 +45,7 @@ int
 main(int argc, char **argv)
 {
 	char *p, *path;
-	ssize_t pathlen;
+	size_t pathlen;
 	int opt, status;
 
 	status = EXIT_SUCCESS;
