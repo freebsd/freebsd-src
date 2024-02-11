@@ -2,7 +2,11 @@
 .include <bsd.compiler.mk>
 
 PACKAGE=	clang
-MK_PIE:=	no	# Explicit libXXX.a references
+
+# Build only PIE static libraries; bsd.lib.mk does support this directly.
+MK_PIE:=	no
+CFLAGS+=	${PIEFLAG} ${SHARED_CFLAGS}
+CXXFLAGS+=	${PIEFLAG} ${SHARED_CXXFLAGS}
 
 .if ${COMPILER_TYPE} == "clang"
 DEBUG_FILES_CFLAGS= -gline-tables-only
