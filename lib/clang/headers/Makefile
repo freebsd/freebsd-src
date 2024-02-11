@@ -1,4 +1,5 @@
 
+.include <bsd.init.mk>
 .include "../clang.pre.mk"
 
 .PATH:		${CLANG_SRCS}/lib/Headers
