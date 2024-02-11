@@ -256,6 +256,14 @@ CFLAGS+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clan
 .endif
 .endif
 
+#
+# Some newer toolchains default to DWARF 5, which isn't supported by some build
+# tools yet.
+#
+.if (${CFLAGS:M-g} != "" || ${CFLAGS:M-g[0-3]} != "") && ${CFLAGS:M-gdwarf*} == ""
+CFLAGS+=	-gdwarf-4
+.endif
+
 CFLAGS+= ${CWARNFLAGS:M*} ${CWARNFLAGS.${.IMPSRC:T}}
 CFLAGS+= ${CWARNFLAGS.${COMPILER_TYPE}}
 CFLAGS+= ${CFLAGS.${COMPILER_TYPE}} ${CFLAGS.${.IMPSRC:T}}
