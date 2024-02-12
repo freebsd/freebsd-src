@@ -95,7 +95,7 @@ main(int argc, char *argv[])
 	struct utmpx utx;
 	const struct passwd *pw;
 	int ch, howto, i, sverrno;
-	bool fflag, lflag, nflag, qflag, Nflag;
+	bool Dflag, fflag, lflag, Nflag, nflag, qflag;
 	uint64_t pageins;
 	const char *user, *kernel = NULL;
 
@@ -104,11 +104,14 @@ main(int argc, char *argv[])
 		howto = RB_HALT;
 	} else
 		howto = 0;
-	fflag = lflag = nflag = qflag = Nflag = false;
-	while ((ch = getopt(argc, argv, "cdk:lNnpqr")) != -1)
+	Dflag = fflag = lflag = Nflag = nflag = qflag = false;
+	while ((ch = getopt(argc, argv, "cDdk:lNnpqr")) != -1)
 		switch(ch) {
 		case 'c':
 			howto |= RB_POWERCYCLE;
+			break;
+		case 'D':
+			Dflag = true;
 			break;
 		case 'd':
 			howto |= RB_DUMP;
@@ -148,6 +151,8 @@ main(int argc, char *argv[])
 	if (argc != 0)
 		usage();
 
+	if (Dflag && ((howto & ~RB_HALT) != 0  || kernel != NULL))
+		errx(1, "cannot delete existing nextboot config and do anything else");
 	if ((howto & (RB_DUMP | RB_HALT)) == (RB_DUMP | RB_HALT))
 		errx(1, "cannot dump (-d) when halting; must reboot instead");
 	if (Nflag && (howto & RB_NOSYNC) != 0)
@@ -161,6 +166,12 @@ main(int argc, char *argv[])
 	if (geteuid()) {
 		errno = EPERM;
 		err(1, NULL);
+	}
+
+	if (Dflag) {
+		if (unlink(PATH_NEXTBOOT) != 0)
+			err(1, "unlink %s", PATH_NEXTBOOT);
+		exit(0);
 	}
 
 	if (qflag) {
