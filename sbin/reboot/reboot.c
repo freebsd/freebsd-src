@@ -49,17 +49,52 @@
 #include <unistd.h>
 #include <utmpx.h>
 
+#define PATH_NEXTBOOT "/boot/nextboot.conf"
+
 static void usage(void) __dead2;
 static uint64_t get_pageins(void);
 
 static bool dohalt;
+
+static void
+write_nextboot(const char *fn, const char *kernel, bool force)
+{
+	FILE *fp;
+
+#define E(...) do {				\
+		if (force) {			\
+			warn( __VA_ARGS__ );	\
+			return;			\
+		}				\
+		err(1, __VA_ARGS__);		\
+	} while (0)				\
+
+	fp = fopen(fn, "w");
+	if (fp == NULL)
+		E("Can't create %s to boot %s", fn, kernel);
+
+	if (fprintf(fp,
+	    "nextboot_enable=\"YES\"\n"
+	    "kernel=\"%s\"\n", kernel) < 0) {
+		int e;
+
+		e = errno;
+		fclose(fp);
+		if (unlink(fn))
+			warn("unlink %s", fn);
+		errno = e;
+		E("Can't write %s", fn);
+	}
+	fclose(fp);
+#undef E
+}
 
 int
 main(int argc, char *argv[])
 {
 	struct utmpx utx;
 	const struct passwd *pw;
-	int ch, howto, i, fd, sverrno;
+	int ch, howto, i, sverrno;
 	bool fflag, lflag, nflag, qflag, Nflag;
 	uint64_t pageins;
 	const char *user, *kernel = NULL;
@@ -147,15 +182,7 @@ main(int argc, char *argv[])
 				errx(1, "%s is not a file", k);
 			free(k);
 		}
-		fd = open("/boot/nextboot.conf", O_WRONLY | O_CREAT | O_TRUNC,
-		    0444);
-		if (fd > -1) {
-			(void)write(fd, "nextboot_enable=\"YES\"\n", 22);
-			(void)write(fd, "kernel=\"", 8L);
-			(void)write(fd, kernel, strlen(kernel));
-			(void)write(fd, "\"\n", 2);
-			close(fd);
-		}
+		write_nextboot(PATH_NEXTBOOT, kernel, fflag);
 	}
 
 	/* Log the reboot. */
