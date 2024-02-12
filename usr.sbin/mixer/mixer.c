@@ -118,8 +118,21 @@ main(int argc, char *argv[])
 
 	initctls(m);
 
-	if (dflag && set_dunit(m, dunit) < 0)
-		goto parse;
+	if (dflag) {
+		if (set_dunit(m, dunit) < 0)
+			goto parse;
+		else {
+			/*
+			 * Open current mixer since we changed the default
+			 * unit, otherwise we'll print and apply changes to the
+			 * old one.
+			 */
+			(void)mixer_close(m);
+			if ((m = mixer_open(NULL)) == NULL)
+				errx(1, "cannot open default mixer");
+			initctls(m);
+		}
+	}
 	if (sflag) {
 		printrecsrc(m, oflag);
 		(void)mixer_close(m);
