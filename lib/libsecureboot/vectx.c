@@ -306,19 +306,31 @@ vectx_lseek(struct vectx *ctx, off_t off, int whence)
 	DEBUG_PRINTF(3,
 	    ("%s(%s, %ld, %d)\n", __func__, ctx->vec_path, (long)off, whence));
 	if (whence == SEEK_END && off <= 0) {
-		if (ctx->vec_closing && ctx->vec_hashed < ctx->vec_size) {
-			DEBUG_PRINTF(3, ("%s: SEEK_END %ld\n",
-				__func__,
-				(long)(ctx->vec_size - ctx->vec_hashed)));
+		if (ctx->vec_size < 0) {
+			if (ctx->vec_closing) {
+				/* size unknown - read until EOF */
+				do {
+					n = vectx_read(ctx, buf, PAGE_SIZE);
+					if (n < 0)
+						return (n);
+				} while (n > 0);
+				return (ctx->vec_off);
+			}
+		} else {
+			if (ctx->vec_closing && ctx->vec_hashed < ctx->vec_size) {
+				DEBUG_PRINTF(3, ("%s: SEEK_END %ld\n",
+					__func__,
+					(long)(ctx->vec_size - ctx->vec_hashed)));
+			}
+			whence = SEEK_SET;
+			off += ctx->vec_size;
 		}
-		whence = SEEK_SET;
-		off += ctx->vec_size;
 	} else if (whence == SEEK_CUR) {
 		whence = SEEK_SET;
 		off += ctx->vec_off;
 	}
 	if (whence != SEEK_SET ||
-	    off > ctx->vec_size) {
+	    (off > ctx->vec_size && ctx->vec_size > 0)) {
 		printf("ERROR: %s: unsupported operation: whence=%d off=%ld -> %ld\n",
 		    __func__, whence, (long)ctx->vec_off, (long)off);
 		return (-1);
