@@ -88,7 +88,7 @@ zfsbootcfg(const char *pool, bool force)
 }
 
 static void
-write_nextboot(const char *fn, const char *env, const char *kernel, bool force)
+write_nextboot(const char *fn, const char *env, bool force)
 {
 	FILE *fp;
 	struct statfs sfs;
@@ -112,12 +112,11 @@ write_nextboot(const char *fn, const char *env, const char *kernel, bool force)
 
 	fp = fopen(fn, "w");
 	if (fp == NULL)
-		E("Can't create %s to boot %s", fn, kernel);
+		E("Can't create %s", fn);
 
-	if (fprintf(fp,"%s%skernel=\"%s\"\n",
+	if (fprintf(fp,"%s%s",
 	    supported ? "nextboot_enable=\"YES\"\n" : "",
-	    env != NULL ? env : "",
-	    kernel) < 0) {
+	    env != NULL ? env : "") < 0) {
 		int e;
 
 		e = errno;
@@ -174,7 +173,6 @@ main(int argc, char *argv[])
 	uint64_t pageins;
 	const char *user, *kernel = NULL;
 	char *env = NULL, *v;
-
 
 	if (strstr(getprogname(), "halt") != NULL) {
 		dohalt = true;
@@ -274,9 +272,10 @@ main(int argc, char *argv[])
 				errx(1, "%s is not a file", k);
 			free(k);
 		}
-		write_nextboot(PATH_NEXTBOOT, env, kernel, fflag);
+		add_env(&env, "kernel", kernel);
 	}
 
+	write_nextboot(PATH_NEXTBOOT, env, fflag);
 	/* Log the reboot. */
 	if (!lflag)  {
 		if ((user = getlogin()) == NULL)
