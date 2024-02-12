@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 20, 2017
+.Dd February 8, 2024
 .Dt REBOOT 8
 .Os
 .Sh NAME
@@ -36,16 +36,16 @@
 .Nd stopping and restarting the system
 .Sh SYNOPSIS
 .Nm halt
-.Op Fl lNnpq
+.Op Fl flNnpq
 .Op Fl k Ar kernel
 .Nm
-.Op Fl cdlNnpqr
+.Op Fl cdflNnpqr
 .Op Fl k Ar kernel
 .Nm fasthalt
-.Op Fl lNnpq
+.Op Fl flNnpq
 .Op Fl k Ar kernel
 .Nm fastboot
-.Op Fl dlNnpq
+.Op Fl dflNnpq
 .Op Fl k Ar kernel
 .Sh DESCRIPTION
 The
@@ -83,17 +83,22 @@ This option is
 supported only when rebooting, and it has no effect unless a dump
 device has previously been specified with
 .Xr dumpon 8 .
-.It Fl k Ar kernel
-Boot the specified
-.Ar kernel
+.It Fl k Ar kname
+Boot the specified kernel
+.Ar kname
 on the next system boot.
-If the kernel boots successfully, the
+This is a one-shot option, the
 .Em default
-kernel will be booted on successive boots, this is a one-shot option.
-If the boot fails, the system will continue attempting to boot
-.Ar kernel
-until the boot process is interrupted and a valid kernel booted.
-This may change in the future.
+kernel will be booted on successive boots.
+No
+.Nm reboot
+or
+.Nm halt
+will be performed if
+.Em /boot/kname/kernel
+does not exist unless the
+.Fl f
+flag is specified.
 .It Fl l
 The halt or reboot is
 .Em not

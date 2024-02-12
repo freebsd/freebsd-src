@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <sys/boottrace.h>
 #include <sys/reboot.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 
@@ -59,7 +60,7 @@ main(int argc, char *argv[])
 	struct utmpx utx;
 	const struct passwd *pw;
 	int ch, howto, i, fd, sverrno;
-	bool lflag, nflag, qflag, Nflag;
+	bool fflag, lflag, nflag, qflag, Nflag;
 	uint64_t pageins;
 	const char *user, *kernel = NULL;
 
@@ -68,7 +69,7 @@ main(int argc, char *argv[])
 		howto = RB_HALT;
 	} else
 		howto = 0;
-	lflag = nflag = qflag = Nflag = false;
+	fflag = lflag = nflag = qflag = Nflag = false;
 	while ((ch = getopt(argc, argv, "cdk:lNnpqr")) != -1)
 		switch(ch) {
 		case 'c':
@@ -76,6 +77,9 @@ main(int argc, char *argv[])
 			break;
 		case 'd':
 			howto |= RB_DUMP;
+			break;
+		case 'f':
+			fflag = true;
 			break;
 		case 'k':
 			kernel = optarg;
@@ -130,6 +134,19 @@ main(int argc, char *argv[])
 	}
 
 	if (kernel != NULL) {
+		if (!fflag) {
+			char *k;
+			struct stat sb;
+
+			asprintf(&k, "/boot/%s/kernel", kernel);
+			if (k == NULL)
+				errx(1, "No memory to check %s", kernel);
+			if (stat(k, &sb) != 0)
+				err(1, "stat %s", k);
+			if (!S_ISREG(sb.st_mode))
+				errx(1, "%s is not a file", k);
+			free(k);
+		}
 		fd = open("/boot/nextboot.conf", O_WRONLY | O_CREAT | O_TRUNC,
 		    0444);
 		if (fd > -1) {
