@@ -1051,11 +1051,12 @@ uaudio_attach(device_t dev)
 
 		for (x = 0; x != sc->sc_play_chan[i].num_alt; x++) {
 			device_printf(dev, "Play[%u]: %d Hz, %d ch, %s format, "
-			    "2x%dms buffer.\n", i,
+			    "2x%dms buffer.%s\n", i,
 			    sc->sc_play_chan[i].usb_alt[x].sample_rate,
 			    sc->sc_play_chan[i].usb_alt[x].channels,
 			    sc->sc_play_chan[i].usb_alt[x].p_fmt->description,
-			    uaudio_buffer_ms);
+			    uaudio_buffer_ms,
+			    (x == 0) ? " (selected)" : "");
 		}
 	}
 	if (i == 0)
@@ -1081,11 +1082,12 @@ uaudio_attach(device_t dev)
 
 		for (x = 0; x != sc->sc_rec_chan[i].num_alt; x++) {
 			device_printf(dev, "Record[%u]: %d Hz, %d ch, %s format, "
-			    "2x%dms buffer.\n", i,
+			    "2x%dms buffer.%s\n", i,
 			    sc->sc_rec_chan[i].usb_alt[x].sample_rate,
 			    sc->sc_rec_chan[i].usb_alt[x].channels,
 			    sc->sc_rec_chan[i].usb_alt[x].p_fmt->description,
-			    uaudio_buffer_ms);
+			    uaudio_buffer_ms,
+			    (x == 0) ? " (selected)" : "");
 		}
 	}
 	if (i == 0)
