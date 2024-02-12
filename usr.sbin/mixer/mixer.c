@@ -413,26 +413,24 @@ mod_mute(struct mix_dev *d, void *p)
 	m = d->parent_mixer;
 	cp = mixer_get_ctl(m->dev, C_MUT);
 	val = p;
-	switch (*val) {
-	case '0':
+	if (strncmp(val, "off", strlen(val)) == 0 || *val == '0')
 		opt = MIX_UNMUTE;
-		break;
-	case '1':
+	else if (strncmp(val, "on", strlen(val)) == 0 || *val == '1')
 		opt = MIX_MUTE;
-		break;
-	case '^':
+	else if (strncmp(val, "toggle", strlen(val)) == 0 || *val == '^')
 		opt = MIX_TOGGLEMUTE;
-		break;
-	default:
-		warnx("%c: no such modifier", *val);
+	else {
+		warnx("%s: no such modifier", val);
 		return (-1);
 	}
 	n = MIX_ISMUTE(m, m->dev->devno);
 	if (mixer_set_mute(m, opt) < 0)
-		warn("%s.%s=%c", m->dev->name, cp->name, *val);
+		warn("%s.%s=%s", m->dev->name, cp->name, val);
 	else
-		printf("%s.%s: %d -> %d\n",
-		    m->dev->name, cp->name, n, MIX_ISMUTE(m, m->dev->devno));
+		printf("%s.%s: %s -> %s\n",
+		    m->dev->name, cp->name,
+		    n ? "on" : "off",
+		    MIX_ISMUTE(m, m->dev->devno) ? "on" : "off");
 
 	return (0);
 }
@@ -448,29 +446,26 @@ mod_recsrc(struct mix_dev *d, void *p)
 	m = d->parent_mixer;
 	cp = mixer_get_ctl(m->dev, C_SRC);
 	val = p;
-	switch (*val) {
-	case '+':
+	if (strncmp(val, "add", strlen(val)) == 0 || *val == '+')
 		opt = MIX_ADDRECSRC;
-		break;
-	case '-':
+	else if (strncmp(val, "remove", strlen(val)) == 0 || *val == '-')
 		opt = MIX_REMOVERECSRC;
-		break;
-	case '=':
+	else if (strncmp(val, "set", strlen(val)) == 0 || *val == '=')
 		opt = MIX_SETRECSRC;
-		break;
-	case '^':
+	else if (strncmp(val, "toggle", strlen(val)) == 0 || *val == '^')
 		opt = MIX_TOGGLERECSRC;
-		break;
-	default:
-		warnx("%c: no such modifier", *val);
+	else {
+		warnx("%s: no such modifier", val);
 		return (-1);
 	}
 	n = MIX_ISRECSRC(m, m->dev->devno);
 	if (mixer_mod_recsrc(m, opt) < 0)
-		warn("%s.%s=%c", m->dev->name, cp->name, *val);
+		warn("%s.%s=%s", m->dev->name, cp->name, val);
 	else
-		printf("%s.%s: %d -> %d\n",
-		    m->dev->name, cp->name, n, MIX_ISRECSRC(m, m->dev->devno));
+		printf("%s.%s: %s -> %s\n",
+		    m->dev->name, cp->name,
+		    n ? "add" : "remove",
+		    MIX_ISRECSRC(m, m->dev->devno) ? "add" : "remove");
 
 	return (0);
 }
@@ -493,7 +488,8 @@ print_mute(struct mix_dev *d, void *p)
 	struct mixer *m = d->parent_mixer;
 	const char *ctl_name = p;
 
-	printf("%s.%s=%d\n", m->dev->name, ctl_name, MIX_ISMUTE(m, m->dev->devno));
+	printf("%s.%s=%s\n", m->dev->name, ctl_name,
+	    MIX_ISMUTE(m, m->dev->devno) ? "on" : "off");
 
 	return (0);
 }
@@ -506,7 +502,7 @@ print_recsrc(struct mix_dev *d, void *p)
 
 	if (!MIX_ISRECSRC(m, m->dev->devno))
 		return (-1);
-	printf("%s.%s=+\n", m->dev->name, ctl_name);
+	printf("%s.%s=add\n", m->dev->name, ctl_name);
 
 	return (0);
 }
