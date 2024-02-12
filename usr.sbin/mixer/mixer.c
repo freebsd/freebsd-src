@@ -66,9 +66,10 @@ main(int argc, char *argv[])
 			aflag = 1;
 			break;
 		case 'd':
+			errno = 0;
 			dunit = strtol(optarg, NULL, 10);
 			if (errno == EINVAL || errno == ERANGE)
-				err(1, "strtol");
+				err(1, "strtol(%s)", optarg);
 			dflag = 1;
 			break;
 		case 'f':
@@ -92,11 +93,11 @@ main(int argc, char *argv[])
 	/* Print all mixers and exit. */
 	if (aflag) {
 		if ((n = mixer_get_nmixers()) < 0)
-			err(1, "mixer_get_nmixers");
+			errx(1, "no mixers present in the system");
 		for (i = 0; i < n; i++) {
 			(void)snprintf(buf, sizeof(buf), "/dev/mixer%d", i);
 			if ((m = mixer_open(buf)) == NULL)
-				err(1, "mixer_open: %s", buf);
+				errx(1, "%s: no such mixer", buf);
 			initctls(m);
 			if (sflag)
 				printrecsrc(m, oflag);
@@ -111,7 +112,7 @@ main(int argc, char *argv[])
 	}
 
 	if ((m = mixer_open(name)) == NULL)
-		err(1, "mixer_open: %s", name);
+		errx(1, "%s: no such mixer", name);
 
 	initctls(m);
 
@@ -212,7 +213,7 @@ initctls(struct mixer *m)
 	}
 	if (rc) {
 		(void)mixer_close(m);
-		err(1, "cannot make controls");
+		errx(1, "cannot make mixer controls");
 	}
 }
 
@@ -315,7 +316,7 @@ set_dunit(struct mixer *m, int dunit)
 		return (-1);
 	}
 	if (mixer_set_dunit(m, dunit) < 0) {
-		warn("cannot set default unit to: %d", dunit);
+		warn("cannot set default unit to %d", dunit);
 		return (-1);
 	}
 	printf("default_unit: %d -> %d\n", n, dunit);
