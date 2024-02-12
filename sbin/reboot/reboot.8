@@ -39,18 +39,22 @@
 .Op Fl DflNnpq
 .Op Fl e Ar variable=value
 .Op Fl k Ar kernel
+.Op Fl o Ar options
 .Nm
 .Op Fl cDdflNnpqr
 .Op Fl e Ar variable=value
 .Op Fl k Ar kernel
+.Op Fl o Ar options
 .Nm fasthalt
 .Op Fl DflNnpq
 .Op Fl e Ar variable=value
 .Op Fl k Ar kernel
+.Op Fl o Ar options
 .Nm fastboot
 .Op Fl dDflNnpq
 .Op Fl e Ar variable=value
 .Op Fl k Ar kernel
+.Op Fl o Ar options
 .Sh DESCRIPTION
 The
 .Nm halt
@@ -146,6 +150,9 @@ This can happen when devices have been disconnected, such as with
 .It Fl n
 The file system cache is not flushed.
 This option should probably not be used.
+.It Fl o Ar options
+This option
+allows the passing of kernel flags for the next boot.
 .It Fl p
 The system will turn off the power if it can.
 If the power down action fails, the system
