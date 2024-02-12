@@ -66,6 +66,8 @@ main(int argc, char *argv[])
 			aflag = 1;
 			break;
 		case 'd':
+			if (strncmp(optarg, "pcm", 3) == 0)
+				optarg += 3;
 			errno = 0;
 			dunit = strtol(optarg, NULL, 10);
 			if (errno == EINVAL || errno == ERANGE)
@@ -194,8 +196,8 @@ next:
 static void __dead2
 usage(void)
 {
-	fprintf(stderr, "usage: %1$s [-f device] [-d unit] [-os] [dev[.control[=value]]] ...\n"
-	    "       %1$s [-d unit] [-os] -a\n"
+	fprintf(stderr, "usage: %1$s [-f device] [-d pcmN | N] [-os] [dev[.control[=value]]] ...\n"
+	    "       %1$s [-os] -a\n"
 	    "       %1$s -h\n", getprogname());
 	exit(1);
 }
