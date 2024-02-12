@@ -94,7 +94,7 @@
 #include "feeder_if.h"
 
 static int uaudio_default_rate = 0;		/* use rate list */
-static int uaudio_default_bits = 32;
+static int uaudio_default_bits = 0;		/* use default sample size */
 static int uaudio_default_channels = 0;		/* use default */
 static int uaudio_buffer_ms = 4;
 static bool uaudio_handle_hid = true;
@@ -150,6 +150,7 @@ SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	UAUDIO_NFRAMES		64	/* must be factor of 8 due HS-USB */
 #define	UAUDIO_NCHANBUFS	2	/* number of outstanding request */
 #define	UAUDIO_RECURSE_LIMIT	255	/* rounds */
+#define	UAUDIO_BITS_MAX		32	/* maximum sample size in bits */
 #define	UAUDIO_CHANNELS_MAX	MIN(64, AFMT_CHANNEL_MAX)
 #define	UAUDIO_MATRIX_MAX	8	/* channels */
 
@@ -2203,31 +2204,37 @@ uaudio_chan_fill_info(struct uaudio_softc *sc, struct usb_device *udev)
 	uint8_t bits = uaudio_default_bits;
 	uint8_t y;
 	uint8_t channels = uaudio_default_channels;
+	uint8_t channels_max;
 	uint8_t x;
 
 	bits -= (bits % 8);
-	if ((bits == 0) || (bits > 32)) {
+	if ((bits == 0) || (bits > UAUDIO_BITS_MAX)) {
 		/* set a valid value */
-		bits = 32;
+		bits = UAUDIO_BITS_MAX;
 	}
-	if (channels == 0) {
-		switch (usbd_get_speed(udev)) {
-		case USB_SPEED_LOW:
-		case USB_SPEED_FULL:
-			/*
-			 * Due to high bandwidth usage and problems
-			 * with HIGH-speed split transactions we
-			 * disable surround setups on FULL-speed USB
-			 * by default
-			 */
-			channels = 4;
-			break;
-		default:
-			channels = UAUDIO_CHANNELS_MAX;
-			break;
-		}
-	} else if (channels > UAUDIO_CHANNELS_MAX)
+
+	if (channels > UAUDIO_CHANNELS_MAX)
 		channels = UAUDIO_CHANNELS_MAX;
+	switch (usbd_get_speed(udev)) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
+		/*
+		 * Due to high bandwidth usage and problems
+		 * with HIGH-speed split transactions we
+		 * disable surround setups on FULL-speed USB
+		 * by default
+		 */
+		channels_max = 4;
+		/* more channels on request */
+		if (channels > channels_max)
+			channels_max = channels;
+		break;
+	default:
+		channels_max = UAUDIO_CHANNELS_MAX;
+		break;
+	}
+	if (channels == 0)
+		channels = channels_max;
 
 	if (sbuf_new(&sc->sc_sndstat, NULL, 4096, SBUF_AUTOEXTEND))
 		sc->sc_sndstat_valid = 1;
@@ -2241,9 +2248,26 @@ uaudio_chan_fill_info(struct uaudio_softc *sc, struct usb_device *udev)
 				uaudio_chan_fill_info_sub(sc, udev, rate, x, y);
 
 			/* try find a matching rate, if any */
-			for (z = 0; uaudio_rate_list[z]; z++)
-				uaudio_chan_fill_info_sub(sc, udev, uaudio_rate_list[z], x, y);
+			for (z = 0; uaudio_rate_list[z]; z++) {
+				if (uaudio_rate_list[z] != rate)
+					uaudio_chan_fill_info_sub(sc, udev,
+					    uaudio_rate_list[z], x, y);
+			}
+
+			/* after default value in first round, proceed with max bits */
+			if (y == bits)
+				y = UAUDIO_BITS_MAX + 8;
+			/* skip default value subsequently */
+			if (y == (bits + 8))
+				y -= 8;
 		}
+
+		/* after default value in first round, proceed with max channels */
+		if (x == channels)
+			x = channels_max + 1;
+		/* skip default value subsequently */
+		if (x == (channels + 1))
+			x--;
 	}
 	if (sc->sc_sndstat_valid)
 		sbuf_finish(&sc->sc_sndstat);
