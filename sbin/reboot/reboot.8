@@ -36,16 +36,16 @@
 .Nd stopping and restarting the system
 .Sh SYNOPSIS
 .Nm halt
-.Op Fl flNnpq
+.Op Fl DflNnpq
 .Op Fl k Ar kernel
 .Nm
-.Op Fl cdflNnpqr
+.Op Fl cDdflNnpqr
 .Op Fl k Ar kernel
 .Nm fasthalt
-.Op Fl flNnpq
+.Op Fl DflNnpq
 .Op Fl k Ar kernel
 .Nm fastboot
-.Op Fl dflNnpq
+.Op Fl dDflNnpq
 .Op Fl k Ar kernel
 .Sh DESCRIPTION
 The
@@ -77,6 +77,10 @@ driver implements the power cycle functionality and only on hardware
 with a BMC that supports power cycling.
 Unlike power off, the amount of hardware that supports power cycling
 is small.
+.It Fl D
+Delete existing
+.Nm nextboot
+configuration and exit.
 .It Fl d
 The system is requested to create a crash dump.
 This option is
