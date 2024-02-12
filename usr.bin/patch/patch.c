@@ -1085,7 +1085,7 @@ patch_match(LINENUM base, LINENUM offset, LINENUM fuzz)
 	LINENUM		pat_lines = pch_ptrn_lines() - fuzz;
 	const char	*ilineptr;
 	const char	*plineptr;
-	unsigned short	plinelen;
+	size_t		plinelen;
 
 	/* Patch does not match if we don't have any more context to use */
 	if (pline > pat_lines)
