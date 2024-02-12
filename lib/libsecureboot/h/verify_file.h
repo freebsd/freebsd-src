@@ -46,6 +46,7 @@ int	verify_prep(int, const char *, off_t, struct stat *, const char *);
 void	ve_debug_set(int);
 char	*ve_error_get(void);
 void	ve_efi_init(void);
+void	ve_status_set(int, int);
 int	ve_status_get(int);
 int	load_manifest(const char *, const char *, const char *, struct stat *);
 int	pass_manifest(const char *, const char *);
