@@ -180,7 +180,7 @@ main(int argc, char *argv[])
 	} else
 		howto = 0;
 	Dflag = fflag = lflag = Nflag = nflag = qflag = false;
-	while ((ch = getopt(argc, argv, "cDde:k:lNnpqr")) != -1)
+	while ((ch = getopt(argc, argv, "cDde:k:lNno:pqr")) != -1)
 		switch(ch) {
 		case 'c':
 			howto |= RB_POWERCYCLE;
@@ -211,6 +211,9 @@ main(int argc, char *argv[])
 		case 'N':
 			nflag = true;
 			Nflag = true;
+			break;
+		case 'o':
+			add_env(&env, "kernel_options", optarg);
 			break;
 		case 'p':
 			howto |= RB_POWEROFF;
