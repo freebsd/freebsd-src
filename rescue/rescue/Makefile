@@ -21,13 +21,6 @@ LDFLAGS+=	-Wl,--allow-multiple-definition
 PROG=	rescue
 BINDIR?=/rescue
 
-# Shell scripts need #! line to be edited from /bin/sh to /rescue/sh
-SCRIPTS= nextboot_FIXED
-SCRIPTSNAME_nextboot_FIXED= nextboot
-nextboot_FIXED: ../../sbin/reboot/nextboot.sh
-	sed '1s/\/bin\//\/rescue\//' ${.ALLSRC} > ${.TARGET}
-CLEANFILES+= nextboot_FIXED
-
 SCRIPTS+= dhclient_FIXED
 SCRIPTSNAME_dhclient_FIXED= dhclient-script
 dhclient_FIXED: ../../sbin/dhclient/dhclient-script
@@ -185,7 +178,7 @@ CRUNCH_SRCDIR_zfs= ${SRCTOP}/cddl/sbin/zfs
 CRUNCH_SRCDIR_zpool= ${SRCTOP}/cddl/sbin/zpool
 CRUNCH_SRCDIR_zdb= ${SRCTOP}/cddl/usr.sbin/zdb
 .endif
-CRUNCH_ALIAS_reboot= fastboot halt fasthalt
+CRUNCH_ALIAS_reboot= fastboot halt fasthalt nextboot
 CRUNCH_ALIAS_restore= rrestore
 CRUNCH_ALIAS_dump= rdump
 CRUNCH_ALIAS_fsck_ffs= fsck_4.2bsd fsck_ufs
