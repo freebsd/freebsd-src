@@ -31,6 +31,7 @@
 
 #include <sys/types.h>
 #include <sys/boottrace.h>
+#include <sys/mount.h>
 #include <sys/reboot.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
@@ -56,11 +57,6 @@ static uint64_t get_pageins(void);
 
 static bool dohalt;
 
-static void
-write_nextboot(const char *fn, const char *kernel, bool force)
-{
-	FILE *fp;
-
 #define E(...) do {				\
 		if (force) {			\
 			warn( __VA_ARGS__ );	\
@@ -69,13 +65,58 @@ write_nextboot(const char *fn, const char *kernel, bool force)
 		err(1, __VA_ARGS__);		\
 	} while (0)				\
 
+static void
+zfsbootcfg(const char *pool, bool force)
+{
+	char *k;
+	int rv;
+
+	asprintf(&k,
+	    "zfsbootcfg -z %s -n freebsd:nvstore -k nextboot_enable -v YES",
+	    pool);
+	if (k == NULL)
+		E("No memory for zfsbootcfg");
+
+	rv = system(k);
+	if (rv == 0)
+		return;
+	if (rv == -1)
+		E("system zfsbootcfg");
+	if (rv == 127)
+		E("zfsbootcfg not found in path");
+	E("zfsbootcfg returned %d", rv);
+}
+
+static void
+write_nextboot(const char *fn, const char *kernel, bool force)
+{
+	FILE *fp;
+	struct statfs sfs;
+	bool supported = false;
+	bool zfs = false;
+
+	if (statfs("/boot", &sfs) != 0)
+		err(1, "statfs /boot");
+	if (strcmp(sfs.f_fstypename, "ufs") == 0) {
+		/*
+		 * Only UFS supports the full nextboot protocol.
+		 */
+		supported = true;
+	} else if (strcmp(sfs.f_fstypename, "zfs") == 0) {
+		zfs = true;
+	}
+
+	if (zfs) {
+		zfsbootcfg(sfs.f_mntfromname, force);
+	}
+
 	fp = fopen(fn, "w");
 	if (fp == NULL)
 		E("Can't create %s to boot %s", fn, kernel);
 
-	if (fprintf(fp,
-	    "nextboot_enable=\"YES\"\n"
-	    "kernel=\"%s\"\n", kernel) < 0) {
+	if (fprintf(fp,"%skernel=\"%s\"\n",
+	    supported ? "nextboot_enable=\"YES\"\n" : "",
+	    kernel) < 0) {
 		int e;
 
 		e = errno;
@@ -86,7 +127,6 @@ write_nextboot(const char *fn, const char *kernel, bool force)
 		E("Can't write %s", fn);
 	}
 	fclose(fp);
-#undef E
 }
 
 int
