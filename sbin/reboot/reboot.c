@@ -35,38 +35,40 @@
 #include <sys/sysctl.h>
 #include <sys/time.h>
 
-#include <signal.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <pwd.h>
-#include <syslog.h>
+#include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
 #include <unistd.h>
 #include <utmpx.h>
 
 static void usage(void) __dead2;
 static uint64_t get_pageins(void);
 
-static int dohalt;
+static bool dohalt;
 
 int
 main(int argc, char *argv[])
 {
 	struct utmpx utx;
 	const struct passwd *pw;
-	int ch, howto, i, fd, lflag, nflag, qflag, sverrno, Nflag;
+	int ch, howto, i, fd, sverrno;
+	bool lflag, nflag, qflag, Nflag;
 	uint64_t pageins;
 	const char *user, *kernel = NULL;
 
 	if (strstr(getprogname(), "halt") != NULL) {
-		dohalt = 1;
+		dohalt = true;
 		howto = RB_HALT;
 	} else
 		howto = 0;
-	lflag = nflag = qflag = Nflag = 0;
+	lflag = nflag = qflag = Nflag = false;
 	while ((ch = getopt(argc, argv, "cdk:lNnpqr")) != -1)
 		switch(ch) {
 		case 'c':
@@ -79,21 +81,21 @@ main(int argc, char *argv[])
 			kernel = optarg;
 			break;
 		case 'l':
-			lflag = 1;
+			lflag = true;
 			break;
 		case 'n':
-			nflag = 1;
+			nflag = true;
 			howto |= RB_NOSYNC;
 			break;
 		case 'N':
-			nflag = 1;
-			Nflag = 1;
+			nflag = true;
+			Nflag = true;
 			break;
 		case 'p':
 			howto |= RB_POWEROFF;
 			break;
 		case 'q':
-			qflag = 1;
+			qflag = true;
 			break;
 		case 'r':
 			howto |= RB_REROOT;
