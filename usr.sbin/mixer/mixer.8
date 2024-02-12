@@ -19,7 +19,7 @@
 .\" OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 .\" THE SOFTWARE.
 .\"
-.Dd January 12, 2024
+.Dd February 8, 2024
 .Dt MIXER 8
 .Os
 .Sh NAME
@@ -28,12 +28,11 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl f Ar device
-.Op Fl d Ar unit
+.Op Fl d Ar pcmN | N
 .Op Fl os
 .Op Ar dev Ns Op Cm \&. Ns Ar control Ns Op Cm \&= Ns Ar value
 .Ar ...
 .Nm
-.Op Fl d Ar unit
 .Op Fl os
 .Fl a
 .Nm
@@ -44,16 +43,17 @@ The
 utility is used to set and display soundcard mixer device controls.
 .Pp
 The options are as follows:
-.Bl -tag -width "-f device"
+.Bl -tag -width "-d pcmN | N"
 .It Fl a
 Print the values for all mixer devices available in the system
 .Pq see Sx FILES .
-.It Fl d Ar unit
+.It Fl d Ar pcmN | N
 Change the default audio card to
-.Ar unit .
-The unit has to be an integer value.
-To see what unit values are available, look at the number each mixer device has by running
-.Nm .
+.Ar pcmN ,
+where N is the unit number (e.g for pcm0, the unit number is 0).
+See
+.Sx EXAMPLES
+on how to list all available audio devices in the system.
 .It Fl f Ar device
 Open
 .Ar device
@@ -218,6 +218,11 @@ opens when the
 option has not been specified.
 .El
 .Sh EXAMPLES
+List all available audio devices in the system:
+.Bd -literal -offset indent
+$ mixer -a | grep ^pcm
+.Ed
+.Pp
 Increase the volume for the
 .Cm vol
 device of the first mixer found by 5%:
