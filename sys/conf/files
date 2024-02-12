@@ -3174,7 +3174,7 @@ dev/uart/uart_bus_acpi.c	optional uart acpi
 dev/uart/uart_bus_fdt.c		optional uart fdt
 dev/uart/uart_bus_isa.c		optional uart isa
 dev/uart/uart_bus_pci.c		optional uart pci
-dev/uart/uart_bus_puc.c		optional uart puc
+dev/uart/uart_bus_puc.c		optional uart pci
 dev/uart/uart_bus_scc.c		optional uart scc
 dev/uart/uart_core.c		optional uart
 dev/uart/uart_cpu_acpi.c	optional uart acpi
