@@ -115,6 +115,8 @@ main(int argc, char *argv[])
 		errx(1, "-c and -p cannot be used together");
 	if ((howto & RB_REROOT) != 0 && howto != RB_REROOT)
 		errx(1, "-r cannot be used with -c, -d, -n, or -p");
+	if ((howto & RB_REROOT) != 0 && kernel != NULL)
+		errx(1, "-r and -k cannot be used together, there is no next kernel");
 	if (geteuid()) {
 		errno = EPERM;
 		err(1, NULL);
