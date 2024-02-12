@@ -114,7 +114,9 @@ with one of the available devices):
 .Oo Cm \&: Oo Cm \&+ | Cm \&- Oc Ar rvol Oo % Oc Oc
 .Xc
 .It Ar dev Cm .mute Ta Cm 0 | 1 | ^
+.It Ar dev Cm .mute Ta Cm off | on | toggle
 .It Ar dev Cm .recsrc Ta Cm ^ | + | - | =
+.It Ar dev Cm .recsrc Ta Cm toggle | add | remove | set
 .El
 .Sm on
 .Pp
@@ -150,14 +152,14 @@ The
 .Ar dev Ns Cm .mute
 control (un)mutes a device.
 The following values are available:
-.Bl -tag -width = -offset indent
-.It Cm 0
+.Bl -tag -width "xxxxxxxxxx" -offset indent
+.It Cm 0 | off
 unmutes
 .Ar dev
-.It Cm 1
+.It Cm 1 | on
 mutes
 .Ar dev
-.It Cm ^
+.It Cm ^ | toggle
 toggles the mute of
 .Ar dev
 .El
@@ -174,22 +176,23 @@ To modify the recording source you can use one of the following modifiers
 on a
 .Sy rec
 device:
-.Bl -tag -width = -offset indent
-.It Cm ^
+.Bl -tag -width "xxxxxxxxxx" -offset indent
+.It Cm ^ | toggle
 toggles
 .Ar dev
 of possible recording devices
-.It Cm +
+.It Cm + | add
 adds
 .Ar dev
 to possible recording devices
-.It Cm -
+.It Cm - | remove
 removes
 .Ar dev
 from possible recording devices
-.It Cm =
-sets the recording device to
+.It Cm = | set
+makes
 .Ar dev
+the only recording device.
 .El
 .Sh FILES
 .Bl -tag -width /dev/mixerN -compact
@@ -250,16 +253,16 @@ $ mixer mic.volume=+0.10:-0.05
 Toggle the mute for
 .Cm vol :
 .Bd -literal -offset indent
-$ mixer vol.mute=^
+$ mixer vol.mute=toggle
 .Ed
 .Pp
-Set
+Add
 .Cm mic
-and toggle
+and remove
 .Cm line
-recording sources:
+from the recording devices:
 .Bd -literal -offset indent
-$ mixer mic.recsrc=+ line.recsrc=^
+$ mixer mic.recsrc=add line.recsrc=remove
 .Ed
 .Pp
 Dump
