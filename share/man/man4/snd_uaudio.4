@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 12, 2016
+.Dd January 29, 2024
 .Dt SND_UAUDIO 4
 .Os
 .Sh NAME
@@ -51,17 +51,11 @@ snd_uaudio_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for
-.Tn USB
-audio class devices and
-.Tn USB
-MIDI class devices.
+driver provides support for USB audio class devices and USB MIDI class devices.
 .Pp
-A
-.Tn USB
-audio device consists of a number of components:
-input terminals (e.g.\& USB digital input), output terminals (e.g.\&
-speakers), and a number of units in between (e.g.\& volume control).
+A USB audio device consists of a number of components: input terminals (e.g.\&
+USB digital input), output terminals (e.g.\& speakers), and a number of units
+in between (e.g.\& volume control).
 .Pp
 Refer to the
 .Ql USB Audio Class Specification
@@ -86,9 +80,7 @@ and modified for
 by
 .An Hiten Pandya Aq Mt hmp@FreeBSD.org .
 .Sh BUGS
-The
-.Tn PCM
-framework in
+The PCM framework in
 .Fx
 only supports synchronous device detach.
 That means all mixer and DSP character devices belonging to a given
@@ -104,9 +96,7 @@ See the
 .Va dev.pcm.%d.[play|rec].vchanrate
 sysctls.
 .Pp
-The
-.Tn PCM
-framework in
+The PCM framework in
 .Fx
 currently doesn't support the full set of USB audio mixer
 controls.
