@@ -37,15 +37,19 @@
 .Sh SYNOPSIS
 .Nm halt
 .Op Fl DflNnpq
+.Op Fl e Ar variable=value
 .Op Fl k Ar kernel
 .Nm
 .Op Fl cDdflNnpqr
+.Op Fl e Ar variable=value
 .Op Fl k Ar kernel
 .Nm fasthalt
 .Op Fl DflNnpq
+.Op Fl e Ar variable=value
 .Op Fl k Ar kernel
 .Nm fastboot
 .Op Fl dDflNnpq
+.Op Fl e Ar variable=value
 .Op Fl k Ar kernel
 .Sh DESCRIPTION
 The
@@ -87,6 +91,21 @@ This option is
 supported only when rebooting, and it has no effect unless a dump
 device has previously been specified with
 .Xr dumpon 8 .
+.It Fl e Ar variable=value
+Sets
+.Va variable
+to
+.Va value
+in the loader's and kernel's environment.
+If
+.Va value
+is not already enclosed in double quotes, they will be added before writing to the
+.Nm nextboot
+configuration.
+Care should be taken if
+.Va value
+contains any characters that are special to the shell or loader's configuration
+parsing code.
 .It Fl k Ar kname
 Boot the specified kernel
 .Ar kname

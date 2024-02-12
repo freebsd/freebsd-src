@@ -88,7 +88,7 @@ zfsbootcfg(const char *pool, bool force)
 }
 
 static void
-write_nextboot(const char *fn, const char *kernel, bool force)
+write_nextboot(const char *fn, const char *env, const char *kernel, bool force)
 {
 	FILE *fp;
 	struct statfs sfs;
@@ -114,8 +114,9 @@ write_nextboot(const char *fn, const char *kernel, bool force)
 	if (fp == NULL)
 		E("Can't create %s to boot %s", fn, kernel);
 
-	if (fprintf(fp,"%skernel=\"%s\"\n",
+	if (fprintf(fp,"%s%skernel=\"%s\"\n",
 	    supported ? "nextboot_enable=\"YES\"\n" : "",
+	    env != NULL ? env : "",
 	    kernel) < 0) {
 		int e;
 
@@ -129,6 +130,40 @@ write_nextboot(const char *fn, const char *kernel, bool force)
 	fclose(fp);
 }
 
+static char *
+split_kv(char *raw)
+{
+	char *eq;
+	int len;
+
+	eq = strchr(raw, '=');
+	if (eq == NULL)
+		errx(1, "No = in environment string %s", raw);
+	*eq++ = '\0';
+	len = strlen(eq);
+	if (len == 0)
+		errx(1, "Invalid null value %s=", raw);
+	if (eq[0] == '"') {
+		if (len < 2 || eq[len - 1] != '"')
+			errx(1, "Invalid string '%s'", eq);
+		eq[len - 1] = '\0';
+		return (eq + 1);
+	}
+	return (eq);
+}
+
+static void
+add_env(char **env, const char *key, const char *value)
+{
+	char *oldenv;
+
+	oldenv = *env;
+	asprintf(env, "%s%s=\"%s\"\n", oldenv != NULL ? oldenv : "", key, value);
+	if (env == NULL)
+		errx(1, "No memory to build env array");
+	free(oldenv);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -138,6 +173,8 @@ main(int argc, char *argv[])
 	bool Dflag, fflag, lflag, Nflag, nflag, qflag;
 	uint64_t pageins;
 	const char *user, *kernel = NULL;
+	char *env = NULL, *v;
+
 
 	if (strstr(getprogname(), "halt") != NULL) {
 		dohalt = true;
@@ -145,7 +182,7 @@ main(int argc, char *argv[])
 	} else
 		howto = 0;
 	Dflag = fflag = lflag = Nflag = nflag = qflag = false;
-	while ((ch = getopt(argc, argv, "cDdk:lNnpqr")) != -1)
+	while ((ch = getopt(argc, argv, "cDde:k:lNnpqr")) != -1)
 		switch(ch) {
 		case 'c':
 			howto |= RB_POWERCYCLE;
@@ -155,6 +192,10 @@ main(int argc, char *argv[])
 			break;
 		case 'd':
 			howto |= RB_DUMP;
+			break;
+		case 'e':
+			v = split_kv(optarg);
+			add_env(&env, optarg, v);
 			break;
 		case 'f':
 			fflag = true;
@@ -233,7 +274,7 @@ main(int argc, char *argv[])
 				errx(1, "%s is not a file", k);
 			free(k);
 		}
-		write_nextboot(PATH_NEXTBOOT, kernel, fflag);
+		write_nextboot(PATH_NEXTBOOT, env, kernel, fflag);
 	}
 
 	/* Log the reboot. */
