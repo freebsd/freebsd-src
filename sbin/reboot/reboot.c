@@ -56,6 +56,7 @@ static void usage(void) __dead2;
 static uint64_t get_pageins(void);
 
 static bool dohalt;
+static bool donextboot;
 
 #define E(...) do {				\
 		if (force) {			\
@@ -163,6 +164,12 @@ add_env(char **env, const char *key, const char *value)
 	free(oldenv);
 }
 
+/*
+ * Different options are valid for different programs.
+ */
+#define GETOPT_REBOOT "cDde:k:lNno:pqr"
+#define GETOPT_NEXTBOOT "De:k:o:"
+
 int
 main(int argc, char *argv[])
 {
@@ -171,16 +178,20 @@ main(int argc, char *argv[])
 	int ch, howto, i, sverrno;
 	bool Dflag, fflag, lflag, Nflag, nflag, qflag;
 	uint64_t pageins;
-	const char *user, *kernel = NULL;
+	const char *user, *kernel = NULL, *getopts = GETOPT_REBOOT;
 	char *env = NULL, *v;
 
 	if (strstr(getprogname(), "halt") != NULL) {
 		dohalt = true;
 		howto = RB_HALT;
-	} else
+	} else if (strcmp(getprogname(), "nextboot") == 0) {
+		donextboot = true;
+		getopts = GETOPT_NEXTBOOT; /* Note: reboot's extra opts return '?' */
+	} else {
 		howto = 0;
+	}
 	Dflag = fflag = lflag = Nflag = nflag = qflag = false;
-	while ((ch = getopt(argc, argv, "cDde:k:lNno:pqr")) != -1)
+	while ((ch = getopt(argc, argv, getopts)) != -1) {
 		switch(ch) {
 		case 'c':
 			howto |= RB_POWERCYCLE;
@@ -228,6 +239,8 @@ main(int argc, char *argv[])
 		default:
 			usage();
 		}
+	}
+
 	argc -= optind;
 	argv += optind;
 	if (argc != 0)
@@ -245,15 +258,16 @@ main(int argc, char *argv[])
 		errx(1, "-r cannot be used with -c, -d, -n, or -p");
 	if ((howto & RB_REROOT) != 0 && kernel != NULL)
 		errx(1, "-r and -k cannot be used together, there is no next kernel");
-	if (geteuid()) {
-		errno = EPERM;
-		err(1, NULL);
-	}
 
 	if (Dflag) {
 		if (unlink(PATH_NEXTBOOT) != 0)
 			err(1, "unlink %s", PATH_NEXTBOOT);
 		exit(0);
+	}
+
+	if (!donextboot && geteuid() != 0) {
+		errno = EPERM;
+		err(1, NULL);
 	}
 
 	if (qflag) {
@@ -278,7 +292,11 @@ main(int argc, char *argv[])
 		add_env(&env, "kernel", kernel);
 	}
 
-	write_nextboot(PATH_NEXTBOOT, env, fflag);
+	if (env != NULL)
+		write_nextboot(PATH_NEXTBOOT, env, fflag);
+	if (donextboot)
+		exit (0);
+
 	/* Log the reboot. */
 	if (!lflag)  {
 		if ((user = getlogin()) == NULL)
