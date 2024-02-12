@@ -133,6 +133,7 @@ CRUNCH_PROGS_sbin+= routed rtquery
 .if ${MK_ZFS} != "no"
 CRUNCH_PROGS_sbin+= bectl
 CRUNCH_PROGS_sbin+= zfs
+CRUNCH_PROGS_sbin+= zfsbootcfg
 CRUNCH_PROGS_sbin+= zpool
 CRUNCH_PROGS_usr.sbin+= zdb
 .endif
@@ -154,6 +155,7 @@ CRUNCH_LIBS_zfs+=	${LIBBE} \
 CRUNCH_LIBS_bectl+=	${CRUNCH_LIBS_zfs}
 CRUNCH_LIBS_zpool+=	${CRUNCH_LIBS_zfs}
 CRUNCH_LIBS_zdb+=	${CRUNCH_LIBS_zfs} ${LIBZDB}
+CRUNCH_LIBS_zfsbootcfg+=${LIBZFSBOOTENV}
 .else
 # liblzma needs pthread
 CRUNCH_LIBS+= -lpthread
