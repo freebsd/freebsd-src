@@ -24,7 +24,7 @@ _SAFE_EVAL_SH=:
 # any non-alphanumeric chars are replaced with '_'
 #
 safe_set() {
-    sed 's/[ 	]*#.*//;/^[A-Za-z_][A-Za-z0-9_]*=/!d;s;[^A-Za-z0-9_. 	"$,/=-];_;g'
+    ${SED:-sed} 's/[ 	]*#.*//;/^[A-Za-z_][A-Za-z0-9_]*=/!d;s;[^A-Za-z0-9_. 	"$,/=-];_;g'
 }
 
 ##

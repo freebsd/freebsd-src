@@ -156,6 +156,33 @@ vdot()
 	return $rc
 }
 
+# Exists [test] file ...
+# report the first "file" that passes "test" (default -s).
+Exists()
+{
+	local f _t=-s
+
+	while :; do
+		: 1=$1
+		case "$1" in
+		-?)
+			_t=$1
+			shift
+			;;
+		*)
+			break
+			;;
+		esac
+	done
+
+	for f in "$@"; do
+		[ $_t $f ] || continue
+		echo $f
+		return 0
+	done
+	return 1
+}
+
 # do we have $1 (could be a function)
 have()
 {
@@ -179,8 +206,8 @@ rc_trace()
 		[ -f $cf ] || return
 		if [ -s $cf ]; then
 			# don't try to set RC_LEVEL without sed
-			if [ -x /usr/bin/sed ]; then
-				RC_LEVEL=$(sed -n '/^RC_LEVEL=/ { s/.*=//p;q; }' $cf)
+			if [ -n "$SED" ]; then
+				RC_LEVEL=$($SED -n '/^RC_LEVEL=/ { s/.*=//p;q; }' $cf)
 				RC_LEVEL=${RC_LEVEL:-0}
 			fi
 		else
@@ -2498,6 +2525,8 @@ if [ -n "$boottrace_cmd" ] && [ "`${SYSCTL_N} -q kern.boottrace.enabled`" = "1" 
 	rc_boottrace=YES
 fi
 
+SED=${SED:-$(Exists -x /usr/bin/sed /rescue/sed)}
+
 # Allow for local additions and overrides.
 # Use vdot to ensure the file has not been tampered with.
 vdot /etc/local.rc.subr
@@ -2514,10 +2543,11 @@ if ! have basename; then
 	{
 		return 0
 	}
-else
-	# safe_eval.sh provides safe_dot - for untrusted files
-	$_SAFE_EVAL_SH vdot /libexec/safe_eval.sh
+	# we cannot use safe_dot without sed
+	[ -z "$SED" ] && _SAFE_EVAL_SH=:
 fi
+# safe_eval.sh provides safe_dot - for untrusted files
+$_SAFE_EVAL_SH vdot /libexec/safe_eval.sh
 $_DEBUG_SH vdot /libexec/debug.sh
 
 # Ensure we can still operate if debug.sh and
