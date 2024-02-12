@@ -87,7 +87,7 @@ mixer_open(const char *name)
 dunit:
 		if ((m->unit = mixer_get_dunit()) < 0)
 			goto fail;
-		(void)snprintf(m->name, sizeof(m->name), "/dev/mixer%d", m->unit);
+		(void)snprintf(m->name, sizeof(m->name), BASEPATH "%d", m->unit);
 	}
 
 	if ((m->fd = open(m->name, O_RDWR)) < 0)
