@@ -148,7 +148,13 @@ CRUNCH_LIBS_zfs+=	${LIBBE} \
 CRUNCH_LIBS_bectl+=	${CRUNCH_LIBS_zfs}
 CRUNCH_LIBS_zpool+=	${CRUNCH_LIBS_zfs}
 CRUNCH_LIBS_zdb+=	${CRUNCH_LIBS_zfs} ${LIBZDB}
-CRUNCH_LIBS_zfsbootcfg+=${LIBZFSBOOTENV}
+CRUNCH_LIBS_zfsbootcfg+=${LIBZFSBOOTENV} \
+			${LIBZPOOL} \
+			${LIBZFS} \
+			${LIBZUTIL} \
+			${LIBZFS_CORE} \
+			${LIBICP_RESCUE} \
+			${LIBNVPAIR}
 .else
 # liblzma needs pthread
 CRUNCH_LIBS+= -lpthread
