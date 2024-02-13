@@ -56,6 +56,14 @@ device		syscon
 # Backlight subsystem
 device		backlight
 
+# Serial (COM) ports
+device		pl011
+
+# Early printf using the pl011 uart under the Arm FVP
+options 	SOCDEV_PA=0x1c090000
+options 	SOCDEV_VA=0x1c090000
+options 	EARLY_PRINTF=pl011
+
 # Undo options from sys/conf/NOTES that we do not want...
 
 nooptions	COMPAT_FREEBSD4
