@@ -97,7 +97,7 @@ copy_fallback(int from_fd, int to_fd)
 		wcount = write(to_fd, bufp, wresid);
 		if (wcount <= 0)
 			break;
-		if (wcount >= (ssize_t)wresid)
+		if (wcount >= wresid)
 			break;
 	}
 	return (wcount < 0 ? wcount : rcount);
