@@ -1180,6 +1180,7 @@ static void ice_fill_sw_info(struct ice_hw *hw, struct ice_fltr_info *fi)
 		 *
 		 * In all other cases, the LAN enable has to be set to false.
 		 */
+
 		if (hw->evb_veb) {
 			if (fi->lkup_type == ICE_SW_LKUP_ETHERTYPE ||
 			    fi->lkup_type == ICE_SW_LKUP_PROMISC ||
@@ -1195,6 +1196,13 @@ static void ice_fill_sw_info(struct ice_hw *hw, struct ice_fltr_info *fi)
 		} else {
 			fi->lan_en = true;
 		}
+	}
+	/* To be able to receive packets coming from the VF on the same PF,
+	 * unicast filter needs to be added without LB_EN bit
+	 */
+	if (fi->flag & ICE_FLTR_RX_LB) {
+		fi->lb_en = false;
+		fi->lan_en = true;
 	}
 }
 
@@ -2023,7 +2031,7 @@ ice_add_rule_internal(struct ice_hw *hw, struct ice_sw_recipe *recp_list,
 	new_fltr = &f_entry->fltr_info;
 	if (new_fltr->flag & ICE_FLTR_RX)
 		new_fltr->src = lport;
-	else if (new_fltr->flag & ICE_FLTR_TX)
+	else if (new_fltr->flag & (ICE_FLTR_TX | ICE_FLTR_RX_LB))
 		new_fltr->src =
 			ice_get_hw_vsi_num(hw, f_entry->fltr_info.vsi_handle);
 
@@ -3259,12 +3267,15 @@ static void ice_determine_promisc_mask(struct ice_fltr_info *fi,
 {
 	u16 vid = fi->l_data.mac_vlan.vlan_id;
 	u8 *macaddr = fi->l_data.mac.mac_addr;
+	bool is_rx_lb_fltr = false;
 	bool is_tx_fltr = false;
 
 	ice_zero_bitmap(promisc_mask, ICE_PROMISC_MAX);
 
 	if (fi->flag == ICE_FLTR_TX)
 		is_tx_fltr = true;
+	if (fi->flag == ICE_FLTR_RX_LB)
+		is_rx_lb_fltr = true;
 
 	if (IS_BROADCAST_ETHER_ADDR(macaddr)) {
 		ice_set_bit(is_tx_fltr ? ICE_PROMISC_BCAST_TX
@@ -3273,8 +3284,12 @@ static void ice_determine_promisc_mask(struct ice_fltr_info *fi,
 		ice_set_bit(is_tx_fltr ? ICE_PROMISC_MCAST_TX
 				       : ICE_PROMISC_MCAST_RX, promisc_mask);
 	} else if (IS_UNICAST_ETHER_ADDR(macaddr)) {
-		ice_set_bit(is_tx_fltr ? ICE_PROMISC_UCAST_TX
-				       : ICE_PROMISC_UCAST_RX, promisc_mask);
+		if (is_tx_fltr)
+			ice_set_bit(ICE_PROMISC_UCAST_TX, promisc_mask);
+		else if (is_rx_lb_fltr)
+			ice_set_bit(ICE_PROMISC_UCAST_RX_LB, promisc_mask);
+		else
+			ice_set_bit(ICE_PROMISC_UCAST_RX, promisc_mask);
 	}
 
 	if (vid) {
@@ -3510,7 +3525,7 @@ _ice_set_vsi_promisc(struct ice_hw *hw, u16 vsi_handle,
 	struct ice_fltr_list_entry f_list_entry;
 	struct ice_fltr_info new_fltr;
 	enum ice_status status = ICE_SUCCESS;
-	bool is_tx_fltr;
+	bool is_tx_fltr, is_rx_lb_fltr;
 	u16 hw_vsi_id;
 	int pkt_type;
 	u8 recipe_id;
@@ -3547,6 +3562,7 @@ _ice_set_vsi_promisc(struct ice_hw *hw, u16 vsi_handle,
 
 		pkt_type = 0;
 		is_tx_fltr = false;
+		is_rx_lb_fltr = false;
 
 		if (ice_test_and_clear_bit(ICE_PROMISC_UCAST_RX,
 					   p_mask)) {
@@ -3569,6 +3585,10 @@ _ice_set_vsi_promisc(struct ice_hw *hw, u16 vsi_handle,
 						  p_mask)) {
 			pkt_type = BCAST_FLTR;
 			is_tx_fltr = true;
+		} else if (ice_test_and_clear_bit(ICE_PROMISC_UCAST_RX_LB,
+						  p_mask)) {
+			pkt_type = UCAST_FLTR;
+			is_rx_lb_fltr = true;
 		}
 
 		/* Check for VLAN promiscuous flag */
@@ -3595,6 +3615,9 @@ _ice_set_vsi_promisc(struct ice_hw *hw, u16 vsi_handle,
 		new_fltr.flag = 0;
 		if (is_tx_fltr) {
 			new_fltr.flag |= ICE_FLTR_TX;
+			new_fltr.src = hw_vsi_id;
+		} else if (is_rx_lb_fltr) {
+			new_fltr.flag |= ICE_FLTR_RX_LB;
 			new_fltr.src = hw_vsi_id;
 		} else {
 			new_fltr.flag |= ICE_FLTR_RX;
