@@ -50,14 +50,14 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_param.h>
 
-static void	*ucode_intel_match(uint8_t *data, size_t *len);
-static int	ucode_intel_verify(struct ucode_intel_header *hdr,
+static const void	*ucode_intel_match(const uint8_t *data, size_t *len);
+static int	ucode_intel_verify(const struct ucode_intel_header *hdr,
 		    size_t resid);
 
 static struct ucode_ops {
 	const char *vendor;
-	int (*load)(void *, bool, uint64_t *, uint64_t *);
-	void *(*match)(uint8_t *, size_t *);
+	int (*load)(const void *, bool, uint64_t *, uint64_t *);
+	const void *(*match)(const uint8_t *, size_t *);
 } loaders[] = {
 	{
 		.vendor = INTEL_VENDOR_ID,
@@ -67,8 +67,8 @@ static struct ucode_ops {
 };
 
 /* Selected microcode update data. */
-static void *early_ucode_data;
-static void *ucode_data;
+static const void *early_ucode_data;
+static const void *ucode_data;
 static struct ucode_ops *ucode_loader;
 
 /* Variables used for reporting success or failure. */
@@ -103,7 +103,7 @@ log_msg(void *arg __unused)
 SYSINIT(ucode_log, SI_SUB_CPU, SI_ORDER_FIRST, log_msg, NULL);
 
 int
-ucode_intel_load(void *data, bool unsafe, uint64_t *nrevp, uint64_t *orevp)
+ucode_intel_load(const void *data, bool unsafe, uint64_t *nrevp, uint64_t *orevp)
 {
 	uint64_t nrev, orev;
 	uint32_t cpuid[4];
@@ -140,9 +140,10 @@ ucode_intel_load(void *data, bool unsafe, uint64_t *nrevp, uint64_t *orevp)
 }
 
 static int
-ucode_intel_verify(struct ucode_intel_header *hdr, size_t resid)
+ucode_intel_verify(const struct ucode_intel_header *hdr, size_t resid)
 {
-	uint32_t cksum, *data, size;
+	const uint32_t *data;
+	uint32_t cksum, size;
 	int i;
 
 	if (resid < sizeof(struct ucode_intel_header))
@@ -160,7 +161,7 @@ ucode_intel_verify(struct ucode_intel_header *hdr, size_t resid)
 		return (1);
 
 	cksum = 0;
-	data = (uint32_t *)hdr;
+	data = (const uint32_t *)hdr;
 	for (i = 0; i < size / sizeof(uint32_t); i++)
 		cksum += data[i];
 	if (cksum != 0)
@@ -168,12 +169,12 @@ ucode_intel_verify(struct ucode_intel_header *hdr, size_t resid)
 	return (0);
 }
 
-static void *
-ucode_intel_match(uint8_t *data, size_t *len)
+static const void *
+ucode_intel_match(const uint8_t *data, size_t *len)
 {
-	struct ucode_intel_header *hdr;
-	struct ucode_intel_extsig_table *table;
-	struct ucode_intel_extsig *entry;
+	const struct ucode_intel_header *hdr;
+	const struct ucode_intel_extsig_table *table;
+	const struct ucode_intel_extsig *entry;
 	uint64_t platformid;
 	size_t resid;
 	uint32_t data_size, flags, regs[4], sig, total_size;
@@ -186,7 +187,7 @@ ucode_intel_match(uint8_t *data, size_t *len)
 	flags = 1 << ((platformid >> 50) & 0x7);
 
 	for (resid = *len; resid > 0; data += total_size, resid -= total_size) {
-		hdr = (struct ucode_intel_header *)data;
+		hdr = (const struct ucode_intel_header *)data;
 		if (ucode_intel_verify(hdr, resid) != 0) {
 			ucode_error = VERIFICATION_FAILED;
 			break;
@@ -200,8 +201,8 @@ ucode_intel_match(uint8_t *data, size_t *len)
 			total_size = UCODE_INTEL_DEFAULT_DATA_SIZE +
 			    sizeof(struct ucode_intel_header);
 		if (data_size > total_size + sizeof(struct ucode_intel_header))
-			table = (struct ucode_intel_extsig_table *)
-			    ((uint8_t *)(hdr + 1) + data_size);
+			table = (const struct ucode_intel_extsig_table *)
+			    ((const uint8_t *)(hdr + 1) + data_size);
 		else
 			table = NULL;
 
@@ -317,7 +318,8 @@ ucode_load_bsp(uintptr_t free)
 		uint32_t regs[4];
 		char vendor[13];
 	} cpuid;
-	uint8_t *addr, *fileaddr, *match;
+	const uint8_t *fileaddr, *match;
+	uint8_t *addr;
 	char *type;
 	uint64_t nrev, orev;
 	caddr_t file;
