@@ -315,7 +315,7 @@ label:
 					time_t		mkt;
 
 					tm = *t;
-					mkt = mktime(&tm);
+					mkt = timeoff(&tm, t->tm_gmtoff);
 					if (TYPE_SIGNED(time_t))
 						(void) sprintf_l(buf, loc, "%ld",
 							(long) mkt);
