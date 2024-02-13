@@ -143,14 +143,13 @@ DESCRIPTION
        exist in this form in future releases of this code.
 
 FILES
-       /usr/share/zoneinfo             timezone information directory
-       /usr/share/zoneinfo/localtime   local timezone file
-       /usr/share/zoneinfo/posixrules  default DST rules (obsolete,
-                                       and can cause bugs if present)
+       /etc/localtime                  local timezone file
+       /usr/share/zoneinfo             timezone directory
+       /usr/share/zoneinfo/posixrules  default DST rules (obsolete)
        /usr/share/zoneinfo/GMT         for UTC leap seconds
 
        If /usr/share/zoneinfo/GMT is absent, UTC leap seconds are loaded from
-       /usr/share/zoneinfo/posixrules.
+       /usr/share/zoneinfo/GMT0 if present.
 
 SEE ALSO
        getenv(3), newstrftime(3), newtzset(3), time(2), tzfile(5)

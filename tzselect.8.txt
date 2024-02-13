@@ -16,29 +16,29 @@ DESCRIPTION
 
 OPTIONS
        -c coord
-              Instead of asking for continent and then country and then city,
-              ask for selection from time zones whose largest cities are
-              closest to the location with geographical coordinates coord.
+              Instead  of asking for continent and then country and then city,
+              ask for selection from  time  zones  whose  largest  cities  are
+              closest  to  the  location  with geographical coordinates coord.
               Use ISO 6709 notation for coord, that is, a latitude immediately
-              followed by a longitude.  The latitude and longitude should be
-              signed integers followed by an optional decimal point and
-              fraction: positive numbers represent north and east, negative
-              south and west.  Latitudes with two and longitudes with three
-              integer digits are treated as degrees; latitudes with four or
+              followed by a longitude.  The latitude and longitude  should  be
+              signed  integers  followed  by  an  optional  decimal  point and
+              fraction: positive numbers represent north  and  east,  negative
+              south  and  west.   Latitudes with two and longitudes with three
+              integer digits are treated as degrees; latitudes  with  four  or
               six and longitudes with five or seven integer digits are treated
-              as DDMM, DDDMM, DDMMSS, or DDDMMSS representing DD or DDD
-              degrees, MM minutes, and zero or SS seconds, with any trailing
-              fractions represent fractional minutes or (if SS is present)
-              seconds.  The decimal point is that of the current locale.  For
+              as  DDMM,  DDDMM,  DDMMSS,  or  DDDMMSS  representing  DD or DDD
+              degrees, MM minutes, and zero or SS seconds, with  any  trailing
+              fractions  represent  fractional  minutes  or (if SS is present)
+              seconds.  The decimal point is that of the current locale.   For
               example, in the (default) C locale, -c +40.689-074.045 specifies
               40.689 degrees N, 74.045 degrees W, -c +4041.4-07402.7 specifies
-              40 degrees 41.4 minutes N, 74 degrees 2.7 minutes W, and
+              40  degrees  41.4  minutes  N,  74  degrees  2.7  minutes W, and
               -c +404121-0740240 specifies 40 degrees 41 minutes 21 seconds N,
-              74 degrees 2 minutes 40 seconds W.  If coord is not one of the
+              74 degrees 2 minutes 40 seconds W.  If coord is not one  of  the
               documented forms, the resulting behavior is unspecified.
 
        -n limit
-              When -c is used, display the closest limit locations (default
+              When  -c  is  used, display the closest limit locations (default
               10).
 
        --help Output help information and exit.
@@ -47,9 +47,9 @@ OPTIONS
               Output version information and exit.
 
 ENVIRONMENT VARIABLES
-       AWK    Name of a Posix-compliant awk program (default: awk).
+       AWK    Name of a POSIX-compliant awk program (default: awk).
 
-       TZDIR  Name of the directory containing timezone data files (default:
+       TZDIR  Name of the directory containing timezone data  files  (default:
               /usr/share/zoneinfo).
 
 FILES
@@ -57,21 +57,21 @@ FILES
               Table of ISO 3166 2-letter country codes and country names.
 
        TZDIR/zone1970.tab
-              Table of country codes, latitude and longitude, timezones, and
+              Table  of  country codes, latitude and longitude, timezones, and
               descriptive comments.
 
        TZDIR/TZ
               Timezone data file for timezone TZ.
 
 EXIT STATUS
-       The exit status is zero if a timezone was successfully obtained from
+       The exit status is zero if a timezone was  successfully  obtained  from
        the user, nonzero otherwise.
 
 SEE ALSO
        newctime(3), tzfile(5), zdump(8), zic(8)
 
 NOTES
-       Applications should not assume that tzselect's output matches the
+       Applications  should  not  assume  that  tzselect's  output matches the
        user's political preferences.
 
 Time Zone Database                                                 tzselect(8)

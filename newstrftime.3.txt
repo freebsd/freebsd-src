@@ -12,7 +12,7 @@ SYNOPSIS
        cc ... -ltz
 
 DESCRIPTION
-       The strftime function formats the information from timeptr into the
+       The strftime function formats the information from *timeptr into the
        array pointed to by buf according to the string pointed to by format.
 
        The format string consists of zero or more conversion specifications
@@ -23,141 +23,174 @@ DESCRIPTION
        No more than maxsize bytes are placed into the array.
 
        Each conversion specification is replaced by the characters as follows
-       which are then copied into the array.
+       which are then copied into the array.  The characters depend on the
+       values of zero or more members of *timeptr as specified by brackets in
+       the description.  If a bracketed member name is followed by "+",
+       strftime can use the named member even though POSIX.1-2017 does not
+       list it; if the name is followed by "-", strftime ignores the member
+       even though POSIX.1-2017 lists it which means portable code should set
+       it.  For portability, *timeptr should be initialized as if by a
+       successful call to gmtime, localtime, mktime, timegm, or similar
+       functions.
 
-       %A     is replaced by the locale's full weekday name.
+       %A     is replaced by the locale's full weekday name.  [tm_wday]
 
-       %a     is replaced by the locale's abbreviated weekday name.
+       %a     is replaced by the locale's abbreviated weekday name.  [tm_wday]
 
-       %B     is replaced by the locale's full month name.
+       %B     is replaced by the locale's full month name.  [tm_mon]
 
        %b or %h
-              is replaced by the locale's abbreviated month name.
+              is replaced by the locale's abbreviated month name.  [tm_mon]
 
-       %C     is replaced by the century (a year divided by 100 and truncated
-              to an integer) as a decimal number [00,99].
+       %C     is  replaced by the century (a year divided by 100 and truncated
+              to an integer) as a decimal number, with at least two digits  by
+              default.  [tm_year]
 
-       %c     is replaced by the locale's appropriate date and time
-              representation.
+       %c     is   replaced   by   the  locale's  appropriate  date  and  time
+              representation.  [tm_year, tm_yday,  tm_mon,  tm_mday,  tm_wday,
+              tm_hour, tm_min, tm_sec, tm_gmtoff+, tm_zone+, tm_isdst-].
 
-       %D     is equivalent to %m/%d/%y.
+       %D     is equivalent to %m/%d/%y.  [tm_year, tm_mon, tm_mday]
 
        %d     is replaced by the day of the month as a decimal number [01,31].
+              [tm_mday]
 
-       %e     is replaced by the day of month as a decimal number [1,31];
-              single digits are preceded by a blank.
+       %e     is  replaced  by  the  day  of month as a decimal number [1,31];
+              single digits are preceded by a blank.  [tm_mday]
 
-       %F     is equivalent to %Y-%m-%d (the ISO 8601 date format).
+       %F     is equivalent to %Y-%m-%d (the ISO 8601 date format).  [tm_year,
+              tm_mon, tm_mday]
 
-       %G     is replaced by the ISO 8601 year with century as a decimal
-              number.  See also the %V conversion specification.
+       %G     is replaced by the ISO 8601  year  with  century  as  a  decimal
+              number.   See  also  the %V conversion specification.  [tm_year,
+              tm_yday, tm_wday]
 
-       %g     is replaced by the ISO 8601 year without century as a decimal
+       %g     is replaced by the ISO 8601 year without century  as  a  decimal
               number [00,99].  This is the year that includes the greater part
               of the week.  (Monday as the first day of a week).  See also the
-              %V conversion specification.
+              %V conversion specification.  [tm_year, tm_yday, tm_wday]
 
-       %H     is replaced by the hour (24-hour clock) as a decimal number
-              [00,23].
+       %H     is  replaced  by  the  hour  (24-hour clock) as a decimal number
+              [00,23].  [tm_hour]
 
-       %I     is replaced by the hour (12-hour clock) as a decimal number
-              [01,12].
+       %I     is replaced by the hour (12-hour  clock)  as  a  decimal  number
+              [01,12].  [tm_hour]
 
-       %j     is replaced by the day of the year as a decimal number
-              [001,366].
+       %j     is  replaced  by  the  day  of  the  year  as  a  decimal number
+              [001,366].  [tm_yday]
 
-       %k     is replaced by the hour (24-hour clock) as a decimal number
-              [0,23]; single digits are preceded by a blank.
+       %k     is replaced by the hour (24-hour  clock)  as  a  decimal  number
+              [0,23]; single digits are preceded by a blank.  [tm_hour]
 
-       %l     is replaced by the hour (12-hour clock) as a decimal number
-              [1,12]; single digits are preceded by a blank.
+       %l     is  replaced  by  the  hour  (12-hour clock) as a decimal number
+              [1,12]; single digits are preceded by a blank.  [tm_hour]
 
-       %M     is replaced by the minute as a decimal number [00,59].
+       %M     is replaced by the minute as a decimal number [00,59].  [tm_min]
 
-       %m     is replaced by the month as a decimal number [01,12].
+       %m     is replaced by the month as a decimal number [01,12].  [tm_mon]
 
        %n     is replaced by a newline.
 
-       %p     is replaced by the locale's equivalent of either "AM" or "PM".
+       %p     is replaced by the locale's equivalent of either "AM"  or  "PM".
+              [tm_hour]
 
-       %R     is replaced by the time in the format %H:%M.
+       %R     is replaced by the time in the format %H:%M.  [tm_hour, tm_min]
 
        %r     is replaced by the locale's representation of 12-hour clock time
-              using AM/PM notation.
+              using AM/PM notation.  [tm_hour, tm_min, tm_sec]
 
-       %S     is replaced by the second as a decimal number [00,60].  The
-              range of seconds is [00,60] instead of [00,59] to allow for the
-              periodic occurrence of leap seconds.
+       %S     is  replaced  by  the  second  as a decimal number [00,60].  The
+              range of seconds is [00,60] instead of [00,59] to allow for  the
+              periodic occurrence of leap seconds.  [tm_sec]
 
-       %s     is replaced by the number of seconds since the Epoch (see
-              ctime(3)).
+       %s     is  replaced  by  the  number  of  seconds  since the Epoch (see
+              ctime(3)).  Although %s is reliable in this  implementation,  it
+              can  have glitches on other platforms (notably platforms lacking
+              tm_gmtoff), so  portable  code  should  format  a  time_t  value
+              directly  via  something  like  sprintf instead of via localtime
+              followed by strftime  with  "%s".   [tm_year,  tm_mon,  tm_mday,
+              tm_hour, tm_min, tm_sec, tm_gmtoff+, tm_isdst-].
 
-       %T     is replaced by the time in the format %H:%M:%S.
+       %T     is  replaced  by  the  time  in  the format %H:%M:%S.  [tm_hour,
+              tm_min, tm_sec]
 
        %t     is replaced by a tab.
 
-       %U     is replaced by the week number of the year (Sunday as the first
-              day of the week) as a decimal number [00,53].
+       %U     is replaced by the week number of the year (Sunday as the  first
+              day  of  the  week)  as  a  decimal  number  [00,53].  [tm_wday,
+              tm_yday, tm_year-]
 
        %u     is replaced by the weekday (Monday as the first day of the week)
-              as a decimal number [1,7].
+              as a decimal number [1,7].  [tm_wday]
 
-       %V     is replaced by the week number of the year (Monday as the first
-              day of the week) as a decimal number [01,53].  If the week
+       %V     is replaced by the week number of the year (Monday as the  first
+              day  of  the  week)  as  a  decimal number [01,53].  If the week
               containing January 1 has four or more days in the new year, then
-              it is week 1; otherwise it is week 53 of the previous year, and
+              it is week 1; otherwise it is week 53 of the previous year,  and
               the next week is week 1.  The year is given by the %G conversion
-              specification.
+              specification.  [tm_year, tm_yday, tm_wday]
 
-       %W     is replaced by the week number of the year (Monday as the first
-              day of the week) as a decimal number [00,53].
+       %W     is  replaced by the week number of the year (Monday as the first
+              day of  the  week)  as  a  decimal  number  [00,53].   [tm_yday,
+              tm_wday]
 
        %w     is replaced by the weekday (Sunday as the first day of the week)
-              as a decimal number [0,6].
+              as a decimal number [0,6].  [tm_year, tm_yday, tm_wday]
 
-       %X     is replaced by the locale's appropriate time representation.
+       %X     is  replaced  by  the  locale's appropriate time representation.
+              [tm_year-,  tm_yday-,  tm_mon-,  tm_mday-,  tm_wday-,   tm_hour,
+              tm_min, tm_sec, tm_gmtoff+, tm_zone+, tm_isdst-].
 
-       %x     is replaced by the locale's appropriate date representation.
+       %x     is  replaced  by  the  locale's appropriate date representation.
+              [tm_year, tm_yday, tm_mon, tm_mday, tm_wday, tm_hour-,  tm_min-,
+              tm_sec-, tm_gmtoff-, tm_zone-, tm_isdst-].
 
-       %Y     is replaced by the year with century as a decimal number.
+       %Y     is  replaced  by  the  year  with  century  as a decimal number.
+              [tm_year]
 
-       %y     is replaced by the year without century as a decimal number
-              [00,99].
+       %y     is replaced by the year without  century  as  a  decimal  number
+              [00,99].  [tm_year]
 
-       %Z     is replaced by the time zone abbreviation, or by the empty
-              string if this is not determinable.
+       %Z     is  replaced  by  the  time  zone  abbreviation, or by the empty
+              string if this is not determinable.  [tm_zone+, tm_isdst-]
 
-       %z     is replaced by the offset from the Prime Meridian in the format
-              +HHMM or -HHMM (ISO 8601) as appropriate, with positive values
+       %z     is replaced by the offset from the Prime Meridian in the  format
+              +HHMM  or  -HHMM (ISO 8601) as appropriate, with positive values
               representing locations east of Greenwich, or by the empty string
               if this is not determinable.  The numeric time zone abbreviation
-              -0000 is used when the time is Universal Time but local time is
-              indeterminate; by convention this is used for locations while
+              -0000 is used when the time is Universal Time but local time  is
+              indeterminate;  by  convention  this is used for locations while
               uninhabited, and corresponds to a zero offset when the time zone
-              abbreviation begins with "-".
+              abbreviation begins with "-".  [tm_gmtoff+, tm_zone+, tm_isdst-]
 
        %%     is replaced by a single %.
 
-       %+     is replaced by the locale's date and time in date(1) format.
+       %+     is replaced by the locale's date and  time  in  date(1)  format.
+              [tm_year,  tm_yday,  tm_mon,  tm_mday, tm_wday, tm_hour, tm_min,
+              tm_sec, tm_gmtoff, tm_zone]
+
+       As a side effect, strftime also behaves as if tzset were called.   This
+       is  for compatibility with older platforms, as required by POSIX; it is
+       not needed for tzset's own use.
 
 RETURN VALUE
-       If the conversion is successful, strftime returns the number of bytes
-       placed into the array, not counting the terminating NUL; errno is
-       unchanged if the returned value is zero.  Otherwise, errno is set to
-       indicate the error, zero is returned, and the array contents are
+       If the conversion is successful, strftime returns the number  of  bytes
+       placed  into  the  array,  not  counting  the terminating NUL; errno is
+       unchanged if the returned value is zero.  Otherwise, errno  is  set  to
+       indicate  the  error,  zero  is  returned,  and  the array contents are
        unspecified.
 
 ERRORS
        This function fails if:
 
        [ERANGE]
-              The total number of resulting bytes, including the terminating
+              The total number of resulting bytes, including  the  terminating
               NUL character, is more than maxsize.
 
        This function may fail if:
 
        [EOVERFLOW]
-              The format includes an %s conversion and the number of seconds
+              The  format  includes an %s conversion and the number of seconds
               since the Epoch cannot be represented in a time_t.
 
 SEE ALSO

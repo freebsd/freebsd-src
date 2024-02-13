@@ -89,20 +89,19 @@ DESCRIPTION
               Use Universal Time when setting and showing the date and time.
 
        -r seconds
-              Output the date that corresponds to seconds past the epoch of
-              1970-01-01 00:00:00 UTC, where seconds should be an integer,
-              either decimal, octal (leading 0), or hexadecimal (leading 0x),
+              Output  the  date  that corresponds to seconds past the epoch of
+              1970-01-01 00:00:00 UTC, where seconds  should  be  an  integer,
+              either  decimal, octal (leading 0), or hexadecimal (leading 0x),
               preceded by an optional sign.
 
 FILES
        /etc/localtime                  local timezone file
        /usr/lib/locale/L/LC_TIME       description of time locale L
-       /usr/share/zoneinfo             timezone information directory
-       /usr/share/zoneinfo/posixrules  default DST rules (obsolete,
-                                       and can cause bugs if present)
+       /usr/share/zoneinfo             timezone directory
+       /usr/share/zoneinfo/posixrules  default DST rules (obsolete)
        /usr/share/zoneinfo/GMT         for UTC leap seconds
 
-       If /usr/share/zoneinfo/GMT is absent, UTC leap seconds are loaded from
-       /usr/share/zoneinfo/posixrules.
+       If /usr/share/zoneinfo/GMT is absent, UTC leap seconds are loaded  from
+       /usr/share/zoneinfo/GMT0 if present.
 
 Time Zone Database                                                     date(1)

@@ -16,25 +16,17 @@ SYNOPSIS
 
 DESCRIPTION
        The tzalloc function allocates and returns a timezone object described
-       by TZ.  If TZ is not a valid timezone description, or if the object
-       cannot be allocated, tzalloc returns a null pointer and sets errno.
+       by TZ.
 
-       The tzfree function frees a timezone object tz, which should have been
-       successfully allocated by tzalloc.  This invalidates any tm_zone
-       pointers that tz was used to set.
+       If TZ is a null pointer, tzalloc uses the best available approximation
+       to local (wall clock) time, as specified by the tzfile(5)-format file
+       localtime in the system time conversion information directory.
 
-       The tzset function acts like tzalloc(getenv("TZ")), except it saves any
-       resulting timezone object into internal storage that is accessed by
-       localtime, localtime_r, and mktime.  The anonymous shared timezone
-       object is freed by the next call to tzset.  If the implied call to
-       tzalloc fails, tzset falls back on Universal Time (UT).
+       If TZ is the empty string, tzalloc uses Universal Time (UT), with the
+       abbreviation "UTC" and without leap second correction; please see
+       newctime(3) for more about UT, UTC, and leap seconds.
 
-       If TZ is null, the best available approximation to local (wall clock)
-       time, as specified by the tzfile(5)-format file localtime in the system
-       time conversion information directory, is used.  If TZ is the empty
-       string, UT is used, with the abbreviation "UTC" and without leap second
-       correction; please see newctime(3) for more about UT, UTC, and leap
-       seconds.  If TZ is nonnull and nonempty:
+       If TZ is nonnull and nonempty:
 
               if the value begins with a colon, it is used as a pathname of a
               file from which to read the time conversion information;
@@ -44,155 +36,176 @@ DESCRIPTION
               information, and, if that file cannot be read, is used directly
               as a specification of the time conversion information.
 
-       When TZ is used as a pathname, if it begins with a slash, it is used as
-       an absolute pathname; otherwise, it is used as a pathname relative to a
-       system time conversion information directory.  The file must be in the
-       format specified in tzfile(5).
+       When TZ contents are used as a pathname, a pathname beginning with "/"
+       is used as-is; otherwise the pathname is relative to a system time
+       conversion information directory.  The file must be in the format
+       specified in tzfile(5).
 
        When TZ is used directly as a specification of the time conversion
-       information, it must have the following syntax (spaces inserted for
-       clarity):
+       information, it must have the following syntax:
 
               stdoffset[dst[offset][,rule]]
 
        Where:
 
-              std and dst    Three or more bytes that are the designation for
-                             the standard (std) or the alternative (dst, such
-                             as daylight saving time) time zone.  Only std is
-                             required; if dst is missing, then daylight saving
-                             time does not apply in this locale.  Upper- and
-                             lowercase letters are explicitly allowed.  Any
-                             characters except a leading colon (:), digits,
-                             comma (,), ASCII minus (-), ASCII plus (+), and
-                             NUL bytes are allowed.  Alternatively, a
-                             designation can be surrounded by angle brackets <
-                             and >; in this case, the designation can contain
-                             any characters other than > and NUL.
+              std and dst
+                     Three  or  more  bytes  that  are the designation for the
+                     standard (std) or the alternative (dst, such as  daylight
+                     saving  time) time zone.  Only std is required; if dst is
+                     missing, then daylight saving time does not apply in this
+                     locale.  Upper-  and  lowercase  letters  are  explicitly
+                     allowed.   Any  characters  except  a  leading colon (:),
+                     digits, comma (,), ASCII minus (-), ASCII plus  (+),  and
+                     NUL  bytes are allowed.  Alternatively, a designation can
+                     be surrounded by angle brackets < and >;  in  this  case,
+                     the  designation  can contain any characters other than >
+                     and NUL.
 
-              offset         Indicates the value one must add to the local
-                             time to arrive at Coordinated Universal Time.
-                             The offset has the form:
+              offset Indicates the value one must add to  the  local  time  to
+                     arrive at Coordinated Universal Time.  The offset has the
+                     form:
 
-                                    hh[:mm[:ss]]
+                            hh[:mm[:ss]]
 
-                             The minutes (mm) and seconds (ss) are optional.
-                             The hour (hh) is required and may be a single
-                             digit.  The offset following std is required.  If
-                             no offset follows dst, daylight saving time is
-                             assumed to be one hour ahead of standard time.
-                             One or more digits may be used; the value is
-                             always interpreted as a decimal number.  The hour
-                             must be between zero and 24, and the minutes (and
-                             seconds) - if present - between zero and 59.  If
-                             preceded by a "-", the time zone shall be east of
-                             the Prime Meridian; otherwise it shall be west
-                             (which may be indicated by an optional preceding
-                             "+".
+                     The minutes (mm) and seconds (ss) are optional.  The hour
+                     (hh)  is  required and may be a single digit.  The offset
+                     following std is required.  If  no  offset  follows  dst,
+                     daylight  saving  time is assumed to be one hour ahead of
+                     standard time.  One or more digits may be used; the value
+                     is always interpreted as a decimal number.  The hour must
+                     be between zero and 24, and the minutes (and  seconds)  -
+                     if  present - between zero and 59.  If preceded by a "-",
+                     the time zone  shall  be  east  of  the  Prime  Meridian;
+                     otherwise  it shall be west (which may be indicated by an
+                     optional preceding "+".
 
-              rule           Indicates when to change to and back from
-                             daylight saving time.  The rule has the form:
+              rule   Indicates when to change to and back from daylight saving
+                     time.  The rule has the form:
 
-                                    date/time,date/time
+                            date/time,date/time
 
-                             where the first date describes when the change
-                             from standard to daylight saving time occurs and
-                             the second date describes when the change back
-                             happens.  Each time field describes when, in
-                             current local time, the change to the other time
-                             is made.  As an extension to POSIX, daylight
-                             saving is assumed to be in effect all year if it
-                             begins January 1 at 00:00 and ends December 31 at
-                             24:00 plus the difference between daylight saving
-                             and standard time, leaving no room for standard
-                             time in the calendar.
+                     where the first  date  describes  when  the  change  from
+                     standard  to  daylight  saving time occurs and the second
+                     date describes when the change back happens.   Each  time
+                     field  describes  when, in current local time, the change
+                     to  the  other  time  is  made.   As  an   extension   to
+                     POSIX.1-2017,  daylight saving is assumed to be in effect
+                     all year if  it  begins  January  1  at  00:00  and  ends
+                     December 31 at 24:00 plus the difference between daylight
+                     saving  and  standard  time, leaving no room for standard
+                     time in the calendar.
 
-                             The format of date is one of the following:
+                     The format of date is one of the following:
 
-                             Jn        The Julian day n (1 <= n <= 365).  Leap
-                                       days are not counted; that is, in all
-                                       years - including leap years - February
-                                       28 is day 59 and March 1 is day 60.  It
-                                       is impossible to explicitly refer to
-                                       the occasional February 29.
+                     Jn     The Julian day n (1 <= n <= 365).  Leap  days  are
+                            not  counted;  that  is,  in all years - including
+                            leap years - February 28 is day 59 and March 1  is
+                            day  60.   It is impossible to explicitly refer to
+                            the occasional February 29.
 
-                             n         The zero-based Julian day
-                                       (0 <= n <= 365).  Leap days are
-                                       counted, and it is possible to refer to
-                                       February 29.
+                     n      The zero-based Julian day  (0 <= n <= 365).   Leap
+                            days  are  counted, and it is possible to refer to
+                            February 29.
 
-                             Mm.n.d    The d'th day (0 <= d <= 6) of week n of
-                                       month m of the year (1 <= n <= 5,
-                                       1 <= m <= 12, where week 5 means "the
-                                       last d day in month m" which may occur
-                                       in either the fourth or the fifth
-                                       week).  Week 1 is the first week in
-                                       which the d'th day occurs.  Day zero is
-                                       Sunday.
+                     Mm.n.d The d'th day (0 <= d <= 6) of week n of month m of
+                            the year (1 <= n <= 5, 1 <= m <= 12, where week  5
+                            means  "the last d day in month m" which may occur
+                            in either the fourth or the fifth week).   Week  1
+                            is  the  first  week in which the d'th day occurs.
+                            Day zero is Sunday.
 
-                             The time has the same format as offset except
-                             that POSIX does not allow a leading sign ("-" or
-                             "+").  As an extension to POSIX, the hours part
-                             of time can range from -167 through 167; this
-                             allows for unusual rules such as "the Saturday
-                             before the first Sunday of March".  The default,
-                             if time is not given, is 02:00:00.
+                     The time has  the  same  format  as  offset  except  that
+                     POSIX.1-2017  does not allow a leading sign ("-" or "+").
+                     As an extension to POSIX.1-2017, the hours part  of  time
+                     can  range from -167 through 167; this allows for unusual
+                     rules such as "the Saturday before the  first  Sunday  of
+                     March".  The default, if time is not given, is 02:00:00.
 
        Here are some examples of TZ values that directly specify the timezone;
-       they use some of the extensions to POSIX.
+       they use some of the extensions to POSIX.1-2017.
 
-       EST5   stands for US Eastern Standard Time (EST), 5 hours behind UT,
+       EST5   stands  for  US  Eastern Standard Time (EST), 5 hours behind UT,
               without daylight saving.
 
        <+12>-12<+13>,M11.1.0,M1.2.1/147
               stands for Fiji time, 12 hours ahead of UT, springing forward on
-              November's first Sunday at 02:00, and falling back on January's
-              second Monday at 147:00 (i.e., 03:00 on the first Sunday on or
-              after January 14).  The abbreviations for standard and daylight
+              November's first Sunday at 02:00, and falling back on  January's
+              second  Monday  at 147:00 (i.e., 03:00 on the first Sunday on or
+              after January 14).  The abbreviations for standard and  daylight
               saving time are "+12" and "+13".
 
        IST-2IDT,M3.4.4/26,M10.5.0
-              stands for Israel Standard Time (IST) and Israel Daylight Time
-              (IDT), 2 hours ahead of UT, springing forward on March's fourth
-              Thursday at 26:00 (i.e., 02:00 on the first Friday on or after
+              stands  for  Israel Standard Time (IST) and Israel Daylight Time
+              (IDT), 2 hours ahead of UT, springing forward on March's  fourth
+              Thursday  at  26:00 (i.e., 02:00 on the first Friday on or after
               March 23), and falling back on October's last Sunday at 02:00.
 
        <-04>4<-03>,J1/0,J365/25
-              stands for permanent daylight saving time, 3 hours behind UT
-              with abbreviation "-03".  There is a dummy fall-back transition
-              on December 31 at 25:00 daylight saving time (i.e., 24:00
-              standard time, equivalent to January 1 at 00:00 standard time),
-              and a simultaneous spring-forward transition on January 1 at
-              00:00 standard time, so daylight saving time is in effect all
+              stands for permanent daylight saving time,  3  hours  behind  UT
+              with  abbreviation "-03".  There is a dummy fall-back transition
+              on December 31  at  25:00  daylight  saving  time  (i.e.,  24:00
+              standard  time, equivalent to January 1 at 00:00 standard time),
+              and a simultaneous spring-forward transition  on  January  1  at
+              00:00  standard  time,  so daylight saving time is in effect all
               year and the initial <-04> is a placeholder.
 
        <-03>3<-02>,M3.5.0/-2,M10.5.0/-1
-              stands for time in western Greenland, 3 hours behind UT, where
-              clocks follow the EU rules of springing forward on March's last
-              Sunday at 01:00 UT (-02:00 local time, i.e., 22:00 the previous
-              day) and falling back on October's last Sunday at 01:00 UT
-              (-01:00 local time, i.e., 23:00 the previous day).  The
-              abbreviations for standard and daylight saving time are "-03"
+              stands for time in western Greenland, 3 hours behind  UT,  where
+              clocks  follow the EU rules of springing forward on March's last
+              Sunday at 01:00 UT (-02:00 local time, i.e., 22:00 the  previous
+              day)  and  falling  back  on  October's  last Sunday at 01:00 UT
+              (-01:00  local  time,  i.e.,  23:00  the  previous  day).    The
+              abbreviations  for  standard  and daylight saving time are "-03"
               and "-02".
 
-       If no rule is present in TZ, the rules specified by the
-       tzfile(5)-format file posixrules in the system time conversion
-       information directory are used, with the standard and daylight saving
-       time offsets from UT replaced by those specified by the offset values
-       in TZ.
+       If TZ specifies daylight saving time but does not specify a  rule,  and
+       the  optional tzfile(5)-format file posixrules is present in the system
+       time conversion information directory,  the  rules  in  posixrules  are
+       used,  with  the  posixrules  standard and daylight saving time offsets
+       from UT replaced by  those  specified  by  the  offset  values  in  TZ.
+       However,  the  posixrules file is obsolete: if it is present it is only
+       for backward compatibility, and it does not work reliably.   Therefore,
+       if a TZ string directly specifies a timezone with daylight saving time,
+       it should specify the daylight saving rules explicitly.
 
-       For compatibility with System V Release 3.1, a semicolon (;) may be
-       used to separate the rule from the rest of the specification.
+       For  compatibility  with  System  V Release 3.1, a semicolon (;) may be
+       used to separate the rule from the rest of the specification;  this  is
+       an extension to POSIX.
+
+       The  tzfree function frees a timezone object tz, which should have been
+       successfully  allocated  by  tzalloc.   This  invalidates  any  tm_zone
+       pointers that tz was used to set.
+
+       The tzset function acts like tzalloc(getenv("TZ")), except it saves any
+       resulting  timezone  object  into  internal storage that is accessed by
+       localtime, localtime_r, and  mktime.   The  anonymous  shared  timezone
+       object  is  freed  by  the  next call to tzset.  If the implied call to
+       getenv fails, tzset acts like tzalloc(nullptr); if the implied call  to
+       tzalloc fails, tzset falls back on UT.
+
+RETURN VALUE
+       If  successful,  the  tzalloc function returns a nonnull pointer to the
+       newly allocated object.  Otherwise, it returns a null pointer and  sets
+       errno.
+
+ERRORS
+       EOVERFLOW
+              TZ  directly specifies time conversion information, and contains
+              an integer out of machine range or a time zone abbreviation that
+              is too long for this platform.
+
+       The tzalloc function may also fail and set errno for any of the  errors
+       specified for the routines access(2), close(2), malloc(3), open(2), and
+       read(2).
 
 FILES
-       /usr/share/zoneinfo             timezone information directory
-       /usr/share/zoneinfo/localtime   local timezone file
-       /usr/share/zoneinfo/posixrules  default DST rules (obsolete,
-                                       and can cause bugs if present)
+       /etc/localtime                  local timezone file
+       /usr/share/zoneinfo             timezone directory
+       /usr/share/zoneinfo/posixrules  default DST rules (obsolete)
        /usr/share/zoneinfo/GMT         for UTC leap seconds
 
-       If /usr/share/zoneinfo/GMT is absent, UTC leap seconds are loaded from
-       /usr/share/zoneinfo/posixrules.
+       If  /usr/share/zoneinfo/GMT is absent, UTC leap seconds are loaded from
+       /usr/share/zoneinfo/GMT0 if present.
 
 SEE ALSO
        getenv(3), newctime(3), newstrftime(3), time(2), tzfile(5)

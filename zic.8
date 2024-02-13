@@ -95,7 +95,7 @@ as local time.
 .B zic
 will act as if the input contained a link line of the form
 .sp
-.ti +.5i
+.ti +2
 .ta \w'Link\0\0'u  +\w'\fItimezone\fP\0\0'u
 Link	\fItimezone\fP		localtime
 .sp
@@ -118,8 +118,14 @@ TZ strings like "EET\*-2EEST" that lack transition rules.
 .B zic
 will act as if the input contained a link line of the form
 .sp
-.ti +.5i
+.ti +2
 Link	\fItimezone\fP		posixrules
+.sp
+If
+.I timezone
+is
+.q "\*-"
+(the default), any already-existing link is removed.
 .sp
 Unless
 .I timezone is
@@ -131,12 +137,6 @@ and it should not be combined with
 if
 .IR timezone 's
 transitions are at standard time or Universal Time (UT) instead of local time.
-.sp
-If
-.I timezone
-is
-.BR \*- ,
-any already-existing link is removed.
 .TP
 .BR "\*-r " "[\fB@\fP\fIlo\fP][\fB/@\fP\fIhi\fP]"
 Limit the applicability of output files
@@ -171,7 +171,7 @@ boundaries, particularly if
 causes a TZif file to contain explicit entries for
 .RI pre- hi
 transitions rather than concisely representing them
-with an extended POSIX TZ string.
+with an extended POSIX.1-2017 TZ string.
 Also see the
 .B "\*-b slim"
 option for another way to shrink output size.
@@ -181,10 +181,10 @@ Generate redundant trailing explicit transitions for timestamps
 that occur less than
 .I hi
 seconds since the Epoch, even though the transitions could be
-more concisely represented via the extended POSIX TZ string.
+more concisely represented via the extended POSIX.1-2017 TZ string.
 This option does not affect the represented timestamps.
 Although it accommodates nonstandard TZif readers
-that ignore the extended POSIX TZ string,
+that ignore the extended POSIX.1-2017 TZ string,
 it increases the size of the altered output files.
 .TP
 .BI "\*-t " file
@@ -245,10 +245,10 @@ for
 .PP
 The output file does not contain all the information about the
 long-term future of a timezone, because the future cannot be summarized as
-an extended POSIX TZ string.  For example, as of 2023 this problem
+an extended POSIX.1-2017 TZ string.  For example, as of 2023 this problem
 occurs for Morocco's daylight-saving rules, as these rules are based
 on predictions for when Ramadan will be observed, something that
-an extended POSIX TZ string cannot represent.
+an extended POSIX.1-2017 TZ string cannot represent.
 .PP
 The output contains data that may not be handled properly by client
 code designed for older
@@ -330,19 +330,19 @@ abbreviation must be unambiguous in context.
 .PP
 A rule line has the form
 .nf
-.ti +.5i
+.ti +2
 .ta \w'Rule\0\0'u +\w'NAME\0\0'u +\w'FROM\0\0'u +\w'1973\0\0'u +\w'\*-\0\0'u +\w'Apr\0\0'u +\w'lastSun\0\0'u +\w'2:00w\0\0'u +\w'1:00d\0\0'u
 .sp
 Rule	NAME	FROM	TO	\*-	IN	ON	AT	SAVE	LETTER/S
 .sp
 For example:
-.ti +.5i
+.ti +2
 .sp
 Rule	US	1967	1973	\*-	Apr	lastSun	2:00w	1:00d	D
 .sp
 .fi
 The fields that make up a rule line are:
-.TP "\w'LETTER/S'u"
+.TP
 .B NAME
 Gives the name of the rule set that contains this line.
 The name must start with a character that is neither
@@ -360,24 +360,15 @@ an unquoted name should not contain characters from the set
 Gives the first year in which the rule applies.
 Any signed integer year can be supplied; the proleptic Gregorian calendar
 is assumed, with year 0 preceding year 1.
-The word
-.B minimum
-(or an abbreviation) means the indefinite past.
-The word
-.B maximum
-(or an abbreviation) means the indefinite future.
 Rules can describe times that are not representable as time values,
 with the unrepresentable times ignored; this allows rules to be portable
 among hosts with differing time value types.
 .TP
 .B TO
 Gives the final year in which the rule applies.
-In addition to
-.B minimum
-and
+The word
 .B maximum
-(as above),
-the word
+(or an abbreviation) means the indefinite future, and the word
 .B only
 (or an abbreviation)
 may be used to repeat the value of the
@@ -404,7 +395,7 @@ Month names may be abbreviated.
 Gives the day on which the rule takes effect.
 Recognized forms include:
 .nf
-.in +.5i
+.in +2
 .sp
 .ta \w'Sun<=25\0\0'u
 5	the fifth of the month
@@ -413,7 +404,7 @@ lastMon	the last Monday in the month
 Sun>=8	first Sunday on or after the eighth
 Sun<=25	last Sunday on or before the 25th
 .fi
-.in -.5i
+.in
 .sp
 A weekday name (e.g.,
 .BR "Sunday" )
@@ -440,7 +431,7 @@ Gives the time of day at which the rule takes effect,
 relative to 00:00, the start of a calendar day.
 Recognized forms include:
 .nf
-.in +.5i
+.in +2
 .sp
 .ta \w'00:19:32.13\0\0'u
 2	time in hours
@@ -454,7 +445,7 @@ Recognized forms include:
 \*-2:30	2.5 hours before 00:00
 \*-	equivalent to 0
 .fi
-.in -.5i
+.in
 .sp
 Although
 .B zic
@@ -532,18 +523,18 @@ the variable part is null.
 A zone line has the form
 .sp
 .nf
-.ti +.5i
+.ti +2
 .ta \w'Zone\0\0'u +\w'Asia/Amman\0\0'u +\w'STDOFF\0\0'u +\w'Jordan\0\0'u +\w'FORMAT\0\0'u
 Zone	NAME	STDOFF	RULES	FORMAT	[UNTIL]
 .sp
 For example:
 .sp
-.ti +.5i
+.ti +2
 Zone	Asia/Amman	2:00	Jordan	EE%sT	2017 Oct 27 01:00
 .sp
 .fi
 The fields that make up a zone line are:
-.TP "\w'STDOFF'u"
+.TP
 .B NAME
 The name of the timezone.
 This is the name used in creating the time conversion information file for the
@@ -663,15 +654,15 @@ For example:
 .br
 .ne 7
 .nf
-.in +2m
+.in +2
 .ta \w'# Rule\0\0'u +\w'NAME\0\0'u +\w'FROM\0\0'u +\w'2006\0\0'u +\w'\*-\0\0'u +\w'Oct\0\0'u +\w'lastSun\0\0'u +\w'2:00\0\0'u +\w'SAVE\0\0'u
 .sp
 # Rule	NAME	FROM	TO	\*-	IN	ON	AT	SAVE	LETTER/S
 Rule	US	1967	2006	-	Oct	lastSun	2:00	0	S
 Rule	US	1967	1973	-	Apr	lastSun	2:00	1:00	D
-.ta \w'Zone\0\0America/Menominee\0\0'u +\w'STDOFF\0\0'u +\w'RULES\0\0'u +\w'FORMAT\0\0'u
-# Zone\0\0NAME	STDOFF	RULES	FORMAT	[UNTIL]
-Zone\0\0America/Menominee	\*-5:00	\*-	EST	1973 Apr 29 2:00
+.ta \w'# Zone\0\0'u +\w'America/Menominee\0\0'u +\w'STDOFF\0\0'u +\w'RULES\0\0'u +\w'FORMAT\0\0'u
+# Zone	NAME	STDOFF	RULES	FORMAT	[UNTIL]
+Zone	America/Menominee	\*-5:00	\*-	EST	1973 Apr 29 2:00
 	\*-6:00	US	C%sT
 .sp
 .in
@@ -687,13 +678,13 @@ interprets this more sensibly as a single transition from 02:00 CST (\*-05) to
 A link line has the form
 .sp
 .nf
-.ti +.5i
+.ti +2
 .ta \w'Link\0\0'u +\w'Europe/Istanbul\0\0'u
 Link	TARGET	LINK-NAME
 .sp
 For example:
 .sp
-.ti +.5i
+.ti +2
 Link	Europe/Istanbul	Asia/Istanbul
 .sp
 .fi
@@ -717,7 +708,7 @@ For example:
 .sp
 .ne 3
 .nf
-.in +2m
+.in +2
 .ta \w'Zone\0\0'u +\w'Greenwich\0\0'u
 Link	Greenwich	G_M_T
 Link	Etc/GMT	Greenwich
@@ -737,13 +728,13 @@ The file that describes leap seconds can have leap lines and an
 expiration line.
 Leap lines have the following form:
 .nf
-.ti +.5i
+.ti +2
 .ta \w'Leap\0\0'u +\w'YEAR\0\0'u +\w'MONTH\0\0'u +\w'DAY\0\0'u +\w'HH:MM:SS\0\0'u +\w'CORR\0\0'u
 .sp
 Leap	YEAR	MONTH	DAY	HH:MM:SS	CORR	R/S
 .sp
 For example:
-.ti +.5i
+.ti +2
 .sp
 Leap	2016	Dec	31	23:59:60	+	S
 .sp
@@ -791,13 +782,13 @@ option is used.
 .PP
 The expiration line, if present, has the form:
 .nf
-.ti +.5i
+.ti +2
 .ta \w'Expires\0\0'u +\w'YEAR\0\0'u +\w'MONTH\0\0'u +\w'DAY\0\0'u
 .sp
 Expires	YEAR	MONTH	DAY	HH:MM:SS
 .sp
 For example:
-.ti +.5i
+.ti +2
 .sp
 Expires	2020	Dec	28	00:00:00
 .sp
@@ -816,7 +807,7 @@ Here is an extended example of
 .B zic
 input, intended to illustrate many of its features.
 .nf
-.in +2m
+.in +2
 .ta \w'# Rule\0\0'u +\w'NAME\0\0'u +\w'FROM\0\0'u +\w'1973\0\0'u +\w'\*-\0\0'u +\w'Apr\0\0'u +\w'lastSun\0\0'u +\w'2:00\0\0'u +\w'SAVE\0\0'u
 .sp
 # Rule	NAME	FROM	TO	\*-	IN	ON	AT	SAVE	LETTER/S

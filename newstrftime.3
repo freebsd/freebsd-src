@@ -64,7 +64,7 @@ strftime \- format date and time
 The
 .B strftime
 function formats the information from
-.I timeptr
+.BI * timeptr
 into the array pointed to by
 .I buf
 according to the string pointed to by
@@ -85,47 +85,94 @@ bytes are placed into the array.
 .PP
 Each conversion specification is replaced by the characters as
 follows which are then copied into the array.
+The characters depend on the values of zero or more members of
+.BI * timeptr
+as specified by brackets in the description.
+If a bracketed member name is followed by
+.q + ,
+.B strftime
+can use the named member even though POSIX.1-2017 does not list it;
+if the name is followed by
+.q \*- ,
+.B strftime
+ignores the member even though POSIX.1-2017 lists it
+which means portable code should set it.
+For portability,
+.BI * timeptr
+should be initialized as if by a successful call to
+.BR gmtime ,
+.BR localtime ,
+.BR mktime ,
+.BR timegm ,
+or similar functions.
 .TP
 %A
 is replaced by the locale's full weekday name.
+.RI [ tm_wday ]
 .TP
 %a
 is replaced by the locale's abbreviated weekday name.
+.RI [ tm_wday ]
 .TP
 %B
 is replaced by the locale's full month name.
+.RI [ tm_mon ]
 .TP
 %b or %h
 is replaced by the locale's abbreviated month name.
+.RI [ tm_mon ]
 .TP
 %C
 is replaced by the century (a year divided by 100 and truncated to an integer)
-as a decimal number [00,99].
+as a decimal number, with at least two digits by default.
+.RI [ tm_year ]
 .TP
 %c
 is replaced by the locale's appropriate date and time representation.
+.RI [ tm_year ,
+.IR tm_yday ,
+.IR tm_mon ,
+.IR tm_mday ,
+.IR tm_wday ,
+.IR tm_hour ,
+.IR tm_min ,
+.IR tm_sec ,
+.IR tm_gmtoff +,
+.IR tm_zone +,
+.IR tm_isdst \*-].
 .TP
 %D
 is equivalent to
 .c %m/%d/%y .
+.RI [ tm_year ,
+.IR tm_mon ,
+.IR tm_mday ]
 .TP
 %d
 is replaced by the day of the month as a decimal number [01,31].
+.RI [ tm_mday ]
 .TP
 %e
 is replaced by the day of month as a decimal number [1,31];
 single digits are preceded by a blank.
+.RI [ tm_mday ]
 .TP
 %F
 is equivalent to
 .c %Y-%m-%d
 (the ISO 8601 date format).
+.RI [ tm_year ,
+.IR tm_mon ,
+.IR tm_mday ]
 .TP
 %G
 is replaced by the ISO 8601 year with century as a decimal number.
 See also the
 .c %V
 conversion specification.
+.RI [ tm_year ,
+.IR tm_yday ,
+.IR tm_wday ]
 .TP
 %g
 is replaced by the ISO 8601 year without century as a decimal number [00,99].
@@ -134,29 +181,39 @@ This is the year that includes the greater part of the week.
 See also the
 .c %V
 conversion specification.
+.RI [ tm_year ,
+.IR tm_yday ,
+.IR tm_wday ]
 .TP
 %H
 is replaced by the hour (24-hour clock) as a decimal number [00,23].
+.RI [ tm_hour ]
 .TP
 %I
 is replaced by the hour (12-hour clock) as a decimal number [01,12].
+.RI [ tm_hour ]
 .TP
 %j
 is replaced by the day of the year as a decimal number [001,366].
+.RI [ tm_yday ]
 .TP
 %k
 is replaced by the hour (24-hour clock) as a decimal number [0,23];
 single digits are preceded by a blank.
+.RI [ tm_hour ]
 .TP
 %l
 is replaced by the hour (12-hour clock) as a decimal number [1,12];
 single digits are preceded by a blank.
+.RI [ tm_hour ]
 .TP
 %M
 is replaced by the minute as a decimal number [00,59].
+.RI [ tm_min ]
 .TP
 %m
 is replaced by the month as a decimal number [01,12].
+.RI [ tm_mon ]
 .TP
 %n
 is replaced by a newline.
@@ -166,28 +223,58 @@ is replaced by the locale's equivalent of either
 .q AM
 or
 .q PM .
+.RI [ tm_hour ]
 .TP
 %R
 is replaced by the time in the format
 .c %H:%M .
+.RI [ tm_hour ,
+.IR tm_min ]
 .TP
 %r
 is replaced by the locale's representation of 12-hour clock time
 using AM/PM notation.
+.RI [ tm_hour ,
+.IR tm_min ,
+.IR tm_sec ]
 .TP
 %S
 is replaced by the second as a decimal number [00,60].
 The range of
 seconds is [00,60] instead of [00,59] to allow for the periodic occurrence
 of leap seconds.
+.RI [ tm_sec ]
 .TP
 %s
 is replaced by the number of seconds since the Epoch (see
 .BR ctime (3)).
+Although %s is reliable in this implementation,
+it can have glitches on other platforms (notably platforms lacking
+.IR tm_gmtoff ),
+so portable code should format a
+.B time_t
+value directly via something like
+.B sprintf
+instead of via
+.B localtime
+followed by
+.B strftime
+with "%s".
+.RI [ tm_year ,
+.IR tm_mon ,
+.IR tm_mday ,
+.IR tm_hour ,
+.IR tm_min ,
+.IR tm_sec ,
+.IR tm_gmtoff +,
+.IR tm_isdst \*-].
 .TP
 %T
 is replaced by the time in the format
 .c %H:%M:%S .
+.RI [ tm_hour ,
+.IR tm_min ,
+.IR tm_sec ]
 .TP
 %t
 is replaced by a tab.
@@ -195,10 +282,14 @@ is replaced by a tab.
 %U
 is replaced by the week number of the year (Sunday as the first day of
 the week) as a decimal number [00,53].
+.RI [ tm_wday ,
+.IR tm_yday ,
+.IR tm_year \*-]
 .TP
 %u
 is replaced by the weekday (Monday as the first day of the week)
 as a decimal number [1,7].
+.RI [ tm_wday ]
 .TP
 %V
 is replaced by the week number of the year (Monday as the first day of
@@ -208,30 +299,64 @@ it is week 53 of the previous year, and the next week is week 1.
 The year is given by the
 .c %G
 conversion specification.
+.RI [ tm_year ,
+.IR tm_yday ,
+.IR tm_wday ]
 .TP
 %W
 is replaced by the week number of the year (Monday as the first day of
 the week) as a decimal number [00,53].
+.RI [ tm_yday ,
+.IR tm_wday ]
 .TP
 %w
 is replaced by the weekday (Sunday as the first day of the week)
 as a decimal number [0,6].
+.RI [ tm_year ,
+.IR tm_yday ,
+.IR tm_wday ]
 .TP
 %X
 is replaced by the locale's appropriate time representation.
+.RI [ tm_year \*-,
+.IR tm_yday \*-,
+.IR tm_mon \*-,
+.IR tm_mday \*-,
+.IR tm_wday \*-,
+.IR tm_hour ,
+.IR tm_min ,
+.IR tm_sec ,
+.IR tm_gmtoff +,
+.IR tm_zone +,
+.IR tm_isdst \*-].
 .TP
 %x
 is replaced by the locale's appropriate date representation.
+.RI [ tm_year ,
+.IR tm_yday ,
+.IR tm_mon ,
+.IR tm_mday ,
+.IR tm_wday ,
+.IR tm_hour \*-,
+.IR tm_min \*-,
+.IR tm_sec \*-,
+.IR tm_gmtoff \*-,
+.IR tm_zone \*-,
+.IR tm_isdst \*-].
 .TP
 %Y
 is replaced by the year with century as a decimal number.
+.RI [ tm_year ]
 .TP
 %y
 is replaced by the year without century as a decimal number [00,99].
+.RI [ tm_year ]
 .TP
 %Z
 is replaced by the time zone abbreviation,
 or by the empty string if this is not determinable.
+.RI [ tm_zone +,
+.IR tm_isdst \*-]
 .TP
 %z
 is replaced by the offset from the Prime Meridian
@@ -244,6 +369,9 @@ but local time is indeterminate; by convention this is used for
 locations while uninhabited, and corresponds to a zero offset when the
 time zone abbreviation begins with
 .q "\*-" .
+.RI [ tm_gmtoff +,
+.IR tm_zone +,
+.IR tm_isdst \*-]
 .TP
 %%
 is replaced by a single %.
@@ -252,6 +380,26 @@ is replaced by a single %.
 is replaced by the locale's date and time in
 .BR date (1)
 format.
+.RI [ tm_year ,
+.IR tm_yday ,
+.IR tm_mon ,
+.IR tm_mday ,
+.IR tm_wday ,
+.IR tm_hour ,
+.IR tm_min ,
+.IR tm_sec ,
+.IR tm_gmtoff ,
+.IR tm_zone ]
+.PP
+As a side effect,
+.B strftime
+also behaves as if
+.B tzset
+were called.
+This is for compatibility with older platforms, as required by POSIX;
+it is not needed for
+.BR tzset 's
+own use.
 .SH "RETURN VALUE"
 If the conversion is successful,
 .B strftime
