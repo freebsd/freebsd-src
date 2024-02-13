@@ -137,7 +137,7 @@ typedef enum {
 	"\013CAN_RC16"		\
 	"\014PROBED"		\
 	"\015DIRTY"		\
-	"\016ANNOUCNED"		\
+	"\016ANNOUNCED"		\
 	"\017CAN_ATA_DMA"	\
 	"\020CAN_ATA_LOG"	\
 	"\021CAN_ATA_IDLOG"	\
