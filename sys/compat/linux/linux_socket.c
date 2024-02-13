@@ -501,6 +501,11 @@ linux_to_bsd_ip6_sockopt(int opt)
 		    "unsupported IPv6 socket option IPV6_RECVFRAGSIZE (%d)",
 		    opt);
 		return (-2);
+	case LINUX_IPV6_RECVERR:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_RECVERR (%d), you can not get extended reliability info in linux programs",
+		    opt);
+		return (-2);
 
 	/* unknown sockopts */
 	default:
@@ -2111,6 +2116,11 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		name = linux_to_bsd_ip_sockopt(args->optname);
 		break;
 	case IPPROTO_IPV6:
+		if (args->optname == LINUX_IPV6_RECVERR &&
+		    linux_ignore_ip_recverr) {
+			/* XXX: as above, for the IPv6 case */
+			return (0);
+		}
 		name = linux_to_bsd_ip6_sockopt(args->optname);
 		break;
 	case IPPROTO_TCP:
