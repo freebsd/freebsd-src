@@ -482,7 +482,7 @@ shutdown_sq_out:
 }
 
 /**
- * ice_aq_ver_check - Check the reported AQ API version.
+ * ice_aq_ver_check - Check the reported AQ API version
  * @hw: pointer to the hardware structure
  *
  * Checks if the driver should load on a given AQ API version.
@@ -1037,12 +1037,18 @@ ice_sq_send_cmd_nolock(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	if (cq->sq.next_to_use == cq->sq.count)
 		cq->sq.next_to_use = 0;
 	wr32(hw, cq->sq.tail, cq->sq.next_to_use);
+	ice_flush(hw);
+
+	/* Wait a short time before initial ice_sq_done() check, to allow
+	 * hardware time for completion.
+	 */
+	ice_usec_delay(5, false);
 
 	do {
 		if (ice_sq_done(hw, cq))
 			break;
 
-		ice_usec_delay(ICE_CTL_Q_SQ_CMD_USEC, false);
+		ice_usec_delay(10, false);
 		total_delay++;
 	} while (total_delay < cq->sq_cmd_timeout);
 

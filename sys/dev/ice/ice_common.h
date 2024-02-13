@@ -88,10 +88,10 @@ enum ice_status ice_get_caps(struct ice_hw *hw);
 void ice_set_safe_mode_caps(struct ice_hw *hw);
 
 enum ice_status
-ice_aq_get_internal_data(struct ice_hw *hw, u8 cluster_id, u16 table_id,
+ice_aq_get_internal_data(struct ice_hw *hw, u16 cluster_id, u16 table_id,
 			 u32 start, void *buf, u16 buf_size, u16 *ret_buf_size,
-			 u16 *ret_next_table, u32 *ret_next_index,
-			 struct ice_sq_cd *cd);
+			 u16 *ret_next_cluster, u16 *ret_next_table,
+			 u32 *ret_next_index, struct ice_sq_cd *cd);
 
 enum ice_status ice_set_mac_type(struct ice_hw *hw);
 
@@ -352,7 +352,7 @@ ice_aq_read_i2c(struct ice_hw *hw, struct ice_aqc_link_topo_addr topo_addr,
 		struct ice_sq_cd *cd);
 enum ice_status
 ice_aq_write_i2c(struct ice_hw *hw, struct ice_aqc_link_topo_addr topo_addr,
-		 u16 bus_addr, __le16 addr, u8 params, u8 *data,
+		 u16 bus_addr, __le16 addr, u8 params, const u8 *data,
 		 struct ice_sq_cd *cd);
 enum ice_status
 ice_aq_set_health_status_config(struct ice_hw *hw, u8 event_source,

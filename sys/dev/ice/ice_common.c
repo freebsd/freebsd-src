@@ -2319,6 +2319,10 @@ ice_parse_common_caps(struct ice_hw *hw, struct ice_hw_common_caps *caps,
 		ice_debug(hw, ICE_DBG_INIT, "%s: sr_iov_1_1 = %d\n", prefix,
 			  caps->sr_iov_1_1);
 		break;
+	case ICE_AQC_CAPS_VMDQ:
+		caps->vmdq = (number == 1);
+		ice_debug(hw, ICE_DBG_INIT, "%s: vmdq = %d\n", prefix, caps->vmdq);
+		break;
 	case ICE_AQC_CAPS_802_1QBG:
 		caps->evb_802_1_qbg = (number == 1);
 		ice_debug(hw, ICE_DBG_INIT, "%s: evb_802_1_qbg = %d\n", prefix, number);
@@ -2404,7 +2408,7 @@ ice_parse_common_caps(struct ice_hw *hw, struct ice_hw_common_caps *caps,
 		ice_debug(hw, ICE_DBG_INIT, "%s: iwarp = %d\n", prefix, caps->iwarp);
 		break;
 	case ICE_AQC_CAPS_ROCEV2_LAG:
-		caps->roce_lag = (number == 1);
+		caps->roce_lag = !!(number & ICE_AQC_BIT_ROCEV2_LAG);
 		ice_debug(hw, ICE_DBG_INIT, "%s: roce_lag = %d\n",
 			  prefix, caps->roce_lag);
 		break;
@@ -2725,6 +2729,10 @@ ice_parse_nac_topo_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_p,
 {
 	dev_p->nac_topo.mode = LE32_TO_CPU(cap->number);
 	dev_p->nac_topo.id = LE32_TO_CPU(cap->phys_id) & ICE_NAC_TOPO_ID_M;
+
+	ice_info(hw, "PF is configured in %s mode with IP instance ID %d\n",
+		 (dev_p->nac_topo.mode == 0) ? "primary" : "secondary",
+		 dev_p->nac_topo.id);
 
 	ice_debug(hw, ICE_DBG_INIT, "dev caps: nac topology is_primary = %d\n",
 		  !!(dev_p->nac_topo.mode & ICE_NAC_TOPO_PRIMARY_M));
@@ -3060,7 +3068,7 @@ void ice_clear_pxe_mode(struct ice_hw *hw)
 }
 
 /**
- * ice_aq_set_port_params - set physical port parameters.
+ * ice_aq_set_port_params - set physical port parameters
  * @pi: pointer to the port info struct
  * @bad_frame_vsi: defines the VSI to which bad frames are forwarded
  * @save_bad_pac: if set packets with errors are forwarded to the bad frames VSI
@@ -4058,6 +4066,8 @@ static u16 ice_lut_type_to_size(u16 lut_type)
 		return ICE_LUT_GLOBAL_SIZE;
 	case ICE_LUT_PF:
 		return ICE_LUT_PF_SIZE;
+	case ICE_LUT_PF_SMALL:
+		return ICE_LUT_PF_SMALL_SIZE;
 	default:
 		return 0;
 	}
@@ -4089,6 +4099,8 @@ int ice_lut_size_to_type(int lut_size)
 		return ICE_LUT_GLOBAL;
 	case ICE_LUT_PF_SIZE:
 		return ICE_LUT_PF;
+	case ICE_LUT_PF_SMALL_SIZE:
+		return ICE_LUT_PF_SMALL;
 	default:
 		return -1;
 	}
@@ -4116,8 +4128,8 @@ __ice_aq_get_set_rss_lut(struct ice_hw *hw, struct ice_aq_get_set_rss_lut_params
 
 	vsi_handle = params->vsi_handle;
 	lut = params->lut;
-	lut_type = params->lut_type;
-	lut_size = ice_lut_type_to_size(lut_type);
+	lut_size = ice_lut_type_to_size(params->lut_type);
+	lut_type = params->lut_type & ICE_LUT_TYPE_MASK;
 	cmd_resp = &desc.params.get_set_rss_lut;
 	if (lut_type == ICE_LUT_GLOBAL)
 		glob_lut_idx = params->global_lut_id;
@@ -4773,6 +4785,7 @@ ice_set_ctx(struct ice_hw *hw, u8 *src_ctx, u8 *dest_ctx,
  * @buf: dump buffer
  * @buf_size: dump buffer size
  * @ret_buf_size: return buffer size (returned by FW)
+ * @ret_next_cluster: next cluster to read (returned by FW)
  * @ret_next_table: next block to read (returned by FW)
  * @ret_next_index: next index to read (returned by FW)
  * @cd: pointer to command details structure
@@ -4780,10 +4793,10 @@ ice_set_ctx(struct ice_hw *hw, u8 *src_ctx, u8 *dest_ctx,
  * Get internal FW/HW data (0xFF08) for debug purposes.
  */
 enum ice_status
-ice_aq_get_internal_data(struct ice_hw *hw, u8 cluster_id, u16 table_id,
+ice_aq_get_internal_data(struct ice_hw *hw, u16 cluster_id, u16 table_id,
 			 u32 start, void *buf, u16 buf_size, u16 *ret_buf_size,
-			 u16 *ret_next_table, u32 *ret_next_index,
-			 struct ice_sq_cd *cd)
+			 u16 *ret_next_cluster, u16 *ret_next_table,
+			 u32 *ret_next_index, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_debug_dump_internals *cmd;
 	struct ice_aq_desc desc;
@@ -4796,7 +4809,7 @@ ice_aq_get_internal_data(struct ice_hw *hw, u8 cluster_id, u16 table_id,
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_debug_dump_internals);
 
-	cmd->cluster_id = cluster_id;
+	cmd->cluster_id = CPU_TO_LE16(cluster_id);
 	cmd->table_id = CPU_TO_LE16(table_id);
 	cmd->idx = CPU_TO_LE32(start);
 
@@ -4805,6 +4818,8 @@ ice_aq_get_internal_data(struct ice_hw *hw, u8 cluster_id, u16 table_id,
 	if (!status) {
 		if (ret_buf_size)
 			*ret_buf_size = LE16_TO_CPU(desc.datalen);
+		if (ret_next_cluster)
+			*ret_next_cluster = LE16_TO_CPU(cmd->cluster_id);
 		if (ret_next_table)
 			*ret_next_table = LE16_TO_CPU(cmd->table_id);
 		if (ret_next_index)
@@ -6051,7 +6066,7 @@ ice_aq_read_i2c(struct ice_hw *hw, struct ice_aqc_link_topo_addr topo_addr,
  */
 enum ice_status
 ice_aq_write_i2c(struct ice_hw *hw, struct ice_aqc_link_topo_addr topo_addr,
-		 u16 bus_addr, __le16 addr, u8 params, u8 *data,
+		 u16 bus_addr, __le16 addr, u8 params, const u8 *data,
 		 struct ice_sq_cd *cd)
 {
 	struct ice_aq_desc desc = { 0 };
@@ -6183,8 +6198,6 @@ static bool ice_is_fw_min_ver(struct ice_hw *hw, u8 branch, u8 maj, u8 min,
 			if (hw->fw_min_ver == min && hw->fw_patch >= patch)
 				return true;
 		}
-	} else if (hw->fw_branch > branch) {
-		return true;
 	}
 
 	return false;
@@ -6591,10 +6604,14 @@ u32 ice_get_link_speed(u16 index)
  */
 bool ice_fw_supports_fec_dis_auto(struct ice_hw *hw)
 {
-	return ice_is_fw_min_ver(hw, ICE_FW_FEC_DIS_AUTO_BRANCH,
+	return ice_is_fw_min_ver(hw, ICE_FW_VER_BRANCH_E810,
 				 ICE_FW_FEC_DIS_AUTO_MAJ,
 				 ICE_FW_FEC_DIS_AUTO_MIN,
-				 ICE_FW_FEC_DIS_AUTO_PATCH);
+				 ICE_FW_FEC_DIS_AUTO_PATCH) ||
+	       ice_is_fw_min_ver(hw, ICE_FW_VER_BRANCH_E82X,
+				 ICE_FW_FEC_DIS_AUTO_MAJ_E82X,
+				 ICE_FW_FEC_DIS_AUTO_MIN_E82X,
+				 ICE_FW_FEC_DIS_AUTO_PATCH_E82X);
 }
 
 /**

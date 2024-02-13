@@ -152,6 +152,7 @@ struct ice_aqc_list_caps_elem {
 #define ICE_AQC_CAPS_WOL_PROXY				0x0008
 #define ICE_AQC_CAPS_SRIOV				0x0012
 #define ICE_AQC_CAPS_VF					0x0013
+#define ICE_AQC_CAPS_VMDQ				0x0014
 #define ICE_AQC_CAPS_802_1QBG				0x0015
 #define ICE_AQC_CAPS_802_1BR				0x0016
 #define ICE_AQC_CAPS_VSI				0x0017
@@ -184,6 +185,8 @@ struct ice_aqc_list_caps_elem {
 #define ICE_AQC_CAPS_DYN_FLATTENING			0x008A
 #define ICE_AQC_CAPS_OROM_RECOVERY_UPDATE		0x0090
 #define ICE_AQC_CAPS_ROCEV2_LAG				0x0092
+#define ICE_AQC_BIT_ROCEV2_LAG				0x01
+#define ICE_AQC_BIT_SRIOV_LAG				0x02
 
 	u8 major_ver;
 	u8 minor_ver;
@@ -358,6 +361,8 @@ struct ice_aqc_set_port_params {
 #define ICE_AQC_RES_TYPE_FLAG_SHARED			BIT(7)
 #define ICE_AQC_RES_TYPE_FLAG_SCAN_BOTTOM		BIT(12)
 #define ICE_AQC_RES_TYPE_FLAG_IGNORE_INDEX		BIT(13)
+#define ICE_AQC_RES_TYPE_FLAG_SUBSCRIBE_SHARED		BIT(14)
+#define ICE_AQC_RES_TYPE_FLAG_SUBSCRIBE_CTL		BIT(15)
 
 #define ICE_AQC_RES_TYPE_FLAG_DEDICATED			0x00
 
@@ -2198,6 +2203,14 @@ struct ice_aqc_nvm {
 
 #define ICE_AQC_NVM_MINSREV_MOD_ID		0x130
 #define ICE_AQC_NVM_TX_TOPO_MOD_ID		0x14B
+#define ICE_AQC_NVM_CMPO_MOD_ID			0x153
+
+/* Cage Max Power override NVM module */
+struct ice_aqc_nvm_cmpo {
+	__le16 length;
+#define ICE_AQC_NVM_CMPO_ENABLE	BIT(8)
+	__le16 cages_cfg[8];
+};
 
 /* Used for reading and writing MinSRev using 0x0701 and 0x0703. Note that the
  * type field is excluded from the section when reading and writing from
@@ -2509,11 +2522,13 @@ enum ice_lut_type {
 	ICE_LUT_VSI = 0,
 	ICE_LUT_PF = 1,
 	ICE_LUT_GLOBAL = 2,
-	ICE_LUT_TYPE_MASK = 3
+	ICE_LUT_TYPE_MASK = 3,
+	ICE_LUT_PF_SMALL = 5, /* yields ICE_LUT_PF when &= ICE_LUT_TYPE_MASK */
 };
 
 enum ice_lut_size {
 	ICE_LUT_VSI_SIZE = 64,
+	ICE_LUT_PF_SMALL_SIZE = 128,
 	ICE_LUT_GLOBAL_SIZE = 512,
 	ICE_LUT_PF_SIZE = 2048,
 };
@@ -2796,7 +2811,7 @@ struct ice_aqc_event_lan_overflow {
 
 /* Debug Dump Internal Data (indirect 0xFF08) */
 struct ice_aqc_debug_dump_internals {
-	u8 cluster_id;
+	__le16 cluster_id; /* Expresses next cluster ID in response */
 #define ICE_AQC_DBG_DUMP_CLUSTER_ID_SW			0
 #define ICE_AQC_DBG_DUMP_CLUSTER_ID_TXSCHED		2
 #define ICE_AQC_DBG_DUMP_CLUSTER_ID_PROFILES		3
@@ -2809,7 +2824,7 @@ struct ice_aqc_debug_dump_internals {
 #define ICE_AQC_DBG_DUMP_CLUSTER_ID_L2P			8
 #define ICE_AQC_DBG_DUMP_CLUSTER_ID_QUEUE_MNG		9
 #define ICE_AQC_DBG_DUMP_CLUSTER_ID_FULL_CSR_SPACE	21
-	u8 reserved;
+#define ICE_AQC_DBG_DUMP_CLUSTER_ID_MNG_TRANSACTIONS	22
 	__le16 table_id; /* Used only for non-memory clusters */
 	__le32 idx; /* In table entries for tables, in bytes for memory */
 	__le32 addr_high;

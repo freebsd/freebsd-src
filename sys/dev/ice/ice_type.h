@@ -322,6 +322,7 @@ enum ice_media_type {
 enum ice_vsi_type {
 	ICE_VSI_PF = 0,
 	ICE_VSI_VF = 1,
+	ICE_VSI_VMDQ2 = 2,
 	ICE_VSI_LB = 6,
 };
 
@@ -451,6 +452,9 @@ struct ice_hw_common_caps {
 
 	/* SR-IOV virtualization */
 	u8 sr_iov_1_1;			/* SR-IOV enabled */
+
+	/* VMDQ */
+	u8 vmdq;			/* VMDQ supported */
 
 	/* EVB capabilities */
 	u8 evb_802_1_qbg;		/* Edge Virtual Bridging */
@@ -1171,8 +1175,11 @@ struct ice_hw {
 	struct LIST_HEAD_TYPE fl_profs[ICE_BLK_COUNT];
 	struct ice_lock rss_locks;	/* protect RSS configuration */
 	struct LIST_HEAD_TYPE rss_list_head;
+	u16 vsi_owning_pf_lut; /* SW IDX of VSI that acquired PF RSS LUT */
 	struct ice_mbx_snapshot mbx_snapshot;
 	u8 dvm_ena;
+
+	bool subscribable_recipes_supported;
 };
 
 /* Statistics collected by each port, VSI, VEB, and S-channel */
@@ -1428,11 +1435,17 @@ struct ice_aq_get_set_rss_lut_params {
 #define ICE_FW_API_REPORT_DFLT_CFG_MIN		7
 #define ICE_FW_API_REPORT_DFLT_CFG_PATCH	3
 
+/* FW branch number for hardware families */
+#define ICE_FW_VER_BRANCH_E82X			0
+#define ICE_FW_VER_BRANCH_E810			1
+
 /* FW version for FEC disable in Auto FEC mode */
-#define ICE_FW_FEC_DIS_AUTO_BRANCH		1
 #define ICE_FW_FEC_DIS_AUTO_MAJ			7
 #define ICE_FW_FEC_DIS_AUTO_MIN			0
 #define ICE_FW_FEC_DIS_AUTO_PATCH		5
+#define ICE_FW_FEC_DIS_AUTO_MAJ_E82X		7
+#define ICE_FW_FEC_DIS_AUTO_MIN_E82X		1
+#define ICE_FW_FEC_DIS_AUTO_PATCH_E82X		2
 
 /* AQ API version for FW health reports */
 #define ICE_FW_API_HEALTH_REPORT_MAJ		1

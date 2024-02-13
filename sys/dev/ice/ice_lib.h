@@ -54,6 +54,7 @@
 #include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/ethernet.h>
+#include <net/if_types.h>
 
 #include <sys/bitstring.h>
 
@@ -265,6 +266,10 @@ struct ice_bar_info {
 #define ICE_DEFAULT_VF_QUEUES	4
 
 /*
+ * An invalid VSI number to indicate that mirroring should be disabled.
+ */
+#define ICE_INVALID_MIRROR_VSI	((u16)-1)
+/*
  * The maximum number of RX queues allowed per TC in a VSI.
  */
 #define ICE_MAX_RXQS_PER_TC	256
@@ -372,7 +377,7 @@ enum ice_rx_dtype {
  * Only certain cluster IDs are valid for the FW debug dump functionality,
  * so define a mask of those here.
  */
-#define ICE_FW_DEBUG_DUMP_VALID_CLUSTER_MASK	0x1af
+#define ICE_FW_DEBUG_DUMP_VALID_CLUSTER_MASK	0x4001AF
 
 struct ice_softc;
 
@@ -513,8 +518,6 @@ struct ice_vsi {
 	u16 *tx_qmap; /* Tx VSI to PF queue mapping */
 	u16 *rx_qmap; /* Rx VSI to PF queue mapping */
 
-	bitstr_t *vmap; /* Vector(s) assigned to VSI */
-
 	enum ice_resmgr_alloc_type qmap_type;
 
 	struct ice_tx_queue *tx_queues;	/* Tx queue array */
@@ -556,6 +559,11 @@ struct ice_vsi {
 
 	/* VSI-level stats */
 	struct ice_vsi_hw_stats hw_stats;
+
+	/* VSI mirroring details */
+	u16 mirror_src_vsi;
+	u16 rule_mir_ingress;
+	u16 rule_mir_egress;
 };
 
 /**
@@ -564,7 +572,7 @@ struct ice_vsi {
  */
 struct ice_debug_dump_cmd {
 	u32 offset;		/* offset to read/write from table, in bytes */
-	u16 cluster_id;
+	u16 cluster_id;		/* also used to get next cluster id */
 	u16 table_id;
 	u16 data_size;		/* size of data field, in bytes */
 	u16 reserved1;
@@ -587,6 +595,7 @@ enum ice_state {
 	ICE_STATE_RESET_OICR_RECV,
 	ICE_STATE_RESET_PFR_REQ,
 	ICE_STATE_PREPARED_FOR_RESET,
+	ICE_STATE_SUBIF_NEEDS_REINIT,
 	ICE_STATE_RESET_FAILED,
 	ICE_STATE_DRIVER_INITIALIZED,
 	ICE_STATE_NO_MEDIA,
@@ -601,6 +610,8 @@ enum ice_state {
 	ICE_STATE_DO_FW_DEBUG_DUMP,
 	ICE_STATE_LINK_ACTIVE_ON_DOWN,
 	ICE_STATE_FIRST_INIT_LINK,
+	ICE_STATE_DO_CREATE_MIRR_INTFC,
+	ICE_STATE_DO_DESTROY_MIRR_INTFC,
 	/* This entry must be last */
 	ICE_STATE_LAST,
 };
@@ -797,6 +808,16 @@ void ice_request_stack_reinit(struct ice_softc *sc);
 /* Details of how to check if the network stack is detaching us */
 bool ice_driver_is_detaching(struct ice_softc *sc);
 
+/* Details of how to setup/teardown a mirror interface */
+/**
+ * @brief Create an interface for mirroring
+ */
+int ice_create_mirror_interface(struct ice_softc *sc);
+/**
+ * @brief Destroy created mirroring interface
+ */
+void ice_destroy_mirror_interface(struct ice_softc *sc);
+
 const char * ice_fw_module_str(enum ice_aqc_fw_logging_mod module);
 void ice_add_fw_logging_tunables(struct ice_softc *sc,
 				 struct sysctl_oid *parent);
@@ -904,5 +925,6 @@ void ice_cfg_pba_num(struct ice_softc *sc);
 int ice_handle_debug_dump_ioctl(struct ice_softc *sc, struct ifdrv *ifd);
 u8 ice_dcb_get_tc_map(const struct ice_dcbx_cfg *dcbcfg);
 void ice_do_dcb_reconfig(struct ice_softc *sc, bool pending_mib);
+int ice_setup_vsi_mirroring(struct ice_vsi *vsi);
 
 #endif /* _ICE_LIB_H_ */

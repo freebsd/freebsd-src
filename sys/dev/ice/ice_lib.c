@@ -179,8 +179,9 @@ ice_add_dscp2tc_map_sysctls(struct ice_softc *sc,
 static void ice_set_default_local_mib_settings(struct ice_softc *sc);
 static bool ice_dscp_is_mapped(struct ice_dcbx_cfg *dcbcfg);
 static void ice_start_dcbx_agent(struct ice_softc *sc);
-static void ice_fw_debug_dump_print_cluster(struct ice_softc *sc,
-					    struct sbuf *sbuf, u16 cluster_id);
+static u16 ice_fw_debug_dump_print_cluster(struct ice_softc *sc,
+					   struct sbuf *sbuf, u16 cluster_id);
+static void ice_remove_vsi_mirroring(struct ice_vsi *vsi);
 
 static int ice_module_init(void);
 static int ice_module_exit(void);
@@ -242,6 +243,8 @@ static int ice_sysctl_allow_no_fec_mod_in_auto(SYSCTL_HANDLER_ARGS);
 static int ice_sysctl_set_link_active(SYSCTL_HANDLER_ARGS);
 static int ice_sysctl_debug_set_link(SYSCTL_HANDLER_ARGS);
 static int ice_sysctl_temperature(SYSCTL_HANDLER_ARGS);
+static int ice_sysctl_create_mirror_interface(SYSCTL_HANDLER_ARGS);
+static int ice_sysctl_destroy_mirror_interface(SYSCTL_HANDLER_ARGS);
 
 /**
  * ice_map_bar - Map PCIe BAR memory
@@ -355,6 +358,10 @@ ice_setup_vsi_common(struct ice_softc *sc, struct ice_vsi *vsi,
 	sc->all_vsi[idx] = vsi;
 	vsi->dynamic = dynamic;
 
+	/* Set default mirroring rule information */
+	vsi->rule_mir_ingress = ICE_INVAL_MIRROR_RULE_ID;
+	vsi->rule_mir_egress = ICE_INVAL_MIRROR_RULE_ID;
+
 	/* Setup the VSI tunables now */
 	ice_add_vsi_tunables(vsi, sc->vsi_sysctls);
 }
@@ -382,7 +389,7 @@ ice_alloc_vsi(struct ice_softc *sc, enum ice_vsi_type type)
 		return NULL;
 	}
 
-	vsi = (struct ice_vsi *)malloc(sizeof(*vsi), M_ICE, M_WAITOK|M_ZERO);
+	vsi = (struct ice_vsi *)malloc(sizeof(*vsi), M_ICE, M_NOWAIT | M_ZERO);
 	if (!vsi) {
 		device_printf(sc->dev, "Unable to allocate VSI memory\n");
 		return NULL;
@@ -550,6 +557,7 @@ ice_set_rss_vsi_ctx(struct ice_vsi_ctx *ctx, enum ice_vsi_type type)
 		hash_type = ICE_AQ_VSI_Q_OPT_RSS_TPLZ;
 		break;
 	case ICE_VSI_VF:
+	case ICE_VSI_VMDQ2:
 		lut_type = ICE_AQ_VSI_Q_OPT_RSS_LUT_VSI;
 		hash_type = ICE_AQ_VSI_Q_OPT_RSS_TPLZ;
 		break;
@@ -571,6 +579,8 @@ ice_set_rss_vsi_ctx(struct ice_vsi_ctx *ctx, enum ice_vsi_type type)
  *
  * Configures the context for the given VSI, setting up how the firmware
  * should map the queues for this VSI.
+ *
+ * @pre vsi->qmap_type is set to a valid type
  */
 static int
 ice_setup_vsi_qmap(struct ice_vsi *vsi, struct ice_vsi_ctx *ctx)
@@ -621,10 +631,95 @@ ice_setup_vsi_qmap(struct ice_vsi *vsi, struct ice_vsi_ctx *ctx)
 }
 
 /**
+ * ice_setup_vsi_mirroring -- Setup a VSI for mirroring PF VSI traffic
+ * @vsi: VSI to setup
+ *
+ * @pre vsi->mirror_src_vsi is set to the SW VSI num that traffic is to be
+ * mirrored from
+ *
+ * Returns 0 on success, EINVAL on failure.
+ */
+int
+ice_setup_vsi_mirroring(struct ice_vsi *vsi)
+{
+	struct ice_mir_rule_buf rule = { };
+	struct ice_softc *sc = vsi->sc;
+	struct ice_hw *hw = &sc->hw;
+	device_t dev = sc->dev;
+	enum ice_status status;
+	u16 rule_id, dest_vsi;
+	u16 count = 1;
+
+	rule.vsi_idx = ice_get_hw_vsi_num(hw, vsi->mirror_src_vsi);
+	rule.add = true;
+
+	dest_vsi = ice_get_hw_vsi_num(hw, vsi->idx);
+	rule_id = ICE_INVAL_MIRROR_RULE_ID;
+	status = ice_aq_add_update_mir_rule(hw, ICE_AQC_RULE_TYPE_VPORT_INGRESS,
+					    dest_vsi, count, &rule, NULL,
+					    &rule_id);
+	if (status) {
+		device_printf(dev,
+		    "Could not add INGRESS rule for mirror vsi %d to vsi %d, err %s aq_err %s\n",
+		    rule.vsi_idx, dest_vsi, ice_status_str(status),
+		    ice_aq_str(hw->adminq.sq_last_status));
+		return (EINVAL);
+	}
+
+	vsi->rule_mir_ingress = rule_id;
+
+	rule_id = ICE_INVAL_MIRROR_RULE_ID;
+	status = ice_aq_add_update_mir_rule(hw, ICE_AQC_RULE_TYPE_VPORT_EGRESS,
+					    dest_vsi, count, &rule, NULL, &rule_id);
+	if (status) {
+		device_printf(dev,
+		    "Could not add EGRESS rule for mirror vsi %d to vsi %d, err %s aq_err %s\n",
+		    rule.vsi_idx, dest_vsi, ice_status_str(status),
+		    ice_aq_str(hw->adminq.sq_last_status));
+		return (EINVAL);
+	}
+
+	vsi->rule_mir_egress = rule_id;
+
+	return (0);
+}
+
+/**
+ * ice_remove_vsi_mirroring -- Teardown any VSI mirroring rules
+ * @vsi: VSI to remove mirror rules from
+ */
+static void
+ice_remove_vsi_mirroring(struct ice_vsi *vsi)
+{
+	struct ice_hw *hw = &vsi->sc->hw;
+	enum ice_status status = ICE_SUCCESS;
+	bool keep_alloc = false;
+
+	if (vsi->rule_mir_ingress != ICE_INVAL_MIRROR_RULE_ID)
+		status = ice_aq_delete_mir_rule(hw, vsi->rule_mir_ingress, keep_alloc, NULL);
+
+	if (status)
+		device_printf(vsi->sc->dev, "Could not remove mirror VSI ingress rule, err %s aq_err %s\n",
+			      ice_status_str(status), ice_aq_str(hw->adminq.sq_last_status));
+
+	status = ICE_SUCCESS;
+
+	if (vsi->rule_mir_egress != ICE_INVAL_MIRROR_RULE_ID)
+		status = ice_aq_delete_mir_rule(hw, vsi->rule_mir_egress, keep_alloc, NULL);
+
+	if (status)
+		device_printf(vsi->sc->dev, "Could not remove mirror VSI egress rule, err %s aq_err %s\n",
+			      ice_status_str(status), ice_aq_str(hw->adminq.sq_last_status));
+}
+
+/**
  * ice_initialize_vsi - Initialize a VSI for use
  * @vsi: the vsi to initialize
  *
  * Initialize a VSI over the adminq and prepare it for operation.
+ *
+ * @pre vsi->num_tx_queues is set
+ * @pre vsi->num_rx_queues is set
  */
 int
 ice_initialize_vsi(struct ice_vsi *vsi)
@@ -639,6 +734,9 @@ ice_initialize_vsi(struct ice_vsi *vsi)
 	switch (vsi->type) {
 	case ICE_VSI_PF:
 		ctx.flags = ICE_AQ_VSI_TYPE_PF;
+		break;
+	case ICE_VSI_VMDQ2:
+		ctx.flags = ICE_AQ_VSI_TYPE_VMDQ2;
 		break;
 	default:
 		return (ENODEV);
@@ -753,6 +851,9 @@ ice_release_vsi(struct ice_vsi *vsi)
 		ice_clean_vsi_rss_cfg(vsi);
 
 	ice_del_vsi_sysctl_ctx(vsi);
+
+	/* Remove the configured mirror rule, if it exists */
+	ice_remove_vsi_mirroring(vsi);
 
 	/*
 	 * If we unload the driver after a reset fails, we do not need to do
@@ -1264,6 +1365,10 @@ ice_configure_all_rxq_interrupts(struct ice_vsi *vsi)
 
 		ice_configure_rxq_interrupt(hw, vsi->rx_qmap[rxq->me],
 					    rxq->irqv->me, ICE_RX_ITR);
+
+		ice_debug(hw, ICE_DBG_INIT,
+		    "RXQ(%d) intr enable: me %d rxqid %d vector %d\n",
+		    i, rxq->me, vsi->rx_qmap[rxq->me], rxq->irqv->me);
 	}
 
 	ice_flush(hw);
@@ -1461,6 +1566,9 @@ ice_setup_tx_ctx(struct ice_tx_queue *txq, struct ice_tlan_ctx *tlan_ctx, u16 pf
 	switch (vsi->type) {
 	case ICE_VSI_PF:
 		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_PF;
+		break;
+	case ICE_VSI_VMDQ2:
+		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_VMQ;
 		break;
 	default:
 		return (ENODEV);
@@ -4458,6 +4566,14 @@ ice_add_device_sysctls(struct ice_softc *sc)
 	    OID_AUTO, "link_active_on_if_down", CTLTYPE_U8 | CTLFLAG_RWTUN,
 	    sc, 0, ice_sysctl_set_link_active, "CU", ICE_SYSCTL_HELP_SET_LINK_ACTIVE);
 
+	SYSCTL_ADD_PROC(ctx, ctx_list,
+	    OID_AUTO, "create_mirror_interface", CTLTYPE_STRING | CTLFLAG_RW,
+	    sc, 0, ice_sysctl_create_mirror_interface, "A", "");
+
+	SYSCTL_ADD_PROC(ctx, ctx_list,
+	    OID_AUTO, "destroy_mirror_interface", CTLTYPE_STRING | CTLFLAG_RW,
+	    sc, 0, ice_sysctl_destroy_mirror_interface, "A", "");
+
 	ice_add_dscp2tc_map_sysctls(sc, ctx, ctx_list);
 
 	/* Differentiate software and hardware statistics, by keeping hw stats
@@ -6247,16 +6363,18 @@ ice_sysctl_request_reset(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+#define ICE_AQC_DBG_DUMP_CLUSTER_ID_INVALID	(0xFFFFFF)
 #define ICE_SYSCTL_HELP_FW_DEBUG_DUMP_CLUSTER_SETTING		\
 "\nSelect clusters to dump with \"dump\" sysctl"		\
 "\nFlags:"							\
-"\n\t   0x1 - Switch"						\
-"\n\t   0x2 - ACL"						\
-"\n\t   0x4 - Tx Scheduler"					\
-"\n\t   0x8 - Profile Configuration"				\
-"\n\t  0x20 - Link"						\
-"\n\t  0x80 - DCB"						\
-"\n\t 0x100 - L2P"						\
+"\n\t      0x1 - Switch"					\
+"\n\t      0x2 - ACL"						\
+"\n\t      0x4 - Tx Scheduler"					\
+"\n\t      0x8 - Profile Configuration"			\
+"\n\t     0x20 - Link"						\
+"\n\t     0x80 - DCB"						\
+"\n\t    0x100 - L2P"						\
+"\n\t 0x400000 - Manageability Transactions"			\
 "\n\t"								\
 "\nUse \"sysctl -x\" to view flags properly."
 
@@ -6273,7 +6391,7 @@ ice_sysctl_fw_debug_dump_cluster_setting(SYSCTL_HANDLER_ARGS)
 {
 	struct ice_softc *sc = (struct ice_softc *)arg1;
 	device_t dev = sc->dev;
-	u16 clusters;
+	u32 clusters;
 	int ret;
 
 	UNREFERENCED_PARAMETER(arg2);
@@ -6287,15 +6405,15 @@ ice_sysctl_fw_debug_dump_cluster_setting(SYSCTL_HANDLER_ARGS)
 
 	clusters = sc->fw_debug_dump_cluster_mask;
 
-	ret = sysctl_handle_16(oidp, &clusters, 0, req);
+	ret = sysctl_handle_32(oidp, &clusters, 0, req);
 	if ((ret) || (req->newptr == NULL))
 		return (ret);
 
-	if (!clusters ||
-	    (clusters & ~(ICE_FW_DEBUG_DUMP_VALID_CLUSTER_MASK))) {
+	if (clusters & ~(ICE_FW_DEBUG_DUMP_VALID_CLUSTER_MASK)) {
 		device_printf(dev,
 		    "%s: ERROR: Incorrect settings requested\n",
 		    __func__);
+		sc->fw_debug_dump_cluster_mask = ICE_AQC_DBG_DUMP_CLUSTER_ID_INVALID;
 		return (EINVAL);
 	}
 
@@ -6319,7 +6437,7 @@ ice_sysctl_fw_debug_dump_cluster_setting(SYSCTL_HANDLER_ARGS)
  * @remark Only intended to be used by the sysctl handler
  * ice_sysctl_fw_debug_dump_do_dump
  */
-static void
+static u16
 ice_fw_debug_dump_print_cluster(struct ice_softc *sc, struct sbuf *sbuf, u16 cluster_id)
 {
 	struct ice_hw *hw = &sc->hw;
@@ -6330,19 +6448,20 @@ ice_fw_debug_dump_print_cluster(struct ice_softc *sc, struct sbuf *sbuf, u16 clu
 	int counter = 0;
 	u8 *data_buf;
 
-	/* Other setup */
-	data_buf = (u8 *)malloc(data_buf_size, M_ICE, M_NOWAIT | M_ZERO);
-	if (!data_buf)
-		return;
-
 	/* Input parameters / loop variables */
 	u16 table_id = 0;
 	u32 offset = 0;
 
 	/* Output from the Get Internal Data AQ command */
 	u16 ret_buf_size = 0;
+	u16 ret_next_cluster = 0;
 	u16 ret_next_table = 0;
 	u32 ret_next_index = 0;
+
+	/* Other setup */
+	data_buf = (u8 *)malloc(data_buf_size, M_ICE, M_NOWAIT | M_ZERO);
+	if (!data_buf)
+		return ret_next_cluster;
 
 	ice_debug(hw, ICE_DBG_DIAG, "%s: dumping cluster id %d\n", __func__,
 	    cluster_id);
@@ -6363,7 +6482,7 @@ ice_fw_debug_dump_print_cluster(struct ice_softc *sc, struct sbuf *sbuf, u16 clu
 
 		status = ice_aq_get_internal_data(hw, cluster_id, table_id,
 		    offset, data_buf, data_buf_size, &ret_buf_size,
-		    &ret_next_table, &ret_next_index, NULL);
+		    &ret_next_cluster, &ret_next_table, &ret_next_index, NULL);
 		if (status) {
 			device_printf(dev,
 			    "%s: ice_aq_get_internal_data in cluster %d: err %s aq_err %s\n",
@@ -6429,6 +6548,7 @@ ice_fw_debug_dump_print_cluster(struct ice_softc *sc, struct sbuf *sbuf, u16 clu
 	}
 
 	free(data_buf, M_ICE);
+	return ret_next_cluster;
 }
 
 #define ICE_SYSCTL_HELP_FW_DEBUG_DUMP_DO_DUMP \
@@ -6437,6 +6557,7 @@ ice_fw_debug_dump_print_cluster(struct ice_softc *sc, struct sbuf *sbuf, u16 clu
 "\nthis data is opaque and not a string."
 
 #define ICE_FW_DUMP_BASE_TEXT_SIZE	(1024 * 1024)
+#define ICE_FW_DUMP_ALL_TEXT_SIZE	(10 * 1024 * 1024)
 #define ICE_FW_DUMP_CLUST0_TEXT_SIZE	(2 * 1024 * 1024)
 #define ICE_FW_DUMP_CLUST1_TEXT_SIZE	(128 * 1024)
 #define ICE_FW_DUMP_CLUST2_TEXT_SIZE	(2 * 1024 * 1024)
@@ -6493,9 +6614,9 @@ ice_sysctl_fw_debug_dump_do_dump(SYSCTL_HANDLER_ARGS)
 		 * sysctl read call.
 		 */
 		if (input_buf[0] == '1') {
-			if (!sc->fw_debug_dump_cluster_mask) {
+			if (sc->fw_debug_dump_cluster_mask == ICE_AQC_DBG_DUMP_CLUSTER_ID_INVALID) {
 				device_printf(dev,
-				    "%s: Debug Dump failed because no cluster was specified with the \"clusters\" sysctl.\n",
+				    "%s: Debug Dump failed because an invalid cluster was specified.\n",
 				    __func__);
 				return (EINVAL);
 			}
@@ -6513,12 +6634,16 @@ ice_sysctl_fw_debug_dump_do_dump(SYSCTL_HANDLER_ARGS)
 	/* Caller just wants the upper bound for size */
 	if (req->oldptr == NULL && req->newptr == NULL) {
 		size_t est_output_len = ICE_FW_DUMP_BASE_TEXT_SIZE;
-		if (sc->fw_debug_dump_cluster_mask & 0x1)
-			est_output_len += ICE_FW_DUMP_CLUST0_TEXT_SIZE;
-		if (sc->fw_debug_dump_cluster_mask & 0x2)
-			est_output_len += ICE_FW_DUMP_CLUST1_TEXT_SIZE;
-		if (sc->fw_debug_dump_cluster_mask & 0x4)
-			est_output_len += ICE_FW_DUMP_CLUST2_TEXT_SIZE;
+		if (sc->fw_debug_dump_cluster_mask == 0)
+			est_output_len += ICE_FW_DUMP_ALL_TEXT_SIZE;
+		else {
+			if (sc->fw_debug_dump_cluster_mask & 0x1)
+				est_output_len += ICE_FW_DUMP_CLUST0_TEXT_SIZE;
+			if (sc->fw_debug_dump_cluster_mask & 0x2)
+				est_output_len += ICE_FW_DUMP_CLUST1_TEXT_SIZE;
+			if (sc->fw_debug_dump_cluster_mask & 0x4)
+				est_output_len += ICE_FW_DUMP_CLUST2_TEXT_SIZE;
+		}
 
 		ret = SYSCTL_OUT(req, 0, est_output_len);
 		return (ret);
@@ -6529,9 +6654,17 @@ ice_sysctl_fw_debug_dump_do_dump(SYSCTL_HANDLER_ARGS)
 
 	ice_debug(&sc->hw, ICE_DBG_DIAG, "%s: Debug Dump running...\n", __func__);
 
-	for_each_set_bit(bit, &sc->fw_debug_dump_cluster_mask,
-	    sizeof(sc->fw_debug_dump_cluster_mask) * 8)
-		ice_fw_debug_dump_print_cluster(sc, sbuf, bit);
+	if (sc->fw_debug_dump_cluster_mask) {
+		for_each_set_bit(bit, &sc->fw_debug_dump_cluster_mask,
+		    sizeof(sc->fw_debug_dump_cluster_mask) * 8)
+			ice_fw_debug_dump_print_cluster(sc, sbuf, bit);
+	} else {
+		u16 next_cluster_id = 0;
+		/* We don't support QUEUE_MNG and FULL_CSR_SPACE */
+		do {
+			next_cluster_id = ice_fw_debug_dump_print_cluster(sc, sbuf, next_cluster_id);
+		} while (next_cluster_id != 0 && next_cluster_id < ICE_AQC_DBG_DUMP_CLUSTER_ID_QUEUE_MNG);
+	}
 
 	sbuf_finish(sbuf);
 	sbuf_delete(sbuf);
@@ -6711,7 +6844,7 @@ ice_add_debug_sysctls(struct ice_softc *sc)
 	dump_list = SYSCTL_CHILDREN(dump_node);
 
 	SYSCTL_ADD_PROC(ctx, dump_list, OID_AUTO, "clusters",
-			ICE_CTLFLAG_DEBUG | CTLTYPE_U16 | CTLFLAG_RW, sc, 0,
+			ICE_CTLFLAG_DEBUG | CTLTYPE_U32 | CTLFLAG_RW, sc, 0,
 			ice_sysctl_fw_debug_dump_cluster_setting, "SU",
 			ICE_SYSCTL_HELP_FW_DEBUG_DUMP_CLUSTER_SETTING);
 
@@ -6837,6 +6970,7 @@ ice_vsi_set_rss_params(struct ice_vsi *vsi)
 		vsi->rss_lut_type = ICE_LUT_PF;
 		break;
 	case ICE_VSI_VF:
+	case ICE_VSI_VMDQ2:
 		vsi->rss_table_size = ICE_VSIQF_HLUT_ARRAY_SIZE;
 		vsi->rss_lut_type = ICE_LUT_VSI;
 		break;
@@ -10034,7 +10168,7 @@ ice_alloc_intr_tracking(struct ice_softc *sc)
 	int err;
 
 	/* Initialize the interrupt allocation manager */
-	err = ice_resmgr_init_contig_only(&sc->imgr,
+	err = ice_resmgr_init_contig_only(&sc->dev_imgr,
 	    hw->func_caps.common_cap.num_msix_vectors);
 	if (err) {
 		device_printf(dev, "Unable to initialize PF interrupt manager: %s\n",
@@ -10066,7 +10200,7 @@ ice_alloc_intr_tracking(struct ice_softc *sc)
 	return (0);
 
 free_imgr:
-	ice_resmgr_destroy(&sc->imgr);
+	ice_resmgr_destroy(&sc->dev_imgr);
 	return (err);
 }
 
@@ -10083,19 +10217,21 @@ void
 ice_free_intr_tracking(struct ice_softc *sc)
 {
 	if (sc->pf_imap) {
-		ice_resmgr_release_map(&sc->imgr, sc->pf_imap,
+		ice_resmgr_release_map(&sc->dev_imgr, sc->pf_imap,
 				       sc->lan_vectors);
 		free(sc->pf_imap, M_ICE);
 		sc->pf_imap = NULL;
 	}
 	if (sc->rdma_imap) {
-		ice_resmgr_release_map(&sc->imgr, sc->rdma_imap,
+		ice_resmgr_release_map(&sc->dev_imgr, sc->rdma_imap,
 				       sc->lan_vectors);
 		free(sc->rdma_imap, M_ICE);
 		sc->rdma_imap = NULL;
 	}
 
-	ice_resmgr_destroy(&sc->imgr);
+	ice_resmgr_destroy(&sc->dev_imgr);
+
+	ice_resmgr_destroy(&sc->os_imgr);
 }
 
 /**
@@ -10869,6 +11005,7 @@ ice_handle_debug_dump_ioctl(struct ice_softc *sc, struct ifdrv *ifd)
 
 	/* Returned arguments from the Admin Queue */
 	u16 ret_buf_size = 0;
+	u16 ret_next_cluster = 0;
 	u16 ret_next_table = 0;
 	u32 ret_next_index = 0;
 
@@ -10935,7 +11072,8 @@ ice_handle_debug_dump_ioctl(struct ice_softc *sc, struct ifdrv *ifd)
 	memset(ddc->data, 0, ifd_len - sizeof(*ddc));
 
 	status = ice_aq_get_internal_data(hw, ddc->cluster_id, ddc->table_id, ddc->offset,
-	    (u8 *)ddc->data, ddc->data_size, &ret_buf_size, &ret_next_table, &ret_next_index, NULL);
+	    (u8 *)ddc->data, ddc->data_size, &ret_buf_size, 
+	    &ret_next_cluster, &ret_next_table, &ret_next_index, NULL);
 	ice_debug(hw, ICE_DBG_DIAG, "%s: ret_buf_size %d, ret_next_table %d, ret_next_index %d\n",
 	    __func__, ret_buf_size, ret_next_table, ret_next_index);
 	if (status) {
@@ -10950,6 +11088,7 @@ ice_handle_debug_dump_ioctl(struct ice_softc *sc, struct ifdrv *ifd)
 	ddc->table_id = ret_next_table;
 	ddc->offset = ret_next_index;
 	ddc->data_size = ret_buf_size;
+	ddc->cluster_id = ret_next_cluster;
 
 	/* Copy the possibly modified contents of the handled request out */
 	err = copyout(ddc, ifd->ifd_data, ifd->ifd_len);
@@ -11086,4 +11225,147 @@ ice_sysctl_temperature(SYSCTL_HANDLER_ARGS)
 	    resp.data.s0f0.temp_fatal_threshold);
 
 	return sysctl_handle_8(oidp, &resp.data.s0f0.temp, 0, req);
+}
+
+/**
+ * ice_sysctl_create_mirror_interface - Create a new ifnet that monitors
+ *     traffic from the main PF VSI
+ */
+static int
+ice_sysctl_create_mirror_interface(SYSCTL_HANDLER_ARGS)
+{
+	struct ice_softc *sc = (struct ice_softc *)arg1;
+	device_t dev = sc->dev;
+	int ret;
+
+	UNREFERENCED_PARAMETER(arg2);
+
+	ret = priv_check(curthread, PRIV_DRIVER);
+	if (ret)
+		return (ret);
+
+	if (ice_driver_is_detaching(sc))
+		return (ESHUTDOWN);
+
+	/* If the user hasn't written "1" to this sysctl yet: */
+	if (!ice_test_state(&sc->state, ICE_STATE_DO_CREATE_MIRR_INTFC)) {
+		/* Avoid output on the first set of reads to this sysctl in
+		 * order to prevent a null byte from being written to the
+		 * end result when called via sysctl(8).
+		 */
+		if (req->oldptr == NULL && req->newptr == NULL) {
+			ret = SYSCTL_OUT(req, 0, 0);
+			return (ret);
+		}
+
+		char input_buf[2] = "";
+		ret = sysctl_handle_string(oidp, input_buf, sizeof(input_buf), req);
+		if ((ret) || (req->newptr == NULL))
+			return (ret);
+
+		/* If we get '1', then indicate we'll create the interface in
+		 * the next sysctl read call.
+		 */
+		if (input_buf[0] == '1') {
+			if (sc->mirr_if) {
+				device_printf(dev,
+				    "Mirror interface %s already exists!\n",
+				    if_name(sc->mirr_if->ifp));
+				return (EEXIST);
+			}
+			ice_set_state(&sc->state, ICE_STATE_DO_CREATE_MIRR_INTFC);
+			return (0);
+		}
+
+		return (EINVAL);
+	}
+
+	/* --- "Do Create Mirror Interface" is set --- */
+
+	/* Caller just wants the upper bound for size */
+	if (req->oldptr == NULL && req->newptr == NULL) {
+		ret = SYSCTL_OUT(req, 0, 128);
+		return (ret);
+	}
+
+	device_printf(dev, "Creating new mirroring interface...\n");
+
+	ret = ice_create_mirror_interface(sc);
+	if (ret)
+		return (ret);
+
+	ice_clear_state(&sc->state, ICE_STATE_DO_CREATE_MIRR_INTFC);
+
+	ret = sysctl_handle_string(oidp, __DECONST(char *, "Interface attached"), 0, req);
+	return (ret);
+}
+
+/**
+ * ice_sysctl_destroy_mirror_interface - Destroy network interface that monitors
+ *     traffic from the main PF VSI
+ */
+static int
+ice_sysctl_destroy_mirror_interface(SYSCTL_HANDLER_ARGS)
+{
+	struct ice_softc *sc = (struct ice_softc *)arg1;
+	device_t dev = sc->dev;
+	int ret;
+
+	UNREFERENCED_PARAMETER(arg2);
+
+	ret = priv_check(curthread, PRIV_DRIVER);
+	if (ret)
+		return (ret);
+
+	if (ice_driver_is_detaching(sc))
+		return (ESHUTDOWN);
+
+	/* If the user hasn't written "1" to this sysctl yet: */
+	if (!ice_test_state(&sc->state, ICE_STATE_DO_DESTROY_MIRR_INTFC)) {
+		/* Avoid output on the first set of reads to this sysctl in
+		 * order to prevent a null byte from being written to the
+		 * end result when called via sysctl(8).
+		 */
+		if (req->oldptr == NULL && req->newptr == NULL) {
+			ret = SYSCTL_OUT(req, 0, 0);
+			return (ret);
+		}
+
+		char input_buf[2] = "";
+		ret = sysctl_handle_string(oidp, input_buf, sizeof(input_buf), req);
+		if ((ret) || (req->newptr == NULL))
+			return (ret);
+
+		/* If we get '1', then indicate we'll create the interface in
+		 * the next sysctl read call.
+		 */
+		if (input_buf[0] == '1') {
+			if (!sc->mirr_if) {
+				device_printf(dev,
+				    "No mirror interface exists!\n");
+				return (EINVAL);
+			}
+			ice_set_state(&sc->state, ICE_STATE_DO_DESTROY_MIRR_INTFC);
+			return (0);
+		}
+
+		return (EINVAL);
+	}
+
+	/* --- "Do Destroy Mirror Interface" is set --- */
+
+	/* Caller just wants the upper bound for size */
+	if (req->oldptr == NULL && req->newptr == NULL) {
+		ret = SYSCTL_OUT(req, 0, 128);
+		return (ret);
+	}
+
+	device_printf(dev, "Destroying mirroring interface...\n");
+
+	ice_destroy_mirror_interface(sc);
+
+	ice_clear_state(&sc->state, ICE_STATE_DO_DESTROY_MIRR_INTFC);
+
+	ret = sysctl_handle_string(oidp, __DECONST(char *, "Interface destroyed"), 0, req);
+	return (ret);
 }

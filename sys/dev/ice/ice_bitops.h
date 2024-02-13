@@ -402,7 +402,7 @@ static inline bool ice_is_any_bit_set(ice_bitmap_t *bitmap, u16 size)
 }
 
 /**
- * ice_cp_bitmap - copy bitmaps.
+ * ice_cp_bitmap - copy bitmaps
  * @dst: bitmap destination
  * @src: bitmap to copy from
  * @size: Size of the bitmaps in bits
@@ -460,7 +460,7 @@ ice_bitmap_hweight(ice_bitmap_t *bm, u16 size)
 }
 
 /**
- * ice_cmp_bitmap - compares two bitmaps.
+ * ice_cmp_bitmap - compares two bitmaps
  * @bmp1: the bitmap to compare
  * @bmp2: the bitmap to compare with bmp1
  * @size: Size of the bitmaps in bits
