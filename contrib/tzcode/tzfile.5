@@ -74,7 +74,7 @@ described in the file is associated with the time period
 starting with the same-indexed transition time
 and continuing up to but not including the next transition time.
 (The last time type is present only for consistency checking with the
-POSIX-style TZ string described below.)
+POSIX.1-2017-style TZ string described below.)
 These values serve as indices into the next field.
 .It Va tzh_typecnt
 .Vt ttinfo
@@ -166,7 +166,8 @@ must also be set.
 .Pp
 The standard/wall and UT/local indicators were designed for
 transforming a TZif file's transition times into transitions appropriate
-for another time zone specified via a POSIX-style TZ string that lacks rules.
+for another time zone specified via
+a POSIX.1-2017-style TZ string that lacks rules.
 For example, when TZ="EET\*-2EEST" and there is no TZif file "EET\*-2EEST",
 the idea was to adapt the transition times from a TZif file with the
 well-known name "posixrules" that is present only for this purpose and
@@ -195,13 +196,14 @@ the above header and data are followed by a second header and data,
 identical in format except that
 eight bytes are used for each transition time or leap second time.
 (Leap second counts remain four bytes.)
-After the second header and data comes a newline-enclosed,
-POSIX-TZ-environment-variable-style string for use in handling instants
+After the second header and data comes a newline-enclosed string
+in the style of the contents of a POSIX.1-2017 TZ environment variable,
+for use in handling instants
 after the last transition time stored in the file
 or for all instants if the file has no transitions.
-The POSIX-style TZ string is empty (i.e., nothing between the newlines)
-if there is no POSIX-style representation for such instants.
-If nonempty, the POSIX-style TZ string must agree with the local time
+The TZ string is empty (i.e., nothing between the newlines)
+if there is no POSIX.1-2017-style representation for such instants.
+If nonempty, the TZ string must agree with the local time
 type after the last transition time if present in the eight-byte data;
 for example, given the string
 .Dq "WET0WEST,M3.5.0/1,M10.5.0"
@@ -213,8 +215,8 @@ Also, if there is at least one transition, time type 0 is associated
 with the time period from the indefinite past up to but not including
 the earliest transition time.
 .Ss Version 3 format
-For version-3-format timezone files, the POSIX-TZ-style string may
-use two minor extensions to the POSIX TZ format, as described in
+For version-3-format timezone files, the TZ string may
+use two minor extensions to the POSIX.1-2017 TZ format, as described in
 .Xr newtzset 3 .
 First, the hours part of its transition times may be signed and range from
 \-167 through 167 instead of the POSIX-required unsigned values
@@ -334,7 +336,7 @@ version 2+ data even if the reader's native timestamps have only
 .It
 Some readers designed for version 2 might mishandle
 timestamps after a version 3 or higher file's last transition, because
-they cannot parse extensions to POSIX in the TZ-like string.
+they cannot parse extensions to POSIX.1-2017 in the TZ-like string.
 As a partial workaround, a writer can output more transitions
 than necessary, so that only far-future timestamps are
 mishandled by version 2 readers.
@@ -385,7 +387,7 @@ Some readers mishandle a transition if its timestamp has
 the minimum possible signed 64-bit value.
 Timestamps less than \-2**59 are not recommended.
 .It
-Some readers mishandle POSIX-style TZ strings that
+Some readers mishandle TZ strings that
 contain
 .Dq "<"
 or
@@ -413,13 +415,13 @@ Some readers mishandle TZif files that specify
 daylight-saving time UT offsets that are less than the UT
 offsets for the corresponding standard time.
 These readers do not support locations like Ireland, which
-uses the equivalent of the POSIX TZ string
-.Dq "IST\*-1GMT0,M10.5.0,M3.5.0/1" ,
+uses the equivalent of the TZ string
+.Dq "IST\*-1GMT0,M10.5.0,M3.5.0/1",
 observing standard time
 (IST, +01) in summer and daylight saving time (GMT, +00) in winter.
 As a partial workaround, a writer can output data for the
-equivalent of the POSIX TZ string
-.Dq "GMT0IST,M3.5.0/1,M10.5.0" ,
+equivalent of the TZ string
+.Dq "GMT0IST,M3.5.0/1,M10.5.0",
 thus swapping standard and daylight saving time.
 Although this workaround misidentifies which part of the year
 uses daylight saving time, it records UT offsets and time zone
