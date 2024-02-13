@@ -45,6 +45,18 @@
 #include "ice_common_txrx.h"
 
 /*
+ * Driver private implementations
+ */
+static int _ice_ift_txd_encap(struct ice_tx_queue *txq, if_pkt_info_t pi);
+static int _ice_ift_txd_credits_update(struct ice_softc *sc, struct ice_tx_queue *txq, bool clear);
+static int _ice_ift_rxd_available(struct ice_rx_queue *rxq, qidx_t pidx, qidx_t budget);
+static int _ice_ift_rxd_pkt_get(struct ice_rx_queue *rxq, if_rxd_info_t ri);
+static void _ice_ift_rxd_refill(struct ice_rx_queue *rxq, uint32_t pidx,
+				uint64_t *paddrs, uint16_t count);
+static void _ice_ift_rxd_flush(struct ice_softc *sc, struct ice_rx_queue *rxq,
+			       uint32_t pidx);
+
+/*
  * iflib txrx method declarations
  */
 static int ice_ift_txd_encap(void *arg, if_pkt_info_t pi);
@@ -55,6 +67,13 @@ static int ice_ift_rxd_available(void *arg, uint16_t rxqid, qidx_t pidx, qidx_t 
 static void ice_ift_rxd_flush(void *arg, uint16_t rxqid, uint8_t flidx, qidx_t pidx);
 static void ice_ift_rxd_refill(void *arg, if_rxd_update_t iru);
 static qidx_t ice_ift_queue_select(void *arg, struct mbuf *m, if_pkt_info_t pi);
+static int ice_ift_txd_credits_update_subif(void *arg, uint16_t txqid, bool clear);
+static int ice_ift_txd_encap_subif(void *arg, if_pkt_info_t pi);
+static void ice_ift_txd_flush_subif(void *arg, uint16_t txqid, qidx_t pidx);
+static int ice_ift_rxd_available_subif(void *arg, uint16_t rxqid, qidx_t pidx, qidx_t budget);
+static int ice_ift_rxd_pkt_get_subif(void *arg, if_rxd_info_t ri);
+static void ice_ift_rxd_refill_subif(void *arg, if_rxd_update_t iru);
+static void ice_ift_rxd_flush_subif(void *arg, uint16_t rxqid, uint8_t flidx, qidx_t pidx);
 
 /* Macro to help extract the NIC mode flexible Rx descriptor fields from the
  * advanced 32byte Rx descriptors.
@@ -82,8 +101,27 @@ struct if_txrx ice_txrx = {
 };
 
 /**
- * ice_ift_txd_encap - prepare Tx descriptors for a packet
- * @arg: the iflib softc structure pointer
+ * @var ice_subif_txrx
+ * @brief Tx/Rx operations for the iflib stack, for subinterfaces
+ *
+ * Structure defining the Tx and Rx related operations that iflib can request
+ * the subinterface driver to perform. These are the main entry points for the
+ * hot path of the transmit and receive paths in the iflib driver.
+ */
+struct if_txrx ice_subif_txrx = {
+	.ift_txd_credits_update = ice_ift_txd_credits_update_subif,
+	.ift_txd_encap = ice_ift_txd_encap_subif,
+	.ift_txd_flush = ice_ift_txd_flush_subif,
+	.ift_rxd_available = ice_ift_rxd_available_subif,
+	.ift_rxd_pkt_get = ice_ift_rxd_pkt_get_subif,
+	.ift_rxd_refill = ice_ift_rxd_refill_subif,
+	.ift_rxd_flush = ice_ift_rxd_flush_subif,
+	.ift_txq_select_v2 = NULL,
+};
+
+/**
+ * _ice_ift_txd_encap - prepare Tx descriptors for a packet
+ * @txq: driver's TX queue context
  * @pi: packet info
  *
  * Prepares and encapsulates the given packet into into Tx descriptors, in
@@ -94,10 +132,8 @@ struct if_txrx ice_txrx = {
  * Return 0 on success, non-zero error code on failure.
  */
 static int
-ice_ift_txd_encap(void *arg, if_pkt_info_t pi)
+_ice_ift_txd_encap(struct ice_tx_queue *txq, if_pkt_info_t pi)
 {
-	struct ice_softc *sc = (struct ice_softc *)arg;
-	struct ice_tx_queue *txq = &sc->pf_vsi.tx_queues[pi->ipi_qsidx];
 	int nsegs = pi->ipi_nsegs;
 	bus_dma_segment_t *segs = pi->ipi_segs;
 	struct ice_tx_desc *txd = NULL;
@@ -157,6 +193,27 @@ ice_ift_txd_encap(void *arg, if_pkt_info_t pi)
 }
 
 /**
+ * ice_ift_txd_encap - prepare Tx descriptors for a packet
+ * @arg: the iflib softc structure pointer
+ * @pi: packet info
+ *
+ * Prepares and encapsulates the given packet into Tx descriptors, in
+ * preparation for sending to the transmit engine. Sets the necessary context
+ * descriptors for TSO and other offloads, and prepares the last descriptor
+ * for the writeback status.
+ *
+ * Return 0 on success, non-zero error code on failure.
+ */
+static int
+ice_ift_txd_encap(void *arg, if_pkt_info_t pi)
+{
+	struct ice_softc *sc = (struct ice_softc *)arg;
+	struct ice_tx_queue *txq = &sc->pf_vsi.tx_queues[pi->ipi_qsidx];
+
+	return _ice_ift_txd_encap(txq, pi);
+}
+
+/**
  * ice_ift_txd_flush - Flush Tx descriptors to hardware
  * @arg: device specific softc pointer
  * @txqid: the Tx queue to flush
@@ -176,9 +233,9 @@ ice_ift_txd_flush(void *arg, uint16_t txqid, qidx_t pidx)
 }
 
 /**
- * ice_ift_txd_credits_update - cleanup Tx descriptors
- * @arg: device private softc
- * @txqid: the Tx queue to update
+ * _ice_ift_txd_credits_update - cleanup Tx descriptors
+ * @sc: device private softc
+ * @txq: the Tx queue to update
  * @clear: if false, only report, do not actually clean
  *
  * If clear is false, iflib is asking if we *could* clean up any Tx
@@ -186,13 +243,12 @@ ice_ift_txd_flush(void *arg, uint16_t txqid, qidx_t pidx)
  *
  * If clear is true, iflib is requesting to cleanup and reclaim used Tx
  * descriptors.
+ *
+ * Called by other txd_credits_update functions passed to iflib.
  */
 static int
-ice_ift_txd_credits_update(void *arg, uint16_t txqid, bool clear)
+_ice_ift_txd_credits_update(struct ice_softc *sc __unused, struct ice_tx_queue *txq, bool clear)
 {
-	struct ice_softc *sc = (struct ice_softc *)arg;
-	struct ice_tx_queue *txq = &sc->pf_vsi.tx_queues[txqid];
-
 	qidx_t processed = 0;
 	qidx_t cur, prev, ntxd, rs_cidx;
 	int32_t delta;
@@ -235,9 +291,28 @@ ice_ift_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 }
 
 /**
- * ice_ift_rxd_available - Return number of available Rx packets
+ * ice_ift_txd_credits_update - cleanup PF VSI Tx descriptors
  * @arg: device private softc
- * @rxqid: the Rx queue id
+ * @txqid: the Tx queue to update
+ * @clear: if false, only report, do not actually clean
+ *
+ * Wrapper for _ice_ift_txd_credits_update() meant for TX queues that
+ * belong to the PF VSI.
+ *
+ * @see _ice_ift_txd_credits_update()
+ */
+static int
+ice_ift_txd_credits_update(void *arg, uint16_t txqid, bool clear)
+{
+	struct ice_softc *sc = (struct ice_softc *)arg;
+	struct ice_tx_queue *txq = &sc->pf_vsi.tx_queues[txqid];
+
+	return _ice_ift_txd_credits_update(sc, txq, clear);
+}
+
+/**
+ * _ice_ift_rxd_available - Return number of available Rx packets
+ * @rxq: RX queue driver structure
  * @pidx: descriptor start point
  * @budget: maximum Rx budget
  *
@@ -245,10 +320,8 @@ ice_ift_txd_credits_update(void *arg, uint16_t txqid, bool clear)
  * of the given budget.
  */
 static int
-ice_ift_rxd_available(void *arg, uint16_t rxqid, qidx_t pidx, qidx_t budget)
+_ice_ift_rxd_available(struct ice_rx_queue *rxq, qidx_t pidx, qidx_t budget)
 {
-	struct ice_softc *sc = (struct ice_softc *)arg;
-	struct ice_rx_queue *rxq = &sc->pf_vsi.rx_queues[rxqid];
 	union ice_32b_rx_flex_desc *rxd;
 	uint16_t status0;
 	int cnt, i, nrxd;
@@ -271,8 +344,44 @@ ice_ift_rxd_available(void *arg, uint16_t rxqid, qidx_t pidx, qidx_t budget)
 }
 
 /**
+ * ice_ift_rxd_available - Return number of available Rx packets
+ * @arg: device private softc
+ * @rxqid: the Rx queue id
+ * @pidx: descriptor start point
+ * @budget: maximum Rx budget
+ *
+ * Wrapper for _ice_ift_rxd_available() that provides a function pointer
+ * that iflib requires for RX processing.
+ */
+static int
+ice_ift_rxd_available(void *arg, uint16_t rxqid, qidx_t pidx, qidx_t budget)
+{
+	struct ice_softc *sc = (struct ice_softc *)arg;
+	struct ice_rx_queue *rxq = &sc->pf_vsi.rx_queues[rxqid];
+
+	return _ice_ift_rxd_available(rxq, pidx, budget);
+}
+
+/**
  * ice_ift_rxd_pkt_get - Called by iflib to send data to upper layer
  * @arg: device specific softc
+ * @ri: receive packet info
+ *
+ * Wrapper function for _ice_ift_rxd_pkt_get() that provides a function pointer
+ * used by iflib for RX packet processing.
+ */
+static int
+ice_ift_rxd_pkt_get(void *arg, if_rxd_info_t ri)
+{
+	struct ice_softc *sc = (struct ice_softc *)arg;
+	struct ice_rx_queue *rxq = &sc->pf_vsi.rx_queues[ri->iri_qsidx];
+
+	return _ice_ift_rxd_pkt_get(rxq, ri);
+}
+
+/**
+ * _ice_ift_rxd_pkt_get - Called by iflib to send data to upper layer
+ * @rxq: RX queue driver structure
  * @ri: receive packet info
  *
  * This function is called by iflib, and executes in ithread context. It is
@@ -280,11 +389,8 @@ ice_ift_rxd_available(void *arg, uint16_t rxqid, qidx_t pidx, qidx_t budget)
  * Returns zero on success, and EBADMSG on failure.
  */
 static int
-ice_ift_rxd_pkt_get(void *arg, if_rxd_info_t ri)
+_ice_ift_rxd_pkt_get(struct ice_rx_queue *rxq, if_rxd_info_t ri)
 {
-	struct ice_softc *sc = (struct ice_softc *)arg;
-	if_softc_ctx_t scctx = sc->scctx;
-	struct ice_rx_queue *rxq = &sc->pf_vsi.rx_queues[ri->iri_qsidx];
 	union ice_32b_rx_flex_desc *cur;
 	u16 status0, plen, ptype;
 	bool eop;
@@ -341,7 +447,7 @@ ice_ift_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	/* Get packet type and set checksum flags */
 	ptype = le16toh(cur->wb.ptype_flex_flags0) &
 		ICE_RX_FLEX_DESC_PTYPE_M;
-	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0)
+	if ((if_getcapenable(ri->iri_ifp) & IFCAP_RXCSUM) != 0)
 		ice_rx_checksum(rxq, &ri->iri_csum_flags,
 				&ri->iri_csum_data, status0, ptype);
 
@@ -357,16 +463,14 @@ ice_ift_rxd_pkt_get(void *arg, if_rxd_info_t ri)
  * @arg: device specific softc structure
  * @iru: the Rx descriptor update structure
  *
- * Update the Rx descriptor indices for a given queue, assigning new physical
- * addresses to the descriptors, preparing them for re-use by the hardware.
+ * Wrapper function for _ice_ift_rxd_refill() that provides a function pointer
+ * used by iflib for RX packet processing.
  */
 static void
 ice_ift_rxd_refill(void *arg, if_rxd_update_t iru)
 {
 	struct ice_softc *sc = (struct ice_softc *)arg;
 	struct ice_rx_queue *rxq;
-	uint32_t next_pidx;
-	int i;
 	uint64_t *paddrs;
 	uint32_t pidx;
 	uint16_t qsidx, count;
@@ -377,6 +481,26 @@ ice_ift_rxd_refill(void *arg, if_rxd_update_t iru)
 	count = iru->iru_count;
 
 	rxq = &(sc->pf_vsi.rx_queues[qsidx]);
+
+	_ice_ift_rxd_refill(rxq, pidx, paddrs, count);
+}
+
+/**
+ * _ice_ift_rxd_refill - Prepare Rx descriptors for re-use by hardware
+ * @rxq: RX queue driver structure
+ * @pidx: first index to refill
+ * @paddrs: physical addresses to use
+ * @count: number of descriptors to refill
+ *
+ * Update the Rx descriptor indices for a given queue, assigning new physical
+ * addresses to the descriptors, preparing them for re-use by the hardware.
+ */
+static void
+_ice_ift_rxd_refill(struct ice_rx_queue *rxq, uint32_t pidx,
+		    uint64_t *paddrs, uint16_t count)
+{
+	uint32_t next_pidx;
+	int i;
 
 	for (i = 0, next_pidx = pidx; i < count; i++) {
 		rxq->rx_base[next_pidx].read.pkt_addr = htole64(paddrs[i]);
@@ -392,8 +516,8 @@ ice_ift_rxd_refill(void *arg, if_rxd_update_t iru)
  * @flidx: unused parameter
  * @pidx: descriptor index to advance tail to
  *
- * Advance the Receive Descriptor Tail (RDT). This indicates to hardware that
- * software is done with the descriptor and it can be recycled.
+ * Wrapper function for _ice_ift_rxd_flush() that provides a function pointer
+ * used by iflib for RX packet processing.
  */
 static void
 ice_ift_rxd_flush(void *arg, uint16_t rxqid, uint8_t flidx __unused,
@@ -401,11 +525,36 @@ ice_ift_rxd_flush(void *arg, uint16_t rxqid, uint8_t flidx __unused,
 {
 	struct ice_softc *sc = (struct ice_softc *)arg;
 	struct ice_rx_queue *rxq = &sc->pf_vsi.rx_queues[rxqid];
-	struct ice_hw *hw = &sc->hw;
 
-	wr32(hw, rxq->tail, pidx);
+	_ice_ift_rxd_flush(sc, rxq, (uint32_t)pidx);
 }
 
+/**
+ * _ice_ift_rxd_flush - Flush Rx descriptors to hardware
+ * @sc: device specific softc pointer
+ * @rxq: RX queue driver structure
+ * @pidx: descriptor index to advance tail to
+ *
+ * Advance the Receive Descriptor Tail (RDT). This indicates to hardware that
+ * software is done with the descriptor and it can be recycled.
+ */
+static void
+_ice_ift_rxd_flush(struct ice_softc *sc, struct ice_rx_queue *rxq, uint32_t pidx)
+{
+	wr32(&sc->hw, rxq->tail, pidx);
+}
+
+/**
+ * ice_ift_queue_select - Select queue index to transmit packet on
+ * @arg: device specific softc
+ * @m: transmit packet data
+ * @pi: transmit packet metadata
+ *
+ * Called by iflib to determine which queue index to transmit the packet
+ * pointed to by @m on. In particular, ensures packets go out on the right
+ * queue index for the right transmit class when multiple traffic classes are
+ * enabled in the driver.
+ */
 static qidx_t
 ice_ift_queue_select(void *arg, struct mbuf *m, if_pkt_info_t pi)
 {
@@ -455,4 +604,147 @@ ice_ift_queue_select(void *arg, struct mbuf *m, if_pkt_info_t pi)
 		return ((m->m_pkthdr.flowid % tc_qcount) + tc_base_queue);
 	else
 		return (tc_base_queue);
+}
+
+/**
+ * ice_ift_txd_credits_update_subif - cleanup subinterface VSI Tx descriptors
+ * @arg: subinterface private structure (struct ice_mirr_if)
+ * @txqid: the Tx queue to update
+ * @clear: if false, only report, do not actually clean
+ *
+ * Wrapper for _ice_ift_txd_credits_update() meant for TX queues that
+ * do not belong to the PF VSI.
+ *
+ * See _ice_ift_txd_credits_update().
+ */
+static int
+ice_ift_txd_credits_update_subif(void *arg, uint16_t txqid, bool clear)
+{
+	struct ice_mirr_if *mif = (struct ice_mirr_if *)arg;
+	struct ice_softc *sc = mif->back;
+	struct ice_tx_queue *txq = &mif->vsi->tx_queues[txqid];
+
+	return _ice_ift_txd_credits_update(sc, txq, clear);
+}
+
+/**
+ * ice_ift_txd_encap_subif - prepare Tx descriptors for a packet
+ * @arg: subinterface private structure (struct ice_mirr_if)
+ * @pi: packet info
+ *
+ * Wrapper for _ice_ift_txd_encap_subif() meant for TX queues that
+ * do not belong to the PF VSI.
+ *
+ * See _ice_ift_txd_encap_subif().
+ */
+static int
+ice_ift_txd_encap_subif(void *arg, if_pkt_info_t pi)
+{
+	struct ice_mirr_if *mif = (struct ice_mirr_if *)arg;
+	struct ice_tx_queue *txq = &mif->vsi->tx_queues[pi->ipi_qsidx];
+
+	return _ice_ift_txd_encap(txq, pi);
+}
+
+/**
+ * ice_ift_txd_flush_subif - Flush Tx descriptors to hardware
+ * @arg: subinterface private structure (struct ice_mirr_if)
+ * @txqid: the Tx queue to flush
+ * @pidx: descriptor index to advance tail to
+ *
+ * Advance the Transmit Descriptor Tail (TDT). Functionally identical to
+ * the ice_ift_txd_encap() meant for the main PF VSI, but provides a function
+ * pointer to iflib for use with non-main-PF VSI TX queues.
+ */
+static void
+ice_ift_txd_flush_subif(void *arg, uint16_t txqid, qidx_t pidx)
+{
+	struct ice_mirr_if *mif = (struct ice_mirr_if *)arg;
+	struct ice_tx_queue *txq = &mif->vsi->tx_queues[txqid];
+	struct ice_hw *hw = &mif->back->hw;
+
+	wr32(hw, txq->tail, pidx);
+}
+
+/**
+ * ice_ift_rxd_available_subif - Return number of available Rx packets
+ * @arg: subinterface private structure (struct ice_mirr_if)
+ * @rxqid: the Rx queue id
+ * @pidx: descriptor start point
+ * @budget: maximum Rx budget
+ *
+ * Determines how many Rx packets are available on the queue, up to a maximum
+ * of the given budget.
+ *
+ * See _ice_ift_rxd_available().
+ */
+static int
+ice_ift_rxd_available_subif(void *arg, uint16_t rxqid, qidx_t pidx, qidx_t budget)
+{
+	struct ice_mirr_if *mif = (struct ice_mirr_if *)arg;
+	struct ice_rx_queue *rxq = &mif->vsi->rx_queues[rxqid];
+
+	return _ice_ift_rxd_available(rxq, pidx, budget);
+}
+
+/**
+ * ice_ift_rxd_pkt_get_subif - Called by iflib to send data to upper layer
+ * @arg: subinterface private structure (struct ice_mirr_if)
+ * @ri: receive packet info
+ *
+ * Wrapper function for _ice_ift_rxd_pkt_get() that provides a function pointer
+ * used by iflib for RX packet processing, for iflib subinterfaces.
+ */
+static int
+ice_ift_rxd_pkt_get_subif(void *arg, if_rxd_info_t ri)
+{
+	struct ice_mirr_if *mif = (struct ice_mirr_if *)arg;
+	struct ice_rx_queue *rxq = &mif->vsi->rx_queues[ri->iri_qsidx];
+
+	return _ice_ift_rxd_pkt_get(rxq, ri);
+}
+
+/**
+ * ice_ift_rxd_refill_subif - Prepare Rx descriptors for re-use by hardware
+ * @arg: subinterface private structure (struct ice_mirr_if)
+ * @iru: the Rx descriptor update structure
+ *
+ * Wrapper function for _ice_ift_rxd_refill() that provides a function pointer
+ * used by iflib for RX packet processing, for iflib subinterfaces.
+ */
+static void
+ice_ift_rxd_refill_subif(void *arg, if_rxd_update_t iru)
+{
+	struct ice_mirr_if *mif = (struct ice_mirr_if *)arg;
+	struct ice_rx_queue *rxq = &mif->vsi->rx_queues[iru->iru_qsidx];
+
+	uint64_t *paddrs;
+	uint32_t pidx;
+	uint16_t count;
+
+	paddrs = iru->iru_paddrs;
+	pidx = iru->iru_pidx;
+	count = iru->iru_count;
+
+	_ice_ift_rxd_refill(rxq, pidx, paddrs, count);
+}
+
+/**
+ * ice_ift_rxd_flush_subif - Flush Rx descriptors to hardware
+ * @arg: subinterface private structure (struct ice_mirr_if)
+ * @rxqid: the Rx queue to flush
+ * @flidx: unused parameter
+ * @pidx: descriptor index to advance tail to
+ *
+ * Wrapper function for _ice_ift_rxd_flush() that provides a function pointer
+ * used by iflib for RX packet processing.
+ */
+static void
+ice_ift_rxd_flush_subif(void *arg, uint16_t rxqid, uint8_t flidx __unused,
+			qidx_t pidx)
+{
+	struct ice_mirr_if *mif = (struct ice_mirr_if *)arg;
+	struct ice_rx_queue *rxq = &mif->vsi->rx_queues[rxqid];
+
+	_ice_ift_rxd_flush(mif->back, rxq, pidx);
 }
