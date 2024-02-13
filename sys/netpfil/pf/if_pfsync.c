@@ -1002,15 +1002,17 @@ pfsync_in_ins(struct mbuf *m, int offset, int count, int flags, int action)
 {
 	struct mbuf *mp;
 	union pfsync_state_union *sa, *sp;
-	int i, offp, len, msg_version;
+	int i, offp, total_len, msg_version, msg_len;
 
 	switch (action) {
 		case PFSYNC_ACT_INS_1301:
-			len = sizeof(struct pfsync_state_1301) * count;
+			msg_len = sizeof(struct pfsync_state_1301);
+			total_len = msg_len * count;
 			msg_version = PFSYNC_MSG_VERSION_1301;
 			break;
 		case PFSYNC_ACT_INS_1400:
-			len = sizeof(struct pfsync_state_1400) * count;
+			msg_len = sizeof(struct pfsync_state_1400);
+			total_len = msg_len * count;
 			msg_version = PFSYNC_MSG_VERSION_1400;
 			break;
 		default:
@@ -1018,7 +1020,7 @@ pfsync_in_ins(struct mbuf *m, int offset, int count, int flags, int action)
 			return (-1);
 	}
 
-	mp = m_pulldown(m, offset, len, &offp);
+	mp = m_pulldown(m, offset, total_len, &offp);
 	if (mp == NULL) {
 		V_pfsyncstats.pfsyncs_badlen++;
 		return (-1);
@@ -1026,7 +1028,7 @@ pfsync_in_ins(struct mbuf *m, int offset, int count, int flags, int action)
 	sa = (union pfsync_state_union *)(mp->m_data + offp);
 
 	for (i = 0; i < count; i++) {
-		sp = &sa[i];
+		sp = (union pfsync_state_union *)((char *)sa + msg_len * i);
 
 		/* Check for invalid values. */
 		if (sp->pfs_1301.timeout >= PFTM_MAX ||
@@ -1046,7 +1048,7 @@ pfsync_in_ins(struct mbuf *m, int offset, int count, int flags, int action)
 			break;
 	}
 
-	return (len);
+	return (total_len);
 }
 
 static int
@@ -1127,15 +1129,17 @@ pfsync_in_upd(struct mbuf *m, int offset, int count, int flags, int action)
 	union pfsync_state_union *sa, *sp;
 	struct pf_kstate *st;
 	struct mbuf *mp;
-	int sync, offp, i, len, msg_version;
+	int sync, offp, i, total_len, msg_len, msg_version;
 
 	switch (action) {
 		case PFSYNC_ACT_UPD_1301:
-			len = sizeof(struct pfsync_state_1301) * count;
+			msg_len = sizeof(struct pfsync_state_1301);
+			total_len = msg_len * count;
 			msg_version = PFSYNC_MSG_VERSION_1301;
 			break;
 		case PFSYNC_ACT_UPD_1400:
-			len = sizeof(struct pfsync_state_1400) * count;
+			msg_len = sizeof(struct pfsync_state_1400);
+			total_len = msg_len * count;
 			msg_version = PFSYNC_MSG_VERSION_1400;
 			break;
 		default:
@@ -1143,7 +1147,7 @@ pfsync_in_upd(struct mbuf *m, int offset, int count, int flags, int action)
 			return (-1);
 	}
 
-	mp = m_pulldown(m, offset, len, &offp);
+	mp = m_pulldown(m, offset, total_len, &offp);
 	if (mp == NULL) {
 		V_pfsyncstats.pfsyncs_badlen++;
 		return (-1);
@@ -1151,7 +1155,7 @@ pfsync_in_upd(struct mbuf *m, int offset, int count, int flags, int action)
 	sa = (union pfsync_state_union *)(mp->m_data + offp);
 
 	for (i = 0; i < count; i++) {
-		sp = &sa[i];
+		sp = (union pfsync_state_union *)((char *)sa + msg_len * i);
 
 		/* check for invalid values */
 		if (sp->pfs_1301.timeout >= PFTM_MAX ||
@@ -1214,7 +1218,7 @@ pfsync_in_upd(struct mbuf *m, int offset, int count, int flags, int action)
 		PF_STATE_UNLOCK(st);
 	}
 
-	return (len);
+	return (total_len);
 }
 
 static int
