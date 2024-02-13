@@ -2582,12 +2582,14 @@ load_filtee1(Obj_Entry *obj, Needed_Entry *needed, int flags,
 static void
 load_filtees(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 {
-	if (obj->filtees_loaded)
+	if (obj->filtees_loaded || obj->filtees_loading)
 		return;
 	lock_restart_for_upgrade(lockstate);
+	obj->filtees_loading = true;
 	load_filtee1(obj, obj->needed_filtees, flags, lockstate);
 	load_filtee1(obj, obj->needed_aux_filtees, flags, lockstate);
 	obj->filtees_loaded = true;
+	obj->filtees_loading = false;
 }
 
 static int
