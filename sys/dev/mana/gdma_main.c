@@ -1562,7 +1562,7 @@ alloc_bar_out:
 static void
 mana_gd_free_pci_res(struct gdma_context *gc)
 {
-	if (!gc || gc->dev)
+	if (!gc || !gc->dev)
 		return;
 
 	if (gc->bar0 != NULL) {
