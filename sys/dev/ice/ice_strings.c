@@ -1018,6 +1018,8 @@ ice_state_to_str(enum ice_state state)
 		return "RESET_PFR_REQ";
 	case ICE_STATE_PREPARED_FOR_RESET:
 		return "PREPARED_FOR_RESET";
+	case ICE_STATE_SUBIF_NEEDS_REINIT:
+		return "SUBIF_NEEDS_REINIT";
 	case ICE_STATE_RESET_FAILED:
 		return "RESET_FAILED";
 	case ICE_STATE_DRIVER_INITIALIZED:
@@ -1046,6 +1048,10 @@ ice_state_to_str(enum ice_state state)
 		return "LINK_ACTIVE_ON_DOWN";
 	case ICE_STATE_FIRST_INIT_LINK:
 		return "FIRST_INIT_LINK";
+	case ICE_STATE_DO_CREATE_MIRR_INTFC:
+		return "DO_CREATE_MIRR_INTFC";
+	case ICE_STATE_DO_DESTROY_MIRR_INTFC:
+		return "DO_DESTROY_MIRR_INTFC";
 	case ICE_STATE_LAST:
 		return NULL;
 	}

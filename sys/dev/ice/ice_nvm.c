@@ -296,7 +296,7 @@ ice_aq_write_nvm_cfg(struct ice_hw *hw, u8 cmd_flags, void *data, u16 buf_size,
 }
 
 /**
- * ice_check_sr_access_params - verify params for Shadow RAM R/W operations.
+ * ice_check_sr_access_params - verify params for Shadow RAM R/W operations
  * @hw: pointer to the HW structure
  * @offset: offset in words from module start
  * @words: number of words to access
@@ -356,7 +356,7 @@ enum ice_status ice_read_sr_word_aq(struct ice_hw *hw, u16 offset, u16 *data)
 }
 
 /**
- * ice_write_sr_aq - Writes Shadow RAM.
+ * ice_write_sr_aq - Writes Shadow RAM
  * @hw: pointer to the HW structure
  * @offset: offset in words from module start
  * @words: number of words to write
@@ -425,7 +425,6 @@ enum ice_status
 ice_acquire_nvm(struct ice_hw *hw, enum ice_aq_res_access_type access)
 {
 	ice_debug(hw, ICE_DBG_TRACE, "%s\n", __func__);
-
 	if (hw->flash.blank_nvm_mode)
 		return ICE_SUCCESS;
 
@@ -873,7 +872,7 @@ static enum ice_status ice_get_nvm_srev(struct ice_hw *hw, enum ice_bank_select 
  * @nvm: pointer to NVM info structure
  *
  * Read the NVM EETRACK ID and map version of the main NVM image bank, filling
- * in the nvm info structure.
+ * in the NVM info structure.
  */
 static enum ice_status
 ice_get_nvm_ver_info(struct ice_hw *hw, enum ice_bank_select bank, struct ice_nvm_info *nvm)
@@ -1006,7 +1005,7 @@ ice_get_orom_civd_data(struct ice_hw *hw, enum ice_bank_select bank,
 				       orom_data, hw->flash.banks.orom_size);
 	if (status) {
 		ice_debug(hw, ICE_DBG_NVM, "Unable to read Option ROM data\n");
-		return status;
+		goto exit_error;
 	}
 
 	/* Scan the memory buffer to locate the CIVD data section */
@@ -1030,7 +1029,8 @@ ice_get_orom_civd_data(struct ice_hw *hw, enum ice_bank_select bank,
 		if (sum) {
 			ice_debug(hw, ICE_DBG_NVM, "Found CIVD data with invalid checksum of %u\n",
 				  sum);
-			goto err_invalid_checksum;
+			status = ICE_ERR_NVM;
+			goto exit_error;
 		}
 
 		*civd = *tmp;
@@ -1038,11 +1038,12 @@ ice_get_orom_civd_data(struct ice_hw *hw, enum ice_bank_select bank,
 		return ICE_SUCCESS;
 	}
 
+	status = ICE_ERR_NVM;
 	ice_debug(hw, ICE_DBG_NVM, "Unable to locate CIVD data within the Option ROM\n");
 
-err_invalid_checksum:
+exit_error:
 	ice_free(hw, orom_data);
-	return ICE_ERR_NVM;
+	return status;
 }
 
 /**
@@ -1200,7 +1201,7 @@ enum ice_status ice_get_inactive_netlist_ver(struct ice_hw *hw, struct ice_netli
 }
 
 /**
- * ice_discover_flash_size - Discover the available flash size.
+ * ice_discover_flash_size - Discover the available flash size
  * @hw: pointer to the HW struct
  *
  * The device flash could be up to 16MB in size. However, it is possible that
@@ -1457,6 +1458,7 @@ enum ice_status ice_init_nvm(struct ice_hw *hw)
 	status = ice_get_netlist_info(hw, ICE_ACTIVE_FLASH_BANK, &flash->netlist);
 	if (status)
 		ice_debug(hw, ICE_DBG_INIT, "Failed to read netlist info.\n");
+
 	return ICE_SUCCESS;
 }
 
@@ -1708,7 +1710,6 @@ enum ice_status ice_nvm_validate_checksum(struct ice_hw *hw)
 	cmd->flags = ICE_AQC_NVM_CHECKSUM_VERIFY;
 
 	status = ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
-
 	ice_release_nvm(hw);
 
 	if (!status)
@@ -1771,19 +1772,19 @@ ice_nvm_write_activate(struct ice_hw *hw, u16 cmd_flags, u8 *response_flags)
 {
 	struct ice_aqc_nvm *cmd;
 	struct ice_aq_desc desc;
-	enum ice_status status;
+	enum ice_status err;
 
 	cmd = &desc.params.nvm;
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_write_activate);
 
-	cmd->cmd_flags = ICE_LO_BYTE(cmd_flags);
-	cmd->offset_high = ICE_HI_BYTE(cmd_flags);
+	cmd->cmd_flags = (u8)(cmd_flags & 0xFF);
+	cmd->offset_high = (u8)((cmd_flags >> 8) & 0xFF);
 
-	status = ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
-	if (!status && response_flags)
+	err = ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
+	if (!err && response_flags)
 		*response_flags = cmd->cmd_flags;
 
-	return status;
+	return err;
 }
 
 /**
