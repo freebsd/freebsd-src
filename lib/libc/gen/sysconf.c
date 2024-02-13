@@ -52,7 +52,7 @@ __SCCSID("@(#)sysconf.c	8.2 (Berkeley) 3/20/94");
 #include "un-namespace.h"
 
 #include "../stdlib/atexit.h"
-#include "tzfile.h"		/* from ../../../contrib/tzcode/stdtime */
+#include "tzdir.h"		/* from ../../../contrib/tzcode/stdtime */
 #include "libc_private.h"
 
 #define	_PATH_ZONEINFO	TZDIR	/* from tzfile.h */

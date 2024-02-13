@@ -114,7 +114,7 @@ Indiana, which switched from central to eastern time in 1991
 and switched back in 2006.
 To use the database on an extended <a
 href="https://en.wikipedia.org/wiki/POSIX"><abbr
-title="Portable Operating System Interface">POSIX</abbr></a>
+title="Portable Operating System Interface">POSIX</abbr>.1-2017</a>
 implementation set the <code><abbr>TZ</abbr></code>
 environment variable to the location's full name,
 e.g., <code><abbr>TZ</abbr>="America/New_York"</code>.</p>
@@ -172,7 +172,7 @@ Since version 2022a, each release has been distributed in
 ustar interchange format</a>, compressed as described above;
 older releases use a nearly compatible format.
 Since version 2016h, each release has contained a text file named
-"<samp>version</samp>" whose first (and currently only) line is the version.
+"<code>version</code>" whose first (and currently only) line is the version.
 Older releases are <a href="https://ftp.iana.org/tz/releases/">archived</a>,
 and are also available in an
 <a href="ftp://ftp.iana.org/tz/releases/"><abbr
@@ -362,9 +362,6 @@ lets you see the <code><abbr>TZ</abbr></code> values directly.</li>
 <li><a
 href="https://www.convertit.com/Go/ConvertIt/World_Time/Current_Time.ASP">Current
 Time in 1000 Places</a> uses descriptions of the values.</li>
-<li><a href="https://home.kpn.nl/vanadovv/time/TZworld.html">Complete
-timezone information for all countries</a>
-displays tables of <abbr>DST</abbr> rules.
 <li><a href="https://www.timeanddate.com/worldclock/">The World Clock &ndash;
 Worldwide</a> lets you sort zone names and convert times.</li>
 <li><a href="https://24timezones.com">24TimeZones</a> has a world
@@ -511,12 +508,12 @@ It is freely available under the Apache License.</li>
 <li>Many modern
 <a href="https://en.wikipedia.org/wiki/JavaScript">JavaScript</a>
 runtimes support <code><abbr>tz</abbr></code> natively via the
-<samp>timeZone</samp> option of <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat"><samp>Intl.DateTimeFormat</samp></a>.
+<code>timeZone</code> option of <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat"><code>Intl.DateTimeFormat</code></a>.
 This can be used as-is or with most of the following libraries,
-many of which also support runtimes lacking the <samp>timeZone</samp> option.
+many of which also support runtimes lacking the <code>timeZone</code> option.
 <ul>
 <li>The <a
-href="https://github.com/formatjs/date-time-format-timezone"><samp>Intl.DateTimeFormat</samp>
+href="https://github.com/formatjs/date-time-format-timezone"><code>Intl.DateTimeFormat</code>
 timezone polyfill</a>
 is freely available under a <abbr>BSD</abbr>-style license.</li>
 <li>The <a href="https://date-fns.org/">date-fns</a>
@@ -529,7 +526,7 @@ the <a href="https://momentjs.com/docs/">now-legacy Moment.js</a> date
 manipulation library.
 It is freely available under the <abbr>MIT</abbr> license.</li>
 <li><a href="https://moment.github.io/luxon/">Luxon</a> improves
-timezone support for the <samp>Intl</samp> API.
+timezone support for the <code>Intl</code> API.
 It is freely available under the <abbr>MIT</abbr> license.</li>
 <li><a href="https://momentjs.com/timezone/">Moment Timezone</a> is a
 Moment.js plugin.
@@ -550,11 +547,11 @@ convert timestamps, view transition histories, and download code and data.
 It is freely available under the <abbr>MIT</abbr> license.</li>
 </ul>
 The proposed <a
-href="https://github.com/tc39/proposal-temporal"><samp>Temporal</samp>
+href="https://github.com/tc39/proposal-temporal"><code>Temporal</code>
 objects</a> let programs access an abstract view of
 <code><abbr>tzdb</abbr></code> data, and are designed to replace <a
 href="https://codeofmatt.com/javascript-date-type-is-horribly-broken/">JavaScript's
-problematic <samp>Date</samp> objects</a> when working with dates and times.
+problematic <code>Date</code> objects</a> when working with dates and times.
 <li><a href="https://github.com/JuliaTime/">JuliaTime</a> contains a
 compiler from <code><abbr>tz</abbr></code> source into
 <a href="https://julialang.org/">Julia</a>. It is freely available
@@ -620,6 +617,16 @@ the Apache License.</li>
 library that translates between <abbr>UT</abbr> and civil time and
 can read <abbr>TZif</abbr> files. It is freely available under the Apache
 License.</li>
+<li>The
+<a href="https://github.com/nayarsystems/posix_tz_db"><code>posix_tz_db</code>
+package</a> contains Python code
+to generate <abbr>CSV</abbr> and <abbr>JSON</abbr> tables that map
+<code><abbr>tz</abbr></code> settings to POSIX.1-2017-like approximations.
+For example, it maps <code>"Africa/Cairo"</code>
+to <code>"EET-2EEST,M4.5.5/0,M10.5.4/24"</code>,
+an approximation valid for Cairo timestamps from 2023 on.
+This can help porting to platforms that support only POSIX.1-2017.
+The package is freely available under the MIT license.</li>
 <li><a href="https://github.com/derickr/timelib">Timelib</a> is a C
 library that reads <abbr>TZif</abbr> files and converts
 timestamps from one time zone or format to another.
@@ -666,9 +673,7 @@ available under a <abbr>BSD</abbr>-style license.</li>
 <ul>
 <li><a href="https://foxclocks.org">FoxClocks</a>
 is an extension for <a href="https://www.google.com/chrome/">Google
-Chrome</a> and for <a
-href="https://wiki.mozilla.org/Modules/Toolkit">Mozilla
-Toolkit</a> applications like <a
+Chrome</a>, <a
 href="https://www.mozilla.org/en-US/firefox/new/">Firefox</a> and <a
 href="https://www.mozilla.org/en-US/thunderbird/">Thunderbird</a>.
 It displays multiple clocks in the application window, and has a mapping
@@ -782,32 +787,9 @@ boundaries of <code><abbr>tzdb</abbr></code> timezones.
 Its code is freely available under the <abbr>MIT</abbr> license, and
 its data entries are freely available under the
 <a href="https://opendatacommons.org/licenses/odbl/">Open Data Commons
-Open Database License</a>. The maps' borders appear to be quite accurate.</li>
-<li>Programmatic interfaces that map geographical coordinates via tz_world to
-<code><abbr>tzdb</abbr></code> timezones include:
-<ul>
-<li><a href="https://github.com/mj1856/GeoTimeZone">GeoTimeZone</a> is
-written in <a
-href="https://en.wikipedia.org/wiki/C_Sharp_(programming_language)">C#</a>
-and is freely available under the <abbr>MIT</abbr> license.</li>
-<li>The <a href="https://github.com/bradfitz/latlong">latlong package</a>
-is written in Go and is freely available under the Apache License.</li>
-<li><a href="https://github.com/drtimcooper/LatLongToTimezone">LatLongToTimezone</a>,
-in both Java and
-<a href="https://en.wikipedia.org/wiki/Swift_(programming_language)">Swift</a>
-form, is freely available under the MIT license.</li>
-<li>For Node.js,
-the <a href="https://www.npmjs.com/package/geo-tz">geo-tz module</a>
-is freely available under the MIT license, and
-the <a href="https://www.npmjs.com/package/tz-lookup">tz-lookup module</a>
-is in the public domain.</li>
-<li>The <a
-href="https://github.com/MrMinimal64/timezonefinder">timezonefinder</a>
-library for Python is freely available under the MIT license.
-<li>The <a
-href="https://github.com/gunyarakun/timezone_finder">timezone_finder</a>
-library for Ruby is freely available under the MIT license.</li>
-</ul></li>
+Open Database License</a>. The borders appear to be quite accurate.
+Its main web page lists more than twenty libraries
+for looking up a timezone name from a GPS coordinate.</li>
 <li>Free access via a network API, if you register a key, is provided by
 the <a
 href="https://www.geonames.org/export/web-services.html#timezone">GeoNames
@@ -826,12 +808,9 @@ coordinates?</a>" discusses other geolocation possibilities.</li>
 <li><a href="http://statoids.com/statoids.html">Administrative
 Divisions of Countries ("Statoids")</a> lists
 political subdivision data related to time zones.</li>
-<li><a href="https://home.kpn.nl/vanadovv/time/Multizones.html">Time
-zone boundaries for multizone countries</a> summarizes legal
-boundaries between time zones within countries.</li>
 <li><a href="https://manifold.net/info/freestuff.shtml">Manifold Software
 &ndash; GIS and Database Tools</a> includes a Manifold-format map of
-world time zone boundaries distributed under the
+world time zone boundaries circa 2007, distributed under the
 <abbr>GPL</abbr>.</li>
 <li>A ship within the <a
 href="https://en.wikipedia.org/wiki/Territorial_waters">territorial
@@ -862,7 +841,7 @@ Lords</a> discusses how authoritarians manipulate civil time.</li>
 <li><a href="https://www.w3.org/TR/timezone/">Working with Time Zones</a>
 contains guidelines and best practices for software applications that
 deal with civil time.</li>
-<li><a href="https://www.staff.science.uu.nl/~gent0113/idl/idl.htm">A History of
+<li><a href="https://webspace.science.uu.nl/~gent0113/idl/idl.htm">A History of
 the International Date Line</a> tells the story of the most important
 time zone boundary.</li>
 <li><a href="http://statoids.com/tconcept.html">Basic Time
@@ -875,7 +854,7 @@ Zone Concepts</a> discusses terminological issues behind time zones.</li>
 <dl>
 <dt>Australia</dt>
 <dd>The Parliamentary Library commissioned a <a
-href="https://www.aph.gov.au/binaries/library/pubs/rp/2009-10/10rp10.pdf">research
+href="https://parlinfo.aph.gov.au/parlInfo/download/library/prspub/359V6/upload_binary/359v60.pdf">research
 paper on daylight saving time in Australia</a>.
 The Bureau of Meteorology publishes a list of <a
 href="http://www.bom.gov.au/climate/averages/tables/dst_times.shtml">Implementation
@@ -883,9 +862,9 @@ Dates of Daylight Savings Time within Australia</a>.</dd>
 <dt>Belgium</dt>
 <dd>The Royal Observatory of Belgium maintains a table of time in
 Belgium (in
-<a href="https://www.astro.oma.be/GENERAL/INFO/nli001a.html"
+<a href="https://robinfo.oma.be/nl/astro-info/tijd/"
 hreflang="nl">Dutch</a> and <a
-href="https://www.astro.oma.be/GENERAL/INFO/fri001a.html"
+href="https://robinfo.oma.be/fr/astro-info/heure/"
 hreflang="fr">French</a>).</dd>
 <dt>Brazil</dt>
 <dd>The Time Service Department of the National Observatory
@@ -929,7 +908,7 @@ Congress has published a <a
 href="https://www.diputados.gob.mx/bibliot/publica/inveyana/polisoc/horver/index.htm"
 hreflang="es">history of Mexican local time (in Spanish)</a>.</dd>
 <dt>Netherlands</dt>
-<dd><a href="https://www.staff.science.uu.nl/~gent0113/wettijd/wettijd.htm"
+<dd><a href="https://webspace.science.uu.nl/~gent0113/wettijd/wettijd.htm"
 hreflang="nl">Legal time in the Netherlands (in Dutch)</a>
 covers the history of local time in the Netherlands from ancient times.</dd>
 <dt>New Zealand</dt>
@@ -938,7 +917,7 @@ href="https://www.dia.govt.nz/Daylight-Saving-History">History of
 Daylight Saving</a>.</dd>
 <dt>Palestine</dt>
 <dd>The Ministry of Telecom and IT publishes a <a
-href="https://mtit.pna.ps/Site/TimeZoon"
+href="https://mtit.pna.ps/home/TimeZone"
 hreflang="ar">history of clock changes (in Arabic)</a>.</dd>
 <dt>Portugal</dt>
 <dd>The Lisbon Astronomical Observatory publishes a
@@ -973,6 +952,9 @@ zone shifts, and many scientific studies have been conducted. This
 section summarizes reviews and position statements based on
 scientific literature in the area.</p>
 <ul>
+<li>In 2022 the American Medical Association issued a
+<a href="https://www.ama-assn.org/press-center/press-releases/ama-calls-permanent-standard-time">statement
+supporting permanent standard time</a> on health grounds.</li>
 <li>Carey RN, Sarma KM.
 <a href="https://bmjopen.bmj.com/content/7/6/e014319.long">Impact of
 daylight saving time on road traffic collision risk: a systematic
@@ -983,25 +965,36 @@ neither supports nor refutes road safety benefits from
 shifts in time zones.</li>
 <li>Havranek T, Herman D, Irsova D.
 <a href="https://www.iaee.org/en/publications/ejarticle.aspx?id=3051">Does
-daylight saving save electricity? A meta-analysis.</a>
+daylight saving save electricity? A meta-analysis</a>.
 <em>Energy J.</em> 2018;39(2):35&ndash;61.
 doi:<a href="https://doi.org/10.5547/01956574.39.2.thav">10.5547/01956574.39.2.thav</a>.
 This analyzes research literature and concludes, "Electricity savings
 are larger for countries farther away from the equator, while
 subtropical regions consume more electricity because of <abbr>DST</abbr>."</li>
-<li>Rishi MA, Ahmed O, Barrantes Perez JH <em>et al</em>.
-<a href="https://jcsm.aasm.org/doi/10.5664/jcsm.8780">Daylight saving time:
+<li>Malow BA. <a
+href="https://academic.oup.com/sleep/article/45/12/zsac236/6717940">It is time
+to abolish the clock change and adopt permanent
+standard time in the United States:
+a Sleep Research Society position statement</a>.
+<em>Sleep.</em> 2022;45(12):zsac236.
+doi:<a href="https://doi.org/10.1093/sleep/zsac236">10.1093/sleep/zsac236</a>.
+After reviewing the scientific literature, the Sleep Research Society
+advocates permanent standard time due to its health benefits.
+<li>Rishi MA, Cheng JY, Strang AR <em>et al</em>.
+<a href="https://jcsm.aasm.org/doi/10.5664/jcsm.10898">Permanent standard time
+is the optimal choice for health and safety:
 an American Academy of Sleep Medicine position statement</a>.
-<em>J Clin Sleep Med.</em>
-2020;<a href="https://doi.org/10.5664/jcsm.8780">10.5664/jcsm.8780</a>.
-This argues for permanent standard time due to health risks of both
-<abbr>DST</abbr> transitions and permanent <abbr>DST</abbr>.</li>
+<em>J Clin Sleep Med.</em> 2024;20(1):121&ndash;125.
+doi:<a href="https://doi.org/10.5664/jcsm.10898">10.5664/jcsm.10898</a>.
+The AASM argues for permanent standard time due to health and safety risks
+and economic costs of both <abbr>DST</abbr> transitions and
+permanent <abbr>DST</abbr>.</li>
 <li>Roenneberg T, Wirz-Justice A, Skene DJ <em>et al</em>.
-<a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7205184/">Why
+<a href="https://journals.sagepub.com/doi/10.1177/0748730419854197">Why
 should we abolish Daylight Saving Time?</a>
-<em>J Biol Rhythms</em>. 2019;34(3):227&ndash;230.
+<em>J Biol Rhythms.</em> 2019;34(3):227&ndash;230.
 doi:<a href="https://doi.org/10.1177/0748730419854197">10.1177/0748730419854197</a>.
-This position paper of the Society for Research on Biological Rhythms
+The Society for Research on Biological Rhythms
 opposes DST changes and permanent DST, and advocates that governments adopt
 "permanent Standard Time for the health and safety of their citizens".</li>
 </ul>
@@ -1117,9 +1110,12 @@ might be redefined
 without Leap Seconds</a> gives pointers on this
 contentious issue.
 The General Conference on Weights and Measures
-<a href="https://www.bipm.org/en/cgpm-2022/resolution-4">voted in 2022</a>
+<a href="https://www.bipm.org/en/cgpm-2022/resolution-4">decided in 2022</a>
 to discontinue the use of leap seconds by 2035, replacing them with an
 as-yet-undetermined scheme some time after the year 2135.
+The World Radiocommunication Conference <a
+href="https://www.itu.int/dms_pub/itu-r/opb/act/R-ACT-WRC.15-2023-PDF-E.pdf">resolved
+in 2023</a> to cooperate with this process.
 </li>
 </ul>
 </section>
