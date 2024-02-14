@@ -480,8 +480,6 @@ generic_pcie_ofw_bus_attach(device_t dev)
 static device_method_t generic_pcie_fdt_methods[] = {
 	DEVMETHOD(device_probe,		generic_pcie_fdt_probe),
 	DEVMETHOD(device_attach,	pci_host_generic_fdt_attach),
-	DEVMETHOD(bus_alloc_resource,	pci_host_generic_core_alloc_resource),
-	DEVMETHOD(bus_release_resource,	pci_host_generic_core_release_resource),
 
 	/* pcib interface */
 	DEVMETHOD(pcib_route_interrupt,	generic_pcie_fdt_route_interrupt),
