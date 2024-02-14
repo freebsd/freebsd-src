@@ -1046,7 +1046,7 @@ vidc_init(int arg)
 	return (0);	/* XXX reinit? */
 }
 
-void
+static void
 vidc_biosputchar(int c)
 {
 
