@@ -367,7 +367,7 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 	}
 
 	/* Deferred TX path. */
-	mtx_init(&lsta->txq_mtx, "lsta_txq", NULL, MTX_DEF);
+	LKPI_80211_LSTA_TXQ_LOCK_INIT(lsta);
 	TASK_INIT(&lsta->txq_task, 0, lkpi_80211_txq_task, lsta);
 	mbufq_init(&lsta->txq, IFQ_MAXLEN);
 	lsta->txq_ready = true;
@@ -399,8 +399,11 @@ lkpi_lsta_free(struct lkpi_sta *lsta, struct ieee80211_node *ni)
 	/* XXX-BZ free resources, ... */
 	IMPROVE();
 
-	/* XXX locking */
+	/* Drain sta->txq[] */
+
+	LKPI_80211_LSTA_TXQ_LOCK(lsta);
 	lsta->txq_ready = false;
+	LKPI_80211_LSTA_TXQ_UNLOCK(lsta);
 
 	/* Drain taskq, won't be restarted until added_to_drv is set again. */
 	while (taskqueue_cancel(taskqueue_thread, &lsta->txq_task, NULL) != 0)
@@ -419,9 +422,7 @@ lkpi_lsta_free(struct lkpi_sta *lsta, struct ieee80211_node *ni)
 	}
 	KASSERT(mbufq_empty(&lsta->txq), ("%s: lsta %p has txq len %d != 0\n",
 	    __func__, lsta, mbufq_len(&lsta->txq)));
-
-	/* Drain sta->txq[] */
-	mtx_destroy(&lsta->txq_mtx);
+	LKPI_80211_LSTA_TXQ_LOCK_DESTROY(lsta);
 
 	/* Remove lsta from vif; that is done by the state machine.  Should assert it? */
 
@@ -3537,16 +3538,21 @@ lkpi_ic_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct lkpi_sta *lsta;
 
 	lsta = ni->ni_drv_data;
-	/* XXX locking */
+	LKPI_80211_LSTA_TXQ_LOCK(lsta);
 	if (!lsta->txq_ready) {
+		LKPI_80211_LSTA_TXQ_UNLOCK(lsta);
+		/*
+		 * Free the mbuf (do NOT release ni ref for the m_pkthdr.rcvif!
+		 * ieee80211_raw_output() does that in case of error).
+		 */
 		m_free(m);
 		return (ENETDOWN);
 	}
 
 	/* Queue the packet and enqueue the task to handle it. */
-	LKPI_80211_LSTA_LOCK(lsta);
 	mbufq_enqueue(&lsta->txq, m);
-	LKPI_80211_LSTA_UNLOCK(lsta);
+	taskqueue_enqueue(taskqueue_thread, &lsta->txq_task);
+	LKPI_80211_LSTA_TXQ_UNLOCK(lsta);
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_TX)
@@ -3555,7 +3561,6 @@ lkpi_ic_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		    mbufq_len(&lsta->txq));
 #endif
 
-	taskqueue_enqueue(taskqueue_thread, &lsta->txq_task);
 	return (0);
 }
 
@@ -3770,9 +3775,13 @@ lkpi_80211_txq_task(void *ctx, int pending)
 
 	mbufq_init(&mq, IFQ_MAXLEN);
 
-	LKPI_80211_LSTA_LOCK(lsta);
+	LKPI_80211_LSTA_TXQ_LOCK(lsta);
+	/*
+	 * Do not re-check lsta->txq_ready here; we may have a pending
+	 * disassoc frame still.
+	 */
 	mbufq_concat(&mq, &lsta->txq);
-	LKPI_80211_LSTA_UNLOCK(lsta);
+	LKPI_80211_LSTA_TXQ_UNLOCK(lsta);
 
 	m = mbufq_dequeue(&mq);
 	while (m != NULL) {
