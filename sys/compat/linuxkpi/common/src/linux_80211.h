@@ -278,8 +278,18 @@ struct lkpi_wiphy {
 #define	LKPI_80211_LVIF_LOCK(_lvif)	mtx_lock(&(_lvif)->mtx)
 #define	LKPI_80211_LVIF_UNLOCK(_lvif)	mtx_unlock(&(_lvif)->mtx)
 
-#define	LKPI_80211_LSTA_LOCK(_lsta)	mtx_lock(&(_lsta)->txq_mtx)
-#define	LKPI_80211_LSTA_UNLOCK(_lsta)	mtx_unlock(&(_lsta)->txq_mtx)
+#define	LKPI_80211_LSTA_TXQ_LOCK_INIT(_lsta)		\
+    mtx_init(&(_lsta)->txq_mtx, "lsta-txq", NULL, MTX_DEF);
+#define	LKPI_80211_LSTA_TXQ_LOCK_DESTROY(_lsta)		\
+    mtx_destroy(&(_lsta)->txq_mtx);
+#define	LKPI_80211_LSTA_TXQ_LOCK(_lsta)			\
+    mtx_lock(&(_lsta)->txq_mtx)
+#define	LKPI_80211_LSTA_TXQ_UNLOCK(_lsta)		\
+    mtx_unlock(&(_lsta)->txq_mtx)
+#define	LKPI_80211_LSTA_TXQ_LOCK_ASSERT(_lsta)		\
+    mtx_assert(&(_lsta)->txq_mtx, MA_OWNED)
+#define	LKPI_80211_LSTA_TXQ_UNLOCK_ASSERT(_lsta)	\
+    mtx_assert(&(_lsta)->txq_mtx, MA_NOTOWNED)
 
 #define	LKPI_80211_LTXQ_LOCK_INIT(_ltxq)		\
     mtx_init(&(_ltxq)->ltxq_mtx, "ltxq", NULL, MTX_DEF);
