@@ -173,11 +173,14 @@ void ipsec_accel_spddel_impl(struct secpolicy *sp);
 int ipsec_accel_input(struct mbuf *m, int offset, int proto);
 bool ipsec_accel_output(struct ifnet *ifp, struct mbuf *m,
     struct inpcb *inp, struct secpolicy *sp, struct secasvar *sav, int af,
-    int mtu);
+    int mtu, int *hwassist);
 void ipsec_accel_forget_sav(struct secasvar *sav);
 #else
 #define	ipsec_accel_input(a, b, c) (ENXIO)
-#define	ipsec_accel_output(a, b, c, d, e, f, g) (false)
+#define	ipsec_accel_output(a, b, c, d, e, f, g, h) ({	\
+	*h = 0;						\
+	false;						\
+})
 #define	ipsec_accel_forget_sav(a)
 #endif
 

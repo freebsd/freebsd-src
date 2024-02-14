@@ -148,6 +148,8 @@ enum IF_SA_CNT_WHICH {
 };
 typedef int (*if_sa_cnt_fn_t)(if_t ifp, void *sa,
     uint32_t drv_spi, void *priv, struct seclifetime *lt);
+typedef int (*if_ipsec_hwassist_fn_t)(if_t ifp, void *sav,
+    u_int drv_spi,void *priv);
 
 struct ifnet_hw_tsomax {
 	u_int	tsomaxbytes;	/* TSO total burst length limit in bytes */
@@ -727,6 +729,7 @@ struct if_ipsec_accel_methods {
 	if_sa_newkey_fn_t	if_sa_newkey;
 	if_sa_deinstall_fn_t	if_sa_deinstall;
 	if_sa_cnt_fn_t		if_sa_cnt;
+	if_ipsec_hwassist_fn_t	if_hwassist;
 };
 void if_setipsec_accel_methods(if_t ifp, const struct if_ipsec_accel_methods *);
 
