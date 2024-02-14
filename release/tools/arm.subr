@@ -199,18 +199,10 @@ arm_install_base() {
 
 	echo '# Custom /etc/fstab for FreeBSD embedded images' \
 		> ${CHROOTDIR}/${DESTDIR}/etc/fstab
-	if [ "${PART_SCHEME}" = "GPT" ]; then
-		echo "/dev/ufs/rootfs		/		ufs	rw		1	1" \
-			>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
-		echo "/dev/msdosfs/EFI		/boot/efi	msdosfs	rw,noatime	0	0" \
-			>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
-	fi
-	if [ "${PART_SCHEME}" = "MBR" ]; then
-		echo "/dev/ufs/rootfs		/		ufs	rw		1	1" \
-			>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
-		echo "/dev/msdosfs/EFI		/boot/efi 	msdosfs	rw,noatime	0	0" \
-			>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
-	fi
+	echo "/dev/ufs/rootfs		/		ufs	rw		1	1" \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
+	echo "/dev/msdosfs/EFI		/boot/efi	msdosfs	rw,noatime	0	0" \
+		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 	echo "tmpfs			/tmp		tmpfs	rw,mode=1777	0	0" \
 		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 
