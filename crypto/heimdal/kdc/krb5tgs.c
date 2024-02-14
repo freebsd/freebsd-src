@@ -655,8 +655,12 @@ fix_transited_encoding(krb5_context context,
 		  "Decoding transited encoding");
 	return ret;
     }
+
+    /*
+     * If the realm of the presented tgt is neither the client nor the server
+     * realm, it is a transit realm and must be added to transited set.
+     */     
     if(strcmp(client_realm, tgt_realm) && strcmp(server_realm, tgt_realm)) {
-	/* not us, so add the previous realm to transited set */
 	if (num_realms + 1 > UINT_MAX/sizeof(*realms)) {
 	    ret = ERANGE;
 	    goto free_realms;
@@ -737,6 +741,7 @@ tgs_make_reply(krb5_context context,
 	       const char *server_name,
 	       hdb_entry_ex *client,
 	       krb5_principal client_principal,
+	       const char *tgt_realm,
 	       hdb_entry_ex *krbtgt,
 	       krb5_enctype krbtgt_etype,
 	       krb5_principals spp,
@@ -798,7 +803,7 @@ tgs_make_reply(krb5_context context,
 				 &tgt->transited, &et,
 				 krb5_principal_get_realm(context, client_principal),
 				 krb5_principal_get_realm(context, server->entry.principal),
-				 krb5_principal_get_realm(context, krbtgt->entry.principal));
+				 tgt_realm);
     if(ret)
 	goto out;
 
@@ -1494,6 +1499,8 @@ tgs_build_reply(krb5_context context,
     krb5_keyblock sessionkey;
     krb5_kvno kvno;
     krb5_data rspac;
+    const char *tgt_realm = /* Realm of TGT issuer */
+        krb5_principal_get_realm(context, krbtgt->entry.principal);
 
     hdb_entry_ex *krbtgt_out = NULL;
 
@@ -2240,6 +2247,7 @@ server_lookup:
 			 spn,
 			 client,
 			 cp,
+			 tgt_realm,
 			 krbtgt_out,
 			 krbtgt_etype,
 			 spp,
