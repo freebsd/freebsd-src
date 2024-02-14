@@ -1892,6 +1892,13 @@ server_lookup:
 		goto out;
 	    }
 
+	    if (!krb5_checksum_is_keyed(context, self.cksum.cksumtype)) {
+		free_PA_S4U2Self(&self);
+		kdc_log(context, config, 0, "Reject PA-S4U2Self with unkeyed checksum");
+		ret = KRB5KRB_AP_ERR_INAPP_CKSUM;
+		goto out;
+	    }
+
 	    ret = _krb5_s4u2self_to_checksumdata(context, &self, &datack);
 	    if (ret)
 		goto out;
