@@ -12,6 +12,26 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240214:
+	14.0-RELEASE-p5	SA-24:01.bhyveload
+			SA-24:02.tty
+			EN-24:01.tzdata
+			EN-24:02.libutil
+			EN-24:03.kqueue
+			EN-24:04.ip
+
+	Fix bhyveload host file access [SA-24:01.bhyveload]
+
+	Fix jail information leak [SA-24:02.tty]
+
+	Timezone database information update [EN-24:01.tzdata]
+
+	Fix login class resource limits and CPU mask bypass [EN-24:02.libutil]
+
+	Fix kqueue_close page fault on exit using rfork [EN-24:03.kqueue]
+
+	Fix kernel panic triggered by bind [EN-24:04.ip]
+
 20231219:
 	14.0-RELEASE-p4 SA-23:19.openssh
 
