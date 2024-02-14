@@ -639,6 +639,16 @@ luaopen_loader(lua_State *L)
 	lua_setfield(L, -2, "lua_path");
 	lua_pushinteger(L, bootprog_rev);
 	lua_setfield(L, -2, "version");
+	lua_pushinteger(L, CMD_OK);
+	lua_setfield(L, -2, "CMD_OK");
+	lua_pushinteger(L, CMD_WARN);
+	lua_setfield(L, -2, "CMD_WARN");
+	lua_pushinteger(L, CMD_ERROR);
+	lua_setfield(L, -2, "CMD_ERROR");
+	lua_pushinteger(L, CMD_CRIT);
+	lua_setfield(L, -2, "CMD_CRIT");
+	lua_pushinteger(L, CMD_FATAL);
+	lua_setfield(L, -2, "CMD_FATAL");
 	lua_add_features(L);
 	/* Set global printc to loader.printc */
 	lua_register(L, "printc", lua_printc);
