@@ -97,7 +97,6 @@ struct acpi_interface {
 };
 
 static char *sysres_ids[] = { "PNP0C01", "PNP0C02", NULL };
-static char *pcilink_ids[] = { "PNP0C0F", NULL };
 
 /* Global mutex for locking access to the ACPI subsystem. */
 struct mtx	acpi_mutex;
@@ -1431,40 +1430,7 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
 {
     struct acpi_device *ad = device_get_ivars(child);
     struct resource_list *rl = &ad->ad_rl;
-    ACPI_DEVICE_INFO *devinfo;
     rman_res_t end;
-    int allow;
-
-    /* Ignore IRQ resources for PCI link devices. */
-    if (type == SYS_RES_IRQ &&
-	ACPI_ID_PROBE(dev, child, pcilink_ids, NULL) <= 0)
-	return (0);
-
-    /*
-     * Ignore most resources for PCI root bridges.  Some BIOSes
-     * incorrectly enumerate the memory ranges they decode as plain
-     * memory resources instead of as ResourceProducer ranges.  Other
-     * BIOSes incorrectly list system resource entries for I/O ranges
-     * under the PCI bridge.  Do allow the one known-correct case on
-     * x86 of a PCI bridge claiming the I/O ports used for PCI config
-     * access.
-     */
-    if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
-	if (ACPI_SUCCESS(AcpiGetObjectInfo(ad->ad_handle, &devinfo))) {
-	    if ((devinfo->Flags & ACPI_PCI_ROOT_BRIDGE) != 0) {
-#if defined(__i386__) || defined(__amd64__)
-		allow = (type == SYS_RES_IOPORT && start == CONF1_ADDR_PORT);
-#else
-		allow = 0;
-#endif
-		if (!allow) {
-		    AcpiOsFree(devinfo);
-		    return (0);
-		}
-	    }
-	    AcpiOsFree(devinfo);
-	}
-    }
 
 #ifdef INTRNG
     /* map with default for now */
