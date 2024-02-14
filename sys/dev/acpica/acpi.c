@@ -1534,7 +1534,8 @@ acpi_delete_resource(device_t bus, device_t child, int type, int rid)
 	    " (type=%d, rid=%d)\n", type, rid);
 	return;
     }
-    resource_list_unreserve(rl, bus, child, type, rid);
+    if (resource_list_reserved(rl, type, rid))
+	resource_list_unreserve(rl, bus, child, type, rid);
     resource_list_delete(rl, type, rid);
 }
 
