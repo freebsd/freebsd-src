@@ -497,7 +497,7 @@ _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
 		 */
 		curaddr = buf;
 		while (buflen != 0) {
-			sgsize = MIN(buflen, dmat->common.maxsegsz);
+			sgsize = buflen;
 			if (addr_needs_bounce(dmat, curaddr)) {
 				sgsize = MIN(sgsize,
 				    PAGE_SIZE - (curaddr & PAGE_MASK));
@@ -534,8 +534,8 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		vendaddr = (vm_offset_t)buf + buflen;
 
 		while (vaddr < vendaddr) {
-			sg_len = PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK);
-			sg_len = MIN(sg_len, dmat->common.maxsegsz);
+			sg_len = MIN(vendaddr - vaddr,
+			    PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK));
 			if (pmap == kernel_pmap)
 				paddr = pmap_kextract(vaddr);
 			else
@@ -582,7 +582,7 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 	while (buflen > 0) {
 		curaddr = buf;
-		sgsize = MIN(buflen, dmat->common.maxsegsz);
+		sgsize = buflen;
 		if (((dmat->bounce_flags & BF_COULD_BOUNCE) != 0) &&
 		    map->pagesneeded != 0 &&
 		    addr_needs_bounce(dmat, curaddr)) {
@@ -607,9 +607,8 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 			} else
 				sl->datacount += sgsize;
 		}
-		sgsize = _bus_dmamap_addseg(dmat, map, curaddr, sgsize, segs,
-		    segp);
-		if (sgsize == 0)
+		if (!_bus_dmamap_addsegs(dmat, map, curaddr, sgsize, segs,
+		    segp))
 			break;
 		buf += sgsize;
 		buflen -= sgsize;
@@ -631,7 +630,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
     int *segp)
 {
 	struct sync_list *sl;
-	bus_size_t sgsize, max_sgsize;
+	bus_size_t sgsize;
 	bus_addr_t curaddr, sl_pend;
 	vm_offset_t kvaddr, vaddr, sl_vend;
 	int error;
@@ -668,17 +667,14 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		/*
 		 * Compute the segment size, and adjust counts.
 		 */
-		max_sgsize = MIN(buflen, dmat->common.maxsegsz);
-		sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
+		sgsize = MIN(buflen, PAGE_SIZE - (curaddr & PAGE_MASK));
 		if (((dmat->bounce_flags & BF_COULD_BOUNCE) != 0) &&
 		    map->pagesneeded != 0 &&
 		    addr_needs_bounce(dmat, curaddr)) {
 			sgsize = roundup2(sgsize, dmat->common.alignment);
-			sgsize = MIN(sgsize, max_sgsize);
 			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr,
 			    sgsize);
 		} else if ((dmat->bounce_flags & BF_COHERENT) == 0) {
-			sgsize = MIN(sgsize, max_sgsize);
 			if (map->sync_count > 0) {
 				sl_pend = sl->paddr + sl->datacount;
 				sl_vend = sl->vaddr + sl->datacount;
@@ -704,12 +700,9 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 				sl->datacount = sgsize;
 			} else
 				sl->datacount += sgsize;
-		} else {
-			sgsize = MIN(sgsize, max_sgsize);
 		}
-		sgsize = _bus_dmamap_addseg(dmat, map, curaddr, sgsize, segs,
-		    segp);
-		if (sgsize == 0)
+		if (!_bus_dmamap_addsegs(dmat, map, curaddr, sgsize, segs,
+		    segp))
 			break;
 		vaddr += sgsize;
 		buflen -= sgsize;

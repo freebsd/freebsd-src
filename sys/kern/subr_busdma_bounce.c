@@ -499,6 +499,28 @@ _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
 	return (sgsize);
 }
 
+/*
+ * Add a contiguous physical range to the segment list, respecting the tag's
+ * maximum segment size and splitting it into multiple segments as necessary.
+ */
+static bool
+_bus_dmamap_addsegs(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
+    bus_size_t sgsize, bus_dma_segment_t *segs, int *segp)
+{
+	bus_size_t done, todo;
+
+	while (sgsize > 0) {
+		todo = MIN(sgsize, dmat_maxsegsz(dmat));
+		done = _bus_dmamap_addseg(dmat, map, curaddr, todo, segs,
+		    segp);
+		if (done == 0)
+			return (false);
+		curaddr += done;
+		sgsize -= done;
+	}
+	return (true);
+}
+
 static void
 busdma_thread(void *dummy __unused)
 {
