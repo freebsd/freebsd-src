@@ -582,7 +582,6 @@ ram_attach(device_t dev)
 {
 	vm_paddr_t avail_list[PHYS_AVAIL_COUNT];
 	rman_res_t start, end;
-	struct region *hwp;
 	int rid, i;
 
 	rid = 0;
@@ -605,30 +604,6 @@ ram_attach(device_t dev)
 		if (bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, start, end,
 		    end - start, 0) == NULL)
 			panic("ram_attach: resource %d failed to attach", rid);
-		rid++;
-	}
-
-	/* Now, reserve the excluded memory regions. */
-	for (i = 0, hwp = exregions; i < excnt; i++, hwp++) {
-		start = hwp->addr;
-		end = hwp->addr + hwp->size;
-
-		if (bootverbose)
-			device_printf(dev,
-			    "reserving excluded region: %jx-%jx\n",
-			    (uintmax_t)start, (uintmax_t)(end - 1));
-
-		/*
-		 * Best-effort attempt to reserve the range. This may fail, as
-		 * sometimes the excluded ranges provided by the device tree
-		 * will cover or overlap some I/O range.
-		 */
-		if (bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, start, end,
-		    end - start, 0) == NULL) {
-			if (bootverbose)
-				device_printf(dev, "failed to reserve region\n");
-			continue;
-		}
 		rid++;
 	}
 
