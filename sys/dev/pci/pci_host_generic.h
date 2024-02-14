@@ -74,7 +74,6 @@ struct generic_pcie_core_softc {
 	struct rman		mem_rman;
 	struct rman		io_rman;
 	struct resource		*res;
-	struct resource		*res1;
 	int			bus_start;
 	int			bus_end;
 	int			ecam;
