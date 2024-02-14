@@ -83,6 +83,7 @@ pci_host_generic_core_attach(device_t dev)
 	uint64_t phys_base;
 	uint64_t pci_base;
 	uint64_t size;
+	char buf[64];
 	int domain, error;
 	int rid, tuple;
 
@@ -135,13 +136,19 @@ pci_host_generic_core_attach(device_t dev)
 
 	sc->has_pmem = false;
 	sc->pmem_rman.rm_type = RMAN_ARRAY;
-	sc->pmem_rman.rm_descr = "PCIe Prefetch Memory";
+	snprintf(buf, sizeof(buf), "%s prefetch window",
+	    device_get_nameunit(dev));
+	sc->pmem_rman.rm_descr = strdup(buf, M_DEVBUF);
 
 	sc->mem_rman.rm_type = RMAN_ARRAY;
-	sc->mem_rman.rm_descr = "PCIe Memory";
+	snprintf(buf, sizeof(buf), "%s memory window",
+	    device_get_nameunit(dev));
+	sc->mem_rman.rm_descr = strdup(buf, M_DEVBUF);
 
 	sc->io_rman.rm_type = RMAN_ARRAY;
-	sc->io_rman.rm_descr = "PCIe IO window";
+	snprintf(buf, sizeof(buf), "%s I/O port window",
+	    device_get_nameunit(dev));
+	sc->io_rman.rm_descr = strdup(buf, M_DEVBUF);
 
 	/* Initialize rman and allocate memory regions */
 	error = rman_init(&sc->pmem_rman);
@@ -201,6 +208,9 @@ err_io_rman:
 err_mem_rman:
 	rman_fini(&sc->pmem_rman);
 err_pmem_rman:
+	free(__DECONST(char *, sc->io_rman.rm_descr), M_DEVBUF);
+	free(__DECONST(char *, sc->mem_rman.rm_descr), M_DEVBUF);
+	free(__DECONST(char *, sc->pmem_rman.rm_descr), M_DEVBUF);
 	if (sc->res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->res);
 err_resource:
@@ -223,6 +233,9 @@ pci_host_generic_core_detach(device_t dev)
 	rman_fini(&sc->io_rman);
 	rman_fini(&sc->mem_rman);
 	rman_fini(&sc->pmem_rman);
+	free(__DECONST(char *, sc->io_rman.rm_descr), M_DEVBUF);
+	free(__DECONST(char *, sc->mem_rman.rm_descr), M_DEVBUF);
+	free(__DECONST(char *, sc->pmem_rman.rm_descr), M_DEVBUF);
 	if (sc->res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->res);
 	bus_dma_tag_destroy(sc->dmat);
