@@ -799,12 +799,13 @@ ipsec_accel_output_tag(struct mbuf *m, u_int drv_spi)
 
 bool
 ipsec_accel_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp,
-    struct secpolicy *sp, struct secasvar *sav, int af, int mtu)
+    struct secpolicy *sp, struct secasvar *sav, int af, int mtu, int *hwassist)
 {
 	struct ifp_handle_sav *i;
 	struct ip *ip;
 	u_long ip_len, skip;
 
+	*hwassist = 0;
 	if (ifp == NULL)
 		return (false);
 
@@ -845,6 +846,8 @@ ipsec_accel_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp,
 	if (sp != NULL)
 		key_freesp(&sp);
 
+	*hwassist = ifp->if_ipsec_accel_m->if_hwassist(ifp, sav,
+	    i->drv_spi, i->ifdata);
 	return (true);
 }
 
