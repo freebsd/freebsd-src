@@ -912,14 +912,8 @@ main(int argc, char **argv)
 	 */
 	if (read_ctf(ifiles, nifiles, NULL, merge_ctf_cb,
 	    &wq, require_ctf) == 0) {
-		/*
-		 * If we're verifying that C files have CTF, it's safe to
-		 * assume that in this case, we're building only from assembly
-		 * inputs.
-		 */
-		if (require_ctf)
-			exit(0);
-		terminate("No ctf sections found to merge\n");
+		warning("No ctf sections found to merge\n");
+		exit(0);
 	}
 
 	pthread_mutex_lock(&wq.wq_queue_lock);
