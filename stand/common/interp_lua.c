@@ -123,7 +123,9 @@ interp_init(void)
 		lua_pop(luap, 1);  /* remove lib */
 	}
 
-	filename = LOADER_LUA;
+	filename = getenv("loader_lua");
+	if (filename == NULL)
+		filename = LOADER_LUA;
 	if (interp_include(filename) != 0) {
 		const char *errstr = lua_tostring(luap, -1);
 		errstr = errstr == NULL ? "unknown" : errstr;
