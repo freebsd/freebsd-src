@@ -461,6 +461,10 @@ cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 		tp->t_badrxtwin = 0;
 		break;
 	}
+	if (SEQ_LT(tp->snd_fack, tp->snd_una) ||
+	    SEQ_GT(tp->snd_fack, tp->snd_max)) {
+		tp->snd_fack = tp->snd_una;
+	}
 
 	if (CC_ALGO(tp)->cong_signal != NULL) {
 		if (th != NULL)

@@ -492,7 +492,7 @@ newreno_cc_cong_signal(struct cc_var *ccv, uint32_t type)
 			if (V_tcp_do_newsack) {
 				pipe = tcp_compute_pipe(ccv->ccvc.tcp);
 			} else {
-				pipe = CCV(ccv, snd_nxt) -
+				pipe = CCV(ccv, snd_max) -
 					CCV(ccv, snd_fack) +
 					CCV(ccv, sackhint.sack_bytes_rexmit);
 			}
