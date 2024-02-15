@@ -62,8 +62,8 @@
  */
 
 ENTRY(_start)
-	/* Drop to EL1 */
-	bl	drop_to_el1
+	/* Enter the kernel exception level */
+	bl	enter_kernel_el
 
 	/*
 	 * Disable the MMU. We may have entered the kernel with it on and
@@ -201,8 +201,8 @@ ENTRY(mpentry)
 	/* Disable interrupts */
 	msr	daifset, #DAIF_INTR
 
-	/* Drop to EL1 */
-	bl	drop_to_el1
+	/* Enter the kernel exception level */
+	bl	enter_kernel_el
 
 	/* Set the context id */
 	msr	contextidr_el1, xzr
@@ -265,7 +265,7 @@ END(mpentry)
  * If we are started in EL2, configure the required hypervisor
  * registers and drop to EL1.
  */
-LENTRY(drop_to_el1)
+LENTRY(enter_kernel_el)
 	mrs	x23, CurrentEL
 	and	x23, x23, #(CURRENTEL_EL_MASK)
 	cmp	x23, #(CURRENTEL_EL_EL2)
@@ -358,7 +358,7 @@ LENTRY(drop_to_el1)
 	.align 3
 .Lsctlr_res1:
 	.quad SCTLR_RES1
-LEND(drop_to_el1)
+LEND(enter_kernel_el)
 
 /*
  * Get the physical address the kernel was loaded at.
