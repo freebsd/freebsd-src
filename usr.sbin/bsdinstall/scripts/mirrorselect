@@ -40,7 +40,8 @@ MIRROR=`bsddialog --backtitle "$OSNAME Installer" \
     --title "Mirror Selection" --extra-button --extra-label "Other" \
     --menu "Please select the best suitable site for you or \"other\" if you want to specify a different choice. The \"Main Site\" directs users to the nearest project managed mirror via GeoDNS (they carry the full range of possible distributions and support both IPv4 and IPv6). All other sites are known as \"Community Mirrors\"; not every site listed here carries more than the base distribution kits. Select a site!" \
     0 0 16 \
-	ftp://download.freebsd.org	"Main Site (GeoDNS)"\
+	http://ftp.freebsd.org		"Main Site (GeoDNS, HTTP)"\
+	ftp://ftp.freebsd.org		"Main Site (GeoDNS, FTP)"\
 	http://ftp.au.freebsd.org 	"Australia - IPv6"\
 	ftp://ftp3.au.freebsd.org 	"Australia #3"\
 	ftp://ftp.at.freebsd.org 	"Austria - IPv6"\
