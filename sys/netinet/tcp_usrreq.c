@@ -807,18 +807,17 @@ tcp_usr_shutdown(struct socket *so, enum shutdown_how how)
 	int error = 0;
 
 	SOCK_LOCK(so);
-	if ((so->so_state &
-	    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0) {
-		SOCK_UNLOCK(so);
-		return (ENOTCONN);
-	}
 	if (SOLISTENING(so)) {
 		if (how != SHUT_WR) {
 			so->so_error = ECONNABORTED;
 			solisten_wakeup(so);	/* unlocks so */
 		} else
 			SOCK_UNLOCK(so);
-		return (0);
+		return (ENOTCONN);
+	} else if ((so->so_state &
+	    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0) {
+		SOCK_UNLOCK(so);
+		return (ENOTCONN);
 	}
 	SOCK_UNLOCK(so);
 
