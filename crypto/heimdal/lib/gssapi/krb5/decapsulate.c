@@ -56,6 +56,8 @@ _gsskrb5_get_mech (const u_char *ptr,
 	return -1;
     if (total_len < 1 + len_len + 1)
 	return -1;
+    if (total_len < 1 + len_len + 1)
+	return -1;
     p += len_len;
     if (*p++ != 0x06)
 	return -1;
