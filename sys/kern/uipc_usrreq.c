@@ -1669,7 +1669,14 @@ uipc_shutdown(struct socket *so, enum shutdown_how how)
 	int error;
 
 	SOCK_LOCK(so);
-	if ((so->so_state &
+	if (SOLISTENING(so)) {
+		if (how != SHUT_WR) {
+			so->so_error = ECONNABORTED;
+			solisten_wakeup(so);    /* unlocks so */
+		} else
+			SOCK_UNLOCK(so);
+		return (ENOTCONN);
+	} else if ((so->so_state &
 	    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0) {
 		/*
 		 * POSIX mandates us to just return ENOTCONN when shutdown(2) is
@@ -1691,14 +1698,6 @@ uipc_shutdown(struct socket *so, enum shutdown_how how)
 		}
 	} else
 		error = 0;
-	if (SOLISTENING(so)) {
-		if (how != SHUT_WR) {
-			so->so_error = ECONNABORTED;
-			solisten_wakeup(so);    /* unlocks so */
-		} else
-			SOCK_UNLOCK(so);
-		return (0);
-	}
 	SOCK_UNLOCK(so);
 
 	switch (how) {
