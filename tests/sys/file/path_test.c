@@ -235,7 +235,7 @@ ATF_TC_BODY(path_capsicum_empty, tc)
 	/*
 	 * CAP_READ and CAP_LOOKUP should be sufficient to open a directory.
 	 */
-	cap_rights_init(&rights, CAP_READ | CAP_LOOKUP);
+	cap_rights_init(&rights, CAP_READ, CAP_LOOKUP);
 	ATF_REQUIRE(cap_rights_limit(pathdfd, &rights) == 0);
 	dfd = openat(pathdfd, "", O_DIRECTORY | O_EMPTY_PATH);
 	ATF_REQUIRE(dfd >= 0);
@@ -256,7 +256,7 @@ ATF_TC_BODY(path_capsicum_empty, tc)
 	ATF_REQUIRE(fd >= 0);
 	CHECKED_CLOSE(fd);
 
-	cap_rights_init(&rights, CAP_READ | CAP_LOOKUP | CAP_WRITE);
+	cap_rights_init(&rights, CAP_READ, CAP_LOOKUP, CAP_WRITE);
 	ATF_REQUIRE(cap_rights_limit(pathfd, &rights) == 0);
 	fd = openat(pathfd, "", O_RDWR | O_EMPTY_PATH | O_APPEND);
 	ATF_REQUIRE(fd >= 0);
@@ -265,7 +265,7 @@ ATF_TC_BODY(path_capsicum_empty, tc)
 	/*
 	 * CAP_SEEK is needed to open a file for writing without O_APPEND.
 	 */
-	cap_rights_init(&rights, CAP_READ | CAP_LOOKUP | CAP_WRITE);
+	cap_rights_init(&rights, CAP_READ, CAP_LOOKUP, CAP_WRITE);
 	ATF_REQUIRE(cap_rights_limit(pathfd, &rights) == 0);
 	fd = openat(pathfd, "", O_RDWR | O_EMPTY_PATH);
 	ATF_REQUIRE_ERRNO(ENOTCAPABLE, fd == -1);
