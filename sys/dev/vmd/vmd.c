@@ -184,14 +184,11 @@ vmd_read_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, int width)
 
 	switch (width) {
 	case 4:
-		return (bus_space_read_4(sc->vmd_btag, sc->vmd_bhandle,
-		    offset));
+		return (bus_read_4(sc->vmd_regs_res[0], offset));
 	case 2:
-		return (bus_space_read_2(sc->vmd_btag, sc->vmd_bhandle,
-		    offset));
+		return (bus_read_2(sc->vmd_regs_res[0], offset));
 	case 1:
-		return (bus_space_read_1(sc->vmd_btag, sc->vmd_bhandle,
-		    offset));
+		return (bus_read_1(sc->vmd_regs_res[0], offset));
 	default:
 		__assert_unreachable();
 		return (0xffffffff);
@@ -213,14 +210,11 @@ vmd_write_config(device_t dev, u_int b, u_int s, u_int f, u_int reg,
 
 	switch (width) {
 	case 4:
-		return (bus_space_write_4(sc->vmd_btag, sc->vmd_bhandle,
-		    offset, val));
+		return (bus_write_4(sc->vmd_regs_res[0], offset, val));
 	case 2:
-		return (bus_space_write_2(sc->vmd_btag, sc->vmd_bhandle,
-		    offset, val));
+		return (bus_write_2(sc->vmd_regs_res[0], offset, val));
 	case 1:
-		return (bus_space_write_1(sc->vmd_btag, sc->vmd_bhandle,
-		    offset, val));
+		return (bus_write_1(sc->vmd_regs_res[0], offset, val));
 	default:
 		__assert_unreachable();
 	}
@@ -281,9 +275,6 @@ vmd_attach(device_t dev)
 			goto fail;
 		}
 	}
-
-	sc->vmd_btag = rman_get_bustag(sc->vmd_regs_res[0]);
-	sc->vmd_bhandle = rman_get_bushandle(sc->vmd_regs_res[0]);
 
 	vid = pci_get_vendor(dev);
 	did = pci_get_device(dev);
