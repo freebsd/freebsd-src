@@ -418,47 +418,53 @@ vmd_get_dma_tag(device_t dev, device_t child)
 	return (sc->vmd_dma_tag);
 }
 
+static struct rman *
+vmd_get_rman(device_t dev, int type, u_int flags)
+{
+	struct vmd_softc *sc = device_get_softc(dev);
+
+	switch (type) {
+	case SYS_RES_MEMORY:
+		return (&sc->psc.mem.rman);
+	case PCI_RES_BUS:
+		return (&sc->psc.bus.rman);
+	default:
+		/* VMD hardware does not support I/O ports. */
+		return (NULL);
+	}
+}
+
 static struct resource *
 vmd_alloc_resource(device_t dev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
-	struct vmd_softc *sc = device_get_softc(dev);
 	struct resource *res;
 
-	switch (type) {
-	case SYS_RES_IRQ:
+	if (type == SYS_RES_IRQ) {
 		/* VMD hardware does not support legacy interrupts. */
 		if (*rid == 0)
 			return (NULL);
 		return (bus_generic_alloc_resource(dev, child, type, rid,
 		    start, end, count, flags | RF_SHAREABLE));
-	case SYS_RES_MEMORY:
-		res = rman_reserve_resource(&sc->psc.mem.rman, start, end,
-		    count, flags, child);
-		if (res == NULL)
-			return (NULL);
-		if (bootverbose)
+	}
+	res = bus_generic_rman_alloc_resource(dev, child, type, rid, start,
+	    end, count, flags);
+	if (bootverbose && res != NULL) {
+		switch (type) {
+		case SYS_RES_MEMORY:
 			device_printf(dev,
 			    "allocated memory range (%#jx-%#jx) for rid %d of %s\n",
 			    rman_get_start(res), rman_get_end(res), *rid,
 			    pcib_child_name(child));
-		break;
-	case PCI_RES_BUS:
-		res = rman_reserve_resource(&sc->psc.bus.rman, start, end,
-		    count, flags, child);
-		if (res == NULL)
-			return (NULL);
-		if (bootverbose)
+			break;
+		case PCI_RES_BUS:
 			device_printf(dev,
 			    "allocated bus range (%ju-%ju) for rid %d of %s\n",
 			    rman_get_start(res), rman_get_end(res), *rid,
 			    pcib_child_name(child));
-		break;
-	default:
-		/* VMD hardware does not support I/O ports. */
-		return (NULL);
+			break;
+		}
 	}
-	rman_set_rid(res, *rid);
 	return (res);
 }
 
@@ -471,7 +477,8 @@ vmd_adjust_resource(device_t dev, device_t child, int type,
 		return (bus_generic_adjust_resource(dev, child, type, r,
 		    start, end));
 	}
-	return (rman_adjust_resource(r, start, end));
+	return (bus_generic_rman_adjust_resource(dev, child, type, r, start,
+	    end));
 }
 
 static int
@@ -483,7 +490,80 @@ vmd_release_resource(device_t dev, device_t child, int type, int rid,
 		return (bus_generic_release_resource(dev, child, type, rid,
 		    r));
 	}
-	return (rman_release_resource(r));
+	return (bus_generic_rman_release_resource(dev, child, type, rid, r));
+}
+
+static int
+vmd_activate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	if (type == SYS_RES_IRQ) {
+		return (bus_generic_activate_resource(dev, child, type, rid,
+		    r));
+	}
+	return (bus_generic_rman_activate_resource(dev, child, type, rid, r));
+}
+
+static int
+vmd_deactivate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	if (type == SYS_RES_IRQ) {
+		return (bus_generic_deactivate_resource(dev, child, type, rid,
+		    r));
+	}
+	return (bus_generic_rman_deactivate_resource(dev, child, type, rid, r));
+}
+
+static struct resource *
+vmd_find_parent_resource(struct vmd_softc *sc, struct resource *r)
+{
+	for (int i = 1; i < 3; i++) {
+		if (rman_get_start(sc->vmd_regs_res[i]) <= rman_get_start(r) &&
+		    rman_get_end(sc->vmd_regs_res[i]) >= rman_get_end(r))
+			return (sc->vmd_regs_res[i]);
+	}
+	return (NULL);
+}
+
+static int
+vmd_map_resource(device_t dev, device_t child, int type, struct resource *r,
+    struct resource_map_request *argsp, struct resource_map *map)
+{
+	struct vmd_softc *sc = device_get_softc(dev);
+	struct resource_map_request args;
+	struct resource *pres;
+	rman_res_t length, start;
+	int error;
+
+	/* Resources must be active to be mapped. */
+	if (!(rman_get_flags(r) & RF_ACTIVE))
+		return (ENXIO);
+
+	resource_init_map_request(&args);
+	error = resource_validate_map_request(r, argsp, &args, &start, &length);
+	if (error)
+		return (error);
+
+	pres = vmd_find_parent_resource(sc, r);
+	if (pres == NULL)
+		return (ENOENT);
+
+	args.offset = start - rman_get_start(pres);
+	args.length = length;
+	return (bus_generic_map_resource(dev, child, type, pres, &args, map));
+}
+
+static int
+vmd_unmap_resource(device_t dev, device_t child, int type, struct resource *r,
+    struct resource_map *map)
+{
+	struct vmd_softc *sc = device_get_softc(dev);
+
+	r = vmd_find_parent_resource(sc, r);
+	if (r == NULL)
+		return (ENOENT);
+	return (bus_generic_unmap_resource(dev, child, type, r, map));
 }
 
 static int
@@ -647,13 +727,16 @@ static device_method_t vmd_pci_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_get_dma_tag,		vmd_get_dma_tag),
+	DEVMETHOD(bus_get_rman,			vmd_get_rman),
 	DEVMETHOD(bus_read_ivar,		pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar,		pcib_write_ivar),
 	DEVMETHOD(bus_alloc_resource,		vmd_alloc_resource),
 	DEVMETHOD(bus_adjust_resource,		vmd_adjust_resource),
 	DEVMETHOD(bus_release_resource,		vmd_release_resource),
-	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
+	DEVMETHOD(bus_activate_resource,	vmd_activate_resource),
+	DEVMETHOD(bus_deactivate_resource,	vmd_deactivate_resource),
+	DEVMETHOD(bus_map_resource,		vmd_map_resource),
+	DEVMETHOD(bus_unmap_resource,		vmd_unmap_resource),
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
 
