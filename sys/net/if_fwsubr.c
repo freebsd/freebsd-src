@@ -801,6 +801,7 @@ firewire_ifdetach(struct ifnet *ifp)
 {
 	bpfdetach(ifp);
 	if_detach(ifp);
+	NET_EPOCH_DRAIN_CALLBACKS();
 }
 
 void
