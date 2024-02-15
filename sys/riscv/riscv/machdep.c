@@ -33,6 +33,7 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_ddb.h"
 #include "opt_kstack_pages.h"
 #include "opt_platform.h"
 
@@ -90,6 +91,10 @@
 #include <machine/sbi.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 #ifdef FDT
 #include <contrib/libfdt/libfdt.h>
@@ -455,7 +460,7 @@ parse_metadata(void)
 #ifdef DDB
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
-	db_fetch_ksymtab(ksym_start, ksym_end);
+	db_fetch_ksymtab(ksym_start, ksym_end, 0);
 #endif
 #ifdef FDT
 	try_load_dtb(kmdp);
