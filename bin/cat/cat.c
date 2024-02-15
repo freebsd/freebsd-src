@@ -155,7 +155,7 @@ init_casper(int argc, char *argv[])
 		err(EXIT_FAILURE, "unable to create Casper");
 
 	fa = fileargs_cinit(casper, argc, argv, O_RDONLY, 0,
-	    cap_rights_init(&rights, CAP_READ | CAP_FSTAT | CAP_FCNTL | CAP_SEEK),
+	    cap_rights_init(&rights, CAP_READ, CAP_FSTAT, CAP_FCNTL, CAP_SEEK),
 	    FA_OPEN | FA_REALPATH);
 	if (fa == NULL)
 		err(EXIT_FAILURE, "unable to create fileargs");
