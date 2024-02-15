@@ -386,6 +386,9 @@ psci_fdt_callfn(psci_callfn_t *callfn)
 			return (PSCI_MISSING);
 	}
 
+	if (!ofw_bus_node_status_okay(node))
+		return (PSCI_MISSING);
+
 	*callfn = psci_fdt_get_callfn(node);
 	return (0);
 }
