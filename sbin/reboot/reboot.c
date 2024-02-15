@@ -175,7 +175,7 @@ main(int argc, char *argv[])
 {
 	struct utmpx utx;
 	const struct passwd *pw;
-	int ch, howto, i, sverrno;
+	int ch, howto = 0, i, sverrno;
 	bool Dflag, fflag, lflag, Nflag, nflag, qflag;
 	uint64_t pageins;
 	const char *user, *kernel = NULL, *getopts = GETOPT_REBOOT;
@@ -188,6 +188,7 @@ main(int argc, char *argv[])
 		donextboot = true;
 		getopts = GETOPT_NEXTBOOT; /* Note: reboot's extra opts return '?' */
 	} else {
+		/* reboot */
 		howto = 0;
 	}
 	Dflag = fflag = lflag = Nflag = nflag = qflag = false;
