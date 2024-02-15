@@ -87,8 +87,6 @@ MIRROR=`bsddialog --backtitle "$OSNAME Installer" \
 	ftp://ftp2.uk.freebsd.org 	"UK #2 - IPv6"\
 	ftp://ftp.ua.FreeBSD.org 	"Ukraine - IPv6"\
 	ftp://ftp5.us.freebsd.org 	"USA #5 - IPv6"\
-	ftp://ftp11.us.freebsd.org 	"USA #11 - IPv6"\
-	ftp://ftp14.us.freebsd.org 	"USA #14"\
     2>&1 1>&5`
 MIRROR_BUTTON=$?
 exec 5>&-
