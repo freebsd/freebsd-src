@@ -1931,11 +1931,6 @@ pcib_suballoc_resource(struct pcib_softc *sc, struct pcib_window *w,
 		    pcib_child_name(child));
 	rman_set_rid(res, *rid);
 
-	/*
-	 * If the resource should be active, pass that request up the
-	 * tree.  This assumes the parent drivers can handle
-	 * activating sub-allocated resources.
-	 */
 	if (flags & RF_ACTIVE) {
 		if (bus_activate_resource(child, type, *rid, res) != 0) {
 			rman_release_resource(res);
