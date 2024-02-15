@@ -162,6 +162,9 @@
 /* blkdev_issue_discard() is available */
 /* #undef HAVE_BLKDEV_ISSUE_DISCARD */
 
+/* __blkdev_issue_discard() is available */
+/* #undef HAVE_BLKDEV_ISSUE_DISCARD_ASYNC */
+
 /* blkdev_issue_secure_erase() is available */
 /* #undef HAVE_BLKDEV_ISSUE_SECURE_ERASE */
 
@@ -1152,7 +1155,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.99-338-FreeBSD_g229b9f4ed"
+#define ZFS_META_ALIAS "zfs-2.2.99-345-FreeBSD_ge0bd8118d"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1182,7 +1185,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "338-FreeBSD_g229b9f4ed"
+#define ZFS_META_RELEASE "345-FreeBSD_ge0bd8118d"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.2.99"
