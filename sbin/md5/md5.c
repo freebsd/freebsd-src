@@ -611,11 +611,16 @@ main(int argc, char *argv[])
 			const char *filename = *argv;
 			const char *filemode = "rb";
 
+			if (strcmp(filename, "-") == 0) {
+				f = stdin;
+			} else {
 #ifdef HAVE_CAPSICUM
-			if ((f = fileargs_fopen(fa, filename, filemode)) == NULL) {
+				f = fileargs_fopen(fa, filename, filemode);
 #else
-			if ((f = fopen(filename, filemode)) == NULL) {
+				f = fopen(filename, filemode);
 #endif
+			}
+			if (f == NULL) {
 				if (errno != ENOENT || !(cflag && ignoreMissing)) {
 					warn("%s", filename);
 					failed = true;
@@ -633,7 +638,8 @@ main(int argc, char *argv[])
 				rec = rec->next;
 			}
 			p = MDInput(&Algorithm[digest], f, buf, false);
-			(void)fclose(f);
+			if (f != stdin)
+				(void)fclose(f);
 			MDOutput(&Algorithm[digest], p, filename);
 		} while (*++argv);
 	} else if (!cflag && string == NULL && !skip) {
