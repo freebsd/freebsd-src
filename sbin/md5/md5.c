@@ -574,7 +574,7 @@ main(int argc, char *argv[])
 	argv += optind;
 
 #ifdef HAVE_CAPSICUM
-	if (caph_limit_stdout() < 0 || caph_limit_stderr() < 0)
+	if (caph_limit_stdio() < 0)
 		err(1, "unable to limit rights for stdio");
 #endif
 
@@ -629,10 +629,6 @@ main(int argc, char *argv[])
 					rec = rec->next;
 				continue;
 			}
-#ifdef HAVE_CAPSICUM
-			if (caph_rights_limit(fileno(f), &rights) < 0)
-				err(1, "capsicum");
-#endif
 			if (cflag && mode != mode_bsd) {
 				checkAgainst = rec->chksum;
 				rec = rec->next;
@@ -643,10 +639,6 @@ main(int argc, char *argv[])
 			MDOutput(&Algorithm[digest], p, filename);
 		} while (*++argv);
 	} else if (!cflag && string == NULL && !skip) {
-#ifdef HAVE_CAPSICUM
-		if (caph_limit_stdin() < 0)
-			err(1, "capsicum");
-#endif
 		if (mode == mode_bsd)
 			output_mode = output_bare;
 		p = MDInput(&Algorithm[digest], stdin, buf, pflag);
