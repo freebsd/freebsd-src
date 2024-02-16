@@ -21,7 +21,6 @@ INSTALLFLAGS=	-b
 SRCS=	\
 		bootinfo.c \
 		conf.c \
-		gfx_fb_stub.c \
 		hostcons.c \
 		hostdisk.c \
 		hostfs.c \
@@ -32,7 +31,6 @@ SRCS=	\
 		util.c \
 		vers.c
 
-CFLAGS.gfx_fb_stub.c += -I${SRCTOP}/contrib/pnglite -I${SRCTOP}/sys/teken
 .if ${MK_LOADER_ZFS} != "no"
 CFLAGS+=	-I${ZFSSRC}
 CFLAGS+=        -I${SYSDIR}/contrib/openzfs/include
