@@ -1312,6 +1312,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
+#if 0
 	/*
 	 * Wakeup all queues now that sta is there so we have as much time to
 	 * possibly prepare the queue in the driver to be ready for the 1st
@@ -1321,6 +1322,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	 * for all queues.
 	 */
 	lkpi_wake_tx_queues(hw, LSTA_TO_STA(lsta), false, false);
+#endif
 
 	/* Start mgd_prepare_tx. */
 	memset(&prep_tx_info, 0, sizeof(prep_tx_info));
@@ -3670,8 +3672,16 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 	hdr = (void *)skb->data;
 	tid = linuxkpi_ieee80211_get_tid(hdr, true);
 	if (tid == IEEE80211_NONQOS_TID) { /* == IEEE80211_NUM_TIDS */
-		skb->priority = 0;
-		ac = IEEE80211_AC_BE;
+		if (!ieee80211_is_data(hdr->frame_control)) {
+			/* MGMT and CTRL frames go on TID 7/VO. */
+			skb->priority = 7;
+			ac = IEEE80211_AC_VO;
+		} else {
+			/* Other non-QOS traffic goes to BE. */
+			/* Contrary to net80211 we MUST NOT promote M_EAPOL. */
+			skb->priority = 0;
+			ac = IEEE80211_AC_BE;
+		}
 	} else {
 		skb->priority = tid & IEEE80211_QOS_CTL_TID_MASK;
 		ac = ieee80211e_up_to_ac[tid & 7];
