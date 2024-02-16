@@ -2849,8 +2849,7 @@ do {								\
 					cmd = ACTION_PTR(f);
 					l = f->cmd_len - f->act_ofs;
 					cmdlen = 0;
-					match = 1;
-					break;
+					continue;
 				}
 				/*
 				 * Dynamic entry not found. If CHECK_STATE,
