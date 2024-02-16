@@ -456,19 +456,6 @@ enum irdma_qp_wqe_size {
 	IRDMA_WQE_SIZE_256 = 256,
 };
 
-enum irdma_ws_op_type {
-	IRDMA_WS_OP_TYPE_NODE = 0,
-	IRDMA_WS_OP_TYPE_LEAF_NODE_GROUP,
-};
-
-enum irdma_ws_rate_limit_flags {
-	IRDMA_WS_RATE_LIMIT_FLAGS_VALID = 0x1,
-	IRDMA_WS_NO_RDMA_RATE_LIMIT = 0x2,
-	IRDMA_WS_LEAF_NODE_IS_PART_GROUP = 0x4,
-	IRDMA_WS_TREE_RATE_LIMITING = 0x8,
-	IRDMA_WS_PACING_CONTROL = 0x10,
-};
-
 /**
  * set_64bit_val - set 64 bit value to hw wqe
  * @wqe_words: wqe addr to write

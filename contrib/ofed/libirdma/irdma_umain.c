@@ -48,7 +48,7 @@
 /**
  *  Driver version
  */
-char libirdma_version[] = "1.2.17-k";
+char libirdma_version[] = "1.2.36-k";
 
 unsigned int irdma_dbg;
 

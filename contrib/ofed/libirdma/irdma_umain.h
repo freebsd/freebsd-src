@@ -96,7 +96,6 @@ struct irdma_cq_buf {
 	LIST_ENTRY(irdma_cq_buf) list;
 	struct irdma_cq_uk cq;
 	struct verbs_mr vmr;
-	size_t buf_size;
 };
 
 extern pthread_mutex_t sigusr1_wait_mutex;
@@ -142,7 +141,6 @@ struct irdma_uqp {
 	struct ibv_recv_wr *pend_rx_wr;
 	struct irdma_qp_uk qp;
 	enum ibv_qp_type qp_type;
-	struct irdma_sge *recv_sges;
 };
 
 /* irdma_uverbs.c */

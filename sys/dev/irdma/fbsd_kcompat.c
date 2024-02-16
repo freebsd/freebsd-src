@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2021 - 2022 Intel Corporation
+ * Copyright (c) 2021 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -660,8 +660,7 @@ static const struct irdma_sw_stats_tunable_info irdma_sws_list[] = {
 	"manage_hmc_pm_func_table", 0},
 	{IRDMA_OP_SUSPEND, "suspend", "suspend", 0},
 	{IRDMA_OP_RESUME, "resume", "resume", 0},
-	{IRDMA_OP_MANAGE_VCHNL_REQ_PBLE_BP, "manage_vchnl_req_pble_bp",
-	"manage_vchnl_req_pble_bp", 0},
+	{25, "manage_vchnl_req_pble_bp", "manage_vchnl_req_pble_bp", 0},
 	{IRDMA_OP_QUERY_FPM_VAL, "query_fpm_val", "query_fpm_val", 0},
 	{IRDMA_OP_COMMIT_FPM_VAL, "commit_fpm_val", "commit_fpm_val", 0},
 	{IRDMA_OP_AH_CREATE, "ah_create", "ah_create", 0},

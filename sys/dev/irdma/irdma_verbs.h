@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2022 Intel Corporation
+ * Copyright (c) 2015 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -254,7 +254,7 @@ struct irdma_qp {
 	struct irdma_dma_mem host_ctx;
 	struct timer_list terminate_timer;
 	struct irdma_pbl *iwpbl;
-	struct irdma_sge *sg_list;
+	struct ib_sge *sg_list;
 	struct irdma_dma_mem q2_ctx_mem;
 	struct irdma_dma_mem ietf_mem;
 	struct completion free_qp;

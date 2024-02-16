@@ -52,7 +52,7 @@
 /**
  *  Driver version
  */
-char irdma_driver_version[] = "1.2.17-k";
+char irdma_driver_version[] = "1.2.36-k";
 
 /**
  * irdma_init_tunable - prepare tunables

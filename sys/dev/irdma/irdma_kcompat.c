@@ -160,6 +160,7 @@ err:
 
 #define IRDMA_ALLOC_UCTX_MIN_REQ_LEN offsetofend(struct irdma_alloc_ucontext_req, rsvd8)
 #define IRDMA_ALLOC_UCTX_MIN_RESP_LEN offsetofend(struct irdma_alloc_ucontext_resp, rsvd)
+
 /**
  * irdma_alloc_ucontext - Allocate the user context data structure
  * @ibdev: ib device pointer
@@ -228,6 +229,8 @@ irdma_alloc_ucontext(struct ib_device *ibdev, struct ib_udata *udata)
 		uresp.min_hw_cq_size = uk_attrs->min_hw_cq_size;
 		uresp.hw_rev = uk_attrs->hw_rev;
 		uresp.comp_mask |= IRDMA_ALLOC_UCTX_USE_RAW_ATTR;
+		uresp.min_hw_wq_size = uk_attrs->min_hw_wq_size;
+		uresp.comp_mask |= IRDMA_ALLOC_UCTX_MIN_HW_WQ_SIZE;
 
 		bar_off =
 		    (uintptr_t)iwdev->rf->sc_dev.hw_regs[IRDMA_DB_ADDR_OFFSET];
@@ -285,6 +288,7 @@ irdma_dealloc_ucontext(struct ib_ucontext *context)
 }
 
 #define IRDMA_ALLOC_PD_MIN_RESP_LEN offsetofend(struct irdma_alloc_pd_resp, rsvd)
+
 /**
  * irdma_alloc_pd - allocate protection domain
  * @ibdev: IB device
@@ -481,22 +485,40 @@ static int
 irdma_create_ah_wait(struct irdma_pci_f *rf,
 		     struct irdma_sc_ah *sc_ah, bool sleep)
 {
+	int ret;
+
 	if (!sleep) {
 		int cnt = rf->sc_dev.hw_attrs.max_cqp_compl_wait_time_ms *
 		CQP_TIMEOUT_THRESHOLD;
+		struct irdma_cqp_request *cqp_request =
+		sc_ah->ah_info.cqp_request;
 
 		do {
 			irdma_cqp_ce_handler(rf, &rf->ccq.sc_cq);
 			mdelay(1);
-		} while (!sc_ah->ah_info.ah_valid && --cnt);
+		} while (!READ_ONCE(cqp_request->request_done) && --cnt);
 
-		if (!cnt)
-			return -ETIMEDOUT;
+		if (cnt && !cqp_request->compl_info.op_ret_val) {
+			irdma_put_cqp_request(&rf->cqp, cqp_request);
+			sc_ah->ah_info.ah_valid = true;
+		} else {
+			ret = !cnt ? -ETIMEDOUT : -EINVAL;
+			irdma_dev_err(&rf->iwdev->ibdev, "CQP create AH error ret = %d opt_ret_val = %d",
+				      ret, cqp_request->compl_info.op_ret_val);
+			irdma_put_cqp_request(&rf->cqp, cqp_request);
+			if (!cnt && !rf->reset) {
+				rf->reset = true;
+				rf->gen_ops.request_reset(rf);
+			}
+			return ret;
+		}
 	}
+
 	return 0;
 }
 
 #define IRDMA_CREATE_AH_MIN_RESP_LEN offsetofend(struct irdma_create_ah_resp, rsvd)
+
 
 void
 irdma_ether_copy(u8 *dmac, struct ib_ah_attr *attr)
@@ -610,17 +632,15 @@ irdma_create_ah(struct ib_pd *ibpd,
 		goto err_gid_l2;
 
 	err = irdma_ah_cqp_op(iwdev->rf, sc_ah, IRDMA_OP_AH_CREATE,
-			      sleep, irdma_gsi_ud_qp_ah_cb, sc_ah);
+			      sleep, NULL, sc_ah);
 	if (err) {
 		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS, "CQP-OP Create AH fail");
 		goto err_gid_l2;
 	}
 
 	err = irdma_create_ah_wait(rf, sc_ah, sleep);
-	if (err) {
-		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_DEV, "CQP create AH timed out");
+	if (err)
 		goto err_gid_l2;
-	}
 
 	if (udata) {
 		uresp.ah_id = ah->sc_ah.ah_info.ah_idx;
@@ -652,7 +672,7 @@ irdma_free_qp_rsrc(struct irdma_qp *iwqp)
 	u32 qp_num = iwqp->ibqp.qp_num;
 
 	irdma_ieq_cleanup_qp(iwdev->vsi.ieq, &iwqp->sc_qp);
-	irdma_dealloc_push_page(rf, &iwqp->sc_qp);
+	irdma_dealloc_push_page(rf, iwqp);
 	if (iwqp->sc_qp.vsi) {
 		irdma_qp_rem_qos(&iwqp->sc_qp);
 		iwqp->sc_qp.dev->ws_remove(iwqp->sc_qp.vsi,
@@ -846,12 +866,17 @@ irdma_create_qp(struct ib_pd *ibpd,
 
 	if (udata) {
 		/* GEN_1 legacy support with libi40iw does not have expanded uresp struct */
-		if (udata->outlen < sizeof(uresp)) {
+		if (udata->outlen == IRDMA_CREATE_QP_MIN_RESP_LEN) {
 			uresp.lsmm = 1;
 			uresp.push_idx = IRDMA_INVALID_PUSH_PAGE_INDEX_GEN_1;
 		} else {
-			if (rdma_protocol_iwarp(&iwdev->ibdev, 1))
+			if (rdma_protocol_iwarp(&iwdev->ibdev, 1)) {
 				uresp.lsmm = 1;
+				if (qp->qp_uk.start_wqe_idx) {
+					uresp.comp_mask |= IRDMA_CREATE_QP_USE_START_WQE_IDX;
+					uresp.start_wqe_idx = qp->qp_uk.start_wqe_idx;
+				}
+			}
 		}
 		uresp.actual_sq_size = init_info.qp_uk_init_info.sq_size;
 		uresp.actual_rq_size = init_info.qp_uk_init_info.rq_size;
@@ -862,7 +887,7 @@ irdma_create_qp(struct ib_pd *ibpd,
 					    min(sizeof(uresp), udata->outlen));
 		if (err_code) {
 			irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS, "copy_to_udata failed\n");
-			kc_irdma_destroy_qp(&iwqp->ibqp, udata);
+			irdma_destroy_qp(&iwqp->ibqp);
 			return ERR_PTR(err_code);
 		}
 	}
@@ -1358,50 +1383,6 @@ irdma_destroy_cq(struct ib_cq *ib_cq)
 }
 
 /**
- * irdma_alloc_mw - Allocate memory window
- * @pd: Protection domain
- * @type: Window type
- * @udata: user data pointer
- */
-struct ib_mw *
-irdma_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
-	       struct ib_udata *udata)
-{
-	struct irdma_device *iwdev = to_iwdev(pd->device);
-	struct irdma_mr *iwmr;
-	int err_code;
-	u32 stag;
-
-	if (type != IB_MW_TYPE_1 && type != IB_MW_TYPE_2)
-		return ERR_PTR(-EINVAL);
-
-	iwmr = kzalloc(sizeof(*iwmr), GFP_KERNEL);
-	if (!iwmr)
-		return ERR_PTR(-ENOMEM);
-
-	stag = irdma_create_stag(iwdev);
-	if (!stag) {
-		kfree(iwmr);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	iwmr->stag = stag;
-	iwmr->ibmw.rkey = stag;
-	iwmr->ibmw.pd = pd;
-	iwmr->ibmw.type = type;
-	iwmr->ibmw.device = pd->device;
-
-	err_code = irdma_hw_alloc_mw(iwdev, iwmr);
-	if (err_code) {
-		irdma_free_stag(iwdev, stag);
-		kfree(iwmr);
-		return ERR_PTR(err_code);
-	}
-
-	return &iwmr->ibmw;
-}
-
-/**
  * kc_set_loc_seq_num_mss - Set local seq number and mss
  * @cm_node: cm node info
  */
@@ -1569,7 +1550,7 @@ irdma_query_gid_roce(struct ib_device *ibdev, u8 port, int index,
 {
 	int ret;
 
-	ret = rdma_query_gid(ibdev, port, index, gid);
+	ret = ib_get_cached_gid(ibdev, port, index, gid, NULL);
 	if (ret == -EAGAIN) {
 		memcpy(gid, &zgid, sizeof(*gid));
 		return 0;
@@ -1861,9 +1842,6 @@ kc_set_rdma_uverbs_cmd_mask(struct irdma_device *iwdev)
 	    BIT_ULL(IB_USER_VERBS_CMD_QUERY_QP) |
 	    BIT_ULL(IB_USER_VERBS_CMD_POLL_CQ) |
 	    BIT_ULL(IB_USER_VERBS_CMD_DESTROY_QP) |
-	    BIT_ULL(IB_USER_VERBS_CMD_ALLOC_MW) |
-	    BIT_ULL(IB_USER_VERBS_CMD_BIND_MW) |
-	    BIT_ULL(IB_USER_VERBS_CMD_DEALLOC_MW) |
 	    BIT_ULL(IB_USER_VERBS_CMD_POST_RECV) |
 	    BIT_ULL(IB_USER_VERBS_CMD_POST_SEND);
 	iwdev->ibdev.uverbs_ex_cmd_mask =
