@@ -31,7 +31,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-/*$FreeBSD$*/
 
 #ifndef IRDMA_USER_H
 #define IRDMA_USER_H
@@ -51,7 +50,7 @@
 #define irdma_access_privileges u32
 #define irdma_physical_fragment u64
 #define irdma_address_list u64 *
-#define irdma_sgl struct irdma_sge *
+#define irdma_sgl struct ibv_sge *
 
 #define IRDMA_MAX_MR_SIZE	0x200000000000ULL
 
@@ -81,96 +80,6 @@
 #define IRDMA_OP_TYPE_REC_IMM	0x3f
 
 #define IRDMA_FLUSH_MAJOR_ERR 1
-#define IRDMA_SRQFLUSH_RSVD_MAJOR_ERR 0xfffe
-
-/* Async Events codes */
-#define IRDMA_AE_AMP_UNALLOCATED_STAG					0x0102
-#define IRDMA_AE_AMP_INVALID_STAG					0x0103
-#define IRDMA_AE_AMP_BAD_QP						0x0104
-#define IRDMA_AE_AMP_BAD_PD						0x0105
-#define IRDMA_AE_AMP_BAD_STAG_KEY					0x0106
-#define IRDMA_AE_AMP_BAD_STAG_INDEX					0x0107
-#define IRDMA_AE_AMP_BOUNDS_VIOLATION					0x0108
-#define IRDMA_AE_AMP_RIGHTS_VIOLATION					0x0109
-#define IRDMA_AE_AMP_TO_WRAP						0x010a
-#define IRDMA_AE_AMP_FASTREG_VALID_STAG					0x010c
-#define IRDMA_AE_AMP_FASTREG_MW_STAG					0x010d
-#define IRDMA_AE_AMP_FASTREG_INVALID_RIGHTS				0x010e
-#define IRDMA_AE_AMP_FASTREG_INVALID_LENGTH				0x0110
-#define IRDMA_AE_AMP_INVALIDATE_SHARED					0x0111
-#define IRDMA_AE_AMP_INVALIDATE_NO_REMOTE_ACCESS_RIGHTS			0x0112
-#define IRDMA_AE_AMP_INVALIDATE_MR_WITH_BOUND_WINDOWS			0x0113
-#define IRDMA_AE_AMP_MWBIND_VALID_STAG					0x0114
-#define IRDMA_AE_AMP_MWBIND_OF_MR_STAG					0x0115
-#define IRDMA_AE_AMP_MWBIND_TO_ZERO_BASED_STAG				0x0116
-#define IRDMA_AE_AMP_MWBIND_TO_MW_STAG					0x0117
-#define IRDMA_AE_AMP_MWBIND_INVALID_RIGHTS				0x0118
-#define IRDMA_AE_AMP_MWBIND_INVALID_BOUNDS				0x0119
-#define IRDMA_AE_AMP_MWBIND_TO_INVALID_PARENT				0x011a
-#define IRDMA_AE_AMP_MWBIND_BIND_DISABLED				0x011b
-#define IRDMA_AE_PRIV_OPERATION_DENIED					0x011c
-#define IRDMA_AE_AMP_INVALIDATE_TYPE1_MW				0x011d
-#define IRDMA_AE_AMP_MWBIND_ZERO_BASED_TYPE1_MW				0x011e
-#define IRDMA_AE_AMP_FASTREG_INVALID_PBL_HPS_CFG			0x011f
-#define IRDMA_AE_AMP_MWBIND_WRONG_TYPE					0x0120
-#define IRDMA_AE_AMP_FASTREG_PBLE_MISMATCH				0x0121
-#define IRDMA_AE_UDA_XMIT_DGRAM_TOO_LONG				0x0132
-#define IRDMA_AE_UDA_XMIT_BAD_PD					0x0133
-#define IRDMA_AE_UDA_XMIT_DGRAM_TOO_SHORT				0x0134
-#define IRDMA_AE_UDA_L4LEN_INVALID					0x0135
-#define IRDMA_AE_BAD_CLOSE						0x0201
-#define IRDMA_AE_RDMAP_ROE_BAD_LLP_CLOSE				0x0202
-#define IRDMA_AE_CQ_OPERATION_ERROR					0x0203
-#define IRDMA_AE_RDMA_READ_WHILE_ORD_ZERO				0x0205
-#define IRDMA_AE_STAG_ZERO_INVALID					0x0206
-#define IRDMA_AE_IB_RREQ_AND_Q1_FULL					0x0207
-#define IRDMA_AE_IB_INVALID_REQUEST					0x0208
-#define IRDMA_AE_WQE_UNEXPECTED_OPCODE					0x020a
-#define IRDMA_AE_WQE_INVALID_PARAMETER					0x020b
-#define IRDMA_AE_WQE_INVALID_FRAG_DATA					0x020c
-#define IRDMA_AE_IB_REMOTE_ACCESS_ERROR					0x020d
-#define IRDMA_AE_IB_REMOTE_OP_ERROR					0x020e
-#define IRDMA_AE_WQE_LSMM_TOO_LONG					0x0220
-#define IRDMA_AE_DDP_INVALID_MSN_GAP_IN_MSN				0x0301
-#define IRDMA_AE_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER	0x0303
-#define IRDMA_AE_DDP_UBE_INVALID_DDP_VERSION				0x0304
-#define IRDMA_AE_DDP_UBE_INVALID_MO					0x0305
-#define IRDMA_AE_DDP_UBE_INVALID_MSN_NO_BUFFER_AVAILABLE		0x0306
-#define IRDMA_AE_DDP_UBE_INVALID_QN					0x0307
-#define IRDMA_AE_DDP_NO_L_BIT						0x0308
-#define IRDMA_AE_RDMAP_ROE_INVALID_RDMAP_VERSION			0x0311
-#define IRDMA_AE_RDMAP_ROE_UNEXPECTED_OPCODE				0x0312
-#define IRDMA_AE_ROE_INVALID_RDMA_READ_REQUEST				0x0313
-#define IRDMA_AE_ROE_INVALID_RDMA_WRITE_OR_READ_RESP			0x0314
-#define IRDMA_AE_ROCE_RSP_LENGTH_ERROR					0x0316
-#define IRDMA_AE_ROCE_EMPTY_MCG						0x0380
-#define IRDMA_AE_ROCE_BAD_MC_IP_ADDR					0x0381
-#define IRDMA_AE_ROCE_BAD_MC_QPID					0x0382
-#define IRDMA_AE_MCG_QP_PROTOCOL_MISMATCH				0x0383
-#define IRDMA_AE_INVALID_ARP_ENTRY					0x0401
-#define IRDMA_AE_INVALID_TCP_OPTION_RCVD				0x0402
-#define IRDMA_AE_STALE_ARP_ENTRY					0x0403
-#define IRDMA_AE_INVALID_AH_ENTRY					0x0406
-#define IRDMA_AE_LLP_CLOSE_COMPLETE					0x0501
-#define IRDMA_AE_LLP_CONNECTION_RESET					0x0502
-#define IRDMA_AE_LLP_FIN_RECEIVED					0x0503
-#define IRDMA_AE_LLP_RECEIVED_MARKER_AND_LENGTH_FIELDS_DONT_MATCH	0x0504
-#define IRDMA_AE_LLP_RECEIVED_MPA_CRC_ERROR				0x0505
-#define IRDMA_AE_LLP_SEGMENT_TOO_SMALL					0x0507
-#define IRDMA_AE_LLP_SYN_RECEIVED					0x0508
-#define IRDMA_AE_LLP_TERMINATE_RECEIVED					0x0509
-#define IRDMA_AE_LLP_TOO_MANY_RETRIES					0x050a
-#define IRDMA_AE_LLP_TOO_MANY_KEEPALIVE_RETRIES				0x050b
-#define IRDMA_AE_LLP_DOUBT_REACHABILITY					0x050c
-#define IRDMA_AE_LLP_CONNECTION_ESTABLISHED				0x050e
-#define IRDMA_AE_RESOURCE_EXHAUSTION					0x0520
-#define IRDMA_AE_RESET_SENT						0x0601
-#define IRDMA_AE_TERMINATE_SENT						0x0602
-#define IRDMA_AE_RESET_NOT_SENT						0x0603
-#define IRDMA_AE_LCE_QP_CATASTROPHIC					0x0700
-#define IRDMA_AE_LCE_FUNCTION_CATASTROPHIC				0x0701
-#define IRDMA_AE_LCE_CQ_CATASTROPHIC					0x0702
-#define IRDMA_AE_QP_SUSPEND_COMPLETE					0x0900
 
 enum irdma_device_caps_const {
 	IRDMA_WQE_SIZE =			4,
@@ -202,8 +111,7 @@ enum irdma_device_caps_const {
 	IRDMA_MAX_OUTBOUND_MSG_SIZE =		65537,
 	/* 64K +1 */
 	IRDMA_MAX_INBOUND_MSG_SIZE =		65537,
-	IRDMA_MAX_PUSH_PAGE_COUNT =		1024,
-	IRDMA_MAX_PE_ENA_VF_COUNT =		32,
+	IRDMA_MAX_PE_ENA_VF_COUNT =             32,
 	IRDMA_MAX_VF_FPM_ID =			47,
 	IRDMA_MAX_SQ_PAYLOAD_SIZE =		2145386496,
 	IRDMA_MAX_INLINE_DATA_SIZE =		101,
@@ -230,12 +138,7 @@ enum irdma_flush_opcode {
 	FLUSH_RETRY_EXC_ERR,
 	FLUSH_MW_BIND_ERR,
 	FLUSH_REM_INV_REQ_ERR,
-};
-
-enum irdma_qp_event_type {
-	IRDMA_QP_EVENT_CATASTROPHIC,
-	IRDMA_QP_EVENT_ACCESS_ERR,
-	IRDMA_QP_EVENT_REQ_ERR,
+	FLUSH_RNR_RETRY_EXC_ERR,
 };
 
 enum irdma_cmpl_status {
@@ -283,12 +186,6 @@ struct irdma_cq_uk;
 struct irdma_qp_uk_init_info;
 struct irdma_cq_uk_init_info;
 
-struct irdma_sge {
-	irdma_tagged_offset tag_off;
-	u32 len;
-	irdma_stag stag;
-};
-
 struct irdma_ring {
 	volatile u32 head;
 	volatile u32 tail;	/* effective tail */
@@ -320,13 +217,13 @@ struct irdma_post_rq_info {
 struct irdma_rdma_write {
 	irdma_sgl lo_sg_list;
 	u32 num_lo_sges;
-	struct irdma_sge rem_addr;
+	struct ibv_sge rem_addr;
 };
 
 struct irdma_rdma_read {
 	irdma_sgl lo_sg_list;
 	u32 num_lo_sges;
-	struct irdma_sge rem_addr;
+	struct ibv_sge rem_addr;
 };
 
 struct irdma_bind_window {
@@ -400,11 +297,6 @@ struct irdma_cq_poll_info {
 	} stat;
 };
 
-struct qp_err_code {
-	enum irdma_flush_opcode flush_code;
-	enum irdma_qp_event_type event_type;
-};
-
 int irdma_uk_inline_rdma_write(struct irdma_qp_uk *qp,
 			       struct irdma_post_sq_info *info, bool post_sq);
 int irdma_uk_inline_send(struct irdma_qp_uk *qp,
@@ -427,9 +319,9 @@ int irdma_uk_stag_local_invalidate(struct irdma_qp_uk *qp,
 				   bool post_sq);
 
 struct irdma_wqe_uk_ops {
-	void (*iw_copy_inline_data)(u8 *dest, struct irdma_sge *sge_list, u32 num_sges, u8 polarity);
+	void (*iw_copy_inline_data)(u8 *dest, struct ibv_sge *sge_list, u32 num_sges, u8 polarity);
 	u16 (*iw_inline_data_size_to_quanta)(u32 data_size);
-	void (*iw_set_fragment)(__le64 *wqe, u32 offset, struct irdma_sge *sge,
+	void (*iw_set_fragment)(__le64 *wqe, u32 offset, struct ibv_sge *sge,
 				u8 valid);
 	void (*iw_set_mw_bind_wqe)(__le64 *wqe,
 				   struct irdma_bind_window *op_info);
@@ -445,8 +337,6 @@ int irdma_uk_cq_init(struct irdma_cq_uk *cq,
 		     struct irdma_cq_uk_init_info *info);
 int irdma_uk_qp_init(struct irdma_qp_uk *qp,
 		     struct irdma_qp_uk_init_info *info);
-void irdma_uk_calc_shift_wq(struct irdma_qp_uk_init_info *ukinfo, u8 *sq_shift,
-			    u8 *rq_shift);
 int irdma_uk_calc_depth_shift_sq(struct irdma_qp_uk_init_info *ukinfo,
 				 u32 *sq_depth, u8 *sq_shift);
 int irdma_uk_calc_depth_shift_rq(struct irdma_qp_uk_init_info *ukinfo,
@@ -495,6 +385,7 @@ struct irdma_qp_uk {
 	u8 rwqe_polarity;
 	u8 rq_wqe_size;
 	u8 rq_wqe_size_multiplier;
+	u8 start_wqe_idx;
 	bool deferred_flag:1;
 	bool push_mode:1; /* whether the last post wqe was pushed */
 	bool push_dropped:1;
@@ -542,6 +433,7 @@ struct irdma_qp_uk_init_info {
 	u32 sq_depth;
 	u32 rq_depth;
 	u8 first_sq_wq;
+	u8 start_wqe_idx;
 	u8 type;
 	u8 sq_shift;
 	u8 rq_shift;
@@ -575,75 +467,4 @@ int irdma_get_rqdepth(struct irdma_uk_attrs *uk_attrs, u32 rq_size, u8 shift, u3
 void irdma_qp_push_wqe(struct irdma_qp_uk *qp, __le64 *wqe, u16 quanta,
 		       u32 wqe_idx, bool post_sq);
 void irdma_clr_wqes(struct irdma_qp_uk *qp, u32 qp_wqe_idx);
-
-static inline struct qp_err_code irdma_ae_to_qp_err_code(u16 ae_id)
-{
-	struct qp_err_code qp_err = { 0 };
-
-	switch (ae_id) {
-	case IRDMA_AE_AMP_BOUNDS_VIOLATION:
-	case IRDMA_AE_AMP_INVALID_STAG:
-	case IRDMA_AE_AMP_RIGHTS_VIOLATION:
-	case IRDMA_AE_AMP_UNALLOCATED_STAG:
-	case IRDMA_AE_AMP_BAD_PD:
-	case IRDMA_AE_AMP_BAD_QP:
-	case IRDMA_AE_AMP_BAD_STAG_KEY:
-	case IRDMA_AE_AMP_BAD_STAG_INDEX:
-	case IRDMA_AE_AMP_TO_WRAP:
-	case IRDMA_AE_PRIV_OPERATION_DENIED:
-		qp_err.flush_code = FLUSH_PROT_ERR;
-		qp_err.event_type = IRDMA_QP_EVENT_ACCESS_ERR;
-		break;
-	case IRDMA_AE_UDA_XMIT_BAD_PD:
-	case IRDMA_AE_WQE_UNEXPECTED_OPCODE:
-		qp_err.flush_code = FLUSH_LOC_QP_OP_ERR;
-		qp_err.event_type = IRDMA_QP_EVENT_CATASTROPHIC;
-		break;
-	case IRDMA_AE_UDA_XMIT_DGRAM_TOO_SHORT:
-	case IRDMA_AE_UDA_XMIT_DGRAM_TOO_LONG:
-	case IRDMA_AE_UDA_L4LEN_INVALID:
-	case IRDMA_AE_DDP_UBE_INVALID_MO:
-	case IRDMA_AE_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER:
-		qp_err.flush_code = FLUSH_LOC_LEN_ERR;
-		qp_err.event_type = IRDMA_QP_EVENT_CATASTROPHIC;
-		break;
-	case IRDMA_AE_AMP_INVALIDATE_NO_REMOTE_ACCESS_RIGHTS:
-	case IRDMA_AE_IB_REMOTE_ACCESS_ERROR:
-		qp_err.flush_code = FLUSH_REM_ACCESS_ERR;
-		qp_err.event_type = IRDMA_QP_EVENT_ACCESS_ERR;
-		break;
-	case IRDMA_AE_AMP_MWBIND_INVALID_RIGHTS:
-	case IRDMA_AE_AMP_MWBIND_BIND_DISABLED:
-	case IRDMA_AE_AMP_MWBIND_INVALID_BOUNDS:
-	case IRDMA_AE_AMP_MWBIND_VALID_STAG:
-		qp_err.flush_code = FLUSH_MW_BIND_ERR;
-		qp_err.event_type = IRDMA_QP_EVENT_ACCESS_ERR;
-		break;
-	case IRDMA_AE_LLP_TOO_MANY_RETRIES:
-		qp_err.flush_code = FLUSH_RETRY_EXC_ERR;
-		qp_err.event_type = IRDMA_QP_EVENT_CATASTROPHIC;
-		break;
-	case IRDMA_AE_IB_INVALID_REQUEST:
-		qp_err.flush_code = FLUSH_REM_INV_REQ_ERR;
-		qp_err.event_type = IRDMA_QP_EVENT_REQ_ERR;
-		break;
-	case IRDMA_AE_LLP_SEGMENT_TOO_SMALL:
-	case IRDMA_AE_LLP_RECEIVED_MPA_CRC_ERROR:
-	case IRDMA_AE_ROCE_RSP_LENGTH_ERROR:
-	case IRDMA_AE_IB_REMOTE_OP_ERROR:
-		qp_err.flush_code = FLUSH_REM_OP_ERR;
-		qp_err.event_type = IRDMA_QP_EVENT_CATASTROPHIC;
-		break;
-	case IRDMA_AE_LCE_QP_CATASTROPHIC:
-		qp_err.flush_code = FLUSH_FATAL_ERR;
-		qp_err.event_type = IRDMA_QP_EVENT_CATASTROPHIC;
-		break;
-	default:
-		qp_err.flush_code = FLUSH_GENERAL_ERR;
-		qp_err.event_type = IRDMA_QP_EVENT_CATASTROPHIC;
-		break;
-	}
-
-	return qp_err;
-}
 #endif /* IRDMA_USER_H */
