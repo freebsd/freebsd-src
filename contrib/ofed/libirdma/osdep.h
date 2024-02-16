@@ -31,7 +31,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-/*$FreeBSD$*/
 
 #ifndef _ICRDMA_OSDEP_H_
 #define _ICRDMA_OSDEP_H_
@@ -78,7 +77,6 @@
 /* constants */
 #define STATS_TIMER_DELAY 60000
 
-/* a couple of linux size defines */
 #define BIT_ULL(a) (1ULL << (a))
 #define min(a, b) ((a) > (b) ? (b) : (a))
 #ifndef likely
@@ -91,9 +89,6 @@
 #define __aligned_u64 uint64_t __aligned(8)
 
 #define VLAN_PRIO_SHIFT 13
-#if __FreeBSD_version < 1400000
-#define IB_USER_VERBS_EX_CMD_MODIFY_QP IB_USER_VERBS_CMD_MODIFY_QP
-#endif
 
 /*
  * debug definition section

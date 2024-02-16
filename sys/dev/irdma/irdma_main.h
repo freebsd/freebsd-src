@@ -44,9 +44,7 @@
 #include <netinet/if_ether.h>
 #include <linux/slab.h>
 #include <linux/rculist.h>
-#if __FreeBSD_version >= 1400000
 #include <rdma/uverbs_ioctl.h>
-#endif
 #include <rdma/ib_smi.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
@@ -185,7 +183,7 @@ struct irdma_cqp_request {
 	void (*callback_fcn)(struct irdma_cqp_request *cqp_request);
 	void *param;
 	struct irdma_cqp_compl_info compl_info;
-	bool request_done; /* READ/WRITE_ONCE macros operate on it */
+	u8 request_done; /* READ/WRITE_ONCE macros operate on it */
 	bool waiting:1;
 	bool dynamic:1;
 };
@@ -236,7 +234,7 @@ struct irdma_msix_vector {
 	u32 idx;
 	u32 irq;
 	u32 cpu_affinity;
-	u32 ceq_id;
+	u16 ceq_id;
 	char name[IRDMA_IRQ_NAME_STR_LEN];
 	struct resource *res;
 	void  *tag;
@@ -378,7 +376,6 @@ struct irdma_device {
 	u32 roce_ackcreds;
 	u32 vendor_id;
 	u32 vendor_part_id;
-	u32 push_mode;
 	u32 rcv_wnd;
 	u16 mac_ip_table_idx;
 	u16 vsi_num;
@@ -392,6 +389,7 @@ struct irdma_device {
 	bool override_ooo:1;
 	bool override_rd_fence_rate:1;
 	bool override_rtomin:1;
+	bool push_mode:1;
 	bool roce_mode:1;
 	bool roce_dcqcn_en:1;
 	bool dcb_vlan_mode:1;
@@ -419,7 +417,6 @@ static inline struct irdma_ucontext *to_ucontext(struct ib_ucontext *ibucontext)
 	return container_of(ibucontext, struct irdma_ucontext, ibucontext);
 }
 
-#if __FreeBSD_version >= 1400026
 static inline struct irdma_user_mmap_entry *
 to_irdma_mmap_entry(struct rdma_user_mmap_entry *rdma_entry)
 {
@@ -427,7 +424,6 @@ to_irdma_mmap_entry(struct rdma_user_mmap_entry *rdma_entry)
 			    rdma_entry);
 }
 
-#endif
 static inline struct irdma_pd *to_iwpd(struct ib_pd *ibpd)
 {
 	return container_of(ibpd, struct irdma_pd, ibpd);
@@ -586,8 +582,8 @@ void irdma_gen_ae(struct irdma_pci_f *rf, struct irdma_sc_qp *qp,
 void irdma_copy_ip_ntohl(u32 *dst, __be32 *src);
 void irdma_copy_ip_htonl(__be32 *dst, u32 *src);
 u16 irdma_get_vlan_ipv4(struct iw_cm_id *cm_id, u32 *addr);
-if_t irdma_netdev_vlan_ipv6(struct iw_cm_id *cm_id, u32 *addr, u16 *vlan_id,
-			    u8 *mac);
+void irdma_get_vlan_mac_ipv6(struct iw_cm_id *cm_id, u32 *addr, u16 *vlan_id,
+			     u8 *mac);
 struct ib_mr *irdma_reg_phys_mr(struct ib_pd *ib_pd, u64 addr, u64 size,
 				int acc, u64 *iova_start);
 int irdma_upload_qp_context(struct irdma_qp *iwqp, bool freeze, bool raw);
@@ -599,7 +595,6 @@ int irdma_ah_cqp_op(struct irdma_pci_f *rf, struct irdma_sc_ah *sc_ah, u8 cmd,
 		    bool wait,
 		    void (*callback_fcn)(struct irdma_cqp_request *cqp_request),
 		    void *cb_param);
-void irdma_gsi_ud_qp_ah_cb(struct irdma_cqp_request *cqp_request);
 void irdma_udqp_qs_worker(struct work_struct *work);
 bool irdma_cq_empty(struct irdma_cq *iwcq);
 int irdma_netdevice_event(struct notifier_block *notifier, unsigned long event,

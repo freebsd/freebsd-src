@@ -57,7 +57,7 @@ irdma_alloc_node(struct irdma_sc_vsi *vsi,
 	struct irdma_ws_node *node;
 	u16 node_index = 0;
 
-	ws_mem.size = sizeof(struct irdma_ws_node);
+	ws_mem.size = sizeof(*node);
 	ws_mem.va = kzalloc(ws_mem.size, GFP_KERNEL);
 	if (!ws_mem.va)
 		return NULL;
@@ -109,7 +109,7 @@ irdma_free_node(struct irdma_sc_vsi *vsi,
 		irdma_free_ws_node_id(vsi->dev, node->index);
 
 	ws_mem.va = node;
-	ws_mem.size = sizeof(struct irdma_ws_node);
+	ws_mem.size = sizeof(*node);
 	kfree(ws_mem.va);
 }
 

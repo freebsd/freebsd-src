@@ -276,6 +276,7 @@ irdma_process_aeq(struct irdma_pci_f *rf)
 
 		switch (info->ae_id) {
 			struct irdma_cm_node *cm_node;
+
 		case IRDMA_AE_LLP_CONNECTION_ESTABLISHED:
 			cm_node = iwqp->cm_node;
 			if (cm_node->accept_pend) {
@@ -393,6 +394,7 @@ irdma_process_aeq(struct irdma_pci_f *rf)
 		case IRDMA_AE_LLP_TOO_MANY_RETRIES:
 		case IRDMA_AE_LCE_QP_CATASTROPHIC:
 		case IRDMA_AE_LCE_FUNCTION_CATASTROPHIC:
+		case IRDMA_AE_LLP_TOO_MANY_RNRS:
 		case IRDMA_AE_UDA_XMIT_DGRAM_TOO_LONG:
 		default:
 			irdma_dev_err(&iwdev->ibdev,
@@ -489,7 +491,7 @@ irdma_save_msix_info(struct irdma_pci_f *rf)
 {
 	struct irdma_qvlist_info *iw_qvlist;
 	struct irdma_qv_info *iw_qvinfo;
-	u32 ceq_idx;
+	u16 ceq_idx;
 	u32 i;
 	u32 size;
 
@@ -499,8 +501,8 @@ irdma_save_msix_info(struct irdma_pci_f *rf)
 	}
 
 	size = sizeof(struct irdma_msix_vector) * rf->msix_count;
-	size += sizeof(struct irdma_qvlist_info);
-	size += sizeof(struct irdma_qv_info) * rf->msix_count - 1;
+	size += sizeof(*iw_qvlist);
+	size += sizeof(*iw_qvinfo) * rf->msix_count - 1;
 	rf->iw_msixtbl = kzalloc(size, GFP_KERNEL);
 	if (!rf->iw_msixtbl)
 		return -ENOMEM;
@@ -599,6 +601,13 @@ irdma_destroy_irq(struct irdma_pci_f *rf,
 
 	dev->irq_ops->irdma_dis_irq(dev, msix_vec->idx);
 	irdma_free_irq(rf, msix_vec);
+	if (rf == dev_id) {
+		tasklet_kill(&rf->dpc_tasklet);
+	} else {
+		struct irdma_ceq *iwceq = (struct irdma_ceq *)dev_id;
+
+		tasklet_kill(&iwceq->dpc_tasklet);
+	}
 }
 
 /**
@@ -963,13 +972,13 @@ irdma_create_cqp(struct irdma_pci_f *rf)
 	u16 maj_err, min_err;
 	int i, status;
 
-	cqp->cqp_requests = kcalloc(sqsize, sizeof(*cqp->cqp_requests), GFP_KERNEL);
-	memset(cqp->cqp_requests, 0, sqsize * sizeof(*cqp->cqp_requests));
+	cqp->cqp_requests = kcalloc(sqsize, sizeof(*cqp->cqp_requests),
+				    GFP_KERNEL);
 	if (!cqp->cqp_requests)
 		return -ENOMEM;
 
-	cqp->scratch_array = kcalloc(sqsize, sizeof(*cqp->scratch_array), GFP_KERNEL);
-	memset(cqp->scratch_array, 0, sqsize * sizeof(*cqp->scratch_array));
+	cqp->scratch_array = kcalloc(sqsize, sizeof(*cqp->scratch_array),
+				     GFP_KERNEL);
 	if (!cqp->scratch_array) {
 		status = -ENOMEM;
 		goto err_scratch;
@@ -1189,7 +1198,7 @@ fail_intr:
  */
 static int
 irdma_cfg_ceq_vector(struct irdma_pci_f *rf, struct irdma_ceq *iwceq,
-		     u32 ceq_id, struct irdma_msix_vector *msix_vec)
+		     u16 ceq_id, struct irdma_msix_vector *msix_vec)
 {
 	int status;
 
@@ -1263,7 +1272,7 @@ irdma_cfg_aeq_vector(struct irdma_pci_f *rf)
  */
 static int
 irdma_create_ceq(struct irdma_pci_f *rf, struct irdma_ceq *iwceq,
-		 u32 ceq_id, struct irdma_sc_vsi *vsi)
+		 u16 ceq_id, struct irdma_sc_vsi *vsi)
 {
 	int status;
 	struct irdma_ceq_init_info info = {0};
@@ -1380,7 +1389,7 @@ static int
 irdma_setup_ceqs(struct irdma_pci_f *rf, struct irdma_sc_vsi *vsi)
 {
 	u32 i;
-	u32 ceq_id;
+	u16 ceq_id;
 	struct irdma_ceq *iwceq;
 	struct irdma_msix_vector *msix_vec;
 	int status;
@@ -1750,6 +1759,7 @@ void
 irdma_rt_deinit_hw(struct irdma_device *iwdev)
 {
 	struct irdma_sc_qp qp = {{0}};
+
 	irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_INIT, "state = %d\n", iwdev->init_state);
 
 	switch (iwdev->init_state) {
@@ -2011,6 +2021,7 @@ irdma_ctrl_init_hw(struct irdma_pci_f *rf)
 {
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 	int status;
+
 	do {
 		status = irdma_setup_init_state(rf);
 		if (status)
@@ -2209,14 +2220,19 @@ irdma_cqp_ce_handler(struct irdma_pci_f *rf, struct irdma_sc_cq *cq)
 
 		cqp_request = (struct irdma_cqp_request *)
 		    (uintptr_t)info.scratch;
-		if (info.error && irdma_cqp_crit_err(dev, cqp_request->info.cqp_cmd,
+		if (info.error && irdma_cqp_crit_err(dev,
+						     cqp_request->info.cqp_cmd,
 						     info.maj_err_code,
 						     info.min_err_code))
-			irdma_dev_err(&rf->iwdev->ibdev, "cqp opcode = 0x%x maj_err_code = 0x%x min_err_code = 0x%x\n",
-				      info.op_code, info.maj_err_code, info.min_err_code);
+			irdma_dev_err(&rf->iwdev->ibdev,
+				      "cqp opcode = 0x%x maj_err_code = 0x%x min_err_code = 0x%x\n",
+				      info.op_code, info.maj_err_code,
+				      info.min_err_code);
 		if (cqp_request) {
-			cqp_request->compl_info.maj_err_code = info.maj_err_code;
-			cqp_request->compl_info.min_err_code = info.min_err_code;
+			cqp_request->compl_info.maj_err_code =
+			    info.maj_err_code;
+			cqp_request->compl_info.min_err_code =
+			    info.min_err_code;
 			cqp_request->compl_info.op_ret_val = info.op_ret_val;
 			cqp_request->compl_info.error = info.error;
 			irdma_complete_cqp_request(&rf->cqp, cqp_request);

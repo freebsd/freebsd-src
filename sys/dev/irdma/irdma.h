@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2017 - 2023 Intel Corporation
+ * Copyright (c) 2017 - 2022 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -183,7 +183,7 @@ enum irdma_vers {
 	IRDMA_GEN_RSVD = 0,
 	IRDMA_GEN_1 = 1,
 	IRDMA_GEN_2 = 2,
-	IRDMA_GEN_MAX = 2,
+	IRDMA_GEN_MAX = IRDMA_GEN_2,
 };
 
 struct irdma_uk_attrs {
