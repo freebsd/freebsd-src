@@ -264,7 +264,8 @@ static const char *gnu_shortopts = "bctwz";
 
 static const struct option perl_longopts[] = {
 	{ "algorithm",		required_argument,	0, opt_algorithm },
-	{ "check",		required_argument,	0, opt_check },
+	{ "binary",		no_argument,		0, opt_binary },
+	{ "check",		no_argument,		0, opt_check },
 	{ "help",		no_argument,		0, opt_help },
 	{ "ignore-missing",	no_argument,		0, opt_ignore_missing },
 	{ "quiet",		no_argument,		0, opt_quiet },
@@ -287,9 +288,10 @@ MD5_Update(MD5_CTX *c, const unsigned char *data, size_t len)
 }
 
 struct chksumrec {
-	char	*filename;
-	char	*chksum;
-	struct	chksumrec	*next;
+	char *filename;
+	enum input_mode input_mode;
+	char *chksum;
+	struct chksumrec *next;
 };
 
 static struct chksumrec *head = NULL;
@@ -302,17 +304,17 @@ static unsigned int numrecs;
 static void
 gnu_check(const char *checksumsfile)
 {
-	FILE	*inp;
-	char	*linebuf = NULL;
-	size_t	linecap;
-	ssize_t	linelen;
-	int	lineno;
-	char	*filename;
-	char	*hashstr;
-	struct chksumrec	*rec;
-	const char	*digestname;
-	size_t	digestnamelen;
-	size_t	hashstrlen;
+	FILE *inp;
+	char *linebuf = NULL;
+	size_t linecap;
+	ssize_t linelen;
+	int lineno;
+	char *filename;
+	char *hashstr;
+	struct chksumrec *rec;
+	const char *digestname;
+	size_t digestnamelen;
+	size_t hashstrlen;
 	struct stat st;
 
 	if (strcmp(checksumsfile, "-") == 0)
@@ -362,16 +364,18 @@ gnu_check(const char *checksumsfile)
 		if (rec == NULL)
 			errx(1, "malloc failed");
 
-		if (*filename == '*' ||
-		    *filename == ' ' ||
-		    *filename == 'U' ||
-		    *filename == '^') {
-			if (lstat(filename, &st) != 0)
-				filename++;
+		if ((*filename == '*' || *filename == ' ' ||
+		    *filename == 'U' || *filename == '^') &&
+		    lstat(filename, &st) != 0 &&
+		    lstat(filename + 1, &st) == 0) {
+			rec->filename = strdup(filename + 1);
+			rec->input_mode = (enum input_mode)*filename;
+		} else {
+			rec->filename = strdup(filename);
+			rec->input_mode = input_mode;
 		}
 
 		rec->chksum = strdup(hashstr);
-		rec->filename = strdup(filename);
 		if (rec->chksum == NULL || rec->filename == NULL)
 			errx(1, "malloc failed");
 		rec->next = NULL;
@@ -396,17 +400,17 @@ int
 main(int argc, char *argv[])
 {
 #ifdef HAVE_CAPSICUM
-	cap_rights_t	rights;
-	fileargs_t	*fa = NULL;
+	cap_rights_t rights;
+	fileargs_t *fa = NULL;
 #endif
 	const struct option *longopts;
 	const char *shortopts;
-	FILE   *f;
-	int	i, opt;
-	char   *p, *string = NULL;
-	char	buf[HEX_DIGEST_LENGTH];
-	size_t	len;
-	struct chksumrec	*rec;
+	FILE *f;
+	int i, opt;
+	char *p, *string = NULL;
+	char buf[HEX_DIGEST_LENGTH];
+	size_t len;
+	struct chksumrec *rec;
 
 	if ((progname = strrchr(argv[0], '/')) == NULL)
 		progname = argv[0];
@@ -575,7 +579,7 @@ main(int argc, char *argv[])
 	argv += optind;
 
 #ifdef HAVE_CAPSICUM
-	if (caph_limit_stdout() < 0 || caph_limit_stderr() < 0)
+	if (caph_limit_stdio() < 0)
 		err(1, "unable to limit rights for stdio");
 #endif
 
@@ -607,41 +611,40 @@ main(int argc, char *argv[])
 		err(1, "Unable to enter capability mode");
 #endif
 
-	if (*argv) {
+	if (*argv && !pflag && string == NULL) {
 		do {
 			const char *filename = *argv;
 			const char *filemode = "rb";
 
+			if (cflag && mode != mode_bsd) {
+				input_mode = rec->input_mode;
+				checkAgainst = rec->chksum;
+				rec = rec->next;
+			}
+			if (input_mode == input_text)
+				filemode = "r";
+			if (strcmp(filename, "-") == 0) {
+				f = stdin;
+			} else {
 #ifdef HAVE_CAPSICUM
-			if ((f = fileargs_fopen(fa, filename, filemode)) == NULL) {
+				f = fileargs_fopen(fa, filename, filemode);
 #else
-			if ((f = fopen(filename, filemode)) == NULL) {
+				f = fopen(filename, filemode);
 #endif
+			}
+			if (f == NULL) {
 				if (errno != ENOENT || !(cflag && ignoreMissing)) {
 					warn("%s", filename);
 					failed = true;
 				}
-				if (cflag && mode != mode_bsd)
-					rec = rec->next;
 				continue;
 			}
-#ifdef HAVE_CAPSICUM
-			if (caph_rights_limit(fileno(f), &rights) < 0)
-				err(1, "capsicum");
-#endif
-			if (cflag && mode != mode_bsd) {
-				checkAgainst = rec->chksum;
-				rec = rec->next;
-			}
 			p = MDInput(&Algorithm[digest], f, buf, false);
-			(void)fclose(f);
+			if (f != stdin)
+				(void)fclose(f);
 			MDOutput(&Algorithm[digest], p, filename);
 		} while (*++argv);
 	} else if (!cflag && string == NULL && !skip) {
-#ifdef HAVE_CAPSICUM
-		if (caph_limit_stdin() < 0)
-			err(1, "capsicum");
-#endif
 		if (mode == mode_bsd)
 			output_mode = output_bare;
 		p = MDInput(&Algorithm[digest], stdin, buf, pflag);
