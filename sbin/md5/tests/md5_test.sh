@@ -197,7 +197,9 @@ bsd_${alg}_vec${i}_body() {
 	printf '%s' \"\$inp_${i}\" >in
 	atf_check -o inline:\"\$out_${i}_${alg}\n\" ${alg} <in
 	atf_check -o inline:\"\$name_bsd_${alg} (in) = \$out_${i}_${alg}\n\" ${alg} in
+	atf_check -o inline:\"\$name_bsd_${alg} (-) = \$out_${i}_${alg}\n\" ${alg} - <in
 	atf_check -o inline:\"\$out_${i}_${alg} in\n\" ${alg} -r in
+	atf_check -o inline:\"\$out_${i}_${alg} -\n\" ${alg} -r - <in
 	# -q overrides -r regardless of order
 	for opt in -q -qr -rq ; do
 		atf_check -o inline:\"\$out_${i}_${alg}\n\" ${alg} \${opt} in
@@ -215,9 +217,13 @@ gnu_${alg}_vec${i}_body() {
 	atf_check -o inline:\"\$out_${i}_${alg}  -\n\" ${alg}sum <in
 	atf_check -o inline:\"\$out_${i}_${alg} *-\n\" ${alg}sum -b <in
 	atf_check -o inline:\"\$out_${i}_${alg}  in\n\" ${alg}sum in
+	atf_check -o inline:\"\$out_${i}_${alg}  -\n\" ${alg}sum - <in
 	atf_check -o inline:\"\$out_${i}_${alg} *in\n\" ${alg}sum -b in
+	atf_check -o inline:\"\$out_${i}_${alg} *-\n\" ${alg}sum -b - <in
 	atf_check -o inline:\"\$name_bsd_${alg} (in) = \$out_${i}_${alg}\n\" ${alg}sum --tag in
+	atf_check -o inline:\"\$name_bsd_${alg} (-) = \$out_${i}_${alg}\n\" ${alg}sum --tag - <in
 	atf_check -o inline:\"\$out_${i}_${alg}  in\0\" ${alg}sum -z in
+	atf_check -o inline:\"\$out_${i}_${alg}  -\0\" ${alg}sum -z - <in
 }
 "
 		eval "
@@ -233,9 +239,13 @@ perl_${alg}_vec${i}_body() {
 	atf_check -o inline:\"\$out_${i}_${alg} *-\n\" shasum \$alg_perl_${alg} -b <in
 	atf_check -o inline:\"\$out_${i}_${alg} U-\n\" shasum \$alg_perl_${alg} -U <in
 	atf_check -o inline:\"\$out_${i}_${alg}  in\n\" shasum \$alg_perl_${alg} in
+	atf_check -o inline:\"\$out_${i}_${alg}  -\n\" shasum \$alg_perl_${alg} - <in
 	atf_check -o inline:\"\$out_${i}_${alg} *in\n\" shasum \$alg_perl_${alg} -b in
+	atf_check -o inline:\"\$out_${i}_${alg} *-\n\" shasum \$alg_perl_${alg} -b - <in
 	atf_check -o inline:\"\$out_${i}_${alg} Uin\n\" shasum \$alg_perl_${alg} -U in
+	atf_check -o inline:\"\$out_${i}_${alg} U-\n\" shasum \$alg_perl_${alg} -U - <in
 	atf_check -o inline:\"\$name_perl_${alg} (in) = \$out_${i}_${alg}\n\" shasum \$alg_perl_${alg} --tag in
+	atf_check -o inline:\"\$name_perl_${alg} (-) = \$out_${i}_${alg}\n\" shasum \$alg_perl_${alg} --tag - <in
 }
 "
 	done
