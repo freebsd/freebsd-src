@@ -29,19 +29,21 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
 #include <sys/boottrace.h>
 #include <sys/mount.h>
 #include <sys/reboot.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <pwd.h>
 #include <signal.h>
+#include <spawn.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,23 +71,43 @@ static bool donextboot;
 static void
 zfsbootcfg(const char *pool, bool force)
 {
-	char *k;
-	int rv;
+	const char * const av[] = {
+		"zfsbootcfg",
+		"-z",
+		pool,
+		"-n",
+		"freebsd:nvstore",
+		"-k",
+		"nextboot_enable"
+		"-v",
+		"YES",
+		NULL
+	};
+	int rv, status;
+	pid_t p;
+	extern char **environ;
 
-	asprintf(&k,
-	    "zfsbootcfg -z %s -n freebsd:nvstore -k nextboot_enable -v YES",
-	    pool);
-	if (k == NULL)
-		E("No memory for zfsbootcfg");
-
-	rv = system(k);
-	if (rv == 0)
-		return;
+	rv = posix_spawnp(&p, av[0], NULL, NULL, __DECONST(char **, av),
+	    environ);
 	if (rv == -1)
 		E("system zfsbootcfg");
-	if (rv == 127)
-		E("zfsbootcfg not found in path");
-	E("zfsbootcfg returned %d", rv);
+	if (waitpid(p, &status, WEXITED) < 0) {
+		if (errno == EINTR)
+			return;
+		E("waitpid zfsbootcfg");
+	}
+	if (WIFEXITED(status)) {
+		int e = WEXITSTATUS(status);
+
+		if (e == 0)
+			return;
+		if (e == 127)
+			E("zfsbootcfg not found in path");
+		E("zfsbootcfg returned %d", e);
+	}
+	if (WIFSIGNALED(status))
+		E("zfsbootcfg died with signal %d", WTERMSIG(status));
+	E("zfsbootcfg unexpected status %d", status);
 }
 
 static void
