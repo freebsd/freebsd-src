@@ -352,7 +352,8 @@ iobus_adjust_resource(device_t bus, device_t child, int type,
 		return (bus_generic_rman_adjust_resource(bus, child, type, r,
 		    start, end));
 	case SYS_RES_IRQ:
-		return (bus_adjust_resource(bus, type, r, start, end));
+		return (bus_generic_adjust_resource(bus, child, type, r, start,
+		    end));
 	default:
 		return (EINVAL);
 	}
