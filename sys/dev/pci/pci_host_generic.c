@@ -537,10 +537,14 @@ struct resource *
 pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
     int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	struct generic_pcie_core_softc *sc;
+#endif
 	struct resource *res;
 
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	sc = device_get_softc(dev);
+#endif
 
 	switch (type) {
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
