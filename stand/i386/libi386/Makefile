@@ -23,7 +23,7 @@ CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
 
 .ifdef(BOOT_BIOSDISK_DEBUG)
 # Make the disk code more talkative
-CFLAGS+= -DDISK_DEBUG
+CFLAGS.biosdisk.c+= -DDISK_DEBUG
 .endif
 
 # terminal emulation
@@ -35,11 +35,7 @@ CFLAGS.teken.c+= -I${SRCTOP}/sys/teken
 CFLAGS.bootinfo.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
 CFLAGS.vbe.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
 
-# XXX: make alloca() useable
-CFLAGS+= -Dalloca=__builtin_alloca
-
-CFLAGS+=	-I${BOOTSRC}/ficl -I${BOOTSRC}/ficl/i386 \
-		-I${LDRSRC} -I${BOOTSRC}/i386/common \
+CFLAGS+=	-I${LDRSRC} -I${BOOTSRC}/i386/common \
 		-I${SYSDIR}/contrib/dev/acpica/include
 
 # Handle FreeBSD specific %b and %D printf format specifiers
