@@ -431,16 +431,24 @@ int
 pci_host_generic_core_release_resource(device_t dev, device_t child, int type,
     int rid, struct resource *res)
 {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	struct generic_pcie_core_softc *sc;
 
 	sc = device_get_softc(dev);
-
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
-	if (type == PCI_RES_BUS) {
-		return (pci_domain_release_bus(sc->ecam, child, rid, res));
-	}
 #endif
-	return (bus_generic_rman_release_resource(dev, child, type, rid, res));
+	switch (type) {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	case PCI_RES_BUS:
+		return (pci_domain_release_bus(sc->ecam, child, rid, res));
+#endif
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		return (bus_generic_rman_release_resource(dev, child, type, rid,
+		    res));
+	default:
+		return (bus_generic_release_resource(dev, child, type, rid,
+		    res));
+	}
 }
 
 static struct pcie_range *
