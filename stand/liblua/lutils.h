@@ -30,3 +30,12 @@ int	luaopen_gfx(lua_State *);
 int	luaopen_loader(lua_State *);
 int	luaopen_io(lua_State *);
 int	luaopen_pager(lua_State *);
+
+#include <sys/linker_set.h>
+
+typedef void lua_init_md_t(lua_State *);
+#define LUA_COMPILE_SET(func)	\
+	DATA_SET(Xficl_compile_set, func)	/* XXX linker set know by ldscrips */
+#define LUA_FOREACH_SET(s) \
+	SET_FOREACH((s), Xficl_compile_set)
+SET_DECLARE(Xficl_compile_set, lua_init_md_t);
