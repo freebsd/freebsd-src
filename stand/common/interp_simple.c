@@ -198,3 +198,11 @@ interp_include(const char *filename)
 	}
 	return(res);
 }
+
+/*
+ * There's no graphics commands for the simple interpreter.
+ */
+void
+gfx_interp_md(void)
+{
+}
