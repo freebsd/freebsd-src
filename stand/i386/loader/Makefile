@@ -33,7 +33,7 @@ VERSION_FILE=	${.CURDIR}/../loader/version
 #
 # will tell you how many kiB of lomem are available.
 #
-LOADERSIZE?=	550000		# Largest known safe size for loader.bin
+LOADERSIZE?=	570000		# Largest known safe size for loader.bin
 
 .PATH:		${BOOTSRC}/i386/loader
 

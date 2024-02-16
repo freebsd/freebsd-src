@@ -60,4 +60,11 @@ CFLAGS+=	-Wall
 DPADD=		${LDR_INTERP} ${LIBOFW} ${LIBSAFDT} ${LIBSA} ${LIBKBOOT}
 LDADD=		${LDR_INTERP} ${LIBOFW} ${LIBSAFDT} ${LIBSA} ${LIBKBOOT}
 
+# Add our own lua bindings until they are universal
+.if ${LOADER_INTERP} == "lua"
+SRCS+=		\
+		lua_bindings.c
+CFLAGS.lua_bindings.c+=  -I${FLUALIB}/libhash
+.endif
+
 .include <bsd.prog.mk>
