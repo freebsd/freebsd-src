@@ -26,6 +26,7 @@
 
 #include <lua.h>
 
+int	luaopen_gfx(lua_State *);
 int	luaopen_loader(lua_State *);
 int	luaopen_io(lua_State *);
 int	luaopen_pager(lua_State *);

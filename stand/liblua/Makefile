@@ -23,6 +23,7 @@ SRCS+=	lauxlib.c lbaselib.c lstrlib.c loadlib.c
 
 # Our utilities.
 SRCS+=	lerrno.c lpager.c lstd.c lutils.c
+SRCS+=	gfx_utils.c
 
 .PATH:	${FLUASRC}/modules
 SRCS+=	lfs.c
@@ -34,7 +35,7 @@ CFLAGS+= -ffreestanding -nostdlib -DLUA_USE_POSIX
 CFLAGS+= -fno-stack-protector -D__BSD_VISIBLE
 CFLAGS+= -I${BOOTSRC}/include -I${LIBLUASRC} -I${LUASRC} -I${LDRSRC}
 
-CFLAGS.lutils.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
+CFLAGS.gfx_utils.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
 
 .if ${MACHINE_CPUARCH} == "amd64" && ${DO32:U0} == 0
 CFLAGS+=	-fPIC
