@@ -578,6 +578,10 @@ static const struct luaL_Reg loaderlib[] = {
 	REG_SIMPLE(setenv),
 	REG_SIMPLE(time),
 	REG_SIMPLE(unsetenv),
+	{ NULL, NULL },
+};
+
+static const struct luaL_Reg gfxlib[] = {
 	REG_SIMPLE(fb_bezier),
 	REG_SIMPLE(fb_drawrect),
 	REG_SIMPLE(fb_line),
@@ -627,10 +631,17 @@ lua_add_features(lua_State *L)
 	lua_setfield(L, -2, "features");
 }
 
+static void
+luaopen_gfx(lua_State *L)
+{
+	luaL_newlib(L, gfxlib);
+}
+
 int
 luaopen_loader(lua_State *L)
 {
 	luaL_newlib(L, loaderlib);
+	luaopen_gfx(L);
 	/* Add loader.machine and loader.machine_arch properties */
 	lua_pushstring(L, MACHINE);
 	lua_setfield(L, -2, "machine");
