@@ -773,7 +773,8 @@ lbc_adjust_resource(device_t dev, device_t child, int type, struct resource *r,
 		return (bus_generic_rman_adjust_resource(dev, child, type, r,
 		    start, end));
 	case SYS_RES_IRQ:
-		return (bus_adjust_resource(dev, type, r, start, end));
+		return (bus_generic_adjust_resource(dev, child, type, r, start,
+		    end));
 	default:
 		return (EINVAL);
 	}
