@@ -606,7 +606,7 @@ main(int argc, char *argv[])
 		err(1, "Unable to enter capability mode");
 #endif
 
-	if (*argv) {
+	if (*argv && !pflag && string == NULL) {
 		do {
 			const char *filename = *argv;
 			const char *filemode = "rb";

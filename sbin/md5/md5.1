@@ -129,6 +129,7 @@ option, the calculated digest is printed in addition to the exit status being se
 .Pq Note that this option is not yet useful if multiple files are specified.
 .It Fl p , -passthrough
 Echo stdin to stdout and append the checksum to stdout.
+In this mode, any files specified on the command line are silently ignored.
 .It Fl q , -quiet
 Quiet mode \(em only the checksum is printed out.
 Overrides the
@@ -146,6 +147,7 @@ options.
 .It Fl s Ar string , Fl -string= Ns Ar string
 Print a checksum of the given
 .Ar string .
+In this mode, any files specified on the command line are silently ignored.
 .It Fl t , Fl -time-trial
 Run a built-in time trial.
 For the
