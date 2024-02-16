@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2017 - 2022 Intel Corporation
+ * Copyright (c) 2017 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -76,7 +76,7 @@ static u64 icrdma_masks[IRDMA_MAX_MASKS] = {
 	    ICRDMA_CQPSQ_CQ_CEQID,
 	    ICRDMA_CQPSQ_CQ_CQID,
 	    ICRDMA_COMMIT_FPM_CQCNT,
-	    ICRDMA_CQPSQ_UPESD_HMCFNID
+	    ICRDMA_CQPSQ_UPESD_HMCFNID,
 };
 
 static u8 icrdma_shifts[IRDMA_MAX_SHIFTS] = {
@@ -86,7 +86,7 @@ static u8 icrdma_shifts[IRDMA_MAX_SHIFTS] = {
 	    ICRDMA_CQPSQ_CQ_CEQID_S,
 	    ICRDMA_CQPSQ_CQ_CQID_S,
 	    ICRDMA_COMMIT_FPM_CQCNT_S,
-	    ICRDMA_CQPSQ_UPESD_HMCFNID_S
+	    ICRDMA_CQPSQ_UPESD_HMCFNID_S,
 };
 
 /**
@@ -210,8 +210,6 @@ icrdma_init_hw(struct irdma_sc_dev *dev)
 
 		dev->hw_regs[i] = (u32 IOMEM *) (hw_addr + icrdma_regs[i]);
 	}
-	dev->hw_attrs.max_hw_vf_fpm_id = IRDMA_MAX_VF_FPM_ID;
-	dev->hw_attrs.first_hw_vf_fpm_id = IRDMA_FIRST_VF_FPM_ID;
 
 	for (i = 0; i < IRDMA_MAX_SHIFTS; ++i)
 		dev->hw_shifts[i] = icrdma_shifts[i];
@@ -231,6 +229,7 @@ icrdma_init_hw(struct irdma_sc_dev *dev)
 	dev->hw_attrs.max_hw_ord = ICRDMA_MAX_ORD_SIZE;
 	dev->hw_attrs.max_stat_inst = ICRDMA_MAX_STATS_COUNT;
 	dev->hw_attrs.max_stat_idx = IRDMA_HW_STAT_INDEX_MAX_GEN_2;
+	dev->hw_attrs.max_hw_device_pages = ICRDMA_MAX_PUSH_PAGE_COUNT;
 
 	dev->hw_attrs.uk_attrs.max_hw_wq_frags = ICRDMA_MAX_WQ_FRAGMENT_COUNT;
 	dev->hw_attrs.uk_attrs.max_hw_read_sges = ICRDMA_MAX_SGE_RD;

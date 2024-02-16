@@ -47,6 +47,7 @@ static void irdma_ieq_tx_compl(struct irdma_sc_vsi *vsi, void *sqwrid);
 static void
 irdma_ilq_putback_rcvbuf(struct irdma_sc_qp *qp,
 			 struct irdma_puda_buf *buf, u32 wqe_idx);
+
 /**
  * irdma_puda_get_listbuf - get buffer from puda list
  * @list: list to use for buffers (ILQ or IEQ)
@@ -181,7 +182,7 @@ irdma_puda_alloc_buf(struct irdma_sc_dev *dev,
 	struct irdma_puda_buf *buf;
 	struct irdma_virt_mem buf_mem;
 
-	buf_mem.size = sizeof(struct irdma_puda_buf);
+	buf_mem.size = sizeof(*buf);
 	buf_mem.va = kzalloc(buf_mem.size, GFP_KERNEL);
 	if (!buf_mem.va)
 		return NULL;
@@ -935,6 +936,7 @@ irdma_puda_dele_rsrc(struct irdma_sc_vsi *vsi, enum puda_rsrc_type type,
 	struct irdma_sc_ceq *ceq;
 
 	ceq = vsi->dev->ceq[0];
+
 	switch (type) {
 	case IRDMA_PUDA_RSRC_TYPE_ILQ:
 		rsrc = vsi->ilq;
@@ -1008,7 +1010,7 @@ irdma_puda_allocbufs(struct irdma_puda_rsrc *rsrc, u32 count)
 	bool virtdma = false;
 	unsigned long flags;
 
-	buf_mem.size = count * sizeof(struct irdma_puda_buf);
+	buf_mem.size = count * sizeof(*buf);
 	buf_mem.va = kzalloc(buf_mem.size, GFP_KERNEL);
 	if (!buf_mem.va) {
 		irdma_debug(rsrc->dev, IRDMA_DEBUG_PUDA,
@@ -1103,7 +1105,7 @@ irdma_puda_create_rsrc(struct irdma_sc_vsi *vsi,
 	struct irdma_virt_mem *vmem;
 
 	info->count = 1;
-	pudasize = sizeof(struct irdma_puda_rsrc);
+	pudasize = sizeof(*rsrc);
 	sqwridsize = info->sq_size * sizeof(struct irdma_sq_uk_wr_trk_info);
 	rqwridsize = info->rq_size * 8;
 	switch (info->type) {
@@ -1703,6 +1705,7 @@ irdma_ieq_handle_exception(struct irdma_puda_rsrc *ieq,
 	struct irdma_pfpdu *pfpdu = &qp->pfpdu;
 	u32 *hw_host_ctx = (u32 *)qp->hw_host_ctx;
 	u32 rcv_wnd = hw_host_ctx[23];
+
 	/* first partial seq # in q2 */
 u32 fps = *(u32 *)(qp->q2_buf + Q2_FPSN_OFFSET);
 	struct list_head *rxlist = &pfpdu->rxlist;
