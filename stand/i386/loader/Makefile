@@ -1,4 +1,3 @@
-
 HAVE_ZFS=		${MK_LOADER_ZFS}
 
 LOADER_NET_SUPPORT?=	yes
@@ -23,7 +22,7 @@ VERSION_FILE=	${.CURDIR}/../loader/version
 # non-random survey suggests that 20k-25k is a good value for 'most' machines.
 # We also need to subtract maximum stack usage (20-25k).
 #
-# So 640k - 40k - 25k - 25k = 550k = 563,200 bytes, but use 550,000 below for
+# So 640k - 40k - 25k - 25k = 550k = 563,200 bytes, but use 560,000 below for
 # some extra buffer for more complex setups and/or wider BIOS lomem variation.
 #
 # Some systems use more stack or have BIOS reserve more RAM (or both), and will
@@ -33,7 +32,7 @@ VERSION_FILE=	${.CURDIR}/../loader/version
 #
 # will tell you how many kiB of lomem are available.
 #
-LOADERSIZE?=	570000		# Largest known safe size for loader.bin
+LOADERSIZE?=	560000		# Largest known safe size for loader.bin
 
 .PATH:		${BOOTSRC}/i386/loader
 
