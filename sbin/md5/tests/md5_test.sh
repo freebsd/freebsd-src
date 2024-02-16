@@ -204,6 +204,8 @@ bsd_${alg}_vec${i}_body() {
 	for opt in -q -qr -rq ; do
 		atf_check -o inline:\"\$out_${i}_${alg}\n\" ${alg} \${opt} in
 	done
+	atf_check -o inline:\"\$inp_${i}\$out_${i}_${alg}\n\" ${alg} -p <in
+	atf_check -o inline:\"\$out_${i}_${alg}\n\" ${alg} -s \"\$inp_${i}\"
 }
 "
 		eval "
