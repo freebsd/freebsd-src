@@ -65,14 +65,15 @@ lua_has_command(lua_State *L)
 {
 	const char	*cmd;
 
-	if (lua_gettop(L) != 1) {
-		lua_pushnil(L);
+	cmd = luaL_checkstring(L, 1);
+	if (interp_has_builtin_cmd(cmd)) {
+		lua_pushboolean(L, 1);
 		return 1;
 	}
-	cmd = luaL_checkstring(L, 1);
-	lua_pushinteger(L, interp_has_builtin_cmd(cmd));
 
-	return 1;
+	lua_pushnil(L);
+	lua_pushstring(L, "Builtin command not found");
+	return 2;
 }
 
 static int
