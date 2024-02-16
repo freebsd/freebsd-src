@@ -181,6 +181,7 @@ gfx_framework_init(void)
 	 * Setup font list to have builtin font.
 	 */
 	(void) insert_font(NULL, FONT_BUILTIN);
+	gfx_interp_md();	/* Draw in the gfx interpreter for this thing */
 }
 
 static uint8_t *
