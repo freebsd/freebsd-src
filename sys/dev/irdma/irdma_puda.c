@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2022 Intel Corporation
+ * Copyright (c) 2015 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -182,7 +182,7 @@ irdma_puda_alloc_buf(struct irdma_sc_dev *dev,
 	struct irdma_puda_buf *buf;
 	struct irdma_virt_mem buf_mem;
 
-	buf_mem.size = sizeof(struct irdma_puda_buf);
+	buf_mem.size = sizeof(*buf);
 	buf_mem.va = kzalloc(buf_mem.size, GFP_KERNEL);
 	if (!buf_mem.va)
 		return NULL;
@@ -1010,7 +1010,7 @@ irdma_puda_allocbufs(struct irdma_puda_rsrc *rsrc, u32 count)
 	bool virtdma = false;
 	unsigned long flags;
 
-	buf_mem.size = count * sizeof(struct irdma_puda_buf);
+	buf_mem.size = count * sizeof(*buf);
 	buf_mem.va = kzalloc(buf_mem.size, GFP_KERNEL);
 	if (!buf_mem.va) {
 		irdma_debug(rsrc->dev, IRDMA_DEBUG_PUDA,
@@ -1105,7 +1105,7 @@ irdma_puda_create_rsrc(struct irdma_sc_vsi *vsi,
 	struct irdma_virt_mem *vmem;
 
 	info->count = 1;
-	pudasize = sizeof(struct irdma_puda_rsrc);
+	pudasize = sizeof(*rsrc);
 	sqwridsize = info->sq_size * sizeof(struct irdma_sq_uk_wr_trk_info);
 	rqwridsize = info->rq_size * 8;
 	switch (info->type) {

@@ -77,7 +77,6 @@
 /* constants */
 #define STATS_TIMER_DELAY 60000
 
-/* a couple of linux size defines */
 #define BIT_ULL(a) (1ULL << (a))
 #define min(a, b) ((a) > (b) ? (b) : (a))
 #ifndef likely

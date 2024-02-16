@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2022 Intel Corporation
+ * Copyright (c) 2015 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,6 +35,8 @@
 #ifndef IRDMA_USER_H
 #define IRDMA_USER_H
 
+#include <rdma/ib_verbs.h>
+
 #define irdma_handle void *
 #define irdma_adapter_handle irdma_handle
 #define irdma_qp_handle irdma_handle
@@ -48,7 +50,7 @@
 #define irdma_access_privileges u32
 #define irdma_physical_fragment u64
 #define irdma_address_list u64 *
-#define irdma_sgl struct irdma_sge *
+#define irdma_sgl struct ib_sge *
 
 #define IRDMA_MAX_MR_SIZE	0x200000000000ULL
 
@@ -78,8 +80,6 @@
 #define IRDMA_OP_TYPE_REC_IMM	0x3f
 
 #define IRDMA_FLUSH_MAJOR_ERR 1
-#define IRDMA_SRQFLUSH_RSVD_MAJOR_ERR 0xfffe
-
 /* Async Events codes */
 #define IRDMA_AE_AMP_UNALLOCATED_STAG					0x0102
 #define IRDMA_AE_AMP_INVALID_STAG					0x0103
@@ -140,6 +140,7 @@
 #define IRDMA_AE_ROE_INVALID_RDMA_READ_REQUEST				0x0313
 #define IRDMA_AE_ROE_INVALID_RDMA_WRITE_OR_READ_RESP			0x0314
 #define IRDMA_AE_ROCE_RSP_LENGTH_ERROR					0x0316
+#define IRDMA_AE_ROCE_REQ_LENGTH_ERROR					0x0318
 #define IRDMA_AE_ROCE_EMPTY_MCG						0x0380
 #define IRDMA_AE_ROCE_BAD_MC_IP_ADDR					0x0381
 #define IRDMA_AE_ROCE_BAD_MC_QPID					0x0382
@@ -160,6 +161,7 @@
 #define IRDMA_AE_LLP_TOO_MANY_KEEPALIVE_RETRIES				0x050b
 #define IRDMA_AE_LLP_DOUBT_REACHABILITY					0x050c
 #define IRDMA_AE_LLP_CONNECTION_ESTABLISHED				0x050e
+#define IRDMA_AE_LLP_TOO_MANY_RNRS					0x050f
 #define IRDMA_AE_RESOURCE_EXHAUSTION					0x0520
 #define IRDMA_AE_RESET_SENT						0x0601
 #define IRDMA_AE_TERMINATE_SENT						0x0602
@@ -199,8 +201,7 @@ enum irdma_device_caps_const {
 	IRDMA_MAX_OUTBOUND_MSG_SIZE =		65537,
 	/* 64K +1 */
 	IRDMA_MAX_INBOUND_MSG_SIZE =		65537,
-	IRDMA_MAX_PUSH_PAGE_COUNT =		1024,
-	IRDMA_MAX_PE_ENA_VF_COUNT =		32,
+	IRDMA_MAX_PE_ENA_VF_COUNT =             32,
 	IRDMA_MAX_VF_FPM_ID =			47,
 	IRDMA_MAX_SQ_PAYLOAD_SIZE =		2145386496,
 	IRDMA_MAX_INLINE_DATA_SIZE =		101,
@@ -227,6 +228,7 @@ enum irdma_flush_opcode {
 	FLUSH_RETRY_EXC_ERR,
 	FLUSH_MW_BIND_ERR,
 	FLUSH_REM_INV_REQ_ERR,
+	FLUSH_RNR_RETRY_EXC_ERR,
 };
 
 enum irdma_qp_event_type {
@@ -280,12 +282,6 @@ struct irdma_cq_uk;
 struct irdma_qp_uk_init_info;
 struct irdma_cq_uk_init_info;
 
-struct irdma_sge {
-	irdma_tagged_offset tag_off;
-	u32 len;
-	irdma_stag stag;
-};
-
 struct irdma_ring {
 	volatile u32 head;
 	volatile u32 tail;	/* effective tail */
@@ -317,13 +313,13 @@ struct irdma_post_rq_info {
 struct irdma_rdma_write {
 	irdma_sgl lo_sg_list;
 	u32 num_lo_sges;
-	struct irdma_sge rem_addr;
+	struct ib_sge rem_addr;
 };
 
 struct irdma_rdma_read {
 	irdma_sgl lo_sg_list;
 	u32 num_lo_sges;
-	struct irdma_sge rem_addr;
+	struct ib_sge rem_addr;
 };
 
 struct irdma_bind_window {
@@ -422,9 +418,9 @@ int irdma_uk_stag_local_invalidate(struct irdma_qp_uk *qp,
 				   bool post_sq);
 
 struct irdma_wqe_uk_ops {
-	void (*iw_copy_inline_data)(u8 *dest, struct irdma_sge *sge_list, u32 num_sges, u8 polarity);
+	void (*iw_copy_inline_data)(u8 *dest, struct ib_sge *sge_list, u32 num_sges, u8 polarity);
 	u16 (*iw_inline_data_size_to_quanta)(u32 data_size);
-	void (*iw_set_fragment)(__le64 *wqe, u32 offset, struct irdma_sge *sge,
+	void (*iw_set_fragment)(__le64 *wqe, u32 offset, struct ib_sge *sge,
 				u8 valid);
 	void (*iw_set_mw_bind_wqe)(__le64 *wqe,
 				   struct irdma_bind_window *op_info);
@@ -490,6 +486,7 @@ struct irdma_qp_uk {
 	u8 rwqe_polarity;
 	u8 rq_wqe_size;
 	u8 rq_wqe_size_multiplier;
+	u8 start_wqe_idx;
 	bool deferred_flag:1;
 	bool push_mode:1; /* whether the last post wqe was pushed */
 	bool push_dropped:1;
@@ -537,6 +534,7 @@ struct irdma_qp_uk_init_info {
 	u32 sq_depth;
 	u32 rq_depth;
 	u8 first_sq_wq;
+	u8 start_wqe_idx;
 	u8 type;
 	u8 sq_shift;
 	u8 rq_shift;
@@ -625,8 +623,13 @@ static inline struct qp_err_code irdma_ae_to_qp_err_code(u16 ae_id)
 	case IRDMA_AE_LLP_SEGMENT_TOO_SMALL:
 	case IRDMA_AE_LLP_RECEIVED_MPA_CRC_ERROR:
 	case IRDMA_AE_ROCE_RSP_LENGTH_ERROR:
+	case IRDMA_AE_ROCE_REQ_LENGTH_ERROR:
 	case IRDMA_AE_IB_REMOTE_OP_ERROR:
 		qp_err.flush_code = FLUSH_REM_OP_ERR;
+		qp_err.event_type = IRDMA_QP_EVENT_CATASTROPHIC;
+		break;
+	case IRDMA_AE_LLP_TOO_MANY_RNRS:
+		qp_err.flush_code = FLUSH_RNR_RETRY_EXC_ERR;
 		qp_err.event_type = IRDMA_QP_EVENT_CATASTROPHIC;
 		break;
 	case IRDMA_AE_LCE_QP_CATASTROPHIC:

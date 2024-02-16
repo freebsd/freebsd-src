@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (C) 2019 - 2022 Intel Corporation
+ * Copyright (C) 2019 - 2023 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -85,6 +85,7 @@ struct irdma_ucreate_qp {
 	struct ibv_create_qp	ibv_cmd;
 	__aligned_u64 user_wqe_bufs;
 	__aligned_u64 user_compl_ctx;
+	__aligned_u64 comp_mask;
 
 };
 struct irdma_ucreate_qp_resp {
@@ -97,6 +98,9 @@ struct irdma_ucreate_qp_resp {
 	__u8 lsmm;
 	__u8 rsvd;
 	__u32 qp_caps;
+	__aligned_u64 comp_mask;
+	__u8 start_wqe_idx;
+	__u8 rsvd2[7];
 
 };
 struct irdma_umodify_qp_resp {
@@ -137,6 +141,8 @@ struct irdma_get_context_resp {
 	__u8 hw_rev;
 	__u8 rsvd2;
 	__aligned_u64 comp_mask;
+	__u16 min_hw_wq_size;
+	__u8 rsvd3[6];
 
 };
 struct irdma_ureg_mr {

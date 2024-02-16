@@ -53,15 +53,12 @@
 	ibdev.dma_device = (dev)
 #define set_max_sge(props, rf)  \
 	((props)->max_sge = (rf)->sc_dev.hw_attrs.uk_attrs.max_hw_wq_frags)
-#define rdma_query_gid(ibdev, port, index, gid) \
-	ib_get_cached_gid(ibdev, port, index, gid, NULL)
 #define kmap(pg) page_address(pg)
 #define kmap_local_page(pg) page_address(pg)
 #define kunmap(pg)
 #define kunmap_local(pg)
 
 #define IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION IB_CQ_FLAGS_TIMESTAMP_COMPLETION
-#define kc_irdma_destroy_qp(ibqp, udata) irdma_destroy_qp(ibqp)
 #ifndef IB_QP_ATTR_STANDARD_BITS
 #define IB_QP_ATTR_STANDARD_BITS GENMASK(20, 0)
 #endif
@@ -71,34 +68,26 @@
 
 #define IRDMA_VER_LEN 24
 
-#ifndef EVNT_HNDLR_CRITERR
-#if ICE_RDMA_MAJOR_VERSION == 1 && ICE_RDMA_MINOR_VERSION == 1
-#define EVNT_HNDLR_CRITERR
-#else
-#undef EVNT_HNDLR_CRITERR
-#endif
-
-#endif
 void kc_set_roce_uverbs_cmd_mask(struct irdma_device *iwdev);
 void kc_set_rdma_uverbs_cmd_mask(struct irdma_device *iwdev);
 
 struct irdma_tunable_info {
 	struct sysctl_ctx_list irdma_sysctl_ctx;
 	struct sysctl_oid *irdma_sysctl_tree;
+	struct sysctl_oid *qos_sysctl_tree;
 	struct sysctl_oid *sws_sysctl_tree;
 	char drv_ver[IRDMA_VER_LEN];
 	u8 roce_ena;
 };
 
 typedef u_int if_addr_cb_t(void *, struct ifaddr *, u_int);
-u_int if_foreach_addr_type(if_t ifp, int type, if_addr_cb_t cb, void *cb_arg);
 typedef int (*if_foreach_cb_t)(if_t, void *);
-int if_foreach(if_foreach_cb_t cb, void *cb_arg);
-#ifndef if_iter
 struct if_iter {
 	void *context[4];
 };
-#endif
+
+u_int if_foreach_addr_type(if_t ifp, int type, if_addr_cb_t cb, void *cb_arg);
+int if_foreach(if_foreach_cb_t cb, void *cb_arg);
 if_t if_iter_start(struct if_iter *iter);
 if_t if_iter_next(struct if_iter *iter);
 void if_iter_finish(struct if_iter *iter);
@@ -241,8 +230,8 @@ void irdma_cq_free_rsrc(struct irdma_pci_f *rf, struct irdma_cq *iwcq);
 int irdma_validate_qp_attrs(struct ib_qp_init_attr *init_attr,
 			    struct irdma_device *iwdev);
 void irdma_setup_virt_qp(struct irdma_device *iwdev,
-                         struct irdma_qp *iwqp,
-                         struct irdma_qp_init_info *init_info);
+			 struct irdma_qp *iwqp,
+			 struct irdma_qp_init_info *init_info);
 int irdma_setup_kmode_qp(struct irdma_device *iwdev,
 			 struct irdma_qp *iwqp,
 			 struct irdma_qp_init_info *info,
@@ -258,7 +247,7 @@ void irdma_iw_fill_and_set_qpctx_info(struct irdma_qp *iwqp,
 				      struct irdma_qp_host_ctx_info *ctx_info);
 int irdma_cqp_create_qp_cmd(struct irdma_qp *iwqp);
 void irdma_dealloc_push_page(struct irdma_pci_f *rf,
-			     struct irdma_sc_qp *qp);
+			     struct irdma_qp *iwqp);
 int irdma_process_resize_list(struct irdma_cq *iwcq, struct irdma_device *iwdev,
 			      struct irdma_cq_buf *lcqe_buf);
 int irdma_destroy_cq(struct ib_cq *ib_cq);
