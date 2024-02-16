@@ -1,0 +1,54 @@
+.\"
+.\" Copyright (c) 2024 Netflix, Inc.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd February 6, 2024
+.Dt HASH 3lua
+.Os
+.Sh NAME
+.Nm new ,
+.Nm update ,
+.Nm digest ,
+.Nm hexdigest
+.Nd Lua Cryptographic hash module.
+.Sh DESCRIPTION
+The built-in cryptographic hashing Lua bindings for the are available via the
+.Ic hash
+table.
+.Ss Supported Hashing Schemes
+The following hashing schemes are supported by the hash module.
+.Bl -bullet -compact
+.It
+sha256
+.El
+.Ss APIs Supported
+.Bl -tag -width asdf -compact
+.It Fn new data
+Compute a digest based on the
+.Va data .
+.It Fn update Va data
+Using the current digest, process
+.Va data
+to compute a new digest as if all prior data had been concatenated together.
+.It Fn digest
+Return the hashed digest as a binary array.
+This resets the context.
+.It Fn hexdigest
+Take
+.Fn digest
+and convert it to an upper case hex string.
+This resets the context.
+.It Va digest_size
+Return the size of the digest, in bytes.
+.It Va block_size
+Return the block size used in bytes.
+.El
+.Sh EXAMPLES
+.Sh SEE ALSO
+.Xr sha256 3
+.Sh AUTHORS
+The
+.Nm
+man page was written by
+.An Warner Losh Aq Mt imp@FreeBSD.org .
