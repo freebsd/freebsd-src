@@ -216,6 +216,7 @@ pci_host_generic_core_attach(device_t dev)
 		if (sc->ranges[tuple].res == NULL) {
 			device_printf(dev,
 			    "failed to allocate resource for range %d\n", tuple);
+			error = ENXIO;
 			goto err_rman_manage;
 		}
 	}
