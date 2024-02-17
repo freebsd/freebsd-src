@@ -358,9 +358,7 @@ vi_interrupt(struct virtio_softc *vs, uint8_t isr, uint16_t msix_idx)
 		VS_LOCK(vs);
 		vs->vs_isr |= isr;
 		pci_generate_msi(vs->vs_pi, 0);
-#ifdef __amd64__
 		pci_lintr_assert(vs->vs_pi);
-#endif
 		VS_UNLOCK(vs);
 	}
 }

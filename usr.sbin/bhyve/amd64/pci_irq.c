@@ -39,6 +39,7 @@
 
 #include "acpi.h"
 #include "inout.h"
+#include "ioapic.h"
 #include "pci_emul.h"
 #include "pci_irq.h"
 #include "pci_lpc.h"
@@ -156,7 +157,7 @@ pci_irq_assert(struct pci_devinst *pi)
 	struct pirq *pirq;
 	int pin;
 
-	pin = pi->pi_lintr.pirq_pin;
+	pin = pi->pi_lintr.irq.pirq_pin;
 	if (pin > 0) {
 		assert(pin <= NPIRQS);
 		pirq = &pirqs[pin - 1];
@@ -164,13 +165,13 @@ pci_irq_assert(struct pci_devinst *pi)
 		pirq->active_count++;
 		if (pirq->active_count == 1 && pirq_valid_irq(pirq->reg)) {
 			vm_isa_assert_irq(pi->pi_vmctx, pirq->reg & PIRQ_IRQ,
-			    pi->pi_lintr.ioapic_irq);
+			    pi->pi_lintr.irq.ioapic_irq);
 			pthread_mutex_unlock(&pirq->lock);
 			return;
 		}
 		pthread_mutex_unlock(&pirq->lock);
 	}
-	vm_ioapic_assert_irq(pi->pi_vmctx, pi->pi_lintr.ioapic_irq);
+	vm_ioapic_assert_irq(pi->pi_vmctx, pi->pi_lintr.irq.ioapic_irq);
 }
 
 void
@@ -179,7 +180,7 @@ pci_irq_deassert(struct pci_devinst *pi)
 	struct pirq *pirq;
 	int pin;
 
-	pin = pi->pi_lintr.pirq_pin;
+	pin = pi->pi_lintr.irq.pirq_pin;
 	if (pin > 0) {
 		assert(pin <= NPIRQS);
 		pirq = &pirqs[pin - 1];
@@ -187,16 +188,16 @@ pci_irq_deassert(struct pci_devinst *pi)
 		pirq->active_count--;
 		if (pirq->active_count == 0 && pirq_valid_irq(pirq->reg)) {
 			vm_isa_deassert_irq(pi->pi_vmctx, pirq->reg & PIRQ_IRQ,
-			    pi->pi_lintr.ioapic_irq);
+			    pi->pi_lintr.irq.ioapic_irq);
 			pthread_mutex_unlock(&pirq->lock);
 			return;
 		}
 		pthread_mutex_unlock(&pirq->lock);
 	}
-	vm_ioapic_deassert_irq(pi->pi_vmctx, pi->pi_lintr.ioapic_irq);
+	vm_ioapic_deassert_irq(pi->pi_vmctx, pi->pi_lintr.irq.ioapic_irq);
 }
 
-int
+static int
 pirq_alloc_pin(struct pci_devinst *pi)
 {
 	struct vmctx *ctx = pi->pi_vmctx;
@@ -246,6 +247,26 @@ pirq_irq(int pin)
 {
 	assert(pin > 0 && pin <= NPIRQS);
 	return (pirqs[pin - 1].reg & PIRQ_IRQ);
+}
+
+void
+pci_irq_route(struct pci_devinst *pi, struct pci_irq *irq)
+{
+	/*
+	 * Attempt to allocate an I/O APIC pin for this intpin if one
+	 * is not yet assigned.
+	 */
+	if (irq->ioapic_irq == 0)
+		irq->ioapic_irq = ioapic_pci_alloc_irq(pi);
+	assert(irq->ioapic_irq > 0);
+
+	/*
+	 * Attempt to allocate a PIRQ pin for this intpin if one is
+	 * not yet assigned.
+	 */
+	if (irq->pirq_pin == 0)
+		irq->pirq_pin = pirq_alloc_pin(pi);
+	assert(irq->pirq_pin > 0);
 }
 
 /* XXX: Generate $PIR table. */

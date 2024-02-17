@@ -52,12 +52,10 @@
 #include "debug.h"
 #ifdef __amd64__
 #include "amd64/inout.h"
-#include "amd64/ioapic.h"
 #endif
 #include "mem.h"
 #include "pci_emul.h"
 #ifdef __amd64__
-#include "amd64/pci_irq.h"
 #include "amd64/pci_lpc.h"
 #include "pci_passthru.h"
 #endif
@@ -81,9 +79,8 @@ struct funcinfo {
 };
 
 struct intxinfo {
-	int	ii_count;
-	int	ii_pirq_pin;
-	int	ii_ioapic_irq;
+	int		ii_count;
+	struct pci_irq	ii_irq;
 };
 
 struct slotinfo {
@@ -157,10 +154,8 @@ SYSRES_MEM(PCI_EMUL_ECFG_BASE, PCI_EMUL_ECFG_SIZE);
 #define	PCI_EMUL_MEMLIMIT32	PCI_EMUL_ECFG_BASE
 #define PCI_EMUL_MEMSIZE64	(32*GB)
 
-#ifdef __amd64__
 static void pci_lintr_route(struct pci_devinst *pi);
 static void pci_lintr_update(struct pci_devinst *pi);
-#endif
 
 static struct pci_devemu *pci_emul_finddev(const char *name);
 static void pci_cfgrw(int in, int bus, int slot, int func, int coff,
@@ -1133,13 +1128,10 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int bus, int slot,
 	pdi->pi_bus = bus;
 	pdi->pi_slot = slot;
 	pdi->pi_func = func;
-#ifdef __amd64__
 	pthread_mutex_init(&pdi->pi_lintr.lock, NULL);
 	pdi->pi_lintr.pin = 0;
 	pdi->pi_lintr.state = IDLE;
-	pdi->pi_lintr.pirq_pin = 0;
-	pdi->pi_lintr.ioapic_irq = 0;
-#endif
+	pci_irq_init_irq(&pdi->pi_lintr.irq);
 	pdi->pi_d = pde;
 	snprintf(pdi->pi_name, PI_NAMESZ, "%s@pci.%d.%d.%d", pde->pe_emu, bus,
 	    slot, func);
@@ -1277,9 +1269,7 @@ msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 
 		pi->pi_msix.enabled = val & PCIM_MSIXCTRL_MSIX_ENABLE;
 		pi->pi_msix.function_mask = val & PCIM_MSIXCTRL_FUNCTION_MASK;
-#ifdef __amd64__
 		pci_lintr_update(pi);
-#endif
 	}
 
 	CFGWRITE(pi, offset, val, bytes);
@@ -1321,9 +1311,7 @@ msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 	} else {
 		pi->pi_msi.maxmsgnum = 0;
 	}
-#ifdef __amd64__
 	pci_lintr_update(pi);
-#endif
 }
 
 static void
@@ -1617,7 +1605,6 @@ init_pci(struct vmctx *ctx)
 		bi->memlimit64 = pci_emul_membase64;
 	}
 
-#ifdef __amd64__
 	/*
 	 * PCI backends are initialized before routing INTx interrupts
 	 * so that LPC devices are able to reserve ISA IRQs before
@@ -1637,6 +1624,7 @@ init_pci(struct vmctx *ctx)
 			}
 		}
 	}
+#ifdef __amd64__
 	lpc_pirq_routed();
 #endif
 
@@ -1696,8 +1684,8 @@ init_pci(struct vmctx *ctx)
 
 #ifdef __amd64__
 static void
-pci_apic_prt_entry(int bus __unused, int slot, int pin, int pirq_pin __unused,
-    int ioapic_irq, void *arg __unused)
+pci_apic_prt_entry(int bus __unused, int slot, int pin, struct pci_irq *irq,
+    void *arg __unused)
 {
 
 	dsdt_line("  Package ()");
@@ -1705,17 +1693,17 @@ pci_apic_prt_entry(int bus __unused, int slot, int pin, int pirq_pin __unused,
 	dsdt_line("    0x%X,", slot << 16 | 0xffff);
 	dsdt_line("    0x%02X,", pin - 1);
 	dsdt_line("    Zero,");
-	dsdt_line("    0x%X", ioapic_irq);
+	dsdt_line("    0x%X", irq->ioapic_irq);
 	dsdt_line("  },");
 }
 
 static void
-pci_pirq_prt_entry(int bus __unused, int slot, int pin, int pirq_pin,
-    int ioapic_irq __unused, void *arg __unused)
+pci_pirq_prt_entry(int bus __unused, int slot, int pin, struct pci_irq *irq,
+    void *arg __unused)
 {
 	char *name;
 
-	name = lpc_pirq_name(pirq_pin);
+	name = lpc_pirq_name(irq->pirq_pin);
 	if (name == NULL)
 		return;
 	dsdt_line("  Package ()");
@@ -1968,7 +1956,6 @@ pci_generate_msi(struct pci_devinst *pi, int index)
 	}
 }
 
-#ifdef __amd64__
 static bool
 pci_lintr_permitted(struct pci_devinst *pi)
 {
@@ -2013,6 +2000,7 @@ pci_lintr_route(struct pci_devinst *pi)
 {
 	struct businfo *bi;
 	struct intxinfo *ii;
+	struct pci_irq *irq;
 
 	if (pi->pi_lintr.pin == 0)
 		return;
@@ -2020,26 +2008,10 @@ pci_lintr_route(struct pci_devinst *pi)
 	bi = pci_businfo[pi->pi_bus];
 	assert(bi != NULL);
 	ii = &bi->slotinfo[pi->pi_slot].si_intpins[pi->pi_lintr.pin - 1];
-
-	/*
-	 * Attempt to allocate an I/O APIC pin for this intpin if one
-	 * is not yet assigned.
-	 */
-	if (ii->ii_ioapic_irq == 0)
-		ii->ii_ioapic_irq = ioapic_pci_alloc_irq(pi);
-	assert(ii->ii_ioapic_irq > 0);
-
-	/*
-	 * Attempt to allocate a PIRQ pin for this intpin if one is
-	 * not yet assigned.
-	 */
-	if (ii->ii_pirq_pin == 0)
-		ii->ii_pirq_pin = pirq_alloc_pin(pi);
-	assert(ii->ii_pirq_pin > 0);
-
-	pi->pi_lintr.ioapic_irq = ii->ii_ioapic_irq;
-	pi->pi_lintr.pirq_pin = ii->ii_pirq_pin;
-	pci_set_cfgdata8(pi, PCIR_INTLINE, pirq_irq(ii->ii_pirq_pin));
+	irq = &ii->ii_irq;
+	pci_irq_route(pi, irq);
+	pi->pi_lintr.irq = *irq;
+	pci_set_cfgdata8(pi, PCIR_INTLINE, pci_irq_intline(irq));
 }
 
 void
@@ -2124,12 +2096,10 @@ pci_walk_lintr(int bus, pci_lintr_cb cb, void *arg)
 		for (pin = 0; pin < 4; pin++) {
 			ii = &si->si_intpins[pin];
 			if (ii->ii_count != 0)
-				cb(bus, slot, pin + 1, ii->ii_pirq_pin,
-				    ii->ii_ioapic_irq, arg);
+				cb(bus, slot, pin + 1, &ii->ii_irq, arg);
 		}
 	}
 }
-#endif /* __amd64__ */
 
 /*
  * Return 1 if the emulated device in 'slot' is a multi-function device.
@@ -2234,13 +2204,11 @@ pci_emul_cmd_changed(struct pci_devinst *pi, uint16_t old)
 		}
 	}
 
-#ifdef __amd64__
 	/*
 	 * If INTx has been unmasked and is pending, assert the
 	 * interrupt.
 	 */
 	pci_lintr_update(pi);
-#endif
 }
 
 static void

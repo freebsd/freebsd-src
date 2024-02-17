@@ -208,8 +208,8 @@ mpt_count_ioint_entries(void)
 }
 
 static void
-mpt_generate_pci_int(int bus, int slot, int pin, int pirq_pin __unused,
-    int ioapic_irq, void *arg)
+mpt_generate_pci_int(int bus, int slot, int pin, struct pci_irq *irq,
+    void *arg)
 {
 	int_entry_ptr *mpiep, mpie;
 
@@ -226,7 +226,7 @@ mpt_generate_pci_int(int bus, int slot, int pin, int pirq_pin __unused,
 	mpie->src_bus_id = bus;
 	mpie->src_bus_irq = slot << 2 | (pin - 1);
 	mpie->dst_apic_id = mpie[-1].dst_apic_id;
-	mpie->dst_apic_int = ioapic_irq;
+	mpie->dst_apic_int = irq->ioapic_irq;
 
 	*mpiep = mpie + 1;
 }

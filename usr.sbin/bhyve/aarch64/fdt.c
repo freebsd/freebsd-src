@@ -271,12 +271,12 @@ fdt_add_timer(void)
 }
 
 void
-fdt_add_pcie(int intr)
+fdt_add_pcie(int intrs[static 4])
 {
 	void *fdt, *prop;
+	int slot, pin, intr, i;
 
 	assert(gic_phandle != 0);
-	assert(intr >= GIC_FIRST_SPI);
 
 	fdt = fdtroot;
 
@@ -320,24 +320,35 @@ fdt_add_pcie(int intr)
 
 	fdt_property_u32(fdt, "#interrupt-cells", 1);
 	fdt_property_u32(fdt, "interrupt-parent", gic_phandle);
+
+	/*
+	 * Describe standard swizzled interrupts routing (pins rotated by one
+	 * for each consecutive slot). Must match pci_irq_route().
+	 */
 	fdt_property_placeholder(fdt, "interrupt-map-mask",
 	    4 * sizeof(uint32_t), &prop);
-	SET_PROP_U32(prop, 0, 0);
+	SET_PROP_U32(prop, 0, 3 << 11);
 	SET_PROP_U32(prop, 1, 0);
 	SET_PROP_U32(prop, 2, 0);
 	SET_PROP_U32(prop, 3, 7);
 	fdt_property_placeholder(fdt, "interrupt-map",
-	    10 * sizeof(uint32_t), &prop);
-	SET_PROP_U32(prop, 0, 0);
-	SET_PROP_U32(prop, 1, 0);
-	SET_PROP_U32(prop, 2, 0);
-	SET_PROP_U32(prop, 3, 1);
-	SET_PROP_U32(prop, 4, gic_phandle);
-	SET_PROP_U32(prop, 5, 0);
-	SET_PROP_U32(prop, 6, 0);
-	SET_PROP_U32(prop, 7, GIC_SPI);
-	SET_PROP_U32(prop, 8, intr - GIC_FIRST_SPI);
-	SET_PROP_U32(prop, 9, IRQ_TYPE_LEVEL_HIGH);
+	    160 * sizeof(uint32_t), &prop);
+	for (i = 0; i < 16; ++i) {
+		pin = i % 4;
+		slot = i / 4;
+		intr = intrs[(pin + slot) % 4];
+		assert(intr >= GIC_FIRST_SPI);
+		SET_PROP_U32(prop, 10 * i + 0, slot << 11);
+		SET_PROP_U32(prop, 10 * i + 1, 0);
+		SET_PROP_U32(prop, 10 * i + 2, 0);
+		SET_PROP_U32(prop, 10 * i + 3, pin + 1);
+		SET_PROP_U32(prop, 10 * i + 4, gic_phandle);
+		SET_PROP_U32(prop, 10 * i + 5, 0);
+		SET_PROP_U32(prop, 10 * i + 6, 0);
+		SET_PROP_U32(prop, 10 * i + 7, GIC_SPI);
+		SET_PROP_U32(prop, 10 * i + 8, intr - GIC_FIRST_SPI);
+		SET_PROP_U32(prop, 10 * i + 9, IRQ_TYPE_LEVEL_HIGH);
+	}
 
 	fdt_end_node(fdt);
 }
