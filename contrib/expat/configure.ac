@@ -11,7 +11,7 @@ dnl   Copyright (c) 2000      Clark Cooper <coopercc@users.sourceforge.net>
 dnl   Copyright (c) 2000-2005 Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
 dnl   Copyright (c) 2001-2003 Greg Stein <gstein@users.sourceforge.net>
 dnl   Copyright (c) 2006-2012 Karl Waclawek <karl@waclawek.net>
-dnl   Copyright (c) 2016-2022 Sebastian Pipping <sebastian@pipping.org>
+dnl   Copyright (c) 2016-2024 Sebastian Pipping <sebastian@pipping.org>
 dnl   Copyright (c) 2017      S. P. Zeidler <spz@netbsd.org>
 dnl   Copyright (c) 2017      Stephen Groat <stephen@groat.us>
 dnl   Copyright (c) 2017-2020 Joe Orton <jorton@redhat.com>
@@ -60,7 +60,7 @@ m4_define([expat_version],
   m4_ifdef([__gnu__],
            [esyscmd(conftools/get-version.sh lib/expat.h)],
            [2.2.x]))
-AC_INIT([expat], expat_version, [expat-bugs@libexpat.org])
+AC_INIT([expat], expat_version, [https://github.com/libexpat/libexpat/issues])
 m4_undefine([expat_version])
 
 AC_CONFIG_SRCDIR([Makefile.in])
@@ -68,6 +68,7 @@ AC_CONFIG_AUX_DIR([conftools])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_HOST
 AM_INIT_AUTOMAKE
+AM_MAINTAINER_MODE([enable])  # to allow argument --disable-maintainer-mode
 
 
 dnl
@@ -81,9 +82,9 @@ dnl
 dnl If the API changes incompatibly set LIBAGE back to 0
 dnl
 
-LIBCURRENT=9    # sync
-LIBREVISION=10  # with
-LIBAGE=8        # CMakeLists.txt!
+LIBCURRENT=10  # sync
+LIBREVISION=0  # with
+LIBAGE=9       # CMakeLists.txt!
 
 AC_CONFIG_HEADERS([expat_config.h])
 AH_TOP([#ifndef EXPAT_CONFIG_H
@@ -104,6 +105,9 @@ AC_SUBST(LIBAGE)
 
 AC_LANG([C])
 AC_PROG_CC_C99
+
+AS_IF([test "${ac_cv_prog_cc_c99}" = no],
+  [AC_MSG_ERROR([Expat requires a C99 compiler.])])
 
 AS_IF([test "$GCC" = yes],
   [AX_APPEND_COMPILE_FLAGS([-Wall -Wextra], [AM_CFLAGS])
@@ -176,6 +180,8 @@ AC_ARG_WITH([tests],
   [with_tests=yes])
 AM_CONDITIONAL([WITH_TESTS], [test x${with_tests} = xyes])
 
+AS_IF([test x${with_tests} = xyes],
+      [AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])])
 
 AS_VAR_SET([EXPATCFG_ON_MINGW],[no])
 AS_CASE("${host_os}",
@@ -202,14 +208,16 @@ AS_IF([test "x${with_libbsd}" != xno],
      [],
      [AS_IF([test "x${with_libbsd}" = xyes],
         [AC_MSG_ERROR([Enforced use of libbsd cannot be satisfied.])])])])
-AC_MSG_CHECKING([for arc4random_buf (BSD or libbsd)])
+AC_MSG_CHECKING([for arc4random_buf (BSD, libbsd or glibc 2.36+)])
 AC_LINK_IFELSE([AC_LANG_SOURCE([
-    #include <stdlib.h>  /* for arc4random_buf on BSD, for NULL */
     #if defined(HAVE_LIBBSD)
     # include <bsd/stdlib.h>
+    #else
+    # include <stdlib.h>  /* for arc4random_buf on BSD */
     #endif
     int main() {
-      arc4random_buf(NULL, 0U);
+      char dummy[[123]];  // double brackets for m4
+      arc4random_buf(dummy, 0U);
       return 0;
     }
   ])],
@@ -217,7 +225,7 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([
    AC_MSG_RESULT([yes])],
   [AC_MSG_RESULT([no])
 
-   AC_MSG_CHECKING([for arc4random (BSD, macOS or libbsd)])
+   AC_MSG_CHECKING([for arc4random (BSD, macOS, libbsd or glibc 2.36+)])
    AC_LINK_IFELSE([AC_LANG_SOURCE([
        #if defined(HAVE_LIBBSD)
        # include <bsd/stdlib.h>
@@ -295,6 +303,8 @@ AC_SUBST(FILEMAP)
 dnl Some basic configuration:
 AC_DEFINE([XML_NS], 1,
           [Define to make XML Namespaces functionality available.])
+AC_DEFINE([XML_GE], 1,
+          [Define as 1/0 to enable/disable support for general entities.])
 AC_DEFINE([XML_DTD], 1,
           [Define to make parameter entity parsing functionality available.])
 AC_DEFINE([XML_DEV_URANDOM], 1,
@@ -319,9 +329,10 @@ AS_HELP_STRING([--disable-xml-context],
 AS_IF([test "x${enable_xml_context}" != "xno"],
   [AS_IF([test "x${enable_xml_context}" = "xyes" \
             -o "x${enable_xml_context}" = "x"],
-     [AS_VAR_SET(enable_xml_context,1024)])
-   AC_DEFINE_UNQUOTED([XML_CONTEXT_BYTES], [${enable_xml_context}],
-     [Define to specify how much context to retain around the current parse point.])])
+     [AS_VAR_SET(enable_xml_context,1024)])],
+  [AS_VAR_SET(enable_xml_context,0)])
+AC_DEFINE_UNQUOTED([XML_CONTEXT_BYTES], [${enable_xml_context}],
+  [Define to specify how much context to retain around the current parse point, 0 to disable.])
 
 AC_ARG_WITH([docbook],
   [AS_HELP_STRING([--with-docbook],
@@ -345,8 +356,12 @@ AS_IF([test "x${DOCBOOK_TO_MAN}" != x -a "x$with_docbook" != xno],
   You can also configure using --without-docbook if you can do without a man
   page for xmlwf.])])])
 
-AM_CONDITIONAL(WITH_DOCBOOK, [test "x${DOCBOOK_TO_MAN}" != x])
-
+dnl This will make sure that a release tarball shipping a pre-rendered xmlwf man page will
+dnl get it installed, independent of whether some flavor of docbook2man is available.
+dnl This relies on file xmlwf.1 being at least as recent as its source file xmlwf.xml.
+AS_IF([test -f "${srcdir}"/doc/xmlwf.1],
+  [AM_CONDITIONAL(WITH_DOCBOOK, [true])],
+  [AM_CONDITIONAL(WITH_DOCBOOK, [test "x${DOCBOOK_TO_MAN}" != x])])
 
 dnl Configure CMake file templates
 dnl NOTE: The *_TRUE variables read here are Automake conditionals

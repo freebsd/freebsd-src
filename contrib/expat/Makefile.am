@@ -6,9 +6,10 @@
 #                      \___/_/\_\ .__/ \__,_|\__|
 #                               |_| XML parser
 #
-# Copyright (c) 2017-2021 Sebastian Pipping <sebastian@pipping.org>
+# Copyright (c) 2017-2023 Sebastian Pipping <sebastian@pipping.org>
 # Copyright (c) 2018      KangLin <kl222@126.com>
 # Copyright (c) 2022      Johnny Jazeix <jazeix@gmail.com>
+# Copyright (c) 2023      Sony Corporation / Snild Dolkow <snild@sony.com>
 # Licensed under the MIT license:
 #
 # Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -84,7 +85,7 @@ _EXTRA_DIST_WINDOWS = \
     win32/expat.iss \
     win32/MANIFEST.txt \
     win32/README.txt \
-    win32/version.rc
+    win32/version.rc.cmake
 
 EXTRA_DIST = \
     $(_EXTRA_DIST_CMAKE) \
@@ -131,6 +132,11 @@ buildlib:
 run-benchmark:
 	$(MAKE) -C tests/benchmark
 	./run.sh tests/benchmark/benchmark@EXEEXT@ -n $(top_srcdir)/../testdata/largefiles/recset.xml 65535 3
+	./run.sh tests/benchmark/benchmark@EXEEXT@ -n $(top_srcdir)/../testdata/largefiles/aaaaaa_attr.xml 4096 3
+	./run.sh tests/benchmark/benchmark@EXEEXT@ -n $(top_srcdir)/../testdata/largefiles/aaaaaa_cdata.xml 4096 3
+	./run.sh tests/benchmark/benchmark@EXEEXT@ -n $(top_srcdir)/../testdata/largefiles/aaaaaa_comment.xml 4096 3
+	./run.sh tests/benchmark/benchmark@EXEEXT@ -n $(top_srcdir)/../testdata/largefiles/aaaaaa_tag.xml 4096 3
+	./run.sh tests/benchmark/benchmark@EXEEXT@ -n $(top_srcdir)/../testdata/largefiles/aaaaaa_text.xml 4096 3
 
 .PHONY: download-xmlts-zip
 download-xmlts-zip:

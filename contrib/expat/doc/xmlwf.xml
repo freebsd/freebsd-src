@@ -9,7 +9,7 @@
    Copyright (c) 2001      Scott Bronson <bronson@rinspin.com>
    Copyright (c) 2002-2003 Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
    Copyright (c) 2009      Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2022 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2024 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2016      Ardo van Rangelrooij <ardo@debian.org>
    Copyright (c) 2017      Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2020      Joe Orton <jorton@redhat.com>
@@ -21,7 +21,7 @@
           "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd" [
   <!ENTITY dhfirstname "<firstname>Scott</firstname>">
   <!ENTITY dhsurname   "<surname>Bronson</surname>">
-  <!ENTITY dhdate      "<date>October 25, 2022</date>">
+  <!ENTITY dhdate      "<date>February 6, 2024</date>">
   <!-- Please adjust this^^ date whenever cutting a new release. -->
   <!ENTITY dhsection   "<manvolnum>1</manvolnum>">
   <!ENTITY dhemail     "<email>bronson@rinspin.com</email>">
@@ -66,11 +66,17 @@
     </cmdsynopsis>
     <cmdsynopsis>
       <command>&dhpackage;</command>
-      <arg choice="plain"><option>-h</option></arg>
+      <group choice="plain">
+        <arg><option>-h</option></arg>
+        <arg><option>--help</option></arg>
+      </group>
     </cmdsynopsis>
     <cmdsynopsis>
       <command>&dhpackage;</command>
-      <arg choice="plain"><option>-v</option></arg>
+      <group choice="plain">
+        <arg><option>-v</option></arg>
+        <arg><option>--version</option></arg>
+      </group>
     </cmdsynopsis>
   </refsynopsisdiv>
  
@@ -252,6 +258,29 @@ supports both.
       </varlistentry>
 
       <varlistentry>
+        <term><option>-g</option> <replaceable>bytes</replaceable></term>
+        <listitem>
+          <para>
+            Sets the buffer size to request per call pair to
+            <function>XML_GetBuffer</function> and <function>read</function>
+            (default: 8 KiB).
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-h</option></term>
+        <term><option>--help</option></term>
+        <listitem>
+          <para>
+            Prints short usage information on command <command>&dhpackage;</command>,
+            and then exits.
+            Similar to this man page but more concise.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term><option>-k</option></term>
         <listitem>
           <para>
@@ -314,6 +343,16 @@ supports both.
       </varlistentry>
 
       <varlistentry>
+        <term><option>-q</option></term>
+        <listitem>
+          <para>
+            Disable reparse deferral, and allow quadratic parse runtime
+            on large tokens (default: reparse deferral enabled).
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term><option>-r</option></term>
         <listitem>
 		<para>
@@ -362,6 +401,7 @@ supports both.
       
       <varlistentry>
         <term><option>-v</option></term>
+        <term><option>--version</option></term>
         <listitem>
 		<para>
   Prints the version of the Expat library being used, including some
@@ -461,7 +501,7 @@ supports both.
 
   <refsect1>
   <title>EXIT STATUS</title>
-    <para>For option <option>-v</option> or <option>-h</option>, <command>&dhpackage;</command> always exits with status code 0.  For other cases, the following exit status codes are returned:
+    <para>For options <option>-v</option>|<option>--version</option> or <option>-h</option>|<option>--help</option>, <command>&dhpackage;</command> always exits with status code 0.  For other cases, the following exit status codes are returned:
     <variablelist>
       <varlistentry>
         <term><option>0</option></term>

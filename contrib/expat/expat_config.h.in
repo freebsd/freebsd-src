@@ -15,6 +15,9 @@
 /* Define to 1 if you have the `arc4random_buf' function. */
 #undef HAVE_ARC4RANDOM_BUF
 
+/* define if the compiler supports basic C++11 syntax */
+#undef HAVE_CXX11
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
@@ -115,7 +118,7 @@
 #undef XML_ATTR_INFO
 
 /* Define to specify how much context to retain around the current parse
-   point. */
+   point, 0 to disable. */
 #undef XML_CONTEXT_BYTES
 
 /* Define to include code reading entropy from `/dev/urandom'. */
@@ -123,6 +126,9 @@
 
 /* Define to make parameter entity parsing functionality available. */
 #undef XML_DTD
+
+/* Define as 1/0 to enable/disable support for general entities. */
+#undef XML_GE
 
 /* Define to make XML Namespaces functionality available. */
 #undef XML_NS

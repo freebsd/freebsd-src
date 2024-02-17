@@ -11,10 +11,10 @@
    Copyright (c) 2002-2003 Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
    Copyright (c) 2004-2006 Karl Waclawek <karl@waclawek.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
-   Copyright (c) 2016-2021 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2023 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017      Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2019      David Loffredo <loffredo@steptools.com>
-   Copyright (c) 2021      Dong-hee Na <donghee.na@python.org>
+   Copyright (c) 2021      Donghee Na <donghee.na@python.org>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -37,7 +37,7 @@
    USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <expat_config.h>
+#include "expat_config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,11 +71,7 @@
 #  endif
 #endif
 
-#ifdef _DEBUG
-#  define READ_SIZE 16
-#else
-#  define READ_SIZE (1024 * 8)
-#endif
+int g_read_size_bytes = 1024 * 8;
 
 typedef struct {
   XML_Parser parser;
@@ -195,7 +191,7 @@ processStream(const XML_Char *filename, XML_Parser parser) {
   }
   for (;;) {
     int nread;
-    char *buf = (char *)XML_GetBuffer(parser, READ_SIZE);
+    char *buf = (char *)XML_GetBuffer(parser, g_read_size_bytes);
     if (! buf) {
       if (filename != NULL)
         close(fd);
@@ -203,7 +199,7 @@ processStream(const XML_Char *filename, XML_Parser parser) {
                filename != NULL ? filename : T("xmlwf"));
       return 0;
     }
-    nread = read(fd, buf, READ_SIZE);
+    nread = read(fd, buf, g_read_size_bytes);
     if (nread < 0) {
       tperror(filename != NULL ? filename : T("STDIN"));
       if (filename != NULL)
