@@ -370,7 +370,7 @@ iobus_release_resource(device_t bus, device_t child, int type, int rid,
 		return (bus_generic_rman_release_resource(bus, child, type, rid,
 		   res));
 	case SYS_RES_IRQ:
-		return (bus_release_resource(bus, type, rid, res));
+		return (bus_generic_release_resource(bus, child, type, rid, res));
 	default:
 		return (EINVAL);
 	}
@@ -383,7 +383,7 @@ iobus_activate_resource(device_t bus, device_t child, int type, int rid,
 
 	switch (type) {
 	case SYS_RES_IRQ:
-                return (bus_activate_resource(bus, type, rid, res));
+                return (bus_generic_activate_resource(bus, child, type, rid, res));
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		return (bus_generic_rman_activate_resource(bus, child, type,
@@ -400,7 +400,7 @@ iobus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 
 	switch (type) {
 	case SYS_RES_IRQ:
-                return (bus_deactivate_resource(bus, type, rid, res));
+                return (bus_generic_deactivate_resource(bus, child, type, rid, res));
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		return (bus_generic_rman_deactivate_resource(bus, child, type,
