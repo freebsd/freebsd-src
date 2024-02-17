@@ -1,7 +1,4 @@
 /* C++ compilation harness for the test suite.
-
-   This is used to ensure the Expat headers can be included from C++
-   and have everything work as expected.
                             __  __            _
                          ___\ \/ /_ __   __ _| |_
                         / _ \\  /| '_ \ / _` | __|
@@ -9,8 +6,7 @@
                         \___/_/\_\ .__/ \__,_|\__|
                                  |_| XML parser
 
-   Copyright (c) 2005 Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
-   Copyright (c) 2017 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2023 Sebastian Pipping <sebastian@pipping.org>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -33,4 +29,4 @@
    USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include "runtests.c"
+#include "acc_tests.c"
