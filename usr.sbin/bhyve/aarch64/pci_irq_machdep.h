@@ -1,10 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2022 The FreeBSD Foundation
- *
- * This software was developed by Andrew Turner under sponsorship from
- * the FreeBSD Foundation.
+ * Copyright (c) 2024 Jessica Clarke <jrtc27@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -18,7 +15,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -28,20 +25,25 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _FDT_H_
-#define	_FDT_H_
+#ifndef __PCI_IRQ_MD_H__
+#define	__PCI_IRQ_MD_H__
 
-#include <sys/types.h>
+struct pci_irq {
+	int	gic_irq;
+};
 
-struct vmctx;
+void	pci_irq_init(int intrs[static 4]);
 
-int	fdt_init(struct vmctx *ctx, int ncpu, vm_paddr_t addrp,
-	    vm_size_t size);
-void	fdt_add_gic(uint64_t dist_base, uint64_t dist_size,
-	    uint64_t redist_base, uint64_t redist_size);
-void	fdt_add_timer(void);
-void	fdt_add_pcie(int intrs[static 4]);
-void	fdt_add_uart(uint64_t uart_base, uint64_t uart_size, int intr);
-void	fdt_finalize(void);
+static inline void
+pci_irq_init_irq(struct pci_irq *irq)
+{
+	irq->gic_irq = 0;
+}
 
-#endif	/* _FDT_H_ */
+static inline uint8_t
+pci_irq_intline(struct pci_irq *irq __unused)
+{
+	return (255);
+}
+
+#endif

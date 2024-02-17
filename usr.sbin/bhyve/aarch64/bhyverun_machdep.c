@@ -47,6 +47,7 @@
 #include "fdt.h"
 #include "mem.h"
 #include "pci_emul.h"
+#include "pci_irq.h"
 #include "uart_emul.h"
 
 /* Start of mem + 1M */
@@ -63,7 +64,10 @@
 #define	GIC_REDIST_BASE		0x2f100000
 #define	GIC_REDIST_SIZE(ncpu)	((ncpu) * 2 * PAGE_SIZE_64K)
 
-#define	PCIE_INTR	33
+#define	PCIE_INTA	34
+#define	PCIE_INTB	35
+#define	PCIE_INTC	36
+#define	PCIE_INTD	37
 
 void
 bhyve_init_config(void)
@@ -295,6 +299,7 @@ bhyve_init_platform(struct vmctx *ctx, struct vcpu *bsp)
 	const char *bootrom;
 	uint64_t elr;
 	int error;
+	int pcie_intrs[4] = {PCIE_INTA, PCIE_INTB, PCIE_INTC, PCIE_INTD};
 
 	bootrom = get_config_value("bootrom");
 	if (bootrom == NULL) {
@@ -324,7 +329,8 @@ bhyve_init_platform(struct vmctx *ctx, struct vcpu *bsp)
 	if (init_mmio_uart(ctx))
 		fdt_add_uart(UART_MMIO_BASE, UART_MMIO_SIZE, UART_INTR);
 	fdt_add_timer();
-	fdt_add_pcie(PCIE_INTR);
+	pci_irq_init(pcie_intrs);
+	fdt_add_pcie(pcie_intrs);
 
 	return (0);
 }

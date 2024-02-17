@@ -37,9 +37,14 @@ SRCS=	\
 	net_backend_slirp.c	\
 	net_backends.c		\
 	net_utils.c		\
+	pci_ahci.c		\
+	pci_e82545.c		\
 	pci_emul.c		\
+	pci_hda.c		\
 	pci_hostbridge.c	\
+	pci_irq.c		\
 	pci_nvme.c		\
+	pci_uart.c		\
 	pci_virtio_9p.c		\
 	pci_virtio_block.c	\
 	pci_virtio_console.c	\
@@ -47,6 +52,7 @@ SRCS=	\
 	pci_virtio_net.c	\
 	pci_virtio_rnd.c	\
 	pci_virtio_scsi.c	\
+	pci_xhci.c		\
 	qemu_fwcfg.c		\
 	qemu_loader.c		\
 	smbiostbl.c		\

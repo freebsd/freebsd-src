@@ -40,6 +40,8 @@
 
 #include <assert.h>
 
+#include "pci_irq.h"
+
 #define	PCI_BARMAX	PCIR_MAX_BAR_0	/* BAR registers in a Type 0 header */
 #define PCI_BARMAX_WITH_ROM (PCI_BARMAX + 1)
 #define PCI_ROM_IDX (PCI_BARMAX + 1)
@@ -124,7 +126,6 @@ struct pci_devinst {
 	int	  pi_prevcap;
 	int	  pi_capend;
 
-#ifdef __amd64__
 	struct {
 		int8_t    	pin;
 		enum {
@@ -132,11 +133,9 @@ struct pci_devinst {
 			ASSERTED,
 			PENDING,
 		} state;
-		int		pirq_pin;
-		int	  	ioapic_irq;
+		struct pci_irq	irq;
 		pthread_mutex_t	lock;
 	} pi_lintr;
-#endif
 
 	struct {
 		int		enabled;
@@ -221,15 +220,13 @@ struct pciecap {
 } __packed;
 static_assert(sizeof(struct pciecap) == 60, "compile-time assertion failed");
 
-#ifdef __amd64__
-typedef void (*pci_lintr_cb)(int b, int s, int pin, int pirq_pin,
-    int ioapic_irq, void *arg);
+typedef void (*pci_lintr_cb)(int b, int s, int pin, struct pci_irq *irq,
+    void *arg);
 void	pci_lintr_assert(struct pci_devinst *pi);
 void	pci_lintr_deassert(struct pci_devinst *pi);
 void	pci_lintr_request(struct pci_devinst *pi);
 int	pci_count_lintr(int bus);
 void	pci_walk_lintr(int bus, pci_lintr_cb cb, void *arg);
-#endif
 
 int	init_pci(struct vmctx *ctx);
 void	pci_callback(void);
