@@ -6,8 +6,8 @@
 #                      \___/_/\_\ .__/ \__,_|\__|
 #                               |_| XML parser
 #
-# Copyright (c) 2017-2021 Sebastian Pipping <sebastian@pipping.org>
-# Copyright (c) 2017      Rhodri James <rhodri@wildebeest.org.uk>
+# Copyright (c) 2017-2023 Sebastian Pipping <sebastian@pipping.org>
+# Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
 # Copyright (c) 2020      Jeffrey Walton <noloader@gmail.com>
 # Licensed under the MIT license:
 #
@@ -34,34 +34,61 @@ SUBDIRS = . benchmark
 
 AM_CPPFLAGS = @AM_CPPFLAGS@ -I$(srcdir)/../lib
 
-noinst_LIBRARIES = libruntests.a
-
-check_PROGRAMS = runtests runtestspp
-TESTS = runtests runtestspp
+check_PROGRAMS = runtests runtests_cxx
+TESTS = runtests runtests_cxx
 
 # To support MinGW and Non-MinGW at the same time:
 LOG_DRIVER = $(srcdir)/../test-driver-wrapper.sh
 
-libruntests_a_SOURCES = \
-    chardata.c \
-    structdata.c \
-    memcheck.c \
-    minicheck.c
-
 runtests_SOURCES = \
-    runtests.c
+    acc_tests.c \
+    alloc_tests.c \
+    basic_tests.c \
+    chardata.c \
+    common.c \
+    dummy.c \
+    handlers.c \
+    memcheck.c \
+    minicheck.c \
+    misc_tests.c \
+    ns_tests.c \
+    nsalloc_tests.c \
+    runtests.c \
+    structdata.c
 
-runtestspp_SOURCES = \
-    runtestspp.cpp
+runtests_cxx_SOURCES = \
+    acc_tests_cxx.cpp \
+    alloc_tests_cxx.cpp \
+    basic_tests_cxx.cpp \
+    chardata_cxx.cpp \
+    common_cxx.cpp \
+    dummy_cxx.cpp \
+    handlers_cxx.cpp \
+    memcheck_cxx.cpp \
+    minicheck_cxx.cpp \
+    misc_tests_cxx.cpp \
+    nsalloc_tests_cxx.cpp \
+    ns_tests_cxx.cpp \
+    runtests_cxx.cpp \
+    structdata_cxx.cpp
 
-runtests_LDADD = libruntests.a ../lib/libexpatinternal.la
-runtestspp_LDADD = libruntests.a ../lib/libexpatinternal.la
+runtests_LDADD = ../lib/libexpatinternal.la
+runtests_cxx_LDADD = ../lib/libexpatinternal.la
 
 runtests_LDFLAGS = @AM_LDFLAGS@ @LIBM@
-runtestspp_LDFLAGS = @AM_LDFLAGS@ @LIBM@
+runtests_cxx_LDFLAGS = @AM_LDFLAGS@ @LIBM@
 
 EXTRA_DIST = \
+    acc_tests.h \
+    alloc_tests.h \
+    basic_tests.h \
     chardata.h \
+    common.h \
+    dummy.h \
+    handlers.h \
+    misc_tests.h \
+    ns_tests.h \
+    nsalloc_tests.h \
     structdata.h \
     minicheck.h \
     memcheck.h \
