@@ -755,7 +755,7 @@ pic_lookup_locked(device_t dev, intptr_t xref, u_int flags)
 
 	/* Note that pic->pic_dev is never NULL on registered PIC. */
 	SLIST_FOREACH(pic, &pic_list, pic_next) {
-		if ((pic->pic_flags & FLAG_TYPE_MASK) !=
+		if ((pic->pic_flags & flags & FLAG_TYPE_MASK) !=
 		    (flags & FLAG_TYPE_MASK))
 			continue;
 
@@ -797,7 +797,7 @@ pic_lookup_dev(device_t dev, intptr_t xref, u_int flags)
 	if (__predict_false(pic == NULL))
 		return (NULL);
 
-	KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == (flags & FLAG_TYPE_MASK),
+	KASSERT((pic->pic_flags & flags & FLAG_TYPE_MASK) == (flags & FLAG_TYPE_MASK),
 	    ("%s: Found wrong type of controler: %s (flags = %u, type = %u)",
 	    __func__, device_get_name(pic->pic_dev), flags & FLAG_TYPE_MASK,
 	    pic->pic_flags & FLAG_TYPE_MASK));
@@ -813,8 +813,9 @@ pic_create(device_t dev, intptr_t xref, u_int flags)
 	struct intr_pic *pic;
 
 	mtx_lock(&pic_list_lock);
-	pic = pic_lookup_locked(dev, xref, flags);
+	pic = pic_lookup_locked(dev, xref, flags & ~FLAG_TYPE_MASK);
 	if (pic != NULL) {
+		pic->pic_flags |= flags & FLAG_TYPE_MASK;
 		mtx_unlock(&pic_list_lock);
 		return (pic);
 	}
