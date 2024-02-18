@@ -37,13 +37,27 @@ LOADERSIZE?=	560000		# Largest known safe size for loader.bin
 .PATH:		${BOOTSRC}/i386/loader
 
 # architecture-specific loader code
-SRCS=		main.c conf.c vers.c chain.c gfx_fb.c 8x16.c
+SRCS+=		chain.c
+SRCS+=		conf.c
+SRCS+=		gfx_bios.c
+SRCS+=		main.c
+SRCS+=		vers.c
+
+.if ${MK_LOADER_BIOS_TEXTONLY} == "no"
+SRCS+=		gfx_fb.c
+SRCS+=		8x16.c
 
 CFLAGS.gfx_fb.c += -I${.CURDIR}/../libi386
 CFLAGS.gfx_fb.c += -I$(SRCTOP)/sys/teken
 CFLAGS.gfx_fb.c += -I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
 CFLAGS.gfx_fb.c += -I${SRCTOP}/contrib/pnglite
 CFLAGS.gfx_fb.c += -DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib
+CFLAGS.gfx_bios.c += -I$(SRCTOP)/sys/teken
+CFLAGS.gfx_bios.c += -I${SRCTOP}/contrib/pnglite
+.else
+CFLAGS.gfx_bios.c += -DBIOS_TEXT_ONLY
+CFLAGS.conf.c	+= -DBIOS_TEXT_ONLY
+.endif
 
 # Include bcache code.
 HAVE_BCACHE=	yes
