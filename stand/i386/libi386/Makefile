@@ -28,6 +28,7 @@ SRCS+=	pxetramp.S
 SRCS+=	relocater_tramp.S
 SRCS+=	spinconsole.c
 SRCS+=	time.c
+SRCS+=	textvidc.c
 SRCS+=	vbe.c
 SRCS+=	vidconsole.c
 
@@ -55,6 +56,8 @@ CFLAGS.vidconsole.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
 CFLAGS.teken.c+= -I${SRCTOP}/sys/teken
 CFLAGS.bootinfo.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
 CFLAGS.vbe.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
+
+CFLAGS.textvidc.c+= -DTERM_EMU
 
 CFLAGS+=	-I${LDRSRC} -I${BOOTSRC}/i386/common \
 		-I${SYSDIR}/contrib/dev/acpica/include
