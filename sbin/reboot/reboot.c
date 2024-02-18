@@ -35,7 +35,6 @@
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 
 #include <err.h>
