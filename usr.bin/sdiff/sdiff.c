@@ -51,7 +51,7 @@ static void astrcat(char **, const char *);
 static void enqueue(char *, char, char *);
 static char *mktmpcpy(const char *);
 static int istextfile(FILE *);
-static void binexec(char *, char *, char *) __dead2;
+static int bindiff(FILE *, char *, FILE *, char *);
 static void freediff(struct diffline *);
 static void int_usage(void);
 static int parsecmd(FILE *, FILE *, FILE *);
@@ -72,6 +72,8 @@ static size_t file1ln, file2ln;	/* line number of file1 and file2 */
 static bool Iflag;		/* ignore sets matching regexp */
 static bool lflag;		/* print only left column for identical lines */
 static bool sflag;		/* skip identical lines */
+static bool tflag;		/* expand tabs */
+static int tabsize = 8;		/* tab size */
 FILE *outfp;			/* file to save changes to */
 const char *tmpdir;		/* TMPDIR or /tmp */
 
@@ -127,8 +129,8 @@ static const char *help_msg[] = {
 	"\t-d, --minimal: minimize diff size.",
 	"\t-I RE, --ignore-matching-lines=RE: ignore changes whose line matches RE.",
 	"\t-i, --ignore-case: do a case-insensitive comparison.",
-	"\t-t, --expand-tabs: sxpand tabs to spaces.",
-	"\t-W, --ignore-all-spaces: ignore all spaces.",
+	"\t-t, --expand-tabs: expand tabs to spaces.",
+	"\t-W, --ignore-all-space: ignore all whitespace.",
 	"\t--speed-large-files: assume large file with scattered changes.",
 	"\t--strip-trailing-cr: strip trailing carriage return.",
 	"\t--ignore-file-name-case: ignore case of file names.",
@@ -208,7 +210,7 @@ main(int argc, char **argv)
 {
 	FILE *diffpipe, *file1, *file2;
 	size_t diffargc = 0, flagc = 0, wval = WIDTH;
-	int ch, fd[2], i, status;
+	int ch, fd[2], i, ret, status;
 	pid_t pid;
 	const char *errstr, *outfile = NULL;
 	char **diffargv, *diffprog = diff_path, *flagv;
@@ -247,7 +249,6 @@ main(int argc, char **argv)
 		case FCASE_IGNORE_OPT:
 		case FCASE_SENSITIVE_OPT:
 		case STRIPCR_OPT:
-		case TSIZE_OPT:
 		case 'S':
 		break;
 		/* combine no-arg single switches */
@@ -257,7 +258,6 @@ main(int argc, char **argv)
 		case 'd':
 		case 'E':
 		case 'i':
-		case 't':
 		case 'W':
 			flagc++;
 			flagv = realloc(flagv, flagc + 2);
@@ -287,6 +287,9 @@ main(int argc, char **argv)
 		case 's':
 			sflag = true;
 			break;
+		case 't':
+			tflag = true;
+			break;
 		case 'w':
 			wval = strtonum(optarg, WIDTH_MIN,
 			    INT_MAX, &errstr);
@@ -297,6 +300,11 @@ main(int argc, char **argv)
 			for (i = 0; help_msg[i] != NULL; i++)
 				printf("%s\n", help_msg[i]);
 			exit(0);
+			break;
+		case TSIZE_OPT:
+			tabsize = strtonum(optarg, 1, INT_MAX, &errstr);
+			if (errstr)
+				errx(2, "tabsize is %s: %s", errstr, optarg);
 			break;
 		default:
 			usage();
@@ -348,6 +356,15 @@ main(int argc, char **argv)
 			filename2 = tmp2;
 	}
 
+	if ((file1 = fopen(filename1, "r")) == NULL)
+		err(2, "could not open %s", filename1);
+	if ((file2 = fopen(filename2, "r")) == NULL)
+		err(2, "could not open %s", filename2);
+	if (!istextfile(file1) || !istextfile(file2)) {
+		ret = bindiff(file1, filename1, file2, filename2);
+		goto done;
+	}
+
 	diffargv[diffargc++] = filename1;
 	diffargv[diffargc++] = filename2;
 	/* Add NULL to end of array to indicate end of array. */
@@ -385,26 +402,6 @@ main(int argc, char **argv)
 	if ((diffpipe = fdopen(fd[0], "r")) == NULL)
 		err(2, "could not open diff pipe");
 
-	if ((file1 = fopen(filename1, "r")) == NULL)
-		err(2, "could not open %s", filename1);
-	if ((file2 = fopen(filename2, "r")) == NULL)
-		err(2, "could not open %s", filename2);
-	if (!istextfile(file1) || !istextfile(file2)) {
-		/* Close open files and pipe, delete temps */
-		fclose(file1);
-		fclose(file2);
-		if (diffpipe != NULL)
-			fclose(diffpipe);
-		if (tmp1)
-			if (unlink(tmp1))
-				warn("Error deleting %s.", tmp1);
-		if (tmp2)
-			if (unlink(tmp2))
-				warn("Error deleting %s.", tmp2);
-		free(tmp1);
-		free(tmp2);
-		binexec(diffprog, filename1, filename2);
-	}
 	/* Line numbers start at one. */
 	file1ln = file2ln = 1;
 
@@ -416,20 +413,10 @@ main(int argc, char **argv)
 	/* Wait for diff to exit. */
 	if (waitpid(pid, &status, 0) == -1 || !WIFEXITED(status) ||
 	    WEXITSTATUS(status) >= 2)
-		err(2, "diff exited abnormally.");
+		errx(2, "diff exited abnormally");
+	ret = WEXITSTATUS(status);
 
-	/* Delete and free unneeded temporary files. */
-	if (tmp1)
-		if (unlink(tmp1))
-			warn("Error deleting %s.", tmp1);
-	if (tmp2)
-		if (unlink(tmp2))
-			warn("Error deleting %s.", tmp2);
-	free(tmp1);
-	free(tmp2);
-	filename1 = filename2 = tmp1 = tmp2 = NULL;
-
-	/* No more diffs, so print common lines. */
+	/* No more diffs, so enqueue common lines. */
 	if (lflag)
 		while ((s1 = xfgets(file1)))
 			enqueue(s1, ' ', NULL);
@@ -447,26 +434,55 @@ main(int argc, char **argv)
 	/* Process unmodified lines. */
 	processq();
 
+done:
+	/* Delete and free unneeded temporary files. */
+	if (tmp1 != NULL) {
+		if (unlink(tmp1) != 0)
+			warn("failed to delete %s", tmp1);
+		free(tmp1);
+	}
+	if (tmp2 != NULL) {
+		if (unlink(tmp2) != 0)
+			warn("failed to delete %s", tmp2);
+		free(tmp2);
+	}
+
 	/* Return diff exit status. */
 	free(diffargv);
 	if (flagc > 0)
 		free(flagv);
-	return (WEXITSTATUS(status));
+	return (ret);
 }
 
 /*
- * When sdiff detects a binary file as input, executes them with
- * diff to maintain the same behavior as GNU sdiff with binary input.
+ * When sdiff detects a binary file as input.
  */
-static void
-binexec(char *diffprog, char *f1, char *f2)
+static int
+bindiff(FILE *f1, char *fn1, FILE *f2, char *fn2)
 {
+	int ch1, ch2;
 
-	char *args[] = {diffprog, f1, f2, (char *) 0};
-	execv(diffprog, args);
-
-	/* If execv() fails, sdiff's execution will continue below. */
-	errx(1, "could not execute diff process");
+	flockfile(f1);
+	flockfile(f2);
+	do {
+		ch1 = getc_unlocked(f1);
+		ch2 = getc_unlocked(f2);
+	} while (ch1 != EOF && ch2 != EOF && ch1 == ch2);
+	funlockfile(f2);
+	funlockfile(f1);
+	if (ferror(f1)) {
+		warn("%s", fn1);
+		return (2);
+	}
+	if (ferror(f2)) {
+		warn("%s", fn2);
+		return (2);
+	}
+	if (ch1 != EOF || ch2 != EOF) {
+		printf("Binary files %s and %s differ\n", fn1, fn2);
+		return (1);
+	}
+	return (0);
 }
 
 /*
@@ -512,11 +528,11 @@ printcol(const char *s, size_t *col, const size_t col_max)
 			 * If rounding to next multiple of eight causes
 			 * an integer overflow, just return.
 			 */
-			if (*col > SIZE_MAX - 8)
+			if (*col > SIZE_MAX - tabsize)
 				return;
 
 			/* Round to next multiple of eight. */
-			new_col = (*col / 8 + 1) * 8;
+			new_col = (*col / tabsize + 1) * tabsize;
 
 			/*
 			 * If printing the tab goes past the column
@@ -524,12 +540,20 @@ printcol(const char *s, size_t *col, const size_t col_max)
 			 */
 			if (new_col > col_max)
 				return;
-			*col = new_col;
+
+			if (tflag) {
+				do {
+					putchar(' ');
+				} while (++*col < new_col);
+			} else {
+				putchar(*s);
+				*col = new_col;
+			}
 			break;
 		default:
-			++(*col);
+			++*col;
+			putchar(*s);
 		}
-		putchar(*s);
 	}
 }
 
