@@ -611,7 +611,7 @@ struct ieee80211vap {
 	struct ieee80211_rx_histogram	*rx_histogram;
 	struct ieee80211_tx_histogram	*tx_histogram;
 
-	uint64_t		iv_spare[6];
+	uint64_t		iv_spare[36];
 };
 MALLOC_DECLARE(M_80211_VAP);
 
