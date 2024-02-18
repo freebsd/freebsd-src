@@ -1246,11 +1246,13 @@ tzparse(const char *name, struct state *sp, struct state const *basep)
 			do {
 			  int_fast32_t yearsecs
 			    = year_lengths[isleap(yearbeg - 1)] * SECSPERDAY;
+			  time_t janfirst1 = janfirst;
 			  yearbeg--;
-			  if (increment_overflow_time(&janfirst, -yearsecs)) {
+			  if (increment_overflow_time(&janfirst1, -yearsecs)) {
 			    janoffset = -yearsecs;
 			    break;
 			  }
+			  janfirst = janfirst1;
 			} while (atlo < janfirst
 				 && EPOCH_YEAR - YEARSPERREPEAT / 2 < yearbeg);
 
