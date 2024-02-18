@@ -108,7 +108,7 @@ rk8xx_poweroff(void *arg, int howto)
 	int error;
 	uint8_t val;
 
-	if (howto & (RB_POWEROFF | RB_POWERCYCLE) == 0)
+	if ((howto & (RB_POWEROFF | RB_POWERCYCLE)) == 0)
 		return;
 
 	device_printf(sc->dev, "Powering off...\n");
