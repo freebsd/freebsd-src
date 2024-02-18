@@ -71,6 +71,8 @@ static size_t file1ln, file2ln;	/* line number of file1 and file2 */
 static bool Iflag;		/* ignore sets matching regexp */
 static bool lflag;		/* print only left column for identical lines */
 static bool sflag;		/* skip identical lines */
+static bool tflag;		/* expand tabs */
+static int tabsize = 8;		/* tab size */
 FILE *outfp;			/* file to save changes to */
 const char *tmpdir;		/* TMPDIR or /tmp */
 
@@ -126,7 +128,7 @@ static const char *help_msg[] = {
 	"\t-d, --minimal: minimize diff size.",
 	"\t-I RE, --ignore-matching-lines=RE: ignore changes whose line matches RE.",
 	"\t-i, --ignore-case: do a case-insensitive comparison.",
-	"\t-t, --expand-tabs: sxpand tabs to spaces.",
+	"\t-t, --expand-tabs: expand tabs to spaces.",
 	"\t-W, --ignore-all-spaces: ignore all spaces.",
 	"\t--speed-large-files: assume large file with scattered changes.",
 	"\t--strip-trailing-cr: strip trailing carriage return.",
@@ -246,7 +248,6 @@ main(int argc, char **argv)
 		case FCASE_IGNORE_OPT:
 		case FCASE_SENSITIVE_OPT:
 		case STRIPCR_OPT:
-		case TSIZE_OPT:
 		case 'S':
 		break;
 		/* combine no-arg single switches */
@@ -256,7 +257,6 @@ main(int argc, char **argv)
 		case 'd':
 		case 'E':
 		case 'i':
-		case 't':
 		case 'W':
 			flagc++;
 			flagv = realloc(flagv, flagc + 2);
@@ -286,6 +286,9 @@ main(int argc, char **argv)
 		case 's':
 			sflag = true;
 			break;
+		case 't':
+			tflag = true;
+			break;
 		case 'w':
 			wval = strtonum(optarg, WIDTH_MIN,
 			    INT_MAX, &errstr);
@@ -296,6 +299,11 @@ main(int argc, char **argv)
 			for (i = 0; help_msg[i] != NULL; i++)
 				printf("%s\n", help_msg[i]);
 			exit(0);
+			break;
+		case TSIZE_OPT:
+			tabsize = strtonum(optarg, 1, INT_MAX, &errstr);
+			if (errstr)
+				errx(2, "tabsize is %s: %s", errstr, optarg);
 			break;
 		default:
 			usage();
@@ -511,11 +519,11 @@ printcol(const char *s, size_t *col, const size_t col_max)
 			 * If rounding to next multiple of eight causes
 			 * an integer overflow, just return.
 			 */
-			if (*col > SIZE_MAX - 8)
+			if (*col > SIZE_MAX - tabsize)
 				return;
 
 			/* Round to next multiple of eight. */
-			new_col = (*col / 8 + 1) * 8;
+			new_col = (*col / tabsize + 1) * tabsize;
 
 			/*
 			 * If printing the tab goes past the column
@@ -523,12 +531,20 @@ printcol(const char *s, size_t *col, const size_t col_max)
 			 */
 			if (new_col > col_max)
 				return;
-			*col = new_col;
+
+			if (tflag) {
+				do {
+					putchar(' ');
+				} while (++*col < new_col);
+			} else {
+				putchar(*s);
+				*col = new_col;
+			}
 			break;
 		default:
-			++(*col);
+			++*col;
+			putchar(*s);
 		}
-		putchar(*s);
 	}
 }
 
