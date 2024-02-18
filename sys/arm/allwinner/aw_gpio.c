@@ -654,17 +654,29 @@ aw_gpio_pin_get_locked(struct aw_gpio_softc *sc,uint32_t pin,
     unsigned int *val)
 {
 	uint32_t bank, reg_data;
+	int32_t func;
+	int err;
 
 	AW_GPIO_LOCK_ASSERT(sc);
 
 	if (pin > sc->conf->padconf->npins)
 		return (EINVAL);
 
+	func = aw_gpio_get_function(sc, pin);
+	if (func == sc->conf->padconf->pins[pin].eint_func) {	/* "pl_eintX */
+		err = aw_gpio_set_function(sc, pin, AW_GPIO_INPUT);
+		if (err != 0)
+			return (err);
+	}
+
 	bank = sc->conf->padconf->pins[pin].port;
 	pin = sc->conf->padconf->pins[pin].pin;
 
 	reg_data = AW_GPIO_READ(sc, AW_GPIO_GP_DAT(bank));
 	*val = (reg_data & (1 << pin)) ? 1 : 0;
+
+	if (func == sc->conf->padconf->pins[pin].eint_func)
+		(void)aw_gpio_set_function(sc, pin, func);
 
 	return (0);
 }
