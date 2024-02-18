@@ -79,7 +79,7 @@
 static int
 unionfs_lookup(struct vop_cachedlookup_args *ap)
 {
-	struct unionfs_node *dunp;
+	struct unionfs_node *dunp, *unp;
 	struct vnode   *dvp, *udvp, *ldvp, *vp, *uvp, *lvp, *dtmpvp;
 	struct vattr	va;
 	struct componentname *cnp;
@@ -139,6 +139,9 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 		if (dtmpvp == udvp && ldvp != NULLVP) {
 			VOP_UNLOCK(udvp);
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
+			dunp = VTOUNIONFS(dvp);
+			if (error == 0 && dunp == NULL)
+				error = ENOENT;
 		}
 
 		if (error == 0) {
@@ -152,14 +155,15 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 				VOP_UNLOCK(vp);
 			vrele(vp);
 
+			dtmpvp = dunp->un_dvp;
+			vref(dtmpvp);
 			VOP_UNLOCK(dvp);
-			*(ap->a_vpp) = dunp->un_dvp;
-			vref(dunp->un_dvp);
+			*(ap->a_vpp) = dtmpvp;
 
 			if (nameiop == DELETE || nameiop == RENAME)
-				vn_lock(dunp->un_dvp, LK_EXCLUSIVE | LK_RETRY);
+				vn_lock(dtmpvp, LK_EXCLUSIVE | LK_RETRY);
 			else if (cnp->cn_lkflags & LK_TYPE_MASK)
-				vn_lock(dunp->un_dvp, cnp->cn_lkflags |
+				vn_lock(dtmpvp, cnp->cn_lkflags |
 				    LK_RETRY);
 
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
@@ -272,8 +276,12 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			lockflag = 1;
 		}
-		error = unionfs_mkshadowdir(MOUNTTOUNIONFSMOUNT(dvp->v_mount),
-		    udvp, VTOUNIONFS(vp), cnp, td);
+		unp = VTOUNIONFS(vp);
+		if (unp == NULL)
+			error = ENOENT;
+		else
+			error = unionfs_mkshadowdir(MOUNTTOUNIONFSMOUNT(dvp->v_mount),
+			    udvp, unp, cnp, td);
 		if (lockflag != 0)
 			VOP_UNLOCK(vp);
 		if (error != 0) {
