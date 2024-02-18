@@ -142,8 +142,10 @@ const struct cfg80211_ops linuxkpi_mac80211cfgops = {
 	 */
 };
 
+#if 0
 static struct lkpi_sta *lkpi_find_lsta_by_ni(struct lkpi_vif *,
     struct ieee80211_node *);
+#endif
 static void lkpi_80211_txq_task(void *, int);
 static void lkpi_80211_lhw_rxq_task(void *, int);
 static void lkpi_ieee80211_free_skb_mbuf(void *);
@@ -3584,6 +3586,7 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 	struct ieee80211_tx_info *info;
 	struct ieee80211_sta *sta;
 	struct ieee80211_hdr *hdr;
+	struct lkpi_txq *ltxq;
 	void *buf;
 	uint8_t ac, tid;
 
@@ -3694,54 +3697,45 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 #endif
 #endif
 
-	lsta = lkpi_find_lsta_by_ni(lvif, ni);
-	if (lsta != NULL) {
-		sta = LSTA_TO_STA(lsta);
+	sta = LSTA_TO_STA(lsta);
 #ifdef LKPI_80211_HW_CRYPTO
-		info->control.hw_key = lsta->kc;
+	info->control.hw_key = lsta->kc;
 #endif
-	} else {
-		sta = NULL;
-	}
 
 	IMPROVE();
 
-	if (sta != NULL) {
-		struct lkpi_txq *ltxq;
-
-		ltxq = NULL;
-		if (!ieee80211_is_data_present(hdr->frame_control)) {
-			if (vif->type == NL80211_IFTYPE_STATION &&
-			    lsta->added_to_drv &&
-			    sta->txq[IEEE80211_NUM_TIDS] != NULL)
-				ltxq = TXQ_TO_LTXQ(sta->txq[IEEE80211_NUM_TIDS]);
-		} else if (lsta->added_to_drv &&
-		    sta->txq[skb->priority] != NULL) {
-			ltxq = TXQ_TO_LTXQ(sta->txq[skb->priority]);
-		}
-		if (ltxq == NULL)
-			goto ops_tx;
-
-		KASSERT(ltxq != NULL, ("%s: lsta %p sta %p m %p skb %p "
-		    "ltxq %p != NULL\n", __func__, lsta, sta, m, skb, ltxq));
-
-		LKPI_80211_LTXQ_LOCK(ltxq);
-		skb_queue_tail(&ltxq->skbq, skb);
-#ifdef LINUXKPI_DEBUG_80211
-		if (linuxkpi_debug_80211 & D80211_TRACE_TX)
-			printf("%s:%d mo_wake_tx_queue :: %d %u lsta %p sta %p "
-			    "ni %p %6D skb %p lxtq %p { qlen %u, ac %d tid %u } "
-			    "WAKE_TX_Q ac %d prio %u qmap %u\n",
-			    __func__, __LINE__,
-			    curthread->td_tid, (unsigned int)ticks,
-			    lsta, sta, ni, ni->ni_macaddr, ":", skb, ltxq,
-			    skb_queue_len(&ltxq->skbq), ltxq->txq.ac,
-			    ltxq->txq.tid, ac, skb->priority, skb->qmap);
-#endif
-		LKPI_80211_LTXQ_UNLOCK(ltxq);
-		lkpi_80211_mo_wake_tx_queue(hw, &ltxq->txq);
-		return;
+	ltxq = NULL;
+	if (!ieee80211_is_data_present(hdr->frame_control)) {
+		if (vif->type == NL80211_IFTYPE_STATION &&
+		    lsta->added_to_drv &&
+		    sta->txq[IEEE80211_NUM_TIDS] != NULL)
+			ltxq = TXQ_TO_LTXQ(sta->txq[IEEE80211_NUM_TIDS]);
+	} else if (lsta->added_to_drv &&
+	    sta->txq[skb->priority] != NULL) {
+		ltxq = TXQ_TO_LTXQ(sta->txq[skb->priority]);
 	}
+	if (ltxq == NULL)
+		goto ops_tx;
+
+	KASSERT(ltxq != NULL, ("%s: lsta %p sta %p m %p skb %p "
+	    "ltxq %p != NULL\n", __func__, lsta, sta, m, skb, ltxq));
+
+	LKPI_80211_LTXQ_LOCK(ltxq);
+	skb_queue_tail(&ltxq->skbq, skb);
+#ifdef LINUXKPI_DEBUG_80211
+	if (linuxkpi_debug_80211 & D80211_TRACE_TX)
+		printf("%s:%d mo_wake_tx_queue :: %d %u lsta %p sta %p "
+		    "ni %p %6D skb %p lxtq %p { qlen %u, ac %d tid %u } "
+		    "WAKE_TX_Q ac %d prio %u qmap %u\n",
+		    __func__, __LINE__,
+		    curthread->td_tid, (unsigned int)ticks,
+		    lsta, sta, ni, ni->ni_macaddr, ":", skb, ltxq,
+		    skb_queue_len(&ltxq->skbq), ltxq->txq.ac,
+		    ltxq->txq.tid, ac, skb->priority, skb->qmap);
+#endif
+	LKPI_80211_LTXQ_UNLOCK(ltxq);
+	lkpi_80211_mo_wake_tx_queue(hw, &ltxq->txq);
+	return;
 
 ops_tx:
 #ifdef LINUXKPI_DEBUG_80211
@@ -3753,9 +3747,7 @@ ops_tx:
 #endif
 	memset(&control, 0, sizeof(control));
 	control.sta = sta;
-
 	lkpi_80211_mo_tx(hw, &control, skb);
-	return;
 }
 
 static void
@@ -5225,6 +5217,7 @@ linuxkpi_ieee80211_frequency_to_channel(uint32_t freq, uint32_t flags __unused)
 	return (ieee80211_mhz2ieee(freq, 0));
 }
 
+#if 0
 static struct lkpi_sta *
 lkpi_find_lsta_by_ni(struct lkpi_vif *lvif, struct ieee80211_node *ni)
 {
@@ -5241,6 +5234,7 @@ lkpi_find_lsta_by_ni(struct lkpi_vif *lvif, struct ieee80211_node *ni)
 
 	return (NULL);
 }
+#endif
 
 struct ieee80211_sta *
 linuxkpi_ieee80211_find_sta(struct ieee80211_vif *vif, const u8 *peer)
