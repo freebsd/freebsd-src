@@ -51,6 +51,8 @@
 #include <unistd.h>
 #include <utmpx.h>
 
+extern char **environ;
+
 #define PATH_NEXTBOOT "/boot/nextboot.conf"
 
 static void usage(void) __dead2;
@@ -84,7 +86,6 @@ zfsbootcfg(const char *pool, bool force)
 	};
 	int rv, status;
 	pid_t p;
-	extern char **environ;
 
 	rv = posix_spawnp(&p, av[0], NULL, NULL, __DECONST(char **, av),
 	    environ);
