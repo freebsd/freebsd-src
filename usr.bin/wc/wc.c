@@ -117,8 +117,6 @@ main(int argc, char *argv[])
 	argv += optind;
 	argc -= optind;
 
-	(void)signal(SIGINFO, siginfo_handler);
-
 	fa = fileargs_init(argc, argv, O_RDONLY, 0,
 	    cap_rights_init(&rights, CAP_READ, CAP_FSTAT), FA_OPEN);
 	if (fa == NULL)
@@ -137,6 +135,7 @@ main(int argc, char *argv[])
 	xo_open_container("wc");
 	xo_open_list("file");
 
+	(void)signal(SIGINFO, siginfo_handler);
 	errors = 0;
 	total = 0;
 	if (argc == 0) {
