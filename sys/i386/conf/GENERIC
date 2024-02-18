@@ -250,7 +250,6 @@ device		wlan_amrr		# AMRR transmit rate control algorithm
 device		ath			# Atheros CardBus/PCI NICs
 device		ath_hal			# Atheros CardBus/PCI chip support
 options 	AH_AR5416_INTERRUPT_MITIGATION # AR5416 interrupt mitigation
-options 	ATH_ENABLE_11N		# Enable 802.11n support for AR5416 and later
 device		ath_rate_sample		# SampleRate tx rate control for ath
 #device		bwi			# Broadcom BCM430x/BCM431x wireless NICs.
 #device		bwn			# Broadcom BCM43xx wireless NICs.
