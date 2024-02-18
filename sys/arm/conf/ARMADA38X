@@ -90,7 +90,6 @@ device		wlan		# 802.11 support
 device		ath		# Atheros CardBus/PCI NICs
 device		ath_hal
 device		ath_rate_sample
-options 	ATH_ENABLE_11N
 
 # CESA
 device		cesa
