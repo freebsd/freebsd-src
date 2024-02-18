@@ -3769,7 +3769,9 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 		    ltxq->txq.tid, ac, skb->priority, skb->qmap);
 #endif
 	LKPI_80211_LTXQ_UNLOCK(ltxq);
+	LKPI_80211_LHW_LOCK(lhw);
 	lkpi_80211_mo_wake_tx_queue(hw, &ltxq->txq);
+	LKPI_80211_LHW_UNLOCK(lhw);
 	return;
 
 ops_tx:
@@ -3782,7 +3784,9 @@ ops_tx:
 #endif
 	memset(&control, 0, sizeof(control));
 	control.sta = sta;
+	LKPI_80211_LHW_LOCK(lhw);
 	lkpi_80211_mo_tx(hw, &control, skb);
+	LKPI_80211_LHW_UNLOCK(lhw);
 }
 
 static void
