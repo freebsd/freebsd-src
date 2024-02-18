@@ -128,13 +128,18 @@ struct file_format *file_formats[] = {
  * We don't prototype these in libi386.h because they require
  * data structures from bootstrap.h as well.
  */
+extern struct console textvidc;
 extern struct console vidconsole;
 extern struct console comconsole;
 extern struct console nullconsole;
 extern struct console spinconsole;
 
 struct console *consoles[] = {
+#ifdef BIOS_TEXT_ONLY
+    &textvidc,
+#else
     &vidconsole,
+#endif
     &comconsole,
     &nullconsole,
     &spinconsole,
