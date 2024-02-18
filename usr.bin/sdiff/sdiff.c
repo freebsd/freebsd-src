@@ -8,7 +8,6 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 
 #include <ctype.h>
@@ -18,6 +17,7 @@
 #include <getopt.h>
 #include <limits.h>
 #include <paths.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,11 +68,11 @@ static STAILQ_HEAD(, diffline) diffhead = STAILQ_HEAD_INITIALIZER(diffhead);
 static size_t line_width;	/* width of a line (two columns and divider) */
 static size_t width;		/* width of each column */
 static size_t file1ln, file2ln;	/* line number of file1 and file2 */
-static int Iflag = 0;	/* ignore sets matching regexp */
-static int	lflag;		/* print only left column for identical lines */
-static int	sflag;		/* skip identical lines */
-FILE *outfp;		/* file to save changes to */
-const char *tmpdir;	/* TMPDIR or /tmp */
+static bool Iflag;		/* ignore sets matching regexp */
+static bool lflag;		/* print only left column for identical lines */
+static bool sflag;		/* skip identical lines */
+FILE *outfp;			/* file to save changes to */
+const char *tmpdir;		/* TMPDIR or /tmp */
 
 enum {
 	HELP_OPT = CHAR_MAX + 1,
@@ -205,14 +205,13 @@ FAIL:
 int
 main(int argc, char **argv)
 {
-	FILE *diffpipe=NULL, *file1, *file2;
-	size_t diffargc = 0, wflag = WIDTH;
-	int ch, fd[2] = {-1}, status;
-	pid_t pid=0;
-	const char *outfile = NULL;
-	char **diffargv, *diffprog = diff_path, *filename1, *filename2,
-	     *tmp1, *tmp2, *s1, *s2;
-	int i;
+	FILE *diffpipe, *file1, *file2;
+	size_t diffargc = 0, flagc = 0, wval = WIDTH;
+	int ch, fd[2], i, status;
+	pid_t pid;
+	const char *errstr, *outfile = NULL;
+	char **diffargv, *diffprog = diff_path, *flagv;
+	char *filename1, *filename2, *tmp1, *tmp2, *s1, *s2;
 	char I_arg[] = "-I";
 	char speed_lf[] = "--speed-large-files";
 
@@ -227,20 +226,21 @@ main(int argc, char **argv)
 	 * waste some memory; however we need an extra space for the
 	 * NULL at the end, so it sort of works out.
 	 */
-	if (!(diffargv = calloc(argc, sizeof(char **) * 2)))
-		err(2, "main");
+	if ((diffargv = calloc(argc, sizeof(char *) * 2)) == NULL)
+		err(2, NULL);
 
 	/* Add first argument, the program name. */
 	diffargv[diffargc++] = diffprog;
 
-	/* create a dynamic string for merging single-switch options */
-	if ( asprintf(&diffargv[diffargc++], "-")  < 0 )
-		err(2, "main");
+	/* create a dynamic string for merging single-character options */
+	if ((flagv = malloc(flagc + 2)) == NULL)
+		err(2, NULL);
+	flagv[flagc] = '-';
+	flagv[flagc + 1] = '\0';
+	diffargv[diffargc++] = flagv;
 
 	while ((ch = getopt_long(argc, argv, "aBbdEHI:ilo:stWw:",
 	    longopts, NULL)) != -1) {
-		const char *errstr;
-
 		switch (ch) {
 		/* only compatible --long-name-form with diff */
 		case FCASE_IGNORE_OPT:
@@ -258,14 +258,13 @@ main(int argc, char **argv)
 		case 'i':
 		case 't':
 		case 'W':
-			diffargv[1]  = realloc(diffargv[1], sizeof(char) * strlen(diffargv[1]) + 2);
+			flagc++;
+			flagv = realloc(flagv, flagc + 2);
 			/*
 			 * In diff, the 'W' option is 'w' and the 'w' is 'W'.
 			 */
-			if (ch == 'W')
-				sprintf(diffargv[1], "%sw", diffargv[1]);
-			else
-				sprintf(diffargv[1], "%s%c", diffargv[1], ch);
+			flagv[flagc] = ch == 'W' ? 'w' : ch;
+			flagv[flagc + 1] = '\0';
 			break;
 		case 'H':
 			diffargv[diffargc++] = speed_lf;
@@ -274,21 +273,21 @@ main(int argc, char **argv)
 			diffargv[0] = diffprog = optarg;
 			break;
 		case 'I':
-			Iflag = 1;
+			Iflag = true;
 			diffargv[diffargc++] = I_arg;
 			diffargv[diffargc++] = optarg;
 			break;
 		case 'l':
-			lflag = 1;
+			lflag = true;
 			break;
 		case 'o':
 			outfile = optarg;
 			break;
 		case 's':
-			sflag = 1;
+			sflag = true;
 			break;
 		case 'w':
-			wflag = strtonum(optarg, WIDTH_MIN,
+			wval = strtonum(optarg, WIDTH_MIN,
 			    INT_MAX, &errstr);
 			if (errstr)
 				errx(2, "width is %s: %s", errstr, optarg);
@@ -304,13 +303,12 @@ main(int argc, char **argv)
 		}
 	}
 
-	/* no single switches were used */
-	if (strcmp(diffargv[1], "-") == 0 ) {
-		for ( i = 1; i < argc-1; i++) {
-			diffargv[i] = diffargv[i+1];
-		}
-		diffargv[diffargc-1] = NULL;
+	/* no single-character options were used */
+	if (flagc == 0) {
+		memmove(diffargv + 1, diffargv + 2,
+		    sizeof(char *) * (diffargc - 2));
 		diffargc--;
+		free(flagv);
 	}
 
 	argc -= optind;
@@ -355,7 +353,7 @@ main(int argc, char **argv)
 	diffargv[diffargc++] = NULL;
 
 	/* Subtract column divider and divide by two. */
-	width = (wflag - 3) / 2;
+	width = (wval - 3) / 2;
 	/* Make sure line_width can fit in size_t. */
 	if (width > (SIZE_MAX - 3) / 2)
 		errx(2, "width is too large: %zu", width);
@@ -364,21 +362,18 @@ main(int argc, char **argv)
 	if (pipe(fd))
 		err(2, "pipe");
 
-	switch (pid = fork()) {
-	case 0:
+	if ((pid = fork()) < 0)
+		err(1, "fork()");
+	if (pid == 0) {
 		/* child */
 		/* We don't read from the pipe. */
 		close(fd[0]);
-		if (dup2(fd[1], STDOUT_FILENO) == -1)
-			err(2, "child could not duplicate descriptor");
+		if (dup2(fd[1], STDOUT_FILENO) != STDOUT_FILENO)
+			_exit(2);
 		/* Free unused descriptor. */
 		close(fd[1]);
 		execvp(diffprog, diffargv);
-		err(2, "could not execute diff: %s", diffprog);
-		break;
-	case -1:
-		err(2, "could not fork");
-		break;
+		_exit(2);
 	}
 
 	/* parent */
@@ -452,6 +447,9 @@ main(int argc, char **argv)
 	processq();
 
 	/* Return diff exit status. */
+	free(diffargv);
+	if (flagc > 0)
+		free(flagv);
 	return (WEXITSTATUS(status));
 }
 
@@ -551,7 +549,7 @@ prompt(const char *s1, const char *s2)
 		const char *p;
 
 		/* Skip leading whitespace. */
-		for (p = cmd; isspace(*p); ++p)
+		for (p = cmd; isspace((unsigned char)*p); ++p)
 			;
 		switch (*p) {
 		case 'e':
@@ -577,10 +575,10 @@ prompt(const char *s1, const char *s2)
 			/* End of command parsing. */
 			break;
 		case 's':
-			sflag = 1;
+			sflag = true;
 			goto PROMPT;
 		case 'v':
-			sflag = 0;
+			sflag = false;
 			/* FALLTHROUGH */
 		default:
 			/* Interactive usage help. */
@@ -701,7 +699,7 @@ parsecmd(FILE *diffpipe, FILE *file1, FILE *file2)
 
 	p = line;
 	/* Go to character after line number. */
-	while (isdigit(*p))
+	while (isdigit((unsigned char)*p))
 		++p;
 	c = *p;
 	*p++ = 0;
@@ -713,7 +711,7 @@ parsecmd(FILE *diffpipe, FILE *file1, FILE *file2)
 	if (c == ',') {
 		q = p;
 		/* Go to character after file2end. */
-		while (isdigit(*p))
+		while (isdigit((unsigned char)*p))
 			++p;
 		c = *p;
 		*p++ = 0;
@@ -732,7 +730,7 @@ parsecmd(FILE *diffpipe, FILE *file1, FILE *file2)
 
 	q = p;
 	/* Go to character after line number. */
-	while (isdigit(*p))
+	while (isdigit((unsigned char)*p))
 		++p;
 	c = *p;
 	*p++ = 0;
