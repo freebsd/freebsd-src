@@ -364,7 +364,8 @@ static void test_flush(Byte *compr, uLong *comprLen) {
 /* ===========================================================================
  * Test inflateSync()
  */
-static void test_sync(Byte *compr, uLong comprLen, Byte *uncompr, uLong uncomprLen) {
+static void test_sync(Byte *compr, uLong comprLen, Byte *uncompr,
+                      uLong uncomprLen) {
     int err;
     z_stream d_stream; /* decompression stream */
 
