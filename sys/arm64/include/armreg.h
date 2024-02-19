@@ -190,6 +190,14 @@
 #define	CTR_ILINE_VAL(reg)	((reg) & CTR_ILINE_MASK)
 #define	CTR_ILINE_SIZE(reg)	(4 << (CTR_ILINE_VAL(reg) >> CTR_ILINE_SHIFT))
 
+/* CurrentEL - Current Exception Level */
+#define	CURRENTEL_EL_SHIFT	2
+#define	CURRENTEL_EL_MASK	(0x3 << CURRENTEL_EL_SHIFT)
+#define	 CURRENTEL_EL_EL0	(0x0 << CURRENTEL_EL_SHIFT)
+#define	 CURRENTEL_EL_EL1	(0x1 << CURRENTEL_EL_SHIFT)
+#define	 CURRENTEL_EL_EL2	(0x2 << CURRENTEL_EL_SHIFT)
+#define	 CURRENTEL_EL_EL3	(0x3 << CURRENTEL_EL_SHIFT)
+
 /* DAIFSet/DAIFClear */
 #define	DAIF_D			(1 << 3)
 #define	DAIF_A			(1 << 2)
