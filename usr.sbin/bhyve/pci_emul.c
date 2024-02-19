@@ -136,9 +136,9 @@ static TAILQ_HEAD(boot_list, boot_device) boot_devices = TAILQ_HEAD_INITIALIZER(
  */
 #define	PCI_EMUL_MEMBASE32	0xc0000000
 #elif defined(__aarch64__)
-#define	PCI_EMUL_IOBASE		0x00df00000UL
-#define	PCI_EMUL_IOLIMIT	0x00e000000UL
-#define	PCI_EMUL_MEMBASE32	0x0a0000000UL
+#define	PCI_EMUL_IOBASE		0xdf000000UL
+#define	PCI_EMUL_IOLIMIT	0xe0000000UL
+#define	PCI_EMUL_MEMBASE32	0xa0000000UL
 #else
 #error Unsupported platform
 #endif
