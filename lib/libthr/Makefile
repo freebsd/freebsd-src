@@ -8,6 +8,11 @@ PACKAGE=	clibs
 SHLIBDIR?= /lib
 
 LIBADD=	c sys
+.if defined(COMPAT_libcompat)
+# XXX: work around gcc -m32 + bfd ld path issue for DT_NEEDED symbols.
+# https://sourceware.org/bugzilla/show_bug.cgi?id=31395
+LDFLAGS+=	-Wl,--rpath=/usr/lib${COMPAT_libcompat}
+.endif
 
 .include <src.opts.mk>
 MK_SSP=	no
