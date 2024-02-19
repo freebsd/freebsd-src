@@ -131,6 +131,7 @@ bdrewery [label="Bryan Drewery\nbdrewery@FreeBSD.org\n2013/12/14"]
 benl [label="Ben Laurie\nbenl@FreeBSD.org\n2011/05/18"]
 benno [label="Benno Rice\nbenno@FreeBSD.org\n2000/11/02"]
 bms [label="Bruce M Simpson\nbms@FreeBSD.org\n2003/08/06"]
+bnovkov [label="Bojan Novkovic\nbnovkov@FreeBSD.org\n2024/02/13"]
 br [label="Ruslan Bukin\nbr@FreeBSD.org\n2013/09/02"]
 brian [label="Brian Somers\nbrian@FreeBSD.org\n1996/12/16"]
 brooks [label="Brooks Davis\nbrooks@FreeBSD.org\n2001/06/21"]
@@ -636,6 +637,7 @@ jfv -> erj
 
 jhb -> arr
 jhb -> avg
+jhb -> bnovkov
 jhb -> jch
 jhb -> jeff
 jhb -> kbyanc
@@ -750,6 +752,7 @@ marcel -> marius
 marcel -> nwhitehorn
 marcel -> sjg
 
+markj -> bnovkov
 markj -> cem
 markj -> christos
 markj -> dougm
