@@ -174,13 +174,16 @@ LIBZFSBOOTENV?=	${LIBDESTDIR}${LIBDIR_BASE}/libzfsbootenv.a
 LIBZPOOL?=	${LIBDESTDIR}${LIBDIR_BASE}/libzpool.a
 LIBZUTIL?=	${LIBDESTDIR}${LIBDIR_BASE}/libzutil.a
 
-# enforce the 2 -lpthread and -lc to always be the last in that exact order
+# enforce -lpthread, -lc, and -lsys to always be the last in that exact order
 .if defined(LDADD)
 .if ${LDADD:M-lpthread}
 LDADD:=	${LDADD:N-lpthread} -lpthread
 .endif
 .if ${LDADD:M-lc}
 LDADD:=	${LDADD:N-lc} -lc
+.endif
+.if ${LDADD:M-lsys}
+LDADD:=	${LDADD:N-lsys} -lsys
 .endif
 .endif
 
