@@ -327,7 +327,7 @@ main(int argc, char *argv[])
 		case 'v':
 			f_verssort = 1;
 			f_sizesort = 0;
-			f_verssort = 0;
+			f_timesort = 0;
 			break;
 		/* Other flags.  Please keep alphabetic. */
 		case ',':
@@ -566,6 +566,7 @@ main(int argc, char *argv[])
 			blocksize /= 512;
 		}
 	}
+
 	/* Select a sort function. */
 	if (f_reversesort) {
 		if (f_sizesort)
