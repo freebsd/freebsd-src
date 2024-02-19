@@ -652,6 +652,12 @@ again:;
 	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
 		xo_err(1, "sysctl(PF_ROUTE estimate)");
 	if (needed > 0) {
+		/*
+		 * Add ~2% additional space in case some records
+		 * will appear between sysctl() calls.
+		 * Round it up so it can fit 4 additional messages at least.
+		 */
+		needed += ((needed >> 6) | (sizeof(m_rtmsg) * 4));
 		if ((buf = malloc(needed)) == NULL)
 			xo_err(1, "malloc");
 		if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
