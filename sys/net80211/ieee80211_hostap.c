@@ -978,7 +978,7 @@ hostap_auth_open(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 		 */
 		IEEE80211_NOTE_MAC(vap,
 		    IEEE80211_MSG_AUTH | IEEE80211_MSG_ACL, ni->ni_macaddr,
-		    "%s", "station authentication defered (radius acl)");
+		    "%s", "station authentication deferred (radius acl)");
 		ieee80211_notify_node_auth(ni);
 	} else {
 		IEEE80211_SEND_MGMT(ni, IEEE80211_FC0_SUBTYPE_AUTH, seq + 1);
@@ -1128,7 +1128,7 @@ hostap_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 			IEEE80211_NOTE_MAC(vap,
 			    IEEE80211_MSG_AUTH | IEEE80211_MSG_ACL,
 			    ni->ni_macaddr,
-			    "%s", "station authentication defered (radius acl)");
+			    "%s", "station authentication deferred (radius acl)");
 			ieee80211_notify_node_auth(ni);
 			return;
 		}
