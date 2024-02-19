@@ -814,6 +814,11 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		/*quirks*/ADA_Q_4K | ADA_Q_NCQ_TRIM_BROKEN
 	},
 	{
+		/* Seagate IronWolf 110 SATA SSD NCQ Trim is unstable */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ZA*NM*", "*" },
+		/*quirks*/ADA_Q_4K | ADA_Q_NCQ_TRIM_BROKEN
+	},
+	{
 		/* Default */
 		{
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
