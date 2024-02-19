@@ -62,6 +62,7 @@ CFLAGS+= -ftls-model=initial-exec
 #
 LDFLAGS+= -nodefaultlibs
 LIBADD+=	compiler_rt
+LIBADD+=	sys
 
 LDFLAGS+=-Wl,--auxiliary,libsys.so.7
 

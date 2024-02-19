@@ -57,6 +57,9 @@ MDASM=
 MIASM=
 NOASM=
 
+SYM_MAPS+=	${LIBSYS_SRCTOP}/Symbol.map
+SRCS+=	auxv.c
+
 .include "${LIBSYS_SRCTOP}/Makefile.sys"
 
 SYM_MAPS+=	${LIBSYS_SRCTOP}/Symbol.thr.map

@@ -1,0 +1,5 @@
+FBSDprivate_1.0 {
+	__elf_aux_vector;
+	__init_elf_aux_vector;
+	_elf_aux_info;
+};

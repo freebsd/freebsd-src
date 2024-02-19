@@ -433,12 +433,10 @@ FBSD_1.8 {
 
 FBSDprivate_1.0 {
 	/* Add entries in sort(1) order */
-	__elf_aux_vector;
 	__libc_sigwait;
 	__libsys_interposing_slot;
 	__set_error_selector;
 	__sigwait;
-	_elf_aux_info;
 	gssd_syscall;
 	nlm_syscall;
 	rpctls_syscall;

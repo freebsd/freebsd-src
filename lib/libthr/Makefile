@@ -7,6 +7,8 @@
 PACKAGE=	clibs
 SHLIBDIR?= /lib
 
+LIBADD=	c sys
+
 .include <src.opts.mk>
 MK_SSP=	no
 
