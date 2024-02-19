@@ -70,6 +70,9 @@ struct uart_class {
 	u_int	uc_riowidth;		/* Default reg io width for this device. */
 };
 
+#define	UART_CLASS(class)						\
+    DATA_SET(uart_class_set, class)
+
 struct uart_softc {
 	KOBJ_FIELDS;
 	struct uart_class *sc_class;
