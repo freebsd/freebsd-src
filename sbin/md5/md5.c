@@ -263,7 +263,8 @@ static const char *gnu_shortopts = "bctwz";
 
 static const struct option perl_longopts[] = {
 	{ "algorithm",		required_argument,	0, opt_algorithm },
-	{ "check",		required_argument,	0, opt_check },
+	{ "binary",		no_argument,		0, opt_binary },
+	{ "check",		no_argument,		0, opt_check },
 	{ "help",		no_argument,		0, opt_help },
 	{ "ignore-missing",	no_argument,		0, opt_ignore_missing },
 	{ "quiet",		no_argument,		0, opt_quiet },
