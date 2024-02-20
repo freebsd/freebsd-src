@@ -2684,7 +2684,8 @@ do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags, bool rb)
 	struct umtx_q *uq, *uq2;
 	struct umtx_pi *pi;
 	uint32_t id, owner, rceiling;
-	int error, pri, new_inherited_pri, su;
+	int error, pri, new_inherited_pri;
+	bool su;
 
 	id = td->td_tid;
 	uq = td->td_umtxq;
@@ -2739,7 +2740,7 @@ do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags, bool rb)
 		error = EFAULT;
 	else {
 		mtx_lock(&umtx_lock);
-		if (su != 0)
+		if (su || new_inherited_pri == PRI_MAX)
 			uq->uq_inherited_pri = new_inherited_pri;
 		pri = PRI_MAX;
 		TAILQ_FOREACH(pi, &uq->uq_pi_contested, pi_link) {
