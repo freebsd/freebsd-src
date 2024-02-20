@@ -79,7 +79,7 @@ zfsbootcfg(const char *pool, bool force)
 		"-n",
 		"freebsd:nvstore",
 		"-k",
-		"nextboot_enable"
+		"nextboot_enable",
 		"-v",
 		"YES",
 		NULL
