@@ -242,14 +242,12 @@ ATF_TC_BODY(oldtables_shared_via_process, tc)
 	 * otherwise we'll lose a reference count
 	 * to the file descriptor table
 	 */
-	if (child != 0) {
-		kp = read_kinfo(kd);
+	kp = read_kinfo(kd);
 
-		ATF_CHECK(filedesc_refcnt(kd,kp) > 1);
-		ATF_CHECK(old_tables(kd,kp) > 1);
+	ATF_CHECK(filedesc_refcnt(kd,kp) > 1);
+	ATF_CHECK(old_tables(kd,kp) > 1);
 
-		kill(child, SIGCONT);
-	}
+	kill(child, SIGCONT);
 
 	/* child should have exited */
 	wpid = waitpid(child, &status, 0);
