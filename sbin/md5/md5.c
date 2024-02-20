@@ -287,9 +287,10 @@ MD5_Update(MD5_CTX *c, const unsigned char *data, size_t len)
 }
 
 struct chksumrec {
-	char	*filename;
-	char	*chksum;
-	struct	chksumrec	*next;
+	char *filename;
+	enum input_mode input_mode;
+	char *chksum;
+	struct chksumrec *next;
 };
 
 static struct chksumrec *head = NULL;
@@ -362,16 +363,18 @@ gnu_check(const char *checksumsfile)
 		if (rec == NULL)
 			errx(1, "malloc failed");
 
-		if (*filename == '*' ||
-		    *filename == ' ' ||
-		    *filename == 'U' ||
-		    *filename == '^') {
-			if (lstat(filename, &st) != 0)
-				filename++;
+		if ((*filename == '*' || *filename == ' ' ||
+		    *filename == 'U' || *filename == '^') &&
+		    lstat(filename, &st) != 0 &&
+		    lstat(filename + 1, &st) == 0) {
+			rec->filename = strdup(filename + 1);
+			rec->input_mode = (enum input_mode)*filename;
+		} else {
+			rec->filename = strdup(filename);
+			rec->input_mode = input_mode;
 		}
 
 		rec->chksum = strdup(hashstr);
-		rec->filename = strdup(filename);
 		if (rec->chksum == NULL || rec->filename == NULL)
 			errx(1, "malloc failed");
 		rec->next = NULL;
@@ -612,6 +615,13 @@ main(int argc, char *argv[])
 			const char *filename = *argv;
 			const char *filemode = "rb";
 
+			if (cflag && mode != mode_bsd) {
+				input_mode = rec->input_mode;
+				checkAgainst = rec->chksum;
+				rec = rec->next;
+			}
+			if (input_mode == input_text)
+				filemode = "r";
 			if (strcmp(filename, "-") == 0) {
 				f = stdin;
 			} else {
@@ -626,13 +636,7 @@ main(int argc, char *argv[])
 					warn("%s", filename);
 					failed = true;
 				}
-				if (cflag && mode != mode_bsd)
-					rec = rec->next;
 				continue;
-			}
-			if (cflag && mode != mode_bsd) {
-				checkAgainst = rec->chksum;
-				rec = rec->next;
 			}
 			p = MDInput(&Algorithm[digest], f, buf, false);
 			if (f != stdin)
