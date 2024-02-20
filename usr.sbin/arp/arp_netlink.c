@@ -390,9 +390,6 @@ set_nl(uint32_t ifindex, struct sockaddr_in *dst, struct sockaddr_dl *sdl, char 
 		return (0);
 	}
 
-	if (opts.expire_time != 0)
-		opts.flags &= ~RTF_STATIC;
-
 	snl_init_writer(&ss, &nw);
 	struct nlmsghdr *hdr = snl_create_msg_request(&nw, RTM_NEWNEIGH);
 	hdr->nlmsg_flags |= NLM_F_CREATE | NLM_F_REPLACE;
@@ -402,11 +399,12 @@ set_nl(uint32_t ifindex, struct sockaddr_in *dst, struct sockaddr_dl *sdl, char 
 
 		ndmsg->ndm_family = AF_INET;
 		ndmsg->ndm_ifindex = ifindex;
-		ndmsg->ndm_state = (opts.flags & RTF_STATIC) ? NUD_PERMANENT : NUD_NONE;
+		ndmsg->ndm_state = (opts.expire_time == 0) ? \
+		    NUD_PERMANENT : NUD_NONE;
 
 		if (opts.flags & RTF_ANNOUNCE)
 			nl_flags |= NTF_PROXY;
-		if (opts.flags & RTF_STATIC)
+		if (opts.expire_time == 0)
 			nl_flags |= NTF_STICKY;
 		ndmsg->ndm_flags = nl_flags;
 	}
