@@ -31,7 +31,7 @@
 
 #include "libc_private.h"
 
-extern int errno;
+int errno;
 
 static int *
 __error_unthreaded(void)

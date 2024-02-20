@@ -76,6 +76,7 @@ FBSD_1.0 {
 	extattr_set_file;
 	extattr_set_link;
 	extattrctl;
+	errno;
 	fchdir;
 	fchflags;
 	fchmod;
