@@ -398,7 +398,6 @@ validate_sblock(struct fs *fs, int flags)
 		} else if (fs->fs_magic == FS_UFS1_MAGIC) {
 			FCHK(fs->fs_sblockloc, <, 0, %jd);
 			FCHK(fs->fs_sblockloc, >, SBLOCK_UFS1, %jd);
-			FCHK(fs->fs_old_ncyl, !=, fs->fs_ncg, %jd);
 		}
 		FCHK(fs->fs_frag, <, 1, %jd);
 		FCHK(fs->fs_frag, >, MAXFRAG, %jd);
@@ -475,16 +474,13 @@ validate_sblock(struct fs *fs, int flags)
 		WCHK(fs->fs_old_rotdelay, !=, 0, %jd);
 		WCHK(fs->fs_old_rps, !=, 60, %jd);
 		WCHK(fs->fs_old_nspf, !=, fs->fs_fsize / sectorsize, %jd);
-		FCHK(fs->fs_old_cpg, !=, 1, %jd);
 		WCHK(fs->fs_old_interleave, !=, 1, %jd);
 		WCHK(fs->fs_old_trackskew, !=, 0, %jd);
 		WCHK(fs->fs_old_cpc, !=, 0, %jd);
 		WCHK(fs->fs_old_postblformat, !=, 1, %jd);
 		FCHK(fs->fs_old_nrpos, !=, 1, %jd);
-		WCHK(fs->fs_old_spc, !=, fs->fs_fpg * fs->fs_old_nspf, %jd);
 		WCHK(fs->fs_old_nsect, !=, fs->fs_old_spc, %jd);
 		WCHK(fs->fs_old_npsect, !=, fs->fs_old_spc, %jd);
-		FCHK(fs->fs_old_ncyl, !=, fs->fs_ncg, %jd);
 	} else {
 		/* Bad magic number, so assume not a superblock */
 		return (ENOENT);
