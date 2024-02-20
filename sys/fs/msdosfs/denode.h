@@ -161,7 +161,7 @@ struct denode {
 	u_long de_FileSize;	/* size of file in bytes */
 	struct fatcache de_fc[FC_SIZE];	/* FAT cache */
 	u_quad_t de_modrev;	/* Revision level for lease. */
-	uint64_t de_inode;	/* Inode number (really byte offset of direntry) */
+	uint64_t de_inode;	/* Inode number (really index of DOS style direntry) */
 };
 
 /*
@@ -215,6 +215,12 @@ struct denode {
 
 #define	VTODE(vp)	((struct denode *)(vp)->v_data)
 #define	DETOV(de)	((de)->de_vnode)
+
+#define DETOI(pmp, cn, off)						\
+	((cn) == MSDOSFSROOT						\
+	    ? (((uint64_t)(off) >> 5))					\
+	    : (((((uint64_t)pmp->pm_bpcluster * ((cn) - 2) + (off))) >> 5) \
+		+ pmp->pm_RootDirEnts))
 
 #define	DETIMES(dep, acc, mod, cre) do {				\
 	if ((dep)->de_flag & DE_UPDATE) {				\
