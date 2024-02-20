@@ -207,6 +207,7 @@ MAN=	aac.4 \
 	${_hv_vss.4} \
 	hwpmc.4 \
 	${_hwpstate_intel.4} \
+	i2ctinyusb.4 \
 	iavf.4 \
 	ichsmb.4 \
 	${_ichwd.4} \
