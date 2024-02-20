@@ -1,12 +1,14 @@
 # Makefile fragment - requires GNU make
 #
-# Copyright (c) 2019-2022, Arm Limited.
+# Copyright (c) 2019-2023, Arm Limited.
 # SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 S := $(srcdir)/math
 B := build/math
 
 math-lib-srcs := $(wildcard $(S)/*.[cS])
+math-lib-srcs += $(wildcard $(S)/$(ARCH)/*.[cS])
+
 math-test-srcs := \
 	$(S)/test/mathtest.c \
 	$(S)/test/mathbench.c \
@@ -65,6 +67,8 @@ build/lib/libmathlib.a: $(math-lib-objs)
 
 $(math-host-tools): HOST_LDLIBS += -lm -lmpfr -lmpc
 $(math-tools): LDLIBS += $(math-ldlibs) -lm
+# math-sve-cflags should be empty if WANT_SVE_MATH is not enabled
+$(math-tools): CFLAGS_ALL += $(math-sve-cflags)
 
 build/bin/rtest: $(math-host-objs)
 	$(HOST_CC) $(HOST_CFLAGS) $(HOST_LDFLAGS) -o $@ $^ $(HOST_LDLIBS)
