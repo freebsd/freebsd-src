@@ -133,10 +133,13 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 	 * entry that represented the file happens to be reused while the
 	 * deleted file is still open.
 	 */
-	inode = (uint64_t)pmp->pm_bpcluster * dirclust + diroffset;
+	inode = DETOI(pmp, dirclust, diroffset);
 
 	error = vfs_hash_get(mntp, inode, lkflags, curthread, &nvp,
 	    de_vncmpf, &inode);
+#ifdef MSDOSFS_DEBUG
+	printf("vfs_hash_get(inode %lu) error %d\n", inode, error);
+#endif
 	if (error)
 		return (error);
 	if (nvp != NULL) {
@@ -190,6 +193,9 @@ badoff:
 	}
 	error = vfs_hash_insert(nvp, inode, lkflags, curthread, &xvp,
 	    de_vncmpf, &inode);
+#ifdef MSDOSFS_DEBUG
+	printf("vfs_hash_insert(inode %lu) error %d\n", inode, error);
+#endif
 	if (error) {
 		*depp = NULL;
 		return (error);
@@ -587,8 +593,11 @@ reinsert(struct denode *dep)
 		return;
 #endif
 	vp = DETOV(dep);
-	dep->de_inode = (uint64_t)dep->de_pmp->pm_bpcluster * dep->de_dirclust +
-	    dep->de_diroffset;
+	dep->de_inode = DETOI(dep->de_pmp, dep->de_dirclust, dep->de_diroffset);
+#ifdef MSDOSFS_DEBUG
+	printf("vfs_hash_rehash(inode %lu, refcnt %lu, vp %p)\n",
+	    dep->de_inode, dep->de_refcnt, vp);
+#endif
 	vfs_hash_rehash(vp, dep->de_inode);
 }
 
@@ -606,6 +615,10 @@ msdosfs_reclaim(struct vop_reclaim_args *ap)
 	/*
 	 * Remove the denode from its hash chain.
 	 */
+#ifdef MSDOSFS_DEBUG
+	printf("vfs_hash_remove(inode %lu, refcnt %lu, vp %p)\n",
+	    dep->de_inode, dep->de_refcnt, vp);
+#endif
 	vfs_hash_remove(vp);
 	/*
 	 * Purge old data structures associated with the denode.
