@@ -303,17 +303,17 @@ static unsigned int numrecs;
 static void
 gnu_check(const char *checksumsfile)
 {
-	FILE	*inp;
-	char	*linebuf = NULL;
-	size_t	linecap;
-	ssize_t	linelen;
-	int	lineno;
-	char	*filename;
-	char	*hashstr;
-	struct chksumrec	*rec;
-	const char	*digestname;
-	size_t	digestnamelen;
-	size_t	hashstrlen;
+	FILE *inp;
+	char *linebuf = NULL;
+	size_t linecap;
+	ssize_t linelen;
+	int lineno;
+	char *filename;
+	char *hashstr;
+	struct chksumrec *rec;
+	const char *digestname;
+	size_t digestnamelen;
+	size_t hashstrlen;
 	struct stat st;
 
 	if (strcmp(checksumsfile, "-") == 0)
@@ -399,17 +399,17 @@ int
 main(int argc, char *argv[])
 {
 #ifdef HAVE_CAPSICUM
-	cap_rights_t	rights;
-	fileargs_t	*fa = NULL;
+	cap_rights_t rights;
+	fileargs_t *fa = NULL;
 #endif
 	const struct option *longopts;
 	const char *shortopts;
-	FILE   *f;
-	int	i, opt;
-	char   *p, *string = NULL;
-	char	buf[HEX_DIGEST_LENGTH];
-	size_t	len;
-	struct chksumrec	*rec;
+	FILE *f;
+	int i, opt;
+	char *p, *string = NULL;
+	char buf[HEX_DIGEST_LENGTH];
+	size_t len;
+	struct chksumrec *rec;
 
 	if ((progname = strrchr(argv[0], '/')) == NULL)
 		progname = argv[0];
