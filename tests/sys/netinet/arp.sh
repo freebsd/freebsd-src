@@ -169,6 +169,67 @@ arp_lookup_host_cleanup() {
 }
 
 
+atf_test_case "static" "cleanup"
+static_head() {
+	atf_set descr 'Test arp -s/-S works'
+	atf_set require.user root
+}
+
+static_body() {
+
+	vnet_init
+
+	jname="v4t-arp_static_host"
+
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname}a ${epair0}a
+	vnet_mkjail ${jname}b ${epair0}b
+
+	ipa=198.51.100.1
+	ipb=198.51.100.2
+	max_age=$(sysctl -n net.link.ether.inet.max_age)
+
+	atf_check ifconfig -j ${jname}a ${epair0}a inet ${ipa}/24
+	eth="$(ifconfig -j ${jname}b ${epair0}b |
+		sed -nE "s/^\tether ([0-9a-f:]*)$/\1/p")"
+
+	# Expected outputs
+	permanent=\
+"? (${ipb}) at 00:00:00:00:00:00 on ${epair0}a permanent [ethernet]\n"
+	temporary=\
+"? (${ipb}) at ${eth} on ${epair0}a expires in ${max_age} seconds [ethernet]\n"
+	deleted=\
+"${ipb} (${ipb}) deleted\n"
+
+	# first check -s
+	atf_check jexec ${jname}a arp -s ${ipb} 0:0:0:0:0:0
+	# the jail B ifconfig will send gratuitous ARP that will trigger A
+	atf_check ifconfig -j ${jname}b ${epair0}b inet ${ipb}/24
+	atf_check -o "inline:${permanent}" jexec ${jname}a arp -n ${ipb}
+	if [ $(sysctl -n net.link.ether.inet.log_arp_permanent_modify) -ne 0 ];
+	then
+		msg=$(dmesg | tail -n 1)
+		atf_check_equal "${msg}" \
+"arp: ${eth} attempts to modify permanent entry for ${ipb} on ${epair0}a"
+	fi
+
+	# then check -S
+	atf_check -o "inline:${deleted}" jexec ${jname}a arp -nd ${ipb}
+	atf_check -o ignore jexec ${jname}b ping -c1 ${ipa}
+	atf_check -o "inline:${temporary}" jexec ${jname}a arp -n ${ipb}
+	# Note: this doesn't fail, tracked all the way down to FreeBSD 8
+	# atf_check -s not-exit:0 jexec ${jname}a arp -s ${ipb} 0:0:0:0:0:0
+	atf_check -o "inline:${deleted}" \
+	    jexec ${jname}a arp -S ${ipb} 0:0:0:0:0:0
+	atf_check -o "inline:${permanent}" jexec ${jname}a arp -n ${ipb}
+}
+
+static_cleanup() {
+	vnet_cleanup
+}
+
+
 atf_init_test_cases()
 {
 
@@ -176,6 +237,7 @@ atf_init_test_cases()
 	atf_add_test_case "arp_del_success"
 	atf_add_test_case "pending_delete_if"
 	atf_add_test_case "arp_lookup_host"
+	atf_add_test_case "static"
 }
 
 # end
