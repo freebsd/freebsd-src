@@ -63,7 +63,7 @@ sigsys_test(int knob)
 static void
 sysctlset(const char *name, int val)
 {
-	size_t oldlen;
+	size_t oldlen = sizeof(int);
 	int oldval;
 	char buf[80];
 
