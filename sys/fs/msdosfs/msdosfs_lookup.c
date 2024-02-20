@@ -586,7 +586,7 @@ foundroot:
 		}
 		if (FAT32(pmp) && scn == MSDOSFSROOT)
 			scn = pmp->pm_rootdirblk;
-		inode1 = scn * pmp->pm_bpcluster + blkoff;
+		inode1 = DETOI(pmp, scn, blkoff);
 		if (VTODE(*vpp)->de_inode != inode1) {
 			vput(*vpp);
 			goto restart;
