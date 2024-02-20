@@ -78,6 +78,7 @@ arp_del_success_body() {
 	jexec ${jname} ping -c1 -t1 198.51.100.2
 
 	atf_check -o match:"198.51.100.2 \(198.51.100.2\) deleted" jexec ${jname} arp -nd 198.51.100.2
+	atf_check -s exit:1 -o match:"198.51.100.2 \(198.51.100.2\) -- no entry" jexec ${jname} arp -n 198.51.100.2
 }
 
 arp_del_success_cleanup() {
