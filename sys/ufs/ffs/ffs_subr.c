@@ -398,10 +398,8 @@ validate_sblock(struct fs *fs, int isaltsblk)
 		CHK(fs->fs_old_cpc, !=, 0, %jd);
 		CHK(fs->fs_old_postblformat, !=, 1, %jd);
 		CHK(fs->fs_old_nrpos, !=, 1, %jd);
-		CHK(fs->fs_old_spc, !=, fs->fs_fpg * fs->fs_old_nspf, %jd);
 		CHK(fs->fs_old_nsect, !=, fs->fs_old_spc, %jd);
 		CHK(fs->fs_old_npsect, !=, fs->fs_old_spc, %jd);
-		CHK(fs->fs_old_ncyl, !=, fs->fs_ncg, %jd);
 	} else {
 		/* Bad magic number, so assume not a superblock */
 		return (ENOENT);
