@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <link.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/auxv.h>
 #include "un-namespace.h"
@@ -40,6 +41,8 @@ extern int _DYNAMIC;
 #pragma weak _DYNAMIC
 
 void *__elf_aux_vector;
+
+#ifndef PIC
 static pthread_once_t aux_vector_once = PTHREAD_ONCE_INIT;
 
 static void
@@ -61,8 +64,9 @@ __init_elf_aux_vector(void)
 		return;
 	_once(&aux_vector_once, init_aux_vector_once);
 }
+#endif
 
-static pthread_once_t aux_once = PTHREAD_ONCE_INIT;
+static bool aux_once = false;
 static int pagesize, osreldate, canary_len, ncpus, pagesizes_len, bsdflags;
 static int hwcap_present, hwcap2_present;
 static char *canary, *pagesizes, *execpath;
@@ -77,11 +81,19 @@ static void _init_aux_powerpc_fixup(void);
 int _powerpc_elf_aux_info(int, void *, int);
 #endif
 
+/*
+ * This function might be called and actual body executed more than
+ * once in multithreading environment.  Due to this, it is and must
+ * continue to be idempotent.  All stores are atomic (no store
+ * tearing), because we only assign to int/long/ptr.
+ */
 static void
 init_aux(void)
 {
 	Elf_Auxinfo *aux;
 
+	if (aux_once)
+		return;
 	for (aux = __elf_aux_vector; aux->a_type != AT_NULL; aux++) {
 		switch (aux->a_type) {
 		case AT_BSDFLAGS:
@@ -166,6 +178,8 @@ init_aux(void)
 	if (!powerpc_new_auxv_format)
 		_init_aux_powerpc_fixup();
 #endif
+
+	aux_once = true;
 }
 
 #ifdef __powerpc__
@@ -256,10 +270,12 @@ _elf_aux_info(int aux, void *buf, int buflen)
 {
 	int res;
 
+#ifndef PIC
 	__init_elf_aux_vector();
+#endif
 	if (__elf_aux_vector == NULL)
 		return (ENOSYS);
-	_once(&aux_once, init_aux);
+	init_aux();	/* idempotent */
 
 	if (buflen < 0)
 		return (EINVAL);
