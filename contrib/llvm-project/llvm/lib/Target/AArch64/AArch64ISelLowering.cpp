@@ -10718,6 +10718,14 @@ AArch64TargetLowering::getRegForInlineAsmConstraint(
       parseConstraintCode(Constraint) != AArch64CC::Invalid)
     return std::make_pair(unsigned(AArch64::NZCV), &AArch64::CCRRegClass);
 
+  if (Constraint == "{za}") {
+    return std::make_pair(unsigned(AArch64::ZA), &AArch64::MPRRegClass);
+  }
+
+  if (Constraint == "{zt0}") {
+    return std::make_pair(unsigned(AArch64::ZT0), &AArch64::ZTRRegClass);
+  }
+
   // Use the default implementation in TargetLowering to convert the register
   // constraint into a member of a register class.
   std::pair<unsigned, const TargetRegisterClass *> Res;
@@ -24419,7 +24427,8 @@ void AArch64TargetLowering::ReplaceBITCASTResults(
     return;
   }
 
-  if (SrcVT.isVector() && SrcVT.getVectorElementType() == MVT::i1)
+  if (SrcVT.isVector() && SrcVT.getVectorElementType() == MVT::i1 &&
+      !VT.isVector())
     return replaceBoolVectorBitcast(N, Results, DAG);
 
   if (VT != MVT::i16 || (SrcVT != MVT::f16 && SrcVT != MVT::bf16))
