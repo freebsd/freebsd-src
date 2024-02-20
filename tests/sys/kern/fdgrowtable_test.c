@@ -151,6 +151,7 @@ ATF_TC_BODY(free_oldtables, tc)
 static _Noreturn void *
 exec_thread(void *args)
 {
+	openfiles(128);
 	for (;;)
 		sleep(1);
 }
