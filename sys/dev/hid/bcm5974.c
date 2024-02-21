@@ -395,8 +395,8 @@ static const struct bcm5974_dev_params bcm5974_dev_params[BCM5974_FLAG_MAX] = {
 		.tp = tp + TYPE_MT2U,
 		.p = { SN_PRESSURE, 0, 256, 256 },
 		.w = { SN_WIDTH, 0, 2048, 0 },
-		.x = { SN_COORD, -3678, 3934, 48 },
-		.y = { SN_COORD, -2478, 2587, 44 },
+		.x = { SN_COORD, -3678, 3934, 157 },
+		.y = { SN_COORD, -2478, 2587, 107 },
 		.o = { SN_ORIENT, -3, 4, 0 },
 	},
 };
