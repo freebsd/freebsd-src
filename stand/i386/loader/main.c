@@ -51,14 +51,13 @@
 #include "libzfs.h"
 #endif
 
-CTASSERT(sizeof(struct bootargs) == BOOTARGS_SIZE);
-CTASSERT(offsetof(struct bootargs, bootinfo) == BA_BOOTINFO);
-CTASSERT(offsetof(struct bootargs, bootflags) == BA_BOOTFLAGS);
-CTASSERT(offsetof(struct bootinfo, bi_size) == BI_SIZE);
+_Static_assert(sizeof(struct bootargs) == BOOTARGS_SIZE, "Bootarg size bad");
+_Static_assert(offsetof(struct bootargs, bootinfo) == BA_BOOTINFO, "BA_BOOTINFO");
+_Static_assert(offsetof(struct bootargs, bootflags) == BA_BOOTFLAGS, "BA_BOOTFLAGS");
+_Static_assert(offsetof(struct bootinfo, bi_size) == BI_SIZE, "BI_SIZE");
 
 /* Arguments passed in from the boot1/boot2 loader */
 static struct bootargs *kargs;
-
 static uint32_t		initial_howto;
 static uint32_t		initial_bootdev;
 static struct bootinfo	*initial_bootinfo;
