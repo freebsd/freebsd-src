@@ -126,6 +126,8 @@
 /* HPFAR_EL2_FIPA holds the 4k page address */
 #define	HPFAR_EL2_FIPA_ADDR(x)	\
     (HPFAR_EL2_FIPA_GET(x) << 12)
+/* The bits from FAR_EL2 we need to add to HPFAR_EL2_FIPA_ADDR */
+#define	FAR_EL2_HPFAR_PAGE_MASK	(0xffful)
 
 /* ICC_SRE_EL2 */
 #define	ICC_SRE_EL2_SRE		(1UL << 0)
