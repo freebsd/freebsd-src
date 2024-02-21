@@ -820,6 +820,7 @@ bcm5974_intr(void *context, void *data, hid_size_t len)
 	int ibt;			/* button status */
 	int i;
 	int slot;
+	uint8_t id;
 	uint8_t fsize = sizeof(struct tp_finger) + params->tp->delta;
 
 	if ((params->tp->caps & USES_COMPACT_REPORT) != 0)
@@ -840,18 +841,20 @@ bcm5974_intr(void *context, void *data, hid_size_t len)
 			fc = (struct tp_finger_compact *)(((uint8_t *)data) +
 			     params->tp->offset + params->tp->delta + i * fsize);
 			coords = (int)le32toh(fc->coords);
+			id = fc->id_ori & 0x0f;
+			slot = evdev_mt_id_to_slot(sc->sc_evdev, id);
 			DPRINTFN(BCM5974_LLEVEL_INFO,
 			    "[%d]ibt=%d, taps=%d, x=%5d, y=%5d, state=%4d, "
 			    "tchmaj=%4d, tchmin=%4d, size=%4d, pressure=%4d, "
-			    "ot=%4x, id=%4x\n",
+			    "ot=%4x, id=%4x, slot=%d\n",
 			    i, ibt, ntouch, coords << 19 >> 19,
 			    coords << 6 >> 19, (u_int)coords >> 30,
 			    fc->touch_major, fc->touch_minor, fc->size,
-			    fc->pressure, fc->id_ori >> 5, fc->id_ori & 0x0f);
-			if (fc->touch_major == 0)
+			    fc->pressure, fc->id_ori >> 5, id, slot);
+			if (fc->touch_major == 0 || slot == -1)
 				continue;
 			slot_data = (union evdev_mt_slot) {
-				.id = fc->id_ori & 0x0f,
+				.id = id,
 				.x = coords << 19 >> 19,
 				.y = params->y.min + params->y.max -
 				    ((coords << 6) >> 19),
@@ -861,7 +864,6 @@ bcm5974_intr(void *context, void *data, hid_size_t len)
 				.ori = (int)(fc->id_ori >> 5) - 4,
 			};
 			evdev_mt_push_slot(sc->sc_evdev, slot, &slot_data);
-			slot++;
 			continue;
 		}
 		f = (struct tp_finger *)(((uint8_t *)data) +
