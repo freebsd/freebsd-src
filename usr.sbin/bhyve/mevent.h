@@ -55,6 +55,7 @@ int	mevent_enable(struct mevent *evp);
 int	mevent_disable(struct mevent *evp);
 int	mevent_delete(struct mevent *evp);
 int	mevent_delete_close(struct mevent *evp);
+int	mevent_timer_update(struct mevent *evp, int msecs);
 
 void	mevent_dispatch(void);
 
