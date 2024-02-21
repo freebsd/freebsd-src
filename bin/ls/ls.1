@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 12, 2024
+.Dd February 21, 2024
 .Dt LS 1
 .Os
 .Sh NAME
@@ -244,9 +244,11 @@ but only if
 .Dv stdout
 is a tty and either the
 .Fl G
-flag is specified or the
+flag is specified or one of the environment variables
 .Ev COLORTERM
-environment variable is set and not empty.
+or
+.Ev CLICOLOR
+is set and not empty.
 .Pp
 .Cm never
 will disable color regardless of environment variables.
