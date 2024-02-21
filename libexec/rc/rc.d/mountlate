@@ -39,7 +39,7 @@ mountlate_start()
  	# If we booted a special kernel remove the record
  	# so we will boot the default kernel next time.
  	if [ -x /sbin/nextboot ]; then
-		/sbin/nextboot -D
+		/sbin/nextboot -D > /dev/null 2>&1
  	fi
 }
 
