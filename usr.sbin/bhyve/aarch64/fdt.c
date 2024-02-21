@@ -57,6 +57,7 @@
 
 static void *fdtroot;
 static uint32_t gic_phandle = 0;
+static uint32_t apb_pclk_phandle;
 
 static uint32_t
 assign_phandle(void *fdt)
@@ -155,6 +156,14 @@ fdt_init(struct vmctx *ctx, int ncpu, vm_paddr_t fdtaddr, vm_size_t fdtsize)
 	fdt_property_string(fdt, "method", "hvc");
 	fdt_end_node(fdt);
 
+	fdt_begin_node(fdt, "apb-pclk");
+	fdt_property_string(fdt, "compatible", "fixed-clock");
+	fdt_property_string(fdt, "clock-output-names", "clk24mhz");
+	fdt_property_u32(fdt, "#clock-cells", 0);
+	fdt_property_u32(fdt, "clock-frequency", 24000000);
+	apb_pclk_phandle = assign_phandle(fdt);
+	fdt_end_node(fdt);
+
 	/* Finalized by fdt_finalized(). */
 	fdtroot = fdt;
 
@@ -204,20 +213,12 @@ fdt_add_uart(uint64_t uart_base, uint64_t uart_size, int intr)
 {
 	void *fdt, *interrupts, *prop;
 	char node_name[32];
-	uint32_t clk_phandle;
 
 	assert(gic_phandle != 0);
+	assert(apb_pclk_phandle != 0);
 	assert(intr >= GIC_FIRST_SPI);
 
 	fdt = fdtroot;
-
-	fdt_begin_node(fdt, "uart-clock");
-	fdt_property_string(fdt, "compatible", "fixed-clock");
-	fdt_property_string(fdt, "clock-output-names", "clk24mhz");
-	fdt_property_u32(fdt, "#clock-cells", 0);
-	fdt_property_u32(fdt, "clock-frequency", 24000000);
-	clk_phandle = assign_phandle(fdt);
-	fdt_end_node(fdt);
 
 	snprintf(node_name, sizeof(node_name), "serial@%lx", uart_base);
 	fdt_begin_node(fdt, node_name);
@@ -232,8 +233,8 @@ fdt_add_uart(uint64_t uart_base, uint64_t uart_size, int intr)
 	SET_PROP_U32(interrupts, 1, intr - GIC_FIRST_SPI);
 	SET_PROP_U32(interrupts, 2, IRQ_TYPE_LEVEL_HIGH);
 	fdt_property_placeholder(fdt, "clocks", 2 * sizeof(uint32_t), &prop);
-	SET_PROP_U32(prop, 0, clk_phandle);
-	SET_PROP_U32(prop, 1, clk_phandle);
+	SET_PROP_U32(prop, 0, apb_pclk_phandle);
+	SET_PROP_U32(prop, 1, apb_pclk_phandle);
 #define	UART_CLK_NAMES	"uartclk\0apb_pclk"
 	fdt_property(fdt, "clock-names", UART_CLK_NAMES,
 	    sizeof(UART_CLK_NAMES));
