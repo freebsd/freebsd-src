@@ -1,10 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2022 The FreeBSD Foundation
- *
- * This software was developed by Andrew Turner under sponsorship from
- * the FreeBSD Foundation.
+ * Copyright (c) 2024 Jessica Clarke <jrtc27@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,21 +25,16 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _FDT_H_
-#define	_FDT_H_
+#ifndef _RTC_PL031_H_
+#define	_RTC_PL031_H_
 
-#include <sys/types.h>
+struct rtc_pl031_softc;
+typedef void (*rtc_pl031_intr_func_t)(void *arg);
 
-struct vmctx;
+struct rtc_pl031_softc *rtc_pl031_init(rtc_pl031_intr_func_t intr_assert,
+	    rtc_pl031_intr_func_t intr_deassert, void *arg);
+void	rtc_pl031_write(struct rtc_pl031_softc *sc, int offset,
+	    uint32_t value);
+uint32_t rtc_pl031_read(struct rtc_pl031_softc *sc, int offset);
 
-int	fdt_init(struct vmctx *ctx, int ncpu, vm_paddr_t addrp,
-	    vm_size_t size);
-void	fdt_add_gic(uint64_t dist_base, uint64_t dist_size,
-	    uint64_t redist_base, uint64_t redist_size);
-void	fdt_add_timer(void);
-void	fdt_add_pcie(int intrs[static 4]);
-void	fdt_add_uart(uint64_t uart_base, uint64_t uart_size, int intr);
-void	fdt_add_rtc(uint64_t rtc_base, uint64_t rtc_size, int intr);
-void	fdt_finalize(void);
-
-#endif	/* _FDT_H_ */
+#endif /* _RTC_PL031_H_ */

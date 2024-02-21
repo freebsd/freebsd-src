@@ -249,6 +249,37 @@ fdt_add_uart(uint64_t uart_base, uint64_t uart_size, int intr)
 }
 
 void
+fdt_add_rtc(uint64_t rtc_base, uint64_t rtc_size, int intr)
+{
+	void *fdt, *interrupts, *prop;
+	char node_name[32];
+
+	assert(gic_phandle != 0);
+	assert(apb_pclk_phandle != 0);
+	assert(intr >= GIC_FIRST_SPI);
+
+	fdt = fdtroot;
+
+	snprintf(node_name, sizeof(node_name), "rtc@%lx", rtc_base);
+	fdt_begin_node(fdt, node_name);
+#define	RTC_COMPAT	"arm,pl031\0arm,primecell"
+	fdt_property(fdt, "compatible", RTC_COMPAT, sizeof(RTC_COMPAT));
+#undef RTC_COMPAT
+	set_single_reg(fdt, rtc_base, rtc_size);
+	fdt_property_u32(fdt, "interrupt-parent", gic_phandle);
+	fdt_property_placeholder(fdt, "interrupts", 3 * sizeof(uint32_t),
+	    &interrupts);
+	SET_PROP_U32(interrupts, 0, GIC_SPI);
+	SET_PROP_U32(interrupts, 1, intr - GIC_FIRST_SPI);
+	SET_PROP_U32(interrupts, 2, IRQ_TYPE_LEVEL_HIGH);
+	fdt_property_placeholder(fdt, "clocks", sizeof(uint32_t), &prop);
+	SET_PROP_U32(prop, 0, apb_pclk_phandle);
+	fdt_property_string(fdt, "clock-names", "apb_pclk");
+
+	fdt_end_node(fdt);
+}
+
+void
 fdt_add_timer(void)
 {
 	void *fdt, *interrupts;
