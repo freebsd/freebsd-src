@@ -27,6 +27,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_hid.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
@@ -826,7 +828,7 @@ bcm5974_intr(void *context, void *data, hid_size_t len)
 	if ((len < params->tp->offset + fsize) ||
 	    ((len - params->tp->offset) % fsize) != 0) {
 		DPRINTFN(BCM5974_LLEVEL_INFO, "Invalid length: %d, %x, %x\n",
-		    len, sc->tp_data[0], sc->tp_data[1]);
+		    len, params->tp->offset, fsize);
 		return;
 	}
 
