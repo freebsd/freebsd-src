@@ -567,40 +567,35 @@ hostdisk_zfs_probe(void)
 
 /* This likely shoud move to libsa/zfs/zfs.c and be used by at least EFI booting */
 static bool
-probe_zfs_currdev(uint64_t pool_guid, uint64_t root_guid, bool setcurrdev)
+probe_zfs_currdev(uint64_t pool_guid)
 {
 	char *devname;
 	struct zfs_devdesc currdev;
-	bool bootable;
+	char buf[VDEV_PAD_SIZE];
 
 	currdev.dd.d_dev = &zfs_dev;
 	currdev.dd.d_unit = 0;
 	currdev.pool_guid = pool_guid;
-	currdev.root_guid = root_guid;
+	currdev.root_guid = 0;
 	devname = devformat(&currdev.dd);
-	if (setcurrdev)
-		set_currdev(devname);
+	printf("Setting currdev to %s\n", devname);
+	set_currdev(devname);
+	init_zfs_boot_options(devname);
 
-	bootable = sanity_check_currdev();
-	if (bootable) {
-		char buf[VDEV_PAD_SIZE];
-
-		if (zfs_get_bootonce(&currdev, OS_BOOTONCE, buf, sizeof(buf)) == 0) {
-			printf("zfs bootonce: %s\n", buf);
-			if (setcurrdev)
-				set_currdev(buf);
-			setenv("zfs-bootonce", buf, 1);
-		}
-		(void)zfs_attach_nvstore(&currdev);
-		init_zfs_boot_options(devname);
+	if (zfs_get_bootonce(&currdev, OS_BOOTONCE, buf, sizeof(buf)) == 0) {
+		printf("zfs bootonce: %s\n", buf);
+		set_currdev(buf);
+		setenv("zfs-bootonce", buf, 1);
 	}
-	return (bootable);
+	(void)zfs_attach_nvstore(&currdev);
+
+	return (sanity_check_currdev());
 }
 
 static bool
 hostdisk_zfs_try_default(hdinfo_t *hd)
 {
-	return (probe_zfs_currdev(hd->hd_zfs_uuid, 0, true));
+	return (probe_zfs_currdev(hd->hd_zfs_uuid));
 }
 
 bool
