@@ -86,6 +86,8 @@ options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
 options 	KDB_TRACE		# Print a stack trace for a panic.
+# For full debugger support use (turn off in stable branch):
+include ../../conf/std.debug
 
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel

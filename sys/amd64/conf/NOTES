@@ -159,3 +159,15 @@ options 	KSTACK_PAGES=5
 # Enable detailed accounting by the PV entry allocator.
 
 options 	PV_STATS
+
+#####################################################################
+# Kernel sanitizers
+
+#options	COVERAGE		# Generic kernel coverage. Used by KCOV
+#options	KCOV			# Kernel Coverage Sanitizer
+# Warning: KUBSAN can result in a kernel too large for loader to load
+#options	KUBSAN			# Kernel Undefined Behavior Sanitizer
+#options	KCSAN			# Kernel Concurrency Sanitizer
+#options	KASAN			# Kernel Address Sanitizer
+#options	KCSAN			# Kernel Concurrency Sanitizer
+#options	KMSAN			# Kernel Memory Sanitizer
