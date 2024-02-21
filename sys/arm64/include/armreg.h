@@ -365,6 +365,12 @@
 #define	 ISS_MSR_REG_MASK	\
     (ISS_MSR_OP0_MASK | ISS_MSR_OP2_MASK | ISS_MSR_OP1_MASK | 	\
      ISS_MSR_CRn_MASK | ISS_MSR_CRm_MASK)
+#define	 ISS_MSR_REG(reg)				\
+    (((reg ## _op0) << ISS_MSR_OP0_SHIFT) |		\
+     ((reg ## _op1) << ISS_MSR_OP1_SHIFT) |		\
+     ((reg ## _CRn) << ISS_MSR_CRn_SHIFT) |		\
+     ((reg ## _CRm) << ISS_MSR_CRm_SHIFT) |		\
+     ((reg ## _op2) << ISS_MSR_OP2_SHIFT))
 
 #define	 ISS_DATA_ISV_SHIFT	24
 #define	 ISS_DATA_ISV		(0x01 << ISS_DATA_ISV_SHIFT)
