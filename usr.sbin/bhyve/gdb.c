@@ -35,6 +35,8 @@
 #include <sys/mman.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+
 #include <machine/atomic.h>
 #include <machine/specialreg.h>
 #include <machine/vmm.h>
@@ -64,6 +66,8 @@
 #include "mem.h"
 #include "mevent.h"
 
+#define	_PATH_GDB_XML		"/usr/share/bhyve/gdb"
+
 /*
  * GDB_SIGNAL_* numbers are part of the GDB remote protocol.  Most stops
  * use SIGTRAP.
@@ -86,6 +90,7 @@ static cpuset_t vcpus_active, vcpus_suspended, vcpus_waiting;
 static pthread_mutex_t gdb_lock;
 static pthread_cond_t idle_vcpus;
 static bool first_stop, report_next_stop, swbreak_enabled;
+static int xml_dfd = -1;
 
 /*
  * An I/O buffer contains 'capacity' bytes of room at 'data'.  For a
@@ -170,8 +175,25 @@ static const struct gdb_reg {
 	{ .id = VM_REG_GUEST_ES, .size = 4 },
 	{ .id = VM_REG_GUEST_FS, .size = 4 },
 	{ .id = VM_REG_GUEST_GS, .size = 4 },
+	/*
+	 * Registers past this point are not included in a reply to a 'g' query,
+	 * to provide compatibility with debuggers that do not fetch a target
+	 * description.  The debugger can query them individually with 'p' if it
+	 * knows about them.
+	 */
+#define	GDB_REG_FIRST_EXT	VM_REG_GUEST_FS_BASE
+	{ .id = VM_REG_GUEST_FS_BASE, .size = 8 },
+	{ .id = VM_REG_GUEST_GS_BASE, .size = 8 },
+	{ .id = VM_REG_GUEST_KGS_BASE, .size = 8 },
+	{ .id = VM_REG_GUEST_CR0, .size = 8 },
+	{ .id = VM_REG_GUEST_CR2, .size = 8 },
+	{ .id = VM_REG_GUEST_CR3, .size = 8 },
+	{ .id = VM_REG_GUEST_CR4, .size = 8 },
+	{ .id = VM_REG_GUEST_TPR, .size = 8 },
+	{ .id = VM_REG_GUEST_EFER, .size = 8 },
 };
 
+#define	GDB_LOG
 #ifdef GDB_LOG
 #include <stdarg.h>
 #include <stdio.h>
@@ -1030,9 +1052,13 @@ gdb_read_regs(void)
 		send_error(errno);
 		return;
 	}
+
 	start_packet();
-	for (size_t i = 0; i < nitems(gdb_regset); i++)
+	for (size_t i = 0; i < nitems(gdb_regset); i++) {
+		if (gdb_regset[i].id == GDB_REG_FIRST_EXT)
+			break;
 		append_unsigned_native(regvals[i], gdb_regset[i].size);
+	}
 	finish_packet();
 }
 
@@ -1520,6 +1546,7 @@ check_features(const uint8_t *data, size_t len)
 	/* This is an arbitrary limit. */
 	append_string("PacketSize=4096");
 	append_string(";swbreak+");
+	append_string(";qXfer:features:read+");
 	finish_packet();
 }
 
@@ -1591,6 +1618,71 @@ gdb_query(const uint8_t *data, size_t len)
 		start_packet();
 		append_asciihex(buf);
 		finish_packet();
+	} else if (command_equals(data, len, "qXfer:features:read:")) {
+		struct stat sb;
+		const char *xml;
+		const uint8_t *pathend;
+		char buf[64], path[PATH_MAX];
+		size_t xmllen;
+		unsigned int doff, dlen;
+		int fd;
+
+		data += strlen("qXfer:features:read:");
+		len -= strlen("qXfer:features:read:");
+
+		pathend = memchr(data, ':', len);
+		if (pathend == NULL ||
+		    (size_t)(pathend - data) >= sizeof(path) - 1) {
+			send_error(EINVAL);
+			return;
+		}
+		memcpy(path, data, pathend - data);
+		path[pathend - data] = '\0';
+		data += (pathend - data) + 1;
+		len -= (pathend - data) + 1;
+
+		if (len > sizeof(buf) - 1) {
+			send_error(EINVAL);
+			return;
+		}
+		memcpy(buf, data, len);
+		buf[len] = '\0';
+		if (sscanf(buf, "%x,%x", &doff, &dlen) != 2) {
+			send_error(EINVAL);
+			return;
+		}
+
+		fd = openat(xml_dfd, path, O_RDONLY | O_RESOLVE_BENEATH);
+		if (fd < 0) {
+			send_error(errno);
+			return;
+		}
+		if (fstat(fd, &sb) < 0) {
+			send_error(errno);
+			close(fd);
+			return;
+		}
+		xml = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+		if (xml == MAP_FAILED) {
+			send_error(errno);
+			close(fd);
+			return;
+		}
+		close(fd);
+		xmllen = sb.st_size;
+
+		start_packet();
+		if (doff >= xmllen) {
+			append_char('l');
+		} else if (doff + dlen >= xmllen) {
+			append_char('l');
+			append_packet_data(xml + doff, xmllen - doff);
+		} else {
+			append_char('m');
+			append_packet_data(xml + doff, dlen);
+		}
+		finish_packet();
+		(void)munmap(__DECONST(void *, xml), xmllen);
 	} else
 		send_empty_response();
 }
@@ -1918,6 +2010,9 @@ limit_gdb_socket(int s)
 void
 init_gdb(struct vmctx *_ctx)
 {
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+#endif
 	int error, flags, optval, s;
 	struct addrinfo hints;
 	struct addrinfo *gdbaddr;
@@ -1998,4 +2093,13 @@ init_gdb(struct vmctx *_ctx)
 	gdb_active = true;
 	freeaddrinfo(gdbaddr);
 	free(sport);
+
+	xml_dfd = open(_PATH_GDB_XML, O_DIRECTORY);
+	if (xml_dfd == -1)
+		err(1, "Failed to open gdb xml directory");
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_FSTAT, CAP_LOOKUP, CAP_MMAP_R, CAP_PREAD);
+	if (caph_rights_limit(xml_dfd, &rights) == -1)
+		err(1, "cap_rights_init");
+#endif
 }
