@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2019 Ian Lepore <ian@freebsd.org>
  * Copyright (c) 2020-2021 Andriy Gapon
- * Copyright (c) 2022 Bjoern A. Zeeb
+ * Copyright (c) 2022-2024 Bjoern A. Zeeb
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -69,6 +69,13 @@ static struct pca954x_descr pca9540_descr = {
 	.enable = 0x04,
 };
 
+static struct pca954x_descr pca9546_descr = {
+	.partname = "pca9546",
+	.description = "PCA9546 I2C Switch",
+	.type = PCA954X_SW,
+	.numchannels = 4,
+};
+
 static struct pca954x_descr pca9547_descr = {
 	.partname = "pca9547",
 	.description = "PCA9547 I2C Mux",
@@ -87,6 +94,7 @@ static struct pca954x_descr pca9548_descr = {
 #ifdef FDT
 static struct ofw_compat_data compat_data[] = {
 	{ "nxp,pca9540", (uintptr_t)&pca9540_descr },
+	{ "nxp,pca9546", (uintptr_t)&pca9546_descr },
 	{ "nxp,pca9547", (uintptr_t)&pca9547_descr },
 	{ "nxp,pca9548", (uintptr_t)&pca9548_descr },
 	{ NULL, 0 },
@@ -94,6 +102,7 @@ static struct ofw_compat_data compat_data[] = {
 #else
 static struct pca954x_descr *part_descrs[] = {
 	&pca9540_descr,
+	&pca9546_descr,
 	&pca9547_descr,
 	&pca9548_descr,
 };
