@@ -335,7 +335,7 @@
 #define XM_PHY_ANEXP		0x0006	/* autoneg expansion */
 #define XM_PHY_NEXTP		0x0007	/* nextpage */
 #define XM_PHY_LPNEXTP		0x0008	/* link partner's nextpage */
-#define XM_PHY_EXTSTS		0x000F	/* extented status */
+#define XM_PHY_EXTSTS		0x000F	/* extended status */
 #define XM_PHY_RESAB		0x0010	/* resolved ability */
 
 #define XM_BMCR_DUPLEX		0x0100
