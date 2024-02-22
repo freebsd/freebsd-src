@@ -1,0 +1,180 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024 Rick Parrish <unitrunker@unitrunker.net>.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd February 19, 2024
+.Dt POSIXMQCONTROL 1
+.Os
+.Sh NAME
+.Nm posixmqcontrol
+.Nd Control POSIX mqueuefs message queues
+.Sh SYNOPSIS
+.Nm
+.Ar create
+.Fl q Ar queue
+.Fl s Ar size
+.Fl d Ar depth
+.Op Fl m Ar mode
+.Op Fl g Ar group
+.Op Fl u Ar user
+.Nm
+.Ar info
+.Fl q Ar queue
+.Nm
+.Ar recv
+.Fl q Ar queue
+.Nm
+.Ar rm
+.Fl q Ar queue
+.Nm
+.Ar send
+.Fl q Ar queue
+.Fl c Ar content
+.Op Fl p Ar priority
+.Sh DESCRIPTION
+The
+.Nm
+command allows separating POSIX message queue administration from application
+stack.
+Defining and adjusting queue attributes can be done without touching
+application code.
+It allows creating queues, inspecting queue metadata, altering group and user
+access to queues, dumping queue contents, and unlinking queues.
+.Pp
+Unlinking removes the name from the system and frees underlying memory.
+.Pp
+The maximum message size, maximum queue size, and current queue size are
+displayed by the
+.Ic info
+subcommand. This output is similar to running
+.Ic cat
+on a mqueuefs queue mounted under a mount point.
+This utility requires the
+.Ic mqueuefs
+kernel module to be loaded but does not require
+.Ic mqueuefs
+to be mounted as a file system.
+.Pp
+The following subcommands are provided:
+.Bl -tag -width truncate
+.It Ic create
+Create the named queues, if they do not already exist.
+More than one queue name may be created. The same maximum queue depth and
+maximum message size are used to create all queues.
+If a queue exists, then depth and size are optional.
+.Pp
+The required
+.Ar size
+and
+.Ar depth
+arguments specify the maximum message size (bytes per message) and maximum queue
+size (depth or number of messages in the queue).
+The optional numerical
+.Ar mode
+argument specifies the initial access mode.
+If the queue exists but does not match the requested size and depth, this
+utility will attempt to recreate the queue by first unlinking and then creating
+it.
+This will fail if the queue is not empty or is opened by other processes.
+.It Ic rm
+Unlink the queues specified - one attempt per queue.
+Failure to unlink one queue does not stop this sub-command from attempting to
+unlink the others.
+.It Ic info
+For each named queue, dispay the maximum message size, maximum queue size,
+current queue depth, user owner id, group owner id, and mode permission bits.
+.It Ic recv
+Wait for a message from a single named queue and display the message to
+standard output.
+.It Ic send
+Send messages to one or more named queues.
+If multiple messages and multiple queues are specified, the utility attempts to
+send all messages to all queues.
+The optional -p priority, if omitted, defaults to MQ_PRIO_MAX / 2 or medium
+priority.
+.El
+.Sh NOTES
+A change of queue geometry (maximum message size and/or maximum number of
+messages) requires destroying and re-creating the queue.
+As a safety feature,
+the create subcommand refuses to destroy a non-empty queue.
+If you use the rm subcommand to destroy a queue, any queued messages are lost.
+To avoid down-time when altering queue attributes, consider creating a new
+queue and configure reading applications to drain both new and old queues.
+Retire the old queue once all writers have been updated to write to the new
+queue.
+.Sh EXIT STATUS
+.Ex -std
+.Bl -bullet
+.It
+EX_NOTAVAILABLE usually means the mqueuefs kernel module is not loaded.
+.It
+EX_USAGE reports one or more incorrect parameters.
+.El
+.Sh EXAMPLES
+.Bl -bullet
+.It
+To retrieve the current message from a named queue,
+.Pa /1 ,
+use the command
+.Dl "posixmqcontrol recv -q /1"
+.It
+To create a queue with the name
+.Pa /2
+with maximum message size 100 and maximum queue depth 10,
+use the command
+.Dl "posixmqcontrol create -q /2 -s 100 -d 10"
+.It
+To send a message to a queue with the name
+.Pa /3
+use the command
+.Dl "posixmqcontrol send -q /3 -c 'some choice words.'"
+.It
+To examine attributes of a queue named
+.Pa /4
+use the command
+.Dl "posixmqcontrol info -q /4"
+.El
+.Sh SEE ALSO
+.Xr mq_open 2 ,
+.Xr mq_getattr 2 ,
+.Xr mq_receive 2 ,
+.Xr mq_send 2 ,
+.Xr mq_setattr 2 ,
+.Xr mq_unlink 2 ,
+.Xr mqueuefs 5
+.Sh BUGS
+mq_timedsend and mq_timedrecv are not implemented.
+info reports a worst-case estimate for QSIZE.
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 15.0 .
+.Sh AUTHORS
+The
+.Nm
+command and this manual page were written by
+.An Rick Parrish Aq Mt unitrunker@unitrunker.net.
