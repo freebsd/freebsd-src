@@ -1682,14 +1682,14 @@ static int
 vdev_write_bootenv_impl(vdev_t *vdev, vdev_boot_envblock_t *be)
 {
 	vdev_t *kid;
-	int rv = 0, rc;
+	int rv = 0, err;
 
 	STAILQ_FOREACH(kid, &vdev->v_children, v_childlink) {
 		if (kid->v_state != VDEV_STATE_HEALTHY)
 			continue;
-		rc = vdev_write_bootenv_impl(kid, be);
-		if (rv == 0)
-			rv = rc;
+		err = vdev_write_bootenv_impl(kid, be);
+		if (err != 0)
+			rv = err;
 	}
 
 	/*
@@ -1699,12 +1699,12 @@ vdev_write_bootenv_impl(vdev_t *vdev, vdev_boot_envblock_t *be)
 		return (rv);
 
 	for (int l = 0; l < VDEV_LABELS; l++) {
-		rc = vdev_label_write(vdev, l, be,
+		err = vdev_label_write(vdev, l, be,
 		    offsetof(vdev_label_t, vl_be));
-		if (rc != 0) {
+		if (err != 0) {
 			printf("failed to write bootenv to %s label %d: %d\n",
-			    vdev->v_name ? vdev->v_name : "unknown", l, rc);
-			rv = rc;
+			    vdev->v_name ? vdev->v_name : "unknown", l, err);
+			rv = err;
 		}
 	}
 	return (rv);
