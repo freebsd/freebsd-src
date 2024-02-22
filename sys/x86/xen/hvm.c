@@ -153,7 +153,7 @@ early_init_vtop(void *addr)
 	 * initialization.
 	 */
 	if (__predict_false((uintptr_t)addr < KERNBASE)) {
-		xc_printf("invalid linear address: %#lx\n", (uintptr_t)addr);
+		xc_printf("invalid linear address: %p\n", addr);
 		halt();
 	}
 
