@@ -43,7 +43,6 @@
  * purpose.
  */
 
-#include <sys/cdefs.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>

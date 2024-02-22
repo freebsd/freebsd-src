@@ -38,7 +38,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <efi.h>
 #include <efilib.h>
 

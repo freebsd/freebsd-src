@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <bootstrap.h>
 #include <sys/endian.h>
 #include <sys/param.h>

@@ -27,7 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * MALLOC.C - malloc equivalent, runs on top of zalloc and uses sbrk
  */
