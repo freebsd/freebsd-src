@@ -1688,7 +1688,7 @@ vdev_write_bootenv_impl(vdev_t *vdev, vdev_boot_envblock_t *be)
 		if (kid->v_state != VDEV_STATE_HEALTHY)
 			continue;
 		rc = vdev_write_bootenv_impl(kid, be);
-		if (rv == 0)
+		if (rv != 0)
 			rv = rc;
 	}
 
