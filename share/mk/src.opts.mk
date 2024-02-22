@@ -316,6 +316,7 @@ BROKEN_OPTIONS+=EFI
 # Bad coupling for libsecure stuff with bearssl and efi, so broken on EFI
 .if ${__T:Mpowerpc*}
 BROKEN_OPTIONS+=BEARSSL		# bearssl brings in secure efi stuff xxx
+.endif
 # OFW is only for powerpc, exclude others
 .if ${__T:Mpowerpc*} == ""
 BROKEN_OPTIONS+=LOADER_OFW
