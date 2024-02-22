@@ -2520,7 +2520,8 @@ do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags,
 	struct umtx_pi *pi;
 	uint32_t ceiling;
 	uint32_t owner, id;
-	int error, pri, old_inherited_pri, su, rv;
+	int error, pri, old_inherited_pri, new_pri, rv;
+	bool su;
 
 	id = td->td_tid;
 	uq = td->td_umtxq;
@@ -2549,21 +2550,23 @@ do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags,
 			error = EINVAL;
 			goto out;
 		}
+		new_pri = PRI_MIN_REALTIME + ceiling;
 
-		mtx_lock(&umtx_lock);
-		if (td->td_base_user_pri < PRI_MIN_REALTIME + ceiling) {
-			mtx_unlock(&umtx_lock);
+		if (td->td_base_user_pri < new_pri) {
 			error = EINVAL;
 			goto out;
 		}
-		if (su && PRI_MIN_REALTIME + ceiling < uq->uq_inherited_pri) {
-			uq->uq_inherited_pri = PRI_MIN_REALTIME + ceiling;
-			thread_lock(td);
-			if (uq->uq_inherited_pri < UPRI(td))
-				sched_lend_user_prio(td, uq->uq_inherited_pri);
-			thread_unlock(td);
+		if (su) {
+			mtx_lock(&umtx_lock);
+			if (new_pri < uq->uq_inherited_pri) {
+				uq->uq_inherited_pri = new_pri;
+				thread_lock(td);
+				if (new_pri < UPRI(td))
+					sched_lend_user_prio(td, new_pri);
+				thread_unlock(td);
+			}
+			mtx_unlock(&umtx_lock);
 		}
-		mtx_unlock(&umtx_lock);
 
 		rv = casueword32(&m->m_owner, UMUTEX_CONTESTED, &owner,
 		    id | UMUTEX_CONTESTED);
