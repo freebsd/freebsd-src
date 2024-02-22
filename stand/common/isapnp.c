@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * Machine-independent ISA PnP enumerator implementing a subset of the
  * ISA PnP specification.

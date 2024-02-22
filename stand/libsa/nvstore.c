@@ -42,7 +42,6 @@
  * will switch the back end storage.
  */
 
-#include <sys/cdefs.h>
 #include <stdbool.h>
 #include <sys/queue.h>
 #include "stand.h"

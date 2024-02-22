@@ -34,8 +34,6 @@
  * https://www.gnu.org/software/grub/manual/multiboot2/multiboot.html
  */
 
-#include <sys/cdefs.h>
-
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/linker.h>

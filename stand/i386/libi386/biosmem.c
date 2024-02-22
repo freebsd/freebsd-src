@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * Obtain memory configuration information from the BIOS
  */

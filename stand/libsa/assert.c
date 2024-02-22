@@ -24,9 +24,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <assert.h>
-
 #include "stand.h"
 
 void

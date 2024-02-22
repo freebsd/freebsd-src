@@ -55,7 +55,6 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/endian.h>
 
 #include <machine/stdarg.h>

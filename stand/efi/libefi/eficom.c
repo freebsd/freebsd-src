@@ -23,7 +23,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <stand.h>
 #include <sys/errno.h>
 #include <bootstrap.h>

@@ -33,7 +33,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 #include <stand.h>
 #include <machine/stdarg.h>
 

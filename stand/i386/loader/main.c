@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * MD bootstrap main() and assorted miscellaneous
  * commands.
