@@ -2551,7 +2551,7 @@ do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags,
 		}
 
 		mtx_lock(&umtx_lock);
-		if (UPRI(td) < PRI_MIN_REALTIME + ceiling) {
+		if (td->td_base_user_pri < PRI_MIN_REALTIME + ceiling) {
 			mtx_unlock(&umtx_lock);
 			error = EINVAL;
 			goto out;
