@@ -54,6 +54,8 @@ static const void	*ucode_intel_match(const uint8_t *data, size_t *len);
 static int	ucode_intel_verify(const struct ucode_intel_header *hdr,
 		    size_t resid);
 
+static const void	*ucode_amd_match(const uint8_t *data, size_t *len);
+
 static struct ucode_ops {
 	const char *vendor;
 	int (*load)(const void *, bool, uint64_t *, uint64_t *);
@@ -63,6 +65,11 @@ static struct ucode_ops {
 		.vendor = INTEL_VENDOR_ID,
 		.load = ucode_intel_load,
 		.match = ucode_intel_match,
+	},
+	{
+		.vendor = AMD_VENDOR_ID,
+		.load = ucode_amd_load,
+		.match = ucode_amd_match,
 	},
 };
 
@@ -223,6 +230,54 @@ ucode_intel_match(const uint8_t *data, size_t *len)
 		}
 	}
 	return (NULL);
+}
+
+int
+ucode_amd_load(const void *data, bool unsafe, uint64_t *nrevp, uint64_t *orevp)
+{
+	uint64_t nrev, orev;
+	uint32_t cpuid[4];
+
+	orev = rdmsr(MSR_BIOS_SIGN);
+
+	/*
+	 * Perform update.
+	 */
+	if (unsafe)
+		wrmsr_safe(MSR_K8_UCODE_UPDATE, (uint64_t)(uintptr_t)data);
+	else
+		wrmsr(MSR_K8_UCODE_UPDATE, (uint64_t)(uintptr_t)data);
+
+	/*
+	 * Serialize instruction flow.
+	 */
+	do_cpuid(0, cpuid);
+
+	/*
+	 * Verify that the microcode revision changed.
+	 */
+	nrev = rdmsr(MSR_BIOS_SIGN);
+	if (nrevp != NULL)
+		*nrevp = nrev;
+	if (orevp != NULL)
+		*orevp = orev;
+	if (nrev <= orev)
+		return (EEXIST);
+	return (0);
+
+}
+
+static const void *
+ucode_amd_match(const uint8_t *data, size_t *len)
+{
+	uint32_t signature, revision;
+	uint32_t regs[4];
+
+	do_cpuid(1, regs);
+	signature = regs[0];
+	revision = rdmsr(MSR_BIOS_SIGN);
+
+	return (ucode_amd_find("loader blob", signature, revision, data, *len, len));
 }
 
 /*

@@ -347,6 +347,7 @@ x86/x86/pvclock.c		optional	kvm_clock | xenhvm
 x86/x86/stack_machdep.c		optional	ddb | stack
 x86/x86/tsc.c			standard
 x86/x86/ucode.c			standard
+x86/x86/ucode_subr.c		standard
 x86/x86/delay.c			standard
 x86/xen/hvm.c			optional	xenhvm
 x86/xen/xen_apic.c		optional	xenhvm smp
