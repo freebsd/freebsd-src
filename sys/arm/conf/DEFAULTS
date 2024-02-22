@@ -6,4 +6,6 @@ device		mem
 
 # Default congestion control algorithm
 options 	CC_CUBIC		# include CUBIC congestion control
+
+options 	NEW_PCIB
 options 	INTRNG			# All arm systems use INTRNG these days
