@@ -43,6 +43,7 @@ CFLAGS+= -ftls-model=initial-exec
 # Link with static libcompiler_rt.a.
 #
 LDFLAGS+= -nodefaultlibs
+LDFLAGS+= -Wl,-Bsymbolic
 LIBADD+=	compiler_rt
 
 .if ${MK_SSP} != "no" && \
