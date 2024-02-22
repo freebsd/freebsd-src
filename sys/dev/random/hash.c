@@ -124,7 +124,7 @@ randomdev_encrypt_init(union randomdev_key *context, const void *data)
 
 /*
  * Create a pseudorandom output stream of 'bytecount' bytes using a CTR-mode
- * cipher or similar.  The 128-bit counter is supplied in the in-out parmeter
+ * cipher or similar.  The 128-bit counter is supplied in the in-out parameter
  * 'ctr.'  The output stream goes to 'd_out.'
  *
  * If AES is used, 'bytecount' is guaranteed to be a multiple of
