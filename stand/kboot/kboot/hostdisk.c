@@ -305,7 +305,6 @@ hostdisk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
 	struct devdesc *desc = devdata;
 	daddr_t pos;
 	int n;
-	int64_t off;
 	uint64_t res;
 	uint32_t posl, posh;
 
@@ -313,12 +312,14 @@ hostdisk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
 
 	posl = pos & 0xffffffffu;
 	posh = (pos >> 32) & 0xffffffffu;
-	if ((off = host_llseek(desc->d_unit, posh, posl, &res, 0)) < 0) {
-		printf("Seek error on fd %d to %ju (dblk %ju) returns %jd\n",
-		    desc->d_unit, (uintmax_t)pos, (uintmax_t)dblk, (intmax_t)off);
+	if (host_llseek(desc->d_unit, posh, posl, &res, 0) < 0)
 		return (EIO);
-	}
-	n = host_read(desc->d_unit, buf, size);
+	if (flag & F_READ)
+		n = host_read(desc->d_unit, buf, size);
+	else if (flag & F_WRITE)
+		n = host_write(desc->d_unit, buf, size);
+	else
+		return (EINVAL);
 
 	if (n < 0)
 		return (EIO);
@@ -339,7 +340,7 @@ hostdisk_open(struct open_file *f, ...)
 	va_end(vl);
 
 	fn = dev2hd(desc)->hd_dev;
-	desc->d_unit = host_open(fn, O_RDONLY, 0);
+	desc->d_unit = host_open(fn, O_RDWR, 0);
 	if (desc->d_unit <= 0) {
 		printf("hostdisk_open: couldn't open %s: %d\n", fn, errno);
 		return (ENOENT);
