@@ -288,7 +288,8 @@ main(int argc, char *argv[])
 		errx(1, "-r and -k cannot be used together, there is no next kernel");
 
 	if (Dflag) {
-		(void)unlink(PATH_NEXTBOOT);	/* Say nothing if it's not there */
+		if (unlink(PATH_NEXTBOOT) != 0 && errno != ENOENT)
+			warn("unlink " PATH_NEXTBOOT);
 		exit(0);
 	}
 
