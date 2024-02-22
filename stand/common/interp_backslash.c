@@ -14,7 +14,6 @@
  * Routine for doing backslash elimination.
  */
 
-#include <sys/cdefs.h>
 #include <stand.h>
 #include <string.h>
 #include "bootstrap.h"

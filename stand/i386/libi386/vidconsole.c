@@ -24,10 +24,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
+ * From: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  */
 
-#include <sys/cdefs.h>
 #include <stand.h>
 #include <sys/param.h>
 #include <bootstrap.h>

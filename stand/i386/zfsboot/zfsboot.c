@@ -13,7 +13,6 @@
  * purpose.
  */
 
-#include <sys/cdefs.h>
 #include <stand.h>
 
 #include <sys/param.h>

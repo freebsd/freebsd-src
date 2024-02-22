@@ -58,7 +58,6 @@
  * rights to redistribute these changes.
  */
 
-#include <sys/cdefs.h>
 #include "stand.h"
 
 /*

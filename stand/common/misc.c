@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <string.h>
 #include <stand.h>
 #include <bootstrap.h>
