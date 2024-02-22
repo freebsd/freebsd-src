@@ -98,7 +98,6 @@ device		ahci			# AHCI-compatible SATA controllers
 #device		ata			# Legacy ATA/SATA controllers
 
 # PCI
-options 	NEW_PCIB
 device		pci
 device		pci_host_generic
 

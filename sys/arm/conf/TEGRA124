@@ -111,7 +111,6 @@ device		ums			# USB mouse
 #device		wlan_amrr		# AMRR transmit rate control algorithm
 
 # PCI
-options 	NEW_PCIB
 device		pci
 
 # PCI Ethernet NICs that use the common MII bus controller code.
