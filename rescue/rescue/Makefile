@@ -216,7 +216,7 @@ CRUNCH_ALIAS_xz= unxz lzma unlzma xzcat lzcat
 
 CRUNCH_PROGS_usr.bin+= zstd
 CRUNCH_ALIAS_zstd= unzstd zstdcat zstdmt
-CRUNCH_LIBS+=	${LDADD_zstd}
+CRUNCH_LIBS+=	-lprivatezstd
 
 CRUNCH_PROGS_usr.bin+=	fetch
 CRUNCH_LIBS+=	-lfetch
