@@ -33,6 +33,8 @@
 #include <machine/cpufunc.h>
 #include <machine/specialreg.h>
 
+#include <x86/ucode.h>
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -79,33 +81,21 @@ amd10h_probe(int fd)
 	return (0);
 }
 
-/*
- * NB: the format of microcode update files is not documented by AMD.
- * It has been reverse engineered from studying Coreboot, illumos and Linux
- * source code.
- */
 void
 amd10h_update(const struct ucode_update_params *params)
 {
 	cpuctl_cpuid_args_t idargs;
 	cpuctl_msr_args_t msrargs;
 	cpuctl_update_args_t args;
-	const amd_10h_fw_header_t *fw_header;
-	const amd_10h_fw_header_t *selected_fw;
-	const equiv_cpu_entry_t *equiv_cpu_table;
-	const section_header_t *section_header;
-	const container_header_t *container_header;
-	const uint8_t *fw_data;
 	const uint8_t *fw_image;
 	const char *dev, *path;
+	const void *selected_fw;
 	size_t fw_size;
 	size_t selected_size;
 	uint32_t revision;
 	uint32_t new_rev;
 	uint32_t signature;
-	uint16_t equiv_id;
 	int devfd;
-	unsigned int i;
 	int error;
 
 	dev = params->dev_path;
@@ -133,129 +123,8 @@ amd10h_update(const struct ucode_update_params *params)
 	}
 	revision = (uint32_t)msrargs.data;
 
-	WARNX(1, "found cpu family %#x model %#x "
-	    "stepping %#x extfamily %#x extmodel %#x.",
-	    ((signature >> 8) & 0x0f) + ((signature >> 20) & 0xff),
-	    (signature >> 4) & 0x0f,
-	    (signature >> 0) & 0x0f, (signature >> 20) & 0xff,
-	    (signature >> 16) & 0x0f);
-	WARNX(1, "microcode revision %#x", revision);
-
-	/*
-	 * Open the firmware file.
-	 */
-	WARNX(1, "checking %s for update.", path);
-	if (fw_size <
-	    (sizeof(*container_header) + sizeof(*section_header))) {
-		WARNX(2, "file too short: %s", path);
-		goto done;
-	}
-
-	/*
-	 * mmap the whole image.
-	 */
-	fw_data = fw_image;
-	container_header = (const container_header_t *)fw_data;
-	if (container_header->magic != AMD_10H_MAGIC) {
-		WARNX(2, "%s is not a valid amd firmware: bad magic", path);
-		goto done;
-	}
-	fw_data += sizeof(*container_header);
-	fw_size -= sizeof(*container_header);
-
-	section_header = (const section_header_t *)fw_data;
-	if (section_header->type != AMD_10H_EQUIV_TABLE_TYPE) {
-		WARNX(2, "%s is not a valid amd firmware: "
-		    "first section is not CPU equivalence table", path);
-		goto done;
-	}
-	if (section_header->size == 0) {
-		WARNX(2, "%s is not a valid amd firmware: "
-		    "first section is empty", path);
-		goto done;
-	}
-	fw_data += sizeof(*section_header);
-	fw_size -= sizeof(*section_header);
-
-	if (section_header->size > fw_size) {
-		WARNX(2, "%s is not a valid amd firmware: "
-		    "file is truncated", path);
-		goto done;
-	}
-	if (section_header->size < sizeof(*equiv_cpu_table)) {
-		WARNX(2, "%s is not a valid amd firmware: "
-		    "first section is too short", path);
-		goto done;
-	}
-	equiv_cpu_table = (const equiv_cpu_entry_t *)fw_data;
-	fw_data += section_header->size;
-	fw_size -= section_header->size;
-
-	equiv_id = 0;
-	for (i = 0; equiv_cpu_table[i].installed_cpu != 0; i++) {
-		if (signature == equiv_cpu_table[i].installed_cpu) {
-			equiv_id = equiv_cpu_table[i].equiv_cpu;
-			WARNX(3, "equiv_id: %x, signature %8x,"
-			    " equiv_cpu_table[%d] %8x", equiv_id, signature,
-			    i, equiv_cpu_table[i].installed_cpu);
-			break;
-		}
-	}
-	if (equiv_id == 0) {
-		WARNX(2, "CPU is not found in the equivalence table");
-		goto done;
-	}
-
-	selected_fw = NULL;
-	selected_size = 0;
-	while (fw_size >= sizeof(*section_header)) {
-		section_header = (const section_header_t *)fw_data;
-		fw_data += sizeof(*section_header);
-		fw_size -= sizeof(*section_header);
-		if (section_header->type != AMD_10H_uCODE_TYPE) {
-			WARNX(2, "%s is not a valid amd firmware: "
-			    "section has incorrect type", path);
-			goto done;
-		}
-		if (section_header->size > fw_size) {
-			WARNX(2, "%s is not a valid amd firmware: "
-			    "file is truncated", path);
-			goto done;
-		}
-		if (section_header->size < sizeof(*fw_header)) {
-			WARNX(2, "%s is not a valid amd firmware: "
-			    "section is too short", path);
-			goto done;
-		}
-		fw_header = (const amd_10h_fw_header_t *)fw_data;
-		fw_data += section_header->size;
-		fw_size -= section_header->size;
-
-		if (fw_header->processor_rev_id != equiv_id) {
-			WARNX(1, "firmware processor_rev_id %x, equiv_id %x",
-			    fw_header->processor_rev_id, equiv_id);
-			continue; /* different cpu */
-		}
-		if (fw_header->patch_id <= revision) {
-			WARNX(1, "patch_id %x, revision %x",
-			    fw_header->patch_id, revision);
-			continue; /* not newer revision */
-		}
-		if (fw_header->nb_dev_id != 0 || fw_header->sb_dev_id != 0) {
-			WARNX(2, "Chipset-specific microcode is not supported");
-		}
-
-		WARNX(3, "selecting revision: %x", fw_header->patch_id);
-		revision = fw_header->patch_id;
-		selected_fw = fw_header;
-		selected_size = section_header->size;
-	}
-
-	if (fw_size != 0) {
-		WARNX(2, "%s is not a valid amd firmware: "
-		    "file is truncated", path);
-		goto done;
-	}
+	selected_fw = ucode_amd_find(path, signature, revision, fw_image,
+	    fw_size, &selected_size);
 
 	if (selected_fw != NULL) {
 		WARNX(1, "selected ucode size is %zu", selected_size);
