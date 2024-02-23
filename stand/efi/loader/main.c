@@ -920,7 +920,7 @@ acpi_detect(void)
 		if ((rsdp = efi_get_table(&acpi)) == NULL)
 			return;
 
-	sprintf(buf, "0x%016llx", (unsigned long long)rsdp);
+	sprintf(buf, "0x%016llx", (unsigned long long)(uintptr_t)rsdp);
 	setenv("acpi.rsdp", buf, 1);
 	revision = rsdp->Revision;
 	if (revision == 0)
