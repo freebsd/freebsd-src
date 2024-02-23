@@ -51,11 +51,6 @@ LIBADD+=	compiler_rt
 LIBADD+=        ssp_nonshared
 .endif
 
-#.if ${MK_SSP} != "no" && \
-#    (${LIBC_ARCH} == "i386" || ${LIBC_ARCH:Mpowerpc*} != "")
-#LIBADD+=	ssp_nonshared
-#.endif
-
 # Define (empty) variables so that make doesn't give substitution
 # errors if the included makefiles don't change these:
 MDASM=
