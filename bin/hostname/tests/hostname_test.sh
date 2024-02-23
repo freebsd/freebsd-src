@@ -42,6 +42,9 @@ test_jail_conf='%%test_jail_name%% {
 
 init()
 {
+    if ! which -s jail; then
+        atf_skip "This test requires jail"
+    fi
     echo "${test_jail_conf}" | \
 	    sed -e "s/%%test_jail_name%%/${test_jail_name}/" > "./jail.conf"
     jail -f "./jail.conf" -c ${test_jail_name}
