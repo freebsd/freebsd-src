@@ -561,7 +561,7 @@ static char *
 make_next_boot_var_name(void)
 {
 	struct entry *v;
-	uint16_t *vals, next_free = 0;
+	uint16_t *vals;
 	char *name;
 	int cnt = 0;
 	int i;
@@ -579,21 +579,14 @@ make_next_boot_var_name(void)
 		vals[i++] = v->idx;
 	}
 	qsort(vals, cnt, sizeof(uint16_t), compare);
-	/* if the hole is at the beginning, just return zero */
-	if (vals[0] > 0) {
-		next_free = 0;
-	} else {
-		/* now just run the list looking for the first hole */
-		for (i = 0; i < cnt - 1 && next_free == 0; i++)
-			if (vals[i] + 1 != vals[i + 1])
-				next_free = vals[i] + 1;
-		if (next_free == 0)
-			next_free = vals[cnt - 1] + 1;
-		/* In theory we could have used all 65k slots -- what to do? */
-	}
+	/* Find the first hole (could be at start or end) */
+	for (i = 0; i < cnt; ++i)
+		if (vals[i] != i)
+			break;
 	free(vals);
+	/* In theory we could have used all 65k slots -- what to do? */
 
-	asprintf(&name, "%s%04X", "Boot", next_free);
+	asprintf(&name, "%s%04X", "Boot", i);
 	if (name == NULL)
 		err(1, "asprintf");
 	return name;
