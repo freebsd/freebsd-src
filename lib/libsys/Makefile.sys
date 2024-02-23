@@ -40,7 +40,7 @@ SRCS+=	\
 SRCS+= getdents.c lstat.c mknod.c stat.c
 
 SRCS+=	creat.c
-SRCS+=	lockf.c sleep.c usleep.c wait.c wait3.c waitpid.c waitid.c
+SRCS+=	lockf.c wait.c wait3.c waitpid.c waitid.c
 SRCS+=	recv.c recvmmsg.c send.c sendmmsg.c
 
 NOASM+=  sched_getcpu.o

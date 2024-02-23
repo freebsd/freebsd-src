@@ -46,7 +46,8 @@ __usleep(useconds_t useconds)
 	time_to_sleep.tv_nsec = (useconds % 1000000) * 1000;
 	time_to_sleep.tv_sec = useconds / 1000000;
 	return (((int (*)(const struct timespec *, struct timespec *))
-	    __libsys_interposing[INTERPOS_nanosleep])(&time_to_sleep, NULL));
+	    (*__libsys_interposing_slot(INTERPOS_nanosleep)))(&time_to_sleep,
+	    NULL));
 }
 
 __weak_reference(__usleep, usleep);
