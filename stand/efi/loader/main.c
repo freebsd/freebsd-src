@@ -27,7 +27,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <stand.h>
 
 #include <sys/disk.h>
@@ -278,10 +277,11 @@ probe_zfs_currdev(uint64_t guid)
 #endif
 
 #ifdef MD_IMAGE_SIZE
+extern struct devsw md_dev;
+
 static bool
 probe_md_currdev(void)
 {
-	extern struct devsw md_dev;
 	bool rv;
 
 	set_currdev_devsw(&md_dev, 0);

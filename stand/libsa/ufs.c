@@ -67,7 +67,6 @@
  * rights to redistribute these changes.
  */
 
-#include <sys/cdefs.h>
 /*
  *	Stand-alone file reading package.
  */

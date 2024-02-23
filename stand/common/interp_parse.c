@@ -14,7 +14,6 @@
  * The meat of the simple parser.
  */
 
-#include <sys/cdefs.h>
 #include <stand.h>
 #include <string.h>
 #include "bootstrap.h"

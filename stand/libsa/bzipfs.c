@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #ifndef REGRESSION
 #include "stand.h"
 #else

@@ -190,6 +190,14 @@
 #define	CTR_ILINE_VAL(reg)	((reg) & CTR_ILINE_MASK)
 #define	CTR_ILINE_SIZE(reg)	(4 << (CTR_ILINE_VAL(reg) >> CTR_ILINE_SHIFT))
 
+/* CurrentEL - Current Exception Level */
+#define	CURRENTEL_EL_SHIFT	2
+#define	CURRENTEL_EL_MASK	(0x3 << CURRENTEL_EL_SHIFT)
+#define	 CURRENTEL_EL_EL0	(0x0 << CURRENTEL_EL_SHIFT)
+#define	 CURRENTEL_EL_EL1	(0x1 << CURRENTEL_EL_SHIFT)
+#define	 CURRENTEL_EL_EL2	(0x2 << CURRENTEL_EL_SHIFT)
+#define	 CURRENTEL_EL_EL3	(0x3 << CURRENTEL_EL_SHIFT)
+
 /* DAIFSet/DAIFClear */
 #define	DAIF_D			(1 << 3)
 #define	DAIF_A			(1 << 2)
@@ -357,6 +365,12 @@
 #define	 ISS_MSR_REG_MASK	\
     (ISS_MSR_OP0_MASK | ISS_MSR_OP2_MASK | ISS_MSR_OP1_MASK | 	\
      ISS_MSR_CRn_MASK | ISS_MSR_CRm_MASK)
+#define	 ISS_MSR_REG(reg)				\
+    (((reg ## _op0) << ISS_MSR_OP0_SHIFT) |		\
+     ((reg ## _op1) << ISS_MSR_OP1_SHIFT) |		\
+     ((reg ## _CRn) << ISS_MSR_CRn_SHIFT) |		\
+     ((reg ## _CRm) << ISS_MSR_CRm_SHIFT) |		\
+     ((reg ## _op2) << ISS_MSR_OP2_SHIFT))
 
 #define	 ISS_DATA_ISV_SHIFT	24
 #define	 ISS_DATA_ISV		(0x01 << ISS_DATA_ISV_SHIFT)
@@ -2069,8 +2083,15 @@
 #define	PSR_DAIF	(PSR_D | PSR_A | PSR_I | PSR_F)
 /* The default DAIF mask. These bits are valid in spsr_el1 and daif */
 #define	PSR_DAIF_DEFAULT (PSR_F)
+#define	PSR_BTYPE	0x00000c00UL
+#define	PSR_SSBS	0x00001000UL
+#define	PSR_ALLINT	0x00002000UL
 #define	PSR_IL		0x00100000UL
 #define	PSR_SS		0x00200000UL
+#define	PSR_PAN		0x00400000UL
+#define	PSR_UAO		0x00800000UL
+#define	PSR_DIT		0x01000000UL
+#define	PSR_TCO		0x02000000UL
 #define	PSR_V		0x10000000UL
 #define	PSR_C		0x20000000UL
 #define	PSR_Z		0x40000000UL

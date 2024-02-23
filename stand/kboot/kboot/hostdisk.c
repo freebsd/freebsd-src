@@ -305,7 +305,6 @@ hostdisk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
 	struct devdesc *desc = devdata;
 	daddr_t pos;
 	int n;
-	int64_t off;
 	uint64_t res;
 	uint32_t posl, posh;
 
@@ -313,12 +312,14 @@ hostdisk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
 
 	posl = pos & 0xffffffffu;
 	posh = (pos >> 32) & 0xffffffffu;
-	if ((off = host_llseek(desc->d_unit, posh, posl, &res, 0)) < 0) {
-		printf("Seek error on fd %d to %ju (dblk %ju) returns %jd\n",
-		    desc->d_unit, (uintmax_t)pos, (uintmax_t)dblk, (intmax_t)off);
+	if (host_llseek(desc->d_unit, posh, posl, &res, 0) < 0)
 		return (EIO);
-	}
-	n = host_read(desc->d_unit, buf, size);
+	if (flag & F_READ)
+		n = host_read(desc->d_unit, buf, size);
+	else if (flag & F_WRITE)
+		n = host_write(desc->d_unit, buf, size);
+	else
+		return (EINVAL);
 
 	if (n < 0)
 		return (EIO);
@@ -339,7 +340,7 @@ hostdisk_open(struct open_file *f, ...)
 	va_end(vl);
 
 	fn = dev2hd(desc)->hd_dev;
-	desc->d_unit = host_open(fn, O_RDONLY, 0);
+	desc->d_unit = host_open(fn, O_RDWR, 0);
 	if (desc->d_unit <= 0) {
 		printf("hostdisk_open: couldn't open %s: %d\n", fn, errno);
 		return (ENOENT);
@@ -567,40 +568,35 @@ hostdisk_zfs_probe(void)
 
 /* This likely shoud move to libsa/zfs/zfs.c and be used by at least EFI booting */
 static bool
-probe_zfs_currdev(uint64_t pool_guid, uint64_t root_guid, bool setcurrdev)
+probe_zfs_currdev(uint64_t pool_guid)
 {
 	char *devname;
 	struct zfs_devdesc currdev;
-	bool bootable;
+	char buf[VDEV_PAD_SIZE];
 
 	currdev.dd.d_dev = &zfs_dev;
 	currdev.dd.d_unit = 0;
 	currdev.pool_guid = pool_guid;
-	currdev.root_guid = root_guid;
+	currdev.root_guid = 0;
 	devname = devformat(&currdev.dd);
-	if (setcurrdev)
-		set_currdev(devname);
+	printf("Setting currdev to %s\n", devname);
+	set_currdev(devname);
+	init_zfs_boot_options(devname);
 
-	bootable = sanity_check_currdev();
-	if (bootable) {
-		char buf[VDEV_PAD_SIZE];
-
-		if (zfs_get_bootonce(&currdev, OS_BOOTONCE, buf, sizeof(buf)) == 0) {
-			printf("zfs bootonce: %s\n", buf);
-			if (setcurrdev)
-				set_currdev(buf);
-			setenv("zfs-bootonce", buf, 1);
-		}
-		(void)zfs_attach_nvstore(&currdev);
-		init_zfs_boot_options(devname);
+	if (zfs_get_bootonce(&currdev, OS_BOOTONCE, buf, sizeof(buf)) == 0) {
+		printf("zfs bootonce: %s\n", buf);
+		set_currdev(buf);
+		setenv("zfs-bootonce", buf, 1);
 	}
-	return (bootable);
+	(void)zfs_attach_nvstore(&currdev);
+
+	return (sanity_check_currdev());
 }
 
 static bool
 hostdisk_zfs_try_default(hdinfo_t *hd)
 {
-	return (probe_zfs_currdev(hd->hd_zfs_uuid, 0, true));
+	return (probe_zfs_currdev(hd->hd_zfs_uuid));
 }
 
 bool

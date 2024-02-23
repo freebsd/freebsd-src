@@ -37,8 +37,11 @@
 #include <contrib/xen/event_channel.h>
 
 /* Macros for accessing event channel values */
-#define	EVTCHN_PTR(type, port) \
-	(HYPERVISOR_shared_info->evtchn_##type + ((port) / __LONG_BIT))
+#define	EVTCHN_PTR(type, port) ({ 					\
+	KASSERT(port < nitems(HYPERVISOR_shared_info->evtchn_##type) *	\
+	    sizeof(xen_ulong_t) * 8, ("Invalid event channel port"));	\
+	(HYPERVISOR_shared_info->evtchn_##type + ((port) / __LONG_BIT));\
+})
 #define	EVTCHN_BIT(port)	((port) & (__LONG_BIT - 1))
 #define	EVTCHN_MASK(port)	(1UL << EVTCHN_BIT(port))
 

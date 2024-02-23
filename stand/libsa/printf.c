@@ -32,7 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * Standaloneified version of the FreeBSD kernel printf family.
  */

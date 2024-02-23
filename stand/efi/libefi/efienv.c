@@ -23,7 +23,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <stand.h>
 #include <efi.h>
 #include <efichar.h>

@@ -45,6 +45,7 @@ SRCS+= \
 	hash/ghash_pwr8.c \
 	hash/md5.c \
 	hash/md5sha1.c \
+	hash/mgf1.c
 
 
 # this one does not compile for amd64
@@ -149,6 +150,11 @@ SRCS+= \
 	x509/x509_knownkey.c \
 	x509/x509_minimal_full.c \
 
+SRCS+= \
+	rand/hmac_drbg.c \
+	mac/hmac.c \
+	mac/hmac_ct.c \
+
 INCS= \
 	inc/bearssl.h \
 	inc/bearssl_aead.h \
@@ -169,9 +175,6 @@ INCS:= ${INCS:S,^,${BEARSSL}/,}
 
 .if ${MK_BEARSSL_SSL:Uno} == "yes"
 SRCS+= \
-	mac/hmac.c \
-	mac/hmac_ct.c \
-	rand/hmac_drbg.c \
 	ssl/prf.c \
 	ssl/prf_md5sha1.c \
 	ssl/prf_sha256.c \

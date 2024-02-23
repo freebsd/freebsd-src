@@ -451,7 +451,7 @@ struct uart_class uart_ns8250_class = {
 	.uc_rclk = DEFAULT_RCLK,
 	.uc_rshift = 0
 };
-DATA_SET(uart_class_set, uart_ns8250_class);
+UART_CLASS(uart_ns8250_class);
 
 /*
  * XXX -- refactor out ACPI and FDT ifdefs

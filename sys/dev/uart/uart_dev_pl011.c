@@ -340,7 +340,7 @@ static struct uart_class uart_pl011_class = {
 	.uc_rclk = 0,
 	.uc_rshift = 2
 };
-DATA_SET(uart_class_set, uart_pl011_class);
+UART_CLASS(uart_pl011_class);
 
 #ifdef FDT
 static struct ofw_compat_data fdt_compat_data[] = {

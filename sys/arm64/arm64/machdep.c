@@ -212,7 +212,15 @@ has_hyp(void)
 	 * XXX The E2H check is wrong, but it's close enough for now.  Needs to
 	 * be re-evaluated once we're running regularly in EL2.
 	 */
-	return (boot_el == 2 && (hcr_el2 & HCR_E2H) == 0);
+	return (boot_el == CURRENTEL_EL_EL2 && (hcr_el2 & HCR_E2H) == 0);
+}
+
+bool
+in_vhe(void)
+{
+	/* If we are currently in EL2 then must be in VHE */
+	return ((READ_SPECIALREG(CurrentEL) & CURRENTEL_EL_MASK) ==
+	    CURRENTEL_EL_EL2);
 }
 
 static void

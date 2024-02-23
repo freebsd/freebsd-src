@@ -263,7 +263,8 @@ static const char *gnu_shortopts = "bctwz";
 
 static const struct option perl_longopts[] = {
 	{ "algorithm",		required_argument,	0, opt_algorithm },
-	{ "check",		required_argument,	0, opt_check },
+	{ "binary",		no_argument,		0, opt_binary },
+	{ "check",		no_argument,		0, opt_check },
 	{ "help",		no_argument,		0, opt_help },
 	{ "ignore-missing",	no_argument,		0, opt_ignore_missing },
 	{ "quiet",		no_argument,		0, opt_quiet },
@@ -286,9 +287,10 @@ MD5_Update(MD5_CTX *c, const unsigned char *data, size_t len)
 }
 
 struct chksumrec {
-	char	*filename;
-	char	*chksum;
-	struct	chksumrec	*next;
+	char *filename;
+	enum input_mode input_mode;
+	char *chksum;
+	struct chksumrec *next;
 };
 
 static struct chksumrec *head = NULL;
@@ -301,17 +303,17 @@ static unsigned int numrecs;
 static void
 gnu_check(const char *checksumsfile)
 {
-	FILE	*inp;
-	char	*linebuf = NULL;
-	size_t	linecap;
-	ssize_t	linelen;
-	int	lineno;
-	char	*filename;
-	char	*hashstr;
-	struct chksumrec	*rec;
-	const char	*digestname;
-	size_t	digestnamelen;
-	size_t	hashstrlen;
+	FILE *inp;
+	char *linebuf = NULL;
+	size_t linecap;
+	ssize_t linelen;
+	int lineno;
+	char *filename;
+	char *hashstr;
+	struct chksumrec *rec;
+	const char *digestname;
+	size_t digestnamelen;
+	size_t hashstrlen;
 	struct stat st;
 
 	if (strcmp(checksumsfile, "-") == 0)
@@ -361,16 +363,18 @@ gnu_check(const char *checksumsfile)
 		if (rec == NULL)
 			errx(1, "malloc failed");
 
-		if (*filename == '*' ||
-		    *filename == ' ' ||
-		    *filename == 'U' ||
-		    *filename == '^') {
-			if (lstat(filename, &st) != 0)
-				filename++;
+		if ((*filename == '*' || *filename == ' ' ||
+		    *filename == 'U' || *filename == '^') &&
+		    lstat(filename, &st) != 0 &&
+		    lstat(filename + 1, &st) == 0) {
+			rec->filename = strdup(filename + 1);
+			rec->input_mode = (enum input_mode)*filename;
+		} else {
+			rec->filename = strdup(filename);
+			rec->input_mode = input_mode;
 		}
 
 		rec->chksum = strdup(hashstr);
-		rec->filename = strdup(filename);
 		if (rec->chksum == NULL || rec->filename == NULL)
 			errx(1, "malloc failed");
 		rec->next = NULL;
@@ -395,17 +399,17 @@ int
 main(int argc, char *argv[])
 {
 #ifdef HAVE_CAPSICUM
-	cap_rights_t	rights;
-	fileargs_t	*fa = NULL;
+	cap_rights_t rights;
+	fileargs_t *fa = NULL;
 #endif
 	const struct option *longopts;
 	const char *shortopts;
-	FILE   *f;
-	int	i, opt;
-	char   *p, *string = NULL;
-	char	buf[HEX_DIGEST_LENGTH];
-	size_t	len;
-	struct chksumrec	*rec;
+	FILE *f;
+	int i, opt;
+	char *p, *string = NULL;
+	char buf[HEX_DIGEST_LENGTH];
+	size_t len;
+	struct chksumrec *rec;
 
 	if ((progname = strrchr(argv[0], '/')) == NULL)
 		progname = argv[0];
@@ -611,6 +615,13 @@ main(int argc, char *argv[])
 			const char *filename = *argv;
 			const char *filemode = "rb";
 
+			if (cflag && mode != mode_bsd) {
+				input_mode = rec->input_mode;
+				checkAgainst = rec->chksum;
+				rec = rec->next;
+			}
+			if (input_mode == input_text)
+				filemode = "r";
 			if (strcmp(filename, "-") == 0) {
 				f = stdin;
 			} else {
@@ -625,13 +636,7 @@ main(int argc, char *argv[])
 					warn("%s", filename);
 					failed = true;
 				}
-				if (cflag && mode != mode_bsd)
-					rec = rec->next;
 				continue;
-			}
-			if (cflag && mode != mode_bsd) {
-				checkAgainst = rec->chksum;
-				rec = rec->next;
 			}
 			p = MDInput(&Algorithm[digest], f, buf, false);
 			if (f != stdin)

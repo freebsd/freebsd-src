@@ -3,7 +3,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 /*
  * "Plug and Play" functionality.
  *

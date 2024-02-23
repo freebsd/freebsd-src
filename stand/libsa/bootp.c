@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <sys/limits.h>

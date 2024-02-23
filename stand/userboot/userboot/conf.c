@@ -31,7 +31,6 @@
  *	$NetBSD: conf.c,v 1.2 1997/03/22 09:03:29 thorpej Exp $	 
  */
 
-#include <sys/cdefs.h>
 #include <stand.h>
 
 #include "libuserboot.h"

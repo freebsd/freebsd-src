@@ -369,6 +369,28 @@ gnu_cflag_body()
 
 }
 
+atf_test_case gnu_cflag_mode
+gnu_cflag_mode_head()
+{
+	atf_set descr "Verify handling of input modes in GNU check mode"
+	atf_set require.progs "sha1sum"
+}
+gnu_cflag_mode_body()
+{
+	printf "The Magic Words are 01010011 01001111\r\n" >input
+	# The first line is malformed per GNU coreutils but matches
+	# what we produce when mode == mode_bsd && output_mode ==
+	# output_reverse (i.e. `sha1 -r`) so we want to support it.
+	cat >digests <<EOF
+53d88300dfb2be42f0ef25e3d9de798e31bb7e69 input
+53d88300dfb2be42f0ef25e3d9de798e31bb7e69 *input
+53d88300dfb2be42f0ef25e3d9de798e31bb7e69  input
+2290cf6ba4ac5387e520088de760b71a523871b0 ^input
+c1065e0d2bbc1c67dcecee0187d61316fb9c5582 Uinput
+EOF
+	atf_check sha1sum --quiet --check digests
+}
+
 atf_init_test_cases()
 {
 	for alg in $algorithms ; do
@@ -383,4 +405,5 @@ atf_init_test_cases()
 	done
 	atf_add_test_case gnu_bflag
 	atf_add_test_case gnu_cflag
+	atf_add_test_case gnu_cflag_mode
 }

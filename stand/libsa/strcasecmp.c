@@ -27,11 +27,8 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#include <sys/cdefs.h>
-#include <string.h>
 #include "stand.h"
-
+#include <string.h>
 
 int
 strcasecmp(const char *s1, const char *s2)

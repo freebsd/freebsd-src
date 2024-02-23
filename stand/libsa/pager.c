@@ -27,7 +27,6 @@
  * Simple paged-output and paged-viewing functions
  */
 
-#include <sys/cdefs.h>
 #include "stand.h"
 #include <string.h>
 

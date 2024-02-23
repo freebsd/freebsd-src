@@ -21,10 +21,14 @@ LIBC_ARCH=${MACHINE_CPUARCH}
 LIB=sys
 SHLIB_MAJOR= 7
 WARNS?=	2
+MK_SSP=		no
 
 CFLAGS+=-I${LIBSYS_SRCTOP}/include -I${LIBC_SRCTOP}/include
 CFLAGS+=-I${LIBSYS_SRCTOP}/${LIBC_ARCH}
 CFLAGS+=-I${LIBC_SRCTOP}/${LIBC_ARCH}
+
+.PATH: ${LIBC_SRCTOP}/string
+SRCS+=	memcpy.c memset.c strlcpy.c
 
 CLEANFILES+=tags
 INSTALL_PIC_ARCHIVE=
@@ -56,6 +60,9 @@ LIBADD+=        ssp_nonshared
 MDASM=
 MIASM=
 NOASM=
+
+SYM_MAPS+=	${LIBSYS_SRCTOP}/Symbol.map
+SRCS+=	auxv.c
 
 .include "${LIBSYS_SRCTOP}/Makefile.sys"
 

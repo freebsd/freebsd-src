@@ -10,6 +10,7 @@ CFLAGS.h_raw+=	-fstack-protector-all -Wstack-protector
 # override the sanitizer runtime libraries to be the ones installed on the
 # target system.
 CFLAGS.h_raw+=	-fsanitize=bounds
+LIBADD+=sys
 .elif ${COMPILER_TYPE} == "gcc"
 CFLAGS.h_raw+=	--param ssp-buffer-size=1
 LDADD+=	-lssp

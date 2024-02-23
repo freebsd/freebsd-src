@@ -23,7 +23,6 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <stand.h>
 #include <sys/param.h>
 #include <sys/boot.h>

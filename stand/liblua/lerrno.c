@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #define _WANT_KERNEL_ERRNO	1
 #include <errno.h>
 

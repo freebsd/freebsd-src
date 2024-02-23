@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * RPC functions used by NFS and bootparams.
  * Note that bootparams requires the ability to find out the

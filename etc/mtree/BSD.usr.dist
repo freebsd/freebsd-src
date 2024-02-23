@@ -184,6 +184,8 @@
         atf             tags=package=tests
         ..
         bhyve
+            gdb
+            ..
             kbdlayout
             ..
         ..

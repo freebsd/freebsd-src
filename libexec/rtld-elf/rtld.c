@@ -2752,8 +2752,9 @@ load_object(const char *name, int fd_u, const Obj_Entry *refobj, int flags)
 	if (obj->ino == sb.st_ino && obj->dev == sb.st_dev)
 	    break;
     }
-    if (obj != NULL && name != NULL) {
-	object_add_name(obj, name);
+    if (obj != NULL) {
+	if (name != NULL)
+	    object_add_name(obj, name);
 	free(path);
 	close(fd);
 	return (obj);

@@ -27,6 +27,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_hid.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
@@ -395,8 +397,8 @@ static const struct bcm5974_dev_params bcm5974_dev_params[BCM5974_FLAG_MAX] = {
 		.tp = tp + TYPE_MT2U,
 		.p = { SN_PRESSURE, 0, 256, 256 },
 		.w = { SN_WIDTH, 0, 2048, 0 },
-		.x = { SN_COORD, -3678, 3934, 48 },
-		.y = { SN_COORD, -2478, 2587, 44 },
+		.x = { SN_COORD, -3678, 3934, 157 },
+		.y = { SN_COORD, -2478, 2587, 107 },
 		.o = { SN_ORIENT, -3, 4, 0 },
 	},
 };
@@ -818,6 +820,7 @@ bcm5974_intr(void *context, void *data, hid_size_t len)
 	int ibt;			/* button status */
 	int i;
 	int slot;
+	uint8_t id;
 	uint8_t fsize = sizeof(struct tp_finger) + params->tp->delta;
 
 	if ((params->tp->caps & USES_COMPACT_REPORT) != 0)
@@ -826,7 +829,7 @@ bcm5974_intr(void *context, void *data, hid_size_t len)
 	if ((len < params->tp->offset + fsize) ||
 	    ((len - params->tp->offset) % fsize) != 0) {
 		DPRINTFN(BCM5974_LLEVEL_INFO, "Invalid length: %d, %x, %x\n",
-		    len, sc->tp_data[0], sc->tp_data[1]);
+		    len, params->tp->offset, fsize);
 		return;
 	}
 
@@ -838,18 +841,20 @@ bcm5974_intr(void *context, void *data, hid_size_t len)
 			fc = (struct tp_finger_compact *)(((uint8_t *)data) +
 			     params->tp->offset + params->tp->delta + i * fsize);
 			coords = (int)le32toh(fc->coords);
+			id = fc->id_ori & 0x0f;
+			slot = evdev_mt_id_to_slot(sc->sc_evdev, id);
 			DPRINTFN(BCM5974_LLEVEL_INFO,
 			    "[%d]ibt=%d, taps=%d, x=%5d, y=%5d, state=%4d, "
 			    "tchmaj=%4d, tchmin=%4d, size=%4d, pressure=%4d, "
-			    "ot=%4x, id=%4x\n",
+			    "ot=%4x, id=%4x, slot=%d\n",
 			    i, ibt, ntouch, coords << 19 >> 19,
 			    coords << 6 >> 19, (u_int)coords >> 30,
 			    fc->touch_major, fc->touch_minor, fc->size,
-			    fc->pressure, fc->id_ori >> 5, fc->id_ori & 0x0f);
-			if (fc->touch_major == 0)
+			    fc->pressure, fc->id_ori >> 5, id, slot);
+			if (fc->touch_major == 0 || slot == -1)
 				continue;
 			slot_data = (union evdev_mt_slot) {
-				.id = fc->id_ori & 0x0f,
+				.id = id,
 				.x = coords << 19 >> 19,
 				.y = params->y.min + params->y.max -
 				    ((coords << 6) >> 19),
@@ -859,7 +864,6 @@ bcm5974_intr(void *context, void *data, hid_size_t len)
 				.ori = (int)(fc->id_ori >> 5) - 4,
 			};
 			evdev_mt_push_slot(sc->sc_evdev, slot, &slot_data);
-			slot++;
 			continue;
 		}
 		f = (struct tp_finger *)(((uint8_t *)data) +

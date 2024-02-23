@@ -144,6 +144,7 @@ const struct cfg80211_ops linuxkpi_mac80211cfgops = {
 static struct lkpi_sta *lkpi_find_lsta_by_ni(struct lkpi_vif *,
     struct ieee80211_node *);
 static void lkpi_80211_txq_task(void *, int);
+static void lkpi_80211_lhw_rxq_task(void *, int);
 static void lkpi_ieee80211_free_skb_mbuf(void *);
 #ifdef LKPI_80211_WME
 static int lkpi_wme_update(struct lkpi_hw *, struct ieee80211vap *, bool);
@@ -4271,6 +4272,12 @@ linuxkpi_ieee80211_alloc_hw(size_t priv_len, const struct ieee80211_ops *ops)
 		TAILQ_INIT(&lhw->scheduled_txqs[ac]);
 	}
 
+	/* Deferred RX path. */
+	LKPI_80211_LHW_RXQ_LOCK_INIT(lhw);
+	TASK_INIT(&lhw->rxq_task, 0, lkpi_80211_lhw_rxq_task, lhw);
+	mbufq_init(&lhw->rxq, IFQ_MAXLEN);
+	lhw->rxq_stopped = false;
+
 	/*
 	 * XXX-BZ TODO make sure there is a "_null" function to all ops
 	 * not initialized.
@@ -4296,10 +4303,41 @@ void
 linuxkpi_ieee80211_iffree(struct ieee80211_hw *hw)
 {
 	struct lkpi_hw *lhw;
+	struct mbuf *m;
 
 	lhw = HW_TO_LHW(hw);
 	free(lhw->ic, M_LKPI80211);
 	lhw->ic = NULL;
+
+	/*
+	 * Drain the deferred RX path.
+	 */
+	LKPI_80211_LHW_RXQ_LOCK(lhw);
+	lhw->rxq_stopped = true;
+	LKPI_80211_LHW_RXQ_UNLOCK(lhw);
+
+	/* Drain taskq, won't be restarted due to rxq_stopped being set. */
+	while (taskqueue_cancel(taskqueue_thread, &lhw->rxq_task, NULL) != 0)
+		taskqueue_drain(taskqueue_thread, &lhw->rxq_task);
+
+	/* Flush mbufq (make sure to release ni refs!). */
+	m = mbufq_dequeue(&lhw->rxq);
+	while (m != NULL) {
+		struct m_tag *mtag;
+
+		mtag = m_tag_locate(m, MTAG_ABI_LKPI80211, LKPI80211_TAG_RXNI, NULL);
+		if (mtag != NULL) {
+			struct lkpi_80211_tag_rxni *rxni;
+
+			rxni = (struct lkpi_80211_tag_rxni *)(mtag + 1);
+			ieee80211_free_node(rxni->ni);
+		}
+		m_freem(m);
+		m = mbufq_dequeue(&lhw->rxq);
+	}
+	KASSERT(mbufq_empty(&lhw->rxq), ("%s: lhw %p has rxq len %d != 0\n",
+	    __func__, lhw, mbufq_len(&lhw->rxq)));
+	LKPI_80211_LHW_RXQ_LOCK_DESTROY(lhw);
 
 	/* Cleanup more of lhw here or in wiphy_free()? */
 	LKPI_80211_LHW_TXQ_LOCK_DESTROY(lhw);
@@ -4795,6 +4833,66 @@ linuxkpi_ieee80211_scan_completed(struct ieee80211_hw *hw,
 	return;
 }
 
+static void
+lkpi_80211_lhw_rxq_rx_one(struct lkpi_hw *lhw, struct mbuf *m)
+{
+	struct ieee80211_node *ni;
+	struct m_tag *mtag;
+	int ok;
+
+	ni = NULL;
+        mtag = m_tag_locate(m, MTAG_ABI_LKPI80211, LKPI80211_TAG_RXNI, NULL);
+	if (mtag != NULL) {
+		struct lkpi_80211_tag_rxni *rxni;
+
+		rxni = (struct lkpi_80211_tag_rxni *)(mtag + 1);
+		ni = rxni->ni;
+	}
+
+	if (ni != NULL) {
+		ok = ieee80211_input_mimo(ni, m);
+		ieee80211_free_node(ni);		/* Release the reference. */
+		if (ok < 0)
+			m_freem(m);
+	} else {
+		ok = ieee80211_input_mimo_all(lhw->ic, m);
+		/* mbuf got consumed. */
+	}
+
+#ifdef LINUXKPI_DEBUG_80211
+	if (linuxkpi_debug_80211 & D80211_TRACE_RX)
+		printf("TRACE %s: handled frame type %#0x\n", __func__, ok);
+#endif
+}
+
+static void
+lkpi_80211_lhw_rxq_task(void *ctx, int pending)
+{
+	struct lkpi_hw *lhw;
+	struct mbufq mq;
+	struct mbuf *m;
+
+	lhw = ctx;
+
+#ifdef LINUXKPI_DEBUG_80211
+	if (linuxkpi_debug_80211 & D80211_TRACE_RX)
+		printf("%s:%d lhw %p pending %d mbuf_qlen %d\n",
+		    __func__, __LINE__, lhw, pending, mbufq_len(&lhw->rxq));
+#endif
+
+	mbufq_init(&mq, IFQ_MAXLEN);
+
+	LKPI_80211_LHW_RXQ_LOCK(lhw);
+	mbufq_concat(&mq, &lhw->rxq);
+	LKPI_80211_LHW_RXQ_UNLOCK(lhw);
+
+	m = mbufq_dequeue(&mq);
+	while (m != NULL) {
+		lkpi_80211_lhw_rxq_rx_one(lhw, m);
+		m = mbufq_dequeue(&mq);
+	}
+}
+
 /* For %list see comment towards the end of the function. */
 void
 linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
@@ -5018,20 +5116,34 @@ skip_device_ts:
 	}
 #endif
 
+	/*
+	 * Attach meta-information to the mbuf for the deferred RX path.
+	 * Currently this is best-effort.  Should we need to be hard,
+	 * drop the frame and goto err;
+	 */
 	if (ni != NULL) {
-		ok = ieee80211_input_mimo(ni, m);
-		ieee80211_free_node(ni);
-		if (ok < 0)
-			m_freem(m);
-	} else {
-		ok = ieee80211_input_mimo_all(ic, m);
-		/* mbuf got consumed. */
+		struct m_tag *mtag;
+		struct lkpi_80211_tag_rxni *rxni;
+
+		mtag = m_tag_alloc(MTAG_ABI_LKPI80211, LKPI80211_TAG_RXNI,
+		    sizeof(*rxni), IEEE80211_M_NOWAIT);
+		if (mtag != NULL) {
+			rxni = (struct lkpi_80211_tag_rxni *)(mtag + 1);
+			rxni->ni = ni;		/* We hold a reference. */
+			m_tag_prepend(m, mtag);
+		}
 	}
 
-#ifdef LINUXKPI_DEBUG_80211
-	if (linuxkpi_debug_80211 & D80211_TRACE_RX)
-		printf("TRACE %s: handled frame type %#0x\n", __func__, ok);
-#endif
+	LKPI_80211_LHW_RXQ_LOCK(lhw);
+	if (lhw->rxq_stopped) {
+		LKPI_80211_LHW_RXQ_UNLOCK(lhw);
+		m_freem(m);
+		goto err;
+	}
+
+	mbufq_enqueue(&lhw->rxq, m);
+	taskqueue_enqueue(taskqueue_thread, &lhw->rxq_task);
+	LKPI_80211_LHW_RXQ_UNLOCK(lhw);
 
 	IMPROVE();
 

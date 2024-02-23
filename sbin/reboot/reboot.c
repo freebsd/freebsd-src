@@ -79,7 +79,7 @@ zfsbootcfg(const char *pool, bool force)
 		"-n",
 		"freebsd:nvstore",
 		"-k",
-		"nextboot_enable"
+		"nextboot_enable",
 		"-v",
 		"YES",
 		NULL
@@ -130,6 +130,11 @@ write_nextboot(const char *fn, const char *env, bool force)
 	}
 
 	if (zfs) {
+		char *slash;
+
+		if ((slash = strchr(sfs.f_mntfromname, '/')) == NULL)
+			E("Can't find ZFS pool name in %s", sfs.f_mntfromname);
+		*slash = '\0';
 		zfsbootcfg(sfs.f_mntfromname, force);
 	}
 
@@ -283,8 +288,8 @@ main(int argc, char *argv[])
 		errx(1, "-r and -k cannot be used together, there is no next kernel");
 
 	if (Dflag) {
-		if (unlink(PATH_NEXTBOOT) != 0)
-			err(1, "unlink %s", PATH_NEXTBOOT);
+		if (unlink(PATH_NEXTBOOT) != 0 && errno != ENOENT)
+			warn("unlink " PATH_NEXTBOOT);
 		exit(0);
 	}
 
