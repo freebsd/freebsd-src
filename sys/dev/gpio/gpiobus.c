@@ -1041,6 +1041,7 @@ static device_method_t gpiobus_methods[] = {
 	DEVMETHOD(bus_activate_resource,	bus_generic_rman_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	bus_generic_rman_deactivate_resource),
 	DEVMETHOD(bus_get_resource_list,	gpiobus_get_resource_list),
+	DEVMETHOD(bus_get_rman,		gpiobus_get_rman),
 	DEVMETHOD(bus_add_child,	gpiobus_add_child),
 	DEVMETHOD(bus_child_deleted,	gpiobus_child_deleted),
 	DEVMETHOD(bus_rescan,		gpiobus_rescan),
