@@ -28,6 +28,7 @@
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/ctype.h>
 
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
@@ -719,6 +720,39 @@ static char *bnxt_chip_type[] = {
 };
 #define MAX_CHIP_TYPE 3
 
+static char *bnxt_parse_pkglog(int desired_field, uint8_t *data, size_t datalen)
+{
+	char    *retval = NULL;
+	char    *p;
+	char    *value;
+	int     field = 0;
+
+	if (datalen < 1)
+		return NULL;
+	/* null-terminate the log data (removing last '\n'): */
+	data[datalen - 1] = 0;
+	for (p = data; *p != 0; p++) {
+		field = 0;
+		retval = NULL;
+		while (*p != 0 && *p != '\n') {
+			value = p;
+			while (*p != 0 && *p != '\t' && *p != '\n')
+				p++;
+			if (field == desired_field)
+				retval = value;
+			if (*p != '\t')
+				break;
+			*p = 0;
+			field++;
+			p++;
+		}
+		if (*p == 0)
+			break;
+		*p = 0;
+	}
+	return retval;
+}
+
 static int
 bnxt_package_ver_sysctl(SYSCTL_HANDLER_ARGS)
 {
@@ -726,11 +760,9 @@ bnxt_package_ver_sysctl(SYSCTL_HANDLER_ARGS)
 	struct iflib_dma_info dma_data;
 	char *pkglog = NULL;
 	char *p;
-	char *next;
 	char unk[] = "<unknown>";
 	char *buf = unk;
 	int rc;
-	int field;
 	uint16_t ordinal = BNX_DIR_ORDINAL_FIRST;
 	uint16_t index;
 	uint32_t data_len;
@@ -748,27 +780,11 @@ bnxt_package_ver_sysctl(SYSCTL_HANDLER_ARGS)
 			    &dma_data);
 			if (rc == 0) {
 				pkglog = dma_data.idi_vaddr;
-				/* NULL terminate (removes last \n) */
-				pkglog[data_len-1] = 0;
-
-				/* Set p = start of last line */
-				p = strrchr(pkglog, '\n');
-				if (p == NULL)
-					p = pkglog;
-
-				/* Now find the correct tab delimited field */
-				for (field = 0, next = p,
-				    p = strsep(&next, "\t");
-				    field <
-				    BNX_PKG_LOG_FIELD_IDX_PKG_VERSION && p;
-				    p = strsep(&next, "\t")) {
-					field++;
-				}
-				if (field == BNX_PKG_LOG_FIELD_IDX_PKG_VERSION)
+				p = bnxt_parse_pkglog(BNX_PKG_LOG_FIELD_IDX_PKG_VERSION, pkglog, data_len);
+				if (p && *p != 0 && isdigit(*p))
 					buf = p;
 			}
-		}
-		else
+		} else
 			dma_data.idi_vaddr = NULL;
 	}
 
