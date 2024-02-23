@@ -28,6 +28,7 @@
 #include <sys/timer.h>
 #include <sys/vmem.h>
 #include <sys/wait.h>
+#include <sys/string.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/prefetch.h>
@@ -76,17 +77,6 @@ module_param(spl_kmem_cache_magazine_size, uint, 0444);
 MODULE_PARM_DESC(spl_kmem_cache_magazine_size,
 	"Default magazine size (2-256), set automatically (0)");
 
-/*
- * The default behavior is to report the number of objects remaining in the
- * cache.  This allows the Linux VM to repeatedly reclaim objects from the
- * cache when memory is low satisfy other memory allocations.  Alternately,
- * setting this value to KMC_RECLAIM_ONCE limits how aggressively the cache
- * is reclaimed.  This may increase the likelihood of out of memory events.
- */
-static unsigned int spl_kmem_cache_reclaim = 0 /* KMC_RECLAIM_ONCE */;
-module_param(spl_kmem_cache_reclaim, uint, 0644);
-MODULE_PARM_DESC(spl_kmem_cache_reclaim, "Single reclaim pass (0x1)");
-
 static unsigned int spl_kmem_cache_obj_per_slab = SPL_KMEM_CACHE_OBJ_PER_SLAB;
 module_param(spl_kmem_cache_obj_per_slab, uint, 0644);
 MODULE_PARM_DESC(spl_kmem_cache_obj_per_slab, "Number of objects per slab");
@@ -102,7 +92,8 @@ MODULE_PARM_DESC(spl_kmem_cache_max_size, "Maximum size of slab in MB");
  * of 16K was determined to be optimal for architectures using 4K pages and
  * to also work well on architecutres using larger 64K page sizes.
  */
-static unsigned int spl_kmem_cache_slab_limit = 16384;
+static unsigned int spl_kmem_cache_slab_limit =
+    SPL_MAX_KMEM_ORDER_NR_PAGES * PAGE_SIZE;
 module_param(spl_kmem_cache_slab_limit, uint, 0644);
 MODULE_PARM_DESC(spl_kmem_cache_slab_limit,
 	"Objects less than N bytes use the Linux slab");
@@ -794,7 +785,7 @@ spl_kmem_cache_create(const char *name, size_t size, size_t align,
 	} else {
 		unsigned long slabflags = 0;
 
-		if (size > (SPL_MAX_KMEM_ORDER_NR_PAGES * PAGE_SIZE))
+		if (size > spl_kmem_cache_slab_limit)
 			goto out;
 
 #if defined(SLAB_USERCOPY)
