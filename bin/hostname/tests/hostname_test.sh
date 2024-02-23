@@ -81,6 +81,9 @@ basic_body()
 }
 basic_cleanup()
 {
+    if ! which -s jail; then
+        atf_skip "This test requires jail"
+    fi
     recycle
 }
 

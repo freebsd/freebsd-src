@@ -33,12 +33,12 @@ max_cur_head()
 {
 	atf_set descr 'Test maximum and current number of child jails'
 	atf_set require.user root
-	if ! which -s jail; then
-		atf_skip "This test requires jail"
-	fi
 }
 max_cur_body()
 {
+	if ! which -s jail; then
+		atf_skip "This test requires jail"
+	fi
 	origin_max=$(sysctl -n security.jail.children.max)
 	origin_cur=$(sysctl -n security.jail.children.cur)
 
