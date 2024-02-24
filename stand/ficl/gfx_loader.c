@@ -254,6 +254,6 @@ static void ficlCompileGfx(FICL_SYSTEM *pSys)
 FICL_COMPILE_SET(ficlCompileGfx);
 
 void
-gfx_interp_md(void)
+gfx_interp_ref(void)
 {
 }

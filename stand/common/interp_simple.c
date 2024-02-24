@@ -202,6 +202,6 @@ interp_include(const char *filename)
  * There's no graphics commands for the simple interpreter.
  */
 void
-gfx_interp_md(void)
+gfx_interp_ref(void)
 {
 }
