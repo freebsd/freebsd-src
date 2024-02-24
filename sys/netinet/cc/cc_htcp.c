@@ -229,9 +229,9 @@ htcp_ack_received(struct cc_var *ccv, uint16_t type)
 				 * per RTT.
 				 */
 				CCV(ccv, snd_cwnd) += (((htcp_data->alpha <<
-				    HTCP_SHIFT) / (CCV(ccv, snd_cwnd) /
-				    CCV(ccv, t_maxseg))) * CCV(ccv, t_maxseg))
-				    >> HTCP_SHIFT;
+				    HTCP_SHIFT) / (max(1,
+				    CCV(ccv, snd_cwnd) / CCV(ccv, t_maxseg)))) *
+				    CCV(ccv, t_maxseg))  >> HTCP_SHIFT;
 		}
 	}
 }
