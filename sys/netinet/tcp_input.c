@@ -479,6 +479,10 @@ cc_post_recovery(struct tcpcb *tp, struct tcphdr *th)
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	if (CC_ALGO(tp)->post_recovery != NULL) {
+		if (SEQ_LT(tp->snd_fack, th->th_ack) ||
+		    SEQ_GT(tp->snd_fack, tp->snd_max)) {
+			tp->snd_fack = th->th_ack;
+		}
 		tp->t_ccv.curack = th->th_ack;
 		CC_ALGO(tp)->post_recovery(&tp->t_ccv);
 	}
