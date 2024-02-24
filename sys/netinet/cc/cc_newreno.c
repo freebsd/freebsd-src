@@ -84,9 +84,9 @@
 #include <netinet/cc/cc_newreno.h>
 
 static void	newreno_cb_destroy(struct cc_var *ccv);
-static void	newreno_ack_received(struct cc_var *ccv, uint16_t type);
+static void	newreno_ack_received(struct cc_var *ccv, ccsignal_t type);
 static void	newreno_after_idle(struct cc_var *ccv);
-static void	newreno_cong_signal(struct cc_var *ccv, uint32_t type);
+static void	newreno_cong_signal(struct cc_var *ccv, ccsignal_t type);
 static int newreno_ctl_output(struct cc_var *ccv, struct sockopt *sopt, void *buf);
 static void	newreno_newround(struct cc_var *ccv, uint32_t round_cnt);
 static void	newreno_rttsample(struct cc_var *ccv, uint32_t usec_rtt, uint32_t rxtcnt, uint32_t fas);
@@ -212,7 +212,7 @@ newreno_cb_destroy(struct cc_var *ccv)
 }
 
 static void
-newreno_ack_received(struct cc_var *ccv, uint16_t type)
+newreno_ack_received(struct cc_var *ccv, ccsignal_t type)
 {
 	struct newreno *nreno;
 
@@ -363,7 +363,7 @@ newreno_after_idle(struct cc_var *ccv)
  * Perform any necessary tasks before we enter congestion recovery.
  */
 static void
-newreno_cong_signal(struct cc_var *ccv, uint32_t type)
+newreno_cong_signal(struct cc_var *ccv, ccsignal_t type)
 {
 	struct newreno *nreno;
 	uint32_t beta, beta_ecn, cwin, factor, mss, pipe;
@@ -441,6 +441,8 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 				    (100ULL * (uint64_t)mss)) * mss;
 		}
 		CCV(ccv, snd_cwnd) = mss;
+		break;
+	default:
 		break;
 	}
 }

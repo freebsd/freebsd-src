@@ -121,24 +121,24 @@ struct cc_var {
 #define CCF_HYSTART_CAN_SH_CWND	0x0800  /* Can hystart when going CSS -> CA slam the cwnd */
 #define CCF_HYSTART_CONS_SSTH	0x1000	/* Should hystart use the more conservative ssthresh */
 
-/* ACK types passed to the ack_received() hook. */
-#define	CC_ACK		0x0001	/* Regular in sequence ACK. */
-#define	CC_DUPACK	0x0002	/* Duplicate ACK. */
-#define	CC_PARTIALACK	0x0004	/* Not yet. */
-#define	CC_SACK		0x0008	/* Not yet. */
+typedef enum {
+	/* ACK types passed to the ack_received() hook. */
+	CC_ACK =	0x0001,	/* Regular in sequence ACK. */
+	CC_DUPACK =	0x0002,	/* Duplicate ACK. */
+	CC_PARTIALACK =	0x0004,	/* Not yet. */
+	CC_SACK =	0x0008,	/* Not yet. */
+	/* Congestion signal types passed to the cong_signal() hook. */
+	CC_ECN =	0x0100,	/* ECN marked packet received. */
+	CC_RTO =	0x0200,	/* RTO fired. */
+	CC_RTO_ERR =	0x0400,	/* RTO fired in error. */
+	CC_NDUPACK =	0x0800,	/* Threshold of dupack's reached. */
+	/*
+	 * The highest order 8 bits (0x01000000 - 0x80000000) are reserved
+	 * for CC algos to declare their own congestion signal types.
+	 */
+	CC_SIGPRIVMASK = 0xFF000000	/* Mask to check if sig is private. */
+} ccsignal_t;
 #endif /* defined(_KERNEL) || defined(_WANT_TCPCB) */
-
-/*
- * Congestion signal types passed to the cong_signal() hook. The highest order 8
- * bits (0x01000000 - 0x80000000) are reserved for CC algos to declare their own
- * congestion signal types.
- */
-#define	CC_ECN		0x00000001	/* ECN marked packet received. */
-#define	CC_RTO		0x00000002	/* RTO fired. */
-#define	CC_RTO_ERR	0x00000004	/* RTO fired in error. */
-#define	CC_NDUPACK	0x00000008	/* Threshold of dupack's reached. */
-
-#define	CC_SIGPRIVMASK	0xFF000000	/* Mask to check if sig is private. */
 
 #ifdef _KERNEL
 /*
@@ -175,10 +175,10 @@ struct cc_algo {
 	void	(*conn_init)(struct cc_var *ccv);
 
 	/* Called on receipt of an ack. */
-	void	(*ack_received)(struct cc_var *ccv, uint16_t type);
+	void	(*ack_received)(struct cc_var *ccv, ccsignal_t type);
 
 	/* Called on detection of a congestion signal. */
-	void	(*cong_signal)(struct cc_var *ccv, uint32_t type);
+	void	(*cong_signal)(struct cc_var *ccv, ccsignal_t type);
 
 	/* Called after exiting congestion recovery. */
 	void	(*post_recovery)(struct cc_var *ccv);
@@ -236,8 +236,8 @@ extern struct rwlock cc_list_lock;
  */
 void newreno_cc_post_recovery(struct cc_var *);
 void newreno_cc_after_idle(struct cc_var *);
-void newreno_cc_cong_signal(struct cc_var *, uint32_t );
-void newreno_cc_ack_received(struct cc_var *, uint16_t);
+void newreno_cc_cong_signal(struct cc_var *, ccsignal_t);
+void newreno_cc_ack_received(struct cc_var *, ccsignal_t);
 
 /* Called to temporarily keep an algo from going away during change */
 void cc_refer(struct cc_algo *algo);

@@ -505,7 +505,7 @@ newreno_cc_cong_signal(struct cc_var *ccv, uint32_t type)
 }
 
 void
-newreno_cc_ack_received(struct cc_var *ccv, uint16_t type)
+newreno_cc_ack_received(struct cc_var *ccv, ccsignal_t type)
 {
 	if (type == CC_ACK && !IN_RECOVERY(CCV(ccv, t_flags)) &&
 	    (ccv->flags & CCF_CWND_LIMITED)) {

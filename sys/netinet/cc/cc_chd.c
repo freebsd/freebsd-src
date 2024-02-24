@@ -88,10 +88,10 @@
 /* Largest possible number returned by random(). */
 #define	RANDOM_MAX	INT_MAX
 
-static void	chd_ack_received(struct cc_var *ccv, uint16_t ack_type);
+static void	chd_ack_received(struct cc_var *ccv, ccsignal_t ack_type);
 static void	chd_cb_destroy(struct cc_var *ccv);
 static int	chd_cb_init(struct cc_var *ccv, void *ptr);
-static void	chd_cong_signal(struct cc_var *ccv, uint32_t signal_type);
+static void	chd_cong_signal(struct cc_var *ccv, ccsignal_t signal_type);
 static void	chd_conn_init(struct cc_var *ccv);
 static int	chd_mod_init(void);
 static size_t	chd_data_sz(void);
@@ -235,7 +235,7 @@ chd_window_increase(struct cc_var *ccv, int new_measurement)
  * ack_type == CC_ACK.
  */
 static void
-chd_ack_received(struct cc_var *ccv, uint16_t ack_type)
+chd_ack_received(struct cc_var *ccv, ccsignal_t ack_type)
 {
 	struct chd *chd_data;
 	struct ertt *e_t;
@@ -336,7 +336,7 @@ chd_cb_init(struct cc_var *ccv, void *ptr)
 }
 
 static void
-chd_cong_signal(struct cc_var *ccv, uint32_t signal_type)
+chd_cong_signal(struct cc_var *ccv, ccsignal_t signal_type)
 {
 	struct ertt *e_t;
 	struct chd *chd_data;
@@ -346,7 +346,7 @@ chd_cong_signal(struct cc_var *ccv, uint32_t signal_type)
 	chd_data = ccv->cc_data;
 	qdly = imax(e_t->rtt, chd_data->maxrtt_in_rtt) - e_t->minrtt;
 
-	switch(signal_type) {
+	switch((int)signal_type) {
 	case CC_CHD_DELAY:
 		chd_window_decrease(ccv); /* Set new ssthresh. */
 		CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
@@ -387,6 +387,7 @@ chd_cong_signal(struct cc_var *ccv, uint32_t signal_type)
 
 	default:
 		newreno_cc_cong_signal(ccv, signal_type);
+		break;
 	}
 }
 
