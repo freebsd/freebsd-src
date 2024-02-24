@@ -270,6 +270,7 @@ cubic_ack_received(struct cc_var *ccv, ccsignal_t type)
 				cubic_data->flags &= ~(CUBICFLAG_RTO_EVENT |
 						       CUBICFLAG_IN_SLOWSTART);
 				cubic_data->W_max = CCV(ccv, snd_cwnd);
+				cubic_data->t_epoch = ticks;
 				cubic_data->K = 0;
 			} else if (cubic_data->flags & (CUBICFLAG_IN_SLOWSTART |
 						 CUBICFLAG_IN_APPLIMIT)) {
