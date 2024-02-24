@@ -25,7 +25,8 @@
  */
 
 /*
- * i2c-tiny-usb, DIY USB to IIC bridge (using AVR or RP2040) from Till Harbaum & Nicolai Electronics
+ * i2c-tiny-usb, DIY USB to IIC bridge (using AVR or RP2040) from
+ * Till Harbaum & Nicolai Electronics
  * See :
  *   https://github.com/harbaum/I2C-Tiny-USB
  * and
@@ -55,16 +56,16 @@
 #define CMD_GET_STATUS		3
 #define CMD_I2C_IO		4
 #define CMD_SET_LED		8
-#define CMD_I2C_IO_BEGIN	(1<<0)
-#define CMD_I2C_IO_END		(1<<1)
+#define CMD_I2C_IO_BEGIN	(1 << 0)
+#define CMD_I2C_IO_END		(1 << 1)
 #define STATUS_IDLE		0
 #define STATUS_ADDRESS_ACK	1
 #define STATUS_ADDRESS_NAK	2
 
 struct i2ctinyusb_softc {
-	struct usb_device	*sc_udev;	// USB device
-	device_t		sc_iic_dev;	// i2ctinyusb/iichb attached to i2ctinyusb
-	device_t		iicbus_dev;	// iicbus attached to i2ctinyusb/iichb
+	struct usb_device	*sc_udev;
+	device_t		sc_iic_dev;
+	device_t		iicbus_dev;
 	struct mtx		sc_mtx;
 };
 
@@ -80,11 +81,14 @@ static const STRUCT_USB_HOST_ID i2ctinyusb_devs[] = {
 static int i2ctinyusb_probe(device_t dev);
 static int i2ctinyusb_attach(device_t dev);
 static int i2ctinyusb_detach(device_t dev);
-static int i2ctinyusb_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs);
-static int i2ctinyusb_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr);
+static int i2ctinyusb_transfer(device_t dev, struct iic_msg *msgs,
+		uint32_t nmsgs);
+static int i2ctinyusb_reset(device_t dev, u_char speed, u_char addr,
+		u_char *oldaddr);
 
 static int
-usb_read(struct i2ctinyusb_softc *sc, int cmd, int value, int index, void *data, int len)
+usb_read(struct i2ctinyusb_softc *sc, int cmd, int value, int index,
+		void *data, int len)
 {
 	int error;
 	struct usb_device_request req;
@@ -96,7 +100,8 @@ usb_read(struct i2ctinyusb_softc *sc, int cmd, int value, int index, void *data,
 	USETW(req.wIndex, (index >> 1));
 	USETW(req.wLength, len);
 
-	error = usbd_do_request_flags(sc->sc_udev, &sc->sc_mtx, &req, data, 0, &actlen, 2000);
+	error = usbd_do_request_flags(sc->sc_udev, &sc->sc_mtx, &req, data, 0,
+			&actlen, 2000);
 
 	if (error)
 		actlen = -1;
@@ -105,7 +110,8 @@ usb_read(struct i2ctinyusb_softc *sc, int cmd, int value, int index, void *data,
 }
 
 static int
-usb_write(struct i2ctinyusb_softc *sc, int cmd, int value, int index, void *data, int len)
+usb_write(struct i2ctinyusb_softc *sc, int cmd, int value, int index,
+		void *data, int len)
 {
 	int error;
 	struct usb_device_request req;
@@ -117,7 +123,8 @@ usb_write(struct i2ctinyusb_softc *sc, int cmd, int value, int index, void *data
 	USETW(req.wIndex, (index >> 1));
 	USETW(req.wLength, len);
 
-	error = usbd_do_request_flags(sc->sc_udev, &sc->sc_mtx, &req, data, 0, &actlen, 2000);
+	error = usbd_do_request_flags(sc->sc_udev, &sc->sc_mtx, &req, data, 0,
+			&actlen, 2000);
 
 	if (error) {
 		printf(">>> usbd_do_request_flags error!\n");
@@ -137,7 +144,8 @@ i2ctinyusb_probe(device_t dev)
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 
-	if (usbd_lookup_id_by_uaa(i2ctinyusb_devs, sizeof(i2ctinyusb_devs), uaa) == 0) {
+	if (usbd_lookup_id_by_uaa(i2ctinyusb_devs, sizeof(i2ctinyusb_devs),
+				uaa) == 0) {
 		device_set_desc(dev, "I2C-Tiny-USB I2C interface");
 		return (BUS_PROBE_DEFAULT);
 	}
@@ -215,13 +223,15 @@ i2ctinyusb_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			cmd |= CMD_I2C_IO_END;
 
 		if ((msgs[i].flags & IIC_M_RD) != 0) {
-			if ((ret = usb_read(sc, cmd, pmsg->flags, pmsg->slave, pmsg->buf, pmsg->len)) != pmsg->len) {
+			if ((ret = usb_read(sc, cmd, pmsg->flags, pmsg->slave, pmsg->buf,
+							pmsg->len)) != pmsg->len) {
 				printf("Read error: got %u\n", ret);
 				ret = EIO;
 				goto out;
 			}
 		} else {
-			if ((ret = usb_write(sc, cmd, pmsg->flags, pmsg->slave, pmsg->buf, pmsg->len)) != pmsg->len) {
+			if ((ret = usb_write(sc, cmd, pmsg->flags, pmsg->slave, pmsg->buf,
+							pmsg->len)) != pmsg->len) {
 				printf("Write error: got %u\n", ret);
 				ret = EIO;
 				goto out;
@@ -280,7 +290,7 @@ static device_method_t i2ctinyusb_methods[] = {
 };
 
 static driver_t i2ctinyusb_driver = {
-	.name = "iichb", // need to be named "iichb" 'cause "The DRIVER_MODULE macro will also create the devclass with the name of the driver..."
+	.name = "iichb",
 	.methods = i2ctinyusb_methods,
 	.size = sizeof(struct i2ctinyusb_softc),
 };
