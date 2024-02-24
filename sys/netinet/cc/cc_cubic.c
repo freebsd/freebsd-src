@@ -155,6 +155,7 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 				cubic_data->flags &= ~(CUBICFLAG_RTO_EVENT |
 						       CUBICFLAG_IN_SLOWSTART);
 				cubic_data->max_cwnd = CCV(ccv, snd_cwnd);
+				cubic_data->t_last_cong = ticks;
 				cubic_data->K = 0;
 			} else if (cubic_data->flags & (CUBICFLAG_IN_SLOWSTART |
 						 CUBICFLAG_IN_APPLIMIT)) {
