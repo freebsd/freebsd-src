@@ -121,12 +121,15 @@ struct cc_var {
 #define CCF_HYSTART_CAN_SH_CWND	0x0800  /* Can hystart when going CSS -> CA slam the cwnd */
 #define CCF_HYSTART_CONS_SSTH	0x1000	/* Should hystart use the more conservative ssthresh */
 
+#endif /* defined(_KERNEL) || defined(_WANT_TCPCB) */
 typedef enum {
+#if defined(_KERNEL) || defined(_WANT_TCPCB)
 	/* ACK types passed to the ack_received() hook. */
 	CC_ACK =	0x0001,	/* Regular in sequence ACK. */
 	CC_DUPACK =	0x0002,	/* Duplicate ACK. */
 	CC_PARTIALACK =	0x0004,	/* Not yet. */
 	CC_SACK =	0x0008,	/* Not yet. */
+#endif /* defined(_KERNEL) || defined(_WANT_TCPCB) */
 	/* Congestion signal types passed to the cong_signal() hook. */
 	CC_ECN =	0x0100,	/* ECN marked packet received. */
 	CC_RTO =	0x0200,	/* RTO fired. */
@@ -138,7 +141,6 @@ typedef enum {
 	 */
 	CC_SIGPRIVMASK = 0xFF000000	/* Mask to check if sig is private. */
 } ccsignal_t;
-#endif /* defined(_KERNEL) || defined(_WANT_TCPCB) */
 
 #ifdef _KERNEL
 /*
