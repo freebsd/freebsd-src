@@ -406,7 +406,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	op_err = sctp_arethere_unrecognized_parameters(m,
 	    (offset + sizeof(struct sctp_init_chunk)),
 	    &abort_flag, (struct sctp_chunkhdr *)cp,
-	    &nat_friendly, &cookie_found);
+	    &nat_friendly, &cookie_found, NULL);
 	if (abort_flag) {
 		/* Send an abort and notify peer */
 		sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
