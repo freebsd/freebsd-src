@@ -83,8 +83,10 @@ MODULE_DEPEND(if_lagg, netmap, 1, 1, 1);
 #define	LAGG_SX_DESTROY(_sc)	sx_destroy(&(_sc)->sc_sx)
 #define	LAGG_XLOCK(_sc)		sx_xlock(&(_sc)->sc_sx)
 #define	LAGG_XUNLOCK(_sc)	sx_xunlock(&(_sc)->sc_sx)
-#define	LAGG_SXLOCK_ASSERT(_sc)	sx_assert(&(_sc)->sc_sx, SA_LOCKED)
 #define	LAGG_XLOCK_ASSERT(_sc)	sx_assert(&(_sc)->sc_sx, SA_XLOCKED)
+#define	LAGG_SLOCK(_sc)		sx_slock(&(_sc)->sc_sx)
+#define	LAGG_SUNLOCK(_sc)	sx_sunlock(&(_sc)->sc_sx)
+#define	LAGG_SXLOCK_ASSERT(_sc)	sx_assert(&(_sc)->sc_sx, SA_LOCKED)
 
 /* Special flags we should propagate to the lagg ports. */
 static struct {
@@ -1044,7 +1046,9 @@ lagg_port_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
+		LAGG_SLOCK(sc);
 		lagg_port2req(lp, rp);
+		LAGG_SUNLOCK(sc);
 		NET_EPOCH_EXIT(et);
 		break;
 
@@ -1581,7 +1585,9 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
+		LAGG_SLOCK(sc);
 		lagg_port2req(lp, rp);
+		LAGG_SUNLOCK(sc);
 		NET_EPOCH_EXIT(et);
 		if_rele(tpif);
 		break;
