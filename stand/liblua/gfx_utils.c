@@ -242,7 +242,7 @@ luaopen_gfx(lua_State *L)
 }
 
 void
-gfx_interp_md(void)
+gfx_interp_ref(void)
 {
 }
 
