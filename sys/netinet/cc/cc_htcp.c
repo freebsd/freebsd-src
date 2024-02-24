@@ -136,10 +136,10 @@
 	(((diff) / hz) * (((diff) << HTCP_ALPHA_INC_SHIFT) / (4 * hz))) \
 ) >> HTCP_ALPHA_INC_SHIFT)
 
-static void	htcp_ack_received(struct cc_var *ccv, uint16_t type);
+static void	htcp_ack_received(struct cc_var *ccv, ccsignal_t type);
 static void	htcp_cb_destroy(struct cc_var *ccv);
 static int	htcp_cb_init(struct cc_var *ccv, void *ptr);
-static void	htcp_cong_signal(struct cc_var *ccv, uint32_t type);
+static void	htcp_cong_signal(struct cc_var *ccv, ccsignal_t type);
 static int	htcp_mod_init(void);
 static void	htcp_post_recovery(struct cc_var *ccv);
 static void	htcp_recalc_alpha(struct cc_var *ccv);
@@ -190,7 +190,7 @@ struct cc_algo htcp_cc_algo = {
 };
 
 static void
-htcp_ack_received(struct cc_var *ccv, uint16_t type)
+htcp_ack_received(struct cc_var *ccv, ccsignal_t type)
 {
 	struct htcp *htcp_data;
 
@@ -278,7 +278,7 @@ htcp_cb_init(struct cc_var *ccv, void *ptr)
  * Perform any necessary tasks before we enter congestion recovery.
  */
 static void
-htcp_cong_signal(struct cc_var *ccv, uint32_t type)
+htcp_cong_signal(struct cc_var *ccv, ccsignal_t type)
 {
 	struct htcp *htcp_data;
 	uint32_t mss, pipe;
@@ -344,6 +344,8 @@ htcp_cong_signal(struct cc_var *ccv, uint32_t type)
 		 */
 		if (CCV(ccv, t_rxtshift) >= 2)
 			htcp_data->t_last_cong = ticks;
+		break;
+	default:
 		break;
 	}
 }

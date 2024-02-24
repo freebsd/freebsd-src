@@ -73,10 +73,10 @@
 #include <netinet/cc/cc_cubic.h>
 #include <netinet/cc/cc_module.h>
 
-static void	cubic_ack_received(struct cc_var *ccv, uint16_t type);
+static void	cubic_ack_received(struct cc_var *ccv, ccsignal_t type);
 static void	cubic_cb_destroy(struct cc_var *ccv);
 static int	cubic_cb_init(struct cc_var *ccv, void *ptr);
-static void	cubic_cong_signal(struct cc_var *ccv, uint32_t type);
+static void	cubic_cong_signal(struct cc_var *ccv, ccsignal_t type);
 static void	cubic_conn_init(struct cc_var *ccv);
 static int	cubic_mod_init(void);
 static void	cubic_post_recovery(struct cc_var *ccv);
@@ -233,7 +233,7 @@ cubic_does_slow_start(struct cc_var *ccv, struct cubic *cubicd)
 }
 
 static void
-cubic_ack_received(struct cc_var *ccv, uint16_t type)
+cubic_ack_received(struct cc_var *ccv, ccsignal_t type)
 {
 	struct cubic *cubic_data;
 	unsigned long W_est, W_cubic;
@@ -417,7 +417,7 @@ cubic_cb_init(struct cc_var *ccv, void *ptr)
  * Perform any necessary tasks before we enter congestion recovery.
  */
 static void
-cubic_cong_signal(struct cc_var *ccv, uint32_t type)
+cubic_cong_signal(struct cc_var *ccv, ccsignal_t type)
 {
 	struct cubic *cubic_data;
 	uint32_t mss, pipe;
@@ -502,6 +502,8 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 		cubic_data->W_est = cubic_data->undo_W_est;
 		cubic_data->cwnd_epoch = cubic_data->undo_cwnd_epoch;
 		cubic_data->t_epoch = cubic_data->undo_t_epoch;
+		break;
+	default:
 		break;
 	}
 }

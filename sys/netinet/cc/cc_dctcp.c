@@ -79,11 +79,11 @@ struct dctcp {
 	uint32_t num_cong_events; /* # of congestion events */
 };
 
-static void	dctcp_ack_received(struct cc_var *ccv, uint16_t type);
+static void	dctcp_ack_received(struct cc_var *ccv, ccsignal_t type);
 static void	dctcp_after_idle(struct cc_var *ccv);
 static void	dctcp_cb_destroy(struct cc_var *ccv);
 static int	dctcp_cb_init(struct cc_var *ccv, void *ptr);
-static void	dctcp_cong_signal(struct cc_var *ccv, uint32_t type);
+static void	dctcp_cong_signal(struct cc_var *ccv, ccsignal_t type);
 static void	dctcp_conn_init(struct cc_var *ccv);
 static void	dctcp_post_recovery(struct cc_var *ccv);
 static void	dctcp_ecnpkt_handler(struct cc_var *ccv);
@@ -104,7 +104,7 @@ struct cc_algo dctcp_cc_algo = {
 };
 
 static void
-dctcp_ack_received(struct cc_var *ccv, uint16_t type)
+dctcp_ack_received(struct cc_var *ccv, ccsignal_t type)
 {
 	struct dctcp *dctcp_data;
 	int bytes_acked = 0;
@@ -237,7 +237,7 @@ dctcp_cb_init(struct cc_var *ccv, void *ptr)
  * Perform any necessary tasks before we enter congestion recovery.
  */
 static void
-dctcp_cong_signal(struct cc_var *ccv, uint32_t type)
+dctcp_cong_signal(struct cc_var *ccv, ccsignal_t type)
 {
 	struct dctcp *dctcp_data;
 	uint32_t cwin, mss, pipe;
@@ -307,6 +307,8 @@ dctcp_cong_signal(struct cc_var *ccv, uint32_t type)
 			dctcp_update_alpha(ccv);
 			dctcp_data->save_sndnxt += CCV(ccv, t_maxseg);
 			dctcp_data->num_cong_events++;
+			break;
+		default:
 			break;
 		}
 	} else

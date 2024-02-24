@@ -84,12 +84,12 @@
  * Private signal type for rate based congestion signal.
  * See <netinet/cc.h> for appropriate bit-range to use for private signals.
  */
-#define	CC_VEGAS_RATE	0x01000000
+#define	CC_VEGAS_RATE	0x04000000
 
-static void	vegas_ack_received(struct cc_var *ccv, uint16_t ack_type);
+static void	vegas_ack_received(struct cc_var *ccv, ccsignal_t ack_type);
 static void	vegas_cb_destroy(struct cc_var *ccv);
 static int	vegas_cb_init(struct cc_var *ccv, void *ptr);
-static void	vegas_cong_signal(struct cc_var *ccv, uint32_t signal_type);
+static void	vegas_cong_signal(struct cc_var *ccv, ccsignal_t signal_type);
 static void	vegas_conn_init(struct cc_var *ccv);
 static int	vegas_mod_init(void);
 static size_t	vegas_data_sz(void);
@@ -124,7 +124,7 @@ struct cc_algo vegas_cc_algo = {
  * has been used.
  */
 static void
-vegas_ack_received(struct cc_var *ccv, uint16_t ack_type)
+vegas_ack_received(struct cc_var *ccv, ccsignal_t ack_type)
 {
 	struct ertt *e_t;
 	struct vegas *vegas_data;
@@ -203,7 +203,7 @@ vegas_cb_init(struct cc_var *ccv, void *ptr)
  * handled here, otherwise it falls back to newreno's congestion handling.
  */
 static void
-vegas_cong_signal(struct cc_var *ccv, uint32_t signal_type)
+vegas_cong_signal(struct cc_var *ccv, ccsignal_t signal_type)
 {
 	struct vegas *vegas_data;
 	int presignalrecov;
@@ -215,7 +215,7 @@ vegas_cong_signal(struct cc_var *ccv, uint32_t signal_type)
 	else
 		presignalrecov = 0;
 
-	switch(signal_type) {
+	switch((int)signal_type) {
 	case CC_VEGAS_RATE:
 		if (!IN_RECOVERY(CCV(ccv, t_flags))) {
 			CCV(ccv, snd_cwnd) = max(2 * CCV(ccv, t_maxseg),
@@ -228,6 +228,7 @@ vegas_cong_signal(struct cc_var *ccv, uint32_t signal_type)
 
 	default:
 		newreno_cc_cong_signal(ccv, signal_type);
+		break;
 	}
 
 	if (IN_RECOVERY(CCV(ccv, t_flags)) && !presignalrecov)
