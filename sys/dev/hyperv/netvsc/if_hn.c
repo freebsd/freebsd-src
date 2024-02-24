@@ -2532,7 +2532,7 @@ hn_detach(device_t dev)
 				hn_stop(sc, true);
 			/*
 			 * NOTE:
-			 * hn_stop() only suspends data, so managment
+			 * hn_stop() only suspends data, so management
 			 * stuffs have to be suspended manually here.
 			 */
 			hn_suspend_mgmt(sc);
