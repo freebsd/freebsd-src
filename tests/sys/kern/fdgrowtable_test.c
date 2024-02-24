@@ -167,21 +167,43 @@ ATF_TC_HEAD(oldtables_shared_via_threads, tc)
 
 ATF_TC_BODY(oldtables_shared_via_threads, tc)
 {
+	pid_t child;
 	kvm_t *kd;
 	struct kinfo_proc *kp;
 	pthread_t thread;
 
-	ATF_REQUIRE((kd = kvm_open(NULL, NULL, NULL, O_RDONLY, NULL)) != NULL);
-	ATF_REQUIRE(pthread_create(&thread, NULL, exec_thread, NULL) == 0);
+	if ((child = rfork(RFPROC | RFCFDG)) > 0) {
+		pid_t wpid;
+		int status;
+
+		wpid = waitpid(child, &status, 0);
+		ATF_REQUIRE(wpid == child);
+		ATF_REQUIRE(WIFEXITED(status));
+		ATF_REQUIRE(WEXITSTATUS(status) == EXIT_SUCCESS);
+		return;
+	}
+
+#define	REQUIRE(expression)	do {					\
+		if (!(expression))					\
+			exit(EXIT_FAILURE);				\
+	} while (0)
+
+	REQUIRE(child == 0);
+
+	REQUIRE((kd = kvm_open(NULL, NULL, NULL, O_RDONLY, NULL)) != NULL);
+	REQUIRE(pthread_create(&thread, NULL, exec_thread, NULL) == 0);
 
 	openfiles(128);
 
 	kp = read_kinfo(kd);
-	ATF_CHECK(kp->ki_numthreads > 1);
-	ATF_CHECK(old_tables(kd,kp) > 1);
+	REQUIRE(kp->ki_numthreads > 1);
+	REQUIRE(old_tables(kd,kp) > 1);
 
-	ATF_REQUIRE(pthread_cancel(thread) == 0);
-	ATF_REQUIRE(pthread_join(thread, NULL) == 0);
+	REQUIRE(pthread_cancel(thread) == 0);
+	REQUIRE(pthread_join(thread, NULL) == 0);
+#undef REQUIRE
+
+	exit(EXIT_SUCCESS);
 }
 
 /*
