@@ -1153,8 +1153,8 @@ typedef struct ficlFILE
 
 typedef void ficlCompileFcn(FICL_SYSTEM *);
 #define FICL_COMPILE_SET(func)	\
-	DATA_SET(Xficl_compile_set, func)
-SET_DECLARE(Xficl_compile_set, ficlCompileFcn);
+	DATA_SET(X4th_compile_set, func)
+SET_DECLARE(X4th_compile_set, ficlCompileFcn);
 
 #ifdef LOADER_VERIEXEC
 #include <verify_file.h>

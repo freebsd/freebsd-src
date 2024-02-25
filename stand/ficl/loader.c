@@ -865,7 +865,7 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "uuid-from-string", ficlUuidFromString, FW_DEFAULT);
     dictAppendWord(dp, "uuid-to-string", ficlUuidToString, FW_DEFAULT);
     
-    SET_FOREACH(fnpp, Xficl_compile_set)
+    SET_FOREACH(fnpp, X4th_compile_set)
 	(*fnpp)(pSys);
 
 #if defined(__i386__)
