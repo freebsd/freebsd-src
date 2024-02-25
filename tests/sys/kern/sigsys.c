@@ -41,23 +41,23 @@ sigsys_test(int knob)
 	ATF_REQUIRE(syscall(273) == -1);	/* reserved */
 	ATF_CHECK_ERRNO(ENOSYS, true);
 	atomic_signal_fence(memory_order_seq_cst);
-	ATF_CHECK_EQ(1 * knob, sigsys_cnt * knob);
+	ATF_CHECK_EQ(1 * knob, sigsys_cnt);
 
 	ATF_REQUIRE(syscall(440) == -1);	/* SYS_kse_switchin */
 	ATF_CHECK_ERRNO(ENOSYS, true);
 	atomic_signal_fence(memory_order_seq_cst);
-	ATF_CHECK_EQ(2 * knob, sigsys_cnt * knob);
+	ATF_CHECK_EQ(2 * knob, sigsys_cnt);
 
 	/* Hope this is enough for say next two months */
 	ATF_REQUIRE(syscall(3000000) == -1);
 	ATF_CHECK_ERRNO(ENOSYS, true);
 	atomic_signal_fence(memory_order_seq_cst);
-	ATF_CHECK_EQ(3 * knob, sigsys_cnt * knob);
+	ATF_CHECK_EQ(3 * knob, sigsys_cnt);
 
 	ATF_REQUIRE(syscall(SYS_afs3_syscall) == -1);
 	ATF_CHECK_ERRNO(ENOSYS, true);
 	atomic_signal_fence(memory_order_seq_cst);
-	ATF_CHECK_EQ(4 * knob, sigsys_cnt * knob);
+	ATF_CHECK_EQ(4 * knob, sigsys_cnt);
 }
 
 static void
