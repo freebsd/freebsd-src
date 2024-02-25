@@ -8,5 +8,3 @@ CFLAGS+=	-I${SYSDIR}/contrib/dev/acpica/include
 # load address. set in linker script
 RELOC?=		0x0
 CFLAGS+=	-DRELOC=${RELOC}
-
-LDFLAGS=	-nostdlib -static -T ${.CURDIR}/arch/${MACHINE_ARCH}/ldscript.${MACHINE_ARCH}

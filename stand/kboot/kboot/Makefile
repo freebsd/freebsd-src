@@ -51,6 +51,9 @@ HELP_FILENAME=	loader.help.kboot
 .PATH:	${.CURDIR}/arch/${MACHINE_ARCH}
 .include "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
 
+# Bring in our ldscript
+LDFLAGS=	-nostdlib -static -T ${.CURDIR}/arch/${MACHINE_ARCH}/${MACHINE_ARCH}.ldscript
+
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/arch/${MACHINE_ARCH}
