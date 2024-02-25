@@ -41,6 +41,8 @@
 
 #include <mixer_if.h>
 
+#define HDSPE_MATRIX_MAX	8
+
 struct hdspe_latency {
 	uint32_t n;
 	uint32_t period;
@@ -1007,6 +1009,7 @@ hdspe_pcm_attach(device_t dev)
 	char status[SND_STATUSLEN];
 	struct sc_pcminfo *scp;
 	const char *buf;
+	uint32_t pcm_flags;
 	int err;
 	int play, rec;
 
@@ -1025,7 +1028,11 @@ hdspe_pcm_attach(device_t dev)
 	 * We don't register interrupt handler with snd_setup_intr
 	 * in pcm device. Mark pcm device as MPSAFE manually.
 	 */
-	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
+	pcm_flags = pcm_getflags(dev) | SD_F_MPSAFE;
+	if (hdspe_channel_count(scp->hc->ports, 8) > HDSPE_MATRIX_MAX)
+		/* Disable vchan conversion, too many channels. */
+		pcm_flags |= SD_F_BITPERFECT;
+	pcm_setflags(dev, pcm_flags);
 
 	play = (hdspe_channel_play_ports(scp->hc)) ? 1 : 0;
 	rec = (hdspe_channel_rec_ports(scp->hc)) ? 1 : 0;

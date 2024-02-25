@@ -44,6 +44,14 @@
 
 #include <mixer_if.h>
 
+static bool hdspe_unified_pcm = false;
+
+static SYSCTL_NODE(_hw, OID_AUTO, hdspe, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "PCI HDSPe");
+
+SYSCTL_BOOL(_hw_hdspe, OID_AUTO, unified_pcm, CTLFLAG_RWTUN,
+    &hdspe_unified_pcm, 0, "Combine physical ports in one unified pcm device");
+
 static struct hdspe_clock_source hdspe_clock_source_table_rd[] = {
 	{ "internal", 0 << 1 | 1, HDSPE_STATUS1_CLOCK(15),       0,       0 },
 	{ "word",     0 << 1 | 0, HDSPE_STATUS1_CLOCK( 0), 1 << 24, 1 << 25 },
@@ -78,6 +86,11 @@ static struct hdspe_channel chan_map_aio[] = {
 	{ 0,                        NULL },
 };
 
+static struct hdspe_channel chan_map_aio_uni[] = {
+	{ HDSPE_CHAN_AIO_ALL, "all" },
+	{ 0,                   NULL },
+};
+
 static struct hdspe_channel chan_map_rd[] = {
 	{ HDSPE_CHAN_RAY_AES,      "aes" },
 	{ HDSPE_CHAN_RAY_SPDIF, "s/pdif" },
@@ -86,6 +99,11 @@ static struct hdspe_channel chan_map_rd[] = {
 	{ HDSPE_CHAN_RAY_ADAT3,  "adat3" },
 	{ HDSPE_CHAN_RAY_ADAT4,  "adat4" },
 	{ 0,                        NULL },
+};
+
+static struct hdspe_channel chan_map_rd_uni[] = {
+	{ HDSPE_CHAN_RAY_ALL, "all" },
+	{ 0,                   NULL },
 };
 
 static void
@@ -538,11 +556,11 @@ hdspe_attach(device_t dev)
 	switch (rev) {
 	case PCI_REVISION_AIO:
 		sc->type = HDSPE_AIO;
-		chan_map = chan_map_aio;
+		chan_map = hdspe_unified_pcm ? chan_map_aio_uni : chan_map_aio;
 		break;
 	case PCI_REVISION_RAYDAT:
 		sc->type = HDSPE_RAYDAT;
-		chan_map = chan_map_rd;
+		chan_map = hdspe_unified_pcm ? chan_map_rd_uni : chan_map_rd;
 		break;
 	default:
 		return (ENXIO);
