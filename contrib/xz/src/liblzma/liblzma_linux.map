@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: 0BSD */
+
 XZ_5.0 {
 global:
 	lzma_alone_decoder;
@@ -134,3 +136,8 @@ global:
 	lzma_str_list_filters;
 	lzma_str_to_filters;
 } XZ_5.2;
+
+XZ_5.6.0 {
+global:
+	lzma_mt_block_size;
+} XZ_5.4;

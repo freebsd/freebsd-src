@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       filter_common.c
 /// \brief      Filter-specific stuff common for both encoder and decoder
 //
 //  Author:     Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -116,6 +115,15 @@ static const struct {
 #if defined(HAVE_ENCODER_SPARC) || defined(HAVE_DECODER_SPARC)
 	{
 		.id = LZMA_FILTER_SPARC,
+		.options_size = sizeof(lzma_options_bcj),
+		.non_last_ok = true,
+		.last_ok = false,
+		.changes_size = false,
+	},
+#endif
+#if defined(HAVE_ENCODER_RISCV) || defined(HAVE_DECODER_RISCV)
+	{
+		.id = LZMA_FILTER_RISCV,
 		.options_size = sizeof(lzma_options_bcj),
 		.non_last_ok = true,
 		.last_ok = false,

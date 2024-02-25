@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       tuklib_mbstr_fw.c
 /// \brief      Get the field width for printf() e.g. to align table columns
 //
 //  Author:     Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
