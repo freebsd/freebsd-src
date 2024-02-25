@@ -1265,8 +1265,12 @@ zfs_nvstore_unset_impl(void *vdev, const char *name, bool unset_env)
 			rv = zfs_set_bootenv(vdev, spa->spa_bootenv);
 	}
 
-	if (unset_env)
-		env_discard(env_getenv(name));
+	if (unset_env) {
+		struct env_var *ev = env_getenv(name);
+
+		if (ev != NULL)
+			env_discard(ev);
+	}
 	return (rv);
 }
 
