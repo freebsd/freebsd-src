@@ -47,11 +47,7 @@ CFLAGS+=	-DRELOC=${RELOC} -g
 
 LDFLAGS=	-nostdlib -static
 
-.if ${MACHINE_ARCH} == "powerpc64le"
-LDFLAGS+=	-T ${.CURDIR}/ldscript.powerpcle
-.else
-LDFLAGS+=	-T ${.CURDIR}/ldscript.powerpc
-.endif
+LDFLAGS+=	-L ${.CURDIR} -T ${.CURDIR}/${MACHINE_ARCH}.ldscript
 
 # Open Firmware standalone support library
 LIBOFW=		${BOOTOBJ}/libofw/libofw.a

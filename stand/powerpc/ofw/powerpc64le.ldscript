@@ -1,0 +1,3 @@
+OUTPUT_FORMAT("elf32-powerpcle-freebsd", "elf32-powerpcle-freebsd",
+	      "elf32-powerpcle-freebsd")
+INCLUDE "ppc-common.ldscript"
