@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       lzma2_encoder.c
@@ -5,9 +7,6 @@
 ///
 //  Authors:    Igor Pavlov
 //              Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -408,6 +407,9 @@ extern uint64_t
 lzma_lzma2_block_size(const void *options)
 {
 	const lzma_options_lzma *const opt = options;
+
+	if (!IS_ENC_DICT_SIZE_VALID(opt->dict_size))
+		return UINT64_MAX;
 
 	// Use at least 1 MiB to keep compression ratio better.
 	return my_max((uint64_t)(opt->dict_size) * 3, UINT64_C(1) << 20);

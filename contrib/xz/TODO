@@ -24,10 +24,6 @@ Known bugs
 
     tuklib_exit() doesn't block signals => EINTR is possible.
 
-    SIGTSTP is not handled. If xz is stopped, the estimated remaining
-    time and calculated (de)compression speed won't make sense in the
-    progress indicator (xz --verbose).
-
     If liblzma has created threads and fork() gets called, liblzma
     code will break in the child process unless it calls exec() and
     doesn't touch liblzma.

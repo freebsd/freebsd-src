@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       simple_coder.h
 /// \brief      Wrapper for simple filters
 //
 //  Author:     Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -75,6 +74,15 @@ extern lzma_ret lzma_simple_sparc_encoder_init(lzma_next_coder *next,
 		const lzma_filter_info *filters);
 
 extern lzma_ret lzma_simple_sparc_decoder_init(lzma_next_coder *next,
+		const lzma_allocator *allocator,
+		const lzma_filter_info *filters);
+
+
+extern lzma_ret lzma_simple_riscv_encoder_init(lzma_next_coder *next,
+		const lzma_allocator *allocator,
+		const lzma_filter_info *filters);
+
+extern lzma_ret lzma_simple_riscv_decoder_init(lzma_next_coder *next,
 		const lzma_allocator *allocator,
 		const lzma_filter_info *filters);
 

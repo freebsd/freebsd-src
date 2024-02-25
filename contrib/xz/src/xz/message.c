@@ -1,12 +1,12 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       message.c
 /// \brief      Printing messages
 //
-//  Author:     Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
+//  Authors:    Lasse Collin
+//              Jia Tan
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -42,7 +42,7 @@ static bool current_filename_printed = false;
 
 /// True if we should print progress indicator and update it automatically
 /// if also verbose >= V_VERBOSE.
-static bool progress_automatic;
+static bool progress_automatic = false;
 
 /// True if message_progress_start() has been called but
 /// message_progress_end() hasn't been called yet.
@@ -119,26 +119,7 @@ message_init(void)
 	// exception, even if --verbose was not used, user can send SIGALRM
 	// to make us print progress information once without automatic
 	// updating.
-	progress_automatic = isatty(STDERR_FILENO);
-
-	// Commented out because COLUMNS is rarely exported to environment.
-	// Most users have at least 80 columns anyway, let's think something
-	// fancy here if enough people complain.
-/*
-	if (progress_automatic) {
-		// stderr is a terminal. Check the COLUMNS environment
-		// variable to see if the terminal is wide enough. If COLUMNS
-		// doesn't exist or it has some unparsable value, we assume
-		// that the terminal is wide enough.
-		const char *columns_str = getenv("COLUMNS");
-		if (columns_str != NULL) {
-			char *endptr;
-			const long columns = strtol(columns_str, &endptr, 10);
-			if (*endptr != '\0' || columns < 80)
-				progress_automatic = false;
-		}
-	}
-*/
+	progress_automatic = is_tty(STDERR_FILENO);
 
 #ifdef SIGALRM
 	// Establish the signal handlers which set a flag to tell us that
@@ -932,7 +913,7 @@ message_try_help(void)
 {
 	// Print this with V_WARNING instead of V_ERROR to prevent it from
 	// showing up when --quiet has been specified.
-	message(V_WARNING, _("Try `%s --help' for more information."),
+	message(V_WARNING, _("Try '%s --help' for more information."),
 			progname);
 	return;
 }
@@ -994,7 +975,7 @@ message_help(bool long_help)
 "                      ignore possible remaining input data"));
 		puts(_(
 "      --no-sparse     do not create sparse files when decompressing\n"
-"  -S, --suffix=.SUF   use the suffix `.SUF' on compressed files\n"
+"  -S, --suffix=.SUF   use the suffix '.SUF' on compressed files\n"
 "      --files[=FILE]  read filenames to process from FILE; if FILE is\n"
 "                      omitted, filenames are read from the standard input;\n"
 "                      filenames must be terminated with the newline character\n"
@@ -1005,9 +986,9 @@ message_help(bool long_help)
 		puts(_("\n Basic file format and compression options:\n"));
 		puts(_(
 "  -F, --format=FMT    file format to encode or decode; possible values are\n"
-"                      `auto' (default), `xz', `lzma', `lzip', and `raw'\n"
-"  -C, --check=CHECK   integrity check type: `none' (use with caution),\n"
-"                      `crc32', `crc64' (default), or `sha256'"));
+"                      'auto' (default), 'xz', 'lzma', 'lzip', and 'raw'\n"
+"  -C, --check=CHECK   integrity check type: 'none' (use with caution),\n"
+"                      'crc32', 'crc64' (default), or 'sha256'"));
 		puts(_(
 "      --ignore-check  don't verify the integrity check when decompressing"));
 	}
@@ -1021,8 +1002,8 @@ message_help(bool long_help)
 "                      does not affect decompressor memory requirements"));
 
 	puts(_(
-"  -T, --threads=NUM   use at most NUM threads; the default is 1; set to 0\n"
-"                      to use as many threads as there are processor cores"));
+"  -T, --threads=NUM   use at most NUM threads; the default is 0 which uses\n"
+"                      as many threads as there are processor cores"));
 
 	if (long_help) {
 		puts(_(
@@ -1030,9 +1011,11 @@ message_help(bool long_help)
 "                      start a new .xz block after every SIZE bytes of input;\n"
 "                      use this to set the block size for threaded compression"));
 		puts(_(
-"      --block-list=SIZES\n"
+"      --block-list=BLOCKS\n"
 "                      start a new .xz block after the given comma-separated\n"
-"                      intervals of uncompressed data"));
+"                      intervals of uncompressed data; optionally, specify a\n"
+"                      filter chain number (0-9) followed by a ':' before the\n"
+"                      uncompressed data size"));
 		puts(_(
 "      --flush-timeout=TIMEOUT\n"
 "                      when compressing, if more than TIMEOUT milliseconds has\n"
@@ -1056,6 +1039,23 @@ message_help(bool long_help)
 	if (long_help) {
 		puts(_(
 "\n Custom filter chain for compression (alternative for using presets):"));
+
+		puts(_(
+"\n"
+"  --filters=FILTERS   set the filter chain using the liblzma filter string\n"
+"                      syntax; use --filters-help for more information"
+		));
+
+		puts(_(
+"  --filters1=FILTERS ... --filters9=FILTERS\n"
+"                      set additional filter chains using the liblzma filter\n"
+"                      string syntax to use with --block-list"
+		));
+
+		puts(_(
+"  --filters-help      display more information about the liblzma filter string\n"
+"                      syntax and exit."
+		));
 
 #if defined(HAVE_ENCODER_LZMA1) || defined(HAVE_DECODER_LZMA1) \
 		|| defined(HAVE_ENCODER_LZMA2) || defined(HAVE_DECODER_LZMA2)
@@ -1087,6 +1087,7 @@ message_help(bool long_help)
 "  --powerpc[=OPTS]    PowerPC BCJ filter (big endian only)\n"
 "  --ia64[=OPTS]       IA-64 (Itanium) BCJ filter\n"
 "  --sparc[=OPTS]      SPARC BCJ filter\n"
+"  --riscv[=OPTS]      RISC-V BCJ filter\n"
 "                      Valid OPTS for all BCJ filters:\n"
 "                        start=NUM  start offset for conversions (default=0)"));
 
@@ -1141,6 +1142,31 @@ message_help(bool long_help)
 	puts(_(
 "THIS IS A DEVELOPMENT VERSION NOT INTENDED FOR PRODUCTION USE."));
 #endif
+
+	tuklib_exit(E_SUCCESS, E_ERROR, verbosity != V_SILENT);
+}
+
+
+extern void
+message_filters_help(void)
+{
+	char *encoder_options;
+	if (lzma_str_list_filters(&encoder_options, LZMA_VLI_UNKNOWN,
+			LZMA_STR_ENCODER, NULL) != LZMA_OK)
+		message_bug();
+
+	if (!opt_robot) {
+		puts(_(
+"Filter chains are set using the --filters=FILTERS or\n"
+"--filters1=FILTERS ... --filters9=FILTERS options. Each filter in the chain\n"
+"can be separated by spaces or '--'. Alternatively a preset <0-9>[e] can be\n"
+"specified instead of a filter chain.\n"
+		));
+
+		puts(_("The supported filters and their options are:"));
+	}
+
+	puts(encoder_options);
 
 	tuklib_exit(E_SUCCESS, E_ERROR, verbosity != V_SILENT);
 }
