@@ -127,7 +127,6 @@ usb_write(struct i2ctinyusb_softc *sc, int cmd, int value, int index,
 			&actlen, 2000);
 
 	if (error) {
-		printf(">>> usbd_do_request_flags error!\n");
 		actlen = -1;
 	}
 
