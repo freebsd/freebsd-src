@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: 0BSD */
+
 /**
  * \file        lzma/filter.h
  * \brief       Common filter related types and functions
@@ -6,9 +8,6 @@
 
 /*
  * Author: Lasse Collin
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
  */
 
 #ifndef LZMA_H_INTERNAL
@@ -43,7 +42,7 @@ typedef struct {
 	/**
 	 * \brief       Filter ID
 	 *
-	 * Use constants whose name begin with `LZMA_FILTER_' to specify
+	 * Use constants whose name begin with 'LZMA_FILTER_' to specify
 	 * different filters. In an array of lzma_filter structures, use
 	 * LZMA_VLI_UNKNOWN to indicate end of filters.
 	 *
@@ -199,7 +198,7 @@ extern LZMA_API(uint64_t) lzma_raw_decoder_memusage(const lzma_filter *filters)
  *
  * This function may be useful when implementing custom file formats.
  *
- * The `action' with lzma_code() can be LZMA_RUN, LZMA_SYNC_FLUSH (if the
+ * The 'action' with lzma_code() can be LZMA_RUN, LZMA_SYNC_FLUSH (if the
  * filter chain supports it), or LZMA_FINISH.
  *
  * \param       strm      Pointer to lzma_stream that is at least
@@ -223,7 +222,7 @@ extern LZMA_API(lzma_ret) lzma_raw_encoder(
  *
  * The initialization of raw decoder goes similarly to raw encoder.
  *
- * The `action' with lzma_code() can be LZMA_RUN or LZMA_FINISH. Using
+ * The 'action' with lzma_code() can be LZMA_RUN or LZMA_FINISH. Using
  * LZMA_FINISH is not required, it is supported just for convenience.
  *
  * \param       strm      Pointer to lzma_stream that is at least

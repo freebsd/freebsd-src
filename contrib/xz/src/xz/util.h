@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       util.h
 /// \brief      Miscellaneous utility functions
 //
 //  Author:     Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -103,6 +102,20 @@ extern const char *uint64_to_nicestr(uint64_t value,
 /// are updated accordingly.
 lzma_attribute((__format__(__printf__, 3, 4)))
 extern void my_snprintf(char **pos, size_t *left, const char *fmt, ...);
+
+
+/// \brief      Test if file descriptor is a terminal
+///
+/// For POSIX systems, this is a simple wrapper around isatty(). However on
+/// Windows, isatty() returns true for all character devices, not just
+/// terminals.
+///
+/// \param      fd    File descriptor to test
+///
+/// \return     bool:
+///             - true if file descriptor is a terminal
+///             - false otherwise
+extern bool is_tty(int fd);
 
 
 /// \brief      Test if stdin is a terminal
