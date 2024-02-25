@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       filter_decoder.c
 /// \brief      Filter ID mapping to filter-specific functions
 //
 //  Author:     Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -117,6 +116,14 @@ static const lzma_filter_decoder decoders[] = {
 	{
 		.id = LZMA_FILTER_SPARC,
 		.init = &lzma_simple_sparc_decoder_init,
+		.memusage = NULL,
+		.props_decode = &lzma_simple_props_decode,
+	},
+#endif
+#ifdef HAVE_DECODER_RISCV
+	{
+		.id = LZMA_FILTER_RISCV,
+		.init = &lzma_simple_riscv_decoder_init,
 		.memusage = NULL,
 		.props_decode = &lzma_simple_props_decode,
 	},

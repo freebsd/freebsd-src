@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       tuklib_integer.h
@@ -36,9 +38,6 @@
 //
 //  Authors:    Lasse Collin
 //              Joachim Henke
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -251,7 +250,7 @@
 // was one instruction longer.
 //
 // Conclusion: At least in case of GCC and Clang, byte-by-byte code is
-// the best choise for strict-align archs to do unaligned access.
+// the best choice for strict-align archs to do unaligned access.
 //
 // See also: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=111502
 //

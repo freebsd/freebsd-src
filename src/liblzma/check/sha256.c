@@ -1,23 +1,16 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       sha256.c
 /// \brief      SHA-256
-///
-/// \todo       Crypto++ has x86 ASM optimizations. They use SSE so if they
-///             are imported to liblzma, SSE instructions need to be used
-///             conditionally to keep the code working on older boxes.
 //
-//  This code is based on the code found from 7-Zip, which has a modified
-//  version of the SHA-256 found from Crypto++ <https://www.cryptopp.com/>.
-//  The code was modified a little to fit into liblzma.
+//  The C code is based on the public domain SHA-256 code found from
+//  Crypto++ Library 5.5.1 released in 2007: https://www.cryptopp.com/
+//  A few minor tweaks have been made in liblzma.
 //
-//  Authors:    Kevin Springle
-//              Wei Dai
-//              Igor Pavlov
+//  Authors:    Wei Dai
 //              Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 

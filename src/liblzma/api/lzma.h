@@ -1,31 +1,30 @@
+/* SPDX-License-Identifier: 0BSD */
+
 /**
  * \file        api/lzma.h
  * \brief       The public API of liblzma data compression library
  * \mainpage
  *
- * liblzma is a public domain general-purpose data compression library with
- * a zlib-like API. The native file format is .xz, but also the old .lzma
- * format and raw (no headers) streams are supported. Multiple compression
- * algorithms (filters) are supported. Currently LZMA2 is the primary filter.
+ * liblzma is a general-purpose data compression library with a zlib-like API.
+ * The native file format is .xz, but also the old .lzma format and raw (no
+ * headers) streams are supported. Multiple compression algorithms (filters)
+ * are supported. Currently LZMA2 is the primary filter.
  *
- * liblzma is part of XZ Utils <https://tukaani.org/xz/>. XZ Utils includes
- * a gzip-like command line tool named xz and some other tools. XZ Utils
- * is developed and maintained by Lasse Collin and Jia Tan.
+ * liblzma is part of XZ Utils <https://xz.tukaani.org/xz-utils/>. XZ Utils
+ * includes a gzip-like command line tool named xz and some other tools.
+ * XZ Utils is developed and maintained by Lasse Collin and Jia Tan.
  *
- * Major parts of liblzma are based on Igor Pavlov's public domain LZMA SDK
- * <https://7-zip.org/sdk.html>.
+ * Major parts of liblzma are based on code written by Igor Pavlov,
+ * specifically the LZMA SDK <https://7-zip.org/sdk.html>.
  *
- * The SHA-256 implementation is based on the public domain code found from
- * 7-Zip <https://7-zip.org/>, which has a modified version of the public
- * domain SHA-256 code found from Crypto++ <https://www.cryptopp.com/>.
- * The SHA-256 code in Crypto++ was written by Kevin Springle and Wei Dai.
+ * The SHA-256 implementation in liblzma is based on code written by
+ * Wei Dai in Crypto++ Library <https://www.cryptopp.com/>.
+ *
+ * liblzma is distributed under the BSD Zero Clause License (0BSD).
  */
 
 /*
  * Author: Lasse Collin
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
  */
 
 #ifndef LZMA_H

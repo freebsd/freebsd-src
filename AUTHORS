@@ -9,15 +9,13 @@ Authors of XZ Utils
     specifically the LZMA SDK <https://7-zip.org/sdk.html>. Without
     this code, XZ Utils wouldn't exist.
 
-    The SHA-256 implementation in liblzma is based on the code found from
-    7-Zip <https://7-zip.org/>, which has a modified version of the SHA-256
-    code found from Crypto++ <https://www.cryptopp.com/>. The SHA-256 code
-    in Crypto++ was written by Kevin Springle and Wei Dai.
+    The SHA-256 implementation in liblzma is based on code written by
+    Wei Dai in Crypto++ Library <https://www.cryptopp.com/>.
 
-    Some scripts have been adapted from gzip. The original versions
-    were written by Jean-loup Gailly, Charles Levert, and Paul Eggert.
-    Andrew Dudman helped adapting the scripts and their man pages for
-    XZ Utils.
+    A few scripts have been adapted from GNU gzip. The original
+    versions were written by Jean-loup Gailly, Charles Levert, and
+    Paul Eggert. Andrew Dudman helped adapting the scripts and their
+    man pages for XZ Utils.
 
     The initial version of the threaded .xz decompressor was written
     by Sebastian Andrzej Siewior.
@@ -25,15 +23,31 @@ Authors of XZ Utils
     The initial version of the .lz (lzip) decoder was written
     by Michał Górny.
 
-    CLMUL-accelerated CRC code was contributed by Ilya Kurdyukov.
+    Architecture-specific CRC optimizations were contributed by
+    Ilya Kurdyukov, Hans Jansen, and Chenxi Mao.
 
     Other authors:
       - Jonathan Nieder
       - Joachim Henke
 
-    The GNU Autotools-based build system contains files from many authors,
-    which I'm not trying to list here.
+    Many people have contributed improvements or reported bugs.
+    Most of these people are mentioned in the file THANKS.
 
-    Several people have contributed fixes or reported bugs. Most of them
-    are mentioned in the file THANKS.
+    The translations of the command line tools and man pages have been
+    contributed by many people via the Translation Project:
+
+      - https://translationproject.org/domain/xz.html
+      - https://translationproject.org/domain/xz-man.html
+
+    The authors of the translated man pages are in the header comments
+    of the man page files. In the source package, the authors of the
+    translations are in po/*.po and po4a/*.po files.
+
+    Third-party code whose authors aren't listed here:
+
+      - GNU getopt_long() in the 'lib' directory is included for
+        platforms that don't have a usable getopt_long().
+
+      - The build system files from GNU Autoconf, GNU Automake,
+        GNU Libtool, GNU Gettext, Autoconf Archive, and related files.
 

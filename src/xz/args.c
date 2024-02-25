@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       args.c
@@ -5,10 +7,8 @@
 ///
 /// \note       Filter-specific options parsing is in options.c.
 //
-//  Author:     Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
+//  Authors:    Lasse Collin
+//              Jia Tan
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -83,20 +83,54 @@ parse_block_list(const char *str_const)
 			++count;
 
 	// Prevent an unlikely integer overflow.
-	if (count > SIZE_MAX / sizeof(uint64_t) - 1)
+	if (count > SIZE_MAX / sizeof(block_list_entry) - 1)
 		message_fatal(_("%s: Too many arguments to --block-list"),
 				str);
 
 	// Allocate memory to hold all the sizes specified.
 	// If --block-list was specified already, its value is forgotten.
 	free(opt_block_list);
-	opt_block_list = xmalloc((count + 1) * sizeof(uint64_t));
+	opt_block_list = xmalloc((count + 1) * sizeof(block_list_entry));
 
 	for (size_t i = 0; i < count; ++i) {
 		// Locate the next comma and replace it with \0.
 		char *p = strchr(str, ',');
 		if (p != NULL)
 			*p = '\0';
+
+		// Use the default filter chain unless overridden.
+		opt_block_list[i].filters_index = 0;
+
+		// To specify a filter chain, the block list entry may be
+		// prepended with "[filter-chain-number]:". The size is
+		// still required for every block.
+		// For instance:
+		// --block-list=2:10MiB,1:5MiB,,8MiB,0:0
+		//
+		// Translates to:
+		// 1. Block of 10 MiB using filter chain 2
+		// 2. Block of 5 MiB using filter chain 1
+		// 3. Block of 5 MiB using filter chain 1
+		// 4. Block of 8 MiB using the default filter chain
+		// 5. The last block uses the default filter chain
+		//
+		// The block list:
+		// --block-list=2:MiB,1:,0
+		//
+		// Is not allowed because the second block does not specify
+		// the block size, only the filter chain.
+		if (str[0] >= '0' && str[0] <= '9' && str[1] == ':') {
+			if (str[2] == '\0')
+				message_fatal(_("In --block-list, block "
+						"size is missing after "
+						"filter chain number '%c:'"),
+						str[0]);
+
+			int filter_num = str[0] - '0';
+			opt_block_list[i].filters_index =
+					(uint32_t)filter_num;
+			str += 2;
+		}
 
 		if (str[0] == '\0') {
 			// There is no string, that is, a comma follows
@@ -107,17 +141,17 @@ parse_block_list(const char *str_const)
 			assert(i > 0);
 			opt_block_list[i] = opt_block_list[i - 1];
 		} else {
-			opt_block_list[i] = str_to_uint64("block-list", str,
-					0, UINT64_MAX);
+			opt_block_list[i].size = str_to_uint64("block-list",
+					str, 0, UINT64_MAX);
 
 			// Zero indicates no more new Blocks.
-			if (opt_block_list[i] == 0) {
+			if (opt_block_list[i].size == 0) {
 				if (i + 1 != count)
 					message_fatal(_("0 can only be used "
 							"as the last element "
 							"in --block-list"));
 
-				opt_block_list[i] = UINT64_MAX;
+				opt_block_list[i].size = UINT64_MAX;
 			}
 		}
 
@@ -125,7 +159,7 @@ parse_block_list(const char *str_const)
 	}
 
 	// Terminate the array.
-	opt_block_list[count] = 0;
+	opt_block_list[count].size = 0;
 
 	free(str_start);
 	return;
@@ -136,13 +170,26 @@ static void
 parse_real(args_info *args, int argc, char **argv)
 {
 	enum {
-		OPT_X86 = INT_MIN,
+		OPT_FILTERS = INT_MIN,
+		OPT_FILTERS1,
+		OPT_FILTERS2,
+		OPT_FILTERS3,
+		OPT_FILTERS4,
+		OPT_FILTERS5,
+		OPT_FILTERS6,
+		OPT_FILTERS7,
+		OPT_FILTERS8,
+		OPT_FILTERS9,
+		OPT_FILTERS_HELP,
+
+		OPT_X86,
 		OPT_POWERPC,
 		OPT_IA64,
 		OPT_ARM,
 		OPT_ARMTHUMB,
 		OPT_ARM64,
 		OPT_SPARC,
+		OPT_RISCV,
 		OPT_DELTA,
 		OPT_LZMA1,
 		OPT_LZMA2,
@@ -206,6 +253,18 @@ parse_real(args_info *args, int argc, char **argv)
 		{ "best",         no_argument,       NULL,  '9' },
 
 		// Filters
+		{ "filters",      optional_argument, NULL,  OPT_FILTERS},
+		{ "filters1",     optional_argument, NULL,  OPT_FILTERS1},
+		{ "filters2",     optional_argument, NULL,  OPT_FILTERS2},
+		{ "filters3",     optional_argument, NULL,  OPT_FILTERS3},
+		{ "filters4",     optional_argument, NULL,  OPT_FILTERS4},
+		{ "filters5",     optional_argument, NULL,  OPT_FILTERS5},
+		{ "filters6",     optional_argument, NULL,  OPT_FILTERS6},
+		{ "filters7",     optional_argument, NULL,  OPT_FILTERS7},
+		{ "filters8",     optional_argument, NULL,  OPT_FILTERS8},
+		{ "filters9",     optional_argument, NULL,  OPT_FILTERS9},
+		{ "filters-help", optional_argument, NULL,  OPT_FILTERS_HELP},
+
 		{ "lzma1",        optional_argument, NULL,  OPT_LZMA1 },
 		{ "lzma2",        optional_argument, NULL,  OPT_LZMA2 },
 		{ "x86",          optional_argument, NULL,  OPT_X86 },
@@ -215,6 +274,7 @@ parse_real(args_info *args, int argc, char **argv)
 		{ "armthumb",     optional_argument, NULL,  OPT_ARMTHUMB },
 		{ "arm64",        optional_argument, NULL,  OPT_ARM64 },
 		{ "sparc",        optional_argument, NULL,  OPT_SPARC },
+		{ "riscv",        optional_argument, NULL,  OPT_RISCV },
 		{ "delta",        optional_argument, NULL,  OPT_DELTA },
 
 		// Other options
@@ -372,7 +432,30 @@ parse_real(args_info *args, int argc, char **argv)
 			opt_mode = MODE_COMPRESS;
 			break;
 
-		// Filter setup
+		// --filters
+		case OPT_FILTERS:
+			coder_add_filters_from_str(optarg);
+			break;
+
+		// --filters1...--filters9
+		case OPT_FILTERS1:
+		case OPT_FILTERS2:
+		case OPT_FILTERS3:
+		case OPT_FILTERS4:
+		case OPT_FILTERS5:
+		case OPT_FILTERS6:
+		case OPT_FILTERS7:
+		case OPT_FILTERS8:
+		case OPT_FILTERS9:
+			coder_add_block_filters(optarg,
+					(size_t)(c - OPT_FILTERS));
+			break;
+
+		// --filters-help
+		case OPT_FILTERS_HELP:
+			// This doesn't return.
+			message_filters_help();
+			break;
 
 		case OPT_X86:
 			coder_add_filter(LZMA_FILTER_X86,
@@ -406,6 +489,11 @@ parse_real(args_info *args, int argc, char **argv)
 
 		case OPT_SPARC:
 			coder_add_filter(LZMA_FILTER_SPARC,
+					options_bcj(optarg));
+			break;
+
+		case OPT_RISCV:
+			coder_add_filter(LZMA_FILTER_RISCV,
 					options_bcj(optarg));
 			break;
 
@@ -516,8 +604,8 @@ parse_real(args_info *args, int argc, char **argv)
 		case OPT_FILES0:
 			if (args->files_name != NULL)
 				message_fatal(_("Only one file can be "
-						"specified with `--files' "
-						"or `--files0'."));
+						"specified with '--files' "
+						"or '--files0'."));
 
 			if (optarg == NULL) {
 				args->files_name = stdin_filename;
@@ -718,6 +806,39 @@ args_parse(args_info *args, int argc, char **argv)
 	if (opt_mode == MODE_COMPRESS && opt_format == FORMAT_AUTO)
 		opt_format = FORMAT_XZ;
 
+	// Set opt_block_list to NULL if we are not compressing to the .xz
+	// format. This option cannot be used outside of this case, and
+	// simplifies the implementation later.
+	if ((opt_mode != MODE_COMPRESS || opt_format != FORMAT_XZ)
+			&& opt_block_list != NULL) {
+		message(V_WARNING, _("--block-list is ignored unless "
+				"compressing to the .xz format"));
+		free(opt_block_list);
+		opt_block_list = NULL;
+	}
+
+	// If raw format is used and a custom suffix is not provided,
+	// then only stdout mode can be used when compressing or
+	// decompressing.
+	if (opt_format == FORMAT_RAW && !suffix_is_set() && !opt_stdout
+			&& (opt_mode == MODE_COMPRESS
+				|| opt_mode == MODE_DECOMPRESS)) {
+		if (args->files_name != NULL)
+			message_fatal(_("With --format=raw, "
+					"--suffix=.SUF is required "
+					"unless writing to stdout"));
+
+		// If all of the filenames provided are "-" (more than one
+		// "-" could be specified) or no filenames are provided,
+		// then we are only going to be writing to standard out.
+		for (int i = optind; i < argc; i++) {
+			if (strcmp(argv[i], "-") != 0)
+				message_fatal(_("With --format=raw, "
+						"--suffix=.SUF is required "
+						"unless writing to stdout"));
+		}
+	}
+
 	// Compression settings need to be validated (options themselves and
 	// their memory usage) when compressing to any file format. It has to
 	// be done also when uncompressing raw data, since for raw decoding
@@ -726,14 +847,6 @@ args_parse(args_info *args, int argc, char **argv)
 	if (opt_mode == MODE_COMPRESS || (opt_format == FORMAT_RAW
 			&& opt_mode != MODE_LIST))
 		coder_set_compression_settings();
-
-	// If raw format is used and a custom suffix is not provided,
-	// then only stdout mode can be used when compressing or decompressing.
-	if (opt_format == FORMAT_RAW && !suffix_is_set() && !opt_stdout
-			&& (opt_mode == MODE_COMPRESS
-				|| opt_mode == MODE_DECOMPRESS))
-		message_fatal(_("With --format=raw, --suffix=.SUF is "
-				"required unless writing to stdout"));
 
 	// If no filenames are given, use stdin.
 	if (argv[optind] == NULL && args->files_name == NULL) {

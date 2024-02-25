@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       filter_decoder.c
 /// \brief      Filter ID mapping to filter-specific functions
 //
 //  Author:     Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -33,7 +32,8 @@ typedef struct {
 	/// Calculates the recommended Uncompressed Size for .xz Blocks to
 	/// which the input data can be split to make multithreaded
 	/// encoding possible. If this is NULL, it is assumed that
-	/// the encoder is fast enough with single thread.
+	/// the encoder is fast enough with single thread. If the options
+	/// are invalid, UINT64_MAX is returned.
 	uint64_t (*block_size)(const void *options);
 
 	/// Tells the size of the Filter Properties field. If options are
@@ -158,6 +158,16 @@ static const lzma_filter_encoder encoders[] = {
 		.props_encode = &lzma_simple_props_encode,
 	},
 #endif
+#ifdef HAVE_ENCODER_RISCV
+	{
+		.id = LZMA_FILTER_RISCV,
+		.init = &lzma_simple_riscv_encoder_init,
+		.memusage = NULL,
+		.block_size = NULL,
+		.props_size_get = &lzma_simple_props_size,
+		.props_encode = &lzma_simple_props_encode,
+	},
+#endif
 #ifdef HAVE_ENCODER_DELTA
 	{
 		.id = LZMA_FILTER_DELTA,
@@ -219,17 +229,17 @@ lzma_filters_update(lzma_stream *strm, const lzma_filter *filters)
 
 extern lzma_ret
 lzma_raw_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
-		const lzma_filter *options)
+		const lzma_filter *filters)
 {
 	return lzma_raw_coder_init(next, allocator,
-			options, (lzma_filter_find)(&encoder_find), true);
+			filters, (lzma_filter_find)(&encoder_find), true);
 }
 
 
 extern LZMA_API(lzma_ret)
-lzma_raw_encoder(lzma_stream *strm, const lzma_filter *options)
+lzma_raw_encoder(lzma_stream *strm, const lzma_filter *filters)
 {
-	lzma_next_strm_init(lzma_raw_coder_init, strm, options,
+	lzma_next_strm_init(lzma_raw_coder_init, strm, filters,
 			(lzma_filter_find)(&encoder_find), true);
 
 	strm->internal->supported_actions[LZMA_RUN] = true;
@@ -248,26 +258,29 @@ lzma_raw_encoder_memusage(const lzma_filter *filters)
 }
 
 
-extern uint64_t
+extern LZMA_API(uint64_t)
 lzma_mt_block_size(const lzma_filter *filters)
 {
+	if (filters == NULL)
+		return UINT64_MAX;
+
 	uint64_t max = 0;
 
 	for (size_t i = 0; filters[i].id != LZMA_VLI_UNKNOWN; ++i) {
 		const lzma_filter_encoder *const fe
 				= encoder_find(filters[i].id);
+		if (fe == NULL)
+			return UINT64_MAX;
+
 		if (fe->block_size != NULL) {
 			const uint64_t size
 					= fe->block_size(filters[i].options);
-			if (size == 0)
-				return 0;
-
 			if (size > max)
 				max = size;
 		}
 	}
 
-	return max;
+	return max == 0 ? UINT64_MAX : max;
 }
 
 
