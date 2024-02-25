@@ -40,7 +40,7 @@ HELP_FILENAME=	loader.help.uboot
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
 
-LDSCRIPT=	${.CURDIR}/arch/${MACHINE_CPUARCH}/ldscript.${MACHINE_CPUARCH}
+LDSCRIPT=	${.CURDIR}/arch/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}.ldscript
 LDFLAGS=	-nostdlib -static -T ${LDSCRIPT}
 LDFLAGS+=	-Wl,-znotext
 

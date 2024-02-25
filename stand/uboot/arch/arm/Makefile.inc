@@ -4,22 +4,22 @@ UBLDR_LOADADDR?=	0x1000000
 
 SRCS+=		start.S conf.c self_reloc.c 
 
-ldscript.abs:
+abs.ldscript:
 	echo "UBLDR_LOADADDR = ${UBLDR_LOADADDR};" >${.TARGET}
 
-ldscript.pie:
+pie.ldscript:
 	echo "UBLDR_LOADADDR = 0;" >${.TARGET}
 
-ubldr: ${OBJS} ldscript.abs ${LDSCRIPT} ${DPADD}
-	${CC} ${CFLAGS} -T ldscript.abs ${LDFLAGS} \
+ubldr: ${OBJS} abs.ldscript ${LDSCRIPT} ${DPADD}
+	${CC} ${CFLAGS} -T abs.ldscript ${LDFLAGS} \
 	    -o ${.TARGET} ${OBJS} ${LDADD}
 
-ubldr.pie: ${OBJS} ldscript.pie ${LDSCRIPT} ${DPADD}
-	${CC} ${CFLAGS} -T ldscript.pie ${LDFLAGS} -pie -Wl,-Bsymbolic \
+ubldr.pie: ${OBJS} pie.ldscript ${LDSCRIPT} ${DPADD}
+	${CC} ${CFLAGS} -T pie.ldscript ${LDFLAGS} -pie -Wl,-Bsymbolic \
 	    -o ${.TARGET} ${OBJS} ${LDADD}
 
 ubldr.bin: ubldr.pie
 	${OBJCOPY} -S -O binary ubldr.pie ${.TARGET}
 
-CLEANFILES+=	ldscript.abs ldscript.pie ubldr ubldr.pie ubldr.bin
+CLEANFILES+=	abs.ldscript pie.ldscript ubldr ubldr.pie ubldr.bin
 
