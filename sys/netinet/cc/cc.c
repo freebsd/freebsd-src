@@ -501,6 +501,8 @@ newreno_cc_cong_signal(struct cc_var *ccv, ccsignal_t type)
 		}
 		CCV(ccv, snd_cwnd) = mss;
 		break;
+	default:
+		break;
 	}
 }
 
