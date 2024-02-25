@@ -1,12 +1,10 @@
 '\" t
+.\" SPDX-License-Identifier: 0BSD
 .\"
 .\" Authors: Lasse Collin
 .\"          Jia Tan
 .\"
-.\" This file has been put into the public domain.
-.\" You can do whatever you want with this file.
-.\"
-.TH XZ 1 "2023-07-17" "Tukaani" "XZ Utils"
+.TH XZ 1 "2024-02-13" "Tukaani" "XZ Utils"
 .
 .SH NAME
 xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
@@ -801,8 +799,6 @@ in the single-threaded mode.
 It may vary slightly between
 .B xz
 versions.
-Memory requirements of some of the future multithreaded modes may
-be dramatically higher than that of the single-threaded mode.
 .IP \(bu 3
 DecMem contains the decompressor memory requirements.
 That is, the compression settings determine
@@ -811,6 +807,15 @@ The exact decompressor memory usage is slightly more than
 the LZMA2 dictionary size, but the values in the table
 have been rounded up to the next full MiB.
 .RE
+.IP ""
+Memory requirements of the multi-threaded mode are
+significantly higher than that of the single-threaded mode.
+With the default value of
+.BR \-\-block\-size ,
+each thread needs 3*3*DictSize plus CompMem or DecMem.
+For example, four threads with preset
+.B \-6
+needs 660\(en670\ MiB of memory.
 .TP
 .BR \-e ", " \-\-extreme
 Use a slower variant of the selected compression preset level
@@ -902,50 +907,90 @@ Using
 .I size
 less than the LZMA2 dictionary size is waste of RAM
 because then the LZMA2 dictionary buffer will never get fully used.
-The sizes of the blocks are stored in the block headers,
-which a future version of
-.B xz
-will use for multi-threaded decompression.
+In multi-threaded mode,
+the sizes of the blocks are stored in the block headers.
+This size information is required for multi-threaded decompression.
 .IP ""
 In single-threaded mode no block splitting is done by default.
 Setting this option doesn't affect memory usage.
 No size information is stored in block headers,
 thus files created in single-threaded mode
 won't be identical to files created in multi-threaded mode.
-The lack of size information also means that a future version of
+The lack of size information also means that
 .B xz
 won't be able decompress the files in multi-threaded mode.
 .TP
-.BI \-\-block\-list= sizes
+.BI \-\-block\-list= items
 When compressing to the
 .B .xz
-format, start a new block after
+format, start a new block with an optional custom filter chain after
 the given intervals of uncompressed data.
 .IP ""
-The uncompressed
-.I sizes
-of the blocks are specified as a comma-separated list.
-Omitting a size (two or more consecutive commas) is a shorthand
-to use the size of the previous block.
+The
+.I items
+are a comma-separated list.
+Each item consists of an optional filter chain number
+between 0 and 9 followed by a colon
+.RB ( : )
+and a required size of uncompressed data.
+Omitting an item (two or more consecutive commas) is a
+shorthand to use the size and filters of the previous item.
 .IP ""
 If the input file is bigger than the sum of
-.IR sizes ,
-the last value in
-.I sizes
-is repeated until the end of the file.
+the sizes in
+.IR items ,
+the last item is repeated until the end of the file.
 A special value of
 .B 0
-may be used as the last value to indicate that
+may be used as the last size to indicate that
 the rest of the file should be encoded as a single block.
 .IP ""
-If one specifies
-.I sizes
-that exceed the encoder's block size
+An alternative filter chain for each block can be
+specified in combination with the
+.BI \-\-filters1= filters
+\&...\&
+.BI \-\-filters9= filters
+options.
+These options define filter chains with an identifier
+between 1\(en9.
+Filter chain 0 can be used to refer to the default filter chain,
+which is the same as not specifying a filter chain.
+The filter chain identifier can be used before the uncompressed
+size, followed by a colon
+.RB ( : ).
+For example, if one specifies
+.B \-\-block\-list=1:2MiB,3:2MiB,2:4MiB,,2MiB,0:4MiB
+then blocks will be created using:
+.RS
+.IP \(bu 3
+The filter chain specified by
+.B \-\-filters1
+and 2 MiB input
+.IP \(bu 3
+The filter chain specified by
+.B \-\-filters3
+and 2 MiB input
+.IP \(bu 3
+The filter chain specified by
+.B \-\-filters2
+and 4 MiB input
+.IP \(bu 3
+The filter chain specified by
+.B \-\-filters2
+and 4 MiB input
+.IP \(bu 3
+The default filter chain and 2 MiB input
+.IP \(bu 3
+The default filter chain and 4 MiB input for every block until
+end of input.
+.RE
+.IP ""
+If one specifies a size that exceeds the encoder's block size
 (either the default value in threaded mode or
 the value specified with \fB\-\-block\-size=\fIsize\fR),
 the encoder will create additional blocks while
 keeping the boundaries specified in
-.IR sizes .
+.IR items .
 For example, if one specifies
 .B \-\-block\-size=10MiB
 .B \-\-block\-list=5MiB,10MiB,8MiB,12MiB,24MiB
@@ -1262,6 +1307,15 @@ meet this condition,
 but files compressed in single-threaded mode don't even if
 .BI \-\-block\-size= size
 has been used.
+.IP ""
+The default value for
+.I threads
+is
+.BR 0 .
+In
+.B xz
+5.4.x and older the default is
+.BR 1 .
 .
 .SS "Custom compressor filter chains"
 A custom filter chain allows specifying
@@ -1295,22 +1349,37 @@ in the chain.
 Depending on the filter, this limitation is either inherent to
 the filter design or exists to prevent security issues.
 .PP
-A custom filter chain is specified by using one or more
-filter options in the order they are wanted in the filter chain.
-That is, the order of filter options is significant!
+A custom filter chain can be specified in two different ways.
+The options
+.BI \-\-filters= filters
+and
+.BI \-\-filters1= filters
+\&...\&
+.BI \-\-filters9= filters
+allow specifying an entire filter chain in one option using the
+liblzma filter string syntax.
+Alternatively, a filter chain can be specified by using one or more
+individual filter options in the order they are wanted in the filter chain.
+That is, the order of the individual filter options is significant!
 When decoding raw streams
 .RB ( \-\-format=raw ),
-the filter chain is specified in the same order as
+the filter chain must be specified in the same order as
 it was specified when compressing.
+Any individual filter or preset options specified before the full
+chain option
+(\fB\-\-filters=\fIfilters\fR)
+will be forgotten.
+Individual filters specified after the full chain option will reset the
+filter chain.
 .PP
-Filters take filter-specific
+Both the full and individual filter options take filter-specific
 .I options
 as a comma-separated list.
 Extra commas in
 .I options
 are ignored.
-Every option has a default value, so you need to
-specify only those you want to change.
+Every option has a default value, so
+specify those you want to change.
 .PP
 To see the whole filter chain and
 .IR options ,
@@ -1320,6 +1389,45 @@ use
 .B \-\-verbose
 twice).
 This works also for viewing the filter chain options used by presets.
+.TP
+.BI \-\-filters= filters
+Specify the full filter chain or a preset in a single option.
+Each filter can be separated by spaces or two dashes
+.RB ( \-\- ).
+.I filters
+may need to be quoted on the shell command line so it is
+parsed as a single option.
+To denote
+.IR options ,
+use
+.B :
+or
+.BR = .
+A preset can be prefixed with a
+.B \-
+and followed with zero or more flags.
+The only supported flag is
+.B e
+to apply the same options as
+.BR \-\-extreme .
+.TP
+\fB\-\-filters1\fR=\fIfilters\fR ... \fB\-\-filters9\fR=\fIfilters
+Specify up to nine additional filter chains that can be used with
+.BR \-\-block\-list .
+.IP ""
+For example, when compressing an archive with executable files
+followed by text files, the executable part could use a filter
+chain with a BCJ filter and the text part only the LZMA2 filter.
+.TP
+.B \-\-filters-help
+Display a help message describing how to specify presets and
+custom filter chains in the
+.B \-\-filters
+and
+.BI \-\-filters1= filters
+\&...\&
+.BI \-\-filters9= filters
+options, and exit successfully.
 .TP
 \fB\-\-lzma1\fR[\fB=\fIoptions\fR]
 .PD 0
@@ -1762,6 +1870,7 @@ ARM64;4;4096-byte alignment is best
 PowerPC;4;Big endian only
 IA-64;16;Itanium
 SPARC;4;
+RISC-V;2;
 .TE
 .RE
 .RE
@@ -1770,14 +1879,38 @@ Since the BCJ-filtered data is usually compressed with LZMA2,
 the compression ratio may be improved slightly if
 the LZMA2 options are set to match the
 alignment of the selected BCJ filter.
-For example, with the IA-64 filter, it's good to set
-.B pb=4
-or even
+Examples:
+.RS
+.IP \(bu 3
+IA-64 filter has 16-byte alignment so
 .B pb=4,lp=4,lc=0
+is good
 with LZMA2 (2^4=16).
-The x86 filter is an exception;
-it's usually good to stick to LZMA2's default
-four-byte alignment when compressing x86 executables.
+.IP \(bu 3
+RISC-V code has 2-byte or 4-byte alignment
+depending on whether the file contains
+16-bit compressed instructions (the C extension).
+When 16-bit instructions are used,
+.B pb=2,lp=1,lc=3
+or
+.B pb=1,lp=1,lc=3
+is good.
+When 16-bit instructions aren't present,
+.B pb=2,lp=2,lc=2
+is the best.
+.B readelf \-h
+can be used to check if "RVC"
+appears on the "Flags" line.
+.IP \(bu 3
+ARM64 is always 4-byte aligned so
+.B pb=2,lp=2,lc=2
+is the best.
+.IP \(bu 3
+The x86 filter is an exception.
+It's usually good to stick to LZMA2's defaults
+.RB ( pb=2,lp=0,lc=3 )
+when compressing x86 executables.
+.RE
 .IP ""
 All BCJ filters support the same
 .IR options :
@@ -1954,106 +2087,13 @@ easier to parse by other programs.
 Currently
 .B \-\-robot
 is supported only together with
-.BR \-\-version ,
+.BR \-\-list ,
+.BR \-\-filters\-help ,
 .BR \-\-info\-memory ,
 and
-.BR \-\-list .
+.BR \-\-version .
 It will be supported for compression and
 decompression in the future.
-.
-.SS Version
-.B "xz \-\-robot \-\-version"
-prints the version number of
-.B xz
-and liblzma in the following format:
-.PP
-.BI XZ_VERSION= XYYYZZZS
-.br
-.BI LIBLZMA_VERSION= XYYYZZZS
-.TP
-.I X
-Major version.
-.TP
-.I YYY
-Minor version.
-Even numbers are stable.
-Odd numbers are alpha or beta versions.
-.TP
-.I ZZZ
-Patch level for stable releases or
-just a counter for development releases.
-.TP
-.I S
-Stability.
-0 is alpha, 1 is beta, and 2 is stable.
-.I S
-should be always 2 when
-.I YYY
-is even.
-.PP
-.I XYYYZZZS
-are the same on both lines if
-.B xz
-and liblzma are from the same XZ Utils release.
-.PP
-Examples: 4.999.9beta is
-.B 49990091
-and
-5.0.0 is
-.BR 50000002 .
-.
-.SS "Memory limit information"
-.B "xz \-\-robot \-\-info\-memory"
-prints a single line with multiple tab-separated columns:
-.IP 1. 4
-Total amount of physical memory (RAM) in bytes.
-.IP 2. 4
-Memory usage limit for compression in bytes
-.RB ( \-\-memlimit\-compress ).
-A special value of
-.B 0
-indicates the default setting
-which for single-threaded mode is the same as no limit.
-.IP 3. 4
-Memory usage limit for decompression in bytes
-.RB ( \-\-memlimit\-decompress ).
-A special value of
-.B 0
-indicates the default setting
-which for single-threaded mode is the same as no limit.
-.IP 4. 4
-Since
-.B xz
-5.3.4alpha:
-Memory usage for multi-threaded decompression in bytes
-.RB ( \-\-memlimit\-mt\-decompress ).
-This is never zero because a system-specific default value
-shown in the column 5
-is used if no limit has been specified explicitly.
-This is also never greater than the value in the column 3
-even if a larger value has been specified with
-.BR \-\-memlimit\-mt\-decompress .
-.IP 5. 4
-Since
-.B xz
-5.3.4alpha:
-A system-specific default memory usage limit
-that is used to limit the number of threads
-when compressing with an automatic number of threads
-.RB ( \-\-threads=0 )
-and no memory usage limit has been specified
-.RB ( \-\-memlimit\-compress ).
-This is also used as the default value for
-.BR \-\-memlimit\-mt\-decompress .
-.IP 6. 4
-Since
-.B xz
-5.3.4alpha:
-Number of available processor threads.
-.PP
-In the future, the output of
-.B "xz \-\-robot \-\-info\-memory"
-may have more columns, but never more than a single line.
 .
 .SS "List mode"
 .B "xz \-\-robot \-\-list"
@@ -2338,6 +2378,127 @@ version required to decompress the file
 Future versions may add new line types and
 new columns can be added to the existing line types,
 but the existing columns won't be changed.
+.
+.SS "Filters help"
+.B "xz \-\-robot \-\-filters-help"
+prints the supported filters in the following format:
+.PP
+\fIfilter\fB:\fIoption\fB=<\fIvalue\fB>,\fIoption\fB=<\fIvalue\fB>\fR...
+.TP
+.I filter
+Name of the filter
+.TP
+.I option
+Name of a filter specific option
+.TP
+.I value
+Numeric
+.I value
+ranges appear as
+\fB<\fImin\fB\-\fImax\fB>\fR.
+String
+.I value
+choices are shown within
+.B "< >"
+and separated by a
+.B |
+character.
+.PP
+Each filter is printed on its own line.
+.
+.SS "Memory limit information"
+.B "xz \-\-robot \-\-info\-memory"
+prints a single line with multiple tab-separated columns:
+.IP 1. 4
+Total amount of physical memory (RAM) in bytes.
+.IP 2. 4
+Memory usage limit for compression in bytes
+.RB ( \-\-memlimit\-compress ).
+A special value of
+.B 0
+indicates the default setting
+which for single-threaded mode is the same as no limit.
+.IP 3. 4
+Memory usage limit for decompression in bytes
+.RB ( \-\-memlimit\-decompress ).
+A special value of
+.B 0
+indicates the default setting
+which for single-threaded mode is the same as no limit.
+.IP 4. 4
+Since
+.B xz
+5.3.4alpha:
+Memory usage for multi-threaded decompression in bytes
+.RB ( \-\-memlimit\-mt\-decompress ).
+This is never zero because a system-specific default value
+shown in the column 5
+is used if no limit has been specified explicitly.
+This is also never greater than the value in the column 3
+even if a larger value has been specified with
+.BR \-\-memlimit\-mt\-decompress .
+.IP 5. 4
+Since
+.B xz
+5.3.4alpha:
+A system-specific default memory usage limit
+that is used to limit the number of threads
+when compressing with an automatic number of threads
+.RB ( \-\-threads=0 )
+and no memory usage limit has been specified
+.RB ( \-\-memlimit\-compress ).
+This is also used as the default value for
+.BR \-\-memlimit\-mt\-decompress .
+.IP 6. 4
+Since
+.B xz
+5.3.4alpha:
+Number of available processor threads.
+.PP
+In the future, the output of
+.B "xz \-\-robot \-\-info\-memory"
+may have more columns, but never more than a single line.
+.
+.SS Version
+.B "xz \-\-robot \-\-version"
+prints the version number of
+.B xz
+and liblzma in the following format:
+.PP
+.BI XZ_VERSION= XYYYZZZS
+.br
+.BI LIBLZMA_VERSION= XYYYZZZS
+.TP
+.I X
+Major version.
+.TP
+.I YYY
+Minor version.
+Even numbers are stable.
+Odd numbers are alpha or beta versions.
+.TP
+.I ZZZ
+Patch level for stable releases or
+just a counter for development releases.
+.TP
+.I S
+Stability.
+0 is alpha, 1 is beta, and 2 is stable.
+.I S
+should be always 2 when
+.I YYY
+is even.
+.PP
+.I XYYYZZZS
+are the same on both lines if
+.B xz
+and liblzma are from the same XZ Utils release.
+.PP
+Examples: 4.999.9beta is
+.B 49990091
+and
+5.0.0 is
+.BR 50000002 .
 .
 .SH "EXIT STATUS"
 .TP
@@ -3013,8 +3174,8 @@ have the same number of bytes per pixel.
 .BR bzip2 (1),
 .BR 7z (1)
 .PP
-XZ Utils: <https://tukaani.org/xz/>
+XZ Utils: <https://xz.tukaani.org/xz-utils/>
 .br
-XZ Embedded: <https://tukaani.org/xz/embedded.html>
+XZ Embedded: <https://xz.tukaani.org/xz-embedded/>
 .br
 LZMA SDK: <https://7-zip.org/sdk.html>

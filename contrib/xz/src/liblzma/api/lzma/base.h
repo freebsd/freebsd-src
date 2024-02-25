@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: 0BSD */
+
 /**
  * \file        lzma/base.h
  * \brief       Data types and functions used in many places in liblzma API
@@ -6,9 +8,6 @@
 
 /*
  * Author: Lasse Collin
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
  */
 
 #ifndef LZMA_H_INTERNAL
@@ -21,8 +20,8 @@
  *
  * This is here because C89 doesn't have stdbool.h. To set a value for
  * variables having type lzma_bool, you can use
- *   - C99's `true' and `false' from stdbool.h;
- *   - C++'s internal `true' and `false'; or
+ *   - C99's 'true' and 'false' from stdbool.h;
+ *   - C++'s internal 'true' and 'false'; or
  *   - integers one (true) and zero (false).
  */
 typedef unsigned char lzma_bool;
@@ -273,13 +272,13 @@ typedef enum {
 
 
 /**
- * \brief       The `action' argument for lzma_code()
+ * \brief       The 'action' argument for lzma_code()
  *
  * After the first use of LZMA_SYNC_FLUSH, LZMA_FULL_FLUSH, LZMA_FULL_BARRIER,
- * or LZMA_FINISH, the same `action' must be used until lzma_code() returns
+ * or LZMA_FINISH, the same 'action' must be used until lzma_code() returns
  * LZMA_STREAM_END. Also, the amount of input (that is, strm->avail_in) must
  * not be modified by the application until lzma_code() returns
- * LZMA_STREAM_END. Changing the `action' or modifying the amount of input
+ * LZMA_STREAM_END. Changing the 'action' or modifying the amount of input
  * will make lzma_code() return LZMA_PROG_ERROR.
  */
 typedef enum {
@@ -393,8 +392,8 @@ typedef enum {
  * Single-threaded mode only: liblzma doesn't make an internal copy of
  * lzma_allocator. Thus, it is OK to change these function pointers in
  * the middle of the coding process, but obviously it must be done
- * carefully to make sure that the replacement `free' can deallocate
- * memory allocated by the earlier `alloc' function(s).
+ * carefully to make sure that the replacement 'free' can deallocate
+ * memory allocated by the earlier 'alloc' function(s).
  *
  * Multithreaded mode: liblzma might internally store pointers to the
  * lzma_allocator given via the lzma_stream structure. The application
@@ -422,7 +421,7 @@ typedef struct {
 	 *                      liblzma never sets this to zero.
 	 *
 	 * \return      Pointer to the beginning of a memory block of
-	 *              `size' bytes, or NULL if allocation fails
+	 *              'size' bytes, or NULL if allocation fails
 	 *              for some reason. When allocation fails, functions
 	 *              of liblzma return LZMA_MEM_ERROR.
 	 *
@@ -622,7 +621,7 @@ typedef struct {
  * to and get output from liblzma.
  *
  * See the description of the coder-specific initialization function to find
- * out what `action' values are supported by the coder.
+ * out what 'action' values are supported by the coder.
  *
  * \param       strm    Pointer to lzma_stream that is at least initialized
  *                      with LZMA_STREAM_INIT.

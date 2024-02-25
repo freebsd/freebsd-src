@@ -24,6 +24,7 @@ SRCS=	args.c \
 	message.c \
 	mytime.c \
 	options.c \
+	sandbox.c \
 	signals.c \
 	suffix.c \
 	util.c

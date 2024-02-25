@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       lz_decoder.c
@@ -5,9 +7,6 @@
 ///
 //  Authors:    Igor Pavlov
 //              Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -54,9 +53,10 @@ typedef struct {
 static void
 lz_decoder_reset(lzma_coder *coder)
 {
-	coder->dict.pos = 0;
+	coder->dict.pos = 2 * LZ_DICT_REPEAT_MAX;
 	coder->dict.full = 0;
-	coder->dict.buf[coder->dict.size - 1] = '\0';
+	coder->dict.buf[2 * LZ_DICT_REPEAT_MAX - 1] = '\0';
+	coder->dict.has_wrapped = false;
 	coder->dict.need_reset = false;
 	return;
 }
@@ -70,8 +70,15 @@ decode_buffer(lzma_coder *coder,
 {
 	while (true) {
 		// Wrap the dictionary if needed.
-		if (coder->dict.pos == coder->dict.size)
-			coder->dict.pos = 0;
+		if (coder->dict.pos == coder->dict.size) {
+			// See the comment of #define LZ_DICT_REPEAT_MAX.
+			coder->dict.pos = LZ_DICT_REPEAT_MAX;
+			coder->dict.has_wrapped = true;
+			memcpy(coder->dict.buf, coder->dict.buf
+						+ coder->dict.size
+						- LZ_DICT_REPEAT_MAX,
+					LZ_DICT_REPEAT_MAX);
+		}
 
 		// Store the current dictionary position. It is needed to know
 		// where to start copying to the out[] buffer.
@@ -253,21 +260,31 @@ lzma_lz_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 	// dictionary to the output buffer, since applications are
 	// recommended to give aligned buffers to liblzma.
 	//
+	// Reserve 2 * LZ_DICT_REPEAT_MAX bytes of extra space which is
+	// needed for alloc_size.
+	//
 	// Avoid integer overflow.
-	if (lz_options.dict_size > SIZE_MAX - 15)
+	if (lz_options.dict_size > SIZE_MAX - 15 - 2 * LZ_DICT_REPEAT_MAX)
 		return LZMA_MEM_ERROR;
 
 	lz_options.dict_size = (lz_options.dict_size + 15) & ~((size_t)(15));
 
+	// Reserve extra space as explained in the comment
+	// of #define LZ_DICT_REPEAT_MAX.
+	const size_t alloc_size
+			= lz_options.dict_size + 2 * LZ_DICT_REPEAT_MAX;
+
 	// Allocate and initialize the dictionary.
-	if (coder->dict.size != lz_options.dict_size) {
+	if (coder->dict.size != alloc_size) {
 		lzma_free(coder->dict.buf, allocator);
-		coder->dict.buf
-				= lzma_alloc(lz_options.dict_size, allocator);
+		coder->dict.buf = lzma_alloc(alloc_size, allocator);
 		if (coder->dict.buf == NULL)
 			return LZMA_MEM_ERROR;
 
-		coder->dict.size = lz_options.dict_size;
+		// NOTE: Yes, alloc_size, not lz_options.dict_size. The way
+		// coder->dict.full is updated will take care that we will
+		// still reject distances larger than lz_options.dict_size.
+		coder->dict.size = alloc_size;
 	}
 
 	lz_decoder_reset(next->coder);
@@ -280,9 +297,12 @@ lzma_lz_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const size_t copy_size = my_min(lz_options.preset_dict_size,
 				lz_options.dict_size);
 		const size_t offset = lz_options.preset_dict_size - copy_size;
-		memcpy(coder->dict.buf, lz_options.preset_dict + offset,
+		memcpy(coder->dict.buf + coder->dict.pos,
+				lz_options.preset_dict + offset,
 				copy_size);
-		coder->dict.pos = copy_size;
+
+		// dict.pos isn't zero after lz_decoder_reset().
+		coder->dict.pos += copy_size;
 		coder->dict.full = copy_size;
 	}
 

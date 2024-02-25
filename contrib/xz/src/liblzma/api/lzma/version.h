@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: 0BSD */
+
 /**
  * \file        lzma/version.h
  * \brief       Version number
@@ -6,9 +8,6 @@
 
 /*
  * Author: Lasse Collin
- *
- * This file has been put into the public domain.
- * You can do whatever you want with this file.
  */
 
 #ifndef LZMA_H_INTERNAL
@@ -20,10 +19,10 @@
 #define LZMA_VERSION_MAJOR 5
 
 /** \brief Minor version number of the liblzma release. */
-#define LZMA_VERSION_MINOR 4
+#define LZMA_VERSION_MINOR 6
 
 /** \brief Patch version number of the liblzma release. */
-#define LZMA_VERSION_PATCH 5
+#define LZMA_VERSION_PATCH 0
 
 /**
  * \brief Version stability marker

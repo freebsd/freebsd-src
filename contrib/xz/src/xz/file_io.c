@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       file_io.c
 /// \brief      File opening, unlinking, and closing
 //
 //  Author:     Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -29,15 +28,33 @@ static bool warn_fchown;
 #	include <utime.h>
 #endif
 
-#ifdef HAVE_CAPSICUM
-#	ifdef HAVE_SYS_CAPSICUM_H
-#		include <sys/capsicum.h>
-#	else
-#		include <sys/capability.h>
-#	endif
-#endif
-
 #include "tuklib_open_stdxxx.h"
+
+#ifdef _MSC_VER
+#	ifdef _WIN64
+		typedef __int64 ssize_t;
+#	else
+		typedef int ssize_t;
+#	endif
+
+	typedef int mode_t;
+#	define S_IRUSR _S_IREAD
+#	define S_IWUSR _S_IWRITE
+
+#	define setmode _setmode
+#	define open _open
+#	define close _close
+#	define lseek _lseeki64
+#	define unlink _unlink
+
+	// The casts are to silence warnings.
+	// The sizes are known to be small enough.
+#	define read(fd, buf, size) _read(fd, buf, (unsigned int)(size))
+#	define write(fd, buf, size) _write(fd, buf, (unsigned int)(size))
+
+#	define S_ISDIR(m) (((m) & _S_IFMT) == _S_IFDIR)
+#	define S_ISREG(m) (((m) & _S_IFMT) == _S_IFREG)
+#endif
 
 #ifndef O_BINARY
 #	define O_BINARY 0
@@ -65,11 +82,6 @@ typedef enum {
 
 /// If true, try to create sparse files when decompressing.
 static bool try_sparse = true;
-
-#ifdef ENABLE_SANDBOX
-/// True if the conditions for sandboxing (described in main()) have been met.
-static bool sandbox_allowed = false;
-#endif
 
 #ifndef TUKLIB_DOSLIKE
 /// File status flags of standard input. This is used by io_open_src()
@@ -153,105 +165,6 @@ io_no_sparse(void)
 	try_sparse = false;
 	return;
 }
-
-
-#ifdef ENABLE_SANDBOX
-extern void
-io_allow_sandbox(void)
-{
-	sandbox_allowed = true;
-	return;
-}
-
-
-/// Enables operating-system-specific sandbox if it is possible.
-/// src_fd is the file descriptor of the input file.
-static void
-io_sandbox_enter(int src_fd)
-{
-	if (!sandbox_allowed) {
-		// This message is more often annoying than useful so
-		// it's commented out. It can be useful when developing
-		// the sandboxing code.
-		//message(V_DEBUG, _("Sandbox is disabled due "
-		//		"to incompatible command line arguments"));
-		return;
-	}
-
-	const char dummy_str[] = "x";
-
-	// Try to ensure that both libc and xz locale files have been
-	// loaded when NLS is enabled.
-	snprintf(NULL, 0, "%s%s", _(dummy_str), strerror(EINVAL));
-
-	// Try to ensure that iconv data files needed for handling multibyte
-	// characters have been loaded. This is needed at least with glibc.
-	tuklib_mbstr_width(dummy_str, NULL);
-
-#ifdef HAVE_CAPSICUM
-	// Capsicum needs FreeBSD 10.0 or later.
-	cap_rights_t rights;
-
-	if (cap_enter())
-		goto error;
-
-	if (cap_rights_limit(src_fd, cap_rights_init(&rights,
-			CAP_EVENT, CAP_FCNTL, CAP_LOOKUP, CAP_READ, CAP_SEEK)))
-		goto error;
-
-	if (src_fd != STDIN_FILENO && cap_rights_limit(
-			STDIN_FILENO, cap_rights_clear(&rights)))
-		goto error;
-
-	if (cap_rights_limit(STDOUT_FILENO, cap_rights_init(&rights,
-			CAP_EVENT, CAP_FCNTL, CAP_FSTAT, CAP_LOOKUP,
-			CAP_WRITE, CAP_SEEK)))
-		goto error;
-
-	if (cap_rights_limit(STDERR_FILENO, cap_rights_init(&rights,
-			CAP_WRITE)))
-		goto error;
-
-	if (cap_rights_limit(user_abort_pipe[0], cap_rights_init(&rights,
-			CAP_EVENT)))
-		goto error;
-
-	if (cap_rights_limit(user_abort_pipe[1], cap_rights_init(&rights,
-			CAP_WRITE)))
-		goto error;
-
-#elif defined(HAVE_PLEDGE)
-	// pledge() was introduced in OpenBSD 5.9.
-	//
-	// main() unconditionally calls pledge() with fairly relaxed
-	// promises which work in all situations. Here we make the
-	// sandbox more strict.
-	if (pledge("stdio", ""))
-		goto error;
-
-	(void)src_fd;
-
-#else
-#	error ENABLE_SANDBOX is defined but no sandboxing method was found.
-#endif
-
-	// This message is annoying in xz -lvv.
-	//message(V_DEBUG, _("Sandbox was successfully enabled"));
-	return;
-
-error:
-#ifdef HAVE_CAPSICUM
-	// If a kernel is configured without capability mode support or
-	// used in an emulator that does not implement the capability
-	// system calls, then the Capsicum system calls will fail and set
-	// errno to ENOSYS. In that case xz will silently run without
-	// the sandbox.
-	if (errno == ENOSYS)
-		return;
-#endif
-	message_fatal(_("Failed to enable the sandbox"));
-}
-#endif // ENABLE_SANDBOX
 
 
 #ifndef TUKLIB_DOSLIKE
@@ -407,7 +320,7 @@ io_copy_attrs(const file_pair *pair)
 		message_warning(_("%s: Cannot set the file group: %s"),
 				pair->dest_name, strerror(errno));
 		// We can still safely copy some additional permissions:
-		// `group' must be at least as strict as `other' and
+		// 'group' must be at least as strict as 'other' and
 		// also vice versa.
 		//
 		// NOTE: After this, the owner of the source file may
@@ -809,7 +722,8 @@ io_open_src(const char *src_name)
 
 #ifdef ENABLE_SANDBOX
 	if (!error)
-		io_sandbox_enter(pair.src_fd);
+		sandbox_enable_strict_if_allowed(pair.src_fd,
+				user_abort_pipe[0], user_abort_pipe[1]);
 #endif
 
 	return error ? NULL : &pair;

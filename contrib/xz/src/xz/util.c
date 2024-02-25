@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: 0BSD
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       util.c
 /// \brief      Miscellaneous utility functions
 //
 //  Author:     Lasse Collin
-//
-//  This file has been put into the public domain.
-//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -148,8 +147,8 @@ str_to_uint64(const char *name, const char *value, uint64_t min, uint64_t max)
 		if (multiplier == 0) {
 			message(V_ERROR, _("%s: Invalid multiplier suffix"),
 					value - 1);
-			message_fatal(_("Valid suffixes are `KiB' (2^10), "
-					"`MiB' (2^20), and `GiB' (2^30)."));
+			message_fatal(_("Valid suffixes are 'KiB' (2^10), "
+					"'MiB' (2^20), and 'GiB' (2^30)."));
 		}
 
 		// Don't overflow here either.
@@ -165,7 +164,7 @@ str_to_uint64(const char *name, const char *value, uint64_t min, uint64_t max)
 	return result;
 
 error:
-	message_fatal(_("Value of the option `%s' must be in the range "
+	message_fatal(_("Value of the option '%s' must be in the range "
 				"[%" PRIu64 ", %" PRIu64 "]"),
 				name, min, max);
 }
@@ -262,9 +261,30 @@ my_snprintf(char **pos, size_t *left, const char *fmt, ...)
 
 
 extern bool
+is_tty(int fd)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	// There is no need to check if handle == INVALID_HANDLE_VALUE
+	// because it will return false anyway when used in GetConsoleMode().
+	// The resulting HANDLE is owned by the file descriptor.
+	// The HANDLE must not be closed here.
+	intptr_t handle = _get_osfhandle(fd);
+	DWORD mode;
+
+	// GetConsoleMode() is an easy way to tell if the HANDLE is a
+	// console or not. We do not care about the value of mode since we
+	// do not plan to use any further Windows console functions.
+	return GetConsoleMode((HANDLE)handle, &mode);
+#else
+	return isatty(fd);
+#endif
+}
+
+
+extern bool
 is_tty_stdin(void)
 {
-	const bool ret = isatty(STDIN_FILENO);
+	const bool ret = is_tty(STDIN_FILENO);
 
 	if (ret)
 		message_error(_("Compressed data cannot be read from "
@@ -277,7 +297,7 @@ is_tty_stdin(void)
 extern bool
 is_tty_stdout(void)
 {
-	const bool ret = isatty(STDOUT_FILENO);
+	const bool ret = is_tty(STDOUT_FILENO);
 
 	if (ret)
 		message_error(_("Compressed data cannot be written to "
