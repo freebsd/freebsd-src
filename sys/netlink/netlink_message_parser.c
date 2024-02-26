@@ -321,7 +321,7 @@ nlattr_get_uint8(struct nlattr *nla, struct nl_pstate *npt, const void *arg, voi
 		    nla->nla_type, NLA_DATA_LEN(nla));
 		return (EINVAL);
 	}
-	*((uint16_t *)target) = *((const uint16_t *)NL_RTA_DATA_CONST(nla));
+	*((uint8_t *)target) = *((const uint8_t *)NL_RTA_DATA_CONST(nla));
 	return (0);
 }
 
