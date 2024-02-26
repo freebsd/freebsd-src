@@ -427,6 +427,15 @@ Output at most
 .Ar number
 columns when using side by side format.
 The default value is 130.
+Note that unless
+.It Fl t
+was specified,
+.Nm
+will always align the second column to a tab stop, so values of
+.Fl -width
+smaller than approximately five times the value of
+.Fl -tabsize
+may yield surprising results.
 .It Fl -changed-group-format Ar GFMT
 Format input groups in the provided
 .Pp

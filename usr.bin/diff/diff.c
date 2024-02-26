@@ -276,10 +276,8 @@ main(int argc, char **argv)
 			break;
 		case 'W':
 			width = (int) strtonum(optarg, 1, INT_MAX, &errstr);
-			if (errstr) {
-				warnx("Invalid argument for width");
-				usage();
-			}
+			if (errstr)
+				errx(1, "width is %s: %s", errstr, optarg);
 			break;
 		case 'X':
 			read_excludes_file(optarg);
@@ -317,10 +315,8 @@ main(int argc, char **argv)
 			break;
 		case OPT_TSIZE:
 			tabsize = (int) strtonum(optarg, 1, INT_MAX, &errstr);
-			if (errstr) {
-				warnx("Invalid argument for tabsize");
-				usage();
-			}
+			if (errstr)
+				errx(1, "tabsize is %s: %s", errstr, optarg);
 			break;
 		case OPT_STRIPCR:
 			dflags |= D_STRIPCR;
