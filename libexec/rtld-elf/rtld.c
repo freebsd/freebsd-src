@@ -2050,6 +2050,9 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
     return (def);
 }
 
+/* Convert between native byte order and forced little resp. big endian. */
+#define COND_SWAP(n) (is_le ? le32toh(n) : be32toh(n))
+
 /*
  * Return the search path from the ldconfig hints file, reading it if
  * necessary.  If nostdlib is true, then the default search paths are
@@ -2073,6 +2076,12 @@ gethints(bool nostdlib)
 	int fd;
 	size_t flen;
 	uint32_t dl;
+	uint32_t magic;		/* Magic number */
+	uint32_t version;	/* File version (1) */
+	uint32_t strtab;	/* Offset of string table in file */
+	uint32_t dirlist;	/* Offset of directory list in string table */
+	uint32_t dirlistlen;	/* strlen(dirlist) */
+	bool is_le;
 	bool skip;
 
 	/* First call, read the hints file */
@@ -2080,8 +2089,10 @@ gethints(bool nostdlib)
 		/* Keep from trying again in case the hints file is bad. */
 		hints = "";
 
-		if ((fd = open(ld_elf_hints_path, O_RDONLY | O_CLOEXEC)) == -1)
+		if ((fd = open(ld_elf_hints_path, O_RDONLY | O_CLOEXEC)) == -1) {
+			dbg("failed to open hints file \"%s\"", ld_elf_hints_path);
 			return (NULL);
+		}
 
 		/*
 		 * Check of hdr.dirlistlen value against type limit
@@ -2089,29 +2100,62 @@ gethints(bool nostdlib)
 		 * paranoia leads to checks that dirlist is fully
 		 * contained in the file range.
 		 */
-		if (read(fd, &hdr, sizeof hdr) != sizeof hdr ||
-		    hdr.magic != ELFHINTS_MAGIC ||
-		    hdr.version != 1 || hdr.dirlistlen > UINT_MAX / 2 ||
-		    fstat(fd, &hint_stat) == -1) {
+		if (read(fd, &hdr, sizeof hdr) != sizeof hdr) {
+			dbg("failed to read %lu bytes from hints file \"%s\"",
+			    (u_long)sizeof hdr, ld_elf_hints_path);
 cleanup1:
 			close(fd);
 			hdr.dirlistlen = 0;
 			return (NULL);
 		}
-		dl = hdr.strtab;
-		if (dl + hdr.dirlist < dl)
+		is_le = /*le32toh(1) == 1 || */ hdr.magic == ELFHINTS_MAGIC;
+		magic = COND_SWAP(hdr.magic);
+		version = COND_SWAP(hdr.version);
+		strtab = COND_SWAP(hdr.strtab);
+		dirlist = COND_SWAP(hdr.dirlist);
+		dirlistlen = COND_SWAP(hdr.dirlistlen);
+		if (magic != ELFHINTS_MAGIC) {
+			dbg("invalid magic number %#08x (expected: %#08x)",
+			    magic, ELFHINTS_MAGIC);
 			goto cleanup1;
-		dl += hdr.dirlist;
-		if (dl + hdr.dirlistlen < dl)
+		}
+		if (version != 1) {
+			dbg("hints file version %d (expected: 1)", version);
 			goto cleanup1;
-		dl += hdr.dirlistlen;
-		if (dl > hint_stat.st_size)
+		}
+		if (dirlistlen > UINT_MAX / 2) {
+			dbg("directory list is to long: %d > %d",
+			    dirlistlen, UINT_MAX / 2);
 			goto cleanup1;
-		p = xmalloc(hdr.dirlistlen + 1);
-		if (pread(fd, p, hdr.dirlistlen + 1,
-		    hdr.strtab + hdr.dirlist) != (ssize_t)hdr.dirlistlen + 1 ||
-		    p[hdr.dirlistlen] != '\0') {
+		}
+		if (fstat(fd, &hint_stat) == -1) {
+			dbg("failed to find length of hints file \"%s\"",
+			    ld_elf_hints_path);
+			goto cleanup1;
+		}
+		dl = strtab;
+		if (dl + dirlist < dl) {
+			dbg("invalid string table position %d", dl);
+			goto cleanup1;
+		}
+		dl += dirlist;
+		if (dl + dirlistlen < dl) {
+			dbg("invalid directory list offset %d", dirlist);
+			goto cleanup1;
+		}
+		dl += dirlistlen;
+		if (dl > hint_stat.st_size) {
+			dbg("hints file \"%s\" is truncated (%d vs. %jd bytes)",
+			    ld_elf_hints_path, dl, (uintmax_t)hint_stat.st_size);
+			goto cleanup1;
+		}
+		p = xmalloc(dirlistlen + 1);
+		if (pread(fd, p, dirlistlen + 1,
+		    strtab + dirlist) != (ssize_t)dirlistlen + 1 ||
+		    p[dirlistlen] != '\0') {
 			free(p);
+			dbg("failed to read %d bytes starting at %d from hints file \"%s\"",
+			    dirlistlen + 1, strtab + dirlist, ld_elf_hints_path);
 			goto cleanup1;
 		}
 		hints = p;
@@ -2174,7 +2218,7 @@ cleanup1:
 	 */
 	fndx = 0;
 	fcount = 0;
-	filtered_path = xmalloc(hdr.dirlistlen + 1);
+	filtered_path = xmalloc(dirlistlen + 1);
 	hintpath = &hintinfo->dls_serpath[0];
 	for (hintndx = 0; hintndx < hmeta.dls_cnt; hintndx++, hintpath++) {
 		skip = false;
