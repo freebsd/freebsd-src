@@ -166,7 +166,6 @@ struct context_vec {
 
 enum readhash { RH_BINARY, RH_OK, RH_EOF };
 
-#define MIN_PAD		1
 static FILE	*opentemp(const char *);
 static void	 output(char *, FILE *, char *, FILE *, int);
 static void	 check(FILE *, FILE *, int);
@@ -206,7 +205,7 @@ static int	 len[2];
 static int	 pref, suff;	/* length of prefix and suffix */
 static int	 slen[2];
 static int	 anychange;
-static int	 hw, padding;	/* half width and padding */
+static int	 hw, lpad, rpad;	/* half width and padding */
 static int	 edoffset;
 static long	*ixnew;		/* will be overlaid on file[1] */
 static long	*ixold;		/* will be overlaid on klist */
@@ -251,20 +250,43 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 	lastline = 0;
 	lastmatchline = 0;
 
-	 /*
-	  * hw excludes padding and make sure when -t is not used,
-	  * the second column always starts from the closest tab stop
-	  */
+	/*
+	 * In side-by-side mode, we need to print the left column, a
+	 * change marker surrounded by padding, and the right column.
+	 *
+	 * If expanding tabs, we don't care about alignment, so we simply
+	 * subtract 3 from the width and divide by two.
+	 *
+	 * If not expanding tabs, we need to ensure that the right column
+	 * is aligned to a tab stop.  We start with the same formula, then
+	 * decrement until we reach a size that lets us tab-align the
+	 * right column.  We then adjust the width down if necessary for
+	 * the padding calculation to work.
+	 *
+	 * Left padding is half the space left over, rounded down; right
+	 * padding is whatever is needed to match the width.
+	 */
 	if (diff_format == D_SIDEBYSIDE) {
-		hw = width >> 1;
-		padding = tabsize - (hw % tabsize);
-		if ((flags & D_EXPANDTABS) != 0 || (padding % tabsize == 0))
-			padding = MIN_PAD;
-
-		hw = (width >> 1) -
-		    ((padding == MIN_PAD) ? (padding << 1) : padding) - 1;
+		if (flags & D_EXPANDTABS) {
+			if (width > 3) {
+				hw = (width - 3) / 2;
+			} else {
+				/* not enough space */
+				hw = 0;
+			}
+		} else if (width <= 3 || width <= tabsize) {
+			/* not enough space */
+			hw = 0;
+		} else {
+			hw = (width - 3) / 2;
+			while (hw > 0 && roundup(hw + 3, tabsize) + hw > width)
+				hw--;
+			if (width - (roundup(hw + 3, tabsize) + hw) < tabsize)
+				width = roundup(hw + 3, tabsize) + hw;
+		}
+		lpad = (width - hw * 2 - 1) / 2;
+		rpad = (width - hw * 2 - 1) - lpad;
 	}
-
 
 	if (flags & D_IGNORECASE)
 		chrtran = cup2low;
@@ -866,7 +888,7 @@ output(char *file1, FILE *f1, char *file2, FILE *f2, int flags)
 			while (i0 <= m && J[i0] == J[i0 - 1] + 1) {
 				if (diff_format == D_SIDEBYSIDE && suppress_common != 1) {
 					nc = fetch(ixold, i0, i0, f1, '\0', 1, flags);
-					print_space(nc, (hw - nc) + (padding << 1) + 1, flags);
+					print_space(nc, hw - nc + lpad + 1 + rpad, flags);
 					fetch(ixnew, J[i0], J[i0], f2, '\0', 0, flags);
 					printf("\n");
 				}
@@ -1144,10 +1166,10 @@ proceed:
 		else if (color && c > d)
 			printf("\033[%sm", del_code);
 		if (a > b) {
-			print_space(0, hw + padding , *pflags);
+			print_space(0, hw + lpad, *pflags);
 		} else {
 			nc = fetch(ixold, a, b, f1, '\0', 1, *pflags);
-			print_space(nc, hw - nc + padding, *pflags);
+			print_space(nc, hw - nc + lpad, *pflags);
 		}
 		if (color && a > b)
 			printf("\033[%sm", add_code);
@@ -1156,7 +1178,7 @@ proceed:
 		printf("%c", (a > b) ? '>' : ((c > d) ? '<' : '|'));
 		if (color && c > d)
 			printf("\033[m");
-		print_space(hw + padding + 1 , padding, *pflags);
+		print_space(hw + lpad + 1, rpad, *pflags);
 		fetch(ixnew, c, d, f2, '\0', 0, *pflags);
 		printf("\n");
 	}
@@ -1262,30 +1284,24 @@ fetch(long *f, int a, int b, FILE *lb, int ch, int oldfile, int flags)
 					printf("\n\\ No newline at end of file\n");
 				return (col);
 			}
-			/*
-			 * when using --side-by-side, col needs to be increased
-			 * in any case to keep the columns aligned
-			 */
 			if (c == '\t') {
-				if (flags & D_EXPANDTABS) {
-					newcol = ((col / tabsize) + 1) * tabsize;
-					do {
-						printf(" ");
-					} while (++col < newcol && col < hw);
+				/*
+				 * Calculate where the tab would bring us.
+				 * If it would take us to the end of the
+				 * column, either clip it (if expanding
+				 * tabs) or return right away (if not).
+				 */
+				newcol = roundup(col + 1, tabsize);
+				if ((flags & D_EXPANDTABS) == 0) {
+					if (hw > 0 && newcol >= hw)
+						return (col);
+					printf("\t");
 				} else {
-					if (diff_format == D_SIDEBYSIDE) {
-						if ((col + tabsize) > hw) {
-							printf("%*s", hw - col, "");
-							col = hw;
-						} else {
-							printf("\t");
-							col += tabsize - 1;
-						}
-					} else {
-						printf("\t");
-						col++;
-					}
+					if (hw > 0 && newcol > hw)
+						newcol = hw;
+					printf("%*s", newcol - col, "");
 				}
+				col = newcol;
 			} else {
 				if (diff_format == D_EDIT && j == 1 && c == '\n' &&
 				    lastc == '.') {
@@ -1665,18 +1681,19 @@ print_header(const char *file1, const char *file2)
  * nc is the preceding number of characters
  */
 static void
-print_space(int nc, int n, int flags) {
-	int i, col;
+print_space(int nc, int n, int flags)
+{
+	int col, newcol, tabstop;
 
-	col = n;
+	col = nc;
+	newcol = nc + n;
+	/* first, use tabs if allowed */
 	if ((flags & D_EXPANDTABS) == 0) {
-		/* first tabstop may be closer than tabsize */
-		i = tabsize - (nc % tabsize);
-		while (col >= tabsize) {
+		while ((tabstop = roundup(col + 1, tabsize)) <= newcol) {
 			printf("\t");
-			col -= i;
-			i = tabsize;
+			col = tabstop;
 		}
 	}
-	printf("%*s", col, "");
+	/* finish with spaces */
+	printf("%*s", newcol - col, "");
 }
