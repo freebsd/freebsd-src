@@ -227,9 +227,6 @@ struct cdev *pf_dev;
  * XXX - These are new and need to be checked when moveing to a new version
  */
 static void		 pf_clear_all_states(void);
-static unsigned int	 pf_clear_states(const struct pf_kstate_kill *);
-static void		 pf_killstates(struct pf_kstate_kill *,
-			    unsigned int *);
 static int		 pf_killstates_row(struct pf_kstate_kill *,
 			    struct pf_idhash *);
 static int		 pf_killstates_nv(struct pfioc_nv *);
@@ -5944,7 +5941,7 @@ on_error:
 	return (error);
 }
 
-static unsigned int
+unsigned int
 pf_clear_states(const struct pf_kstate_kill *kill)
 {
 	struct pf_state_key_cmp	 match_key;
@@ -6013,7 +6010,7 @@ relock_DIOCCLRSTATES:
 	return (killed);
 }
 
-static void
+void
 pf_killstates(struct pf_kstate_kill *kill, unsigned int *killed)
 {
 	struct pf_kstate	*s;

@@ -43,6 +43,8 @@ enum {
 	PFNL_CMD_ADDRULE = 5,
 	PFNL_CMD_GETRULES = 6,
 	PFNL_CMD_GETRULE = 7,
+	PFNL_CMD_CLRSTATES = 8,
+	PFNL_CMD_KILLSTATES = 9,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -260,6 +262,23 @@ enum pf_getrules_type_t {
 	PF_GR_NR		= 3, /* u32 */
 	PF_GR_TICKET		= 4, /* u32 */
 	PF_GR_CLEAR		= 5, /* u8 */
+};
+
+enum pf_clear_states_type_t {
+	PF_CS_UNSPEC,
+	PF_CS_CMP_ID		= 1, /* u64 */
+	PF_CS_CMP_CREATORID	= 2, /* u32 */
+	PF_CS_CMP_DIR		= 3, /* u8 */
+	PF_CS_AF		= 4, /* u8 */
+	PF_CS_PROTO		= 5, /* u8 */
+	PF_CS_SRC		= 6, /* nested, pf_addr_wrap */
+	PF_CS_DST		= 7, /* nested, pf_addr_wrap */
+	PF_CS_RT_ADDR		= 8, /* nested, pf_addr_wrap */
+	PF_CS_IFNAME		= 9, /* string */
+	PF_CS_LABEL		= 10, /* string */
+	PF_CS_KILL_MATCH	= 11, /* bool */
+	PF_CS_NAT		= 12, /* bool */
+	PF_CS_KILLED		= 13, /* u32 */
 };
 
 #ifdef _KERNEL

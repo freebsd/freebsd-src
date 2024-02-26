@@ -782,6 +782,7 @@ static const struct nlattr_parser nla_p_getrules[] = {
 };
 static const struct nlfield_parser nlf_p_getrules[] = {
 };
+#undef _IN
 #undef _OUT
 NL_DECLARE_PARSER(getrules_parser, struct genlmsghdr, nlf_p_getrules, nla_p_getrules);
 
@@ -842,6 +843,8 @@ static const struct nlattr_parser nla_p_getrule[] = {
 };
 static const struct nlfield_parser nlf_p_getrule[] = {
 };
+#undef _IN
+#undef _OUT
 NL_DECLARE_PARSER(getrule_parser, struct genlmsghdr, nlf_p_getrule, nla_p_getrule);
 
 static int
@@ -1000,10 +1003,87 @@ out:
 	return (error);
 }
 
+#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
+#define	_OUT(_field)	offsetof(struct pf_kstate_kill, _field)
+static const struct nlattr_parser nla_p_clear_states[] = {
+	{ .type = PF_CS_CMP_ID, .off = _OUT(psk_pfcmp.id), .cb = nlattr_get_uint64 },
+	{ .type = PF_CS_CMP_CREATORID, .off = _OUT(psk_pfcmp.creatorid), .cb = nlattr_get_uint32 },
+	{ .type = PF_CS_CMP_DIR, .off = _OUT(psk_pfcmp.direction), .cb = nlattr_get_uint8 },
+	{ .type = PF_CS_AF, .off = _OUT(psk_af), .cb = nlattr_get_uint8 },
+	{ .type = PF_CS_PROTO, .off = _OUT(psk_proto), .cb = nlattr_get_uint8 },
+	{ .type = PF_CS_SRC, .off = _OUT(psk_src), .arg = &rule_addr_parser, .cb = nlattr_get_nested },
+	{ .type = PF_CS_DST, .off = _OUT(psk_dst), .arg = &rule_addr_parser, .cb = nlattr_get_nested },
+	{ .type = PF_CS_RT_ADDR, .off = _OUT(psk_rt_addr), .arg = &rule_addr_parser, .cb = nlattr_get_nested },
+	{ .type = PF_CS_IFNAME, .off = _OUT(psk_ifname), .arg = (void *)IFNAMSIZ, .cb = nlattr_get_chara },
+	{ .type = PF_CS_LABEL, .off = _OUT(psk_label), .arg = (void *)PF_RULE_LABEL_SIZE, .cb = nlattr_get_chara },
+	{ .type = PF_CS_KILL_MATCH, .off = _OUT(psk_kill_match), .cb = nlattr_get_bool },
+	{ .type = PF_CS_NAT, .off = _OUT(psk_nat), .cb = nlattr_get_bool },
+};
+static const struct nlfield_parser nlf_p_clear_states[] = {};
+#undef _IN
+#undef _OUT
+NL_DECLARE_PARSER(clear_states_parser, struct genlmsghdr, nlf_p_clear_states, nla_p_clear_states);
+
+static int
+pf_handle_killclear_states(struct nlmsghdr *hdr, struct nl_pstate *npt, int cmd)
+{
+	struct pf_kstate_kill		 kill = {};
+	struct epoch_tracker		 et;
+	struct nl_writer		*nw = npt->nw;
+	struct genlmsghdr		*ghdr_new;
+	int				 error;
+	unsigned int			 killed = 0;
+
+	error = nl_parse_nlmsg(hdr, &clear_states_parser, npt, &kill);
+	if (error != 0)
+		return (error);
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = cmd;
+	ghdr_new->version = 0;
+	ghdr_new->reserved = 0;
+
+	NET_EPOCH_ENTER(et);
+	if (cmd == PFNL_CMD_KILLSTATES)
+		pf_killstates(&kill, &killed);
+	else
+		killed = pf_clear_states(&kill);
+	NET_EPOCH_EXIT(et);
+
+	nlattr_add_u32(nw, PF_CS_KILLED, killed);
+
+	if (! nlmsg_end(nw)) {
+		error = ENOMEM;
+		goto out;
+	}
+
+	return (0);
+
+out:
+	nlmsg_abort(nw);
+	return (error);
+}
+
+static int
+pf_handle_clear_states(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	return (pf_handle_killclear_states(hdr, npt, PFNL_CMD_CLRSTATES));
+}
+
+static int
+pf_handle_kill_states(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	return (pf_handle_killclear_states(hdr, npt, PFNL_CMD_KILLSTATES));
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
-	&getrules_parser
+	&getrules_parser,
+	&clear_states_parser,
 };
 
 static int family_id;
@@ -1056,6 +1136,20 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_name = "GETRULE",
 		.cmd_cb = pf_handle_getrule,
 		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_CLRSTATES,
+		.cmd_name = "CLRSTATES",
+		.cmd_cb = pf_handle_clear_states,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_KILLSTATES,
+		.cmd_name = "KILLSTATES",
+		.cmd_cb = pf_handle_kill_states,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
 };
