@@ -1313,7 +1313,8 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 	struct xtty *xtlist, *xt;
 	struct tty *tp;
 	struct proc *p;
-	int cansee, error;
+	int error;
+	bool cansee;
 
 	sx_slock(&tty_list_sx);
 	lsize = tty_list_count * sizeof(struct xtty);
@@ -1326,8 +1327,8 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 
 	TAILQ_FOREACH(tp, &tty_list, t_list) {
 		tty_lock(tp);
-		if (tp->t_session != NULL) {
-			p = tp->t_session->s_leader;
+		if (tp->t_session != NULL &&
+		    (p = atomic_load_ptr(&tp->t_session->s_leader)) != NULL) {
 			PROC_LOCK(p);
 			cansee = (p_cansee(td, p) == 0);
 			PROC_UNLOCK(p);
