@@ -2768,19 +2768,18 @@ int
 uaudio_chan_set_param_speed(struct uaudio_chan *ch, uint32_t speed)
 {
 	struct uaudio_softc *sc;
-	uint8_t x;
+	uint8_t x, y;
 
 	sc = ch->priv_sc;
 
-	for (x = 0; x < ch->num_alt; x++) {
-		if (ch->usb_alt[x].sample_rate < speed) {
-			/* sample rate is too low */
-			break;
-		}
+	for (x = 0, y = 1; y < ch->num_alt; y++) {
+		/* prefer sample rate closer to and greater than requested */
+		if ((ch->usb_alt[x].sample_rate < speed &&
+		    ch->usb_alt[x].sample_rate < ch->usb_alt[y].sample_rate) ||
+		    (speed <= ch->usb_alt[y].sample_rate &&
+		    ch->usb_alt[y].sample_rate < ch->usb_alt[x].sample_rate))
+			x = y;
 	}
-
-	if (x != 0)
-		x--;
 
 	usb_proc_explore_lock(sc->sc_udev);
 	ch->set_alt = x;
