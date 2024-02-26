@@ -2208,6 +2208,9 @@ extern int			 pf_state_insert(struct pfi_kkif *,
 				    struct pf_kstate *);
 extern struct pf_kstate		*pf_alloc_state(int);
 extern void			 pf_free_state(struct pf_kstate *);
+extern void			 pf_killstates(struct pf_kstate_kill *,
+				    unsigned int *);
+extern unsigned int		 pf_clear_states(const struct pf_kstate_kill *);
 
 static __inline void
 pf_ref_state(struct pf_kstate *s)

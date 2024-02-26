@@ -1630,22 +1630,6 @@ pfctl_get_creatorids(struct pfctl_handle *h, uint32_t *creators, size_t *len)
 	return (error);
 }
 
-static void
-pfctl_nv_add_state_cmp(nvlist_t *nvl, const char *name,
-    const struct pfctl_state_cmp *cmp)
-{
-	nvlist_t	*nv;
-
-	nv = nvlist_create(0);
-
-	nvlist_add_number(nv, "id", cmp->id);
-	nvlist_add_number(nv, "creatorid", htonl(cmp->creatorid));
-	nvlist_add_number(nv, "direction", cmp->direction);
-
-	nvlist_add_nvlist(nvl, name, nv);
-	nvlist_destroy(nv);
-}
-
 static inline bool
 snl_attr_get_pfaddr(struct snl_state *ss __unused, struct nlattr *nla,
     const void *arg __unused, void *target)
@@ -1848,48 +1832,110 @@ pfctl_free_states(struct pfctl_states *states)
 	bzero(states, sizeof(*states));
 }
 
+struct pfctl_nl_clear_states {
+	uint32_t killed;
+};
+#define	_OUT(_field)	offsetof(struct pfctl_nl_clear_states, _field)
+static struct snl_attr_parser ap_clear_states[] = {
+	{ .type = PF_CS_KILLED, .off = _OUT(killed), .cb = snl_attr_get_uint32 },
+};
+static struct snl_field_parser fp_clear_states[] = {};
+#undef _OUT
+SNL_DECLARE_PARSER(clear_states_parser, struct genlmsghdr, fp_clear_states, ap_clear_states);
+
 static int
-_pfctl_clear_states(int dev, const struct pfctl_kill *kill,
-    unsigned int *killed, uint64_t ioctlval)
+_pfctl_clear_states_h(struct pfctl_handle *h, const struct pfctl_kill *kill,
+    unsigned int *killed, int cmd)
 {
-	nvlist_t	*nvl;
-	int		 ret;
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct pfctl_nl_clear_states attrs = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	int family_id;
 
-	nvl = nvlist_create(0);
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
 
-	pfctl_nv_add_state_cmp(nvl, "cmp", &kill->cmp);
-	nvlist_add_number(nvl, "af", kill->af);
-	nvlist_add_number(nvl, "proto", kill->proto);
-	pfctl_nv_add_rule_addr(nvl, "src", &kill->src);
-	pfctl_nv_add_rule_addr(nvl, "dst", &kill->dst);
-	pfctl_nv_add_rule_addr(nvl, "rt_addr", &kill->rt_addr);
-	nvlist_add_string(nvl, "ifname", kill->ifname);
-	nvlist_add_string(nvl, "label", kill->label);
-	nvlist_add_bool(nvl, "kill_match", kill->kill_match);
-	nvlist_add_bool(nvl, "nat", kill->nat);
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, cmd);
+	hdr->nlmsg_flags |= NLM_F_DUMP;
 
-	if ((ret = pfctl_do_ioctl(dev, ioctlval, 1024, &nvl)) != 0)
-		goto out;
+	snl_add_msg_attr_u64(&nw, PF_CS_CMP_ID, kill->cmp.id);
+	snl_add_msg_attr_u32(&nw, PF_CS_CMP_CREATORID, htonl(kill->cmp.creatorid));
+	snl_add_msg_attr_u8(&nw, PF_CS_CMP_DIR, kill->cmp.direction);
+	snl_add_msg_attr_u8(&nw, PF_CS_AF, kill->af);
+	snl_add_msg_attr_u8(&nw, PF_CS_PROTO, kill->proto);
+	snl_add_msg_attr_rule_addr(&nw, PF_CS_SRC, &kill->src);
+	snl_add_msg_attr_rule_addr(&nw, PF_CS_DST, &kill->dst);
+	snl_add_msg_attr_rule_addr(&nw, PF_CS_RT_ADDR, &kill->rt_addr);
+	snl_add_msg_attr_string(&nw, PF_CS_IFNAME, kill->ifname);
+	snl_add_msg_attr_string(&nw, PF_CS_LABEL, kill->label);
+	snl_add_msg_attr_bool(&nw, PF_CS_KILL_MATCH, kill->kill_match);
+	snl_add_msg_attr_bool(&nw, PF_CS_NAT, kill->nat);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &clear_states_parser, &attrs))
+			continue;
+	}
 
 	if (killed)
-		*killed = nvlist_get_number(nvl, "killed");
+		*killed = attrs.killed;
 
-out:
-	nvlist_destroy(nvl);
+	return (e.error);
+}
+
+int
+pfctl_clear_states_h(struct pfctl_handle *h, const struct pfctl_kill *kill,
+    unsigned int *killed)
+{
+	return(_pfctl_clear_states_h(h, kill, killed, PFNL_CMD_CLRSTATES));
+}
+
+int
+pfctl_kill_states_h(struct pfctl_handle *h, const struct pfctl_kill *kill,
+    unsigned int *killed)
+{
+	return(_pfctl_clear_states_h(h, kill, killed, PFNL_CMD_KILLSTATES));
+}
+
+static int
+_pfctl_clear_states(int dev __unused, const struct pfctl_kill *kill,
+    unsigned int *killed, uint64_t cmd)
+{
+	struct pfctl_handle *h;
+	int ret;
+
+	h = pfctl_open(PF_DEVICE);
+	if (h == NULL)
+		return (ENODEV);
+
+	ret = _pfctl_clear_states_h(h, kill, killed, cmd);
+	pfctl_close(h);
+
 	return (ret);
 }
 
 int
-pfctl_clear_states(int dev, const struct pfctl_kill *kill,
+pfctl_clear_states(int dev __unused, const struct pfctl_kill *kill,
     unsigned int *killed)
 {
-	return (_pfctl_clear_states(dev, kill, killed, DIOCCLRSTATESNV));
+	return (_pfctl_clear_states(dev, kill, killed, PFNL_CMD_CLRSTATES));
 }
 
 int
-pfctl_kill_states(int dev, const struct pfctl_kill *kill, unsigned int *killed)
+pfctl_kill_states(int dev __unused, const struct pfctl_kill *kill, unsigned int *killed)
 {
-	return (_pfctl_clear_states(dev, kill, killed, DIOCKILLSTATESNV));
+	return (_pfctl_clear_states(dev, kill, killed, PFNL_CMD_KILLSTATES));
 }
 
 int

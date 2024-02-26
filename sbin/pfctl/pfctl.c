@@ -545,7 +545,7 @@ pfctl_clear_iface_states(int dev, const char *iface, int opts)
 	if (opts & PF_OPT_KILLMATCH)
 		kill.kill_match = true;
 
-	if (pfctl_clear_states(dev, &kill, &killed))
+	if (pfctl_clear_states_h(pfh, &kill, &killed))
 		err(1, "DIOCCLRSTATES");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "%d states cleared\n", killed);
@@ -801,13 +801,13 @@ pfctl_net_kill_states(int dev, const char *iface, int opts)
 					errx(1, "Unknown address family %d",
 					    kill.af);
 
-				if (pfctl_kill_states(dev, &kill, &newkilled))
+				if (pfctl_kill_states_h(pfh, &kill, &newkilled))
 					err(1, "DIOCKILLSTATES");
 				killed += newkilled;
 			}
 			freeaddrinfo(res[1]);
 		} else {
-			if (pfctl_kill_states(dev, &kill, &newkilled))
+			if (pfctl_kill_states_h(pfh, &kill, &newkilled))
 				err(1, "DIOCKILLSTATES");
 			killed += newkilled;
 		}
@@ -873,7 +873,7 @@ pfctl_gateway_kill_states(int dev, const char *iface, int opts)
 		else
 			errx(1, "Unknown address family %d", kill.af);
 
-		if (pfctl_kill_states(dev, &kill, &newkilled))
+		if (pfctl_kill_states_h(pfh, &kill, &newkilled))
 			err(1, "DIOCKILLSTATES");
 		killed += newkilled;
 	}
@@ -907,7 +907,7 @@ pfctl_label_kill_states(int dev, const char *iface, int opts)
 	    sizeof(kill.label))
 		errx(1, "label too long: %s", state_kill[1]);
 
-	if (pfctl_kill_states(dev, &kill, &killed))
+	if (pfctl_kill_states_h(pfh, &kill, &killed))
 		err(1, "DIOCKILLSTATES");
 
 	if ((opts & PF_OPT_QUIET) == 0)
@@ -946,7 +946,7 @@ pfctl_id_kill_states(int dev, const char *iface, int opts)
 		usage();
 	}
 
-	if (pfctl_kill_states(dev, &kill, &killed))
+	if (pfctl_kill_states_h(pfh, &kill, &killed))
 		err(1, "DIOCKILLSTATES");
 
 	if ((opts & PF_OPT_QUIET) == 0)

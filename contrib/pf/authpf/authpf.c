@@ -57,6 +57,7 @@ static int	change_table(int, const char *);
 static void	authpf_kill_states(void);
 
 int	dev;			/* pf device */
+struct pfctl_handle	 *pfh;
 char	anchorname[PF_ANCHOR_NAME_SIZE] = "authpf";
 char	rulesetname[MAXPATHLEN - PF_ANCHOR_NAME_SIZE - 2];
 char	tablename[PF_TABLE_NAME_SIZE] = "authpf_users";
@@ -135,7 +136,8 @@ main(void)
 	}
 	/* open the pf device */
 	dev = open(PATH_DEVFILE, O_RDWR);
-	if (dev == -1) {
+	pfh = pfctl_open(PATH_DEVFILE);
+	if (dev == -1 || pfh == NULL) {
 		syslog(LOG_ERR, "cannot open packet filter device (%m)");
 		goto die;
 	}
@@ -906,7 +908,7 @@ authpf_kill_states(void)
 	    sizeof(kill.src.addr.v.a.addr));
 	memset(&kill.src.addr.v.a.mask, 0xff,
 	    sizeof(kill.src.addr.v.a.mask));
-	if (pfctl_kill_states(dev, &kill, NULL))
+	if (pfctl_kill_states_h(pfh, &kill, NULL))
 		syslog(LOG_ERR, "pfctl_kill_states() failed (%m)");
 
 	/* Kill all states to ipsrc */
@@ -915,7 +917,7 @@ authpf_kill_states(void)
 	    sizeof(kill.dst.addr.v.a.addr));
 	memset(&kill.dst.addr.v.a.mask, 0xff,
 	    sizeof(kill.dst.addr.v.a.mask));
-	if (pfctl_kill_states(dev, &kill, NULL))
+	if (pfctl_kill_states_h(pfh, &kill, NULL))
 		syslog(LOG_ERR, "pfctl_kill_states() failed (%m)");
 }
 

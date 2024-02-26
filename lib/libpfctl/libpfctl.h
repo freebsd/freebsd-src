@@ -446,6 +446,10 @@ int	pfctl_clear_states(int dev, const struct pfctl_kill *kill,
 	    unsigned int *killed);
 int	pfctl_kill_states(int dev, const struct pfctl_kill *kill,
 	    unsigned int *killed);
+int	pfctl_clear_states_h(struct pfctl_handle *h, const struct pfctl_kill *kill,
+	    unsigned int *killed);
+int	pfctl_kill_states_h(struct pfctl_handle *h, const struct pfctl_kill *kill,
+	    unsigned int *killed);
 int	pfctl_clear_rules(int dev, const char *anchorname);
 int	pfctl_clear_nat(int dev, const char *anchorname);
 int	pfctl_clear_eth_rules(int dev, const char *anchorname);
