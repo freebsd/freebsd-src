@@ -29,7 +29,14 @@
 #ifndef	_RUNQ_H_
 #define	_RUNQ_H_
 
-#include <machine/runq.h>
+#include <sys/_param.h>
+#include <sys/queue.h>
+
+#ifdef _KERNEL
+#include <sys/libkern.h>
+#else
+#include <strings.h>
+#endif
 
 struct thread;
 
@@ -37,8 +44,20 @@ struct thread;
  * Run queue parameters.
  */
 
-#define	RQ_NQS		(64)		/* Number of run queues. */
-#define	RQ_PPQ		(4)		/* Priorities per queue. */
+#define	RQ_MAX_PRIO	(255)	/* Maximum priority (minimum is 0). */
+#define	RQ_PPQ		(4)	/* Priorities per queue. */
+
+/*
+ * Deduced from the above parameters and machine ones.
+ */
+typedef	unsigned long	rqb_word_t;	/* runq's status words type. */
+
+#define	RQ_NQS	(howmany(RQ_MAX_PRIO + 1, RQ_PPQ)) /* Number of run queues. */
+#define	RQB_BPW	(sizeof(rqb_word_t) * NBBY) /* Bits per runq word. */
+#define	RQB_LEN	(howmany(RQ_NQS, RQB_BPW)) /* Words to cover RQ_NQS queues. */
+#define	RQB_WORD(idx)	((idx) / RQB_BPW)
+#define	RQB_BIT(idx)	(1ul << ((idx) % RQB_BPW))
+#define	RQB_FFS(word)	(ffsl((long)(word)) - 1) /* Assumes two-complement. */
 
 /*
  * Head of run queues.

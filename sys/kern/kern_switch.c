@@ -57,8 +57,6 @@
 #endif
 #endif
 
-CTASSERT((RQB_BPW * RQB_LEN) == RQ_NQS);
-
 /*
  * kern.sched.preemption allows user space to determine if preemption support
  * is compiled in or not.  It is not currently a boot or runtime flag that
@@ -297,7 +295,7 @@ runq_findbit(struct runq *rq)
 	rqb = &rq->rq_status;
 	for (i = 0; i < RQB_LEN; i++)
 		if (rqb->rqb_bits[i]) {
-			pri = RQB_FFS(rqb->rqb_bits[i]) + (i << RQB_L2BPW);
+			pri = RQB_FFS(rqb->rqb_bits[i]) + i * RQB_BPW;
 			CTR3(KTR_RUNQ, "runq_findbit: bits=%#x i=%d pri=%d",
 			    rqb->rqb_bits[i], i, pri);
 			return (pri);
@@ -323,7 +321,7 @@ again:
 		mask = rqb->rqb_bits[i] & mask;
 		if (mask == 0)
 			continue;
-		pri = RQB_FFS(mask) + (i << RQB_L2BPW);
+		pri = RQB_FFS(mask) + i * RQB_BPW;
 		CTR3(KTR_RUNQ, "runq_findbit_from: bits=%#x i=%d pri=%d",
 		    mask, i, pri);
 		return (pri);
