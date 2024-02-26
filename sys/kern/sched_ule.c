@@ -397,7 +397,7 @@ runq_print(struct runq *rq)
 		    i, rq->rq_status.rqb_bits[i]);
 		for (j = 0; j < RQB_BPW; j++)
 			if (rq->rq_status.rqb_bits[i] & (1ul << j)) {
-				pri = j + (i << RQB_L2BPW);
+				pri = j + i * RQB_BPW;
 				rqh = &rq->rq_queues[pri];
 				TAILQ_FOREACH(td, rqh, td_runq) {
 					printf("\t\t\ttd %p(%s) priority %d rqindex %d pri %d\n",
@@ -1203,7 +1203,7 @@ again:
 		for (; bit < RQB_BPW; bit++) {
 			if ((rqb->rqb_bits[i] & (1ul << bit)) == 0)
 				continue;
-			rqh = &rq->rq_queues[bit + (i << RQB_L2BPW)];
+			rqh = &rq->rq_queues[bit + i * RQB_BPW];
 			TAILQ_FOREACH(td, rqh, td_runq) {
 				if (first) {
 					if (THREAD_CAN_MIGRATE(td) &&
@@ -1244,7 +1244,7 @@ runq_steal(struct runq *rq, int cpu)
 		for (bit = 0; bit < RQB_BPW; bit++) {
 			if ((rqb->rqb_bits[word] & (1ul << bit)) == 0)
 				continue;
-			rqh = &rq->rq_queues[bit + (word << RQB_L2BPW)];
+			rqh = &rq->rq_queues[bit + word * RQB_BPW];
 			TAILQ_FOREACH(td, rqh, td_runq)
 				if (THREAD_CAN_MIGRATE(td) &&
 				    THREAD_CAN_SCHED(td, cpu))
