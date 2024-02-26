@@ -29,6 +29,7 @@
 
 #include <err.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,10 +48,10 @@
 
 static void	usage(void);
 static void	ofw_indent(int);
-static void	ofw_dump_properties(int, phandle_t, int, int, int);
+static void	ofw_dump_properties(int, phandle_t, int, bool, bool);
 static void	ofw_dump_property(int fd, phandle_t n, int level,
-		    const char *prop, int raw, int str);
-static void	ofw_dump(int, const char *, int, int, const char *, int, int);
+		    const char *prop, bool raw, bool str);
+static void	ofw_dump(int, const char *, bool, bool, const char *, bool, bool);
 
 static void
 usage(void)
@@ -66,42 +67,42 @@ int
 main(int argc, char *argv[])
 {
 	int opt, i, fd;
-	int aflag, pflag, rflag, Rflag, Sflag;
+	bool aflag, pflag, rflag, Rflag, Sflag;
 	char *Parg;
 
-	aflag = pflag = rflag = Rflag = Sflag = 0;
+	aflag = pflag = rflag = Rflag = Sflag = false;
 	Parg = NULL;
 	while ((opt = getopt(argc, argv, "-aprP:RS")) != -1) {
 		if (opt == '-')
 			break;
 		switch (opt) {
 		case 'a':
-			aflag = 1;
-			rflag = 1;
+			aflag = true;
+			rflag = true;
 			break;
 		case 'p':
 			if (Parg != NULL)
 				usage();
-			pflag = 1;
+			pflag = true;
 			break;
 		case 'r':
-			rflag = 1;
+			rflag = true;
 			break;
 		case 'P':
 			if (pflag)
 				usage();
-			pflag = 1;
+			pflag = true;
 			Parg = optarg;
 			break;
 		case 'R':
 			if (Sflag)
 				usage();
-			Rflag = 1;
+			Rflag = true;
 			break;
 		case 'S':
 			if (Rflag)
 				usage();
-			Sflag = 1;
+			Sflag = true;
 			break;
 		case '?':
 		default:
@@ -139,7 +140,7 @@ ofw_indent(int level)
 }
 
 static void
-ofw_dump_properties(int fd, phandle_t n, int level, int raw, int str)
+ofw_dump_properties(int fd, phandle_t n, int level, bool raw, bool str)
 {
 	int nlen;
 	char prop[OFIOCSUGGPROPNAMELEN];
@@ -150,8 +151,8 @@ ofw_dump_properties(int fd, phandle_t n, int level, int raw, int str)
 }
 
 static void
-ofw_dump_property(int fd, phandle_t n, int level, const char *prop, int raw,
-    int str)
+ofw_dump_property(int fd, phandle_t n, int level, const char *prop, bool raw,
+    bool str)
 {
 	static void *pbuf = NULL;
 	static char *visbuf = NULL;
@@ -207,7 +208,7 @@ ofw_dump_property(int fd, phandle_t n, int level, const char *prop, int raw,
 
 static void
 ofw_dump_node(int fd, phandle_t n, int level, int rec, int prop,
-    const char *pmatch, int raw, int str)
+    const char *pmatch, bool raw, bool str)
 {
 	static void *nbuf = NULL;
 	static int nblen = 0;
@@ -238,8 +239,8 @@ ofw_dump_node(int fd, phandle_t n, int level, int rec, int prop,
 }
 
 static void
-ofw_dump(int fd, const char *start, int rec, int prop, const char *pmatch,
-    int raw, int str)
+ofw_dump(int fd, const char *start, bool rec, bool prop, const char *pmatch,
+    bool raw, bool str)
 {
 	phandle_t n;
 
