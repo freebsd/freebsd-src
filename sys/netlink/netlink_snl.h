@@ -1148,6 +1148,12 @@ snl_add_msg_attr_raw(struct snl_writer *nw, const struct nlattr *nla_src)
 }
 
 static inline bool
+snl_add_msg_attr_bool(struct snl_writer *nw, int attrtype, bool value)
+{
+	return (snl_add_msg_attr(nw, attrtype, sizeof(bool), &value));
+}
+
+static inline bool
 snl_add_msg_attr_u8(struct snl_writer *nw, int attrtype, uint8_t value)
 {
 	return (snl_add_msg_attr(nw, attrtype, sizeof(uint8_t), &value));
