@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 8, 2020
+.Dd February 28, 2024
 .Dt MKIMG 1
 .Os
 .Sh NAME
@@ -287,6 +287,42 @@ is moved accordingly.
 This is typically not part of the conversion process.
 If possible, use an output format specifically for the environment in which
 the file is intended to be used.
+.Sh PARTITION SPECIFICATION
+An option
+.Fl p
+may be used multiple times to specify a list of created partition entries.
+A specification that is a single dash indicates an unused partition entry.
+Otherwise, a partition specification has the following format:
+.Bd -literal -offset indent
+<type> ':' <kind> <contents>
+.Ed
+.Bl -tag -width indent
+.It Cm type
+the partition type alias (f.e.: freebsd-swap)
+that may be optionally followed by a '/' separator
+and a label for partitioning schemes that feature partition labels
+(see the
+.Sx EXAMPLES
+Section below)
+.It Cm kind
+the interpretation of the contents specification:
+.Bl -tag -width indent
+.It Cm ':'
+contents holds the size of an empty partition,
+a number that may be suffixed with one of K, M, G, T, P or E
+(either upper or lower case) following the SI power of two convention
+(see also
+.Xr expand_number 3 )
+.It Cm '='
+contents holds the name of a file to read
+.It Cm '-'
+contents holds a command to run; the output of which is the contents
+of the partition.
+Multi-word strings should be quoted according to the shell rules.
+.El
+.It Cm contents
+the specification of a partition's contents
+.El
 .Sh ENVIRONMENT
 .Bl -tag -width "TMPDIR" -compact
 .It Ev TMPDIR
@@ -358,6 +394,7 @@ In the following example the file system partition is labeled as 'backup':
 .Dl % mkimg -s gpt -p freebsd-ufs/backup:=file-system.ufs -o gpt.img
 .Sh SEE ALSO
 .Xr dd 1 ,
+.Xr expand_number 3 ,
 .Xr gpart 8 ,
 .Xr makefs 8 ,
 .Xr mdconfig 8 ,
