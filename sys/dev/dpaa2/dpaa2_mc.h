@@ -179,6 +179,7 @@ int dpaa2_mc_detach(device_t dev);
 
 /* For bus interface. */
 
+struct rman *dpaa2_mc_rman(device_t mcdev, int type, u_int flags);
 struct resource * dpaa2_mc_alloc_resource(device_t mcdev, device_t child,
     int type, int *rid, rman_res_t start, rman_res_t end, rman_res_t count,
     u_int flags);
