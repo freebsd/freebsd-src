@@ -352,6 +352,7 @@ static device_method_t dpaa2_mc_acpi_methods[] = {
 	DEVMETHOD(device_detach,	dpaa2_mc_detach),
 
 	/* Bus interface */
+	DEVMETHOD(bus_get_rman,		dpaa2_mc_rman),
 	DEVMETHOD(bus_alloc_resource,	dpaa2_mc_alloc_resource),
 	DEVMETHOD(bus_adjust_resource,	dpaa2_mc_adjust_resource),
 	DEVMETHOD(bus_release_resource,	dpaa2_mc_release_resource),
