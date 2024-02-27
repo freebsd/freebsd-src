@@ -1591,6 +1591,10 @@ dev/drm2/ttm/ttm_execbuf_util.c	optional drm2
 dev/drm2/ttm/ttm_memory.c	optional drm2
 dev/drm2/ttm/ttm_page_alloc.c	optional drm2
 dev/drm2/ttm/ttm_bo_vm.c	optional drm2
+dev/dwc/if_dwc.c		optional dwc fdt
+dev/dwc/if_dwc_if.m		optional dwc fdt
+dev/dwc/dwc1000_core.c		optional dwc fdt
+dev/dwc/dwc1000_dma.c		optional dwc fdt
 dev/efidev/efidev.c		optional efirt
 dev/efidev/efirt.c		optional efirt
 dev/efidev/efirtc.c		optional efirt

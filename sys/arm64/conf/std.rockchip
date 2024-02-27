@@ -35,6 +35,7 @@ device		rk_pwm
 device		uart_snps
 
 # Ethernet NICs
+device		dwc			# Synopsys DesignWare GMAC controller
 device		dwc_rk			# Rockchip Designware
 device		eqos			# Synopsys Designware Ethernet QoS controller
 
