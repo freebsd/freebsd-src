@@ -70,7 +70,7 @@
 #define	 FLOW_CONTROL_TX	(1 << 1)	/* TX Flow control enable */
 #define	GMAC_VLAN_TAG		0x1C
 #define	VERSION			0x20
-#define	DEBUG			0x24
+#define	GMAC_DEBUG		0x24
 #define	LPI_CONTROL_STATUS	0x30
 #define	LPI_TIMERS_CONTROL	0x34
 #define	INTERRUPT_STATUS	0x38
