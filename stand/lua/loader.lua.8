@@ -61,6 +61,10 @@ Returns the error string from the last command to fail.
 Like
 .Fn perform
 but the arguments are already parsed onto the stack.
+.It Fn exit status
+Exit the boot loader back to the firmware with a status of
+.Va status .
+The interpretation of this value is firmware specific.
 .It Fn interpret str
 Execute the loader builtin command
 .Va str
