@@ -151,6 +151,7 @@ _pam_xdg_open(pam_handle_t *pamh, int flags __unused,
 			rv = PAM_SESSION_ERR;
 			goto out;
 		}
+		rv = 0;
 		session_file = openat(rt_dir_prefix, xdg_session_file, O_CREAT | O_EXCL, RUNTIME_DIR_MODE);
 		free(xdg_session_file);
 		if (session_file >= 0)
@@ -272,6 +273,7 @@ _pam_xdg_close(pam_handle_t *pamh __unused, int flags __unused,
 			rv = PAM_SESSION_ERR;
 			goto out;
 		}
+		rv = 0;
 		session_file = openat(rt_dir_prefix, xdg_session_file, 0);
 		if (session_file >= 0) {
 			unlinkat(rt_dir_prefix, xdg_session_file, 0);
