@@ -17,11 +17,6 @@ stop_cmd="_var_run_stop"
 
 load_rc_config $name
 
-# Set defaults
-: ${var_run_enable:="NO"}
-: ${var_run_mtree:="/var/db/mtree/BSD.var-run.mtree"}
-: ${var_run_autosave:="YES"}
-
 _var_run_load() {
 	test -f ${var_run_mtree} &&
 		mtree -U -i -q -f ${var_run_mtree} -p /var/run > /dev/null
