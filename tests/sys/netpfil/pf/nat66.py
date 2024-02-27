@@ -59,21 +59,23 @@ class TestNAT66(VnetTestTemplate):
     def vnet2_handler(self, vnet):
         ifname = vnet.iface_alias_map["if1"].name
         ToolsHelper.print_output("/sbin/ifconfig %s mtu 9000" % ifname)
+        outifname = vnet.iface_alias_map["if2"].name
 
         ToolsHelper.print_output("/sbin/pfctl -e")
         ToolsHelper.pf_rules([
             "set reassemble yes",
             "binat inet6 from 2001:db8::/64 to 2001:db8:1::/64 -> 2001:db8:42::/64",
             "binat inet6 from 2001:db8:1::/64 to 2001:db8:42::/64 -> 2001:db8::/64",
-            "pass inet6 proto icmp6"])
+            "pass inet6 proto icmp6",
+            "pass in route-to ( %s 2001:db8:1::2 ) inet6 from 2001:db8::3 to 2001:db8:1::/64" % outifname])
 
         ToolsHelper.print_output("/sbin/sysctl net.inet6.ip6.forwarding=1")
 
     def vnet3_handler(self, vnet):
         ToolsHelper.print_output("/sbin/route add -6 2001:db8:42::/64 2001:db8:1::1")
 
-    def check_icmp_too_big(self, sp, payload_size, frag_size=None):
-        packet = sp.IPv6(src="2001:db8::2", dst="2001:db8:1::2") \
+    def check_icmp_too_big(self, sp, payload_size, frag_size=None, src="2001:db8::2"):
+        packet = sp.IPv6(src=src, dst="2001:db8:1::2") \
             / sp.ICMPv6EchoRequest(data=sp.raw(bytes.fromhex('f0') * payload_size))
 
         if frag_size is not None:
@@ -97,14 +99,14 @@ class TestNAT66(VnetTestTemplate):
 
             # Error is from the router vnet
             assert ip6.src == "2001:db8::1"
-            assert ip6.dst == "2001:db8::2"
+            assert ip6.dst == src
 
             # And the relevant MTU is 1500
             assert icmp6.mtu == 1500
 
             # The icmp6 error contains our original IPv6 packet
             err = icmp6.getlayer(sp.IPerror6)
-            assert err.src == "2001:db8::2"
+            assert err.src == src
             assert err.dst == "2001:db8:1::2"
             assert err.nh == 58
 
@@ -112,8 +114,8 @@ class TestNAT66(VnetTestTemplate):
 
         assert found
 
-    def check_icmp_echo(self, sp, payload_size):
-        packet = sp.IPv6(src="2001:db8::2", dst="2001:db8:1::2") \
+    def check_icmp_echo(self, sp, payload_size, src="2001:db8::2"):
+        packet = sp.IPv6(src=src, dst="2001:db8:1::2") \
             / sp.ICMPv6EchoRequest(data=sp.raw(bytes.fromhex('f0') * payload_size))
 
         # Delay the send so the sniffer is running when we transmit.
@@ -131,7 +133,7 @@ class TestNAT66(VnetTestTemplate):
 
             # Error is from the router vnet
             assert ip6.src == "2001:db8:1::2"
-            assert ip6.dst == "2001:db8::2"
+            assert ip6.dst == src
 
             found = True
 
@@ -164,3 +166,32 @@ class TestNAT66(VnetTestTemplate):
 
         # A ping that arrives fragmented
         self.check_icmp_too_big(sp, 12000, 5000)
+
+    @pytest.mark.require_user("root")
+    def test_npt_route_to_icmp(self):
+        cl_vnet = self.vnet_map["vnet1"]
+        ifname = cl_vnet.iface_alias_map["if1"].name
+        ToolsHelper.print_output("/sbin/ifconfig %s mtu 9000" % ifname)
+        ToolsHelper.print_output("/sbin/ifconfig %s inet6 alias 2001:db8::3/64" % ifname)
+
+        ToolsHelper.print_output("/sbin/route add -6 2001:db8:1::/64 2001:db8::1")
+
+        # For unclear reasons vnet3 doesn't respond to the first ping.
+        # Just send two for now.
+        ToolsHelper.print_output("/sbin/ping -6 -c 1 -S 2001:db8::3 2001:db8:1::2")
+        ToolsHelper.print_output("/sbin/ping -6 -c 1 -S 2001:db8::3 2001:db8:1::2")
+
+        # Import in the correct vnet, so at to not confuse Scapy
+        import scapy.all as sp
+
+        # A ping that easily passes without fragmentation
+        self.check_icmp_echo(sp, 128, src="2001:db8::3")
+
+        # Send a ping that just barely doesn't need to be fragmented
+        self.check_icmp_echo(sp, 1452, src="2001:db8::3")
+
+        # Send a ping that just barely needs to be fragmented
+        self.check_icmp_too_big(sp, 1453, src="2001:db8::3")
+
+        # A ping that arrives fragmented
+        self.check_icmp_too_big(sp, 12000, 5000, src="2001:db8::3")
