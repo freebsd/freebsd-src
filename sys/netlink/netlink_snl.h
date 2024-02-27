@@ -174,6 +174,18 @@ static const struct snl_hdr_parser _name = {				\
 #define	SNL_DECLARE_PARSER(_name, _t, _fp, _np)				\
 	SNL_DECLARE_PARSER_EXT(_name, sizeof(_t), 0, _fp, _np, NULL)
 
+#define	SNL_DECLARE_FIELD_PARSER_EXT(_name, _sz_h_in, _sz_out, _fp, _cb) \
+static const struct snl_hdr_parser _name = {				\
+	.in_hdr_size = _sz_h_in,					\
+	.out_size = _sz_out,						\
+	.fp = &((_fp)[0]),						\
+	.fp_size = NL_ARRAY_LEN(_fp),					\
+	.cb_post = _cb,							\
+}
+
+#define	SNL_DECLARE_FIELD_PARSER(_name, _t, _fp)			\
+	SNL_DECLARE_FIELD_PARSER_EXT(_name, sizeof(_t), 0, _fp, NULL)
+
 #define	SNL_DECLARE_ATTR_PARSER_EXT(_name, _sz_out, _np, _cb)		\
 static const struct snl_hdr_parser _name = {				\
 	.out_size = _sz_out,						\
@@ -909,14 +921,12 @@ SNL_DECLARE_PARSER(snl_errmsg_parser, struct nlmsgerr, nlf_p_errmsg, nla_p_errms
 
 #define	_IN(_field)	offsetof(struct nlmsgerr, _field)
 #define	_OUT(_field)	offsetof(struct snl_errmsg_data, _field)
-static const struct snl_attr_parser nla_p_donemsg[] = {};
-
 static const struct snl_field_parser nlf_p_donemsg[] = {
 	{ .off_in = _IN(error), .off_out = _OUT(error), .cb = snl_field_get_uint32 },
 };
 #undef _IN
 #undef _OUT
-SNL_DECLARE_PARSER(snl_donemsg_parser, struct nlmsgerr, nlf_p_donemsg, nla_p_donemsg);
+SNL_DECLARE_FIELD_PARSER(snl_donemsg_parser, struct nlmsgerr, nlf_p_donemsg);
 
 static inline bool
 snl_parse_errmsg(struct snl_state *ss, struct nlmsghdr *hdr, struct snl_errmsg_data *e)
