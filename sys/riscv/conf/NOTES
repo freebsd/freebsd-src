@@ -45,6 +45,9 @@ device		nvme		# base NVMe driver
 options 	NVME_USE_NVD=0	# prefer the cam(4) based nda(4) driver
 device		nvd		# expose NVMe namespaces as disks, depends on nvme
 
+# MMC/SD/SDIO Card slot support
+device		dwmmc
+
 # NOTE: dtrace introduces CDDL-licensed components into the kernel
 device		dtrace			# dtrace core
 device		dtraceall		# include all dtrace modules
@@ -58,6 +61,7 @@ device		da9063_rtc	# Dialog Semiconductor DA9063 RTC
 device		goldfish_rtc	# QEMU RTC
 
 # Ethernet drivers
+device  	dwc		# Synopsys Designware GMAC Ethernet
 device		xae		# Xilinx AXI Ethernet MAC
 
 # DMA support
