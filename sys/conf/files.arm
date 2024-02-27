@@ -86,10 +86,6 @@ contrib/openzfs/module/icp/asm-arm/sha2/sha512-armv7.S	optional zfs compile-with
 
 crypto/des/des_enc.c		optional	netsmb
 dev/cpufreq/cpufreq_dt.c	optional	cpufreq fdt
-dev/dwc/if_dwc.c		optional	dwc
-dev/dwc/if_dwc_if.m		optional	dwc
-dev/dwc/dwc1000_core.c		optional	dwc
-dev/dwc/dwc1000_dma.c		optional	dwc
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_arm_platform.c	optional	platform fdt
 dev/video/crtc_if.m		optional	vt
