@@ -234,6 +234,19 @@ bhnd_usb_attach(device_t dev)
 	return (0);
 }
 
+static struct rman *
+bhnd_usb_get_rman(device_t bus, int type, u_int flags)
+{
+	struct bhnd_usb_softc		*sc = device_get_softc(bus);
+
+	switch (type) {
+	case SYS_RES_MEMORY:
+		return (&sc->sc_mem_rman);
+	default:
+		return (NULL);
+	}
+}
+
 static struct resource *
 bhnd_usb_alloc_resource(device_t bus, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
@@ -241,12 +254,10 @@ bhnd_usb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource			*rv;
 	struct resource_list		*rl;
 	struct resource_list_entry	*rle;
-	int				 passthrough, isdefault, needactivate;
-	struct bhnd_usb_softc		*sc = device_get_softc(bus);
+	int				 passthrough, isdefault;
 
 	isdefault = RMAN_IS_DEFAULT_RANGE(start,end);
 	passthrough = (device_get_parent(child) != bus);
-	needactivate = flags & RF_ACTIVE;
 	rle = NULL;
 
 	if (!passthrough && isdefault) {
@@ -272,20 +283,11 @@ bhnd_usb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * attempt to satisfy the allocation ourselves.
 	 */
 	if (type == SYS_RES_MEMORY) {
-		rv = rman_reserve_resource(&sc->mem_rman, start, end, count,
-		    flags, child);
+		rv = bus_generic_rman_alloc_resource(bus, child, type, rid,
+		    start, end, count, flags);
 		if (rv == NULL) {
-			BHND_ERROR_DEV(bus, "could not reserve resource");
-			return (0);
-		}
-
-		rman_set_rid(rv, *rid);
-
-		if (needactivate &&
-		    bus_activate_resource(child, type, *rid, rv)) {
-			BHND_ERROR_DEV(bus, "could not activate resource");
-			rman_release_resource(rv);
-			return (0);
+			BHND_ERROR_DEV(bus, "could not allocate resource");
+			return (NULL);
 		}
 
 		return (rv);
@@ -327,14 +329,8 @@ bhnd_usb_release_resource(device_t dev, device_t child, int type,
 		    r));
 	}
 
-	/* Deactivate resources */
-	if (rman_get_flags(r) & RF_ACTIVE) {
-		error = BUS_DEACTIVATE_RESOURCE(dev, child, type, rid, r);
-		if (error)
-			return (error);
-	}
-
-	if ((error = rman_release_resource(r)))
+	error = bus_generic_rman_release_resource(dev, child, type, rid, r);
+	if (error != 0)
 		return (error);
 
 	if (!passthrough) {
@@ -346,6 +342,66 @@ bhnd_usb_release_resource(device_t dev, device_t child, int type,
 	}
 
 	return (0);
+}
+
+static int
+bhnd_usb_activate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	if (type != SYS_RES_MEMORY)
+		return (bus_generic_activate_resource(dev, child, type, rid,
+		    r));
+	return (bus_generic_rman_activate_resource(dev, child, type, rid, r));
+}
+
+static int
+bhnd_usb_deactivate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	if (type != SYS_RES_MEMORY)
+		return (bus_generic_deactivate_resource(dev, child, type, rid,
+		    r));
+	return (bus_generic_rman_deactivate_resource(dev, child, type, rid, r));
+}
+
+static int
+bhnd_usb_map_resource(device_t dev, device_t child, int type,
+    struct resource *r, struct resource_map_request *argsp,
+    struct resource_map *map)
+{
+	struct bhnd_usb_softc *sc = device_get_softc(dev);
+	struct resource_map_request args;
+	rman_res_t length, start;
+	int error;
+
+	if (type != SYS_RES_MEMORY)
+		return (bus_generic_map_resource(dev, child, type, r, argsp,
+		    map));
+
+	/* Resources must be active to be mapped. */
+	if (!(rman_get_flags(r) & RF_ACTIVE))
+		return (ENXIO);
+
+	resource_init_map_request(&args);
+	error = resource_validate_map_request(r, argsp, &args, &start, &length);
+	if (error)
+		return (error);
+
+	args.offset = start - rman_get_start(sc->sc_mem);
+	args.length = length;
+	return (bus_generic_map_resource(dev, child, type, sc->sc_mem, &args,
+	    map));
+}
+
+static int
+bhnd_usb_unmap_resource(device_t dev, device_t child, int type,
+    struct resource *r, struct resource_map *map)
+{
+	struct bhnd_usb_softc *sc = device_get_softc(dev);
+
+	if (type == SYS_RES_MEMORY)
+		r = sc->sc_mem;
+	return (bus_generic_unmap_resource(dev, child, type, r, map));
 }
 
 static int
@@ -478,11 +534,14 @@ static device_method_t bhnd_usb_methods[] = {
 	DEVMETHOD(bus_child_deleted,		bhnd_usb_child_deleted),
 	DEVMETHOD(bus_alloc_resource,		bhnd_usb_alloc_resource),
 	DEVMETHOD(bus_get_resource_list,	bhnd_usb_get_reslist),
+	DEVMETHOD(bus_get_rman,			bhnd_usb_get_rman),
 	DEVMETHOD(bus_print_child,		bhnd_usb_print_child),
 	DEVMETHOD(bus_release_resource,		bhnd_usb_release_resource),
+	DEVMETHOD(bus_activate_resource,	bhnd_usb_activate_resource),
+	DEVMETHOD(bus_deactivate_resource,	bhnd_usb_deactivate_resource),
+	DEVMETHOD(bus_map_resource,		bhnd_usb_map_resource),
+	DEVMETHOD(bus_unmap_resource,		bhnd_usb_unmap_resource),
 	/* Bus interface: generic part */
-	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
 
