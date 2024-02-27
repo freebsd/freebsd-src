@@ -141,7 +141,6 @@ _pam_xdg_open(pam_handle_t *pamh, int flags __unused,
 	/* Setup the session count file */
 	for (i = 0; i < XDG_MAX_SESSION; i++) {
 		asprintf(&xdg_session_file, "%s/xdg_session.%d", user, i);
-		printf("Trying to open %s\n", xdg_session_file);
 		session_file = openat(rt_dir_prefix, xdg_session_file, O_CREAT | O_EXCL, RUNTIME_DIR_MODE);
 		free(xdg_session_file);
 		if (session_file >= 0)
