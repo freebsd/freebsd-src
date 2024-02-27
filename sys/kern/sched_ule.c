@@ -514,14 +514,14 @@ tdq_runq_add(struct tdq *tdq, struct thread *td, int flags)
 				pri = (unsigned char)(pri - 1) % RQ_NQS;
 		} else
 			pri = tdq->tdq_ridx;
-		runq_add_pri(ts->ts_runq, td, pri, flags);
+		runq_add_idx(ts->ts_runq, td, pri, flags);
 		return;
 	} else
 		ts->ts_runq = &tdq->tdq_idle;
 	runq_add(ts->ts_runq, td, flags);
 }
 
-/* 
+/*
  * Remove a thread from a run-queue.  This typically happens when a thread
  * is selected to run.  Running threads are not on the queue and the
  * transferable count does not reflect them.
@@ -530,6 +530,7 @@ static __inline void
 tdq_runq_rem(struct tdq *tdq, struct thread *td)
 {
 	struct td_sched *ts;
+	bool queue_empty;
 
 	ts = td_get_sched(td);
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
@@ -540,13 +541,16 @@ tdq_runq_rem(struct tdq *tdq, struct thread *td)
 		tdq->tdq_transferable--;
 		ts->ts_flags &= ~TSF_XFERABLE;
 	}
-	if (ts->ts_runq == &tdq->tdq_timeshare) {
-		if (tdq->tdq_idx != tdq->tdq_ridx)
-			runq_remove_idx(ts->ts_runq, td, &tdq->tdq_ridx);
-		else
-			runq_remove_idx(ts->ts_runq, td, NULL);
-	} else
-		runq_remove(ts->ts_runq, td);
+	queue_empty = runq_remove(ts->ts_runq, td);
+	/*
+	 * If thread has a batch priority and the queue from which it was
+	 * removed is now empty, advance the batch's queue removal index if it
+	 * lags with respect to the batch's queue insertion index.
+	 */
+	if (queue_empty && PRI_MIN_BATCH <= td->td_priority &&
+	    td->td_priority <= PRI_MAX_BATCH &&
+	    tdq->tdq_idx != tdq->tdq_ridx && tdq->tdq_ridx == td->td_rqindex)
+		tdq->tdq_ridx = (tdq->tdq_ridx + 1) % RQ_NQS;
 }
 
 /*
@@ -2653,24 +2657,13 @@ sched_estcpu(struct thread *td __unused)
  * Return whether the current CPU has runnable tasks.  Used for in-kernel
  * cooperative idle threads.
  */
-int
+bool
 sched_runnable(void)
 {
 	struct tdq *tdq;
-	int load;
-
-	load = 1;
 
 	tdq = TDQ_SELF();
-	if ((curthread->td_flags & TDF_IDLETD) != 0) {
-		if (TDQ_LOAD(tdq) > 0)
-			goto out;
-	} else
-		if (TDQ_LOAD(tdq) - 1 > 0)
-			goto out;
-	load = 0;
-out:
-	return (load);
+	return (TDQ_LOAD(tdq) > (TD_IS_IDLETHREAD(curthread) ? 0 : 1));
 }
 
 /*
