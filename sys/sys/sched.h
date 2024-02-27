@@ -63,6 +63,15 @@
 #define	_SCHED_H_
 
 #ifdef _KERNEL
+
+#include <sys/types.h>
+#ifdef SCHED_STATS
+#include <sys/pcpu.h>
+#endif
+
+struct proc;
+struct thread;
+
 /*
  * General scheduling info.
  *
@@ -74,7 +83,7 @@
  */
 int	sched_load(void);
 int	sched_rr_interval(void);
-int	sched_runnable(void);
+bool	sched_runnable(void);
 
 /* 
  * Proc related scheduling hooks.
