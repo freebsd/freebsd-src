@@ -205,3 +205,4 @@ device		iicoc		# OpenCores I2C controller support
 # Include SoC specific configuration
 include		"std.allwinner"
 include		"std.sifive"
+include		"std.starfive"
