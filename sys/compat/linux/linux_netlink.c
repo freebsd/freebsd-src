@@ -548,7 +548,7 @@ static bool
 nlmsgs_to_linux(struct nl_writer *nw, struct nlpcb *nlp)
 {
 	struct nl_buf *nb, *orig;
-	u_int offset, msglen, orig_messages __diagused;
+	u_int offset, msglen, orig_messages;
 
 	RT_LOG(LOG_DEBUG3, "%p: in %u bytes %u messages", __func__,
 	    nw->buf->datalen, nw->num_messages);
@@ -558,9 +558,7 @@ nlmsgs_to_linux(struct nl_writer *nw, struct nlpcb *nlp)
 	if (__predict_false(nb == NULL))
 		return (false);
 	nw->buf = nb;
-#ifdef INVARIANTS
 	orig_messages = nw->num_messages;
-#endif
 	nw->num_messages = 0;
 
 	/* Assume correct headers. Buffer IS mutable */
@@ -574,6 +572,8 @@ nlmsgs_to_linux(struct nl_writer *nw, struct nlpcb *nlp)
 			RT_LOG(LOG_DEBUG, "failed to process msg type %d",
 			    hdr->nlmsg_type);
 			nl_buf_free(nb);
+			nw->buf = orig;
+			nw->num_messages = orig_messages;
 			return (false);
 		}
 	}
