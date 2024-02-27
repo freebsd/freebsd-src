@@ -1,0 +1,7 @@
+#
+# StarFive SoC support
+#
+
+device		uart_snps	# DesignWare Synopsis UART driver
+
+files		"../starfive/files.starfive"
