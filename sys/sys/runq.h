@@ -50,6 +50,8 @@
 typedef	unsigned long	rqb_word_t;	/* runq's status words type. */
 
 #define	RQ_NQS	(howmany(RQ_MAX_PRIO + 1, RQ_PPQ)) /* Number of run queues. */
+#define	RQ_PRI_TO_IDX(pri)	((pri) / RQ_PPQ) /* Priority to queue index. */
+
 #define	RQB_BPW	(sizeof(rqb_word_t) * NBBY) /* Bits per runq word. */
 #define	RQB_LEN	(howmany(RQ_NQS, RQB_BPW)) /* Words to cover RQ_NQS queues. */
 #define	RQB_WORD(idx)	((idx) / RQB_BPW)
@@ -58,6 +60,7 @@ typedef	unsigned long	rqb_word_t;	/* runq's status words type. */
 
 
 #ifdef _KERNEL
+#include <sys/types.h>		/* For bool. */
 #include <sys/queue.h>
 
 struct thread;
@@ -84,15 +87,14 @@ struct runq {
 	struct	rqhead rq_queues[RQ_NQS];
 };
 
-void	runq_add(struct runq *, struct thread *, int);
-void	runq_add_pri(struct runq *, struct thread *, u_char, int);
-int	runq_check(struct runq *);
+void	runq_add(struct runq *, struct thread *, int _flags);
+void	runq_add_idx(struct runq *, struct thread *, int _idx, int _flags);
+bool	runq_not_empty(struct runq *);
 struct	thread *runq_choose(struct runq *);
-struct	thread *runq_choose_from(struct runq *, u_char);
-struct	thread *runq_choose_fuzz(struct runq *, int);
+struct	thread *runq_choose_from(struct runq *, int _idx);
+struct	thread *runq_choose_fuzz(struct runq *, int _fuzz);
 void	runq_init(struct runq *);
-void	runq_remove(struct runq *, struct thread *);
-void	runq_remove_idx(struct runq *, struct thread *, u_char *);
+bool	runq_remove(struct runq *, struct thread *);
 #endif /* _KERNEL */
 
 #endif

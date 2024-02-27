@@ -684,13 +684,14 @@ schedinit_ap(void)
 	/* Nothing needed. */
 }
 
-int
+bool
 sched_runnable(void)
 {
 #ifdef SMP
-	return runq_check(&runq) + runq_check(&runq_pcpu[PCPU_GET(cpuid)]);
+	return (runq_not_empty(&runq) ||
+	    runq_not_empty(&runq_pcpu[PCPU_GET(cpuid)]));
 #else
-	return runq_check(&runq);
+	return (runq_not_empty(&runq));
 #endif
 }
 
@@ -872,7 +873,7 @@ sched_priority(struct thread *td, u_char prio)
 	if (td->td_priority == prio)
 		return;
 	td->td_priority = prio;
-	if (TD_ON_RUNQ(td) && td->td_rqindex != (prio / RQ_PPQ)) {
+	if (TD_ON_RUNQ(td) && td->td_rqindex != RQ_PRI_TO_IDX(prio)) {
 		sched_rem(td);
 		sched_add(td, SRQ_BORING | SRQ_HOLDTD);
 	}
@@ -1683,7 +1684,7 @@ sched_idletd(void *dummy)
 	for (;;) {
 		mtx_assert(&Giant, MA_NOTOWNED);
 
-		while (sched_runnable() == 0) {
+		while (!sched_runnable()) {
 			cpu_idle(stat->idlecalls + stat->oldidlecalls > 64);
 			stat->idlecalls++;
 		}
