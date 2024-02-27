@@ -110,6 +110,13 @@ lua_perform(lua_State *L)
 }
 
 static int
+lua_exit(lua_State *L)
+{
+	exit(luaL_checkinteger(L, 1));
+	return 0;
+}
+
+static int
 lua_command_error(lua_State *L)
 {
 
@@ -380,14 +387,15 @@ lua_writefile(lua_State *L)
 
 #define REG_SIMPLE(n)	{ #n, lua_ ## n }
 static const struct luaL_Reg loaderlib[] = {
-	REG_SIMPLE(delay),
-	REG_SIMPLE(command_error),
 	REG_SIMPLE(command),
-	REG_SIMPLE(interpret),
-	REG_SIMPLE(parse),
+	REG_SIMPLE(command_error),
+	REG_SIMPLE(delay),
+	REG_SIMPLE(exit),
 	REG_SIMPLE(getenv),
 	REG_SIMPLE(has_command),
 	REG_SIMPLE(has_feature),
+	REG_SIMPLE(interpret),
+	REG_SIMPLE(parse),
 	REG_SIMPLE(perform),
 	REG_SIMPLE(printc),	/* Also registered as the global 'printc' */
 	REG_SIMPLE(setenv),
