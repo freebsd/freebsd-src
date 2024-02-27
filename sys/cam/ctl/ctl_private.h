@@ -168,61 +168,6 @@ union ctl_softcs {
 /*
  * Mode page defaults.
  */
-#if 0
-/*
- * These values make Solaris trim off some of the capacity.
- */
-#define	CTL_DEFAULT_SECTORS_PER_TRACK	63
-#define	CTL_DEFAULT_HEADS		255
-/*
- * These values seem to work okay.
- */
-#define	CTL_DEFAULT_SECTORS_PER_TRACK	63
-#define	CTL_DEFAULT_HEADS		16
-/*
- * These values work reasonably well.
- */
-#define	CTL_DEFAULT_SECTORS_PER_TRACK	512
-#define	CTL_DEFAULT_HEADS		64
-#endif
-
-/*
- * Solaris is somewhat picky about how many heads and sectors per track you
- * have defined in mode pages 3 and 4.  These values seem to cause Solaris
- * to get the capacity more or less right when you run the format tool.
- * They still have problems when dealing with devices larger than 1TB,
- * but there isn't anything we can do about that.
- *
- * For smaller LUN sizes, this ends up causing the number of cylinders to
- * work out to 0.  Solaris actually recognizes that and comes up with its
- * own bogus geometry to fit the actual capacity of the drive.  They really
- * should just give up on geometry and stick to the read capacity
- * information alone for modern disk drives.
- *
- * One thing worth mentioning about Solaris' mkfs command is that it
- * doesn't like sectors per track values larger than 256.  512 seems to
- * work okay for format, but causes problems when you try to make a
- * filesystem.
- *
- * Another caveat about these values:  the product of these two values
- * really should be a power of 2.  This is because of the simplistic
- * shift-based calculation that we have to use on the i386 platform to
- * calculate the number of cylinders here.  (If you use a divide, you end
- * up calling __udivdi3(), which is a hardware FP call on the PC.  On the
- * XScale, it is done in software, so you can do that from inside the
- * kernel.)
- *
- * So for the current values (256 S/T, 128 H), we get 32768, which works
- * very nicely for calculating cylinders.
- *
- * If you want to change these values so that their product is no longer a
- * power of 2, re-visit the calculation in ctl_init_page_index().  You may
- * need to make it a bit more complicated to get the number of cylinders
- * right.
- */
-#define	CTL_DEFAULT_SECTORS_PER_TRACK	256
-#define	CTL_DEFAULT_HEADS		128
-
 #define	CTL_DEFAULT_ROTATION_RATE	SVPD_NON_ROTATING
 
 struct ctl_page_index;
@@ -271,10 +216,6 @@ struct ctl_logical_block_provisioning_page {
 static const struct ctl_page_index page_index_template[] = {
 	{SMS_RW_ERROR_RECOVERY_PAGE, 0, sizeof(struct scsi_da_rw_recovery_page), NULL,
 	 CTL_PAGE_FLAG_DIRECT | CTL_PAGE_FLAG_CDROM, NULL, ctl_default_page_handler},
-	{SMS_FORMAT_DEVICE_PAGE, 0, sizeof(struct scsi_format_page), NULL,
-	 CTL_PAGE_FLAG_DIRECT, NULL, NULL},
-	{SMS_RIGID_DISK_PAGE, 0, sizeof(struct scsi_rigid_disk_page), NULL,
-	 CTL_PAGE_FLAG_DIRECT, NULL, NULL},
 	{SMS_VERIFY_ERROR_RECOVERY_PAGE, 0, sizeof(struct scsi_da_verify_recovery_page), NULL,
 	 CTL_PAGE_FLAG_DIRECT | CTL_PAGE_FLAG_CDROM, NULL, ctl_default_page_handler},
 	{SMS_CACHING_PAGE, 0, sizeof(struct scsi_caching_page), NULL,
@@ -300,8 +241,6 @@ static const struct ctl_page_index page_index_template[] = {
 
 struct ctl_mode_pages {
 	struct scsi_da_rw_recovery_page	rw_er_page[4];
-	struct scsi_format_page		format_page[4];
-	struct scsi_rigid_disk_page	rigid_disk_page[4];
 	struct scsi_da_verify_recovery_page	verify_er_page[4];
 	struct scsi_caching_page	caching_page[4];
 	struct scsi_control_page	control_page[4];
@@ -313,8 +252,6 @@ struct ctl_mode_pages {
 };
 
 #define	MODE_RWER	mode_pages.rw_er_page[CTL_PAGE_CURRENT]
-#define	MODE_FMT	mode_pages.format_page[CTL_PAGE_CURRENT]
-#define	MODE_RDISK	mode_pages.rigid_disk_page[CTL_PAGE_CURRENT]
 #define	MODE_VER	mode_pages.verify_er_page[CTL_PAGE_CURRENT]
 #define	MODE_CACHING	mode_pages.caching_page[CTL_PAGE_CURRENT]
 #define	MODE_CTRL	mode_pages.control_page[CTL_PAGE_CURRENT]
