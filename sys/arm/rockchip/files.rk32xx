@@ -26,5 +26,4 @@ dev/iicbus/pmic/act8846.c		standard
 dev/iicbus/pmic/act8846_regulator.c	standard
 dev/iicbus/pmic/fan53555.c		standard
 dev/iicbus/rtc/hym8563.c		standard
-dev/mmc/host/dwmmc.c			optional	dwmmc
 dev/mmc/host/dwmmc_rockchip.c		optional	dwmmc

@@ -384,7 +384,6 @@ dev/ipmi/ipmi_smic.c				optional ipmi
 dev/mailbox/arm/arm_doorbell.c			optional fdt arm_doorbell
 dev/mbox/mbox_if.m				optional soc_brcm_bcm2837
 
-dev/mmc/host/dwmmc.c				optional dwmmc fdt
 dev/mmc/host/dwmmc_altera.c			optional dwmmc dwmmc_altera fdt
 dev/mmc/host/dwmmc_hisi.c			optional dwmmc dwmmc_hisi fdt
 dev/mmc/host/dwmmc_rockchip.c			optional dwmmc rk_dwmmc fdt
