@@ -12531,7 +12531,7 @@ bxe_parity_recover(struct bxe_softc *sc)
                          error_unrecovered++;
                          sc->recovery_state = BXE_RECOVERY_FAILED;
                          sc->state = BXE_STATE_ERROR;
-                         BLOGE(sc, "Recovery is NOT successfull, "
+                         BLOGE(sc, "Recovery is NOT successful, "
                             " state=0x%x recovery_state=0x%x error=%x\n",
                             sc->state, sc->recovery_state, sc->error_status);
                          sc->error_status = 0;
@@ -12539,7 +12539,7 @@ bxe_parity_recover(struct bxe_softc *sc)
                          sc->recovery_state =
                              BXE_RECOVERY_DONE;
                          error_recovered++;
-                         BLOGI(sc, "Recovery is successfull from errors %x,"
+                         BLOGI(sc, "Recovery is successful from errors %x,"
                             " state=0x%x"
                             " recovery_state=0x%x \n", sc->error_status,
                             sc->state, sc->recovery_state);
