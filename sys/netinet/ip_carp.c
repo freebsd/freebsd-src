@@ -885,7 +885,7 @@ carp_send_ad_error(struct carp_softc *sc, int error)
 {
 
 	/*
-	 * We track errors and successfull sends with this logic:
+	 * We track errors and successful sends with this logic:
 	 * - Any error resets success counter to 0.
 	 * - MAX_ERRORS triggers demotion.
 	 * - MIN_SUCCESS successes resets error counter to 0.
