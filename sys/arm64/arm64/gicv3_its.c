@@ -292,8 +292,6 @@ struct gicv3_its_softc {
 	vm_page_t ma; /* fake msi page */
 };
 
-static void *conf_base;
-
 typedef void (its_quirk_func_t)(device_t);
 static its_quirk_func_t its_quirk_cavium_22375;
 
@@ -681,20 +679,26 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 static void
 gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 {
-	void *conf_table;
+	/* note: we assume the ITS children are serialized by the parent */
+	static void *conf_table;
 
-	conf_table = atomic_load_ptr(&conf_base);
-	if (conf_table == NULL) {
-		conf_table = contigmalloc(LPI_CONFTAB_SIZE,
-		    M_GICV3_ITS, M_WAITOK, 0, LPI_CONFTAB_MAX_ADDR,
-		    LPI_CONFTAB_ALIGN, 0);
-
-		if (atomic_cmpset_ptr((uintptr_t *)&conf_base,
-		    (uintptr_t)NULL, (uintptr_t)conf_table) == 0) {
-			contigfree(conf_table, LPI_CONFTAB_SIZE, M_GICV3_ITS);
-			conf_table = atomic_load_ptr(&conf_base);
-		}
+	/*
+	 * The PROPBASER is a singleton in our parent. We only set it up the
+	 * first time through. conf_table is effectively global to all the units
+	 * and we rely on subr_bus to serialize probe/attach.
+	 */
+	if (conf_table != NULL) {
+		sc->sc_conf_base = conf_table;
+		return;
 	}
+
+        /*
+         * Just allocate contiguous pages. We'll configure the PROPBASER
+         * register later in its_init_cpu_lpi().
+         */
+	conf_table = contigmalloc(LPI_CONFTAB_SIZE,
+	    M_GICV3_ITS, M_WAITOK, 0, LPI_CONFTAB_MAX_ADDR,
+	    LPI_CONFTAB_ALIGN, 0);
 	sc->sc_conf_base = conf_table;
 
 	/* Set the default configuration */
