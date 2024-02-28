@@ -8982,6 +8982,12 @@ OLD_FILES+=usr/share/man/man3/elftc_set_timestamps.3.gz
 OLD_FILES+=usr/share/man/man3/elftc_timestamp.3.gz
 OLD_FILES+=usr/share/man/man3/elftc_string_table_create.3.gz
 OLD_FILES+=usr/share/man/man3/elftc_version.3.gz
+# usr.bin/lorder
+OLD_FILES+=usr/bin/lorder
+OLD_FILES+=usr/tests/usr.bin/lorder/Kyuafile
+OLD_FILES+=usr/tests/usr.bin/lorder/lorder_test
+OLD_DIRS+=usr/tests/usr.bin/lorder
+# usr.bin/yacc
 OLD_FILES+=usr/tests/usr.bin/yacc/Kyuafile
 OLD_FILES+=usr/tests/usr.bin/yacc/btyacc_calc1.y
 OLD_FILES+=usr/tests/usr.bin/yacc/btyacc_demo.y

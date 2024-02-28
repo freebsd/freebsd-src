@@ -1061,6 +1061,8 @@
         ..
         lockf
         ..
+        lorder
+        ..
         m4
         ..
         mkimg
