@@ -373,13 +373,16 @@ distribution files
 and
 .Xr bsdinstall 8
 .It Pa include/
-standard C include files
+standard C include header files
 .It Pa lib/
 shared and archive
 .Xr ar 1 Ns -type
 libraries
 .Pp
 .Bl -tag -width Fl -compact
+.It Pa clang/
+shared libraries for the system compiler,
+.Xr clang 1
 .It Pa compat/
 shared libraries for compatibility
 .It Pa debug/
@@ -387,9 +390,18 @@ standalone debug data for the kernel and base system libraries and binaries
 .It Pa dtrace/
 DTrace library scripts
 .It Pa engines/
-OpenSSL (Cryptography/SSL toolkit) dynamically loadable engines
+OpenSSL
+.Pq Cryptography/SSL toolkit
+dynamically loadable engines
+.It Pa flua/
+.Fx
+Lua shared libraries
+.It Pa i18n/
+shared libraries for internationalization
 .El
 .Pp
+.It Pa lib32/
+32-bit comparability libraries
 .It Pa libdata/
 miscellaneous utility data files
 .Pp
@@ -400,21 +412,31 @@ GCC configuration data
 linker scripts; see
 .Xr ld 1
 .It Pa pkgconfig/
-.Xr pc 5 Pq Pa ports/devel/pkgconf
-files; collections of compiler flags, linker flags, and other information
-relevant to library use
+collections of compiler and linker flags for the
+.Xr pkgconf 1
+development tool
 .El
-.Pp
 .It Pa libexec/
-system daemons and system utilities that are executed by other programs
+system daemons and utilities that are executed by other programs
 .Pp
-.Bl -tag -width Fl -compact
-.It Pa aout/
-utilities to manipulate a.out executables
-.It Pa elf/
-utilities to manipulate ELF executables
+.Bl -tag -width "bsdinstall/" -compact
+.It Pa bsdconfig/
+utilities called by the ncurses
+.Fx
+configuration wizard
+.It Pa bsdinstall/
+utilities for
+.Xr bsdinstall 8
+.It Pa dwatch/
+profiles for
+.Xr dwatch 1
+.It Pa fwget/
+utilities called by
+.Xr fwget 8
+.It Pa hyperv/
+???
 .It Pa lpr/
-utilities and filters for LP print system; see
+utilities and filters for the line printer system; see
 .Xr lpr 1
 .It Pa sendmail/
 the
@@ -426,27 +448,37 @@ restricted shell for
 .Xr sendmail 8 ;
 see
 .Xr smrsh 8
+.It Pa zfs/
+Z file system utilities
 .El
 .Pp
 .It Pa local/
-local executables, libraries, etc.
-Also used as the default destination for the
+default destination for local executables, libraries, etc, installed by
+.Xr pkg 7
+or
 .Xr ports 7
-framework.
-Within
+.Pp
+within
 .Pa local/ ,
 the general layout sketched out by
 .Nm
 for
 .Pa /usr
-should be used.
-Exceptions are the ports documentation
+should be used ; exceptions are the ports documentation
 .Po in
 .Pa share/doc/<port>/ Ns Pc ,
 and
 .Pa /usr/local/etc
 .Po mimics
-.Pa /etc Ns Pc .
+.Pa /etc Ns Pc
+.Pp
+.Bl -tag -width Fl -compact
+.It Pa share/doc/freebsd/
+articles, books, FAQ, and handbooks available from the
+.Fx
+project
+.El
+.Pp
 .It Pa obj/
 architecture-specific target tree produced by building
 .Fx
@@ -457,14 +489,17 @@ from source; see
 ports collection; see
 .Xr ports 7
 .It Pa sbin/
-system daemons and system utilities that are executed by users
+system daemons and utilities meant for user execution
 .It Pa share/
 architecture-independent files
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa calendar/
-system-wide calendar files; see
+a variety of pre-fab calendar files; see
 .Xr calendar 1
+.It Pa certs/
+TLS certificates for
+.Xr openssl 1
 .It Pa dict/
 word lists; see
 .Xr look 1
@@ -479,12 +514,17 @@ words from Webster's Second International
 .Pp
 .It Pa doc/
 miscellaneous documentation
+.It Pa dtrace/
+scripts for the Dynamic Tracing Compiler; see
+.Xr dtrace 1
 .It Pa examples/
 various examples for users and programmers
 .It Pa firmware/
 firmware images loaded by userland programs
 .It Pa games/
-used by various games
+ASCII text files used by
+.Bx
+heritage games
 .It Pa keys/
 known trusted and revoked keys
 .Pp
@@ -500,11 +540,18 @@ and
 localization files; see
 .Xr setlocale 3
 .It Pa man/
-manual pages
+system manual pages
 .It Pa misc/
-miscellaneous system-wide files
+miscellaneous system-wide ASCII text files
 .Pp
 .Bl -tag -width Fl -compact
+.It Pa ascii
+chart of the ASCII codepoints
+.It Pa flowers
+the meanings of flowers
+.It Pa magic
+magic numbers used by
+.Xr file 1
 .It Pa termcap
 terminal characteristics database; see
 .Xr termcap 5
@@ -533,7 +580,9 @@ MIBs, example files and tree definitions for the SNMP daemon
 tree definition files for use with
 .Xr gensnmptree 1
 .It Pa mibs/
-MIB files
+management Information Base
+.Pq MIB
+files
 .El
 .Pp
 .It Pa syscons/
@@ -563,51 +612,50 @@ binaries
 .It Pa VERSION/
 files for
 .Fx
-release VERSION.
-By convention,
+release VERSION;
+by convention,
 .Dq VERSION
 matches
 .Xr uname 1
-.Fl r .
+.Fl r
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa MACHINE.MACHINE_ARCH/
-represent the binary ABI for these files.
+represent the binary ABI for these files;
 .Dq MACHINE
 matches
 .Xr uname 1
-.Fl m .
+.Fl m ;
 .Dq MACHINE_ARCH
 matches
 .Xr uname 1
-.Fl p .
+.Fl p
 .El
 .El
 .Pp
 .It Pa tabset/
-tab description files for a variety of terminals; used in the termcap file;
-see
+tab description files for a variety of terminals; used in
+the termcap file; see
 .Xr termcap 5
 .It Pa vi/
 localization support and utilities for
 .Xr vi 1
 .It Pa vt/
+files used by the system console; see
 .Xr vt 4
-files
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa fonts/
 console fonts; see
-.Xr vidcontrol 1
+.Xr vidcontrol 1 ,
+.Xr vidfont 1 ,
 and
-.Xr vidfont 1
+.Xr vtfontcvt 8
 .It Pa keymaps/
 console keyboard maps; see
 .Xr kbdcontrol 1
 and
 .Xr kbdmap 1
-.\" .It Pa scrnmaps/
-.\" console screen maps
 .El
 .Pp
 .It Pa zoneinfo/
