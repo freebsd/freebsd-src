@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 21, 2023
+.Dd February 27, 2024
 .Dt LORDER 1
 .Os
 .Sh NAME
@@ -44,13 +44,10 @@ The
 .Nm
 utility uses
 .Xr nm 1
-to determine interdependencies in the list of object files
-and library archives
-specified on the command line.
-The
-.Nm
-utility outputs a list of file names where the first file contains a symbol
-which is defined by the second file.
+to determine interdependencies between object files and library
+archives listed on its command line.
+It then outputs a list of pairs of file names such that the first file
+in each pair references at least one symbol defined by the second.
 .Pp
 The output is normally used with
 .Xr tsort 1
@@ -58,11 +55,11 @@ when a library is created to determine the optimum ordering of the
 object modules so that all references may be resolved in a single
 pass of the loader.
 .Pp
-When linking static binaries,
+Similarly, when linking static binaries,
 .Nm
 and
 .Xr tsort 1
-can be used to properly order library archives automatically.
+can be used to sort libraries in order of dependency.
 .Pp
 The use of
 .Nm
@@ -97,3 +94,8 @@ A
 .Nm
 utility appeared in
 .At v7 .
+.Sh CAVEATS
+The
+.Nm
+utility will not work properly if given file names with spaces or
+newlines in them.
