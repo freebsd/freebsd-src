@@ -504,3 +504,23 @@ cmp -s foo1 foo2 || echo 'BAD: T.misc END must preserve $0'
 echo 'E 2' >foo1
 (trap '' PIPE; "$awk" 'BEGIN { print "hi"; }' 2>/dev/null; echo "E $?" >foo2) | :
 cmp -s foo1 foo2 || echo 'BAD: T.misc exit status on I/O error'
+
+# Check for clobbering of the lexer's regular expression buffer.
+# If the output is "a1" instead of "1b", /b/ clobbered /a/.
+echo 1b >foo1
+echo ab | $awk '{ sub(/a/, "b" ~ /b/); print }' >foo2
+cmp -s foo1 foo2 || echo 'BAD: T.misc lexer regex buffer clobbered'
+
+# Check handling of octal \OOO and hex \xHH esc. seqs. in strings.
+echo 'hello888
+hello
+hello
+helloxGOO
+hello
+0A' > foo1
+$awk 'BEGIN { print "hello\888" }'   > foo2
+$awk 'BEGIN { print "hello\x000A" }' >> foo2
+$awk 'BEGIN { printf "hello\x0A" }'  >> foo2
+$awk 'BEGIN { print "hello\xGOO" }'  >> foo2
+$awk 'BEGIN { print "hello\x0A0A" }' >> foo2
+cmp -s foo1 foo2 || echo '�BAD: T.misc escape sequences in strings mishandled'
