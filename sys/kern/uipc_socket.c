@@ -1063,8 +1063,10 @@ solisten_proto(struct socket *so, int backlog)
 	sbrcv_timeo = so->so_rcv.sb_timeo;
 	sbsnd_timeo = so->so_snd.sb_timeo;
 
-	sbdestroy(so, SO_SND);
-	sbdestroy(so, SO_RCV);
+	if (!(so->so_proto->pr_flags & PR_SOCKBUF)) {
+		sbdestroy(so, SO_SND);
+		sbdestroy(so, SO_RCV);
+	}
 
 #ifdef INVARIANTS
 	bzero(&so->so_rcv,
