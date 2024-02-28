@@ -745,81 +745,89 @@ static void
 its_init_cpu_lpi(device_t dev, struct gicv3_its_softc *sc)
 {
 	device_t gicv3;
-	uint64_t xbaser, tmp;
+	uint64_t xbaser, tmp, size;
 	uint32_t ctlr;
 	u_int cpuid;
 
 	gicv3 = device_get_parent(dev);
 	cpuid = PCPU_GET(cpuid);
 
-	/* Disable LPIs */
-	ctlr = gic_r_read_4(gicv3, GICR_CTLR);
-	ctlr &= ~GICR_CTLR_LPI_ENABLE;
-	gic_r_write_4(gicv3, GICR_CTLR, ctlr);
-
-	/* Make sure changes are observable my the GIC */
-	dsb(sy);
-
 	/*
-	 * Set the redistributor base
+	 * Set the redistributor base. If we're reusing what we found on boot
+	 * since the gic was already running, then don't touch it here. We also
+	 * don't need to disable / enable LPI if we're not changing PROPBASER,
+	 * so only do that if we're not prealloced.
 	 */
-	xbaser = vtophys(sc->sc_conf_base) |
-	    (GICR_PROPBASER_SHARE_IS << GICR_PROPBASER_SHARE_SHIFT) |
-	    (GICR_PROPBASER_CACHE_NIWAWB << GICR_PROPBASER_CACHE_SHIFT) |
-	    (flsl(LPI_CONFTAB_SIZE | GIC_FIRST_LPI) - 1);
-	gic_r_write_8(gicv3, GICR_PROPBASER, xbaser);
+	if ((sc->sc_its_flags & ITS_FLAGS_LPI_PREALLOC) == 0) {
+		/* Disable LPIs */
+		ctlr = gic_r_read_4(gicv3, GICR_CTLR);
+		ctlr &= ~GICR_CTLR_LPI_ENABLE;
+		gic_r_write_4(gicv3, GICR_CTLR, ctlr);
 
-	/* Check the cache attributes we set */
-	tmp = gic_r_read_8(gicv3, GICR_PROPBASER);
+		/* Make sure changes are observable my the GIC */
+		dsb(sy);
 
-	if ((tmp & GICR_PROPBASER_SHARE_MASK) !=
-	    (xbaser & GICR_PROPBASER_SHARE_MASK)) {
-		if ((tmp & GICR_PROPBASER_SHARE_MASK) ==
-		    (GICR_PROPBASER_SHARE_NS << GICR_PROPBASER_SHARE_SHIFT)) {
-			/* We need to mark as non-cacheable */
-			xbaser &= ~(GICR_PROPBASER_SHARE_MASK |
-			    GICR_PROPBASER_CACHE_MASK);
-			/* Non-cacheable */
-			xbaser |= GICR_PROPBASER_CACHE_NIN <<
-			    GICR_PROPBASER_CACHE_SHIFT;
-			/* Non-shareable */
-			xbaser |= GICR_PROPBASER_SHARE_NS <<
-			    GICR_PROPBASER_SHARE_SHIFT;
-			gic_r_write_8(gicv3, GICR_PROPBASER, xbaser);
+		size = (flsl(LPI_CONFTAB_SIZE | GIC_FIRST_LPI) - 1);
+
+		xbaser = vtophys(sc->sc_conf_base) |
+		    (GICR_PROPBASER_SHARE_IS << GICR_PROPBASER_SHARE_SHIFT) |
+		    (GICR_PROPBASER_CACHE_NIWAWB << GICR_PROPBASER_CACHE_SHIFT) |
+		    size;
+
+		gic_r_write_8(gicv3, GICR_PROPBASER, xbaser);
+
+		/* Check the cache attributes we set */
+		tmp = gic_r_read_8(gicv3, GICR_PROPBASER);
+
+		if ((tmp & GICR_PROPBASER_SHARE_MASK) !=
+		    (xbaser & GICR_PROPBASER_SHARE_MASK)) {
+			if ((tmp & GICR_PROPBASER_SHARE_MASK) ==
+			    (GICR_PROPBASER_SHARE_NS << GICR_PROPBASER_SHARE_SHIFT)) {
+				/* We need to mark as non-cacheable */
+				xbaser &= ~(GICR_PROPBASER_SHARE_MASK |
+				    GICR_PROPBASER_CACHE_MASK);
+				/* Non-cacheable */
+				xbaser |= GICR_PROPBASER_CACHE_NIN <<
+				    GICR_PROPBASER_CACHE_SHIFT;
+				/* Non-shareable */
+				xbaser |= GICR_PROPBASER_SHARE_NS <<
+				    GICR_PROPBASER_SHARE_SHIFT;
+				gic_r_write_8(gicv3, GICR_PROPBASER, xbaser);
+			}
+			sc->sc_its_flags |= ITS_FLAGS_LPI_CONF_FLUSH;
 		}
-		sc->sc_its_flags |= ITS_FLAGS_LPI_CONF_FLUSH;
+
+		/*
+		 * Set the LPI pending table base
+		 */
+		xbaser = vtophys(sc->sc_pend_base[cpuid]) |
+		    (GICR_PENDBASER_CACHE_NIWAWB << GICR_PENDBASER_CACHE_SHIFT) |
+		    (GICR_PENDBASER_SHARE_IS << GICR_PENDBASER_SHARE_SHIFT);
+
+		gic_r_write_8(gicv3, GICR_PENDBASER, xbaser);
+
+		tmp = gic_r_read_8(gicv3, GICR_PENDBASER);
+
+		if ((tmp & GICR_PENDBASER_SHARE_MASK) ==
+		    (GICR_PENDBASER_SHARE_NS << GICR_PENDBASER_SHARE_SHIFT)) {
+			/* Clear the cahce and shareability bits */
+			xbaser &= ~(GICR_PENDBASER_CACHE_MASK |
+			    GICR_PENDBASER_SHARE_MASK);
+			/* Mark as non-shareable */
+			xbaser |= GICR_PENDBASER_SHARE_NS << GICR_PENDBASER_SHARE_SHIFT;
+			/* And non-cacheable */
+			xbaser |= GICR_PENDBASER_CACHE_NIN <<
+			    GICR_PENDBASER_CACHE_SHIFT;
+		}
+
+		/* Enable LPIs */
+		ctlr = gic_r_read_4(gicv3, GICR_CTLR);
+		ctlr |= GICR_CTLR_LPI_ENABLE;
+		gic_r_write_4(gicv3, GICR_CTLR, ctlr);
+
+		/* Make sure the GIC has seen everything */
+		dsb(sy);
 	}
-
-	/*
-	 * Set the LPI pending table base
-	 */
-	xbaser = vtophys(sc->sc_pend_base[cpuid]) |
-	    (GICR_PENDBASER_CACHE_NIWAWB << GICR_PENDBASER_CACHE_SHIFT) |
-	    (GICR_PENDBASER_SHARE_IS << GICR_PENDBASER_SHARE_SHIFT);
-
-	gic_r_write_8(gicv3, GICR_PENDBASER, xbaser);
-
-	tmp = gic_r_read_8(gicv3, GICR_PENDBASER);
-
-	if ((tmp & GICR_PENDBASER_SHARE_MASK) ==
-	    (GICR_PENDBASER_SHARE_NS << GICR_PENDBASER_SHARE_SHIFT)) {
-		/* Clear the cahce and shareability bits */
-		xbaser &= ~(GICR_PENDBASER_CACHE_MASK |
-		    GICR_PENDBASER_SHARE_MASK);
-		/* Mark as non-shareable */
-		xbaser |= GICR_PENDBASER_SHARE_NS << GICR_PENDBASER_SHARE_SHIFT;
-		/* And non-cacheable */
-		xbaser |= GICR_PENDBASER_CACHE_NIN <<
-		    GICR_PENDBASER_CACHE_SHIFT;
-	}
-
-	/* Enable LPIs */
-	ctlr = gic_r_read_4(gicv3, GICR_CTLR);
-	ctlr |= GICR_CTLR_LPI_ENABLE;
-	gic_r_write_4(gicv3, GICR_CTLR, ctlr);
-
-	/* Make sure the GIC has seen everything */
-	dsb(sy);
 }
 
 static int
