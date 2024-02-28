@@ -29,35 +29,50 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# only one argument is a special case, just output the name twice
-case $# in
-	0)
-		echo "usage: lorder file ...";
-		exit ;;
-	1)
-		echo $1 $1;
-		exit ;;
-esac
+export LC_CTYPE=C
+export LC_COLLATE=C
+set -e
 
-# temporary files
+usage() {
+	echo "usage: lorder file ..." >&2
+	exit 1
+}
+
+while getopts "" opt ; do
+	case $opt in
+	*)
+		usage
+		;;
+	esac
+done
+shift $(($OPTIND - 1))
+if [ $# -eq 0 ] ; then
+	usage
+fi
+
+#
+# Create temporary files.
+#
+N=$(mktemp -t _nm_)
 R=$(mktemp -t _reference_)
 S=$(mktemp -t _symbol_)
+T=$(mktemp -t _temp_)
 NM=${NM:-nm}
 
-# remove temporary files on HUP, INT, QUIT, PIPE, TERM
-trap "rm -f $R $S $T; exit 1" 1 2 3 13 15
-
-# make sure all the files get into the output
-for i in $*; do
-	echo $i $i
-done
-
-# if the line has " [RTDW] " it's a globally defined symbol, put it
-# into the symbol file.
 #
-# if the line has " U " it's a globally undefined symbol, put it into
-# the reference file.
-${NM} ${NMFLAGS} -go $* | sed "
+# Remove temporary files on termination.
+#
+trap "rm -f $N $R $S $T" EXIT 1 2 3 13 15
+
+#
+# A line matching " [RTDW] " indicates that the input defines a symbol
+# with external linkage; put it in the symbol file.
+#
+# A line matching " U " indicates that the input references an
+# undefined symbol; put it in the reference file.
+#
+${NM} ${NMFLAGS} -go "$@" >$N
+sed -e "
 	/ [RTDW] / {
 		s/:.* [RTDW] / /
 		w $S
@@ -68,21 +83,28 @@ ${NM} ${NMFLAGS} -go $* | sed "
 		w $R
 	}
 	d
-"
+" <$N
 
-export LC_ALL=C
-# eliminate references that can be resolved by the same library.
-if [ $(expr "$*" : '.*\.a[[:>:]]') -ne 0 ]; then
-	sort -u -o $S $S
-	sort -u -o $R $R
-	T=$(mktemp -t _temp_)
-	comm -23 $R $S >$T
-	mv $T $R
-fi
+#
+# Elide entries representing a reference to a symbol from within the
+# library that defines it.
+#
+sort -u -o $S $S
+sort -u -o $R $R
+comm -23 $R $S >$T
+mv $T $R
 
-# sort references and symbols on the second field (the symbol),
-# join on that field, and print out the file names.
+#
+# Make sure that all inputs get into the output.
+#
+for i ; do
+	echo "$i" "$i"
+done
+
+#
+# Sort references and symbols on the second field (the symbol), join
+# on that field, and print out the file names.
+#
 sort -k 2 -o $R $R
 sort -k 2 -o $S $S
 join -j 2 -o 1.1 2.1 $R $S
-rm -f $R $S
