@@ -31,11 +31,6 @@
 .Sh NAME
 .Nm lorder
 .Nd list dependencies for object files
-.Sh DEPRECATION NOTICE
-.Nm
-is obsolete and may not be present in
-.Fx 14
-and later.
 .Sh SYNOPSIS
 .Nm
 .Ar
@@ -61,12 +56,10 @@ and
 .Xr tsort 1
 can be used to sort libraries in order of dependency.
 .Pp
-The use of
-.Nm
-is not required by contemporary linkers, and
-.Nm
-may be removed from a future version of
-.Fx .
+While contemporary linkers no longer require the use of
+.Nm ,
+it is provided for the benefit of legacy code bases and build
+systems which still insist on it.
 .Sh ENVIRONMENT
 .Bl -tag -width indent
 .It Ev NM
