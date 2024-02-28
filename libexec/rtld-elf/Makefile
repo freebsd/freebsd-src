@@ -69,6 +69,12 @@ SYMBOL_MAPS+=	${RTLD_ELF_DIR}/${RTLD_ARCH}/Symbol.map
 .sinclude "${RTLD_ELF_DIR}/${RTLD_ARCH}/Makefile.inc"
 RTLD_ENTRY?=	.rtld_start
 
+# Always produce the map file so that may be inspected to confirm
+# undesired code is not linked from libsys/libc.
+MAPFILE=	ld-elf.so.1.map
+LDFLAGS+=	-Wl,-Map=${MAPFILE} -Wl,--cref
+CLEANFILES+=	${MAPFILE}
+
 # Since moving rtld-elf to /libexec, we need to create a symlink.
 # Fixup the existing binary that's there so we can symlink over it.
 beforeinstall:
