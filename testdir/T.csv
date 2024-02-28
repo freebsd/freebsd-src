@@ -17,7 +17,7 @@ $1 ~ /try/ {	# new test
 	sub(/try /, "")
 	prog = $0
 	printf("%3d  %s\n", nt, prog)
-	prog = sprintf("%s -F\"\\t\" '"'"'%s'"'"'", awk, prog)
+	prog = sprintf("%s '"'"'%s'"'"'", awk, prog)
 	# print "prog is", prog
 	nt2 = 0
 	while (getline > 0) {

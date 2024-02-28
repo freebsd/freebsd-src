@@ -22,7 +22,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ****************************************************************/
 
-const char	*version = "version 20231124";
+const char	*version = "version 20240122";
 
 #define DEBUG
 #include <stdio.h>
@@ -199,6 +199,10 @@ int main(int argc, char *argv[])
 		argc--;
 		argv++;
 	}
+
+	if (CSV && (fs != NULL || lookup("FS", symtab) != NULL))
+		WARNING("danger: don't set FS when --csv is in effect");
+
 	/* argv[1] is now the first argument */
 	if (npfile == 0) {	/* no -f; first argument is program */
 		if (argc <= 1) {

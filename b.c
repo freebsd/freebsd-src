@@ -116,7 +116,7 @@ static int entry_cmp(const void *l, const void *r);
 static int get_gototab(fa*, int, int);
 static int set_gototab(fa*, int, int, int);
 static void clear_gototab(fa*, int);
-extern int u8_rune(int *, const uschar *);
+extern int u8_rune(int *, const char *);
 
 static int *
 intalloc(size_t n, const char *f)
@@ -346,7 +346,7 @@ int hexstr(const uschar **pp, int max)	/* find and eval hex string at pp, return
 	int i;
 
 	for (i = 0, p = *pp; i < max && isxdigit(*p); i++, p++) {
-		if (isdigit(*p))
+		if (isdigit((int) *p))
 			n = 16 * n + *p - '0';
 		else if (*p >= 'a' && *p <= 'f')
 			n = 16 * n + *p - 'a' + 10;
@@ -416,7 +416,7 @@ int *cclenter(const char *argp)	/* add a character class */
 		FATAL("out of space for character class [%.10s...] 1", p);
 	bp = buf;
 	for (i = 0; *p != 0; ) {
-		n = u8_rune(&c, p);
+		n = u8_rune(&c, (const char *) p);
 		p += n;
 		if (c == '\\') {
 			c = quoted(&p);
@@ -424,7 +424,7 @@ int *cclenter(const char *argp)	/* add a character class */
 			if (*p != 0) {
 				c = bp[-1];
 				/* c2 = *p++; */
-				n = u8_rune(&c2, p);
+				n = u8_rune(&c2, (const char *) p);
 				p += n;
 				if (c2 == '\\')
 					c2 = quoted(&p); /* BUG: sets p, has to be u8 size */
@@ -607,18 +607,18 @@ static void resize_gototab(fa *f, int state)
 	size_t orig_size = f->gototab[state].allocated;		// 2nd half of new mem is this size
 	memset(p + orig_size, 0, orig_size * sizeof(gtte));	// clean it out
 
-	f->gototab[state].allocated = new_size;			// update gotottab info
+	f->gototab[state].allocated = new_size;			// update gototab info
 	f->gototab[state].entries = p;
 }
 
-static int get_gototab(fa *f, int state, int ch) /* hide gototab inplementation */
+static int get_gototab(fa *f, int state, int ch) /* hide gototab implementation */
 {
 	gtte key;
 	gtte *item;
 
 	key.ch = ch;
 	key.state = 0;	/* irrelevant */
-	item = bsearch(& key, f->gototab[state].entries,
+	item = (gtte *) bsearch(& key, f->gototab[state].entries,
 			f->gototab[state].inuse, sizeof(gtte),
 			entry_cmp);
 
@@ -638,7 +638,7 @@ static int entry_cmp(const void *l, const void *r)
 	return left->ch - right->ch;
 }
 
-static int set_gototab(fa *f, int state, int ch, int val) /* hide gototab inplementation */
+static int set_gototab(fa *f, int state, int ch, int val) /* hide gototab implementation */
 {
 	if (f->gototab[state].inuse == 0) {
 		f->gototab[state].entries[0].ch = ch;
@@ -662,7 +662,7 @@ static int set_gototab(fa *f, int state, int ch, int val) /* hide gototab inplem
 
 		key.ch = ch;
 		key.state = 0;	/* irrelevant */
-		item = bsearch(& key, f->gototab[state].entries,
+		item = (gtte *) bsearch(& key, f->gototab[state].entries,
 				f->gototab[state].inuse, sizeof(gtte),
 				entry_cmp);
 
@@ -710,7 +710,7 @@ int match(fa *f, const char *p0)	/* shortest match ? */
 		return(1);
 	do {
 		/* assert(*p < NCHARS); */
-		n = u8_rune(&rune, p);
+		n = u8_rune(&rune, (const char *) p);
 		if ((ns = get_gototab(f, s, rune)) != 0)
 			s = ns;
 		else
@@ -743,7 +743,7 @@ int pmatch(fa *f, const char *p0)	/* longest match, for sub */
 			if (f->out[s])		/* final state */
 				patlen = q-p;
 			/* assert(*q < NCHARS); */
-			n = u8_rune(&rune, q);
+			n = u8_rune(&rune, (const char *) q);
 			if ((ns = get_gototab(f, s, rune)) != 0)
 				s = ns;
 			else
@@ -774,7 +774,7 @@ int pmatch(fa *f, const char *p0)	/* longest match, for sub */
 		s = 2;
 		if (*p == 0)
 			break;
-		n = u8_rune(&rune, p);
+		n = u8_rune(&rune, (const char *) p);
 		p += n;
 	} while (1); /* was *p++ */
 	return (0);
@@ -799,7 +799,7 @@ int nematch(fa *f, const char *p0)	/* non-empty match, for sub */
 			if (f->out[s])		/* final state */
 				patlen = q-p;
 			/* assert(*q < NCHARS); */
-			n = u8_rune(&rune, q);
+			n = u8_rune(&rune, (const char *) q);
 			if ((ns = get_gototab(f, s, rune)) != 0)
 				s = ns;
 			else
@@ -887,7 +887,7 @@ bool fnematch(fa *pfa, FILE *f, char **pbuf, int *pbufsize, int quantum)
 			}
 		}
 
-		j += u8_rune(&c, (uschar *)j);
+		j += u8_rune(&c, j);
 
 		if ((ns = get_gototab(pfa, s, c)) != 0)
 			s = ns;
@@ -907,7 +907,7 @@ bool fnematch(fa *pfa, FILE *f, char **pbuf, int *pbufsize, int quantum)
 			break;     /* best match found */
 
 		/* no match at origin i, next i and start over */
-		i += u8_rune(&c, (uschar *)i);
+		i += u8_rune(&c, i);
 		if (c == 0)
 			break;    /* no match */
 		j = i;
@@ -1229,8 +1229,6 @@ static int repeat(const uschar *reptok, int reptoklen, const uschar *atom,
 	return 0;
 }
 
-extern int u8_rune(int *, const uschar *); /* run.c; should be in header file */
-
 int relex(void)		/* lexical analyzer for reparse */
 {
 	int c, n;
@@ -1248,7 +1246,7 @@ int relex(void)		/* lexical analyzer for reparse */
 rescan:
 	starttok = prestr;
 
-	if ((n = u8_rune(&rlxval, prestr)) > 1) {
+	if ((n = u8_rune(&rlxval, (const char *) prestr)) > 1) {
 		prestr += n;
 		starttok = prestr;
 		return CHAR;
@@ -1295,7 +1293,7 @@ rescan:
 		if (!adjbuf((char **) &buf, &bufsz, n, n, (char **) &bp, "relex1"))
 			FATAL("out of space for reg expr %.10s...", lastre);
 		for (; ; ) {
-			if ((n = u8_rune(&rlxval, prestr)) > 1) {
+			if ((n = u8_rune(&rlxval, (const char *) prestr)) > 1) {
 				for (i = 0; i < n; i++)
 					*bp++ = *prestr++;
 				continue;
@@ -1389,7 +1387,7 @@ rescan:
 		}
 		break;
 	case '{':
-		if (isdigit(*(prestr))) {
+		if (isdigit((int) *(prestr))) {
 			num = 0;	/* Process as a repetition */
 			n = -1; m = -1;
 			commafound = false;

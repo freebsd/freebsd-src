@@ -84,3 +84,5 @@ grep "out of range field" foo >/dev/null || echo 1>&2 "BAD: T.overflow \$400000"
 rm -rf /tmp/awktestfoo*
 $awk 'BEGIN { for (i=1; i <= 1000; i++) print i >("/tmp/awktestfoo" i) }'
 ls /tmp/awktestfoo* | grep '1000' >/dev/null || echo 1>&2 "BAD: T.overflow openfiles"
+rm -rf /tmp/awktestfoo*
+exit 0

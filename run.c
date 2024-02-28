@@ -795,7 +795,7 @@ int runetochar(char *str, int c)
 
 Cell *matchop(Node **a, int n)	/* ~ and match() */
 {
-	Cell *x, *y;
+	Cell *x, *y, *z;
 	char *s, *t;
 	int i;
 	int cstart, cpatlen, len;
@@ -817,7 +817,7 @@ Cell *matchop(Node **a, int n)	/* ~ and match() */
 		i = (*mf)(pfa, s);
 		tempfree(y);
 	}
-	tempfree(x);
+	z = x;
 	if (n == MATCHFCN) {
 		int start = patbeg - s + 1; /* origin 1 */
 		if (patlen < 0) {
@@ -839,11 +839,13 @@ Cell *matchop(Node **a, int n)	/* ~ and match() */
 		x = gettemp();
 		x->tval = NUM;
 		x->fval = start;
-		return x;
 	} else if ((n == MATCH && i == 1) || (n == NOTMATCH && i == 0))
-		return(True);
+		x = True;
 	else
-		return(False);
+		x = False;
+
+	tempfree(z);
+	return x;
 }
 
 
@@ -1298,7 +1300,8 @@ int format(char **pbuf, int *pbufsize, const char *s, Node *a)	/* printf-like co
 
 						if (bs == NULL)	{ // invalid character
 							// use unicode invalid character, 0xFFFD
-							bs = "\357\277\275";
+							static char invalid_char[] = "\357\277\275";
+							bs = invalid_char;
 							count = 3;
 						}
 						t = bs;
@@ -2067,6 +2070,7 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 	int status = 0;
 	time_t tv;
 	struct tm *tm;
+	int estatus = 0;
 
 	t = ptoi(a[0]);
 	x = execute(a[1]);
@@ -2167,20 +2171,21 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 		break;
 	case FSYSTEM:
 		fflush(stdout);		/* in case something is buffered already */
-		status = system(getsval(x));
-		u = status;
+		estatus = status = system(getsval(x));
 		if (status != -1) {
 			if (WIFEXITED(status)) {
-				u = WEXITSTATUS(status);
+				estatus = WEXITSTATUS(status);
 			} else if (WIFSIGNALED(status)) {
-				u = WTERMSIG(status) + 256;
+				estatus = WTERMSIG(status) + 256;
 #ifdef WCOREDUMP
 				if (WCOREDUMP(status))
-					u += 256;
+					estatus += 256;
 #endif
 			} else	/* something else?!? */
-				u = 0;
+				estatus = 0;
 		}
+		/* else estatus was set to -1 */
+		u = estatus;
 		break;
 	case FRAND:
 		/* random() returns numbers in [0..2^31-1]
@@ -2539,7 +2544,7 @@ Cell *dosub(Node **a, int subop)        /* sub and gsub */
 	start = getsval(x);
 	while (pmatch(pfa, start)) {
 		if (buf == NULL) {
-			if ((pb = buf = malloc(bufsz)) == NULL)
+			if ((pb = buf = (char *) malloc(bufsz)) == NULL)
 				FATAL("out of memory in dosub");
 			tempstat = pfa->initstat;
 			pfa->initstat = 2;

@@ -220,5 +220,6 @@ $awk 'BEGIN {
 echo 'cat dog' > $TEMP2
 diff $TEMP1 $TEMP2 || fail 'BAD: T.split(a, b, "[\r\n]+")'
 
+rm -rf $WORKDIR
 
 exit $RESULT

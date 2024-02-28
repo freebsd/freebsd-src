@@ -399,7 +399,7 @@ void fldbld(void)	/* create fields from current record */
 	i = 0;	/* number of fields accumulated here */
 	if (inputFS == NULL)	/* make sure we have a copy of FS */
 		savefs();
-	if (strlen(inputFS) > 1) {	/* it's a regular expression */
+	if (!CSV && strlen(inputFS) > 1) {	/* it's a regular expression */
 		i = refldbld(r, inputFS);
 	} else if (!CSV && (sep = *inputFS) == ' ') {	/* default whitespace */
 		for (i = 0; ; ) {
@@ -845,10 +845,10 @@ int isclvar(const char *s)	/* is s of form var=something ? */
 {
 	const char *os = s;
 
-	if (!isalpha((uschar) *s) && *s != '_')
+	if (!isalpha((int) *s) && *s != '_')
 		return 0;
 	for ( ; *s; s++)
-		if (!(isalnum((uschar) *s) || *s == '_'))
+		if (!(isalnum((int) *s) || *s == '_'))
 			break;
 	return *s == '=' && s > os;
 }
@@ -883,7 +883,7 @@ bool is_valid_number(const char *s, bool trailing_stuff_ok,
 	if (no_trailing)
 		*no_trailing = false;
 
-	while (isspace(*s))
+	while (isspace((int) *s))
 		s++;
 
 	/* no hex floating point, sorry */
@@ -895,7 +895,7 @@ bool is_valid_number(const char *s, bool trailing_stuff_ok,
 		is_nan = (strncasecmp(s+1, "nan", 3) == 0);
 		is_inf = (strncasecmp(s+1, "inf", 3) == 0);
 		if ((is_nan || is_inf)
-		    && (isspace(s[4]) || s[4] == '\0'))
+		    && (isspace((int) s[4]) || s[4] == '\0'))
 			goto convert;
 		else if (! isdigit(s[1]) && s[1] != '.')
 			return false;
@@ -918,7 +918,7 @@ convert:
 	/*
 	 * check for trailing stuff
 	 */
-	while (isspace(*ep))
+	while (isspace((int) *ep))
 		ep++;
 
 	if (no_trailing != NULL)
