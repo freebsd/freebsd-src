@@ -36,7 +36,7 @@ extern bool insecure;		/* -i flag, needed here for elfhints.c */
 
 __BEGIN_DECLS
 void	list_elf_hints(const char *);
-void	update_elf_hints(const char *, int, char **, bool);
+void	update_elf_hints(const char *, int, char **, bool, bool);
 __END_DECLS
 
 #endif
