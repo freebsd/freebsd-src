@@ -22,7 +22,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ****************************************************************/
 
-const char	*version = "version 20210724";
+const char	*version = "version 20240122";
 
 #define DEBUG
 #include <stdio.h>
@@ -49,7 +49,11 @@ static size_t	maxpfile;	/* max program filename */
 static size_t	npfile;		/* number of filenames */
 static size_t	curpfile;	/* current filename */
 
+bool	CSV = false;	/* true for csv input */
+
 bool	safe = false;	/* true => "safe" mode */
+
+size_t	awk_mb_cur_max = 1;
 
 static noreturn void fpecatch(int n
 #ifdef SA_SIGINFO
@@ -89,10 +93,8 @@ static const char *
 setfs(char *p)
 {
 	/* wart: t=>\t */
-	if (p[0] == 't' && p[1] == '\0') {
-		WARNING("-Ft to imply tab separator is deprecated behavior.");
+	if (p[0] == 't' && p[1] == '\0')
 		return "\t";
-	}
 	return p;
 }
 
@@ -116,10 +118,11 @@ int main(int argc, char *argv[])
 
 	setlocale(LC_CTYPE, "");
 	setlocale(LC_NUMERIC, "C"); /* for parsing cmdline & prog */
+	awk_mb_cur_max = MB_CUR_MAX;
 	cmdname = argv[0];
 	if (argc == 1) {
 		fprintf(stderr,
-		  "usage: %s [-F fs] [-v var=value] [-f progfile | 'prog'] [file ...]\n",
+		  "usage: %s [-F fs | --csv] [-v var=value] [-f progfile | 'prog'] [file ...]\n",
 		  cmdname);
 		exit(1);
 	}
@@ -151,6 +154,12 @@ int main(int argc, char *argv[])
 			argc--;
 			argv++;
 			break;
+		}
+		if (strcmp(argv[1], "--csv") == 0) {	/* turn on csv input processing */
+			CSV = true;
+			argc--;
+			argv++;
+			continue;
 		}
 		switch (argv[1][1]) {
 		case 's':
@@ -190,6 +199,10 @@ int main(int argc, char *argv[])
 		argc--;
 		argv++;
 	}
+
+	if (CSV && (fs != NULL || lookup("FS", symtab) != NULL))
+		WARNING("danger: don't set FS when --csv is in effect");
+
 	/* argv[1] is now the first argument */
 	if (npfile == 0) {	/* no -f; first argument is program */
 		if (argc <= 1) {
