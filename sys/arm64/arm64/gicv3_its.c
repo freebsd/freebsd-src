@@ -686,6 +686,8 @@ gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 	int extra_flags = 0;
 	device_t gicv3;
 	uint32_t ctlr;
+	vm_paddr_t conf_pa;
+	vm_offset_t conf_va;
 
 	/*
 	 * The PROPBASER is a singleton in our parent. We only set it up the
@@ -700,8 +702,32 @@ gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 	gicv3 = device_get_parent(sc->dev);
 	ctlr = gic_r_read_4(gicv3, GICR_CTLR);
 	if ((ctlr & GICR_CTLR_LPI_ENABLE) != 0) {
-		extra_flags = ITS_FLAGS_LPI_PREALLOC;
-		panic("gicv3 already enabled, can't reprogram.");
+		conf_pa = gic_r_read_8(gicv3, GICR_PROPBASER);
+		conf_pa &= GICR_PROPBASER_PA_MASK;
+		/*
+		 * If there was a pre-existing PROPBASER, then we need to honor
+		 * it because implemenetation defined behavior in gicv3 makes it
+		 * impossible to quiesce to change it out. We will only see a
+		 * pre-existing one when we've been kexec'd from a Linux kernel,
+		 * or from a LinuxBoot environment.
+		 *
+		 * Linux provides us with a MEMRESERVE table that we put into
+		 * the excluded physmem area. If PROPBASER isn't in this tabke,
+		 * the system cannot run due to random memory corruption,
+		 * so we panic for this case.
+		 */
+		if (!physmem_excluded(conf_pa, LPI_CONFTAB_SIZE))
+			panic("gicv3 PROPBASER needs to reuse %#lx, but not reserved\n",
+			    conf_pa);
+		conf_va = PHYS_TO_DMAP(conf_pa);
+		if (!pmap_klookup(conf_va, NULL))
+			panic("Can't mapped prior LPI mapping into VA\n");
+		conf_table = (void *)conf_va;
+		extra_flags = ITS_FLAGS_LPI_PREALLOC | ITS_FLAGS_LPI_CONF_FLUSH;
+		if (bootverbose)
+			device_printf(sc->dev,
+			    "LPI enabled, conf table using pa %#lx va %lx\n",
+			    conf_pa, conf_va);
 	} else {
 
 		/*
