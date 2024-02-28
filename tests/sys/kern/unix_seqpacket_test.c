@@ -527,6 +527,23 @@ ATF_TC_BODY(send_before_accept, tc)
 	close(a);
 }
 
+/* Implied connect is unix/dgram only feature. Fails on stream or seqpacket. */
+ATF_TC_WITHOUT_HEAD(implied_connect);
+ATF_TC_BODY(implied_connect, tc)
+{
+	const struct sockaddr_un *sun;
+	int l, s;
+
+	sun = mk_listening_socket(&l);
+
+	ATF_REQUIRE((s = socket(PF_LOCAL, SOCK_SEQPACKET, 0)) > 0);
+	ATF_REQUIRE(sendto(s, &s, sizeof(s), 0, (struct sockaddr *)sun,
+	    sizeof(*sun)) == -1);
+	ATF_REQUIRE(errno == ENOTCONN);
+	close(l);
+	close(s);
+}
+
 /* accept(2) can receive a connection */
 ATF_TC_WITHOUT_HEAD(accept);
 ATF_TC_BODY(accept, tc)
@@ -1099,6 +1116,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, send_recv_with_connect);
 	ATF_TP_ADD_TC(tp, sendto_recvfrom);
 	ATF_TP_ADD_TC(tp, send_before_accept);
+	ATF_TP_ADD_TC(tp, implied_connect);
 	ATF_TP_ADD_TC(tp, shutdown_send);
 	ATF_TP_ADD_TC(tp, shutdown_send_sigpipe);
 	ATF_TP_ADD_TC(tp, eagain_8k_8k);
