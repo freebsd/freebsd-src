@@ -680,6 +680,8 @@ gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 {
 	/* note: we assume the ITS children are serialized by the parent */
 	static void *conf_table;
+	device_t gicv3;
+	uint32_t ctlr;
 
 	/*
 	 * The PROPBASER is a singleton in our parent. We only set it up the
@@ -691,13 +693,20 @@ gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 		return;
 	}
 
-        /*
-         * Just allocate contiguous pages. We'll configure the PROPBASER
-         * register later in its_init_cpu_lpi().
-         */
-	conf_table = contigmalloc(LPI_CONFTAB_SIZE,
-	    M_GICV3_ITS, M_WAITOK, 0, LPI_CONFTAB_MAX_ADDR,
-	    LPI_CONFTAB_ALIGN, 0);
+	gicv3 = device_get_parent(sc->dev);
+	ctlr = gic_r_read_4(gicv3, GICR_CTLR);
+	if ((ctlr & GICR_CTLR_LPI_ENABLE) != 0) {
+		panic("gicv3 already enabled, can't reprogram.");
+	} else {
+
+		/*
+		 * Otherwise just allocate contiguous pages. We'll configure the
+		 * PROPBASER register later in its_init_cpu_lpi().
+		 */
+		conf_table = contigmalloc(LPI_CONFTAB_SIZE,
+		    M_GICV3_ITS, M_WAITOK, 0, LPI_CONFTAB_MAX_ADDR,
+		    LPI_CONFTAB_ALIGN, 0);
+	}
 	sc->sc_conf_base = conf_table;
 
 	/* Set the default configuration */
