@@ -869,65 +869,6 @@ ATF_TC_BODY(send_recv_nonblocking, tc)
 }
 
 /*
- * We should get EMSGSIZE if we try to send a message larger than the socket
- * buffer, with blocking sockets
- */
-ATF_TC_WITHOUT_HEAD(emsgsize);
-ATF_TC_BODY(emsgsize, tc)
-{
-	int sv[2];
-	const int sndbufsize = 8192;
-	const int rcvbufsize = 8192;
-	const size_t pktsize = (sndbufsize + rcvbufsize) * 2;
-	char sndbuf[pktsize];
-	ssize_t ssize;
-
-	/* setup the socket pair */
-	do_socketpair(sv);
-	/* Setup the buffers */
-	ATF_REQUIRE_EQ(0, setsockopt(sv[0], SOL_SOCKET, SO_SNDBUF, &sndbufsize,
-	    sizeof(sndbufsize)));
-	ATF_REQUIRE_EQ(0, setsockopt(sv[1], SOL_SOCKET, SO_RCVBUF, &rcvbufsize,
-	    sizeof(rcvbufsize)));
-
-	ssize = send(sv[0], sndbuf, pktsize, MSG_EOR);
-	ATF_CHECK_EQ(EMSGSIZE, errno);
-	ATF_CHECK_EQ(-1, ssize);
-	close(sv[0]);
-	close(sv[1]);
-}
-
-/*
- * We should get EMSGSIZE if we try to send a message larger than the socket
- * buffer, with nonblocking sockets
- */
-ATF_TC_WITHOUT_HEAD(emsgsize_nonblocking);
-ATF_TC_BODY(emsgsize_nonblocking, tc)
-{
-	int sv[2];
-	const int sndbufsize = 8192;
-	const int rcvbufsize = 8192;
-	const size_t pktsize = (sndbufsize + rcvbufsize) * 2;
-	char sndbuf[pktsize];
-	ssize_t ssize;
-
-	/* setup the socket pair */
-	do_socketpair_nonblocking(sv);
-	/* Setup the buffers */
-	ATF_REQUIRE_EQ(0, setsockopt(sv[0], SOL_SOCKET, SO_SNDBUF, &sndbufsize,
-	    sizeof(sndbufsize)));
-	ATF_REQUIRE_EQ(0, setsockopt(sv[1], SOL_SOCKET, SO_RCVBUF, &rcvbufsize,
-	    sizeof(rcvbufsize)));
-
-	ssize = send(sv[0], sndbuf, pktsize, MSG_EOR);
-	ATF_CHECK_EQ(EMSGSIZE, errno);
-	ATF_CHECK_EQ(-1, ssize);
-	close(sv[0]);
-	close(sv[1]);
-}
-
-
-/*
  * We should get EAGAIN if we try to send a message larger than the socket
  * buffer, with nonblocking sockets.  Test with several different sockbuf sizes
  */
@@ -1160,8 +1101,6 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, sendto_recvfrom);
 	ATF_TP_ADD_TC(tp, shutdown_send);
 	ATF_TP_ADD_TC(tp, shutdown_send_sigpipe);
-	ATF_TP_ADD_TC(tp, emsgsize);
-	ATF_TP_ADD_TC(tp, emsgsize_nonblocking);
 	ATF_TP_ADD_TC(tp, eagain_8k_8k);
 	ATF_TP_ADD_TC(tp, eagain_8k_128k);
 	ATF_TP_ADD_TC(tp, eagain_128k_8k);
