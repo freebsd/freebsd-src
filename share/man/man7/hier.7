@@ -666,10 +666,10 @@ timezone configuration information; see
 .It Pa src/
 .Fx
 source code; see
-.Xr development 7 .
-The layout of the source tree is described by the top-level
+.Xr development 7 ;
+the layout of the source tree is described by the top-level
 .Pa README.md
-file.
+file
 .Pp
 .It Pa tests/
 the
@@ -684,7 +684,7 @@ log, temporary, transient, and spool files
 .It Pa account/
 system accounting files
 .Pp
-.Bl -tag -width Fl -compact
+.Bl -tag -width Ds -compact
 .It Pa acct
 execution accounting file; see
 .Xr acct 5
@@ -694,67 +694,155 @@ execution accounting file; see
 timed command scheduling files; see
 .Xr at 1
 .Pp
-.Bl -tag -width Fl -compact
+.Bl -tag -width Ds -compact
 .It Pa jobs/
 job files
 .It Pa spool/
 output spool files
 .El
 .Pp
+.It Pa audit/
+security event audit trail files; see
+.Xr audit 8
+.It Pa authpf/
+user shell sessions for authenticating gateways; see
+.Xr authpf 8
 .It Pa backups/
-miscellaneous backup files
+critical system configuration backups
 .It Pa cache/
 miscellaneous cache files
 .Pp
-.Bl -tag -width Fl -compact
+.Bl -tag -width Ds -compact
 .It Pa pkg/
 cached packages for
 .Xr pkg 8
+.It Pa cups/
+cached printers for the Common Unix Prinitng system; see
+.Xr cups 1
 .El
 .Pp
 .It Pa crash/
-default directory for kernel crash dumps; see
+default directory to store kernel crash dumps; see
 .Xr crash 8
 and
 .Xr savecore 8
 .It Pa cron/
+files used by cron; see
 .Xr cron 8
-files
 .Pp
-.Bl -tag -width Fl -compact
+.Bl -tag -width Ds -compact
 .It Pa tabs/
+crontab files; see
 .Xr crontab 5
-files
 .El
 .Pp
 .It Pa db/
 miscellaneous automatically-generated system-specific database files
 .Pp
 .Bl -tag -width "freebsd-update/" -compact
+.It Pa etcupdate/
+temporary files and log for
+.Xr etcupdate 8
 .It Pa freebsd-update/
-temporary files and downloads for
+downloads and temporary files for
 .Xr freebsd-update 8
+.It Pa pkg/
+package database
 .El
 .Pp
 .It Pa empty/
-for use by programs that require an empty directory.
-Uses include privilege separation by
+for use by programs that require an empty directory,
+used for instance by
 .Xr sshd 8
+for privilege separation
 .It Pa games/
-miscellaneous game status and score files
+miscellaneous game status and score files for
+.Bx
+heritage games
 .It Pa heimdal/
 Kerberos server databases; see
 .Xr kdc 8
+.It Pa lib/
+holds state information for applications ported from linux
 .It Pa log/
-miscellaneous system log files
+system log files
 .Pp
-.Bl -tag -width "utx.lastlogin" -compact
+.Bl -tag -width "bsdinstall_log" -compact
+.It Pa Xorg.0.log
+.Xr Xserver 1
+log, if
+.Xr X 7
+is installed
+rotates to
+.Pa Xorg.0.log.old
+.It Pa aculog
+serial line access log; see
+.Xr cu 1
+.It Pa auth.log
+system authentication log
+.It Pa bsdinstall_log
+system installation log
+.It Pa bsdisks.log
+FreeDesktop.org automounter log, if a desktop environment is using
+.Xr bsdisks 8 ,
+from
+.Xr ports 7
+.It Pa cron
+scheduled task log; see
+.Xr cron 8
+.It Pa cups/
+logs for
+.Xr cups 1
+.It Pa daemon.log
+default log for system daemons
+.It Pa devd.log
+default log for device state change daemon
+.It Pa dmesg.today
+system message buffer log
+Rotates to
+.Pa dmesg.yesterday
+.It Pa debug.log
+???
+.It Pa lpd-errs
+logs for the line printer daemon; see
+.Xr lpd 8
+.It Pa maillog
+.Xr sendmail 8
+log, rotates and compresses to maillog.0.bz2
+.It Pa messages
+general system log; see
+.Xr syslog 3
+.It Pa mount.today
+currently loaded
+.Xr fstab 5 ,
+rotates to
+.Pa mount.yesterday
+.It Pa pf.today
+packet filter firewall log; see
+.Xr pf 4
+.It Pa pflog
+saved packets caught by
+.Xr pflogd 8
+.It Pa ppp.log
+see
+.Xr ppp 8
+.It Pa security
+transcript of events marked with the security flag
+.It Pa setuid.today
+listing of executable files which run with elevated permissions, rotates
+to
+.Pa setuid.yesterday
+.It Pa userlog
+logs changes in users or groups
 .It Pa utx.lastlogin
 last login log; see
 .Xr getutxent 3
 .It Pa utx.log
 login/logout log; see
 .Xr getutxent 3
+.It Pa xferlog
+default log for
+.Xr ftpd 8
 .El
 .Pp
 .It Pa mail/
@@ -765,11 +853,11 @@ system messages database; see
 .It Pa preserve/
 unused, present for historical reasons
 .It Pa quotas/
-file system quota information files
+UFS quota information files
 .It Pa run/
 files containing information about the operating system since it was booted
 .Pp
-.Bl -tag -width Fl -compact
+.Bl -tag -width "wpa_supplicant/" -compact
 .It Pa bhyve/
 .Xr bhyve 8
 virtual machine
@@ -782,10 +870,12 @@ group for command connection sockets; see
 .It Pa utx.active
 database of current users; see
 .Xr getutxent 3
+.It Pa wpa_supplicant/
+IEEE Std. 802.11 wifi run time files
 .El
 .Pp
 .It Pa rwho/
-rwho data files; see
+information about other systems on the local network; see
 .Xr rwhod 8 ,
 .Xr rwho 1 ,
 and
@@ -797,26 +887,40 @@ miscellaneous printer and mail system spooling directories
 .It Pa clientmqueue/
 undelivered submission mail queue; see
 .Xr sendmail 8
+.It Pa cups/
+print jobs and temporary files for
+.Xr cups 1
+.It Pa dma/
+undelivered mail queue for
+.Dx
+Mail Agent; see
+.Xr dma 8
+.It Pa lock/
+???
 .It Pa ftp/
 ftp root directory; see
 .Xr ftpd 8
 .It Pa mqueue/
-undelivered mail queue; see
+undelivered mail queue for
 .Xr sendmail 8
 .It Pa output/
 line printer spooling directories
 .El
 .Pp
 .It Pa tmp/
-temporary files that are not removed by
+temporary files that are not removed between system reboots by
 .Xr rc 8
 .Pp
 .Bl -tag -width "vi.recover/" -compact
 .It Pa vi.recover/
+recovery files for the
 .Xr vi 1
-recovery files
+editor
 .El
 .Pp
+.It Pa unbound/
+files and configuration for
+.Xr unbound 8
 .It Pa yp/
 the NIS maps; see
 .Xr yp 8
@@ -840,5 +944,5 @@ this document.
 .Sh HISTORY
 A
 .Nm
-manual page appeared in
+manual page first appeared in 1979 with
 .At v7 .
