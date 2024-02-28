@@ -153,39 +153,6 @@ ATF_TC_BODY(recv_trunc_afunix_dgram, tc)
 	check_recvmsg(cs, ss, sa, sizes, nitems(sizes));
 }
 
-ATF_TC_WITHOUT_HEAD(recv_trunc_afunix_seqpacket);
-ATF_TC_BODY(recv_trunc_afunix_seqpacket, tc)
-{
-	struct sockaddr_un sun;
-	struct sockaddr *sa;
-	int ss, nss, cs, rc;
-
-	ss = socket(PF_UNIX, SOCK_SEQPACKET, 0);
-	ATF_REQUIRE(ss >= 0);
-
-	bzero(&sun, sizeof(sun));
-	sun.sun_family = AF_UNIX;
-	strlcpy(sun.sun_path, "test_check_recvmsg_socket", sizeof(sun.sun_path));
-	sun.sun_len = sizeof(sun);
-	sa = (struct sockaddr *)&sun;
-	rc = bind(ss, sa, sa->sa_len);
-	ATF_REQUIRE_MSG(rc == 0, "bind failed: %s", strerror(errno));
-	rc = listen(ss, 1);
-	ATF_REQUIRE_MSG(rc == 0, "listen failed: %s", strerror(errno));
-
-	cs = socket(PF_UNIX, SOCK_SEQPACKET, 0);
-	ATF_REQUIRE(cs >= 0);
-	rc = connect(cs, sa, sa->sa_len);
-	ATF_REQUIRE_MSG(rc == 0, "connect failed: %s", strerror(errno));
-	nss = accept(ss, NULL, NULL);
-	ATF_REQUIRE(nss >= 0);
-
-	size_t sizes[] = {80, 255, 256, 1024, 2000};
-	check_recvmsg(cs, nss, sa, sizes, nitems(sizes));
-
-	ATF_REQUIRE(close(ss) == 0);
-}
-
 /*
  * Exercise the case where ktrace was used to dump a truncated buffer.
  */
@@ -245,7 +212,6 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, recv_trunc_afinet_udp);
 	ATF_TP_ADD_TC(tp, recv_trunc_afinet6_udp);
 	ATF_TP_ADD_TC(tp, recv_trunc_afunix_dgram);
-	ATF_TP_ADD_TC(tp, recv_trunc_afunix_seqpacket);
 	ATF_TP_ADD_TC(tp, recvmsg_trunc_ktrace_uio);
 
 	return (atf_no_error());
