@@ -501,6 +501,32 @@ ATF_TC_BODY(connect, tc)
 	close(s2);
 }
 
+/*
+ * An undocumented feature that we probably want to preserve: sending to
+ * a socket that isn't yet accepted lands data on the socket.  It can be
+ * read after accept(2).
+ */
+ATF_TC_WITHOUT_HEAD(send_before_accept);
+ATF_TC_BODY(send_before_accept, tc)
+{
+	const char buf[] = "hello";
+	char repl[sizeof(buf)];
+	const struct sockaddr_un *sun;
+	int l, s, a;
+
+	sun = mk_listening_socket(&l);
+
+	ATF_REQUIRE((s = socket(PF_LOCAL, SOCK_SEQPACKET, 0)) > 0);
+	ATF_REQUIRE(connect(s, (struct sockaddr *)sun, sizeof(*sun)) == 0);
+	ATF_REQUIRE(send(s, &buf, sizeof(buf), 0) == sizeof(buf));
+	ATF_REQUIRE((a = accept(l, NULL, NULL)) != 1);
+	ATF_REQUIRE(recv(a, &repl, sizeof(repl), 0) == sizeof(buf));
+	ATF_REQUIRE(strcmp(buf, repl) == 0);
+	close(l);
+	close(s);
+	close(a);
+}
+
 /* accept(2) can receive a connection */
 ATF_TC_WITHOUT_HEAD(accept);
 ATF_TC_BODY(accept, tc)
@@ -1072,6 +1098,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, send_recv_nonblocking);
 	ATF_TP_ADD_TC(tp, send_recv_with_connect);
 	ATF_TP_ADD_TC(tp, sendto_recvfrom);
+	ATF_TP_ADD_TC(tp, send_before_accept);
 	ATF_TP_ADD_TC(tp, shutdown_send);
 	ATF_TP_ADD_TC(tp, shutdown_send_sigpipe);
 	ATF_TP_ADD_TC(tp, eagain_8k_8k);
