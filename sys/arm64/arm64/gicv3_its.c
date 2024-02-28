@@ -286,6 +286,7 @@ struct gicv3_its_softc {
 #define	ITS_FLAGS_CMDQ_FLUSH		0x00000001
 #define	ITS_FLAGS_LPI_CONF_FLUSH	0x00000002
 #define	ITS_FLAGS_ERRATA_CAVIUM_22375	0x00000004
+#define	ITS_FLAGS_LPI_PREALLOC		0x00000008
 	u_int sc_its_flags;
 	bool	trace_enable;
 	vm_page_t ma; /* fake msi page */
@@ -680,6 +681,7 @@ gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 {
 	/* note: we assume the ITS children are serialized by the parent */
 	static void *conf_table;
+	int extra_flags = 0;
 	device_t gicv3;
 	uint32_t ctlr;
 
@@ -696,6 +698,7 @@ gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 	gicv3 = device_get_parent(sc->dev);
 	ctlr = gic_r_read_4(gicv3, GICR_CTLR);
 	if ((ctlr & GICR_CTLR_LPI_ENABLE) != 0) {
+		extra_flags = ITS_FLAGS_LPI_PREALLOC;
 		panic("gicv3 already enabled, can't reprogram.");
 	} else {
 
@@ -708,6 +711,7 @@ gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 		    LPI_CONFTAB_ALIGN, 0);
 	}
 	sc->sc_conf_base = conf_table;
+	sc->sc_its_flags |= extra_flags;
 
 	/* Set the default configuration */
 	memset(sc->sc_conf_base, GIC_PRIORITY_MAX | LPI_CONF_GROUP1,
@@ -720,18 +724,20 @@ gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 static void
 gicv3_its_pendtables_init(struct gicv3_its_softc *sc)
 {
-	int i;
 
-	for (i = 0; i <= mp_maxid; i++) {
-		if (CPU_ISSET(i, &sc->sc_cpus) == 0)
-			continue;
+	if ((sc->sc_its_flags & ITS_FLAGS_LPI_PREALLOC) == 0) {
+		for (int i = 0; i <= mp_maxid; i++) {
+			if (CPU_ISSET(i, &sc->sc_cpus) == 0)
+				continue;
 
-		sc->sc_pend_base[i] = (vm_offset_t)contigmalloc(
-		    LPI_PENDTAB_SIZE, M_GICV3_ITS, M_WAITOK | M_ZERO,
-		    0, LPI_PENDTAB_MAX_ADDR, LPI_PENDTAB_ALIGN, 0);
+			sc->sc_pend_base[i] = (vm_offset_t)contigmalloc(
+			    LPI_PENDTAB_SIZE, M_GICV3_ITS, M_WAITOK | M_ZERO,
+			    0, LPI_PENDTAB_MAX_ADDR, LPI_PENDTAB_ALIGN, 0);
 
-		/* Flush so the ITS can see the memory */
-		cpu_dcache_wb_range(sc->sc_pend_base[i], LPI_PENDTAB_SIZE);
+			/* Flush so the ITS can see the memory */
+			cpu_dcache_wb_range(sc->sc_pend_base[i],
+			    LPI_PENDTAB_SIZE);
+		}
 	}
 }
 
