@@ -45,6 +45,7 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/physmem.h>
 #include <sys/proc.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
@@ -827,7 +828,17 @@ its_init_cpu_lpi(device_t dev, struct gicv3_its_softc *sc)
 
 		/* Make sure the GIC has seen everything */
 		dsb(sy);
+	} else {
+		KASSERT(sc->sc_pend_base[cpuid] == 0,
+		    ("PREALLOC too soon cpuid %d", cpuid));
+		tmp = gic_r_read_8(gicv3, GICR_PENDBASER);
+		tmp &= GICR_PENDBASER_PA_MASK;
+		if (!physmem_excluded(tmp, LPI_PENDTAB_SIZE))
+			panic("gicv3 PENDBASER on cpu %d needs to reuse 0x%#lx, but not reserved\n",
+			    cpuid, tmp);
+		sc->sc_pend_base[cpuid] = PHYS_TO_DMAP(tmp);
 	}
+
 
 	if (bootverbose)
 		device_printf(gicv3, "using %sPENDBASE of %#lx on cpu %d\n",
