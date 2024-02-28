@@ -829,6 +829,11 @@ its_init_cpu_lpi(device_t dev, struct gicv3_its_softc *sc)
 		/* Make sure the GIC has seen everything */
 		dsb(sy);
 	}
+
+	if (bootverbose)
+		device_printf(gicv3, "using %sPENDBASE of %#lx on cpu %d\n",
+		    (sc->sc_its_flags & ITS_FLAGS_LPI_PREALLOC) ? "pre-existing " : "",
+		    vtophys(sc->sc_pend_base[cpuid]), cpuid);
 }
 
 static int
