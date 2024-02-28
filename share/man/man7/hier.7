@@ -325,29 +325,34 @@ system utilities that are critical to binaries in
 and
 .Pa /sbin
 .It Pa /media/
-empty directory commonly containing mount points for removable media such as
-USB drives, CDs, and DVDs
+mount points for removable storage media such as CDs, DVDs,
+and USB drives; see
+.Xr automount 8
+or
+.Xr bsdisks 8
 .It Pa /mnt/
-empty directory commonly used by system administrators as a temporary mount
-point
+empty directory commonly used by
+system administrators as a temporary mount point
 .It Pa /net/
 automounted NFS shares; see
 .Xr auto_master 5
 .It Pa /nonexistent/
-a non-existent directory; conventionally, a home directory for special user
-accounts that do not require a home directory.  See also
+a non-existent directory;
+by convention, it serves as a home directory
+for special user accounts
+that need no home directory; see also
 .Pa /var/empty/
 .It Pa /proc/
 process file system; see
 .Xr procfs 5
 .It Pa /rescue/
-statically-linked programs for emergency recovery; see
+statically linked programs for emergency recovery; see
 .Xr rescue 8
 .It Pa /root/
 home directory of the root user
 .It Pa /sbin/
-system programs and administration utilities that are fundamental to
-single-user and multi-user modes
+system programs and administration utilities
+fundamental to both single and multi-user modes
 .It Pa /tmp/
 temporary files that may be removed by
 .Xr rc 8 ;
