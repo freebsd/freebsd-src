@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -25,27 +28,35 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 6, 2024
+.Dd February 27, 2024
 .Dt HIER 7
 .Os
 .Sh NAME
 .Nm hier
-.Nd layout of file systems
-.Sh SYNOPSIS
-An overview of the file system hierarchy.
+.Nd layout of
+.Fx
+file system hierarchy
 .Sh DESCRIPTION
 .Bl -tag -width "/libexec/"
 .It Pa /
-root directory
+root directory of the file system
+.It Pa /COPYRIGHT
+.Fx
+copyright information
 .It Pa /bin/
-user utilities that are fundamental to single-user and multi-user modes
+user utilities fundamental to both single and multi-user modes
 .It Pa /boot/
-programs and configuration files used during bootstrap of the operating system
+programs and configurations used during
+.Fx
+bootstrap
 .Pp
-.Bl -tag -width "nvmecontrol/" -compact
+.Bl -tag -width "loader.conf.d/" -compact
 .It Pa defaults/
 default bootstrap configuration files; see
 .Xr loader.conf 5
+.It Pa device.hints
+kernel variables for controlling drivers; see
+.Xr device.hints 5
 .It Pa dtb/
 compiled flattened device tree (FDT) files; see
 .Xr fdt 4
@@ -61,71 +72,212 @@ setting in
 .El
 .Pp
 .It Pa efi/
-mount point for the EFI System Partition (ESP) on UEFI systems
+mount point for EFI System Partition (ESP) on UEFI systems
 .It Pa firmware/
-loadable kernel modules containing binary firmware, for hardware to which
-firmware must be downloaded
+loadable binary firmware kernel modules
+.It Pa fonts/
+binary bitmap console fonts; see
+.Xr loader.conf 5
+and
+.Xr vtfontcvt 8
+.It Pa images/
+beastie boot menu images; see
+.Xr loader_lua 8
 .It Pa kernel/
-pure kernel executable (the operating system loaded into memory at boot time)
-and kernel modules
+pure kernel executable
+.Pq the operating system loaded into memory at boot time
+and kernel modules; see
+.Xr kldstat 8
+.It Pa kernel.old/
+alternative kernel and modules
+.It Pa loader.conf
+boot loader configuration; see
+.Xr loader.conf 5
+.It Pa loader.conf.d/
+.Xr loader.conf 5
+configuration files
+.It Pa lua/
+scripts for kernel bootstrapping final stage; see
+.Xr loader_lua 8
 .It Pa modules/
-third-party loadable kernel modules, such as those associated with
+third-party loadable kernel modules, such as those installed with
+.Xr pkg 8
+or from
 .Xr ports 7
 .It Pa zfs/
-.Xr zfs 8
-pool cache files
+ZFS
+.Xr zpool 8
+cache files
 .El
 .It Pa /compat/
 files supporting binary compatibility with other operating systems
 .Pp
-.Bl -tag -width "nvmecontrol/" -compact
+.Bl -tag -width "loader.conf.d" -compact
 .It Pa linux/
 default location for
 .Xr linux 4
 compatibility run-time
 .El
-.Pp
 .It Pa /dev/
-the normal mount point for
+device special files managed by
 .Xr devfs 5
 .Pp
-.Bl -tag -width "nvmecontrol/" -compact
+.Bl -tag -width "loader.conf.d" -compact
+.It Pa ada0
+first ATA storage device
+.It Pa ada0p1
+first partition on ada0
+.It Pa cd0
+first optical drive
+.It Pa da0
+first SCSI storage device
+.It Pa da0s1
+first partition on da0
+.It Pa dri/
+GPU character device node; see
+.Xr drm 7
+.It Pa drm/
+GPU
+.Xr drm 7
+special files
 .It Pa fd/
 file descriptor files; see
 .Xr fd 4
+.It Pa fd0
+first floppy drive
+.It Pa mmcsd0
+first SD storage device
+.It Pa mmcsd0s1
+first partition on mmcsd0
+.It Pa nda0
+first NVMe storage device attached via
+.Xr cam 3
+.It Pa null
+infinite loop that accepts anything and contains nothing
+.It Pa nvd0
+first NVMe storage device using NVMe namespaces
+.It Pa pts/
+pseduo-terminals
+.It Pa random
+source of weak randomness; see
+.Xr random 4
+.It Pa sa0
+first tape drive
+.It Pa usb/
+USB busses
 .El
+.It Pa /entropy
+provides initial state to RNG; see
+.Xr save-entropy 8
 .It Pa /etc/
-system configuration files and scripts
+system wide configuration files and scripts
 .Pp
-.Bl -tag -width "nvmecontrol/" -compact
+.Bl -tag -width "freebsd-update.conf" -compact
+.It Pa auto_master
+autofs
+.Xr automount 8
+configuration
 .It Pa bluetooth/
 bluetooth configuration files
+.It Pa cron.d/
+tables for driving scheduled tasks; see
+.Xr crontab 5
+.It Pa crontab
+root's cron table
 .It Pa defaults/
 default system configuration files; see
 .Xr rc 8
+.It Pa devd/
+configuration for
+.Xr devd 8 ,
+the device state change daemon
+.It Pa devfs.conf
+boot time device configuration
+.It Pa dma/
+configuration for
+.Xr dma 8
+.It Pa freebsd-update.conf
+configuration for the base system updater
+.Xr freebsd-update 8
+.It Pa fstab
+static filesystem configuration; see
+.Xr fstab 5
+.It Pa hosts
+database of local hosts if no network name server is running
+.It Pa inetd.conf
+configuration for
+.Bx
+heritage internet servers; see
+.Xr inetd 8
 .It Pa localtime
 local timezone information; see
 .Xr ctime 3
+.It Pa jail.conf.d/
+.Xr jail 8
+startup scripts.
+.It Pa login.conf
+login class capability database; see
+.Xr login.conf 5
+.It Pa machine-id
+defines the UUID for the local system, required for dbus
 .It Pa mail/
 .Xr sendmail 8
 control files
+.Pp
+.Bl -tag -width "mailer.conf" -compact
+.It Pa aliases
+addresses to deliver system mail
+.It Pa mailer.conf
+.Xr mailwrapper 8
+configuration
+.El
+.Pp
+.It Pa motd.template
+message displayed upon tty login; see
+.Xr motd 5
 .It Pa mtree/
+system mapper specification; see
 .Xr mtree 8
-configuration files
+.It Pa newsyslog.conf.d/
+log rotation configuration files.
+.It Pa ntp/
+stored time for the Network Time Protocol
+.It Pa ntp.conf
+configuration for the NTP client,
+.Xr ntpd 8
 .It Pa pam.d/
-configuration files for the Pluggable Authentication Modules (PAM) library; see
+configuration files for the Pluggable Authentication Modules (PAM) library;
+see
 .Xr pam 3
 .It Pa periodic/
 scripts that are run daily, weekly, or monthly by
 .Xr cron 8 ;
 see
 .Xr periodic 8
+.It Pa pf.conf
+configuration for the Packet Filter firewall; see
+.Xr pf 4
+.It Pa pkg/
+default configuration for the package manager,
+.Xr pkg 8
 .It Pa ppp/
 PPP configuration files; see
 .Xr ppp 8
+.It Pa rc.conf
+system and daemon configuration; see
+.Xr rc.conf 5
 .It Pa rc.d/
 system and daemon startup/control scripts; see
 .Xr rc 8
+.It Pa resolv.conf
+DNS configuration; see
+.Xr resolv.conf 5
+.It Pa resolvconf.conf
+DNS configuration manager configuration, often generated by
+local-unbound; see
+.Xr local_unbound 8
+or
+.Xr resolvconf 8
 .It Pa security/
 OpenBSM audit configuration files; see
 .Xr audit 8
@@ -134,9 +286,20 @@ OpenSSH configuration files; see
 .Xr ssh 1
 .It Pa ssl/
 OpenSSL configuration files
+.It Pa sysctl.conf
+kernel state defaults; see
+.Xr sysctl.conf 5
+.It Pa syslog.conf
+system log configuration
+.It Pa ttys
+tty creation configuration; see
+.Xr getty 8
+.It Pa wpa_supplicant.conf
+client wifi configuration; see
+.Xr wpa_supplicant.conf 5
 .El
 .It Pa /home/
-users' home directories; whilst the layout is not standardized, the typical home for an interactive user
+home directories for users; the typical home for an interactive user
 .Dv beastie
 would be
 .Pa /home/beastie/
