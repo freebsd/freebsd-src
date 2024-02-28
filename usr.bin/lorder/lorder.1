@@ -27,17 +27,12 @@
 .\"
 .\"     @(#)lorder.1	8.2 (Berkeley) 4/28/95
 .\"
-.Dd March 21, 2023
+.Dd February 27, 2024
 .Dt LORDER 1
 .Os
 .Sh NAME
 .Nm lorder
 .Nd list dependencies for object files
-.Sh DEPRECATION NOTICE
-.Nm
-is obsolete and may not be present in
-.Fx 14
-and later.
 .Sh SYNOPSIS
 .Nm
 .Ar
@@ -46,13 +41,10 @@ The
 .Nm
 utility uses
 .Xr nm 1
-to determine interdependencies in the list of object files
-and library archives
-specified on the command line.
-The
-.Nm
-utility outputs a list of file names where the first file contains a symbol
-which is defined by the second file.
+to determine interdependencies between object files and library
+archives listed on its command line.
+It then outputs a list of pairs of file names such that the first file
+in each pair references at least one symbol defined by the second.
 .Pp
 The output is normally used with
 .Xr tsort 1
@@ -60,18 +52,16 @@ when a library is created to determine the optimum ordering of the
 object modules so that all references may be resolved in a single
 pass of the loader.
 .Pp
-When linking static binaries,
+Similarly, when linking static binaries,
 .Nm
 and
 .Xr tsort 1
-can be used to properly order library archives automatically.
+can be used to sort libraries in order of dependency.
 .Pp
-The use of
-.Nm
-is not required by contemporary linkers, and
-.Nm
-may be removed from a future version of
-.Fx .
+While contemporary linkers no longer require the use of
+.Nm ,
+it is provided for the benefit of legacy code bases and build
+systems which still insist on it.
 .Sh ENVIRONMENT
 .Bl -tag -width indent
 .It Ev NM
@@ -99,3 +89,8 @@ A
 .Nm
 utility appeared in
 .At v7 .
+.Sh CAVEATS
+The
+.Nm
+utility will not work properly if given file names with spaces or
+newlines in them.
