@@ -4,7 +4,7 @@ oldawk=${oldawk-awk}
 awk=${awk-../a.out}
 
 echo compiling time.c
-gcc time.c -o time
+cc time.c -o time
 time=./time
 
 echo time command = $time

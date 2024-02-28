@@ -97,6 +97,12 @@ echo '111
 $awk '{print L $0}' L=11 foo0 L=22 foo0 >foo2
 diff foo1 foo2 || echo 'BAD: T.argv (L=11 L=22)'
 
+echo >foo0
+echo 'name=value
+name=value' >foo1
+$awk 'BEGIN { print ARGV[1] } { print ARGV[1] }' name=value foo0 >foo2
+diff foo1 foo2 || echo 'BAD: T.argv assignment operand modified'
+
 echo 3.345 >foo1
 $awk 'BEGIN { print ARGV[1] + ARGV[2]}' 1 2.345 >foo2
 diff foo1 foo2 || echo 'BAD: T.argv (ARGV[1] + ARGV[2])'

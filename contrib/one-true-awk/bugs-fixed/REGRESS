@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/sh
 
 if [ ! -f ../a.out ]
 then
@@ -11,6 +11,7 @@ do
 	echo === $i
 	OUT=${i%.awk}.OUT
 	OK=${i%.awk}.ok
+	OK2=${i%.awk}.ok2
 	IN=${i%.awk}.in
 	input=
 	if [ -f $IN ]
@@ -22,7 +23,10 @@ do
 	if cmp -s $OK $OUT
 	then
 		rm -f $OUT
+	elif [ -f $OK2 ] && cmp -s $OK2 $OUT
+	then
+		rm -f $OUT
 	else
-		echo ++++ $i failed!
+		echo '++++ $i failed!'
 	fi
 done
