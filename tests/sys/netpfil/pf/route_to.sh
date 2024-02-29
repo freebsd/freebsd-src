@@ -407,6 +407,51 @@ ifbound_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "ifbound_v6" "cleanup"
+ifbound_v6_head()
+{
+	atf_set descr 'Test that route-to states for IPv6 bind the expected interface'
+	atf_set require.user root
+}
+
+ifbound_v6_body()
+{
+	pft_init
+
+	j="route_to:ifbound_v6"
+
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+	ifconfig ${epair_one}b up
+
+	vnet_mkjail ${j}2 ${epair_two}b
+	jexec ${j}2 ifconfig ${epair_two}b inet6 2001:db8:1::2/64 up no_dad
+	jexec ${j}2 ifconfig ${epair_two}b inet6 alias 2001:db8:2::1/64 no_dad
+	jexec ${j}2 route -6 add default 2001:db8:1::1
+
+	vnet_mkjail $j ${epair_one}a ${epair_two}a
+	jexec $j ifconfig ${epair_one}a inet6 2001:db8::1/64 up no_dad
+	jexec $j ifconfig ${epair_two}a inet6 2001:db8:1::1/64 up no_dad
+	jexec $j route -6 add default 2001:db8::2
+
+	jexec $j ping6 -c 3 2001:db8:1::2
+
+	jexec $j pfctl -e
+	pft_set_rules $j \
+		"set state-policy if-bound" \
+		"block" \
+		"pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
+		"pass out route-to (${epair_two}a 2001:db8:1::2)"
+
+	atf_check -s exit:0 -o ignore \
+	    jexec $j ping6 -c 3 2001:db8:2::1
+}
+
+ifbound_v6_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "ifbound_reply_to" "cleanup"
 ifbound_reply_to_head()
 {
@@ -458,6 +503,65 @@ ifbound_reply_to_body()
 }
 
 ifbound_reply_to_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "ifbound_reply_to_v6" "cleanup"
+ifbound_reply_to_v6_head()
+{
+	atf_set descr 'Test that reply-to states bind to the expected interface for IPv6'
+	atf_set require.user root
+}
+
+ifbound_reply_to_v6_body()
+{
+	pft_init
+
+	j="route_to:ifbound_reply_to_v6"
+
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+
+	vnet_mkjail ${j}s ${epair_one}b ${epair_two}b
+	jexec ${j}s ifconfig ${epair_one}b inet6 2001:db8::2/64 up no_dad
+	jexec ${j}s ifconfig ${epair_two}b up
+	#jexec ${j}s route -6 add default 2001:db8::1
+
+	vnet_mkjail $j ${epair_one}a ${epair_two}a
+	jexec $j ifconfig ${epair_one}a inet6 2001:db8::1/64 up no_dad
+	jexec $j ifconfig ${epair_two}a inet6 2001:db8:1::1/64 up no_dad
+	jexec $j route -6 add default 2001:db8:1::254
+
+	jexec $j pfctl -e
+	pft_set_rules $j \
+		"set state-policy if-bound" \
+		"block" \
+		"pass quick inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
+		"pass in on ${epair_one}a reply-to (${epair_one}a 2001:db8::2) inet6 from any to 2001:db8::/64 keep state"
+
+	atf_check -s exit:0 -o ignore \
+	    jexec ${j}s ping6 -c 3 2001:db8::1
+
+	atf_check -s exit:0 \
+	    jexec ${j}s ${common_dir}/pft_ping.py \
+	    --to 2001:db8::1 \
+	    --from 2001:db8:2::2 \
+	    --sendif ${epair_one}b \
+	    --replyif ${epair_one}b
+
+	# pft_ping uses the same ID every time, so this will look like more traffic in the same state
+	atf_check -s exit:0 \
+	    jexec ${j}s ${common_dir}/pft_ping.py \
+	    --to 2001:db8::1 \
+	    --from 2001:db8:2::2 \
+	    --sendif ${epair_one}b \
+	    --replyif ${epair_one}b
+
+	jexec $j pfctl -ss -vv
+}
+
+ifbound_reply_to_v6_cleanup()
 {
 	pft_cleanup
 }
@@ -520,6 +624,8 @@ atf_init_test_cases()
 	atf_add_test_case "icmp_nat"
 	atf_add_test_case "dummynet"
 	atf_add_test_case "ifbound"
+	atf_add_test_case "ifbound_v6"
 	atf_add_test_case "ifbound_reply_to"
+	atf_add_test_case "ifbound_reply_to_v6"
 	atf_add_test_case "dummynet_frag"
 }
