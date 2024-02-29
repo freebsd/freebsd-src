@@ -23,7 +23,6 @@ FBSD_1.6 {
 };
 
 FBSDprivate_1.0 {
-	_getlogin;
 	_vfork;
 	_brk;
 };

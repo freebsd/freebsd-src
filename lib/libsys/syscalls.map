@@ -80,6 +80,7 @@ FBSDprivate_1.0 {
 	__sys_ktrace;
 	_getgid;
 	__sys_getgid;
+	_getlogin;
 	__sys_getlogin;
 	_setlogin;
 	__sys_setlogin;

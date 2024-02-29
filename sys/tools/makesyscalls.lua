@@ -924,7 +924,7 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 		    config.syscallprefix, funcalias, sysnum))
 		write_line("sysmk", string.format(" \\\n\t%s.o",
 		    funcalias))
-		if funcalias ~= "exit" and funcalias ~= "getlogin" and funcalias ~= "vfork" then
+		if funcalias ~= "exit" and funcalias ~= "vfork" then
 			write_line("libsysmap", string.format("\t_%s;\n",
 			    funcalias))
 		end
