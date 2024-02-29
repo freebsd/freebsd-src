@@ -445,17 +445,15 @@ runq_findq(struct runq *const rq)
 bool
 runq_not_empty(struct runq *rq)
 {
-	struct rq_status *rqs;
+	int idx;
 
-	rqs = &rq->rq_status;
-	for (int i = 0; i < RQSW_NB; i++)
-		if (rqs->rq_sw[i] != 0) {
-			CTR2(KTR_RUNQ, "runq_not_empty: bits=%#x i=%d",
-			    rqs->rq_sw[i], i);
-			return (true);
-		}
+	idx = runq_findq(rq);
+	if (idx != -1) {
+		CTR1(KTR_RUNQ, "runq_not_empty: idx=%d", idx);
+		return (true);
+	}
+
 	CTR0(KTR_RUNQ, "runq_not_empty: empty");
-
 	return (false);
 }
 
