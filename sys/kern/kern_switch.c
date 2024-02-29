@@ -370,57 +370,72 @@ runq_remove(struct runq *rq, struct thread *td)
 }
 
 /*
- * Find the index of the first non-empty run queue.  This is done by
- * scanning the status bits, a set bit indicating a non-empty queue.
+ * Find the index of the first (i.e., having lower index) non-empty queue in the
+ * passed range (bounds included).  This is done by scanning the status bits,
+ * a set bit indicating a non-empty queue.  Returns -1 if all queues in the range
+ * are empty.
  */
-static __inline int
-runq_findbit(struct runq *rq)
+static int
+runq_findq_range(const struct runq *const rq, const int lvl_min,
+    const int lvl_max)
 {
-	struct rq_status *rqs;
-	int idx;
+	rqsw_t const (*const rqsw)[RQSW_NB] = &rq->rq_status.rq_sw;
+	rqsw_t w;
+	int i, last, idx;
 
-	rqs = &rq->rq_status;
-	for (int i = 0; i < RQSW_NB; i++)
-		if (rqs->rq_sw[i] != 0) {
-			idx = RQSW_FIRST_QUEUE_IDX(i, rqs->rq_sw[i]);
-			CHECK_IDX(idx);
-			CTR3(KTR_RUNQ, "runq_findbit: bits=%#x i=%d idx=%d",
-			    rqs->rq_sw[i], i, idx);
-			return (idx);
-		}
+	CHECK_IDX(lvl_min);
+	CHECK_IDX(lvl_max);
+	KASSERT(lvl_min <= lvl_max,
+	    ("lvl_min: %d > lvl_max: %d!", lvl_min, lvl_max));
+
+	i = RQSW_IDX(lvl_min);
+	last = RQSW_IDX(lvl_max);
+	/* Clear bits for runqueues below 'lvl_min'. */
+	w = (*rqsw)[i] & ~(RQSW_BIT(lvl_min) - 1);
+	if (i == last)
+		goto last_mask;
+	if (w != 0)
+		goto return_idx;
+
+	for (++i; i < last; ++i) {
+		w = (*rqsw)[i];
+		if (w != 0)
+			goto return_idx;
+	}
+
+	MPASS(i == last);
+	w = (*rqsw)[i];
+last_mask:
+	/* Clear bits for runqueues above 'lvl_max'. */
+	w &= (RQSW_BIT(lvl_max) - 1) | RQSW_BIT(lvl_max);
+	if (w != 0)
+		goto return_idx;
 
 	return (-1);
+return_idx:
+	idx = RQSW_FIRST_QUEUE_IDX(i, w);
+	CTR4(KTR_RUNQ, "runq_findq_range: bits=%#x->%#x i=%d idx=%d",
+	    (*rqsw)[i], w, i, idx);
+	return (idx);
 }
 
 static __inline int
-runq_findbit_from(struct runq *rq, int idx)
+runq_findq_circular(struct runq *const rq, int start_idx)
 {
-	struct rq_status *rqs;
-	rqsw_t mask;
-	int i;
+	int idx;
 
-	CHECK_IDX(idx);
-	/* Set the mask for the first word so we ignore indices before 'idx'. */
-	mask = (rqsw_t)-1 << RQSW_BIT_IDX(idx);
-	rqs = &rq->rq_status;
-again:
-	for (i = RQSW_IDX(idx); i < RQSW_NB; mask = -1, i++) {
-		mask = rqs->rq_sw[i] & mask;
-		if (mask == 0)
-			continue;
-		idx = RQSW_FIRST_QUEUE_IDX(i, mask);
-		CTR3(KTR_RUNQ, "runq_findbit_from: bits=%#x i=%d idx=%d",
-		    mask, i, idx);
+	idx = runq_findq_range(rq, start_idx, RQ_NQS - 1);
+	if (idx != -1 || start_idx == 0)
 		return (idx);
-	}
-	if (idx == 0)
-		return (-1);
-	/*
-	 * Wrap back around to the beginning of the list just once so we
-	 * scan the whole thing.
-	 */
-	idx = 0;
-	goto again;
+
+	return (runq_findq_range(rq, 0, start_idx - 1));
+}
+
+static __inline int
+runq_findq(struct runq *const rq)
+{
+
+	return (runq_findq_range(rq, 0, RQ_NQS - 1));
 }
 
 /*
@@ -454,7 +469,7 @@ runq_choose(struct runq *rq)
 	struct thread *td;
 	int idx;
 
-	idx = runq_findbit(rq);
+	idx = runq_findq(rq);
 	if (idx != -1) {
 		rqq = &rq->rq_queues[idx];
 		td = TAILQ_FIRST(rqq);
@@ -478,7 +493,7 @@ runq_choose_fuzz(struct runq *rq, int fuzz)
 	struct thread *td;
 	int idx;
 
-	idx = runq_findbit(rq);
+	idx = runq_findq(rq);
 	if (idx != -1) {
 		rqq = &rq->rq_queues[idx];
 		/* fuzz == 1 is normal.. 0 or less are ignored */
@@ -518,7 +533,7 @@ runq_choose_from(struct runq *rq, int from_idx)
 	struct thread *td;
 	int idx;
 
-	if ((idx = runq_findbit_from(rq, from_idx)) != -1) {
+	if ((idx = runq_findq_circular(rq, from_idx)) != -1) {
 		rqq = &rq->rq_queues[idx];
 		td = TAILQ_FIRST(rqq);
 		KASSERT(td != NULL, ("runq_choose: no thread on busy queue"));
