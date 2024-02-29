@@ -278,7 +278,7 @@ try_binary_file(const char *imagename, uint32_t flags)
 	struct vattr vattr;
 	void *data = NULL;
 	const struct firmware *fw;
-	int flags;
+	int oflags;
 	size_t resid;
 	int error;
 	bool warn = flags & FIRMWARE_GET_NOWARN;
@@ -295,8 +295,8 @@ try_binary_file(const char *imagename, uint32_t flags)
 		printf("Trying to load binary firmware from %s\n", fn);
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, fn);
-	flags = FREAD;
-	error = vn_open(&nd, &flags, 0, NULL);
+	oflags = FREAD;
+	error = vn_open(&nd, &oflags, 0, NULL);
 	if (error)
 		goto err;
 	NDFREE_PNBUF(&nd);
@@ -310,8 +310,8 @@ try_binary_file(const char *imagename, uint32_t flags)
 	 * Limit this to something sane, 8MB by default.
 	 */
 	if (vattr.va_size > firmware_max_size) {
-		printf("Firmware %s is too big: %ld bytes, %ld bytes max.\n",
-		    fn, vattr.va_size, firmware_max_size);
+		printf("Firmware %s is too big: %lld bytes, %ld bytes max.\n",
+		    fn, (long long)vattr.va_size, (long)firmware_max_size);
 		goto err2;
 	}
 	data = malloc(vattr.va_size, M_FIRMWARE, M_WAITOK);
