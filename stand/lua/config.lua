@@ -407,12 +407,7 @@ local function loadModule(mod, silent)
 			end
 
 			if cli_execute_unparsed(str) ~= 0 then
-				-- XXX Temporary shim: don't break the boot if
-				-- loader hadn't been recompiled with this
-				-- function exposed.
-				if loader.command_error then
-					print(loader.command_error())
-				end
+				print(loader.command_error())
 				if not silent then
 					print("failed!")
 				end
