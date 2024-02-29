@@ -161,6 +161,19 @@ lookup(const char *name)
 	LIST_FOREACH(fp, &firmware_table, link) {
 		if (fp->fw.name != NULL && strcasecmp(name, fp->fw.name) == 0)
 			break;
+
+		/*
+		 * If the name looks like an absolute path, also try to match
+		 * the last part of the string to the requested firmware if it
+		 * matches the trailing components.  This allows us to load
+		 * /boot/firmware/abc/bca2233_fw.bin and match it against
+		 * requests for bca2233_fw.bin or abc/bca2233_fw.bin.
+		 */
+		if (*fp->fw.name == '/' && strlen(fp->fw.name) > strlen(name)) {
+			const char *p = fp->fw.name + strlen(fp->fw.name) - strlen(name);
+			if (p[-1] == '/' && strcasecmp(name, p) == 0)
+				break;
+		}
 	}
 	return (fp);
 }
@@ -549,6 +562,42 @@ restart:
 }
 
 /*
+ * Find all the binary firmware that was loaded in the boot loader via load -t
+ * firmware foo.  There is only one firmware per file, it's the whole file, and
+ * there's no meaningful version passed in, so pass 0 for that.  If version is
+ * needed by the consumer (and not just arbitrarily defined), the .ko version
+ * must be used instead.
+ */
+static void
+firmware_binary_files(void)
+{
+	caddr_t file;
+	char *name;
+	const char *type;
+	const void *addr;
+	size_t size;
+	unsigned int version = 0;
+	const struct firmware *fw;
+	struct priv_fw *fp;
+
+	file = 0;
+	for (;;) {
+		file = preload_search_next_name(file);
+		if (file == 0)
+			break;
+		type = (const char *)preload_search_info(file, MODINFO_TYPE);
+		if (type == NULL || strcmp(type, "firmware") != 0)
+			continue;
+		name = preload_search_info(file, MODINFO_NAME);
+		addr = preload_fetch_addr(file);
+		size = preload_fetch_size(file);
+		fw = firmware_register(name, addr, size, version, NULL);
+		fp = PRIV_FW(fw);
+		fp->refcnt++;	/* Hold an extra reference so we never unload */
+	}
+}
+
+/*
  * Module glue.
  */
 static int
@@ -566,6 +615,7 @@ firmware_modevent(module_t mod, int type, void *unused)
 		/* NB: use our own loop routine that sets up context */
 		(void) taskqueue_start_threads(&firmware_tq, 1, PWAIT,
 		    "firmware taskq");
+		firmware_binary_files();
 		if (rootvnode != NULL) {
 			/*
 			 * Root is already mounted so we won't get an event;
