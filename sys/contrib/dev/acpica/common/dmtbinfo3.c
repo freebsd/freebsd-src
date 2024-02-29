@@ -255,7 +255,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSpcr[] =
     {ACPI_DMT_UINT8,    ACPI_SPCR_OFFSET (StopBits),                "Stop Bits", 0},
     {ACPI_DMT_UINT8,    ACPI_SPCR_OFFSET (FlowControl),             "Flow Control", 0},
     {ACPI_DMT_UINT8,    ACPI_SPCR_OFFSET (TerminalType),            "Terminal Type", 0},
-    {ACPI_DMT_UINT8,    ACPI_SPCR_OFFSET (Reserved2),               "Reserved", 0},
+    {ACPI_DMT_UINT8,    ACPI_SPCR_OFFSET (Language),                "Language", 0},
     {ACPI_DMT_UINT16,   ACPI_SPCR_OFFSET (PciDeviceId),             "PCI Device ID", 0},
     {ACPI_DMT_UINT16,   ACPI_SPCR_OFFSET (PciVendorId),             "PCI Vendor ID", 0},
     {ACPI_DMT_UINT8,    ACPI_SPCR_OFFSET (PciBus),                  "PCI Bus", 0},
@@ -263,7 +263,11 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSpcr[] =
     {ACPI_DMT_UINT8,    ACPI_SPCR_OFFSET (PciFunction),             "PCI Function", 0},
     {ACPI_DMT_UINT32,   ACPI_SPCR_OFFSET (PciFlags),                "PCI Flags", 0},
     {ACPI_DMT_UINT8,    ACPI_SPCR_OFFSET (PciSegment),              "PCI Segment", 0},
-    {ACPI_DMT_UINT32,   ACPI_SPCR_OFFSET (Reserved2),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_SPCR_OFFSET (UartClkFreq),             "Uart Clock Freq", 0},
+    {ACPI_DMT_UINT32,   ACPI_SPCR_OFFSET (PreciseBaudrate),         "Precise Baud rate", 0},
+    {ACPI_DMT_UINT16,   ACPI_SPCR_OFFSET (NameSpaceStringLength),   "NameSpaceStringLength", 0},
+    {ACPI_DMT_UINT16,   ACPI_SPCR_OFFSET (NameSpaceStringOffset),   "NameSpaceStringOffset", 0},
+    {ACPI_DMT_STRING,   ACPI_SPCR_OFFSET (NameSpaceString),         "NamespaceString", 0},
     ACPI_DMT_TERMINATOR
 };
 
