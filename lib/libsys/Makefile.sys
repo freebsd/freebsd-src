@@ -1,5 +1,22 @@
-
-# sys sources
+# Implement symbols common to libc and libsys.
+#
+# When dynamically linked, the libc symbols are filtered by the actual
+# implementations in libsys.  When statically linked, both libc and
+# libsys contain full implementations to preserve the API of libc.a.
+#
+# The following variable are programmer-defined:
+#
+# MDASM		Override the default syscall implementation in MIASM
+#		(from syscall.mk below).  Each entry is a source file
+#		name (e.g., vfork.S).
+#		Generally defined in <arch>/Makefile.sys.
+# NOASM		Don't generate system call stubs.  Each entry is an
+#		object file name (e.g., yeild.o).  Don't add more of these.
+# PSEUDO	Generate _<sys> and __sys_<sys> symbols, but not <sys>.
+#		Each entry is a bare syscall name (e.g., "clock_gettime").
+# INTERPOSED	Like PSEUDO, but <sys>.c is added to SRCS.
+#		Used for syscalls intercepted by the threading library.
+#
 .PATH: ${LIBSYS_SRCTOP}/${LIBC_ARCH} ${LIBSYS_SRCTOP}
 
 # Include the generated makefile containing the *complete* list
@@ -7,11 +24,6 @@
 .include "${SRCTOP}/sys/sys/syscall.mk"
 
 # Include machine dependent definitions.
-#
-# MDASM names override the default syscall names in MIASM.
-# NOASM will prevent the default syscall code from being generated.
-# PSEUDO generates _<sys>() and __sys_<sys>() symbols, but not <sys>().
-#
 .include "${LIBSYS_SRCTOP}/${LIBC_ARCH}/Makefile.sys"
 .if ${LIBC_ARCH} == "i386" || ${LIBC_ARCH} == "amd64"
 .include "${LIBSYS_SRCTOP}/x86/Makefile.sys"
@@ -53,11 +65,11 @@ STATICOBJS+=	auxv.o
 NOASM=	yield.o
 
 PSEUDO= \
-	_clock_gettime.o \
-	_exit.o \
-	_getlogin.o \
-	_gettimeofday.o \
-	_sched_getcpu.o
+	clock_gettime \
+	exit \
+	getlogin \
+	gettimeofday \
+	sched_getcpu
 
 INTERPOSED = \
 	accept \
@@ -101,7 +113,7 @@ INTERPOSED = \
 	writev
 
 SRCS+=	${INTERPOSED:S/$/.c/}
-PSEUDO+=	${INTERPOSED:C/^.*$/_&.o/}
+PSEUDO+=	${INTERPOSED}
 
 # Add machine dependent asm sources:
 SRCS+=${MDASM}
@@ -111,14 +123,14 @@ SRCS+=${MDASM}
 # without a trival <sys> symbol (PSEUDO).  Add each syscall that satisfies
 # these conditions to the ASM list.
 .for _asm in ${MIASM}
-.if !${MDASM:R:M${_asm:R}} && !${NOASM:R:M${_asm:R}} && !${PSEUDO:R:M_${_asm:R}}
+.if !${MDASM:R:M${_asm:R}} && !${NOASM:R:M${_asm:R}} && !${PSEUDO:M${_asm:R}}
 ASM+=$(_asm)
 .endif
 .endfor
 
 SASM=	${ASM:S/.o/.S/}
 
-SPSEUDO= ${PSEUDO:S/.o/.S/}
+SPSEUDO= ${PSEUDO:C/^.*$/_&.S/}
 
 SRCS+=	${SASM} ${SPSEUDO}
 
