@@ -107,4 +107,4 @@ done
 #
 sort -k 2 -o $R $R
 sort -k 2 -o $S $S
-join -j 2 -o 1.1 2.1 $R $S
+join -j 2 -o 1.1 -o 2.1 $R $S
