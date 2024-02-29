@@ -52,7 +52,7 @@ invalid_head() {
 }
 invalid_body() {
 	echo "not an object file" >invalid.o
-	atf_check -s not-exit:0 -e match:"File format not" -o empty \
+	atf_check -s not-exit:0 -e match:"not recognized" -o empty \
 		  lorder invalid.o
 }
 
