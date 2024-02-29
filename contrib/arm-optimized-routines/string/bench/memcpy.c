@@ -1,7 +1,7 @@
 /*
  * memcpy benchmark.
  *
- * Copyright (c) 2020-2022, Arm Limited.
+ * Copyright (c) 2020-2023, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
@@ -38,6 +38,9 @@ static const struct fun
 # endif
 # if __ARM_FEATURE_SVE
   F(__memcpy_aarch64_sve)
+# endif
+# if WANT_MOPS
+  F(__memcpy_aarch64_mops)
 # endif
 #elif __arm__
   F(__memcpy_arm)

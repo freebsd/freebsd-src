@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
-#include "hornerf.h"
+#include "poly_scalar_f32.h"
 #include "math_config.h"
 #include "pl_sig.h"
 #include "pl_test.h"
@@ -53,7 +53,7 @@ eval_poly (float m, uint32_t e)
      x + C1 * x^2 + C2 * x^3 + C3 * x^4 + ...
      Hence approximation has the form m + m^2 * P(m)
        where P(x) = C1 + C2 * x + C3 * x^2 + ... .  */
-  return fmaf (m, m * HORNER_8 (m, C), m);
+  return fmaf (m, m * horner_8_f32 (m, __log1pf_data.coeffs), m);
 
 #else
 #error No log1pf approximation exists with the requested precision. Options are 13 or 25.
@@ -155,11 +155,7 @@ log1pf (float x)
 
 PL_SIG (S, F, 1, log1p, -0.9, 10.0)
 PL_TEST_ULP (log1pf, 1.52)
-PL_TEST_INTERVAL (log1pf, -10.0, 10.0, 10000)
-PL_TEST_INTERVAL (log1pf, 0.0, 0x1p-23, 50000)
-PL_TEST_INTERVAL (log1pf, 0x1p-23, 0.001, 50000)
-PL_TEST_INTERVAL (log1pf, 0.001, 1.0, 50000)
-PL_TEST_INTERVAL (log1pf, 0.0, -0x1p-23, 50000)
-PL_TEST_INTERVAL (log1pf, -0x1p-23, -0.001, 50000)
-PL_TEST_INTERVAL (log1pf, -0.001, -1.0, 50000)
-PL_TEST_INTERVAL (log1pf, -1.0, inf, 5000)
+PL_TEST_SYM_INTERVAL (log1pf, 0.0, 0x1p-23, 50000)
+PL_TEST_SYM_INTERVAL (log1pf, 0x1p-23, 0.001, 50000)
+PL_TEST_SYM_INTERVAL (log1pf, 0.001, 1.0, 50000)
+PL_TEST_SYM_INTERVAL (log1pf, 1.0, inf, 5000)
