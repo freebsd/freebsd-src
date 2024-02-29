@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+fe86d923f83f:
+	usbconfig(8) now reads the descriptions of the usb vendor and products
+	from usb.ids when available similarly to what pciconf(8) do.
+
 4347ef60501f:
 	The powerd(8) utility is now enabled in /etc/rc.conf by default on
 	images for the arm64 Raspberry Pi's (arm64-aarch64-RPI img files).
