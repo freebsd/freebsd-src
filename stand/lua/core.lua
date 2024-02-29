@@ -65,13 +65,7 @@ end
 -- message on failure.
 function try_include(module)
 	if module:sub(1, 1) ~= "/" then
-		local lua_path = loader.lua_path
-		-- XXX Temporary compat shim; this should be removed once the
-		-- loader.lua_path export has sufficiently spread.
-		if lua_path == nil then
-			lua_path = "/boot/lua"
-		end
-		module = lua_path .. "/" .. module
+		module = loader.lua_path .. "/" .. module
 		-- We only attempt to append an extension if an absolute path
 		-- wasn't specified.  This assumes that the caller either wants
 		-- to treat this like it would require() and specify just the
