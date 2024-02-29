@@ -15,9 +15,7 @@
 # While historically machine dependent, all architectures have the following
 # declarations in common:
 #
-NOASM=	exit.o \
-	getlogin.o \
-	yield.o
+NOASM=	yield.o
 PSEUDO=	_exit.o \
 	_getlogin.o
 .include "${LIBSYS_SRCTOP}/${LIBC_ARCH}/Makefile.sys"
@@ -26,7 +24,6 @@ PSEUDO=	_exit.o \
 .endif
 
 SRCS+= clock_gettime.c gettimeofday.c __vdso_gettimeofday.c
-NOASM+=  clock_gettime.o gettimeofday.o
 PSEUDO+= _clock_gettime.o _gettimeofday.o
 
 # Sources common to both syscall interfaces:
@@ -43,7 +40,6 @@ SRCS+=	creat.c
 SRCS+=	lockf.c wait.c wait3.c waitpid.c waitid.c
 SRCS+=	recv.c recvmmsg.c send.c sendmmsg.c
 
-NOASM+=  sched_getcpu.o
 PSEUDO+= _sched_getcpu.o
 
 SRCS+= brk.c
@@ -105,18 +101,17 @@ INTERPOSED = \
 	writev
 
 SRCS+=	${INTERPOSED:S/$/.c/}
-NOASM+=	${INTERPOSED:S/$/.o/}
 PSEUDO+=	${INTERPOSED:C/^.*$/_&.o/}
 
 # Add machine dependent asm sources:
 SRCS+=${MDASM}
 
 # Look though the complete list of syscalls (MIASM) for names that are
-# not defined with machine dependent implementations (MDASM) and are
-# not declared for no generation of default code (NOASM).  Add each
-# syscall that satisfies these conditions to the ASM list.
+# not defined with machine dependent implementations (MDASM), not declared
+# without a trival <sys> symbol (PSEUDO).  Add each syscall that satisfies
+# these conditions to the ASM list.
 .for _asm in ${MIASM}
-.if !${MDASM:R:M${_asm:R}} && !${NOASM:R:M${_asm:R}}
+.if !${MDASM:R:M${_asm:R}} && !${NOASM:R:M${_asm:R}} && !${PSEUDO:R:M_${_asm:R}}
 ASM+=$(_asm)
 .endif
 .endfor
