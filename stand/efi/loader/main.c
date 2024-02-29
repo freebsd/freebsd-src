@@ -261,8 +261,9 @@ probe_zfs_currdev(uint64_t guid)
 	currdev.dd.d_unit = 0;
 	currdev.pool_guid = guid;
 	currdev.root_guid = 0;
-	set_currdev_devdesc((struct devdesc *)&currdev);
 	devname = devformat(&currdev.dd);
+	set_currdev(devname);
+	printf("Setting currdev to %s\n", devname);
 	init_zfs_boot_options(devname);
 
 	if (zfs_get_bootonce(&currdev, OS_BOOTONCE, buf, sizeof(buf)) == 0) {
