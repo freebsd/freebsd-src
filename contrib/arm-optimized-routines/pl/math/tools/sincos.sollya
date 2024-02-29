@@ -1,0 +1,33 @@
+// polynomial for approximating cos(x)
+//
+// Copyright (c) 2023, Arm Limited.
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+// This script only finds the coeffs for cos - see math/aarch64/v_sin.c for sin coeffs
+
+deg = 14;   // polynomial degree
+a = -pi/4; // interval
+b = pi/4;
+
+// find even polynomial with minimal abs error compared to cos(x)
+
+f = cos(x);
+
+// return p that minimizes |f(x) - poly(x) - x^d*p(x)|
+approx = proc(poly,d) {
+  return remez(f(x)-poly(x), deg-d, [a;b], x^d, 1e-10);
+};
+
+// first coeff is fixed, iteratively find optimal double prec coeffs
+poly = 1;
+for i from 1 to deg/2 do {
+  p = roundcoefficients(approx(poly,2*i), [|double ...|]);
+  poly = poly + x^(2*i)*coeff(p,0);
+};
+
+display = hexadecimal;
+//print("rel error:", accurateinfnorm(1-poly(x)/f(x), [a;b], 30));
+//print("abs error:", accurateinfnorm(f(x)-poly(x), [a;b], 30));
+print("in [",a,b,"]");
+print("coeffs:");
+for i from 0 to deg do coeff(poly,i);

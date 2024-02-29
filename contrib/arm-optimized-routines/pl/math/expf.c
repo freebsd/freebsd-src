@@ -59,8 +59,8 @@ optr_aor_exp_f32 (float x)
   /* Round and convert z to int, the result is in [-150*N, 128*N] and
      ideally nearest int is used, otherwise the magnitude of r can be
      bigger which gives larger approximation error.  */
-  kd = roundtoint (z);
-  ki = converttoint (z);
+  kd = round (z);
+  ki = lround (z);
   r = z - kd;
 
   /* exp(x) = 2^(k/N) * 2^(r/N) ~= s * (C0*r^3 + C1*r^2 + C2*r + 1) */

@@ -21,6 +21,19 @@
 #define FEATURE_1_PAC 2
 
 /* Add a NT_GNU_PROPERTY_TYPE_0 note.  */
+#ifdef __ILP32__
+#define GNU_PROPERTY(type, value)	\
+  .section .note.gnu.property, "a";	\
+  .p2align 2;				\
+  .word 4;				\
+  .word 12;				\
+  .word 5;				\
+  .asciz "GNU";				\
+  .word type;				\
+  .word 4;				\
+  .word value;				\
+  .text
+#else
 #define GNU_PROPERTY(type, value)	\
   .section .note.gnu.property, "a";	\
   .p2align 3;				\
@@ -33,6 +46,7 @@
   .word value;				\
   .word 0;				\
   .text
+#endif
 
 /* If set then the GNU Property Note section will be added to
    mark objects to support BTI and PAC-RET.  */

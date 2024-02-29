@@ -6,75 +6,81 @@
  */
 
 #include "v_math.h"
-#include "estrin.h"
+#include "poly_advsimd_f64.h"
 #include "pl_sig.h"
 #include "pl_test.h"
 
-#if V_SUPPORTED
+#define A(i) v_f64 (__v_log_data.poly[i])
+#define N (1 << V_LOG_TABLE_BITS)
 
-#define OneTop 0x3ff	/* top12(asuint64(1.0f)).  */
-#define HugeBound 0x5fe /* top12(asuint64(0x1p511)).  */
-#define TinyBound 0x3e5 /* top12(asuint64(0x1p-26)).  */
-#define AbsMask v_u64 (0x7fffffffffffffff)
-#define C(i) v_f64 (__asinh_data.poly[i])
+const static struct data
+{
+  float64x2_t poly[18];
+  uint64x2_t off, huge_bound, abs_mask;
+  float64x2_t ln2, tiny_bound;
+} data = {
+  .off = V2 (0x3fe6900900000000),
+  .ln2 = V2 (0x1.62e42fefa39efp-1),
+  .huge_bound = V2 (0x5fe0000000000000),
+  .tiny_bound = V2 (0x1p-26),
+  .abs_mask = V2 (0x7fffffffffffffff),
+  /* Even terms of polynomial s.t. asinh(x) is approximated by
+     asinh(x) ~= x + x^3 * (C0 + C1 * x + C2 * x^2 + C3 * x^3 + ...).
+     Generated using Remez, f = (asinh(sqrt(x)) - sqrt(x))/x^(3/2).  */
+  .poly = { V2 (-0x1.55555555554a7p-3), V2 (0x1.3333333326c7p-4),
+	    V2 (-0x1.6db6db68332e6p-5), V2 (0x1.f1c71b26fb40dp-6),
+	    V2 (-0x1.6e8b8b654a621p-6), V2 (0x1.1c4daa9e67871p-6),
+	    V2 (-0x1.c9871d10885afp-7), V2 (0x1.7a16e8d9d2ecfp-7),
+	    V2 (-0x1.3ddca533e9f54p-7), V2 (0x1.0becef748dafcp-7),
+	    V2 (-0x1.b90c7099dd397p-8), V2 (0x1.541f2bb1ffe51p-8),
+	    V2 (-0x1.d217026a669ecp-9), V2 (0x1.0b5c7977aaf7p-9),
+	    V2 (-0x1.e0f37daef9127p-11), V2 (0x1.388b5fe542a6p-12),
+	    V2 (-0x1.021a48685e287p-14), V2 (0x1.93d4ba83d34dap-18) },
+};
 
-/* Constants & data for log.  */
-#define OFF 0x3fe6000000000000
-#define Ln2 v_f64 (0x1.62e42fefa39efp-1)
-#define A(i) v_f64 (__sv_log_data.poly[i])
-#define T(i) __log_data.tab[i]
-#define N (1 << LOG_TABLE_BITS)
-
-static NOINLINE v_f64_t
-special_case (v_f64_t x, v_f64_t y, v_u64_t special)
+static float64x2_t NOINLINE VPCS_ATTR
+special_case (float64x2_t x, float64x2_t y, uint64x2_t special)
 {
   return v_call_f64 (asinh, x, y, special);
 }
 
 struct entry
 {
-  v_f64_t invc;
-  v_f64_t logc;
+  float64x2_t invc;
+  float64x2_t logc;
 };
 
 static inline struct entry
-lookup (v_u64_t i)
+lookup (uint64x2_t i)
 {
-  struct entry e;
-#ifdef SCALAR
-  e.invc = T (i).invc;
-  e.logc = T (i).logc;
-#else
-  e.invc[0] = T (i[0]).invc;
-  e.logc[0] = T (i[0]).logc;
-  e.invc[1] = T (i[1]).invc;
-  e.logc[1] = T (i[1]).logc;
-#endif
-  return e;
+  float64x2_t e0 = vld1q_f64 (
+      &__v_log_data.table[(i[0] >> (52 - V_LOG_TABLE_BITS)) & (N - 1)].invc);
+  float64x2_t e1 = vld1q_f64 (
+      &__v_log_data.table[(i[1] >> (52 - V_LOG_TABLE_BITS)) & (N - 1)].invc);
+  return (struct entry){ vuzp1q_f64 (e0, e1), vuzp2q_f64 (e0, e1) };
 }
 
-static inline v_f64_t
-log_inline (v_f64_t x)
+static inline float64x2_t
+log_inline (float64x2_t x, const struct data *d)
 {
-  /* Double-precision vector log, copied from math/v_log.c with some cosmetic
-     modification and special-cases removed. See that file for details of the
-     algorithm used.  */
-  v_u64_t ix = v_as_u64_f64 (x);
-  v_u64_t tmp = ix - OFF;
-  v_u64_t i = (tmp >> (52 - LOG_TABLE_BITS)) % N;
-  v_s64_t k = v_as_s64_u64 (tmp) >> 52;
-  v_u64_t iz = ix - (tmp & 0xfffULL << 52);
-  v_f64_t z = v_as_f64_u64 (iz);
-  struct entry e = lookup (i);
-  v_f64_t r = v_fma_f64 (z, e.invc, v_f64 (-1.0));
-  v_f64_t kd = v_to_f64_s64 (k);
-  v_f64_t hi = v_fma_f64 (kd, Ln2, e.logc + r);
-  v_f64_t r2 = r * r;
-  v_f64_t y = v_fma_f64 (A (3), r, A (2));
-  v_f64_t p = v_fma_f64 (A (1), r, A (0));
-  y = v_fma_f64 (A (4), r2, y);
-  y = v_fma_f64 (y, r2, p);
-  y = v_fma_f64 (y, r2, hi);
+  /* Double-precision vector log, copied from ordinary vector log with some
+     cosmetic modification and special-cases removed.  */
+  uint64x2_t ix = vreinterpretq_u64_f64 (x);
+  uint64x2_t tmp = vsubq_u64 (ix, d->off);
+  int64x2_t k = vshrq_n_s64 (vreinterpretq_s64_u64 (tmp), 52);
+  uint64x2_t iz
+      = vsubq_u64 (ix, vandq_u64 (tmp, vdupq_n_u64 (0xfffULL << 52)));
+  float64x2_t z = vreinterpretq_f64_u64 (iz);
+  struct entry e = lookup (tmp);
+  float64x2_t r = vfmaq_f64 (v_f64 (-1.0), z, e.invc);
+  float64x2_t kd = vcvtq_f64_s64 (k);
+  float64x2_t hi = vfmaq_f64 (vaddq_f64 (e.logc, r), kd, d->ln2);
+  float64x2_t r2 = vmulq_f64 (r, r);
+  float64x2_t y = vfmaq_f64 (A (2), A (3), r);
+  float64x2_t p = vfmaq_f64 (A (0), A (1), r);
+  y = vfmaq_f64 (y, A (4), r2);
+  y = vfmaq_f64 (p, y, r2);
+  y = vfmaq_f64 (hi, y, r2);
   return y;
 }
 
@@ -89,34 +95,35 @@ log_inline (v_f64_t x)
    |x| >= 1:
    __v_asinh(0x1.2cd9d717e2c9bp+0) got 0x1.ffffcfd0e234fp-1
 				  want 0x1.ffffcfd0e2352p-1.  */
-VPCS_ATTR v_f64_t V_NAME (asinh) (v_f64_t x)
+VPCS_ATTR float64x2_t V_NAME_D1 (asinh) (float64x2_t x)
 {
-  v_u64_t ix = v_as_u64_f64 (x);
-  v_u64_t iax = ix & AbsMask;
-  v_f64_t ax = v_as_f64_u64 (iax);
-  v_u64_t top12 = iax >> 52;
+  const struct data *d = ptr_barrier (&data);
 
-  v_u64_t gt1 = v_cond_u64 (top12 >= OneTop);
-  v_u64_t special = v_cond_u64 (top12 >= HugeBound);
+  float64x2_t ax = vabsq_f64 (x);
+  uint64x2_t iax = vreinterpretq_u64_f64 (ax);
+
+  uint64x2_t gt1 = vcgeq_f64 (ax, v_f64 (1));
+  uint64x2_t special = vcgeq_u64 (iax, d->huge_bound);
 
 #if WANT_SIMD_EXCEPT
-  v_u64_t tiny = v_cond_u64 (top12 < TinyBound);
-  special |= tiny;
+  uint64x2_t tiny = vcltq_f64 (ax, d->tiny_bound);
+  special = vorrq_u64 (special, tiny);
 #endif
 
   /* Option 1: |x| >= 1.
      Compute asinh(x) according by asinh(x) = log(x + sqrt(x^2 + 1)).
      If WANT_SIMD_EXCEPT is enabled, sidestep special values, which will
      overflow, by setting special lanes to 1. These will be fixed later.  */
-  v_f64_t option_1 = v_f64 (0);
+  float64x2_t option_1 = v_f64 (0);
   if (likely (v_any_u64 (gt1)))
     {
 #if WANT_SIMD_EXCEPT
-      v_f64_t xm = v_sel_f64 (special, v_f64 (1), ax);
+      float64x2_t xm = v_zerofy_f64 (ax, special);
 #else
-      v_f64_t xm = ax;
+      float64x2_t xm = ax;
 #endif
-      option_1 = log_inline (xm + v_sqrt_f64 (xm * xm + 1));
+      option_1 = log_inline (
+	  vaddq_f64 (xm, vsqrtq_f64 (vfmaq_f64 (v_f64 (1), xm, xm))), d);
     }
 
   /* Option 2: |x| < 1.
@@ -127,49 +134,42 @@ VPCS_ATTR v_f64_t V_NAME (asinh) (v_f64_t x)
      special-case. The largest observed error in this region is 1.47 ULPs:
      __v_asinh(0x1.fdfcd00cc1e6ap-1) got 0x1.c1d6bf874019bp-1
 				    want 0x1.c1d6bf874019cp-1.  */
-  v_f64_t option_2 = v_f64 (0);
-  if (likely (v_any_u64 (~gt1)))
+  float64x2_t option_2 = v_f64 (0);
+  if (likely (v_any_u64 (vceqzq_u64 (gt1))))
     {
 #if WANT_SIMD_EXCEPT
-      ax = v_sel_f64 (tiny | gt1, v_f64 (0), ax);
+      ax = v_zerofy_f64 (ax, vorrq_u64 (tiny, gt1));
 #endif
-      v_f64_t x2 = ax * ax;
-      v_f64_t z2 = x2 * x2;
-      v_f64_t z4 = z2 * z2;
-      v_f64_t z8 = z4 * z4;
-      v_f64_t p = ESTRIN_17 (x2, z2, z4, z8, z8 * z8, C);
-      option_2 = v_fma_f64 (p, x2 * ax, ax);
+      float64x2_t x2 = vmulq_f64 (ax, ax), x3 = vmulq_f64 (ax, x2),
+		  z2 = vmulq_f64 (x2, x2), z4 = vmulq_f64 (z2, z2),
+		  z8 = vmulq_f64 (z4, z4), z16 = vmulq_f64 (z8, z8);
+      float64x2_t p = v_estrin_17_f64 (x2, z2, z4, z8, z16, d->poly);
+      option_2 = vfmaq_f64 (ax, p, x3);
 #if WANT_SIMD_EXCEPT
-      option_2 = v_sel_f64 (tiny, x, option_2);
+      option_2 = vbslq_f64 (tiny, x, option_2);
 #endif
     }
 
   /* Choose the right option for each lane.  */
-  v_f64_t y = v_sel_f64 (gt1, option_1, option_2);
+  float64x2_t y = vbslq_f64 (gt1, option_1, option_2);
   /* Copy sign.  */
-  y = v_as_f64_u64 (v_bsl_u64 (AbsMask, v_as_u64_f64 (y), ix));
+  y = vbslq_f64 (d->abs_mask, y, x);
 
   if (unlikely (v_any_u64 (special)))
     return special_case (x, y, special);
   return y;
 }
-VPCS_ALIAS
 
 PL_SIG (V, D, 1, asinh, -10.0, 10.0)
-PL_TEST_ULP (V_NAME (asinh), 2.80)
-PL_TEST_EXPECT_FENV (V_NAME (asinh), WANT_SIMD_EXCEPT)
+PL_TEST_ULP (V_NAME_D1 (asinh), 2.80)
+PL_TEST_EXPECT_FENV (V_NAME_D1 (asinh), WANT_SIMD_EXCEPT)
 /* Test vector asinh 3 times, with control lane < 1, > 1 and special.
    Ensures the v_sel is choosing the right option in all cases.  */
-#define V_ASINH_INTERVAL(lo, hi, n)                                            \
-  PL_TEST_INTERVAL_C (V_NAME (asinh), lo, hi, n, 0.5)                          \
-  PL_TEST_INTERVAL_C (V_NAME (asinh), lo, hi, n, 2)                            \
-  PL_TEST_INTERVAL_C (V_NAME (asinh), lo, hi, n, 0x1p600)
+#define V_ASINH_INTERVAL(lo, hi, n)                                           \
+  PL_TEST_SYM_INTERVAL_C (V_NAME_D1 (asinh), lo, hi, n, 0.5)                  \
+  PL_TEST_SYM_INTERVAL_C (V_NAME_D1 (asinh), lo, hi, n, 2)                    \
+  PL_TEST_SYM_INTERVAL_C (V_NAME_D1 (asinh), lo, hi, n, 0x1p600)
 V_ASINH_INTERVAL (0, 0x1p-26, 50000)
 V_ASINH_INTERVAL (0x1p-26, 1, 50000)
 V_ASINH_INTERVAL (1, 0x1p511, 50000)
 V_ASINH_INTERVAL (0x1p511, inf, 40000)
-V_ASINH_INTERVAL (-0, -0x1p-26, 50000)
-V_ASINH_INTERVAL (-0x1p-26, -1, 50000)
-V_ASINH_INTERVAL (-1, -0x1p511, 50000)
-V_ASINH_INTERVAL (-0x1p511, -inf, 40000)
-#endif

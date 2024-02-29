@@ -6,7 +6,7 @@
  */
 
 #include "math_config.h"
-#include "estrin.h"
+#include "poly_scalar_f64.h"
 #include "pl_sig.h"
 #include "pl_test.h"
 
@@ -20,7 +20,6 @@
 #define OneTop12 0x3ff
 #define HfRt2Top 0x3fe6a09e /* top32(asuint64(sqrt(2)/2)).  */
 #define BottomMask 0xffffffff
-#define C(i) __log1p_data.coeffs[i]
 
 static inline double
 log1p_inline (double x)
@@ -46,7 +45,8 @@ log1p_inline (double x)
   double f2 = f * f;
   double f4 = f2 * f2;
   double f8 = f4 * f4;
-  double p = fma (f, ESTRIN_18 (f, f2, f4, f8, f8 * f8, C) * f, f);
+  double p = fma (
+      f, estrin_18_f64 (f, f2, f4, f8, f8 * f8, __log1p_data.coeffs) * f, f);
 
   /* Recombine log1p(x) = k*log2 + log1p(f) + c/m.  */
   double kd = k;
@@ -78,9 +78,6 @@ atanh (double x)
 
 PL_SIG (S, D, 1, atanh, -1.0, 1.0)
 PL_TEST_ULP (atanh, 3.00)
-PL_TEST_INTERVAL (atanh, 0, 0x1p-23, 10000)
-PL_TEST_INTERVAL (atanh, -0, -0x1p-23, 10000)
-PL_TEST_INTERVAL (atanh, 0x1p-23, 1, 90000)
-PL_TEST_INTERVAL (atanh, -0x1p-23, -1, 90000)
-PL_TEST_INTERVAL (atanh, 1, inf, 100)
-PL_TEST_INTERVAL (atanh, -1, -inf, 100)
+PL_TEST_SYM_INTERVAL (atanh, 0, 0x1p-23, 10000)
+PL_TEST_SYM_INTERVAL (atanh, 0x1p-23, 1, 90000)
+PL_TEST_SYM_INTERVAL (atanh, 1, inf, 100)

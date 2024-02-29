@@ -1,0 +1,29 @@
+// polynomial for approximating asin(x)
+//
+// Copyright (c) 2023, Arm Limited.
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+f = asin(x);
+dtype = double;
+
+prec=256;
+
+a = 0x1p-106;
+b = 0.25;
+
+deg = 11;
+
+backward = proc(poly, d) {
+  return d + d ^ 3 * poly(d * d);
+};
+
+forward = proc(f, d) {
+  return (f(sqrt(d))-sqrt(d))/(d*sqrt(d));
+};
+
+poly = fpminimax(forward(f, x), [|0,...,deg|], [|dtype ...|], [a;b], relative, floating);
+
+display = hexadecimal!;
+print("rel error:", dirtyinfnorm(1-backward(poly, x)/f(x), [a;b]));
+print("in [", a, b, "]");
+for i from 0 to deg do print(coeff(poly, i));

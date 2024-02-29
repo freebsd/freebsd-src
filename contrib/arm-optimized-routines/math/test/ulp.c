@@ -1,10 +1,11 @@
 /*
  * ULP error checking tool for math functions.
  *
- * Copyright (c) 2019-2022, Arm Limited.
+ * Copyright (c) 2019-2023, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
+#define _GNU_SOURCE
 #include <ctype.h>
 #include <fenv.h>
 #include <float.h>
@@ -21,11 +22,6 @@
 #endif
 #if USE_MPFR
 # include <mpfr.h>
-#endif
-
-#ifndef WANT_VMATH
-/* Enable the build of vector math code.  */
-# define WANT_VMATH 1
 #endif
 
 static inline uint64_t
@@ -212,6 +208,7 @@ struct conf
   unsigned long long n;
   double softlim;
   double errlim;
+  int ignore_zero_sign;
 };
 
 /* A bit of a hack: call vector functions twice with the same
@@ -220,7 +217,7 @@ struct conf
 static int secondcall;
 
 /* Wrappers for vector functions.  */
-#if __aarch64__ && WANT_VMATH
+#ifdef __vpcs
 typedef __f32x4_t v_float;
 typedef __f64x2_t v_double;
 /* First element of fv and dv may be changed by -c argument.  */
@@ -264,39 +261,7 @@ static inline double svretd(sv_double vec) {
 #endif
 #endif
 
-#if WANT_SVE_MATH
-long double
-dummyl (long double x)
-{
-  return x;
-}
-
-double
-dummy (double x)
-{
-  return x;
-}
-
-static sv_double
-__sv_dummy (sv_double x)
-{
-  return x;
-}
-
-static sv_float
-__sv_dummyf (sv_float x)
-{
-  return x;
-}
-#endif
-
 #include "test/ulp_wrappers.h"
-
-/* Wrappers for SVE functions.  */
-#if WANT_SVE_MATH
-static double sv_dummy (double x) { return svretd (__sv_dummy (svargd (x))); }
-static float sv_dummyf (float x) { return svretf (__sv_dummyf (svargf (x))); }
-#endif
 
 struct fun
 {
@@ -358,10 +323,6 @@ static const struct fun fun[] = {
 #define ZVNF2(x) VNF2 (x) ZVF2 (x)
 #define ZVND1(x) VND1 (x) ZVD1 (x)
 #define ZVND2(x) VND2 (x) ZVD2 (x)
-#define SF1(x) F (__s_##x##f, __s_##x##f, x, mpfr_##x, 1, 1, f1, 0)
-#define SF2(x) F (__s_##x##f, __s_##x##f, x, mpfr_##x, 2, 1, f2, 0)
-#define SD1(x) F (__s_##x, __s_##x, x##l, mpfr_##x, 1, 0, d1, 0)
-#define SD2(x) F (__s_##x, __s_##x, x##l, mpfr_##x, 2, 0, d2, 0)
 /* SVE routines.  */
 #define SVF1(x) F (__sv_##x##f, sv_##x##f, x, mpfr_##x, 1, 1, f1, 0)
 #define SVF2(x) F (__sv_##x##f, sv_##x##f, x, mpfr_##x, 2, 1, f2, 0)
@@ -373,11 +334,6 @@ static const struct fun fun[] = {
 #define ZSVD2(x) F (_ZGVsMxvv_##x, Z_sv_##x, x##l, mpfr_##x, 2, 0, d2, 0)
 
 #include "test/ulp_funcs.h"
-
-#if WANT_SVE_MATH
- SVD1 (dummy)
- SVF1 (dummy)
-#endif
 
 #undef F
 #undef F1
@@ -628,17 +584,18 @@ call_mpfr_d2 (mpfr_t y, const struct fun *f, struct args_d2 a, mpfr_rnd_t r)
 static void
 usage (void)
 {
-  puts ("./ulp [-q] [-m] [-f] [-r nudz] [-l soft-ulplimit] [-e ulplimit] func "
+  puts ("./ulp [-q] [-m] [-f] [-r {n|u|d|z}] [-l soft-ulplimit] [-e ulplimit] func "
 	"lo [hi [x lo2 hi2] [count]]");
   puts ("Compares func against a higher precision implementation in [lo; hi].");
   puts ("-q: quiet.");
   puts ("-m: use mpfr even if faster method is available.");
-  puts ("-f: disable fenv testing (rounding modes and exceptions).");
-#if __aarch64__ && WANT_VMATH
+  puts ("-f: disable fenv exceptions testing.");
+#ifdef ___vpcs
   puts ("-c: neutral 'control value' to test behaviour when one lane can affect another. \n"
 	"    This should be different from tested input in other lanes, and non-special \n"
 	"    (i.e. should not trigger fenv exceptions). Default is 1.");
 #endif
+  puts ("-z: ignore sign of 0.");
   puts ("Supported func:");
   for (const struct fun *f = fun; f->name; f++)
     printf ("\t%s\n", f->name);
@@ -762,6 +719,7 @@ main (int argc, char *argv[])
   conf.fenv = 1;
   conf.softlim = 0;
   conf.errlim = INFINITY;
+  conf.ignore_zero_sign = 0;
   for (;;)
     {
       argc--;
@@ -801,12 +759,15 @@ main (int argc, char *argv[])
 	    {
 	      argc--;
 	      argv++;
-	      if (argc < 1)
+	      if (argc < 1 || argv[0][1] != '\0')
 		usage ();
 	      conf.rc = argv[0][0];
 	    }
 	  break;
-#if __aarch64__ && WANT_VMATH
+	case 'z':
+	  conf.ignore_zero_sign = 1;
+	  break;
+#ifdef __vpcs
 	case 'c':
 	  argc--;
 	  argv++;
@@ -839,7 +800,19 @@ main (int argc, char *argv[])
     if (strcmp (argv[0], f->name) == 0)
       break;
   if (!f->name)
-    usage ();
+    {
+#ifndef __vpcs
+      /* Ignore vector math functions if vector math is not supported.  */
+      if (strncmp (argv[0], "_ZGVnN", 6) == 0)
+	exit (0);
+#endif
+#if !WANT_SVE_MATH
+      if (strncmp (argv[0], "_ZGVsMxv", 8) == 0)
+	exit (0);
+#endif
+      printf ("math function %s not supported\n", argv[0]);
+      exit (1);
+    }
   if (!f->singleprec && LDBL_MANT_DIG == DBL_MANT_DIG)
     conf.mpfr = 1; /* Use mpfr if long double has no extra precision.  */
   if (!USE_MPFR && conf.mpfr)

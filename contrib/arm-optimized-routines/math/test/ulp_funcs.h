@@ -1,9 +1,10 @@
 /*
  * Function entries for ulp.
  *
- * Copyright (c) 2022, Arm Limited.
+ * Copyright (c) 2022-2023, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
+/* clang-format off */
  F1 (sin)
  F1 (cos)
  F (sincosf_sinf, sincosf_sinf, sincos_sin, sincos_mpfr_sin, 1, 1, f1, 0)
@@ -15,56 +16,18 @@
  F2 (pow)
  F1 (erf)
  D1 (exp)
+ D1 (exp10)
  D1 (exp2)
  D1 (log)
  D1 (log2)
  D2 (pow)
  D1 (erf)
-#if WANT_VMATH
- F (__s_sinf, __s_sinf, sin, mpfr_sin, 1, 1, f1, 0)
- F (__s_cosf, __s_cosf, cos, mpfr_cos, 1, 1, f1, 0)
- F (__s_expf_1u, __s_expf_1u, exp, mpfr_exp, 1, 1, f1, 0)
- F (__s_expf, __s_expf, exp, mpfr_exp, 1, 1, f1, 0)
- F (__s_exp2f_1u, __s_exp2f_1u, exp2, mpfr_exp2, 1, 1, f1, 0)
- F (__s_exp2f, __s_exp2f, exp2, mpfr_exp2, 1, 1, f1, 0)
- F (__s_powf, __s_powf, pow, mpfr_pow, 2, 1, f2, 0)
- F (__s_logf, __s_logf, log, mpfr_log, 1, 1, f1, 0)
- F (__s_sin, __s_sin, sinl, mpfr_sin, 1, 0, d1, 0)
- F (__s_cos, __s_cos, cosl, mpfr_cos, 1, 0, d1, 0)
- F (__s_exp, __s_exp, expl, mpfr_exp, 1, 0, d1, 0)
- F (__s_log, __s_log, logl, mpfr_log, 1, 0, d1, 0)
- F (__s_pow, __s_pow, powl, mpfr_pow, 2, 0, d2, 0)
-#if __aarch64__
- F (__v_sinf, v_sinf, sin, mpfr_sin, 1, 1, f1, 1)
- F (__v_cosf, v_cosf, cos, mpfr_cos, 1, 1, f1, 1)
- F (__v_expf_1u, v_expf_1u, exp, mpfr_exp, 1, 1, f1, 1)
- F (__v_expf, v_expf, exp, mpfr_exp, 1, 1, f1, 1)
- F (__v_exp2f_1u, v_exp2f_1u, exp2, mpfr_exp2, 1, 1, f1, 1)
- F (__v_exp2f, v_exp2f, exp2, mpfr_exp2, 1, 1, f1, 1)
- F (__v_logf, v_logf, log, mpfr_log, 1, 1, f1, 1)
- F (__v_powf, v_powf, pow, mpfr_pow, 2, 1, f2, 1)
- F (__v_sin, v_sin, sinl, mpfr_sin, 1, 0, d1, 1)
- F (__v_cos, v_cos, cosl, mpfr_cos, 1, 0, d1, 1)
- F (__v_exp, v_exp, expl, mpfr_exp, 1, 0, d1, 1)
- F (__v_log, v_log, logl, mpfr_log, 1, 0, d1, 1)
- F (__v_pow, v_pow, powl, mpfr_pow, 2, 0, d2, 1)
 #ifdef __vpcs
- F (__vn_sinf, vn_sinf, sin, mpfr_sin, 1, 1, f1, 1)
- F (__vn_cosf, vn_cosf, cos, mpfr_cos, 1, 1, f1, 1)
- F (__vn_expf_1u, vn_expf_1u, exp, mpfr_exp, 1, 1, f1, 1)
- F (__vn_expf, vn_expf, exp, mpfr_exp, 1, 1, f1, 1)
- F (__vn_exp2f_1u, vn_exp2f_1u, exp2, mpfr_exp2, 1, 1, f1, 1)
- F (__vn_exp2f, vn_exp2f, exp2, mpfr_exp2, 1, 1, f1, 1)
- F (__vn_logf, vn_logf, log, mpfr_log, 1, 1, f1, 1)
- F (__vn_powf, vn_powf, pow, mpfr_pow, 2, 1, f2, 1)
- F (__vn_sin, vn_sin, sinl, mpfr_sin, 1, 0, d1, 1)
- F (__vn_cos, vn_cos, cosl, mpfr_cos, 1, 0, d1, 1)
- F (__vn_exp, vn_exp, expl, mpfr_exp, 1, 0, d1, 1)
- F (__vn_log, vn_log, logl, mpfr_log, 1, 0, d1, 1)
- F (__vn_pow, vn_pow, powl, mpfr_pow, 2, 0, d2, 1)
  F (_ZGVnN4v_sinf, Z_sinf, sin, mpfr_sin, 1, 1, f1, 1)
  F (_ZGVnN4v_cosf, Z_cosf, cos, mpfr_cos, 1, 1, f1, 1)
+ F (_ZGVnN4v_expf_1u, Z_expf_1u, exp, mpfr_exp, 1, 1, f1, 1)
  F (_ZGVnN4v_expf, Z_expf, exp, mpfr_exp, 1, 1, f1, 1)
+ F (_ZGVnN4v_exp2f_1u, Z_exp2f_1u, exp2, mpfr_exp2, 1, 1, f1, 1)
  F (_ZGVnN4v_exp2f, Z_exp2f, exp2, mpfr_exp2, 1, 1, f1, 1)
  F (_ZGVnN4v_logf, Z_logf, log, mpfr_log, 1, 1, f1, 1)
  F (_ZGVnN4vv_powf, Z_powf, pow, mpfr_pow, 2, 1, f2, 1)
@@ -74,5 +37,4 @@
  F (_ZGVnN2v_log, Z_log, logl, mpfr_log, 1, 0, d1, 1)
  F (_ZGVnN2vv_pow, Z_pow, powl, mpfr_pow, 2, 0, d2, 1)
 #endif
-#endif
-#endif
+/* clang-format on */

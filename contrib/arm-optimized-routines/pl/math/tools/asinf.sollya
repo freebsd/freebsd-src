@@ -1,0 +1,36 @@
+// polynomial for approximating asinf(x)
+//
+// Copyright (c) 2023, Arm Limited.
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+f = asin(x);
+dtype = single;
+
+a = 0x1p-24;
+b = 0.25;
+
+deg = 4;
+
+backward = proc(poly, d) {
+  return d + d ^ 3 * poly(d * d);
+};
+
+forward = proc(f, d) {
+  return (f(sqrt(d))-sqrt(d))/(d*sqrt(d));
+};
+
+approx = proc(poly, d) {
+  return remez(1 - poly(x) / forward(f, x), deg - d, [a;b], x^d/forward(f, x), 1e-16);
+};
+
+poly = 0;
+for i from 0 to deg do {
+  i;
+  p = roundcoefficients(approx(poly,i), [|dtype ...|]);
+  poly = poly + x^i*coeff(p,0);
+};
+
+display = hexadecimal!;
+print("rel error:", accurateinfnorm(1-backward(poly, x)/f(x), [a;b], 30));
+print("in [", a, b, "]");
+for i from 0 to deg do print(coeff(poly, i));

@@ -9,76 +9,78 @@
 #include "pl_sig.h"
 #include "pl_test.h"
 
-#if SV_SUPPORTED
-
-#define InvPio2 (sv_f64 (0x1.45f306dc9c882p-1))
-#define NegPio2_1 (sv_f64 (-0x1.921fb50000000p+0))
-#define NegPio2_2 (sv_f64 (-0x1.110b460000000p-26))
-#define NegPio2_3 (sv_f64 (-0x1.1a62633145c07p-54))
-/* Original shift used in Neon cos,
-   plus a contribution to set the bit #0 of q
-   as expected by trigonometric instructions.  */
-#define Shift (sv_f64 (0x1.8000000000001p52))
-#define RangeVal (sv_f64 (0x1p23))
-#define AbsMask (0x7fffffffffffffff)
-
-static NOINLINE sv_f64_t
-__sv_cos_specialcase (sv_f64_t x, sv_f64_t y, svbool_t cmp)
+static const struct data
 {
-  return sv_call_f64 (cos, x, y, cmp);
+  double inv_pio2, pio2_1, pio2_2, pio2_3, shift;
+} data = {
+  /* Polynomial coefficients are hardwired in FTMAD instructions.  */
+  .inv_pio2 = 0x1.45f306dc9c882p-1,
+  .pio2_1 = 0x1.921fb50000000p+0,
+  .pio2_2 = 0x1.110b460000000p-26,
+  .pio2_3 = 0x1.1a62633145c07p-54,
+  /* Original shift used in AdvSIMD cos,
+     plus a contribution to set the bit #0 of q
+     as expected by trigonometric instructions.  */
+  .shift = 0x1.8000000000001p52
+};
+
+#define RangeVal 0x4160000000000000 /* asuint64 (0x1p23).  */
+
+static svfloat64_t NOINLINE
+special_case (svfloat64_t x, svfloat64_t y, svbool_t oob)
+{
+  return sv_call_f64 (cos, x, y, oob);
 }
 
 /* A fast SVE implementation of cos based on trigonometric
    instructions (FTMAD, FTSSEL, FTSMUL).
    Maximum measured error: 2.108 ULPs.
-   __sv_cos(0x1.9b0ba158c98f3p+7) got -0x1.fddd4c65c7f07p-3
-				 want -0x1.fddd4c65c7f05p-3.  */
-sv_f64_t
-__sv_cos_x (sv_f64_t x, const svbool_t pg)
+   SV_NAME_D1 (cos)(0x1.9b0ba158c98f3p+7) got -0x1.fddd4c65c7f07p-3
+					 want -0x1.fddd4c65c7f05p-3.  */
+svfloat64_t SV_NAME_D1 (cos) (svfloat64_t x, const svbool_t pg)
 {
-  sv_f64_t n, r, r2, y;
-  svbool_t cmp;
+  const struct data *d = ptr_barrier (&data);
 
-  r = sv_as_f64_u64 (svand_n_u64_x (pg, sv_as_u64_f64 (x), AbsMask));
-  cmp = svcmpge_u64 (pg, sv_as_u64_f64 (r), sv_as_u64_f64 (RangeVal));
+  svfloat64_t r = svabs_x (pg, x);
+  svbool_t oob = svcmpge (pg, svreinterpret_u64 (r), RangeVal);
+
+  /* Load some constants in quad-word chunks to minimise memory access.  */
+  svbool_t ptrue = svptrue_b64 ();
+  svfloat64_t invpio2_and_pio2_1 = svld1rq (ptrue, &d->inv_pio2);
+  svfloat64_t pio2_23 = svld1rq (ptrue, &d->pio2_2);
 
   /* n = rint(|x|/(pi/2)).  */
-  sv_f64_t q = sv_fma_f64_x (pg, InvPio2, r, Shift);
-  n = svsub_f64_x (pg, q, Shift);
+  svfloat64_t q = svmla_lane (sv_f64 (d->shift), r, invpio2_and_pio2_1, 0);
+  svfloat64_t n = svsub_x (pg, q, d->shift);
 
   /* r = |x| - n*(pi/2)  (range reduction into -pi/4 .. pi/4).  */
-  r = sv_fma_f64_x (pg, NegPio2_1, n, r);
-  r = sv_fma_f64_x (pg, NegPio2_2, n, r);
-  r = sv_fma_f64_x (pg, NegPio2_3, n, r);
+  r = svmls_lane (r, n, invpio2_and_pio2_1, 1);
+  r = svmls_lane (r, n, pio2_23, 0);
+  r = svmls_lane (r, n, pio2_23, 1);
 
   /* cos(r) poly approx.  */
-  r2 = svtsmul_f64 (r, sv_as_u64_f64 (q));
-  y = sv_f64 (0.0);
-  y = svtmad_f64 (y, r2, 7);
-  y = svtmad_f64 (y, r2, 6);
-  y = svtmad_f64 (y, r2, 5);
-  y = svtmad_f64 (y, r2, 4);
-  y = svtmad_f64 (y, r2, 3);
-  y = svtmad_f64 (y, r2, 2);
-  y = svtmad_f64 (y, r2, 1);
-  y = svtmad_f64 (y, r2, 0);
+  svfloat64_t r2 = svtsmul (r, svreinterpret_u64 (q));
+  svfloat64_t y = sv_f64 (0.0);
+  y = svtmad (y, r2, 7);
+  y = svtmad (y, r2, 6);
+  y = svtmad (y, r2, 5);
+  y = svtmad (y, r2, 4);
+  y = svtmad (y, r2, 3);
+  y = svtmad (y, r2, 2);
+  y = svtmad (y, r2, 1);
+  y = svtmad (y, r2, 0);
 
   /* Final multiplicative factor: 1.0 or x depending on bit #0 of q.  */
-  sv_f64_t f = svtssel_f64 (r, sv_as_u64_f64 (q));
-  /* Apply factor.  */
-  y = svmul_f64_x (pg, f, y);
+  svfloat64_t f = svtssel (r, svreinterpret_u64 (q));
 
-  /* No need to pass pg to specialcase here since cmp is a strict subset,
-     guaranteed by the cmpge above.  */
-  if (unlikely (svptest_any (pg, cmp)))
-    return __sv_cos_specialcase (x, y, cmp);
-  return y;
+  if (unlikely (svptest_any (pg, oob)))
+    return special_case (x, svmul_x (svnot_z (pg, oob), y, f), oob);
+
+  /* Apply factor.  */
+  return svmul_x (pg, f, y);
 }
 
-PL_ALIAS (__sv_cos_x, _ZGVsMxv_cos)
-
 PL_SIG (SV, D, 1, cos, -3.1, 3.1)
-PL_TEST_ULP (__sv_cos, 1.61)
-PL_TEST_INTERVAL (__sv_cos, 0, 0xffff0000, 10000)
-PL_TEST_INTERVAL (__sv_cos, 0x1p-4, 0x1p4, 500000)
-#endif
+PL_TEST_ULP (SV_NAME_D1 (cos), 1.61)
+PL_TEST_INTERVAL (SV_NAME_D1 (cos), 0, 0xffff0000, 10000)
+PL_TEST_INTERVAL (SV_NAME_D1 (cos), 0x1p-4, 0x1p4, 500000)
