@@ -4,7 +4,6 @@ FBSD_1.0 {
 };
 
 FBSDprivate_1.0 {
-	_getlogin;
 	_vfork;
 	_brk;
 	_sbrk;

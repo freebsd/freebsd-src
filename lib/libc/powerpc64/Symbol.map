@@ -12,7 +12,3 @@ FBSD_1.0 {
 	fpsetmask;
 	fpsetround;
 };
-
-FBSDprivate_1.0 {
-	_getlogin;
-};
