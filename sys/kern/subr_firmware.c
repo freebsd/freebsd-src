@@ -29,6 +29,7 @@
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/eventhandler.h>
+#include <sys/fcntl.h>
 #include <sys/firmware.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
@@ -36,9 +37,12 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sbuf.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 
@@ -85,8 +89,9 @@ struct priv_fw {
 	 */
 	struct priv_fw	*parent;
 
-	int 		flags;	/* record FIRMWARE_UNLOAD requests */
-#define FW_UNLOAD	0x100
+	int 		flags;
+#define FW_BINARY	0x080	/* Firmware directly loaded, file == NULL */
+#define FW_UNLOAD	0x100	/* record FIRMWARE_UNLOAD requests */
 
 	/*
 	 * 'file' is private info managed by the autoload/unload code.
@@ -120,7 +125,8 @@ static LIST_HEAD(, priv_fw) firmware_table;
 
 /*
  * Firmware module operations are handled in a separate task as they
- * might sleep and they require directory context to do i/o.
+ * might sleep and they require directory context to do i/o. We also
+ * use this when loading binaries directly.
  */
 static struct taskqueue *firmware_tq;
 static struct task firmware_unload_task;
@@ -132,6 +138,11 @@ static struct mtx firmware_mtx;
 MTX_SYSINIT(firmware, &firmware_mtx, "firmware table", MTX_DEF);
 
 static MALLOC_DEFINE(M_FIRMWARE, "firmware", "device firmware images");
+
+static uint64_t firmware_max_size = 8u << 20; /* Default to 8MB cap */
+SYSCTL_U64(_debug, OID_AUTO, firmware_max_size,
+    CTLFLAG_RWTUN, &firmware_max_size, 0,
+    "Max size permitted for a firmware file.");
 
 /*
  * Helper function to lookup a name.
@@ -240,6 +251,85 @@ struct fw_loadimage {
 	uint32_t	flags;
 };
 
+static const char *fw_path = "/boot/firmware/";
+
+static void
+try_binary_file(const char *imagename, uint32_t flags)
+{
+	struct nameidata nd;
+	struct thread *td = curthread;
+	struct ucred *cred = td ? td->td_ucred : NULL;
+	struct sbuf *sb;
+	struct priv_fw *fp;
+	const char *fn;
+	struct vattr vattr;
+	void *data = NULL;
+	const struct firmware *fw;
+	int flags;
+	size_t resid;
+	int error;
+	bool warn = flags & FIRMWARE_GET_NOWARN;
+
+	/*
+	 * XXX TODO: Loop over some path instead of a single element path.
+	 * and fetch this path from the 'firmware_path' kenv the loader sets.
+	 */
+	sb = sbuf_new_auto();
+	sbuf_printf(sb, "%s%s", fw_path, imagename);
+	sbuf_finish(sb);
+	fn = sbuf_data(sb);
+	if (bootverbose)
+		printf("Trying to load binary firmware from %s\n", fn);
+
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, fn);
+	flags = FREAD;
+	error = vn_open(&nd, &flags, 0, NULL);
+	if (error)
+		goto err;
+	NDFREE_PNBUF(&nd);
+	if (nd.ni_vp->v_type != VREG)
+		goto err2;
+	error = VOP_GETATTR(nd.ni_vp, &vattr, cred);
+	if (error)
+		goto err2;
+
+	/*
+	 * Limit this to something sane, 8MB by default.
+	 */
+	if (vattr.va_size > firmware_max_size) {
+		printf("Firmware %s is too big: %ld bytes, %ld bytes max.\n",
+		    fn, vattr.va_size, firmware_max_size);
+		goto err2;
+	}
+	data = malloc(vattr.va_size, M_FIRMWARE, M_WAITOK);
+	error = vn_rdwr(UIO_READ, nd.ni_vp, (caddr_t)data, vattr.va_size, 0,
+	    UIO_SYSSPACE, IO_NODELOCKED, cred, NOCRED, &resid, td);
+	/* XXX make data read only? */
+	VOP_UNLOCK(nd.ni_vp);
+	vn_close(nd.ni_vp, FREAD, cred, td);
+	nd.ni_vp = NULL;
+	if (error != 0 || resid != 0)
+		goto err;
+	fw = firmware_register(fn, data, vattr.va_size, 0, NULL);
+	if (fw == NULL)
+		goto err;
+	fp = PRIV_FW(fw);
+	fp->flags |= FW_BINARY;
+	if (bootverbose)
+		printf("%s: Loaded binary firmware using %s\n", imagename, fn);
+	sbuf_delete(sb);
+	return;
+
+err2: /* cleanup in vn_open through vn_close */
+	VOP_UNLOCK(nd.ni_vp);
+	vn_close(nd.ni_vp, FREAD, cred, td);
+err:
+	free(data, M_FIRMWARE);
+	if (bootverbose || warn)
+		printf("%s: could not load binary firmware %s either\n", imagename, fn);
+	sbuf_delete(sb);
+}
+
 static void
 loadimage(void *arg, int npending __unused)
 {
@@ -253,6 +343,7 @@ loadimage(void *arg, int npending __unused)
 		if (bootverbose || (fwli->flags & FIRMWARE_GET_NOWARN) == 0)
 			printf("%s: could not load firmware image, error %d\n",
 			    fwli->imagename, error);
+		try_binary_file(fwli->imagename, fwli->flags);
 		mtx_lock(&firmware_mtx);
 		goto done;
 	}
@@ -408,17 +499,32 @@ EVENTHANDLER_DEFINE(mountroot, firmware_mountroot, NULL, 0);
 static void
 unloadentry(void *unused1, int unused2)
 {
-	struct priv_fw *fp;
+	struct priv_fw *fp, *tmp;
 
 	mtx_lock(&firmware_mtx);
 restart:
-	LIST_FOREACH(fp, &firmware_table, link) {
-		if (fp->file == NULL || fp->refcnt != 0 ||
-		    (fp->flags & FW_UNLOAD) == 0)
+	LIST_FOREACH_SAFE(fp, &firmware_table, link, tmp) {
+		if (((fp->flags & FW_BINARY) == 0 && fp->file == NULL) ||
+		    fp->refcnt != 0 || (fp->flags & FW_UNLOAD) == 0)
 			continue;
 
 		/*
-		 * Found an entry. Now:
+		 * If we directly loaded the firmware, then we just need to
+		 * remove the entry from the list and free the entry and go to
+		 * the next one.  There's no need for the indirection of the kld
+		 * module case, we free memory and go to the next one.
+		 */
+		if ((fp->flags & FW_BINARY) != 0) {
+			LIST_REMOVE(fp, link);
+			free(__DECONST(char *, fp->fw.data), M_FIRMWARE);
+			free(__DECONST(char *, fp->fw.name), M_FIRMWARE);
+			free(fp, M_FIRMWARE);
+			continue;
+		}
+
+		/*
+		 * Found an entry.  This is the kld case, so we have a more
+		 * complex dance.  Now:
 		 * 1. make sure we scan the table again
 		 * 2. clear FW_UNLOAD so we don't try this entry again.
 		 * 3. release the lock while trying to unload the module.
