@@ -21,7 +21,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 19, 2024
+.Dd January 25, 2024
 .Dt FIRMWARE 9
 .Os
 .Sh NAME
@@ -89,8 +89,11 @@ and unregistered by calling
 These functions are usually (but not exclusively) called by
 specially crafted kernel modules that contain the firmware image.
 The modules can be statically compiled in the kernel, or loaded by
-.Nm /boot/loader ,
+.Pa /boot/loader ,
 manually at runtime, or on demand by the firmware subsystem.
+.Pp
+Firmware binary files may also be loaded directly rather than embedded into
+kernel modules.
 .Pp
 .Nm Clients
 of the firmware subsystem can request access to a given image
@@ -186,7 +189,7 @@ By default a firmware image will be deferred to a
 .Xr taskqueue 9
 thread so the call may be done while holding a lock.
 In certain cases, such as on driver detach, this cannot be allowed.
-.Sh FIRMWARE LOADING MECHANISMS
+.Sh FIRMWARE LOADING VIA MODULES
 As mentioned before, any component of the system can register
 firmware images at any time by simply calling
 .Fn firmware_register .
@@ -194,7 +197,7 @@ firmware images at any time by simply calling
 This is typically done when a module containing
 a firmware image is given control,
 whether compiled in, or preloaded by
-.Nm /boot/loader ,
+.Pa /boot/loader ,
 or manually loaded with
 .Xr kldload 8 .
 However, a system can implement additional mechanisms to bring
@@ -220,7 +223,7 @@ In particular, images are looked up in the directories specified
 by the sysctl variable
 .Nm kern.module_path
 which on most systems defaults to
-.Nm /boot/kernel;/boot/modules .
+.Pa /boot/kernel;/boot/modules .
 .Pp
 Note that in case a module contains multiple images,
 the caller should first request a
@@ -281,9 +284,93 @@ the availability of the following tools:
 .Xr awk 1 ,
 .Xr make 1 ,
 the compiler and the linker.
+.Sh LOADING BINARY FIRMWARE FILES
+.Ss Binary Firmware Format
+Binary firmware files can also be loaded, either from
+.Pa /boot/loader ,
+or when
+.Nm firmware_get
+cannot find the registered firmware from a kernel module.
+Binary firmware files are raw binary files that the creator of the firmware
+made.
+They offer an easier way to load firmware, but one that lacks the full
+flexibility and generality of kernel modules with the following restrictions:
+.Bl -bullet -compact
+.It
+Binary firmware files only hold one set of firmware.
+.It
+They do not offer kernel module dependencies to ensure they are loaded
+automatically by the boot loader.
+.It
+They cannot be compiled into the kernel.
+.It
+The
+.Nm imagename
+is identical to the full path name used to load the module.
+.It
+The version number is assumed to be zero.
+.El
+.Ss Loading from Pa /boot/loader
+Binary firmware files may be loaded either from the command line with
+.Dq load -t firmware /boot/firmware/filename
+or using the
+.Xr loader.conf 5
+mechanism to load modules with a type of
+.Dq firmware
+For example
+.Bd -literal
+wififw_load="YES"
+wififw_name="/boot/firmware/wifi2034_fw.bin"
+wififw_type="firmware"
+.Ed
+.Ss On demand loading from Nm firmware_get
+If no kernel module with an embedded firmware image named
+.Nm imagename
+is loaded, then
+.Nm imagename
+will be appended to the module path (by default
+.Pa /boot/firmware/ )
+and if that file exists, it will be loaded and registered using
+.Nm firmware_register
+using the full path to the filename as
+.Nm imagename .
+.Ss Searching for imagename
+.Nm firmware_get
+uses the following algorithm to find firmware images:
+.Bl -bullet -compact
+.It
+If an existing firmware image is registered for
+.Fa imagename,
+.that image is returned.
+.It
+If
+.Fa imagename
+matches the trailing subpath of a registered image with a full path, that image is returned.
+.It
+he kernel linker searches for a kernel module named
+.Fa imagename .
+If a kernel module is found, it is loaded, and
+the list of registered firmware images is searched again.
+If a match is found, the matching image is returned.
+.It
+The kernel searches for a file named
+.Fa imagename
+in the firmware image path
+(by default
+.Pa /boot/firmware/ ) .
+If that file exists and can be read,
+it contents are registered as a firmware image with the full path as the
+.Nm imagename
+and that firmware is returned.
+Currently, there is an 8MB limit on the size of the firmware image.
+This can be changed by by the sysctl variable
+.Nm debug.max_firmware_size .
+.El
 .Sh SEE ALSO
 .Xr kld 4 ,
 .Xr module 9
+.Pp
+.Pa /boot/firmware
 .Pp
 .Pa /usr/share/examples/kld/firmware
 .Sh HISTORY
@@ -291,6 +378,8 @@ The
 .Nm firmware
 system was introduced in
 .Fx 6.1 .
+Binary firmware loading was introduced in
+.Fx 15.0 .
 .Sh AUTHORS
 This manual page was written by
 .An Max Laier Aq Mt mlaier@FreeBSD.org .
