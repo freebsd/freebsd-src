@@ -230,10 +230,6 @@ read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
 		nvme_health_information_page_swapbytes(
 		    (struct nvme_health_information_page *)payload);
 		break;
-	case NVME_LOG_FIRMWARE_SLOT:
-		nvme_firmware_page_swapbytes(
-		    (struct nvme_firmware_page *)payload);
-		break;
 	case NVME_LOG_CHANGED_NAMESPACE:
 		nvme_ns_list_swapbytes((struct nvme_ns_list *)payload);
 		break;
@@ -424,15 +420,10 @@ print_log_firmware(const struct nvme_controller_data *cdata, void *buf, uint32_t
 		else
 			status = "Inactive";
 
-		if (fw->revision[i] == 0LLU)
+		if (fw->revision[i][0] == '\0')
 			printf("Empty\n");
 		else
-			if (isprint(*(char *)&fw->revision[i]))
-				printf("[%s] %.8s\n", status,
-				    (char *)&fw->revision[i]);
-			else
-				printf("[%s] %016jx\n", status,
-				    fw->revision[i]);
+			printf("[%s] %.8s\n", status, fw->revision[i]);
 	}
 }
 
