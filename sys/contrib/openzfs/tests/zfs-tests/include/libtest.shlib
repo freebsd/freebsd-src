@@ -37,6 +37,12 @@
 
 . ${STF_SUITE}/include/tunables.cfg
 
+# On AlmaLinux 9 we will see $PWD = '.' instead of the full path.  This causes
+# some tests to fail.  Fix it up here.
+if [ "$PWD" = "." ] ; then
+	PWD="$(readlink -f $PWD)"
+fi
+
 #
 # Apply constrained path when available.  This is required since the
 # PATH may have been modified by sudo's secure_path behavior.
@@ -3353,6 +3359,18 @@ function is_te_enabled
 		return 1
 	else
 		return 0
+	fi
+}
+
+# Return the number of CPUs (cross-platform)
+function get_num_cpus
+{
+	if is_linux ; then
+		grep -c '^processor' /proc/cpuinfo
+	elif is_freebsd; then
+		sysctl -n kern.smp.cpus
+	else
+		psrinfo | wc -l
 	fi
 }
 

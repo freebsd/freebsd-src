@@ -36,7 +36,7 @@
 .Sh SYNOPSIS
 .Nm zpool
 .Cm status
-.Op Fl DigLpPstvx
+.Op Fl DeigLpPstvx
 .Op Fl T Sy u Ns | Ns Sy d
 .Op Fl c Op Ar SCRIPT1 Ns Oo , Ns Ar SCRIPT2 Oc Ns …
 .Oo Ar pool Oc Ns …
@@ -57,6 +57,8 @@ and the estimated time to completion.
 Both of these are only approximate, because the amount of data in the pool and
 the other workloads on the system can change.
 .Bl -tag -width Ds
+.It Fl -power
+Display vdev enclosure slot power status (on or off).
 .It Fl c Op Ar SCRIPT1 Ns Oo , Ns Ar SCRIPT2 Oc Ns …
 Run a script (or scripts) on each vdev and include the output as a new column
 in the
@@ -67,6 +69,8 @@ See the
 option of
 .Nm zpool Cm iostat
 for complete details.
+.It Fl e
+Only show unhealthy vdevs (not-ONLINE or with errors).
 .It Fl i
 Display vdev initialization status.
 .It Fl g

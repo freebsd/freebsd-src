@@ -311,6 +311,8 @@ _LIBZFS_H int zpool_vdev_remove_wanted(zpool_handle_t *, const char *);
 
 extern int zpool_vdev_fault(zpool_handle_t *, uint64_t, vdev_aux_t);
 extern int zpool_vdev_degrade(zpool_handle_t *, uint64_t, vdev_aux_t);
+extern int zpool_vdev_set_removed_state(zpool_handle_t *, uint64_t,
+    vdev_aux_t);
 extern int zpool_vdev_clear(zpool_handle_t *, uint64_t);
 
 extern nvlist_t *zpool_find_vdev(zpool_handle_t *, const char *, boolean_t *,
@@ -318,6 +320,15 @@ extern nvlist_t *zpool_find_vdev(zpool_handle_t *, const char *, boolean_t *,
 extern nvlist_t *zpool_find_vdev_by_physpath(zpool_handle_t *, const char *,
     boolean_t *, boolean_t *, boolean_t *);
 extern int zpool_label_disk(libzfs_handle_t *, zpool_handle_t *, const char *);
+extern int zpool_prepare_disk(zpool_handle_t *zhp, nvlist_t *vdev_nv,
+    const char *prepare_str, char **lines[], int *lines_cnt);
+extern int zpool_prepare_and_label_disk(libzfs_handle_t *hdl,
+    zpool_handle_t *, const char *, nvlist_t *vdev_nv, const char *prepare_str,
+    char **lines[], int *lines_cnt);
+extern char ** zpool_vdev_script_alloc_env(const char *pool_name,
+    const char *vdev_path, const char *vdev_upath,
+    const char *vdev_enc_sysfs_path, const char *opt_key, const char *opt_val);
+extern void zpool_vdev_script_free_env(char **env);
 extern uint64_t zpool_vdev_path_to_guid(zpool_handle_t *zhp, const char *path);
 
 const char *zpool_get_state_str(zpool_handle_t *);

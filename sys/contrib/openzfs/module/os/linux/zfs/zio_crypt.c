@@ -229,8 +229,27 @@ zio_crypt_key_init(uint64_t crypt, zio_crypt_key_t *key)
 	ASSERT(key != NULL);
 	ASSERT3U(crypt, <, ZIO_CRYPT_FUNCTIONS);
 
+/*
+ * Workaround for GCC 12+ with UBSan enabled deficencies.
+ *
+ * GCC 12+ invoked with -fsanitize=undefined incorrectly reports the code
+ * below as violating -Warray-bounds
+ */
+#if defined(__GNUC__) && !defined(__clang__) && \
+	((!defined(_KERNEL) && defined(ZFS_UBSAN_ENABLED)) || \
+	    defined(CONFIG_UBSAN))
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
 	keydata_len = zio_crypt_table[crypt].ci_keylen;
 	bzero(key, sizeof (zio_crypt_key_t));
+#if defined(__GNUC__) && !defined(__clang__) && \
+	((!defined(_KERNEL) && defined(ZFS_UBSAN_ENABLED)) || \
+	    defined(CONFIG_UBSAN))
+#pragma GCC diagnostic pop
+#endif
+	memset(key, 0, sizeof (zio_crypt_key_t));
+	rw_init(&key->zk_salt_lock, NULL, RW_DEFAULT, NULL);
 
 	/* fill keydata buffers and salt with random data */
 	ret = random_get_bytes((uint8_t *)&key->zk_guid, sizeof (uint64_t));
@@ -284,7 +303,6 @@ zio_crypt_key_init(uint64_t crypt, zio_crypt_key_t *key)
 	key->zk_crypt = crypt;
 	key->zk_version = ZIO_CRYPT_KEY_CURRENT_VERSION;
 	key->zk_salt_count = 0;
-	rw_init(&key->zk_salt_lock, NULL, RW_DEFAULT, NULL);
 
 	return (0);
 
