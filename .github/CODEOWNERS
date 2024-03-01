@@ -35,7 +35,6 @@
 /contrib/atf		@ngie-eign
 /contrib/capsicum-test	@ngie-eign
 /contrib/googletest	@ngie-eign
-/sbin/ipf		@cschuber
 /contrib/libcxxrt	@DimitryAndric @emaste
 /contrib/llvm-project	@DimitryAndric
 /contrib/llvm-project/libunwind @DimitryAndric @emaste @bsdjhb
@@ -44,6 +43,7 @@
 /contrib/netbsd-tests	@ngie-eign
 /contrib/netbsd-tests/crypto/opencrypto/	@jmgurney
 /contrib/netbsd-tests/kernel/kqueue/	@jmgurney
+/contrib/one-true-awk/		@bsdimp
 /contrib/openpam/lib/libpam/		@dag-erling
 /contrib/pjdfstest	@ngie-eign @asomers
 /crypto/openssh	@dag-erling
@@ -55,14 +55,19 @@
 /lib/libfetch	@dag-erling
 /lib/libfigpar	@dag-erling
 /lib/libpam/		@dag-erling
+/lib/libsecureboot/	@stephane-rochoy-stormshield
+/lib/libveriexec/	@stephane-rochoy-stormshield
 /lib/libvmmapi	@bsdjhb @grehan-freebsd
 /libexec/rc/rc.d/rctl/	@trasz
-/sbin/nvmecontrol @bsdimp
+/sbin/ipf		@cschuber
 /sbin/mount_fusefs @asomers
+/sbin/nvmecontrol @bsdimp
+/sbin/veriexec/	@stephane-rochoy-stormshield
 /secure/usr.bin/openssl/	@juikim
 /share/mk	@bsdimp @bapt @bdrewery @emaste
 /stand		@bsdimp
 /stand/lua	@kevans91
+/stand/veriexec.mk	@stephane-rochoy-stormshield
 /sys/amd64/pci	@bsdimp @bsdjhb
 /sys/amd64/vmm/	@bsdjhb @grehan-freebsd
 /sys/arm/allwinner	@evadot
@@ -70,21 +75,29 @@
 /sys/arm64/include	@zxombie
 /sys/arm64/rockchip	@evadot
 /sys/compat/linprocfs/	@dag-erling
-/sys/netpfil/ipfilter	@cschuber
 /sys/crypto/openssl/	@juikim
 /sys/dev/drm2	@bsdimp
+/sys/dev/ftgpio/	@stephane-rochoy-stormshield
+/sys/dev/ftwd/	@stephane-rochoy-stormshield
 /sys/dev/iscsi/	@trasz
+/sys/dev/nctgpio/	@stephane-rochoy-stormshield
+/sys/dev/ncthwm/	@stephane-rochoy-stormshield
 /sys/dev/nvd	@bsdimp
 /sys/dev/nvme	@bsdimp
 /sys/dev/pci	@bsdimp @bsdjhb
+/sys/dev/superio/	@stephane-rochoy-stormshield
+/sys/dev/veriexec/	@stephane-rochoy-stormshield
 /sys/fs/autofs/	@trasz
 /sys/fs/fuse/	@asomers
 /sys/fs/procfs/		@dag-erling
 /sys/fs/pseudofs/	@dag-erling
 /sys/kern/vfs_aio.c	@asomers
 /sys/netinet/ip_carp.c	@glebius
+/sys/netpfil/ipfilter	@cschuber
 /sys/netpfil/pf	@glebius
 /sys/opencrypto/	@jmgurney
+/sys/security/mac_veriexec/	@stephane-rochoy-stormshield
+/sys/security/mac_veriexec_parser/	@stephane-rochoy-stormshield
 /sys/x86/pci	@bsdimp @bsdjhb
 /tests	@ngie-eign
 /tests/sys/aio/	@asomers
