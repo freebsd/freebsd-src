@@ -682,10 +682,6 @@ nvme_ctrlr_async_event_log_page_cb(void *arg, const struct nvme_completion *cpl)
 			nvme_health_information_page_swapbytes(
 			    (struct nvme_health_information_page *)aer->log_page_buffer);
 			break;
-		case NVME_LOG_FIRMWARE_SLOT:
-			nvme_firmware_page_swapbytes(
-			    (struct nvme_firmware_page *)aer->log_page_buffer);
-			break;
 		case NVME_LOG_CHANGED_NAMESPACE:
 			nvme_ns_list_swapbytes(
 			    (struct nvme_ns_list *)aer->log_page_buffer);
