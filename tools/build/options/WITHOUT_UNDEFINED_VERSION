@@ -1,0 +1,2 @@
+Link libraries with --no-undefined-version to ensure all symbols are
+provided.
