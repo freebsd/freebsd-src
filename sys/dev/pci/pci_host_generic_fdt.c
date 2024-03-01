@@ -183,7 +183,6 @@ parse_pci_mem_ranges(device_t dev, struct generic_pcie_core_softc *sc)
 	int nbase_ranges;
 	phandle_t node;
 	int i, j, k;
-	int tuple;
 
 	node = ofw_bus_get_node(dev);
 
@@ -237,16 +236,6 @@ parse_pci_mem_ranges(device_t dev, struct generic_pcie_core_softc *sc)
 		sc->ranges[i].pci_base = 0;
 		sc->ranges[i].phys_base = 0;
 		sc->ranges[i].size = 0;
-	}
-
-	if (bootverbose) {
-		for (tuple = 0; tuple < MAX_RANGES_TUPLES; tuple++) {
-			device_printf(dev,
-			    "\tPCI addr: 0x%jx, CPU addr: 0x%jx, Size: 0x%jx\n",
-			    sc->ranges[tuple].pci_base,
-			    sc->ranges[tuple].phys_base,
-			    sc->ranges[tuple].size);
-		}
 	}
 
 	free(base_ranges, M_DEVBUF);
