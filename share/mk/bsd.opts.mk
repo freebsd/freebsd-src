@@ -68,6 +68,7 @@ __DEFAULT_YES_OPTIONS = \
     SSP \
     TESTS \
     TOOLCHAIN \
+    UNDEFINED_VERSION \
     WARNS \
     WERROR
 
