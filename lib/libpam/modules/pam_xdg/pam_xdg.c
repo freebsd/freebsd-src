@@ -199,6 +199,7 @@ remove_dir(int fd)
 		}
 		unlinkat(fd, dp->d_name, 0);
 	}
+	closedir(dirp);
 
 	return (0);
 }
