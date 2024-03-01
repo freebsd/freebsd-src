@@ -90,9 +90,9 @@ struct runq {
 void	runq_add(struct runq *, struct thread *, int _flags);
 void	runq_add_idx(struct runq *, struct thread *, int _idx, int _flags);
 bool	runq_not_empty(struct runq *);
-struct	thread *runq_choose(struct runq *);
-struct	thread *runq_choose_from(struct runq *, int _idx);
-struct	thread *runq_choose_fuzz(struct runq *, int _fuzz);
+struct thread	*runq_choose(struct runq *);
+struct thread	*runq_choose_from(struct runq *, int _idx);
+struct thread	*runq_choose_fuzz(struct runq *, int _fuzz);
 void	runq_init(struct runq *);
 bool	runq_remove(struct runq *, struct thread *);
 #endif /* _KERNEL */
