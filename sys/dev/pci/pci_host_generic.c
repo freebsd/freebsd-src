@@ -83,6 +83,7 @@ pci_host_generic_core_attach(device_t dev)
 	uint64_t phys_base;
 	uint64_t pci_base;
 	uint64_t size;
+	const char *range_descr;
 	char buf[64];
 	int domain, error;
 	int flags, rid, tuple, type;
@@ -179,18 +180,21 @@ pci_host_generic_core_attach(device_t dev)
 		switch (FLAG_TYPE(sc->ranges[tuple].flags)) {
 		case FLAG_TYPE_PMEM:
 			sc->has_pmem = true;
+			range_descr = "prefetch";
 			flags = RF_PREFETCHABLE;
 			type = SYS_RES_MEMORY;
 			error = rman_manage_region(&sc->pmem_rman,
 			   pci_base, pci_base + size - 1);
 			break;
 		case FLAG_TYPE_MEM:
+			range_descr = "memory";
 			flags = 0;
 			type = SYS_RES_MEMORY;
 			error = rman_manage_region(&sc->mem_rman,
 			   pci_base, pci_base + size - 1);
 			break;
 		case FLAG_TYPE_IO:
+			range_descr = "I/O port";
 			flags = 0;
 			type = SYS_RES_IOPORT;
 			error = rman_manage_region(&sc->io_rman,
@@ -219,6 +223,10 @@ pci_host_generic_core_attach(device_t dev)
 			error = ENXIO;
 			goto err_rman_manage;
 		}
+		if (bootverbose)
+			device_printf(dev,
+			    "PCI addr: 0x%jx, CPU addr: 0x%jx, Size: 0x%jx, Type: %s\n",
+			    pci_base, phys_base, size, range_descr);
 	}
 
 	return (0);
