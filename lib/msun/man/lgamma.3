@@ -25,9 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     from: @(#)lgamma.3	6.6 (Berkeley) 12/3/92
-.\"
-.Dd December 8, 2017
+.Dd April 12, 2024
 .Dt LGAMMA 3
 .Os
 .Sh NAME
@@ -169,15 +167,6 @@ non-positive integers.
 For large non-integer negative values,
 .Fn tgamma
 will underflow.
-.Sh BUGS
-To conform with newer C/C++ standards, a stub implementation for
-.Nm tgammal
-was committed to the math library, where
-.Nm tgammal
-is mapped to
-.Nm tgamma .
-Thus, the numerical accuracy is at most that of the 53-bit double
-precision implementation.
 .Sh SEE ALSO
 .Xr math 3
 .Sh STANDARDS
@@ -214,3 +203,11 @@ The
 .Fn tgamma
 function appeared in
 .Fx 5.0 .
+The 128-bit
+.Ft long double
+version of
+.Fn tgammal
+replaced the 80-bit stub version in
+version in
+.Fx 14.1 ,
+thanks to an appropriate implementation from Arm.
