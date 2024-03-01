@@ -12,6 +12,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240305:
+	13.3-RELEASE.
+
 20240218:
 	Change 9b998db87c28 changed 'struct ieee80211vap' internals in net80211.
 	Given we do not have enough spares and the struct is allocated by
