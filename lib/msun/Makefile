@@ -26,7 +26,7 @@ CFLAGS+=	-I${.CURDIR}/x86
 CFLAGS+=	-I${.CURDIR}/ld80
 .elif ${LDBL_PREC} == 113
 .PATH:  ${.CURDIR}/ld128
-CFLAGS+=	-I${.CURDIR}/ld128
+CFLAGS+=	-I${.CURDIR}/ld128 -I${SRCTOP}/contrib/arm-optimized-routines/math
 .endif
 
 CFLAGS+=	-I${.CURDIR}/${ARCH_SUBDIR}
