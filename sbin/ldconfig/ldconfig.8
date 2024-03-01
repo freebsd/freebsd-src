@@ -41,7 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl 32
-.Op Fl BRimrv
+.Op Fl BRimr
 .Op Fl f Ar hints_file
 .Op Ar directory | Ar
 .Sh DESCRIPTION
@@ -106,8 +106,8 @@ on 64-bit systems that support running 32-bit binaries.
 .It Fl elf
 Ignored for backwards compatibility.
 .It Fl B
-Force writing big-endian binary data´to the hints file.
-The default is to create little-endian hints files on all architectures.
+Force writing big-endian binary data to the hints file.
+The default is to create hints files in the native byte-order of the host.
 Reading of and merging into hints files preserves the endianness of the
 existing hints file.
 .It Fl R
@@ -131,9 +131,14 @@ on the standard output.
 The hints file is not modified.
 .Pp
 Scan and print all libraries found on the directories list.
-.It Fl v
-Switch on verbose mode.
 .El
+.Pp
+The historic options
+.Fl elf ,
+.Fl s ,
+and
+.Fl v
+are accepted but ignored.
 .Sh SECURITY
 Special care must be taken when loading shared libraries into the address
 space of
@@ -150,17 +155,19 @@ Thus,
 serves to specify the trusted collection of directories from which
 shared objects can be safely loaded.
 .Sh FILES
-.Bl -tag -width /var/run/ld-elf.so.hintsxxx -compact
+.Bl -tag -width /usr/local/libdata/ldconfig/* -compact
 .It Pa /var/run/ld-elf.so.hints
 Standard hints file for the ELF dynamic linker.
-.It Pa /etc/ld-elf.so.conf
-Conventional configuration file containing directory names for
-invocations with
-.Fl elf .
 .It Pa /var/run/ld-elf32.so.hints
-Conventional configuration files containing directory names for
-invocations with
+Hints file for 32 bit libraries on 64 bit architectures, processed by
+ldconfig when invoked with
 .Fl 32 .
+.It Pa /etc/ld-elf.so.conf
+Optional file with names of directories to be included in the standard
+hints file when booting to multi-user mode.
+.It Pa /usr/local/libdata/ldconfig/*
+Additional files with names of directories provided by optional ports
+or packages.
 .El
 .Sh SEE ALSO
 .Xr ld 1 ,
