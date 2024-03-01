@@ -261,6 +261,21 @@ _Static_assert(RQ_NQS <= 256,
 	    ("%s: %s out of range: %d", __func__, __STRING(idx), _idx)); \
 })
 
+/* Status words' individual bit manipulators' internals. */
+typedef uintptr_t	runq_sw_op(int idx, int sw_idx, rqsw_t sw_bit,
+			    rqsw_t *swp);
+static inline uintptr_t	runq_sw_apply(struct runq *rq, int idx,
+			    runq_sw_op *op);
+
+static inline uintptr_t	runq_sw_set_not_empty_op(int idx, int sw_idx,
+			    rqsw_t sw_bit, rqsw_t *swp);
+static inline uintptr_t	runq_sw_set_empty_op(int idx, int sw_idx,
+			    rqsw_t sw_bit, rqsw_t *swp);
+
+/* Status words' individual bit manipulators. */
+static inline void	runq_sw_set_not_empty(struct runq *rq, int idx);
+static inline void	runq_sw_set_empty(struct runq *rq, int idx);
+
 /*
  * Initialize a run structure.
  */
@@ -275,39 +290,72 @@ runq_init(struct runq *rq)
 }
 
 /*
- * Set the status bit of the queue at index 'idx', indicating that it is
- * non-empty.
+ * Helper to implement functions operating on a particular status word bit.
+ *
+ * The operator is passed the initial 'idx', the corresponding status word index
+ * in 'rq_status' in 'sw_idx', a status word with only that bit set in 'sw_bit'
+ * and a pointer to the corresponding status word in 'swp'.
  */
-static __inline void
-runq_setbit(struct runq *rq, int idx)
+static inline uintptr_t
+runq_sw_apply(struct runq *rq, int idx, runq_sw_op *op)
 {
-	struct rq_status *rqs;
+	rqsw_t *swp;
+	rqsw_t sw_bit;
+	int sw_idx;
 
 	CHECK_IDX(idx);
-	rqs = &rq->rq_status;
-	CTR4(KTR_RUNQ, "runq_setbit: bits=%#x %#x bit=%#x word=%d",
-	    rqs->rq_sw[RQSW_IDX(idx)],
-	    rqs->rq_sw[RQSW_IDX(idx)] | RQSW_BIT(idx),
-	    RQSW_BIT(idx), RQSW_IDX(idx));
-	rqs->rq_sw[RQSW_IDX(idx)] |= RQSW_BIT(idx);
+
+	sw_idx = RQSW_IDX(idx);
+	sw_bit = RQSW_BIT(idx);
+	swp = &rq->rq_status.rq_sw[sw_idx];
+
+	return (op(idx, sw_idx, sw_bit, swp));
+}
+
+static inline uintptr_t
+runq_sw_set_not_empty_op(int idx, int sw_idx, rqsw_t sw_bit, rqsw_t *swp)
+{
+	rqsw_t old_sw __unused = *swp;
+
+	*swp |= sw_bit;
+	CTR4(KTR_RUNQ, "runq_sw_set_not_empty: idx=%d sw_idx=%d bits=%#x->%#x",
+	    idx, sw_idx, old_sw, *swp);
+	return (0);
 }
 
 /*
- * Clear the status bit of the queue at index 'idx', indicating that it is
- * empty.
+ * Modify the status words to indicate that some queue is not empty.
+ *
+ * Sets the status bit corresponding to the queue at index 'idx'.
  */
-static __inline void
-runq_clrbit(struct runq *rq, int idx)
+static inline void
+runq_sw_set_not_empty(struct runq *rq, int idx)
 {
-	struct rq_status *rqs;
 
-	CHECK_IDX(idx);
-	rqs = &rq->rq_status;
-	CTR4(KTR_RUNQ, "runq_clrbit: bits=%#x %#x bit=%#x word=%d",
-	    rqs->rq_sw[RQSW_IDX(idx)],
-	    rqs->rq_sw[RQSW_IDX(idx)] & ~RQSW_BIT(idx),
-	    RQSW_BIT(idx), RQSW_IDX(idx));
-	rqs->rq_sw[RQSW_IDX(idx)] &= ~RQSW_BIT(idx);
+	(void)runq_sw_apply(rq, idx, &runq_sw_set_not_empty_op);
+}
+
+static inline uintptr_t
+runq_sw_set_empty_op(int idx, int sw_idx, rqsw_t sw_bit, rqsw_t *swp)
+{
+	rqsw_t old_sw __unused = *swp;
+
+	*swp &= ~sw_bit;
+	CTR4(KTR_RUNQ, "runq_sw_set_empty: idx=%d sw_idx=%d bits=%#x->%#x",
+	    idx, sw_idx, old_sw, *swp);
+	return (0);
+}
+
+/*
+ * Modify the status words to indicate that some queue is empty.
+ *
+ * Clears the status bit corresponding to the queue at index 'idx'.
+ */
+static inline void
+runq_sw_set_empty(struct runq *rq, int idx)
+{
+
+	(void)runq_sw_apply(rq, idx, &runq_sw_set_empty_op);
 }
 
 /*
@@ -327,12 +375,12 @@ runq_add_idx(struct runq *rq, struct thread *td, int idx, int flags)
 	struct rq_queue *rqq;
 
 	/*
-	 * runq_setbit() asserts 'idx' is non-negative and below 'RQ_NQS', and
-	 * a static assert earlier in this file ensures that 'RQ_NQS' is no more
-	 * than 256.
+	 * runq_sw_*() functions assert that 'idx' is non-negative and below
+	 * 'RQ_NQS', and a static assert earlier in this file ensures that
+	 * 'RQ_NQS' is no more than 256.
 	 */
 	td->td_rqindex = idx;
-	runq_setbit(rq, idx);
+	runq_sw_set_not_empty(rq, idx);
 	rqq = &rq->rq_queues[idx];
 	CTR4(KTR_RUNQ, "runq_add_idx: td=%p pri=%d idx=%d rqq=%p",
 	    td, td->td_priority, idx, rqq);
@@ -362,7 +410,7 @@ runq_remove(struct runq *rq, struct thread *td)
 	    td, td->td_priority, idx, rqq);
 	TAILQ_REMOVE(rqq, td, td_runq);
 	if (TAILQ_EMPTY(rqq)) {
-		runq_clrbit(rq, idx);
+		runq_sw_set_empty(rq, idx);
 		CTR1(KTR_RUNQ, "runq_remove: queue at idx=%d now empty", idx);
 		return (true);
 	}
