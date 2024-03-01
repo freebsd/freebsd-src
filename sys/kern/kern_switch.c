@@ -275,6 +275,24 @@ runq_init(struct runq *rq)
 }
 
 /*
+ * Set the status bit of the queue at index 'idx', indicating that it is
+ * non-empty.
+ */
+static __inline void
+runq_setbit(struct runq *rq, int idx)
+{
+	struct rq_status *rqs;
+
+	CHECK_IDX(idx);
+	rqs = &rq->rq_status;
+	CTR4(KTR_RUNQ, "runq_setbit: bits=%#x %#x bit=%#x word=%d",
+	    rqs->rq_sw[RQSW_IDX(idx)],
+	    rqs->rq_sw[RQSW_IDX(idx)] | RQSW_BIT(idx),
+	    RQSW_BIT(idx), RQSW_IDX(idx));
+	rqs->rq_sw[RQSW_IDX(idx)] |= RQSW_BIT(idx);
+}
+
+/*
  * Clear the status bit of the queue at index 'idx', indicating that it is
  * empty.
  */
@@ -290,6 +308,65 @@ runq_clrbit(struct runq *rq, int idx)
 	    rqs->rq_sw[RQSW_IDX(idx)] & ~RQSW_BIT(idx),
 	    RQSW_BIT(idx), RQSW_IDX(idx));
 	rqs->rq_sw[RQSW_IDX(idx)] &= ~RQSW_BIT(idx);
+}
+
+/*
+ * Add the thread to the queue specified by its priority, and set the
+ * corresponding status bit.
+ */
+void
+runq_add(struct runq *rq, struct thread *td, int flags)
+{
+
+	runq_add_idx(rq, td, RQ_PRI_TO_QUEUE_IDX(td->td_priority), flags);
+}
+
+void
+runq_add_idx(struct runq *rq, struct thread *td, int idx, int flags)
+{
+	struct rq_queue *rqq;
+
+	/*
+	 * runq_setbit() asserts 'idx' is non-negative and below 'RQ_NQS', and
+	 * a static assert earlier in this file ensures that 'RQ_NQS' is no more
+	 * than 256.
+	 */
+	td->td_rqindex = idx;
+	runq_setbit(rq, idx);
+	rqq = &rq->rq_queues[idx];
+	CTR4(KTR_RUNQ, "runq_add_idx: td=%p pri=%d idx=%d rqq=%p",
+	    td, td->td_priority, idx, rqq);
+	if (flags & SRQ_PREEMPTED)
+		TAILQ_INSERT_HEAD(rqq, td, td_runq);
+	else
+		TAILQ_INSERT_TAIL(rqq, td, td_runq);
+}
+
+/*
+ * Remove the thread from the queue specified by its priority, and clear the
+ * corresponding status bit if the queue becomes empty.
+ *
+ * Returns whether the corresponding queue is empty after removal.
+ */
+bool
+runq_remove(struct runq *rq, struct thread *td)
+{
+	struct rq_queue *rqq;
+	int idx;
+
+	KASSERT(td->td_flags & TDF_INMEM, ("runq_remove: Thread swapped out"));
+	idx = td->td_rqindex;
+	CHECK_IDX(idx);
+	rqq = &rq->rq_queues[idx];
+	CTR4(KTR_RUNQ, "runq_remove: td=%p pri=%d idx=%d rqq=%p",
+	    td, td->td_priority, idx, rqq);
+	TAILQ_REMOVE(rqq, td, td_runq);
+	if (TAILQ_EMPTY(rqq)) {
+		runq_clrbit(rq, idx);
+		CTR1(KTR_RUNQ, "runq_remove: queue at idx=%d now empty", idx);
+		return (true);
+	}
+	return (false);
 }
 
 /*
@@ -347,56 +424,6 @@ again:
 }
 
 /*
- * Set the status bit of the queue at index 'idx', indicating that it is
- * non-empty.
- */
-static __inline void
-runq_setbit(struct runq *rq, int idx)
-{
-	struct rq_status *rqs;
-
-	CHECK_IDX(idx);
-	rqs = &rq->rq_status;
-	CTR4(KTR_RUNQ, "runq_setbit: bits=%#x %#x bit=%#x word=%d",
-	    rqs->rq_sw[RQSW_IDX(idx)],
-	    rqs->rq_sw[RQSW_IDX(idx)] | RQSW_BIT(idx),
-	    RQSW_BIT(idx), RQSW_IDX(idx));
-	rqs->rq_sw[RQSW_IDX(idx)] |= RQSW_BIT(idx);
-}
-
-/*
- * Add the thread to the queue specified by its priority, and set the
- * corresponding status bit.
- */
-void
-runq_add(struct runq *rq, struct thread *td, int flags)
-{
-
-	runq_add_idx(rq, td, RQ_PRI_TO_QUEUE_IDX(td->td_priority), flags);
-}
-
-void
-runq_add_idx(struct runq *rq, struct thread *td, int idx, int flags)
-{
-	struct rq_queue *rqq;
-
-	/*
-	 * runq_setbit() asserts 'idx' is non-negative and below 'RQ_NQS', and
-	 * a static assert earlier in this file ensures that 'RQ_NQS' is no more
-	 * than 256.
-	 */
-	td->td_rqindex = idx;
-	runq_setbit(rq, idx);
-	rqq = &rq->rq_queues[idx];
-	CTR4(KTR_RUNQ, "runq_add_idx: td=%p pri=%d idx=%d rqq=%p",
-	    td, td->td_priority, idx, rqq);
-	if (flags & SRQ_PREEMPTED)
-		TAILQ_INSERT_HEAD(rqq, td, td_runq);
-	else
-		TAILQ_INSERT_TAIL(rqq, td, td_runq);
-}
-
-/*
  * Return true if there are some processes of any priority on the run queue,
  * false otherwise.  Has no side effects.
  */
@@ -415,6 +442,30 @@ runq_not_empty(struct runq *rq)
 	CTR0(KTR_RUNQ, "runq_not_empty: empty");
 
 	return (false);
+}
+
+/*
+ * Find the highest priority process on the run queue.
+ */
+struct thread *
+runq_choose(struct runq *rq)
+{
+	struct rq_queue *rqq;
+	struct thread *td;
+	int idx;
+
+	idx = runq_findbit(rq);
+	if (idx != -1) {
+		rqq = &rq->rq_queues[idx];
+		td = TAILQ_FIRST(rqq);
+		KASSERT(td != NULL, ("runq_choose: no thread on busy queue"));
+		CTR3(KTR_RUNQ,
+		    "runq_choose: idx=%d thread=%p rqq=%p", idx, td, rqq);
+		return (td);
+	}
+	CTR1(KTR_RUNQ, "runq_choose: idlethread idx=%d", idx);
+
+	return (NULL);
 }
 
 /*
@@ -460,30 +511,6 @@ runq_choose_fuzz(struct runq *rq, int fuzz)
 	return (NULL);
 }
 
-/*
- * Find the highest priority process on the run queue.
- */
-struct thread *
-runq_choose(struct runq *rq)
-{
-	struct rq_queue *rqq;
-	struct thread *td;
-	int idx;
-
-	idx = runq_findbit(rq);
-	if (idx != -1) {
-		rqq = &rq->rq_queues[idx];
-		td = TAILQ_FIRST(rqq);
-		KASSERT(td != NULL, ("runq_choose: no thread on busy queue"));
-		CTR3(KTR_RUNQ,
-		    "runq_choose: idx=%d thread=%p rqq=%p", idx, td, rqq);
-		return (td);
-	}
-	CTR1(KTR_RUNQ, "runq_choose: idlethread idx=%d", idx);
-
-	return (NULL);
-}
-
 struct thread *
 runq_choose_from(struct runq *rq, int from_idx)
 {
@@ -503,30 +530,4 @@ runq_choose_from(struct runq *rq, int from_idx)
 	CTR1(KTR_RUNQ, "runq_choose_from: idlethread idx=%d", idx);
 
 	return (NULL);
-}
-/*
- * Remove the thread from the queue specified by its priority, and clear the
- * corresponding status bit if the queue becomes empty.
- *
- * Returns whether the corresponding queue is empty after removal.
- */
-bool
-runq_remove(struct runq *rq, struct thread *td)
-{
-	struct rq_queue *rqq;
-	int idx;
-
-	KASSERT(td->td_flags & TDF_INMEM, ("runq_remove: Thread swapped out"));
-	idx = td->td_rqindex;
-	CHECK_IDX(idx);
-	rqq = &rq->rq_queues[idx];
-	CTR4(KTR_RUNQ, "runq_remove: td=%p pri=%d idx=%d rqq=%p",
-	    td, td->td_priority, idx, rqq);
-	TAILQ_REMOVE(rqq, td, td_runq);
-	if (TAILQ_EMPTY(rqq)) {
-		runq_clrbit(rq, idx);
-		CTR1(KTR_RUNQ, "runq_remove: queue at idx=%d now empty", idx);
-		return (true);
-	}
-	return (false);
 }
