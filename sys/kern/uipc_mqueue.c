@@ -604,9 +604,9 @@ mqfs_mount(struct mount *mp)
 	sbp->f_bsize = PAGE_SIZE;
 	sbp->f_iosize = PAGE_SIZE;
 	sbp->f_blocks = 1;
-	sbp->f_bfree = 0;
+	sbp->f_bfree = 1;
 	sbp->f_bavail = 0;
-	sbp->f_files = 1;
+	sbp->f_files = 0;
 	sbp->f_ffree = 0;
 	return (0);
 }
