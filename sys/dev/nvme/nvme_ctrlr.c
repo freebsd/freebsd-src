@@ -650,7 +650,8 @@ nvme_ctrlr_log_critical_warnings(struct nvme_controller *ctrlr,
 
 	if (state & NVME_CRIT_WARN_ST_RESERVED_MASK)
 		nvme_ctrlr_devctl_log(ctrlr, "critical",
-		    "unknown critical warning(s): state = 0x%02x", state);
+		    "unknown critical warning(s): state = 0x%02x",
+		    state & NVME_CRIT_WARN_ST_RESERVED_MASK);
 }
 
 static void
