@@ -129,15 +129,15 @@ before the end-of-file, but in no other case.
 In accordance with
 .St -p1003.1-2004 ,
 both
-.Xr read 2
+.Fn read
 and
-.Xr write 2
+.Fn write
 syscalls are atomic with respect to each other in the effects on file
 content, when they operate on regular files.
 If two threads each call one of the
-.Xr read 2
+.Fn read
 or
-.Xr write 2 ,
+.Fn write ,
 syscalls, each call will see either all of the changes of the other call,
 or none of them.
 The
