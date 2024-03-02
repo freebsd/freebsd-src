@@ -61,7 +61,7 @@ sigio_handler(int sig __unused){
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: %s [-f ctldev] [-m method] [-s] [-n] [-S] [-u]"
 	    "[-t timeout] [-d delay-usec] pin intr-config pin-mode [pin intr-config pin-mode ...]\n\n",
@@ -152,7 +152,7 @@ print_poll_events(short event)
 }
 
 static void
-calc_utc_offset()
+calc_utc_offset(void)
 {
 	struct timespec monotime, utctime;
 
