@@ -567,7 +567,7 @@ __skb_queue_tail(struct sk_buff_head *q, struct sk_buff *new)
 {
 
 	SKB_TRACE2(q, new);
-	__skb_queue_after(q, (struct sk_buff *)q, new);
+	__skb_queue_before(q, (struct sk_buff *)q, new);
 }
 
 static inline void
