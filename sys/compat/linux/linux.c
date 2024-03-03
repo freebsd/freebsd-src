@@ -253,14 +253,14 @@ ifname_bsd_to_linux_name(const char *bsdname, char *lxname, size_t len)
 	struct ifnet *ifp;
 	int ret;
 
+	CURVNET_ASSERT_SET();
+
 	ret = 0;
-	CURVNET_SET(TD_TO_VNET(curthread));
 	NET_EPOCH_ENTER(et);
 	ifp = ifunit(bsdname);
 	if (ifp != NULL)
 		ret = ifname_bsd_to_linux_ifp(ifp, lxname, len);
 	NET_EPOCH_EXIT(et);
-	CURVNET_RESTORE();
 	return (ret);
 }
 
