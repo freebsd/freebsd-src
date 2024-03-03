@@ -481,37 +481,39 @@ struct mntoptnames {
  * the filesystem to cancel operations that might otherwise deadlock
  * with the unmount attempt (used by NFS).
  */
-#define MNTK_UNMOUNTF	0x00000001	/* forced unmount in progress */
-#define MNTK_ASYNC	0x00000002	/* filtered async flag */
-#define MNTK_SOFTDEP	0x00000004	/* async disabled by softdep */
-#define MNTK_NOMSYNC	0x00000008	/* don't do msync */
-#define	MNTK_DRAINING	0x00000010	/* lock draining is happening */
-#define	MNTK_REFEXPIRE	0x00000020	/* refcount expiring is happening */
+#define MNTK_UNMOUNTF		0x00000001 /* forced unmount in progress */
+#define MNTK_ASYNC		0x00000002 /* filtered async flag */
+#define MNTK_SOFTDEP		0x00000004 /* async disabled by softdep */
+#define MNTK_NOMSYNC		0x00000008 /* don't do msync */
+#define	MNTK_DRAINING		0x00000010 /* lock draining is happening */
+#define	MNTK_REFEXPIRE		0x00000020 /* refcount expiring is happening */
 #define MNTK_EXTENDED_SHARED	0x00000040 /* Allow shared locking for more ops */
 #define	MNTK_SHARED_WRITES	0x00000080 /* Allow shared locking for writes */
-#define	MNTK_NO_IOPF	0x00000100	/* Disallow page faults during reads
-					   and writes. Filesystem shall properly
-					   handle i/o state on EFAULT. */
+#define	MNTK_NO_IOPF		0x00000100 /* Disallow page faults during reads
+					      and writes. Filesystem shall
+					      properly handle i/o state on
+					      EFAULT. */
 #define	MNTK_RECURSE		0x00000200 /* pending recursive unmount */
 #define	MNTK_UPPER_WAITER	0x00000400 /* waiting to drain MNTK_UPPER_PENDING */
 /* UNUSED 			0x00000800 */
-#define	MNTK_UNLOCKED_INSMNTQUE	0x00001000 /* fs does not lock the vnode for insmntque */
+#define	MNTK_UNLOCKED_INSMNTQUE	0x00001000 /* fs does not lock the vnode for
+					      insmntque */
 #define	MNTK_UNMAPPED_BUFS	0x00002000
 #define	MNTK_USES_BCACHE	0x00004000 /* FS uses the buffer cache. */
 /* UNUSED			0x00008000 */
 #define	MNTK_VMSETSIZE_BUG	0x00010000
-#define	MNTK_UNIONFS	0x00020000	/* A hack for F_ISUNIONSTACK */
-#define	MNTK_FPLOOKUP	0x00040000	/* fast path lookup is supported */
+#define	MNTK_UNIONFS		0x00020000 /* A hack for F_ISUNIONSTACK */
+#define	MNTK_FPLOOKUP		0x00040000 /* fast path lookup is supported */
 #define	MNTK_SUSPEND_ALL	0x00080000 /* Suspended by all-fs suspension */
 #define	MNTK_TASKQUEUE_WAITER	0x00100000 /* Waiting on unmount taskqueue */
 /* UNUSED			0x00200000 */
 /* UNUSED			0x00400000 */
-#define	MNTK_NOASYNC	0x00800000	/* disable async */
-#define	MNTK_UNMOUNT	0x01000000	/* unmount in progress */
-#define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
-#define	MNTK_SUSPEND	0x08000000	/* request write suspension */
-#define	MNTK_SUSPEND2	0x04000000	/* block secondary writes */
-#define	MNTK_SUSPENDED	0x10000000	/* write operations are suspended */
+#define	MNTK_NOASYNC		0x00800000 /* disable async */
+#define	MNTK_UNMOUNT		0x01000000 /* unmount in progress */
+#define	MNTK_MWAIT		0x02000000 /* waiting for unmount to finish */
+#define	MNTK_SUSPEND		0x08000000 /* request write suspension */
+#define	MNTK_SUSPEND2		0x04000000 /* block secondary writes */
+#define	MNTK_SUSPENDED		0x10000000 /* write operations are suspended */
 #define	MNTK_NULL_NOCACHE	0x20000000 /* auto disable cache for nullfs
 					      mounts over this fs */
 #define MNTK_LOOKUP_SHARED	0x40000000 /* FS supports shared lock lookups */
