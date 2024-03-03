@@ -28,6 +28,7 @@
 
 #include "namespace.h"
 #include <sys/param.h>
+#include <sys/procctl.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
 
@@ -91,7 +92,7 @@ static int
 process_spawnattr(const posix_spawnattr_t sa)
 {
 	struct sigaction sigact = { .sa_flags = 0, .sa_handler = SIG_DFL };
-	int i;
+	int aslr, i;
 
 	/*
 	 * POSIX doesn't really describe in which order everything
@@ -137,6 +138,13 @@ process_spawnattr(const posix_spawnattr_t sa)
 				if (__sys_sigaction(i, &sigact, NULL) != 0)
 					return (errno);
 		}
+	}
+
+	/* Disable ASLR. */
+	if ((sa->sa_flags & POSIX_SPAWN_DISABLE_ASLR_NP) != 0) {
+		aslr = PROC_ASLR_FORCE_DISABLE;
+		if (procctl(P_PID, 0, PROC_ASLR_CTL, &aslr) != 0)
+			return (errno);
 	}
 
 	return (0);
@@ -631,7 +639,8 @@ posix_spawnattr_setflags(posix_spawnattr_t *sa, short flags)
 {
 	if ((flags & ~(POSIX_SPAWN_RESETIDS | POSIX_SPAWN_SETPGROUP |
 	    POSIX_SPAWN_SETSCHEDPARAM | POSIX_SPAWN_SETSCHEDULER |
-	    POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK)) != 0)
+	    POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK |
+	    POSIX_SPAWN_DISABLE_ASLR_NP)) != 0)
 		return (EINVAL);
 	(*sa)->sa_flags = flags;
 	return (0);
