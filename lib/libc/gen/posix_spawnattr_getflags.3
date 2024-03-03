@@ -83,9 +83,12 @@ The default value of this attribute is as if no flags were set.
 .Sh RETURN VALUES
 The
 .Fn posix_spawnattr_getflags
-and
+function returns zero.
+The
 .Fn posix_spawnattr_setflags
-functions return zero.
+function returns zero on success, and
+.Er EINVAL
+on failure due to invalid flag specified.
 .Sh SEE ALSO
 .Xr posix_spawn 3 ,
 .Xr posix_spawnattr_destroy 3 ,
