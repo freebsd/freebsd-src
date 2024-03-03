@@ -630,6 +630,10 @@ posix_spawnattr_getsigmask(const posix_spawnattr_t * __restrict sa,
 int
 posix_spawnattr_setflags(posix_spawnattr_t *sa, short flags)
 {
+	if ((flags & ~(POSIX_SPAWN_RESETIDS | POSIX_SPAWN_SETPGROUP |
+	    POSIX_SPAWN_SETSCHEDPARAM | POSIX_SPAWN_SETSCHEDULER |
+	    POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK)) != 0)
+		return (EINVAL);
 	(*sa)->sa_flags = flags;
 	return (0);
 }
