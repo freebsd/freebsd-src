@@ -1289,6 +1289,8 @@ void PEI::insertZeroCallUsedRegs(MachineFunction &MF) {
           continue;
 
         MCRegister Reg = MO.getReg();
+        if (!Reg)
+          continue;
 
         // This picks up sibling registers (e.q. %al -> %ah).
         for (MCRegUnitIterator Unit(Reg, &TRI); Unit.isValid(); ++Unit)
@@ -1312,8 +1314,11 @@ void PEI::insertZeroCallUsedRegs(MachineFunction &MF) {
         if (!MO.isReg())
           continue;
 
-        for (const MCPhysReg &Reg :
-             TRI.sub_and_superregs_inclusive(MO.getReg()))
+        MCRegister Reg = MO.getReg();
+        if (!Reg)
+          continue;
+
+        for (const MCPhysReg Reg : TRI.sub_and_superregs_inclusive(Reg))
           RegsToZero.reset(Reg);
       }
     }
