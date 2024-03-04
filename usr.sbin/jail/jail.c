@@ -400,7 +400,7 @@ main(int argc, char **argv)
 				continue;
 		}
 		if (j->intparams[IP_ALLOW_DYING] && !dying_warned) {
-			warnx("%s", "the 'allow.dying' parameter and '-d' flag"
+			warnx("%s", "the 'allow.dying' parameter and '-d' flag "
 			    "are deprecated and have no effect.");
 			dying_warned = 1;
 		}
