@@ -110,7 +110,7 @@ riscv_putc(int c)
 	sbi_console_putchar(c);
 }
 
-#ifdef EARLY_PRINTF
+#if CHECK_EARLY_PRINTF(sbi)
 early_putc_t *early_putc = riscv_putc;
 #endif
 
