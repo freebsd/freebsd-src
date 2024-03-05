@@ -1608,6 +1608,11 @@ kern_poll(struct thread *td, struct pollfd *ufds, u_int nfds,
 	error = kern_poll_kfds(td, kfds, nfds, tsp, set);
 	if (error == 0)
 		error = pollout(td, kfds, ufds, nfds);
+#ifdef KTRACE
+	if (error == 0 && KTRPOINT(td, KTR_STRUCT_ARRAY))
+		ktrstructarray("pollfd", UIO_USERSPACE, ufds, nfds,
+		    sizeof(*ufds));
+#endif
 
 out:
 	if (nfds > nitems(stackfds))
