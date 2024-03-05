@@ -446,11 +446,16 @@ FreeBSD 5.2           |      |                 |                       |
  |     |              |      |                OpenBSD 7.3              |
  |  FreeBSD           |      |                    |                    |
  |   13.2             |      |                    |                    |
- |                  macOS    |                    |                    |
- |                   14      |                    |                    |
- |                    |      |                OpenBSD 7.4              |
- *--FreeBSD           |      |                    |                    |
- |   14.0             |      |                    |                    |
+ |     |              |      |                    |                    |
+ |     `------.       |      |                    |                    |
+ |            |     macOS    |                    |                    |
+ |            |      14      |                    |                    |
+ |            |       |      |                OpenBSD 7.4              |
+ *--FreeBSD   |       |      |                    |                    |
+ |   14.0     |       |      |                    |                    |
+ |            |       |      |                    |                    |
+ |         FreeBSD    |      |                    |                    |
+ |           13.3     |      |                    |                    |
  |                    |      |                    |                    |
 FreeBSD 15 -current   |  NetBSD -current   OpenBSD -current    DragonFly -current
  |                    |      |                    |                    |
@@ -880,6 +885,7 @@ FreeBSD 13.2		2023-04-11 [FBD]
 macOS 14		2023-09-26 [APL]
 OpenBSD 7.4		2023-10-16 [OBD]
 FreeBSD 14.0		2023-11-20 [FBD]
+FreeBSD 13.3		2024-03-05 [FBD]
 
 Bibliography
 ------------------------
