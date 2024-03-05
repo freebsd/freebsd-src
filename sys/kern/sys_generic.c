@@ -579,7 +579,8 @@ dofilewrite(struct thread *td, int fd, struct file *fp, struct uio *auio,
 	cnt -= auio->uio_resid;
 #ifdef KTRACE
 	if (ktruio != NULL) {
-		ktruio->uio_resid = cnt;
+		if (error == 0)
+			ktruio->uio_resid = cnt;
 		ktrgenio(fd, UIO_WRITE, ktruio, error);
 	}
 #endif
