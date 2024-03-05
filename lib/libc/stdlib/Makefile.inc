@@ -3,7 +3,7 @@
 .PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/stdlib ${LIBC_SRCTOP}/stdlib
 
 MISRCS+=C99_Exit.c a64l.c abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
-	bsearch.c \
+	bsearch.c bsearch_b.c \
 	cxa_thread_atexit.c cxa_thread_atexit_impl.c \
 	div.c exit.c getenv.c getopt.c getopt_long.c \
 	getsubopt.c hcreate.c hcreate_r.c hdestroy_r.c heapsort.c heapsort_b.c \
