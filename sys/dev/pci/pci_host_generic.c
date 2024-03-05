@@ -504,8 +504,8 @@ generic_pcie_containing_range(device_t dev, int type, rman_res_t start,
 }
 
 static int
-generic_pcie_translate_resource_common(device_t dev, int type, rman_res_t start,
-    rman_res_t end, rman_res_t *new_start, rman_res_t *new_end)
+generic_pcie_translate_resource(device_t dev, int type, rman_res_t start,
+    rman_res_t *new_start)
 {
 	struct pcie_range *range;
 
@@ -513,32 +513,18 @@ generic_pcie_translate_resource_common(device_t dev, int type, rman_res_t start,
 	switch (type) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
-		range = generic_pcie_containing_range(dev, type, start, end);
+		range = generic_pcie_containing_range(dev, type, start, start);
 		if (range == NULL)
 			return (ENOENT);
-		if (range != NULL) {
-			*new_start = start - range->pci_base + range->phys_base;
-			*new_end = end - range->pci_base + range->phys_base;
-		}
+		*new_start = start - range->pci_base + range->phys_base;
 		break;
 	default:
 		/* No translation for non-memory types */
 		*new_start = start;
-		*new_end = end;
 		break;
 	}
 
 	return (0);
-}
-
-static int
-generic_pcie_translate_resource(device_t bus, int type,
-    rman_res_t start, rman_res_t *newstart)
-{
-	rman_res_t newend; /* unused */
-
-	return (generic_pcie_translate_resource_common(
-	    bus, type, start, start, newstart, &newend));
 }
 
 struct resource *
