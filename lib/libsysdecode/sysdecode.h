@@ -83,6 +83,7 @@ const char *sysdecode_nfssvc_flags(int _flags);
 bool	sysdecode_open_flags(FILE *_fp, int _flags, int *_rem);
 const char *sysdecode_pathconf_name(int _name);
 bool	sysdecode_pipe2_flags(FILE *_fp, int _flags, int *_rem);
+bool	sysdecode_pollfd_events(FILE *fp, int flags, int *rem);
 const char *sysdecode_prio_which(int _which);
 const char *sysdecode_procctl_cmd(int _cmd);
 const char *sysdecode_ptrace_request(int _request);

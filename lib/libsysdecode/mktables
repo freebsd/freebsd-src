@@ -114,6 +114,7 @@ gen_table "mountflags"      "MNT_[A-Z]+[[:space:]]+0x[0-9]+"               "sys/
 gen_table "msyncflags"      "MS_[A-Z]+[[:space:]]+0x[0-9]+"                "sys/mman.h"
 gen_table "nfssvcflags"     "NFSSVC_[A-Z0-9]+[[:space:]]+0x[0-9]+"         "nfs/nfssvc.h"
 gen_table "pathconfname"    "_PC_[A-Z4_]+[[:space:]]+[0-9]+"               "sys/unistd.h"
+gen_table "pollfdevents"    "POLL[A-Z]+[[:space:]]+"                       "sys/poll.h"
 gen_table "prio"            "PRIO_[A-Z]+[[:space:]]+[0-9]"                 "sys/resource.h"
 gen_table "procctlcmd"      "PROC_[A-Z_]+[[:space:]]+[0-9]"                 "sys/procctl.h"	"PROC_TRACE_CTL_"
 gen_table "ptraceop"        "PT_[[:alnum:]_]+[[:space:]]+[0-9]+"           "sys/ptrace.h"

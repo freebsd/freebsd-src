@@ -34,6 +34,7 @@
 #include <sys/linker.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
+#include <sys/poll.h>
 #include <sys/procctl.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
@@ -563,6 +564,13 @@ sysdecode_pipe2_flags(FILE *fp, int flags, int *rem)
 {
 
 	return (print_mask_0(fp, pipe2flags, flags, rem));
+}
+
+bool
+sysdecode_pollfd_events(FILE *fp, int flags, int *rem)
+{
+
+	return (print_mask_int(fp, pollfdevents, flags, rem));
 }
 
 const char *
