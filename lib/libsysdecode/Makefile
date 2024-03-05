@@ -93,6 +93,7 @@ MLINKS+=sysdecode_mask.3 sysdecode_accessmode.3 \
 	sysdecode_mask.3 sysdecode_msync_flags.3 \
 	sysdecode_mask.3 sysdecode_open_flags.3 \
 	sysdecode_mask.3 sysdecode_pipe2_flags.3 \
+	sysdecode_mask.3 sysdecode_pollfd_events.3 \
 	sysdecode_mask.3 sysdecode_reboot_howto.3 \
 	sysdecode_mask.3 sysdecode_rfork_flags.3 \
 	sysdecode_mask.3 sysdecode_semget_flags.3 \
