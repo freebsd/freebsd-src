@@ -767,7 +767,7 @@ ktrgenio(int fd, enum uio_rw rw, struct uio *uio, int error)
 	int datalen;
 	char *buf;
 
-	if (error) {
+	if (error != 0 && (rw == UIO_READ || error == EFAULT)) {
 		freeuio(uio);
 		return;
 	}
