@@ -208,6 +208,5 @@ FBSD_1.3 {
 FBSDprivate_1.0 {
 	_PathLocale;
 	__detect_path_locale;
-	__collate_load_error;
 	__collate_range_cmp;
 };
