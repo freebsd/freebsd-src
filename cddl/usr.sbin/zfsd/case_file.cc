@@ -53,6 +53,7 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include <libzutil.h>
 #include <libzfs.h>
 
 #include <list>
@@ -91,7 +92,6 @@ using DevdCtl::ParseException;
 
 CaseFileList  CaseFile::s_activeCases;
 const string  CaseFile::s_caseFilePath = "/var/db/zfsd/cases";
-const timeval CaseFile::s_removeGracePeriod = { 60 /*sec*/, 0 /*usec*/};
 
 //- CaseFile Static Public Methods ---------------------------------------------
 CaseFile *
@@ -255,6 +255,7 @@ CaseFile::RefreshVdevState()
 
 	m_vdevState    = vd.State();
 	m_vdevPhysPath = vd.PhysicalPath();
+	m_vdevName = vd.Name(casePool, false);
 	return (true);
 }
 
@@ -610,15 +611,55 @@ CaseFile::ActivateSpare() {
 	return (Replace(vdev_type, devPath, /*isspare*/true));
 }
 
+/* Does the argument event refer to a checksum error? */
+static bool
+IsChecksumEvent(const Event* const event)
+{
+	return ("ereport.fs.zfs.checksum" == event->Value("type"));
+}
+
+/* Does the argument event refer to an IO error? */
+static bool
+IsIOEvent(const Event* const event)
+{
+	return ("ereport.fs.zfs.io" == event->Value("type"));
+}
+
+/* Does the argument event refer to an IO delay? */
+static bool
+IsDelayEvent(const Event* const event)
+{
+	return ("ereport.fs.zfs.delay" == event->Value("type"));
+}
+
 void
 CaseFile::RegisterCallout(const Event &event)
 {
 	timeval now, countdown, elapsed, timestamp, zero, remaining;
+	/**
+	 * The time ZFSD waits before promoting a tentative event
+	 * into a permanent event.
+	 */
+	int sec = -1;
+	if (IsChecksumEvent(&event))
+		sec = CaseFile::GetVdevProp(VDEV_PROP_CHECKSUM_T);
+	else if (IsIOEvent(&event))
+		sec = CaseFile::GetVdevProp(VDEV_PROP_IO_T);
+	else if (IsDelayEvent(&event))
+		sec = CaseFile::GetVdevProp(VDEV_PROP_SLOW_IO_T);
+
+	if (sec == -1)
+		sec = 60; /* default */
+
+	timeval removeGracePeriod = {
+	    sec, /*sec*/
+	    0 /*usec*/
+	};
 
 	gettimeofday(&now, 0);
 	timestamp = event.GetTimestamp();
 	timersub(&now, &timestamp, &elapsed);
-	timersub(&s_removeGracePeriod, &elapsed, &countdown);
+	timersub(&removeGracePeriod, &elapsed, &countdown);
 	/*
 	 * If countdown is <= zero, Reset the timer to the
 	 * smallest positive time value instead
@@ -826,6 +867,10 @@ CaseFile::CaseFile(const Vdev &vdev)
 	guidString.str("");
 	guidString << m_poolGUID;
 	m_poolGUIDString = guidString.str();
+
+	ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
+	zpool_handle_t *zhp(zpl.empty() ? NULL : zpl.front());
+	m_vdevName = vdev.Name(zhp, false);
 
 	s_activeCases.push_back(this);
 
@@ -1158,43 +1203,54 @@ CaseFile::Replace(const char* vdev_type, const char* path, bool isspare) {
 	return (retval);
 }
 
-/* Does the argument event refer to a checksum error? */
-static bool
-IsChecksumEvent(const Event* const event)
+/* Lookup the vdev prop. Used for checksum, IO, or slow IO props */
+int
+CaseFile::GetVdevProp(vdev_prop_t vdev_prop) const
 {
-	return ("ereport.fs.zfs.checksum" == event->Value("type"));
-}
+	char val[ZFS_MAXPROPLEN];
+	zprop_source_t srctype;
+	DevdCtl::Guid poolGUID = PoolGUID();
+	ZpoolList zpl(ZpoolList::ZpoolByGUID, &poolGUID);
+	zpool_handle_t *zhp(zpl.empty() ? NULL : zpl.front());
 
-/* Does the argument event refer to an IO error? */
-static bool
-IsIOEvent(const Event* const event)
-{
-	return ("ereport.fs.zfs.io" == event->Value("type"));
-}
+	char *prop_str = (char *) vdev_prop_to_name(vdev_prop);
+	if (zhp == NULL || zpool_get_vdev_prop(zhp, m_vdevName.c_str(),
+	    vdev_prop, prop_str, val, sizeof (val), &srctype, B_FALSE) != 0)
+		return (-1);
 
-/* Does the argument event refer to an IO delay? */
-static bool
-IsDelayEvent(const Event* const event)
-{
-	return ("ereport.fs.zfs.delay" == event->Value("type"));
+	/* we'll get "-" from libzfs for a prop that is not set */
+	if (zfs_isnumber(val) == B_FALSE)
+		return (-1);
+
+	return (atoi(val));
 }
 
 bool
 CaseFile::ShouldDegrade() const
 {
+	int checksum_n = GetVdevProp(VDEV_PROP_CHECKSUM_N);
+	if (checksum_n == -1)
+		checksum_n = DEFAULT_ZFS_DEGRADE_IO_COUNT;
 	return (std::count_if(m_events.begin(), m_events.end(),
-			      IsChecksumEvent) > ZFS_DEGRADE_IO_COUNT);
+			      IsChecksumEvent) > checksum_n);
 }
 
 bool
 CaseFile::ShouldFault() const
 {
 	bool should_fault_for_io, should_fault_for_delay;
+	int io_n = GetVdevProp(VDEV_PROP_IO_N);
+	int slow_io_n = GetVdevProp(VDEV_PROP_SLOW_IO_N);
+
+	if (io_n == -1)
+		io_n = DEFAULT_ZFS_DEGRADE_IO_COUNT;
+	if (slow_io_n == -1)
+		slow_io_n = DEFAULT_ZFS_FAULT_SLOW_IO_COUNT;
 
 	should_fault_for_io = std::count_if(m_events.begin(), m_events.end(),
-			      IsIOEvent) > ZFS_DEGRADE_IO_COUNT;
+			      IsIOEvent) > io_n;
 	should_fault_for_delay = std::count_if(m_events.begin(), m_events.end(),
-			      IsDelayEvent) > ZFS_FAULT_DELAY_COUNT;
+			      IsDelayEvent) > slow_io_n;
 
 	return (should_fault_for_io || should_fault_for_delay);
 }
