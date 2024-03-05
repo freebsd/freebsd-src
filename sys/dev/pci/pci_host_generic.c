@@ -538,7 +538,7 @@ generic_pcie_translate_resource(device_t bus, int type,
 	rman_res_t newend; /* unused */
 
 	return (generic_pcie_translate_resource_common(
-	    bus, type, start, 0, newstart, &newend));
+	    bus, type, start, start, newstart, &newend));
 }
 
 struct resource *
