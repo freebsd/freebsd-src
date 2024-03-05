@@ -235,18 +235,27 @@ public:
 	 */
 	int IsSpare();
 
+	/**
+	 * \brief Get case vdev's specified property
+	 */
+	int GetVdevProp(vdev_prop_t) const;
+
 protected:
 	enum {
+		/*
+		 * Use these defaults if we can't get the corresponding vdev
+		 * prop or if the prop is not set
+		 */
 		/**
 		 * The number of soft errors on a vdev required
 		 * to transition a vdev from healthy to degraded
-		 * status.
+		 * status
 		 */
-		ZFS_DEGRADE_IO_COUNT = 50,
+		DEFAULT_ZFS_DEGRADE_IO_COUNT = 50,
 		/**
 		 * The number of delay errors on a vdev required to fault it
 		 */
-		ZFS_FAULT_DELAY_COUNT = 8,
+		DEFAULT_ZFS_FAULT_SLOW_IO_COUNT = 8,
 	};
 
 	static CalloutFunc_t OnGracePeriodEnded;
@@ -380,12 +389,6 @@ protected:
 	static const string  s_caseFilePath;
 
 	/**
-	 * \brief The time ZFSD waits before promoting a tentative event
-	 *        into a permanent event.
-	 */
-	static const timeval s_removeGracePeriod;
-
-	/**
 	 * \brief A list of soft error events counted against the health of
 	 *        a vdev.
 	 */
@@ -404,6 +407,7 @@ protected:
 	string		   m_poolGUIDString;
 	string		   m_vdevGUIDString;
 	string		   m_vdevPhysPath;
+	string		   m_vdevName;
 	int		   m_is_spare;
 
 	/**
