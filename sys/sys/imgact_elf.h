@@ -123,7 +123,7 @@ void	__elfN(prepare_notes)(struct thread *, struct note_info_list *,
 void	__elfN(size_segments)(struct thread *, struct sseg_closure *, int);
 size_t	__elfN(register_note)(struct thread *, struct note_info_list *,
 	    int, outfunc_t, void *);
-bool	__elfN(parse_notes)(const struct image_params *, Elf_Note *,
+bool	__elfN(parse_notes)(const struct image_params *, const Elf_Note *,
 	    const char *, const Elf_Phdr *,
 	    bool (*)(const Elf_Note *, void *, bool *), void *);
 
