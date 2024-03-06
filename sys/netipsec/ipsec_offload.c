@@ -47,6 +47,7 @@
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet/in_pcb.h>
+#include <netinet/tcp_var.h>
 
 #include <netipsec/key.h>
 #include <netipsec/keydb.h>
@@ -803,26 +804,31 @@ ipsec_accel_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp,
 {
 	struct ifp_handle_sav *i;
 	struct ip *ip;
+	struct tcpcb *tp;
 	u_long ip_len, skip;
+	bool res;
 
 	*hwassist = 0;
+	res = false;
 	if (ifp == NULL)
-		return (false);
+		return (res);
 
 	M_ASSERTPKTHDR(m);
 	NET_EPOCH_ASSERT();
 
-	if (sav == NULL)
-		return (ipsec_accel_output_tag(m, IPSEC_ACCEL_DRV_SPI_BYPASS));
+	if (sav == NULL) {
+		res = ipsec_accel_output_tag(m, IPSEC_ACCEL_DRV_SPI_BYPASS);
+		goto out;
+	}
 
 	i = ipsec_accel_is_accel_sav_ptr(sav, ifp);
 	if (i == NULL)
-		return (false);
+		goto out;
 
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) == 0) {
 		ip_len = m->m_pkthdr.len;
 		if (ip_len + i->hdr_ext_size > mtu)
-			return (false);
+			goto out;
 		switch (af) {
 		case AF_INET:
 			ip = mtod(m, struct ip *);
@@ -835,11 +841,11 @@ ipsec_accel_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp,
 			__unreachable();
 		}
 		if (!ipsec_accel_output_pad(m, sav, skip, mtu))
-			return (false);
+			goto out;
 	}
 
 	if (!ipsec_accel_output_tag(m, i->drv_spi))
-		return (false);
+		goto out;
 
 	ipsec_accel_sa_recordxfer(sav, m);
 	key_freesav(&sav);
@@ -848,7 +854,18 @@ ipsec_accel_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp,
 
 	*hwassist = ifp->if_ipsec_accel_m->if_hwassist(ifp, sav,
 	    i->drv_spi, i->ifdata);
-	return (true);
+	res = true;
+out:
+	if (inp != NULL && inp->inp_pcbinfo == &V_tcbinfo) {
+		INP_WLOCK_ASSERT(inp);
+		tp = (struct tcpcb *)inp;
+		if (res && (*hwassist & (CSUM_TSO | CSUM_IP6_TSO)) != 0) {
+			tp->t_flags2 |= TF2_IPSEC_TSO;
+		} else {
+			tp->t_flags2 &= ~TF2_IPSEC_TSO;
+		}
+	}
+	return (res);
 }
 
 struct ipsec_accel_in_tag *
