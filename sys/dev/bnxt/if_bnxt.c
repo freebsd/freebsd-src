@@ -224,6 +224,8 @@ static uint64_t bnxt_get_baudrate(struct bnxt_link_info *link);
 static void bnxt_get_wol_settings(struct bnxt_softc *softc);
 static int bnxt_wol_config(if_ctx_t ctx);
 static bool bnxt_if_needs_restart(if_ctx_t, enum iflib_restart_event);
+static int bnxt_i2c_req(if_ctx_t ctx, struct ifi2creq *i2c);
+static void bnxt_get_port_module_status(struct bnxt_softc *softc);
 
 /*
  * Device Interface Declaration
@@ -287,6 +289,7 @@ static device_method_t bnxt_iflib_methods[] = {
 	DEVMETHOD(ifdi_suspend, bnxt_suspend),
 	DEVMETHOD(ifdi_shutdown, bnxt_shutdown),
 	DEVMETHOD(ifdi_resume, bnxt_resume),
+	DEVMETHOD(ifdi_i2c_req, bnxt_i2c_req),
 
 	DEVMETHOD(ifdi_needs_restart, bnxt_if_needs_restart),
 
@@ -1807,6 +1810,33 @@ bnxt_rss_grp_tbl_init(struct bnxt_softc *softc)
 	}
 }
 
+static void bnxt_get_port_module_status(struct bnxt_softc *softc)
+{
+	struct bnxt_link_info *link_info = &softc->link_info;
+	struct hwrm_port_phy_qcfg_output *resp = &link_info->phy_qcfg_resp;
+	uint8_t module_status;
+
+	if (bnxt_update_link(softc, false))
+		return;
+
+	module_status = link_info->module_status;
+	switch (module_status) {
+	case HWRM_PORT_PHY_QCFG_OUTPUT_MODULE_STATUS_DISABLETX:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_MODULE_STATUS_PWRDOWN:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_MODULE_STATUS_WARNINGMSG:
+		device_printf(softc->dev, "Unqualified SFP+ module detected on port %d\n",
+			    softc->pf.port_id);
+		if (softc->hwrm_spec_code >= 0x10201) {
+			device_printf(softc->dev, "Module part number %s\n",
+				    resp->phy_vendor_partnumber);
+		}
+		if (module_status == HWRM_PORT_PHY_QCFG_OUTPUT_MODULE_STATUS_DISABLETX)
+			device_printf(softc->dev, "TX is disabled\n");
+		if (module_status == HWRM_PORT_PHY_QCFG_OUTPUT_MODULE_STATUS_PWRDOWN)
+			device_printf(softc->dev, "SFP+ module is shutdown\n");
+	}
+}
+
 /* Device configuration */
 static void
 bnxt_init(if_ctx_t ctx)
@@ -1969,6 +1999,7 @@ skip_def_cp_ring:
 	}
 
 	bnxt_do_enable_intr(&softc->def_cp_ring);
+	bnxt_get_port_module_status(softc);
 	bnxt_media_status(softc->ctx, &ifmr);
 	bnxt_hwrm_cfa_l2_set_rx_mask(softc, &softc->vnic_info);
 	return;
@@ -2874,6 +2905,33 @@ exit:
 	return rc;
 }
 
+static int
+bnxt_i2c_req(if_ctx_t ctx, struct ifi2creq *i2c)
+{
+	struct bnxt_softc *softc = iflib_get_softc(ctx);
+	uint8_t *data = i2c->data;
+	int rc;
+
+	/* No point in going further if phy status indicates
+	 * module is not inserted or if it is powered down or
+	 * if it is of type 10GBase-T
+	 */
+	if (softc->link_info.module_status >
+		HWRM_PORT_PHY_QCFG_OUTPUT_MODULE_STATUS_WARNINGMSG)
+		return -EOPNOTSUPP;
+
+	/* This feature is not supported in older firmware versions */
+	if (!BNXT_CHIP_P5(softc) ||
+	    (softc->hwrm_spec_code < 0x10202))
+		return -EOPNOTSUPP;
+
+
+	rc = bnxt_read_sfp_module_eeprom_info(softc, I2C_DEV_ADDR_A0, 0, 0, 0,
+		i2c->offset, i2c->len, data);
+
+	return rc;
+}
+
 /*
  * Support functions
  */
@@ -2890,6 +2948,7 @@ bnxt_probe_phy(struct bnxt_softc *softc)
 		return (rc);
 	}
 
+	bnxt_get_port_module_status(softc);
 	/*initialize the ethool setting copy with NVM settings */
 	if (link_info->auto_mode != HWRM_PORT_PHY_QCFG_OUTPUT_AUTO_MODE_NONE)
 		link_info->autoneg |= BNXT_AUTONEG_SPEED;
