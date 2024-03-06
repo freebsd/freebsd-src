@@ -881,16 +881,8 @@ tarfs_alloc_mount(struct mount *mp, struct vnode *vp,
 	tmp->vfs = mp;
 	tmp->mtime = mtime;
 
-	/*
-	 * XXX The decompression layer passes everything through the
-	 * buffer cache, and the buffer cache wants to know our blocksize,
-	 * but mnt_stat normally isn't populated until after we return, so
-	 * we have to cheat a bit.
-	 */
+	/* Initialize I/O layer */
 	tmp->iosize = 1U << tarfs_ioshift;
-	mp->mnt_stat.f_iosize = tmp->iosize;
-
-	/* Initialize decompression layer */
 	error = tarfs_io_init(tmp);
 	if (error != 0)
 		goto bad;
