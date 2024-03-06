@@ -2890,7 +2890,7 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 		BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_CR4);
 		BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_CR);
 		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_CR1);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_T);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_CX);
 		break;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASELR4:
