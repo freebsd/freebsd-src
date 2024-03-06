@@ -843,5 +843,6 @@ struct bnxt_softc *bnxt_find_dev(uint32_t domain, uint32_t bus, uint32_t dev_fn,
 int bnxt_read_sfp_module_eeprom_info(struct bnxt_softc *bp, uint16_t i2c_addr,
     uint16_t page_number, uint8_t bank, bool bank_sel_en, uint16_t start_addr,
     uint16_t data_length, uint8_t *buf);
+uint8_t get_phy_type(struct bnxt_softc *softc);
 
 #endif /* _BNXT_H */

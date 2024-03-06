@@ -862,8 +862,20 @@ bnxt_hwrm_set_link_common(struct bnxt_softc *softc,
 	uint16_t fw_link_speed = softc->link_info.req_link_speed;
 
 	if (autoneg & BNXT_AUTONEG_SPEED) {
-		req->auto_mode |=
-		    HWRM_PORT_PHY_CFG_INPUT_AUTO_MODE_ALL_SPEEDS;
+		uint8_t phy_type = get_phy_type(softc);
+
+		if (phy_type == HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_1G_BASET ||
+		    phy_type == HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASET ||
+		    phy_type == HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASETE) {
+
+			req->auto_mode |= htole32(HWRM_PORT_PHY_CFG_INPUT_AUTO_MODE_SPEED_MASK);
+			if (link_info->advertising) {
+				req->enables |= htole32(HWRM_PORT_PHY_CFG_INPUT_ENABLES_AUTO_LINK_SPEED_MASK);
+				req->auto_link_speed_mask = htole16(link_info->advertising);
+			}
+		} else {
+			req->auto_mode |= HWRM_PORT_PHY_CFG_INPUT_AUTO_MODE_ALL_SPEEDS;
+		}
 
 		req->enables |=
 		    htole32(HWRM_PORT_PHY_CFG_INPUT_ENABLES_AUTO_MODE);
