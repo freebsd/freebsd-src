@@ -330,7 +330,7 @@ do_posix_spawn(pid_t *pid, const char *path,
 #ifdef _RFORK_THREAD_STACK_SIZE
 	/*
 	 * x86 stores the return address on the stack, so rfork(2) cannot work
-	 * as-is because the child would clobber the return address om the
+	 * as-is because the child would clobber the return address of the
 	 * parent.  Because of this, we must use rfork_thread instead while
 	 * almost every other arch stores the return address in a register.
 	 */
