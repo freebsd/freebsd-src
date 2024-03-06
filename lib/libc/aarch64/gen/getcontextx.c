@@ -32,13 +32,26 @@
 int
 __getcontextx_size(void)
 {
+	size_t size;
 
-	return (sizeof(ucontext_t));
+	size = sizeof(ucontext_t);
+	size += sizeof(struct arm64_reg_context); /* Space for ARM64_CTX_END */
+
+	return (size);
 }
 
 int
 __fillcontextx2(char *ctx)
 {
+	struct arm64_reg_context *reg_ctx;
+	ucontext_t *ucp;
+
+	ucp = (ucontext_t *)ctx;
+	ucp->uc_mcontext.mc_ptr = (uint64_t)(ucp + 1);
+
+	reg_ctx = (struct arm64_reg_context *)ucp->uc_mcontext.mc_ptr;
+	reg_ctx->ctx_id = ARM64_CTX_END;
+	reg_ctx->ctx_size = sizeof(struct arm64_reg_context);
 
 	return (0);
 }
@@ -49,7 +62,10 @@ __fillcontextx(char *ctx)
 	ucontext_t *ucp;
 
 	ucp = (ucontext_t *)ctx;
-	return (getcontext(ucp));
+	if (getcontext(ucp) == -1)
+		return (-1);
+	__fillcontextx2(ctx);
+	return (0);
 }
 
 __weak_reference(__getcontextx, getcontextx);
