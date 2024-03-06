@@ -583,7 +583,8 @@ again:
 				error = EINVAL;
 				goto bad;
 			}
-			if (line + len > exthdr + sz) {
+			if ((uintptr_t)line + len < (uintptr_t)line ||
+			    line + len > exthdr + sz) {
 				TARFS_DPF(ALLOC, "%s: exthdr overflow\n",
 				    __func__);
 				error = EINVAL;
