@@ -2184,6 +2184,44 @@ bnxt_hwrm_fw_set_time(struct bnxt_softc *softc, uint16_t year, uint8_t month,
 	return hwrm_send_message(softc, &req, sizeof(req));
 }
 
+int bnxt_read_sfp_module_eeprom_info(struct bnxt_softc *softc, uint16_t i2c_addr,
+    uint16_t page_number, uint8_t bank,bool bank_sel_en, uint16_t start_addr,
+    uint16_t data_length, uint8_t *buf)
+{
+	struct hwrm_port_phy_i2c_read_output *output =
+			(void *)softc->hwrm_cmd_resp.idi_vaddr;
+	struct hwrm_port_phy_i2c_read_input req = {0};
+	int rc = 0, byte_offset = 0;
+
+	BNXT_HWRM_LOCK(softc);
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_PORT_PHY_I2C_READ);
+
+	req.i2c_slave_addr = i2c_addr;
+	req.page_number = htole16(page_number);
+	req.port_id = htole16(softc->pf.port_id);
+	do {
+		uint16_t xfer_size;
+
+		xfer_size = min_t(uint16_t, data_length, BNXT_MAX_PHY_I2C_RESP_SIZE);
+		data_length -= xfer_size;
+		req.page_offset = htole16(start_addr + byte_offset);
+		req.data_length = xfer_size;
+		req.bank_number = bank;
+		req.enables = htole32((start_addr + byte_offset ?
+				HWRM_PORT_PHY_I2C_READ_INPUT_ENABLES_PAGE_OFFSET : 0) |
+				(bank_sel_en ?
+				HWRM_PORT_PHY_I2C_READ_INPUT_ENABLES_BANK_NUMBER : 0));
+		rc = hwrm_send_message(softc, &req, sizeof(req));
+		if (!rc)
+			memcpy(buf + byte_offset, output->data, xfer_size);
+		byte_offset += xfer_size;
+	} while (!rc && data_length > 0);
+
+	BNXT_HWRM_UNLOCK(softc);
+
+	return rc;
+}
+
 int
 bnxt_hwrm_port_phy_qcfg(struct bnxt_softc *softc)
 {
@@ -2200,6 +2238,7 @@ bnxt_hwrm_port_phy_qcfg(struct bnxt_softc *softc)
 	if (rc)
 		goto exit;
 
+	memcpy(&link_info->phy_qcfg_resp, resp, sizeof(*resp));
 	link_info->phy_link_status = resp->link;
 	link_info->duplex =  resp->duplex_cfg;
 	link_info->auto_mode = resp->auto_mode;
@@ -2264,6 +2303,7 @@ bnxt_hwrm_port_phy_qcfg(struct bnxt_softc *softc)
 	link_info->transceiver = resp->xcvr_pkg_type;
 	link_info->phy_addr = resp->eee_config_phy_addr &
 	    HWRM_PORT_PHY_QCFG_OUTPUT_PHY_ADDR_MASK;
+	link_info->module_status = resp->module_status;
 
 exit:
 	BNXT_HWRM_UNLOCK(softc);

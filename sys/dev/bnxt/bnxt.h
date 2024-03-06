@@ -319,6 +319,8 @@ struct bnxt_link_info {
 #define BNXT_AUTONEG_FLOW_CTRL	2
 	uint8_t		req_duplex;
 	uint16_t	req_link_speed;
+	uint8_t		module_status;
+	struct hwrm_port_phy_qcfg_output    phy_qcfg_resp;
 };
 
 enum bnxt_cp_type {
@@ -802,9 +804,15 @@ struct bnxt_filter_info {
 	uint64_t	l2_filter_id_hint;
 };
 
+#define I2C_DEV_ADDR_A0                 0xa0
+#define BNXT_MAX_PHY_I2C_RESP_SIZE      64
+
 /* Function declarations */
 void bnxt_report_link(struct bnxt_softc *softc);
 bool bnxt_check_hwrm_version(struct bnxt_softc *softc);
 struct bnxt_softc *bnxt_find_dev(uint32_t domain, uint32_t bus, uint32_t dev_fn, char *name);
+int bnxt_read_sfp_module_eeprom_info(struct bnxt_softc *bp, uint16_t i2c_addr,
+    uint16_t page_number, uint8_t bank, bool bank_sel_en, uint16_t start_addr,
+    uint16_t data_length, uint8_t *buf);
 
 #endif /* _BNXT_H */
