@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/_clock_id.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/callout.h>
@@ -439,8 +438,10 @@ kern_timerfd_create(struct thread *td, int clockid, int flags)
 	case CLOCK_MONOTONIC:
 		/* FALLTHROUGH */
 	case CLOCK_UPTIME:
-		/* FALLTHROUGH */
-	case CLOCK_BOOTTIME:
+		/*
+		 * CLOCK_BOOTTIME should be added once different from
+		 * CLOCK_UPTIME
+		 */
 		break;
 	default:
 		return (EINVAL);
