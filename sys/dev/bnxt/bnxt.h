@@ -306,12 +306,33 @@ struct bnxt_link_info {
 #define PHY_VER_LEN		3
 	uint8_t		phy_ver[PHY_VER_LEN];
 	uint8_t		phy_type;
+#define BNXT_PHY_STATE_ENABLED		0
+#define BNXT_PHY_STATE_DISABLED		1
+	uint8_t		phy_state;
+
 	uint16_t	link_speed;
 	uint16_t	support_speeds;
+	uint16_t	support_pam4_speeds;
 	uint16_t	auto_link_speeds;
-	uint16_t	auto_link_speed;
+	uint16_t	auto_pam4_link_speeds;
 	uint16_t	force_link_speed;
+	uint16_t	force_pam4_link_speed;
+	bool		force_pam4_speed_set_by_user;
+
+	uint16_t	advertising;
+	uint16_t	advertising_pam4;
+
 	uint32_t	preemphasis;
+	uint16_t	support_auto_speeds;
+	uint16_t	support_force_speeds;
+	uint16_t	support_pam4_auto_speeds;
+	uint16_t	support_pam4_force_speeds;
+#define BNXT_SIG_MODE_NRZ	HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_NRZ
+#define BNXT_SIG_MODE_PAM4	HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_PAM4
+	uint8_t		req_signal_mode;
+
+	uint8_t		active_fec_sig_mode;
+	uint8_t		sig_mode;
 
 	/* copy of requested setting */
 	uint8_t		autoneg;
@@ -321,6 +342,14 @@ struct bnxt_link_info {
 	uint16_t	req_link_speed;
 	uint8_t		module_status;
 	struct hwrm_port_phy_qcfg_output    phy_qcfg_resp;
+};
+
+enum bnxt_phy_type {
+	BNXT_MEDIA_CR = 0,
+	BNXT_MEDIA_LR,
+	BNXT_MEDIA_SR,
+	BNXT_MEDIA_KR,
+	BNXT_MEDIA_END
 };
 
 enum bnxt_cp_type {

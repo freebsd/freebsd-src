@@ -857,6 +857,7 @@ static void
 bnxt_hwrm_set_link_common(struct bnxt_softc *softc,
     struct hwrm_port_phy_cfg_input *req)
 {
+	struct bnxt_link_info *link_info = &softc->link_info;
 	uint8_t autoneg = softc->link_info.autoneg;
 	uint16_t fw_link_speed = softc->link_info.req_link_speed;
 
@@ -869,8 +870,15 @@ bnxt_hwrm_set_link_common(struct bnxt_softc *softc,
 		req->flags |=
 		    htole32(HWRM_PORT_PHY_CFG_INPUT_FLAGS_RESTART_AUTONEG);
 	} else {
-		req->force_link_speed = htole16(fw_link_speed);
 		req->flags |= htole32(HWRM_PORT_PHY_CFG_INPUT_FLAGS_FORCE);
+
+		if (link_info->force_pam4_speed_set_by_user) {
+			req->force_pam4_link_speed = htole16(fw_link_speed);
+			req->enables |= htole32(HWRM_PORT_PHY_CFG_INPUT_ENABLES_FORCE_PAM4_LINK_SPEED);
+			link_info->force_pam4_speed_set_by_user = false;
+		} else {
+			req->force_link_speed = htole16(fw_link_speed);
+		}
 	}
 
 	/* tell chimp that the setting takes effect immediately */
@@ -2284,7 +2292,7 @@ bnxt_hwrm_port_phy_qcfg(struct bnxt_softc *softc)
 	else
 		link_info->link_speed = 0;
 	link_info->force_link_speed = le16toh(resp->force_link_speed);
-	link_info->auto_link_speed = le16toh(resp->auto_link_speed);
+	link_info->auto_link_speeds = le16toh(resp->auto_link_speed);
 	link_info->support_speeds = le16toh(resp->support_speeds);
 	link_info->auto_link_speeds = le16toh(resp->auto_link_speed_mask);
 	link_info->preemphasis = le32toh(resp->preemphasis);
@@ -2304,6 +2312,72 @@ bnxt_hwrm_port_phy_qcfg(struct bnxt_softc *softc)
 	link_info->phy_addr = resp->eee_config_phy_addr &
 	    HWRM_PORT_PHY_QCFG_OUTPUT_PHY_ADDR_MASK;
 	link_info->module_status = resp->module_status;
+	link_info->support_pam4_speeds = le16toh(resp->support_pam4_speeds);
+	link_info->auto_pam4_link_speeds = le16toh(resp->auto_pam4_link_speed_mask);
+	link_info->force_pam4_link_speed = le16toh(resp->force_pam4_link_speed);
+
+	if (softc->hwrm_spec_code >= 0x10504)
+		link_info->active_fec_sig_mode = resp->active_fec_signal_mode;
+
+exit:
+	BNXT_HWRM_UNLOCK(softc);
+	return rc;
+}
+
+static bool
+bnxt_phy_qcaps_no_speed(struct hwrm_port_phy_qcaps_output *resp)
+{
+	if (!resp->supported_speeds_auto_mode &&
+	    !resp->supported_speeds_force_mode &&
+	    !resp->supported_pam4_speeds_auto_mode &&
+	    !resp->supported_pam4_speeds_force_mode)
+		return true;
+
+	return false;
+}
+
+int bnxt_hwrm_phy_qcaps(struct bnxt_softc *softc)
+{
+	struct bnxt_link_info *link_info = &softc->link_info;
+	struct hwrm_port_phy_qcaps_output *resp =
+	    (void *)softc->hwrm_cmd_resp.idi_vaddr;
+	struct hwrm_port_phy_qcaps_input req = {};
+	int rc;
+
+	if (softc->hwrm_spec_code < 0x10201)
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_PORT_PHY_QCAPS);
+
+	BNXT_HWRM_LOCK(softc);
+	rc = _hwrm_send_message(softc, &req, sizeof(req));
+	if (rc)
+		goto exit;
+
+	if (softc->hwrm_spec_code >= 0x10a01) {
+		if (bnxt_phy_qcaps_no_speed(resp)) {
+			link_info->phy_state = BNXT_PHY_STATE_DISABLED;
+			device_printf(softc->dev, "Ethernet link disabled\n");
+		} else if (link_info->phy_state == BNXT_PHY_STATE_DISABLED) {
+			link_info->phy_state = BNXT_PHY_STATE_ENABLED;
+			device_printf(softc->dev, "Ethernet link enabled\n");
+			/* Phy re-enabled, reprobe the speeds */
+			link_info->support_auto_speeds = 0;
+			link_info->support_pam4_auto_speeds = 0;
+		}
+	}
+	if (resp->supported_speeds_auto_mode)
+		link_info->support_auto_speeds =
+			le16toh(resp->supported_speeds_auto_mode);
+	if (resp->supported_speeds_force_mode)
+		link_info->support_force_speeds =
+			le16toh(resp->supported_speeds_force_mode);
+	if (resp->supported_pam4_speeds_auto_mode)
+		link_info->support_pam4_auto_speeds =
+			le16toh(resp->supported_pam4_speeds_auto_mode);
+	if (resp->supported_pam4_speeds_force_mode)
+		link_info->support_pam4_force_speeds =
+			le16toh(resp->supported_pam4_speeds_force_mode);
 
 exit:
 	BNXT_HWRM_UNLOCK(softc);
