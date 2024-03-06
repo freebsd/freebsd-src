@@ -26,6 +26,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/_clock_id.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/callout.h>
@@ -432,8 +433,18 @@ kern_timerfd_create(struct thread *td, int clockid, int flags)
 	AUDIT_ARG_VALUE(clockid);
 	AUDIT_ARG_FFLAGS(flags);
 
-	if (clockid != CLOCK_REALTIME && clockid != CLOCK_MONOTONIC)
+	switch (clockid) {
+	case CLOCK_REALTIME:
+		/* FALLTHROUGH */
+	case CLOCK_MONOTONIC:
+		/* FALLTHROUGH */
+	case CLOCK_UPTIME:
+		/* FALLTHROUGH */
+	case CLOCK_BOOTTIME:
+		break;
+	default:
 		return (EINVAL);
+	}
 	if ((flags & ~(TFD_CLOEXEC | TFD_NONBLOCK)) != 0)
 		return (EINVAL);
 
