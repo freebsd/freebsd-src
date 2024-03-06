@@ -116,6 +116,7 @@ int bnxt_hwrm_fw_set_time(struct bnxt_softc *softc, uint16_t year,
     uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second,
     uint16_t millisecond, uint16_t zone);
 int bnxt_hwrm_port_phy_qcfg(struct bnxt_softc *softc);
+int bnxt_hwrm_phy_qcaps(struct bnxt_softc *softc);
 uint16_t bnxt_hwrm_get_wol_fltrs(struct bnxt_softc *softc, uint16_t handle);
 int bnxt_hwrm_alloc_wol_fltr(struct bnxt_softc *softc);
 int bnxt_hwrm_free_wol_fltr(struct bnxt_softc *softc);
