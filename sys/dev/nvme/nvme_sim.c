@@ -270,6 +270,10 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_NVME_IO:		/* Execute the requested I/O operation */
 	case XPT_NVME_ADMIN:		/* or Admin operation */
 		if (ctrlr->is_failed) {
+			/*
+			 * I/O came in while we were failing the drive, so drop
+			 * it. Once falure is complete, we'll be destroyed.
+			 */
 			ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 			break;
 		}
