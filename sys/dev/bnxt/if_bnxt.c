@@ -2120,6 +2120,8 @@ bnxt_media_change(if_ctx_t ctx)
 	case IFM_40G_KR4:
 	case IFM_40G_LR4:
 	case IFM_40G_SR4:
+	case IFM_40G_XLAUI:
+	case IFM_40G_XLAUI_AC:
 		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
 		softc->link_info.req_link_speed =
 		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_40GB;
@@ -2936,6 +2938,8 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_ACTIVE_CABLE:
 		BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_ACC);
 		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_AOC);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_XLAUI);
+		BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_XLAUI_AC);
 		break;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_1G_BASECX:
