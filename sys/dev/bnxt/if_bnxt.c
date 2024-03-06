@@ -219,7 +219,6 @@ static void bnxt_mark_cpr_invalid(struct bnxt_cp_ring *cpr);
 static void bnxt_def_cp_task(void *context);
 static void bnxt_handle_async_event(struct bnxt_softc *softc,
     struct cmpl_base *cmpl);
-static uint8_t get_phy_type(struct bnxt_softc *softc);
 static uint64_t bnxt_get_baudrate(struct bnxt_link_info *link);
 static void bnxt_get_wol_settings(struct bnxt_softc *softc);
 static int bnxt_wol_config(if_ctx_t ctx);
@@ -2144,7 +2143,6 @@ bnxt_media_change(if_ctx_t ctx)
 		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_100MB;
 		break;
 	case IFM_1000_KX:
-	case IFM_1000_T:
 	case IFM_1000_SGMII:
 	case IFM_1000_CX:
 	case IFM_1000_SX:
@@ -2163,7 +2161,6 @@ bnxt_media_change(if_ctx_t ctx)
 	case IFM_10G_KR:
 	case IFM_10G_LR:
 	case IFM_10G_SR:
-	case IFM_10G_T:
 		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
 		softc->link_info.req_link_speed =
 		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_10GB;
@@ -2239,6 +2236,14 @@ bnxt_media_change(if_ctx_t ctx)
 		softc->link_info.force_pam4_speed_set_by_user = true;
 		softc->link_info.req_signal_mode =
 			HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_PAM4;
+		break;
+	case IFM_1000_T:
+		softc->link_info.advertising = HWRM_PORT_PHY_CFG_INPUT_AUTO_LINK_SPEED_MASK_1GB;
+		softc->link_info.autoneg |= BNXT_AUTONEG_SPEED;
+		break;
+	case IFM_10G_T:
+		softc->link_info.advertising = HWRM_PORT_PHY_CFG_INPUT_AUTO_LINK_SPEED_MASK_10GB;
+		softc->link_info.autoneg |= BNXT_AUTONEG_SPEED;
 		break;
 	default:
 		device_printf(softc->dev,
