@@ -3,7 +3,7 @@ PACKAGE=	tests
 TESTSDIR=	${TESTSBASE}/sys/fs/tarfs
 BINDIR=		${TESTSDIR}
 
-PROGS+=		mktar
+PROGS+=		mktar tarsum
 
 ATF_TESTS_SH+=	tarfs_test
 

@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2013 Juniper Networks, Inc.
- * Copyright (c) 2022-2023 Klara, Inc.
+ * Copyright (c) 2022-2024 Klara, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -379,8 +379,10 @@ tarfs_lookup_path(struct tarfs_mount *tmp, char *name, size_t namelen,
 			tnp = tarfs_lookup_node(parent, NULL, &cn);
 			if (tnp == NULL) {
 				do_lookup = false;
-				if (!create_dirs)
+				if (!create_dirs) {
+					error = ENOENT;
 					break;
+				}
 			}
 		}
 		name += cn.cn_namelen;
@@ -451,7 +453,7 @@ tarfs_alloc_one(struct tarfs_mount *tmp, off_t *blknump)
 	int64_t num;
 	int endmarker = 0;
 	char *namep, *sep;
-	struct tarfs_node *parent, *tnp;
+	struct tarfs_node *parent, *tnp, *other;
 	size_t namelen = 0, linklen = 0, realsize = 0, sz;
 	ssize_t res;
 	dev_t rdev;
@@ -732,27 +734,38 @@ again:
 			link = hdrp->linkname;
 			linklen = strnlen(link, sizeof(hdrp->linkname));
 		}
-		error = tarfs_alloc_node(tmp, namep, sep - namep, VREG,
-		    0, 0, 0, 0, 0, 0, 0, NULL, 0, parent, &tnp);
-		if (error != 0) {
+		if (linklen == 0) {
+			TARFS_DPF(ALLOC, "%s: %.*s: link without target\n",
+			    __func__, (int)namelen, name);
+			error = EINVAL;
 			goto bad;
 		}
 		error = tarfs_lookup_path(tmp, link, linklen, NULL,
-		    NULL, NULL, &tnp->other, false);
-		if (tnp->other == NULL ||
-		    tnp->other->type != VREG ||
-		    tnp->other->other != NULL) {
-			TARFS_DPF(ALLOC, "%s: %.*s: dead hard link to %.*s\n",
+		    NULL, NULL, &other, false);
+		if (error != 0 || other == NULL ||
+		    other->type != VREG || other->other != NULL) {
+			TARFS_DPF(ALLOC, "%s: %.*s: invalid link to %.*s\n",
 			    __func__, (int)namelen, name, (int)linklen, link);
 			error = EINVAL;
 			goto bad;
 		}
-		tnp->other->nlink++;
+		error = tarfs_alloc_node(tmp, namep, sep - namep, VREG,
+		    0, 0, 0, 0, 0, 0, 0, NULL, 0, parent, &tnp);
+		if (error == 0) {
+			tnp->other = other;
+			tnp->other->nlink++;
+		}
 		break;
 	case TAR_TYPE_SYMLINK:
 		if (link == NULL) {
 			link = hdrp->linkname;
 			linklen = strnlen(link, sizeof(hdrp->linkname));
+		}
+		if (linklen == 0) {
+			TARFS_DPF(ALLOC, "%s: %.*s: link without target\n",
+			    __func__, (int)namelen, name);
+			error = EINVAL;
+			goto bad;
 		}
 		error = tarfs_alloc_node(tmp, namep, sep - namep, VLNK,
 		    0, linklen, mtime, uid, gid, mode, flags, link, 0,

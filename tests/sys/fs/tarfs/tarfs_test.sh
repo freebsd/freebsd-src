@@ -2,7 +2,7 @@
 #-
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2023 Klara, Inc.
+# Copyright (c) 2023-2024 Klara, Inc.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -41,6 +41,10 @@ tar() {
 
 mktar() {
 	"$(atf_get_srcdir)"/mktar ${TARFS_USE_GNU_TAR+-g} "$@"
+}
+
+tarsum() {
+	"$(atf_get_srcdir)"/tarsum
 }
 
 atf_test_case tarfs_basic cleanup
@@ -225,6 +229,65 @@ tarfs_notdir_file_gnu_cleanup() {
 	tarfs_notdir_file_cleanup
 }
 
+atf_test_case tarfs_emptylink cleanup
+tarfs_emptylink_head() {
+	atf_set "descr" "Regression test for PR 277360: empty link target"
+	atf_set "require.user" "root"
+}
+tarfs_emptylink_body() {
+	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
+	mkdir "${mnt}"
+	touch z
+	ln -f z hard
+	ln -fs z soft
+	tar -cf - z hard soft | dd bs=512 skip=1 | tr z '\0' | \
+		tarsum >> tarfs_emptylink.tar
+	atf_check -s not-exit:0 -e match:"Invalid" \
+		  mount -rt tarfs tarfs_emptylink.tar "${mnt}"
+}
+tarfs_emptylink_cleanup() {
+	umount "${mnt}" || true
+}
+
+atf_test_case tarfs_linktodir cleanup
+tarfs_linktodir_head() {
+	atf_set "descr" "Regression test for PR 277360: link to directory"
+	atf_set "require.user" "root"
+}
+tarfs_linktodir_body() {
+	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
+	mkdir "${mnt}"
+	mkdir d
+	tar -cf - d | dd bs=512 count=1 > tarfs_linktodir.tar
+	rmdir d
+	touch d
+	ln -f d link
+	tar -cf - d link | dd bs=512 skip=1 >> tarfs_linktodir.tar
+	atf_check -s not-exit:0 -e match:"Invalid" \
+		  mount -rt tarfs tarfs_linktodir.tar "${mnt}"
+}
+tarfs_linktodir_cleanup() {
+	umount "${mnt}" || true
+}
+
+atf_test_case tarfs_linktononexistent cleanup
+tarfs_linktononexistent_head() {
+	atf_set "descr" "Regression test for PR 277360: link to nonexistent target"
+	atf_set "require.user" "root"
+}
+tarfs_linktononexistent_body() {
+	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
+	mkdir "${mnt}"
+	touch f
+	ln -f f link
+	tar -cf - f link | dd bs=512 skip=1 >> tarfs_linktononexistent.tar
+	atf_check -s not-exit:0 -e match:"Invalid" \
+		  mount -rt tarfs tarfs_linktononexistent.tar "${mnt}"
+}
+tarfs_linktononexistent_cleanup() {
+	umount "${mnt}" || true
+}
+
 atf_init_test_cases() {
 	atf_add_test_case tarfs_basic
 	atf_add_test_case tarfs_basic_gnu
@@ -236,4 +299,7 @@ atf_init_test_cases() {
 	atf_add_test_case tarfs_notdir_dotdot_gnu
 	atf_add_test_case tarfs_notdir_file
 	atf_add_test_case tarfs_notdir_file_gnu
+	atf_add_test_case tarfs_emptylink
+	atf_add_test_case tarfs_linktodir
+	atf_add_test_case tarfs_linktononexistent
 }
