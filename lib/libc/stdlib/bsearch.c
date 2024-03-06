@@ -35,6 +35,7 @@
 #ifdef	I_AM_BSEARCH_B
 #include "block_abi.h"
 #define	COMPAR(x,y)	CALL_BLOCK(compar, x, y)
+typedef DECLARE_BLOCK(int, compar_block, const void *, const void *);
 #else
 #define	COMPAR(x,y)	compar(x, y)
 #endif
@@ -58,7 +59,7 @@
 #ifdef I_AM_BSEARCH_B
 void *
 bsearch_b(const void *key, const void *base0, size_t nmemb, size_t size,
-    DECLARE_BLOCK(int, compar, const void *, const void *))
+    compar_block compar)
 #else
 void *
 bsearch(const void *key, const void *base0, size_t nmemb, size_t size,
