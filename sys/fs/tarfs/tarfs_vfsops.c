@@ -113,58 +113,46 @@ static const char *tarfs_opts[] = {
 };
 
 /*
- * Reads a len-width signed octal number from strp.  Returns the value.
- * XXX Does not report errors.
+ * Reads a len-width signed octal number from strp.  Returns 0 on success
+ * and non-zero on error.
  */
-static int64_t
-tarfs_str2octal(const char *strp, size_t len)
+static int
+tarfs_str2octal(const char *strp, size_t len, int64_t *num)
 {
 	int64_t val;
 	size_t idx;
 	int sign;
 
-	/*
-	 * Skip leading spaces or tabs.
-	 * XXX why?  POSIX requires numeric fields to be 0-padded.
-	 */
-	for (idx = 0; idx < len; idx++)
-		if (strp[idx] != ' ' && strp[idx] != '\t')
-			break;
-
-	if (idx == len)
-		return (0);
-
+	idx = 0;
 	if (strp[idx] == '-') {
 		sign = -1;
 		idx++;
-	} else
+	} else {
 		sign = 1;
-
-	val = 0;
-	for (; idx < len; idx++) {
-		if (strp[idx] < '0' || strp[idx] > '7')
-			break;
-		val <<= 3;
-		val += (strp[idx] - '0');
-
-		/* Truncate on overflow */
-		if (val > INT64_MAX / 8) {
-			val = INT64_MAX;
-			break;
-		}
 	}
 
-	return (sign > 0) ? val : -val;
+	val = 0;
+	for (; idx < len && strp[idx] != '\0' && strp[idx] != ' '; idx++) {
+		if (strp[idx] < '0' || strp[idx] > '7')
+			return (EINVAL);
+		val <<= 3;
+		val += strp[idx] - '0';
+		if (val > INT64_MAX / 8)
+			return (ERANGE);
+	}
+
+	*num = val * sign;
+	return (0);
 }
 
 /*
  * Reads a len-byte extended numeric value from strp.  The first byte has
  * bit 7 set to indicate the format; the remaining 7 bits + the (len - 1)
  * bytes that follow form a big-endian signed two's complement binary
- * number.  Returns the value.  XXX Does not report errors.
+ * number.  Returns 0 on success and non-zero on error;
  */
-static int64_t
-tarfs_str2base256(const char *strp, size_t len)
+static int
+tarfs_str2base256(const char *strp, size_t len, int64_t *num)
 {
 	int64_t val;
 	size_t idx;
@@ -183,37 +171,27 @@ tarfs_str2base256(const char *strp, size_t len)
 	for (idx = 1; idx < len; idx++) {
 		val <<= 8;
 		val |= (0xff & (int64_t)strp[idx]);
-
-		/* Truncate on overflow and underflow */
-		if (val > INT64_MAX / 256) {
-			val = INT64_MAX;
-			break;
-		} else if (val < INT64_MAX / 256) {
-			val = INT64_MIN;
-			break;
-		}
+		if (val > INT64_MAX / 256 || val < INT64_MIN / 256)
+			return (ERANGE);
 	}
 
-	return (val);
+	*num = val;
+	return (0);
 }
 
 /*
  * Read a len-byte numeric field from strp.  If bit 7 of the first byte it
  * set, assume an extended numeric value (signed two's complement);
  * otherwise, assume a signed octal value.
- *
- * XXX practically no error checking or handling
  */
-static int64_t
-tarfs_str2int64(const char *strp, size_t len)
+static int
+tarfs_str2int64(const char *strp, size_t len, int64_t *num)
 {
-
 	if (len < 1)
-		return (0);
-
+		return (EINVAL);
 	if ((strp[0] & 0x80) != 0)
-		return (tarfs_str2base256(strp, len));
-	return (tarfs_str2octal(strp, len));
+		return (tarfs_str2base256(strp, len, num));
+	return (tarfs_str2octal(strp, len, num));
 }
 
 /*
@@ -521,42 +499,47 @@ again:
 	}
 
 	/* get standard attributes */
-	num = tarfs_str2int64(hdrp->mode, sizeof(hdrp->mode));
-	if (num < 0 || num > (S_IFMT|ALLPERMS)) {
+	if (tarfs_str2int64(hdrp->mode, sizeof(hdrp->mode), &num) != 0 ||
+	    num < 0 || num > (S_IFMT|ALLPERMS)) {
 		TARFS_DPF(ALLOC, "%s: invalid file mode at %zu\n",
 		    __func__, TARFS_BLOCKSIZE * (blknum - 1));
 		mode = S_IRUSR;
 	} else {
 		mode = num & ALLPERMS;
 	}
-	num = tarfs_str2int64(hdrp->uid, sizeof(hdrp->uid));
-	if (num < 0 || num > UID_MAX) {
-		TARFS_DPF(ALLOC, "%s: UID out of range at %zu\n",
+	if (tarfs_str2int64(hdrp->uid, sizeof(hdrp->uid), &num) != 0 ||
+	    num < 0 || num > UID_MAX) {
+		TARFS_DPF(ALLOC, "%s: invalid UID at %zu\n",
 		    __func__, TARFS_BLOCKSIZE * (blknum - 1));
 		uid = tmp->root->uid;
 		mode &= ~S_ISUID;
 	} else {
 		uid = num;
 	}
-	num = tarfs_str2int64(hdrp->gid, sizeof(hdrp->gid));
-	if (num < 0 || num > GID_MAX) {
-		TARFS_DPF(ALLOC, "%s: GID out of range at %zu\n",
+	if (tarfs_str2int64(hdrp->gid, sizeof(hdrp->gid), &num) != 0 ||
+	    num < 0 || num > GID_MAX) {
+		TARFS_DPF(ALLOC, "%s: invalid GID at %zu\n",
 		    __func__, TARFS_BLOCKSIZE * (blknum - 1));
 		gid = tmp->root->gid;
 		mode &= ~S_ISGID;
 	} else {
 		gid = num;
 	}
-	num = tarfs_str2int64(hdrp->size, sizeof(hdrp->size));
-	if (num < 0) {
-		TARFS_DPF(ALLOC, "%s: negative size at %zu\n",
+	if (tarfs_str2int64(hdrp->size, sizeof(hdrp->size), &num) != 0 ||
+	    num < 0) {
+		TARFS_DPF(ALLOC, "%s: invalid size at %zu\n",
 		    __func__, TARFS_BLOCKSIZE * (blknum - 1));
 		error = EINVAL;
 		goto bad;
-	} else {
-		sz = num;
 	}
-	mtime = tarfs_str2int64(hdrp->mtime, sizeof(hdrp->mtime));
+	sz = num;
+	if (tarfs_str2int64(hdrp->mtime, sizeof(hdrp->mtime), &num) != 0) {
+		TARFS_DPF(ALLOC, "%s: invalid modification time at %zu\n",
+		    __func__, TARFS_BLOCKSIZE * (blknum - 1));
+		error = EINVAL;
+		goto bad;
+	}
+	mtime = num;
 	rdev = NODEV;
 	TARFS_DPF(ALLOC, "%s: [%c] %zu @%jd %o %d:%d\n", __func__,
 	    hdrp->typeflag[0], sz, (intmax_t)mtime, mode, uid, gid);
@@ -772,16 +755,44 @@ again:
 		    parent, &tnp);
 		break;
 	case TAR_TYPE_BLOCK:
-		major = tarfs_str2int64(hdrp->major, sizeof(hdrp->major));
-		minor = tarfs_str2int64(hdrp->minor, sizeof(hdrp->minor));
+		if (tarfs_str2int64(hdrp->major, sizeof(hdrp->major), &num) != 0 ||
+		    num < 0 || num > INT_MAX) {
+			TARFS_DPF(ALLOC, "%s: %.*s: invalid device major\n",
+			    __func__, (int)namelen, name);
+			error = EINVAL;
+			goto bad;
+		}
+		major = num;
+		if (tarfs_str2int64(hdrp->minor, sizeof(hdrp->minor), &num) != 0 ||
+		    num < 0 || num > INT_MAX) {
+			TARFS_DPF(ALLOC, "%s: %.*s: invalid device minor\n",
+			    __func__, (int)namelen, name);
+			error = EINVAL;
+			goto bad;
+		}
+		minor = num;
 		rdev = makedev(major, minor);
 		error = tarfs_alloc_node(tmp, namep, sep - namep, VBLK,
 		    0, 0, mtime, uid, gid, mode, flags, NULL, rdev,
 		    parent, &tnp);
 		break;
 	case TAR_TYPE_CHAR:
-		major = tarfs_str2int64(hdrp->major, sizeof(hdrp->major));
-		minor = tarfs_str2int64(hdrp->minor, sizeof(hdrp->minor));
+		if (tarfs_str2int64(hdrp->major, sizeof(hdrp->major), &num) != 0 ||
+		    num < 0 || num > INT_MAX) {
+			TARFS_DPF(ALLOC, "%s: %.*s: invalid device major\n",
+			    __func__, (int)namelen, name);
+			error = EINVAL;
+			goto bad;
+		}
+		major = num;
+		if (tarfs_str2int64(hdrp->minor, sizeof(hdrp->minor), &num) != 0 ||
+		    num < 0 || num > INT_MAX) {
+			TARFS_DPF(ALLOC, "%s: %.*s: invalid device minor\n",
+			    __func__, (int)namelen, name);
+			error = EINVAL;
+			goto bad;
+		}
+		minor = num;
 		rdev = makedev(major, minor);
 		error = tarfs_alloc_node(tmp, namep, sep - namep, VCHR,
 		    0, 0, mtime, uid, gid, mode, flags, NULL, rdev,
