@@ -47,15 +47,23 @@ tarsum() {
 	"$(atf_get_srcdir)"/tarsum
 }
 
+tarfs_setup() {
+	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
+	mkdir "${mnt}"
+}
+
+tarfs_cleanup() {
+	umount -f "${mnt}" 2>/dev/null || true
+}
+
 atf_test_case tarfs_basic cleanup
 tarfs_basic_head() {
 	atf_set "descr" "Basic function test"
 	atf_set "require.user" "root"
 }
 tarfs_basic_body() {
+	tarfs_setup
 	local tarball="${PWD}/tarfs_test.tar.zst"
-	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
-	mkdir "${mnt}"
 	mktar "${tarball}"
 	atf_check mount -rt tarfs "${tarball}" "${mnt}"
 	atf_check -o match:"^${tarball} on ${mnt} \(tarfs," mount
@@ -72,7 +80,7 @@ tarfs_basic_body() {
 	atf_check -o inline:"3,40755\n" stat -f%l,%p "${mnt}"
 }
 tarfs_basic_cleanup() {
-	umount "${mnt}" || true
+	tarfs_cleanup
 }
 
 atf_test_case tarfs_basic_gnu cleanup
@@ -95,8 +103,7 @@ tarfs_notdir_device_head() {
 	atf_set "require.user" "root"
 }
 tarfs_notdir_device_body() {
-	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
-	mkdir "${mnt}"
+	tarfs_setup
 	atf_check mknod d b 0xdead 0xbeef
 	tar -cf tarfs_notdir.tar d
 	rm d
@@ -107,7 +114,7 @@ tarfs_notdir_device_body() {
 	    mount -rt tarfs tarfs_notdir.tar "${mnt}"
 }
 tarfs_notdir_device_cleanup() {
-	umount "${mnt}" || true
+	tarfs_cleanup
 }
 
 atf_test_case tarfs_notdir_device_gnu cleanup
@@ -130,8 +137,7 @@ tarfs_notdir_dot_head() {
 	atf_set "require.user" "root"
 }
 tarfs_notdir_dot_body() {
-	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
-	mkdir "${mnt}"
+	tarfs_setup
 	echo "hello" >d
 	tar -cf tarfs_notdir.tar d
 	rm d
@@ -142,7 +148,7 @@ tarfs_notdir_dot_body() {
 	    mount -rt tarfs tarfs_notdir.tar "${mnt}"
 }
 tarfs_notdir_dot_cleanup() {
-	umount "${mnt}" || true
+	tarfs_cleanup
 }
 
 atf_test_case tarfs_notdir_dot_gnu cleanup
@@ -165,8 +171,7 @@ tarfs_notdir_dotdot_head() {
 	atf_set "require.user" "root"
 }
 tarfs_notdir_dotdot_body() {
-	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
-	mkdir "${mnt}"
+	tarfs_setup
 	echo "hello" >d
 	tar -cf tarfs_notdir.tar d
 	rm d
@@ -177,7 +182,7 @@ tarfs_notdir_dotdot_body() {
 	    mount -rt tarfs tarfs_notdir.tar "${mnt}"
 }
 tarfs_notdir_dotdot_cleanup() {
-	umount "${mnt}" || true
+	tarfs_cleanup
 }
 
 atf_test_case tarfs_notdir_dotdot_gnu cleanup
@@ -200,8 +205,7 @@ tarfs_notdir_file_head() {
 	atf_set "require.user" "root"
 }
 tarfs_notdir_file_body() {
-	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
-	mkdir "${mnt}"
+	tarfs_setup
 	echo "hello" >d
 	tar -cf tarfs_notdir.tar d
 	rm d
@@ -212,7 +216,7 @@ tarfs_notdir_file_body() {
 	    mount -rt tarfs tarfs_notdir.tar "${mnt}"
 }
 tarfs_notdir_file_cleanup() {
-	umount "${mnt}" || true
+	tarfs_cleanup
 }
 
 atf_test_case tarfs_notdir_file_gnu cleanup
@@ -235,8 +239,7 @@ tarfs_emptylink_head() {
 	atf_set "require.user" "root"
 }
 tarfs_emptylink_body() {
-	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
-	mkdir "${mnt}"
+	tarfs_setup
 	touch z
 	ln -f z hard
 	ln -fs z soft
@@ -246,7 +249,7 @@ tarfs_emptylink_body() {
 		  mount -rt tarfs tarfs_emptylink.tar "${mnt}"
 }
 tarfs_emptylink_cleanup() {
-	umount "${mnt}" || true
+	tarfs_cleanup
 }
 
 atf_test_case tarfs_linktodir cleanup
@@ -255,8 +258,7 @@ tarfs_linktodir_head() {
 	atf_set "require.user" "root"
 }
 tarfs_linktodir_body() {
-	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
-	mkdir "${mnt}"
+	tarfs_setup
 	mkdir d
 	tar -cf - d | dd bs=512 count=1 > tarfs_linktodir.tar
 	rmdir d
@@ -267,7 +269,7 @@ tarfs_linktodir_body() {
 		  mount -rt tarfs tarfs_linktodir.tar "${mnt}"
 }
 tarfs_linktodir_cleanup() {
-	umount "${mnt}" || true
+	tarfs_cleanup
 }
 
 atf_test_case tarfs_linktononexistent cleanup
@@ -276,8 +278,7 @@ tarfs_linktononexistent_head() {
 	atf_set "require.user" "root"
 }
 tarfs_linktononexistent_body() {
-	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
-	mkdir "${mnt}"
+	tarfs_setup
 	touch f
 	ln -f f link
 	tar -cf - f link | dd bs=512 skip=1 >> tarfs_linktononexistent.tar
@@ -294,8 +295,7 @@ tarfs_checksum_head() {
 	atf_set "require.user" "root"
 }
 tarfs_checksum_body() {
-	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
-	mkdir "${mnt}"
+	tarfs_setup
 	touch f
 	tar -cf tarfs_checksum.tar f
 	truncate -s 500 tarfs_checksum.tar
@@ -306,7 +306,7 @@ tarfs_checksum_body() {
 		  mount -rt tarfs tarfs_checksum.tar "${mnt}"
 }
 tarfs_checksum_cleanup() {
-	umount "${mnt}" || true
+	tarfs_cleanup
 }
 
 atf_init_test_cases() {
