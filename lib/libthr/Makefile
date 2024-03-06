@@ -1,8 +1,3 @@
-#
-# All library objects contain FreeBSD revision strings by default; they may be
-# excluded as a space-saving measure.  To produce a library that does
-# not contain these strings, add -DSTRIP_FBSDID (see <sys/cdefs.h>) to CFLAGS
-# below.
 
 PACKAGE=	clibs
 SHLIBDIR?= /lib
