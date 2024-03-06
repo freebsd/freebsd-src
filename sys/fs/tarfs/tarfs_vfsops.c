@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2013 Juniper Networks, Inc.
- * Copyright (c) 2022-2023 Klara, Inc.
+ * Copyright (c) 2022-2024 Klara, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -56,7 +56,7 @@
 #include <fs/tarfs/tarfs.h>
 #include <fs/tarfs/tarfs_dbg.h>
 
-CTASSERT(ZERO_REGION_SIZE > TARFS_BLOCKSIZE);
+CTASSERT(ZERO_REGION_SIZE >= TARFS_BLOCKSIZE);
 
 struct ustar_header {
 	char	name[100];		/* File name */
@@ -75,7 +75,10 @@ struct ustar_header {
 	char	major[8];		/* Device major number */
 	char	minor[8];		/* Device minor number */
 	char	prefix[155];		/* Path prefix */
+	char	_pad[12];
 };
+
+CTASSERT(sizeof(struct ustar_header) == TARFS_BLOCKSIZE);
 
 #define	TAR_EOF			((off_t)-1)
 
@@ -113,58 +116,46 @@ static const char *tarfs_opts[] = {
 };
 
 /*
- * Reads a len-width signed octal number from strp.  Returns the value.
- * XXX Does not report errors.
+ * Reads a len-width signed octal number from strp.  Returns 0 on success
+ * and non-zero on error.
  */
-static int64_t
-tarfs_str2octal(const char *strp, size_t len)
+static int
+tarfs_str2octal(const char *strp, size_t len, int64_t *num)
 {
 	int64_t val;
 	size_t idx;
 	int sign;
 
-	/*
-	 * Skip leading spaces or tabs.
-	 * XXX why?  POSIX requires numeric fields to be 0-padded.
-	 */
-	for (idx = 0; idx < len; idx++)
-		if (strp[idx] != ' ' && strp[idx] != '\t')
-			break;
-
-	if (idx == len)
-		return (0);
-
+	idx = 0;
 	if (strp[idx] == '-') {
 		sign = -1;
 		idx++;
-	} else
+	} else {
 		sign = 1;
-
-	val = 0;
-	for (; idx < len; idx++) {
-		if (strp[idx] < '0' || strp[idx] > '7')
-			break;
-		val <<= 3;
-		val += (strp[idx] - '0');
-
-		/* Truncate on overflow */
-		if (val > INT64_MAX / 8) {
-			val = INT64_MAX;
-			break;
-		}
 	}
 
-	return (sign > 0) ? val : -val;
+	val = 0;
+	for (; idx < len && strp[idx] != '\0' && strp[idx] != ' '; idx++) {
+		if (strp[idx] < '0' || strp[idx] > '7')
+			return (EINVAL);
+		val <<= 3;
+		val += strp[idx] - '0';
+		if (val > INT64_MAX / 8)
+			return (ERANGE);
+	}
+
+	*num = val * sign;
+	return (0);
 }
 
 /*
  * Reads a len-byte extended numeric value from strp.  The first byte has
  * bit 7 set to indicate the format; the remaining 7 bits + the (len - 1)
  * bytes that follow form a big-endian signed two's complement binary
- * number.  Returns the value.  XXX Does not report errors.
+ * number.  Returns 0 on success and non-zero on error;
  */
-static int64_t
-tarfs_str2base256(const char *strp, size_t len)
+static int
+tarfs_str2base256(const char *strp, size_t len, int64_t *num)
 {
 	int64_t val;
 	size_t idx;
@@ -183,37 +174,27 @@ tarfs_str2base256(const char *strp, size_t len)
 	for (idx = 1; idx < len; idx++) {
 		val <<= 8;
 		val |= (0xff & (int64_t)strp[idx]);
-
-		/* Truncate on overflow and underflow */
-		if (val > INT64_MAX / 256) {
-			val = INT64_MAX;
-			break;
-		} else if (val < INT64_MAX / 256) {
-			val = INT64_MIN;
-			break;
-		}
+		if (val > INT64_MAX / 256 || val < INT64_MIN / 256)
+			return (ERANGE);
 	}
 
-	return (val);
+	*num = val;
+	return (0);
 }
 
 /*
  * Read a len-byte numeric field from strp.  If bit 7 of the first byte it
  * set, assume an extended numeric value (signed two's complement);
  * otherwise, assume a signed octal value.
- *
- * XXX practically no error checking or handling
  */
-static int64_t
-tarfs_str2int64(const char *strp, size_t len)
+static int
+tarfs_str2int64(const char *strp, size_t len, int64_t *num)
 {
-
 	if (len < 1)
-		return (0);
-
+		return (EINVAL);
 	if ((strp[0] & 0x80) != 0)
-		return (tarfs_str2base256(strp, len));
-	return (tarfs_str2octal(strp, len));
+		return (tarfs_str2base256(strp, len, num));
+	return (tarfs_str2octal(strp, len, num));
 }
 
 /*
@@ -225,21 +206,26 @@ tarfs_checksum(struct ustar_header *hdrp)
 {
 	const unsigned char *ptr;
 	int64_t checksum, hdrsum;
-	size_t idx;
 
-	hdrsum = tarfs_str2int64(hdrp->checksum, sizeof(hdrp->checksum));
-	TARFS_DPF(CHECKSUM, "%s: header checksum %lx\n", __func__, hdrsum);
+	if (tarfs_str2int64(hdrp->checksum, sizeof(hdrp->checksum), &hdrsum) != 0) {
+		TARFS_DPF(CHECKSUM, "%s: invalid header checksum \"%.*s\"\n",
+		    __func__, (int)sizeof(hdrp->checksum), hdrp->checksum);
+		return (false);
+	}
+	TARFS_DPF(CHECKSUM, "%s: header checksum \"%.*s\" = %#lo\n", __func__,
+	    (int)sizeof(hdrp->checksum), hdrp->checksum, hdrsum);
 
 	checksum = 0;
 	for (ptr = (const unsigned char *)hdrp;
 	     ptr < (const unsigned char *)hdrp->checksum; ptr++)
 		checksum += *ptr;
-	for (idx = 0; idx < sizeof(hdrp->checksum); idx++)
+	for (;
+	     ptr < (const unsigned char *)hdrp->typeflag; ptr++)
 		checksum += 0x20;
-	for (ptr = (const unsigned char *)hdrp->typeflag;
+	for (;
 	     ptr < (const unsigned char *)(hdrp + 1); ptr++)
 		checksum += *ptr;
-	TARFS_DPF(CHECKSUM, "%s: calc unsigned checksum %lx\n", __func__,
+	TARFS_DPF(CHECKSUM, "%s: calc unsigned checksum %#lo\n", __func__,
 	    checksum);
 	if (hdrsum == checksum)
 		return (true);
@@ -252,12 +238,13 @@ tarfs_checksum(struct ustar_header *hdrp)
 	for (ptr = (const unsigned char *)hdrp;
 	     ptr < (const unsigned char *)&hdrp->checksum; ptr++)
 		checksum += *((const signed char *)ptr);
-	for (idx = 0; idx < sizeof(hdrp->checksum); idx++)
+	for (;
+	     ptr < (const unsigned char *)&hdrp->typeflag; ptr++)
 		checksum += 0x20;
-	for (ptr = (const unsigned char *)&hdrp->typeflag;
+	for (;
 	     ptr < (const unsigned char *)(hdrp + 1); ptr++)
 		checksum += *((const signed char *)ptr);
-	TARFS_DPF(CHECKSUM, "%s: calc signed checksum %lx\n", __func__,
+	TARFS_DPF(CHECKSUM, "%s: calc signed checksum %#lo\n", __func__,
 	    checksum);
 	if (hdrsum == checksum)
 		return (true);
@@ -379,8 +366,10 @@ tarfs_lookup_path(struct tarfs_mount *tmp, char *name, size_t namelen,
 			tnp = tarfs_lookup_node(parent, NULL, &cn);
 			if (tnp == NULL) {
 				do_lookup = false;
-				if (!create_dirs)
+				if (!create_dirs) {
+					error = ENOENT;
 					break;
+				}
 			}
 		}
 		name += cn.cn_namelen;
@@ -451,7 +440,7 @@ tarfs_alloc_one(struct tarfs_mount *tmp, off_t *blknump)
 	int64_t num;
 	int endmarker = 0;
 	char *namep, *sep;
-	struct tarfs_node *parent, *tnp;
+	struct tarfs_node *parent, *tnp, *other;
 	size_t namelen = 0, linklen = 0, realsize = 0, sz;
 	ssize_t res;
 	dev_t rdev;
@@ -519,42 +508,47 @@ again:
 	}
 
 	/* get standard attributes */
-	num = tarfs_str2int64(hdrp->mode, sizeof(hdrp->mode));
-	if (num < 0 || num > (S_IFMT|ALLPERMS)) {
+	if (tarfs_str2int64(hdrp->mode, sizeof(hdrp->mode), &num) != 0 ||
+	    num < 0 || num > (S_IFMT|ALLPERMS)) {
 		TARFS_DPF(ALLOC, "%s: invalid file mode at %zu\n",
 		    __func__, TARFS_BLOCKSIZE * (blknum - 1));
 		mode = S_IRUSR;
 	} else {
 		mode = num & ALLPERMS;
 	}
-	num = tarfs_str2int64(hdrp->uid, sizeof(hdrp->uid));
-	if (num < 0 || num > UID_MAX) {
-		TARFS_DPF(ALLOC, "%s: UID out of range at %zu\n",
+	if (tarfs_str2int64(hdrp->uid, sizeof(hdrp->uid), &num) != 0 ||
+	    num < 0 || num > UID_MAX) {
+		TARFS_DPF(ALLOC, "%s: invalid UID at %zu\n",
 		    __func__, TARFS_BLOCKSIZE * (blknum - 1));
 		uid = tmp->root->uid;
 		mode &= ~S_ISUID;
 	} else {
 		uid = num;
 	}
-	num = tarfs_str2int64(hdrp->gid, sizeof(hdrp->gid));
-	if (num < 0 || num > GID_MAX) {
-		TARFS_DPF(ALLOC, "%s: GID out of range at %zu\n",
+	if (tarfs_str2int64(hdrp->gid, sizeof(hdrp->gid), &num) != 0 ||
+	    num < 0 || num > GID_MAX) {
+		TARFS_DPF(ALLOC, "%s: invalid GID at %zu\n",
 		    __func__, TARFS_BLOCKSIZE * (blknum - 1));
 		gid = tmp->root->gid;
 		mode &= ~S_ISGID;
 	} else {
 		gid = num;
 	}
-	num = tarfs_str2int64(hdrp->size, sizeof(hdrp->size));
-	if (num < 0) {
-		TARFS_DPF(ALLOC, "%s: negative size at %zu\n",
+	if (tarfs_str2int64(hdrp->size, sizeof(hdrp->size), &num) != 0 ||
+	    num < 0) {
+		TARFS_DPF(ALLOC, "%s: invalid size at %zu\n",
 		    __func__, TARFS_BLOCKSIZE * (blknum - 1));
 		error = EINVAL;
 		goto bad;
-	} else {
-		sz = num;
 	}
-	mtime = tarfs_str2int64(hdrp->mtime, sizeof(hdrp->mtime));
+	sz = num;
+	if (tarfs_str2int64(hdrp->mtime, sizeof(hdrp->mtime), &num) != 0) {
+		TARFS_DPF(ALLOC, "%s: invalid modification time at %zu\n",
+		    __func__, TARFS_BLOCKSIZE * (blknum - 1));
+		error = EINVAL;
+		goto bad;
+	}
+	mtime = num;
 	rdev = NODEV;
 	TARFS_DPF(ALLOC, "%s: [%c] %zu @%jd %o %d:%d\n", __func__,
 	    hdrp->typeflag[0], sz, (intmax_t)mtime, mode, uid, gid);
@@ -598,7 +592,8 @@ again:
 				error = EINVAL;
 				goto bad;
 			}
-			if (line + len > exthdr + sz) {
+			if ((uintptr_t)line + len < (uintptr_t)line ||
+			    line + len > exthdr + sz) {
 				TARFS_DPF(ALLOC, "%s: exthdr overflow\n",
 				    __func__);
 				error = EINVAL;
@@ -732,43 +727,82 @@ again:
 			link = hdrp->linkname;
 			linklen = strnlen(link, sizeof(hdrp->linkname));
 		}
-		error = tarfs_alloc_node(tmp, namep, sep - namep, VREG,
-		    0, 0, 0, 0, 0, 0, 0, NULL, 0, parent, &tnp);
-		if (error != 0) {
+		if (linklen == 0) {
+			TARFS_DPF(ALLOC, "%s: %.*s: link without target\n",
+			    __func__, (int)namelen, name);
+			error = EINVAL;
 			goto bad;
 		}
 		error = tarfs_lookup_path(tmp, link, linklen, NULL,
-		    NULL, NULL, &tnp->other, false);
-		if (tnp->other == NULL ||
-		    tnp->other->type != VREG ||
-		    tnp->other->other != NULL) {
-			TARFS_DPF(ALLOC, "%s: %.*s: dead hard link to %.*s\n",
+		    NULL, NULL, &other, false);
+		if (error != 0 || other == NULL ||
+		    other->type != VREG || other->other != NULL) {
+			TARFS_DPF(ALLOC, "%s: %.*s: invalid link to %.*s\n",
 			    __func__, (int)namelen, name, (int)linklen, link);
 			error = EINVAL;
 			goto bad;
 		}
-		tnp->other->nlink++;
+		error = tarfs_alloc_node(tmp, namep, sep - namep, VREG,
+		    0, 0, 0, 0, 0, 0, 0, NULL, 0, parent, &tnp);
+		if (error == 0) {
+			tnp->other = other;
+			tnp->other->nlink++;
+		}
 		break;
 	case TAR_TYPE_SYMLINK:
 		if (link == NULL) {
 			link = hdrp->linkname;
 			linklen = strnlen(link, sizeof(hdrp->linkname));
 		}
+		if (linklen == 0) {
+			TARFS_DPF(ALLOC, "%s: %.*s: link without target\n",
+			    __func__, (int)namelen, name);
+			error = EINVAL;
+			goto bad;
+		}
 		error = tarfs_alloc_node(tmp, namep, sep - namep, VLNK,
 		    0, linklen, mtime, uid, gid, mode, flags, link, 0,
 		    parent, &tnp);
 		break;
 	case TAR_TYPE_BLOCK:
-		major = tarfs_str2int64(hdrp->major, sizeof(hdrp->major));
-		minor = tarfs_str2int64(hdrp->minor, sizeof(hdrp->minor));
+		if (tarfs_str2int64(hdrp->major, sizeof(hdrp->major), &num) != 0 ||
+		    num < 0 || num > INT_MAX) {
+			TARFS_DPF(ALLOC, "%s: %.*s: invalid device major\n",
+			    __func__, (int)namelen, name);
+			error = EINVAL;
+			goto bad;
+		}
+		major = num;
+		if (tarfs_str2int64(hdrp->minor, sizeof(hdrp->minor), &num) != 0 ||
+		    num < 0 || num > INT_MAX) {
+			TARFS_DPF(ALLOC, "%s: %.*s: invalid device minor\n",
+			    __func__, (int)namelen, name);
+			error = EINVAL;
+			goto bad;
+		}
+		minor = num;
 		rdev = makedev(major, minor);
 		error = tarfs_alloc_node(tmp, namep, sep - namep, VBLK,
 		    0, 0, mtime, uid, gid, mode, flags, NULL, rdev,
 		    parent, &tnp);
 		break;
 	case TAR_TYPE_CHAR:
-		major = tarfs_str2int64(hdrp->major, sizeof(hdrp->major));
-		minor = tarfs_str2int64(hdrp->minor, sizeof(hdrp->minor));
+		if (tarfs_str2int64(hdrp->major, sizeof(hdrp->major), &num) != 0 ||
+		    num < 0 || num > INT_MAX) {
+			TARFS_DPF(ALLOC, "%s: %.*s: invalid device major\n",
+			    __func__, (int)namelen, name);
+			error = EINVAL;
+			goto bad;
+		}
+		major = num;
+		if (tarfs_str2int64(hdrp->minor, sizeof(hdrp->minor), &num) != 0 ||
+		    num < 0 || num > INT_MAX) {
+			TARFS_DPF(ALLOC, "%s: %.*s: invalid device minor\n",
+			    __func__, (int)namelen, name);
+			error = EINVAL;
+			goto bad;
+		}
+		minor = num;
 		rdev = makedev(major, minor);
 		error = tarfs_alloc_node(tmp, namep, sep - namep, VCHR,
 		    0, 0, mtime, uid, gid, mode, flags, NULL, rdev,
@@ -856,16 +890,8 @@ tarfs_alloc_mount(struct mount *mp, struct vnode *vp,
 	tmp->vfs = mp;
 	tmp->mtime = mtime;
 
-	/*
-	 * XXX The decompression layer passes everything through the
-	 * buffer cache, and the buffer cache wants to know our blocksize,
-	 * but mnt_stat normally isn't populated until after we return, so
-	 * we have to cheat a bit.
-	 */
+	/* Initialize I/O layer */
 	tmp->iosize = 1U << tarfs_ioshift;
-	mp->mnt_stat.f_iosize = tmp->iosize;
-
-	/* Initialize decompression layer */
 	error = tarfs_io_init(tmp);
 	if (error != 0)
 		goto bad;

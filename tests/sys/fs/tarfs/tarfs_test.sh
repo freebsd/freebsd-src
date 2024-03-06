@@ -2,7 +2,7 @@
 #-
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2023 Klara, Inc.
+# Copyright (c) 2023-2024 Klara, Inc.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -43,15 +43,27 @@ mktar() {
 	"$(atf_get_srcdir)"/mktar ${TARFS_USE_GNU_TAR+-g} "$@"
 }
 
+tarsum() {
+	"$(atf_get_srcdir)"/tarsum
+}
+
+tarfs_setup() {
+	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
+	mkdir "${mnt}"
+}
+
+tarfs_cleanup() {
+	umount -f "${mnt}" 2>/dev/null || true
+}
+
 atf_test_case tarfs_basic cleanup
 tarfs_basic_head() {
 	atf_set "descr" "Basic function test"
 	atf_set "require.user" "root"
 }
 tarfs_basic_body() {
+	tarfs_setup
 	local tarball="${PWD}/tarfs_test.tar.zst"
-	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
-	mkdir "${mnt}"
 	mktar "${tarball}"
 	atf_check mount -rt tarfs "${tarball}" "${mnt}"
 	atf_check -o match:"^${tarball} on ${mnt} \(tarfs," mount
@@ -68,7 +80,7 @@ tarfs_basic_body() {
 	atf_check -o inline:"3,40755\n" stat -f%l,%p "${mnt}"
 }
 tarfs_basic_cleanup() {
-	umount "${mnt}" || true
+	tarfs_cleanup
 }
 
 atf_test_case tarfs_basic_gnu cleanup
@@ -91,8 +103,7 @@ tarfs_notdir_device_head() {
 	atf_set "require.user" "root"
 }
 tarfs_notdir_device_body() {
-	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
-	mkdir "${mnt}"
+	tarfs_setup
 	atf_check mknod d b 0xdead 0xbeef
 	tar -cf tarfs_notdir.tar d
 	rm d
@@ -103,7 +114,7 @@ tarfs_notdir_device_body() {
 	    mount -rt tarfs tarfs_notdir.tar "${mnt}"
 }
 tarfs_notdir_device_cleanup() {
-	umount "${mnt}" || true
+	tarfs_cleanup
 }
 
 atf_test_case tarfs_notdir_device_gnu cleanup
@@ -126,8 +137,7 @@ tarfs_notdir_dot_head() {
 	atf_set "require.user" "root"
 }
 tarfs_notdir_dot_body() {
-	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
-	mkdir "${mnt}"
+	tarfs_setup
 	echo "hello" >d
 	tar -cf tarfs_notdir.tar d
 	rm d
@@ -138,7 +148,7 @@ tarfs_notdir_dot_body() {
 	    mount -rt tarfs tarfs_notdir.tar "${mnt}"
 }
 tarfs_notdir_dot_cleanup() {
-	umount "${mnt}" || true
+	tarfs_cleanup
 }
 
 atf_test_case tarfs_notdir_dot_gnu cleanup
@@ -161,8 +171,7 @@ tarfs_notdir_dotdot_head() {
 	atf_set "require.user" "root"
 }
 tarfs_notdir_dotdot_body() {
-	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
-	mkdir "${mnt}"
+	tarfs_setup
 	echo "hello" >d
 	tar -cf tarfs_notdir.tar d
 	rm d
@@ -173,7 +182,7 @@ tarfs_notdir_dotdot_body() {
 	    mount -rt tarfs tarfs_notdir.tar "${mnt}"
 }
 tarfs_notdir_dotdot_cleanup() {
-	umount "${mnt}" || true
+	tarfs_cleanup
 }
 
 atf_test_case tarfs_notdir_dotdot_gnu cleanup
@@ -196,8 +205,7 @@ tarfs_notdir_file_head() {
 	atf_set "require.user" "root"
 }
 tarfs_notdir_file_body() {
-	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
-	mkdir "${mnt}"
+	tarfs_setup
 	echo "hello" >d
 	tar -cf tarfs_notdir.tar d
 	rm d
@@ -208,7 +216,7 @@ tarfs_notdir_file_body() {
 	    mount -rt tarfs tarfs_notdir.tar "${mnt}"
 }
 tarfs_notdir_file_cleanup() {
-	umount "${mnt}" || true
+	tarfs_cleanup
 }
 
 atf_test_case tarfs_notdir_file_gnu cleanup
@@ -225,6 +233,82 @@ tarfs_notdir_file_gnu_cleanup() {
 	tarfs_notdir_file_cleanup
 }
 
+atf_test_case tarfs_emptylink cleanup
+tarfs_emptylink_head() {
+	atf_set "descr" "Regression test for PR 277360: empty link target"
+	atf_set "require.user" "root"
+}
+tarfs_emptylink_body() {
+	tarfs_setup
+	touch z
+	ln -f z hard
+	ln -fs z soft
+	tar -cf - z hard soft | dd bs=512 skip=1 | tr z '\0' | \
+		tarsum >> tarfs_emptylink.tar
+	atf_check -s not-exit:0 -e match:"Invalid" \
+		  mount -rt tarfs tarfs_emptylink.tar "${mnt}"
+}
+tarfs_emptylink_cleanup() {
+	tarfs_cleanup
+}
+
+atf_test_case tarfs_linktodir cleanup
+tarfs_linktodir_head() {
+	atf_set "descr" "Regression test for PR 277360: link to directory"
+	atf_set "require.user" "root"
+}
+tarfs_linktodir_body() {
+	tarfs_setup
+	mkdir d
+	tar -cf - d | dd bs=512 count=1 > tarfs_linktodir.tar
+	rmdir d
+	touch d
+	ln -f d link
+	tar -cf - d link | dd bs=512 skip=1 >> tarfs_linktodir.tar
+	atf_check -s not-exit:0 -e match:"Invalid" \
+		  mount -rt tarfs tarfs_linktodir.tar "${mnt}"
+}
+tarfs_linktodir_cleanup() {
+	tarfs_cleanup
+}
+
+atf_test_case tarfs_linktononexistent cleanup
+tarfs_linktononexistent_head() {
+	atf_set "descr" "Regression test for PR 277360: link to nonexistent target"
+	atf_set "require.user" "root"
+}
+tarfs_linktononexistent_body() {
+	tarfs_setup
+	touch f
+	ln -f f link
+	tar -cf - f link | dd bs=512 skip=1 >> tarfs_linktononexistent.tar
+	atf_check -s not-exit:0 -e match:"Invalid" \
+		  mount -rt tarfs tarfs_linktononexistent.tar "${mnt}"
+}
+tarfs_linktononexistent_cleanup() {
+	tarfs_cleanup
+}
+
+atf_test_case tarfs_checksum cleanup
+tarfs_checksum_head() {
+	atf_set "descr" "Verify that the checksum covers header padding"
+	atf_set "require.user" "root"
+}
+tarfs_checksum_body() {
+	tarfs_setup
+	touch f
+	tar -cf tarfs_checksum.tar f
+	truncate -s 500 tarfs_checksum.tar
+	printf "\1\1\1\1\1\1\1\1\1\1\1\1" >> tarfs_checksum.tar
+	dd if=/dev/zero bs=512 count=2 >> tarfs_checksum.tar
+	hexdump -C tarfs_checksum.tar
+	atf_check -s not-exit:0 -e match:"Invalid" \
+		  mount -rt tarfs tarfs_checksum.tar "${mnt}"
+}
+tarfs_checksum_cleanup() {
+	tarfs_cleanup
+}
+
 atf_init_test_cases() {
 	atf_add_test_case tarfs_basic
 	atf_add_test_case tarfs_basic_gnu
@@ -236,4 +320,8 @@ atf_init_test_cases() {
 	atf_add_test_case tarfs_notdir_dotdot_gnu
 	atf_add_test_case tarfs_notdir_file
 	atf_add_test_case tarfs_notdir_file_gnu
+	atf_add_test_case tarfs_emptylink
+	atf_add_test_case tarfs_linktodir
+	atf_add_test_case tarfs_linktononexistent
+	atf_add_test_case tarfs_checksum
 }
