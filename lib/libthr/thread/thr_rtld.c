@@ -26,11 +26,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
  /*
   * A lockless rwlock for rtld.
   */
-#include <sys/cdefs.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
 #include <link.h>
