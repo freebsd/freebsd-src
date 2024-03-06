@@ -499,6 +499,8 @@ bnxt_queues_free(if_ctx_t ctx)
 		iflib_dma_free(&softc->rx_stats[i]);
 	iflib_dma_free(&softc->hw_tx_port_stats);
 	iflib_dma_free(&softc->hw_rx_port_stats);
+	iflib_dma_free(&softc->hw_tx_port_stats_ext);
+	iflib_dma_free(&softc->hw_rx_port_stats_ext);
 	free(softc->grp_info, M_DEVBUF);
 	free(softc->ag_rings, M_DEVBUF);
 	free(softc->rx_rings, M_DEVBUF);
@@ -573,9 +575,9 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 	bus_dmamap_sync(softc->hw_rx_port_stats.idi_tag,
             softc->hw_rx_port_stats.idi_map, BUS_DMASYNC_PREREAD);
 
+
 	rc = iflib_dma_alloc(ctx, sizeof(struct tx_port_stats) + BNXT_PORT_STAT_PADDING,
 	    &softc->hw_tx_port_stats, 0);
-
 	if (rc)
 		goto hw_port_tx_stats_alloc_fail;
 
@@ -584,6 +586,26 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 
 	softc->rx_port_stats = (void *) softc->hw_rx_port_stats.idi_vaddr;
 	softc->tx_port_stats = (void *) softc->hw_tx_port_stats.idi_vaddr;
+
+
+	rc = iflib_dma_alloc(ctx, sizeof(struct rx_port_stats_ext),
+		&softc->hw_rx_port_stats_ext, 0);
+	if (rc)
+		goto hw_port_rx_stats_ext_alloc_fail;
+
+	bus_dmamap_sync(softc->hw_rx_port_stats_ext.idi_tag,
+	    softc->hw_rx_port_stats_ext.idi_map, BUS_DMASYNC_PREREAD);
+
+	rc = iflib_dma_alloc(ctx, sizeof(struct tx_port_stats_ext),
+		&softc->hw_tx_port_stats_ext, 0);
+	if (rc)
+		goto hw_port_tx_stats_ext_alloc_fail;
+
+	bus_dmamap_sync(softc->hw_tx_port_stats_ext.idi_tag,
+	    softc->hw_tx_port_stats_ext.idi_map, BUS_DMASYNC_PREREAD);
+
+	softc->rx_port_stats_ext = (void *) softc->hw_rx_port_stats_ext.idi_vaddr;
+	softc->tx_port_stats_ext = (void *) softc->hw_tx_port_stats_ext.idi_vaddr;
 
 	for (i = 0; i < nrxqsets; i++) {
 		/* Allocation the completion ring */
@@ -653,7 +675,7 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
          * HWRM every sec with which firmware timeouts can happen
          */
 	if (BNXT_PF(softc))
-        	bnxt_create_port_stats_sysctls(softc);
+		bnxt_create_port_stats_sysctls(softc);
 
 	/* And finally, the VNIC */
 	softc->vnic_info.id = (uint16_t)HWRM_NA_SIGNATURE;
@@ -699,16 +721,24 @@ rss_grp_alloc_fail:
 	iflib_dma_free(&softc->vnic_info.rss_hash_key_tbl);
 rss_hash_alloc_fail:
 	iflib_dma_free(&softc->vnic_info.mc_list);
-tpa_alloc_fail:
 mc_list_alloc_fail:
-	for (i = i - 1; i >= 0; i--)
-		free(softc->rx_rings[i].tpa_start, M_DEVBUF);
+	for (i = i - 1; i >= 0; i--) {
+		if (softc->rx_rings[i].tpa_start)
+			free(softc->rx_rings[i].tpa_start, M_DEVBUF);
+	}
+tpa_alloc_fail:
+	iflib_dma_free(&softc->hw_tx_port_stats_ext);
+hw_port_tx_stats_ext_alloc_fail:
+	iflib_dma_free(&softc->hw_rx_port_stats_ext);
+hw_port_rx_stats_ext_alloc_fail:
 	iflib_dma_free(&softc->hw_tx_port_stats);
 hw_port_tx_stats_alloc_fail:
 	iflib_dma_free(&softc->hw_rx_port_stats);
 hw_port_rx_stats_alloc_fail:
-	for (i = i - 1; i >= 0; i--)
-		iflib_dma_free(&softc->rx_stats[i]);
+	for (i=0; i < nrxqsets; i++) {
+		if (softc->rx_stats[i].idi_vaddr)
+			iflib_dma_free(&softc->rx_stats[i]);
+	}
 hw_stats_alloc_fail:
 	free(softc->grp_info, M_DEVBUF);
 grp_alloc_fail:
@@ -2206,6 +2236,10 @@ bnxt_update_admin_status(if_ctx_t ctx)
 		return;
 
 	bnxt_hwrm_port_qstats(softc);
+
+	if (BNXT_CHIP_P5(softc) &&
+	    (softc->flags & BNXT_FLAG_FW_CAP_EXT_STATS))
+		bnxt_hwrm_port_qstats_ext(softc);
 
 	if (BNXT_CHIP_P5(softc)) {
 		struct ifmediareq ifmr;

@@ -671,13 +671,14 @@ struct bnxt_softc {
 	struct bnxt_bar_info	hwrm_bar;
 	struct bnxt_bar_info	doorbell_bar;
 	struct bnxt_link_info	link_info;
-#define BNXT_FLAG_VF		0x0001
-#define BNXT_FLAG_NPAR		0x0002
-#define BNXT_FLAG_WOL_CAP	0x0004
-#define BNXT_FLAG_SHORT_CMD	0x0008
-#define BNXT_FLAG_FW_CAP_NEW_RM 0x0010
-#define BNXT_FLAG_CHIP_P5 	0x0020
-#define BNXT_FLAG_TPA	 	0x0040
+#define BNXT_FLAG_VF				0x0001
+#define BNXT_FLAG_NPAR				0x0002
+#define BNXT_FLAG_WOL_CAP			0x0004
+#define BNXT_FLAG_SHORT_CMD			0x0008
+#define BNXT_FLAG_FW_CAP_NEW_RM			0x0010
+#define BNXT_FLAG_CHIP_P5			0x0020
+#define BNXT_FLAG_TPA				0x0040
+#define BNXT_FLAG_FW_CAP_EXT_STATS		0x0080
 	uint32_t		flags;
 #define BNXT_STATE_LINK_CHANGE  (0)
 #define BNXT_STATE_MAX		(BNXT_STATE_LINK_CHANGE + 1)
@@ -713,6 +714,11 @@ struct bnxt_softc {
 	struct iflib_dma_info	hw_tx_port_stats;
 	struct rx_port_stats	*rx_port_stats;
 	struct tx_port_stats	*tx_port_stats;
+
+	struct iflib_dma_info	hw_tx_port_stats_ext;
+	struct iflib_dma_info	hw_rx_port_stats_ext;
+	struct tx_port_stats_ext *tx_port_stats_ext;
+	struct rx_port_stats_ext *rx_port_stats_ext;
 
 	int			num_cp_rings;
 

@@ -550,7 +550,7 @@ bnxt_hwrm_passthrough(struct bnxt_softc *softc, void *req, uint32_t req_len,
 	input->resp_addr = htole64(softc->hwrm_cmd_resp.idi_paddr);
 	BNXT_HWRM_LOCK(softc);
 	old_timeo = softc->hwrm_cmd_timeo;
-	if (input->req_type == HWRM_NVM_INSTALL_UPDATE) 
+	if (input->req_type == HWRM_NVM_INSTALL_UPDATE)
 		softc->hwrm_cmd_timeo = BNXT_NVM_TIMEO;
 	else
 		softc->hwrm_cmd_timeo = max(app_timeout, softc->hwrm_cmd_timeo);
@@ -694,7 +694,8 @@ bnxt_hwrm_ver_get(struct bnxt_softc *softc)
 	softc->hwrm_cmd_timeo = le16toh(resp->def_req_timeout);
 	if (!softc->hwrm_cmd_timeo)
 		softc->hwrm_cmd_timeo = DFLT_HWRM_CMD_TIMEOUT;
-	
+
+
 	dev_caps_cfg = le32toh(resp->dev_caps_cfg);
 	if ((dev_caps_cfg & HWRM_VER_GET_OUTPUT_DEV_CAPS_CFG_SHORT_CMD_SUPPORTED) &&
 	    (dev_caps_cfg & HWRM_VER_GET_OUTPUT_DEV_CAPS_CFG_SHORT_CMD_REQUIRED))
@@ -777,6 +778,9 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 	if (resp->flags &
 	    htole32(HWRM_FUNC_QCAPS_OUTPUT_FLAGS_WOL_MAGICPKT_SUPPORTED))
 		softc->flags |= BNXT_FLAG_WOL_CAP;
+	if (resp->flags &
+	    htole32(HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_STATS_SUPPORTED))
+		softc->flags |= BNXT_FLAG_FW_CAP_EXT_STATS;
 
 	func->fw_fid = le16toh(resp->fid);
 	memcpy(func->mac_addr, resp->mac_address, ETHER_ADDR_LEN);
@@ -1406,6 +1410,26 @@ bnxt_hwrm_port_qstats(struct bnxt_softc *softc)
 	BNXT_HWRM_UNLOCK(softc);
 
 	return rc;
+}
+
+void
+bnxt_hwrm_port_qstats_ext(struct bnxt_softc *softc)
+{
+	struct hwrm_port_qstats_ext_input req = {0};
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_PORT_QSTATS_EXT);
+
+	req.port_id = htole16(softc->pf.port_id);
+	req.tx_stat_size = htole16(sizeof(struct tx_port_stats_ext));
+	req.rx_stat_size = htole16(sizeof(struct rx_port_stats_ext));
+	req.rx_stat_host_addr = htole64(softc->hw_rx_port_stats_ext.idi_paddr);
+	req.tx_stat_host_addr = htole64(softc->hw_tx_port_stats_ext.idi_paddr);
+
+	BNXT_HWRM_LOCK(softc);
+	_hwrm_send_message(softc, &req, sizeof(req));
+	BNXT_HWRM_UNLOCK(softc);
+
+	return;
 }
 
 int
