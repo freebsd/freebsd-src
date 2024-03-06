@@ -3072,6 +3072,7 @@ bnxt_report_link(struct bnxt_softc *softc)
 		if (!link_info->link_up)
 			return;
 		if ((link_info->duplex == link_info->last_duplex) &&
+		    (link_info->phy_type == link_info->last_phy_type) &&
                     (!(BNXT_IS_FLOW_CTRL_CHANGED(link_info))))
 			return;
 	}
@@ -3102,6 +3103,7 @@ bnxt_report_link(struct bnxt_softc *softc)
 
 	link_info->last_link_up = link_info->link_up;
 	link_info->last_duplex = link_info->duplex;
+	link_info->last_phy_type = link_info->phy_type;
 	link_info->last_flow_ctrl.tx = link_info->flow_ctrl.tx;
 	link_info->last_flow_ctrl.rx = link_info->flow_ctrl.rx;
 	link_info->last_flow_ctrl.autoneg = link_info->flow_ctrl.autoneg;

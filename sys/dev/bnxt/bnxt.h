@@ -298,6 +298,7 @@ struct bnxt_link_info {
 	uint8_t		last_link_up;
 	uint8_t		duplex;
 	uint8_t		last_duplex;
+	uint8_t		last_phy_type;
 	struct bnxt_flow_ctrl   flow_ctrl;
 	struct bnxt_flow_ctrl   last_flow_ctrl;
 	uint8_t		duplex_setting;
