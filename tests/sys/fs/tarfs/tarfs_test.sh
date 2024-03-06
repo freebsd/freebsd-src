@@ -285,6 +285,27 @@ tarfs_linktononexistent_body() {
 		  mount -rt tarfs tarfs_linktononexistent.tar "${mnt}"
 }
 tarfs_linktononexistent_cleanup() {
+	tarfs_cleanup
+}
+
+atf_test_case tarfs_checksum cleanup
+tarfs_checksum_head() {
+	atf_set "descr" "Verify that the checksum covers header padding"
+	atf_set "require.user" "root"
+}
+tarfs_checksum_body() {
+	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
+	mkdir "${mnt}"
+	touch f
+	tar -cf tarfs_checksum.tar f
+	truncate -s 500 tarfs_checksum.tar
+	printf "\1\1\1\1\1\1\1\1\1\1\1\1" >> tarfs_checksum.tar
+	dd if=/dev/zero bs=512 count=2 >> tarfs_checksum.tar
+	hexdump -C tarfs_checksum.tar
+	atf_check -s not-exit:0 -e match:"Invalid" \
+		  mount -rt tarfs tarfs_checksum.tar "${mnt}"
+}
+tarfs_checksum_cleanup() {
 	umount "${mnt}" || true
 }
 
@@ -302,4 +323,5 @@ atf_init_test_cases() {
 	atf_add_test_case tarfs_emptylink
 	atf_add_test_case tarfs_linktodir
 	atf_add_test_case tarfs_linktononexistent
+	atf_add_test_case tarfs_checksum
 }

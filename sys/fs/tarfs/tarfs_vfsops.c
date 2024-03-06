@@ -56,7 +56,7 @@
 #include <fs/tarfs/tarfs.h>
 #include <fs/tarfs/tarfs_dbg.h>
 
-CTASSERT(ZERO_REGION_SIZE > TARFS_BLOCKSIZE);
+CTASSERT(ZERO_REGION_SIZE >= TARFS_BLOCKSIZE);
 
 struct ustar_header {
 	char	name[100];		/* File name */
@@ -75,7 +75,10 @@ struct ustar_header {
 	char	major[8];		/* Device major number */
 	char	minor[8];		/* Device minor number */
 	char	prefix[155];		/* Path prefix */
+	char	_pad[12];
 };
+
+CTASSERT(sizeof(struct ustar_header) == TARFS_BLOCKSIZE);
 
 #define	TAR_EOF			((off_t)-1)
 
@@ -202,22 +205,27 @@ static boolean_t
 tarfs_checksum(struct ustar_header *hdrp)
 {
 	const unsigned char *ptr;
-	int64_t checksum, hdrsum;
-	size_t idx;
+	unsigned long checksum, hdrsum;
 
-	hdrsum = tarfs_str2int64(hdrp->checksum, sizeof(hdrp->checksum));
-	TARFS_DPF(CHECKSUM, "%s: header checksum %lx\n", __func__, hdrsum);
+	if (tarfs_str2int64(hdrp->checksum, sizeof(hdrp->checksum), &hdrsum) != 0) {
+		TARFS_DPF(CHECKSUM, "%s: invalid header checksum \"%.*s\"\n",
+		    __func__, (int)sizeof(hdrp->checksum), hdrp->checksum);
+		return (false);
+	}
+	TARFS_DPF(CHECKSUM, "%s: header checksum \"%.*s\" = %#lo\n", __func__,
+	    (int)sizeof(hdrp->checksum), hdrp->checksum, hdrsum);
 
 	checksum = 0;
 	for (ptr = (const unsigned char *)hdrp;
 	     ptr < (const unsigned char *)hdrp->checksum; ptr++)
 		checksum += *ptr;
-	for (idx = 0; idx < sizeof(hdrp->checksum); idx++)
+	for (;
+	     ptr < (const unsigned char *)hdrp->typeflag; ptr++)
 		checksum += 0x20;
-	for (ptr = (const unsigned char *)hdrp->typeflag;
+	for (;
 	     ptr < (const unsigned char *)(hdrp + 1); ptr++)
 		checksum += *ptr;
-	TARFS_DPF(CHECKSUM, "%s: calc unsigned checksum %lx\n", __func__,
+	TARFS_DPF(CHECKSUM, "%s: calc unsigned checksum %#lo\n", __func__,
 	    checksum);
 	if (hdrsum == checksum)
 		return (true);
@@ -230,12 +238,13 @@ tarfs_checksum(struct ustar_header *hdrp)
 	for (ptr = (const unsigned char *)hdrp;
 	     ptr < (const unsigned char *)&hdrp->checksum; ptr++)
 		checksum += *((const signed char *)ptr);
-	for (idx = 0; idx < sizeof(hdrp->checksum); idx++)
+	for (;
+	     ptr < (const unsigned char *)&hdrp->typeflag; ptr++)
 		checksum += 0x20;
-	for (ptr = (const unsigned char *)&hdrp->typeflag;
+	for (;
 	     ptr < (const unsigned char *)(hdrp + 1); ptr++)
 		checksum += *((const signed char *)ptr);
-	TARFS_DPF(CHECKSUM, "%s: calc signed checksum %lx\n", __func__,
+	TARFS_DPF(CHECKSUM, "%s: calc signed checksum %#lo\n", __func__,
 	    checksum);
 	if (hdrsum == checksum)
 		return (true);
