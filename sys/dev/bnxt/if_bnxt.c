@@ -2082,6 +2082,9 @@ bnxt_media_change(if_ctx_t ctx)
 	case IFM_1000_KX:
 	case IFM_1000_T:
 	case IFM_1000_SGMII:
+	case IFM_1000_CX:
+	case IFM_1000_SX:
+	case IFM_1000_LX:
 		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
 		softc->link_info.req_link_speed =
 		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_1GB;
