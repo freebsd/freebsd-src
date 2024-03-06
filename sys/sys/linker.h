@@ -131,6 +131,12 @@ typedef int linker_predicate_t(linker_file_t, void *);
 extern linker_file_t	linker_kernel_file;
 
 /*
+ * Special symbol which will be replaced by a reference to the linker_file_t
+ * of the module it is used in.
+ */
+extern linker_file_t __this_linker_file;
+
+/*
  * Obtain a reference to a module, loading it if required.
  */
 int linker_reference_module(const char* _modname, struct mod_depend *_verinfo,
