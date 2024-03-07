@@ -38,7 +38,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd December 1, 2022
+.Dd March 6, 2024
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -477,6 +477,34 @@ The network interface address removed.
 Notification that a process has crashed and dumped core.
 .It Li kernel Ta Li power Ta Li resume Ta
 Notification that the system has woken from the suspended state.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li nvme Ta Li controller Ta Li SMART_ERROR Ta
+A SMART Critical Warning State change has happened.
+$state has a hex bitmask of the bits that changed, as defined
+in the NVMe Standard for Critical Warning field of log page 2
+.Dq SMART / Health Information Log :
+.Bl -column "Bit Value" "Meaning" -compact
+.Sy "Bit Value" Ta Sy "Meaning"
+.It 0x1 Ta Spare capacity below threshold
+.It 0x2 Ta Temperature outside acceptable range
+.It 0x4 Ta Reliability of media degraded
+.It 0x8 Ta Media placed into read-only mode
+.It 0x10 Ta Volatime memory backup failure
+.It 0x20 Ta Persistent memrory read-only or degraded
+.El
+.It Li nvme Ta Li controller Ta Li RESET Ta
+A controller reset event has happened.
+$event is one of
+.Dq start ,
+.Dq success ,
+and
+.Dq timed_out
+representing the start of a controller reset, the successful completion of a
+controller reset, and a timeout while waiting for the controller to reset
+respectively.
 .El
 .Pp
 .Bl -column "System" "Subsystem" "1234567" -compact
