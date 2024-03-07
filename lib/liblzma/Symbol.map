@@ -142,7 +142,6 @@ XZprivate_1.0 {
 	lzma_index_prealloc;
 	lzma_lz_decoder_init;
 	lzma_lz_decoder_memusage;
-	lzma_lz_decoder_uncompressed;
 	lzma_lz_encoder_init;
 	lzma_lz_encoder_memusage;
 	lzma_lzma2_block_size;
