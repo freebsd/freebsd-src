@@ -1179,10 +1179,13 @@ nvme_ctrlr_reset_task(void *arg, int pending)
 
 	nvme_ctrlr_devctl_log(ctrlr, "RESET", "event=\"start\"");
 	status = nvme_ctrlr_hw_reset(ctrlr);
-	if (status == 0)
+	if (status == 0) {
+		nvme_ctrlr_devctl_log(ctrlr, "RESET", "event=\"success\"");
 		nvme_ctrlr_start(ctrlr, true);
-	else
+	} else {
+		nvme_ctrlr_devctl_log(ctrlr, "RESET", "event=\"timed_out\"");
 		nvme_ctrlr_fail(ctrlr);
+	}
 
 	atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
 }
