@@ -44,4 +44,6 @@ ENTRY(syscall)
 	ret
 END(syscall)
 
+PSEUDO(syscall)
+
 	.section .note.GNU-stack,"",%progbits
