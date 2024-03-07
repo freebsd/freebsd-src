@@ -43,7 +43,7 @@
 .Os
 .Sh NAME
 .Nm devd.conf
-.Nd configuration file for
+.Nd configuration file format for
 .Xr devd 8
 .Sh DESCRIPTION
 .Ss General Syntax
@@ -752,6 +752,14 @@ regardless of the value of the variable.
 The
 .Xr devd 8
 configuration file.
+.It Pa /etc/devd
+A directory that
+.Nm devd
+searches for additional configuration files.
+.It Pa /usr/local/etc/devd
+A directory that
+.Nm devd
+searches for additional configuration files.
 .El
 .Sh EXAMPLES
 .Bd -literal
