@@ -663,6 +663,9 @@ nvme_ctrlr_log_critical_warnings(struct nvme_controller *ctrlr,
 	if (state & NVME_CRIT_WARN_ST_VOLATILE_MEMORY_BACKUP)
 		nvme_printf(ctrlr, "SMART WARNING: volatile memory backup device failed\n");
 
+	if (state & NVME_CRIT_WARN_ST_PERSISTENT_MEMORY_REGION)
+		nvme_printf(ctrlr, "SMART WARNING: persistent memory read only or unreliable\n");
+
 	if (state & NVME_CRIT_WARN_ST_RESERVED_MASK)
 		nvme_printf(ctrlr, "SMART WARNING: unknown critical warning(s): state = 0x%02x\n",
 		    state & NVME_CRIT_WARN_ST_RESERVED_MASK);
