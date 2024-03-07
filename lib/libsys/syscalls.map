@@ -353,8 +353,6 @@ FBSDprivate_1.0 {
 	__sys_aio_cancel;
 	_aio_error;
 	__sys_aio_error;
-	_yield;
-	__sys_yield;
 	_mlockall;
 	__sys_mlockall;
 	_munlockall;
