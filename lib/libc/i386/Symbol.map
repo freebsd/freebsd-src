@@ -5,7 +5,6 @@
  */
 FBSD_1.0 {
 	.mcount;
-	alloca;
 	__flt_rounds;
 	___tls_get_addr;
 };
