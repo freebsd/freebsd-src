@@ -5,8 +5,10 @@ FBSD_1.0 {
 	 * broken and they expect to see them in libc.  glibc exports
 	 * them, but they do not appear to be exported in Solaris.
 	 */
+#ifndef __i386__
 	__adddi3;
 	__anddi3;
+#endif
 	__ashldi3;
 	__ashrdi3;
 	__cmpdi2;
@@ -17,18 +19,26 @@ FBSD_1.0 {
 	__fixunssfdi;
 	__floatdidf;
 	__floatdisf;
+#ifndef __i386__
 	__floatunsdidf;
 	__iordi3;
 	__lshldi3;
+#endif
 	__lshrdi3;
 	__moddi3;
 	__muldi3;
 	__negdi2;
+#ifndef __i386__
 	__one_cmpldi2;
+#endif
 	__qdivrem;
+#ifndef __i386__
 	__subdi3;
+#endif
 	__ucmpdi2;
 	__udivdi3;
 	__umoddi3;
+#ifndef __i386__
 	__xordi3;
+#endif
 };
