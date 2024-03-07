@@ -56,6 +56,24 @@ nvme_ctrlr_barrier(struct nvme_controller *ctrlr, int flags)
 }
 
 static void
+nvme_ctrlr_devctl_va(struct nvme_controller *ctrlr, const char *type,
+    const char *msg, va_list ap)
+{
+	struct sbuf sb;
+	int error;
+
+	if (sbuf_new(&sb, NULL, 0, SBUF_AUTOEXTEND | SBUF_NOWAIT) == NULL)
+		return;
+	sbuf_printf(&sb, "name=\"%s\" reason=\"", device_get_nameunit(ctrlr->dev));
+	sbuf_vprintf(&sb, msg, ap);
+	sbuf_printf(&sb, "\"");
+	error = sbuf_finish(&sb);
+	if (error == 0)
+		devctl_notify("nvme", "controller", type, sbuf_data(&sb));
+	sbuf_delete(&sb);
+}
+
+static void
 nvme_ctrlr_devctl_log(struct nvme_controller *ctrlr, const char *type, const char *msg, ...)
 {
 	struct sbuf sb;
@@ -71,17 +89,10 @@ nvme_ctrlr_devctl_log(struct nvme_controller *ctrlr, const char *type, const cha
 	error = sbuf_finish(&sb);
 	if (error == 0)
 		printf("%s\n", sbuf_data(&sb));
-
-	sbuf_clear(&sb);
-	sbuf_printf(&sb, "name=\"%s\" reason=\"", device_get_nameunit(ctrlr->dev));
-	va_start(ap, msg);
-	sbuf_vprintf(&sb, msg, ap);
-	va_end(ap);
-	sbuf_printf(&sb, "\"");
-	error = sbuf_finish(&sb);
-	if (error == 0)
-		devctl_notify("nvme", "controller", type, sbuf_data(&sb));
 	sbuf_delete(&sb);
+	va_start(ap, msg);
+	nvme_ctrlr_devctl_va(ctrlr, type, msg, ap);
+	va_end(ap);
 }
 
 static int
