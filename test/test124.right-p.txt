@@ -1,0 +1,15 @@
+static void
+doSomethingThenPrintHello(int test)
+{
+	test = test << 4;
+	if (test % 8 == 6) {
+		return;
+	}
+
+	print("goodbye\n");
+}
+
+struct testfile *
+return_test(int test) {
+	return test*2;
+}

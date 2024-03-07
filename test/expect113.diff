@@ -1,0 +1,10 @@
+--- test113.left-Pw.txt
++++ test113.right-Pw.txt
+@@ -3,5 +3,5 @@
+ C
+ D
+ E
+-F
+-G
++F	x
++y G

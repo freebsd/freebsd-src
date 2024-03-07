@@ -1,0 +1,301 @@
+/*
+ * Copyright (c) 2017 Martin Pieuchot <mpi@openbsd.org>
+ * Copyright (c) 2018, 2019, 2020 Stefan Sperling <stsp@openbsd.org>
+ * Copyright (c) 2020 Ori Bernstein <ori@openbsd.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/param.h>
+#include <sys/wait.h>
+
+static const struct got_error *
+cmd_import(int argc, char *argv[])
+{
+	const struct got_error *error = NULL;
+	char *path_dir = NULL, *repo_path = NULL, *logmsg = NULL;
+	char *gitconfig_path = NULL, *editor = NULL, *author = NULL;
+	const char *branch_name = "main";
+	char *refname = NULL, *id_str = NULL, *logmsg_path = NULL;
+	struct got_repository *repo = NULL;
+	struct got_reference *branch_ref = NULL, *head_ref = NULL;
+	struct got_object_id *new_commit_id = NULL;
+	int ch;
+	struct got_pathlist_head ignores;
+	struct got_pathlist_entry *pe;
+	int preserve_logmsg = 0;
+
+	TAILQ_INIT(&ignores);
+
+	while ((ch = getopt(argc, argv, "b:m:r:I:")) != -1) {
+		switch (ch) {
+		case 'b':
+			branch_name = optarg;
+			break;
+		case 'm':
+			logmsg = strdup(optarg);
+			if (logmsg == NULL) {
+				error = got_error_from_errno("strdup");
+				goto done;
+			}
+			break;
+		case 'r':
+			repo_path = realpath(optarg, NULL);
+			if (repo_path == NULL) {
+				error = got_error_from_errno2("realpath",
+				    optarg);
+				goto done;
+			}
+			break;
+		case 'I':
+			if (optarg[0] == '\0')
+				break;
+			error = got_pathlist_insert(&pe, &ignores, optarg,
+			    NULL);
+			if (error)
+				goto done;
+			break;
+		default:
+			usage_import();
+			/* NOTREACHED */
+		}
+	}
+
+#ifndef PROFILE
+	if (pledge("stdio rpath wpath cpath fattr flock proc exec sendfd "
+	    "unveil",
+	    NULL) == -1)
+		err(1, "pledge");
+#endif
+	if (argc != 1)
+		usage_import();
+
+	if (repo_path == NULL) {
+		repo_path = getcwd(NULL, 0);
+		if (repo_path == NULL)
+			return got_error_from_errno("getcwd");
+	}
+	error = get_gitconfig_path(&gitconfig_path);
+	if (error)
+		goto done;
+	error = got_repo_open(&repo, repo_path, gitconfig_path);
+	if (error)
+		goto done;
+
+	error = get_author(&author, repo, NULL);
+	if (error)
+		return error;
+
+	/*
+	 * Don't let the user create a branch name with a leading '-'.
+	 * While technically a valid reference name, this case is usually
+	 * an unintended typo.
+	 */
+	if (branch_name[0] == '-')
+		return got_error_path(branch_name, GOT_ERR_REF_NAME_MINUS);
+
+	if (asprintf(&refname, "refs/heads/%s", branch_name) == -1) {
+		error = got_error_from_errno("asprintf");
+		goto done;
+	}
+
+	error = got_ref_open(&branch_ref, repo, refname, 0);
+	if (error) {
+		if (error->code != GOT_ERR_NOT_REF)
+			goto done;
+	} else {
+		error = got_error_msg(GOT_ERR_BRANCH_EXISTS,
+		    "import target branch already exists");
+		goto done;
+	}
+
+	path_dir = realpath(argv[0], NULL);
+	if (path_dir == NULL) {
+		error = got_error_from_errno2("realpath", argv[0]);
+		goto done;
+	}
+	got_path_strip_trailing_slashes(path_dir);
+
+	/*
+	 * unveil(2) traverses exec(2); if an editor is used we have
+	 * to apply unveil after the log message has been written.
+	 */
+	if (logmsg == NULL || strlen(logmsg) == 0) {
+		error = get_editor(&editor);
+		if (error)
+			goto done;
+		free(logmsg);
+		error = collect_import_msg(&logmsg, &logmsg_path, editor,
+		    path_dir, refname);
+		if (error) {
+			if (error->code != GOT_ERR_COMMIT_MSG_EMPTY &&
+			    logmsg_path != NULL)
+				preserve_logmsg = 1;
+			goto done;
+		}
+	}
+
+	if (unveil(path_dir, "r") != 0) {
+		error = got_error_from_errno2("unveil", path_dir);
+		if (logmsg_path)
+			preserve_logmsg = 1;
+		goto done;
+	}
+
+	error = apply_unveil(got_repo_get_path(repo), 0, NULL);
+	if (error) {
+		if (logmsg_path)
+			preserve_logmsg = 1;
+		goto done;
+	}
+
+	error = got_repo_import(&new_commit_id, path_dir, logmsg,
+	    author, &ignores, repo, import_progress, NULL);
+	if (error) {
+		if (logmsg_path)
+			preserve_logmsg = 1;
+		goto done;
+	}
+
+	error = got_ref_alloc(&branch_ref, refname, new_commit_id);
+	if (error) {
+		if (logmsg_path)
+			preserve_logmsg = 1;
+		goto done;
+	}
+
+	error = got_ref_write(branch_ref, repo);
+	if (error) {
+		if (logmsg_path)
+			preserve_logmsg = 1;
+		goto done;
+	}
+
+	error = got_object_id_str(&id_str, new_commit_id);
+	if (error) {
+		if (logmsg_path)
+			preserve_logmsg = 1;
+		goto done;
+	}
+
+	error = got_ref_open(&head_ref, repo, GOT_REF_HEAD, 0);
+	if (error) {
+		if (error->code != GOT_ERR_NOT_REF) {
+			if (logmsg_path)
+				preserve_logmsg = 1;
+			goto done;
+		}
+
+		error = got_ref_alloc_symref(&head_ref, GOT_REF_HEAD,
+		    branch_ref);
+		if (error) {
+			if (logmsg_path)
+				preserve_logmsg = 1;
+			goto done;
+		}
+
+		error = got_ref_write(head_ref, repo);
+		if (error) {
+			if (logmsg_path)
+				preserve_logmsg = 1;
+			goto done;
+		}
+	}
+
+	printf("Created branch %s with commit %s\n",
+	    got_ref_get_name(branch_ref), id_str);
+done:
+	if (preserve_logmsg) {
+		fprintf(stderr, "%s: log message preserved in %s\n",
+		    getprogname(), logmsg_path);
+	} else if (logmsg_path && unlink(logmsg_path) == -1 && error == NULL)
+		error = got_error_from_errno2("unlink", logmsg_path);
+	free(logmsg);
+	free(logmsg_path);
+	free(repo_path);
+	free(editor);
+	free(refname);
+	free(new_commit_id);
+	free(id_str);
+	free(author);
+	free(gitconfig_path);
+	if (branch_ref)
+		got_ref_close(branch_ref);
+	if (head_ref)
+		got_ref_close(head_ref);
+	return error;
+}
+
+__dead static void
+usage_clone(void)
+{
+	fprintf(stderr, "usage: %s clone [-a] [-b branch] [-l] [-m] [-q] [-v] "
+	    "[-R reference] repository-url [directory]\n", getprogname());
+	exit(1);
+}
+
+static const struct got_error *
+cmd_clone(int argc, char *argv[])
+{
+	const struct got_error *error = NULL;
+	const char *uri, *dirname;
+	char *proto, *host, *port, *repo_name, *server_path;
+	char *default_destdir = NULL, *id_str = NULL;
+	const char *repo_path, *remote_repo_path;
+	struct got_repository *repo = NULL;
+	struct got_pathlist_head refs, symrefs, wanted_branches, wanted_refs;
+	struct got_pathlist_entry *pe;
+	struct got_object_id *pack_hash = NULL;
+	int ch, fetchfd = -1, fetchstatus;
+	pid_t fetchpid = -1;
+	x
+
+	/* Create got.conf(5). */
+	gotconfig_path = got_repo_get_path_gotconfig(repo);
+	if (gotconfig_path == NULL) {
+		error = got_error_from_errno("got_repo_get_path_gotconfig");
+		goto done;
+	}
+	gotconfig_file = fopen(gotconfig_path, "a");
+	if (gotconfig_file == NULL) {
+		error = got_error_from_errno2("fopen", gotconfig_path);
+		goto done;
+	}
+	got_path_strip_trailing_slashes(server_path);
+	remote_repo_path = server_path;
+	while (remote_repo_path[0] == '/')
+		remote_repo_path++;
+	if (asprintf(&gotconfig,
+	    "remote \"%s\" {\n"
+	    "\tserver %s\n"
+	    "\tprotocol %s\n"
+	    "%s%s%s"
+	    "\trepository \"%s\"\n"
+	    "%s"
+	    "}\n",
+	    GOT_FETCH_DEFAULT_REMOTE_NAME, host, proto,
+	    port ? "\tport " : "", port ? port : "", port ? "\n" : "",
+	    remote_repo_path,
+	    mirror_references ? "\tmirror-references yes\n" : "") == -1) {
+		error = got_error_from_errno("asprintf");
+		goto done;
+	}
+	n = fwrite(gotconfig, 1, strlen(gotconfig), gotconfig_file);
+	if (n != strlen(gotconfig)) {
+		error = got_ferror(gotconfig_file, GOT_ERR_IO);
+		goto done;
+	}
+}
