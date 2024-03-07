@@ -23,7 +23,6 @@ HEIMDAL_WIND_1.0 {
 		_wind_stringprep_map;
 		_wind_stringprep_normalize;
 		_wind_ldap_case_exact_attribute;
-		_wind_ucs2read;
 	local:
 		*;
 };
