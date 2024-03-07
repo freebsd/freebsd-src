@@ -64,13 +64,22 @@ nvme_ctrlr_devctl_va(struct nvme_controller *ctrlr, const char *type,
 
 	if (sbuf_new(&sb, NULL, 0, SBUF_AUTOEXTEND | SBUF_NOWAIT) == NULL)
 		return;
-	sbuf_printf(&sb, "name=\"%s\" reason=\"", device_get_nameunit(ctrlr->dev));
+	sbuf_printf(&sb, "name=\"%s\" ", device_get_nameunit(ctrlr->dev));
 	sbuf_vprintf(&sb, msg, ap);
-	sbuf_printf(&sb, "\"");
 	error = sbuf_finish(&sb);
 	if (error == 0)
 		devctl_notify("nvme", "controller", type, sbuf_data(&sb));
 	sbuf_delete(&sb);
+}
+
+static void
+nvme_ctrlr_devctl(struct nvme_controller *ctrlr, const char *type, const char *msg, ...)
+{
+	va_list ap;
+
+	va_start(ap, msg);
+	nvme_ctrlr_devctl_va(ctrlr, type, msg, ap);
+	va_end(ap);
 }
 
 static void
@@ -640,29 +649,25 @@ nvme_ctrlr_log_critical_warnings(struct nvme_controller *ctrlr,
 {
 
 	if (state & NVME_CRIT_WARN_ST_AVAILABLE_SPARE)
-		nvme_ctrlr_devctl_log(ctrlr, "critical",
-		    "available spare space below threshold");
+		nvme_printf(ctrlr, "SMART WARNING: available spare space below threshold\n");
 
 	if (state & NVME_CRIT_WARN_ST_TEMPERATURE)
-		nvme_ctrlr_devctl_log(ctrlr, "critical",
-		    "temperature above threshold");
+		nvme_printf(ctrlr, "SMART WARNING: temperature above threshold\n");
 
 	if (state & NVME_CRIT_WARN_ST_DEVICE_RELIABILITY)
-		nvme_ctrlr_devctl_log(ctrlr, "critical",
-		    "device reliability degraded");
+		nvme_printf(ctrlr, "SMART WARNING: device reliability degraded\n");
 
 	if (state & NVME_CRIT_WARN_ST_READ_ONLY)
-		nvme_ctrlr_devctl_log(ctrlr, "critical",
-		    "media placed in read only mode");
+		nvme_printf(ctrlr, "SMART WARNING: media placed in read only mode\n");
 
 	if (state & NVME_CRIT_WARN_ST_VOLATILE_MEMORY_BACKUP)
-		nvme_ctrlr_devctl_log(ctrlr, "critical",
-		    "volatile memory backup device failed");
+		nvme_printf(ctrlr, "SMART WARNING: volatile memory backup device failed\n");
 
 	if (state & NVME_CRIT_WARN_ST_RESERVED_MASK)
-		nvme_ctrlr_devctl_log(ctrlr, "critical",
-		    "unknown critical warning(s): state = 0x%02x",
+		nvme_printf(ctrlr, "SMART WARNING: unknown critical warning(s): state = 0x%02x\n",
 		    state & NVME_CRIT_WARN_ST_RESERVED_MASK);
+
+	nvme_ctrlr_devctl(ctrlr, "critical", "SMART_ERROR", "state=0x%02x", state);
 }
 
 static void
@@ -1172,7 +1177,7 @@ nvme_ctrlr_reset_task(void *arg, int pending)
 	struct nvme_controller	*ctrlr = arg;
 	int			status;
 
-	nvme_ctrlr_devctl_log(ctrlr, "RESET", "resetting controller");
+	nvme_ctrlr_devctl_log(ctrlr, "RESET", "event=\"start\"");
 	status = nvme_ctrlr_hw_reset(ctrlr);
 	if (status == 0)
 		nvme_ctrlr_start(ctrlr, true);
