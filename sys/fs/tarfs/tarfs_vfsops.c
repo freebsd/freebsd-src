@@ -205,7 +205,7 @@ static boolean_t
 tarfs_checksum(struct ustar_header *hdrp)
 {
 	const unsigned char *ptr;
-	unsigned long checksum, hdrsum;
+	int64_t checksum, hdrsum;
 
 	if (tarfs_str2int64(hdrp->checksum, sizeof(hdrp->checksum), &hdrsum) != 0) {
 		TARFS_DPF(CHECKSUM, "%s: invalid header checksum \"%.*s\"\n",
