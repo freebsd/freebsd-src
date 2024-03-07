@@ -8,6 +8,7 @@ XMLARCH=	i386:x86-64
 FILES+=		amd64.xml
 .endif
 
+.if !make(install*)
 target.xml: .PHONY
 	@echo "<?xml version=\"1.0\"?>" > ${.TARGET}
 	@echo "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">" >> ${.TARGET}
@@ -17,5 +18,6 @@ target.xml: .PHONY
 	@echo "  <xi:include href=\"${file}\"/>" >> ${.TARGET}
 .endfor
 	@echo "</target>" >> ${.TARGET}
+.endif
 
 .include <bsd.prog.mk>
