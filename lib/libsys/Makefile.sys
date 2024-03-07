@@ -150,7 +150,7 @@ NOTE_GNU_STACK='\t.section .note.GNU-stack,"",%%progbits\n'
 NOTE_GNU_STACK=''
 .endif
 .if ${MACHINE_CPUARCH} == "aarch64"
-FEATURE_NOTE='\#include <sys/elf_common.h>\nGNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)'
+FEATURE_NOTE='\#include <sys/elf_common.h>\nGNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)\n'
 .else
 FEATURE_NOTE=''
 .endif
