@@ -51,6 +51,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240307: Improperly installed awk tests removed
+OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/missing-precision.ok
+OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/negative-nf.ok
+OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/pfile-overflow.ok
+OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/system-status.awk
+OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/system-status.bad
+OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/system-status.ok
+OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/system-status.ok2
 # 20240211: caroot bundle updated
 OLD_FILES+=usr/share/certs/trusted/Security_Communication_Root_CA.pem
 
