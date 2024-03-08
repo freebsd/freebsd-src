@@ -213,7 +213,7 @@ nullfs_mount(struct mount *mp)
 	    (xmp->nullm_vfs->mnt_kern_flag & MNTK_NULL_NOCACHE) == 0) {
 		xmp->nullm_flags |= NULLM_CACHE;
 	}
-	      
+
 	if ((xmp->nullm_flags & NULLM_CACHE) != 0) {
 		vfs_register_for_notification(xmp->nullm_vfs, mp,
 		    &xmp->notify_node);
