@@ -163,13 +163,18 @@ clk_fixed_probe(device_t dev)
 			return (ENXIO);
 		}
 		device_set_desc(dev, "Fixed clock");
-		return (BUS_PROBE_DEFAULT);
+		break;
 	case CLK_TYPE_FIXED_FACTOR:
 		device_set_desc(dev, "Fixed factor clock");
-		return (BUS_PROBE_DEFAULT);
+		break;
 	default:
 		return (ENXIO);
 	}
+
+	if (!bootverbose)
+		device_quiet(dev);
+
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
