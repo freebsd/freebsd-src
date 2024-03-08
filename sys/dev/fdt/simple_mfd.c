@@ -168,7 +168,6 @@ simple_mfd_attach(device_t dev)
 {
 	struct simple_mfd_softc *sc;
 	phandle_t node, child;
-	device_t cdev;
 	int rid;
 
 	sc = device_get_softc(dev);
@@ -203,9 +202,7 @@ simple_mfd_attach(device_t dev)
 
 	/* Attach child devices */
 	for (child = OF_child(node); child > 0; child = OF_peer(child)) {
-		cdev = simple_mfd_add_device(dev, child, 0, NULL, -1, NULL);
-		if (cdev != NULL)
-			device_probe_and_attach(cdev);
+		(void)simple_mfd_add_device(dev, child, 0, NULL, -1, NULL);
 	}
 
 	if (ofw_bus_is_compatible(dev, "syscon")) {
