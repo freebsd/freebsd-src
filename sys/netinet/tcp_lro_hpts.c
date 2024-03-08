@@ -50,6 +50,7 @@
 #include <net/pfil.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/ip6.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
@@ -281,22 +282,64 @@ do_bpf_strip_and_compress(struct tcpcb *tp, struct lro_ctrl *lc,
 		case LRO_TYPE_IPV4_TCP:
 			tcp_hdr_offset -= sizeof(*le->outer.ip4);
 			m->m_pkthdr.lro_etype = ETHERTYPE_IP;
+			IP_PROBE(receive, NULL, NULL, le->outer.ip4, lc->ifp,
+			    le->outer.ip4, NULL);
 			break;
 		case LRO_TYPE_IPV6_TCP:
 			tcp_hdr_offset -= sizeof(*le->outer.ip6);
 			m->m_pkthdr.lro_etype = ETHERTYPE_IPV6;
+			IP_PROBE(receive, NULL, NULL, le->outer.ip6, lc->ifp,
+			    NULL, le->outer.ip6);
 			break;
 		default:
 			goto compressed;
 		}
 		break;
 	case LRO_TYPE_IPV4_TCP:
+		switch (le->outer.data.lro_type) {
+		case LRO_TYPE_IPV4_UDP:
+			IP_PROBE(receive, NULL, NULL, le->outer.ip4, lc->ifp,
+			    le->outer.ip4, NULL);
+			UDP_PROBE(receive, NULL, NULL, le->outer.ip4, NULL,
+			    le->outer.udp);
+			break;
+		case LRO_TYPE_IPV6_UDP:
+			IP_PROBE(receive, NULL, NULL, le->outer.ip6, lc->ifp,
+			    NULL, le->outer.ip6);
+			UDP_PROBE(receive, NULL, NULL, le->outer.ip6, NULL,
+			    le->outer.udp);
+			break;
+		default:
+			__assert_unreachable();
+			break;
+		}
 		tcp_hdr_offset -= sizeof(*le->outer.ip4);
 		m->m_pkthdr.lro_etype = ETHERTYPE_IP;
+		IP_PROBE(receive, NULL, NULL, le->inner.ip4, NULL,
+		    le->inner.ip4, NULL);
 		break;
 	case LRO_TYPE_IPV6_TCP:
+		switch (le->outer.data.lro_type) {
+		case LRO_TYPE_IPV4_UDP:
+			IP_PROBE(receive, NULL, NULL, le->outer.ip4, lc->ifp,
+			    le->outer.ip4, NULL);
+			UDP_PROBE(receive, NULL, NULL, le->outer.ip4, NULL,
+			    le->outer.udp);
+			break;
+		case LRO_TYPE_IPV6_UDP:
+			IP_PROBE(receive, NULL, NULL, le->outer.ip6, lc->ifp,
+			    NULL, le->outer.ip6);
+			UDP_PROBE(receive, NULL, NULL, le->outer.ip6, NULL,
+			    le->outer.udp);
+			break;
+		default:
+			__assert_unreachable();
+			break;
+		}
 		tcp_hdr_offset -= sizeof(*le->outer.ip6);
 		m->m_pkthdr.lro_etype = ETHERTYPE_IPV6;
+		IP_PROBE(receive, NULL, NULL, le->inner.ip6, NULL, NULL,
+		    le->inner.ip6);
 		break;
 	default:
 		goto compressed;
@@ -313,6 +356,7 @@ do_bpf_strip_and_compress(struct tcpcb *tp, struct lro_ctrl *lc,
 
 	th->th_sum = 0;		/* TCP checksum is valid. */
 	tcp_fields_to_host(th);
+	TCP_PROBE5(receive, NULL, tp, m, tp, th);
 
 	/* Check if ACK can be compressed */
 	can_compress = tcp_lro_ack_valid(m, th, &ts_ptr, &other_opts);
