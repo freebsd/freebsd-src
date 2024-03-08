@@ -32,7 +32,7 @@
 .\"
 .\"     @(#)mount_null.8	8.6 (Berkeley) 5/1/95
 .\"
-.Dd June 11, 2023
+.Dd March 24, 2024
 .Dt MOUNT_NULLFS 8
 .Os
 .Sh NAME
@@ -92,14 +92,20 @@ See the
 .Xr mount 8
 man page for possible options and their meanings.
 Additionally the following option is supported:
-.Bl -tag -width indent
+.Bl -tag -width nocache
 .It Cm nocache
 Disable metadata caching in the null layer.
 Some lower-layer file systems may force this option.
 Depending on the access pattern,
 this may result in increased lock contention.
+.It Cm cache
+Force enable metadate caching.
 .El
 .El
+.Pp
+The
+.Dv vfs.nullfs.cache_vnodes
+sysctl specifies global default for mount-specific cache/nocache option.
 .Pp
 The null layer has two purposes.
 First, it serves as a demonstration of layering by providing a layer
