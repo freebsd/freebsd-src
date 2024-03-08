@@ -205,12 +205,15 @@ nullfs_mount(struct mount *mp)
 		MNT_IUNLOCK(mp);
 	}
 
-	xmp->nullm_flags |= NULLM_CACHE;
-	if (!null_cache_vnodes ||
-	    vfs_getopt(mp->mnt_optnew, "nocache", NULL, NULL) == 0 ||
-	    (xmp->nullm_vfs->mnt_kern_flag & MNTK_NULL_NOCACHE) != 0)
-		xmp->nullm_flags &= ~NULLM_CACHE;
-
+	if (vfs_getopt(mp->mnt_optnew, "cache", NULL, NULL) == 0) {
+		xmp->nullm_flags |= NULLM_CACHE;
+	} else if (vfs_getopt(mp->mnt_optnew, "nocache", NULL, NULL) == 0) {
+		;
+	} else if (null_cache_vnodes &&
+	    (xmp->nullm_vfs->mnt_kern_flag & MNTK_NULL_NOCACHE) == 0) {
+		xmp->nullm_flags |= NULLM_CACHE;
+	}
+	      
 	if ((xmp->nullm_flags & NULLM_CACHE) != 0) {
 		vfs_register_for_notification(xmp->nullm_vfs, mp,
 		    &xmp->notify_node);
