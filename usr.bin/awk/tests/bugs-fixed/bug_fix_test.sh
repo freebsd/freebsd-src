@@ -25,6 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+export LANG=C.UTF-8
 SRCDIR=$(atf_get_srcdir)
 
 check()
