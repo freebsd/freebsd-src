@@ -258,9 +258,10 @@ clk_fixed_attach(device_t dev)
 		rv = ENXIO;
 		goto fail;
 	}
-#ifdef CLK_DEBUG
-	clkdom_dump(sc->clkdom);
-#endif
+
+	if (bootverbose)
+		clkdom_dump(sc->clkdom);
+
 	OF_prop_free(__DECONST(char *, def.clkdef.name));
 	OF_prop_free(def.clkdef.parent_names);
 	return (bus_generic_attach(dev));
