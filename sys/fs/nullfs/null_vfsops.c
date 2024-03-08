@@ -210,7 +210,7 @@ nullfs_mount(struct mount *mp)
 	    (xmp->nullm_vfs->mnt_kern_flag & MNTK_NULL_NOCACHE) == 0) {
 		xmp->nullm_flags |= NULLM_CACHE;
 	}
-	      
+
 	MNT_ILOCK(mp);
 	if ((xmp->nullm_flags & NULLM_CACHE) != 0) {
 		mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag &
