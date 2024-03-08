@@ -67,6 +67,7 @@
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/intr_machdep.h>
 #include <x86/apicreg.h>
+#include <x86/apicvar.h>
 #endif
 #if defined(__aarch64__)
 #include <contrib/dev/acpica/include/acpi.h>
@@ -1927,10 +1928,20 @@ vmbus_pcib_map_msi(device_t pcib, device_t child, int irq,
 	vcpu_id = VMBUS_GET_VCPU_ID(device_get_parent(pcib), pcib, cpu);
 	vector = v_data;
 #else
-	cpu = (v_addr & MSI_INTEL_ADDR_DEST) >> 12;
+	cpu = apic_cpuid((v_addr & MSI_INTEL_ADDR_DEST) >> 12);
 	vcpu_id = VMBUS_GET_VCPU_ID(device_get_parent(pcib), pcib, cpu);
 	vector = v_data & MSI_INTEL_DATA_INTVEC;
 #endif
+
+	if (hpdev->hbus->protocol_version < PCI_PROTOCOL_VERSION_1_4 &&
+	    vcpu_id > 63) {
+		/* We only support vcpu_id < 64 before vPCI version 1.4 */
+		device_printf(pcib,
+		    "Error: "
+		    "vcpu_id %u overflowed on PCI VMBus version 0x%x\n",
+		    vcpu_id, hpdev->hbus->protocol_version);
+		return (ENODEV);
+	}
 
 	init_completion(&comp.comp_pkt.host_event);
 
