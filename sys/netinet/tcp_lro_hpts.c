@@ -47,6 +47,7 @@
 #include <net/if_types.h>
 #include <net/infiniband.h>
 #include <net/if_lagg.h>
+#include <net/pfil.h>
 
 #include <netinet/in.h>
 #include <netinet/ip6.h>
@@ -54,6 +55,7 @@
 #include <netinet/ip_var.h>
 #include <netinet/in_pcb.h>
 #include <netinet6/in6_pcb.h>
+#include <netinet6/ip6_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_lro.h>
 #include <netinet/tcp_var.h>
@@ -424,7 +426,7 @@ tcp_lro_lookup(struct ifnet *ifp, struct lro_parser *pa)
 {
 	struct inpcb *inp;
 
-	CURVNET_SET(ifp->if_vnet);
+	CURVNET_ASSERT_SET();
 	switch (pa->data.lro_type) {
 #ifdef INET6
 	case LRO_TYPE_IPV6_TCP:
@@ -449,10 +451,8 @@ tcp_lro_lookup(struct ifnet *ifp, struct lro_parser *pa)
 		break;
 #endif
 	default:
-		CURVNET_RESTORE();
 		return (NULL);
 	}
-	CURVNET_RESTORE();
 
 	return (intotcpcb(inp));
 }
@@ -488,9 +488,28 @@ _tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 	    IN6_IS_ADDR_UNSPECIFIED(&le->inner.data.s_addr.v6)))
 		return (TCP_LRO_CANNOT);
 #endif
+
+	CURVNET_SET(lc->ifp->if_vnet);
+	/*
+	 * Ensure that there are no packet filter hooks which would normally
+	 * being triggered in ether_demux(), ip_input(), or ip6_input().
+	 */
+	if (
+#ifdef INET
+	    PFIL_HOOKED_IN(V_inet_pfil_head) ||
+#endif
+#ifdef INET6
+	    PFIL_HOOKED_IN(V_inet6_pfil_head) ||
+#endif
+	    PFIL_HOOKED_IN(V_link_pfil_head)) {
+		CURVNET_RESTORE();
+		return (TCP_LRO_CANNOT);
+	}
+
 	/* Lookup inp, if any.  Returns locked TCP inpcb. */
 	tp = tcp_lro_lookup(lc->ifp,
 	    (le->inner.data.lro_type == LRO_TYPE_NONE) ? &le->outer : &le->inner);
+	CURVNET_RESTORE();
 	if (tp == NULL)
 		return (TCP_LRO_CANNOT);
 
