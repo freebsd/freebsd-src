@@ -170,8 +170,8 @@ nullfs_mount(struct mount *mp)
 		return (EINVAL);
 	}
 
-	xmp = (struct null_mount *) malloc(sizeof(struct null_mount),
-	    M_NULLFSMNT, M_WAITOK | M_ZERO);
+	xmp = malloc(sizeof(struct null_mount), M_NULLFSMNT,
+	    M_WAITOK | M_ZERO);
 
 	/*
 	 * Save pointer to underlying FS and the reference to the
