@@ -47,6 +47,7 @@
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/ktrace.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -62,7 +63,6 @@
 #include <sys/vmmeter.h>
 #ifdef KTRACE
 #include <sys/uio.h>
-#include <sys/ktrace.h>
 #endif
 #ifdef EPOCH_TRACE
 #include <sys/epoch.h>
@@ -133,7 +133,7 @@ int
 _sleep(const void *ident, struct lock_object *lock, int priority,
     const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 {
-	struct thread *td;
+	struct thread *td __ktrace_used;
 	struct lock_class *class;
 	uintptr_t lock_state;
 	int catch, pri, rval, sleepq_flags;
@@ -240,7 +240,7 @@ int
 msleep_spin_sbt(const void *ident, struct mtx *mtx, const char *wmesg,
     sbintime_t sbt, sbintime_t pr, int flags)
 {
-	struct thread *td;
+	struct thread *td __ktrace_used;
 	int rval;
 	WITNESS_SAVE_DECL(mtx);
 
