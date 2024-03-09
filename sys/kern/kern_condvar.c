@@ -37,13 +37,13 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/ktrace.h>
 #include <sys/condvar.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/sleepqueue.h>
 #include <sys/resourcevar.h>
 #ifdef KTRACE
-#include <sys/ktrace.h>
 #include <sys/uio.h>
 #include <sys/user.h>
 #endif
@@ -112,7 +112,7 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 	char wmesg[WMESGLEN + 1];
 #endif
 	struct lock_class *class;
-	struct thread *td;
+	struct thread *td __ktrace_used;
 	uintptr_t lock_state;
 
 	td = curthread;
@@ -174,7 +174,7 @@ _cv_wait_unlock(struct cv *cvp, struct lock_object *lock)
 	char wmesg[WMESGLEN + 1];
 #endif
 	struct lock_class *class;
-	struct thread *td;
+	struct thread *td __ktrace_used;
 
 	td = curthread;
 	CV_ASSERT(cvp, lock, td);
@@ -232,7 +232,7 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 	char wmesg[WMESGLEN + 1];
 #endif
 	struct lock_class *class;
-	struct thread *td;
+	struct thread *td __ktrace_used;
 	uintptr_t lock_state;
 	int rval;
 
@@ -301,7 +301,7 @@ _cv_timedwait_sbt(struct cv *cvp, struct lock_object *lock, sbintime_t sbt,
 	char wmesg[WMESGLEN + 1];
 #endif
 	struct lock_class *class;
-	struct thread *td;
+	struct thread *td __ktrace_used;
 	int lock_state, rval;
 
 	td = curthread;
@@ -371,7 +371,7 @@ _cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock,
 	char wmesg[WMESGLEN + 1];
 #endif
 	struct lock_class *class;
-	struct thread *td;
+	struct thread *td __ktrace_used;
 	int lock_state, rval;
 
 	td = curthread;
