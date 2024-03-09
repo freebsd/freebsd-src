@@ -334,8 +334,10 @@ void	ktrcapfail(enum ktr_cap_fail_type, const cap_rights_t *,
 extern u_int ktr_geniosize;
 #ifdef	KTRACE
 extern int ktr_filesize_limit_signal;
+#define	__ktrace_used
 #else
 #define	ktr_filesize_limit_signal 0
+#define	__ktrace_used	__unused
 #endif
 #else
 
