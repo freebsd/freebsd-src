@@ -837,6 +837,7 @@ include "AArch64SchedA64FX.td"
 include "AArch64SchedThunderX3T110.td"
 include "AArch64SchedTSV110.td"
 include "AArch64SchedAmpere1.td"
+include "AArch64SchedAmpere1B.td"
 include "AArch64SchedNeoverseN1.td"
 include "AArch64SchedNeoverseN2.td"
 include "AArch64SchedNeoverseV1.td"
@@ -1376,6 +1377,24 @@ def TuneAmpere1A : SubtargetFeature<"ampere1a", "ARMProcFamily", "Ampere1A",
                                     FeatureLdpAlignedOnly,
                                     FeatureStpAlignedOnly]>;
 
+def TuneAmpere1B : SubtargetFeature<"ampere1b", "ARMProcFamily", "Ampere1B",
+                                    "Ampere Computing Ampere-1B processors", [
+                                    FeaturePostRAScheduler,
+                                    FeatureFuseAES,
+                                    FeatureFuseAdrpAdd,
+                                    FeatureAddrLSLFast,
+                                    FeatureALULSLFast,
+                                    FeatureAggressiveFMA,
+                                    FeatureArithmeticBccFusion,
+                                    FeatureCmpBccFusion,
+                                    FeatureFuseAddress,
+                                    FeatureFuseLiterals,
+                                    FeatureStorePairSuppress,
+                                    FeatureEnableSelectOptimize,
+                                    FeaturePredictableSelectIsExpensive,
+                                    FeatureLdpAlignedOnly,
+                                    FeatureStpAlignedOnly]>;
+
 def ProcessorFeatures {
   list<SubtargetFeature> A53  = [HasV8_0aOps, FeatureCRC, FeatureCrypto,
                                  FeatureFPARMv8, FeatureNEON, FeaturePerfMon];
@@ -1529,6 +1548,11 @@ def ProcessorFeatures {
                                      FeatureMTE, FeatureSSBS, FeatureRandGen,
                                      FeatureSB, FeatureSM4, FeatureSHA2,
                                      FeatureSHA3, FeatureAES];
+  list<SubtargetFeature> Ampere1B = [HasV8_7aOps, FeatureNEON, FeaturePerfMon,
+                                     FeatureMTE, FeatureSSBS, FeatureRandGen,
+                                     FeatureSB, FeatureSM4, FeatureSHA2,
+                                     FeatureSHA3, FeatureAES, FeatureCSSC,
+                                     FeatureWFxT, FeatureFullFP16];
 
   // ETE and TRBE are future architecture extensions. We temporarily enable them
   // by default for users targeting generic AArch64. The extensions do not
@@ -1695,6 +1719,9 @@ def : ProcessorModel<"ampere1", Ampere1Model, ProcessorFeatures.Ampere1,
 
 def : ProcessorModel<"ampere1a", Ampere1Model, ProcessorFeatures.Ampere1A,
                      [TuneAmpere1A]>;
+
+def : ProcessorModel<"ampere1b", Ampere1BModel, ProcessorFeatures.Ampere1B,
+                     [TuneAmpere1B]>;
 
 //===----------------------------------------------------------------------===//
 // Assembly parser
