@@ -59,6 +59,7 @@ OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/system-status.awk
 OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/system-status.bad
 OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/system-status.ok
 OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/system-status.ok2
+
 # 20240211: caroot bundle updated
 OLD_FILES+=usr/share/certs/trusted/Security_Communication_Root_CA.pem
 
