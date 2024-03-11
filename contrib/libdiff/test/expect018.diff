@@ -1,0 +1,16 @@
+--- test018.left-T.txt
++++ test018.right-T.txt
+@@ -1,7 +1,6 @@
+-A
+-B
+-C
+-A
+-B
+-B
+-A
++C
++B
++A
++B
++A
++C

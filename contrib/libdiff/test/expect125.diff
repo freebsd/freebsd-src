@@ -1,0 +1,12 @@
+--- test125.left.txt
++++ test125.right.txt
+@@ -1,7 +1,7 @@
+ This is a test 
+ of missing trailing new lines
+ in context
+-this line has a change
++this line has the change
+ this is the same
+ this is too
+ and this one
+\ No newline at end of file

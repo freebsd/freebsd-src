@@ -1,0 +1,13 @@
+.*.sw?
+diff/diff
+*.o
+*.d
+*.a
+**/*.o
+**/*.d
+***/.a
+tags
+test/got*.diff
+test/verify.*
+test/arraylist_test/arraylist_test
+test/results_test/results_test

@@ -1,0 +1,64 @@
+--- test117.left-P.txt
++++ test117.right-P.txt
+@@ -65,6 +65,8 @@
+ 		    struct sr_crypto_kdfinfo *, struct sr_crypto_kdfinfo *);
+ int		sr_crypto_create(struct sr_discipline *,
+ 		    struct bioc_createraid *, int, int64_t);
++int		sr_crypto_init(struct sr_discipline *,
++		    struct bioc_createraid *);
+ int		sr_crypto_assemble(struct sr_discipline *,
+ 		    struct bioc_createraid *, int, void *);
+ int		sr_crypto_alloc_resources(struct sr_discipline *);
+@@ -117,18 +119,34 @@
+ sr_crypto_create(struct sr_discipline *sd, struct bioc_createraid *bc,
+     int no_chunk, int64_t coerced_size)
+ {
+-	struct sr_meta_opt_item	*omi;
+-	int			rv = EINVAL;
++	int rv = EINVAL;
+ 
+ 	if (no_chunk != 1) {
+ 		sr_error(sd->sd_sc, "%s requires exactly one chunk",
+ 		    sd->sd_name);
+-		goto done;
++		return (rv);
+ 	}
+ 
+-	if (coerced_size > SR_CRYPTO_MAXSIZE) {
++	sd->sd_meta->ssdi.ssd_size = coerced_size;
++
++	rv = sr_crypto_init(sd, bc);
++	if (rv)
++		return (rv);
++
++	sd->sd_max_ccb_per_wu = no_chunk;
++	return (0);
++}
++
++int
++sr_crypto_init(struct sr_discipline *sd, struct bioc_createraid *bc)
++{
++	struct sr_meta_opt_item	*omi;
++	int			rv = EINVAL;
++
++	if (sd->sd_meta->ssdi.ssd_size > SR_CRYPTO_MAXSIZE) {
+ 		sr_error(sd->sd_sc, "%s exceeds maximum size (%lli > %llu)",
+-		    sd->sd_name, coerced_size, SR_CRYPTO_MAXSIZE);
++		    sd->sd_name, sd->sd_meta->ssdi.ssd_size,
++		    SR_CRYPTO_MAXSIZE);
+ 		goto done;
+ 	}
+ 
+@@ -170,12 +188,8 @@
+ 	if (!(bc->bc_flags & BIOC_SCNOAUTOASSEMBLE) && bc->bc_key_disk == NODEV)
+ 		goto done;
+ 
+-	sd->sd_meta->ssdi.ssd_size = coerced_size;
+-
+ 	sr_crypto_create_keys(sd);
+ 
+-	sd->sd_max_ccb_per_wu = no_chunk;
+-
+ 	rv = 0;
+ done:
+ 	return (rv);

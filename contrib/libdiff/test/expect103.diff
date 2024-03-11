@@ -1,0 +1,10 @@
+--- test103.left-P.txt
++++ test103.right-P.txt
+@@ -1,5 +1,4 @@
+-a
++x
+ b
+ c
+-d
+-e
++y
