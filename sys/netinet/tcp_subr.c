@@ -287,28 +287,17 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, ts_offset_per_conn, CTLFLAG_VNET | CTLFLAG_R
 static volatile uint32_t number_of_tcp_connections_pacing = 0;
 static uint32_t shadow_num_connections = 0;
 static counter_u64_t tcp_pacing_failures;
-static counter_u64_t tcp_dgp_failures;
-static uint32_t shadow_tcp_pacing_dgp = 0;
-static volatile uint32_t number_of_dgp_connections = 0;
 
 static int tcp_pacing_limit = 10000;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pacing_limit, CTLFLAG_RW,
     &tcp_pacing_limit, 1000,
     "If the TCP stack does pacing, is there a limit (-1 = no, 0 = no pacing N = number of connections)");
 
-static int tcp_dgp_limit = -1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, dgp_limit, CTLFLAG_RW,
-    &tcp_dgp_limit, -1,
-    "If the TCP stack does DGP, is there a limit (-1 = no, 0 = no dgp N = number of connections)");
-
 SYSCTL_UINT(_net_inet_tcp, OID_AUTO, pacing_count, CTLFLAG_RD,
     &shadow_num_connections, 0, "Number of TCP connections being paced");
 
 SYSCTL_COUNTER_U64(_net_inet_tcp, OID_AUTO, pacing_failures, CTLFLAG_RD,
     &tcp_pacing_failures, "Number of times we failed to enable pacing to avoid exceeding the limit");
-
-SYSCTL_COUNTER_U64(_net_inet_tcp, OID_AUTO, dgp_failures, CTLFLAG_RD,
-    &tcp_dgp_failures, "Number of times we failed to enable dgp to avoid exceeding the limit");
 
 static int	tcp_log_debug = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_debug, CTLFLAG_RW,
@@ -1582,7 +1571,6 @@ tcp_init(void *arg __unused)
 	tcp_uncomp_total = counter_u64_alloc(M_WAITOK);
 	tcp_bad_csums = counter_u64_alloc(M_WAITOK);
 	tcp_pacing_failures = counter_u64_alloc(M_WAITOK);
-	tcp_dgp_failures = counter_u64_alloc(M_WAITOK);
 #ifdef TCPPCAP
 	tcp_pcap_init();
 #endif
@@ -4034,43 +4022,6 @@ tcp_can_enable_pacing(void)
 	}
 }
 
-int
-tcp_incr_dgp_pacing_cnt(void)
-{
-	if ((tcp_dgp_limit == -1) ||
-	    (tcp_dgp_limit > number_of_dgp_connections)) {
-		atomic_fetchadd_int(&number_of_dgp_connections, 1);
-		shadow_tcp_pacing_dgp = number_of_dgp_connections;
-		return (1);
-	} else {
-		counter_u64_add(tcp_dgp_failures, 1);
-		return (0);
-	}
-}
-
-static uint8_t tcp_dgp_warning = 0;
-
-void
-tcp_dec_dgp_pacing_cnt(void)
-{
-	uint32_t ret;
-
-	ret = atomic_fetchadd_int(&number_of_dgp_connections, -1);
-	shadow_tcp_pacing_dgp = number_of_dgp_connections;
-	KASSERT(ret != 0, ("number_of_dgp_connections -1 would cause wrap?"));
-	if (ret == 0) {
-		if (tcp_dgp_limit != -1) {
-			printf("Warning all DGP is now disabled, count decrements invalidly!\n");
-			tcp_dgp_limit = 0;
-			tcp_dgp_warning = 1;
-		} else if (tcp_dgp_warning == 0) {
-			printf("Warning DGP pacing is invalid, invalid decrement\n");
-			tcp_dgp_warning = 1;
-		}
-	}
-
-}
-
 static uint8_t tcp_pacing_warning = 0;
 
 void
@@ -4590,7 +4541,7 @@ tcp_req_alloc_req_full(struct tcpcb *tp, struct tcp_snd_req *req, uint64_t ts, i
 	if (tp->t_tcpreq_req) {
 		for(i = 0, allocated = 0; i < MAX_TCP_TRK_REQ; i++) {
 			fil = &tp->t_tcpreq_info[i];
-			if ((fil->flags & TCP_TRK_TRACK_FLG_USED) == 0)
+			if (fil->flags != TCP_TRK_TRACK_FLG_USED)
 				continue;
 			if ((fil->timestamp == req->timestamp) &&
 			    (fil->start == req->start) &&
@@ -4622,7 +4573,6 @@ tcp_req_alloc_req_full(struct tcpcb *tp, struct tcp_snd_req *req, uint64_t ts, i
 			allocated = 1;
 			fil->flags = TCP_TRK_TRACK_FLG_USED;
 			fil->timestamp = req->timestamp;
-			fil->playout_ms = req->playout_ms;
 			fil->localtime = ts;
 			fil->start = req->start;
 			if (req->flags & TCP_LOG_HTTPD_RANGE_END) {
@@ -4639,10 +4589,7 @@ tcp_req_alloc_req_full(struct tcpcb *tp, struct tcp_snd_req *req, uint64_t ts, i
 			fil->sbcc_at_s = tptosocket(tp)->so_snd.sb_ccc;
 			fil->start_seq = tp->snd_una +
 			    tptosocket(tp)->so_snd.sb_ccc;
-			if (req->flags & TCP_LOG_HTTPD_RANGE_END)
-				fil->end_seq = (fil->start_seq + ((uint32_t)(fil->end - fil->start)));
-			else
-				fil->end_seq = 0;
+			fil->end_seq = (fil->start_seq + ((uint32_t)(fil->end - fil->start)));
 			if (tptosocket(tp)->so_snd.sb_tls_info) {
 				/*
 				 * This session is doing TLS. Take a swag guess

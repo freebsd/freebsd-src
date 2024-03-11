@@ -179,12 +179,6 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 		goto out;
 	}
 	tp->t_state = TCPS_CLOSED;
-	/* Can we inherit anything from the listener? */
-	if ((so->so_listen != NULL) &&
-	    (so->so_listen->so_pcb != NULL) &&
-	    (tp->t_fb->tfb_inherit != NULL)) {
-		(*tp->t_fb->tfb_inherit)(tp, sotoinpcb(so->so_listen));
-	}
 	tcp_bblog_pru(tp, PRU_ATTACH, error);
 	INP_WUNLOCK(inp);
 	TCPSTATES_INC(TCPS_CLOSED);
@@ -1607,7 +1601,6 @@ tcp_fill_info(const struct tcpcb *tp, struct tcp_info *ti)
 	ti->tcpi_rcv_numsacks = tp->rcv_numsacks;
 	ti->tcpi_rcv_adv = tp->rcv_adv;
 	ti->tcpi_dupacks = tp->t_dupacks;
-	ti->tcpi_rttmin = tp->t_rttlow;
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE) {
 		ti->tcpi_options |= TCPI_OPT_TOE;

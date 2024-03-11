@@ -267,9 +267,7 @@ enum tcp_log_events {
 	TCP_RACK_TP_TRIGGERED,	/* A rack tracepoint is triggered 68 */
 	TCP_HYBRID_PACING_LOG,	/* Hybrid pacing log 69 */
 	TCP_LOG_PRU,		/* TCP protocol user request        70 */
-	TCP_POLICER_DET,	/* TCP Policer detectionn 71 */
-	TCP_PCM_MEASURE,	/* TCP Path Capacity Measurement 72 */
-	TCP_LOG_END		/* End (keep at end)                72 */
+	TCP_LOG_END		/* End (keep at end)                71 */
 };
 
 enum tcp_log_states {
@@ -373,11 +371,10 @@ struct tcp_log_dev_log_queue {
 #define TCP_TP_COLLAPSED_RXT	0x00000004	/* When we actually retransmit a collapsed window rsm */
 #define TCP_TP_REQ_LOG_FAIL	0x00000005	/* We tried to allocate a Request log but had no space */
 #define TCP_TP_RESET_RCV	0x00000006	/* Triggers when we receive a RST */
-#define TCP_TP_POLICER_DET	0x00000007	/* When we detect a policer */
-#define TCP_TP_EXCESS_RXT	TCP_TP_POLICER_DET	/* alias */
+#define TCP_TP_EXCESS_RXT	0x00000007	/* When we get excess RXT's clamping the cwnd */
 #define TCP_TP_SAD_TRIGGERED	0x00000008	/* Sack Attack Detection triggers */
+
 #define TCP_TP_SAD_SUSPECT	0x0000000a	/* A sack has supicious information in it */
-#define TCP_TP_PACED_BOTTOM	0x0000000b	/* We have paced at the bottom */
 
 #ifdef _KERNEL
 
