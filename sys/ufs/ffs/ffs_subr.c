@@ -392,7 +392,6 @@ validate_sblock(struct fs *fs, int isaltsblk)
 		CHK(fs->fs_old_rotdelay, !=, 0, %jd);
 		CHK(fs->fs_old_rps, !=, 60, %jd);
 		CHK(fs->fs_old_nspf, !=, fs->fs_fsize / sectorsize, %jd);
-		CHK(fs->fs_old_cpg, !=, 1, %jd);
 		CHK(fs->fs_old_interleave, !=, 1, %jd);
 		CHK(fs->fs_old_trackskew, !=, 0, %jd);
 		CHK(fs->fs_old_cpc, !=, 0, %jd);
