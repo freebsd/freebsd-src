@@ -124,10 +124,8 @@ mk_pair_of_sockets(int *sv)
 		atf_tc_fail("accept(2) failed");
 	}
 
-	if (sv != NULL) {
-		sv[0] = s1;
-		sv[1] = s2;
-	}
+	sv[0] = s1;
+	sv[1] = s2;
 
 	close(s);
 
