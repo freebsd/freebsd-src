@@ -191,19 +191,35 @@ ssize_t host_write(int fd, const void *buf, size_t nbyte);
 	    HOST_MAP_PRIVATE | HOST_MAP_ANONYMOUS, -1, 0);
 
 /*
+ * Since we have to interface with the 'raw' system call, we have to cope with
+ * Linux's conventions. To run on the most architectures possible, they don't
+ * return errors through some CPU flag, but instead, return a negative value for
+ * an error, and a positive one for success. However, there's some issues since
+ * addresses have to be returned, some of which are also negative, so Linus
+ * declared that no successful result could be -4096 to 0. This implements
+ * that quirk so we can check return values easily.
+ */
+static __inline bool
+is_linux_error(long e)
+{
+	return (e < 0 && e >= -4096);
+}
+
+/*
  * Translate Linux errno to FreeBSD errno. The two system have idenitcal errors
  * for 1-34. After that, they differ. Linux also has errno that don't map
  * exactly to FreeBSD's errno, plus the Linux errno are arch dependent >
  * 34. Since we just need to do this for simple cases, use the simple mapping
  * function where -1 to -34 are translated to 1 to 34 and all others are EINVAL.
- * Pass the linux return value, which will be the -errno.
+ * Pass the linux return value, which will be the -errno. Linux returns these
+ * values as a 'long' which has to align to CPU register size, so accept that
+ * size as the error so the assert can catch more values.
  */
 static __inline int
-host_to_stand_errno(int e)
+host_to_stand_errno(long e)
 {
-	assert(e < 0);
+	assert(is_linux_error(e));
 
 	return((-e) > 34 ? EINVAL : (-e));
 }
-
 #endif
