@@ -334,9 +334,22 @@ __tcp_set_flags(struct tcphdr *th, uint16_t flags)
 #define TCP_RACK_PACING_DIVISOR 1146 /* Pacing divisor given to rate-limit code for burst sizing */
 #define TCP_RACK_PACE_MIN_SEG 1147	/* Pacing min seg size rack will use */
 #define TCP_RACK_DGP_IN_REC 1148	/* Do we use full DGP in recovery? */
-#define TCP_RXT_CLAMP 1149 /* Do we apply a threshold to rack so if excess rxt clamp cwnd? */
+#define TCP_POLICER_DETECT 1149 	/* Do we apply a thresholds to rack to detect and compensate for policers? */
+#define TCP_RXT_CLAMP TCP_POLICER_DETECT
 #define TCP_HYBRID_PACING   1150	/* Hybrid pacing enablement */
 #define TCP_PACING_DND	    1151	/* When pacing with rr_config=3 can sacks disturb us */
+#define TCP_SS_EEXIT        1152	/* Do we do early exit from slowtart if no  b/w growth */
+#define TCP_DGP_UPPER_BOUNDS 1153	/* SS and CA upper bound in percentage */
+#define TCP_NO_TIMELY	    1154	/* Disable/enable Timely */
+#define TCP_HONOR_HPTS_MIN  1155	/* Do we honor hpts min to */
+#define TCP_REC_IS_DYN      1156	/* Do we allow timely to change recovery multiplier? */
+#define TCP_SIDECHAN_DIS    1157	/* Disable/enable the side-channel */
+#define TCP_FILLCW_RATE_CAP 1158	/* Set a cap for DGP's fillcw */
+#define TCP_POLICER_MSS     1159	/* Policer MSS requirement */
+#define TCP_STACK_SPEC_INFO 1160	/* Get stack specific information (if present) */
+#define RACK_CSPR_IS_FCC    1161
+#define TCP_GP_USE_LTBW     1162	/* how we use lt_bw 0=not, 1=min, 2=max */
+
 
 /* Start of reserved space for third-party user-settable options. */
 #define	TCP_VENDOR	SO_VENDOR
@@ -447,6 +460,7 @@ struct tcp_info {
 	u_int32_t	tcpi_rcv_adv;		/* Peer advertised window */
 	u_int32_t	tcpi_dupacks;		/* Consecutive dup ACKs recvd */
 
+	u_int32_t	tcpi_rttmin;		/* Min observed RTT */
 	/* Padding to grow without breaking ABI. */
 	u_int32_t	__tcpi_pad[14];		/* Padding. */
 };
@@ -462,6 +476,20 @@ struct tcp_fastopen {
 };
 
 #define TCP_FUNCTION_NAME_LEN_MAX 32
+
+struct stack_specific_info {
+	char stack_name[TCP_FUNCTION_NAME_LEN_MAX];
+	uint64_t policer_last_bw;	/* Only valid if detection enabled and policer detected */
+	uint64_t bytes_transmitted;
+	uint64_t bytes_retransmitted;
+	uint32_t policer_detection_enabled: 1,
+		 policer_detected : 1,  /* transport thinks a policer is on path */
+		 highly_buffered : 1,	/* transport considers the path highly buffered */
+		 spare : 29;
+	uint32_t policer_bucket_size;	/* Only valid if detection enabled and policer detected */
+	uint32_t current_round;
+	uint32_t _rack_i_pad[18];
+};
 
 struct tcp_function_set {
 	char function_set_name[TCP_FUNCTION_NAME_LEN_MAX];
@@ -488,6 +516,7 @@ struct tcp_snd_req {
 	uint64_t start;
 	uint64_t end;
 	uint32_t flags;
+	uint32_t playout_ms;
 };
 
 union tcp_log_userdata {
@@ -518,9 +547,12 @@ struct tcp_log_user {
 #define TCP_HYBRID_PACING_H_MS		0x0008		/* A client hint for maxseg is present  */
 #define TCP_HYBRID_PACING_ENABLE	0x0010		/* We are enabling hybrid pacing else disable */
 #define TCP_HYBRID_PACING_S_MSS		0x0020		/* Clent wants us to set the mss overriding gp est in CU */
-#define TCP_HYBRID_PACING_SETMSS	0x1000		/* Internal flag that tellsus we set the mss on this entry */
+#define TCP_HAS_PLAYOUT_MS		0x0040		/* The client included the chunk playout milliseconds: deprecate */
+/* the below are internal only flags */
+#define TCP_HYBRID_PACING_USER_MASK	0x0FFF		/* Non-internal flags mask */
+#define TCP_HYBRID_PACING_SETMSS	0x1000		/* Internal flag that tells us we set the mss on this entry */
 #define TCP_HYBRID_PACING_WASSET	0x2000		/* We init to this to know if a hybrid command was issued */
-
+#define TCP_HYBRID_PACING_SENDTIME	0x4000		/* Duplicate tm to last, use sendtime for catch up mode */
 
 struct tcp_hybrid_req {
 	struct tcp_snd_req req;
