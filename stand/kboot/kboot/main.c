@@ -232,7 +232,7 @@ caddr_t ptov(uintptr_t pa)
 	 * the raw system call we have to do that ourselves.
 	 */
 	va = host_mmap(0, PAGE, HOST_PROT_READ, HOST_MAP_SHARED, smbios_fd, pa2);
-	if ((intptr_t)va < 0 && (intptr_t)va >= -511)
+	if (is_linux_error((long)va))
 		panic("smbios mmap offset %#jx failed", (uintmax_t)pa2);
 	m = &map[nmap++];
 	m->pa = pa2;
