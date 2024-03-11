@@ -1,0 +1,28 @@
+--- test126.left.txt
++++ test126.right.txt
+@@ -1,4 +1,4 @@
+-/* $OpenBSD: a_time_tm.c,v 1.15 2018/04/25 11:48:21 tb Exp $ */
++/* $OpenBSD: a_time_tm.c,v 1.16 2020/12/16 18:35:59 tb Exp $ */
+ /*
+  * Copyright (c) 2015 Bob Beck <beck@openbsd.org>
+  *
+@@ -108,10 +108,9 @@
+ 		return (-1);
+ 
+ 	lt = tm;
+-	if (lt == NULL) {
+-		memset(&ltm, 0, sizeof(ltm));
++	if (lt == NULL)
+ 		lt = &ltm;
+-	}
++	memset(lt, 0, sizeof(*lt));
+ 
+ 	/* Timezone is required and must be GMT (Zulu). */
+ 	if (bytes[len - 1] != 'Z')
+@@ -168,4 +167,4 @@
+ 	}
+ 
+ 	return (type);
+-}
++}
+\ No newline at end of file

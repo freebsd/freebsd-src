@@ -1,0 +1,9 @@
+--- test124.left-p.txt
++++ test124.right-p.txt
+@@ -11,5 +11,5 @@ doSomethingThenPrintHello(int test)
+ 
+ struct testfile *
+ return_test(int test) {
+-	return NULL;
++	return test*2;
+ }
