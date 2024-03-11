@@ -133,8 +133,9 @@ hostfs_seek(struct open_file *f, off_t offset, int whence)
 	 * from V7 later ISO-C). Also assumes we have to support powerpc still,
 	 * it's interface is weird for legacy reasons....
 	 */
-	offl = offset & 0xffffffff;
-	offh = (offset >> 32) & 0xffffffff;
+	res = (uint64_t)offset;
+	offl = res & 0xfffffffful;
+	offh = (res >> 32) & 0xfffffffful;
 	err = host_llseek(hf->hf_fd, offh, offl, &res, whence);
 	if (err < 0)
 		return (err);
