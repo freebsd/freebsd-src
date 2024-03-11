@@ -1184,6 +1184,13 @@ set_interrupt_apic_ids(void)
 		    !hyperthreading_intr_allowed)
 			continue;
 
+		/*
+		 * Currently Hyper-V only supports intr on first
+		 * 64 cpus.
+		 */
+		if (vm_guest == VM_GUEST_HV && i > 63)
+			continue;
+
 		intr_add_cpu(i);
 	}
 }
