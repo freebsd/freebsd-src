@@ -48,6 +48,13 @@
 #define	FRAME_UNHANDLED	4
 
 void
+db_md_list_breakpoints(void)
+{
+
+	dbg_show_breakpoint();
+}
+
+void
 db_md_list_watchpoints(void)
 {
 

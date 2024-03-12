@@ -121,9 +121,16 @@ void
 gdb_cpu_stop_reason(int type, int code __unused)
 {
 
-	if (type == EXCP_WATCHPT_EL1) {
+	switch (type) {
+	case EXCP_WATCHPT_EL1:
 		gdb_tx_str("watch:");
 		gdb_tx_varhex((uintmax_t)READ_SPECIALREG(far_el1));
 		gdb_tx_char(';');
+		break;
+	case EXCP_BRKPT_EL1:
+		gdb_tx_str("hwbreak:;");
+		break;
+	default:
+		break;
 	}
 }
