@@ -63,6 +63,7 @@ __weak_reference(__thr_cond_wait, pthread_cond_wait);
 __weak_reference(__thr_cond_wait, __pthread_cond_wait);
 __weak_reference(_thr_cond_wait, _pthread_cond_wait);
 __weak_reference(__pthread_cond_timedwait, pthread_cond_timedwait);
+__weak_reference(_thr_cond_timedwait, _pthread_cond_timedwait);
 __weak_reference(_thr_cond_init, pthread_cond_init);
 __weak_reference(_thr_cond_init, _pthread_cond_init);
 __weak_reference(_thr_cond_destroy, pthread_cond_destroy);
