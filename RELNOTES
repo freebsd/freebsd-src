@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+f32a6403d346:
+	One True Awk updated to 2nd Edition. See https://awk.dev for details
+	on the additions. Unicode and CSVs (Comma Separated Values) are now
+	supported.
+
 fe86d923f83f:
 	usbconfig(8) now reads the descriptions of the usb vendor and products
 	from usb.ids when available, similarly to what pciconf(8) does.
