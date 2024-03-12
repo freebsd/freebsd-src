@@ -210,12 +210,95 @@ out:
 	return (error);
 }
 
+static int
+uart_cpu_acpi_dbg2(struct uart_devinfo *di)
+{
+	vm_paddr_t dbg2_physaddr;
+	ACPI_TABLE_DBG2 *dbg2;
+	ACPI_DBG2_DEVICE *dbg2_dev;
+	ACPI_GENERIC_ADDRESS *base_address;
+	struct acpi_uart_compat_data *cd;
+	struct uart_class *class;
+	int error;
+	bool found;
+
+	/* Look for the SPCR table. */
+	dbg2_physaddr = acpi_find_table(ACPI_SIG_DBG2);
+	if (dbg2_physaddr == 0)
+		return (ENXIO);
+
+	dbg2 = acpi_map_table(dbg2_physaddr, ACPI_SIG_DBG2);
+	if (dbg2 == NULL) {
+		printf("Unable to map the DBG2 table!\n");
+		return (ENXIO);
+	}
+
+	error = ENXIO;
+
+	dbg2_dev = (ACPI_DBG2_DEVICE *)((vm_offset_t)dbg2 + dbg2->InfoOffset);
+	found = false;
+	while ((vm_offset_t)dbg2_dev + dbg2_dev->Length <=
+	    (vm_offset_t)dbg2 + dbg2->Header.Length) {
+		if (dbg2_dev->PortType != ACPI_DBG2_SERIAL_PORT)
+			goto next;
+
+		/* XXX: Too restrictive? */
+		if (dbg2_dev->RegisterCount != 1)
+			goto next;
+
+		cd = uart_cpu_acpi_scan(dbg2_dev->PortSubtype);
+		if (cd == NULL)
+			goto next;
+
+		class = cd->cd_class;
+		base_address = (ACPI_GENERIC_ADDRESS *)
+		    ((vm_offset_t)dbg2_dev + dbg2_dev->BaseAddressOffset);
+
+		error = uart_cpu_acpi_init_devinfo(di, class, base_address);
+		if (error == 0) {
+			found = true;
+			break;
+		}
+
+next:
+		dbg2_dev = (ACPI_DBG2_DEVICE *)
+		    ((vm_offset_t)dbg2_dev + dbg2_dev->Length);
+	}
+	if (!found)
+		goto out;
+
+	/* XXX: Find the correct value */
+	di->baudrate = 115200;
+
+	/* Apply device tweaks. */
+	if ((cd->cd_quirks & UART_F_IGNORE_SPCR_REGSHFT) ==
+	    UART_F_IGNORE_SPCR_REGSHFT) {
+		di->bas.regshft = cd->cd_regshft;
+	}
+
+	/* Create a bus space handle. */
+	error = bus_space_map(di->bas.bst, base_address->Address,
+	    uart_getrange(class), 0, &di->bas.bsh);
+
+out:
+	acpi_unmap_table(dbg2);
+	return (error);
+}
+
 int
 uart_cpu_acpi_setup(int devtype, struct uart_devinfo *di)
 {
+	char *cp;
+
 	switch(devtype) {
 	case UART_DEV_CONSOLE:
 		return (uart_cpu_acpi_spcr(devtype, di));
+	case UART_DEV_DBGPORT:
+		/* Use the Debug Port Table 2 (DBG2) to find a debug uart */
+		cp = kern_getenv("hw.acpi.enable_dbg2");
+		if (cp != NULL && strcasecmp(cp, "yes") == 0)
+			return (uart_cpu_acpi_dbg2(di));
+		break;
 	}
 	return (ENXIO);
 }
