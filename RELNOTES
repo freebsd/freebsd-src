@@ -12,7 +12,7 @@ Changes to this file should not be MFCed.
 
 daf917daba9c:
 	One True Awk updated to 2nd Edition with new -csv support and UTF-8
-	support.
+	support. See https://awk.dev for more details.
 
 b8e137d8d32d:
 	This commit added some statistics collection to the NFS-over-TLS
