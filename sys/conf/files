@@ -4374,6 +4374,7 @@ netinet/tcp_stacks/rack.c	optional inet tcphpts tcp_rack | inet6 tcphpts tcp_rac
 netinet/tcp_stacks/rack_bbr_common.c	optional inet tcphpts tcp_bbr | inet tcphpts tcp_rack | inet6 tcphpts tcp_bbr | inet6 tcphpts tcp_rack
 netinet/tcp_stacks/sack_filter.c	optional inet tcphpts tcp_bbr | inet tcphpts tcp_rack | inet6 tcphpts tcp_bbr | inet6 tcphpts tcp_rack
 netinet/tcp_stacks/tailq_hash.c	optional inet tcphpts tcp_bbr | inet tcphpts tcp_rack | inet6 tcphpts tcp_bbr | inet6 tcphpts tcp_rack
+netinet/tcp_stacks/rack_pcm.c	optional inet tcphpts tcp_rack | inet6 tcphpts tcp_rack
 netinet/tcp_stats.c		optional stats inet | stats inet6
 netinet/tcp_subr.c		optional inet | inet6
 netinet/tcp_syncache.c		optional inet | inet6
