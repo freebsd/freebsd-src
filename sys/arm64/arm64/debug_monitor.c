@@ -495,23 +495,24 @@ dbg_register_sync(struct debug_monitor_state *monitor)
 	if (monitor == NULL)
 		monitor = &kernel_monitor;
 
+	for (i = 0; i < dbg_breakpoint_num; i++) {
+		dbg_wb_write_reg(DBG_REG_BASE_BCR, i,
+		    monitor->dbg_bcr[i]);
+		dbg_wb_write_reg(DBG_REG_BASE_BVR, i,
+		    monitor->dbg_bvr[i]);
+	}
+
+	for (i = 0; i < dbg_watchpoint_num; i++) {
+		dbg_wb_write_reg(DBG_REG_BASE_WCR, i,
+		    monitor->dbg_wcr[i]);
+		dbg_wb_write_reg(DBG_REG_BASE_WVR, i,
+		    monitor->dbg_wvr[i]);
+	}
+
 	mdscr = READ_SPECIALREG(mdscr_el1);
 	if ((monitor->dbg_flags & DBGMON_ENABLED) == 0) {
 		mdscr &= ~(MDSCR_MDE | MDSCR_KDE);
 	} else {
-		for (i = 0; i < dbg_breakpoint_num; i++) {
-			dbg_wb_write_reg(DBG_REG_BASE_BCR, i,
-			    monitor->dbg_bcr[i]);
-			dbg_wb_write_reg(DBG_REG_BASE_BVR, i,
-			    monitor->dbg_bvr[i]);
-		}
-
-		for (i = 0; i < dbg_watchpoint_num; i++) {
-			dbg_wb_write_reg(DBG_REG_BASE_WCR, i,
-			    monitor->dbg_wcr[i]);
-			dbg_wb_write_reg(DBG_REG_BASE_WVR, i,
-			    monitor->dbg_wvr[i]);
-		}
 		mdscr |= MDSCR_MDE;
 		if ((monitor->dbg_flags & DBGMON_KERNEL) == DBGMON_KERNEL)
 			mdscr |= MDSCR_KDE;
