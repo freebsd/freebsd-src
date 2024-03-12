@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+daf917daba9c:
+	One True Awk updated to 2nd Edition with new -csv support and UTF-8
+	support.
+
 b8e137d8d32d:
 	This commit added some statistics collection to the NFS-over-TLS
 	code in the NFS server so that sysadmins can moditor usage.
