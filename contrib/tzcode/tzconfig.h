@@ -13,7 +13,7 @@
 #define NETBSD_INSPIRED	0
 #define STD_INSPIRED	1
 #define HAVE_TZNAME	2
-#define USG_COMPAT	0
+#define USG_COMPAT	2
 #define ALTZONE		0
 
 #endif /* !TZCONFIG_H_INCLUDED */

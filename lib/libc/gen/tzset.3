@@ -28,16 +28,22 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 6, 2023
+.Dd December 25, 2023
 .Dt TZSET 3
 .Os
 .Sh NAME
+.Nm daylight ,
+.Nm timezone ,
+.Nm tzname ,
 .Nm tzset
 .Nd initialize time conversion information
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In time.h
+.Vt extern int daylight ;
+.Vt extern long timezone ;
+.Vt extern char *tzname[2] ;
 .Ft void
 .Fn tzset void
 .Sh DESCRIPTION
@@ -93,6 +99,21 @@ environment variable does not specify a
 file and cannot be interpreted as a direct specification,
 .Tn UTC
 is used.
+.Pp
+After the first call to
+.Nm tzset ,
+the
+.Vt timezone
+variable is set to the difference, in seconds, between Coordinated Universal
+Time (UTC) and the local time.
+The
+.Vt daylight
+variable is set to 0 if the local timezone is observing standard time.
+It is set to 1 if the local timezone ever observes an alternate time, such as summer time.
+The first element of the
+.Vt tzname
+array is the timezone name of standard time, while the second element is the
+name of the altnerative time zone.
 .Sh SPECIFICATION FORMAT
 When
 .Ev TZ

@@ -261,7 +261,6 @@ FBSD_1.0 {
 	setlogmask;
 	ttyname_r;
 	ttyname;
-	timezone;
 	times;
 	time;
 	telldir;

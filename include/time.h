@@ -162,10 +162,11 @@ struct tm *localtime_r(const time_t *, struct tm *);
 #if __XSI_VISIBLE
 char *strptime(const char * __restrict, const char * __restrict,
     struct tm * __restrict);
+extern long timezone;
+extern int daylight;
 #endif
 
 #if __BSD_VISIBLE
-char *timezone(int, int);	/* XXX XSI conflict */
 time_t timelocal(struct tm * const);
 time_t timegm(struct tm * const);
 int timer_oshandle_np(timer_t timerid);
