@@ -20,7 +20,7 @@ CFLAGS.localtime.c+= -DALL_STATE -DTHREAD_SAFE
 CFLAGS.localtime.c+= -DDETECT_TZ_CHANGES
 .endif
 
-MAN+=	ctime.3 strftime.3 strptime.3 time2posix.3
+MAN+=	ctime.3 strftime.3 strptime.3 time2posix.3 tzset.3
 MAN+=	tzfile.5
 
 MLINKS+=ctime.3 asctime.3 ctime.3 difftime.3 ctime.3 gmtime.3 \
@@ -30,3 +30,5 @@ MLINKS+=ctime.3 asctime.3 ctime.3 difftime.3 ctime.3 gmtime.3 \
 MLINKS+=strftime.3 strftime_l.3
 MLINKS+=strptime.3 strptime_l.3
 MLINKS+=time2posix.3 posix2time.3
+MLINKS+=tzset.3 daylight.3 \
+	tzset.3 timezone.3
