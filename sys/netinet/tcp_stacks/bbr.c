@@ -11529,7 +11529,9 @@ bbr_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 			bbr_set_pktepoch(bbr, cts, __LINE__);
 		bbr_check_bbr_for_state(bbr, cts, __LINE__, (bbr->r_ctl.rc_lost - lost));
 		if (nxt_pkt == 0) {
-			if (bbr->r_wanted_output != 0) {
+			if ((bbr->r_wanted_output != 0) ||
+			    (tp->t_flags & TF_ACKNOW)) { 
+
 				bbr->rc_output_starts_timer = 0;
 				did_out = 1;
 				if (tcp_output(tp) < 0)

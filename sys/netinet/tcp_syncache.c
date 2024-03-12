@@ -1032,7 +1032,10 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 
 	if (!solisten_enqueue(so, SS_ISCONNECTED))
 		tp->t_flags |= TF_SONOTCONN;
-
+	/* Can we inherit anything from the listener? */
+	if (tp->t_fb->tfb_inherit != NULL) {
+		(*tp->t_fb->tfb_inherit)(tp, sotoinpcb(lso));
+	}
 	return (so);
 
 allocfail:
