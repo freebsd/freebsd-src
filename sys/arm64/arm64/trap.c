@@ -498,9 +498,15 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 	 * Enable debug exceptions if we aren't already handling one. They will
 	 * be masked again in the exception handler's epilogue.
 	 */
-	if (exception != EXCP_BRK && exception != EXCP_WATCHPT_EL1 &&
-	    exception != EXCP_SOFTSTP_EL1)
+	switch (exception) {
+	case EXCP_BRK:
+	case EXCP_WATCHPT_EL1:
+	case EXCP_SOFTSTP_EL1:
+		break;
+	default:
 		dbg_enable();
+		break;
+	}
 
 	switch (exception) {
 	case EXCP_FP_SIMD:
