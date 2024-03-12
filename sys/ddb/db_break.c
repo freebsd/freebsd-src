@@ -35,9 +35,13 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kdb.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
+
+#include <machine/kdb.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_break.h>
@@ -61,6 +65,17 @@ static struct db_breakpoint_type db_breakpoint = {
 	.db_breakpoint_list = NULL,
 };
 
+#ifdef HAS_HW_BREAKPOINT
+static struct db_breakpoint	db_hbreak_table[NHBREAKPOINTS];
+
+static struct db_breakpoint_type db_hbreakpoint = {
+	.db_next_free_breakpoint = &db_hbreak_table[0],
+	.db_breakpoint_limit = &db_hbreak_table[NHBREAKPOINTS],
+	.db_free_breakpoints = NULL,
+	.db_breakpoint_list = NULL,
+};
+#endif
+
 static db_breakpoint_t	db_breakpoint_alloc(
 	struct db_breakpoint_type *bkpt_type);
 static void	db_breakpoint_free(struct db_breakpoint_type *bkpt_typ,
@@ -70,7 +85,7 @@ static void	db_delete_breakpoint(struct db_breakpoint_type *bkpt_type,
 static db_breakpoint_t	db_find_breakpoint(struct db_breakpoint_type *bkpt_type,
 	vm_map_t map, db_addr_t addr);
 static void	db_list_breakpoints(void);
-static void	db_set_breakpoint(struct db_breakpoint_type *bkpt_type,
+static bool	db_set_breakpoint(struct db_breakpoint_type *bkpt_type,
 	vm_map_t map, db_addr_t addr, int count);
 
 static db_breakpoint_t
@@ -100,7 +115,7 @@ db_breakpoint_free(struct db_breakpoint_type *bkpt_type, db_breakpoint_t bkpt)
 	bkpt_type->db_free_breakpoints = bkpt;
 }
 
-static void
+static bool
 db_set_breakpoint(struct db_breakpoint_type *bkpt_type, vm_map_t map,
     db_addr_t addr, int count)
 {
@@ -108,13 +123,13 @@ db_set_breakpoint(struct db_breakpoint_type *bkpt_type, vm_map_t map,
 
 	if (db_find_breakpoint(bkpt_type, map, addr)) {
 	    db_printf("Already set.\n");
-	    return;
+	    return (false);
 	}
 
 	bkpt = db_breakpoint_alloc(bkpt_type);
 	if (bkpt == 0) {
 	    db_printf("Too many breakpoints.\n");
-	    return;
+	    return (false);
 	}
 
 	bkpt->map = map;
@@ -125,6 +140,8 @@ db_set_breakpoint(struct db_breakpoint_type *bkpt_type, vm_map_t map,
 
 	bkpt->link = bkpt_type->db_breakpoint_list;
 	bkpt_type->db_breakpoint_list = bkpt;
+
+	return (true);
 }
 
 static void
@@ -171,7 +188,16 @@ db_find_breakpoint(struct db_breakpoint_type *bkpt_type, vm_map_t map,
 db_breakpoint_t
 db_find_breakpoint_here(db_addr_t addr)
 {
-	return db_find_breakpoint(&db_breakpoint, db_map_addr(addr), addr);
+	db_breakpoint_t bkpt;
+
+	bkpt = db_find_breakpoint(&db_breakpoint, db_map_addr(addr), addr);
+#ifdef HAS_HW_BREAKPOINT
+	if (bkpt == NULL)
+		bkpt = db_find_breakpoint(&db_hbreakpoint, db_map_addr(addr),
+		    addr);
+#endif
+
+	return (bkpt);
 }
 
 static bool	db_breakpoints_inserted = true;
@@ -189,6 +215,9 @@ do {								\
 	db_put_value(addr, BKPT_SIZE, *storage)
 #endif
 
+/*
+ * Set software breakpoints.
+ */
 void
 db_set_breakpoints(void)
 {
@@ -205,6 +234,9 @@ db_set_breakpoints(void)
 	}
 }
 
+/*
+ * Clean software breakpoints.
+ */
 void
 db_clear_breakpoints(void)
 {
@@ -222,7 +254,7 @@ db_clear_breakpoints(void)
 }
 
 /*
- * List breakpoints.
+ * List software breakpoints.
  */
 static void
 db_list_breakpoints(void)
@@ -246,7 +278,9 @@ db_list_breakpoints(void)
 	}
 }
 
-/* Delete breakpoint */
+/*
+ * Delete software breakpoint
+ */
 /*ARGSUSED*/
 void
 db_delete_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
@@ -255,7 +289,9 @@ db_delete_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 	    (db_addr_t)addr);
 }
 
-/* Set breakpoint with skip count */
+/*
+ * Set software breakpoint with skip count
+ */
 /*ARGSUSED*/
 void
 db_breakpoint_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
@@ -267,11 +303,55 @@ db_breakpoint_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 	    count);
 }
 
+#ifdef HAS_HW_BREAKPOINT
+/*
+ * Delete hardware breakpoint
+ */
+void
+db_deletehbreak_cmd(db_expr_t addr, bool have_addr, db_expr_t count,
+    char *modif)
+{
+	if (count == -1)
+	    count = 1;
+
+	if (kdb_cpu_clr_breakpoint(addr) != 0) {
+		db_printf("hardware breakpoint could not be delete\n");
+		return;
+	}
+
+	db_delete_breakpoint(&db_hbreakpoint, db_map_addr(addr),
+	    (db_addr_t)addr);
+}
+
+/*
+ * Set hardware breakpoint
+ */
+void
+db_hbreakpoint_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
+{
+	if (count == -1)
+	    count = 1;
+
+	if (!db_set_breakpoint(&db_hbreakpoint, db_map_addr(addr),
+	    (db_addr_t)addr, count))
+		return;
+
+	if (kdb_cpu_set_breakpoint(addr) != 0) {
+		db_printf("hardware breakpoint could not be set\n");
+		db_delete_breakpoint(&db_hbreakpoint, db_map_addr(addr),
+		    (db_addr_t)addr);
+	}
+}
+#endif
+
 /* list breakpoints */
 void
 db_listbreak_cmd(db_expr_t dummy1, bool dummy2, db_expr_t dummy3, char *dummy4)
 {
 	db_list_breakpoints();
+#ifdef HAS_HW_BREAKPOINT
+	db_md_list_breakpoints();
+#endif
 }
 
 /*
