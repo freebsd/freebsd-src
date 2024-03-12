@@ -69,6 +69,75 @@ uart_cpu_acpi_scan(uint8_t interface_type)
 	return (NULL);
 }
 
+static int
+uart_cpu_acpi_init_devinfo(struct uart_devinfo *di, struct uart_class *class,
+    ACPI_GENERIC_ADDRESS *addr)
+{
+	/* Fill in some fixed details. */
+	di->bas.chan = 0;
+	di->bas.rclk = 0;
+	di->databits = 8;
+	di->stopbits = 1;
+	di->parity = UART_PARITY_NONE;
+	di->ops = uart_getops(class);
+
+	/* Fill in details from SPCR table. */
+	switch (addr->SpaceId) {
+	case 0:
+		di->bas.bst = uart_bus_space_mem;
+		break;
+	case 1:
+		di->bas.bst = uart_bus_space_io;
+		break;
+	default:
+		printf("UART in unrecognized address space: %d!\n",
+		    (int)addr->SpaceId);
+		return (ENXIO);
+	}
+	switch (addr->AccessWidth) {
+	case 0: /* EFI_ACPI_6_0_UNDEFINED */
+		/* FALLTHROUGH */
+	case 1: /* EFI_ACPI_6_0_BYTE */
+		di->bas.regiowidth = 1;
+		break;
+	case 2: /* EFI_ACPI_6_0_WORD */
+		di->bas.regiowidth = 2;
+		break;
+	case 3: /* EFI_ACPI_6_0_DWORD */
+		di->bas.regiowidth = 4;
+		break;
+	case 4: /* EFI_ACPI_6_0_QWORD */
+		di->bas.regiowidth = 8;
+		break;
+	default:
+		printf("UART unsupported access width: %d!\n",
+		    (int)addr->AccessWidth);
+		return (ENXIO);
+	}
+	switch (addr->BitWidth) {
+	case 0:
+		/* FALLTHROUGH */
+	case 8:
+		di->bas.regshft = 0;
+		break;
+	case 16:
+		di->bas.regshft = 1;
+		break;
+	case 32:
+		di->bas.regshft = 2;
+		break;
+	case 64:
+		di->bas.regshft = 3;
+		break;
+	default:
+		printf("UART unsupported bit width: %d!\n",
+		    (int)addr->BitWidth);
+		return (ENXIO);
+	}
+
+	return (0);
+}
+
 int
 uart_cpu_acpi_spcr(int devtype, struct uart_devinfo *di)
 {
@@ -98,67 +167,10 @@ uart_cpu_acpi_spcr(int devtype, struct uart_devinfo *di)
 		goto out;
 	class = cd->cd_class;
 
-	/* Fill in some fixed details. */
-	di->bas.chan = 0;
-	di->bas.rclk = 0;
-	di->databits = 8;
-	di->stopbits = 1;
-	di->parity = UART_PARITY_NONE;
-	di->ops = uart_getops(class);
+	error = uart_cpu_acpi_init_devinfo(di, class, &spcr->SerialPort);
+	if (error != 0)
+		goto out;
 
-	/* Fill in details from SPCR table. */
-	switch (spcr->SerialPort.SpaceId) {
-	case 0:
-		di->bas.bst = uart_bus_space_mem;
-		break;
-	case 1:
-		di->bas.bst = uart_bus_space_io;
-		break;
-	default:
-		printf("UART in unrecognized address space: %d!\n",
-		    (int)spcr->SerialPort.SpaceId);
-		goto out;
-	}
-	switch (spcr->SerialPort.AccessWidth) {
-	case 0: /* EFI_ACPI_6_0_UNDEFINED */
-		/* FALLTHROUGH */
-	case 1: /* EFI_ACPI_6_0_BYTE */
-		di->bas.regiowidth = 1;
-		break;
-	case 2: /* EFI_ACPI_6_0_WORD */
-		di->bas.regiowidth = 2;
-		break;
-	case 3: /* EFI_ACPI_6_0_DWORD */
-		di->bas.regiowidth = 4;
-		break;
-	case 4: /* EFI_ACPI_6_0_QWORD */
-		di->bas.regiowidth = 8;
-		break;
-	default:
-		printf("UART unsupported access width: %d!\n",
-		    (int)spcr->SerialPort.AccessWidth);
-		goto out;
-	}
-	switch (spcr->SerialPort.BitWidth) {
-	case 0:
-		/* FALLTHROUGH */
-	case 8:
-		di->bas.regshft = 0;
-		break;
-	case 16:
-		di->bas.regshft = 1;
-		break;
-	case 32:
-		di->bas.regshft = 2;
-		break;
-	case 64:
-		di->bas.regshft = 3;
-		break;
-	default:
-		printf("UART unsupported bit width: %d!\n",
-		    (int)spcr->SerialPort.BitWidth);
-		goto out;
-	}
 	switch (spcr->BaudRate) {
 	case 0:
 		/* Special value; means "keep current value unchanged". */
