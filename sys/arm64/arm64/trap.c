@@ -500,6 +500,7 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 	 */
 	switch (exception) {
 	case EXCP_BRK:
+	case EXCP_BRKPT_EL1:
 	case EXCP_WATCHPT_EL1:
 	case EXCP_SOFTSTP_EL1:
 		break;
@@ -551,6 +552,7 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 		panic("No debugger in kernel.");
 #endif
 		break;
+	case EXCP_BRKPT_EL1:
 	case EXCP_WATCHPT_EL1:
 	case EXCP_SOFTSTP_EL1:
 #ifdef KDB
