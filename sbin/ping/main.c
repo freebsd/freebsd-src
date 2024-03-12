@@ -149,7 +149,7 @@ main(int argc, char *argv[])
 	hints.ai_socktype = SOCK_RAW;
 	if (feature_present("inet") && !feature_present("inet6"))
 		hints.ai_family = AF_INET;
-	if (feature_present("inet6") && !feature_present("inet"))
+	else if (feature_present("inet6") && !feature_present("inet"))
 		hints.ai_family = AF_INET6;
 	else
 		hints.ai_family = AF_UNSPEC;
