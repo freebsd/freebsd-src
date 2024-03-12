@@ -7240,6 +7240,7 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	struct pf_ksrc_node	*sn = NULL;
 	int			 error = 0;
 	uint16_t		 ip_len, ip_off;
+	uint16_t		 tmp;
 	int			 r_rt, r_dir;
 
 	KASSERT(m && *m && r && oifp, ("%s: invalid parameters", __func__));
@@ -7381,11 +7382,26 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		m0->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 	}
 
-	/*
-	 * Make sure dummynet gets the correct direction, in case it needs to
-	 * re-inject later.
-	 */
-	pd->dir = PF_OUT;
+	if (pd->dir == PF_IN) {
+		/*
+		 * Make sure dummynet gets the correct direction, in case it needs to
+		 * re-inject later.
+		 */
+		pd->dir = PF_OUT;
+
+		/*
+		 * The following processing is actually the rest of the inbound processing, even
+		 * though we've marked it as outbound (so we don't look through dummynet) and it
+		 * happens after the outbound processing (pf_test(PF_OUT) above).
+		 * Swap the dummynet pipe numbers, because it's going to come to the wrong
+		 * conclusion about what direction it's processing, and we can't fix it or it
+		 * will re-inject incorrectly. Swapping the pipe numbers means that its incorrect
+		 * decision will pick the right pipe, and everything will mostly work as expected.
+		 */
+		tmp = pd->act.dnrpipe;
+		pd->act.dnrpipe = pd->act.dnpipe;
+		pd->act.dnpipe = tmp;
+	}
 
 	/*
 	 * If small enough for interface, or the interface will take
