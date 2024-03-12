@@ -110,6 +110,7 @@ gdb_cpu_signal(int type, int code __unused)
 	switch (type) {
 	case EXCP_WATCHPT_EL1:
 	case EXCP_SOFTSTP_EL1:
+	case EXCP_BRKPT_EL1:
 	case EXCP_BRK:
 		return (SIGTRAP);
 	}
