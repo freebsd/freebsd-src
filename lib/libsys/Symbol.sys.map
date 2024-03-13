@@ -33,7 +33,6 @@ FBSD_1.0 {
 	_exit;
 	_umtx_op;
 	abort2;
-	accept;
 	access;
 	acct;
 	adjtime;
@@ -42,7 +41,6 @@ FBSD_1.0 {
 	aio_fsync;
 	aio_read;
 	aio_return;
-	aio_suspend;
 	aio_waitcomplete;
 	aio_write;
 	audit;
@@ -57,8 +55,6 @@ FBSD_1.0 {
 	clock_getres;
 	clock_gettime;
 	clock_settime;
-	close;
-	connect;
 	dup;
 	dup2;
 	eaccess;
@@ -81,12 +77,9 @@ FBSD_1.0 {
 	fchflags;
 	fchmod;
 	fchown;
-	fcntl;
 	fhopen;
 	flock;
-	fork;
 	fpathconf;
-	fsync;
 	futimes;
 	getaudit;
 	getaudit_addr;
@@ -173,32 +166,21 @@ FBSD_1.0 {
 	msgrcv;
 	msgsnd;
 	msgsys;
-	msync;
 	munlock;
 	munlockall;
 	munmap;
-	nanosleep;
 	nfssvc;
 	nmount;
 	ntp_adjtime;
 	ntp_gettime;
-	open;
 	pathconf;
-	pipe;
-	poll;
 	posix_openpt;
 	preadv;
 	profil;
-	pselect;
-	ptrace;
 	pwritev;
 	quotactl;
-	read;
 	readlink;
-	readv;
 	reboot;
-	recvfrom;
-	recvmsg;
 	rename;
 	revoke;
 	rfork;
@@ -213,13 +195,10 @@ FBSD_1.0 {
 	sched_setparam;
 	sched_setscheduler;
 	sched_yield;
-	select;
 	semget;
 	semop;
 	semsys;
 	sendfile;
-	sendmsg;
-	sendto;
 	setaudit;
 	setaudit_addr;
 	setauid;
@@ -240,23 +219,16 @@ FBSD_1.0 {
 	setsockopt;
 	settimeofday;
 	setuid;
-	shm_open;
 	shm_unlink;
 	shmat;
 	shmdt;
 	shmget;
 	shmsys;
 	shutdown;
-	sigaction;
 	sigaltstack;
 	sigpending;
-	sigprocmask;
 	sigqueue;
 	sigreturn;
-	sigsuspend;
-	sigtimedwait;
-	sigwait;
-	sigwaitinfo;
 	socket;
 	socketpair;
 	swapon;
@@ -285,11 +257,7 @@ FBSD_1.0 {
 	utimes;
 	utrace;
 	uuidgen;
-	vadvise;
 	vfork;
-	wait4;
-	write;
-	writev;
 
 	__error;
 	ftruncate;
@@ -302,7 +270,6 @@ FBSD_1.0 {
 
 FBSD_1.1 {
 	__semctl;
-	closefrom;
 	cpuset;
 	cpuset_getid;
 	cpuset_setid;
@@ -334,7 +301,6 @@ FBSD_1.2 {
 	cap_getmode;
 	getloginclass;
 	getpagesizes;
-	pdfork;
 	pdgetpid;
 	pdkill;
 	posix_fallocate;
@@ -347,7 +313,6 @@ FBSD_1.2 {
 };
 
 FBSD_1.3 {
-	accept4;
 	aio_mlock;
 	bindat;
 	cap_fcntls_get;
@@ -365,37 +330,24 @@ FBSD_1.3 {
 	pipe2;
 	posix_fadvise;
 	procctl;
-	wait6;
 };
 
 FBSD_1.4 {
 	futimens;
-	ppoll;
 	utimensat;
-	numa_setaffinity;
-	numa_getaffinity;
-	sendmmsg;
-	recvmmsg;
 };
 
 FBSD_1.5 {
-	clock_nanosleep;
 	elf_aux_info;
-	fdatasync;
 	fhstat;
 	fhstatfs;
 	fstat;
 	fstatat;
 	fstatfs;
-	getdents;
 	getdirentries;
 	getfsstat;
 	getrandom;
-	kevent;
-	lstat;
-	mknod;
 	mknodat;
-	stat;
 	statfs;
 	cpuset_getdomain;
 	cpuset_setdomain;
@@ -412,12 +364,10 @@ FBSD_1.6 {
 	fhreadlink;
 	getfhat;
 	funlinkat;
-	shm_create_largepage;
 	shm_rename;
 };
 
 FBSD_1.7 {
-	_Fork;
 	fspacectl;
 	kqueuex;
 	membarrier;

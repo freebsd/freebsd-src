@@ -1,6 +1,5 @@
 FBSD_1.0 {
 	rfork_thread;
-	brk;
 	i386_clr_watch;
 	i386_get_fsbase;
 	i386_get_gsbase;
@@ -12,7 +11,6 @@ FBSD_1.0 {
 	i386_set_ldt;
 	i386_set_watch;
 	i386_vm86;
-	sbrk;
 };
 
 FBSD_1.6 {
@@ -24,5 +22,4 @@ FBSD_1.6 {
 
 FBSDprivate_1.0 {
 	_vfork;
-	_brk;
 };
