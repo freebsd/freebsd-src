@@ -20,7 +20,6 @@ FBSD_1.3 {
 };
 
 FBSDprivate_1.0 {
-	_fpgetsticky;
 	__longjmp;
 	signalcontext;
 	__signalcontext;
