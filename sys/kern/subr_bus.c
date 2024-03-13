@@ -4322,12 +4322,12 @@ bus_generic_rman_activate_resource(device_t dev, device_t child, int type,
     int rid, struct resource *r)
 {
 	struct resource_map map;
-#ifdef INVARIANTS_XXX
+#ifdef INVARIANTS
 	struct rman *rm;
 #endif
 	int error;
 
-#ifdef INVARIANTS_XXX
+#ifdef INVARIANTS
 	rm = BUS_GET_RMAN(dev, type, rman_get_flags(r));
 	KASSERT(rman_is_region_manager(r, rm),
 	    ("%s: rman %p doesn't match for resource %p", __func__, rm, r));
@@ -4361,12 +4361,12 @@ bus_generic_rman_deactivate_resource(device_t dev, device_t child, int type,
     int rid, struct resource *r)
 {
 	struct resource_map map;
-#ifdef INVARIANTS_XXX
+#ifdef INVARIANTS
 	struct rman *rm;
 #endif
 	int error;
 
-#ifdef INVARIANTS_XXX
+#ifdef INVARIANTS
 	rm = BUS_GET_RMAN(dev, type, rman_get_flags(r));
 	KASSERT(rman_is_region_manager(r, rm),
 	    ("%s: rman %p doesn't match for resource %p", __func__, rm, r));
