@@ -92,10 +92,10 @@ static int  macio_deactivate_resource(device_t, device_t, int, int,
 				      struct resource *);
 static int  macio_release_resource(device_t, device_t, int, int,
 				   struct resource *);
-static int  macio_map_resource(device_t, device_t, int, struct resource *,
+static int  macio_map_resource(device_t, device_t, struct resource *,
 			       struct resource_map_request *,
 			       struct resource_map *);
-static int  macio_unmap_resource(device_t, device_t, int, struct resource *,
+static int  macio_unmap_resource(device_t, device_t, struct resource *,
 				 struct resource_map *);
 static struct resource_list *macio_get_resource_list (device_t, device_t);
 static ofw_bus_get_devinfo_t macio_get_devinfo;
@@ -663,9 +663,8 @@ macio_deactivate_resource(device_t bus, device_t child, int type, int rid,
 }
 
 static int
-macio_map_resource(device_t bus, device_t child, int type,
-    struct resource *r, struct resource_map_request *argsp,
-    struct resource_map *map)
+macio_map_resource(device_t bus, device_t child, struct resource *r,
+    struct resource_map_request *argsp, struct resource_map *map)
 {
 	struct resource_map_request args;
 	struct macio_softc *sc;
@@ -677,7 +676,7 @@ macio_map_resource(device_t bus, device_t child, int type,
 		return (ENXIO);
 
 	/* Mappings are only supported on I/O and memory resources. */
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		break;
@@ -705,13 +704,13 @@ macio_map_resource(device_t bus, device_t child, int type,
 }
 
 static int
-macio_unmap_resource(device_t bus, device_t child, int type,
-    struct resource *r, struct resource_map *map)
+macio_unmap_resource(device_t bus, device_t child, struct resource *r,
+    struct resource_map *map)
 {
 	/*
 	 * If this is a memory resource, unmap it.
 	 */
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		pmap_unmapdev(map->r_vaddr, map->r_size);

@@ -82,10 +82,10 @@ static int  unin_chip_activate_resource(device_t, device_t, int, int,
 					struct resource *);
 static int  unin_chip_deactivate_resource(device_t, device_t, int, int,
 					  struct resource *);
-static int  unin_chip_map_resource(device_t, device_t, int, struct resource *,
+static int  unin_chip_map_resource(device_t, device_t, struct resource *,
 				   struct resource_map_request *,
 				   struct resource_map *);
-static int  unin_chip_unmap_resource(device_t, device_t, int, struct resource *,
+static int  unin_chip_unmap_resource(device_t, device_t, struct resource *,
 				     struct resource_map *);
 static int  unin_chip_release_resource(device_t, device_t, int, int,
 				       struct resource *);
@@ -621,9 +621,8 @@ unin_chip_deactivate_resource(device_t bus, device_t child, int type, int rid,
 }
 
 static int
-unin_chip_map_resource(device_t bus, device_t child, int type,
-    struct resource *r, struct resource_map_request *argsp,
-    struct resource_map *map)
+unin_chip_map_resource(device_t bus, device_t child, struct resource *r,
+    struct resource_map_request *argsp, struct resource_map *map)
 {
 	struct resource_map_request args;
 	rman_res_t length, start;
@@ -634,7 +633,7 @@ unin_chip_map_resource(device_t bus, device_t child, int type,
 		return (ENXIO);
 
 	/* Mappings are only supported on I/O and memory resources. */
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		break;
@@ -661,13 +660,13 @@ unin_chip_map_resource(device_t bus, device_t child, int type,
 }
 
 static int
-unin_chip_unmap_resource(device_t bus, device_t child, int type,
-    struct resource *r, struct resource_map *map)
+unin_chip_unmap_resource(device_t bus, device_t child, struct resource *r,
+    struct resource_map *map)
 {
 	/*
 	 * If this is a memory resource, unmap it.
 	 */
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		pmap_unmapdev(map->r_vaddr, map->r_size);

@@ -639,15 +639,15 @@ generic_pcie_adjust_resource(device_t dev, device_t child,
 }
 
 static int
-generic_pcie_map_resource(device_t dev, device_t child, int type,
-    struct resource *r, struct resource_map_request *argsp,
-    struct resource_map *map)
+generic_pcie_map_resource(device_t dev, device_t child, struct resource *r,
+    struct resource_map_request *argsp, struct resource_map *map)
 {
 	struct resource_map_request args;
 	struct pcie_range *range;
 	rman_res_t length, start;
-	int error;
+	int error, type;
 
+	type = rman_get_type(r);
 	switch (type) {
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
@@ -657,8 +657,7 @@ generic_pcie_map_resource(device_t dev, device_t child, int type,
 	case SYS_RES_MEMORY:
 		break;
 	default:
-		return (bus_generic_map_resource(dev, child, type, r, argsp,
-		    map));
+		return (bus_generic_map_resource(dev, child, r, argsp, map));
 	}
 
 	/* Resources must be active to be mapped. */
@@ -677,16 +676,17 @@ generic_pcie_map_resource(device_t dev, device_t child, int type,
 
 	args.offset = start - range->pci_base;
 	args.length = length;
-	return (bus_generic_map_resource(dev, child, type, range->res, &args,
-	    map));
+	return (bus_generic_map_resource(dev, child, range->res, &args, map));
 }
 
 static int
-generic_pcie_unmap_resource(device_t dev, device_t child, int type,
-    struct resource *r, struct resource_map *map)
+generic_pcie_unmap_resource(device_t dev, device_t child, struct resource *r,
+    struct resource_map *map)
 {
 	struct pcie_range *range;
+	int type;
 
+	type = rman_get_type(r);
 	switch (type) {
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
@@ -703,7 +703,7 @@ generic_pcie_unmap_resource(device_t dev, device_t child, int type,
 	default:
 		break;
 	}
-	return (bus_generic_unmap_resource(dev, child, type, r, map));
+	return (bus_generic_unmap_resource(dev, child, r, map));
 }
 
 static bus_dma_tag_t

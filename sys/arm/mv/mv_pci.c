@@ -353,9 +353,9 @@ static int mv_pcib_activate_resource(device_t, device_t, int, int,
     struct resource *r);
 static int mv_pcib_deactivate_resource(device_t, device_t, int, int,
     struct resource *r);
-static int mv_pcib_map_resource(device_t, device_t, int, struct resource *,
+static int mv_pcib_map_resource(device_t, device_t, struct resource *,
     struct resource_map_request *, struct resource_map *);
-static int mv_pcib_unmap_resource(device_t, device_t, int, struct resource *,
+static int mv_pcib_unmap_resource(device_t, device_t, struct resource *,
     struct resource_map *);
 static int mv_pcib_read_ivar(device_t, device_t, int, uintptr_t *);
 static int mv_pcib_write_ivar(device_t, device_t, int, uintptr_t);
@@ -1034,7 +1034,7 @@ mv_pcib_deactivate_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static int
-mv_pcib_map_resource(device_t dev, device_t child, int type, struct resource *r,
+mv_pcib_map_resource(device_t dev, device_t child, struct resource *r,
     struct resource_map_request *argsp, struct resource_map *map)
 {
 	struct resource_map_request args;
@@ -1046,7 +1046,7 @@ mv_pcib_map_resource(device_t dev, device_t child, int type, struct resource *r,
 		return (ENXIO);
 
 	/* Mappings are only supported on I/O and memory resources. */
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		break;
@@ -1066,10 +1066,10 @@ mv_pcib_map_resource(device_t dev, device_t child, int type, struct resource *r,
 }
 
 static int
-mv_pcib_unmap_resource(device_t dev, device_t child, int type,
-    struct resource *r, struct resource_map *map)
+mv_pcib_unmap_resource(device_t dev, device_t child, struct resource *r,
+    struct resource_map *map)
 {
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		return (0);

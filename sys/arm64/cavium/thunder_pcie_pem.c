@@ -136,10 +136,10 @@ static int thunder_pem_get_id(device_t, device_t, enum pci_id_type,
 static int thunder_pem_attach(device_t);
 static int thunder_pem_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
-static int thunder_pem_map_resource(device_t, device_t, int, struct resource *,
+static int thunder_pem_map_resource(device_t, device_t, struct resource *,
     struct resource_map_request *, struct resource_map *);
-static int thunder_pem_unmap_resource(device_t, device_t, int,
-    struct resource *, struct resource_map *);
+static int thunder_pem_unmap_resource(device_t, device_t, struct resource *,
+    struct resource_map *);
 static bus_dma_tag_t thunder_pem_get_dma_tag(device_t, device_t);
 static int thunder_pem_detach(device_t);
 static uint64_t thunder_pem_config_reg_read(struct thunder_pem_softc *, int);
@@ -302,9 +302,8 @@ thunder_pem_deactivate_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static int
-thunder_pem_map_resource(device_t dev, device_t child, int type,
-    struct resource *r, struct resource_map_request *argsp,
-    struct resource_map *map)
+thunder_pem_map_resource(device_t dev, device_t child, struct resource *r,
+    struct resource_map_request *argsp, struct resource_map *map)
 {
 	struct resource_map_request args;
 	struct thunder_pem_softc *sc;
@@ -315,7 +314,7 @@ thunder_pem_map_resource(device_t dev, device_t child, int type,
 	if (!(rman_get_flags(r) & RF_ACTIVE))
 		return (ENXIO);
 
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
 		break;
@@ -340,11 +339,11 @@ thunder_pem_map_resource(device_t dev, device_t child, int type,
 }
 
 static int
-thunder_pem_unmap_resource(device_t dev, device_t child, int type,
-    struct resource *r, struct resource_map *map)
+thunder_pem_unmap_resource(device_t dev, device_t child, struct resource *r,
+    struct resource_map *map)
 {
 
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
 		bus_space_unmap(map->r_bustag, map->r_bushandle, map->r_size);

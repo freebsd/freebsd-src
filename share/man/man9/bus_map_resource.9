@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 5, 2018
+.Dd March 13, 2024
 .Dt BUS_MAP_RESOURCE 9
 .Os
 .Sh NAME
@@ -38,12 +38,12 @@
 .In machine/resource.h
 .Ft int
 .Fo bus_map_resource
-.Fa "device_t dev" "int type" "struct resource *r"
+.Fa "device_t dev" "struct resource *r"
 .Fa "struct resource_map_request *args" "struct resource_map *map"
 .Fc
 .Ft int
 .Fo bus_unmap_resource
-.Fa "device_t dev" "int type" "struct resource *r" "struct resource_map *map"
+.Fa "device_t dev" "struct resource *r" "struct resource_map *map"
 .Fc
 .Ft void
 .Fn resource_init_map_request "struct resource_map_request *args"
@@ -58,16 +58,6 @@ The arguments are as follows:
 .Bl -tag -width indent
 .It Fa dev
 The device that owns the resource.
-.It Fa type
-The type of resource to map.
-It is one of:
-.Pp
-.Bl -tag -width ".Dv SYS_RES_MEMORY" -compact
-.It Dv SYS_RES_IOPORT
-for I/O ports
-.It Dv SYS_RES_MEMORY
-for I/O memory
-.El
 .It Fa r
 A pointer to the
 .Vt "struct resource"

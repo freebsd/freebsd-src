@@ -242,7 +242,7 @@ nexus_get_rman(device_t bus, int type, u_int flags)
 }
 
 static int
-nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
+nexus_map_resource(device_t bus, device_t child, struct resource *r,
     struct resource_map_request *argsp, struct resource_map *map)
 {
 	struct resource_map_request args;
@@ -254,7 +254,7 @@ nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
 		return (ENXIO);
 
 	/* Mappings are only supported on I/O and memory resources. */
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		break;
@@ -270,7 +270,7 @@ nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
 	/*
 	 * If this is a memory resource, map it into the kernel.
 	 */
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 		panic("%s:%d SYS_RES_IOPORT handling not implemented", __func__, __LINE__);
 		/*   XXX: untested
@@ -299,14 +299,14 @@ nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
 }
 
 static int
-nexus_unmap_resource(device_t bus, device_t child, int type, struct resource *r,
+nexus_unmap_resource(device_t bus, device_t child, struct resource *r,
     struct resource_map *map)
 {
 
 	/*
 	 * If this is a memory resource, unmap it.
 	 */
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
 		pmap_unmapdev(map->r_vaddr, map->r_size);
 		/* FALLTHROUGH */

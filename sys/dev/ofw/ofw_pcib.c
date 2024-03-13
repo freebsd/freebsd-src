@@ -75,9 +75,9 @@ static int ofw_pcib_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
 static int ofw_pcib_adjust_resource(device_t, device_t,
     struct resource *, rman_res_t, rman_res_t);
-static int ofw_pcib_map_resource(device_t, device_t, int, struct resource *,
+static int ofw_pcib_map_resource(device_t, device_t, struct resource *,
     struct resource_map_request *, struct resource_map *);
-static int ofw_pcib_unmap_resource(device_t, device_t, int, struct resource *,
+static int ofw_pcib_unmap_resource(device_t, device_t, struct resource *,
     struct resource_map *);
 static int ofw_pcib_translate_resource(device_t bus, int type,
 	rman_res_t start, rman_res_t *newstart);
@@ -535,9 +535,8 @@ ofw_pcib_activate_resource(device_t bus, device_t child, int type, int rid,
 }
 
 static int
-ofw_pcib_map_resource(device_t dev, device_t child, int type,
-    struct resource *r, struct resource_map_request *argsp,
-    struct resource_map *map)
+ofw_pcib_map_resource(device_t dev, device_t child, struct resource *r,
+    struct resource_map_request *argsp, struct resource_map *map)
 {
 	struct resource_map_request args;
 	struct ofw_pci_softc *sc;
@@ -549,7 +548,7 @@ ofw_pcib_map_resource(device_t dev, device_t child, int type,
 	if (!(rman_get_flags(r) & RF_ACTIVE))
 		return (ENXIO);
 
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
 		break;
@@ -583,7 +582,7 @@ ofw_pcib_map_resource(device_t dev, device_t child, int type,
 			space = -1;
 		}
 
-		if (type == space) {
+		if (rman_get_type(r) == space) {
 			start += (rp->host - rp->pci);
 			break;
 		}
@@ -608,10 +607,10 @@ ofw_pcib_map_resource(device_t dev, device_t child, int type,
 }
 
 static int
-ofw_pcib_unmap_resource(device_t dev, device_t child, int type,
-    struct resource *r, struct resource_map *map)
+ofw_pcib_unmap_resource(device_t dev, device_t child, struct resource *r,
+    struct resource_map *map)
 {
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
 		bus_space_unmap(map->r_bustag, map->r_bushandle, map->r_size);

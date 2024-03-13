@@ -3979,14 +3979,12 @@ bus_generic_deactivate_resource(device_t dev, device_t child, int type,
  * BUS_MAP_RESOURCE() method of the parent of @p dev.
  */
 int
-bus_generic_map_resource(device_t dev, device_t child, int type,
-    struct resource *r, struct resource_map_request *args,
-    struct resource_map *map)
+bus_generic_map_resource(device_t dev, device_t child, struct resource *r,
+    struct resource_map_request *args, struct resource_map *map)
 {
 	/* Propagate up the bus hierarchy until someone handles it. */
 	if (dev->parent)
-		return (BUS_MAP_RESOURCE(dev->parent, child, type, r, args,
-		    map));
+		return (BUS_MAP_RESOURCE(dev->parent, child, r, args, map));
 	return (EINVAL);
 }
 
@@ -3997,12 +3995,12 @@ bus_generic_map_resource(device_t dev, device_t child, int type,
  * BUS_UNMAP_RESOURCE() method of the parent of @p dev.
  */
 int
-bus_generic_unmap_resource(device_t dev, device_t child, int type,
-    struct resource *r, struct resource_map *map)
+bus_generic_unmap_resource(device_t dev, device_t child, struct resource *r,
+    struct resource_map *map)
 {
 	/* Propagate up the bus hierarchy until someone handles it. */
 	if (dev->parent)
-		return (BUS_UNMAP_RESOURCE(dev->parent, child, type, r, map));
+		return (BUS_UNMAP_RESOURCE(dev->parent, child, r, map));
 	return (EINVAL);
 }
 
@@ -4339,7 +4337,7 @@ bus_generic_rman_activate_resource(device_t dev, device_t child, int type,
 
 	if ((rman_get_flags(r) & RF_UNMAPPED) == 0 &&
 	    (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT)) {
-		error = BUS_MAP_RESOURCE(dev, child, type, r, NULL, &map);
+		error = BUS_MAP_RESOURCE(dev, child, r, NULL, &map);
 		if (error != 0) {
 			rman_deactivate_resource(r);
 			return (error);
@@ -4379,7 +4377,7 @@ bus_generic_rman_deactivate_resource(device_t dev, device_t child, int type,
 	if ((rman_get_flags(r) & RF_UNMAPPED) == 0 &&
 	    (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT)) {
 		rman_get_mapping(r, &map);
-		BUS_UNMAP_RESOURCE(dev, child, type, r, &map);
+		BUS_UNMAP_RESOURCE(dev, child, r, &map);
 	}
 	return (0);
 }
@@ -4615,19 +4613,19 @@ bus_deactivate_resource_new(device_t dev, struct resource *r)
  * parent of @p dev.
  */
 int
-bus_map_resource(device_t dev, int type, struct resource *r,
+bus_map_resource(device_t dev, struct resource *r,
     struct resource_map_request *args, struct resource_map *map)
 {
 	if (dev->parent == NULL)
 		return (EINVAL);
-	return (BUS_MAP_RESOURCE(dev->parent, dev, type, r, args, map));
+	return (BUS_MAP_RESOURCE(dev->parent, dev, r, args, map));
 }
 
 int
-bus_map_resource_new(device_t dev, struct resource *r,
+bus_map_resource_old(device_t dev, int type, struct resource *r,
     struct resource_map_request *args, struct resource_map *map)
 {
-	return (bus_map_resource(dev, rman_get_type(r), r, args, map));
+	return (bus_map_resource(dev, r, args, map));
 }
 
 /**
@@ -4637,19 +4635,18 @@ bus_map_resource_new(device_t dev, struct resource *r,
  * parent of @p dev.
  */
 int
-bus_unmap_resource(device_t dev, int type, struct resource *r,
-    struct resource_map *map)
+bus_unmap_resource(device_t dev, struct resource *r, struct resource_map *map)
 {
 	if (dev->parent == NULL)
 		return (EINVAL);
-	return (BUS_UNMAP_RESOURCE(dev->parent, dev, type, r, map));
+	return (BUS_UNMAP_RESOURCE(dev->parent, dev, r, map));
 }
 
 int
-bus_unmap_resource_new(device_t dev, struct resource *r,
+bus_unmap_resource_old(device_t dev, int type, struct resource *r,
     struct resource_map *map)
 {
-	return (bus_unmap_resource(dev, rman_get_type(r), r, map));
+	return (bus_unmap_resource(dev, r, map));
 }
 
 /**

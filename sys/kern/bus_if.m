@@ -332,7 +332,6 @@ METHOD int activate_resource {
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
- * @param _type		the type of resource
  * @param _r		the resource to map
  * @param _args		optional attributes of the mapping
  * @param _map		the mapping
@@ -340,7 +339,6 @@ METHOD int activate_resource {
 METHOD int map_resource {
 	device_t	_dev;
 	device_t	_child;
-	int		_type;
 	struct resource *_r;
 	struct resource_map_request *_args;
 	struct resource_map *_map;
@@ -356,14 +354,12 @@ METHOD int map_resource {
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
- * @param _type		the type of resource
  * @param _r		the resource
  * @param _map		the mapping to release
  */
 METHOD int unmap_resource {
 	device_t	_dev;
 	device_t	_child;
-	int		_type;
 	struct resource *_r;
 	struct resource_map *_map;
 } DEFAULT bus_generic_unmap_resource;
