@@ -18,6 +18,8 @@ e70ad278f45d72a8209e61a312481910d3e03b45
 4ca5df80393e1f2bf6ac26af42fc7246acb59f71
 # elfctl whitespace
 828e50092ac84f50247fb3f400027fc7510d8141
+# Remove more quotes around Makefile .error/.warn/.info strings.
+bca92be68309e9b0c8f1c1c0a9ca87081c4ab27d
 # regen syscall files after d51198d63b63
 2c9764f36b6f20e9a6c71ce64a21988a394050b6
 # Remove whitespace at EOL.
