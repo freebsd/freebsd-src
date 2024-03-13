@@ -59,7 +59,7 @@ interpos_func_t __libsys_interposing[INTERPOS_MAX] = {
 	SLOT(sigaction, __sys_sigaction),
 	SLOT(sigprocmask, __sys_sigprocmask),
 	SLOT(sigsuspend, __sys_sigsuspend),
-	SLOT(sigwait, __libc_sigwait),
+	SLOT(sigwait, __libsys_sigwait),
 	SLOT(sigtimedwait, __sys_sigtimedwait),
 	SLOT(sigwaitinfo, __sys_sigwaitinfo),
 	SLOT(swapcontext, __sys_swapcontext),

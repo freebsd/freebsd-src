@@ -37,7 +37,8 @@ SRCS+=	\
 	__getosreldate.c \
 	getpagesize.c \
 	getpagesizes.c \
-	interposing_table.c
+	interposing_table.c \
+	libsys_sigwait.c
 
 SRCS+= getdents.c lstat.c mknod.c stat.c
 

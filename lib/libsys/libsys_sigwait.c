@@ -25,13 +25,21 @@
  * SUCH DAMAGE.
  */
 
+#include <errno.h>
 #include <signal.h>
 #include "libc_private.h"
 
-#pragma weak sigwait
+/* XXX: why does this symbol exist? */
+__weak_reference(__libsys_sigwait, __sigwait);
+
 int
-sigwait(const sigset_t *set, int *sig)
+__libsys_sigwait(const sigset_t *set, int *sig)
 {
-	return (((int (*)(const sigset_t *, int *))
-	    __libsys_interposing[INTERPOS_sigwait])(set, sig));
+	int ret;
+
+	/* POSIX does not allow EINTR to be returned */
+	do {
+		ret = __sys_sigwait(set, sig);
+	} while (ret == EINTR);
+	return (ret);
 }
