@@ -920,6 +920,22 @@ initarm(struct arm64_bootparams *abp)
 
 	update_special_regs(0);
 
+	/* Set the pcpu data, this is needed by pmap_bootstrap */
+	pcpup = &pcpu0;
+	pcpu_init(pcpup, 0, sizeof(struct pcpu));
+
+	/*
+	 * Set the pcpu pointer with a backup in tpidr_el1 to be
+	 * loaded when entering the kernel from userland.
+	 */
+	__asm __volatile(
+	    "mov x18, %0 \n"
+	    "msr tpidr_el1, %0" :: "r"(pcpup));
+
+	/* locore.S sets sp_el0 to &thread0 so no need to set it here. */
+	PCPU_SET(curthread, &thread0);
+	PCPU_SET(midr, get_midr());
+
 	link_elf_ireloc(kmdp);
 #ifdef FDT
 	try_load_dtb(kmdp);
@@ -951,22 +967,6 @@ initarm(struct arm64_bootparams *abp)
 	if (efifb != NULL)
 		physmem_exclude_region(efifb->fb_addr, efifb->fb_size,
 		    EXFLAG_NOALLOC);
-
-	/* Set the pcpu data, this is needed by pmap_bootstrap */
-	pcpup = &pcpu0;
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-
-	/*
-	 * Set the pcpu pointer with a backup in tpidr_el1 to be
-	 * loaded when entering the kernel from userland.
-	 */
-	__asm __volatile(
-	    "mov x18, %0 \n"
-	    "msr tpidr_el1, %0" :: "r"(pcpup));
-
-	/* locore.S sets sp_el0 to &thread0 so no need to set it here. */
-	PCPU_SET(curthread, &thread0);
-	PCPU_SET(midr, get_midr());
 
 	/* Do basic tuning, hz etc */
 	init_param1();
