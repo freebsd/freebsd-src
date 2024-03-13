@@ -427,15 +427,11 @@ METHOD int translate_resource {
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
- * @param _type		the type of resource
- * @param _rid		the resource identifier
  * @param _r		the resource to release
  */
 METHOD int release_resource {
 	device_t	_dev;
 	device_t	_child;
-	int		_type;
-	int		_rid;
 	struct resource *_res;
 };
 

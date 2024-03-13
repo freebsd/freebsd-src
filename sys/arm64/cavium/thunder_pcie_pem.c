@@ -149,8 +149,7 @@ static uint32_t thunder_pem_read_config(device_t, u_int, u_int, u_int, u_int,
     int);
 static int thunder_pem_read_ivar(device_t, device_t, int, uintptr_t *);
 static void thunder_pem_release_all(device_t);
-static int thunder_pem_release_resource(device_t, device_t, int, int,
-    struct resource *);
+static int thunder_pem_release_resource(device_t, device_t, struct resource *);
 static struct rman * thunder_pem_get_rman(device_t, int, u_int);
 static void thunder_pem_slix_s2m_regx_acc_modify(struct thunder_pem_softc *,
     int, int);
@@ -716,28 +715,25 @@ thunder_pem_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
-thunder_pem_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *res)
+thunder_pem_release_resource(device_t dev, device_t child, struct resource *res)
 {
 	device_t parent_dev;
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	struct thunder_pem_softc *sc = device_get_softc(dev);
 #endif
 
-	switch (type) {
+	switch (rman_get_type(res)) {
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
-		return (pci_domain_release_bus(sc->id, child, rid, res));
+		return (pci_domain_release_bus(sc->id, child, res));
 #endif
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
-		return (bus_generic_rman_release_resource(dev, child, type,
-		    rid, res));
+		return (bus_generic_rman_release_resource(dev, child, res));
 	default:
 		/* Find parent device. On ThunderX we know an exact path. */
 		parent_dev = device_get_parent(device_get_parent(dev));
-		return (BUS_RELEASE_RESOURCE(parent_dev, child,
-		    type, rid, res));
+		return (BUS_RELEASE_RESOURCE(parent_dev, child, res));
 	}
 }
 

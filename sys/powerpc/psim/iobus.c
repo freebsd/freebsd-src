@@ -83,8 +83,7 @@ static int  iobus_map_resource(device_t, device_t, struct resource *,
 			       struct resource_map *);
 static int  iobus_unmap_resource(device_t, device_t, struct resource *,
 				 struct resource_map *);
-static int  iobus_release_resource(device_t, device_t, int, int,
-				   struct resource *);
+static int  iobus_release_resource(device_t, device_t, struct resource *);
 
 /*
  * Bus interface definition
@@ -357,17 +356,15 @@ iobus_adjust_resource(device_t bus, device_t child, struct resource *r,
 }
 
 static int
-iobus_release_resource(device_t bus, device_t child, int type, int rid,
-		       struct resource *res)
+iobus_release_resource(device_t bus, device_t child, struct resource *res)
 {
 
-	switch (type) {
+	switch (rman_get_type(res)) {
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
-		return (bus_generic_rman_release_resource(bus, child, type, rid,
-		   res));
+		return (bus_generic_rman_release_resource(bus, child, res));
 	case SYS_RES_IRQ:
-		return (bus_generic_release_resource(bus, child, type, rid, res));
+		return (bus_generic_release_resource(bus, child, res));
 	default:
 		return (EINVAL);
 	}

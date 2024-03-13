@@ -909,8 +909,6 @@ isa_driver_added(device_t dev, driver_t *driver)
 		STAILQ_FOREACH(rle, &idev->id_resources, link) {
 			if (rle->res)
 				resource_list_release(rl, dev, child,
-						      rle->type,
-						      rle->rid,
 						      rle->res);
 		}
 

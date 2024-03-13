@@ -2053,8 +2053,8 @@ agp_i915_chipset_flush_free_page(device_t dev)
 		return;
 	BUS_DEACTIVATE_RESOURCE(device_get_parent(vga), dev,
 	    sc->sc_flush_page_res);
-	BUS_RELEASE_RESOURCE(device_get_parent(vga), dev, SYS_RES_MEMORY,
-	    sc->sc_flush_page_rid, sc->sc_flush_page_res);
+	BUS_RELEASE_RESOURCE(device_get_parent(vga), dev,
+	    sc->sc_flush_page_res);
 }
 
 static int

@@ -72,6 +72,6 @@ extern struct resource *isa_alloc_resource(device_t bus, device_t child,
     int type, int *rid, rman_res_t start, rman_res_t end, rman_res_t count,
     u_int flags);
 extern int isa_release_resource(device_t bus, device_t child,
-    int type, int rid, struct resource *r);
+    struct resource *r);
 
 extern driver_t isa_driver;

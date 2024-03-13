@@ -1725,19 +1725,18 @@ vmbus_pcib_adjust_resource(device_t dev, device_t child,
 }
 
 static int
-vmbus_pcib_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+vmbus_pcib_release_resource(device_t dev, device_t child, struct resource *r)
 {
 	struct vmbus_pcib_softc *sc = device_get_softc(dev);
 
-	if (type == PCI_RES_BUS)
-		return (pci_domain_release_bus(sc->hbus->pci_domain, child,
-		    rid, r));
-
-	if (type == SYS_RES_IOPORT)
+	switch (rman_get_type(r)) {
+	case PCI_RES_BUS:
+		return (pci_domain_release_bus(sc->hbus->pci_domain, child, r));
+	case SYS_RES_IOPORT:
 		return (EINVAL);
-
-	return (bus_generic_release_resource(dev, child, type, rid, r));
+	default:
+		return (bus_generic_release_resource(dev, child, r));
+	}
 }
 
 static int

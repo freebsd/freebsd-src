@@ -346,16 +346,15 @@ siis_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
-siis_release_resource(device_t dev, device_t child, int type, int rid,
-			 struct resource *r)
+siis_release_resource(device_t dev, device_t child, struct resource *r)
 {
 
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
 		rman_release_resource(r);
 		return (0);
 	case SYS_RES_IRQ:
-		if (rid != ATA_IRQ_RID)
+		if (rman_get_rid(r) != ATA_IRQ_RID)
 			return ENOENT;
 		return (0);
 	}

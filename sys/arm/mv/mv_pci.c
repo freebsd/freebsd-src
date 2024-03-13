@@ -347,8 +347,7 @@ static struct resource *mv_pcib_alloc_resource(device_t, device_t, int, int *,
     rman_res_t, rman_res_t, rman_res_t, u_int);
 static int mv_pcib_adjust_resource(device_t, device_t, struct resource *,
     rman_res_t, rman_res_t);
-static int mv_pcib_release_resource(device_t, device_t, int, int,
-    struct resource *);
+static int mv_pcib_release_resource(device_t, device_t, struct resource *);
 static int mv_pcib_activate_resource(device_t, device_t, struct resource *);
 static int mv_pcib_deactivate_resource(device_t, device_t, struct resource *);
 static int mv_pcib_map_resource(device_t, device_t, struct resource *,
@@ -962,25 +961,22 @@ mv_pcib_adjust_resource(device_t dev, device_t child,
 }
 
 static int
-mv_pcib_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *res)
+mv_pcib_release_resource(device_t dev, device_t child, struct resource *res)
 {
 #ifdef PCI_RES_BUS
 	struct mv_pcib_softc *sc = device_get_softc(dev);
 #endif
 
-	switch (type) {
+	switch (rman_get_type(res)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
-		return (bus_generic_rman_release_resource(dev, child, type,
-		    rid, res));
+		return (bus_generic_rman_release_resource(dev, child, res));
 #ifdef PCI_RES_BUS
 	case PCI_RES_BUS:
-		return (pci_domain_release_bus(sc->ap_segment, child, rid, res));
+		return (pci_domain_release_bus(sc->ap_segment, child, res));
 #endif
 	default:
-		return (BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
-		    type, rid, res));
+		return (bus_generic_release_resource(dev, child, res));
 	}
 }
 

@@ -55,7 +55,7 @@ static struct resource *	isab_pci_alloc_resource(device_t dev,
     device_t child, int type, int *rid, rman_res_t start, rman_res_t end,
     rman_res_t count, u_int flags);
 static int	isab_pci_release_resource(device_t dev, device_t child,
-    int type, int rid, struct resource *r);
+    struct resource *r);
 
 static device_method_t isab_methods[] = {
     /* Device interface */
@@ -199,23 +199,22 @@ isab_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
-isab_pci_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+isab_pci_release_resource(device_t dev, device_t child, struct resource *r)
 {
 	struct isab_pci_softc *sc;
 	int bar, error;
 
 	if (device_get_parent(child) != dev)
-		return bus_generic_release_resource(dev, child, type, rid, r);
+		return bus_generic_release_resource(dev, child, r);
 
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
 		/*
 		 * For BARs, we release the resource from the PCI bus
 		 * when the last child reference goes away.
 		 */
-		bar = PCI_RID2BAR(rid);
+		bar = PCI_RID2BAR(rman_get_rid(r));
 		if (bar < 0 || bar > PCIR_MAX_BAR_0)
 			return (EINVAL);
 		sc = device_get_softc(dev);
@@ -229,7 +228,7 @@ isab_pci_release_resource(device_t dev, device_t child, int type, int rid,
 		}
 		KASSERT(sc->isab_pci_res[bar].ip_refs > 0,
 		    ("isa_pci resource reference count underflow"));
-		error = bus_release_resource(dev, type, rid, r);
+		error = bus_release_resource(dev, r);
 		if (error == 0) {
 			sc->isab_pci_res[bar].ip_res = NULL;
 			sc->isab_pci_res[bar].ip_refs = 0;
@@ -237,6 +236,5 @@ isab_pci_release_resource(device_t dev, device_t child, int type, int rid,
 		return (error);
 	}
 
-	return (BUS_RELEASE_RESOURCE(device_get_parent(dev), child, type,
-		rid, r));
+	return (bus_generic_release_resource(dev, child, r));
 }

@@ -57,7 +57,7 @@
 static struct resource * thunder_pcie_fdt_alloc_resource(device_t, device_t,
     int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int thunder_pcie_fdt_release_resource(device_t, device_t,
-    int, int, struct resource*);
+    struct resource*);
 #endif
 static int thunder_pcie_fdt_attach(device_t);
 static int thunder_pcie_fdt_probe(device_t);
@@ -288,14 +288,14 @@ thunder_pcie_fdt_alloc_resource(device_t dev, device_t child, int type,
 }
 
 static int
-thunder_pcie_fdt_release_resource(device_t dev, device_t child, int type,
-    int rid, struct resource *res)
+thunder_pcie_fdt_release_resource(device_t dev, device_t child,
+    struct resource *res)
 {
 
 	if ((int)ofw_bus_get_node(child) <= 0)
-		return (pci_host_generic_core_release_resource(dev, child, type,
-		    rid, res));
+		return (pci_host_generic_core_release_resource(dev, child,
+		    res));
 
-	return (bus_generic_release_resource(dev, child, type, rid, res));
+	return (bus_generic_release_resource(dev, child, res));
 }
 #endif

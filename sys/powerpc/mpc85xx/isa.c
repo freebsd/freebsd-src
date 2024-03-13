@@ -73,11 +73,10 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 int
-isa_release_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+isa_release_resource(device_t bus, device_t child, struct resource *r)
 {
 	struct isa_device* idev = DEVTOISA(child);
 	struct resource_list *rl = &idev->id_resources;
 
-	return (resource_list_release(rl, bus, child, type, rid, r));
+	return (resource_list_release(rl, bus, child, r));
 }

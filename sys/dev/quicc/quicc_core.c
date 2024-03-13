@@ -333,8 +333,7 @@ quicc_bus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 }
 
 int
-quicc_bus_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *res)
+quicc_bus_release_resource(device_t dev, device_t child, struct resource *res)
 {
 	struct quicc_device *qd;
 	struct resource_list_entry *rle;
@@ -343,7 +342,8 @@ quicc_bus_release_resource(device_t dev, device_t child, int type, int rid,
 		return (EINVAL);
 
 	qd = device_get_ivars(child);
-	rle = resource_list_find(&qd->qd_rlist, type, rid);
+	rle = resource_list_find(&qd->qd_rlist, rman_get_type(res),
+	    rman_get_rid(res));
 	return ((rle == NULL) ? EINVAL : 0);
 }
 

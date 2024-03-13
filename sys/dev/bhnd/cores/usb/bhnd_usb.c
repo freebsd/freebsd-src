@@ -69,8 +69,7 @@ static struct resource *	bhnd_usb_alloc_resource(device_t bus,
 				    rman_res_t start, rman_res_t end,
 				    rman_res_t count, u_int flags);
 static int			bhnd_usb_release_resource(device_t dev,
-				    device_t child, int type, int rid,
-				    struct resource *r);
+				    device_t child, struct resource *r);
 
 static struct resource_list *	bhnd_usb_get_reslist(device_t dev,
 				    device_t child);
@@ -311,8 +310,8 @@ bhnd_usb_get_reslist(device_t dev, device_t child)
 }
 
 static int
-bhnd_usb_release_resource(device_t dev, device_t child, int type,
-    int rid, struct resource *r)
+bhnd_usb_release_resource(device_t dev, device_t child,
+    struct resource *r)
 {
 	struct bhnd_usb_softc		*sc;
 	struct resource_list_entry	*rle;
@@ -325,18 +324,17 @@ bhnd_usb_release_resource(device_t dev, device_t child, int type,
 	/* Delegate to our parent device's bus if the requested resource type
 	 * isn't handled locally. */
 	if (type != SYS_RES_MEMORY) {
-		return (bus_generic_rl_release_resource(dev, child, type, rid,
-		    r));
+		return (bus_generic_rl_release_resource(dev, child, r));
 	}
 
-	error = bus_generic_rman_release_resource(dev, child, type, rid, r);
+	error = bus_generic_rman_release_resource(dev, child, r);
 	if (error != 0)
 		return (error);
 
 	if (!passthrough) {
 		/* Clean resource list entry */
 		rle = resource_list_find(BUS_GET_RESOURCE_LIST(dev, child),
-		    type, rid);
+		    rman_get_type(r), rman_get_rid(r));
 		if (rle != NULL)
 			rle->res = NULL;
 	}
