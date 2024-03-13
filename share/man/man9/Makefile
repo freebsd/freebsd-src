@@ -1869,6 +1869,7 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_get_rid.9 \
 	rman.9 rman_get_size.9 \
 	rman.9 rman_get_start.9 \
+	rman.9 rman_get_type.9 \
 	rman.9 rman_get_virtual.9 \
 	rman.9 rman_init.9 \
 	rman.9 rman_init_from_resource.9 \
@@ -1883,6 +1884,7 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_set_bustag.9 \
 	rman.9 rman_set_mapping.9 \
 	rman.9 rman_set_rid.9 \
+	rman.9 rman_set_type.9 \
 	rman.9 rman_set_virtual.9
 MLINKS+=rmlock.9 rm_assert.9 \
 	rmlock.9 rm_destroy.9 \
