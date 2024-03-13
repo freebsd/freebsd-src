@@ -1540,11 +1540,11 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 static bool
-acpi_is_resource_managed(device_t bus, int type, struct resource *r)
+acpi_is_resource_managed(device_t bus, struct resource *r)
 {
 	struct rman *rm;
 
-	rm = acpi_get_rman(bus, type, 0);
+	rm = acpi_get_rman(bus, rman_get_type(r), rman_get_flags(r));
 	if (rm == NULL)
 		return (false);
 	return (rman_is_region_manager(r, rm));
@@ -1556,7 +1556,7 @@ acpi_managed_resource(device_t bus, int type, struct resource *r)
 	struct acpi_softc *sc = device_get_softc(bus);
 	struct resource_list_entry *rle;
 
-	KASSERT(acpi_is_resource_managed(bus, type, r),
+	KASSERT(acpi_is_resource_managed(bus, r),
 	    ("resource %p is not suballocated", r));
 
 	STAILQ_FOREACH(rle, &sc->sysres_rl, link) {
@@ -1574,7 +1574,7 @@ acpi_adjust_resource(device_t bus, device_t child, int type, struct resource *r,
     rman_res_t start, rman_res_t end)
 {
 
-    if (acpi_is_resource_managed(bus, type, r))
+    if (acpi_is_resource_managed(bus, r))
 	return (rman_adjust_resource(r, start, end));
     return (bus_generic_adjust_resource(bus, child, type, r, start, end));
 }
@@ -1587,7 +1587,7 @@ acpi_release_resource(device_t bus, device_t child, int type, int rid,
      * If this resource belongs to one of our internal managers,
      * deactivate it and release it to the local pool.
      */
-    if (acpi_is_resource_managed(bus, type, r))
+    if (acpi_is_resource_managed(bus, r))
 	return (bus_generic_rman_release_resource(bus, child, type, rid, r));
 
     return (bus_generic_rl_release_resource(bus, child, type, rid, r));
@@ -1613,7 +1613,7 @@ static int
 acpi_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
-	if (acpi_is_resource_managed(bus, type, r))
+	if (acpi_is_resource_managed(bus, r))
 		return (bus_generic_rman_activate_resource(bus, child, type,
 		    rid, r));
 	return (bus_generic_activate_resource(bus, child, type, rid, r));
@@ -1623,7 +1623,7 @@ static int
 acpi_deactivate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
-	if (acpi_is_resource_managed(bus, type, r))
+	if (acpi_is_resource_managed(bus, r))
 		return (bus_generic_rman_deactivate_resource(bus, child, type,
 		    rid, r));
 	return (bus_generic_deactivate_resource(bus, child, type, rid, r));
@@ -1638,7 +1638,7 @@ acpi_map_resource(device_t bus, device_t child, int type, struct resource *r,
 	rman_res_t length, start;
 	int error;
 
-	if (!acpi_is_resource_managed(bus, type, r))
+	if (!acpi_is_resource_managed(bus, r))
 		return (bus_generic_map_resource(bus, child, type, r, argsp,
 		    map));
 
@@ -1664,7 +1664,7 @@ static int
 acpi_unmap_resource(device_t bus, device_t child, int type, struct resource *r,
     struct resource_map *map)
 {
-	if (acpi_is_resource_managed(bus, type, r)) {
+	if (acpi_is_resource_managed(bus, r)) {
 		r = acpi_managed_resource(bus, type, r);
 		if (r == NULL)
 			return (ENOENT);
