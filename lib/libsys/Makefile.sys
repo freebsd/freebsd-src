@@ -40,21 +40,6 @@ SRCS+=	\
 	interposing_table.c \
 	libsys_sigwait.c
 
-SRCS+= getdents.c lstat.c mknod.c stat.c
-
-SRCS+=	creat.c
-SRCS+=	lockf.c wait.c wait3.c waitpid.c waitid.c
-SRCS+=	recv.c recvmmsg.c send.c sendmmsg.c
-
-SRCS+= brk.c
-SRCS+= closefrom.c
-SRCS+= pipe.c
-SRCS+= shm_open.c
-SRCS+= vadvise.c
-SRCS+= POSIX2x_Fork.c
-
-SRCS+=	compat-stub.c
-
 .if ${LIB} == "c"
 # Trapping stubs in dynamic libc to be filtered by libsys.
 SOBJS+=	libc_stubs.pico
@@ -113,7 +98,6 @@ INTERPOSED = \
 	write \
 	writev
 
-SRCS+=	${INTERPOSED:S/$/.c/}
 PSEUDO+=	${INTERPOSED}
 
 # Add machine dependent asm sources:
