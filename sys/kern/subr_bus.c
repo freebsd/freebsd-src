@@ -4250,6 +4250,7 @@ bus_generic_rman_alloc_resource(device_t dev, device_t child, int type,
 	if (r == NULL)
 		return (NULL);
 	rman_set_rid(r, *rid);
+	rman_set_type(r, type);
 
 	if (flags & RF_ACTIVE) {
 		if (bus_activate_resource(child, type, *rid, r) != 0) {

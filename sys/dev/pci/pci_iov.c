@@ -1049,6 +1049,7 @@ pci_vf_alloc_mem_resource(device_t dev, device_t child, int *rid,
 	}
 
 	rman_set_rid(res, *rid);
+	rman_set_type(res, SYS_RES_MEMORY);
 
 	if (flags & RF_ACTIVE) {
 		error = bus_activate_resource(child, SYS_RES_MEMORY, *rid, res);

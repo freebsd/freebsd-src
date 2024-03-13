@@ -191,6 +191,7 @@ fman_alloc_resource(device_t bus, device_t child, int type, int *rid,
 				if (res == NULL)
 					return (NULL);
 				rman_set_rid(res, *rid);
+				rman_set_type(res, type);
 				if ((flags & RF_ACTIVE) != 0 && bus_activate_resource(
 				    child, type, *rid, res) != 0) {
 					rman_release_resource(res);
