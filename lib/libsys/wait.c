@@ -44,7 +44,8 @@ pid_t
 __wait(int *istat)
 {
 	return (((pid_t (*)(pid_t, int *, int, struct rusage *))
-	    __libsys_interposing[INTERPOS_wait4])(WAIT_ANY, istat, 0, NULL));
+	    *(__libc_interposing_slot(INTERPOS_wait4)))
+	    (WAIT_ANY, istat, 0, NULL));
 }
 
 __weak_reference(__wait, wait);

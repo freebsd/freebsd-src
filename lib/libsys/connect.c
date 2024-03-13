@@ -41,5 +41,5 @@ int
 connect(int s, const struct sockaddr *addr, socklen_t addrlen)
 {
 	return (((int (*)(int, const struct sockaddr *, socklen_t))
-	    __libsys_interposing[INTERPOS_connect])(s, addr, addrlen));
+	    *(__libc_interposing_slot(INTERPOS_connect)))(s, addr, addrlen));
 }

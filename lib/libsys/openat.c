@@ -54,5 +54,6 @@ openat(int fd, const char *path, int flags, ...)
 		mode = 0;
 	}
 	return (((int (*)(int, const char *, int, ...))
-	    __libsys_interposing[INTERPOS_openat])(fd, path, flags, mode));
+	    *(__libc_interposing_slot(INTERPOS_openat)))
+	    (fd, path, flags, mode));
 }

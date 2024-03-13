@@ -41,5 +41,5 @@ ssize_t
 read(int fd, void *buf, size_t nbytes)
 {
 	return (((ssize_t (*)(int, void *, size_t))
-	    __libsys_interposing[INTERPOS_read])(fd, buf, nbytes));
+	    *(__libc_interposing_slot(INTERPOS_read)))(fd, buf, nbytes));
 }

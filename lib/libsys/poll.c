@@ -40,5 +40,5 @@ int
 poll(struct pollfd pfd[], nfds_t nfds, int timeout)
 {
 	return (((int (*)(struct pollfd *, nfds_t, int))
-	    __libsys_interposing[INTERPOS_poll])(pfd, nfds, timeout));
+	    *(__libc_interposing_slot(INTERPOS_poll)))(pfd, nfds, timeout));
 }

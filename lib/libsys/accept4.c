@@ -41,5 +41,6 @@ int
 accept4(int s, struct sockaddr *addr, socklen_t *addrlen, int flags)
 {
 	return (((int (*)(int, struct sockaddr *, socklen_t *, int))
-	    __libsys_interposing[INTERPOS_accept4])(s, addr, addrlen, flags));
+	    *(__libc_interposing_slot(INTERPOS_accept4)))
+	    (s, addr, addrlen, flags));
 }

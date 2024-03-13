@@ -43,6 +43,6 @@ sendto(int s, const void *msg, size_t len, int flags,
 {
 	return (((ssize_t (*)(int, const void *, size_t, int,
 	    const struct sockaddr *, socklen_t))
-	    __libsys_interposing[INTERPOS_sendto])(s, msg, len, flags,
-	    to, tolen));
+	    *(__libc_interposing_slot(INTERPOS_sendto)))
+	    (s, msg, len, flags, to, tolen));
 }

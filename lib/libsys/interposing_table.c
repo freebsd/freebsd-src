@@ -34,7 +34,7 @@
 
 #define	SLOT(a, b) \
 	[INTERPOS_##a] = (interpos_func_t)b
-interpos_func_t __libsys_interposing[INTERPOS_MAX] = {
+static interpos_func_t __libsys_interposing[INTERPOS_MAX] = {
 	SLOT(accept, __sys_accept),
 	SLOT(accept4, __sys_accept4),
 	SLOT(aio_suspend, __sys_aio_suspend),

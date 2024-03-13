@@ -41,5 +41,5 @@ ssize_t
 write(int fd, const void *buf, size_t nbytes)
 {
 	return (((ssize_t (*)(int, const void *, size_t))
-	    __libsys_interposing[INTERPOS_write])(fd, buf, nbytes));
+	    *(__libc_interposing_slot(INTERPOS_write)))(fd, buf, nbytes));
 }

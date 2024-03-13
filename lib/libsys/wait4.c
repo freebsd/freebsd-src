@@ -40,5 +40,6 @@ pid_t
 wait4(pid_t pid, int *status, int options, struct rusage *ru)
 {
 	return (((pid_t (*)(pid_t, int *, int, struct rusage *))
-	    __libsys_interposing[INTERPOS_wait4])(pid, status, options, ru));
+	    *(__libc_interposing_slot(INTERPOS_wait4)))
+	    (pid, status, options, ru));
 }

@@ -201,7 +201,6 @@ typedef int (*interpos_func_t)(void);
 interpos_func_t *__libc_interposing_slot(int interposno);
 extern interpos_func_t __libc_interposing[] __hidden;
 interpos_func_t *__libsys_interposing_slot(int interposno);
-extern interpos_func_t __libsys_interposing[] __hidden;
 
 enum {
 	INTERPOS_accept,

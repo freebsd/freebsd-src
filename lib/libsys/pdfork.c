@@ -37,6 +37,7 @@
 pid_t
 pdfork(int *fdp, int flags)
 {
-	return (((pid_t (*)(int *, int))__libsys_interposing[INTERPOS_pdfork])
+	return (((pid_t (*)(int *, int))
+	    *(__libc_interposing_slot(INTERPOS_pdfork)))
 	    (fdp, flags));
 }

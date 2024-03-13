@@ -41,5 +41,5 @@ int
 sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
 {
 	return (((int (*)(int, const struct sigaction *, struct sigaction *))
-	    __libsys_interposing[INTERPOS_sigaction])(sig, act, oact));
+	    *(__libc_interposing_slot(INTERPOS_sigaction)))(sig, act, oact));
 }

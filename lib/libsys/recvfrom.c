@@ -43,6 +43,6 @@ recvfrom(int s, void *buf, size_t len, int flags,
 {
 	return (((ssize_t (*)(int, void *, size_t, int,
 	    struct sockaddr *, socklen_t *))
-	    __libsys_interposing[INTERPOS_recvfrom])(s, buf, len, flags,
-	   from, fromlen));
+	    *(__libc_interposing_slot(INTERPOS_recvfrom)))
+	    (s, buf, len, flags, from, fromlen));
 }

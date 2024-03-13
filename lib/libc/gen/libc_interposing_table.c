@@ -49,7 +49,6 @@ interpos_func_t __libc_interposing[INTERPOS_MAX] = {
 interpos_func_t *
 __libc_interposing_slot(int interposno)
 {
-	/* XXX: forward compat. Remove after 15.0-RELEASE. */
 	if (__libc_interposing[interposno] == NULL)
 		return (__libsys_interposing_slot(interposno));
 	return (&__libc_interposing[interposno]);

@@ -45,5 +45,5 @@ int
 swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
 {
 	return (((int (*)(ucontext_t *, const ucontext_t *))
-	    __libsys_interposing[INTERPOS_swapcontext])(oucp, ucp));
+	    *(__libc_interposing_slot(INTERPOS_swapcontext)))(oucp, ucp));
 }

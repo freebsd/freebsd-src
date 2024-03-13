@@ -42,5 +42,6 @@ aio_suspend(const struct aiocb * const iocbs[], int niocb,
 {
 	return (((int (*)(const struct aiocb * const[], int,
 	    const struct timespec *))
-	    __libsys_interposing[INTERPOS_aio_suspend])(iocbs, niocb, timeout));
+	    *(__libc_interposing_slot(INTERPOS_aio_suspend)))
+	    (iocbs, niocb, timeout));
 }
