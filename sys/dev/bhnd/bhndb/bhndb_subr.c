@@ -987,7 +987,6 @@ bhndb_find_intr_handler(struct bhndb_resources *br, void *cookiep)
  * returned.
  * 
  * @param	br		The resource state to search.
- * @param	type The resource type (see SYS_RES_*).
  * @param	r The resource to search for in @p br.
  * @param[out]	start	On success, the minimum supported start address.
  * @param[out]	end	On success, the maximum supported end address.
@@ -996,14 +995,14 @@ bhndb_find_intr_handler(struct bhndb_resources *br, void *cookiep)
  * @retval ENOENT	no active mapping found for @p r of @p type
  */
 int
-bhndb_find_resource_limits(struct bhndb_resources *br, int type,
+bhndb_find_resource_limits(struct bhndb_resources *br,
     struct resource *r, rman_res_t *start, rman_res_t *end)
 {
 	struct bhndb_dw_alloc		*dynamic;
 	struct bhndb_region		*sregion;
 	struct bhndb_intr_handler	*ih;
 
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IRQ:
 		/* Is this one of ours? */
 		STAILQ_FOREACH(ih, &br->bus_intrs, ih_link) {
@@ -1042,7 +1041,8 @@ bhndb_find_resource_limits(struct bhndb_resources *br, int type,
 	}
 
 	default:
-		device_printf(br->dev, "unknown resource type: %d\n", type);
+		device_printf(br->dev, "unknown resource type: %d\n",
+		    rman_get_type(r));
 		return (ENOENT);
 	}
 }

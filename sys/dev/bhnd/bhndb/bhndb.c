@@ -1113,7 +1113,7 @@ bhndb_adjust_resource(device_t dev, device_t child, int type,
 		goto done;
 
 	/* Otherwise, the range is limited by the bridged resource mapping */
-	error = bhndb_find_resource_limits(sc->bus_res, type, r, &mstart,
+	error = bhndb_find_resource_limits(sc->bus_res, r, &mstart,
 	    &mend);
 	if (error)
 		goto done;
