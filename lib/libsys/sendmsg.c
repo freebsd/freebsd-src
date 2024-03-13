@@ -41,5 +41,5 @@ ssize_t
 sendmsg(int s, const struct msghdr *msg, int flags)
 {
 	return (((int (*)(int, const struct msghdr *, int))
-	    __libsys_interposing[INTERPOS_sendmsg])(s, msg, flags));
+	    *(__libc_interposing_slot(INTERPOS_sendmsg)))(s, msg, flags));
 }

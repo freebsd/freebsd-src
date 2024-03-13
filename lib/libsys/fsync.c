@@ -39,5 +39,5 @@ __weak_reference(__sys_fsync, __fsync);
 int
 fsync(int fd)
 {
-	return (((int (*)(int))__libsys_interposing[INTERPOS_fsync])(fd));
+	return (((int (*)(int))*(__libc_interposing_slot(INTERPOS_fsync)))(fd));
 }

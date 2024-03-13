@@ -43,5 +43,5 @@ int
 setcontext(const ucontext_t *uc)
 {
 	return (((int (*)(const ucontext_t *))
-	    __libsys_interposing[INTERPOS_setcontext])(uc));
+	    *(__libc_interposing_slot(INTERPOS_setcontext)))(uc));
 }

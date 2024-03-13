@@ -42,5 +42,5 @@ pselect(int n, fd_set *rs, fd_set *ws, fd_set *es, const struct timespec *t,
 {
 	return (((int (*)(int, fd_set *, fd_set *, fd_set *,
 	    const struct timespec *, const sigset_t *))
-	    __libsys_interposing[INTERPOS_pselect])(n, rs, ws, es, t, s));
+	    *(__libc_interposing_slot(INTERPOS_pselect)))(n, rs, ws, es, t, s));
 }

@@ -37,5 +37,6 @@
 int
 fdatasync(int fd)
 {
-	return (((int (*)(int))__libsys_interposing[INTERPOS_fdatasync])(fd));
+	return (((int (*)(int))*(__libc_interposing_slot(INTERPOS_fdatasync)))
+	    (fd));
 }

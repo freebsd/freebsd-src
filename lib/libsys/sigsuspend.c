@@ -41,5 +41,5 @@ int
 sigsuspend(const sigset_t *set)
 {
 	return (((int (*)(const sigset_t *))
-	    __libsys_interposing[INTERPOS_sigsuspend])(set));
+	    *(__libc_interposing_slot(INTERPOS_sigsuspend)))(set));
 }

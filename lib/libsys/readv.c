@@ -42,5 +42,5 @@ ssize_t
 readv(int fd, const struct iovec *iov, int iovcnt)
 {
 	return (((ssize_t (*)(int, const struct iovec *, int))
-	    __libsys_interposing[INTERPOS_readv])(fd, iov, iovcnt));
+	    *(__libc_interposing_slot(INTERPOS_readv)))(fd, iov, iovcnt));
 }

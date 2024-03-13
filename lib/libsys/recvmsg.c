@@ -41,5 +41,5 @@ ssize_t
 recvmsg(int s, struct msghdr *msg, int flags)
 {
 	return (((int (*)(int, struct msghdr *, int))
-	    __libsys_interposing[INTERPOS_recvmsg])(s, msg, flags));
+	    *(__libc_interposing_slot(INTERPOS_recvmsg)))(s, msg, flags));
 }

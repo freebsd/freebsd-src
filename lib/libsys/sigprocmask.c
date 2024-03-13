@@ -41,5 +41,5 @@ int
 sigprocmask(int how, const sigset_t *set, sigset_t *oset)
 {
 	return (((int (*)(int, const sigset_t *, sigset_t *))
-	    __libsys_interposing[INTERPOS_sigprocmask])(how, set, oset));
+	    *(__libc_interposing_slot(INTERPOS_sigprocmask)))(how, set, oset));
 }

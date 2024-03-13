@@ -40,5 +40,5 @@ int
 sigwaitinfo(const sigset_t * __restrict set, siginfo_t * __restrict info)
 {
 	return (((int (*)(const sigset_t *, siginfo_t *))
-	    __libsys_interposing[INTERPOS_sigwaitinfo])(set, info));
+	    *(__libc_interposing_slot(INTERPOS_sigwaitinfo)))(set, info));
 }

@@ -40,5 +40,5 @@ int
 nanosleep(const struct timespec *rqtp, struct timespec *rmtp)
 {
 	return (((int (*)(const struct timespec *, struct timespec *))
-	    __libsys_interposing[INTERPOS_nanosleep])(rqtp, rmtp));
+	    *(__libc_interposing_slot(INTERPOS_nanosleep)))(rqtp, rmtp));
 }

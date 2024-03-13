@@ -42,5 +42,5 @@ sigtimedwait(const sigset_t * __restrict set, siginfo_t * __restrict info,
 {
 	return (((int (*)(const sigset_t *, siginfo_t *,
 	    const struct timespec *))
-	    __libsys_interposing[INTERPOS_sigtimedwait])(set, info, t));
+	    *(__libc_interposing_slot(INTERPOS_sigtimedwait)))(set, info, t));
 }

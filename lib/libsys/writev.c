@@ -42,5 +42,5 @@ ssize_t
 writev(int fd, const struct iovec *iov, int iovcnt)
 {
 	return (((ssize_t (*)(int, const struct iovec *, int))
-	    __libsys_interposing[INTERPOS_writev])(fd, iov, iovcnt));
+	    *(__libc_interposing_slot(INTERPOS_writev)))(fd, iov, iovcnt));
 }
