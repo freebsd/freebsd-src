@@ -1103,7 +1103,8 @@ static int
 hn_ifmedia_upd(if_t ifp __unused)
 {
 
-	return EOPNOTSUPP;
+	/* Ignore since autoselect is the only defined and valid media */
+	return (0);
 }
 
 static void
