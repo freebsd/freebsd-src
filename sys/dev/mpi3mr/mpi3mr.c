@@ -5669,6 +5669,8 @@ static void mpi3mr_rfresh_tgtdevs(struct mpi3mr_softc *sc)
 			if (target->exposed_to_os)
 				mpi3mr_remove_device_from_os(sc, target->dev_handle);
 			mpi3mr_remove_device_from_list(sc, target, true);
+		} else if (target->is_hidden && target->exposed_to_os) {
+				mpi3mr_remove_device_from_os(sc, target->dev_handle);
 		}
 	}
 
