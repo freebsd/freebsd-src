@@ -1005,6 +1005,7 @@ bhndb_alloc_resource(device_t dev, device_t child, int type,
 		return (NULL);
 
 	rman_set_rid(rv, *rid);
+	rman_set_type(rv, type);
 
 	/* Activate */
 	if (flags & RF_ACTIVE) {

@@ -344,6 +344,7 @@ pci_domain_alloc_bus(int domain, device_t dev, int *rid, rman_res_t start,
 		return (NULL);
 
 	rman_set_rid(res, *rid);
+	rman_set_type(res, PCI_RES_BUS);
 	return (res);
 }
 

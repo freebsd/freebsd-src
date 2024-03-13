@@ -727,6 +727,7 @@ pcib_suballoc_bus(struct pcib_secbus *bus, device_t child, int *rid,
 		    rman_get_start(res), rman_get_end(res), *rid,
 		    pcib_child_name(child));
 	rman_set_rid(res, *rid);
+	rman_set_type(res, PCI_RES_BUS);
 	return (res);
 }
 
@@ -1930,6 +1931,7 @@ pcib_suballoc_resource(struct pcib_softc *sc, struct pcib_window *w,
 		    w->name, rman_get_start(res), rman_get_end(res), *rid,
 		    pcib_child_name(child));
 	rman_set_rid(res, *rid);
+	rman_set_type(res, type);
 
 	if (flags & RF_ACTIVE) {
 		if (bus_activate_resource(child, type, *rid, res) != 0) {
