@@ -2440,8 +2440,7 @@ pcib_adjust_resource(device_t bus, device_t child, struct resource *r,
 }
 
 static int
-pcib_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+pcib_release_resource(device_t dev, device_t child, struct resource *r)
 {
 	struct pcib_softc *sc;
 	int error;
@@ -2449,13 +2448,13 @@ pcib_release_resource(device_t dev, device_t child, int type, int rid,
 	sc = device_get_softc(dev);
 	if (pcib_is_resource_managed(sc, r)) {
 		if (rman_get_flags(r) & RF_ACTIVE) {
-			error = bus_deactivate_resource(child, type, rid, r);
+			error = bus_deactivate_resource(child, r);
 			if (error)
 				return (error);
 		}
 		return (rman_release_resource(r));
 	}
-	return (bus_generic_release_resource(dev, child, type, rid, r));
+	return (bus_generic_release_resource(dev, child, r));
 }
 
 static int

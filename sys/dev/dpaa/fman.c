@@ -116,8 +116,7 @@ fman_activate_resource(device_t bus, device_t child, struct resource *res)
 }
 
 int
-fman_release_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *res)
+fman_release_resource(device_t bus, device_t child, struct resource *res)
 {
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
@@ -125,9 +124,9 @@ fman_release_resource(device_t bus, device_t child, int type, int rid,
 
 	passthrough = (device_get_parent(child) != bus);
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
-	if (type != SYS_RES_IRQ) {
+	if (rman_get_type(res) != SYS_RES_IRQ) {
 		if ((rman_get_flags(res) & RF_ACTIVE) != 0 ){
-			rv = bus_deactivate_resource(child, type, rid, res);
+			rv = bus_deactivate_resource(child, res);
 			if (rv != 0)
 				return (rv);
 		}
@@ -135,7 +134,8 @@ fman_release_resource(device_t bus, device_t child, int type, int rid,
 		if (rv != 0)
 			return (rv);
 		if (!passthrough) {
-			rle = resource_list_find(rl, type, rid);
+			rle = resource_list_find(rl, rman_get_type(res),
+			    rman_get_rid(res));
 			KASSERT(rle != NULL,
 			    ("%s: resource entry not found!", __func__));
 			KASSERT(rle->res != NULL,
@@ -144,7 +144,7 @@ fman_release_resource(device_t bus, device_t child, int type, int rid,
 		}
 		return (0);
 	}
-	return (resource_list_release(rl, bus, child, type, rid, res));
+	return (resource_list_release(rl, bus, child, res));
 }
 
 struct resource *

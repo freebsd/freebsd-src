@@ -1976,22 +1976,12 @@ ppc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 int
-ppc_release_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+ppc_release_resource(device_t bus, device_t child, struct resource *r)
 {
-#ifdef INVARIANTS
 	struct ppc_data *ppc = DEVTOSOFTC(bus);
-#endif
 
-	switch (type) {
-	case SYS_RES_IRQ:
-		if (rid == 0) {
-			KASSERT(r == ppc->res_irq,
-			    ("ppc child IRQ resource mismatch"));
-			return (0);
-		}
-		break;
-	}
+	if (r == ppc->res_irq)
+		return (0);
 	return (EINVAL);
 }
 

@@ -1034,8 +1034,7 @@ bhndb_alloc_resource(device_t dev, device_t child, int type,
  * Default bhndb(4) implementation of BUS_RELEASE_RESOURCE().
  */
 static int
-bhndb_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+bhndb_release_resource(device_t dev, device_t child, struct resource *r)
 {
 	struct bhndb_softc		*sc;
 	struct resource_list_entry	*rle;
@@ -1047,9 +1046,9 @@ bhndb_release_resource(device_t dev, device_t child, int type, int rid,
 
 	/* Delegate to our parent device's bus if the requested resource type
 	 * isn't handled locally. */
-	if (bhndb_get_rman(sc, child, type) == NULL) {
+	if (bhndb_get_rman(sc, child, rman_get_type(r)) == NULL) {
 		return (BUS_RELEASE_RESOURCE(device_get_parent(sc->parent_dev),
-		    child, type, rid, r));
+		    child, r));
 	}
 
 	/* Deactivate resources */
@@ -1065,7 +1064,7 @@ bhndb_release_resource(device_t dev, device_t child, int type, int rid,
 	if (!passthrough) {
 		/* Clean resource list entry */
 		rle = resource_list_find(BUS_GET_RESOURCE_LIST(dev, child),
-		    type, rid);
+		    rman_get_type(r), rman_get_rid(r));
 		if (rle != NULL)
 			rle->res = NULL;
 	}

@@ -101,8 +101,7 @@ static int		acpi_pcib_acpi_adjust_resource(device_t dev,
 			    rman_res_t start, rman_res_t end);
 #ifdef PCI_RES_BUS
 static int		acpi_pcib_acpi_release_resource(device_t dev,
-			    device_t child, int type, int rid,
-			    struct resource *r);
+			    device_t child, struct resource *r);
 static int		acpi_pcib_acpi_activate_resource(device_t dev,
 			    device_t child, struct resource *r);
 static int		acpi_pcib_acpi_deactivate_resource(device_t dev,
@@ -516,7 +515,7 @@ acpi_pcib_acpi_attach(device_t dev)
 			    return (ENXIO);
 		    }
 		    sc->ap_bus = rman_get_start(bus_res);
-		    pci_domain_release_bus(sc->ap_segment, dev, rid, bus_res);
+		    pci_domain_release_bus(sc->ap_segment, dev, bus_res);
 	    }
     } else {
 	    /*
@@ -759,15 +758,15 @@ acpi_pcib_acpi_adjust_resource(device_t dev, device_t child,
 
 #ifdef PCI_RES_BUS
 int
-acpi_pcib_acpi_release_resource(device_t dev, device_t child, int type, int rid,
+acpi_pcib_acpi_release_resource(device_t dev, device_t child,
     struct resource *r)
 {
 	struct acpi_hpcib_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (type == PCI_RES_BUS)
-		return (pci_domain_release_bus(sc->ap_segment, child, rid, r));
-	return (bus_generic_release_resource(dev, child, type, rid, r));
+	if (rman_get_type(r) == PCI_RES_BUS)
+		return (pci_domain_release_bus(sc->ap_segment, child, r));
+	return (bus_generic_release_resource(dev, child, r));
 }
 
 int

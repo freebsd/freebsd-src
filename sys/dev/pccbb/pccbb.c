@@ -162,7 +162,7 @@ static struct resource	*cbb_cardbus_alloc_resource(device_t brdev,
 		    device_t child, int type, int *rid, rman_res_t start,
 		    rman_res_t end, rman_res_t count, u_int flags);
 static int	cbb_cardbus_release_resource(device_t brdev, device_t child,
-		    int type, int rid, struct resource *res);
+		    struct resource *res);
 static int	cbb_cardbus_power_enable_socket(device_t brdev,
 		    device_t child);
 static int	cbb_cardbus_power_disable_socket(device_t brdev,
@@ -1263,20 +1263,20 @@ cbb_cardbus_alloc_resource(device_t brdev, device_t child, int type,
 }
 
 static int
-cbb_cardbus_release_resource(device_t brdev, device_t child, int type,
-    int rid, struct resource *res)
+cbb_cardbus_release_resource(device_t brdev, device_t child,
+    struct resource *res)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 	int error;
 
 	if (rman_get_flags(res) & RF_ACTIVE) {
-		error = bus_deactivate_resource(child, type, rid, res);
+		error = bus_deactivate_resource(child, res);
 		if (error != 0)
 			return (error);
 	}
 	cbb_remove_res(sc, res);
 	return (BUS_RELEASE_RESOURCE(device_get_parent(brdev), child,
-	    type, rid, res));
+	    res));
 }
 
 /************************************************************************/
@@ -1424,20 +1424,20 @@ cbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 }
 
 static int
-cbb_pcic_release_resource(device_t brdev, device_t child, int type,
-    int rid, struct resource *res)
+cbb_pcic_release_resource(device_t brdev, device_t child,
+    struct resource *res)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 	int error;
 
 	if (rman_get_flags(res) & RF_ACTIVE) {
-		error = bus_deactivate_resource(child, type, rid, res);
+		error = bus_deactivate_resource(child, res);
 		if (error != 0)
 			return (error);
 	}
 	cbb_remove_res(sc, res);
 	return (BUS_RELEASE_RESOURCE(device_get_parent(brdev), child,
-	    type, rid, res));
+	    res));
 }
 
 /************************************************************************/
@@ -1519,17 +1519,14 @@ cbb_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 }
 
 int
-cbb_release_resource(device_t brdev, device_t child, int type, int rid,
-    struct resource *r)
+cbb_release_resource(device_t brdev, device_t child, struct resource *r)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 
 	if (sc->flags & CBB_16BIT_CARD)
-		return (cbb_pcic_release_resource(brdev, child, type,
-		    rid, r));
+		return (cbb_pcic_release_resource(brdev, child, r));
 	else
-		return (cbb_cardbus_release_resource(brdev, child, type,
-		    rid, r));
+		return (cbb_cardbus_release_resource(brdev, child, r));
 }
 
 int

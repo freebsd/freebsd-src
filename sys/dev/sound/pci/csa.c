@@ -83,8 +83,7 @@ static int csa_attach(device_t dev);
 static struct resource *csa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 					      rman_res_t start, rman_res_t end,
 					      rman_res_t count, u_int flags);
-static int csa_release_resource(device_t bus, device_t child, int type, int rid,
-				   struct resource *r);
+static int csa_release_resource(device_t bus, device_t child, struct resource *r);
 static int csa_setup_intr(device_t bus, device_t child,
 			  struct resource *irq, int flags,
 			  driver_filter_t *filter,
@@ -430,8 +429,7 @@ csa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 static int
-csa_release_resource(device_t bus, device_t child, int type, int rid,
-			struct resource *r)
+csa_release_resource(device_t bus, device_t child, struct resource *r)
 {
 	return (0);
 }

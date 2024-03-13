@@ -396,7 +396,7 @@ struct resource *
 			    rman_res_t count, u_int flags);
 int	resource_list_release(struct resource_list *rl,
 			      device_t bus, device_t child,
-			      int type, int rid, struct resource *res);
+			      struct resource *res);
 int	resource_list_release_active(struct resource_list *rl,
 				     device_t bus, device_t child,
 				     int type);
@@ -481,7 +481,7 @@ int	bus_generic_probe(device_t dev);
 int	bus_generic_read_ivar(device_t dev, device_t child, int which,
 			      uintptr_t *result);
 int	bus_generic_release_resource(device_t bus, device_t child,
-				     int type, int rid, struct resource *r);
+				     struct resource *r);
 int	bus_generic_resume(device_t dev);
 int	bus_generic_resume_child(device_t dev, device_t child);
 int	bus_generic_setup_intr(device_t dev, device_t child,
@@ -497,8 +497,7 @@ int	bus_generic_rl_get_resource (device_t, device_t, int, int, rman_res_t *,
 				     rman_res_t *);
 int	bus_generic_rl_set_resource (device_t, device_t, int, int, rman_res_t,
 				     rman_res_t);
-int	bus_generic_rl_release_resource (device_t, device_t, int, int,
-					 struct resource *);
+int	bus_generic_rl_release_resource (device_t, device_t, struct resource *);
 struct resource *
 	bus_generic_rman_alloc_resource(device_t dev, device_t child, int type,
 					int *rid, rman_res_t start,
@@ -508,7 +507,6 @@ int	bus_generic_rman_adjust_resource(device_t dev, device_t child,
 					 struct resource *r, rman_res_t start,
 					 rman_res_t end);
 int	bus_generic_rman_release_resource(device_t dev, device_t child,
-					  int type, int rid,
 					  struct resource *r);
 int	bus_generic_rman_activate_resource(device_t dev, device_t child,
 					   struct resource *r);
@@ -571,8 +569,7 @@ int	bus_get_cpus(device_t dev, enum cpu_sets op, size_t setsize,
 bus_dma_tag_t bus_get_dma_tag(device_t dev);
 bus_space_tag_t bus_get_bus_tag(device_t dev);
 int	bus_get_domain(device_t dev, int *domain);
-int	bus_release_resource(device_t dev, int type, int rid,
-			     struct resource *r);
+int	bus_release_resource(device_t dev, struct resource *r);
 int	bus_free_resource(device_t dev, int type, struct resource *r);
 int	bus_setup_intr(device_t dev, struct resource *r, int flags,
 		       driver_filter_t filter, driver_intr_t handler, 
@@ -621,7 +618,8 @@ int	bus_map_resource_old(device_t dev, int type, struct resource *r,
 			     struct resource_map *map);
 int	bus_unmap_resource_old(device_t dev, int type, struct resource *r,
 			       struct resource_map *map);
-int	bus_release_resource_new(device_t dev, struct resource *r);
+int	bus_release_resource_old(device_t dev, int type, int rid,
+				 struct resource *r);
 
 #define	_BUS_API_MACRO(_1, _2, _3, _4, _5, NAME, ...)	NAME
 
@@ -646,8 +644,8 @@ int	bus_release_resource_new(device_t dev, struct resource *r);
 	    bus_unmap_resource)(__VA_ARGS__)
 
 #define	bus_release_resource(...)					\
-	_BUS_API_MACRO(__VA_ARGS__, INVALID, bus_release_resource,	\
-	    INVALID, bus_release_resource_new)(__VA_ARGS__)
+	_BUS_API_MACRO(__VA_ARGS__, INVALID, bus_release_resource_old,	\
+	    INVALID, bus_release_resource)(__VA_ARGS__)
 
 /*
  * Access functions for device.

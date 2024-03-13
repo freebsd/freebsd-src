@@ -495,8 +495,7 @@ scc_bus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 }
 
 int
-scc_bus_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *res)
+scc_bus_release_resource(device_t dev, device_t child, struct resource *res)
 {
 	struct resource_list_entry *rle;
 	struct scc_chan *ch;
@@ -507,7 +506,8 @@ scc_bus_release_resource(device_t dev, device_t child, int type, int rid,
 
 	m = device_get_ivars(child);
 	ch = m->m_chan;
-	rle = resource_list_find(&ch->ch_rlist, type, rid);
+	rle = resource_list_find(&ch->ch_rlist, rman_get_type(res),
+	    rman_get_rid(res));
 	return ((rle == NULL) ? EINVAL : 0);
 }
 

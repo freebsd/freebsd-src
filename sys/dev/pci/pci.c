@@ -5636,29 +5636,26 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 int
-pci_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+pci_release_resource(device_t dev, device_t child, struct resource *r)
 {
 	struct pci_devinfo *dinfo;
 	struct resource_list *rl;
 	pcicfgregs *cfg __unused;
 
 	if (device_get_parent(child) != dev)
-		return (BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
-		    type, rid, r));
+		return (bus_generic_release_resource(dev, child, r));
 
 	dinfo = device_get_ivars(child);
 	cfg = &dinfo->cfg;
 
 #ifdef PCI_IOV
 	if (cfg->flags & PCICFG_VF) {
-		switch (type) {
+		switch (rman_get_type(r)) {
 		/* VFs can't have I/O BARs. */
 		case SYS_RES_IOPORT:
 			return (EDOOFUS);
 		case SYS_RES_MEMORY:
-			return (pci_vf_release_mem_resource(dev, child, rid,
-			    r));
+			return (pci_vf_release_mem_resource(dev, child, r));
 		}
 
 		/* Fall through for other types of resource allocations. */
@@ -5671,19 +5668,19 @@ pci_release_resource(device_t dev, device_t child, int type, int rid,
 	 * those allocations just pass the request up the tree.
 	 */
 	if (cfg->hdrtype == PCIM_HDRTYPE_BRIDGE &&
-	    (type == SYS_RES_IOPORT || type == SYS_RES_MEMORY)) {
-		switch (rid) {
+	    (rman_get_type(r) == SYS_RES_IOPORT ||
+	    rman_get_type(r) == SYS_RES_MEMORY)) {
+		switch (rman_get_rid(r)) {
 		case PCIR_IOBASEL_1:
 		case PCIR_MEMBASE_1:
 		case PCIR_PMBASEL_1:
-			return (bus_generic_release_resource(dev, child, type,
-			    rid, r));
+			return (bus_generic_release_resource(dev, child, r));
 		}
 	}
 #endif
 
 	rl = &dinfo->resources;
-	return (resource_list_release(rl, dev, child, type, rid, r));
+	return (resource_list_release(rl, dev, child, r));
 }
 
 int

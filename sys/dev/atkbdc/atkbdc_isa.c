@@ -53,7 +53,7 @@ static struct resource *atkbdc_isa_alloc_resource(device_t dev, device_t child,
 		    int type, int *rid, rman_res_t start, rman_res_t end,
 		    rman_res_t count, u_int flags);
 static int	atkbdc_isa_release_resource(device_t dev, device_t child,
-		    int type, int rid, struct resource *r);
+		    struct resource *r);
 
 static device_method_t atkbdc_isa_methods[] = {
 	DEVMETHOD(device_probe,		atkbdc_isa_probe),
@@ -306,15 +306,14 @@ atkbdc_isa_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
-atkbdc_isa_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+atkbdc_isa_release_resource(device_t dev, device_t child, struct resource *r)
 {
 	atkbdc_softc_t	*sc;
 
 	sc = *(atkbdc_softc_t **)device_get_softc(dev);
-	if (type == SYS_RES_IRQ && rid == KBDC_RID_KBD && r == sc->irq)
+	if (r == sc->irq)
 		return (0);
-	return (bus_generic_rl_release_resource(dev, child, type, rid, r));
+	return (bus_generic_rl_release_resource(dev, child, r));
 }
 
 DRIVER_MODULE(atkbdc, isa, atkbdc_isa_driver, 0, 0);

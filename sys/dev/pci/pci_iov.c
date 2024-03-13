@@ -778,9 +778,7 @@ out:
 
 	for (i = 0; i <= PCIR_MAX_BAR_0; i++) {
 		if (iov->iov_bar[i].res != NULL) {
-			pci_release_resource(bus, dev, SYS_RES_MEMORY,
-			    iov->iov_pos + PCIR_SRIOV_BAR(i),
-			    iov->iov_bar[i].res);
+			pci_release_resource(bus, dev, iov->iov_bar[i].res);
 			pci_delete_resource(bus, dev, SYS_RES_MEMORY,
 			    iov->iov_pos + PCIR_SRIOV_BAR(i));
 			iov->iov_bar[i].res = NULL;
@@ -890,9 +888,7 @@ pci_iov_delete_iov_children(struct pci_devinfo *dinfo)
 
 	for (i = 0; i <= PCIR_MAX_BAR_0; i++) {
 		if (iov->iov_bar[i].res != NULL) {
-			pci_release_resource(bus, dev, SYS_RES_MEMORY,
-			    iov->iov_pos + PCIR_SRIOV_BAR(i),
-			    iov->iov_bar[i].res);
+			pci_release_resource(bus, dev, iov->iov_bar[i].res);
 			pci_delete_resource(bus, dev, SYS_RES_MEMORY,
 			    iov->iov_pos + PCIR_SRIOV_BAR(i));
 			iov->iov_bar[i].res = NULL;
@@ -1066,21 +1062,21 @@ pci_vf_alloc_mem_resource(device_t dev, device_t child, int *rid,
 }
 
 int
-pci_vf_release_mem_resource(device_t dev, device_t child, int rid,
-    struct resource *r)
+pci_vf_release_mem_resource(device_t dev, device_t child, struct resource *r)
 {
 	struct pci_devinfo *dinfo;
 	struct resource_list_entry *rle;
-	int error;
+	int error, rid;
 
 	dinfo = device_get_ivars(child);
 
 	if (rman_get_flags(r) & RF_ACTIVE) {
-		error = bus_deactivate_resource(child, SYS_RES_MEMORY, rid, r);
+		error = bus_deactivate_resource(child, r);
 		if (error != 0)
 			return (error);
 	}
 
+	rid = rman_get_rid(r);
 	rle = resource_list_find(&dinfo->resources, SYS_RES_MEMORY, rid);
 	if (rle != NULL) {
 		rle->res = NULL;

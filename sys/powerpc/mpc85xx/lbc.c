@@ -83,8 +83,7 @@ static struct resource *lbc_alloc_resource(device_t, device_t, int, int *,
 static int lbc_adjust_resource(device_t, device_t, struct resource *,
     rman_res_t, rman_res_t);
 static int lbc_print_child(device_t, device_t);
-static int lbc_release_resource(device_t, device_t, int, int,
-    struct resource *);
+static int lbc_release_resource(device_t, device_t, struct resource *);
 static const struct ofw_bus_devinfo *lbc_get_devinfo(device_t, device_t);
 
 /*
@@ -776,18 +775,13 @@ lbc_adjust_resource(device_t dev, device_t child, struct resource *r,
 }
 
 static int
-lbc_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *res)
+lbc_release_resource(device_t dev, device_t child, struct resource *res)
 {
-	switch (type) {
-	case SYS_RES_IOPORT:
-		type = SYS_RES_MEMORY;
-		/* FALLTHROUGH */
+	switch (rman_get_type(res)) {
 	case SYS_RES_MEMORY:
-		return (bus_generic_rman_release_resource(dev, child, type,
-		    rid, res));
+		return (bus_generic_rman_release_resource(dev, child, res));
 	case SYS_RES_IRQ:
-		return (bus_generic_release_resource(dev, child, type, rid, res));
+		return (bus_generic_release_resource(dev, child, res));
 	default:
 		return (EINVAL);
 	}

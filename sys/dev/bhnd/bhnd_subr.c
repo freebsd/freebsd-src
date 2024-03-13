@@ -2241,7 +2241,7 @@ bhnd_bus_generic_alloc_resource(device_t dev, device_t child, int type,
 
 failed:
 	if (res != NULL)
-		BUS_RELEASE_RESOURCE(dev, child, type, *rid, res);
+		BUS_RELEASE_RESOURCE(dev, child, res);
 
 	free(br, M_BHND);
 	return (NULL);
@@ -2259,7 +2259,7 @@ bhnd_bus_generic_release_resource(device_t dev, device_t child, int type,
 {
 	int error;
 
-	if ((error = BUS_RELEASE_RESOURCE(dev, child, type, rid, r->res)))
+	if ((error = BUS_RELEASE_RESOURCE(dev, child, r->res)))
 		return (error);
 
 	free(r, M_BHND);

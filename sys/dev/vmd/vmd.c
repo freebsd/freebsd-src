@@ -480,15 +480,13 @@ vmd_adjust_resource(device_t dev, device_t child,
 }
 
 static int
-vmd_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+vmd_release_resource(device_t dev, device_t child, struct resource *r)
 {
 
-	if (type == SYS_RES_IRQ) {
-		return (bus_generic_release_resource(dev, child, type, rid,
-		    r));
+	if (rman_get_type(r) == SYS_RES_IRQ) {
+		return (bus_generic_release_resource(dev, child, r));
 	}
-	return (bus_generic_rman_release_resource(dev, child, type, rid, r));
+	return (bus_generic_rman_release_resource(dev, child, r));
 }
 
 static int

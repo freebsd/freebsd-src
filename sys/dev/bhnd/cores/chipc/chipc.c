@@ -873,8 +873,7 @@ chipc_alloc_resource(device_t dev, device_t child, int type,
 }
 
 static int
-chipc_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+chipc_release_resource(device_t dev, device_t child, struct resource *r)
 {
 	struct chipc_softc		*sc;
 	struct chipc_region		*cr;
@@ -885,10 +884,9 @@ chipc_release_resource(device_t dev, device_t child, int type, int rid,
 	sc = device_get_softc(dev);
 
 	/* Handled by parent bus? */
-	rm = chipc_get_rman(dev, type, rman_get_flags(r));
+	rm = chipc_get_rman(dev, rman_get_type(r), rman_get_flags(r));
 	if (rm == NULL || !rman_is_region_manager(r, rm)) {
-		return (bus_generic_rl_release_resource(dev, child, type, rid,
-		    r));
+		return (bus_generic_rl_release_resource(dev, child, r));
 	}
 
 	/* Locate the mapping region */
@@ -897,7 +895,7 @@ chipc_release_resource(device_t dev, device_t child, int type, int rid,
 		return (EINVAL);
 
 	/* Deactivate resources */
-	error = bus_generic_rman_release_resource(dev, child, type, rid, r);
+	error = bus_generic_rman_release_resource(dev, child, r);
 	if (error != 0)
 		return (error);
 
@@ -905,7 +903,8 @@ chipc_release_resource(device_t dev, device_t child, int type, int rid,
 	chipc_release_region(sc, cr, RF_ALLOCATED);
 
 	/* Clear reference from the resource list entry if exists */
-	rle = resource_list_find(BUS_GET_RESOURCE_LIST(dev, child), type, rid);
+	rle = resource_list_find(BUS_GET_RESOURCE_LIST(dev, child),
+	    rman_get_type(r), rman_get_rid(r));
 	if (rle != NULL)
 		rle->res = NULL;
 
