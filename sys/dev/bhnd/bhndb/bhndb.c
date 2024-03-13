@@ -104,13 +104,11 @@ static int			 bhndb_init_child_resource(struct resource *r,
 static int			 bhndb_activate_static_region(
 				     struct bhndb_softc *sc,
 				     struct bhndb_region *region, 
-				     device_t child, int type, int rid,
-				     struct resource *r);
+				     device_t child, struct resource *r);
 
 static int			 bhndb_try_activate_resource(
 				     struct bhndb_softc *sc, device_t child,
-				     int type, int rid, struct resource *r,
-				     bool *indirect);
+				     struct resource *r, bool *indirect);
 
 static inline struct bhndb_dw_alloc *bhndb_io_resource(struct bhndb_softc *sc,
 					bus_addr_t addr, bus_size_t size,
@@ -755,8 +753,7 @@ bhndb_resume_resource(device_t dev, device_t child, int type,
 		device_printf(child, "resume resource type=%d 0x%jx+0x%jx\n",
 		    type, rman_get_start(r), rman_get_size(r));
 
-	return (bhndb_try_activate_resource(sc, rman_get_device(r), type,
-	    rman_get_rid(r), r, NULL));
+	return (bhndb_try_activate_resource(sc, rman_get_device(r), r, NULL));
 }
 
 /**
@@ -1057,7 +1054,7 @@ bhndb_release_resource(device_t dev, device_t child, int type, int rid,
 
 	/* Deactivate resources */
 	if (rman_get_flags(r) & RF_ACTIVE) {
-		error = BUS_DEACTIVATE_RESOURCE(dev, child, type, rid, r);
+		error = BUS_DEACTIVATE_RESOURCE(dev, child, r);
 		if (error)
 			return (error);
 	}
@@ -1186,8 +1183,7 @@ bhndb_init_child_resource(struct resource *r,
  */
 static int
 bhndb_activate_static_region(struct bhndb_softc *sc,
-    struct bhndb_region *region, device_t child, int type, int rid,
-    struct resource *r)
+    struct bhndb_region *region, device_t child, struct resource *r)
 {
 	struct resource			*bridge_res;
 	const struct bhndb_regwin	*win;
@@ -1287,8 +1283,6 @@ bhndb_retain_dynamic_window(struct bhndb_softc *sc, struct resource *r)
  * 
  * @param sc The bhndb driver state.
  * @param child The child holding ownership of @p r.
- * @param type The type of the resource to be activated.
- * @param rid The resource ID of @p r.
  * @param r The resource to be activated
  * @param[out] indirect On error and if not NULL, will be set to 'true' if
  * the caller should instead use an indirect resource mapping.
@@ -1297,21 +1291,22 @@ bhndb_retain_dynamic_window(struct bhndb_softc *sc, struct resource *r)
  * @retval non-zero activation failed.
  */
 static int
-bhndb_try_activate_resource(struct bhndb_softc *sc, device_t child, int type,
-    int rid, struct resource *r, bool *indirect)
+bhndb_try_activate_resource(struct bhndb_softc *sc, device_t child,
+    struct resource *r, bool *indirect)
 {
 	struct bhndb_region	*region;
 	struct bhndb_dw_alloc	*dwa;
 	bhndb_priority_t	 dw_priority;
 	rman_res_t		 r_start, r_size;
 	rman_res_t		 parent_offset;
-	int			 error;
+	int			 error, type;
 
 	BHNDB_LOCK_ASSERT(sc, MA_NOTOWNED);
 
 	if (indirect != NULL)
 		*indirect = false;
 
+	type = rman_get_type(r);
 	switch (type) {
 	case SYS_RES_IRQ:
 		/* IRQ resources are always directly mapped */
@@ -1367,8 +1362,7 @@ bhndb_try_activate_resource(struct bhndb_softc *sc, device_t child, int type,
 
 	/* Prefer static mappings over consuming a dynamic windows. */
 	if (region && region->static_regwin) {
-		error = bhndb_activate_static_region(sc, region, child, type,
-		    rid, r);
+		error = bhndb_activate_static_region(sc, region, child, r);
 		if (error)
 			device_printf(sc->dev, "static window allocation "
 			     "for 0x%llx-0x%llx failed\n",
@@ -1425,41 +1419,40 @@ failed:
  * Default bhndb(4) implementation of BUS_ACTIVATE_RESOURCE().
  */
 static int
-bhndb_activate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+bhndb_activate_resource(device_t dev, device_t child, struct resource *r)
 {
 	struct bhndb_softc *sc = device_get_softc(dev);
 
 	/* Delegate directly to our parent device's bus if the requested
 	 * resource type isn't handled locally. */
-	if (bhndb_get_rman(sc, child, type) == NULL) {
+	if (bhndb_get_rman(sc, child, rman_get_type(r)) == NULL) {
 		return (BUS_ACTIVATE_RESOURCE(device_get_parent(sc->parent_dev),
-		    child, type, rid, r));
+		    child, r));
 	}
 
-	return (bhndb_try_activate_resource(sc, child, type, rid, r, NULL));
+	return (bhndb_try_activate_resource(sc, child, r, NULL));
 }
 
 /**
  * Default bhndb(4) implementation of BUS_DEACTIVATE_RESOURCE().
  */
 static int
-bhndb_deactivate_resource(device_t dev, device_t child, int type,
-    int rid, struct resource *r)
+bhndb_deactivate_resource(device_t dev, device_t child, struct resource *r)
 {
 	struct bhndb_dw_alloc	*dwa;
 	struct bhndb_softc	*sc;
 	struct rman		*rm;
-	int			 error;
+	int			 error, type;
 
 	sc = device_get_softc(dev);
+	type = rman_get_type(r);
 
 	/* Delegate directly to our parent device's bus if the requested
 	 * resource type isn't handled locally. */
 	rm = bhndb_get_rman(sc, child, type);
 	if (rm == NULL) {
 		return (BUS_DEACTIVATE_RESOURCE(
-		    device_get_parent(sc->parent_dev), child, type, rid, r));
+		    device_get_parent(sc->parent_dev), child, r));
 	}
 
 	/* Mark inactive */
@@ -1534,7 +1527,7 @@ bhndb_activate_bhnd_resource(device_t dev, device_t child,
 	/* Delegate directly to BUS_ACTIVATE_RESOURCE() if the requested
 	 * resource type isn't handled locally. */
 	if (bhndb_get_rman(sc, child, type) == NULL) {
-		error = BUS_ACTIVATE_RESOURCE(dev, child, type, rid, r->res);
+		error = BUS_ACTIVATE_RESOURCE(dev, child, r->res);
 		if (error == 0)
 			r->direct = true;
 		return (error);
@@ -1574,8 +1567,7 @@ bhndb_activate_bhnd_resource(device_t dev, device_t child,
 	}
 
 	/* Attempt direct activation */
-	error = bhndb_try_activate_resource(sc, child, type, rid, r->res,
-	    &indirect);
+	error = bhndb_try_activate_resource(sc, child, r->res, &indirect);
 	if (!error) {
 		r->direct = true;
 	} else if (indirect) {
@@ -1615,7 +1607,7 @@ bhndb_deactivate_bhnd_resource(device_t dev, device_t child,
 	    ("RF_ACTIVE not set on direct resource"));
 
 	/* Perform deactivation */
-	error = BUS_DEACTIVATE_RESOURCE(dev, child, type, rid, r->res);
+	error = BUS_DEACTIVATE_RESOURCE(dev, child, r->res);
 	if (!error)
 		r->direct = false;
 

@@ -120,8 +120,7 @@
 
 #define	RID_PEM_SPACE		1
 
-static int thunder_pem_activate_resource(device_t, device_t, int, int,
-    struct resource *);
+static int thunder_pem_activate_resource(device_t, device_t, struct resource *);
 static int thunder_pem_adjust_resource(device_t, device_t,
     struct resource *, rman_res_t, rman_res_t);
 static struct resource * thunder_pem_alloc_resource(device_t, device_t, int,
@@ -134,7 +133,7 @@ static int thunder_pem_map_msi(device_t, device_t, int, uint64_t *, uint32_t *);
 static int thunder_pem_get_id(device_t, device_t, enum pci_id_type,
     uintptr_t *);
 static int thunder_pem_attach(device_t);
-static int thunder_pem_deactivate_resource(device_t, device_t, int, int,
+static int thunder_pem_deactivate_resource(device_t, device_t,
     struct resource *);
 static int thunder_pem_map_resource(device_t, device_t, struct resource *,
     struct resource_map_request *, struct resource_map *);
@@ -254,31 +253,28 @@ thunder_pem_write_ivar(device_t dev, device_t child, int index,
 }
 
 static int
-thunder_pem_activate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+thunder_pem_activate_resource(device_t dev, device_t child, struct resource *r)
 {
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	struct thunder_pem_softc *sc;
 
 	sc = device_get_softc(dev);
 #endif
-	switch (type) {
+	switch (rman_get_type(r)) {
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
-		return (pci_domain_activate_bus(sc->id, child, rid, r));
+		return (pci_domain_activate_bus(sc->id, child, r));
 #endif
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
-		return (bus_generic_rman_activate_resource(dev, child, type,
-		    rid, r));
+		return (bus_generic_rman_activate_resource(dev, child, r));
 	default:
-		return (bus_generic_activate_resource(dev, child, type, rid,
-		    r));
+		return (bus_generic_activate_resource(dev, child, r));
 	}
 }
 
 static int
-thunder_pem_deactivate_resource(device_t dev, device_t child, int type, int rid,
+thunder_pem_deactivate_resource(device_t dev, device_t child,
     struct resource *r)
 {
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
@@ -286,18 +282,16 @@ thunder_pem_deactivate_resource(device_t dev, device_t child, int type, int rid,
 
 	sc = device_get_softc(dev);
 #endif
-	switch (type) {
+	switch (rman_get_type(r)) {
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
-		return (pci_domain_deactivate_bus(sc->id, child, rid, r));
+		return (pci_domain_deactivate_bus(sc->id, child, r));
 #endif
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
-		return (bus_generic_rman_deactivate_resource(dev, child, type,
-		    rid, r));
+		return (bus_generic_rman_deactivate_resource(dev, child, r));
 	default:
-		return (bus_generic_deactivate_resource(dev, child, type, rid,
-		    r));
+		return (bus_generic_deactivate_resource(dev, child, r));
 	}
 }
 

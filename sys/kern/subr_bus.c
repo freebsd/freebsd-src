@@ -3945,13 +3945,11 @@ bus_generic_release_resource(device_t dev, device_t child, int type, int rid,
  * BUS_ACTIVATE_RESOURCE() method of the parent of @p dev.
  */
 int
-bus_generic_activate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+bus_generic_activate_resource(device_t dev, device_t child, struct resource *r)
 {
 	/* Propagate up the bus hierarchy until someone handles it. */
 	if (dev->parent)
-		return (BUS_ACTIVATE_RESOURCE(dev->parent, child, type, rid,
-		    r));
+		return (BUS_ACTIVATE_RESOURCE(dev->parent, child, r));
 	return (EINVAL);
 }
 
@@ -3962,13 +3960,12 @@ bus_generic_activate_resource(device_t dev, device_t child, int type, int rid,
  * BUS_DEACTIVATE_RESOURCE() method of the parent of @p dev.
  */
 int
-bus_generic_deactivate_resource(device_t dev, device_t child, int type,
-    int rid, struct resource *r)
+bus_generic_deactivate_resource(device_t dev, device_t child,
+    struct resource *r)
 {
 	/* Propagate up the bus hierarchy until someone handles it. */
 	if (dev->parent)
-		return (BUS_DEACTIVATE_RESOURCE(dev->parent, child, type, rid,
-		    r));
+		return (BUS_DEACTIVATE_RESOURCE(dev->parent, child, r));
 	return (EINVAL);
 }
 
@@ -4316,15 +4313,16 @@ bus_generic_rman_release_resource(device_t dev, device_t child, int type,
  * allocated by bus_generic_rman_alloc_resource.
  */
 int
-bus_generic_rman_activate_resource(device_t dev, device_t child, int type,
-    int rid, struct resource *r)
+bus_generic_rman_activate_resource(device_t dev, device_t child,
+    struct resource *r)
 {
 	struct resource_map map;
 #ifdef INVARIANTS
 	struct rman *rm;
 #endif
-	int error;
+	int error, type;
 
+	type = rman_get_type(r);
 #ifdef INVARIANTS
 	rm = BUS_GET_RMAN(dev, type, rman_get_flags(r));
 	KASSERT(rman_is_region_manager(r, rm),
@@ -4355,15 +4353,16 @@ bus_generic_rman_activate_resource(device_t dev, device_t child, int type,
  * resources allocated by bus_generic_rman_alloc_resource.
  */
 int
-bus_generic_rman_deactivate_resource(device_t dev, device_t child, int type,
-    int rid, struct resource *r)
+bus_generic_rman_deactivate_resource(device_t dev, device_t child,
+    struct resource *r)
 {
 	struct resource_map map;
 #ifdef INVARIANTS
 	struct rman *rm;
 #endif
-	int error;
+	int error, type;
 
+	type = rman_get_type(r);
 #ifdef INVARIANTS
 	rm = BUS_GET_RMAN(dev, type, rman_get_flags(r));
 	KASSERT(rman_is_region_manager(r, rm),
@@ -4571,18 +4570,17 @@ bus_translate_resource(device_t dev, int type, rman_res_t start,
  * parent of @p dev.
  */
 int
-bus_activate_resource(device_t dev, int type, int rid, struct resource *r)
+bus_activate_resource(device_t dev, struct resource *r)
 {
 	if (dev->parent == NULL)
 		return (EINVAL);
-	return (BUS_ACTIVATE_RESOURCE(dev->parent, dev, type, rid, r));
+	return (BUS_ACTIVATE_RESOURCE(dev->parent, dev, r));
 }
 
 int
-bus_activate_resource_new(device_t dev, struct resource *r)
+bus_activate_resource_old(device_t dev, int type, int rid, struct resource *r)
 {
-	return (bus_activate_resource(dev, rman_get_type(r), rman_get_rid(r),
-	    r));
+	return (bus_activate_resource(dev, r));
 }
 
 /**
@@ -4592,18 +4590,17 @@ bus_activate_resource_new(device_t dev, struct resource *r)
  * parent of @p dev.
  */
 int
-bus_deactivate_resource(device_t dev, int type, int rid, struct resource *r)
+bus_deactivate_resource(device_t dev, struct resource *r)
 {
 	if (dev->parent == NULL)
 		return (EINVAL);
-	return (BUS_DEACTIVATE_RESOURCE(dev->parent, dev, type, rid, r));
+	return (BUS_DEACTIVATE_RESOURCE(dev->parent, dev, r));
 }
 
 int
-bus_deactivate_resource_new(device_t dev, struct resource *r)
+bus_deactivate_resource_old(device_t dev, int type, int rid, struct resource *r)
 {
-	return (bus_deactivate_resource(dev, rman_get_type(r), rman_get_rid(r),
-	    r));
+	return (bus_deactivate_resource(dev, r));
 }
 
 /**

@@ -86,8 +86,7 @@ const uint32_t fman_firmware[] = FMAN_UC_IMG;
 const uint32_t fman_firmware_size = sizeof(fman_firmware);
 
 int
-fman_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *res)
+fman_activate_resource(device_t bus, device_t child, struct resource *res)
 {
 	struct fman_softc *sc;
 	bus_space_tag_t bt;
@@ -95,7 +94,7 @@ fman_activate_resource(device_t bus, device_t child, int type, int rid,
 	int i, rv;
 
 	sc = device_get_softc(bus);
-	if (type != SYS_RES_IRQ) {
+	if (rman_get_type(res) != SYS_RES_IRQ) {
 		for (i = 0; i < sc->sc_base.nranges; i++) {
 			if (rman_is_region_manager(res, &sc->rman) != 0) {
 				bt = rman_get_bustag(sc->mem_res);
@@ -113,7 +112,7 @@ fman_activate_resource(device_t bus, device_t child, int type, int rid,
 		}
 		return (EINVAL);
 	}
-	return (bus_generic_activate_resource(bus, child, type, rid, res));
+	return (bus_generic_activate_resource(bus, child, res));
 }
 
 int

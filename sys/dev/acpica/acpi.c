@@ -1610,23 +1610,19 @@ acpi_delete_resource(device_t bus, device_t child, int type, int rid)
 }
 
 static int
-acpi_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+acpi_activate_resource(device_t bus, device_t child, struct resource *r)
 {
 	if (acpi_is_resource_managed(bus, r))
-		return (bus_generic_rman_activate_resource(bus, child, type,
-		    rid, r));
-	return (bus_generic_activate_resource(bus, child, type, rid, r));
+		return (bus_generic_rman_activate_resource(bus, child, r));
+	return (bus_generic_activate_resource(bus, child, r));
 }
 
 static int
-acpi_deactivate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+acpi_deactivate_resource(device_t bus, device_t child, struct resource *r)
 {
 	if (acpi_is_resource_managed(bus, r))
-		return (bus_generic_rman_deactivate_resource(bus, child, type,
-		    rid, r));
-	return (bus_generic_deactivate_resource(bus, child, type, rid, r));
+		return (bus_generic_rman_deactivate_resource(bus, child, r));
+	return (bus_generic_deactivate_resource(bus, child, r));
 }
 
 static int

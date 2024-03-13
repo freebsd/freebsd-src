@@ -627,21 +627,20 @@ legacy_pcib_release_resource(device_t dev, device_t child, int type, int rid,
 }
 
 int
-legacy_pcib_activate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+legacy_pcib_activate_resource(device_t dev, device_t child, struct resource *r)
 {
-	if (type == PCI_RES_BUS)
-		return (pci_domain_activate_bus(0, child, rid, r));
-	return (bus_generic_activate_resource(dev, child, type, rid, r));
+	if (rman_get_type(r) == PCI_RES_BUS)
+		return (pci_domain_activate_bus(0, child, r));
+	return (bus_generic_activate_resource(dev, child, r));
 }
 
 int
-legacy_pcib_deactivate_resource(device_t dev, device_t child, int type, int rid,
+legacy_pcib_deactivate_resource(device_t dev, device_t child,
     struct resource *r)
 {
-	if (type == PCI_RES_BUS)
-		return (pci_domain_deactivate_bus(0, child, rid, r));
-	return (bus_generic_deactivate_resource(dev, child, type, rid, r));
+	if (rman_get_type(r) == PCI_RES_BUS)
+		return (pci_domain_deactivate_bus(0, child, r));
+	return (bus_generic_deactivate_resource(dev, child, r));
 }
 #endif
 

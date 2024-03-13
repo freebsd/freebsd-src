@@ -349,10 +349,8 @@ static int mv_pcib_adjust_resource(device_t, device_t, struct resource *,
     rman_res_t, rman_res_t);
 static int mv_pcib_release_resource(device_t, device_t, int, int,
     struct resource *);
-static int mv_pcib_activate_resource(device_t, device_t, int, int,
-    struct resource *r);
-static int mv_pcib_deactivate_resource(device_t, device_t, int, int,
-    struct resource *r);
+static int mv_pcib_activate_resource(device_t, device_t, struct resource *);
+static int mv_pcib_deactivate_resource(device_t, device_t, struct resource *);
 static int mv_pcib_map_resource(device_t, device_t, struct resource *,
     struct resource_map_request *, struct resource_map *);
 static int mv_pcib_unmap_resource(device_t, device_t, struct resource *,
@@ -987,49 +985,42 @@ mv_pcib_release_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static int
-mv_pcib_activate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+mv_pcib_activate_resource(device_t dev, device_t child, struct resource *r)
 {
 #ifdef PCI_RES_BUS
 	struct mv_pcib_softc *sc = device_get_softc(dev);
 #endif
 
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
-		return (bus_generic_rman_activate_resource(dev, child, type,
-		    rid, r));
+		return (bus_generic_rman_activate_resource(dev, child, r));
 #ifdef PCI_RES_BUS
 	case PCI_RES_BUS:
-		return (pci_domain_activate_bus(sc->ap_segment, child, rid, r));
+		return (pci_domain_activate_bus(sc->ap_segment, child, r));
 #endif
 	default:
-		return (bus_generic_activate_resource(dev, child, type, rid,
-		    r));
+		return (bus_generic_activate_resource(dev, child, r));
 	}
 }
 
 static int
-mv_pcib_deactivate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+mv_pcib_deactivate_resource(device_t dev, device_t child, struct resource *r)
 {
 #ifdef PCI_RES_BUS
 	struct mv_pcib_softc *sc = device_get_softc(dev);
 #endif
 
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
-		return (bus_generic_rman_deactivate_resource(dev, child, type,
-		    rid, r));
+		return (bus_generic_rman_deactivate_resource(dev, child, r));
 #ifdef PCI_RES_BUS
 	case PCI_RES_BUS:
-		return (pci_domain_deactivate_bus(sc->ap_segment, child, rid,
-		    r));
+		return (pci_domain_deactivate_bus(sc->ap_segment, child, r));
 #endif
 	default:
-		return (bus_generic_deactivate_resource(dev, child, type, rid,
-		    r));
+		return (bus_generic_deactivate_resource(dev, child, r));
 	}
 }
 

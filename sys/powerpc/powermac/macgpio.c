@@ -71,9 +71,9 @@ static int	macgpio_print_child(device_t dev, device_t child);
 static void	macgpio_probe_nomatch(device_t, device_t);
 static struct resource *macgpio_alloc_resource(device_t, device_t, int, int *,
 		    rman_res_t, rman_res_t, rman_res_t, u_int);
-static int	macgpio_activate_resource(device_t, device_t, int, int,
+static int	macgpio_activate_resource(device_t, device_t,
 		    struct resource *);
-static int	macgpio_deactivate_resource(device_t, device_t, int, int,
+static int	macgpio_deactivate_resource(device_t, device_t,
 		    struct resource *);
 static ofw_bus_get_devinfo_t macgpio_get_devinfo;
 static int	macgpio_suspend(device_t dev);
@@ -275,8 +275,7 @@ macgpio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 static int
-macgpio_activate_resource(device_t bus, device_t child, int type, int rid,
-			   struct resource *res)
+macgpio_activate_resource(device_t bus, device_t child, struct resource *res)
 {
 	struct macgpio_softc *sc;
 	struct macgpio_devinfo *dinfo;
@@ -285,7 +284,7 @@ macgpio_activate_resource(device_t bus, device_t child, int type, int rid,
 	sc = device_get_softc(bus);
 	dinfo = device_get_ivars(child);
 
-	if (type != SYS_RES_IRQ)
+	if (rman_get_type(res) != SYS_RES_IRQ)
 		return ENXIO;
 
 	if (dinfo->gpio_num >= 0) {
@@ -294,12 +293,11 @@ macgpio_activate_resource(device_t bus, device_t child, int type, int rid,
 		bus_write_1(sc->sc_gpios,dinfo->gpio_num,val);
 	}
 
-	return (bus_activate_resource(bus, type, rid, res));
+	return (bus_generic_activate_resource(bus, child, res));
 }
 
 static int
-macgpio_deactivate_resource(device_t bus, device_t child, int type, int rid,
-			  struct resource *res)
+macgpio_deactivate_resource(device_t bus, device_t child, struct resource *res)
 {
 	struct macgpio_softc *sc;
 	struct macgpio_devinfo *dinfo;
@@ -308,7 +306,7 @@ macgpio_deactivate_resource(device_t bus, device_t child, int type, int rid,
 	sc = device_get_softc(bus);
 	dinfo = device_get_ivars(child);
 
-	if (type != SYS_RES_IRQ)
+	if (rman_get_type(res) != SYS_RES_IRQ)
 		return ENXIO;
 
 	if (dinfo->gpio_num >= 0) {
@@ -317,7 +315,7 @@ macgpio_deactivate_resource(device_t bus, device_t child, int type, int rid,
 		bus_write_1(sc->sc_gpios,dinfo->gpio_num,val);
 	}
 
-	return (bus_deactivate_resource(bus, type, rid, res));
+	return (bus_generic_deactivate_resource(bus, child, res));
 }
 
 uint8_t
