@@ -121,10 +121,10 @@ void exca_removal(struct exca_softc *);
 void exca_reset(struct exca_softc *, device_t child);
 
 /* bus/device interfaces */
-int exca_activate_resource(struct exca_softc *exca, device_t child, int type,
-    int rid, struct resource *res);
-int exca_deactivate_resource(struct exca_softc *exca, device_t child, int type,
-    int rid, struct resource *res);
+int exca_activate_resource(struct exca_softc *exca, device_t child,
+    struct resource *res);
+int exca_deactivate_resource(struct exca_softc *exca, device_t child,
+    struct resource *res);
 
 static __inline uint8_t
 exca_getb(struct exca_softc *sc, int reg)

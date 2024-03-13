@@ -811,18 +811,18 @@ exca_removal(struct exca_softc *exca)
 }
 
 int
-exca_activate_resource(struct exca_softc *exca, device_t child, int type,
-    int rid, struct resource *res)
+exca_activate_resource(struct exca_softc *exca, device_t child,
+    struct resource *res)
 {
 	int err;
 
 	if (rman_get_flags(res) & RF_ACTIVE)
 		return (0);
 	err = BUS_ACTIVATE_RESOURCE(device_get_parent(exca->dev), child,
-	    type, rid, res);
+	    res);
 	if (err)
 		return (err);
-	switch (type) {
+	switch (rman_get_type(res)) {
 	case SYS_RES_IOPORT:
 		err = exca_io_map(exca, PCCARD_WIDTH_AUTO, res);
 		break;
@@ -832,16 +832,16 @@ exca_activate_resource(struct exca_softc *exca, device_t child, int type,
 	}
 	if (err)
 		BUS_DEACTIVATE_RESOURCE(device_get_parent(exca->dev), child,
-		    type, rid, res);
+		    res);
 	return (err);
 }
 
 int
-exca_deactivate_resource(struct exca_softc *exca, device_t child, int type,
-    int rid, struct resource *res)
+exca_deactivate_resource(struct exca_softc *exca, device_t child,
+    struct resource *res)
 {
 	if (rman_get_flags(res) & RF_ACTIVE) { /* if activated */
-		switch (type) {
+		switch (rman_get_type(res)) {
 		case SYS_RES_IOPORT:
 			if (exca_io_unmap_res(exca, res))
 				return (ENOENT);
@@ -853,7 +853,7 @@ exca_deactivate_resource(struct exca_softc *exca, device_t child, int type,
 		}
 	}
 	return (BUS_DEACTIVATE_RESOURCE(device_get_parent(exca->dev), child,
-	    type, rid, res));
+	    res));
 }
 
 #if 0

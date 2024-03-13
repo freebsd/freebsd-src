@@ -345,23 +345,19 @@ bhnd_usb_release_resource(device_t dev, device_t child, int type,
 }
 
 static int
-bhnd_usb_activate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+bhnd_usb_activate_resource(device_t dev, device_t child, struct resource *r)
 {
 	if (type != SYS_RES_MEMORY)
-		return (bus_generic_activate_resource(dev, child, type, rid,
-		    r));
-	return (bus_generic_rman_activate_resource(dev, child, type, rid, r));
+		return (bus_generic_activate_resource(dev, child, r));
+	return (bus_generic_rman_activate_resource(dev, child, r));
 }
 
 static int
-bhnd_usb_deactivate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+bhnd_usb_deactivate_resource(device_t dev, device_t child, struct resource *r)
 {
 	if (type != SYS_RES_MEMORY)
-		return (bus_generic_deactivate_resource(dev, child, type, rid,
-		    r));
-	return (bus_generic_rman_deactivate_resource(dev, child, type, rid, r));
+		return (bus_generic_deactivate_resource(dev, child, r));
+	return (bus_generic_rman_deactivate_resource(dev, child, r));
 }
 
 static int

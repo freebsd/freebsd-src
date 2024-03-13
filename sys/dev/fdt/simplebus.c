@@ -48,10 +48,6 @@ static struct resource *simplebus_alloc_resource(device_t, device_t, int,
     int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int		simplebus_release_resource(device_t bus, device_t child,
     int type, int rid, struct resource *r);
-static int		simplebus_activate_resource(device_t bus,
-    device_t child, int type, int rid, struct resource *r);
-static int		simplebus_deactivate_resource(device_t bus,
-    device_t child, int type, int rid, struct resource *r);
 static void		simplebus_probe_nomatch(device_t bus, device_t child);
 static int		simplebus_print_child(device_t bus, device_t child);
 static device_t		simplebus_add_child(device_t dev, u_int order,
@@ -90,8 +86,8 @@ static device_method_t	simplebus_methods[] = {
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	simplebus_alloc_resource),
 	DEVMETHOD(bus_release_resource,	simplebus_release_resource),
-	DEVMETHOD(bus_activate_resource, simplebus_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, simplebus_deactivate_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
 	DEVMETHOD(bus_map_resource,	bus_generic_map_resource),
 	DEVMETHOD(bus_unmap_resource,	bus_generic_unmap_resource),
@@ -497,26 +493,6 @@ simplebus_release_resource(device_t bus, device_t child, int type, int rid,
 	if (type == SYS_RES_IOPORT)
 		type = SYS_RES_MEMORY;
 	return (bus_generic_release_resource(bus, child, type, rid, r));
-}
-
-static int
-simplebus_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
-{
-
-	if (type == SYS_RES_IOPORT)
-		type = SYS_RES_MEMORY;
-	return (bus_generic_activate_resource(bus, child, type, rid, r));
-}
-
-static int
-simplebus_deactivate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
-{
-
-	if (type == SYS_RES_IOPORT)
-		type = SYS_RES_MEMORY;
-	return (bus_generic_deactivate_resource(bus, child, type, rid, r));
 }
 
 static int

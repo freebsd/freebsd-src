@@ -310,15 +310,11 @@ METHOD struct resource * alloc_resource {
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
- * @param _type		the type of resource
- * @param _rid		the resource identifier
  * @param _r		the resource to activate
  */
 METHOD int activate_resource {
 	device_t	_dev;
 	device_t	_child;
-	int		_type;
-	int		_rid;
 	struct resource *_r;
 };
 
@@ -373,15 +369,11 @@ METHOD int unmap_resource {
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
- * @param _type		the type of resource
- * @param _rid		the resource identifier
  * @param _r		the resource to deactivate
  */
 METHOD int deactivate_resource {
 	device_t	_dev;
 	device_t	_child;
-	int		_type;
-	int		_rid;
 	struct resource *_r;
 };
 

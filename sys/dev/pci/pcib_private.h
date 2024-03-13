@@ -160,9 +160,9 @@ int		pci_domain_adjust_bus(int domain, device_t dev,
 		    struct resource *r, rman_res_t start, rman_res_t end);
 int		pci_domain_release_bus(int domain, device_t dev, int rid,
 		    struct resource *r);
-int		pci_domain_activate_bus(int domain, device_t dev, int rid,
+int		pci_domain_activate_bus(int domain, device_t dev,
 		    struct resource *r);
-int		pci_domain_deactivate_bus(int domain, device_t dev, int rid,
+int		pci_domain_deactivate_bus(int domain, device_t dev,
 		    struct resource *r);
 struct resource *pcib_alloc_subbus(struct pcib_secbus *bus, device_t child,
 		    int *rid, rman_res_t start, rman_res_t end, rman_res_t count,

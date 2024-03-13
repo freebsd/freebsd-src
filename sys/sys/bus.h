@@ -427,8 +427,8 @@ void	root_bus_configure(void);
 
 struct _cpuset;
 
-int	bus_generic_activate_resource(device_t dev, device_t child, int type,
-				      int rid, struct resource *r);
+int	bus_generic_activate_resource(device_t dev, device_t child,
+				      struct resource *r);
 device_t
 	bus_generic_add_child(device_t dev, u_int order, const char *name,
 			      int unit);
@@ -452,8 +452,8 @@ int	bus_generic_config_intr(device_t, int, enum intr_trigger,
 int	bus_generic_describe_intr(device_t dev, device_t child,
 				  struct resource *irq, void *cookie,
 				  const char *descr);
-int	bus_generic_deactivate_resource(device_t dev, device_t child, int type,
-					int rid, struct resource *r);
+int	bus_generic_deactivate_resource(device_t dev, device_t child,
+					struct resource *r);
 int	bus_generic_detach(device_t dev);
 void	bus_generic_driver_added(device_t dev, driver_t *driver);
 int	bus_generic_get_cpus(device_t dev, device_t child, enum cpu_sets op,
@@ -511,10 +511,8 @@ int	bus_generic_rman_release_resource(device_t dev, device_t child,
 					  int type, int rid,
 					  struct resource *r);
 int	bus_generic_rman_activate_resource(device_t dev, device_t child,
-					   int type, int rid,
 					   struct resource *r);
 int	bus_generic_rman_deactivate_resource(device_t dev, device_t child,
-					     int type, int rid,
 					     struct resource *r);
 
 int	bus_generic_shutdown(device_t dev);
@@ -561,10 +559,8 @@ int	bus_translate_resource(device_t child, int type, rman_res_t start,
 struct	resource *bus_alloc_resource(device_t dev, int type, int *rid,
 				     rman_res_t start, rman_res_t end,
 				     rman_res_t count, u_int flags);
-int	bus_activate_resource(device_t dev, int type, int rid,
-			      struct resource *r);
-int	bus_deactivate_resource(device_t dev, int type, int rid,
-				struct resource *r);
+int	bus_activate_resource(device_t dev, struct resource *r);
+int	bus_deactivate_resource(device_t dev, struct resource *r);
 int	bus_map_resource(device_t dev, struct resource *r,
 			 struct resource_map_request *args,
 			 struct resource_map *map);
@@ -616,8 +612,10 @@ bus_alloc_resource_anywhere(device_t dev, int type, int *rid,
 /* Compat shims for simpler bus resource API. */
 int	bus_adjust_resource_old(device_t child, int type, struct resource *r,
     rman_res_t start, rman_res_t end);
-int	bus_activate_resource_new(device_t dev, struct resource *r);
-int	bus_deactivate_resource_new(device_t dev, struct resource *r);
+int	bus_activate_resource_old(device_t dev, int type, int rid,
+				  struct resource *r);
+int	bus_deactivate_resource_old(device_t dev, int type, int rid,
+				    struct resource *r);
 int	bus_map_resource_old(device_t dev, int type, struct resource *r,
 			     struct resource_map_request *args,
 			     struct resource_map *map);
@@ -632,12 +630,12 @@ int	bus_release_resource_new(device_t dev, struct resource *r);
 	    bus_adjust_resource)(__VA_ARGS__)
 
 #define	bus_activate_resource(...)					\
-	_BUS_API_MACRO(__VA_ARGS__, INVALID, bus_activate_resource,	\
-	    INVALID, bus_activate_resource_new)(__VA_ARGS__)
+	_BUS_API_MACRO(__VA_ARGS__, INVALID, bus_activate_resource_old,	\
+	    INVALID, bus_activate_resource)(__VA_ARGS__)
 
 #define	bus_deactivate_resource(...)					\
-	_BUS_API_MACRO(__VA_ARGS__, INVALID, bus_deactivate_resource,	\
-	    INVALID, bus_deactivate_resource_new)(__VA_ARGS__)
+	_BUS_API_MACRO(__VA_ARGS__, INVALID, bus_deactivate_resource_old, \
+	    INVALID, bus_deactivate_resource)(__VA_ARGS__)
 
 #define	bus_map_resource(...)						\
 	_BUS_API_MACRO(__VA_ARGS__, bus_map_resource_old,		\

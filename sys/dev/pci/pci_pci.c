@@ -2459,21 +2459,20 @@ pcib_release_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static int
-pcib_activate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+pcib_activate_resource(device_t dev, device_t child, struct resource *r)
 {
 	struct pcib_softc *sc = device_get_softc(dev);
 	struct resource_map map;
-	int error;
+	int error, type;
 
 	if (!pcib_is_resource_managed(sc, r))
-		return (bus_generic_activate_resource(dev, child, type, rid,
-		    r));
+		return (bus_generic_activate_resource(dev, child, r));
 
 	error = rman_activate_resource(r);
 	if (error != 0)
 		return (error);
 
+	type = rman_get_type(r);
 	if ((rman_get_flags(r) & RF_UNMAPPED) == 0 &&
 	    (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT)) {
 		error = BUS_MAP_RESOURCE(dev, child, r, NULL, &map);
@@ -2488,21 +2487,20 @@ pcib_activate_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static int
-pcib_deactivate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+pcib_deactivate_resource(device_t dev, device_t child, struct resource *r)
 {
 	struct pcib_softc *sc = device_get_softc(dev);
 	struct resource_map map;
-	int error;
+	int error, type;
 
 	if (!pcib_is_resource_managed(sc, r))
-		return (bus_generic_deactivate_resource(dev, child, type, rid,
-		    r));
+		return (bus_generic_deactivate_resource(dev, child, r));
 
 	error = rman_deactivate_resource(r);
 	if (error != 0)
 		return (error);
 
+	type = rman_get_type(r);
 	if ((rman_get_flags(r) & RF_UNMAPPED) == 0 &&
 	    (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT)) {
 		rman_get_mapping(r, &map);

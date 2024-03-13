@@ -104,11 +104,9 @@ static int		acpi_pcib_acpi_release_resource(device_t dev,
 			    device_t child, int type, int rid,
 			    struct resource *r);
 static int		acpi_pcib_acpi_activate_resource(device_t dev,
-			    device_t child, int type, int rid,
-			    struct resource *r);
+			    device_t child, struct resource *r);
 static int		acpi_pcib_acpi_deactivate_resource(device_t dev,
-			    device_t child, int type, int rid,
-			    struct resource *r);
+			    device_t child, struct resource *r);
 #endif
 #endif
 static int		acpi_pcib_request_feature(device_t pcib, device_t dev,
@@ -773,28 +771,27 @@ acpi_pcib_acpi_release_resource(device_t dev, device_t child, int type, int rid,
 }
 
 int
-acpi_pcib_acpi_activate_resource(device_t dev, device_t child, int type, int rid,
+acpi_pcib_acpi_activate_resource(device_t dev, device_t child,
     struct resource *r)
 {
 	struct acpi_hpcib_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (type == PCI_RES_BUS)
-		return (pci_domain_activate_bus(sc->ap_segment, child, rid, r));
-	return (bus_generic_activate_resource(dev, child, type, rid, r));
+	if (rman_get_type(r) == PCI_RES_BUS)
+		return (pci_domain_activate_bus(sc->ap_segment, child, r));
+	return (bus_generic_activate_resource(dev, child, r));
 }
 
 int
-acpi_pcib_acpi_deactivate_resource(device_t dev, device_t child, int type,
-    int rid, struct resource *r)
+acpi_pcib_acpi_deactivate_resource(device_t dev, device_t child,
+    struct resource *r)
 {
 	struct acpi_hpcib_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (type == PCI_RES_BUS)
-		return (pci_domain_deactivate_bus(sc->ap_segment, child, rid,
-		    r));
-	return (bus_generic_deactivate_resource(dev, child, type, rid, r));
+	if (rman_get_type(r) == PCI_RES_BUS)
+		return (pci_domain_deactivate_bus(sc->ap_segment, child, r));
+	return (bus_generic_deactivate_resource(dev, child, r));
 }
 #endif
 #endif

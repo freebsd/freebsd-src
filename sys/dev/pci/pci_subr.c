@@ -382,7 +382,7 @@ pci_domain_release_bus(int domain, device_t dev, int rid, struct resource *r)
 }
 
 int
-pci_domain_activate_bus(int domain, device_t dev, int rid, struct resource *r)
+pci_domain_activate_bus(int domain, device_t dev, struct resource *r)
 {
 #ifdef INVARIANTS
 	struct pci_domain *d;
@@ -398,7 +398,7 @@ pci_domain_activate_bus(int domain, device_t dev, int rid, struct resource *r)
 }
 
 int
-pci_domain_deactivate_bus(int domain, device_t dev, int rid, struct resource *r)
+pci_domain_deactivate_bus(int domain, device_t dev, struct resource *r)
 {
 #ifdef INVARIANTS
 	struct pci_domain *d;

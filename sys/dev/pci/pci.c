@@ -5687,13 +5687,12 @@ pci_release_resource(device_t dev, device_t child, int type, int rid,
 }
 
 int
-pci_activate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+pci_activate_resource(device_t dev, device_t child, struct resource *r)
 {
 	struct pci_devinfo *dinfo;
-	int error;
+	int error, rid, type;
 
-	error = bus_generic_activate_resource(dev, child, type, rid, r);
+	error = bus_generic_activate_resource(dev, child, r);
 	if (error)
 		return (error);
 
@@ -5701,6 +5700,8 @@ pci_activate_resource(device_t dev, device_t child, int type, int rid,
 	if (device_get_parent(child) == dev) {
 		/* Device ROMs need their decoding explicitly enabled. */
 		dinfo = device_get_ivars(child);
+		rid = rman_get_rid(r);
+		type = rman_get_type(r);
 		if (type == SYS_RES_MEMORY && PCIR_IS_BIOS(&dinfo->cfg, rid))
 			pci_write_bar(child, pci_find_bar(child, rid),
 			    rman_get_start(r) | PCIM_BIOS_ENABLE);
@@ -5715,19 +5716,20 @@ pci_activate_resource(device_t dev, device_t child, int type, int rid,
 }
 
 int
-pci_deactivate_resource(device_t dev, device_t child, int type,
-    int rid, struct resource *r)
+pci_deactivate_resource(device_t dev, device_t child, struct resource *r)
 {
 	struct pci_devinfo *dinfo;
-	int error;
+	int error, rid, type;
 
-	error = bus_generic_deactivate_resource(dev, child, type, rid, r);
+	error = bus_generic_deactivate_resource(dev, child, r);
 	if (error)
 		return (error);
 
 	/* Disable decoding for device ROMs. */
 	if (device_get_parent(child) == dev) {
 		dinfo = device_get_ivars(child);
+		rid = rman_get_rid(r);
+		type = rman_get_type(r);
 		if (type == SYS_RES_MEMORY && PCIR_IS_BIOS(&dinfo->cfg, rid))
 			pci_write_bar(child, pci_find_bar(child, rid),
 			    rman_get_start(r));

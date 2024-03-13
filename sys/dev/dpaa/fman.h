@@ -56,7 +56,7 @@ struct fman_softc {
 struct resource * fman_alloc_resource(device_t bus, device_t child, int type,
     int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags);
 int fman_activate_resource(device_t bus, device_t child,
-    int type, int rid, struct resource *res);
+    struct resource *res);
 int fman_release_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res);
 int	fman_attach(device_t dev);

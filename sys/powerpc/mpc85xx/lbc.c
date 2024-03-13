@@ -74,9 +74,8 @@ static int lbc_map_resource(device_t, device_t, struct resource *,
 static int lbc_unmap_resource(device_t, device_t, struct resource *,
     struct resource_map *map);
 static int lbc_activate_resource(device_t bus, device_t child,
-    int type, int rid, struct resource *r);
-static int lbc_deactivate_resource(device_t bus,
-    device_t child, int type __unused, int rid,
+    struct resource *r);
+static int lbc_deactivate_resource(device_t bus, device_t child,
     struct resource *r);
 static struct rman *lbc_get_rman(device_t, int, u_int);
 static struct resource *lbc_alloc_resource(device_t, device_t, int, int *,
@@ -795,36 +794,26 @@ lbc_release_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static int
-lbc_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+lbc_activate_resource(device_t bus, device_t child, struct resource *r)
 {
-	switch (type) {
-	case SYS_RES_IOPORT:
-		type = SYS_RES_MEMORY;
-		/* FALLTHROUGH */
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
-		return (bus_generic_rman_activate_resource(bus, child, type,
-		    rid, r));
+		return (bus_generic_rman_activate_resource(bus, child, r));
 	case SYS_RES_IRQ:
-		return (bus_generic_activate_resource(bus, child, type, rid, r));
+		return (bus_generic_activate_resource(bus, child, r));
 	default:
 		return (EINVAL);
 	}
 }
 
 static int
-lbc_deactivate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+lbc_deactivate_resource(device_t bus, device_t child, struct resource *r)
 {
-	switch (type) {
-	case SYS_RES_IOPORT:
-		type = SYS_RES_MEMORY;
-		/* FALLTHROUGH */
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
-		return (bus_generic_rman_deactivate_resource(bus, child, type,
-		    rid, r));
+		return (bus_generic_rman_deactivate_resource(bus, child, r));
 	case SYS_RES_IRQ:
-		return (bus_generic_deactivate_resource(bus, child, type, rid, r));
+		return (bus_generic_deactivate_resource(bus, child, r));
 	default:
 		return (EINVAL);
 	}

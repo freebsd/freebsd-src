@@ -187,10 +187,10 @@ int dpaa2_mc_adjust_resource(device_t mcdev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end);
 int dpaa2_mc_release_resource(device_t mcdev, device_t child, int type,
     int rid, struct resource *r);
-int dpaa2_mc_activate_resource(device_t mcdev, device_t child, int type,
-    int rid, struct resource *r);
-int dpaa2_mc_deactivate_resource(device_t mcdev, device_t child, int type,
-    int rid, struct resource *r);
+int dpaa2_mc_activate_resource(device_t mcdev, device_t child,
+    struct resource *r);
+int dpaa2_mc_deactivate_resource(device_t mcdev, device_t child,
+    struct resource *r);
 
 /* For pseudo-pcib interface. */
 

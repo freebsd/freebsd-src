@@ -76,10 +76,8 @@ static struct   resource *iobus_alloc_resource(device_t, device_t, int, int *,
 					       u_int);
 static int  iobus_adjust_resource(device_t, device_t, struct resource *,
 				  rman_res_t, rman_res_t);
-static int  iobus_activate_resource(device_t, device_t, int, int,
-				    struct resource *);
-static int  iobus_deactivate_resource(device_t, device_t, int, int,
-				      struct resource *);
+static int  iobus_activate_resource(device_t, device_t, struct resource *);
+static int  iobus_deactivate_resource(device_t, device_t, struct resource *);
 static int  iobus_map_resource(device_t, device_t, struct resource *,
 			       struct resource_map_request *,
 			       struct resource_map *);
@@ -376,34 +374,30 @@ iobus_release_resource(device_t bus, device_t child, int type, int rid,
 }
 
 static int
-iobus_activate_resource(device_t bus, device_t child, int type, int rid,
-			   struct resource *res)
+iobus_activate_resource(device_t bus, device_t child, struct resource *res)
 {
 
-	switch (type) {
+	switch (rman_get_type(res)) {
 	case SYS_RES_IRQ:
-                return (bus_generic_activate_resource(bus, child, type, rid, res));
+                return (bus_generic_activate_resource(bus, child, res));
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
-		return (bus_generic_rman_activate_resource(bus, child, type,
-		    rid, res));
+		return (bus_generic_rman_activate_resource(bus, child, res));
 	default:
 		return (EINVAL);
 	}
 }
 
 static int
-iobus_deactivate_resource(device_t bus, device_t child, int type, int rid,
-			  struct resource *res)
+iobus_deactivate_resource(device_t bus, device_t child, struct resource *res)
 {
 
-	switch (type) {
+	switch (rman_get_type(res)) {
 	case SYS_RES_IRQ:
-                return (bus_generic_deactivate_resource(bus, child, type, rid, res));
+                return (bus_generic_deactivate_resource(bus, child, res));
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
-		return (bus_generic_rman_deactivate_resource(bus, child, type,
-		    rid, res));
+		return (bus_generic_rman_deactivate_resource(bus, child, res));
 	default:
 		return (EINVAL);
 	}

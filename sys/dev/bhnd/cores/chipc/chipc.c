@@ -124,8 +124,8 @@ static int		 chipc_enable_sprom_pins(struct chipc_softc *sc);
 static void		 chipc_disable_sprom_pins(struct chipc_softc *sc);
 
 static int		 chipc_try_activate_resource(device_t dev,
-			     device_t child, int type, int rid,
-			     struct resource *r, bool req_direct);
+			     device_t child, struct resource *r,
+			     bool req_direct);
 
 static int		 chipc_init_rman(struct chipc_softc *sc);
 static void		 chipc_free_rman(struct chipc_softc *sc);
@@ -949,16 +949,14 @@ chipc_adjust_resource(device_t dev, device_t child,
  *
  * @param sc Driver instance state.
  * @param child Requesting child device.
- * @param type resource type of @p r.
- * @param rid resource id of @p r
  * @param r resource to be activated.
  * @param req_direct If true, failure to allocate a direct bhnd resource
  * will be treated as an error. If false, the resource will not be marked
  * as RF_ACTIVE if bhnd direct resource allocation fails.
  */
 static int
-chipc_try_activate_resource(device_t dev, device_t child, int type,
-    int rid, struct resource *r, bool req_direct)
+chipc_try_activate_resource(device_t dev, device_t child,
+    struct resource *r, bool req_direct)
 {
 	struct chipc_softc	*sc = device_get_softc(dev);
 	struct rman		*rm;
@@ -967,7 +965,7 @@ chipc_try_activate_resource(device_t dev, device_t child, int type,
 	rman_res_t		 r_start, r_end, r_size;
 	int			 error;
 
-	rm = chipc_get_rman(dev, type, rman_get_flags(r));
+	rm = chipc_get_rman(dev, rman_get_type(r), rman_get_flags(r));
 	if (rm == NULL || !rman_is_region_manager(r, rm))
 		return (EINVAL);
 
@@ -1024,8 +1022,7 @@ chipc_activate_bhnd_resource(device_t dev, device_t child, int type,
 	}
 
 	/* Try activating the chipc region resource */
-	error = chipc_try_activate_resource(dev, child, type, rid, r->res,
-	    false);
+	error = chipc_try_activate_resource(dev, child, r->res, false);
 	if (error)
 		return (error);
 
@@ -1038,28 +1035,26 @@ chipc_activate_bhnd_resource(device_t dev, device_t child, int type,
 }
 
 static int
-chipc_activate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+chipc_activate_resource(device_t dev, device_t child, struct resource *r)
 {
 	struct rman		*rm;
 
 	/* Delegate non-locally managed resources to parent */
-	rm = chipc_get_rman(dev, type, rman_get_flags(r));
+	rm = chipc_get_rman(dev, rman_get_type(r), rman_get_flags(r));
 	if (rm == NULL || !rman_is_region_manager(r, rm)) {
-		return (bus_generic_activate_resource(dev, child, type, rid,
-		    r));
+		return (bus_generic_activate_resource(dev, child, r));
 	}
 
 	/* Try activating the chipc region-based resource */
-	return (chipc_try_activate_resource(dev, child, type, rid, r, true));
+	return (chipc_try_activate_resource(dev, child, r, true));
 }
 
 /**
  * Default bhndb(4) implementation of BUS_DEACTIVATE_RESOURCE().
  */
 static int
-chipc_deactivate_resource(device_t dev, device_t child, int type,
-    int rid, struct resource *r)
+chipc_deactivate_resource(device_t dev, device_t child,
+    struct resource *r)
 {
 	struct chipc_softc	*sc;
 	struct chipc_region	*cr;
@@ -1069,10 +1064,9 @@ chipc_deactivate_resource(device_t dev, device_t child, int type,
 	sc = device_get_softc(dev);
 
 	/* Handled by parent bus? */
-	rm = chipc_get_rman(dev, type, rman_get_flags(r));
+	rm = chipc_get_rman(dev, rman_get_type(r), rman_get_flags(r));
 	if (rm == NULL || !rman_is_region_manager(r, rm)) {
-		return (bus_generic_deactivate_resource(dev, child, type, rid,
-		    r));
+		return (bus_generic_deactivate_resource(dev, child, r));
 	}
 
 	/* Find the corresponding chipc region */

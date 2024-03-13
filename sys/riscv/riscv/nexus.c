@@ -303,16 +303,14 @@ nexus_get_bus_tag(device_t bus __unused, device_t child __unused)
 }
 
 static int
-nexus_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+nexus_activate_resource(device_t bus, device_t child, struct resource *r)
 {
 	int error;
 
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
-		error = bus_generic_rman_activate_resource(bus, child, type,
-		    rid, r);
+		error = bus_generic_rman_activate_resource(bus, child, r);
 		break;
 	case SYS_RES_IRQ:
 		error = rman_activate_resource(r);
@@ -340,16 +338,14 @@ nexus_get_reslist(device_t dev, device_t child)
 }
 
 static int
-nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+nexus_deactivate_resource(device_t bus, device_t child, struct resource *r)
 {
 	int error;
 
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
-		error = bus_generic_rman_deactivate_resource(bus, child, type,
-		    rid, r);
+		error = bus_generic_rman_deactivate_resource(bus, child, r);
 		break;
 	case SYS_RES_IRQ:
 		error = rman_deactivate_resource(r);
