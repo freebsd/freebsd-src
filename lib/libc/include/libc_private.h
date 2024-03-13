@@ -418,7 +418,6 @@ int		__libc_sigwait(const __sigset_t * __restrict,
 		    int * restrict sig);
 int		__libc_system(const char *);
 int		__libc_tcdrain(int);
-int		__fcntl_compat(int fd, int cmd, ...);
 
 int		__sys_futimens(int fd, const struct timespec *times) __hidden;
 int		__sys_utimensat(int fd, const char *path,
