@@ -3877,13 +3877,12 @@ bus_generic_resume_intr(device_t dev, device_t child, struct resource *irq)
  * BUS_ADJUST_RESOURCE() method of the parent of @p dev.
  */
 int
-bus_generic_adjust_resource(device_t dev, device_t child, int type,
-    struct resource *r, rman_res_t start, rman_res_t end)
+bus_generic_adjust_resource(device_t dev, device_t child, struct resource *r,
+    rman_res_t start, rman_res_t end)
 {
 	/* Propagate up the bus hierarchy until someone handles it. */
 	if (dev->parent)
-		return (BUS_ADJUST_RESOURCE(dev->parent, child, type, r, start,
-		    end));
+		return (BUS_ADJUST_RESOURCE(dev->parent, child, r, start, end));
 	return (EINVAL);
 }
 
@@ -4270,12 +4269,12 @@ bus_generic_rman_alloc_resource(device_t dev, device_t child, int type,
  * BUS_GET_RMAN().
  */
 int
-bus_generic_rman_adjust_resource(device_t dev, device_t child, int type,
+bus_generic_rman_adjust_resource(device_t dev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct rman *rm;
 
-	rm = BUS_GET_RMAN(dev, type, rman_get_flags(r));
+	rm = BUS_GET_RMAN(dev, rman_get_type(r), rman_get_flags(r));
 	if (rm == NULL)
 		return (ENXIO);
 	if (!rman_is_region_manager(r, rm))
@@ -4537,19 +4536,19 @@ bus_alloc_resource(device_t dev, int type, int *rid, rman_res_t start,
  * parent of @p dev.
  */
 int
-bus_adjust_resource(device_t dev, int type, struct resource *r, rman_res_t start,
+bus_adjust_resource(device_t dev, struct resource *r, rman_res_t start,
     rman_res_t end)
 {
 	if (dev->parent == NULL)
 		return (EINVAL);
-	return (BUS_ADJUST_RESOURCE(dev->parent, dev, type, r, start, end));
+	return (BUS_ADJUST_RESOURCE(dev->parent, dev, r, start, end));
 }
 
 int
-bus_adjust_resource_new(device_t dev, struct resource *r, rman_res_t start,
-    rman_res_t end)
+bus_adjust_resource_old(device_t dev, int type __unused, struct resource *r,
+    rman_res_t start, rman_res_t end)
 {
-	return (bus_adjust_resource(dev, rman_get_type(r), r, start, end));
+	return (bus_adjust_resource(dev, r, start, end));
 }
 
 /**

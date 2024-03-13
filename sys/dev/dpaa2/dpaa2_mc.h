@@ -183,7 +183,7 @@ struct rman *dpaa2_mc_rman(device_t mcdev, int type, u_int flags);
 struct resource * dpaa2_mc_alloc_resource(device_t mcdev, device_t child,
     int type, int *rid, rman_res_t start, rman_res_t end, rman_res_t count,
     u_int flags);
-int dpaa2_mc_adjust_resource(device_t mcdev, device_t child, int type,
+int dpaa2_mc_adjust_resource(device_t mcdev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end);
 int dpaa2_mc_release_resource(device_t mcdev, device_t child, int type,
     int rid, struct resource *r);

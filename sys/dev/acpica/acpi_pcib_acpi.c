@@ -97,7 +97,7 @@ static struct resource *acpi_pcib_acpi_alloc_resource(device_t dev,
 			    u_int flags);
 #ifdef NEW_PCIB
 static int		acpi_pcib_acpi_adjust_resource(device_t dev,
-			    device_t child, int type, struct resource *r,
+			    device_t child, struct resource *r,
 			    rman_res_t start, rman_res_t end);
 #ifdef PCI_RES_BUS
 static int		acpi_pcib_acpi_release_resource(device_t dev,
@@ -745,19 +745,18 @@ acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 #ifdef NEW_PCIB
 int
-acpi_pcib_acpi_adjust_resource(device_t dev, device_t child, int type,
+acpi_pcib_acpi_adjust_resource(device_t dev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct acpi_hpcib_softc *sc;
 
 	sc = device_get_softc(dev);
 #ifdef PCI_RES_BUS
-	if (type == PCI_RES_BUS)
+	if (rman_get_type(r) == PCI_RES_BUS)
 		return (pci_domain_adjust_bus(sc->ap_segment, child, r, start,
 		    end));
 #endif
-	return (pcib_host_res_adjust(&sc->ap_host_res, child, type, r, start,
-	    end));
+	return (pcib_host_res_adjust(&sc->ap_host_res, child, r, start, end));
 }
 
 #ifdef PCI_RES_BUS

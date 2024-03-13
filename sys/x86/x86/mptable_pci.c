@@ -139,18 +139,17 @@ mptable_hostb_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
-mptable_hostb_adjust_resource(device_t dev, device_t child, int type,
+mptable_hostb_adjust_resource(device_t dev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct mptable_hostb_softc *sc;
 
 #ifdef PCI_RES_BUS
-	if (type == PCI_RES_BUS)
+	if (rman_get_type(r) == PCI_RES_BUS)
 		return (pci_domain_adjust_bus(0, child, r, start, end));
 #endif
 	sc = device_get_softc(dev);
-	return (pcib_host_res_adjust(&sc->sc_host_res, child, type, r, start,
-	    end));
+	return (pcib_host_res_adjust(&sc->sc_host_res, child, r, start, end));
 }
 #endif
 

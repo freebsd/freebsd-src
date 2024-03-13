@@ -56,7 +56,7 @@ struct resource *pcib_host_res_alloc(struct pcib_host_resources *hr,
 		    device_t dev, int type, int *rid, rman_res_t start,
 		    rman_res_t end, rman_res_t count, u_int flags);
 int		pcib_host_res_adjust(struct pcib_host_resources *hr,
-		    device_t dev, int type, struct resource *r, rman_res_t start,
+		    device_t dev, struct resource *r, rman_res_t start,
 		    rman_res_t end);
 #endif
 

@@ -73,7 +73,7 @@ static int ofw_pcib_activate_resource(device_t, device_t, int, int,
     struct resource *);
 static int ofw_pcib_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
-static int ofw_pcib_adjust_resource(device_t, device_t, int,
+static int ofw_pcib_adjust_resource(device_t, device_t,
     struct resource *, rman_res_t, rman_res_t);
 static int ofw_pcib_map_resource(device_t, device_t, int, struct resource *,
     struct resource_map_request *, struct resource_map *);
@@ -656,7 +656,7 @@ ofw_pcib_deactivate_resource(device_t bus, device_t child, int type, int rid,
 }
 
 static int
-ofw_pcib_adjust_resource(device_t bus, device_t child, int type,
+ofw_pcib_adjust_resource(device_t bus, device_t child,
     struct resource *res, rman_res_t start, rman_res_t end)
 {
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
@@ -664,7 +664,7 @@ ofw_pcib_adjust_resource(device_t bus, device_t child, int type,
 
 	sc = device_get_softc(bus);
 #endif
-	switch (type) {
+	switch (rman_get_type(res)) {
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
 		return (pci_domain_adjust_bus(sc->sc_pci_domain, child, res,
@@ -672,11 +672,11 @@ ofw_pcib_adjust_resource(device_t bus, device_t child, int type,
 #endif
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
-		return (bus_generic_rman_adjust_resource(bus, child, type, res,
+		return (bus_generic_rman_adjust_resource(bus, child, res,
 		    start, end));
 	default:
-		return (bus_generic_adjust_resource(bus, child, type, res,
-		    start, end));
+		return (bus_generic_adjust_resource(bus, child, res, start,
+		    end));
 	}
 }
 

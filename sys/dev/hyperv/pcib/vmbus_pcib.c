@@ -1713,15 +1713,15 @@ vmbus_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
-vmbus_pcib_adjust_resource(device_t dev, device_t child, int type,
+vmbus_pcib_adjust_resource(device_t dev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct vmbus_pcib_softc *sc = device_get_softc(dev);
 
-	if (type == PCI_RES_BUS)
+	if (rman_get_type(r) == PCI_RES_BUS)
 		return (pci_domain_adjust_bus(sc->hbus->pci_domain, child, r,
 		    start, end));
-	return (bus_generic_adjust_resource(dev, child, type, r, start, end));
+	return (bus_generic_adjust_resource(dev, child, r, start, end));
 }
 
 static int

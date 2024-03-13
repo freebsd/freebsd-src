@@ -74,7 +74,7 @@ static struct rman *iobus_get_rman(device_t, int, u_int);
 static struct   resource *iobus_alloc_resource(device_t, device_t, int, int *,
 					       rman_res_t, rman_res_t, rman_res_t,
 					       u_int);
-static int  iobus_adjust_resource(device_t, device_t, int, struct resource *,
+static int  iobus_adjust_resource(device_t, device_t, struct resource *,
 				  rman_res_t, rman_res_t);
 static int  iobus_activate_resource(device_t, device_t, int, int,
 				    struct resource *);
@@ -342,18 +342,17 @@ iobus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 static int
-iobus_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *r, rman_res_t start, rman_res_t end)
+iobus_adjust_resource(device_t bus, device_t child, struct resource *r,
+    rman_res_t start, rman_res_t end)
 {
 
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
-		return (bus_generic_rman_adjust_resource(bus, child, type, r,
-		    start, end));
-	case SYS_RES_IRQ:
-		return (bus_generic_adjust_resource(bus, child, type, r, start,
+		return (bus_generic_rman_adjust_resource(bus, child, r, start,
 		    end));
+	case SYS_RES_IRQ:
+		return (bus_generic_adjust_resource(bus, child, r, start, end));
 	default:
 		return (EINVAL);
 	}

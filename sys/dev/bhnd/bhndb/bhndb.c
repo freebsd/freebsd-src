@@ -1080,7 +1080,7 @@ bhndb_release_resource(device_t dev, device_t child, int type, int rid,
  * Default bhndb(4) implementation of BUS_ADJUST_RESOURCE().
  */
 static int
-bhndb_adjust_resource(device_t dev, device_t child, int type,
+bhndb_adjust_resource(device_t dev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct bhndb_softc		*sc;
@@ -1093,10 +1093,10 @@ bhndb_adjust_resource(device_t dev, device_t child, int type,
 
 	/* Delegate to our parent device's bus if the requested resource type
 	 * isn't handled locally. */
-	rm = bhndb_get_rman(sc, child, type);
+	rm = bhndb_get_rman(sc, child, rman_get_type(r));
 	if (rm == NULL) {
 		return (BUS_ADJUST_RESOURCE(device_get_parent(sc->parent_dev),
-		    child, type, r, start, end));
+		    child, r, start, end));
 	}
 
 	/* Verify basic constraints */

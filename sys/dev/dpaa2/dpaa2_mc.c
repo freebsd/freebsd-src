@@ -343,16 +343,16 @@ dpaa2_mc_alloc_resource(device_t mcdev, device_t child, int type, int *rid,
 }
 
 int
-dpaa2_mc_adjust_resource(device_t mcdev, device_t child, int type,
+dpaa2_mc_adjust_resource(device_t mcdev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct rman *rm;
 
-	rm = dpaa2_mc_rman(mcdev, type, rman_get_flags(r));
+	rm = dpaa2_mc_rman(mcdev, rman_get_type(r), rman_get_flags(r));
 	if (rm)
-		return (bus_generic_rman_adjust_resource(mcdev, child, type, r,
+		return (bus_generic_rman_adjust_resource(mcdev, child, r,
 		    start, end));
-	return (bus_generic_adjust_resource(mcdev, child, type, r, start, end));
+	return (bus_generic_adjust_resource(mcdev, child, r, start, end));
 }
 
 int

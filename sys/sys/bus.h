@@ -432,7 +432,7 @@ int	bus_generic_activate_resource(device_t dev, device_t child, int type,
 device_t
 	bus_generic_add_child(device_t dev, u_int order, const char *name,
 			      int unit);
-int	bus_generic_adjust_resource(device_t bus, device_t child, int type,
+int	bus_generic_adjust_resource(device_t bus, device_t child,
 				    struct resource *r, rman_res_t start,
 				    rman_res_t end);
 struct resource *
@@ -504,7 +504,7 @@ struct resource *
 					int *rid, rman_res_t start,
 					rman_res_t end, rman_res_t count,
 					u_int flags);
-int	bus_generic_rman_adjust_resource(device_t dev, device_t child, int type,
+int	bus_generic_rman_adjust_resource(device_t dev, device_t child,
 					 struct resource *r, rman_res_t start,
 					 rman_res_t end);
 int	bus_generic_rman_release_resource(device_t dev, device_t child,
@@ -554,7 +554,7 @@ int	bus_alloc_resources(device_t dev, struct resource_spec *rs,
 void	bus_release_resources(device_t dev, const struct resource_spec *rs,
 			      struct resource **res);
 
-int	bus_adjust_resource(device_t child, int type, struct resource *r,
+int	bus_adjust_resource(device_t child, struct resource *r,
 			    rman_res_t start, rman_res_t end);
 int	bus_translate_resource(device_t child, int type, rman_res_t start,
 			       rman_res_t *newstart);
@@ -614,7 +614,7 @@ bus_alloc_resource_anywhere(device_t dev, int type, int *rid,
 }
 
 /* Compat shims for simpler bus resource API. */
-int	bus_adjust_resource_new(device_t child, struct resource *r,
+int	bus_adjust_resource_old(device_t child, int type, struct resource *r,
     rman_res_t start, rman_res_t end);
 int	bus_activate_resource_new(device_t dev, struct resource *r);
 int	bus_deactivate_resource_new(device_t dev, struct resource *r);
@@ -627,8 +627,8 @@ int	bus_release_resource_new(device_t dev, struct resource *r);
 #define	_BUS_API_MACRO(_1, _2, _3, _4, _5, NAME, ...)	NAME
 
 #define	bus_adjust_resource(...)					\
-	_BUS_API_MACRO(__VA_ARGS__, bus_adjust_resource,		\
-	    bus_adjust_resource_new)(__VA_ARGS__)
+	_BUS_API_MACRO(__VA_ARGS__, bus_adjust_resource_old,		\
+	    bus_adjust_resource)(__VA_ARGS__)
 
 #define	bus_activate_resource(...)					\
 	_BUS_API_MACRO(__VA_ARGS__, INVALID, bus_activate_resource,	\

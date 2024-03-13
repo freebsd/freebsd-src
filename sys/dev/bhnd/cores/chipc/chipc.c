@@ -913,7 +913,7 @@ chipc_release_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static int
-chipc_adjust_resource(device_t dev, device_t child, int type,
+chipc_adjust_resource(device_t dev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct chipc_softc		*sc;
@@ -923,10 +923,9 @@ chipc_adjust_resource(device_t dev, device_t child, int type,
 	sc = device_get_softc(dev);
 
 	/* Handled by parent bus? */
-	rm = chipc_get_rman(dev, type, rman_get_flags(r));
+	rm = chipc_get_rman(dev, rman_get_type(r), rman_get_flags(r));
 	if (rm == NULL || !rman_is_region_manager(r, rm)) {
-		return (bus_generic_adjust_resource(dev, child, type, r, start,
-		    end));
+		return (bus_generic_adjust_resource(dev, child, r, start, end));
 	}
 
 	/* The range is limited to the existing region mapping */
