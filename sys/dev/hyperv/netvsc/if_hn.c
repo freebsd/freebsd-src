@@ -1111,7 +1111,8 @@ static int
 hn_ifmedia_upd(struct ifnet *ifp __unused)
 {
 
-	return EOPNOTSUPP;
+	/* Ignore since autoselect is the only defined and valid media */
+	return (0);
 }
 
 static void
