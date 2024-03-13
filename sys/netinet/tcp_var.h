@@ -431,10 +431,12 @@ TAILQ_HEAD(tcp_funchead, tcp_function);
 #define	ENTER_RECOVERY(t_flags) t_flags |= (TF_CONGRECOVERY | TF_FASTRECOVERY)
 #define	EXIT_RECOVERY(t_flags) t_flags &= ~(TF_CONGRECOVERY | TF_FASTRECOVERY)
 
-#if defined(_KERNEL) && !defined(TCP_RFC7413)
+#if defined(_KERNEL)
+#if !defined(TCP_RFC7413)
 #define	IS_FASTOPEN(t_flags)		(false)
 #else
 #define	IS_FASTOPEN(t_flags)		(t_flags & TF_FASTOPEN)
+#endif
 #endif
 
 #define	BYTES_THIS_ACK(tp, th)	(th->th_ack - tp->snd_una)
