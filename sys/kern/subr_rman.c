@@ -91,6 +91,7 @@ struct resource_i {
 	device_t r_dev;	/* device which has allocated this resource */
 	struct rman *r_rm;	/* resource manager from whence this came */
 	int	r_rid;		/* optional rid for this resource. */
+	int	r_type;		/* optional type for this resource. */
 };
 
 static int rman_debug = 0;
@@ -925,6 +926,18 @@ rman_get_rid(struct resource *r)
 {
 
 	return (r->__r_i->r_rid);
+}
+
+void
+rman_set_type(struct resource *r, int type)
+{
+	r->__r_i->r_type = type;
+}
+
+int
+rman_get_type(struct resource *r)
+{
+	return (r->__r_i->r_type);
 }
 
 void

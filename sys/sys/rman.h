@@ -134,6 +134,7 @@ void	rman_get_mapping(struct resource *, struct resource_map *);
 int	rman_get_rid(struct resource *);
 rman_res_t	rman_get_size(struct resource *);
 rman_res_t	rman_get_start(struct resource *);
+int	rman_get_type(struct resource *);
 void   *rman_get_virtual(struct resource *);
 int	rman_deactivate_resource(struct resource *r);
 int	rman_fini(struct rman *rm);
@@ -156,6 +157,7 @@ void	rman_set_device(struct resource *_r, device_t _dev);
 void	rman_set_irq_cookie(struct resource *_r, void *_c);
 void	rman_set_mapping(struct resource *, struct resource_map *);
 void	rman_set_rid(struct resource *_r, int _rid);
+void	rman_set_type(struct resource *_r, int _type);
 void	rman_set_virtual(struct resource *_r, void *_v);
 
 extern	struct rman_head rman_head;
