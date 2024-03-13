@@ -164,9 +164,9 @@ SYSCTL_INT(_hw_pci, OID_AUTO, clear_pcib, CTLFLAG_RDTUN, &pci_clear_pcib, 0,
  * sub-allocated from one of our window resource managers.
  */
 static struct pcib_window *
-pcib_get_resource_window(struct pcib_softc *sc, int type, struct resource *r)
+pcib_get_resource_window(struct pcib_softc *sc, struct resource *r)
 {
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 		if (rman_is_region_manager(r, &sc->io.rman))
 			return (&sc->io);
@@ -188,14 +188,14 @@ pcib_get_resource_window(struct pcib_softc *sc, int type, struct resource *r)
  * resource managers?
  */
 static int
-pcib_is_resource_managed(struct pcib_softc *sc, int type, struct resource *r)
+pcib_is_resource_managed(struct pcib_softc *sc, struct resource *r)
 {
 
 #ifdef PCI_RES_BUS
-	if (type == PCI_RES_BUS)
+	if (rman_get_type(r) == PCI_RES_BUS)
 		return (rman_is_region_manager(r, &sc->bus.rman));
 #endif
-	return (pcib_get_resource_window(sc, type, r) != NULL);
+	return (pcib_get_resource_window(sc, r) != NULL);
 }
 
 static int
@@ -2386,7 +2386,7 @@ pcib_adjust_resource(device_t bus, device_t child, int type, struct resource *r,
 	 * If the resource wasn't sub-allocated from one of our region
 	 * managers then just pass the request up.
 	 */
-	if (!pcib_is_resource_managed(sc, type, r))
+	if (!pcib_is_resource_managed(sc, r))
 		return (bus_generic_adjust_resource(bus, child, type, r,
 		    start, end));
 
@@ -2411,7 +2411,7 @@ pcib_adjust_resource(device_t bus, device_t child, int type, struct resource *r,
 		 * Resource is managed and not a secondary bus number, must
 		 * be from one of our windows.
 		 */
-		w = pcib_get_resource_window(sc, type, r);
+		w = pcib_get_resource_window(sc, r);
 		KASSERT(w != NULL,
 		    ("%s: no window for resource (%#jx-%#jx) type %d",
 		    __func__, rman_get_start(r), rman_get_end(r), type));
@@ -2447,7 +2447,7 @@ pcib_release_resource(device_t dev, device_t child, int type, int rid,
 	int error;
 
 	sc = device_get_softc(dev);
-	if (pcib_is_resource_managed(sc, type, r)) {
+	if (pcib_is_resource_managed(sc, r)) {
 		if (rman_get_flags(r) & RF_ACTIVE) {
 			error = bus_deactivate_resource(child, type, rid, r);
 			if (error)
@@ -2466,7 +2466,7 @@ pcib_activate_resource(device_t dev, device_t child, int type, int rid,
 	struct resource_map map;
 	int error;
 
-	if (!pcib_is_resource_managed(sc, type, r))
+	if (!pcib_is_resource_managed(sc, r))
 		return (bus_generic_activate_resource(dev, child, type, rid,
 		    r));
 
@@ -2495,7 +2495,7 @@ pcib_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	struct resource_map map;
 	int error;
 
-	if (!pcib_is_resource_managed(sc, type, r))
+	if (!pcib_is_resource_managed(sc, r))
 		return (bus_generic_deactivate_resource(dev, child, type, rid,
 		    r));
 
@@ -2533,7 +2533,7 @@ pcib_map_resource(device_t dev, device_t child, int type, struct resource *r,
 	rman_res_t length, start;
 	int error;
 
-	w = pcib_get_resource_window(sc, type, r);
+	w = pcib_get_resource_window(sc, r);
 	if (w == NULL)
 		return (bus_generic_map_resource(dev, child, type, r, argsp,
 		    map));
@@ -2563,7 +2563,7 @@ pcib_unmap_resource(device_t dev, device_t child, int type, struct resource *r,
 	struct pcib_softc *sc = device_get_softc(dev);
 	struct pcib_window *w;
 
-	w = pcib_get_resource_window(sc, type, r);
+	w = pcib_get_resource_window(sc, r);
 	if (w != NULL) {
 		r = pcib_find_parent_resource(w, r);
 		if (r == NULL)
