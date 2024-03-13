@@ -2372,23 +2372,23 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
-pcib_adjust_resource(device_t bus, device_t child, int type, struct resource *r,
+pcib_adjust_resource(device_t bus, device_t child, struct resource *r,
     rman_res_t start, rman_res_t end)
 {
 	struct pcib_softc *sc;
 	struct pcib_window *w;
 	rman_res_t wmask;
-	int error;
+	int error, type;
 
 	sc = device_get_softc(bus);
+	type = rman_get_type(r);
 
 	/*
 	 * If the resource wasn't sub-allocated from one of our region
 	 * managers then just pass the request up.
 	 */
 	if (!pcib_is_resource_managed(sc, r))
-		return (bus_generic_adjust_resource(bus, child, type, r,
-		    start, end));
+		return (bus_generic_adjust_resource(bus, child, r, start, end));
 
 #ifdef PCI_RES_BUS
 	if (type == PCI_RES_BUS) {

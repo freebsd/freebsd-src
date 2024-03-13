@@ -399,7 +399,6 @@ METHOD int deactivate_resource {
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which allocated the resource
- * @param _type		the type of resource
  * @param _res		the resource to adjust
  * @param _start	the new starting address of the resource range
  * @param _end		the new ending address of the resource range
@@ -407,7 +406,6 @@ METHOD int deactivate_resource {
 METHOD int adjust_resource {
 	device_t	_dev;
 	device_t	_child;
-	int		_type;
 	struct resource *_res;
 	rman_res_t	_start;
 	rman_res_t	_end;

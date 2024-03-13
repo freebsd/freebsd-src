@@ -81,7 +81,7 @@ static int lbc_deactivate_resource(device_t bus,
 static struct rman *lbc_get_rman(device_t, int, u_int);
 static struct resource *lbc_alloc_resource(device_t, device_t, int, int *,
     rman_res_t, rman_res_t, rman_res_t, u_int);
-static int lbc_adjust_resource(device_t, device_t, int, struct resource *,
+static int lbc_adjust_resource(device_t, device_t, struct resource *,
     rman_res_t, rman_res_t);
 static int lbc_print_child(device_t, device_t);
 static int lbc_release_resource(device_t, device_t, int, int,
@@ -762,19 +762,15 @@ lbc_print_child(device_t dev, device_t child)
 }
 
 static int
-lbc_adjust_resource(device_t dev, device_t child, int type, struct resource *r,
+lbc_adjust_resource(device_t dev, device_t child, struct resource *r,
     rman_res_t start, rman_res_t end)
 {
-	switch (type) {
-	case SYS_RES_IOPORT:
-		type = SYS_RES_MEMORY;
-		/* FALLTHROUGH */
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
-		return (bus_generic_rman_adjust_resource(dev, child, type, r,
-		    start, end));
-	case SYS_RES_IRQ:
-		return (bus_generic_adjust_resource(dev, child, type, r, start,
+		return (bus_generic_rman_adjust_resource(dev, child, r, start,
 		    end));
+	case SYS_RES_IRQ:
+		return (bus_generic_adjust_resource(dev, child, r, start, end));
 	default:
 		return (EINVAL);
 	}

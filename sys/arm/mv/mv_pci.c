@@ -345,7 +345,7 @@ static int mv_pcib_attach(device_t);
 static struct rman *mv_pcib_get_rman(device_t, int, u_int);
 static struct resource *mv_pcib_alloc_resource(device_t, device_t, int, int *,
     rman_res_t, rman_res_t, rman_res_t, u_int);
-static int mv_pcib_adjust_resource(device_t, device_t, int, struct resource *,
+static int mv_pcib_adjust_resource(device_t, device_t, struct resource *,
     rman_res_t, rman_res_t);
 static int mv_pcib_release_resource(device_t, device_t, int, int,
     struct resource *);
@@ -941,26 +941,25 @@ mv_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
-mv_pcib_adjust_resource(device_t dev, device_t child, int type,
+mv_pcib_adjust_resource(device_t dev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end)
 {
 #ifdef PCI_RES_BUS
 	struct mv_pcib_softc *sc = device_get_softc(dev);
 #endif
 
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
-		return (bus_generic_rman_adjust_resource(dev, child, type, r,
-		    start, end));
+		return (bus_generic_rman_adjust_resource(dev, child, r, start,
+		    end));
 #ifdef PCI_RES_BUS
 	case PCI_RES_BUS:
 		return (pci_domain_adjust_bus(sc->ap_segment, child, r, start,
 		    end));
 #endif
 	default:
-		return (bus_generic_adjust_resource(dev, child, type, r,
-		    start, end));
+		return (bus_generic_adjust_resource(dev, child, r, start, end));
 	}
 }
 

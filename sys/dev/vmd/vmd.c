@@ -469,16 +469,14 @@ vmd_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
-vmd_adjust_resource(device_t dev, device_t child, int type,
+vmd_adjust_resource(device_t dev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end)
 {
 
-	if (type == SYS_RES_IRQ) {
-		return (bus_generic_adjust_resource(dev, child, type, r,
-		    start, end));
+	if (rman_get_type(r) == SYS_RES_IRQ) {
+		return (bus_generic_adjust_resource(dev, child, r, start, end));
 	}
-	return (bus_generic_rman_adjust_resource(dev, child, type, r, start,
-	    end));
+	return (bus_generic_rman_adjust_resource(dev, child, r, start, end));
 }
 
 static int

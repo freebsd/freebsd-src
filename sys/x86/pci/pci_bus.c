@@ -607,13 +607,13 @@ legacy_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 int
-legacy_pcib_adjust_resource(device_t dev, device_t child, int type,
+legacy_pcib_adjust_resource(device_t dev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end)
 {
 
-	if (type == PCI_RES_BUS)
+	if (rman_get_type(r) == PCI_RES_BUS)
 		return (pci_domain_adjust_bus(0, child, r, start, end));
-	return (bus_generic_adjust_resource(dev, child, type, r, start, end));
+	return (bus_generic_adjust_resource(dev, child, r, start, end));
 }
 
 int

@@ -614,7 +614,7 @@ generic_pcie_deactivate_resource(device_t dev, device_t child, int type,
 }
 
 static int
-generic_pcie_adjust_resource(device_t dev, device_t child, int type,
+generic_pcie_adjust_resource(device_t dev, device_t child,
     struct resource *res, rman_res_t start, rman_res_t end)
 {
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
@@ -622,7 +622,7 @@ generic_pcie_adjust_resource(device_t dev, device_t child, int type,
 
 	sc = device_get_softc(dev);
 #endif
-	switch (type) {
+	switch (rman_get_type(res)) {
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	case PCI_RES_BUS:
 		return (pci_domain_adjust_bus(sc->ecam, child, res, start,
@@ -630,11 +630,11 @@ generic_pcie_adjust_resource(device_t dev, device_t child, int type,
 #endif
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
-		return (bus_generic_rman_adjust_resource(dev, child, type, res,
+		return (bus_generic_rman_adjust_resource(dev, child, res,
 		    start, end));
 	default:
-		return (bus_generic_adjust_resource(dev, child, type, res,
-		    start, end));
+		return (bus_generic_adjust_resource(dev, child, res, start,
+		    end));
 	}
 }
 

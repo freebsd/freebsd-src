@@ -1570,13 +1570,13 @@ acpi_managed_resource(device_t bus, int type, struct resource *r)
 }
 
 static int
-acpi_adjust_resource(device_t bus, device_t child, int type, struct resource *r,
+acpi_adjust_resource(device_t bus, device_t child, struct resource *r,
     rman_res_t start, rman_res_t end)
 {
 
     if (acpi_is_resource_managed(bus, r))
 	return (rman_adjust_resource(r, start, end));
-    return (bus_generic_adjust_resource(bus, child, type, r, start, end));
+    return (bus_generic_adjust_resource(bus, child, r, start, end));
 }
 
 static int

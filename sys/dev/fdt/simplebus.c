@@ -46,8 +46,6 @@
 static int		simplebus_probe(device_t dev);
 static struct resource *simplebus_alloc_resource(device_t, device_t, int,
     int *, rman_res_t, rman_res_t, rman_res_t, u_int);
-static int		simplebus_adjust_resource(device_t bus, device_t child,
-    int type, struct resource *r, rman_res_t start, rman_res_t end);
 static int		simplebus_release_resource(device_t bus, device_t child,
     int type, int rid, struct resource *r);
 static int		simplebus_activate_resource(device_t bus,
@@ -99,7 +97,7 @@ static device_method_t	simplebus_methods[] = {
 	DEVMETHOD(bus_release_resource,	simplebus_release_resource),
 	DEVMETHOD(bus_activate_resource, simplebus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, simplebus_deactivate_resource),
-	DEVMETHOD(bus_adjust_resource,	simplebus_adjust_resource),
+	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
 	DEVMETHOD(bus_map_resource,	simplebus_map_resource),
 	DEVMETHOD(bus_unmap_resource,	simplebus_unmap_resource),
 	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
@@ -494,16 +492,6 @@ simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	return (bus_generic_alloc_resource(bus, child, type, rid, start, end,
 	    count, flags));
-}
-
-static int
-simplebus_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *r, rman_res_t start, rman_res_t end)
-{
-
-	if (type == SYS_RES_IOPORT)
-		type = SYS_RES_MEMORY;
-	return (bus_generic_adjust_resource(bus, child, type, r, start, end));
 }
 
 static int
