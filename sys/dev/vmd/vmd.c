@@ -525,7 +525,7 @@ vmd_find_parent_resource(struct vmd_softc *sc, struct resource *r)
 }
 
 static int
-vmd_map_resource(device_t dev, device_t child, int type, struct resource *r,
+vmd_map_resource(device_t dev, device_t child, struct resource *r,
     struct resource_map_request *argsp, struct resource_map *map)
 {
 	struct vmd_softc *sc = device_get_softc(dev);
@@ -549,11 +549,11 @@ vmd_map_resource(device_t dev, device_t child, int type, struct resource *r,
 
 	args.offset = start - rman_get_start(pres);
 	args.length = length;
-	return (bus_generic_map_resource(dev, child, type, pres, &args, map));
+	return (bus_generic_map_resource(dev, child, pres, &args, map));
 }
 
 static int
-vmd_unmap_resource(device_t dev, device_t child, int type, struct resource *r,
+vmd_unmap_resource(device_t dev, device_t child, struct resource *r,
     struct resource_map *map)
 {
 	struct vmd_softc *sc = device_get_softc(dev);
@@ -561,7 +561,7 @@ vmd_unmap_resource(device_t dev, device_t child, int type, struct resource *r,
 	r = vmd_find_parent_resource(sc, r);
 	if (r == NULL)
 		return (ENOENT);
-	return (bus_generic_unmap_resource(dev, child, type, r, map));
+	return (bus_generic_unmap_resource(dev, child, r, map));
 }
 
 static int

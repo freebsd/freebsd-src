@@ -69,9 +69,9 @@ static MALLOC_DEFINE(M_LBC, "localbus", "localbus devices information");
 static int lbc_probe(device_t);
 static int lbc_attach(device_t);
 static int lbc_shutdown(device_t);
-static int lbc_map_resource(device_t, device_t, int, struct resource *,
+static int lbc_map_resource(device_t, device_t, struct resource *,
     struct resource_map_request *, struct resource_map *);
-static int lbc_unmap_resource(device_t, device_t, int, struct resource *,
+static int lbc_unmap_resource(device_t, device_t, struct resource *,
     struct resource_map *map);
 static int lbc_activate_resource(device_t bus, device_t child,
     int type, int rid, struct resource *r);
@@ -831,7 +831,7 @@ lbc_deactivate_resource(device_t bus, device_t child, int type, int rid,
 }
 
 static int
-lbc_map_resource(device_t bus, device_t child, int type, struct resource *r,
+lbc_map_resource(device_t bus, device_t child, struct resource *r,
     struct resource_map_request *argsp, struct resource_map *map)
 {
 	struct resource_map_request args;
@@ -843,7 +843,7 @@ lbc_map_resource(device_t bus, device_t child, int type, struct resource *r,
 		return (ENXIO);
 
 	/* Mappings are only supported on I/O and memory resources. */
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		break;
@@ -864,12 +864,12 @@ lbc_map_resource(device_t bus, device_t child, int type, struct resource *r,
 }
 
 static int
-lbc_unmap_resource(device_t bus, device_t child, int type, struct resource *r,
+lbc_unmap_resource(device_t bus, device_t child, struct resource *r,
     struct resource_map *map)
 {
 
 	/* Mappings are only supported on I/O and memory resources. */
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		break;

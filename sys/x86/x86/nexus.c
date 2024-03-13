@@ -376,18 +376,19 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 static int
-nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
+nexus_map_resource(device_t bus, device_t child, struct resource *r,
     struct resource_map_request *argsp, struct resource_map *map)
 {
 	struct resource_map_request args;
 	rman_res_t length, start;
-	int error;
+	int error, type;
 
 	/* Resources must be active to be mapped. */
 	if (!(rman_get_flags(r) & RF_ACTIVE))
 		return (ENXIO);
 
 	/* Mappings are only supported on I/O and memory resources. */
+	type = rman_get_type(r);
 	switch (type) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
@@ -426,14 +427,14 @@ nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
 }
 
 static int
-nexus_unmap_resource(device_t bus, device_t child, int type, struct resource *r,
+nexus_unmap_resource(device_t bus, device_t child, struct resource *r,
     struct resource_map *map)
 {
 
 	/*
 	 * If this is a memory resource, unmap it.
 	 */
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
 		pmap_unmapdev(map->r_vaddr, map->r_size);
 		/* FALLTHROUGH */

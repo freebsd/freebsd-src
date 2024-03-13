@@ -468,7 +468,7 @@ ssize_t	bus_generic_get_property(device_t dev, device_t child,
 				 size_t size, device_property_type_t type);
 struct resource_list *
 	bus_generic_get_resource_list(device_t, device_t);
-int	bus_generic_map_resource(device_t dev, device_t child, int type,
+int	bus_generic_map_resource(device_t dev, device_t child,
 				 struct resource *r,
 				 struct resource_map_request *args,
 				 struct resource_map *map);
@@ -526,7 +526,7 @@ int	bus_generic_suspend_intr(device_t dev, device_t child,
 				  struct resource *irq);
 int	bus_generic_resume_intr(device_t dev, device_t child,
 				  struct resource *irq);
-int	bus_generic_unmap_resource(device_t dev, device_t child, int type,
+int	bus_generic_unmap_resource(device_t dev, device_t child,
 				   struct resource *r,
 				   struct resource_map *map);
 int	bus_generic_write_ivar(device_t dev, device_t child, int which,
@@ -565,10 +565,10 @@ int	bus_activate_resource(device_t dev, int type, int rid,
 			      struct resource *r);
 int	bus_deactivate_resource(device_t dev, int type, int rid,
 				struct resource *r);
-int	bus_map_resource(device_t dev, int type, struct resource *r,
+int	bus_map_resource(device_t dev, struct resource *r,
 			 struct resource_map_request *args,
 			 struct resource_map *map);
-int	bus_unmap_resource(device_t dev, int type, struct resource *r,
+int	bus_unmap_resource(device_t dev, struct resource *r,
 			   struct resource_map *map);
 int	bus_get_cpus(device_t dev, enum cpu_sets op, size_t setsize,
 		     struct _cpuset *cpuset);
@@ -618,10 +618,11 @@ int	bus_adjust_resource_old(device_t child, int type, struct resource *r,
     rman_res_t start, rman_res_t end);
 int	bus_activate_resource_new(device_t dev, struct resource *r);
 int	bus_deactivate_resource_new(device_t dev, struct resource *r);
-int	bus_map_resource_new(device_t dev, struct resource *r,
-    struct resource_map_request *args, struct resource_map *map);
-int	bus_unmap_resource_new(device_t dev, struct resource *r,
-    struct resource_map *map);
+int	bus_map_resource_old(device_t dev, int type, struct resource *r,
+			     struct resource_map_request *args,
+			     struct resource_map *map);
+int	bus_unmap_resource_old(device_t dev, int type, struct resource *r,
+			       struct resource_map *map);
 int	bus_release_resource_new(device_t dev, struct resource *r);
 
 #define	_BUS_API_MACRO(_1, _2, _3, _4, _5, NAME, ...)	NAME
@@ -639,12 +640,12 @@ int	bus_release_resource_new(device_t dev, struct resource *r);
 	    INVALID, bus_deactivate_resource_new)(__VA_ARGS__)
 
 #define	bus_map_resource(...)						\
-	_BUS_API_MACRO(__VA_ARGS__, bus_map_resource,			\
-	    bus_map_resource_new)(__VA_ARGS__)
+	_BUS_API_MACRO(__VA_ARGS__, bus_map_resource_old,		\
+	    bus_map_resource)(__VA_ARGS__)
 
 #define	bus_unmap_resource(...)						\
-	_BUS_API_MACRO(__VA_ARGS__, INVALID, bus_unmap_resource,	\
-	    bus_unmap_resource_new)(__VA_ARGS__)
+	_BUS_API_MACRO(__VA_ARGS__, INVALID, bus_unmap_resource_old,	\
+	    bus_unmap_resource)(__VA_ARGS__)
 
 #define	bus_release_resource(...)					\
 	_BUS_API_MACRO(__VA_ARGS__, INVALID, bus_release_resource,	\

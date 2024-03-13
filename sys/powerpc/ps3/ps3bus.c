@@ -61,10 +61,10 @@ static struct rman *ps3bus_get_rman(device_t bus, int type, u_int flags);
 static struct resource *ps3bus_alloc_resource(device_t bus, device_t child,
 		    int type, int *rid, rman_res_t start, rman_res_t end,
 		    rman_res_t count, u_int flags);
-static int	ps3bus_map_resource(device_t bus, device_t child, int type,
+static int	ps3bus_map_resource(device_t bus, device_t child,
 		    struct resource *r, struct resource_map_request *argsp,
 		    struct resource_map *map);
-static int	ps3bus_unmap_resource(device_t bus, device_t child, int type,
+static int	ps3bus_unmap_resource(device_t bus, device_t child,
 		    struct resource *r, struct resource_map *map);
 static bus_dma_tag_t ps3bus_get_dma_tag(device_t dev, device_t child);
 static int	ps3_iommu_map(device_t dev, bus_dma_segment_t *segs, int *nsegs,
@@ -600,7 +600,7 @@ ps3bus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 static int
-ps3bus_map_resource(device_t bus, device_t child, int type, struct resource *r,
+ps3bus_map_resource(device_t bus, device_t child, struct resource *r,
     struct resource_map_request *argsp, struct resource_map *map)
 {
 	struct resource_map_request args;
@@ -612,7 +612,7 @@ ps3bus_map_resource(device_t bus, device_t child, int type, struct resource *r,
 		return (ENXIO);
 
 	/* Mappings are only supported on memory resources. */
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
 		break;
 	default:
@@ -637,11 +637,11 @@ ps3bus_map_resource(device_t bus, device_t child, int type, struct resource *r,
 }
 
 static int
-ps3bus_unmap_resource(device_t bus, device_t child, int type,
-    struct resource *r, struct resource_map *map)
+ps3bus_unmap_resource(device_t bus, device_t child, struct resource *r,
+    struct resource_map *map)
 {
 
-	switch (type) {
+	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
 		pmap_unmapdev(map->r_vaddr, map->r_size);
 		return (0);

@@ -2476,7 +2476,7 @@ pcib_activate_resource(device_t dev, device_t child, int type, int rid,
 
 	if ((rman_get_flags(r) & RF_UNMAPPED) == 0 &&
 	    (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT)) {
-		error = BUS_MAP_RESOURCE(dev, child, type, r, NULL, &map);
+		error = BUS_MAP_RESOURCE(dev, child, r, NULL, &map);
 		if (error != 0) {
 			rman_deactivate_resource(r);
 			return (error);
@@ -2506,7 +2506,7 @@ pcib_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	if ((rman_get_flags(r) & RF_UNMAPPED) == 0 &&
 	    (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT)) {
 		rman_get_mapping(r, &map);
-		BUS_UNMAP_RESOURCE(dev, child, type, r, &map);
+		BUS_UNMAP_RESOURCE(dev, child, r, &map);
 	}
 	return (0);
 }
@@ -2523,7 +2523,7 @@ pcib_find_parent_resource(struct pcib_window *w, struct resource *r)
 }
 
 static int
-pcib_map_resource(device_t dev, device_t child, int type, struct resource *r,
+pcib_map_resource(device_t dev, device_t child, struct resource *r,
     struct resource_map_request *argsp, struct resource_map *map)
 {
 	struct pcib_softc *sc = device_get_softc(dev);
@@ -2535,8 +2535,7 @@ pcib_map_resource(device_t dev, device_t child, int type, struct resource *r,
 
 	w = pcib_get_resource_window(sc, r);
 	if (w == NULL)
-		return (bus_generic_map_resource(dev, child, type, r, argsp,
-		    map));
+		return (bus_generic_map_resource(dev, child, r, argsp, map));
 
 	/* Resources must be active to be mapped. */
 	if (!(rman_get_flags(r) & RF_ACTIVE))
@@ -2553,11 +2552,11 @@ pcib_map_resource(device_t dev, device_t child, int type, struct resource *r,
 
 	args.offset = start - rman_get_start(pres);
 	args.length = length;
-	return (bus_generic_map_resource(dev, child, type, pres, &args, map));
+	return (bus_generic_map_resource(dev, child, pres, &args, map));
 }
 
 static int
-pcib_unmap_resource(device_t dev, device_t child, int type, struct resource *r,
+pcib_unmap_resource(device_t dev, device_t child, struct resource *r,
     struct resource_map *map)
 {
 	struct pcib_softc *sc = device_get_softc(dev);
@@ -2569,7 +2568,7 @@ pcib_unmap_resource(device_t dev, device_t child, int type, struct resource *r,
 		if (r == NULL)
 			return (ENOENT);
 	}
-	return (bus_generic_unmap_resource(dev, child, type, r, map));
+	return (bus_generic_unmap_resource(dev, child, r, map));
 }
 #else
 /*
