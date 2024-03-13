@@ -4545,6 +4545,13 @@ bus_adjust_resource(device_t dev, int type, struct resource *r, rman_res_t start
 	return (BUS_ADJUST_RESOURCE(dev->parent, dev, type, r, start, end));
 }
 
+int
+bus_adjust_resource_new(device_t dev, struct resource *r, rman_res_t start,
+    rman_res_t end)
+{
+	return (bus_adjust_resource(dev, rman_get_type(r), r, start, end));
+}
+
 /**
  * @brief Wrapper function for BUS_TRANSLATE_RESOURCE().
  *
@@ -4574,6 +4581,13 @@ bus_activate_resource(device_t dev, int type, int rid, struct resource *r)
 	return (BUS_ACTIVATE_RESOURCE(dev->parent, dev, type, rid, r));
 }
 
+int
+bus_activate_resource_new(device_t dev, struct resource *r)
+{
+	return (bus_activate_resource(dev, rman_get_type(r), rman_get_rid(r),
+	    r));
+}
+
 /**
  * @brief Wrapper function for BUS_DEACTIVATE_RESOURCE().
  *
@@ -4586,6 +4600,13 @@ bus_deactivate_resource(device_t dev, int type, int rid, struct resource *r)
 	if (dev->parent == NULL)
 		return (EINVAL);
 	return (BUS_DEACTIVATE_RESOURCE(dev->parent, dev, type, rid, r));
+}
+
+int
+bus_deactivate_resource_new(device_t dev, struct resource *r)
+{
+	return (bus_deactivate_resource(dev, rman_get_type(r), rman_get_rid(r),
+	    r));
 }
 
 /**
@@ -4603,6 +4624,13 @@ bus_map_resource(device_t dev, int type, struct resource *r,
 	return (BUS_MAP_RESOURCE(dev->parent, dev, type, r, args, map));
 }
 
+int
+bus_map_resource_new(device_t dev, struct resource *r,
+    struct resource_map_request *args, struct resource_map *map)
+{
+	return (bus_map_resource(dev, rman_get_type(r), r, args, map));
+}
+
 /**
  * @brief Wrapper function for BUS_UNMAP_RESOURCE().
  *
@@ -4616,6 +4644,13 @@ bus_unmap_resource(device_t dev, int type, struct resource *r,
 	if (dev->parent == NULL)
 		return (EINVAL);
 	return (BUS_UNMAP_RESOURCE(dev->parent, dev, type, r, map));
+}
+
+int
+bus_unmap_resource_new(device_t dev, struct resource *r,
+    struct resource_map *map)
+{
+	return (bus_unmap_resource(dev, rman_get_type(r), r, map));
 }
 
 /**
@@ -4633,6 +4668,13 @@ bus_release_resource(device_t dev, int type, int rid, struct resource *r)
 		return (EINVAL);
 	rv = BUS_RELEASE_RESOURCE(dev->parent, dev, type, rid, r);
 	return (rv);
+}
+
+int
+bus_release_resource_new(device_t dev, struct resource *r)
+{
+	return (bus_release_resource(dev, rman_get_type(r), rman_get_rid(r),
+	    r));
 }
 
 /**
