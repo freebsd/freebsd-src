@@ -28,10 +28,6 @@
 #include <sys/types.h>
 #include <ieeefp.h>
 
-#ifdef __weak_alias
-__weak_alias(fpgetmask,_fpgetmask)
-#endif
-
 #define FP_X_MASK	(FP_X_INV | FP_X_DZ | FP_X_OFL | FP_X_UFL | FP_X_IMP)
 
 fp_except_t
