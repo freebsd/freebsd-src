@@ -1,7 +1,5 @@
 CFLAGS+= -I${LIBC_SRCTOP}/powerpc
 CFLAGS+= -I${LIBSYS_SRCTOP}/powerpc
 
-SYM_MAPS+=	${LIBSYS_SRCTOP}/powerpc/Symbol.sys.map
-
 .PATH: ${LIBSYS_SRCTOP}/powerpc
 .include "${LIBSYS_SRCTOP}/powerpc/Makefile.sys"
