@@ -1,7 +1,7 @@
 # This is a generated file, do NOT edit!
 # See contrib/bmake/bsd.after-import.mk
 #
-# $Id: Makefile,v 1.210 2024/01/08 18:28:08 sjg Exp $
+# $Id: Makefile,v 1.211 2024/03/10 17:46:44 sjg Exp $
 #
 # $NetBSD: Makefile,v 1.342 2024/01/07 02:07:44 sjg Exp $
 #
@@ -476,6 +476,15 @@ BROKEN_TESTS+= sh-flags
 # this will not work if UTC_1 is set empty
 BROKEN_TESTS+= varmod-localtime
 .endif
+
+.if ${.MAKE.OS:NCYGWIN*} == ""
+BROKEN_TESTS+= \
+	export \
+	opt-chdir \
+	opt-keep-going-indirect \
+
+.endif
+
 
 .if ${.MAKE.OS:NDarwin} == ""
 BROKEN_TESTS+= shell-ksh
