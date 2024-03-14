@@ -86,6 +86,7 @@ post=$SB/tmp/bmake-post.sh
 # this is similar to what generates the mail to bmake-announce
 gen_import_F() {
     echo Import bmake-$VERSION
+    echo
 
     if [ -s $post ]; then
 	last=`sed -n '/ tag/s,.*/,bmake-,p' $post`
