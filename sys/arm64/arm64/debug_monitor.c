@@ -40,6 +40,7 @@
 #include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/debug_monitor.h>
+#include <machine/machdep.h>
 #include <machine/kdb.h>
 #include <machine/pcb.h>
 
@@ -86,6 +87,7 @@ void dbg_monitor_exit(struct thread *, struct trapframe *);
 #define DBG_WATCH_CTRL_ACCESS_MASK(x)	((x) & (0x3 << 3))
 
 /* Common for breakpoint and watchpoint */
+#define DBG_WB_CTRL_HMC		(0x1 << 13)
 #define DBG_WB_CTRL_EL1		(0x1 << 1)
 #define DBG_WB_CTRL_EL0		(0x2 << 1)
 #define DBG_WB_CTRL_ELX_MASK(x)	((x) & (0x3 << 1))
@@ -457,6 +459,8 @@ dbg_setup_breakpoint(struct debug_monitor_state *monitor, vm_offset_t addr)
 
 	if ((monitor->dbg_flags & DBGMON_KERNEL) == 0)
 		bcr_priv = DBG_WB_CTRL_EL0;
+	else if (in_vhe())
+		bcr_priv = DBG_WB_CTRL_EL1 | DBG_WB_CTRL_HMC;
 	else
 		bcr_priv = DBG_WB_CTRL_EL1;
 
@@ -530,6 +534,8 @@ dbg_setup_watchpoint(struct debug_monitor_state *monitor, vm_offset_t addr,
 
 	if ((monitor->dbg_flags & DBGMON_KERNEL) == 0)
 		wcr_priv = DBG_WB_CTRL_EL0;
+	else if (in_vhe())
+		wcr_priv = DBG_WB_CTRL_EL1 | DBG_WB_CTRL_HMC;
 	else
 		wcr_priv = DBG_WB_CTRL_EL1;
 
