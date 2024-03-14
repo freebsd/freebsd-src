@@ -193,6 +193,15 @@ kdb_cpu_set_singlestep(void)
 	    ("%s: debug exceptions are not masked", __func__));
 
 	kdb_frame->tf_spsr |= PSR_SS;
+
+	/*
+	 * TODO: Handle single stepping over instructions that access
+	 * the DAIF values. On a read the value will be incorrect.
+	 */
+	kernel_monitor.dbg_flags &= ~PSR_DAIF;
+	kernel_monitor.dbg_flags |= kdb_frame->tf_spsr & PSR_DAIF;
+	kdb_frame->tf_spsr |= (PSR_A | PSR_I | PSR_F);
+
 	WRITE_SPECIALREG(mdscr_el1, READ_SPECIALREG(mdscr_el1) |
 	    MDSCR_SS | MDSCR_KDE);
 
@@ -213,6 +222,9 @@ kdb_cpu_clear_singlestep(void)
 
 	KASSERT((READ_SPECIALREG(daif) & PSR_D) == PSR_D,
 	    ("%s: debug exceptions are not masked", __func__));
+
+	kdb_frame->tf_spsr &= ~PSR_DAIF;
+	kdb_frame->tf_spsr |= kernel_monitor.dbg_flags & PSR_DAIF;
 
 	WRITE_SPECIALREG(mdscr_el1, READ_SPECIALREG(mdscr_el1) &
 	    ~(MDSCR_SS | MDSCR_KDE));
