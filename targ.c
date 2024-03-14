@@ -1,4 +1,4 @@
-/*	$NetBSD: targ.c,v 1.179 2022/12/06 00:12:44 rillig Exp $	*/
+/*	$NetBSD: targ.c,v 1.180 2024/03/10 02:53:37 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -107,7 +107,7 @@
 #include "dir.h"
 
 /*	"@(#)targ.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: targ.c,v 1.179 2022/12/06 00:12:44 rillig Exp $");
+MAKE_RCSID("$NetBSD: targ.c,v 1.180 2024/03/10 02:53:37 sjg Exp $");
 
 /*
  * All target nodes that appeared on the left-hand side of one of the
@@ -201,6 +201,7 @@ GNode_New(const char *name)
 	gn->suffix = NULL;
 	gn->fname = NULL;
 	gn->lineno = 0;
+	gn->exit_status = 0;
 
 #ifdef CLEANUP
 	Lst_Append(&allNodes, gn);

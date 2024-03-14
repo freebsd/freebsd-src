@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.609 2024/01/07 01:33:57 sjg Exp $	*/
+/*	$NetBSD: main.c,v 1.612 2024/03/10 02:53:37 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -111,7 +111,7 @@
 #include "trace.h"
 
 /*	"@(#)main.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: main.c,v 1.609 2024/01/07 01:33:57 sjg Exp $");
+MAKE_RCSID("$NetBSD: main.c,v 1.612 2024/03/10 02:53:37 sjg Exp $");
 #if defined(MAKE_NATIVE)
 __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993 "
 	    "The Regents of the University of California.  "
@@ -698,20 +698,6 @@ Main_ParseArgLine(const char *line)
 	if (p[0] == '\0')
 		return;
 
-#ifndef POSIX
-	{
-		/*
-		 * $MAKE may simply be naming the make(1) binary
-		 */
-		char *cp;
-
-		if (!(cp = strrchr(line, '/')))
-			cp = line;
-		if ((cp = strstr(cp, "make")) &&
-		    strcmp(cp, "make") == 0)
-			return;
-	}
-#endif
 	{
 		FStr argv0 = Var_Value(SCOPE_GLOBAL, ".MAKE");
 		buf = str_concat3(argv0.str, " ", p);
@@ -1450,20 +1436,11 @@ main_Init(int argc, char **argv)
 #endif
 	Dir_Init();
 
-#ifdef POSIX
 	{
 		char *makeflags = explode(getenv("MAKEFLAGS"));
 		Main_ParseArgLine(makeflags);
 		free(makeflags);
 	}
-#else
-	/*
-	 * First snag any flags out of the MAKE environment variable.
-	 * (Note this is *not* MAKEFLAGS since /bin/make uses that and it's
-	 * in a different format).
-	 */
-	Main_ParseArgLine(getenv("MAKE"));
-#endif
 
 	if (getcwd(curdir, MAXPATHLEN) == NULL) {
 		(void)fprintf(stderr, "%s: getcwd: %s.\n",
@@ -1776,7 +1753,7 @@ Cmd_Exec(const char *cmd, char **error)
 		return bmake_strdup("");
 	}
 
-	Var_ReexportVars();
+	Var_ReexportVars(SCOPE_GLOBAL);
 
 	switch (cpid = vfork()) {
 	case 0:
@@ -2078,10 +2055,13 @@ static void
 SetErrorVars(GNode *gn)
 {
 	StringListNode *ln;
+	char sts[16];
 
 	/*
 	 * We can print this even if there is no .ERROR target.
 	 */
+	snprintf(sts, sizeof(sts), "%d", gn->exit_status);
+	Global_Set(".ERROR_EXIT", sts);
 	Global_Set(".ERROR_TARGET", gn->name);
 	Global_Delete(".ERROR_CMD");
 
@@ -2155,13 +2135,8 @@ Main_ExportMAKEFLAGS(bool first)
 	    "${.MAKEFLAGS} ${.MAKEOVERRIDES:O:u:@v@$v=${$v:Q}@}",
 	    SCOPE_CMDLINE, VARE_WANTRES);
 	/* TODO: handle errors */
-	if (flags[0] != '\0') {
-#ifdef POSIX
+	if (flags[0] != '\0')
 		setenv("MAKEFLAGS", flags, 1);
-#else
-		setenv("MAKE", flags, 1);
-#endif
-	}
 }
 
 char *

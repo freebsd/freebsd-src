@@ -1,6 +1,7 @@
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # RCSid:
-#	$Id: java.mk,v 1.16 2021/12/08 05:56:50 sjg Exp $
+#	$Id: java.mk,v 1.17 2024/02/17 17:26:57 sjg Exp $
 
 #	@(#) Copyright (c) 1998-2001, Simon J. Gerraty
 #

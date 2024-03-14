@@ -1,7 +1,10 @@
-# $Id: lib.mk,v 1.81 2023/10/03 18:18:57 sjg Exp $
+# $Id: lib.mk,v 1.84 2024/02/19 00:06:19 sjg Exp $
 
-.if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__: .NOTMAIN
+# should be set properly in sys.mk
+_this ?= ${.PARSEFILE:S,bsd.,,}
+
+.if !target(__${_this}__)
+__${_this}__: .NOTMAIN
 
 .include <init.mk>
 
@@ -30,10 +33,9 @@ SHLIB_FULLVERSION := ${SHLIB_FULLVERSION}
 
 # add additional suffixes not exported.
 # .po is used for profiling object files.
-# ${PICO} is used for PIC object files.
-PICO?= .pico
-.SUFFIXES: .out .a .ln ${PICO} .po .o .s .S .c .cc .C .m .F .f .r .y .l .cl .p .h
-.SUFFIXES: .sh .m4 .m
+.SUFFIXES: .out .a .ln ${PICO} ${PCM} .po .o .s .S .c ${CXX_SUFFIXES} \
+	${CCM_SUFFIXES} .m .F .f .r .y .l .cl .p .h \
+	.sh .m4 .m
 
 CFLAGS+=	${COPTS}
 
@@ -267,6 +269,10 @@ SHLIB_AGE != . ${.CURDIR}/shlib_version ; echo $$age
 .c.o:
 	${COMPILE.c} ${.IMPSRC}
 
+# precompiled C++ Modules
+${CCM_SUFFIXES:%=%${PCM}}:
+	${COMPILE.pcm} ${.IMPSRC}
+
 # for the normal .a we do not want to strip symbols
 ${CXX_SUFFIXES:%=%.o}:
 	${COMPILE.cc} ${.IMPSRC}
@@ -380,6 +386,8 @@ _LIBS+= ${libLDORDER_INC}
 
 .include <ldorder.mk>
 .endif
+# avoid -dL errors
+LDADD_LDORDER ?=
 
 .if !defined(_SKIP_BUILD)
 realbuild: ${_LIBS}
@@ -387,11 +395,13 @@ realbuild: ${_LIBS}
 
 all: _SUBDIRUSE
 
-.for s in ${SRCS:N*.h:M*/*}
+OBJS_SRCS = ${SRCS:${OBJS_SRCS_FILTER}}
+
+.for s in ${OBJS_SRCS:M*/*}
 ${.o ${PICO} .po .lo:L:@o@${s:T:R}$o@}: $s
 .endfor
 
-OBJS+=	${SRCS:T:N*.h:R:S/$/.o/g}
+OBJS+=	${OBJS_SRCS:T:R:S/$/.o/g}
 .NOPATH:	${OBJS}
 
 .if ${MK_LIBTOOL} == "yes"

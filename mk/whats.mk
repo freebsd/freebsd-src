@@ -1,4 +1,6 @@
-# $Id: whats.mk,v 1.11 2023/01/29 17:29:13 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: whats.mk,v 1.12 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2014-2020, Simon J. Gerraty
 #

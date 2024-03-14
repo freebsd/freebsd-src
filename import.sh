@@ -92,6 +92,7 @@ gen_import_F() {
     else
 	last="last import"
     fi
+    echo Intersting/relevant changes since $last; echo
     for C in ChangeLog */ChangeLog
     do
 	$GIT diff --staged $C |

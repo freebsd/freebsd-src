@@ -1,4 +1,6 @@
-# $Id: files.mk,v 1.7 2020/08/19 17:51:53 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: files.mk,v 1.8 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2017, Simon J. Gerraty
 #

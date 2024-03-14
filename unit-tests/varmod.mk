@@ -1,4 +1,4 @@
-# $NetBSD: varmod.mk,v 1.9 2023/11/19 21:47:52 rillig Exp $
+# $NetBSD: varmod.mk,v 1.10 2024/02/03 00:20:23 sjg Exp $
 #
 # Tests for variable modifiers, such as :Q, :S,from,to or :Ufallback.
 #
@@ -55,6 +55,9 @@
 # | `t`          | strict       |                    | no       |
 # | `u`          | strict       |                    | yes      |
 # | `from=to`    | greedy       | SysV, fallback     | N/A      |
+
+# These tests assume
+.MAKE.SAVE_DOLLARS = yes
 
 DOLLAR1=	$$
 DOLLAR2=	${:U\$}

@@ -1,4 +1,6 @@
-# $Id: posix.mk,v 1.2 2022/03/25 23:55:37 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: posix.mk,v 1.3 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2022, Simon J. Gerraty
 #

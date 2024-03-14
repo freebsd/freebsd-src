@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.372 2023/12/24 16:48:30 sjg Exp $
+.\"	$NetBSD: make.1,v 1.375 2024/03/10 02:53:37 sjg Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd December 24, 2023
+.Dd March 9, 2024
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -879,6 +879,9 @@ Is used in error handling, see
 .It Va .ERROR_CWD
 Is used in error handling, see
 .Va MAKE_PRINT_VAR_ON_ERROR .
+.It Va .ERROR_EXIT
+Is used in error handling, see
+.Va MAKE_PRINT_VAR_ON_ERROR .
 .It Va .ERROR_META_FILE
 Is used in error handling in
 .Dq meta
@@ -1185,6 +1188,8 @@ When
 stops due to an error, it sets
 .Sq Va .ERROR_TARGET
 to the name of the target that failed,
+.Sq Va .ERROR_EXIT
+to the exit status of the failed target,
 .Sq Va .ERROR_CMD
 to the commands of the failed target,
 and in
@@ -1775,8 +1780,9 @@ modifier which is later referenced using the index values from
 .Ql :range .
 .It Cm \&:U\| Ns Ar newval
 If the variable is undefined,
+the optional
 .Ar newval
-is the value.
+(which may be empty) is the value.
 If the variable is defined, the existing value is returned.
 This is another ODE make feature.
 It is handy for setting per-target CFLAGS for instance:
@@ -1786,7 +1792,7 @@ If a value is only required if the variable is undefined, use:
 .It Cm \&:D\| Ns Ar newval
 If the variable is defined,
 .Ar newval
-is the value.
+(which may be empty) is the value.
 .It Cm \&:L
 The name of the variable is the value.
 .It Cm \&:P
@@ -2405,11 +2411,9 @@ Any command lines attached to this target are executed after everything
 else is done successfully.
 .It Ic .ERROR
 Any command lines attached to this target are executed when another target fails.
-The
-.Va .ERROR_TARGET
-variable is set to the target that failed.
-See also
-.Va MAKE_PRINT_VAR_ON_ERROR .
+See 
+.Va MAKE_PRINT_VAR_ON_ERROR
+for the variables that will be set.
 .It Ic .IGNORE
 Mark each of the sources with the
 .Ic .IGNORE

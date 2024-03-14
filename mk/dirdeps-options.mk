@@ -1,4 +1,6 @@
-# $Id: dirdeps-options.mk,v 1.21 2022/09/06 22:18:45 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: dirdeps-options.mk,v 1.22 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2018-2022, Simon J. Gerraty
 #
