@@ -36,8 +36,10 @@ We only pay attention to a subset of the information in the
 """
 
 """
+SPDX-License-Identifier: BSD-2-Clause
+
 RCSid:
-	$Id: meta2deps.py,v 1.45 2023/01/18 01:35:24 sjg Exp $
+	$Id: meta2deps.py,v 1.47 2024/02/17 17:26:57 sjg Exp $
 
 	Copyright (c) 2011-2020, Simon J. Gerraty
 	Copyright (c) 2011-2017, Juniper Networks, Inc.
@@ -74,8 +76,10 @@ import stat
 def resolve(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     """
     Return an absolute path, resolving via cwd or last_dir if needed.
+
+    Cleanup any leading ``./`` and trailing ``/.``
     """
-    if path.endswith('/.'):
+    while path.endswith('/.'):
         path = path[0:-2]
     if len(path) > 0 and path[0] == '/':
         if os.path.exists(path):
@@ -86,7 +90,9 @@ def resolve(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     if path == '.':
         return cwd
     if path.startswith('./'):
-        return cwd + path[1:]
+        while path.startswith('./'):
+            path = path[1:]
+        return cwd + path
     if last_dir == cwd:
         last_dir = None
     for d in [last_dir, cwd]:
@@ -144,6 +150,7 @@ def abspath(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
         return None
     if (path.find('/') < 0 or
         path.find('./') > 0 or
+        path.find('/../') > 0 or
         path.endswith('/..')):
         path = cleanpath(path)
     return path
@@ -197,7 +204,7 @@ class MetaFile:
 
     def __init__(self, name, conf={}):
         """if name is set we will parse it now.
-        conf can have the following keys:
+        conf can have the follwing keys:
 
         SRCTOPS list of tops of the src tree(s).
 
