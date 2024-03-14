@@ -1,6 +1,8 @@
-# $Id: init.mk,v 1.30 2023/10/03 16:25:01 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
 #
-#	@(#) Copyright (c) 2002, Simon J. Gerraty
+# $Id: init.mk,v 1.37 2024/02/25 19:12:13 sjg Exp $
+#
+#	@(#) Copyright (c) 2002-2024, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -13,8 +15,11 @@
 #	sjg@crufty.net
 #
 
-.if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__: .NOTMAIN
+# should be set properly in sys.mk
+_this ?= ${.PARSEFILE:S,bsd.,,}
+
+.if !target(__${_this}__)
+__${_this}__: .NOTMAIN
 
 .if ${MAKE_VERSION:U0} > 20100408
 _this_mk_dir := ${.PARSEDIR:tA}
@@ -27,10 +32,16 @@ _this_mk_dir := ${.PARSEDIR}
 .include <own.mk>
 .include <compiler.mk>
 
-.MAIN:		all
-
 # should have been set by sys.mk
-CXX_SUFFIXES?= .cc .cpp .cxx .C
+CXX_SUFFIXES ?= .cc .cpp .cxx .C
+CCM_SUFFIXES ?= .ccm
+PCM ?= .pcm
+# ${PICO} is used for PIC object files.
+PICO ?= .pico
+
+# SRCS which do not end up in OBJS
+NO_OBJS_SRCS_SUFFIXES ?= .h ${CCM_SUFFIXES} .sh
+OBJS_SRCS_FILTER += ${NO_OBJS_SRCS_SUFFIXES:@x@N*$x@:ts:}
 
 .if defined(PROG_CXX) || ${SRCS:Uno:${CXX_SUFFIXES:S,^,N*,:ts:}} != ${SRCS:Uno:N/}
 _CCLINK ?=	${CXX}
@@ -82,8 +93,12 @@ _SKIP_BUILD = not building at level 0
 .endif
 .elif ${.TARGETS:U:Nall} == ""
 _SKIP_BUILD = not building at level 0
+# first .MAIN is what counts
+.MAIN: dirdeps
 .endif
 .endif
+
+.MAIN:		all
 
 .if !defined(.PARSEDIR)
 # no-op is the best we can do if not bmake.

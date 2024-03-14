@@ -1,6 +1,8 @@
-# $Id: autoconf.mk,v 1.18 2023/03/22 15:37:19 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
 #
-#	@(#) Copyright (c) 1996-2009, Simon J. Gerraty
+# $Id: autoconf.mk,v 1.20 2024/02/17 17:26:57 sjg Exp $
+#
+#	@(#) Copyright (c) 1996-2024, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -52,7 +54,7 @@ CLEANFILES+= config.recheck config.gen config.status *.meta \
 # this is not quite per the autoconf manual,
 # and is extremely convoluted - but all utterly necessary!
 
-.if make(autoconf-in) || make(configure) || make(config.h.in) || ${AUTO_AUTOCONF:Uno:tl} == "yes"
+.if make(autoconf-input) || make(configure) || make(config.h.in) || ${MK_AUTO_AUTOCONF:Uno} == "yes"
 AUTOCONF ?= autoconf
 AUTOHEADER ?= autoheader
 
@@ -73,14 +75,23 @@ ACLOCAL += aclocal.m4
 .if exists(${.CURDIR}/acconfig.h)
 ACCONFIG += acconfig.h
 .endif
+.if exists(${.CURDIR}/configure.ac)
+CONFIGURE_SRC = ${.CURDIR}/configure.ac
+.else
+CONFIGURE_SRC ?= ${.CURDIR}/configure.in
+.endif
 
-config.h.in:	.NOTMAIN ${.CURDIR}/configure.in ${ACCONFIG}
+config.h.in:	.NOTMAIN ${CONFIGURE_SRC} ${ACCONFIG}
 	(cd ${.CURDIR} && ${AUTOHEADER})
 
-configure:	.NOTMAIN ${.CURDIR}/configure.in ${ACLOCAL}
+configure:	.NOTMAIN ${CONFIGURE_SRC} ${ACLOCAL}
 	(cd ${.CURDIR} && ${AUTOCONF})
 
 AUTOCONF_INPUTS += configure
+.if exists(${.CURDIR}/config.h.in)
+AUTOCONF_INPUTS += config.h.in
+.endif
+
 autoconf-input:	.NOTMAIN ${AUTOCONF_INPUTS}
 
 .endif

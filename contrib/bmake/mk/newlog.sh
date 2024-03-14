@@ -76,7 +76,9 @@
 #
 
 # RCSid:
-#	$Id: newlog.sh,v 1.26 2021/04/30 16:29:02 sjg Exp $
+#	$Id: newlog.sh,v 1.27 2024/02/17 17:26:57 sjg Exp $
+#
+#	SPDX-License-Identifier: BSD-2-Clause
 #
 #	@(#) Copyright (c) 1993-2016 Simon J. Gerraty
 #

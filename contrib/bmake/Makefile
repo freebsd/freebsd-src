@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.125 2023/05/17 00:15:46 sjg Exp $
+#	$Id: Makefile,v 1.126 2024/03/10 17:46:44 sjg Exp $
 
 PROG=	bmake
 
@@ -90,9 +90,8 @@ OS := ${.MAKE.OS:U${uname -s:L:sh}}
 # are we 4.4BSD ?
 isBSD44:=${BSD44_LIST:M${OS}}
 
-.if ${isBSD44} == "" && ${OS:NDarwin:NLinux} != ""
-MANTARGET= cat
-INSTALL?=${srcdir}/install-sh
+.if ${isBSD44} == "" && ${OS:NCYGWIN*:NDarwin:NLinux} != ""
+MANTARGET?= cat
 .if ${MACHINE} == "sun386"
 # even I don't have one of these anymore :-)
 CFLAGS+= -DPORTAR

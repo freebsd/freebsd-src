@@ -1,4 +1,6 @@
-# $Id: meta.autodep.mk,v 1.60 2024/01/09 23:42:22 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: meta.autodep.mk,v 1.62 2024/02/17 17:26:57 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -24,16 +26,16 @@ PICO?= .pico
 
 .if defined(SRCS)
 .if ${MAKE_VERSION:U0} >= 20211212
-OBJ_EXTENSIONS += ${.SUFFIXES:M*o}
+OBJ_SUFFIXES += ${.SUFFIXES:M*o}
 .else
 # it would be nice to be able to query .SUFFIXES
-OBJ_EXTENSIONS += .o .po .lo ${PICO}
+OBJ_SUFFIXES += .o .po .lo ${PICO}
 .endif
 
 # explicit dependencies help short-circuit .SUFFIX searches
 SRCS_DEP_FILTER+= N*.[hly]
 .for s in ${SRCS:${SRCS_DEP_FILTER:O:u:ts:}}
-.for e in ${OBJ_EXTENSIONS:O:u}
+.for e in ${OBJ_SUFFIXES:O:u}
 .if !target(${s:T:R}$e)
 ${s:T:R}$e: $s
 .endif
@@ -190,7 +192,7 @@ DEPEND_SUFFIXES += .c .h .cpp .hpp .cxx .hxx .cc .hh
 	@case "${.MAKE.META.FILES:T:M*.po.*}" in \
 	*.po.*) mv $@.${.MAKE.PID} $@;; \
 	*) { cat $@.${.MAKE.PID}; \
-	sed ${OBJ_EXTENSIONS:N.o:N.po:@o@-e 's,\$o:,.o:,'@} \
+	sed ${OBJ_SUFFIXES:N.o:N.po:@o@-e 's,\$o:,.o:,'@} \
 		-e 's,\.o:,.po:,' $@.${.MAKE.PID}; } | sort -u > $@; \
 	rm -f $@.${.MAKE.PID};; \
 	esac
@@ -330,5 +332,7 @@ _reldir_failed: .NOMETA
 .END: _reldir_finish
 .ERROR: _reldir_failed
 .endif
+
+.-include <ccm.dep.mk>
 
 .endif

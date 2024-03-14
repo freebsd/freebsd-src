@@ -1,4 +1,4 @@
-/*	$NetBSD: compat.c,v 1.252 2024/01/05 23:22:06 rillig Exp $	*/
+/*	$NetBSD: compat.c,v 1.254 2024/03/10 02:53:37 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -94,7 +94,7 @@
 #include "pathnames.h"
 
 /*	"@(#)compat.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: compat.c,v 1.252 2024/01/05 23:22:06 rillig Exp $");
+MAKE_RCSID("$NetBSD: compat.c,v 1.254 2024/03/10 02:53:37 sjg Exp $");
 
 static GNode *curTarg = NULL;
 static pid_t compatChild;
@@ -329,7 +329,7 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 		meta_compat_start();
 #endif
 
-	Var_ReexportVars();
+	Var_ReexportVars(gn);
 
 	compatChild = cpid = vfork();
 	if (cpid < 0)
@@ -393,6 +393,8 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 				meta_job_error(NULL, gn, false, status);
 #endif
 			gn->made = ERROR;
+			if (WIFEXITED(reason))
+				gn->exit_status = status;
 			if (opts.keepgoing) {
 				/*
 				 * Abort the current target,

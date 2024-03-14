@@ -1,4 +1,4 @@
-# $NetBSD: var-scope-local.mk,v 1.9 2023/12/20 09:03:09 rillig Exp $
+# $NetBSD: var-scope-local.mk,v 1.11 2024/03/05 23:07:58 rillig Exp $
 #
 # Tests for target-local variables, such as ${.TARGET} or $@.  These variables
 # are relatively short-lived as they are created just before making the
@@ -199,13 +199,14 @@ var-scope-local-append-global.o \
 var-scope-local-default.o \
 var-scope-local-subst.o \
 var-scope-local-shell.o:
-	: Making ${.TARGET} with VAR="${VAR}".
+	@echo "Making ${.TARGET} with make '"${VAR:Q}"' and env '$$VAR'."
 
 # Target-local variables are enabled by default.  Force them to be enabled
 # just in case a test above has disabled them.
 .MAKE.TARGET_LOCAL_VARIABLES= yes
 
 VAR=	global
+.export VAR
 
 # If the sources of a dependency line look like a variable assignment, make
 # treats them as such.  There is only a single variable assignment per
@@ -213,7 +214,7 @@ VAR=	global
 # irrelevant.
 #
 # expect-reset
-# expect: : Making var-scope-local-assign.o with VAR="local".
+# expect: Making var-scope-local-assign.o with make 'local' and env 'local'.
 var-scope-local-assign.o: VAR= local
 
 # Assignments using '+=' do *not* look up the global value, instead they only
@@ -223,7 +224,7 @@ var-scope-local-append.o: VAR+= local
 # behaves as expected.  Note that the expression '${.TARGET}' is not resolved
 # when parsing the dependency line, its evaluation is deferred until the
 # target is actually made.
-# expect: : Making var-scope-local-append.o with VAR="local to var-scope-local-append.o".
+# expect: Making var-scope-local-append.o with make 'local to var-scope-local-append.o' and env 'local to var-scope-local-append.o'.
 var-scope-local-append.o: VAR += to ${.TARGET}
 # To access the value of a global variable, use an expression.  This
 # expression is expanded before parsing the whole dependency line.  Since the
@@ -233,7 +234,7 @@ var-scope-local-append.o: VAR += to ${.TARGET}
 # not influence the parsing of the variable assignment.  The effective
 # variable assignment, after expanding the whole line first, is thus
 # 'VAR= global+local'.
-# expect: : Making var-scope-local-append-global.o with VAR="global+local".
+# expect: Making var-scope-local-append-global.o with make 'global+local' and env 'global+local'.
 var-scope-local-append-global.o: VAR= ${VAR}+local
 
 var-scope-local-default.o: VAR ?= first
@@ -241,7 +242,7 @@ var-scope-local-default.o: VAR ?= second
 # XXX: '?=' does look at the global variable.  That's a long-standing
 # inconsistency between the assignment operators '+=' and '?='.  See
 # Var_AppendExpand and VarAssign_Eval.
-# expect: : Making var-scope-local-default.o with VAR="global".
+# expect: Making var-scope-local-default.o with make 'global' and env 'global'.
 
 # Using the variable assignment operator ':=' provides another way of
 # accessing a global variable and extending it with local modifications.  The
@@ -249,7 +250,7 @@ var-scope-local-default.o: VAR ?= second
 # dependency line as a whole.  After that, the parser sees the variable
 # assignment as 'VAR := ${VAR}+local' and searches for the variable 'VAR' in
 # the usual scopes, picking up the variable from the global scope.
-# expect: : Making var-scope-local-subst.o with VAR="global+local".
+# expect: Making var-scope-local-subst.o with make 'global+local' and env 'global+local'.
 var-scope-local-subst.o: VAR := $${VAR}+local
 
 # The variable assignment operator '!=' assigns the output of the shell
@@ -261,9 +262,9 @@ var-scope-local-shell.o: VAR != echo output
 # While VAR=use will be set for a .USE node, it will never be seen since only
 # the ultimate target's context is searched; the variable assignments from the
 # .USE target are not copied to the ultimate target's.
-# expect: : var-scope-local-use.o uses .USE VAR="global"
+# expect: Making .USE var-scope-local-use.o with make 'global' and env 'global'.
 a_use: .USE VAR=use
-	: ${.TARGET} uses .USE VAR="${VAR}"
+	@echo "Making .USE ${.TARGET} with make '"${VAR:Q}"' and env '$$VAR'."
 
 all: var-scope-local-use.o
 var-scope-local-use.o: a_use

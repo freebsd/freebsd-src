@@ -37,7 +37,9 @@
 #
 
 # RCSid:
-#	$Id: stage-install.sh,v 1.10 2021/11/17 07:06:31 sjg Exp $
+#	$Id: stage-install.sh,v 1.11 2024/02/17 17:26:57 sjg Exp $
+#
+#	SPDX-License-Identifier: BSD-2-Clause
 #
 #	@(#) Copyright (c) 2013-2020, Simon J. Gerraty
 #

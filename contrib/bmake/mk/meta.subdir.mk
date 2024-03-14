@@ -1,4 +1,6 @@
-# $Id: meta.subdir.mk,v 1.13 2021/01/05 22:24:37 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: meta.subdir.mk,v 1.14 2024/02/17 17:26:57 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty

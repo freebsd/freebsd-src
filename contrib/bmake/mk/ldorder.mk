@@ -1,4 +1,6 @@
-# $Id: ldorder.mk,v 1.26 2021/12/08 05:56:50 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: ldorder.mk,v 1.27 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2015, Simon J. Gerraty
 #

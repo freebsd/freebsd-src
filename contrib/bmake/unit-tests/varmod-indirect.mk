@@ -1,4 +1,4 @@
-# $NetBSD: varmod-indirect.mk,v 1.14 2023/11/19 22:32:44 rillig Exp $
+# $NetBSD: varmod-indirect.mk,v 1.18 2024/02/04 10:03:10 rillig Exp $
 #
 # Tests for indirect variable modifiers, such as in ${VAR:${M_modifiers}}.
 # These can be used for very basic purposes like converting a string to either
@@ -255,4 +255,28 @@ _:=	before ${UNDEF:${:UZ}} after
 .  error
 .endif
 
-all:
+
+# In parse-only mode, the indirect modifiers must not be evaluated.
+#
+# Before var.c 1.1098 from 2024-02-04, the expression for an indirect modifier
+# was partially evaluated (only the variable value, without applying any
+# modifiers) and then interpreted as modifiers to the main expression.
+#
+# The expression ${:UZ} starts with the value "", and in parse-only mode, the
+# modifier ':UZ' does not modify the expression value.  This results in an
+# empty string for the indirect modifiers, generating no warning.
+.if 0 && ${VAR:${:UZ}}
+.endif
+# The expression ${M_invalid} starts with the value "Z", which is an unknown
+# modifier.  Trying to apply this unknown modifier generated a warning.
+M_invalid=	Z
+.if 0 && ${VAR:${M_invalid}}
+.endif
+# The ':S' modifier does not change the expression value in parse-only mode,
+# keeping the "Z", which is then skipped in parse-only mode.
+.if 0 && ${VAR:${M_invalid:S,^,N*,:ts:}}
+.endif
+# The ':@' modifier does not change the expression value in parse-only mode,
+# keeping the "Z", which is then skipped in parse-only mode.
+.if 0 && ${VAR:${M_invalid:@m@N*$m@:ts:}}
+.endif

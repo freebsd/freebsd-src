@@ -1,4 +1,6 @@
-# $Id: srctop.mk,v 1.4 2020/08/19 17:51:53 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: srctop.mk,v 1.5 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2012, Simon J. Gerraty
 #

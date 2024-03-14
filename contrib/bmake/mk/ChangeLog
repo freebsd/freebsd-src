@@ -1,3 +1,83 @@
+2024-03-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240309
+	
+	* meta.sys.mk: _metaError: if .ERROR_EXIT == 6, we do not
+	want to save the .ERROR_META_FILE
+
+2024-02-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240220
+
+	* sys.dirdeps.mk, dirdeps-targets.mk, init.mk:
+	do not set .MAIN: dirdeps in sys.dirdeps.mk
+	dirdeps-targets.mk will do that for top-level builds
+	and init.mk will do it for others.
+	This allows a Makefile which has no need of 'dirdeps' to
+	set .MAIN for itself and "just work".
+
+2024-02-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* bsd.*.mk: for makefiles that get a bsd. symlink,
+	use _this in  multiple inclusion tags since .PARSEFILE will not
+	DTRT when such a makefile is included directly by Makefile and
+	automatically (without bsd. prefix).
+	Since we cannot guarantee that our sys.mk will be used, we provide
+	a default _this in each makefile that gets a bsd. prefix such that
+	the value is the same regardless of bsd. prefix.
+
+	* subdir.mk: drop the !target guard on $SUBDIR_TARGETS
+
+2024-02-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240212
+
+	* SPDX-License-Identifier: BSD-2-Clause
+	Add SPDX-License-Identifier to inidicate that I consider
+	my copyright on any of these makefiles equivalent to BSD-2-Clause
+
+	* autoconf.mk: allow for configure.ac as currently recommended
+
+	* subdir.mk: support @auto
+	which is replaced with each subdir that
+	has a [Mm]akefile.
+
+	* subdir.mk: include local.subdir.mk if it exists.
+
+	* subdir.mk: rework to handle .WAIT 
+
+2024-02-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* subdir.mk: _SUBDIRUSE report the target we are entering subdirs for.
+
+2024-02-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* prog.mk: treat empty SRCS the same as undefined
+
+2024-02-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* Avoid undefined errors in lint (-dL) mode
+
+	* man.mk (CMT2DOC_FLAGS): note that -mm does mdoc(7)
+
+2024-01-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240128
+
+	* FILES: add ccm.dep.mk for C++ modules
+	add suffixes.mk for common location for generic SUFFIX rules.
+
+	* auto.dep.mk autodep.mk meta.autodep.mk: include ccm.dep.mk
+	replace OBJ_EXTENSIONS with OBJ_SUFFIXES
+
+	* autodep.mk: leverage CXX_SUFFIXES for __depsrcs
+	and update style (spaces around = etc)
+
+	* init.mk: add OBJS_SRCS_FILTER to filter SRCS when
+	setting OBJS
+
+	* meta2deps.py: handle multiple ./ embedded in path better.
+
 2024-01-05  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20240105

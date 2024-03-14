@@ -60,12 +60,12 @@ dir/subdir/inference-rule-chain.ir-to: * = <dir/subdir/inference-rule-chain>
 : Making var-scope-local.c out of nothing.
 : Making var-scope-local.o from var-scope-local.c.
 : Making basename "var-scope-local.o" in "." from "var-scope-local.c" in ".".
-: Making var-scope-local-assign.o with VAR="local".
-: Making var-scope-local-append.o with VAR="local to var-scope-local-append.o".
-: Making var-scope-local-append-global.o with VAR="global+local".
-: Making var-scope-local-default.o with VAR="global".
-: Making var-scope-local-subst.o with VAR="global+local".
-: Making var-scope-local-shell.o with VAR="output".
-: var-scope-local-use.o uses .USE VAR="global"
+Making var-scope-local-assign.o with make 'local' and env 'local'.
+Making var-scope-local-append.o with make 'local to var-scope-local-append.o' and env 'local to var-scope-local-append.o'.
+Making var-scope-local-append-global.o with make 'global+local' and env 'global+local'.
+Making var-scope-local-default.o with make 'global' and env 'global'.
+Making var-scope-local-subst.o with make 'global+local' and env 'global+local'.
+Making var-scope-local-shell.o with make 'output' and env 'output'.
+Making .USE var-scope-local-use.o with make 'global' and env 'global'.
 : all overwritten
 exit status 0

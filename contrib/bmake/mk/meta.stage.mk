@@ -1,4 +1,6 @@
-# $Id: meta.stage.mk,v 1.67 2023/04/17 01:22:10 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: meta.stage.mk,v 1.69 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2011-2017, Simon J. Gerraty
 #
@@ -212,7 +214,7 @@ stage_files.$s:	.dirdep
 STAGE_FILES ?= ${.ALLSRC:N.dirdep:Nstage_*}
 stage_files:	.dirdep
 .endif
-	@${STAGE_FILE_SCRIPT}; StageFiles ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_FILES.$s:O}
+	@${STAGE_FILE_SCRIPT}; StageFiles ${FLAGS.$@:U} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_FILES.$s:O}
 	@touch $@
 .endif
 .endif

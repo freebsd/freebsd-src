@@ -1,4 +1,6 @@
-# $Id: auto.obj.mk,v 1.16 2020/08/19 17:51:53 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: auto.obj.mk,v 1.17 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2004, Simon J. Gerraty
 #
