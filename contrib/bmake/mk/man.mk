@@ -1,7 +1,10 @@
-# $Id: man.mk,v 1.26 2023/12/30 02:10:38 sjg Exp $
+# $Id: man.mk,v 1.29 2024/02/19 00:06:19 sjg Exp $
 
-.if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__: .NOTMAIN
+# should be set properly in sys.mk
+_this ?= ${.PARSEFILE:S,bsd.,,}
+
+.if !target(__${_this}__)
+__${_this}__: .NOTMAIN
 
 OPTIONS_DEFAULT_NO += CMT2DOC
 
@@ -55,15 +58,18 @@ MANALL ?= ${MAN}
 
 .if ${MK_CMT2DOC} == "yes"
 # use cmt2doc.py to extract manpages from source
-CMT2DOC?= cmt2doc.py
-CMT2DOC_OPTS?=  ${CMT2DOC_ORGOPT} -pmS${.TARGET:E}
-CMT2DOC_SUFFIXES+= .c .h .sh .pl .py
+CMT2DOC ?= cmt2doc.py
+# -m  produces man(7)
+# -mm produces mdoc(7)
+CMT2DOC_FLAGS ?= -pm
+CMT2DOC_OPTS ?=  ${CMT2DOC_ORGOPT} -S${.TARGET:E}
+CMT2DOC_SUFFIXES += .c .h .sh .pl .py
 
 .SUFFIXES: ${CMT2DOC_SUFFIXES}
 
 ${CMT2DOC_SUFFIXES:@s@${MAN_SUFFIXES:@m@$s$m@}@}:
 	@echo "${CMT2DOC} ${.IMPSRC} > ${.TARGET:T}"
-	@${CMT2DOC} ${CMT2DOC_OPTS} ${.IMPSRC} > ${.TARGET:T}.new && \
+	@${CMT2DOC} ${CMT2DOC_FLAGS} ${CMT2DOC_OPTS} ${.IMPSRC} > ${.TARGET:T}.new && \
 	mv ${.TARGET:T}.new ${.TARGET:T}
 
 .endif
@@ -111,7 +117,7 @@ _stage_man = stage_files
 STAGE_TARGETS += ${_stage_man}
 .for _page _as in ${MANALL:@x@$x ${x:T:S/.cat/./}@}
 ${_stage_man}.man${_as:E}: ${_page}
-.if target(${_page:T}${MCOMPRESS_EXT})
+.if target(${_page:T}${MCOMPRESS_EXT:Umanz})
 ${_man_stage}.man${_as:E}: ${_page:T}${MCOMPRESS_EXT}
 .endif
 STAGE_DIR.man${_as:E} ?= ${STAGE_OBJTOP}${MANDIR}/${MANTARGET}${_as:E}${MANSUBDIR}

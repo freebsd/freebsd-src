@@ -1,4 +1,6 @@
-# $Id: yacc.mk,v 1.8 2022/06/22 04:51:06 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: yacc.mk,v 1.9 2024/02/17 17:26:57 sjg Exp $
 
 #
 #	@(#) Copyright (c) 1999-2011, Simon J. Gerraty

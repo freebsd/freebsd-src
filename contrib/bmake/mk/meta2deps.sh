@@ -75,8 +75,10 @@
 
 
 # RCSid:
-#	$Id: meta2deps.sh,v 1.20 2023/01/18 01:35:24 sjg Exp $
+#	$Id: meta2deps.sh,v 1.21 2024/02/17 17:26:57 sjg Exp $
 
+# SPDX-License-Identifier: BSD-2-Clause
+#
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
 #

@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.716 2024/01/07 11:39:04 rillig Exp $	*/
+/*	$NetBSD: parse.c,v 1.717 2024/02/07 06:43:02 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -121,7 +121,7 @@
 #include "pathnames.h"
 
 /*	"@(#)parse.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: parse.c,v 1.716 2024/01/07 11:39:04 rillig Exp $");
+MAKE_RCSID("$NetBSD: parse.c,v 1.717 2024/02/07 06:43:02 rillig Exp $");
 
 /* Detects a multiple-inclusion guard in a makefile. */
 typedef enum {
@@ -183,9 +183,7 @@ typedef enum ParseSpecial {
 	SP_PARALLEL,	/* .PARALLEL; not mentioned in the manual page */
 	SP_PATH,	/* .PATH or .PATH.suffix */
 	SP_PHONY,	/* .PHONY */
-#ifdef POSIX
 	SP_POSIX,	/* .POSIX; not mentioned in the manual page */
-#endif
 	SP_PRECIOUS,	/* .PRECIOUS */
 	SP_READONLY,	/* .READONLY */
 	SP_SHELL,	/* .SHELL */
@@ -305,9 +303,7 @@ static const struct {
     { ".PARALLEL",	SP_PARALLEL,	OP_NONE },
     { ".PATH",		SP_PATH,	OP_NONE },
     { ".PHONY",		SP_PHONY,	OP_PHONY },
-#ifdef POSIX
     { ".POSIX",		SP_POSIX,	OP_NONE },
-#endif
     { ".PRECIOUS",	SP_PRECIOUS,	OP_PRECIOUS },
     { ".READONLY",	SP_READONLY,	OP_NONE },
     { ".RECURSIVE",	SP_ATTRIBUTE,	OP_MAKE },
@@ -1321,7 +1317,6 @@ HandleDependencySourcesEmpty(ParseSpecial special, SearchPathList *paths)
 	case SP_SYSPATH:
 		ClearPaths(special, paths);
 		break;
-#ifdef POSIX
 	case SP_POSIX:
 		if (posix_state == PS_NOW_OR_NEVER) {
 			/*
@@ -1333,7 +1328,6 @@ HandleDependencySourcesEmpty(ParseSpecial special, SearchPathList *paths)
 			IncludeFile("posix.mk", true, false, true);
 		}
 		break;
-#endif
 	default:
 		break;
 	}
@@ -1715,7 +1709,6 @@ AdjustVarassignOp(const char *name, const char *nameEnd, const char *op,
 
 	} else {
 		type = VAR_NORMAL;
-#ifdef SUNSHCMD
 		while (op > name && ch_isspace(op[-1]))
 			op--;
 
@@ -1723,7 +1716,6 @@ AdjustVarassignOp(const char *name, const char *nameEnd, const char *op,
 			op -= 3;
 			type = VAR_SHELL;
 		}
-#endif
 	}
 
 	va.varname = bmake_strsedup(name, nameEnd < op ? nameEnd : op);
@@ -1785,12 +1777,10 @@ Parse_IsVar(const char *p, VarAssign *out_var)
 
 		if (ch == '\0')
 			return false;
-#ifdef SUNSHCMD
 		if (ch == ':' && p[0] == 's' && p[1] == 'h') {
 			p += 2;
 			continue;
 		}
-#endif
 		if (ch == '=')
 			eq = p - 1;
 		else if (*p == '=' &&
@@ -2217,7 +2207,6 @@ IsInclude(const char *dir, bool sysv)
 }
 
 
-#ifdef SYSVINCLUDE
 /* Check if the line is a SYSV include directive. */
 static bool
 IsSysVInclude(const char *line)
@@ -2273,9 +2262,7 @@ ParseTraditionalInclude(char *line)
 
 	free(all_files);
 }
-#endif
 
-#ifdef GMAKEEXPORT
 /* Parse "export <variable>=<value>", and actually export it. */
 static void
 ParseGmakeExport(char *line)
@@ -2306,7 +2293,6 @@ ParseGmakeExport(char *line)
 	setenv(variable, value, 1);
 	free(value);
 }
-#endif
 
 /*
  * When the end of the current file or .for loop is reached, continue reading
@@ -2923,20 +2909,16 @@ ParseLine(char *line)
 		return;
 	}
 
-#ifdef SYSVINCLUDE
 	if (IsSysVInclude(line)) {
 		ParseTraditionalInclude(line);
 		return;
 	}
-#endif
 
-#ifdef GMAKEEXPORT
 	if (strncmp(line, "export", 6) == 0 && ch_isspace(line[6]) &&
 	    strchr(line, ':') == NULL) {
 		ParseGmakeExport(line);
 		return;
 	}
-#endif
 
 	if (Parse_VarAssign(line, true, SCOPE_GLOBAL))
 		return;

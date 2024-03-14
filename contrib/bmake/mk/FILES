@@ -7,6 +7,7 @@ autoconf.mk
 autodep.mk
 auto.dep.mk
 cc-wrap.mk
+ccm.dep.mk
 compiler.mk
 cython.mk
 dep.mk
@@ -45,6 +46,7 @@ scripts.mk
 srctop.mk
 stage-install.sh
 subdir.mk
+suffixes.mk
 sys.mk
 sys.clean-env.mk
 sys.debug.mk

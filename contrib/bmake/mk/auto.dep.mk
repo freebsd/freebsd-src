@@ -1,6 +1,7 @@
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # RCSid:
-#	$Id: auto.dep.mk,v 1.10 2021/12/11 18:57:41 sjg Exp $
+#	$Id: auto.dep.mk,v 1.12 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2010-2021, Simon J. Gerraty
 #
@@ -85,4 +86,7 @@ ${DEPENDFILE}: ${OBJS} ${POBJS} ${SOBJS}
 	done > $@
 
 .endif
+
+.-include <ccm.dep.mk>
+
 .endif

@@ -1,4 +1,6 @@
-# $Id: dirdeps-cache-update.mk,v 1.22 2020/09/10 00:14:38 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: dirdeps-cache-update.mk,v 1.23 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2020, Simon J. Gerraty
 #

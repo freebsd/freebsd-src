@@ -1,4 +1,6 @@
-# $Id: sys.dirdeps.mk,v 1.12 2023/05/14 16:16:03 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: sys.dirdeps.mk,v 1.14 2024/02/25 19:12:13 sjg Exp $
 #
 #	@(#) Copyright (c) 2012-2023, Simon J. Gerraty
 #
@@ -31,9 +33,10 @@ _PARSEDIR ?= ${.PARSEDIR:tA}
 
 .if ${.MAKE.LEVEL} == 0
 # make sure dirdeps target exists and do it first
+# init.mk will set .MAIN to 'dirdeps' if appropriate
+# as will dirdeps-targets.mk for top-level builds.
+# This allows a Makefile to have more control.
 dirdeps:
-# first .MAIN is what counts
-.MAIN: dirdeps
 .NOPATH: dirdeps
 all: dirdeps .WAIT
 .endif

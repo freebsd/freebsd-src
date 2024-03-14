@@ -1,4 +1,6 @@
-# $Id: compiler.mk,v 1.12 2023/10/03 18:47:48 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: compiler.mk,v 1.14 2024/02/19 00:05:50 sjg Exp $
 #
 #	@(#) Copyright (c) 2019, Simon J. Gerraty
 #
@@ -27,7 +29,7 @@ _v != (${CC} --version) 2> /dev/null | \
 .if empty(COMPILER_TYPE)
 .if ${_v:Mclang} != ""
 COMPILER_TYPE = clang
-.elif ${_v:M[Gg][Cc][Cc]} != "" || ${_v:MFoundation*} != "" || ${CC:T:M*gcc*} != ""
+.elif ${_v:M[Gg][Cc][Cc]} != "" || ${_v:MFoundation*} != "" || ${CC:Ucc:T:M*gcc*} != ""
 COMPILER_TYPE = gcc
 .endif
 .endif

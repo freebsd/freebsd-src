@@ -133,7 +133,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: boot-strap,v 1.59 2023/11/26 18:19:43 sjg Exp $
+#	$Id: boot-strap,v 1.61 2024/03/10 17:51:10 sjg Exp $
 #
 #	@(#) Copyright (c) 2001 Simon J. Gerraty
 #
@@ -329,6 +329,14 @@ FindHereOrAbove() {
     )
 }
 
+# is $1 newer than $2 ...
+is_newer() {
+	case `'ls' -1td "$@" 2> /dev/null | head -1` in
+	$1) return 0;;
+	esac
+	return 1
+}
+
 # is $1 missing from $2 (or PATH) ?
 no_path() {
 	eval "__p=\$${2:-PATH}"
@@ -428,13 +436,18 @@ op_build() {
 	chmod 755 make-bootstrap.sh || exit 1
 	./make-bootstrap.sh || exit 1
 	case "$op" in
-	build) op_test;;
+	build) rm -f tested; op_test;;
 	esac
 }
 
 op_test() {
 	[ -x bmake ] || op_build
+	case "$op" in
+	test) ;;
+	*) is_newer bmake tested || return;;
+	esac
 	Bmake test TEST_MAKE=$objdir/bmake "$@" || exit 1
+	touch tested
 }
 
 op_clean() {

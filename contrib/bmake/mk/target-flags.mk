@@ -36,8 +36,10 @@
 
 
 
+# SPDX-License-Identifier: BSD-2-Clause
+#
 # RCSid:
-#	$Id: target-flags.mk,v 1.10 2020/08/19 17:51:53 sjg Exp $
+#	$Id: target-flags.mk,v 1.11 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 1998-2002, Simon J. Gerraty
 #

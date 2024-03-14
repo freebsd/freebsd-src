@@ -1,5 +1,7 @@
+# SPDX-License-Identifier: BSD-2-Clause
+#
 # RCSid:
-#       $Id: dirdeps-targets.mk,v 1.25 2023/05/11 05:07:28 sjg Exp $
+#       $Id: dirdeps-targets.mk,v 1.27 2024/02/25 19:12:13 sjg Exp $
 #
 #       @(#) Copyright (c) 2019-2020 Simon J. Gerraty
 #
@@ -39,6 +41,9 @@
 .if ${.MAKE.LEVEL} == 0
 # pickup customizations
 .-include <local.dirdeps-targets.mk>
+
+# this is what we are here for
+.MAIN: dirdeps
 
 # for DIRDEPS_BUILD this is how we prime the pump
 # include . to allow any directory to work as a target

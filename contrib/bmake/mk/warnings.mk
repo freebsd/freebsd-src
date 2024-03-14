@@ -1,5 +1,7 @@
+# SPDX-License-Identifier: BSD-2-Clause
+#
 # RCSid:
-#	$Id: warnings.mk,v 1.17 2023/02/16 17:55:52 sjg Exp $
+#	$Id: warnings.mk,v 1.18 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2002-2023, Simon J. Gerraty
 #

@@ -1,4 +1,4 @@
-/*	$NetBSD: config.h,v 1.28 2020/12/11 22:53:08 rillig Exp $	*/
+/*	$NetBSD: config.h,v 1.29 2024/02/07 06:43:02 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -73,20 +73,6 @@
  */
 
 /*
- * INCLUDES
- * LIBRARIES
- *	These control the handling of the .INCLUDES and .LIBS variables.
- *
- *	If INCLUDES is defined, the .INCLUDES variable will be filled
- *	from the search paths of those suffixes which are marked by
- *	.INCLUDES dependency lines. Similarly for LIBRARIES and .LIBS.
- *
- *	See varname-dot-include.mk and varname-dot-libs.mk for more details.
- */
-#define INCLUDES
-#define LIBRARIES
-
-/*
  * LIBSUFF
  *	Is the suffix used to denote libraries and is used by the Suff module
  *	to find the search path on which to seek any -l<xx> targets.
@@ -107,40 +93,6 @@
  *	Under NFS you probably should not, unless you aren't exporting jobs.
  */
 #define RECHECK
-
-/*
- * POSIX
- *	Adhere to the POSIX 1003.2 draft for the make(1) program.
- *	- Use MAKEFLAGS instead of MAKE to pick arguments from the
- *	  environment.
- */
-#define POSIX
-
-/*
- * SYSVINCLUDE
- *	Recognize system V like include directives [include "filename"]
- *	(required by POSIX 2018)
- * SYSVVARSUB
- *	Recognize system V like ${VAR:x=y} variable substitutions
- *	(required by POSIX 2018)
- */
-#define SYSVINCLUDE
-#define SYSVVARSUB
-
-/*
- * GMAKEEXPORT
- *	Recognize gmake like variable export directives [export <VAR>=<VALUE>]
- */
-#define GMAKEEXPORT
-
-/*
- * SUNSHCMD
- *	Recognize SunOS and Solaris:
- *		VAR :sh= CMD	# Assign VAR to the command substitution of CMD
- *		${VAR:sh}	# Return the command substitution of the value
- *				# of ${VAR}
- */
-#define SUNSHCMD
 
 #if defined(MAKE_NATIVE) && !defined(__ELF__)
 # ifndef RANLIBMAG

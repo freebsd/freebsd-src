@@ -1,7 +1,10 @@
-#	$Id: prog.mk,v 1.40 2023/10/02 21:35:43 sjg Exp $
+#	$Id: prog.mk,v 1.44 2024/02/19 00:06:19 sjg Exp $
 
-.if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__: .NOTMAIN
+# should be set properly in sys.mk
+_this ?= ${.PARSEFILE:S,bsd.,,}
+
+.if !target(__${_this}__)
+__${_this}__: .NOTMAIN
 
 .include <init.mk>
 
@@ -11,7 +14,7 @@ _sect:=${MAN:E}
 MAN${_sect}=${MAN}
 .endif
 
-.SUFFIXES: .out .o .c .cc .C .y .l .s .8 .7 .6 .5 .4 .3 .2 .1 .0
+.SUFFIXES: .out .o .c ${CXX_SUFFIXES} .y .l ${CCM_SUFFIXES} ${PCM}
 
 CFLAGS+=	${COPTS}
 
@@ -62,14 +65,21 @@ LDADD_LAST+= ${LDADD_LIBC_P}
 .if defined(SHAREDSTRINGS)
 CLEANFILES+=strings
 .c.o:
-	${CC} -E ${CFLAGS} ${.IMPSRC} | xstr -c -
-	@${CC} ${CFLAGS} -c x.c -o ${.TARGET}
+	@${COMPILE.c:N-c} -E ${.IMPSRC} | xstr -c -
+	@${COMPILE.c} x.c -o ${.TARGET}
 	@rm -f x.c
 
-${CXX_SUFFIXES:%=%.o}:
-	${CXX} -E ${CXXFLAGS} ${.IMPSRC} | xstr -c -
+# precompiled C++ Modules
+${CCM_SUFFIXES:%=%${PCM}}:
+	@${COMIPILE.cc:N-c} -E ${.IMPSRC} | xstr -c -
 	@mv -f x.c x.cc
-	@${CXX} ${CXXFLAGS} -c x.cc -o ${.TARGET}
+	@${COMPILE.pcm} x.cc -o ${.TARGET}
+	@rm -f x.cc
+
+${CXX_SUFFIXES:N.c*m:%=%.o}:
+	@${COMIPILE.cc:N-c} -E ${.IMPSRC} | xstr -c -
+	@mv -f x.c x.cc
+	@${COMPILE.cc} x.cc -o ${.TARGET}
 	@rm -f x.cc
 .endif
 
@@ -81,12 +91,19 @@ _SUPCXX?=	-lstdc++ -lm
 .if defined(PROG)
 BINDIR ?= ${prefix}/bin
 
-SRCS?=	${PROG}.c
-.for s in ${SRCS:N*.h:N*.sh:M*/*}
+.if empty(SRCS)
+# init.mk handling of QUALIFIED_VAR_LIST means
+# SRCS will be defined - even if empty.
+SRCS = ${PROG}.c
+.endif
+
+SRCS ?=	${PROG}.c
+OBJS_SRCS = ${SRCS:${OBJS_SRCS_FILTER}}
+.for s in ${OBJS_SRCS:M*/*}
 ${.o .po .lo:L:@o@${s:T:R}$o@}: $s
 .endfor
-.if !empty(SRCS:N*.h:N*.sh)
-OBJS+=	${SRCS:T:N*.h:N*.sh:R:S/$/.o/g}
+.if !empty(OBJS_SRCS)
+OBJS+=	${OBJS_SRCS:T:R:S/$/.o/g}
 LOBJS+=	${LSRCS:.c=.ln} ${SRCS:M*.c:.c=.ln}
 .endif
 
@@ -111,6 +128,9 @@ ${PROG}: ldorder
 
 .include <ldorder.mk>
 .endif
+# avoid -dL errors
+LDADD_LDORDER ?=
+LDSTATIC ?=
 
 .if defined(DESTDIR) && exists(${LIBCRT0}) && ${LIBCRT0} != "/dev/null"
 

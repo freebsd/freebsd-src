@@ -1,3 +1,60 @@
+2024-03-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* boot-strap: tests can take a long time; use a cookie to
+	skip them if bmake has not been updated since tests last
+	ran successfully.
+
+	* Makefile: Cygwin handles MANTARGET man
+
+	* unit-tests/Makefile: set BROKEN_TESTS for Cygwin
+
+2024-03-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240309
+	Merge with NetBSD make, pick up
+	o set .ERROR_EXIT to the exit status of .ERROR_TARGET
+	this allows a .ERROR target to ignore the case of
+	.ERROR_EXIT==6 which just means that the build actually
+	failed somewhere else.
+
+2024-03-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240303
+
+	* var.c: on IRIX we need both inttypes.h and stdint.h
+
+2024-03-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240301
+	Merge with NetBSD make, pick up
+	o export variables with value from target scope
+	when appropriate.
+
+2024-02-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240212
+	Merge with NetBSD make, pick up
+	o remove unneeded conditional-compilation toggles
+	INCLUDES, LIBRARIES, POSIX, SYSVINCLUDE, SYSVVARSUB,
+	GMAKEEXPORT NO_REGEX and SUNSHCMD
+
+	* configure.in: add check for regex.h
+
+	* var.c: replace use of NO_REGEX with HAVE_REGEX_H
+
+2024-02-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240204
+	Merge with NetBSD make, pick up
+	o var.c: fix some lint (-dL) mode parsing issues
+
+2024-02-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION: (_MAKE_VERSION): 20240202
+	Merge with NetBSD make, pick up
+	o make.1: note that arg to :D and :U can be empty
+	o var.c: $$ is not a parse error when .MAKE.SAVE_DOLLARS=no
+
 2024-01-08  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20240108

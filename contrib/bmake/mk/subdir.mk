@@ -1,14 +1,42 @@
-#	$Id: subdir.mk,v 1.16 2017/02/08 22:16:59 sjg Exp $
-#	skip missing directories...
+# SPDX-License-Identifier: BSD-2-Clause
+#
+#	$Id: subdir.mk,v 1.22 2024/02/19 00:06:19 sjg Exp $
+#
+#	@(#) Copyright (c) 2002-2024, Simon J. Gerraty
+#
+#	This file is provided in the hope that it will
+#	be of use.  There is absolutely NO WARRANTY.
+#	Permission to copy, redistribute or otherwise
+#	use this file is hereby granted provided that
+#	the above copyright notice and this notice are
+#	left intact.
+#
+#	Please send copies of changes and bug-fixes to:
+#	sjg@crufty.net
 
-#	$NetBSD: bsd.subdir.mk,v 1.11 1996/04/04 02:05:06 jtc Exp $
-#	@(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
+#	if SUBDIR=@auto replace that with each subdir that has
+#	a [Mm]akefile.
+#
+#	Unless SUBDIR_MUST_EXIST is defined, missing subdirs
+#	are ignored (to allow for sparse checkout).
+#
+#	If you use _SUBDIRUSE for a target you may need to add it to
+#	SUBDIR_TARGETS.
 
-.if ${.MAKE.LEVEL} == 0 && ${.MAKE.MODE:Uno:Mmeta*} != ""
+# should be set properly in sys.mk
+_this ?= ${.PARSEFILE:S,bsd.,,}
+
+.if !target(__${_this}__)
+__${_this}__: .NOTMAIN
+
+.if defined(SUBDIR)
+
+.if ${.MAKE.LEVEL} == 0 && ${MK_DIRDEPS_BUILD:Uno} == "yes"
 .include <meta.subdir.mk>
 # keep everyone happy
 _SUBDIRUSE:
 .elif !commands(_SUBDIRUSE) && !defined(NO_SUBDIR) && !defined(NOSUBDIR)
+.-include <local.subdir.mk>
 .-include <${.CURDIR}/Makefile.inc>
 .if !target(.MAIN)
 .MAIN: all
@@ -16,49 +44,28 @@ _SUBDIRUSE:
 
 ECHO_DIR ?= echo
 .ifdef SUBDIR_MUST_EXIST
-MISSING_DIR=echo "Missing ===> ${.CURDIR}/$${entry}"; exit 1
+MISSING_DIR=echo "Missing ===> ${.CURDIR}/$$_dir"; exit 1
 .else
-MISSING_DIR=echo "Skipping ===> ${.CURDIR}/$${entry}"; continue
+MISSING_DIR=echo "Skipping ===> ${.CURDIR}/$$_dir"; exit 0
 .endif
 
-_SUBDIRUSE: .USE
-.if defined(SUBDIR)
+# the actual implementation
+# our target should be of the form ${_target}-${_dir}
+_SUBDIR_USE: .USE
 	@Exists() { test -f $$1; }; \
-	for entry in ${SUBDIR}; do \
-		(set -e; \
-		if Exists ${.CURDIR}/$${entry}.${MACHINE}/[mM]akefile; then \
-			_newdir_="$${entry}.${MACHINE}"; \
-		elif  Exists ${.CURDIR}/$${entry}/[mM]akefile; then \
-			_newdir_="$${entry}"; \
-		else \
-			${MISSING_DIR}; \
-		fi; \
-		if test X"${_THISDIR_}" = X""; then \
-			_nextdir_="$${_newdir_}"; \
-		else \
-			_nextdir_="$${_THISDIR_}/$${_newdir_}"; \
-		fi; \
-		${ECHO_DIR} "===> $${_nextdir_}"; \
-		cd ${.CURDIR}/$${_newdir_}; \
-		${.MAKE} _THISDIR_="$${_nextdir_}" \
-		    ${.TARGET:S/realinstall/install/:S/.depend/depend/}) || exit 1; \
-	done
-
-${SUBDIR}::
-	@set -e; _r=${.CURDIR}/; \
-	if test -z "${.TARGET:M/*}"; then \
-		if test -d ${.CURDIR}/${.TARGET}.${MACHINE}; then \
-			_newdir_=${.TARGET}.${MACHINE}; \
-		else \
-			_newdir_=${.TARGET}; \
-		fi; \
-	else \
-		_r= _newdir_=${.TARGET}; \
+	_dir=${.TARGET:C/^.*-//} \
+	_target=${.TARGET:C/-.*//:S/real//:S/.depend/depend/}; \
+	if ! Exists ${.CURDIR}/$$_dir/[mM]akefile; then \
+		${MISSING_DIR}; \
 	fi; \
-	${ECHO_DIR} "===> $${_newdir_}"; \
-	cd $${_r}$${_newdir_}; \
-	${.MAKE} _THISDIR_="$${_newdir_}" all
-.endif
+	if test X"${_THISDIR_}" = X""; then \
+		_nextdir_="$$_dir"; \
+	else \
+		_nextdir_="$${_THISDIR_}/$$_dir"; \
+	fi; \
+	${ECHO_DIR} "===> $${_nextdir_} ($$_target)"; \
+	(cd ${.CURDIR}/$$_dir && \
+		${.MAKE} _THISDIR_="$${_nextdir_}" $$_target)
 
 .if !target(install)
 .if !target(beforeinstall)
@@ -73,25 +80,53 @@ afterinstall: realinstall
 realinstall: beforeinstall _SUBDIRUSE
 .endif
 
-.if defined(SRCS)
-etags: ${SRCS}
-	-cd ${.CURDIR}; etags `echo ${.ALLSRC:N*.h} | sed 's;${.CURDIR}/;;'`
-.endif
+# the interface from others
+# this may require additions to SUBDIR_TAREGTS
+_SUBDIRUSE: .USE subdir-${.TARGET}
 
 SUBDIR_TARGETS += \
 	all \
 	clean \
 	cleandir \
 	includes \
+	install \
 	depend \
 	lint \
 	obj \
+	realinstall \
 	tags \
 	etags
 
-.for t in ${SUBDIR_TARGETS:O:u}
-$t: _SUBDIRUSE
+.if ${SUBDIR} == "@auto"
+SUBDIR = ${echo ${.CURDIR}/*/[Mm]akefile:L:sh:H:T:O:N\*}
+.endif
+
+__subdirs =
+.for d in ${SUBDIR}
+.if $d != ".WAIT" && exists(${.CURDIR}/$d.${MACHINE})
+__subdirs += $d.${MACHINE}
+.else
+__subdirs += $d
+.endif
 .endfor
+
+.for t in ${SUBDIR_TARGETS:O:u}
+__subdir_$t =
+.for d in ${__subdirs}
+.if $d == ".WAIT"
+__subdir_$t += $d
+.elif !commands($t-$d)
+$t-$d: .PHONY .MAKE _SUBDIR_USE
+__subdir_$t += $t-$d
+.endif
+.endfor
+subdir-$t: .PHONY ${__subdir_$t}
+$t: subdir-$t
+.endfor
+
+.else
+_SUBDIRUSE:
+.endif				# SUBDIR
 
 .include <own.mk>
 .if make(destroy*)
@@ -100,3 +135,5 @@ $t: _SUBDIRUSE
 .endif
 # make sure this exists
 all:
+
+.endif
