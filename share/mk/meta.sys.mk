@@ -1,4 +1,6 @@
-# $Id: meta.sys.mk,v 1.51 2023/05/11 20:05:32 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: meta.sys.mk,v 1.54 2024/03/10 15:53:51 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010-2023, Simon J. Gerraty
@@ -82,6 +84,7 @@ META2DEPS := ${META2DEPS}
 
 MAKE_PRINT_VAR_ON_ERROR += \
 	.ERROR_TARGET \
+	.ERROR_EXIT \
 	.ERROR_META_FILE \
 	.MAKE.LEVEL \
 	MAKEFILE \
@@ -98,10 +101,13 @@ SB = ${SRCTOP:H}
 ERROR_LOGDIR ?= ${SB}/error
 meta_error_log = ${ERROR_LOGDIR}/meta-${.MAKE.PID}.log
 
-# we are not interested in make telling us a failure happened elsewhere
 .ERROR: _metaError
+# We are interested here in the target(s) that caused the build to fail.
+# We want to ignore targets that were "aborted" due to failure
+# elsewhere per the message below or a sub-make may just exit 6.
 _metaError: .NOMETA .NOTMAIN
-	-@[ "${.ERROR_META_FILE}" ] && { \
+	-@[ ${.ERROR_EXIT:U0} = 6 ] && exit 0; \
+	[ "${.ERROR_META_FILE}" ] && { \
 	grep -q 'failure has been detected in another branch' ${.ERROR_META_FILE} && exit 0; \
 	mkdir -p ${meta_error_log:H}; \
 	cp ${.ERROR_META_FILE} ${meta_error_log}; \
