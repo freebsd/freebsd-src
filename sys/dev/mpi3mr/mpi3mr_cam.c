@@ -1823,6 +1823,17 @@ int mpi3mr_remove_device_from_os(struct mpi3mr_softc *sc, U16 handle)
 
 	target->flags |= MPI3MRSAS_TARGET_INREMOVAL;
 
+	if (mpi3mr_atomic_read(&target->outstanding)) {
+		mpi3mr_dprint(sc, MPI3MR_ERROR, "there are [%2d] outstanding IOs on target: %d"
+			      "Poll reply queue once\n", mpi3mr_atomic_read(&target->outstanding),
+			      target->per_id);
+		mpi3mr_poll_pend_io_completions(sc);
+		if (mpi3mr_atomic_read(&target->outstanding))
+			mpi3mr_dprint(sc, MPI3MR_ERROR, "[%2d] outstanding IOs present on target: %d"
+				      "despite poll\n", mpi3mr_atomic_read(&target->outstanding),
+				      target->per_id);
+	}
+
 	while (mpi3mr_atomic_read(&target->outstanding) && (i < 30)) {
 		i++;
 		if (!(i % 2)) {
@@ -1849,18 +1860,16 @@ out:
 void mpi3mr_remove_device_from_list(struct mpi3mr_softc *sc,
 	struct mpi3mr_target *target, bool must_delete)
 {
+	if ((must_delete == false) &&
+	    (target->state != MPI3MR_DEV_REMOVE_HS_COMPLETED))
+		return;
+
 	mtx_lock_spin(&sc->target_lock);
-	if ((target->state == MPI3MR_DEV_REMOVE_HS_STARTED) ||
-	    (must_delete == true)) {
-		TAILQ_REMOVE(&sc->cam_sc->tgt_list, target, tgt_next);
-		target->state = MPI3MR_DEV_DELETED;
-	}
+	TAILQ_REMOVE(&sc->cam_sc->tgt_list, target, tgt_next);
 	mtx_unlock_spin(&sc->target_lock);
 
-	if (target->state == MPI3MR_DEV_DELETED) {
- 		free(target, M_MPI3MR);
- 		target = NULL;
- 	}
+	free(target, M_MPI3MR);
+	target = NULL;
 	
 	return;
 }

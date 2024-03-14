@@ -447,8 +447,7 @@ enum mpi3mr_cmd_state {
 
 enum mpi3mr_target_state {
 	MPI3MR_DEV_CREATED = 1,
-	MPI3MR_DEV_REMOVE_HS_STARTED = 2,
-	MPI3MR_DEV_DELETED = 3,
+	MPI3MR_DEV_REMOVE_HS_COMPLETED = 2,
 };
 
 struct mpi3mr_cmd {

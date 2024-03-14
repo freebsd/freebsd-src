@@ -3478,6 +3478,7 @@ static void mpi3mr_dev_rmhs_complete_iou(struct mpi3mr_softc *sc,
 {
 	U16 cmd_idx = drv_cmd->host_tag - MPI3MR_HOSTTAG_DEVRMCMD_MIN;
 	struct delayed_dev_rmhs_node *delayed_dev_rmhs = NULL;
+	struct mpi3mr_target *tgtdev = NULL;
 
 	mpi3mr_dprint(sc, MPI3MR_EVENT,
 	    "%s :dev_rmhs_iouctrl_complete:handle(0x%04x), ioc_status(0x%04x), loginfo(0x%08x)\n",
@@ -3498,6 +3499,13 @@ static void mpi3mr_dev_rmhs_complete_iou(struct mpi3mr_softc *sc,
 		    "%s :dev removal handshake failed after all retries: handle(0x%04x)\n",
 		    __func__, drv_cmd->dev_handle);
 	} else {
+		mtx_lock_spin(&sc->target_lock);
+		TAILQ_FOREACH(tgtdev, &sc->cam_sc->tgt_list, tgt_next) {
+		       if (tgtdev->dev_handle == drv_cmd->dev_handle)
+			       tgtdev->state = MPI3MR_DEV_REMOVE_HS_COMPLETED;
+		}
+		mtx_unlock_spin(&sc->target_lock);
+
 		mpi3mr_dprint(sc, MPI3MR_INFO,
 		    "%s :dev removal handshake completed successfully: handle(0x%04x)\n",
 		    __func__, drv_cmd->dev_handle);
@@ -3605,18 +3613,7 @@ static void mpi3mr_dev_rmhs_send_tm(struct mpi3mr_softc *sc, U16 handle,
 	U8 retrycount = 5;
 	struct mpi3mr_drvr_cmd *drv_cmd = cmdparam;
 	struct delayed_dev_rmhs_node *delayed_dev_rmhs = NULL;
-	struct mpi3mr_target *tgtdev = NULL;
 	
-	mtx_lock_spin(&sc->target_lock);
-	TAILQ_FOREACH(tgtdev, &sc->cam_sc->tgt_list, tgt_next) {
-		if ((tgtdev->dev_handle == handle) &&
-		    (iou_rc == MPI3_CTRL_OP_REMOVE_DEVICE)) {
-			tgtdev->state = MPI3MR_DEV_REMOVE_HS_STARTED;
-			break;
-		}
-	}
-	mtx_unlock_spin(&sc->target_lock);
-
 	if (drv_cmd)
 		goto issue_cmd;
 	do {
