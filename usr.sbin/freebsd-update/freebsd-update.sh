@@ -3457,6 +3457,7 @@ cmd_cron () {
 	    [ ${VERBOSELEVEL} = "debug" ]; then
 		mail -s "`hostname` security updates" ${MAILTO} < ${TMPFILE}
 	fi
+	ISFETCHED=1
 
 	rm ${TMPFILE}
 }
