@@ -138,7 +138,7 @@ uart_cpu_acpi_init_devinfo(struct uart_devinfo *di, struct uart_class *class,
 	return (0);
 }
 
-int
+static int
 uart_cpu_acpi_spcr(int devtype, struct uart_devinfo *di)
 {
 	vm_paddr_t spcr_physaddr;
@@ -146,10 +146,6 @@ uart_cpu_acpi_spcr(int devtype, struct uart_devinfo *di)
 	struct acpi_uart_compat_data *cd;
 	struct uart_class *class;
 	int error = ENXIO;
-
-	/* SPCR only tells us about consoles. */
-	if (devtype != UART_DEV_CONSOLE)
-		return (error);
 
 	/* Look for the SPCR table. */
 	spcr_physaddr = acpi_find_table(ACPI_SIG_SPCR);
@@ -212,4 +208,14 @@ uart_cpu_acpi_spcr(int devtype, struct uart_devinfo *di)
 out:
 	acpi_unmap_table(spcr);
 	return (error);
+}
+
+int
+uart_cpu_acpi_setup(int devtype, struct uart_devinfo *di)
+{
+	switch(devtype) {
+	case UART_DEV_CONSOLE:
+		return (uart_cpu_acpi_spcr(devtype, di));
+	}
+	return (ENXIO);
 }

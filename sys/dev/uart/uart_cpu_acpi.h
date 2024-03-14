@@ -64,7 +64,7 @@ SET_DECLARE(uart_acpi_class_set, struct acpi_uart_compat_data);
 #define UART_ACPI_CLASS(data)				\
 	DATA_SET(uart_acpi_class_set, data)
 
-/* Try to initialize UART device from SPCR data. */
-int uart_cpu_acpi_spcr(int devtype, struct uart_devinfo *di);
+/* Try to initialize UART device from ACPI tables */
+int uart_cpu_acpi_setup(int devtype, struct uart_devinfo *di);
 
 #endif /* _DEV_UART_CPU_ACPI_H_ */
