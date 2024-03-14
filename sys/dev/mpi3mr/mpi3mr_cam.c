@@ -1803,7 +1803,6 @@ out:
 
 int mpi3mr_remove_device_from_os(struct mpi3mr_softc *sc, U16 handle)
 {
-	U32 i = 0;
 	int retval = 0;
 	struct mpi3mr_target *target;
 
@@ -1834,17 +1833,6 @@ int mpi3mr_remove_device_from_os(struct mpi3mr_softc *sc, U16 handle)
 				      target->per_id);
 	}
 
-	while (mpi3mr_atomic_read(&target->outstanding) && (i < 30)) {
-		i++;
-		if (!(i % 2)) {
-			mpi3mr_dprint(sc, MPI3MR_INFO,
-			    "[%2d]waiting for "
-			    "waiting for outstanding commands to complete on target: %d\n",
-			    i, target->per_id);
-		}
-		DELAY(1000 * 1000);
-	}
-	
 	if (target->exposed_to_os && !sc->reset_in_progress) {
 		mpi3mr_rescan_target(sc, target);
 		mpi3mr_dprint(sc, MPI3MR_INFO,

@@ -5693,6 +5693,8 @@ static void mpi3mr_flush_io(struct mpi3mr_softc *sc)
 			if (cmd->callout_owner) {
 				ccb = (union ccb *)(cmd->ccb);
 				ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
+				mpi3mr_atomic_dec(&sc->fw_outstanding);
+				mpi3mr_atomic_dec(&cmd->targ->outstanding);
 				mpi3mr_cmd_done(sc, cmd);
 			} else {
 				cmd->ccb = NULL;
