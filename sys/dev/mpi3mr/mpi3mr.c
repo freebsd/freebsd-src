@@ -4389,6 +4389,7 @@ static int mpi3mr_complete_admin_cmd(struct mpi3mr_softc *sc)
 	U32 num_adm_reply = 0;
 	U64 reply_dma = 0;
 	Mpi3DefaultReplyDescriptor_t *reply_desc;
+	U16 threshold_comps = 0;
 	
 	mtx_lock_spin(&sc->admin_reply_lock);
 	if (sc->admin_in_use == false) {
@@ -4426,6 +4427,11 @@ static int mpi3mr_complete_admin_cmd(struct mpi3mr_softc *sc)
 		if ((reply_desc->ReplyFlags &
 		     MPI3_REPLY_DESCRIPT_FLAGS_PHASE_MASK) != exp_phase)
 			break;
+
+		if (++threshold_comps == MPI3MR_THRESHOLD_REPLY_COUNT) {
+			mpi3mr_regwrite(sc, MPI3_SYSIF_ADMIN_REPLY_Q_CI_OFFSET, adm_reply_ci);
+			threshold_comps = 0;
+		}
 	} while (1);
 
 	mpi3mr_regwrite(sc, MPI3_SYSIF_ADMIN_REPLY_Q_CI_OFFSET, adm_reply_ci);
@@ -4838,7 +4844,7 @@ int mpi3mr_complete_io_cmd(struct mpi3mr_softc *sc,
 	U32 num_op_replies = 0;
 	U64 reply_dma = 0;
 	Mpi3DefaultReplyDescriptor_t *reply_desc;
-	U16 req_qid = 0;
+	U16 req_qid = 0, threshold_comps = 0;
 
 	mtx_lock_spin(&op_reply_q->q_lock);
 	if (op_reply_q->in_use == false) {
@@ -4883,6 +4889,12 @@ int mpi3mr_complete_io_cmd(struct mpi3mr_softc *sc,
 		if ((reply_desc->ReplyFlags &
 		     MPI3_REPLY_DESCRIPT_FLAGS_PHASE_MASK) != exp_phase)
 			break;
+
+		if (++threshold_comps == MPI3MR_THRESHOLD_REPLY_COUNT) {
+			mpi3mr_regwrite(sc, MPI3_SYSIF_OPER_REPLY_Q_N_CI_OFFSET(op_reply_q->qid), reply_ci);
+			threshold_comps = 0;
+		}
+
 	} while (1);
 
 
