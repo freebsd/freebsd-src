@@ -1,4 +1,6 @@
-# $Id: rst2htm.mk,v 1.14 2023/09/19 22:27:28 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: rst2htm.mk,v 1.15 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2009, Simon J. Gerraty
 #

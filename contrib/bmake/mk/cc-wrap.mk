@@ -1,4 +1,6 @@
-# $Id: cc-wrap.mk,v 1.6 2022/02/16 17:41:52 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: cc-wrap.mk,v 1.7 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2022, Simon J. Gerraty
 #

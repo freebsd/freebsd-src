@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.327 2023/12/17 09:02:26 rillig Exp $	*/
+/*	$NetBSD: make.h,v 1.329 2024/03/10 02:53:37 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -527,6 +527,7 @@ typedef struct GNode {
 	const char *fname;
 	/* Line number where the GNode got defined, 1-based */
 	unsigned lineno;
+	int exit_status;
 } GNode;
 
 /*
@@ -1034,7 +1035,7 @@ char *Var_Subst(const char *, GNode *, VarEvalMode);
 void Var_Expand(FStr *, GNode *, VarEvalMode);
 void Var_Stats(void);
 void Var_Dump(GNode *);
-void Var_ReexportVars(void);
+void Var_ReexportVars(GNode *);
 void Var_Export(VarExportMode, const char *);
 void Var_ExportVars(const char *);
 void Var_UnExport(bool, const char *);

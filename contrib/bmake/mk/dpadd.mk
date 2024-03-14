@@ -1,4 +1,6 @@
-# $Id: dpadd.mk,v 1.31 2023/11/25 01:07:49 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: dpadd.mk,v 1.33 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2004-2023, Simon J. Gerraty
 #
@@ -254,7 +256,7 @@ SHLDADD+= -L${__lib:H}
 # Now for the bits we actually need
 __dpadd_incs=
 .for __lib in ${__dpadd_libs:u}
-.if (make(${PROG}_p) || defined(NEED_GPROF)) && exists(${__lib:R}_p.a)
+.if (make(${PROG:U}_p) || defined(NEED_GPROF)) && exists(${__lib:R}_p.a)
 __ldadd=-l${__lib:T:R:S,lib,,}
 LDADD := ${LDADD:S,^${__ldadd}$,${__ldadd}_p,g}
 .endif

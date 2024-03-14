@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.1094 2024/01/07 11:39:04 rillig Exp $	*/
+/*	$NetBSD: var.c,v 1.1101 2024/03/01 17:53:30 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -125,16 +125,17 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
-#ifndef NO_REGEX
-#include <regex.h>
-#endif
 
 #include "make.h"
 
 #include <errno.h>
+#ifdef HAVE_REGEX_H
+#include <regex.h>
+#endif
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
-#elif defined(HAVE_STDINT_H)
+#endif
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
 #ifdef HAVE_LIMITS_H
@@ -147,7 +148,7 @@
 #include "metachar.h"
 
 /*	"@(#)var.c	8.3 (Berkeley) 3/19/94" */
-MAKE_RCSID("$NetBSD: var.c,v 1.1094 2024/01/07 11:39:04 rillig Exp $");
+MAKE_RCSID("$NetBSD: var.c,v 1.1101 2024/03/01 17:53:30 rillig Exp $");
 
 /*
  * Variables are defined using one of the VAR=value assignments.  Their
@@ -600,7 +601,7 @@ MayExport(const char *name)
 }
 
 static bool
-ExportVarEnv(Var *v)
+ExportVarEnv(Var *v, GNode *scope)
 {
 	const char *name = v->name.str;
 	char *val = v->val.data;
@@ -620,7 +621,13 @@ ExportVarEnv(Var *v)
 
 	/* XXX: name is injected without escaping it */
 	expr = str_concat3("${", name, "}");
-	val = Var_Subst(expr, SCOPE_GLOBAL, VARE_WANTRES);
+	val = Var_Subst(expr, scope, VARE_WANTRES);
+	if (scope != SCOPE_GLOBAL) {
+		/* we will need to re-export the global version */
+		v = VarFind(name, SCOPE_GLOBAL, false);
+		if (v != NULL)
+			v->exported = false;
+	}
 	/* TODO: handle errors */
 	setenv(name, val, 1);
 	free(val);
@@ -667,19 +674,21 @@ ExportVarLiteral(Var *v)
  * Internal variables are not exported.
  */
 static bool
-ExportVar(const char *name, VarExportMode mode)
+ExportVar(const char *name, GNode *scope, VarExportMode mode)
 {
 	Var *v;
 
 	if (!MayExport(name))
 		return false;
 
-	v = VarFind(name, SCOPE_GLOBAL, false);
+	v = VarFind(name, scope, false);
+	if (v == NULL && scope != SCOPE_GLOBAL)
+		v = VarFind(name, SCOPE_GLOBAL, false);
 	if (v == NULL)
 		return false;
 
 	if (mode == VEM_ENV)
-		return ExportVarEnv(v);
+		return ExportVarEnv(v, scope);
 	else if (mode == VEM_PLAIN)
 		return ExportVarPlain(v);
 	else
@@ -691,7 +700,7 @@ ExportVar(const char *name, VarExportMode mode)
  * re-exported.
  */
 void
-Var_ReexportVars(void)
+Var_ReexportVars(GNode *scope)
 {
 	char *xvarnames;
 
@@ -715,7 +724,7 @@ Var_ReexportVars(void)
 		HashIter_Init(&hi, &SCOPE_GLOBAL->vars);
 		while (HashIter_Next(&hi) != NULL) {
 			Var *var = hi.entry->value;
-			ExportVar(var->name.str, VEM_ENV);
+			ExportVar(var->name.str, scope, VEM_ENV);
 		}
 		return;
 	}
@@ -728,7 +737,7 @@ Var_ReexportVars(void)
 		size_t i;
 
 		for (i = 0; i < varnames.len; i++)
-			ExportVar(varnames.words[i], VEM_ENV);
+			ExportVar(varnames.words[i], scope, VEM_ENV);
 		Words_Free(varnames);
 	}
 	free(xvarnames);
@@ -746,7 +755,7 @@ ExportVars(const char *varnames, bool isExport, VarExportMode mode)
 
 	for (i = 0; i < words.len; i++) {
 		const char *varname = words.words[i];
-		if (!ExportVar(varname, mode))
+		if (!ExportVar(varname, SCOPE_GLOBAL, mode))
 			continue;
 
 		if (var_exportedVars == VAR_EXPORTED_NONE)
@@ -971,7 +980,7 @@ Var_SetWithFlags(GNode *scope, const char *name, const char *val,
 		DEBUG4(VAR, "%s: %s = %s%s\n",
 		    scope->name, name, val, ValueDescription(val));
 		if (v->exported)
-			ExportVar(name, VEM_PLAIN);
+			ExportVar(name, scope, VEM_PLAIN);
 	}
 
 	if (scope == SCOPE_CMDLINE) {
@@ -1352,7 +1361,6 @@ ModifyWord_Root(Substring word, SepBuf *buf, void *dummy MAKE_ATTR_UNUSED)
 	SepBuf_AddRange(buf, word.start, end);
 }
 
-#ifdef SYSVVARSUB
 struct ModifyWord_SysVSubstArgs {
 	GNode *scope;
 	Substring lhsPrefix;
@@ -1392,7 +1400,6 @@ ModifyWord_SysVSubst(Substring word, SepBuf *buf, void *data)
 
 	FStr_Done(&rhs);
 }
-#endif
 
 static const char *
 Substring_Find(Substring haystack, Substring needle)
@@ -1470,7 +1477,7 @@ nosub:
 	SepBuf_AddSubstring(buf, word);
 }
 
-#ifndef NO_REGEX
+#ifdef HAVE_REGEX_H
 /* Print the error caused by a regcomp or regexec call. */
 static void
 RegexError(int reerr, const regex_t *pat, const char *str)
@@ -1579,7 +1586,6 @@ ok:
 		SepBuf_AddStr(buf, wp);
 }
 #endif
-
 
 struct ModifyWord_LoopArgs {
 	GNode *scope;
@@ -2282,6 +2288,9 @@ ModifyWords(ModChain *ch,
 	size_t i;
 	Substring word;
 
+	if (!ModChain_ShouldEval(ch))
+		return;
+
 	if (oneBigWord) {
 		SepBuf_Init(&result, ch->sep);
 		/* XXX: performance: Substring_InitStr calls strlen */
@@ -2814,8 +2823,7 @@ ApplyModifier_Mtime(const char **pp, ModChain *ch)
 			goto invalid_argument;
 		*pp = p;
 	}
-	if (ModChain_ShouldEval(ch))
-		ModifyWords(ch, ModifyWord_Mtime, &args, ch->oneBigWord);
+	ModifyWords(ch, ModifyWord_Mtime, &args, ch->oneBigWord);
 	return args.rc;
 
 invalid_argument:
@@ -2894,7 +2902,7 @@ ApplyModifier_Subst(const char **pp, ModChain *ch)
 	return AMR_OK;
 }
 
-#ifndef NO_REGEX
+#ifdef HAVE_REGEX_H
 
 /* :C,from,to, */
 static ApplyModifierResult
@@ -3560,8 +3568,7 @@ ApplyModifier_WordFunc(const char **pp, ModChain *ch,
 		return AMR_UNKNOWN;
 	(*pp)++;
 
-	if (ModChain_ShouldEval(ch))
-		ModifyWords(ch, modifyWord, NULL, ch->oneBigWord);
+	ModifyWords(ch, modifyWord, NULL, ch->oneBigWord);
 
 	return AMR_OK;
 }
@@ -3600,7 +3607,6 @@ ApplyModifier_Unique(const char **pp, ModChain *ch)
 	return AMR_OK;
 }
 
-#ifdef SYSVVARSUB
 /* Test whether the modifier has the form '<lhs>=<rhs>'. */
 static bool
 IsSysVModifier(const char *p, char startc, char endc)
@@ -3672,9 +3678,7 @@ done:
 	FStr_Done(&rhs);
 	return AMR_OK;
 }
-#endif
 
-#ifdef SUNSHCMD
 /* :sh */
 static ApplyModifierResult
 ApplyModifier_SunShell(const char **pp, ModChain *ch)
@@ -3697,7 +3701,6 @@ ApplyModifier_SunShell(const char **pp, ModChain *ch)
 
 	return AMR_OK;
 }
-#endif
 
 /*
  * In cases where the evaluation mode and the definedness are the "standard"
@@ -3779,7 +3782,7 @@ ApplyModifier(const char **pp, ModChain *ch)
 		return ApplyModifier_Words(pp, ch);
 	case '_':
 		return ApplyModifier_Remember(pp, ch);
-#ifndef NO_REGEX
+#ifdef HAVE_REGEX_H
 	case 'C':
 		return ApplyModifier_Regex(pp, ch);
 #endif
@@ -3815,10 +3818,8 @@ ApplyModifier(const char **pp, ModChain *ch)
 		return ApplyModifier_Range(pp, ch);
 	case 'S':
 		return ApplyModifier_Subst(pp, ch);
-#ifdef SUNSHCMD
 	case 's':
 		return ApplyModifier_SunShell(pp, ch);
-#endif
 	case 'T':
 		return ApplyModifier_WordFunc(pp, ch, ModifyWord_Tail);
 	case 't':
@@ -3870,7 +3871,7 @@ ApplyModifiersIndirect(ModChain *ch, const char **pp)
 	DEBUG3(VAR, "Indirect modifier \"%s\" from \"%.*s\"\n",
 	    mods.str, (int)(p - *pp), *pp);
 
-	if (mods.str[0] != '\0') {
+	if (ModChain_ShouldEval(ch) && mods.str[0] != '\0') {
 		const char *modsp = mods.str;
 		ApplyModifiers(expr, &modsp, '\0', '\0');
 		if (Expr_Str(expr) == var_Error || *modsp != '\0') {
@@ -3907,12 +3908,10 @@ ApplySingleModifier(const char **pp, ModChain *ch)
 
 	res = ApplyModifier(&p, ch);
 
-#ifdef SYSVVARSUB
 	if (res == AMR_UNKNOWN) {
 		assert(p == mod);
 		res = ApplyModifier_SysV(&p, ch);
 	}
-#endif
 
 	if (res == AMR_UNKNOWN) {
 		/*
@@ -4155,12 +4154,12 @@ IsShortVarnameValid(char varname, const char *start)
 	if (!opts.strict)
 		return false;	/* XXX: Missing error message */
 
-	if (varname == '$')
+	if (varname == '$' && save_dollars)
 		Parse_Error(PARSE_FATAL,
 		    "To escape a dollar, use \\$, not $$, at \"%s\"", start);
 	else if (varname == '\0')
 		Parse_Error(PARSE_FATAL, "Dollar followed by nothing");
-	else
+	else if (save_dollars)
 		Parse_Error(PARSE_FATAL,
 		    "Invalid variable name '%c', at \"%s\"", varname, start);
 
@@ -4287,7 +4286,7 @@ ParseVarnameLong(
 	bool dynamic = false;
 
 	const char *p = *pp;
-	const char *const start = p;
+	const char *start = p;
 	char endc = startc == '(' ? ')' : '}';
 
 	p += 2;			/* skip "${" or "$(" or "y(" */

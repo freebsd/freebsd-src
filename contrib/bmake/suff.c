@@ -1,4 +1,4 @@
-/*	$NetBSD: suff.c,v 1.377 2024/01/05 23:22:06 rillig Exp $	*/
+/*	$NetBSD: suff.c,v 1.378 2024/02/07 06:43:02 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -115,7 +115,7 @@
 #include "dir.h"
 
 /*	"@(#)suff.c	8.4 (Berkeley) 3/21/94"	*/
-MAKE_RCSID("$NetBSD: suff.c,v 1.377 2024/01/05 23:22:06 rillig Exp $");
+MAKE_RCSID("$NetBSD: suff.c,v 1.378 2024/02/07 06:43:02 rillig Exp $");
 
 typedef List SuffixList;
 typedef ListNode SuffixListNode;
@@ -856,15 +856,11 @@ Suff_ExtendPaths(void)
 	for (ln = sufflist.first; ln != NULL; ln = ln->next) {
 		Suffix *suff = ln->datum;
 		if (!Lst_IsEmpty(&suff->searchPath->dirs)) {
-#ifdef INCLUDES
 			if (suff->include)
 				SearchPath_AddAll(includesPath,
 				    suff->searchPath);
-#endif
-#ifdef LIBRARIES
 			if (suff->library)
 				SearchPath_AddAll(libsPath, suff->searchPath);
-#endif
 			SearchPath_AddAll(suff->searchPath, &dirSearchPath);
 		} else {
 			SearchPath_Free(suff->searchPath);

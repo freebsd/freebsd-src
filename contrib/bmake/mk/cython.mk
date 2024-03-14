@@ -1,5 +1,7 @@
+# SPDX-License-Identifier: BSD-2-Clause
+#
 # RCSid:
-#	$Id: cython.mk,v 1.8 2020/08/19 17:51:53 sjg Exp $
+#	$Id: cython.mk,v 1.9 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2014, Simon J. Gerraty
 #

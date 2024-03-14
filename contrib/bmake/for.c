@@ -1,4 +1,4 @@
-/*	$NetBSD: for.c,v 1.177 2023/11/19 22:50:11 rillig Exp $	*/
+/*	$NetBSD: for.c,v 1.178 2024/01/21 15:02:17 rillig Exp $	*/
 
 /*
  * Copyright (c) 1992, The Regents of the University of California.
@@ -58,7 +58,7 @@
 #include "make.h"
 
 /*	"@(#)for.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: for.c,v 1.177 2023/11/19 22:50:11 rillig Exp $");
+MAKE_RCSID("$NetBSD: for.c,v 1.178 2024/01/21 15:02:17 rillig Exp $");
 
 
 typedef struct ForLoop {
@@ -434,7 +434,7 @@ static void
 ForLoop_SubstVarShort(ForLoop *f, unsigned int firstItem, Buffer *body,
 		      const char *p, const char **inout_mark)
 {
-	const char ch = *p;
+	char ch = *p;
 	const char **vars;
 	size_t i;
 

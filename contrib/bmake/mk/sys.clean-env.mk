@@ -1,4 +1,6 @@
-# $Id: sys.clean-env.mk,v 1.25 2022/09/09 17:44:29 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: sys.clean-env.mk,v 1.26 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2009, Simon J. Gerraty
 #
