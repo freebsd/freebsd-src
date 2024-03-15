@@ -157,7 +157,7 @@ struct its_dev {
 	/* List of assigned LPIs */
 	struct lpi_chunk	lpis;
 	/* Virtual address of ITT */
-	vm_offset_t		itt;
+	void			*itt;
 	size_t			itt_size;
 };
 
@@ -221,7 +221,7 @@ struct its_cmd {
 
 /* An ITS private table */
 struct its_ptable {
-	vm_offset_t	ptab_vaddr;
+	void		*ptab_vaddr;
 	/* Size of the L1 and L2 tables */
 	size_t		ptab_l1_size;
 	size_t		ptab_l2_size;
@@ -267,7 +267,7 @@ struct gicv3_its_softc {
 	 * single copy of each across the interrupt controller.
 	 */
 	uint8_t		*sc_conf_base;
-	vm_offset_t sc_pend_base[MAXCPU];
+	void		*sc_pend_base[MAXCPU];
 
 	/* Command handling */
 	struct mtx sc_its_cmd_lock;
@@ -501,7 +501,7 @@ gicv3_its_table_supports_indirect(struct gicv3_its_softc *sc, int table)
 static int
 gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 {
-	vm_offset_t table;
+	void *table;
 	vm_paddr_t paddr;
 	uint64_t cache, reg, share, tmp, type;
 	size_t its_tbl_size, nitspages, npages;
@@ -601,7 +601,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 		npages = howmany(its_tbl_size, PAGE_SIZE);
 
 		/* Allocate the table */
-		table = (vm_offset_t)contigmalloc_domainset(npages * PAGE_SIZE,
+		table = contigmalloc_domainset(npages * PAGE_SIZE,
 		    M_GICV3_ITS, sc->sc_ds, M_WAITOK | M_ZERO, 0,
 		    (1ul << 48) - 1, PAGE_SIZE_64K, 0);
 
@@ -705,7 +705,7 @@ gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 		conf_pa &= GICR_PROPBASER_PA_MASK;
 		/*
 		 * If there was a pre-existing PROPBASER, then we need to honor
-		 * it because implemenetation defined behavior in gicv3 makes it
+		 * it because implementation defined behavior in gicv3 makes it
 		 * impossible to quiesce to change it out. We will only see a
 		 * pre-existing one when we've been kexec'd from a Linux kernel,
 		 * or from a LinuxBoot environment.
@@ -716,11 +716,11 @@ gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 		 * so we panic for this case.
 		 */
 		if (!physmem_excluded(conf_pa, LPI_CONFTAB_SIZE))
-			panic("gicv3 PROPBASER needs to reuse %#lx, but not reserved\n",
+			panic("gicv3 PROPBASER needs to reuse %#lx, but not reserved",
 			    conf_pa);
 		conf_va = PHYS_TO_DMAP(conf_pa);
 		if (!pmap_klookup(conf_va, NULL))
-			panic("Can't mapped prior LPI mapping into VA\n");
+			panic("Cannot map prior LPI mapping into KVA");
 		conf_table = (void *)conf_va;
 		extra_flags = ITS_FLAGS_LPI_PREALLOC | ITS_FLAGS_LPI_CONF_FLUSH;
 		if (bootverbose)
@@ -728,7 +728,6 @@ gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 			    "LPI enabled, conf table using pa %#lx va %lx\n",
 			    conf_pa, conf_va);
 	} else {
-
 		/*
 		 * Otherwise just allocate contiguous pages. We'll configure the
 		 * PROPBASER register later in its_init_cpu_lpi().
@@ -757,12 +756,12 @@ gicv3_its_pendtables_init(struct gicv3_its_softc *sc)
 			if (CPU_ISSET(i, &sc->sc_cpus) == 0)
 				continue;
 
-			sc->sc_pend_base[i] = (vm_offset_t)contigmalloc(
+			sc->sc_pend_base[i] = contigmalloc(
 			    LPI_PENDTAB_SIZE, M_GICV3_ITS, M_WAITOK | M_ZERO,
 			    0, LPI_PENDTAB_MAX_ADDR, LPI_PENDTAB_ALIGN, 0);
 
 			/* Flush so the ITS can see the memory */
-			cpu_dcache_wb_range(sc->sc_pend_base[i],
+			cpu_dcache_wb_range((vm_offset_t)sc->sc_pend_base[i],
 			    LPI_PENDTAB_SIZE);
 		}
 	}
@@ -855,14 +854,14 @@ its_init_cpu_lpi(device_t dev, struct gicv3_its_softc *sc)
 		/* Make sure the GIC has seen everything */
 		dsb(sy);
 	} else {
-		KASSERT(sc->sc_pend_base[cpuid] == 0,
+		KASSERT(sc->sc_pend_base[cpuid] == NULL,
 		    ("PREALLOC too soon cpuid %d", cpuid));
 		tmp = gic_r_read_8(gicv3, GICR_PENDBASER);
 		tmp &= GICR_PENDBASER_PA_MASK;
 		if (!physmem_excluded(tmp, LPI_PENDTAB_SIZE))
 			panic("gicv3 PENDBASER on cpu %d needs to reuse 0x%#lx, but not reserved\n",
 			    cpuid, tmp);
-		sc->sc_pend_base[cpuid] = PHYS_TO_DMAP(tmp);
+		sc->sc_pend_base[cpuid] = (void *)PHYS_TO_DMAP(tmp);
 	}
 
 
@@ -1337,7 +1336,7 @@ static bool
 its_device_alloc(struct gicv3_its_softc *sc, int devid)
 {
 	struct its_ptable *ptable;
-	vm_offset_t l2_table;
+	void *l2_table;
 	uint64_t *table;
 	uint32_t index;
 	bool shareable;
@@ -1392,12 +1391,12 @@ its_device_alloc(struct gicv3_its_softc *sc, int devid)
 	if ((ptable->ptab_share & GITS_BASER_SHARE_MASK) == GITS_BASER_SHARE_NS)
 		shareable = false;
 
-	l2_table = (vm_offset_t)contigmalloc_domainset(ptable->ptab_l2_size,
+	l2_table = contigmalloc_domainset(ptable->ptab_l2_size,
 	    M_GICV3_ITS, sc->sc_ds, M_WAITOK | M_ZERO, 0, (1ul << 48) - 1,
 	    ptable->ptab_page_size, 0);
 
 	if (!shareable)
-		cpu_dcache_wb_range(l2_table, ptable->ptab_l2_size);
+		cpu_dcache_wb_range((vm_offset_t)l2_table, ptable->ptab_l2_size);
 
 	table[index] = vtophys(l2_table) | GITS_BASER_VALID;
 	if (!shareable)
@@ -1453,10 +1452,10 @@ its_device_get(device_t dev, device_t child, u_int nvecs)
 	 * PA has to be 256 B aligned. At least two entries for device.
 	 */
 	its_dev->itt_size = roundup2(MAX(nvecs, 2) * esize, 256);
-	its_dev->itt = (vm_offset_t)contigmalloc_domainset(its_dev->itt_size,
+	its_dev->itt = contigmalloc_domainset(its_dev->itt_size,
 	    M_GICV3_ITS, sc->sc_ds, M_NOWAIT | M_ZERO, 0,
 	    LPI_INT_TRANS_TAB_MAX_ADDR, LPI_INT_TRANS_TAB_ALIGN, 0);
-	if (its_dev->itt == 0) {
+	if (its_dev->itt == NULL) {
 		vmem_free(sc->sc_irq_alloc, its_dev->lpis.lpi_base, nvecs);
 		free(its_dev, M_GICV3_ITS);
 		return (NULL);
@@ -1464,7 +1463,7 @@ its_device_get(device_t dev, device_t child, u_int nvecs)
 
 	/* Make sure device sees zeroed ITT. */
 	if ((sc->sc_its_flags & ITS_FLAGS_CMDQ_FLUSH) != 0)
-		cpu_dcache_wb_range(its_dev->itt, its_dev->itt_size);
+		cpu_dcache_wb_range((vm_offset_t)its_dev->itt, its_dev->itt_size);
 
 	mtx_lock_spin(&sc->sc_its_dev_lock);
 	TAILQ_INSERT_TAIL(&sc->sc_its_dev_list, its_dev, entry);
@@ -1495,8 +1494,8 @@ its_device_release(device_t dev, struct its_dev *its_dev)
 	mtx_unlock_spin(&sc->sc_its_dev_lock);
 
 	/* Free ITT */
-	KASSERT(its_dev->itt != 0, ("Invalid ITT in valid ITS device"));
-	contigfree((void *)its_dev->itt, its_dev->itt_size, M_GICV3_ITS);
+	KASSERT(its_dev->itt != NULL, ("Invalid ITT in valid ITS device"));
+	contigfree(its_dev->itt, its_dev->itt_size, M_GICV3_ITS);
 
 	/* Free the IRQ allocation */
 	vmem_free(sc->sc_irq_alloc, its_dev->lpis.lpi_base,
