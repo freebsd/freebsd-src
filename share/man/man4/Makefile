@@ -734,10 +734,9 @@ MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4
 MLINKS+=rtwn_pci.4 if_rtwn_pci.4
 MLINKS+=rue.4 if_rue.4
-MLINKS+=scsi.4 CAM.4 \
-	scsi.4 cam.4 \
-	scsi.4 scbus.4 \
-	scsi.4 SCSI.4
+MLINKS+=scsi.4 cam.4
+MLINKS+=scsi.4 scbus.4
+MLINKS+=scsi.4 SCSI.4
 MLINKS+=sge.4 if_sge.4
 MLINKS+=sis.4 if_sis.4
 MLINKS+=sk.4 if_sk.4
