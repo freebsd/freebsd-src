@@ -19,6 +19,7 @@ RAW_DESC=	Unformatted raw disk image
 
 CLOUDWARE_TYPES?= AZURE \
 		BASIC-CI \
+		BASIC-CLOUDINIT \
 		EC2 \
 		GCE \
 		OCI \
@@ -29,6 +30,9 @@ AZURE_DESC=	Microsoft Azure platform image
 BASIC-CI_FORMAT=	raw
 BASIC-CI_FSLIST=	ufs
 BASIC-CI_DESC=		Image for CI
+BASIC-CLOUDINIT_FORMAT=	raw
+BASIC-CLOUDINIT_FSLIST?=	ufs zfs
+BASIC-CLOUDINIT_DESC?=	Images for VM with cloudinit disk config support
 EC2_FORMAT=	raw
 EC2_FSLIST=	ufs zfs
 EC2_FLAVOURS=	BASE CLOUD-INIT
