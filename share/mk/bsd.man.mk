@@ -234,12 +234,15 @@ maninstall: ${MAN}
 .endif	# ${MK_MANCOMPRESS} == "no"
 .endif
 .for l t in ${_MANLINKS}
+# On MacOS, assume case folding FS, and don't install links from foo.x to FOO.x.
+.if ${.MAKE.OS} != "Darwin" || ${l:tu} != ${t:tu}
 .if ${MK_MANSPLITPKG} == "no"
 	rm -f ${DESTDIR}${t} ${DESTDIR}${t}${MCOMPRESS_EXT}; \
 	    ${INSTALL_MANLINK} ${TAG_ARGS} ${DESTDIR}${l}${ZEXT} ${DESTDIR}${t}${ZEXT}
 .else
 	rm -f ${DESTDIR}${t} ${DESTDIR}${t}${MCOMPRESS_EXT}; \
 	    ${INSTALL_MANLINK} ${TAG_ARGS:D${TAG_ARGS},man} ${DESTDIR}${l}${ZEXT} ${DESTDIR}${t}${ZEXT}
+.endif
 .endif
 .endfor
 
