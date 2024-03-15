@@ -744,7 +744,7 @@ gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 	    LPI_CONFTAB_SIZE);
 
 	/* Flush the table to memory */
-	cpu_dcache_wb_range((vm_offset_t)sc->sc_conf_base, LPI_CONFTAB_SIZE);
+	cpu_dcache_wb_range(sc->sc_conf_base, LPI_CONFTAB_SIZE);
 }
 
 static void
@@ -761,7 +761,7 @@ gicv3_its_pendtables_init(struct gicv3_its_softc *sc)
 			    0, LPI_PENDTAB_MAX_ADDR, LPI_PENDTAB_ALIGN, 0);
 
 			/* Flush so the ITS can see the memory */
-			cpu_dcache_wb_range((vm_offset_t)sc->sc_pend_base[i],
+			cpu_dcache_wb_range(sc->sc_pend_base[i],
 			    LPI_PENDTAB_SIZE);
 		}
 	}
@@ -1158,7 +1158,7 @@ gicv3_its_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 
 	if ((sc->sc_its_flags & ITS_FLAGS_LPI_CONF_FLUSH) != 0) {
 		/* Clean D-cache under command. */
-		cpu_dcache_wb_range((vm_offset_t)&conf[girq->gi_lpi], 1);
+		cpu_dcache_wb_range(&conf[girq->gi_lpi], 1);
 	} else {
 		/* DSB inner shareable, store */
 		dsb(ishst);
@@ -1182,7 +1182,7 @@ gicv3_its_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 
 	if ((sc->sc_its_flags & ITS_FLAGS_LPI_CONF_FLUSH) != 0) {
 		/* Clean D-cache under command. */
-		cpu_dcache_wb_range((vm_offset_t)&conf[girq->gi_lpi], 1);
+		cpu_dcache_wb_range(&conf[girq->gi_lpi], 1);
 	} else {
 		/* DSB inner shareable, store */
 		dsb(ishst);
@@ -1396,12 +1396,11 @@ its_device_alloc(struct gicv3_its_softc *sc, int devid)
 	    ptable->ptab_page_size, 0);
 
 	if (!shareable)
-		cpu_dcache_wb_range((vm_offset_t)l2_table, ptable->ptab_l2_size);
+		cpu_dcache_wb_range(l2_table, ptable->ptab_l2_size);
 
 	table[index] = vtophys(l2_table) | GITS_BASER_VALID;
 	if (!shareable)
-		cpu_dcache_wb_range((vm_offset_t)&table[index],
-		    sizeof(table[index]));
+		cpu_dcache_wb_range(&table[index], sizeof(table[index]));
 
 	dsb(sy);
 	return (true);
@@ -1463,7 +1462,7 @@ its_device_get(device_t dev, device_t child, u_int nvecs)
 
 	/* Make sure device sees zeroed ITT. */
 	if ((sc->sc_its_flags & ITS_FLAGS_CMDQ_FLUSH) != 0)
-		cpu_dcache_wb_range((vm_offset_t)its_dev->itt, its_dev->itt_size);
+		cpu_dcache_wb_range(its_dev->itt, its_dev->itt_size);
 
 	mtx_lock_spin(&sc->sc_its_dev_lock);
 	TAILQ_INSERT_TAIL(&sc->sc_its_dev_list, its_dev, entry);
@@ -1861,7 +1860,7 @@ its_cmd_sync(struct gicv3_its_softc *sc, struct its_cmd *cmd)
 
 	if ((sc->sc_its_flags & ITS_FLAGS_CMDQ_FLUSH) != 0) {
 		/* Clean D-cache under command. */
-		cpu_dcache_wb_range((vm_offset_t)cmd, sizeof(*cmd));
+		cpu_dcache_wb_range(cmd, sizeof(*cmd));
 	} else {
 		/* DSB inner shareable, store */
 		dsb(ishst);

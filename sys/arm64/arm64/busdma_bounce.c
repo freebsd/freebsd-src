@@ -985,15 +985,15 @@ bounce_bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 }
 
 static void
-dma_preread_safe(vm_offset_t va, vm_size_t size)
+dma_preread_safe(char *va, vm_size_t size)
 {
 	/*
 	 * Write back any partial cachelines immediately before and
 	 * after the DMA region.
 	 */
-	if (va & (dcache_line_size - 1))
+	if (!__is_aligned(va, dcache_line_size))
 		cpu_dcache_wb_range(va, 1);
-	if ((va + size) & (dcache_line_size - 1))
+	if (!__is_aligned(va + size, dcache_line_size))
 		cpu_dcache_wb_range(va + size, 1);
 
 	cpu_dcache_inv_range(va, size);
@@ -1030,7 +1030,7 @@ dma_dcache_sync(struct sync_list *sl, bus_dmasync_op_t op)
 		switch (op) {
 		case BUS_DMASYNC_PREWRITE:
 		case BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD:
-			cpu_dcache_wb_range(va, len);
+			cpu_dcache_wb_range((void *)va, len);
 			break;
 		case BUS_DMASYNC_PREREAD:
 			/*
@@ -1043,11 +1043,11 @@ dma_dcache_sync(struct sync_list *sl, bus_dmasync_op_t op)
 			 * misalignment.  Buffers which are not mbufs bounce if
 			 * they are not aligned to a cacheline.
 			 */
-			dma_preread_safe(va, len);
+			dma_preread_safe((void *)va, len);
 			break;
 		case BUS_DMASYNC_POSTREAD:
 		case BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE:
-			cpu_dcache_inv_range(va, len);
+			cpu_dcache_inv_range((void *)va, len);
 			break;
 		default:
 			panic("unsupported combination of sync operations: "
@@ -1097,7 +1097,7 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 				if (tempvaddr != 0)
 					pmap_quick_remove_page(tempvaddr);
 				if ((map->flags & DMAMAP_COHERENT) == 0)
-					cpu_dcache_wb_range(bpage->vaddr,
+					cpu_dcache_wb_range((void *)bpage->vaddr,
 					    bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
 			}
@@ -1105,7 +1105,7 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 		} else if ((op & BUS_DMASYNC_PREREAD) != 0) {
 			while (bpage != NULL) {
 				if ((map->flags & DMAMAP_COHERENT) == 0)
-					cpu_dcache_wbinv_range(bpage->vaddr,
+					cpu_dcache_wbinv_range((void *)bpage->vaddr,
 					    bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
 			}
@@ -1114,7 +1114,7 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 		if ((op & BUS_DMASYNC_POSTREAD) != 0) {
 			while (bpage != NULL) {
 				if ((map->flags & DMAMAP_COHERENT) == 0)
-					cpu_dcache_inv_range(bpage->vaddr,
+					cpu_dcache_inv_range((void *)bpage->vaddr,
 					    bpage->datacount);
 				tempvaddr = 0;
 				datavaddr = bpage->datavaddr;

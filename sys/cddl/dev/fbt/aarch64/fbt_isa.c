@@ -77,7 +77,7 @@ fbt_patch_tracepoint(fbt_probe_t *fbt, fbt_patchval_t val)
 		panic("%s: Unable to write new instruction", __func__);
 
 	*(fbt_patchval_t *)addr = val;
-	cpu_icache_sync_range((vm_offset_t)fbt->fbtp_patchpoint, 4);
+	cpu_icache_sync_range(fbt->fbtp_patchpoint, 4);
 }
 
 int
