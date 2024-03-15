@@ -235,9 +235,9 @@ kinst_invop(uintptr_t addr, struct trapframe *frame, uintptr_t scratch)
 void
 kinst_patch_tracepoint(struct kinst_probe *kp, kinst_patchval_t val)
 {
-	vm_offset_t addr;
+	void *addr;
 
-	if (!arm64_get_writable_addr((vm_offset_t)kp->kp_patchpoint, &addr))
+	if (!arm64_get_writable_addr(kp->kp_patchpoint, &addr))
 		panic("%s: Unable to write new instruction", __func__);
 	*(kinst_patchval_t *)addr = val;
 	cpu_icache_sync_range(kp->kp_patchpoint, INSN_SIZE);
