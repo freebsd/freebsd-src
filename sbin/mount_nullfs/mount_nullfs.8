@@ -90,17 +90,6 @@ flag followed by a comma separated string of options.
 See the
 .Xr mount 8
 man page for possible options and their meanings.
-<<<<<<< HEAD
-||||||| parent of 4a2a69c4472c (mount_nullfs(8): document -o cache and vfs.nullfs.cache_vnodes)
-Additionally the following option is supported:
-.Bl -tag -width indent
-.It Cm nocache
-Disable metadata caching in the null layer.
-Some lower-layer file systems may force this option.
-Depending on the access pattern,
-this may result in increased lock contention.
-.El
-=======
 Additionally the following option is supported:
 .Bl -tag -width nocache
 .It Cm nocache
@@ -111,7 +100,6 @@ this may result in increased lock contention.
 .It Cm cache
 Force enable metadata caching.
 .El
->>>>>>> 4a2a69c4472c (mount_nullfs(8): document -o cache and vfs.nullfs.cache_vnodes)
 .El
 .Pp
 The
