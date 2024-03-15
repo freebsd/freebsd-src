@@ -3296,7 +3296,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	off_t startoff, endoff, xfer, xfer2;
 	u_long blksize;
 	int error, interrupted;
-	bool cantseek, readzeros, eof, lastblock, holetoeof;
+	bool cantseek, readzeros, eof, lastblock, holetoeof, sparse;
 	ssize_t aresid, r = 0;
 	size_t copylen, len, savlen;
 	char *dat;
@@ -3315,9 +3315,24 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	if (VOP_PATHCONF(invp, _PC_MIN_HOLE_SIZE, &holein) != 0)
 		holein = 0;
 	error = VOP_GETATTR(invp, &inva, incred);
+	if (error == 0 && inva.va_size > OFF_MAX)
+		error = EFBIG;
 	VOP_UNLOCK(invp);
 	if (error != 0)
 		goto out;
+
+	/*
+	 * Use va_bytes >= va_size as a hint that the file does not have
+	 * sufficient holes to justify the overhead of doing FIOSEEKHOLE.
+	 * This hint does not work well for file systems doing compression
+	 * and may fail when allocations for extended attributes increases
+	 * the value of va_bytes to >= va_size.
+	 */
+	sparse = true;
+	if (holein != 0 && inva.va_bytes >= inva.va_size) {
+		holein = 0;
+		sparse = false;
+	}
 
 	mp = NULL;
 	error = vn_start_write(outvp, &mp, V_WAIT);
@@ -3372,7 +3387,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	if (error != 0)
 		goto out;
 
-	if (holein == 0 && holeout > 0) {
+	if (sparse && holein == 0 && holeout > 0) {
 		/*
 		 * For this special case, the input data will be scanned
 		 * for blocks of all 0 bytes.  For these blocks, the
@@ -3506,6 +3521,8 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 			cantseek = false;
 		} else {
 			cantseek = true;
+			if (!sparse)
+				cantseek = false;
 			startoff = *inoffp;
 			copylen = len;
 			error = 0;
