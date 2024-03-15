@@ -104,7 +104,7 @@ slot_has_valid_firmware(int fd, int slot)
 	read_logpage(fd, NVME_LOG_FIRMWARE_SLOT,
 	    NVME_GLOBAL_NAMESPACE_TAG, 0, 0, 0, &fw, sizeof(fw));
 
-	if (fw.revision[slot-1] != 0LLU)
+	if (fw.revision[slot-1][0] != '\0')
 		has_fw = true;
 
 	return (has_fw);
