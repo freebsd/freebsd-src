@@ -1517,8 +1517,7 @@ wg_encrypt(struct wg_softc *sc, struct wg_packet *pkt)
 	state = WG_PACKET_CRYPTED;
 out:
 	pkt->p_mbuf = m;
-	wmb();
-	pkt->p_state = state;
+	atomic_store_rel_int(&pkt->p_state, state);
 	GROUPTASK_ENQUEUE(&peer->p_send);
 	noise_remote_put(remote);
 }
@@ -1590,8 +1589,7 @@ wg_decrypt(struct wg_softc *sc, struct wg_packet *pkt)
 	state = WG_PACKET_CRYPTED;
 out:
 	pkt->p_mbuf = m;
-	wmb();
-	pkt->p_state = state;
+	atomic_store_rel_int(&pkt->p_state, state);
 	GROUPTASK_ENQUEUE(&peer->p_recv);
 	noise_remote_put(remote);
 }
@@ -1647,7 +1645,7 @@ wg_deliver_out(struct wg_peer *peer)
 	wg_peer_get_endpoint(peer, &endpoint);
 
 	while ((pkt = wg_queue_dequeue_serial(&peer->p_encrypt_serial)) != NULL) {
-		if (pkt->p_state != WG_PACKET_CRYPTED)
+		if (atomic_load_acq_int(&pkt->p_state) != WG_PACKET_CRYPTED)
 			goto error;
 
 		m = pkt->p_mbuf;
@@ -1689,7 +1687,7 @@ wg_deliver_in(struct wg_peer *peer)
 	struct epoch_tracker	 et;
 
 	while ((pkt = wg_queue_dequeue_serial(&peer->p_decrypt_serial)) != NULL) {
-		if (pkt->p_state != WG_PACKET_CRYPTED)
+		if (atomic_load_acq_int(&pkt->p_state) != WG_PACKET_CRYPTED)
 			goto error;
 
 		m = pkt->p_mbuf;
