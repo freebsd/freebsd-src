@@ -94,7 +94,8 @@ freebsd32_sysarch(struct thread *td, struct freebsd32_sysarch_args *uap)
 				return (error);
 			if ((uint64_t)args.addr + (uint64_t)args.size > 0xffffffff)
 				return (EINVAL);
-			cpu_icache_sync_range_checked(args.addr, args.size);
+			cpu_icache_sync_range_checked(
+			    (void *)(uintptr_t)args.addr, args.size);
 			return 0;
 		}
 	case ARM_GET_VFPSTATE:

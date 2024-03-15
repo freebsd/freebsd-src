@@ -104,7 +104,7 @@ ENTRY(arm64_tlb_flushID)
 END(arm64_tlb_flushID)
 
 /*
- * void arm64_dcache_wb_range(vm_offset_t, vm_size_t)
+ * void arm64_dcache_wb_range(void *, vm_size_t)
  */
 ENTRY(arm64_dcache_wb_range)
 	cache_handle_range	dcop = cvac
@@ -112,7 +112,7 @@ ENTRY(arm64_dcache_wb_range)
 END(arm64_dcache_wb_range)
 
 /*
- * void arm64_dcache_wbinv_range(vm_offset_t, vm_size_t)
+ * void arm64_dcache_wbinv_range(void *, vm_size_t)
  */
 ENTRY(arm64_dcache_wbinv_range)
 	cache_handle_range	dcop = civac
@@ -120,7 +120,7 @@ ENTRY(arm64_dcache_wbinv_range)
 END(arm64_dcache_wbinv_range)
 
 /*
- * void arm64_dcache_inv_range(vm_offset_t, vm_size_t)
+ * void arm64_dcache_inv_range(void *, vm_size_t)
  *
  * Note, we must not invalidate everything.  If the range is too big we
  * must use wb-inv of the entire cache.
@@ -131,7 +131,7 @@ ENTRY(arm64_dcache_inv_range)
 END(arm64_dcache_inv_range)
 
 /*
- * void arm64_dic_idc_icache_sync_range(vm_offset_t, vm_size_t)
+ * void arm64_dic_idc_icache_sync_range(void *, vm_size_t)
  * When the CTR_EL0.IDC bit is set cleaning to PoU becomes a dsb.
  * When the CTR_EL0.DIC bit is set icache invalidation becomes an isb.
  */
@@ -142,7 +142,7 @@ ENTRY(arm64_dic_idc_icache_sync_range)
 END(arm64_dic_idc_icache_sync_range)
 
 /*
- * void arm64_idc_aliasing_icache_sync_range(vm_offset_t, vm_size_t)
+ * void arm64_idc_aliasing_icache_sync_range(void *, vm_size_t)
  * When the CTR_EL0.IDC bit is set cleaning to PoU becomes a dsb.
  */
 ENTRY(arm64_idc_aliasing_icache_sync_range)
@@ -154,7 +154,7 @@ ENTRY(arm64_idc_aliasing_icache_sync_range)
 END(arm64_idc_aliasing_icache_sync_range)
 
 /*
- * void arm64_aliasing_icache_sync_range(vm_offset_t, vm_size_t)
+ * void arm64_aliasing_icache_sync_range(void *, vm_size_t)
  */
 ENTRY(arm64_aliasing_icache_sync_range)
 	/*
@@ -170,7 +170,7 @@ ENTRY(arm64_aliasing_icache_sync_range)
 END(arm64_aliasing_icache_sync_range)
 
 /*
- * int arm64_icache_sync_range_checked(vm_offset_t, vm_size_t)
+ * int arm64_icache_sync_range_checked(void *, vm_size_t)
  */
 ENTRY(arm64_icache_sync_range_checked)
 	adr	x5, cache_maint_fault

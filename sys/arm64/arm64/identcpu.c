@@ -83,7 +83,7 @@ static void check_cpu_regs(u_int cpu, struct cpu_desc *desc,
  * The default implementation of I-cache sync assumes we have an
  * aliasing cache until we know otherwise.
  */
-void (*arm64_icache_sync_range)(vm_offset_t, vm_size_t) =
+void (*arm64_icache_sync_range)(void *, vm_size_t) =
     &arm64_aliasing_icache_sync_range;
 
 static int

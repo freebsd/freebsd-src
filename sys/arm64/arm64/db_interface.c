@@ -175,7 +175,7 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 			 * Ensure the I & D cache are in sync if we wrote
 			 * to executable memory.
 			 */
-			cpu_icache_sync_range(addr, (vm_size_t)size);
+			cpu_icache_sync_range((void *)addr, (vm_size_t)size);
 		}
 	}
 	(void)kdb_jmpbuf(prev_jb);

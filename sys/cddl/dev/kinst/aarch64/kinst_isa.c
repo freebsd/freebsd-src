@@ -153,8 +153,7 @@ kinst_trampoline_populate(struct kinst_probe *kp)
 	kinst_memcpy(kp->kp_tramp, &kp->kp_savedval, INSN_SIZE);
 	kinst_memcpy(&kp->kp_tramp[INSN_SIZE], &bpt, INSN_SIZE);
 
-	cpu_icache_sync_range((vm_offset_t)kp->kp_tramp,
-	    (vm_size_t)KINST_TRAMP_SIZE);
+	cpu_icache_sync_range(kp->kp_tramp, KINST_TRAMP_SIZE);
 }
 
 /*
@@ -241,8 +240,7 @@ kinst_patch_tracepoint(struct kinst_probe *kp, kinst_patchval_t val)
 	if (!arm64_get_writable_addr((vm_offset_t)kp->kp_patchpoint, &addr))
 		panic("%s: Unable to write new instruction", __func__);
 	*(kinst_patchval_t *)addr = val;
-	cpu_icache_sync_range((vm_offset_t)kp->kp_patchpoint,
-	    (vm_size_t)INSN_SIZE);
+	cpu_icache_sync_range(kp->kp_patchpoint, INSN_SIZE);
 }
 
 static void

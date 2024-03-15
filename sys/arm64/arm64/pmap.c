@@ -4738,10 +4738,11 @@ validate:
 		    m->md.pv_memattr == VM_MEMATTR_WRITE_BACK &&
 		    (opa != pa || (orig_l3 & ATTR_S1_XN))) {
 			PMAP_ASSERT_STAGE1(pmap);
-			cpu_icache_sync_range(PHYS_TO_DMAP(pa), PAGE_SIZE);
+			cpu_icache_sync_range((void *)PHYS_TO_DMAP(pa),
+			    PAGE_SIZE);
 		}
 	} else {
-		cpu_dcache_wb_range(PHYS_TO_DMAP(pa), PAGE_SIZE);
+		cpu_dcache_wb_range((void *)PHYS_TO_DMAP(pa), PAGE_SIZE);
 	}
 
 	/*
@@ -5006,7 +5007,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 	if ((new_l2 & ATTR_S1_XN) == 0 && (PTE_TO_PHYS(new_l2) !=
 	    PTE_TO_PHYS(old_l2) || (old_l2 & ATTR_S1_XN) != 0) &&
 	    pmap != kernel_pmap && m->md.pv_memattr == VM_MEMATTR_WRITE_BACK) {
-		cpu_icache_sync_range(PHYS_TO_DMAP(PTE_TO_PHYS(new_l2)),
+		cpu_icache_sync_range((void *)PHYS_TO_DMAP(PTE_TO_PHYS(new_l2)),
 		    L2_SIZE);
 	}
 
@@ -5219,7 +5220,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	/* Sync icache before the mapping is stored to PTE */
 	if ((prot & VM_PROT_EXECUTE) && pmap != kernel_pmap &&
 	    m->md.pv_memattr == VM_MEMATTR_WRITE_BACK)
-		cpu_icache_sync_range(PHYS_TO_DMAP(pa), PAGE_SIZE);
+		cpu_icache_sync_range((void *)PHYS_TO_DMAP(pa), PAGE_SIZE);
 
 	pmap_store(l3, l3_val);
 	dsb(ishst);
@@ -6990,7 +6991,7 @@ pmap_change_props_locked(vm_offset_t va, vm_size_t size, vm_prot_t prot,
 			 * the cache.
 			 */
 			if (mode == VM_MEMATTR_UNCACHEABLE)
-				cpu_dcache_wbinv_range(tmpva, pte_size);
+				cpu_dcache_wbinv_range((void *)tmpva, pte_size);
 			tmpva += pte_size;
 		}
 	}
@@ -7673,7 +7674,7 @@ pmap_sync_icache(pmap_t pmap, vm_offset_t va, vm_size_t sz)
 	    ("%s: Address not in canonical form: %lx", __func__, va));
 
 	if (ADDR_IS_KERNEL(va)) {
-		cpu_icache_sync_range(va, sz);
+		cpu_icache_sync_range((void *)va, sz);
 	} else {
 		u_int len, offset;
 		vm_paddr_t pa;
@@ -7686,7 +7687,8 @@ pmap_sync_icache(pmap_t pmap, vm_offset_t va, vm_size_t sz)
 			/* Extract the physical address & find it in the DMAP */
 			pa = pmap_extract(pmap, va);
 			if (pa != 0)
-				cpu_icache_sync_range(PHYS_TO_DMAP(pa), len);
+				cpu_icache_sync_range((void *)PHYS_TO_DMAP(pa),
+				    len);
 
 			/* Move to the next page */
 			sz -= len;
