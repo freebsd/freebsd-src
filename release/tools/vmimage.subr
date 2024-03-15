@@ -239,6 +239,10 @@ vm_create_disk() {
 		BOOTPARTSOFFSET=":${VM_BOOTPARTSOFFSET}"
 	fi
 
+	if [ -n "${CONFIG_DRIVE}" ]; then
+		CONFIG_DRIVE="-p freebsd/config-drive::${CONFIG_DRIVE_SIZE}"
+	fi
+
 	case "${VMFS}" in
 	ufs)
 		FSPARTTYPE=freebsd-ufs
@@ -312,6 +316,7 @@ vm_create_disk() {
 	mkimg -s ${PARTSCHEME} -f ${VMFORMAT} \
 		${BOOTPARTS} \
 		${SWAPOPT} \
+		${CONFIG_DRIVE} \
 		${ROOTFSPART} \
 		-o ${VMIMAGE}
 
