@@ -28,6 +28,7 @@
 #define	_LEGACY_SYS_FCNTL_H_
 
 #include_next <fcntl.h>
+#include <sys/cdefs.h>
 
 struct spacectl_range {
 	off_t	r_offset;

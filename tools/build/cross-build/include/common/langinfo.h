@@ -1,16 +1,8 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright 2018-2020 Alex Richardson <arichardson@FreeBSD.org>
- *
- * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory (Department of Computer Science and
- * Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
- * DARPA SSITH research programme.
- *
- * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
- * ("CTSRD"), as part of the DARPA CRASH research programme.
+ * Copyright (c) 2001 Alexey Zelkin <phantom@FreeBSD.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,8 +25,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#pragma once
-#include_next <netdb.h>
 
-#define _PATH_SERVICES "/etc/services"
-#define _PATH_SERVICES_DB "/var/db/services.db"
+#pragma once
+
+#include_next <langinfo.h>
+
+#ifndef ALTMON_1
+#define	ALTMON_1	58
+#define	ALTMON_2	59
+#define	ALTMON_3	60
+#define	ALTMON_4	61
+#define	ALTMON_5	62
+#define	ALTMON_6	63
+#define	ALTMON_7	64
+#define	ALTMON_8	65
+#define	ALTMON_9	66
+#define	ALTMON_10	67
+#define	ALTMON_11	68
+#define	ALTMON_12	69
+#endif

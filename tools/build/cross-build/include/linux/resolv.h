@@ -40,3 +40,7 @@
 #ifndef res_ndestroy
 #define res_ndestroy res_nclose
 #endif
+
+#ifndef RES_DEBUG
+#define RES_DEBUG 0
+#endif

@@ -41,15 +41,15 @@ CWARNFLAGS.clang+=-Wno-typedef-redefinition
 CWARNFLAGS+=	-Wno-system-headers
 CWARNFLAGS.clang+=-Werror=incompatible-pointer-types-discards-qualifiers
 
-# b64_pton and b64_ntop is in libresolv on MacOS and Linux:
-# TODO: only needed for uuencode and uudecode
-LDADD+=-lresolv
-
 .if ${.MAKE.OS} == "Linux"
 CFLAGS+=	-I${SRCTOP}/tools/build/cross-build/include/linux
 CFLAGS+=	-D_GNU_SOURCE=1
 # Needed for sem_init, etc. on Linux (used by usr.bin/sort)
 LDADD+=	-pthread
+.if exists(/usr/lib/libfts.so) || exists(/usr/lib/libfts.a) || exists(/lib/libfts.so) || exists(/lib/libfts.a)
+# Needed for fts_open, etc. on musl (used by usr.bin/grep)
+LDADD+=	-lfts
+.endif
 
 .elif ${.MAKE.OS} == "Darwin"
 CFLAGS+=	-D_DARWIN_C_SOURCE=1

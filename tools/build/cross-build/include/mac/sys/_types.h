@@ -41,5 +41,3 @@
  * __darwin_ct_rune_t exists.
  */
 typedef __darwin_ct_rune_t __ct_rune_t;
-/* Needed for opensolaris compat. */
-typedef	__int64_t	off64_t;
