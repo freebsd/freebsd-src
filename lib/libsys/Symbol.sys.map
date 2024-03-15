@@ -371,6 +371,7 @@ FBSD_1.7 {
 	fspacectl;
 	kqueuex;
 	membarrier;
+	sched_getcpu;
 	swapoff;
 	timerfd_create;
 	timerfd_gettime;
