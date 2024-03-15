@@ -284,7 +284,7 @@ SYSINIT(busdma, SI_SUB_KMEM+1, SI_ORDER_FIRST, busdma_init, NULL);
  * express, so we take a fast out.
  */
 static int
-exclusion_bounce_check(vm_offset_t lowaddr, vm_offset_t highaddr)
+exclusion_bounce_check(bus_addr_t lowaddr, bus_addr_t highaddr)
 {
 	int i;
 
