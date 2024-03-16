@@ -144,6 +144,7 @@ cninit(void)
 	struct consdev *best_cn, *cn, **list;
 
 	TSENTER();
+	TSENTER2("first");
 	/*
 	 * Check if we should mute the console (for security reasons perhaps)
 	 * It can be changes dynamically using sysctl kern.consmute
@@ -162,7 +163,9 @@ cninit(void)
 	 * here.
 	 */
 	kbdinit();
+	TSEXIT2("first");
 
+	TSENTER2("foreach");
 	/*
 	 * Find the first console with the highest priority.
 	 */
@@ -186,6 +189,10 @@ cninit(void)
 			cnadd(cn);
 		}
 	}
+	TSEXIT2("foreach");
+
+	TSENTER2("rest");
+
 	if (best_cn == NULL)
 		return;
 	if ((boothowto & RB_MULTIPLE) == 0) {
@@ -198,6 +205,7 @@ cninit(void)
 	 * Make the best console the preferred console.
 	 */
 	cnselect(best_cn);
+	TSEXIT2("rest");
 
 #ifdef EARLY_PRINTF
 	/*
@@ -242,7 +250,6 @@ cnadd(struct consdev *cn)
 
 	/* Add device to the active mask. */
 	cnavailable(cn, (cn->cn_flags & CN_FLAG_NOAVAIL) == 0);
-
 	return (0);
 }
 
