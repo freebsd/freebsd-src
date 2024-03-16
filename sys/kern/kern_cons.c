@@ -169,6 +169,7 @@ cninit(void)
 	 */
 	best_cn = NULL;
 	SET_FOREACH(list, cons_set) {
+		TSENTER2("foreach1");
 		cn = *list;
 		cnremove(cn);
 		/* Skip cons_consdev. */
@@ -177,6 +178,8 @@ cninit(void)
 		cn->cn_ops->cn_probe(cn);
 		if (cn->cn_pri == CN_DEAD)
 			continue;
+		TSEXIT2("foreach1");
+		TSENTER2("foreach2");
 		if (best_cn == NULL || cn->cn_pri > best_cn->cn_pri)
 			best_cn = cn;
 		if (boothowto & RB_MULTIPLE) {
@@ -186,6 +189,7 @@ cninit(void)
 			cn->cn_ops->cn_init(cn);
 			cnadd(cn);
 		}
+		TSEXIT2("foreach2");
 	}
 	TSEXIT2("foreach");
 
