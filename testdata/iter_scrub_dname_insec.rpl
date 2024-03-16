@@ -166,7 +166,7 @@ ENTRY_END
 ; answer to first query (simply puts DNAME in cache)
 STEP 120 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RD RA
 SECTION QUESTION
 x.y.example.com. IN A
@@ -235,7 +235,7 @@ ENTRY_END
 
 STEP 250 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RD RA
 SECTION QUESTION
 other.y.example.com. IN A

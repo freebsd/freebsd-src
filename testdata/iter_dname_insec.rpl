@@ -397,7 +397,7 @@ ENTRY_END
 
 STEP 220302 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RD RA DO
 SECTION QUESTION
 a.example.com. IN A
@@ -420,7 +420,7 @@ ENTRY_END
 
 STEP 220402 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RD RA DO
 SECTION QUESTION
 a.b.example.com. IN A
@@ -523,7 +523,7 @@ ENTRY_END
 
 STEP 220702 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RD RA DO
 SECTION QUESTION
 a.x.example.com. IN A
@@ -607,7 +607,7 @@ ENTRY_END
 
 STEP 220802 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RD RA DO
 SECTION QUESTION
 a2.example.com. IN A
@@ -691,14 +691,14 @@ ENTRY_END
 ; CNAME chains should be followed and CNAME loops signalled as an error
 STEP 220902 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RD RA DO
 REPLY NOERROR
 SECTION QUESTION
 cyc.example.com. IN A
 SECTION ANSWER
-example.com.	0	IN	DNAME	example.com.
-cyc.example.com.	0	IN	CNAME	cyc.example.com.
+example.com.	3600	IN	DNAME	example.com.
+cyc.example.com.	3600	IN	CNAME	cyc.example.com.
 ENTRY_END
 
 ; ns1.example.com.
@@ -857,7 +857,7 @@ ENTRY_END
 
 STEP 221102 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RD RA DO
 SECTION QUESTION
 shortloop.x.x.	IN TXT
@@ -885,7 +885,7 @@ ENTRY_END
 
 STEP 221202 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RD RA DO
 SECTION QUESTION
 shortloop.x.	IN TXT
@@ -999,7 +999,7 @@ ENTRY_END
 ; query returning maximal permissible length - should work
 STEP 229002 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RD RA DO
 SECTION QUESTION
 x.long.	IN A

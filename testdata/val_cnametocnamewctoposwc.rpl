@@ -153,7 +153,7 @@ ns.example.com.	3600	IN	A	1.2.3.4
 ns.example.com.	3600	IN	RRSIG	A 8 2 3600 20121126131826 20121029131826 64050 example.com. L/EsWsRNhM0Lt8877XYfm0FkVc+utuRPYlW/yxEi/Nzs/mTb9BMrOygsW0qfpYakYgfFvinR7S7ce9/naWidzGkWKYR85g2WFms3/TgchpmfjZHEsNyuT8zsiGrj3bQ3RxpT5cmt/IS2QlOak/RhdtawKfd9aqkMTVpP2idEQwY=
 ENTRY_END
 
-ENTRY_BEGING
+ENTRY_BEGIN
 MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR NOERROR

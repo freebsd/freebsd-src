@@ -7,7 +7,7 @@
 PRE="../.."
 # do the test
 echo "> dig www.example.com."
-dig @localhost +vc -p $UNBOUND_PORT www.example.com. | tee outfile
+dig @127.0.0.1 +vc -p $UNBOUND_PORT www.example.com. | tee outfile
 echo "> cat logfiles"
 cat fwd.log 
 cat unbound.log

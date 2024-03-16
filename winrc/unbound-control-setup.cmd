@@ -48,7 +48,7 @@ rem validity period for certificates
 set DAYS=7200
 
 rem size of keys in bits
-set BITS=1536
+set BITS=3072
 
 rem hash algorithm
 set HASH=sha256
@@ -98,9 +98,14 @@ echo default_bits=%BITS%>>request.cfg
 echo default_md=%HASH%>>request.cfg
 echo prompt=no>>request.cfg
 echo distinguished_name=req_distinguished_name>>request.cfg
-echo.>>request.cfg
+echo x509_extensions=v3_ca>>request.cfg
 echo [req_distinguished_name]>>request.cfg
 echo commonName=%SERVERNAME%>>request.cfg
+echo [v3_ca]>>request.cfg
+echo subjectKeyIdentifier=hash>>request.cfg
+echo authorityKeyIdentifier=keyid:always,issuer:always>>request.cfg
+echo basicConstraints=critical,CA:TRUE,pathlen:0>>request.cfg
+echo subjectAltName=DNS:%SERVERNAME%>>request.cfg
 
 if not exist request.cfg (
 echo could not create request.cfg
@@ -119,9 +124,12 @@ echo default_bits=%BITS%>>request.cfg
 echo default_md=%HASH%>>request.cfg
 echo prompt=no>>request.cfg
 echo distinguished_name=req_distinguished_name>>request.cfg
-echo.>>request.cfg
+echo req_extensions=v3_req>>request.cfg
 echo [req_distinguished_name]>>request.cfg
 echo commonName=%CLIENTNAME%>>request.cfg
+echo [v3_req]>>request.cfg
+echo basicConstraints=critical,CA:FALSE>>request.cfg
+echo subjectAltName=DNS:%CLIENTNAME%>>request.cfg
 
 if not exist request.cfg (
 echo could not create request.cfg
@@ -129,7 +137,7 @@ exit 1
 )
 
 echo create %CTL_BASE%.pem (signed client certificate)
-"%SSL_PROGRAM%" req -key %CTL_BASE%.key -config request.cfg -new | "%SSL_PROGRAM%" x509 -req -days %DAYS% -CA %SVR_BASE%_trust.pem -CAkey %SVR_BASE%.key -CAcreateserial -%HASH% -out %CTL_BASE%.pem
+"%SSL_PROGRAM%" req -key %CTL_BASE%.key -config request.cfg -new | "%SSL_PROGRAM%" x509 -req -days %DAYS% -CA %SVR_BASE%_trust.pem -CAkey %SVR_BASE%.key -CAcreateserial -%HASH% -extfile request.cfg -extensions v3_req -out %CTL_BASE%.pem
 
 if not exist %CTL_BASE%.pem (
 echo could not create %CTL_BASE%.pem

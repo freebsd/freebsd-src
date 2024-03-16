@@ -7,10 +7,10 @@
 # do your teardown here
 . ../common.sh
 kill_pid $FWD_PID
-if fgrep "service stopped" unbound.log; then
+if grep -F "service stopped" unbound.log; then
 	exit 0
 fi
-if fgrep "disable interface-automatic" unbound.log; then
+if grep -F "disable interface-automatic" unbound.log; then
 	echo "skip test"
 	exit 0
 fi

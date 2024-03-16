@@ -1,8 +1,8 @@
 /*
   Unbound resource file for windows.  For use with windres
 */
-#include "winver.h"
 #include "config.h"
+#include "winver.h"
 
 1 ICON "winrc/combined.ico"
 /*

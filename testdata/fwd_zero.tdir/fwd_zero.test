@@ -17,7 +17,7 @@ echo "b4380100000100000000000003777777076578616d706c6503636f6d00" | xxd -r -p | 
 
 # now test that server is still up
 echo "> dig www.example.com."
-dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
 echo "> cat logfiles"
 cat fwd.log 
 cat unbound.log

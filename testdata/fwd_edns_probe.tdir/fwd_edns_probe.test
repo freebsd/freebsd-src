@@ -10,7 +10,7 @@ PRE="../.."
 # First the nasty name.
 # The server should not have performed EDNS fallback and cached it.
 echo "> dig nasty.example.com."
-dig @localhost -p $UNBOUND_PORT nasty.example.com. | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT nasty.example.com. | tee outfile
 
 # no answer possible for it.
 echo "> check no-answer"
@@ -27,7 +27,7 @@ fi
 # Then the www name.
 # See if we can still get the EDNS data.
 echo "> dig www.example.com."
-dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
 echo "> cat logfiles"
 cat fwd.log 
 cat unbound.log

@@ -1,5 +1,7 @@
 ; config options
 ; The island of trust is at example.com
+; validation is enabled because the pickup of DNAME from cache wants
+; a DNSSEC signed DNAME.
 server:
 	trust-anchor: "example.com.    3600    IN      DS      2854 3 1 46e4ffc6e9a4793b488954bd3f0cc6af0dfb201b"
 	trust-anchor: "example.net.    3600    IN      DNSKEY  256 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3 ;{id = 30899 (zsk), size = 512b}"
@@ -14,7 +16,7 @@ stub-zone:
 	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
 CONFIG_END
 
-SCENARIO_BEGIN Test validator with a dname to positive wildcard
+SCENARIO_BEGIN Test iterator for TTL of synthesized CNAME of a DNAME from cache.
 
 ; K.ROOT-SERVERS.NET.
 RANGE_BEGIN 0 100
@@ -32,11 +34,11 @@ K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
 ENTRY_END
 
 ENTRY_BEGIN
-MATCH opcode qtype qname
-ADJUST copy_id
+MATCH opcode subdomain
+ADJUST copy_id copy_query
 REPLY QR NOERROR
 SECTION QUESTION
-www.example.com. IN A
+com. IN NS
 SECTION AUTHORITY
 com.	IN NS	a.gtld-servers.net.
 SECTION ADDITIONAL
@@ -44,11 +46,11 @@ a.gtld-servers.net.	IN 	A	192.5.6.30
 ENTRY_END
 
 ENTRY_BEGIN
-MATCH opcode qtype qname
-ADJUST copy_id
+MATCH opcode subdomain
+ADJUST copy_id copy_query
 REPLY QR NOERROR
 SECTION QUESTION
-www.example.net. IN A
+net. IN A
 SECTION AUTHORITY
 net.	IN NS	a.gtld-servers.net.
 SECTION ADDITIONAL
@@ -84,22 +86,23 @@ a.gtld-servers.net.     IN      A       192.5.6.30
 ENTRY_END
 
 ENTRY_BEGIN
-MATCH opcode qtype qname
-ADJUST copy_id
+MATCH opcode subdomain
+ADJUST copy_id copy_query
 REPLY QR NOERROR
 SECTION QUESTION
-www.example.com. IN A
+example.com. IN NS
 SECTION AUTHORITY
 example.com.	IN NS	ns.example.com.
 SECTION ADDITIONAL
 ns.example.com.		IN 	A	1.2.3.4
 ENTRY_END
+
 ENTRY_BEGIN
-MATCH opcode qtype qname
-ADJUST copy_id
+MATCH opcode subdomain
+ADJUST copy_id copy_query
 REPLY QR NOERROR
 SECTION QUESTION
-www.example.net. IN A
+example.net. IN A
 SECTION AUTHORITY
 example.net.	IN NS	ns.example.net.
 SECTION ADDITIONAL
@@ -148,14 +151,35 @@ MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR NOERROR
 SECTION QUESTION
-www.example.com. IN A
+www.example.com. IN CNAME
 SECTION ANSWER
-example.com. IN	DNAME	example.net.
-example.com.    3600    IN      RRSIG   DNAME 3 2 3600 20070926134150 20070829134150 2854 example.com. MCwCFH1xw24Hswia3g10AVL1yFUHUPdFAhQDrA+qZJwqXRPg2C1oiNPk9fosGg== ;{id = 2854}
-; unsigned CNAME
 www.example.com. IN	CNAME	www.example.net.
+www.example.com.        3600    IN      RRSIG   CNAME DSA 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFGcJxnNxpWCBzXejiSdl4p1BKRMnAhUApoJrugVBRwFgAoYAhhqlZFac7fE= ;{id = 2854}
 SECTION AUTHORITY
 SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www2.example.com. IN A
+SECTION ANSWER
+www2.example.com.	3600	IN	CNAME	www.example.net.
+www2.example.com.	3600	IN	RRSIG	CNAME 3 3 3600 20070926135752 20070829135752 2854 example.com. AGgh6pDCL7VF0uJablClW7cgvsPuNzpHZ+M7nZIwi61+0RPhFZLHcN4=
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+foo.test-dname.example.com. IN A
+SECTION ANSWER
+test-dname.example.com.	3600	IN	DNAME	example.net.
+test-dname.example.com.	3600	IN	RRSIG	DNAME 3 3 3600 20070926135752 20070829135752 2854 example.com. ACp31Evt1c6tKzmTh/smAuGFydZ1OO26Qkej/BW4Bw5RFBQiKaY22Z0=
+foo.test-dname.example.com. 3600 IN CNAME foo.example.net.
 ENTRY_END
 RANGE_END
 
@@ -202,40 +226,85 @@ REPLY QR NOERROR
 SECTION QUESTION
 www.example.net. IN A
 SECTION ANSWER
-; from *.example.net.
 www.example.net. IN	A	11.12.13.14
-www.example.net.  3600    IN      RRSIG   A 5 2 3600 20070926134150 20070829134150 30899 example.net. quSyDbSeHRvyMmanqq5rW+APC9MKOswbRLB5QP/G+C2iyokQFLuRTlX9Wmo/jo1Oo1MGBefJUmP9NdRd2EqABA== ;{id = 30899}
+www.example.net.        3600    IN      RRSIG   A 5 3 3600 20070926134150 20070829134150 30899 example.net. CPxF5hK9Kg5eT7W6LgZwr0ePYEm9HMcSY4vvqCS6gDWB4X9jvXLCfBkCLhsNybPBpGWlsLi5wM6MTdJXuPpsRA== ;{id = 30899}
 SECTION AUTHORITY
-wab.example.net	IN	NSEC	wzz.example.net. A NSEC RRSIG
-wab.example.net.        3600    IN      RRSIG   NSEC 5 3 3600 20070926134150 20070829134150 30899 example.net. gl8vkI3xfSWx4Pyv5OdOthiewE6u/13kclY7UG9ptuFBddamdJO3RQqyxM6Xcmq+ToO4kMCCyaKijp01gTDoGg== ;{id = 30899}
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+foo.example.net. IN A
+SECTION ANSWER
+foo.example.net. IN	A	11.12.13.15
+foo.example.net.	3600	IN	RRSIG	A 5 3 3600 20070926134150 20070829134150 30899 example.net. X6T6SE9UzxAD/4zKpwGOxEDyE4g7lfYYw3lvw533uwRN8mWTcBvSva0/jjyhrogJcuLO32jPHK6zGb93w2xnuA==
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+foo2.example.net. IN A
+SECTION ANSWER
+foo2.example.net. IN	A	11.12.13.16
+foo2.example.net.	3600	IN	RRSIG	A 5 3 3600 20070926134150 20070829134150 30899 example.net. BZm+GljD8m9N+pNJN8D+LlSyHqM+InNUe0+heKILR9be+Goqv6SEb7LKtX6+kj3239Y5by7u+/Cuk8kkWistEQ==
+SECTION AUTHORITY
 SECTION ADDITIONAL
 ENTRY_END
 RANGE_END
 
-STEP 1 QUERY
+STEP 1 TIME_PASSES ELAPSE 10
+; Get DNAME in cache and then pick it up again from cache.
+STEP 10 QUERY
 ENTRY_BEGIN
 REPLY RD DO
 SECTION QUESTION
-www.example.com. IN A
+foo.test-dname.example.com. IN A
 ENTRY_END
 
-; recursion happens here.
-STEP 10 CHECK_ANSWER
+STEP 20 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AD DO NOERROR
+SECTION QUESTION
+foo.test-dname.example.com. IN A
+SECTION ANSWER
+test-dname.example.com.	3600	IN	DNAME	example.net.
+test-dname.example.com.	3600	IN	RRSIG	DNAME 3 3 3600 20070926135752 20070829135752 2854 example.com. ACp31Evt1c6tKzmTh/smAuGFydZ1OO26Qkej/BW4Bw5RFBQiKaY22Z0=
+foo.test-dname.example.com. 3600 IN CNAME foo.example.net.
+foo.example.net. IN	A	11.12.13.15
+foo.example.net.	3600	IN	RRSIG	A 5 3 3600 20070926134150 20070829134150 30899 example.net. X6T6SE9UzxAD/4zKpwGOxEDyE4g7lfYYw3lvw533uwRN8mWTcBvSva0/jjyhrogJcuLO32jPHK6zGb93w2xnuA==
+ENTRY_END
+
+STEP 30 TIME_PASSES ELAPSE 10
+
+; Use DNAME from cache
+STEP 40 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+foo2.test-dname.example.com. IN A
+ENTRY_END
+
+; Test the TTL on the synthesized CNAME for the DNAME record from cache.
+STEP 50 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all ttl
 REPLY QR RD RA AD DO NOERROR
 SECTION QUESTION
-www.example.com. IN A
+foo2.test-dname.example.com. IN A
 SECTION ANSWER
-example.com. 3600 IN	DNAME	example.net.
-example.com.    3600    IN      RRSIG   DNAME 3 2 3600 20070926134150 20070829134150 2854 example.com. MCwCFH1xw24Hswia3g10AVL1yFUHUPdFAhQDrA+qZJwqXRPg2C1oiNPk9fosGg== ;{id = 2854}
-www.example.com. 3600	IN	CNAME	www.example.net.
-www.example.net. 3600 IN	A	11.12.13.14
-www.example.net.  3600    IN      RRSIG   A 5 2 3600 20070926134150 20070829134150 30899 example.net. quSyDbSeHRvyMmanqq5rW+APC9MKOswbRLB5QP/G+C2iyokQFLuRTlX9Wmo/jo1Oo1MGBefJUmP9NdRd2EqABA== ;{id = 30899}
-SECTION AUTHORITY
-wab.example.net	IN	NSEC	wzz.example.net. A NSEC RRSIG
-wab.example.net.        3600    IN      RRSIG   NSEC 5 3 3600 20070926134150 20070829134150 30899 example.net. gl8vkI3xfSWx4Pyv5OdOthiewE6u/13kclY7UG9ptuFBddamdJO3RQqyxM6Xcmq+ToO4kMCCyaKijp01gTDoGg== ;{id = 30899}
-SECTION ADDITIONAL
+test-dname.example.com.	3590	IN	DNAME	example.net.
+test-dname.example.com.	3590	IN	RRSIG	DNAME 3 3 3600 20070926135752 20070829135752 2854 example.com. ACp31Evt1c6tKzmTh/smAuGFydZ1OO26Qkej/BW4Bw5RFBQiKaY22Z0=
+foo2.test-dname.example.com. 3590 IN CNAME foo2.example.net.
+foo2.example.net. 	3600	IN	A	11.12.13.16
+foo2.example.net.	3600	IN	RRSIG	A 5 3 3600 20070926134150 20070829134150 30899 example.net. BZm+GljD8m9N+pNJN8D+LlSyHqM+InNUe0+heKILR9be+Goqv6SEb7LKtX6+kj3239Y5by7u+/Cuk8kkWistEQ==
 ENTRY_END
 
 SCENARIO_END

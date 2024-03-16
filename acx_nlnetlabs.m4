@@ -2,7 +2,10 @@
 # Copyright 2009, Wouter Wijngaards, NLnet Labs.   
 # BSD licensed.
 #
-# Version 46
+# Version 48
+# 2024-01-16 fix to add -l:libssp.a to -lcrypto link check.
+#	     and check for getaddrinfo with only header.
+# 2024-01-15 fix to add crypt32 to -lcrypto link check when checking for gdi32.
 # 2023-05-04 fix to remove unused whitespace.
 # 2023-01-26 fix -Wstrict-prototypes.
 # 2022-09-01 fix checking if nonblocking sockets work on OpenBSD.
@@ -707,7 +710,7 @@ AC_DEFUN([ACX_SSL_CHECKS], [
 		    LIBSSL_LDFLAGS="$LIBSSL_LDFLAGS -L$ssldir_lib"
 	    	    ACX_RUNTIME_PATH_ADD([$ssldir_lib])
 	    fi
-        
+
             AC_MSG_CHECKING([for EVP_sha256 in -lcrypto])
             LIBS="$LIBS -lcrypto"
             LIBSSL_LIBS="$LIBSSL_LIBS -lcrypto"
@@ -732,40 +735,73 @@ AC_DEFUN([ACX_SSL_CHECKS], [
                   ]])],[
                     AC_DEFINE([HAVE_EVP_SHA256], 1,
                         [If you have EVP_sha256])
-                    AC_MSG_RESULT(yes) 
+                    AC_MSG_RESULT(yes)
                   ],[
                     AC_MSG_RESULT(no)
                     LIBS="$BAKLIBS"
                     LIBSSL_LIBS="$BAKSSLLIBS"
-                    LIBS="$LIBS -ldl"
-                    LIBSSL_LIBS="$LIBSSL_LIBS -ldl"
-                    AC_MSG_CHECKING([if -lcrypto needs -ldl])
-                    AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
-                        int EVP_sha256(void);
-                        (void)EVP_sha256();
-                      ]])],[
-                        AC_DEFINE([HAVE_EVP_SHA256], 1,
-                            [If you have EVP_sha256])
-                        AC_MSG_RESULT(yes) 
-                      ],[
-                        AC_MSG_RESULT(no)
-                        LIBS="$BAKLIBS"
-                        LIBSSL_LIBS="$BAKSSLLIBS"
-                        LIBS="$LIBS -ldl -pthread"
-                        LIBSSL_LIBS="$LIBSSL_LIBS -ldl -pthread"
-                        AC_MSG_CHECKING([if -lcrypto needs -ldl -pthread])
-                        AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
-                            int EVP_sha256(void);
-                            (void)EVP_sha256();
-                          ]])],[
-                            AC_DEFINE([HAVE_EVP_SHA256], 1,
-                                [If you have EVP_sha256])
-                            AC_MSG_RESULT(yes) 
-                          ],[
-                            AC_MSG_RESULT(no)
-                            AC_MSG_ERROR([OpenSSL found in $ssldir, but version 0.9.7 or higher is required])
+
+		    LIBS="$LIBS -lgdi32 -lws2_32 -lcrypt32"
+		    LIBSSL_LIBS="$LIBSSL_LIBS -lgdi32 -lws2_32 -lcrypt32"
+                    AC_MSG_CHECKING([if -lcrypto needs -lgdi32 -lws2_32 -lcrypt32])
+		    AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
+			int EVP_sha256(void);
+			(void)EVP_sha256();
+		      ]])],[
+			AC_DEFINE([HAVE_EVP_SHA256], 1,
+			    [If you have EVP_sha256])
+			AC_MSG_RESULT(yes)
+		      ],[
+			AC_MSG_RESULT(no)
+			LIBS="$BAKLIBS"
+			LIBSSL_LIBS="$BAKSSLLIBS"
+
+			LIBS="$LIBS -lgdi32 -lws2_32 -lcrypt32 -l:libssp.a"
+			LIBSSL_LIBS="$LIBSSL_LIBS -lgdi32 -lws2_32 -lcrypt32 -l:libssp.a"
+			AC_MSG_CHECKING([if -lcrypto needs -lgdi32 -lws2_32 -lcrypt32 -l:libssp.a])
+			AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
+			    int EVP_sha256(void);
+			    (void)EVP_sha256();
+			  ]])],[
+			    AC_DEFINE([HAVE_EVP_SHA256], 1,
+				[If you have EVP_sha256])
+			    AC_MSG_RESULT(yes)
+			  ],[
+			    AC_MSG_RESULT(no)
+			    LIBS="$BAKLIBS"
+			    LIBSSL_LIBS="$BAKSSLLIBS"
+
+			    LIBS="$LIBS -ldl"
+			    LIBSSL_LIBS="$LIBSSL_LIBS -ldl"
+			    AC_MSG_CHECKING([if -lcrypto needs -ldl])
+			    AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
+				int EVP_sha256(void);
+				(void)EVP_sha256();
+			      ]])],[
+				AC_DEFINE([HAVE_EVP_SHA256], 1,
+				    [If you have EVP_sha256])
+				AC_MSG_RESULT(yes)
+			      ],[
+				AC_MSG_RESULT(no)
+				LIBS="$BAKLIBS"
+				LIBSSL_LIBS="$BAKSSLLIBS"
+				LIBS="$LIBS -ldl -pthread"
+				LIBSSL_LIBS="$LIBSSL_LIBS -ldl -pthread"
+				AC_MSG_CHECKING([if -lcrypto needs -ldl -pthread])
+				AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
+				    int EVP_sha256(void);
+				    (void)EVP_sha256();
+				  ]])],[
+				    AC_DEFINE([HAVE_EVP_SHA256], 1,
+					[If you have EVP_sha256])
+				    AC_MSG_RESULT(yes)
+				  ],[
+				    AC_MSG_RESULT(no)
+				    AC_MSG_ERROR([OpenSSL found in $ssldir, but version 0.9.7 or higher is required])
+				])
+			    ])
 			])
-                    ])
+		    ])
                 ])
             ])
         fi
@@ -779,7 +815,7 @@ AC_CHECK_HEADERS([openssl/rand.h],,, [AC_INCLUDES_DEFAULT])
 
 dnl Check for SSL, where SSL is mandatory
 dnl Adds --with-ssl option, searches for openssl and defines HAVE_SSL if found
-dnl Setup of CPPFLAGS, CFLAGS.  Adds -lcrypto to LIBS. 
+dnl Setup of CPPFLAGS, CFLAGS.  Adds -lcrypto to LIBS.
 dnl Checks main header files of SSL.
 dnl
 AC_DEFUN([ACX_WITH_SSL],
@@ -872,7 +908,7 @@ dnl see if on windows
 if test "$ac_cv_header_windows_h" = "yes"; then
 	AC_DEFINE(USE_WINSOCK, 1, [Whether the windows socket API is used])
 	USE_WINSOCK="1"
-	if echo $LIBS | grep 'lws2_32' >/dev/null; then
+	if echo "$LIBS" | grep 'lws2_32' >/dev/null; then
 		:
 	else
 		LIBS="$LIBS -lws2_32"
@@ -880,6 +916,24 @@ if test "$ac_cv_header_windows_h" = "yes"; then
 fi
 ],
 dnl no quick getaddrinfo, try mingw32 and winsock2 library.
+dnl perhaps getaddrinfo needs only the include
+AC_LINK_IFELSE(
+[AC_LANG_PROGRAM(
+[
+#ifdef HAVE_WS2TCPIP_H
+#include <ws2tcpip.h>
+#endif
+],
+[
+        (void)getaddrinfo(NULL, NULL, NULL, NULL);
+]
+)],
+[
+ac_cv_func_getaddrinfo="yes"
+AC_DEFINE(USE_WINSOCK, 1, [Whether the windows socket API is used])
+USE_WINSOCK="1"
+],
+
 ORIGLIBS="$LIBS"
 LIBS="$LIBS -lws2_32"
 AC_LINK_IFELSE(
@@ -903,6 +957,7 @@ USE_WINSOCK="1"
 ac_cv_func_getaddrinfo="no"
 LIBS="$ORIGLIBS"
 ])
+)
 )
 
 AC_MSG_RESULT($ac_cv_func_getaddrinfo)

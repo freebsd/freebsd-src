@@ -272,7 +272,7 @@ if grep "192.0.2.1" outfile; then
 else
 	end 1
 fi
-sleep 1  # make sure the outgoing UDP (and the edns1xx0 retry) are accounted for.
+sleep 1  # make sure the outgoing UDP (and no edns1xx0 retry because not a smaller buffer size) are accounted for.
 check_stats "\
 total.num.queries=1
 total.num.expired=1
@@ -284,7 +284,7 @@ num.query.flags.AD=1
 num.query.flags.RD=1
 num.query.opcode.QUERY=1
 num.query.type.A=1
-num.query.udpout=2
+num.query.udpout=1
 total.num.cachemiss=1
 msg.cache.count=2
 rrset.cache.count=2

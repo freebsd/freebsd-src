@@ -9,7 +9,7 @@ PRE="../.."
 # this one should have NXDOMAIN builtin
 #
 echo "> dig 1.0.31.172.in-addr.arpa."
-dig @localhost -p $UNBOUND_PORT 1.0.31.172.in-addr.arpa. | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT 1.0.31.172.in-addr.arpa. | tee outfile
 echo "> cat logfiles"
 cat fwd.log 
 cat unbound.log
@@ -23,7 +23,7 @@ fi
 
 # this one should give our own data as the reply
 echo "> dig 1.0.30.172.in-addr.arpa."
-dig @localhost -p $UNBOUND_PORT 1.0.30.172.in-addr.arpa. | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT 1.0.30.172.in-addr.arpa. | tee outfile
 echo "> cat logfiles"
 cat fwd.log 
 cat unbound.log
@@ -38,7 +38,7 @@ fi
 # this one should give our own data as the reply
 # but different trailing dot in unbound.conf file
 echo "> dig 1.0.29.172.in-addr.arpa."
-dig @localhost -p $UNBOUND_PORT 1.0.29.172.in-addr.arpa. | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT 1.0.29.172.in-addr.arpa. | tee outfile
 echo "> cat logfiles"
 cat fwd.log 
 cat unbound.log

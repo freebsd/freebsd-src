@@ -25,17 +25,10 @@ else
         exit 1
 fi
 
-echo "> wait for log to happen on timer"
-sleep 3
+echo "> wait for log to happen"
+wait_logfile tap.log "www.example.com" 45
 echo "> check tap.log for dnstap info"
 # see if it logged the information in tap.log
-# wait for a moment for filesystem to catch up.
-if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
-if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
-if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
-if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
-if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
-if grep "www.example.com" tap.log >/dev/null; then :; else sleep 10; fi
 if grep "www.example.com" tap.log; then echo "yes it is in tap.log";
 else
         echo "information not in tap.log"
@@ -67,12 +60,7 @@ fi
 echo "> check tap.log for dnstap info"
 # see if it logged the information in tap.log
 # wait for a moment for filesystem to catch up.
-if grep "txt.example.com" tap.log >/dev/null; then :; else sleep 1; fi
-if grep "txt.example.com" tap.log >/dev/null; then :; else sleep 1; fi
-if grep "txt.example.com" tap.log >/dev/null; then :; else sleep 1; fi
-if grep "txt.example.com" tap.log >/dev/null; then :; else sleep 1; fi
-if grep "txt.example.com" tap.log >/dev/null; then :; else sleep 1; fi
-if grep "txt.example.com" tap.log >/dev/null; then :; else sleep 10; fi
+wait_logfile tap.log "txt.example.com" 45
 if grep "txt.example.com" tap.log; then echo "yes it is in tap.log";
 else
         echo "information not in tap.log"
@@ -131,12 +119,7 @@ dig @127.0.0.1 -p $UNBOUND_PORT fin.example.com. TXT | tee outfile
 echo "> check tap.log for dnstap info"
 # see if it logged the information in tap.log
 # wait for a moment for filesystem to catch up.
-if grep "fini" tap.log >/dev/null; then :; else sleep 1; fi
-if grep "fini" tap.log >/dev/null; then :; else sleep 1; fi
-if grep "fini" tap.log >/dev/null; then :; else sleep 1; fi
-if grep "fini" tap.log >/dev/null; then :; else sleep 1; fi
-if grep "fini" tap.log >/dev/null; then :; else sleep 1; fi
-if grep "fini" tap.log >/dev/null; then :; else sleep 10; fi
+wait_logfile tap.log "fini" 45
 if grep "fini" tap.log; then echo "yes it is in tap.log";
 else
         echo "information not in tap.log"

@@ -400,7 +400,7 @@ ENTRY_END
 ; recursion happens here.
 STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RD RA AD DO NOERROR
 SECTION QUESTION
 www.example.com. IN A
@@ -409,7 +409,7 @@ www.example.com. 	3600 	IN	CNAME	www.sub.example.net.
 www.example.com.        3600    IN      RRSIG   CNAME 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFEv1gOb7KEskzkJNtFKKVBxY+Hb2AhUAqKJDIZJvNl+AdzqAt+JgdvnYAF0= ;{id = 2854}
 sub.example.net. 	3600 	IN	DNAME	sub.example.com.
 sub.example.net.        3600    IN      RRSIG   DNAME 5 3 3600 20070926134150 20070829134150 30899 example.net. G/UmcL1VmCF2mjB1O9IeNM2DnvayxEy6vOrvA+Ic/Gqcsgnq/f4VTCV9soQQIAWEir2v5Vt8hqPDP8rCRbMnyA== ;{id = 30899}
-www.sub.example.net. 	0	IN	CNAME	www.sub.example.com.
+www.sub.example.net. 	3600	IN	CNAME	www.sub.example.com.
 www.sub.example.com. 	3600	IN	CNAME	www.example.org.
 www.sub.example.com.    3600    IN      RRSIG   CNAME 5 4 3600 20070926134150 20070829134150 30899 sub.example.com. ZE6A4pkyeUpNCscu2oeBv/3JbbirdwUaAMgmQ/ighzacUJCC6Lh8vAL5aYDEyTk7oktb8uS7gmYan171aM9/tg== ;{id = 30899}
 www.example.org. 	3600	IN	A	11.11.11.11

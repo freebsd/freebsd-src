@@ -1,6 +1,144 @@
+8 March 2024: Wouter
+	- Fix unbound-control-setup.cmd to use 3072 bits so that certificates
+	  are long enough for newer OpenSSL versions.
+	- Fix TTL of synthesized CNAME when a DNAME is used from cache.
+	- Fix unbound-control-setup.cmd to have CA v3 basicConstraints,
+	  like unbound-control-setup.sh has.
+
+7 March 2024: Wouter
+	- Version set to 1.19.3 for release. After 1.19.2 point release with
+	  security fix for CVE-2024-1931, Denial of service when trimming
+	  EDE text on positive replies. The code repo includes the fix and
+	  is for version 1.19.3.
+
+5 March 2024: Wouter
+	- Fix for #1022: Fix ede prohibited in access control refused answers.
+
+4 March 2024: Wouter
+	- Fix edns subnet replies for scope zero answers to not get stored
+	  in the global cache, and in cachedb, when the upstream replies
+	  without an EDNS record.
+
+28 February 2024: Wouter
+	- Move github workflows to use checkoutv4.
+
+23 February 2024: Yorgos
+	- Document the suspend argument for process_ds_response().
+
+22 February 2024: Wouter
+	- Fix trim of EDE text from large udp responses from spinning cpu.
+
+20 February 2024: Yorgos
+	- Merge #1010: Mention REFUSED has the TC bit set with unmatched
+	  allow_cookie acl in the manpage. It also fixes the code to match the
+	  documentation about clients with a valid cookie that bypass the
+	  ratelimit regardless of the allow_cookie acl.
+
+13 February 2024: Wouter
+	- Fix CVE-2023-50387, DNSSEC verification complexity can be exploited
+	  to exhaust CPU resources and stall DNS resolvers.
+	- Fix CVE-2023-50868, NSEC3 closest encloser proof can exhaust CPU.
+	- These fixes are part of the 1.19.1 release, that is a security
+	  point release on 1.19.0, the code repository continues with these
+	  fixes, with version number 1.19.2.
+
+8 February 2024: Wouter
+	- Fix documentation for access-control in the unbound.conf man page.
+
+7 February 2024: Yorgos
+	- Fix #1006: Can't find protobuf-c package since #999.
+
+30 January 2024: Wouter
+	- Merge #999: Search for protobuf-c with pkg-config.
+
+23 January 2024: Yorgos
+	- Update message TTL when using cached RRSETs. It could result in
+	  non-expired messages with expired RRSETs (non-usable messages by
+	  Unbound).
+
+22 January 2024: Yorgos
+	- Update error printout for duplicate trust anchors to include the
+	  trust anchor name (relates to #920).
+
+22 January 2024: Wouter
+	- Fix for #997: Print details for SSL certificate failure.
+
+17 January 2024: Wouter
+	- Update workflow for ports to use newer openssl on windows compile.
+	- Fix warning for windres on resource files due to redefinition.
+
+16 January 2024: Wouter
+	- Fix to link with libssp for libcrypto and getaddrinfo check for
+	  only header. Also update crosscompile to remove ssp for 32bit.
+	- Merge #993: Update b.root-servers.net also in example config file.
+
+15 January 2024: Wouter
+	- Fix to link with -lcrypt32 for OpenSSL 3.2.0 on Windows.
+
+9 January 2024: Wouter
+	- Merge #988: Fix NLnetLabs#981: dump_cache truncates large records.
+
+5 January 2024: Wouter
+	- Merge #987: skip edns frag retry if advertised udp payload size is
+	  not smaller.
+	- Fix unit test for #987 change in udp1xxx retry packet send.
+
+4 January 2024: Wouter
+	- Remove unneeded newlines and improve indentation in remote control
+	  code.
+
+3 January 2024: Wouter
+	- Merge #980: DoH: reject non-h2 early. To fix #979: Improve errors
+	  for non-HTTP/2 DoH clients.
+	- Merge #985: Add DoH and DoT to dnstap message.
+	- Fix #983: Sha1 runtime insecure change was incomplete.
+
+22 December 2023: Yorgos
+	- Update example.conf with cookie options.
+
+8 December 2023: Yorgos
+	- Merge PR #973: Use the origin (DNAME) TTL for synthesized CNAMEs as
+	  per RFC 6672.
+
+8 December 2023: Wouter
+	- Fix root_zonemd unit test, it checks that the root ZONEMD verifies,
+	  now that the root has a valid ZONEMD.
+
+7 December 2023: Wouter
+	- Fix #974: doc: default number of outgoing ports without libevent.
+	- Merge #975: Fixed some syntax errors in rpl files.
+
+6 December 2023: Wouter
+	- Fix to sync the tests script file common.sh.
+	- iana portlist update.
+	- Updated IPv4 and IPv6 address for b.root-servers.net in root hints.
+	- Update test script file common.sh.
+	- Fix tests to use new common.sh functions, wait_logfile and
+	  kill_from_pidfile.
+
+5 December 2023: Wouter
+	- Merge #971: fix 'WARNING: Message has 41 extra bytes at end'.
+	- Fix #969: [FR] distinguish Do53, DoT and DoH in the logs.
+	- Fix dnstap that assertion failed on logging other than UDP and TCP
+	  traffic. It lists it as TCP traffic.
+
+27 November 2023: Yorgos
+	- Merge #968: Replace the obsolescent fgrep with grep -F in tests.
+
+27 November 2023: Wouter
+	- Fix #964: config.h.in~ backup file in release tar balls.
+
+24 November 2023: Yorgos
+	- Use 127.0.0.1 explicitly in tests to avoid delays and errors on
+	  newer systems.
+
+9 November 2023: Wouter
+	- Fix unit test parse of origin syntax.
+
 2 November 2023: Wouter
 	- Set version number to 1.19.0.
-	- Tag for 1.19.0rc1 release.
+	- Tag for 1.19.0rc1 release. It became 1.19.0 release on 8 nov 2023.
+	  The repository continues with 1.19.1.
 
 1 November 2023: George
 	- Mention flex and bison in README.md when building from repository

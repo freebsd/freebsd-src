@@ -523,4 +523,3 @@ forwards_delete_stub_hole(struct iter_forwards* fwd, uint16_t c, uint8_t* nm)
 	fwd_zone_free(z);
 	fwd_init_parents(fwd);
 }
-

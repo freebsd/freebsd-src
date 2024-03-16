@@ -11,7 +11,7 @@ PRE="../.."
 # foo.example.com is available through local-data (and recursion...).
 #
 echo "> dig www.example.com. +RD"
-dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
 echo "> cat logfiles"
 cat fwd.log 
 cat unbound.log
@@ -24,7 +24,7 @@ else
 fi
 
 echo "> dig www.example.com. +norec"
-dig @localhost +norec -p $UNBOUND_PORT www.example.com. | tee outfile
+dig @127.0.0.1 +norec -p $UNBOUND_PORT www.example.com. | tee outfile
 echo "> cat logfiles"
 cat fwd.log 
 cat unbound.log
@@ -37,7 +37,7 @@ else
 fi
 
 echo "> dig foo.example.com. +RD"
-dig @localhost -p $UNBOUND_PORT foo.example.com. | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT foo.example.com. | tee outfile
 echo "> cat logfiles"
 cat fwd.log 
 cat unbound.log
@@ -50,7 +50,7 @@ else
 fi
 
 echo "> dig foo.example.com. +norec"
-dig @localhost +norec -p $UNBOUND_PORT foo.example.com. | tee outfile
+dig @127.0.0.1 +norec -p $UNBOUND_PORT foo.example.com. | tee outfile
 echo "> cat logfiles"
 cat fwd.log 
 cat unbound.log

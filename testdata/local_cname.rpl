@@ -52,6 +52,10 @@ server:
 	local-zone: example.net redirect
 	local-data: "example.net. IN CNAME cname.example.org."
 
+	# Test setup for synthesized CNAMEs
+	local-zone: synth.cname redirect
+	local-data: "synth.cname. IN CNAME *.from.resolution."
+
 	### template zone and tag intended to be used for tests with CNAME and
 	### other data.
 	##local-zone: ambiguous.example.com redirect
@@ -129,6 +133,18 @@ SECTION QUESTION
 cname.example.org. IN A
 SECTION ANSWER
 cname.example.org. IN A 192.0.2.2
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.synth.cname.from.resolution. IN A
+SECTION ANSWER
+www.synth.cname.from.resolution. IN A 192.0.2.3
 SECTION AUTHORITY
 SECTION ADDITIONAL
 ENTRY_END
@@ -396,6 +412,26 @@ SECTION AUTHORITY
 SECTION ADDITIONAL
 ENTRY_END
 
+; Check CNAME synthesis
+STEP 201 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.synth.cname. IN A
+ENTRY_END
+
+STEP 202 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+www.synth.cname. IN A
+SECTION ANSWER
+www.synth.cname. IN CNAME www.synth.cname.from.resolution.
+www.synth.cname.from.resolution. IN A 192.0.2.3
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
 
 ; Relatively minor cases follow
 

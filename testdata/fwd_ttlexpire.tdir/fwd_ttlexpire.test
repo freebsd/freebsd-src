@@ -7,7 +7,7 @@
 PRE="../.."
 # do the test
 echo "> dig www.example.com."
-dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
 echo "> check answer"
 if grep "10.20.30.40" outfile; then
 	echo "OK"
@@ -20,7 +20,7 @@ sleep 4
 # query again
 rm outfile
 echo "> dig www.example.com."
-dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
 echo "> check answer"
 if grep "10.20.30.40" outfile; then
 	echo "OK"

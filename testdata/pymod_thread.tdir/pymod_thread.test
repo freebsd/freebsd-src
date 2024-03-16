@@ -23,16 +23,16 @@ fi
 # do the test
 # generate some load.
 echo "> dig www[1-10].example.com."
-dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile1 &
-dig @localhost -p $UNBOUND_PORT www2.example.com. | tee outfile3 &
-dig @localhost -p $UNBOUND_PORT www3.example.com. | tee outfile2 &
-dig @localhost -p $UNBOUND_PORT www4.example.com. | tee outfile4 &
-dig @localhost -p $UNBOUND_PORT www5.example.com. | tee outfile5 &
-dig @localhost -p $UNBOUND_PORT www6.example.com. | tee outfile6 &
-dig @localhost -p $UNBOUND_PORT www7.example.com. | tee outfile7 &
-dig @localhost -p $UNBOUND_PORT www8.example.com. | tee outfile8 &
-dig @localhost -p $UNBOUND_PORT www9.example.com. | tee outfile9 &
-dig @localhost -p $UNBOUND_PORT www10.example.com. | tee outfile10 &
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile1 &
+dig @127.0.0.1 -p $UNBOUND_PORT www2.example.com. | tee outfile3 &
+dig @127.0.0.1 -p $UNBOUND_PORT www3.example.com. | tee outfile2 &
+dig @127.0.0.1 -p $UNBOUND_PORT www4.example.com. | tee outfile4 &
+dig @127.0.0.1 -p $UNBOUND_PORT www5.example.com. | tee outfile5 &
+dig @127.0.0.1 -p $UNBOUND_PORT www6.example.com. | tee outfile6 &
+dig @127.0.0.1 -p $UNBOUND_PORT www7.example.com. | tee outfile7 &
+dig @127.0.0.1 -p $UNBOUND_PORT www8.example.com. | tee outfile8 &
+dig @127.0.0.1 -p $UNBOUND_PORT www9.example.com. | tee outfile9 &
+dig @127.0.0.1 -p $UNBOUND_PORT www10.example.com. | tee outfile10 &
 
 wait  # wait for all jobs to complete.
 

@@ -7,7 +7,7 @@
 PRE="../.."
 # test if unbound is up 
 echo "> dig www.example.com."
-dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
 echo "> check answer"
 if grep "10.20.30.40" outfile; then
 	echo "OK"

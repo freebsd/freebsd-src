@@ -220,14 +220,14 @@ ENTRY_END
 ; recursion happens here.
 STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RD RA AD DO NOERROR
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
 example.com.    3600    IN      DNAME   example.net.
 example.com.    3600    IN      RRSIG   DNAME 3 2 3600 20070926134150 20070829134150 2854 example.com. MCwCFH1xw24Hswia3g10AVL1yFUHUPdFAhQDrA+qZJwqXRPg2C1oiNPk9fosGg== ;{id = 2854}
-www.example.com.        0       IN      CNAME   www.example.net.
+www.example.com.        3600    IN      CNAME   www.example.net.
 www.example.net.        3600    IN      A       11.12.13.14
 www.example.net.        3600    IN      RRSIG   A 5 3 3600 20070926134150 20070829134150 30899 example.net. CPxF5hK9Kg5eT7W6LgZwr0ePYEm9HMcSY4vvqCS6gDWB4X9jvXLCfBkCLhsNybPBpGWlsLi5wM6MTdJXuPpsRA== ;{id = 30899}
 SECTION AUTHORITY

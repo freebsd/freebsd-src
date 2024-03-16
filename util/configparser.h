@@ -399,7 +399,8 @@ extern int yydebug;
     VAR_STATISTICS_INHIBIT_ZERO = 600, /* VAR_STATISTICS_INHIBIT_ZERO  */
     VAR_HARDEN_UNKNOWN_ADDITIONAL = 601, /* VAR_HARDEN_UNKNOWN_ADDITIONAL  */
     VAR_DISABLE_EDNS_DO = 602,     /* VAR_DISABLE_EDNS_DO  */
-    VAR_CACHEDB_NO_STORE = 603     /* VAR_CACHEDB_NO_STORE  */
+    VAR_CACHEDB_NO_STORE = 603,    /* VAR_CACHEDB_NO_STORE  */
+    VAR_LOG_DESTADDR = 604         /* VAR_LOG_DESTADDR  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -754,6 +755,7 @@ extern int yydebug;
 #define VAR_HARDEN_UNKNOWN_ADDITIONAL 601
 #define VAR_DISABLE_EDNS_DO 602
 #define VAR_CACHEDB_NO_STORE 603
+#define VAR_LOG_DESTADDR 604
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
@@ -763,7 +765,7 @@ union YYSTYPE
 
 	char*	str;
 
-#line 767 "util/configparser.h"
+#line 769 "util/configparser.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

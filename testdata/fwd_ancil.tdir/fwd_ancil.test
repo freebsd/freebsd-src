@@ -7,7 +7,7 @@
 PRE="../.."
 . ../common.sh
 
-if fgrep "disable interface-automatic" unbound.log; then
+if grep -F "disable interface-automatic" unbound.log; then
 	echo "skip test"
 	exit 0
 fi

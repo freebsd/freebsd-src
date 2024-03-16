@@ -24,21 +24,21 @@ fi
 (cd $PRE; find . -name "*.h" -print) >hlist
 (cd $PRE; find . -name "*.c" -print) >>hlist
 # filter out config.h
-fgrep -v -e "config.h" hlist > ilist; mv ilist hlist
-fgrep -v -e "util/configparser" hlist > ilist; mv ilist hlist
-fgrep -v -e "util/configlexer" hlist > ilist; mv ilist hlist
-fgrep -v -e "util/configyyrename" hlist > ilist; mv ilist hlist
-fgrep -v -e "util/locks.h" hlist > ilist; mv ilist hlist
-fgrep -v -e "util/storage/lookup3.c" hlist > ilist; mv ilist hlist
-fgrep -v -e "ldns-src/" hlist > ilist; mv ilist hlist
-fgrep -v -e "libunbound/python/libunbound_wrap.c" hlist > ilist; mv ilist hlist
-fgrep -v -e "pythonmod/interface.h" hlist > ilist; mv ilist hlist
-fgrep -v -e "dnstap" hlist > ilist; mv ilist hlist
-fgrep -v -e "util/siphash.c" hlist > ilist; mv ilist hlist
+grep -F -v -e "config.h" hlist > ilist; mv ilist hlist
+grep -F -v -e "util/configparser" hlist > ilist; mv ilist hlist
+grep -F -v -e "util/configlexer" hlist > ilist; mv ilist hlist
+grep -F -v -e "util/configyyrename" hlist > ilist; mv ilist hlist
+grep -F -v -e "util/locks.h" hlist > ilist; mv ilist hlist
+grep -F -v -e "util/storage/lookup3.c" hlist > ilist; mv ilist hlist
+grep -F -v -e "ldns-src/" hlist > ilist; mv ilist hlist
+grep -F -v -e "libunbound/python/libunbound_wrap.c" hlist > ilist; mv ilist hlist
+grep -F -v -e "pythonmod/interface.h" hlist > ilist; mv ilist hlist
+grep -F -v -e "dnstap" hlist > ilist; mv ilist hlist
+grep -F -v -e "util/siphash.c" hlist > ilist; mv ilist hlist
 # filter out compat
-fgrep -v -e "compat/" hlist > ilist; mv ilist hlist
+grep -F -v -e "compat/" hlist > ilist; mv ilist hlist
 for h in `cat hlist`; do
-	if fgrep "`basename $h`" $PRE/doc/html/files.html >/dev/null; then
+	if grep -F "`basename $h`" $PRE/doc/html/files.html >/dev/null; then
 		: # ok
 	else
 		echo "Warning: $h has no documentation."

@@ -7,7 +7,7 @@
 PRE="../.."
 # do the test
 echo "> dig www1.example.com."
-dig @localhost -p $UNBOUND_PORT www1.example.com. | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT www1.example.com. | tee outfile
 echo "> cat logfiles"
 cat fwd.log 
 cat unbound.log
@@ -20,11 +20,11 @@ else
 fi
 
 echo "> do three queries"
-dig @localhost -p $UNBOUND_PORT +retry=10 +time=1 www1.example.com. >outfile1 &
+dig @127.0.0.1 -p $UNBOUND_PORT +retry=10 +time=1 www1.example.com. >outfile1 &
 digpid1=$!
-dig @localhost -p $UNBOUND_PORT +retry=10 +time=1 www2.example.com. >outfile2 &
+dig @127.0.0.1 -p $UNBOUND_PORT +retry=10 +time=1 www2.example.com. >outfile2 &
 digpid2=$!
-dig @localhost -p $UNBOUND_PORT +retry=10 +time=1 www3.example.com. >outfile3 &
+dig @127.0.0.1 -p $UNBOUND_PORT +retry=10 +time=1 www3.example.com. >outfile3 &
 digpid3=$!
 sleep 5
 kill -9 $digpid1

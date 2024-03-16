@@ -434,6 +434,7 @@ log-replies{COLON}		{ YDVAR(1, VAR_LOG_REPLIES) }
 log-tag-queryreply{COLON}	{ YDVAR(1, VAR_LOG_TAG_QUERYREPLY) }
 log-local-actions{COLON}       { YDVAR(1, VAR_LOG_LOCAL_ACTIONS) }
 log-servfail{COLON}		{ YDVAR(1, VAR_LOG_SERVFAIL) }
+log-destaddr{COLON}		{ YDVAR(1, VAR_LOG_DESTADDR) }
 local-zone{COLON}		{ YDVAR(2, VAR_LOCAL_ZONE) }
 local-data{COLON}		{ YDVAR(1, VAR_LOCAL_DATA) }
 local-data-ptr{COLON}		{ YDVAR(1, VAR_LOCAL_DATA_PTR) }

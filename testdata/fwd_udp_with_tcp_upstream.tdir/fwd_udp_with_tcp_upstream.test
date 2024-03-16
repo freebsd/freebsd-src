@@ -7,7 +7,7 @@
 PRE="../.."
 # do the test
 echo "> dig tcp.example.com."
-dig @localhost -p $UNBOUND_PORT tcp.example.com. | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT tcp.example.com. | tee outfile
 echo "> cat logfiles"
 cat fwd.log 
 cat unbound.log
@@ -20,7 +20,7 @@ else
 fi
 
 echo "> dig udp.example.com."
-dig @localhost -p $UNBOUND_PORT udp.example.com. | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT udp.example.com. | tee outfile
 echo "> cat logfiles"
 cat fwd.log
 cat unbound.log

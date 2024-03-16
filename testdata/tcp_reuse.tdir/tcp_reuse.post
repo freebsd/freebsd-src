@@ -6,13 +6,13 @@
 #
 # do your teardown here
 . ../common.sh
-kill_pid `cat unbound2.pid`
+kill_from_pidfile "unbound2.pid"
 if test -f unbound2.log; then
 	echo ">>> upstream log"
 	cat unbound2.log
 fi
 #kill_pid $UNBOUND_PID
-kill_pid `cat unbound.pid`
+kill_from_pidfile "unbound.pid"
 if test -f unbound.log; then
 	echo ">>> unbound log"
 	cat unbound.log

@@ -470,6 +470,7 @@ get_origin(const char* name, struct sldns_file_parse_state* pstate, char* parse)
 	store = *end;
 	*end = 0;
 	verbose(3, "parsing '%s'\n", parse);
+	pstate->origin_len = sizeof(pstate->origin);
 	status = sldns_str2wire_dname_buf(parse, pstate->origin,
 		&pstate->origin_len);
 	*end = store;

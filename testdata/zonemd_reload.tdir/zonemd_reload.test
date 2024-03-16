@@ -7,35 +7,35 @@
 PRE="../.."
 # do the test
 echo "> dig www.example.com."
-dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
 if grep SERVFAIL outfile; then
 	echo "> try again"
-	dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+	dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
 fi
 if grep SERVFAIL outfile; then
 	echo "> try again"
 	sleep 1
-	dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+	dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
 fi
 if grep SERVFAIL outfile; then
 	echo "> try again"
 	sleep 1
-	dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+	dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
 fi
 if grep SERVFAIL outfile; then
 	echo "> try again"
 	sleep 1
-	dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+	dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
 fi
 if grep SERVFAIL outfile; then
 	echo "> try again"
 	sleep 10
-	dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+	dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
 fi
 if grep SERVFAIL outfile; then
 	echo "> try again"
 	sleep 10
-	dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+	dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
 fi
 echo "> cat logfiles"
 cat fwd.log 

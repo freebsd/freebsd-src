@@ -11,7 +11,7 @@
 kill_pid $FWD_PID
 
 # find all extra forked testns and kill them.
-pidlist=`fgrep "forked pid:" fwd.log | sed -e 's/forked pid: //'`
+pidlist=`grep -F "forked pid:" fwd.log | sed -e 's/forked pid: //'`
 for p in $pidlist; do
 	kill_pid $p
 done
