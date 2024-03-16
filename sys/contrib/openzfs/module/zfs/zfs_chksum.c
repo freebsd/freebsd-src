@@ -30,6 +30,7 @@
 
 #include <sys/blake3.h>
 #include <sys/sha2.h>
+#include <sys/tslog.h>
 
 /* limit benchmarking to max 256KiB, when EdonR is slower then this: */
 #define	LIMIT_PERF_MBS	300
@@ -140,6 +141,7 @@ static void
 chksum_run(chksum_stat_t *cs, abd_t *abd, void *ctx, int round,
     uint64_t *result)
 {
+	TSENTER();
 	hrtime_t start;
 	uint64_t run_bw, run_time_ns, run_count = 0, size = 0;
 	uint32_t l, loops = 0;
@@ -177,6 +179,7 @@ chksum_run(chksum_stat_t *cs, abd_t *abd, void *ctx, int round,
 	run_bw = size * run_count * NANOSEC;
 	run_bw /= run_time_ns;	/* B/s */
 	*result = run_bw/1024/1024; /* MiB/s */
+	TSEXIT();
 }
 
 #define	LIMIT_INIT	0

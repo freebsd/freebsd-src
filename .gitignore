@@ -6,6 +6,7 @@
 *.so
 *.sw[nop]
 *~
+.vscode
 _.tinderbox.*
 _.universe-toolchain
 _.amd64.*
