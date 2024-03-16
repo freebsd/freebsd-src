@@ -1355,7 +1355,7 @@ err_out:
 #include <fts.h>
 
 static int
-#ifdef __GLIBC__
+#if defined(__GLIBC__) || defined(__APPLE__)
 fts_compare(const FTSENT **a, const FTSENT **b)
 #else
 fts_compare(const FTSENT * const *a, const FTSENT * const *b)
