@@ -1151,7 +1151,7 @@ deny_refuse(struct comm_point* c, enum acl_access acl,
 		log_assert(sldns_buffer_limit(c->buffer) >= LDNS_HEADER_SIZE
 			&& LDNS_QDCOUNT(sldns_buffer_begin(c->buffer)) == 1);
 
-		sldns_buffer_skip(c->buffer, LDNS_HEADER_SIZE); /* skip header */
+		sldns_buffer_set_position(c->buffer, LDNS_HEADER_SIZE); /* skip header */
 
 		/* check additional section is present and that we respond with EDEs */
 		if(LDNS_ARCOUNT(sldns_buffer_begin(c->buffer)) != 1
@@ -1163,6 +1163,7 @@ deny_refuse(struct comm_point* c, enum acl_access acl,
 			LDNS_QR_SET(sldns_buffer_begin(c->buffer));
 			LDNS_RCODE_SET(sldns_buffer_begin(c->buffer),
 				LDNS_RCODE_REFUSED);
+			sldns_buffer_set_position(c->buffer, LDNS_HEADER_SIZE);
 			sldns_buffer_flip(c->buffer);
 			return 1;
 		}
@@ -1326,15 +1327,6 @@ deny_refuse_non_local(struct comm_point* c, enum acl_access acl,
 		worker, repinfo, acladdr, ede, check_result);
 }
 
-/* Returns 1 if the ip rate limit check can happen before EDNS parsing,
- * else 0 */
-static int
-pre_edns_ip_ratelimit_check(enum acl_access acl)
-{
-	if(acl == acl_allow_cookie) return 0;
-	return 1;
-}
-
 /* Check if the query is blocked by source IP rate limiting.
  * Returns 1 if it passes the check, 0 otherwise. */
 static int
@@ -1463,7 +1455,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	if(worker->dtenv.log_client_query_messages) {
 		log_addr(VERB_ALGO, "request from client", &repinfo->client_addr, repinfo->client_addrlen);
 		log_addr(VERB_ALGO, "to local addr", (void*)repinfo->c->socket->addr->ai_addr, repinfo->c->socket->addr->ai_addrlen);
-		dt_msg_send_client_query(&worker->dtenv, &repinfo->client_addr, (void*)repinfo->c->socket->addr->ai_addr, c->type, c->buffer,
+		dt_msg_send_client_query(&worker->dtenv, &repinfo->client_addr, (void*)repinfo->c->socket->addr->ai_addr, c->type, c->ssl, c->buffer,
 		((worker->env.cfg->sock_queue_timeout && timeval_isset(&c->recv_tv))?&c->recv_tv:NULL));
 	}
 #endif
@@ -1498,7 +1490,9 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	}
 
 	worker->stats.num_queries++;
-	pre_edns_ip_ratelimit = pre_edns_ip_ratelimit_check(acl);
+	pre_edns_ip_ratelimit = !worker->env.cfg->do_answer_cookie
+		|| sldns_buffer_limit(c->buffer) < LDNS_HEADER_SIZE
+		|| LDNS_ARCOUNT(sldns_buffer_begin(c->buffer)) == 0;
 
 	/* If the IP rate limiting check needs extra EDNS information (e.g.,
 	 * DNS Cookies) postpone the check until after EDNS is parsed. */
@@ -1952,7 +1946,7 @@ send_reply_rc:
 	if(worker->dtenv.log_client_response_messages) {
 		log_addr(VERB_ALGO, "from local addr", (void*)repinfo->c->socket->addr->ai_addr, repinfo->c->socket->addr->ai_addrlen);
 		log_addr(VERB_ALGO, "response to client", &repinfo->client_addr, repinfo->client_addrlen);
-		dt_msg_send_client_response(&worker->dtenv, &repinfo->client_addr, (void*)repinfo->c->socket->addr->ai_addr, c->type, c->buffer);
+		dt_msg_send_client_response(&worker->dtenv, &repinfo->client_addr, (void*)repinfo->c->socket->addr->ai_addr, c->type, c->ssl, c->buffer);
 	}
 #endif
 	if(worker->env.cfg->log_replies)
@@ -1966,11 +1960,15 @@ send_reply_rc:
 			qinfo.qname = qinfo.local_alias->rrset->rk.dname;
 			log_reply_info(NO_VERBOSE, &qinfo,
 				&repinfo->client_addr, repinfo->client_addrlen,
-				tv, 1, c->buffer);
+				tv, 1, c->buffer,
+				(worker->env.cfg->log_destaddr?(void*)repinfo->c->socket->addr->ai_addr:NULL),
+				c->type);
 		} else {
 			log_reply_info(NO_VERBOSE, &qinfo,
 				&repinfo->client_addr, repinfo->client_addrlen,
-				tv, 1, c->buffer);
+				tv, 1, c->buffer,
+				(worker->env.cfg->log_destaddr?(void*)repinfo->c->socket->addr->ai_addr:NULL),
+				c->type);
 		}
 	}
 #ifdef USE_DNSCRYPT

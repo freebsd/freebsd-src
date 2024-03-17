@@ -349,6 +349,8 @@ struct config_file {
 	int log_servfail;
 	/** log identity to report */
 	char* log_identity;
+	/** log dest addr for log_replies */
+	int log_destaddr;
 
 	/** do not report identity (id.server, hostname.bind) */
 	int hide_identity;

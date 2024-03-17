@@ -1532,7 +1532,7 @@ local_data_answer(struct local_zone* z, struct module_env* env,
 			return 0; /* invalid cname */
 		if(dname_is_wild(ctarget)) {
 			/* synthesize cname target */
-			struct packed_rrset_data* d;
+			struct packed_rrset_data* d, *lr_d;
 			/* -3 for wildcard label and root label from qname */
 			size_t newtargetlen = qinfo->qname_len + ctargetlen - 3;
 
@@ -1560,8 +1560,10 @@ local_data_answer(struct local_zone* z, struct module_env* env,
 				+ newtargetlen);
 			if(!d)
 				return 0; /* out of memory */
+			lr_d = (struct packed_rrset_data*)lr->rrset->entry.data;
 			qinfo->local_alias->rrset->entry.data = d;
-			d->ttl = 0; /* 0 for synthesized CNAME TTL */
+			d->ttl = lr_d->rr_ttl[0]; /* RFC6672-like behavior:
+					    synth CNAME TTL uses original TTL*/
 			d->count = 1;
 			d->rrsig_count = 0;
 			d->trust = rrset_trust_ans_noAA;

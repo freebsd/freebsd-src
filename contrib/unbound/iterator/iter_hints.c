@@ -129,7 +129,7 @@ compile_time_root_prime(int do_ip4, int do_ip6)
 	dp->has_parent_side_NS = 1;
       if(do_ip4) {
 	if(!ah(dp, "A.ROOT-SERVERS.NET.", "198.41.0.4"))	goto failed;
-	if(!ah(dp, "B.ROOT-SERVERS.NET.", "199.9.14.201")) goto failed;
+	if(!ah(dp, "B.ROOT-SERVERS.NET.", "170.247.170.2"))	goto failed;
 	if(!ah(dp, "C.ROOT-SERVERS.NET.", "192.33.4.12"))	goto failed;
 	if(!ah(dp, "D.ROOT-SERVERS.NET.", "199.7.91.13"))	goto failed;
 	if(!ah(dp, "E.ROOT-SERVERS.NET.", "192.203.230.10")) goto failed;
@@ -144,7 +144,7 @@ compile_time_root_prime(int do_ip4, int do_ip6)
       }
       if(do_ip6) {
 	if(!ah(dp, "A.ROOT-SERVERS.NET.", "2001:503:ba3e::2:30")) goto failed;
-	if(!ah(dp, "B.ROOT-SERVERS.NET.", "2001:500:200::b")) goto failed;
+	if(!ah(dp, "B.ROOT-SERVERS.NET.", "2801:1b8:10::b")) goto failed;
 	if(!ah(dp, "C.ROOT-SERVERS.NET.", "2001:500:2::c")) goto failed;
 	if(!ah(dp, "D.ROOT-SERVERS.NET.", "2001:500:2d::d")) goto failed;
 	if(!ah(dp, "E.ROOT-SERVERS.NET.", "2001:500:a8::e")) goto failed;
@@ -560,4 +560,3 @@ hints_delete_stub(struct iter_hints* hints, uint16_t c, uint8_t* nm)
 	hints_stub_free(z);
 	name_tree_init_parents(&hints->tree);
 }
-

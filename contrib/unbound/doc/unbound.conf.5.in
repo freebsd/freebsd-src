@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Feb 13, 2024" "NLnet Labs" "unbound 1.19.1"
+.TH "unbound.conf" "5" "Mar 14, 2024" "NLnet Labs" "unbound 1.19.3"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -699,6 +699,12 @@ When at the limit, further connections are accepted but closed immediately.
 This option is experimental at this time.
 .TP
 .B access\-control: \fI<IP netblock> <action>
+Specify treatment of incoming queries from their originating IP address.
+Queries can be allowed to have access to this server that gives DNS
+answers, or refused, with other actions possible. The IP address range
+can be specified as a netblock, it is possible to give the statement
+several times in order to specify the treatment of different netblocks.
+.IP
 The netblock is given as an IP4 or IP6 address with /size appended for a
 classless network block. The action can be \fIdeny\fR, \fIrefuse\fR,
 \fIallow\fR, \fIallow_setrd\fR, \fIallow_snoop\fR, \fIallow_cookie\fR,
@@ -738,7 +744,7 @@ the cache contents (for malicious acts).  However, nonrecursive queries can
 also be a valuable debugging tool (when you want to examine the cache
 contents). In that case use \fIallow_snoop\fR for your administration host.
 .IP
-The \fIallow_cookie\fR action allows access to UDP queries that contain a
+The \fIallow_cookie\fR action allows access only to UDP queries that contain a
 valid DNS Cookie as specified in RFC 7873 and RFC 9018, when the
 \fBanswer\-cookie\fR option is enabled.
 UDP queries containing only a DNS Client Cookie and no Server Cookie, or an
@@ -747,10 +753,8 @@ generated DNS Cookie, allowing clients to retry with that DNS Cookie.
 The \fIallow_cookie\fR action will also accept requests over stateful
 transports, regardless of the presence of an DNS Cookie and regardless of the
 \fBanswer\-cookie\fR setting.
-If \fBip\-ratelimit\fR is used, clients with a valid DNS Cookie will bypass the
-ratelimit.
-If a ratelimit for such clients is still needed, \fBip\-ratelimit\-cookie\fR
-can be used instead.
+UDP queries without a DNS Cookie receive REFUSED responses with the TC flag set,
+that may trigger fall back to TCP for those clients.
 .IP
 By default only localhost is \fIallow\fRed, the rest is \fIrefuse\fRd.
 The default is \fIrefuse\fRd, because that is protocol\-friendly. The DNS
@@ -912,6 +916,11 @@ characters in names are printed as '?'.
 Prints the word 'query' and 'reply' with log\-queries and log\-replies.
 This makes filtering logs easier.  The default is off (for backwards
 compatibility).
+.TP
+.B log\-destaddr: \fI<yes or no>
+Prints the destination address, port and type in the log\-replies output.
+This disambiguates what type of traffic, eg. udp or tcp, and to what local
+port the traffic was sent to.
 .TP
 .B log\-local\-actions: \fI<yes or no>
 Print log lines to inform about local zone actions.  These lines are like the
@@ -1839,6 +1848,9 @@ The ratelimit is in queries per second that are allowed.  More queries are
 completely dropped and will not receive a reply, SERVFAIL or otherwise.
 IP ratelimiting happens before looking in the cache. This may be useful for
 mitigating amplification attacks.
+Clients with a valid DNS Cookie will bypass the ratelimit.
+If a ratelimit for such clients is still needed, \fBip\-ratelimit\-cookie\fR
+can be used instead.
 Default is 0 (disabled).
 .TP 5
 .B ip\-ratelimit\-cookie: \fI<number or 0>

@@ -748,7 +748,6 @@ dnskey_verify_rrset(struct module_env* env, struct val_env* ve,
 			return sec_status_bogus;
 		}
 	}
-	verbose(VERB_ALGO, "rrset failed to verify: all signatures are bogus");
 	if(!numchecked) {
 		*reason = "signature for expected key and algorithm missing";
 		if(reason_bogus)
@@ -761,6 +760,7 @@ dnskey_verify_rrset(struct module_env* env, struct val_env* ve,
 		*reason = "algorithm refused by cryptolib";
 		return sec_status_indeterminate;
 	}
+	verbose(VERB_ALGO, "rrset failed to verify: all signatures are bogus");
 	return sec_status_bogus;
 }
 

@@ -424,11 +424,13 @@ static enum sec_status
 verify_dnskeys_with_ds_rr(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key* dnskey_rrset,
         struct ub_packed_rrset_key* ds_rrset, size_t ds_idx, char** reason,
-	sldns_ede_code *reason_bogus, struct module_qstate* qstate)
+	sldns_ede_code *reason_bogus, struct module_qstate* qstate,
+	int *nonechecked)
 {
 	enum sec_status sec = sec_status_bogus;
 	size_t i, num, numchecked = 0, numhashok = 0, numsizesupp = 0;
 	num = rrset_get_count(dnskey_rrset);
+	*nonechecked = 0;
 	for(i=0; i<num; i++) {
 		/* Skip DNSKEYs that don't match the basic criteria. */
 		if(ds_get_key_algo(ds_rrset, ds_idx) 
@@ -476,13 +478,15 @@ verify_dnskeys_with_ds_rr(struct module_env* env, struct val_env* ve,
 		/* there is a working DS, but that DNSKEY is not supported */
 		return sec_status_insecure;
 	}
-	if(numchecked == 0)
+	if(numchecked == 0) {
 		algo_needs_reason(env, ds_get_key_algo(ds_rrset, ds_idx),
 			reason, "no keys have a DS");
-	else if(numhashok == 0)
+		*nonechecked = 1;
+	} else if(numhashok == 0) {
 		*reason = "DS hash mismatches key";
-	else if(!*reason)
+	} else if(!*reason) {
 		*reason = "keyset not secured by DNSKEY that matches DS";
+	}
 	return sec_status_bogus;
 }
 
@@ -511,7 +515,8 @@ val_verify_DNSKEY_with_DS(struct module_env* env, struct val_env* ve,
 {
 	/* as long as this is false, we can consider this DS rrset to be
 	 * equivalent to no DS rrset. */
-	int has_useful_ds = 0, digest_algo, alg;
+	int has_useful_ds = 0, digest_algo, alg, has_algo_refusal = 0,
+		nonechecked, has_checked_ds = 0;
 	struct algo_needs needs;
 	size_t i, num;
 	enum sec_status sec;
@@ -544,9 +549,16 @@ val_verify_DNSKEY_with_DS(struct module_env* env, struct val_env* ve,
 		}
 
 		sec = verify_dnskeys_with_ds_rr(env, ve, dnskey_rrset,
-			ds_rrset, i, reason, reason_bogus, qstate);
-		if(sec == sec_status_insecure)
+			ds_rrset, i, reason, reason_bogus, qstate,
+			&nonechecked);
+		if(sec == sec_status_insecure) {
+			/* DNSKEY too large unsupported or algo refused by
+			 * crypto lib. */
+			has_algo_refusal = 1;
 			continue;
+		}
+		if(!nonechecked)
+			has_checked_ds = 1;
 
 		/* Once we see a single DS with a known digestID and 
 		 * algorithm, we cannot return INSECURE (with a 
@@ -571,6 +583,15 @@ val_verify_DNSKEY_with_DS(struct module_env* env, struct val_env* ve,
 
 	/* None of the DS's worked out. */
 
+	/* If none of the DSes have been checked, eg. that means no matches
+	 * for keytags, and the other dses are all algo_refusal, it is an
+	 * insecure delegation point, since the only matched DS records
+	 * have an algo refusal, or are unsupported. */
+	if(has_algo_refusal && !has_checked_ds) {
+		verbose(VERB_ALGO, "No supported DS records were found -- "
+			"treating as insecure.");
+		return sec_status_insecure;
+	}
 	/* If no DSs were understandable, then this is OK. */
 	if(!has_useful_ds) {
 		verbose(VERB_ALGO, "No usable DS records were found -- "
@@ -624,7 +645,8 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 {
 	/* as long as this is false, we can consider this anchor to be
 	 * equivalent to no anchor. */
-	int has_useful_ta = 0, digest_algo = 0, alg;
+	int has_useful_ta = 0, digest_algo = 0, alg, has_algo_refusal = 0,
+		nonechecked, has_checked_ds = 0;
 	struct algo_needs needs;
 	size_t i, num;
 	enum sec_status sec;
@@ -670,9 +692,13 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 			continue;
 
 		sec = verify_dnskeys_with_ds_rr(env, ve, dnskey_rrset,
-			ta_ds, i, reason, reason_bogus, qstate);
-		if(sec == sec_status_insecure)
+			ta_ds, i, reason, reason_bogus, qstate, &nonechecked);
+		if(sec == sec_status_insecure) {
+			has_algo_refusal = 1;
 			continue;
+		}
+		if(!nonechecked)
+			has_checked_ds = 1;
 
 		/* Once we see a single DS with a known digestID and 
 		 * algorithm, we cannot return INSECURE (with a 
@@ -728,6 +754,15 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 	    }
 	}
 
+	/* If none of the DSes have been checked, eg. that means no matches
+	 * for keytags, and the other dses are all algo_refusal, it is an
+	 * insecure delegation point, since the only matched DS records
+	 * have an algo refusal, or are unsupported. */
+	if(has_algo_refusal && !has_checked_ds) {
+		verbose(VERB_ALGO, "No supported trust anchors were found -- "
+			"treating as insecure.");
+		return sec_status_insecure;
+	}
 	/* If no DSs were understandable, then this is OK. */
 	if(!has_useful_ta) {
 		verbose(VERB_ALGO, "No usable trust anchors were found -- "

@@ -4151,10 +4151,10 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 			/* like packet got dropped */
 			goto handle_it;
 		}
-		if(!inplace_cb_edns_back_parsed_call(qstate->env, qstate)) {
-			log_err("unable to call edns_back_parsed callback");
-			goto handle_it;
-		}
+	}
+	if(!inplace_cb_edns_back_parsed_call(qstate->env, qstate)) {
+		log_err("unable to call edns_back_parsed callback");
+		goto handle_it;
 	}
 
 	/* remove CD-bit, we asked for in case we handle validation ourself */

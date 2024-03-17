@@ -1,4 +1,4 @@
-README for Unbound 1.19.1
+README for Unbound 1.19.3
 Copyright 2007 NLnet Labs
 http://unbound.net
 
@@ -19,11 +19,10 @@ The DNSTAP code has BSD license in dnstap/dnstap.c.
 * Make and install: ./configure; make; make install
   * --with-libevent=/path/to/libevent
   	Can be set to either the system install or the build directory.
-	--with-libevent=no (default) gives a builtin alternative 
-	implementation. libevent is useful when having many (thousands) 
-	of outgoing ports. This improves randomization and spoof 
-	resistance. For the default of 16 ports the builtin alternative 
-	works well and is a little faster.
+	--with-libevent=no gives a builtin alternative implementation.
+	Libevent is enabled by default, it is useful when having many
+	(thousands) of outgoing ports. This improves randomization and spoof
+	resistance. It also allows a higher number of outgoing queries.
   * --with-libexpat=/path/to/libexpat
   	Can be set to the install directory of libexpat.
   * --without-pthreads 

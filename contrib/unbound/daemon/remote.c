@@ -553,7 +553,7 @@ ssl_print_text(RES* res, const char* text)
 static int
 ssl_print_vmsg(RES* ssl, const char* format, va_list args)
 {
-	char msg[1024];
+	char msg[65535];
 	vsnprintf(msg, sizeof(msg), format, args);
 	return ssl_print_text(ssl, msg);
 }
@@ -3181,10 +3181,10 @@ execute_cmd(struct daemon_remote* rc, RES* ssl, char* cmd,
 		do_flush_bogus(ssl, worker);
 	} else if(cmdcmp(p, "flush_negative", 14)) {
 		do_flush_negative(ssl, worker);
-    } else if(cmdcmp(p, "rpz_enable", 10)) {
-        do_rpz_enable(ssl, worker, skipwhite(p+10));
-    } else if(cmdcmp(p, "rpz_disable", 11)) {
-        do_rpz_disable(ssl, worker, skipwhite(p+11));
+	} else if(cmdcmp(p, "rpz_enable", 10)) {
+		do_rpz_enable(ssl, worker, skipwhite(p+10));
+	} else if(cmdcmp(p, "rpz_disable", 11)) {
+		do_rpz_disable(ssl, worker, skipwhite(p+11));
 	} else {
 		(void)ssl_printf(ssl, "error unknown command '%s'\n", p);
 	}
