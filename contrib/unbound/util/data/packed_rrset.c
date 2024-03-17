@@ -275,6 +275,7 @@ int packed_rr_to_string(struct ub_packed_rrset_key* rrset, size_t i,
 	struct packed_rrset_data* d = (struct packed_rrset_data*)rrset->
 		entry.data;
 	uint8_t rr[65535];
+	size_t wlen;
 	size_t rlen = rrset->rk.dname_len + 2 + 2 + 4 + d->rr_len[i];
 	time_t adjust = 0;
 	log_assert(dest_len > 0 && dest);
@@ -292,7 +293,9 @@ int packed_rr_to_string(struct ub_packed_rrset_key* rrset, size_t i,
 	sldns_write_uint32(rr+rrset->rk.dname_len+4,
 		(uint32_t)(d->rr_ttl[i]-adjust));
 	memmove(rr+rrset->rk.dname_len+8, d->rr_data[i], d->rr_len[i]);
-	if(sldns_wire2str_rr_buf(rr, rlen, dest, dest_len) == -1) {
+	wlen = (size_t)sldns_wire2str_rr_buf(rr, rlen, dest, dest_len);
+	if(wlen >= dest_len) {
+		/* the output string was truncated */
 		log_info("rrbuf failure %d %s", (int)d->rr_len[i], dest);
 		dest[0] = 0;
 		return 0;

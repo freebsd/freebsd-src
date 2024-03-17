@@ -80,6 +80,7 @@ store_rrsets(struct module_env* env, struct reply_info* rep, time_t now,
 	struct regional* region, time_t qstarttime)
 {
 	size_t i;
+	time_t ttl, min_ttl = rep->ttl;
 	/* see if rrset already exists in cache, if not insert it. */
 	for(i=0; i<rep->rrset_count; i++) {
 		rep->ref[i].key = rep->rrsets[i];
@@ -112,6 +113,15 @@ store_rrsets(struct module_env* env, struct reply_info* rep, time_t now,
 		case 1: /* ref updated, item inserted */
 			rep->rrsets[i] = rep->ref[i].key;
 		}
+		/* if ref was updated make sure the message ttl is updated to
+		 * the minimum of the current rrsets. */
+		ttl = ((struct packed_rrset_data*)rep->rrsets[i]->entry.data)->ttl;
+		if(ttl < min_ttl) min_ttl = ttl;
+	}
+	if(min_ttl < rep->ttl) {
+		rep->ttl = min_ttl;
+		rep->prefetch_ttl = PREFETCH_TTL_CALC(rep->ttl);
+		rep->serve_expired_ttl = rep->ttl + SERVE_EXPIRED_TTL;
 	}
 }
 
@@ -818,7 +828,7 @@ synth_dname_msg(struct ub_packed_rrset_key* rrset, struct regional* region,
 	if(!newd)
 		return NULL;
 	ck->entry.data = newd;
-	newd->ttl = 0; /* 0 for synthesized CNAME TTL */
+	newd->ttl = d->ttl - now; /* RFC6672: synth CNAME TTL == DNAME TTL */
 	newd->count = 1;
 	newd->rrsig_count = 0;
 	newd->trust = rrset_trust_ans_noAA;
