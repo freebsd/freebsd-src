@@ -4,9 +4,9 @@ NAME
      ssh-add M-bM-^@M-^S adds private key identities to the OpenSSH authentication agent
 
 SYNOPSIS
-     ssh-add [-cCDdKkLlqvXx] [-E fingerprint_hash] [-H hostkey_file]
+     ssh-add [-CcDdKkLlqvXx] [-E fingerprint_hash] [-H hostkey_file]
              [-h destination_constraint] [-S provider] [-t life] [file ...]
-     ssh-add -s pkcs11 [-vC] [certificate ...]
+     ssh-add -s pkcs11 [-Cv] [certificate ...]
      ssh-add -e pkcs11
      ssh-add -T pubkey ...
 
@@ -29,14 +29,14 @@ DESCRIPTION
 
      The options are as follows:
 
+     -C      When loading keys into or deleting keys from the agent, process
+             certificates only and skip plain keys.
+
      -c      Indicates that added identities should be subject to confirmation
              before being used for authentication.  Confirmation is performed
              by ssh-askpass(1).  Successful confirmation is signaled by a zero
              exit status from ssh-askpass(1), rather than text entered into
              the requester.
-
-     -C      When loading keys into or deleting keys from the agent, process
-             certificates only and skip plain keys.
 
      -D      Deletes all identities from the agent.
 
@@ -207,4 +207,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.3                    December 18, 2023                   OpenBSD 7.3
+OpenBSD 7.5                    December 19, 2023                   OpenBSD 7.5

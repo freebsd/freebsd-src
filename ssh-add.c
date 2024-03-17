@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-add.c,v 1.169 2023/12/18 14:46:56 djm Exp $ */
+/* $OpenBSD: ssh-add.c,v 1.172 2024/01/11 01:45:36 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -85,7 +85,9 @@ static char *default_files[] = {
 	_PATH_SSH_CLIENT_ID_ED25519,
 	_PATH_SSH_CLIENT_ID_ED25519_SK,
 	_PATH_SSH_CLIENT_ID_XMSS,
+#ifdef WITH_DSA
 	_PATH_SSH_CLIENT_ID_DSA,
+#endif
 	NULL
 };
 
@@ -790,13 +792,13 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-"usage: ssh-add [-cDdKkLlqvXx] [-E fingerprint_hash] [-H hostkey_file]\n"
+"usage: ssh-add [-CcDdKkLlqvXx] [-E fingerprint_hash] [-H hostkey_file]\n"
 "               [-h destination_constraint] [-S provider] [-t life]\n"
 #ifdef WITH_XMSS
 "               [-M maxsign] [-m minleft]\n"
 #endif
 "               [file ...]\n"
-"       ssh-add -s pkcs11\n"
+"       ssh-add -s pkcs11 [-Cv] [certificate ...]\n"
 "       ssh-add -e pkcs11\n"
 "       ssh-add -T pubkey ...\n"
 	);
@@ -817,7 +819,7 @@ main(int argc, char **argv)
 	LogLevel log_level = SYSLOG_LEVEL_INFO;
 	struct sshkey *k, **certs = NULL;
 	struct dest_constraint **dest_constraints = NULL;
-	size_t ndest_constraints = 0i, ncerts = 0;
+	size_t ndest_constraints = 0, ncerts = 0;
 
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();

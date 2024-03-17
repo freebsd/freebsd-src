@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.391 2023/10/12 02:18:18 djm Exp $
-.Dd $Mdocdate: October 12 2023 $
+.\" $OpenBSD: ssh_config.5,v 1.394 2024/02/21 06:01:13 djm Exp $
+.Dd $Mdocdate: February 21 2024 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -144,7 +144,7 @@ The available criteria keywords are:
 .Cm localnetwork ,
 .Cm host ,
 .Cm originalhost ,
-.Cm Tag ,
+.Cm tagged ,
 .Cm user ,
 and
 .Cm localuser .
@@ -463,8 +463,10 @@ Timeouts are specified as one or more
 .Dq type=interval
 pairs separated by whitespace, where the
 .Dq type
-must be a channel type name (as described in the table below), optionally
-containing wildcard characters.
+must be the special keyword
+.Dq global
+or a channel type name from the list below, optionally containing
+wildcard characters.
 .Pp
 The timeout value
 .Dq interval
@@ -473,11 +475,19 @@ is specified in seconds or may use any of the units documented in the
 section.
 For example,
 .Dq session=5m
-would cause the interactive session to terminate after five minutes of
+would cause interactive sessions to terminate after five minutes of
 inactivity.
 Specifying a zero value disables the inactivity timeout.
 .Pp
-The available channel types include:
+The special timeout
+.Dq global
+applies to all active channels, taken together.
+Traffic on any active channel will reset the timeout, but when the timeout
+expires then all open channels will be closed.
+Note that this global timeout is not matched by wildcards and must be
+specified explicitly.
+.Pp
+The available channel type names include:
 .Bl -tag -width Ds
 .It Cm agent-connection
 Open connections to

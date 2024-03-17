@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_iterate.c,v 1.8 2021/12/14 21:25:27 deraadt Exp $ */
+/* 	$OpenBSD: test_iterate.c,v 1.9 2024/01/11 01:45:58 djm Exp $ */
 /*
  * Regress test for hostfile.h hostkeys_foreach()
  *
@@ -94,6 +94,11 @@ check(struct hostkey_foreach_line *l, void *_ctx)
 	    expected->no_parse_keytype == KEY_ECDSA)
 		skip = 1;
 #endif /* OPENSSL_HAS_ECC */
+#ifndef WITH_DSA
+	if (expected->l.keytype == KEY_DSA ||
+	    expected->no_parse_keytype == KEY_DSA)
+		skip = 1;
+#endif
 #ifndef WITH_OPENSSL
 	if (expected->l.keytype == KEY_DSA ||
 	    expected->no_parse_keytype == KEY_DSA ||
@@ -155,6 +160,10 @@ prepare_expected(struct expected *expected, size_t n)
 		if (expected[i].l.keytype == KEY_ECDSA)
 			continue;
 #endif /* OPENSSL_HAS_ECC */
+#ifndef WITH_DSA
+		if (expected[i].l.keytype == KEY_DSA)
+			continue;
+#endif
 #ifndef WITH_OPENSSL
 		switch (expected[i].l.keytype) {
 		case KEY_RSA:
