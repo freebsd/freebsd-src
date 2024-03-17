@@ -49,7 +49,7 @@ RANGE_BEGIN 60 100
 		ADJUST copy_id
 		REPLY QR NOERROR
 		SECTION QUESTION
-			example.com. 10 IN NS
+			example.com. IN NS
 		SECTION ANSWER
 			example.com. 10 IN NS ns.example.com.
 		SECTION ADDITIONAL
