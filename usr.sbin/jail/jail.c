@@ -128,6 +128,24 @@ static const enum intparam stopcommands[] = {
     IP__NULL
 };
 
+static const enum intparam cleancommands[] = {
+    IP__NULL,
+    IP_EXEC_POSTSTOP,
+    IP_MOUNT_PROCFS,
+    IP_MOUNT_FDESCFS,
+    IP_MOUNT_DEVFS,
+    IP__MOUNT_FROM_FSTAB,
+    IP_MOUNT,
+#ifdef INET6
+    IP__IP6_IFADDR,
+#endif
+#ifdef INET
+    IP__IP4_IFADDR,
+#endif
+    IP_EXEC_RELEASE,
+    IP__NULL
+};
+
 int
 main(int argc, char **argv)
 {
@@ -153,10 +171,13 @@ main(int argc, char **argv)
 	cfname = CONF_FILE;
 	JidFile = NULL;
 
-	while ((ch = getopt(argc, argv, "cde:f:hiJ:lmn:p:qrRs:u:U:v")) != -1) {
+	while ((ch = getopt(argc, argv, "cCde:f:hiJ:lmn:p:qrRs:u:U:v")) != -1) {
 		switch (ch) {
 		case 'c':
 			op |= JF_START;
+			break;
+		case 'C':
+			op |= JF_CLEANUP;
 			break;
 		case 'd':
 			dflag = 1;
@@ -305,7 +326,7 @@ main(int argc, char **argv)
 		note_remove = docf || argc > 1 || wild_jail_name(argv[0]);
 	} else if (argc > 1 || (argc == 1 && strchr(argv[0], '='))) {
 		/* Single jail specified on the command line */
-		if (Rflag)
+		if (Rflag || (op & JF_CLEANUP))
 			usage();
 		docf = 0;
 		for (i = 0; i < argc; i++) {
@@ -355,7 +376,7 @@ main(int argc, char **argv)
 	/* Find out which jails will be run. */
 	dep_setup(docf);
 	error = 0;
-	if (op == JF_STOP) {
+	if ((op & JF_OP_MASK) == JF_STOP) {
 		for (i = 0; i < argc; i++)
 			if (start_state(argv[i], docf, op, Rflag) < 0)
 				error = 1;
@@ -415,22 +436,24 @@ main(int argc, char **argv)
 			 * depending on the jail's current status.
 			 */
 		case JF_START_SET:
-			j->flags = j->jid < 0 ? JF_START : JF_SET;
+			j->flags = j->jid < 0
+			    ? (j->flags & JF_CLEANUP) | JF_START : JF_SET;
 			break;
 		case JF_SET_RESTART:
-			if (j->jid < 0) {
+			if (j->jid < 0 && !(j->flags & JF_CLEANUP)) {
 				jail_quoted_warnx(j, "not found",
 				    "no jail specified");
 				failed(j);
 				continue;
 			}
-			j->flags = rdtun_params(j, 0) ? JF_RESTART : JF_SET;
+			j->flags = rdtun_params(j, 0)
+			    ? (j->flags & JF_CLEANUP) | JF_RESTART : JF_SET;
 			if (j->flags == JF_RESTART)
 				dep_reset(j);
 			break;
 		case JF_START_SET_RESTART:
-			j->flags = j->jid < 0 ? JF_START
-			    : rdtun_params(j, 0) ? JF_RESTART : JF_SET;
+			j->flags = j->jid < 0 ? JF_START : rdtun_params(j, 0)
+			    ? (j->flags & JF_CLEANUP) | JF_RESTART : JF_SET;
 			if (j->flags == JF_RESTART)
 				dep_reset(j);
 		}
@@ -449,11 +472,18 @@ main(int argc, char **argv)
 					continue;
 				if (j->jid > 0)
 					goto jail_create_done;
+				if (j->flags & JF_CLEANUP) {
+					j->flags |= JF_STOP;
+					j->comparam = cleancommands;
+				} else
+					j->comparam = startcommands;
 				j->comparam = startcommands;
 				j->comstring = NULL;
 			}
 			if (next_command(j))
 				continue;
+			if (j->flags & JF_STOP)
+				goto jail_remove_done;
 		jail_create_done:
 			clear_persist(j);
 			if (jfp != NULL)
@@ -485,7 +515,10 @@ main(int argc, char **argv)
 			if (j->comparam == NULL) {
 				if (dep_check(j))
 					continue;
-				if (j->jid < 0) {
+				if (j->flags & JF_CLEANUP) {
+					j->comparam = j->jid < 0
+					    ? cleancommands : stopcommands;
+				} else if (j->jid < 0) {
 					if (!(j->flags & (JF_DEPEND|JF_WILD))) {
 						if (verbose >= 0)
 							jail_quoted_warnx(j,
@@ -494,7 +527,8 @@ main(int argc, char **argv)
 					}
 					goto jail_remove_done;
 				}
-				j->comparam = stopcommands;
+				else
+					j->comparam = stopcommands;
 				j->comstring = NULL;
 			} else if ((j->flags & JF_FAILED) && j->jid > 0)
 				goto jail_remove_done;
@@ -504,7 +538,7 @@ main(int argc, char **argv)
 			dep_done(j, 0);
 			if ((j->flags & (JF_START | JF_FAILED)) == JF_START) {
 				j->comparam = NULL;
-				j->flags &= ~JF_STOP;
+				j->flags &= ~(JF_STOP | JF_CLEANUP);
 				dep_reset(j);
 				requeue(j, j->ndeps ? &depend : &ready);
 			}
