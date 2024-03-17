@@ -137,12 +137,12 @@ than as a named global or channel request to allow pings with very
 short packet lengths, which would not be possible with other
 approaches.
 
-1.9 transport: strict key exchange extension
+1.10 transport: strict key exchange extension
 
 OpenSSH supports a number of transport-layer hardening measures under
 a "strict KEX" feature. This feature is signalled similarly to the
 RFC8308 ext-info feature: by including a additional algorithm in the
-initiial SSH2_MSG_KEXINIT kex_algorithms field. The client may append
+initial SSH2_MSG_KEXINIT kex_algorithms field. The client may append
 "kex-strict-c-v00@openssh.com" to its kex_algorithms and the server
 may append "kex-strict-s-v00@openssh.com". These pseudo-algorithms
 are only valid in the initial SSH2_MSG_KEXINIT and MUST be ignored
@@ -150,20 +150,21 @@ if they are present in subsequent SSH2_MSG_KEXINIT packets.
 
 When an endpoint that supports this extension observes this algorithm
 name in a peer's KEXINIT packet, it MUST make the following changes to
-the the protocol:
+the protocol:
 
-a) During initial KEX, terminate the connection if any unexpected or
-   out-of-sequence packet is received. This includes terminating the
-   connection if the first packet received is not SSH2_MSG_KEXINIT.
-   Unexpected packets for the purpose of strict KEX include messages
-   that are otherwise valid at any time during the connection such as
-   SSH2_MSG_DEBUG and SSH2_MSG_IGNORE.
+a) During initial KEX, terminate the connection if out-of-sequence
+   packet or any message that is not strictly required by KEX is
+   received. This includes terminating the connection if the first
+   packet received is not SSH2_MSG_KEXINIT. Unexpected packets for
+   the purpose of strict KEX include messages that are otherwise
+   valid at any time during the connection such as SSH2_MSG_DEBUG,
+   SSH2_MSG_IGNORE or SSH2_MSG_UNIMPLEMENTED.
 b) After sending or receiving a SSH2_MSG_NEWKEYS message, reset the
    packet sequence number to zero. This behaviour persists for the
    duration of the connection (i.e. not just the first
    SSH2_MSG_NEWKEYS).
 
-1.10 transport: SSH2_MSG_EXT_INFO during user authentication
+1.11 transport: SSH2_MSG_EXT_INFO during user authentication
 
 This protocol extension allows the SSH2_MSG_EXT_INFO to be sent
 during user authentication. RFC8308 does allow a second
@@ -735,6 +736,7 @@ identifiers:
 The server will reply with a SSH_FXP_EXTENDED_REPLY:
 
 	byte		SSH_FXP_EXTENDED_REPLY
+	uint32		id
 	string		usernames
 	string		groupnames
 
@@ -790,4 +792,4 @@ master instance and later clients.
 OpenSSH extends the usual agent protocol. These changes are documented
 in the PROTOCOL.agent file.
 
-$OpenBSD: PROTOCOL,v 1.51 2023/12/18 14:45:49 djm Exp $
+$OpenBSD: PROTOCOL,v 1.55 2024/01/08 05:05:15 djm Exp $

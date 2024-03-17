@@ -1,4 +1,4 @@
-/* $OpenBSD: xmss_hash.c,v 1.3 2022/04/20 16:00:25 millert Exp $ */
+/* $OpenBSD: xmss_hash.c,v 1.4 2023/12/20 00:06:25 jsg Exp $ */
 /*
 hash.c version 20160722
 Andreas Hülsing
@@ -74,7 +74,7 @@ int prf(unsigned char *out, const unsigned char *in, const unsigned char *key, u
 }
 
 /*
- * Implemts H_msg
+ * Implements H_msg
  */
 int h_msg(unsigned char *out, const unsigned char *in, unsigned long long inlen, const unsigned char *key, const unsigned int keylen, const unsigned int n)
 {

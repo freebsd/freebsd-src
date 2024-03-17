@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.336 2023/08/10 23:05:48 djm Exp $ */
+/* $OpenBSD: session.c,v 1.337 2024/02/01 02:37:33 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -1327,7 +1327,7 @@ safely_chroot(const char *path, uid_t uid)
 			memcpy(component, path, cp - path);
 			component[cp - path] = '\0';
 		}
-	
+
 		debug3_f("checking '%s'", component);
 
 		if (stat(component, &st) != 0)

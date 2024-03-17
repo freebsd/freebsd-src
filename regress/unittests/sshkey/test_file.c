@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_file.c,v 1.10 2021/12/14 21:25:27 deraadt Exp $ */
+/* 	$OpenBSD: test_file.c,v 1.11 2024/01/11 01:45:58 djm Exp $ */
 /*
  * Regress test for sshkey.h key management API
  *
@@ -165,6 +165,7 @@ sshkey_file_tests(void)
 
 	sshkey_free(k1);
 
+#ifdef WITH_DSA
 	TEST_START("parse DSA from private");
 	buf = load_file("dsa_1");
 	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);
@@ -255,6 +256,7 @@ sshkey_file_tests(void)
 	TEST_DONE();
 
 	sshkey_free(k1);
+#endif
 
 #ifdef OPENSSL_HAS_ECC
 	TEST_START("parse ECDSA from private");

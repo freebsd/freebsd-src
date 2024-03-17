@@ -229,17 +229,23 @@ DESCRIPTION
      ChannelTimeout
              Specifies whether and how quickly sshd(8) should close inactive
              channels.  Timeouts are specified as one or more M-bM-^@M-^\type=intervalM-bM-^@M-^]
-             pairs separated by whitespace, where the M-bM-^@M-^\typeM-bM-^@M-^] must be a channel
-             type name (as described in the table below), optionally
-             containing wildcard characters.
+             pairs separated by whitespace, where the M-bM-^@M-^\typeM-bM-^@M-^] must be the
+             special keyword M-bM-^@M-^\globalM-bM-^@M-^] or a channel type name from the list
+             below, optionally containing wildcard characters.
 
              The timeout value M-bM-^@M-^\intervalM-bM-^@M-^] is specified in seconds or may use
              any of the units documented in the TIME FORMATS section.  For
-             example, M-bM-^@M-^\session:*=5mM-bM-^@M-^] would cause all sessions to terminate
-             after five minutes of inactivity.  Specifying a zero value
-             disables the inactivity timeout.
+             example, M-bM-^@M-^\session=5mM-bM-^@M-^] would cause interactive sessions to
+             terminate after five minutes of inactivity.  Specifying a zero
+             value disables the inactivity timeout.
 
-             The available channel types include:
+             The special timeout M-bM-^@M-^\globalM-bM-^@M-^] applies to all active channels,
+             taken together.  Traffic on any active channel will reset the
+             timeout, but when the timeout expires then all open channels will
+             be closed.  Note that this global timeout is not matched by
+             wildcards and must be specified explicitly.
+
+             The available channel type names include:
 
              agent-connection
                      Open connections to ssh-agent(1).
@@ -254,15 +260,12 @@ DESCRIPTION
                      have been established to a sshd(8) listening on behalf of
                      a ssh(1) remote forwarding, i.e. RemoteForward.
 
-             session:command
-                     Command execution sessions.
+             session
+                     The interactive main session, including shell session,
+                     command execution, scp(1), sftp(1), etc.
 
-             session:shell
-                     Interactive shell sessions.
-
-             session:subsystem:...
-                     Subsystem sessions, e.g. for sftp(1), which could be
-                     identified as session:subsystem:sftp.
+             tun-connection
+                     Open TunnelForward connections.
 
              x11-connection
                      Open X11 forwarding sessions.
@@ -277,8 +280,7 @@ DESCRIPTION
              client from requesting another channel of the same type.  In
              particular, expiring an inactive forwarding session does not
              prevent another identical forwarding from being subsequently
-             created.  See also UnusedConnectionTimeout, which may be used in
-             conjunction with this option.
+             created.
 
              The default is not to expire channels of any type for inactivity.
 
@@ -286,10 +288,10 @@ DESCRIPTION
              Specifies the pathname of a directory to chroot(2) to after
              authentication.  At session startup sshd(8) checks that all
              components of the pathname are root-owned directories which are
-             not writable by any other user or group.  After the chroot,
-             sshd(8) changes the working directory to the user's home
-             directory.  Arguments to ChrootDirectory accept the tokens
-             described in the TOKENS section.
+             not writable by group or others.  After the chroot, sshd(8)
+             changes the working directory to the user's home directory.
+             Arguments to ChrootDirectory accept the tokens described in the
+             TOKENS section.
 
              The ChrootDirectory must contain the necessary files and
              directories to support the user's session.  For an interactive
@@ -1084,7 +1086,11 @@ DESCRIPTION
 
              Alternately the name internal-sftp implements an in-process SFTP
              server.  This may simplify configurations using ChrootDirectory
-             to force a different filesystem root on clients.
+             to force a different filesystem root on clients.  It accepts the
+             same command line arguments as sftp-server and even though it is
+             in-process, settings such as LogLevel or SyslogFacility do not
+             apply to it and must be set explicitly via command line
+             arguments.
 
              By default no subsystems are defined.
 
@@ -1287,4 +1293,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 7.3                      July 28, 2023                     OpenBSD 7.3
+OpenBSD 7.5                    February 21, 2024                   OpenBSD 7.5

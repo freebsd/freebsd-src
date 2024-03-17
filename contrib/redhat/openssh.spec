@@ -1,4 +1,4 @@
-%global ver 9.6p1
+%global ver 9.7p1
 %global rel 1%{?dist}
 
 # OpenSSH privilege separation requires a user & group ID

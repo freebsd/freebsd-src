@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_kex.c,v 1.6 2021/12/14 21:25:27 deraadt Exp $ */
+/* 	$OpenBSD: test_kex.c,v 1.7 2024/01/11 01:45:58 djm Exp $ */
 /*
  * Regress test KEX
  *
@@ -179,7 +179,9 @@ do_kex(char *kex)
 {
 #ifdef WITH_OPENSSL
 	do_kex_with_key(kex, KEY_RSA, 2048);
+#ifdef WITH_DSA
 	do_kex_with_key(kex, KEY_DSA, 1024);
+#endif
 #ifdef OPENSSL_HAS_ECC
 	do_kex_with_key(kex, KEY_ECDSA, 256);
 #endif /* OPENSSL_HAS_ECC */

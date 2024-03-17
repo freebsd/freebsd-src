@@ -775,6 +775,7 @@ enable_largefile
 with_openssl
 with_stackprotect
 with_hardening
+with_retpoline
 with_rpath
 with_cflags
 with_cflags_after
@@ -796,6 +797,7 @@ with_pie
 enable_pkcs11
 enable_security_key
 with_security_key_builtin
+enable_dsa_keys
 with_ssl_dir
 with_openssl_header_check
 with_ssl_engine
@@ -820,6 +822,7 @@ with_superuser_path
 with_4in6
 with_bsd_auth
 with_pid_dir
+enable_fd_passing
 enable_lastlog
 enable_utmp
 enable_utmpx
@@ -1464,8 +1467,10 @@ Optional Features:
   --disable-largefile     omit support for large files
   --disable-pkcs11        disable PKCS#11 support code [no]
   --disable-security-key  disable U2F/FIDO support code no
+  --disable-dsa-keys      disable DSA key support no
   --disable-strip         Disable calling strip(1) on install
   --disable-etc-default-login Disable using PATH from /etc/default/login no
+  --disable-fd-passing    disable file descriptor passsing no
   --disable-lastlog       disable use of lastlog even if detected no
   --disable-utmp          disable use of utmp even if detected no
   --disable-utmpx         disable use of utmpx even if detected no
@@ -1481,6 +1486,7 @@ Optional Packages:
   --without-openssl       Disable use of OpenSSL; use only limited internal crypto **EXPERIMENTAL**
   --without-stackprotect  Don't use compiler's stack protection
   --without-hardening     Don't use toolchain hardening flags
+  --without-retpoline     Enable retpoline spectre mitigation
   --without-rpath         Disable auto-added -R linker paths
   --with-cflags           Specify additional flags to pass to compiler
   --with-cflags-after     Specify additional flags to pass to compiler after configure
@@ -6028,6 +6034,7 @@ fi
 
 use_stack_protector=1
 use_toolchain_hardening=1
+use_retpoline=1
 
 # Check whether --with-stackprotect was given.
 if test ${with_stackprotect+y}
@@ -6045,6 +6052,16 @@ then :
   withval=$with_hardening;
     if test "x$withval" = "xno"; then
 	use_toolchain_hardening=0
+    fi
+fi
+
+
+# Check whether --with-retpoline was given.
+if test ${with_retpoline+y}
+then :
+  withval=$with_retpoline;
+    if test "x$withval" = "xno"; then
+	use_retpoline=0
     fi
 fi
 
@@ -6126,18 +6143,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6187,18 +6210,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6263,18 +6292,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6324,18 +6359,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6400,18 +6441,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6461,18 +6508,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6537,18 +6590,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6598,18 +6657,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6674,18 +6739,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6735,18 +6806,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6811,18 +6888,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6872,18 +6955,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6948,18 +7037,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -7009,18 +7104,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -7085,18 +7186,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -7146,18 +7253,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -7222,18 +7335,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -7283,18 +7402,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -7359,18 +7484,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -7420,18 +7551,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -7496,18 +7633,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -7557,18 +7700,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -7633,18 +7782,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -7694,18 +7849,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -7770,18 +7931,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -7831,18 +7998,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -7907,18 +8080,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -7968,18 +8147,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -8044,18 +8229,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -8105,18 +8296,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -8181,18 +8378,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -8242,18 +8445,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -8318,18 +8527,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -8379,18 +8594,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -8455,18 +8676,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -8516,18 +8743,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -8569,282 +8802,6 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 }
     if test "x$use_toolchain_hardening" = "x1"; then
 	{
-	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -mretpoline" >&5
-printf %s "checking if $CC supports compile flag -mretpoline... " >&6; }
-	saved_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS $WERROR -mretpoline"
-	_define_flag=""
-	test "x$_define_flag" = "x" && _define_flag="-mretpoline"
-	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-#include <stdlib.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-/* Trivial function to help test for -fzero-call-used-regs */
-int f(int n) {return rand() % n;}
-char *f2(char *s, ...) {
-	char ret[64];
-	va_list args;
-	va_start(args, s);
-	vsnprintf(ret, sizeof(ret), s, args);
-	va_end(args);
-	return strdup(ret);
-}
-int main(int argc, char **argv) {
-	(void)argv;
-	char b[256], *cp;
-	/* Some math to catch -ftrapv problems in the toolchain */
-	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
-	float l = i * 2.1;
-	double m = l / 0.5;
-	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
-	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
-	free(cp);
-	/*
-	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
-	 * not understand comments and we don't use the "fallthrough" attribute
-	 * that it's looking for.
-	 */
-	switch(i){
-	case 0: j += i;
-		/* FALLTHROUGH */
-	default: j += k;
-	}
-	exit(0);
-}
-
-
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"
-then :
-
-if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
-then
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-		CFLAGS="$saved_CFLAGS"
-else
-				if test "$cross_compiling" = yes
-then :
-   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-			  CFLAGS="$saved_CFLAGS $_define_flag"
-else $as_nop
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-#include <stdlib.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-/* Trivial function to help test for -fzero-call-used-regs */
-int f(int n) {return rand() % n;}
-char *f2(char *s, ...) {
-	char ret[64];
-	va_list args;
-	va_start(args, s);
-	vsnprintf(ret, sizeof(ret), s, args);
-	va_end(args);
-	return strdup(ret);
-}
-int main(int argc, char **argv) {
-	(void)argv;
-	char b[256], *cp;
-	/* Some math to catch -ftrapv problems in the toolchain */
-	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
-	float l = i * 2.1;
-	double m = l / 0.5;
-	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
-	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
-	free(cp);
-	/*
-	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
-	 * not understand comments and we don't use the "fallthrough" attribute
-	 * that it's looking for.
-	 */
-	switch(i){
-	case 0: j += i;
-		/* FALLTHROUGH */
-	default: j += k;
-	}
-	exit(0);
-}
-
-
-_ACEOF
-if ac_fn_c_try_run "$LINENO"
-then :
-   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-			  CFLAGS="$saved_CFLAGS $_define_flag"
-else $as_nop
-   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
-printf "%s\n" "no, fails at run time" >&6; }
-			  CFLAGS="$saved_CFLAGS"
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-fi
-else $as_nop
-   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-		  CFLAGS="$saved_CFLAGS"
-
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
-} # clang
-	{
-	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if $LD supports link flag -Wl,-z,retpolineplt" >&5
-printf %s "checking if $LD supports link flag -Wl,-z,retpolineplt... " >&6; }
-	saved_LDFLAGS="$LDFLAGS"
-	LDFLAGS="$LDFLAGS $WERROR -Wl,-z,retpolineplt"
-	_define_flag=""
-	test "x$_define_flag" = "x" && _define_flag="-Wl,-z,retpolineplt"
-	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-#include <stdlib.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-/* Trivial function to help test for -fzero-call-used-regs */
-int f(int n) {return rand() % n;}
-char *f2(char *s, ...) {
-	char ret[64];
-	va_list args;
-	va_start(args, s);
-	vsnprintf(ret, sizeof(ret), s, args);
-	va_end(args);
-	return strdup(ret);
-}
-int main(int argc, char **argv) {
-	(void)argv;
-	char b[256], *cp;
-	/* Some math to catch -ftrapv problems in the toolchain */
-	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
-	float l = i * 2.1;
-	double m = l / 0.5;
-	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
-	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
-	free(cp);
-	/*
-	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
-	 * not understand comments and we don't use the "fallthrough" attribute
-	 * that it's looking for.
-	 */
-	switch(i){
-	case 0: j += i;
-		/* FALLTHROUGH */
-	default: j += k;
-	}
-	exit(0);
-}
-
-
-_ACEOF
-if ac_fn_c_try_link "$LINENO"
-then :
-
-if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
-then
-		  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-		  LDFLAGS="$saved_LDFLAGS"
-else
-		  		  if test "$cross_compiling" = yes
-then :
-   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-			  LDFLAGS="$saved_LDFLAGS $_define_flag"
-
-else $as_nop
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-#include <stdlib.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-/* Trivial function to help test for -fzero-call-used-regs */
-int f(int n) {return rand() % n;}
-char *f2(char *s, ...) {
-	char ret[64];
-	va_list args;
-	va_start(args, s);
-	vsnprintf(ret, sizeof(ret), s, args);
-	va_end(args);
-	return strdup(ret);
-}
-int main(int argc, char **argv) {
-	(void)argv;
-	char b[256], *cp;
-	/* Some math to catch -ftrapv problems in the toolchain */
-	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
-	float l = i * 2.1;
-	double m = l / 0.5;
-	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
-	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
-	free(cp);
-	/*
-	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
-	 * not understand comments and we don't use the "fallthrough" attribute
-	 * that it's looking for.
-	 */
-	switch(i){
-	case 0: j += i;
-		/* FALLTHROUGH */
-	default: j += k;
-	}
-	exit(0);
-}
-
-
-_ACEOF
-if ac_fn_c_try_run "$LINENO"
-then :
-   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-			  LDFLAGS="$saved_LDFLAGS $_define_flag"
-else $as_nop
-   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
-printf "%s\n" "no, fails at run time" >&6; }
-			  LDFLAGS="$saved_LDFLAGS"
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-fi
-else $as_nop
-   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-		  LDFLAGS="$saved_LDFLAGS"
-
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam \
-    conftest$ac_exeext conftest.$ac_ext
-}
-	{
 	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -D_FORTIFY_SOURCE=2" >&5
 printf %s "checking if $CC supports compile flag -D_FORTIFY_SOURCE=2... " >&6; }
 	saved_CFLAGS="$CFLAGS"
@@ -8869,18 +8826,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -8930,18 +8893,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -9006,18 +8975,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -9068,18 +9043,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -9145,18 +9126,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -9207,18 +9194,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -9284,18 +9277,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -9346,18 +9345,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -9428,18 +9433,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -9489,18 +9500,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -9572,18 +9589,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -9633,18 +9656,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -9711,18 +9740,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -9772,18 +9807,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -9850,18 +9891,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -9911,18 +9958,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -9961,6 +10014,308 @@ printf "%s\n" "no" >&6; }
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+}
+    fi
+    if test "x$use_retpoline" = "x1"; then
+	{
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -mretpoline" >&5
+printf %s "checking if $CC supports compile flag -mretpoline... " >&6; }
+	saved_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $WERROR -mretpoline"
+	_define_flag=""
+	test "x$_define_flag" = "x" && _define_flag="-mretpoline"
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
+int main(int argc, char **argv) {
+	char b[256], *cp;
+	const char *s;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
+	f(1);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
+then
+		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+		CFLAGS="$saved_CFLAGS"
+else
+				if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
+int main(int argc, char **argv) {
+	char b[256], *cp;
+	const char *s;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
+	f(1);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  CFLAGS="$saved_CFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  CFLAGS="$saved_CFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+fi
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+		  CFLAGS="$saved_CFLAGS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+} # clang
+	{
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if $LD supports link flag -Wl,-z,retpolineplt" >&5
+printf %s "checking if $LD supports link flag -Wl,-z,retpolineplt... " >&6; }
+	saved_LDFLAGS="$LDFLAGS"
+	LDFLAGS="$LDFLAGS $WERROR -Wl,-z,retpolineplt"
+	_define_flag=""
+	test "x$_define_flag" = "x" && _define_flag="-Wl,-z,retpolineplt"
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
+int main(int argc, char **argv) {
+	char b[256], *cp;
+	const char *s;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
+	f(1);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
+then
+		  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+		  LDFLAGS="$saved_LDFLAGS"
+else
+		  		  if test "$cross_compiling" = yes
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  LDFLAGS="$saved_LDFLAGS $_define_flag"
+
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+int f(int n) {return rand() % n;}
+char *f2(char *s, ...) {
+	char ret[64];
+	va_list args;
+	va_start(args, s);
+	vsnprintf(ret, sizeof(ret), s, args);
+	va_end(args);
+	return strdup(ret);
+}
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
+int main(int argc, char **argv) {
+	char b[256], *cp;
+	const char *s;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
+	f(1);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, b, 0) == -1) exit(0);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
+	free(cp);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+			  LDFLAGS="$saved_LDFLAGS $_define_flag"
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, fails at run time" >&5
+printf "%s\n" "no, fails at run time" >&6; }
+			  LDFLAGS="$saved_LDFLAGS"
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+fi
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+		  LDFLAGS="$saved_LDFLAGS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
 }
     fi
 
@@ -11321,18 +11676,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -11382,18 +11743,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -15000,18 +15367,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -15061,18 +15434,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -15137,18 +15516,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -15199,18 +15584,24 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+const char *f3(int s) {
+	return s ? "good" : "gooder";
+}
 int main(int argc, char **argv) {
-	(void)argv;
 	char b[256], *cp;
+	const char *s;
 	/* Some math to catch -ftrapv problems in the toolchain */
 	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	(void)argv;
 	f(1);
-	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	s = f3(f(2));
+	snprintf(b, sizeof b, "%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
 	if (write(1, b, 0) == -1) exit(0);
-	cp = f2("%d %d %d %f %f %lld %lld\n", i,j,k,l,m,n,o);
+	cp = f2("%d %d %d %f %f %lld %lld %s\n", i,j,k,l,m,n,o,s);
+	if (write(1, cp, 0) == -1) exit(0);
 	free(cp);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -16277,6 +16668,23 @@ then :
   withval=$with_security_key_builtin;  enable_sk_internal=$withval
 
 fi
+
+
+disable_ecdsa=
+# Check whether --enable-dsa-keys was given.
+if test ${enable_dsa_keys+y}
+then :
+  enableval=$enable_dsa_keys;
+		if test "x$enableval" = "xno" ; then
+			disable_ecdsa=1
+		fi
+
+
+fi
+
+test -z "$disable_ecdsa" &&
+
+printf "%s\n" "#define WITH_DSA 1" >>confdefs.h
 
 
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for library containing dlopen" >&5
@@ -17900,7 +18308,13 @@ then :
 			else
 				CPPFLAGS="-I${withval} ${CPPFLAGS}"
 			fi
-			openssl_bin_PATH="${PATH}${PATH_SEPARATOR}${withval}/bin${PATH_SEPARATOR}${withval}/apps"
+									if test -x "${withval}/bin/openssl" && \
+			    "${withval}/bin/openssl" version >/dev/null 2>&1; then
+				openssl_bin_PATH="${withval}/bin${PATH_SEPARATOR}${PATH}"
+			elif test -x "${withval}/apps/openssl" && \
+			    "${withval}/apps/openssl" version >/dev/null 2>&1; then
+				openssl_bin_PATH="${withval}/apps${PATH_SEPARATOR}${PATH}"
+			fi
 		fi
 
 
@@ -18076,9 +18490,9 @@ printf "%s\n" "$ssl_header_ver" >&6; }
 
 else $as_nop
 
-			{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: not found" >&5
-printf "%s\n" "not found" >&6; }
-			as_fn_error $? "OpenSSL version header not found." "$LINENO" 5
+			{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: failed" >&5
+printf "%s\n" "failed" >&6; }
+			as_fn_error $? "OpenSSL version test program failed." "$LINENO" 5
 
 fi
 rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
@@ -18488,8 +18902,8 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 	fi
 
 	# Check for OpenSSL without EVP_aes_{192,256}_cbc
-	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether OpenSSL has crippled AES support" >&5
-printf %s "checking whether OpenSSL has crippled AES support... " >&6; }
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether OpenSSL lacks support for AES 192/256" >&5
+printf %s "checking whether OpenSSL lacks support for AES 192/256... " >&6; }
 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -24872,6 +25286,20 @@ fi
 
 printf "%s\n" "#define _PATH_SSH_PIDDIR \"$piddir\"" >>confdefs.h
 
+
+
+
+# Check whether --enable-fd-passing was given.
+if test ${enable_fd_passing+y}
+then :
+  enableval=$enable_fd_passing;
+		if test "x$enableval" = "xno" ; then
+			printf "%s\n" "#define DISABLE_FD_PASSING 1" >>confdefs.h
+
+		fi
+
+
+fi
 
 
 # Check whether --enable-lastlog was given.

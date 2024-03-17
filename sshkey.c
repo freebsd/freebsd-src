@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.c,v 1.140 2023/10/16 08:40:00 dtucker Exp $ */
+/* $OpenBSD: sshkey.c,v 1.142 2024/01/11 01:45:36 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Alexander von Gernler.  All rights reserved.
@@ -121,8 +121,10 @@ extern const struct sshkey_impl sshkey_rsa_sha256_impl;
 extern const struct sshkey_impl sshkey_rsa_sha256_cert_impl;
 extern const struct sshkey_impl sshkey_rsa_sha512_impl;
 extern const struct sshkey_impl sshkey_rsa_sha512_cert_impl;
+# ifdef WITH_DSA
 extern const struct sshkey_impl sshkey_dss_impl;
 extern const struct sshkey_impl sshkey_dsa_cert_impl;
+# endif
 #endif /* WITH_OPENSSL */
 #ifdef WITH_XMSS
 extern const struct sshkey_impl sshkey_xmss_impl;
@@ -152,8 +154,10 @@ const struct sshkey_impl * const keyimpls[] = {
 	&sshkey_ecdsa_sk_webauthn_impl,
 #  endif /* ENABLE_SK */
 # endif /* OPENSSL_HAS_ECC */
+# ifdef WITH_DSA
 	&sshkey_dss_impl,
 	&sshkey_dsa_cert_impl,
+# endif
 	&sshkey_rsa_impl,
 	&sshkey_rsa_cert_impl,
 	&sshkey_rsa_sha256_impl,
@@ -1927,7 +1931,7 @@ sshkey_from_blob_internal(struct sshbuf *b, struct sshkey **keyp,
 		goto out;
 	}
 	if (sshkey_type_is_cert(type)) {
-		/* Skip nonce that preceeds all certificates */
+		/* Skip nonce that precedes all certificates */
 		if (sshbuf_get_string_direct(b, NULL, NULL) != 0) {
 			ret = SSH_ERR_INVALID_FORMAT;
 			goto out;
@@ -3230,6 +3234,7 @@ sshkey_private_to_blob_pem_pkcs8(struct sshkey *key, struct sshbuf *buf,
 		goto out;
 
 	switch (key->type) {
+#ifdef WITH_DSA
 	case KEY_DSA:
 		if (format == SSHKEY_PRIVATE_PEM) {
 			success = PEM_write_bio_DSAPrivateKey(bio, key->dsa,
@@ -3238,6 +3243,7 @@ sshkey_private_to_blob_pem_pkcs8(struct sshkey *key, struct sshbuf *buf,
 			success = EVP_PKEY_set1_DSA(pkey, key->dsa);
 		}
 		break;
+#endif
 #ifdef OPENSSL_HAS_ECC
 	case KEY_ECDSA:
 		if (format == SSHKEY_PRIVATE_PEM) {
@@ -3466,6 +3472,7 @@ sshkey_parse_private_pem_fileblob(struct sshbuf *blob, int type,
 		}
 		if ((r = sshkey_check_rsa_length(prv, 0)) != 0)
 			goto out;
+#ifdef WITH_DSA
 	} else if (EVP_PKEY_base_id(pk) == EVP_PKEY_DSA &&
 	    (type == KEY_UNSPEC || type == KEY_DSA)) {
 		if ((prv = sshkey_new(KEY_UNSPEC)) == NULL) {
@@ -3476,6 +3483,7 @@ sshkey_parse_private_pem_fileblob(struct sshbuf *blob, int type,
 		prv->type = KEY_DSA;
 #ifdef DEBUG_PK
 		DSA_print_fp(stderr, prv->dsa, 8);
+#endif
 #endif
 #ifdef OPENSSL_HAS_ECC
 	} else if (EVP_PKEY_base_id(pk) == EVP_PKEY_EC &&

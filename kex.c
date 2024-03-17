@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.c,v 1.184 2023/12/18 14:45:49 djm Exp $ */
+/* $OpenBSD: kex.c,v 1.185 2024/01/08 00:34:33 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
@@ -772,10 +772,11 @@ static int
 kex_input_newkeys(int type, u_int32_t seq, struct ssh *ssh)
 {
 	struct kex *kex = ssh->kex;
-	int r;
+	int r, initial = (kex->flags & KEX_INITIAL) != 0;
+	char *cp, **prop;
 
 	debug("SSH2_MSG_NEWKEYS received");
-	if (kex->ext_info_c && (kex->flags & KEX_INITIAL) != 0)
+	if (kex->ext_info_c && initial)
 		ssh_dispatch_set(ssh, SSH2_MSG_EXT_INFO, &kex_input_ext_info);
 	ssh_dispatch_set(ssh, SSH2_MSG_NEWKEYS, &kex_protocol_error);
 	ssh_dispatch_set(ssh, SSH2_MSG_KEXINIT, &kex_input_kexinit);
@@ -783,10 +784,32 @@ kex_input_newkeys(int type, u_int32_t seq, struct ssh *ssh)
 		return r;
 	if ((r = ssh_set_newkeys(ssh, MODE_IN)) != 0)
 		return r;
+	if (initial) {
+		/* Remove initial KEX signalling from proposal for rekeying */
+		if ((r = kex_buf2prop(kex->my, NULL, &prop)) != 0)
+			return r;
+		if ((cp = match_filter_denylist(prop[PROPOSAL_KEX_ALGS],
+		    kex->server ?
+		    "ext-info-s,kex-strict-s-v00@openssh.com" :
+		    "ext-info-c,kex-strict-c-v00@openssh.com")) == NULL) {
+			error_f("match_filter_denylist failed");
+			goto fail;
+		}
+		free(prop[PROPOSAL_KEX_ALGS]);
+		prop[PROPOSAL_KEX_ALGS] = cp;
+		if ((r = kex_prop2buf(ssh->kex->my, prop)) != 0) {
+			error_f("kex_prop2buf failed");
+ fail:
+			kex_proposal_free_entries(prop);
+			free(prop);
+			return SSH_ERR_INTERNAL_ERROR;
+		}
+		kex_proposal_free_entries(prop);
+		free(prop);
+	}
 	kex->done = 1;
 	kex->flags &= ~KEX_INITIAL;
 	sshbuf_reset(kex->peer);
-	/* sshbuf_reset(kex->my); */
 	kex->flags &= ~KEX_INIT_SENT;
 	free(kex->name);
 	kex->name = NULL;

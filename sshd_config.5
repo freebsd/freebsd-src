@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.350 2023/07/28 05:42:36 jmc Exp $
-.Dd $Mdocdate: July 28 2023 $
+.\" $OpenBSD: sshd_config.5,v 1.355 2024/02/21 06:17:29 djm Exp $
+.Dd $Mdocdate: February 21 2024 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -409,8 +409,10 @@ Timeouts are specified as one or more
 .Dq type=interval
 pairs separated by whitespace, where the
 .Dq type
-must be a channel type name (as described in the table below), optionally
-containing wildcard characters.
+must be the special keyword
+.Dq global
+or a channel type name from the list below, optionally containing
+wildcard characters.
 .Pp
 The timeout value
 .Dq interval
@@ -418,11 +420,20 @@ is specified in seconds or may use any of the units documented in the
 .Sx TIME FORMATS
 section.
 For example,
-.Dq session:*=5m
-would cause all sessions to terminate after five minutes of inactivity.
+.Dq session=5m
+would cause interactive sessions to terminate after five minutes of
+inactivity.
 Specifying a zero value disables the inactivity timeout.
 .Pp
-The available channel types include:
+The special timeout
+.Dq global
+applies to all active channels, taken together.
+Traffic on any active channel will reset the timeout, but when the timeout
+expires then all open channels will be closed.
+Note that this global timeout is not matched by wildcards and must be
+specified explicitly.
+.Pp
+The available channel type names include:
 .Bl -tag -width Ds
 .It Cm agent-connection
 Open connections to
@@ -443,15 +454,15 @@ listening on behalf of a
 .Xr ssh 1
 remote forwarding, i.e.\&
 .Cm RemoteForward .
-.It Cm session:command
-Command execution sessions.
-.It Cm session:shell
-Interactive shell sessions.
-.It Cm session:subsystem:...
-Subsystem sessions, e.g. for
+.It Cm session
+The interactive main session, including shell session, command execution,
+.Xr scp 1 ,
 .Xr sftp 1 ,
-which could be identified as
-.Cm session:subsystem:sftp .
+etc.
+.It Cm tun-connection
+Open
+.Cm TunnelForward
+connections.
 .It Cm x11-connection
 Open X11 forwarding sessions.
 .El
@@ -465,9 +476,6 @@ close the SSH connection, nor does it prevent a client from
 requesting another channel of the same type.
 In particular, expiring an inactive forwarding session does not prevent
 another identical forwarding from being subsequently created.
-See also
-.Cm UnusedConnectionTimeout ,
-which may be used in conjunction with this option.
 .Pp
 The default is not to expire channels of any type for inactivity.
 .It Cm ChrootDirectory
@@ -477,7 +485,7 @@ to after authentication.
 At session startup
 .Xr sshd 8
 checks that all components of the pathname are root-owned directories
-which are not writable by any other user or group.
+which are not writable by group or others.
 After the chroot,
 .Xr sshd 8
 changes the working directory to the user's home directory.
@@ -1118,7 +1126,8 @@ DEBUG and DEBUG1 are equivalent.
 DEBUG2 and DEBUG3 each specify higher levels of debugging output.
 Logging with a DEBUG level violates the privacy of users and is not recommended.
 .It Cm LogVerbose
-Specify one or more overrides to LogLevel.
+Specify one or more overrides to
+.Cm LogLevel .
 An override consists of a pattern lists that matches the source file, function
 and line number to force detailed logging for.
 For example, an override pattern of:
@@ -1783,6 +1792,14 @@ implements an in-process SFTP server.
 This may simplify configurations using
 .Cm ChrootDirectory
 to force a different filesystem root on clients.
+It accepts the same command line arguments as
+.Cm sftp-server
+and even though it is in-process, settings such as
+.Cm LogLevel
+or
+.Cm SyslogFacility
+do not apply to it and must be set explicitly via
+command line arguments.
 .Pp
 By default no subsystems are defined.
 .It Cm SyslogFacility
