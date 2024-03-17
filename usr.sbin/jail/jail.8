@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 17, 2024
+.Dd March 16, 2024
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -33,13 +33,13 @@
 .Ss From Configuration File
 .Nm
 .Op Fl cm
-.Op Fl dqv
+.Op Fl Cdqv
 .Op Fl f Ar conf_file
 .Op Fl p Ar limit
 .Op Ar jail
 .Nm
 .Op Fl r
-.Op Fl qv
+.Op Fl Cqv
 .Op Fl f Ar conf_file
 .Op Fl p Ar limit
 .Op Cm * | Ar jail ...
@@ -144,6 +144,9 @@ jail if it does exist.
 .Pp
 Other available options are:
 .Bl -tag -width indent
+.It Fl C
+Clean up after an already-removed jail, running commands and operations
+that are typically run following jail removal.
 .It Fl f Ar conf_file
 Use configuration file
 .Ar conf_file
