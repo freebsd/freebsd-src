@@ -3010,6 +3010,8 @@ return_bogus:
  * @param msg: result message (if rcode is OK).
  * @param qinfo: from the sub query state, query info.
  * @param origin: the origin of msg.
+ * @param suspend: returned true if the task takes too long and needs to
+ * 	suspend to continue the effort later.
  */
 static void
 process_ds_response(struct module_qstate* qstate, struct val_qstate* vq,
