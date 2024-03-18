@@ -274,7 +274,7 @@ typedef	struct __siginfo {
 #define si_syscall	_reason._capsicum._syscall
 
 #if defined(_WANT_LWPINFO32) || (defined(_KERNEL) && defined(__LP64__))
-struct siginfo32 {
+struct __siginfo32 {
 	int	si_signo;		/* signal number */
 	int	si_errno;		/* errno association */
 	int	si_code;		/* signal code */

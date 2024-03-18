@@ -76,7 +76,7 @@
 CTASSERT(sizeof(struct ia32_mcontext) == 640);
 CTASSERT(sizeof(struct ia32_ucontext) == 704);
 CTASSERT(sizeof(struct ia32_sigframe) == 800);
-CTASSERT(sizeof(struct siginfo32) == 64);
+CTASSERT(sizeof(struct __siginfo32) == 64);
 #ifdef COMPAT_FREEBSD4
 CTASSERT(sizeof(struct ia32_freebsd4_mcontext) == 260);
 CTASSERT(sizeof(struct ia32_freebsd4_ucontext) == 324);
