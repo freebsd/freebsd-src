@@ -45,6 +45,7 @@ enum {
 	PFNL_CMD_GETRULE = 7,
 	PFNL_CMD_CLRSTATES = 8,
 	PFNL_CMD_KILLSTATES = 9,
+	PFNL_CMD_SET_STATUSIF = 10,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -281,6 +282,10 @@ enum pf_clear_states_type_t {
 	PF_CS_KILLED		= 13, /* u32 */
 };
 
+enum pf_set_statusif_types_t {
+	PF_SS_UNSPEC,
+	PF_SS_IFNAME		= 1, /* string */
+};
 #ifdef _KERNEL
 
 void	pf_nl_register(void);
