@@ -62,20 +62,32 @@ jobs:
           - { target: ubuntu-latest, config: libressl-3.5.3 }
           - { target: ubuntu-latest, config: libressl-3.6.1 }
           - { target: ubuntu-latest, config: libressl-3.7.2 }
-          - { target: ubuntu-latest, config: libressl-3.8.2 }
+          - { target: ubuntu-latest, config: libressl-3.8.3 }
+          - { target: ubuntu-latest, config: libressl-3.9.0 }
           - { target: ubuntu-latest, config: openssl-master }
           - { target: ubuntu-latest, config: openssl-noec }
           - { target: ubuntu-latest, config: openssl-1.1.1 }
           - { target: ubuntu-latest, config: openssl-1.1.1t }
           - { target: ubuntu-latest, config: openssl-1.1.1w }
           - { target: ubuntu-latest, config: openssl-3.0.0 }
-          - { target: ubuntu-latest, config: openssl-3.0.12 }
+          - { target: ubuntu-latest, config: openssl-3.0.13 }
           - { target: ubuntu-latest, config: openssl-3.1.0 }
-          - { target: ubuntu-latest, config: openssl-3.1.4 }
-          - { target: ubuntu-latest, config: openssl-3.2.0 }
+          - { target: ubuntu-latest, config: openssl-3.1.5 }
+          - { target: ubuntu-latest, config: openssl-3.2.1 }
           - { target: ubuntu-latest, config: openssl-1.1.1_stable }
           - { target: ubuntu-latest, config: openssl-3.0 }  # stable branch
           - { target: ubuntu-latest, config: openssl-3.2 }  # stable branch
+          - { target: ubuntu-latest, config: putty-0.71 }
+          - { target: ubuntu-latest, config: putty-0.72 }
+          - { target: ubuntu-latest, config: putty-0.73 }
+          - { target: ubuntu-latest, config: putty-0.74 }
+          - { target: ubuntu-latest, config: putty-0.75 }
+          - { target: ubuntu-latest, config: putty-0.76 }
+          - { target: ubuntu-latest, config: putty-0.77 }
+          - { target: ubuntu-latest, config: putty-0.78 }
+          - { target: ubuntu-latest, config: putty-0.79 }
+          - { target: ubuntu-latest, config: putty-0.80 }
+          - { target: ubuntu-latest, config: putty-snapshot }
           - { target: ubuntu-latest, config: zlib-develop }
           - { target: ubuntu-22.04, config: pam }
           - { target: ubuntu-22.04, config: krb5 }

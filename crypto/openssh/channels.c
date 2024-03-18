@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.435 2023/12/18 14:47:20 djm Exp $ */
+/* $OpenBSD: channels.c,v 1.437 2024/03/06 02:59:59 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -214,6 +214,9 @@ struct ssh_channels {
 	/* Channel timeouts by type */
 	struct ssh_channel_timeout *timeouts;
 	size_t ntimeouts;
+	/* Global timeout for all OPEN channels */
+	int global_deadline;
+	time_t lastused;
 };
 
 /* helper */
@@ -316,6 +319,11 @@ channel_add_timeout(struct ssh *ssh, const char *type_pattern,
 {
 	struct ssh_channels *sc = ssh->chanctxt;
 
+	if (strcmp(type_pattern, "global") == 0) {
+		debug2_f("global channel timeout %d seconds", timeout_secs);
+		sc->global_deadline = timeout_secs;
+		return;
+	}
 	debug2_f("channel type \"%s\" timeout %d seconds",
 	    type_pattern, timeout_secs);
 	sc->timeouts = xrecallocarray(sc->timeouts, sc->ntimeouts,
@@ -374,6 +382,38 @@ channel_set_xtype(struct ssh *ssh, int id, const char *xctype)
 	c->inactive_deadline = lookup_timeout(ssh, c->xctype);
 	debug2_f("labeled channel %d as %s (inactive timeout %u)", id, xctype,
 	    c->inactive_deadline);
+}
+
+/*
+ * update "last used" time on a channel.
+ * NB. nothing else should update lastused except to clear it.
+ */
+static void
+channel_set_used_time(struct ssh *ssh, Channel *c)
+{
+	ssh->chanctxt->lastused = monotime();
+	if (c != NULL)
+		c->lastused = ssh->chanctxt->lastused;
+}
+
+/*
+ * Get the time at which a channel is due to time out for inactivity.
+ * Returns 0 if the channel is not due to time out ever.
+ */
+static time_t
+channel_get_expiry(struct ssh *ssh, Channel *c)
+{
+	struct ssh_channels *sc = ssh->chanctxt;
+	time_t expiry = 0, channel_expiry;
+
+	if (sc->lastused != 0 && sc->global_deadline != 0)
+		expiry = sc->lastused + sc->global_deadline;
+	if (c->lastused != 0 && c->inactive_deadline != 0) {
+		channel_expiry = c->lastused + c->inactive_deadline;
+		if (expiry == 0 || channel_expiry < expiry)
+			expiry = channel_expiry;
+	}
+	return expiry;
 }
 
 /*
@@ -441,6 +481,8 @@ channel_register_fds(struct ssh *ssh, Channel *c, int rfd, int wfd, int efd,
 		if (efd != -1)
 			set_nonblock(efd);
 	}
+	/* channel might be entering a larval state, so reset global timeout */
+	channel_set_used_time(ssh, NULL);
 }
 
 /*
@@ -1197,7 +1239,7 @@ channel_set_fds(struct ssh *ssh, int id, int rfd, int wfd, int efd,
 
 	channel_register_fds(ssh, c, rfd, wfd, efd, extusage, nonblock, is_tty);
 	c->type = SSH_CHANNEL_OPEN;
-	c->lastused = monotime();
+	channel_set_used_time(ssh, c);
 	c->local_window = c->local_window_max = window_max;
 
 	if ((r = sshpkt_start(ssh, SSH2_MSG_CHANNEL_WINDOW_ADJUST)) != 0 ||
@@ -1368,7 +1410,7 @@ channel_pre_x11_open(struct ssh *ssh, Channel *c)
 
 	if (ret == 1) {
 		c->type = SSH_CHANNEL_OPEN;
-		c->lastused = monotime();
+		channel_set_used_time(ssh, c);
 		channel_pre_open(ssh, c);
 	} else if (ret == -1) {
 		logit("X11 connection rejected because of wrong "
@@ -2016,7 +2058,7 @@ channel_post_connecting(struct ssh *ssh, Channel *c)
 		    c->self, c->connect_ctx.host, c->connect_ctx.port);
 		channel_connect_ctx_free(&c->connect_ctx);
 		c->type = SSH_CHANNEL_OPEN;
-		c->lastused = monotime();
+		channel_set_used_time(ssh, c);
 		if (isopen) {
 			/* no message necessary */
 		} else {
@@ -2108,7 +2150,7 @@ channel_handle_rfd(struct ssh *ssh, Channel *c)
 			goto rfail;
 		}
 		if (nr != 0)
-			c->lastused = monotime();
+			channel_set_used_time(ssh, c);
 		return 1;
 	}
 
@@ -2134,7 +2176,7 @@ channel_handle_rfd(struct ssh *ssh, Channel *c)
 		}
 		return -1;
 	}
-	c->lastused = monotime();
+	channel_set_used_time(ssh, c);
 	if (c->input_filter != NULL) {
 		if (c->input_filter(ssh, c, buf, len) == -1) {
 			debug2("channel %d: filter stops", c->self);
@@ -2215,7 +2257,7 @@ channel_handle_wfd(struct ssh *ssh, Channel *c)
 		}
 		return -1;
 	}
-	c->lastused = monotime();
+	channel_set_used_time(ssh, c);
 #ifndef BROKEN_TCGETATTR_ICANON
 	if (c->isatty && dlen >= 1 && buf[0] != '\r') {
 		if (tcgetattr(c->wfd, &tio) == 0 &&
@@ -2264,7 +2306,7 @@ channel_handle_efd_write(struct ssh *ssh, Channel *c)
 		if ((r = sshbuf_consume(c->extended, len)) != 0)
 			fatal_fr(r, "channel %i: consume", c->self);
 		c->local_consumed += len;
-		c->lastused = monotime();
+		channel_set_used_time(ssh, c);
 	}
 	return 1;
 }
@@ -2291,7 +2333,7 @@ channel_handle_efd_read(struct ssh *ssh, Channel *c)
 		channel_close_fd(ssh, c, &c->efd);
 		return 1;
 	}
-	c->lastused = monotime();
+	channel_set_used_time(ssh, c);
 	if (c->extended_usage == CHAN_EXTENDED_IGNORE)
 		debug3("channel %d: discard efd", c->self);
 	else if ((r = sshbuf_put(c->extended, buf, len)) != 0)
@@ -2581,10 +2623,9 @@ channel_handler(struct ssh *ssh, int table, struct timespec *timeout)
 				continue;
 		}
 		if (ftab[c->type] != NULL) {
-			if (table == CHAN_PRE &&
-			    c->type == SSH_CHANNEL_OPEN &&
-			    c->inactive_deadline != 0 && c->lastused != 0 &&
-			    now >= c->lastused + c->inactive_deadline) {
+			if (table == CHAN_PRE && c->type == SSH_CHANNEL_OPEN &&
+			    channel_get_expiry(ssh, c) != 0 &&
+			    now >= channel_get_expiry(ssh, c)) {
 				/* channel closed for inactivity */
 				verbose("channel %d: closing after %u seconds "
 				    "of inactivity", c->self,
@@ -2596,10 +2637,9 @@ channel_handler(struct ssh *ssh, int table, struct timespec *timeout)
 				/* inactivity timeouts must interrupt poll() */
 				if (timeout != NULL &&
 				    c->type == SSH_CHANNEL_OPEN &&
-				    c->lastused != 0 &&
-				    c->inactive_deadline != 0) {
+				    channel_get_expiry(ssh, c) != 0) {
 					ptimeout_deadline_monotime(timeout,
-					    c->lastused + c->inactive_deadline);
+					    channel_get_expiry(ssh, c));
 				}
 			} else if (timeout != NULL) {
 				/*
@@ -3205,9 +3245,8 @@ channel_proxy_downstream(struct ssh *ssh, Channel *downstream)
 			goto out;
 		}
 		/* Record that connection to this host/port is permitted. */
-		permission_set_add(ssh, FORWARD_USER, FORWARD_LOCAL, "<mux>", -1,
-		    listen_host, NULL, (int)listen_port, downstream);
-		listen_host = NULL;
+		permission_set_add(ssh, FORWARD_USER, FORWARD_LOCAL, "<mux>",
+		    -1, listen_host, NULL, (int)listen_port, downstream);
 		break;
 	case SSH2_MSG_CHANNEL_CLOSE:
 		if (have < 4)
@@ -3558,7 +3597,7 @@ channel_input_open_confirmation(int type, u_int32_t seq, struct ssh *ssh)
 		c->open_confirm(ssh, c->self, 1, c->open_confirm_ctx);
 		debug2_f("channel %d: callback done", c->self);
 	}
-	c->lastused = monotime();
+	channel_set_used_time(ssh, c);
 	debug2("channel %d: open confirm rwindow %u rmax %u", c->self,
 	    c->remote_window, c->remote_maxpacket);
 	return 0;

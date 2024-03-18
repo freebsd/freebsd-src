@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.189 2023/10/12 03:36:32 djm Exp $ */
+/* $OpenBSD: misc.c,v 1.190 2024/03/04 02:16:11 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005-2020 Damien Miller.  All rights reserved.
@@ -2642,6 +2642,19 @@ opt_array_append(const char *file, const int line, const char *directive,
     char ***array, u_int *lp, const char *s)
 {
 	opt_array_append2(file, line, directive, array, NULL, lp, s, 0);
+}
+
+void
+opt_array_free2(char **array, int **iarray, u_int l)
+{
+	u_int i;
+
+	if (array == NULL || l == 0)
+		return;
+	for (i = 0; i < l; i++)
+		free(array[i]);
+	free(array);
+	free(iarray);
 }
 
 sshsig_t

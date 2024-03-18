@@ -1,4 +1,4 @@
-#	$OpenBSD: dynamic-forward.sh,v 1.15 2023/01/06 08:50:33 dtucker Exp $
+#	$OpenBSD: dynamic-forward.sh,v 1.17 2024/03/08 11:34:10 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="dynamic forwarding"
@@ -20,6 +20,7 @@ start_ssh() {
 	arg="$2"
 	n=0
 	error="1"
+	# Use a multiplexed ssh so we can control its lifecycle.
 	trace "start dynamic -$direction forwarding, fork to background"
 	(cat $OBJ/ssh_config.orig ; echo "$arg") > $OBJ/ssh_config
 	${REAL_SSH} -vvvnNfF $OBJ/ssh_config -E$TEST_SSH_LOGFILE \
@@ -56,9 +57,9 @@ check_socks() {
 	for s in 4 5; do
 	    for h in 127.0.0.1 localhost; do
 		trace "testing ssh socks version $s host $h (-$direction)"
-		${REAL_SSH} -q -F $OBJ/ssh_config \
-			-o "ProxyCommand ${proxycmd}${s} $h $PORT 2>/dev/null" \
-			somehost cat ${DATA} > ${COPY}
+		${REAL_SSH} -q -F $OBJ/ssh_config -o \
+		   "ProxyCommand ${TEST_SHELL} -c '${proxycmd}${s} $h $PORT 2>/dev/null'" \
+		   somehost cat ${DATA} > ${COPY}
 		r=$?
 		if [ "x$expect_success" = "xY" ] ; then
 			if [ $r -ne 0 ] ; then

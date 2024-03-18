@@ -142,6 +142,10 @@ for TARGET in $TARGETS; do
         INSTALL_BORINGSSL=1
         PACKAGES="${PACKAGES} cmake ninja-build"
        ;;
+    putty-*)
+	INSTALL_PUTTY=$(echo "${TARGET}" | cut -f2 -d-)
+	PACKAGES="${PACKAGES} cmake"
+	;;
     valgrind*)
        PACKAGES="$PACKAGES valgrind"
        ;;
@@ -240,4 +244,26 @@ if [ ! -z "${INSTALL_ZLIB}" ]; then
     (cd ${HOME} && git clone https://github.com/madler/zlib.git &&
      cd ${HOME}/zlib && ./configure && make &&
      sudo make install prefix=/opt/zlib)
+fi
+
+if [ ! -z "${INSTALL_PUTTY}" ]; then
+    ver="${INSTALL_PUTTY}"
+    case "${INSTALL_PUTTY}" in
+    snapshot)
+	tarball=putty.tar.gz
+	(cd /tmp && wget https://tartarus.org/~simon/putty-snapshots/${tarball})
+	;;
+    *)
+	tarball=putty-${ver}.tar.gz
+	(cd /tmp && wget https://the.earth.li/~sgtatham/putty/${ver}/${tarball})
+	;;
+    esac
+    (cd ${HOME} && tar xfz /tmp/${tarball} && cd putty-*
+     if [ -f CMakeLists.txt ]; then
+	cmake . && cmake --build . && sudo cmake --build . --target install
+     else
+	./configure && make && sudo make install
+     fi
+    )
+    /usr/local/bin/plink -V
 fi
