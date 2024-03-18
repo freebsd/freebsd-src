@@ -15,7 +15,7 @@
 .\"
 .\"     @(#)be.1
 .\"
-.Dd October 5, 2023
+.Dd March 18, 2024
 .Dt BECTL 8
 .Os
 .Sh NAME
@@ -23,7 +23,7 @@
 .Nd Utility to manage boot environments on ZFS
 .Sh SYNOPSIS
 .Nm
-.Op Fl h\&?
+.Op Fl h
 .Nm
 .Op Fl r Ar beroot
 .Cm activate
@@ -117,10 +117,9 @@ flag to work.
 .Ss Supported Subcommands and Flags
 .Bl -tag -width activate
 .It Xo
-.Fl h |
-.Fl \&?
+.Fl h
 .Xc
-Print usage information.
+Print usage information and exit.
 .It Xo
 .Cm activate
 .Op Fl t | Fl T
