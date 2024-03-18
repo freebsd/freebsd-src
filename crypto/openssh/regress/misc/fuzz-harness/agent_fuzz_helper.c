@@ -175,3 +175,10 @@ test_one(const uint8_t* s, size_t slen)
 	cleanup_idtab();
 	cleanup_sockettab();
 }
+
+int
+pkcs11_make_cert(const struct sshkey *priv,
+    const struct sshkey *certpub, struct sshkey **certprivp)
+{
+	return -1; /* XXX */
+}

@@ -164,6 +164,11 @@ case "$config" in
     libressl-*)
 	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/libressl --with-rpath=-Wl,-rpath,"
 	;;
+    putty-*)
+	CONFIGFLAGS="--with-plink=/usr/local/bin/plink --with-puttygen=/usr/local/bin/puttygen"
+	# We don't need to rerun the regular tests, just the interop ones.
+	TEST_TARGET=interop-tests
+	;;
     openssl-*)
 	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/openssl --with-rpath=-Wl,-rpath,"
 	# OpenSSL 1.1.1 specifically has a bug in its RNG that breaks reexec
@@ -269,20 +274,22 @@ case "${TARGET_HOST}" in
 	;;
     minix3)
 	CONFIGFLAGS="${CONFIGFLAGS} --disable-security-key"
+	# Unix domain sockets don't work quite like we expect, so also
+	# disable FD passing (and thus multiplexing).
+	CONFIGFLAGS="${CONFIGFLAGS} --disable-fd-passing"
 	LIBCRYPTOFLAGS="--without-openssl"
+
 	# Minix does not have a loopback interface so we have to skip any
 	# test that relies on one.
 	# Also, Minix seems to be very limited in the number of select()
 	# calls that can be operating concurrently, so prune additional tests for that.
 	T="addrmatch agent-restrict brokenkeys cfgmatch cfgmatchlisten cfgparse
-	    connect connect-uri exit-status forwarding hostkey-agent
-	    key-options keyscan knownhosts-command login-timeout
+	    connect connect-uri dynamic-forward exit-status forwarding
+	    forward-control
+	    hostkey-agent key-options keyscan knownhosts-command login-timeout
 	    reconfigure reexec rekey scp scp-uri scp3 sftp sftp-badcmds
 	    sftp-batch sftp-cmds sftp-glob sftp-perm sftp-uri stderr-data
 	    transfer"
-	# Unix domain sockets don't work quite like we expect, so also skip any tests
-	# that use multiplexing.
-	T="$T connection-timeout dynamic-forward forward-control multiplex"
 	SKIP_LTESTS="$(echo $T)"
 	TEST_TARGET=t-exec
 	SUDO=""
@@ -320,6 +327,10 @@ case "$host" in
 	# modern versions don't ship with libcrypto.
 	LIBCRYPTOFLAGS="--without-openssl"
 	TEST_TARGET=t-exec
+
+	# On some OS X runners we can't write to /var/empty.
+	CONFIGFLAGS="${CONFIGFLAGS} --with-privsep-path=/usr/local/empty"
+
 	case "$host" in
 	*-darwin22.*)
 		# sudo -S nobody doesn't work on macos 13 for some reason.

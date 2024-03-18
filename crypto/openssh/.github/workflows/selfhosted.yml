@@ -73,6 +73,7 @@ jobs:
           - { target: fbsd14, config: pam, host: libvirt }
           - { target: nbsd8,  config: pam, host: libvirt }
           - { target: nbsd9,  config: pam, host: libvirt }
+          - { target: nbsd10, config: pam, host: libvirt }
           # VMs with persistent disks that have their own runner.
           - { target: win10, config: default, host: win10 }
           - { target: win10, config: cygwin-release, host: win10 }

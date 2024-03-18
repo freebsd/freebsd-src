@@ -440,6 +440,7 @@
 #define openssh_RSA_verify			Fssh_openssh_RSA_verify
 #define opt_array_append			Fssh_opt_array_append
 #define opt_array_append2			Fssh_opt_array_append2
+#define opt_array_free2				Fssh_opt_array_free2
 #define opt_dequote				Fssh_opt_dequote
 #define opt_flag				Fssh_opt_flag
 #define opt_match				Fssh_opt_match
