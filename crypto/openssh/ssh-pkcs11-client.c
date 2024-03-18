@@ -457,6 +457,7 @@ pkcs11_make_cert(const struct sshkey *priv,
 		RSA_set_method(ret->rsa, helper->rsa_meth);
 		if (helper->nrsa++ >= INT_MAX)
 			fatal_f("RSA refcount error");
+#if defined(OPENSSL_HAS_ECC) && defined(HAVE_EC_KEY_METHOD_NEW)
 	} else if (priv->type == KEY_ECDSA) {
 		if ((helper = helper_by_ec(priv->ecdsa)) == NULL ||
 		    helper->fd == -1)
@@ -466,6 +467,7 @@ pkcs11_make_cert(const struct sshkey *priv,
 		EC_KEY_set_method(ret->ecdsa, helper->ec_meth);
 		if (helper->nec++ >= INT_MAX)
 			fatal_f("EC refcount error");
+#endif
 	} else
 		fatal_f("unknown key type %s", sshkey_type(priv));
 

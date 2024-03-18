@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.599 2023/12/18 14:47:44 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.600 2024/01/11 01:45:36 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1714,11 +1714,15 @@ main(int ac, char **av)
 			L_CERT(_PATH_HOST_ECDSA_KEY_FILE, 0);
 			L_CERT(_PATH_HOST_ED25519_KEY_FILE, 1);
 			L_CERT(_PATH_HOST_RSA_KEY_FILE, 2);
+#ifdef WITH_DSA
 			L_CERT(_PATH_HOST_DSA_KEY_FILE, 3);
+#endif
 			L_PUBKEY(_PATH_HOST_ECDSA_KEY_FILE, 4);
 			L_PUBKEY(_PATH_HOST_ED25519_KEY_FILE, 5);
 			L_PUBKEY(_PATH_HOST_RSA_KEY_FILE, 6);
+#ifdef WITH_DSA
 			L_PUBKEY(_PATH_HOST_DSA_KEY_FILE, 7);
+#endif
 			L_CERT(_PATH_HOST_XMSS_KEY_FILE, 8);
 			L_PUBKEY(_PATH_HOST_XMSS_KEY_FILE, 9);
 			if (loaded == 0)

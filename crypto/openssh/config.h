@@ -1977,6 +1977,9 @@
 /* Define if you want to enable AIX4's authenticate function */
 /* #undef WITH_AIXAUTHENTICATE */
 
+/* Define if to enable DSA keys. */
+#define WITH_DSA 1
+
 /* Define if you have/want arrays (cluster-wide session management, not C
    arrays) */
 /* #undef WITH_IRIX_ARRAY */
