@@ -2547,19 +2547,11 @@ pfctl_set_logif(struct pfctl *pf, char *ifname)
 int
 pfctl_load_logif(struct pfctl *pf, char *ifname)
 {
-	struct pfioc_if pi;
-
-	memset(&pi, 0, sizeof(pi));
-	if (ifname && strlcpy(pi.ifname, ifname,
-	    sizeof(pi.ifname)) >= sizeof(pi.ifname)) {
+	if (ifname != NULL && strlen(ifname) >= IFNAMSIZ) {
 		warnx("pfctl_load_logif: strlcpy");
 		return (1);
 	}
-	if (ioctl(pf->dev, DIOCSETSTATUSIF, &pi)) {
-		warnx("DIOCSETSTATUSIF");
-		return (1);
-	}
-	return (0);
+	return (pfctl_set_statusif(pfh, ifname ? ifname : ""));
 }
 
 int

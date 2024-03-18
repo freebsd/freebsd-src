@@ -464,4 +464,6 @@ int     pfctl_table_set_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	    int flags);
 int	pfctl_table_get_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	    *addr, int *size, int flags);
+int	pfctl_set_statusif(struct pfctl_handle *h, const char *ifname);
+
 #endif

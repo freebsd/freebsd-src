@@ -16,6 +16,7 @@ ATF_TESTS_SH+=	altq \
 		fragmentation_no_reassembly \
 		get_state \
 		icmp \
+		loginterface \
 		killstate \
 		macro \
 		map_e \

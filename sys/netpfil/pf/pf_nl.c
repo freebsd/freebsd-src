@@ -1079,11 +1079,42 @@ pf_handle_kill_states(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (pf_handle_killclear_states(hdr, npt, PFNL_CMD_KILLSTATES));
 }
 
+struct nl_parsed_set_statusif {
+	char ifname[IFNAMSIZ];
+};
+#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
+#define	_OUT(_field)	offsetof(struct nl_parsed_set_statusif, _field)
+static const struct nlattr_parser nla_p_set_statusif[] = {
+	{ .type = PF_SS_IFNAME, .off = _OUT(ifname), .arg = (const void *)IFNAMSIZ, .cb = nlattr_get_chara },
+};
+static const struct nlfield_parser nlf_p_set_statusif[] = {};
+#undef _IN
+#undef _OUT
+NL_DECLARE_PARSER(set_statusif_parser, struct genlmsghdr, nlf_p_set_statusif, nla_p_set_statusif);
+
+static int
+pf_handle_set_statusif(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	int error;
+	struct nl_parsed_set_statusif attrs = {};
+
+	error = nl_parse_nlmsg(hdr, &set_statusif_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	PF_RULES_WLOCK();
+	strlcpy(V_pf_status.ifname, attrs.ifname, IFNAMSIZ);
+	PF_RULES_WUNLOCK();
+
+	return (0);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
 	&getrules_parser,
 	&clear_states_parser,
+	&set_statusif_parser,
 };
 
 static int family_id;
@@ -1152,6 +1183,13 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
+	{
+		.cmd_num = PFNL_CMD_SET_STATUSIF,
+		.cmd_name = "SETSTATUSIF",
+		.cmd_cb = pf_handle_set_statusif,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	}
 };
 
 void
