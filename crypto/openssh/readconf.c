@@ -330,9 +330,6 @@ static struct {
 	{ "obscurekeystroketiming", oObscureKeystrokeTiming },
 	{ "channeltimeout", oChannelTimeout },
 
-	/* Client VersionAddendum - retired in bffe60ead024 */
-	{ "versionaddendum", oDeprecated },
-
 	{ NULL, oBadOption }
 };
 
