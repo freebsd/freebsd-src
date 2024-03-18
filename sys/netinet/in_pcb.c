@@ -2835,28 +2835,6 @@ inp_inpcbtosocket(struct inpcb *inp)
 	return (inp->inp_socket);
 }
 
-struct tcpcb *
-inp_inpcbtotcpcb(struct inpcb *inp)
-{
-
-	INP_WLOCK_ASSERT(inp);
-	return ((struct tcpcb *)inp->inp_ppcb);
-}
-
-int
-inp_ip_tos_get(const struct inpcb *inp)
-{
-
-	return (inp->inp_ip_tos);
-}
-
-void
-inp_ip_tos_set(struct inpcb *inp, int val)
-{
-
-	inp->inp_ip_tos = val;
-}
-
 void
 inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
     uint32_t *faddr, uint16_t *fp)

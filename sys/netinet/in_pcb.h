@@ -479,12 +479,8 @@ void inp_unlock_assert(struct inpcb *);
 
 void	inp_apply_all(struct inpcbinfo *, void (*func)(struct inpcb *, void *),
 	    void *arg);
-int 	inp_ip_tos_get(const struct inpcb *inp);
-void 	inp_ip_tos_set(struct inpcb *inp, int val);
 struct socket *
 	inp_inpcbtosocket(struct inpcb *inp);
-struct tcpcb *
-	inp_inpcbtotcpcb(struct inpcb *inp);
 void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 		uint32_t *faddr, uint16_t *fp);
 
