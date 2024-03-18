@@ -329,7 +329,18 @@ ktls_copyin_tls_enable(struct sockopt *sopt, struct tls_enable *tls)
 		error = sooptcopyin(sopt, tls, sizeof(*tls), sizeof(*tls));
 
 	if (error != 0)
-		goto done;
+		return (error);
+
+	if (tls->cipher_key_len < 0 || tls->cipher_key_len > TLS_MAX_PARAM_SIZE)
+		return (EINVAL);
+	if (tls->iv_len < 0 || tls->iv_len > sizeof(((struct ktls_session *)NULL)->params.iv))
+		return (EINVAL);
+	if (tls->auth_key_len < 0 || tls->auth_key_len > TLS_MAX_PARAM_SIZE)
+		return (EINVAL);
+
+	/* All supported algorithms require a cipher key. */
+	if (tls->cipher_key_len == 0)
+		return (EINVAL);
 
 	/*
 	 * Now do a deep copy of the variable-length arrays in the struct, so that
@@ -338,23 +349,35 @@ ktls_copyin_tls_enable(struct sockopt *sopt, struct tls_enable *tls)
 	 * error paths so that our caller need only worry about outstanding
 	 * allocations existing on successful return.
 	 */
-	cipher_key = malloc(tls->cipher_key_len, M_KTLS, M_WAITOK);
-	iv = malloc(tls->iv_len, M_KTLS, M_WAITOK);
-	auth_key = malloc(tls->auth_key_len, M_KTLS, M_WAITOK);
-	if (sopt->sopt_td != NULL) {
-		error = copyin(tls->cipher_key, cipher_key, tls->cipher_key_len);
-		if (error != 0)
-			goto done;
-		error = copyin(tls->iv, iv, tls->iv_len);
-		if (error != 0)
-			goto done;
-		error = copyin(tls->auth_key, auth_key, tls->auth_key_len);
-		if (error != 0)
-			goto done;
-	} else {
-		bcopy(tls->cipher_key, cipher_key, tls->cipher_key_len);
-		bcopy(tls->iv, iv, tls->iv_len);
-		bcopy(tls->auth_key, auth_key, tls->auth_key_len);
+	if (tls->cipher_key_len != 0) {
+		cipher_key = malloc(tls->cipher_key_len, M_KTLS, M_WAITOK);
+		if (sopt->sopt_td != NULL) {
+			error = copyin(tls->cipher_key, cipher_key, tls->cipher_key_len);
+			if (error != 0)
+				goto done;
+		} else {
+			bcopy(tls->cipher_key, cipher_key, tls->cipher_key_len);
+		}
+	}
+	if (tls->iv_len != 0) {
+		iv = malloc(tls->iv_len, M_KTLS, M_WAITOK);
+		if (sopt->sopt_td != NULL) {
+			error = copyin(tls->iv, iv, tls->iv_len);
+			if (error != 0)
+				goto done;
+		} else {
+			bcopy(tls->iv, iv, tls->iv_len);
+		}
+	}
+	if (tls->auth_key_len != 0) {
+		auth_key = malloc(tls->auth_key_len, M_KTLS, M_WAITOK);
+		if (sopt->sopt_td != NULL) {
+			error = copyin(tls->auth_key, auth_key, tls->auth_key_len);
+			if (error != 0)
+				goto done;
+		} else {
+			bcopy(tls->auth_key, auth_key, tls->auth_key_len);
+		}
 	}
 	tls->cipher_key = cipher_key;
 	tls->iv = iv;
@@ -586,16 +609,6 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 	    en->tls_vminor > TLS_MINOR_VER_THREE)
 		return (EINVAL);
 
-	if (en->auth_key_len < 0 || en->auth_key_len > TLS_MAX_PARAM_SIZE)
-		return (EINVAL);
-	if (en->cipher_key_len < 0 || en->cipher_key_len > TLS_MAX_PARAM_SIZE)
-		return (EINVAL);
-	if (en->iv_len < 0 || en->iv_len > sizeof(tls->params.iv))
-		return (EINVAL);
-
-	/* All supported algorithms require a cipher key. */
-	if (en->cipher_key_len == 0)
-		return (EINVAL);
 
 	/* No flags are currently supported. */
 	if (en->flags != 0)
