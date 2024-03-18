@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 18, 2020
+.Dd March 18, 2024
 .Dt LIBBE 3
 .Os
 .Sh NAME
@@ -178,14 +178,22 @@ If a BE root is supplied,
 .Nm
 will only operate out of that pool and BE root.
 An error may occur if:
-.Bl -column
-.It /boot and / are not on the same filesystem and device,
-.It libzfs fails to initialize,
-.It The system has not been properly booted with a ZFS boot
+.Bl -bullet
+.It
+.Pa /boot
+and
+.Pa /
+are not on the same filesystem and device,
+.It
+libzfs fails to initialize,
+.It
+The system has not been properly booted with a ZFS boot
 environment,
-.It Nm
+.It
+.Nm
 fails to open the zpool the active boot environment resides on, or
-.It Nm
+.It
+.Nm
 fails to locate the boot environment that is currently mounted.
 .El
 .Pp
@@ -226,9 +234,8 @@ function creates a snapshot of
 .Fa be_name
 named
 .Fa snap_name .
-A
+A value of
 .Dv NULL
-.Fa snap_name
 may be used, indicating that
 .Fn be_snaphot
 should derive the snapshot name from the current date and time.
@@ -520,7 +527,7 @@ The
 function will free the property list.
 .Sh DIAGNOSTICS
 Upon error, one of the following values will be returned:
-.Bl -dash -offset indent -compact
+.Bl -bullet -offset indent -compact
 .It
 BE_ERR_SUCCESS
 .It
