@@ -173,8 +173,7 @@
 
 10) Retired patches
 
-   We no longer have client-side VersionAddendum, but we recognize and ignore
-   the configuration options to avoid breaking existing configurations.
+   We no longer have client-side VersionAddendum.
 
 11) PrintLastLog bugfix
 
