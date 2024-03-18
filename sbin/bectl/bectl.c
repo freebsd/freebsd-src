@@ -115,7 +115,9 @@ static struct command_map_entry command_map[] =
 	{ "mount",    bectl_cmd_mount,   false   },
 	{ "rename",   bectl_cmd_rename,  false   },
 	{ "unjail",   bectl_cmd_unjail,  false   },
+	{ "ujail",    bectl_cmd_unjail,  false   },
 	{ "unmount",  bectl_cmd_unmount, false   },
+	{ "umount",   bectl_cmd_unmount, false   },
 	{ "check",    bectl_cmd_check,   true    },
 };
 
@@ -570,13 +572,6 @@ main(int argc, char *argv[])
 	command = *argv;
 	optreset = 1;
 	optind = 1;
-
-	/* Handle command aliases */
-	if (strcmp(command, "umount") == 0)
-		command = "unmount";
-
-	if (strcmp(command, "ujail") == 0)
-		command = "unjail";
 
 	if ((cmd = get_cmd_info(command)) == NULL) {
 		fprintf(stderr, "Unknown command: %s\n", command);
