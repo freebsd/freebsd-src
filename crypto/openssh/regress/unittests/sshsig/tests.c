@@ -1,4 +1,4 @@
-/* 	$OpenBSD: tests.c,v 1.3 2021/12/14 21:25:27 deraadt Exp $ */
+/* 	$OpenBSD: tests.c,v 1.4 2024/01/11 01:45:59 djm Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *
@@ -103,9 +103,11 @@ tests(void)
 	check_sig("rsa.pub", "rsa.sig", msg, namespace);
 	TEST_DONE();
 
+#ifdef WITH_DSA
 	TEST_START("check DSA signature");
 	check_sig("dsa.pub", "dsa.sig", msg, namespace);
 	TEST_DONE();
+#endif
 
 #ifdef OPENSSL_HAS_ECC
 	TEST_START("check ECDSA signature");

@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.402 2023/11/24 00:31:30 dtucker Exp $ */
+/* $OpenBSD: clientloop.c,v 1.403 2024/02/21 05:57:34 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -517,7 +517,7 @@ send_chaff(struct ssh *ssh)
 {
 	int r;
 
-	if ((ssh->kex->flags & KEX_HAS_PING) == 0)
+	if (ssh->kex == NULL || (ssh->kex->flags & KEX_HAS_PING) == 0)
 		return 0;
 	/* XXX probabilistically send chaff? */
 	/*
