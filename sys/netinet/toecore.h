@@ -36,6 +36,7 @@
 #include <netinet/tcp.h>
 #include <sys/_eventhandler.h>
 
+struct tcpcb;
 struct tcpopt;
 struct tcphdr;
 struct in_conninfo;
