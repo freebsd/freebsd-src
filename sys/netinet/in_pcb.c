@@ -2847,13 +2847,6 @@ inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 	*fp = inp->inp_fport;
 }
 
-struct inpcb *
-so_sotoinpcb(struct socket *so)
-{
-
-	return (sotoinpcb(so));
-}
-
 /*
  * Create an external-format (``xinpcb'') structure using the information in
  * the kernel-format in_pcb structure pointed to by inp.  This is done to
