@@ -247,7 +247,7 @@ freebsd32_wait6(struct thread *td, struct freebsd32_wait6_args *uap)
 {
 	struct __wrusage32 wru32;
 	struct __wrusage wru, *wrup;
-	struct siginfo32 si32;
+	struct __siginfo32 si32;
 	struct __siginfo si, *sip;
 	int error, status;
 
@@ -1026,7 +1026,7 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 		 */
 		data = sizeof(r.pl);
 		if (uap->data < offsetof(struct ptrace_lwpinfo32, pl_siginfo) +
-		    sizeof(struct siginfo32))
+		    sizeof(struct __siginfo32))
 			data = offsetof(struct ptrace_lwpinfo, pl_siginfo);
 		break;
 	case PT_GETREGS:
@@ -3271,7 +3271,7 @@ freebsd32_thr_suspend(struct thread *td, struct freebsd32_thr_suspend_args *uap)
 }
 
 void
-siginfo_to_siginfo32(const siginfo_t *src, struct siginfo32 *dst)
+siginfo_to_siginfo32(const siginfo_t *src, struct __siginfo32 *dst)
 {
 	bzero(dst, sizeof(*dst));
 	dst->si_signo = src->si_signo;
@@ -3320,7 +3320,7 @@ freebsd32_sigtimedwait(struct thread *td, struct freebsd32_sigtimedwait_args *ua
 	struct timespec *timeout;
 	sigset_t set;
 	ksiginfo_t ksi;
-	struct siginfo32 si32;
+	struct __siginfo32 si32;
 	int error;
 
 	if (uap->timeout) {
@@ -3343,7 +3343,7 @@ freebsd32_sigtimedwait(struct thread *td, struct freebsd32_sigtimedwait_args *ua
 
 	if (uap->info) {
 		siginfo_to_siginfo32(&ksi.ksi_info, &si32);
-		error = copyout(&si32, uap->info, sizeof(struct siginfo32));
+		error = copyout(&si32, uap->info, sizeof(struct __siginfo32));
 	}
 
 	if (error == 0)
@@ -3358,7 +3358,7 @@ int
 freebsd32_sigwaitinfo(struct thread *td, struct freebsd32_sigwaitinfo_args *uap)
 {
 	ksiginfo_t ksi;
-	struct siginfo32 si32;
+	struct __siginfo32 si32;
 	sigset_t set;
 	int error;
 
@@ -3372,7 +3372,7 @@ freebsd32_sigwaitinfo(struct thread *td, struct freebsd32_sigwaitinfo_args *uap)
 
 	if (uap->info) {
 		siginfo_to_siginfo32(&ksi.ksi_info, &si32);
-		error = copyout(&si32, uap->info, sizeof(struct siginfo32));
+		error = copyout(&si32, uap->info, sizeof(struct __siginfo32));
 	}	
 	if (error == 0)
 		td->td_retval[0] = ksi.ksi_signo;

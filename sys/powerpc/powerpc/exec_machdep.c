@@ -117,7 +117,7 @@ typedef struct __ucontext32 {
 
 struct sigframe32 {
 	ucontext32_t		sf_uc;
-	struct siginfo32	sf_si;
+	struct __siginfo32	sf_si;
 };
 
 static int	grab_mcontext32(struct thread *td, mcontext32_t *, int flags);
@@ -138,7 +138,7 @@ _Static_assert(sizeof(siginfo_t) == 80, "siginfo_t size incorrect");
 #ifdef COMPAT_FREEBSD32
 _Static_assert(sizeof(mcontext32_t) == 1224, "mcontext32_t size incorrect");
 _Static_assert(sizeof(ucontext32_t) == 1280, "ucontext32_t size incorrect");
-_Static_assert(sizeof(struct siginfo32) == 64, "struct siginfo32 size incorrect");
+_Static_assert(sizeof(struct __siginfo32) == 64, "struct __siginfo32 size incorrect");
 #endif /* COMPAT_FREEBSD32 */
 #else /* powerpc */
 _Static_assert(sizeof(mcontext_t) == 1224, "mcontext_t size incorrect");
@@ -155,7 +155,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct thread *td;
 	struct proc *p;
 	#ifdef COMPAT_FREEBSD32
-	struct siginfo32 siginfo32;
+	struct __siginfo32 siginfo32;
 	struct sigframe32 sf32;
 	#endif
 	size_t sfpsize;
