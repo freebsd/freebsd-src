@@ -61,11 +61,8 @@ int
 livedump_start(int fd, int flags, uint8_t compression)
 {
 #if MINIDUMP_PAGE_TRACKING == 1
-	struct dumperinfo di, *livedi;
-	struct diocskerneldump_arg kda;
-	struct vnode *vp;
 	struct file *fp;
-	void *rl_cookie;
+	struct vnode *vp;
 	int error;
 
 	error = priv_check(curthread, PRIV_KMEM_READ);
@@ -84,8 +81,27 @@ livedump_start(int fd, int flags, uint8_t compression)
 		error = EBADF;
 		goto drop;
 	}
+	error = livedump_start_vnode(vp, flags, compression);
+	if (error != 0)
+		goto drop;
+drop:
+	fdrop(fp, curthread);
+	return (error);
+#else
+	return (EOPNOTSUPP);
+#endif /* MINIDUMP_PAGE_TRACKING == 1 */
+}
 
-	/* Set up a new dumper. */
+int
+livedump_start_vnode(struct vnode *vp, int flags, uint8_t compression)
+{
+#if MINIDUMP_PAGE_TRACKING == 1
+	struct dumperinfo di, *livedi;
+	struct diocskerneldump_arg kda;
+	void *rl_cookie;
+	int error;
+
+        /* Set up a new dumper. */
 	bzero(&di, sizeof(di));
 	di.dumper_start = vnode_dumper_start;
 	di.dumper = vnode_dump;
@@ -97,13 +113,13 @@ livedump_start(int fd, int flags, uint8_t compression)
 	kda.kda_compression = compression;
 	error = dumper_create(&di, "livedump", &kda, &livedi);
 	if (error != 0)
-		goto drop;
+		return (error);
 
 	/* Only allow one livedump to proceed at a time. */
 	if (sx_try_xlock(&livedump_sx) == 0) {
 		dumper_destroy(livedi);
 		error = EBUSY;
-		goto drop;
+		return (error);
 	}
 
 	/* To be used by the callback functions. */
@@ -126,8 +142,6 @@ out:
 	vn_rangelock_unlock(vp, rl_cookie);
 	sx_xunlock(&livedump_sx);
 	dumper_destroy(livedi);
-drop:
-	fdrop(fp, curthread);
 	return (error);
 #else
 	return (EOPNOTSUPP);
