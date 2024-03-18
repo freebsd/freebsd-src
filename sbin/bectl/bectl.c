@@ -64,7 +64,7 @@ usage(bool explicit)
 
 	fp =  explicit ? stdout : stderr;
 	fprintf(fp, "%s",
-	    "Usage:\tbectl {-h | -? | subcommand [args...]}\n"
+	    "Usage:\tbectl {-h | subcommand [args...]}\n"
 #if SOON
 	    "\tbectl [-r beroot] add (path)*\n"
 #endif
@@ -545,26 +545,30 @@ main(int argc, char *argv[])
 {
 	struct command_map_entry *cmd;
 	const char *command;
-	char *root;
-	int rc;
+	char *root = NULL;
+	int opt, rc;
 
-	cmd = NULL;
-	root = NULL;
-	if (argc < 2)
-		return (usage(false));
-
-	if (strcmp(argv[1], "-r") == 0) {
-		if (argc < 4)
-			return (usage(false));
-		root = strdup(argv[2]);
-		command = argv[3];
-		argc -= 3;
-		argv += 3;
-	} else {
-		command = argv[1];
-		argc -= 1;
-		argv += 1;
+	while ((opt = getopt(argc, argv, "hr:")) != -1) {
+		switch (opt) {
+		case 'h':
+			exit(usage(true));
+		case 'r':
+			root = strdup(optarg);
+			break;
+		default:
+			exit(usage(false));
+		}
 	}
+
+	argc -= optind;
+	argv += optind;
+
+	if (argc == 0)
+		exit(usage(false));
+
+	command = *argv;
+	optreset = 1;
+	optind = 1;
 
 	/* Handle command aliases */
 	if (strcmp(command, "umount") == 0)
@@ -572,9 +576,6 @@ main(int argc, char *argv[])
 
 	if (strcmp(command, "ujail") == 0)
 		command = "unjail";
-
-	if ((strcmp(command, "-?") == 0) || (strcmp(command, "-h") == 0))
-		return (usage(true));
 
 	if ((cmd = get_cmd_info(command)) == NULL) {
 		fprintf(stderr, "Unknown command: %s\n", command);
