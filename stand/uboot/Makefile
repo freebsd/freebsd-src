@@ -10,6 +10,8 @@ LOADER_GZIP_SUPPORT?=	no
 LOADER_BZIP2_SUPPORT?=	no
 LOADER_DISK_SUPPORT?=	yes
 
+BINDIR= 	/boot/uboot
+
 .include <bsd.init.mk>
 
 .include "${.CURDIR}/arch/${MACHINE_CPUARCH}/Makefile.inc"
@@ -22,7 +24,6 @@ PROG=		ubldr
 .endif
 
 NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
-BINDIR= 	/boot/uboot
 INSTALLFLAGS=	-b
 WARNS?=		1
 
