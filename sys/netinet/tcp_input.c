@@ -1680,7 +1680,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 		    (tp->t_flags & TF_NOOPT))) {
 			tp->t_flags &= ~TF_SACK_PERMIT;
 		}
-		if (IS_FASTOPEN(tp->t_flags)) {
+		if (tp->t_flags & TF_FASTOPEN) {
 			if ((to.to_flags & TOF_FASTOPEN) &&
 			    !(tp->t_flags & TF_NOOPT)) {
 				uint16_t mss;
@@ -1989,7 +1989,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 				tcp_log_end_status(tp, TCP_EI_STATUS_RST_IN_FRONT);
 				goto dropwithreset;
 		}
-		if (IS_FASTOPEN(tp->t_flags)) {
+		if (tp->t_flags & TF_FASTOPEN) {
 			/*
 			 * When a TFO connection is in SYN_RECEIVED, the
 			 * only valid packets are the initial SYN, a
@@ -2063,7 +2063,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 			 * If not all the data that was sent in the TFO SYN
 			 * has been acked, resend the remainder right away.
 			 */
-			if (IS_FASTOPEN(tp->t_flags) &&
+			if ((tp->t_flags & TF_FASTOPEN) &&
 			    (tp->snd_una != tp->snd_max)) {
 				tp->snd_nxt = th->th_ack;
 				tfo_partial_ack = 1;
@@ -2419,7 +2419,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 		if (tp->t_state == TCPS_SYN_RECEIVED ||
 		    (tp->t_flags & TF_NEEDSYN)) {
 			if (tp->t_state == TCPS_SYN_RECEIVED &&
-			    IS_FASTOPEN(tp->t_flags)) {
+			    (tp->t_flags & TF_FASTOPEN)) {
 				tp->snd_wnd = tiwin;
 				cc_conn_init(tp);
 			}
@@ -2467,7 +2467,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 		 *      SYN-RECEIVED* -> FIN-WAIT-1
 		 */
 		tp->t_starttime = ticks;
-		if (IS_FASTOPEN(tp->t_flags) && tp->t_tfo_pending) {
+		if ((tp->t_flags & TF_FASTOPEN) && tp->t_tfo_pending) {
 			tcp_fastopen_decrement_counter(tp->t_tfo_pending);
 			tp->t_tfo_pending = NULL;
 		}
@@ -2486,7 +2486,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 			 * snd_cwnd reduction that occurs when a TFO SYN|ACK
 			 * is retransmitted.
 			 */
-			if (!IS_FASTOPEN(tp->t_flags))
+			if (!(tp->t_flags & TF_FASTOPEN))
 				cc_conn_init(tp);
 			tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
 		}
@@ -3167,7 +3167,7 @@ dodata:							/* XXX */
 	 * connection then we just ignore the text.
 	 */
 	tfo_syn = ((tp->t_state == TCPS_SYN_RECEIVED) &&
-		   IS_FASTOPEN(tp->t_flags));
+	    (tp->t_flags & TF_FASTOPEN));
 	if ((tlen || (thflags & TH_FIN) || (tfo_syn && tlen > 0)) &&
 	    TCPS_HAVERCVDFIN(tp->t_state) == 0) {
 		tcp_seq save_start = th->th_seq;
