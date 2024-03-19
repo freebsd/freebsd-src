@@ -1645,7 +1645,7 @@
 	}
 315	AUE_AIO_SUSPEND	STD|CAPENABLED {
 		int aio_suspend(
-		    _Inout_updates_(nent) _Contains_long_ptr_ struct aiocb * const * aiocbp,
+		    _Inout_updates_(nent) _Contains_long_ptr_ const struct aiocb * const * aiocbp,
 		    int nent,
 		    _In_opt_ _Contains_long_timet_ const struct timespec *timeout
 		);
