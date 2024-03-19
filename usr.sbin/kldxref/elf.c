@@ -198,6 +198,24 @@ elf_read_raw_data_alloc(struct elf_file *efile, off_t offset, size_t len,
 }
 
 int
+elf_read_raw_string(struct elf_file *efile, off_t offset, char *dst, size_t len)
+{
+	ssize_t nread;
+
+	nread = pread(efile->ef_fd, dst, len, offset);
+	if (nread == -1)
+		return (errno);
+	if (nread == 0)
+		return (EIO);
+
+	/* A short read is ok so long as the data contains a terminator. */
+	if (strnlen(dst, nread) == nread)
+		return (EFAULT);
+
+	return (0);
+}
+
+int
 elf_read_data(struct elf_file *efile, Elf_Type type, off_t offset, size_t len,
     void **out)
 {
