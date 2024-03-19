@@ -344,7 +344,7 @@ int		__sys_clock_nanosleep(__clockid_t, int,
 int		__sys_close(int);
 int		__sys_close_range(unsigned, unsigned, int);
 int		__sys_connect(int, const struct sockaddr *, __socklen_t);
-int		__sys_fcntl(int, int, ...);
+int		__sys_fcntl(int, int, __intptr_t);
 int		__sys_fdatasync(int);
 int		__sys_fstat(int fd, struct stat *);
 int		__sys_fstatfs(int fd, struct statfs *);
