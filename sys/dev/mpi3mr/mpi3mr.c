@@ -1404,14 +1404,10 @@ mpi3mr_soft_reset_success(U32 ioc_status, U32 ioc_config)
 static inline bool mpi3mr_diagfault_success(struct mpi3mr_softc *sc,
 	U32 ioc_status)
 {
-	U32 fault;
-
 	if (!(ioc_status & MPI3_SYSIF_IOC_STATUS_FAULT))
 		return false;
-	fault = mpi3mr_regread(sc, MPI3_SYSIF_FAULT_OFFSET) & MPI3_SYSIF_FAULT_CODE_MASK;
-	if (fault == MPI3_SYSIF_FAULT_CODE_DIAG_FAULT_RESET)
-		return true;
-	return false;
+	mpi3mr_print_fault_info(sc);
+	return true;
 }
 
 /**
