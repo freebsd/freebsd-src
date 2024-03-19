@@ -1824,54 +1824,54 @@
 347	AUE_ACL_GET_FILE	STD {
 		int __acl_get_file(
 		    _In_z_ const char *path,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _Out_ struct acl *aclp
 		);
 	}
 348	AUE_ACL_SET_FILE	STD {
 		int __acl_set_file(
 		    _In_z_ const char *path,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _In_ struct acl *aclp
 		);
 	}
 349	AUE_ACL_GET_FD	STD|CAPENABLED {
 		int __acl_get_fd(
 		    int filedes,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _Out_ struct acl *aclp
 		);
 	}
 350	AUE_ACL_SET_FD	STD|CAPENABLED {
 		int __acl_set_fd(
 		    int filedes,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _In_ struct acl *aclp
 		);
 	}
 351	AUE_ACL_DELETE_FILE	STD {
 		int __acl_delete_file(
 		    _In_z_ const char *path,
-		    acl_type_t type
+		    __acl_type_t type
 		);
 	}
 352	AUE_ACL_DELETE_FD	STD|CAPENABLED {
 		int __acl_delete_fd(
 		    int filedes,
-		    acl_type_t type
+		    __acl_type_t type
 		);
 	}
 353	AUE_ACL_CHECK_FILE	STD {
 		int __acl_aclcheck_file(
 		    _In_z_ const char *path,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _In_ struct acl *aclp
 		);
 	}
 354	AUE_ACL_CHECK_FD	STD|CAPENABLED {
 		int __acl_aclcheck_fd(
 		    int filedes,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _In_ struct acl *aclp
 		);
 	}
@@ -2246,27 +2246,27 @@
 425	AUE_ACL_GET_LINK	STD {
 		int __acl_get_link(
 		    _In_z_ const char *path,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _Out_ struct acl *aclp
 		);
 	}
 426	AUE_ACL_SET_LINK	STD {
 		int __acl_set_link(
 		    _In_z_ const char *path,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _In_ struct acl *aclp
 		);
 	}
 427	AUE_ACL_DELETE_LINK	STD {
 		int __acl_delete_link(
 		    _In_z_ const char *path,
-		    acl_type_t type
+		    __acl_type_t type
 		);
 	}
 428	AUE_ACL_CHECK_LINK	STD {
 		int __acl_aclcheck_link(
 		    _In_z_ const char *path,
-		    acl_type_t type,
+		    __acl_type_t type,
 		    _In_ struct acl *aclp
 		);
 	}
