@@ -88,8 +88,8 @@
 #include <sys/kthread.h>
 #include "mpi/mpi30_api.h"
 
-#define MPI3MR_DRIVER_VERSION	"8.6.0.2.0"
-#define MPI3MR_DRIVER_RELDATE	"17th May 2023"
+#define MPI3MR_DRIVER_VERSION	"8.10.0.1.0"
+#define MPI3MR_DRIVER_RELDATE	"19th Mar 2024"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 
