@@ -1,7 +1,7 @@
 /*
- * SPDX-License-Identifier: BSD-2-Clause
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2016-2023, Broadcom Inc. All rights reserved.
+ * Copyright (c) 2016-2024, Broadcom Inc. All rights reserved.
  * Support: <fbsd-storage-driver.pdl@broadcom.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
  * Broadcom Inc. (Broadcom) MPI3MR Adapter FreeBSD
  *
  */
-
 #ifndef MPI30_INIT_H
 #define MPI30_INIT_H     1
 
@@ -78,7 +77,7 @@ typedef struct _MPI3_SCSI_IO_REQUEST
     U16                     ChangeCount;                    /* 0x08 */
     U16                     DevHandle;                      /* 0x0A */
     U32                     Flags;                          /* 0x0C */
-    U32                     SkipCount;                      /* 0x10 */
+    U32                     IOCUseOnly10;                   /* 0x10 */
     U32                     DataLength;                     /* 0x14 */
     U8                      LUN[8];                         /* 0x18 */
     MPI3_SCSI_IO_CDB_UNION  CDB;                            /* 0x20 */
@@ -91,10 +90,12 @@ typedef struct _MPI3_SCSI_IO_REQUEST
 #define MPI3_SCSIIO_MSGFLAGS_DIVERT_TO_FIRMWARE               (0x40)
 
 /**** Defines for the Flags field ****/
-#define MPI3_SCSIIO_FLAGS_LARGE_CDB                           (0x60000000)
+#define MPI3_SCSIIO_FLAGS_LARGE_CDB_MASK                      (0x60000000)
 #define MPI3_SCSIIO_FLAGS_CDB_16_OR_LESS                      (0x00000000)
 #define MPI3_SCSIIO_FLAGS_CDB_GREATER_THAN_16                 (0x20000000)
 #define MPI3_SCSIIO_FLAGS_CDB_IN_SEPARATE_BUFFER              (0x40000000)
+#define MPI3_SCSIIO_FLAGS_CDB_PRODUCT_SPECIFIC                (0x60000000)
+#define MPI3_SCSIIO_FLAGS_IOC_USE_ONLY_27_MASK                (0x18000000)
 #define MPI3_SCSIIO_FLAGS_TASKATTRIBUTE_MASK                  (0x07000000)
 #define MPI3_SCSIIO_FLAGS_TASKATTRIBUTE_SIMPLEQ               (0x00000000)
 #define MPI3_SCSIIO_FLAGS_TASKATTRIBUTE_HEADOFQ               (0x01000000)
