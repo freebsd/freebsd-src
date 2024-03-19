@@ -616,7 +616,7 @@
 		int fcntl(
 		    int fd,
 		    int cmd,
-		    long arg
+		    intptr_t arg
 		);
 	}
 ; XXX should be { int fcntl(int fd, int cmd, ...); }

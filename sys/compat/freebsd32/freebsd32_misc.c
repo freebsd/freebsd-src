@@ -3942,7 +3942,7 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 int
 freebsd32_fcntl(struct thread *td, struct freebsd32_fcntl_args *uap)
 {
-	long tmp;
+	intptr_t tmp;
 
 	switch (uap->cmd) {
 	/*
