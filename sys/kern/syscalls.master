@@ -3231,7 +3231,7 @@
 573	AUE_NULL	STD|CAPENABLED {
 		int sigfastblock(
 		    int cmd,
-		    _Inout_opt_ uint32_t *ptr
+		    _Inout_updates_bytes_opt_(4) void *ptr
 		);
 	}
 574	AUE_REALPATHAT	STD {
