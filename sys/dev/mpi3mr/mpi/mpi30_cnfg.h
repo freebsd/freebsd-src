@@ -1,7 +1,7 @@
 /*
- * SPDX-License-Identifier: BSD-2-Clause
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2016-2023, Broadcom Inc. All rights reserved.
+ * Copyright (c) 2016-2024, Broadcom Inc. All rights reserved.
  * Support: <fbsd-storage-driver.pdl@broadcom.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -185,7 +185,7 @@ typedef struct _MPI3_CONFIG_PAGE_HEADER
  *              Common definitions used by Configuration Pages           *
  ****************************************************************************/
 
-/**** Defines for Negotiated Link Rates ****/
+/**** Defines for NegotiatedLinkRates ****/
 #define MPI3_SAS_NEG_LINK_RATE_LOGICAL_MASK                   (0xF0)
 #define MPI3_SAS_NEG_LINK_RATE_LOGICAL_SHIFT                  (4)
 #define MPI3_SAS_NEG_LINK_RATE_PHYSICAL_MASK                  (0x0F)
@@ -486,6 +486,7 @@ typedef struct _MPI3_MAN6_GPIO_ENTRY
 #define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_SOURCE_GENERIC                     (0x00)
 #define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_SOURCE_CABLE_MGMT                  (0x10)
 #define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_SOURCE_ACTIVE_CABLE_OVERCURRENT    (0x20)
+#define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_ACK_REQUIRED                       (0x02)
 
 #define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_TRIGGER_MASK                       (0x01)
 #define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_TRIGGER_EDGE                       (0x00)
@@ -1073,7 +1074,7 @@ typedef struct _MPI3_MAN_PAGE12
 #define MPI3_MAN12_FLAGS_SDATAOUT_TYPE_PUSH_PULL                     (0x0000)
 #define MPI3_MAN12_FLAGS_SDATAOUT_TYPE_OPEN_DRAIN                    (0x0001)
 
-/**** Defines for the SioClkFreq field ****/
+/**** Defines for the SClockFreq field ****/
 #define MPI3_MAN12_SIO_CLK_FREQ_MIN                                  (32)        /* 32 Hz min SIO Clk Freq */
 #define MPI3_MAN12_SIO_CLK_FREQ_MAX                                  (100000)    /* 100 KHz max SIO Clk Freq */
 
@@ -1306,7 +1307,7 @@ typedef struct _MPI3_MAN_PAGE20
 #define MPI3_MAN20_ALLOWEDPERSON_EHBA_ALLOWED                        (0x01)
 #define MPI3_MAN20_ALLOWEDPERSON_EHBA_NOT_ALLOWED                    (0x00)
 
-/**** Defines for the NonpremuimFeatures field ****/
+/**** Defines for the NonpremiumFeatures field ****/
 #define MPI3_MAN20_NONPREMUIM_DISABLE_PD_DEGRADED_MASK               (0x01)
 #define MPI3_MAN20_NONPREMUIM_DISABLE_PD_DEGRADED_ENABLED            (0x00)
 #define MPI3_MAN20_NONPREMUIM_DISABLE_PD_DEGRADED_DISABLED           (0x01)
@@ -1337,6 +1338,23 @@ typedef struct _MPI3_MAN_PAGE21
 #define MPI3_MAN21_FLAGS_SES_VPD_ASSOC_MASK                          (0x00000001)
 #define MPI3_MAN21_FLAGS_SES_VPD_ASSOC_DEFAULT                       (0x00000000)
 #define MPI3_MAN21_FLAGS_SES_VPD_ASSOC_OEM_SPECIFIC                  (0x00000001)
+
+/*****************************************************************************
+ *              Manufacturing Page 22                                        *
+ ****************************************************************************/
+
+typedef struct _MPI3_MAN_PAGE22
+{
+    MPI3_CONFIG_PAGE_HEADER         Header;                                            /* 0x00 */
+    U32                             Reserved08;                                        /* 0x08 */
+    U16                             NumEUI64;                                          /* 0x0C */
+    U16                             Reserved0E;                                        /* 0x0E */
+    U64                             BaseEUI64;                                         /* 0x10 */
+} MPI3_MAN_PAGE22, MPI3_POINTER PTR_MPI3_MAN_PAGE22,
+  Mpi3ManPage22_t, MPI3_POINTER pMpi3ManPage22_t;
+
+/**** Defines for the PageVersion field ****/
+#define MPI3_MAN22_PAGEVERSION                                       (0x00)
 
 /*****************************************************************************
  *              Manufacturing Pages 32-63 (ProductSpecific)                  *
@@ -1434,13 +1452,21 @@ typedef struct _MPI3_IO_UNIT_PAGE2
  *              IO Unit Page 3                                               *
  ****************************************************************************/
 
+typedef enum _MPI3_IOUNIT3_THRESHOLD
+{
+    MPI3_IOUNIT3_THRESHOLD_WARNING              = 0,
+    MPI3_IOUNIT3_THRESHOLD_CRITICAL             = 1,
+    MPI3_IOUNIT3_THRESHOLD_FATAL                = 2,
+    MPI3_IOUNIT3_THRESHOLD_LOW                  = 3,
+    MPI3_IOUNIT3_NUM_THRESHOLDS
+} MPI3_IOUNIT3_THRESHOLD;
+
 typedef struct _MPI3_IO_UNIT3_SENSOR
 {
     U16             Flags;                                      /* 0x00 */
     U8              ThresholdMargin;                            /* 0x02 */
     U8              Reserved03;                                 /* 0x03 */
-    U16             Threshold[3];                               /* 0x04 */
-    U16             Reserved0A;                                 /* 0x0A */
+    U16             Threshold[MPI3_IOUNIT3_NUM_THRESHOLDS];     /* 0x04 */
     U32             Reserved0C;                                 /* 0x0C */
     U32             Reserved10;                                 /* 0x10 */
     U32             Reserved14;                                 /* 0x14 */
@@ -1448,6 +1474,7 @@ typedef struct _MPI3_IO_UNIT3_SENSOR
   Mpi3IOUnit3Sensor_t, MPI3_POINTER pMpi3IOUnit3Sensor_t;
 
 /**** Defines for the Flags field ****/
+#define MPI3_IOUNIT3_SENSOR_FLAGS_LOW_THRESHOLD_VALID           (0x0020)
 #define MPI3_IOUNIT3_SENSOR_FLAGS_FATAL_EVENT_ENABLED           (0x0010)
 #define MPI3_IOUNIT3_SENSOR_FLAGS_FATAL_ACTION_ENABLED          (0x0008)
 #define MPI3_IOUNIT3_SENSOR_FLAGS_CRITICAL_EVENT_ENABLED        (0x0004)
@@ -1591,7 +1618,7 @@ typedef struct _MPI3_IO_UNIT_PAGE5
 #define MPI3_IOUNIT5_FLAGS_POWER_CAPABLE_SPINUP            (0x02)
 #define MPI3_IOUNIT5_FLAGS_AUTO_PORT_ENABLE                (0x01)
 
-/**** Defines for the PHY field ****/
+/**** Defines for the Phy field ****/
 #define MPI3_IOUNIT5_PHY_SPINUP_GROUP_MASK                 (0x03)
 
 /*****************************************************************************
@@ -1621,11 +1648,33 @@ typedef struct _MPI3_IO_UNIT_PAGE6
 #define MPI3_IOUNIT8_DIGEST_MAX                   (1)
 #endif  /* MPI3_IOUNIT8_DIGEST_MAX */
 
-typedef union _MPI3_IOUNIT8_DIGEST
+typedef union _MPI3_IOUNIT8_RAW_DIGEST
 {
     U32                             Dword[16];
     U16                             Word[32];
     U8                              Byte[64];
+} MPI3_IOUNIT8_RAW_DIGEST, MPI3_POINTER PTR_MPI3_IOUNIT8_RAW_DIGEST,
+  Mpi3IOUnit8RawDigest_t, MPI3_POINTER pMpi3IOUnit8RawDigest_t;
+
+typedef struct _MPI3_IOUNIT8_METADATA_DIGEST
+{
+    U8                              SlotStatus;                        /* 0x00 */
+    U8                              Reserved01[3];                     /* 0x01 */
+    U32                             Reserved04[3];                     /* 0x04 */
+    MPI3_IOUNIT8_RAW_DIGEST         DigestData;                        /* 0x10 */
+} MPI3_IOUNIT8_METADATA_DIGEST, MPI3_POINTER PTR_MPI3_IOUNIT8_METADATA_DIGEST,
+  Mpi3IOUnit8MetadataDigest_t, MPI3_POINTER pMpi3IOUnit8MetadataDigest_t;
+
+/**** Defines for the SlotStatus field ****/
+#define MPI3_IOUNIT8_METADATA_DIGEST_SLOTSTATUS_UNUSED                 (0x00)
+#define MPI3_IOUNIT8_METADATA_DIGEST_SLOTSTATUS_UPDATE_PENDING         (0x01)
+#define MPI3_IOUNIT8_METADATA_DIGEST_SLOTSTATUS_VALID                  (0x03)
+#define MPI3_IOUNIT8_METADATA_DIGEST_SLOTSTATUS_INVALID                (0x07)
+
+typedef union _MPI3_IOUNIT8_DIGEST
+{
+    MPI3_IOUNIT8_RAW_DIGEST         RawDigest[MPI3_IOUNIT8_DIGEST_MAX];
+    MPI3_IOUNIT8_METADATA_DIGEST    MetadataDigest[MPI3_IOUNIT8_DIGEST_MAX];
 } MPI3_IOUNIT8_DIGEST, MPI3_POINTER PTR_MPI3_IOUNIT8_DIGEST,
   Mpi3IOUnit8Digest_t, MPI3_POINTER pMpi3IOUnit8Digest_t;
 
@@ -1633,8 +1682,9 @@ typedef struct _MPI3_IO_UNIT_PAGE8
 {
     MPI3_CONFIG_PAGE_HEADER         Header;                             /* 0x00 */
     U8                              SBMode;                             /* 0x08 */
-    U8                              SbState;                            /* 0x09 */
-    U16                             Reserved0A;                         /* 0x0A */
+    U8                              SBState;                            /* 0x09 */
+    U8                              Flags;                              /* 0x0A */
+    U8                              Reserved0A;                         /* 0x0B */
     U8                              NumSlots;                           /* 0x0C */
     U8                              SlotsAvailable;                     /* 0x0D */
     U8                              CurrentKeyEncryptionAlgo;           /* 0x0E */
@@ -1642,22 +1692,27 @@ typedef struct _MPI3_IO_UNIT_PAGE8
     MPI3_VERSION_UNION              CurrentSvn;                         /* 0x10 */
     U32                             Reserved14;                         /* 0x14 */
     U32                             CurrentKey[128];                    /* 0x18 */
-    MPI3_IOUNIT8_DIGEST             Digest[MPI3_IOUNIT8_DIGEST_MAX];    /* 0x218 */  /* variable length */
+    MPI3_IOUNIT8_DIGEST             Digest;                             /* 0x218 */  /* variable length */
 } MPI3_IO_UNIT_PAGE8, MPI3_POINTER PTR_MPI3_IO_UNIT_PAGE8,
   Mpi3IOUnitPage8_t, MPI3_POINTER pMpi3IOUnitPage8_t;
 
 /**** Defines for the PageVersion field ****/
-#define MPI3_IOUNIT8_PAGEVERSION                  (0x00)
+#define MPI3_IOUNIT8_PAGEVERSION                                  (0x00)
 
 /**** Defines for the SBMode field ****/
-#define MPI3_IOUNIT8_SBMODE_SECURE_DEBUG          (0x04)
-#define MPI3_IOUNIT8_SBMODE_HARD_SECURE           (0x02)
-#define MPI3_IOUNIT8_SBMODE_CONFIG_SECURE         (0x01)
+#define MPI3_IOUNIT8_SBMODE_SECURE_DEBUG                          (0x04)
+#define MPI3_IOUNIT8_SBMODE_HARD_SECURE                           (0x02)
+#define MPI3_IOUNIT8_SBMODE_CONFIG_SECURE                         (0x01)
 
 /**** Defines for the SBState field ****/
-#define MPI3_IOUNIT8_SBSTATE_SVN_UPDATE_PENDING   (0x04)
-#define MPI3_IOUNIT8_SBSTATE_KEY_UPDATE_PENDING   (0x02)
-#define MPI3_IOUNIT8_SBSTATE_SECURE_BOOT_ENABLED  (0x01)
+#define MPI3_IOUNIT8_SBSTATE_SVN_UPDATE_PENDING                   (0x04)
+#define MPI3_IOUNIT8_SBSTATE_KEY_UPDATE_PENDING                   (0x02)
+#define MPI3_IOUNIT8_SBSTATE_SECURE_BOOT_ENABLED                  (0x01)
+
+/**** Defines for the Flags field ****/
+#define MPI3_IOUNIT8_FLAGS_DIGESTFORM_MASK                        (0x07)
+#define MPI3_IOUNIT8_FLAGS_DIGESTFORM_RAW                         (0x00)
+#define MPI3_IOUNIT8_FLAGS_DIGESTFORM_DIGEST_WITH_METADATA        (0x01)
 
 /*****************************************************************************
  *              IO Unit Page 9                                               *
@@ -1909,6 +1964,38 @@ typedef struct _MPI3_IO_UNIT_PAGE15
 #define MPI3_IOUNIT15_NUMPOWERBUDGETDATA_POWER_BUDGETING_DISABLED   (0x00)
 
 /*****************************************************************************
+ *              IO Unit Page 16                                              *
+ ****************************************************************************/
+
+#ifndef MPI3_IOUNIT16_ERROR_MAX
+#define MPI3_IOUNIT16_ERROR_MAX                                      (1)
+#endif /* MPI3_IOUNIT16_ERROR_MAX */
+
+typedef struct _MPI3_IOUNIT16_ERROR
+{
+    U32                             Offset;                                   /* 0x00 */
+    U32                             Reserved04;                               /* 0x04 */
+    U64                             Count;                                    /* 0x08 */
+    U64                             Timestamp;                                /* 0x10 */
+} MPI3_IOUNIT16_ERROR, MPI3_POINTER PTR_MPI3_IOUNIT16_ERROR,
+  Mpi3IOUnit16Error_t, MPI3_POINTER pMpi3IOUnit16Error_t;
+
+typedef struct _MPI3_IO_UNIT_PAGE16
+{
+    MPI3_CONFIG_PAGE_HEADER         Header;                                   /* 0x00 */
+    U64                             TotalErrorCount;                          /* 0x08 */
+    U32                             Reserved10[3];                            /* 0x10 */
+    U8                              NumErrors;                                /* 0x1C */
+    U8                              MaxErrorsTracked;                         /* 0x1D */
+    U16                             Reserved1E;                               /* 0x1E */
+    MPI3_IOUNIT16_ERROR             Error[MPI3_IOUNIT16_ERROR_MAX];           /* 0x20 */ /* variable length */
+} MPI3_IO_UNIT_PAGE16, MPI3_POINTER PTR_MPI3_IO_UNIT_PAGE16,
+  Mpi3IOUnitPage16_t, MPI3_POINTER pMpi3IOUnitPage16_t;
+
+/**** Defines for the PageVersion field ****/
+#define MPI3_IOUNIT16_PAGEVERSION                                   (0x00)
+
+/*****************************************************************************
  *              IOC Configuration Pages                                      *
  ****************************************************************************/
 
@@ -1973,7 +2060,8 @@ typedef struct _MPI3_IOC_PAGE2
  *              Driver Configuration Pages                                  *
  ****************************************************************************/
 
-/**** Defines for the Flags field ****/
+/**** Defines for the Flags field  in Driver Pages 10, 20, and 30 ****/
+/****    NOT used in Driver Page 1 Flags field                    ****/
 #define MPI3_DRIVER_FLAGS_ADMINRAIDPD_BLOCKED               (0x0010)
 #define MPI3_DRIVER_FLAGS_OOBRAIDPD_BLOCKED                 (0x0008)
 #define MPI3_DRIVER_FLAGS_OOBRAIDVD_BLOCKED                 (0x0004)
@@ -2006,7 +2094,7 @@ typedef struct _MPI3_ALLOWED_CMD_NVME
 } MPI3_ALLOWED_CMD_NVME, MPI3_POINTER PTR_MPI3_ALLOWED_CMD_NVME,
   Mpi3AllowedCmdNvme_t, MPI3_POINTER pMpi3AllowedCmdNvme_t;
 
-/**** Defines for the CommandFlags field ****/
+/**** Defines for the NVMeCmdFlags field ****/
 #define MPI3_DRIVER_ALLOWEDCMD_NVMECMDFLAGS_SUBQ_TYPE_MASK     (0x80)
 #define MPI3_DRIVER_ALLOWEDCMD_NVMECMDFLAGS_SUBQ_TYPE_IO       (0x00)
 #define MPI3_DRIVER_ALLOWEDCMD_NVMECMDFLAGS_SUBQ_TYPE_ADMIN    (0x80)
@@ -2057,6 +2145,8 @@ typedef struct _MPI3_DRIVER_PAGE0
 #define MPI3_DRIVER0_PAGEVERSION                                    (0x00)
 
 /**** Defines for the BSDOptions field ****/
+#define MPI3_DRIVER0_BSDOPTS_DEVICEEXPOSURE_DISABLE                 (0x00000020)
+#define MPI3_DRIVER0_BSDOPTS_WRITECACHE_DISABLE                     (0x00000010)
 #define MPI3_DRIVER0_BSDOPTS_HEADLESS_MODE_ENABLE                   (0x00000008)
 #define MPI3_DRIVER0_BSDOPTS_DIS_HII_CONFIG_UTIL                    (0x00000004)
 #define MPI3_DRIVER0_BSDOPTS_REGISTRATION_MASK                      (0x00000003)
@@ -2263,14 +2353,6 @@ typedef union _MPI3_SECURITY_NONCE
 } MPI3_SECURITY_NONCE, MPI3_POINTER PTR_MPI3_SECURITY_NONCE,
   Mpi3SecurityNonce_t, MPI3_POINTER pMpi3SecurityNonce_t;
 
-typedef union _MPI3_SECURITY_ROOT_DIGEST
-{
-    U32                             Dword[16];
-    U16                             Word[32];
-    U8                              Byte[64];
-} MPI3_SECURITY_ROOT_DIGEST, MPI3_POINTER PTR_MPI3_SECURITY_ROOT_DIGEST,
-  Mpi3SecurityRootDigest_t, MPI3_POINTER pMpi3SecurityRootDigest_t;
-
 /*****************************************************************************
  *              Security Page 0                                             *
  ****************************************************************************/
@@ -2382,17 +2464,25 @@ typedef struct _MPI3_SECURITY_PAGE1
 #define MPI3_SECURITY2_TRUSTED_ROOT_MAX      1
 #endif  /* MPI3_SECURITY2_TRUSTED_ROOT_MAX */
 
+#ifndef MPI3_SECURITY2_ROOT_LEN
+#define MPI3_SECURITY2_ROOT_LEN      4
+#endif  /* MPI3_SECURITY2_ROOT_LEN */
+
 typedef struct _MPI3_SECURITY2_TRUSTED_ROOT
 {
     U8                              Level;                                        /* 0x00 */
     U8                              HashAlgorithm;                                /* 0x01 */
     U16                             TrustedRootFlags;                             /* 0x02 */
     U32                             Reserved04[3];                                /* 0x04 */
-    MPI3_SECURITY_ROOT_DIGEST       RootDigest;                                   /* 0x10 */
+    U8                              Root[MPI3_SECURITY2_ROOT_LEN];                /* 0x10 */ /* variable length */
 } MPI3_SECURITY2_TRUSTED_ROOT, MPI3_POINTER PTR_MPI3_SECURITY2_TRUSTED_ROOT,
   Mpi3Security2TrustedRoot_t, MPI3_POINTER pMpi3Security2TrustedRoot_t;
 
 /**** Defines for the TrustedRootFlags field ****/
+#define MPI3_SECURITY2_TRUSTEDROOT_TRUSTEDROOTFLAGS_ROOTFORM_MASK                  (0xF000)
+#define MPI3_SECURITY2_TRUSTEDROOT_TRUSTEDROOTFLAGS_ROOTFORM_SHIFT                 (12)
+#define MPI3_SECURITY2_TRUSTEDROOT_TRUSTEDROOTFLAGS_ROOTFORM_DIGEST                (0x0000)
+#define MPI3_SECURITY2_TRUSTEDROOT_TRUSTEDROOTFLAGS_ROOTFORM_DERCERT               (0x1000)
 #define MPI3_SECURITY2_TRUSTEDROOT_TRUSTEDROOTFLAGS_HASHALGOSOURCE_MASK            (0x0006)
 #define MPI3_SECURITY2_TRUSTEDROOT_TRUSTEDROOTFLAGS_HASHALGOSOURCE_SHIFT           (1)
 #define MPI3_SECURITY2_TRUSTEDROOT_TRUSTEDROOTFLAGS_HASHALGOSOURCE_HA_FIELD        (0x0000)
@@ -2407,7 +2497,8 @@ typedef struct _MPI3_SECURITY_PAGE2
     MPI3_SECURITY_NONCE             Nonce;                                         /* 0x50 */
     U32                             Reserved90[3];                                 /* 0x90 */
     U8                              NumRoots;                                      /* 0x9C */
-    U8                              Reserved9D[3];                                 /* 0x9D */
+    U8                              Reserved9D;                                    /* 0x9D */
+    U16                             RootElementSize;                               /* 0x9E */
     MPI3_SECURITY2_TRUSTED_ROOT     TrustedRoot[MPI3_SECURITY2_TRUSTED_ROOT_MAX];  /* 0xA0 */ /* variable length */
 } MPI3_SECURITY_PAGE2, MPI3_POINTER PTR_MPI3_SECURITY_PAGE2,
   Mpi3SecurityPage2_t, MPI3_POINTER pMpi3SecurityPage2_t;
@@ -3052,7 +3143,7 @@ typedef struct _MPI3_SAS_PHY_PAGE4
  *              Common definitions used by PCIe Configuration Pages          *
  ****************************************************************************/
 
-/**** Defines for Negotiated Link Rates ****/
+/**** Defines for NegotiatedLinkRates ****/
 #define MPI3_PCIE_LINK_RETIMERS_MASK                    (0x30)
 #define MPI3_PCIE_LINK_RETIMERS_SHIFT                   (4)
 #define MPI3_PCIE_NEG_LINK_RATE_MASK                    (0x0F)
@@ -3219,8 +3310,8 @@ typedef struct _MPI3_PCIE_IO_UNIT_PAGE1
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_PERST_OVERRIDE_BACKPLANE_ERROR          (0x60000000)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_REFCLK_OVERRIDE_MASK                    (0x1C000000)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_REFCLK_OVERRIDE_NONE                    (0x00000000)
-#define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_REFCLK_OVERRIDE_DEASSERT                (0x04000000)
-#define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_REFCLK_OVERRIDE_ASSERT                  (0x08000000)
+#define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_REFCLK_OVERRIDE_ENABLE                  (0x04000000)
+#define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_REFCLK_OVERRIDE_DISABLE                 (0x08000000)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_REFCLK_OVERRIDE_BACKPLANE_ERROR         (0x0C000000)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_PARTIAL_CAPACITY_ENABLE                 (0x00000100)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_LINK_OVERRIDE_DISABLE                   (0x00000080)
@@ -3362,12 +3453,14 @@ typedef struct _MPI3_PCIE_SWITCH_PAGE1
 /**** Defines for the PageVersion field ****/
 #define MPI3_PCIESWITCH1_PAGEVERSION        (0x00)
 
-/**** Defines for the FLAGS field ****/
+/**** Defines for the Flags field ****/
 #define MPI3_PCIESWITCH1_FLAGS_ASPMSTATE_MASK     (0x0C)
 #define MPI3_PCIESWITCH1_FLAGS_ASPMSTATE_SHIFT    (2)
+
 /*** use MPI3_PCIE_ASPM_ENABLE_ defines for ASPMState field values ***/
 #define MPI3_PCIESWITCH1_FLAGS_ASPMSUPPORT_MASK     (0x03)
 #define MPI3_PCIESWITCH1_FLAGS_ASPMSUPPORT_SHIFT    (0)
+
 /*** use MPI3_PCIE_ASPM_SUPPORT_ defines for ASPMSupport field values ***/
 
 /**** Defines for the NegotiatedLinkRate field - use MPI3_PCIE_NEG_LINK_RATE_ defines ****/
@@ -3454,6 +3547,8 @@ typedef struct _MPI3_ENCLOSURE_PAGE0
     U16                             SEPDevHandle;           /* 0x1A */
     U8                              ChassisSlot;            /* 0x1C */
     U8                              Reserved1D[3];          /* 0x1D */
+    U32                             ReceptacleIDs;          /* 0x20 */
+    U32                             Reserved24;             /* 0x24 */
 } MPI3_ENCLOSURE_PAGE0, MPI3_POINTER PTR_MPI3_ENCLOSURE_PAGE0,
   Mpi3EnclosurePage0_t, MPI3_POINTER pMpi3EnclosurePage0_t;
 
@@ -3474,7 +3569,8 @@ typedef struct _MPI3_ENCLOSURE_PAGE0
 #define MPI3_ENCLS0_FLAGS_MNG_IOC_SES                   (0x0001)
 #define MPI3_ENCLS0_FLAGS_MNG_SES_ENCLOSURE             (0x0002)
 
-/**** Defines for the PhysicalPort field - use MPI3_DEVICE0_PHYPORT_ defines ****/
+/**** Defines for the ReceptacleIDs field ****/
+#define MPI3_ENCLS0_RECEPTACLEIDS_NOT_REPORTED          (0x00000000)
 
 /*****************************************************************************
  *              Device Configuration Pages                                   *
@@ -3577,7 +3673,7 @@ typedef struct _MPI3_DEVICE0_PCIE_FORMAT
 #define MPI3_DEVICE0_PCIE_CAP_ASPM_SHIFT                    (6)
 /*** use MPI3_PCIE_ASPM_SUPPORT_  defines for ASPM field values ***/
 
-/**** Defines for the RecoverMethod field ****/
+/**** Defines for the RecoveryInfo field ****/
 #define MPI3_DEVICE0_PCIE_RECOVER_METHOD_MASK               (0xE0)
 #define MPI3_DEVICE0_PCIE_RECOVER_METHOD_NS_MGMT            (0x00)
 #define MPI3_DEVICE0_PCIE_RECOVER_METHOD_FORMAT             (0x20)
