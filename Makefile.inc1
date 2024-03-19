@@ -2255,17 +2255,18 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 	${METALOG_SORT_CMD} ${KSTAGEDIR}/kernel.${_kernel}.meta | \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${_kernel} ; \
-	sed -e "s/%VERSION%/${PKG_VERSION}/" \
-		-e "s/%PKGNAME%/kernel-${_kernel:tl}${flavor}/" \
-		-e "s/%KERNELDIR%/kernel.${_kernel}/" \
-		-e "s/%COMMENT%/FreeBSD ${_kernel} kernel ${flavor}/" \
-		-e "s/%DESC%/FreeBSD ${_kernel} kernel ${flavor}/" \
-		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
-		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
-		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
-		-e "s|%PKG_WWW%|${PKG_WWW}|" \
-		${SRCDIR}/release/packages/kernel.ucl \
-		> ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
+	${SRCDIR}/release/packages/generate-ucl.lua \
+		PKGNAME "kernel-${_kernel:tl}${flavor}/" \
+		PKGGENNAME "kernel" \
+		VERSION "${PKG_VERSION}" \
+		KERNELDIR "kernel.${_kernel}" \
+		DESC "FreeBSD ${_kernel} kernel ${flavor}" \
+		COMMENT "FreeBSD ${_kernel} kernel ${flavor}" \
+		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
+		PKG_MAINTAINER "${PKG_MAINTAINER}" \
+		PKG_WWW "${PKG_WWW}" \
+		${SRCDIR}/release/packages/template.ucl \
+		${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
 	awk -F\" ' \
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
