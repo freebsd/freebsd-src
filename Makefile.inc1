@@ -2187,16 +2187,16 @@ _debug=-dbg
 
 create-dtb-package:
 	@if [ -f ${KSTAGEDIR}/${DISTDIR}/dtb.plist ]; then \
-	sed -e "s/%VERSION%/${PKG_VERSION}/" \
-		-e "s/%PKGNAME%/dtb/" \
-		-e "s/%COMMENT%/FreeBSD Devicetree Blobs/" \
-		-e "s/%DESC%/FreeBSD Devicetree Blobs/" \
-		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
-		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
-		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
-		-e "s|%PKG_WWW%|${PKG_WWW}|" \
-		${SRCDIR}/release/packages/dtb.ucl \
-		> ${KSTAGEDIR}/${DISTDIR}/dtb.ucl ; \
+	${SRCDIR}/release/packages/generate-ucl.lua \
+		PKGNAME "dtb" \
+		VERSION "${PKG_VERSION}" \
+		COMMENT "FreeBSD Devicetree Blobs" \
+		DESC "FreeBSD Devicetree Blobs" \
+		PKG_NAME_PREFIX "${PKG_NAME_PREFIX}" \
+		PKG_MAINTAINER "${PKG_MAINTAINER}" \
+		PKG_WWW "${PKG_WWW}" \
+		${SRCDIR}/release/packages/template.ucl \
+		${KSTAGEDIR}/${DISTDIR}/dtb.ucl ; \
 	awk -F\" ' \
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
