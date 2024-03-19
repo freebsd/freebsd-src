@@ -549,7 +549,6 @@ static int
 ef_seg_read_string(elf_file_t ef, GElf_Addr address, size_t len, char *dest)
 {
 	GElf_Off ofs;
-	int error;
 
 	ofs = ef_get_offset(ef, address);
 	if (ofs == 0) {
@@ -559,13 +558,7 @@ ef_seg_read_string(elf_file_t ef, GElf_Addr address, size_t len, char *dest)
 		return (EFAULT);
 	}
 
-	error = elf_read_raw_data(ef->ef_efile, ofs, dest, len);
-	if (error != 0)
-		return (error);
-	if (strnlen(dest, len) == len)
-		return (EFAULT);
-
-	return (0);
+	return (elf_read_raw_string(ef->ef_efile, ofs, dest, len));
 }
 
 int
