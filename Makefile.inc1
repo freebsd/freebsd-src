@@ -2227,7 +2227,7 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${_kernel} ; \
 	${SRCDIR}/release/packages/generate-ucl.lua \
-		PKGNAME "kernel-${_kernel:tl}${flavor}/" \
+		PKGNAME "kernel-${_kernel:tl}${flavor}" \
 		PKGGENNAME "kernel" \
 		VERSION "${PKG_VERSION}" \
 		KERNELDIR "kernel.${_kernel}" \
