@@ -167,7 +167,7 @@ in_localip(struct in_addr in)
 }
 
 /*
- * Like in_localip(), but FIB-aware.
+ * Like in_localip(), but FIB-aware and carp(4)-aware.
  */
 bool
 in_localip_fib(struct in_addr in, uint16_t fib)
@@ -178,6 +178,8 @@ in_localip_fib(struct in_addr in, uint16_t fib)
 
 	CK_LIST_FOREACH(ia, INADDR_HASH(in.s_addr), ia_hash)
 		if (IA_SIN(ia)->sin_addr.s_addr == in.s_addr &&
+		    (ia->ia_ifa.ifa_carp == NULL ||
+		    carp_master_p(&ia->ia_ifa)) &&
 		    ia->ia_ifa.ifa_ifp->if_fib == fib)
 			return (true);
 
