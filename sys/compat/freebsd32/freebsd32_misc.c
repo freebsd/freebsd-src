@@ -1191,7 +1191,7 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 }
 
 int
-freebsd32_copyinuio(struct iovec32 *iovp, u_int iovcnt, struct uio **uiop)
+freebsd32_copyinuio(const struct iovec32 *iovp, u_int iovcnt, struct uio **uiop)
 {
 	struct iovec32 iov32;
 	struct iovec *iov;
