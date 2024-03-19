@@ -40,6 +40,7 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 #include <sys/_sigset.h>
+#include <sys/_sigaltstack.h>
 
 #include <machine/_limits.h>	/* __MINSIGSTKSZ */
 #include <machine/signal.h>	/* sig_atomic_t; trap codes; sigcontext */
@@ -425,29 +426,6 @@ struct sigaction {
 typedef	__sighandler_t	*sig_t;	/* type of pointer to a signal function */
 typedef	void __siginfohandler_t(int, struct __siginfo *, void *);
 #endif
-
-#if __XSI_VISIBLE
-#if __BSD_VISIBLE
-#define	__stack_t sigaltstack
-#endif
-typedef	struct __stack_t stack_t;
-
-#define	SS_ONSTACK	0x0001	/* take signal on alternate stack */
-#define	SS_DISABLE	0x0004	/* disable taking signals on alternate stack */
-#define	MINSIGSTKSZ	__MINSIGSTKSZ		/* minimum stack size */
-#define	SIGSTKSZ	(MINSIGSTKSZ + 32768)	/* recommended stack size */
-#endif
-
-/*
- * Structure used in sigaltstack call.  Its definition is always
- * needed for __ucontext.  If __BSD_VISIBLE is defined, the structure
- * tag is actually sigaltstack.
- */
-struct __stack_t {
-	void	*ss_sp;			/* signal stack base */
-	__size_t ss_size;		/* signal stack length */
-	int	ss_flags;		/* SS_DISABLE and/or SS_ONSTACK */
-};
 
 #if __BSD_VISIBLE
 /*
