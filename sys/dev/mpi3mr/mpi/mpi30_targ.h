@@ -1,7 +1,7 @@
 /*
- * SPDX-License-Identifier: BSD-2-Clause
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2016-2023, Broadcom Inc. All rights reserved.
+ * Copyright (c) 2016-2024, Broadcom Inc. All rights reserved.
  * Support: <fbsd-storage-driver.pdl@broadcom.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
  * Broadcom Inc. (Broadcom) MPI3MR Adapter FreeBSD
  *
  */
-
 #ifndef MPI30_TARG_H
 #define MPI30_TARG_H     1
 
@@ -191,7 +190,7 @@ typedef struct _MPI3_TARGET_ASSIST_REQUEST
     U16                     QueueTag;                   /* 0x12 */
     U16                     IoIndex;                    /* 0x14 */
     U16                     InitiatorConnectionTag;     /* 0x16 */
-    U32                     SkipCount;                  /* 0x18 */
+    U32                     IOCUseOnly18;               /* 0x18 */
     U32                     DataLength;                 /* 0x1C */
     U32                     PortTransferLength;         /* 0x20 */
     U32                     PrimaryReferenceTag;        /* 0x24 */
@@ -206,6 +205,8 @@ typedef struct _MPI3_TARGET_ASSIST_REQUEST
 #define MPI3_TARGET_ASSIST_MSGFLAGS_METASGL_VALID           (0x80)
 
 /**** Defines for the Flags field ****/
+#define MPI3_TARGET_ASSIST_FLAGS_IOC_USE_ONLY_23_MASK       (0x00800000)
+#define MPI3_TARGET_ASSIST_FLAGS_IOC_USE_ONLY_22_MASK       (0x00400000)
 #define MPI3_TARGET_ASSIST_FLAGS_REPOST_CMD_BUFFER          (0x00200000)
 #define MPI3_TARGET_ASSIST_FLAGS_AUTO_STATUS                (0x00100000)
 #define MPI3_TARGET_ASSIST_FLAGS_DATADIRECTION_MASK         (0x000C0000)
@@ -243,6 +244,7 @@ typedef struct _MPI3_TARGET_STATUS_SEND_REQUEST
   Mpi3TargetStatusSendRequest_t, MPI3_POINTER pMpi3TargetStatusSendRequest_t;
 
 /**** Defines for the Flags field ****/
+#define MPI3_TSS_FLAGS_IOC_USE_ONLY_6_MASK              (0x0040)
 #define MPI3_TSS_FLAGS_REPOST_CMD_BUFFER                (0x0020)
 #define MPI3_TSS_FLAGS_AUTO_SEND_GOOD_STATUS            (0x0010)
 

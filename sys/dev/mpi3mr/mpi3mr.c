@@ -2269,7 +2269,7 @@ mpi3mr_display_ioc_info(struct mpi3mr_softc *sc)
         printf("Capabilities=(");
 
         if (sc->facts.ioc_capabilities &
-            MPI3_IOCFACTS_CAPABILITY_RAID_CAPABLE) {
+	    MPI3_IOCFACTS_CAPABILITY_RAID_SUPPORTED) {
                 printf("RAID");
                 i++;
         }
@@ -3889,7 +3889,7 @@ static void mpi3mr_sastopochg_evt_th(struct mpi3mr_softc *sc,
 		handle = le16toh(topo_evt->PhyEntry[i].AttachedDevHandle);
 		if (!handle)
 			continue;
-		reason_code = topo_evt->PhyEntry[i].Status &
+		reason_code = topo_evt->PhyEntry[i].PhyStatus &
 		    MPI3_EVENT_SAS_TOPO_PHY_RC_MASK;
 		tgtdev = mpi3mr_find_target_by_dev_handle(sc->cam_sc, handle);
 		switch (reason_code) {
@@ -4280,10 +4280,9 @@ static void mpi3mr_process_admin_reply_desc(struct mpi3mr_softc *sc,
 		status_desc = (Mpi3StatusReplyDescriptor_t *)reply_desc;
 		host_tag = status_desc->HostTag;
 		ioc_status = status_desc->IOCStatus;
-		if (ioc_status &
-		    MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_LOGINFOAVAIL)
+		if (ioc_status & MPI3_IOCSTATUS_STATUS_MASK)
 			ioc_loginfo = status_desc->IOCLogInfo;
-		ioc_status &= MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_STATUS_MASK;
+		ioc_status &= MPI3_IOCSTATUS_STATUS_MASK;
 		break;
 	case MPI3_REPLY_DESCRIPT_FLAGS_TYPE_ADDRESS_REPLY:
 		addr_desc = (Mpi3AddressReplyDescriptor_t *)reply_desc;
@@ -4293,10 +4292,9 @@ static void mpi3mr_process_admin_reply_desc(struct mpi3mr_softc *sc,
 			goto out;
 		host_tag = def_reply->HostTag;
 		ioc_status = def_reply->IOCStatus;
-		if (ioc_status &
-		    MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_LOGINFOAVAIL)
+		if (ioc_status & MPI3_IOCSTATUS_STATUS_MASK)
 			ioc_loginfo = def_reply->IOCLogInfo;
-		ioc_status &= MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_STATUS_MASK;
+		ioc_status &= MPI3_IOCSTATUS_STATUS_MASK;
 		if (def_reply->Function == MPI3_FUNCTION_SCSI_IO) {
 			scsi_reply = (Mpi3SCSIIOReply_t *)def_reply;
 			sense_buf = mpi3mr_get_sensebuf_virt_addr(sc,
@@ -4497,10 +4495,9 @@ void mpi3mr_process_op_reply_desc(struct mpi3mr_softc *sc,
 		status_desc = (Mpi3StatusReplyDescriptor_t *)reply_desc;
 		host_tag = status_desc->HostTag;
 		ioc_status = status_desc->IOCStatus;
-		if (ioc_status &
-		    MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_LOGINFOAVAIL)
+		if (ioc_status & MPI3_IOCSTATUS_STATUS_MASK)
 			ioc_loginfo = status_desc->IOCLogInfo;
-		ioc_status &= MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_STATUS_MASK;
+		ioc_status &= MPI3_IOCSTATUS_STATUS_MASK;
 		break;
 	case MPI3_REPLY_DESCRIPT_FLAGS_TYPE_ADDRESS_REPLY:
 		addr_desc = (Mpi3AddressReplyDescriptor_t *)reply_desc;
@@ -4524,10 +4521,9 @@ void mpi3mr_process_op_reply_desc(struct mpi3mr_softc *sc,
 		resp_data = scsi_reply->ResponseData;
 		sense_buf = mpi3mr_get_sensebuf_virt_addr(sc,
 		    scsi_reply->SenseDataBufferAddress);
-		if (ioc_status &
-		    MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_LOGINFOAVAIL)
+		if (ioc_status & MPI3_IOCSTATUS_STATUS_MASK)
 			ioc_loginfo = scsi_reply->IOCLogInfo;
-		ioc_status &= MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_STATUS_MASK;
+		ioc_status &= MPI3_IOCSTATUS_STATUS_MASK;
 		if (sense_state == MPI3_SCSI_STATE_SENSE_BUFF_Q_EMPTY)
 			mpi3mr_dprint(sc, MPI3MR_ERROR, "Ran out of sense buffers\n");
 
@@ -4729,7 +4725,7 @@ void mpi3mr_process_op_reply_desc(struct mpi3mr_softc *sc,
 		csio->resid = cm->length - le32toh(xfer_count);
 	case MPI3_IOCSTATUS_SCSI_RECOVERED_ERROR:
 	case MPI3_IOCSTATUS_SUCCESS:
-		if ((scsi_reply->IOCStatus & MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_STATUS_MASK) ==
+		if ((scsi_reply->IOCStatus & MPI3_IOCSTATUS_STATUS_MASK) ==
 		    MPI3_IOCSTATUS_SCSI_RECOVERED_ERROR)
 			mpi3mr_dprint(sc, MPI3MR_XINFO, "func: %s line: %d recovered error\n",  __func__, __LINE__);
 

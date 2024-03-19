@@ -1,7 +1,7 @@
 /*
- * SPDX-License-Identifier: BSD-2-Clause
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2016-2023, Broadcom Inc. All rights reserved.
+ * Copyright (c) 2016-2024, Broadcom Inc. All rights reserved.
  * Support: <fbsd-storage-driver.pdl@broadcom.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,10 +37,8 @@
  *
  * Broadcom Inc. (Broadcom) MPI3MR Adapter FreeBSD
  *
- */
-
-/*
- * Version History
+ *
+ *  Version History
  *  ---------------
  *
  *  Date      Version       Description
@@ -72,7 +70,11 @@
  *  09-02-22  03.00.27.00  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 27.
  *  10-20-22  03.00.27.01  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 27 - Interim Release 1.
  *  12-02-22  03.00.28.00  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 28.
- *  02-24-22  03.00.29.00  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 29.
+ *  02-24-23  03.00.29.00  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 29.
+ *  05-19-23  03.00.30.00  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 30.
+ *  08-18-23  03.00.30.01  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 30 - Interim Release 1.
+ *  11-17-23  03.00.31.00  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 31
+ *  02-16-24  03.00.32.00  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 32
  */
 #ifndef MPI30_TRANSPORT_H
 #define MPI30_TRANSPORT_H     1
@@ -101,7 +103,7 @@ typedef union _MPI3_VERSION_UNION
 /****** Version constants for this revision ****/
 #define MPI3_VERSION_MAJOR                                              (3)
 #define MPI3_VERSION_MINOR                                              (0)
-#define MPI3_VERSION_UNIT                                               (29)
+#define MPI3_VERSION_UNIT                                               (32)
 #define MPI3_VERSION_DEV                                                (0)
 
 /****** DevHandle definitions *****/
@@ -425,15 +427,9 @@ typedef struct _MPI3_STATUS_REPLY_DESCRIPTOR
 } MPI3_STATUS_REPLY_DESCRIPTOR, MPI3_POINTER PTR_MPI3_STATUS_REPLY_DESCRIPTOR,
   Mpi3StatusReplyDescriptor_t, MPI3_POINTER pMpi3StatusReplyDescriptor_t;
 
-/**** Defines for the IOCStatus field ****/
-#define MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_LOGINFOAVAIL               (0x8000)
-#define MPI3_REPLY_DESCRIPT_STATUS_IOCSTATUS_STATUS_MASK                (0x7FFF)
+/**** Use MPI3_IOCSTATUS_ defines for the IOCStatus field ****/
 
-/**** Defines for the IOCLogInfo field ****/
-#define MPI3_REPLY_DESCRIPT_STATUS_IOCLOGINFO_TYPE_MASK                 (0xF0000000)
-#define MPI3_REPLY_DESCRIPT_STATUS_IOCLOGINFO_TYPE_NO_INFO              (0x00000000)
-#define MPI3_REPLY_DESCRIPT_STATUS_IOCLOGINFO_TYPE_SAS                  (0x30000000)
-#define MPI3_REPLY_DESCRIPT_STATUS_IOCLOGINFO_DATA_MASK                 (0x0FFFFFFF)
+/**** Use MPI3_IOCLOGINFO_ defines for the IOCLogInfo field ****/
 
 /*****************************************************************************
  *              Union of Reply Descriptors                                   *
@@ -652,7 +648,6 @@ typedef struct _MPI3_DEFAULT_REPLY
 #define MPI3_FUNCTION_MAX_PRODUCT_SPECIFIC          (0xFF)  /* End of the product-specific range of function codes */
 
 /**** Defines for IOCStatus ****/
-#define MPI3_IOCSTATUS_LOG_INFO_AVAIL_MASK          (0x8000)
 #define MPI3_IOCSTATUS_LOG_INFO_AVAILABLE           (0x8000)
 #define MPI3_IOCSTATUS_STATUS_MASK                  (0x7FFF)
 

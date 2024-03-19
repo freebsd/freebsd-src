@@ -1561,7 +1561,7 @@ mpi3mr_sastopochg_evt_debug(struct mpi3mr_softc *sc,
 		if (!handle)
 			continue;
 		phy_number = event_data->StartPhyNum + i;
-		reason_code = event_data->PhyEntry[i].Status &
+		reason_code = event_data->PhyEntry[i].PhyStatus &
 		    MPI3_EVENT_SAS_TOPO_PHY_RC_MASK;
 		switch (reason_code) {
 		case MPI3_EVENT_SAS_TOPO_PHY_RC_TARG_NOT_RESPONDING:
@@ -1614,7 +1614,7 @@ mpi3mr_process_sastopochg_evt(struct mpi3mr_softc *sc, struct mpi3mr_fw_event_wo
 			continue;
 		
 		target->link_rate = link_rate;
-		reason_code = event_data->PhyEntry[i].Status &
+		reason_code = event_data->PhyEntry[i].PhyStatus &
 			MPI3_EVENT_SAS_TOPO_PHY_RC_MASK;
 
 		switch (reason_code) {
