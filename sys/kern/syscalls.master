@@ -784,14 +784,14 @@
 120	AUE_READV	STD|CAPENABLED {
 		int readv(
 		    int fd,
-		    _Inout_updates_(iovcnt) _Contains_long_ptr_ struct iovec *iovp,
+		    _In_reads_(iovcnt) _Contains_long_ptr_ const struct iovec *iovp,
 		    u_int iovcnt
 		);
 	}
 121	AUE_WRITEV	STD|CAPENABLED {
 		int writev(
 		    int fd,
-		    _In_reads_opt_(iovcnt) _Contains_long_ptr_ struct iovec *iovp,
+		    _In_reads_(iovcnt) _Contains_long_ptr_ const struct iovec *iovp,
 		    u_int iovcnt
 		);
 	}
