@@ -142,6 +142,9 @@
 #define MAX_MGMT_ADAPTERS 8
 #define MPI3MR_WAIT_BEFORE_CTRL_RESET 5
 
+#define MPI3MR_RESET_REASON_OSTYPE_FREEBSD        0x4
+#define MPI3MR_RESET_REASON_OSTYPE_SHIFT	  28
+#define MPI3MR_RESET_REASON_IOCNUM_SHIFT          20
 
 struct mpi3mr_mgmt_info {
 	uint16_t count;
@@ -962,7 +965,7 @@ void mpi3mr_cleanup_event_taskq(struct mpi3mr_softc *sc);
 void
 mpi3mr_hexdump(void *buf, int sz, int format);
 int mpi3mr_soft_reset_handler(struct mpi3mr_softc *sc,
-	U32 reset_reason, bool snapdump);
+	U16 reset_reason, bool snapdump);
 void
 mpi3mrsas_release_simq_reinit(struct mpi3mr_cam_softc *cam_sc);
 void
@@ -984,6 +987,6 @@ void mpi3mr_set_io_divert_for_all_vd_in_tg(struct mpi3mr_softc *sc,
 enum mpi3mr_iocstate mpi3mr_get_iocstate(struct mpi3mr_softc *sc);
 void mpi3mr_poll_pend_io_completions(struct mpi3mr_softc *sc);
 void int_to_lun(unsigned int lun, U8 *req_lun);
-void trigger_reset_from_watchdog(struct mpi3mr_softc *sc, U8 reset_type, U32 reset_reason);
+void trigger_reset_from_watchdog(struct mpi3mr_softc *sc, U8 reset_type, U16 reset_reason);
 void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_softc *sc);
 #endif /*MPI3MR_H_INCLUDED*/

@@ -455,7 +455,7 @@ void mpi3mr_poll_pend_io_completions(struct mpi3mr_softc *sc)
 }
 
 void
-trigger_reset_from_watchdog(struct mpi3mr_softc *sc, U8 reset_type, U32 reset_reason)
+trigger_reset_from_watchdog(struct mpi3mr_softc *sc, U8 reset_type, U16 reset_reason)
 {
 	if (sc->reset_in_progress) {
 		mpi3mr_dprint(sc, MPI3MR_INFO, "Another reset is in progress, no need to trigger the reset\n");

@@ -84,7 +84,7 @@ static void mpi3mr_port_enable_complete(struct mpi3mr_softc *sc,
 	struct mpi3mr_drvr_cmd *drvrcmd);
 static void mpi3mr_flush_io(struct mpi3mr_softc *sc);
 static int mpi3mr_issue_reset(struct mpi3mr_softc *sc, U16 reset_type,
-	U32 reset_reason);
+	U16 reset_reason);
 static void mpi3mr_dev_rmhs_send_tm(struct mpi3mr_softc *sc, U16 handle,
 	struct mpi3mr_drvr_cmd *cmdparam, U8 iou_rc);
 static void mpi3mr_dev_rmhs_complete_iou(struct mpi3mr_softc *sc,
@@ -187,7 +187,7 @@ poll_for_command_completion(struct mpi3mr_softc *sc,
  * Return:  None.
  */
 static void
-mpi3mr_trigger_snapdump(struct mpi3mr_softc *sc, U32 reason_code)
+mpi3mr_trigger_snapdump(struct mpi3mr_softc *sc, U16 reason_code)
 {
 	U32 host_diagnostic, timeout = MPI3_SYSIF_DIAG_SAVE_TIMEOUT * 10;
 	
@@ -222,7 +222,7 @@ mpi3mr_trigger_snapdump(struct mpi3mr_softc *sc, U32 reason_code)
  *
  * Return:  None.
  */
-static void mpi3mr_check_rh_fault_ioc(struct mpi3mr_softc *sc, U32 reason_code)
+static void mpi3mr_check_rh_fault_ioc(struct mpi3mr_softc *sc, U16 reason_code)
 {
 	U32 ioc_status;
 
@@ -1168,9 +1168,9 @@ static inline void mpi3mr_clear_resethistory(struct mpi3mr_softc *sc)
  *
  * Return: 0 on success, -1 on failure.
  */
-static int mpi3mr_mur_ioc(struct mpi3mr_softc *sc, U32 reset_reason)
+static int mpi3mr_mur_ioc(struct mpi3mr_softc *sc, U16 reset_reason)
 {
-        U32 ioc_config, timeout, ioc_status;
+	U32 ioc_config, timeout, ioc_status, scratch_pad0;
         int retval = -1;
 
         mpi3mr_dprint(sc, MPI3MR_INFO, "Issuing Message Unit Reset(MUR)\n");
@@ -1179,7 +1179,12 @@ static int mpi3mr_mur_ioc(struct mpi3mr_softc *sc, U32 reset_reason)
                 return retval;
         }
         mpi3mr_clear_resethistory(sc);
-	mpi3mr_regwrite(sc, MPI3_SYSIF_SCRATCHPAD0_OFFSET, reset_reason);
+
+	scratch_pad0 = ((MPI3MR_RESET_REASON_OSTYPE_FREEBSD <<
+			MPI3MR_RESET_REASON_OSTYPE_SHIFT) |
+			(sc->facts.ioc_num <<
+			MPI3MR_RESET_REASON_IOCNUM_SHIFT) | reset_reason);
+	mpi3mr_regwrite(sc, MPI3_SYSIF_SCRATCHPAD0_OFFSET, scratch_pad0);
 	ioc_config = mpi3mr_regread(sc, MPI3_SYSIF_IOC_CONFIG_OFFSET);
         ioc_config &= ~MPI3_SYSIF_IOC_CONFIG_ENABLE_IOC;
 	mpi3mr_regwrite(sc, MPI3_SYSIF_IOC_CONFIG_OFFSET, ioc_config);
@@ -5762,11 +5767,11 @@ static inline void mpi3mr_set_diagsave(struct mpi3mr_softc *sc)
  * Return: 0 on success, non-zero on failure.
  */
 static int mpi3mr_issue_reset(struct mpi3mr_softc *sc, U16 reset_type,
-	U32 reset_reason)
+	U16 reset_reason)
 {
 	int retval = -1;
 	U8 unlock_retry_count = 0;
-	U32 host_diagnostic, ioc_status, ioc_config;
+	U32 host_diagnostic, ioc_status, ioc_config, scratch_pad0;
 	U32 timeout = MPI3MR_RESET_ACK_TIMEOUT * 10;
 
 	if ((reset_type != MPI3_SYSIF_HOST_DIAG_RESET_ACTION_SOFT_RESET) &&
@@ -5820,7 +5825,11 @@ static int mpi3mr_issue_reset(struct mpi3mr_softc *sc, U16 reset_type,
 		    unlock_retry_count, host_diagnostic);
 	} while (!(host_diagnostic & MPI3_SYSIF_HOST_DIAG_DIAG_WRITE_ENABLE));
 
-	mpi3mr_regwrite(sc, MPI3_SYSIF_SCRATCHPAD0_OFFSET, reset_reason);
+	scratch_pad0 = ((MPI3MR_RESET_REASON_OSTYPE_FREEBSD <<
+			MPI3MR_RESET_REASON_OSTYPE_SHIFT) |
+			(sc->facts.ioc_num <<
+			MPI3MR_RESET_REASON_IOCNUM_SHIFT) | reset_reason);
+	mpi3mr_regwrite(sc, MPI3_SYSIF_SCRATCHPAD0_OFFSET, scratch_pad0);
 	mpi3mr_regwrite(sc, MPI3_SYSIF_HOST_DIAG_OFFSET, host_diagnostic | reset_type);
 	
 	if (reset_type == MPI3_SYSIF_HOST_DIAG_RESET_ACTION_SOFT_RESET) {
@@ -5899,7 +5908,7 @@ inline void mpi3mr_cleanup_event_taskq(struct mpi3mr_softc *sc)
  * Return: 0 on success, non-zero on failure.
  */
 int mpi3mr_soft_reset_handler(struct mpi3mr_softc *sc,
-	U32 reset_reason, bool snapdump)
+	U16 reset_reason, bool snapdump)
 {
 	int retval = 0, i = 0;
 	enum mpi3mr_iocstate ioc_state;
