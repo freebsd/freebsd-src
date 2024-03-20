@@ -315,7 +315,7 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		    tls->params.max_frame_len;
 		toep->tls.tx_key_info_size = t4_tls_key_info_size(tls);
 	} else {
-		toep->flags |= TPF_TLS_STARTING | TPF_TLS_RX_QUIESCED;
+		toep->flags |= TPF_TLS_STARTING | TPF_TLS_RX_QUIESCING;
 		toep->tls.rx_version = tls->params.tls_vmajor << 8 |
 		    tls->params.tls_vminor;
 
@@ -1243,6 +1243,10 @@ tls_received_starting_data(struct adapter *sc, struct toepcb *toep,
 {
 	MPASS(toep->flags & TPF_TLS_STARTING);
 
+	/* Data was received before quiescing took effect. */
+	if ((toep->flags & TPF_TLS_RX_QUIESCING) != 0)
+		return;
+
 	/*
 	 * A previous call to tls_check_rx_sockbuf needed more data.
 	 * Now that more data has arrived, quiesce receive again and
@@ -1250,7 +1254,7 @@ tls_received_starting_data(struct adapter *sc, struct toepcb *toep,
 	 */
 	if ((toep->flags & TPF_TLS_RX_QUIESCED) == 0) {
 		CTR(KTR_CXGBE, "%s: tid %d quiescing", __func__, toep->tid);
-		toep->flags |= TPF_TLS_RX_QUIESCED;
+		toep->flags |= TPF_TLS_RX_QUIESCING;
 		t4_set_rx_quiesce(toep);
 		return;
 	}
@@ -1287,6 +1291,10 @@ do_tls_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		if ((toep->flags & TPF_TLS_STARTING) == 0)
 			panic("%s: connection is not starting TLS RX\n",
 			    __func__);
+		MPASS((toep->flags & TPF_TLS_RX_QUIESCING) != 0);
+
+		toep->flags &= ~TPF_TLS_RX_QUIESCING;
+		toep->flags |= TPF_TLS_RX_QUIESCED;
 
 		so = inp->inp_socket;
 		sb = &so->so_rcv;
