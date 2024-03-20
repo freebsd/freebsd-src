@@ -186,10 +186,17 @@ free_ddp_buffer(struct tom_data *td, struct ddp_buffer *db)
 		 */
 		if (!aio_clear_cancel_function(db->job))
 			ddp_complete_one(db->job, 0);
+#ifdef INVARIANTS
+		db->job = NULL;
+#endif
 	}
 
-	if (db->ps)
+	if (db->ps) {
 		free_pageset(td, db->ps);
+#ifdef INVARIANTS
+		db->ps = NULL;
+#endif
+	}
 }
 
 static void
