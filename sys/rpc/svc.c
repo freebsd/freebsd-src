@@ -50,12 +50,15 @@
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
 #include <sys/smp.h>
 #include <sys/sx.h>
 #include <sys/ucred.h>
+
+#include <netinet/tcp.h>
 
 #include <rpc/rpc.h>
 #include <rpc/rpcb_clnt.h>
@@ -985,6 +988,23 @@ svc_getreq(SVCXPRT *xprt, struct svc_req **rqstp_ret)
 		if (!SVCAUTH_UNWRAP(&r->rq_auth, &r->rq_args)) {
 			svcerr_decode(r);
 			goto call_done;
+		}
+
+		/*
+		 * Defer enabling DDP until the first non-NULLPROC RPC
+		 * is received to allow STARTTLS authentication to
+		 * enable TLS offload first.
+		 */
+		if (xprt->xp_doneddp == 0 && r->rq_proc != NULLPROC &&
+		    atomic_cmpset_int(&xprt->xp_doneddp, 0, 1)) {
+			if (xprt->xp_socket->so_proto->pr_protocol ==
+			    IPPROTO_TCP) {
+				int optval = 1;
+
+				(void)so_setsockopt(xprt->xp_socket,
+				    IPPROTO_TCP, TCP_USE_DDP, &optval,
+				    sizeof(optval));
+			}
 		}
 
 		/*
