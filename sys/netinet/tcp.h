@@ -187,6 +187,9 @@ struct tcphdr {
 #define	TCP_RXTLS_MODE	42	/* Receive TLS mode */
 #define	TCP_IWND_NB	43	/* Override initial window (units: bytes) */
 #define	TCP_IWND_NSEG	44	/* Override initial window (units: MSS segs) */
+#ifdef _KERNEL
+#define	TCP_USE_DDP	45	/* Use direct data placement for so_rcvbuf */
+#endif
 #define	TCP_LOGID_CNT	46	/* get number of connections with the same ID */
 #define	TCP_LOG_TAG	47	/* configure tag for grouping logs */
 #define	TCP_USER_LOG	48	/* userspace log event */
