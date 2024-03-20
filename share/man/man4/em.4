@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 2001-2003, Intel Corporation
 .\" All rights reserved.
 .\"
@@ -29,11 +32,13 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd August 3, 2023
+.Dd March 20, 2024
 .Dt EM 4
 .Os
 .Sh NAME
-.Nm em
+.Nm em ,
+.Nm lem ,
+.Nm igb
 .Nd "Intel(R) PRO/1000 Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
@@ -72,9 +77,9 @@ Controller Hub (ICH) and Platform Controller Hub (PCH) including Intel
 The
 .Nm
 driver provides support for PCI Express Gigabit Ethernet adapters
-based on the Intel 82575, 82576, 82580, i210, i211, and i35x.  These
-appear as
-.Cm igb
+based on the Intel 82575, 82576, 82580, i210, i211, and i35x.
+These appear as
+.Nm igb
 interfaces to maintain compatibility with existing infrastructure.
 .Pp
 The driver supports Transmit/Receive checksum offload and Jumbo Frames
@@ -319,7 +324,12 @@ The
 device driver first appeared in
 .Fx 4.4 .
 .Nm
-was merged with the lem and igb device driver and converted to the iflib
+was merged with the
+.Nm lem
+and
+.Nm igb
+device drivers and converted to the
+.Xr iflib 4
 framework in
 .Fx 12.0 .
 .Sh AUTHORS
@@ -328,7 +338,11 @@ The
 .Nm
 driver was originally written by
 .An Intel Corporation Aq Mt freebsd@intel.com .
-It was merged with igb driver and converted to the iflib framework by
+It was merged with the
+.Nm igb
+driver and converted to the
+.Xr iflib 4
+framework by
 .An Matthew Macy Aq Mt mmacy@mattmacy.io
 and
 .An Sean Bruno Aq Mt sbruno@FreeBSD.org .
