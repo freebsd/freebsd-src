@@ -188,6 +188,7 @@ typedef struct __rpc_svcxprt {
 	int		xp_ngrps;	/* Cred. from TLS cert. */
 	uid_t		xp_uid;
 	gid_t		*xp_gidp;
+	int		xp_doneddp;
 #else
 	int		xp_fd;
 	u_short		xp_port;	 /* associated port number */
