@@ -1951,6 +1951,35 @@ t4_tom_deactivate(struct adapter *sc)
 }
 
 static int
+t4_ctloutput_tom(struct socket *so, struct sockopt *sopt)
+{
+	struct tcpcb *tp = sototcpcb(so);
+	struct toepcb *toep = tp->t_toe;
+	int error, optval;
+
+	if (sopt->sopt_level == IPPROTO_TCP && sopt->sopt_name == TCP_USE_DDP) {
+		if (sopt->sopt_dir != SOPT_SET)
+			return (EOPNOTSUPP);
+
+		if (sopt->sopt_td != NULL) {
+			/* Only settable by the kernel. */
+			return (EPERM);
+		}
+
+		error = sooptcopyin(sopt, &optval, sizeof(optval),
+		    sizeof(optval));
+		if (error != 0)
+			return (error);
+
+		if (optval != 0)
+			return (t4_enable_ddp_rcv(so, toep));
+		else
+			return (EOPNOTSUPP);
+	}
+	return (tcp_ctloutput(so, sopt));
+}
+
+static int
 t4_aio_queue_tom(struct socket *so, struct kaiocb *job)
 {
 	struct tcpcb *tp = sototcpcb(so);
@@ -1989,9 +2018,11 @@ t4_tom_mod_load(void)
 	t4_tls_mod_load();
 
 	bcopy(&tcp_protosw, &toe_protosw, sizeof(toe_protosw));
+	toe_protosw.pr_ctloutput = t4_ctloutput_tom;
 	toe_protosw.pr_aio_queue = t4_aio_queue_tom;
 
 	bcopy(&tcp6_protosw, &toe6_protosw, sizeof(toe6_protosw));
+	toe6_protosw.pr_ctloutput = t4_ctloutput_tom;
 	toe6_protosw.pr_aio_queue = t4_aio_queue_tom;
 
 	return (t4_register_uld(&tom_uld_info));

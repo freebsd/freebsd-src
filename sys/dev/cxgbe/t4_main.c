@@ -412,6 +412,15 @@ SYSCTL_INT(_hw_cxgbe_toe_rexmt_backoff, OID_AUTO, 14, CTLFLAG_RDTUN,
     &t4_toe_rexmt_backoff[14], 0, "");
 SYSCTL_INT(_hw_cxgbe_toe_rexmt_backoff, OID_AUTO, 15, CTLFLAG_RDTUN,
     &t4_toe_rexmt_backoff[15], 0, "");
+
+int t4_ddp_rcvbuf_len = 256 * 1024;
+SYSCTL_INT(_hw_cxgbe_toe, OID_AUTO, ddp_rcvbuf_len, CTLFLAG_RWTUN,
+    &t4_ddp_rcvbuf_len, 0, "length of each DDP RX buffer");
+
+unsigned int t4_ddp_rcvbuf_cache = 4;
+SYSCTL_UINT(_hw_cxgbe_toe, OID_AUTO, ddp_rcvbuf_cache, CTLFLAG_RWTUN,
+    &t4_ddp_rcvbuf_cache, 0,
+    "maximum number of free DDP RX buffers to cache per connection");
 #endif
 
 #ifdef DEV_NETMAP
@@ -12046,6 +12055,10 @@ clear_stats(struct adapter *sc, u_int port_id)
 				ofld_rxq->rx_aio_ddp_octets = 0;
 				ofld_rxq->rx_toe_tls_records = 0;
 				ofld_rxq->rx_toe_tls_octets = 0;
+				ofld_rxq->rx_toe_ddp_octets = 0;
+				counter_u64_zero(ofld_rxq->ddp_buffer_alloc);
+				counter_u64_zero(ofld_rxq->ddp_buffer_reuse);
+				counter_u64_zero(ofld_rxq->ddp_buffer_free);
 			}
 #endif
 

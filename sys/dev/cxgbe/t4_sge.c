@@ -4098,6 +4098,9 @@ alloc_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq, int idx,
 		ofld_rxq->rx_iscsi_ddp_setup_ok = counter_u64_alloc(M_WAITOK);
 		ofld_rxq->rx_iscsi_ddp_setup_error =
 		    counter_u64_alloc(M_WAITOK);
+		ofld_rxq->ddp_buffer_alloc = counter_u64_alloc(M_WAITOK);
+		ofld_rxq->ddp_buffer_reuse = counter_u64_alloc(M_WAITOK);
+		ofld_rxq->ddp_buffer_free = counter_u64_alloc(M_WAITOK);
 		add_ofld_rxq_sysctls(&vi->ctx, oid, ofld_rxq);
 	}
 
@@ -4132,6 +4135,9 @@ free_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq)
 		MPASS(!(ofld_rxq->iq.flags & IQ_SW_ALLOCATED));
 		counter_u64_free(ofld_rxq->rx_iscsi_ddp_setup_ok);
 		counter_u64_free(ofld_rxq->rx_iscsi_ddp_setup_error);
+		counter_u64_free(ofld_rxq->ddp_buffer_alloc);
+		counter_u64_free(ofld_rxq->ddp_buffer_reuse);
+		counter_u64_free(ofld_rxq->ddp_buffer_free);
 		bzero(ofld_rxq, sizeof(*ofld_rxq));
 	}
 }
@@ -4158,6 +4164,18 @@ add_ofld_rxq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
 	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
 	    "rx_toe_tls_octets", CTLFLAG_RD, &ofld_rxq->rx_toe_tls_octets,
 	    "# of payload octets in received TOE TLS records");
+	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
+	    "rx_toe_ddp_octets", CTLFLAG_RD, &ofld_rxq->rx_toe_ddp_octets,
+	    "# of payload octets received via TCP DDP");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO,
+	    "ddp_buffer_alloc", CTLFLAG_RD, &ofld_rxq->ddp_buffer_alloc,
+	    "# of DDP RCV buffers allocated");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO,
+	    "ddp_buffer_reuse", CTLFLAG_RD, &ofld_rxq->ddp_buffer_reuse,
+	    "# of DDP RCV buffers reused");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO,
+	    "ddp_buffer_free", CTLFLAG_RD, &ofld_rxq->ddp_buffer_free,
+	    "# of DDP RCV buffers freed");
 
 	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "iscsi",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TOE iSCSI statistics");
