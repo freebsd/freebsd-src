@@ -690,6 +690,10 @@ struct sge_ofld_rxq {
 	uint64_t rx_aio_ddp_octets;
 	u_long	rx_toe_tls_records;
 	u_long	rx_toe_tls_octets;
+	u_long	rx_toe_ddp_octets;
+	counter_u64_t ddp_buffer_alloc;
+	counter_u64_t ddp_buffer_reuse;
+	counter_u64_t ddp_buffer_free;
 } __aligned(CACHE_LINE_SIZE);
 
 static inline struct sge_ofld_rxq *
@@ -1344,6 +1348,8 @@ extern int t4_tmr_idx;
 extern int t4_pktc_idx;
 extern unsigned int t4_qsize_rxq;
 extern unsigned int t4_qsize_txq;
+extern int t4_ddp_rcvbuf_len;
+extern unsigned int t4_ddp_rcvbuf_cache;
 extern device_method_t cxgbe_methods[];
 
 int t4_os_find_pci_capability(struct adapter *, int);
