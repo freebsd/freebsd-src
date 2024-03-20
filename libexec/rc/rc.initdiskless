@@ -208,9 +208,9 @@ handle_remount() { # $1 = mount point
 # $1 is size in 512-byte sectors, $2 is the mount point.
 mount_md() {
     if [ ${o_verbose} -gt 0 ] ; then
-        /sbin/mdmfs -XL -s $1 auto $2
+        /sbin/mdmfs -XL -S -s $1 auto $2
     else
-        /sbin/mdmfs -s $1 auto $2
+        /sbin/mdmfs -S -s $1 auto $2
     fi
 }
 
