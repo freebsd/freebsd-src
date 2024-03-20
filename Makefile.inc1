@@ -2258,6 +2258,8 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 	${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "kernel-${_kernel:tl}${flavor}" \
 		PKGGENNAME "kernel" \
+		FORCEINCLUDE "kernel${flavor}" \
+		UCLFILES "${SRCDIR}/release/packages/" \
 		VERSION "${PKG_VERSION}" \
 		KERNELDIR "kernel.${_kernel}" \
 		DESC "FreeBSD ${_kernel} kernel ${flavor}" \
