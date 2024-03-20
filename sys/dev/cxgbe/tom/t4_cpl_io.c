@@ -1352,8 +1352,6 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	if (toep->flags & TPF_ABORT_SHUTDOWN)
 		goto done;
 
-	so = inp->inp_socket;
-	socantrcvmore(so);
 	if (ulp_mode(toep) == ULP_MODE_TCPDDP) {
 		DDP_LOCK(toep);
 		if (__predict_false(toep->ddp.flags &
@@ -1361,6 +1359,8 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 			handle_ddp_close(toep, tp, cpl->rcv_nxt);
 		DDP_UNLOCK(toep);
 	}
+	so = inp->inp_socket;
+	socantrcvmore(so);
 
 	if (ulp_mode(toep) == ULP_MODE_RDMA ||
 	    (ulp_mode(toep) == ULP_MODE_ISCSI && chip_id(sc) >= CHELSIO_T6)) {
@@ -1782,7 +1782,8 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	sbappendstream_locked(sb, m, 0);
 	t4_rcvd_locked(&toep->td->tod, tp);
 
-	if (ulp_mode(toep) == ULP_MODE_TCPDDP && toep->ddp.waiting_count > 0 &&
+	if (ulp_mode(toep) == ULP_MODE_TCPDDP &&
+	    (toep->ddp.flags & DDP_AIO) != 0 && toep->ddp.waiting_count > 0 &&
 	    sbavail(sb) != 0) {
 		CTR2(KTR_CXGBE, "%s: tid %u queueing AIO task", __func__,
 		    tid);

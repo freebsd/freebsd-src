@@ -86,6 +86,8 @@ enum {
 	DDP_BUF1_ACTIVE	= (1 << 4),	/* buffer 1 in use (not invalidated) */
 	DDP_TASK_ACTIVE = (1 << 5),	/* requeue task is queued / running */
 	DDP_DEAD	= (1 << 6),	/* toepcb is shutting down */
+	DDP_AIO		= (1 << 7),	/* DDP used for AIO, not so_rcv */
+	DDP_RCVBUF	= (1 << 8),	/* DDP used for so_rcv, not AIO */
 };
 
 struct bio;
@@ -157,25 +159,51 @@ TAILQ_HEAD(pagesetq, pageset);
 
 #define	PS_PPODS_WRITTEN	0x0001	/* Page pods written to the card. */
 
-struct ddp_buffer {
-	struct pageset *ps;
-
-	struct kaiocb *job;
-	int cancel_pending;
+struct ddp_rcv_buffer {
+	TAILQ_ENTRY(ddp_rcv_buffer) link;
+	void	*buf;
+	struct ppod_reservation prsv;
+	size_t	len;
+	u_int	refs;
 };
 
+struct ddp_buffer {
+	union {
+		/* DDP_AIO fields */
+		struct {
+			struct pageset *ps;
+			struct kaiocb *job;
+			int	cancel_pending;
+		};
+
+		/* DDP_RCVBUF fields */
+		struct {
+			struct ddp_rcv_buffer *drb;
+			uint32_t placed;
+		};
+	};
+};
+
+/*
+ * (a) - DDP_AIO only
+ * (r) - DDP_RCVBUF only
+ */
 struct ddp_pcb {
+	struct mtx lock;
 	u_int flags;
+	int active_id;	/* the currently active DDP buffer */
 	struct ddp_buffer db[2];
-	TAILQ_HEAD(, pageset) cached_pagesets;
-	TAILQ_HEAD(, kaiocb) aiojobq;
-	u_int waiting_count;
+	union {
+		TAILQ_HEAD(, pageset) cached_pagesets;	/* (a) */
+		TAILQ_HEAD(, ddp_rcv_buffer) cached_buffers; /* (r) */
+	};
+	TAILQ_HEAD(, kaiocb) aiojobq;		/* (a) */
+	u_int waiting_count;			/* (a) */
 	u_int active_count;
 	u_int cached_count;
-	int active_id;	/* the currently active DDP buffer */
 	struct task requeue_task;
-	struct kaiocb *queueing;
-	struct mtx lock;
+	struct kaiocb *queueing;		/* (a) */
+	struct mtx cache_lock;			/* (r) */
 };
 
 struct toepcb {
@@ -231,6 +259,8 @@ ulp_mode(struct toepcb *toep)
 #define	DDP_LOCK(toep)		mtx_lock(&(toep)->ddp.lock)
 #define	DDP_UNLOCK(toep)	mtx_unlock(&(toep)->ddp.lock)
 #define	DDP_ASSERT_LOCKED(toep)	mtx_assert(&(toep)->ddp.lock, MA_OWNED)
+#define	DDP_CACHE_LOCK(toep)	mtx_lock(&(toep)->ddp.cache_lock)
+#define	DDP_CACHE_UNLOCK(toep)	mtx_unlock(&(toep)->ddp.cache_lock)
 
 /*
  * Compressed state for embryonic connections for a listener.
@@ -503,6 +533,7 @@ int t4_write_page_pods_for_sgl(struct adapter *, struct toepcb *,
     struct ppod_reservation *, struct ctl_sg_entry *, int, int, struct mbufq *);
 void t4_free_page_pods(struct ppod_reservation *);
 int t4_aio_queue_ddp(struct socket *, struct kaiocb *);
+int t4_enable_ddp_rcv(struct socket *, struct toepcb *);
 void t4_ddp_mod_load(void);
 void t4_ddp_mod_unload(void);
 void ddp_assert_empty(struct toepcb *);
