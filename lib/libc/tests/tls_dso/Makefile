@@ -7,6 +7,7 @@ SRCS=		h_tls_dynamic.c
 LIBDIR=		${TESTSBASE}/lib/libc/tls
 SHLIBDIR=	${TESTSBASE}/lib/libc/tls
 SHLIB_MAJOR=	1
+PACKAGE=	tests
 
 WITHOUT_STATIC=
 WITHOUT_PROFILE=
