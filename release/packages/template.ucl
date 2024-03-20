@@ -16,3 +16,4 @@ ${DESC}
 EOD
 .include(try=true,duplicate=rewrite) "${UCLFILES}/${PKGGENNAME}-all.ucl"
 .include(try=true,duplicate=rewrite) "${UCLFILES}/${PKGNAME}.ucl"
+.include(try=true,duplicate=rewrite) "${UCLFILES}/${FORCEINCLUDE}.ucl"
