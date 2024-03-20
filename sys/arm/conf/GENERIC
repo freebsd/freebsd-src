@@ -266,10 +266,8 @@ device		hid		# Generic HID support
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
 makeoptions	MODULES_EXTRA+="dtb/allwinner"
-makeoptions	MODULES_EXTRA+="dtb/am335x"
 makeoptions	MODULES_EXTRA+="dtb/imx6"
 makeoptions	MODULES_EXTRA+="dtb/nvidia"
-makeoptions	MODULES_EXTRA+="dtb/omap4"
 makeoptions	MODULES_EXTRA+="dtb/rockchip"
 makeoptions	MODULES_EXTRA+="dtb/rpi"
 makeoptions	MODULES_EXTRA+="dtb/zynq"
