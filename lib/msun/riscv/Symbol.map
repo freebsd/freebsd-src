@@ -4,7 +4,6 @@ FBSD_1.3 {
 	fegetenv;
 	feholdexcept;
 	feupdateenv;
-	fegetexcept;
 };
 
 FBSD_1.8 {
