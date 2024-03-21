@@ -44,6 +44,7 @@ _INTERNALLIBS=	\
 		c_nossp_pic \
 		cron \
 		elftc \
+		fdt \
 		fifolog \
 		ifconfig \
 		ipf \
@@ -532,6 +533,9 @@ _LIB_OBJTOP?=	${OBJTOP}
 # INTERNALLIB definitions.
 LIBELFTCDIR=	${_LIB_OBJTOP}/lib/libelftc
 LIBELFTC?=	${LIBELFTCDIR}/libelftc${PIE_SUFFIX}.a
+
+LIBFDTDIR=	${_LIB_OBJTOP}/lib/libfdt
+LIBFDT?=	${LIBFDTDIR}/libfdt${PIE_SUFFIX}.a
 
 LIBLUADIR=	${_LIB_OBJTOP}/lib/liblua
 LIBLUA?=	${LIBLUADIR}/liblua${PIE_SUFFIX}.a
