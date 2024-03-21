@@ -2,7 +2,7 @@
 .\"
 .\" Copyright (c) 2000 Jonathan M. Bresler
 .\" All rights reserved.
-.\" Copyright (c) 2023 The FreeBSD Foundation
+.\" Copyright (c) 2023-2024 The FreeBSD Foundation
 .\"
 .\" Portions of this documentation were written by Mitchell Horne
 .\" under sponsorship from the FreeBSD Foundation.
@@ -29,7 +29,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd March 16, 2023
+.Dd March 19, 2024
 .Dt KASSERT 9
 .Os
 .Sh NAME
@@ -93,8 +93,37 @@ The
 macro (read as: "must-pass")
 is a convenience wrapper around
 .Fn KASSERT
-that automatically generates a sensible assertion message including file and
-line information.
+that automatically generates a simple assertion message including file and line
+information.
+.Ss Assertion Guidelines
+When adding new assertions, keep in mind their primary purpose: to aid in
+identifying and debugging of complex error conditions.
+.Pp
+The panic messages resulting from assertion failures should be useful without
+the resulting kernel dump; the message may be included in a bug report, and
+should contain the relevant information needed to discern how the assertion was
+violated.
+This is especially important when the error condition is difficult or
+impossible for the developer to reproduce locally.
+.Pp
+Therefore, assertions should adhere to the following guidelines:
+.Bl -enum
+.It
+Whenever possible, the value of a runtime variable checked by an assertion
+condition should appear in its message.
+.It
+Unrelated conditions must appear in separate assertions.
+.It
+Multiple related conditions should be distinguishable (e.g. by value), or split
+into separate assertions.
+.It
+When in doubt, print more information, not less.
+.El
+.Pp
+Combined, this gives greater clarity into the exact cause of an assertion
+panic; see
+.Sx EXAMPLES
+below.
 .Sh EXAMPLES
 A hypothetical
 .Vt struct foo
@@ -106,10 +135,18 @@ foo_dealloc(struct foo *fp)
 {
 
 	KASSERT((fp->foo_flags & FOO_ACTIVE) == 0,
-	    ("%s: fp %p is still active", __func__, fp));
+	    ("%s: fp %p is still active, flags=%x", __func__, fp,
+	    fp->foo_flags));
 	...
 }
 .Ed
+.Pp
+This assertion provides the full flag set for the object, as well as the memory
+pointer, which may be used by a debugger to examine the object in detail
+.Po
+for example with a 'show foo' command in
+.Xr ddb 4
+.Pc .
 .Pp
 The assertion
 .Bd -literal -offset indent
@@ -120,6 +157,31 @@ located on line 87 of a file named foo.c would generate the following panic
 message:
 .Bd -literal -offset indent
 panic: Assertion td == curthread failed at foo.c:87
+.Ed
+.Pp
+This is a simple condition, and the message provides enough information to
+investigate the failure.
+.Pp
+The assertion
+.Bd -literal -offset indent
+MPASS(td == curthread && (sz >= SIZE_MIN && sz <= SIZE_MAX));
+.Ed
+.Pp
+is
+.Em NOT
+useful enough.
+The message doesn't indicate which part of the assertion was violated, nor
+does it report the value of
+.Dv sz ,
+which may be critical to understanding
+.Em why
+the assertion failed.
+.Pp
+According to the guidelines above, this would be correctly expressed as:
+.Bd -literal -offset indent
+MPASS(td == curthread);
+KASSERT(sz >= SIZE_MIN && sz <= SIZE_MAX,
+    ("invalid size argument: %u", sz));
 .Ed
 .Sh SEE ALSO
 .Xr panic 9
