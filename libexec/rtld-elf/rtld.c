@@ -2109,6 +2109,11 @@ cleanup1:
 			return (NULL);
 		}
 		is_le = /*le32toh(1) == 1 || */ hdr.magic == ELFHINTS_MAGIC;
+		dbg("host byte-order: %s-endian", le32toh(1) == 1 ? "little" : "big");
+		dbg("hints file byte-order: %s-endian", is_le ? "little" : "big");
+		dbg("verify swap macros: le32toh(0x12345678) == %#010x, "
+		    "be32toh(0x12345678) == %#010x",
+		    le32toh(0x12345678), be32toh(0x12345678));
 		magic = COND_SWAP(hdr.magic);
 		version = COND_SWAP(hdr.version);
 		strtab = COND_SWAP(hdr.strtab);
