@@ -29,29 +29,20 @@
 
 #include <sys/types.h>
 #include <dev/ic/ns16550.h>
-#ifndef WITHOUT_CAPSICUM
-#include <sys/capsicum.h>
-#include <capsicum_helpers.h>
-#endif
 
 #include <machine/vmm_snapshot.h>
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
-#include <err.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <termios.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <string.h>
 #include <pthread.h>
-#include <sysexits.h>
 
-#include "mevent.h"
+#include "uart_backend.h"
 #include "uart_emul.h"
-#include "debug.h"
 
 #define	COM1_BASE      	0x3F8
 #define	COM1_IRQ	4
@@ -76,11 +67,6 @@
 #define	REG_SCR		com_scr
 #endif
 
-#define	FIFOSZ	16
-
-static bool uart_stdio;		/* stdio in use for i/o */
-static struct termios tio_stdio_orig;
-
 static struct {
 	int	baseaddr;
 	int	irq;
@@ -94,21 +80,9 @@ static struct {
 
 #define	UART_NLDEVS	(sizeof(uart_lres) / sizeof(uart_lres[0]))
 
-struct fifo {
-	uint8_t	buf[FIFOSZ];
-	int	rindex;		/* index to read from */
-	int	windex;		/* index to write to */
-	int	num;		/* number of characters in the fifo */
-	int	size;		/* size of the fifo */
-};
+struct uart_ns16550_softc {
+	struct uart_softc *backend;
 
-struct ttyfd {
-	bool	opened;
-	int	rfd;		/* fd for reading */
-	int	wfd;		/* fd for writing, may be == rfd */
-};
-
-struct uart_softc {
 	pthread_mutex_t mtx;	/* protects all softc elements */
 	uint8_t	data;		/* Data register (R/W) */
 	uint8_t ier;		/* Interrupt enable register (R/W) */
@@ -122,168 +96,12 @@ struct uart_softc {
 	uint8_t dll;		/* Baudrate divisor latch LSB */
 	uint8_t dlh;		/* Baudrate divisor latch MSB */
 
-	struct fifo rxfifo;
-	struct mevent *mev;
-
-	struct ttyfd tty;
 	bool	thre_int_pending;	/* THRE interrupt pending */
 
 	void	*arg;
 	uart_intr_func_t intr_assert;
 	uart_intr_func_t intr_deassert;
 };
-
-static void uart_drain(int fd, enum ev_type ev, void *arg);
-
-static void
-ttyclose(void)
-{
-
-	tcsetattr(STDIN_FILENO, TCSANOW, &tio_stdio_orig);
-}
-
-static void
-ttyopen(struct ttyfd *tf)
-{
-	struct termios orig, new;
-
-	tcgetattr(tf->rfd, &orig);
-	new = orig;
-	cfmakeraw(&new);
-	new.c_cflag |= CLOCAL;
-	tcsetattr(tf->rfd, TCSANOW, &new);
-	if (uart_stdio) {
-		tio_stdio_orig = orig;
-		atexit(ttyclose);
-	}
-	raw_stdio = 1;
-}
-
-static int
-ttyread(struct ttyfd *tf)
-{
-	unsigned char rb;
-
-	if (read(tf->rfd, &rb, 1) == 1)
-		return (rb);
-	else
-		return (-1);
-}
-
-static void
-ttywrite(struct ttyfd *tf, unsigned char wb)
-{
-
-	(void)write(tf->wfd, &wb, 1);
-}
-
-static void
-rxfifo_reset(struct uart_softc *sc, int size)
-{
-	char flushbuf[32];
-	struct fifo *fifo;
-	ssize_t nread;
-	int error;
-
-	fifo = &sc->rxfifo;
-	bzero(fifo, sizeof(struct fifo));
-	fifo->size = size;
-
-	if (sc->tty.opened) {
-		/*
-		 * Flush any unread input from the tty buffer.
-		 */
-		while (1) {
-			nread = read(sc->tty.rfd, flushbuf, sizeof(flushbuf));
-			if (nread != sizeof(flushbuf))
-				break;
-		}
-
-		/*
-		 * Enable mevent to trigger when new characters are available
-		 * on the tty fd.
-		 */
-		error = mevent_enable(sc->mev);
-		assert(error == 0);
-	}
-}
-
-static int
-rxfifo_available(struct uart_softc *sc)
-{
-	struct fifo *fifo;
-
-	fifo = &sc->rxfifo;
-	return (fifo->num < fifo->size);
-}
-
-static int
-rxfifo_putchar(struct uart_softc *sc, uint8_t ch)
-{
-	struct fifo *fifo;
-	int error;
-
-	fifo = &sc->rxfifo;
-
-	if (fifo->num < fifo->size) {
-		fifo->buf[fifo->windex] = ch;
-		fifo->windex = (fifo->windex + 1) % fifo->size;
-		fifo->num++;
-		if (!rxfifo_available(sc)) {
-			if (sc->tty.opened) {
-				/*
-				 * Disable mevent callback if the FIFO is full.
-				 */
-				error = mevent_disable(sc->mev);
-				assert(error == 0);
-			}
-		}
-		return (0);
-	} else
-		return (-1);
-}
-
-static int
-rxfifo_getchar(struct uart_softc *sc)
-{
-	struct fifo *fifo;
-	int c, error, wasfull;
-
-	wasfull = 0;
-	fifo = &sc->rxfifo;
-	if (fifo->num > 0) {
-		if (!rxfifo_available(sc))
-			wasfull = 1;
-		c = fifo->buf[fifo->rindex];
-		fifo->rindex = (fifo->rindex + 1) % fifo->size;
-		fifo->num--;
-		if (wasfull) {
-			if (sc->tty.opened) {
-				error = mevent_enable(sc->mev);
-				assert(error == 0);
-			}
-		}
-		return (c);
-	} else
-		return (-1);
-}
-
-static int
-rxfifo_numchars(struct uart_softc *sc)
-{
-	struct fifo *fifo = &sc->rxfifo;
-
-	return (fifo->num);
-}
-
-static void
-uart_opentty(struct uart_softc *sc)
-{
-
-	ttyopen(&sc->tty);
-	sc->mev = mevent_add(sc->tty.rfd, EVF_READ, uart_drain, sc);
-	assert(sc->mev != NULL);
-}
 
 static uint8_t
 modem_status(uint8_t mcr)
@@ -325,12 +143,13 @@ modem_status(uint8_t mcr)
  * Return an interrupt reason if one is available.
  */
 static int
-uart_intr_reason(struct uart_softc *sc)
+uart_intr_reason(struct uart_ns16550_softc *sc)
 {
 
 	if ((sc->lsr & LSR_OE) != 0 && (sc->ier & IER_ERLS) != 0)
 		return (IIR_RLS);
-	else if (rxfifo_numchars(sc) > 0 && (sc->ier & IER_ERXRDY) != 0)
+	else if (uart_rxfifo_numchars(sc->backend) > 0 &&
+	    (sc->ier & IER_ERXRDY) != 0)
 		return (IIR_RXTOUT);
 	else if (sc->thre_int_pending && (sc->ier & IER_ETXRDY) != 0)
 		return (IIR_TXRDY);
@@ -341,7 +160,7 @@ uart_intr_reason(struct uart_softc *sc)
 }
 
 static void
-uart_reset(struct uart_softc *sc)
+uart_reset(struct uart_ns16550_softc *sc)
 {
 	uint16_t divisor;
 
@@ -350,7 +169,7 @@ uart_reset(struct uart_softc *sc)
 	sc->dlh = divisor >> 16;
 	sc->msr = modem_status(sc->mcr);
 
-	rxfifo_reset(sc, 1);	/* no fifo until enabled by software */
+	uart_rxfifo_reset(sc->backend, 1);
 }
 
 /*
@@ -358,7 +177,7 @@ uart_reset(struct uart_softc *sc)
  * interrupt condition to report to the processor.
  */
 static void
-uart_toggle_intr(struct uart_softc *sc)
+uart_toggle_intr(struct uart_ns16550_softc *sc)
 {
 	uint8_t intr_reason;
 
@@ -371,14 +190,13 @@ uart_toggle_intr(struct uart_softc *sc)
 }
 
 static void
-uart_drain(int fd, enum ev_type ev, void *arg)
+uart_drain(int fd __unused, enum ev_type ev, void *arg)
 {
-	struct uart_softc *sc;
-	int ch;
+	struct uart_ns16550_softc *sc;
+	bool loopback;
 
 	sc = arg;
 
-	assert(fd == sc->tty.rfd);
 	assert(ev == EVF_READ);
 
 	/*
@@ -388,21 +206,16 @@ uart_drain(int fd, enum ev_type ev, void *arg)
 	 */
 	pthread_mutex_lock(&sc->mtx);
 
-	if ((sc->mcr & MCR_LOOPBACK) != 0) {
-		(void) ttyread(&sc->tty);
-	} else {
-		while (rxfifo_available(sc) &&
-		       ((ch = ttyread(&sc->tty)) != -1)) {
-			rxfifo_putchar(sc, ch);
-		}
+	loopback = (sc->mcr & MCR_LOOPBACK) != 0;
+	uart_rxfifo_drain(sc->backend, loopback);
+	if (!loopback)
 		uart_toggle_intr(sc);
-	}
 
 	pthread_mutex_unlock(&sc->mtx);
 }
 
 void
-uart_write(struct uart_softc *sc, int offset, uint8_t value)
+uart_ns16550_write(struct uart_ns16550_softc *sc, int offset, uint8_t value)
 {
 	int fifosz;
 	uint8_t msr;
@@ -426,12 +239,9 @@ uart_write(struct uart_softc *sc, int offset, uint8_t value)
 
         switch (offset) {
 	case REG_DATA:
-		if (sc->mcr & MCR_LOOPBACK) {
-			if (rxfifo_putchar(sc, value) != 0)
-				sc->lsr |= LSR_OE;
-		} else if (sc->tty.opened) {
-			ttywrite(&sc->tty, value);
-		} /* else drop on floor */
+		if (uart_rxfifo_putchar(sc->backend, value,
+		    (sc->mcr & MCR_LOOPBACK) != 0))
+			sc->lsr |= LSR_OE;
 		sc->thre_int_pending = true;
 		break;
 	case REG_IER:
@@ -450,8 +260,9 @@ uart_write(struct uart_softc *sc, int offset, uint8_t value)
 		 * the FIFO contents are reset.
 		 */
 		if ((sc->fcr & FCR_ENABLE) ^ (value & FCR_ENABLE)) {
-			fifosz = (value & FCR_ENABLE) ? FIFOSZ : 1;
-			rxfifo_reset(sc, fifosz);
+			fifosz = (value & FCR_ENABLE) ?
+			    uart_rxfifo_size(sc->backend) : 1;
+			uart_rxfifo_reset(sc->backend, fifosz);
 		}
 
 		/*
@@ -462,7 +273,8 @@ uart_write(struct uart_softc *sc, int offset, uint8_t value)
 			sc->fcr = 0;
 		} else {
 			if ((value & FCR_RCV_RST) != 0)
-				rxfifo_reset(sc, FIFOSZ);
+				uart_rxfifo_reset(sc->backend,
+				    uart_rxfifo_size(sc->backend));
 
 			sc->fcr = value &
 				 (FCR_ENABLE | FCR_DMA | FCR_RX_MASK);
@@ -521,7 +333,7 @@ done:
 }
 
 uint8_t
-uart_read(struct uart_softc *sc, int offset)
+uart_ns16550_read(struct uart_ns16550_softc *sc, int offset)
 {
 	uint8_t iir, intr_reason, reg;
 
@@ -544,7 +356,7 @@ uart_read(struct uart_softc *sc, int offset)
 
 	switch (offset) {
 	case REG_DATA:
-		reg = rxfifo_getchar(sc);
+		reg = uart_rxfifo_getchar(sc->backend);
 		break;
 	case REG_IER:
 		reg = sc->ier;
@@ -575,7 +387,7 @@ uart_read(struct uart_softc *sc, int offset)
 		sc->lsr |= LSR_TEMT | LSR_THRE;
 
 		/* Check for new receive data */
-		if (rxfifo_numchars(sc) > 0)
+		if (uart_rxfifo_numchars(sc->backend) > 0)
 			sc->lsr |= LSR_RXRDY;
 		else
 			sc->lsr &= ~LSR_RXRDY;
@@ -621,17 +433,18 @@ uart_legacy_alloc(int which, int *baseaddr, int *irq)
 	return (0);
 }
 
-struct uart_softc *
-uart_init(uart_intr_func_t intr_assert, uart_intr_func_t intr_deassert,
+struct uart_ns16550_softc *
+uart_ns16550_init(uart_intr_func_t intr_assert, uart_intr_func_t intr_deassert,
     void *arg)
 {
-	struct uart_softc *sc;
+	struct uart_ns16550_softc *sc;
 
-	sc = calloc(1, sizeof(struct uart_softc));
+	sc = calloc(1, sizeof(struct uart_ns16550_softc));
 
 	sc->arg = arg;
 	sc->intr_assert = intr_assert;
 	sc->intr_deassert = intr_deassert;
+	sc->backend = uart_init();
 
 	pthread_mutex_init(&sc->mtx, NULL);
 
@@ -640,92 +453,16 @@ uart_init(uart_intr_func_t intr_assert, uart_intr_func_t intr_deassert,
 	return (sc);
 }
 
-static int
-uart_stdio_backend(struct uart_softc *sc)
-{
-#ifndef WITHOUT_CAPSICUM
-	cap_rights_t rights;
-	cap_ioctl_t cmds[] = { TIOCGETA, TIOCSETA, TIOCGWINSZ };
-#endif
-
-	if (uart_stdio)
-		return (-1);
-
-	sc->tty.rfd = STDIN_FILENO;
-	sc->tty.wfd = STDOUT_FILENO;
-	sc->tty.opened = true;
-
-	if (fcntl(sc->tty.rfd, F_SETFL, O_NONBLOCK) != 0)
-		return (-1);
-	if (fcntl(sc->tty.wfd, F_SETFL, O_NONBLOCK) != 0)
-		return (-1);
-
-#ifndef WITHOUT_CAPSICUM
-	cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ);
-	if (caph_rights_limit(sc->tty.rfd, &rights) == -1)
-		errx(EX_OSERR, "Unable to apply rights for sandbox");
-	if (caph_ioctls_limit(sc->tty.rfd, cmds, nitems(cmds)) == -1)
-		errx(EX_OSERR, "Unable to apply rights for sandbox");
-#endif
-
-	uart_stdio = true;
-
-	return (0);
-}
-
-static int
-uart_tty_backend(struct uart_softc *sc, const char *path)
-{
-#ifndef WITHOUT_CAPSICUM
-	cap_rights_t rights;
-	cap_ioctl_t cmds[] = { TIOCGETA, TIOCSETA, TIOCGWINSZ };
-#endif
-	int fd;
-
-	fd = open(path, O_RDWR | O_NONBLOCK);
-	if (fd < 0)
-		return (-1);
-
-	if (!isatty(fd)) {
-		close(fd);
-		return (-1);
-	}
-
-	sc->tty.rfd = sc->tty.wfd = fd;
-	sc->tty.opened = true;
-
-#ifndef WITHOUT_CAPSICUM
-	cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ, CAP_WRITE);
-	if (caph_rights_limit(fd, &rights) == -1)
-		errx(EX_OSERR, "Unable to apply rights for sandbox");
-	if (caph_ioctls_limit(fd, cmds, nitems(cmds)) == -1)
-		errx(EX_OSERR, "Unable to apply rights for sandbox");
-#endif
-
-	return (0);
-}
-
 int
-uart_set_backend(struct uart_softc *sc, const char *device)
+uart_ns16550_tty_open(struct uart_ns16550_softc *sc, const char *device)
 {
-	int retval;
-
-	if (device == NULL)
-		return (0);
-
-	if (strcmp("stdio", device) == 0)
-		retval = uart_stdio_backend(sc);
-	else
-		retval = uart_tty_backend(sc, device);
-	if (retval == 0)
-		uart_opentty(sc);
-
-	return (retval);
+	return (uart_tty_open(sc->backend, device, uart_drain, sc));
 }
 
 #ifdef BHYVE_SNAPSHOT
 int
-uart_snapshot(struct uart_softc *sc, struct vm_snapshot_meta *meta)
+uart_ns16550_snapshot(struct uart_ns16550_softc *sc,
+    struct vm_snapshot_meta *meta)
 {
 	int ret;
 
@@ -741,12 +478,7 @@ uart_snapshot(struct uart_softc *sc, struct vm_snapshot_meta *meta)
 	SNAPSHOT_VAR_OR_LEAVE(sc->dll, meta, ret, done);
 	SNAPSHOT_VAR_OR_LEAVE(sc->dlh, meta, ret, done);
 
-	SNAPSHOT_VAR_OR_LEAVE(sc->rxfifo.rindex, meta, ret, done);
-	SNAPSHOT_VAR_OR_LEAVE(sc->rxfifo.windex, meta, ret, done);
-	SNAPSHOT_VAR_OR_LEAVE(sc->rxfifo.num, meta, ret, done);
-	SNAPSHOT_VAR_OR_LEAVE(sc->rxfifo.size, meta, ret, done);
-	SNAPSHOT_BUF_OR_LEAVE(sc->rxfifo.buf, sizeof(sc->rxfifo.buf),
-			      meta, ret, done);
+	ret = uart_rxfifo_snapshot(sc->backend, meta);
 
 	sc->thre_int_pending = 1;
 
