@@ -2,26 +2,26 @@
 
 .if ${MACHINE_ARCH} == "armv7"
 DTS=	\
-	sun4i-a10-cubieboard.dts \
-	sun4i-a10-olinuxino-lime.dts \
-	sun6i-a31s-sinovoip-bpi-m2.dts \
-	sun5i-a13-olinuxino.dts \
-	sun5i-r8-chip.dts \
-	sun7i-a20-bananapi.dts \
-	sun7i-a20-cubieboard2.dts \
-	sun7i-a20-lamobo-r1.dts \
-	sun7i-a20-olimex-som-evb.dts \
-	sun7i-a20-pcduino3.dts \
-	sun8i-a83t-bananapi-m3.dts \
-	sun8i-h2-plus-orangepi-r1.dts \
-	sun8i-h2-plus-orangepi-zero.dts \
-	sun8i-h3-nanopi-m1.dts \
-	sun8i-h3-nanopi-m1-plus.dts \
-	sun8i-h3-nanopi-neo.dts \
-	sun8i-h3-orangepi-one.dts \
-	sun8i-h3-orangepi-pc.dts \
-	sun8i-h3-orangepi-pc-plus.dts \
-	sun8i-h3-orangepi-plus2e.dts
+	allwinner/sun4i-a10-cubieboard.dts \
+	allwinner/sun4i-a10-olinuxino-lime.dts \
+	allwinner/sun6i-a31s-sinovoip-bpi-m2.dts \
+	allwinner/sun5i-a13-olinuxino.dts \
+	allwinner/sun5i-r8-chip.dts \
+	allwinner/sun7i-a20-bananapi.dts \
+	allwinner/sun7i-a20-cubieboard2.dts \
+	allwinner/sun7i-a20-lamobo-r1.dts \
+	allwinner/sun7i-a20-olimex-som-evb.dts \
+	allwinner/sun7i-a20-pcduino3.dts \
+	allwinner/sun8i-a83t-bananapi-m3.dts \
+	allwinner/sun8i-h2-plus-orangepi-r1.dts \
+	allwinner/sun8i-h2-plus-orangepi-zero.dts \
+	allwinner/sun8i-h3-nanopi-m1.dts \
+	allwinner/sun8i-h3-nanopi-m1-plus.dts \
+	allwinner/sun8i-h3-nanopi-neo.dts \
+	allwinner/sun8i-h3-orangepi-one.dts \
+	allwinner/sun8i-h3-orangepi-pc.dts \
+	allwinner/sun8i-h3-orangepi-pc-plus.dts \
+	allwinner/sun8i-h3-orangepi-plus2e.dts
 
 DTSO=	sun8i-a83t-sid.dtso \
 	sun8i-h3-i2c0.dtso \
