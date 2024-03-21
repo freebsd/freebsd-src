@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240321: remove empty /usr/libdata/gcc directory
+OLD_DIRS+=usr/libdata/gcc
+
 # 20240307: Improperly installed awk tests removed
 OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/missing-precision.ok
 OLD_FILES+=usr/tests/usr.bin/awk/bugs-fixed/negative-nf.ok
