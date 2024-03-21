@@ -497,6 +497,9 @@ OLD_FILES+=usr/include/c++/v1/experimental/vector
 OLD_FILES+=usr/include/c++/v1/limits.h
 OLD_FILES+=usr/include/c++/v1/setjmp.h
 
+# 20240321: remove empty /usr/libdata/gcc directory
+OLD_DIRS+=usr/libdata/gcc
+
 # 20240213: caroot bundle updated
 OLD_FILES+=usr/share/certs/trusted/Security_Communication_Root_CA.pem
 
