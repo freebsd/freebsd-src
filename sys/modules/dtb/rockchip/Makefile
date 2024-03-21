@@ -2,8 +2,8 @@
 
 .if ${MACHINE_ARCH} == "armv7"
 DTS=	\
-	rk3288-tinker.dts		\
-	rk3288-tinker-s.dts
+	rockchip/rk3288-tinker.dts	\
+	rockchip/rk3288-tinker-s.dts
 .elif ${MACHINE_ARCH} == "aarch64"
 DTS=	\
 	rockchip/rk3399-khadas-edge-captain.dts \
