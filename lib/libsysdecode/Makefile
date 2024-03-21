@@ -127,8 +127,13 @@ CFLAGS.gcc.ioctl.c+= -Wno-redundant-decls
 CFLAGS.gcc+=	${CFLAGS.gcc.${.IMPSRC}}
 
 DEPENDOBJS+=	tables.h tables_linux.h
+.if ${MK_DIRDEPS_BUILD} == "yes"
+MKTABLES_INCLUDEDIR= ${STAGE_INCLUDEDIR}
+.else
+MKTABLES_INCLUDEDIR= ${SYSROOT:U${DESTDIR}}${INCLUDEDIR}
+.endif
 tables.h: mktables
-	sh ${.CURDIR}/mktables ${SYSROOT:U${DESTDIR}}${INCLUDEDIR} ${.TARGET}
+	sh ${.CURDIR}/mktables ${MKTABLES_INCLUDEDIR} ${.TARGET}
 tables_linux.h: mklinuxtables
 	sh ${.CURDIR}/mklinuxtables ${SRCTOP}/sys ${.TARGET}
 
