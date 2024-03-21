@@ -44,56 +44,74 @@
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>
 
+struct db_breakpoint_type {
+	db_breakpoint_t		db_next_free_breakpoint;
+	db_breakpoint_t		db_breakpoint_limit;
+	db_breakpoint_t		db_free_breakpoints;
+	db_breakpoint_t		db_breakpoint_list;
+};
+
 #define	NBREAKPOINTS	100
 static struct db_breakpoint	db_break_table[NBREAKPOINTS];
-static db_breakpoint_t		db_next_free_breakpoint = &db_break_table[0];
-static db_breakpoint_t		db_free_breakpoints = 0;
-static db_breakpoint_t		db_breakpoint_list = 0;
 
-static db_breakpoint_t	db_breakpoint_alloc(void);
-static void	db_breakpoint_free(db_breakpoint_t bkpt);
-static void	db_delete_breakpoint(vm_map_t map, db_addr_t addr);
-static db_breakpoint_t	db_find_breakpoint(vm_map_t map, db_addr_t addr);
+static struct db_breakpoint_type db_breakpoint = {
+	.db_next_free_breakpoint = &db_break_table[0],
+	.db_breakpoint_limit = &db_break_table[NBREAKPOINTS],
+	.db_free_breakpoints = NULL,
+	.db_breakpoint_list = NULL,
+};
+
+static db_breakpoint_t	db_breakpoint_alloc(
+	struct db_breakpoint_type *bkpt_type);
+static void	db_breakpoint_free(struct db_breakpoint_type *bkpt_typ,
+	db_breakpoint_t bkpt);
+static void	db_delete_breakpoint(struct db_breakpoint_type *bkpt_type,
+	vm_map_t map, db_addr_t addr);
+static db_breakpoint_t	db_find_breakpoint(struct db_breakpoint_type *bkpt_type,
+	vm_map_t map, db_addr_t addr);
 static void	db_list_breakpoints(void);
-static void	db_set_breakpoint(vm_map_t map, db_addr_t addr, int count);
+static void	db_set_breakpoint(struct db_breakpoint_type *bkpt_type,
+	vm_map_t map, db_addr_t addr, int count);
 
 static db_breakpoint_t
-db_breakpoint_alloc(void)
+db_breakpoint_alloc(struct db_breakpoint_type *bkpt_type)
 {
 	register db_breakpoint_t	bkpt;
 
-	if ((bkpt = db_free_breakpoints) != 0) {
-	    db_free_breakpoints = bkpt->link;
+	if ((bkpt = bkpt_type->db_free_breakpoints) != 0) {
+	    bkpt_type->db_free_breakpoints = bkpt->link;
 	    return (bkpt);
 	}
-	if (db_next_free_breakpoint == &db_break_table[NBREAKPOINTS]) {
+	if (bkpt_type->db_next_free_breakpoint ==
+	    bkpt_type->db_breakpoint_limit) {
 	    db_printf("All breakpoints used.\n");
 	    return (0);
 	}
-	bkpt = db_next_free_breakpoint;
-	db_next_free_breakpoint++;
+	bkpt = bkpt_type->db_next_free_breakpoint;
+	bkpt_type->db_next_free_breakpoint++;
 
 	return (bkpt);
 }
 
 static void
-db_breakpoint_free(db_breakpoint_t bkpt)
+db_breakpoint_free(struct db_breakpoint_type *bkpt_type, db_breakpoint_t bkpt)
 {
-	bkpt->link = db_free_breakpoints;
-	db_free_breakpoints = bkpt;
+	bkpt->link = bkpt_type->db_free_breakpoints;
+	bkpt_type->db_free_breakpoints = bkpt;
 }
 
 static void
-db_set_breakpoint(vm_map_t map, db_addr_t addr, int count)
+db_set_breakpoint(struct db_breakpoint_type *bkpt_type, vm_map_t map,
+    db_addr_t addr, int count)
 {
 	register db_breakpoint_t	bkpt;
 
-	if (db_find_breakpoint(map, addr)) {
+	if (db_find_breakpoint(bkpt_type, map, addr)) {
 	    db_printf("Already set.\n");
 	    return;
 	}
 
-	bkpt = db_breakpoint_alloc();
+	bkpt = db_breakpoint_alloc(bkpt_type);
 	if (bkpt == 0) {
 	    db_printf("Too many breakpoints.\n");
 	    return;
@@ -105,17 +123,18 @@ db_set_breakpoint(vm_map_t map, db_addr_t addr, int count)
 	bkpt->init_count = count;
 	bkpt->count = count;
 
-	bkpt->link = db_breakpoint_list;
-	db_breakpoint_list = bkpt;
+	bkpt->link = bkpt_type->db_breakpoint_list;
+	bkpt_type->db_breakpoint_list = bkpt;
 }
 
 static void
-db_delete_breakpoint(vm_map_t map, db_addr_t addr)
+db_delete_breakpoint(struct db_breakpoint_type *bkpt_type, vm_map_t map,
+    db_addr_t addr)
 {
 	register db_breakpoint_t	bkpt;
 	register db_breakpoint_t	*prev;
 
-	for (prev = &db_breakpoint_list;
+	for (prev = &bkpt_type->db_breakpoint_list;
 	     (bkpt = *prev) != 0;
 	     prev = &bkpt->link) {
 	    if (db_map_equal(bkpt->map, map) &&
@@ -129,15 +148,16 @@ db_delete_breakpoint(vm_map_t map, db_addr_t addr)
 	    return;
 	}
 
-	db_breakpoint_free(bkpt);
+	db_breakpoint_free(bkpt_type, bkpt);
 }
 
 static db_breakpoint_t
-db_find_breakpoint(vm_map_t map, db_addr_t addr)
+db_find_breakpoint(struct db_breakpoint_type *bkpt_type, vm_map_t map,
+    db_addr_t addr)
 {
 	register db_breakpoint_t	bkpt;
 
-	for (bkpt = db_breakpoint_list;
+	for (bkpt = bkpt_type->db_breakpoint_list;
 	     bkpt != 0;
 	     bkpt = bkpt->link)
 	{
@@ -151,7 +171,7 @@ db_find_breakpoint(vm_map_t map, db_addr_t addr)
 db_breakpoint_t
 db_find_breakpoint_here(db_addr_t addr)
 {
-	return db_find_breakpoint(db_map_addr(addr), addr);
+	return db_find_breakpoint(&db_breakpoint, db_map_addr(addr), addr);
 }
 
 static bool	db_breakpoints_inserted = true;
@@ -175,7 +195,7 @@ db_set_breakpoints(void)
 	register db_breakpoint_t	bkpt;
 
 	if (!db_breakpoints_inserted) {
-		for (bkpt = db_breakpoint_list;
+		for (bkpt = db_breakpoint.db_breakpoint_list;
 		     bkpt != 0;
 		     bkpt = bkpt->link)
 			if (db_map_current(bkpt->map)) {
@@ -191,7 +211,7 @@ db_clear_breakpoints(void)
 	register db_breakpoint_t	bkpt;
 
 	if (db_breakpoints_inserted) {
-		for (bkpt = db_breakpoint_list;
+		for (bkpt = db_breakpoint.db_breakpoint_list;
 		     bkpt != 0;
 		     bkpt = bkpt->link)
 			if (db_map_current(bkpt->map)) {
@@ -209,13 +229,13 @@ db_list_breakpoints(void)
 {
 	register db_breakpoint_t	bkpt;
 
-	if (db_breakpoint_list == 0) {
+	if (db_breakpoint.db_breakpoint_list == 0) {
 	    db_printf("No breakpoints set\n");
 	    return;
 	}
 
 	db_printf(" Map      Count    Address\n");
-	for (bkpt = db_breakpoint_list;
+	for (bkpt = db_breakpoint.db_breakpoint_list;
 	     bkpt != 0;
 	     bkpt = bkpt->link) {
 	    db_printf("%s%8p %5d    ",
@@ -231,7 +251,8 @@ db_list_breakpoints(void)
 void
 db_delete_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
-	db_delete_breakpoint(db_map_addr(addr), (db_addr_t)addr);
+	db_delete_breakpoint(&db_breakpoint, db_map_addr(addr),
+	    (db_addr_t)addr);
 }
 
 /* Set breakpoint with skip count */
@@ -242,7 +263,8 @@ db_breakpoint_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 	if (count == -1)
 	    count = 1;
 
-	db_set_breakpoint(db_map_addr(addr), (db_addr_t)addr, count);
+	db_set_breakpoint(&db_breakpoint, db_map_addr(addr), (db_addr_t)addr,
+	    count);
 }
 
 /* list breakpoints */
