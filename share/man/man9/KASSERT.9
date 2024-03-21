@@ -183,6 +183,15 @@ MPASS(td == curthread);
 KASSERT(sz >= SIZE_MIN && sz <= SIZE_MAX,
     ("invalid size argument: %u", sz));
 .Ed
+.Sh HISTORY
+The
+.Nm MPASS
+macro first appeared in
+.Bsx
+and was imported into
+.Fx 5.0 .
+The name originates as an acronym of "multi-processor assert", but has evolved
+to mean "must pass", or "must-pass assert".
 .Sh SEE ALSO
 .Xr panic 9
 .Sh AUTHORS
