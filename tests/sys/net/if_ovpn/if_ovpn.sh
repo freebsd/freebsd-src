@@ -308,10 +308,28 @@ atf_test_case "4in6" "cleanup"
 		keepalive 100 600
 	"
 
+	dd if=/dev/random of=test.img bs=1024 count=1024
+	cat test.img | jexec a nc -N -l 1234 &
+
 	# Give the tunnel time to come up
 	sleep 10
 
 	atf_check -s exit:0 -o ignore jexec b ping -c 3 198.51.100.1
+
+	# MTU sweep
+	for i in `seq 1000 1500`
+	do
+		atf_check -s exit:0 -o ignore jexec b \
+		    ping -c 1 -s $i 198.51.100.1
+	done
+
+	rcvmd5=$(jexec b nc -N -w 3 198.51.100.1 1234 | md5)
+	md5=$(md5 test.img)
+
+	if [ $md5  != $rcvmd5 ];
+	then
+		atf_fail "Transmit corruption!"
+	fi
 }
 
 4in6_cleanup()
