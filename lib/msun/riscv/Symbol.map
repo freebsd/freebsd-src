@@ -1,15 +1,13 @@
-/*
- */
-FBSD_1.0 {
-};
-
 FBSD_1.3 {
 	fesetexceptflag;
 	feraiseexcept;
 	fegetenv;
 	feholdexcept;
 	feupdateenv;
+	fegetexcept;
+};
+
+FBSD_1.8 {
 	feenableexcept;
 	fedisableexcept;
-	fegetexcept;
 };

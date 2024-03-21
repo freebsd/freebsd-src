@@ -216,14 +216,12 @@ feupdateenv(const fenv_t *__envp)
 
 #if __BSD_VISIBLE
 
-/* We currently provide no external definitions of the functions below. */
-
 #ifdef __riscv_float_abi_soft
 int feenableexcept(int __mask);
 int fedisableexcept(int __mask);
 int fegetexcept(void);
 #else
-static inline int
+__fenv_static inline int
 feenableexcept(int __mask __unused)
 {
 
@@ -232,7 +230,7 @@ feenableexcept(int __mask __unused)
 	return (0);
 }
 
-static inline int
+__fenv_static inline int
 fedisableexcept(int __mask __unused)
 {
 
@@ -241,6 +239,7 @@ fedisableexcept(int __mask __unused)
 	return (0);
 }
 
+/* We currently provide no external definition of fegetexcept(). */
 static inline int
 fegetexcept(void)
 {
