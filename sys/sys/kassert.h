@@ -112,6 +112,9 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #  endif /* defined(WITNESS) || defined(INVARIANT_SUPPORT) */
 #endif /* _STANDALONE */
 
+/*
+ * Kernel assertion; see KASSERT(9) for details.
+ */
 #if (defined(_KERNEL) && defined(INVARIANTS)) || defined(_STANDALONE)
 #define	KASSERT(exp,msg) do {						\
 	if (__predict_false(!(exp)))					\
@@ -124,8 +127,11 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 
 #ifdef _KERNEL
 /*
- * Helpful macros for quickly coming up with assertions with informative
- * panic messages.
+ * Macros for generating panic messages based on the exact condition text.
+ *
+ * NOTE: Use these with care, as the resulting message might omit key
+ * information required to understand the assertion failure. Consult the
+ * MPASS(9) man page for guidance.
  */
 #define MPASS(ex)		MPASS4(ex, #ex, __FILE__, __LINE__)
 #define MPASS2(ex, what)	MPASS4(ex, what, __FILE__, __LINE__)
