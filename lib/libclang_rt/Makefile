@@ -67,7 +67,7 @@ SUBDIR+=	${SD_CFI}
 SUBDIR+=	${SD_SAFESTACK}
 SUBDIR+=	${SD_STATS}
 SUBDIR+=	${SD_UBSAN}
-.elif ${MACHINE_CPUARCH} == "powerpc"
+.elif ${MACHINE_ARCH} == "powerpc"
 # nothing for 32-bit powerpc
 .elif ${MACHINE_ARCH} == "powerpc64"
 SUBDIR+=	${SD_ASAN}
