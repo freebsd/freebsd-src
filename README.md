@@ -15,7 +15,7 @@ See build(7), config(8), [FreeBSD handbook on building userland](https://docs.fr
 For information on the CPU architectures and platforms supported by FreeBSD, see the [FreeBSD
 website's Platforms page](https://www.freebsd.org/platforms/).
 
-Want to snag an ISO of FreeBSD? Head to the [releases page](https://download.freebsd.org/ftp/releases/ISO-IMAGES/) to get yourself one. 
+Want to snag an ISO of FreeBSD? Head to the officials [releases page](https://download.freebsd.org/ftp/releases/ISO-IMAGES/) to get yourself one. 
 
 Source Roadmap:
 ---------------
