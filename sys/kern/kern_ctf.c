@@ -27,6 +27,10 @@
  */
 
 #include <sys/ctf.h>
+#include <sys/kdb.h>
+#include <sys/linker.h>
+
+#include <ddb/db_ctf.h>
 
 /*
  * Note this file is included by both link_elf.c and link_elf_obj.c.
@@ -85,6 +89,9 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 		lc->typlenp = &ef->typlen;
 		return (0);
 	}
+
+	if (panicstr != NULL || kdb_active)
+		return (ENXIO);
 
 	/*
 	 * We need to try reading the CTF data. Flag no CTF data present
@@ -287,4 +294,37 @@ out:
 #endif
 
 	return (error);
+}
+
+static int
+link_elf_ctf_get_ddb(linker_file_t lf, linker_ctf_t *lc)
+{
+	elf_file_t ef = (elf_file_t)lf;
+
+	/*
+	 * Check whether CTF data was loaded or if a
+	 * previous loading attempt failed (ctfcnt == -1).
+	 */
+	if (ef->ctfcnt <= 0) {
+		return (ENOENT);
+	}
+
+	lc->ctftab = ef->ctftab;
+	lc->ctfcnt = ef->ctfcnt;
+	lc->symtab = ef->ddbsymtab;
+	lc->strtab = ef->ddbstrtab;
+	lc->strcnt = ef->ddbstrcnt;
+	lc->nsym = ef->ddbsymcnt;
+
+	return (0);
+}
+
+static int
+link_elf_ctf_lookup_typename(linker_file_t lf, linker_ctf_t *lc,
+    const char *typename)
+{
+	if (link_elf_ctf_get_ddb(lf, lc))
+		return (ENOENT);
+
+	return (db_ctf_lookup_typename(lc, typename) ? 0 : ENOENT);
 }

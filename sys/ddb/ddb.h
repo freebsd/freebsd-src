@@ -297,6 +297,7 @@ db_cmdfcn_t	db_trace_until_matching_cmd;
 db_cmdfcn_t	db_unscript_cmd;
 db_cmdfcn_t	db_watchpoint_cmd;
 db_cmdfcn_t	db_write_cmd;
+db_cmdfcn_t	db_pprint_cmd;
 
 /*
  * Interface between DDB and the DDB output capture facility.
