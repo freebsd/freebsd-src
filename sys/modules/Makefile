@@ -396,6 +396,7 @@ SUBDIR=	\
 	unionfs \
 	usb \
 	${_vesa} \
+	${_vf_i2c} \
 	virtio \
 	vge \
 	${_viawd} \
@@ -686,6 +687,7 @@ _dpaa2=		dpaa2
 _sff=		sff
 _em=		em
 _hyperv=  hyperv
+_vf_i2c=	vf_i2c
 
 .if !empty(OPT_FDT)
 _allwinner=	allwinner

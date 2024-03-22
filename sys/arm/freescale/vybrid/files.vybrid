@@ -9,7 +9,8 @@ arm/freescale/vybrid/vf_edma.c			standard
 arm/freescale/vybrid/vf_dmamux.c		standard
 arm/freescale/vybrid/vf_port.c			standard
 arm/freescale/vybrid/vf_adc.c			standard
-arm/freescale/vybrid/vf_i2c.c			optional	iicbus
+dev/iicbus/controller/vybrid/vf_i2c.c		optional	iicbus
+dev/iicbus/controller/vybrid/vf_i2c_fdt.c	optional	iicbus fdt
 arm/freescale/vybrid/vf_tcon.c			optional	vt
 arm/freescale/vybrid/vf_dcu4.c			optional	vt
 arm/freescale/vybrid/vf_nfc.c			optional	nand
