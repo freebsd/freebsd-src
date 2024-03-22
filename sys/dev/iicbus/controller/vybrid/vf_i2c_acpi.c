@@ -27,7 +27,8 @@
 
 /*
  * Vybrid Family Inter-Integrated Circuit (I2C)
- * Chapter 48, Vybrid Reference Manual, Rev. 5, 07/2013
+ * Originally based on Chapter 48, Vybrid Reference Manual, Rev. 5, 07/2013
+ * Currently based on Chapter 21, LX2160A Reference Manual, Rev. 1, 10/2021
  *
  * The current implementation is based on the original driver by Ruslan Bukin,
  * later modified by Dawid Górecki, and split into FDT and ACPI drivers by Val
