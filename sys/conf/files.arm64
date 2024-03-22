@@ -669,7 +669,9 @@ tegra210_xusb.fw				optional tegra210_xusb_fw	\
 	clean		"tegra210_xusb.fw"
 
 # NXP
-arm/freescale/vybrid/vf_i2c.c			optional vf_i2c iicbus soc_nxp_ls
+dev/iicbus/controller/vybrid/vf_i2c.c		optional vf_i2c iicbus soc_nxp_ls
+dev/iicbus/controller/vybrid/vf_i2c_acpi.c	optional vf_i2c iicbus acpi soc_nxp_ls
+dev/iicbus/controller/vybrid/vf_i2c_fdt.c	optional vf_i2c iicbus fdt soc_nxp_ls
 arm64/qoriq/qoriq_dw_pci.c			optional pci fdt soc_nxp_ls
 arm64/qoriq/qoriq_gpio_pic.c			optional gpio fdt soc_nxp_ls
 arm64/qoriq/qoriq_therm.c			optional pci fdt soc_nxp_ls
