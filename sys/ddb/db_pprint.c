@@ -72,7 +72,7 @@ db_pprint_int(db_addr_t addr, struct ctf_type_v3 *type, u_int depth)
 		return;
 	}
 	db_printf("0x%lx",
-	    db_get_value(addr, (bits / 8) ? (bits / 8) : 1, sign));
+	    (long)db_get_value(addr, (bits / 8) ? (bits / 8) : 1, sign));
 }
 
 /*
@@ -226,9 +226,9 @@ db_pprint_enum(db_addr_t addr, struct ctf_type_v3 *type, u_int depth)
 		if (val == ep->cte_value) {
 			valname = db_ctf_stroff_to_str(&sym_data, ep->cte_name);
 			if (valname != NULL)
-				db_printf("%s (0x%lx)", valname, val);
+				db_printf("%s (0x%lx)", valname, (long)val);
 			else
-				db_printf("(0x%lx)", val);
+				db_printf("(0x%lx)", (long)val);
 			break;
 		}
 	}
@@ -273,9 +273,9 @@ db_pprint_ptr(db_addr_t addr, struct ctf_type_v3 *type, u_int depth)
 		name = db_ctf_stroff_to_str(&sym_data, ref_type->ctt_name);
 		db_indent = depth;
 		if (name != NULL)
-			db_printf("(%s%s *) 0x%lx", qual, name, val);
+			db_printf("(%s%s *) 0x%lx", qual, name, (long)val);
 		else
-			db_printf("0x%lx", val);
+			db_printf("0x%lx", (long)val);
 	}
 }
 
@@ -305,7 +305,7 @@ db_pprint_type(db_addr_t addr, struct ctf_type_v3 *type, u_int depth)
 	case CTF_K_FUNCTION:
 	case CTF_K_FLOAT:
 		db_indent = depth;
-		db_iprintf("0x%lx", addr);
+		db_iprintf("0x%lx", (long)addr);
 		break;
 	case CTF_K_POINTER:
 		db_pprint_ptr(addr, type, depth);
