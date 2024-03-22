@@ -28,7 +28,8 @@
 
 /*
  * Vybrid Family Inter-Integrated Circuit (I2C)
- * Chapter 48, Vybrid Reference Manual, Rev. 5, 07/2013
+ * Originally based on Chapter 48, Vybrid Reference Manual, Rev. 5, 07/2013
+ * Currently based on Chapter 21, LX2160A Reference Manual, Rev. 1, 10/2021
  *
  * The current implementation is based on the original driver by Ruslan Bukin,
  * later modified by Dawid Górecki, and split into FDT and ACPI drivers by Val
@@ -184,6 +185,7 @@ vf_i2c_attach_common(device_t dev)
 	mtx_unlock(&sc->mutex);
 
 	sc->iicbus = device_add_child(dev, "iicbus", -1);
+
 	if (sc->iicbus == NULL) {
 		device_printf(dev, "could not add iicbus child");
 		mtx_destroy(&sc->mutex);
@@ -233,24 +235,6 @@ i2c_detach(device_t dev)
 	return (0);
 }
 
-/* Wait for transfer interrupt flag */
-static int
-wait_for_iif(struct vf_i2c_softc *sc)
-{
-	int retry;
-
-	retry = 1000;
-	while (retry --) {
-		if (READ1(sc, I2C_IBSR) & IBSR_IBIF) {
-			WRITE1(sc, I2C_IBSR, IBSR_IBIF);
-			return (IIC_NOERR);
-		}
-		DELAY(10);
-	}
-
-	return (IIC_ETIMEOUT);
-}
-
 /* Wait for free bus */
 static int
 wait_for_nibb(struct vf_i2c_softc *sc)
@@ -272,14 +256,24 @@ static int
 wait_for_icf(struct vf_i2c_softc *sc)
 {
 	int retry;
+	uint8_t ibsr;
+
+	vf_i2c_dbg(sc, "i2c wait for transfer complete + interrupt flag\n");
 
 	retry = 1000;
 	while (retry --) {
-		if (READ1(sc, I2C_IBSR) & IBSR_TCF) {
-			if (READ1(sc, I2C_IBSR) & IBSR_IBIF) {
-				WRITE1(sc, I2C_IBSR, IBSR_IBIF);
-				return (IIC_NOERR);
+		ibsr = READ1(sc, I2C_IBSR);
+
+		if (ibsr & IBSR_IBIF) {
+			WRITE1(sc, I2C_IBSR, IBSR_IBIF);
+
+			if (ibsr & IBSR_IBAL) {
+				WRITE1(sc, I2C_IBSR, IBSR_IBAL);
+				return (IIC_EBUSBSY);
 			}
+
+			if (ibsr & IBSR_TCF)
+				return (IIC_NOERR);
 		}
 		DELAY(10);
 	}
@@ -309,30 +303,24 @@ i2c_repeated_start(device_t dev, u_char slave, int timeout)
 
 	mtx_lock(&sc->mutex);
 
-	WRITE1(sc, I2C_IBAD, slave);
-
 	if ((READ1(sc, I2C_IBSR) & IBSR_IBB) == 0) {
+		vf_i2c_dbg(sc, "cant i2c repeat start: bus is no longer busy\n");
 		mtx_unlock(&sc->mutex);
 		return (IIC_EBUSERR);
 	}
-
-	/* Set repeated start condition */
-	DELAY(10);
 
 	reg = READ1(sc, I2C_IBCR);
 	reg |= (IBCR_RSTA | IBCR_IBIE);
 	WRITE1(sc, I2C_IBCR, reg);
 
-	DELAY(10);
-
 	/* Write target address - LSB is R/W bit */
 	WRITE1(sc, I2C_IBDR, slave);
 
-	error = wait_for_iif(sc);
+	error = wait_for_icf(sc);
 
 	if (!tx_acked(sc)) {
-		vf_i2c_dbg(sc,
-		    "cant i2c start: missing ACK after slave addres\n");
+		mtx_unlock(&sc->mutex);
+		vf_i2c_dbg(sc, "cant i2c repeat start: missing ACK after slave address\n");
 		return (IIC_ENOACK);
 	}
 
@@ -357,27 +345,32 @@ i2c_start(device_t dev, u_char slave, int timeout)
 
 	mtx_lock(&sc->mutex);
 
-	WRITE1(sc, I2C_IBAD, slave);
+	error = wait_for_nibb(sc);
 
-	if (READ1(sc, I2C_IBSR) & IBSR_IBB) {
+	/* Reset controller if bus is still busy. */
+	if (error == IIC_ETIMEOUT) {
+		WRITE1(sc, I2C_IBCR, IBCR_MDIS);
+		DELAY(1000);
+		WRITE1(sc, I2C_IBCR, IBCR_NOACK);
+		error = wait_for_nibb(sc);
+	}
+
+	if (error != 0) {
 		mtx_unlock(&sc->mutex);
-		vf_i2c_dbg(sc, "cant i2c start: IIC_EBUSBSY\n");
-		return (IIC_EBUSERR);
+		vf_i2c_dbg(sc, "cant i2c start: %i\n", error);
+		return (error);
 	}
 
 	/* Set start condition */
-	reg = (IBCR_MSSL | IBCR_NOACK | IBCR_IBIE);
+	reg = (IBCR_MSSL | IBCR_NOACK | IBCR_IBIE | IBCR_TXRX);
 	WRITE1(sc, I2C_IBCR, reg);
 
-	DELAY(100);
-
-	reg |= (IBCR_TXRX);
-	WRITE1(sc, I2C_IBCR, reg);
+	WRITE1(sc, I2C_IBSR, IBSR_IBIF);
 
 	/* Write target address - LSB is R/W bit */
 	WRITE1(sc, I2C_IBDR, slave);
 
-	error = wait_for_iif(sc);
+	error = wait_for_icf(sc);
 	if (error != 0) {
 		mtx_unlock(&sc->mutex);
 		vf_i2c_dbg(sc, "cant i2c start: iif error\n");
@@ -386,8 +379,7 @@ i2c_start(device_t dev, u_char slave, int timeout)
 	mtx_unlock(&sc->mutex);
 
 	if (!tx_acked(sc)) {
-		vf_i2c_dbg(sc,
-		    "cant i2c start: missing QACK after slave addres\n");
+		vf_i2c_dbg(sc, "cant i2c start: missing ACK after slave address\n");
 		return (IIC_ENOACK);
 	}
 
@@ -405,16 +397,9 @@ i2c_stop(device_t dev)
 
 	mtx_lock(&sc->mutex);
 
-	WRITE1(sc, I2C_IBCR, IBCR_NOACK | IBCR_IBIE);
+	if ((READ1(sc, I2C_IBCR) & IBCR_MSSL) != 0)
+		WRITE1(sc, I2C_IBCR, IBCR_NOACK | IBCR_IBIE);
 
-	DELAY(100);
-
-	/* Reset controller if bus still busy after STOP */
-	if (wait_for_nibb(sc) == IIC_ETIMEOUT) {
-		WRITE1(sc, I2C_IBCR, IBCR_MDIS);
-		DELAY(1000);
-		WRITE1(sc, I2C_IBCR, IBCR_NOACK);
-	}
 	mtx_unlock(&sc->mutex);
 
 	return (IIC_NOERR);
@@ -469,26 +454,13 @@ i2c_reset(device_t dev, u_char speed, u_char addr, u_char *oldadr)
 	div_reg = i2c_get_div_val(dev);
 	vf_i2c_dbg(sc, "i2c reset\n");
 
-	switch (speed) {
-	case IIC_FAST:
-	case IIC_SLOW:
-	case IIC_UNKNOWN:
-	case IIC_FASTEST:
-	default:
-		break;
-	}
-
 	mtx_lock(&sc->mutex);
 	WRITE1(sc, I2C_IBCR, IBCR_MDIS);
-
-	DELAY(1000);
 
 	if(div_reg != DIV_REG_UNSET)
 		WRITE1(sc, I2C_IBFD, div_reg);
 
 	WRITE1(sc, I2C_IBCR, 0x0); /* Enable i2c */
-
-	DELAY(1000);
 
 	mtx_unlock(&sc->mutex);
 
@@ -511,36 +483,34 @@ i2c_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 
 	if (len) {
 		if (len == 1)
-			WRITE1(sc, I2C_IBCR, IBCR_IBIE | IBCR_MSSL |	\
-			    IBCR_NOACK);
+			WRITE1(sc, I2C_IBCR, IBCR_IBIE | IBCR_MSSL | IBCR_NOACK);
 		else
 			WRITE1(sc, I2C_IBCR, IBCR_IBIE | IBCR_MSSL);
 
 		/* dummy read */
 		READ1(sc, I2C_IBDR);
-		DELAY(1000);
-	}
 
-	while (*read < len) {
-		error = wait_for_icf(sc);
-		if (error != 0) {
-			mtx_unlock(&sc->mutex);
-			return (error);
+		while (*read < len) {
+			error = wait_for_icf(sc);
+			if (error != 0) {
+				mtx_unlock(&sc->mutex);
+				return (error);
+			}
+
+			if (last) {
+				if (*read == len - 2) {
+					/* NO ACK on last byte */
+					WRITE1(sc, I2C_IBCR, IBCR_IBIE | IBCR_MSSL | IBCR_NOACK);
+
+				} else if (*read == len - 1) {
+					/* Transfer done, remove master bit */
+					WRITE1(sc, I2C_IBCR, IBCR_IBIE | IBCR_NOACK);
+				}
+			}
+
+			*buf++ = READ1(sc, I2C_IBDR);
+			(*read)++;
 		}
-
-		if ((*read == len - 2) && last) {
-			/* NO ACK on last byte */
-			WRITE1(sc, I2C_IBCR, IBCR_IBIE | IBCR_MSSL |	\
-			    IBCR_NOACK);
-		}
-
-		if ((*read == len - 1) && last) {
-			/* Transfer done, remove master bit */
-			WRITE1(sc, I2C_IBCR, IBCR_IBIE | IBCR_NOACK);
-		}
-
-		*buf++ = READ1(sc, I2C_IBDR);
-		(*read)++;
 	}
 	mtx_unlock(&sc->mutex);
 
@@ -563,7 +533,7 @@ i2c_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 	while (*sent < len) {
 		WRITE1(sc, I2C_IBDR, *buf++);
 
-		error = wait_for_iif(sc);
+		error = wait_for_icf(sc);
 		if (error != 0) {
 			mtx_unlock(&sc->mutex);
 			return (error);
