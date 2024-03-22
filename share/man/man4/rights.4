@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 28, 2019
+.Dd March 22, 2024
 .Dt RIGHTS 4
 .Os
 .Sh NAME
@@ -68,6 +68,12 @@ The
 .Xr cap_rights_init 3
 family of functions should be used to manage the structure.
 .Sh RIGHTS
+Note that rights are not simple bitmasks (and cannot be bitwise-ORed together).
+See
+.Xr cap_rights_init 3
+for details.
+.Pp
+The following rights are available:
 .Bl -tag -width CAP_RENAMEAT_SOURCE
 .It Dv CAP_ACCEPT
 Permit
