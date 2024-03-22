@@ -319,6 +319,9 @@ typedef struct linker_ctf {
 } linker_ctf_t;
 
 int	linker_ctf_get(linker_file_t, linker_ctf_t *);
+int linker_ctf_lookup_sym_ddb(const char *symname, c_linker_sym_t *sym,
+    linker_ctf_t *lc);
+int linker_ctf_lookup_typename_ddb(linker_ctf_t *lc, const char *typename);
 
 int elf_cpu_load_file(linker_file_t);
 int elf_cpu_unload_file(linker_file_t);

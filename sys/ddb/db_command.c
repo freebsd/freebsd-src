@@ -163,6 +163,7 @@ static struct db_command db_cmds[] = {
 	DB_CMD("capture",	db_capture_cmd,		CS_OWN|DB_CMD_MEMSAFE),
 	DB_CMD("textdump",	db_textdump_cmd,	CS_OWN|DB_CMD_MEMSAFE),
 	DB_CMD("findstack",	db_findstack_cmd,	0),
+	DB_CMD("pprint",	db_pprint_cmd,		CS_OWN),
 };
 struct db_command_table db_cmd_table = LIST_HEAD_INITIALIZER(db_cmd_table);
 

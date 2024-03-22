@@ -68,6 +68,10 @@
 
 #include "linker_if.h"
 
+#ifdef DDB_CTF
+#include <ddb/db_ctf.h>
+#endif
+
 #define MAXSEGS 4
 
 typedef struct elf_file {
@@ -141,6 +145,9 @@ static int	link_elf_lookup_symbol(linker_file_t, const char *,
 		    c_linker_sym_t *);
 static int	link_elf_lookup_debug_symbol(linker_file_t, const char *,
 		    c_linker_sym_t *);
+static int 	link_elf_lookup_debug_symbol_ctf(linker_file_t lf,
+		    const char *name, c_linker_sym_t *sym, linker_ctf_t *lc);
+
 static int	link_elf_symbol_values(linker_file_t, c_linker_sym_t,
 		    linker_symval_t *);
 static int	link_elf_debug_symbol_values(linker_file_t, c_linker_sym_t,
@@ -167,6 +174,7 @@ static int	elf_lookup(linker_file_t, Elf_Size, int, Elf_Addr *);
 static kobj_method_t link_elf_methods[] = {
 	KOBJMETHOD(linker_lookup_symbol,	link_elf_lookup_symbol),
 	KOBJMETHOD(linker_lookup_debug_symbol,	link_elf_lookup_debug_symbol),
+	KOBJMETHOD(linker_lookup_debug_symbol_ctf, link_elf_lookup_debug_symbol_ctf),
 	KOBJMETHOD(linker_symbol_values,	link_elf_symbol_values),
 	KOBJMETHOD(linker_debug_symbol_values,	link_elf_debug_symbol_values),
 	KOBJMETHOD(linker_search_symbol,	link_elf_search_symbol),
@@ -178,6 +186,7 @@ static kobj_method_t link_elf_methods[] = {
 	KOBJMETHOD(linker_each_function_name,	link_elf_each_function_name),
 	KOBJMETHOD(linker_each_function_nameval, link_elf_each_function_nameval),
 	KOBJMETHOD(linker_ctf_get,		link_elf_ctf_get),
+	KOBJMETHOD(linker_ctf_lookup_typename,  link_elf_ctf_lookup_typename),
 	KOBJMETHOD(linker_symtab_get,		link_elf_symtab_get),
 	KOBJMETHOD(linker_strtab_get,		link_elf_strtab_get),
 #ifdef VIMAGE
@@ -1585,6 +1594,34 @@ link_elf_lookup_debug_symbol(linker_file_t lf, const char *name,
 	}
 
 	return (ENOENT);
+}
+
+static int
+link_elf_lookup_debug_symbol_ctf(linker_file_t lf, const char *name,
+    c_linker_sym_t *sym, linker_ctf_t *lc)
+{
+	elf_file_t ef = (elf_file_t)lf;
+	const Elf_Sym *symp;
+	const char *strp;
+	int i;
+
+	for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
+		strp = ef->ddbstrtab + symp->st_name;
+		if (strcmp(name, strp) == 0) {
+			if (symp->st_shndx != SHN_UNDEF ||
+			    (symp->st_value != 0 &&
+				(ELF_ST_TYPE(symp->st_info) == STT_FUNC ||
+				    ELF_ST_TYPE(symp->st_info) ==
+					STT_GNU_IFUNC))) {
+				*sym = (c_linker_sym_t)symp;
+				break;
+			}
+			return (ENOENT);
+		}
+	}
+
+	/* Populate CTF info structure if symbol was found. */
+	return (i < ef->ddbsymcnt ? link_elf_ctf_get_ddb(lf, lc) : ENOENT);
 }
 
 static int

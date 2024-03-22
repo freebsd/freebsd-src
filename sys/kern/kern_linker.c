@@ -328,6 +328,26 @@ linker_file_register_sysctls(linker_file_t lf, bool enable)
 	sx_xlock(&kld_sx);
 }
 
+/*
+ * Invoke the LINKER_CTF_GET implementation for this file.  Existing
+ * implementations will load CTF info from the filesystem upon the first call
+ * and cache it in the kernel thereafter.
+ */
+static void
+linker_ctf_load_file(linker_file_t file)
+{
+	linker_ctf_t lc;
+	int error;
+
+	error = linker_ctf_get(file, &lc);
+	if (error == 0)
+		return;
+	if (bootverbose) {
+		printf("failed to load CTF for %s: %d\n", file->filename,
+		    error);
+	}
+}
+
 static void
 linker_file_enable_sysctls(linker_file_t lf)
 {
@@ -490,6 +510,11 @@ linker_load_file(const char *filename, linker_file_t *result)
 				return (ENOEXEC);
 			}
 			linker_file_enable_sysctls(lf);
+
+			/*
+			 * Ask the linker to load CTF data for this file.
+			 */
+			linker_ctf_load_file(lf);
 			EVENTHANDLER_INVOKE(kld_load, lf);
 			*result = lf;
 			return (0);
@@ -780,6 +805,35 @@ int
 linker_ctf_get(linker_file_t file, linker_ctf_t *lc)
 {
 	return (LINKER_CTF_GET(file, lc));
+}
+
+int
+linker_ctf_lookup_typename_ddb(linker_ctf_t *lc, const char *typename)
+{
+#ifdef DDB
+	linker_file_t lf;
+
+	TAILQ_FOREACH (lf, &linker_files, link){
+		if (LINKER_CTF_LOOKUP_TYPENAME(lf, lc, typename) == 0)
+			return (0);
+	}
+#endif
+	return (ENOENT);
+}
+
+int
+linker_ctf_lookup_sym_ddb(const char *symname, c_linker_sym_t *sym,
+    linker_ctf_t *lc)
+{
+#ifdef DDB
+	linker_file_t lf;
+
+	TAILQ_FOREACH (lf, &linker_files, link){
+		if (LINKER_LOOKUP_DEBUG_SYMBOL_CTF(lf, symname, sym, lc) == 0)
+			return (0);
+	}
+#endif
+	return (ENOENT);
 }
 
 static int
@@ -1781,8 +1835,20 @@ fail:
 	sx_xunlock(&kld_sx);
 	/* woohoo! we made it! */
 }
-
 SYSINIT(preload, SI_SUB_KLD, SI_ORDER_MIDDLE, linker_preload, NULL);
+
+static void
+linker_mountroot(void *arg __unused)
+{
+	linker_file_t lf;
+
+	sx_xlock(&kld_sx);
+	TAILQ_FOREACH (lf, &linker_files, link) {
+		linker_ctf_load_file(lf);
+	}
+	sx_xunlock(&kld_sx);
+}
+EVENTHANDLER_DEFINE(mountroot, linker_mountroot, NULL, 0);
 
 /*
  * Handle preload files that failed to load any modules.
