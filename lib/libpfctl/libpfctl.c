@@ -1297,7 +1297,7 @@ snl_attr_get_nested_pf_rule_labels(struct snl_state *ss, struct nlattr *nla,
 	if (! error)
 		return (error);
 
-	memcpy(target, parsed_labels.labels, sizeof(parsed_labels));
+	memcpy(target, parsed_labels.labels, sizeof(parsed_labels.labels));
 
 	return (true);
 }
