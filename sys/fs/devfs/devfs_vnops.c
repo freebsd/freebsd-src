@@ -182,6 +182,26 @@ devfs_set_cdevpriv(void *priv, d_priv_dtor_t *priv_dtr)
 	return (error);
 }
 
+int
+devfs_foreach_cdevpriv(struct cdev *dev, int (*cb)(void *data, void *arg),
+    void *arg)
+{
+	struct cdev_priv *cdp;
+	struct cdev_privdata *p;
+	int error;
+
+	cdp = cdev2priv(dev);
+	error = 0;
+	mtx_lock(&cdevpriv_mtx);
+	LIST_FOREACH(p, &cdp->cdp_fdpriv, cdpd_list) {
+		error = cb(p->cdpd_data, arg);
+		if (error != 0)
+			break;
+	}
+	mtx_unlock(&cdevpriv_mtx);
+	return (error);
+}
+
 void
 devfs_destroy_cdevpriv(struct cdev_privdata *p)
 {
