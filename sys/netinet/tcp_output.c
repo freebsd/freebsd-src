@@ -475,6 +475,12 @@ after_sack_rexmit:
 	      (tp->t_tfo_client_cookie_len == 0)) ||
 	     (flags & TH_RST)))
 		len = 0;
+
+	/* Without fast-open there should never be data sent on a SYN. */
+	if ((flags & TH_SYN) && !(tp->t_flags & TF_FASTOPEN)) {
+		len = 0;
+	}
+
 	if (len <= 0) {
 		/*
 		 * If FIN has been sent but not acked,
