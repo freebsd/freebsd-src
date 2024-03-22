@@ -2108,12 +2108,10 @@ cleanup1:
 			hdr.dirlistlen = 0;
 			return (NULL);
 		}
-		is_le = /*htole32(1) == 1 || */ hdr.magic == htole32(ELFHINTS_MAGIC);
 		dbg("host byte-order: %s-endian", le32toh(1) == 1 ? "little" : "big");
-		dbg("hints file byte-order: %s-endian", is_le ? "little" : "big");
-		dbg("verify swap macros: le32toh(0x12345678) == %#010x, "
-		    "be32toh(0x12345678) == %#010x",
-		    le32toh(0x12345678), be32toh(0x12345678));
+		dbg("hints file byte-order: %s-endian",
+		    hdr.magic == htole32(ELFHINTS_MAGIC) ? "little" : "big");
+		is_le = /*htole32(1) == 1 || */ hdr.magic == htole32(ELFHINTS_MAGIC);
 		magic = COND_SWAP(hdr.magic);
 		version = COND_SWAP(hdr.version);
 		strtab = COND_SWAP(hdr.strtab);
