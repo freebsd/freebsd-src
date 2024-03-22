@@ -41,11 +41,11 @@ CLEANFILES+=	vmm_hyp_blob.elf vmm_hyp_blob.bin
 
 vmm_hyp_exception.o: vmm_hyp_exception.S
 	${CC} -c -x assembler-with-cpp -DLOCORE \
-	    ${CFLAGS:N-fsanitize*:N-mbranch-protection*} \
+		${CFLAGS:N-fsanitize*:N-fno-sanitize*:N-mbranch-protection*} \
 	    ${.IMPSRC} -o ${.TARGET} -fpie
 
 vmm_hyp.o: vmm_hyp.c
-	${CC} -c ${CFLAGS:N-fsanitize*:N-mbranch-protection*} \
+	${CC} -c ${CFLAGS:N-fsanitize*:N-fno-sanitize*:N-mbranch-protection*} \
 	    ${.IMPSRC} -o ${.TARGET} -fpie
 
 vmm_hyp_blob.elf.full:	vmm_hyp_exception.o vmm_hyp.o
