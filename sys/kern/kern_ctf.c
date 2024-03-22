@@ -326,5 +326,9 @@ link_elf_ctf_lookup_typename(linker_file_t lf, linker_ctf_t *lc,
 	if (link_elf_ctf_get_ddb(lf, lc))
 		return (ENOENT);
 
+#ifdef DDB
 	return (db_ctf_lookup_typename(lc, typename) ? 0 : ENOENT);
+#else
+	return (ENOENT);
+#endif
 }
