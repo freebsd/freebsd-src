@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  */
 
-#include "tegra124-jetson-tk1.dts"
+#include "nvidia/tegra124-jetson-tk1.dts"
 
 / {
 	chosen {
