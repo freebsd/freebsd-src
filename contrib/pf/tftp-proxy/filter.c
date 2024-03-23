@@ -188,7 +188,7 @@ init_filter(char *opt_qname, int opt_verbose)
 		syslog(LOG_ERR, "can't pfctl_open()");
 		exit(1);
 	}
-	status = pfctl_get_status(pfctl_fd(pfh));
+	status = pfctl_get_status_h(pfh);
 	if (status == NULL) {
 		syslog(LOG_ERR, "DIOCGETSTATUS");
 		exit(1);

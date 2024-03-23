@@ -183,7 +183,7 @@ init_filter(const char *opt_qname, const char *opt_tagname, int opt_verbose)
 	pfh = pfctl_open(PF_DEVICE);
 	if (pfh == NULL)
 		err(1, "pfctl_open");
-	status = pfctl_get_status(pfctl_fd(pfh));
+	status = pfctl_get_status_h(pfh);
 	if (status == NULL)
 		err(1, "DIOCGETSTATUS");
 	if (!status->running)

@@ -50,7 +50,7 @@
 
 struct lmodule *module;
 
-static int dev = -1;
+static struct pfctl_handle *pfh;
 static int started;
 static uint64_t pf_tick;
 
@@ -341,7 +341,7 @@ pf_limits(struct snmp_context __unused *ctx, struct snmp_value *val,
 				return (SNMP_ERR_NOSUCHNAME);
 		}
 
-		if (ioctl(dev, DIOCGETLIMIT, &pl)) {
+		if (ioctl(pfctl_fd(pfh), DIOCGETLIMIT, &pl)) {
 			syslog(LOG_ERR, "pf_limits(): ioctl(): %s",
 			    strerror(errno));
 			return (SNMP_ERR_GENERR);
@@ -431,7 +431,7 @@ pf_timeouts(struct snmp_context __unused *ctx, struct snmp_value *val,
 				return (SNMP_ERR_NOSUCHNAME);
 		}
 
-		if (ioctl(dev, DIOCGETTIMEOUT, &pt)) {
+		if (ioctl(pfctl_fd(pfh), DIOCGETTIMEOUT, &pt)) {
 			syslog(LOG_ERR, "pf_timeouts(): ioctl(): %s",
 			    strerror(errno));
 			return (SNMP_ERR_GENERR);
@@ -1174,7 +1174,7 @@ pfi_refresh(void)
 		io.pfiio_size = numifs;
 		io.pfiio_buffer = p;
 
-		if (ioctl(dev, DIOCIGETIFACES, &io)) {
+		if (ioctl(pfctl_fd(pfh), DIOCIGETIFACES, &io)) {
 			syslog(LOG_ERR, "pfi_refresh(): ioctl(): %s",
 			    strerror(errno));
 			goto err2;
@@ -1231,7 +1231,7 @@ pfq_refresh(void)
 
 	bzero(&pa, sizeof(pa));
 	pa.version = PFIOC_ALTQ_VERSION;
-	if (ioctl(dev, DIOCGETALTQS, &pa)) {
+	if (ioctl(pfctl_fd(pfh), DIOCGETALTQS, &pa)) {
 		syslog(LOG_ERR, "pfq_refresh: ioctl(DIOCGETALTQS): %s",
 		    strerror(errno));
 		return (-1);
@@ -1251,7 +1251,7 @@ pfq_refresh(void)
 		pa.ticket = ticket;
 		pa.nr = i;
 
-		if (ioctl(dev, DIOCGETALTQ, &pa)) {
+		if (ioctl(pfctl_fd(pfh), DIOCGETALTQ, &pa)) {
 			syslog(LOG_ERR, "pfq_refresh(): "
 			    "ioctl(DIOCGETALTQ): %s",
 			    strerror(errno));
@@ -1287,7 +1287,7 @@ pfs_refresh(void)
 		return (0);
 
 	pfctl_free_status(pfs);
-	pfs = pfctl_get_status(dev);
+	pfs = pfctl_get_status_h(pfh);
 
 	if (pfs == NULL) {
 		syslog(LOG_ERR, "pfs_refresh(): ioctl(): %s",
@@ -1329,7 +1329,7 @@ pft_refresh(void)
 		io.pfrio_size = numtbls;
 		io.pfrio_buffer = t;
 
-		if (ioctl(dev, DIOCRGETTSTATS, &io)) {
+		if (ioctl(pfctl_fd(pfh), DIOCRGETTSTATS, &io)) {
 			syslog(LOG_ERR, "pft_refresh(): ioctl(): %s",
 			    strerror(errno));
 			goto err2;
@@ -1396,7 +1396,7 @@ pfa_table_addrs(u_int sidx, struct pfr_table *pt)
 		io.pfrio_buffer = t;
 		io.pfrio_esize = sizeof(struct pfr_astats);
 
-		if (ioctl(dev, DIOCRGETASTATS, &io)) {
+		if (ioctl(pfctl_fd(pfh), DIOCRGETASTATS, &io)) {
 			syslog(LOG_ERR, "pfa_table_addrs(): ioctl() on %s: %s",
 			    pt->pfrt_name, strerror(errno));
 			numaddrs = -1;
@@ -1464,7 +1464,7 @@ pfa_refresh(void)
 		io.pfrio_size = numtbls;
 		io.pfrio_buffer = pt;
 
-		if (ioctl(dev, DIOCRGETTABLES, &io)) {
+		if (ioctl(pfctl_fd(pfh), DIOCRGETTABLES, &io)) {
 			syslog(LOG_ERR, "pfa_refresh(): ioctl(): %s",
 			    strerror(errno));
 			goto err2;
@@ -1519,14 +1519,14 @@ pfl_scan_ruleset(const char *path)
 	struct pfl_entry *e;
 	u_int32_t nr, i;
 
-	if (pfctl_get_rules_info(dev, &rules, PF_PASS, path)) {
+	if (pfctl_get_rules_info(pfctl_fd(pfh), &rules, PF_PASS, path)) {
 		syslog(LOG_ERR, "pfl_scan_ruleset: ioctl(DIOCGETRULES): %s",
 		    strerror(errno));
 		goto err;
 	}
 
 	for (nr = rules.nr, i = 0; i < nr; i++) {
-		if (pfctl_get_rule(dev, i, rules.ticket, path,
+		if (pfctl_get_rule(pfctl_fd(pfh), i, rules.ticket, path,
 		    PF_PASS, &rule, anchor_call)) {
 			syslog(LOG_ERR, "pfl_scan_ruleset: ioctl(DIOCGETRULE):"
 			    " %s", strerror(errno));
@@ -1572,7 +1572,7 @@ pfl_walk_rulesets(const char *path)
 
 	bzero(&prs, sizeof(prs));
 	strlcpy(prs.path, path, sizeof(prs.path));
-	if (ioctl(dev, DIOCGETRULESETS, &prs)) {
+	if (ioctl(pfctl_fd(pfh), DIOCGETRULESETS, &prs)) {
 		syslog(LOG_ERR, "pfl_walk_rulesets: ioctl(DIOCGETRULESETS): %s",
 		    strerror(errno));
 		goto err;
@@ -1580,7 +1580,7 @@ pfl_walk_rulesets(const char *path)
 
 	for (nr = prs.nr, i = 0; i < nr; i++) {
 		prs.nr = i;
-		if (ioctl(dev, DIOCGETRULESET, &prs)) {
+		if (ioctl(pfctl_fd(pfh), DIOCGETRULESET, &prs)) {
 			syslog(LOG_ERR, "pfl_walk_rulesets: ioctl(DIOCGETRULESET):"
 			    " %s", strerror(errno));
 			goto err;
@@ -1671,13 +1671,13 @@ pf_init(struct lmodule *mod, int __unused argc, char __unused *argv[])
 {
 	module = mod;
 
-	if ((dev = open("/dev/pf", O_RDONLY)) == -1) {
+	if ((pfh = pfctl_open(PF_DEVICE)) == NULL) {
 		syslog(LOG_ERR, "pf_init(): open(): %s\n",
 		    strerror(errno));
 		return (-1);
 	}
 
-	if ((altq_enabled = altq_is_enabled(dev)) == -1) {
+	if ((altq_enabled = altq_is_enabled(pfctl_fd(pfh))) == -1) {
 		syslog(LOG_ERR, "pf_init(): altq test failed");
 		return (-1);
 	}
@@ -1756,7 +1756,8 @@ pf_fini(void)
 	pfctl_free_status(pfs);
 	pfs = NULL;
 
-	close(dev);
+	pfctl_close(pfh);
+
 	return (0);
 }
 

@@ -393,6 +393,7 @@ void	pfctl_close(struct pfctl_handle *);
 int	pfctl_fd(struct pfctl_handle *);
 
 int	pfctl_startstop(struct pfctl_handle *h, int start);
+struct pfctl_status* pfctl_get_status_h(struct pfctl_handle *h);
 struct pfctl_status* pfctl_get_status(int dev);
 uint64_t pfctl_status_counter(struct pfctl_status *status, int id);
 uint64_t pfctl_status_lcounter(struct pfctl_status *status, int id);
