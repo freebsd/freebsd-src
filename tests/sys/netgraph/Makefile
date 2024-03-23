@@ -8,7 +8,7 @@ TAP_TESTS_SH+=	ng_macfilter_test
 
 # Serialize tests since some share netgraph node names.
 TEST_METADATA+=	is_exclusive=true
-TEST_METADATA.ng_macfilter_test+=	required_user="root"
+TEST_METADATA+=	required_user="root"
 TEST_METADATA.ng_macfilter_test+=	required_programs="perl"
 
 ATF_TESTS_C+=	basic		\
