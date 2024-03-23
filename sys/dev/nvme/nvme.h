@@ -358,6 +358,9 @@ enum nvme_psdt {
 /* per namespace smart/health log page */
 #define NVME_CTRLR_DATA_LPA_NS_SMART_SHIFT		(0)
 #define NVME_CTRLR_DATA_LPA_NS_SMART_MASK		(0x1)
+/* extended data for Get Log Page command */
+#define NVME_CTRLR_DATA_LPA_EXT_DATA_SHIFT		(2)
+#define NVME_CTRLR_DATA_LPA_EXT_DATA_MASK		(0x1)
 
 /** AVSCC - admin vendor specific command configuration */
 /* admin vendor specific commands use spec format */
