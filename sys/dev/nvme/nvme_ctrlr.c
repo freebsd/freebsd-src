@@ -783,10 +783,11 @@ nvme_ctrlr_async_event_cb(void *arg, const struct nvme_completion *cpl)
 	}
 
 	/* Associated log page is in bits 23:16 of completion entry dw0. */
-	aer->log_page_id = (cpl->cdw0 & 0xFF0000) >> 16;
+	aer->log_page_id = NVMEV(NVME_ASYNC_EVENT_LOG_PAGE_ID, cpl->cdw0);
 
 	nvme_printf(aer->ctrlr, "async event occurred (type 0x%x, info 0x%02x,"
-	    " page 0x%02x)\n", (cpl->cdw0 & 0x07), (cpl->cdw0 & 0xFF00) >> 8,
+	    " page 0x%02x)\n", NVMEV(NVME_ASYNC_EVENT_TYPE, cpl->cdw0),
+	    NVMEV(NVME_ASYNC_EVENT_INFO, cpl->cdw0),
 	    aer->log_page_id);
 
 	if (is_log_page_id_valid(aer->log_page_id)) {
