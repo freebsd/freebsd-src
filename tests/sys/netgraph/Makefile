@@ -14,6 +14,7 @@ TEST_METADATA.ng_macfilter_test+=	required_programs="perl"
 ATF_TESTS_C+=	basic		\
 		bridge		\
 		hub		\
+		ksocket		\
 		socket		\
 		vlan_rotate	\
 
