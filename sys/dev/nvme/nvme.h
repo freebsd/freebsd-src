@@ -211,8 +211,17 @@
 
 /* Command field definitions */
 
-#define NVME_CMD_FUSE_SHIFT				(8)
+#define NVME_CMD_FUSE_SHIFT				(0)
 #define NVME_CMD_FUSE_MASK				(0x3)
+
+enum nvme_psdt {
+	NVME_PSDT_PRP					= 0x0,
+	NVME_PSDT_SGL					= 0x1,
+	NVME_PSDT_SGL_MPTR				= 0x2
+};
+#define	NVME_CMD_PSDT_SHIFT				(6)
+#define	NVME_CMD_PSDT_MASK				(0x3)
+
 
 #define NVME_STATUS_P_SHIFT				(0)
 #define NVME_STATUS_P_MASK				(0x1)
