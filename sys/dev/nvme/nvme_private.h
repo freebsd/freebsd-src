@@ -57,9 +57,6 @@ MALLOC_DECLARE(M_NVME);
 
 #define NVME_ADMIN_TRACKERS	(16)
 #define NVME_ADMIN_ENTRIES	(128)
-/* min and max are defined in admin queue attributes section of spec */
-#define NVME_MIN_ADMIN_ENTRIES	(2)
-#define NVME_MAX_ADMIN_ENTRIES	(4096)
 
 /*
  * NVME_IO_ENTRIES defines the size of an I/O qpair's submission and completion
@@ -73,11 +70,6 @@ MALLOC_DECLARE(M_NVME);
 #define NVME_IO_TRACKERS	(128)
 #define NVME_MIN_IO_TRACKERS	(4)
 #define NVME_MAX_IO_TRACKERS	(1024)
-
-/*
- * NVME_MAX_IO_ENTRIES is not defined, since it is specified in CC.MQES
- *  for each controller.
- */
 
 #define NVME_INT_COAL_TIME	(0)	/* disabled */
 #define NVME_INT_COAL_THRESHOLD (0)	/* 0-based */
