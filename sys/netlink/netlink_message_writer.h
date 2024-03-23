@@ -226,6 +226,12 @@ nlattr_add_raw(struct nl_writer *nw, const struct nlattr *nla_src)
 }
 
 static inline bool
+nlattr_add_bool(struct nl_writer *nw, int attrtype, bool value)
+{
+	return (nlattr_add(nw, attrtype, sizeof(bool), &value));
+}
+
+static inline bool
 nlattr_add_u8(struct nl_writer *nw, int attrtype, uint8_t value)
 {
 	return (nlattr_add(nw, attrtype, sizeof(uint8_t), &value));

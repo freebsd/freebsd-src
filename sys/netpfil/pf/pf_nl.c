@@ -1109,6 +1109,111 @@ pf_handle_set_statusif(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (0);
 }
 
+static bool
+nlattr_add_counters(struct nl_writer *nw, int attr, size_t number, char **names,
+    counter_u64_t *counters)
+{
+	for (int i = 0; i < number; i++) {
+		int off = nlattr_add_nested(nw, attr);
+		nlattr_add_u32(nw, PF_C_ID, i);
+		nlattr_add_string(nw, PF_C_NAME, names[i]);
+		nlattr_add_u64(nw, PF_C_COUNTER, counter_u64_fetch(counters[i]));
+		nlattr_set_len(nw, off);
+	}
+
+	return (true);
+}
+
+static bool
+nlattr_add_fcounters(struct nl_writer *nw, int attr, size_t number, char **names,
+    struct pf_counter_u64 *counters)
+{
+	for (int i = 0; i < number; i++) {
+		int off = nlattr_add_nested(nw, attr);
+		nlattr_add_u32(nw, PF_C_ID, i);
+		nlattr_add_string(nw, PF_C_NAME, names[i]);
+		nlattr_add_u64(nw, PF_C_COUNTER, pf_counter_u64_fetch(&counters[i]));
+		nlattr_set_len(nw, off);
+	}
+
+	return (true);
+}
+
+static bool
+nlattr_add_u64_array(struct nl_writer *nw, int attr, size_t number, uint64_t *array)
+{
+	int off = nlattr_add_nested(nw, attr);
+
+	for (size_t i = 0; i < number; i++)
+		nlattr_add_u64(nw, 0, array[i]);
+
+	nlattr_set_len(nw, off);
+
+	return (true);
+}
+
+static int
+pf_handle_get_status(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pf_status s;
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	char *pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
+	char *pf_lcounter[KLCNT_MAX+1] = KLCNT_NAMES;
+	char *pf_fcounter[FCNT_MAX+1] = FCNT_NAMES;
+	int error;
+
+	PF_RULES_RLOCK_TRACKER;
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_GET_STATUS;
+	ghdr_new->version = 0;
+	ghdr_new->reserved = 0;
+
+	PF_RULES_RLOCK();
+
+	nlattr_add_string(nw, PF_GS_IFNAME, V_pf_status.ifname);
+	nlattr_add_bool(nw, PF_GS_RUNNING, V_pf_status.running);
+	nlattr_add_u32(nw, PF_GS_SINCE, V_pf_status.since);
+	nlattr_add_u32(nw, PF_GS_DEBUG, V_pf_status.debug);
+	nlattr_add_u32(nw, PF_GS_HOSTID, ntohl(V_pf_status.hostid));
+	nlattr_add_u32(nw, PF_GS_STATES, V_pf_status.states);
+	nlattr_add_u32(nw, PF_GS_SRC_NODES, V_pf_status.src_nodes);
+	nlattr_add_u32(nw, PF_GS_REASSEMBLE, V_pf_status.reass);
+	nlattr_add_u32(nw, PF_GS_SYNCOOKIES_ACTIVE, V_pf_status.syncookies_active);
+
+	nlattr_add_counters(nw, PF_GS_COUNTERS, PFRES_MAX, pf_reasons,
+	    V_pf_status.counters);
+	nlattr_add_counters(nw, PF_GS_LCOUNTERS, KLCNT_MAX, pf_lcounter,
+	    V_pf_status.lcounters);
+	nlattr_add_fcounters(nw, PF_GS_FCOUNTERS, FCNT_MAX, pf_fcounter,
+	    V_pf_status.fcounters);
+	nlattr_add_counters(nw, PF_GS_SCOUNTERS, SCNT_MAX, pf_fcounter,
+	    V_pf_status.scounters);
+
+	pfi_update_status(V_pf_status.ifname, &s);
+	nlattr_add_u64_array(nw, PF_GS_BCOUNTERS, 2 * 2, (uint64_t *)s.bcounters);
+	nlattr_add_u64_array(nw, PF_GS_PCOUNTERS, 2 * 2 * 2, (uint64_t *)s.pcounters);
+
+	nlattr_add(nw, PF_GS_CHKSUM, PF_MD5_DIGEST_LENGTH, V_pf_status.pf_chksum);
+
+	PF_RULES_RUNLOCK();
+
+	if (!nlmsg_end(nw)) {
+		error = ENOMEM;
+		goto out;
+	}
+
+	return (0);
+
+out:
+	nlmsg_abort(nw);
+	return (error);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -1189,7 +1294,14 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_cb = pf_handle_set_statusif,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
-	}
+	},
+	{
+		.cmd_num = PFNL_CMD_GET_STATUS,
+		.cmd_name = "GETSTATUS",
+		.cmd_cb = pf_handle_get_status,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
 };
 
 void

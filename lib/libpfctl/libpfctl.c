@@ -287,6 +287,153 @@ _pfctl_get_status_counters(const nvlist_t *nvl,
 	}
 }
 
+#define	_OUT(_field)	offsetof(struct pfctl_status_counter, _field)
+static const struct snl_attr_parser ap_counter[] = {
+	{ .type = PF_C_COUNTER, .off = _OUT(counter), .cb = snl_attr_get_uint64 },
+	{ .type = PF_C_NAME, .off = _OUT(name), .cb = snl_attr_get_string },
+	{ .type = PF_C_ID, .off = _OUT(id), .cb = snl_attr_get_uint32 },
+};
+SNL_DECLARE_ATTR_PARSER(counter_parser, ap_counter);
+#undef _OUT
+
+static bool
+snl_attr_get_counters(struct snl_state *ss, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	struct pfctl_status_counter counter = {};
+	struct pfctl_status_counter *c;
+	bool error;
+
+	error = snl_parse_header(ss, NLA_DATA(nla), NLA_DATA_LEN(nla), &counter_parser, &counter);
+	if (! error)
+		return (error);
+
+	c = malloc(sizeof(*c));
+	if (c == NULL)
+		return (false);
+
+	c->id = counter.id;
+	c->counter = counter.counter;
+	c->name = strdup(counter.name);
+
+	TAILQ_INSERT_TAIL((struct pfctl_status_counters *)target, c, entry);
+
+	return (error);
+}
+
+struct snl_uint64_array {
+	uint64_t *array;
+	size_t count;
+	size_t max;
+};
+static bool
+snl_attr_get_uint64_element(struct snl_state *ss, struct nlattr *nla,
+    const void *arg, void *target)
+{
+	bool error;
+	uint64_t value;
+	struct snl_uint64_array *t = (struct snl_uint64_array *)target;
+
+	if (t->count >= t->max)
+		return (false);
+
+	error = snl_attr_get_uint64(ss, nla, arg, &value);
+	if (! error)
+		return (error);
+
+	t->array[t->count++] = value;
+
+	return (true);
+}
+
+static const struct snl_attr_parser ap_array[] = {
+	{ .cb = snl_attr_get_uint64_element },
+};
+SNL_DECLARE_ATTR_PARSER(array_parser, ap_array);
+static bool
+snl_attr_get_uint64_array(struct snl_state *ss, struct nlattr *nla,
+    const void *arg, void *target)
+{
+	struct snl_uint64_array a = {
+		.array = target,
+		.count = 0,
+		.max = (size_t)arg,
+	};
+	bool error;
+
+	error = snl_parse_header(ss, NLA_DATA(nla), NLA_DATA_LEN(nla), &array_parser, &a);
+	if (! error)
+		return (error);
+
+	return (true);
+}
+
+#define	_OUT(_field)	offsetof(struct pfctl_status, _field)
+static const struct snl_attr_parser ap_getstatus[] = {
+	{ .type = PF_GS_IFNAME, .off = _OUT(ifname), .arg_u32 = IFNAMSIZ, .cb = snl_attr_copy_string },
+	{ .type = PF_GS_RUNNING, .off = _OUT(running), .cb = snl_attr_get_bool },
+	{ .type = PF_GS_SINCE, .off = _OUT(since), .cb = snl_attr_get_uint32 },
+	{ .type = PF_GS_DEBUG, .off = _OUT(debug), .cb = snl_attr_get_uint32 },
+	{ .type = PF_GS_HOSTID, .off = _OUT(hostid), .cb = snl_attr_get_uint32 },
+	{ .type = PF_GS_STATES, .off = _OUT(states), .cb = snl_attr_get_uint32 },
+	{ .type = PF_GS_SRC_NODES, .off = _OUT(src_nodes), .cb = snl_attr_get_uint32 },
+	{ .type = PF_GS_REASSEMBLE, .off = _OUT(reass), .cb = snl_attr_get_uint32 },
+	{ .type = PF_GS_SYNCOOKIES_ACTIVE, .off = _OUT(syncookies_active), .cb = snl_attr_get_uint32 },
+	{ .type = PF_GS_COUNTERS, .off = _OUT(counters), .cb = snl_attr_get_counters },
+	{ .type = PF_GS_LCOUNTERS, .off = _OUT(lcounters), .cb = snl_attr_get_counters },
+	{ .type = PF_GS_FCOUNTERS, .off = _OUT(fcounters), .cb = snl_attr_get_counters },
+	{ .type = PF_GS_SCOUNTERS, .off = _OUT(scounters), .cb = snl_attr_get_counters },
+	{ .type = PF_GS_CHKSUM, .off = _OUT(pf_chksum), .arg_u32 = PF_MD5_DIGEST_LENGTH, .cb = snl_attr_get_bytes },
+	{ .type = PF_GS_BCOUNTERS, .off = _OUT(bcounters), .arg_u32 = 2 * 2, .cb = snl_attr_get_uint64_array },
+	{ .type = PF_GS_PCOUNTERS, .off = _OUT(pcounters), .arg_u32 = 2 * 2 * 2, .cb = snl_attr_get_uint64_array },
+};
+static struct snl_field_parser fp_getstatus[] = {};
+SNL_DECLARE_PARSER(getstatus_parser, struct genlmsghdr, fp_getstatus, ap_getstatus);
+#undef _OUT
+
+struct pfctl_status *
+pfctl_get_status_h(struct pfctl_handle *h __unused)
+{
+	struct pfctl_status	*status;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	struct snl_writer nw;
+	uint32_t seq_id;
+	int family_id;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (NULL);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GET_STATUS);
+	hdr->nlmsg_flags |= NLM_F_DUMP;
+
+	hdr = snl_finalize_msg(&nw);
+	if (hdr == NULL) {
+		return (NULL);
+	}
+
+	seq_id = hdr->nlmsg_seq;
+	if (! snl_send_message(&h->ss, hdr))
+		return (NULL);
+
+	status = calloc(1, sizeof(*status));
+	if (status == NULL)
+		return (NULL);
+	TAILQ_INIT(&status->counters);
+	TAILQ_INIT(&status->lcounters);
+	TAILQ_INIT(&status->fcounters);
+	TAILQ_INIT(&status->scounters);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &getstatus_parser, status))
+			continue;
+	}
+
+	return (status);
+}
+
 struct pfctl_status *
 pfctl_get_status(int dev)
 {

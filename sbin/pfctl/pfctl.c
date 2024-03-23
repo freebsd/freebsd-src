@@ -1578,7 +1578,7 @@ pfctl_show_status(int dev, int opts)
 	struct pfctl_status	*status;
 	struct pfctl_syncookies	cookies;
 
-	if ((status = pfctl_get_status(dev)) == NULL) {
+	if ((status = pfctl_get_status_h(pfh)) == NULL) {
 		warn("DIOCGETSTATUS");
 		return (-1);
 	}
@@ -1600,7 +1600,7 @@ pfctl_show_running(int dev)
 	struct pfctl_status *status;
 	int running;
 
-	if ((status = pfctl_get_status(dev)) == NULL) {
+	if ((status = pfctl_get_status_h(pfh)) == NULL) {
 		warn("DIOCGETSTATUS");
 		return (-1);
 	}

@@ -46,6 +46,7 @@ enum {
 	PFNL_CMD_CLRSTATES = 8,
 	PFNL_CMD_KILLSTATES = 9,
 	PFNL_CMD_SET_STATUSIF = 10,
+	PFNL_CMD_GET_STATUS = 11,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -286,6 +287,34 @@ enum pf_set_statusif_types_t {
 	PF_SS_UNSPEC,
 	PF_SS_IFNAME		= 1, /* string */
 };
+
+enum pf_counter_types_t {
+	PF_C_UNSPEC,
+	PF_C_COUNTER		= 1, /* u64 */
+	PF_C_NAME		= 2, /* string */
+	PF_C_ID			= 3, /* u32 */
+};
+
+enum pf_get_status_types_t {
+	PF_GS_UNSPEC,
+	PF_GS_IFNAME		= 1, /* string */
+	PF_GS_RUNNING		= 2, /* bool */
+	PF_GS_SINCE		= 3, /* u32 */
+	PF_GS_DEBUG		= 4, /* u32 */
+	PF_GS_HOSTID		= 5, /* u32 */
+	PF_GS_STATES		= 6, /* u32 */
+	PF_GS_SRC_NODES		= 7, /* u32 */
+	PF_GS_REASSEMBLE	= 8, /* u32 */
+	PF_GS_SYNCOOKIES_ACTIVE	= 9, /* bool */
+	PF_GS_COUNTERS		= 10, /* nested, */
+	PF_GS_LCOUNTERS		= 11, /* nested, */
+	PF_GS_FCOUNTERS		= 12, /* nested, */
+	PF_GS_SCOUNTERS		= 13, /* nested, */
+	PF_GS_CHKSUM		= 14, /* byte array */
+	PF_GS_PCOUNTERS		= 15, /* u64 array */
+	PF_GS_BCOUNTERS		= 16, /* u64 array */
+};
+
 #ifdef _KERNEL
 
 void	pf_nl_register(void);

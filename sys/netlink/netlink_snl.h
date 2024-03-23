@@ -538,6 +538,17 @@ snl_attr_get_bytes(struct snl_state *ss __unused, struct nlattr *nla, const void
 }
 
 static inline bool
+snl_attr_get_bool(struct snl_state *ss __unused, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	if (NLA_DATA_LEN(nla) == sizeof(bool)) {
+		*((bool *)target) = *((const bool *)NLA_DATA_CONST(nla));
+		return (true);
+	}
+	return (false);
+}
+
+static inline bool
 snl_attr_get_uint8(struct snl_state *ss __unused, struct nlattr *nla,
     const void *arg __unused, void *target)
 {
