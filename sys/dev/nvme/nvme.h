@@ -643,6 +643,14 @@ enum nvme_critical_warning_state {
 #define NVME_FEAT_SET_FID_SHIFT				(0)
 #define NVME_FEAT_SET_FID_MASK				(0xff)
 
+/* Async Events */
+#define	NVME_ASYNC_EVENT_TYPE_SHIFT			(0)
+#define	NVME_ASYNC_EVENT_TYPE_MASK			(0x7)
+#define	NVME_ASYNC_EVENT_INFO_SHIFT			(8)
+#define	NVME_ASYNC_EVENT_INFO_MASK			(0xff)
+#define	NVME_ASYNC_EVENT_LOG_PAGE_ID_SHIFT		(16)
+#define	NVME_ASYNC_EVENT_LOG_PAGE_ID_MASK		(0xff)
+
 /* Helper macro to combine *_MASK and *_SHIFT defines */
 #define NVMEM(name)	(name##_MASK << name##_SHIFT)
 
