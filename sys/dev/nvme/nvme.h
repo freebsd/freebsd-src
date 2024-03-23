@@ -1459,6 +1459,7 @@ enum nvme_log_page {
 	NVME_LOG_PERSISTENT_EVENT_LOG	= 0x0d,
 	NVME_LOG_LBA_STATUS_INFORMATION	= 0x0e,
 	NVME_LOG_ENDURANCE_GROUP_EVENT_AGGREGATE = 0x0f,
+	NVME_LOG_DISCOVERY		= 0x70,
 	/* 0x06-0x7F - reserved */
 	/* 0x80-0xBF - I/O command set specific */
 	NVME_LOG_RES_NOTIFICATION	= 0x80,
@@ -1590,6 +1591,48 @@ struct nvme_device_self_test_page {
 
 _Static_assert(sizeof(struct nvme_device_self_test_page) == 564,
     "bad size for nvme_device_self_test_page");
+
+struct nvme_discovery_log_entry {
+	uint8_t			trtype;
+	uint8_t			adrfam;
+	uint8_t			subtype;
+	uint8_t			treq;
+	uint16_t		portid;
+	uint16_t		cntlid;
+	uint16_t		aqsz;
+	uint8_t			reserved1[22];
+	uint8_t			trsvcid[32];
+	uint8_t			reserved2[192];
+	uint8_t			subnqn[256];
+	uint8_t			traddr[256];
+	union {
+		struct {
+			uint8_t	rdma_qptype;
+			uint8_t	rdma_prtype;
+			uint8_t	rdma_cms;
+			uint8_t	reserved[5];
+			uint16_t rdma_pkey;
+		} rdma;
+		struct {
+			uint8_t	sectype;
+		} tcp;
+		uint8_t		reserved[256];
+	} tsas;
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_discovery_log_entry) == 1024,
+    "bad size for nvme_discovery_log_entry");
+
+struct nvme_discovery_log {
+	uint64_t		genctr;
+	uint64_t		numrec;
+	uint16_t		recfmt;
+	uint8_t			reserved[1006];
+	struct nvme_discovery_log_entry entries[];
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_discovery_log) == 1024,
+    "bad size for nvme_discovery_log");
 
 struct nvme_res_notification_page {
 	uint64_t		log_page_count;
@@ -2213,6 +2256,29 @@ nvme_device_self_test_swapbytes(struct nvme_device_self_test_page *s __unused)
 			tmp[7-i] = b;
 		}
 	}
+#endif
+}
+
+static inline void
+nvme_discovery_log_entry_swapbytes(struct nvme_discovery_log_entry *s __unused)
+{
+#if _BYTE_ORDER != _LITTLE_ENDIAN
+	s->portid = le16toh(s->portid);
+	s->cntlid = le16toh(s->cntlid);
+	s->aqsz = le16toh(s->aqsz);
+	if (s->trtype == 0x01 /* RDMA */) {
+		s->tsas.rdma.rdma_pkey = le16toh(s->tsas.rdma.rdma_pkey);
+	}
+#endif
+}
+
+static inline void
+nvme_discovery_log_swapbytes(struct nvme_discovery_log *s __unused)
+{
+#if _BYTE_ORDER != _LITTLE_ENDIAN
+	s->genctr = le64toh(s->genctr);
+	s->numrec = le64toh(s->numrec);
+	s->recfmt = le16toh(s->recfmt);
 #endif
 }
 #endif /* __NVME_H__ */
