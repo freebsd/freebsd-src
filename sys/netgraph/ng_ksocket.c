@@ -608,12 +608,12 @@ ng_ksocket_connect(hook_p hook)
 	struct socket *const so = priv->so;
 
 	/* Add our hook for incoming data and other events */
-	SOCKBUF_LOCK(&priv->so->so_rcv);
+	SOCK_RECVBUF_LOCK(so);
 	soupcall_set(priv->so, SO_RCV, ng_ksocket_incoming, node);
-	SOCKBUF_UNLOCK(&priv->so->so_rcv);
-	SOCKBUF_LOCK(&priv->so->so_snd);
+	SOCK_RECVBUF_UNLOCK(so);
+	SOCK_SENDBUF_LOCK(so);
 	soupcall_set(priv->so, SO_SND, ng_ksocket_incoming, node);
-	SOCKBUF_UNLOCK(&priv->so->so_snd);
+	SOCK_SENDBUF_UNLOCK(so);
 	SOCK_LOCK(priv->so);
 	priv->so->so_state |= SS_NBIO;
 	SOCK_UNLOCK(priv->so);
@@ -1231,12 +1231,12 @@ ng_ksocket_accept(priv_p priv)
 	 */
 	LIST_INSERT_HEAD(&priv->embryos, priv2, siblings);
 
-	SOCKBUF_LOCK(&so->so_rcv);
+	SOCK_RECVBUF_LOCK(so);
 	soupcall_set(so, SO_RCV, ng_ksocket_incoming, node);
-	SOCKBUF_UNLOCK(&so->so_rcv);
-	SOCKBUF_LOCK(&so->so_snd);
+	SOCK_RECVBUF_UNLOCK(so);
+	SOCK_SENDBUF_LOCK(so);
 	soupcall_set(so, SO_SND, ng_ksocket_incoming, node);
-	SOCKBUF_UNLOCK(&so->so_snd);
+	SOCK_SENDBUF_UNLOCK(so);
 
 	/* Fill in the response data and send it or return it to the caller */
 	resp_data = (struct ng_ksocket_accept *)resp->data;
