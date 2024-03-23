@@ -311,6 +311,38 @@ enum nvme_psdt {
 #define NVME_CTRLR_DATA_OAES_LOG_PAGE_CHANGE_SHIFT	(31)
 #define NVME_CTRLR_DATA_OAES_LOG_PAGE_CHANGE_MASK	(0x1)
 
+/** CTRATT - Controller Attributes */
+/* supports 128-bit Host Identifier */
+#define NVME_CTRLR_DATA_CTRATT_128BIT_HOSTID_SHIFT	(0)
+#define NVME_CTRLR_DATA_CTRATT_128BIT_HOSTID_MASK	(0x1)
+/* supports Non-Operational Power State Permissive Mode */
+#define NVME_CTRLR_DATA_CTRATT_NONOP_POWER_STATE_SHIFT	(1)
+#define NVME_CTRLR_DATA_CTRATT_NONOP_POWER_STATE_MASK	(0x1)
+/* supports NVM Sets */
+#define NVME_CTRLR_DATA_CTRATT_NVM_SETS_SHIFT		(2)
+#define NVME_CTRLR_DATA_CTRATT_NVM_SETS_MASK		(0x1)
+/* supports Read Recovery Levels */
+#define NVME_CTRLR_DATA_CTRATT_READ_RECOVERY_LVLS_SHIFT	(3)
+#define NVME_CTRLR_DATA_CTRATT_READ_RECOVERY_LVLS_MASK	(0x1)
+/* supports Endurance Groups */
+#define NVME_CTRLR_DATA_CTRATT_ENDURANCE_GROUPS_SHIFT	(4)
+#define NVME_CTRLR_DATA_CTRATT_ENDURANCE_GROUPS_MASK	(0x1)
+/* supports Predictable Latency Mode */
+#define NVME_CTRLR_DATA_CTRATT_PREDICTABLE_LATENCY_SHIFT (5)
+#define NVME_CTRLR_DATA_CTRATT_PREDICTABLE_LATENCY_MASK	(0x1)
+/* supports Traffic Based Keep Alive Support */
+#define NVME_CTRLR_DATA_CTRATT_TBKAS_SHIFT		(6)
+#define NVME_CTRLR_DATA_CTRATT_TBKAS_MASK		(0x1)
+/* supports Namespace Granularity */
+#define NVME_CTRLR_DATA_CTRATT_NAMESPACE_GRANULARITY_SHIFT (7)
+#define NVME_CTRLR_DATA_CTRATT_NAMESPACE_GRANULARITY_MASK (0x1)
+/* supports SQ Associations */
+#define NVME_CTRLR_DATA_CTRATT_SQ_ASSOCIATIONS_SHIFT	(8)
+#define NVME_CTRLR_DATA_CTRATT_SQ_ASSOCIATIONS_MASK	(0x1)
+/* supports UUID List */
+#define NVME_CTRLR_DATA_CTRATT_UUID_LIST_SHIFT		(9)
+#define NVME_CTRLR_DATA_CTRATT_UUID_LIST_MASK		(0x1)
+
 /** OACS - optional admin command support */
 /* supports security send/receive commands */
 #define NVME_CTRLR_DATA_OACS_SECURITY_SHIFT		(0)
