@@ -22,13 +22,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 2, 2015
+.Dd March 23, 2024
 .Dt DEVFS_CDEVPRIV 9
 .Os
 .Sh NAME
 .Nm devfs_set_cdevpriv ,
 .Nm devfs_get_cdevpriv ,
-.Nm devfs_clear_cdevpriv
+.Nm devfs_clear_cdevpriv ,
+.Nm devfs_foreach_cdevpriv
 .Nd manage per-open filedescriptor data for devices
 .Sh SYNOPSIS
 .In sys/param.h
@@ -42,6 +43,12 @@ typedef	void d_priv_dtor_t(void *data);
 .Fn devfs_set_cdevpriv "void *priv" "d_priv_dtor_t *dtr"
 .Ft void
 .Fn devfs_clear_cdevpriv "void"
+.Ft int
+.Fo devfs_foreach_cdevpriv
+.Fa "struct cdev *dev"
+.Fa "int (*cb)(void *data, void *arg)"
+.Fa "void *arg"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn devfs_xxx_cdevpriv
@@ -111,6 +118,36 @@ filedescriptor, or
 .Fn devfs_clear_cdevpriv
 was called.
 .El
+.Pp
+The function
+.Fn devfs_foreach_cdevpriv
+sequentially calls the function
+.Fa cb
+for each
+.Nm cdevpriv
+structure, currently associated with the
+.Fa cdev
+device.
+The iterated
+.Nm cdevpriv
+data pointer and the user-supplied context
+.Fa arg
+are passed to the function
+.Fa cb .
+If
+.Fa cb
+returns non-zero value, the iteration stops on that element.
+The
+.Fn devfs_foreach_cdevpriv
+returns the return value from the last call to
+.Fa cb ,
+or zero if no
+.Nm cdevpriv
+data is currently associated with the device.
+.Pp
+Current implementation of the iterator makes it impossible to use
+any blockable locking inside the callback
+.Fa cb .
 .Sh SEE ALSO
 .Xr close 2 ,
 .Xr open 2 ,
