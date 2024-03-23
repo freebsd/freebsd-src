@@ -2869,7 +2869,7 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 		    ("m->m_type == %d", m->m_type));
 		if (psa != NULL)
 			*psa = sodupsockaddr(mtod(m, struct sockaddr *),
-			    M_NOWAIT);
+			    M_WAITOK);
 		m = m_free(m);
 	}
 	KASSERT(m, ("%s: no data or control after soname", __func__));
