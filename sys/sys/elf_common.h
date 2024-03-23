@@ -489,6 +489,8 @@ typedef struct {
 #define	SHT_MIPS_PDR_EXCEPTION	0x70000029
 #define	SHT_MIPS_ABIFLAGS	0x7000002a
 
+#define	SHT_RISCV_ATTRIBUTES	0x70000003
+
 #define	SHT_SPARC_GOTDATA	0x70000000
 
 #define	SHTORDERED
@@ -683,6 +685,11 @@ typedef struct {
 #define	DT_AARCH64_BTI_PLT		0x70000001
 #define	DT_AARCH64_PAC_PLT		0x70000003
 #define	DT_AARCH64_VARIANT_PCS		0x70000005
+#define	DT_AARCH64_MEMTAG_MODE		0x70000009
+#define	DT_AARCH64_MEMTAG_HEAP		0x7000000b
+#define	DT_AARCH64_MEMTAG_STACK		0x7000000c
+#define	DT_AARCH64_MEMTAG_GLOBALS	0x7000000d
+#define	DT_AARCH64_MEMTAG_GLOBALSSZ	0x7000000f
 
 #define	DT_ARM_SYMTABSZ			0x70000001
 #define	DT_ARM_PREEMPTMAP		0x70000002
@@ -1092,6 +1099,7 @@ typedef struct {
 #define	R_ARM_PLT32		27	/* Add PC-relative PLT offset. */
 #define	R_ARM_GNU_VTENTRY	100
 #define	R_ARM_GNU_VTINHERIT	101
+#define	R_ARM_IRELATIVE		160
 #define	R_ARM_RSBREL32		250
 #define	R_ARM_THM_RPC22		251
 #define	R_ARM_RREL32		252
@@ -1337,6 +1345,7 @@ typedef struct {
 #define	R_RISCV_TLS_TPREL64	11
 
 /* Relocation types not used by the dynamic linker. */
+#define	R_RISCV_TLSDESC		12
 #define	R_RISCV_BRANCH		16
 #define	R_RISCV_JAL		17
 #define	R_RISCV_CALL		18
@@ -1374,6 +1383,13 @@ typedef struct {
 #define	R_RISCV_SET32		56
 #define	R_RISCV_32_PCREL	57
 #define	R_RISCV_IRELATIVE	58
+#define	R_RISCV_PLT32		59
+#define	R_RISCV_SET_ULEB128	60
+#define	R_RISCV_SUB_ULEB128	61
+#define	R_RISCV_TLSDESC_HI20	62
+#define	R_RISCV_TLSDESC_LOAD_LO12	63
+#define	R_RISCV_TLSDESC_ADD_LO12	64
+#define	R_RISCV_TLSDESC_CALL	65
 
 #define	R_SPARC_NONE		0
 #define	R_SPARC_8		1
