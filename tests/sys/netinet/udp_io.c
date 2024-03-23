@@ -82,7 +82,7 @@ ATF_TC_BODY(trunc, tc)
 	n = (arc4random() % (sizeof(sbuf) - 1)) + 1;
 	iov.iov_base = rbuf;
 	iov.iov_len = n;
-	ATF_REQUIRE(recvmsg(s[0], &msg, 0) == n);
+	ATF_REQUIRE(recvmsg(s[0], &msg, 0) == (ssize_t)n);
 	ATF_REQUIRE(msg.msg_flags == MSG_TRUNC);
 	ATF_REQUIRE(strncmp(sbuf, rbuf, n) == 0);
 	iov.iov_len = sizeof(rbuf);
@@ -118,7 +118,7 @@ ATF_TC_BODY(peek, tc)
 	for (int i = 0; i < 10; i++) {
 		n = (arc4random() % sizeof(sbuf)) + 1;
 		iov.iov_len = n;
-		ATF_REQUIRE(recvmsg(s[0], &msg, MSG_PEEK) == n);
+		ATF_REQUIRE(recvmsg(s[0], &msg, MSG_PEEK) == (ssize_t)n);
 		if (n < sizeof(sbuf))
 			ATF_REQUIRE(msg.msg_flags == (MSG_PEEK | MSG_TRUNC));
 		else
