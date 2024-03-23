@@ -71,6 +71,7 @@
 #include <sys/sx.h>
 #include <sys/sysent.h>
 #include <sys/signalvar.h>
+#include <sys/sqlite_lkm.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -94,8 +95,6 @@ struct fork_args {
 	int     dummy;
 };
 #endif
-
-extern int dbos_add_pid(int pid);
 
 /* ARGSUSED */
 int
@@ -298,6 +297,11 @@ retry:
 
 	bit_set(&proc_id_pidmap, result);
 	mtx_unlock(&procid_lock);
+
+	//Call dbos_add_pid(result) here
+	if (dbos_add_pid_ptr != NULL) {
+		(*dbos_add_pid_ptr)(result);
+	}
 
 	return (result);
 }
