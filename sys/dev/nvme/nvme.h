@@ -1350,7 +1350,13 @@ struct nvme_controller_data {
 	uint8_t			reserved8[768];
 
 	/* bytes 1792-2047: NVMe over Fabrics specification */
-	uint8_t			reserved9[256];
+	uint32_t		ioccsz;
+	uint32_t		iorcsz;
+	uint16_t		icdoff;
+	uint8_t			fcatt;
+	uint8_t			msdbd;
+	uint16_t		ofcs;
+	uint8_t			reserved9[242];
 
 	/* bytes 2048-3071: power state descriptors */
 	struct nvme_power_state power_state[32];
@@ -2067,6 +2073,10 @@ void	nvme_controller_data_swapbytes(struct nvme_controller_data *s __unused)
 	s->acwu = le16toh(s->acwu);
 	s->sgls = le32toh(s->sgls);
 	s->mnan = le32toh(s->mnan);
+	s->ioccsz = le32toh(s->ioccsz);
+	s->iorcsz = le32toh(s->iorcsz);
+	s->icdoff = le16toh(s->icdoff);
+	s->ofcs = le16toh(s->ofcs);
 	for (i = 0; i < 32; i++)
 		nvme_power_state_swapbytes(&s->power_state[i]);
 #endif
