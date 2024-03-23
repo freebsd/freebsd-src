@@ -2872,10 +2872,7 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 			    M_NOWAIT);
 		m = m_free(m);
 	}
-	if (m == NULL) {
-		/* XXXRW: Can this happen? */
-		return (0);
-	}
+	KASSERT(m, ("%s: no data or control after soname", __func__));
 
 	/*
 	 * Packet to copyout() is now in 'm' and it is disconnected from the
