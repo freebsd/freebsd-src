@@ -222,7 +222,7 @@ xdrrec_create(XDR *xdrs, u_int sendsize, u_int recvsize, void *tcp_handle,
 
 
 /*
- * The reoutines defined below are the xdr ops which will go into the
+ * The routines defined below are the xdr ops which will go into the
  * xdr handle filled in by xdrrec_create.
  */
 
@@ -484,7 +484,7 @@ xdrrec_eof(XDR *xdrs)
 
 /*
  * The client must tell the package when an end-of-record has occurred.
- * The second paraemters tells whether the record should be flushed to the
+ * The second parameters tells whether the record should be flushed to the
  * (output) tcp stream.  (This let's the package support batched or
  * pipelined procedure calls.)  TRUE => immediate flush to tcp connection.
  */
