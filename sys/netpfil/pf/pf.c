@@ -7450,6 +7450,7 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		if (error == 0) {
 			m_clrprotoflags(m0);
 			md = m0;
+			pd->pf_mtag = pf_find_mtag(md);
 			error = pf_dummynet_route(pd, s, r, ifp,
 			    sintosa(&dst), &md);
 			if (md != NULL)
