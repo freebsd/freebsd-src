@@ -110,6 +110,13 @@ VNET_DEFINE_STATIC(int, dad_maxtry) = 15;	/* max # of *tries* to
 						   transmit DAD packet */
 #define	V_dad_maxtry			VNET(dad_maxtry)
 
+VNET_DEFINE_STATIC(int, nd6_onlink_ns_rfc4861) = 0;
+#define	V_nd6_onlink_ns_rfc4861		VNET(nd6_onlink_ns_rfc4861)
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_ONLINKNSRFC4861,
+    nd6_onlink_ns_rfc4861, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(nd6_onlink_ns_rfc4861), 0,
+    "Accept 'on-link' ICMPv6 NS messages in compliance with RFC 4861");
+
 /*
  * Input a Neighbor Solicitation Message.
  *

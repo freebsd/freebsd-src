@@ -98,10 +98,14 @@ VNET_DEFINE(u_int32_t, ip6_temp_valid_lifetime) = DEF_TEMP_VALID_LIFETIME;
 VNET_DEFINE(int, ip6_temp_regen_advance) = TEMPADDR_REGEN_ADVANCE;
 
 #ifdef EXPERIMENTAL
-VNET_DEFINE(int, nd6_ignore_ipv6_only_ra) = 1;
+VNET_DEFINE_STATIC(int, nd6_ignore_ipv6_only_ra) = 1;
+#define	V_nd6_ignore_ipv6_only_ra	VNET(nd6_ignore_ipv6_only_ra)
+SYSCTL_INT(_net_inet6_icmp6, OID_AUTO,
+    nd6_ignore_ipv6_only_ra, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(nd6_ignore_ipv6_only_ra), 0,
+    "Ignore the 'IPv6-Only flag' in RA messages in compliance with "
+    "draft-ietf-6man-ipv6only-flag");
 #endif
-
-SYSCTL_DECL(_net_inet6_icmp6);
 
 /* RTPREF_MEDIUM has to be 0! */
 #define RTPREF_HIGH	1
