@@ -27,7 +27,7 @@
 .\"
 .\"	@(#)mem.4	5.3 (Berkeley) 5/2/91
 .\"
-.Dd March 11, 2022
+.Dd March 24, 2024
 .Dt MEM 4
 .Os
 .Sh NAME
@@ -300,11 +300,13 @@ privilege.
 .Xr memcontrol 8
 .Sh HISTORY
 The
-.Nm mem
+.Pa /dev/mem
+file appeared in
+.At v1
 and
-.Nm kmem
-files appeared in
-.At v6 .
+.Pa /dev/kmem
+in
+.At v5 .
 The ioctl interface for memory range attributes was added in
 .Fx 3.2 .
 .Sh BUGS
