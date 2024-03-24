@@ -409,7 +409,6 @@ VNET_DEFINE(int, pmtu_probe) = 60*2;
 /* ICMPV6 parameters */
 VNET_DEFINE(int, icmp6_rediraccept) = 1;/* accept and process redirects */
 VNET_DEFINE(int, icmp6_redirtimeout) = 10 * 60;	/* 10 minutes */
-VNET_DEFINE(int, icmp6errppslim) = 100;		/* 100pps */
 /* control how to respond to NI queries */
 VNET_DEFINE(int, icmp6_nodeinfo) = 0;
 VNET_DEFINE(int, icmp6_nodeinfo_oldmcprefix) = 1;
@@ -592,9 +591,6 @@ SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_NODEINFO_OLDMCPREFIX,
 	&VNET_NAME(icmp6_nodeinfo_oldmcprefix), 0,
 	"Join old IPv6 NI group address in draft-ietf-ipngwg-icmp-name-lookup "
 	"for compatibility with KAME implementation");
-SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ERRPPSLIMIT, errppslimit,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6errppslim), 0,
-	"Maximum number of ICMPv6 error messages per second");
 SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXNUDHINT, nd6_maxnudhint,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_maxnudhint), 0,
 	""); /* XXX unused */
