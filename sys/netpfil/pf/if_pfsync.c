@@ -419,6 +419,9 @@ pfsync_clone_destroy(struct ifnet *ifp)
 		MPASS(TAILQ_EMPTY(&b->b_deferrals));
 		PFSYNC_BUCKET_UNLOCK(b);
 
+		free(b->b_plus, M_PFSYNC);
+		b->b_plus = NULL;
+
 		callout_drain(&b->b_tmo);
 	}
 
@@ -1557,6 +1560,7 @@ pfsync_drop(struct pfsync_softc *sc)
 		}
 
 		b->b_len = PFSYNC_MINPKT;
+		free(b->b_plus, M_PFSYNC);
 		b->b_plus = NULL;
 	}
 }
@@ -1669,6 +1673,7 @@ pfsync_sendout(int schedswi, int c)
 		bcopy(b->b_plus, m->m_data + offset, b->b_pluslen);
 		offset += b->b_pluslen;
 
+		free(b->b_plus, M_PFSYNC);
 		b->b_plus = NULL;
 	}
 
@@ -2287,13 +2292,21 @@ pfsync_send_plus(void *plus, size_t pluslen)
 
 	PFSYNC_BUCKET_LOCK(b);
 
+	MPASS(b->b_plus == NULL);
+
 	if (b->b_len + pluslen > sc->sc_ifp->if_mtu)
 		pfsync_sendout(1, b->b_id);
 
-	b->b_plus = plus;
+	b->b_plus = malloc(pluslen, M_PFSYNC, M_NOWAIT);
+	if (b->b_plus == NULL)
+		goto out;
+
+	memcpy(b->b_plus, plus, pluslen);
 	b->b_len += (b->b_pluslen = pluslen);
 
 	pfsync_sendout(1, b->b_id);
+
+out:
 	PFSYNC_BUCKET_UNLOCK(b);
 }
 
