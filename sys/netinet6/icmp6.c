@@ -341,10 +341,8 @@ icmp6_error(struct mbuf *m, int type, int code, int param)
 	}
 
 	/* Finally, do rate limitation check. */
-	if (icmp6_ratelimit(&oip6->ip6_src, type, code)) {
-		ICMP6STAT_INC(icp6s_toofreq);
+	if (icmp6_ratelimit(&oip6->ip6_src, type, code))
 		goto freeit;
-	}
 
 	/*
 	 * OK, ICMP6 can be generated.
@@ -2744,6 +2742,7 @@ icmp6_ratelimit(const struct in6_addr *dst, const int type,
 	    V_icmp6errppslim)) {
 		/* The packet is subject to rate limit */
 		ret++;
+		ICMP6STAT_INC(icp6s_toofreq);
 	}
 
 	return ret;
