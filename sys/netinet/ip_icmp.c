@@ -1145,6 +1145,11 @@ badport_bandlim(int which)
 	pps = counter_ratecheck(&V_icmp_rates[which], V_icmplim +
 	    V_icmplim_curr_jitter);
 	if (pps > 0) {
+		if (V_icmplim_output)
+			log(LOG_NOTICE,
+			    "Limiting %s response from %jd to %d packets/sec\n",
+			    icmp_rate_descrs[which], (intmax_t )pps,
+			    V_icmplim + V_icmplim_curr_jitter);
 		/*
 		 * Adjust limit +/- to jitter the measurement to deny a
 		 * side-channel port scan as in CVE-2020-25705
@@ -1159,10 +1164,5 @@ badport_bandlim(int which)
 	}
 	if (pps == -1)
 		return (-1);
-	if (pps > 0 && V_icmplim_output)
-		log(LOG_NOTICE,
-		    "Limiting %s response from %jd to %d packets/sec\n",
-		    icmp_rate_descrs[which], (intmax_t )pps, V_icmplim +
-		    V_icmplim_curr_jitter);
 	return (0);
 }
