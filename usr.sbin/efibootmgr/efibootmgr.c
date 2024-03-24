@@ -203,8 +203,8 @@ parse_args(int argc, char *argv[])
 {
 	int ch;
 
-	while ((ch = getopt_long(argc, argv, "AaBb:C:cdDe:EFfhk:L:l:NnOo:pTt:v",
-		    lopts, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv,
+	    "AaBb:C:cdDe:EFfhk:L:l:NnOo:pTt:u:v", lopts, NULL)) != -1) {
 		switch (ch) {
 		case 'A':
 			opts.set_inactive = true;
