@@ -114,22 +114,46 @@ extern ip6proto_ctlinput_t	*ip6_ctlprotox[];
 
 VNET_PCPUSTAT_DEFINE(struct icmp6stat, icmp6stat);
 VNET_PCPUSTAT_SYSINIT(icmp6stat);
+SYSCTL_VNET_PCPUSTAT(_net_inet6_icmp6, ICMPV6CTL_STATS, stats,
+    struct icmp6stat, icmp6stat,
+    "ICMPv6 statistics (struct icmp6stat, netinet/icmp6.h)");
 
 #ifdef VIMAGE
 VNET_PCPUSTAT_SYSUNINIT(icmp6stat);
 #endif /* VIMAGE */
 
+VNET_DEFINE_STATIC(int, icmp6_rediraccept) = 1;
+#define	V_icmp6_rediraccept	VNET(icmp6_rediraccept)
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRACCEPT, rediraccept,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6_rediraccept), 0,
+    "Accept ICMPv6 redirect messages");
+
+VNET_DEFINE_STATIC(int, icmp6_redirtimeout) = 10 * 60;	/* 10 minutes */
+#define	V_icmp6_redirtimeout	VNET(icmp6_redirtimeout)
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRTIMEOUT, redirtimeout,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6_redirtimeout), 0,
+    "Delay in seconds before expiring redirect route");
+
+VNET_DEFINE_STATIC(int, icmp6_nodeinfo) = 0;
+#define	V_icmp6_nodeinfo	VNET(icmp6_nodeinfo)
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_NODEINFO, nodeinfo,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6_nodeinfo), 0,
+    "Mask of enabled RFC4620 node information query types");
+
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
-VNET_DECLARE(int, icmp6errppslim);
+#define	V_ripcbinfo		VNET(ripcbinfo)
+
+VNET_DEFINE_STATIC(int, icmp6errppslim) = 100;
+#define	V_icmp6errppslim	VNET(icmp6errppslim)
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ERRPPSLIMIT, errppslimit,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6errppslim), 0,
+    "Maximum number of ICMPv6 error messages per second");
+
 VNET_DEFINE_STATIC(int, icmp6errpps_count) = 0;
 VNET_DEFINE_STATIC(struct timeval, icmp6errppslim_last);
-VNET_DECLARE(int, icmp6_nodeinfo);
 
-#define	V_ripcbinfo			VNET(ripcbinfo)
-#define	V_icmp6errppslim		VNET(icmp6errppslim)
 #define	V_icmp6errpps_count		VNET(icmp6errpps_count)
 #define	V_icmp6errppslim_last		VNET(icmp6errppslim_last)
-#define	V_icmp6_nodeinfo		VNET(icmp6_nodeinfo)
 
 static void icmp6_errcount(int, int);
 static int icmp6_rip6_input(struct mbuf **, int);

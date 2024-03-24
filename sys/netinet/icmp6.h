@@ -644,6 +644,10 @@ struct icmp6stat {
 #ifdef _KERNEL
 #include <sys/counter.h>
 
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_inet6_icmp6);
+#endif
+
 VNET_PCPUSTAT_DECLARE(struct icmp6stat, icmp6stat);
 /*
  * In-kernel consumers can use these accessor macros directly to update
@@ -771,12 +775,6 @@ do { \
 			 break; \
 		} \
 } while (/*CONSTCOND*/ 0)
-
-VNET_DECLARE(int, icmp6_rediraccept);	/* accept/process redirects */
-VNET_DECLARE(int, icmp6_redirtimeout);	/* cache time for redirect routes */
-
-#define	V_icmp6_rediraccept	VNET(icmp6_rediraccept)
-#define	V_icmp6_redirtimeout	VNET(icmp6_redirtimeout)
 
 #define ICMP6_NODEINFO_FQDNOK		0x1
 #define ICMP6_NODEINFO_NODEADDROK	0x2
