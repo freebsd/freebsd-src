@@ -643,7 +643,7 @@ hpet_attach(device_t dev)
 	 * The only way to use HPET there is to specify IRQs manually
 	 * and/or use legacy_route. Legacy_route mode works on both.
 	 */
-	if (vm_guest)
+	if (vm_guest != VM_GUEST_NO)
 		sc->allowed_irqs = 0x00000000;
 	/* Let user override. */
 	resource_int_value(device_get_name(dev), device_get_unit(dev),
