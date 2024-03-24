@@ -1110,6 +1110,7 @@ icmp_bandlimit_init(void)
 VNET_SYSINIT(icmp_bandlimit, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY,
     icmp_bandlimit_init, NULL);
 
+#ifdef VIMAGE
 static void
 icmp_bandlimit_uninit(void)
 {
@@ -1119,6 +1120,7 @@ icmp_bandlimit_uninit(void)
 }
 VNET_SYSUNINIT(icmp_bandlimit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
     icmp_bandlimit_uninit, NULL);
+#endif
 
 int
 badport_bandlim(int which)
