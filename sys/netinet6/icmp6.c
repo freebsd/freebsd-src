@@ -546,6 +546,8 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 		icmp6_ifstat_inc(ifp, ifs6_in_echo);
 		if (code != 0)
 			goto badcode;
+		if (icmp6_ratelimit(&ip6->ip6_src, ICMP6_ECHO_REPLY, 0))
+			break;
 		if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) == NULL) {
 			/* Give up remote */
 			break;
