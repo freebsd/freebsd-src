@@ -709,7 +709,7 @@ confirm_zone(const char *filename)
 	tm = localtime(&t);
 
 	snprintf(prompt, sizeof(prompt),
-	    "Does the abbreviation `%s' look reasonable?", tm->tm_zone);
+	    "Does the timezone abbreviation `%s' look reasonable?", tm->tm_zone);
 	conf.title = "Confirmation";
 	rv = (bsddialog_yesno(&conf, prompt, 5, 72) == BSDDIALOG_YES);
 	return (rv);
