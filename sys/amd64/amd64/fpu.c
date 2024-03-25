@@ -236,9 +236,12 @@ fpurestore_fxrstor(void *addr)
 
 DEFINE_IFUNC(, void, fpusave, (void *))
 {
+	u_int cp[4];
+
 	if (!use_xsave)
 		return (fpusave_fxsave);
-	if ((cpu_stdext_feature & CPUID_EXTSTATE_XSAVEOPT) != 0) {
+	cpuid_count(0xd, 0x1, cp);
+	if ((cp[0] & CPUID_EXTSTATE_XSAVEOPT) != 0) {
 		return ((cpu_stdext_feature & CPUID_STDEXT_NFPUSG) != 0 ?
 		    fpusave_xsaveopt64 : fpusave_xsaveopt3264);
 	}

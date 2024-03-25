@@ -317,9 +317,13 @@ fpusave_fnsave(union savefpu *addr)
 
 DEFINE_IFUNC(, void, fpusave, (union savefpu *))
 {
-	if (use_xsave)
-		return ((cpu_stdext_feature & CPUID_EXTSTATE_XSAVEOPT) != 0 ?
+	u_int cp[4];
+
+	if (use_xsave) {
+		cpuid_count(0xd, 0x1, cp);
+		return ((cp[0] & CPUID_EXTSTATE_XSAVEOPT) != 0 ?
 		    fpusave_xsaveopt : fpusave_xsave);
+	}
 	if (cpu_fxsr)
 		return (fpusave_fxsave);
 	return (fpusave_fnsave);
