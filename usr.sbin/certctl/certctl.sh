@@ -110,7 +110,7 @@ create_trusted()
 {
 	local hash certhash otherfile otherhash
 	local suffix
-	local link=${2:+-lm}
+	local link=${2:+-lrs}
 
 	hash=$(do_hash "$1") || return
 	certhash=$(openssl x509 -sha1 -in "$1" -noout -fingerprint)
@@ -159,7 +159,7 @@ resolve_certname()
 create_untrusted()
 {
 	local srcfile filename
-	local link=${2:+-lm}
+	local link=${2:+-lrs}
 
 	set -- $(resolve_certname "$1")
 	srcfile=$1
