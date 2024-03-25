@@ -504,3 +504,8 @@ The
 .Nm disklabel
 utility appeared in
 .Bx 4.3 Tahoe .
+.Sh BUGS
+.\" PR276517
+The disklabel scheme supports up to 20 partitions, but
+.Nm
+supports only 8 partitions.
