@@ -2804,7 +2804,7 @@ sysctl_icmp6lim_and_jitter(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr) {
 		if (lim) {
-			if (new <= V_icmp6lim_jitter)
+			if (new != 0 && new <= V_icmp6lim_jitter)
 				error = EINVAL;
 			else
 				V_icmp6errppslim = new;
