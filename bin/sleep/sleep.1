@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 25, 2022
+.Dd March 22, 2024
 .Dt SLEEP 1
 .Os
 .Sh NAME
@@ -38,21 +38,26 @@
 .Sh SYNOPSIS
 .Nm
 .Ar number Ns Op Ar unit
-.Ar ...
+.Op ...
 .Sh DESCRIPTION
 The
 .Nm
 command suspends execution for a minimum of
 .Ar number
 seconds (the default, or unit
-.Cm s ) ,
+.Li s ) ,
 minutes (unit
-.Cm m ) ,
+.Li m ) ,
 hours (unit
-.Cm h ) ,
+.Li h ) ,
 or days (unit
-.Cm d ) .
-If multiple arguments are passed, the delay will be the sum of all values.
+.Li d ) .
+Intervals can be written in any form allowed by
+.Xr strtod 3 .
+If multiple intervals are given, they are added together.
+If the final sum is zero or negative,
+.Nm
+exits immediately.
 .Pp
 If the
 .Nm
@@ -65,57 +70,49 @@ sleep is printed on the standard output.
 The
 .Dv SIGALRM
 signal is not handled specially by this implementation.
-.Pp
-The
-.Nm
-command supports other time units than seconds,
-honors a non-integer number of time units to sleep in any form acceptable by
-.Xr strtod 3 ,
-and accepts more than one delay value.
-These are non-portable extensions, but they have also been implemented
-in GNU sh-utils since version 2.0a (released in 2002).
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
-To schedule the execution of a command for
-.Va x
-number seconds later (with
-.Xr csh 1 ) :
+To run a command after half an hour:
 .Pp
-.Dl (sleep 1800; sh command_file >& errors)&
+.Dl (sleep 0.5h; sh command_file >out 2>err)&
 .Pp
-This incantation would wait a half hour before
-running the script command_file.
-(See the
+This incantation would wait half an hour before
+running the script
+.Pa command_file .
+See the
 .Xr at 1
-utility.)
+utility for another way to do this.
 .Pp
-To reiteratively run a command (with the
-.Xr csh 1 ) :
+To reiteratively run a command:
 .Pp
 .Bd -literal -offset indent -compact
-while (1)
-	if (! -r zzz.rawdata) then
-		sleep 300
+while :; do
+	if ! [ -r zzz.rawdata ] ; then
+		sleep 5m
 	else
-		foreach i (`ls *.rawdata`)
+		for i in *.rawdata ; do
 			sleep 70
-			awk -f collapse_data $i >> results
-		end
+			awk -f collapse_data "$i"
+		done >results
 		break
-	endif
-end
+	fi
+done
 .Ed
 .Pp
 The scenario for a script such as this might be: a program currently
 running is taking longer than expected to process a series of
 files, and it would be nice to have
 another program start processing the files created by the first
-program as soon as it is finished (when zzz.rawdata is created).
-The script checks every five minutes for the file zzz.rawdata,
+program as soon as it is finished (when
+.Pa zzz.rawdata
+is created).
+The script checks every five minutes for the file
+.Pa zzz.rawdata ,
 when the file is found, then another portion processing
 is done courteously by sleeping for 70 seconds in between each
-awk job.
+.Xr awk 1
+job.
 .Sh SEE ALSO
 .Xr nanosleep 2 ,
 .Xr sleep 3
@@ -125,6 +122,10 @@ The
 command is expected to be
 .St -p1003.2
 compatible.
+.Pp
+Support for non-integer intervals, units other than seconds, and
+multiple intervals which are added together are non-portable
+extensions first introduced in GNU sh-utils 2.0a (released in 2002).
 .Sh HISTORY
 A
 .Nm
