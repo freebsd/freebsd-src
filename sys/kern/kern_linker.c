@@ -1222,6 +1222,8 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 			printf("kldunload: attempt to unload file that was"
 			    " loaded by the kernel\n");
 			error = EBUSY;
+		} else if (lf->refs > 1) {
+			error = EBUSY;
 		} else {
 			lf->userrefs--;
 			error = linker_file_unload(lf, flags);
