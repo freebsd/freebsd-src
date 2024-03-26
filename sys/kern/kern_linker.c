@@ -1771,6 +1771,9 @@ linker_preload_finish(void *arg)
 
 	sx_xlock(&kld_sx);
 	TAILQ_FOREACH_SAFE(lf, &linker_files, link, nlf) {
+		if (lf == linker_kernel_file)
+			continue;
+
 		/*
 		 * If all of the modules in this file failed to load, unload
 		 * the file and return an error of ENOEXEC.  (Parity with
