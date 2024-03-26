@@ -102,6 +102,7 @@
 #define MBUF_TXQ(m)	((m)->m_pkthdr.flowid)
 #define MBUF_TRANSMIT(na, ifp, m)	((na)->if_transmit(ifp, m))
 #define	GEN_TX_MBUF_IFP(m)	((m)->m_pkthdr.rcvif)
+#define	GEN_TX_MBUF_NA(m)	((struct netmap_adapter *)(m)->m_ext.ext_arg1)
 
 #define NM_ATOMIC_T	volatile int /* required by atomic/bitops.h */
 /* atomic operations */
@@ -2395,9 +2396,10 @@ nm_generic_mbuf_dtor(struct mbuf *m)
 	uma_zfree(zone_clust, m->m_ext.ext_buf);
 }
 
-#define SET_MBUF_DESTRUCTOR(m, fn)	do {		\
+#define SET_MBUF_DESTRUCTOR(m, fn, na)	do {		\
 	(m)->m_ext.ext_free = (fn != NULL) ?		\
 	    (void *)fn : (void *)nm_generic_mbuf_dtor;	\
+	(m)->m_ext.ext_arg1 = na;			\
 } while (0)
 
 static inline struct mbuf *

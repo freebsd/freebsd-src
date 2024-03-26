@@ -256,7 +256,7 @@ generic_netmap_unregister(struct netmap_adapter *na)
 		 * TX event is consumed. */
 		mtx_lock_spin(&kring->tx_event_lock);
 		if (kring->tx_event) {
-			SET_MBUF_DESTRUCTOR(kring->tx_event, NULL);
+			SET_MBUF_DESTRUCTOR(kring->tx_event, NULL, NULL);
 		}
 		kring->tx_event = NULL;
 		mtx_unlock_spin(&kring->tx_event_lock);
@@ -271,16 +271,18 @@ generic_netmap_unregister(struct netmap_adapter *na)
 
 		for_each_tx_kring(r, kring, na) {
 			callout_drain(&kring->tx_event_callout);
-			mtx_destroy(&kring->tx_event_lock);
+
 			if (kring->tx_pool == NULL) {
 				continue;
 			}
 
 			for (i=0; i<na->num_tx_desc; i++) {
 				if (kring->tx_pool[i]) {
-					m_freem(kring->tx_pool[i]);
+					m_free(kring->tx_pool[i]);
+					kring->tx_pool[i] = NULL;
 				}
 			}
+			mtx_destroy(&kring->tx_event_lock);
 			nm_os_free(kring->tx_pool);
 			kring->tx_pool = NULL;
 		}
@@ -434,7 +436,7 @@ out:
 static void
 generic_mbuf_dtor(struct mbuf *m)
 {
-	struct netmap_adapter *na = NA(GEN_TX_MBUF_IFP(m));
+	struct netmap_adapter *na = GEN_TX_MBUF_NA(m);
 	struct netmap_kring *kring;
 	unsigned int r = MBUF_TXQ(m);
 	unsigned int r_orig = r;
@@ -458,6 +460,18 @@ generic_mbuf_dtor(struct mbuf *m)
 
 		kring = na->tx_rings[r];
 		mtx_lock_spin(&kring->tx_event_lock);
+
+		/*
+		 * The netmap destructor can be called between us getting the
+		 * reference and taking the lock, in that case the ring
+		 * reference won't be valid. The destructor will free this mbuf
+		 * so we can stop here.
+		 */
+		if (GEN_TX_MBUF_NA(m) == NULL) {
+			mtx_unlock_spin(&kring->tx_event_lock);
+			return;
+		}
+
 		if (kring->tx_event == m) {
 			kring->tx_event = NULL;
 			match = true;
@@ -525,7 +539,7 @@ generic_netmap_tx_clean(struct netmap_kring *kring, int txqdisc)
 				/* This mbuf has been dequeued but is still busy
 				 * (refcount is 2).
 				 * Leave it to the driver and replenish. */
-				m_freem(m);
+				m_free(m);
 				tx_pool[nm_i] = NULL;
 			}
 
@@ -638,7 +652,8 @@ generic_set_tx_event(struct netmap_kring *kring, u_int hwcur)
 		return;
 	}
 
-	SET_MBUF_DESTRUCTOR(m, generic_mbuf_dtor);
+	SET_MBUF_DESTRUCTOR(m, generic_mbuf_dtor, kring->na);
+
 	kring->tx_event = m;
 #ifdef __FreeBSD__
 	/*
@@ -664,7 +679,7 @@ generic_set_tx_event(struct netmap_kring *kring, u_int hwcur)
 
 	/* Decrement the refcount. This will free it if we lose the race
 	 * with the driver. */
-	m_freem(m);
+	m_free(m);
 }
 
 /*
