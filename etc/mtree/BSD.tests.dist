@@ -1133,6 +1133,8 @@
         ..
         tftp
         ..
+        touch
+        ..
         tr
         ..
         truncate
