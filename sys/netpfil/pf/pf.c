@@ -7954,6 +7954,18 @@ pf_dummynet_route(struct pf_pdesc *pd, struct pf_kstate *s,
 				    sizeof(struct sockaddr_in6));
 		}
 
+		if (s != NULL && s->nat_rule.ptr != NULL &&
+		    s->nat_rule.ptr->action == PF_RDR &&
+		    ((pd->af == AF_INET && IN_LOOPBACK(ntohl(pd->dst->v4.s_addr))) ||
+		    (pd->af == AF_INET6 && IN6_IS_ADDR_LOOPBACK(&pd->dst->v6)))) {
+			/*
+			 * If we're redirecting to loopback mark this packet
+			 * as being local. Otherwise it might get dropped
+			 * if dummynet re-injects.
+			 */
+			(*m0)->m_pkthdr.rcvif = V_loif;
+		}
+
 		if (pf_pdesc_to_dnflow(pd, r, s, &dnflow)) {
 			pd->pf_mtag->flags |= PF_MTAG_FLAG_DUMMYNET;
 			pd->pf_mtag->flags |= PF_MTAG_FLAG_DUMMYNETED;
