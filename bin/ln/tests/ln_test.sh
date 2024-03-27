@@ -161,6 +161,22 @@ sf_flag_body()
 	atf_check_symlink_to A B
 }
 
+atf_test_case sfF_flag
+sfF_flag_head()
+{
+	atf_set "descr" "Verify that if the target file already exists " \
+			"and is a symlink, then '-sfF' option removes " \
+			"it so that the link may occur"
+}
+sfF_flag_body()
+{
+	atf_check mkdir A B C
+	atf_check ln -sF A C
+	atf_check_symlink_to A C
+	atf_check ln -sfF B C
+	atf_check_symlink_to B C
+}
+
 atf_test_case s_flag
 s_flag_head()
 {
@@ -209,6 +225,7 @@ atf_init_test_cases()
 	atf_add_test_case snf_flag_dir
 	atf_add_test_case sF_flag
 	atf_add_test_case sf_flag
+	atf_add_test_case sfF_flag
 	atf_add_test_case s_flag
 	atf_add_test_case s_flag_broken
 	atf_add_test_case sw_flag
