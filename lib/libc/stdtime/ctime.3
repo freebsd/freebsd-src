@@ -29,7 +29,7 @@
 .\"
 .\"     From: @(#)ctime.3	8.1 (Berkeley) 6/4/93
 .\"
-.Dd April 20, 2023
+.Dd March 26, 2024
 .Dt CTIME 3
 .Os
 .Sh NAME
@@ -243,7 +243,21 @@ The
 .Fn mktime
 function
 returns the specified calendar time; if the calendar time cannot be
-represented, it returns \-1;
+represented, it returns \-1 and sets
+.Xr errno 3
+to an appropriate value.
+.Pp
+Note that \-1 is a valid result (representing one second before
+midnight UTC on the evening of 31 December 1969), so this cannot be
+relied upon to indicate success or failure; instead,
+.Fa tm_wday
+and / or
+.Fa tm_yday
+should be set to an out-of-bounds value (e.g. \-1) prior to calling
+.Fn mktime
+or
+.Fn timegm
+and checked after the call.
 .Pp
 The
 .Fn difftime
