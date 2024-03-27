@@ -27,7 +27,9 @@ int sys_dbquery (struct thread *td, struct dbquery_args *uap) {
 
     error = copyout(kernel_buffer, uap->buf, space_required);
 
-    free(kernel_buffer, M_DBQUERY);
+    if (kernel_buffer != NULL) {
+        free(kernel_buffer, M_DBQUERY);
+    }
 
     td->td_retval[0] = 0;
     return error;
