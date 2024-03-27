@@ -358,6 +358,7 @@ struct dumperinfo {
 };
 
 extern int dumping;		/* system is dumping */
+extern bool dumped_core;	/* system successfully dumped kernel core */
 
 /*
  * Save registers for later extraction from a kernel dump.
