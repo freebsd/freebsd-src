@@ -1,5 +1,0 @@
-scripts: {
-	post-install = <<EOD
-	/usr/sbin/kldxref ${PKG_ROOTDIR}/boot/${KERNELDIR}
-EOD
-}
