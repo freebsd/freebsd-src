@@ -76,7 +76,7 @@ exec 5>&1
 INTERFACE=$(echo $BSDDIALOG_ITEMS | xargs -o bsddialog \
     --backtitle "$OSNAME Installer" --title 'Network Configuration' \
     --ok-label 'Auto' --extra-button --extra-label 'Manual' \
-    --menu 'Please select a network interface to configure:' 0 0 0 2>&1 1>&5)
+    --menu 'Please select a network interface and configuration mode:' 0 0 0 2>&1 1>&5)
 # xargs collapses exit codes to 0/1 (ignoring signals and 255), so exploit
 # bsddialog output being empty when cancelling to distinguish Manual (Extra)
 # from Cancel.
