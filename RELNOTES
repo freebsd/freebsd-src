@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+7b9a772f9f64:
+	usbconfig(8) now reads the descriptions of the usb vendor and products
+	from usb.ids when available, similarly to what pciconf(8) does.
+
 daf917daba9c:
 	One True Awk updated to 2nd Edition with new -csv support and UTF-8
 	support. See https://awk.dev for more details.
