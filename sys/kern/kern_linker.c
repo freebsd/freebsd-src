@@ -143,7 +143,7 @@ struct modlist {
 typedef struct modlist *modlist_t;
 static modlisthead_t found_modules;
 
-static int	linker_file_add_dependency(linker_file_t file,
+static void	linker_file_add_dependency(linker_file_t file,
 		    linker_file_t dep);
 static caddr_t	linker_file_lookup_symbol_internal(linker_file_t file,
 		    const char* name, int deps);
@@ -764,7 +764,7 @@ linker_ctf_get(linker_file_t file, linker_ctf_t *lc)
 	return (LINKER_CTF_GET(file, lc));
 }
 
-static int
+static void
 linker_file_add_dependency(linker_file_t file, linker_file_t dep)
 {
 	linker_file_t *newdeps;
@@ -777,7 +777,6 @@ linker_file_add_dependency(linker_file_t file, linker_file_t dep)
 	KLD_DPF(FILE, ("linker_file_add_dependency:"
 	    " adding %s as dependency for %s\n", 
 	    dep->filename, file->filename));
-	return (0);
 }
 
 /*
@@ -1706,10 +1705,7 @@ restart:
 	TAILQ_FOREACH_SAFE(lf, &depended_files, loaded, nlf) {
 		if (linker_kernel_file) {
 			linker_kernel_file->refs++;
-			error = linker_file_add_dependency(lf,
-			    linker_kernel_file);
-			if (error)
-				panic("cannot add dependency");
+			linker_file_add_dependency(lf, linker_kernel_file);
 		}
 		error = linker_file_lookup_set(lf, MDT_SETNAME, &start,
 		    &stop, NULL);
@@ -1731,10 +1727,7 @@ restart:
 				if (lf == mod->container)
 					continue;
 				mod->container->refs++;
-				error = linker_file_add_dependency(lf,
-				    mod->container);
-				if (error)
-					panic("cannot add dependency");
+				linker_file_add_dependency(lf, mod->container);
 			}
 		}
 		/*
@@ -2197,11 +2190,8 @@ linker_load_module(const char *kldname, const char *modname,
 			error = ENOENT;
 			break;
 		}
-		if (parent) {
-			error = linker_file_add_dependency(parent, lfdep);
-			if (error)
-				break;
-		}
+		if (parent)
+			linker_file_add_dependency(parent, lfdep);
 		if (lfpp)
 			*lfpp = lfdep;
 	} while (0);
@@ -2230,9 +2220,7 @@ linker_load_dependencies(linker_file_t lf)
 	sx_assert(&kld_sx, SA_XLOCKED);
 	if (linker_kernel_file) {
 		linker_kernel_file->refs++;
-		error = linker_file_add_dependency(lf, linker_kernel_file);
-		if (error)
-			return (error);
+		linker_file_add_dependency(lf, linker_kernel_file);
 	}
 	if (linker_file_lookup_set(lf, MDT_SETNAME, &start, &stop,
 	    NULL) != 0)
@@ -2273,9 +2261,7 @@ linker_load_dependencies(linker_file_t lf)
 		if (mod) {	/* woohoo, it's loaded already */
 			lfdep = mod->container;
 			lfdep->refs++;
-			error = linker_file_add_dependency(lf, lfdep);
-			if (error)
-				break;
+			linker_file_add_dependency(lf, lfdep);
 			continue;
 		}
 		error = linker_load_module(NULL, modname, lf, verinfo, NULL);
