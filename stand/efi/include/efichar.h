@@ -37,4 +37,12 @@ int ucs2_to_utf8(const efi_char *, char **);
 int utf8_to_ucs2(const char *, efi_char **, size_t *);
 int ucs2len(const efi_char *);
 
+#ifdef _KERNEL
+#define	EFICHAR_MALLOC(sz)	malloc((sz), M_TEMP, M_WAITOK | M_ZERO)
+#define	EFICHAR_FREE(sz)	free((sz), M_TEMP)
+#else
+#define	EFICHAR_MALLOC(sz)	malloc(sz)
+#define	EFICHAR_FREE(sz)	free(sz)
+#endif
+
 #endif /* _BOOT_EFI_EFICHAR_H_ */
