@@ -301,10 +301,21 @@ output_unidiff_chunk(struct diff_output_info *outinfo, FILE *dest,
 	else
 		right_start = cc->right.start + 1;
 
+	/* Got the absolute line numbers where to start printing, and the index
+	 * of the interesting (non-context) chunk.
+	 * To print context lines above the interesting chunk, nipping on the
+	 * previous chunk index may be necessary.
+	 * It is guaranteed to be only context lines where left == right, so it
+	 * suffices to look on the left. */
+	const struct diff_chunk *first_chunk;
+	int chunk_start_line;
+	first_chunk = &result->chunks.head[cc->chunk.start];
+	chunk_start_line = diff_atom_root_idx(result->left,
+					      first_chunk->left_start);
 	if (show_function_prototypes) {
 		rc = diff_output_match_function_prototype(state->prototype,
 		    sizeof(state->prototype), &state->last_prototype_idx,
-		    result, cc);
+		    result, chunk_start_line);
 		if (rc)
 			return rc;
 	}
@@ -344,17 +355,6 @@ output_unidiff_chunk(struct diff_output_info *outinfo, FILE *dest,
 		*typep = DIFF_LINE_HUNK;
 	}
 
-	/* Got the absolute line numbers where to start printing, and the index
-	 * of the interesting (non-context) chunk.
-	 * To print context lines above the interesting chunk, nipping on the
-	 * previous chunk index may be necessary.
-	 * It is guaranteed to be only context lines where left == right, so it
-	 * suffices to look on the left. */
-	const struct diff_chunk *first_chunk;
-	int chunk_start_line;
-	first_chunk = &result->chunks.head[cc->chunk.start];
-	chunk_start_line = diff_atom_root_idx(result->left,
-					      first_chunk->left_start);
 	if (cc->left.start < chunk_start_line) {
 		rc = diff_output_lines(outinfo, dest, " ",
 				  &result->left->atoms.head[cc->left.start],
