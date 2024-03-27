@@ -1248,6 +1248,9 @@ thread_single(struct proc *p, int mode)
 				return (1);
 			msleep(&p->p_flag, &p->p_mtx, PCATCH, "thrsgl", 0);
 		}
+		if ((p->p_flag & (P_STOPPED_SIG | P_TRACED)) != 0 ||
+		    (p->p_flag2 & P2_WEXIT) != 0)
+			return (1);
 	} else if ((p->p_flag & P_HADTHREADS) == 0)
 		return (0);
 	if (p->p_singlethread != NULL && p->p_singlethread != td)
