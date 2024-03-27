@@ -875,7 +875,10 @@ fpugetregs(struct thread *td)
 	struct pcb *pcb;
 	uint64_t *xstate_bv, bit;
 	char *sa;
+	struct savefpu *s;
+	uint32_t mxcsr, mxcsr_mask;
 	int max_ext_n, i, owned;
+	bool do_mxcsr;
 
 	pcb = td->td_pcb;
 	critical_enter();
@@ -906,10 +909,28 @@ fpugetregs(struct thread *td)
 			bit = 1ULL << i;
 			if ((xsave_mask & bit) == 0 || (*xstate_bv & bit) != 0)
 				continue;
+			do_mxcsr = false;
+			if (i == 0 && (*xstate_bv & (XFEATURE_ENABLED_SSE |
+			    XFEATURE_ENABLED_AVX)) != 0) {
+				/*
+				 * x87 area was not saved by XSAVEOPT,
+				 * but one of XMM or AVX was.  Then we need
+				 * to preserve MXCSR from being overwritten
+				 * with the default value.
+				 */
+				s = (struct savefpu *)sa;
+				mxcsr = s->sv_env.en_mxcsr;
+				mxcsr_mask = s->sv_env.en_mxcsr_mask;
+				do_mxcsr = true;
+			}
 			bcopy((char *)fpu_initialstate +
 			    xsave_area_desc[i].offset,
 			    sa + xsave_area_desc[i].offset,
 			    xsave_area_desc[i].size);
+			if (do_mxcsr) {
+				s->sv_env.en_mxcsr = mxcsr;
+				s->sv_env.en_mxcsr_mask = mxcsr_mask;
+			}
 			*xstate_bv |= bit;
 		}
 	}
