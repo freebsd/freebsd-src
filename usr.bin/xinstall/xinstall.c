@@ -1507,15 +1507,18 @@ metadata_log(const char *path, const char *type, struct timespec *ts,
 	static const char extra[] = { ' ', '\t', '\n', '\\', '#', '\0' };
 	const char *p;
 	char *buf;
-	size_t destlen;
+	size_t buflen, destlen;
 	struct flock metalog_lock;
 
 	if (!metafp)	
 		return;
-	/* Buffer for strsvis(3). */
-	buf = (char *)malloc(4 * strlen(path) + 1);
-	if (buf == NULL) {
-		warnx("%s", strerror(ENOMEM));
+	/* Buffer for strsnvis(3), used for both path and slink. */
+	buflen = strlen(path);
+	if (slink && strlen(slink) > buflen)
+		buflen = strlen(slink);
+	buflen = 4 * buflen + 1;
+	if ((buf = malloc(buflen)) == NULL) {
+		warn(NULL);
 		return;
 	}
 
@@ -1540,7 +1543,7 @@ metadata_log(const char *path, const char *type, struct timespec *ts,
 	}
 	while (*p && *p == '/')
 		p++;
-	strsvis(buf, p, VIS_OCTAL, extra);
+	strsnvis(buf, buflen, p, VIS_OCTAL, extra);
 	p = buf;
 	/* Print details. */
 	fprintf(metafp, ".%s%s type=%s", *p ? "/" : "", p, type);
@@ -1550,14 +1553,14 @@ metadata_log(const char *path, const char *type, struct timespec *ts,
 		fprintf(metafp, " gname=%s", group);
 	fprintf(metafp, " mode=%#o", mode);
 	if (slink) {
-		strsvis(buf, slink, VIS_CSTYLE, extra);	/* encode link */
+		strsnvis(buf, buflen, slink, VIS_CSTYLE, extra);
 		fprintf(metafp, " link=%s", buf);
 	}
 	if (*type == 'f') /* type=file */
 		fprintf(metafp, " size=%lld", (long long)size);
 	if (ts != NULL && dopreserve)
 		fprintf(metafp, " time=%lld.%09ld",
-			(long long)ts[1].tv_sec, ts[1].tv_nsec);
+		    (long long)ts[1].tv_sec, ts[1].tv_nsec);
 	if (digestresult && digest)
 		fprintf(metafp, " %s=%s", digest, digestresult);
 	if (fflags)
