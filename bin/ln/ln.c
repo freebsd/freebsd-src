@@ -49,24 +49,25 @@ static char sccsid[] = "@(#)ln.c	8.2 (Berkeley) 3/31/94";
 #include <fcntl.h>
 #include <libgen.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-static int	fflag;			/* Unlink existing files. */
-static int	Fflag;			/* Remove empty directories also. */
-static int	hflag;			/* Check new name for symlink first. */
-static int	iflag;			/* Interactive mode. */
-static int	Pflag;			/* Create hard links to symlinks. */
-static int	sflag;			/* Symbolic, not hard, link. */
-static int	vflag;			/* Verbose output. */
-static int	wflag;			/* Warn if symlink target does not
+static bool	fflag;			/* Unlink existing files. */
+static bool	Fflag;			/* Remove empty directories also. */
+static bool	hflag;			/* Check new name for symlink first. */
+static bool	iflag;			/* Interactive mode. */
+static bool	Pflag;			/* Create hard links to symlinks. */
+static bool	sflag;			/* Symbolic, not hard, link. */
+static bool	vflag;			/* Verbose output. */
+static bool	wflag;			/* Warn if symlink target does not
 					 * exist, and -f is not enabled. */
 static char	linkch;
 
-static int	linkit(const char *, const char *, int);
-static void	usage(void);
+static int	linkit(const char *, const char *, bool);
+static void	usage(void) __dead2;
 
 int
 main(int argc, char *argv[])
@@ -91,41 +92,41 @@ main(int argc, char *argv[])
 		argv += optind;
 		if (argc != 2)
 			usage();
-		exit(linkit(argv[0], argv[1], 0));
+		exit(linkit(argv[0], argv[1], false));
 	}
 
 	while ((ch = getopt(argc, argv, "FLPfhinsvw")) != -1)
 		switch (ch) {
 		case 'F':
-			Fflag = 1;
+			Fflag = true;
 			break;
 		case 'L':
-			Pflag = 0;
+			Pflag = false;
 			break;
 		case 'P':
-			Pflag = 1;
+			Pflag = true;
 			break;
 		case 'f':
-			fflag = 1;
-			iflag = 0;
-			wflag = 0;
+			fflag = true;
+			iflag = false;
+			wflag = false;
 			break;
 		case 'h':
 		case 'n':
-			hflag = 1;
+			hflag = true;
 			break;
 		case 'i':
-			iflag = 1;
-			fflag = 0;
+			iflag = true;
+			fflag = false;
 			break;
 		case 's':
-			sflag = 1;
+			sflag = true;
 			break;
 		case 'v':
-			vflag = 1;
+			vflag = true;
 			break;
 		case 'w':
-			wflag = 1;
+			wflag = true;
 			break;
 		case '?':
 		default:
@@ -136,21 +137,21 @@ main(int argc, char *argv[])
 	argc -= optind;
 
 	linkch = sflag ? '-' : '=';
-	if (sflag == 0)
-		Fflag = 0;
-	if (Fflag == 1 && iflag == 0) {
-		fflag = 1;
-		wflag = 0;		/* Implied when fflag != 0 */
+	if (!sflag)
+		Fflag = false;
+	if (Fflag && !iflag) {
+		fflag = true;
+		wflag = false;		/* Implied when fflag is true */
 	}
 
-	switch(argc) {
+	switch (argc) {
 	case 0:
 		usage();
 		/* NOTREACHED */
 	case 1:				/* ln source */
-		exit(linkit(argv[0], ".", 1));
+		exit(linkit(argv[0], ".", true));
 	case 2:				/* ln source target */
-		exit(linkit(argv[0], argv[1], 0));
+		exit(linkit(argv[0], argv[1], false));
 	default:
 		;
 	}
@@ -169,7 +170,7 @@ main(int argc, char *argv[])
 	if (!S_ISDIR(sb.st_mode))
 		usage();
 	for (exitval = 0; *argv != targetdir; ++argv)
-		exitval |= linkit(*argv, targetdir, 1);
+		exitval |= linkit(*argv, targetdir, true);
 	exit(exitval);
 }
 
@@ -220,14 +221,15 @@ samedirent(const char *path1, const char *path2)
 }
 
 static int
-linkit(const char *source, const char *target, int isdir)
+linkit(const char *source, const char *target, bool isdir)
 {
-	struct stat sb;
-	const char *p;
-	int ch, exists, first;
 	char path[PATH_MAX];
 	char wbuf[PATH_MAX];
 	char bbuf[PATH_MAX];
+	struct stat sb;
+	const char *p;
+	int ch, first;
+	bool exists;
 
 	if (!sflag) {
 		/* If source doesn't exist, quit now. */
@@ -290,7 +292,7 @@ linkit(const char *source, const char *target, int isdir)
 	/*
 	 * If the file exists, first check it is not the same directory entry.
 	 */
-	exists = !lstat(target, &sb);
+	exists = lstat(target, &sb) == 0;
 	if (exists) {
 		if (!sflag && samedirent(source, target)) {
 			warnx("%s and %s are the same directory entry",
