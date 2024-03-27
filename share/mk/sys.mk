@@ -153,6 +153,8 @@ CFLAGS		+=	-fno-strict-aliasing
 IR_CFLAGS	?=	${STATIC_CFLAGS:N-O*} ${CFLAGS:N-O*}
 PO_CFLAGS	?=	${CFLAGS}
 
+HOST_CC		?=	${CC}
+
 # cp(1) is used to copy source files to ${.OBJDIR}, make sure it can handle
 # read-only files as non-root by passing -f.
 CP		?=	cp -f
