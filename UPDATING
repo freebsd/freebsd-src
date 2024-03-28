@@ -12,6 +12,17 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240327:
+	13.2-RELEASE-p11 SA-24:03.unbound
+			EN-24:05.tty
+			EN-24:06.wireguard
+
+	Fix multiple vulnerabilities in unbound [SA-24:03.unbound]
+
+	Fix tty kernel panic [EN-24:05.tty]
+
+	Fix insufficient barriers in WireGuard if_wg(4) [EN-24:06.wireguard]
+
 20240214:
 	13.2-RELEASE-p10 SA-24:01.bhyveload
 			SA-24:02.tty
