@@ -156,12 +156,13 @@ main(int argc, char *argv[])
 static void
 head(FILE *fp, intmax_t cnt)
 {
-	char *cp;
-	size_t error, readlen;
+	char *cp = NULL;
+	size_t error, bufsize = 0;
+	ssize_t readlen;
 
-	while (cnt != 0 && (cp = fgetln(fp, &readlen)) != NULL) {
+	while (cnt != 0 && (readlen = getline(&cp, &bufsize, fp)) >= 0) {
 		error = fwrite(cp, sizeof(char), readlen, stdout);
-		if (error != readlen)
+		if ((ssize_t)error != readlen)
 			err(1, "stdout");
 		cnt--;
 	}
