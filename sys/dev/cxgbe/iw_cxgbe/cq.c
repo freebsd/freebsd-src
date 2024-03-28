@@ -88,6 +88,7 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 			  cq->memsize, cq->queue,
 			  dma_unmap_addr(cq, mapping));
 	c4iw_put_cqid(rdev, cq->cqid, uctx);
+	free_wrqe(wr);
 	return 0;
 }
 
@@ -132,9 +133,12 @@ create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	wr_len = sizeof *res_wr + sizeof *res;
 
 	wr = alloc_wrqe(wr_len, &sc->sge.ctrlq[0]);
-	if (wr == NULL)
-		return (0);
-        res_wr = wrtod(wr);
+	if (wr == NULL) {
+		ret = -ENOMEM;
+		goto err4;
+	}
+
+	res_wr = wrtod(wr);
 
 	memset(res_wr, 0, wr_len);
 	res_wr->op_nres = cpu_to_be32(
@@ -169,7 +173,7 @@ create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	CTR2(KTR_IW_CXGBE, "%s wait_event wr_wait %p", __func__, &wr_wait);
 	ret = c4iw_wait_for_reply(rdev, &wr_wait, 0, 0, NULL, __func__);
 	if (ret)
-		goto err4;
+		goto err5;
 
 	cq->gen = 1;
 	cq->rdev = rdev;
@@ -188,6 +192,8 @@ create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 			cq_bar2_qoffset);
 
 	return 0;
+err5:
+	free_wrqe(wr);
 err4:
 	dma_free_coherent(rhp->ibdev.dma_device, cq->memsize, cq->queue,
 			  dma_unmap_addr(cq, mapping));
