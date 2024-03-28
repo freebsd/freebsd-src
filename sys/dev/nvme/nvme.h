@@ -63,6 +63,13 @@
 /* Many items are expressed in terms of power of two times MPS */
 #define NVME_MPS_SHIFT			12
 
+/* Limits on queue sizes: See 4.1.3 Queue Size in NVMe 1.4b. */
+#define NVME_MIN_ADMIN_ENTRIES		2
+#define NVME_MAX_ADMIN_ENTRIES		4096
+
+#define NVME_MIN_IO_ENTRIES		2
+#define NVME_MAX_IO_ENTRIES		65536
+
 /* Register field definitions */
 #define NVME_CAP_LO_REG_MQES_SHIFT			(0)
 #define NVME_CAP_LO_REG_MQES_MASK			(0xFFFF)
@@ -204,8 +211,17 @@
 
 /* Command field definitions */
 
-#define NVME_CMD_FUSE_SHIFT				(8)
+#define NVME_CMD_FUSE_SHIFT				(0)
 #define NVME_CMD_FUSE_MASK				(0x3)
+
+enum nvme_psdt {
+	NVME_PSDT_PRP					= 0x0,
+	NVME_PSDT_SGL					= 0x1,
+	NVME_PSDT_SGL_MPTR				= 0x2
+};
+#define	NVME_CMD_PSDT_SHIFT				(6)
+#define	NVME_CMD_PSDT_MASK				(0x3)
+
 
 #define NVME_STATUS_P_SHIFT				(0)
 #define NVME_STATUS_P_MASK				(0x1)
@@ -295,6 +311,38 @@
 #define NVME_CTRLR_DATA_OAES_LOG_PAGE_CHANGE_SHIFT	(31)
 #define NVME_CTRLR_DATA_OAES_LOG_PAGE_CHANGE_MASK	(0x1)
 
+/** CTRATT - Controller Attributes */
+/* supports 128-bit Host Identifier */
+#define NVME_CTRLR_DATA_CTRATT_128BIT_HOSTID_SHIFT	(0)
+#define NVME_CTRLR_DATA_CTRATT_128BIT_HOSTID_MASK	(0x1)
+/* supports Non-Operational Power State Permissive Mode */
+#define NVME_CTRLR_DATA_CTRATT_NONOP_POWER_STATE_SHIFT	(1)
+#define NVME_CTRLR_DATA_CTRATT_NONOP_POWER_STATE_MASK	(0x1)
+/* supports NVM Sets */
+#define NVME_CTRLR_DATA_CTRATT_NVM_SETS_SHIFT		(2)
+#define NVME_CTRLR_DATA_CTRATT_NVM_SETS_MASK		(0x1)
+/* supports Read Recovery Levels */
+#define NVME_CTRLR_DATA_CTRATT_READ_RECOVERY_LVLS_SHIFT	(3)
+#define NVME_CTRLR_DATA_CTRATT_READ_RECOVERY_LVLS_MASK	(0x1)
+/* supports Endurance Groups */
+#define NVME_CTRLR_DATA_CTRATT_ENDURANCE_GROUPS_SHIFT	(4)
+#define NVME_CTRLR_DATA_CTRATT_ENDURANCE_GROUPS_MASK	(0x1)
+/* supports Predictable Latency Mode */
+#define NVME_CTRLR_DATA_CTRATT_PREDICTABLE_LATENCY_SHIFT (5)
+#define NVME_CTRLR_DATA_CTRATT_PREDICTABLE_LATENCY_MASK	(0x1)
+/* supports Traffic Based Keep Alive Support */
+#define NVME_CTRLR_DATA_CTRATT_TBKAS_SHIFT		(6)
+#define NVME_CTRLR_DATA_CTRATT_TBKAS_MASK		(0x1)
+/* supports Namespace Granularity */
+#define NVME_CTRLR_DATA_CTRATT_NAMESPACE_GRANULARITY_SHIFT (7)
+#define NVME_CTRLR_DATA_CTRATT_NAMESPACE_GRANULARITY_MASK (0x1)
+/* supports SQ Associations */
+#define NVME_CTRLR_DATA_CTRATT_SQ_ASSOCIATIONS_SHIFT	(8)
+#define NVME_CTRLR_DATA_CTRATT_SQ_ASSOCIATIONS_MASK	(0x1)
+/* supports UUID List */
+#define NVME_CTRLR_DATA_CTRATT_UUID_LIST_SHIFT		(9)
+#define NVME_CTRLR_DATA_CTRATT_UUID_LIST_MASK		(0x1)
+
 /** OACS - optional admin command support */
 /* supports security send/receive commands */
 #define NVME_CTRLR_DATA_OACS_SECURITY_SHIFT		(0)
@@ -342,6 +390,9 @@
 /* per namespace smart/health log page */
 #define NVME_CTRLR_DATA_LPA_NS_SMART_SHIFT		(0)
 #define NVME_CTRLR_DATA_LPA_NS_SMART_MASK		(0x1)
+/* extended data for Get Log Page command */
+#define NVME_CTRLR_DATA_LPA_EXT_DATA_SHIFT		(2)
+#define NVME_CTRLR_DATA_LPA_EXT_DATA_MASK		(0x1)
 
 /** AVSCC - admin vendor specific command configuration */
 /* admin vendor specific commands use spec format */
@@ -425,6 +476,25 @@
 #define NVME_CTRLR_DATA_VWC_ALL_UNKNOWN			(0)
 #define NVME_CTRLR_DATA_VWC_ALL_NO			(2)
 #define NVME_CTRLR_DATA_VWC_ALL_YES			(3)
+
+/** SGL Support */
+/* NVM command set SGL support */
+#define	NVME_CTRLR_DATA_SGLS_NVM_COMMAND_SET_SHIFT	(0)
+#define	NVME_CTRLR_DATA_SGLS_NVM_COMMAND_SET_MASK	(0x3)
+#define	NVME_CTRLR_DATA_SGLS_KEYED_DATA_BLOCK_SHIFT	(2)
+#define	NVME_CTRLR_DATA_SGLS_KEYED_DATA_BLOCK_MASK	(0x1)
+#define	NVME_CTRLR_DATA_SGLS_BIT_BUCKET_SHIFT		(16)
+#define	NVME_CTRLR_DATA_SGLS_BIT_BUCKET_MASK		(0x1)
+#define	NVME_CTRLR_DATA_SGLS_CONTIG_MPTR_SHIFT		(17)
+#define	NVME_CTRLR_DATA_SGLS_CONTIG_MPTR_MASK		(0x1)
+#define	NVME_CTRLR_DATA_SGLS_OVERSIZED_SHIFT		(18)
+#define	NVME_CTRLR_DATA_SGLS_OVERSIZED_MASK		(0x1)
+#define	NVME_CTRLR_DATA_SGLS_MPTR_SGL_SHIFT		(19)
+#define	NVME_CTRLR_DATA_SGLS_MPTR_SGL_MASK		(0x1)
+#define	NVME_CTRLR_DATA_SGLS_ADDRESS_AS_OFFSET_SHIFT	(20)
+#define	NVME_CTRLR_DATA_SGLS_ADDRESS_AS_OFFSET_MASK	(0x1)
+#define	NVME_CTRLR_DATA_SGLS_TRANSPORT_DATA_BLOCK_SHIFT	(21)
+#define	NVME_CTRLR_DATA_SGLS_TRANSPORT_DATA_BLOCK_MASK	(0x1)
 
 /** namespace features */
 /* thin provisioning */
@@ -605,6 +675,14 @@ enum nvme_critical_warning_state {
 #define NVME_FEAT_SET_FID_SHIFT				(0)
 #define NVME_FEAT_SET_FID_MASK				(0xff)
 
+/* Async Events */
+#define	NVME_ASYNC_EVENT_TYPE_SHIFT			(0)
+#define	NVME_ASYNC_EVENT_TYPE_MASK			(0x7)
+#define	NVME_ASYNC_EVENT_INFO_SHIFT			(8)
+#define	NVME_ASYNC_EVENT_INFO_MASK			(0xff)
+#define	NVME_ASYNC_EVENT_LOG_PAGE_ID_SHIFT		(16)
+#define	NVME_ASYNC_EVENT_LOG_PAGE_ID_MASK		(0xff)
+
 /* Helper macro to combine *_MASK and *_SHIFT defines */
 #define NVMEM(name)	(name##_MASK << name##_SHIFT)
 
@@ -668,6 +746,38 @@ struct nvme_registers {
 
 _Static_assert(sizeof(struct nvme_registers) == 0x1008, "bad size for nvme_registers");
 
+#define NVME_SGL_SUBTYPE_SHIFT				(0)
+#define NVME_SGL_SUBTYPE_MASK				(0xF)
+#define NVME_SGL_TYPE_SHIFT				(4)
+#define NVME_SGL_TYPE_MASK				(0xF)
+
+#define	NVME_SGL_TYPE(type, subtype)		\
+	((subtype) << NVME_SGL_SUBTYPE_SHIFT | (type) << NVME_SGL_TYPE_SHIFT)
+
+enum nvme_sgl_type {
+	NVME_SGL_TYPE_DATA_BLOCK		= 0x0,
+	NVME_SGL_TYPE_BIT_BUCKET		= 0x1,
+	NVME_SGL_TYPE_SEGMENT			= 0x2,
+	NVME_SGL_TYPE_LAST_SEGMENT		= 0x3,
+	NVME_SGL_TYPE_KEYED_DATA_BLOCK		= 0x4,
+	NVME_SGL_TYPE_TRANSPORT_DATA_BLOCK	= 0x5,
+};
+
+enum nvme_sgl_subtype {
+	NVME_SGL_SUBTYPE_ADDRESS		= 0x0,
+	NVME_SGL_SUBTYPE_OFFSET			= 0x1,
+	NVME_SGL_SUBTYPE_TRANSPORT		= 0xa,
+};
+
+struct nvme_sgl_descriptor {
+	uint64_t address;
+	uint32_t length;
+	uint8_t reserved[3];
+	uint8_t type;
+};
+
+_Static_assert(sizeof(struct nvme_sgl_descriptor) == 16, "bad size for nvme_sgl_descriptor");
+
 struct nvme_command {
 	/* dword 0 */
 	uint8_t opc;		/* opcode */
@@ -684,11 +794,14 @@ struct nvme_command {
 	/* dword 4-5 */
 	uint64_t mptr;		/* metadata pointer */
 
-	/* dword 6-7 */
-	uint64_t prp1;		/* prp entry 1 */
-
-	/* dword 8-9 */
-	uint64_t prp2;		/* prp entry 2 */
+	/* dword 6-9 */
+	union {
+		struct {
+			uint64_t prp1;	/* prp entry 1 */
+			uint64_t prp2;	/* prp entry 2 */
+		};
+		struct nvme_sgl_descriptor sgl;
+	};
 
 	/* dword 10-15 */
 	uint32_t cdw10;		/* command-specific */
@@ -1237,7 +1350,13 @@ struct nvme_controller_data {
 	uint8_t			reserved8[768];
 
 	/* bytes 1792-2047: NVMe over Fabrics specification */
-	uint8_t			reserved9[256];
+	uint32_t		ioccsz;
+	uint32_t		iorcsz;
+	uint16_t		icdoff;
+	uint8_t			fcatt;
+	uint8_t			msdbd;
+	uint16_t		ofcs;
+	uint8_t			reserved9[242];
 
 	/* bytes 2048-3071: power state descriptors */
 	struct nvme_power_state power_state[32];
@@ -1378,6 +1497,7 @@ enum nvme_log_page {
 	NVME_LOG_PERSISTENT_EVENT_LOG	= 0x0d,
 	NVME_LOG_LBA_STATUS_INFORMATION	= 0x0e,
 	NVME_LOG_ENDURANCE_GROUP_EVENT_AGGREGATE = 0x0f,
+	NVME_LOG_DISCOVERY		= 0x70,
 	/* 0x06-0x7F - reserved */
 	/* 0x80-0xBF - I/O command set specific */
 	NVME_LOG_RES_NOTIFICATION	= 0x80,
@@ -1509,6 +1629,48 @@ struct nvme_device_self_test_page {
 
 _Static_assert(sizeof(struct nvme_device_self_test_page) == 564,
     "bad size for nvme_device_self_test_page");
+
+struct nvme_discovery_log_entry {
+	uint8_t			trtype;
+	uint8_t			adrfam;
+	uint8_t			subtype;
+	uint8_t			treq;
+	uint16_t		portid;
+	uint16_t		cntlid;
+	uint16_t		aqsz;
+	uint8_t			reserved1[22];
+	uint8_t			trsvcid[32];
+	uint8_t			reserved2[192];
+	uint8_t			subnqn[256];
+	uint8_t			traddr[256];
+	union {
+		struct {
+			uint8_t	rdma_qptype;
+			uint8_t	rdma_prtype;
+			uint8_t	rdma_cms;
+			uint8_t	reserved[5];
+			uint16_t rdma_pkey;
+		} rdma;
+		struct {
+			uint8_t	sectype;
+		} tcp;
+		uint8_t		reserved[256];
+	} tsas;
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_discovery_log_entry) == 1024,
+    "bad size for nvme_discovery_log_entry");
+
+struct nvme_discovery_log {
+	uint64_t		genctr;
+	uint64_t		numrec;
+	uint16_t		recfmt;
+	uint8_t			reserved[1006];
+	struct nvme_discovery_log_entry entries[];
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_discovery_log) == 1024,
+    "bad size for nvme_discovery_log");
 
 struct nvme_res_notification_page {
 	uint64_t		log_page_count;
@@ -1911,6 +2073,10 @@ void	nvme_controller_data_swapbytes(struct nvme_controller_data *s __unused)
 	s->acwu = le16toh(s->acwu);
 	s->sgls = le32toh(s->sgls);
 	s->mnan = le32toh(s->mnan);
+	s->ioccsz = le32toh(s->ioccsz);
+	s->iorcsz = le32toh(s->iorcsz);
+	s->icdoff = le16toh(s->icdoff);
+	s->ofcs = le16toh(s->ofcs);
 	for (i = 0; i < 32; i++)
 		nvme_power_state_swapbytes(&s->power_state[i]);
 #endif
@@ -2132,6 +2298,29 @@ nvme_device_self_test_swapbytes(struct nvme_device_self_test_page *s __unused)
 			tmp[7-i] = b;
 		}
 	}
+#endif
+}
+
+static inline void
+nvme_discovery_log_entry_swapbytes(struct nvme_discovery_log_entry *s __unused)
+{
+#if _BYTE_ORDER != _LITTLE_ENDIAN
+	s->portid = le16toh(s->portid);
+	s->cntlid = le16toh(s->cntlid);
+	s->aqsz = le16toh(s->aqsz);
+	if (s->trtype == 0x01 /* RDMA */) {
+		s->tsas.rdma.rdma_pkey = le16toh(s->tsas.rdma.rdma_pkey);
+	}
+#endif
+}
+
+static inline void
+nvme_discovery_log_swapbytes(struct nvme_discovery_log *s __unused)
+{
+#if _BYTE_ORDER != _LITTLE_ENDIAN
+	s->genctr = le64toh(s->genctr);
+	s->numrec = le64toh(s->numrec);
+	s->recfmt = le16toh(s->recfmt);
 #endif
 }
 #endif /* __NVME_H__ */

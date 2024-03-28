@@ -255,7 +255,8 @@ diff_output_trailing_newline_msg(struct diff_output_info *outinfo, FILE *dest,
 static bool
 is_function_prototype(unsigned char ch)
 {
-	return (isalpha((unsigned char)ch) || ch == '_' || ch == '$');
+	return (isalpha((unsigned char)ch) || ch == '_' || ch == '$' ||
+	    ch == '-' || ch == '+');
 }
 
 #define begins_with(s, pre) (strncmp(s, pre, sizeof(pre)-1) == 0)
@@ -263,7 +264,7 @@ is_function_prototype(unsigned char ch)
 int
 diff_output_match_function_prototype(char *prototype, size_t prototype_size,
     int *last_prototype_idx, const struct diff_result *result,
-    const struct diff_chunk_context *cc)
+    int chunk_start_line)
 {
 	struct diff_atom *start_atom, *atom;
 	const struct diff_data *data;
@@ -271,9 +272,9 @@ diff_output_match_function_prototype(char *prototype, size_t prototype_size,
 	const char *state = NULL;
 	int rc, i, ch;
 
-	if (result->left->atoms.len > 0 && cc->left.start > 0) {
+	if (result->left->atoms.len > 0 && chunk_start_line > 0) {
 		data = result->left;
-		start_atom = &data->atoms.head[cc->left.start - 1];
+		start_atom = &data->atoms.head[chunk_start_line - 1];
 	} else
 		return DIFF_RC_OK;
 

@@ -72,6 +72,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <math.h>
 #include <paths.h>
 #include <regex.h>
@@ -166,6 +167,7 @@ struct context_vec {
 
 enum readhash { RH_BINARY, RH_OK, RH_EOF };
 
+static int	 diffreg_stone(char *, char *, int, int);
 static FILE	*opentemp(const char *);
 static void	 output(char *, FILE *, char *, FILE *, int);
 static void	 check(FILE *, FILE *, int);
@@ -205,7 +207,7 @@ static int	 len[2];
 static int	 pref, suff;	/* length of prefix and suffix */
 static int	 slen[2];
 static int	 anychange;
-static int	 hw, lpad, rpad;	/* half width and padding */
+static int	 hw, lpad,rpad;		/* half width and padding */
 static int	 edoffset;
 static long	*ixnew;		/* will be overlaid on file[1] */
 static long	*ixold;		/* will be overlaid on klist */
@@ -222,6 +224,32 @@ static char lastbuf[FUNCTION_CONTEXT_SIZE];
 static int lastline;
 static int lastmatchline;
 
+int
+diffreg(char *file1, char *file2, int flags, int capsicum)
+{
+	/*
+	 * If we have set the algorithm with -A or --algorithm use that if we
+	 * can and if not print an error.
+	 */
+	if (diff_algorithm_set) {
+		if (diff_algorithm == D_DIFFMYERS ||
+		    diff_algorithm == D_DIFFPATIENCE) {
+			if (can_libdiff(flags))
+				return diffreg_new(file1, file2, flags, capsicum);
+			else
+				errx(2, "cannot use Myers algorithm with selected options");
+		} else {
+			/* Fallback to using stone. */
+			return diffreg_stone(file1, file2, flags, capsicum);
+		}
+	} else {
+		if (can_libdiff(flags))
+			return diffreg_new(file1, file2, flags, capsicum);
+		else
+			return diffreg_stone(file1, file2, flags, capsicum);
+	}
+}
+
 static int
 clow2low(int c)
 {
@@ -237,7 +265,7 @@ cup2low(int c)
 }
 
 int
-diffreg(char *file1, char *file2, int flags, int capsicum)
+diffreg_stone(char *file1, char *file2, int flags, int capsicum)
 {
 	FILE *f1, *f2;
 	int i, rval;
@@ -726,10 +754,10 @@ check(FILE *f1, FILE *f2, int flags)
 				 * in one file for -b or -w.
 				 */
 				if (flags & (D_FOLDBLANKS | D_IGNOREBLANKS)) {
-					if (c == EOF && d == '\n') {
+					if (c == EOF && isspace(d)) {
 						ctnew++;
 						break;
-					} else if (c == '\n' && d == EOF) {
+					} else if (isspace(c) && d == EOF) {
 						ctold++;
 						break;
 					}
@@ -1219,6 +1247,7 @@ fetch(long *f, int a, int b, FILE *lb, int ch, int oldfile, int flags)
 
 	edoffset = 0;
 	nc = 0;
+	col = 0;
 	/*
 	 * When doing #ifdef's, copy down to current line
 	 * if this is the first file, so that stuff makes it to output.
@@ -1284,6 +1313,10 @@ fetch(long *f, int a, int b, FILE *lb, int ch, int oldfile, int flags)
 					printf("\n\\ No newline at end of file\n");
 				return (col);
 			}
+			/*
+			 * when using --side-by-side, col needs to be increased
+			 * in any case to keep the columns aligned
+			 */
 			if (c == '\t') {
 				/*
 				 * Calculate where the tab would bring us.

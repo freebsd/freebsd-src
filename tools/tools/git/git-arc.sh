@@ -364,7 +364,7 @@ build_commit_list()
         _commits=$(git rev-parse "${chash}")
         if ! git cat-file -e "${chash}"'^{commit}' >/dev/null 2>&1; then
             # shellcheck disable=SC2086
-            _commits=$(git rev-list $_commits | tail -r)
+            _commits=$(git rev-list --reverse $_commits)
         fi
         [ -n "$_commits" ] || err "invalid commit ID ${chash}"
         commits="$commits $_commits"

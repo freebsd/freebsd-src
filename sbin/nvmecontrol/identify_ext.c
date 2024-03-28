@@ -138,6 +138,36 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	printf("Version:                     %d.%d.%d\n",
 	    (cdata->ver >> 16) & 0xffff, (cdata->ver >> 8) & 0xff,
 	    cdata->ver & 0xff);
+	printf("Traffic Based Keep Alive:    %sSupported\n",
+	    NVMEV(NVME_CTRLR_DATA_CTRATT_TBKAS, cdata->ctratt) ? "" : "Not ");
+	printf("Controller Type:             ");
+	switch (cdata->cntrltype) {
+	case 0:
+		printf("Not Reported\n");
+		break;
+	case 1:
+		printf("I/O Controller\n");
+		break;
+	case 2:
+		printf("Discovery Controller\n");
+		break;
+	case 3:
+		printf("Administrative Controller\n");
+		break;
+	default:
+		printf("%d (Reserved)\n", cdata->cntrltype);
+		break;
+	}
+	printf("Keep Alive Timer             ");
+	if (cdata->kas == 0)
+		printf("Not Supported\n");
+	else
+		printf("%u ms granularity\n", cdata->kas * 100);
+	printf("Maximum Outstanding Commands ");
+	if (cdata->maxcmd == 0)
+		printf("Not Specified\n");
+	else
+		printf("%u\n", cdata->maxcmd);
 	printf("\n");
 
 	printf("Admin Command Set Attributes\n");
@@ -248,4 +278,25 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 
 	if (cdata->ver >= 0x010201)
 		printf("\nNVM Subsystem Name:          %.256s\n", cdata->subnqn);
+
+	if (cdata->ioccsz != 0) {
+		printf("\n");
+		printf("Fabrics Attributes\n");
+		printf("==================\n");
+		printf("I/O Command Capsule Size:    %d bytes\n",
+		    cdata->ioccsz * 16);
+		printf("I/O Response Capsule Size:   %d bytes\n",
+		    cdata->iorcsz * 16);
+		printf("In Capsule Data Offset:      %d bytes\n",
+		    cdata->icdoff * 16);
+		printf("Controller Model:            %s\n",
+		    (cdata->fcatt & 1) == 0 ? "Dynamic" : "Static");
+		printf("Max SGL Descriptors:         ");
+		if (cdata->msdbd == 0)
+			printf("Unlimited\n");
+		else
+			printf("%d\n", cdata->msdbd);
+		printf("Disconnect of I/O Queues:    %sSupported\n",
+		    (cdata->ofcs & 1) == 1 ? "" : "Not ");
+	}
 }

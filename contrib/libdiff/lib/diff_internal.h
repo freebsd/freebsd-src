@@ -148,7 +148,7 @@ int diff_output_trailing_newline_msg(struct diff_output_info *outinfo,
 int diff_output_match_function_prototype(char *prototype, size_t prototype_size,
 					 int *last_prototype_idx,
 					 const struct diff_result *result,
-					 const struct diff_chunk_context *cc);
+					 int chunk_start_line);
 
 struct diff_output_info *diff_output_info_alloc(void);
 

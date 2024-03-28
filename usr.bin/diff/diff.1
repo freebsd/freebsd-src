@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 26, 2024
+.Dd March 7, 2024
 .Dt DIFF 1
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@
 .Fl c | e | f |
 .Fl n | q | u | y
 .Oc
+.Op Fl A Ar algo | Fl -algorithm Ar algo
 .Op Fl -brief
 .Op Fl -color Ns = Ns Ar when
 .Op Fl -changed-group-format Ar GFMT
@@ -67,6 +68,7 @@
 .Ar file1 file2
 .Nm diff
 .Op Fl aBbdilpTtw
+.Op Fl A Ar algo | Fl -algorithm Ar algo
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
 .Op Fl F Ar pattern | Fl -show-function-line Ar pattern
 .Op Fl L Ar label | Fl -label Ar label
@@ -95,6 +97,7 @@
 .Ar file1 file2
 .Nm diff
 .Op Fl aBbdiltw
+.Op Fl A Ar algo | Fl -algorithm Ar algo
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
 .Op Fl -brief
 .Op Fl -color Ns = Ns Ar when
@@ -121,6 +124,7 @@
 .Ar file1 file2
 .Nm diff
 .Op Fl aBbdilpTtw
+.Op Fl A Ar algo | Fl -algorithm Ar algo
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
 .Op Fl F Ar pattern | Fl -show-function-line Ar pattern
 .Op Fl L Ar label | Fl -label Ar label
@@ -153,6 +157,7 @@
 .Fl c | e | f |
 .Fl n | q | u
 .Oc
+.Op Fl A Ar algo | Fl -algorithm Ar algo
 .Op Fl -brief
 .Op Fl -color Ns = Ns Ar when
 .Op Fl -changed-group-format Ar GFMT
@@ -276,6 +281,18 @@ from their state in
 .Ar dir1
 to their state in
 .Ar dir2 .
+Note that when comparing directories with
+.Fl e ,
+the resulting file may no longer be interpreted as an
+.Xr ed 1
+script.
+Output is added to indicate which file each set of
+.Xr ed 1
+commands applies to.
+These hunks can be manually extracted to produce an
+.Xr ed 1
+script, which can also be applied with
+.Xr patch 1 .
 .It Fl f -forward-ed
 Identical output to that of the
 .Fl e
@@ -331,6 +348,38 @@ Files differ and only the second file contains the line.
 .Pp
 Comparison options:
 .Bl -tag -width Ds
+.It Fl A Ar algo, Fl -algorithm Ar algo
+Configure the algorithm used when comparing files.
+.Nm
+supports 3 algorithms:
+.Pp
+.Bl -tag -width Ds -compact
+.It Cm myers
+The Myers diff algorithm finds the shortest edit which transforms one
+input into the other.
+It generally runs in O(N+D\(S2) time, requiring O(N) space, where N is
+the sum of the lengths of the inputs and D is the length of the
+difference between them, with a theoretical O(N\(pcD) worst case.
+If it encounters worst-case input, the implementation used by
+.Nm
+falls back to a less optimal but faster algorithm.
+.It Cm patience
+The Patience variant of the Myers algorithm attempts to create more
+aesthetically pleasing diff output by logically grouping lines.
+.It Cm stone
+The Stone algorithm (commonly known as Hunt-McIlroy or Hunt-Szymanski)
+looks for the longest common subsequence between compared files.
+Stone encounters worst case performance when there are long common
+subsequences.
+In large files this can lead to a significant performance impact.
+The Stone algorithm is maintained for compatibility.
+.El
+.Pp
+The
+.Nm
+utility defaults to the Myers algorithm, but will fall back to the
+Stone algorithm if the input or output options are not supported by
+the Myers implementation.
 .It Fl a -text
 Treat all files as ASCII text.
 Normally
@@ -741,7 +790,7 @@ utility is compliant with the
 specification.
 .Pp
 The flags
-.Op Fl aDdIiLlNnPpqSsTtwXxy
+.Op Fl AaDdIiLlNnPpqSsTtwXxy
 are extensions to that specification.
 .Sh HISTORY
 A
@@ -759,3 +808,6 @@ This was replaced in
 by a BSD-licensed implementation written by
 .An Todd Miller .
 Some GNUisms were lost in the process.
+.Pp
+libdiff was imported from the Game of Trees version control system and default
+algorithm was changed to Myers for FreeBSD 15.

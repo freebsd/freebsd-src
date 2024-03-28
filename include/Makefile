@@ -347,7 +347,7 @@ _MARCHS+=	x86
 
 META_TARGETS+=	compat
 stage_includes: ${SHARED}
-SDESTDIR=	${SYSROOT:U${DESTDIR}}
+SDESTDIR?=	${SYSROOT:U${DESTDIR}}
 
 # Take care of stale directory-level symlinks.
 # Note: The "|| true" after find is needed in case one of the directories does

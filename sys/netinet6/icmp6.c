@@ -114,22 +114,34 @@ extern ip6proto_ctlinput_t	*ip6_ctlprotox[];
 
 VNET_PCPUSTAT_DEFINE(struct icmp6stat, icmp6stat);
 VNET_PCPUSTAT_SYSINIT(icmp6stat);
+SYSCTL_VNET_PCPUSTAT(_net_inet6_icmp6, ICMPV6CTL_STATS, stats,
+    struct icmp6stat, icmp6stat,
+    "ICMPv6 statistics (struct icmp6stat, netinet/icmp6.h)");
 
 #ifdef VIMAGE
 VNET_PCPUSTAT_SYSUNINIT(icmp6stat);
 #endif /* VIMAGE */
 
-VNET_DECLARE(struct inpcbinfo, ripcbinfo);
-VNET_DECLARE(int, icmp6errppslim);
-VNET_DEFINE_STATIC(int, icmp6errpps_count) = 0;
-VNET_DEFINE_STATIC(struct timeval, icmp6errppslim_last);
-VNET_DECLARE(int, icmp6_nodeinfo);
+VNET_DEFINE_STATIC(int, icmp6_rediraccept) = 1;
+#define	V_icmp6_rediraccept	VNET(icmp6_rediraccept)
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRACCEPT, rediraccept,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6_rediraccept), 0,
+    "Accept ICMPv6 redirect messages");
 
-#define	V_ripcbinfo			VNET(ripcbinfo)
-#define	V_icmp6errppslim		VNET(icmp6errppslim)
-#define	V_icmp6errpps_count		VNET(icmp6errpps_count)
-#define	V_icmp6errppslim_last		VNET(icmp6errppslim_last)
-#define	V_icmp6_nodeinfo		VNET(icmp6_nodeinfo)
+VNET_DEFINE_STATIC(int, icmp6_redirtimeout) = 10 * 60;	/* 10 minutes */
+#define	V_icmp6_redirtimeout	VNET(icmp6_redirtimeout)
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRTIMEOUT, redirtimeout,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6_redirtimeout), 0,
+    "Delay in seconds before expiring redirect route");
+
+VNET_DEFINE_STATIC(int, icmp6_nodeinfo) = 0;
+#define	V_icmp6_nodeinfo	VNET(icmp6_nodeinfo)
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_NODEINFO, nodeinfo,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6_nodeinfo), 0,
+    "Mask of enabled RFC4620 node information query types");
+
+VNET_DECLARE(struct inpcbinfo, ripcbinfo);
+#define	V_ripcbinfo		VNET(ripcbinfo)
 
 static void icmp6_errcount(int, int);
 static int icmp6_rip6_input(struct mbuf **, int);
@@ -341,10 +353,8 @@ icmp6_error(struct mbuf *m, int type, int code, int param)
 	}
 
 	/* Finally, do rate limitation check. */
-	if (icmp6_ratelimit(&oip6->ip6_src, type, code)) {
-		ICMP6STAT_INC(icp6s_toofreq);
+	if (icmp6_ratelimit(&oip6->ip6_src, type, code))
 		goto freeit;
-	}
 
 	/*
 	 * OK, ICMP6 can be generated.
@@ -548,6 +558,8 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 		icmp6_ifstat_inc(ifp, ifs6_in_echo);
 		if (code != 0)
 			goto badcode;
+		if (icmp6_ratelimit(&ip6->ip6_src, ICMP6_ECHO_REPLY, 0))
+			break;
 		if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) == NULL) {
 			/* Give up remote */
 			break;
@@ -2719,6 +2731,126 @@ icmp6_ctloutput(struct socket *so, struct sockopt *sopt)
 	return (error);
 }
 
+static int sysctl_icmp6lim_and_jitter(SYSCTL_HANDLER_ARGS);
+VNET_DEFINE_STATIC(u_int, icmp6errppslim) = 100;
+#define	V_icmp6errppslim	VNET(icmp6errppslim)
+SYSCTL_PROC(_net_inet6_icmp6, ICMPV6CTL_ERRPPSLIMIT, errppslimit,
+    CTLTYPE_UINT | CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6errppslim), 0,
+    &sysctl_icmp6lim_and_jitter, "IU",
+    "Maximum number of ICMPv6 error/reply messages per second");
+
+VNET_DEFINE_STATIC(int, icmp6lim_curr_jitter) = 0;
+#define	V_icmp6lim_curr_jitter	VNET(icmp6lim_curr_jitter)
+
+VNET_DEFINE_STATIC(u_int, icmp6lim_jitter) = 8;
+#define	V_icmp6lim_jitter	VNET(icmp6lim_jitter)
+SYSCTL_PROC(_net_inet6_icmp6, OID_AUTO, icmp6lim_jitter, CTLTYPE_UINT |
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6lim_jitter), 0,
+    &sysctl_icmp6lim_and_jitter, "IU",
+    "Random errppslimit jitter adjustment limit");
+
+VNET_DEFINE_STATIC(int, icmp6lim_output) = 1;
+#define	V_icmp6lim_output	VNET(icmp6lim_output)
+SYSCTL_INT(_net_inet6_icmp6, OID_AUTO, icmp6lim_output,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6lim_output), 0,
+    "Enable logging of ICMPv6 response rate limiting");
+
+typedef enum {
+	RATELIM_PARAM_PROB = 0,
+	RATELIM_TOO_BIG,
+	RATELIM_UNREACH,
+	RATELIM_TEXCEED,
+	RATELIM_REDIR,
+	RATELIM_REPLY,
+	RATELIM_OTHER,
+	RATELIM_MAX
+} ratelim_which;
+
+static const char *icmp6_rate_descrs[RATELIM_MAX] = {
+	[RATELIM_PARAM_PROB] = "bad IPv6 header",
+	[RATELIM_TOO_BIG] = "packet too big",
+	[RATELIM_UNREACH] = "destination unreachable",
+	[RATELIM_TEXCEED] = "time exceeded",
+	[RATELIM_REPLY] = "echo reply",
+	[RATELIM_REDIR] = "neighbor discovery redirect",
+	[RATELIM_OTHER] = "(other)",
+};
+
+static void
+icmp6lim_new_jitter(void)
+{
+	/*
+	 * Adjust limit +/- to jitter the measurement to deny a side-channel
+	 * port scan as in https://dl.acm.org/doi/10.1145/3372297.3417280
+	 */
+	if (V_icmp6lim_jitter > 0)
+		V_icmp6lim_curr_jitter =
+		    arc4random_uniform(V_icmp6lim_jitter * 2 + 1) -
+		    V_icmp6lim_jitter;
+}
+
+static int
+sysctl_icmp6lim_and_jitter(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t new;
+	int error;
+	bool lim;
+
+	MPASS(oidp->oid_arg1 == &VNET_NAME(icmp6errppslim) ||
+	    oidp->oid_arg1 == &VNET_NAME(icmp6lim_jitter));
+
+	lim = (oidp->oid_arg1 == &VNET_NAME(icmp6errppslim));
+	new = lim ? V_icmp6errppslim : V_icmp6lim_jitter;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error == 0 && req->newptr) {
+		if (lim) {
+			if (new != 0 && new <= V_icmp6lim_jitter)
+				error = EINVAL;
+			else
+				V_icmp6errppslim = new;
+		} else {
+			if (new >= V_icmp6errppslim)
+				error = EINVAL;
+			else {
+				V_icmp6lim_jitter = new;
+				icmp6lim_new_jitter();
+			}
+		}
+	}
+	MPASS(V_icmp6errppslim + V_icmp6lim_curr_jitter > 0);
+
+	return (error);
+}
+
+
+VNET_DEFINE_STATIC(struct counter_rate, icmp6_rates[RATELIM_MAX]);
+#define	V_icmp6_rates	VNET(icmp6_rates)
+
+static void
+icmp6_ratelimit_init(void)
+{
+
+	for (int i = 0; i < RATELIM_MAX; i++) {
+		V_icmp6_rates[i].cr_rate = counter_u64_alloc(M_WAITOK);
+		V_icmp6_rates[i].cr_ticks = ticks;
+	}
+	icmp6lim_new_jitter();
+}
+VNET_SYSINIT(icmp6_ratelimit, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY,
+    icmp6_ratelimit_init, NULL);
+
+#ifdef VIMAGE
+static void
+icmp6_ratelimit_uninit(void)
+{
+
+	for (int i = 0; i < RATELIM_MAX; i++)
+		counter_u64_free(V_icmp6_rates[i].cr_rate);
+}
+VNET_SYSUNINIT(icmp6_ratelimit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
+    icmp6_ratelimit_uninit, NULL);
+#endif
+
 /*
  * Perform rate limit check.
  * Returns 0 if it is okay to send the icmp6 packet.
@@ -2728,23 +2860,55 @@ icmp6_ctloutput(struct socket *so, struct sockopt *sopt)
  * XXX per-destination/type check necessary?
  *
  * dst - not used at this moment
- * type - not used at this moment
  * code - not used at this moment
  */
 int
-icmp6_ratelimit(const struct in6_addr *dst, const int type,
-    const int code)
+icmp6_ratelimit(const struct in6_addr *dst, const int type, const int code)
 {
-	int ret;
+	ratelim_which which;
+	int64_t pps;
 
-	ret = 0;	/* okay to send */
+	if (V_icmp6errppslim == 0)
+		return (0);
 
-	/* PPS limit */
-	if (!ppsratecheck(&V_icmp6errppslim_last, &V_icmp6errpps_count,
-	    V_icmp6errppslim)) {
-		/* The packet is subject to rate limit */
-		ret++;
+	switch (type) {
+	case ICMP6_PARAM_PROB:
+		which = RATELIM_PARAM_PROB;
+		break;
+	case ICMP6_PACKET_TOO_BIG:
+		which = RATELIM_TOO_BIG;
+		break;
+	case ICMP6_DST_UNREACH:
+		which = RATELIM_UNREACH;
+		break;
+	case ICMP6_TIME_EXCEEDED:
+		which = RATELIM_TEXCEED;
+		break;
+	case ND_REDIRECT:
+		which = RATELIM_REDIR;
+		break;
+	case ICMP6_ECHO_REPLY:
+		which = RATELIM_REPLY;
+		break;
+	default:
+		which = RATELIM_OTHER;
+		break;
+	};
+
+	pps = counter_ratecheck(&V_icmp6_rates[which], V_icmp6errppslim +
+	    V_icmp6lim_curr_jitter);
+	if (pps > 0) {
+		if (V_icmp6lim_output)
+			log(LOG_NOTICE, "Limiting ICMPv6 %s output from %jd "
+			    "to %d packets/sec\n", icmp6_rate_descrs[which],
+			    (intmax_t )pps, V_icmp6errppslim +
+			    V_icmp6lim_curr_jitter);
+		icmp6lim_new_jitter();
+	}
+	if (pps == -1) {
+		ICMP6STAT_INC(icp6s_toofreq);
+		return (-1);
 	}
 
-	return ret;
+	return (0);
 }

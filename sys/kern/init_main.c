@@ -784,6 +784,7 @@ start_init(void *dummy)
 		 */
 		KASSERT((td->td_pflags & TDP_EXECVMSPC) == 0,
 		    ("nested execve"));
+		memset(td->td_frame, 0, sizeof(*td->td_frame));
 		oldvmspace = p->p_vmspace;
 		error = kern_execve(td, &args, NULL, oldvmspace);
 		KASSERT(error != 0,

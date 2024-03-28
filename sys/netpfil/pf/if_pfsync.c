@@ -239,7 +239,7 @@ struct pfsync_bucket
 	TAILQ_HEAD(, pfsync_upd_req_item)	b_upd_req_list;
 	TAILQ_HEAD(, pfsync_deferral)		b_deferrals;
 	u_int			b_deferred;
-	void			*b_plus;
+	uint8_t			*b_plus;
 	size_t			b_pluslen;
 
 	struct  ifaltq b_snd;
@@ -473,6 +473,10 @@ pfsync_clone_destroy(struct ifnet *ifp)
 		MPASS(b->b_deferred == 0);
 		MPASS(TAILQ_EMPTY(&b->b_deferrals));
 		PFSYNC_BUCKET_UNLOCK(b);
+
+		free(b->b_plus, M_PFSYNC);
+		b->b_plus = NULL;
+		b->b_pluslen = 0;
 
 		callout_drain(&b->b_tmo);
 	}
@@ -1766,7 +1770,9 @@ pfsync_drop(struct pfsync_softc *sc)
 		}
 
 		b->b_len = PFSYNC_MINPKT;
+		free(b->b_plus, M_PFSYNC);
 		b->b_plus = NULL;
+		b->b_pluslen = 0;
 	}
 }
 
@@ -1906,7 +1912,9 @@ pfsync_sendout(int schedswi, int c)
 		bcopy(b->b_plus, m->m_data + offset, b->b_pluslen);
 		offset += b->b_pluslen;
 
+		free(b->b_plus, M_PFSYNC);
 		b->b_plus = NULL;
+		b->b_pluslen = 0;
 	}
 
 	subh = (struct pfsync_subheader *)(m->m_data + offset);
@@ -2560,16 +2568,32 @@ pfsync_send_plus(void *plus, size_t pluslen)
 {
 	struct pfsync_softc *sc = V_pfsyncif;
 	struct pfsync_bucket *b = &sc->sc_buckets[0];
+	uint8_t *newplus;
 
 	PFSYNC_BUCKET_LOCK(b);
 
 	if (b->b_len + pluslen > sc->sc_ifp->if_mtu)
 		pfsync_sendout(1, b->b_id);
 
-	b->b_plus = plus;
-	b->b_len += (b->b_pluslen = pluslen);
+	newplus = malloc(pluslen + b->b_pluslen, M_PFSYNC, M_NOWAIT);
+	if (newplus == NULL)
+		goto out;
+
+	if (b->b_plus != NULL) {
+		memcpy(newplus, b->b_plus, b->b_pluslen);
+		free(b->b_plus, M_PFSYNC);
+	} else {
+		MPASS(b->b_pluslen == 0);
+	}
+	memcpy(newplus + b->b_pluslen, plus, pluslen);
+
+	b->b_plus = newplus;
+	b->b_pluslen += pluslen;
+	b->b_len += pluslen;
 
 	pfsync_sendout(1, b->b_id);
+
+out:
 	PFSYNC_BUCKET_UNLOCK(b);
 }
 

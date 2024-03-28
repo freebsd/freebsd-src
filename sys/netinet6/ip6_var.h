@@ -349,11 +349,6 @@ VNET_DECLARE(int, ip6stealth);
 #define	V_ip6stealth			VNET(ip6stealth)
 #endif
 
-#ifdef EXPERIMENTAL
-VNET_DECLARE(int, nd6_ignore_ipv6_only_ra);
-#define	V_nd6_ignore_ipv6_only_ra	VNET(nd6_ignore_ipv6_only_ra)
-#endif
-
 VNET_DECLARE(bool, ip6_log_cannot_forward);
 #define	V_ip6_log_cannot_forward	VNET(ip6_log_cannot_forward)
 

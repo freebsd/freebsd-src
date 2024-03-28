@@ -80,19 +80,22 @@ extern ipproto_ctlinput_t	*ip_ctlprotox[];
  * routines to turnaround packets back to the originator, and
  * host table maintenance routines.
  */
-VNET_DEFINE_STATIC(int, icmplim) = 200;
+static int sysctl_icmplim_and_jitter(SYSCTL_HANDLER_ARGS);
+VNET_DEFINE_STATIC(u_int, icmplim) = 200;
 #define	V_icmplim			VNET(icmplim)
-SYSCTL_INT(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLFLAG_VNET | CTLFLAG_RW,
-	&VNET_NAME(icmplim), 0,
-	"Maximum number of ICMP responses per second");
+SYSCTL_PROC(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLTYPE_UINT |
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmplim), 0,
+    &sysctl_icmplim_and_jitter, "IU",
+    "Maximum number of ICMP responses per second");
 
 VNET_DEFINE_STATIC(int, icmplim_curr_jitter) = 0;
 #define V_icmplim_curr_jitter		VNET(icmplim_curr_jitter)
-VNET_DEFINE_STATIC(int, icmplim_jitter) = 16;
+VNET_DEFINE_STATIC(u_int, icmplim_jitter) = 16;
 #define	V_icmplim_jitter		VNET(icmplim_jitter)
-SYSCTL_INT(_net_inet_icmp, OID_AUTO, icmplim_jitter, CTLFLAG_VNET | CTLFLAG_RW,
-	&VNET_NAME(icmplim_jitter), 0,
-	"Random icmplim jitter adjustment limit");
+SYSCTL_PROC(_net_inet_icmp, OID_AUTO, icmplim_jitter, CTLTYPE_UINT |
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmplim_jitter), 0,
+    &sysctl_icmplim_and_jitter, "IU",
+    "Random icmplim jitter adjustment limit");
 
 VNET_DEFINE_STATIC(int, icmplim_output) = 1;
 #define	V_icmplim_output		VNET(icmplim_output)
@@ -1091,42 +1094,89 @@ ip_next_mtu(int mtu, int dir)
  *	the 'final' error, but it doesn't make sense to solve the printing
  *	delay with more complex code.
  */
-struct icmp_rate {
-	const char *descr;
-	struct counter_rate cr;
-};
-VNET_DEFINE_STATIC(struct icmp_rate, icmp_rates[BANDLIM_MAX]) = {
-	{ "icmp unreach response" },
-	{ "icmp ping response" },
-	{ "icmp tstamp response" },
-	{ "closed port RST response" },
-	{ "open port RST response" },
-	{ "icmp6 unreach response" },
-	{ "sctp ootb response" }
-};
+VNET_DEFINE_STATIC(struct counter_rate, icmp_rates[BANDLIM_MAX]);
 #define	V_icmp_rates	VNET(icmp_rates)
+
+static const char *icmp_rate_descrs[BANDLIM_MAX] = {
+	[BANDLIM_ICMP_UNREACH] = "icmp unreach",
+	[BANDLIM_ICMP_ECHO] = "icmp ping",
+	[BANDLIM_ICMP_TSTAMP] = "icmp tstamp",
+	[BANDLIM_RST_CLOSEDPORT] = "closed port RST",
+	[BANDLIM_RST_OPENPORT] = "open port RST",
+	[BANDLIM_ICMP6_UNREACH] = "icmp6 unreach",
+	[BANDLIM_SCTP_OOTB] = "sctp ootb",
+};
+
+static void
+icmplim_new_jitter(void)
+{
+	/*
+	 * Adjust limit +/- to jitter the measurement to deny a side-channel
+	 * port scan as in https://dl.acm.org/doi/10.1145/3372297.3417280
+	 */
+	if (V_icmplim_jitter > 0)
+		V_icmplim_curr_jitter =
+		    arc4random_uniform(V_icmplim_jitter * 2 + 1) -
+		    V_icmplim_jitter;
+}
+
+static int
+sysctl_icmplim_and_jitter(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t new;
+	int error;
+	bool lim;
+
+	MPASS(oidp->oid_arg1 == &VNET_NAME(icmplim) ||
+	    oidp->oid_arg1 == &VNET_NAME(icmplim_jitter));
+
+	lim = (oidp->oid_arg1 == &VNET_NAME(icmplim));
+	new = lim ? V_icmplim : V_icmplim_jitter;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error == 0 && req->newptr) {
+		if (lim) {
+			if (new != 0 && new <= V_icmplim_jitter)
+				error = EINVAL;
+			else
+				V_icmplim = new;
+		} else {
+			if (new >= V_icmplim)
+				error = EINVAL;
+			else {
+				V_icmplim_jitter = new;
+				icmplim_new_jitter();
+			}
+		}
+	}
+	MPASS(V_icmplim + V_icmplim_curr_jitter > 0);
+
+	return (error);
+}
 
 static void
 icmp_bandlimit_init(void)
 {
 
 	for (int i = 0; i < BANDLIM_MAX; i++) {
-		V_icmp_rates[i].cr.cr_rate = counter_u64_alloc(M_WAITOK);
-		V_icmp_rates[i].cr.cr_ticks = ticks;
+		V_icmp_rates[i].cr_rate = counter_u64_alloc(M_WAITOK);
+		V_icmp_rates[i].cr_ticks = ticks;
 	}
+	icmplim_new_jitter();
 }
 VNET_SYSINIT(icmp_bandlimit, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY,
     icmp_bandlimit_init, NULL);
 
+#ifdef VIMAGE
 static void
 icmp_bandlimit_uninit(void)
 {
 
 	for (int i = 0; i < BANDLIM_MAX; i++)
-		counter_u64_free(V_icmp_rates[i].cr.cr_rate);
+		counter_u64_free(V_icmp_rates[i].cr_rate);
 }
 VNET_SYSUNINIT(icmp_bandlimit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
     icmp_bandlimit_uninit, NULL);
+#endif
 
 int
 badport_bandlim(int which)
@@ -1139,29 +1189,17 @@ badport_bandlim(int which)
 	KASSERT(which >= 0 && which < BANDLIM_MAX,
 	    ("%s: which %d", __func__, which));
 
-	if ((V_icmplim + V_icmplim_curr_jitter) <= 0)
-		V_icmplim_curr_jitter = -V_icmplim + 1;
-
-	pps = counter_ratecheck(&V_icmp_rates[which].cr, V_icmplim +
+	pps = counter_ratecheck(&V_icmp_rates[which], V_icmplim +
 	    V_icmplim_curr_jitter);
 	if (pps > 0) {
-		/*
-		 * Adjust limit +/- to jitter the measurement to deny a
-		 * side-channel port scan as in CVE-2020-25705
-		 */
-		if (V_icmplim_jitter > 0) {
-			int32_t inc =
-			    arc4random_uniform(V_icmplim_jitter * 2 +1)
-			    - V_icmplim_jitter;
-
-			V_icmplim_curr_jitter = inc;
-		}
+		if (V_icmplim_output)
+			log(LOG_NOTICE,
+			    "Limiting %s response from %jd to %d packets/sec\n",
+			    icmp_rate_descrs[which], (intmax_t )pps,
+			    V_icmplim + V_icmplim_curr_jitter);
+		icmplim_new_jitter();
 	}
 	if (pps == -1)
 		return (-1);
-	if (pps > 0 && V_icmplim_output)
-		log(LOG_NOTICE, "Limiting %s from %jd to %d packets/sec\n",
-		    V_icmp_rates[which].descr, (intmax_t )pps, V_icmplim +
-		    V_icmplim_curr_jitter);
 	return (0);
 }
