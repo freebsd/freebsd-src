@@ -83,7 +83,7 @@ __bt_seq(const DB *dbp, DBT *key, DBT *data, u_int flags)
 	}
 
 	/*
-	 * If scan unitialized as yet, or starting at a specific record, set
+	 * If scan uninitialized as yet, or starting at a specific record, set
 	 * the scan to a specific key.  Both __bt_seqset and __bt_seqadv pin
 	 * the page the cursor references if they're successful.
 	 */
