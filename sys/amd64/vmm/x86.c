@@ -234,7 +234,7 @@ x86_emulate_cpuid(struct vcpu *vcpu, uint64_t *rax, uint64_t *rbx,
 				goto default_leaf;
 
 			/*
-			 * Similar to Intel, generate a ficticious cache
+			 * Similar to Intel, generate a fictitious cache
 			 * topology for the guest with L3 shared by the
 			 * package, and L1 and L2 local to a core.
 			 */

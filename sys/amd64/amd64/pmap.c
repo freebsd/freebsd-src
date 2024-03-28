@@ -9437,7 +9437,7 @@ pmap_mapdev_internal(vm_paddr_t pa, vm_size_t size, int mode, int flags)
 			panic("%s: too many preinit mappings", __func__);
 	} else {
 		/*
-		 * If we have a preinit mapping, re-use it.
+		 * If we have a preinit mapping, reuse it.
 		 */
 		for (i = 0; i < PMAP_PREINIT_MAPPING_COUNT; i++) {
 			ppim = pmap_preinit_mapping + i;
@@ -11030,7 +11030,7 @@ pmap_large_map_wb_large(vm_offset_t sva, vm_offset_t eva)
 
 				/*
 				 * If we saw other write-back
-				 * occuring, we cannot rely on PG_M to
+				 * occurring, we cannot rely on PG_M to
 				 * indicate state of the cache.  The
 				 * PG_M bit is cleared before the
 				 * flush to avoid ignoring new writes,
