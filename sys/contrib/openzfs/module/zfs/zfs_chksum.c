@@ -30,6 +30,7 @@
 
 #include <sys/blake3.h>
 #include <sys/sha2.h>
+#include <sys/tslog.h>
 
 /* limit benchmarking to max 256KiB, when EdonR is slower then this: */
 #define	LIMIT_PERF_MBS	300
@@ -140,6 +141,7 @@ static void
 chksum_run(chksum_stat_t *cs, abd_t *abd, void *ctx, int round,
     uint64_t *result)
 {
+	TSENTER();
 	hrtime_t start;
 	uint64_t run_bw, run_time_ns, run_count = 0, size = 0;
 	uint32_t l, loops = 0;
@@ -177,6 +179,7 @@ chksum_run(chksum_stat_t *cs, abd_t *abd, void *ctx, int round,
 	run_bw = size * run_count * NANOSEC;
 	run_bw /= run_time_ns;	/* B/s */
 	*result = run_bw/1024/1024; /* MiB/s */
+	TSEXIT();
 }
 
 #define	LIMIT_INIT	0
@@ -242,7 +245,7 @@ chksum_benchmark(void)
 	/* we need the benchmark only for the kernel module */
 	return;
 #endif
-
+	TSENTER();
 	chksum_stat_t *cs;
 	uint64_t max;
 	uint32_t id, cbid = 0, id_save;
@@ -261,6 +264,7 @@ chksum_benchmark(void)
 	/* edonr - needs to be the first one here (slow CPU check) */
 	cs = &chksum_stat_data[cbid++];
 
+	TSENTER2("edonr");
 	/* edonr */
 	cs->init = abd_checksum_edonr_tmpl_init;
 	cs->func = abd_checksum_edonr_native;
@@ -268,7 +272,9 @@ chksum_benchmark(void)
 	cs->name = "edonr";
 	cs->impl = "generic";
 	chksum_benchit(cs);
+	TSEXIT2("edonr");
 
+	TSENTER2("skein");
 	/* skein */
 	cs = &chksum_stat_data[cbid++];
 	cs->init = abd_checksum_skein_tmpl_init;
@@ -277,7 +283,9 @@ chksum_benchmark(void)
 	cs->name = "skein";
 	cs->impl = "generic";
 	chksum_benchit(cs);
+	TSEXIT2("skein");
 
+	TSENTER2("sha256");
 	/* sha256 */
 	id_save = sha256->getid();
 	for (max = 0, id = 0; id < sha256->getcnt(); id++) {
@@ -295,7 +303,9 @@ chksum_benchmark(void)
 		}
 	}
 	sha256->setid(id_save);
+	TSEXIT2("sha256");
 
+	TSENTER2("sha512");
 	/* sha512 */
 	id_save = sha512->getid();
 	for (max = 0, id = 0; id < sha512->getcnt(); id++) {
@@ -313,7 +323,9 @@ chksum_benchmark(void)
 		}
 	}
 	sha512->setid(id_save);
+	TSEXIT2("sha512");
 
+	TSENTER2("blake3");
 	/* blake3 */
 	id_save = blake3->getid();
 	for (max = 0, id = 0; id < blake3->getcnt(); id++) {
@@ -331,6 +343,8 @@ chksum_benchmark(void)
 		}
 	}
 	blake3->setid(id_save);
+	TSEXIT2("blake3");
+	TSEXIT();
 }
 
 void
