@@ -149,7 +149,7 @@ static bool intr_ipi_dev_frozen;
 static struct mtx pic_list_lock;
 static SLIST_HEAD(, intr_pic) pic_list;
 
-static struct intr_pic *pic_lookup(device_t dev, intptr_t xref, int flags);
+static struct intr_pic *pic_lookup(device_t dev, intptr_t xref, u_int flags);
 
 /* Interrupt source definition. */
 static struct mtx isrc_table_lock;
@@ -744,7 +744,7 @@ isrc_add_handler(struct intr_irqsrc *isrc, const char *name,
  *  Lookup interrupt controller locked.
  */
 static inline struct intr_pic *
-pic_lookup_locked(device_t dev, intptr_t xref, int flags)
+pic_lookup_locked(device_t dev, intptr_t xref, u_int flags)
 {
 	struct intr_pic *pic;
 
@@ -775,7 +775,7 @@ pic_lookup_locked(device_t dev, intptr_t xref, int flags)
  *  Lookup interrupt controller.
  */
 static struct intr_pic *
-pic_lookup(device_t dev, intptr_t xref, int flags)
+pic_lookup(device_t dev, intptr_t xref, u_int flags)
 {
 	struct intr_pic *pic;
 
@@ -789,7 +789,7 @@ pic_lookup(device_t dev, intptr_t xref, int flags)
  *  Create interrupt controller.
  */
 static struct intr_pic *
-pic_create(device_t dev, intptr_t xref, int flags)
+pic_create(device_t dev, intptr_t xref, u_int flags)
 {
 	struct intr_pic *pic;
 
@@ -818,7 +818,7 @@ pic_create(device_t dev, intptr_t xref, int flags)
  *  Destroy interrupt controller.
  */
 static void
-pic_destroy(device_t dev, intptr_t xref, int flags)
+pic_destroy(device_t dev, intptr_t xref, u_int flags)
 {
 	struct intr_pic *pic;
 

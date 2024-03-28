@@ -133,7 +133,7 @@ irq_set_affinity_hint(int vector, const cpumask_t *mask)
 	int error;
 
 	if (mask != NULL)
-		error = intr_setaffinity(vector, CPU_WHICH_IRQ, __DECONST(cpumask_t *, mask));
+		error = intr_setaffinity(vector, CPU_WHICH_IRQ, mask);
 	else
 		error = intr_setaffinity(vector, CPU_WHICH_IRQ, cpuset_root);
 

@@ -458,6 +458,7 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 		 void *arg, void **cookiep)
 {
 	int		error, domain;
+	struct intsrc	*isrc;
 
 	/* somebody tried to setup an irq that failed to allocate! */
 	if (irq == NULL)
@@ -476,8 +477,11 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 	if (bus_get_domain(child, &domain) != 0)
 		domain = 0;
 
-	error = intr_add_handler(device_get_nameunit(child),
-	    rman_get_start(irq), filter, ihand, arg, flags, cookiep, domain);
+	isrc = intr_lookup_source(rman_get_start(irq));
+	if (isrc == NULL)
+		return (EINVAL);
+	error = intr_add_handler(isrc, device_get_nameunit(child),
+	    filter, ihand, arg, flags, cookiep, domain);
 	if (error == 0)
 		rman_set_irq_cookie(irq, *cookiep);
 
@@ -524,15 +528,24 @@ static int
 nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
-	return (intr_config_intr(irq, trig, pol));
+	struct intsrc *isrc;
+
+	isrc = intr_lookup_source(irq);
+	if (isrc == NULL)
+		return (EINVAL);
+	return (intr_config_intr(isrc, trig, pol));
 }
 
 static int
 nexus_describe_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie, const char *descr)
 {
+	struct intsrc *isrc;
 
-	return (intr_describe(rman_get_start(irq), cookie, descr));
+	isrc = intr_lookup_source(rman_get_start(irq));
+	if (isrc == NULL)
+		return (EINVAL);
+	return (intr_describe(isrc, cookie, descr));
 }
 
 static struct resource_list *
