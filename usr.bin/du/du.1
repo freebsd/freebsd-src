@@ -33,6 +33,7 @@
 .Nd display disk usage statistics
 .Sh SYNOPSIS
 .Nm
+.Op Fl -libxo
 .Op Fl Aclnx
 .Op Fl H | L | P
 .Op Fl g | h | k | m
@@ -52,6 +53,13 @@ the current directory is displayed.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
 .It Fl A
 Display the apparent size instead of the disk usage.
 This can be helpful when operating on compressed volumes or sparse files.
@@ -216,6 +224,8 @@ Also display a grand total at the end:
 .Xr df 1 ,
 .Xr chflags 2 ,
 .Xr fts 3 ,
+.Xr libxo 3 ,
+.Xr xo_parse_args 3 ,
 .Xr symlink 7 ,
 .Xr quot 8
 .Sh STANDARDS
