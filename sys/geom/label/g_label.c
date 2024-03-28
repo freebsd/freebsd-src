@@ -105,6 +105,7 @@ const struct g_label_desc *g_labels[] = {
 	&g_label_ntfs,
 	&g_label_disk_ident,
 	&g_label_flashmap,
+	&g_label_swaplinux,
 #endif
 	&g_label_generic,
 	NULL

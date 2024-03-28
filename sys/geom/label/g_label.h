@@ -79,6 +79,7 @@ extern struct g_label_desc g_label_gpt;
 extern struct g_label_desc g_label_gpt_uuid;
 extern struct g_label_desc g_label_disk_ident;
 extern struct g_label_desc g_label_flashmap;
+extern struct g_label_desc g_label_swaplinux;
 
 extern void g_label_rtrim(char *label, size_t size);
 #endif	/* _KERNEL */
