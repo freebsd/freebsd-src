@@ -230,7 +230,7 @@ typedef TAILQ_HEAD(pnp_head, pnp_elt) pnp_list;
 
 /*
  * this function finds the data from the pnp table, as described by the
- * the description and creates a new output (new_desc). This output table
+ * description and creates a new output (new_desc). This output table
  * is a form that's easier for the agent that's automatically loading the
  * modules.
  *

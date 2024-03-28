@@ -656,7 +656,7 @@ fillin_program(prog_t *p)
 	}
 
 	/* Unless the option to make object files was specified the
-	* the objects will be built in the source directory unless
+	* objects will be built in the source directory unless
 	* an object directory already exists.
 	*/
 	if (!makeobj && !p->objdir && p->srcdir) {
