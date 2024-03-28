@@ -1,0 +1,35 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024 Mina Galić
+.\"
+.\" This manual page was written by Mina Galić <FreeBSD@igalic.co>
+.\"
+.Dd January 14, 2024
+.Dt GENERIC 9
+.Os
+.Sh NAME
+.Nm MINIMAL ,
+.Nm MINIMALUP
+.Nd minimal bootable kernel for Tier 1 architectures
+.Sh SYNOPSIS
+.Dl KERNCONF=MINIMAL
+.Fc
+.Sh DESCRIPTION
+The
+.Va MINIMAL
+kernel is the minimal most kernel configuration that results in a bootable
+system on Tier 1 architectures.
+Additionally, the
+.Va MINIMALUP
+kernel is provided as a compile target for testing configurations without
+.Xr SMP 4 ,
+and without
+.Xr VNET 9
+.Sh SEE ALSO
+.Xr devmatch 8 ,
+.Xr GENERIC 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Mina Galić Aq Mt FreeBSD@igalic.co .

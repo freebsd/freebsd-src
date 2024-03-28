@@ -1,0 +1,43 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024 Mina Galić
+.\"
+.\" This manual page was written by Mina Galić <FreeBSD@igalic.co>
+.\"
+.Dd January 14, 2024
+.Dt GENERIC 9
+.Os
+.Sh NAME
+.Nm GENERIC ,
+.Nm GENERIC-DEBUG ,
+.Nm GENERIC-MMCCAM-DEBUG ,
+.Nm GENERIC-MMCCAM-NODEBUG ,
+.Nm GENERIC-NODEBUG ,
+.Nm GENERIC-UP
+.Nd default kernel for most architectures
+.Sh SYNOPSIS
+.Dl KERNCONF=GENERIC
+.Fc
+.Sh DESCRIPTION
+The
+.Va GENERIC
+kernel is the default kernel for most architectures.
+It is supposed to boot without modifications, and cover the best supported and
+best understood features.
+The
+.Va GENERIC-NODEBUG
+kernel is provided on
+.Fx CURRENT ,
+while
+.Va GENERIC-DEBUG
+kernel is provided on
+.Fx STABLE
+branches.
+.Sh SEE ALSO
+.Xr devmatch 8 ,
+.Xr MINIMAL 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Mina Galić Aq Mt FreeBSD@igalic.co .
