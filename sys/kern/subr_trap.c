@@ -74,6 +74,8 @@
 #include <sys/epoch.h>
 #endif
 
+volatile uint32_t __read_frequently hpts_that_need_softclock = 0;
+
 void	(*tcp_hpts_softclock)(void);
 
 /*
