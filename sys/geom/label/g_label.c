@@ -101,7 +101,6 @@ const struct g_label_desc *g_labels[] = {
 	&g_label_iso9660,
 	&g_label_msdosfs,
 	&g_label_ext2fs,
-	&g_label_reiserfs,
 	&g_label_ntfs,
 	&g_label_disk_ident,
 	&g_label_flashmap,
