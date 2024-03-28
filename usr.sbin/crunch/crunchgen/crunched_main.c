@@ -82,20 +82,21 @@ struct stub {
 
 extern const char *__progname;
 extern struct stub entry_points[];
+extern int num_entry_points;
 
-static void crunched_usage(void);
+static void crunched_usage(int);
 
 crunched_stub_t crunched_main;
+crunched_stub_t crunched_list;
 
 static struct stub *
 find_entry_point(const char *basename)
 {
-	struct stub *ep = NULL;
-
-	for (ep = entry_points; ep->name != NULL; ep++)
+	for (int i = 0; i < num_entry_points; i++) {
+		struct stub *ep = &entry_points[i];
 		if (!strcmp(basename, ep->name))
 			return (ep);
-
+	}
 	return (NULL);
 }
 
@@ -159,13 +160,14 @@ main(int argc, char **argv, char **envp)
 	}
 
 	if (basename == NULL || *basename == '\0')
-		crunched_usage();
+		crunched_usage(1);
 
 	if (ep != NULL) {
 		return ep->f(argc, argv, envp);
 	} else {
-		fprintf(stderr, "%s: %s not compiled in\n", EXECNAME, basename);
-		crunched_usage();
+		fprintf(stderr, "%s: %s not compiled in\n\n",
+		    EXECNAME, basename);
+		crunched_usage(1);
 	}
 }
 
@@ -173,33 +175,53 @@ int
 crunched_main(int argc, char **argv, char **envp)
 {
 	if (argc <= 1)
-		crunched_usage();
+		crunched_usage(0);
 
 	__progname = get_basename(argv[1]);
 	return main(--argc, ++argv, envp);
 }
 
+int
+crunched_list(int argc __unused, char **argv __unused, char **envp __unused)
+{
+	for (int i = 0; i < num_entry_points - 2; i++)
+		printf("%s\n", entry_points[i].name);
+	return (0);
+}
+
 static void
-crunched_usage(void)
+crunched_usage(int code)
 {
 	int columns, len;
-	struct stub *ep;
+	FILE *out = stdout;
+	if (code > 0)
+		out = stderr;
 
-	fprintf(stderr,
-	    "usage: %s <prog> <args> ..., where <prog> is one of:\n", EXECNAME);
+	fprintf(out,
+	    "usage: %s program [args ...]\n"
+	    "       %s --list\n"
+	    "       program [args ...]\n"
+	    "\n"
+	    "%s combines several programs in one executable. Create a link to this\n"
+	    "executable with the program name to run that program, or give the program\n"
+	    "name as the first argument.\n"
+	    "\n"
+	    "Currently defined programs:\n",
+	    EXECNAME, EXECNAME, EXECNAME);
 	columns = 0;
-	for (ep = entry_points; ep->name != NULL; ep++) {
+	for (int i = 0; i < num_entry_points - 2; i++) {
+		struct stub *ep = &entry_points[i];
 		len = strlen(ep->name) + 1;
 		if (columns + len < 80)
 			columns += len;
 		else {
-			fprintf(stderr, "\n");
+			fprintf(out, "\n");
 			columns = len;
 		}
-		fprintf(stderr, " %s", ep->name);
+		fprintf(out, " %s", ep->name);
 	}
-	fprintf(stderr, "\n");
-	exit(1);
+	fprintf(out, "\n");
+	exit(code);
 }
 
 /* end of crunched_main.c */
