@@ -30,10 +30,9 @@
  *
  */
 
-#define	bool	char
+/* This header requires bool for some externed symbols. */
+#include <stdbool.h>
 
-#define	YES		1
-#define	NO		0
 #define	EOS		'\0'
 
 #define	ENDLINE		50		/* max length of pattern */
@@ -81,14 +80,14 @@ extern char	lbuf[LINE_MAX];
 extern char    *lbp;
 extern char	searchar;		/* ex search character */
 
-extern int	cicmp(const char *);
+extern bool	cicmp(const char *);
 extern void	get_line(void);
 extern void	pfnote(const char *, int);
-extern int	skip_key(int);
+extern bool	skip_key(int);
 extern void	put_entries(NODE *);
 extern void	toss_yysec(void);
 extern void	l_entries(void);
 extern void	y_entries(void);
-extern int	PF_funcs(void);
+extern bool	PF_funcs(void);
 extern void	c_entries(void);
 extern void	skip_comment(int);
