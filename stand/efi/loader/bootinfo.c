@@ -185,7 +185,7 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 	struct efi_map_header *efihdr;
 	bool do_vmap;
 
-#if defined(__amd64__) || defined(__aarch64__)
+#if defined(__amd64__) || defined(__aarch64__) || defined(__i386__)
 	struct efi_fb efifb;
 
 	efifb.fb_addr = gfx_state.tg_fb.fb_addr;
@@ -339,7 +339,12 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	vm_offset_t size;
 	char *rootdevname;
 	int howto;
-	bool is64 = sizeof(long) == 8;
+	bool is64 =
+#ifdef __i386__
+	true;
+#else
+	sizeof(long) == 8;
+#endif
 #if defined(LOADER_FDT_SUPPORT)
 	vm_offset_t dtbp;
 	int dtb_size;
@@ -433,7 +438,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	module = *modulep;
 	file_addmetadata(kfp, MODINFOMD_MODULEP, sizeof(module), &module);
 #endif
-#ifdef EFI
+#if defined(EFI) && !defined(__i386__)
 	file_addmetadata(kfp, MODINFOMD_FW_HANDLE, sizeof(ST), &ST);
 #endif
 #ifdef LOADER_GELI_SUPPORT

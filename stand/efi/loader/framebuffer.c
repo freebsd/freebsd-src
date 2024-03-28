@@ -559,6 +559,7 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 	UINTN nhandles, i, hsize;
 	struct efi_fb efifb;
 	EFI_STATUS status;
+	EFI_PHYSICAL_ADDRESS tg_shadow_fb;
 	int rv;
 
 	gfx_state->tg_fb_type = FB_TEXT;
@@ -650,17 +651,22 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 	gfx_state->tg_fb.fb_bpp = fls(efifb.fb_mask_red | efifb.fb_mask_green |
 	    efifb.fb_mask_blue | efifb.fb_mask_reserved);
 
-	if (gfx_state->tg_shadow_fb != NULL)
-		BS->FreePages((EFI_PHYSICAL_ADDRESS)gfx_state->tg_shadow_fb,
+	/*
+	 * EFI_PHYSICAL_ADDRESS is 8 bytes wide on 32-bit systems too,
+	 * so we cant just use a pointer.
+	 */
+	tg_shadow_fb = (uintptr_t)gfx_state->tg_shadow_fb;
+	if (tg_shadow_fb)
+		BS->FreePages(tg_shadow_fb,
 		    gfx_state->tg_shadow_sz);
 	gfx_state->tg_shadow_sz =
 	    EFI_SIZE_TO_PAGES(efifb.fb_height * efifb.fb_width *
 	    sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL));
 	status = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData,
 	    gfx_state->tg_shadow_sz,
-	    (EFI_PHYSICAL_ADDRESS *)&gfx_state->tg_shadow_fb);
-	if (status != EFI_SUCCESS)
-		gfx_state->tg_shadow_fb = NULL;
+	    &tg_shadow_fb);
+	gfx_state->tg_shadow_fb = status == EFI_SUCCESS ?
+	    (uint32_t *)(uintptr_t)tg_shadow_fb : NULL;
 
 	return (0);
 }

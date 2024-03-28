@@ -32,13 +32,20 @@
 #include <readin.h>
 #include <efi.h>
 
-#ifdef __amd64__
+#if defined(__amd64__) || defined(__i386__)
 enum {
 	COPY_STAGING_ENABLE,
 	COPY_STAGING_DISABLE,
 	COPY_STAGING_AUTO,
 };
 extern int copy_staging;
+#endif
+
+#ifdef __i386__
+struct GDTR {
+	uint16_t size;
+	uint64_t ptr;
+} __packed;
 #endif
 
 extern EFI_LOADED_IMAGE *boot_img;

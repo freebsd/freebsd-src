@@ -81,7 +81,7 @@ CFLAGS+=	-DEFI_STAGING_SIZE=${EFI_STAGING_SIZE}
 CFLAGS+= -DEFI_SECUREBOOT
 .endif
 
-NEWVERSWHAT=	"EFI loader" ${MACHINE}
+NEWVERSWHAT?=	"EFI loader" ${MACHINE}
 VERSION_FILE=	${.CURDIR}/../loader/version
 HELP_FILENAME=	loader.help.efi
 
@@ -97,10 +97,10 @@ FILES+=	${LOADER}.efi
 FILESMODE_${LOADER}.efi=	${BINMODE}
 
 .if ${LOADER_INTERP} == ${LOADER_DEFAULT_INTERP}
-LINKS+=		${BINDIR}/${LOADER}.efi ${BINDIR}/loader.efi
+LINKS?=		${BINDIR}/${LOADER}.efi ${BINDIR}/loader.efi
 .endif
 
-LDSCRIPT=	${.CURDIR}/../loader/arch/${MACHINE}/${MACHINE}.ldscript
+LDSCRIPT?=	${.CURDIR}/../loader/arch/${MACHINE}/${MACHINE}.ldscript
 LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -pie
 .if ${LINKER_TYPE} == "bfd" && ${LINKER_VERSION} >= 23400
 LDFLAGS+=	-Wl,--no-dynamic-linker
@@ -122,7 +122,7 @@ ${LOADER}.efi: ${PROG}
 
 LIBEFI=		${BOOTOBJ}/efi/libefi/libefi.a
 
-DPADD=		${LDR_INTERP} ${LIBEFI} ${LIBSAFDT} ${LIBEFI_FDT} ${LIBSA} ${LDSCRIPT}
-LDADD=		${LDR_INTERP} ${LIBEFI} ${LIBSAFDT} ${LIBEFI_FDT} ${LIBSA}
+DPADD?=		${LDR_INTERP} ${LIBEFI} ${LIBSAFDT} ${LIBEFI_FDT} ${LIBSA} ${LDSCRIPT}
+LDADD?=		${LDR_INTERP} ${LIBEFI} ${LIBSAFDT} ${LIBEFI_FDT} ${LIBSA}
 
 .include <bsd.prog.mk>
