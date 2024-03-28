@@ -146,7 +146,7 @@ struct ciss_error_info
 	    u_int32_t	offense_value;
 	} __packed invalid_command;
     } additional_error_info;
-    u_int8_t	sense_info[0];
+    u_int8_t	sense_info[];
 } __packed;
 
 struct ciss_sg_entry
@@ -163,7 +163,7 @@ struct ciss_command
     struct ciss_header			header;
     struct ciss_cdb			cdb;
     struct ciss_error_info_pointer	error_info;
-    struct ciss_sg_entry		sg[0];
+    struct ciss_sg_entry		sg[];
 } __packed;
 
 #define CISS_OPCODE_REPORT_LOGICAL_LUNS		0xc2
@@ -173,7 +173,7 @@ struct ciss_lun_report
 {
     u_int32_t	list_size;		/* big-endian */
     u_int32_t	:32;
-    union ciss_device_address lun[0];
+    union ciss_device_address lun[];
 } __packed;
 
 #define	CISS_VPD_LOGICAL_DRIVE_GEOMETRY		0xc1

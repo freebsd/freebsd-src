@@ -389,7 +389,7 @@ struct aac_sg_entryraw {
 
 struct aac_sg_table {
 	u_int32_t		SgCount;
-	struct aac_sg_entry	SgEntry[0];
+	struct aac_sg_entry	SgEntry[];
 } __packed;
 
 /*
@@ -397,7 +397,7 @@ struct aac_sg_table {
  */
 struct aac_sg_table64 {
 	u_int32_t	SgCount;
-	struct aac_sg_entry64	SgEntry64[0];
+	struct aac_sg_entry64	SgEntry64[];
 } __packed;
 
 /*
@@ -405,7 +405,7 @@ struct aac_sg_table64 {
  */
 struct aac_sg_tableraw {
 	u_int32_t	SgCount;
-	struct aac_sg_entryraw	SgEntryRaw[0];
+	struct aac_sg_entryraw	SgEntryRaw[];
 } __packed;
 
 /*

@@ -1913,7 +1913,7 @@ typedef struct {
 	union	ccb *request_ccb;
 	struct 	ccb_pathinq *cpi;
 	int	counter;
-	int	lunindex[0];
+	int	lunindex[];
 } scsi_scan_bus_info;
 
 /*

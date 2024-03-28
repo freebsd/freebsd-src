@@ -94,7 +94,7 @@ struct nvhdr {
 	uint8_t		nvh_type;
 	uint8_t		nvh_namesize;
 	uint32_t	nvh_dsize;
-	char		nvh_name[0];
+	char		nvh_name[];
 } __packed;
 #define	NVH_DATA(nvh)	((unsigned char *)nvh + NVH_HSIZE(nvh))
 #define	NVH_HSIZE(nvh)	\

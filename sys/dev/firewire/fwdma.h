@@ -52,7 +52,7 @@ struct fwdma_alloc_multi {
 	bus_size_t	esize;
 	int		nseg;
 	bus_dma_tag_t	dma_tag;
-	struct fwdma_seg seg[0];
+	struct fwdma_seg seg[];
 };
 
 static __inline void *

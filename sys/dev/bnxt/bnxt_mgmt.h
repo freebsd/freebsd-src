@@ -92,7 +92,7 @@ struct bnxt_mgmt_fw_msg {
         uint32_t len_resp;
         uint32_t timeout;
         uint32_t num_dma_indications;
-        struct dma_info dma[0];
+        struct dma_info dma[];
 };
 
 struct bnxt_mgmt_generic_msg {

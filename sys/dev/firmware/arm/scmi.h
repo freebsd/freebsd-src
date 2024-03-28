@@ -48,7 +48,7 @@ struct scmi_smt_header {
 #define	SCMI_SHMEM_FLAG_INTR_ENABLED		(1 << 0)
 	uint32_t length;
 	uint32_t msg_header;
-	uint8_t msg_payload[0];
+	uint8_t msg_payload[];
 };
 
 #define	SMT_HEADER_SIZE			sizeof(struct scmi_smt_header)

@@ -104,7 +104,7 @@ struct ioapic {
 	device_t pci_dev;		/* matched pci device, if found */
 	struct resource *pci_wnd;	/* BAR 0, should be same or alias to
 					   io_paddr */
-	struct ioapic_intsrc io_pins[0];
+	struct ioapic_intsrc io_pins[];
 };
 
 static u_int	ioapic_read(volatile ioapic_t *apic, int reg);

@@ -363,7 +363,7 @@ interp_run(const char *input)
 struct includeline
 {
 	struct includeline	*next;
-	char			text[0];
+	char			text[];
 };
 
 int

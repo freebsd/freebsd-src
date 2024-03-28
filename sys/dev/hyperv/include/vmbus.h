@@ -61,7 +61,7 @@
 struct vmbus_gpa_range {
 	uint32_t	gpa_len;
 	uint32_t	gpa_ofs;
-	uint64_t	gpa_page[0];
+	uint64_t	gpa_page[];
 } __packed;
 
 /* This is actually vmbus_gpa_range.gpa_page[1] */

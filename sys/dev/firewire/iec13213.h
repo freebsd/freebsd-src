@@ -145,7 +145,7 @@ struct csrhdr {
 };
 struct csrdirectory {
 	BIT16x2(crc_len, crc);
-	struct csrreg entry[0];
+	struct csrreg entry[];
 };
 struct csrtext {
 	BIT16x2(crc_len, crc);
@@ -157,7 +157,7 @@ struct csrtext {
 		 spec_type:8;
 #endif
 	uint32_t lang_id;
-	uint32_t text[0];
+	uint32_t text[];
 };
 
 struct bus_info {

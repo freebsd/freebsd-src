@@ -410,7 +410,7 @@ typedef struct libusb_bos_dev_capability_descriptor {
 	uint8_t bLength;
 	uint8_t bDescriptorType;
 	uint8_t bDevCapabilityType;
-	uint8_t dev_capability_data[0];
+	uint8_t dev_capability_data[];
 }	libusb_bos_dev_capability_descriptor __aligned(sizeof(void *));
 
 typedef struct libusb_bos_descriptor {
@@ -469,7 +469,7 @@ typedef struct libusb_transfer {
 	void   *user_data;
 	uint8_t *buffer;
 	int	num_iso_packets;
-	struct libusb_iso_packet_descriptor iso_packet_desc[0];
+	struct libusb_iso_packet_descriptor iso_packet_desc[];
 }	libusb_transfer __aligned(sizeof(void *));
 
 /* Library initialisation */

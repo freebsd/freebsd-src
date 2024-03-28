@@ -88,7 +88,7 @@ struct qemu_fwcfg_file {
 
 struct qemu_fwcfg_directory {
 	uint32_t be_count;
-	struct qemu_fwcfg_file files[0];
+	struct qemu_fwcfg_file files[];
 };
 
 #pragma pack()

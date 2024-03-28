@@ -336,7 +336,7 @@ struct aac_sg_entryraw {
 
 struct aac_sg_table {
 	u_int32_t		SgCount;
-	struct aac_sg_entry	SgEntry[0];
+	struct aac_sg_entry	SgEntry[];
 } __packed;
 
 /*
@@ -344,7 +344,7 @@ struct aac_sg_table {
  */
 struct aac_sg_table64 {
 	u_int32_t	SgCount;
-	struct aac_sg_entry64	SgEntry64[0];
+	struct aac_sg_entry64	SgEntry64[];
 } __packed;
 
 /*
@@ -352,7 +352,7 @@ struct aac_sg_table64 {
  */
 struct aac_sg_tableraw {
 	u_int32_t	SgCount;
-	struct aac_sg_entryraw	SgEntryRaw[0];
+	struct aac_sg_entryraw	SgEntryRaw[];
 } __packed;
 
 /*
@@ -1458,7 +1458,7 @@ struct aac_raw_io2 {
 	u_int8_t		bpComplete;			/* reserved for FW use */
 	u_int8_t		sgeFirstIndex;		/* reserved for FW use */
 	u_int8_t		unused[4];
-	struct aac_sge_ieee1212	sge[0];		/* variable size */
+	struct aac_sge_ieee1212	sge[];		/* variable size */
 } __packed;
 
 /*

@@ -367,7 +367,7 @@ struct struct_meminfo {
 
 struct struct_lb_stats {
 	int nchan;
-	struct lb_port_stats s[0];
+	struct lb_port_stats s[];
 };
 
 struct struct_clk_info {
@@ -392,13 +392,13 @@ struct struct_clk_info {
 
 struct cim_pif_la {
 	int size;
-	u8 data[0];
+	u8 data[];
 };
 
 struct struct_tp_la {
 	u32 size;
 	u32 mode;
-	u8 data[0];
+	u8 data[];
 };
 
 struct field_desc {

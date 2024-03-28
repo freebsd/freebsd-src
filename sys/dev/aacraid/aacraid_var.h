@@ -238,7 +238,7 @@ struct aac_common {
 	struct aac_fib		ac_sync_fib;
 
 	/* response buffer for SRC (new comm. type1) - must be last element */
-	u_int32_t   ac_host_rrq[0];
+	u_int32_t   ac_host_rrq[];
 };
 
 /*

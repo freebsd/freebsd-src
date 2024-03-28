@@ -581,7 +581,7 @@ list_pipes(struct dn_id *oid, struct dn_id *end)
 		int i, l;
 		struct {
 			struct dn_id id;
-			uint32_t p[0];
+			uint32_t p[];
 		} *d = (void *)oid;
 		l = (oid->len - sizeof(*oid))/sizeof(d->p[0]);
 		if (l == 0)

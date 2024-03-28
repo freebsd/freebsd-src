@@ -744,7 +744,7 @@ struct read_dvd_struct_data_list
 {
 	uint8_t data_len[2];
 	uint8_t reserved[2];
-	struct read_dvd_struct_list_entry entries[0];
+	struct read_dvd_struct_list_entry entries[];
 };
 
 struct scsi_read_cd_cap_data
