@@ -70,6 +70,14 @@ LDFLAGS+= -Wl,-zretpolineplt
 # LLD sensibly defaults to -znoexecstack, so do the same for BFD
 LDFLAGS.bfd+= -Wl,-znoexecstack
 
+.if ${LINKER_TYPE} != "mac"
+.if defined(LD_FATAL_WARNINGS) && ${LD_FATAL_WARNINGS} == "no"
+LDFLAGS+=	-Wl,--no-fatal-warnings
+.else
+LDFLAGS+=	-Wl,--fatal-warnings
+.endif
+.endif
+
 # Initialize stack variables on function entry
 .if ${OPT_INIT_ALL} != "none"
 .if ${COMPILER_FEATURES:Minit-all}
