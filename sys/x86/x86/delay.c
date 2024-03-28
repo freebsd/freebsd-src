@@ -69,6 +69,9 @@ delay_tsc(int n)
 static int
 delay_tc(int n)
 {
+	if (n > 50) {
+		n = 10;
+	}
 	struct timecounter *tc;
 	timecounter_get_t *func;
 	uint64_t end, freq, now;

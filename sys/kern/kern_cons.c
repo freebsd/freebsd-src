@@ -163,19 +163,24 @@ cninit(void)
 	 */
 	kbdinit();
 
+	TSENTER2("foreach");
 	/*
 	 * Find the first console with the highest priority.
 	 */
 	best_cn = NULL;
 	SET_FOREACH(list, cons_set) {
+		TSENTER2("foreach1");
 		cn = *list;
 		cnremove(cn);
+		TSEXIT2("foreach1");
+		TSENTER2("foreach2");
 		/* Skip cons_consdev. */
 		if (cn->cn_ops == NULL)
 			continue;
 		cn->cn_ops->cn_probe(cn);
 		if (cn->cn_pri == CN_DEAD)
 			continue;
+		TSEXIT2("foreach2");
 		if (best_cn == NULL || cn->cn_pri > best_cn->cn_pri)
 			best_cn = cn;
 		if (boothowto & RB_MULTIPLE) {
@@ -186,6 +191,8 @@ cninit(void)
 			cnadd(cn);
 		}
 	}
+	TSEXIT2("foreach");
+
 	if (best_cn == NULL)
 		return;
 	if ((boothowto & RB_MULTIPLE) == 0) {
@@ -198,7 +205,6 @@ cninit(void)
 	 * Make the best console the preferred console.
 	 */
 	cnselect(best_cn);
-
 #ifdef EARLY_PRINTF
 	/*
 	 * Release early console.
@@ -218,6 +224,7 @@ cninit_finish(void)
 int
 cnadd(struct consdev *cn)
 {
+	TSENTER();
 	struct cn_device *cnd;
 	int i;
 
@@ -242,7 +249,7 @@ cnadd(struct consdev *cn)
 
 	/* Add device to the active mask. */
 	cnavailable(cn, (cn->cn_flags & CN_FLAG_NOAVAIL) == 0);
-
+	TSEXIT();
 	return (0);
 }
 
