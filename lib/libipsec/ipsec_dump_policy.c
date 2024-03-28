@@ -67,9 +67,9 @@ static char *set_address(char *, size_t, struct sockaddr *);
  * When delimiter == NULL, alternatively ' '(space) is applied.
  */
 char *
-ipsec_dump_policy(caddr_t policy, char *delimiter)
+ipsec_dump_policy(c_caddr_t policy, char const *delimiter)
 {
-	struct sadb_x_policy *xpl = (struct sadb_x_policy *)policy;
+	struct sadb_x_policy const *xpl = (struct sadb_x_policy const *)policy;
 	struct sadb_x_ipsecrequest *xisr;
 	size_t off, buflen;
 	char *buf;

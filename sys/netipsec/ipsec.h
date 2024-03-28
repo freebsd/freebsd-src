@@ -350,9 +350,9 @@ extern	int m_striphdr(struct mbuf *m, int skip, int hlen);
 #endif /* _KERNEL */
 
 #ifndef _KERNEL
-extern caddr_t ipsec_set_policy(char *, int);
-extern int ipsec_get_policylen(caddr_t);
-extern char *ipsec_dump_policy(caddr_t, char *);
+extern caddr_t ipsec_set_policy(const char *, int);
+extern int ipsec_get_policylen(c_caddr_t);
+extern char *ipsec_dump_policy(c_caddr_t, const char *);
 extern const char *ipsec_strerror(void);
 
 #endif /* ! KERNEL */
