@@ -12,6 +12,7 @@ GEOM_CLASSES+=	eli
 .endif
 GEOM_CLASSES+=	journal
 GEOM_CLASSES+=	label
+GEOM_CLASSES+=	luks
 GEOM_CLASSES+=	mirror
 GEOM_CLASSES+=	mountver
 GEOM_CLASSES+=	multipath
