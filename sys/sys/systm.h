@@ -393,8 +393,10 @@ extern int	cpu_disable_c2_sleep;
 extern int	cpu_disable_c3_sleep;
 
 extern void	(*tcp_hpts_softclock)(void);
+extern volatile uint32_t __read_frequently hpts_that_need_softclock;
+
 #define	tcp_hpts_softclock()	do {					\
-		if (tcp_hpts_softclock != NULL)				\
+		if (hpts_that_need_softclock > 0)			\
 			tcp_hpts_softclock();				\
 } while (0)
 
