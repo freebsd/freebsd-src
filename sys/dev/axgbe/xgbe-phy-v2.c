@@ -376,6 +376,9 @@ struct xgbe_phy_data {
 	unsigned int sfp_gpio_address;
 	unsigned int sfp_gpio_mask;
 	unsigned int sfp_gpio_inputs;
+	unsigned int sfp_gpio_outputs;
+	unsigned int sfp_gpio_polarity;
+	unsigned int sfp_gpio_configuration;
 	unsigned int sfp_gpio_rx_los;
 	unsigned int sfp_gpio_tx_fault;
 	unsigned int sfp_gpio_mod_absent;
@@ -1461,13 +1464,19 @@ xgbe_phy_sfp_signals(struct xgbe_prv_data *pdata)
 	axgbe_printf(3, "%s: befor sfp_mod:%d sfp_gpio_address:0x%x\n",
 	    __func__, phy_data->sfp_mod_absent, phy_data->sfp_gpio_address);
 
+	ret = xgbe_phy_sfp_get_mux(pdata);
+	if (ret) {
+		axgbe_error("I2C error setting SFP MUX\n");
+		return;
+	}
+
 	gpio_reg = 0;
 	ret = xgbe_phy_i2c_read(pdata, phy_data->sfp_gpio_address, &gpio_reg,
 	    sizeof(gpio_reg), gpio_ports, sizeof(gpio_ports));
 	if (ret) {
 		axgbe_error("%s: I2C error reading SFP GPIO addr:0x%x\n",
 		    __func__, phy_data->sfp_gpio_address);
-		return;
+		goto put_mux;
 	}
 
 	phy_data->sfp_gpio_inputs = (gpio_ports[1] << 8) | gpio_ports[0];
@@ -1481,6 +1490,136 @@ xgbe_phy_sfp_signals(struct xgbe_prv_data *pdata)
 
 	axgbe_printf(3, "%s: after sfp_mod:%d sfp_gpio_inputs:0x%x\n",
 	    __func__, phy_data->sfp_mod_absent, phy_data->sfp_gpio_inputs);
+
+put_mux:
+	xgbe_phy_sfp_put_mux(pdata);
+}
+
+static int
+xgbe_read_gpio_expander(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+	uint8_t gpio_reg, gpio_ports[2];
+	int ret = 0;
+
+	ret = xgbe_phy_sfp_get_mux(pdata);
+	if (ret) {
+		axgbe_error("I2C error setting SFP MUX\n");
+		return (ret);
+	}
+
+	gpio_reg = 2;
+	for (int i = 0; i < 3; i++) {
+		ret = xgbe_phy_i2c_read(pdata, phy_data->sfp_gpio_address,
+			&gpio_reg, sizeof(gpio_reg), gpio_ports, sizeof(gpio_ports));
+
+		if (ret) {
+			axgbe_error("%s: I2C error reading GPIO expander register: %d\n",
+			    __func__, gpio_reg);
+			goto put_mux;
+		}
+
+		if (gpio_reg == 2)
+			phy_data->sfp_gpio_outputs = (gpio_ports[1] << 8) | gpio_ports[0];
+		else if (gpio_reg == 4)
+			phy_data->sfp_gpio_polarity = (gpio_ports[1] << 8) | gpio_ports[0];
+		else if (gpio_reg == 6)
+			phy_data->sfp_gpio_configuration = (gpio_ports[1] << 8) | gpio_ports[0];
+
+		memset(gpio_ports, 0, sizeof(gpio_ports));
+		gpio_reg += 2;
+	}
+
+put_mux:
+	xgbe_phy_sfp_put_mux(pdata);
+
+	return (ret);
+}
+
+static void
+xgbe_log_gpio_expander(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+
+	axgbe_printf(1, "Input port registers: 0x%x\n", phy_data->sfp_gpio_inputs);
+	axgbe_printf(1, "Output port registers: 0x%x\n", phy_data->sfp_gpio_outputs);
+	axgbe_printf(1, "Polarity port registers: 0x%x\n", phy_data->sfp_gpio_polarity);
+	axgbe_printf(1, "Configuration port registers: 0x%x\n", phy_data->sfp_gpio_configuration);
+}
+
+static int
+xgbe_phy_validate_gpio_expander(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+	uint8_t gpio_data[3] = {0};
+	int shift = GPIO_MASK_WIDTH * (3 - phy_data->port_id);
+	int rx_los_pos = (1 << phy_data->sfp_gpio_rx_los);
+	int tx_fault_pos = (1 << phy_data->sfp_gpio_tx_fault);
+	int mod_abs_pos = (1 << phy_data->sfp_gpio_mod_absent);
+	int port_sfp_pins = (mod_abs_pos | rx_los_pos | tx_fault_pos);
+	uint16_t config = 0;
+	int ret = 0;
+
+	ret = xgbe_phy_get_comm_ownership(pdata);
+	if (ret)
+		return (ret);
+
+	ret = xgbe_read_gpio_expander(pdata);
+	if (ret)
+		goto put;
+
+	ret = xgbe_phy_sfp_get_mux(pdata);
+	if (ret) {
+		axgbe_error("I2C error setting SFP MUX\n");
+		goto put;
+	}
+
+	if (phy_data->sfp_gpio_polarity) {
+		axgbe_printf(0, "GPIO polarity inverted, resetting\n");
+
+		xgbe_log_gpio_expander(pdata);
+		gpio_data[0] = 4; /* polarity register */
+
+		ret = xgbe_phy_i2c_write(pdata, phy_data->sfp_gpio_address,
+			gpio_data, sizeof(gpio_data));
+
+		if (ret) {
+			axgbe_error("%s: I2C error writing to GPIO polarity register\n",
+				__func__);
+			goto put_mux;
+		}
+	}
+
+	config = phy_data->sfp_gpio_configuration;
+	if ((config & port_sfp_pins) != port_sfp_pins) {
+		xgbe_log_gpio_expander(pdata);
+
+		/* Write the I/O states to the configuration register */
+		axgbe_error("Invalid GPIO configuration, resetting\n");
+		gpio_data[0] = 6; /* configuration register */
+		config = config & ~(0xF << shift); /* clear port id bits */
+		config |= port_sfp_pins;
+		gpio_data[1] = config & 0xff;
+		gpio_data[2] = (config >> 8);
+
+		ret = xgbe_phy_i2c_write(pdata, phy_data->sfp_gpio_address,
+			gpio_data, sizeof(gpio_data));
+		if (ret) {
+			axgbe_error("%s: I2C error writing to GPIO configuration register\n",
+				__func__);
+			goto put_mux;
+		}
+	} else {
+		axgbe_printf(0, "GPIO configuration valid\n");
+	}
+
+put_mux:
+	xgbe_phy_sfp_put_mux(pdata);
+
+put:
+	xgbe_phy_put_comm_ownership(pdata);
+
+	return (ret);
 }
 
 static void
@@ -1512,9 +1651,6 @@ xgbe_phy_sfp_detect(struct xgbe_prv_data *pdata)
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 	int ret, prev_sfp_state = phy_data->sfp_mod_absent;
 
-	/* Reset the SFP signals and info */
-	xgbe_phy_sfp_reset(phy_data);
-
 	ret = xgbe_phy_get_comm_ownership(pdata);
 	if (ret)
 		return;
@@ -1532,6 +1668,11 @@ xgbe_phy_sfp_detect(struct xgbe_prv_data *pdata)
 	if (ret) {
 		/* Treat any error as if there isn't an SFP plugged in */
 		axgbe_error("%s: eeprom read failed\n", __func__);
+		ret = xgbe_read_gpio_expander(pdata);
+
+		if (!ret)
+			xgbe_log_gpio_expander(pdata);
+
 		xgbe_phy_sfp_reset(phy_data);
 		xgbe_phy_sfp_mod_absent(pdata);
 		goto put;
@@ -2103,6 +2244,29 @@ xgbe_phy_pll_ctrl(struct xgbe_prv_data *pdata, bool enable)
 }
 
 static void
+xgbe_phy_rx_reset(struct xgbe_prv_data *pdata)
+{
+	int reg;
+
+	reg = XMDIO_READ_BITS(pdata, MDIO_MMD_PCS, MDIO_PCS_DIGITAL_STAT,
+			     XGBE_PCS_PSEQ_STATE_MASK);
+
+	if (reg == XGBE_PCS_PSEQ_STATE_POWER_GOOD) {
+		/* Mailbox command timed out, reset of RX block is required.
+		 * This can be done by asserting the reset bit and waiting
+		 * for its completion.
+		 */
+		XMDIO_WRITE_BITS(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_RX_CTRL1,
+				XGBE_PMA_RX_RST_0_MASK, XGBE_PMA_RX_RST_0_RESET_ON);
+		DELAY(20);
+		XMDIO_WRITE_BITS(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_RX_CTRL1,
+				XGBE_PMA_RX_RST_0_MASK, XGBE_PMA_RX_RST_0_RESET_OFF);
+		DELAY(50);
+		axgbe_printf(0, "%s: firmware mailbox reset performed\n", __func__);
+	}
+}
+
+static void
 xgbe_phy_perform_ratechange(struct xgbe_prv_data *pdata, unsigned int cmd,
     unsigned int sub_cmd)
 {
@@ -2112,8 +2276,10 @@ xgbe_phy_perform_ratechange(struct xgbe_prv_data *pdata, unsigned int cmd,
 	xgbe_phy_pll_ctrl(pdata, false);
 
 	/* Log if a previous command did not complete */
-	if (XP_IOREAD_BITS(pdata, XP_DRIVER_INT_RO, STATUS))
+	if (XP_IOREAD_BITS(pdata, XP_DRIVER_INT_RO, STATUS)) {
 		axgbe_error("firmware mailbox not ready for command\n");
+		xgbe_phy_rx_reset(pdata);
+	}
 
 	/* Construct the command */
 	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, COMMAND, cmd);
@@ -3467,6 +3633,15 @@ xgbe_phy_start(struct xgbe_prv_data *pdata)
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_SFP:
 		axgbe_printf(3, "%s: calling phy detect\n", __func__);
+
+		/*
+		 * Validate the configuration of the GPIO expander before
+		 * we interpret the SFP signals.
+		 */
+		axgbe_printf(1, "Checking GPIO expander validity\n");
+		xgbe_phy_validate_gpio_expander(pdata);
+
+		phy_data->sfp_phy_retries = 0;
 		xgbe_phy_sfp_detect(pdata);
 		break;
 	default:
