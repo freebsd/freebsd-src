@@ -4406,3 +4406,5 @@ static const struct usb_bus_methods xhci_bus_methods = {
 	.set_hw_power_sleep = xhci_set_hw_power_sleep,
 	.set_endpoint_mode = xhci_set_endpoint_mode,
 };
+
+MODULE_VERSION(xhci, 1);
