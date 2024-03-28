@@ -6,6 +6,8 @@ LINKS=	${BINDIR}/swapon ${BINDIR}/swapoff
 LINKS+=	${BINDIR}/swapon ${BINDIR}/swapctl
 MLINKS=	swapon.8 swapoff.8
 MLINKS+=swapon.8 swapctl.8
+SRCS=	swapon.c swaplinux.c
+HDRS+=	extern.h
 
 LIBADD=	util
 
