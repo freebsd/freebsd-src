@@ -193,7 +193,8 @@ struct tcp_hpts_entry {
 	uint8_t p_direct_wake :1, /* boolean */
 		p_on_min_sleep:1, /* boolean */
 		p_hpts_wake_scheduled:1, /* boolean */
-		p_avail:5;
+		hit_callout_thresh:1,
+		p_avail:4;
 	uint8_t p_fill[3];	  /* Fill to 32 bits */
 	/* Cache line 0x40 */
 	struct hptsh {
@@ -1683,6 +1684,13 @@ tcp_hpts_thread(void *ctx)
 	ticks_ran = tcp_hptsi(hpts, 1);
 	tv.tv_sec = 0;
 	tv.tv_usec = hpts->p_hpts_sleep_time * HPTS_TICKS_PER_SLOT;
+	if ((hpts->p_on_queue_cnt > conn_cnt_thresh) && (hpts->hit_callout_thresh == 0)) {
+		hpts->hit_callout_thresh = 1;
+		atomic_add_int(&hpts_that_need_softclock, 1);
+	} else if ((hpts->p_on_queue_cnt <= conn_cnt_thresh) && (hpts->hit_callout_thresh == 1)) {
+		hpts->hit_callout_thresh = 0;
+		atomic_subtract_int(&hpts_that_need_softclock, 1);
+	}
 	if (hpts->p_on_queue_cnt >= conn_cnt_thresh) {
 		if(hpts->p_direct_wake == 0) {
 			/*
