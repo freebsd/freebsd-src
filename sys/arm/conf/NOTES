@@ -87,15 +87,12 @@ nodevice	mps
 # Build SOC-specific modules...
 
 makeoptions	MODULES_EXTRA+="allwinner"
-makeoptions	MODULES_EXTRA+="arm_ti"
 makeoptions	MODULES_EXTRA+="imx"
 
 # Build dtb files...
 
 makeoptions	MODULES_EXTRA+="dtb/allwinner"
-makeoptions	MODULES_EXTRA+="dtb/am335x"
 makeoptions	MODULES_EXTRA+="dtb/imx6"
 makeoptions	MODULES_EXTRA+="dtb/nvidia"
-makeoptions	MODULES_EXTRA+="dtb/omap4"
 makeoptions	MODULES_EXTRA+="dtb/rpi"
 makeoptions	MODULES_EXTRA+="dtb/zynq"
