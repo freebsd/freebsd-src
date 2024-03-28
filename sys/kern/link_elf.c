@@ -147,7 +147,6 @@ static int	link_elf_lookup_debug_symbol(linker_file_t, const char *,
 		    c_linker_sym_t *);
 static int 	link_elf_lookup_debug_symbol_ctf(linker_file_t lf,
 		    const char *name, c_linker_sym_t *sym, linker_ctf_t *lc);
-
 static int	link_elf_symbol_values(linker_file_t, c_linker_sym_t,
 		    linker_symval_t *);
 static int	link_elf_debug_symbol_values(linker_file_t, c_linker_sym_t,
