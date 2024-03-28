@@ -32,6 +32,7 @@ TESTS_SUBDIRS+=		opencrypto
 TESTS_SUBDIRS+=		posixshm
 TESTS_SUBDIRS+=		ses
 TESTS_SUBDIRS+=		sys
+TESTS_SUBDIRS+=		syscalls
 TESTS_SUBDIRS+=		vfs
 TESTS_SUBDIRS+=		vm
 TESTS_SUBDIRS+=		vmm

@@ -935,6 +935,12 @@
         ..
         sys
         ..
+        syscalls
+            fork
+            ..
+            kill
+            ..
+        ..
         vfs
         ..
         vm
