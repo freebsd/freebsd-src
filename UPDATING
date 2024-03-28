@@ -12,6 +12,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240327:
+	13.3-RELEASE-p1 EN-24:06.wireguard
+			EN-24:07.clang
+
+	Fix insufficient barriers in WireGuard if_wg(4) [EN-24:06.wireguard]
+
+	Fix clang crash when certain optimization is enabled [EN-24:07.clang]
+
 20240305:
 	13.3-RELEASE.
 
