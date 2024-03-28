@@ -171,7 +171,7 @@ main(int argc, char *argv[])
 			    pnfsdarg.dspath);
 	
 		/*
-		 * Check the IP address of the NFS server against the entrie(s)
+		 * Check the IP address of the NFS server against the entry(ies)
 		 * in the extended attribute.
 		 */
 		strlcpy(host, sf.f_mntfromname, sizeof(host));
@@ -233,7 +233,7 @@ main(int argc, char *argv[])
 			    pnfsdarg.curdspath);
 	
 		/*
-		 * Check the IP address of the NFS server against the entrie(s)
+		 * Check the IP address of the NFS server against the entry(ies)
 		 * in the extended attribute.
 		 */
 		strlcpy(host, sf.f_mntfromname, sizeof(host));
