@@ -870,7 +870,8 @@ static const char *linux_netlink_names[] = {
 int
 linux_socket(struct thread *td, struct linux_socket_args *args)
 {
-	int domain, retval_socket, type;
+	int retval_socket, type;
+	sa_family_t domain;
 
 	type = args->type & LINUX_SOCK_TYPE_MASK;
 	if (type < 0 || type > LINUX_SOCK_MAX)
@@ -880,7 +881,7 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	if (retval_socket != 0)
 		return (retval_socket);
 	domain = linux_to_bsd_domain(args->domain);
-	if (domain == -1) {
+	if (domain == AF_UNKNOWN) {
 		/* Mask off SOCK_NONBLOCK / CLOEXEC for error messages. */
 		type = args->type & LINUX_SOCK_TYPE_MASK;
 		if (args->domain == LINUX_AF_NETLINK &&
@@ -2309,8 +2310,8 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			    name, &newval, UIO_SYSSPACE, &len);
 			if (error != 0)
 				return (error);
-			newval = bsd_to_linux_domain(newval);
-			if (newval == -1)
+			newval = bsd_to_linux_domain((sa_family_t)newval);
+			if (newval == AF_UNKNOWN)
 				return (ENOPROTOOPT);
 			return (linux_sockopt_copyout(td, &newval,
 			    len, args));

@@ -501,8 +501,8 @@ linux_ifhwaddr(struct ifnet *ifp, struct l_sockaddr *lsa)
 	return (ENOENT);
 }
 
-int
-linux_to_bsd_domain(int domain)
+sa_family_t
+linux_to_bsd_domain(sa_family_t domain)
 {
 
 	switch (domain) {
@@ -523,11 +523,11 @@ linux_to_bsd_domain(int domain)
 	case LINUX_AF_NETLINK:
 		return (AF_NETLINK);
 	}
-	return (-1);
+	return (AF_UNKNOWN);
 }
 
-int
-bsd_to_linux_domain(int domain)
+sa_family_t
+bsd_to_linux_domain(sa_family_t domain)
 {
 
 	switch (domain) {
@@ -548,7 +548,7 @@ bsd_to_linux_domain(int domain)
 	case AF_NETLINK:
 		return (LINUX_AF_NETLINK);
 	}
-	return (-1);
+	return (AF_UNKNOWN);
 }
 
 /*
@@ -562,13 +562,13 @@ bsd_to_linux_sockaddr(const struct sockaddr *sa, struct l_sockaddr **lsa,
     socklen_t len)
 {
 	struct l_sockaddr *kosa;
-	int bdom;
+	sa_family_t bdom;
 
 	*lsa = NULL;
 	if (len < 2 || len > UCHAR_MAX)
 		return (EINVAL);
 	bdom = bsd_to_linux_domain(sa->sa_family);
-	if (bdom == -1)
+	if (bdom == AF_UNKNOWN)
 		return (EAFNOSUPPORT);
 
 	kosa = malloc(len, M_LINUX, M_WAITOK);
@@ -615,7 +615,7 @@ linux_to_bsd_sockaddr(const struct l_sockaddr *osa, struct sockaddr **sap,
 		goto out;
 
 	bdom = linux_to_bsd_domain(kosa->sa_family);
-	if (bdom == -1) {
+	if (bdom == AF_UNKNOWN) {
 		error = EAFNOSUPPORT;
 		goto out;
 	}
