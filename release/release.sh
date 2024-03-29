@@ -252,11 +252,11 @@ extra_chroot_setup() {
 		cp ${SRC_CONF} ${CHROOTDIR}/${SRC_CONF}
 	fi
 
-	if [ -z "${NOGIT}" ]; then
-		# Install git from ports or packages if the ports tree is
-		# available and VCSCMD is unset.
-		_gitcmd="$(which git)"
-		if [ -d ${CHROOTDIR}/usr/ports -a -z "${_gitcmd}" ]; then
+	_gitcmd="$(which git)"
+	if [ -z "${NOGIT}" -a -z "${_gitcmd}" ]; then
+		# Install git from ports if the ports tree is available;
+		# otherwise install the pkg.
+		if [ -d ${CHROOTDIR}/usr/ports ]; then
 			# Trick the ports 'run-autotools-fixup' target to do the right
 			# thing.
 			_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
