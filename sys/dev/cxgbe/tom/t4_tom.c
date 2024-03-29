@@ -1202,7 +1202,7 @@ calc_options2(struct vi_info *vi, struct conn_params *cp)
 
 	/* XXX: F_RX_CHANNEL for multiple rx c-chan support goes here. */
 
-	opt2 |= V_TX_QUEUE(sc->params.tp.tx_modq[pi->tx_chan]);
+	opt2 |= V_TX_QUEUE(TX_MODQ(pi->tx_chan));
 	opt2 |= V_PACE(0);
 	opt2 |= F_RSS_QUEUE_VALID;
 	opt2 |= V_RSS_QUEUE(sc->sge.ofld_rxq[cp->rxq_idx].iq.abs_id);

@@ -170,7 +170,7 @@ mk_ktls_act_open_req(struct adapter *sc, struct vi_info *vi, struct inpcb *inp,
 	options |= F_NON_OFFLOAD;
 	cpl->opt0 = htobe64(options);
 
-	options = V_TX_QUEUE(sc->params.tp.tx_modq[vi->pi->tx_chan]);
+	options = V_TX_QUEUE(TX_MODQ(vi->pi->tx_chan));
 	if (tp->t_flags & TF_REQ_TSTMP)
 		options |= F_TSTAMPS_EN;
 	cpl->opt2 = htobe32(options);
@@ -205,7 +205,7 @@ mk_ktls_act_open_req6(struct adapter *sc, struct vi_info *vi,
 	options |= F_NON_OFFLOAD;
 	cpl->opt0 = htobe64(options);
 
-	options = V_TX_QUEUE(sc->params.tp.tx_modq[vi->pi->tx_chan]);
+	options = V_TX_QUEUE(TX_MODQ(vi->pi->tx_chan));
 	if (tp->t_flags & TF_REQ_TSTMP)
 		options |= F_TSTAMPS_EN;
 	cpl->opt2 = htobe32(options);
