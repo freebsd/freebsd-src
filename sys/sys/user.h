@@ -371,7 +371,7 @@ struct kinfo_file {
 				struct sockaddr_storage	kf_sa_peer;
 				/* Address of so_pcb. */
 				uint64_t	kf_sock_pcb;
-				/* Address of inp_ppcb. */
+				/* Obsolete! May be reused as a spare. */
 				uint64_t	kf_sock_inpcb;
 				/* Address of unp_conn. */
 				uint64_t	kf_sock_unpconn;

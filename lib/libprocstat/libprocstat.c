@@ -83,8 +83,6 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#define	_WANT_INPCB
-#include <netinet/in_pcb.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -1473,7 +1471,6 @@ procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
     struct sockstat *sock, char *errbuf)
 {
 	struct domain dom;
-	struct inpcb inpcb;
 	struct protosw proto;
 	struct socket s;
 	struct unpcb unpcb;
@@ -1522,28 +1519,15 @@ procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
 	sock->proto = proto.pr_protocol;
 	sock->dom_family = dom.dom_family;
 	sock->so_pcb = (uintptr_t)s.so_pcb;
+	sock->sendq = s.so_snd.sb_ccc;
+	sock->recvq = s.so_rcv.sb_ccc;
+	sock->so_rcv_sb_state = s.so_rcv.sb_state;
+	sock->so_snd_sb_state = s.so_snd.sb_state;
 
 	/*
 	 * Protocol specific data.
 	 */
 	switch (dom.dom_family) {
-	case AF_INET:
-	case AF_INET6:
-		if (proto.pr_protocol == IPPROTO_TCP) {
-			if (s.so_pcb) {
-				if (kvm_read(kd, (u_long)s.so_pcb,
-				    (char *)&inpcb, sizeof(struct inpcb))
-				    != sizeof(struct inpcb)) {
-					warnx("can't read inpcb at %p",
-					    (void *)s.so_pcb);
-				} else
-					sock->inp_ppcb =
-					    (uintptr_t)inpcb.inp_ppcb;
-				sock->sendq = s.so_snd.sb_ccc;
-				sock->recvq = s.so_rcv.sb_ccc;
-			}
-		}
-		break;
 	case AF_UNIX:
 		if (s.so_pcb) {
 			if (kvm_read(kd, (u_long)s.so_pcb, (char *)&unpcb,
@@ -1551,11 +1535,7 @@ procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
 				warnx("can't read unpcb at %p",
 				    (void *)s.so_pcb);
 			} else if (unpcb.unp_conn) {
-				sock->so_rcv_sb_state = s.so_rcv.sb_state;
-				sock->so_snd_sb_state = s.so_snd.sb_state;
 				sock->unp_conn = (uintptr_t)unpcb.unp_conn;
-				sock->sendq = s.so_snd.sb_ccc;
-				sock->recvq = s.so_rcv.sb_ccc;
 			}
 		}
 		break;
@@ -1603,7 +1583,6 @@ procstat_get_socket_info_sysctl(struct filestat *fst, struct sockstat *sock,
 	case AF_INET:
 	case AF_INET6:
 		if (sock->proto == IPPROTO_TCP) {
-			sock->inp_ppcb = kif->kf_un.kf_sock.kf_sock_inpcb;
 			sock->sendq = kif->kf_un.kf_sock.kf_sock_sendq;
 			sock->recvq = kif->kf_un.kf_sock.kf_sock_recvq;
 		}

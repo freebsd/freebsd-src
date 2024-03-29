@@ -400,11 +400,10 @@ print_socket_info(struct procstat *procstat, struct filestat *fst)
 	/*
 	 * protocol specific formatting
 	 *
-	 * Try to find interesting things to print.  For tcp, the interesting
-	 * thing is the address of the tcpcb, for udp and others, just the
-	 * inpcb (socket pcb).  For unix domain, its the address of the socket
-	 * pcb and the address of the connected pcb (if connected).  Otherwise
-	 * just print the protocol number and address of the socket itself.
+	 * Try to find interesting things to print.  For internet and unix
+	 * sockets, its the address of the socket pcb.  For unix it is also the
+	 * address of the connected pcb (if connected).  Otherwise just print
+	 * the protocol number and address of the socket itself.
 	 * The idea is not to duplicate netstat, but to make available enough
 	 * information for further analysis.
 	 */
@@ -417,11 +416,7 @@ print_socket_info(struct procstat *procstat, struct filestat *fst)
 			printf(" %s", pe->p_name);
 		else
 			printf(" %d", sock.proto);
-		if (sock.proto == IPPROTO_TCP ) {
-			if (sock.inp_ppcb != 0)
-				printf(" %lx", (u_long)sock.inp_ppcb);
-		}
-		else if (sock.so_pcb != 0)
+		if (sock.so_pcb != 0)
 			printf(" %lx", (u_long)sock.so_pcb);
 		if (!sflg)
 			break;

@@ -133,8 +133,9 @@ struct in_conninfo {
 /*
  * struct inpcb captures the network layer state for TCP, UDP, and raw IPv4 and
  * IPv6 sockets.  In the case of TCP and UDP, further per-connection state is
- * hung off of inp_ppcb most of the time.  Almost all fields of struct inpcb
- * are static after creation or protected by a per-inpcb rwlock, inp_lock.
+ * located in a larger protocol specific structure that embeds inpcb in it.
+ * Almost all fields of struct inpcb are static after creation or protected by
+ * a per-inpcb rwlock, inp_lock.
  *
  * A inpcb database is indexed by addresses/ports hash as well as list of
  * all pcbs that belong to a certain proto. Database lookups or list traversals
@@ -177,7 +178,6 @@ struct inpcb {
 	int	inp_flags;		/* (i) generic IP/datagram flags */
 	int	inp_flags2;		/* (i) generic IP/datagram flags #2*/
 	uint8_t inp_numa_domain;	/* numa domain */
-	void	*inp_ppcb;		/* (i) pointer to per-protocol pcb */
 	struct	socket *inp_socket;	/* (i) back pointer to socket */
 	struct	inpcbinfo *inp_pcbinfo;	/* (c) PCB list info */
 	struct	ucred	*inp_cred;	/* (c) cache of socket cred */
@@ -266,8 +266,7 @@ struct xinpcb {
 	struct xsocket	xi_socket;		/* (s,p) */
 	struct in_conninfo inp_inc;		/* (s,p) */
 	uint64_t	inp_gencnt;		/* (s,p) */
-	kvaddr_t	inp_ppcb;		/* (s) netstat(1) */
-	int64_t		inp_spare64[4];
+	int64_t		inp_spare64[5];
 	uint32_t	inp_flow;		/* (s) */
 	uint32_t	inp_flowid;		/* (s) */
 	uint32_t	inp_flowtype;		/* (s) */
