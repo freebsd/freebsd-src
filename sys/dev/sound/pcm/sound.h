@@ -287,9 +287,6 @@ struct snd_mixer;
 #define SND_DEV_DSP_SPDIFOUT	19	/* /dev/dsp_spdifout */
 #define SND_DEV_DSP_SPDIFIN	20	/* /dev/dsp_spdifin  */
 
-#define SND_DEV_LAST		SND_DEV_DSP_SPDIFIN
-#define SND_DEV_MAX		PCMMAXDEV
-
 #define DSP_DEFAULT_SPEED	8000
 
 #define ON		1
