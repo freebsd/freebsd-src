@@ -275,25 +275,21 @@ nl_receive_message(struct nlmsghdr *hdr, int remaining_length,
 
 	npt->hdr = hdr;
 
-	if (hdr->nlmsg_flags & NLM_F_REQUEST && hdr->nlmsg_type >= NLMSG_MIN_TYPE) {
+	if (hdr->nlmsg_flags & NLM_F_REQUEST &&
+	    hdr->nlmsg_type >= NLMSG_MIN_TYPE) {
 		NL_LOG(LOG_DEBUG2, "handling message with msg type: %d",
 		   hdr->nlmsg_type);
-
-		if (nlp->nl_linux && linux_netlink_p != NULL) {
-			struct nlmsghdr *hdr_orig = hdr;
-			hdr = linux_netlink_p->msg_from_linux(nlp->nl_proto, hdr, npt);
-			if (hdr == NULL) {
-				 /* Failed to translate to kernel format. Report an error back */
-				hdr = hdr_orig;
-				npt->hdr = hdr;
-				if (hdr->nlmsg_flags & NLM_F_ACK)
-					nlmsg_ack(nlp, EOPNOTSUPP, hdr, npt);
-				return (0);
-			}
+		if (nlp->nl_linux) {
+			MPASS(linux_netlink_p != NULL);
+			error = linux_netlink_p->msg_from_linux(nlp->nl_proto,
+			    &hdr, npt);
+			if (error)
+				goto ack;
 		}
 		error = handler(hdr, npt);
 		NL_LOG(LOG_DEBUG2, "retcode: %d", error);
 	}
+ack:
 	if ((hdr->nlmsg_flags & NLM_F_ACK) || (error != 0 && error != EINTR)) {
 		if (!npt->nw->suppress_ack) {
 			NL_LOG(LOG_DEBUG3, "ack");

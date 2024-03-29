@@ -31,7 +31,6 @@
 #include <sys/types.h>
 #include <sys/ck.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/vnode.h>
 
@@ -73,37 +72,55 @@ _rta_get_uint32(const struct rtattr *rta)
 	return (*((const uint32_t *)NL_RTA_DATA_CONST(rta)));
 }
 
-static struct nlmsghdr *
+static int
 rtnl_neigh_from_linux(struct nlmsghdr *hdr, struct nl_pstate *npt)
 {
 	struct ndmsg *ndm = (struct ndmsg *)(hdr + 1);
+	sa_family_t f;
 
-	if (hdr->nlmsg_len >= sizeof(struct nlmsghdr) + sizeof(struct ndmsg))
-		ndm->ndm_family = linux_to_bsd_domain(ndm->ndm_family);
+	if (hdr->nlmsg_len < sizeof(struct nlmsghdr) + sizeof(struct ndmsg))
+		return (EBADMSG);
+	if ((f = linux_to_bsd_domain(ndm->ndm_family)) == AF_UNKNOWN)
+		return (EPFNOSUPPORT);
 
-	return (hdr);
+	ndm->ndm_family = f;
+
+	return (0);
 }
 
-static struct nlmsghdr *
+static int
 rtnl_ifaddr_from_linux(struct nlmsghdr *hdr, struct nl_pstate *npt)
 {
 	struct ifaddrmsg *ifam = (struct ifaddrmsg *)(hdr + 1);
+	sa_family_t f;
 
-	if (hdr->nlmsg_len >= sizeof(struct nlmsghdr) + sizeof(struct ifaddrmsg))
-		ifam->ifa_family = linux_to_bsd_domain(ifam->ifa_family);
+	if (hdr->nlmsg_len < sizeof(struct nlmsghdr) + sizeof(struct ifaddrmsg))
+		return (EBADMSG);
+	if ((f = linux_to_bsd_domain(ifam->ifa_family)) == AF_UNKNOWN)
+		return (EPFNOSUPPORT);
 
-	return (hdr);
+	ifam->ifa_family = f;
+
+	return (0);
 }
 
-static struct nlmsghdr *
+/*
+ * XXX: in case of error state of hdr is inconsistent.
+ */
+static int
 rtnl_route_from_linux(struct nlmsghdr *hdr, struct nl_pstate *npt)
 {
 	/* Tweak address families and default fib only */
 	struct rtmsg *rtm = (struct rtmsg *)(hdr + 1);
 	struct nlattr *nla, *nla_head;
 	int attrs_len;
+	sa_family_t f;
 
-	rtm->rtm_family = linux_to_bsd_domain(rtm->rtm_family);
+	if (hdr->nlmsg_len < sizeof(struct nlmsghdr) + sizeof(struct rtmsg))
+		return (EBADMSG);
+	if ((f = linux_to_bsd_domain(rtm->rtm_family)) == AF_UNKNOWN)
+		return (EPFNOSUPPORT);
+	rtm->rtm_family = f;
 
 	if (rtm->rtm_table == 254)
 		rtm->rtm_table = 0;
@@ -122,7 +139,7 @@ rtnl_route_from_linux(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		switch (rta->rta_type) {
 		case NL_RTA_TABLE:
 			if (!valid_rta_u32(rta))
-				goto done;
+				return (EBADMSG);
 			rtm->rtm_table = 0;
 			uint32_t fibnum = _rta_get_uint32(rta);
 			RT_LOG(LOG_DEBUG3, "GET RTABLE: %u", fibnum);
@@ -133,13 +150,13 @@ rtnl_route_from_linux(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		}
 	}
 
-done:
-	return (hdr);
+	return (0);
 }
 
-static struct nlmsghdr *
+static int
 rtnl_from_linux(struct nlmsghdr *hdr, struct nl_pstate *npt)
 {
+
 	switch (hdr->nlmsg_type) {
 	case NL_RTM_GETROUTE:
 	case NL_RTM_NEWROUTE:
@@ -157,21 +174,22 @@ rtnl_from_linux(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	default:
 		RT_LOG(LOG_DEBUG, "Passing message type %d untranslated",
 		    hdr->nlmsg_type);
+		/* XXXGL: maybe return error? */
 	}
 
-	return (hdr);
+	return (0);
 }
 
-static struct nlmsghdr *
-nlmsg_from_linux(int netlink_family, struct nlmsghdr *hdr,
+static int
+nlmsg_from_linux(int netlink_family, struct nlmsghdr **hdr,
     struct nl_pstate *npt)
 {
 	switch (netlink_family) {
 	case NETLINK_ROUTE:
-		return (rtnl_from_linux(hdr, npt));
+		return (rtnl_from_linux(*hdr, npt));
 	}
 
-	return (hdr);
+	return (0);
 }
 
 
