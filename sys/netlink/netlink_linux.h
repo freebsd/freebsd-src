@@ -38,7 +38,7 @@ struct nl_pstate;
 struct nl_writer;
 
 typedef bool msgs_to_linux_cb_t(struct nl_writer *nw, struct nlpcb *nlp);
-typedef struct nlmsghdr *msg_from_linux_cb_t(int netlink_family, struct nlmsghdr *hdr,
+typedef int msg_from_linux_cb_t(int netlink_family, struct nlmsghdr **hdr,
     struct nl_pstate *npt);
 
 struct linux_netlink_provider {
