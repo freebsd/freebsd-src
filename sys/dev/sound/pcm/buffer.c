@@ -147,6 +147,7 @@ sndbuf_free(struct snd_dbuf *b)
 		} else
 			free(b->buf, M_DEVBUF);
 	}
+	seldrain(sndbuf_getsel(b));
 
 	b->tmpbuf = NULL;
 	b->shadbuf = NULL;
