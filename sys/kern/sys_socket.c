@@ -357,7 +357,6 @@ static int
 soo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 {
 	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
-	struct inpcb *inpcb;
 	struct unpcb *unpcb;
 	struct socket *so;
 	int error;
@@ -373,11 +372,8 @@ soo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	switch (kif->kf_un.kf_sock.kf_sock_domain0) {
 	case AF_INET:
 	case AF_INET6:
-		if (so->so_pcb != NULL) {
-			inpcb = (struct inpcb *)(so->so_pcb);
-			kif->kf_un.kf_sock.kf_sock_inpcb =
-			    (uintptr_t)inpcb->inp_ppcb;
-		}
+		/* XXX: kf_sock_inpcb is obsolete.  It may be removed. */
+		kif->kf_un.kf_sock.kf_sock_inpcb = (uintptr_t)so->so_pcb;
 		kif->kf_un.kf_sock.kf_sock_rcv_sb_state =
 		    so->so_rcv.sb_state;
 		kif->kf_un.kf_sock.kf_sock_snd_sb_state =

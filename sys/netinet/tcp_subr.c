@@ -3980,13 +3980,6 @@ tcp_inptoxtp(const struct inpcb *inp, struct xtcpcb *xt)
 
 	xt->xt_len = sizeof(struct xtcpcb);
 	in_pcbtoxinpcb(inp, &xt->xt_inp);
-	/*
-	 * TCP doesn't use inp_ppcb pointer, we embed inpcb into tcpcb.
-	 * Fixup the pointer that in_pcbtoxinpcb() has set.  When printing
-	 * TCP netstat(1) used to use this pointer, so this fixup needs to
-	 * stay for stable/14.
-	 */
-	xt->xt_inp.inp_ppcb = (uintptr_t)tp;
 }
 
 void

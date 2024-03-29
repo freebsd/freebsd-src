@@ -1805,10 +1805,6 @@ in_pcbdrop(struct inpcb *inp)
 {
 
 	INP_WLOCK_ASSERT(inp);
-#ifdef INVARIANTS
-	if (inp->inp_socket != NULL && inp->inp_ppcb != NULL)
-		MPASS(inp->inp_refcount > 1);
-#endif
 
 	inp->inp_flags |= INP_DROPPED;
 	if (inp->inp_flags & INP_INHASHLIST)
@@ -2865,7 +2861,6 @@ in_pcbtoxinpcb(const struct inpcb *inp, struct xinpcb *xi)
 		sotoxsocket(inp->inp_socket, &xi->xi_socket);
 	bcopy(&inp->inp_inc, &xi->inp_inc, sizeof(struct in_conninfo));
 	xi->inp_gencnt = inp->inp_gencnt;
-	xi->inp_ppcb = (uintptr_t)inp->inp_ppcb;
 	xi->inp_flow = inp->inp_flow;
 	xi->inp_flowid = inp->inp_flowid;
 	xi->inp_flowtype = inp->inp_flowtype;
@@ -3149,10 +3144,6 @@ db_print_inpcb(struct inpcb *inp, const char *name, int indent)
 	db_printf("inp_flow: 0x%x\n", inp->inp_flow);
 
 	db_print_inconninfo(&inp->inp_inc, "inp_conninfo", indent);
-
-	db_print_indent(indent);
-	db_printf("inp_ppcb: %p   inp_pcbinfo: %p   inp_socket: %p\n",
-	    inp->inp_ppcb, inp->inp_pcbinfo, inp->inp_socket);
 
 	db_print_indent(indent);
 	db_printf("inp_label: %p   inp_flags: 0x%x (",
