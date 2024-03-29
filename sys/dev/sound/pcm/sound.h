@@ -519,7 +519,7 @@ int	sound_oss_card_info(oss_card_info *);
 		mtx_unlock(&Giant);					\
 	}								\
 } while (0)
-#else /* SND_DIAGNOSTIC */
+#else /* !SND_DIAGNOSTIC */
 #define PCM_WAIT(x)		do {					\
 	PCM_LOCKASSERT(x);						\
 	while ((x)->flags & SD_F_BUSY)					\
@@ -590,7 +590,7 @@ int	sound_oss_card_info(oss_card_info *);
 		mtx_unlock(&Giant);					\
 	}								\
 } while (0)
-#endif /* !SND_DIAGNOSTIC */
+#endif /* SND_DIAGNOSTIC */
 
 #define PCM_GIANT_LEAVE(x)						\
 	PCM_GIANT_EXIT(x);						\
