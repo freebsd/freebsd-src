@@ -9800,17 +9800,12 @@ read_filter_mode_and_ingress_config(struct adapter *adap)
  */
 int t4_init_tp_params(struct adapter *adap)
 {
-	int chan;
 	u32 tx_len, rx_len, r, v;
 	struct tp_params *tpp = &adap->params.tp;
 
 	v = t4_read_reg(adap, A_TP_TIMER_RESOLUTION);
 	tpp->tre = G_TIMERRESOLUTION(v);
 	tpp->dack_re = G_DELAYEDACKRESOLUTION(v);
-
-	/* MODQ_REQ_MAP defaults to setting queues 0-3 to chan 0-3 */
-	for (chan = 0; chan < MAX_NCHAN; chan++)
-		tpp->tx_modq[chan] = chan;
 
 	read_filter_mode_and_ingress_config(adap);
 

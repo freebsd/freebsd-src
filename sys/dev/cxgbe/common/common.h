@@ -252,7 +252,6 @@ struct tp_params {
 	unsigned int tre;            /* log2 of core clocks per TP tick */
 	unsigned int dack_re;        /* DACK timer resolution */
 	unsigned int la_mask;        /* what events are recorded by TP LA */
-	unsigned short tx_modq[MAX_NCHAN];  /* channel to modulation queue map */
 
 	uint16_t filter_mode;
 	uint16_t filter_mask;	/* Used by TOE and hashfilters */
@@ -272,6 +271,9 @@ struct tp_params {
 	int8_t matchtype_shift;
 	int8_t frag_shift;
 };
+
+/* Use same modulation queue as the tx channel. */
+#define TX_MODQ(tx_chan) (tx_chan)
 
 struct vpd_params {
 	unsigned int cclk;
