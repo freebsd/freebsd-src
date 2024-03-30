@@ -664,6 +664,9 @@
 /* Define to 1 if you have the `mlockall' function. */
 #define HAVE_MLOCKALL 1
 
+/* page_size() is available */
+/* #undef HAVE_MM_PAGE_SIZE */
+
 /* lookup_bdev() wants mode arg */
 /* #undef HAVE_MODE_LOOKUP_BDEV */
 
@@ -993,6 +996,9 @@
 /* __set_page_dirty_nobuffers exists */
 /* #undef HAVE_VFS_SET_PAGE_DIRTY_NOBUFFERS */
 
+/* splice_copy_file_range() is available */
+/* #undef HAVE_VFS_SPLICE_COPY_FILE_RANGE */
+
 /* __vmalloc page flags exists */
 /* #undef HAVE_VMALLOC_PAGE_KERNEL */
 
@@ -1155,7 +1161,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.99-365-FreeBSD_g8f2f6cd2a"
+#define ZFS_META_ALIAS "zfs-2.2.99-398-FreeBSD_g39be46f43"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1185,7 +1191,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "365-FreeBSD_g8f2f6cd2a"
+#define ZFS_META_RELEASE "398-FreeBSD_g39be46f43"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.2.99"
