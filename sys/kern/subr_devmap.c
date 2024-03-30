@@ -274,6 +274,13 @@ pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 		    ("Too many early devmap mappings"));
 	} else
 #endif
+#ifdef __aarch64__
+	if (size >= L2_SIZE && (pa & L2_OFFSET) == 0)
+		va = kva_alloc_aligned(size, L2_SIZE);
+	else if (size >= L3C_SIZE && (pa & L3C_OFFSET) == 0)
+		va = kva_alloc_aligned(size, L3C_SIZE);
+	else
+#endif
 		va = kva_alloc(size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
@@ -304,6 +311,13 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 		KASSERT(va >= (VM_MAX_KERNEL_ADDRESS - (PMAP_MAPDEV_EARLY_SIZE)),
 		    ("Too many early devmap mappings 2"));
 	} else
+#ifdef __aarch64__
+	if (size >= L2_SIZE && (pa & L2_OFFSET) == 0)
+		va = kva_alloc_aligned(size, L2_SIZE);
+	else if (size >= L3C_SIZE && (pa & L3C_OFFSET) == 0)
+		va = kva_alloc_aligned(size, L3C_SIZE);
+	else
+#endif
 		va = kva_alloc(size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
