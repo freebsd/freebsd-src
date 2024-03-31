@@ -184,6 +184,7 @@ struct sc_chinfo {
 	/* Buffer */
 	uint32_t	*data;
 	uint32_t	size;
+	uint32_t	position;
 
 	/* Flags */
 	uint32_t	run;
