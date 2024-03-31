@@ -4369,6 +4369,52 @@ ATF_TC_BODY(ptrace__PT_SC_REMOTE_getpid, tc)
 	ATF_REQUIRE(ptrace(PT_DETACH, fpid, (caddr_t)1, 0) != -1);
 }
 
+/*
+ * Ensure that procctl(PROC_REAP_KILL) won't block forever waiting for a target
+ * process that stopped to report its status to a debugger.
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__reap_kill_stopped);
+ATF_TC_BODY(ptrace__reap_kill_stopped, tc)
+{
+	struct procctl_reaper_kill prk;
+	pid_t debuggee, wpid;
+	int error, status;
+
+	REQUIRE_EQ(procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL), 0);
+
+	debuggee = fork();
+	ATF_REQUIRE(debuggee >= 0);
+	if (debuggee == 0) {
+		trace_me();
+		for (;;)
+			sleep(10);
+		_exit(0);
+	}
+	wpid = waitpid(debuggee, &status, 0);
+	REQUIRE_EQ(wpid, debuggee);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
+
+	/* Resume the child and ask it to stop during syscall exits. */
+	ATF_REQUIRE(ptrace(PT_TO_SCX, debuggee, (caddr_t)1, 0) != -1);
+
+	/* Give the debuggee some time to go to sleep. */
+	usleep(100000);
+
+	/*
+	 * Kill the child process.  procctl() may attempt to stop the target
+	 * process to prevent it from adding new children to the reaper subtree,
+	 * and this should not conflict with the child stopping itself for the
+	 * debugger.
+	 */
+	memset(&prk, 0, sizeof(prk));
+	prk.rk_sig = SIGTERM;
+	error = procctl(P_PID, getpid(), PROC_REAP_KILL, &prk);
+	REQUIRE_EQ(error, 0);
+	REQUIRE_EQ(1, prk.rk_killed);
+	REQUIRE_EQ(-1, prk.rk_fpid);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, ptrace__parent_wait_after_trace_me);
@@ -4435,6 +4481,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__procdesc_wait_child);
 	ATF_TP_ADD_TC(tp, ptrace__procdesc_reparent_wait_child);
 	ATF_TP_ADD_TC(tp, ptrace__PT_SC_REMOTE_getpid);
+	ATF_TP_ADD_TC(tp, ptrace__reap_kill_stopped);
 
 	return (atf_no_error());
 }
