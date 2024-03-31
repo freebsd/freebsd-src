@@ -345,7 +345,7 @@ link_elf_error(const char *filename, const char *s)
 }
 
 static void
-link_elf_invoke_ctors(caddr_t addr, size_t size)
+link_elf_invoke_cbs(caddr_t addr, size_t size)
 {
 	void (**ctor)(void);
 	size_t i, cnt;
@@ -358,6 +358,17 @@ link_elf_invoke_ctors(caddr_t addr, size_t size)
 		if (ctor[i] != NULL)
 			(*ctor[i])();
 	}
+}
+
+static void
+link_elf_invoke_ctors(linker_file_t lf)
+{
+	KASSERT(lf->ctors_invoked == LF_NONE,
+	    ("%s: file %s ctor state %d",
+	    __func__, lf->filename, lf->ctors_invoked));
+
+	link_elf_invoke_cbs(lf->ctors_addr, lf->ctors_size);
+	lf->ctors_invoked = LF_CTORS;
 }
 
 /*
@@ -390,7 +401,7 @@ link_elf_link_common_finish(linker_file_t lf)
 #endif
 
 	/* Invoke .ctors */
-	link_elf_invoke_ctors(lf->ctors_addr, lf->ctors_size);
+	link_elf_invoke_ctors(lf);
 	return (0);
 }
 
