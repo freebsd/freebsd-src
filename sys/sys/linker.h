@@ -82,6 +82,11 @@ struct linker_file {
     size_t		size;		/* size of file */
     caddr_t		ctors_addr;	/* address of .ctors/.init_array */
     size_t		ctors_size;	/* size of .ctors/.init_array */
+    enum {
+	    LF_NONE = 0,
+	    LF_CTORS,
+	    LF_DTORS,
+    } ctors_invoked;			/* have we run ctors yet? */
     caddr_t		dtors_addr;	/* address of .dtors/.fini_array */
     size_t		dtors_size;	/* size of .dtors/.fini_array */
     int			ndeps;		/* number of dependencies */

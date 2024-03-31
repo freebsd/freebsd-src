@@ -658,6 +658,30 @@ link_elf_invoke_cbs(caddr_t addr, size_t size)
 	}
 }
 
+static void
+link_elf_invoke_ctors(linker_file_t lf)
+{
+	KASSERT(lf->ctors_invoked == LF_NONE,
+	    ("%s: file %s ctor state %d",
+	    __func__, lf->filename, lf->ctors_invoked));
+
+	link_elf_invoke_cbs(lf->ctors_addr, lf->ctors_size);
+	lf->ctors_invoked = LF_CTORS;
+}
+
+static void
+link_elf_invoke_dtors(linker_file_t lf)
+{
+	KASSERT(lf->ctors_invoked != LF_DTORS,
+	    ("%s: file %s ctor state %d",
+	    __func__, lf->filename, lf->ctors_invoked));
+
+	if (lf->ctors_invoked == LF_CTORS) {
+		link_elf_invoke_cbs(lf->dtors_addr, lf->dtors_size);
+		lf->ctors_invoked = LF_DTORS;
+	}
+}
+
 static int
 link_elf_link_preload_finish(linker_file_t lf)
 {
@@ -684,7 +708,7 @@ link_elf_link_preload_finish(linker_file_t lf)
 	/* Apply protections now that relocation processing is complete. */
 	link_elf_protect(ef);
 
-	link_elf_invoke_cbs(lf->ctors_addr, lf->ctors_size);
+	link_elf_invoke_ctors(lf);
 	return (0);
 }
 
@@ -1239,7 +1263,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 #endif
 
 	link_elf_protect(ef);
-	link_elf_invoke_cbs(lf->ctors_addr, lf->ctors_size);
+	link_elf_invoke_ctors(lf);
 	*result = lf;
 
 out:
@@ -1259,7 +1283,7 @@ link_elf_unload_file(linker_file_t file)
 	elf_file_t ef = (elf_file_t) file;
 	u_int i;
 
-	link_elf_invoke_cbs(file->dtors_addr, file->dtors_size);
+	link_elf_invoke_dtors(file);
 
 	/* Notify MD code that a module is being unloaded. */
 	elf_cpu_unload_file(file);
