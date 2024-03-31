@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 10, 2024
+.Dd March 24, 2024
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -513,14 +513,6 @@ device state on each tick using a
 mechanism.
 Disabled by default and currently only available for a few device drivers.
 .El
-.Ss Recording Channels
-On devices that have more than one recording source (ie: mic and line),
-there is a corresponding
-.Pa /dev/dsp%d.r%d
-device.
-The
-.Xr mixer 8
-utility can be used to start and stop recording from an specific device.
 .Ss Statistics
 Channel statistics are only kept while the device is open.
 So with situations involving overruns and underruns, consider the output
@@ -542,36 +534,24 @@ functions.
 .Sh FILES
 The
 .Nm
-drivers may create the following
-device nodes:
+drivers may create the following device nodes:
 .Pp
-.Bl -tag -width ".Pa /dev/audio%d.%d" -compact
-.It Pa /dev/audio%d.%d
-Sparc-compatible audio device.
-.It Pa /dev/dsp%d.%d
-Digitized voice device.
-.It Pa /dev/dspW%d.%d
-Like
-.Pa /dev/dsp ,
-but 16 bits per sample.
-.It Pa /dev/dsp%d.p%d
-Playback channel.
-.It Pa /dev/dsp%d.r%d
-Record channel.
-.It Pa /dev/dsp%d.vp%d
-Virtual playback channel.
-.It Pa /dev/dsp%d.vr%d
-Virtual recording channel.
+.Bl -tag -width ".Pa /dev/sndstat" -compact
+.It Pa /dev/dsp%d
+Audio device.
+The number represents the unit number of the device.
+.It Pa /dev/dsp
+Alias of
+.Pa /dev/dsp${hw.snd.default_unit} .
+Available only if
+.Pa hw.snd.basename_clone
+is set.
 .It Pa /dev/sndstat
 Current
 .Nm
 status, including all channels and drivers.
 .El
 .Pp
-The first number in the device node
-represents the unit number of the
-.Nm
-device.
 All
 .Nm
 devices are listed
@@ -581,15 +561,6 @@ Additional messages are sometimes recorded when the
 device is probed and attached, these messages can be viewed with the
 .Xr dmesg 8
 utility.
-.Pp
-The above device nodes are only created on demand through the dynamic
-.Xr devfs 5
-clone handler.
-Users are strongly discouraged to access them directly.
-For specific sound card access, please instead use
-.Pa /dev/dsp
-or
-.Pa /dev/dsp%d .
 .Sh EXAMPLES
 Use the sound metadriver to load all
 .Nm
