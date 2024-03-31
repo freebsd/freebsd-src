@@ -185,7 +185,7 @@ linuxkpi___napi_schedule(struct napi_struct *napi)
 	}
 }
 
-void
+bool
 linuxkpi_napi_schedule(struct napi_struct *napi)
 {
 
@@ -195,8 +195,12 @@ linuxkpi_napi_schedule(struct napi_struct *napi)
 	 * iwlwifi calls this sequence instead of napi_schedule()
 	 * to be able to test the prep result.
 	 */
-	if (napi_schedule_prep(napi))
+	if (napi_schedule_prep(napi)) {
 		__napi_schedule(napi);
+		return (true);
+	}
+
+	return (false);
 }
 
 void
