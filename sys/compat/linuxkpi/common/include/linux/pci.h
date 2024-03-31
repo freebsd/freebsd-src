@@ -105,6 +105,8 @@ MODULE_PNP_INFO("U32:vendor;U32:device;V32:subvendor;V32:subdevice",	\
 #define	to_pci_dev(n)	container_of(n, struct pci_dev, dev)
 
 #define	PCI_STD_NUM_BARS	6
+#define	PCI_BASE_ADDRESS_0	PCIR_BARS
+#define	PCI_BASE_ADDRESS_MEM_TYPE_64	PCIM_BAR_MEM_64
 #define	PCI_VENDOR_ID		PCIR_VENDOR
 #define	PCI_DEVICE_ID		PCIR_DEVICE
 #define	PCI_COMMAND		PCIR_COMMAND
