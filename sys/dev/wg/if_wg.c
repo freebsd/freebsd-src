@@ -251,9 +251,6 @@ struct wg_softc {
 
 #define MAX_LOOPS	8
 #define MTAG_WGLOOP	0x77676c70 /* wglp */
-#ifndef ENOKEY
-#define	ENOKEY	ENOTCAPABLE
-#endif
 
 #define	GROUPTASK_DRAIN(gtask)			\
 	gtaskqueue_drain((gtask)->gt_taskqueue, &(gtask)->gt_task)
@@ -2115,7 +2112,7 @@ wg_xmit(if_t ifp, struct mbuf *m, sa_family_t af, uint32_t mtu)
 	BPF_MTAP2_AF(ifp, m, pkt->p_af);
 
 	if (__predict_false(peer == NULL)) {
-		rc = ENOKEY;
+		rc = ENETUNREACH;
 		goto err_xmit;
 	}
 
