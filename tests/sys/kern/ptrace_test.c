@@ -4411,7 +4411,7 @@ ATF_TC_BODY(ptrace__reap_kill_stopped, tc)
 	prk.rk_sig = SIGTERM;
 	error = procctl(P_PID, getpid(), PROC_REAP_KILL, &prk);
 	REQUIRE_EQ(error, 0);
-	REQUIRE_EQ(1, prk.rk_killed);
+	REQUIRE_EQ(1u, prk.rk_killed);
 	REQUIRE_EQ(-1, prk.rk_fpid);
 }
 
