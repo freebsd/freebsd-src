@@ -945,7 +945,7 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCSIFMTU:
-		if (ifr->ifr_mtu < 576) {
+		if (ifr->ifr_mtu < IF_MINMTU) {
 			error = EINVAL;
 			break;
 		}
