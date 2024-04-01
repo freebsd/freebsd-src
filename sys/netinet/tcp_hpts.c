@@ -758,7 +758,8 @@ max_slots_available(struct tcp_hpts_entry *hpts, uint32_t wheel_slot, uint32_t *
 		 * "0".
 		 */
 		counter_u64_add(combined_wheel_wrap, 1);
-		*target_slot = hpts->p_nxt_slot;
+		if (target_slot)
+			*target_slot = hpts->p_nxt_slot;
 		return (0);
 	} else {
 		/*
