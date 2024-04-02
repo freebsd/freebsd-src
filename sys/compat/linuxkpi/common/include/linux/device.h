@@ -283,6 +283,7 @@ int lkpi_devres_destroy(struct device *, void(*release)(struct device *, void *)
 void lkpi_devres_release_free_list(struct device *);
 void lkpi_devres_unlink(struct device *, void *);
 void lkpi_devm_kmalloc_release(struct device *, void *);
+#define	devm_kfree(_d, _p)		lkpi_devm_kmalloc_release(_d, _p)
 
 static inline const char *
 dev_driver_string(const struct device *dev)
