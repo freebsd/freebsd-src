@@ -2895,7 +2895,7 @@ backup_kernel () {
 	(cd ${BASEDIR}/${KERNELDIR} && find . -type f $FINDFILTER -exec \
 	    cp -pl '{}' ${BASEDIR}/${BACKUPKERNELDIR}/'{}' \;)
 
-	# Re-enable patchname expansion.
+	# Re-enable pathname expansion.
 	set +f
 }
 
