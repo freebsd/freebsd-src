@@ -2233,7 +2233,7 @@ aml_disassemble(ACPI_TABLE_HEADER *rsdt, ACPI_TABLE_HEADER *dsdp)
 		goto out;
 	}
 	if (status != 0) {
-		fprintf(stderr, "iast exit status = %d\n", status);
+		fprintf(stderr, "iasl exit status = %d\n", status);
 	}
 
 	/* Dump iasl's output to stdout */
