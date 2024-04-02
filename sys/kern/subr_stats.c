@@ -1078,9 +1078,9 @@ int
 stats_v1_blob_clone(struct statsblobv1 **dst, size_t dstmaxsz,
     struct statsblobv1 *src, uint32_t flags)
 {
-	int error;
+	int error, tmperror;
 
-	error = 0;
+	error = tmperror = 0;
 
 	if (src == NULL || dst == NULL ||
 	    src->cursz < sizeof(struct statsblob) ||
@@ -1131,14 +1131,16 @@ stats_v1_blob_clone(struct statsblobv1 **dst, size_t dstmaxsz,
 		}
 #ifdef _KERNEL
 		if (flags & SB_CLONE_USRDSTNOFAULT)
-			error = copyout_nofault(&(src->cursz), &((*dst)->cursz),
+			tmperror = copyout_nofault(&(src->cursz), &((*dst)->cursz),
 			    postcurszlen);
 		else if (flags & SB_CLONE_USRDST)
-			error = copyout(&(src->cursz), &((*dst)->cursz),
+			tmperror = copyout(&(src->cursz), &((*dst)->cursz),
 			    postcurszlen);
 		else
 #endif
 			memcpy(&((*dst)->cursz), &(src->cursz), postcurszlen);
+
+		error = error ? error : tmperror;
 	}
 #ifdef _KERNEL
 out:
