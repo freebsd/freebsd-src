@@ -54,6 +54,7 @@
 #define	GENMASK_ULL(h, l)	(((~0ULL) >> (BITS_PER_LONG_LONG - (h) - 1)) & ((~0ULL) << (l)))
 #define	BITS_PER_BYTE		8
 #define	BITS_PER_TYPE(t)	(sizeof(t) * BITS_PER_BYTE)
+#define	BITS_TO_BYTES(n)	howmany((n), BITS_PER_BYTE)
 
 #define	hweight8(x)	bitcount((uint8_t)(x))
 #define	hweight16(x)	bitcount16(x)
