@@ -289,4 +289,11 @@ memcpy_and_pad(void *dst, size_t dstlen, const void *src, size_t len, int ch)
 	memset(_ptr + _o, _c, sizeof(*(ptr)) - _o);			\
 })
 
+static inline void
+memzero_explicit(void *p, size_t s)
+{
+	memset(p, 0, s);
+	__asm__ __volatile__("": :"r"(p) :"memory");
+}
+
 #endif	/* _LINUXKPI_LINUX_STRING_H_ */
