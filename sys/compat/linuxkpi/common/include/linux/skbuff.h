@@ -89,6 +89,7 @@ struct skb_shared_hwtstamps {
 };
 
 #define	NET_SKB_PAD		max(CACHE_LINE_SIZE, 32)
+#define	SKB_DATA_ALIGN(_x)	roundup2(_x, CACHE_LINE_SIZE)
 
 struct sk_buff_head {
 		/* XXX TODO */
@@ -824,7 +825,7 @@ skb_mark_not_on_list(struct sk_buff *skb)
 }
 
 static inline void
-___skb_queue_splice_init(const struct sk_buff_head *from,
+___skb_queue_splice(const struct sk_buff_head *from,
     struct sk_buff *p, struct sk_buff *n)
 {
 	struct sk_buff *b, *e;
@@ -847,7 +848,21 @@ skb_queue_splice_init(struct sk_buff_head *from, struct sk_buff_head *to)
 	if (skb_queue_empty(from))
 		return;
 
-	___skb_queue_splice_init(from, (struct sk_buff *)to, to->next);
+	___skb_queue_splice(from, (struct sk_buff *)to, to->next);
+	to->qlen += from->qlen;
+	__skb_queue_head_init(from);
+}
+
+static inline void
+skb_queue_splice_tail_init(struct sk_buff_head *from, struct sk_buff_head *to)
+{
+
+	SKB_TRACE2(from, to);
+
+	if (skb_queue_empty(from))
+		return;
+
+	___skb_queue_splice(from, to->prev, (struct sk_buff *)to);
 	to->qlen += from->qlen;
 	__skb_queue_head_init(from);
 }
