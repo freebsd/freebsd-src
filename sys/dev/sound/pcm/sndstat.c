@@ -49,6 +49,8 @@
 #include <dev/sound/pcm/pcm.h>
 #include <dev/sound/version.h>
 
+#include "feeder_if.h"
+
 #define	SS_TYPE_PCM		1
 #define	SS_TYPE_MIDI		2
 #define	SS_TYPE_SEQUENCER	3
@@ -73,7 +75,6 @@ struct sndstat_entry {
 	TAILQ_ENTRY(sndstat_entry) link;
 	device_t dev;
 	char *str;
-	sndstat_handler handler;
 	int type, unit;
 };
 
@@ -1050,7 +1051,7 @@ fail:
 /************************************************************************/
 
 int
-sndstat_register(device_t dev, char *str, sndstat_handler handler)
+sndstat_register(device_t dev, char *str)
 {
 	struct sndstat_entry *ent;
 	struct sndstat_entry *pre;
@@ -1073,7 +1074,6 @@ sndstat_register(device_t dev, char *str, sndstat_handler handler)
 	ent->str = str;
 	ent->type = type;
 	ent->unit = unit;
-	ent->handler = handler;
 
 	SNDSTAT_LOCK();
 	/* sorted list insertion */
@@ -1120,6 +1120,142 @@ sndstat_unregister(device_t dev)
 /************************************************************************/
 
 static int
+sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
+{
+	struct snddev_info *d;
+	struct pcm_channel *c;
+	struct pcm_feeder *f;
+
+	d = device_get_softc(dev);
+	PCM_BUSYASSERT(d);
+
+	if (CHN_EMPTY(d, channels.pcm)) {
+		sbuf_printf(s, " (mixer only)");
+		return (0);
+	}
+
+	if (verbose < 1) {
+		sbuf_printf(s, " (%s%s%s",
+		    d->playcount ? "play" : "",
+		    (d->playcount && d->reccount) ? "/" : "",
+		    d->reccount ? "rec" : "");
+	} else {
+		sbuf_printf(s, " (%dp:%dv/%dr:%dv",
+		    d->playcount, d->pvchancount,
+		    d->reccount, d->rvchancount);
+	}
+	sbuf_printf(s, "%s)%s",
+	    ((d->playcount != 0 && d->reccount != 0) &&
+	    (d->flags & SD_F_SIMPLEX)) ? " simplex" : "",
+	    (device_get_unit(dev) == snd_unit) ? " default" : "");
+
+	if (verbose <= 1)
+		return (0);
+
+	sbuf_printf(s, "\n\t");
+	sbuf_printf(s, "snddev flags=0x%b", d->flags, SD_F_BITS);
+
+	CHN_FOREACH(c, d, channels.pcm) {
+		KASSERT(c->bufhard != NULL && c->bufsoft != NULL,
+		    ("hosed pcm channel setup"));
+
+		sbuf_printf(s, "\n\t");
+
+		sbuf_printf(s, "%s[%s]: ",
+		    (c->parentchannel != NULL) ?
+		    c->parentchannel->name : "", c->name);
+		sbuf_printf(s, "spd %d", c->speed);
+		if (c->speed != sndbuf_getspd(c->bufhard)) {
+			sbuf_printf(s, "/%d",
+			    sndbuf_getspd(c->bufhard));
+		}
+		sbuf_printf(s, ", fmt 0x%08x", c->format);
+		if (c->format != sndbuf_getfmt(c->bufhard)) {
+			sbuf_printf(s, "/0x%08x",
+			    sndbuf_getfmt(c->bufhard));
+		}
+		sbuf_printf(s, ", flags 0x%08x, 0x%08x",
+		    c->flags, c->feederflags);
+		if (c->pid != -1) {
+			sbuf_printf(s, ", pid %d (%s)",
+			    c->pid, c->comm);
+		}
+		sbuf_printf(s, "\n\t");
+
+		sbuf_printf(s, "interrupts %d, ", c->interrupts);
+
+		if (c->direction == PCMDIR_REC)	{
+			sbuf_printf(s,
+			    "overruns %d, feed %u, hfree %d, "
+			    "sfree %d [b:%d/%d/%d|bs:%d/%d/%d]",
+				c->xruns, c->feedcount,
+				sndbuf_getfree(c->bufhard),
+				sndbuf_getfree(c->bufsoft),
+				sndbuf_getsize(c->bufhard),
+				sndbuf_getblksz(c->bufhard),
+				sndbuf_getblkcnt(c->bufhard),
+				sndbuf_getsize(c->bufsoft),
+				sndbuf_getblksz(c->bufsoft),
+				sndbuf_getblkcnt(c->bufsoft));
+		} else {
+			sbuf_printf(s,
+			    "underruns %d, feed %u, ready %d "
+			    "[b:%d/%d/%d|bs:%d/%d/%d]",
+				c->xruns, c->feedcount,
+				sndbuf_getready(c->bufsoft),
+				sndbuf_getsize(c->bufhard),
+				sndbuf_getblksz(c->bufhard),
+				sndbuf_getblkcnt(c->bufhard),
+				sndbuf_getsize(c->bufsoft),
+				sndbuf_getblksz(c->bufsoft),
+				sndbuf_getblkcnt(c->bufsoft));
+		}
+		sbuf_printf(s, "\n\t");
+
+		sbuf_printf(s, "channel flags=0x%b", c->flags, CHN_F_BITS);
+		sbuf_printf(s, "\n\t");
+
+		sbuf_printf(s, "{%s}",
+		    (c->direction == PCMDIR_REC) ? "hardware" : "userland");
+		sbuf_printf(s, " -> ");
+		f = c->feeder;
+		while (f->source != NULL)
+			f = f->source;
+		while (f != NULL) {
+			sbuf_printf(s, "%s", f->class->name);
+			if (f->desc->type == FEEDER_FORMAT) {
+				sbuf_printf(s, "(0x%08x -> 0x%08x)",
+				    f->desc->in, f->desc->out);
+			} else if (f->desc->type == FEEDER_MATRIX) {
+				sbuf_printf(s, "(%d.%d -> %d.%d)",
+				    AFMT_CHANNEL(f->desc->in) -
+				    AFMT_EXTCHANNEL(f->desc->in),
+				    AFMT_EXTCHANNEL(f->desc->in),
+				    AFMT_CHANNEL(f->desc->out) -
+				    AFMT_EXTCHANNEL(f->desc->out),
+				    AFMT_EXTCHANNEL(f->desc->out));
+			} else if (f->desc->type == FEEDER_RATE) {
+				sbuf_printf(s,
+				    "(0x%08x q:%d %d -> %d)",
+				    f->desc->out,
+				    FEEDER_GET(f, FEEDRATE_QUALITY),
+				    FEEDER_GET(f, FEEDRATE_SRC),
+				    FEEDER_GET(f, FEEDRATE_DST));
+			} else {
+				sbuf_printf(s, "(0x%08x)",
+				    f->desc->out);
+			}
+			sbuf_printf(s, " -> ");
+			f = f->parent;
+		}
+		sbuf_printf(s, "{%s}",
+		    (c->direction == PCMDIR_REC) ? "userland" : "hardware");
+	}
+
+	return (0);
+}
+
+static int
 sndstat_prepare(struct sndstat_file *pf_self)
 {
 	struct sbuf *s = &pf_self->sbuf;
@@ -1149,12 +1285,10 @@ sndstat_prepare(struct sndstat_file *pf_self)
 		sbuf_printf(s, " <%s>", device_get_desc(ent->dev));
 		if (snd_verbose > 0)
 			sbuf_printf(s, " %s", ent->str);
-		if (ent->handler) {
-			/* XXX Need Giant magic entry ??? */
-			PCM_ACQUIRE_QUICK(d);
-			ent->handler(s, ent->dev, snd_verbose);
-			PCM_RELEASE_QUICK(d);
-		}
+		/* XXX Need Giant magic entry ??? */
+		PCM_ACQUIRE_QUICK(d);
+		sndstat_prepare_pcm(s, ent->dev, snd_verbose);
+		PCM_RELEASE_QUICK(d);
 		sbuf_printf(s, "\n");
 	}
 	if (k == 0)

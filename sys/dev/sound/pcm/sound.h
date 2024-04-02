@@ -338,8 +338,7 @@ void snd_mtxassert(void *m);
 #define	snd_mtxlock(m) mtx_lock(m)
 #define	snd_mtxunlock(m) mtx_unlock(m)
 
-typedef int (*sndstat_handler)(struct sbuf *s, device_t dev, int verbose);
-int sndstat_register(device_t dev, char *str, sndstat_handler handler);
+int sndstat_register(device_t dev, char *str);
 int sndstat_unregister(device_t dev);
 
 /* usage of flags in device config entry (config file) */
