@@ -67,6 +67,17 @@
 #define	____cacheline_aligned_in_smp	__aligned(CACHE_LINE_SIZE)
 #define	fallthrough			/* FALLTHROUGH */ do { } while(0)
 
+#if __has_attribute(__nonstring__)
+#define	__nonstring			__attribute__((__nonstring__))
+#else
+#define	__nonstring
+#endif
+#if __has_attribute(__counted_by__)
+#define	__counted_by(_x)		__attribute__((__counted_by__(_x)))
+#else
+#define	__counted_by(_x)
+#endif
+
 #define	likely(x)			__builtin_expect(!!(x), 1)
 #define	unlikely(x)			__builtin_expect(!!(x), 0)
 #define typeof(x)			__typeof(x)
