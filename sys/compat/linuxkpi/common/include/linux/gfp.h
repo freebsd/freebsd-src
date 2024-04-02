@@ -137,6 +137,12 @@ __free_page(struct page *page)
 	linux_free_pages(page, 0);
 }
 
+static inline struct page *
+dev_alloc_pages(unsigned int order)
+{
+	return (linux_alloc_pages(GFP_ATOMIC, order));
+}
+
 /*
  * Page management for mapped pages:
  */
