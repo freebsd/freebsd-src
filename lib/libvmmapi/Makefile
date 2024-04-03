@@ -1,4 +1,3 @@
-
 PACKAGE=lib${LIB}
 LIB=	vmmapi
 SHLIB_MAJOR=	6
