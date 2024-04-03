@@ -614,7 +614,10 @@ again:
 			value = sep + 1;
 			TARFS_DPF(ALLOC, "%s: exthdr %s=%s\n", __func__,
 			    key, value);
-			if (strcmp(key, "linkpath") == 0) {
+			if (strcmp(key, "path") == 0) {
+				name = value;
+				namelen = eol - value;
+			} else if (strcmp(key, "linkpath") == 0) {
 				link = value;
 				linklen = eol - value;
 			} else if (strcmp(key, "GNU.sparse.major") == 0) {
@@ -905,6 +908,8 @@ tarfs_alloc_mount(struct mount *mp, struct vnode *vp,
 	blknum = 0;
 	do {
 		if ((error = tarfs_alloc_one(tmp, &blknum)) != 0) {
+			printf("unsupported or corrupt tar file at %zu\n",
+			    TARFS_BLOCKSIZE * blknum);
 			goto bad;
 		}
 	} while (blknum != TAR_EOF);
