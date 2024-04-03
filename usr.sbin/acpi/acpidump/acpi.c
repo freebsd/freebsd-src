@@ -1597,7 +1597,7 @@ acpi_print_nfit(ACPI_NFIT_HEADER *nfit)
 		printf("\tRangeIndex=%u\n", (u_int)sysaddr->RangeIndex);
 		printf("\tProximityDomain=%u\n",
 		    (u_int)sysaddr->ProximityDomain);
-		uuid_to_string((uuid_t *)(sysaddr->RangeGuid),
+		uuid_to_string((uuid_t *)(uintptr_t)(sysaddr->RangeGuid),
 		    &uuidstr, &status);
 		if (status != uuid_s_ok)
 			errx(1, "uuid_to_string: status=%u", status);
