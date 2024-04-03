@@ -61,7 +61,7 @@ filesystem
 The
 .Nm
 utility is designed to be a work-alike and look-alike of the deprecated
-.Xr mount_mfs 8 .
+.Nm mount_mfs .
 The end result is essentially the same,
 but is accomplished in a completely different way.
 Based on
@@ -149,7 +149,7 @@ it uses the default arguments to all the helper programs.
 The following options are available.
 Where possible,
 the option letter matches the one used by
-.Xr mount_mfs 8
+.Nm mount_mfs
 for the same thing.
 .Bl -tag -width indent
 .It Fl a Ar maxcontig
@@ -404,10 +404,10 @@ Mount a vnode-backed cd9660 file system using automatic device numbering:
 The
 .Nm
 utility, while designed to be compatible with
-.Xr mount_mfs 8 ,
+.Nm mount_mfs ,
 can be useful by itself.
 Since
-.Xr mount_mfs 8
+.Nm mount_mfs
 had some silly defaults, a
 .Dq compatibility
 mode is provided for the case where bug-to-bug compatibility is desired.
@@ -421,7 +421,7 @@ or
 (as returned by
 .Xr getprogname 3 ) .
 In this mode, the following behavior, as done by
-.Xr mount_mfs 8 ,
+.Nm mount_mfs ,
 is duplicated:
 .Bl -bullet -offset indent
 .It
