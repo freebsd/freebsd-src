@@ -80,7 +80,7 @@ struct ustar_header {
 
 CTASSERT(sizeof(struct ustar_header) == TARFS_BLOCKSIZE);
 
-#define	TAR_EOF			((off_t)-1)
+#define	TAR_EOF			((size_t)-1)
 
 #define	TAR_TYPE_FILE		'0'
 #define	TAR_TYPE_HARDLINK	'1'
@@ -430,13 +430,13 @@ tarfs_free_mount(struct tarfs_mount *tmp)
  * failure.
  */
 static int
-tarfs_alloc_one(struct tarfs_mount *tmp, off_t *blknump)
+tarfs_alloc_one(struct tarfs_mount *tmp, size_t *blknump)
 {
 	char block[TARFS_BLOCKSIZE];
 	struct ustar_header *hdrp = (struct ustar_header *)block;
 	struct sbuf *namebuf = NULL;
 	char *exthdr = NULL, *name = NULL, *link = NULL;
-	off_t blknum = *blknump;
+	size_t blknum = *blknump;
 	int64_t num;
 	int endmarker = 0;
 	char *namep, *sep;
@@ -553,13 +553,14 @@ again:
 	TARFS_DPF(ALLOC, "%s: [%c] %zu @%jd %o %d:%d\n", __func__,
 	    hdrp->typeflag[0], sz, (intmax_t)mtime, mode, uid, gid);
 
-	/* extended header? */
+	/* global extended header? */
 	if (hdrp->typeflag[0] == TAR_TYPE_GLOBAL_EXTHDR) {
-		printf("%s: unsupported global extended header at %zu\n",
-		    __func__, (size_t)(TARFS_BLOCKSIZE * (blknum - 1)));
-		error = EFTYPE;
-		goto bad;
+		TARFS_DPF(ALLOC, "%s: %zu-byte global extended header at %zu\n",
+		    __func__, sz, TARFS_BLOCKSIZE * (blknum - 1));
+		goto skip;
 	}
+
+	/* extended header? */
 	if (hdrp->typeflag[0] == TAR_TYPE_EXTHDR) {
 		if (exthdr != NULL) {
 			TARFS_DPF(IO, "%s: multiple extended headers at %zu\n",
@@ -568,7 +569,7 @@ again:
 			goto bad;
 		}
 		/* read the contents of the exthdr */
-		TARFS_DPF(ALLOC, "%s: %zu-byte extended header at %zd\n",
+		TARFS_DPF(ALLOC, "%s: %zu-byte extended header at %zu\n",
 		    __func__, sz, TARFS_BLOCKSIZE * (blknum - 1));
 		exthdr = malloc(sz, M_TEMP, M_WAITOK);
 		res = tarfs_io_read_buf(tmp, false, exthdr,
@@ -614,7 +615,10 @@ again:
 			value = sep + 1;
 			TARFS_DPF(ALLOC, "%s: exthdr %s=%s\n", __func__,
 			    key, value);
-			if (strcmp(key, "linkpath") == 0) {
+			if (strcmp(key, "path") == 0) {
+				name = value;
+				namelen = eol - value;
+			} else if (strcmp(key, "linkpath") == 0) {
 				link = value;
 				linklen = eol - value;
 			} else if (strcmp(key, "GNU.sparse.major") == 0) {
@@ -857,7 +861,7 @@ tarfs_alloc_mount(struct mount *mp, struct vnode *vp,
 	struct thread *td = curthread;
 	struct tarfs_mount *tmp;
 	struct tarfs_node *root;
-	off_t blknum;
+	size_t blknum;
 	time_t mtime;
 	int error;
 
@@ -905,6 +909,8 @@ tarfs_alloc_mount(struct mount *mp, struct vnode *vp,
 	blknum = 0;
 	do {
 		if ((error = tarfs_alloc_one(tmp, &blknum)) != 0) {
+			printf("unsupported or corrupt tar file at %zu\n",
+			    TARFS_BLOCKSIZE * blknum);
 			goto bad;
 		}
 	} while (blknum != TAR_EOF);
