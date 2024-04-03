@@ -167,6 +167,13 @@ vm_lapic_msi(struct vmctx *ctx, uint64_t addr, uint64_t msg)
 }
 
 int
+vm_raise_msi(struct vmctx *ctx, uint64_t addr, uint64_t msg,
+    int bus __unused, int slot __unused, int func __unused)
+{
+	return (vm_lapic_msi(ctx, addr, msg));
+}
+
+int
 vm_apicid2vcpu(struct vmctx *ctx __unused, int apicid)
 {
 	/*

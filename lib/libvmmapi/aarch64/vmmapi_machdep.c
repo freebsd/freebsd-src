@@ -99,8 +99,8 @@ vm_deassert_irq(struct vmctx *ctx, uint32_t irq)
 }
 
 int
-vm_raise_msi(struct vmctx *ctx, uint64_t addr, uint64_t msg, int bus, int slot,
-    int func)
+vm_raise_msi(struct vmctx *ctx, uint64_t addr, uint64_t msg,
+    int bus, int slot, int func)
 {
 	struct vm_msi vmsi;
 
