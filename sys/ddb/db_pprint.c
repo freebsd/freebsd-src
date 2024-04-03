@@ -226,13 +226,13 @@ db_pprint_enum(db_addr_t addr, struct ctf_type_v3 *type, u_int depth)
 		if (val == ep->cte_value) {
 			valname = db_ctf_stroff_to_str(&sym_data, ep->cte_name);
 			if (valname != NULL) {
-				db_printf("%s (0x%lx)", valname, val);
+				db_printf("%s (0x%lx)", valname, (long)val);
 				break;
 			}
 		}
 	}
 	if (ep == endp)
-		db_printf("0x%lx", val);
+		db_printf("0x%lx", (long)val);
 }
 
 /*
