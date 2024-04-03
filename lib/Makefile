@@ -203,6 +203,9 @@ SUBDIR.${MK_PMC}+=	libopencsd
 
 .if ${MACHINE_CPUARCH} == "amd64"
 SUBDIR.${MK_PMC}+=	libipt
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64"
 SUBDIR.${MK_BHYVE}+=	libvmmapi
 .endif
 
