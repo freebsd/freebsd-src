@@ -15,6 +15,7 @@ SRCS+=	\
 	pci_hda.c	\
 	pci_irq.c	\
 	pci_lpc.c	\
+	pci_passthru.c	\
 	pci_uart.c	\
 	pci_xhci.c	\
 	pctestdev.c	\

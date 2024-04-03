@@ -59,8 +59,8 @@
 #ifdef __amd64__
 #include "amd64/pci_irq.h"
 #include "amd64/pci_lpc.h"
-#endif
 #include "pci_passthru.h"
+#endif
 #include "qemu_fwcfg.h"
 
 #define CONF1_ADDR_PORT	   0x0cf8
@@ -381,7 +381,11 @@ pci_config_read_reg(const struct pcisel *const host_sel, nvlist_t *nvl,
 	if (config == NULL) {
 		return def;
 	} else if (host_sel != NULL && strcmp(config, "host") == 0) {
+#ifdef __amd64__
 		return pci_host_read_config(host_sel, reg, size);
+#else
+		errx(1, "cannot fetch host PCI configuration");
+#endif
 	} else {
 		return strtol(config, NULL, 16);
 	}
