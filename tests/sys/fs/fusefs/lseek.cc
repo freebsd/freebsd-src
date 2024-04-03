@@ -113,6 +113,75 @@ TEST_F(LseekPathconf, already_seeked)
 }
 
 /*
+ * Use pathconf on a file not already opened.  The server returns EACCES when
+ * the kernel tries to open it.  The kernel should return EACCES, and make no
+ * judgement about whether the server does or does not support FUSE_LSEEK.
+ */
+TEST_F(LseekPathconf, eacces)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	off_t fsize = 1 << 30;	/* 1 GiB */
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.size = fsize;
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_OPEN &&
+				in.header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).Times(2)
+	.WillRepeatedly(Invoke(ReturnErrno(EACCES)));
+
+	EXPECT_EQ(-1, pathconf(FULLPATH, _PC_MIN_HOLE_SIZE));
+	EXPECT_EQ(EACCES, errno);
+	/* Check again, to ensure that the kernel didn't record the response */
+	EXPECT_EQ(-1, pathconf(FULLPATH, _PC_MIN_HOLE_SIZE));
+	EXPECT_EQ(EACCES, errno);
+}
+
+/*
+ * If the server returns some weird error when we try FUSE_LSEEK, send that to
+ * the caller but don't record the answer.
+ */
+TEST_F(LseekPathconf, eio)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	off_t fsize = 1 << 30;	/* 1 GiB */
+	int fd;
+
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, fsize, 1);
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_LSEEK);
+		}, Eq(true)),
+		_)
+	).Times(2)
+	.WillRepeatedly(Invoke(ReturnErrno(EIO)));
+
+	fd = open(FULLPATH, O_RDONLY);
+
+	EXPECT_EQ(-1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
+	EXPECT_EQ(EIO, errno);
+	/* Check again, to ensure that the kernel didn't record the response */
+	EXPECT_EQ(-1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
+	EXPECT_EQ(EIO, errno);
+
+	leak(fd);
+}
+
+/*
  * If no FUSE_LSEEK operation has been attempted since mount, try once as soon
  * as a pathconf request comes in.
  */
@@ -139,6 +208,34 @@ TEST_F(LseekPathconf, enosys_now)
 	EXPECT_EQ(EINVAL, errno);
 
 	leak(fd);
+}
+
+/*
+ * Use pathconf, rather than fpathconf, on a file not already opened.
+ * Regression test for https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=278135
+ */
+TEST_F(LseekPathconf, pathconf)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	off_t fsize = 1 << 30;	/* 1 GiB */
+	off_t offset_out = 1 << 29;
+
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, fsize, 1);
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_LSEEK);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, lseek);
+		out.body.lseek.offset = offset_out;
+	})));
+	expect_release(ino, FuseTest::FH);
+
+	EXPECT_EQ(1, pathconf(FULLPATH, _PC_MIN_HOLE_SIZE)) << strerror(errno);
 }
 
 /*
@@ -173,6 +270,38 @@ TEST_F(LseekPathconf, seek_now)
 	EXPECT_EQ(1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
 	/* And check that the file pointer hasn't changed */
 	EXPECT_EQ(offset_initial, lseek(fd, 0, SEEK_CUR));
+
+	leak(fd);
+}
+
+/*
+ * If the user calls pathconf(_, _PC_MIN_HOLE_SIZE) on a fully sparse or
+ * zero-length file, then SEEK_DATA will return ENXIO.  That should be
+ * interpreted as success.
+ */
+TEST_F(LseekPathconf, zerolength)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	off_t fsize = 0;
+	int fd;
+
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, fsize, 1);
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_LSEEK &&
+				in.header.nodeid == ino &&
+				in.body.lseek.whence == SEEK_DATA);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnErrno(ENXIO)));
+
+	fd = open(FULLPATH, O_RDONLY);
+	EXPECT_EQ(1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
+	/* Check again, to ensure that the kernel recorded the response */
+	EXPECT_EQ(1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
 
 	leak(fd);
 }
