@@ -553,13 +553,14 @@ again:
 	TARFS_DPF(ALLOC, "%s: [%c] %zu @%jd %o %d:%d\n", __func__,
 	    hdrp->typeflag[0], sz, (intmax_t)mtime, mode, uid, gid);
 
-	/* extended header? */
+	/* global extended header? */
 	if (hdrp->typeflag[0] == TAR_TYPE_GLOBAL_EXTHDR) {
-		printf("%s: unsupported global extended header at %zu\n",
-		    __func__, (size_t)(TARFS_BLOCKSIZE * (blknum - 1)));
-		error = EFTYPE;
-		goto bad;
+		TARFS_DPF(ALLOC, "%s: %zu-byte global extended header at %zu\n",
+		    __func__, sz, TARFS_BLOCKSIZE * (blknum - 1));
+		goto skip;
 	}
+
+	/* extended header? */
 	if (hdrp->typeflag[0] == TAR_TYPE_EXTHDR) {
 		if (exthdr != NULL) {
 			TARFS_DPF(IO, "%s: multiple extended headers at %zu\n",
@@ -568,7 +569,7 @@ again:
 			goto bad;
 		}
 		/* read the contents of the exthdr */
-		TARFS_DPF(ALLOC, "%s: %zu-byte extended header at %zd\n",
+		TARFS_DPF(ALLOC, "%s: %zu-byte extended header at %zu\n",
 		    __func__, sz, TARFS_BLOCKSIZE * (blknum - 1));
 		exthdr = malloc(sz, M_TEMP, M_WAITOK);
 		res = tarfs_io_read_buf(tmp, false, exthdr,

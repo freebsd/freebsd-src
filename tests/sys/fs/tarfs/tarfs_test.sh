@@ -357,6 +357,29 @@ tarfs_long_paths_cleanup() {
 	tarfs_cleanup
 }
 
+atf_test_case tarfs_git_archive cleanup
+tarfs_git_archive_head() {
+	atf_set "descr" "Verify that tarfs supports archives created by git"
+	atf_set "require.user" "root"
+	atf_set "require.progs" "git"
+}
+tarfs_git_archive_body() {
+	tarfs_setup
+	mkdir foo
+	echo "Hello, world!" >foo/bar
+	git -C foo init --initial-branch=tarfs
+	git -C foo config user.name "File System"
+	git -C foo config user.email fs@freebsd.org
+	git -C foo add bar
+	git -C foo commit -m bar
+	git -C foo archive --output=../tarfs_git_archive.tar HEAD
+	atf_check mount -rt tarfs tarfs_git_archive.tar "${mnt}"
+	atf_check -o file:foo/bar cat "${mnt}"/bar
+}
+tarfs_git_archive_cleanup() {
+	tarfs_cleanup
+}
+
 atf_init_test_cases() {
 	atf_add_test_case tarfs_basic
 	atf_add_test_case tarfs_basic_gnu
@@ -374,4 +397,5 @@ atf_init_test_cases() {
 	atf_add_test_case tarfs_checksum
 	atf_add_test_case tarfs_long_names
 	atf_add_test_case tarfs_long_paths
+	atf_add_test_case tarfs_git_archive
 }
