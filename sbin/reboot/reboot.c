@@ -113,8 +113,10 @@ zfsbootcfg(const char *pool, bool force)
 static void
 write_nextboot(const char *fn, const char *env, bool force)
 {
+	char tmp[PATH_MAX];
 	FILE *fp;
 	struct statfs sfs;
+	int tmpfd;
 	bool supported = false;
 	bool zfs = false;
 
@@ -138,21 +140,39 @@ write_nextboot(const char *fn, const char *env, bool force)
 		zfsbootcfg(sfs.f_mntfromname, force);
 	}
 
-	fp = fopen(fn, "w");
-	if (fp == NULL)
-		E("Can't create %s", fn);
+	if (strlcpy(tmp, fn, sizeof(tmp)) >= sizeof(tmp))
+		E("Path too long %s", fn);
+	if (strlcat(tmp, ".XXXXXX", sizeof(tmp)) >= sizeof(tmp))
+		E("Path too long %s", fn);
+	tmpfd = mkstemp(tmp);
+	if (tmpfd == -1)
+		E("mkstemp %s", tmp);
 
-	if (fprintf(fp,"%s%s",
+	fp = fdopen(tmpfd, "w");
+	if (fp == NULL)
+		E("fdopen %s", tmp);
+
+	if (fprintf(fp, "%s%s",
 	    supported ? "nextboot_enable=\"YES\"\n" : "",
 	    env != NULL ? env : "") < 0) {
 		int e;
 
 		e = errno;
-		fclose(fp);
-		if (unlink(fn))
-			warn("unlink %s", fn);
+		if (unlink(tmp))
+			warn("unlink %s", tmp);
 		errno = e;
-		E("Can't write %s", fn);
+		E("Can't write %s", tmp);
+	}
+	if (fsync(fileno(fp)) != 0)
+		E("Can't fsync %s", fn);
+	if (rename(tmp, fn) != 0) {
+		int e;
+
+		e = errno;
+		if (unlink(tmp))
+			warn("unlink %s", tmp);
+		errno = e;
+		E("Can't rename %s to %s", tmp, fn);
 	}
 	fclose(fp);
 }
@@ -194,8 +214,8 @@ add_env(char **env, const char *key, const char *value)
 /*
  * Different options are valid for different programs.
  */
-#define GETOPT_REBOOT "cDde:k:lNno:pqr"
-#define GETOPT_NEXTBOOT "De:k:o:"
+#define GETOPT_REBOOT "cDde:fk:lNno:pqr"
+#define GETOPT_NEXTBOOT "De:fk:o:"
 
 int
 main(int argc, char *argv[])
