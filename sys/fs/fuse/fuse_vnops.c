@@ -396,6 +396,9 @@ fuse_vnop_do_lseek(struct vnode *vp, struct thread *td, struct ucred *cred,
 	err = fdisp_wait_answ(&fdi);
 	if (err == ENOSYS) {
 		fsess_set_notimpl(mp, FUSE_LSEEK);
+	} else if (err == ENXIO) {
+		/* Note: ENXIO means "no more hole/data regions until EOF" */
+		fsess_set_impl(mp, FUSE_LSEEK);
 	} else if (err == 0) {
 		fsess_set_impl(mp, FUSE_LSEEK);
 		flso = fdi.answ;
@@ -1755,6 +1758,9 @@ fuse_vnop_pathconf(struct vop_pathconf_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct mount *mp;
+	struct fuse_filehandle *fufh;
+	int err;
+	bool closefufh = false;
 
 	switch (ap->a_name) {
 	case _PC_FILESIZEBITS:
@@ -1784,22 +1790,44 @@ fuse_vnop_pathconf(struct vop_pathconf_args *ap)
 		    !fsess_not_impl(mp, FUSE_LSEEK)) {
 			off_t offset = 0;
 
-			/* Issue a FUSE_LSEEK to find out if it's implemented */
-			fuse_vnop_do_lseek(vp, curthread, curthread->td_ucred,
-			    curthread->td_proc->p_pid, &offset, SEEK_DATA);
+			/*
+			 * Issue a FUSE_LSEEK to find out if it's supported.
+			 * Use SEEK_DATA instead of SEEK_HOLE, because the
+			 * latter generally requires sequential scans of file
+			 * metadata, which can be slow.
+			 */
+			err = fuse_vnop_do_lseek(vp, curthread,
+			    curthread->td_ucred, curthread->td_proc->p_pid,
+			    &offset, SEEK_DATA);
+			if (err == EBADF) {
+				/*
+				 * pathconf() doesn't necessarily open the
+				 * file.  So we may need to do it here.
+				 */
+				err = fuse_filehandle_open(vp, FREAD, &fufh,
+				    curthread, curthread->td_ucred);
+				if (err == 0) {
+					closefufh = true;
+					err = fuse_vnop_do_lseek(vp, curthread,
+					    curthread->td_ucred,
+					    curthread->td_proc->p_pid, &offset,
+					    SEEK_DATA);
+				}
+				if (closefufh)
+					fuse_filehandle_close(vp, fufh,
+					    curthread, curthread->td_ucred);
+			}
+
 		}
 
 		if (fsess_is_impl(mp, FUSE_LSEEK)) {
 			*ap->a_retval = 1;
 			return (0);
-		} else {
-			/*
-			 * Probably FUSE_LSEEK is not implemented.  It might
-			 * be, if the FUSE_LSEEK above returned an error like
-			 * EACCES, but in that case we can't tell, so it's
-			 * safest to report EINVAL anyway.
-			 */
+		} else if (fsess_not_impl(mp, FUSE_LSEEK)) {
+			/* FUSE_LSEEK is not implemented */
 			return (EINVAL);
+		} else {
+			return (err);
 		}
 	default:
 		return (vop_stdpathconf(ap));
