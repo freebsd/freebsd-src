@@ -156,6 +156,7 @@ MAC		opt_global.h
 MAC_BIBA	opt_dontuse.h
 MAC_BSDEXTENDED	opt_dontuse.h
 MAC_DDB		opt_dontuse.h
+MAC_DEBUG	opt_mac.h
 MAC_IFOFF	opt_dontuse.h
 MAC_IPACL	opt_dontuse.h
 MAC_LOMAC	opt_dontuse.h
@@ -171,6 +172,7 @@ MAC_STUB	opt_dontuse.h
 MAC_TEST	opt_dontuse.h
 MAC_GRANTBYLABEL	opt_dontuse.h
 MAC_VERIEXEC	opt_dontuse.h
+MAC_VERIEXEC_DEBUG	opt_mac.h
 MAC_VERIEXEC_SHA1	opt_dontuse.h
 MAC_VERIEXEC_SHA256	opt_dontuse.h
 MAC_VERIEXEC_SHA384	opt_dontuse.h
