@@ -59,6 +59,9 @@
 #define	MB	(1024 * 1024UL)
 #define	GB	(1024 * 1024 * 1024UL)
 
+#define	VM_LOWMEM_LIMIT	(3 * GB)
+#define	VM_HIGHMEM_BASE	(4 * GB)
+
 /*
  * Size of the guard region before and after the virtual address space
  * mapping the guest physical memory. This must be a multiple of the
@@ -110,9 +113,9 @@ vm_open(const char *name)
 
 	vm->fd = -1;
 	vm->memflags = 0;
-	vm->lowmem_limit = 3 * GB;
 	vm->name = (char *)(vm + 1);
 	strcpy(vm->name, name);
+	memset(vm->memsegs, 0, sizeof(vm->memsegs));
 
 	if ((vm->fd = vm_device_open(vm->name)) < 0)
 		goto err;
@@ -194,17 +197,10 @@ vm_parse_memsize(const char *opt, size_t *ret_memsize)
 }
 
 uint32_t
-vm_get_lowmem_limit(struct vmctx *ctx)
+vm_get_lowmem_limit(struct vmctx *ctx __unused)
 {
 
-	return (ctx->lowmem_limit);
-}
-
-void
-vm_set_lowmem_limit(struct vmctx *ctx, uint32_t limit)
-{
-
-	ctx->lowmem_limit = limit;
+	return (VM_LOWMEM_LIMIT);
 }
 
 void
@@ -266,8 +262,8 @@ vm_get_guestmem_from_ctx(struct vmctx *ctx, char **guest_baseaddr,
 {
 
 	*guest_baseaddr = ctx->baseaddr;
-	*lowmem_size = ctx->lowmem;
-	*highmem_size = ctx->highmem;
+	*lowmem_size = ctx->memsegs[VM_MEMSEG_LOW].size;
+	*highmem_size = ctx->memsegs[VM_MEMSEG_HIGH].size;
 	return (0);
 }
 
@@ -418,17 +414,17 @@ vm_setup_memory(struct vmctx *ctx, size_t memsize, enum vm_mmap_style vms)
 	assert(vms == VM_MMAP_ALL);
 
 	/*
-	 * If 'memsize' cannot fit entirely in the 'lowmem' segment then
-	 * create another 'highmem' segment above 4GB for the remainder.
+	 * If 'memsize' cannot fit entirely in the 'lowmem' segment then create
+	 * another 'highmem' segment above VM_HIGHMEM_BASE for the remainder.
 	 */
-	if (memsize > ctx->lowmem_limit) {
-		ctx->lowmem = ctx->lowmem_limit;
-		ctx->highmem = memsize - ctx->lowmem_limit;
-		objsize = 4*GB + ctx->highmem;
+	if (memsize > VM_LOWMEM_LIMIT) {
+		ctx->memsegs[VM_MEMSEG_LOW].size = VM_LOWMEM_LIMIT;
+		ctx->memsegs[VM_MEMSEG_HIGH].size = memsize - VM_LOWMEM_LIMIT;
+		objsize = VM_HIGHMEM_BASE + ctx->memsegs[VM_MEMSEG_HIGH].size;
 	} else {
-		ctx->lowmem = memsize;
-		ctx->highmem = 0;
-		objsize = ctx->lowmem;
+		ctx->memsegs[VM_MEMSEG_LOW].size = memsize;
+		ctx->memsegs[VM_MEMSEG_HIGH].size = 0;
+		objsize = memsize;
 	}
 
 	error = vm_alloc_memseg(ctx, VM_SYSMEM, objsize, NULL);
@@ -445,17 +441,17 @@ vm_setup_memory(struct vmctx *ctx, size_t memsize, enum vm_mmap_style vms)
 		return (-1);
 
 	baseaddr = ptr + VM_MMAP_GUARD_SIZE;
-	if (ctx->highmem > 0) {
-		gpa = 4*GB;
-		len = ctx->highmem;
+	if (ctx->memsegs[VM_MEMSEG_HIGH].size > 0) {
+		gpa = VM_HIGHMEM_BASE;
+		len = ctx->memsegs[VM_MEMSEG_HIGH].size;
 		error = setup_memory_segment(ctx, gpa, len, baseaddr);
 		if (error)
 			return (error);
 	}
 
-	if (ctx->lowmem > 0) {
+	if (ctx->memsegs[VM_MEMSEG_LOW].size > 0) {
 		gpa = 0;
-		len = ctx->lowmem;
+		len = ctx->memsegs[VM_MEMSEG_LOW].size;
 		error = setup_memory_segment(ctx, gpa, len, baseaddr);
 		if (error)
 			return (error);
@@ -476,20 +472,19 @@ vm_setup_memory(struct vmctx *ctx, size_t memsize, enum vm_mmap_style vms)
 void *
 vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len)
 {
+	vm_size_t lowsize, highsize;
 
-	if (ctx->lowmem > 0) {
-		if (gaddr < ctx->lowmem && len <= ctx->lowmem &&
-		    gaddr + len <= ctx->lowmem)
+	lowsize = ctx->memsegs[VM_MEMSEG_LOW].size;
+	if (lowsize > 0) {
+		if (gaddr < lowsize && len <= lowsize && gaddr + len <= lowsize)
 			return (ctx->baseaddr + gaddr);
 	}
 
-	if (ctx->highmem > 0) {
-                if (gaddr >= 4*GB) {
-			if (gaddr < 4*GB + ctx->highmem &&
-			    len <= ctx->highmem &&
-			    gaddr + len <= 4*GB + ctx->highmem)
-				return (ctx->baseaddr + gaddr);
-		}
+	highsize = ctx->memsegs[VM_MEMSEG_HIGH].size;
+	if (highsize > 0 && gaddr >= VM_HIGHMEM_BASE) {
+		if (gaddr < VM_HIGHMEM_BASE + highsize && len <= highsize &&
+		    gaddr + len <= VM_HIGHMEM_BASE + highsize)
+			return (ctx->baseaddr + gaddr);
 	}
 
 	return (NULL);
@@ -499,15 +494,19 @@ vm_paddr_t
 vm_rev_map_gpa(struct vmctx *ctx, void *addr)
 {
 	vm_paddr_t offaddr;
+	vm_size_t lowsize, highsize;
 
 	offaddr = (char *)addr - ctx->baseaddr;
 
-	if (ctx->lowmem > 0)
-		if (offaddr <= ctx->lowmem)
+	lowsize = ctx->memsegs[VM_MEMSEG_LOW].size;
+	if (lowsize > 0)
+		if (offaddr <= lowsize)
 			return (offaddr);
 
-	if (ctx->highmem > 0)
-		if (offaddr >= 4*GB && offaddr < 4*GB + ctx->highmem)
+	highsize = ctx->memsegs[VM_MEMSEG_HIGH].size;
+	if (highsize > 0)
+		if (offaddr >= VM_HIGHMEM_BASE &&
+		    offaddr < VM_HIGHMEM_BASE + highsize)
 			return (offaddr);
 
 	return ((vm_paddr_t)-1);
@@ -524,14 +523,21 @@ size_t
 vm_get_lowmem_size(struct vmctx *ctx)
 {
 
-	return (ctx->lowmem);
+	return (ctx->memsegs[VM_MEMSEG_LOW].size);
+}
+
+vm_paddr_t
+vm_get_highmem_base(struct vmctx *ctx __unused)
+{
+
+	return (VM_HIGHMEM_BASE);
 }
 
 size_t
 vm_get_highmem_size(struct vmctx *ctx)
 {
 
-	return (ctx->highmem);
+	return (ctx->memsegs[VM_MEMSEG_HIGH].size);
 }
 
 void *

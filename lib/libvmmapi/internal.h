@@ -9,12 +9,19 @@
 
 #include <sys/types.h>
 
+enum {
+	VM_MEMSEG_LOW,
+	VM_MEMSEG_HIGH,
+	VM_MEMSEG_COUNT,
+};
+
 struct vmctx {
 	int	fd;
-	uint32_t lowmem_limit;
+	struct {
+		vm_paddr_t base;
+		vm_size_t size;
+	} memsegs[VM_MEMSEG_COUNT];
 	int	memflags;
-	size_t	lowmem;
-	size_t	highmem;
 	char	*baseaddr;
 	char	*name;
 };
