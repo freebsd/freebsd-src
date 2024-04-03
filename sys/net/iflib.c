@@ -6850,32 +6850,32 @@ iflib_add_device_sysctl_post(if_ctx_t ctx)
 			       CTLFLAG_RD,
 			       &txq->ift_task.gt_cpu, 0, "cpu this queue is bound to");
 #if MEMORY_LOGGING
-		SYSCTL_ADD_QUAD(ctx_list, queue_list, OID_AUTO, "txq_dequeued",
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "txq_dequeued",
 				CTLFLAG_RD,
 				&txq->ift_dequeued, "total mbufs freed");
-		SYSCTL_ADD_QUAD(ctx_list, queue_list, OID_AUTO, "txq_enqueued",
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "txq_enqueued",
 				CTLFLAG_RD,
 				&txq->ift_enqueued, "total mbufs enqueued");
 #endif
-		SYSCTL_ADD_QUAD(ctx_list, queue_list, OID_AUTO, "mbuf_defrag",
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "mbuf_defrag",
 				   CTLFLAG_RD,
 				   &txq->ift_mbuf_defrag, "# of times m_defrag was called");
-		SYSCTL_ADD_QUAD(ctx_list, queue_list, OID_AUTO, "m_pullups",
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "m_pullups",
 				   CTLFLAG_RD,
 				   &txq->ift_pullups, "# of times m_pullup was called");
-		SYSCTL_ADD_QUAD(ctx_list, queue_list, OID_AUTO, "mbuf_defrag_failed",
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "mbuf_defrag_failed",
 				   CTLFLAG_RD,
 				   &txq->ift_mbuf_defrag_failed, "# of times m_defrag failed");
-		SYSCTL_ADD_QUAD(ctx_list, queue_list, OID_AUTO, "no_desc_avail",
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "no_desc_avail",
 				   CTLFLAG_RD,
 				   &txq->ift_no_desc_avail, "# of times no descriptors were available");
-		SYSCTL_ADD_QUAD(ctx_list, queue_list, OID_AUTO, "tx_map_failed",
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "tx_map_failed",
 				   CTLFLAG_RD,
 				   &txq->ift_map_failed, "# of times DMA map failed");
-		SYSCTL_ADD_QUAD(ctx_list, queue_list, OID_AUTO, "txd_encap_efbig",
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "txd_encap_efbig",
 				   CTLFLAG_RD,
 				   &txq->ift_txd_encap_efbig, "# of times txd_encap returned EFBIG");
-		SYSCTL_ADD_QUAD(ctx_list, queue_list, OID_AUTO, "no_tx_dma_setup",
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "no_tx_dma_setup",
 				   CTLFLAG_RD,
 				   &txq->ift_no_tx_dma_setup, "# of times map failed for other than EFBIG");
 		SYSCTL_ADD_U16(ctx_list, queue_list, OID_AUTO, "txq_pidx",
@@ -6890,10 +6890,10 @@ iflib_add_device_sysctl_post(if_ctx_t ctx)
 		SYSCTL_ADD_U16(ctx_list, queue_list, OID_AUTO, "txq_in_use",
 				   CTLFLAG_RD,
 				   &txq->ift_in_use, 1, "descriptors in use");
-		SYSCTL_ADD_QUAD(ctx_list, queue_list, OID_AUTO, "txq_processed",
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "txq_processed",
 				   CTLFLAG_RD,
 				   &txq->ift_processed, "descriptors procesed for clean");
-		SYSCTL_ADD_QUAD(ctx_list, queue_list, OID_AUTO, "txq_cleaned",
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "txq_cleaned",
 				   CTLFLAG_RD,
 				   &txq->ift_cleaned, "total cleaned");
 		SYSCTL_ADD_PROC(ctx_list, queue_list, OID_AUTO, "ring_state",
@@ -6958,16 +6958,16 @@ iflib_add_device_sysctl_post(if_ctx_t ctx)
 				       CTLFLAG_RD,
 				       &fl->ifl_buf_size, 1, "buffer size");
 #if MEMORY_LOGGING
-			SYSCTL_ADD_QUAD(ctx_list, fl_list, OID_AUTO, "fl_m_enqueued",
+			SYSCTL_ADD_UQUAD(ctx_list, fl_list, OID_AUTO, "fl_m_enqueued",
 					CTLFLAG_RD,
 					&fl->ifl_m_enqueued, "mbufs allocated");
-			SYSCTL_ADD_QUAD(ctx_list, fl_list, OID_AUTO, "fl_m_dequeued",
+			SYSCTL_ADD_UQUAD(ctx_list, fl_list, OID_AUTO, "fl_m_dequeued",
 					CTLFLAG_RD,
 					&fl->ifl_m_dequeued, "mbufs freed");
-			SYSCTL_ADD_QUAD(ctx_list, fl_list, OID_AUTO, "fl_cl_enqueued",
+			SYSCTL_ADD_UQUAD(ctx_list, fl_list, OID_AUTO, "fl_cl_enqueued",
 					CTLFLAG_RD,
 					&fl->ifl_cl_enqueued, "clusters allocated");
-			SYSCTL_ADD_QUAD(ctx_list, fl_list, OID_AUTO, "fl_cl_dequeued",
+			SYSCTL_ADD_UQUAD(ctx_list, fl_list, OID_AUTO, "fl_cl_dequeued",
 					CTLFLAG_RD,
 					&fl->ifl_cl_dequeued, "clusters freed");
 #endif
