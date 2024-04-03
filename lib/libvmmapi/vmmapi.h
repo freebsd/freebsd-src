@@ -158,9 +158,9 @@ int	vm_run(struct vcpu *vcpu, struct vm_run *vmrun);
 int	vm_suspend(struct vmctx *ctx, enum vm_suspend_how how);
 int	vm_reinit(struct vmctx *ctx);
 int	vm_apicid2vcpu(struct vmctx *ctx, int apicid);
+#ifdef __amd64__
 int	vm_inject_exception(struct vcpu *vcpu, int vector,
     int errcode_valid, uint32_t errcode, int restart_instruction);
-#ifdef __amd64__
 int	vm_lapic_irq(struct vcpu *vcpu, int vector);
 int	vm_lapic_local_irq(struct vcpu *vcpu, int vector);
 int	vm_lapic_msi(struct vmctx *ctx, uint64_t addr, uint64_t msg);
@@ -174,9 +174,9 @@ int	vm_isa_pulse_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq);
 int	vm_isa_set_irq_trigger(struct vmctx *ctx, int atpic_irq,
 	    enum vm_intr_trigger trigger);
 int	vm_inject_nmi(struct vcpu *vcpu);
-#endif
 int	vm_readwrite_kernemu_device(struct vcpu *vcpu,
 	    vm_paddr_t gpa, bool write, int size, uint64_t *value);
+#endif
 int	vm_capability_name2type(const char *capname);
 const char *vm_capability_type2name(int type);
 int	vm_get_capability(struct vcpu *vcpu, enum vm_cap_type cap,
@@ -206,10 +206,12 @@ uint64_t *vm_get_stats(struct vcpu *vcpu, struct timeval *ret_tv,
 		       int *ret_entries);
 const char *vm_get_stat_desc(struct vmctx *ctx, int index);
 
+#ifdef __amd64__
 int	vm_get_x2apic_state(struct vcpu *vcpu, enum x2apic_state *s);
 int	vm_set_x2apic_state(struct vcpu *vcpu, enum x2apic_state s);
 
 int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
+#endif
 
 /*
  * Translate the GLA range [gla,gla+len) into GPA segments in 'iov'.
@@ -227,11 +229,13 @@ void	vm_copyin(struct iovec *guest_iov, void *host_dst, size_t len);
 void	vm_copyout(const void *host_src, struct iovec *guest_iov, size_t len);
 void	vm_copy_teardown(struct iovec *iov, int iovcnt);
 
+#ifdef __amd64__
 /* RTC */
 int	vm_rtc_write(struct vmctx *ctx, int offset, uint8_t value);
 int	vm_rtc_read(struct vmctx *ctx, int offset, uint8_t *retval);
 int	vm_rtc_settime(struct vmctx *ctx, time_t secs);
 int	vm_rtc_gettime(struct vmctx *ctx, time_t *secs);
+#endif
 
 /* Reset vcpu register state */
 int	vcpu_reset(struct vcpu *vcpu);

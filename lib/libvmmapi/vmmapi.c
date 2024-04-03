@@ -680,38 +680,6 @@ vm_reinit(struct vmctx *ctx)
 }
 
 int
-vm_inject_exception(struct vcpu *vcpu, int vector, int errcode_valid,
-    uint32_t errcode, int restart_instruction)
-{
-	struct vm_exception exc;
-
-	exc.vector = vector;
-	exc.error_code = errcode;
-	exc.error_code_valid = errcode_valid;
-	exc.restart_instruction = restart_instruction;
-
-	return (vcpu_ioctl(vcpu, VM_INJECT_EXCEPTION, &exc));
-}
-
-int
-vm_readwrite_kernemu_device(struct vcpu *vcpu, vm_paddr_t gpa,
-    bool write, int size, uint64_t *value)
-{
-	struct vm_readwrite_kernemu_device irp = {
-		.access_width = fls(size) - 1,
-		.gpa = gpa,
-		.value = write ? *value : ~0ul,
-	};
-	long cmd = (write ? VM_SET_KERNEMU_DEV : VM_GET_KERNEMU_DEV);
-	int rc;
-
-	rc = vcpu_ioctl(vcpu, cmd, &irp);
-	if (rc == 0 && !write)
-		*value = irp.value;
-	return (rc);
-}
-
-int
 vm_capability_name2type(const char *capname)
 {
 	int i;
@@ -925,33 +893,6 @@ vm_get_stat_desc(struct vmctx *ctx, int index)
 }
 
 int
-vm_get_x2apic_state(struct vcpu *vcpu, enum x2apic_state *state)
-{
-	int error;
-	struct vm_x2apic x2apic;
-
-	bzero(&x2apic, sizeof(x2apic));
-
-	error = vcpu_ioctl(vcpu, VM_GET_X2APIC_STATE, &x2apic);
-	*state = x2apic.state;
-	return (error);
-}
-
-int
-vm_set_x2apic_state(struct vcpu *vcpu, enum x2apic_state state)
-{
-	int error;
-	struct vm_x2apic x2apic;
-
-	bzero(&x2apic, sizeof(x2apic));
-	x2apic.state = state;
-
-	error = vcpu_ioctl(vcpu, VM_SET_X2APIC_STATE, &x2apic);
-
-	return (error);
-}
-
-int
 vm_get_gpa_pmap(struct vmctx *ctx, uint64_t gpa, uint64_t *pte, int *num)
 {
 	int error, i;
@@ -968,19 +909,6 @@ vm_get_gpa_pmap(struct vmctx *ctx, uint64_t gpa, uint64_t *pte, int *num)
 			pte[i] = gpapte.pte[i];
 	}
 
-	return (error);
-}
-
-int
-vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities)
-{
-	int error;
-	struct vm_hpet_cap cap;
-
-	bzero(&cap, sizeof(struct vm_hpet_cap));
-	error = ioctl(ctx->fd, VM_GET_HPET_CAPABILITIES, &cap);
-	if (capabilities != NULL)
-		*capabilities = cap.capabilities;
 	return (error);
 }
 
@@ -1233,58 +1161,6 @@ vm_set_intinfo(struct vcpu *vcpu, uint64_t info1)
 	bzero(&vmii, sizeof(struct vm_intinfo));
 	vmii.info1 = info1;
 	error = vcpu_ioctl(vcpu, VM_SET_INTINFO, &vmii);
-	return (error);
-}
-
-int
-vm_rtc_write(struct vmctx *ctx, int offset, uint8_t value)
-{
-	struct vm_rtc_data rtcdata;
-	int error;
-
-	bzero(&rtcdata, sizeof(struct vm_rtc_data));
-	rtcdata.offset = offset;
-	rtcdata.value = value;
-	error = ioctl(ctx->fd, VM_RTC_WRITE, &rtcdata);
-	return (error);
-}
-
-int
-vm_rtc_read(struct vmctx *ctx, int offset, uint8_t *retval)
-{
-	struct vm_rtc_data rtcdata;
-	int error;
-
-	bzero(&rtcdata, sizeof(struct vm_rtc_data));
-	rtcdata.offset = offset;
-	error = ioctl(ctx->fd, VM_RTC_READ, &rtcdata);
-	if (error == 0)
-		*retval = rtcdata.value;
-	return (error);
-}
-
-int
-vm_rtc_settime(struct vmctx *ctx, time_t secs)
-{
-	struct vm_rtc_time rtctime;
-	int error;
-
-	bzero(&rtctime, sizeof(struct vm_rtc_time));
-	rtctime.secs = secs;
-	error = ioctl(ctx->fd, VM_RTC_SETTIME, &rtctime);
-	return (error);
-}
-
-int
-vm_rtc_gettime(struct vmctx *ctx, time_t *secs)
-{
-	struct vm_rtc_time rtctime;
-	int error;
-
-	bzero(&rtctime, sizeof(struct vm_rtc_time));
-	error = ioctl(ctx->fd, VM_RTC_GETTIME, &rtctime);
-	if (error == 0)
-		*secs = rtctime.secs;
 	return (error);
 }
 
