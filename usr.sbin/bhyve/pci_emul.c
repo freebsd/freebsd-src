@@ -129,20 +129,31 @@ struct boot_device {
 static TAILQ_HEAD(boot_list, boot_device) boot_devices = TAILQ_HEAD_INITIALIZER(
     boot_devices);
 
+#if defined(__amd64__)
 #define	PCI_EMUL_IOBASE		0x2000
 #define	PCI_EMUL_IOLIMIT	0x10000
+#define	PCI_EMUL_IOMASK		0xffff
+/*
+ * OVMF always uses 0xc0000000 as base address for 32 bit PCI MMIO. Don't
+ * change this address without changing it in OVMF.
+ */
+#define	PCI_EMUL_MEMBASE32	0xc0000000
+#elif defined(__aarch64__)
+#define	PCI_EMUL_IOBASE		0x00df00000UL
+#define	PCI_EMUL_IOLIMIT	0x00e000000UL
+#define	PCI_EMUL_MEMBASE32	0x0a0000000UL
+#else
+#error Unsupported platform
+#endif
 
-#define PCI_EMUL_ROMSIZE 0x10000000
+#define	PCI_EMUL_ROMSIZE	0x10000000
 
 #define	PCI_EMUL_ECFG_BASE	0xE0000000		    /* 3.5GB */
 #define	PCI_EMUL_ECFG_SIZE	(MAXBUSES * 1024 * 1024)    /* 1MB per bus */
+#ifdef __amd64__
 SYSRES_MEM(PCI_EMUL_ECFG_BASE, PCI_EMUL_ECFG_SIZE);
+#endif
 
-/*
- * OVMF always uses 0xC0000000 as base address for 32 bit PCI MMIO. Don't
- * change this address without changing it in OVMF.
- */
-#define PCI_EMUL_MEMBASE32 0xC0000000
 #define	PCI_EMUL_MEMLIMIT32	PCI_EMUL_ECFG_BASE
 #define PCI_EMUL_MEMSIZE64	(32*GB)
 
@@ -1635,13 +1646,25 @@ init_pci(struct vmctx *ctx)
 	}
 
 	/*
-	 * The guest physical memory map looks like the following:
+	 * The guest physical memory map looks like the following on amd64:
 	 * [0,		    lowmem)		guest system memory
 	 * [lowmem,	    0xC0000000)		memory hole (may be absent)
 	 * [0xC0000000,     0xE0000000)		PCI hole (32-bit BAR allocation)
 	 * [0xE0000000,	    0xF0000000)		PCI extended config window
 	 * [0xF0000000,	    4GB)		LAPIC, IOAPIC, HPET, firmware
-	 * [4GB,	    4GB + highmem)
+	 * [4GB,	    4GB + highmem)	guest system memory
+	 * [roundup(4GB + highmem, 32GB), ...)	PCI 64-bit BAR allocation
+	 *
+	 * On arm64 the guest physical memory map looks like this:
+	 * [0x0DF00000,	    0x10000000)		PCI I/O memory
+	 * [0xA0000000,	    0xE0000000)		PCI 32-bit BAR allocation
+	 * [0xE0000000,	    0xF0000000)		PCI extended config window
+	 * [4GB,	    4GB + highmem)	guest system memory
+	 * [roundup(4GB + highmem, 32GB), ...)	PCI 64-bit BAR allocation
+	 *
+	 * "lowmem" is guest memory below 0xC0000000.  amd64 guests provisioned
+	 * with less than 3GB of RAM will have no memory above the 4GB boundary.
+	 * System memory for arm64 guests is all above the 4GB boundary.
 	 */
 
 	/*
@@ -1750,6 +1773,7 @@ pci_bus_write_dsdt(int bus)
 	dsdt_line("        0x0001,             // Length");
 	dsdt_line("        ,, )");
 
+#ifdef __amd64__
 	if (bus == 0) {
 		dsdt_indent(3);
 		dsdt_fixed_ioport(0xCF8, 8);
@@ -1780,6 +1804,7 @@ pci_bus_write_dsdt(int bus)
 			goto done;
 		}
 	}
+#endif
 	assert(bi != NULL);
 
 	/* i/o window */
@@ -1855,7 +1880,9 @@ pci_bus_write_dsdt(int bus)
 		}
 	}
 	dsdt_unindent(2);
+#ifdef __amd64__
 done:
+#endif
 	dsdt_line("  }");
 }
 
@@ -2337,7 +2364,9 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 				break;
 			case PCIBAR_IO:
 				addr = *valp & mask;
-				addr &= 0xffff;
+#if defined(PCI_EMUL_IOMASK)
+				addr &= PCI_EMUL_IOMASK;
+#endif
 				bar = addr | pi->pi_bar[idx].lobits;
 				/*
 				 * Register the new BAR value for interception
