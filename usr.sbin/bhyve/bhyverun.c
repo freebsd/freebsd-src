@@ -561,11 +561,12 @@ do_open(const char *vmname)
 	int error;
 	bool reinit, romboot;
 
-	reinit = romboot = false;
+	reinit = false;
 
 #ifdef __amd64__
-	if (lpc_bootrom())
-		romboot = true;
+	romboot = lpc_bootrom() != NULL;
+#else
+	romboot = true;
 #endif
 
 	error = vm_create(vmname);
