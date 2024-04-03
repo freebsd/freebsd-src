@@ -1,20 +1,35 @@
 
-.if ${MACHINE_CPUARCH} == "aarch64" || \
-    ${MACHINE_CPUARCH} == "arm" || \
-    ${MACHINE_ARCH} == "amd64" || \
-    ${MACHINE_ARCH} == "i386" || \
-    ${MACHINE_ARCH} == "powerpc64le" || \
-    ${MACHINE_CPUARCH} == "riscv"
+MACHINE_ARCH_LIST.little = \
+	aarch64 \
+	amd64 \
+	armv7 \
+	i386 \
+	powerpc64le \
+	riscv*
+
+MACHINE_ARCH_LIST.big = \
+	powerpc \
+	powerpc64
+
+.for e in big little
+N_$e:= ${MACHINE_ARCH_LIST.$e:${M_ListToSkip}}
+.endfor
+
+# For the host, we need to look at the host architecture
+.if ${MACHINE:Nhost*} == ""
+_ENDIAN_ARCH=${_HOST_ARCH}
+.else
+_ENDIAN_ARCH=${MACHINE_ARCH}
+.endif
+
+.if ${_ENDIAN_ARCH:${N_little}} == ""
 TARGET_ENDIANNESS= 1234
 CAP_MKDB_ENDIAN= -l
 LOCALEDEF_ENDIAN= -l
-.elif ${MACHINE_ARCH} == "powerpc" || \
-    ${MACHINE_ARCH} == "powerpc64"
+.elif ${_ENDIAN_ARCH:${N_big}} == ""
 TARGET_ENDIANNESS= 4321
 CAP_MKDB_ENDIAN= -b
 LOCALEDEF_ENDIAN= -b
-.elif ${.MAKE.OS} == "FreeBSD"
-.error Don't know the endian of this architecture
 .else
 #
 # During bootstrapping on !FreeBSD OSes, we need to define some value.  Short of
@@ -32,4 +47,8 @@ TARGET_ENDIANNESS= 1234
 .endif
 CAP_MKDB_ENDIAN= -B	# Poisoned value, invalid flags for both cap_mkdb
 LOCALEDEF_ENDIAN= -B	# and localedef.
+.endif
+
+.if empty(TARGET_ENDIANNESS) && ${.MAKE.OS} == "FreeBSD"
+.error Don't know the endianness of this architecture
 .endif
