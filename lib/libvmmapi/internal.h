@@ -24,4 +24,6 @@ struct vcpu {
 
 int	vcpu_ioctl(struct vcpu *vcpu, u_long cmd, void *arg);
 
+extern const char *vm_capstrmap[];
+
 #endif /* !__VMMAPI_INTERNAL_H__ */

@@ -711,27 +711,14 @@ vm_readwrite_kernemu_device(struct vcpu *vcpu, vm_paddr_t gpa,
 	return (rc);
 }
 
-static const char *capstrmap[] = {
-	[VM_CAP_HALT_EXIT]  = "hlt_exit",
-	[VM_CAP_MTRAP_EXIT] = "mtrap_exit",
-	[VM_CAP_PAUSE_EXIT] = "pause_exit",
-	[VM_CAP_UNRESTRICTED_GUEST] = "unrestricted_guest",
-	[VM_CAP_ENABLE_INVPCID] = "enable_invpcid",
-	[VM_CAP_BPT_EXIT] = "bpt_exit",
-	[VM_CAP_RDPID] = "rdpid",
-	[VM_CAP_RDTSCP] = "rdtscp",
-	[VM_CAP_IPI_EXIT] = "ipi_exit",
-	[VM_CAP_MASK_HWINTR] = "mask_hwintr",
-	[VM_CAP_RFLAGS_TF] = "rflags_tf",
-};
-
 int
 vm_capability_name2type(const char *capname)
 {
 	int i;
 
-	for (i = 0; i < (int)nitems(capstrmap); i++) {
-		if (strcmp(capstrmap[i], capname) == 0)
+	for (i = 0; i < VM_CAP_MAX; i++) {
+		if (vm_capstrmap[i] != NULL &&
+		    strcmp(vm_capstrmap[i], capname) == 0)
 			return (i);
 	}
 
@@ -741,8 +728,8 @@ vm_capability_name2type(const char *capname)
 const char *
 vm_capability_type2name(int type)
 {
-	if (type >= 0 && type < (int)nitems(capstrmap))
-		return (capstrmap[type]);
+	if (type >= 0 && type < VM_CAP_MAX)
+		return (vm_capstrmap[type]);
 
 	return (NULL);
 }
