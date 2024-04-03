@@ -276,7 +276,7 @@ db_pprint_ptr(db_addr_t addr, struct ctf_type_v3 *type, u_int depth)
 		if (name != NULL)
 			db_printf("(%s%s *) 0x%lx", qual, name, (long)val);
 		else
-			db_printf("0x%lx", (long)val);
+			db_printf("(%s *) 0x%lx", qual, (long)val);
 	}
 }
 
