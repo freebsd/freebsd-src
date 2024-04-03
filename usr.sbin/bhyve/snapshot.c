@@ -758,8 +758,8 @@ vm_snapshot_mem(struct vmctx *ctx, int snapfd, size_t memsz, const bool op_wr)
 	if (highmem == 0)
 		goto done;
 
-	ret = vm_snapshot_mem_part(snapfd, lowmem, baseaddr + 4*GB,
-		highmem, totalmem, op_wr);
+	ret = vm_snapshot_mem_part(snapfd, lowmem,
+	    baseaddr + vm_get_highmem_base(ctx), highmem, totalmem, op_wr);
 	if (ret) {
 		fprintf(stderr, "%s: Could not %s highmem\r\n",
 		        __func__, op_wr ? "write" : "read");
