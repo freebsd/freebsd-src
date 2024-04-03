@@ -37,6 +37,21 @@
 #include "vmmapi.h"
 #include "internal.h"
 
+const char *vm_capstrmap[] = {
+	[VM_CAP_HALT_EXIT]  = "hlt_exit",
+	[VM_CAP_MTRAP_EXIT] = "mtrap_exit",
+	[VM_CAP_PAUSE_EXIT] = "pause_exit",
+	[VM_CAP_UNRESTRICTED_GUEST] = "unrestricted_guest",
+	[VM_CAP_ENABLE_INVPCID] = "enable_invpcid",
+	[VM_CAP_BPT_EXIT] = "bpt_exit",
+	[VM_CAP_RDPID] = "rdpid",
+	[VM_CAP_RDTSCP] = "rdtscp",
+	[VM_CAP_IPI_EXIT] = "ipi_exit",
+	[VM_CAP_MASK_HWINTR] = "mask_hwintr",
+	[VM_CAP_RFLAGS_TF] = "rflags_tf",
+	[VM_CAP_MAX] = NULL,
+};
+
 int
 vm_set_desc(struct vcpu *vcpu, int reg,
 	    uint64_t base, uint32_t limit, uint32_t access)
