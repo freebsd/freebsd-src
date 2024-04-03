@@ -390,9 +390,24 @@ enum nvme_psdt {
 /* per namespace smart/health log page */
 #define NVME_CTRLR_DATA_LPA_NS_SMART_SHIFT		(0)
 #define NVME_CTRLR_DATA_LPA_NS_SMART_MASK		(0x1)
+/* Commands Supported and Effects log page */
+#define NVME_CTRLR_DATA_LPA_CMD_EFFECTS_SHIFT		(1)
+#define NVME_CTRLR_DATA_LPA_CMD_EFFECTS_MASK		(0x1)
 /* extended data for Get Log Page command */
 #define NVME_CTRLR_DATA_LPA_EXT_DATA_SHIFT		(2)
 #define NVME_CTRLR_DATA_LPA_EXT_DATA_MASK		(0x1)
+/* telemetry */
+#define NVME_CTRLR_DATA_LPA_TELEMETRY_SHIFT		(3)
+#define NVME_CTRLR_DATA_LPA_TELEMETRY_MASK		(0x1)
+/* persistent event */
+#define NVME_CTRLR_DATA_LPA_PERSISTENT_EVENT_SHIFT	(4)
+#define NVME_CTRLR_DATA_LPA_PERSISTENT_EVENT_MASK	(0x1)
+/* Supported log pages, etc */
+#define NVME_CTRLR_DATA_LPA_LOG_PAGES_PAGE_SHIFT	(5)
+#define NVME_CTRLR_DATA_LPA_LOG_PAGES_PAGE_MASK		(0x1)
+/* Data Area 4 for Telemetry */
+#define NVME_CTRLR_DATA_LPA_DA4_TELEMETRY_SHIFT		(6)
+#define NVME_CTRLR_DATA_LPA_DA4_TELEMETRY_MASK		(0x1)
 
 /** AVSCC - admin vendor specific command configuration */
 /* admin vendor specific commands use spec format */
