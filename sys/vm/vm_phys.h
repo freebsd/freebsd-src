@@ -89,7 +89,7 @@ vm_paddr_t vm_phys_avail_size(int i);
 bool vm_phys_is_dumpable(vm_paddr_t pa);
 
 static inline int
-vm_phys_domain(vm_paddr_t pa)
+vm_phys_domain(vm_paddr_t pa __numa_used)
 {
 #ifdef NUMA
 	int i;

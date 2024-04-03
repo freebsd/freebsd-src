@@ -1005,7 +1005,7 @@ vm_page_none_valid(vm_page_t m)
 }
 
 static inline int
-vm_page_domain(vm_page_t m)
+vm_page_domain(vm_page_t m __numa_used)
 {
 #ifdef NUMA
 	int domn, segind;

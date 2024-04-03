@@ -226,7 +226,8 @@ vm_phys_fictitious_cmp(struct vm_phys_fictitious_seg *p1,
 }
 
 int
-vm_phys_domain_match(int prefer, vm_paddr_t low, vm_paddr_t high)
+vm_phys_domain_match(int prefer __numa_used, vm_paddr_t low __numa_used,
+    vm_paddr_t high __numa_used)
 {
 #ifdef NUMA
 	domainset_t mask;
@@ -330,7 +331,7 @@ sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS)
  * Return affinity, or -1 if there's no affinity information.
  */
 int
-vm_phys_mem_affinity(int f, int t)
+vm_phys_mem_affinity(int f __numa_used, int t __numa_used)
 {
 
 #ifdef NUMA
@@ -629,8 +630,8 @@ vm_phys_init(void)
  * Invoked by platform-dependent code prior to vm_phys_init().
  */
 void
-vm_phys_register_domains(int ndomains, struct mem_affinity *affinity,
-    int *locality)
+vm_phys_register_domains(int ndomains __numa_used,
+    struct mem_affinity *affinity __numa_used, int *locality __numa_used)
 {
 #ifdef NUMA
 	int i;
@@ -651,10 +652,6 @@ vm_phys_register_domains(int ndomains, struct mem_affinity *affinity,
 
 	for (i = 0; i < vm_ndomains; i++)
 		DOMAINSET_SET(i, &all_domains);
-#else
-	(void)ndomains;
-	(void)affinity;
-	(void)locality;
 #endif
 }
 

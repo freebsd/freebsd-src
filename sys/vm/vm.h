@@ -154,6 +154,12 @@ struct kva_md_info {
 #define	SWAP_RESERVE_RLIMIT_ON		(1 << 1)
 #define	SWAP_RESERVE_ALLOW_NONWIRED	(1 << 2)
 
+#ifdef NUMA
+#define	__numa_used
+#else
+#define	__numa_used	__unused
+#endif
+
 #ifdef _KERNEL
 struct ucred;
 
