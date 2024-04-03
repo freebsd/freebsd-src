@@ -70,6 +70,11 @@ SRCS+=	snapshot.c
 
 .include "${MACHINE_CPUARCH}/Makefile.inc"
 
+.if defined(BHYVE_FDT_SUPPORT)
+LIBADD+= fdt
+CFLAGS+= -I${SRCTOP}/sys/contrib/libfdt
+.endif
+
 .if defined(BHYVE_GDB_SUPPORT)
 SRCS+=	gdb.c
 CFLAGS+= -DBHYVE_GDB
@@ -83,7 +88,7 @@ CFLAGS+=-I${.CURDIR}		\
 	-I${.CURDIR}/../../contrib/lib9p \
 	-I${SRCTOP}/sys
 
-LIBADD=	vmmapi md nv pthread z util sbuf cam 9p
+LIBADD+= vmmapi md nv pthread z util sbuf cam 9p
 
 .if ${MK_BHYVE_SNAPSHOT} != "no"
 LIBADD+= ucl xo
