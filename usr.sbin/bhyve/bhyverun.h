@@ -58,6 +58,18 @@ typedef int (*vmexit_handler_t)(struct vmctx *, struct vcpu *, struct vm_run *);
 
 /* Interfaces implemented by machine-dependent code. */
 void bhyve_init_config(void);
+void bhyve_optparse(int argc, char **argv);
+void bhyve_usage(int code);
+
+/* Interfaces used by command-line option-parsing code. */
+bool bhyve_parse_config_option(const char *option);
+void bhyve_parse_simple_config_file(const char *path);
+#ifdef BHYVE_GDB
+void bhyve_parse_gdb_options(const char *opt);
+#endif
+int bhyve_pincpu_parse(const char *opt);
+int bhyve_topology_parse(const char *opt);
+
 void bhyve_init_vcpu(struct vcpu *vcpu);
 void bhyve_start_vcpu(struct vcpu *vcpu, bool bsp);
 int bhyve_init_platform(struct vmctx *ctx, struct vcpu *bsp);

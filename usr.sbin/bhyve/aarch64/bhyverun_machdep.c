@@ -34,7 +34,9 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include <vmmapi.h>
@@ -44,6 +46,7 @@
 #include "debug.h"
 #include "fdt.h"
 #include "mem.h"
+#include "pci_emul.h"
 #include "uart_emul.h"
 
 /* Start of mem + 1M */
@@ -71,6 +74,101 @@ bhyve_init_config(void)
 	set_config_bool("acpi_tables", false);
 	set_config_bool("acpi_tables_in_memory", false);
 	set_config_value("memory.size", "256M");
+}
+
+void
+bhyve_usage(int code)
+{
+	const char *progname;
+
+	progname = getprogname();
+
+	fprintf(stderr,
+	    "Usage: %s [-CDHhSW]\n"
+	    "       %*s [-c [[cpus=]numcpus][,sockets=n][,cores=n][,threads=n]]\n"
+	    "       %*s [-k config_file] [-m mem] [-o var=value]\n"
+	    "       %*s [-p vcpu:hostcpu] [-r file] [-s pci] [-U uuid] vmname\n"
+	    "       -C: include guest memory in core file\n"
+	    "       -c: number of CPUs and/or topology specification\n"
+	    "       -D: destroy on power-off\n"
+	    "       -h: help\n"
+	    "       -k: key=value flat config file\n"
+	    "       -m: memory size\n"
+	    "       -o: set config 'var' to 'value'\n"
+	    "       -p: pin 'vcpu' to 'hostcpu'\n"
+	    "       -S: guest memory cannot be swapped\n"
+	    "       -s: <slot,driver,configinfo> PCI slot config\n"
+	    "       -U: UUID\n"
+	    "       -W: force virtio to use single-vector MSI\n",
+	    progname, (int)strlen(progname), "", (int)strlen(progname), "",
+	    (int)strlen(progname), "");
+	exit(code);
+}
+
+void
+bhyve_optparse(int argc, char **argv)
+{
+	const char *optstr;
+	int c;
+
+	optstr = "hCDSWk:f:o:p:c:s:m:U:";
+	while ((c = getopt(argc, argv, optstr)) != -1) {
+		switch (c) {
+		case 'c':
+			if (bhyve_topology_parse(optarg) != 0) {
+				errx(EX_USAGE, "invalid cpu topology '%s'",
+				    optarg);
+			}
+			break;
+		case 'C':
+			set_config_bool("memory.guest_in_core", true);
+			break;
+		case 'D':
+			set_config_bool("destroy_on_poweroff", true);
+			break;
+		case 'k':
+			bhyve_parse_simple_config_file(optarg);
+			break;
+		case 'm':
+			set_config_value("memory.size", optarg);
+			break;
+		case 'o':
+			if (!bhyve_parse_config_option(optarg)) {
+				errx(EX_USAGE,
+				    "invalid configuration option '%s'",
+				    optarg);
+			}
+			break;
+		case 'p':
+			if (bhyve_pincpu_parse(optarg) != 0) {
+				errx(EX_USAGE,
+				    "invalid vcpu pinning configuration '%s'",
+				    optarg);
+			}
+			break;
+		case 's':
+			if (strncmp(optarg, "help", strlen(optarg)) == 0) {
+				pci_print_supported_devices();
+				exit(0);
+			} else if (pci_parse_slot(optarg) != 0)
+				exit(4);
+			else
+				break;
+		case 'S':
+			set_config_bool("memory.wired", true);
+			break;
+		case 'U':
+			set_config_value("uuid", optarg);
+			break;
+		case 'W':
+			set_config_bool("virtio_msix", false);
+			break;
+		case 'h':
+			bhyve_usage(0);
+		default:
+			bhyve_usage(1);
+		}
+	}
 }
 
 void
