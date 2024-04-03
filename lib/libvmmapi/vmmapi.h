@@ -141,11 +141,13 @@ int	vm_get_memflags(struct vmctx *ctx);
 const char *vm_get_name(struct vmctx *ctx);
 size_t	vm_get_lowmem_size(struct vmctx *ctx);
 size_t	vm_get_highmem_size(struct vmctx *ctx);
+#ifdef __amd64__
 int	vm_set_desc(struct vcpu *vcpu, int reg,
 		    uint64_t base, uint32_t limit, uint32_t access);
 int	vm_get_desc(struct vcpu *vcpu, int reg,
 		    uint64_t *base, uint32_t *limit, uint32_t *access);
 int	vm_get_seg_desc(struct vcpu *vcpu, int reg, struct seg_desc *seg_desc);
+#endif
 int	vm_set_register(struct vcpu *vcpu, int reg, uint64_t val);
 int	vm_get_register(struct vcpu *vcpu, int reg, uint64_t *retval);
 int	vm_set_register_set(struct vcpu *vcpu, unsigned int count,
@@ -158,6 +160,7 @@ int	vm_reinit(struct vmctx *ctx);
 int	vm_apicid2vcpu(struct vmctx *ctx, int apicid);
 int	vm_inject_exception(struct vcpu *vcpu, int vector,
     int errcode_valid, uint32_t errcode, int restart_instruction);
+#ifdef __amd64__
 int	vm_lapic_irq(struct vcpu *vcpu, int vector);
 int	vm_lapic_local_irq(struct vcpu *vcpu, int vector);
 int	vm_lapic_msi(struct vmctx *ctx, uint64_t addr, uint64_t msg);
@@ -165,14 +168,15 @@ int	vm_ioapic_assert_irq(struct vmctx *ctx, int irq);
 int	vm_ioapic_deassert_irq(struct vmctx *ctx, int irq);
 int	vm_ioapic_pulse_irq(struct vmctx *ctx, int irq);
 int	vm_ioapic_pincount(struct vmctx *ctx, int *pincount);
-int	vm_readwrite_kernemu_device(struct vcpu *vcpu,
-	    vm_paddr_t gpa, bool write, int size, uint64_t *value);
 int	vm_isa_assert_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq);
 int	vm_isa_deassert_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq);
 int	vm_isa_pulse_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq);
 int	vm_isa_set_irq_trigger(struct vmctx *ctx, int atpic_irq,
 	    enum vm_intr_trigger trigger);
 int	vm_inject_nmi(struct vcpu *vcpu);
+#endif
+int	vm_readwrite_kernemu_device(struct vcpu *vcpu,
+	    vm_paddr_t gpa, bool write, int size, uint64_t *value);
 int	vm_capability_name2type(const char *capname);
 const char *vm_capability_type2name(int type);
 int	vm_get_capability(struct vcpu *vcpu, enum vm_cap_type cap,
