@@ -1952,7 +1952,8 @@ pci_generate_msix(struct pci_devinst *pi, int index)
 	mte = &pi->pi_msix.table[index];
 	if ((mte->vector_control & PCIM_MSIX_VCTRL_MASK) == 0) {
 		/* XXX Set PBA bit if interrupt is disabled */
-		vm_lapic_msi(pi->pi_vmctx, mte->addr, mte->msg_data);
+		vm_raise_msi(pi->pi_vmctx, mte->addr, mte->msg_data,
+		    pi->pi_bus, pi->pi_slot, pi->pi_func);
 	}
 }
 
@@ -1961,8 +1962,9 @@ pci_generate_msi(struct pci_devinst *pi, int index)
 {
 
 	if (pci_msi_enabled(pi) && index < pci_msi_maxmsgnum(pi)) {
-		vm_lapic_msi(pi->pi_vmctx, pi->pi_msi.addr,
-			     pi->pi_msi.msg_data + index);
+		vm_raise_msi(pi->pi_vmctx, pi->pi_msi.addr,
+		    pi->pi_msi.msg_data + index,
+		    pi->pi_bus, pi->pi_slot, pi->pi_func);
 	}
 }
 
