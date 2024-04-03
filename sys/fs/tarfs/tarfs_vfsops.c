@@ -80,7 +80,7 @@ struct ustar_header {
 
 CTASSERT(sizeof(struct ustar_header) == TARFS_BLOCKSIZE);
 
-#define	TAR_EOF			((off_t)-1)
+#define	TAR_EOF			((size_t)-1)
 
 #define	TAR_TYPE_FILE		'0'
 #define	TAR_TYPE_HARDLINK	'1'
@@ -430,13 +430,13 @@ tarfs_free_mount(struct tarfs_mount *tmp)
  * failure.
  */
 static int
-tarfs_alloc_one(struct tarfs_mount *tmp, off_t *blknump)
+tarfs_alloc_one(struct tarfs_mount *tmp, size_t *blknump)
 {
 	char block[TARFS_BLOCKSIZE];
 	struct ustar_header *hdrp = (struct ustar_header *)block;
 	struct sbuf *namebuf = NULL;
 	char *exthdr = NULL, *name = NULL, *link = NULL;
-	off_t blknum = *blknump;
+	size_t blknum = *blknump;
 	int64_t num;
 	int endmarker = 0;
 	char *namep, *sep;
@@ -861,7 +861,7 @@ tarfs_alloc_mount(struct mount *mp, struct vnode *vp,
 	struct thread *td = curthread;
 	struct tarfs_mount *tmp;
 	struct tarfs_node *root;
-	off_t blknum;
+	size_t blknum;
 	time_t mtime;
 	int error;
 
