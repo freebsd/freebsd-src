@@ -135,11 +135,11 @@ int	vm_gla2gpa_nofault(struct vcpu *vcpu,
 		   struct vm_guest_paging *paging, uint64_t gla, int prot,
 		   uint64_t *gpa, int *fault);
 uint32_t vm_get_lowmem_limit(struct vmctx *ctx);
-void	vm_set_lowmem_limit(struct vmctx *ctx, uint32_t limit);
 void	vm_set_memflags(struct vmctx *ctx, int flags);
 int	vm_get_memflags(struct vmctx *ctx);
 const char *vm_get_name(struct vmctx *ctx);
 size_t	vm_get_lowmem_size(struct vmctx *ctx);
+vm_paddr_t vm_get_highmem_base(struct vmctx *ctx);
 size_t	vm_get_highmem_size(struct vmctx *ctx);
 #ifdef __amd64__
 int	vm_set_desc(struct vcpu *vcpu, int reg,
