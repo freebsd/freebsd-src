@@ -31,6 +31,8 @@
 
 #include <machine/specialreg.h>
 #include <machine/vmm.h>
+#include <machine/vmm_dev.h>
+#include <machine/vmm_snapshot.h>
 
 #include <string.h>
 
@@ -51,6 +53,38 @@ const char *vm_capstrmap[] = {
 	[VM_CAP_RFLAGS_TF] = "rflags_tf",
 	[VM_CAP_MAX] = NULL,
 };
+
+#define	VM_MD_IOCTLS			\
+	VM_SET_SEGMENT_DESCRIPTOR,	\
+	VM_GET_SEGMENT_DESCRIPTOR,	\
+	VM_SET_KERNEMU_DEV,		\
+	VM_GET_KERNEMU_DEV,		\
+	VM_LAPIC_IRQ,			\
+	VM_LAPIC_LOCAL_IRQ,		\
+	VM_LAPIC_MSI,			\
+	VM_IOAPIC_ASSERT_IRQ,		\
+	VM_IOAPIC_DEASSERT_IRQ,		\
+	VM_IOAPIC_PULSE_IRQ,		\
+	VM_IOAPIC_PINCOUNT,		\
+	VM_ISA_ASSERT_IRQ,		\
+	VM_ISA_DEASSERT_IRQ,		\
+	VM_ISA_PULSE_IRQ,		\
+	VM_ISA_SET_IRQ_TRIGGER,		\
+	VM_INJECT_NMI,			\
+	VM_SET_X2APIC_STATE,		\
+	VM_GET_X2APIC_STATE,		\
+	VM_GET_HPET_CAPABILITIES,	\
+	VM_RTC_WRITE,			\
+	VM_RTC_READ,			\
+	VM_RTC_SETTIME,			\
+	VM_RTC_GETTIME
+
+const cap_ioctl_t vm_ioctl_cmds[] = {
+	VM_COMMON_IOCTLS,
+	VM_PPT_IOCTLS,
+	VM_MD_IOCTLS,
+};
+size_t vm_ioctl_ncmds = nitems(vm_ioctl_cmds);
 
 int
 vm_set_desc(struct vcpu *vcpu, int reg,
