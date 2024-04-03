@@ -32,6 +32,7 @@
 #define	UART_NS16550_IO_BAR_SIZE	8
 
 struct uart_ns16550_softc;
+struct uart_pl011_softc;
 struct vm_snapshot_meta;
 
 typedef void (*uart_intr_func_t)(void *arg);
@@ -49,4 +50,12 @@ int	uart_ns16550_tty_open(struct uart_ns16550_softc *sc,
 int	uart_ns16550_snapshot(struct uart_ns16550_softc *sc,
 	    struct vm_snapshot_meta *meta);
 #endif
-#endif
+
+uint32_t uart_pl011_read(struct uart_pl011_softc *sc, int offset);
+void	uart_pl011_write(struct uart_pl011_softc *sc, int offset,
+	    uint32_t value);
+struct uart_pl011_softc *uart_pl011_init(uart_intr_func_t intr_assert,
+	    uart_intr_func_t intr_deassert, void *arg);
+int	uart_pl011_tty_open(struct uart_pl011_softc *sc, const char *device);
+
+#endif /* _UART_EMUL_H_ */
