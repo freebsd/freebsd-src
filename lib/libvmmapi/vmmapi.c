@@ -59,7 +59,11 @@
 #define	MB	(1024 * 1024UL)
 #define	GB	(1024 * 1024 * 1024UL)
 
+#ifdef __amd64__
 #define	VM_LOWMEM_LIMIT	(3 * GB)
+#else
+#define	VM_LOWMEM_LIMIT	0
+#endif
 #define	VM_HIGHMEM_BASE	(4 * GB)
 
 /*
