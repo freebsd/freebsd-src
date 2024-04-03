@@ -26,10 +26,205 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/types.h>
+#include <sys/ioctl.h>
+
 #include <machine/specialreg.h>
+#include <machine/vmm.h>
+
+#include <string.h>
 
 #include "vmmapi.h"
 #include "internal.h"
+
+int
+vm_set_desc(struct vcpu *vcpu, int reg,
+	    uint64_t base, uint32_t limit, uint32_t access)
+{
+	int error;
+	struct vm_seg_desc vmsegdesc;
+
+	bzero(&vmsegdesc, sizeof(vmsegdesc));
+	vmsegdesc.regnum = reg;
+	vmsegdesc.desc.base = base;
+	vmsegdesc.desc.limit = limit;
+	vmsegdesc.desc.access = access;
+
+	error = vcpu_ioctl(vcpu, VM_SET_SEGMENT_DESCRIPTOR, &vmsegdesc);
+	return (error);
+}
+
+int
+vm_get_desc(struct vcpu *vcpu, int reg, uint64_t *base, uint32_t *limit,
+    uint32_t *access)
+{
+	int error;
+	struct vm_seg_desc vmsegdesc;
+
+	bzero(&vmsegdesc, sizeof(vmsegdesc));
+	vmsegdesc.regnum = reg;
+
+	error = vcpu_ioctl(vcpu, VM_GET_SEGMENT_DESCRIPTOR, &vmsegdesc);
+	if (error == 0) {
+		*base = vmsegdesc.desc.base;
+		*limit = vmsegdesc.desc.limit;
+		*access = vmsegdesc.desc.access;
+	}
+	return (error);
+}
+
+int
+vm_get_seg_desc(struct vcpu *vcpu, int reg, struct seg_desc *seg_desc)
+{
+	int error;
+
+	error = vm_get_desc(vcpu, reg, &seg_desc->base, &seg_desc->limit,
+	    &seg_desc->access);
+	return (error);
+}
+
+int
+vm_lapic_irq(struct vcpu *vcpu, int vector)
+{
+	struct vm_lapic_irq vmirq;
+
+	bzero(&vmirq, sizeof(vmirq));
+	vmirq.vector = vector;
+
+	return (vcpu_ioctl(vcpu, VM_LAPIC_IRQ, &vmirq));
+}
+
+int
+vm_lapic_local_irq(struct vcpu *vcpu, int vector)
+{
+	struct vm_lapic_irq vmirq;
+
+	bzero(&vmirq, sizeof(vmirq));
+	vmirq.vector = vector;
+
+	return (vcpu_ioctl(vcpu, VM_LAPIC_LOCAL_IRQ, &vmirq));
+}
+
+int
+vm_lapic_msi(struct vmctx *ctx, uint64_t addr, uint64_t msg)
+{
+	struct vm_lapic_msi vmmsi;
+
+	bzero(&vmmsi, sizeof(vmmsi));
+	vmmsi.addr = addr;
+	vmmsi.msg = msg;
+
+	return (ioctl(ctx->fd, VM_LAPIC_MSI, &vmmsi));
+}
+
+int
+vm_apicid2vcpu(struct vmctx *ctx __unused, int apicid)
+{
+	/*
+	 * The apic id associated with the 'vcpu' has the same numerical value
+	 * as the 'vcpu' itself.
+	 */
+	return (apicid);
+}
+
+int
+vm_ioapic_assert_irq(struct vmctx *ctx, int irq)
+{
+	struct vm_ioapic_irq ioapic_irq;
+
+	bzero(&ioapic_irq, sizeof(struct vm_ioapic_irq));
+	ioapic_irq.irq = irq;
+
+	return (ioctl(ctx->fd, VM_IOAPIC_ASSERT_IRQ, &ioapic_irq));
+}
+
+int
+vm_ioapic_deassert_irq(struct vmctx *ctx, int irq)
+{
+	struct vm_ioapic_irq ioapic_irq;
+
+	bzero(&ioapic_irq, sizeof(struct vm_ioapic_irq));
+	ioapic_irq.irq = irq;
+
+	return (ioctl(ctx->fd, VM_IOAPIC_DEASSERT_IRQ, &ioapic_irq));
+}
+
+int
+vm_ioapic_pulse_irq(struct vmctx *ctx, int irq)
+{
+	struct vm_ioapic_irq ioapic_irq;
+
+	bzero(&ioapic_irq, sizeof(struct vm_ioapic_irq));
+	ioapic_irq.irq = irq;
+
+	return (ioctl(ctx->fd, VM_IOAPIC_PULSE_IRQ, &ioapic_irq));
+}
+
+int
+vm_ioapic_pincount(struct vmctx *ctx, int *pincount)
+{
+
+	return (ioctl(ctx->fd, VM_IOAPIC_PINCOUNT, pincount));
+}
+
+int
+vm_isa_assert_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq)
+{
+	struct vm_isa_irq isa_irq;
+
+	bzero(&isa_irq, sizeof(struct vm_isa_irq));
+	isa_irq.atpic_irq = atpic_irq;
+	isa_irq.ioapic_irq = ioapic_irq;
+
+	return (ioctl(ctx->fd, VM_ISA_ASSERT_IRQ, &isa_irq));
+}
+
+int
+vm_isa_deassert_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq)
+{
+	struct vm_isa_irq isa_irq;
+
+	bzero(&isa_irq, sizeof(struct vm_isa_irq));
+	isa_irq.atpic_irq = atpic_irq;
+	isa_irq.ioapic_irq = ioapic_irq;
+
+	return (ioctl(ctx->fd, VM_ISA_DEASSERT_IRQ, &isa_irq));
+}
+
+int
+vm_isa_pulse_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq)
+{
+	struct vm_isa_irq isa_irq;
+
+	bzero(&isa_irq, sizeof(struct vm_isa_irq));
+	isa_irq.atpic_irq = atpic_irq;
+	isa_irq.ioapic_irq = ioapic_irq;
+
+	return (ioctl(ctx->fd, VM_ISA_PULSE_IRQ, &isa_irq));
+}
+
+int
+vm_isa_set_irq_trigger(struct vmctx *ctx, int atpic_irq,
+    enum vm_intr_trigger trigger)
+{
+	struct vm_isa_irq_trigger isa_irq_trigger;
+
+	bzero(&isa_irq_trigger, sizeof(struct vm_isa_irq_trigger));
+	isa_irq_trigger.atpic_irq = atpic_irq;
+	isa_irq_trigger.trigger = trigger;
+
+	return (ioctl(ctx->fd, VM_ISA_SET_IRQ_TRIGGER, &isa_irq_trigger));
+}
+
+int
+vm_inject_nmi(struct vcpu *vcpu)
+{
+	struct vm_nmi vmnmi;
+
+	bzero(&vmnmi, sizeof(vmnmi));
+
+	return (vcpu_ioctl(vcpu, VM_INJECT_NMI, &vmnmi));
+}
 
 /*
  * From Intel Vol 3a:
