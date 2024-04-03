@@ -236,6 +236,15 @@ ENTRY(handle_el1h_irq)
 	ERET
 END(handle_el1h_irq)
 
+ENTRY(handle_el1h_serror)
+	save_registers 1
+	KMSAN_ENTER
+	mov	x0, sp
+1:	bl	do_serror
+	b	1b
+	KMSAN_LEAVE
+END(handle_el1h_serror)
+
 ENTRY(handle_el0_sync)
 	save_registers 0
 	KMSAN_ENTER
@@ -260,14 +269,14 @@ ENTRY(handle_el0_irq)
 	ERET
 END(handle_el0_irq)
 
-ENTRY(handle_serror)
+ENTRY(handle_el0_serror)
 	save_registers 0
 	KMSAN_ENTER
 	mov	x0, sp
 1:	bl	do_serror
 	b	1b
 	KMSAN_LEAVE
-END(handle_serror)
+END(handle_el0_serror)
 
 ENTRY(handle_empty_exception)
 	save_registers 0
@@ -303,15 +312,15 @@ exception_vectors:
 	vector el1h_sync 1	/* Synchronous EL1h */
 	vector el1h_irq 1	/* IRQ EL1h */
 	vempty 1		/* FIQ EL1h */
-	vector serror 1		/* Error EL1h */
+	vector el1h_serror 1	/* Error EL1h */
 
 	vector el0_sync 0	/* Synchronous 64-bit EL0 */
 	vector el0_irq 0	/* IRQ 64-bit EL0 */
 	vempty 0		/* FIQ 64-bit EL0 */
-	vector serror 0		/* Error 64-bit EL0 */
+	vector el0_serror 0	/* Error 64-bit EL0 */
 
 	vector el0_sync 0	/* Synchronous 32-bit EL0 */
 	vector el0_irq 0	/* IRQ 32-bit EL0 */
 	vempty 0		/* FIQ 32-bit EL0 */
-	vector serror 0		/* Error 32-bit EL0 */
+	vector el0_serror 0	/* Error 32-bit EL0 */
 
