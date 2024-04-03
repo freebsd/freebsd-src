@@ -371,6 +371,7 @@ vm_get_memseg(struct vmctx *ctx, int segid, size_t *lenp, char *namebuf,
 	size_t n;
 	int error;
 
+	bzero(&memseg, sizeof(memseg));
 	memseg.segid = segid;
 	error = ioctl(ctx->fd, VM_GET_MEMSEG, &memseg);
 	if (error == 0) {
