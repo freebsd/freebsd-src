@@ -309,6 +309,54 @@ tarfs_checksum_cleanup() {
 	tarfs_cleanup
 }
 
+atf_test_case tarfs_long_names cleanup
+tarfs_long_names_head() {
+	atf_set "descr" "Verify that tarfs supports long file names"
+	atf_set "require.user" "root"
+}
+tarfs_long_names_body() {
+	tarfs_setup
+	local a b c d e
+	a="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	b="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	c="cccccccccccccccccccccccccccccccccccccccc"
+	d="dddddddddddddddddddddddddddddddddddddddd"
+	e="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	mkdir -p "${a}"
+	touch "${a}/${b}_${c}_${d}_${e}_foo"
+	ln "${a}/${b}_${c}_${d}_${e}_foo" "${a}/${b}_${c}_${d}_${e}_bar"
+	ln -s "${b}_${c}_${d}_${e}_bar" "${a}/${b}_${c}_${d}_${e}_baz"
+	tar -cf tarfs_long_names.tar "${a}"
+	atf_check mount -rt tarfs tarfs_long_names.tar "${mnt}"
+}
+tarfs_long_names_cleanup() {
+	tarfs_cleanup
+}
+
+atf_test_case tarfs_long_paths cleanup
+tarfs_long_paths_head() {
+	atf_set "descr" "Verify that tarfs supports long paths"
+	atf_set "require.user" "root"
+}
+tarfs_long_paths_body() {
+	tarfs_setup
+	local a b c d e
+	a="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	b="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	c="cccccccccccccccccccccccccccccccccccccccc"
+	d="dddddddddddddddddddddddddddddddddddddddd"
+	e="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	mkdir -p "${a}/${b}/${c}/${d}/${e}"
+	touch "${a}/${b}/${c}/${d}/${e}/foo"
+	ln "${a}/${b}/${c}/${d}/${e}/foo" "${a}/${b}/${c}/${d}/${e}/bar"
+	ln -s "${b}/${c}/${d}/${e}/bar" "${a}/baz"
+	tar -cf tarfs_long_paths.tar "${a}"
+	atf_check mount -rt tarfs tarfs_long_paths.tar "${mnt}"
+}
+tarfs_long_paths_cleanup() {
+	tarfs_cleanup
+}
+
 atf_init_test_cases() {
 	atf_add_test_case tarfs_basic
 	atf_add_test_case tarfs_basic_gnu
@@ -324,4 +372,6 @@ atf_init_test_cases() {
 	atf_add_test_case tarfs_linktodir
 	atf_add_test_case tarfs_linktononexistent
 	atf_add_test_case tarfs_checksum
+	atf_add_test_case tarfs_long_names
+	atf_add_test_case tarfs_long_paths
 }
