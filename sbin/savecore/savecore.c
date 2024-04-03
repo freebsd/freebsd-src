@@ -335,7 +335,8 @@ write_header_info(xo_handle_t *xostdout, const struct kerneldumpheader *kdh,
 	printheader(xoinfo, kdh, device, bounds, status);
 	xo_close_container_h(xoinfo, "crashdump");
 	xo_flush_h(xoinfo);
-	xo_finish_h(xoinfo);
+	if (xo_finish_h(xoinfo) < 0)
+		xo_err(EXIT_FAILURE, "stdout");
 	fclose(info);
 
 	return (0);
@@ -433,7 +434,7 @@ check_space(const char *savedir, int savedirfd, off_t dumpsize, int bounds)
 
 	if (fstatfs(savedirfd, &fsbuf) < 0) {
 		logmsg(LOG_ERR, "%s: %m", savedir);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	spacefree = ((off_t) fsbuf.f_bavail * fsbuf.f_bsize) / 1024;
 	totfree = ((off_t) fsbuf.f_bfree * fsbuf.f_bsize) / 1024;
@@ -1123,7 +1124,7 @@ DoFile(const char *savedir, int savedirfd, const char *device)
 	if (checkfor) {
 		printf("A dump exists on %s\n", device);
 		close(fddev);
-		exit(0);
+		exit(EXIT_SUCCESS);
 	}
 
 	if (kdhl.panicstring[0] != '\0')
@@ -1275,7 +1276,8 @@ nuke:
 			    "error while clearing the dump header: %m");
 	}
 	xo_close_container_h(xostdout, "crashdump");
-	xo_finish_h(xostdout);
+	if (xo_finish_h(xostdout) < 0)
+		xo_err(EXIT_FAILURE, "stdout");
 	free(dumpkey);
 	free(temp);
 	close(fddev);
@@ -1300,7 +1302,7 @@ devify(int argc, char **argv)
 	devs = malloc(argc * sizeof(*argv));
 	if (devs == NULL) {
 		logmsg(LOG_ERR, "malloc(): %m");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	for (i = 0; i < argc; i++) {
 		if (strncmp(argv[i], _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
@@ -1311,16 +1313,16 @@ devify(int argc, char **argv)
 			fullpath = malloc(PATH_MAX);
 			if (fullpath == NULL) {
 				logmsg(LOG_ERR, "malloc(): %m");
-				exit(1);
+				exit(EXIT_FAILURE);
 			}
 			l = snprintf(fullpath, PATH_MAX, "%s%s", _PATH_DEV,
 			    argv[i]);
 			if (l < 0) {
 				logmsg(LOG_ERR, "snprintf(): %m");
-				exit(1);
+				exit(EXIT_FAILURE);
 			} else if (l >= PATH_MAX) {
 				logmsg(LOG_ERR, "device name too long");
-				exit(1);
+				exit(EXIT_FAILURE);
 			}
 			devs[i] = fullpath;
 		}
@@ -1345,7 +1347,7 @@ enum_dumpdevs(int *argcp)
 	argv = malloc(n * sizeof(*argv));
 	if (argv == NULL) {
 		logmsg(LOG_ERR, "malloc(): %m");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	for (;;) {
 		fsp = getfsent();
@@ -1359,13 +1361,13 @@ enum_dumpdevs(int *argcp)
 			argv = realloc(argv, n * sizeof(*argv));
 			if (argv == NULL) {
 				logmsg(LOG_ERR, "realloc(): %m");
-				exit(1);
+				exit(EXIT_FAILURE);
 			}
 		}
 		argv[argc] = strdup(fsp->fs_spec);
 		if (argv[argc] == NULL) {
 			logmsg(LOG_ERR, "strdup(): %m");
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 		argc++;
 	}
@@ -1382,7 +1384,7 @@ init_caps(int argc, char **argv)
 	capcas = cap_init();
 	if (capcas == NULL) {
 		logmsg(LOG_ERR, "cap_init(): %m");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	/*
 	 * The fileargs capability does not currently provide a way to limit
@@ -1393,18 +1395,18 @@ init_caps(int argc, char **argv)
 	    0, &rights, FA_OPEN);
 	if (capfa == NULL) {
 		logmsg(LOG_ERR, "fileargs_init(): %m");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	caph_cache_catpages();
 	caph_cache_tzdata();
 	if (caph_enter_casper() != 0) {
 		logmsg(LOG_ERR, "caph_enter_casper(): %m");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	capsyslog = cap_service_open(capcas, "system.syslog");
 	if (capsyslog == NULL) {
 		logmsg(LOG_ERR, "cap_service_open(system.syslog): %m");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	cap_close(capcas);
 }
@@ -1417,7 +1419,7 @@ usage(void)
 	    "       savecore -C [-v] [device ...]",
 	    "       savecore -L [-fvZz] [-m maxdumps] [directory]",
 	    "       savecore [-fkuvz] [-m maxdumps] [directory [device ...]]");
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 int
@@ -1439,7 +1441,7 @@ main(int argc, char **argv)
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
-		exit(1);
+		exit(EXIT_FAILURE);
 
 	while ((ch = getopt(argc, argv, "CcfkLm:uvZz")) != -1)
 		switch(ch) {
@@ -1462,7 +1464,7 @@ main(int argc, char **argv)
 			maxdumps = atoi(optarg);
 			if (maxdumps <= 0) {
 				logmsg(LOG_ERR, "Invalid maxdump value");
-				exit(1);
+				exit(EXIT_FAILURE);
 			}
 			break;
 		case 'u':
@@ -1502,7 +1504,7 @@ main(int argc, char **argv)
 		error = chdir(argv[0]);
 		if (error) {
 			logmsg(LOG_ERR, "chdir(%s): %m", argv[0]);
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 		savedir = argv[0];
 		argc--;
@@ -1524,7 +1526,7 @@ main(int argc, char **argv)
 	savedirfd = open(savedir, O_RDONLY | O_DIRECTORY);
 	if (savedirfd < 0) {
 		logmsg(LOG_ERR, "open(%s): %m", savedir);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	(void)cap_rights_init(&rights, CAP_CREATE, CAP_FCNTL, CAP_FSTATAT,
 	    CAP_FSTATFS, CAP_PREAD, CAP_SYMLINKAT, CAP_FTRUNCATE, CAP_UNLINKAT,
@@ -1534,7 +1536,7 @@ main(int argc, char **argv)
 		    CAP_RENAMEAT_TARGET);
 	if (caph_rights_limit(savedirfd, &rights) < 0) {
 		logmsg(LOG_ERR, "cap_rights_limit(): %m");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	/* Enter capability mode. */
@@ -1547,7 +1549,7 @@ main(int argc, char **argv)
 		if (checkfor) {
 			if (verbose)
 				printf("No dump exists\n");
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 		if (verbose)
 			logmsg(LOG_WARNING, "no dumps found");
@@ -1556,14 +1558,14 @@ main(int argc, char **argv)
 			if (verbose)
 				logmsg(LOG_WARNING,
 				    "unsaved dumps found but not saved");
-			exit(1);
+			exit(EXIT_FAILURE);
 		} else if (verbose)
 			logmsg(LOG_WARNING, "no unsaved dumps found");
 	} else if (verbose) {
 		logmsg(LOG_NOTICE, "%d cores saved in %s\n", nsaved, savedir);
 	}
 
-	return (0);
+	exit(EXIT_SUCCESS);
 }
 
 static void
