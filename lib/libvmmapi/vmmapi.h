@@ -158,6 +158,15 @@ int	vm_run(struct vcpu *vcpu, struct vm_run *vmrun);
 int	vm_suspend(struct vmctx *ctx, enum vm_suspend_how how);
 int	vm_reinit(struct vmctx *ctx);
 int	vm_apicid2vcpu(struct vmctx *ctx, int apicid);
+#ifdef __aarch64__
+int	vm_attach_vgic(struct vmctx *ctx, uint64_t dist_start, size_t dist_size,
+    uint64_t redist_start, size_t redist_size);
+int	vm_assert_irq(struct vmctx *ctx, uint32_t irq);
+int	vm_deassert_irq(struct vmctx *ctx, uint32_t irq);
+int	vm_raise_msi(struct vmctx *ctx, uint64_t addr, uint64_t msg, int bus,
+    int slot, int func);
+int	vm_inject_exception(struct vcpu *vcpu, uint64_t esr, uint64_t far);
+#endif
 #ifdef __amd64__
 int	vm_inject_exception(struct vcpu *vcpu, int vector,
     int errcode_valid, uint32_t errcode, int restart_instruction);
