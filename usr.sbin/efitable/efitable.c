@@ -28,7 +28,6 @@
 #include <sys/efiio.h>
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <err.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <stdbool.h>
@@ -208,7 +207,8 @@ efi_table_print_esrt(const void *data)
 
 	xo_close_list("entries");
 	xo_close_container("esrt");
-	xo_finish();
+	if (xo_finish() < 0)
+		xo_err(EX_IOERR, "stdout");
 }
 
 static void
@@ -226,7 +226,8 @@ efi_table_print_prop(const void *data)
 	    "{:memory_protection_attribute/%#lx}\n",
 	    prop->memory_protection_attribute);
 	xo_close_container("prop");
-	xo_finish();
+	if (xo_finish() < 0)
+		xo_err(EX_IOERR, "stdout");
 }
 
 static void usage(void)
