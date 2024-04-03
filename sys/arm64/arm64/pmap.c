@@ -5269,8 +5269,11 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 	 * and let vm_fault() cope.  Check after l2 allocation, since
 	 * it could sleep.
 	 */
-	if (!pmap_bti_same(pmap, va, va + L2_SIZE))
+	if (!pmap_bti_same(pmap, va, va + L2_SIZE)) {
+		KASSERT(l2pg != NULL, ("pmap_enter_l2: missing L2 PTP"));
+		pmap_abort_ptp(pmap, va, l2pg);
 		return (KERN_PROTECTION_FAILURE);
+	}
 
 	/*
 	 * If there are existing mappings, either abort or remove them.
