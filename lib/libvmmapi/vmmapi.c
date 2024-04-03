@@ -1351,42 +1351,15 @@ vm_get_topology(struct vmctx *ctx,
 	return (error);
 }
 
-/* Keep in sync with machine/vmm_dev.h. */
-static const cap_ioctl_t vm_ioctl_cmds[] = { VM_RUN, VM_SUSPEND, VM_REINIT,
-    VM_ALLOC_MEMSEG, VM_GET_MEMSEG, VM_MMAP_MEMSEG, VM_MMAP_MEMSEG,
-    VM_MMAP_GETNEXT, VM_MUNMAP_MEMSEG, VM_SET_REGISTER, VM_GET_REGISTER,
-    VM_SET_SEGMENT_DESCRIPTOR, VM_GET_SEGMENT_DESCRIPTOR,
-    VM_SET_REGISTER_SET, VM_GET_REGISTER_SET,
-    VM_SET_KERNEMU_DEV, VM_GET_KERNEMU_DEV,
-    VM_INJECT_EXCEPTION, VM_LAPIC_IRQ, VM_LAPIC_LOCAL_IRQ,
-    VM_LAPIC_MSI, VM_IOAPIC_ASSERT_IRQ, VM_IOAPIC_DEASSERT_IRQ,
-    VM_IOAPIC_PULSE_IRQ, VM_IOAPIC_PINCOUNT, VM_ISA_ASSERT_IRQ,
-    VM_ISA_DEASSERT_IRQ, VM_ISA_PULSE_IRQ, VM_ISA_SET_IRQ_TRIGGER,
-    VM_SET_CAPABILITY, VM_GET_CAPABILITY, VM_BIND_PPTDEV,
-    VM_UNBIND_PPTDEV, VM_MAP_PPTDEV_MMIO, VM_PPTDEV_MSI,
-    VM_PPTDEV_MSIX, VM_UNMAP_PPTDEV_MMIO, VM_PPTDEV_DISABLE_MSIX,
-    VM_INJECT_NMI, VM_STATS, VM_STAT_DESC,
-    VM_SET_X2APIC_STATE, VM_GET_X2APIC_STATE,
-    VM_GET_HPET_CAPABILITIES, VM_GET_GPA_PMAP, VM_GLA2GPA,
-    VM_GLA2GPA_NOFAULT,
-    VM_ACTIVATE_CPU, VM_GET_CPUS, VM_SUSPEND_CPU, VM_RESUME_CPU,
-    VM_SET_INTINFO, VM_GET_INTINFO,
-    VM_RTC_WRITE, VM_RTC_READ, VM_RTC_SETTIME, VM_RTC_GETTIME,
-    VM_RESTART_INSTRUCTION, VM_SET_TOPOLOGY, VM_GET_TOPOLOGY,
-    VM_SNAPSHOT_REQ, VM_RESTORE_TIME
-};
-
 int
 vm_limit_rights(struct vmctx *ctx)
 {
 	cap_rights_t rights;
-	size_t ncmds;
 
 	cap_rights_init(&rights, CAP_IOCTL, CAP_MMAP_RW);
 	if (caph_rights_limit(ctx->fd, &rights) != 0)
 		return (-1);
-	ncmds = nitems(vm_ioctl_cmds);
-	if (caph_ioctls_limit(ctx->fd, vm_ioctl_cmds, ncmds) != 0)
+	if (caph_ioctls_limit(ctx->fd, vm_ioctl_cmds, vm_ioctl_ncmds) != 0)
 		return (-1);
 	return (0);
 }
@@ -1407,15 +1380,17 @@ const cap_ioctl_t *
 vm_get_ioctls(size_t *len)
 {
 	cap_ioctl_t *cmds;
+	size_t sz;
 
 	if (len == NULL) {
-		cmds = malloc(sizeof(vm_ioctl_cmds));
+		sz = vm_ioctl_ncmds * sizeof(vm_ioctl_cmds[0]);
+		cmds = malloc(sz);
 		if (cmds == NULL)
 			return (NULL);
-		bcopy(vm_ioctl_cmds, cmds, sizeof(vm_ioctl_cmds));
+		bcopy(vm_ioctl_cmds, cmds, sz);
 		return (cmds);
 	}
 
-	*len = nitems(vm_ioctl_cmds);
+	*len = vm_ioctl_ncmds;
 	return (NULL);
 }
