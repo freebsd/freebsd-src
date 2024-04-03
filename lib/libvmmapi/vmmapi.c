@@ -51,7 +51,9 @@
 #include <vm/vm.h>
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
+#ifdef WITH_VMMAPI_SNAPSHOT
 #include <machine/vmm_snapshot.h>
+#endif
 
 #include "vmmapi.h"
 #include "internal.h"
@@ -796,6 +798,7 @@ vm_get_stat_desc(struct vmctx *ctx, int index)
 		return (NULL);
 }
 
+#ifdef __amd64__
 int
 vm_get_gpa_pmap(struct vmctx *ctx, uint64_t gpa, uint64_t *pte, int *num)
 {
@@ -835,6 +838,7 @@ vm_gla2gpa(struct vcpu *vcpu, struct vm_guest_paging *paging,
 	}
 	return (error);
 }
+#endif
 
 int
 vm_gla2gpa_nofault(struct vcpu *vcpu, struct vm_guest_paging *paging,
@@ -860,6 +864,7 @@ vm_gla2gpa_nofault(struct vcpu *vcpu, struct vm_guest_paging *paging,
 #define	min(a,b)	(((a) < (b)) ? (a) : (b))
 #endif
 
+#ifdef __amd64__
 int
 vm_copy_setup(struct vcpu *vcpu, struct vm_guest_paging *paging,
     uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt,
@@ -897,6 +902,7 @@ vm_copy_setup(struct vcpu *vcpu, struct vm_guest_paging *paging,
 	}
 	return (0);
 }
+#endif
 
 void
 vm_copy_teardown(struct iovec *iov __unused, int iovcnt __unused)
@@ -1041,6 +1047,7 @@ vm_resume_all_cpus(struct vmctx *ctx)
 	return (error);
 }
 
+#ifdef __amd64__
 int
 vm_get_intinfo(struct vcpu *vcpu, uint64_t *info1, uint64_t *info2)
 {
@@ -1067,7 +1074,9 @@ vm_set_intinfo(struct vcpu *vcpu, uint64_t info1)
 	error = vcpu_ioctl(vcpu, VM_SET_INTINFO, &vmii);
 	return (error);
 }
+#endif
 
+#ifdef WITH_VMMAPI_SNAPSHOT
 int
 vm_restart_instruction(struct vcpu *vcpu)
 {
@@ -1098,6 +1107,7 @@ vm_restore_time(struct vmctx *ctx)
 	dummy = 0;
 	return (ioctl(ctx->fd, VM_RESTORE_TIME, &dummy));
 }
+#endif
 
 int
 vm_set_topology(struct vmctx *ctx,

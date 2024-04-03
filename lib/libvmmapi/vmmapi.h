@@ -128,9 +128,11 @@ int	vm_setup_memory(struct vmctx *ctx, size_t len, enum vm_mmap_style s);
 void	*vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len);
 /* inverse operation to vm_map_gpa - extract guest address from host pointer */
 vm_paddr_t vm_rev_map_gpa(struct vmctx *ctx, void *addr);
+#ifdef __amd64__
 int	vm_get_gpa_pmap(struct vmctx *, uint64_t gpa, uint64_t *pte, int *num);
 int	vm_gla2gpa(struct vcpu *vcpu, struct vm_guest_paging *paging,
 		   uint64_t gla, int prot, uint64_t *gpa, int *fault);
+#endif
 int	vm_gla2gpa_nofault(struct vcpu *vcpu,
 		   struct vm_guest_paging *paging, uint64_t gla, int prot,
 		   uint64_t *gpa, int *fault);
@@ -220,7 +222,6 @@ int	vm_get_x2apic_state(struct vcpu *vcpu, enum x2apic_state *s);
 int	vm_set_x2apic_state(struct vcpu *vcpu, enum x2apic_state s);
 
 int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
-#endif
 
 /*
  * Translate the GLA range [gla,gla+len) into GPA segments in 'iov'.
@@ -234,6 +235,7 @@ int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
 int	vm_copy_setup(struct vcpu *vcpu, struct vm_guest_paging *pg,
 	    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt,
 	    int *fault);
+#endif
 void	vm_copyin(struct iovec *guest_iov, void *host_dst, size_t len);
 void	vm_copyout(const void *host_src, struct iovec *guest_iov, size_t len);
 void	vm_copy_teardown(struct iovec *iov, int iovcnt);

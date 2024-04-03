@@ -77,7 +77,14 @@ const char *vm_capstrmap[] = {
 	VM_RTC_WRITE,			\
 	VM_RTC_READ,			\
 	VM_RTC_SETTIME,			\
-	VM_RTC_GETTIME
+	VM_RTC_GETTIME,			\
+	VM_GET_GPA_PMAP,		\
+	VM_GLA2GPA,			\
+	VM_SET_INTINFO,			\
+	VM_GET_INTINFO,			\
+	VM_RESTART_INSTRUCTION,		\
+	VM_SNAPSHOT_REQ,		\
+	VM_RESTORE_TIME
 
 const cap_ioctl_t vm_ioctl_cmds[] = {
 	VM_COMMON_IOCTLS,
