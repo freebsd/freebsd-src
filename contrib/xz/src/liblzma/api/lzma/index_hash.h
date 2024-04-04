@@ -1,5 +1,3 @@
-/* SPDX-License-Identifier: 0BSD */
-
 /**
  * \file        lzma/index_hash.h
  * \brief       Validate Index by using a hash function
@@ -11,6 +9,9 @@
 
 /*
  * Author: Lasse Collin
+ *
+ * This file has been put into the public domain.
+ * You can do whatever you want with this file.
  */
 
 #ifndef LZMA_H_INTERNAL

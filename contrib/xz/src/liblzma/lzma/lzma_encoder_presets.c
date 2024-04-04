@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: 0BSD
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       lzma_encoder_presets.c
@@ -7,6 +5,9 @@
 /// \note       xz needs this even when only decoding is enabled.
 //
 //  Author:     Lasse Collin
+//
+//  This file has been put into the public domain.
+//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 

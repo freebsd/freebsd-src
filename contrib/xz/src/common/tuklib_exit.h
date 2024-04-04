@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: 0BSD
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       tuklib_exit.h
@@ -7,6 +5,9 @@
 /// \note       Requires tuklib_progname and tuklib_gettext modules
 //
 //  Author:     Lasse Collin
+//
+//  This file has been put into the public domain.
+//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -17,8 +18,8 @@
 TUKLIB_DECLS_BEGIN
 
 #define tuklib_exit TUKLIB_SYMBOL(tuklib_exit)
-tuklib_attr_noreturn
-extern void tuklib_exit(int status, int err_status, int show_error);
+extern void tuklib_exit(int status, int err_status, int show_error)
+		tuklib_attr_noreturn;
 
 TUKLIB_DECLS_END
 #endif
