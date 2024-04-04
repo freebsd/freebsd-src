@@ -70,8 +70,6 @@ holey_head() {
 	atf_set "require.user" "root"
 }
 holey_body() {
-	atf_expect_fail "https://bugs.freebsd.org/274615"
-
 	test_mount
 
 	atf_check -s eq:0 -o empty -e empty truncate -s 8k a
