@@ -209,7 +209,7 @@ acpi_print_gas(ACPI_GENERIC_ADDRESS *gas)
 
 /* The FADT revision indicates whether we use the DSDT or X_DSDT addresses. */
 static int
-acpi_get_fadt_revision(ACPI_TABLE_FADT *fadt)
+acpi_get_fadt_revision(ACPI_TABLE_FADT *fadt __unused)
 {
 	int fadt_revision;
 
