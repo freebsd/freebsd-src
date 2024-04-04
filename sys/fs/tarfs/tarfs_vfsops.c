@@ -881,6 +881,8 @@ tarfs_alloc_mount(struct mount *mp, struct vnode *vp,
 	VOP_UNLOCK(vp);
 	mtime = va.va_mtime.tv_sec;
 
+	mp->mnt_iosize_max = vp->v_mount->mnt_iosize_max;
+
 	/* Allocate and initialize tarfs mount structure */
 	tmp = malloc(sizeof(*tmp), M_TARFSMNT, M_WAITOK | M_ZERO);
 	TARFS_DPF(ALLOC, "%s: Allocated mount structure\n", __func__);
