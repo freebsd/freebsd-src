@@ -67,13 +67,14 @@ static bool	wflag;			/* Warn if symlink target does not
 static char	linkch;
 
 static int	linkit(const char *, const char *, bool);
+static void	link_usage(void) __dead2;
 static void	usage(void) __dead2;
 
 int
 main(int argc, char *argv[])
 {
 	struct stat sb;
-	char *p, *targetdir;
+	char *targetdir;
 	int ch, exitval;
 
 	/*
@@ -81,17 +82,20 @@ main(int argc, char *argv[])
 	 * "link", for which the functionality provided is greatly
 	 * simplified.
 	 */
-	if ((p = strrchr(argv[0], '/')) == NULL)
-		p = argv[0];
-	else
-		++p;
-	if (strcmp(p, "link") == 0) {
+	if (strcmp(getprogname(), "link") == 0) {
 		while (getopt(argc, argv, "") != -1)
-			usage();
+			link_usage();
 		argc -= optind;
 		argv += optind;
 		if (argc != 2)
-			usage();
+			link_usage();
+		if (lstat(argv[1], &sb) == 0)
+			errc(1, EEXIST, "%s", argv[1]);
+		/*
+		 * We could simply call link(2) here, but linkit()
+		 * performs additional checks and gives better
+		 * diagnostics.
+		 */
 		exit(linkit(argv[0], argv[1], false));
 	}
 
@@ -350,11 +354,17 @@ linkit(const char *source, const char *target, bool isdir)
 }
 
 static void
+link_usage(void)
+{
+	(void)fprintf(stderr, "usage: link source_file target_file\n");
+	exit(1);
+}
+
+static void
 usage(void)
 {
-	(void)fprintf(stderr, "%s\n%s\n%s\n",
+	(void)fprintf(stderr, "%s\n%s\n",
 	    "usage: ln [-s [-F] | -L | -P] [-f | -i] [-hnv] source_file [target_file]",
-	    "       ln [-s [-F] | -L | -P] [-f | -i] [-hnv] source_file ... target_dir",
-	    "       link source_file target_file");
+	    "       ln [-s [-F] | -L | -P] [-f | -i] [-hnv] source_file ... target_dir");
 	exit(1);
 }
