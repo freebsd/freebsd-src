@@ -61,6 +61,19 @@ sysctl setting and tunable.
 Setting it to 0 will reset it to its default value.
 Note that changes to this setting only apply to filesystems mounted
 after the change.
+.Pp
+When the backing tar file is compressed with
+.Xr zstd 1 ,
+I/O performance can be improved by ensuring that compressed data is
+broken up into multiple frames.
+This helps minimize unnecessary decompression work.
+When using
+.Xr bsdtar 1
+to create the tar file, this can be achieved using the
+.Cm zstd:max-frame-size
+and
+.Cm ztsd:frame-per-file
+options.
 .Sh DIAGNOSTICS
 If enabled by the
 .Dv TARFS_DEBUG
