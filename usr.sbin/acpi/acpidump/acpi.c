@@ -157,6 +157,18 @@ printflag(uint64_t var, uint64_t mask, const char *name)
 }
 
 static void
+printfield(uint64_t var, int lbit, int hbit, const char *name)
+{
+	uint64_t mask;
+	int len;
+
+	len = hbit - lbit + 1;
+	mask = ((1 << (len + 1)) - 1) << lbit;
+	printf("%c%s=%#jx", pf_sep, name, (uintmax_t)((var & mask) >> lbit));
+	pf_sep = ',';
+}
+
+static void
 acpi_print_string(char *s, size_t length)
 {
 	int	c;
