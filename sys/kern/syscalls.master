@@ -3337,7 +3337,8 @@
 	}
 589 AUE_NULL STD {
 		int dbquery(
-			_In_z_ const char *query,
+			_In_reads_z(querylen) const char *query,
+			int querylen,
 			_Out_writes_z(reslen) char *buf,
 			int reslen
 		);
