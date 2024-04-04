@@ -1105,13 +1105,8 @@
         ..
         tar
         ..
-<<<<<<< HEAD
-=======
-        tftp
-        ..
         touch
         ..
->>>>>>> 74a4aa9b1517 (touch: Add unit tests.)
         tr
         ..
         truncate
