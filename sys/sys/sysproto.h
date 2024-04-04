@@ -1876,6 +1876,7 @@ struct helloworld_args {
 };
 struct dbquery_args {
 	char query_l_[PADL_(const char *)]; const char * query; char query_r_[PADR_(const char *)];
+	char querylen_l_[PADL_(int)]; int querylen; char querylen_r_[PADR_(int)];
 	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
 	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
 };

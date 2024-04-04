@@ -13,7 +13,7 @@ MALLOC_DECLARE(M_DBQUERY); // Declare a new malloc type for our system call
 
 int sys_dbquery (struct thread *td, struct dbquery_args *uap) {
     int error = 0;
-    int space_required = 500;
+    int space_required = 16;
     char *kernel_buffer;
 
     kernel_buffer = (char *)malloc(space_required, M_DBQUERY, M_WAITOK | M_ZERO);
@@ -22,8 +22,7 @@ int sys_dbquery (struct thread *td, struct dbquery_args *uap) {
         return ENOMEM;
     }
 
-    sprintf(kernel_buffer, "Not implemented");
-    kernel_buffer[499] = '\0';
+    sprintf(kernel_buffer, "Not implemented\n");
 
     error = copyout(kernel_buffer, uap->buf, space_required);
 
