@@ -96,10 +96,10 @@ BSM=		audit.h \
 BSMPACKAGE=	libbsm
 BSMDIR=		${INCLUDEDIR}/bsm
 
-.PATH: ${SRCTOP}/sys/security/audit
-SECAUDIT=	audit.h \
-		audit_ioctl.h \
-		audit_private.h
+.PATH: ${SRCTOP}/sys/security
+SECAUDIT=	audit/audit.h \
+		audit/audit_ioctl.h \
+		audit/audit_private.h
 SECAUDITPACKAGE=	libbsm
 SECAUDITDIR=	${INCLUDEDIR}/security/audit
 
