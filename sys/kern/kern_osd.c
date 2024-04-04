@@ -278,6 +278,24 @@ osd_free_reserved(void **rsv)
 }
 
 void *
+osd_get_unlocked(u_int type, struct osd *osd, u_int slot)
+{
+	void *value;
+
+	KASSERT(osdm[type].osd_destructors[slot - 1] != NULL, ("Unused slot."));
+
+	if (slot > osd->osd_nslots) {
+		value = NULL;
+		OSD_DEBUG("Slot doesn't exist (type=%u, slot=%u).", type, slot);
+	} else {
+		value = atomic_load_ptr(&osd->osd_slots[slot - 1]);
+		OSD_DEBUG("Returning slot value (type=%u, slot=%u, value=%p).",
+		    type, slot, value);
+	}
+	return (value);
+}
+
+void *
 osd_get(u_int type, struct osd *osd, u_int slot)
 {
 	struct rm_priotracker tracker;
@@ -287,16 +305,7 @@ osd_get(u_int type, struct osd *osd, u_int slot)
 	KASSERT(slot > 0, ("Invalid slot."));
 
 	rm_rlock(&osdm[type].osd_object_lock, &tracker);
-	KASSERT(osdm[type].osd_destructors[slot - 1] != NULL, ("Unused slot."));
-
-	if (slot > osd->osd_nslots) {
-		value = NULL;
-		OSD_DEBUG("Slot doesn't exist (type=%u, slot=%u).", type, slot);
-	} else {
-		value = osd->osd_slots[slot - 1];
-		OSD_DEBUG("Returning slot value (type=%u, slot=%u, value=%p).",
-		    type, slot, value);
-	}
+	value = osd_get_unlocked(type, osd, slot);
 	rm_runlock(&osdm[type].osd_object_lock, &tracker);
 	return (value);
 }
