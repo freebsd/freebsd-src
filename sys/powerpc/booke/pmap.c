@@ -749,6 +749,11 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 	debugf("ptbl_buf_pool_vabase = 0x%"PRI0ptrX" end = 0x%"PRI0ptrX"\n",
 	    ptbl_buf_pool_vabase, virtual_avail);
 #endif
+#ifdef	__powerpc64__
+	/* Allocate KVA space for crashdumpmap. */
+	crashdumpmap = (caddr_t)virtual_avail;
+	virtual_avail += MAXDUMPPGS * PAGE_SIZE;
+#endif
 
 	/* Calculate corresponding physical addresses for the kernel region. */
 	phys_kernelend = kernload + kernsize;
