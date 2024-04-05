@@ -406,7 +406,7 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 				else if (!notme) {
 					if (!unbound_flag) {
 						if (all_flag)
-							printf("%s: %s", *dev ? dev : "unattached", lastmod);
+							printf("%s: %s\n", *dev ? dev : "unattached", lastmod);
 						else
 							printf("%s\n", lastmod);
 						if (verbose_flag)
@@ -445,7 +445,7 @@ find_unmatched(struct devinfo_dev *dev, void *arg)
 			break;
 		if (!(dev->dd_flags & DF_ENABLED))
 			break;
-		if (dev->dd_flags & DF_ATTACHED_ONCE)
+		if (!all_flag && dev->dd_flags & DF_ATTACHED_ONCE)
 			break;
 		parent = devinfo_handle_to_device(dev->dd_parent);
 		bus = strdup(parent->dd_name);
