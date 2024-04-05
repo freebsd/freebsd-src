@@ -19927,6 +19927,10 @@ rack_output(struct tcpcb *tp)
 
 #endif
 	int32_t idle, sendalot;
+<<<<<<< HEAD
+=======
+	uint32_t tot_idle;
+>>>>>>> 7df0ef5f48e1 (tcp rack: fix sending)
 	int32_t sub_from_prr = 0;
 	volatile int32_t sack_rxmit;
 	struct rack_sendmap *rsm = NULL;
@@ -20164,8 +20168,8 @@ rack_output(struct tcpcb *tp)
 	if ((tp->snd_una == tp->snd_max) &&
 	    rack->r_ctl.rc_went_idle_time &&
 	    TSTMP_GT(cts, rack->r_ctl.rc_went_idle_time)) {
-		idle = cts - rack->r_ctl.rc_went_idle_time;
-		if (idle > rack_min_probertt_hold) {
+		tot_idle = (cts - rack->r_ctl.rc_went_idle_time);
+		if (tot_idle > rack_min_probertt_hold) {
 			/* Count as a probe rtt */
 			if (rack->in_probe_rtt == 0) {
 				rack->r_ctl.rc_lower_rtt_us_cts = cts;
@@ -20176,7 +20180,6 @@ rack_output(struct tcpcb *tp)
 				rack_exit_probertt(rack, cts);
 			}
 		}
-		idle = 0;
 	}
 	if (rack_use_fsb &&
 	    (rack->r_ctl.fsb.tcp_ip_hdr) &&
