@@ -88,6 +88,7 @@ struct snd_mixer;
 #include <dev/sound/pcm/feeder.h>
 #include <dev/sound/pcm/mixer.h>
 #include <dev/sound/pcm/dsp.h>
+#include <dev/sound/clone.h>
 #include <dev/sound/unit.h>
 
 #define	PCM_SOFTC_SIZE	(sizeof(struct snddev_info))
@@ -110,6 +111,8 @@ struct snd_mixer;
 #define PCMMAXUNIT		(snd_max_u())
 #define PCMMAXDEV		(snd_max_d())
 #define PCMMAXCHAN		(snd_max_c())
+
+#define PCMMAXCLONE		PCMMAXCHAN
 
 #define PCMUNIT(x)		(snd_unit2u(dev2unit(x)))
 #define PCMDEV(x)		(snd_unit2d(dev2unit(x)))
@@ -367,6 +370,8 @@ struct snddev_info {
 			} opened;
 		} pcm;
 	} channels;
+	TAILQ_HEAD(dsp_cdevinfo_linkhead, dsp_cdevinfo) dsp_cdevinfo_pool;
+	struct snd_clone *clones;
 	unsigned devcount, playcount, reccount, pvchancount, rvchancount ;
 	unsigned flags;
 	unsigned int bufsz;
@@ -375,7 +380,6 @@ struct snddev_info {
 	char status[SND_STATUSLEN];
 	struct mtx *lock;
 	struct cdev *mixer_dev;
-	struct cdev *dsp_dev;
 	uint32_t pvchanrate, pvchanformat;
 	uint32_t rvchanrate, rvchanformat;
 	int32_t eqpreamp;

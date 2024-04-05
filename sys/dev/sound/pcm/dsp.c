@@ -43,14 +43,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
-struct dsp_cdevpriv {
-	struct snddev_info *sc;
-	struct pcm_channel *rdch;
-	struct pcm_channel *wrch;
-	struct pcm_channel *volch;
-	int simplex;
-};
-
 static int dsp_mmap_allow_prot_exec = 0;
 SYSCTL_INT(_hw_snd, OID_AUTO, compat_linux_mmap, CTLFLAG_RWTUN,
     &dsp_mmap_allow_prot_exec, 0,
@@ -61,11 +53,27 @@ SYSCTL_INT(_hw_snd, OID_AUTO, basename_clone, CTLFLAG_RWTUN,
     &dsp_basename_clone, 0,
     "DSP basename cloning (0: Disable; 1: Enabled)");
 
-#define DSP_REGISTERED(x)	(PCM_REGISTERED(x) && (x)->dsp_dev != NULL)
+struct dsp_cdevinfo {
+	struct pcm_channel *rdch, *wrch;
+	struct pcm_channel *volch;
+	int busy, simplex;
+	TAILQ_ENTRY(dsp_cdevinfo) link;
+};
+
+#define PCM_RDCH(x)		(((struct dsp_cdevinfo *)(x)->si_drv1)->rdch)
+#define PCM_WRCH(x)		(((struct dsp_cdevinfo *)(x)->si_drv1)->wrch)
+#define PCM_VOLCH(x)		(((struct dsp_cdevinfo *)(x)->si_drv1)->volch)
+#define PCM_SIMPLEX(x)		(((struct dsp_cdevinfo *)(x)->si_drv1)->simplex)
+
+#define DSP_CDEVINFO_CACHESIZE	8
+
+#define DSP_REGISTERED(x, y)	(PCM_REGISTERED(x) &&			\
+				 (y) != NULL && (y)->si_drv1 != NULL)
 
 #define OLDPCM_IOCTL
 
 static d_open_t dsp_open;
+static d_close_t dsp_close;
 static d_read_t dsp_read;
 static d_write_t dsp_write;
 static d_ioctl_t dsp_ioctl;
@@ -76,6 +84,7 @@ static d_mmap_single_t dsp_mmap_single;
 struct cdevsw dsp_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_open =	dsp_open,
+	.d_close =	dsp_close,
 	.d_read =	dsp_read,
 	.d_write =	dsp_write,
 	.d_ioctl =	dsp_ioctl,
@@ -86,6 +95,8 @@ struct cdevsw dsp_cdevsw = {
 };
 
 static eventhandler_tag dsp_ehtag = NULL;
+static int dsp_umax = -1;
+static int dsp_cmax = -1;
 
 static int dsp_oss_syncgroup(struct pcm_channel *wrch, struct pcm_channel *rdch, oss_syncgroup *group);
 static int dsp_oss_syncstart(int sg_id);
@@ -101,6 +112,12 @@ static int dsp_oss_getsong(struct pcm_channel *wrch, struct pcm_channel *rdch, o
 static int dsp_oss_setsong(struct pcm_channel *wrch, struct pcm_channel *rdch, oss_longname_t *song);
 static int dsp_oss_setname(struct pcm_channel *wrch, struct pcm_channel *rdch, oss_longname_t *name);
 #endif
+
+static struct snddev_info *
+dsp_get_info(struct cdev *dev)
+{
+	return (devclass_get_softc(pcm_devclass, PCMUNIT(dev)));
+}
 
 static uint32_t
 dsp_get_flags(struct cdev *dev)
@@ -123,52 +140,22 @@ dsp_set_flags(struct cdev *dev, uint32_t flags)
 		pcm_setflags(bdev, flags);
 }
 
-int
-dsp_make_dev(device_t dev)
-{
-	struct make_dev_args devargs;
-	struct snddev_info *sc;
-	int err, unit;
-
-	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
-
-	make_dev_args_init(&devargs);
-	devargs.mda_devsw = &dsp_cdevsw;
-	devargs.mda_uid = UID_ROOT;
-	devargs.mda_gid = GID_WHEEL;
-	devargs.mda_mode = 0666;
-	devargs.mda_si_drv1 = sc;
-	err = make_dev_s(&devargs, &sc->dsp_dev, "dsp%d", unit);
-	if (err != 0) {
-		device_printf(dev, "failed to create dsp%d: error %d",
-		    unit, err);
-		return (ENXIO);
-	}
-
-	return (0);
-}
-
-void
-dsp_destroy_dev(device_t dev)
-{
-	struct snddev_info *d;
-
-	d = device_get_softc(dev);
-	destroy_dev_sched(d->dsp_dev);
-}
-
-static void
-getchns(struct dsp_cdevpriv *priv, uint32_t prio)
+/*
+ * return the channels associated with an open device instance.
+ * lock channels specified.
+ */
+static int
+getchns(struct cdev *dev, struct pcm_channel **rdch, struct pcm_channel **wrch,
+    uint32_t prio)
 {
 	struct snddev_info *d;
 	struct pcm_channel *ch;
 	uint32_t flags;
 
-	if (priv->simplex) {
-		d = priv->sc;
+	if (PCM_SIMPLEX(dev) != 0) {
+		d = dsp_get_info(dev);
 		if (!PCM_REGISTERED(d))
-			return;
+			return (ENXIO);
 		PCM_LOCK(d);
 		PCM_WAIT(d);
 		PCM_ACQUIRE(d);
@@ -177,25 +164,32 @@ getchns(struct dsp_cdevpriv *priv, uint32_t prio)
 		 *       pcm flags -> prio query flags -> wild guess
 		 */
 		ch = NULL;
-		flags = dsp_get_flags(d->dsp_dev);
+		flags = dsp_get_flags(dev);
 		if (flags & SD_F_PRIO_WR) {
-			ch = priv->rdch;
+			ch = PCM_RDCH(dev);
+			PCM_RDCH(dev) = NULL;
 		} else if (flags & SD_F_PRIO_RD) {
-			ch = priv->wrch;
+			ch = PCM_WRCH(dev);
+			PCM_WRCH(dev) = NULL;
 		} else if (prio & SD_F_PRIO_WR) {
-			ch = priv->rdch;
+			ch = PCM_RDCH(dev);
+			PCM_RDCH(dev) = NULL;
 			flags |= SD_F_PRIO_WR;
 		} else if (prio & SD_F_PRIO_RD) {
-			ch = priv->wrch;
+			ch = PCM_WRCH(dev);
+			PCM_WRCH(dev) = NULL;
 			flags |= SD_F_PRIO_RD;
-		} else if (priv->wrch != NULL) {
-			ch = priv->rdch;
+		} else if (PCM_WRCH(dev) != NULL) {
+			ch = PCM_RDCH(dev);
+			PCM_RDCH(dev) = NULL;
 			flags |= SD_F_PRIO_WR;
-		} else if (priv->rdch != NULL) {
-			ch = priv->wrch;
+		} else if (PCM_RDCH(dev) != NULL) {
+			ch = PCM_WRCH(dev);
+			PCM_WRCH(dev) = NULL;
 			flags |= SD_F_PRIO_RD;
 		}
-		dsp_set_flags(d->dsp_dev, flags);
+		PCM_SIMPLEX(dev) = 0;
+		dsp_set_flags(dev, flags);
 		if (ch != NULL) {
 			CHN_LOCK(ch);
 			pcm_chnref(ch, -1);
@@ -205,19 +199,166 @@ getchns(struct dsp_cdevpriv *priv, uint32_t prio)
 		PCM_UNLOCK(d);
 	}
 
-	if (priv->rdch != NULL && (prio & SD_F_PRIO_RD))
-		CHN_LOCK(priv->rdch);
-	if (priv->wrch != NULL && (prio & SD_F_PRIO_WR))
-		CHN_LOCK(priv->wrch);
+	*rdch = PCM_RDCH(dev);
+	*wrch = PCM_WRCH(dev);
+
+	if (*rdch != NULL && (prio & SD_F_PRIO_RD))
+		CHN_LOCK(*rdch);
+	if (*wrch != NULL && (prio & SD_F_PRIO_WR))
+		CHN_LOCK(*wrch);
+
+	return (0);
+}
+
+/* unlock specified channels */
+static void
+relchns(struct cdev *dev, struct pcm_channel *rdch, struct pcm_channel *wrch,
+    uint32_t prio)
+{
+	if (wrch != NULL && (prio & SD_F_PRIO_WR))
+		CHN_UNLOCK(wrch);
+	if (rdch != NULL && (prio & SD_F_PRIO_RD))
+		CHN_UNLOCK(rdch);
 }
 
 static void
-relchns(struct dsp_cdevpriv *priv, uint32_t prio)
+dsp_cdevinfo_alloc(struct cdev *dev,
+    struct pcm_channel *rdch, struct pcm_channel *wrch,
+    struct pcm_channel *volch)
 {
-	if (priv->rdch != NULL && (prio & SD_F_PRIO_RD))
-		CHN_UNLOCK(priv->rdch);
-	if (priv->wrch != NULL && (prio & SD_F_PRIO_WR))
-		CHN_UNLOCK(priv->wrch);
+	struct snddev_info *d;
+	struct dsp_cdevinfo *cdi;
+	int simplex;
+
+	d = dsp_get_info(dev);
+
+	KASSERT(PCM_REGISTERED(d) && dev != NULL && dev->si_drv1 == NULL &&
+	    ((rdch == NULL && wrch == NULL) || rdch != wrch),
+	    ("bogus %s(), what are you trying to accomplish here?", __func__));
+	PCM_BUSYASSERT(d);
+	PCM_LOCKASSERT(d);
+
+	simplex = (dsp_get_flags(dev) & SD_F_SIMPLEX) ? 1 : 0;
+
+	/*
+	 * Scan for free instance entry and put it into the end of list.
+	 * Create new one if necessary.
+	 */
+	TAILQ_FOREACH(cdi, &d->dsp_cdevinfo_pool, link) {
+		if (cdi->busy != 0)
+			break;
+		cdi->rdch = rdch;
+		cdi->wrch = wrch;
+		cdi->volch = volch;
+		cdi->simplex = simplex;
+		cdi->busy = 1;
+		TAILQ_REMOVE(&d->dsp_cdevinfo_pool, cdi, link);
+		TAILQ_INSERT_TAIL(&d->dsp_cdevinfo_pool, cdi, link);
+		dev->si_drv1 = cdi;
+		return;
+	}
+	PCM_UNLOCK(d);
+	cdi = malloc(sizeof(*cdi), M_DEVBUF, M_WAITOK | M_ZERO);
+	PCM_LOCK(d);
+	cdi->rdch = rdch;
+	cdi->wrch = wrch;
+	cdi->volch = volch;
+	cdi->simplex = simplex;
+	cdi->busy = 1;
+	TAILQ_INSERT_TAIL(&d->dsp_cdevinfo_pool, cdi, link);
+	dev->si_drv1 = cdi;
+}
+
+static void
+dsp_cdevinfo_free(struct cdev *dev)
+{
+	struct snddev_info *d;
+	struct dsp_cdevinfo *cdi, *tmp;
+	uint32_t flags;
+	int i;
+
+	d = dsp_get_info(dev);
+
+	KASSERT(PCM_REGISTERED(d) && dev != NULL && dev->si_drv1 != NULL &&
+	    PCM_RDCH(dev) == NULL && PCM_WRCH(dev) == NULL &&
+	    PCM_VOLCH(dev) == NULL,
+	    ("bogus %s(), what are you trying to accomplish here?", __func__));
+	PCM_BUSYASSERT(d);
+	PCM_LOCKASSERT(d);
+
+	cdi = dev->si_drv1;
+	dev->si_drv1 = NULL;
+	cdi->rdch = NULL;
+	cdi->wrch = NULL;
+	cdi->volch = NULL;
+	cdi->simplex = 0;
+	cdi->busy = 0;
+
+	/*
+	 * Once it is free, move it back to the beginning of list for
+	 * faster new entry allocation.
+	 */
+	TAILQ_REMOVE(&d->dsp_cdevinfo_pool, cdi, link);
+	TAILQ_INSERT_HEAD(&d->dsp_cdevinfo_pool, cdi, link);
+
+	/*
+	 * Scan the list, cache free entries up to DSP_CDEVINFO_CACHESIZE.
+	 * Reset simplex flags.
+	 */
+	flags = dsp_get_flags(dev) & ~SD_F_PRIO_SET;
+	i = DSP_CDEVINFO_CACHESIZE;
+	TAILQ_FOREACH_SAFE(cdi, &d->dsp_cdevinfo_pool, link, tmp) {
+		if (cdi->busy != 0) {
+			if (cdi->simplex == 0) {
+				if (cdi->rdch != NULL)
+					flags |= SD_F_PRIO_RD;
+				if (cdi->wrch != NULL)
+					flags |= SD_F_PRIO_WR;
+			}
+		} else {
+			if (i == 0) {
+				TAILQ_REMOVE(&d->dsp_cdevinfo_pool, cdi, link);
+				free(cdi, M_DEVBUF);
+			} else
+				i--;
+		}
+	}
+	dsp_set_flags(dev, flags);
+}
+
+void
+dsp_cdevinfo_init(struct snddev_info *d)
+{
+	struct dsp_cdevinfo *cdi;
+	int i;
+
+	KASSERT(d != NULL, ("NULL snddev_info"));
+	PCM_BUSYASSERT(d);
+	PCM_UNLOCKASSERT(d);
+
+	TAILQ_INIT(&d->dsp_cdevinfo_pool);
+	for (i = 0; i < DSP_CDEVINFO_CACHESIZE; i++) {
+		cdi = malloc(sizeof(*cdi), M_DEVBUF, M_WAITOK | M_ZERO);
+		TAILQ_INSERT_HEAD(&d->dsp_cdevinfo_pool, cdi, link);
+	}
+}
+
+void
+dsp_cdevinfo_flush(struct snddev_info *d)
+{
+	struct dsp_cdevinfo *cdi, *tmp;
+
+	KASSERT(d != NULL, ("NULL snddev_info"));
+	PCM_BUSYASSERT(d);
+	PCM_UNLOCKASSERT(d);
+
+	cdi = TAILQ_FIRST(&d->dsp_cdevinfo_pool);
+	while (cdi != NULL) {
+		tmp = TAILQ_NEXT(cdi, link);
+		free(cdi, M_DEVBUF);
+		cdi = tmp;
+	}
+	TAILQ_INIT(&d->dsp_cdevinfo_pool);
 }
 
 /* duplex / simplex cdev type */
@@ -225,6 +366,12 @@ enum {
 	DSP_CDEV_TYPE_RDONLY,		/* simplex read-only (record)   */
 	DSP_CDEV_TYPE_WRONLY,		/* simplex write-only (play)    */
 	DSP_CDEV_TYPE_RDWR		/* duplex read, write, or both  */
+};
+
+enum {
+	DSP_CDEV_VOLCTL_NONE,
+	DSP_CDEV_VOLCTL_READ,
+	DSP_CDEV_VOLCTL_WRITE
 };
 
 #define DSP_F_VALID(x)		((x) & (FREAD | FWRITE))
@@ -282,21 +429,282 @@ static const struct {
 	  DSP_CDEV_TYPE_RDWR },
 };
 
-static void
-dsp_close(void *data)
+#define DSP_FIXUP_ERROR()		do {				\
+	prio = dsp_get_flags(i_dev);					\
+	if (!DSP_F_VALID(flags))					\
+		error = EINVAL;						\
+	if (!DSP_F_DUPLEX(flags) &&					\
+	    ((DSP_F_READ(flags) && d->reccount == 0) ||			\
+	    (DSP_F_WRITE(flags) && d->playcount == 0)))			\
+		error = ENOTSUP;					\
+	else if (!DSP_F_DUPLEX(flags) && (prio & SD_F_SIMPLEX) &&	\
+	    ((DSP_F_READ(flags) && (prio & SD_F_PRIO_WR)) ||		\
+	    (DSP_F_WRITE(flags) && (prio & SD_F_PRIO_RD))))		\
+		error = EBUSY;						\
+	else if (DSP_REGISTERED(d, i_dev))				\
+		error = EBUSY;						\
+} while (0)
+
+static int
+dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
-	struct dsp_cdevpriv *priv = data;
+	struct pcm_channel *rdch, *wrch;
+	struct snddev_info *d;
+	uint32_t fmt, spd, prio, volctl;
+	int i, error, rderror, wrerror, devtype, wdevunit, rdevunit;
+
+	/* Kind of impossible.. */
+	if (i_dev == NULL || td == NULL)
+		return (ENODEV);
+
+	d = dsp_get_info(i_dev);
+	if (PCM_DETACHING(d) || !PCM_REGISTERED(d))
+		return (EBADF);
+
+	PCM_GIANT_ENTER(d);
+
+	/* Lock snddev so nobody else can monkey with it. */
+	PCM_LOCK(d);
+	PCM_WAIT(d);
+
+	/*
+	 * Try to acquire cloned device before someone else pick it.
+	 * ENODEV means this is not a cloned droids.
+	 */
+	error = snd_clone_acquire(i_dev);
+	if (!(error == 0 || error == ENODEV)) {
+		DSP_FIXUP_ERROR();
+		PCM_UNLOCK(d);
+		PCM_GIANT_EXIT(d);
+		return (error);
+	}
+
+	error = 0;
+	DSP_FIXUP_ERROR();
+
+	if (error != 0) {
+		(void)snd_clone_release(i_dev);
+		PCM_UNLOCK(d);
+		PCM_GIANT_EXIT(d);
+		return (error);
+	}
+
+	/*
+	 * That is just enough. Acquire and unlock pcm lock so
+	 * the other will just have to wait until we finish doing
+	 * everything.
+	 */
+	PCM_ACQUIRE(d);
+	PCM_UNLOCK(d);
+
+	devtype = PCMDEV(i_dev);
+	wdevunit = -1;
+	rdevunit = -1;
+	fmt = 0;
+	spd = 0;
+	volctl = DSP_CDEV_VOLCTL_NONE;
+
+	for (i = 0; i < (sizeof(dsp_cdevs) / sizeof(dsp_cdevs[0])); i++) {
+		if (devtype != dsp_cdevs[i].type || dsp_cdevs[i].alias != NULL)
+			continue;
+		/*
+		 * Volume control only valid for DSPHW devices,
+		 * and it must be opened in opposite direction be it
+		 * simplex or duplex. Anything else will be handled
+		 * as usual.
+		 */
+		if (dsp_cdevs[i].query == DSP_CDEV_TYPE_WRONLY) {
+			if (dsp_cdevs[i].volctl != 0 &&
+			    DSP_F_READ(flags)) {
+				volctl = DSP_CDEV_VOLCTL_WRITE;
+				flags &= ~FREAD;
+				flags |= FWRITE;
+			}
+			if (DSP_F_READ(flags)) {
+				(void)snd_clone_release(i_dev);
+				PCM_RELEASE_QUICK(d);
+				PCM_GIANT_EXIT(d);
+				return (ENOTSUP);
+			}
+			wdevunit = dev2unit(i_dev);
+		} else if (dsp_cdevs[i].query == DSP_CDEV_TYPE_RDONLY) {
+			if (dsp_cdevs[i].volctl != 0 &&
+			    DSP_F_WRITE(flags)) {
+				volctl = DSP_CDEV_VOLCTL_READ;
+				flags &= ~FWRITE;
+				flags |= FREAD;
+			}
+			if (DSP_F_WRITE(flags)) {
+				(void)snd_clone_release(i_dev);
+				PCM_RELEASE_QUICK(d);
+				PCM_GIANT_EXIT(d);
+				return (ENOTSUP);
+			}
+			rdevunit = dev2unit(i_dev);
+		}
+		fmt = dsp_cdevs[i].fmt;
+		spd = dsp_cdevs[i].spd;
+		break;
+	}
+
+	/* No matching devtype? */
+	if (fmt == 0 || spd == 0)
+		panic("impossible devtype %d", devtype);
+
+	rdch = NULL;
+	wrch = NULL;
+	rderror = 0;
+	wrerror = 0;
+
+	/*
+	 * if we get here, the open request is valid- either:
+	 *   * we were previously not open
+	 *   * we were open for play xor record and the opener wants
+	 *     the non-open direction
+	 */
+	if (DSP_F_READ(flags)) {
+		/* open for read */
+		rderror = pcm_chnalloc(d, &rdch, PCMDIR_REC,
+		    td->td_proc->p_pid, td->td_proc->p_comm, rdevunit);
+
+		if (rderror == 0 && chn_reset(rdch, fmt, spd) != 0)
+			rderror = ENXIO;
+
+		if (volctl == DSP_CDEV_VOLCTL_READ)
+			rderror = 0;
+
+		if (rderror != 0) {
+			if (rdch != NULL)
+				pcm_chnrelease(rdch);
+			if (!DSP_F_DUPLEX(flags)) {
+				(void)snd_clone_release(i_dev);
+				PCM_RELEASE_QUICK(d);
+				PCM_GIANT_EXIT(d);
+				return (rderror);
+			}
+			rdch = NULL;
+		} else if (volctl == DSP_CDEV_VOLCTL_READ) {
+			if (rdch != NULL) {
+				pcm_chnref(rdch, 1);
+				pcm_chnrelease(rdch);
+			}
+		} else {
+			if (flags & O_NONBLOCK)
+				rdch->flags |= CHN_F_NBIO;
+			if (flags & O_EXCL)
+				rdch->flags |= CHN_F_EXCLUSIVE;
+			pcm_chnref(rdch, 1);
+			if (volctl == DSP_CDEV_VOLCTL_NONE)
+				chn_vpc_reset(rdch, SND_VOL_C_PCM, 0);
+		 	CHN_UNLOCK(rdch);
+		}
+	}
+
+	if (DSP_F_WRITE(flags)) {
+		/* open for write */
+		wrerror = pcm_chnalloc(d, &wrch, PCMDIR_PLAY,
+		    td->td_proc->p_pid, td->td_proc->p_comm, wdevunit);
+
+		if (wrerror == 0 && chn_reset(wrch, fmt, spd) != 0)
+			wrerror = ENXIO;
+
+		if (volctl == DSP_CDEV_VOLCTL_WRITE)
+			wrerror = 0;
+
+		if (wrerror != 0) {
+			if (wrch != NULL)
+				pcm_chnrelease(wrch);
+			if (!DSP_F_DUPLEX(flags)) {
+				if (rdch != NULL) {
+					/*
+					 * Lock, deref and release previously
+					 * created record channel
+					 */
+					CHN_LOCK(rdch);
+					pcm_chnref(rdch, -1);
+					pcm_chnrelease(rdch);
+				}
+				(void)snd_clone_release(i_dev);
+				PCM_RELEASE_QUICK(d);
+				PCM_GIANT_EXIT(d);
+				return (wrerror);
+			}
+			wrch = NULL;
+		} else if (volctl == DSP_CDEV_VOLCTL_WRITE) {
+			if (wrch != NULL) {
+				pcm_chnref(wrch, 1);
+				pcm_chnrelease(wrch);
+			}
+		} else {
+			if (flags & O_NONBLOCK)
+				wrch->flags |= CHN_F_NBIO;
+			if (flags & O_EXCL)
+				wrch->flags |= CHN_F_EXCLUSIVE;
+			pcm_chnref(wrch, 1);
+			if (volctl == DSP_CDEV_VOLCTL_NONE)
+				chn_vpc_reset(wrch, SND_VOL_C_PCM, 0);
+			CHN_UNLOCK(wrch);
+		}
+	}
+
+	PCM_LOCK(d);
+
+	/*
+	 * We're done. Allocate channels information for this cdev.
+	 */
+	switch (volctl) {
+	case DSP_CDEV_VOLCTL_READ:
+		KASSERT(wrch == NULL, ("wrch=%p not null!", wrch));
+		dsp_cdevinfo_alloc(i_dev, NULL, NULL, rdch);
+		break;
+	case DSP_CDEV_VOLCTL_WRITE:
+		KASSERT(rdch == NULL, ("rdch=%p not null!", rdch));
+		dsp_cdevinfo_alloc(i_dev, NULL, NULL, wrch);
+		break;
+	case DSP_CDEV_VOLCTL_NONE:
+	default:
+		if (wrch == NULL && rdch == NULL) {
+			(void)snd_clone_release(i_dev);
+			PCM_RELEASE(d);
+			PCM_UNLOCK(d);
+			PCM_GIANT_EXIT(d);
+			if (wrerror != 0)
+				return (wrerror);
+			if (rderror != 0)
+				return (rderror);
+			return (EINVAL);
+		}
+		dsp_cdevinfo_alloc(i_dev, rdch, wrch, NULL);
+		if (rdch != NULL)
+			CHN_INSERT_HEAD(d, rdch, channels.pcm.opened);
+		if (wrch != NULL)
+			CHN_INSERT_HEAD(d, wrch, channels.pcm.opened);
+		break;
+	}
+
+	/*
+	 * Increase clone refcount for its automatic garbage collector.
+	 */
+	(void)snd_clone_ref(i_dev);
+
+	PCM_RELEASE(d);
+	PCM_UNLOCK(d);
+
+	PCM_GIANT_LEAVE(d);
+
+	return (0);
+}
+
+static int
+dsp_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
+{
 	struct pcm_channel *rdch, *wrch, *volch;
 	struct snddev_info *d;
 	int sg_ids, rdref, wdref;
 
-	if (priv == NULL)
-		return;
-
-	d = priv->sc;
-	/* At this point pcm_unregister() will destroy all channels anyway. */
-	if (!PCM_REGISTERED(d))
-		goto skip;
+	d = dsp_get_info(i_dev);
+	if (!DSP_REGISTERED(d, i_dev))
+		return (EBADF);
 
 	PCM_GIANT_ENTER(d);
 
@@ -304,9 +712,13 @@ dsp_close(void *data)
 	PCM_WAIT(d);
 	PCM_ACQUIRE(d);
 
-	rdch = priv->rdch;
-	wrch = priv->wrch;
-	volch = priv->volch;
+	rdch = PCM_RDCH(i_dev);
+	wrch = PCM_WRCH(i_dev);
+	volch = PCM_VOLCH(i_dev);
+
+	PCM_RDCH(i_dev) = NULL;
+	PCM_WRCH(i_dev) = NULL;
+	PCM_VOLCH(i_dev) = NULL;
 
 	rdref = -1;
 	wdref = -1;
@@ -377,170 +789,21 @@ dsp_close(void *data)
 		PCM_LOCK(d);
 	}
 
-	PCM_RELEASE(d);
-	PCM_UNLOCK(d);
-
-	PCM_GIANT_LEAVE(d);
-skip:
-	free(priv, M_DEVBUF);
-	priv = NULL;
-}
-
-#define DSP_FIXUP_ERROR()		do {				\
-	prio = dsp_get_flags(i_dev);					\
-	if (!DSP_F_VALID(flags))					\
-		error = EINVAL;						\
-	if (!DSP_F_DUPLEX(flags) &&					\
-	    ((DSP_F_READ(flags) && d->reccount == 0) ||			\
-	    (DSP_F_WRITE(flags) && d->playcount == 0)))			\
-		error = ENOTSUP;					\
-	else if (!DSP_F_DUPLEX(flags) && (prio & SD_F_SIMPLEX) &&	\
-	    ((DSP_F_READ(flags) && (prio & SD_F_PRIO_WR)) ||		\
-	    (DSP_F_WRITE(flags) && (prio & SD_F_PRIO_RD))))		\
-		error = EBUSY;						\
-} while (0)
-
-static int
-dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
-{
-	struct dsp_cdevpriv *priv;
-	struct pcm_channel *rdch, *wrch;
-	struct snddev_info *d;
-	uint32_t fmt, spd, prio;
-	int error, rderror, wrerror;
-
-	/* Kind of impossible.. */
-	if (i_dev == NULL || td == NULL)
-		return (ENODEV);
-
-	d = i_dev->si_drv1;
-	if (PCM_DETACHING(d) || !PCM_REGISTERED(d))
-		return (EBADF);
-
-	priv = malloc(sizeof(*priv), M_DEVBUF, M_WAITOK | M_ZERO);
-	priv->sc = d;
-	priv->rdch = NULL;
-	priv->wrch = NULL;
-	priv->volch = NULL;
-	priv->simplex = (dsp_get_flags(i_dev) & SD_F_SIMPLEX) ? 1 : 0;
-
-	error = devfs_set_cdevpriv(priv, dsp_close);
-	if (error != 0)
-		return (error);
-
-	PCM_GIANT_ENTER(d);
-
-	/* Lock snddev so nobody else can monkey with it. */
-	PCM_LOCK(d);
-	PCM_WAIT(d);
-
-	error = 0;
-	DSP_FIXUP_ERROR();
-	if (error != 0) {
-		PCM_UNLOCK(d);
-		PCM_GIANT_EXIT(d);
-		return (error);
-	}
+	dsp_cdevinfo_free(i_dev);
+	/*
+	 * Release clone busy state and unref it so the automatic
+	 * garbage collector will get the hint and do the remaining
+	 * cleanup process.
+	 */
+	(void)snd_clone_release(i_dev);
 
 	/*
-	 * That is just enough. Acquire and unlock pcm lock so
-	 * the other will just have to wait until we finish doing
-	 * everything.
+	 * destroy_dev() might sleep, so release pcm lock
+	 * here and rely on pcm cv serialization.
 	 */
-	PCM_ACQUIRE(d);
 	PCM_UNLOCK(d);
-
-	fmt = SND_FORMAT(AFMT_U8, 1, 0);
-	spd = DSP_DEFAULT_SPEED;
-
-	rdch = NULL;
-	wrch = NULL;
-	rderror = 0;
-	wrerror = 0;
-
-	if (DSP_F_READ(flags)) {
-		/* open for read */
-		rderror = pcm_chnalloc(d, &rdch, PCMDIR_REC,
-		    td->td_proc->p_pid, td->td_proc->p_comm, -1);
-
-		if (rderror == 0 && chn_reset(rdch, fmt, spd) != 0)
-			rderror = ENXIO;
-
-		if (rderror != 0) {
-			if (rdch != NULL)
-				pcm_chnrelease(rdch);
-			if (!DSP_F_DUPLEX(flags)) {
-				PCM_RELEASE_QUICK(d);
-				PCM_GIANT_EXIT(d);
-				return (rderror);
-			}
-			rdch = NULL;
-		} else {
-			if (flags & O_NONBLOCK)
-				rdch->flags |= CHN_F_NBIO;
-			if (flags & O_EXCL)
-				rdch->flags |= CHN_F_EXCLUSIVE;
-			pcm_chnref(rdch, 1);
-			chn_vpc_reset(rdch, SND_VOL_C_PCM, 0);
-		 	CHN_UNLOCK(rdch);
-		}
-	}
-
-	if (DSP_F_WRITE(flags)) {
-		/* open for write */
-		wrerror = pcm_chnalloc(d, &wrch, PCMDIR_PLAY,
-		    td->td_proc->p_pid, td->td_proc->p_comm, -1);
-
-		if (wrerror == 0 && chn_reset(wrch, fmt, spd) != 0)
-			wrerror = ENXIO;
-
-		if (wrerror != 0) {
-			if (wrch != NULL)
-				pcm_chnrelease(wrch);
-			if (!DSP_F_DUPLEX(flags)) {
-				if (rdch != NULL) {
-					/*
-					 * Lock, deref and release previously
-					 * created record channel
-					 */
-					CHN_LOCK(rdch);
-					pcm_chnref(rdch, -1);
-					pcm_chnrelease(rdch);
-				}
-				PCM_RELEASE_QUICK(d);
-				PCM_GIANT_EXIT(d);
-				return (wrerror);
-			}
-			wrch = NULL;
-		} else {
-			if (flags & O_NONBLOCK)
-				wrch->flags |= CHN_F_NBIO;
-			if (flags & O_EXCL)
-				wrch->flags |= CHN_F_EXCLUSIVE;
-			pcm_chnref(wrch, 1);
-			chn_vpc_reset(wrch, SND_VOL_C_PCM, 0);
-			CHN_UNLOCK(wrch);
-		}
-	}
-
+	(void)snd_clone_unref(i_dev);
 	PCM_LOCK(d);
-
-	if (wrch == NULL && rdch == NULL) {
-		PCM_RELEASE(d);
-		PCM_UNLOCK(d);
-		PCM_GIANT_EXIT(d);
-		if (wrerror != 0)
-			return (wrerror);
-		if (rderror != 0)
-			return (rderror);
-		return (EINVAL);
-	}
-	if (rdch != NULL)
-		CHN_INSERT_HEAD(d, rdch, channels.pcm.opened);
-	if (wrch != NULL)
-		CHN_INSERT_HEAD(d, wrch, channels.pcm.opened);
-	priv->rdch = rdch;
-	priv->wrch = wrch;
 
 	PCM_RELEASE(d);
 	PCM_UNLOCK(d);
@@ -551,20 +814,20 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 }
 
 static __inline int
-dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
+dsp_io_ops(struct cdev *i_dev, struct uio *buf)
 {
 	struct snddev_info *d;
-	struct pcm_channel **ch;
+	struct pcm_channel **ch, *rdch, *wrch;
 	int (*chn_io)(struct pcm_channel *, struct uio *);
 	int prio, ret;
 	pid_t runpid;
 
-	KASSERT(buf != NULL &&
+	KASSERT(i_dev != NULL && buf != NULL &&
 	    (buf->uio_rw == UIO_READ || buf->uio_rw == UIO_WRITE),
 	    ("%s(): io train wreck!", __func__));
 
-	d = priv->sc;
-	if (PCM_DETACHING(d) || !DSP_REGISTERED(d))
+	d = dsp_get_info(i_dev);
+	if (PCM_DETACHING(d) || !DSP_REGISTERED(d, i_dev))
 		return (EBADF);
 
 	PCM_GIANT_ENTER(d);
@@ -572,12 +835,12 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 	switch (buf->uio_rw) {
 	case UIO_READ:
 		prio = SD_F_PRIO_RD;
-		ch = &priv->rdch;
+		ch = &rdch;
 		chn_io = chn_read;
 		break;
 	case UIO_WRITE:
 		prio = SD_F_PRIO_WR;
-		ch = &priv->wrch;
+		ch = &wrch;
 		chn_io = chn_write;
 		break;
 	default:
@@ -585,20 +848,22 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 		break;
 	}
 
+	rdch = NULL;
+	wrch = NULL;
 	runpid = buf->uio_td->td_proc->p_pid;
 
-	getchns(priv, prio);
+	getchns(i_dev, &rdch, &wrch, prio);
 
 	if (*ch == NULL || !((*ch)->flags & CHN_F_BUSY)) {
-		if (priv->rdch != NULL || priv->wrch != NULL)
-			relchns(priv, prio);
+		if (rdch != NULL || wrch != NULL)
+			relchns(i_dev, rdch, wrch, prio);
 		PCM_GIANT_EXIT(d);
 		return (EBADF);
 	}
 
 	if (((*ch)->flags & (CHN_F_MMAP | CHN_F_DEAD)) ||
 	    (((*ch)->flags & CHN_F_RUNNING) && (*ch)->pid != runpid)) {
-		relchns(priv, prio);
+		relchns(i_dev, rdch, wrch, prio);
 		PCM_GIANT_EXIT(d);
 		return (EINVAL);
 	} else if (!((*ch)->flags & CHN_F_RUNNING)) {
@@ -617,7 +882,7 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 
 	CHN_BROADCAST(&(*ch)->cv);
 
-	relchns(priv, prio);
+	relchns(i_dev, rdch, wrch, prio);
 
 	PCM_GIANT_LEAVE(d);
 
@@ -627,36 +892,26 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 static int
 dsp_read(struct cdev *i_dev, struct uio *buf, int flag)
 {
-	struct dsp_cdevpriv *priv;
-	int err;
-
-	if ((err = devfs_get_cdevpriv((void **)&priv)) != 0)
-		return (err);
-	return (dsp_io_ops(priv, buf));
+	return (dsp_io_ops(i_dev, buf));
 }
 
 static int
 dsp_write(struct cdev *i_dev, struct uio *buf, int flag)
 {
-	struct dsp_cdevpriv *priv;
-	int err;
-
-	if ((err = devfs_get_cdevpriv((void **)&priv)) != 0)
-		return (err);
-	return (dsp_io_ops(priv, buf));
+	return (dsp_io_ops(i_dev, buf));
 }
 
 static int
-dsp_get_volume_channel(struct dsp_cdevpriv *priv, struct pcm_channel **volch)
+dsp_get_volume_channel(struct cdev *dev, struct pcm_channel **volch)
 {
 	struct snddev_info *d;
 	struct pcm_channel *c;
 	int unit;
 
-	KASSERT(volch != NULL,
-	    ("%s(): NULL query priv=%p volch=%p", __func__, priv, volch));
+	KASSERT(dev != NULL && volch != NULL,
+	    ("%s(): NULL query dev=%p volch=%p", __func__, dev, volch));
 
-	d = priv->sc;
+	d = dsp_get_info(dev);
 	if (!PCM_REGISTERED(d)) {
 		*volch = NULL;
 		return (EINVAL);
@@ -666,7 +921,7 @@ dsp_get_volume_channel(struct dsp_cdevpriv *priv, struct pcm_channel **volch)
 
 	*volch = NULL;
 
-	c = priv->volch;
+	c = PCM_VOLCH(dev);
 	if (c != NULL) {
 		if (!(c->feederflags & (1 << FEEDER_VOLUME)))
 			return (-1);
@@ -678,7 +933,7 @@ dsp_get_volume_channel(struct dsp_cdevpriv *priv, struct pcm_channel **volch)
 	PCM_WAIT(d);
 	PCM_ACQUIRE(d);
 
-	unit = dev2unit(d->dsp_dev);
+	unit = dev2unit(dev);
 
 	CHN_FOREACH(c, d, channels.pcm) {
 		CHN_LOCK(c);
@@ -688,7 +943,7 @@ dsp_get_volume_channel(struct dsp_cdevpriv *priv, struct pcm_channel **volch)
 		}
 		*volch = c;
 		pcm_chnref(c, 1);
-		priv->volch = c;
+		PCM_VOLCH(dev) = c;
 		CHN_UNLOCK(c);
 		PCM_RELEASE(d);
 		PCM_UNLOCK(d);
@@ -702,28 +957,28 @@ dsp_get_volume_channel(struct dsp_cdevpriv *priv, struct pcm_channel **volch)
 }
 
 static int
-dsp_ioctl_channel(struct dsp_cdevpriv *priv, struct pcm_channel *volch,
-    u_long cmd, caddr_t arg)
+dsp_ioctl_channel(struct cdev *dev, struct pcm_channel *volch, u_long cmd,
+    caddr_t arg)
 {
 	struct snddev_info *d;
 	struct pcm_channel *rdch, *wrch;
 	int j, devtype, ret;
 	int left, right, center, mute;
 
-	d = priv->sc;
-	if (!PCM_REGISTERED(d) || !(dsp_get_flags(d->dsp_dev) & SD_F_VPC))
+	d = dsp_get_info(dev);
+	if (!PCM_REGISTERED(d) || !(dsp_get_flags(dev) & SD_F_VPC))
 		return (-1);
 
 	PCM_UNLOCKASSERT(d);
 
 	j = cmd & 0xff;
 
-	rdch = priv->rdch;
-	wrch = priv->wrch;
+	rdch = PCM_RDCH(dev);
+	wrch = PCM_WRCH(dev);
 
 	/* No specific channel, look into cache */
 	if (volch == NULL)
-		volch = priv->volch;
+		volch = PCM_VOLCH(dev);
 
 	/* Look harder */
 	if (volch == NULL) {
@@ -733,13 +988,13 @@ dsp_ioctl_channel(struct dsp_cdevpriv *priv, struct pcm_channel *volch,
 			volch = wrch;
 	}
 
-	devtype = PCMDEV(d->dsp_dev);
+	devtype = PCMDEV(dev);
 
 	/* Look super harder */
 	if (volch == NULL &&
 	    (devtype == SND_DEV_DSPHW_PLAY || devtype == SND_DEV_DSPHW_VPLAY ||
 	    devtype == SND_DEV_DSPHW_REC || devtype == SND_DEV_DSPHW_VREC)) {
-		ret = dsp_get_volume_channel(priv, &volch);
+		ret = dsp_get_volume_channel(dev, &volch);
 		if (ret != 0)
 			return (ret);
 		if (volch == NULL)
@@ -842,17 +1097,13 @@ static int
 dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
     struct thread *td)
 {
-	struct dsp_cdevpriv *priv;
     	struct pcm_channel *chn, *rdch, *wrch;
 	struct snddev_info *d;
 	u_long xcmd;
-	int *arg_i, ret, tmp, err;
+	int *arg_i, ret, tmp;
 
-	if ((err = devfs_get_cdevpriv((void **)&priv)) != 0)
-		return (err);
-
-	d = priv->sc;
-	if (PCM_DETACHING(d) || !DSP_REGISTERED(d))
+	d = dsp_get_info(i_dev);
+	if (PCM_DETACHING(d) || !DSP_REGISTERED(d, i_dev))
 		return (EBADF);
 
 	PCM_GIANT_ENTER(d);
@@ -868,7 +1119,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 			PCM_GIANT_EXIT(d);
 			return (0);
 		}
-		ret = dsp_ioctl_channel(priv, priv->volch, cmd, arg);
+		ret = dsp_ioctl_channel(i_dev, PCM_VOLCH(i_dev), cmd, arg);
 		if (ret != -1) {
 			PCM_GIANT_EXIT(d);
 			return (ret);
@@ -916,9 +1167,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		return (ret);
 	}
 
-	getchns(priv, 0);
-	rdch = priv->rdch;
-	wrch = priv->wrch;
+	getchns(i_dev, &rdch, &wrch, 0);
 
 	if (wrch != NULL && (wrch->flags & CHN_F_DEAD))
 		wrch = NULL;
@@ -1621,7 +1870,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 			chn = wrch;
 		}
 
-		ret = dsp_ioctl_channel(priv, chn, xcmd, arg);
+		ret = dsp_ioctl_channel(i_dev, chn, xcmd, arg);
 		if (ret != -1) {
 			PCM_GIANT_EXIT(d);
 			return (ret);
@@ -1955,26 +2204,23 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 static int
 dsp_poll(struct cdev *i_dev, int events, struct thread *td)
 {
-	struct dsp_cdevpriv *priv;
 	struct snddev_info *d;
 	struct pcm_channel *wrch, *rdch;
-	int ret, e, err;
+	int ret, e;
 
-	if ((err = devfs_get_cdevpriv((void **)&priv)) != 0)
-		return (err);
-	d = priv->sc;
-	if (PCM_DETACHING(d) || !DSP_REGISTERED(d)) {
+	d = dsp_get_info(i_dev);
+	if (PCM_DETACHING(d) || !DSP_REGISTERED(d, i_dev)) {
 		/* XXX many clients don't understand POLLNVAL */
 		return (events & (POLLHUP | POLLPRI | POLLIN |
 		    POLLRDNORM | POLLOUT | POLLWRNORM));
 	}
 	PCM_GIANT_ENTER(d);
 
+	wrch = NULL;
+	rdch = NULL;
 	ret = 0;
 
-	getchns(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
-	wrch = priv->wrch;
-	rdch = priv->rdch;
+	getchns(i_dev, &rdch, &wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 
 	if (wrch != NULL && !(wrch->flags & CHN_F_DEAD)) {
 		e = (events & (POLLOUT | POLLWRNORM));
@@ -1988,7 +2234,7 @@ dsp_poll(struct cdev *i_dev, int events, struct thread *td)
 			ret |= chn_poll(rdch, e, td);
 	}
 
-	relchns(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+	relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 
 	PCM_GIANT_LEAVE(d);
 
@@ -2012,10 +2258,8 @@ static int
 dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
     vm_size_t size, struct vm_object **object, int nprot)
 {
-	struct dsp_cdevpriv *priv;
 	struct snddev_info *d;
 	struct pcm_channel *wrch, *rdch, *c;
-	int err;
 
 	/*
 	 * Reject PROT_EXEC by default. It just doesn't makes sense.
@@ -2042,24 +2286,20 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 	if ((nprot & (PROT_READ | PROT_WRITE)) == 0)
 		return (EINVAL);
 
-	if ((err = devfs_get_cdevpriv((void **)&priv)) != 0)
-		return (err);
-	d = priv->sc;
-	if (PCM_DETACHING(d) || !DSP_REGISTERED(d))
+	d = dsp_get_info(i_dev);
+	if (PCM_DETACHING(d) || !DSP_REGISTERED(d, i_dev))
 		return (EINVAL);
 
 	PCM_GIANT_ENTER(d);
 
-	getchns(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
-	wrch = priv->wrch;
-	rdch = priv->rdch;
+	getchns(i_dev, &rdch, &wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 
 	c = ((nprot & PROT_WRITE) != 0) ? wrch : rdch;
 	if (c == NULL || (c->flags & CHN_F_MMAP_INVALID) ||
 	    (*offset  + size) > sndbuf_getallocsize(c->bufsoft) ||
 	    (wrch != NULL && (wrch->flags & CHN_F_MMAP_INVALID)) ||
 	    (rdch != NULL && (rdch->flags & CHN_F_MMAP_INVALID))) {
-		relchns(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+		relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 		PCM_GIANT_EXIT(d);
 		return (EINVAL);
 	}
@@ -2070,7 +2310,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 		rdch->flags |= CHN_F_MMAP;
 
 	*offset = (uintptr_t)sndbuf_getbufofs(c->bufsoft, *offset);
-	relchns(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+	relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 	*object = vm_pager_allocate(OBJT_DEVICE, i_dev,
 	    size, nprot, *offset, curthread->td_ucred);
 
@@ -2081,29 +2321,194 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 	return (0);
 }
 
+/* So much for dev_stdclone() */
+static int
+dsp_stdclone(char *name, char *namep, char *sep, int use_sep, int *u, int *c)
+{
+	size_t len;
+
+	len = strlen(namep);
+	if (strncmp(name, namep, len) != 0)
+		return (ENODEV);
+
+	name += len;
+
+	if (isdigit(*name) == 0)
+		return (ENODEV);
+
+	len = strlen(sep);
+
+	if (*name == '0' && !(name[1] == '\0' || bcmp(name + 1, sep, len) == 0))
+		return (ENODEV);
+
+	for (*u = 0; isdigit(*name) != 0; name++) {
+		*u *= 10;
+		*u += *name - '0';
+		if (*u > dsp_umax)
+			return (ENODEV);
+	}
+
+	if (*name == '\0')
+		return ((use_sep == 0) ? 0 : ENODEV);
+
+	if (bcmp(name, sep, len) != 0 || isdigit(name[len]) == 0)
+		return (ENODEV);
+
+	name += len;
+
+	if (*name == '0' && name[1] != '\0')
+		return (ENODEV);
+
+	for (*c = 0; isdigit(*name) != 0; name++) {
+		*c *= 10;
+		*c += *name - '0';
+		if (*c > dsp_cmax)
+			return (ENODEV);
+	}
+
+	if (*name != '\0')
+		return (ENODEV);
+
+	return (0);
+}
+
 static void
-dsp_clone(void *arg, struct ucred *cred, char *name, int namelen,
-    struct cdev **dev)
+dsp_clone(void *arg,
+    struct ucred *cred,
+    char *name, int namelen, struct cdev **dev)
 {
 	struct snddev_info *d;
-	int i;
+	struct snd_clone_entry *ce;
+	struct pcm_channel *c;
+	int i, unit, udcmask, cunit, devtype, devhw, devcmax, tumax;
+	char *devname, *devcmp, *devsep;
+
+	KASSERT(dsp_umax >= 0 && dsp_cmax >= 0, ("Uninitialized unit!"));
 
 	if (*dev != NULL)
 		return;
-	if (strcmp(name, "dsp") == 0 && dsp_basename_clone)
-		goto found;
-	for (i = 0; i < nitems(dsp_cdevs); i++) {
-		if (dsp_cdevs[i].alias != NULL &&
-		    strcmp(name, dsp_cdevs[i].name) == 0)
-			goto found;
+
+	unit = -1;
+	cunit = -1;
+	devtype = -1;
+	devhw = 0;
+	devcmax = -1;
+	tumax = -1;
+	devname = NULL;
+	devsep = NULL;
+
+	for (i = 0; unit == -1 &&
+	    i < (sizeof(dsp_cdevs) / sizeof(dsp_cdevs[0])); i++) {
+		devtype = dsp_cdevs[i].type;
+		devcmp = dsp_cdevs[i].name;
+		devsep = dsp_cdevs[i].sep;
+		devname = dsp_cdevs[i].alias;
+		if (devname == NULL)
+			devname = devcmp;
+		devhw = dsp_cdevs[i].hw;
+		devcmax = dsp_cdevs[i].max - 1;
+		if (strcmp(name, devcmp) == 0) {
+			if (dsp_basename_clone != 0)
+				unit = snd_unit;
+		} else if (dsp_stdclone(name, devcmp, devsep,
+		    dsp_cdevs[i].use_sep, &unit, &cunit) != 0) {
+			unit = -1;
+			cunit = -1;
+		}
 	}
-	return;
-found:
-	d = devclass_get_softc(pcm_devclass, snd_unit);
-	if (!PCM_REGISTERED(d))
+
+	d = devclass_get_softc(pcm_devclass, unit);
+	if (!PCM_REGISTERED(d) || d->clones == NULL)
 		return;
-	*dev = d->dsp_dev;
-	dev_ref(*dev);
+
+	/* XXX Need Giant magic entry ??? */
+
+	PCM_LOCK(d);
+	if (snd_clone_disabled(d->clones)) {
+		PCM_UNLOCK(d);
+		return;
+	}
+
+	PCM_WAIT(d);
+	PCM_ACQUIRE(d);
+	PCM_UNLOCK(d);
+
+	udcmask = snd_u2unit(unit) | snd_d2unit(devtype);
+
+	if (devhw != 0) {
+		KASSERT(devcmax <= dsp_cmax,
+		    ("overflow: devcmax=%d, dsp_cmax=%d", devcmax, dsp_cmax));
+		if (cunit > devcmax) {
+			PCM_RELEASE_QUICK(d);
+			return;
+		}
+		udcmask |= snd_c2unit(cunit);
+		CHN_FOREACH(c, d, channels.pcm) {
+			CHN_LOCK(c);
+			if (c->unit != udcmask) {
+				CHN_UNLOCK(c);
+				continue;
+			}
+			CHN_UNLOCK(c);
+			udcmask &= ~snd_c2unit(cunit);
+			/*
+			 * Temporarily increase clone maxunit to overcome
+			 * vchan flexibility.
+			 *
+			 * # sysctl dev.pcm.0.play.vchans=256
+			 * dev.pcm.0.play.vchans: 1 -> 256
+			 * # cat /dev/zero > /dev/dsp0.vp255 &
+			 * [1] 17296
+			 * # sysctl dev.pcm.0.play.vchans=0
+			 * dev.pcm.0.play.vchans: 256 -> 1
+			 * # fg
+			 * [1]  + running    cat /dev/zero > /dev/dsp0.vp255
+			 * ^C
+			 * # cat /dev/zero > /dev/dsp0.vp255
+			 * zsh: operation not supported: /dev/dsp0.vp255
+			 */
+			tumax = snd_clone_getmaxunit(d->clones);
+			if (cunit > tumax)
+				snd_clone_setmaxunit(d->clones, cunit);
+			else
+				tumax = -1;
+			goto dsp_clone_alloc;
+		}
+		/*
+		 * Ok, so we're requesting unallocated vchan, but still
+		 * within maximum vchan limit.
+		 */
+		if (((devtype == SND_DEV_DSPHW_VPLAY && d->pvchancount > 0) ||
+		    (devtype == SND_DEV_DSPHW_VREC && d->rvchancount > 0)) &&
+		    cunit < snd_maxautovchans) {
+			udcmask &= ~snd_c2unit(cunit);
+			tumax = snd_clone_getmaxunit(d->clones);
+			if (cunit > tumax)
+				snd_clone_setmaxunit(d->clones, cunit);
+			else
+				tumax = -1;
+			goto dsp_clone_alloc;
+		}
+		PCM_RELEASE_QUICK(d);
+		return;
+	}
+
+dsp_clone_alloc:
+	ce = snd_clone_alloc(d->clones, dev, &cunit, udcmask);
+	if (tumax != -1)
+		snd_clone_setmaxunit(d->clones, tumax);
+	if (ce != NULL) {
+		udcmask |= snd_c2unit(cunit);
+		*dev = make_dev(&dsp_cdevsw, PCMMINOR(udcmask),
+		    UID_ROOT, GID_WHEEL, 0666, "%s%d%s%d",
+		    devname, unit, devsep, cunit);
+		snd_clone_register(ce, *dev);
+	}
+
+	PCM_RELEASE_QUICK(d);
+
+	if (*dev != NULL)
+		dev_ref(*dev);
 }
 
 static void
@@ -2113,6 +2518,8 @@ dsp_sysinit(void *p)
 		return;
 	/* initialize unit numbering */
 	snd_unit_init();
+	dsp_umax = PCMMAXUNIT;
+	dsp_cmax = PCMMAXCHAN;
 	dsp_ehtag = EVENTHANDLER_REGISTER(dev_clone, dsp_clone, 0, 1000);
 }
 
@@ -2138,7 +2545,7 @@ dsp_unit2name(char *buf, size_t len, int unit)
 
 	dtype = snd_unit2d(unit);
 
-	for (i = 0; i < nitems(dsp_cdevs); i++) {
+	for (i = 0; i < (sizeof(dsp_cdevs) / sizeof(dsp_cdevs[0])); i++) {
 		if (dtype != dsp_cdevs[i].type || dsp_cdevs[i].alias != NULL)
 			continue;
 		snprintf(buf, len, "%s%d%s%d", dsp_cdevs[i].name,
@@ -2147,18 +2554,6 @@ dsp_unit2name(char *buf, size_t len, int unit)
 	}
 
 	return (NULL);
-}
-
-static int
-dsp_oss_audioinfo_cb(void *data, void *arg)
-{
-	struct dsp_cdevpriv *priv = data;
-	struct pcm_channel *ch = arg;
-
-	if (DSP_REGISTERED(priv->sc) && (ch == priv->rdch || ch == priv->wrch))
-		return (1);
-
-	return (0);
 }
 
 /**
@@ -2172,6 +2567,15 @@ dsp_oss_audioinfo_cb(void *data, void *arg)
  * This routine is supposed to go practically straight to the hardware,
  * getting capabilities directly from the sound card driver, side-stepping
  * the intermediate channel interface.
+ *
+ * Note, however, that the usefulness of this command is significantly
+ * decreased when requesting info about any device other than the one serving
+ * the request. While each snddev_channel refers to a specific device node,
+ * the converse is *not* true.  Currently, when a sound device node is opened,
+ * the sound subsystem scans for an available audio channel (or channels, if
+ * opened in read+write) and then assigns them to the si_drv[12] private
+ * data fields.  As a result, any information returned linking a channel to
+ * a specific character device isn't necessarily accurate.
  *
  * @note
  * Calling threads must not hold any snddev_info or pcm_channel locks.
@@ -2227,8 +2631,9 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 			CHN_UNLOCKASSERT(ch);
 			CHN_LOCK(ch);
 			if (ai->dev == -1) {
-				if (devfs_foreach_cdevpriv(i_dev,
-				    dsp_oss_audioinfo_cb, ch) != 0) {
+				if (DSP_REGISTERED(d, i_dev) &&
+				    (ch == PCM_RDCH(i_dev) ||	/* record ch */
+				    ch == PCM_WRCH(i_dev))) {	/* playback ch */
 					devname = dsp_unit2name(buf,
 					    sizeof(buf), ch->unit);
 				}
@@ -2344,8 +2749,8 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 			 * @c real_device - OSSv4 docs:  "Obsolete."
 			 */
 			ai->real_device = -1;
-			snprintf(ai->devnode, sizeof(ai->devnode),
-			    "/dev/dsp%d", device_get_unit(d->dev));
+			strlcpy(ai->devnode, "/dev/", sizeof(ai->devnode));
+			strlcat(ai->devnode, devname, sizeof(ai->devnode));
 			ai->enabled = device_is_attached(d->dev) ? 1 : 0;
 			/**
 			 * @note

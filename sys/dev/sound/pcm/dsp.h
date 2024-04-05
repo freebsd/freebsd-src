@@ -33,9 +33,12 @@
 
 extern struct cdevsw dsp_cdevsw;
 
-int dsp_make_dev(device_t);
-void dsp_destroy_dev(device_t);
+struct dsp_cdevinfo;
+
 char *dsp_unit2name(char *, size_t, int);
 int dsp_oss_audioinfo(struct cdev *, oss_audioinfo *);
+
+void dsp_cdevinfo_init(struct snddev_info *);
+void dsp_cdevinfo_flush(struct snddev_info *);
 
 #endif /* !_PCMDSP_H_ */

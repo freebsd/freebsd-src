@@ -117,6 +117,24 @@ snd_setup_intr(device_t dev, struct resource *res, int flags, driver_intr_t hand
 	return bus_setup_intr(dev, res, flags, NULL, hand, param, cookiep);
 }
 
+static void
+pcm_clonereset(struct snddev_info *d)
+{
+	int cmax;
+
+	PCM_BUSYASSERT(d);
+
+	cmax = d->playcount + d->reccount - 1;
+	if (d->pvchancount > 0)
+		cmax += max(d->pvchancount, snd_maxautovchans) - 1;
+	if (d->rvchancount > 0)
+		cmax += max(d->rvchancount, snd_maxautovchans) - 1;
+	if (cmax > PCMMAXCLONE)
+		cmax = PCMMAXCLONE;
+	(void)snd_clone_gc(d->clones);
+	(void)snd_clone_setmaxunit(d->clones, cmax);
+}
+
 int
 pcm_setvchans(struct snddev_info *d, int direction, int newcnt, int num)
 {
@@ -202,6 +220,8 @@ pcm_setvchans(struct snddev_info *d, int direction, int newcnt, int num)
 		CHN_UNLOCK(ch);
 		if (err != 0)
 			return (err);
+		else
+			pcm_clonereset(d);
 	} else if (newcnt < vcnt) {
 		KASSERT(num == -1,
 		    ("bogus vchan_destroy() request num=%d", num));
@@ -232,6 +252,7 @@ pcm_setvchans(struct snddev_info *d, int direction, int newcnt, int num)
 			CHN_UNLOCK(c);
 			break;
 		}
+		pcm_clonereset(d);
 	}
 
 	return (0);
@@ -380,6 +401,8 @@ pcm_setmaxautovchans(struct snddev_info *d, int num)
 		(void)pcm_setvchans(d, PCMDIR_REC, num, -1);
 	else if (num > 0 && d->rvchancount == 0)
 		(void)pcm_setvchans(d, PCMDIR_REC, 1, -1);
+
+	pcm_clonereset(d);
 }
 
 static int
@@ -742,6 +765,10 @@ pcm_setstatus(device_t dev, char *str)
 
 	PCM_LOCK(d);
 
+	/* Last stage, enable cloning. */
+	if (d->clones != NULL)
+		(void)snd_clone_enable(d->clones);
+
 	/* Done, we're ready.. */
 	d->flags |= SD_F_REGISTERED;
 
@@ -856,6 +883,118 @@ sysctl_dev_pcm_bitperfect(SYSCTL_HANDLER_ARGS)
 	return (err);
 }
 
+#ifdef SND_DEBUG
+static int
+sysctl_dev_pcm_clone_flags(SYSCTL_HANDLER_ARGS)
+{
+	struct snddev_info *d;
+	uint32_t flags;
+	int err;
+
+	d = oidp->oid_arg1;
+	if (!PCM_REGISTERED(d) || d->clones == NULL)
+		return (ENODEV);
+
+	PCM_ACQUIRE_QUICK(d);
+
+	flags = snd_clone_getflags(d->clones);
+	err = sysctl_handle_int(oidp, &flags, 0, req);
+
+	if (err == 0 && req->newptr != NULL) {
+		if (flags & ~SND_CLONE_MASK)
+			err = EINVAL;
+		else
+			(void)snd_clone_setflags(d->clones, flags);
+	}
+
+	PCM_RELEASE_QUICK(d);
+
+	return (err);
+}
+
+static int
+sysctl_dev_pcm_clone_deadline(SYSCTL_HANDLER_ARGS)
+{
+	struct snddev_info *d;
+	int err, deadline;
+
+	d = oidp->oid_arg1;
+	if (!PCM_REGISTERED(d) || d->clones == NULL)
+		return (ENODEV);
+
+	PCM_ACQUIRE_QUICK(d);
+
+	deadline = snd_clone_getdeadline(d->clones);
+	err = sysctl_handle_int(oidp, &deadline, 0, req);
+
+	if (err == 0 && req->newptr != NULL) {
+		if (deadline < 0)
+			err = EINVAL;
+		else
+			(void)snd_clone_setdeadline(d->clones, deadline);
+	}
+
+	PCM_RELEASE_QUICK(d);
+
+	return (err);
+}
+
+static int
+sysctl_dev_pcm_clone_gc(SYSCTL_HANDLER_ARGS)
+{
+	struct snddev_info *d;
+	int err, val;
+
+	d = oidp->oid_arg1;
+	if (!PCM_REGISTERED(d) || d->clones == NULL)
+		return (ENODEV);
+
+	val = 0;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+
+	if (err == 0 && req->newptr != NULL && val != 0) {
+		PCM_ACQUIRE_QUICK(d);
+		val = snd_clone_gc(d->clones);
+		PCM_RELEASE_QUICK(d);
+		if (bootverbose != 0 || snd_verbose > 3)
+			device_printf(d->dev, "clone gc: pruned=%d\n", val);
+	}
+
+	return (err);
+}
+
+static int
+sysctl_hw_snd_clone_gc(SYSCTL_HANDLER_ARGS)
+{
+	struct snddev_info *d;
+	int i, err, val;
+
+	val = 0;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+
+	if (err == 0 && req->newptr != NULL && val != 0) {
+		for (i = 0; pcm_devclass != NULL &&
+		    i < devclass_get_maxunit(pcm_devclass); i++) {
+			d = devclass_get_softc(pcm_devclass, i);
+			if (!PCM_REGISTERED(d) || d->clones == NULL)
+				continue;
+			PCM_ACQUIRE_QUICK(d);
+			val = snd_clone_gc(d->clones);
+			PCM_RELEASE_QUICK(d);
+			if (bootverbose != 0 || snd_verbose > 3)
+				device_printf(d->dev, "clone gc: pruned=%d\n",
+				    val);
+		}
+	}
+
+	return (err);
+}
+SYSCTL_PROC(_hw_snd, OID_AUTO, clone_gc,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    sysctl_hw_snd_clone_gc, "I",
+    "global clone garbage collector");
+#endif
+
 static u_int8_t
 pcm_mode_init(struct snddev_info *d)
 {
@@ -894,6 +1033,23 @@ pcm_sysinit(device_t dev)
 	    OID_AUTO, "mode", CTLFLAG_RD, NULL, mode,
 	    "mode (1=mixer, 2=play, 4=rec. The values are OR'ed if more than one"
 	    "mode is supported)");
+#ifdef SND_DEBUG
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "clone_flags", CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    d, sizeof(d), sysctl_dev_pcm_clone_flags, "IU",
+	    "clone flags");
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "clone_deadline", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    d, sizeof(d), sysctl_dev_pcm_clone_deadline, "I",
+	    "clone expiration deadline (ms)");
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "clone_gc",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, d, sizeof(d),
+	    sysctl_dev_pcm_clone_gc, "I", "clone garbage collector");
+#endif
 	if (d->flags & SD_F_AUTOVCHAN)
 		vchan_initsys(dev);
 	if (d->flags & SD_F_EQ)
@@ -925,6 +1081,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	d->lock = snd_mtxcreate(device_get_nameunit(dev), "sound cdev");
 	cv_init(&d->cv, device_get_nameunit(dev));
 	PCM_ACQUIRE_QUICK(d);
+	dsp_cdevinfo_init(d);
 #if 0
 	/*
 	 * d->flags should be cleared by the allocator of the softc.
@@ -953,6 +1110,16 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	d->rvchanrate = 0;
 	d->rvchanformat = 0;
 
+	/*
+	 * Create clone manager, disabled by default. Cloning will be
+	 * enabled during final stage of driver initialization through
+	 * pcm_setstatus().
+	 */
+	d->clones = snd_clone_create(SND_U_MASK | SND_D_MASK, PCMMAXCLONE,
+	    SND_CLONE_DEADLINE_DEFAULT, SND_CLONE_WAITOK |
+	    SND_CLONE_GC_ENABLE | SND_CLONE_GC_UNREF |
+	    SND_CLONE_GC_LASTREF | SND_CLONE_GC_EXPIRED);
+
 	CHN_INIT(d, channels.pcm);
 	CHN_INIT(d, channels.pcm.busy);
 	CHN_INIT(d, channels.pcm.opened);
@@ -975,7 +1142,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 
 	sndstat_register(dev, d->status);
 
-	return (dsp_make_dev(dev));
+	return 0;
 }
 
 int
@@ -1012,11 +1179,23 @@ pcm_unregister(device_t dev)
 		CHN_UNLOCK(ch);
 	}
 
-	dsp_destroy_dev(dev);
+	if (d->clones != NULL) {
+		if (snd_clone_busy(d->clones) != 0) {
+			device_printf(dev, "unregister: clone busy\n");
+			PCM_RELEASE_QUICK(d);
+			return (EBUSY);
+		} else {
+			PCM_LOCK(d);
+			(void)snd_clone_disable(d->clones);
+			PCM_UNLOCK(d);
+		}
+	}
 
 	if (mixer_uninit(dev) == EBUSY) {
 		device_printf(dev, "unregister: mixer busy\n");
 		PCM_LOCK(d);
+		if (d->clones != NULL)
+			(void)snd_clone_enable(d->clones);
 		PCM_RELEASE(d);
 		PCM_UNLOCK(d);
 		return (EBUSY);
@@ -1030,6 +1209,15 @@ pcm_unregister(device_t dev)
 	d->flags &= ~SD_F_REGISTERED;
 	PCM_UNLOCK(d);
 
+	/*
+	 * No lock being held, so this thing can be flushed without
+	 * stucking into devdrn oblivion.
+	 */
+	if (d->clones != NULL) {
+		snd_clone_destroy(d->clones);
+		d->clones = NULL;
+	}
+
 	if (d->play_sysctl_tree != NULL) {
 		sysctl_ctx_free(&d->play_sysctl_ctx);
 		d->play_sysctl_tree = NULL;
@@ -1041,6 +1229,8 @@ pcm_unregister(device_t dev)
 
 	while (!CHN_EMPTY(d, channels.pcm))
 		pcm_killchan(dev);
+
+	dsp_cdevinfo_flush(d);
 
 	PCM_LOCK(d);
 	PCM_RELEASE(d);
