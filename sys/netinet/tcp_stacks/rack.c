@@ -21283,7 +21283,8 @@ rack_output(struct tcpcb *tp)
 	unsigned ipsec_optlen = 0;
 
 #endif
-	int32_t idle, sendalot, tot_idle;
+	int32_t idle, sendalot;
+	uint32_t tot_idle;
 	int32_t sub_from_prr = 0;
 	volatile int32_t sack_rxmit;
 	struct rack_sendmap *rsm = NULL;
@@ -21525,8 +21526,8 @@ rack_output(struct tcpcb *tp)
 	if ((tp->snd_una == tp->snd_max) &&
 	    rack->r_ctl.rc_went_idle_time &&
 	    (cts > rack->r_ctl.rc_went_idle_time)) {
-		tot_idle = idle = (cts - rack->r_ctl.rc_went_idle_time);
-		if (idle > (uint64_t)rack_min_probertt_hold) {
+		tot_idle = (cts - rack->r_ctl.rc_went_idle_time);
+		if (tot_idle > rack_min_probertt_hold) {
 			/* Count as a probe rtt */
 			if (rack->in_probe_rtt == 0) {
 				rack->r_ctl.rc_lower_rtt_us_cts = cts;
@@ -21537,7 +21538,6 @@ rack_output(struct tcpcb *tp)
 				rack_exit_probertt(rack, cts);
 			}
 		}
-		idle = 0;
 	}
 	if(rack->policer_detect_on) {
 		/*
