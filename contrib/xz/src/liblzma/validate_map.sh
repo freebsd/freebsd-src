@@ -1,5 +1,4 @@
 #!/bin/sh
-# SPDX-License-Identifier: 0BSD
 
 ###############################################################################
 #
@@ -79,6 +78,9 @@
 #
 # Author: Lasse Collin
 #
+# This file has been put into the public domain.
+# You can do whatever you want with this file.
+#
 ###############################################################################
 
 LC_ALL=C
@@ -122,7 +124,7 @@ DUPS=$(sort liblzma_generic.map | sed '/^$/d;/^global:$/d' | uniq -d)
 # ignored (@XZ_5.1.2alpha or @XZ_5.2.2 won't be added at all when
 # the #define HAVE_SYMBOL_VERSIONS_LINUX isn't used).
 IN_SYNC=
-if ! sed '111,125d' liblzma_linux.map \
+if ! sed '109,123d' liblzma_linux.map \
 		| cmp -s - liblzma_generic.map; then
 	IN_SYNC=no
 fi

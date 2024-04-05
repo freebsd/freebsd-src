@@ -1,5 +1,3 @@
-/* SPDX-License-Identifier: 0BSD */
-
 /**
  * \file        lzma/block.h
  * \brief       .xz Block handling
@@ -8,6 +6,9 @@
 
 /*
  * Author: Lasse Collin
+ *
+ * This file has been put into the public domain.
+ * You can do whatever you want with this file.
  */
 
 #ifndef LZMA_H_INTERNAL
