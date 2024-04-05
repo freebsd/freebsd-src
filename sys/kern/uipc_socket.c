@@ -922,6 +922,10 @@ sopeeloff(struct socket *head)
 	so->so_snd.sb_timeo = head->so_snd.sb_timeo;
 	so->so_rcv.sb_flags |= head->so_rcv.sb_flags & SB_AUTOSIZE;
 	so->so_snd.sb_flags |= head->so_snd.sb_flags & SB_AUTOSIZE;
+	if ((so->so_proto->pr_flags & PR_SOCKBUF) == 0) {
+		so->so_snd.sb_mtx = &so->so_snd_mtx;
+		so->so_rcv.sb_mtx = &so->so_rcv_mtx;
+	}
 
 	soref(so);
 
