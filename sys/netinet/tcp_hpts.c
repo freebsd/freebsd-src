@@ -1650,6 +1650,7 @@ tcp_hpts_thread(void *ctx)
 		 * enough activity in the system that we don't need to
 		 * run as often (if we were not directly woken).
 		 */
+		tv.tv_sec = 0;
 		if (hpts->p_direct_wake == 0) {
 			counter_u64_add(hpts_back_tosleep, 1);
 			if (hpts->p_on_queue_cnt >= conn_cnt_thresh) {
@@ -1674,7 +1675,6 @@ tcp_hpts_thread(void *ctx)
 			 * Directly woken most likely to reset the
 			 * callout time.
 			 */
-			tv.tv_sec = 0;
 			tv.tv_usec = hpts->p_mysleep.tv_usec;
 		}
 		goto back_to_sleep;
