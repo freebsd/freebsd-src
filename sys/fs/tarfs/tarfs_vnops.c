@@ -126,6 +126,60 @@ tarfs_access(struct vop_access_args *ap)
 }
 
 static int
+tarfs_bmap(struct vop_bmap_args *ap)
+{
+	struct tarfs_node *tnp;
+	struct vnode *vp;
+	off_t off;
+	uint64_t iosize;
+	int ra, rb, rmax;
+
+	vp = ap->a_vp;
+	iosize = vp->v_mount->mnt_stat.f_iosize;
+
+	if (ap->a_bop != NULL)
+		*ap->a_bop = &vp->v_bufobj;
+	if (ap->a_bnp != NULL)
+		*ap->a_bnp = ap->a_bn * btodb(iosize);
+	if (ap->a_runp == NULL)
+		return (0);
+
+	tnp = VP_TO_TARFS_NODE(vp);
+	off = ap->a_bn * iosize;
+
+	ra = rb = 0;
+	for (u_int i = 0; i < tnp->nblk; i++) {
+		off_t bs, be;
+
+		bs = tnp->blk[i].o;
+		be = tnp->blk[i].o + tnp->blk[i].l;
+		if (off > be)
+			continue;
+		else if (off < bs) {
+			/* We're in a hole. */
+			ra = bs - off < iosize ?
+			    0 : howmany(bs - (off + iosize), iosize);
+			rb = howmany(off - (i == 0 ?
+			    0 : tnp->blk[i - 1].o + tnp->blk[i - 1].l),
+			    iosize);
+			break;
+		} else {
+			/* We'll be reading from the backing file. */
+			ra = be - off < iosize ?
+			    0 : howmany(be - (off + iosize), iosize);
+			rb = howmany(off - bs, iosize);
+			break;
+		}
+	}
+
+	rmax = vp->v_mount->mnt_iosize_max / iosize - 1;
+	*ap->a_runp = imin(ra, rmax);
+	if (ap->a_runb != NULL)
+		*ap->a_runb = imin(rb, rmax);
+	return (0);
+}
+
+static int
 tarfs_getattr(struct vop_getattr_args *ap)
 {
 	struct tarfs_node *tnp;
@@ -629,6 +683,7 @@ struct vop_vector tarfs_vnodeops = {
 	.vop_default =		&default_vnodeops,
 
 	.vop_access =		tarfs_access,
+	.vop_bmap =		tarfs_bmap,
 	.vop_cachedlookup =	tarfs_lookup,
 	.vop_close =		tarfs_close,
 	.vop_getattr =		tarfs_getattr,
