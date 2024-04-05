@@ -74,6 +74,15 @@ to create the tar file, this can be achieved using the
 and
 .Cm ztsd:frame-per-file
 options.
+Sensible frame sizes are powers of 2 between the system's base page size
+(see
+.Xr arch 7 )
+and the value of the
+.Sy kern.maxphys
+sysctl.
+Smaller frames will generally yield a worse compression ratio and require extra
+kernel memory to maintain an index, and larger frames will on average require
+more CPU time to access data when performing random I/O.
 .Sh DIAGNOSTICS
 If enabled by the
 .Dv TARFS_DEBUG
