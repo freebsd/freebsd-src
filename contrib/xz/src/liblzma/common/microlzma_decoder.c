@@ -1,11 +1,12 @@
-// SPDX-License-Identifier: 0BSD
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       microlzma_decoder.c
 /// \brief      Decode MicroLZMA format
 //
 //  Author:     Lasse Collin
+//
+//  This file has been put into the public domain.
+//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 

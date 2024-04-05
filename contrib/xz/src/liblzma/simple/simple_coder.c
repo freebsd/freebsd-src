@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: 0BSD
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       simple_coder.c
@@ -9,6 +7,9 @@
 /// in equals the number of bytes out.
 //
 //  Author:     Lasse Collin
+//
+//  This file has been put into the public domain.
+//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 

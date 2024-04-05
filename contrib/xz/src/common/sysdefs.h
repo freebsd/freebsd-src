@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: 0BSD
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       sysdefs.h
@@ -9,6 +7,9 @@
 /// file is separate from common.h.
 //
 //  Author:     Lasse Collin
+//
+//  This file has been put into the public domain.
+//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -158,16 +159,13 @@ typedef unsigned char _Bool;
 
 #include <string.h>
 
-// Visual Studio 2013 update 2 supports only __inline, not inline.
-// MSVC v19.0 / VS 2015 and newer support both.
-//
-// MSVC v19.27 (VS 2019 version 16.7) added support for restrict.
-// Older ones support only __restrict.
-#ifdef _MSC_VER
-#	if _MSC_VER < 1900 && !defined(inline)
+// As of MSVC 2013, inline and restrict are supported with
+// non-standard keywords.
+#if defined(_WIN32) && defined(_MSC_VER)
+#	ifndef inline
 #		define inline __inline
 #	endif
-#	if _MSC_VER < 1927 && !defined(restrict)
+#	ifndef restrict
 #		define restrict __restrict
 #	endif
 #endif
