@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: 0BSD
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       lz_encoder.c
@@ -7,6 +5,9 @@
 ///
 //  Authors:    Igor Pavlov
 //              Lasse Collin
+//
+//  This file has been put into the public domain.
+//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -195,7 +196,9 @@ lz_encoder_prepare(lzma_mf *mf, const lzma_allocator *allocator,
 	// For now, the dictionary size is limited to 1.5 GiB. This may grow
 	// in the future if needed, but it needs a little more work than just
 	// changing this check.
-	if (!IS_ENC_DICT_SIZE_VALID(lz_options->dict_size)
+	if (lz_options->dict_size < LZMA_DICT_SIZE_MIN
+			|| lz_options->dict_size
+				> (UINT32_C(1) << 30) + (UINT32_C(1) << 29)
 			|| lz_options->nice_len > lz_options->match_len_max)
 		return true;
 
@@ -546,7 +549,7 @@ lzma_lz_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 			lzma_lz_options *lz_options))
 {
 #if defined(HAVE_SMALL) && !defined(HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR)
-	// The CRC32 table must be initialized.
+	// We need that the CRC32 table has been initialized.
 	lzma_crc32_init();
 #endif
 
@@ -566,8 +569,6 @@ lzma_lz_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		coder->lz.coder = NULL;
 		coder->lz.code = NULL;
 		coder->lz.end = NULL;
-		coder->lz.options_update = NULL;
-		coder->lz.set_out_limit = NULL;
 
 		// mf.size is initialized to silence Valgrind
 		// when used on optimized binaries (GCC may reorder

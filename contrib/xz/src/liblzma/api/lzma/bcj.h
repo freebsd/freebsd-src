@@ -1,5 +1,3 @@
-/* SPDX-License-Identifier: 0BSD */
-
 /**
  * \file        lzma/bcj.h
  * \brief       Branch/Call/Jump conversion filters
@@ -8,6 +6,9 @@
 
 /*
  * Author: Lasse Collin
+ *
+ * This file has been put into the public domain.
+ * You can do whatever you want with this file.
  */
 
 #ifndef LZMA_H_INTERNAL
@@ -51,11 +52,6 @@
  * \brief       Filter for ARM64 binaries
  */
 #define LZMA_FILTER_ARM64       LZMA_VLI_C(0x0A)
-
-/**
- * \brief       Filter for RISC-V binaries
- */
-#define LZMA_FILTER_RISCV       LZMA_VLI_C(0x0B)
 
 
 /**

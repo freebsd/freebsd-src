@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: 0BSD
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       lzma_encoder_private.h
@@ -7,6 +5,9 @@
 ///
 //  Authors:    Igor Pavlov
 //              Lasse Collin
+//
+//  This file has been put into the public domain.
+//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -115,10 +116,10 @@ struct lzma_lzma1_encoder_s {
 
 	uint32_t pos_mask;         ///< (1 << pos_bits) - 1
 	uint32_t literal_context_bits;
-	uint32_t literal_mask;
+	uint32_t literal_pos_mask;
 
 	// These are the same as in lzma_decoder.c. See comments there.
-	probability literal[LITERAL_CODERS_MAX * LITERAL_CODER_SIZE];
+	probability literal[LITERAL_CODERS_MAX][LITERAL_CODER_SIZE];
 	probability is_match[STATES][POS_STATES_MAX];
 	probability is_rep[STATES];
 	probability is_rep0[STATES];

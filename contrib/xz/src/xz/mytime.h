@@ -1,11 +1,12 @@
-// SPDX-License-Identifier: 0BSD
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       mytime.h
 /// \brief      Time handling functions
 //
 //  Author:     Lasse Collin
+//
+//  This file has been put into the public domain.
+//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -18,12 +19,6 @@
 /// (LZMA_SYNC_FLUSH or LZMA_FULL_FLUSH), set LZMA_SYNC_FLUSH to flush
 /// the pending data.
 extern uint64_t opt_flush_timeout;
-
-
-#ifdef USE_SIGTSTP_HANDLER
-/// \brief      Signal handler for SIGTSTP
-extern void mytime_sigtstp_handler(int sig);
-#endif
 
 
 /// \brief      Store the time when (de)compression was started

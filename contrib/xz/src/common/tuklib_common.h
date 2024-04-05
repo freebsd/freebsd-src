@@ -1,11 +1,12 @@
-// SPDX-License-Identifier: 0BSD
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       tuklib_common.h
 /// \brief      Common definitions for tuklib modules
 //
 //  Author:     Lasse Collin
+//
+//  This file has been put into the public domain.
+//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -56,28 +57,8 @@
 #	define TUKLIB_GNUC_REQ(major, minor) 0
 #endif
 
-// tuklib_attr_noreturn attribute is used to mark functions as non-returning.
-// We cannot use "noreturn" as the macro name because then C23 code that
-// uses [[noreturn]] would break as it would expand to [[ [[noreturn]] ]].
-//
-// tuklib_attr_noreturn must be used at the beginning of function declaration
-// to work in all cases. The [[noreturn]] syntax is the most limiting, it
-// must be even before any GNU C's __attribute__ keywords:
-//
-//     tuklib_attr_noreturn
-//     __attribute__((nonnull(1)))
-//     extern void foo(const char *s);
-//
-// FIXME: Update __STDC_VERSION__ for the final C23 version. 202000 is used
-// by GCC 13 and Clang 15 with -std=c2x.
-#if   defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202000
-#	define tuklib_attr_noreturn [[noreturn]]
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112
-#	define tuklib_attr_noreturn _Noreturn
-#elif TUKLIB_GNUC_REQ(2, 5)
+#if TUKLIB_GNUC_REQ(2, 5)
 #	define tuklib_attr_noreturn __attribute__((__noreturn__))
-#elif defined(_MSC_VER)
-#	define tuklib_attr_noreturn __declspec(noreturn)
 #else
 #	define tuklib_attr_noreturn
 #endif

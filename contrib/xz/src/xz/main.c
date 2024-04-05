@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: 0BSD
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       main.c
@@ -7,11 +5,13 @@
 //
 //  Author:     Lasse Collin
 //
+//  This file has been put into the public domain.
+//  You can do whatever you want with this file.
+//
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "private.h"
 #include <ctype.h>
-
 
 /// Exit status to use. This can be changed with set_exit_status().
 static enum exit_status_type exit_status = E_SUCCESS;
@@ -119,8 +119,8 @@ read_name(const args_info *args)
 			// newlines.
 			message_error(_("%s: Null character found when "
 					"reading filenames; maybe you meant "
-					"to use '--files0' instead "
-					"of '--files'?"), args->files_name);
+					"to use `--files0' instead "
+					"of `--files'?"), args->files_name);
 			return NULL;
 		}
 
@@ -142,38 +142,35 @@ read_name(const args_info *args)
 int
 main(int argc, char **argv)
 {
+#ifdef HAVE_PLEDGE
+	// OpenBSD's pledge(2) sandbox
+	//
+	// Unconditionally enable sandboxing with fairly relaxed promises.
+	// This is still way better than having no sandbox at all. :-)
+	// More strict promises will be made later in file_io.c if possible.
+	if (pledge("stdio rpath wpath cpath fattr", "")) {
+		// Don't translate the string or use message_fatal() as
+		// those haven't been initialized yet.
+		fprintf(stderr, "%s: Failed to enable the sandbox\n", argv[0]);
+		return E_ERROR;
+	}
+#endif
+
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	InitializeCriticalSection(&exit_status_cs);
 #endif
 
-	// Set up the progname variable needed for messages.
+	// Set up the progname variable.
 	tuklib_progname_init(argv);
 
 	// Initialize the file I/O. This makes sure that
 	// stdin, stdout, and stderr are something valid.
-	// This must be done before we might open any files
-	// even indirectly like locale and gettext initializations.
 	io_init();
-
-#ifdef ENABLE_SANDBOX
-	// Enable such sandboxing that can always be enabled.
-	// This requires that progname has been set up.
-	// It's also good that io_init() has been called because it
-	// might need to do things that the initial sandbox won't allow.
-	// Otherwise this should be called as early as possible.
-	//
-	// NOTE: Calling this before tuklib_gettext_init() means that
-	// translated error message won't be available if sandbox
-	// initialization fails. However, sandbox_init() shouldn't
-	// fail and this order simply feels better.
-	sandbox_init();
-#endif
 
 	// Set up the locale and message translations.
 	tuklib_gettext_init(PACKAGE, LOCALEDIR);
 
-	// Initialize progress message handling. It's not always needed
-	// but it's simpler to do this unconditionally.
+	// Initialize handling of error/warning/other messages.
 	message_init();
 
 	// Set hardware-dependent default values. These can be overridden
@@ -223,41 +220,21 @@ main(int argc, char **argv)
 		signals_init();
 
 #ifdef ENABLE_SANDBOX
-	// Read-only sandbox can be enabled if we won't create or delete
-	// any files:
+	// Set a flag that sandboxing is allowed if all these are true:
+	//   - --files or --files0 wasn't used.
+	//   - There is exactly one input file or we are reading from stdin.
+	//   - We won't create any files: output goes to stdout or --test
+	//     or --list was used. Note that --test implies opt_stdout = true
+	//     but --list doesn't.
 	//
-	//   - --stdout, --test, or --list was used. Note that --test
-	//     implies opt_stdout = true but --list doesn't.
+	// This is obviously not ideal but it was easy to implement and
+	// it covers the most common use cases.
 	//
-	//   - Output goes to stdout because --files or --files0 wasn't used
-	//     and no arguments were given on the command line or the
-	//     arguments are all "-" (indicating standard input).
-	bool to_stdout_only = opt_stdout || opt_mode == MODE_LIST;
-	if (!to_stdout_only && args.files_name == NULL) {
-		// If all of the filenames provided are "-" (more than one
-		// "-" could be specified), then we are only going to be
-		// writing to standard output. Note that if no filename args
-		// were provided, args.c puts a single "-" in arg_names[0].
-		to_stdout_only = true;
-
-		for (unsigned i = 0; i < args.arg_count; ++i) {
-			if (strcmp("-", args.arg_names[i]) != 0) {
-				to_stdout_only = false;
-				break;
-			}
-		}
-	}
-
-	if (to_stdout_only) {
-		sandbox_enable_read_only();
-
-		// Allow strict sandboxing if we are processing exactly one
-		// file to standard output. This requires that --files or
-		// --files0 wasn't specified (an unknown number of filenames
-		// could be provided that way).
-		if (args.files_name == NULL && args.arg_count == 1)
-			sandbox_allow_strict();
-	}
+	// TODO: Make sandboxing work for other situations too.
+	if (args.files_name == NULL && args.arg_count == 1
+			&& (opt_stdout || strcmp("-", args.arg_names[0]) == 0
+				|| opt_mode == MODE_LIST))
+		io_allow_sandbox();
 #endif
 
 	// coder_run() handles compression, decompression, and testing.

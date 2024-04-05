@@ -1,11 +1,12 @@
-// SPDX-License-Identifier: 0BSD
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       memcmplen.h
 /// \brief      Optimized comparison of two buffers
 //
 //  Author:     Lasse Collin
+//
+//  This file has been put into the public domain.
+//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -23,8 +24,7 @@
 // can use the intrinsics without the header file.
 #if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
 		&& defined(_MSC_VER) \
-		&& (defined(_M_X64) \
-			|| defined(_M_ARM64) || defined(_M_ARM64EC)) \
+		&& defined(_M_X64) \
 		&& !defined(__INTEL_COMPILER)
 #	include <intrin.h>
 #endif
@@ -57,22 +57,20 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
 	assert(limit <= UINT32_MAX / 2);
 
 #if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
-		&& (((TUKLIB_GNUC_REQ(3, 4) || defined(__clang__)) \
-				&& (defined(__x86_64__) \
-					|| defined(__aarch64__))) \
+		&& ((TUKLIB_GNUC_REQ(3, 4) && defined(__x86_64__)) \
 			|| (defined(__INTEL_COMPILER) && defined(__x86_64__)) \
 			|| (defined(__INTEL_COMPILER) && defined(_M_X64)) \
-			|| (defined(_MSC_VER) && (defined(_M_X64) \
-				|| defined(_M_ARM64) || defined(_M_ARM64EC))))
-	// This is only for x86-64 and ARM64 for now. This might be fine on
-	// other 64-bit processors too. On big endian one should use xor
-	// instead of subtraction and switch to __builtin_clzll().
+			|| (defined(_MSC_VER) && defined(_M_X64)))
+	// I keep this x86-64 only for now since that's where I know this
+	// to be a good method. This may be fine on other 64-bit CPUs too.
+	// On big endian one should use xor instead of subtraction and switch
+	// to __builtin_clzll().
 #define LZMA_MEMCMPLEN_EXTRA 8
 	while (len < limit) {
 		const uint64_t x = read64ne(buf1 + len) - read64ne(buf2 + len);
 		if (x != 0) {
 	// MSVC or Intel C compiler on Windows
-#	if defined(_MSC_VER) || defined(__INTEL_COMPILER)
+#	if (defined(_MSC_VER) || defined(__INTEL_COMPILER)) && defined(_M_X64)
 			unsigned long tmp;
 			_BitScanForward64(&tmp, x);
 			len += (uint32_t)tmp >> 3;

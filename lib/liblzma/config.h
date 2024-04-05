@@ -12,10 +12,6 @@
 /* FreeBSD - disabled intentionally */
 /* #undef ENABLE_NLS */
 
-/* Define to 1 if ARM64 CRC32 instruction is supported. See configure.ac for
-   details. */
-/* #undef HAVE_ARM64_CRC32 */
-
 /* Define to 1 if bswap_16 is available. */
 /* #undef HAVE_BSWAP_16 */
 
@@ -29,14 +25,14 @@
 /* #undef HAVE_BYTESWAP_H */
 
 #ifndef WITHOUT_CAPSICUM
-/* Define to 1 if you have the 'cap_rights_limit' function. */
-#define HAVE_CAP_RIGHTS_LIMIT 1
+/* Define to 1 if Capsicum is available. */
+#define HAVE_CAPSICUM 1
 #endif
 
-/* Define to 1 if the system has the type 'CC_SHA256_CTX'. */
+/* Define to 1 if the system has the type `CC_SHA256_CTX'. */
 /* #undef HAVE_CC_SHA256_CTX */
 
-/* Define to 1 if you have the 'CC_SHA256_Init' function. */
+/* Define to 1 if you have the `CC_SHA256_Init' function. */
 /* #undef HAVE_CC_SHA256_INIT */
 
 /* Define to 1 if you have the Mac OS X function
@@ -56,10 +52,10 @@
 /* Define to 1 if sha256 integrity check is enabled. */
 #define HAVE_CHECK_SHA256 1
 
-/* Define to 1 if you have the 'clock_gettime' function. */
+/* Define to 1 if you have the `clock_gettime' function. */
 #define HAVE_CLOCK_GETTIME 1
 
-/* Define to 1 if 'CLOCK_MONOTONIC' is declared in <time.h>. */
+/* Define to 1 if `CLOCK_MONOTONIC' is declared in <time.h>. */
 #define HAVE_CLOCK_MONOTONIC 1
 
 /* Define to 1 if you have the <CommonCrypto/CommonDigest.h> header file. */
@@ -100,9 +96,6 @@
 /* Define to 1 if powerpc decoder is enabled. */
 #define HAVE_DECODER_POWERPC 1
 
-/* Define to 1 if riscv decoder is enabled. */
-#define HAVE_DECODER_RISCV 1
-
 /* Define to 1 if sparc decoder is enabled. */
 #define HAVE_DECODER_SPARC 1
 
@@ -111,9 +104,6 @@
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
-
-/* Define to 1 if you have the 'elf_aux_info' function. */
-/* #undef HAVE_ELF_AUX_INFO */
 
 /* Define to 1 if any of HAVE_ENCODER_foo have been defined. */
 #define HAVE_ENCODERS 1
@@ -142,9 +132,6 @@
 /* Define to 1 if powerpc encoder is enabled. */
 #define HAVE_ENCODER_POWERPC 1
 
-/* Define to 1 if riscv encoder is enabled. */
-#define HAVE_ENCODER_RISCV 1
-
 /* Define to 1 if sparc encoder is enabled. */
 #define HAVE_ENCODER_SPARC 1
 
@@ -158,25 +145,19 @@
    */
 #define HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR 1
 
-/* Define to 1 if __attribute__((__ifunc__())) is supported for functions. */
-#define HAVE_FUNC_ATTRIBUTE_IFUNC 1
-
-/* Define to 1 if you have the 'futimens' function. */
+/* Define to 1 if you have the `futimens' function. */
 #define HAVE_FUTIMENS 1
 
-/* Define to 1 if you have the 'futimes' function. */
+/* Define to 1 if you have the `futimes' function. */
 /* #undef HAVE_FUTIMES */
 
-/* Define to 1 if you have the 'futimesat' function. */
+/* Define to 1 if you have the `futimesat' function. */
 /* #undef HAVE_FUTIMESAT */
-
-/* Define to 1 if you have the 'getauxval' function. */
-/* #undef HAVE_GETAUXVAL */
 
 /* Define to 1 if you have the <getopt.h> header file. */
 #define HAVE_GETOPT_H 1
 
-/* Define to 1 if you have the 'getopt_long' function. */
+/* Define to 1 if you have the `getopt_long' function. */
 #define HAVE_GETOPT_LONG 1
 
 /* Define if the GNU gettext() function is already present or preinstalled. */
@@ -197,9 +178,6 @@
 
 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
-
-/* Define to 1 if you have the <linux/landlock.h> header file. */
-/* #undef HAVE_LINUX_LANDLOCK_H */
 
 /* Define to 1 if .lz (lzip) decompression support is enabled. */
 #define HAVE_LZIP_DECODER 1
@@ -222,43 +200,40 @@
 /* Define to 1 to enable hc4 match finder. */
 #define HAVE_MF_HC4 1
 
-/* Define to 1 if MicroLZMA support is enabled. */
-#define HAVE_MICROLZMA 1
-
 /* Define to 1 if you have the <minix/config.h> header file. */
 /* #undef HAVE_MINIX_CONFIG_H */
 
 /* Define to 1 if getopt.h declares extern int optreset. */
 #define HAVE_OPTRESET 1
 
-/* Define to 1 if you have the 'pledge' function. */
+/* Define to 1 if you have the `pledge' function. */
 /* #undef HAVE_PLEDGE */
 
-/* Define to 1 if you have the 'posix_fadvise' function. */
+/* Define to 1 if you have the `posix_fadvise' function. */
 #define HAVE_POSIX_FADVISE 1
 
-/* Define to 1 if 'program_invocation_name' is declared in <errno.h>. */
+/* Define to 1 if `program_invocation_name' is declared in <errno.h>. */
 /* #undef HAVE_PROGRAM_INVOCATION_NAME */
 
-/* Define to 1 if you have the 'pthread_condattr_setclock' function. */
+/* Define to 1 if you have the `pthread_condattr_setclock' function. */
 #define HAVE_PTHREAD_CONDATTR_SETCLOCK 1
 
 /* Have PTHREAD_PRIO_INHERIT. */
 #define HAVE_PTHREAD_PRIO_INHERIT 1
 
-/* Define to 1 if you have the 'SHA256Init' function. */
+/* Define to 1 if you have the `SHA256Init' function. */
 /* #undef HAVE_SHA256INIT */
 
-/* Define to 1 if the system has the type 'SHA256_CTX'. */
+/* Define to 1 if the system has the type `SHA256_CTX'. */
 #define HAVE_SHA256_CTX 1
 
 /* Define to 1 if you have the <sha256.h> header file. */
 #define HAVE_SHA256_H 1
 
-/* Define to 1 if you have the 'SHA256_Init' function. */
+/* Define to 1 if you have the `SHA256_Init' function. */
 #define HAVE_SHA256_INIT 1
 
-/* Define to 1 if the system has the type 'SHA2_CTX'. */
+/* Define to 1 if the system has the type `SHA2_CTX'. */
 /* #undef HAVE_SHA2_CTX */
 
 /* Define to 1 if you have the <sha2.h> header file. */
@@ -285,19 +260,19 @@
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
 
-/* Define to 1 if 'st_atimensec' is a member of 'struct stat'. */
+/* Define to 1 if `st_atimensec' is a member of `struct stat'. */
 #define HAVE_STRUCT_STAT_ST_ATIMENSEC 1
 
-/* Define to 1 if 'st_atimespec.tv_nsec' is a member of 'struct stat'. */
+/* Define to 1 if `st_atimespec.tv_nsec' is a member of `struct stat'. */
 #define HAVE_STRUCT_STAT_ST_ATIMESPEC_TV_NSEC 1
 
-/* Define to 1 if 'st_atim.st__tim.tv_nsec' is a member of 'struct stat'. */
+/* Define to 1 if `st_atim.st__tim.tv_nsec' is a member of `struct stat'. */
 /* #undef HAVE_STRUCT_STAT_ST_ATIM_ST__TIM_TV_NSEC */
 
-/* Define to 1 if 'st_atim.tv_nsec' is a member of 'struct stat'. */
+/* Define to 1 if `st_atim.tv_nsec' is a member of `struct stat'. */
 #define HAVE_STRUCT_STAT_ST_ATIM_TV_NSEC 1
 
-/* Define to 1 if 'st_uatime' is a member of 'struct stat'. */
+/* Define to 1 if `st_uatime' is a member of `struct stat'. */
 /* #undef HAVE_STRUCT_STAT_ST_UATIME */
 
 /* Define to 1 to if GNU/Linux-specific details are unconditionally wanted for
@@ -307,14 +282,13 @@
    must be used together with liblzma_linux.map. */
 /* #undef HAVE_SYMBOL_VERSIONS_LINUX */
 
-/* Define to 1 if you have the 'sysctlbyname' function. */
-/* #undef HAVE_SYSCTLBYNAME */
-
 /* Define to 1 if you have the <sys/byteorder.h> header file. */
 /* #undef HAVE_SYS_BYTEORDER_H */
 
-/* Define to 1 if you have the <sys/cdefs.h> header file. */
-#define HAVE_SYS_CDEFS_H 1
+#ifndef WITHOUT_CAPSICUM
+/* Define to 1 if you have the <sys/capsicum.h> header file. */
+#define HAVE_SYS_CAPSICUM_H 1
+#endif
 
 /* Define to 1 if you have the <sys/endian.h> header file. */
 /* #undef HAVE_SYS_ENDIAN_H */
@@ -331,7 +305,7 @@
 /* Define to 1 if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
 
-/* Define to 1 if the system has the type 'uintptr_t'. */
+/* Define to 1 if the system has the type `uintptr_t'. */
 #define HAVE_UINTPTR_T 1
 
 /* Define to 1 if you have the <unistd.h> header file. */
@@ -343,10 +317,10 @@
 #define HAVE_USABLE_CLMUL 1
 #endif
 
-/* Define to 1 if you have the 'utime' function. */
+/* Define to 1 if you have the `utime' function. */
 /* #undef HAVE_UTIME */
 
-/* Define to 1 if you have the 'utimes' function. */
+/* Define to 1 if you have the `utimes' function. */
 /* #undef HAVE_UTIMES */
 
 /* Define to 1 or 0, depending whether the compiler supports simple visibility
@@ -356,13 +330,13 @@
 /* Define to 1 if you have the <wchar.h> header file. */
 #define HAVE_WCHAR_H 1
 
-/* Define to 1 if you have the 'wcwidth' function. */
+/* Define to 1 if you have the `wcwidth' function. */
 #define HAVE_WCWIDTH 1
 
-/* Define to 1 if the system has the type '_Bool'. */
+/* Define to 1 if the system has the type `_Bool'. */
 #define HAVE__BOOL 1
 
-/* Define to 1 if you have the '_futime' function. */
+/* Define to 1 if you have the `_futime' function. */
 /* #undef HAVE__FUTIME */
 
 /* Define to 1 if _mm_movemask_epi8 is available. */
@@ -405,25 +379,25 @@
 #define PACKAGE_NAME "XZ Utils"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "XZ Utils 5.6.0"
+#define PACKAGE_STRING "XZ Utils 5.4.5"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "xz"
 
 /* Define to the home page for this package. */
-#define PACKAGE_URL "https://xz.tukaani.org/xz-utils/"
+#define PACKAGE_URL "https://tukaani.org/xz/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "5.6.0"
+#define PACKAGE_VERSION "5.4.5"
 
 /* Define to necessary symbol if this constant uses a non-standard name on
    your system. */
 /* #undef PTHREAD_CREATE_JOINABLE */
 
-/* The size of 'size_t', as computed by sizeof. */
+/* The size of `size_t', as computed by sizeof. */
 #define SIZEOF_SIZE_T 8
 
-/* Define to 1 if all of the C89 standard headers exist (not just the ones
+/* Define to 1 if all of the C90 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
    backward compatibility; new code need not use it. */
 #define STDC_HEADERS 1
@@ -486,7 +460,7 @@
    and might result in broken code. */
 /* #undef TUKLIB_USE_UNSAFE_TYPE_PUNNING */
 
-/* Enable extensions on AIX, Interix, z/OS.  */
+/* Enable extensions on AIX 3, Interix.  */
 #ifndef _ALL_SOURCE
 # define _ALL_SOURCE 1
 #endif
@@ -547,15 +521,11 @@
 #ifndef __STDC_WANT_IEC_60559_DFP_EXT__
 # define __STDC_WANT_IEC_60559_DFP_EXT__ 1
 #endif
-/* Enable extensions specified by C23 Annex F.  */
-#ifndef __STDC_WANT_IEC_60559_EXT__
-# define __STDC_WANT_IEC_60559_EXT__ 1
-#endif
 /* Enable extensions specified by ISO/IEC TS 18661-4:2015.  */
 #ifndef __STDC_WANT_IEC_60559_FUNCS_EXT__
 # define __STDC_WANT_IEC_60559_FUNCS_EXT__ 1
 #endif
-/* Enable extensions specified by C23 Annex H and ISO/IEC TS 18661-3:2015.  */
+/* Enable extensions specified by ISO/IEC TS 18661-3:2015.  */
 #ifndef __STDC_WANT_IEC_60559_TYPES_EXT__
 # define __STDC_WANT_IEC_60559_TYPES_EXT__ 1
 #endif
@@ -579,7 +549,7 @@
 
 
 /* Version number of package */
-#define VERSION "5.6.0"
+#define VERSION "5.4.5"
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
@@ -597,11 +567,8 @@
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */
 
-/* Define to 1 on platforms where this makes off_t a 64-bit type. */
+/* Define for large files, on AIX-style hosts. */
 /* #undef _LARGE_FILES */
-
-/* Number of bits in time_t, on hosts where this is settable. */
-/* #undef _TIME_BITS */
 
 /* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
@@ -621,9 +588,6 @@
 /* Define to rpl_ if the getopt replacement functions and variables should be
    used. */
 /* #undef __GETOPT_PREFIX */
-
-/* Define to 1 on platforms where this makes time_t a 64-bit type. */
-/* #undef __MINGW_USE_VC2005_COMPAT */
 
 /* Define to the type of a signed integer type of width exactly 32 bits if
    such a type exists and the standard includes do not define it. */
