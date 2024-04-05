@@ -1001,22 +1001,26 @@ pcm_unregister(device_t dev)
 
 	CHN_FOREACH(ch, d, channels.pcm) {
 		CHN_LOCK(ch);
-		if (ch->flags & CHN_F_SLEEPING) {
-			/*
-			 * We are detaching, so do not wait for the timeout in
-			 * chn_read()/chn_write(). Wake up the thread and kill
-			 * the channel immediately.
-			 */
-			CHN_BROADCAST(&ch->intr_cv);
-			ch->flags |= CHN_F_DEAD;
+		if (ch->refcount > 0) {
+			device_printf(dev,
+			    "unregister: channel %s busy (pid %d)\n",
+			    ch->name, ch->pid);
+			CHN_UNLOCK(ch);
+			PCM_RELEASE_QUICK(d);
+			return (EBUSY);
 		}
-		chn_abort(ch);
 		CHN_UNLOCK(ch);
 	}
 
 	dsp_destroy_dev(dev);
 
-	(void)mixer_uninit(dev);
+	if (mixer_uninit(dev) == EBUSY) {
+		device_printf(dev, "unregister: mixer busy\n");
+		PCM_LOCK(d);
+		PCM_RELEASE(d);
+		PCM_UNLOCK(d);
+		return (EBUSY);
+	}
 
 	/* remove /dev/sndstat entry first */
 	sndstat_unregister(dev);
