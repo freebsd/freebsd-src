@@ -1893,6 +1893,7 @@ struct DSEState {
                               Malloc->getArgOperand(0), IRB, TLI);
     if (!Calloc)
       return false;
+
     MemorySSAUpdater Updater(&MSSA);
     auto *LastDef =
       cast<MemoryDef>(Updater.getMemorySSA()->getMemoryAccess(Malloc));
@@ -1901,9 +1902,8 @@ struct DSEState {
                                       LastDef);
     auto *NewAccessMD = cast<MemoryDef>(NewAccess);
     Updater.insertDef(NewAccessMD, /*RenameUses=*/true);
-    Updater.removeMemoryAccess(Malloc);
     Malloc->replaceAllUsesWith(Calloc);
-    Malloc->eraseFromParent();
+    deleteDeadInstruction(Malloc);
     return true;
   }
 
