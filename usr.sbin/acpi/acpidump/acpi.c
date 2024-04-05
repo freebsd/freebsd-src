@@ -4,7 +4,11 @@
  * Copyright (c) 1998 Doug Rabson
  * Copyright (c) 2000 Mitsuru IWASAKI <iwasaki@FreeBSD.org>
  * Copyright (c) 2020 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2024 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
