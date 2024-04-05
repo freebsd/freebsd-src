@@ -114,6 +114,10 @@ XZ_5.4 {
 	lzma_str_to_filters;
 };
 
+XZ_5.6 {
+	lzma_mt_block_size;
+};
+
 XZprivate_1.0 {
 	lzma_alloc;
 	lzma_alloc_zero;
@@ -173,7 +177,6 @@ XZprivate_1.0 {
 	lzma_mf_hc3_skip;
 	lzma_mf_hc4_find;
 	lzma_mf_hc4_skip;
-	lzma_mt_block_size;
 	lzma_next_end;
 	lzma_next_filter_init;
 	lzma_next_filter_update;

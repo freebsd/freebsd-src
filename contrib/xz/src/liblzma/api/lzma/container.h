@@ -436,6 +436,34 @@ extern LZMA_API(lzma_ret) lzma_stream_encoder_mt(
 
 
 /**
+ * \brief       Calculate recommended Block size for multithreaded .xz encoder
+ *
+ * This calculates a recommended Block size for multithreaded encoding given
+ * a filter chain. This is used internally by lzma_stream_encoder_mt() to
+ * determine the Block size if the block_size member is not set to the
+ * special value of 0 in the lzma_mt options struct.
+ *
+ * If one wishes to change the filters between Blocks, this function is
+ * helpful to set the block_size member of the lzma_mt struct before calling
+ * lzma_stream_encoder_mt(). Since the block_size member represents the
+ * maximum possible Block size for the multithreaded .xz encoder, one can
+ * use this function to find the maximum recommended Block size based on
+ * all planned filter chains. Otherwise, the multithreaded encoder will
+ * base its maximum Block size on the first filter chain used (if the
+ * block_size member is not set), which may unnecessarily limit the Block
+ * size for a later filter chain.
+ *
+ * \param       filters   Array of filters terminated with
+ *                        .id == LZMA_VLI_UNKNOWN.
+ *
+ * \return      Recommended Block size in bytes, or UINT64_MAX if
+ *              an error occurred.
+ */
+extern LZMA_API(uint64_t) lzma_mt_block_size(const lzma_filter *filters)
+		lzma_nothrow;
+
+
+/**
  * \brief       Initialize .lzma encoder (legacy file format)
  *
  * The .lzma format is sometimes called the LZMA_Alone format, which is the

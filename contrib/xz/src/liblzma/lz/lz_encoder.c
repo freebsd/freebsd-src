@@ -196,9 +196,7 @@ lz_encoder_prepare(lzma_mf *mf, const lzma_allocator *allocator,
 	// For now, the dictionary size is limited to 1.5 GiB. This may grow
 	// in the future if needed, but it needs a little more work than just
 	// changing this check.
-	if (lz_options->dict_size < LZMA_DICT_SIZE_MIN
-			|| lz_options->dict_size
-				> (UINT32_C(1) << 30) + (UINT32_C(1) << 29)
+	if (!IS_ENC_DICT_SIZE_VALID(lz_options->dict_size)
 			|| lz_options->nice_len > lz_options->match_len_max)
 		return true;
 

@@ -979,20 +979,18 @@ get_options(const lzma_mt *options, lzma_options_easy *opt_easy,
 		*filters = opt_easy->filters;
 	}
 
-	// Block size
-	if (options->block_size > 0) {
-		if (options->block_size > BLOCK_SIZE_MAX)
-			return LZMA_OPTIONS_ERROR;
-
+	// If the Block size is not set, determine it from the filter chain.
+	if (options->block_size > 0)
 		*block_size = options->block_size;
-	} else {
-		// Determine the Block size from the filter chain.
+	else
 		*block_size = lzma_mt_block_size(*filters);
-		if (*block_size == 0)
-			return LZMA_OPTIONS_ERROR;
 
-		assert(*block_size <= BLOCK_SIZE_MAX);
-	}
+	// UINT64_MAX > BLOCK_SIZE_MAX, so the second condition
+	// should be optimized out by any reasonable compiler.
+	// The second condition should be there in the unlikely event that
+	// the macros change and UINT64_MAX < BLOCK_SIZE_MAX.
+	if (*block_size > BLOCK_SIZE_MAX || *block_size == UINT64_MAX)
+		return LZMA_OPTIONS_ERROR;
 
 	// Calculate the maximum amount output that a single output buffer
 	// may need to hold. This is the same as the maximum total size of

@@ -17,6 +17,14 @@
 #include "common.h"
 
 
+// For now, the dictionary size is limited to 1.5 GiB. This may grow
+// in the future if needed, but it needs a little more work than just
+// changing this check.
+#define IS_ENC_DICT_SIZE_VALID(size) \
+	((size) >= LZMA_DICT_SIZE_MIN \
+			&&  (size) <= (UINT32_C(1) << 30) + (UINT32_C(1) << 29))
+
+
 /// A table of these is used by the LZ-based encoder to hold
 /// the length-distance pairs found by the match finder.
 typedef struct {

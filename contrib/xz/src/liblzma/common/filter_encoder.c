@@ -33,7 +33,8 @@ typedef struct {
 	/// Calculates the recommended Uncompressed Size for .xz Blocks to
 	/// which the input data can be split to make multithreaded
 	/// encoding possible. If this is NULL, it is assumed that
-	/// the encoder is fast enough with single thread.
+	/// the encoder is fast enough with single thread. If the options
+	/// are invalid, UINT64_MAX is returned.
 	uint64_t (*block_size)(const void *options);
 
 	/// Tells the size of the Filter Properties field. If options are
@@ -248,26 +249,29 @@ lzma_raw_encoder_memusage(const lzma_filter *filters)
 }
 
 
-extern uint64_t
+extern LZMA_API(uint64_t)
 lzma_mt_block_size(const lzma_filter *filters)
 {
+	if (filters == NULL)
+		return UINT64_MAX;
+
 	uint64_t max = 0;
 
 	for (size_t i = 0; filters[i].id != LZMA_VLI_UNKNOWN; ++i) {
 		const lzma_filter_encoder *const fe
 				= encoder_find(filters[i].id);
+		if (fe == NULL)
+			return UINT64_MAX;
+
 		if (fe->block_size != NULL) {
 			const uint64_t size
 					= fe->block_size(filters[i].options);
-			if (size == 0)
-				return 0;
-
 			if (size > max)
 				max = size;
 		}
 	}
 
-	return max;
+	return max == 0 ? UINT64_MAX : max;
 }
 
 
