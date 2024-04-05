@@ -459,6 +459,8 @@ FreeBSD 5.2           |      |                 |                       |
  |                    |      *--NetBSD            |                    |
  |                    |      |   10.0             |                    |
  |                    |      |                    |                    |
+ |                    |      |                OpenBSD 7.5              |
+ |                    |      |                    |                    |
 FreeBSD 15 -current   |  NetBSD -current   OpenBSD -current    DragonFly -current
  |                    |      |                    |                    |
  v                    v      v                    v                    v
@@ -889,6 +891,7 @@ OpenBSD 7.4		2023-10-16 [OBD]
 FreeBSD 14.0		2023-11-20 [FBD]
 FreeBSD 13.3		2024-03-05 [FBD]
 NetBSD 10.0		2024-03-28 [NBD]
+OpenBSD 7.5             2024-04-05 [OBD]
 
 Bibliography
 ------------------------
