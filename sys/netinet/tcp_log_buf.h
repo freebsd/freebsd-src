@@ -418,7 +418,7 @@ static inline void
 tcp_set_bblog_state(struct tcpcb *tp, uint8_t ls, uint8_t bbpoint)
 {
 	if ((ls == TCP_LOG_VIA_BBPOINTS) &&
-	    (tp->_t_logstate <= TCP_LOG_STATE_OFF)){
+	    (tp->_t_logstate == TCP_LOG_STATE_OFF)){
 		/*
 		 * We don't allow a BBPOINTS set to override
 		 * other types of BB logging set by other means such
@@ -428,11 +428,9 @@ tcp_set_bblog_state(struct tcpcb *tp, uint8_t ls, uint8_t bbpoint)
 		 */
 		tp->_t_logpoint = bbpoint;
 		tp->_t_logstate = ls;
-	} else if (ls != TCP_LOG_VIA_BBPOINTS) {
-		tp->_t_logpoint = 0;
-		if ((ls >= TCP_LOG_STATE_OFF) &&
-		    (ls < TCP_LOG_VIA_BBPOINTS))
-			tp->_t_logstate = ls;
+	} else if (ls < TCP_LOG_VIA_BBPOINTS) {
+		tp->_t_logpoint = TCP_BBPOINT_NONE;
+		tp->_t_logstate = ls;
 	}
 }
 
