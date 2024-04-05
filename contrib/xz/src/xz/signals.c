@@ -1,11 +1,12 @@
-// SPDX-License-Identifier: 0BSD
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       signals.c
 /// \brief      Handling signals to abort operation
 //
 //  Author:     Lasse Collin
+//
+//  This file has been put into the public domain.
+//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -81,11 +82,6 @@ signals_init(void)
 		sigaddset(&hooked_signals, message_progress_sigs[i]);
 #endif
 
-#ifdef USE_SIGTSTP_HANDLER
-	// Add the SIGTSTP handler from mytime.c to hooked_signals.
-	sigaddset(&hooked_signals, SIGTSTP);
-#endif
-
 	// Using "my_sa" because "sa" may conflict with a sockaddr variable
 	// from system headers on Solaris.
 	struct sigaction my_sa;
@@ -100,11 +96,10 @@ signals_init(void)
 	my_sa.sa_flags = 0;
 	my_sa.sa_handler = &signal_handler;
 
-	struct sigaction old;
-
 	for (size_t i = 0; i < ARRAY_SIZE(sigs); ++i) {
 		// If the parent process has left some signals ignored,
 		// we don't unignore them.
+		struct sigaction old;
 		if (sigaction(sigs[i], NULL, &old) == 0
 				&& old.sa_handler == SIG_IGN)
 			continue;
@@ -113,15 +108,6 @@ signals_init(void)
 		if (sigaction(sigs[i], &my_sa, NULL))
 			message_signal_handler();
 	}
-
-#ifdef USE_SIGTSTP_HANDLER
-	if (!(sigaction(SIGTSTP, NULL, &old) == 0
-				&& old.sa_handler == SIG_IGN)) {
-		my_sa.sa_handler = &mytime_sigtstp_handler;
-		if (sigaction(SIGTSTP, &my_sa, NULL))
-			message_signal_handler();
-	}
-#endif
 
 	signals_are_initialized = true;
 

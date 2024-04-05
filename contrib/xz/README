@@ -67,27 +67,24 @@ XZ Utils
 
 1.1. Overall documentation
 
-    README                This file
+    README              This file
 
-    INSTALL.generic       Generic install instructions for those not
-                          familiar with packages using GNU Autotools
-    INSTALL               Installation instructions specific to XZ Utils
-    PACKAGERS             Information to packagers of XZ Utils
+    INSTALL.generic     Generic install instructions for those not familiar
+                        with packages using GNU Autotools
+    INSTALL             Installation instructions specific to XZ Utils
+    PACKAGERS           Information to packagers of XZ Utils
 
-    COPYING               XZ Utils copyright and license information
-    COPYING.0BSD          BSD Zero Clause License
-    COPYING.GPLv2         GNU General Public License version 2
-    COPYING.GPLv3         GNU General Public License version 3
-    COPYING.LGPLv2.1      GNU Lesser General Public License version 2.1
-    COPYING.CC-BY-SA-4.0  Creative Commons Attribution-ShareAlike 4.0
-                          International Public License
+    COPYING             XZ Utils copyright and license information
+    COPYING.GPLv2       GNU General Public License version 2
+    COPYING.GPLv3       GNU General Public License version 3
+    COPYING.LGPLv2.1    GNU Lesser General Public License version 2.1
 
-    AUTHORS               The main authors of XZ Utils
-    THANKS                Incomplete list of people who have helped making
-                          this software
-    NEWS                  User-visible changes between XZ Utils releases
-    ChangeLog             Detailed list of changes (commit log)
-    TODO                  Known bugs and some sort of to-do list
+    AUTHORS             The main authors of XZ Utils
+    THANKS              Incomplete list of people who have helped making
+                        this software
+    NEWS                User-visible changes between XZ Utils releases
+    ChangeLog           Detailed list of changes (commit log)
+    TODO                Known bugs and some sort of to-do list
 
     Note that only some of the above files are included in binary
     packages.
@@ -290,11 +287,11 @@ XZ Utils
     XZ Embedded is a limited implementation written for use in the Linux
     kernel, but it is also suitable for other embedded use.
 
-        https://xz.tukaani.org/xz-embedded/
+        https://tukaani.org/xz/embedded.html
 
     XZ for Java is a complete implementation written in pure Java.
 
-        https://xz.tukaani.org/xz-for-java/
+        https://tukaani.org/xz/java.html
 
 
 6. Contact information

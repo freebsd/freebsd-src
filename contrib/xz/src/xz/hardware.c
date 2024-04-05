@@ -1,11 +1,12 @@
-// SPDX-License-Identifier: 0BSD
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       hardware.c
 /// \brief      Detection of available hardware resources
 //
 //  Author:     Lasse Collin
+//
+//  This file has been put into the public domain.
+//  You can do whatever you want with this file.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -14,7 +15,7 @@
 
 /// Maximum number of worker threads. This can be set with
 /// the --threads=NUM command line option.
-static uint32_t threads_max;
+static uint32_t threads_max = 1;
 
 /// True when the number of threads is automatically determined based
 /// on the available hardware threads.
@@ -332,10 +333,6 @@ hardware_init(void)
 	if (memlimit_mt_default > mem_ceiling)
 		memlimit_mt_default = mem_ceiling;
 #endif
-
-	// Enable threaded mode by default. xz 5.4.x and older
-	// used single-threaded mode by default.
-	hardware_threads_set(0);
 
 	return;
 }
