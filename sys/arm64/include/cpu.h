@@ -206,6 +206,9 @@ extern uint64_t __cpu_affinity[];
 struct arm64_addr_mask;
 extern struct arm64_addr_mask elf64_addr_mask;
 
+typedef void (*cpu_reset_hook_t)(void);
+extern cpu_reset_hook_t cpu_reset_hook;
+
 void	cpu_halt(void) __dead2;
 void	cpu_reset(void) __dead2;
 void	fork_trampoline(void);
