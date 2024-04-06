@@ -46,7 +46,15 @@
 #include <linux/spinlock.h>
 #include <linux/ktime.h>
 
+#include "opt_wlan.h"
+
+/* Currently this is only used for wlan so we can depend on that. */
+#if defined(IEEE80211_DEBUG) && !defined(SKB_DEBUG)
+#define	SKB_DEBUG
+#endif
+
 /* #define	SKB_DEBUG */
+
 #ifdef SKB_DEBUG
 #define	DSKB_TODO	0x01
 #define	DSKB_IMPROVE	0x02
