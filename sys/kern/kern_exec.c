@@ -454,6 +454,8 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 interpret:
 	if (args->fname != NULL) {
 #ifdef CAPABILITY_MODE
+		if (CAP_TRACING(td))
+			ktrcapfail(CAPFAIL_NAMEI, args->fname);
 		/*
 		 * While capability mode can't reach this point via direct
 		 * path arguments to execve(), we also don't allow
