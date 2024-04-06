@@ -3054,7 +3054,7 @@ fgetvp_lookup_smr(struct nameidata *ndp, struct vnode **vpp, bool *fsearch)
 	    ndp->ni_filecaps.fc_fcntls != CAP_FCNTL_ALL ||
 	    ndp->ni_filecaps.fc_nioctls != -1) {
 #ifdef notyet
-		ndp->ni_lcf |= NI_LCF_STRICTRELATIVE;
+		ndp->ni_lcf |= NI_LCF_STRICTREL;
 #else
 		return (EAGAIN);
 #endif
@@ -3146,7 +3146,7 @@ fgetvp_lookup(struct nameidata *ndp, struct vnode **vpp)
 	if (!cap_rights_contains(&ndp->ni_filecaps.fc_rights, &rights) ||
 	    ndp->ni_filecaps.fc_fcntls != CAP_FCNTL_ALL ||
 	    ndp->ni_filecaps.fc_nioctls != -1) {
-		ndp->ni_lcf |= NI_LCF_STRICTRELATIVE;
+		ndp->ni_lcf |= NI_LCF_STRICTREL;
 		ndp->ni_resflags |= NIRES_STRICTREL;
 	}
 #endif
