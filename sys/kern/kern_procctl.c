@@ -28,6 +28,8 @@
  */
 
 #include <sys/cdefs.h>
+#include "opt_ktrace.h"
+
 #include <sys/param.h>
 #include <sys/_unrhdr.h>
 #include <sys/systm.h>
@@ -543,6 +545,8 @@ reap_kill(struct thread *td, struct proc *p, void *data)
 
 	rk = data;
 	sx_assert(&proctree_lock, SX_LOCKED);
+	if (CAP_TRACING(td))
+		ktrcapfail(CAPFAIL_SIGNAL, &rk->rk_sig);
 	if (IN_CAPABILITY_MODE(td))
 		return (ECAPMODE);
 	if (rk->rk_sig <= 0 || rk->rk_sig > _SIG_MAXSIG ||
