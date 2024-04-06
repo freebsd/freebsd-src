@@ -2597,6 +2597,24 @@ io_mapping_create_wc(resource_size_t base, unsigned long size)
 	return (io_mapping_init_wc(mapping, base, size));
 }
 
+/* We likely want a linuxkpi_device.c at some point. */
+bool
+device_can_wakeup(struct device *dev)
+{
+
+	if (dev == NULL)
+		return (false);
+	/*
+	 * XXX-BZ iwlwifi queries it as part of enabling WoWLAN.
+	 * Normally this would be based on a bool in dev->power.XXX.
+	 * Check such as PCI PCIM_PCAP_*PME.  We have no way to enable this yet.
+	 * We may get away by directly calling into bsddev for as long as
+	 * we can assume PCI only avoiding changing struct device breaking KBI.
+	 */
+	pr_debug("%s:%d: not enabled; see comment.\n", __func__, __LINE__);
+	return (false);
+}
+
 #if defined(__i386__) || defined(__amd64__)
 bool linux_cpu_has_clflush;
 struct cpuinfo_x86 boot_cpu_data;
