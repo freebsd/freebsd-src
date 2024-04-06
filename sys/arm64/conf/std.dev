@@ -118,3 +118,7 @@ device		hidbus			# Generic HID Bus
 
 # Firmware
 device		mmio_sram		# Generic on-chip SRAM
+
+# Wireless options
+options 	IEEE80211_DEBUG		# enable debug msgs
+options 	IEEE80211_SUPPORT_MESH	# enable 802.11s draft support
