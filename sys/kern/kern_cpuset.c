@@ -1762,22 +1762,38 @@ cpuset_setproc_update_set(struct proc *p, struct cpuset *set)
  * In Capability mode, the only accesses that are permitted are to the current
  * thread and process' CPU and domain sets.
  */
+static bool
+cpuset_capmode_allowed(struct thread *td, cpulevel_t level, cpuwhich_t which,
+    id_t id)
+{
+	if (level != CPU_LEVEL_WHICH)
+		return (false);
+	if (which != CPU_WHICH_TID && which != CPU_WHICH_PID &&
+	    which != CPU_WHICH_TIDPID)
+		return (false);
+	if (id != -1 && which == CPU_WHICH_TIDPID &&
+	    id != td->td_tid && id != td->td_proc->p_pid)
+		return (false);
+	if (id != -1 &&
+	    !(which == CPU_WHICH_TID && id == td->td_tid) &&
+	    !(which == CPU_WHICH_PID && id == td->td_proc->p_pid))
+		return (false);
+	return (true);
+}
+
+/*
+ * Check for capability violations and record them if ktrace(2) is active.
+ */
 static int
 cpuset_check_capabilities(struct thread *td, cpulevel_t level, cpuwhich_t which,
     id_t id)
 {
-	if (IN_CAPABILITY_MODE(td)) {
-		if (level != CPU_LEVEL_WHICH)
-			return (ECAPMODE);
-		if (which != CPU_WHICH_TID && which != CPU_WHICH_PID &&
-		    which != CPU_WHICH_TIDPID)
-			return (ECAPMODE);
-		if (id != -1 && which == CPU_WHICH_TIDPID &&
-		    id != td->td_tid && id != td->td_proc->p_pid)
-			return (ECAPMODE);
-		if (id != -1 &&
-		    !(which == CPU_WHICH_TID && id == td->td_tid) &&
-		    !(which == CPU_WHICH_PID && id == td->td_proc->p_pid))
+	if (IN_CAPABILITY_MODE(td) || CAP_TRACING(td)) {
+		if (cpuset_capmode_allowed(td, level, which, id))
+			return (0);
+		if (CAP_TRACING(td))
+			ktrcapfail(CAPFAIL_CPUSET, NULL);
+		if (IN_CAPABILITY_MODE(td))
 			return (ECAPMODE);
 	}
 	return (0);
