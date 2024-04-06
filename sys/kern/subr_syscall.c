@@ -118,10 +118,13 @@ syscallenter(struct thread *td)
 	 * In capability mode, we only allow access to system calls
 	 * flagged with SYF_CAPENABLED.
 	 */
-	if (__predict_false(IN_CAPABILITY_MODE(td) &&
-	    (se->sy_flags & SYF_CAPENABLED) == 0)) {
-		td->td_errno = error = ECAPMODE;
-		goto retval;
+	if ((se->sy_flags & SYF_CAPENABLED) == 0) {
+		if (CAP_TRACING(td))
+			ktrcapfail(CAPFAIL_SYSCALL, NULL);
+		if (IN_CAPABILITY_MODE(td)) {
+			td->td_errno = error = ECAPMODE;
+			goto retval;
+		}
 	}
 #endif
 

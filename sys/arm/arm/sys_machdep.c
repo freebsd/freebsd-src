@@ -175,22 +175,19 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 	 * explicitly indicate whether or not the operation is safe to
 	 * perform in capability mode.
 	 */
-	if (IN_CAPABILITY_MODE(td)) {
-		switch (uap->op) {
-		case ARM_SYNC_ICACHE:
-		case ARM_DRAIN_WRITEBUF:
-		case ARM_SET_TP:
-		case ARM_GET_TP:
-		case ARM_GET_VFPSTATE:
-			break;
+	switch (uap->op) {
+	case ARM_SYNC_ICACHE:
+	case ARM_DRAIN_WRITEBUF:
+	case ARM_SET_TP:
+	case ARM_GET_TP:
+	case ARM_GET_VFPSTATE:
+		break;
 
-		default:
-#ifdef KTRACE
-			if (KTRPOINT(td, KTR_CAPFAIL))
-				ktrcapfail(CAPFAIL_SYSCALL, NULL, NULL);
-#endif
+	default:
+		if (CAP_TRACING(td))
+			ktrcapfail(CAPFAIL_SYSCALL, &uap->op);
+		if (IN_CAPABILITY_MODE(td))
 			return (ECAPMODE);
-		}
 	}
 #endif
 

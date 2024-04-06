@@ -2677,10 +2677,16 @@ ptrace_syscallreq(struct thread *td, struct proc *p,
 	    &td->td_proc->p_cowgen)))
 		thread_cow_update(td);
 
+	td->td_sa = tsr->ts_sa;
+
 #ifdef CAPABILITY_MODE
-	if (IN_CAPABILITY_MODE(td) && (se->sy_flags & SYF_CAPENABLED) == 0) {
-		tsr->ts_ret.sr_error = ECAPMODE;
-		return;
+	if ((se->sy_flags & SYF_CAPENABLED) == 0) {
+		if (CAP_TRACING(td))
+			ktrcapfail(CAPFAIL_SYSCALL, NULL);
+		if (IN_CAPABILITY_MODE(td)) {
+			tsr->ts_ret.sr_error = ECAPMODE;
+			return;
+		}
 	}
 #endif
 

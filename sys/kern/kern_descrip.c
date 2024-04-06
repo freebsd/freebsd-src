@@ -875,6 +875,8 @@ revert_f_setfl:
 
 	case F_KINFO:
 #ifdef CAPABILITY_MODE
+		if (CAP_TRACING(td))
+			ktrcapfail(CAPFAIL_SYSCALL, &cmd);
 		if (IN_CAPABILITY_MODE(td)) {
 			error = ECAPMODE;
 			break;
