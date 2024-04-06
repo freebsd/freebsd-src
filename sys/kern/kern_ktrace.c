@@ -923,14 +923,17 @@ ktrstructarray(const char *name, enum uio_seg seg, const void *data,
 }
 
 void
-ktrcapfail(enum ktr_cap_fail_type type, const cap_rights_t *needed,
-    const cap_rights_t *held)
+ktrcapfail(enum ktr_cap_violation type, const void *data)
 {
 	struct thread *td = curthread;
 	struct ktr_request *req;
 	struct ktr_cap_fail *kcf;
+	union ktr_cap_data *kcd;
 
-	if (__predict_false(curthread->td_pflags & TDP_INKTRACE))
+	if (__predict_false(td->td_pflags & TDP_INKTRACE))
+		return;
+	if (type != CAPFAIL_SYSCALL &&
+	    (td->td_sa.callp->sy_flags & SYF_CAPENABLED) == 0)
 		return;
 
 	req = ktr_getrequest(KTR_CAPFAIL);
@@ -938,14 +941,32 @@ ktrcapfail(enum ktr_cap_fail_type type, const cap_rights_t *needed,
 		return;
 	kcf = &req->ktr_data.ktr_cap_fail;
 	kcf->cap_type = type;
-	if (needed != NULL)
-		kcf->cap_needed = *needed;
-	else
-		cap_rights_init(&kcf->cap_needed);
-	if (held != NULL)
-		kcf->cap_held = *held;
-	else
-		cap_rights_init(&kcf->cap_held);
+	kcf->cap_code = td->td_sa.code;
+	kcf->cap_svflags = td->td_proc->p_sysent->sv_flags;
+	if (data != NULL) {
+		kcd = &kcf->cap_data;
+		switch (type) {
+		case CAPFAIL_NOTCAPABLE:
+		case CAPFAIL_INCREASE:
+			kcd->cap_needed = *(const cap_rights_t *)data;
+			kcd->cap_held = *((const cap_rights_t *)data + 1);
+			break;
+		case CAPFAIL_SYSCALL:
+		case CAPFAIL_SIGNAL:
+		case CAPFAIL_PROTO:
+			kcd->cap_int = *(const int *)data;
+			break;
+		case CAPFAIL_SOCKADDR:
+			kcd->cap_sockaddr = *(const struct sockaddr *)data;
+			break;
+		case CAPFAIL_NAMEI:
+			strlcpy(kcd->cap_path, data, MAXPATHLEN);
+			break;
+		case CAPFAIL_CPUSET:
+		default:
+			break;
+		}
+	}
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
 }
