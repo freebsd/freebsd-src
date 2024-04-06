@@ -44,6 +44,7 @@ static char sccsid[] = "@(#) tcpd.c 1.10 96/02/11 17:01:32";
 int     allow_severity = SEVERITY;	/* run-time adjustable */
 int     deny_severity = LOG_WARNING;	/* ditto */
 
+int
 main(int argc, char **argv)
 {
     struct request_info request;
