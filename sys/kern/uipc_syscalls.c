@@ -654,11 +654,6 @@ sendit(struct thread *td, int s, struct msghdr *mp, int flags)
 	struct sockaddr *to;
 	int error;
 
-#ifdef CAPABILITY_MODE
-	if (IN_CAPABILITY_MODE(td) && (mp->msg_name != NULL))
-		return (ECAPMODE);
-#endif
-
 	if (mp->msg_name != NULL) {
 		error = getsockaddr(&to, mp->msg_name, mp->msg_namelen);
 		if (error != 0) {
@@ -666,6 +661,14 @@ sendit(struct thread *td, int s, struct msghdr *mp, int flags)
 			goto bad;
 		}
 		mp->msg_name = to;
+#ifdef CAPABILITY_MODE
+		if (CAP_TRACING(td))
+			ktrcapfail(CAPFAIL_SOCKADDR, mp->msg_name);
+		if (IN_CAPABILITY_MODE(td)) {
+			error = ECAPMODE;
+			goto bad;
+		}
+#endif
 	} else {
 		to = NULL;
 	}
