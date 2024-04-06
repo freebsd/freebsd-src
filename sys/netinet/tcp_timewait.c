@@ -123,7 +123,7 @@ tcp_twstart(struct tcpcb *tp)
 	soisdisconnected(inp->inp_socket);
 
 	if (tp->t_flags & TF_ACKNOW)
-		tcp_output(tp);
+		(void) tcp_output(tp);
 
 	if (V_nolocaltimewait && (
 #ifdef INET6
