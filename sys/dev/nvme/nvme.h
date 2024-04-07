@@ -1652,6 +1652,30 @@ struct nvme_device_self_test_page {
 _Static_assert(sizeof(struct nvme_device_self_test_page) == 564,
     "bad size for nvme_device_self_test_page");
 
+/*
+ * Header structure for both host initiated telemetry (page 7) and controller
+ * initiated telemetry (page 8).
+ */
+struct nvme_telemetry_log_page {
+	uint8_t			identifier;
+	uint8_t			rsvd[4];
+	uint8_t			oui[3];
+	uint16_t		da1_last;
+	uint16_t		da2_last;
+	uint16_t		da3_last;
+	uint8_t			rsvd2[2];
+	uint32_t		da4_last;
+	uint8_t			rsvd3[361];
+	uint8_t			hi_gen;
+	uint8_t			ci_avail;
+	uint8_t			ci_gen;
+	uint8_t			reason[128];
+	/* Blocks of telemetry data follow */
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_telemetry_log_page) == 512,
+    "bad size for nvme_telemetry_log");
+
 struct nvme_discovery_log_entry {
 	uint8_t			trtype;
 	uint8_t			adrfam;
