@@ -119,6 +119,13 @@ SAN_CFLAGS+=	-DSAN_NEEDS_INTERCEPTORS -DSAN_INTERCEPTOR_PREFIX=kasan \
 		-mllvm -asan-use-after-scope=true \
 		-mllvm -asan-instrumentation-with-call-threshold=0 \
 		-mllvm -asan-instrument-byval=false
+
+.if ${MACHINE_CPUARCH} == "amd64" && \
+      ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 180000
+# Work around https://github.com/llvm/llvm-project/issues/87923, which leads to
+# an assertion failure compiling dtrace.c with asan enabled.
+SAN_CFLAGS+=	-mllvm -asan-use-stack-safety=0
+.endif
 .endif
 
 KCSAN_ENABLED!=	grep KCSAN opt_global.h || true ; echo
