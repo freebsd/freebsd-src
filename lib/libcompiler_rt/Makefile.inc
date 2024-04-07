@@ -230,9 +230,10 @@ SRCF+=		comparesf2
 #
 # bfloat16 support, only used on some architectures.
 #
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
-    ${MACHINE_CPUARCH} == "arm" || (${MACHINE_CPUARCH} == "i386" && \
-    !empty(MACHINE_CPU:Msse2)) || ${MACHINE_CPUARCH} == "riscv"
+.if (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+     ${MACHINE_CPUARCH} == "arm" || (${MACHINE_CPUARCH} == "i386" && \
+     !empty(MACHINE_CPU:Msse2)) || ${MACHINE_CPUARCH} == "riscv") && \
+    !(${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} < 130000)
 SRCF+=		truncdfbf2
 SRCF+=		truncsfbf2
 .endif
