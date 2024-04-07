@@ -26,6 +26,9 @@
  *
  */
 
+#ifndef __PCI_PCIREG_H
+#define	__PCI_PCIREG_H
+
 /*
  * PCIM_xxx: mask to locate subfield in register
  * PCIR_xxx: config register offset
@@ -1121,3 +1124,5 @@
 #define	PCIM_ACS_USP_MEM_TGT_ACC_CTL		0x0c00
 #define	PCIM_ACS_UNCLAIMED_REQ_REDIRECT_CTL	0x1000
 #define	PCIR_ACS_EGRESS_CONTROL_VECTOR	0x8
+
+#endif	/* __PCI_PCIREG_H */
