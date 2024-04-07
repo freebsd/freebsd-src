@@ -1,3 +1,4 @@
+.include <bsd.compiler.mk>
 
 CRTARCH=	${MACHINE_CPUARCH:C/amd64/x86_64/:C/powerpc/ppc/}
 
