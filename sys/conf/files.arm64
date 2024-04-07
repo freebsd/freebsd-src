@@ -76,7 +76,8 @@ arm64/arm64/uio_machdep.c			standard
 arm64/arm64/uma_machdep.c			standard
 arm64/arm64/undefined.c				standard
 arm64/arm64/unwind.c				optional ddb | kdtrace_hooks | stack
-arm64/arm64/vfp.c				standard
+arm64/arm64/vfp.c				standard \
+	compile-with "${NORMAL_C:N-mgeneral-regs-only}"
 arm64/arm64/vm_machdep.c			standard
 
 arm64/coresight/coresight.c			standard
