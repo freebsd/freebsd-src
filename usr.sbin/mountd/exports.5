@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)exports.5	8.3 (Berkeley) 3/29/95
 .\"
-.Dd August 16, 2022
+.Dd April 7, 2024
 .Dt EXPORTS 5
 .Os
 .Sh NAME
@@ -250,7 +250,7 @@ The
 and
 .Fl tlscertuser
 export options are used to require the client to use TLS for the mount(s)
-per RFC NNNN.
+per RFC 9289.
 For NFS mounts using TLS to work,
 .Xr rpc.tlsservd 8
 must be running on the server.
@@ -603,7 +603,7 @@ The implementation is based on the following documents:
 .Re
 .It
 .Rs
-.%T "Towards Remote Procedure Call Encryption By Default, RFC nnnn"
+.%T "Towards Remote Procedure Call Encryption by Default, RFC 9289"
 .Re
 .El
 .Sh BUGS
