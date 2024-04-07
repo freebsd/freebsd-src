@@ -1,6 +1,5 @@
 
 CRTARCH=	${MACHINE_CPUARCH:C/amd64/x86_64/:C/powerpc/ppc/}
-.info DIMDBG: CRTARCH=${CRTARCH}
 
 CRTSRC=		${SRCTOP}/contrib/llvm-project/compiler-rt/lib/builtins
 
@@ -131,7 +130,6 @@ SRCF+=		floatundisf
 # 80-bit long double functions, only used on x86.
 #
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
-.info DIMDBG: Enabling 80-bit long double
 SRCF+=		divxc3
 SRCF+=		extendxftf2
 SRCF+=		fixxfdi
@@ -153,8 +151,6 @@ SRCS+=		floatundixf.c
 SRCF+=		floatdixf
 SRCF+=		floatundixf
 .endif
-.else
-.info DIMDBG: NOT enabling 80-bit long double
 .endif
 
 # __cpu_model support, only used on aarch64 and x86
@@ -178,7 +174,6 @@ SRCF+=		fp_mode
 #
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
     ${MACHINE_CPUARCH} == "riscv"
-.info DIMDBG: Enabling 128-bit quad precision
 SRCF+=		addtf3
 SRCF+=		comparetf2
 SRCF+=		divtc3
@@ -205,8 +200,6 @@ SRCF+=		subtf3
 SRCF+=		trunctfdf2
 SRCF+=		trunctfhf2
 SRCF+=		trunctfsf2
-.else
-.info DIMDBG: NOT enabling 128-bit quad precision
 .endif
 
 # These are already shipped by libc.a on some architectures.
