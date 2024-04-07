@@ -3272,6 +3272,35 @@ dodata:							/* XXX */
 			len = so->so_rcv.sb_hiwat;
 #endif
 	} else {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+			if (tlen > 0) {
+				if ((thflags & TH_FIN) != 0) {
+					log(LOG_DEBUG, "%s; %s: %s: "
+					    "Received %d bytes of data and FIN "
+					    "after having received a FIN, "
+					    "just dropping both\n",
+					    s, __func__,
+					    tcpstates[tp->t_state], tlen);
+				} else {
+					log(LOG_DEBUG, "%s; %s: %s: "
+					    "Received %d bytes of data "
+					    "after having received a FIN, "
+					    "just dropping it\n",
+					    s, __func__,
+					    tcpstates[tp->t_state], tlen);
+				}
+			} else {
+				if ((thflags & TH_FIN) != 0) {
+					log(LOG_DEBUG, "%s; %s: %s: "
+					    "Received FIN "
+					    "after having received a FIN, "
+					    "just dropping it\n",
+					    s, __func__,
+					    tcpstates[tp->t_state]);
+				}
+			}
+			free(s, M_TCPLOG);
+		}
 		m_freem(m);
 		thflags &= ~TH_FIN;
 	}
