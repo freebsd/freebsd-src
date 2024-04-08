@@ -1,5 +1,8 @@
 /*-
+ *
+ * Copyright (c) 2024 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2014 Spectra Logic Corporation. All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -27,7 +30,9 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/un.h>
 
 #include <stdio.h>
@@ -1089,6 +1094,151 @@ ATF_TC_BODY(sendrecv_128k_nonblocking, tc)
 	test_sendrecv_symmetric_buffers(128 * 1024, false);
 }
 
+ATF_TC(random_eor_and_waitall);
+ATF_TC_HEAD(random_eor_and_waitall, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test random sized send/recv with "
+	    "randomly placed MSG_EOR and randomly applied MSG_WAITALL on "
+	    "PF_UNIX/SOCK_SEQPACKET");
+}
+
+struct random_eor_params {
+	u_long recvspace;
+	char *sendbuf;
+	size_t *records;
+	u_int nrecords;
+	int sock;
+	u_short seed[6];
+};
+
+#define	RANDOM_TESTSIZE	((size_t)100 * 1024 * 1024)
+/* Below defines are factor of recvspace. */
+#define	RANDOM_MAXRECORD	10
+#define	RANDOM_SENDSIZE	2
+#define	RANDOM_RECVSIZE	4
+
+static void *
+sending_thread(void *arg)
+{
+	struct random_eor_params *params = arg;
+	size_t off = 0;
+	int eor = 0;
+
+	while (off < RANDOM_TESTSIZE) {
+		ssize_t len;
+		int flags;
+
+		len = nrand48(&params->seed[3]) %
+		    (RANDOM_SENDSIZE * params->recvspace);
+		if (off + len >= params->records[eor]) {
+			len = params->records[eor] - off;
+			flags = MSG_EOR;
+			eor++;
+		} else
+			flags = 0;
+		ATF_REQUIRE(send(params->sock, &params->sendbuf[off], len,
+		    flags) == len);
+		off += len;
+#ifdef DEBUG
+		printf("send %zd%s\n", off, flags ? " EOR" : "");
+#endif
+	}
+
+	return (NULL);
+}
+
+ATF_TC_BODY(random_eor_and_waitall, tc)
+{
+	struct random_eor_params params;
+	void *recvbuf;
+	pthread_t t;
+	size_t off;
+	int fd[2], eor;
+
+	arc4random_buf(params.seed, sizeof(params.seed));
+	printf("Using seed:");
+	for (u_int i = 0; i < (u_int)sizeof(params.seed)/sizeof(u_short); i++)
+		printf(" 0x%.4x,", params.seed[i]);
+	printf("\n");
+
+	ATF_REQUIRE((params.sendbuf = malloc(RANDOM_TESTSIZE)) != NULL);
+	for (u_int i = 0; i < RANDOM_TESTSIZE / (u_int )sizeof(long); i++)
+		((long *)params.sendbuf)[i] = nrand48(&params.seed[0]);
+
+	ATF_REQUIRE(sysctlbyname("net.local.stream.recvspace",
+	    &params.recvspace, &(size_t){sizeof(u_long)}, NULL, 0) != -1);
+	ATF_REQUIRE((recvbuf =
+	    malloc(RANDOM_RECVSIZE * params.recvspace)) != NULL);
+
+	params.nrecords = 2 * RANDOM_TESTSIZE /
+	    (RANDOM_MAXRECORD * params.recvspace);
+
+	ATF_REQUIRE((params.records =
+	    malloc(params.nrecords * sizeof(size_t *))) != NULL);
+	off = 0;
+	for (u_int i = 0; i < params.nrecords; i++) {
+		off += 1 + nrand48(&params.seed[0]) %
+		    (RANDOM_MAXRECORD * params.recvspace);
+		if (off > RANDOM_TESTSIZE) {
+			params.nrecords = i;
+			break;
+		}
+		params.records[i] = off;
+	}
+	params.records[params.nrecords - 1] = RANDOM_TESTSIZE;
+
+	ATF_REQUIRE(socketpair(PF_LOCAL, SOCK_SEQPACKET, 0, fd) == 0);
+	params.sock = fd[0];
+	ATF_REQUIRE(pthread_create(&t, NULL, sending_thread, &params) == 0);
+
+	off = 0;
+	eor = 0;
+	while (off < RANDOM_TESTSIZE) {
+		struct iovec iov = {
+			.iov_base = recvbuf,
+			.iov_len = nrand48(&params.seed[0]) %
+			    (RANDOM_RECVSIZE * params.recvspace)
+		};
+		struct msghdr hdr = {
+			.msg_iov = &iov,
+			.msg_iovlen = 1,
+		};
+		size_t len;
+		int waitall = iov.iov_len & 0x1 ? MSG_WAITALL : 0;
+
+		len = recvmsg(fd[1], &hdr, waitall);
+		if (waitall && !(hdr.msg_flags & MSG_EOR))
+			ATF_CHECK_EQ_MSG(len, iov.iov_len,
+			    "recvmsg(MSG_WAITALL): %zd, expected %zd",
+			    len, iov.iov_len);
+		if (off + len == params.records[eor]) {
+			ATF_REQUIRE_MSG(hdr.msg_flags & MSG_EOR,
+			    "recvmsg(): expected EOR @ %zd", off + len);
+			eor++;
+		} else {
+			ATF_REQUIRE_MSG(off + len < params.records[eor],
+			    "recvmsg() past EOR: %zd, expected %zd",
+			    off + len, params.records[eor]);
+			ATF_REQUIRE_MSG(!(hdr.msg_flags & MSG_EOR),
+			    "recvmsg() spurious EOR at %zd, expected %zd",
+			    off + len, params.records[eor]);
+		}
+		ATF_REQUIRE_MSG(0 == memcmp(params.sendbuf + off, recvbuf, len),
+		    "data corruption past %zd", off);
+		off += len;
+#ifdef DEBUG
+		printf("recv %zd%s %zd/%zd%s\n", off,
+		    (hdr.msg_flags & MSG_EOR) ?  " EOR" : "",
+		    len, iov.iov_len,
+		    waitall ? " WAITALL" : "");
+#endif
+	}
+
+	ATF_REQUIRE(pthread_join(t, NULL) == 0);
+	free(params.sendbuf);
+	free(recvbuf);
+	free(params.records);
+}
 
 /*
  * Main.
@@ -1142,6 +1292,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, pipe_8k_128k);
 	ATF_TP_ADD_TC(tp, pipe_128k_8k);
 	ATF_TP_ADD_TC(tp, pipe_128k_128k);
+	ATF_TP_ADD_TC(tp, random_eor_and_waitall);
 
 	return atf_no_error();
 }
