@@ -164,6 +164,12 @@ sysfs_create_link(struct kobject *kobj __unused,
 	return (0);
 }
 
+static inline void
+sysfs_remove_link(struct kobject *kobj, const char *name)
+{
+	/* TODO (along with sysfs_create_link) */
+}
+
 static inline int
 sysfs_create_files(struct kobject *kobj, const struct attribute * const *attrs)
 {
