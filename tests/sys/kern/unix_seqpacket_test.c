@@ -260,12 +260,7 @@ test_pipe_simulator(int sndbufsize, int rcvbufsize)
 			memset(sndbuf, num_sent, pktsize);
 			ssize = send(sv[0], sndbuf, pktsize, MSG_EOR);
 			if (ssize < 0) {
-				/*
-				 * XXX: This is bug-compatible with the kernel.
-				 * The kernel returns EMSGSIZE when it should
-				 * return EAGAIN
-				 */
-				if (errno == EAGAIN || errno == EMSGSIZE)
+				if (errno == EAGAIN)
 					currently_sending = false;
 				else {
 					perror("send");
