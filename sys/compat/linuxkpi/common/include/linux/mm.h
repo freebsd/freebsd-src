@@ -382,4 +382,10 @@ might_alloc(gfp_t gfp_mask __unused)
 
 #define	is_cow_mapping(flags)	(false)
 
+static inline bool
+want_init_on_free(void)
+{
+	return (false);
+}
+
 #endif					/* _LINUXKPI_LINUX_MM_H_ */
