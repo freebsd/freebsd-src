@@ -649,20 +649,16 @@ sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 	*sock_fp = NULL;
 	*so = NULL;
 
-	/*
-	 * The socket must be a stream socket and connected.
-	 */
 	error = getsock(td, s, &cap_send_rights, sock_fp);
 	if (error != 0)
 		return (error);
 	*so = (*sock_fp)->f_data;
-	if ((*so)->so_type != SOCK_STREAM)
-		return (EINVAL);
 	/*
-	 * SCTP one-to-one style sockets currently don't work with
-	 * sendfile(). So indicate EINVAL for now.
+	 * sendfile(2) should be supported for every SOCK_STREAM socket.
+	 * However, the support of PF_UNIX/SOCK_STREAM is temporarily degraded
+	 * and IPPROTO_SCTP isn't supported, yet.
 	 */
-	if ((*so)->so_proto->pr_protocol == IPPROTO_SCTP)
+	if ((*so)->so_proto->pr_protocol != IPPROTO_TCP)
 		return (EINVAL);
 	return (0);
 }
