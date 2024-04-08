@@ -44,6 +44,7 @@
 #include <linux/build_bug.h>
 #include <linux/compiler.h>
 #include <linux/container_of.h>
+#include <linux/limits.h>
 #include <linux/stringify.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -69,19 +70,6 @@
 #define	KERN_NOTICE	"<5>"
 #define	KERN_INFO	"<6>"
 #define	KERN_DEBUG	"<7>"
-
-#define	U8_MAX		((u8)~0U)
-#define	S8_MAX		((s8)(U8_MAX >> 1))
-#define	S8_MIN		((s8)(-S8_MAX - 1))
-#define	U16_MAX		((u16)~0U)
-#define	S16_MAX		((s16)(U16_MAX >> 1))
-#define	S16_MIN		((s16)(-S16_MAX - 1))
-#define	U32_MAX		((u32)~0U)
-#define	S32_MAX		((s32)(U32_MAX >> 1))
-#define	S32_MIN		((s32)(-S32_MAX - 1))
-#define	U64_MAX		((u64)~0ULL)
-#define	S64_MAX		((s64)(U64_MAX >> 1))
-#define	S64_MIN		((s64)(-S64_MAX - 1))
 
 #define	S8_C(x)  x
 #define	U8_C(x)  x ## U
