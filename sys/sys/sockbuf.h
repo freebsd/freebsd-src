@@ -131,6 +131,13 @@ struct sockbuf {
 			struct	ktls_session *sb_tls_info; /* TLS state */
 		};
 		/*
+		 * PF_UNIX/SOCK_STREAM and PF_UNIX/SOCK_SEQPACKET
+		 * A most simple stream buffer.
+		 */
+		struct {
+			STAILQ_HEAD(, mbuf)	sb_mbq;
+		};
+		/*
 		 * PF_UNIX/SOCK_DGRAM
 		 *
 		 * Local protocol, thus we should buffer on the receive side
