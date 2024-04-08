@@ -1797,6 +1797,7 @@ mc_remove(struct mchain *mc, struct mbuf *m)
 
 int mc_get(struct mchain *, u_int, int, short, int);
 int mc_split(struct mchain *, struct mchain *, u_int, int);
+int mc_uiotomc(struct mchain *, struct uio *, u_int, u_int, int, int);
 
 #ifdef _SYS_TIMESPEC_H_
 static inline void

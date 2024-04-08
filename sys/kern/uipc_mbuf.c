@@ -1938,65 +1938,103 @@ failed:
 
 /*
  * Copy the contents of uio into a properly sized mbuf chain.
+ * A compat KPI.  Users are recommended to use direct calls to backing
+ * functions.
  */
 struct mbuf *
-m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
+m_uiotombuf(struct uio *uio, int how, int len, int lspace, int flags)
 {
-	struct mbuf *m, *mb;
-	int error, length;
-	ssize_t total;
-	int progress = 0;
 
-	if (flags & M_EXTPG)
-		return (m_uiotombuf_nomap(uio, how, len, align, flags));
+	if (flags & M_EXTPG) {
+		/* XXX: 'lspace' magically becomes maxseg! */
+		return (m_uiotombuf_nomap(uio, how, len, lspace, flags));
+	} else if (__predict_false(uio->uio_resid + len == 0)) {
+		struct mbuf *m;
 
-	/*
-	 * len can be zero or an arbitrary large value bound by
-	 * the total data supplied by the uio.
-	 */
-	if (len > 0)
-		total = (uio->uio_resid < len) ? uio->uio_resid : len;
+		/*
+		 * m_uiotombuf() is known to return zero length buffer, keep
+		 * this compatibility. mc_uiotomc() won't do that.
+		 */
+		if (flags & M_PKTHDR) {
+			m = m_gethdr(how, MT_DATA);
+			m->m_pkthdr.memlen = MSIZE;
+		} else
+			m = m_get(how, MT_DATA);
+		if (m != NULL)
+			m->m_data += lspace;
+		return (m);
+	} else {
+		struct mchain mc;
+		int error;
+
+		error = mc_uiotomc(&mc, uio, len, lspace, how, flags);
+		if (__predict_true(error == 0)) {
+			if (flags & M_PKTHDR) {
+				mc_first(&mc)->m_pkthdr.len = mc.mc_len;
+				mc_first(&mc)->m_pkthdr.memlen = mc.mc_mlen;
+			}
+			return (mc_first(&mc));
+		} else
+			return (NULL);
+	}
+}
+
+/*
+ * Copy the contents of uio into a properly sized mbuf chain.
+ * In case of failure state of mchain is inconsistent.
+ * @param length Limit copyout length.  If 0 entire uio_resid is copied.
+ * @param lspace Provide leading space in the first mbuf in the chain.
+ */
+int
+mc_uiotomc(struct mchain *mc, struct uio *uio, u_int length, u_int lspace,
+    int how, int flags)
+{
+	struct mbuf *mb;
+	u_int total;
+	int error;
+
+	MPASS(lspace < MHLEN);
+	MPASS(UINT_MAX - lspace >= length);
+	MPASS(uio->uio_rw == UIO_WRITE);
+	MPASS(uio->uio_resid >= 0);
+
+	if (length > 0) {
+		if (uio->uio_resid > length) {
+			total = length;
+			flags &= ~M_EOR;
+		} else
+			total = uio->uio_resid;
+	} else if (__predict_false(uio->uio_resid + lspace > UINT_MAX))
+		return (EOVERFLOW);
 	else
 		total = uio->uio_resid;
 
-	/*
-	 * The smallest unit returned by m_getm2() is a single mbuf
-	 * with pkthdr.  We can't align past it.
-	 */
-	if (align >= MHLEN)
-		return (NULL);
+	if (__predict_false(total + lspace == 0)) {
+		*mc = MCHAIN_INITIALIZER(mc);
+		return (0);
+	}
 
-	/*
-	 * Give us the full allocation or nothing.
-	 * If len is zero return the smallest empty mbuf.
-	 */
-	m = m_getm2(NULL, max(total + align, 1), how, MT_DATA, flags);
-	if (m == NULL)
-		return (NULL);
-	m->m_data += align;
+	error = mc_get(mc, total + lspace, how, MT_DATA, flags);
+	if (__predict_false(error))
+		return (error);
+	mc_first(mc)->m_data += lspace;
 
 	/* Fill all mbufs with uio data and update header information. */
-	for (mb = m; mb != NULL; mb = mb->m_next) {
-		length = min(M_TRAILINGSPACE(mb), total - progress);
+	STAILQ_FOREACH(mb, &mc->mc_q, m_stailq) {
+		u_int mlen;
 
-		error = uiomove(mtod(mb, void *), length, uio);
-		if (error) {
-			m_freem(m);
-			return (NULL);
+		mlen = min(M_TRAILINGSPACE(mb), total - mc->mc_len);
+		error = uiomove(mtod(mb, void *), mlen, uio);
+		if (__predict_false(error)) {
+			mc_freem(mc);
+			return (error);
 		}
-
-		mb->m_len = length;
-		progress += length;
-		if (flags & M_PKTHDR) {
-			m->m_pkthdr.len += length;
-			m->m_pkthdr.memlen += MSIZE;
-			if (mb->m_flags & M_EXT)
-				m->m_pkthdr.memlen += mb->m_ext.ext_size;
-		}
+		mb->m_len = mlen;
+		mc->mc_len += mlen;
 	}
-	KASSERT(progress == total, ("%s: progress != total", __func__));
+	MPASS(mc->mc_len == total);
 
-	return (m);
+	return (0);
 }
 
 /*
