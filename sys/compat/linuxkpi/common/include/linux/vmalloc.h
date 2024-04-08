@@ -29,6 +29,7 @@
 #ifndef _LINUXKPI_LINUX_VMALLOC_H_
 #define	_LINUXKPI_LINUX_VMALLOC_H_
 
+#include <linux/overflow.h>
 #include <linux/page.h>
 
 #define	VM_MAP		0x0000

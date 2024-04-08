@@ -110,4 +110,7 @@
 
 #define	sizeof_field(_s, _m)	sizeof(((_s *)0)->_m)
 
+#define is_signed_type(t)	((t)-1 < (t)1)
+#define is_unsigned_type(t)	((t)-1 > (t)1)
+
 #endif	/* _LINUXKPI_LINUX_COMPILER_H_ */
