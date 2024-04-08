@@ -45,7 +45,6 @@
 #include <sys/caprights.h>
 #include <sys/file.h>
 #include <sys/fcntl.h>
-#include <sys/ktrace.h>
 
 #ifndef _KERNEL
 #include <stdbool.h>
@@ -418,6 +417,7 @@ __END_DECLS
 #ifdef _KERNEL
 
 #include <sys/systm.h>
+#include <sys/ktrace.h>
 
 #ifdef KTRACE
 #define CAP_TRACING(td) KTRPOINT((td), KTR_CAPFAIL)
