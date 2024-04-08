@@ -214,6 +214,21 @@ strscpy_pad(char* dst, const char* src, size_t len)
 	return (strscpy(dst, src, len));
 }
 
+static inline char *
+strnchr(const char *cp, size_t n, int ch)
+{
+	char *p;
+
+	for (p = __DECONST(char *, cp); n--; ++p) {
+		if (*p == ch)
+			return (p);
+		if (*p == '\0')
+			break;
+	}
+
+	return (NULL);
+}
+
 static inline void *
 memset32(uint32_t *b, uint32_t c, size_t len)
 {
