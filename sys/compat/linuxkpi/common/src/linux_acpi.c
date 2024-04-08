@@ -109,12 +109,14 @@ linux_handle_power_suspend_event(void *arg __unused)
 	 * TODO: Make acpi_sleep_event consistent
 	 */
 	linux_acpi_target_sleep_state = ACPI_STATE_S3;
+	pm_suspend_target_state = PM_SUSPEND_MEM;
 }
 
 static void
 linux_handle_power_resume_event(void *arg __unused)
 {
 	linux_acpi_target_sleep_state = ACPI_STATE_S0;
+	pm_suspend_target_state = PM_SUSPEND_ON;
 }
 
 static void
