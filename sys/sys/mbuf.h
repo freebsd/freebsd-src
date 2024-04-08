@@ -1775,6 +1775,15 @@ mc_append(struct mchain *mc, struct mbuf *m)
 	mc_inc(mc, m);
 }
 
+static inline void
+mc_concat(struct mchain *head, struct mchain *tail)
+{
+	STAILQ_CONCAT(&head->mc_q, &tail->mc_q);
+	head->mc_len += tail->mc_len;
+	head->mc_mlen += tail->mc_mlen;
+	tail->mc_len = tail->mc_mlen = 0;
+}
+
 /*
  * Note: STAILQ_REMOVE() is expensive. mc_remove_after() needs to be provided
  * as long as there consumers that would benefit from it.
@@ -1785,6 +1794,8 @@ mc_remove(struct mchain *mc, struct mbuf *m)
 	STAILQ_REMOVE(&mc->mc_q, m, mbuf, m_stailq);
 	mc_dec(mc, m);
 }
+
+int mc_split(struct mchain *, struct mchain *, u_int, int);
 
 #ifdef _SYS_TIMESPEC_H_
 static inline void

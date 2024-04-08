@@ -1108,6 +1108,72 @@ extpacket:
 	m->m_next = NULL;
 	return (n);
 }
+
+/*
+ * Partition mchain in two pieces, keeping len0 bytes in head and transferring
+ * remainder to tail.  In case of failure, both chains to be left untouched.
+ * M_EOR is observed correctly.
+ * Resulting mbufs might be read-only.
+ */
+int
+mc_split(struct mchain *head, struct mchain *tail, u_int len0, int wait)
+{
+	struct mbuf *m, *n;
+	u_int len, mlen, remain;
+
+	MPASS(!(mc_first(head)->m_flags & M_PKTHDR));
+	MBUF_CHECKSLEEP(wait);
+
+	mlen = 0;
+	len = len0;
+	STAILQ_FOREACH(m, &head->mc_q, m_stailq) {
+		mlen += MSIZE;
+		if (m->m_flags & M_EXT)
+			mlen += m->m_ext.ext_size;
+		if (len > m->m_len)
+			len -= m->m_len;
+		else
+			break;
+	}
+	if (__predict_false(m == NULL)) {
+		*tail = MCHAIN_INITIALIZER(tail);
+		return (0);
+	}
+	remain = m->m_len - len;
+	if (remain > 0) {
+		if (__predict_false((n = m_get(wait, m->m_type)) == NULL))
+			return (ENOMEM);
+		m_align(n, remain);
+		if (m->m_flags & M_EXT) {
+			n->m_data = m->m_data + len;
+			mb_dupcl(n, m);
+		} else
+			bcopy(mtod(m, char *) + len, mtod(n, char *), remain);
+	}
+
+	/* XXXGL: need STAILQ_SPLIT */
+	STAILQ_FIRST(&tail->mc_q) = STAILQ_NEXT(m, m_stailq);
+	tail->mc_q.stqh_last = head->mc_q.stqh_last;
+	tail->mc_len = head->mc_len - len0;
+	tail->mc_mlen = head->mc_mlen - mlen;
+	if (remain > 0) {
+		MPASS(n->m_len == 0);
+		mc_prepend(tail, n);
+		n->m_len = remain;
+		m->m_len -= remain;
+		if (m->m_flags & M_EOR) {
+			m->m_flags &= ~M_EOR;
+			n->m_flags |= M_EOR;
+		}
+	}
+	head->mc_q.stqh_last = &STAILQ_NEXT(m, m_stailq);
+	STAILQ_NEXT(m, m_stailq) = NULL;
+	head->mc_len = len0;
+	head->mc_mlen = mlen;
+
+	return (0);
+}
+
 /*
  * Routine to copy from device local memory into mbufs.
  * Note that `off' argument is offset into first mbuf of target chain from
