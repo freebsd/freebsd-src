@@ -530,6 +530,53 @@ ATF_TC_BODY(send_before_accept, tc)
 	close(a);
 }
 
+/*
+ * Test that close(2) of the peer ends in EPIPE when we try to send(2).
+ * Test both normal case as well as a peer that was not accept(2)-ed.
+ */
+static bool sigpipe_received = false;
+static void
+sigpipe_handler(int signo __unused)
+{
+	sigpipe_received = true;
+}
+
+ATF_TC_WITHOUT_HEAD(send_to_closed);
+ATF_TC_BODY(send_to_closed, tc)
+{
+	struct sigaction sa = {
+		.sa_handler = sigpipe_handler,
+	};
+	const struct sockaddr_un *sun;
+	int l, s, a;
+
+	ATF_REQUIRE(sigemptyset(&sa.sa_mask) == 0);
+	ATF_REQUIRE(sigaction(SIGPIPE, &sa, NULL) == 0);
+
+	sun = mk_listening_socket(&l);
+
+	ATF_REQUIRE((s = socket(PF_LOCAL, SOCK_SEQPACKET, 0)) > 0);
+	ATF_REQUIRE(connect(s, (struct sockaddr *)sun, sizeof(*sun)) == 0);
+	ATF_REQUIRE((a = accept(l, NULL, NULL)) != 1);
+	close(a);
+	ATF_REQUIRE(send(s, &s, sizeof(s), 0) == -1);
+	ATF_REQUIRE(errno == EPIPE);
+	ATF_REQUIRE(sigpipe_received == true);
+	close(s);
+
+	ATF_REQUIRE((s = socket(PF_LOCAL, SOCK_SEQPACKET, 0)) > 0);
+	ATF_REQUIRE(connect(s, (struct sockaddr *)sun, sizeof(*sun)) == 0);
+	close(l);
+	sigpipe_received = false;
+	ATF_REQUIRE(send(s, &s, sizeof(s), 0) == -1);
+	ATF_REQUIRE(errno == EPIPE);
+	ATF_REQUIRE(sigpipe_received == true);
+	close(s);
+
+	sa.sa_handler = SIG_DFL;
+	ATF_REQUIRE(sigaction(SIGPIPE, &sa, NULL) == 0);
+}
+
 /* Implied connect is unix/dgram only feature. Fails on stream or seqpacket. */
 ATF_TC_WITHOUT_HEAD(implied_connect);
 ATF_TC_BODY(implied_connect, tc)
@@ -1264,6 +1311,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, send_recv_with_connect);
 	ATF_TP_ADD_TC(tp, sendto_recvfrom);
 	ATF_TP_ADD_TC(tp, send_before_accept);
+	ATF_TP_ADD_TC(tp, send_to_closed);
 	ATF_TP_ADD_TC(tp, implied_connect);
 	ATF_TP_ADD_TC(tp, shutdown_send);
 	ATF_TP_ADD_TC(tp, shutdown_send_sigpipe);
