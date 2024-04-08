@@ -324,6 +324,18 @@ vm_get_page_prot(unsigned long vm_flags)
 	return (vm_flags & VM_PROT_ALL);
 }
 
+static inline void
+vm_flags_set(struct vm_area_struct *vma, unsigned long flags)
+{
+	vma->vm_flags |= flags;
+}
+
+static inline void
+vm_flags_clear(struct vm_area_struct *vma, unsigned long flags)
+{
+	vma->vm_flags &= ~flags;
+}
+
 static inline struct page *
 vmalloc_to_page(const void *addr)
 {
