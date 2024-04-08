@@ -2817,7 +2817,7 @@ sysctl_icmp6lim_and_jitter(SYSCTL_HANDLER_ARGS)
 			}
 		}
 	}
-	MPASS(V_icmp6errppslim + V_icmp6lim_curr_jitter > 0);
+	MPASS(V_icmp6errppslim + V_icmp6lim_curr_jitter >= 0);
 
 	return (error);
 }
