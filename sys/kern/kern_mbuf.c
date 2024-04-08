@@ -1446,34 +1446,36 @@ m_getjcl(int how, short type, int flags, int size)
 }
 
 /*
- * Allocate a given length worth of mbufs and/or clusters (whatever fits
- * best) and return a pointer to the top of the allocated chain.  If an
- * existing mbuf chain is provided, then we will append the new chain
- * to the existing one and return a pointer to the provided mbuf.
+ * Allocate mchain of a given length of mbufs and/or clusters (whatever fits
+ * best).  May fail due to ENOMEM.  In case of failure state of mchain is
+ * inconsistent.
  */
-struct mbuf *
-m_getm2(struct mbuf *m, int len, int how, short type, int flags)
+int
+mc_get(struct mchain *mc, u_int length, int how, short type, int flags)
 {
-	struct mbuf *mb, *nm = NULL, *mtail = NULL;
+	struct mbuf *mb;
+	u_int progress;
 
-	KASSERT(len >= 0, ("%s: len is < 0", __func__));
+	MPASS(length >= 0);
 
-	/* Validate flags. */
+	*mc = MCHAIN_INITIALIZER(mc);
 	flags &= (M_PKTHDR | M_EOR);
-
-	/* Packet header mbuf must be first in chain. */
-	if ((flags & M_PKTHDR) && m != NULL)
-		flags &= ~M_PKTHDR;
+	progress = 0;
 
 	/* Loop and append maximum sized mbufs to the chain tail. */
-	while (len > 0) {
-		mb = NULL;
-		if (len > MCLBYTES) {
+	do {
+		if (length - progress > MCLBYTES) {
+			/*
+			 * M_NOWAIT here is intentional, it avoids blocking if
+			 * the jumbop zone is exhausted. See 796d4eb89e2c and
+			 * D26150 for more detail.
+			 */
 			mb = m_getjcl(M_NOWAIT, type, (flags & M_PKTHDR),
 			    MJUMPAGESIZE);
-		}
+		} else
+			mb = NULL;
 		if (mb == NULL) {
-			if (len >= MINCLSIZE)
+			if (length - progress >= MINCLSIZE)
 				mb = m_getcl(how, type, (flags & M_PKTHDR));
 			else if (flags & M_PKTHDR)
 				mb = m_gethdr(how, type);
@@ -1485,31 +1487,50 @@ m_getm2(struct mbuf *m, int len, int how, short type, int flags)
 			 * allocated.
 			 */
 			if (mb == NULL) {
-				m_freem(nm);
-				return (NULL);
+				m_freem(mc_first(mc));
+				return (ENOMEM);
 			}
 		}
 
-		/* Book keeping. */
-		len -= M_SIZE(mb);
-		if (mtail != NULL)
-			mtail->m_next = mb;
-		else
-			nm = mb;
-		mtail = mb;
-		flags &= ~M_PKTHDR;	/* Only valid on the first mbuf. */
-	}
+		progress += M_SIZE(mb);
+		mc_append(mc, mb);
+		/* Only valid on the first mbuf. */
+		flags &= ~M_PKTHDR;
+	} while (progress < length);
 	if (flags & M_EOR)
-		mtail->m_flags |= M_EOR;  /* Only valid on the last mbuf. */
+		/* Only valid on the last mbuf. */
+		mc_last(mc)->m_flags |= M_EOR;
+
+	return (0);
+}
+
+/*
+ * Allocate a given length worth of mbufs and/or clusters (whatever fits
+ * best) and return a pointer to the top of the allocated chain.  If an
+ * existing mbuf chain is provided, then we will append the new chain
+ * to the existing one and return a pointer to the provided mbuf.
+ */
+struct mbuf *
+m_getm2(struct mbuf *m, int len, int how, short type, int flags)
+{
+	struct mchain mc;
+
+	/* Packet header mbuf must be first in chain. */
+	if (m != NULL && (flags & M_PKTHDR))
+		flags &= ~M_PKTHDR;
+
+	if (__predict_false(mc_get(&mc, len, how, type, flags) != 0))
+		return (NULL);
 
 	/* If mbuf was supplied, append new chain to the end of it. */
 	if (m != NULL) {
-		for (mtail = m; mtail->m_next != NULL; mtail = mtail->m_next)
-			;
-		mtail->m_next = nm;
+		struct mbuf *mtail;
+
+		mtail = m_last(m);
+		mtail->m_next = mc_first(&mc);
 		mtail->m_flags &= ~M_EOR;
 	} else
-		m = nm;
+		m = mc_first(&mc);
 
 	return (m);
 }

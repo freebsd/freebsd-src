@@ -1795,6 +1795,7 @@ mc_remove(struct mchain *mc, struct mbuf *m)
 	mc_dec(mc, m);
 }
 
+int mc_get(struct mchain *, u_int, int, short, int);
 int mc_split(struct mchain *, struct mchain *, u_int, int);
 
 #ifdef _SYS_TIMESPEC_H_
