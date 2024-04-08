@@ -427,7 +427,7 @@ arm64_get_writable_addr(vm_offset_t addr, vm_offset_t *out)
 	/*
 	 * If it is within the DMAP region and is writable use that.
 	 */
-	if (PHYS_IN_DMAP(pa)) {
+	if (PHYS_IN_DMAP_RANGE(pa)) {
 		addr = PHYS_TO_DMAP(pa);
 		if (PAR_SUCCESS(arm64_address_translate_s1e1w(addr))) {
 			*out = addr;
