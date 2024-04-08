@@ -38,6 +38,7 @@
 #include <linux/pfn.h>
 #include <linux/list.h>
 #include <linux/mmap_lock.h>
+#include <linux/overflow.h>
 #include <linux/shrinker.h>
 #include <linux/page.h>
 
