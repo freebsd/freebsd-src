@@ -110,6 +110,7 @@
  * _REMOVE_AFTER		+	-	+	-
  * _REMOVE_HEAD			+	+	+	+
  * _REMOVE			s	+	s	+
+ * _REPLACE			-	+	-	+
  * _SWAP			+	+	+	+
  *
  */
@@ -609,6 +610,21 @@ struct {								\
 	TRASHIT(*oldprev);						\
 } while (0)
 
+#define LIST_REPLACE(elm, elm2, field) do {				\
+	QMD_SAVELINK(oldnext, (elm)->field.le_next);			\
+	QMD_SAVELINK(oldprev, (elm)->field.le_prev);			\
+	QMD_LIST_CHECK_NEXT(elm, field);				\
+	QMD_LIST_CHECK_PREV(elm, field);				\
+	LIST_NEXT((elm2), field) = LIST_NEXT((elm), field);		\
+	if (LIST_NEXT((elm2), field) != NULL)				\
+		LIST_NEXT((elm2), field)->field.le_prev =		\
+		    &(elm2)->field.le_next;				\
+	(elm2)->field.le_prev = (elm)->field.le_prev;			\
+	*(elm2)->field.le_prev = (elm2);				\
+	TRASHIT(*oldnext);						\
+	TRASHIT(*oldprev);						\
+} while (0)
+
 #define LIST_SWAP(head1, head2, type, field) do {			\
 	QUEUE_TYPEOF(type) *swap_tmp = LIST_FIRST(head1);		\
 	LIST_FIRST((head1)) = LIST_FIRST((head2));			\
@@ -858,6 +874,24 @@ struct {								\
 		QMD_TRACE_HEAD(head);					\
 	}								\
 	*(elm)->field.tqe_prev = TAILQ_NEXT((elm), field);		\
+	TRASHIT(*oldnext);						\
+	TRASHIT(*oldprev);						\
+	QMD_TRACE_ELEM(&(elm)->field);					\
+} while (0)
+
+#define TAILQ_REPLACE(head, elm, elm2, field) do {			\
+	QMD_SAVELINK(oldnext, (elm)->field.tqe_next);			\
+	QMD_SAVELINK(oldprev, (elm)->field.tqe_prev);			\
+	QMD_TAILQ_CHECK_NEXT(elm, field);				\
+	QMD_TAILQ_CHECK_PREV(elm, field);				\
+	TAILQ_NEXT((elm2), field) = TAILQ_NEXT((elm), field);		\
+	if (TAILQ_NEXT((elm2), field) != TAILQ_END(head))		\
+                TAILQ_NEXT((elm2), field)->field.tqe_prev =		\
+                    &(elm2)->field.tqe_next;				\
+        else								\
+                (head)->tqh_last = &(elm2)->field.tqe_next;		\
+        (elm2)->field.tqe_prev = (elm)->field.tqe_prev;			\
+        *(elm2)->field.tqe_prev = (elm2);				\
 	TRASHIT(*oldnext);						\
 	TRASHIT(*oldprev);						\
 	QMD_TRACE_ELEM(&(elm)->field);					\
