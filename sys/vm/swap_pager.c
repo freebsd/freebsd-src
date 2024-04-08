@@ -1683,6 +1683,9 @@ swp_pager_async_iodone(struct buf *bp)
 				 * getpages so don't play cute tricks here.
 				 */
 				vm_page_invalid(m);
+				if (i < bp->b_pgbefore ||
+				    i >= bp->b_npages - bp->b_pgafter)
+					vm_page_free_invalid(m);
 			} else {
 				/*
 				 * If a write error occurs, reactivate page
