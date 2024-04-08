@@ -132,6 +132,8 @@ extern int linuxkpi_warn_dump_stack;
 #define	printk(...)		printf(__VA_ARGS__)
 #define	vprintk(f, a)		vprintf(f, a)
 
+#define PTR_IF(x, p)		((x) ? (p) : NULL)
+
 #define	asm			__asm
 
 extern void linux_dump_stack(void);
