@@ -69,6 +69,12 @@ ktime_to_ms(ktime_t kt)
 	return (ktime_divns(kt, NSEC_PER_MSEC));
 }
 
+static inline ktime_t
+ms_to_ktime(uint64_t ms)
+{
+	return (ms * NSEC_PER_MSEC);
+}
+
 static inline struct timeval
 ktime_to_timeval(ktime_t kt)
 {
