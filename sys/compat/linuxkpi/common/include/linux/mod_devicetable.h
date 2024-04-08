@@ -78,4 +78,6 @@ struct dmi_system_id {
 #define	I2C_NAME_SIZE		20
 #define	I2C_MODULE_PREFIX	"i2c:"
 
+#define	ACPI_ID_LEN		16
+
 #endif	/* __LINUXKPI_LINUX_MOD_DEVICETABLE_H__ */
