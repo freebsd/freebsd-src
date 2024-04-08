@@ -72,184 +72,6 @@
 
 static const char *progname;
 
-static void
-usage(bool cpu_intel)
-{
-
-	(void)fprintf(stderr,
-	"Usage: %s --vm=<vmname>\n"
-	"       [--cpu=<vcpu_number>]\n"
-	"       [--create]\n"
-	"       [--destroy]\n"
-#ifdef BHYVE_SNAPSHOT
-	"       [--checkpoint=<filename> | --suspend=<filename>]\n"
-#endif
-	"       [--get-all]\n"
-	"       [--get-stats]\n"
-	"       [--set-desc-ds]\n"
-	"       [--get-desc-ds]\n"
-	"       [--set-desc-es]\n"
-	"       [--get-desc-es]\n"
-	"       [--set-desc-gs]\n"
-	"       [--get-desc-gs]\n"
-	"       [--set-desc-fs]\n"
-	"       [--get-desc-fs]\n"
-	"       [--set-desc-cs]\n"
-	"       [--get-desc-cs]\n"
-	"       [--set-desc-ss]\n"
-	"       [--get-desc-ss]\n"
-	"       [--set-desc-tr]\n"
-	"       [--get-desc-tr]\n"
-	"       [--set-desc-ldtr]\n"
-	"       [--get-desc-ldtr]\n"
-	"       [--set-desc-gdtr]\n"
-	"       [--get-desc-gdtr]\n"
-	"       [--set-desc-idtr]\n"
-	"       [--get-desc-idtr]\n"
-	"       [--run]\n"
-	"       [--capname=<capname>]\n"
-	"       [--getcap]\n"
-	"       [--setcap=<0|1>]\n"
-	"       [--desc-base=<BASE>]\n"
-	"       [--desc-limit=<LIMIT>]\n"
-	"       [--desc-access=<ACCESS>]\n"
-	"       [--set-cr0=<CR0>]\n"
-	"       [--get-cr0]\n"
-	"       [--set-cr2=<CR2>]\n"
-	"       [--get-cr2]\n"
-	"       [--set-cr3=<CR3>]\n"
-	"       [--get-cr3]\n"
-	"       [--set-cr4=<CR4>]\n"
-	"       [--get-cr4]\n"
-	"       [--set-dr0=<DR0>]\n"
-	"       [--get-dr0]\n"
-	"       [--set-dr1=<DR1>]\n"
-	"       [--get-dr1]\n"
-	"       [--set-dr2=<DR2>]\n"
-	"       [--get-dr2]\n"
-	"       [--set-dr3=<DR3>]\n"
-	"       [--get-dr3]\n"
-	"       [--set-dr6=<DR6>]\n"
-	"       [--get-dr6]\n"
-	"       [--set-dr7=<DR7>]\n"
-	"       [--get-dr7]\n"
-	"       [--set-rsp=<RSP>]\n"
-	"       [--get-rsp]\n"
-	"       [--set-rip=<RIP>]\n"
-	"       [--get-rip]\n"
-	"       [--get-rax]\n"
-	"       [--set-rax=<RAX>]\n"
-	"       [--get-rbx]\n"
-	"       [--get-rcx]\n"
-	"       [--get-rdx]\n"
-	"       [--get-rsi]\n"
-	"       [--get-rdi]\n"
-	"       [--get-rbp]\n"
-	"       [--get-r8]\n"
-	"       [--get-r9]\n"
-	"       [--get-r10]\n"
-	"       [--get-r11]\n"
-	"       [--get-r12]\n"
-	"       [--get-r13]\n"
-	"       [--get-r14]\n"
-	"       [--get-r15]\n"
-	"       [--set-rflags=<RFLAGS>]\n"
-	"       [--get-rflags]\n"
-	"       [--set-cs]\n"
-	"       [--get-cs]\n"
-	"       [--set-ds]\n"
-	"       [--get-ds]\n"
-	"       [--set-es]\n"
-	"       [--get-es]\n"
-	"       [--set-fs]\n"
-	"       [--get-fs]\n"
-	"       [--set-gs]\n"
-	"       [--get-gs]\n"
-	"       [--set-ss]\n"
-	"       [--get-ss]\n"
-	"       [--get-tr]\n"
-	"       [--get-ldtr]\n"
-	"       [--set-x2apic-state=<state>]\n"
-	"       [--get-x2apic-state]\n"
-	"       [--unassign-pptdev=<bus/slot/func>]\n"
-	"       [--set-mem=<memory in units of MB>]\n"
-	"       [--get-lowmem]\n"
-	"       [--get-highmem]\n"
-	"       [--get-gpa-pmap]\n"
-	"       [--assert-lapic-lvt=<pin>]\n"
-	"       [--inject-nmi]\n"
-	"       [--force-reset]\n"
-	"       [--force-poweroff]\n"
-	"       [--get-rtc-time]\n"
-	"       [--set-rtc-time=<secs>]\n"
-	"       [--get-rtc-nvram]\n"
-	"       [--set-rtc-nvram=<val>]\n"
-	"       [--rtc-nvram-offset=<offset>]\n"
-	"       [--get-active-cpus]\n"
-	"       [--get-debug-cpus]\n"
-	"       [--get-suspended-cpus]\n"
-	"       [--get-intinfo]\n"
-	"       [--get-eptp]\n"
-	"       [--set-exception-bitmap]\n"
-	"       [--get-exception-bitmap]\n"
-	"       [--get-tsc-offset]\n"
-	"       [--get-guest-pat]\n"
-	"       [--get-io-bitmap-address]\n"
-	"       [--get-msr-bitmap]\n"
-	"       [--get-msr-bitmap-address]\n"
-	"       [--get-guest-sysenter]\n"
-	"       [--get-exit-reason]\n"
-	"       [--get-cpu-topology]\n",
-	progname);
-
-	if (cpu_intel) {
-		(void)fprintf(stderr,
-		"       [--get-vmcs-pinbased-ctls]\n"
-		"       [--get-vmcs-procbased-ctls]\n"
-		"       [--get-vmcs-procbased-ctls2]\n"
-		"       [--get-vmcs-entry-interruption-info]\n"
-		"       [--set-vmcs-entry-interruption-info=<info>]\n"
-		"       [--get-vmcs-guest-physical-address\n"
-		"       [--get-vmcs-guest-linear-address\n"
-		"       [--get-vmcs-host-pat]\n"
-		"       [--get-vmcs-host-cr0]\n"
-		"       [--get-vmcs-host-cr3]\n"
-		"       [--get-vmcs-host-cr4]\n"
-		"       [--get-vmcs-host-rip]\n"
-		"       [--get-vmcs-host-rsp]\n"
-		"       [--get-vmcs-cr0-mask]\n"
-		"       [--get-vmcs-cr0-shadow]\n"
-		"       [--get-vmcs-cr4-mask]\n"
-		"       [--get-vmcs-cr4-shadow]\n"
-		"       [--get-vmcs-cr3-targets]\n"
-		"       [--get-vmcs-apic-access-address]\n"
-		"       [--get-vmcs-virtual-apic-address]\n"
-		"       [--get-vmcs-tpr-threshold]\n"
-		"       [--get-vmcs-vpid]\n"
-		"       [--get-vmcs-instruction-error]\n"
-		"       [--get-vmcs-exit-ctls]\n"
-		"       [--get-vmcs-entry-ctls]\n"
-		"       [--get-vmcs-link]\n"
-		"       [--get-vmcs-exit-qualification]\n"
-		"       [--get-vmcs-exit-interruption-info]\n"
-		"       [--get-vmcs-exit-interruption-error]\n"
-		"       [--get-vmcs-interruptibility]\n"
-		);
-	} else {
-		(void)fprintf(stderr,
-		"       [--get-vmcb-intercepts]\n"
-		"       [--get-vmcb-asid]\n"
-		"       [--get-vmcb-exit-details]\n"
-		"       [--get-vmcb-tlb-ctrl]\n"
-		"       [--get-vmcb-virq]\n"
-		"       [--get-avic-apic-bar]\n"
-		"       [--get-avic-backing-page]\n"
-		"       [--get-avic-table]\n"
-		);
-	}
-	exit(1);
-}
-
 static int get_rtc_time, set_rtc_time;
 static int get_rtc_nvram, set_rtc_nvram;
 static int rtc_nvram_offset;
@@ -1567,6 +1389,65 @@ setup_options(bool cpu_intel)
 	return (all_opts);
 }
 
+static void
+usage(const struct option *opts)
+{
+	static const char *set_desc[] = {
+	    [VCPU] = "vcpu_number",
+	    [SET_MEM] = "memory in units of MB",
+	    [SET_EFER] = "EFER",
+	    [SET_CR0] = "CR0",
+	    [SET_CR2] = "CR2",
+	    [SET_CR3] = "CR3",
+	    [SET_CR4] = "CR4",
+	    [SET_DR0] = "DR0",
+	    [SET_DR1] = "DR1",
+	    [SET_DR2] = "DR2",
+	    [SET_DR3] = "DR3",
+	    [SET_DR6] = "DR6",
+	    [SET_DR7] = "DR7",
+	    [SET_RSP] = "RSP",
+	    [SET_RIP] = "RIP",
+	    [SET_RAX] = "RAX",
+	    [SET_RFLAGS] = "RFLAGS",
+	    [DESC_BASE] = "BASE",
+	    [DESC_LIMIT] = "LIMIT",
+	    [DESC_ACCESS] = "ACCESS",
+	    [SET_CS] = "CS",
+	    [SET_DS] = "DS",
+	    [SET_ES] = "ES",
+	    [SET_FS] = "FS",
+	    [SET_GS] = "GS",
+	    [SET_SS] = "SS",
+	    [SET_TR] = "TR",
+	    [SET_LDTR] = "LDTR",
+	    [SET_X2APIC_STATE] = "state",
+	    [SET_CAP] = "0|1",
+	    [CAPNAME] = "capname",
+	    [UNASSIGN_PPTDEV] = "bus/slot.func",
+	    [GET_GPA_PMAP] = "gpa",
+	    [ASSERT_LAPIC_LVT] = "pin",
+	    [SET_RTC_TIME] = "secs",
+	    [SET_RTC_NVRAM] = "val",
+	    [RTC_NVRAM_OFFSET] = "offset",
+#ifdef BHYVE_SNAPSHOT
+	    [SET_CHECKPOINT_FILE] = "filename",
+	    [SET_SUSPEND_FILE] = "filename",
+#endif
+	};
+	(void)fprintf(stderr, "Usage: %s --vm=<vmname>\n", progname);
+	for (const struct option *o = opts; o->name; o++) {
+		if (strcmp(o->name, "vm") == 0)
+			continue;
+		if (o->has_arg == REQ_ARG)
+			(void)fprintf(stderr, "       [--%s=<%s>]\n",
+			    o->name, set_desc[o->val]);
+		else
+			(void)fprintf(stderr, "       [--%s]\n", o->name);
+	}
+	exit(1);
+}
+
 static const char *
 wday_str(int idx)
 {
@@ -1916,7 +1797,7 @@ main(int argc, char *argv[])
 		case UNASSIGN_PPTDEV:
 			unassign_pptdev = 1;
 			if (sscanf(optarg, "%d/%d/%d", &bus, &slot, &func) != 3)
-				usage(cpu_intel);
+				usage(opts);
 			break;
 		case ASSERT_LAPIC_LVT:
 			assert_lapic_lvt = atoi(optarg);
@@ -1925,21 +1806,21 @@ main(int argc, char *argv[])
 		case SET_CHECKPOINT_FILE:
 		case SET_SUSPEND_FILE:
 			if (checkpoint_file != NULL)
-				usage(cpu_intel);
+				usage(opts);
 
 			checkpoint_file = optarg;
 			vm_suspend_opt = (ch == SET_SUSPEND_FILE);
 			break;
 #endif
 		default:
-			usage(cpu_intel);
+			usage(opts);
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
 	if (vmname == NULL)
-		usage(cpu_intel);
+		usage(opts);
 
 	error = 0;
 
