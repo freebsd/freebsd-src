@@ -107,6 +107,9 @@ hook of the bridge, and ignore the complexity of the outside world.
 Frames with unknown MACs are always sent out to
 .Ar uplink
 hooks, so no functionality is lost.
+The
+.Ar uplink0
+hook is not allowed.
 .Pp
 The
 .Ar linkX
@@ -277,3 +280,11 @@ node type was implemented in
 .Fx 4.2 .
 .Sh AUTHORS
 .An Archie Cobbs Aq Mt archie@FreeBSD.org
+.Sh BUGS
+The
+.Nm
+node refuses to create the
+.Ar uplink0
+hook to avoid later ambiguity with the
+.Dv NGM_BRIDGE_GET_STATS
+message.
