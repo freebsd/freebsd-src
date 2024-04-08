@@ -32,7 +32,7 @@
 .\"
 .\" Author: Archie Cobbs <archie@FreeBSD.org>
 .\"
-.Dd May 13, 2021
+.Dd April 8, 2024
 .Dt NG_BRIDGE 4
 .Os
 .Sh NAME
@@ -107,6 +107,17 @@ hook of the bridge, and ignore the complexity of the outside world.
 Frames with unknown MACs are always sent out to
 .Ar uplink
 hooks, so no functionality is lost.
+.Pp
+The
+.Ar linkX
+and
+.Ar uplinkX
+hook numbers can be autoassigned.
+If a new hook name was specified as
+.Ar link
+or
+.Ar uplink
+the node will append lowest available valid number to the name of the new hook.
 .Pp
 Frames with unknown destination MAC addresses are replicated to any
 available hook, unless the first connected hook is an
