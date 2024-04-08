@@ -56,6 +56,8 @@ CTASSERT((VM_PROT_ALL & -(1 << 8)) == 0);
 #define	VM_WRITE		VM_PROT_WRITE
 #define	VM_EXEC			VM_PROT_EXECUTE
 
+#define	VM_ACCESS_FLAGS		(VM_READ | VM_WRITE | VM_EXEC)
+
 #define	VM_PFNINTERNAL		(1 << 8)	/* FreeBSD private flag to vm_insert_pfn() */
 #define	VM_MIXEDMAP		(1 << 9)
 #define	VM_NORESERVE		(1 << 10)
