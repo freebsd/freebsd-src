@@ -124,6 +124,8 @@ struct ng_bridge_private {
 	unsigned int		persistent : 1,	/* can exist w/o hooks */
 				sendUnknown : 1;/* links receive unknowns by default */
 	struct callout		timer;		/* one second periodic timer */
+	struct unrhdr 		*linkUnit;	/* link unit number allocator */
+	struct unrhdr 		*uplinkUnit;	/* uplink unit number allocator */
 };
 typedef struct ng_bridge_private *priv_p;
 typedef struct ng_bridge_private const *priv_cp;	/* read only access */
@@ -140,6 +142,21 @@ struct ng_bridge_host {
 /* Hash table bucket declaration */
 SLIST_HEAD(ng_bridge_bucket, ng_bridge_host);
 
+/* [up]link prefix matching */
+struct ng_link_prefix {
+	const char * const	prefix;
+	size_t			len;
+};
+
+static const struct ng_link_prefix link_pfx = {
+       .prefix = NG_BRIDGE_HOOK_LINK_PREFIX,
+       .len = sizeof(NG_BRIDGE_HOOK_LINK_PREFIX) - 1,
+};
+static const struct ng_link_prefix uplink_pfx = {
+        .prefix = NG_BRIDGE_HOOK_UPLINK_PREFIX,
+        .len = sizeof(NG_BRIDGE_HOOK_UPLINK_PREFIX) - 1,
+};
+
 /* Netgraph node methods */
 static ng_constructor_t	ng_bridge_constructor;
 static ng_rcvmsg_t	ng_bridge_rcvmsg;
@@ -149,6 +166,7 @@ static ng_rcvdata_t	ng_bridge_rcvdata;
 static ng_disconnect_t	ng_bridge_disconnect;
 
 /* Other internal functions */
+static const struct	ng_link_prefix *ng_get_link_prefix(const char *name);
 static void	ng_bridge_free_link(link_p link);
 static struct	ng_bridge_host *ng_bridge_get(priv_cp priv, const u_char *addr);
 static int	ng_bridge_put(priv_p priv, const u_char *addr, link_p link);
@@ -350,6 +368,10 @@ ng_bridge_constructor(node_p node)
 	NG_NODE_SET_PRIVATE(node, priv);
 	priv->node = node;
 
+	/* Allocators for links. Historically "uplink0" is not allowed. */
+	priv->linkUnit = new_unrhdr(0, INT_MAX, NULL);
+	priv->uplinkUnit = new_unrhdr(1, INT_MAX, NULL);
+
 	/* Start timer; timer is always running while node is alive */
 	ng_callout(&priv->timer, node, NULL, hz, ng_bridge_timeout, NULL, 0);
 
@@ -364,36 +386,50 @@ static	int
 ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	char linkName[NG_HOOKSIZ];
-	u_int32_t linkNum;
 	link_p link;
-	const char *prefix = NG_BRIDGE_HOOK_LINK_PREFIX;
 	bool isUplink;
+	uint32_t linkNum;
+	struct unrhdr *unit;
 
-	/* Check for a link hook */
-	if (strlen(name) <= strlen(prefix))
-		return (EINVAL);       /* Unknown hook name */
+	const struct ng_link_prefix *pfx = ng_get_link_prefix(name);
+	if (pfx == NULL)
+		return (EINVAL);  /* not a valid prefix */
 
-	isUplink = (name[0] == 'u');
-	if (isUplink)
-		prefix = NG_BRIDGE_HOOK_UPLINK_PREFIX;
+	isUplink = (pfx == &uplink_pfx);
+	unit = isUplink ? priv->uplinkUnit : priv->linkUnit;
 
-	/* primitive parsing */
-	linkNum = strtoul(name + strlen(prefix), NULL, 10);
-	/* validation by comparing against the reconstucted name  */
-	snprintf(linkName, sizeof(linkName), "%s%u", prefix, linkNum);
-	if (strcmp(linkName, name) != 0)
-		return (EINVAL);
+	if (strlen(name) > pfx->len) { /* given number */
+		char linkName[NG_HOOKSIZ];
+		int rvnum __diagused;
 
-	if (linkNum == 0 && isUplink)
-		return (EINVAL);
+		linkNum = strtoul(name + pfx->len, NULL, 10);
+		/* Validate by comparing against the reconstucted name. */
+		snprintf(linkName, sizeof(linkName), "%s%u", pfx->prefix,
+		    linkNum);
+		if (strcmp(linkName, name) != 0)
+			return (EINVAL);
+		if (linkNum == 0 && isUplink)
+			return (EINVAL);
+		rvnum = alloc_unr_specific(unit, linkNum);
+		MPASS(rvnum == linkNum);
+	} else {
+		/* auto-assign and update hook name */
+		linkNum = alloc_unr(unit);
+		MPASS(linkNum != -1);
+		snprintf(NG_HOOK_NAME(hook), NG_HOOKSIZ, "%s%u", pfx->prefix,
+		    linkNum);
+	}
 
-	if(NG_PEER_NODE(hook) == node)
+	if (NG_PEER_NODE(hook) == node) {
+		free_unr(unit, linkNum);
 	        return (ELOOP);
+	}
 
 	link = malloc(sizeof(*link), M_NETGRAPH_BRIDGE, M_NOWAIT | M_ZERO);
-	if (link == NULL)
+	if (link == NULL) {
+		free_unr(unit, linkNum);
 		return (ENOMEM);
+	}
 
 #define	NG_BRIDGE_COUNTER_ALLOC(f) do {			\
 	link->stats.f = counter_u64_alloc(M_NOWAIT);	\
@@ -431,6 +467,7 @@ ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 	return (0);
 
 nomem:
+	free_unr(unit, linkNum);
 	ng_bridge_free_link(link);
 	return (ENOMEM);
 }
@@ -914,6 +951,8 @@ ng_bridge_shutdown(node_p node)
 	    ("%s: numLinks=%d numHosts=%d",
 	    __func__, priv->numLinks, priv->numHosts));
 	ng_uncallout(&priv->timer, node);
+	delete_unrhdr(priv->linkUnit);
+	delete_unrhdr(priv->uplinkUnit);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
 	free(priv->tab, M_NETGRAPH_BRIDGE);
@@ -927,8 +966,11 @@ ng_bridge_shutdown(node_p node)
 static int
 ng_bridge_disconnect(hook_p hook)
 {
+	char *name = NG_HOOK_NAME(hook);
 	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	link_p link = NG_HOOK_PRIVATE(hook);
+	const struct ng_link_prefix *pfx = ng_get_link_prefix(name);
+	uint32_t linkNum;
 
 	/* Remove all hosts associated with this link */
 	ng_bridge_remove_hosts(priv, link);
@@ -936,6 +978,9 @@ ng_bridge_disconnect(hook_p hook)
 	/* Free associated link information */
 	ng_bridge_free_link(link);
 	priv->numLinks--;
+
+	linkNum = strtoul(name + pfx->len, NULL, 10);
+	free_unr(pfx == &link_pfx ? priv->linkUnit: priv->uplinkUnit, linkNum);
 
 	/* If no more hooks, go away */
 	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
@@ -1094,6 +1139,19 @@ ng_bridge_rehash(priv_p priv)
 /******************************************************************
 		    MISC FUNCTIONS
 ******************************************************************/
+
+static const struct ng_link_prefix *
+ng_get_link_prefix(const char *name)
+{
+	static const struct ng_link_prefix *pfxs[] =
+	    { &link_pfx, &uplink_pfx, };
+
+	for (u_int i = 0; i < nitems(pfxs); i++)
+		if (strncmp(pfxs[i]->prefix, name, pfxs[i]->len) == 0)
+			return (pfxs[i]);
+
+	return (NULL);
+}
 
 /*
  * Remove all hosts associated with a specific link from the hashtable.
