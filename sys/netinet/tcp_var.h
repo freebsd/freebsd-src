@@ -88,6 +88,9 @@
 #define TCP_EI_BITS_2MS_TIMER	0x400	/* 2 MSL timer expired */
 
 #if defined(_KERNEL) || defined(_WANT_TCPCB)
+#include <sys/_callout.h>
+#include <sys/osd.h>
+
 #include <netinet/cc/cc.h>
 
 /* TCP segment queue entry */
