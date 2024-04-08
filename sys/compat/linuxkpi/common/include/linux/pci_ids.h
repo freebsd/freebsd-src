@@ -39,6 +39,8 @@
 #define	PCI_BASE_CLASS_BRIDGE		0x06
 #define	PCI_CLASS_BRIDGE_ISA		0x0601
 
+#define	PCI_CLASS_ACCELERATOR_PROCESSING	0x1200
+
 
 /* XXX We should really generate these and use them throughout the tree. */
 
