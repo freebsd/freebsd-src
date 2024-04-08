@@ -1555,6 +1555,10 @@ uint32_t	m_infiniband_tcpip_hash(const uint32_t, const struct mbuf *, uint32_t);
  #define M_PROFILE(m)
 #endif
 
+/*
+ * Structure describing a packet queue: mbufs linked by m_stailqpkt.
+ * Does accounting of number of packets and has a cap.
+ */
 struct mbufq {
 	STAILQ_HEAD(, mbuf)	mq_head;
 	int			mq_len;
@@ -1670,6 +1674,116 @@ mbufq_concat(struct mbufq *mq_dst, struct mbufq *mq_src)
 	mq_dst->mq_len += mq_src->mq_len;
 	STAILQ_CONCAT(&mq_dst->mq_head, &mq_src->mq_head);
 	mq_src->mq_len = 0;
+}
+
+/*
+ * Structure describing a chain of mbufs linked by m_stailq, also tracking
+ * the pointer to the last.  Also does accounting of data length and memory
+ * usage.
+ * To be used as an argument to mbuf chain allocation and manipulation KPIs,
+ * and can be allocated on the stack of a caller.  Kernel facilities may use
+ * it internally as a most simple implementation of a stream data buffer.
+ */
+struct mchain {
+	STAILQ_HEAD(, mbuf) mc_q;
+	u_int mc_len;
+	u_int mc_mlen;
+};
+
+#define	MCHAIN_INITIALIZER(mc)	\
+	(struct mchain){ .mc_q = STAILQ_HEAD_INITIALIZER((mc)->mc_q) }
+
+static inline struct mbuf *
+mc_first(struct mchain *mc)
+{
+	return (STAILQ_FIRST(&mc->mc_q));
+}
+
+static inline struct mbuf *
+mc_last(struct mchain *mc)
+{
+	return (STAILQ_LAST(&mc->mc_q, mbuf, m_stailq));
+}
+
+static inline bool
+mc_empty(struct mchain *mc)
+{
+	return (STAILQ_EMPTY(&mc->mc_q));
+}
+
+/* Account addition of m to mc. */
+static inline void
+mc_inc(struct mchain *mc, struct mbuf *m)
+{
+	mc->mc_len += m->m_len;
+	mc->mc_mlen += MSIZE;
+	if (m->m_flags & M_EXT)
+		mc->mc_mlen += m->m_ext.ext_size;
+}
+
+/* Account removal of m from mc. */
+static inline void
+mc_dec(struct mchain *mc, struct mbuf *m)
+{
+	MPASS(mc->mc_len >= m->m_len);
+	mc->mc_len -= m->m_len;
+	MPASS(mc->mc_mlen >= MSIZE);
+	mc->mc_mlen -= MSIZE;
+	if (m->m_flags & M_EXT) {
+		MPASS(mc->mc_mlen >= m->m_ext.ext_size);
+		mc->mc_mlen -= m->m_ext.ext_size;
+	}
+}
+
+/*
+ * Get mchain from a classic mbuf chain linked by m_next.  Two hacks here:
+ * we use the fact that m_next is alias to m_stailq, we use internal queue(3)
+ * fields.
+ */
+static inline void
+mc_init_m(struct mchain *mc, struct mbuf *m)
+{
+	struct mbuf *last;
+
+	STAILQ_FIRST(&mc->mc_q) = m;
+	mc->mc_len = mc->mc_mlen = 0;
+	STAILQ_FOREACH(m, &mc->mc_q, m_stailq) {
+		mc_inc(mc, m);
+		last = m;
+	}
+	mc->mc_q.stqh_last = &STAILQ_NEXT(last, m_stailq);
+}
+
+static inline void
+mc_freem(struct mchain *mc)
+{
+	if (!mc_empty(mc))
+		m_freem(mc_first(mc));
+}
+
+static inline void
+mc_prepend(struct mchain *mc, struct mbuf *m)
+{
+	STAILQ_INSERT_HEAD(&mc->mc_q, m, m_stailq);
+	mc_inc(mc, m);
+}
+
+static inline void
+mc_append(struct mchain *mc, struct mbuf *m)
+{
+	STAILQ_INSERT_TAIL(&mc->mc_q, m, m_stailq);
+	mc_inc(mc, m);
+}
+
+/*
+ * Note: STAILQ_REMOVE() is expensive. mc_remove_after() needs to be provided
+ * as long as there consumers that would benefit from it.
+ */
+static inline void
+mc_remove(struct mchain *mc, struct mbuf *m)
+{
+	STAILQ_REMOVE(&mc->mc_q, m, mbuf, m_stailq);
+	mc_dec(mc, m);
 }
 
 #ifdef _SYS_TIMESPEC_H_
