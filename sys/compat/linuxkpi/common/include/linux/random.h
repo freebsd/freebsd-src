@@ -96,6 +96,12 @@ get_random_u64(void)
 	return (val);
 }
 
+static inline uint32_t
+get_random_u32_below(uint32_t max)
+{
+	return (arc4random_uniform(max));
+}
+
 static __inline uint32_t
 prandom_u32(void)
 {
