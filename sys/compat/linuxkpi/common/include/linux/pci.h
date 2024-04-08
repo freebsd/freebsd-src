@@ -94,6 +94,7 @@ MODULE_PNP_INFO("U32:vendor;U32:device;V32:subvendor;V32:subdevice",	\
 #define PCI_SLOT(devfn)		(((devfn) >> 3) & 0x1f)
 #define PCI_FUNC(devfn)		((devfn) & 0x07)
 #define	PCI_BUS_NUM(devfn)	(((devfn) >> 8) & 0xff)
+#define	PCI_DEVID(bus, devfn)	((((uint16_t)(bus)) << 8) | (devfn))
 
 #define PCI_VDEVICE(_vendor, _device)					\
 	    .vendor = PCI_VENDOR_ID_##_vendor, .device = (_device),	\
@@ -382,6 +383,12 @@ dev_is_pci(struct device *dev)
 {
 
 	return (device_get_devclass(dev->bsddev) == devclass_find("pci"));
+}
+
+static inline uint16_t
+pci_dev_id(struct pci_dev *pdev)
+{
+	return (PCI_DEVID(pdev->bus->number, pdev->devfn));
 }
 
 static inline int
