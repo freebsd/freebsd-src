@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 8, 2016
+.Dd April 8, 2024
 .Dt QUEUE 3
 .Os
 .Sh NAME
@@ -90,6 +90,7 @@
 .Nm LIST_NEXT ,
 .Nm LIST_PREV ,
 .Nm LIST_REMOVE ,
+.Nm LIST_REPLACE ,
 .Nm LIST_SWAP ,
 .Nm TAILQ_CLASS_ENTRY ,
 .Nm TAILQ_CLASS_HEAD ,
@@ -116,6 +117,7 @@
 .Nm TAILQ_NEXT ,
 .Nm TAILQ_PREV ,
 .Nm TAILQ_REMOVE ,
+.Nm TAILQ_REPLACE ,
 .Nm TAILQ_SWAP
 .Nd implementations of singly-linked lists, singly-linked tail queues,
 lists and tail queues
@@ -185,6 +187,7 @@ lists and tail queues
 .Fn LIST_NEXT "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_PREV "TYPE *elm" "LIST_HEAD *head" "TYPE" "LIST_ENTRY NAME"
 .Fn LIST_REMOVE "TYPE *elm" "LIST_ENTRY NAME"
+.Fn LIST_REPLACE "TYPE *elm" "TYPE *new" "LIST_ENTRY NAME"
 .Fn LIST_SWAP "LIST_HEAD *head1" "LIST_HEAD *head2" "TYPE" "LIST_ENTRY NAME"
 .\"
 .Fn TAILQ_CLASS_ENTRY "CLASSTYPE"
@@ -212,6 +215,7 @@ lists and tail queues
 .Fn TAILQ_NEXT "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_PREV "TYPE *elm" "HEADNAME" "TAILQ_ENTRY NAME"
 .Fn TAILQ_REMOVE "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
+.Fn TAILQ_REPLACE "TAILQ_HEAD *head" "TYPE *elm" "TYPE *new" "TAILQ_ENTRY NAME"
 .Fn TAILQ_SWAP "TAILQ_HEAD *head1" "TAILQ_HEAD *head2" "TYPE" "TAILQ_ENTRY NAME"
 .\"
 .Sh DESCRIPTION
@@ -963,6 +967,17 @@ removes the element
 from the list.
 .Pp
 The macro
+.Fn LIST_REPLACE
+replaces the element
+.Fa elm
+with
+.Fa new
+in the list.
+The element
+.Fa new
+must not already be on a list.
+.Pp
+The macro
 .Nm LIST_SWAP
 swaps the contents of
 .Fa head1
@@ -1221,6 +1236,17 @@ removes the element
 from the tail queue.
 .Pp
 The macro
+.Fn TAILQ_REPLACE
+replaces the element
+.Fa elm
+with
+.Fa new
+in the tail queue.
+The element
+.Fa new
+must not already be on a list.
+.Pp
+The macro
 .Nm TAILQ_SWAP
 swaps the contents of
 .Fa head1
@@ -1235,7 +1261,7 @@ struct entry {
 	...
 	TAILQ_ENTRY(entry) entries;	/* Tail queue. */
 	...
-} *n1, *n2, *n3, *np;
+} *n1, *n2, *n3, *n4, *np;
 
 TAILQ_INIT(&head);			/* Initialize the queue. */
 
@@ -1253,6 +1279,10 @@ TAILQ_INSERT_BEFORE(n2, n3, entries);
 
 TAILQ_REMOVE(&head, n2, entries);	/* Deletion. */
 free(n2);
+
+n4 = malloc(sizeof(struct entry));	/* Replacement. */
+TAILQ_REPLACE(&head, n3, n4, entries);
+free(n3);
 					/* Forward traversal. */
 TAILQ_FOREACH(np, &head, entries)
 	np-> ...
