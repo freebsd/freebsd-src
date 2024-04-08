@@ -33,7 +33,7 @@
 .\"
 .\" Author: Jim Harris <jimharris@FreeBSD.org>
 .\"
-.Dd May 3, 2024
+.Dd May 10, 2024
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -243,6 +243,11 @@
 .Op Fl Q Ar entries
 .Aq Ar device-id
 .Aq Ar address
+.Nm
+.Ic telemetry-log
+.Fl O Ar output-file
+.Op Fl d Ar data-area
+.Aq Ar device-id
 .Sh DESCRIPTION
 NVM Express (NVMe) is a storage protocol standard for SSDs and other
 high-speed storage devices over PCI Express as well as remote storage
@@ -806,6 +811,17 @@ The flags have the same meaning for the new association as described above
 for the
 .Cm connect
 command.
+.Ss telemetry-log
+Extract the telemetry log associated with 
+.Ar device-id ,
+using the specified parameters:
+.Bl -tag -width 6n
+.It Fl O Ar output-file
+Output file for the data.
+This parameter is mandatory.
+.It Fl d Ar data-area
+The data area is either 1, 2 or 3.
+.El
 .Sh DEVICE NAMES
 Where
 .Aq Ar namespace-id
