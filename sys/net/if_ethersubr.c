@@ -529,10 +529,10 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 		return;
 	}
 #endif
-	if (m->m_len < ETHER_HDR_LEN) {
-		/* XXX maybe should pullup? */
+	if (__predict_false(m->m_len < ETHER_HDR_LEN)) {
+		/* Drivers should pullup and ensure the mbuf is valid */
 		if_printf(ifp, "discard frame w/o leading ethernet "
-				"header (len %u pkt len %u)\n",
+				"header (len %d pkt len %d)\n",
 				m->m_len, m->m_pkthdr.len);
 		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
