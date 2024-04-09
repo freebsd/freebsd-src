@@ -79,6 +79,7 @@ nooptions 	SDP
 nooptions 	IPOIB
 nooptions 	IPOIB_CM
 
+nodevice	iser
 nodevice	sym
 
 nodevice	ccr
