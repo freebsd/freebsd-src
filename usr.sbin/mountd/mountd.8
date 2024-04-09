@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 18, 2023
+.Dd April 8, 2024
 .Dt MOUNTD 8
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 mount requests
 .Sh SYNOPSIS
 .Nm
-.Op Fl 2delnRrS
+.Op Fl 2AdelnRrS
 .Op Fl h Ar bindip
 .Op Fl p Ar port
 .Op Ar exportsfile ...
@@ -60,6 +60,16 @@ Allow the administrator to force clients to use only the
 version 2
 .Tn NFS
 protocol to mount file systems from this server.
+.It Fl A
+Silence the warnings related to
+.Dq administrative controls .
+These warnings remind users that an exported
+.Dq administrative control
+directory that is not a local server file system mount point
+actually exports the entire local file system and not just
+the subtree below the directory exported.
+(See
+.Xr exports 5 )
 .It Fl d
 Output debugging information.
 .Nm
