@@ -1368,7 +1368,8 @@ restart:
 				UIPC_STREAM_SBCHECK(sb);
 				MPASS(!(sb->sb_state & SBS_CANTRCVMORE));
 				/* XXXGL: STAILQ_PREPEND */
-				if (STAILQ_EMPTY(&sb->sb_mbq))
+				if (STAILQ_EMPTY(&sb->sb_mbq) &&
+				    control != NULL)
 					STAILQ_INSERT_HEAD(&sb->sb_mbq,
 					    control, m_stailq);
 				else
