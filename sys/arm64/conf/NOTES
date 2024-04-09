@@ -102,11 +102,6 @@ device		ice_ddp		# Intel 800 Series DDP Package
 # Etherswitch devices
 device		e6000sw		# Marvell mv88e6085 based switches
 
-# NVM Express (NVMe) support
-device		nvme		# base NVMe driver
-options 	NVME_USE_NVD=0	# prefer the cam(4) based nda(4) driver
-device		nvd		# expose NVMe namespaces as disks, depends on nvme
-
 # MMC/SD/SDIO Card slot support
 device		sdhci_xenon		# Marvell Xenon SD/MMC controller
 device		aw_mmc			# Allwinner SD/MMC controller
