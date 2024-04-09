@@ -60,7 +60,8 @@ SENDMAILPACKAGE=	sendmail
 .if ${MK_ZFS} != "no"
 CONFS+=	223.backup-zfs \
 	404.status-zfs \
-	800.scrub-zfs
+	800.scrub-zfs  \
+	801.trim-zfs
 .endif
 
 .include <bsd.prog.mk>
