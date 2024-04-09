@@ -769,6 +769,13 @@ solisten_clone(struct socket *head)
 	so->so_fibnum = head->so_fibnum;
 	so->so_proto = head->so_proto;
 	so->so_cred = crhold(head->so_cred);
+	if (V_socket_hhh[HHOOK_SOCKET_NEWCONN]->hhh_nhooks > 0) {
+		if (hhook_run_socket(so, head, HHOOK_SOCKET_NEWCONN)) {
+			sodealloc(so);
+			log(LOG_DEBUG, "%s: hhook run failed\n", __func__);
+			return (NULL);
+		}
+	}
 #ifdef MAC
 	mac_socket_newconn(head, so);
 #endif
