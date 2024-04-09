@@ -285,11 +285,15 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		if (ng_findtype(mkp->type) == NULL) {
 			char filename[NG_TYPESIZ + 3];
 			int fileid;
+			bool loaded;
 
 			/* Not found, try to load it as a loadable module. */
 			snprintf(filename, sizeof(filename), "ng_%s",
 			    mkp->type);
 			error = kern_kldload(curthread, filename, &fileid);
+			loaded = (error == 0);
+			if (error == EEXIST)
+				error = 0;
 			if (error != 0) {
 				free(msg, M_NETGRAPH_MSG);
 				goto release;
@@ -298,9 +302,10 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 			/* See if type has been loaded successfully. */
 			if (ng_findtype(mkp->type) == NULL) {
 				free(msg, M_NETGRAPH_MSG);
-				(void)kern_kldunload(curthread, fileid,
-				    LINKER_UNLOAD_NORMAL);
-				error =  ENXIO;
+				if (loaded)
+					(void)kern_kldunload(curthread, fileid,
+					    LINKER_UNLOAD_NORMAL);
+				error = ENXIO;
 				goto release;
 			}
 		}
