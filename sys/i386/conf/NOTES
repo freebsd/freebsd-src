@@ -635,11 +635,6 @@ device		isci
 options 	ISCI_LOGGING	# enable debugging in isci HAL
 
 #
-# NVM Express (NVMe) support
-device         nvme    # base NVMe driver
-device         nvd     # expose NVMe namespaces as disks, depends on nvme
-
-#
 # Intel Volume Management Device (VMD) support
 device		vmd
 
