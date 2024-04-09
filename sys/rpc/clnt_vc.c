@@ -263,9 +263,9 @@ clnt_vc_create(
 	cl->cl_private = ct;
 	cl->cl_auth = authnone_create();
 
-	SOCKBUF_LOCK(&ct->ct_socket->so_rcv);
+	SOCK_RECVBUF_LOCK(ct->ct_socket);
 	soupcall_set(ct->ct_socket, SO_RCV, clnt_vc_soupcall, ct);
-	SOCKBUF_UNLOCK(&ct->ct_socket->so_rcv);
+	SOCK_RECVBUF_UNLOCK(ct->ct_socket);
 
 	ct->ct_raw = NULL;
 	ct->ct_record = NULL;
@@ -437,9 +437,9 @@ call_again:
 	mreq = NULL;
 	if (error == EMSGSIZE || (error == ERESTART &&
 	    (ct->ct_waitflag & PCATCH) == 0 && trycnt-- > 0)) {
-		SOCKBUF_LOCK(&ct->ct_socket->so_snd);
+		SOCK_SENDBUF_LOCK(ct->ct_socket);
 		sbwait(ct->ct_socket, SO_SND);
-		SOCKBUF_UNLOCK(&ct->ct_socket->so_snd);
+		SOCK_SENDBUF_UNLOCK(ct->ct_socket);
 		AUTH_VALIDATE(auth, xid, NULL, NULL);
 		mtx_lock(&ct->ct_lock);
 		TAILQ_REMOVE(&ct->ct_pending, cr, cr_link);
@@ -821,12 +821,12 @@ clnt_vc_close(CLIENT *cl)
 		ct->ct_closing = TRUE;
 		mtx_unlock(&ct->ct_lock);
 
-		SOCKBUF_LOCK(&ct->ct_socket->so_rcv);
+		SOCK_RECVBUF_LOCK(ct->ct_socket);
 		if (ct->ct_socket->so_rcv.sb_upcall != NULL) {
 			soupcall_clear(ct->ct_socket, SO_RCV);
 			clnt_vc_upcallsdone(ct);
 		}
-		SOCKBUF_UNLOCK(&ct->ct_socket->so_rcv);
+		SOCK_RECVBUF_UNLOCK(ct->ct_socket);
 
 		/*
 		 * Abort any pending requests and wait until everyone
@@ -967,7 +967,7 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 	/*
 	 * If another thread is already here, it must be in
 	 * soreceive(), so just return to avoid races with it.
-	 * ct_upcallrefs is protected by the SOCKBUF_LOCK(),
+	 * ct_upcallrefs is protected by the socket receive buffer lock
 	 * which is held in this function, except when
 	 * soreceive() is called.
 	 */
@@ -987,9 +987,9 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 		if (ct->ct_sslrefno != 0 && (ct->ct_rcvstate &
 		    RPCRCVSTATE_NORMAL) != 0)
 			rcvflag |= MSG_TLSAPPDATA;
-		SOCKBUF_UNLOCK(&so->so_rcv);
+		SOCK_RECVBUF_UNLOCK(so);
 		error = soreceive(so, NULL, &uio, &m, &m2, &rcvflag);
-		SOCKBUF_LOCK(&so->so_rcv);
+		SOCK_RECVBUF_LOCK(so);
 
 		if (error == EWOULDBLOCK) {
 			/*
@@ -1255,7 +1255,7 @@ static void
 clnt_vc_upcallsdone(struct ct_data *ct)
 {
 
-	SOCKBUF_LOCK_ASSERT(&ct->ct_socket->so_rcv);
+	SOCK_RECVBUF_LOCK_ASSERT(ct->ct_socket);
 
 	while (ct->ct_upcallrefs > 0)
 		(void) msleep(&ct->ct_upcallrefs,
@@ -1296,9 +1296,9 @@ clnt_vc_dotlsupcall(void *data)
 		if ((ct->ct_rcvstate & RPCRCVSTATE_SOUPCALLNEEDED) != 0) {
 			ct->ct_rcvstate &= ~RPCRCVSTATE_SOUPCALLNEEDED;
 			mtx_unlock(&ct->ct_lock);
-			SOCKBUF_LOCK(&ct->ct_socket->so_rcv);
+			SOCK_RECVBUF_LOCK(ct->ct_socket);
 			clnt_vc_soupcall(ct->ct_socket, ct, M_NOWAIT);
-			SOCKBUF_UNLOCK(&ct->ct_socket->so_rcv);
+			SOCK_RECVBUF_UNLOCK(ct->ct_socket);
 			mtx_lock(&ct->ct_lock);
 		}
 		msleep(&ct->ct_sslrefno, &ct->ct_lock, 0, "clntvcdu", hz);

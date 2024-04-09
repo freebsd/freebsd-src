@@ -315,10 +315,10 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 
 	xprt_register(xprt);
 
-	SOCKBUF_LOCK(&so->so_rcv);
+	SOCK_RECVBUF_LOCK(so);
 	xprt->xp_upcallset = 1;
 	soupcall_set(so, SO_RCV, svc_vc_soupcall, xprt);
-	SOCKBUF_UNLOCK(&so->so_rcv);
+	SOCK_RECVBUF_UNLOCK(so);
 
 	/*
 	 * Throw the transport into the active list in case it already
@@ -537,13 +537,13 @@ svc_vc_destroy(SVCXPRT *xprt)
 	struct cf_conn *cd = (struct cf_conn *)xprt->xp_p1;
 	CLIENT *cl = (CLIENT *)xprt->xp_p2;
 
-	SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
+	SOCK_RECVBUF_LOCK(xprt->xp_socket);
 	if (xprt->xp_upcallset) {
 		xprt->xp_upcallset = 0;
 		if (xprt->xp_socket->so_rcv.sb_upcall != NULL)
 			soupcall_clear(xprt->xp_socket, SO_RCV);
 	}
-	SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
+	SOCK_RECVBUF_UNLOCK(xprt->xp_socket);
 
 	if (cl != NULL)
 		CLNT_RELEASE(cl);
@@ -780,10 +780,10 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 			/* Check for next request in a pending queue. */
 			svc_vc_process_pending(xprt);
 			if (cd->mreq == NULL || cd->resid != 0) {
-				SOCKBUF_LOCK(&so->so_rcv);
+				SOCK_RECVBUF_LOCK(so);
 				if (!soreadable(so))
 					xprt_inactive_self(xprt);
-				SOCKBUF_UNLOCK(&so->so_rcv);
+				SOCK_RECVBUF_UNLOCK(so);
 			}
 
 			sx_xunlock(&xprt->xp_lock);
@@ -834,10 +834,10 @@ tryagain:
 			 * after our call to soreceive fails with
 			 * EWOULDBLOCK.
 			 */
-			SOCKBUF_LOCK(&so->so_rcv);
+			SOCK_RECVBUF_LOCK(so);
 			if (!soreadable(so))
 				xprt_inactive_self(xprt);
-			SOCKBUF_UNLOCK(&so->so_rcv);
+			SOCK_RECVBUF_UNLOCK(so);
 			sx_xunlock(&xprt->xp_lock);
 			return (FALSE);
 		}
@@ -877,12 +877,12 @@ tryagain:
 
 		if (error) {
 			KRPC_CURVNET_RESTORE();
-			SOCKBUF_LOCK(&so->so_rcv);
+			SOCK_RECVBUF_LOCK(so);
 			if (xprt->xp_upcallset) {
 				xprt->xp_upcallset = 0;
 				soupcall_clear(so, SO_RCV);
 			}
-			SOCKBUF_UNLOCK(&so->so_rcv);
+			SOCK_RECVBUF_UNLOCK(so);
 			xprt_inactive_self(xprt);
 			cd->strm_stat = XPRT_DIED;
 			sx_xunlock(&xprt->xp_lock);
