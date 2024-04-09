@@ -1461,6 +1461,19 @@ options 	SCSI_PT_DEFAULT_TIMEOUT=60
 # a topology with the SES device that's on the box these drives are in....
 options 	SES_ENABLE_PASSTHROUGH
 
+# iSCSI
+#
+# iSCSI permits access to SCSI peripherals over a network connection
+# (e.g. via a TCP/IP socket)
+
+device		cfiscsi		# CAM Target Layer iSCSI target frontend
+device		iscsi		# iSCSI initiator
+device		iser		# iSCSI Extensions for RDMA (iSER) initiator
+
+# Options used in dev/iscsi (Software iSCSI stack)
+#
+options 	ISCSI_INITIATOR_DEBUG=9
+
 
 #####################################################################
 # MISCELLANEOUS DEVICES AND OPTIONS
@@ -1619,10 +1632,6 @@ options 	AHD_REG_PRETTY_PRINT
 
 # Bitmap of units to enable targetmode operations.
 options 	AHD_TMODE_ENABLE
-
-# Options used in dev/iscsi (Software iSCSI stack)
-#
-options 	ISCSI_INITIATOR_DEBUG=9
 
 # Options used in dev/isp/ (Qlogic SCSI/FC driver).
 #
