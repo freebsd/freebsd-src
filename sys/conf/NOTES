@@ -1685,9 +1685,10 @@ device		mrsas		# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 # These drivers are part of cam(4) subsystem. They supersede less featured
 # ata(4) subsystem drivers, supporting same hardware.
 
-device		ahci
-device		mvs
-device		siis
+device		ahci		# AHCI-compatible SATA controllers
+device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
+device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
+device		ada		# ATA/SATA direct access devices (aka disks)
 
 #
 # The 'ATA' driver supports all legacy ATA/ATAPI controllers, including
@@ -1697,7 +1698,7 @@ device		siis
 # the 'atacore' driver then selecting the drivers on a per vendor basis.
 # For example to build a system which only supports a VIA chipset,
 # omit 'ata' and include the 'atacore', 'atapci' and 'atavia' drivers.
-device		ata
+device		ata		# Legacy ATA/SATA controllers
 
 # Modular ATA
 #device		atacore		# Core ATA functionality
