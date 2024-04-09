@@ -184,6 +184,7 @@ __DEFAULT_YES_OPTIONS = \
     USB \
     UTMPX \
     VI \
+    VIMAGE \
     VT \
     WIRELESS \
     WPA_SUPPLICANT_EAPOL \
@@ -249,6 +250,7 @@ __LIBC_MALLOC_DEFAULT=	jemalloc
     NETGRAPH \
     PAM \
     TESTS \
+    VIMAGE \
     WIRELESS
 __DEFAULT_DEPENDENT_OPTIONS+= ${var}_SUPPORT/${var}
 .endfor

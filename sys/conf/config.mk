@@ -11,7 +11,9 @@ opt_global.h:
 	touch ${.TARGET}
 	@echo "#define SMP 1" >> ${.TARGET}
 	@echo "#define MAC 1" >> ${.TARGET}
+.if ${MK_VIMAGE_SUPPORT} != "no"
 	@echo "#define VIMAGE 1" >> ${.TARGET}
+.endif
 # Note: Define 'options' in DEFAULTS to 1. For simplicity, no check if the
 # option is in opt_global.h. Nearly all the options in DEFAUlTS today are in
 # opt_global.h with GEOM_* being the main exceptions. Move any options from
