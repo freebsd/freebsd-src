@@ -1891,6 +1891,14 @@ dev/iscsi/icl_conn_if.m		optional cfiscsi | iscsi
 dev/iscsi/icl_soft.c		optional iscsi
 dev/iscsi/icl_soft_proxy.c	optional iscsi
 dev/iscsi/iscsi.c		optional iscsi scbus
+dev/iser/icl_iser.c		optional iser				\
+	compile-with "${OFED_C} -DICL_KERNEL_PROXY"
+dev/iser/iser_initiator.c	optional iser				\
+	compile-with "${OFED_C} -DICL_KERNEL_PROXY"
+dev/iser/iser_memory.c		optional iser				\
+	compile-with "${OFED_C} -DICL_KERNEL_PROXY"
+dev/iser/iser_verbs.c		optional iser				\
+	compile-with "${OFED_C} -DICL_KERNEL_PROXY"
 dev/ismt/ismt.c			optional ismt
 dev/isl/isl.c			optional isl iicbus
 dev/isp/isp.c			optional isp
