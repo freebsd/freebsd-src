@@ -90,19 +90,6 @@ options 	DEVICE_POLLING
 
 options 	BPF_JITTER
 
-# OpenFabrics Enterprise Distribution (Infiniband).
-options 	OFED
-options 	OFED_DEBUG_INIT
-
-# Sockets Direct Protocol
-options 	SDP
-options 	SDP_DEBUG
-
-# IP over Infiniband
-options 	IPOIB
-options 	IPOIB_DEBUG
-options 	IPOIB_CM
-
 
 #####################################################################
 # CLOCK OPTIONS
