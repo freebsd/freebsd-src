@@ -131,7 +131,7 @@ arm64/vmm/vmm_hyp.c				optional vmm		\
 	no-obj
 vmm_hyp_blob.elf.full				optional vmm		\
 	dependency	"vmm_hyp.o vmm_hyp_exception.o"			\
-	compile-with	"${SYSTEM_LD_BASECMD} -o ${.TARGET} ${.ALLSRC} --defsym=text_start='0x0'"	\
+	compile-with	"${SYSTEM_LD_BASECMD} -o ${.TARGET} ${.ALLSRC} --defsym=_start='0x0' --defsym=text_start='0x0'"	\
 	no-obj no-implicit-rule
 vmm_hyp_blob.elf				optional vmm		\
 	dependency	"vmm_hyp_blob.elf.full"				\
