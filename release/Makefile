@@ -109,7 +109,7 @@ CLEANFILES+=	${I}.xz
 .if defined(WITH_DVD) && !empty(WITH_DVD)
 CLEANFILES+=	pkg-stage
 .endif
-CLEANDIRS=	dist ftp disc1 bootonly dvd
+CLEANDIRS=	dist ftp disc1 disc1-disc1 disc1-memstick bootonly bootonly-bootonly bootonly-memstick dvd
 beforeclean:
 	chflags -R noschg .
 .include <bsd.obj.mk>
@@ -267,23 +267,31 @@ dvd: packagesystem
 .endif
 	touch ${.TARGET}
 
+disc1-disc1 disc1-memstick: disc1
+	mkdir ${.TARGET}
+	tar -cf- -C disc1 . | tar -xf- -C ${.TARGET}
+
+bootonly-bootonly bootonly-memstick: bootonly
+	mkdir ${.TARGET}
+	tar -cf- -C bootonly . | tar -xf- -C ${.TARGET}
+
 release.iso: disc1.iso
-disc1.iso: disc1
-	cd disc1 && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ../${.TARGET} .${NO_ROOT:D/METALOG} ${XTRADIR}
+disc1.iso: disc1-disc1
+	cd disc1-disc1 && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ../${.TARGET} .${NO_ROOT:D/METALOG} ${XTRADIR}
 
 dvd1.iso: dvd pkg-stage
 	cd dvd && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ../${.TARGET} .${NO_ROOT:D/METALOG} ${XTRADIR}
 
-bootonly.iso: bootonly
-	cd bootonly && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_BO ../${.TARGET} .${NO_ROOT:D/METALOG} ${XTRADIR}
+bootonly.iso: bootonly-bootonly
+	cd bootonly-bootonly && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_BO ../${.TARGET} .${NO_ROOT:D/METALOG} ${XTRADIR}
 
 memstick: memstick.img
-memstick.img: disc1
-	cd disc1 && sh ${.CURDIR}/${TARGET}/make-memstick.sh .${NO_ROOT:D/METALOG} ../${.TARGET}
+memstick.img: disc1-memstick
+	cd disc1-memstick && sh ${.CURDIR}/${TARGET}/make-memstick.sh .${NO_ROOT:D/METALOG} ../${.TARGET}
 
 mini-memstick: mini-memstick.img
-mini-memstick.img: bootonly
-	cd bootonly && sh ${.CURDIR}/${TARGET}/make-memstick.sh .${NO_ROOT:D/METALOG} ../${.TARGET}
+mini-memstick.img: bootonly-memstick
+	cd bootonly-memstick && sh ${.CURDIR}/${TARGET}/make-memstick.sh .${NO_ROOT:D/METALOG} ../${.TARGET}
 
 packagesystem: ${DISTRIBUTIONS}
 	sh ${.CURDIR}/scripts/make-manifest.sh *.txz > MANIFEST
