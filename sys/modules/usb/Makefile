@@ -44,7 +44,7 @@ MAKE+=" DEBUG_FLAGS+=-DUSB_REQ_DEBUG"
 
 SUBDIR = usb
 SUBDIR += ${_dwc_otg} ehci ${_musb} ohci uhci xhci ${_uss820dci} \
-	  ${_atmegadci} ${_avr32dci} ${_rsu} ${_rsufw}
+	  ${_atmegadci} ${_avr32dci} ${_rsu} ${_rsufw} ${_bcm2838_xhci}
 SUBDIR += ${_rum} ${_run} ${_runfw} ${_uath} upgt usie ural ${_zyd} ${_urtw} 
 SUBDIR += atp cfumass uhid uhid_snes ukbd ums udbp uep wmt wsp ugold uled \
 	  usbhid
@@ -96,6 +96,11 @@ _urtw=		urtw
 
 .if ${MACHINE_CPUARCH} == "avr32"
 _avr32dci=	avr32dci
+.endif
+
+.if ${MACHINE_CPUARCH} == "aarch64"
+# The bcm2838_xhci shim is specific to the Raspberry Pi 4 SoC.
+_bcm2838_xhci=	bcm2838_xhci
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
