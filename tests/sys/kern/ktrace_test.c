@@ -31,6 +31,7 @@
 #include <sys/capsicum.h>
 #include <sys/cpuset.h>
 #include <sys/ktrace.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/sysent.h>
 #include <sys/time.h>
@@ -474,6 +475,38 @@ ATF_TC_BODY(ktrace__cap_cpuset, tc)
 	    "cpuset_setaffinity");
 }
 
+ATF_TC_WITHOUT_HEAD(ktrace__cap_shm_open);
+ATF_TC_BODY(ktrace__cap_shm_open, tc)
+{
+	struct ktr_cap_fail violation;
+	sigset_t set = { };
+	pid_t pid;
+	int error;
+
+	/* Block SIGUSR1 so child does not terminate. */
+	ATF_REQUIRE(sigaddset(&set, SIGUSR1) != -1);
+	ATF_REQUIRE(sigprocmask(SIG_BLOCK, &set, NULL) != -1);
+
+	ATF_REQUIRE((pid = fork()) != -1);
+	if (pid == 0) {
+		/* Wait until ktrace has started. */
+		CHILD_REQUIRE(sigwait(&set, &error) != -1);
+		CHILD_REQUIRE_EQ(error, SIGUSR1);
+
+		CHILD_REQUIRE(shm_open("/ktrace_shm", O_RDWR | O_CREAT,
+		    0600) != -1);
+		CHILD_REQUIRE(shm_unlink("/ktrace_shm") != -1);
+		exit(0);
+	}
+
+	cap_trace_child(pid, &violation, 1);
+	ATF_REQUIRE_EQ(violation.cap_type, CAPFAIL_NAMEI);
+	error = syscallabi(violation.cap_svflags);
+	ATF_REQUIRE_STREQ(sysdecode_syscallname(error, violation.cap_code),
+	    "shm_open2");
+	ATF_REQUIRE_STREQ(violation.cap_data.cap_path, "/ktrace_shm");
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, ktrace__cap_not_capable);
@@ -484,5 +517,6 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ktrace__cap_sockaddr);
 	ATF_TP_ADD_TC(tp, ktrace__cap_namei);
 	ATF_TP_ADD_TC(tp, ktrace__cap_cpuset);
+	ATF_TP_ADD_TC(tp, ktrace__cap_shm_open);
 	return (atf_no_error());
 }
