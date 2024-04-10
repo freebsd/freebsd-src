@@ -117,7 +117,7 @@ clean: beforeclean
 
 base.txz:
 	mkdir -p ${DISTDIR}
-	cd ${WORLDDIR} && ${IMAKE} distributeworld DISTDIR=${.OBJDIR}/${DISTDIR}
+	( cd ${WORLDDIR} && ${IMAKE} distributeworld DISTDIR=${.OBJDIR}/${DISTDIR} )
 	# Bootstrap etcupdate(8) database.
 	sh ${WORLDDIR}/usr.sbin/etcupdate/etcupdate.sh extract -B \
 	    -m "${MAKE}" -M "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" \
@@ -130,41 +130,41 @@ base.txz:
 	rm ${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate/current/METALOG
 .endif
 # Package all components
-	cd ${WORLDDIR} && ${IMAKE} packageworld DISTDIR=${.OBJDIR}/${DISTDIR}
+	( cd ${WORLDDIR} && ${IMAKE} packageworld DISTDIR=${.OBJDIR}/${DISTDIR} )
 	mv ${DISTDIR}/*.txz .
 
 kernel.txz:
 	mkdir -p ${DISTDIR}
-	cd ${WORLDDIR} && ${IMAKE} distributekernel packagekernel DISTDIR=${.OBJDIR}/${DISTDIR}
+	( cd ${WORLDDIR} && ${IMAKE} distributekernel packagekernel DISTDIR=${.OBJDIR}/${DISTDIR} )
 	mv ${DISTDIR}/kernel*.txz .
 
 src.txz:
 	mkdir -p ${DISTDIR}/usr
 	ln -fs ${WORLDDIR} ${DISTDIR}/usr/src
-	cd ${DISTDIR} && ${TAR_CMD} cLvf - --exclude .svn --exclude .zfs \
+	( cd ${DISTDIR} && ${TAR_CMD} cLvf - --exclude .svn --exclude .zfs \
 	    --exclude .git --exclude @ --exclude usr/src/release/dist usr/src | \
-	    ${XZ_CMD} > ${.OBJDIR}/src.txz
+	    ${XZ_CMD} > ${.OBJDIR}/src.txz )
 
 ports.txz:
 	mkdir -p ${DISTDIR}/usr
 	ln -fs ${PORTSDIR} ${DISTDIR}/usr/ports
-	cd ${DISTDIR} && ${TAR_CMD} cLvf - \
+	( cd ${DISTDIR} && ${TAR_CMD} cLvf - \
 	    --exclude .git --exclude .svn \
 	    --exclude usr/ports/distfiles --exclude usr/ports/packages \
 	    --exclude 'usr/ports/INDEX*' --exclude work usr/ports | \
-	    ${XZ_CMD} > ${.OBJDIR}/ports.txz
+	    ${XZ_CMD} > ${.OBJDIR}/ports.txz )
 
 disc1: packagesystem
 # Install system
 	mkdir -p ${.TARGET}
-	cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
+	( cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
 	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AT=no \
 	    MK_INSTALLLIB=no MK_MAIL=no \
 	    ${_ALL_LIBCOMPATS:@v@MK_LIB$v=no@} \
 	    MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_RESCUE=no MK_DICT=no \
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
-	    -DDB_FROM_SRC
+	    -DDB_FROM_SRC )
 # Copy distfiles
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	for dist in MANIFEST $$(ls *.txz | grep -vE -- '(${base ${_ALL_libcompats}:L:ts|})-dbg'); \
@@ -197,7 +197,7 @@ disc1: packagesystem
 bootonly: packagesystem
 # Install system
 	mkdir -p ${.TARGET}
-	cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
+	( cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
 	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AT=no \
 	    MK_GAMES=no \
 	    MK_INSTALLLIB=no MK_MAIL=no \
@@ -205,7 +205,7 @@ bootonly: packagesystem
 	    MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_RESCUE=no MK_DICT=no \
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
-	    -DDB_FROM_SRC
+	    -DDB_FROM_SRC )
 # Copy manifest only (no distfiles) to get checksums
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	cp MANIFEST ${.TARGET}/usr/freebsd-dist
@@ -233,10 +233,10 @@ bootonly: packagesystem
 dvd: packagesystem
 # Install system
 	mkdir -p ${.TARGET}
-	cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
+	( cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
 		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
 		MK_TESTS=no MK_DEBUG_FILES=no \
-		-DDB_FROM_SRC
+		-DDB_FROM_SRC )
 # Copy distfiles
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	for dist in MANIFEST $$(ls *.txz | grep -v -- '(${base ${_ALL_libcompats}:L:ts|})-dbg'); \
@@ -331,8 +331,8 @@ release-install:
 	${XZ_CMD} -k ${DESTDIR}/${OSRELEASE}-${I}
 . endif
 .endfor
-	cd ${DESTDIR} && sha512 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA512
-	cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256
+	( cd ${DESTDIR} && sha512 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA512 )
+	( cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256 )
 .endif
 
 .include "${.CURDIR}/Makefile.inc1"
