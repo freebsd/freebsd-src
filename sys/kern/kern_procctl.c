@@ -1126,7 +1126,7 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 	if (uap->com >= PROC_PROCCTL_MD_MIN)
 		return (cpu_procctl(td, uap->idtype, uap->id,
 		    uap->com, uap->data));
-	if (uap->com == 0 || uap->com >= nitems(procctl_cmds_info))
+	if (uap->com <= 0 || uap->com >= nitems(procctl_cmds_info))
 		return (EINVAL);
 	cmd_info = &procctl_cmds_info[uap->com];
 	bzero(&x, sizeof(x));
