@@ -1173,18 +1173,6 @@ kern_shm_open2(struct thread *td, const char *userpath, int flags, mode_t mode,
 	if ((shmflags & SHM_ALLOW_SEALING) != 0)
 		initial_seals &= ~F_SEAL_SEAL;
 
-#ifdef CAPABILITY_MODE
-	/*
-	 * shm_open(2) is only allowed for anonymous objects.
-	 */
-	if (userpath != SHM_ANON) {
-		if (CAP_TRACING(td))
-			ktrcapfail(CAPFAIL_NAMEI, userpath);
-		if (IN_CAPABILITY_MODE(td))
-			return (ECAPMODE);
-	}
-#endif
-
 	AUDIT_ARG_FFLAGS(flags);
 	AUDIT_ARG_MODE(mode);
 
@@ -1209,6 +1197,26 @@ kern_shm_open2(struct thread *td, const char *userpath, int flags, mode_t mode,
 	if ((initial_seals & ~F_SEAL_SEAL) != 0)
 		return (EINVAL);
 
+	if (userpath != SHM_ANON) {
+		error = shm_copyin_path(td, userpath, &path);
+		if (error != 0)
+			return (error);
+
+#ifdef CAPABILITY_MODE
+		/*
+		 * shm_open(2) is only allowed for anonymous objects.
+		 */
+		if (CAP_TRACING(td))
+			ktrcapfail(CAPFAIL_NAMEI, path);
+		if (IN_CAPABILITY_MODE(td)) {
+			free(path, M_SHMFD);
+			return (ECAPMODE);
+		}
+#endif
+
+		AUDIT_ARG_UPATH1_CANON(path);
+	}
+
 	pdp = td->td_proc->p_pd;
 	cmode = (mode & ~pdp->pd_cmask) & ACCESSPERMS;
 
@@ -1220,8 +1228,10 @@ kern_shm_open2(struct thread *td, const char *userpath, int flags, mode_t mode,
 	 * in sys_shm_open() to keep this implementation compliant.
 	 */
 	error = falloc_caps(td, &fp, &fd, flags & O_CLOEXEC, fcaps);
-	if (error)
+	if (error) {
+		free(path, M_SHMFD);
 		return (error);
+	}
 
 	/* A SHM_ANON path pointer creates an anonymous object. */
 	if (userpath == SHM_ANON) {
@@ -1235,14 +1245,6 @@ kern_shm_open2(struct thread *td, const char *userpath, int flags, mode_t mode,
 		shmfd->shm_seals = initial_seals;
 		shmfd->shm_flags = shmflags;
 	} else {
-		error = shm_copyin_path(td, userpath, &path);
-		if (error != 0) {
-			fdclose(td, fp, fd);
-			fdrop(fp, td);
-			return (error);
-		}
-
-		AUDIT_ARG_UPATH1_CANON(path);
 		fnv = fnv_32_str(path, FNV1_32_INIT);
 		sx_xlock(&shm_dict_lock);
 		shmfd = shm_lookup(path, fnv);
