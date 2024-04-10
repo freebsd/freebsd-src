@@ -7849,7 +7849,10 @@ ahc_handle_target_cmd(struct ahc_softc *ahc, struct target_cmd *cmd)
 		ahc->pending_device = lstate;
 		aic_freeze_ccb((union ccb *)atio);
 		atio->ccb_h.flags |= CAM_DIS_DISCONNECT;
+	} else {
+		atio->ccb_h.flags &= ~CAM_DIS_DISCONNECT;
 	}
+
 	xpt_done((union ccb*)atio);
 	return (0);
 }
