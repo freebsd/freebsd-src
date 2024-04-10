@@ -193,8 +193,9 @@ options 	EVDEV_SUPPORT		# evdev support in legacy drivers
 device		aw_cir
 
 # Pseudo devices.
-options 	EFIRT		# EFI Runtime Services
 device		clk
+device		efidev		# EFI pseudo-device
+device		efirtc		# EFI RTC
 device		phy
 device		hwreset
 device		nvmem
@@ -212,6 +213,7 @@ device		xdma		# xDMA framework for SoC on-chip dma controllers
 # Chip-specific errata
 options 	THUNDERX_PASS_1_1_ERRATA
 
+options 	EFIRT		# EFI Runtime Services
 options 	FDT
 device		acpi
 
