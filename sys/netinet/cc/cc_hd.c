@@ -59,6 +59,7 @@
 #include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/prng.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -77,8 +78,8 @@
 
 #include <netinet/khelp/h_ertt.h>
 
-/* Largest possible number returned by random(). */
-#define	RANDOM_MAX	INT_MAX
+/* Largest possible number returned by prng32(). */
+#define	RANDOM_MAX	UINT32_MAX
 
 static void	hd_ack_received(struct cc_var *ccv, ccsignal_t ack_type);
 static int	hd_mod_init(void);
@@ -128,7 +129,7 @@ should_backoff(int qdly, int maxqdly)
 			p = (RANDOM_MAX / 100) * V_hd_pmax;
 	}
 
-	return (random() < p);
+	return (prng32() < p);
 }
 
 /*

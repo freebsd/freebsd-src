@@ -58,6 +58,7 @@
 #include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/prng.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -85,8 +86,8 @@
  */
 #define	CC_CHD_DELAY	0x02000000
 
-/* Largest possible number returned by random(). */
-#define	RANDOM_MAX	INT_MAX
+/* Largest possible number returned by prng32(). */
+#define	RANDOM_MAX	UINT32_MAX
 
 static void	chd_ack_received(struct cc_var *ccv, ccsignal_t ack_type);
 static void	chd_cb_destroy(struct cc_var *ccv);
@@ -159,9 +160,9 @@ chd_window_decrease(struct cc_var *ccv)
 static __inline int
 should_backoff(int qdly, int maxqdly, struct chd *chd_data)
 {
-	unsigned long p, rand;
+	uint32_t rand, p;
 
-	rand = random();
+	rand = prng32();
 
 	if (qdly < V_chd_qthresh) {
 		chd_data->loss_compete = 0;
