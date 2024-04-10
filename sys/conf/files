@@ -1598,9 +1598,9 @@ dev/dwc/if_dwc.c		optional dwc fdt
 dev/dwc/if_dwc_if.m		optional dwc fdt
 dev/dwc/dwc1000_core.c		optional dwc fdt
 dev/dwc/dwc1000_dma.c		optional dwc fdt
-dev/efidev/efidev.c		optional efirt
+dev/efidev/efidev.c		optional efirt efidev
 dev/efidev/efirt.c		optional efirt
-dev/efidev/efirtc.c		optional efirt
+dev/efidev/efirtc.c		optional efirt efirtc
 dev/e1000/if_em.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/em_txrx.c		optional em \

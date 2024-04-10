@@ -106,3 +106,7 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 # More info in ntpd documentation: http://www.eecis.udel.edu/~ntp
 
 options 	PPS_SYNC
+
+# EFI devices
+device		efidev			# EFI pseudo-device
+device		efirtc			# EFI RTC

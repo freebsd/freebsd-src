@@ -594,6 +594,12 @@ options 	NKPT=31
 # EFI Runtime Services support
 options 	EFIRT
 
+# EFI pseudo-device
+device		efidev
+
+# EFI RTC
+device		efirtc
+
 #
 # HID-over-I2C support
 #
