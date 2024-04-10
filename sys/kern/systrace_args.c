@@ -3459,7 +3459,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[a++] = p->querylen; /* int */
 		uarg[a++] = (intptr_t)p->buf; /* char * */
 		iarg[a++] = p->reslen; /* int */
-		*n_args = 3;
+		*n_args = 4;
 		break;
 	}
 	default:
