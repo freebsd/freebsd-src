@@ -68,7 +68,7 @@ struct configuration_entry {
 	/*
 	 * configuration_entry holds pointers for all actual cache_entries,
 	 * which are used for it. There is one for positive caching, one for
-	 * for negative caching, and several (one per each euid/egid) for
+	 * negative caching, and several (one per each euid/egid) for
 	 * multipart caching.
 	 */
 	cache_entry positive_cache_entry;
