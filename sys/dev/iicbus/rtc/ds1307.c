@@ -56,7 +56,7 @@
 enum {
 	TYPE_DS1307,
 	TYPE_MAXIM1307,
-	TYPE_MICROCHIP_MCP7491X,
+	TYPE_MICROCHIP_MCP7941X,
 	TYPE_EPSON_RX8035,
 	TYPE_COUNT
 };
@@ -75,7 +75,7 @@ static void ds1307_start(void *);
 static const struct ofw_compat_data ds1307_compat_data[] = {
 	{"dallas,ds1307",		TYPE_DS1307},
 	{"maxim,ds1307",		TYPE_MAXIM1307},
-	{"microchip,mcp7941x",		TYPE_MICROCHIP_MCP7491X},
+	{"microchip,mcp7941x",		TYPE_MICROCHIP_MCP7941X},
 	{"epson,rx8035",		TYPE_EPSON_RX8035},
 	{ NULL, 0 }
 };
@@ -136,7 +136,7 @@ ds1307_sqwe_sysctl(SYSCTL_HANDLER_ARGS)
 	error = ds1307_ctrl_read(sc);
 	if (error != 0)
 		return (error);
-	if (sc->chiptype == TYPE_MICROCHIP_MCP7491X)
+	if (sc->chiptype == TYPE_MICROCHIP_MCP7941X)
 		sqwe_bit = MCP7941X_CTRL_SQWE;
 	else
 		sqwe_bit = DS1307_CTRL_SQWE;
@@ -233,8 +233,8 @@ ds1307_probe(device_t dev)
 		case TYPE_MAXIM1307:
 			device_set_desc(dev, "Maxim DS1307");
 			break;
-		case TYPE_MICROCHIP_MCP7491X:
-			device_set_desc(dev, "Microchip MCP7491X");
+		case TYPE_MICROCHIP_MCP7941X:
+			device_set_desc(dev, "Microchip MCP7941X");
 			break;
 		case TYPE_EPSON_RX8035:
 			device_set_desc(dev, "Epson RX-8035");
@@ -382,7 +382,7 @@ static bool is_dev_time_valid(struct ds1307_softc *sc)
 	}
 
 	switch (sc->chiptype) {
-	case TYPE_MICROCHIP_MCP7491X:
+	case TYPE_MICROCHIP_MCP7941X:
 		osc_en = 0x80;
 		break;
 	default:
@@ -538,7 +538,7 @@ ds1307_settime(device_t dev, struct timespec *ts)
 	data[DS1307_WEEKDAY] = bct.dow;
 	data[DS1307_MONTH]   = bct.mon;
 	data[DS1307_YEAR]    = bct.year & 0xff;
-	if (sc->chiptype == TYPE_MICROCHIP_MCP7491X) {
+	if (sc->chiptype == TYPE_MICROCHIP_MCP7941X) {
 		data[DS1307_SECS] |= MCP7941X_SECS_ST;
 		data[DS1307_WEEKDAY] |= MCP7941X_WEEKDAY_VBATEN;
 		year = bcd2bin(bct.year >> 8) * 100 + bcd2bin(bct.year & 0xff);
