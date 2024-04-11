@@ -30,7 +30,7 @@ AZURE_DESC=	Microsoft Azure platform image
 BASIC-CI_FORMAT=	raw
 BASIC-CI_FSLIST?=	ufs
 BASIC-CI_DESC=		Image for CI
-BASIC-CLOUDINIT_FORMAT=	raw qcow2
+BASIC-CLOUDINIT_FORMAT=	raw
 BASIC-CLOUDINIT_FSLIST?=	ufs zfs
 BASIC-CLOUDINIT_DESC?=	Images for VM with cloudinit disk config support
 EC2_FORMAT=	raw
@@ -99,37 +99,33 @@ QEMUTGT?=
 .  if exists(${.CURDIR}/tools/${_CW:tl}.conf) && !defined(${_CW:tu}CONF)
 ${_CW:tu}CONF?=	${.CURDIR}/tools/${_CW:tl}.conf
 .  endif
-.  for _FMT in ${${_CW:tu}_FORMAT}
-.   for _FS in ${${_CW:tu}_FSLIST}
-CLOUDTARGETS+=	cw-${_CW:tl}-${_FS}-${_FMT}
-CLEANDIRS+=	cw-${_CW:tl}-${_FS}-${_FMT}
+.  for _FS in ${${_CW:tu}_FSLIST}
+CLOUDTARGETS+=	cw-${_CW:tl}-${_FS}
+CLEANDIRS+=	cw-${_CW:tl}-${_FS}
 CLEANFILES+=	${_CW:tl}.${_FS}.img \
-		${_CW:tl}.${_FS}.${_FMT} \
-		${_CW:tl}.${_FS}.${_FMT}.raw
-${_CW:tu}${_FS:tu}IMAGE=	${_CW:tl}.${_FS}.${_FMT}
+		${_CW:tl}.${_FS}.${${_CW:tu}_FORMAT} \
+		${_CW:tl}.${_FS}.${${_CW:tu}_FORMAT}.raw
+${_CW:tu}${_FS:tu}IMAGE=	${_CW:tl}.${_FS}.${${_CW:tu}_FORMAT}
 
-cw-${_CW:tl}-${_FS}-${_FMT}: ${QEMUTGT}
+cw-${_CW:tl}-${_FS}: ${QEMUTGT}
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		QEMUSTATIC=${QEMUSTATIC} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${_FS} \
-		-i ${.OBJDIR}/${_CW:tl}.${_FS}.img -s ${VMSIZE} -f ${_FMT} \
+		-i ${.OBJDIR}/${_CW:tl}.${_FS}.img -s ${VMSIZE} -f ${${_CW:tu}_FORMAT} \
 		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW:tu}${_FS:tu}IMAGE} -c ${${_CW:tu}CONF}
 	touch ${.TARGET}
-.   endfor
 .  endfor
 
 # Hardlinks from "foo.bar" to "foo-${VMFS}.bar".  These can go away once all
 # of the cloudware code knows how to handle multiple filesystem images (or
 # at least knows the name of the UFS image).
-.  for _FMT in ${${_CW:tu}_FORMAT}
-CLOUDTARGETS+=	cw-${_CW:tl}-${_FMT}
-CLEANFILES+=	${_CW:tl}.${_FMT}
-${_CW:tu}IMAGE=	${_CW:tl}.${${_FMT}
-cw-${_CW:tl}-${_FMT}: cw-${_CW:tl}-${VMFS}-${_FMT}
+CLOUDTARGETS+=	cw-${_CW:tl}
+CLEANFILES+=	${_CW:tl}.${${_CW:tu}_FORMAT}
+${_CW:tu}IMAGE=	${_CW:tl}.${${_CW:tu}_FORMAT}
+cw-${_CW:tl}: cw-${_CW:tl}-${VMFS}
 	ln -f ${${_CW:tu}${VMFS:tu}IMAGE} ${${_CW:tu}IMAGE}
-.  endfor
 . endfor
 .endif
 
