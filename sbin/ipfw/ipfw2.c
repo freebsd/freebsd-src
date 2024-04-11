@@ -3522,7 +3522,7 @@ ipfw_delete(char *av[])
 				if (g_co.do_quiet)
 					continue;
 				if (rt.start_rule != rt.end_rule)
-					warnx("no rules rules in %u-%u range",
+					warnx("no rules in %u-%u range",
 					    rt.start_rule, rt.end_rule);
 				else
 					warnx("rule %u not found",
