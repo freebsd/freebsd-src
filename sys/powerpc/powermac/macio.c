@@ -686,6 +686,7 @@ macio_map_resource(device_t bus, device_t child, struct resource *r,
 	    length, args.memattr);
 	if (map->r_vaddr == NULL)
 		return (ENOMEM);
+	map->r_size = length;
 	map->r_bustag = &bs_le_tag;
 	map->r_bushandle = (bus_space_handle_t)map->r_vaddr;
 	return (0);
