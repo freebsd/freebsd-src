@@ -252,7 +252,7 @@ fsck_readdir(struct inodesc *idesc)
 	dp = (struct direct *)(bp->b_un.b_buf + idesc->id_loc);
 	/*
 	 * Only need to check current entry if it is the first in the
-	 * the block, as later entries will have been checked in the
+	 * block, as later entries will have been checked in the
 	 * previous call to this function.
 	 */
 	if (idesc->id_loc % DIRBLKSIZ != 0 || dircheck(idesc, bp, dp) != 0) {

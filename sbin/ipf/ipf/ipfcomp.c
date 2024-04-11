@@ -685,7 +685,7 @@ emitGroup(int num, int dir, void *v, frentry_t *fr, char *group,
 	if (n) {
 		/*
 		 * Calculate the indentation interval upto the last common
-		 * common comparison being made.
+		 * comparison being made.
 		 */
 		for (i = 0, in = 1; i < FRC_MAX; i++) {
 			if (n[i].c != m[i].c)
