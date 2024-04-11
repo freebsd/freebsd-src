@@ -24,7 +24,6 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_set_standard_lookup.c 201109 2009-12-28 03:30:31Z kientzle $");
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>

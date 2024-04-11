@@ -26,7 +26,6 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 
@@ -2595,7 +2594,7 @@ set_times(struct archive_write_disk *a,
 {
 #define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 #define WINTIME(sec, nsec) ((Int32x32To64(sec, 10000000) + EPOC_TIME)\
-	 + (((nsec)/1000)*10))
+	 + ((nsec)/100))
 
 	HANDLE hw = 0;
 	ULARGE_INTEGER wintm;

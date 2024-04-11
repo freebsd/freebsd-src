@@ -23,7 +23,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
@@ -121,7 +120,7 @@ create_sparse_file(const char *path, const struct sparse *s)
 	memset(buff, ' ', sizeof(buff));
 
 	handle = CreateFileA(path, GENERIC_WRITE, 0,
-	    NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL,
+	    NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL,
 	    NULL);
 	assert(handle != INVALID_HANDLE_VALUE);
 	assert(DeviceIoControl(handle, FSCTL_SET_SPARSE, NULL, 0,

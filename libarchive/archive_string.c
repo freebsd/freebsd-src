@@ -25,7 +25,6 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/archive_string.c 201095 2009-12-28 02:33:22Z kientzle $");
 
 /*
  * Basic resizable string support, to simplify manipulating arbitrary-sized
@@ -552,6 +551,8 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 			mbflag = 0;
 		} else
 			mbflag = MB_PRECOMPOSED;
+
+		mbflag |= MB_ERR_INVALID_CHARS;
 
 		buffsize = dest->length + length + 1;
 		do {
@@ -1527,7 +1528,7 @@ get_current_codepage(void)
 	p = strrchr(locale, '.');
 	if (p == NULL)
 		return (GetACP());
-	if (strcmp(p+1, "utf8") == 0)
+	if ((strcmp(p+1, "utf8") == 0) || (strcmp(p+1, "UTF-8") == 0))
 		return CP_UTF8;
 	cp = my_atoi(p+1);
 	if ((int)cp <= 0)
@@ -4227,6 +4228,17 @@ archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
 	if (sc == NULL)
 		return (-1);/* Couldn't allocate memory for sc. */
 	r = archive_strcpy_l(&(aes->aes_mbs), utf8, sc);
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* On failure, make an effort to convert UTF8 to WCS as the active code page
+	 * may not be able to represent all characters in the string */
+	if (r != 0) {
+		if (archive_wstring_append_from_mbs_in_codepage(&(aes->aes_wcs),
+			aes->aes_utf8.s, aes->aes_utf8.length, sc) == 0)
+			aes->aes_set = AES_SET_UTF8 | AES_SET_WCS;
+	}
+#endif
+
 	if (a == NULL)
 		free_sconv_object(sc);
 	if (r != 0)

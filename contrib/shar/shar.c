@@ -24,11 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifdef __FBSDID
-__FBSDID("$FreeBSD$");
-#endif
-
 #include <sys/stat.h>
 #include <sys/types.h>
 

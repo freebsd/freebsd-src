@@ -25,7 +25,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 
@@ -2439,6 +2438,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		return (ARCHIVE_OK);
 	}
 
+	r = ARCHIVE_OK;
 	if ((a->flags & ARCHIVE_READDISK_NO_SPARSE) == 0) {
 		r = setup_sparse_from_disk(a, entry, h);
 		if (fd < 0)

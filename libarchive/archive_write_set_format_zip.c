@@ -30,7 +30,6 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_zip.c 201168 2009-12-29 06:15:32Z kientzle $");
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
@@ -132,7 +131,6 @@ struct zip {
 	enum compression entry_compression;
 	enum encryption  entry_encryption;
 	int entry_flags;
-	int entry_uses_zip64;
 	int experiments;
 	struct trad_enc_ctx tctx;
 	char tctx_valid;
@@ -523,6 +521,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	int ret, ret2 = ARCHIVE_OK;
 	mode_t type;
 	int version_needed = 10;
+#define MIN_VERSION_NEEDED(x) do { if (version_needed < x) { version_needed = x; } } while (0)
 
 	/* Ignore types of entries that we don't support. */
 	type = archive_entry_filetype(entry);
@@ -557,12 +556,12 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	/* Reset information from last entry. */
 	zip->entry_offset = zip->written_bytes;
 	zip->entry_uncompressed_limit = INT64_MAX;
+	/* Zero size values implies that we're using a trailing data descriptor */
 	zip->entry_compressed_size = 0;
 	zip->entry_uncompressed_size = 0;
 	zip->entry_compressed_written = 0;
 	zip->entry_uncompressed_written = 0;
 	zip->entry_flags = 0;
-	zip->entry_uses_zip64 = 0;
 	zip->entry_crc32 = zip->crc32func(0, NULL, 0);
 	zip->entry_encryption = 0;
 	archive_entry_free(zip->entry);
@@ -672,11 +671,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		zip->entry_crc32 = zip->crc32func(zip->entry_crc32,
 		    (const unsigned char *)slink, slink_size);
 		zip->entry_compression = COMPRESSION_STORE;
-		version_needed = 20;
+		MIN_VERSION_NEEDED(20);
 	} else if (type != AE_IFREG) {
 		zip->entry_compression = COMPRESSION_STORE;
 		zip->entry_uncompressed_limit = 0;
-		version_needed = 20;
+		MIN_VERSION_NEEDED(20);
 	} else if (archive_entry_size_is_set(zip->entry)) {
 		int64_t size = archive_entry_size(zip->entry);
 		int64_t additional_size = 0;
@@ -689,27 +688,27 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		if (zip->entry_compression == COMPRESSION_STORE) {
 			zip->entry_compressed_size = size;
 			zip->entry_uncompressed_size = size;
-			version_needed = 10;
+			MIN_VERSION_NEEDED(10);
 		} else {
 			zip->entry_uncompressed_size = size;
-			version_needed = 20;
+			MIN_VERSION_NEEDED(20);
 		}
 
 		if (zip->entry_flags & ZIP_ENTRY_FLAG_ENCRYPTED) {
 			switch (zip->entry_encryption) {
 			case ENCRYPTION_TRADITIONAL:
 				additional_size = TRAD_HEADER_SIZE;
-				version_needed = 20;
+				MIN_VERSION_NEEDED(20);
 				break;
 			case ENCRYPTION_WINZIP_AES128:
 				additional_size = WINZIP_AES128_HEADER_SIZE
 				    + AUTH_CODE_SIZE;
-				version_needed = 20;
+				MIN_VERSION_NEEDED(20);
 				break;
 			case ENCRYPTION_WINZIP_AES256:
 				additional_size = WINZIP_AES256_HEADER_SIZE
 				    + AUTH_CODE_SIZE;
-				version_needed = 20;
+				MIN_VERSION_NEEDED(20);
 				break;
 			case ENCRYPTION_NONE:
 			default:
@@ -733,8 +732,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		    || (zip->entry_uncompressed_size + additional_size > ZIP_4GB_MAX)
 		    || (zip->entry_uncompressed_size > ZIP_4GB_MAX_UNCOMPRESSED
 			&& zip->entry_compression != COMPRESSION_STORE)) {
-			zip->entry_uses_zip64 = 1;
-			version_needed = 45;
+			MIN_VERSION_NEEDED(45);
 		}
 
 		/* We may know the size, but never the CRC. */
@@ -742,7 +740,6 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	} else {
 		/* We don't know the size. Use the default
 		 * compression unless specified otherwise.
-		 * We enable Zip64 extensions unless we're told not to.
 		 */
 
 		zip->entry_compression = zip->requested_compression;
@@ -752,12 +749,12 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 
 		zip->entry_flags |= ZIP_ENTRY_FLAG_LENGTH_AT_END;
 		if ((zip->flags & ZIP_FLAG_AVOID_ZIP64) == 0) {
-			zip->entry_uses_zip64 = 1;
-			version_needed = 45;
+			/* We might use zip64 extensions, so require 4.5 */
+			MIN_VERSION_NEEDED(45);
 		} else if (zip->entry_compression == COMPRESSION_STORE) {
-			version_needed = 10;
+			MIN_VERSION_NEEDED(10);
 		} else {
-			version_needed = 20;
+			MIN_VERSION_NEEDED(20);
 		}
 
 		if (zip->entry_flags & ZIP_ENTRY_FLAG_ENCRYPTED) {
@@ -765,8 +762,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			case ENCRYPTION_TRADITIONAL:
 			case ENCRYPTION_WINZIP_AES128:
 			case ENCRYPTION_WINZIP_AES256:
-				if (version_needed < 20)
-					version_needed = 20;
+				MIN_VERSION_NEEDED(20);
 				break;
 			case ENCRYPTION_NONE:
 			default:
@@ -787,16 +783,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		archive_le16enc(local_header + 8, zip->entry_compression);
 	archive_le32enc(local_header + 10,
 		dos_time(archive_entry_mtime(zip->entry)));
-	archive_le32enc(local_header + 14, zip->entry_crc32);
-	if (zip->entry_uses_zip64) {
-		/* Zip64 data in the local header "must" include both
-		 * compressed and uncompressed sizes AND those fields
-		 * are included only if these are 0xffffffff;
-		 * THEREFORE these must be set this way, even if we
-		 * know one of them is smaller. */
-		archive_le32enc(local_header + 18, ZIP_4GB_MAX);
-		archive_le32enc(local_header + 22, ZIP_4GB_MAX);
-	} else {
+	if ((zip->entry_flags & ZIP_ENTRY_FLAG_LENGTH_AT_END) == 0) {
+		archive_le32enc(local_header + 14, zip->entry_crc32);
 		archive_le32enc(local_header + 18, (uint32_t)zip->entry_compressed_size);
 		archive_le32enc(local_header + 22, (uint32_t)zip->entry_uncompressed_size);
 	}
@@ -842,41 +830,18 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	 * the local file header and the central directory.
 	 * We format them once and then duplicate them. */
 
-	/* UT timestamp, length depends on what timestamps are set. */
-	memcpy(e, "UT", 2);
-	archive_le16enc(e + 2,
-	    1
-	    + (archive_entry_mtime_is_set(entry) ? 4 : 0)
-	    + (archive_entry_atime_is_set(entry) ? 4 : 0)
-	    + (archive_entry_ctime_is_set(entry) ? 4 : 0));
-	e += 4;
-	*e++ =
-	    (archive_entry_mtime_is_set(entry) ? 1 : 0)
-	    | (archive_entry_atime_is_set(entry) ? 2 : 0)
-	    | (archive_entry_ctime_is_set(entry) ? 4 : 0);
-	if (archive_entry_mtime_is_set(entry)) {
-		archive_le32enc(e, (uint32_t)archive_entry_mtime(entry));
-		e += 4;
-	}
-	if (archive_entry_atime_is_set(entry)) {
-		archive_le32enc(e, (uint32_t)archive_entry_atime(entry));
-		e += 4;
-	}
-	if (archive_entry_ctime_is_set(entry)) {
-		archive_le32enc(e, (uint32_t)archive_entry_ctime(entry));
-		e += 4;
-	}
-
 	/* ux Unix extra data, length 11, version 1 */
-	/* TODO: If uid < 64k, use 2 bytes, ditto for gid. */
-	memcpy(e, "ux\013\000\001", 5);
-	e += 5;
-	*e++ = 4; /* Length of following UID */
-	archive_le32enc(e, (uint32_t)archive_entry_uid(entry));
-	e += 4;
-	*e++ = 4; /* Length of following GID */
-	archive_le32enc(e, (uint32_t)archive_entry_gid(entry));
-	e += 4;
+	if (archive_entry_uid_is_set(entry) || archive_entry_gid_is_set(entry)) {
+		/* TODO: If uid < 64k, use 2 bytes, ditto for gid. */
+		memcpy(e, "ux\013\000\001", 5);
+		e += 5;
+		*e++ = 4; /* Length of following UID */
+		archive_le32enc(e, (uint32_t)archive_entry_uid(entry));
+		e += 4;
+		*e++ = 4; /* Length of following GID */
+		archive_le32enc(e, (uint32_t)archive_entry_gid(entry));
+		e += 4;
+	}
 
 	/* AES extra data field: WinZIP AES information, ID=0x9901 */
 	if ((zip->entry_flags & ZIP_ENTRY_FLAG_ENCRYPTED)
@@ -904,7 +869,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		e += 2;
 	}
 
-	/* Copy UT ,ux, and AES-extra into central directory as well. */
+	/* Copy ux, AES-extra into central directory as well. */
 	zip->file_header_extra_offset = zip->central_directory_bytes;
 	cd_extra = cd_alloc(zip, e - local_extra);
 	memcpy(cd_extra, local_extra, e - local_extra);
@@ -916,17 +881,50 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	 * archive_write_zip_finish_entry() below.
 	 */
 
-	/* "[Zip64 entry] in the local header MUST include BOTH
-	 * original [uncompressed] and compressed size fields." */
-	if (zip->entry_uses_zip64) {
-		unsigned char *zip64_start = e;
-		memcpy(e, "\001\000\020\000", 4);
+	/* UT timestamp: length depends on what timestamps are set.
+	 * This header appears in the Central Directory also, but
+	 * according to Info-Zip specification, the CD form
+	 * only holds mtime, so we format it separately. */
+	if (archive_entry_mtime_is_set(entry)
+	    || archive_entry_atime_is_set(entry)
+	    || archive_entry_ctime_is_set(entry)) {
+		unsigned char *ut = e;
+		memcpy(e, "UT\000\000", 4);
 		e += 4;
-		archive_le64enc(e, zip->entry_uncompressed_size);
-		e += 8;
-		archive_le64enc(e, zip->entry_compressed_size);
-		e += 8;
-		archive_le16enc(zip64_start + 2, (uint16_t)(e - (zip64_start + 4)));
+		*e++ = (archive_entry_mtime_is_set(entry) ? 1 : 0)
+			| (archive_entry_atime_is_set(entry) ? 2 : 0)
+			| (archive_entry_ctime_is_set(entry) ? 4 : 0);
+		if (archive_entry_mtime_is_set(entry)) {
+			archive_le32enc(e, (uint32_t)archive_entry_mtime(entry));
+			e += 4;
+		}
+		if (archive_entry_atime_is_set(entry)) {
+			archive_le32enc(e, (uint32_t)archive_entry_atime(entry));
+			e += 4;
+		}
+		if (archive_entry_ctime_is_set(entry)) {
+			archive_le32enc(e, (uint32_t)archive_entry_ctime(entry));
+			e += 4;
+		}
+		archive_le16enc(ut + 2, e - ut - 4);
+	}
+
+	/*
+	 * Note about Zip64 Extended Information Extra Field:
+	 * Because libarchive always writes in a streaming
+	 * fashion, we never know the CRC when we're writing
+	 * the local header.  So we have to use length-at-end, which
+	 * prevents us from putting size information into a Zip64
+	 * extra field.  However, apparently some readers find it
+	 * a helpful clue to have an empty such field so they
+	 * can expect a 64-bit length-at-end marker.
+	 */
+	if (archive_entry_size_is_set(zip->entry)
+	    && (zip->entry_uncompressed_size > ZIP_4GB_MAX
+		|| zip->entry_compressed_size > ZIP_4GB_MAX)) {
+		/* Header ID 0x0001, size 0 */
+		memcpy(e, "\001\000\000\000", 4);
+		e += 4;
 	}
 
 	if (zip->flags & ZIP_FLAG_EXPERIMENT_xl) {
@@ -1205,7 +1203,9 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			archive_le32enc(d + 4, 0);/* no CRC.*/
 		else
 			archive_le32enc(d + 4, zip->entry_crc32);
-		if (zip->entry_uses_zip64) {
+		if (zip->entry_compressed_written > ZIP_4GB_MAX
+		    || zip->entry_uncompressed_written > ZIP_4GB_MAX
+		    || zip->flags & ZIP_FLAG_FORCE_ZIP64) {
 			archive_le64enc(d + 8,
 				(uint64_t)zip->entry_compressed_written);
 			archive_le64enc(d + 16,
@@ -1224,23 +1224,60 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			return (ARCHIVE_FATAL);
 	}
 
-	/* Append Zip64 extra data to central directory information. */
-	if (zip->entry_compressed_written > ZIP_4GB_MAX
-	    || zip->entry_uncompressed_written > ZIP_4GB_MAX
+	/* UT timestamp: Info-Zip specifies that _only_ the mtime should
+	 * be recorded here; ctime and atime are also included in the
+	 * local file descriptor. */
+	if (archive_entry_mtime_is_set(zip->entry)) {
+		unsigned char ut[9];
+		unsigned char *u = ut, *ud;
+		memcpy(u, "UT\005\000\001", 5);
+		u += 5;
+		archive_le32enc(u, (uint32_t)archive_entry_mtime(zip->entry));
+		u += 4;
+		ud = cd_alloc(zip, u - ut);
+		if (ud == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+					  "Can't allocate zip data");
+			return (ARCHIVE_FATAL);
+		}
+		memcpy(ud, ut, u - ut);
+	}
+
+	/* Fill in size information in the central directory entry. */
+	/* Fix up central directory file header. */
+	if (zip->cctx_valid && zip->aes_vendor == AES_VENDOR_AE_2)
+		archive_le32enc(zip->file_header + 16, 0);/* no CRC.*/
+	else
+		archive_le32enc(zip->file_header + 16, zip->entry_crc32);
+	/* Truncate to 32 bits; we'll fix up below. */
+	archive_le32enc(zip->file_header + 20, (uint32_t)zip->entry_compressed_written);
+	archive_le32enc(zip->file_header + 24, (uint32_t)zip->entry_uncompressed_written);
+	archive_le16enc(zip->file_header + 30,
+	    (uint16_t)(zip->central_directory_bytes - zip->file_header_extra_offset));
+	archive_le32enc(zip->file_header + 42, (uint32_t)zip->entry_offset);
+
+	/* If any of the values immediately above are too large, we'll
+	 * need to put the corresponding value in a Zip64 extra field
+	 * and set the central directory value to 0xffffffff as a flag. */
+	if (zip->entry_compressed_written >= ZIP_4GB_MAX
+	    || zip->entry_uncompressed_written >= ZIP_4GB_MAX
 	    || zip->entry_offset > ZIP_4GB_MAX) {
 		unsigned char zip64[32];
 		unsigned char *z = zip64, *zd;
 		memcpy(z, "\001\000\000\000", 4);
 		z += 4;
 		if (zip->entry_uncompressed_written >= ZIP_4GB_MAX) {
+			archive_le32enc(zip->file_header + 24, ZIP_4GB_MAX);
 			archive_le64enc(z, zip->entry_uncompressed_written);
 			z += 8;
 		}
 		if (zip->entry_compressed_written >= ZIP_4GB_MAX) {
+			archive_le32enc(zip->file_header + 20, ZIP_4GB_MAX);
 			archive_le64enc(z, zip->entry_compressed_written);
 			z += 8;
 		}
 		if (zip->entry_offset >= ZIP_4GB_MAX) {
+			archive_le32enc(zip->file_header + 42, ZIP_4GB_MAX);
 			archive_le64enc(z, zip->entry_offset);
 			z += 8;
 		}

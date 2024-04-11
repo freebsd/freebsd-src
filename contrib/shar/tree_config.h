@@ -21,8 +21,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 #ifndef TREE_CONFIG_H_INCLUDED
 #define	TREE_CONFIG_H_INCLUDED
@@ -56,14 +54,6 @@
  */
 #error Oops: No config.h and no built-in configuration in bsdtar_platform.h.
 #endif /* !HAVE_CONFIG_H */
-
-/* No non-FreeBSD platform will have __FBSDID, so just define it here. */
-#ifdef __FreeBSD__
-#include <sys/cdefs.h>  /* For __FBSDID */
-#else
-/* Just leaving this macro replacement empty leads to a dangling semicolon. */
-#define	__FBSDID(a)     struct _undefined_hack
-#endif
 
 #ifdef HAVE_LIBARCHIVE
 /* If we're using the platform libarchive, include system headers. */

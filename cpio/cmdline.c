@@ -26,7 +26,6 @@
 
 
 #include "cpio_platform.h"
-__FBSDID("$FreeBSD: src/usr.bin/cpio/cmdline.c,v 1.5 2008/12/06 07:30:40 kientzle Exp $");
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>

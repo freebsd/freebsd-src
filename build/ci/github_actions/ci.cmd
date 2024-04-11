@@ -1,8 +1,7 @@
 @ECHO OFF
-SET ZLIB_VERSION=1.2.13
+SET ZLIB_VERSION=1.3
 SET BZIP2_VERSION=1ea1ac188ad4b9cb662e3f8314673c63df95a589
 SET XZ_VERSION=5.4.4
-SET ZSTD_VERSION=1.5.5
 IF NOT "%BE%"=="mingw-gcc" (
   IF NOT "%BE%"=="msvc" (
     ECHO Environment variable BE must be mingw-gcc or msvc
@@ -10,9 +9,18 @@ IF NOT "%BE%"=="mingw-gcc" (
   )
 )
 
+REM v1.5.6 has a bug with the CMake files & MSVC
+REM https://github.com/facebook/zstd/issues/3999
+REM Fall back to 1.5.5 for MSVC until fixed
+IF "%BE%"=="msvc" (
+  SET ZSTD_VERSION=1.5.5
+) ELSE (
+  SET ZSTD_VERSION=1.5.6
+)
+
 SET ORIGPATH=%PATH%
 IF "%BE%"=="mingw-gcc" (
-  SET MINGWPATH=C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+  SET MINGWPATH=C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\Program Files\cmake\bin;C:\ProgramData\mingw64\mingw64\bin
 )
 
 IF "%1"=="deplibs" (

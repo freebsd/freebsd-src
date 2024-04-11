@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.7.2dev])
-m4_define([LIBARCHIVE_VERSION_N],[3007002])
+m4_define([LIBARCHIVE_VERSION_S],[3.7.3])
+m4_define([LIBARCHIVE_VERSION_N],[3007003])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -461,7 +461,7 @@ if test "x$with_zstd" != "xno"; then
   AC_CHECK_HEADERS([zstd.h])
   AC_CHECK_LIB(zstd,ZSTD_decompressStream)
   AC_CHECK_LIB(zstd,ZSTD_compressStream,
-    AC_DEFINE([HAVE_LIBZSTD_COMPRESSOR], [1], [Define to 1 if you have the `zstd' library (-lzstd) with compression support.]))
+    AC_DEFINE([HAVE_ZSTD_compressStream], [1], [Define to 1 if you have the `zstd' library (-lzstd) with compression support.]))
 fi
 
 AC_ARG_WITH([lzma],
@@ -482,7 +482,7 @@ if test "x$with_lzma" != "xno"; then
                        [#if LZMA_VERSION < 50020000]
                        [#error unsupported]
                        [#endif]],
-                      [[lzma_stream_encoder_mt(0, 0);]])],
+                      [[int ignored __attribute__((unused)); ignored = lzma_stream_encoder_mt(0, 0);]])],
       [ac_cv_lzma_has_mt=yes], [ac_cv_lzma_has_mt=no])])
   if test "x$ac_cv_lzma_has_mt" != xno; then
 	  AC_DEFINE([HAVE_LZMA_STREAM_ENCODER_MT], [1], [Define to 1 if you have the `lzma_stream_encoder_mt' function.])
@@ -552,6 +552,7 @@ AC_ARG_ENABLE([posix-regex-lib],
   AS_HELP_STRING([--enable-posix-regex-lib=libc], [use libc POSIX regular expression support])
   AS_HELP_STRING([--enable-posix-regex-lib=libregex], [use libregex POSIX regular expression support])
   AS_HELP_STRING([--enable-posix-regex-lib=libpcreposix], [use libpcreposix POSIX regular expression support])
+  AS_HELP_STRING([--enable-posix-regex-lib=libpcre2posix], [use libpcre2-posix POSIX regular expression support])
   AS_HELP_STRING([--disable-posix-regex-lib], [don't enable POSIX regular expression support])],
   [], [enable_posix_regex_lib=auto])
 
@@ -603,6 +604,39 @@ if test -z $posix_regex_lib_found && (test "$enable_posix_regex_lib" = "auto" ||
     posix_regex_lib_found=1
   fi
 fi
+if test -z $posix_regex_lib_found && (test "$enable_posix_regex_lib" = "auto" || test "$enable_posix_regex_lib" = "libpcre2posix"); then
+  AC_CHECK_HEADERS([pcre2posix.h])
+  AC_CHECK_LIB(pcre2-posix,regcomp)
+  if test "x$ac_cv_lib_pcre2posix_regcomp" != xyes; then
+    AC_MSG_NOTICE(trying libpcre2posix check again with libpcre2-8)
+	unset ac_cv_lib_pcre2posix_regcomp
+	AC_CHECK_LIB(pcre2,pcre2_regexec)
+    AC_CHECK_LIB(pcre2-posix,pcre2_regcomp)
+    if test "x$ac_cv_lib_pcre2_pcre_exec" = xyes && test "x$ac_cv_lib_pcre2posix_regcomp" = xyes; then
+      AC_MSG_CHECKING(if PCRE2_STATIC needs to be defined)
+      AC_LINK_IFELSE(
+        [AC_LANG_SOURCE(#include <pcre2posix.h>
+          int main() { return pcre2_regcomp(NULL, NULL, 0); })],
+        [without_pcre2_static=yes],
+        [without_pcre2_static=no])
+      AC_LINK_IFELSE(
+        [AC_LANG_SOURCE(#define PCRE2_STATIC
+          #include <pcre2posix.h>
+          int main() { return pcre2_regcomp(NULL, NULL, 0); })],
+        [with_pcre2_static=yes],
+        [with_pcre2_static=no])
+      if test "x$without_pcre2_static" != xyes && test "x$with_pcre2_static" = xyes; then
+        AC_MSG_RESULT(yes)
+        AC_DEFINE([PCRE2_STATIC], [1], [Define to 1 if PCRE2_STATIC needs to be defined.])
+      elif test "x$without_pcre2_static" = xyes || test "x$with_pcre2_static" = xyes; then
+        AC_MSG_RESULT(no)
+      fi
+      posix_regex_lib_found=1
+    fi
+  else
+    posix_regex_lib_found=1
+  fi
+fi
 
 # TODO: Give the user the option of using a pre-existing system
 # libarchive.  This will define HAVE_LIBARCHIVE which will cause
@@ -614,21 +648,35 @@ fi
 # Checks for supported compiler flags
 AX_APPEND_COMPILE_FLAGS([-Wall -Wformat -Wformat-security])
 
-# Place the functions and data into separate sections, allowing the linker
-# to garbage collect the unused ones.
+# Place the functions and data into separate sections, allowing GNU style
+# linkers to garbage collect the unused ones.
 save_LDFLAGS=$LDFLAGS
 LDFLAGS="$LDFLAGS -Wl,--gc-sections"
 AC_MSG_CHECKING([whether ld supports --gc-sections])
 AC_LINK_IFELSE(
     [AC_LANG_SOURCE([static char UnusedFunc() { return 5; } int main() { return 0;}])],
     [AC_MSG_RESULT([yes])
-        GC_SECTIONS="-Wl,--gc-sections";
+        DEAD_CODE_REMOVAL="-Wl,--gc-sections";
         AX_APPEND_COMPILE_FLAGS([-ffunction-sections -fdata-sections])],
     [AC_MSG_RESULT([no])
-        GC_SECTIONS="";])
+        DEAD_CODE_REMOVAL="";])
 LDFLAGS=$save_LDFLAGS
 
-AC_SUBST(GC_SECTIONS)
+if test "$DEAD_CODE_REMOVAL" == ""; then
+    # Macos linkers have a -dead_strip flag, which is similar to --gc-sections.
+    save_LDFLAGS=$LDFLAGS
+    LDFLAGS="$LDFLAGS -Wl,-dead_strip"
+    AC_MSG_CHECKING([whether ld supports -dead_strip])
+    AC_LINK_IFELSE(
+        [AC_LANG_SOURCE([static char UnusedFunc() { return 5; } int main() { return 0;}])],
+        [AC_MSG_RESULT([yes])
+            DEAD_CODE_REMOVAL="-Wl,-dead_strip";],
+        [AC_MSG_RESULT([no])
+            DEAD_CODE_REMOVAL="";])
+    LDFLAGS=$save_LDFLAGS
+fi
+
+AC_SUBST(DEAD_CODE_REMOVAL)
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST

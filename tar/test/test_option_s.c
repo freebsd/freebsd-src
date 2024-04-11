@@ -23,7 +23,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/usr.bin/tar/test/test_option_T.c,v 1.3 2008/08/15 06:12:02 kientzle Exp $");
 
 DEFINE_TEST(test_option_s)
 {
@@ -87,6 +86,17 @@ DEFINE_TEST(test_option_s)
 	    testprog);
 	assertFileContents("foo", 3, "test4/in/d1/bar");
 	assertFileContents("bar", 3, "test4/in/d1/baz");
+
+	/*
+	 * Test 4b: Multiple substitutions behavior with option b).
+	 */
+	assertMakeDir("test4b", 0755);
+	systemf("%s -cf test4b.tar in/d1/foo in/d1/bar",
+	    testprog);
+	systemf("%s -xf test4b.tar -s /oo/ar/ -s }ar}az}b -C test4b",
+	    testprog);
+	assertFileContents("foo", 3, "test4b/in/d1/faz");
+	assertFileContents("bar", 3, "test4b/in/d1/baz");
 
 	/*
 	 * Test 5: Name-switching substitutions when extracting archive.

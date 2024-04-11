@@ -83,6 +83,7 @@ static void printhelp()
 	    "  -f filename	Filename to verify\n"
 	    "  -h		Show this help\n"
 	    "  -q		Quiet mode\n"
+	    "  -r		Enforce raw archive format\n"
 	    "  -s		Verify only headers (skip data)\n\n"
 	    "If no filename is specified, data is read from standard input.\n"
 	    "\n%s\n", archive_version_details());
@@ -110,15 +111,17 @@ int main(int argc, char *argv[])
 	const char *p;
 	char buffer[4096];
 	int c;
-	int v, skip_data;
+	int v, skip_data, raw;
 	int r = ARCHIVE_OK;
 	int format_printed;
+	mode_t mode;
 
 	filename = NULL;
 	skip_data = 0;
+	raw = 0;
 	v = 1;
 
-	while ((c = getopt (argc, argv, "f:hqs")) != -1) {
+	while ((c = getopt (argc, argv, "f:hrqs")) != -1) {
 		switch (c) {
 			case 'f':
 				filename = optarg;
@@ -128,6 +131,9 @@ int main(int argc, char *argv[])
 				exit(0);
 			case 'q':
 				v = 0;
+				break;
+			case 'r':
+				raw = 1;
 				break;
 			case 's':
 				skip_data = 1;
@@ -153,7 +159,10 @@ int main(int argc, char *argv[])
 	a = archive_read_new();
 
 	archive_read_support_filter_all(a);
-	archive_read_support_format_all(a);
+	if (raw)
+		archive_read_support_format_raw(a);
+	else
+		archive_read_support_format_all(a);
 
 	v_print(v, "Data source: ");
 
@@ -191,11 +200,13 @@ int main(int argc, char *argv[])
 		if (r == ARCHIVE_EOF)
 			break;
 		p = archive_entry_pathname(entry);
+		mode = archive_entry_mode(entry);
 		v_print(v, "Entry %d: %s, pathname", c, errnostr(r));
 		if (p == NULL || p[0] == '\0')
 			v_print(v, " unreadable");
 		else
 			v_print(v, ": %s", p);
+		v_print(v, ", mode: %o", mode);
 		v_print(v, ", data: ");
 		if (skip_data) {
 			v_print(v, "skipping");

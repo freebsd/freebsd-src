@@ -43,7 +43,6 @@
  * regular dir or via fchdir(2) for a symlink).
  */
 #include "tree_config.h"
-__FBSDID("$FreeBSD$");
 
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>

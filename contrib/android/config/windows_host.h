@@ -442,6 +442,12 @@
 /* Define to 1 if you have the `pcreposix' library (-lpcreposix). */
 /* #undef HAVE_LIBPCREPOSIX */
 
+/* Define to 1 if you have the `pcre2-8' library (-lpcre2-8). */
+/* #undef HAVE_LIBPCRE2 */
+
+/* Define to 1 if you have the `pcre2-posix' library (-lpcre2-posix). */
+/* #undef HAVE_LIBPCRE2POSIX */
+
 /* Define to 1 if you have the `regex' library (-lregex). */
 /* #undef HAVE_LIBREGEX */
 
@@ -592,6 +598,9 @@
 
 /* Define to 1 if you have the <pcreposix.h> header file. */
 /* #undef HAVE_PCREPOSIX_H */
+
+/* Define to 1 if you have the <pcre2posix.h> header file. */
+/* #undef HAVE_PCRE2POSIX_H */
 
 /* Define to 1 if you have the `pipe' function. */
 /* #undef HAVE_PIPE */

@@ -1,5 +1,3 @@
-$FreeBSD: src/lib/libarchive/test/README,v 1.3 2008/01/01 22:28:04 kientzle Exp $
-
 This is the test harness for libarchive.
 
 It compiles into a single program "libarchive_test" that is intended

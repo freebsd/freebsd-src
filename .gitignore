@@ -47,6 +47,7 @@ CMakeCache.txt
 CMakeFiles/
 DartConfiguration.tcl
 cmake.tmp/
+.vscode/
 
 doc/html/*.html
 doc/man/*.1
@@ -74,3 +75,5 @@ test-suite.log
 
 .sw?
 .*.sw?
+
+*.pdb

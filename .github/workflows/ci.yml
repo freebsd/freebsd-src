@@ -2,6 +2,9 @@ name: CI
 
 on: [push, pull_request]
 
+permissions:
+  contents: read
+
 jobs:
   MacOS:
     runs-on: macos-13
@@ -9,7 +12,7 @@ jobs:
       matrix:
         bs: [autotools, cmake]
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
     - name: Install dependencies
       run: ./build/ci/github_actions/macos.sh prepare
     - name: Autogen
@@ -32,6 +35,7 @@ jobs:
         SKIP_OPEN_FD_ERR_TEST: 1
         IGNORE_TRAVERSALS_TEST4: 1
         MAKE_ARGS: -j
+        CTEST_OUTPUT_ON_FAILURE: ON
     - name: Install
       run: ./build/ci/build.sh -a install
       env:
@@ -41,7 +45,7 @@ jobs:
       run: ./build/ci/build.sh -a artifact
       env:
         BS: ${{ matrix.bs }}
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
       with:
         name: libarchive-macos-${{ matrix.bs }}-${{ github.sha }}
         path: libarchive.tar.xz
@@ -53,7 +57,7 @@ jobs:
         bs: [autotools, cmake]
         crypto: [mbedtls, nettle, openssl]
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
     - name: Update apt cache
       run: sudo apt-get update
     - name: Install dependencies
@@ -78,6 +82,7 @@ jobs:
         BS: ${{ matrix.bs }}
         SKIP_OPEN_FD_ERR_TEST: 1
         MAKE_ARGS: -j
+        CTEST_OUTPUT_ON_FAILURE: ON
     - name: Install
       run: ./build/ci/build.sh -a install
       env:
@@ -86,14 +91,14 @@ jobs:
       run: ./build/ci/build.sh -a artifact
       env:
         BS: ${{ matrix.bs }}
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
       with:
         name: libarchive-ubuntu-${{ matrix.bs }}-${{ matrix.crypto }}-${{ github.sha }}
         path: libarchive.tar.xz
   Ubuntu-distcheck:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
     - name: Update package definitions
       run: sudo apt-get update
     - name: Install dependencies
@@ -108,7 +113,7 @@ jobs:
         SKIP_OPEN_FD_ERR_TEST: 1
     - name: Dist-Artifact
       run: ./build/ci/build.sh -a dist-artifact
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
       with:
         name: libarchive-${{ github.sha }}
         path: libarchive-dist.tar
@@ -116,11 +121,16 @@ jobs:
   Windows:
     runs-on: windows-2022
     strategy:
+      fail-fast: false
       matrix:
         be: [mingw-gcc, msvc]
     steps:
-    - uses: actions/checkout@master
-    - name: Install dependencies
+    - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
+    - name: Install mingw
+      if:  ${{ matrix.be=='mingw-gcc' }}
+      run: choco install mingw
+      shell: cmd
+    - name: Install library dependencies
       run: ./build/ci/github_actions/ci.cmd deplibs
       shell: cmd
       env:
@@ -140,6 +150,7 @@ jobs:
       shell: cmd
       env:
         BE: ${{ matrix.be }}
+        CTEST_OUTPUT_ON_FAILURE: ON
     - name: Install
       run: ./build/ci/github_actions/ci.cmd install
       shell: cmd
@@ -150,7 +161,7 @@ jobs:
       shell: cmd
       env:
         BE: ${{ matrix.be }}
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
       with:
         name: libarchive-windows-${{ matrix.be }}-${{ github.sha }}
         path: libarchive.zip

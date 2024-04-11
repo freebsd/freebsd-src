@@ -24,7 +24,6 @@
  */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.93 2008/11/08 04:43:24 kientzle Exp $");
 
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
@@ -114,11 +113,11 @@ need_report(void)
 }
 #endif
 
-static void		 long_help(void) __LA_DEAD;
+static __LA_NORETURN void		 long_help(void);
 static void		 only_mode(struct bsdtar *, const char *opt,
 			     const char *valid);
 static void		 set_mode(struct bsdtar *, char opt);
-static void		 version(void) __LA_DEAD;
+static __LA_NORETURN void		 version(void);
 
 /* A basic set of security flags to request from libarchive. */
 #define	SECURITY					\
@@ -155,7 +154,7 @@ main(int argc, char **argv)
 	char			 compression, compression2;
 	const char		*compression_name, *compression2_name;
 	const char		*compress_program;
-	char			*tptr;
+	char			*tptr, *uptr;
 	char			 possible_help_request;
 	char			 buff[16];
 
@@ -382,6 +381,36 @@ main(int argc, char **argv)
 		case OPTION_GNAME: /* cpio */
 			bsdtar->gname = bsdtar->argument;
 			break;
+		case OPTION_GROUP: /* GNU tar */
+			errno = 0;
+			tptr = NULL;
+
+			uptr = strchr(bsdtar->argument, ':');
+			if(uptr != NULL) {
+				if(uptr[1] == 0) {
+					lafe_errc(1, 0, "Invalid argument to --group (missing id after :)");
+				}
+				uptr[0] = 0;
+				uptr++;
+				t = (int)strtol(uptr, &tptr, 10);
+				if (errno || t < 0 || *uptr == '\0' ||
+				    tptr == NULL || *tptr != '\0') {
+					lafe_errc(1, 0, "Invalid argument to --group (%s is not a number)", uptr);
+				} else {
+					bsdtar->gid = t;
+				}
+				bsdtar->gname = bsdtar->argument;
+			} else {
+				t = (int)strtol(bsdtar->argument, &tptr, 10);
+				if (errno || t < 0 || *(bsdtar->argument) == '\0' ||
+				    tptr == NULL || *tptr != '\0') {
+					bsdtar->gname = bsdtar->argument;
+				} else {
+					bsdtar->gid = t;
+					bsdtar->gname = "";
+				}
+			}
+			break;
 		case OPTION_GRZIP:
 			if (compression != '\0')
 				lafe_errc(1, 0,
@@ -400,8 +429,7 @@ main(int argc, char **argv)
 			break;
 		case OPTION_HELP: /* GNU tar, others */
 			long_help();
-			exit(0);
-			break;
+			/* NOTREACHED*/
 		case OPTION_HFS_COMPRESSION: /* Mac OS X v10.6 or later */
 			bsdtar->extract_flags |=
 			    ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED;
@@ -626,7 +654,42 @@ main(int argc, char **argv)
 			    ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS;
 			break;
 		case OPTION_OPTIONS:
+			if (bsdtar->option_options != NULL) {
+				lafe_warnc(0,
+				    "Ignoring previous option '%s', separate multiple options with commas",
+				    bsdtar->option_options);
+			}
 			bsdtar->option_options = bsdtar->argument;
+			break;
+		case OPTION_OWNER: /* GNU tar */
+			errno = 0;
+			tptr = NULL;
+
+			uptr = strchr(bsdtar->argument, ':');
+			if(uptr != NULL) {
+				if(uptr[1] == 0) {
+					lafe_errc(1, 0, "Invalid argument to --owner (missing id after :)");
+				}
+				uptr[0] = 0;
+				uptr++;
+				t = (int)strtol(uptr, &tptr, 10);
+				if (errno || t < 0 || *uptr == '\0' ||
+				    tptr == NULL || *tptr != '\0') {
+					lafe_errc(1, 0, "Invalid argument to --owner (%s is not a number)", uptr);
+				} else {
+					bsdtar->uid = t;
+				}
+				bsdtar->uname = bsdtar->argument;
+			} else {
+				t = (int)strtol(bsdtar->argument, &tptr, 10);
+				if (errno || t < 0 || *(bsdtar->argument) == '\0' ||
+				    tptr == NULL || *tptr != '\0') {
+					bsdtar->uname = bsdtar->argument;
+				} else {
+					bsdtar->uid = t;
+					bsdtar->uname = "";
+				}
+			}
 			break;
 #if 0
 		/*
@@ -670,7 +733,7 @@ main(int argc, char **argv)
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_SPARSE;
 			break;
 		case 's': /* NetBSD pax-as-tar */
-#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H)
+#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H) || defined(HAVE_PCRE2POSIX_H)
 			add_substitution(bsdtar, bsdtar->argument);
 #else
 			lafe_warnc(0,
@@ -738,7 +801,7 @@ main(int argc, char **argv)
 			break;
 		case OPTION_VERSION: /* GNU convention */
 			version();
-			break;
+			/* NOTREACHED */
 #if 0
 		/*
 		 * The -W longopt feature is handled inside of
@@ -804,7 +867,6 @@ main(int argc, char **argv)
 	/* If no "real" mode was specified, treat -h as --help. */
 	if ((bsdtar->mode == '\0') && possible_help_request) {
 		long_help();
-		exit(0);
 	}
 
 	/* Otherwise, a mode is required. */
@@ -950,7 +1012,7 @@ main(int argc, char **argv)
 	}
 
 	archive_match_free(bsdtar->matching);
-#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H)
+#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H) || defined(HAVE_PCRE2POSIX_H)
 	cleanup_substitution(bsdtar);
 #endif
 	cset_free(bsdtar->cset);

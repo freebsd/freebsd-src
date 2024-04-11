@@ -495,6 +495,11 @@ uint8_t bf_is_table_present(const struct compressed_block_header* hdr) {
 	return (hdr->block_flags_u8 >> 7) & 1;
 }
 
+static inline
+uint8_t bf_is_last_block(const struct compressed_block_header* hdr) {
+	return (hdr->block_flags_u8 >> 6) & 1;
+}
+
 static inline struct rar5* get_context(struct archive_read* a) {
 	return (struct rar5*) a->format->data;
 }
@@ -3757,7 +3762,12 @@ static int do_uncompress_file(struct archive_read* a) {
 			if(rar->cstate.last_write_ptr ==
 			    rar->cstate.write_ptr) {
 				/* The block didn't generate any new data,
-				 * so just process a new block. */
+				 * so just process a new block if this one
+				 * wasn't the last block in the file. */
+				if (bf_is_last_block(&rar->last_block_hdr)) {
+					return ARCHIVE_EOF;
+				}
+
 				continue;
 			}
 

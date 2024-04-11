@@ -24,7 +24,6 @@
  */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD: src/usr.bin/tar/util.c,v 1.23 2008/12/15 06:00:25 kientzle Exp $");
 
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -471,7 +470,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	const char *original_name = name;
 	const char *hardlinkname = archive_entry_hardlink(entry);
 	const char *original_hardlinkname = hardlinkname;
-#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H)
+#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H) || defined(HAVE_PCRE2POSIX_H)
 	char *subst_name;
 	int r;
 

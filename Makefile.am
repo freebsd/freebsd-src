@@ -289,7 +289,7 @@ endif
 
 # -no-undefined marks that libarchive doesn't rely on symbols
 # defined in the application.  This is mandatory for cygwin.
-libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION) $(GC_SECTIONS)
+libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION) $(DEAD_CODE_REMOVAL)
 libarchive_la_LIBADD= $(LTLIBICONV)
 
 # Manpages to install
@@ -454,6 +454,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_filter_program.c \
 	libarchive/test/test_read_filter_program_signature.c \
 	libarchive/test/test_read_filter_uudecode.c \
+	libarchive/test/test_read_filter_uudecode_raw.c \
 	libarchive/test/test_read_format_7zip.c \
 	libarchive/test/test_read_format_7zip_encryption_data.c \
 	libarchive/test/test_read_format_7zip_encryption_partially.c \
@@ -632,13 +633,15 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_xar.c \
 	libarchive/test/test_write_format_xar_empty.c \
 	libarchive/test/test_write_format_zip.c \
+	libarchive/test/test_write_format_zip64_stream.c \
 	libarchive/test/test_write_format_zip_compression_store.c \
-	libarchive/test/test_write_format_zip_entry_size_unset.c \
 	libarchive/test/test_write_format_zip_empty.c \
 	libarchive/test/test_write_format_zip_empty_zip64.c \
+	libarchive/test/test_write_format_zip_entry_size_unset.c \
 	libarchive/test/test_write_format_zip_file.c \
 	libarchive/test/test_write_format_zip_file_zip64.c \
 	libarchive/test/test_write_format_zip_large.c \
+	libarchive/test/test_write_format_zip_stream.c \
 	libarchive/test/test_write_format_zip_zip64.c \
 	libarchive/test/test_write_open_memory.c \
 	libarchive/test/test_write_read_format_zip.c \
@@ -689,6 +692,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_lz4_B7BD.tar.lz4.uu \
 	libarchive/test/test_compat_lzip_1.tlz.uu \
 	libarchive/test/test_compat_lzip_2.tlz.uu \
+	libarchive/test/test_compat_lzip_3.lz.uu \
+	libarchive/test/test_compat_lzip_4.tlz.uu \
 	libarchive/test/test_compat_lzma_1.tlz.uu \
 	libarchive/test/test_compat_lzma_2.tlz.uu \
 	libarchive/test/test_compat_lzma_3.tlz.uu \
@@ -748,6 +753,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_filter_lrzip.tar.lrz.uu \
 	libarchive/test/test_read_filter_lzop.tar.lzo.uu \
 	libarchive/test/test_read_filter_lzop_multiple_parts.tar.lzo.uu \
+	libarchive/test/test_read_filter_uudecode_raw.uu \
+	libarchive/test/test_read_filter_uudecode_base64_raw.uu \
 	libarchive/test/test_read_format_mtree_crash747.mtree.bz2.uu \
 	libarchive/test/test_read_format_mtree_noprint.mtree.uu \
 	libarchive/test/test_read_format_7zip_bcj2_bzip2.7z.uu \
@@ -790,6 +797,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_ppmd.7z.uu \
 	libarchive/test/test_read_format_7zip_solid_zstd.7z.uu \
 	libarchive/test/test_read_format_7zip_symbolic_name.7z.uu \
+	libarchive/test/test_read_format_7zip_win_attrib.7z.uu \
 	libarchive/test/test_read_format_7zip_zstd_arm.7z.uu \
 	libarchive/test/test_read_format_7zip_zstd_bcj.7z.uu \
 	libarchive/test/test_read_format_7zip_zstd_nobcj.7z.uu \
@@ -1046,7 +1054,7 @@ endif
 
 bsdtar_LDADD= libarchive.la libarchive_fe.la $(LTLIBICONV)
 bsdtar_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdtar_ccstatic) $(PLATFORMCPPFLAGS)
-bsdtar_LDFLAGS= $(bsdtar_ldstatic) $(GC_SECTIONS)
+bsdtar_LDFLAGS= $(bsdtar_ldstatic) $(DEAD_CODE_REMOVAL)
 
 bsdtar_EXTRA_DIST= \
 	tar/bsdtar.1 \
@@ -1106,6 +1114,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_exclude_vcs.c \
 	tar/test/test_option_fflags.c \
 	tar/test/test_option_gid_gname.c \
+	tar/test/test_option_group.c \
 	tar/test/test_option_grzip.c \
 	tar/test/test_option_ignore_zeros.c \
 	tar/test/test_option_j.c \
@@ -1119,6 +1128,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_newer_than.c \
 	tar/test/test_option_nodump.c \
 	tar/test/test_option_older_than.c \
+	tar/test/test_option_owner.c \
 	tar/test/test_option_passphrase.c \
 	tar/test/test_option_q.c \
 	tar/test/test_option_r.c \
@@ -1212,7 +1222,7 @@ endif
 
 bsdcpio_LDADD= libarchive_fe.la libarchive.la $(LTLIBICONV)
 bsdcpio_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdcpio_ccstatic) $(PLATFORMCPPFLAGS)
-bsdcpio_LDFLAGS= $(bsdcpio_ldstatic) $(GC_SECTIONS)
+bsdcpio_LDFLAGS= $(bsdcpio_ldstatic) $(DEAD_CODE_REMOVAL)
 
 bsdcpio_EXTRA_DIST= \
 	cpio/bsdcpio.1 \
@@ -1366,7 +1376,7 @@ endif
 
 bsdcat_LDADD= libarchive_fe.la libarchive.la $(LTLIBICONV)
 bsdcat_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdcat_ccstatic) $(PLATFORMCPPFLAGS)
-bsdcat_LDFLAGS= $(bsdcat_ldstatic) $(GC_SECTIONS)
+bsdcat_LDFLAGS= $(bsdcat_ldstatic) $(DEAD_CODE_REMOVAL)
 
 bsdcat_EXTRA_DIST= \
 	cat/bsdcat.1 \
@@ -1474,7 +1484,7 @@ endif
 
 bsdunzip_LDADD= libarchive_fe.la libarchive.la $(LTLIBICONV)
 bsdunzip_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdunzip_ccstatic) $(PLATFORMCPPFLAGS)
-bsdunzip_LDFLAGS= $(bsdunzip_ldstatic) $(GC_SECTIONS)
+bsdunzip_LDFLAGS= $(bsdunzip_ldstatic) $(DEAD_CODE_REMOVAL)
 
 bsdunzip_EXTRA_DIST= \
 	unzip/bsdunzip.1 \
@@ -1499,6 +1509,7 @@ bsdunzip_test_SOURCES= \
 	unzip/test/test.h \
 	unzip/test/test_0.c \
 	unzip/test/test_basic.c \
+	unzip/test/test_doubledash.c \
 	unzip/test/test_glob.c \
 	unzip/test/test_not_exist.c \
 	unzip/test/test_singlefile.c \
@@ -1515,7 +1526,8 @@ bsdunzip_test_SOURCES= \
 	unzip/test/test_version.c \
 	unzip/test/test_x.c \
 	unzip/test/test_Z1.c \
-	unzip/test/test_P_encryption.c
+	unzip/test/test_P_encryption.c \
+	unzip/test/test_I.c
 
 bsdunzip_test_CPPFLAGS= \
 	-I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe \
@@ -1543,4 +1555,5 @@ bsdunzip_test_EXTRA_DIST= \
 	unzip/test/test_encrypted.zip.uu \
 	unzip/test/test_singlefile.zip.uu \
 	unzip/test/test_t_bad.zip.uu \
+	unzip/test/test_I.zip.uu \
 	unzip/test/CMakeLists.txt

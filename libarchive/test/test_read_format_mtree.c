@@ -24,7 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_format_mtree.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 static void
 test_read_format_mtree1(void)

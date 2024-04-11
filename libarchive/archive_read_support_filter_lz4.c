@@ -25,8 +25,6 @@
 
 #include "archive_platform.h"
 
-__FBSDID("$FreeBSD$");
-
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -225,7 +223,7 @@ lz4_reader_init(struct archive_read_filter *self)
 	self->code = ARCHIVE_FILTER_LZ4;
 	self->name = "lz4";
 
-	state = (struct private_data *)calloc(sizeof(*state), 1);
+	state = (struct private_data *)calloc(1, sizeof(*state));
 	if (state == NULL) {
 		archive_set_error(&self->archive->archive, ENOMEM,
 		    "Can't allocate data for lz4 decompression");
@@ -449,8 +447,8 @@ lz4_filter_read_descriptor(struct archive_read_filter *self)
 	chsum = __archive_xxhash.XXH32(read_buf, (int)descriptor_bytes -1, 0);
 	chsum = (chsum >> 8) & 0xff;
 	chsum_verifier = read_buf[descriptor_bytes-1] & 0xff;
-	if (chsum != chsum_verifier)
 #ifndef DONT_FAIL_ON_CRC_ERROR
+	if (chsum != chsum_verifier)
 		goto malformed_error;
 #endif
 
@@ -522,8 +520,8 @@ lz4_filter_read_data_block(struct archive_read_filter *self, const void **p)
 			read_buf + 4, (int)compressed_size, 0);
 		unsigned int chsum_block =
 		    archive_le32dec(read_buf + 4 + compressed_size);
-		if (chsum != chsum_block)
 #ifndef DONT_FAIL_ON_CRC_ERROR
+		if (chsum != chsum_block)
 			goto malformed_error;
 #endif
 	}

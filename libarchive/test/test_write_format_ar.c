@@ -26,7 +26,6 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_format_ar.c 189308 2009-03-03 17:02:51Z kientzle $");
 
 static char buff[4096];
 static char buff2[64];

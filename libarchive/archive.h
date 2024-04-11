@@ -21,8 +21,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD: src/lib/libarchive/archive.h.in,v 1.50 2008/05/26 17:00:22 kientzle Exp $
  */
 
 #ifndef ARCHIVE_H_INCLUDED
@@ -36,7 +34,7 @@
  * assert that ARCHIVE_VERSION_NUMBER >= 2012108.
  */
 /* Note: Compiler will complain if this does not match archive_entry.h! */
-#define	ARCHIVE_VERSION_NUMBER 3007002
+#define	ARCHIVE_VERSION_NUMBER 3007003
 
 #include <sys/stat.h>
 #include <stddef.h>  /* for wchar_t */
@@ -157,7 +155,7 @@ __LA_DECL int		archive_version_number(void);
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_ONLY_STRING "3.7.2dev"
+#define	ARCHIVE_VERSION_ONLY_STRING "3.7.3"
 #define	ARCHIVE_VERSION_STRING "libarchive " ARCHIVE_VERSION_ONLY_STRING
 __LA_DECL const char *	archive_version_string(void);
 
@@ -535,6 +533,10 @@ __LA_DECL int archive_read_open_filenames(struct archive *,
 		     const char **_filenames, size_t _block_size);
 __LA_DECL int archive_read_open_filename_w(struct archive *,
 		     const wchar_t *_filename, size_t _block_size);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+__LA_DECL int archive_read_open_filenames_w(struct archive *,
+		     const wchar_t **_filenames, size_t _block_size);
+#endif
 /* archive_read_open_file() is a deprecated synonym for ..._open_filename(). */
 __LA_DECL int archive_read_open_file(struct archive *,
 		     const char *_filename, size_t _block_size) __LA_DEPRECATED;

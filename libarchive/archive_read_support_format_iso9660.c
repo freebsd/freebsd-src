@@ -26,7 +26,6 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_iso9660.c 201246 2009-12-30 05:30:35Z kientzle $");
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
@@ -3014,6 +3013,11 @@ heap_add_entry(struct archive_read *a, struct heap_queue *heap,
 {
 	uint64_t file_key, parent_key;
 	int hole, parent;
+
+	/* Reserve 16 bits for possible key collisions (needed for linked items) */
+	/* For ISO files with more than 65535 entries, reordering will still occur */
+	key <<= 16;
+	key += heap->used & 0xFFFF;
 
 	/* Expand our pending files list as necessary. */
 	if (heap->used >= heap->allocated) {

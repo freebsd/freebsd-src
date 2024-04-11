@@ -23,7 +23,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/usr.bin/tar/test/test_basic.c,v 1.2 2008/05/26 17:10:10 kientzle Exp $");
 
 static const char *
 make_files(void)

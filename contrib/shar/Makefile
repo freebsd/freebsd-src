@@ -1,5 +1,3 @@
-# $FreeBSD$
-
 PROG=	shar
 SRCS=	shar.c tree.c
 

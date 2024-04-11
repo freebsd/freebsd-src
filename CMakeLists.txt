@@ -6,6 +6,9 @@ endif()
 if(POLICY CMP0074)
   cmake_policy(SET CMP0074 NEW) #3.12.0 `find_package()`` uses ``<PackageName>_ROOT`` variables.
 endif()
+if(POLICY CMP0075)
+  cmake_policy(SET CMP0075 NEW) #3.12.0 `check_include_file()`` and friends use ``CMAKE_REQUIRED_LIBRARIES``.
+endif()
 #
 PROJECT(libarchive C)
 #
@@ -20,8 +23,9 @@ endif()
 #   Release        : Release build
 #   RelWithDebInfo : Release build with Debug Info
 #   MinSizeRel     : Release Min Size build
+#   None           : No build type
 IF(NOT CMAKE_BUILD_TYPE)
-  SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build Type" FORCE)
+  SET(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build Type" FORCE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
 # Set a value type to properly display CMAKE_BUILD_TYPE on GUI if the
 # value type is "UNINITIALIZED".
@@ -31,12 +35,12 @@ IF("${cached_type}" STREQUAL "UNINITIALIZED")
 ENDIF("${cached_type}" STREQUAL "UNINITIALIZED")
 # Check the Build Type.
 IF(NOT "${CMAKE_BUILD_TYPE}"
-       MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel)\$")
+       MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel|None)\$")
   MESSAGE(FATAL_ERROR
           "Unknown keyword for CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}\n"
-          "Acceptable keywords: Debug,Release,RelWithDebInfo,MinSizeRel")
+          "Acceptable keywords: Debug,Release,RelWithDebInfo,MinSizeRel,None")
 ENDIF(NOT "${CMAKE_BUILD_TYPE}"
-          MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel)\$")
+          MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel|None)\$")
 
 # On MacOS, prefer MacPorts libraries to system libraries.
 # I haven't come up with a compelling argument for this to be conditional.
@@ -124,8 +128,6 @@ IF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
   # either of the following two, yet neither is supported as of 3.0.2
   # - check_linker_flag - does not exist
   # - try_compile - does not support linker flags
-  #
-  # The CI fails with this on MacOS
   IF(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
     # Place the functions and data into separate sections, allowing the linker
     # to garbage collect the unused ones.
@@ -135,6 +137,9 @@ IF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
     # Printing the discarded section is "too much", so enable on demand.
     #SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -Wl,--print-gc-sections")
     #SET(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -Wl,--print-gc-sections")
+  ELSE()
+    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-dead_strip")
+    SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
   ENDIF(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
 ENDIF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
        CMAKE_C_COMPILER_ID MATCHES "^Clang$")
@@ -216,6 +221,7 @@ OPTION(ENABLE_BZip2 "Enable the use of the system BZip2 library if found" ON)
 OPTION(ENABLE_LIBXML2 "Enable the use of the system libxml2 library if found" ON)
 OPTION(ENABLE_EXPAT "Enable the use of the system EXPAT library if found" ON)
 OPTION(ENABLE_PCREPOSIX "Enable the use of the system PCREPOSIX library if found" ON)
+OPTION(ENABLE_PCRE2POSIX "Enable the use of the system PCRE2POSIX library if found" ON)
 OPTION(ENABLE_LIBGCC "Enable the use of the system LibGCC library if found" ON)
 # CNG is used for encrypt/decrypt Zip archives on Windows.
 OPTION(ENABLE_CNG "Enable the use of CNG(Crypto Next Generation)" ON)
@@ -523,7 +529,7 @@ IF(LIBLZMA_FOUND)
     "#include <lzma.h>\nint main() {return (int)lzma_version_number(); }"
     "WITHOUT_LZMA_API_STATIC;LZMA_API_STATIC")
   CHECK_C_SOURCE_COMPILES(
-    "#include <lzma.h>\n#if LZMA_VERSION < 50020000\n#error unsupported\n#endif\nint main(void){lzma_stream_encoder_mt(0, 0); return 0;}"
+    "#include <lzma.h>\n#if LZMA_VERSION < 50020000\n#error unsupported\n#endif\nint main(void){int ignored __attribute__((unused)); ignored = lzma_stream_encoder_mt(0, 0); return 0;}"
     HAVE_LZMA_STREAM_ENCODER_MT)
   IF(NOT WITHOUT_LZMA_API_STATIC AND LZMA_API_STATIC)
     ADD_DEFINITIONS(-DLZMA_API_STATIC)
@@ -654,7 +660,7 @@ IF(ZSTD_FOUND)
   SET(CMAKE_REQUIRED_LIBRARIES ${ZSTD_LIBRARY})
   SET(CMAKE_REQUIRED_INCLUDES ${ZSTD_INCLUDE_DIR})
   CHECK_FUNCTION_EXISTS(ZSTD_decompressStream HAVE_LIBZSTD)
-  CHECK_FUNCTION_EXISTS(ZSTD_compressStream HAVE_LIBZSTD_COMPRESSOR)
+  CHECK_FUNCTION_EXISTS(ZSTD_compressStream HAVE_ZSTD_compressStream)
   #
   # TODO: test for static library.
   #
@@ -1187,7 +1193,7 @@ ENDIF(ENABLE_ICONV)
 #
 # Find Libxml2
 #
-IF(ENABLE_LIBXML2)
+IF(ENABLE_LIBXML2 AND HAVE_ICONV)
   FIND_PACKAGE(LibXml2)
 ELSE()
   SET(LIBXML2_FOUND FALSE)
@@ -1347,6 +1353,68 @@ IF(NOT FOUND_POSIX_REGEX_LIB AND POSIX_REGEX_LIB MATCHES "^(AUTO|LIBPCREPOSIX)$"
   MARK_AS_ADVANCED(CLEAR PCRE_LIBRARIES)
   MARK_AS_ADVANCED(CLEAR LIBGCC_LIBRARIES)
 ENDIF(NOT FOUND_POSIX_REGEX_LIB AND POSIX_REGEX_LIB MATCHES "^(AUTO|LIBPCREPOSIX)$")
+
+IF(NOT FOUND_POSIX_REGEX_LIB AND POSIX_REGEX_LIB MATCHES "^(AUTO|LIBPCRE2POSIX)$")
+  #
+  # If requested, try finding library for PCRE2POSIX
+  #
+  IF(ENABLE_LIBGCC)
+    FIND_PACKAGE(LIBGCC)
+  ELSE()
+    MESSAGE(FATAL_ERROR "libgcc not found.")
+    SET(LIBGCC_FOUND FALSE) # Override cached value
+  ENDIF()
+  IF(ENABLE_PCRE2POSIX)
+    FIND_PACKAGE(PCRE2POSIX)
+  ELSE()
+    SET(PCRE2POSIX_FOUND FALSE) # Override cached value
+  ENDIF()
+  IF(PCRE2POSIX_FOUND)
+    INCLUDE_DIRECTORIES(${PCRE2_INCLUDE_DIR})
+    LIST(APPEND ADDITIONAL_LIBS ${PCRE2POSIX_LIBRARIES})
+    # Test if a macro is needed for the library.
+    TRY_MACRO_FOR_LIBRARY(
+      "${PCRE2_INCLUDE_DIR}" "${PCRE2POSIX_LIBRARIES}"
+      COMPILES
+      "#include <pcre2posix.h>\nint main() {regex_t r;return pcre2_regcomp(&r, \"\", 0);}"
+      "WITHOUT_PCRE2_STATIC;PCRE2_STATIC")
+    IF(NOT WITHOUT_PCRE2_STATIC AND PCRE2_STATIC)
+      ADD_DEFINITIONS(-DPCRE2_STATIC)
+	ELSEIF(NOT WITHOUT_PCRE2_STATIC AND NOT PCRE2_STATIC AND PCRE2_FOUND)
+	  # Determine if pcre2 static libraries are to be used.
+      LIST(APPEND ADDITIONAL_LIBS ${PCRE2_LIBRARIES})
+      SET(TMP_LIBRARIES ${PCRE2POSIX_LIBRARIES} ${PCRE2_LIBRARIES})
+      MESSAGE(STATUS "trying again with -lpcre2-8 included")
+      TRY_MACRO_FOR_LIBRARY(
+        "${PCRE2_INCLUDE_DIR}" "${TMP_LIBRARIES}"
+        COMPILES
+        "#include <pcre2posix.h>\nint main() {regex_t r;return pcre2_regcomp(&r, \"\", 0);}"
+        "WITHOUT_PCRE2_STATIC;PCRE2_STATIC")
+      IF(NOT WITHOUT_PCRE2_STATIC AND PCRE2_STATIC)
+        ADD_DEFINITIONS(-DPCRE2_STATIC)
+      ELSEIF(NOT WITHOUT_PCRE2_STATIC AND NOT PCRE2_STATIC AND MSVC AND LIBGCC_FOUND)
+        # When doing a Visual Studio build using pcre2 static libraries
+        # built using the mingw toolchain, -lgcc is needed to resolve
+        # ___chkstk_ms.
+        MESSAGE(STATUS "Visual Studio build detected, trying again with -lgcc included")
+        LIST(APPEND ADDITIONAL_LIBS ${LIBGCC_LIBRARIES})
+        SET(TMP_LIBRARIES ${PCRE2POSIX_LIBRARIES} ${PCRE2_LIBRARIES} ${LIBGCC_LIBRARIES})
+          TRY_MACRO_FOR_LIBRARY(
+            "${PCRE2_INCLUDE_DIR}" "${TMP_LIBRARIES}"
+            COMPILES
+            "#include <pcre2posix.h>\nint main() {regex_t r;return pcre2_regcomp(&r, \"\", 0);}"
+            "WITHOUT_PCRE2_STATIC;PCRE2_STATIC")
+          IF(NOT WITHOUT_PCRE2_STATIC AND PCRE2_STATIC)
+            ADD_DEFINITIONS(-DPCRE2_STATIC)
+          ENDIF(NOT WITHOUT_PCRE2_STATIC AND PCRE2_STATIC)
+      ENDIF(NOT WITHOUT_PCRE2_STATIC AND PCRE2_STATIC)
+    ENDIF(NOT WITHOUT_PCRE2_STATIC AND PCRE2_STATIC)
+  ENDIF(PCRE2POSIX_FOUND)
+  MARK_AS_ADVANCED(CLEAR PCRE2_INCLUDE_DIR)
+  MARK_AS_ADVANCED(CLEAR PCRE2POSIX_LIBRARIES)
+  MARK_AS_ADVANCED(CLEAR PCRE2_LIBRARIES)
+  MARK_AS_ADVANCED(CLEAR LIBGCC_LIBRARIES)
+ENDIF(NOT FOUND_POSIX_REGEX_LIB AND POSIX_REGEX_LIB MATCHES "^(AUTO|LIBPCRE2POSIX)$")
 
 #
 # Check functions

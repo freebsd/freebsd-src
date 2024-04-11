@@ -24,7 +24,6 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 static void
 test_exclusion_mbs(void)

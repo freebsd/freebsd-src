@@ -24,7 +24,6 @@
  */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD: src/usr.bin/tar/read.c,v 1.40 2008/08/21 06:41:14 kientzle Exp $");
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -372,8 +371,9 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			if (r != ARCHIVE_OK) {
 				if (!bsdtar->verbose)
 					safe_fprintf(stderr, "%s", archive_entry_pathname(entry));
-				fprintf(stderr, ": %s: ", archive_error_string(a));
-				fprintf(stderr, "%s", strerror(errno));
+				safe_fprintf(stderr, ": %s: %s",
+				    archive_error_string(a),
+				    strerror(archive_errno(a)));
 				if (!bsdtar->verbose)
 					fprintf(stderr, "\n");
 				bsdtar->return_value = 1;

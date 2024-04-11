@@ -23,7 +23,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/usr.bin/tar/test/test_strip_components.c,v 1.2 2008/11/10 05:24:13 kientzle Exp $");
 
 DEFINE_TEST(test_strip_components)
 {

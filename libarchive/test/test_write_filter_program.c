@@ -24,7 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_compress_program.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 static char buff[1000000];
 static char buff2[64];

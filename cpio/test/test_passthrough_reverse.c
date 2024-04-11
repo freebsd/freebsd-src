@@ -23,7 +23,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_passthrough_reverse.c,v 1.2 2008/08/24 06:21:00 kientzle Exp $");
 
 /*
  * As reported by Bernd Walter:  Some people are in the habit of

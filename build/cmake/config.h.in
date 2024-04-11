@@ -753,6 +753,12 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `pcreposix' library (-lpcreposix). */
 #cmakedefine HAVE_LIBPCREPOSIX 1
 
+/* Define to 1 if you have the `pcre2-8' library (-lpcre2-8). */
+#cmakedefine HAVE_LIBPCRE2 1
+
+/* Define to 1 if you have the `pcreposix' library (-lpcre2posix). */
+#cmakedefine HAVE_LIBPCRE2POSIX 1
+
 /* Define to 1 if you have the `xml2' library (-lxml2). */
 #cmakedefine HAVE_LIBXML2 1
 
@@ -768,9 +774,8 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `zstd' library (-lzstd). */
 #cmakedefine HAVE_LIBZSTD 1
 
-/* Define to 1 if you have the `zstd' library (-lzstd) with compression
-   support. */
-#cmakedefine HAVE_LIBZSTD_COMPRESSOR 1
+/* Define to 1 if you have the ZSTD_compressStream function. */
+#cmakedefine HAVE_ZSTD_compressStream 1
 
 /* Define to 1 if you have the <limits.h> header file. */
 #cmakedefine HAVE_LIMITS_H 1
@@ -925,6 +930,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the <pcreposix.h> header file. */
 #cmakedefine HAVE_PCREPOSIX_H 1
+
+/* Define to 1 if you have the <pcre2posix.h> header file. */
+#cmakedefine HAVE_PCRE2POSIX_H 1
 
 /* Define to 1 if you have the `pipe' function. */
 #cmakedefine HAVE_PIPE 1
