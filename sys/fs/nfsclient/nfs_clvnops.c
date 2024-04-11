@@ -2460,6 +2460,16 @@ nfs_readdir(struct vop_readdir_args *ap)
 	uio->uio_resid -= left;
 
 	/*
+	 * For readdirplus, if starting to read the directory,
+	 * purge the name cache, since it will be reloaded by
+	 * this directory read.
+	 * This removes potentially stale name cache entries.
+	 */
+	if (uio->uio_offset == 0 &&
+	    (VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_RDIRPLUS) != 0)
+		cache_purge(vp);
+
+	/*
 	 * Call ncl_bioread() to do the real work.
 	 */
 	tresid = uio->uio_resid;
