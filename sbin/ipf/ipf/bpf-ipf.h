@@ -86,7 +86,7 @@ struct bpf_stat {
  * bpf understands a program iff kernel_major == filter_major &&
  * kernel_minor >= filter_minor, that is, if the value returned by the
  * running kernel has the same major number and a minor number equal
- * equal to or less than the filter being downloaded.  Otherwise, the
+ * to or less than the filter being downloaded.  Otherwise, the
  * results are undefined, meaning an error may be returned or packets
  * may be accepted haphazardly.
  * It has nothing to do with the source code version.
