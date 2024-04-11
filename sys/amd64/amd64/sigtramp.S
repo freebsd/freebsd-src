@@ -91,7 +91,7 @@ ENTRY(__vdso_sigcode)
 	.cfi_def_cfa	%rsp, 8
 	movq	$SYS_sigreturn,%rax
 	syscall				/* enter kernel with args */
-0:	hlt				/* trap priviliged instruction */
+0:	hlt				/* trap privileged instruction */
 	jmp	0b
 	.cfi_endproc
 END(__vdso_sigcode)
