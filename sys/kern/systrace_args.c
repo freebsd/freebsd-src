@@ -3460,7 +3460,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[a++] = (intptr_t)p->data; /* char * */
 		uarg[a++] = (intptr_t)p->headers; /* char * */
 		iarg[a++] = p->reslen; /* int */
-		*n_args = 4;
+		*n_args = 5;
 		break;
 	}
 	default:
