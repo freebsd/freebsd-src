@@ -3060,7 +3060,6 @@ dev/smc/if_smc.c		optional smc
 dev/smc/if_smc_acpi.c		optional smc acpi
 dev/smc/if_smc_fdt.c		optional smc fdt
 dev/snp/snp.c			optional snp
-dev/sound/clone.c		optional sound
 dev/sound/unit.c		optional sound
 dev/sound/pci/als4000.c		optional snd_als4000 pci
 dev/sound/pci/atiixp.c		optional snd_atiixp pci
