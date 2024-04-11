@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 29, 2024
+.Dd March 26, 2024
 .Dt SND_UAUDIO 4
 .Os
 .Sh NAME
@@ -156,15 +156,6 @@ and modified for
 by
 .An Hiten Pandya Aq Mt hmp@FreeBSD.org .
 .Sh BUGS
-The PCM framework in
-.Fx
-only supports synchronous device detach.
-That means all mixer and DSP character devices belonging to a given
-USB audio device must be closed when receiving an error on a DSP read,
-a DSP write or a DSP IOCTL request.
-Else the USB audio driver will wait for this to happen, preventing
-enumeration of new devices on the parenting USB controller.
-.Pp
 Some USB audio devices might refuse to work properly unless the sample
 rate is configured the same for both recording and playback, even if
 only simplex is used.

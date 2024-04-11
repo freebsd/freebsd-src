@@ -1255,20 +1255,13 @@ uaudio_detach_sub(device_t dev)
 	unsigned i = uaudio_get_child_index_by_dev(sc, dev);
 	int error = 0;
 
-repeat:
 	if (sc->sc_child[i].pcm_registered) {
 		error = pcm_unregister(dev);
-	} else {
-		if (sc->sc_child[i].mixer_init)
-			error = mixer_uninit(dev);
+	} else if (sc->sc_child[i].mixer_init) {
+		error = mixer_uninit(dev);
 	}
 
-	if (error) {
-		device_printf(dev, "Waiting for sound application to exit!\n");
-		usb_pause_mtx(NULL, 2 * hz);
-		goto repeat;		/* try again */
-	}
-	return (0);			/* success */
+	return (error);
 }
 
 static int

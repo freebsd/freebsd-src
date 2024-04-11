@@ -274,7 +274,7 @@ dsp_close(void *data)
 
 	d = priv->sc;
 	/* At this point pcm_unregister() will destroy all channels anyway. */
-	if (!PCM_REGISTERED(d))
+	if (PCM_DETACHING(d))
 		goto skip;
 
 	PCM_GIANT_ENTER(d);
