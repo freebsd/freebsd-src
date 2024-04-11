@@ -55,7 +55,10 @@ ${_V}!=	eval $$(awk '/^${_V}=/{print}' ${.CURDIR}/../sys/conf/newvers.sh); echo 
 emulator-portinstall:
 .if !exists(/usr/local/bin/qemu-${TARGET_ARCH}-static)
 .if exists(${PORTSDIR}/emulators/qemu-user-static/Makefile)
-	env - UNAME_r=${UNAME_r} PATH=$$PATH make -C ${PORTSDIR}/emulators/qemu-user-static BATCH=1 all install clean
+	env - UNAME_r=${UNAME_r} PATH=$$PATH \
+	    make -C ${PORTSDIR}/emulators/qemu-user-static \
+	    BATCH=1 WRKDIRPREFIX=/tmp/ports DISTDIR=/tmp/distfiles \
+	    all install clean
 .else
 .if !exists(/usr/local/sbin/pkg-static)
 	env ASSUME_ALWAYS_YES=yes pkg bootstrap -y
