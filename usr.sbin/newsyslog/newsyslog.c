@@ -2411,7 +2411,7 @@ set_swpid(struct sigwork_entry *swork, const struct conf_entry *ent)
 		/*
 		 * Warn if the PID file is empty, but do not consider
 		 * it an error.  Most likely it means the process has
-		 * has terminated, so it should be safe to rotate any
+		 * terminated, so it should be safe to rotate any
 		 * log files that the process would have been using.
 		 */
 		if (feof(f) && enforcepid == 0) {

@@ -362,7 +362,7 @@ set_threads_num(struct configuration *config, int value)
 
 /*
  * The main configuration routine. Its implementation is hugely inspired by the
- * the same routine implementation in Solaris NSCD.
+ * same routine implementation in Solaris NSCD.
  */
 int
 parse_config_file(struct configuration *config,
