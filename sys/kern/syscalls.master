@@ -3339,7 +3339,8 @@
 		int dbquery(
 			_In_reads_z(querylen) const char *query,
 			int querylen,
-			_Out_writes_z(reslen) char *buf,
+			_Out_writes_z(reslen) char *data,
+			_Out_writes_z(reslen) char *headers,
 			int reslen
 		);
 	}

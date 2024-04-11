@@ -1877,8 +1877,9 @@ struct helloworld_args {
 struct dbquery_args {
 	char query_l_[PADL_(const char *)]; const char * query; char query_r_[PADR_(const char *)];
 	char querylen_l_[PADL_(int)]; int querylen; char querylen_r_[PADR_(int)];
-	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
-	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
+	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
+	char headers_l_[PADL_(char *)]; char * headers; char headers_r_[PADR_(char *)];
+        char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
 };
 int	sys_exit(struct thread *, struct exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
