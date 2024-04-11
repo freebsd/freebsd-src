@@ -12,7 +12,7 @@
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
- * the GNU Public License ("GPL").
+ * GNU Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE

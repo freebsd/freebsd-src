@@ -2256,7 +2256,7 @@ pci_cfgrw(int in, int bus, int slot, int func, int coff, int bytes,
 
 	/*
 	 * Just return if there is no device at this slot:func or if the
-	 * the guest is doing an un-aligned access.
+	 * guest is doing an un-aligned access.
 	 */
 	if (pi == NULL || (bytes != 1 && bytes != 2 && bytes != 4) ||
 	    (coff & (bytes - 1)) != 0) {

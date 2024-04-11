@@ -78,7 +78,7 @@ static	int on_write_response_write1(struct query_state *);
 
 /*
  * Clears the specified configuration entry (clears the cache for positive and
- * and negative entries) and also for all multipart entries.
+ * negative entries) and also for all multipart entries.
  */
 static void
 clear_config_entry(struct configuration_entry *config_entry)
