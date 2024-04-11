@@ -16,7 +16,7 @@ SRCS+=	feeder_matrix.c feeder_mixer.c
 SRCS+=	feeder_eq_gen.h feeder_rate_gen.h snd_fxdiv_gen.h
 SRCS+=	mpu_if.h mpufoi_if.h synth_if.h
 SRCS+=	mpu_if.c mpufoi_if.c synth_if.c
-SRCS+=	ac97.c ac97_patch.c buffer.c channel.c clone.c dsp.c
+SRCS+=	ac97.c ac97_patch.c buffer.c channel.c dsp.c
 SRCS+=	mixer.c sndstat.c sound.c unit.c vchan.c
 SRCS+=	midi.c mpu401.c sequencer.c
 
