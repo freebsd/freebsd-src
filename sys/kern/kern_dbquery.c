@@ -8,28 +8,7 @@
 #include <sys/types.h>
 #include <sys/systm.h> // for copyin, copyout, and uprintf
 
-MALLOC_DEFINE(M_DUMMY_DBQUERY, "dummy_dbquery", "Buffer for dbquery system call");
-MALLOC_DECLARE(M_DUMMY_DBQUERY); // Declare a new malloc type for our system call
-
 int sys_dbquery (struct thread *td, struct dbquery_args *uap) {
-    int error = 0;
-    int space_required = 16;
-    char *kernel_buffer;
-
-    kernel_buffer = (char *)malloc(space_required, M_DUMMY_DBQUERY, M_WAITOK | M_ZERO);
-
-    if (kernel_buffer == NULL) {
-        return ENOMEM;
-    }
-
-    sprintf(kernel_buffer, "Not implemented\n");
-
-    error = copyout(kernel_buffer, uap->buf, space_required);
-
-    if (kernel_buffer != NULL) {
-        free(kernel_buffer, M_DUMMY_DBQUERY);
-    }
-
-    td->td_retval[0] = 0;
-    return error;
+    // Return positive value to indicate failure
+    return 1;
 }

@@ -3457,7 +3457,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct dbquery_args *p = params;
 		uarg[a++] = (intptr_t)p->query; /* const char * */
 		iarg[a++] = p->querylen; /* int */
-		uarg[a++] = (intptr_t)p->buf; /* char * */
+		uarg[a++] = (intptr_t)p->data; /* char * */
+		uarg[a++] = (intptr_t)p->headers; /* char * */
 		iarg[a++] = p->reslen; /* int */
 		*n_args = 4;
 		break;
@@ -9256,6 +9257,9 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 3:
+			p = "userland char *";
+			break;
+		case 4:
 			p = "int";
 			break;
 		default:
