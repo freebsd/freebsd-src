@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -25,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 21, 2001
+.Dd April 12, 2024
 .Dt INTRO 1
 .Os
 .Sh NAME
@@ -34,9 +37,9 @@
 .Sh DESCRIPTION
 Section one of the manual contains most of the commands
 which comprise the
-.Bx
+.Fx
 user environment.
-Some of the commands included in section one are
+Some of the commands included with the system in section one are
 text editors, command shell interpreters,
 searching and sorting tools,
 file manipulation commands,
@@ -46,6 +49,16 @@ compilers and compiler tools,
 formatted output tools,
 and line printer commands.
 .Pp
+Tens of thousands of additional commands are available to be installed
+with
+.Xr pkg 8 ,
+or compiled with the
+.Xr ports 7
+collection.
+Some of which include web browsers, office suites, calendars,
+conferencing utilities, integrated development environments,
+media players, audio and video processing suites, etc.
+.Pp
 All commands set a status value upon exit which may be tested
 to see if the command completed normally.
 Traditionally, the value 0 signifies successful
@@ -53,10 +66,23 @@ completion of the command, while a value >0 indicates an error.
 Some commands attempt to describe the nature of the failure by using
 exit codes as defined in
 .Xr sysexits 3 ,
-while others simply set the status to an arbitrary value >0 (typically 1).
+while others simply set the status to an arbitrary value >0
+.Pq typically 1 .
+.Sh FILES
+.Bl -tag -width "/usr/local/bin/tab" -compact
+.It Pa /bin/
+Commands fundamental to single- and multi-user modes.
+.It Pa /usr/bin/
+General commands included with the base system.
+.It Pa /usr/local/bin/
+Locally installed commands from
+.Xr pkg 8 or
+.Xr ports 7 .
+.El
 .Sh SEE ALSO
 .Xr apropos 1 ,
 .Xr man 1 ,
+.Xr which 1 ,
 .Xr intro 2 ,
 .Xr intro 3 ,
 .Xr sysexits 3 ,
@@ -64,14 +90,16 @@ while others simply set the status to an arbitrary value >0 (typically 1).
 .Xr intro 5 ,
 .Xr intro 6 ,
 .Xr intro 7 ,
+.Xr ports 7 ,
 .Xr security 7 ,
 .Xr intro 8 ,
+.Xr pkg 8 ,
 .Xr intro 9
 .Pp
 Tutorials in the
 .%T "UNIX User's Manual Supplementary Documents" .
 .Sh HISTORY
 The
-.Nm
-manual page appeared in
+.Nm Ns Pq 1
+manual page first appeared in
 .At v6 .
