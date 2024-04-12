@@ -37,7 +37,9 @@ azure-check-depends:
 .  endif
 	env ASSUME_ALWAYS_YES=yes pkg install -y sysutils/py-azure-cli
 . else
-	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/sysutils/py-azure-cli BATCH=1 all install clean
+	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/sysutils/py-azure-cli \
+	    BATCH=1 WRKDIRPREFIX=/tmp/ports DISTDIR=/tmp/distfiles \
+	    all install clean
 . endif
 .endif
 
