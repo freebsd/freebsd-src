@@ -1232,15 +1232,12 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 #ifndef BOOTSTRAP_XINSTALL
 	/* Try copy_file_range() if no digest is requested */
 	if (digesttype == DIGEST_NONE) {
-		ret = 1;
-		while (ret > 0) {
+		do {
 			ret = copy_file_range(from_fd, NULL, to_fd, NULL,
 			    SSIZE_MAX, 0);
-		}
-		if (ret == 0) {
-			/* DIGEST_NONE always returns NULL */
-			return (NULL);
-		}
+		} while (ret > 0);
+		if (ret == 0)
+			goto done;
 		if (errno != EINVAL) {
 			serrno = errno;
 			(void)unlink(to_name);
@@ -1313,6 +1310,7 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 			err(EX_OSERR, "%s", from_name);
 		}
 	}
+done:
 	if (safecopy && fsync(to_fd) == -1) {
 		serrno = errno;
 		(void)unlink(to_name);
