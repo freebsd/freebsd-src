@@ -154,6 +154,7 @@ SUBDIR=	\
 	if_edsc \
 	${_if_enc} \
 	if_epair \
+	${_genet} \
 	${_if_gif} \
 	${_if_gre} \
 	${_if_me} \
@@ -639,6 +640,11 @@ _cxgbe=		cxgbe
 # This has only been tested on amd64 and arm64
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64"
 _mpi3mr=mpi3mr
+.endif
+
+# Specific to the Raspberry Pi.
+.if ${MACHINE_CPUARCH} == "aarch64"
+_genet=		genet
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64" || \
