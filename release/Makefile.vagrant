@@ -57,7 +57,9 @@ vagrant-check-depends:
 .  endif
 	env ASSUME_ALWAYS_YES=yes pkg install -y curl
 . else
-	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/ftp/curl BATCH=1 all install clean
+	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/ftp/curl \
+	    BATCH=1 WRKDIRPREFIX=/tmp/ports DISTDIR=/tmp/distfiles \
+	    all install clean
 . endif
 .endif
 
