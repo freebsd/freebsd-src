@@ -67,14 +67,15 @@ fi
 if [ -n "$bootable" ]; then
 	echo "Building bootable disc"
 
-	# Apple boot code
-	uudecode -o /tmp/hfs-boot-block.bz2 "`dirname "$0"`/hfs-boot.bz2.uu"
-	bzip2 -d /tmp/hfs-boot-block.bz2
-	OFFSET=$(hd /tmp/hfs-boot-block | grep 'Loader START' | cut -f 1 -d ' ')
-	OFFSET=0x$(echo 0x$OFFSET | awk '{printf("%x\n",$1/512);}')
-	dd if="$BASEBITSDIR/boot/loader" of=/tmp/hfs-boot-block seek=$OFFSET conv=notrunc
+	BOOTBLOCK=$(mktemp /tmp/hfs-boot-block.XXXXXX)
 
-	bootable="-o bootimage=macppc;/tmp/hfs-boot-block -o no-emul-boot"
+	# Apple boot code
+	uudecode "`dirname "$0"`/hfs-boot.bz2.uu" | bunzip2 > $BOOTBLOCK
+	OFFSET=$(hd $BOOTBLOCK | grep 'Loader START' | cut -f 1 -d ' ')
+	OFFSET=0x$(echo 0x$OFFSET | awk '{printf("%x\n",$1/512);}')
+	dd if="$BASEBITSDIR/boot/loader" of=$BOOTBLOCK seek=$OFFSET conv=notrunc
+
+	bootable="-o bootimage=macppc;$BOOTBLOCK -o no-emul-boot"
 
 	# pSeries/PAPR boot code
 	mkdir -p "$BASEBITSDIR/ppc/chrp"
@@ -108,7 +109,9 @@ if [ -n "${METALOG}" ]; then
 fi
 makefs -D -N ${BASEBITSDIR}/etc -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$MAKEFSARG" "$@"
 rm -f "$BASEBITSDIR/etc/fstab"
-rm -f /tmp/hfs-boot-block
+if [ n "$bootable" ]; then
+	rm $BOOTBLOCK
+fi
 rm -rf "$BASEBITSDIR/ppc"
 if [ -n "${METALOG}" ]; then
 	rm ${metalogfilename}
