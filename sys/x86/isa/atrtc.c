@@ -62,7 +62,7 @@
 /* tunable to detect a power loss of the rtc */
 static bool atrtc_power_lost = false;
 SYSCTL_BOOL(_machdep, OID_AUTO, atrtc_power_lost, CTLFLAG_RD, &atrtc_power_lost,
-    false, "RTC lost power on last power cycle (probably caused by an emtpy cmos battery)");
+    false, "RTC lost power on last power cycle (probably caused by an empty cmos battery)");
 
 /*
  * atrtc_lock protects low-level access to individual hardware registers.
