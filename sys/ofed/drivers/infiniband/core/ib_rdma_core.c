@@ -293,8 +293,6 @@ static struct ib_uobject *alloc_uobj(struct uverbs_attr_bundle *attrs,
 	return uobj;
 }
 
-#define	NULL_IB_UOBJECT ((struct ib_uobject *)1)
-
 static int idr_add_uobj(struct ib_uobject *uobj)
 {
        /*
@@ -302,7 +300,7 @@ static int idr_add_uobj(struct ib_uobject *uobj)
         * object which isn't initialized yet. We'll replace it later on with
         * the real object once we commit.
         */
-	return xa_alloc(&uobj->ufile->idr, &uobj->id, NULL_IB_UOBJECT, xa_limit_32b,
+	return xa_alloc(&uobj->ufile->idr, &uobj->id, NULL, xa_limit_32b,
 			GFP_KERNEL);
 }
 
@@ -325,7 +323,7 @@ lookup_get_idr_uobject(const struct uverbs_api_object *obj,
 	 * kfree() could be called at any time.
 	 */
 	uobj = xa_load(&ufile->idr, id);
-	if (!uobj || uobj == NULL_IB_UOBJECT || !kref_get_unless_zero(&uobj->ref))
+	if (!uobj || !kref_get_unless_zero(&uobj->ref))
 		uobj = ERR_PTR(-ENOENT);
 	rcu_read_unlock();
 	return uobj;
@@ -589,7 +587,7 @@ static void alloc_commit_idr_uobject(struct ib_uobject *uobj)
 	 * It will be put by remove_commit_idr_uobject()
 	 */
 	old = xa_store(&ufile->idr, uobj->id, uobj, GFP_KERNEL);
-	WARN_ON(old != NULL_IB_UOBJECT);
+	WARN_ON(old != NULL);
 }
 
 static void alloc_commit_fd_uobject(struct ib_uobject *uobj)
