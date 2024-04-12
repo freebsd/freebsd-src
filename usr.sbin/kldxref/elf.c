@@ -532,7 +532,7 @@ elf_address_from_pointer(struct elf_file *efile, const void *p)
 		else
 			return (be64dec(p));
 	default:
-		__builtin_unreachable();
+		__unreachable();
 	}
 }
 
