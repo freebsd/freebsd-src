@@ -22,49 +22,20 @@ crypto/openssl/i386/sha256-586.S	optional ossl
 crypto/openssl/i386/sha512-586.S	optional ossl
 dev/agp/agp_ali.c		optional agp
 dev/agp/agp_amd.c		optional agp
-dev/agp/agp_amd64.c		optional agp
 dev/agp/agp_ati.c		optional agp
-dev/agp/agp_i810.c		optional agp
 dev/agp/agp_intel.c		optional agp
 dev/agp/agp_nvidia.c		optional agp
 dev/agp/agp_sis.c		optional agp
-dev/agp/agp_via.c		optional agp
 dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb
 dev/hyperv/vmbus/i386/hyperv_machdep.c			optional	hyperv
 dev/le/if_le_isa.c		optional le isa
-dev/nctgpio/nctgpio.c		optional nctgpio
-dev/nfe/if_nfe.c		optional nfe pci
-dev/ntb/if_ntb/if_ntb.c		optional if_ntb
-dev/ntb/ntb_transport.c		optional ntb_transport | if_ntb
-dev/ntb/ntb.c			optional ntb | ntb_transport | if_ntb | ntb_hw_amd | ntb_hw_intel | ntb_hw_plx | ntb_hw
-dev/ntb/ntb_if.m		optional ntb | ntb_transport | if_ntb | ntb_hw_amd | ntb_hw_intel | ntb_hw_plx | ntb_hw
-dev/ntb/ntb_hw/ntb_hw_amd.c	optional ntb_hw_amd | ntb_hw
-dev/ntb/ntb_hw/ntb_hw_intel.c	optional ntb_hw_intel | ntb_hw
-dev/ntb/ntb_hw/ntb_hw_plx.c	optional ntb_hw_plx | ntb_hw
-dev/ntb/test/ntb_tool.c		optional ntb_tool
-dev/nvram/nvram.c		optional	nvram isa
 dev/ofw/ofw_pcib.c		optional fdt pci
 dev/pcf/pcf_isa.c		optional pcf
-dev/random/ivy.c		optional rdrand_rng !random_loadable
-dev/random/nehemiah.c		optional padlock_rng !random_loadable
 dev/sbni/if_sbni.c		optional sbni
 dev/sbni/if_sbni_isa.c		optional sbni isa
 dev/sbni/if_sbni_pci.c		optional sbni pci
-dev/speaker/spkr.c		optional speaker
-dev/superio/superio.c		optional superio isa
-dev/syscons/scvesactl.c		optional sc vga vesa
-dev/syscons/scvgarndr.c		optional sc vga
-dev/tpm/tpm.c			optional tpm
-dev/tpm/tpm_acpi.c		optional tpm acpi
-dev/tpm/tpm_isa.c		optional tpm isa
-dev/uart/uart_cpu_x86.c		optional uart
-dev/viawd/viawd.c		optional viawd
-dev/vmd/vmd.c			optional vmd
-dev/acpi_support/acpi_wmi_if.m	standard
-dev/wbwd/wbwd.c			optional wbwd
-dev/wdatwd/wdatwd.c		optional wdatwd
 i386/acpica/acpi_machdep.c	optional acpi
 i386/acpica/acpi_wakeup.c	optional acpi
 acpi_wakecode.o			optional acpi				\
@@ -134,9 +105,6 @@ i386/i386/vm86.c		standard
 i386/i386/vm_machdep.c		standard
 i386/pci/pci_cfgreg.c		optional pci
 i386/pci/pci_pir.c		optional pci
-isa/syscons_isa.c		optional sc
-isa/vga_isa.c			optional vga
-kern/imgact_aout.c		optional compat_aout
 kern/subr_sfbuf.c		standard
 libkern/divdi3.c		standard
 libkern/divmoddi4.c		standard

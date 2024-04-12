@@ -109,10 +109,6 @@ crypto/openssl/amd64/sha1-x86_64.S	optional ossl
 crypto/openssl/amd64/sha256-x86_64.S	optional ossl
 crypto/openssl/amd64/sha512-x86_64.S	optional ossl
 crypto/openssl/amd64/ossl_aes_gcm.c	optional ossl
-dev/acpi_support/acpi_wmi_if.m	standard
-dev/agp/agp_amd64.c		optional	agp
-dev/agp/agp_i810.c		optional	agp
-dev/agp/agp_via.c		optional	agp
 dev/amdgpio/amdgpio.c		optional	amdgpio
 dev/axgbe/if_axgbe_pci.c	optional	axp
 dev/axgbe/xgbe-desc.c		optional	axp
@@ -239,20 +235,7 @@ dev/ixl/i40e_adminq.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/ixl/i40e_dcb.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/nctgpio/nctgpio.c		optional	nctgpio
 dev/ncthwm/ncthwm.c		optional	ncthwm superio
-dev/nfe/if_nfe.c		optional	nfe pci
-dev/ntb/if_ntb/if_ntb.c		optional	if_ntb
-dev/ntb/ntb_transport.c		optional	ntb_transport | if_ntb
-dev/ntb/ntb.c			optional	ntb | ntb_transport | if_ntb | ntb_hw_amd | ntb_hw_intel | ntb_hw_plx | ntb_hw
-dev/ntb/ntb_if.m		optional	ntb | ntb_transport | if_ntb | ntb_hw_amd | ntb_hw_intel | ntb_hw_plx | ntb_hw
-dev/ntb/ntb_hw/ntb_hw_amd.c	optional	ntb_hw_amd | ntb_hw
-dev/ntb/ntb_hw/ntb_hw_intel.c	optional	ntb_hw_intel | ntb_hw
-dev/ntb/ntb_hw/ntb_hw_plx.c	optional	ntb_hw_plx | ntb_hw
-dev/ntb/test/ntb_tool.c		optional	ntb_tool
-dev/nvram/nvram.c		optional	nvram isa
-dev/random/ivy.c		optional	rdrand_rng !random_loadable
-dev/random/nehemiah.c		optional	padlock_rng !random_loadable
 dev/qlxge/qls_dbg.c		optional	qlxge pci
 dev/qlxge/qls_dump.c		optional	qlxge pci
 dev/qlxge/qls_hw.c		optional	qlxge pci
@@ -387,29 +370,16 @@ dev/smartpqi/smartpqi_request.c optional 	smartpqi
 dev/smartpqi/smartpqi_response.c	optional 	smartpqi
 dev/smartpqi/smartpqi_sis.c     optional 	smartpqi
 dev/smartpqi/smartpqi_tag.c     optional 	smartpqi
-dev/speaker/spkr.c		optional	speaker
 dev/sume/if_sume.c		optional	sume
-dev/superio/superio.c		optional	superio isa
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
-dev/syscons/scvesactl.c		optional	sc vga vesa
-dev/syscons/scvgarndr.c		optional	sc vga
-dev/tpm/tpm.c			optional	tpm
-dev/tpm/tpm20.c		optional	tpm
+dev/tpm/tpm20.c			optional	tpm
 dev/tpm/tpm_crb.c		optional	tpm acpi
 dev/tpm/tpm_tis.c		optional	tpm acpi
 dev/tpm/tpm_acpi.c		optional	tpm acpi
 dev/tpm/tpm_isa.c		optional	tpm isa
-dev/uart/uart_cpu_x86.c		optional	uart
-dev/viawd/viawd.c		optional	viawd
-dev/vmd/vmd.c			optional	vmd | vmd_bus
-dev/wbwd/wbwd.c			optional	wbwd
-dev/wdatwd/wdatwd.c		optional	wdatwd
 dev/p2sb/p2sb.c			optional	p2sb pci
 dev/p2sb/lewisburg_gpiocm.c	optional	lbggpiocm p2sb
 dev/p2sb/lewisburg_gpio.c	optional	lbggpio lbggpiocm
-isa/syscons_isa.c		optional	sc
-isa/vga_isa.c			optional	vga
-kern/imgact_aout.c		optional compat_aout
 kern/link_elf_obj.c		standard
 #
 # IA32 binary support
