@@ -36,11 +36,6 @@ lldiv(long long numer, long long denom)
 
 	retval.quot = numer / denom;
 	retval.rem = numer % denom;
-#if !defined(__STDC_VERSION__) || (__STDC_VERSION__ < 199901L)
-	if (numer >= 0 && retval.rem < 0) {
-		retval.quot++;
-		retval.rem -= denom;
-	}
-#endif
+
 	return (retval);
 }
