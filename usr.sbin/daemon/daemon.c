@@ -275,7 +275,7 @@ main(int argc, char *argv[])
 			break;
 		case 'h':
 			usage(0);
-			__builtin_unreachable();
+			__unreachable();
 		default:
 			usage(1);
 		}
