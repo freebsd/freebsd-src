@@ -544,13 +544,13 @@ in6_getpeeraddr(struct socket *so, struct sockaddr *sa)
 int
 in6_mapped_sockaddr(struct socket *so, struct sockaddr *sa)
 {
-	struct	inpcb *inp;
 	int	error;
+#ifdef INET
+	struct	inpcb *inp;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("in6_mapped_sockaddr: inp == NULL"));
 
-#ifdef INET
 	if ((inp->inp_vflag & (INP_IPV4 | INP_IPV6)) == INP_IPV4) {
 		struct sockaddr_in sin;
 
@@ -570,13 +570,13 @@ in6_mapped_sockaddr(struct socket *so, struct sockaddr *sa)
 int
 in6_mapped_peeraddr(struct socket *so, struct sockaddr *sa)
 {
-	struct	inpcb *inp;
 	int	error;
+#ifdef INET
+	struct	inpcb *inp;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("in6_mapped_peeraddr: inp == NULL"));
 
-#ifdef INET
 	if ((inp->inp_vflag & (INP_IPV4 | INP_IPV6)) == INP_IPV4) {
 		struct sockaddr_in sin;
 
@@ -585,8 +585,10 @@ in6_mapped_peeraddr(struct socket *so, struct sockaddr *sa)
 			in6_sin_2_v4mapsin6(&sin, (struct sockaddr_in6 *)sa);
 	} else
 #endif
-	/* scope issues will be handled in in6_getpeeraddr(). */
-	error = in6_getpeeraddr(so, sa);
+	{
+		/* scope issues will be handled in in6_getpeeraddr(). */
+		error = in6_getpeeraddr(so, sa);
+	}
 
 	return error;
 }
