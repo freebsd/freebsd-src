@@ -5,6 +5,10 @@
  * Copyright (c) 2001 Cameron Grant <cg@FreeBSD.org>
  * Copyright (c) 2020 The FreeBSD Foundation
  * All rights reserved.
+ * Copyright (c) 2024 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Portions of this software were developed by Ka Ho Ng
  * under sponsorship from the FreeBSD Foundation.
