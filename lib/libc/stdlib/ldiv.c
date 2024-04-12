@@ -43,11 +43,6 @@ ldiv(long num, long denom)
 
 	r.quot = num / denom;
 	r.rem = num % denom;
-#if !defined(__STDC_VERSION__) || (__STDC_VERSION__ < 199901L)
-	if (num >= 0 && r.rem < 0) {
-		r.quot++;
-		r.rem -= denom;
-	}
-#endif
+
 	return (r);
 }
