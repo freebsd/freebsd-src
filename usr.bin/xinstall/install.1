@@ -27,7 +27,7 @@
 .\"
 .\"	From: @(#)install.1	8.1 (Berkeley) 6/6/93
 .\"
-.Dd August 4, 2022
+.Dd April 16, 2024
 .Dt INSTALL 1
 .Os
 .Sh NAME
@@ -227,16 +227,18 @@ Copy the file, as if the
 except if the target file does not already exist or is different,
 then preserve the access and modification times of the source file.
 .It Fl S
-Safe copy.
-Normally,
+Flush each file to disk after copying.
+This has a non-negligible impact on performance, but reduces the risk
+of being left with a partial file if the system crashes or loses power
+shortly after
 .Nm
-unlinks an existing target before installing the new file.
-With the
+runs.
+.Pp
+Historically,
 .Fl S
-flag a temporary file is used and then renamed to be
-the target.
-The reason this is safer is that if the copy or
-rename fails, the existing target is left untouched.
+also enabled the use of temporary files to ensure atomicity when
+replacing an existing target.
+Temporary files are no longer optional.
 .It Fl s
 .Nm
 exec's the command
@@ -302,15 +304,7 @@ Ports Collection.
 .Sh FILES
 .Bl -tag -width "INS@XXXXXX" -compact
 .It Pa INS@XXXXXX
-If either
-.Fl S
-option is specified, or the
-.Fl C
-or
-.Fl p
-option is used in conjunction with the
-.Fl s
-option, temporary files named
+Temporary files named
 .Pa INS@XXXXXX ,
 where
 .Pa XXXXXX
@@ -333,7 +327,6 @@ The default was changed to copy in
 .Xr cp 1 ,
 .Xr mv 1 ,
 .Xr strip 1 ,
-.Xr mmap 2 ,
 .Xr getgrnam 3 ,
 .Xr getpwnam 3 ,
 .Xr chown 8
