@@ -45,7 +45,7 @@
  * monetary and numeric locales.
  *
  * Because localeconv() may be called many times (especially by library
- * routines like printf() & strtod()), the approprate members of the 
+ * routines like printf() & strtod()), the appropriate members of the
  * lconv structure are computed only when the monetary or numeric 
  * locale has been changed.
  */
