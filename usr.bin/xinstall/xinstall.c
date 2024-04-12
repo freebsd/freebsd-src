@@ -657,8 +657,10 @@ static void
 makelink(const char *from_name, const char *to_name,
     const struct stat *target_sb)
 {
-	char	src[MAXPATHLEN], dst[MAXPATHLEN], lnk[MAXPATHLEN];
-	struct stat	to_sb;
+	char src[MAXPATHLEN], dst[MAXPATHLEN], lnk[MAXPATHLEN];
+	char *to_name_copy, *d, *ld, *ls, *s;
+	const char *base, *dir;
+	struct stat to_sb;
 
 	/* Try hard links first. */
 	if (dolink & (LN_HARD|LN_MIXED)) {
@@ -719,8 +721,6 @@ makelink(const char *from_name, const char *to_name,
 	}
 
 	if (dolink & LN_RELATIVE) {
-		char *to_name_copy, *cp, *d, *ld, *ls, *s;
-
 		if (*from_name != '/') {
 			/* this is already a relative link */
 			do_symlink(from_name, to_name, target_sb);
@@ -740,17 +740,23 @@ makelink(const char *from_name, const char *to_name,
 		to_name_copy = strdup(to_name);
 		if (to_name_copy == NULL)
 			err(EX_OSERR, "%s: strdup", to_name);
-		cp = dirname(to_name_copy);
-		if (realpath(cp, dst) == NULL)
-			err(EX_OSERR, "%s: realpath", cp);
-		/* .. and add the last component. */
-		if (strcmp(dst, "/") != 0) {
-			if (strlcat(dst, "/", sizeof(dst)) > sizeof(dst))
+		base = basename(to_name_copy);
+		if (base == to_name_copy) {
+			/* destination is a file in cwd */
+			(void)strlcpy(dst, "./", sizeof(dst));
+		} else if (base == to_name_copy + 1) {
+			/* destination is a file in the root */
+			(void)strlcpy(dst, "/", sizeof(dst));
+		} else {
+			/* all other cases: safe to call dirname() */
+			dir = dirname(to_name_copy);
+			if (realpath(dir, dst) == NULL)
+				err(EX_OSERR, "%s: realpath", dir);
+			if (strcmp(dst, "/") != 0 &&
+			    strlcat(dst, "/", sizeof(dst)) > sizeof(dst))
 				errx(1, "resolved pathname too long");
 		}
-		strcpy(to_name_copy, to_name);
-		cp = basename(to_name_copy);
-		if (strlcat(dst, cp, sizeof(dst)) > sizeof(dst))
+		if (strlcat(dst, base, sizeof(dst)) > sizeof(dst))
 			errx(1, "resolved pathname too long");
 		free(to_name_copy);
 
@@ -834,6 +840,8 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	} else {
 		devnull = 1;
 	}
+	if (*to_name == '\0')
+		errx(EX_USAGE, "destination cannot be an empty string");
 
 	target = (lstat(to_name, &to_sb) == 0);
 

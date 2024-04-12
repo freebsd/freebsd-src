@@ -25,6 +25,13 @@
 #
 #
 
+atf_test_case copy_to_empty
+copy_to_empty_body() {
+	printf 'test\n123\r456\r\n789\0z' >testf
+	atf_check -s not-exit:0 -e match:"empty string" \
+	    install testf ""
+}
+
 copy_to_nonexistent_with_opts() {
 	printf 'test\n123\r456\r\n789\0z' >testf
 	atf_check install "$@" testf copyf
@@ -497,6 +504,7 @@ set_optional_exec_body()
 }
 
 atf_init_test_cases() {
+	atf_add_test_case copy_to_empty
 	atf_add_test_case copy_to_nonexistent
 	atf_add_test_case copy_to_nonexistent_safe
 	atf_add_test_case copy_to_nonexistent_comparing
