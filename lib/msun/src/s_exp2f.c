@@ -72,7 +72,7 @@ static const double exp2ft[TBLSIZE] = {
  * Method: (equally-spaced tables)
  *
  *   Reduce x:
- *     x = 2**k + y, for integer k and |y| <= 1/2.
+ *     x = k + y, for integer k and |y| <= 1/2.
  *     Thus we have exp2f(x) = 2**k * exp2(y).
  *
  *   Reduce y:
