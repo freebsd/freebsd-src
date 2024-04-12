@@ -1664,9 +1664,11 @@ irdma_get_vlan_mac_ipv6(struct iw_cm_id *cm_id, u32 *addr, u16 *vlan_id, u8 *mac
 u16
 irdma_get_vlan_ipv4(struct iw_cm_id *cm_id, u32 *addr)
 {
+	u16 vlan_id = 0xFFFF;
+
+#ifdef INET
 	if_t netdev;
 	struct vnet *vnet = &init_net;
-	u16 vlan_id = 0xFFFF;
 
 #ifdef VIMAGE
 	vnet = irdma_cmid_to_vnet(cm_id);
@@ -1676,6 +1678,7 @@ irdma_get_vlan_ipv4(struct iw_cm_id *cm_id, u32 *addr)
 		vlan_id = rdma_vlan_dev_vlan_id(netdev);
 		dev_put(netdev);
 	}
+#endif
 
 	return vlan_id;
 }
