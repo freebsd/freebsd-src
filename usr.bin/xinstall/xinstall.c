@@ -144,7 +144,6 @@ static char *destdir, *digest, *fflags, *metafile, *tags;
 static int	compare(int, const char *, size_t, int, const char *, size_t,
 		    char **);
 static char	*copy(int, const char *, int, const char *, off_t);
-static int	create_newfile(const char *, int, struct stat *);
 static int	create_tempfile(const char *, char *, size_t);
 static char	*quiet_mktemp(char *template);
 static char	*digest_file(const char *);
@@ -327,10 +326,6 @@ main(int argc, char *argv[])
 			usage();
 		}
 	}
-
-	/* need to make a temp copy so we can compare stripped version */
-	if (docompare && dostrip)
-		safecopy = 1;
 
 	/* get group and owner id's */
 	if (group != NULL && !dounpriv) {
@@ -572,7 +567,7 @@ do_link(const char *from_name, const char *to_name,
 	char tmpl[MAXPATHLEN];
 	int ret;
 
-	if (safecopy && target_sb != NULL) {
+	if (target_sb != NULL) {
 		(void)snprintf(tmpl, sizeof(tmpl), "%s.inst.XXXXXX", to_name);
 		/* This usage is safe. */
 		if (quiet_mktemp(tmpl) == NULL)
@@ -619,7 +614,7 @@ do_symlink(const char *from_name, const char *to_name,
 {
 	char tmpl[MAXPATHLEN];
 
-	if (safecopy && target_sb != NULL) {
+	if (target_sb != NULL) {
 		(void)snprintf(tmpl, sizeof(tmpl), "%s.inst.XXXXXX", to_name);
 		/* This usage is safe. */
 		if (quiet_mktemp(tmpl) == NULL)
@@ -808,7 +803,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	struct stat from_sb, temp_sb, to_sb;
 	struct timespec tsb[2];
 	int devnull, files_match, from_fd, serrno, stripped, target;
-	int tempcopy, temp_fd, to_fd;
+	int temp_fd, to_fd;
 	char backup[MAXPATHLEN], *p, pathbuf[MAXPATHLEN], tempfile[MAXPATHLEN];
 	char *digestresult;
 
@@ -843,16 +838,6 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	target = (lstat(to_name, &to_sb) == 0);
 
 	if (dolink) {
-		if (target && !safecopy) {
-			if (to_sb.st_mode & S_IFDIR && rmdir(to_name) == -1)
-				err(EX_OSERR, "%s", to_name);
-#if HAVE_STRUCT_STAT_ST_FLAGS
-			if (to_sb.st_flags & NOCHANGEBITS)
-				(void)chflags(to_name,
-				    to_sb.st_flags & ~NOCHANGEBITS);
-#endif
-			unlink(to_name);
-		}
 		makelink(from_name, to_name, target ? &to_sb : NULL);
 		return;
 	}
@@ -862,9 +847,6 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		warn("%s", to_name);
 		return;
 	}
-
-	/* Only copy safe if the target exists. */
-	tempcopy = safecopy && target;
 
 	if (!devnull && (from_fd = open(from_name, O_RDONLY, 0)) < 0)
 		err(EX_OSERR, "%s", from_name);
@@ -886,40 +868,32 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	}
 
 	if (!files_match) {
-		if (tempcopy) {
-			to_fd = create_tempfile(to_name, tempfile,
-			    sizeof(tempfile));
-			if (to_fd < 0)
-				err(EX_OSERR, "%s", tempfile);
-		} else {
-			if ((to_fd = create_newfile(to_name, target,
-			    &to_sb)) < 0)
-				err(EX_OSERR, "%s", to_name);
-			if (verbose)
-				(void)printf("install: %s -> %s\n",
-				    from_name, to_name);
-		}
+		to_fd = create_tempfile(to_name, tempfile,
+		    sizeof(tempfile));
+		if (to_fd < 0)
+			err(EX_OSERR, "%s", tempfile);
 		if (!devnull) {
-			if (dostrip)
-			    stripped = strip(tempcopy ? tempfile : to_name,
-				to_fd, from_name, &digestresult);
-			if (!stripped)
-			    digestresult = copy(from_fd, from_name, to_fd,
-				tempcopy ? tempfile : to_name, from_sb.st_size);
+			if (dostrip) {
+				stripped = strip(tempfile, to_fd, from_name,
+				    &digestresult);
+			}
+			if (!stripped) {
+				digestresult = copy(from_fd, from_name, to_fd,
+				    tempfile, from_sb.st_size);
+			}
 		}
 	}
 
 	if (dostrip) {
 		if (!stripped)
-			(void)strip(tempcopy ? tempfile : to_name, to_fd,
-			    NULL, &digestresult);
+			(void)strip(tempfile, to_fd, NULL, &digestresult);
 
 		/*
 		 * Re-open our fd on the target, in case
 		 * we did not strip in-place.
 		 */
 		close(to_fd);
-		to_fd = open(tempcopy ? tempfile : to_name, O_RDONLY, 0);
+		to_fd = open(tempfile, O_RDONLY, 0);
 		if (to_fd < 0)
 			err(EX_OSERR, "stripping %s", to_name);
 	}
@@ -963,16 +937,16 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		digestresult = digest_file(tempfile);
 
 	/*
-	 * Move the new file into place if doing a safe copy
-	 * and the files are different (or just not compared).
+	 * Move the new file into place if the files are different (or
+	 * just not compared).
 	 */
-	if (tempcopy && !files_match) {
+	if (!files_match) {
 #if HAVE_STRUCT_STAT_ST_FLAGS
 		/* Try to turn off the immutable bits. */
 		if (to_sb.st_flags & NOCHANGEBITS)
 			(void)chflags(to_name, to_sb.st_flags & ~NOCHANGEBITS);
 #endif
-		if (dobackup) {
+		if (target && dobackup) {
 			if ((size_t)snprintf(backup, MAXPATHLEN, "%s%s", to_name,
 			    suffix) != strlen(to_name) + strlen(suffix)) {
 				unlink(tempfile);
@@ -1220,65 +1194,6 @@ create_tempfile(const char *path, char *temp, size_t tsize)
 	(void)strncpy(p, "INS@XXXXXX", &temp[tsize - 1] - p);
 	temp[tsize - 1] = '\0';
 	return (mkstemp(temp));
-}
-
-/*
- * create_newfile --
- *	create a new file, overwriting an existing one if necessary
- */
-static int
-create_newfile(const char *path, int target, struct stat *sbp)
-{
-	char backup[MAXPATHLEN];
-	int saved_errno = 0;
-	int newfd;
-
-	if (target) {
-		/*
-		 * Unlink now... avoid ETXTBSY errors later.  Try to turn
-		 * off the append/immutable bits -- if we fail, go ahead,
-		 * it might work.
-		 */
-#if HAVE_STRUCT_STAT_ST_FLAGS
-		if (sbp->st_flags & NOCHANGEBITS)
-			(void)chflags(path, sbp->st_flags & ~NOCHANGEBITS);
-#endif
-
-		if (dobackup) {
-			if ((size_t)snprintf(backup, MAXPATHLEN, "%s%s",
-			    path, suffix) != strlen(path) + strlen(suffix)) {
-				saved_errno = errno;
-#if HAVE_STRUCT_STAT_ST_FLAGS
-				if (sbp->st_flags & NOCHANGEBITS)
-					(void)chflags(path, sbp->st_flags);
-#endif
-				errno = saved_errno;
-				errx(EX_OSERR, "%s: backup filename too long",
-				    path);
-			}
-			(void)snprintf(backup, MAXPATHLEN, "%s%s",
-			    path, suffix);
-			if (verbose)
-				(void)printf("install: %s -> %s\n",
-				    path, backup);
-			if (rename(path, backup) < 0) {
-				saved_errno = errno;
-#if HAVE_STRUCT_STAT_ST_FLAGS
-				if (sbp->st_flags & NOCHANGEBITS)
-					(void)chflags(path, sbp->st_flags);
-#endif
-				errno = saved_errno;
-				err(EX_OSERR, "rename: %s to %s", path, backup);
-			}
-		} else
-			if (unlink(path) < 0)
-				saved_errno = errno;
-	}
-
-	newfd = open(path, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR);
-	if (newfd < 0 && saved_errno != 0)
-		errno = saved_errno;
-	return newfd;
 }
 
 /*
