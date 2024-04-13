@@ -9428,7 +9428,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland void *";
 			break;
 		case 4:
-			p = "userland const char **";
+			p = "userland const char *";
 			break;
 		default:
 			break;
