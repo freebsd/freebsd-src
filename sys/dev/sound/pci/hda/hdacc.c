@@ -541,9 +541,10 @@ hdacc_detach(device_t dev)
 	struct hdacc_softc *codec = device_get_softc(dev);
 	int error;
 
-	error = device_delete_children(dev);
+	if ((error = device_delete_children(dev)) != 0)
+		return (error);
 	free(codec->fgs, M_HDACC);
-	return (error);
+	return (0);
 }
 
 static int
