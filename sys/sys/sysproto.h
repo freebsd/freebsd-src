@@ -1879,7 +1879,7 @@ struct dbquery_args {
 	char querylen_l_[PADL_(int)]; int querylen; char querylen_r_[PADR_(int)];
 	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
 	char headers_l_[PADL_(char *)]; char * headers; char headers_r_[PADR_(char *)];
-		char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
+    char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
 };
 struct dbq_prepare_v2_args {
 	char db_l_[PADL_(void *)]; void *db; char db_r_[PADR_(void *)];
