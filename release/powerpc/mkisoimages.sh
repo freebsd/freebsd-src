@@ -70,7 +70,7 @@ if [ -n "$bootable" ]; then
 	BOOTBLOCK=$(mktemp /tmp/hfs-boot-block.XXXXXX)
 
 	# Apple boot code
-	uudecode "`dirname "$0"`/hfs-boot.bz2.uu" | bunzip2 > $BOOTBLOCK
+	uudecode -p "`dirname "$0"`/hfs-boot.bz2.uu" | bunzip2 > $BOOTBLOCK
 	OFFSET=$(hd $BOOTBLOCK | grep 'Loader START' | cut -f 1 -d ' ')
 	OFFSET=0x$(echo 0x$OFFSET | awk '{printf("%x\n",$1/512);}')
 	dd if="$BASEBITSDIR/boot/loader" of=$BOOTBLOCK seek=$OFFSET conv=notrunc
