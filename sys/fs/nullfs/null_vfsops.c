@@ -371,9 +371,10 @@ nullfs_statfs(struct mount *mp, struct statfs *sbp)
 
 	/* now copy across the "interesting" information and fake the rest */
 	sbp->f_type = mstat->f_type;
-	sbp->f_flags = (sbp->f_flags & (MNT_RDONLY | MNT_NOEXEC | MNT_NOSUID |
-	    MNT_UNION | MNT_NOSYMFOLLOW | MNT_AUTOMOUNTED | MNT_IGNORE)) |
-	    (mstat->f_flags & ~(MNT_ROOTFS | MNT_AUTOMOUNTED));
+	sbp->f_flags &= MNT_RDONLY | MNT_NOEXEC | MNT_NOSUID | MNT_UNION |
+	    MNT_NOSYMFOLLOW | MNT_AUTOMOUNTED | MNT_EXPORTED | MNT_IGNORE;
+	mstat->f_flags &= ~(MNT_ROOTFS | MNT_AUTOMOUNTED | MNT_EXPORTED);
+	sbp->f_flags |= mstat->f_flags;
 	sbp->f_bsize = mstat->f_bsize;
 	sbp->f_iosize = mstat->f_iosize;
 	sbp->f_blocks = mstat->f_blocks;
