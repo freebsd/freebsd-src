@@ -8,7 +8,8 @@ export ASSUME_ALWAYS_YES="YES"
 export PKG_DBDIR="/tmp/pkg"
 export PERMISSIVE="YES"
 export REPO_AUTOUPDATE="NO"
-export PKGCMD="/usr/sbin/pkg -d"
+export ROOTDIR="$PWD/dvd"
+export PKGCMD="/usr/sbin/pkg -d --rootdir ${ROOTDIR}"
 export PORTSDIR="${PORTSDIR:-/usr/ports}"
 
 _DVD_PACKAGES="archivers/unzip
@@ -47,14 +48,13 @@ if [ ! -x /usr/local/sbin/pkg ]; then
 	/usr/bin/make -C ${PORTSDIR}/ports-mgmt/pkg install clean
 fi
 
-export DVD_DIR="dvd/packages"
-export PKG_ABI=$(pkg config ABI)
-export PKG_ALTABI=$(pkg config ALTABI 2>/dev/null)
-export PKG_REPODIR="${DVD_DIR}/${PKG_ABI}"
+export PKG_ABI=$(pkg --rootdir ${ROOTDIR} config ABI)
+export PKG_ALTABI=$(pkg --rootdir ${ROOTDIR} config ALTABI 2>/dev/null)
+export PKG_REPODIR="packages/${PKG_ABI}"
 
-/bin/mkdir -p ${PKG_REPODIR}
+/bin/mkdir -p ${ROOTDIR}/${PKG_REPODIR}
 if [ ! -z "${PKG_ALTABI}" ]; then
-	(cd ${DVD_DIR} && ln -s ${PKG_ABI} ${PKG_ALTABI})
+	ln -s ${PKG_ABI} ${ROOTDIR}/packages/${PKG_ALTABI}
 fi
 
 # Ensure the ports listed in _DVD_PACKAGES exist to sanitize the
@@ -83,11 +83,10 @@ ${PKGCMD} fetch -o ${PKG_REPODIR} -d ${DVD_PACKAGES}
 
 # Create the 'Latest/pkg.txz' symlink so 'pkg bootstrap' works
 # using the on-disc packages.
-mkdir -p ${PKG_REPODIR}/Latest
-(cd ${PKG_REPODIR}/Latest && \
-	ln -s ../All/$(${PKGCMD} rquery %n-%v pkg).pkg pkg.pkg)
-(cd ${PKG_REPODIR}/Latest && \
-	rm -f pkg.txz && ln -s pkg.pkg pkg.txz)
+export LATEST_DIR="${ROOTDIR}/${PKG_REPODIR}/Latest"
+mkdir -p ${LATEST_DIR}
+ln -s ../All/$(${PKGCMD} rquery %n-%v pkg).pkg ${LATEST_DIR}/pkg.pkg
+ln -sf pkg.pkg ${LATEST_DIR}/pkg.txz
 
 ${PKGCMD} repo ${PKG_REPODIR}
 
