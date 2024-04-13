@@ -44,24 +44,17 @@
  *
  * eg: dsp0.p1  - u=0, d=p, c=1
  *     dsp1.vp0 - u=1, d=vp, c=0
- *     dsp0.10  - u=0, d=clone, c=allocated clone (see further explanation)
  *
- * Maximum unit of soundcards can be tuned through "hw.snd.maxunit", which
- * is between SND_UNIT_UMIN (16) and SND_UNIT_UMAX (2048). By design,
- * maximum allowable allocated channel is 256, with exception for clone
- * devices which doesn't have any notion of channel numbering. The use of
- * channel numbering in a clone device is simply to provide uniqueness among
- * allocated clones. This also means that the maximum allowable clonable
- * device is largely dependant and dynamically tuned depending on
- * hw.snd.maxunit.
+ * Maximum unit of soundcards can be tuned through "hw.snd.maxunit", which is
+ * between SND_UNIT_UMIN (16) and SND_UNIT_UMAX (2048). By design, the maximum
+ * allowable allocated channel is 256.
  */
 
 /* Default width */
 static int snd_u_shift = 9;	/* 0 - 0x1ff :  512 distinct soundcards   */
 static int snd_d_shift = 5;	/* 0 - 0x1f  :   32 distinct device types */
 static int snd_c_shift = 10;	/* 0 - 0x3ff : 1024 distinct channels
-					       (256 limit "by design",
-					       except for clone devices)  */
+					       (256 limit "by design")	  */
 
 static int snd_unit_initialized = 0;
 
@@ -184,10 +177,7 @@ snd_unit_init(void)
 		    snd_u_shift++)
 			;
 
-		/*
-		 * Make room for channels/clones allocation unit
-		 * to fit within 24bit MAXMINOR limit.
-		 */
+		/* Make room for channels to fit within 24bit MAXMINOR limit. */
 		snd_c_shift = 24 - snd_u_shift - snd_d_shift;
 	}
 
