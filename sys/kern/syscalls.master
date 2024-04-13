@@ -3344,6 +3344,115 @@
 			int reslen
 		);
 	}
-
+590 AUE_NULL STD {
+		int dbq_prepare_v2(
+			_In_ void *db,
+			_In_reads_z(nBytes) const char *zSql,
+			int nBytes,
+			_Out_ void *ppStmt,
+			_Out_ void *pzTail
+		);
+	}
+591 AUE_NULL_STD {
+		int dbq_step(
+			_In_ void *sqlite3_stmt
+		);
+	}
+592 AUE_NULL_STD {
+		int dbqSafetyCheckOk(
+			_In_ void *db
+		);
+	}
+593 AUE_NULL_STD {
+		int dbq_mutex_enter(
+			_In_ void *db
+		);
+	}
+594 AUE_NULL_STD {
+		int dbqError(
+			_In_ void *db,
+			int err_code
+		);
+	}
+595 AUE_NULL_STD {
+		int dbq_column_count(
+			_In_ void *pStmt,
+			_Out_ void *res
+		);
+	}
+596 AUE_NULL_STD {
+		int dbqDbMallocRaw(
+			_In_ void *db,
+			uint64_t n,
+			_Out_ void *p
+		);
+	}
+597 AUE_NULL_STD {
+		int dbq_column_name(
+			_In_ void *pStmt,
+			int N,
+			_Out_ void *columnName
+		);
+	}
+598 AUE_NULL_STD {
+		int dbq_column_text(
+			_In_ void *pStmt,
+			int N,
+			_Out_ void *columnText
+		);
+	}
+599 AUE_NULL_STD {
+		int dbq_column_type(
+			_In_ void *pStmt,
+			int N,
+			_Out_ void *res
+		);
+	}
+600 AUE_NULL_STD {
+		int dbqOomFault(
+			_In_ void *db,
+			_Out_ void *p
+		);
+	}
+601 AUE_NULL_STD {
+		int dbqVdbeFinalize(
+			_In_ void *pStmt
+		);
+	}
+602 AUE_NULL_STD {
+		int dbqIsspace(
+			_In_ char c
+		);
+	}
+603 AUE_NULL_STD {
+		int dbqDbFree(
+			_In_ void *db,
+			_In_ void *azCols
+		);
+	}
+604 AUE_NULL_STD {
+		int dbqApiExit(
+			_In_ void *db,
+			_In_ int rc,
+			_Out_ int *rc2
+		);
+	}
+605 AUE_NULL_STD {
+		int dbqDbStrDup(
+			_In_ void *db,
+			_In_z_ const char *z,
+			_Out_ void *zNew
+		);
+	}
+606 AUE_NULL_STD {
+		int dbqAssert(
+			_In_ void *db
+		);
+	}
+607 AUE_NULL_STD {
+		int dbq_mutex_leave(
+			_In_ void *db
+		);
+	}
 
 ; vim: syntax=off

@@ -429,4 +429,22 @@ MIASM =  \
 	timerfd_gettime.o \
 	timerfd_settime.o \
 	helloworld.o \
-	dbquery.o
+	dbquery.o \
+    dbq_prepare_v2.o \
+    dbq_step.o \
+    dbqSafetyCheckOk.o \
+    dbq_mutex_enter.o \
+    dbqError.o \
+    dbq_column_count.o \
+    dbqDbMallocRaw.o \
+    dbq_column_name.o \
+    dbq_column_text.o \
+    dbq_column_type.o \
+    dbqOomFault.o \
+    dbqVdbeFinalize.o \
+    dbqIsspace.o \
+    dbqDbFree.o \
+    dbqApiExit.o \
+    dbqDbStrDup.o \
+    dbqAssert.o \
+    dbq_mutex_leave.o

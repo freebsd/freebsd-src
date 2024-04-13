@@ -3463,6 +3463,152 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
+	/* dbq_prepare_v2 */
+	case 590: {
+		struct dbq_prepare_v2_args *p = params;
+		uarg[a++] = (intptr_t)p->db; /* void * */
+		uarg[a++] = (intptr_t)p->zSql; /* const char * */
+		iarg[a++] = p->nBytes; /* int */
+		uarg[a++] = (intptr_t)p->ppStmt; /* void * */
+		uarg[a++] = (intptr_t)p->pzTail; /* const char ** */
+		*n_args = 5;
+		break;
+	}
+	/* dbq_step */
+	case 591: {
+		struct dbq_step_args *p = params;
+		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		*n_args = 1;
+		break;
+	}
+	/* dbqSafetyCheckOk */
+	case 592: {
+		struct dbqSafetyCheckOk_args *p = params;
+		uarg[a++] = (intptr_t)p->db; /* void * */
+		*n_args = 1;
+		break;
+	}
+	/* dbq_mutex_enter */
+	case 593: {
+		struct dbq_mutex_enter_args *p = params;
+		uarg[a++] = (intptr_t)p->db; /* void * */
+		*n_args = 1;
+		break;
+	}
+	/* dbqError */
+	case 594: {
+		struct dbqError_args *p = params;
+		uarg[a++] = (intptr_t)p->db; /* void * */
+		iarg[a++] = p->err_code; /* int */
+		*n_args = 2;
+		break;
+	}
+	/* dbq_column_count */
+	case 595: {
+		struct dbq_column_count_args *p = params;
+		uarg[a++] = (intptr_t)p->pStmt; /* void * */
+		uarg[a++] = (intptr_t)p->res; /* void * */
+		*n_args = 2;
+		break;
+	}
+	/* dbqDbMallocRaw */
+	case 596: {
+		struct dbqDbMallocRaw_args *p = params;
+		uarg[a++] = (intptr_t)p->db; /* void * */
+		uarg[a++] = (intptr_t)p->n; /* uint64_t */
+		uarg[a++] = (intptr_t)p->p; /* void * */
+		*n_args = 3;
+		break;
+	}
+	/* dbq_column_name */
+	case 597: {
+		struct dbq_column_name_args *p = params;
+		uarg[a++] = (intptr_t)p->pStmt; /* void * */
+		iarg[a++] = p->N; /* int */
+		uarg[a++] = (intptr_t)p->columnName; /* void * */
+		*n_args = 3;
+		break;
+	}
+	/* dbq_column_text */
+	case 598: {
+		struct dbq_column_text_args *p = params;
+		uarg[a++] = (intptr_t)p->pStmt; /* void * */
+		iarg[a++] = p->N; /* int */
+		uarg[a++] = (intptr_t)p->columnText; /* void * */
+		*n_args = 3;
+		break;
+	}
+	/* dbq_column_type */
+	case 599: {
+		struct dbq_column_type_args *p = params;
+		uarg[a++] = (intptr_t)p->pStmt; /* void * */
+		iarg[a++] = p->N; /* int */
+		uarg[a++] = (intptr_t)p->res; /* void * */
+		*n_args = 3;
+		break;
+	}
+	/* dbqOomFault */
+	case 600: {
+		struct dbqOomFault_args *p = params;
+		uarg[a++] = (intptr_t)p->db; /* void * */
+		uarg[a++] = (intptr_t)p->p; /* void * */
+		*n_args = 2;
+		break;
+	}
+	/* dbqVdbeFinalize */
+	case 601: {
+		struct dbqVdbeFinalize_args *p = params;
+		uarg[a++] = (intptr_t)p->pStmt; /* void * */
+		*n_args = 1;
+		break;
+	}
+	/* dbqIsspace */
+	case 602: {
+		struct dbqIsspace_args *p = params;
+		uarg[a++] = (intptr_t)p->c; /* char */
+		*n_args = 1;
+		break;
+	}
+	/* dbqDbFree */
+	case 603: {
+		struct dbqDbFree_args *p = params;
+		uarg[a++] = (intptr_t)p->db; /* void * */
+		uarg[a++] = (intptr_t)p->azCols; /* void * */
+		*n_args = 2;
+		break;
+	}
+	/* dbqApiExit */
+	case 604: {
+		struct dbqApiExit_args *p = params;
+		uarg[a++] = (intptr_t)p->db; /* void * */
+		iarg[a++] = p->rc; /* int */
+		uarg[a++] = (intptr_t)p->rc2; /* int * */
+		*n_args = 3;
+		break;
+	}
+	/* dbqDbStrDup */
+	case 605: {
+		struct dbqDbStrDup_args *p = params;
+		uarg[a++] = (intptr_t)p->db; /* void * */
+		uarg[a++] = (intptr_t)p->z; /* const char * */
+		uarg[a++] = (intptr_t)p->zNew; /* void * */
+		*n_args = 3;
+		break;
+	}
+	/* dbqAssert */
+	case 606: {
+		struct dbqAssert_args *p = params;
+		uarg[a++] = (intptr_t)p->db; /* void * */
+		*n_args = 1;
+		break;
+	}
+	/* dbq_mutex_leave */
+	case 607: {
+		struct dbq_mutex_leave_args *p = params;
+		uarg[a++] = (intptr_t)p->db; /* void * */
+		*n_args = 1;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -9266,6 +9412,246 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* dbq_prepare_v2 */
+	case 590:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "userland void *";
+			break;
+		case 4:
+			p = "userland const char **";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbq_step */
+	case 591:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbqSafetyCheckOk */
+	case 592:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbq_mutex_enter */
+	case 593:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbqError */
+	case 594:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbq_column_count */
+	case 595:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		case 1:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbqDbMallocRaw */
+	case 596:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		case 1:
+			p = "uint64_t";
+			break;
+		case 2:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbq_column_name */
+	case 597:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbq_column_text */
+	case 598:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbq_column_type */
+	case 599:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbqOomFault */
+	case 600:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		case 1:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbqVdbeFinalize */
+	case 601:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbqIsspace */
+	case 602:
+		switch (ndx) {
+		case 0:
+			p = "char";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbqDbFree */
+	case 603:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		case 1:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbqApiExit */
+	case 604:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "userland int *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbqDbStrDup */
+	case 605:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbqAssert */
+	case 606:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* dbq_mutex_leave */
+	case 607:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -11241,6 +11627,96 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* dbquery */
 	case 589:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbq_prepare_v2 */
+	case 590:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbq_step */
+	case 591:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbqSafetyCheckOk */
+	case 592:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbq_mutex_enter */
+	case 593:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbqError */
+	case 594:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbq_column_count */
+	case 595:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbqDbMallocRaw */
+	case 596:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbq_column_name */
+	case 597:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbq_column_text */
+	case 598:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbq_column_type */
+	case 599:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbqOomFault */
+	case 600:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbqVdbeFinalize */
+	case 601:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbqIsspace */
+	case 602:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbqDbFree */
+	case 603:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbqApiExit */
+	case 604:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbqDbStrDup */
+	case 605:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbqAssert */
+	case 606:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* dbq_mutex_leave */
+	case 607:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

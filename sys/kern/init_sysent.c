@@ -650,4 +650,24 @@ struct sysent sysent[] = {
 	{ .sy_narg = AS(timerfd_settime_args), .sy_call = (sy_call_t *)sys_timerfd_settime, .sy_auevent = AUE_TIMERFD, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 587 = timerfd_settime */
 	{ .sy_narg = AS(helloworld_args), .sy_call = (sy_call_t *)sys_helloworld, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 588 = helloworld */
 	{ .sy_narg = AS(dbquery_args), .sy_call = (sy_call_t *)sys_dbquery, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 589 = dbquery */
+	{ .sy_narg = AS(helloworld_args), .sy_call = (sy_call_t *)sys_helloworld, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 588 = helloworld */
+	{ .sy_narg = AS(dbquery_args), .sy_call = (sy_call_t *)sys_dbquery, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },      /* 589 = dbquery */
+	{ .sy_narg = AS(dbq_prepare_v2_args), .sy_call = (sy_call_t *)sys_dbq_prepare_v2, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 590 = dbq_prepare_v2 */
+	{ .sy_narg = AS(dbq_step_args), .sy_call = (sy_call_t *)sys_dbq_step, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 591 = dbq_step */
+	{ .sy_narg = AS(dbqSafetyCheckOk_args), .sy_call = (sy_call_t *)sys_dbqSafetyCheckOk, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 592 = dbqSafetyCheckOk */
+	{ .sy_narg = AS(dbq_mutex_enter_args), .sy_call = (sy_call_t *)sys_dbq_mutex_enter, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 593 = dbq_mutex_enter */
+	{ .sy_narg = AS(dbqError_args), .sy_call = (sy_call_t *)sys_dbqError, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 594 = dbqError */
+	{ .sy_narg = AS(dbq_column_count_args), .sy_call = (sy_call_t *)sys_dbq_column_count, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 595 = dbq_column_count */
+	{ .sy_narg = AS(dbqDbMallocRaw_args), .sy_call = (sy_call_t *)sys_dbqDbMallocRaw, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 596 = dbqDbMallocRaw */
+	{ .sy_narg = AS(dbq_column_name_args), .sy_call = (sy_call_t *)sys_dbq_column_name, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 597 = dbq_column_name */
+	{ .sy_narg = AS(dbq_column_text_args), .sy_call = (sy_call_t *)sys_dbq_column_text, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 598 = dbq_column_text */
+	{ .sy_narg = AS(dbq_column_type_args), .sy_call = (sy_call_t *)sys_dbq_column_type, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 599 = dbq_column_type */
+	{ .sy_narg = AS(dbqOomFault_args), .sy_call = (sy_call_t *)sys_dbqOomFault, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 600 = dbqOomFault */
+	{ .sy_narg = AS(dbqVdbeFinalize_args), .sy_call = (sy_call_t *)sys_dbqVdbeFinalize, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 601 = dbqVdbeFinalize */
+	{ .sy_narg = AS(dbqIsspace_args), .sy_call = (sy_call_t *)sys_dbqIsspace, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 602 = dbqIsspace */
+	{ .sy_narg = AS(dbqDbFree_args), .sy_call = (sy_call_t *)sys_dbqDbFree, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 603 = dbqDbFree */
+	{ .sy_narg = AS(dbqApiExit_args), .sy_call = (sy_call_t *)sys_dbqApiExit, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 604 = dbqApiExit */
+	{ .sy_narg = AS(dbqDbStrDup_args), .sy_call = (sy_call_t *)sys_dbqDbStrDup, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 605 = dbqDbStrDup */
+	{ .sy_narg = AS(dbqAssert_args), .sy_call = (sy_call_t *)sys_dbqAssert, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC }, /* 606 = dbqAssert */
+	{ .sy_narg = AS(dbq_mutex_leave_args), .sy_call = (sy_call_t *)sys_dbq_mutex_leave, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC } /* 607 = dbq_mutex_leave */
 };
