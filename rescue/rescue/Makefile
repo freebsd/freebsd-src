@@ -119,10 +119,6 @@ CRUNCH_PROGS_sbin+= ipf
 CRUNCH_LIBS_ipf+=	${LIBIPF}
 .endif
 
-.if ${MK_ROUTED} != "no"
-CRUNCH_PROGS_sbin+= routed rtquery
-.endif
-
 .if ${MK_ZFS} != "no"
 CRUNCH_PROGS_sbin+= bectl
 CRUNCH_PROGS_sbin+= zfs
@@ -177,7 +173,6 @@ CRUNCH_PROGS_sbin+= bsdlabel fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
-CRUNCH_SRCDIR_rtquery= ${SRCTOP}/sbin/routed/rtquery
 CRUNCH_SRCDIR_ipf= ${SRCTOP}/sbin/ipf/ipf
 .if ${MK_ZFS} != "no"
 CRUNCH_SRCDIR_zfs= ${SRCTOP}/cddl/sbin/zfs
