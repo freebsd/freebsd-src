@@ -327,8 +327,6 @@ device		virtio_balloon		# VirtIO Memory Balloon device
 device		kvm_clock		# KVM paravirtual clock driver
 
 # HyperV drivers and enhancement support
-# NOTE: HYPERV depends on hyperv.  They must be added or removed together.
-options 	HYPERV			# Kernel support for HyperV drivers
 device		hyperv			# HyperV drivers
 
 # Xen HVM Guest Optimizations
