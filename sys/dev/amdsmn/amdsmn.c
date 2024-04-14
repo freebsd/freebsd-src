@@ -58,6 +58,7 @@
 #define	PCI_DEVICE_ID_AMD_17H_M10H_ROOT		0x15d0
 #define	PCI_DEVICE_ID_AMD_17H_M30H_ROOT		0x1480	/* Also M70H, F19H M00H/M20H */
 #define	PCI_DEVICE_ID_AMD_17H_M60H_ROOT		0x1630
+#define	PCI_DEVICE_ID_AMD_19H_M10H_ROOT		0x14a4
 #define	PCI_DEVICE_ID_AMD_19H_M60H_ROOT		0x14d8
 
 struct pciid;
@@ -99,6 +100,12 @@ static const struct pciid {
 	{
 		.amdsmn_vendorid = CPU_VENDOR_AMD,
 		.amdsmn_deviceid = PCI_DEVICE_ID_AMD_17H_M60H_ROOT,
+		.amdsmn_addr_reg = F17H_SMN_ADDR_REG,
+		.amdsmn_data_reg = F17H_SMN_DATA_REG,
+	},
+	{
+		.amdsmn_vendorid = CPU_VENDOR_AMD,
+		.amdsmn_deviceid = PCI_DEVICE_ID_AMD_19H_M10H_ROOT,
 		.amdsmn_addr_reg = F17H_SMN_ADDR_REG,
 		.amdsmn_data_reg = F17H_SMN_DATA_REG,
 	},
