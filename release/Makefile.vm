@@ -145,9 +145,10 @@ cw-${_CW:tl}:	cw-${_CW:tl}-${${_CW:tu}_FORMAT:[1]}
 .endif
 
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-CLEANDIRS+=	${VMTARGETS}
+CLEANFILES+=	vm-image
 . for FORMAT in ${VMFORMATS}
 .  for FS in ${VMFSLIST}
+CLEANDIRS+=	vm-image-${FORMAT}-${FS}
 CLEANFILES+=	${FORMAT}.${FS}.img
 CLEANFILES+=	${VMBASE}.${FS}.${FORMAT}
 .  endfor
