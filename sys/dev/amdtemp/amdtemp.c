@@ -70,7 +70,11 @@ typedef enum {
 	CCD6,
 	CCD7,
 	CCD8,
-	CCD_MAX = CCD8,
+	CCD9,
+	CCD10,
+	CCD11,
+	CCD12,
+	CCD_MAX = CCD12,
 	NUM_CCDS = CCD_MAX - CCD_BASE + 1,
 } amdsensor_t;
 
@@ -110,6 +114,7 @@ struct amdtemp_softc {
 #define	DEVICEID_AMD_HOSTB17H_M10H_ROOT	0x15d0
 #define	DEVICEID_AMD_HOSTB17H_M30H_ROOT	0x1480	/* Also M70H, F19H M00H/M20H */
 #define	DEVICEID_AMD_HOSTB17H_M60H_ROOT	0x1630
+#define	DEVICEID_AMD_HOSTB19H_M10H_ROOT	0x14a4
 #define	DEVICEID_AMD_HOSTB19H_M60H_ROOT	0x14d8
 
 static const struct amdtemp_product {
@@ -135,6 +140,7 @@ static const struct amdtemp_product {
 	{ VENDORID_AMD,	DEVICEID_AMD_HOSTB17H_M10H_ROOT, false },
 	{ VENDORID_AMD,	DEVICEID_AMD_HOSTB17H_M30H_ROOT, false },
 	{ VENDORID_AMD,	DEVICEID_AMD_HOSTB17H_M60H_ROOT, false },
+	{ VENDORID_AMD,	DEVICEID_AMD_HOSTB19H_M10H_ROOT, false },
 	{ VENDORID_AMD,	DEVICEID_AMD_HOSTB19H_M60H_ROOT, false },
 };
 
@@ -181,6 +187,7 @@ static const struct amdtemp_product {
 #define	AMDTEMP_17H_CCD_TMP_BASE	0x59954
 #define	AMDTEMP_17H_CCD_TMP_VALID	(1u << 11)
 
+#define	AMDTEMP_ZEN4_10H_CCD_TMP_BASE	0x59b00
 #define	AMDTEMP_ZEN4_CCD_TMP_BASE	0x59b08
 
 /*
@@ -861,6 +868,11 @@ amdtemp_probe_ccd_sensors19h(device_t dev, uint32_t model)
 	case 0x20 ... 0x2f: /* Zen3 Ryzen "Vermeer" */
 		maxreg = 8;
 		_Static_assert((int)NUM_CCDS >= 8, "");
+		break;
+	case 0x10 ... 0x1f:
+		sc->sc_temp_base = AMDTEMP_ZEN4_10H_CCD_TMP_BASE;
+		maxreg = 12;
+		_Static_assert((int)NUM_CCDS >= 12, "");
 		break;
 	case 0x60 ... 0x6f: /* Zen4 Ryzen "Raphael" */
 		sc->sc_temp_base = AMDTEMP_ZEN4_CCD_TMP_BASE;
