@@ -2635,6 +2635,10 @@ device		hifn		# Hifn 7951, 7781, etc.
 options 	HIFN_DEBUG	# enable debugging support: hw.hifn.debug
 options 	HIFN_RNDTEST	# enable rndtest support
 
+device		safe		# SafeNet 1141
+options 	SAFE_DEBUG	# enable debugging support: hw.safe.debug
+options 	SAFE_RNDTEST	# enable rndtest support
+
 #####################################################################
 
 

@@ -451,14 +451,6 @@ device		pmspcv
 device		qat_c2xxx
 
 #
-# SafeNet crypto driver: can be moved to the MI NOTES as soon as
-# it's tested on a big-endian machine
-#
-device		safe		# SafeNet 1141
-options 	SAFE_DEBUG	# enable debugging support: hw.safe.debug
-options 	SAFE_RNDTEST	# enable rndtest support
-
-#
 # VirtIO support
 #
 # The virtio entry provides a generic bus for use by the device drivers.
