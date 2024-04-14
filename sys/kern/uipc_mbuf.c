@@ -1948,7 +1948,7 @@ m_uiotombuf(struct uio *uio, int how, int len, int lspace, int flags)
 	if (flags & M_EXTPG) {
 		/* XXX: 'lspace' magically becomes maxseg! */
 		return (m_uiotombuf_nomap(uio, how, len, lspace, flags));
-	} else if (__predict_false(uio->uio_resid + len == 0)) {
+	} else if (__predict_false(uio->uio_resid == 0)) {
 		struct mbuf *m;
 
 		/*
