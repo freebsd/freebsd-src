@@ -683,18 +683,6 @@ device		hvhid		# HyperV HID device
 #  The Rev 2 host cards use a 32K chunk, on a 32K boundary.
 #  The cards can use an IRQ of 11, 12 or 15.
 
-# Notes on the Sony Programmable I/O controller
-#  This is a temporary driver that should someday be replaced by something
-#  that hooks into the ACPI layer.  The device is hooked to the PIIX4's
-#  General Device 10 decoder, which means you have to fiddle with PCI
-#  registers to map it in, even though it is otherwise treated here as
-#  an ISA device.  At the moment, the driver polls, although the device
-#  is capable of generating interrupts.  It largely undocumented.
-#  The port location in the hint is where you WANT the device to be
-#  mapped.  0x10a0 seems to be traditional.  At the moment the jogdial
-#  is the only thing truly supported, but apparently a fair percentage
-#  of the Vaio extra features are controlled by this device.
-
 device		ipmi
 device		smapi
 device		smbios
