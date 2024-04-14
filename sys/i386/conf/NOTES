@@ -760,11 +760,6 @@ device		cpuctl
 device		superio
 
 #
-# System Management Bus (SMB)
-#
-options 	ENABLE_ALART		# Control alarm on Intel intpm driver
-
-#
 # HID-over-I2C support
 #
 device		iichid		# HID-over-I2C support

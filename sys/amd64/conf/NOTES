@@ -545,11 +545,6 @@ device		cpuctl
 device		superio
 
 #
-# System Management Bus (SMB)
-#
-options 	ENABLE_ALART		# Control alarm on Intel intpm driver
-
-#
 # AMD System Management Network (SMN)
 #
 device		amdsmn
