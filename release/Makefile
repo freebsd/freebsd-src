@@ -297,7 +297,7 @@ packagesystem: ${DISTRIBUTIONS}
 	sh ${.CURDIR}/scripts/make-manifest.sh *.txz > MANIFEST
 	touch ${.TARGET}
 
-pkg-stage:
+pkg-stage: dvd
 # TODO: Support for -DNO_ROOT
 .if !defined(NOPKG) || empty(NOPKG)
 	env PORTSDIR=${PORTSDIR} REPOS_DIR=${.CURDIR}/pkg_repos/ \
