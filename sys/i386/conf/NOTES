@@ -641,13 +641,6 @@ device		vmd
 #
 # PMC-Sierra SAS/SATA controller
 device		pmspcv
-#
-# SafeNet crypto driver: can be moved to the MI NOTES as soon as
-# it's tested on a big-endian machine
-#
-device		safe		# SafeNet 1141
-options 	SAFE_DEBUG	# enable debugging support: hw.safe.debug
-options 	SAFE_RNDTEST	# enable rndtest support
 
 #
 # glxiic is an I2C driver for the AMD Geode LX CS5536 System Management Bus
