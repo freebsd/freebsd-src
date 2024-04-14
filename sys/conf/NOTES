@@ -2224,6 +2224,7 @@ device		rtsx
 device		smbus		# Bus support, required for smb below.
 
 device		intpm
+options 	ENABLE_ALART	# Control alarm on Intel intpm driver
 device		alpm
 device		ichsmb
 device		viapm
