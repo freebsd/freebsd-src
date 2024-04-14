@@ -60,14 +60,6 @@ device		al_udma			# Universal DMA
 # Qualcomm Snapdragon drivers
 device		qcom_gcc		# Global Clock Controller
 
-# VirtIO support
-device		virtio
-device		virtio_pci
-device		virtio_mmio
-device		virtio_blk
-device		vtnet
-device		virtio_scmi
-
 # Google Virtual NIC
 device		gve		# Google Virtual NIC (gVNIC) driver
 

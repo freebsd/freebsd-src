@@ -450,24 +450,6 @@ device		pmspcv
 # Only for legacy Atom C2XXX chipsets.
 device		qat_c2xxx
 
-#
-# VirtIO support
-#
-# The virtio entry provides a generic bus for use by the device drivers.
-# It must be combined with an interface that communicates with the host.
-# Multiple such interfaces are defined by the VirtIO specification. FreeBSD
-# only has support for PCI. Therefore, virtio_pci must be statically
-# compiled in or loaded as a module for the device drivers to function.
-#
-device		virtio		# Generic VirtIO bus (required)
-device		virtio_pci	# VirtIO PCI Interface
-device		vtnet		# VirtIO Ethernet device
-device		virtio_blk	# VirtIO Block device
-device		virtio_scsi	# VirtIO SCSI device
-device		virtio_balloon	# VirtIO Memory Balloon device
-device		virtio_random	# VirtIO Entropy device
-device		virtio_console	# VirtIO Console device
-
 # Linux KVM paravirtualization support
 device		kvm_clock	# KVM paravirtual clock driver
 
