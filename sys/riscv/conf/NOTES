@@ -32,14 +32,6 @@ device		riscv_syscon
 # Backlight subsystem
 device		backlight
 
-# VirtIO support
-device		virtio			# Generic VirtIO bus (required)
-device		virtio_pci		# VirtIO PCI device
-device		vtnet			# VirtIO Ethernet device
-device		virtio_blk		# VirtIO Block device
-device		virtio_mmio		# VirtIO MMIO bus
-device		virtio_random		# VirtIO Entropy device
-
 # MMC/SD/SDIO Card slot support
 device		dwmmc
 
