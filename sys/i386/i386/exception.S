@@ -450,7 +450,7 @@ ENTRY(fork_trampoline)
 #include <i386/i386/apic_vector.S>
 #endif
 
-#ifdef HYPERV
+#ifdef DEV_HYPERV
 	.data
 	.p2align 4
 	.text
