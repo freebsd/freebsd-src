@@ -1471,10 +1471,6 @@ device		cfiscsi		# CAM Target Layer iSCSI target frontend
 device		iscsi		# iSCSI initiator
 device		iser		# iSCSI Extensions for RDMA (iSER) initiator
 
-# Options used in dev/iscsi (Software iSCSI stack)
-#
-options 	ISCSI_INITIATOR_DEBUG=9
-
 
 #####################################################################
 # MISCELLANEOUS DEVICES AND OPTIONS
