@@ -581,9 +581,6 @@ options 	IICHID_SAMPLING	# Workaround missing GPIO INTR support
 #####################################################################
 # ABI Emulation
 
-#XXX keep these here for now and reactivate when support for emulating
-#XXX these 32 bit binaries is added.
-
 # Enable 32-bit runtime support for FreeBSD/i386 binaries.
 options 	COMPAT_FREEBSD32
 
