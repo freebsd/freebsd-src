@@ -368,9 +368,6 @@ device		iwn6000g2bfw
 device		iwn6050fw
 device		wpifw
 
-# net80211 options
-options 	IEEE80211_DEBUG_REFCNT
-
 #
 # Non-Transparent Bridge (NTB) drivers
 #
