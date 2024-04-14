@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240414: unix_socketpair_test renamed
+OLD_FILES+=usr/tests/sys/kern/unix_socketpair_test
+
 # 20240406: new clang import which bumps version from 17 to 18
 OLD_FILES+=usr/lib/clang/17/include/__clang_cuda_builtin_vars.h
 OLD_FILES+=usr/lib/clang/17/include/__clang_cuda_cmath.h
