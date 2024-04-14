@@ -243,6 +243,7 @@ main(int argc, char *argv[])
 			if (p == optarg || state.restart_delay < 1) {
 				errx(6, "invalid restart delay");
 			}
+			state.mode = MODE_SUPERVISE;
 			break;
 		case 's':
 			state.syslog_priority = get_log_mapping(optarg,
