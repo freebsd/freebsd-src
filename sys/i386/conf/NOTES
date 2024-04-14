@@ -765,6 +765,22 @@ device		superio
 options 	ENABLE_ALART		# Control alarm on Intel intpm driver
 
 #
+# HID-over-I2C support
+#
+device		iichid		# HID-over-I2C support
+options 	IICHID_DEBUG	# Enable HID-over-I2C debug messages
+options 	IICHID_SAMPLING	# Workaround missing GPIO INTR support
+
+#####################################################################
+# ABI Emulation
+
+# Enable (32-bit) a.out binary support
+options 	COMPAT_AOUT
+
+#####################################################################
+# VM OPTIONS
+
+#
 # Set the number of PV entries per process.  Increasing this can
 # stop panics related to heavy use of shared memory.  However, that can
 # (combined with large amounts of physical memory) cause panics at
@@ -785,22 +801,6 @@ options 	PMAP_SHPGPERPROC=201
 # vm_page_t array.  Each page table page maps 4MB (2MB with PAE).
 #
 options 	NKPT=31
-
-#
-# HID-over-I2C support
-#
-device		iichid		# HID-over-I2C support
-options 	IICHID_DEBUG	# Enable HID-over-I2C debug messages
-options 	IICHID_SAMPLING	# Workaround missing GPIO INTR support
-
-#####################################################################
-# ABI Emulation
-
-# Enable (32-bit) a.out binary support
-options 	COMPAT_AOUT
-
-#####################################################################
-# VM OPTIONS
 
 # KSTACK_PAGES is the number of memory pages to assign to the kernel
 # stack of each thread.
