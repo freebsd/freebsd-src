@@ -886,6 +886,7 @@ device		vxlan
 #  and ath drivers and will eventually be required by all 802.11 drivers.
 device		wlan
 options 	IEEE80211_DEBUG		#enable debugging msgs
+options 	IEEE80211_DEBUG_REFCNT
 options 	IEEE80211_SUPPORT_MESH	#enable 802.11s D3.0 support
 options 	IEEE80211_SUPPORT_TDMA	#enable TDMA support
 
