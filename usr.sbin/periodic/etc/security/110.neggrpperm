@@ -34,8 +34,6 @@ then
     source_periodic_confs
 fi
 
-security_daily_compat_var security_status_neggrpperm_enable
-
 rc=0
 
 if check_yesno_period security_status_neggrpperm_enable

@@ -39,10 +39,6 @@ fi
 
 . /etc/periodic/security/security.functions
 
-security_daily_compat_var security_status_chkmounts_enable
-security_daily_compat_var security_status_chkmounts_ignore
-security_daily_compat_var security_status_noamd
-
 ignore="${security_status_chkmounts_ignore}"
 rc=0
 
