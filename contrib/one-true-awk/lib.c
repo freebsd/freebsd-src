@@ -886,9 +886,18 @@ bool is_valid_number(const char *s, bool trailing_stuff_ok,
 	while (isspace((int) *s))
 		s++;
 
+/*
+ * This test, while allowed by newer POSIX standards, represents a regression
+ * where hex strings were treated as numbers in nawk the whole time it has been
+ * in FreeBSD (since 2001). The POSIX 2001 through 2004 standards mandated this
+ * behavior and the current standard allows it. Deviate from upstream by restoring
+ * the prior FreeBSD behavior.
+ */
+#if 0
 	/* no hex floating point, sorry */
 	if (s[0] == '0' && tolower(s[1]) == 'x')
 		return false;
+#endif
 
 	/* allow +nan, -nan, +inf, -inf, any other letter, no */
 	if (s[0] == '+' || s[0] == '-') {
