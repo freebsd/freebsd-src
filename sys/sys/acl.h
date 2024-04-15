@@ -36,9 +36,11 @@
 #ifndef _SYS_ACL_H_
 #define	_SYS_ACL_H_
 
-#include <sys/param.h>
-#include <sys/queue.h>
-#include <vm/uma.h>
+#include <sys/types.h>
+#include <sys/_null.h>
+#ifdef _KERNEL
+#include <sys/malloc.h>
+#endif
 
 /*
  * POSIX.1e and NFSv4 ACL types and related constants.
