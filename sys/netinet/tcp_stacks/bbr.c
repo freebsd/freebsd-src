@@ -11805,7 +11805,7 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	uint32_t recwin, sendwin;
 	int32_t sb_offset;
 	int32_t flags, abandon, error = 0;
-	struct tcp_log_buffer *lgb = NULL;
+	struct tcp_log_buffer *lgb;
 	struct mbuf *m;
 	struct mbuf *mb;
 	uint32_t if_hw_tsomaxsegcount = 0;
@@ -13588,12 +13588,12 @@ send:
 			mtu = inp->inp_route.ro_nh->nh_mtu;
 	}
 #endif				/* INET */
-out:
-
 	if (lgb) {
 		lgb->tlb_errno = error;
 		lgb = NULL;
 	}
+
+out:
 	/*
 	 * In transmit state, time the transmission and arrange for the
 	 * retransmit.  In persist state, just set snd_max.
