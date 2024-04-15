@@ -1,6 +1,7 @@
 
 .PATH: ${.CURDIR:H}/common_source
 
+PACKAGE=lp
 PROG=	pac
 MAN=	pac.8
 
