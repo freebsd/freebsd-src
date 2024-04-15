@@ -938,12 +938,6 @@ struct proc {
 #define	SINGLE_BOUNDARY	2
 #define	SINGLE_ALLPROC	3
 
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_PARGS);
-MALLOC_DECLARE(M_SESSION);
-MALLOC_DECLARE(M_SUBPROC);
-#endif
-
 #define	FOREACH_PROC_IN_SYSTEM(p)					\
 	LIST_FOREACH((p), &allproc, p_list)
 #define	FOREACH_THREAD_IN_PROC(p, td)					\
