@@ -673,17 +673,13 @@ upgrade_check_kmod_ports() {
 	fi
 
 	# Most modules are in /boot/modules but we should actually look
-	# in every path configured in module_path
-	search_files="/boot/defaults/loader.conf /boot/loader.conf"
-	pattern=$(grep -shE '^module_path=' ${search_files} |
-		tail -1 |
-		cut -f2 -d\" |
-		tr ";" "|")
+	# in every module_path passed to the kernel:
+	pattern=$(sysctl -n kern.module_path | tr ";" "|")
 
 	if [ -z "${pattern}" ]; then
-		# Not having module_path in loader.conf is probably an error.
-		# Check at least the most common path
-		pattern="/boot/modules"
+		echo "Empty kern.module_path sysctl. This should not happen."
+		echo "Aborting check of kernel modules installed from ports."
+		return
 	fi
 
 	# Check the pkg database for modules installed in those directories
