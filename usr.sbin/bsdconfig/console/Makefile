@@ -1,6 +1,7 @@
 
 SUBDIR= include
 
+PACKAGE=	bsdconfig
 FILESDIR=	${LIBEXECDIR}/bsdconfig/080.console
 FILES=		INDEX USAGE
 

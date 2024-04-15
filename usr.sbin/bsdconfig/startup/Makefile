@@ -1,6 +1,7 @@
 
 SUBDIR= include share
 
+PACKAGE=	bsdconfig
 FILESDIR=	${LIBEXECDIR}/bsdconfig/140.startup
 FILES=		INDEX USAGE
 

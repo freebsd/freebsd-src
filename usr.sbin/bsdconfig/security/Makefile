@@ -1,6 +1,7 @@
 
 SUBDIR= include
 
+PACKAGE=	bsdconfig
 FILESDIR=	${LIBEXECDIR}/bsdconfig/130.security
 FILES=		INDEX USAGE
 

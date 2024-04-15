@@ -1,6 +1,7 @@
 
 SUBDIR=	media packages
 
+PACKAGE=	bsdconfig
 FILESDIR=	${SHAREDIR}/bsdconfig
 FILES=		common.subr device.subr dialog.subr geom.subr keymap.subr \
 		mustberoot.subr script.subr strings.subr struct.subr \

@@ -1,4 +1,5 @@
 
+PACKAGE=	bsdconfig
 FILESDIR=	${LIBEXECDIR}/bsdconfig/120.networking/include
 FILES=		messages.subr
 

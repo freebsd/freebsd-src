@@ -1,6 +1,7 @@
 
 SUBDIR= include
 
+PACKAGE=	bsdconfig
 FILESDIR=	${LIBEXECDIR}/bsdconfig/includes
 FILES=		INDEX USAGE
 

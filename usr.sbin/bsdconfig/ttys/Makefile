@@ -1,6 +1,7 @@
 
 SUBDIR= include
 
+PACKAGE=	bsdconfig
 FILESDIR=	${LIBEXECDIR}/bsdconfig/150.ttys
 FILES=		INDEX USAGE
 

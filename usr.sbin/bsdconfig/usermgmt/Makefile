@@ -1,6 +1,7 @@
 
 SUBDIR= include share
 
+PACKAGE=	bsdconfig
 FILESDIR=	${LIBEXECDIR}/bsdconfig/070.usermgmt
 FILES=		INDEX USAGE
 

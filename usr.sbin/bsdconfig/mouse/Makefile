@@ -1,6 +1,7 @@
 
 SUBDIR= include
 
+PACKAGE=	bsdconfig
 FILESDIR=	${LIBEXECDIR}/bsdconfig/110.mouse
 FILES=		INDEX USAGE
 

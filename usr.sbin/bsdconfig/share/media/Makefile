@@ -1,4 +1,5 @@
 
+PACKAGE=	bsdconfig
 FILESDIR=	${SHAREDIR}/bsdconfig/media
 FILES=		any.subr cdrom.subr common.subr directory.subr dos.subr \
 		http.subr httpproxy.subr network.subr \
