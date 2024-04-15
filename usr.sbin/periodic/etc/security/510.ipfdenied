@@ -36,8 +36,6 @@ fi
 
 . /etc/periodic/security/security.functions
 
-security_daily_compat_var security_status_ipfdenied_enable
-
 rc=0
 
 if check_yesno_period security_status_ipfdenied_enable

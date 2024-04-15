@@ -37,9 +37,6 @@ then
     source_periodic_confs
 fi
 
-security_daily_compat_var security_status_logdir
-security_daily_compat_var security_status_loginfail_enable
-
 LOG="${security_status_logdir}"
 
 yesterday=`date -v-1d "+%b %e "`
