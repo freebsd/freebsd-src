@@ -38,6 +38,8 @@
 #include <sys/_seqc.h>
 #include <sys/_uio.h>
 
+#include <vm/uma.h>
+
 enum nameiop { LOOKUP, CREATE, DELETE, RENAME };
 
 struct componentname {

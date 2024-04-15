@@ -31,6 +31,8 @@
 #ifndef AUTOFS_H
 #define	AUTOFS_H
 
+#include <vm/uma.h>
+
 #define VFSTOAUTOFS(mp)    ((struct autofs_mount *)((mp)->mnt_data))
 
 MALLOC_DECLARE(M_AUTOFS);

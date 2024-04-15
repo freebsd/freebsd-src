@@ -64,6 +64,7 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 #include <vm/swap_pager.h>
+#include <vm/uma.h>
 
 #include <fs/tmpfs/tmpfs.h>
 #include <fs/tmpfs/tmpfs_fifoops.h>

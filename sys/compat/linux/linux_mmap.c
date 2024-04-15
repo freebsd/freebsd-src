@@ -33,6 +33,7 @@
 #include <sys/file.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
