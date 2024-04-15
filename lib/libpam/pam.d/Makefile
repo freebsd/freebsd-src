@@ -7,7 +7,6 @@ NO_OBJ=
 
 CONFGROUPS=	CONFS
 CONFS=	README \
-	cron \
 	imap \
 	login \
 	other \
@@ -17,6 +16,10 @@ CONFS=	README \
 
 CONFDIR=	/etc/pam.d
 CONFSMODE_README=	444
+
+CONFGROUPS+=	CRON
+CRON+=		cron
+CRONPACKAGE=	cron
 
 .if ${MK_AT} != "no"
 CONFGROUPS+=	AT
