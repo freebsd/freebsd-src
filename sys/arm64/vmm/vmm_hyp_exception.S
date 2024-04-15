@@ -215,7 +215,10 @@ LENTRY(handle_hyp_init)
 	/* Load the base address for the translation tables */
 	msr	ttbr0_el2, x0
 	/* Invalidate the TLB */
+	dsb	ish
 	tlbi	alle2
+	dsb	ishst
+	isb
 	/* Use the same memory attributes as EL1 */
 	mrs	x9, mair_el1
 	msr	mair_el2, x9
