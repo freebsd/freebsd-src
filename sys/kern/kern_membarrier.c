@@ -30,6 +30,7 @@
 #include <sys/systm.h>
 #include <sys/cpuset.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/membarrier.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>

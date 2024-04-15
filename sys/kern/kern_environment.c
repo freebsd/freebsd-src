@@ -54,6 +54,8 @@
 
 #include <security/mac/mac_framework.h>
 
+#include <vm/uma.h>
+
 static char *_getenv_dynamic_locked(const char *name, int *idx);
 static char *_getenv_dynamic(const char *name, int *idx);
 

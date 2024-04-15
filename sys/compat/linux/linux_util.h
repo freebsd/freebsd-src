@@ -35,6 +35,7 @@
 #ifndef	_LINUX_UTIL_H_
 #define	_LINUX_UTIL_H_
 
+#include <sys/malloc.h>
 #include <sys/uio.h>
 
 extern int linux_debug;

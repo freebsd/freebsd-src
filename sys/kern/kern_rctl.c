@@ -39,6 +39,7 @@
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/loginclass.h>
+#include <sys/malloc.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/racct.h>
@@ -2205,6 +2206,7 @@ rctl_init(void)
 #else /* !RCTL */
 
 #include <sys/types.h>
+#include <sys/errno.h>
 #include <sys/sysproto.h>
 
 int
