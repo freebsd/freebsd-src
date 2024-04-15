@@ -7,8 +7,8 @@
 #ifndef _FREEBSD32_SYSPROTO_H_
 #define	_FREEBSD32_SYSPROTO_H_
 
+#include <sys/types.h>
 #include <sys/signal.h>
-#include <sys/acl.h>
 #include <sys/cpuset.h>
 #include <sys/domainset.h>
 #include <sys/_ffcounter.h>

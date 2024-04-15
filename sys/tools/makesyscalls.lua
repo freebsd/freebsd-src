@@ -1431,8 +1431,8 @@ write_line("sysarg", string.format([[/*
 #ifndef %s
 #define	%s
 
+#include <sys/types.h>
 #include <sys/signal.h>
-#include <sys/acl.h>
 #include <sys/cpuset.h>
 #include <sys/domainset.h>
 #include <sys/_ffcounter.h>
