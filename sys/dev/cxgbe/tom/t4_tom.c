@@ -1200,12 +1200,14 @@ calc_options2(struct vi_info *vi, struct conn_params *cp)
 	MPASS(cp->ecn == 0 || cp->ecn == 1);
 	opt2 |= V_CCTRL_ECN(cp->ecn);
 
-	/* XXX: F_RX_CHANNEL for multiple rx c-chan support goes here. */
-
 	opt2 |= V_TX_QUEUE(TX_MODQ(pi->tx_chan));
 	opt2 |= V_PACE(0);
 	opt2 |= F_RSS_QUEUE_VALID;
 	opt2 |= V_RSS_QUEUE(sc->sge.ofld_rxq[cp->rxq_idx].iq.abs_id);
+	if (chip_id(sc) <= CHELSIO_T6) {
+		MPASS(pi->rx_chan == 0 || pi->rx_chan == 1);
+		opt2 |= V_RX_CHANNEL(pi->rx_chan);
+	}
 
 	MPASS(cp->cong_algo >= 0 && cp->cong_algo <= M_CONG_CNTRL);
 	opt2 |= V_CONG_CNTRL(cp->cong_algo);
