@@ -14,23 +14,35 @@ GCC_3.0 {
 	__ashrdi3;
 	__clear_cache;
 	__cmpdi2;
+#ifndef __arm__
 	__deregister_frame;
+#if !defined(__aarch64__) && !defined(__riscv)
 	__deregister_frame_info;
 	__deregister_frame_info_bases;
+#endif
+#endif
 	__divdi3;
 	__ffsdi2;
 	__fixdfdi;
 	__fixsfdi;
 	__fixunsdfdi;
+#ifndef __arm__
 	__fixunsdfsi;
+#endif
 	__fixunssfdi;
+#ifndef __arm__
 	__fixunssfsi;
+#endif
+#ifndef __powerpc__
 	__fixunsxfdi;
 	__fixunsxfsi;
 	__fixxfdi;
+#endif
 	__floatdidf;
 	__floatdisf;
+#ifndef __powerpc__
 	__floatdixf;
+#endif
 	__lshrdi3;
 	__moddi3;
 	__muldi3;
@@ -39,12 +51,16 @@ GCC_3.0 {
 	__negdi2;
 	__negvdi2;
 	__negvsi2;
+#ifndef __arm__
 	__register_frame;
+#if !defined(__aarch64__) && !defined(__riscv)
 	__register_frame_info;
 	__register_frame_info_bases;
 	__register_frame_info_table;
 	__register_frame_info_table_bases;
 	__register_frame_table;
+#endif
+#endif
 	__subvdi3;
 	__subvsi3;
 	__ucmpdi2;
@@ -136,19 +152,27 @@ GCC_3.4.4 {
 GCC_4.0.0 {
 	__divdc3;
 	__divsc3;
+#ifndef __powerpc__
 	__divxc3;
+#endif
 	__muldc3;
 	__mulsc3;
+#ifndef __powerpc__
 	__mulxc3;
+#endif
 	__powidf2;
 	__powisf2;
+#ifndef __powerpc__
 	__powixf2;
+#endif
 };
 
 GCC_4.2.0 {
 	__floatundidf;
 	__floatundisf;
+#ifndef __powerpc__
 	__floatundixf;
+#endif
 	_Unwind_GetIPInfo;
 
 #ifdef CRT_HAS_128BIT
