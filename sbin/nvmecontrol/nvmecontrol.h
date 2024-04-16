@@ -91,22 +91,33 @@ void print_intel_add_smart(const struct nvme_controller_data *cdata __unused, vo
 
 /* Utility Routines */
 /*
- * 128-bit integer augments to standard values. On i386 this
- * doesn't exist, so we use 64-bit values. So, on 32-bit systems,
- * you'll get truncated values until someone implement 128bit
- * ints in software.
+ * C23 supports 128-bit integers via _BitInt(128). clang 16 and gcc 13 support
+ * this. Older compilers will support 128-bit ints on 64-bit
+ * platforms. Otherwise we truncate this to 64-bit on 32-bit systems with older
+ * compilers. We also check for > C18 instead of >= C23 because clang 17 was
+ * released before the the __STDC_VERSION__ was defined.
  */
 #define UINT128_DIG	39
-#ifdef __ILP32__
-typedef uint64_t uint128_t;
-#else
+#if __STDC_VERSION__ >= 202311L
+typedef unsigned _BitInt(128) uint128_t;
+#elif defined(__SIZEOF_INT128__)
 typedef __uint128_t uint128_t;
+#else
+typedef uint64_t uint128_t;
 #endif
 
 static __inline uint128_t
 to128(void *p)
 {
-	return *(uint128_t *)p;
+#if __STDC_VERSION__ >= 202311L || defined(__SIZEOF_INT128__)
+	uint64_t lo, hi;
+
+	lo = le64dec(p);
+	hi = le64dec((const char *)p + 8);
+	return ((uint128_t)hi << 64 | lo);
+#else
+	return (le64dec(p));
+#endif
 }
 
 uint64_t le48dec(const void *pp);
