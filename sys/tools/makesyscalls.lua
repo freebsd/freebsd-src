@@ -35,6 +35,7 @@ local unistd = require("posix.unistd")
 
 local savesyscall = -1
 local maxsyscall = -1
+local structs = {}
 local generated_tag = "@" .. "generated"
 
 -- Default configuration; any of these may get replaced by a configuration file
@@ -43,6 +44,7 @@ local config = {
 	os_id_keyword = "FreeBSD",		-- obsolete, ignored on input, not generated
 	abi_func_prefix = "",
 	libsysmap = "/dev/null",
+	libsys_h = "/dev/null",
 	sysnames = "syscalls.c",
 	sysproto = "../sys/sysproto.h",
 	sysproto_h = "_SYS_SYSPROTO_H_",
@@ -87,6 +89,7 @@ local output_files = {
 	"syshdr",
 	"sysmk",
 	"libsysmap",
+	"libsys_h",
 	"syssw",
 	"systrace",
 	"sysproto",
@@ -94,6 +97,8 @@ local output_files = {
 
 -- These ones we'll create temporary files for; generation purposes.
 local temp_files = {
+	"libsys_h_type",
+	"libsys_h_func",
 	"sysaue",
 	"sysdcl",
 	"syscompat",
@@ -934,6 +939,47 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 		end
 		write_line("libsysmap", string.format("\t__sys_%s;\n",
 		    funcalias))
+
+		if flags & known_flags.SYSMUX == 0 then
+			local argstr_type = ""
+			local argstr_var = ""
+			local comma = ""
+			if #funcargs == 0 then
+				argstr_type = "void"
+				argstr_var = "void"
+			end
+			for _, v in ipairs(funcargs) do
+				local argname, argtype = v.name, v.type
+				argstr_type = argstr_type .. comma .. argtype
+				argstr_var = argstr_var .. comma .. argtype .. " " .. argname
+				comma = ", "
+
+				-- Accumulate a list of struct types for
+				-- forward decls.  We can't do this in
+				-- process_args because we don't want compat
+				-- types in userspace even as no-op.
+				if isptrtype(argtype) then
+					local is_struct = false
+					for word in argtype:gmatch("[^ *]+") do
+						if is_struct then
+							structs[word] = word
+							break
+						end
+						if word == "struct" then
+							is_struct = true
+							-- next word is the name
+						end
+					end
+				end
+			end
+			write_line("libsys_h_type",
+			    string.format("typedef %s (__sys_%s_t)(%s);\n",
+			    syscallret, funcalias, argstr_type))
+			write_line("libsys_h_func",
+			    string.format("%s __sys_%s(%s);\n",
+			    syscallret, funcalias, argstr_var))
+
+		end
 	end
 end
 
@@ -1330,6 +1376,20 @@ process_syscall_def = function(line)
 	end
 end
 
+local function pairsByKeys (t, f)
+	local a = {}
+	for n in pairs(t) do table.insert(a, n) end
+	table.sort(a, f)
+	local i = 0      -- iterator variable
+	local iter = function ()   -- iterator function
+		i = i + 1
+		if a[i] == nil then return nil
+		else return a[i], t[a[i]]
+		end
+	end
+	return iter
+end
+
 -- Entry point
 
 if #arg < 1 or #arg > 2 then
@@ -1504,6 +1564,27 @@ write_line("libsysmap", string.format([[/*
 FBSDprivate_1.0 {
 ]], generated_tag))
 
+write_line("libsys_h", string.format([[/*
+ * Public system call stubs provided by libsys.
+ *
+ * Do not use directly, include <libsys.h> instead.
+ *
+ *  DO NOT EDIT-- this file is automatically %s.
+ */
+#ifndef __LIBSYS_H_
+#define __LIBSYS_H_
+
+#include <sys/_cpuset.h>
+#include <sys/_domainset.h>
+#include <sys/_ffcounter.h>
+#include <sys/_semaphore.h>
+#include <sys/_sigaltstack.h>
+#include <machine/ucontext.h>   /* for mcontext_t */
+#include <sys/_ucontext.h>
+#include <sys/wait.h>
+
+]], generated_tag))
+
 write_line("systrace", string.format([[/*
  * System call argument to DTrace register array converstion.
  *
@@ -1600,6 +1681,16 @@ write_line("systraceret", [[
 ]])
 
 -- Finish up; output
+table.sort(structs)
+for name,_ in pairsByKeys(structs) do
+	write_line("libsys_h", string.format("struct %s;\n", name))
+end
+write_line("libsys_h", "union semun;\n\n__BEGIN_DECLS\n")
+write_line("libsys_h", read_file("libsys_h_type"))
+write_line("libsys_h", "\n")
+write_line("libsys_h", read_file("libsys_h_func"))
+write_line("libsys_h", "__END_DECLS\n\n#endif /* __LIBSYS_H_ */\n")
+
 write_line("syssw", read_file("sysinc"))
 write_line("syssw", read_file("sysent"))
 
