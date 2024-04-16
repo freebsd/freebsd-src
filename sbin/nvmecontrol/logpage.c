@@ -219,10 +219,6 @@ read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
 
 	/* Convert data to host endian */
 	switch (log_page) {
-	case NVME_LOG_COMMAND_EFFECT:
-		nvme_command_effects_page_swapbytes(
-		    (struct nvme_command_effects_page *)payload);
-		break;
 	case NVME_LOG_RES_NOTIFICATION:
 		nvme_res_notification_page_swapbytes(
 		    (struct nvme_res_notification_page *)payload);
@@ -441,7 +437,7 @@ print_log_command_effects(const struct nvme_controller_data *cdata __unused,
 	printf("  Command\tLBCC\tNCC\tNIC\tCCC\tCSE\tUUID\n");
 
 	for (i = 0; i < 255; i++) {
-		s = ce->acs[i];
+		s = letoh(ce->acs[i]);
 		if (NVMEV(NVME_CE_PAGE_CSUP, s) == 0)
 			continue;
 		printf("Admin\t%02x\t%s\t%s\t%s\t%s\t%u\t%s\n", i,
@@ -453,7 +449,7 @@ print_log_command_effects(const struct nvme_controller_data *cdata __unused,
 		    NVMEV(NVME_CE_PAGE_UUID, s) != 0 ? "Yes" : "No");
 	}
 	for (i = 0; i < 255; i++) {
-		s = ce->iocs[i];
+		s = letoh(ce->iocs[i]);
 		if (NVMEV(NVME_CE_PAGE_CSUP, s) == 0)
 			continue;
 		printf("I/O\t%02x\t%s\t%s\t%s\t%s\t%u\t%s\n", i,
