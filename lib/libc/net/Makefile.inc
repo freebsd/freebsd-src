@@ -168,6 +168,7 @@ MLINKS+=sourcefilter.3 setipv4sourcefilter.3 \
 
 .if ${MK_HESIOD} != "no"
 SRCS+=	hesiod.c
+SYM_MAPS+=${LIBC_SRCTOP}/net/Symbol.hesiod.map
 MAN+=	hesiod.3
 MLINKS+=hesiod.3 hesiod_init.3 \
 	hesiod.3 hesiod_resolve.3 \
