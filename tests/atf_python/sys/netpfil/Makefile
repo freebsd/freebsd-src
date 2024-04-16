@@ -2,6 +2,7 @@
 
 .PATH:	${.CURDIR}
 
+PACKAGE=tests
 FILES=	__init__.py
 SUBDIR=	ipfw
 
