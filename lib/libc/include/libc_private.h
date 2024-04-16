@@ -252,6 +252,12 @@ enum {
 	INTERPOS_MAX
 };
 
+#define	_INTERPOS_SYS(type, idx, ...)				\
+    ((type *)*(__libc_interposing_slot(idx)))(__VA_ARGS__)
+#define	INTERPOS_SYS(syscall, ...)				\
+    _INTERPOS_SYS(__sys_## syscall ##_t, INTERPOS_## syscall	\
+    __VA_OPT__(,) __VA_ARGS__)
+
 /*
  * yplib internal interfaces
  */

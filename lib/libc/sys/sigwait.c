@@ -32,6 +32,5 @@
 int
 sigwait(const sigset_t *set, int *sig)
 {
-	return (((int (*)(const sigset_t *, int *))
-	    *(__libc_interposing_slot(INTERPOS_sigwait)))(set, sig));
+	return (INTERPOS_SYS(sigwait, set, sig));
 }

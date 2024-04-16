@@ -41,6 +41,5 @@ __weak_reference(__sys_readv, __readv);
 ssize_t
 readv(int fd, const struct iovec *iov, int iovcnt)
 {
-	return (((ssize_t (*)(int, const struct iovec *, int))
-	    *(__libc_interposing_slot(INTERPOS_readv)))(fd, iov, iovcnt));
+	return (INTERPOS_SYS(readv, fd, iov, iovcnt));
 }

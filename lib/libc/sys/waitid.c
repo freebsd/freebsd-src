@@ -46,9 +46,7 @@ __waitid(idtype_t idtype, id_t id, siginfo_t *info, int flags)
 	int status;
 	pid_t ret;
 
-	ret = ((pid_t (*)(idtype_t, id_t, int *, int, struct __wrusage *,
-	    siginfo_t *))*(__libc_interposing_slot(INTERPOS_wait6)))
-	    (idtype, id, &status, flags, NULL, info);
+	ret = INTERPOS_SYS(wait6, idtype, id, &status, flags, NULL, info);
 
 	/*
 	 * According to SUSv4, waitid() shall not return a PID when a

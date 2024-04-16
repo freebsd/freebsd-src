@@ -42,8 +42,5 @@ send(int s, const void *msg, size_t len, int flags)
 	 * POSIX says send() shall be a cancellation point, so call the
 	 * cancellation-enabled sendto() and not _sendto().
 	 */
-	return (((ssize_t (*)(int, const void *, size_t, int,
-	    const struct sockaddr *, socklen_t))
-	    *__libc_interposing_slot(INTERPOS_sendto))(s, msg, len, flags,
-	    NULL, 0));
+	return (INTERPOS_SYS(sendto, s, msg, len, flags, NULL, 0));
 }
