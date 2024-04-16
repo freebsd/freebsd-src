@@ -475,19 +475,25 @@ main(int argc, char *argv[])
 	struct diocskerneldump_arg ndconf, *kdap;
 	struct addrinfo hints, *res;
 	const char *dev, *pubkeyfile, *server, *client, *gateway;
-	int ch, error, fd, cipher;
+	int ch, error, fd;
 	bool gzip, list, netdump, zstd, insert, rflag;
 	uint8_t ins_idx;
+	#ifdef HAVE_CRYPTO
+	int cipher
+	#endif
 
 	gzip = list = netdump = zstd = insert = rflag = false;
 	kdap = NULL;
 	pubkeyfile = NULL;
 	server = client = gateway = NULL;
 	ins_idx = KDA_APPEND;
-	cipher = KERNELDUMP_ENC_NONE;
+	#ifdef HAVE_CRYPTO
+        int cipher = KERNELDUMP_ENC_NONE;
+        #endif
 
 	while ((ch = getopt(argc, argv, "C:c:g:i:k:lrs:vZz")) != -1)
 		switch ((char)ch) {
+		#ifdef HAVE_CRYPTO
 		case 'C':
 			if (strcasecmp(optarg, "chacha") == 0 ||
 			    strcasecmp(optarg, "chacha20") == 0)
@@ -499,6 +505,7 @@ main(int argc, char *argv[])
 				errx(EX_USAGE, "Unrecognized cipher algorithm "
 				    "'%s'", optarg);
 			break;
+		#endif
 		case 'c':
 			client = optarg;
 			break;
