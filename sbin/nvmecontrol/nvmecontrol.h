@@ -84,7 +84,8 @@ int read_namespace_data(int fd, uint32_t nsid, struct nvme_namespace_data *nsdat
 void print_hex(void *data, uint32_t length);
 void print_namespace(struct nvme_namespace_data *nsdata);
 void read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
-    uint16_t lsi, uint8_t rae, void *payload, uint32_t payload_size);
+    uint16_t lsi, uint8_t rae, uint64_t lpo, uint8_t csi, uint8_t ot,
+    uint16_t uuid_index, void *payload, uint32_t payload_size);
 void print_temp_C(uint16_t t);
 void print_temp_K(uint16_t t);
 void print_intel_add_smart(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size __unused);
