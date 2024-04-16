@@ -5,7 +5,6 @@ FBSD_1.1 {
 	rpc_gss_set_defaults;
 	rpc_gss_max_data_length;
 	rpc_gss_get_error;
-	rpc_gss_mesh_to_oid;
 	rpc_gss_oid_to_mech;
 	rpc_gss_qop_to_num;
 	rpc_gss_get_mechanisms;
@@ -21,7 +20,5 @@ FBSD_1.1 {
 
 FBSDprivate_1.0 {
 	__rpc_gss_unwrap;
-	__rpc_gss_unwrap_stub;
 	__rpc_gss_wrap;
-	__rpc_gss_wrap_stub;
 };
