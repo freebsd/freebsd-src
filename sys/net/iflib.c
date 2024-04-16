@@ -575,13 +575,15 @@ static SYSCTL_NODE(_net, OID_AUTO, iflib, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
  */
 static int iflib_min_tx_latency = 0;
 SYSCTL_INT(_net_iflib, OID_AUTO, min_tx_latency, CTLFLAG_RW,
-		   &iflib_min_tx_latency, 0, "minimize transmit latency at the possible expense of throughput");
+    &iflib_min_tx_latency, 0,
+    "minimize transmit latency at the possible expense of throughput");
 static int iflib_no_tx_batch = 0;
 SYSCTL_INT(_net_iflib, OID_AUTO, no_tx_batch, CTLFLAG_RW,
-		   &iflib_no_tx_batch, 0, "minimize transmit latency at the possible expense of throughput");
+    &iflib_no_tx_batch, 0,
+    "minimize transmit latency at the possible expense of throughput");
 static int iflib_timer_default = 1000;
 SYSCTL_INT(_net_iflib, OID_AUTO, timer_default, CTLFLAG_RW,
-		   &iflib_timer_default, 0, "number of ticks between iflib_timer calls");
+    &iflib_timer_default, 0, "number of ticks between iflib_timer calls");
 
 
 #if IFLIB_DEBUG_COUNTERS
@@ -594,31 +596,31 @@ static int iflib_fl_refills;
 static int iflib_fl_refills_large;
 static int iflib_tx_frees;
 
-SYSCTL_INT(_net_iflib, OID_AUTO, tx_seen, CTLFLAG_RD,
-		   &iflib_tx_seen, 0, "# TX mbufs seen");
-SYSCTL_INT(_net_iflib, OID_AUTO, tx_sent, CTLFLAG_RD,
-		   &iflib_tx_sent, 0, "# TX mbufs sent");
-SYSCTL_INT(_net_iflib, OID_AUTO, tx_encap, CTLFLAG_RD,
-		   &iflib_tx_encap, 0, "# TX mbufs encapped");
-SYSCTL_INT(_net_iflib, OID_AUTO, tx_frees, CTLFLAG_RD,
-		   &iflib_tx_frees, 0, "# TX frees");
-SYSCTL_INT(_net_iflib, OID_AUTO, rx_allocs, CTLFLAG_RD,
-		   &iflib_rx_allocs, 0, "# RX allocations");
-SYSCTL_INT(_net_iflib, OID_AUTO, fl_refills, CTLFLAG_RD,
-		   &iflib_fl_refills, 0, "# refills");
+SYSCTL_INT(_net_iflib, OID_AUTO, tx_seen, CTLFLAG_RD, &iflib_tx_seen, 0,
+    "# TX mbufs seen");
+SYSCTL_INT(_net_iflib, OID_AUTO, tx_sent, CTLFLAG_RD, &iflib_tx_sent, 0,
+    "# TX mbufs sent");
+SYSCTL_INT(_net_iflib, OID_AUTO, tx_encap, CTLFLAG_RD, &iflib_tx_encap, 0,
+    "# TX mbufs encapped");
+SYSCTL_INT(_net_iflib, OID_AUTO, tx_frees, CTLFLAG_RD, &iflib_tx_frees, 0,
+    "# TX frees");
+SYSCTL_INT(_net_iflib, OID_AUTO, rx_allocs, CTLFLAG_RD, &iflib_rx_allocs, 0,
+    "# RX allocations");
+SYSCTL_INT(_net_iflib, OID_AUTO, fl_refills, CTLFLAG_RD, &iflib_fl_refills, 0,
+    "# refills");
 SYSCTL_INT(_net_iflib, OID_AUTO, fl_refills_large, CTLFLAG_RD,
-		   &iflib_fl_refills_large, 0, "# large refills");
+    &iflib_fl_refills_large, 0, "# large refills");
 
 static int iflib_txq_drain_flushing;
 static int iflib_txq_drain_oactive;
 static int iflib_txq_drain_notready;
 
 SYSCTL_INT(_net_iflib, OID_AUTO, txq_drain_flushing, CTLFLAG_RD,
-		   &iflib_txq_drain_flushing, 0, "# drain flushes");
+    &iflib_txq_drain_flushing, 0, "# drain flushes");
 SYSCTL_INT(_net_iflib, OID_AUTO, txq_drain_oactive, CTLFLAG_RD,
-		   &iflib_txq_drain_oactive, 0, "# drain oactives");
+    &iflib_txq_drain_oactive, 0, "# drain oactives");
 SYSCTL_INT(_net_iflib, OID_AUTO, txq_drain_notready, CTLFLAG_RD,
-		   &iflib_txq_drain_notready, 0, "# drain notready");
+    &iflib_txq_drain_notready, 0, "# drain notready");
 
 static int iflib_encap_load_mbuf_fail;
 static int iflib_encap_pad_mbuf_fail;
@@ -626,13 +628,13 @@ static int iflib_encap_txq_avail_fail;
 static int iflib_encap_txd_encap_fail;
 
 SYSCTL_INT(_net_iflib, OID_AUTO, encap_load_mbuf_fail, CTLFLAG_RD,
-		   &iflib_encap_load_mbuf_fail, 0, "# busdma load failures");
+    &iflib_encap_load_mbuf_fail, 0, "# busdma load failures");
 SYSCTL_INT(_net_iflib, OID_AUTO, encap_pad_mbuf_fail, CTLFLAG_RD,
-		   &iflib_encap_pad_mbuf_fail, 0, "# runt frame pad failures");
+    &iflib_encap_pad_mbuf_fail, 0, "# runt frame pad failures");
 SYSCTL_INT(_net_iflib, OID_AUTO, encap_txq_avail_fail, CTLFLAG_RD,
-		   &iflib_encap_txq_avail_fail, 0, "# txq avail failures");
+    &iflib_encap_txq_avail_fail, 0, "# txq avail failures");
 SYSCTL_INT(_net_iflib, OID_AUTO, encap_txd_encap_fail, CTLFLAG_RD,
-		   &iflib_encap_txd_encap_fail, 0, "# driver encap failures");
+    &iflib_encap_txd_encap_fail, 0, "# driver encap failures");
 
 static int iflib_task_fn_rxs;
 static int iflib_rx_intr_enables;
@@ -644,22 +646,22 @@ static int iflib_rxd_flush;
 
 static int iflib_verbose_debug;
 
-SYSCTL_INT(_net_iflib, OID_AUTO, task_fn_rx, CTLFLAG_RD,
-		   &iflib_task_fn_rxs, 0, "# task_fn_rx calls");
+SYSCTL_INT(_net_iflib, OID_AUTO, task_fn_rx, CTLFLAG_RD, &iflib_task_fn_rxs, 0,
+    "# task_fn_rx calls");
 SYSCTL_INT(_net_iflib, OID_AUTO, rx_intr_enables, CTLFLAG_RD,
-		   &iflib_rx_intr_enables, 0, "# RX intr enables");
-SYSCTL_INT(_net_iflib, OID_AUTO, fast_intrs, CTLFLAG_RD,
-		   &iflib_fast_intrs, 0, "# fast_intr calls");
-SYSCTL_INT(_net_iflib, OID_AUTO, rx_unavail, CTLFLAG_RD,
-		   &iflib_rx_unavail, 0, "# times rxeof called with no available data");
+    &iflib_rx_intr_enables, 0, "# RX intr enables");
+SYSCTL_INT(_net_iflib, OID_AUTO, fast_intrs, CTLFLAG_RD, &iflib_fast_intrs, 0,
+    "# fast_intr calls");
+SYSCTL_INT(_net_iflib, OID_AUTO, rx_unavail, CTLFLAG_RD, &iflib_rx_unavail, 0,
+    "# times rxeof called with no available data");
 SYSCTL_INT(_net_iflib, OID_AUTO, rx_ctx_inactive, CTLFLAG_RD,
-		   &iflib_rx_ctx_inactive, 0, "# times rxeof called with inactive context");
-SYSCTL_INT(_net_iflib, OID_AUTO, rx_if_input, CTLFLAG_RD,
-		   &iflib_rx_if_input, 0, "# times rxeof called if_input");
-SYSCTL_INT(_net_iflib, OID_AUTO, rxd_flush, CTLFLAG_RD,
-	         &iflib_rxd_flush, 0, "# times rxd_flush called");
+    &iflib_rx_ctx_inactive, 0, "# times rxeof called with inactive context");
+SYSCTL_INT(_net_iflib, OID_AUTO, rx_if_input, CTLFLAG_RD, &iflib_rx_if_input,
+    0, "# times rxeof called if_input");
+SYSCTL_INT(_net_iflib, OID_AUTO, rxd_flush, CTLFLAG_RD, &iflib_rxd_flush, 0,
+    "# times rxd_flush called");
 SYSCTL_INT(_net_iflib, OID_AUTO, verbose_debug, CTLFLAG_RW,
-		   &iflib_verbose_debug, 0, "enable verbose debugging");
+    &iflib_verbose_debug, 0, "enable verbose debugging");
 
 #define DBG_COUNTER_INC(name) atomic_add_int(&(iflib_ ## name), 1)
 static void
@@ -6766,42 +6768,41 @@ iflib_add_device_sysctl_pre(if_ctx_t ctx)
 
 	ctx_list = device_get_sysctl_ctx(dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
-	ctx->ifc_sysctl_node = node = SYSCTL_ADD_NODE(ctx_list, child, OID_AUTO, "iflib",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "IFLIB fields");
+	ctx->ifc_sysctl_node = node = SYSCTL_ADD_NODE(ctx_list, child,
+	    OID_AUTO, "iflib", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+	    "IFLIB fields");
 	oid_list = SYSCTL_CHILDREN(node);
 
 	SYSCTL_ADD_CONST_STRING(ctx_list, oid_list, OID_AUTO, "driver_version",
-		       CTLFLAG_RD, ctx->ifc_sctx->isc_driver_version,
-		       "driver version");
+	    CTLFLAG_RD, ctx->ifc_sctx->isc_driver_version, "driver version");
 
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_ntxqs",
-		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_ntxqs, 0,
-		       "# of txqs to use, 0 => use default #");
+	    CTLFLAG_RWTUN, &ctx->ifc_sysctl_ntxqs, 0,
+	    "# of txqs to use, 0 => use default #");
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_nrxqs",
-		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_nrxqs, 0,
-		       "# of rxqs to use, 0 => use default #");
+	    CTLFLAG_RWTUN, &ctx->ifc_sysctl_nrxqs, 0,
+	    "# of rxqs to use, 0 => use default #");
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_qs_enable",
-		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_qs_eq_override, 0,
-                       "permit #txq != #rxq");
+	    CTLFLAG_RWTUN, &ctx->ifc_sysctl_qs_eq_override, 0,
+	    "permit #txq != #rxq");
 	SYSCTL_ADD_INT(ctx_list, oid_list, OID_AUTO, "disable_msix",
-		       CTLFLAG_RWTUN, &ctx->ifc_softc_ctx.isc_disable_msix, 0,
-		       "disable MSI-X (default 0)");
+	    CTLFLAG_RWTUN, &ctx->ifc_softc_ctx.isc_disable_msix, 0,
+	    "disable MSI-X (default 0)");
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "rx_budget",
-		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_rx_budget, 0,
-		       "set the RX budget");
+	    CTLFLAG_RWTUN, &ctx->ifc_sysctl_rx_budget, 0, "set the RX budget");
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "tx_abdicate",
-		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_tx_abdicate, 0,
-		       "cause TX to abdicate instead of running to completion");
+	    CTLFLAG_RWTUN, &ctx->ifc_sysctl_tx_abdicate, 0,
+	    "cause TX to abdicate instead of running to completion");
 	ctx->ifc_sysctl_core_offset = CORE_OFFSET_UNSPECIFIED;
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "core_offset",
-		       CTLFLAG_RDTUN, &ctx->ifc_sysctl_core_offset, 0,
-		       "offset to start using cores at");
+	    CTLFLAG_RDTUN, &ctx->ifc_sysctl_core_offset, 0,
+	    "offset to start using cores at");
 	SYSCTL_ADD_U8(ctx_list, oid_list, OID_AUTO, "separate_txrx",
-		      CTLFLAG_RDTUN, &ctx->ifc_sysctl_separate_txrx, 0,
-		      "use separate cores for TX and RX");
+	    CTLFLAG_RDTUN, &ctx->ifc_sysctl_separate_txrx, 0,
+	    "use separate cores for TX and RX");
 	SYSCTL_ADD_U8(ctx_list, oid_list, OID_AUTO, "use_logical_cores",
-		      CTLFLAG_RDTUN, &ctx->ifc_sysctl_use_logical_cores, 0,
-		      "try to make use of logical cores for TX and RX");
+	    CTLFLAG_RDTUN, &ctx->ifc_sysctl_use_logical_cores, 0,
+	    "try to make use of logical cores for TX and RX");
 
 	/* XXX change for per-queue sizes */
 	SYSCTL_ADD_PROC(ctx_list, oid_list, OID_AUTO, "override_ntxds",
@@ -6847,77 +6848,71 @@ iflib_add_device_sysctl_post(if_ctx_t ctx)
 		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 		SYSCTL_ADD_INT(ctx_list, queue_list, OID_AUTO, "cpu",
-			       CTLFLAG_RD,
-			       &txq->ift_task.gt_cpu, 0, "cpu this queue is bound to");
+		    CTLFLAG_RD, &txq->ift_task.gt_cpu, 0,
+		    "cpu this queue is bound to");
 #if MEMORY_LOGGING
 		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "txq_dequeued",
-				CTLFLAG_RD,
-				&txq->ift_dequeued, "total mbufs freed");
+		    CTLFLAG_RD, &txq->ift_dequeued, "total mbufs freed");
 		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "txq_enqueued",
-				CTLFLAG_RD,
-				&txq->ift_enqueued, "total mbufs enqueued");
+		    CTLFLAG_RD, &txq->ift_enqueued, "total mbufs enqueued");
 #endif
 		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "mbuf_defrag",
-				   CTLFLAG_RD,
-				   &txq->ift_mbuf_defrag, "# of times m_defrag was called");
+		    CTLFLAG_RD, &txq->ift_mbuf_defrag,
+		    "# of times m_defrag was called");
 		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "m_pullups",
-				   CTLFLAG_RD,
-				   &txq->ift_pullups, "# of times m_pullup was called");
-		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "mbuf_defrag_failed",
-				   CTLFLAG_RD,
-				   &txq->ift_mbuf_defrag_failed, "# of times m_defrag failed");
-		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "no_desc_avail",
-				   CTLFLAG_RD,
-				   &txq->ift_no_desc_avail, "# of times no descriptors were available");
-		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "tx_map_failed",
-				   CTLFLAG_RD,
-				   &txq->ift_map_failed, "# of times DMA map failed");
-		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "txd_encap_efbig",
-				   CTLFLAG_RD,
-				   &txq->ift_txd_encap_efbig, "# of times txd_encap returned EFBIG");
-		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "no_tx_dma_setup",
-				   CTLFLAG_RD,
-				   &txq->ift_no_tx_dma_setup, "# of times map failed for other than EFBIG");
+		    CTLFLAG_RD, &txq->ift_pullups,
+		    "# of times m_pullup was called");
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO,
+		    "mbuf_defrag_failed", CTLFLAG_RD,
+		    &txq->ift_mbuf_defrag_failed, "# of times m_defrag failed");
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO,
+		    "no_desc_avail", CTLFLAG_RD, &txq->ift_no_desc_avail,
+		    "# of times no descriptors were available");
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO,
+		    "tx_map_failed", CTLFLAG_RD, &txq->ift_map_failed,
+		    "# of times DMA map failed");
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO,
+		    "txd_encap_efbig", CTLFLAG_RD, &txq->ift_txd_encap_efbig,
+		    "# of times txd_encap returned EFBIG");
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO,
+		    "no_tx_dma_setup", CTLFLAG_RD, &txq->ift_no_tx_dma_setup,
+		    "# of times map failed for other than EFBIG");
 		SYSCTL_ADD_U16(ctx_list, queue_list, OID_AUTO, "txq_pidx",
-				   CTLFLAG_RD,
-				   &txq->ift_pidx, 1, "Producer Index");
+		    CTLFLAG_RD, &txq->ift_pidx, 1, "Producer Index");
 		SYSCTL_ADD_U16(ctx_list, queue_list, OID_AUTO, "txq_cidx",
-				   CTLFLAG_RD,
-				   &txq->ift_cidx, 1, "Consumer Index");
-		SYSCTL_ADD_U16(ctx_list, queue_list, OID_AUTO, "txq_cidx_processed",
-				   CTLFLAG_RD,
-				   &txq->ift_cidx_processed, 1, "Consumer Index seen by credit update");
+		    CTLFLAG_RD, &txq->ift_cidx, 1, "Consumer Index");
+		SYSCTL_ADD_U16(ctx_list, queue_list, OID_AUTO,
+		    "txq_cidx_processed", CTLFLAG_RD, &txq->ift_cidx_processed,
+		    1, "Consumer Index seen by credit update");
 		SYSCTL_ADD_U16(ctx_list, queue_list, OID_AUTO, "txq_in_use",
-				   CTLFLAG_RD,
-				   &txq->ift_in_use, 1, "descriptors in use");
-		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "txq_processed",
-				   CTLFLAG_RD,
-				   &txq->ift_processed, "descriptors procesed for clean");
+		    CTLFLAG_RD, &txq->ift_in_use, 1, "descriptors in use");
+		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO,
+		    "txq_processed", CTLFLAG_RD, &txq->ift_processed,
+		    "descriptors procesed for clean");
 		SYSCTL_ADD_UQUAD(ctx_list, queue_list, OID_AUTO, "txq_cleaned",
-				   CTLFLAG_RD,
-				   &txq->ift_cleaned, "total cleaned");
+		    CTLFLAG_RD, &txq->ift_cleaned, "total cleaned");
 		SYSCTL_ADD_PROC(ctx_list, queue_list, OID_AUTO, "ring_state",
 		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 		    __DEVOLATILE(uint64_t *, &txq->ift_br->state), 0,
 		    mp_ring_state_handler, "A", "soft ring state");
-		SYSCTL_ADD_COUNTER_U64(ctx_list, queue_list, OID_AUTO, "r_enqueues",
-				       CTLFLAG_RD, &txq->ift_br->enqueues,
-				       "# of enqueues to the mp_ring for this queue");
-		SYSCTL_ADD_COUNTER_U64(ctx_list, queue_list, OID_AUTO, "r_drops",
-				       CTLFLAG_RD, &txq->ift_br->drops,
-				       "# of drops in the mp_ring for this queue");
-		SYSCTL_ADD_COUNTER_U64(ctx_list, queue_list, OID_AUTO, "r_starts",
-				       CTLFLAG_RD, &txq->ift_br->starts,
-				       "# of normal consumer starts in the mp_ring for this queue");
-		SYSCTL_ADD_COUNTER_U64(ctx_list, queue_list, OID_AUTO, "r_stalls",
-				       CTLFLAG_RD, &txq->ift_br->stalls,
-					       "# of consumer stalls in the mp_ring for this queue");
-		SYSCTL_ADD_COUNTER_U64(ctx_list, queue_list, OID_AUTO, "r_restarts",
-			       CTLFLAG_RD, &txq->ift_br->restarts,
-				       "# of consumer restarts in the mp_ring for this queue");
-		SYSCTL_ADD_COUNTER_U64(ctx_list, queue_list, OID_AUTO, "r_abdications",
-				       CTLFLAG_RD, &txq->ift_br->abdications,
-				       "# of consumer abdications in the mp_ring for this queue");
+		SYSCTL_ADD_COUNTER_U64(ctx_list, queue_list, OID_AUTO,
+		    "r_enqueues", CTLFLAG_RD, &txq->ift_br->enqueues,
+		    "# of enqueues to the mp_ring for this queue");
+		SYSCTL_ADD_COUNTER_U64(ctx_list, queue_list, OID_AUTO,
+		    "r_drops", CTLFLAG_RD, &txq->ift_br->drops,
+		    "# of drops in the mp_ring for this queue");
+		SYSCTL_ADD_COUNTER_U64(ctx_list, queue_list, OID_AUTO,
+		    "r_starts", CTLFLAG_RD, &txq->ift_br->starts,
+		    "# of normal consumer starts in mp_ring for this queue");
+		SYSCTL_ADD_COUNTER_U64(ctx_list, queue_list, OID_AUTO,
+		    "r_stalls", CTLFLAG_RD, &txq->ift_br->stalls,
+		    "# of consumer stalls in the mp_ring for this queue");
+		SYSCTL_ADD_COUNTER_U64(ctx_list, queue_list, OID_AUTO,
+		    "r_restarts", CTLFLAG_RD, &txq->ift_br->restarts,
+		    "# of consumer restarts in the mp_ring for this queue");
+		SYSCTL_ADD_COUNTER_U64(ctx_list, queue_list, OID_AUTO,
+		    "r_abdications", CTLFLAG_RD, &txq->ift_br->abdications,
+		    "# of consumer abdications in the mp_ring for this queue");
 	}
 
 	if (scctx->isc_nrxqsets > 100)
@@ -6932,44 +6927,42 @@ iflib_add_device_sysctl_post(if_ctx_t ctx)
 		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 		SYSCTL_ADD_INT(ctx_list, queue_list, OID_AUTO, "cpu",
-			       CTLFLAG_RD,
-			       &rxq->ifr_task.gt_cpu, 0, "cpu this queue is bound to");
+		    CTLFLAG_RD, &rxq->ifr_task.gt_cpu, 0,
+		    "cpu this queue is bound to");
 		if (sctx->isc_flags & IFLIB_HAS_RXCQ) {
-			SYSCTL_ADD_U16(ctx_list, queue_list, OID_AUTO, "rxq_cq_cidx",
-				       CTLFLAG_RD,
-				       &rxq->ifr_cq_cidx, 1, "Consumer Index");
+			SYSCTL_ADD_U16(ctx_list, queue_list, OID_AUTO,
+			    "rxq_cq_cidx", CTLFLAG_RD, &rxq->ifr_cq_cidx, 1,
+			    "Consumer Index");
 		}
 
 		for (j = 0, fl = rxq->ifr_fl; j < rxq->ifr_nfl; j++, fl++) {
 			snprintf(namebuf, NAME_BUFLEN, "rxq_fl%d", j);
-			fl_node = SYSCTL_ADD_NODE(ctx_list, queue_list, OID_AUTO, namebuf,
-			    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "freelist Name");
+			fl_node = SYSCTL_ADD_NODE(ctx_list, queue_list,
+			    OID_AUTO, namebuf, CTLFLAG_RD | CTLFLAG_MPSAFE,
+			    NULL, "freelist Name");
 			fl_list = SYSCTL_CHILDREN(fl_node);
 			SYSCTL_ADD_U16(ctx_list, fl_list, OID_AUTO, "pidx",
-				       CTLFLAG_RD,
-				       &fl->ifl_pidx, 1, "Producer Index");
+			    CTLFLAG_RD, &fl->ifl_pidx, 1, "Producer Index");
 			SYSCTL_ADD_U16(ctx_list, fl_list, OID_AUTO, "cidx",
-				       CTLFLAG_RD,
-				       &fl->ifl_cidx, 1, "Consumer Index");
+			    CTLFLAG_RD, &fl->ifl_cidx, 1, "Consumer Index");
 			SYSCTL_ADD_U16(ctx_list, fl_list, OID_AUTO, "credits",
-				       CTLFLAG_RD,
-				       &fl->ifl_credits, 1, "credits available");
+			    CTLFLAG_RD, &fl->ifl_credits, 1,
+			    "credits available");
 			SYSCTL_ADD_U16(ctx_list, fl_list, OID_AUTO, "buf_size",
-				       CTLFLAG_RD,
-				       &fl->ifl_buf_size, 1, "buffer size");
+			    CTLFLAG_RD, &fl->ifl_buf_size, 1, "buffer size");
 #if MEMORY_LOGGING
-			SYSCTL_ADD_UQUAD(ctx_list, fl_list, OID_AUTO, "fl_m_enqueued",
-					CTLFLAG_RD,
-					&fl->ifl_m_enqueued, "mbufs allocated");
-			SYSCTL_ADD_UQUAD(ctx_list, fl_list, OID_AUTO, "fl_m_dequeued",
-					CTLFLAG_RD,
-					&fl->ifl_m_dequeued, "mbufs freed");
-			SYSCTL_ADD_UQUAD(ctx_list, fl_list, OID_AUTO, "fl_cl_enqueued",
-					CTLFLAG_RD,
-					&fl->ifl_cl_enqueued, "clusters allocated");
-			SYSCTL_ADD_UQUAD(ctx_list, fl_list, OID_AUTO, "fl_cl_dequeued",
-					CTLFLAG_RD,
-					&fl->ifl_cl_dequeued, "clusters freed");
+			SYSCTL_ADD_UQUAD(ctx_list, fl_list, OID_AUTO,
+			    "fl_m_enqueued", CTLFLAG_RD, &fl->ifl_m_enqueued,
+			    "mbufs allocated");
+			SYSCTL_ADD_UQUAD(ctx_list, fl_list, OID_AUTO,
+			    "fl_m_dequeued", CTLFLAG_RD, &fl->ifl_m_dequeued,
+			    "mbufs freed");
+			SYSCTL_ADD_UQUAD(ctx_list, fl_list, OID_AUTO,
+			    "fl_cl_enqueued", CTLFLAG_RD, &fl->ifl_cl_enqueued,
+			    "clusters allocated");
+			SYSCTL_ADD_UQUAD(ctx_list, fl_list, OID_AUTO,
+			    "fl_cl_dequeued", CTLFLAG_RD, &fl->ifl_cl_dequeued,
+			    "clusters freed");
 #endif
 		}
 	}
