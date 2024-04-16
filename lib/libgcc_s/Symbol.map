@@ -148,6 +148,7 @@ GCC_4.3.0 {
 	__bswapsi2;
 };
 
+#if defined(__aarch64__) || defined(__riscv)
 GCC_4.6.0 {
 	__addtf3;
 	__cmptf2;
@@ -180,3 +181,4 @@ GCC_4.6.0 {
 	__trunctfxf2;
 	__unordtf2;
 };
+#endif
