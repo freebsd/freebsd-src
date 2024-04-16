@@ -37,6 +37,8 @@
 #include <sys/_types.h>
 #include <sys/_pthreadtypes.h>
 
+#include <libsys.h>
+
 extern char **environ;
 
 /*
@@ -334,79 +336,6 @@ struct __siginfo;
 struct __ucontext;
 struct __wrusage;
 enum idtype;
-int		__sys_aio_suspend(const struct aiocb * const[], int,
-		    const struct timespec *);
-int		__sys_accept(int, struct sockaddr *, __socklen_t *);
-int		__sys_accept4(int, struct sockaddr *, __socklen_t *, int);
-int		__sys_clock_gettime(__clockid_t, struct timespec *ts);
-int		__sys_clock_nanosleep(__clockid_t, int,
-		    const struct timespec *, struct timespec *);
-int		__sys_close(int);
-int		__sys_close_range(unsigned, unsigned, int);
-int		__sys_connect(int, const struct sockaddr *, __socklen_t);
-int		__sys_fcntl(int, int, __intptr_t);
-int		__sys_fdatasync(int);
-int		__sys_fstat(int fd, struct stat *);
-int		__sys_fstatfs(int fd, struct statfs *);
-int		__sys_fstatat(int, const char *, struct stat *, int);
-int		__sys_fsync(int);
-__pid_t		__sys_fork(void);
-int		__sys_ftruncate(int, __off_t);
-__ssize_t	__sys_getdirentries(int, char *, __size_t, __off_t *);
-int		__sys_getfsstat(struct statfs *, long, int);
-int		__sys_gettimeofday(struct timeval *, struct timezone *);
-int		__sys_kevent(int, const struct kevent *, int, struct kevent *,
-		    int, const struct timespec *);
-__off_t		__sys_lseek(int, __off_t, int);
-void	       *__sys_mmap(void *, __size_t, int, int, int, __off_t);
-int		__sys_msync(void *, __size_t, int);
-int		__sys_nanosleep(const struct timespec *, struct timespec *);
-int		__sys_open(const char *, int, ...);
-int		__sys_openat(int, const char *, int, ...);
-int		__sys_pdfork(int *, int);
-int		__sys_pselect(int, struct fd_set *, struct fd_set *,
-		    struct fd_set *, const struct timespec *,
-		    const __sigset_t *);
-int		__sys_ptrace(int, __pid_t, char *, int);
-int		__sys_poll(struct pollfd *, unsigned, int);
-int		__sys_ppoll(struct pollfd *, unsigned, const struct timespec *,
-		    const __sigset_t *);
-__ssize_t	__sys_pread(int, void *, __size_t, __off_t);
-__ssize_t	__sys_pwrite(int, const void *, __size_t, __off_t);
-__ssize_t	__sys_read(int, void *, __size_t);
-__ssize_t	__sys_readv(int, const struct iovec *, int);
-__ssize_t	__sys_recv(int, void *, __size_t, int);
-__ssize_t	__sys_recvfrom(int, void *, __size_t, int, struct sockaddr *,
-		    __socklen_t *);
-__ssize_t	__sys_recvmsg(int, struct msghdr *, int);
-int		__sys_sched_getcpu(void);
-int		__sys_select(int, struct fd_set *, struct fd_set *,
-		    struct fd_set *, struct timeval *);
-__ssize_t	__sys_sendmsg(int, const struct msghdr *, int);
-__ssize_t	__sys_sendto(int, const void *, __size_t, int,
-		    const struct sockaddr *, __socklen_t);
-int		__sys_setcontext(const struct __ucontext *);
-int		__sys_sigaction(int, const struct sigaction *,
-		    struct sigaction *);
-int		__sys_sigprocmask(int, const __sigset_t *, __sigset_t *);
-int		__sys_sigsuspend(const __sigset_t *);
-int		__sys_sigtimedwait(const __sigset_t *, struct __siginfo *,
-		    const struct timespec *);
-int		__sys_sigwait(const __sigset_t *, int *);
-int		__sys_sigwaitinfo(const __sigset_t *, struct __siginfo *);
-int		__sys___specialfd(int, const void *, __size_t);
-int		__sys_statfs(const char *, struct statfs *);
-int		__sys_swapcontext(struct __ucontext *,
-		    const struct __ucontext *);
-int		__sys_thr_kill(long, int);
-int		__sys_thr_self(long *);
-int		__sys_truncate(const char *, __off_t);
-__pid_t		__sys_wait4(__pid_t, int *, int, struct rusage *);
-__pid_t		__sys_wait6(enum idtype, __id_t, int *, int,
-		    struct __wrusage *, struct __siginfo *);
-__ssize_t	__sys_write(int, const void *, __size_t);
-__ssize_t	__sys_writev(int, const struct iovec *, int);
-int		__sys_shm_open2(const char *, int, __mode_t, int, const char *);
 
 int		__libc_sigaction(int, const struct sigaction *,
 		    struct sigaction *) __hidden;
@@ -416,10 +345,6 @@ int		__libc_sigsuspend(const __sigset_t *) __hidden;
 int		__libsys_sigwait(const __sigset_t *, int *) __hidden;
 int		__libc_system(const char *);
 int		__libc_tcdrain(int);
-
-int		__sys_futimens(int fd, const struct timespec *times) __hidden;
-int		__sys_utimensat(int fd, const char *path,
-		    const struct timespec *times, int flag) __hidden;
 
 int _elf_aux_info(int aux, void *buf, int buflen);
 struct dl_phdr_info;
