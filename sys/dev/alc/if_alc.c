@@ -91,8 +91,14 @@ MODULE_DEPEND(alc, miibus, 1, 1, 1);
 
 /* Tunables. */
 static int msi_disable = 0;
-static int msix_disable = 0;
 TUNABLE_INT("hw.alc.msi_disable", &msi_disable);
+
+/*
+ * The default value of msix_disable is 2, which means to decide whether to
+ * enable MSI-X in alc_attach() depending on the card type.  The operator can
+ * set this to 0 or 1 to override the default.
+ */
+static int msix_disable = 2;
 TUNABLE_INT("hw.alc.msix_disable", &msix_disable);
 
 /*
@@ -1410,6 +1416,14 @@ alc_attach(device_t dev)
 	case DEVICEID_ATHEROS_E2400:
 	case DEVICEID_ATHEROS_E2500:
 		sc->alc_flags |= ALC_FLAG_E2X00;
+
+		/*
+		 * Disable MSI-X by default on Killer devices, since this is
+		 * reported by several users to not work well.
+		 */
+		if (msix_disable == 2)
+			msix_disable = 1;
+
 		/* FALLTHROUGH */
 	case DEVICEID_ATHEROS_AR8161:
 		if (pci_get_subvendor(dev) == VENDORID_ATHEROS &&
@@ -1439,6 +1453,14 @@ alc_attach(device_t dev)
 	default:
 		break;
 	}
+
+	/*
+	 * The default value of msix_disable is 2, which means auto-detect.  If
+	 * we didn't auto-detect it, default to enabling it.
+	 */
+	if (msix_disable == 2)
+		msix_disable = 0;
+
 	sc->alc_flags |= ALC_FLAG_JUMBO;
 
 	/*
