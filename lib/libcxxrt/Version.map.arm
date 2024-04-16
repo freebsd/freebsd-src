@@ -14,6 +14,7 @@ CXXABI_1.3 {
     __cxa_current_exception_type;
     __cxa_demangle;
     __cxa_end_catch;
+    __cxa_end_cleanup;
     __cxa_free_exception;
     __cxa_get_globals;
     __cxa_get_globals_fast;
@@ -244,8 +245,8 @@ CXXABI_1.3.9 {
         "typeinfo name for unsigned __int128 const*";
         "typeinfo name for unsigned __int128";
         "typeinfo name for unsigned __int128*";
-        "operator delete[](void*, unsigned %%NEW_DELETE_TYPE%%)";
-        "operator delete(void*, unsigned %%NEW_DELETE_TYPE%%)";
+        "operator delete[](void*, unsigned int)";
+        "operator delete(void*, unsigned int)";
     };
 } CXXABI_1.3.6;
 
@@ -291,9 +292,9 @@ GLIBCXX_3.4 {
     extern "C++" {
         "operator delete[](void*)";
         "operator delete(void*)";
-        "operator new[](unsigned %%NEW_DELETE_TYPE%%)";
-        "operator new(unsigned %%NEW_DELETE_TYPE%%)";
-        "operator new(unsigned %%NEW_DELETE_TYPE%%, std::nothrow_t const&)";
+        "operator new[](unsigned int)";
+        "operator new(unsigned int)";
+        "operator new(unsigned int, std::nothrow_t const&)";
 
         "std::unexpected()";
         "std::get_terminate()";
