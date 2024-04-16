@@ -28,10 +28,6 @@
 */
 
 #include "archive_platform.h"
-#ifdef __FreeBSD__
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-#endif
 
 #include <ctype.h>
 #include <stdio.h>

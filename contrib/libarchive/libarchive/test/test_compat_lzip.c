@@ -24,7 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 /*
 Execute the following to rebuild the data for this program:
@@ -130,6 +129,85 @@ compat_lzip(const char *name)
 }
 
 
+static void
+compat_lzip_3(const char *name)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+	const int data_size = 65537;
+	static uint8_t buff[65537];
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	r = archive_read_support_filter_lzip(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("lzip reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	extract_reference_file(name);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, name, 64 * 1024));
+
+	/* Read an entry. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("data", archive_entry_pathname(ae));
+	/* Verify that whole data could be read. */
+	assertEqualInt(data_size, archive_read_data(a, buff, data_size));
+
+	/* Verify the end-of-archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify that the format detection worked. */
+	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_LZIP);
+	assertEqualString(archive_filter_name(a, 0), "lzip");
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_RAW);
+
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+
+static void
+compat_lzip_4(const char *name)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	r = archive_read_support_filter_lzip(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("lzip reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	extract_reference_file(name);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, name, 64 * 1024));
+
+	/* Read an entry. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("test.bin", archive_entry_pathname(ae));
+
+	/* Verify the end-of-archive. */
+	archive_set_error(a, ARCHIVE_OK, NULL);
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify that the format detection worked. */
+	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_LZIP);
+	assertEqualString(archive_filter_name(a, 0), "lzip");
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
+
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+
 DEFINE_TEST(test_compat_lzip)
 {
         /* This sample has been 'split', each piece compressed separately,
@@ -138,4 +216,9 @@ DEFINE_TEST(test_compat_lzip)
         /* This sample has been compressed as a single stream, but then
          * some unrelated garbage text has been appended to the end. */
         compat_lzip("test_compat_lzip_2.tlz");
+
+        /* These samples have been compressed as multi stream and an eof
+         * of a member is at a read buffer boundary. */
+        compat_lzip_3("test_compat_lzip_3.lz");
+        compat_lzip_4("test_compat_lzip_4.tlz");
 }

@@ -24,7 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_uu.c 201248 2009-12-30 06:12:03Z kientzle $");
 
 static const char archive[] = {
 "begin 644 test_read_uu.Z\n"

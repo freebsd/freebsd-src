@@ -114,6 +114,7 @@ TESTS_SRCS= \
 	test_read_filter_program.c		\
 	test_read_filter_program_signature.c	\
 	test_read_filter_uudecode.c		\
+	test_read_filter_uudecode_raw.c		\
 	test_read_format_7zip.c			\
 	test_read_format_7zip_encryption_data.c \
 	test_read_format_7zip_encryption_header.c	\
@@ -300,6 +301,8 @@ TESTS_SRCS= \
 	test_write_format_zip_file_zip64.c	\
 	test_write_format_zip_large.c		\
 	test_write_format_zip_zip64.c		\
+	test_write_format_zip64_stream.c	\
+	test_write_format_zip_stream.c		\
 	test_write_open_memory.c		\
 	test_write_read_format_zip.c		\
 	test_xattr_platform.c			\
@@ -426,6 +429,8 @@ ${PACKAGE}FILES+=	test_read_filter_grzip.tar.grz.uu
 ${PACKAGE}FILES+=	test_read_filter_lrzip.tar.lrz.uu
 ${PACKAGE}FILES+=	test_read_filter_lzop.tar.lzo.uu
 ${PACKAGE}FILES+=	test_read_filter_lzop_multiple_parts.tar.lzo.uu
+${PACKAGE}FILES+=	test_read_filter_uudecode_base64_raw.uu
+${PACKAGE}FILES+=	test_read_filter_uudecode_raw.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_bcj2_bzip2.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_bcj2_copy_1.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_bcj2_copy_2.7z.uu
@@ -470,6 +475,7 @@ ${PACKAGE}FILES+=	test_read_format_7zip_zstd.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_zstd_arm.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_zstd_bcj.7z.uu
 ${PACKAGE}FILES+=	test_read_format_7zip_zstd_nobcj.7z.uu
+${PACKAGE}FILES+=	test_read_format_7zip_win_attrib.7z.uu
 ${PACKAGE}FILES+=	test_read_format_ar.ar.uu
 ${PACKAGE}FILES+=	test_read_format_cab_1.cab.uu
 ${PACKAGE}FILES+=	test_read_format_cab_2.cab.uu
@@ -586,6 +592,7 @@ ${PACKAGE}FILES+=	test_read_format_rar5_stored.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_stored_manyfiles.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_symlink.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_truncated_huff.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar5_unicode.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_win32.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_window_buf_and_size_desync.rar.uu
 ${PACKAGE}FILES+=	test_read_format_raw.bufr.uu

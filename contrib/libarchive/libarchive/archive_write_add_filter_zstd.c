@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2017 Sean Purcell
+ * Copyright (c) 2023-2024 Klara, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,9 +25,6 @@
  */
 
 #include "archive_platform.h"
-
-__FBSDID("$FreeBSD$");
-
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
@@ -54,15 +52,18 @@ __FBSDID("$FreeBSD$");
 struct private_data {
 	int		 compression_level;
 	int		 threads;
-#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
+	int		 long_distance;
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
 	enum {
 		running,
 		finishing,
 		resetting,
 	} state;
 	int		 frame_per_file;
-	size_t		 min_frame_size;
-	size_t		 max_frame_size;
+	size_t		 min_frame_in;
+	size_t		 max_frame_in;
+	size_t		 min_frame_out;
+	size_t		 max_frame_out;
 	size_t		 cur_frame;
 	size_t		 cur_frame_in;
 	size_t		 cur_frame_out;
@@ -81,8 +82,11 @@ struct private_data {
 #define CLEVEL_STD_MAX 19 /* without using --ultra */
 #define CLEVEL_MAX 22
 
+#define LONG_STD 27
+
 #define MINVER_NEGCLEVEL 10304
 #define MINVER_MINCLEVEL 10306
+#define MINVER_LONG 10302
 
 static int archive_compressor_zstd_options(struct archive_write_filter *,
 		    const char *, const char *);
@@ -92,7 +96,7 @@ static int archive_compressor_zstd_write(struct archive_write_filter *,
 static int archive_compressor_zstd_flush(struct archive_write_filter *);
 static int archive_compressor_zstd_close(struct archive_write_filter *);
 static int archive_compressor_zstd_free(struct archive_write_filter *);
-#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
 static int drive_compressor(struct archive_write_filter *,
 		    struct private_data *, int, const void *, size_t);
 #endif
@@ -125,10 +129,13 @@ archive_write_add_filter_zstd(struct archive *_a)
 	f->name = "zstd";
 	data->compression_level = CLEVEL_DEFAULT;
 	data->threads = 0;
-#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
+	data->long_distance = 0;
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
 	data->frame_per_file = 0;
-	data->min_frame_size = 0;
-	data->max_frame_size = SIZE_MAX;
+	data->min_frame_in = 0;
+	data->max_frame_in = SIZE_MAX;
+	data->min_frame_out = 0;
+	data->max_frame_out = SIZE_MAX;
 	data->cur_frame_in = 0;
 	data->cur_frame_out = 0;
 	data->cstream = ZSTD_createCStream();
@@ -157,7 +164,7 @@ static int
 archive_compressor_zstd_free(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
-#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
 	ZSTD_freeCStream(data->cstream);
 	free(data->out.dst);
 #else
@@ -168,7 +175,8 @@ archive_compressor_zstd_free(struct archive_write_filter *f)
 	return (ARCHIVE_OK);
 }
 
-static int string_to_number(const char *string, intmax_t *numberp)
+static int
+string_to_number(const char *string, intmax_t *numberp)
 {
 	char *end;
 
@@ -179,6 +187,41 @@ static int string_to_number(const char *string, intmax_t *numberp)
 		*numberp = 0;
 		return (ARCHIVE_WARN);
 	}
+	return (ARCHIVE_OK);
+}
+
+static int
+string_to_size(const char *string, size_t *numberp)
+{
+	uintmax_t number;
+	char *end;
+	unsigned int shift = 0;
+
+	if (string == NULL || *string == '\0' || *string == '-')
+		return (ARCHIVE_WARN);
+	number = strtoumax(string, &end, 10);
+	if (end > string) {
+		if (*end == 'K' || *end == 'k') {
+			shift = 10;
+			end++;
+		} else if (*end == 'M' || *end == 'm') {
+			shift = 20;
+			end++;
+		} else if (*end == 'G' || *end == 'g') {
+			shift = 30;
+			end++;
+		}
+		if (*end == 'B' || *end == 'b') {
+			end++;
+		}
+	}
+	if (end == string || *end != '\0' || errno == EOVERFLOW) {
+		return (ARCHIVE_WARN);
+	}
+	if (number > (uintmax_t)SIZE_MAX >> shift) {
+		return (ARCHIVE_WARN);
+	}
+	*numberp = (size_t)(number << shift);
 	return (ARCHIVE_OK);
 }
 
@@ -199,7 +242,7 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		/* If we don't have the library, hard-code the max level */
 		int minimum = CLEVEL_MIN;
 		int maximum = CLEVEL_MAX;
-#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
 		maximum = ZSTD_maxCLevel();
 #if ZSTD_VERSION_NUMBER >= MINVER_MINCLEVEL
 		if (ZSTD_versionNumber() >= MINVER_MINCLEVEL) {
@@ -226,31 +269,58 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		}
 		data->threads = (int)threads;
 		return (ARCHIVE_OK);
-#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
 	} else if (strcmp(key, "frame-per-file") == 0) {
 		data->frame_per_file = 1;
 		return (ARCHIVE_OK);
-	} else if (strcmp(key, "min-frame-size") == 0) {
-		intmax_t min_frame_size;
-		if (string_to_number(value, &min_frame_size) != ARCHIVE_OK) {
+	} else if (strcmp(key, "min-frame-in") == 0) {
+		if (string_to_size(value, &data->min_frame_in) != ARCHIVE_OK) {
 			return (ARCHIVE_WARN);
 		}
-		if (min_frame_size < 0) {
-			return (ARCHIVE_WARN);
-		}
-		data->min_frame_size = min_frame_size;
 		return (ARCHIVE_OK);
-	} else if (strcmp(key, "max-frame-size") == 0) {
-		intmax_t max_frame_size;
-		if (string_to_number(value, &max_frame_size) != ARCHIVE_OK) {
+	} else if (strcmp(key, "min-frame-out") == 0 ||
+	    strcmp(key, "min-frame-size") == 0) {
+		if (string_to_size(value, &data->min_frame_out) != ARCHIVE_OK) {
 			return (ARCHIVE_WARN);
 		}
-		if (max_frame_size < 1024) {
+		return (ARCHIVE_OK);
+	} else if (strcmp(key, "max-frame-in") == 0 ||
+	    strcmp(key, "max-frame-size") == 0) {
+		if (string_to_size(value, &data->max_frame_in) != ARCHIVE_OK ||
+		    data->max_frame_in < 1024) {
 			return (ARCHIVE_WARN);
 		}
-		data->max_frame_size = max_frame_size;
+		return (ARCHIVE_OK);
+	} else if (strcmp(key, "max-frame-out") == 0) {
+		if (string_to_size(value, &data->max_frame_out) != ARCHIVE_OK ||
+		    data->max_frame_out < 1024) {
+			return (ARCHIVE_WARN);
+		}
 		return (ARCHIVE_OK);
 #endif
+	}
+	else if (strcmp(key, "long") == 0) {
+		intmax_t long_distance;
+		if (string_to_number(value, &long_distance) != ARCHIVE_OK) {
+			return (ARCHIVE_WARN);
+		}
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream && ZSTD_VERSION_NUMBER >= MINVER_LONG
+		ZSTD_bounds bounds = ZSTD_cParam_getBounds(ZSTD_c_windowLog);
+		if (ZSTD_isError(bounds.error)) {
+			int max_distance = ((int)(sizeof(size_t) == 4 ? 30 : 31));
+			if (((int)long_distance) < 10 || (int)long_distance > max_distance)
+				return (ARCHIVE_WARN);
+		} else {
+			if ((int)long_distance < bounds.lowerBound || (int)long_distance > bounds.upperBound)
+				return (ARCHIVE_WARN);
+		}
+#else
+		int max_distance = ((int)(sizeof(size_t) == 4 ? 30 : 31));
+		if (((int)long_distance) < 10 || (int)long_distance > max_distance)
+		    return (ARCHIVE_WARN);
+#endif
+		data->long_distance = (int)long_distance;
+		return (ARCHIVE_OK);
 	}
 
 	/* Note: The "warn" return is just to inform the options
@@ -259,7 +329,7 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 	return (ARCHIVE_WARN);
 }
 
-#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
 /*
  * Setup callback.
  */
@@ -301,6 +371,10 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 
 	ZSTD_CCtx_setParameter(data->cstream, ZSTD_c_nbWorkers, data->threads);
 
+#if ZSTD_VERSION_NUMBER >= MINVER_LONG
+	ZSTD_CCtx_setParameter(data->cstream, ZSTD_c_windowLog, data->long_distance);
+#endif
+
 	return (ARCHIVE_OK);
 }
 
@@ -324,9 +398,12 @@ archive_compressor_zstd_flush(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
 
-	if (data->frame_per_file && data->state == running &&
-	    data->cur_frame_out > data->min_frame_size)
-		data->state = finishing;
+	if (data->frame_per_file && data->state == running) {
+		if (data->cur_frame_in > data->min_frame_in &&
+		    data->cur_frame_out > data->min_frame_out) {
+			data->state = finishing;
+		}
+	}
 	return (drive_compressor(f, data, 1, NULL, 0));
 }
 
@@ -385,9 +462,11 @@ drive_compressor(struct archive_write_filter *f,
 		data->total_in += in.pos - ipos;
 		data->cur_frame_in += in.pos - ipos;
 		data->cur_frame_out += data->out.pos - opos;
-		if (data->state == running &&
-		    data->cur_frame_in >= data->max_frame_size) {
-			data->state = finishing;
+		if (data->state == running) {
+			if (data->cur_frame_in >= data->max_frame_in ||
+			    data->cur_frame_out >= data->max_frame_out) {
+				data->state = finishing;
+			}
 		}
 		if (data->out.pos == data->out.size ||
 		    (flush && data->out.pos > 0)) {
@@ -406,7 +485,7 @@ fatal:
 	return (ARCHIVE_FATAL);
 }
 
-#else /* HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR */
+#else /* HAVE_ZSTD_H && HAVE_ZSTD_compressStream */
 
 static int
 archive_compressor_zstd_open(struct archive_write_filter *f)
@@ -431,6 +510,10 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 
 	if (data->threads != 0) {
 		archive_string_sprintf(&as, " --threads=%d", data->threads);
+	}
+
+	if (data->long_distance != 0) {
+		archive_string_sprintf(&as, " --long=%d", data->long_distance);
 	}
 
 	f->write = archive_compressor_zstd_write;
@@ -464,4 +547,4 @@ archive_compressor_zstd_close(struct archive_write_filter *f)
 	return __archive_write_program_close(f, data->pdata);
 }
 
-#endif /* HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR */
+#endif /* HAVE_ZSTD_H && HAVE_ZSTD_compressStream */

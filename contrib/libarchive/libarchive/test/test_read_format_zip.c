@@ -24,7 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 #define __LIBARCHIVE_BUILD
 #include <archive_crc32.h>
@@ -157,7 +156,7 @@ verify_basic(struct archive *a, int seek_checks)
 	if (archive_zlib_version() != NULL) {
 		failure("file2 has a bad CRC, so read should fail and not change buff");
 		memset(buff, 'a', 19);
-		assertEqualInt(ARCHIVE_WARN, archive_read_data(a, buff, 19));
+		assertEqualInt(ARCHIVE_FAILED, archive_read_data(a, buff, 19));
 		assertEqualMem(buff, "aaaaaaaaaaaaaaaaaaa", 19);
 	} else {
 		assertEqualInt(ARCHIVE_FAILED, archive_read_data(a, buff, 19));

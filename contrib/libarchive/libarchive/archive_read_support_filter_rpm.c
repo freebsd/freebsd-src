@@ -141,7 +141,7 @@ rpm_bidder_init(struct archive_read_filter *self)
 	self->code = ARCHIVE_FILTER_RPM;
 	self->name = "rpm";
 
-	rpm = (struct rpm *)calloc(sizeof(*rpm), 1);
+	rpm = (struct rpm *)calloc(1, sizeof(*rpm));
 	if (rpm == NULL) {
 		archive_set_error(&self->archive->archive, ENOMEM,
 		    "Can't allocate data for rpm");

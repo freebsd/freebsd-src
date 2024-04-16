@@ -21,8 +21,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef ARCHIVE_ENTRY_PRIVATE_H_INCLUDED
@@ -147,6 +145,10 @@ struct archive_entry {
 #define	AE_SET_SIZE	64
 #define	AE_SET_INO	128
 #define	AE_SET_DEV	256
+#define	AE_SET_PERM	512
+#define	AE_SET_FILETYPE	1024
+#define	AE_SET_UID	2048
+#define	AE_SET_GID	4096
 
 	/*
 	 * Use aes here so that we get transparent mbs<->wcs conversions.

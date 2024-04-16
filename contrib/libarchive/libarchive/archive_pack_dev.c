@@ -33,13 +33,6 @@
 
 #include "archive_platform.h"
 
-#if HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#if !defined(lint)
-__RCSID("$NetBSD$");
-#endif /* not lint */
-
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif

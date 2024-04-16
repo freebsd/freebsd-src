@@ -28,7 +28,6 @@
  */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD$");
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
@@ -94,6 +93,7 @@ static const struct bsdtar_option {
 	{ "format",               1, OPTION_FORMAT },
 	{ "gid",		  1, OPTION_GID },
 	{ "gname",		  1, OPTION_GNAME },
+	{ "group",		  1, OPTION_GROUP },
 	{ "grzip",                0, OPTION_GRZIP },
 	{ "gunzip",               0, 'z' },
 	{ "gzip",                 0, 'z' },
@@ -142,6 +142,7 @@ static const struct bsdtar_option {
 	{ "older-than",		  1, OPTION_OLDER_CTIME_THAN },
 	{ "one-file-system",	  0, OPTION_ONE_FILE_SYSTEM },
 	{ "options",              1, OPTION_OPTIONS },
+	{ "owner",		  1, OPTION_OWNER },
 	{ "passphrase",		  1, OPTION_PASSPHRASE },
 	{ "posix",		  0, OPTION_POSIX },
 	{ "preserve-permissions", 0, 'p' },
