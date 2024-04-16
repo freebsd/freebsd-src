@@ -217,16 +217,6 @@ read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(EX_IOERR, "get log page request failed");
 
-	/* Convert data to host endian */
-	switch (log_page) {
-	case INTEL_LOG_TEMP_STATS:
-		intel_log_temp_stats_swapbytes(
-		    (struct intel_log_temp_stats *)payload);
-		break;
-	default:
-		break;
-	}
-
 	if (nvme_completion_is_error(&pt.cpl))
 		errx(EX_IOERR, "get log page request returned error");
 }
