@@ -36,6 +36,14 @@ local function set_difference(set1, set2)
 	return result
 end
 
+-- Execute a command and print to stdout
+local function exec_command(command)
+	local handle = io.popen(command)
+	local output = handle:read("a")
+	handle:close()
+	io.write(output)
+end
+
 -- Main function
 local function main()
 	local from_file = arg[1]
@@ -59,7 +67,7 @@ local function main()
 
 	-- Print the result
 	for _, hash in ipairs(result_hashes) do
-		print(hash)
+		exec_command("git show --pretty='%h %s' --no-patch " .. hash)
 	end
 end
 
