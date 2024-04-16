@@ -402,7 +402,7 @@ utility can be made to re-read the
 .Nm
 file by sending it a hangup signal as follows:
 .Bd -literal -offset indent
-/etc/rc.d/mountd reload
+service mountd reload
 .Ed
 .Pp
 After sending the
@@ -600,6 +600,7 @@ afterwards, whereas NFSv3 rejects the mount request.
 .Xr mountd 8 ,
 .Xr nfsd 8 ,
 .Xr rpc.tlsservd 8 ,
+.Xr service 8 ,
 .Xr showmount 8
 .Sh STANDARDS
 The implementation is based on the following documents:
