@@ -1,4 +1,13 @@
 FBSDprivate_1.0 {
 	__elf_aux_vector;
+	__getosreldate;
+	__realpathat;
 	_elf_aux_info;
+	freebsd11_fstat;
+	freebsd11_fstatat;
+	freebsd11_getfsstat;
+	freebsd11_lstat;
+	freebsd11_stat;
+	freebsd11_statfs;
+	freebsd7___semctl;
 };
