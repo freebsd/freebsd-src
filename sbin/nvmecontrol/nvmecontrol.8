@@ -33,7 +33,7 @@
 .\"
 .\" Author: Jim Harris <jimharris@FreeBSD.org>
 .\"
-.Dd February 28, 2022
+.Dd April 17, 2024
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -302,6 +302,47 @@ will set Retain Asynchronous Event.
 Various namespace management commands.
 If namespace management is supported by device, allow list, create and delete
 namespaces, list, attach and detach controllers to namespaces.
+Each NVM device consists of one or more NVM subsystems.
+Each NVM subsystem has one or more NVM ports.
+Each NVM port is attached to one or more NVM controllers (though typically 1).
+Each NVM controller is attached to one or more namespaces.
+.Pp
+After a namespace is created, it is considered
+.Dq allocated .
+All namespaces that have not been created are unallocated.
+An allocated namespace may be active or inactive.
+An active namespace is attached to the controller and may be interacted with.
+A namespace can move from active to inactive when detached.
+An allocated namespace may be deleted to become unallocated.
+For more details on the nuances of NVM namespaces, please see section 2
+.Em Theory of Operation
+and section 3
+.Em NVM Express Architecture
+of the latest NVM standard.
+.Ss ns active
+Provide a list of active namespace identifiers for the givne NVM controller.
+.Ss ns allocated
+Provide a list of allocated namespace identifiers for the givne NVM controller.
+.Ss ns attach
+Attach an nsid to a controller.
+The primary controller is used if one is not specified.
+.Ss ns attached
+Provide a list of controllers attached to a nsid.
+If only a nvme controller argument is provided, a nsid must also be specified.
+.Ss ns controllers
+Provide a list of all controllers in the NVM subsystem.
+.Ss ns create
+Creates a new namespace.
+.Ss ns delete
+Delete a namespace.
+It must be currently inactive.
+.Ss ns detach
+Detach a namespace from a controller.
+The namespace will become inaccessible, but its contents will remain if it is
+.Em activated
+again.
+.Ss ns identify
+Print detailed information about the namespace.
 .Ss nsid
 Reports the namespace id and controller device associated with the
 .Aq Ar namespace-id
