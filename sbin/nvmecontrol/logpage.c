@@ -219,10 +219,6 @@ read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
 
 	/* Convert data to host endian */
 	switch (log_page) {
-	case NVME_LOG_HEALTH_INFORMATION:
-		nvme_health_information_page_swapbytes(
-		    (struct nvme_health_information_page *)payload);
-		break;
 	case NVME_LOG_CHANGED_NAMESPACE:
 		nvme_ns_list_swapbytes((struct nvme_ns_list *)payload);
 		break;
@@ -265,17 +261,17 @@ print_log_error(const struct nvme_controller_data *cdata __unused, void *buf, ui
 	printf("Error Information Log\n");
 	printf("=====================\n");
 
-	if (LE2H(entry->error_count) == 0) {
+	if (letoh(entry->error_count) == 0) {
 		printf("No error entries found\n");
 		return;
 	}
 
 	nentries = size / sizeof(struct nvme_error_information_entry);
 	for (i = 0; i < nentries; i++, entry++) {
-		if (LE2H(entry->error_count) == 0)
+		if (letoh(entry->error_count) == 0)
 			break;
 
-		status = LE2H(entry->status);
+		status = letoh(entry->status);
 
 		p = NVME_STATUS_GET_P(status);
 		sc = NVME_STATUS_GET_SC(status);
@@ -285,9 +281,9 @@ print_log_error(const struct nvme_controller_data *cdata __unused, void *buf, ui
 
 		printf("Entry %02d\n", i + 1);
 		printf("=========\n");
-		printf(" Error count:          %ju\n", LE2H(entry->error_count));
-		printf(" Submission queue ID:  %u\n", LE2H(entry->sqid));
-		printf(" Command ID:           %u\n", LE2H(entry->cid));
+		printf(" Error count:          %ju\n", letoh(entry->error_count));
+		printf(" Submission queue ID:  %u\n", letoh(entry->sqid));
+		printf(" Command ID:           %u\n", letoh(entry->cid));
 		/* TODO: Export nvme_status_string structures from kernel? */
 		printf(" Status:\n");
 		printf("  Phase tag:           %d\n", p);
@@ -295,13 +291,13 @@ print_log_error(const struct nvme_controller_data *cdata __unused, void *buf, ui
 		printf("  Status code type:    %d\n", sct);
 		printf("  More:                %d\n", m);
 		printf("  DNR:                 %d\n", dnr);
-		printf(" Error location:       %u\n", LE2H(entry->error_location));
-		printf(" LBA:                  %ju\n", LE2H(entry->lba));
-		printf(" Namespace ID:         %u\n", LE2H(entry->nsid));
-		printf(" Vendor specific info: %u\n", LE2H(entry->vendor_specific));
-		printf(" Transport type:       %u\n", LE2H(entry->trtype));
-		printf(" Command specific info:%ju\n", LE2H(entry->csi));
-		printf(" Transport specific:   %u\n", LE2H(entry->ttsi));
+		printf(" Error location:       %u\n", letoh(entry->error_location));
+		printf(" LBA:                  %ju\n", letoh(entry->lba));
+		printf(" Namespace ID:         %u\n", letoh(entry->nsid));
+		printf(" Vendor specific info: %u\n", letoh(entry->vendor_specific));
+		printf(" Transport type:       %u\n", letoh(entry->trtype));
+		printf(" Command specific info:%ju\n", letoh(entry->csi));
+		printf(" Transport specific:   %u\n", letoh(entry->ttsi));
 	}
 }
 
@@ -325,7 +321,7 @@ print_log_health(const struct nvme_controller_data *cdata __unused, void *buf, u
 	uint8_t	warning;
 	int i;
 
-	warning = health->critical_warning;
+	warning = letoh(health->critical_warning);
 
 	printf("SMART/Health Information Log\n");
 	printf("============================\n");
@@ -342,13 +338,13 @@ print_log_health(const struct nvme_controller_data *cdata __unused, void *buf, u
 	printf(" Volatile memory backup:        %d\n",
 	    !!(warning & NVME_CRIT_WARN_ST_VOLATILE_MEMORY_BACKUP));
 	printf("Temperature:                    ");
-	print_temp_K(health->temperature);
+	print_temp_K(letoh(health->temperature));
 	printf("Available spare:                %u\n",
-	    health->available_spare);
+	    letoh(health->available_spare));
 	printf("Available spare threshold:      %u\n",
-	    health->available_spare_threshold);
+	    letoh(health->available_spare_threshold));
 	printf("Percentage used:                %u\n",
-	    health->percentage_used);
+	    letoh(health->percentage_used));
 
 	printf("Data units (512,000 byte) read: %s\n",
 	    uint128_to_str(to128(health->data_units_read), cbuf, sizeof(cbuf)));
@@ -371,18 +367,18 @@ print_log_health(const struct nvme_controller_data *cdata __unused, void *buf, u
 	printf("No. error info log entries:     %s\n",
 	    uint128_to_str(to128(health->num_error_info_log_entries), cbuf, sizeof(cbuf)));
 
-	printf("Warning Temp Composite Time:    %d\n", health->warning_temp_time);
-	printf("Error Temp Composite Time:      %d\n", health->error_temp_time);
+	printf("Warning Temp Composite Time:    %d\n", letoh(health->warning_temp_time));
+	printf("Error Temp Composite Time:      %d\n", letoh(health->error_temp_time));
 	for (i = 0; i < 8; i++) {
-		if (health->temp_sensor[i] == 0)
+		if (letoh(health->temp_sensor[i]) == 0)
 			continue;
 		printf("Temperature Sensor %d:           ", i + 1);
-		print_temp_K(health->temp_sensor[i]);
+		print_temp_K(letoh(health->temp_sensor[i]));
 	}
-	printf("Temperature 1 Transition Count: %d\n", health->tmt1tc);
-	printf("Temperature 2 Transition Count: %d\n", health->tmt2tc);
-	printf("Total Time For Temperature 1:   %d\n", health->ttftmt1);
-	printf("Total Time For Temperature 2:   %d\n", health->ttftmt2);
+	printf("Temperature 1 Transition Count: %d\n", letoh(health->tmt1tc));
+	printf("Temperature 2 Transition Count: %d\n", letoh(health->tmt2tc));
+	printf("Total Time For Temperature 1:   %d\n", letoh(health->ttftmt1));
+	printf("Total Time For Temperature 2:   %d\n", letoh(health->ttftmt2));
 }
 
 static void
