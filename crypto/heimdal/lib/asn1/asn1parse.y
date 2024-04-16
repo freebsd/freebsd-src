@@ -69,7 +69,7 @@ struct string_list {
 %}
 
 %union {
-    int constant;
+    int64_t constant;
     struct value *value;
     struct range *range;
     char *name;
@@ -370,14 +370,14 @@ range		: '(' Value RANGE Value ')'
 			lex_error_message("Non-integer in first part of range");
 		    $$ = ecalloc(1, sizeof(*$$));
 		    $$->min = $2->u.integervalue;
-		    $$->max = $2->u.integervalue - 1;
+		    $$->max = INT_MAX;
 		}
 		| '(' kw_MIN RANGE Value ')'
 		{
 		    if($4->type != integervalue)
 			lex_error_message("Non-integer in second part of range");
 		    $$ = ecalloc(1, sizeof(*$$));
-		    $$->min = $4->u.integervalue + 2;
+		    $$->min = INT_MIN;
 		    $$->max = $4->u.integervalue;
 		}
 		| '(' Value ')'

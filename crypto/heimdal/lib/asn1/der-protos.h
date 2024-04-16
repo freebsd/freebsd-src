@@ -68,6 +68,11 @@ der_copy_integer (
 	int */*to*/);
 
 int
+der_copy_integer64 (
+	const int64_t */*from*/,
+	int64_t */*to*/);
+
+int
 der_copy_octet_string (
 	const heim_octet_string */*from*/,
 	heim_octet_string */*to*/);
@@ -91,6 +96,11 @@ int
 der_copy_unsigned (
 	const unsigned */*from*/,
 	unsigned */*to*/);
+
+int
+der_copy_unsigned64 (
+	const uint64_t */*from*/,
+	uint64_t */*to*/);
 
 int
 der_copy_utctime (
@@ -129,6 +139,9 @@ void
 der_free_integer (int */*i*/);
 
 void
+der_free_integer64 (int64_t */*i*/);
+
+void
 der_free_octet_string (heim_octet_string */*k*/);
 
 void
@@ -142,6 +155,9 @@ der_free_universal_string (heim_universal_string */*k*/);
 
 void
 der_free_unsigned (unsigned */*u*/);
+
+void
+der_free_unsigned64 (uint64_t */*u*/);
 
 void
 der_free_utctime (time_t */*t*/);
@@ -215,6 +231,13 @@ der_get_integer (
 	size_t */*size*/);
 
 int
+der_get_integer64 (
+	const unsigned char */*p*/,
+	size_t /*len*/,
+	int64_t */*ret*/,
+	size_t */*size*/);
+
+int
 der_get_length (
 	const unsigned char */*p*/,
 	size_t /*len*/,
@@ -282,6 +305,13 @@ der_get_unsigned (
 	const unsigned char */*p*/,
 	size_t /*len*/,
 	unsigned */*ret*/,
+	size_t */*size*/);
+
+int
+der_get_unsigned64 (
+	const unsigned char */*p*/,
+	size_t /*len*/,
+	uint64_t */*ret*/,
 	size_t */*size*/);
 
 int
@@ -368,6 +398,9 @@ size_t
 der_length_integer (const int */*data*/);
 
 size_t
+der_length_integer64 (const int64_t */*data*/);
+
+size_t
 der_length_len (size_t /*len*/);
 
 size_t
@@ -387,6 +420,9 @@ der_length_universal_string (const heim_universal_string */*data*/);
 
 size_t
 der_length_unsigned (const unsigned */*data*/);
+
+size_t
+der_length_unsigned64 (const uint64_t */*data*/);
 
 size_t
 der_length_utctime (const time_t */*t*/);
@@ -509,6 +545,13 @@ der_put_integer (
 	size_t */*size*/);
 
 int
+der_put_integer64 (
+	unsigned char */*p*/,
+	size_t /*len*/,
+	const int64_t */*v*/,
+	size_t */*size*/);
+
+int
 der_put_length (
 	unsigned char */*p*/,
 	size_t /*len*/,
@@ -567,6 +610,13 @@ der_put_unsigned (
 	unsigned char */*p*/,
 	size_t /*len*/,
 	const unsigned */*v*/,
+	size_t */*size*/);
+
+int
+der_put_unsigned64 (
+	unsigned char */*p*/,
+	size_t /*len*/,
+	const uint64_t */*v*/,
 	size_t */*size*/);
 
 int

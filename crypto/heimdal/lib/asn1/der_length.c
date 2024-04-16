@@ -56,7 +56,52 @@ _heim_len_unsigned (unsigned val)
 }
 
 size_t
+_heim_len_unsigned64 (uint64_t val)
+{
+    size_t ret = 0;
+    int last_val_gt_128;
+
+    do {
+	++ret;
+	last_val_gt_128 = (val >= 128);
+	val /= 256;
+    } while (val);
+
+    if(last_val_gt_128)
+	ret++;
+
+    return ret;
+}
+
+size_t
 _heim_len_int (int val)
+{
+    unsigned char q;
+    size_t ret = 0;
+
+    if (val >= 0) {
+	do {
+	    q = val % 256;
+	    ret++;
+	    val /= 256;
+	} while(val);
+	if(q >= 128)
+	    ret++;
+    } else {
+	val = ~val;
+	do {
+	    q = ~(val % 256);
+	    ret++;
+	    val /= 256;
+	} while(val);
+	if(q < 128)
+	    ret++;
+    }
+    return ret;
+}
+
+size_t
+_heim_len_int64 (int64_t val)
 {
     unsigned char q;
     size_t ret = 0;
@@ -135,9 +180,21 @@ der_length_integer (const int *data)
 }
 
 size_t
+der_length_integer64 (const int64_t *data)
+{
+    return _heim_len_int64 (*data);
+}
+
+size_t
 der_length_unsigned (const unsigned *data)
 {
     return _heim_len_unsigned(*data);
+}
+
+size_t
+der_length_unsigned64 (const uint64_t *data)
+{
+    return _heim_len_unsigned64(*data);
 }
 
 size_t

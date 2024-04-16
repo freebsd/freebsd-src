@@ -37,6 +37,7 @@ gen_files_pkinit = asn1_pkinit_asn1.x
 gen_files_pkcs12 = asn1_pkcs12_asn1.x
 gen_files_pkcs8 = asn1_pkcs8_asn1.x
 gen_files_pkcs9 = asn1_pkcs9_asn1.x
+gen_files_test_template = test_template_asn1-template.c
 gen_files_test = asn1_test_asn1.x
 gen_files_digest = asn1_digest_asn1.x
 gen_files_kx509 = asn1_kx509_asn1.x
@@ -53,7 +54,7 @@ asn1_print_SOURCES = asn1_print.c
 check_der_SOURCES = check-der.c check-common.c check-common.h
 
 check_template_SOURCES = check-template.c check-common.c check-common.h
-nodist_check_template_SOURCES = $(gen_files_test:.x=.c)
+nodist_check_template_SOURCES = $(gen_files_test_template:.x=.c)
 
 dist_check_gen_SOURCES = check-gen.c check-common.c check-common.h
 nodist_check_gen_SOURCES = $(gen_files_test:.x=.c)
@@ -134,6 +135,7 @@ CLEANFILES = \
 	$(gen_files_pkcs12) \
 	$(gen_files_digest) \
 	$(gen_files_kx509) \
+	$(gen_files_test_template) \
 	$(gen_files_test) $(nodist_check_gen_SOURCES) \
 	asn1_err.c asn1_err.h \
 	rfc2459_asn1_files rfc2459_asn1*.h* \
@@ -145,6 +147,7 @@ CLEANFILES = \
 	pkcs12_asn1_files pkcs12_asn1*.h* \
 	digest_asn1_files digest_asn1*.h* \
 	kx509_asn1_files kx509_asn1*.h* \
+	test_template_asn1_files test_template_asn1*.h* \
 	test_asn1_files test_asn1*.h*
 
 dist_include_HEADERS = der.h heim_asn1.h der-protos.h der-private.h
@@ -170,6 +173,7 @@ priv_headers += pkcs9_asn1-priv.h
 priv_headers += pkcs12_asn1-priv.h
 priv_headers += digest_asn1-priv.h
 priv_headers += kx509_asn1-priv.h
+priv_headers += test_template_asn1.h test_template_asn1-priv.h
 priv_headers += test_asn1.h test_asn1-priv.h
 
 
@@ -178,7 +182,7 @@ $(asn1_compile_OBJECTS): asn1parse.h asn1parse.c $(srcdir)/der-protos.h $(srcdir
 $(libasn1_la_OBJECTS): $(nodist_include_HEADERS) $(priv_headers) asn1_err.h $(srcdir)/der-protos.h $(srcdir)/der-private.h
 $(libasn1base_la_OBJECTS): asn1_err.h $(srcdir)/der-protos.h $(srcdir)/der-private.h
 $(check_gen_OBJECTS): test_asn1.h
-$(check_template_OBJECTS): test_asn1_files
+$(check_template_OBJECTS): test_template_asn1.h test_template_asn1_files
 $(asn1_print_OBJECTS): krb5_asn1.h
 
 asn1parse.h: asn1parse.c
@@ -192,6 +196,7 @@ $(gen_files_digest) digest_asn1.hx digest_asn1-priv.hx: digest_asn1_files
 $(gen_files_kx509) kx509_asn1.hx kx509_asn1-priv.hx: kx509_asn1_files
 $(gen_files_rfc2459) rfc2459_asn1.hx rfc2459_asn1-priv.hx: rfc2459_asn1_files
 $(gen_files_cms) cms_asn1.hx cms_asn1-priv.hx: cms_asn1_files
+$(gen_files_test_template) test_template_asn1.hx test_template_asn1-priv.hx: test_template_asn1_files
 $(gen_files_test) test_asn1.hx test_asn1-priv.hx: test_asn1_files
 
 rfc2459_asn1_files: asn1_compile$(EXEEXT) $(srcdir)/rfc2459.asn1
@@ -220,6 +225,9 @@ digest_asn1_files: asn1_compile$(EXEEXT) $(srcdir)/digest.asn1
 
 kx509_asn1_files: asn1_compile$(EXEEXT) $(srcdir)/kx509.asn1
 	$(ASN1_COMPILE) --one-code-file $(srcdir)/kx509.asn1 kx509_asn1 || (rm -f kx509_asn1_files ; exit 1)
+
+test_template_asn1_files: asn1_compile$(EXEEXT) $(srcdir)/test.asn1
+	$(ASN1_COMPILE) --template --sequence=TESTSeqOf $(srcdir)/test.asn1 test_template_asn1 || (rm -f test_template_asn1_files ; exit 1)
 
 test_asn1_files: asn1_compile$(EXEEXT) $(srcdir)/test.asn1
 	$(ASN1_COMPILE) --one-code-file --sequence=TESTSeqOf $(srcdir)/test.asn1 test_asn1 || (rm -f test_asn1_files ; exit 1)
