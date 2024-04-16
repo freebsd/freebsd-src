@@ -718,10 +718,6 @@ nvme_ctrlr_async_event_log_page_cb(void *arg, const struct nvme_completion *cpl)
 			nvme_sanitize_status_page_swapbytes(
 			    (struct nvme_sanitize_status_page *)aer->log_page_buffer);
 			break;
-		case INTEL_LOG_TEMP_STATS:
-			intel_log_temp_stats_swapbytes(
-			    (struct intel_log_temp_stats *)aer->log_page_buffer);
-			break;
 		default:
 			break;
 		}
