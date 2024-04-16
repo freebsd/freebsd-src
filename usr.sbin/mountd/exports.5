@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)exports.5	8.3 (Berkeley) 3/29/95
 .\"
-.Dd April 7, 2024
+.Dd April 16, 2024
 .Dt EXPORTS 5
 .Os
 .Sh NAME
@@ -57,8 +57,8 @@ file system or the NFSv4 tree root for one or more hosts.
 A long line may be split over several lines by ending all but the
 last line with a backslash
 .Pq Ql \e .
-A host may be specified only once for each local file or the NFSv4 tree root on the
-server and there may be only one default entry for each server
+A host may be specified only once for each local file system or the NFSv4 tree
+root on the server and there may be only one default entry for each server
 file system that applies to all other hosts.
 The latter exports the file system to the
 .Dq world
@@ -68,7 +68,26 @@ be used only when the file system contains public information.
 In a mount entry,
 the first field(s) specify the directory path(s) within a server file system
 that can be mounted on by the corresponding client(s).
-There are three forms of this specification.
+Note well that exporting a directory on the server does not guarantee that only
+files below the exported directory will be accessible.
+This is true even in the absence of the
+.Fl alldirs
+flag.
+To provide this guarantee, the exported directories must be local file system
+mount points on the server.
+For example, if one exports
+.Pa /home ,
+and
+.Pa /home
+is not a file system mount point, then clients will be able to access arbitrary
+files on the root file system.
+As such, to avoid confusion with respect to what is exported, it may be prudent
+to limit exported directories to server local file system mount points.
+When exporting ZFS datasets with the
+.Sy sharenfs
+property, this is auomatically the case.
+.Pp
+There are three forms of the directory path specification.
 The first is to list all mount points as absolute
 directory paths separated by whitespace.
 This list of directory paths should be considered an
@@ -599,6 +618,7 @@ afterwards, whereas NFSv3 rejects the mount request.
 .Xr strunvis 3 ,
 .Xr nfsv4 4 ,
 .Xr netgroup 5 ,
+.Xr zfsprops 7 ,
 .Xr mountd 8 ,
 .Xr nfsd 8 ,
 .Xr rpc.tlsservd 8 ,
