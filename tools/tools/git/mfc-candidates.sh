@@ -124,16 +124,14 @@ fi
 # Commits in from_branch after branch point
 commits_from()
 {
-	git rev-list --first-parent $authorarg $to_branch..$from_branch "$@" |\
-	    sort
+	git rev-list --first-parent --reverse $authorarg $to_branch..$from_branch "$@"
 }
 
 # "cherry picked from" hashes from commits in to_branch after branch point
 commits_to()
 {
 	git log $from_branch..$to_branch --grep 'cherry picked from' "$@" |\
-	    sed -E -n 's/^[[:space:]]*\(cherry picked from commit ([0-9a-f]+)\)[[:space:]]*$/\1/p' |\
-	    sort
+	    sed -E -n 's/^[[:space:]]*\(cherry picked from commit ([0-9a-f]+)\)[[:space:]]*$/\1/p'
 }
 
 # Turn a list of short hashes (and optional descriptions) into a list of full
@@ -164,16 +162,11 @@ fi
 commits_from "$@" > $from_list
 commits_to "$@" > $to_list
 
-comm -23 $from_list $to_list > $candidate_list
+/usr/libexec/flua $(dirname $0)/candidatematch.lua \
+    $from_list $to_list $exclude_list > $candidate_list
 
-if [ -n "$exclude_file" ]; then
-	mv $candidate_list $candidate_list.bak
-	comm -23 $candidate_list.bak $exclude_list > $candidate_list
-fi
-
-# Sort by (but do not print) commit time
 while read hash; do
-	git show --pretty='%ct %h %s' --no-patch $hash
-done < $candidate_list | sort -n | cut -d ' ' -f 2-
+	git show --pretty='%h %s' --no-patch $hash
+done < $candidate_list
 
 rm -rf "$workdir"
