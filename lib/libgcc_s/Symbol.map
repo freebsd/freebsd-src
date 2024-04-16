@@ -1,56 +1,42 @@
 /*
  */
 
+#if defined(__LP64__) || defined(__SIZEOF_INT128__)
+#define	CRT_HAS_128BIT
+#endif
+
 GCC_3.0 {
 	__absvdi2;
 	__absvsi2;
 	__addvdi3;
 	__addvsi3;
 	__ashldi3;
-	__ashlti3;
 	__ashrdi3;
-	__ashrti3;
 	__clear_cache;
 	__cmpdi2;
-	__cmpti2;
 	__deregister_frame;
 	__deregister_frame_info;
 	__deregister_frame_info_bases;
 	__divdi3;
-	__divti3;
 	__ffsdi2;
-	__ffsti2;
 	__fixdfdi;
-	__fixdfti;
 	__fixsfdi;
-	__fixsfti;
 	__fixunsdfdi;
 	__fixunsdfsi;
-	__fixunsdfti;
 	__fixunssfdi;
 	__fixunssfsi;
-	__fixunssfti;
 	__fixunsxfdi;
 	__fixunsxfsi;
-	__fixunsxfti;
 	__fixxfdi;
-	__fixxfti;
 	__floatdidf;
 	__floatdisf;
 	__floatdixf;
-	__floattidf;
-	__floattisf;
-	__floattixf;
 	__lshrdi3;
-	__lshrti3;
 	__moddi3;
-	__modti3;
 	__muldi3;
-	__multi3;
 	__mulvdi3;
 	__mulvsi3;
 	__negdi2;
-	__negti2;
 	__negvdi2;
 	__negvsi2;
 	__register_frame;
@@ -62,13 +48,9 @@ GCC_3.0 {
 	__subvdi3;
 	__subvsi3;
 	__ucmpdi2;
-	__ucmpti2;
 	__udivdi3;
 	__udivmoddi4;
-	__udivmodti4;
-	__udivti3;
 	__umoddi3;
-	__umodti3;
 	_Unwind_DeleteException;
 	_Unwind_Find_FDE;
 	_Unwind_ForcedUnwind;
@@ -82,6 +64,31 @@ GCC_3.0 {
 	_Unwind_Resume;
 	_Unwind_SetGR;
 	_Unwind_SetIP;
+
+#ifdef CRT_HAS_128BIT
+	__ashlti3;
+	__ashrti3;
+	__cmpti2;
+	__divti3;
+	__ffsti2;
+	__fixdfti;
+	__fixsfti;
+	__fixunsdfti;
+	__fixunssfti;
+	__fixunsxfti;
+	__fixxfti;
+	__floattidf;
+	__floattisf;
+	__floattixf;
+	__lshrti3;
+	__modti3;
+	__multi3;
+	__negti2;
+	__ucmpti2;
+	__udivmodti4;
+	__udivti3;
+	__umodti3;
+#endif
 };
 
 GCC_3.3 {
@@ -97,16 +104,19 @@ GCC_3.3.1 {
 GCC_3.4 {
 	__clzdi2;
 	__clzsi2;
-	__clzti2;
 	__ctzdi2;
 	__ctzsi2;
-	__ctzti2;
 	__paritydi2;
 	__paritysi2;
-	__parityti2;
 	__popcountdi2;
 	__popcountsi2;
+
+#ifdef CRT_HAS_128BIT
+	__clzti2;
+	__ctzti2;
+	__parityti2;
 	__popcountti2;
+#endif
 };
 
 GCC_3.4.2 {
@@ -114,11 +124,13 @@ GCC_3.4.2 {
 };
 
 GCC_3.4.4 {
+#ifdef CRT_HAS_128BIT
 	__absvti2;
 	__addvti3;
 	__mulvti3;
 	__negvti2;
 	__subvti3;
+#endif
 };
 
 GCC_4.0.0 {
@@ -137,10 +149,13 @@ GCC_4.2.0 {
 	__floatundidf;
 	__floatundisf;
 	__floatundixf;
+	_Unwind_GetIPInfo;
+
+#ifdef CRT_HAS_128BIT
 	__floatuntidf;
 	__floatuntisf;
 	__floatuntixf;
-	_Unwind_GetIPInfo;
+#endif
 };
 
 GCC_4.3.0 {
