@@ -52,11 +52,13 @@ integer_symbol(const char *basename, const Type *t)
 	return "int"; /* XXX enum foo */
     else if (t->range == NULL)
 	return "heim_integer";
-    else if (t->range->min == INT_MIN && t->range->max == INT_MAX)
+    else if (t->range->min < INT_MIN && t->range->max <= INT64_MAX)
+	return "int64_t";
+    else if (t->range->min >= 0 && t->range->max > UINT_MAX)
+	return "uint64_t";
+    else if (t->range->min >= INT_MIN && t->range->max <= INT_MAX)
 	return "int";
-    else if (t->range->min == 0 && t->range->max == UINT_MAX)
-	return "unsigned";
-    else if (t->range->min == 0 && t->range->max == INT_MAX)
+    else if (t->range->min >= 0 && t->range->max <= UINT_MAX)
 	return "unsigned";
     else {
 	abort();
@@ -490,14 +492,16 @@ template_members(struct templatehead *temp, const char *basetype, const char *na
 	    itype = "IMEMBER";
 	else if (t->range == NULL)
 	    itype = "HEIM_INTEGER";
-	else if (t->range->min == INT_MIN && t->range->max == INT_MAX)
+	else if (t->range->min < INT_MIN && t->range->max <= INT64_MAX)
+	    itype = "INTEGER64";
+	else if (t->range->min >= 0 && t->range->max > UINT_MAX)
+	    itype = "UNSIGNED64";
+	else if (t->range->min >= INT_MIN && t->range->max <= INT_MAX)
 	    itype = "INTEGER";
-	else if (t->range->min == 0 && t->range->max == UINT_MAX)
-	    itype = "UNSIGNED";
-	else if (t->range->min == 0 && t->range->max == INT_MAX)
+	else if (t->range->min >= 0 && t->range->max <= UINT_MAX)
 	    itype = "UNSIGNED";
 	else
-	    errx(1, "%s: unsupported range %d -> %d",
+	    errx(1, "%s: unsupported range %" PRId64 " -> %" PRId64,
 		 name, t->range->min, t->range->max);
 
 	add_line(temp, "{ A1_PARSE_T(A1T_%s), %s, NULL }", itype, poffset);
