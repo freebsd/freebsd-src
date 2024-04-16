@@ -25,7 +25,6 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 struct archive_read;
 extern void __archive_read_reset_passphrase(struct archive_read *);

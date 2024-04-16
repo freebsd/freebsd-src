@@ -23,7 +23,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 #include <locale.h>
 
@@ -71,7 +70,9 @@ DEFINE_TEST(test_zip_filename_encoding_UTF8)
 	/*
 	 * Verify that UTF-8 filenames are correctly stored without
 	 * hdrcharset=UTF-8 option.
+	 * Skip on Windows where we default to OEMCP
 	 */
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	a = archive_write_new();
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_zip(a));
 	assertEqualInt(ARCHIVE_OK,
@@ -90,6 +91,7 @@ DEFINE_TEST(test_zip_filename_encoding_UTF8)
 	 * which indicates the filename charset is UTF-8. */
 	assertEqualInt(0x08, buff[7]);
 	assertEqualMem(buff + 30, "\xD0\xBF\xD1\x80\xD0\xB8", 6);
+#endif
 
 	/*
 	 * Verify that A bit 11 of general purpose flag is not set

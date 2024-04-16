@@ -424,8 +424,8 @@ static int
 aes_ctr_release(archive_crypto_ctx *ctx)
 {
 	EVP_CIPHER_CTX_free(ctx->ctx);
-	memset(ctx->key, 0, ctx->key_len);
-	memset(ctx->nonce, 0, sizeof(ctx->nonce));
+	OPENSSL_cleanse(ctx->key, ctx->key_len);
+	OPENSSL_cleanse(ctx->nonce, sizeof(ctx->nonce));
 	return 0;
 }
 

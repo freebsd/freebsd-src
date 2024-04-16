@@ -25,8 +25,6 @@
  */
 
 #include "lafe_platform.h"
-__FBSDID("$FreeBSD$");
-
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>
 #endif

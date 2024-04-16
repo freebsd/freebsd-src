@@ -24,7 +24,6 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
@@ -115,6 +114,30 @@ __FBSDID("$FreeBSD$");
 #define kAttributes		0x15
 #define kEncodedHeader		0x17
 #define kDummy			0x19
+
+// Check that some windows file attribute constants are defined.
+// Reference: https://learn.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants
+#ifndef FILE_ATTRIBUTE_READONLY
+#define FILE_ATTRIBUTE_READONLY 0x00000001
+#endif
+
+#ifndef FILE_ATTRIBUTE_HIDDEN
+#define FILE_ATTRIBUTE_HIDDEN 0x00000002
+#endif
+
+#ifndef FILE_ATTRIBUTE_SYSTEM
+#define FILE_ATTRIBUTE_SYSTEM 0x00000004
+#endif
+
+#ifndef FILE_ATTRIBUTE_DIRECTORY
+#define FILE_ATTRIBUTE_DIRECTORY 0x00000010
+#endif
+
+// This value is defined in 7zip with the comment "trick for Unix".
+//
+// 7z archives created on unix have this bit set in the high 16 bits of
+// the attr field along with the unix permissions.
+#define FILE_ATTRIBUTE_UNIX_EXTENSION 0x8000
 
 struct _7z_digests {
 	unsigned char	*defineds;
@@ -739,6 +762,37 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 		archive_entry_set_size(entry, 0);
 	}
 
+	// These attributes are supported by the windows implementation of archive_write_disk.
+	const int supported_attrs = FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM;
+
+	if (zip_entry->attr & supported_attrs) {
+		char *fflags_text, *ptr;
+		/* allocate for "rdonly,hidden,system," */
+		fflags_text = malloc(22 * sizeof(char));
+		if (fflags_text != NULL) {
+			ptr = fflags_text; 
+			if (zip_entry->attr & FILE_ATTRIBUTE_READONLY) { 
+ 			strcpy(ptr, "rdonly,"); 
+ 			ptr = ptr + 7; 
+ 		} 
+ 		if (zip_entry->attr & FILE_ATTRIBUTE_HIDDEN) { 
+ 			strcpy(ptr, "hidden,"); 
+ 			ptr = ptr + 7; 
+ 		} 
+ 		if (zip_entry->attr & FILE_ATTRIBUTE_SYSTEM) { 
+ 			strcpy(ptr, "system,"); 
+ 			ptr = ptr + 7; 
+ 		} 
+ 		if (ptr > fflags_text) { 
+ 			/* Delete trailing comma */ 
+ 			*(ptr - 1) = '\0'; 
+ 			archive_entry_copy_fflags_text(entry, 
+				fflags_text); 
+ 		} 
+ 		free(fflags_text); 
+		}
+	}
+
 	/* If there's no body, force read_data() to return EOF immediately. */
 	if (zip->entry_bytes_remaining < 1)
 		zip->end_of_entry = 1;
@@ -1333,6 +1387,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 	case _7Z_IA64:
 	case _7Z_ARM:
 	case _7Z_ARMTHUMB:
+	case _7Z_ARM64:
 	case _7Z_SPARC:
 	case _7Z_DELTA:
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -2666,6 +2721,28 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 			entries[i].flg |= HAS_STREAM;
 		/* The high 16 bits of attributes is a posix file mode. */
 		entries[i].mode = entries[i].attr >> 16;
+
+		if (!(entries[i].attr & FILE_ATTRIBUTE_UNIX_EXTENSION)) {
+			// Only windows permissions specified for this entry. Translate to
+			// reasonable corresponding unix permissions.
+
+			if (entries[i].attr & FILE_ATTRIBUTE_DIRECTORY) {
+				if (entries[i].attr & FILE_ATTRIBUTE_READONLY) {
+					// Read-only directory.
+					entries[i].mode = AE_IFDIR | 0555;
+				} else {
+					// Read-write directory.
+					entries[i].mode = AE_IFDIR | 0755;
+				}
+			} else if (entries[i].attr & FILE_ATTRIBUTE_READONLY) {
+				// Readonly file.
+				entries[i].mode = AE_IFREG | 0444;
+			} else {
+				// Assume read-write file.
+				entries[i].mode = AE_IFREG | 0644;
+			}
+		}
+
 		if (entries[i].flg & HAS_STREAM) {
 			if ((size_t)sindex >= si->ss.unpack_streams)
 				return (-1);
@@ -2706,7 +2783,7 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 			}
 			entries[i].ssIndex = -1;
 		}
-		if (entries[i].attr & 0x01)
+		if (entries[i].attr & FILE_ATTRIBUTE_READONLY)
 			entries[i].mode &= ~0222;/* Read only. */
 
 		if ((entries[i].flg & HAS_STREAM) == 0 && indexInFolder == 0) {
@@ -2973,8 +3050,8 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 
 		/* Check the EncodedHeader CRC.*/
 		if (r == 0 && zip->header_crc32 != next_header_crc) {
-			archive_set_error(&a->archive, -1,
 #ifndef DONT_FAIL_ON_CRC_ERROR
+			archive_set_error(&a->archive, -1,
 			    "Damaged 7-Zip archive");
 			r = -1;
 #endif

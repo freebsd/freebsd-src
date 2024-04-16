@@ -24,7 +24,6 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
 
 /*
  * This file contains the "essential" portions of the write API, that
@@ -115,7 +114,7 @@ archive_write_new(void)
 
 	/* Initialize a block of nulls for padding purposes. */
 	a->null_length = 1024;
-	nulls = (unsigned char *)calloc(1, a->null_length);
+	nulls = (unsigned char *)calloc(a->null_length, sizeof(unsigned char));
 	if (nulls == NULL) {
 		free(a);
 		return (NULL);

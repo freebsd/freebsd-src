@@ -27,7 +27,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_format_isojoliet_bz2.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 /*
  * The data for this testcase was provided by Mike Qin <mikeandmore@gmail.com>

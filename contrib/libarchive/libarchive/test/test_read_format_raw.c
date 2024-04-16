@@ -26,7 +26,6 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_read_format_raw)
 {

@@ -24,7 +24,6 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 static void
 test(struct archive *a, int code, const char *msg)

@@ -26,8 +26,6 @@
 
 #include "archive_platform.h"
 
-__FBSDID("$FreeBSD$");
-
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -187,7 +185,7 @@ lzop_bidder_init(struct archive_read_filter *self)
 	self->code = ARCHIVE_FILTER_LZOP;
 	self->name = "lzop";
 
-	state = (struct read_lzop *)calloc(sizeof(*state), 1);
+	state = (struct read_lzop *)calloc(1, sizeof(*state));
 	if (state == NULL) {
 		archive_set_error(&self->archive->archive, ENOMEM,
 		    "Can't allocate data for lzop decompression");
@@ -282,8 +280,8 @@ consume_header(struct archive_read_filter *self)
 		checksum = crc32(crc32(0, NULL, 0), p, len);
 	else
 		checksum = adler32(adler32(0, NULL, 0), p, len);
-	if (archive_be32dec(p + len) != checksum)
 #ifndef DONT_FAIL_ON_CRC_ERROR
+	if (archive_be32dec(p + len) != checksum)
 		goto corrupted;
 #endif
 	__archive_read_filter_consume(self->upstream, len + 4);
