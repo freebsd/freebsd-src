@@ -78,7 +78,7 @@ struct value {
     } type;
     union {
 	int booleanvalue;
-	int integervalue;
+	int64_t integervalue;
 	char *stringvalue;
 	struct objid *objectidentifiervalue;
     } u;
@@ -109,8 +109,12 @@ struct tagtype {
 };
 
 struct range {
-    int min;
-    int max;
+    /*
+     * We can't represent unsigned 64-bit ranges because max might be
+     * negative...
+     */
+    int64_t min;
+    int64_t max;
 };
 
 enum ctype { CT_CONTENTS, CT_USER } ;

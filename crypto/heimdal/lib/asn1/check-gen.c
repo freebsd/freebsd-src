@@ -765,6 +765,124 @@ check_tag_length(void)
 }
 
 static int
+check_tag_length64(void)
+{
+    struct test_data td[] = {
+	{ 1, 3, 3, "\x02\x01\x00"},
+	{ 1, 7, 7, "\x02\x05\x01\xff\xff\xff\xff"},
+	{ 1, 7, 7, "\x02\x05\x02\x00\x00\x00\x00"},
+	{ 1, 9, 9, "\x02\x07\x7f\xff\xff\xff\xff\xff\xff"},
+	{ 1, 10, 10, "\x02\x08\x00\x80\x00\x00\x00\x00\x00\x00"},
+	{ 1, 10, 10, "\x02\x08\x7f\xff\xff\xff\xff\xff\xff\xff"},
+	{ 1, 11, 11, "\x02\x09\x00\xff\xff\xff\xff\xff\xff\xff\xff"},
+	{ 0, 3, 0, "\x02\x02\x00"},
+	{ 0, 3, 0, "\x02\x7f\x7f"},
+	{ 0, 4, 0, "\x02\x03\x00\x80"},
+	{ 0, 4, 0, "\x02\x7f\x01\x00"},
+	{ 0, 5, 0, "\x02\xff\x7f\x02\x00"}
+    };
+    size_t sz;
+    TESTuint64 values[] = {0, 8589934591LL, 8589934592LL,
+			   36028797018963967LL, 36028797018963968LL,
+			   9223372036854775807LL, 18446744073709551615ULL,
+			   0, 127, 128, 256, 512 };
+    TESTuint64 u;
+    int i, ret, failed = 0;
+    void *buf;
+
+    for (i = 0; i < sizeof(td)/sizeof(td[0]); i++) {
+	struct map_page *page;
+
+	buf = map_alloc(OVERRUN, td[i].data, td[i].len, &page);
+
+	ret = decode_TESTuint64(buf, td[i].len, &u, &sz);
+	if (ret) {
+	    if (td[i].ok) {
+		printf("failed with tag len test %d\n", i);
+		printf("ret = %d\n", ret);
+		failed = 1;
+	    }
+	} else {
+	    if (td[i].ok == 0) {
+		printf("failed with success for tag len test %d\n", i);
+		failed = 1;
+	    }
+	    if (td[i].expected_len != sz) {
+		printf("wrong expected size for tag test %d\n", i);
+		printf("sz = %d\n", sz);
+		failed = 1;
+	    }
+	    if (values[i] != u) {
+		printf("wrong value for tag test %d\n", i);
+		printf("Expected value: %lld\nActual value: %lld\n", values[i], u);
+		failed = 1;
+	    }
+	}
+	map_free(page, "test", "decode");
+    }
+    return failed;
+}
+
+static int
+check_tag_length64s(void)
+{
+    struct test_data td[] = {
+	{ 1, 3, 3, "\x02\x01\x00"},
+	{ 1, 7, 7, "\x02\x05\xfe\x00\x00\x00\x01"},
+	{ 1, 7, 7, "\x02\x05\xfe\x00\x00\x00\x00"},
+	{ 1, 9, 9, "\x02\x07\x80\x00\x00\x00\x00\x00\x01"},
+	{ 1, 9, 9, "\x02\x07\x80\x00\x00\x00\x00\x00\x00"},
+	{ 1, 10, 10, "\x02\x08\x80\x00\x00\x00\x00\x00\x00\x01"},
+	{ 1, 9, 9, "\x02\x07\x80\x00\x00\x00\x00\x00\x01"},
+	{ 0, 3, 0, "\x02\x02\x00"},
+	{ 0, 3, 0, "\x02\x7f\x7f"},
+	{ 0, 4, 0, "\x02\x03\x00\x80"},
+	{ 0, 4, 0, "\x02\x7f\x01\x00"},
+	{ 0, 5, 0, "\x02\xff\x7f\x02\x00"}
+    };
+    size_t sz;
+    TESTint64 values[] = {0, -8589934591LL, -8589934592LL,
+			   -36028797018963967LL, -36028797018963968LL,
+			   -9223372036854775807LL, -36028797018963967LL,
+			   0, 127, 128, 256, 512 };
+    TESTint64 u;
+    int i, ret, failed = 0;
+    void *buf;
+
+    for (i = 0; i < sizeof(td)/sizeof(td[0]); i++) {
+	struct map_page *page;
+
+	buf = map_alloc(OVERRUN, td[i].data, td[i].len, &page);
+
+	ret = decode_TESTint64(buf, td[i].len, &u, &sz);
+	if (ret) {
+	    if (td[i].ok) {
+		printf("failed with tag len test %d\n", i);
+		printf("ret = %d\n", ret);
+		failed = 1;
+	    }
+	} else {
+	    if (td[i].ok == 0) {
+		printf("failed with success for tag len test %d\n", i);
+		failed = 1;
+	    }
+	    if (td[i].expected_len != sz) {
+		printf("wrong expected size for tag test %d\n", i);
+		printf("sz = %d\n", sz);
+		failed = 1;
+	    }
+	    if (values[i] != u) {
+		printf("wrong value for tag test %d\n", i);
+		printf("Expected value: %lld\nActual value: %lld\n", values[i], u);
+		failed = 1;
+	    }
+	}
+	map_free(page, "test", "decode");
+    }
+    return failed;
+}
+
+static int
 cmp_TESTChoice (void *a, void *b)
 {
     return 0;
@@ -1291,6 +1409,8 @@ main(int argc, char **argv)
     ret += test_cert();
 
     ret += check_tag_length();
+    ret += check_tag_length64();
+    ret += check_tag_length64s();
     ret += test_large_tag();
     ret += test_choice();
 
