@@ -60,7 +60,7 @@
 #define REG_BRIDGE_CTRL				0x9210
 #define BRIDGE_DISABLE_FLAG	0x1
 #define BRIDGE_RESET_FLAG	0x2
-#define REG_BRIDGE_SERDES_MODE			0x4204
+#define REG_PCIE_HARD_DEBUG			0x4204
 #define REG_DMA_CONFIG				0x4008
 #define REG_DMA_WINDOW_LOW			0x4034
 #define REG_DMA_WINDOW_HIGH			0x4038
@@ -85,6 +85,9 @@
 
 #define REG_EP_CONFIG_CHOICE			0x9000
 #define REG_EP_CONFIG_DATA			0x8000
+
+#define L1SS_ENABLE                             0x00200000
+#define CLKREQ_ENABLE                           0x2
 
 /*
  * The system memory controller can address up to 16 GiB of physical memory
@@ -190,7 +193,7 @@ bcm_pcib_reset_controller(struct bcm_pcib_softc *sc)
 
 	DELAY(100);
 
-	bcm_pcib_set_reg(sc, REG_BRIDGE_SERDES_MODE, 0);
+	bcm_pcib_set_reg(sc, REG_PCIE_HARD_DEBUG, 0);
 
 	DELAY(100);
 }
@@ -613,7 +616,7 @@ bcm_pcib_attach(device_t dev)
 	struct bcm_pcib_softc *sc;
 	pci_addr_t phys_base, pci_base;
 	bus_size_t size;
-	uint32_t hardware_rev, bridge_state, link_state;
+	uint32_t hardware_rev, bridge_state, link_state, tmp;
 	int error, tries;
 
 	sc = device_get_softc(dev);
@@ -719,7 +722,18 @@ bcm_pcib_attach(device_t dev)
 	bcm_pcib_set_reg(sc, PCI_ID_VAL3,
 	    PCIC_BRIDGE << CLASS_SHIFT | PCIS_BRIDGE_PCI << SUBCLASS_SHIFT);
 
-	bcm_pcib_set_reg(sc, REG_BRIDGE_SERDES_MODE, 0x2);
+	tmp = bcm_pcib_read_reg(sc, REG_PCIE_HARD_DEBUG);
+	tmp |= CLKREQ_ENABLE;
+
+	if (ofw_bus_has_prop(dev, "brcm,enable-l1ss")) {
+		if (bootverbose)
+			device_printf(dev, "note: enabling L1SS due to OF "
+			    "property brcm,enable-l1ss\n");
+
+		tmp |= L1SS_ENABLE;
+	}
+
+	bcm_pcib_set_reg(sc, REG_PCIE_HARD_DEBUG, tmp);
 	DELAY(100);
 
 	bcm_pcib_relocate_bridge_window(dev);
