@@ -2,6 +2,7 @@
 
 .PATH:	${.CURDIR}
 
+PACKAGE=tests
 FILES=	__init__.py insns.py insn_headers.py ioctl.py ioctl_headers.py \
 	ipfw.py utils.py
 
