@@ -2,6 +2,7 @@
 
 .PATH:	${.CURDIR}
 
+PACKAGE=tests
 FILES=	__init__.py rtsock.py tools.py vnet.py
 
 .include <bsd.own.mk>
