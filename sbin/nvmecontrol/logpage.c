@@ -190,7 +190,8 @@ get_log_buffer(uint32_t size)
 
 void
 read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
-    uint16_t lsi, uint8_t rae, void *payload, uint32_t payload_size)
+    uint16_t lsi, uint8_t rae, uint64_t lpo, uint8_t csi, uint8_t ot,
+    uint16_t uuid_index, void *payload, uint32_t payload_size)
 {
 	struct nvme_pt_command	pt;
 	u_int numd;
@@ -207,9 +208,12 @@ read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
 	pt.cmd.cdw11 = htole32(
 	    ((uint32_t)lsi << 16) |		/* LSI */
 	    (numd >> 16));			/* NUMDU */
-	pt.cmd.cdw12 = 0;			/* LPOL */
-	pt.cmd.cdw13 = 0;			/* LPOU */
-	pt.cmd.cdw14 = 0;			/* UUID Index */
+	pt.cmd.cdw12 = htole32(lpo & 0xffffffff); /* LPOL */
+	pt.cmd.cdw13 = htole32(lpo >> 32);	/* LPOU */
+	pt.cmd.cdw14 = htole32(
+	    (csi << 24) | 			/* CSI */
+	    (ot << 23) |			/* OT */
+	    uuid_index);			/* UUID Index */
 	pt.buf = payload;
 	pt.len = payload_size;
 	pt.is_read = 1;
@@ -794,7 +798,8 @@ logpage(const struct cmd *f, int argc, char *argv[])
 
 	/* Read the log page */
 	buf = get_log_buffer(size);
-	read_logpage(fd, opt.page, nsid, opt.lsp, opt.lsi, opt.rae, buf, size);
+	read_logpage(fd, opt.page, nsid, opt.lsp, opt.lsi, opt.rae,
+	    0, 0, 0, 0, buf, size);
 	print_fn(&cdata, buf, size);
 
 	close(fd);

@@ -182,7 +182,8 @@ sanitize(const struct cmd *f, int argc, char *argv[])
 
 wait:
 	read_logpage(fd, NVME_LOG_SANITIZE_STATUS,
-	    NVME_GLOBAL_NAMESPACE_TAG, 0, 0, 0, &ss, sizeof(ss));
+	    NVME_GLOBAL_NAMESPACE_TAG, 0, 0, 0,
+	    0, 0, 0, 0, &ss, sizeof(ss));
 	switch (NVMEV(NVME_SS_PAGE_SSTAT_STATUS, ss.sstat)) {
 	case NVME_SS_PAGE_SSTAT_STATUS_NEVER:
 		printf("Never sanitized");
