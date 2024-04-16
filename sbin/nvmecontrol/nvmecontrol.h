@@ -60,6 +60,17 @@ struct kv_name {
 	const char *name;
 };
 
+/*
+ * Generically convert little endian to host endian, based on the type of the thing
+ * being converted. Use the proposed name for future changes to endian.h.
+ */
+#define letoh(x)							\
+	_Generic(x,							\
+	uint8_t: (x),							\
+	uint16_t: le16toh(x),						\
+	uint32_t: le32toh(x),						\
+	uint64_t: le64toh(x))
+
 const char *kv_lookup(const struct kv_name *kv, size_t kv_count, uint32_t key);
 
 void logpage_register(struct logpage_function *p);
