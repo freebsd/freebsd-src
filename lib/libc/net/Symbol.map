@@ -82,7 +82,6 @@ FBSD_1.0 {
 	freehostent;
 	__nsdefaultsrc;
 	_nsdbtaddsrc;
-	_nsdbtdump;
 	_nsdbtput;
 	nsdispatch;
 	rcmd;
