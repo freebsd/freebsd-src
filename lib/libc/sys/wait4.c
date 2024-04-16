@@ -39,7 +39,5 @@ __weak_reference(__sys_wait4, __wait4);
 pid_t
 wait4(pid_t pid, int *status, int options, struct rusage *ru)
 {
-	return (((pid_t (*)(pid_t, int *, int, struct rusage *))
-	    *(__libc_interposing_slot(INTERPOS_wait4)))
-	    (pid, status, options, ru));
+	return (INTERPOS_SYS(wait4, pid, status, options, ru));
 }

@@ -40,7 +40,5 @@ int
 ppoll(struct pollfd pfd[], nfds_t nfds, const struct timespec *__restrict
     timeout, const sigset_t *__restrict newsigmask)
 {
-	return (((int (*)(struct pollfd *, nfds_t, const struct timespec *,
-	    const sigset_t *))*(__libc_interposing_slot(INTERPOS_ppoll)))
-	    (pfd, nfds, timeout, newsigmask));
+	return (INTERPOS_SYS(ppoll, pfd, nfds, timeout, newsigmask));
 }

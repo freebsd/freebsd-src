@@ -43,9 +43,7 @@ pid_t __waitpid(pid_t, int *, int);
 pid_t
 __waitpid(pid_t pid, int *istat, int options)
 {
-	return (((pid_t (*)(pid_t, int *, int, struct rusage *))
-	    *(__libc_interposing_slot(INTERPOS_wait4)))
-	    (pid, istat, options, NULL));
+	return (INTERPOS_SYS(wait4, pid, istat, options, NULL));
 }
 
 __weak_reference(__waitpid, waitpid);

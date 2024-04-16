@@ -55,9 +55,7 @@ __sleep(unsigned int seconds)
 
 	time_to_sleep.tv_sec = seconds;
 	time_to_sleep.tv_nsec = 0;
-	if (((int (*)(const struct timespec *, struct timespec *))
-	    (*__libc_interposing_slot(INTERPOS_nanosleep)))(
-	    &time_to_sleep, &time_remaining) != -1)
+	if (INTERPOS_SYS(nanosleep, &time_to_sleep, &time_remaining) != -1)
 		return (0);
 	if (errno != EINTR)
 		return (seconds);		/* best guess */

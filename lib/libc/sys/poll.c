@@ -39,6 +39,5 @@ __weak_reference(__sys_poll, __poll);
 int
 poll(struct pollfd pfd[], nfds_t nfds, int timeout)
 {
-	return (((int (*)(struct pollfd *, nfds_t, int))
-	    *(__libc_interposing_slot(INTERPOS_poll)))(pfd, nfds, timeout));
+	return (INTERPOS_SYS(poll, pfd, nfds, timeout));
 }

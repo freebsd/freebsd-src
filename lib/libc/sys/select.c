@@ -39,6 +39,5 @@ __weak_reference(__sys_select, __select);
 int
 select(int n, fd_set *rs, fd_set *ws, fd_set *es, struct timeval *t)
 {
-	return (((int (*)(int, fd_set *, fd_set *, fd_set *, struct timeval *))
-	    *(__libc_interposing_slot(INTERPOS_select)))(n, rs, ws, es, t));
+	return (INTERPOS_SYS(select, n, rs, ws, es, t));
 }

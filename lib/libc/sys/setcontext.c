@@ -42,6 +42,5 @@ __sym_default(setcontext, setcontext, FBSD_1.2);
 int
 setcontext(const ucontext_t *uc)
 {
-	return (((int (*)(const ucontext_t *))
-	    *(__libc_interposing_slot(INTERPOS_setcontext)))(uc));
+	return (INTERPOS_SYS(setcontext, uc));
 }

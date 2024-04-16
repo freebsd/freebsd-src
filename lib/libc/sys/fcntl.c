@@ -49,6 +49,5 @@ fcntl(int fd, int cmd, ...)
 	arg = va_arg(args, long);
 	va_end(args);
 
-	return (((int (*)(int, int, ...))
-	    *(__libc_interposing_slot(INTERPOS_fcntl)))(fd, cmd, arg));
+	return (INTERPOS_SYS(fcntl, fd, cmd, arg));
 }

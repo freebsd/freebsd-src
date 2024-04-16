@@ -41,8 +41,6 @@ int
 kevent(int kq, const struct kevent *changelist, int nchanges,
     struct kevent *eventlist, int nevents, const struct timespec *timeout)
 {
-	return (((int (*)(int, const struct kevent *, int,
-	    struct kevent *, int, const struct timespec *))
-	    *(__libc_interposing_slot(INTERPOS_kevent)))
-	    (kq, changelist, nchanges, eventlist, nevents, timeout));
+	return (INTERPOS_SYS(kevent, kq, changelist, nchanges, eventlist,
+	    nevents, timeout));
 }
