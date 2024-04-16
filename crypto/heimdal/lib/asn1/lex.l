@@ -255,7 +255,7 @@ WITH			{ return kw_WITH; }
 			}
 
 -?0x[0-9A-Fa-f]+|-?[0-9]+ { char *e, *y = yytext;
-			  yylval.constant = strtol((const char *)yytext,
+			  yylval.constant = strtoll((const char *)yytext,
 						   &e, 0);
 			  if(e == y)
 			    lex_error_message("malformed constant (%s)", yytext);

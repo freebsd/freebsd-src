@@ -224,7 +224,7 @@
 typedef union YYSTYPE
 #line 71 "asn1parse.y"
 {
-    int constant;
+    int64_t constant;
     struct value *value;
     struct range *range;
     char *name;
