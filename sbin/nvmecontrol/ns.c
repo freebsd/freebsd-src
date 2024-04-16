@@ -646,7 +646,7 @@ nsdelete(const struct cmd *f, int argc, char *argv[])
 		open_dev(path, &fd, 1, 1);
 	} else if (delete_opt.nsid == NONE - 1) {
 		close(fd);
-		fprintf(stderr, "No NSID specified");
+		fprintf(stderr, "No NSID specified\n");
 		arg_help(argc, argv, f);
 	}
 	if (delete_opt.nsid != NONE - 1)
@@ -712,7 +712,7 @@ nsattach(const struct cmd *f, int argc, char *argv[])
 		open_dev(path, &fd, 1, 1);
 	} else if (attach_opt.nsid == NONE) {
 		close(fd);
-		fprintf(stderr, "No NSID specified");
+		fprintf(stderr, "No NSID specified\n");
 		arg_help(argc, argv, f);
 	}
 	if (attach_opt.nsid != NONE)
@@ -782,7 +782,7 @@ nsdetach(const struct cmd *f, int argc, char *argv[])
 		open_dev(path, &fd, 1, 1);
 	} else if (detach_opt.nsid == NONE) {
 		close(fd);
-		fprintf(stderr, "No NSID specified");
+		fprintf(stderr, "No NSID specified\n");
 		arg_help(argc, argv, f);
 	}
 	if (detach_opt.nsid != NONE)
@@ -859,7 +859,7 @@ nsattached(const struct cmd *f, int argc, char *argv[])
 		open_dev(path, &fd, 1, 1);
 	} else if (attached_opt.nsid == NONE) {
 		close(fd);
-		fprintf(stderr, "No NSID specified");
+		fprintf(stderr, "No NSID specified\n");
 		arg_help(argc, argv, f);
 	}
 	if (attached_opt.nsid != NONE)
@@ -912,7 +912,7 @@ nsidentify(const struct cmd *f, int argc, char *argv[])
 		open_dev(path, &fd, 1, 1);
 	} else if (identify_opt.nsid == NONE) {
 		close(fd);
-		fprintf(stderr, "No NSID specified");
+		fprintf(stderr, "No NSID specified\n");
 		arg_help(argc, argv, f);
 	}
 	if (identify_opt.nsid != NONE)
