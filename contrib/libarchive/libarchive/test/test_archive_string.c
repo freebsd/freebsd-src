@@ -23,7 +23,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 #define __LIBARCHIVE_TEST
 #include "archive_string.h"
@@ -406,7 +405,7 @@ DEFINE_TEST(test_archive_string_sort)
 
   srand((unsigned int)time(NULL));
   size = sizeof(strings) / sizeof(char *);
-  assert((test_strings = (char **)calloc(1, sizeof(strings))) != NULL);
+  assert((test_strings = (char **)calloc(size, sizeof(char *))) != NULL);
   for (i = 0; i < (size - 1); i++)
     assert((test_strings[i] = strdup(strings[i])) != NULL);
 

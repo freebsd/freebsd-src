@@ -23,7 +23,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD");
 
 #include <locale.h>
 
@@ -1179,6 +1178,11 @@ next_test:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
+	 * By default, Windows will create an sconv_default object, which will
+	 * interpret filenames as OEMCP
+	 */
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	/*
 	 * Read filename in en_US.UTF-8 without "hdrcharset=KOI8-R" option.
 	 * The filename we can properly read is only second file.
 	 */
@@ -1221,4 +1225,5 @@ next_test:
 	/* Close the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+#endif
 }

@@ -29,7 +29,6 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_format_zip.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 /*
  * These tests verify that our reader can read files
@@ -288,8 +287,12 @@ verify_contents(struct archive *a, int seeking, int improved_streaming)
 	if (seeking || improved_streaming) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
 	}
-	assertEqualInt(8, archive_entry_size(ae));
-	assert(archive_entry_size_is_set(ae));
+	if (seeking) {
+		assertEqualInt(8, archive_entry_size(ae));
+		assert(archive_entry_size_is_set(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
+	}
 	assertEqualIntA(a, 8,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "12345678", 8);
@@ -305,8 +308,12 @@ verify_contents(struct archive *a, int seeking, int improved_streaming)
 	if (seeking || improved_streaming) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
 	}
-	assertEqualInt(4, archive_entry_size(ae));
-	assert(archive_entry_size_is_set(ae));
+	if (seeking) {
+		assertEqualInt(4, archive_entry_size(ae));
+		assert(archive_entry_size_is_set(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
+	}
 	assertEqualIntA(a, 4,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "1234", 4);
@@ -323,6 +330,7 @@ verify_contents(struct archive *a, int seeking, int improved_streaming)
 	}
 	if (seeking) {
 		assertEqualInt(5, archive_entry_size(ae));
+		assert(archive_entry_size_is_set(ae));
 	} else {
 		assertEqualInt(0, archive_entry_size_is_set(ae));
 	}
@@ -356,8 +364,9 @@ verify_contents(struct archive *a, int seeking, int improved_streaming)
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("dir/", archive_entry_pathname(ae));
-	if (seeking || improved_streaming)
+	if (seeking || improved_streaming) {
 		assertEqualInt(AE_IFDIR | 0755, archive_entry_mode(ae));
+	}
 	assertEqualInt(0, archive_entry_size(ae));
 	assert(archive_entry_size_is_set(ae));
 	assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));
@@ -378,8 +387,12 @@ verify_contents(struct archive *a, int seeking, int improved_streaming)
 	if (seeking || improved_streaming) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
 	}
-	assertEqualInt(8, archive_entry_size(ae));
-	assert(archive_entry_size_is_set(ae));
+	if (seeking) {
+		assertEqualInt(8, archive_entry_size(ae));
+		assert(archive_entry_size_is_set(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
+	}
 	assertEqualIntA(a, 8,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "12345678", 8);
@@ -395,8 +408,12 @@ verify_contents(struct archive *a, int seeking, int improved_streaming)
 	if (seeking || improved_streaming) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
 	}
-	assertEqualInt(4, archive_entry_size(ae));
-	assert(archive_entry_size_is_set(ae));
+	if (seeking) {
+		assertEqualInt(4, archive_entry_size(ae));
+		assert(archive_entry_size_is_set(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
+	}
 	assertEqualIntA(a, 4,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "1234", 4);
@@ -413,6 +430,7 @@ verify_contents(struct archive *a, int seeking, int improved_streaming)
 	}
 	if (seeking) {
 		assertEqualInt(5, archive_entry_size(ae));
+		assert(archive_entry_size_is_set(ae));
 	} else {
 		assertEqualInt(0, archive_entry_size_is_set(ae));
 	}
@@ -468,9 +486,12 @@ verify_contents(struct archive *a, int seeking, int improved_streaming)
 	if (seeking || improved_streaming) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
 	}
-	assert(archive_entry_size_is_set(ae));
-	assert(archive_entry_size_is_set(ae));
-	assertEqualInt(8, archive_entry_size(ae));
+	if (seeking) {
+		assert(archive_entry_size_is_set(ae));
+		assertEqualInt(8, archive_entry_size(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
+	}
 	assertEqualIntA(a, 8,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "12345678", 8);
@@ -486,8 +507,12 @@ verify_contents(struct archive *a, int seeking, int improved_streaming)
 	if (seeking || improved_streaming) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
 	}
-	assertEqualInt(4, archive_entry_size(ae));
-	assert(archive_entry_size_is_set(ae));
+	if (seeking) {
+		assertEqualInt(4, archive_entry_size(ae));
+		assert(archive_entry_size_is_set(ae));
+	} else {
+		assertEqualInt(0, archive_entry_size_is_set(ae));
+	}
 	assertEqualIntA(a, 4,
 	    archive_read_data(a, filedata, sizeof(filedata)));
 	assertEqualMem(filedata, "ACEG", 4);
@@ -503,6 +528,7 @@ verify_contents(struct archive *a, int seeking, int improved_streaming)
 		assertEqualInt(AE_IFREG | 0621, archive_entry_mode(ae));
 	if (seeking) {
 		assertEqualInt(5, archive_entry_size(ae));
+		assert(archive_entry_size_is_set(ae));
 	} else {
 		assertEqualInt(0, archive_entry_size_is_set(ae));
 	}

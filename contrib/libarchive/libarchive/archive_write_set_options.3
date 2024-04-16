@@ -22,8 +22,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
-.\"
 .Dd January 31, 2020
 .Dt ARCHIVE_WRITE_OPTIONS 3
 .Os
@@ -257,12 +255,22 @@ If supported, the default value is read from
 The value is interpreted as a decimal integer specifying the
 compression level. Supported values depend on the library version,
 common values are from 1 to 22.
+.It Cm long
+Enables long distance matching. The value is interpreted as a
+decimal integer specifying log2 window size in bytes. Values from
+10 to 30 for 32 bit, or 31 for 64 bit, are supported.
+.It Cm threads
+The value is interpreted as a decimal integer specifying the
+number of threads for multi-threaded zstd compression.
+If set to 0, zstd will attempt to detect and use the number
+of physical CPU cores.
 .El
 .It Format 7zip
 .Bl -tag -compact -width indent
 .It Cm compression
 The value is one of
 .Dq store ,
+.Dq copy ,
 .Dq deflate ,
 .Dq bzip2 ,
 .Dq lzma1 ,
@@ -270,12 +278,18 @@ The value is one of
 or
 .Dq ppmd
 to indicate how the following entries should be compressed.
+The values
+.Dq store
+and
+.Dq copy
+are synonyms.
 Note that this setting is ignored for directories, symbolic links,
 and other special entries.
 .It Cm compression-level
 The value is interpreted as a decimal integer specifying the
 compression level.
-Values between 0 and 9 are supported.
+Values between 0 and 9 are supported, with the exception of bzip2
+which only supports values between 1 and 9.
 The interpretation of the compression level depends on the chosen
 compression method.
 .El

@@ -23,7 +23,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD");
 
 #include <locale.h>
 
@@ -137,6 +136,11 @@ cleanup:
 
 DEFINE_TEST(test_read_format_cpio_filename_UTF8_UTF8_jp)
 {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* Since we explicitly DON'T set hdrcharset=UTF-8 below */
+	skipping("Windows defaults to OEMCP, not UTF-8");
+	return;
+#else
 	const char *refname = "test_read_format_cpio_filename_utf8_jp.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
@@ -180,6 +184,7 @@ DEFINE_TEST(test_read_format_cpio_filename_UTF8_UTF8_jp)
 	/* Close the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+#endif
 }
 
 DEFINE_TEST(test_read_format_cpio_filename_CP866_KOI8R)
@@ -500,6 +505,11 @@ cleanup:
 
 DEFINE_TEST(test_read_format_cpio_filename_UTF8_UTF8_ru)
 {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* Since we explicitly DON'T set hdrcharset=UTF-8 below */
+	skipping("Windows defaults to OEMCP, not UTF-8");
+	return;
+#else
 	const char *refname = "test_read_format_cpio_filename_utf8_ru.cpio";
 	struct archive *a;
 	struct archive_entry *ae;
@@ -542,6 +552,7 @@ DEFINE_TEST(test_read_format_cpio_filename_UTF8_UTF8_ru)
 	/* Close the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+#endif
 }
 
 DEFINE_TEST(test_read_format_cpio_filename_eucJP_CP932)

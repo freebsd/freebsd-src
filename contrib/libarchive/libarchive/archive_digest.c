@@ -110,7 +110,7 @@ win_crypto_Update(Digest_CTX *ctx, const unsigned char *buf, size_t len)
 #if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
 	BCryptHashData(ctx->hHash,
 		      (PUCHAR)(uintptr_t)buf,
-		      len, 0);
+		      (ULONG)len, 0);
 #else
 	CryptHashData(ctx->hash,
 		      (unsigned char *)(uintptr_t)buf,

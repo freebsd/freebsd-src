@@ -23,10 +23,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD");
 
 #include <locale.h>
-
 
 /*
  * Github Issue 748 reported problems with end-of-entry handling
