@@ -219,9 +219,6 @@ read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
 
 	/* Convert data to host endian */
 	switch (log_page) {
-	case NVME_LOG_CHANGED_NAMESPACE:
-		nvme_ns_list_swapbytes((struct nvme_ns_list *)payload);
-		break;
 	case NVME_LOG_DEVICE_SELF_TEST:
 		nvme_device_self_test_swapbytes(
 		    (struct nvme_device_self_test_page *)payload);
@@ -429,8 +426,8 @@ print_log_ns(const struct nvme_controller_data *cdata __unused, void *buf,
 	printf("Changed Namespace List\n");
 	printf("======================\n");
 
-	for (i = 0; i < nitems(nsl->ns) && nsl->ns[i] != 0; i++) {
-		printf("%08x\n", nsl->ns[i]);
+	for (i = 0; i < nitems(nsl->ns) && letoh(nsl->ns[i]) != 0; i++) {
+		printf("%08x\n", letoh(nsl->ns[i]));
 	}
 }
 
