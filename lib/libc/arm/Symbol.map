@@ -30,7 +30,7 @@ FBSDprivate_1.0 {
 	___longjmp;
 	__longjmp;
 	signalcontext;
-	_signalcontext;
+	__signalcontext;
 	__siglongjmp;
 
 	_libc_arm_fpu_present;
