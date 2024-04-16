@@ -214,6 +214,14 @@ DEFINE_TEST(test_read_format_rar_unicode_UTF8)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_support_filter_all(a));
   assertA(0 == archive_read_support_format_all(a));
+#if defined(_WIN32) && !defined(__CYGWIN__)
+  /* Windows will use OEMCP as default, but the file is UTF-8. */
+  if (ARCHIVE_OK != archive_read_set_options(a, "rar:hdrcharset=UTF-8")) {
+	skipping("This system cannot read input as UTF-8.");
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	return;
+  }
+#endif
   assertA(0 == archive_read_open_filename(a, reffile, 10240));
 
   /* First header. */
@@ -879,16 +887,9 @@ DEFINE_TEST(test_read_format_rar_windows)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-DEFINE_TEST(test_read_format_rar_multivolume)
+static void
+test_read_format_rar_multivolume_test_body_helper(struct archive *a)
 {
-  const char *reffiles[] =
-  {
-    "test_read_format_rar_multivolume.part0001.rar",
-    "test_read_format_rar_multivolume.part0002.rar",
-    "test_read_format_rar_multivolume.part0003.rar",
-    "test_read_format_rar_multivolume.part0004.rar",
-    NULL
-  };
   int file1_size = 241647978, offset = 0;
   char buff[64];
   const char file1_test_txt[] = "gin-bottom: 0in\"><BR>\n</P>\n</BODY>\n"
@@ -903,13 +904,6 @@ DEFINE_TEST(test_read_format_rar_multivolume)
   int file3_size = sizeof(file3_buff);
   const char file3_test_txt[] = "test text document\r\n";
   struct archive_entry *ae;
-  struct archive *a;
-
-  extract_reference_files(reffiles);
-  assert((a = archive_read_new()) != NULL);
-  assertA(0 == archive_read_support_filter_all(a));
-  assertA(0 == archive_read_support_format_all(a));
-  assertA(0 == archive_read_open_filenames(a, reffiles, 10240));
 
   /* First header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -1014,6 +1008,65 @@ DEFINE_TEST(test_read_format_rar_multivolume)
   assertEqualInt(7, archive_file_count(a));
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_rar_multivolume)
+{
+  const char *reffiles[] =
+  {
+    "test_read_format_rar_multivolume.part0001.rar",
+    "test_read_format_rar_multivolume.part0002.rar",
+    "test_read_format_rar_multivolume.part0003.rar",
+    "test_read_format_rar_multivolume.part0004.rar",
+    NULL
+  };
+
+  struct archive *a;
+
+  extract_reference_files(reffiles);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_filenames(a, reffiles, 10240));
+
+  test_read_format_rar_multivolume_test_body_helper(a);
+}
+
+/* As above, but using read_open_filenames_w */
+DEFINE_TEST(test_read_format_rar_multivolume_w)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+  const char *reffiles[] =
+  {
+    "test_read_format_rar_multivolume.part0001.rar",
+    "test_read_format_rar_multivolume.part0002.rar",
+    "test_read_format_rar_multivolume.part0003.rar",
+    "test_read_format_rar_multivolume.part0004.rar",
+    NULL
+  };
+
+  const wchar_t *wreffiles[] =
+  {
+    L"test_read_format_rar_multivolume.part0001.rar",
+    L"test_read_format_rar_multivolume.part0002.rar",
+    L"test_read_format_rar_multivolume.part0003.rar",
+    L"test_read_format_rar_multivolume.part0004.rar",
+    NULL
+  };
+
+  struct archive *a;
+
+  extract_reference_files(reffiles);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_filenames_w(a, wreffiles, 10240));
+
+  test_read_format_rar_multivolume_test_body_helper(a);
+#else
+  skipping("archive_read_open_filenames_w is not available on this platform");
+  return;
+#endif
 }
 
 DEFINE_TEST(test_read_format_rar_multivolume_skip)

@@ -25,7 +25,6 @@
 
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 #define LARGE_SIZE	(1*1024*1024)
 static void

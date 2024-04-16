@@ -21,8 +21,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -44,16 +42,6 @@
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include "bsdtar_windows.h"
-#endif
-
-/* Get a real definition for __FBSDID if we can */
-#if HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-
-/* If not, define it so as to avoid dangling semicolons. */
-#ifndef __FBSDID
-#define	__FBSDID(a)     struct _undefined_hack
 #endif
 
 #ifdef HAVE_LIBARCHIVE
@@ -121,12 +109,14 @@
 
 /* How to mark functions that don't return. */
 /* This facilitates use of some newer static code analysis tools. */
-#undef __LA_DEAD
+#undef __LA_NORETURN
 #if defined(__GNUC__) && (__GNUC__ > 2 || \
-			  (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
-#define	__LA_DEAD	__attribute__((__noreturn__))
-#else
-#define	__LA_DEAD
+                          (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
+#define __LA_NORETURN       __attribute__((__noreturn__))
+#elif defined(_MSC_VER)
+#define __LA_NORETURN __declspec(noreturn)
+#else 
+#define __LA_NORETURN
 #endif
 
 #endif /* !BSDTAR_PLATFORM_H_INCLUDED */

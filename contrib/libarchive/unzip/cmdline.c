@@ -28,8 +28,6 @@
  */
 
 #include "bsdunzip_platform.h"
-__FBSDID("$FreeBSD$");
-
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -115,6 +113,7 @@ bsdunzip_getopt(struct bsdunzip *bsdunzip)
 		if (strcmp(bsdunzip->argv[0], "--") == 0) {
 			++bsdunzip->argv;
 			--bsdunzip->argc;
+			bsdunzip_optind++;
 			return (-1);
 		}
 		/* Get next word for parsing. */

@@ -29,7 +29,6 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_format_zip.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 /*
  * Detailed byte-for-byte verification of the format of a zip archive
@@ -170,15 +169,15 @@ DEFINE_TEST(test_write_format_zip_file)
 	p = extension_start = central_header + 46 + strlen(file_name);
 	extension_end = extension_start + i2(central_header + 30);
 
+	assertEqualInt(i2(p), 0x7875);  /* 'ux' extension header */
+	assertEqualInt(i2(p + 2), 11); /* 'ux' size */
+	/* TODO: verify 'ux' contents */
+	p += 4 + i2(p + 2);
+
 	assertEqualInt(i2(p), 0x5455);  /* 'UT' extension header */
 	assertEqualInt(i2(p + 2), 5); /* 'UT' size */
 	assertEqualInt(p[4], 1); /* 'UT' flags */
 	assertEqualInt(i4(p + 5), t); /* 'UT' mtime */
-	p += 4 + i2(p + 2);
-
-	assertEqualInt(i2(p), 0x7875);  /* 'ux' extension header */
-	assertEqualInt(i2(p + 2), 11); /* 'ux' size */
-	/* TODO: verify 'ux' contents */
 	p += 4 + i2(p + 2);
 
 	/* Just in case: Report any extra extensions. */
@@ -189,35 +188,29 @@ DEFINE_TEST(test_write_format_zip_file)
 	}
 
 	/* Should have run exactly to end of extra data. */
-	assert(p == extension_end);
+	assertEqualAddress(p, extension_end);
 
-	assert(p == eocd);
+	assertEqualAddress(p, eocd);
 
 	/* Regular EOCD immediately follows central directory. */
-	assert(p == eocd_record);
+	assertEqualAddress(p, eocd_record);
 
 	/* Verify local header of file entry. */
 	p = local_header = buff;
 	assertEqualMem(p, "PK\003\004", 4); /* Signature */
 	assertEqualInt(i2(p + 4), zip_version); /* Version needed to extract */
-	assertEqualInt(i2(p + 6), 8); /* Flags */
+	assertEqualInt(i2(p + 6), 8); /* Flags: bit 3 = length-at-end */
 	assertEqualInt(i2(p + 8), zip_compression); /* Compression method */
 	assertEqualInt(i2(p + 10), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
 	assertEqualInt(i2(p + 12), ((tm->tm_year - 80) * 512) + ((tm->tm_mon + 1) * 32) + tm->tm_mday); /* File date */
-	assertEqualInt(i4(p + 14), 0); /* CRC-32 */
-	/* assertEqualInt(i4(p + 18), sizeof(file_data)); */ /* Compressed size */
-	/* assertEqualInt(i4(p + 22), sizeof(file_data)); */ /* Uncompressed size not stored because we're using length-at-end. */
+	assertEqualInt(i4(p + 14), 0); /* CRC-32 stored as zero because we're using length-at-end */
+	assertEqualInt(i4(p + 18), 0); /* Compressed size stored as zero because we're using length-at-end. */
+	assertEqualInt(i4(p + 22), 0); /* Uncompressed size stored as zero because we're using length-at-end. */
 	assertEqualInt(i2(p + 26), strlen(file_name)); /* Pathname length */
 	assertEqualInt(i2(p + 28), 37); /* Extra field length */
 	assertEqualMem(p + 30, file_name, strlen(file_name)); /* Pathname */
 	p = extension_start = local_header + 30 + strlen(file_name);
 	extension_end = extension_start + i2(local_header + 28);
-
-	assertEqualInt(i2(p), 0x5455);  /* 'UT' extension header */
-	assertEqualInt(i2(p + 2), 5); /* size */
-	assertEqualInt(p[4], 1); /* 'UT' flags */
-	assertEqualInt(i4(p + 5), t); /* 'UT' mtime */
-	p += 4 + i2(p + 2);
 
 	assertEqualInt(i2(p), 0x7875);  /* 'ux' extension header */
 	assertEqualInt(i2(p + 2), 11); /* size */
@@ -226,6 +219,12 @@ DEFINE_TEST(test_write_format_zip_file)
 	assertEqualInt(i4(p + 6), file_uid); /* 'Ux' UID */
 	assertEqualInt(p[10], 4); /* 'ux' gid size */
 	assertEqualInt(i4(p + 11), file_gid); /* 'Ux' GID */
+	p += 4 + i2(p + 2);
+
+	assertEqualInt(i2(p), 0x5455);  /* 'UT' extension header */
+	assertEqualInt(i2(p + 2), 5); /* size */
+	assertEqualInt(p[4], 1); /* 'UT' flags */
+	assertEqualInt(i4(p + 5), t); /* 'UT' mtime */
 	p += 4 + i2(p + 2);
 
 	assertEqualInt(i2(p), 0x6c78); /* 'xl' experimental extension block */
@@ -244,18 +243,18 @@ DEFINE_TEST(test_write_format_zip_file)
 	}
 
 	/* Should have run exactly to end of extra data. */
-	assert(p == extension_end);
+	assertEqualAddress(p, extension_end);
 
 	/* Data descriptor should follow compressed data. */
 	while (p < central_header && memcmp(p, "PK\007\010", 4) != 0)
 		++p;
 	assertEqualMem(p, "PK\007\010", 4);
 	assertEqualInt(i4(p + 4), crc); /* CRC-32 */
-	/* assertEqualInt(i4(p + 8), ???); */ /* compressed size */
+	assertEqualInt(i4(p + 8), p - extension_end); /* compressed size */
 	assertEqualInt(i4(p + 12), sizeof(file_data)); /* uncompressed size */
 
 	/* Central directory should immediately follow the only entry. */
-	assert(p + 16 == central_header);
+	assertEqualAddress(p + 16, central_header);
 
 	free(buff);
 }

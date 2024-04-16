@@ -24,7 +24,6 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 #define should(__a, __code, __opts) \
 assertEqualInt(__code, archive_write_set_options(__a, __opts))

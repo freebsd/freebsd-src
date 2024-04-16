@@ -25,7 +25,6 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 /* File data */
 static const char file_name[] = "file";
@@ -152,7 +151,7 @@ static void verify_contents(const char *zip_buff, size_t size)
 	/* Check file name length */
 	assertEqualInt(i2(central_directory + 28), strlen(file_name));
 	/* Check extra field length */
-	assertEqualInt(i2(central_directory + 30), 20);
+	assertEqualInt(i2(central_directory + 30), 15);
 	/* Check file comment length */
 	assertEqualInt(i2(central_directory + 32), 0);
 	/* Check disk number where file starts */
@@ -188,7 +187,7 @@ static void verify_contents(const char *zip_buff, size_t size)
 	/* Check pathname length */
 	assertEqualInt(i2(local_file_header + 26), strlen(file_name));
 	/* Check extra field length */
-	assertEqualInt(i2(local_file_header + 28), 20);
+	assertEqualInt(i2(local_file_header + 28), 15);
 	/* Check path name match */
 	assertEqualMem(local_file_header + 30, file_name, strlen(file_name));
 
@@ -210,7 +209,7 @@ static void verify_contents(const char *zip_buff, size_t size)
 	assertEqualInt(i4(data_descriptor + 12), sizeof(file_data1) + sizeof(file_data2));
 
 	/* Get folder entry in central directory */
-	const char *central_directory_folder_entry = central_directory + 46 + 20 + strlen(file_name);
+	const char *central_directory_folder_entry = central_directory + 46 + i2(local_file_header + 28) + strlen(file_name);
 
 	/* Get start of folder entry */
 	const char *local_folder_header = data_descriptor + 16;
@@ -234,7 +233,7 @@ static void verify_contents(const char *zip_buff, size_t size)
 	/* Check path name length */
 	assertEqualInt(i2(central_directory_folder_entry + 28), strlen(folder_name));
 	/* Check extra field length */
-	assertEqualInt(i2(central_directory_folder_entry + 30), 20);
+	assertEqualInt(i2(central_directory_folder_entry + 30), 15);
 	/* Check file comment length */
 	assertEqualInt(i2(central_directory_folder_entry + 32), 0);
 	/* Check disk number start */
@@ -265,11 +264,11 @@ static void verify_contents(const char *zip_buff, size_t size)
 	/* Check path name length */
 	assertEqualInt(i2(local_folder_header + 26), strlen(folder_name));
 	/* Check extra field length */
-	assertEqualInt(i2(local_folder_header + 28), 20);
+	assertEqualInt(i2(local_folder_header + 28), 15);
 	/* Check path name */
 	assertEqualMem(local_folder_header + 30, folder_name, strlen(folder_name));
 
-	const char *post_local_folder = local_folder_header + 30 + strlen(folder_name) + 20;
+	const char *post_local_folder = local_folder_header + 30 + i2(local_folder_header + 28) + strlen(folder_name);
 	assertEqualMem(post_local_folder, central_directory, 4);
 }
 

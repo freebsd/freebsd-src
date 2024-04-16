@@ -25,7 +25,6 @@
 
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 static void
 test_basic(const char *compression_type)

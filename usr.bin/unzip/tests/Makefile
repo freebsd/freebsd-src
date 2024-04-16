@@ -30,11 +30,13 @@ UNZIP_SRCS+= err.c
 TESTS_SRCS=	\
 	test_0.c 				\
 	test_C.c				\
+	test_I.c				\
 	test_L.c				\
 	test_P_encryption.c			\
 	test_Z1.c				\
 	test_basic.c				\
 	test_d.c				\
+	test_doubledash.c			\
 	test_glob.c				\
 	test_j.c				\
 	test_n.c				\
@@ -65,6 +67,7 @@ list.h: ${TESTS_SRCS} Makefile
 
 CLEANFILES+=	list.h list.h.tmp
 
+${PACKAGE}FILES+= test_I.zip.uu
 ${PACKAGE}FILES+= test_basic.zip.uu
 ${PACKAGE}FILES+= test_encrypted.zip.uu
 ${PACKAGE}FILES+= test_singlefile.zip.uu

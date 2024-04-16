@@ -34,9 +34,6 @@
 #include "config.h"
 #endif
 
-#include <archive.h>
-#include <archive_entry.h>
-
 struct bsdcat {
 	/* Option parser state */
 	int		  getopt_state;
@@ -53,9 +50,5 @@ enum {
 };
 
 int bsdcat_getopt(struct bsdcat *);
-void usage(FILE *stream, int eval);
-void bsdcat_next(void);
-void bsdcat_print_error(void);
-void bsdcat_read_to_stdout(const char* filename);
 
 #endif

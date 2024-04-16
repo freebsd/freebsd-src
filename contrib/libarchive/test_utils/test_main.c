@@ -625,6 +625,21 @@ assertion_equal_int(const char *file, int line,
 	return (0);
 }
 
+/* Verify two pointers are equal. */
+int
+assertion_equal_address(const char *file, int line,
+    const void *v1, const char *e1, const void *v2, const char *e2, void *extra)
+{
+	assertion_count(file, line);
+	if (v1 == v2)
+		return (1);
+	failure_start(file, line, "%s != %s", e1, e2);
+	logprintf("      %s=0x%llx\n", e1, (unsigned long long)(uintptr_t)v1);
+	logprintf("      %s=0x%llx\n", e2, (unsigned long long)(uintptr_t)v2);
+	failure_finish(extra);
+	return (0);
+}
+
 /*
  * Utility to convert a single UTF-8 sequence.
  */
@@ -1245,7 +1260,7 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		c = *p;
 	}
 	if (actual_count) {
-		actual = calloc(sizeof(char *), actual_count);
+		actual = calloc(actual_count, sizeof(char *));
 		if (actual == NULL) {
 			failure_start(pathname, line, "Can't allocate memory");
 			failure_finish(NULL);
@@ -4175,7 +4190,6 @@ main(int argc, char **argv)
 				free(refdir_alloc);
 				free(testprogdir);
 				usage(progname);
-				return (1);
 			}
 			for (i = 0; i < test_num; i++) {
 				tests_run++;

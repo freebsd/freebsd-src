@@ -26,7 +26,6 @@
 
 
 #include "cpio_platform.h"
-__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <archive.h>
@@ -108,22 +107,22 @@ static int	entry_to_archive(struct cpio *, struct archive_entry *);
 static int	file_to_archive(struct cpio *, const char *);
 static void	free_cache(struct name_cache *cache);
 static void	list_item_verbose(struct cpio *, struct archive_entry *);
-static void	long_help(void) __LA_DEAD;
+static __LA_NORETURN void	long_help(void);
 static const char *lookup_gname(struct cpio *, gid_t gid);
 static int	lookup_gname_helper(struct cpio *,
 		    const char **name, id_t gid);
 static const char *lookup_uname(struct cpio *, uid_t uid);
 static int	lookup_uname_helper(struct cpio *,
 		    const char **name, id_t uid);
-static void	mode_in(struct cpio *) __LA_DEAD;
-static void	mode_list(struct cpio *) __LA_DEAD;
+static __LA_NORETURN void	mode_in(struct cpio *);
+static __LA_NORETURN void	mode_list(struct cpio *);
 static void	mode_out(struct cpio *);
 static void	mode_pass(struct cpio *, const char *);
 static const char *remove_leading_slash(const char *);
 static int	restore_time(struct cpio *, struct archive_entry *,
 		    const char *, int fd);
-static void	usage(void) __LA_DEAD;
-static void	version(void) __LA_DEAD;
+static __LA_NORETURN void	usage(void);
+static __LA_NORETURN void	version(void);
 static const char * passphrase_callback(struct archive *, void *);
 static void	passphrase_free(char *);
 
@@ -251,7 +250,7 @@ main(int argc, char *argv[])
 			break;
 		case 'h':
 			long_help();
-			break;
+			/* NOTREACHED */
 		case 'I': /* NetBSD/OpenBSD */
 			cpio->filename = cpio->argument;
 			break;
@@ -358,7 +357,7 @@ main(int argc, char *argv[])
 			break;
 		case OPTION_VERSION: /* GNU convention */
 			version();
-			break;
+			/* NOTREACHED */
 #if 0
 	        /*
 		 * cpio_getopt() handles -W specially, so it's not
@@ -427,7 +426,7 @@ main(int argc, char *argv[])
 			mode_list(cpio);
 		else
 			mode_in(cpio);
-		break;
+		/* NOTREACHED */
 	case 'p':
 		if (*cpio->argv == NULL || **cpio->argv == '\0')
 			lafe_errc(1, 0,

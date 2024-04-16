@@ -25,7 +25,6 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 struct archive_write;
 extern const char * __archive_write_get_passphrase(struct archive_write *);

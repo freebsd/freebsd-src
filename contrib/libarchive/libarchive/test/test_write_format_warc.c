@@ -24,7 +24,6 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 static void test_read(struct archive *a, char *buff, size_t used, char *filedata)
 {

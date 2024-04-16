@@ -24,7 +24,6 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_archive_clear_error)
 {

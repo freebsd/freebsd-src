@@ -23,7 +23,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <stdlib.h>
@@ -273,21 +272,20 @@ static int64_t test_sizes[] = {
 	2 * GB - 1, 2 * GB, 2 * GB + 1,
 	/* Test for 32-bit unsigned overflow. */
 	4 * GB - 1, 4 * GB, 4 * GB + 1,
-	/* And beyond ... because we can. */
-	16 * GB - 1, 16 * GB, 16 * GB + 1,
-	64 * GB - 1, 64 * GB, 64 * GB + 1,
-	256 * GB - 1, 256 * GB, 256 * GB + 1,
-	1 * TB,
+	/* And one larger sample */
+	5 * GB,
 	0
 };
 
 
 static void
-verify_large_zip(struct archive *a, struct fileblocks *fileblocks)
+verify_large_zip(struct archive *a, struct fileblocks *fileblocks, int seeking)
 {
 	char namebuff[64];
 	struct archive_entry *ae;
 	int i;
+
+	(void)seeking; /* UNUSED */
 
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_set_options(a, "zip:ignorecrc32"));
@@ -311,7 +309,13 @@ verify_large_zip(struct archive *a, struct fileblocks *fileblocks)
 		    archive_read_next_header(a, &ae));
 		snprintf(namebuff, sizeof(namebuff), "file_%d", i);
 		assertEqualString(namebuff, archive_entry_pathname(ae));
-		assertEqualInt(test_sizes[i], archive_entry_size(ae));
+		if (seeking) {
+		  assert(archive_entry_size_is_set(ae));
+		  assertEqualInt(test_sizes[i], archive_entry_size(ae));
+		} else {
+		  assertEqualInt(0, archive_entry_size_is_set(ae));
+		}
+		/* TODO: Read to end of data, verify length */
 	}
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assertEqualString("lastfile", archive_entry_pathname(ae));
@@ -345,6 +349,7 @@ DEFINE_TEST(test_write_format_zip_large)
 	 */
 	a = archive_write_new();
 	archive_write_set_format_zip(a);
+	/* TODO: Repeat this entire test suite with default compression */
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_options(a, "zip:compression=store"));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -398,7 +403,7 @@ DEFINE_TEST(test_write_format_zip_large)
 	a = archive_read_new();
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_zip_seekable(a));
-	verify_large_zip(a, fileblocks);
+	verify_large_zip(a, fileblocks, 1);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
@@ -407,7 +412,7 @@ DEFINE_TEST(test_write_format_zip_large)
 	a = archive_read_new();
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_zip_streamable(a));
-	verify_large_zip(a, fileblocks);
+	verify_large_zip(a, fileblocks, 0);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
@@ -430,7 +435,7 @@ DEFINE_TEST(test_write_format_zip_large)
 	/* Verify regular end-of-central-directory record */
 	eocd = p - 22;
 	assertEqualMem(eocd, "PK\005\006\0\0\0\0", 8);
-	assertEqualMem(eocd + 8, "\021\0\021\0", 4); /* 17 entries total */
+	assertEqualMem(eocd + 8, "\010\0\010\0", 4); /* 8 entries total */
 	cd_size = le32(eocd + 12);
 	/* Start of CD offset should be 0xffffffff */
 	assertEqualMem(eocd + 16, "\xff\xff\xff\xff", 4);
@@ -450,8 +455,8 @@ DEFINE_TEST(test_write_format_zip_large)
 	assertEqualMem(zip64_eocd + 14, "\055\0", 2);  // Requires version: 45
 	assertEqualMem(zip64_eocd + 16, "\0\0\0\0", 4); // This disk
 	assertEqualMem(zip64_eocd + 20, "\0\0\0\0", 4); // Total disks
-	assertEqualInt(17, le64(zip64_eocd + 24));  // Entries on this disk
-	assertEqualInt(17, le64(zip64_eocd + 32));  // Total entries
+	assertEqualInt(8, le64(zip64_eocd + 24));  // Entries on this disk
+	assertEqualInt(8, le64(zip64_eocd + 32));  // Total entries
 	cd_size = le64(zip64_eocd + 40);
 	cd_start = p - (fileblocks->filesize - le64(zip64_eocd + 48));
 

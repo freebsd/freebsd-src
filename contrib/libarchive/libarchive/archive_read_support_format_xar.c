@@ -23,7 +23,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
@@ -623,8 +622,8 @@ read_toc(struct archive_read *a)
 			(size_t)xar->toc_chksum_size, NULL, 0);
 		__archive_read_consume(a, xar->toc_chksum_size);
 		xar->offset += xar->toc_chksum_size;
-		if (r != ARCHIVE_OK)
 #ifndef DONT_FAIL_ON_CRC_ERROR
+		if (r != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
 #endif
 	}

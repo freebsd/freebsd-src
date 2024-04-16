@@ -23,7 +23,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_read_format_zip_nested)
 {
@@ -50,7 +49,7 @@ DEFINE_TEST(test_read_format_zip_nested)
 
 	/* Save contents of inner Zip. */
 	innerLength = (size_t)archive_entry_size(ae);
-	inner = calloc(innerLength, 1);
+	inner = calloc(innerLength, sizeof(char));
 	assertEqualInt(innerLength, archive_read_data(a, inner, innerLength));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
