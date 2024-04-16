@@ -219,10 +219,6 @@ read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
 
 	/* Convert data to host endian */
 	switch (log_page) {
-	case NVME_LOG_RES_NOTIFICATION:
-		nvme_res_notification_page_swapbytes(
-		    (struct nvme_res_notification_page *)payload);
-		break;
 	case NVME_LOG_SANITIZE_STATUS:
 		nvme_sanitize_status_page_swapbytes(
 		    (struct nvme_sanitize_status_page *)payload);
@@ -472,9 +468,10 @@ print_log_res_notification(const struct nvme_controller_data *cdata __unused,
 	printf("Reservation Notification\n");
 	printf("========================\n");
 
-	printf("Log Page Count:                %ju\n", rn->log_page_count);
+	printf("Log Page Count:                %ju\n",
+	    (uintmax_t)letoh(rn->log_page_count));
 	printf("Log Page Type:                 ");
-	switch (rn->log_page_type) {
+	switch (letoh(rn->log_page_type)) {
 	case 0:
 		printf("Empty Log Page\n");
 		break;
@@ -488,11 +485,11 @@ print_log_res_notification(const struct nvme_controller_data *cdata __unused,
 		printf("Reservation Preempted\n");
 		break;
 	default:
-		printf("Unknown %x\n", rn->log_page_type);
+		printf("Unknown %x\n", letoh(rn->log_page_type));
 		break;
 	};
-	printf("Number of Available Log Pages: %d\n", rn->available_log_pages);
-	printf("Namespace ID:                  0x%x\n", rn->nsid);
+	printf("Number of Available Log Pages: %d\n", letoh(rn->available_log_pages));
+	printf("Namespace ID:                  0x%x\n", letoh(rn->nsid));
 }
 
 static void
