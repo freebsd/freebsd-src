@@ -35,7 +35,6 @@
 #include <sys/nvpair.h>
 #include <sys/space_map.h>
 #include <sys/vdev.h>
-#include <sys/dkio.h>
 #include <sys/uberblock_impl.h>
 #include <sys/vdev_indirect_mapping.h>
 #include <sys/vdev_indirect_births.h>
@@ -455,7 +454,7 @@ struct vdev {
 	zfs_ratelimit_t vdev_checksum_rl;
 
 	/*
-	 * Vdev properties for tuning ZED
+	 * Vdev properties for tuning ZED or zfsd
 	 */
 	uint64_t	vdev_checksum_n;
 	uint64_t	vdev_checksum_t;

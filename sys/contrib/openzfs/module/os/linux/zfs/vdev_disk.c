@@ -45,12 +45,22 @@
 /*
  * Linux 6.8.x uses a bdev_handle as an instance/refcount for an underlying
  * block_device. Since it carries the block_device inside, its convenient to
- * just use the handle as a proxy. For pre-6.8, we just emulate this with
- * a cast, since we don't need any of the other fields inside the handle.
+ * just use the handle as a proxy.
+ *
+ * Linux 6.9.x uses a file for the same purpose.
+ *
+ * For pre-6.8, we just emulate this with a cast, since we don't need any of
+ * the other fields inside the handle.
  */
-#ifdef HAVE_BDEV_OPEN_BY_PATH
+#if defined(HAVE_BDEV_OPEN_BY_PATH)
 typedef struct bdev_handle zfs_bdev_handle_t;
 #define	BDH_BDEV(bdh)		((bdh)->bdev)
+#define	BDH_IS_ERR(bdh)		(IS_ERR(bdh))
+#define	BDH_PTR_ERR(bdh)	(PTR_ERR(bdh))
+#define	BDH_ERR_PTR(err)	(ERR_PTR(err))
+#elif defined(HAVE_BDEV_FILE_OPEN_BY_PATH)
+typedef struct file zfs_bdev_handle_t;
+#define	BDH_BDEV(bdh)		(file_bdev(bdh))
 #define	BDH_IS_ERR(bdh)		(IS_ERR(bdh))
 #define	BDH_PTR_ERR(bdh)	(PTR_ERR(bdh))
 #define	BDH_ERR_PTR(err)	(ERR_PTR(err))
@@ -242,7 +252,9 @@ vdev_blkdev_get_by_path(const char *path, spa_mode_t smode, void *holder)
 {
 	vdev_bdev_mode_t bmode = vdev_bdev_mode(smode);
 
-#if defined(HAVE_BDEV_OPEN_BY_PATH)
+#if defined(HAVE_BDEV_FILE_OPEN_BY_PATH)
+	return (bdev_file_open_by_path(path, bmode, holder, NULL));
+#elif defined(HAVE_BDEV_OPEN_BY_PATH)
 	return (bdev_open_by_path(path, bmode, holder, NULL));
 #elif defined(HAVE_BLKDEV_GET_BY_PATH_4ARG)
 	return (blkdev_get_by_path(path, bmode, holder, NULL));
@@ -258,8 +270,10 @@ vdev_blkdev_put(zfs_bdev_handle_t *bdh, spa_mode_t smode, void *holder)
 	return (bdev_release(bdh));
 #elif defined(HAVE_BLKDEV_PUT_HOLDER)
 	return (blkdev_put(BDH_BDEV(bdh), holder));
-#else
+#elif defined(HAVE_BLKDEV_PUT)
 	return (blkdev_put(BDH_BDEV(bdh), vdev_bdev_mode(smode)));
+#else
+	fput(bdh);
 #endif
 }
 
@@ -755,8 +769,6 @@ vbio_fill_cb(struct page *page, size_t off, size_t len, void *priv)
 static void
 vbio_submit(vbio_t *vbio, abd_t *abd, uint64_t size)
 {
-	ASSERT(vbio->vbio_bdev);
-
 	/*
 	 * We plug so we can submit the BIOs as we go and only unplug them when
 	 * they are fully created and submitted. This is important; if we don't
@@ -774,12 +786,15 @@ vbio_submit(vbio_t *vbio, abd_t *abd, uint64_t size)
 	vbio->vbio_bio->bi_end_io = vbio_completion;
 	vbio->vbio_bio->bi_private = vbio;
 
+	/*
+	 * Once submitted, vbio_bio now owns vbio (through bi_private) and we
+	 * can't touch it again. The bio may complete and vbio_completion() be
+	 * called and free the vbio before this task is run again, so we must
+	 * consider it invalid from this point.
+	 */
 	vdev_submit_bio(vbio->vbio_bio);
 
 	blk_finish_plug(&plug);
-
-	vbio->vbio_bio = NULL;
-	vbio->vbio_bdev = NULL;
 }
 
 /* IO completion callback */
@@ -838,6 +853,11 @@ BIO_END_IO_PROTO(vbio_completion, bio, error)
  * pages) but we still have to ensure the data portion is correctly sized and
  * aligned to the logical block size, to ensure that if the kernel wants to
  * split the BIO, the two halves will still be properly aligned.
+ *
+ * NOTE: if you change this function, change the copy in
+ * tests/zfs-tests/tests/functional/vdev_disk/page_alignment.c, and add test
+ * data there to validate the change you're making.
+ *
  */
 typedef struct {
 	uint_t  bmask;
@@ -848,6 +868,7 @@ typedef struct {
 static int
 vdev_disk_check_pages_cb(struct page *page, size_t off, size_t len, void *priv)
 {
+	(void) page;
 	vdev_disk_check_pages_t *s = priv;
 
 	/*
@@ -861,7 +882,7 @@ vdev_disk_check_pages_cb(struct page *page, size_t off, size_t len, void *priv)
 	 * Note if we're taking less than a full block, so we can check it
 	 * above on the next call.
 	 */
-	s->end = len & s->bmask;
+	s->end = (off+len) & s->bmask;
 
 	/* All blocks after the first must start on a block size boundary. */
 	if (s->npages != 0 && (off & s->bmask) != 0)
@@ -1237,8 +1258,6 @@ vdev_disk_io_flush(struct block_device *bdev, zio_t *zio)
 	return (0);
 }
 
-#if defined(HAVE_BLKDEV_ISSUE_SECURE_ERASE) || \
-	defined(HAVE_BLKDEV_ISSUE_DISCARD_ASYNC)
 BIO_END_IO_PROTO(vdev_disk_discard_end_io, bio, error)
 {
 	zio_t *zio = bio->bi_private;
@@ -1253,54 +1272,99 @@ BIO_END_IO_PROTO(vdev_disk_discard_end_io, bio, error)
 	zio_interrupt(zio);
 }
 
+/*
+ * Wrappers for the different secure erase and discard APIs. We use async
+ * when available; in this case, *biop is set to the last bio in the chain.
+ */
 static int
-vdev_issue_discard_trim(zio_t *zio, unsigned long flags)
+vdev_bdev_issue_secure_erase(zfs_bdev_handle_t *bdh, sector_t sector,
+    sector_t nsect, struct bio **biop)
 {
-	int ret;
-	struct bio *bio = NULL;
+	*biop = NULL;
+	int error;
 
-#if defined(BLKDEV_DISCARD_SECURE)
-	ret = - __blkdev_issue_discard(
-	    BDH_BDEV(((vdev_disk_t *)zio->io_vd->vdev_tsd)->vd_bdh),
-	    zio->io_offset >> 9, zio->io_size >> 9, GFP_NOFS, flags, &bio);
+#if defined(HAVE_BLKDEV_ISSUE_SECURE_ERASE)
+	error = blkdev_issue_secure_erase(BDH_BDEV(bdh),
+	    sector, nsect, GFP_NOFS);
+#elif defined(HAVE_BLKDEV_ISSUE_DISCARD_ASYNC_FLAGS)
+	error = __blkdev_issue_discard(BDH_BDEV(bdh),
+	    sector, nsect, GFP_NOFS, BLKDEV_DISCARD_SECURE, biop);
+#elif defined(HAVE_BLKDEV_ISSUE_DISCARD_FLAGS)
+	error = blkdev_issue_discard(BDH_BDEV(bdh),
+	    sector, nsect, GFP_NOFS, BLKDEV_DISCARD_SECURE);
 #else
-	(void) flags;
-	ret = - __blkdev_issue_discard(
-	    BDH_BDEV(((vdev_disk_t *)zio->io_vd->vdev_tsd)->vd_bdh),
-	    zio->io_offset >> 9, zio->io_size >> 9, GFP_NOFS, &bio);
+#error "unsupported kernel"
 #endif
-	if (!ret && bio) {
+
+	return (error);
+}
+
+static int
+vdev_bdev_issue_discard(zfs_bdev_handle_t *bdh, sector_t sector,
+    sector_t nsect, struct bio **biop)
+{
+	*biop = NULL;
+	int error;
+
+#if defined(HAVE_BLKDEV_ISSUE_DISCARD_ASYNC_FLAGS)
+	error = __blkdev_issue_discard(BDH_BDEV(bdh),
+	    sector, nsect, GFP_NOFS, 0, biop);
+#elif defined(HAVE_BLKDEV_ISSUE_DISCARD_ASYNC_NOFLAGS)
+	error = __blkdev_issue_discard(BDH_BDEV(bdh),
+	    sector, nsect, GFP_NOFS, biop);
+#elif defined(HAVE_BLKDEV_ISSUE_DISCARD_FLAGS)
+	error = blkdev_issue_discard(BDH_BDEV(bdh),
+	    sector, nsect, GFP_NOFS, 0);
+#elif defined(HAVE_BLKDEV_ISSUE_DISCARD_NOFLAGS)
+	error = blkdev_issue_discard(BDH_BDEV(bdh),
+	    sector, nsect, GFP_NOFS);
+#else
+#error "unsupported kernel"
+#endif
+
+	return (error);
+}
+
+/*
+ * Entry point for TRIM ops. This calls the right wrapper for secure erase or
+ * discard, and then does the appropriate finishing work for error vs success
+ * and async vs sync.
+ */
+static int
+vdev_disk_io_trim(zio_t *zio)
+{
+	int error;
+	struct bio *bio;
+
+	zfs_bdev_handle_t *bdh = ((vdev_disk_t *)zio->io_vd->vdev_tsd)->vd_bdh;
+	sector_t sector = zio->io_offset >> 9;
+	sector_t nsects = zio->io_size >> 9;
+
+	if (zio->io_trim_flags & ZIO_TRIM_SECURE)
+		error = vdev_bdev_issue_secure_erase(bdh, sector, nsects, &bio);
+	else
+		error = vdev_bdev_issue_discard(bdh, sector, nsects, &bio);
+
+	if (error != 0)
+		return (SET_ERROR(-error));
+
+	if (bio == NULL) {
+		/*
+		 * This was a synchronous op that completed successfully, so
+		 * return it to ZFS immediately.
+		 */
+		zio_interrupt(zio);
+	} else {
+		/*
+		 * This was an asynchronous op; set up completion callback and
+		 * issue it.
+		 */
 		bio->bi_private = zio;
 		bio->bi_end_io = vdev_disk_discard_end_io;
 		vdev_submit_bio(bio);
 	}
-	return (ret);
-}
-#endif
 
-static int
-vdev_disk_io_trim(zio_t *zio)
-{
-	unsigned long trim_flags = 0;
-	if (zio->io_trim_flags & ZIO_TRIM_SECURE) {
-#if defined(HAVE_BLKDEV_ISSUE_SECURE_ERASE)
-		return (-blkdev_issue_secure_erase(
-		    BDH_BDEV(((vdev_disk_t *)zio->io_vd->vdev_tsd)->vd_bdh),
-		    zio->io_offset >> 9, zio->io_size >> 9, GFP_NOFS));
-#elif defined(BLKDEV_DISCARD_SECURE)
-		trim_flags |= BLKDEV_DISCARD_SECURE;
-#endif
-	}
-#if defined(HAVE_BLKDEV_ISSUE_SECURE_ERASE) || \
-	defined(HAVE_BLKDEV_ISSUE_DISCARD_ASYNC)
-	return (vdev_issue_discard_trim(zio, trim_flags));
-#elif defined(HAVE_BLKDEV_ISSUE_DISCARD)
-	return (-blkdev_issue_discard(
-	    BDH_BDEV(((vdev_disk_t *)zio->io_vd->vdev_tsd)->vd_bdh),
-	    zio->io_offset >> 9, zio->io_size >> 9, GFP_NOFS, trim_flags));
-#else
-#error "Unsupported kernel"
-#endif
+	return (0);
 }
 
 int (*vdev_disk_io_rw_fn)(zio_t *zio) = NULL;
@@ -1336,53 +1400,42 @@ vdev_disk_io_start(zio_t *zio)
 	}
 
 	switch (zio->io_type) {
-	case ZIO_TYPE_IOCTL:
+	case ZIO_TYPE_FLUSH:
 
 		if (!vdev_readable(v)) {
-			rw_exit(&vd->vd_lock);
-			zio->io_error = SET_ERROR(ENXIO);
-			zio_interrupt(zio);
-			return;
-		}
-
-		switch (zio->io_cmd) {
-		case DKIOCFLUSHWRITECACHE:
-
-			if (zfs_nocacheflush)
-				break;
-
-			if (v->vdev_nowritecache) {
-				zio->io_error = SET_ERROR(ENOTSUP);
-				break;
-			}
-
+			/* Drive not there, can't flush */
+			error = SET_ERROR(ENXIO);
+		} else if (zfs_nocacheflush) {
+			/* Flushing disabled by operator, declare success */
+			error = 0;
+		} else if (v->vdev_nowritecache) {
+			/* This vdev not capable of flushing */
+			error = SET_ERROR(ENOTSUP);
+		} else {
+			/*
+			 * Issue the flush. If successful, the response will
+			 * be handled in the completion callback, so we're done.
+			 */
 			error = vdev_disk_io_flush(BDH_BDEV(vd->vd_bdh), zio);
 			if (error == 0) {
 				rw_exit(&vd->vd_lock);
 				return;
 			}
-
-			zio->io_error = error;
-
-			break;
-
-		default:
-			zio->io_error = SET_ERROR(ENOTSUP);
 		}
 
+		/* Couldn't issue the flush, so set the error and return it */
 		rw_exit(&vd->vd_lock);
+		zio->io_error = error;
 		zio_execute(zio);
 		return;
 
 	case ZIO_TYPE_TRIM:
-		zio->io_error = vdev_disk_io_trim(zio);
+		error = vdev_disk_io_trim(zio);
 		rw_exit(&vd->vd_lock);
-#if defined(HAVE_BLKDEV_ISSUE_SECURE_ERASE)
-		if (zio->io_trim_flags & ZIO_TRIM_SECURE)
-			zio_interrupt(zio);
-#elif defined(HAVE_BLKDEV_ISSUE_DISCARD)
-		zio_interrupt(zio);
-#endif
+		if (error) {
+			zio->io_error = error;
+			zio_execute(zio);
+		}
 		return;
 
 	case ZIO_TYPE_READ:

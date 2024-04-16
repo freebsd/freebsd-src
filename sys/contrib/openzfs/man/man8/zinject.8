@@ -19,10 +19,11 @@
 .\" CDDL HEADER END
 .\"
 .\" Copyright 2013 Darik Horn <dajhorn@vanadac.com>. All rights reserved.
+.\" Copyright (c) 2024, Klara Inc.
 .\"
 .\" lint-ok: WARNING: sections out of conventional order: Sh SYNOPSIS
 .\"
-.Dd May 26, 2021
+.Dd April 4, 2024
 .Dt ZINJECT 8
 .Os
 .
@@ -210,9 +211,11 @@ to flip a bit in the data after a read,
 .It Sy dtl
 for an ECHILD error,
 .It Sy io
-for an EIO error where reopening the device will succeed, or
+for an EIO error where reopening the device will succeed,
 .It Sy nxio
-for an ENXIO error where reopening the device will fail.
+for an ENXIO error where reopening the device will fail, or
+.It Sy noop
+to drop the IO without executing it, and return success.
 .El
 .Pp
 For EIO and ENXIO, the "failed" reads or writes still occur.
@@ -257,6 +260,7 @@ Run for this many seconds before reporting failure.
 .It Fl T Ar failure
 Set the failure type to one of
 .Sy all ,
+.Sy ioctl ,
 .Sy claim ,
 .Sy free ,
 .Sy read ,
