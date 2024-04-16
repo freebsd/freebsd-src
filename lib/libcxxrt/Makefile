@@ -1,3 +1,4 @@
+.include <bsd.own.mk>
 
 PACKAGE=	clibs
 SRCDIR=		${SRCTOP}/contrib/libcxxrt
@@ -22,6 +23,21 @@ SRCS+=		typeinfo.cc
 WARNS?=		0
 CFLAGS+=	-isystem ${SRCDIR} -nostdinc++
 CXXSTD?=	c++14
-VERSION_MAP=	${.CURDIR}/Version.map
+
+.if exists(Version.map.${MACHINE})
+VERSION_MAP=	${.CURDIR}/Version.map.${MACHINE}
+.else
+.if ${MACHINE_ABI:Mlong32}
+VERSION_MAP=	Version-32.map
+.else
+VERSION_MAP=	Version-64.map
+.endif
+
+Version-32.map: Version.map
+	sed 's/%%NEW_DELETE_TYPE%%/int/' ${.ALLSRC} > ${.TARGET}
+
+Version-64.map: Version.map
+	sed 's/%%NEW_DELETE_TYPE%%/long/' ${.ALLSRC} > ${.TARGET}
+.endif
 
 .include <bsd.lib.mk>
