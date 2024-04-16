@@ -1,3 +1,4 @@
+#!/bin/ksh -p
 #
 # CDDL HEADER START
 #
@@ -20,21 +21,42 @@
 #
 
 #
-# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
-# Use is subject to license terms.
+# Copyright (c) 2024, Klara Inc.
 #
 
 #
-# Copyright (c) 2012 by Delphix. All rights reserved.
+# TODO: this only checks that the set of valid device fault types. It should
+#       check all the other options, and that they work, and everything really.
 #
 
-export mountcmd=mount
-export mountforce="$mountcmd -f"
-export mountall="$mountcmd -a"
-export mountrecursive="$mountcmd -R"
+. $STF_SUITE/include/libtest.shlib
 
-export unmountcmd=unmount
-export unmountforce="$unmountcmd -f"
-export unmountall="$unmountcmd -a"
+verify_runnable "global"
 
-export NONEXISTFSNAME="nonexistfs50charslong_0123456789012345678901234567"
+log_assert "Check zinject parameters."
+
+log_onexit cleanup
+
+DISK1=${DISKS%% *}
+
+function cleanup
+{
+	zinject -c all
+	default_cleanup_noexit
+}
+
+function test_device_fault
+{
+	typeset -a errno=("io" "decompress" "decrypt" "nxio" "dtl" "corrupt" "noop")
+	for e in ${errno[@]}; do
+		log_must eval \
+		    "zinject -d $DISK1 -e $e -T read -f 0.001 $TESTPOOL"
+	done
+	zinject -c all
+}
+
+default_mirror_setup_noexit $DISKS
+
+test_device_fault
+
+log_pass "zinject parameters work as expected."

@@ -1,9 +1,6 @@
 /*
- *  Copyright (C) 2007-2010 Lawrence Livermore National Security, LLC.
- *  Copyright (C) 2007 The Regents of the University of California.
- *  Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
- *  Written by Brian Behlendorf <behlendorf1@llnl.gov>.
- *  UCRL-CODE-235197
+ *  Copyright (c) 2008 Sun Microsystems, Inc.
+ *  Written by Ricardo Correia <Ricardo.M.Correia@Sun.COM>
  *
  *  This file is part of the SPL, Solaris Porting Layer.
  *
@@ -21,19 +18,13 @@
  *  with the SPL.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _SPL_DKIO_H
-#define	_SPL_DKIO_H
+#ifndef _SPL_RPC_TYPES_H
+#define	_SPL_RPC_TYPES_H
 
-#define	DFL_SZ(num_exts) \
-	(sizeof (dkioc_free_list_t) + (num_exts - 1) * 16)
+#include <sys/types.h>
 
-#define	DKIOC		(0x04 << 8)
-#define	DKIOCFLUSHWRITECACHE	(DKIOC|34)	/* flush cache to phys medium */
+/* Just enough to support rpc/xdr.h */
 
-/*
- * ioctl to free space (e.g. SCSI UNMAP) off a disk.
- * Pass a dkioc_free_list_t containing a list of extents to be freed.
- */
-#define	DKIOCFREE	(DKIOC|50)
+typedef int bool_t;
 
-#endif /* _SPL_DKIO_H */
+#endif /* SPL_RPC_TYPES_H */
