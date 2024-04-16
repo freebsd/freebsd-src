@@ -219,10 +219,6 @@ read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
 
 	/* Convert data to host endian */
 	switch (log_page) {
-	case NVME_LOG_DEVICE_SELF_TEST:
-		nvme_device_self_test_swapbytes(
-		    (struct nvme_device_self_test_page *)payload);
-		break;
 	case NVME_LOG_COMMAND_EFFECT:
 		nvme_command_effects_page_swapbytes(
 		    (struct nvme_command_effects_page *)payload);
@@ -573,13 +569,14 @@ print_log_self_test_status(const struct nvme_controller_data *cdata __unused,
 {
 	struct nvme_device_self_test_page *dst;
 	uint32_t r;
+	uint16_t vs;
 
 	dst = buf;
 	printf("Device Self-test Status\n");
 	printf("=======================\n");
 
 	printf("Current Operation: ");
-	switch (dst->curr_operation) {
+	switch (letoh(dst->curr_operation)) {
 	case 0x0:
 		printf("No device self-test operation in progress\n");
 		break;
@@ -593,19 +590,20 @@ print_log_self_test_status(const struct nvme_controller_data *cdata __unused,
 		printf("Vendor specific\n");
 		break;
 	default:
-		printf("Reserved (0x%x)\n", dst->curr_operation);
+		printf("Reserved (0x%x)\n", letoh(dst->curr_operation));
 	}
 
-	if (dst->curr_operation != 0)
-		printf("Current Completion: %u%%\n", dst->curr_compl & 0x7f);
+	if (letoh(dst->curr_operation) != 0)
+		printf("Current Completion: %u%%\n", letoh(dst->curr_compl) & 0x7f);
 
 	printf("Results\n");
 	for (r = 0; r < 20; r++) {
 		uint64_t failing_lba;
-		uint8_t code, res;
+		uint8_t code, res, status;
 
-		code = (dst->result[r].status >> 4) & 0xf;
-		res  = dst->result[r].status & 0xf;
+		status = letoh(dst->result[r].status);
+		code = (status >> 4) & 0xf;
+		res  = status & 0xf;
 
 		if (res == 0xf)
 			continue;
@@ -630,21 +628,24 @@ print_log_self_test_status(const struct nvme_controller_data *cdata __unused,
 			printf(" Reserved status 0x%x", res);
 
 		if (res == 7)
-			printf(" starting in segment %u", dst->result[r].segment_num);
+			printf(" starting in segment %u",
+			    letoh(dst->result[r].segment_num));
 
 #define BIT(b) (1 << (b))
-		if (dst->result[r].valid_diag_info & BIT(0))
-			printf(" NSID=0x%x", dst->result[r].nsid);
-		if (dst->result[r].valid_diag_info & BIT(1)) {
+		if (letoh(dst->result[r].valid_diag_info) & BIT(0))
+			printf(" NSID=0x%x", letoh(dst->result[r].nsid));
+		if (letoh(dst->result[r].valid_diag_info) & BIT(1)) {
 			memcpy(&failing_lba, dst->result[r].failing_lba,
 			    sizeof(failing_lba));
-			printf(" FLBA=0x%jx", failing_lba);
+			printf(" FLBA=0x%jx", (uintmax_t)letoh(failing_lba));
 		}
-		if (dst->result[r].valid_diag_info & BIT(2))
-			printf(" SCT=0x%x", dst->result[r].status_code_type);
-		if (dst->result[r].valid_diag_info & BIT(3))
-			printf(" SC=0x%x", dst->result[r].status_code);
+		if (letoh(dst->result[r].valid_diag_info) & BIT(2))
+			printf(" SCT=0x%x", letoh(dst->result[r].status_code_type));
+		if (letoh(dst->result[r].valid_diag_info) & BIT(3))
+			printf(" SC=0x%x", letoh(dst->result[r].status_code));
 #undef BIT
+		memcpy(&vs, dst->result[r].vendor_specific, sizeof(vs));
+		printf(" VENDOR_SPECIFIC=0x%x", letoh(vs));
 		printf("\n");
 	}
 }
