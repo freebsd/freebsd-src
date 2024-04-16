@@ -219,10 +219,6 @@ read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
 
 	/* Convert data to host endian */
 	switch (log_page) {
-	case NVME_LOG_SANITIZE_STATUS:
-		nvme_sanitize_status_page_swapbytes(
-		    (struct nvme_sanitize_status_page *)payload);
-		break;
 	case INTEL_LOG_TEMP_STATS:
 		intel_log_temp_stats_swapbytes(
 		    (struct intel_log_temp_stats *)payload);
@@ -498,15 +494,18 @@ print_log_sanitize_status(const struct nvme_controller_data *cdata __unused,
 {
 	struct nvme_sanitize_status_page *ss;
 	u_int p;
+	uint16_t sprog, sstat;
 
 	ss = (struct nvme_sanitize_status_page *)buf;
 	printf("Sanitize Status\n");
 	printf("===============\n");
 
+	sprog = letoh(ss->sprog);
 	printf("Sanitize Progress:                   %u%% (%u/65535)\n",
-	    (ss->sprog * 100 + 32768) / 65536, ss->sprog);
+	    (sprog * 100 + 32768) / 65536, sprog);
 	printf("Sanitize Status:                     ");
-	switch (NVMEV(NVME_SS_PAGE_SSTAT_STATUS, ss->sstat)) {
+	sstat = letoh(ss->sstat);
+	switch (NVMEV(NVME_SS_PAGE_SSTAT_STATUS, sstat)) {
 	case NVME_SS_PAGE_SSTAT_STATUS_NEVER:
 		printf("Never sanitized");
 		break;
@@ -523,22 +522,22 @@ print_log_sanitize_status(const struct nvme_controller_data *cdata __unused,
 		printf("Completed with deallocation");
 		break;
 	default:
-		printf("Unknown");
+		printf("Unknown 0x%x", sstat);
 		break;
 	}
-	p = NVMEV(NVME_SS_PAGE_SSTAT_PASSES, ss->sstat);
+	p = NVMEV(NVME_SS_PAGE_SSTAT_PASSES, sstat);
 	if (p > 0)
 		printf(", %d passes", p);
-	if (NVMEV(NVME_SS_PAGE_SSTAT_GDE, ss->sstat) != 0)
+	if (NVMEV(NVME_SS_PAGE_SSTAT_GDE, sstat) != 0)
 		printf(", Global Data Erased");
 	printf("\n");
-	printf("Sanitize Command Dword 10:           0x%x\n", ss->scdw10);
-	printf("Time For Overwrite:                  %u sec\n", ss->etfo);
-	printf("Time For Block Erase:                %u sec\n", ss->etfbe);
-	printf("Time For Crypto Erase:               %u sec\n", ss->etfce);
-	printf("Time For Overwrite No-Deallocate:    %u sec\n", ss->etfownd);
-	printf("Time For Block Erase No-Deallocate:  %u sec\n", ss->etfbewnd);
-	printf("Time For Crypto Erase No-Deallocate: %u sec\n", ss->etfcewnd);
+	printf("Sanitize Command Dword 10:           0x%x\n", letoh(ss->scdw10));
+	printf("Time For Overwrite:                  %u sec\n", letoh(ss->etfo));
+	printf("Time For Block Erase:                %u sec\n", letoh(ss->etfbe));
+	printf("Time For Crypto Erase:               %u sec\n", letoh(ss->etfce));
+	printf("Time For Overwrite No-Deallocate:    %u sec\n", letoh(ss->etfownd));
+	printf("Time For Block Erase No-Deallocate:  %u sec\n", letoh(ss->etfbewnd));
+	printf("Time For Crypto Erase No-Deallocate: %u sec\n", letoh(ss->etfcewnd));
 }
 
 static const char *
