@@ -18,7 +18,6 @@ FBSD_1.0 {
 	fgetwln;
 	fgetws;
 	fileno;
-	__sF;
 	__stdinp;
 	__stdoutp;
 	__stderrp;
