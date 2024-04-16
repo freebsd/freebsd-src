@@ -301,6 +301,8 @@ FBSD_1.2 {
 	cap_getmode;
 	getloginclass;
 	getpagesizes;
+	openat;
+	pdfork;
 	pdgetpid;
 	pdkill;
 	posix_fallocate;
@@ -309,7 +311,9 @@ FBSD_1.2 {
 	rctl_get_limits;
 	rctl_add_rule;
 	rctl_remove_rule;
+	setcontext;
 	setloginclass;
+	swapcontext;
 };
 
 FBSD_1.3 {
