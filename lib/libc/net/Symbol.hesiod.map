@@ -1,0 +1,12 @@
+FBSD_1.0 {
+	hesiod_init;
+	hesiod_end;
+	hesiod_to_bind;
+	hesiod_resolve;
+	hesiod_free_list;
+	hes_init;
+	hes_to_bind;
+	hes_resolve;
+	hes_error;
+	hes_free;
+};

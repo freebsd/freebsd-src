@@ -54,16 +54,6 @@ FBSD_1.0 {
 	endservent;
 	getservent;
 	getservent_r;
-	hesiod_init;
-	hesiod_end;
-	hesiod_to_bind;
-	hesiod_resolve;
-	hesiod_free_list;
-	hes_init;
-	hes_to_bind;
-	hes_resolve;
-	hes_error;
-	hes_free;
 	htonl;
 	htons;
 	ntohl;
