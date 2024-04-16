@@ -193,8 +193,7 @@ read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
     uint16_t lsi, uint8_t rae, void *payload, uint32_t payload_size)
 {
 	struct nvme_pt_command	pt;
-	struct nvme_error_information_entry	*err_entry;
-	u_int i, err_pages, numd;
+	u_int numd;
 
 	numd = payload_size / sizeof(uint32_t) - 1;
 	memset(&pt, 0, sizeof(pt));
@@ -220,12 +219,6 @@ read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
 
 	/* Convert data to host endian */
 	switch (log_page) {
-	case NVME_LOG_ERROR:
-		err_entry = (struct nvme_error_information_entry *)payload;
-		err_pages = payload_size / sizeof(struct nvme_error_information_entry);
-		for (i = 0; i < err_pages; i++)
-			nvme_error_information_entry_swapbytes(err_entry++);
-		break;
 	case NVME_LOG_HEALTH_INFORMATION:
 		nvme_health_information_page_swapbytes(
 		    (struct nvme_health_information_page *)payload);
@@ -272,17 +265,17 @@ print_log_error(const struct nvme_controller_data *cdata __unused, void *buf, ui
 	printf("Error Information Log\n");
 	printf("=====================\n");
 
-	if (entry->error_count == 0) {
+	if (LE2H(entry->error_count) == 0) {
 		printf("No error entries found\n");
 		return;
 	}
 
-	nentries = size/sizeof(struct nvme_error_information_entry);
+	nentries = size / sizeof(struct nvme_error_information_entry);
 	for (i = 0; i < nentries; i++, entry++) {
-		if (entry->error_count == 0)
+		if (LE2H(entry->error_count) == 0)
 			break;
 
-		status = entry->status;
+		status = LE2H(entry->status);
 
 		p = NVME_STATUS_GET_P(status);
 		sc = NVME_STATUS_GET_SC(status);
@@ -292,9 +285,9 @@ print_log_error(const struct nvme_controller_data *cdata __unused, void *buf, ui
 
 		printf("Entry %02d\n", i + 1);
 		printf("=========\n");
-		printf(" Error count:          %ju\n", entry->error_count);
-		printf(" Submission queue ID:  %u\n", entry->sqid);
-		printf(" Command ID:           %u\n", entry->cid);
+		printf(" Error count:          %ju\n", LE2H(entry->error_count));
+		printf(" Submission queue ID:  %u\n", LE2H(entry->sqid));
+		printf(" Command ID:           %u\n", LE2H(entry->cid));
 		/* TODO: Export nvme_status_string structures from kernel? */
 		printf(" Status:\n");
 		printf("  Phase tag:           %d\n", p);
@@ -302,13 +295,13 @@ print_log_error(const struct nvme_controller_data *cdata __unused, void *buf, ui
 		printf("  Status code type:    %d\n", sct);
 		printf("  More:                %d\n", m);
 		printf("  DNR:                 %d\n", dnr);
-		printf(" Error location:       %u\n", entry->error_location);
-		printf(" LBA:                  %ju\n", entry->lba);
-		printf(" Namespace ID:         %u\n", entry->nsid);
-		printf(" Vendor specific info: %u\n", entry->vendor_specific);
-		printf(" Transport type:       %u\n", entry->trtype);
-		printf(" Command specific info:%ju\n", entry->csi);
-		printf(" Transport specific:   %u\n", entry->ttsi);
+		printf(" Error location:       %u\n", LE2H(entry->error_location));
+		printf(" LBA:                  %ju\n", LE2H(entry->lba));
+		printf(" Namespace ID:         %u\n", LE2H(entry->nsid));
+		printf(" Vendor specific info: %u\n", LE2H(entry->vendor_specific));
+		printf(" Transport type:       %u\n", LE2H(entry->trtype));
+		printf(" Command specific info:%ju\n", LE2H(entry->csi));
+		printf(" Transport specific:   %u\n", LE2H(entry->ttsi));
 	}
 }
 
