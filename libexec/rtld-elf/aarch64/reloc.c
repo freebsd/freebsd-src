@@ -55,6 +55,17 @@ void *_rtld_tlsdesc_dynamic(void *);
 void _exit(int);
 
 bool
+arch_digest_dynamic(struct Struct_Obj_Entry *obj, const Elf_Dyn *dynp)
+{
+	if (dynp->d_tag == DT_AARCH64_VARIANT_PCS) {
+		obj->variant_pcs = true;
+		return (true);
+	}
+
+	return (false);
+}
+
+bool
 arch_digest_note(struct Struct_Obj_Entry *obj __unused, const Elf_Note *note)
 {
 	const char *note_name;
@@ -228,19 +239,54 @@ reloc_tlsdesc(const Obj_Entry *obj, const Elf_Rela *rela, Elf_Addr *where,
 int
 reloc_plt(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 {
+	const Obj_Entry *defobj;
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
+	const Elf_Sym *def, *sym;
+	bool lazy;
 
 	relalim = (const Elf_Rela *)((const char *)obj->pltrela +
 	    obj->pltrelasize);
 	for (rela = obj->pltrela; rela < relalim; rela++) {
-		Elf_Addr *where;
+		Elf_Addr *where, target;
 
 		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 
 		switch(ELF_R_TYPE(rela->r_info)) {
 		case R_AARCH64_JUMP_SLOT:
-			*where += (Elf_Addr)obj->relocbase;
+			lazy = true;
+			if (obj->variant_pcs) {
+				sym = &obj->symtab[ELF_R_SYM(rela->r_info)];
+				/*
+				 * Variant PCS functions don't follow the
+				 * standard register convention. Because of
+				 * this we can't use lazy relocation and
+				 * need to set the target address.
+				 */
+				if ((sym->st_other & STO_AARCH64_VARIANT_PCS) !=
+				    0)
+					lazy = false;
+			}
+			if (lazy) {
+				*where += (Elf_Addr)obj->relocbase;
+			} else {
+				def = find_symdef(ELF_R_SYM(rela->r_info), obj,
+				    &defobj, SYMLOOK_IN_PLT | flags, NULL,
+				    lockstate);
+				if (def == NULL)
+					return (-1);
+				if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC){
+					obj->gnu_ifunc = true;
+					continue;
+				}
+				target = (Elf_Addr)(defobj->relocbase +
+				    def->st_value);
+				/*
+				 * Ignore ld_bind_not as it requires lazy
+				 * binding
+				 */
+				*where = target;
+			}
 			break;
 		case R_AARCH64_TLSDESC:
 			reloc_tlsdesc(obj, rela, where, SYMLOOK_IN_PLT | flags,

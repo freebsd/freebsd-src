@@ -37,7 +37,8 @@
 
 struct Struct_Obj_Entry;
 
-#define	MD_OBJ_ENTRY
+#define	MD_OBJ_ENTRY	\
+    bool variant_pcs : 1;	/* Object has a variant pcs function */
 
 /* Return the address of the .dynamic section in the dynamic linker. */
 #define	rtld_dynamic(obj)						\
@@ -47,8 +48,7 @@ struct Struct_Obj_Entry;
 	(const Elf_Dyn *)_dynamic_addr;					\
 })
 
-/* No arch-specific dynamic tags */
-#define	arch_digest_dynamic(obj, dynp)	false
+bool arch_digest_dynamic(struct Struct_Obj_Entry *obj, const Elf_Dyn *dynp);
 
 bool arch_digest_note(struct Struct_Obj_Entry *obj, const Elf_Note *note);
 
