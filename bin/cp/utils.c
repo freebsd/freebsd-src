@@ -100,20 +100,33 @@ copy_fallback(int from_fd, int to_fd)
 int
 copy_file(const FTSENT *entp, int dne)
 {
-	struct stat *fs;
+	struct stat sb, *fs;
 	ssize_t wcount;
 	off_t wtotal;
 	int ch, checkch, from_fd, rval, to_fd;
 	int use_copy_file_range = 1;
 
-	from_fd = to_fd = -1;
-	if (!lflag && !sflag &&
-	    (from_fd = open(entp->fts_path, O_RDONLY, 0)) == -1) {
-		warn("%s", entp->fts_path);
-		return (1);
-	}
-
 	fs = entp->fts_statp;
+	from_fd = to_fd = -1;
+	if (!lflag && !sflag) {
+		if ((from_fd = open(entp->fts_path, O_RDONLY, 0)) < 0 ||
+		    fstat(from_fd, &sb) != 0) {
+			warn("%s", entp->fts_path);
+			return (1);
+		}
+		/*
+		 * Check that the file hasn't been replaced with one of a
+		 * different type.  This can happen if we've been asked to
+		 * copy something which is actively being modified and
+		 * lost the race, or if we've been asked to copy something
+		 * like /proc/X/fd/Y which stat(2) reports as S_IFREG but
+		 * is actually something else once you open it.
+		 */
+		if ((sb.st_mode & S_IFMT) != (fs->st_mode & S_IFMT)) {
+			warnx("%s: File changed", entp->fts_path);
+			return (1);
+		}
+	}
 
 	/*
 	 * If the file exists and we're interactive, verify with the user.
