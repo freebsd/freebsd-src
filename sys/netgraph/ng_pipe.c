@@ -936,6 +936,7 @@ ngp_disconnect(hook_p hook)
 	struct hookinfo *const hinfo = NG_HOOK_PRIVATE(hook);
 	struct ngp_fifo *ngp_f;
 	struct ngp_hdr *ngp_h;
+	priv_p priv;
 
 	KASSERT(hinfo != NULL, ("%s: null info", __FUNCTION__));
 	hinfo->hook = NULL;
@@ -961,6 +962,13 @@ ngp_disconnect(hook_p hook)
 	/* Release the packet loss probability table (BER) */
 	if (hinfo->ber_p)
 		free(hinfo->ber_p, M_NG_PIPE);
+
+
+	/* Destroy the node if all hooks are disconnected */
+	priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+
+	if (priv->upper.hook == NULL && priv->lower.hook == NULL)
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 
 	return (0);
 }
