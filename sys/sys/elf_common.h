@@ -883,6 +883,9 @@ typedef struct {
 #define	STV_SINGLETON	0x5
 #define	STV_ELIMINATE	0x6
 
+/* Architecture specific data - st_other */
+#define	STO_AARCH64_VARIANT_PCS 0x80
+
 /* Special symbol table indexes. */
 #define	STN_UNDEF	0	/* Undefined symbol index. */
 
