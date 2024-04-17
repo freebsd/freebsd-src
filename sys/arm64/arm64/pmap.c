@@ -1684,15 +1684,23 @@ SYSCTL_ULONG(_vm_pmap_l2, OID_AUTO, promotions, CTLFLAG_RD,
     &pmap_l2_promotions, 0, "2MB page promotions");
 
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, l3c, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-    "64KB page mapping counters");
+    "L3C (64KB/2MB) page mapping counters");
 
-static u_long pmap_l3c_demotions;
-SYSCTL_ULONG(_vm_pmap_l3c, OID_AUTO, demotions, CTLFLAG_RD,
-    &pmap_l3c_demotions, 0, "64KB page demotions");
+static COUNTER_U64_DEFINE_EARLY(pmap_l3c_demotions);
+SYSCTL_COUNTER_U64(_vm_pmap_l3c, OID_AUTO, demotions, CTLFLAG_RD,
+    &pmap_l3c_demotions, "L3C (64KB/2MB) page demotions");
 
-static u_long pmap_l3c_mappings;
-SYSCTL_ULONG(_vm_pmap_l3c, OID_AUTO, mappings, CTLFLAG_RD,
-    &pmap_l3c_mappings, 0, "64KB page mappings");
+static COUNTER_U64_DEFINE_EARLY(pmap_l3c_mappings);
+SYSCTL_COUNTER_U64(_vm_pmap_l3c, OID_AUTO, mappings, CTLFLAG_RD,
+    &pmap_l3c_mappings, "L3C (64KB/2MB) page mappings");
+
+static COUNTER_U64_DEFINE_EARLY(pmap_l3c_p_failures);
+SYSCTL_COUNTER_U64(_vm_pmap_l3c, OID_AUTO, p_failures, CTLFLAG_RD,
+    &pmap_l3c_p_failures, "L3C (64KB/2MB) page promotion failures");
+
+static COUNTER_U64_DEFINE_EARLY(pmap_l3c_promotions);
+SYSCTL_COUNTER_U64(_vm_pmap_l3c, OID_AUTO, promotions, CTLFLAG_RD,
+    &pmap_l3c_promotions, "L3C (64KB/2MB) page promotions");
 
 /*
  * If the given value for "final_only" is false, then any cached intermediate-
@@ -4547,7 +4555,7 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *ptep, pd_entry_t newpte,
 	 * be cached, so we invalidate intermediate entries as well as final
 	 * entries.
 	 */
-	pmap_s1_invalidate_range(pmap, va, va + size, false);
+	pmap_s1_invalidate_range(pmap, va, va + size, size == L3C_SIZE);
 
 	/* Create the new mapping */
 	for (lip = ptep; lip < ptep_end; lip++) {
@@ -4746,6 +4754,131 @@ setl3:
 
 	atomic_add_long(&pmap_l2_promotions, 1);
 	CTR2(KTR_PMAP, "pmap_promote_l2: success for va %#lx in pmap %p", va,
+	    pmap);
+	return (true);
+}
+
+/*
+ * Tries to promote an aligned, contiguous set of base page mappings to a
+ * single L3C page mapping.  For promotion to occur, two conditions must be
+ * met: (1) the base page mappings must map aligned, contiguous physical
+ * memory and (2) the base page mappings must have identical characteristics
+ * except for the accessed flag.
+ */
+static bool
+pmap_promote_l3c(pmap_t pmap, pd_entry_t *l3p, vm_offset_t va)
+{
+	pd_entry_t all_l3e_AF, firstl3c, *l3, oldl3, pa;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+
+	/*
+	 * Currently, this function only supports promotion on stage 1 pmaps
+	 * because it tests stage 1 specific fields and performs a break-
+	 * before-make sequence that is incorrect for stage 2 pmaps.
+	 */
+	if (pmap->pm_stage != PM_STAGE1 || !pmap_ps_enabled(pmap))
+		return (false);
+
+	/*
+	 * Compute the address of the first L3 entry in the superpage
+	 * candidate.
+	 */
+	l3p = (pt_entry_t *)((uintptr_t)l3p & ~((L3C_ENTRIES *
+	    sizeof(pt_entry_t)) - 1));
+
+	firstl3c = pmap_load(l3p);
+
+	/*
+	 * Examine the first L3 entry. Abort if this L3E is ineligible for
+	 * promotion...
+	 */
+	if ((firstl3c & ATTR_SW_NO_PROMOTE) != 0)
+		return (false);
+	/* ...is not properly aligned... */
+	if ((PTE_TO_PHYS(firstl3c) & L3C_OFFSET) != 0 ||
+	    (firstl3c & ATTR_DESCR_MASK) != L3_PAGE) { /* ...or is invalid. */
+		counter_u64_add(pmap_l3c_p_failures, 1);
+		CTR2(KTR_PMAP, "pmap_promote_l3c: failure for va %#lx"
+		    " in pmap %p", va, pmap);
+		return (false);
+	}
+
+	/*
+	 * If the first L3 entry is a clean read-write mapping, convert it
+	 * to a read-only mapping.  See pmap_promote_l2() for the rationale.
+	 */
+set_first:
+	if ((firstl3c & (ATTR_S1_AP_RW_BIT | ATTR_SW_DBM)) ==
+	    (ATTR_S1_AP(ATTR_S1_AP_RO) | ATTR_SW_DBM)) {
+		/*
+		 * When the mapping is clean, i.e., ATTR_S1_AP_RO is set,
+		 * ATTR_SW_DBM can be cleared without a TLB invalidation.
+		 */
+		if (!atomic_fcmpset_64(l3p, &firstl3c, firstl3c & ~ATTR_SW_DBM))
+			goto set_first;
+		firstl3c &= ~ATTR_SW_DBM;
+		CTR2(KTR_PMAP, "pmap_promote_l3c: protect for va %#lx"
+		    " in pmap %p", va & ~L3C_OFFSET, pmap);
+	}
+
+	/*
+	 * Check that the rest of the L3 entries are compatible with the first,
+	 * and convert clean read-write mappings to read-only mappings.
+	 */
+	all_l3e_AF = firstl3c & ATTR_AF;
+	pa = (PTE_TO_PHYS(firstl3c) | (firstl3c & ATTR_DESCR_MASK)) +
+	    L3C_SIZE - PAGE_SIZE;
+	for (l3 = l3p + L3C_ENTRIES - 1; l3 > l3p; l3--) {
+		oldl3 = pmap_load(l3);
+		if ((PTE_TO_PHYS(oldl3) | (oldl3 & ATTR_DESCR_MASK)) != pa) {
+			counter_u64_add(pmap_l3c_p_failures, 1);
+			CTR2(KTR_PMAP, "pmap_promote_l3c: failure for va %#lx"
+			    " in pmap %p", va, pmap);
+			return (false);
+		}
+set_l3:
+		if ((oldl3 & (ATTR_S1_AP_RW_BIT | ATTR_SW_DBM)) ==
+		    (ATTR_S1_AP(ATTR_S1_AP_RO) | ATTR_SW_DBM)) {
+			/*
+			 * When the mapping is clean, i.e., ATTR_S1_AP_RO is
+			 * set, ATTR_SW_DBM can be cleared without a TLB
+			 * invalidation.
+			 */
+			if (!atomic_fcmpset_64(l3, &oldl3, oldl3 &
+			    ~ATTR_SW_DBM))
+				goto set_l3;
+			oldl3 &= ~ATTR_SW_DBM;
+			CTR2(KTR_PMAP, "pmap_promote_l3c: protect for va %#lx"
+			    " in pmap %p", (oldl3 & ~ATTR_MASK & L3C_OFFSET) |
+			    (va & ~L3C_OFFSET), pmap);
+		}
+		if ((oldl3 & ATTR_PROMOTE) != (firstl3c & ATTR_PROMOTE)) {
+			counter_u64_add(pmap_l3c_p_failures, 1);
+			CTR2(KTR_PMAP, "pmap_promote_l3c: failure for va %#lx"
+			    " in pmap %p", va, pmap);
+			return (false);
+		}
+		all_l3e_AF &= oldl3;
+		pa -= PAGE_SIZE;
+	}
+
+	/*
+	 * Unless all PTEs have ATTR_AF set, clear it from the superpage
+	 * mapping, so that promotions triggered by speculative mappings,
+	 * such as pmap_enter_quick(), don't automatically mark the
+	 * underlying pages as referenced.
+	 */
+	firstl3c &= ~ATTR_AF | all_l3e_AF;
+
+	/*
+	 * Remake the mappings with the contiguous bit set.
+	 */
+	pmap_update_entry(pmap, l3p, firstl3c | ATTR_CONTIGUOUS, va &
+	    ~L3C_OFFSET, L3C_SIZE);
+
+	counter_u64_add(pmap_l3c_promotions, 1);
+	CTR2(KTR_PMAP, "pmap_promote_l3c: success for va %#lx in pmap %p", va,
 	    pmap);
 	return (true);
 }
@@ -5161,11 +5294,18 @@ validate:
 
 #if VM_NRESERVLEVEL > 0
 	/*
-	 * If both the page table page and the reservation are fully
-	 * populated, then attempt promotion.
+	 * First, attempt L3C promotion, if the virtual and physical addresses
+	 * are aligned with each other and an underlying reservation has the
+	 * neighboring L3 pages allocated.  The first condition is simply an
+	 * optimization that recognizes some eventual promotion failures early
+	 * at a lower run-time cost.  Then, if both the page table page and
+	 * the reservation are fully populated, attempt L2 promotion.
 	 */
-	if ((mpte == NULL || mpte->ref_count == NL3PG) &&
+	if ((va & L3C_OFFSET) == (pa & L3C_OFFSET) &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
+	    vm_reserv_is_populated(m, L3C_ENTRIES) &&
+	    pmap_promote_l3c(pmap, l3, va) &&
+	    (mpte == NULL || mpte->ref_count == NL3PG) &&
 	    vm_reserv_level_iffullpop(m) == 0)
 		(void)pmap_promote_l2(pmap, pde, va, mpte, &lock);
 #endif
@@ -5630,7 +5770,7 @@ have_l3p:
 	}
 	dsb(ishst);
 
-	atomic_add_long(&pmap_l3c_mappings, 1);
+	counter_u64_add(pmap_l3c_mappings, 1);
 	CTR2(KTR_PMAP, "pmap_enter_l3c: success for va %#lx in pmap %p",
 	    va, pmap);
 	return (KERN_SUCCESS);
@@ -6042,7 +6182,7 @@ pmap_copy_l3c(pmap_t pmap, pt_entry_t *l3p, vm_offset_t va, pt_entry_t l3e,
 		l3e += L3_SIZE;
 	}
 	pmap_resident_count_inc(pmap, L3C_ENTRIES);
-	atomic_add_long(&pmap_l3c_mappings, 1);
+	counter_u64_add(pmap_l3c_mappings, 1);
 	CTR2(KTR_PMAP, "pmap_copy_l3c: success for va %#lx in pmap %p",
 	    va, pmap);
 	return (true);
@@ -8181,7 +8321,7 @@ pmap_demote_l3c(pmap_t pmap, pt_entry_t *l3p, vm_offset_t va)
 		pmap_kremove(tmpl3);
 		kva_free(tmpl3, PAGE_SIZE);
 	}
-	atomic_add_long(&pmap_l3c_demotions, 1);
+	counter_u64_add(pmap_l3c_demotions, 1);
 	CTR2(KTR_PMAP, "pmap_demote_l3c: success for va %#lx in pmap %p",
 	    va, pmap);
 	return (true);
