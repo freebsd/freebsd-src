@@ -226,13 +226,36 @@ SRCF+=		comparedf2
 SRCF+=		comparesf2
 .endif
 
+# Helper to reduce complexity of _Float16 and __bf16 statements below.
+.if ${MACHINE_CPUARCH} == "aarch64" || \
+    ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "arm" || \
+    (${MACHINE_CPUARCH} == "i386" && !empty(MACHINE_CPU:Msse2))
+CRT_COMMON_F16_ARCH=t
+.endif
+
 #
-# bfloat16 support, only used on some architectures.
+# _Float16 support, only on some architectures, and with certain compiler
+# versions.
 #
-.if (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
-     ${MACHINE_CPUARCH} == "arm" || (${MACHINE_CPUARCH} == "i386" && \
-     !empty(MACHINE_CPU:Msse2)) || ${MACHINE_CPUARCH} == "riscv") && \
-    !(${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} < 130000)
+.if ((${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 150000) && \
+     (defined(CRT_COMMON_F16_ARCH) || ${MACHINE_CPUARCH} == "riscv")) || \
+    ((${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 120000) && \
+     (defined(CRT_COMMON_F16_ARCH)))
+CFLAGS+=	-DCOMPILER_RT_HAS_FLOAT16
+.endif
+
+#
+# __bf16 support, only on some architectures, and with certain compiler
+# versions.
+#
+.if ((${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 150000) && \
+     (defined(CRT_COMMON_F16_ARCH))) || \
+    ((${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 180000) && \
+     ${MACHINE_CPUARCH} == "riscv") || \
+    ((${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 130000) && \
+     (defined(CRT_COMMON_F16_ARCH)))
+CFLAGS+=	-DCOMPILER_RT_HAS_BFLOAT16
 SRCF+=		truncdfbf2
 SRCF+=		truncsfbf2
 .endif
