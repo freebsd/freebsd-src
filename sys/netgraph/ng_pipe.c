@@ -641,12 +641,14 @@ ngp_rcvdata(hook_p hook, item_p item)
 	}
 
 	/* Populate the packet header */
-	ngp_h = uma_zalloc(ngp_zone, M_NOWAIT);
-	KASSERT((ngp_h != NULL), ("ngp_h zalloc failed (1)"));
 	NGI_GET_M(item, m);
-	KASSERT(m != NULL, ("NGI_GET_M failed"));
-	ngp_h->m = m;
 	NG_FREE_ITEM(item);
+	ngp_h = uma_zalloc(ngp_zone, M_NOWAIT);
+	if (ngp_h == NULL) {
+		NG_FREE_M(m);
+		return (ENOMEM);
+	}
+	ngp_h->m = m;
 
 	if (hinfo->cfg.fifo)
 		hash = 0;	/* all packets go into a single FIFO queue */
@@ -659,7 +661,11 @@ ngp_rcvdata(hook_p hook, item_p item)
 			break;
 	if (ngp_f == NULL) {
 		ngp_f = uma_zalloc(ngp_zone, M_NOWAIT);
-		KASSERT(ngp_h != NULL, ("ngp_h zalloc failed (2)"));
+		if (ngp_f == NULL) {
+			NG_FREE_M(ngp_h->m);
+			uma_zfree(ngp_zone, ngp_h);
+			return (ENOMEM);
+		}
 		TAILQ_INIT(&ngp_f->packet_head);
 		ngp_f->hash = hash;
 		ngp_f->packets = 1;
@@ -733,7 +739,7 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct hookinfo *dest;
 	struct ngp_fifo *ngp_f, *ngp_f1;
-	struct ngp_hdr *ngp_h;
+	struct ngp_hdr *ngp_h, *ngp_dup;
 	struct timeval *when;
 	struct mbuf *m;
 	int plen, error = 0;
@@ -768,16 +774,27 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 		}
 
 		/*
-		 * Either create a duplicate and pass it on, or dequeue
-		 * the original packet...
+		 * Either create a duplicate and pass it on, or
+		 * dequeue the original packet.  When any of the
+		 * memory allocations for the duplicate package fail,
+		 * simply do not duplicate it at all.
 		 */
+		ngp_dup = NULL;
 		if (hinfo->cfg.duplicate &&
 		    prng32_bounded(100) <= hinfo->cfg.duplicate) {
-			ngp_h = uma_zalloc(ngp_zone, M_NOWAIT);
-			KASSERT(ngp_h != NULL, ("ngp_h zalloc failed (3)"));
-			m = m_dup(m, M_NOWAIT);
-			KASSERT(m != NULL, ("m_dup failed"));
-			ngp_h->m = m;
+			ngp_dup = uma_zalloc(ngp_zone, M_NOWAIT);
+			if (ngp_dup != NULL) {
+				ngp_dup->m = m_dup(m, M_NOWAIT);
+				if (ngp_dup->m == NULL) {
+					uma_zfree(ngp_zone, ngp_dup);
+					ngp_dup = NULL;
+				}
+			}
+		}
+
+		if (ngp_dup != NULL) {
+			ngp_h = ngp_dup;
+			m = ngp_h->m;
 		} else {
 			TAILQ_REMOVE(&ngp_f->packet_head, ngp_h, ngp_link);
 			hinfo->run.qin_frames--;
@@ -984,8 +1001,6 @@ ngp_modevent(module_t mod, int type, void *unused)
 		ngp_zone = uma_zcreate("ng_pipe", max(sizeof(struct ngp_hdr),
 		    sizeof (struct ngp_fifo)), NULL, NULL, NULL, NULL,
 		    UMA_ALIGN_PTR, 0);
-		if (ngp_zone == NULL)
-			panic("ng_pipe: couldn't allocate descriptor zone");
 		break;
 	case MOD_UNLOAD:
 		uma_zdestroy(ngp_zone);
