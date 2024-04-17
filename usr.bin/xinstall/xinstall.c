@@ -371,8 +371,8 @@ main(int argc, char *argv[])
 				err(EX_OSERR, "%s vanished", to_name);
 			if (S_ISLNK(to_sb.st_mode)) {
 				if (argc != 2) {
-					errno = ENOTDIR;
-					err(EX_USAGE, "%s", to_name);
+					errc(EX_CANTCREAT, ENOTDIR, "%s",
+					    to_name);
 				}
 				install(*argv, to_name, fset, iflags);
 				exit(EX_OK);
@@ -398,14 +398,13 @@ main(int argc, char *argv[])
 	if (!no_target && !dolink) {
 		if (stat(*argv, &from_sb))
 			err(EX_OSERR, "%s", *argv);
-		if (!S_ISREG(to_sb.st_mode)) {
-			errno = EFTYPE;
-			err(EX_OSERR, "%s", to_name);
-		}
+		if (!S_ISREG(to_sb.st_mode))
+			errc(EX_CANTCREAT, EFTYPE, "%s", to_name);
 		if (to_sb.st_dev == from_sb.st_dev &&
-		    to_sb.st_ino == from_sb.st_ino)
-			errx(EX_USAGE, 
-			    "%s and %s are the same file", *argv, to_name);
+		    to_sb.st_ino == from_sb.st_ino) {
+			errx(EX_USAGE, "%s and %s are the same file",
+			    *argv, to_name);
+		}
 	}
 	install(*argv, to_name, fset, iflags);
 	exit(EX_OK);
@@ -749,10 +748,10 @@ makelink(const char *from_name, const char *to_name,
 			if (realpath(dir, dst) == NULL)
 				err(EX_OSERR, "%s: realpath", dir);
 			if (strcmp(dst, "/") != 0 &&
-			    strlcat(dst, "/", sizeof(dst)) > sizeof(dst))
+			    strlcat(dst, "/", sizeof(dst)) >= sizeof(dst))
 				errx(1, "resolved pathname too long");
 		}
-		if (strlcat(dst, base, sizeof(dst)) > sizeof(dst))
+		if (strlcat(dst, base, sizeof(dst)) >= sizeof(dst))
 			errx(1, "resolved pathname too long");
 		free(to_name_copy);
 
@@ -819,10 +818,8 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		if (!dolink) {
 			if (stat(from_name, &from_sb))
 				err(EX_OSERR, "%s", from_name);
-			if (!S_ISREG(from_sb.st_mode)) {
-				errno = EFTYPE;
-				err(EX_OSERR, "%s", from_name);
-			}
+			if (!S_ISREG(from_sb.st_mode))
+				errc(EX_OSERR, EFTYPE, "%s", from_name);
 		}
 		/* Build the target path. */
 		if (flags & DIRECTORY) {
@@ -846,11 +843,8 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		return;
 	}
 
-	if (target && !S_ISREG(to_sb.st_mode) && !S_ISLNK(to_sb.st_mode)) {
-		errno = EFTYPE;
-		warn("%s", to_name);
-		return;
-	}
+	if (target && !S_ISREG(to_sb.st_mode) && !S_ISLNK(to_sb.st_mode))
+		errc(EX_CANTCREAT, EFTYPE, "%s", to_name);
 
 	if (!devnull && (from_fd = open(from_name, O_RDONLY, 0)) < 0)
 		err(EX_OSERR, "%s", from_name);
@@ -1194,9 +1188,9 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	DIGEST_CTX ctx;
 
 	/* Rewind file descriptors. */
-	if (lseek(from_fd, (off_t)0, SEEK_SET) == (off_t)-1)
+	if (lseek(from_fd, 0, SEEK_SET) < 0)
 		err(EX_OSERR, "lseek: %s", from_name);
-	if (lseek(to_fd, (off_t)0, SEEK_SET) == (off_t)-1)
+	if (lseek(to_fd, 0, SEEK_SET) < 0)
 		err(EX_OSERR, "lseek: %s", to_name);
 
 #ifndef BOOTSTRAP_XINSTALL
@@ -1204,7 +1198,7 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	if (digesttype == DIGEST_NONE) {
 		do {
 			ret = copy_file_range(from_fd, NULL, to_fd, NULL,
-			    SSIZE_MAX, 0);
+			    (size_t)size, 0);
 		} while (ret > 0);
 		if (ret == 0)
 			goto done;
