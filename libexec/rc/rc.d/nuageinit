@@ -2,7 +2,7 @@
 #
 
 # PROVIDE: nuageinit
-# REQUIRE: mountcritlocal
+# REQUIRE: mountcritlocal zfs
 # BEFORE: NETWORKING
 # KEYWORD: firstboot
 
