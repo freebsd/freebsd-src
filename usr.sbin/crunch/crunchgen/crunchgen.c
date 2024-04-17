@@ -924,17 +924,23 @@ gen_output_cfile(void)
 		    "extern crunched_stub_t _crunched_%s_stub;\n",
 		    p->ident);
 
+	int n = 2; /* 2 because main and --list are added manually. */
 	fprintf(outcf, "\nstruct stub entry_points[] = {\n");
 	for (p = progs; p != NULL; p = p->next) {
+		n++;
 		fprintf(outcf, "\t{ \"%s\", _crunched_%s_stub },\n",
 		    p->name, p->ident);
-		for (s = p->links; s != NULL; s = s->next)
+		for (s = p->links; s != NULL; s = s->next) {
+			n++;
 			fprintf(outcf, "\t{ \"%s\", _crunched_%s_stub },\n",
 			    s->str, p->ident);
+		}
 	}
 
 	fprintf(outcf, "\t{ EXECNAME, crunched_main },\n");
-	fprintf(outcf, "\t{ NULL, NULL }\n};\n");
+	fprintf(outcf, "\t{ \"--list\", crunched_list }\n");
+	fprintf(outcf, "};\n\n");
+	fprintf(outcf, "int num_entry_points = %d;\n", n);
 	fclose(outcf);
 }
 
