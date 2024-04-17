@@ -163,7 +163,7 @@ struct ieee80211com {
 	uint32_t		ic_caps;	/* capabilities */
 	uint32_t		ic_htcaps;	/* HT capabilities */
 	uint32_t		ic_htextcaps;	/* HT extended capabilities */
-	uint32_t		ic_cryptocaps;	/* crypto capabilities */
+	uint32_t		ic_cryptocaps;	/* hardware crypto caps */
 						/* set of mode capabilities */
 	uint8_t			ic_modecaps[IEEE80211_MODE_BYTES];
 	uint8_t			ic_promisc;	/* vap's needing promisc mode */
@@ -375,7 +375,11 @@ struct ieee80211com {
 	void			(*ic_update_chw)(struct ieee80211com *);
 
 	const struct debugnet80211_methods	*ic_debugnet_meth;
-	uint64_t		ic_spare[7];
+				/* driver-supported software crypto caps */
+	uint32_t		ic_sw_cryptocaps;
+
+	uint32_t		ic_spare1;
+	uint64_t		ic_spare[6];
 };
 
 struct ieee80211_aclator;

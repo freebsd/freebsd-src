@@ -142,6 +142,18 @@ ieee80211_crypto_attach(struct ieee80211com *ic)
 {
 	/* NB: we assume everything is pre-zero'd */
 	ciphers[IEEE80211_CIPHER_NONE] = &ieee80211_cipher_none;
+
+	/*
+	 * Default set of net80211 supported ciphers.
+	 *
+	 * These are the default set that all drivers are expected to
+	 * support, either/or in hardware and software.
+	 *
+	 * Drivers can add their own support to this and the
+	 * hardware cipher list (ic_cryptocaps.)
+	 */
+	ic->ic_sw_cryptocaps = IEEE80211_CRYPTO_WEP |
+	    IEEE80211_CRYPTO_TKIP | IEEE80211_CRYPTO_AES_CCM;
 }
 
 /*
