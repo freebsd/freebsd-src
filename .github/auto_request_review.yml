@@ -1,0 +1,7 @@
+reviewers:
+  defaults:
+    - emaste
+
+files:
+  '**':
+    - emaste
