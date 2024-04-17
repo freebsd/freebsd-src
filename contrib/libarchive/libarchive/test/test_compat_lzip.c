@@ -195,7 +195,6 @@ compat_lzip_4(const char *name)
 	assertEqualString("test.bin", archive_entry_pathname(ae));
 
 	/* Verify the end-of-archive. */
-	archive_set_error(a, ARCHIVE_OK, NULL);
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify that the format detection worked. */
