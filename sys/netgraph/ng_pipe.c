@@ -44,6 +44,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/prng.h>
 #include <sys/time.h>
 
 #include <vm/uma.h>
@@ -771,7 +772,7 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 		 * the original packet...
 		 */
 		if (hinfo->cfg.duplicate &&
-		    random() % 100 <= hinfo->cfg.duplicate) {
+		    prng32_bounded(100) <= hinfo->cfg.duplicate) {
 			ngp_h = uma_zalloc(ngp_zone, M_NOWAIT);
 			KASSERT(ngp_h != NULL, ("ngp_h zalloc failed (3)"));
 			m = m_dup(m, M_NOWAIT);
@@ -814,7 +815,7 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 		/* Randomly discard the frame, according to BER setting */
 		if (hinfo->cfg.ber) {
 			oldrand = rand;
-			rand = random();
+			rand = prng32_bounded(1U << 31);
 			if (((oldrand ^ rand) << 17) >=
 			    hinfo->ber_p[priv->overhead + m->m_pkthdr.len]) {
 				hinfo->stats.out_disc_frames++;
