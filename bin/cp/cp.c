@@ -316,8 +316,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 		case FTS_NS:
 		case FTS_DNR:
 		case FTS_ERR:
-			warnx("%s: %s",
-			    curr->fts_path, strerror(curr->fts_errno));
+			warnc(curr->fts_errno, "%s", curr->fts_path);
 			badcp = rval = 1;
 			continue;
 		case FTS_DC:			/* Warn, continue. */
@@ -491,13 +490,19 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 
 		switch (curr->fts_statp->st_mode & S_IFMT) {
 		case S_IFLNK:
-			/* Catch special case of a non-dangling symlink. */
 			if ((fts_options & FTS_LOGICAL) ||
 			    ((fts_options & FTS_COMFOLLOW) &&
 			    curr->fts_level == 0)) {
+				/*
+				 * We asked FTS to follow links but got
+				 * here anyway, which means the target is
+				 * nonexistent or inaccessible.  Let
+				 * copy_file() deal with the error.
+				 */
 				if (copy_file(curr, dne))
 					badcp = rval = 1;
-			} else {	
+			} else {
+				/* Copy the link. */
 				if (copy_link(curr, !dne))
 					badcp = rval = 1;
 			}
