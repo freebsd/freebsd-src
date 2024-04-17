@@ -34,7 +34,7 @@
  * This node permits simple traffic shaping by emulating bandwidth
  * and delay, as well as random packet losses.
  * The node has two hooks, upper and lower. Traffic flowing from upper to
- * lower hook is referenced as downstream, and vice versa. Parameters for 
+ * lower hook is referenced as downstream, and vice versa. Parameters for
  * both directions can be set separately, except for delay.
  */
 
@@ -195,8 +195,8 @@ static const struct ng_cmdlist ngp_cmds[] = {
 	{
 		.cookie =	NGM_PIPE_COOKIE,
 		.cmd =		NGM_PIPE_GET_STATS,
-		.name = 	"getstats",
-		.respType =	 &ng_pipe_stats_type
+		.name =		"getstats",
+		.respType =	&ng_pipe_stats_type
 	},
 	{
 		.cookie =	NGM_PIPE_COOKIE,
@@ -494,7 +494,7 @@ parse_cfg(struct ng_pipe_hookcfg *current, struct ng_pipe_hookcfg *new,
 
 	if (new->qin_size_limit == -1)
 		current->qin_size_limit = 0;
-	else if (new->qin_size_limit >= 5) 
+	else if (new->qin_size_limit >= 5)
 		current->qin_size_limit = new->qin_size_limit;
 
 	if (new->qout_size_limit == -1)
@@ -547,7 +547,7 @@ parse_cfg(struct ng_pipe_hookcfg *current, struct ng_pipe_hookcfg *new,
 	} else if (new->bandwidth >= 100 && new->bandwidth <= 1000000000)
 		current->bandwidth = new->bandwidth;
 
-	if (current->bandwidth | priv->delay | 
+	if (current->bandwidth | priv->delay |
 	    current->duplicate | current->ber)
 		hinfo->noqueue = 0;
 	else
@@ -686,9 +686,9 @@ ngp_rcvdata(hook_p hook, item_p item)
 			}
 
 		/* Drop a frame from the queue head/tail, depending on cfg */
-		if (hinfo->cfg.drophead) 
+		if (hinfo->cfg.drophead)
 			ngp_h = TAILQ_FIRST(&ngp_f->packet_head);
-		else 
+		else
 			ngp_h = TAILQ_LAST(&ngp_f->packet_head, p_head);
 		TAILQ_REMOVE(&ngp_f->packet_head, ngp_h, ngp_link);
 		m1 = ngp_h->m;
@@ -783,7 +783,7 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 			hinfo->run.qin_octets -= m->m_pkthdr.len;
 			ngp_f->packets--;
 		}
-		
+
 		/* Calculate the serialization delay */
 		if (hinfo->cfg.bandwidth) {
 			hinfo->qin_utime.tv_usec +=
