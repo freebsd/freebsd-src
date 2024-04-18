@@ -3598,7 +3598,8 @@ check-old: check-old-files check-old-libs check-old-dirs .PHONY
 #
 showconfig: .PHONY
 	@(${MAKE} -n -f ${.CURDIR}/sys/conf/kern.opts.mk -V dummy -dg1 UPDATE_DEPENDFILE=no NO_OBJ=yes MACHINE=${TARGET} MACHINE_ARCH=${TARGET_ARCH}; \
-	  ${MAKE} -n -f ${.CURDIR}/share/mk/src.opts.mk -V dummy -dg1 UPDATE_DEPENDFILE=no NO_OBJ=yes) 2>&1 | grep -E '^(MK|OPT)_[A-Z]' | sort -u
+	  ${MAKE} -n -f ${.CURDIR}/share/mk/src.opts.mk -V dummy -dg1 UPDATE_DEPENDFILE=no NO_OBJ=yes MACHINE=${TARGET} MACHINE_ARCH=${TARGET_ARCH}) 2>&1 | \
+	 grep -E '^(MK|OPT)_[A-Z]' | sort -u
 
 .if !empty(KRNLOBJDIR) && !empty(KERNCONF)
 DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/
