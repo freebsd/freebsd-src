@@ -765,8 +765,8 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 	mixer_setrecsrc(m, 0); /* Set default input. */
 
 	devunit = snd_mkunit(unit, SND_DEV_CTL, 0);
-	pdev = make_dev(&mixer_cdevsw, PCMMINOR(devunit),
-		 UID_ROOT, GID_WHEEL, 0666, "mixer%d", unit);
+	pdev = make_dev(&mixer_cdevsw, devunit, UID_ROOT, GID_WHEEL, 0666,
+	    "mixer%d", unit);
 	pdev->si_drv1 = m;
 	snddev->mixer_dev = pdev;
 
