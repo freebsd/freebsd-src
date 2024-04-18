@@ -5,6 +5,7 @@ _spath=	${SRCTOP}/contrib/ofed/libibnetdisc
 .PATH: ${_spath} ${_spath}/man
 
 SHLIBDIR?=	/usr/lib
+PACKAGE=	lib${LIB_CXX}
 LIB_CXX=	ibnetdisc
 SHLIB_MAJOR=	5
 MK_PROFILE=	no

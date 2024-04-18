@@ -4,6 +4,7 @@
 
 SRCDIR=	${NCURSES_DIR}/menu
 
+PACKAGE=clibs
 LIB=	menuw
 SHLIB_MAJOR=	6
 

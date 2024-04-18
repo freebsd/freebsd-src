@@ -1,5 +1,6 @@
 
-LIB_CXX=	devdctl
+PACKAGE=libprivate${LIB}
+LIB_CXX=devdctl
 INCS=	consumer.h		\
 	event.h			\
 	event_factory.h		\

@@ -3,6 +3,7 @@ _spath=	${SRCTOP}/contrib/ofed/libcxgb4
 .PATH: ${_spath}
 
 SHLIBDIR?=	/usr/lib
+PACKAGE=	lib${LIB}
 LIB=		cxgb4
 SHLIB_MAJOR=	1
 MK_PROFILE=	no

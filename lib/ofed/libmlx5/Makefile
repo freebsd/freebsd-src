@@ -2,6 +2,7 @@
 _spath=	${SRCTOP}/contrib/ofed/libmlx5
 .PATH: ${_spath}
 
+PACKAGE=	lib${LIB}
 SHLIBDIR?=	/lib
 LIB=		mlx5
 SHLIB_MAJOR=	1

@@ -3,6 +3,7 @@ _spath=	${SRCTOP}/contrib/ofed/libibcm
 .PATH: ${_spath}
 
 SHLIBDIR?=	/usr/lib
+PACKAGE=	lib${LIB}
 LIB=		ibcm
 SHLIB_MAJOR=	1
 MK_PROFILE=	no

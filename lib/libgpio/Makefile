@@ -1,4 +1,5 @@
 
+PACKAGE=lib${LIB}
 LIB=	gpio
 SHLIB_MAJOR= 0
 

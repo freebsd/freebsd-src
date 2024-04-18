@@ -2,6 +2,7 @@
 _spath=	${SRCTOP}/contrib/ofed/libibverbs
 .PATH: ${_spath} ${_spath}/man
 
+PACKAGE=	lib${LIB}
 LIB=		ibverbs
 SHLIB_MAJOR=	1
 SHLIBDIR?=	/lib

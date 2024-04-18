@@ -3,6 +3,7 @@ SHLIBDIR?=/lib
 
 .include <src.opts.mk>
 
+PACKAGE=lib${LIB}
 LIB=	ulog
 SHLIB_MAJOR= 0
 INCS=	ulog.h utempter.h

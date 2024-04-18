@@ -1,6 +1,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=lib${LIB}
 LIB=	proc
 
 SRCS=	proc_bkpt.c		\

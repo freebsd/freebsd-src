@@ -3,6 +3,7 @@
 
 .PATH:	${GOOGLETEST_SRCROOT}/include ${GOOGLETEST_SRCROOT}/src
 
+PACKAGE=	libprivategtest
 LIB_CXX=	gtest_main
 SHLIB_MAJOR=	0
 PRIVATELIB=	true

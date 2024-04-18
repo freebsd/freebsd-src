@@ -3,6 +3,7 @@ _spath=	${SRCTOP}/contrib/ofed/opensm/libvendor
 .PATH: ${_spath}
 
 SHLIBDIR?=	/usr/lib
+PACKAGE=	lib${LIB}
 LIB=		osmvendor
 SHLIB_MAJOR=	4
 MK_PROFILE=	no
