@@ -160,17 +160,18 @@ _CPUCFLAGS = -mcpu=${CPUTYPE}
 ########## i386
 . if ${MACHINE_CPUARCH} == "i386"
 .  if ${CPUTYPE} == "znver4"
-MACHINE_CPU = avx512 avx2 avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
+MACHINE_CPU = avx512 avx2 avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586 f16c
 .  elif ${CPUTYPE} == "znver3" || ${CPUTYPE} == "znver2" || \
     ${CPUTYPE} == "znver1"
-MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
+MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586 f16c
 .  elif ${CPUTYPE} == "bdver4"
-MACHINE_CPU = xop avx2 avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
-.  elif ${CPUTYPE} == "bdver3" || ${CPUTYPE} == "bdver2" || \
-    ${CPUTYPE} == "bdver1"
+MACHINE_CPU = xop avx2 avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586 f16c
+.  elif ${CPUTYPE} == "bdver3" || ${CPUTYPE} == "bdver2"
+MACHINE_CPU = xop avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586 f16c
+.  elif ${CPUTYPE} == "bdver1"
 MACHINE_CPU = xop avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
 .  elif ${CPUTYPE} == "btver2"
-MACHINE_CPU = avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
+MACHINE_CPU = avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586 f16c
 .  elif ${CPUTYPE} == "btver1"
 MACHINE_CPU = ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
 .  elif ${CPUTYPE} == "amdfam10"
@@ -197,12 +198,14 @@ MACHINE_CPU = k5 i586
     ${CPUTYPE} == "cannonlake" || ${CPUTYPE} == "knm" || \
     ${CPUTYPE} == "skylake-avx512" || ${CPUTYPE} == "knl" || \
     ${CPUTYPE} == "x86-64-v4"
-MACHINE_CPU = avx512 avx2 avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
+MACHINE_CPU = avx512 avx2 avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586 f16c
 .  elif ${CPUTYPE} == "alderlake" || ${CPUTYPE} == "skylake" || \
     ${CPUTYPE} == "broadwell" || ${CPUTYPE} == "haswell" || \
     ${CPUTYPE} == "x86-64-v3"
-MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
-.  elif ${CPUTYPE} == "ivybridge" || ${CPUTYPE} == "sandybridge"
+MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586 f16c
+.  elif ${CPUTYPE} == "ivybridge"
+MACHINE_CPU = avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586 f16c
+.  elif ${CPUTYPE} == "sandybridge"
 MACHINE_CPU = avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
 .  elif ${CPUTYPE} == "tremont" || ${CPUTYPE} == "goldmont-plus" || \
     ${CPUTYPE} == "goldmont" || ${CPUTYPE} == "westmere" || \
@@ -243,17 +246,18 @@ MACHINE_CPU += i486
 ########## amd64
 . elif ${MACHINE_CPUARCH} == "amd64"
 .  if ${CPUTYPE} == "znver4"
-MACHINE_CPU = avx512 avx2 avx sse42 sse41 ssse3 sse4a sse3
+MACHINE_CPU = avx512 avx2 avx sse42 sse41 ssse3 sse4a sse3 f16c
 .  elif ${CPUTYPE} == "znver3" || ${CPUTYPE} == "znver2" || \
     ${CPUTYPE} == "znver1"
-MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse4a sse3
+MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse4a sse3 f16c
 .  elif ${CPUTYPE} == "bdver4"
-MACHINE_CPU = xop avx2 avx sse42 sse41 ssse3 sse4a sse3
-.  elif ${CPUTYPE} == "bdver3" || ${CPUTYPE} == "bdver2" || \
-    ${CPUTYPE} == "bdver1"
+MACHINE_CPU = xop avx2 avx sse42 sse41 ssse3 sse4a sse3 f16c
+.  elif ${CPUTYPE} == "bdver3" || ${CPUTYPE} == "bdver2"
+MACHINE_CPU = xop avx sse42 sse41 ssse3 sse4a sse3 f16c
+.  elif ${CPUTYPE} == "bdver1"
 MACHINE_CPU = xop avx sse42 sse41 ssse3 sse4a sse3
 .  elif ${CPUTYPE} == "btver2"
-MACHINE_CPU = avx sse42 sse41 ssse3 sse4a sse3
+MACHINE_CPU = avx sse42 sse41 ssse3 sse4a sse3 f16c
 .  elif ${CPUTYPE} == "btver1"
 MACHINE_CPU = ssse3 sse4a sse3
 .  elif ${CPUTYPE} == "amdfam10"
@@ -270,12 +274,14 @@ MACHINE_CPU = k8 3dnow
     ${CPUTYPE} == "cannonlake" || ${CPUTYPE} == "knm" || \
     ${CPUTYPE} == "skylake-avx512" || ${CPUTYPE} == "knl" || \
     ${CPUTYPE} == "x86-64-v4"
-MACHINE_CPU = avx512 avx2 avx sse42 sse41 ssse3 sse3
+MACHINE_CPU = avx512 avx2 avx sse42 sse41 ssse3 sse3 f16c
 .  elif ${CPUTYPE} == "alderlake" || ${CPUTYPE} == "skylake" || \
     ${CPUTYPE} == "broadwell" || ${CPUTYPE} == "haswell" || \
     ${CPUTYPE} == "x86-64-v3"
-MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse3
-.  elif ${CPUTYPE} == "ivybridge" || ${CPUTYPE} == "sandybridge"
+MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse3 f16c
+.  elif ${CPUTYPE} == "ivybridge"
+MACHINE_CPU = avx sse42 sse41 ssse3 sse3 f16c
+.  elif ${CPUTYPE} == "sandybridge"
 MACHINE_CPU = avx sse42 sse41 ssse3 sse3
 .  elif ${CPUTYPE} == "tremont" || ${CPUTYPE} == "goldmont-plus" || \
     ${CPUTYPE} == "goldmont" || ${CPUTYPE} == "westmere" || \
