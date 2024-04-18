@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2024 The FreeBSD Foundation
+#
+# This software was developed by Cybermancer Infosec <bofh@FreeBSD.org>
+# under sponsorship from the FreeBSD Foundation.
+#
+# CI Makefile for amd64.
+#
+QEMU_ARCH=x86_64
+QEMU_MACHINE=q35
+QEMU_MAX_CPU_COUNT=256
+QEMU_MAX_MEM_SIZE=128
+
+portinstall-amd64: portinstall-pkg .PHONY
+	@true
+
+# NOTE: Nothing should be changed below this line unless explicitly required.
+
+ci-buildworld-amd64: ci-buildworld .PHONY
+
+ci-buildkernel-amd64: ci-buildkernel .PHONY
+
+ci-buildimage-amd64: ci-buildimage .PHONY
+
+ci-runtest-amd64: ci-runtest .PHONY
