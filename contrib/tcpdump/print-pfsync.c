@@ -86,7 +86,7 @@ pfsync_ip_print(netdissect_options *ndo , const u_char *bp, u_int len)
 {
 	struct pfsync_header *hdr = (struct pfsync_header *)bp;
 
-	if (len < PFSYNC_HDRLEN || !ND_TTEST_LEN(bp, len))
+	if (len < PFSYNC_HDRLEN || !ND_TTEST2(*bp, len))
 		ND_PRINT((ndo, "[|pfsync]"));
 	else
 		pfsync_print(ndo, hdr, bp + sizeof(struct pfsync_header),
