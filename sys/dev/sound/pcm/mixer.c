@@ -726,14 +726,17 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 	struct snd_mixer *m;
 	u_int16_t v;
 	struct cdev *pdev;
+	const char *name;
 	int i, unit, devunit, val;
 
 	snddev = device_get_softc(dev);
 	if (snddev == NULL)
 		return (-1);
 
-	if (resource_int_value(device_get_name(dev),
-	    device_get_unit(dev), "eq", &val) == 0 && val != 0) {
+	name = device_get_name(dev);
+	unit = device_get_unit(dev);
+	if (resource_int_value(name, unit, "eq", &val) == 0 &&
+	    val != 0) {
 		snddev->flags |= SD_F_EQ;
 		if ((val & SD_F_EQ_MASK) == val)
 			snddev->flags |= val;
@@ -749,8 +752,8 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
 		v = snd_mixerdefaults[i];
 
-		if (resource_int_value(device_get_name(dev),
-		    device_get_unit(dev), snd_mixernames[i], &val) == 0) {
+		if (resource_int_value(name, unit, snd_mixernames[i],
+		    &val) == 0) {
 			if (val >= 0 && val <= 100) {
 				v = (u_int16_t) val;
 			}
@@ -761,7 +764,6 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 
 	mixer_setrecsrc(m, 0); /* Set default input. */
 
-	unit = device_get_unit(dev);
 	devunit = snd_mkunit(unit, SND_DEV_CTL, 0);
 	pdev = make_dev(&mixer_cdevsw, PCMMINOR(devunit),
 		 UID_ROOT, GID_WHEEL, 0666, "mixer%d", unit);
