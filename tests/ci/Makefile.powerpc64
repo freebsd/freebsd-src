@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2024 The FreeBSD Foundation
+#
+# This software was developed by Cybermancer Infosec <bofh@FreeBSD.org>
+# under sponsorship from the FreeBSD Foundation.
+#
+# CI Makefile for powerpc64.
+#
+QEMU_ARCH=ppc64
+QEMU_DEVICES=-device virtio-blk,drive=hd0
+QEMU_EXTRA_PARAM=-vga none -accel tcg,thread=multi
+QEMU_MACHINE=pseries,cap-hpt-max-page-size=16M
+QEMU_MAX_CPU_COUNT=1
+QEMU_MAX_MEM_SIZE=64
+
+portinstall-powerpc64: portinstall-pkg .PHONY
+	@true
+
+# NOTE: Nothing should be changed below this line unless explicitly required.
+
+ci-buildworld-powerpc64: ci-buildworld .PHONY
+
+ci-buildkernel-powerpc64: ci-buildkernel .PHONY
+
+ci-buildimage-powerpc64: ci-buildimage .PHONY
+
+ci-runtest-powerpc64: ci-runtest .PHONY

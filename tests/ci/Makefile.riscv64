@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2024 The FreeBSD Foundation
+#
+# This software was developed by Cybermancer Infosec <bofh@FreeBSD.org>
+# under sponsorship from the FreeBSD Foundation.
+#
+# CI Makefile for riscv64.
+#
+QEMU_ARCH=riscv64
+QEMU_DEVICES=-device virtio-blk-device,drive=hd0
+QEMU_EXTRA_PARAM=-bios /usr/local/share/opensbi/lp64/generic/firmware/fw_jump.elf -kernel /usr/local/share/u-boot/u-boot-qemu-riscv64/u-boot.bin
+QEMU_MAX_CPU_COUNT=16
+QEMU_MAX_MEM_SIZE=64
+
+portinstall-riscv64: portinstall-pkg .PHONY
+.if !exists(/usr/local/share/opensbi/lp64/generic/firmware/fw_jump.elf)
+	env ASSUME_ALWAYS_YES=yes pkg install sysutils/opensbi
+.endif
+.if !exists(/usr/local/share/u-boot/u-boot-qemu-riscv64/u-boot.bin)
+	env ASSUME_ALWAYS_YES=yes pkg install sysutils/u-boot-qemu-riscv64
+.endif
+
+# NOTE: Nothing should be changed below this line unless explicitly required.
+
+ci-buildworld-riscv64: ci-buildworld .PHONY
+
+ci-buildkernel-riscv64: ci-buildkernel .PHONY
+
+ci-buildimage-riscv64: ci-buildimage .PHONY
+
+ci-runtest-riscv64: ci-runtest .PHONY
