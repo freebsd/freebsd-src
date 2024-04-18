@@ -593,8 +593,8 @@ typedef	struct	fripf	{
 	u_short		fri_icmp;
 
 	frtuc_t		fri_tuc;
-	fr_atypes_t	fri_satype;	/* addres type */
-	fr_atypes_t	fri_datype;	/* addres type */
+	fr_atypes_t	fri_satype;	/* address type */
+	fr_atypes_t	fri_datype;	/* address type */
 	int		fri_sifpidx;	/* doing dynamic addressing */
 	int		fri_difpidx;	/* index into fr_ifps[] to use when */
 } fripf_t;

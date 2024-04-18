@@ -1834,7 +1834,7 @@ ipf_p_ftp_epsv(ipf_ftp_softc_t *softf, fr_info_t *fin, ip_t *ip, nat_t *nat,
 		s++;
 
 	/*
-	 * As per RFC 2428, there are no addres components in the EPSV
+	 * As per RFC 2428, there are no address components in the EPSV
 	 * response.  So we'll go straight to getting the port.
 	 */
 	while (*s && ISDIGIT(*s)) {
