@@ -145,11 +145,11 @@ class work. It also helps us keep track.
 
 ## FreeBSD's Upstreams
 
-Anything that's in the directory `contrib`, `crypto`, `sys/contrib` or
-`sys/cddl` likely has an upstream we pull from. Please do a git log --merges in
-any subdirectory of these you are submitting patches for to find out the last
-time we merged from upstream. If it is in the last 5 years, upstream is "active"
-and you should submit your patches there and let the last few people to commit
-to this file (especially merge commits) know. If it's been more than 5 years,
-upstream is likely inactive so please submit the patch. We can sort out if it
-should go into FreeBSD or upstream.
+Anything that's in the directory `contrib`, `crypto`, `sys/contrib`,
+`sys/crypto/` or `sys/cddl` likely has an upstream we pull from. Please do a
+`git log --merges` in any subdirectory of these you are submitting patches for
+to find out the last time we merged from upstream. If it is in the last 5 years,
+upstream is "active" and you should submit your patches there and let the last
+few people to commit to this file (especially merge commits) know. If it's been
+more than 5 years, upstream is likely inactive so please submit the patch. We
+can sort out if it should go into FreeBSD or upstream.
