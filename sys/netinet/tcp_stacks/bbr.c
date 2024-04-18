@@ -9556,15 +9556,6 @@ bbr_do_closing(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		return (ret_val);
 	}
 	/*
-	 * If new data are received on a connection after the user processes
-	 * are gone, then RST the other end.
-	 * We call a new function now so we might continue and setup
-	 * to reset at all data being ack'd.
-	 */
-	if ((tp->t_flags & TF_CLOSED) && tlen &&
-	    bbr_check_data_after_close(m, bbr, tp, &tlen, th, so))
-		return (1);
-	/*
 	 * If last ACK falls within this segment's sequence numbers, record
 	 * its timestamp. NOTE: 1) That the test incorporates suggestions
 	 * from the latest proposal of the tcplw@cray.com list (Braden
@@ -9666,15 +9657,6 @@ bbr_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (ctf_drop_checks(to, m, th, tp, &tlen, &thflags, &drop_hdrlen, &ret_val)) {
 		return (ret_val);
 	}
-	/*
-	 * If new data are received on a connection after the user processes
-	 * are gone, then RST the other end.
-	 * We call a new function now so we might continue and setup
-	 * to reset at all data being ack'd.
-	 */
-	if ((tp->t_flags & TF_CLOSED) && tlen &&
-	    bbr_check_data_after_close(m, bbr, tp, &tlen, th, so))
-		return (1);
 	/*
 	 * If last ACK falls within this segment's sequence numbers, record
 	 * its timestamp. NOTE: 1) That the test incorporates suggestions
