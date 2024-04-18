@@ -341,14 +341,6 @@ void snd_mtxassert(void *m);
 int sndstat_register(device_t dev, char *str);
 int sndstat_unregister(device_t dev);
 
-/* usage of flags in device config entry (config file) */
-#define DV_F_DRQ_MASK	0x00000007	/* mask for secondary drq */
-#define	DV_F_DUAL_DMA	0x00000010	/* set to use secondary dma channel */
-
-/* ought to be made obsolete but still used by mss */
-#define	DV_F_DEV_MASK	0x0000ff00	/* force device type/class */
-#define	DV_F_DEV_SHIFT	8		/* force device type/class */
-
 /*
  * this is rather kludgey- we need to duplicate these struct def'ns from sound.c
  * so that the macro versions of pcm_{,un}lock can dereference them.
