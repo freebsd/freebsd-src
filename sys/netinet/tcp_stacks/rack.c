@@ -17026,7 +17026,7 @@ rack_new_round_setup(struct tcpcb *tp, struct tcp_rack *rack, uint32_t high_seq)
 			log.u_bbr.flex1 = rack->r_ctl.current_round;
 			log.u_bbr.flex2 = rack->r_ctl.last_rnd_of_gp_rise;
 			log.u_bbr.flex3 = rack->r_ctl.gp_rnd_thresh;
-			log.u_bbr.flex5 = rack->r_ctl.gate_to_fs;
+			log.u_bbr.flex4 = rack->r_ctl.gate_to_fs;
 			log.u_bbr.flex5 = rack->r_ctl.ss_hi_fs;
 			log.u_bbr.flex8 = 40;
 			(void)tcp_log_event(tp, NULL, NULL, NULL, BBR_LOG_CWND, 0,
