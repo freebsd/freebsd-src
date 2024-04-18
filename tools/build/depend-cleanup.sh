@@ -159,3 +159,10 @@ if [ -e "$OBJTOP"/tests/sys/fs/fusefs/mockfs.o ] && \
 	echo "Removing stale fusefs GoogleTest objects"
 	run rm -rf "$OBJTOP"/tests/sys/fs/fusefs
 fi
+
+# 20240416  2fda3ab0ac19    WITH_NVME: Remove from broken
+if [ -f "$OBJTOP"/rescue/rescue/rescue.mk ] && \
+    grep -q -v 'nvme_util.o' "$OBJTOP"/rescue/rescue/rescue.mk; then
+	echo "removing rescue.mk without nvme_util.o"; then
+	rm -f "$OBJTOP"/rescue/rescue/rescue.mk
+fi
