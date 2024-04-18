@@ -602,8 +602,6 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 		break;
 	}
 
-	d->devcount++;
-
 	return (0);
 }
 
@@ -643,8 +641,6 @@ pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch)
 	default:
 		break;
 	}
-
-	d->devcount--;
 
 	return (0);
 }
@@ -947,7 +943,6 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 		d->flags |= SD_F_BITPERFECT;
 
 	d->devinfo = devinfo;
-	d->devcount = 0;
 	d->reccount = 0;
 	d->playcount = 0;
 	d->pvchancount = 0;
@@ -1116,7 +1111,7 @@ sound_oss_sysinfo(oss_sysinfo *si)
 		PCM_UNLOCKASSERT(d);
 		PCM_LOCK(d);
 
-		si->numaudios += d->devcount;
+		si->numaudios += PCM_CHANCOUNT(d);
 		++ncards;
 
 		CHN_FOREACH(c, d, channels.pcm) {
