@@ -265,7 +265,6 @@ int chn_poll(struct pcm_channel *c, int ev, struct thread *td);
 int chn_init(struct pcm_channel *c, void *devinfo, int dir, int direction);
 int chn_kill(struct pcm_channel *c);
 int chn_reset(struct pcm_channel *c, u_int32_t fmt, u_int32_t spd);
-int chn_setvolume(struct pcm_channel *c, int left, int right);
 int chn_setvolume_multi(struct pcm_channel *c, int vc, int left, int right,
     int center);
 int chn_setvolume_matrix(struct pcm_channel *c, int vc, int vt, int val);
