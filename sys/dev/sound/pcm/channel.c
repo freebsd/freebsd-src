@@ -1301,19 +1301,6 @@ chn_kill(struct pcm_channel *c)
 	return (0);
 }
 
-/* XXX Obsolete. Use *_matrix() variant instead. */
-int
-chn_setvolume(struct pcm_channel *c, int left, int right)
-{
-	int ret;
-
-	ret = chn_setvolume_matrix(c, SND_VOL_C_MASTER, SND_CHN_T_FL, left);
-	ret |= chn_setvolume_matrix(c, SND_VOL_C_MASTER, SND_CHN_T_FR,
-	    right) << 8;
-
-	return (ret);
-}
-
 int
 chn_setvolume_multi(struct pcm_channel *c, int vc, int left, int right,
     int center)
