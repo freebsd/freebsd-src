@@ -461,7 +461,7 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 		max = SND_MAXHWCHAN;
 		break;
 	case PCMDIR_PLAY_VIRTUAL:
-		dirs = "virtual";
+		dirs = "virtual_play";
 		direction = PCMDIR_PLAY;
 		pnum = &d->pvchancount;
 		device = SND_DEV_DSPHW_VPLAY;
@@ -475,7 +475,7 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 		max = SND_MAXHWCHAN;
 		break;
 	case PCMDIR_REC_VIRTUAL:
-		dirs = "virtual";
+		dirs = "virtual_record";
 		direction = PCMDIR_REC;
 		pnum = &d->rvchancount;
 		device = SND_DEV_DSPHW_VREC;
