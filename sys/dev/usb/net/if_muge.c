@@ -1811,7 +1811,7 @@ done:
  * muge_multicast_write
  * @sc: device's soft context
  *
- * Writes perfect addres filters and hash address filters to their
+ * Writes perfect address filters and hash address filters to their
  * corresponding registers and RAMs.
  *
  */
