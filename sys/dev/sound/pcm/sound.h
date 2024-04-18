@@ -175,6 +175,9 @@ struct snd_mixer;
 
 #define	PCM_DETACHING(x)	((x)->flags & SD_F_DETACHING)
 
+#define	PCM_CHANCOUNT(d)	\
+	(d->playcount + d->pvchancount + d->reccount + d->rvchancount)
+
 /* many variables should be reduced to a range. Here define a macro */
 #define RANGE(var, low, high) (var) = \
 	(((var)<(low))? (low) : ((var)>(high))? (high) : (var))
@@ -367,7 +370,7 @@ struct snddev_info {
 			} opened;
 		} pcm;
 	} channels;
-	unsigned devcount, playcount, reccount, pvchancount, rvchancount ;
+	unsigned playcount, reccount, pvchancount, rvchancount;
 	unsigned flags;
 	unsigned int bufsz;
 	void *devinfo;
