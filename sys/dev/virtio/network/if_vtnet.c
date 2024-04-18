@@ -2086,7 +2086,7 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 
 	VTNET_RXQ_LOCK_ASSERT(rxq);
 
-	CURVNET_SET_QUIET(if_getvnet(ifp));
+	CURVNET_SET(if_getvnet(ifp));
 	while (count-- > 0) {
 		struct mbuf *m;
 		uint32_t len, nbufs, adjsz;
