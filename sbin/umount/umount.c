@@ -673,19 +673,17 @@ md_detach(const char *device)
 	char *eptr;
 	int fd;
 
-	memset(&mdio, 0, sizeof(mdio));
-
-	mdio.md_version = MDIOVERSION;
-	mdio.md_options = fflag ? MD_FORCE : 0;
-
 	if (strncmp(device, DEV_MD, sizeof(DEV_MD) - 1)) {
 		if (!all)
 			warnx("invalid md device: %s", device);
 		return (-1);
 	}
 
+	memset(&mdio, 0, sizeof(mdio));
+	mdio.md_version = MDIOVERSION;
+	mdio.md_options = fflag ? MD_FORCE : 0;
 	mdio.md_unit = strtoul(device + sizeof(DEV_MD) - 1, &eptr, 0);
-	if (mdio.md_unit == (unsigned)ULONG_MAX || *eptr != '\0') {
+	if (mdio.md_unit == (unsigned)ULONG_MAX || eptr - device == sizeof(DEV_MD) - 1) {
 		warnx("invalid md device: %s", device);
 		return (-1);
 	}
