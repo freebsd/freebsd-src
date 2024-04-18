@@ -165,6 +165,27 @@ ieee80211_crypto_detach(struct ieee80211com *ic)
 }
 
 /*
+ * Set the supported ciphers for software encryption.
+ */
+void
+ieee80211_crypto_set_supported_software_ciphers(struct ieee80211com *ic,
+    uint32_t cipher_set)
+{
+	ic->ic_sw_cryptocaps = cipher_set;
+}
+
+/*
+ * Set the supported ciphers for hardware encryption.
+ */
+void
+ieee80211_crypto_set_supported_hardware_ciphers(struct ieee80211com *ic,
+    uint32_t cipher_set)
+{
+	ic->ic_cryptocaps = cipher_set;
+}
+
+
+/*
  * Setup crypto support for a vap.
  */
 void
