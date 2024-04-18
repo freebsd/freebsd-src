@@ -2177,7 +2177,7 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 	struct pcm_channel *ch;
 	struct snddev_info *d;
 	uint32_t fmts;
-	int i, nchan, *rates, minch, maxch;
+	int i, nchan, *rates, minch, maxch, unit;
 	char *devname, buf[CHN_NAMELEN];
 
 	/*
@@ -2197,9 +2197,9 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 	 * Search for the requested audio device (channel).  Start by
 	 * iterating over pcm devices.
 	 */ 
-	for (i = 0; pcm_devclass != NULL &&
-	    i < devclass_get_maxunit(pcm_devclass); i++) {
-		d = devclass_get_softc(pcm_devclass, i);
+	for (unit = 0; pcm_devclass != NULL &&
+	    unit < devclass_get_maxunit(pcm_devclass); unit++) {
+		d = devclass_get_softc(pcm_devclass, unit);
 		if (!PCM_REGISTERED(d))
 			continue;
 
@@ -2324,14 +2324,13 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 			 * @todo @c port_number - routing information?
 			 */
 			ai->port_number = -1;
-			ai->mixer_dev = (d->mixer_dev != NULL) ? PCMUNIT(d->mixer_dev) : -1;
+			ai->mixer_dev = (d->mixer_dev != NULL) ? unit : -1;
 			/**
 			 * @note
 			 * @c real_device - OSSv4 docs:  "Obsolete."
 			 */
 			ai->real_device = -1;
-			snprintf(ai->devnode, sizeof(ai->devnode),
-			    "/dev/dsp%d", device_get_unit(d->dev));
+			snprintf(ai->devnode, sizeof(ai->devnode), "/dev/dsp%d", unit);
 			ai->enabled = device_is_attached(d->dev) ? 1 : 0;
 			/**
 			 * @note
