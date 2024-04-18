@@ -434,6 +434,28 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	IEEE80211_LOCK_DESTROY(ic);
 }
 
+/*
+ * Called by drivers during attach to set the supported
+ * cipher set for software encryption.
+ */
+void
+ieee80211_set_software_ciphers(struct ieee80211com *ic,
+    uint32_t cipher_suite)
+{
+	ieee80211_crypto_set_supported_software_ciphers(ic, cipher_suite);
+}
+
+/*
+ * Called by drivers during attach to set the supported
+ * cipher set for hardware encryption.
+ */
+void
+ieee80211_set_hardware_ciphers(struct ieee80211com *ic,
+    uint32_t cipher_suite)
+{
+	ieee80211_crypto_set_supported_hardware_ciphers(ic, cipher_suite);
+}
+
 struct ieee80211com *
 ieee80211_find_com(const char *name)
 {
