@@ -18,6 +18,10 @@ The preferred method depends on a few factors including the size or scope of
 the change.  GitHub pull requests are preferred for relatively straightforward
 changes where the contributor already has a GitHub account.
 
+A change should be submitted by only one method.  For example, please do not
+open a GitHub pull request and create a Phabricator review for the same change
+(unless explicitly requested to do so by a FreeBSD committer).
+
 ## GitHub Pull Requests
 
 Presently, GitHub 'freebsd-src' repository is one of the publish-only services
