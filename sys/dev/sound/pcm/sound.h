@@ -115,9 +115,6 @@ struct snd_mixer;
 #define PCMDEV(x)		(snd_unit2d(dev2unit(x)))
 #define PCMCHAN(x)		(snd_unit2c(dev2unit(x)))
 
-/* XXX unit2minor compat */
-#define PCMMINOR(x)	(x)
-
 /*
  * By design, limit possible channels for each direction.
  */
