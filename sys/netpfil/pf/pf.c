@@ -6196,7 +6196,7 @@ again:
 				break;
 			}
 
-			/* Only add the addres if we've actually allowed the state. */
+			/* Only add the address if we've actually allowed the state. */
 			pf_sctp_multihome_add_addr(pd, &j->src, v_tag);
 
 			if (! do_extra) {
