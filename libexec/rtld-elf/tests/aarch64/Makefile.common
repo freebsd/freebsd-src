@@ -1,0 +1,3 @@
+
+TESTSDIR?=	${TESTSBASE}/libexec/rtld-elf/aarch64
+LIBDIR=		${TESTSDIR}

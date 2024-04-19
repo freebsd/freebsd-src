@@ -1,6 +1,9 @@
 
 SUBDIR+=	libpythagoras libdeep libval libval2 target
 TESTS_SUBDIRS+=	rtld_deepbind
+.if exists(${MACHINE_CPUARCH})
+TESTS_SUBDIRS+=	${MACHINE_CPUARCH}
+.endif
 
 SUBDIR_DEPEND_libdeep=	libval2
 SUBDIR_DEPEND_rtld_deepbind=	libval
