@@ -3,6 +3,7 @@
 
 BINDIR=	/usr/bin
 
+PACKAGE=lp
 PROG=	lpr
 MAN=	lpr.1 printcap.5
 BINOWN=	root
