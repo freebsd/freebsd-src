@@ -1215,6 +1215,8 @@ kern_shm_open2(struct thread *td, const char *userpath, int flags, mode_t mode,
 #endif
 
 		AUDIT_ARG_UPATH1_CANON(path);
+	} else {
+		path = NULL;
 	}
 
 	pdp = td->td_proc->p_pd;
