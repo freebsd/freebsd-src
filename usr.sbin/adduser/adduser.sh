@@ -53,11 +53,10 @@ info() {
 #	by pw(8).
 #
 get_nextuid () {
-	_uid=$1
-	_nextuid=
+	local _uid=$1 _nextuid
 
 	if [ -z "$_uid" ]; then
-		_nextuid="`${PWCMD} usernext | cut -f1 -d:`"
+		_nextuid="$(${PWCMD} usernext | cut -f1 -d:)"
 	else
 		while : ; do
 			${PWCMD} usershow $_uid > /dev/null 2>&1
@@ -103,17 +102,12 @@ show_usage() {
 #	basename of the shell is output.
 #
 valid_shells() {
-	_prefix=
-	cat ${ETCSHELLS} |
+	local _prefix
+
+	${GREPCMD} '^[^#]' ${ETCSHELLS} |
 	while read _path _junk ; do
-		case $_path in
-		\#*|'')
-			;;
-		*)
-			echo -n "${_prefix}`basename $_path`"
-			_prefix=' '
-			;;
-		esac
+		echo -n "${_prefix}${_path##*/}"
+		_prefix=' '
 	done
 
 	# /usr/sbin/nologin is a special case
@@ -126,36 +120,31 @@ valid_shells() {
 #	full path to the shell from the /etc/shells file.
 #
 fullpath_from_shell() {
-	_shell=$1
-	[ -z "$_shell" ] && return 1
+	local _shell=$1 _fullpath
+
+	if [ -z "$_shell" ]; then
+		return
+	fi
 
 	# /usr/sbin/nologin is a special case; it needs to be handled
-	# before the cat | while loop, since a 'return' from within
+	# before the grep | while loop, since a 'return' from within
 	# a subshell will not terminate the function's execution, and
 	# the path to the nologin shell might be printed out twice.
 	#
-	if [ "$_shell" = "${NOLOGIN}" -o \
-	    "$_shell" = "${NOLOGIN_PATH}" ]; then
+	if [ "$_shell" = "${NOLOGIN}" ] ||
+	    [ "$_shell" = "${NOLOGIN_PATH}" ]; then
 		echo ${NOLOGIN_PATH}
-		return 0;
+		return
 	fi
 
-	cat ${ETCSHELLS} |
+	${GREPCMD} '^[^#]' ${ETCSHELLS} |
 	while read _path _junk ; do
-		case "$_path" in
-		\#*|'')
-			;;
-		*)
-			if [ "$_path" = "$_shell" -o \
-			    "`basename $_path`" = "$_shell" ]; then
-				echo $_path
-				return 0
-			fi
-			;;
-		esac
+		if [ "$_path" = "$_shell" ] ||
+		    [ "${_path##*/}" = "$_shell" ]; then
+			echo "$_path"
+			break
+		fi
 	done
-
-	return 1
 }
 
 # shell_exists shell
@@ -166,19 +155,14 @@ fullpath_from_shell() {
 #	will emit an informational message saying so.
 #
 shell_exists() {
-	_sh="$1"
-	_shellchk="${GREPCMD} '^$_sh$' ${ETCSHELLS} > /dev/null 2>&1"
+	local _sh="$1"
 
-	if ! eval $_shellchk; then
-		# The nologin shell is not listed in /etc/shells.
-		if [ "$_sh" != "${NOLOGIN_PATH}" ]; then
-			err "Invalid shell ($_sh) for user $username."
-			return 1
-		fi
+	if [ -z "$(fullpath_from_shell "$_sh")" ] ; then
+		err "Invalid shell ($_sh) for user $username."
+		return 1
 	fi
-	! [ -x "$_sh" ] &&
+	[ -x "$_sh" ] ||
 	    info "The shell ($_sh) does not exist or is not executable."
-
 	return 0
 }
 
@@ -190,7 +174,7 @@ shell_exists() {
 save_config() {
 	echo "# Configuration file for adduser(8)."     >  ${ADDUSERCONF}
 	echo "# NOTE: only *some* variables are saved." >> ${ADDUSERCONF}
-	echo "# Last Modified on `${DATECMD}`."		>> ${ADDUSERCONF}
+	echo "# Last Modified on $(${DATECMD})."	>> ${ADDUSERCONF}
 	echo ''				>> ${ADDUSERCONF}
 	echo "defaultHomePerm=$uhomeperm" >> ${ADDUSERCONF}
 	echo "defaultLgroup=$ulogingroup" >> ${ADDUSERCONF}
@@ -210,6 +194,8 @@ save_config() {
 #	message or lock the account, do so.
 #
 add_user() {
+	local _uid _name _comment _gecos _home _group _grouplist _shell _class
+	local _dotdir _expire _pwexpire _passwd _upasswd _passwdmethod
 
 	# Is this a configuration run? If so, don't modify user database.
 	#
@@ -217,22 +203,6 @@ add_user() {
 		save_config
 		return
 	fi
-
-	_uid=
-	_name=
-	_comment=
-	_gecos=
-	_home=
-	_group=
-	_grouplist=
-	_shell=
-	_class=
-	_dotdir=
-	_expire=
-	_pwexpire=
-	_passwd=
-	_upasswd=
-	_passwdmethod=
 
 	_name="-n '$username'"
 	[ -n "$uuid" ] && _uid='-u "$uuid"'
@@ -244,7 +214,7 @@ add_user() {
 	[ -n "$udotdir" ] && _dotdir='-k "$udotdir"'
 	[ -n "$uexpire" ] && _expire='-e "$uexpire"'
 	[ -n "$upwexpire" ] && _pwexpire='-p "$upwexpire"'
-	if [ -z "$Dflag" -a -n "$uhome" ]; then
+	if [ -z "$Dflag" ] && [ -n "$uhome" ]; then
 		# The /nonexistent home directory is special. It
 		# means the user has no home directory.
 		if [ "$uhome" = "$NOHOME" ]; then
@@ -257,7 +227,7 @@ add_user() {
 				_home='-m -d "$uhome"'
 			fi
 		fi
-	elif [ -n "$Dflag" -a -n "$uhome" ]; then
+	elif [ -n "$Dflag" ] && [ -n "$uhome" ]; then
 		_home='-d "$uhome"'
 	fi
 	case $passwdtype in
@@ -304,7 +274,7 @@ add_user() {
 	_pwcmd="$_pwcmd $_shell $_class $_home $_dotdir $_passwdmethod $_passwd"
 	_pwcmd="$_pwcmd $_expire $_pwexpire"
 
-	if ! _output=`eval $_pwcmd` ; then
+	if ! _output=$(eval $_pwcmd) ; then
 		err "There was an error adding user ($username)."
 		return 1
 	else
@@ -331,30 +301,27 @@ add_user() {
 		fi
 	fi
 
-	_line=
-	_owner=
-	_perms=
+	local _line _owner _perms _file _dir
 	if [ -n "$msgflag" ]; then
-		[ -r "$msgfile" ] && {
+		if [ -r "$msgfile" ]; then
 			# We're evaluating the contents of an external file.
 			# Let's not open ourselves up for attack. _perms will
 			# be empty if it's writeable only by the owner. _owner
 			# will *NOT* be empty if the file is owned by root.
 			#
-			_dir="`dirname $msgfile`"
-			_file="`basename $msgfile`"
-			_perms=`/usr/bin/find $_dir -name $_file -perm +07022 -prune`
-			_owner=`/usr/bin/find $_dir -name $_file -user 0 -prune`
-			if [ -z "$_owner" -o -n "$_perms" ]; then
+			_dir="$(dirname "$msgfile")"
+			_file="$(basename "$msgfile")"
+			_perms=$(/usr/bin/find "$_dir" -name "$_file" -perm +07022 -prune)
+			_owner=$(/usr/bin/find "$_dir" -name "$_file" -user 0 -prune)
+			if [ -z "$_owner" ] || [ -n "$_perms" ]; then
 				err "The message file ($msgfile) may be writeable only by root."
 				return 1
 			fi
-			cat "$msgfile" |
 			while read _line ; do
 				eval echo "$_line"
-			done | ${MAILCMD} -s"Welcome" ${username}
+			done <"$msgfile" | ${MAILCMD} -s"Welcome" ${username}
 			info "Sent welcome message to ($username)."
-		}
+		fi
 	fi
 }
 
@@ -366,7 +333,7 @@ add_user() {
 #	a file it will output an error message and return to the caller.
 #
 get_user() {
-	_input=
+	local _input
 
 	# No need to take down user names if this is a configuration saving run.
 	[ -n "$configflag" ] && return
@@ -376,7 +343,7 @@ get_user() {
 			echo -n "Username: "
 			read _input
 		else
-			_input="`echo "$fileline" | cut -f1 -d:`"
+			_input="$(echo "$fileline" | cut -f1 -d:)"
 		fi
 
 		# There *must* be a username, and it must not exist. If
@@ -387,7 +354,7 @@ get_user() {
 			err "You must enter a username!"
 			[ -z "$fflag" ] && continue
 		fi
-		${PWCMD} usershow $_input > /dev/null 2>&1
+		${PWCMD} usershow "$_input" > /dev/null 2>&1
 		if [ "$?" -eq 0 ]; then
 			err "User exists!"
 			[ -z "$fflag" ] && continue
@@ -402,7 +369,7 @@ get_user() {
 #	and batch (from file) mode.
 #
 get_gecos() {
-	_input=
+	local _input
 
 	# No need to take down additional user information for a configuration run.
 	[ -n "$configflag" ] && return
@@ -411,7 +378,7 @@ get_gecos() {
 		echo -n "Full name: "
 		read _input
 	else
-		_input="`echo "$fileline" | cut -f7 -d:`"
+		_input="$(echo "$fileline" | cut -f7 -d:)"
 	fi
 	ugecos="$_input"
 }
@@ -422,8 +389,7 @@ get_gecos() {
 #	If an invalid shell is entered it will simply use the default shell.
 #
 get_shell() {
-	_input=
-	_fullpath=
+	local _input _fullpath
 	ushell="$defaultshell"
 
 	# Make sure the current value of the shell is a valid one
@@ -435,16 +401,16 @@ get_shell() {
 	fi
 
 	if [ -z "$fflag" ]; then
-		echo -n "Shell ($shells) [`basename $ushell`]: "
+		echo -n "Shell ($shells) [${ushell##*/}]: "
 		read _input
 	else
-		_input="`echo "$fileline" | cut -f9 -d:`"
+		_input="$(echo "$fileline" | cut -f9 -d:)"
 	fi
 	if [ -n "$_input" ]; then
 		if [ -n "$Sflag" ]; then
 			ushell="$_input"
 		else
-			_fullpath=`fullpath_from_shell $_input`
+			_fullpath=$(fullpath_from_shell "$_input")
 			if [ -n "$_fullpath" ]; then
 				ushell="$_fullpath"
 			else
@@ -466,7 +432,7 @@ get_homedir() {
 		echo -n "Home directory [${homeprefix}/${username}]: "
 		read _input
 	else
-		_input="`echo "$fileline" | cut -f8 -d:`"
+		_input="$(echo "$fileline" | cut -f8 -d:)"
 	fi
 
 	if [ -n "$_input" ]; then
@@ -475,7 +441,9 @@ get_homedir() {
 		# directory prefix. Otherwise it is understood to
 		# be $prefix/$user
 		#
-		[ -z "$configflag" ] && homeprefix="`dirname $uhome`" || homeprefix="$uhome"
+		[ -z "$configflag" ] &&
+		    homeprefix="$(dirname "$uhome")" ||
+		    homeprefix="$uhome"
 	else
 		uhome="${homeprefix}/${username}"
 	fi
@@ -485,9 +453,8 @@ get_homedir() {
 #	Reads the account's home directory permissions.
 #
 get_homeperm() {
+	local _input _prompt
 	uhomeperm=$defaultHomePerm
-	_input=
-	_prompt=
 
 	if [ -n "$uhomeperm" ]; then
 		_prompt="Home directory permissions [${uhomeperm}]: "
@@ -515,7 +482,7 @@ get_zfs_home() {
 		Zcreate="no"
 		return
 	fi
-	zfs_homeprefix=`${ZFSCMD} list -Ho name "${homeprefix}" 2>/dev/null`
+	zfs_homeprefix=$(${ZFSCMD} list -Ho name "${homeprefix}" 2>/dev/null)
 	if [ "$?" -ne 0 ]; then
 		Zcreate="no"
 	elif [ -z "${zfs_homeprefix}" ]; then
@@ -529,12 +496,11 @@ get_zfs_home() {
 #	allocates one if it is not specified.
 #
 get_uid() {
+	local _input _prompt
 	uuid=${uidstart}
-	_input=
-	_prompt=
 
 	if [ -n "$uuid" ]; then
-		uuid=`get_nextuid $uuid`
+		uuid=$(get_nextuid "$uuid")
 		_prompt="Uid [$uuid]: "
 	else
 		_prompt="Uid (Leave empty for default): "
@@ -543,11 +509,11 @@ get_uid() {
 		echo -n "$_prompt"
 		read _input
 	else
-		_input="`echo "$fileline" | cut -f2 -d:`"
+		_input="$(echo "$fileline" | cut -f2 -d:)"
 	fi
 
 	[ -n "$_input" ] && uuid=$_input
-	uuid=`get_nextuid $uuid`
+	uuid=$(get_nextuid "$uuid")
 	uidstart=$uuid
 }
 
@@ -555,15 +521,15 @@ get_uid() {
 #	Reads login class of account. Can be used in interactive or batch mode.
 #
 get_class() {
+	local _input _uclass
 	uclass="$defaultclass"
-	_input=
 	_class=${uclass:-"default"}
 
 	if [ -z "$fflag" ]; then
 		echo -n "Login class [$_class]: "
 		read _input
 	else
-		_input="`echo "$fileline" | cut -f4 -d:`"
+		_input="$(echo "$fileline" | cut -f4 -d:)"
 	fi
 
 	[ -n "$_input" ] && uclass="$_input"
@@ -577,14 +543,14 @@ get_class() {
 #	will then provide a login group with the same name as the username.
 #
 get_logingroup() {
+	local _input
 	ulogingroup="$defaultLgroup"
-	_input=
 
 	if [ -z "$fflag" ]; then
 		echo -n "Login group [${ulogingroup:-$username}]: "
 		read _input
 	else
-		_input="`echo "$fileline" | cut -f3 -d:`"
+		_input="$(echo "$fileline" | cut -f3 -d:)"
 	fi
 
 	# Pw(8) will use the username as login group if it's left empty
@@ -596,8 +562,8 @@ get_logingroup() {
 #	and batch modes.
 #
 get_groups() {
+	local _input _group
 	ugroups="$defaultgroups"
-	_input=
 	_group=${ulogingroup:-"${username}"}
 
 	if [ -z "$configflag" ]; then
@@ -616,8 +582,8 @@ get_groups() {
 #	routine is used only from batch processing mode.
 #
 get_expire_dates() {
-	upwexpire="`echo "$fileline" | cut -f5 -d:`"
-	uexpire="`echo "$fileline" | cut -f6 -d:`"
+	upwexpire="$(echo "$fileline" | cut -f5 -d:)"
+	uexpire="$(echo "$fileline" | cut -f6 -d:)"
 }
 
 # get_password
@@ -632,10 +598,10 @@ get_password() {
 	# We may temporarily change a password type. Make sure it's changed
 	# back to whatever it was before we process the next account.
 	#
-	[ -n "$savedpwtype" ] && {
+	if [ -n "$savedpwtype" ]; then
 		passwdtype=$savedpwtype
 		savedpwtype=
-	}
+	fi
 
 	# There may be a ':' in the password
 	upass=${fileline#*:*:*:*:*:*:*:*:*:}
@@ -662,7 +628,7 @@ get_password() {
 #	Ask user if they want to enable encryption on their ZFS home dataset.
 #
 get_zfs_encryption() {
-	_input=
+	local _input _prompt
 	_prompt="Enable ZFS encryption? (yes/no) [${Zencrypt}]: "
 	while : ; do
 		echo -n "$_prompt"
@@ -738,7 +704,7 @@ set_zfs_perms() {
 #	adds it to the user database.
 #
 input_from_file() {
-	_field=
+	local _field
 
 	while read -r fileline ; do
 		case "$fileline" in
@@ -769,16 +735,14 @@ input_from_file() {
 #	the user database.
 #
 input_interactive() {
-	_disable=
-	_pass=
-	_passconfirm=
-	_random="no"
-	_emptypass="no"
-	_usepass="yes"
-	_logingroup_ok="no"
-	_groups_ok="no"
-	_all_ok="yes"
-	_another_user="no"
+	local _disable _pass _passconfirm _input
+	local _random="no"
+	local _emptypass="no"
+	local _usepass="yes"
+	local _logingroup_ok="no"
+	local _groups_ok="no"
+	local _all_ok="yes"
+	local _another_user="no"
 	case $passwdtype in
 	none)
 		_emptypass="yes"
@@ -801,7 +765,7 @@ input_interactive() {
 	until [ "$_logingroup_ok" = yes ]; do
 		get_logingroup
 		_logingroup_ok=yes
-		if [ -n "$ulogingroup" -a "$username" != "$ulogingroup" ]; then
+		if [ -n "$ulogingroup" ] && [ "$username" != "$ulogingroup" ]; then
 			if ! ${PWCMD} show group $ulogingroup > /dev/null 2>&1; then
 				echo "Group $ulogingroup does not exist!"
 				_logingroup_ok=no
@@ -865,8 +829,7 @@ input_interactive() {
 					stty echo
 					# if user entered a blank password
 					# explicitly ask again.
-					[ -z "$upass" -a -z "$_passconfirm" ] \
-					    && continue
+					[ -z "$upass$_passconfirm" ] && continue
 					;;
 				[Yy][Ee][Ss]|[Yy][Ee]|[Yy])
 					passwdtype="none"
@@ -934,8 +897,10 @@ input_interactive() {
 	[ -n "$configflag" ] && printf "%-11s : %s\n" "Pass Type" "$passwdtype"
 	[ -z "$configflag" ] && printf "%-11s : %s\n" "Full Name" "$ugecos"
 	[ -z "$configflag" ] && printf "%-11s : %s\n" "Uid" "$uuid"
-	[ "$Zcreate" = "yes" -a -z "$configflag" ] && printf "%-11s : %s\n" "ZFS dataset" "${zhome}"
-	[ "$Zencrypt" = "yes" -a -z "$configflag" ] && printf "%-11s : %s\n" "Encrypted" "${Zencrypt}"
+	[ "$Zcreate" = "yes" ] && [ -z "$configflag" ] &&
+	    printf "%-11s : %s\n" "ZFS dataset" "${zhome}"
+	[ "$Zencrypt" = "yes" ] && [ -z "$configflag" ] &&
+	    printf "%-11s : %s\n" "Encrypted" "${Zencrypt}"
 	printf "%-11s : %s\n" "Class" "$uclass"
 	printf "%-11s : %s %s\n" "Groups" "${ulogingroup:-$username}" "$ugroups"
 	printf "%-11s : %s\n" "Home" "$uhome"
@@ -966,7 +931,7 @@ input_interactive() {
 
 #### END SUBROUTINE DEFINITION ####
 
-THISCMD=`/usr/bin/basename $0`
+THISCMD=${0##*/}
 DEFAULTSHELL=/bin/sh
 ADDUSERCONF="${ADDUSERCONF:-/etc/adduser.conf}"
 PWCMD="${PWCMD:-/usr/sbin/pw}"
@@ -999,7 +964,7 @@ udotdir=/usr/share/skel
 ugroups=
 uexpire=
 upwexpire=
-shells="`valid_shells`"
+shells="$(valid_shells)"
 passwdtype="yes"
 msgfile=/etc/adduser.msg
 msgflag=
@@ -1028,7 +993,7 @@ Zencrypt="no"
 # measure as much as it is a useful method of reminding the user to
 # 'su -' before he/she wastes time entering data that won't be saved.
 #
-procowner=${procowner:-`/usr/bin/id -u`}
+procowner=${procowner:-$(/usr/bin/id -u)}
 if [ "$procowner" != "0" ]; then
 	err 'you must be the super-user (uid 0) to use this utility.'
 	exit 1
@@ -1046,12 +1011,8 @@ for _i in $* ; do
 		break;
 	fi
 done
-if [ -n "$readconfig" ]; then
-	# On a long-lived system, the first time this script is run it
-	# will barf upon reading the configuration file for its perl predecessor.
-	if ( . ${ADDUSERCONF} > /dev/null 2>&1 ); then
-		[ -r ${ADDUSERCONF} ] && . ${ADDUSERCONF} > /dev/null 2>&1
-	fi
+if [ -n "$readconfig" ] && [ -r "${ADDUSERCONF}" ]; then
+	. "${ADDUSERCONF}"
 fi 
 
 # Process command-line options
@@ -1136,7 +1097,7 @@ for _switch ; do
 		shift
 		;;
 	-s)
-		defaultshell="`fullpath_from_shell $2`"
+		defaultshell="$(fullpath_from_shell $2)"
 		shift; shift
 		;;
 	-S)
@@ -1181,7 +1142,7 @@ else
 		fi
 		case $_input in
 		[Yy][Ee][Ss]|[Yy][Ee]|[Yy])
-			uidstart=`get_nextuid $uidstart`
+			uidstart=$(get_nextuid $uidstart)
 			input_interactive
 			continue
 			;;
