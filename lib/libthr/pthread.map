@@ -337,3 +337,7 @@ FBSD_1.6 {
 	 pthread_peekjoin_np;
 	 pthread_setname_np;
 };
+
+FBSD_1.8 {
+	 pthread_sigqueue;
+};

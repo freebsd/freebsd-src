@@ -1102,6 +1102,7 @@ int __Tthr_mutex_lock(pthread_mutex_t *);
 int __Tthr_mutex_trylock(pthread_mutex_t *);
 bool __thr_get_main_stack_base(char **base);
 bool __thr_get_main_stack_lim(size_t *lim);
+int _Tthr_sigqueue(pthread_t pthread, int sig, const union sigval value);
 
 __END_DECLS
 __NULLABILITY_PRAGMA_POP
