@@ -675,6 +675,10 @@ ig4iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		rpstart = !stop;
 	}
 
+	if (error == IIC_ENOACK && bootverbose)
+		device_printf(dev, "Warning: NACK for slave address 0x%x\n",
+		    msgs[i].slave >> 1);
+
 	if (!allocated)
 		sx_unlock(&sc->call_lock);
 	return (error);
