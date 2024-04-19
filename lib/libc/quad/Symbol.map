@@ -8,27 +8,27 @@ FBSD_1.0 {
 #ifndef __i386__
 	__adddi3;
 	__anddi3;
-#endif
 	__ashldi3;
 	__ashrdi3;
+#endif
 	__cmpdi2;
 	__divdi3;
+#ifndef __i386__
 	__fixdfdi;
 	__fixsfdi;
 	__fixunsdfdi;
 	__fixunssfdi;
 	__floatdidf;
 	__floatdisf;
-#ifndef __i386__
 	__floatunsdidf;
 	__iordi3;
 	__lshldi3;
-#endif
 	__lshrdi3;
+#endif
 	__moddi3;
+#ifndef __i386__
 	__muldi3;
 	__negdi2;
-#ifndef __i386__
 	__one_cmpldi2;
 #endif
 	__qdivrem;
