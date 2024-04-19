@@ -41,6 +41,7 @@
 #include <sys/_types.h>
 #include <sys/_sigset.h>
 #include <sys/_sigaltstack.h>
+#include <sys/_sigval.h>
 
 #include <machine/_limits.h>	/* __MINSIGSTKSZ */
 #include <machine/signal.h>	/* sig_atomic_t; trap codes; sigcontext */
@@ -162,27 +163,6 @@ typedef	void __sighandler_t(int);
 #ifndef _SIGSET_T_DECLARED
 #define	_SIGSET_T_DECLARED
 typedef	__sigset_t	sigset_t;
-#endif
-#endif
-
-#if __POSIX_VISIBLE >= 199309 || __XSI_VISIBLE >= 500
-union sigval {
-	/* Members as suggested by Annex C of POSIX 1003.1b. */
-	int	sival_int;
-	void	*sival_ptr;
-	/* 6.0 compatibility */
-	int     sigval_int;
-	void    *sigval_ptr;
-};
-
-#if defined(_WANT_LWPINFO32) || (defined(_KERNEL) && defined(__LP64__))
-union sigval32 {
-	int	sival_int;
-	uint32_t sival_ptr;
-	/* 6.0 compatibility */
-	int	sigval_int;
-	uint32_t sigval_ptr;
-};
 #endif
 #endif
 
