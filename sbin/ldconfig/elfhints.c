@@ -220,7 +220,7 @@ read_elf_hints(const char *hintsfile, bool must_exist, bool force_be)
 	close(fd);
 
 	hdr = (struct elfhints_hdr *)mapbase;
-	is_be = be32toh(hdr->magic) == ELFHINTS_MAGIC;
+	is_be = hdr->magic == htobe32(ELFHINTS_MAGIC);
 	if (COND_SWAP(hdr->magic) != ELFHINTS_MAGIC)
 		errx(1, "\"%s\": invalid file format", hintsfile);
 	if (force_be && !is_be)
