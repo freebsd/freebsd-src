@@ -2010,13 +2010,16 @@ sys_sigqueue(struct thread *td, struct sigqueue_args *uap)
 }
 
 int
-kern_sigqueue(struct thread *td, pid_t pid, int signum, union sigval *value)
+kern_sigqueue(struct thread *td, pid_t pid, int signumf, union sigval *value)
 {
 	ksiginfo_t ksi;
 	struct proc *p;
+	struct thread *td2;
+	u_int signum;
 	int error;
 
-	if ((u_int)signum > _SIG_MAXSIG)
+	signum = signumf & ~__SIGQUEUE_TID;
+	if (signum > _SIG_MAXSIG)
 		return (EINVAL);
 
 	/*
@@ -2026,8 +2029,17 @@ kern_sigqueue(struct thread *td, pid_t pid, int signum, union sigval *value)
 	if (pid <= 0)
 		return (EINVAL);
 
-	if ((p = pfind_any(pid)) == NULL)
-		return (ESRCH);
+	if ((signumf & __SIGQUEUE_TID) == 0) {
+		if ((p = pfind_any(pid)) == NULL)
+			return (ESRCH);
+		td2 = NULL;
+	} else {
+		p = td->td_proc;
+		td2 = tdfind((lwpid_t)pid, p->p_pid);
+		if (td2 == NULL)
+			return (ESRCH);
+	}
+
 	error = p_cansignal(td, p, signum);
 	if (error == 0 && signum != 0) {
 		ksiginfo_init(&ksi);
@@ -2037,7 +2049,7 @@ kern_sigqueue(struct thread *td, pid_t pid, int signum, union sigval *value)
 		ksi.ksi_pid = td->td_proc->p_pid;
 		ksi.ksi_uid = td->td_ucred->cr_ruid;
 		ksi.ksi_value = *value;
-		error = pksignal(p, ksi.ksi_signo, &ksi);
+		error = tdsendsignal(p, td2, ksi.ksi_signo, &ksi);
 	}
 	PROC_UNLOCK(p);
 	return (error);
