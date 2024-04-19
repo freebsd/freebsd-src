@@ -221,3 +221,9 @@ GCC_4.6.0 {
 	__unordtf2;
 };
 #endif
+
+GCC_7.0.0 {
+#ifdef __i386__
+	__divmoddi4;
+#endif
+};
