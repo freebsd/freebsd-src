@@ -40,6 +40,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/asan.h>
 #include <sys/bitstring.h>
 #include <sys/sysproto.h>
 #include <sys/eventhandler.h>
@@ -1026,6 +1027,10 @@ fork1(struct thread *td, struct fork_req *fr)
 				error = ENOMEM;
 				goto fail2;
 			}
+		} else {
+			kasan_mark((void *)td2->td_kstack,
+			    ptoa(td2->td_kstack_pages),
+			    ptoa(td2->td_kstack_pages), 0);
 		}
 	}
 
