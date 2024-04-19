@@ -770,22 +770,22 @@ static int
 prompt(void)
 {
 	regex_t cre;
-	size_t rsize;
+	size_t rsize = 0;
 	int match;
-	char *response;
+	char *response = NULL;
 	FILE *ttyfp;
 
 	if ((ttyfp = fopen(_PATH_TTY, "r")) == NULL)
 		return (2);	/* Indicate that the TTY failed to open. */
 	(void)fprintf(stderr, "?...");
 	(void)fflush(stderr);
-	if ((response = fgetln(ttyfp, &rsize)) == NULL ||
+	if (getline(&response, &rsize, ttyfp) < 0 ||
 	    regcomp(&cre, nl_langinfo(YESEXPR), REG_EXTENDED) != 0) {
 		(void)fclose(ttyfp);
 		return (0);
 	}
-	response[rsize - 1] = '\0';
 	match = regexec(&cre, response, 0, NULL, 0);
+	free(response);
 	(void)fclose(ttyfp);
 	regfree(&cre);
 	return (match == 0);
