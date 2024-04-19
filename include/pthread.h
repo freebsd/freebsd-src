@@ -43,6 +43,9 @@
 #include <machine/_limits.h>
 #include <sys/_types.h>
 #include <sys/_sigset.h>
+#if __BSD_VISIBLE
+#include <sys/_sigval.h>
+#endif
 #include <sched.h>
 #include <time.h>
 
@@ -302,6 +305,10 @@ void		pthread_yield(void);
 
 int		pthread_getname_np(pthread_t, char *, size_t);
 int		pthread_setname_np(pthread_t, const char *);
+
+int		pthread_sigqueue(pthread_t thread, int sig,
+		    const union sigval value);
+
 #endif
 
 int		pthread_mutexattr_getprioceiling(
