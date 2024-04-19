@@ -1266,7 +1266,7 @@ struct ieee80211_csa_ie {
 #define	WPA_CSE_NULL		0x00
 #define	WPA_CSE_WEP40		0x01
 #define	WPA_CSE_TKIP		0x02
-#define	WPA_CSE_CCMP		0x04
+#define	WPA_CSE_CCMP		0x04		/* CCMP 128-bit */
 #define	WPA_CSE_WEP104		0x05
 
 #define	WPA_ASE_NONE		0x00
@@ -1275,21 +1275,62 @@ struct ieee80211_csa_ie {
 
 #define	WPS_OUI_TYPE		0x04
 
+/* 802.11-2016 Table 9-131 - Cipher Suite Selectors */
 #define	RSN_OUI			0xac0f00
 #define	RSN_VERSION		1		/* current supported version */
 
-#define	RSN_CSE_NULL		0x00
-#define	RSN_CSE_WEP40		0x01
-#define	RSN_CSE_TKIP		0x02
-#define	RSN_CSE_WRAP		0x03
-#define	RSN_CSE_CCMP		0x04
-#define	RSN_CSE_WEP104		0x05
+/* RSN cipher suite element */
+#define	RSN_CSE_NULL		0
+#define	RSN_CSE_WEP40		1
+#define	RSN_CSE_TKIP		2
+#define	RSN_CSE_WRAP		3		/* Reserved in the 802.11-2016 */
+#define	RSN_CSE_CCMP		4		/* CCMP 128 bit */
+#define	RSN_CSE_WEP104		5
+#define	RSN_CSE_BIP_CMAC_128	6
+/* 7 - "Group addressed traffic not allowed" */
+#define	RSN_CSE_GCMP_128	8
+#define	RSN_CSE_GCMP_256	9
+#define	RSN_CSE_CCMP_256	10
+#define	RSN_CSE_BIP_GMAC_128	11
+#define	RSN_CSE_BIP_GMAC_256	12
+#define	RSN_CSE_BIP_CMAC_256	13
 
-#define	RSN_ASE_NONE		0x00
-#define	RSN_ASE_8021X_UNSPEC	0x01
-#define	RSN_ASE_8021X_PSK	0x02
+/* 802.11-2016 Table 9-133 - AKM suite selectors */
+/* RSN AKM suite element */
+#define	RSN_ASE_NONE		0
+#define	RSN_ASE_8021X_UNSPEC	1
+#define	RSN_ASE_8021X_PSK	2
+#define	RSN_ASE_FT_8021X	3		/* SHA-256 */
+#define	RSN_ASE_FT_PSK		4		/* SHA-256 */
+#define	RSN_ASE_8021X_UNSPEC_SHA256	5
+#define	RSN_ASE_8021X_PSK_SHA256	6
+#define	RSN_ASE_8021X_TDLS	7		/* SHA-256 */
+#define	RSN_ASE_SAE_UNSPEC	8		/* SHA-256 */
+#define	RSN_ASE_FT_SAE		9		/* SHA-256 */
+#define	RSN_ASE_AP_PEERKEY	10		/* SHA-256 */
+#define	RSN_ASE_8021X_SUITE_B_SHA256	11
+#define	RSN_ASE_8021X_SUITE_B_SHA384	12
+#define	RSN_ASE_FT_8021X_SHA384	13
 
-#define	RSN_CAP_PREAUTH		0x01
+/* 802.11-2016 Figure 9-257 - RSN Capabilities (2 byte field) */
+#define	RSN_CAP_PREAUTH		0x0001
+#define	RSN_CAP_NO_PAIRWISE	0x0002
+#define	RSN_CAP_PTKSA_REPLAY_COUNTER	0x000c	/* 2 bit field */
+#define	RSN_CAP_GTKSA_REPLAY_COUNTER	0x0030	/* 2 bit field */
+#define	RSN_CAP_MFP_REQUIRED	0x0040
+#define	RSN_CAP_MFP_CAPABLE	0x0080
+#define	RSN_CAP_JOINT_MULTIBAND_RSNA		0x0100
+#define	RSN_CAP_PEERKEY_ENABLED	0x0200
+#define	RSN_CAP_SPP_AMSDU_CAPABLE	0x0400
+#define	RSN_CAP_SPP_AMSDU_REQUIRED	0x0800
+#define	RSN_CAP_PBAC_CAPABLE	0x1000
+#define	RSN_CAP_EXT_KEYID_CAPABLE	0x0200
+
+/* 802.11-2016 Table 9-134 PTKSA/GTKSA/STKSA replay counters usage */
+#define		RSN_CAP_REPLAY_COUNTER_1_PER	0
+#define		RSN_CAP_REPLAY_COUNTER_2_PER	1
+#define		RSN_CAP_REPLAY_COUNTER_4_PER	2
+#define		RSN_CAP_REPLAY_COUNTER_16_PER	3
 
 #define	WME_OUI			0xf25000
 #define	WME_OUI_TYPE		0x02
