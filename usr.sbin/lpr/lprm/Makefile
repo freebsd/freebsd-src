@@ -3,6 +3,7 @@
 
 BINDIR=	/usr/bin
 
+PACKAGE=lp
 PROG=	lprm
 BINOWN=	root
 BINGRP=	daemon

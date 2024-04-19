@@ -1,6 +1,7 @@
 
 BINDIR=	${LIBEXECDIR}/lpr
 
+PACKAGE=lp
 PROG=	lpf
 MAN=
 

@@ -1,6 +1,7 @@
 
 .PATH: ${.CURDIR:H}/common_source
 
+PACKAGE=lp
 PROG=	lpc
 MAN=	lpc.8
 SRCS=	lpc.c cmds.c cmdtab.c movejobs.c

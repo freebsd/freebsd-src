@@ -31,7 +31,10 @@ FTPPACKAGE=	ftpd
 .endif
 
 .if ${MK_LPR} != "no"
-SYSLOGD_D+=	lpr.conf
+CONFGROUPS+=	LP
+LP+=		lpr.conf
+LPDIR=		/etc/syslog.d
+LPPACKAGE=	lp
 .endif
 
 .if ${MK_PPP} != "no"
