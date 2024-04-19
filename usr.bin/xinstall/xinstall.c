@@ -1250,7 +1250,9 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 		errno = serrno;
 		err(EX_OSERR, "%s", from_name);
 	}
+#ifndef BOOTSTRAP_XINSTALL
 done:
+#endif
 	if (safecopy && fsync(to_fd) == -1) {
 		serrno = errno;
 		(void)unlink(to_name);
