@@ -262,9 +262,10 @@ static void
 slurp(INPUT *F)
 {
 	LINE *lp, *lastlp, tmp;
-	size_t len;
+	size_t blen = 0;
+	ssize_t len;
 	int cnt;
-	char *bp, *fieldp;
+	char *bp, *buf = NULL, *fieldp;
 
 	/*
 	 * Read all of the lines from an input file that have the same
@@ -307,21 +308,21 @@ slurp(INPUT *F)
 			F->pushbool = 0;
 			continue;
 		}
-		if ((bp = fgetln(F->fp, &len)) == NULL)
+		if ((len = getline(&buf, &blen, F->fp)) < 0) {
+			free(buf);
 			return;
-		if (lp->linealloc <= len + 1) {
+		}
+		if (lp->linealloc <= (size_t)(len + 1)) {
 			lp->linealloc += MAX(100, len + 1 - lp->linealloc);
 			if ((lp->line =
 			    realloc(lp->line, lp->linealloc)) == NULL)
 				err(1, NULL);
 		}
-		memmove(lp->line, bp, len);
+		memmove(lp->line, buf, len);
 
 		/* Replace trailing newline, if it exists. */
-		if (bp[len - 1] == '\n')
+		if (buf[len - 1] == '\n')
 			lp->line[len - 1] = '\0';
-		else
-			lp->line[len] = '\0';
 		bp = lp->line;
 
 		/* Split the line into fields, allocate space as necessary. */
@@ -345,6 +346,7 @@ slurp(INPUT *F)
 			break;
 		}
 	}
+	free(buf);
 }
 
 static char *
