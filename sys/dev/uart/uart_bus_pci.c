@@ -135,6 +135,8 @@ static const struct pci_id pci_ns8250_ids[] = {
 { 0x1d0f, 0x8250, 0x1d0f, 0, "Amazon PCI serial device", 0x10 },
 { 0x1fd4, 0x1999, 0x1fd4, 0x0001, "Sunix SER5xxxx Serial Port", 0x10,
 	8 * DEFAULT_RCLK },
+{ 0x8086, 0x0c5f, 0xffff, 0, "Atom Processor S1200 UART",
+	0x10 | PCI_NO_MSI },
 { 0x8086, 0x0f0a, 0xffff, 0, "Intel ValleyView LPIO1 HSUART#1", 0x10,
 	24 * DEFAULT_RCLK, 2 },
 { 0x8086, 0x0f0c, 0xffff, 0, "Intel ValleyView LPIO1 HSUART#2", 0x10,
