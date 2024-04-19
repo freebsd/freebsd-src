@@ -444,7 +444,7 @@ arm_gic_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource_list *rl;
 	int j;
 
-	KASSERT(type == SYS_RES_MEMORY, ("Invalid resoure type %x", type));
+	KASSERT(type == SYS_RES_MEMORY, ("Invalid resource type %x", type));
 
 	sc = device_get_softc(bus);
 
