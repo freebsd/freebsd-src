@@ -475,6 +475,10 @@ struct sigstack {
 
 #if __BSD_VISIBLE
 #define	BADSIG		SIG_ERR
+
+/* sigqueue(2) signo high-bits flags */
+#define	__SIGQUEUE_TID	0x80000000	/* queue for tid, instead of pid */
+#define	__SIGQUEUE_RSRV	0x40000000	/* reserved */
 #endif
 
 #if __POSIX_VISIBLE || __XSI_VISIBLE
