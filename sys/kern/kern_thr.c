@@ -29,8 +29,9 @@
 #include "opt_posix.h"
 #include "opt_hwpmc_hooks.h"
 
-#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
@@ -39,21 +40,19 @@
 #include <sys/ptrace.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
+#include <sys/rtprio.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/smp.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
-#include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
-#include <sys/ucontext.h>
 #include <sys/thr.h>
-#include <sys/rtprio.h>
+#include <sys/ucontext.h>
 #include <sys/umtxvar.h>
-#include <sys/limits.h>
 #ifdef	HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
