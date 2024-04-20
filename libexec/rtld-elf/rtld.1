@@ -324,8 +324,11 @@ control to any user code.
 If the variable is specified and has a numeric value,
 .Nm
 will set the size of the static TLS extra space to the specified number
-of bytes. The static TLS extra space is used when loading objects with
-dlopen. The minimum value that can be specified is \'128\'.
+of bytes.
+The static TLS extra space is used when loading objects compiled for
+initial-exec TLS code model with
+.Xr dlopen 3 .
+The minimum value that can be specified is \'128\'.
 .El
 .Sh DIRECT EXECUTION MODE
 .Nm
