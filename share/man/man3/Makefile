@@ -452,6 +452,7 @@ PTHREAD_MAN=	pthread.3 \
 		pthread_set_name_np.3 \
 		pthread_setspecific.3 \
 		pthread_sigmask.3 \
+		pthread_sigqueue.3 \
 		pthread_spin_init.3 \
 		pthread_spin_lock.3 \
 		pthread_suspend_all_np.3 \
