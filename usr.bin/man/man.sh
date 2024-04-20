@@ -33,6 +33,12 @@
 # it is better to terminate it.
 ulimit -t 20
 
+# do not ignore the exit status of roff tools
+set -o pipefail
+
+# ignore SIGPIPE exits because pagers may exit before reading all their input.
+trap '' SIGPIPE
+
 # Usage: add_to_manpath path
 # Adds a variable to manpath while ensuring we don't have duplicates.
 # Returns true if we were able to add something. False otherwise.
@@ -312,7 +318,7 @@ man_check_for_so() {
 	# We need to loop to accommodate multiple .so directives.
 	while true
 	do
-		line=$($cattool "$manpage" | head -n1)
+		line=$($cattool "$manpage" 2>/dev/null | head -n1)
 		case "$line" in
 		.so*)	trim "${line#.so}"
 			decho "$manpage includes $tstr"
