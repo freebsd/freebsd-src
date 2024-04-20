@@ -61,7 +61,7 @@
 
 struct qoriq_dw_pci_cfg {
 	uint32_t	pex_pf0_dgb;	/* offset of PEX_PF0_DBG register */
-	uint32_t	ltssm_bit;	/* LSB bit of of LTSSM state field */
+	uint32_t	ltssm_bit;	/* LSB bit of LTSSM state field */
 };
 
 struct qorif_dw_pci_softc {
