@@ -92,6 +92,97 @@ wg_basic_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "wg_basic_netmap" "cleanup"
+wg_basic_netmap_head()
+{
+	atf_set descr 'Create a wg(4) tunnel over an epair and pass traffic between jails with netmap'
+	atf_set require.user root
+}
+
+wg_basic_netmap_body()
+{
+	local epair pri1 pri2 pub1 pub2 wg1 wg2
+        local endpoint1 endpoint2 tunnel1 tunnel2 tunnel3 tunnel4
+	local pid status
+
+	kldload -n if_wg || atf_skip "This test requires if_wg and could not load it"
+	kldload -n netmap || atf_skip "This test requires netmap and could not load it"
+
+	pri1=$(wg genkey)
+	pri2=$(wg genkey)
+
+	endpoint1=192.168.2.1
+	endpoint2=192.168.2.2
+	tunnel1=192.168.3.1
+	tunnel2=192.168.3.2
+	tunnel3=192.168.3.3
+	tunnel4=192.168.3.4
+
+	epair=$(vnet_mkepair)
+
+	vnet_init
+
+	vnet_mkjail wgtest1 ${epair}a
+	vnet_mkjail wgtest2 ${epair}b
+
+	jexec wgtest1 ifconfig ${epair}a ${endpoint1}/24 up
+	jexec wgtest2 ifconfig ${epair}b ${endpoint2}/24 up
+
+	wg1=$(jexec wgtest1 ifconfig wg create)
+	echo "$pri1" | jexec wgtest1 wg set $wg1 listen-port 12345 \
+	    private-key /dev/stdin
+	pub1=$(jexec wgtest1 wg show $wg1 public-key)
+	wg2=$(jexec wgtest2 ifconfig wg create)
+	echo "$pri2" | jexec wgtest2 wg set $wg2 listen-port 12345 \
+	    private-key /dev/stdin
+	pub2=$(jexec wgtest2 wg show $wg2 public-key)
+
+	atf_check -s exit:0 -o ignore \
+	    jexec wgtest1 wg set $wg1 peer "$pub2" \
+	    endpoint ${endpoint2}:12345 allowed-ips ${tunnel2}/32,${tunnel4}/32
+	atf_check -s exit:0 \
+	    jexec wgtest1 ifconfig $wg1 inet ${tunnel1}/24 up
+
+	atf_check -s exit:0 -o ignore \
+	    jexec wgtest2 wg set $wg2 peer "$pub1" \
+	    endpoint ${endpoint1}:12345 allowed-ips ${tunnel1}/32,${tunnel3}/32
+	atf_check -s exit:0 \
+	    jexec wgtest2 ifconfig $wg2 inet ${tunnel2}/24 up
+
+	atf_check -s exit:0 -o ignore \
+	    jexec wgtest1 sysctl net.inet.ip.forwarding=1
+	atf_check -s exit:0 -o ignore \
+	    jexec wgtest2 sysctl net.inet.ip.forwarding=1
+
+	jexec wgtest1 $(atf_get_srcdir)/bridge -w 0 -i netmap:wg0 -i netmap:wg0^ &
+	pid=$!
+
+	# Generous timeout since the handshake takes some time.
+	atf_check -s exit:0 -o ignore jexec wgtest1 ping -c 1 -t 5 $tunnel2
+	atf_check -s exit:0 -o ignore jexec wgtest2 ping -c 1 $tunnel1
+
+	# Verify that we cannot ping non-existent tunnel addresses.  In general
+	# the remote side should respond with an ICMP message.
+	atf_check -s exit:2 -o ignore jexec wgtest1 ping -c 1 -t 2 $tunnel4
+	atf_check -s exit:2 -o ignore jexec wgtest2 ping -c 1 -t 2 $tunnel3
+
+	# Make sure that the bridge is still functional.
+	atf_check -s exit:0 -o ignore jexec wgtest1 ping -c 1 $tunnel2
+	atf_check -s exit:0 -o ignore jexec wgtest2 ping -c 1 $tunnel1
+
+	atf_check -s exit:0 kill -TERM $pid
+	wait $pid
+	status=$?
+
+	# Make sure that SIGTERM was received and handled.
+	atf_check_equal $status 143
+}
+
+wg_basic_netmap_cleanup()
+{
+	vnet_cleanup
+}
+
 # The kernel is expected to silently ignore any attempt to add a peer with a
 # public key identical to the host's.
 atf_test_case "wg_key_peerdev_shared" "cleanup"
@@ -258,6 +349,7 @@ wg_vnet_parent_routing_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case "wg_basic"
+	atf_add_test_case "wg_basic_netmap"
 	atf_add_test_case "wg_key_peerdev_shared"
 	atf_add_test_case "wg_key_peerdev_makeshared"
 	atf_add_test_case "wg_vnet_parent_routing"
