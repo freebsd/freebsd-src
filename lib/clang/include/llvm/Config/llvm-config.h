@@ -180,10 +180,10 @@
 #define LLVM_VERSION_MINOR 1
 
 /* Patch version of the LLVM API */
-#define LLVM_VERSION_PATCH 3
+#define LLVM_VERSION_PATCH 4
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "18.1.3"
+#define LLVM_VERSION_STRING "18.1.4"
 
 /* Whether LLVM records statistics for use with GetStatistics(),
  * PrintStatistics() or PrintStatisticsJSON()
