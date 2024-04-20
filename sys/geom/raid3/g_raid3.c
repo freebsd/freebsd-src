@@ -2033,7 +2033,7 @@ g_raid3_try_destroy(struct g_raid3_softc *sc)
 		sc->sc_worker = NULL;
 	} else {
 		g_topology_unlock();
-		g_raid3_free_device(sc);
+		g_raid3_destroy_device(sc);
 	}
 	return (1);
 }
