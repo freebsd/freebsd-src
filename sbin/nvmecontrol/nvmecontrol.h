@@ -96,7 +96,7 @@ void print_intel_add_smart(const struct nvme_controller_data *cdata __unused, vo
  * this. Older compilers will support 128-bit ints on 64-bit
  * platforms. Otherwise we truncate this to 64-bit on 32-bit systems with older
  * compilers. We also check for > C18 instead of >= C23 because clang 17 was
- * released before the the __STDC_VERSION__ was defined.
+ * released before the __STDC_VERSION__ was defined.
  */
 #define UINT128_DIG	39
 #if __STDC_VERSION__ >= 202311L
