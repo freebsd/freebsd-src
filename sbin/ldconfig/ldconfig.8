@@ -32,7 +32,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd February 28, 2024
+.Dd April 20, 2024
 .Dt LDCONFIG 8
 .Os
 .Sh NAME
@@ -107,7 +107,8 @@ on 64-bit systems that support running 32-bit binaries.
 Ignored for backwards compatibility.
 .It Fl B
 Force writing big-endian binary data to the hints file.
-The default is to create hints files in the native byte-order of the host.
+The default is to create hints files in little-endian byte-order on all
+architectures..
 Reading of and merging into hints files preserves the endianness of the
 existing hints file.
 .It Fl R
