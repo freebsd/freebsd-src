@@ -74,11 +74,16 @@ struct usb_quirk_entry {
 
 static struct mtx usb_quirk_mtx;
 
-#define	USB_QUIRK_VP(v,p,l,h,...) \
-  { .vid = (v), .pid = (p), .lo_rev = (l), .hi_rev = (h), \
-    .quirks = { __VA_ARGS__ } }
-#define	USB_QUIRK(v,p,l,h,...) \
-  USB_QUIRK_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, l, h, __VA_ARGS__)
+#define	USB_QUIRK(v, p, l, h, ...) { \
+  .vid = USB_VENDOR_##v, .pid = USB_PRODUCT_##v##_##p, .lo_rev = l, \
+  .hi_rev = h, .quirks = { __VA_ARGS__ } \
+}
+
+/* Vendor only */
+#define	USB_QUIRK_VO(v, ...) { \
+  .vid = USB_VENDOR_##v, .pid = 0x0000, .lo_rev = 0x0000, .hi_rev = 0xffff, \
+  .quirks = { UQ_MATCH_VENDOR_ONLY, __VA_ARGS__ } \
+}
 
 static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(ASUS, LCM, 0x0000, 0xffff, UQ_HID_IGNORE),
@@ -191,8 +196,7 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(BALTECH, SMARTCARDREADER, 0x0000, 0xffff, UQ_IGNORE_CDC_CM),
 
 	/* USB Mass Storage Class Quirks */
-	USB_QUIRK_VP(USB_VENDOR_ASAHIOPTICAL, 0, UQ_MSC_NO_RS_CLEAR_UA,
-	    UQ_MATCH_VENDOR_ONLY),
+	USB_QUIRK_VO(ASAHIOPTICAL, UQ_MSC_NO_RS_CLEAR_UA),
 	USB_QUIRK(ADDON, ATTACHE, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_BBB,
 	    UQ_MSC_FORCE_PROTO_SCSI, UQ_MSC_IGNORE_RESIDUE),
 	USB_QUIRK(ADDON, A256MB, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_BBB,
@@ -337,8 +341,7 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(MOTOROLA2, E398, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_BBB,
 	    UQ_MSC_FORCE_PROTO_SCSI, UQ_MSC_FORCE_SHORT_INQ,
 	    UQ_MSC_NO_INQUIRY_EVPD, UQ_MSC_NO_GETMAXLUN),
-	USB_QUIRK_VP(USB_VENDOR_MPMAN, 0, UQ_MSC_NO_SYNC_CACHE,
-	    UQ_MATCH_VENDOR_ONLY),
+	USB_QUIRK_VO(MPMAN, UQ_MSC_NO_SYNC_CACHE),
 	USB_QUIRK(MSYSTEMS, DISKONKEY, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_BBB,
 	    UQ_MSC_FORCE_PROTO_SCSI, UQ_MSC_IGNORE_RESIDUE, UQ_MSC_NO_GETMAXLUN,
 	    UQ_MSC_NO_RS_CLEAR_UA),
@@ -425,8 +428,7 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	    UQ_MSC_NO_START_STOP),
 	USB_QUIRK(PROLIFIC, PL2506, 0x0000, 0xffff,
 	    UQ_MSC_NO_SYNC_CACHE, UQ_MSC_NO_PREVENT_ALLOW),
-	USB_QUIRK_VP(USB_VENDOR_SAMSUNG_TECHWIN,
-	    USB_PRODUCT_SAMSUNG_TECHWIN_DIGIMAX_410, UQ_MSC_FORCE_WIRE_BBB,
+	USB_QUIRK(SAMSUNG_TECHWIN, DIGIMAX_410, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_BBB,
 	    UQ_MSC_FORCE_PROTO_SCSI, UQ_MSC_NO_INQUIRY),
 	USB_QUIRK(SANDISK, SDDR05A, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_CBI,
 	    UQ_MSC_FORCE_PROTO_SCSI, UQ_MSC_READ_CAP_OFFBY1,
@@ -624,11 +626,11 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	 * Quirks for manufacturers which USB devices does not respond
 	 * after issuing non-supported commands:
 	 */
-	USB_QUIRK(ALCOR, DUMMY, 0x0000, 0xffff, UQ_MSC_NO_SYNC_CACHE, UQ_MSC_NO_TEST_UNIT_READY, UQ_MATCH_VENDOR_ONLY),
-	USB_QUIRK(APPLE, DUMMY, 0x0000, 0xffff, UQ_MSC_NO_SYNC_CACHE, UQ_MATCH_VENDOR_ONLY),
-	USB_QUIRK(FEIYA, DUMMY, 0x0000, 0xffff, UQ_MSC_NO_SYNC_CACHE, UQ_MATCH_VENDOR_ONLY),
-	USB_QUIRK(REALTEK, DUMMY, 0x0000, 0xffff, UQ_MSC_NO_SYNC_CACHE, UQ_MATCH_VENDOR_ONLY),
-	USB_QUIRK(INITIO, DUMMY, 0x0000, 0xffff, UQ_MSC_NO_SYNC_CACHE, UQ_MATCH_VENDOR_ONLY),
+	USB_QUIRK_VO(ALCOR, UQ_MSC_NO_SYNC_CACHE, UQ_MSC_NO_TEST_UNIT_READY),
+	USB_QUIRK_VO(APPLE, UQ_MSC_NO_SYNC_CACHE),
+	USB_QUIRK_VO(FEIYA, UQ_MSC_NO_SYNC_CACHE),
+	USB_QUIRK_VO(REALTEK, UQ_MSC_NO_SYNC_CACHE),
+	USB_QUIRK_VO(INITIO, UQ_MSC_NO_SYNC_CACHE),
 
 	/* DYMO LabelManager Pnp */
 	USB_QUIRK(DYMO, LABELMANAGERPNP, 0x0000, 0xffff, UQ_MSC_DYMO_EJECT),
@@ -639,7 +641,7 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	/* This works much better with if_cdce than if_ure */
 	USB_QUIRK(LENOVO, TBT3LAN,  0x0000, 0xffff, UQ_CFG_INDEX_1),
 };
-#undef USB_QUIRK_VP
+#undef USB_QUIRK_VO
 #undef USB_QUIRK
 
 static const char *usb_quirk_str[USB_QUIRK_MAX] = {
