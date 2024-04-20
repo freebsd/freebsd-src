@@ -35,6 +35,7 @@ NETBSD_ATF_TESTS_SH+=	exit_test
 NETBSD_ATF_TESTS_SH+=	resolv_test
 
 ATF_TESTS_C+=		umtx_op_test
+ATF_TESTS_C+=		pthread_sigqueue_test
 
 LIBADD+=		pthread
 LIBADD.fpu_test+=	m
