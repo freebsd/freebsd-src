@@ -131,7 +131,7 @@ void		atomic_subtract_64(volatile uint64_t *, uint64_t);
 #else /* !__GNUCLIKE_ASM */
 
 /*
- * Always use lock prefixes.  The result is slighly less optimal for
+ * Always use lock prefixes.  The result is slightly less optimal for
  * UP systems, but it matters less now, and sometimes UP is emulated
  * over SMP.
  *
