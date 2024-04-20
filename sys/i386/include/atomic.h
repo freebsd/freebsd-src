@@ -91,7 +91,7 @@ __mbu(void)
  */
 
 /*
- * Always use lock prefixes.  The result is slighly less optimal for
+ * Always use lock prefixes.  The result is slightly less optimal for
  * UP systems, but it matters less now, and sometimes UP is emulated
  * over SMP.
  *
