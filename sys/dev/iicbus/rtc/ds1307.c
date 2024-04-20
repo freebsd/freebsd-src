@@ -471,7 +471,7 @@ ds1307_gettime(device_t dev, struct timespec *ts)
 	/*
 	 * If the chip is in AM/PM mode remember that.
 	 * The EPSON uses a 1 to signify 24 hour mode, while the DS uses a 0,
-	 * in slighly different positions.
+	 * in slightly different positions.
 	 */
 	if (sc->chiptype == TYPE_EPSON_RX8035)
 		ampm_mode = !(data[DS1307_HOUR] & RX8035_HOUR_USE_24);
