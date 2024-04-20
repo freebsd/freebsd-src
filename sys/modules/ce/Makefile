@@ -28,3 +28,4 @@ opt_ng_cronyx.h:
 
 CWARNFLAGS.tau32-ddk.c+=	${NO_WCONSTANT_CONVERSION}
 CWARNFLAGS.tau32-ddk.c+=	${NO_WMISLEADING_INDENTATION}
+CWARNFLAGS.tau32-ddk.c+=	-Wno-ignored-attributes
