@@ -2784,7 +2784,7 @@ printvhtcap(if_ctx *ctx, const char *tag, const u_int8_t *ie)
 		const struct ieee80211_vht_cap *vhtcap;
 		uint32_t vhtcap_info;
 
-		/* Check that the the right size. */
+		/* Check that the right size. */
 		if (ie[1] != sizeof(*vhtcap)) {
 			printf("<err: vht_cap inval. length>");
 			return;
@@ -2814,7 +2814,7 @@ printvhtinfo(if_ctx *ctx, const char *tag, const u_int8_t *ie)
 	if (ctx->args->verbose) {
 		const struct ieee80211_vht_operation *vhtinfo;
 
-		/* Check that the the right size. */
+		/* Check that the right size. */
 		if (ie[1] != sizeof(*vhtinfo)) {
 			printf("<err: vht_operation inval. length>");
 			return;
