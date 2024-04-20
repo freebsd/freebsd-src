@@ -296,7 +296,7 @@ tarfs_lookup(struct vop_cachedlookup_args *ap)
 	    *vpp, tnp);
 #endif	/* TARFS_DEBUG */
 
-	/* Store the result the the cache if MAKEENTRY is specified in flags */
+	/* Store the result of the cache if MAKEENTRY is specified in flags */
 	if ((cnp->cn_flags & MAKEENTRY) != 0 && cnp->cn_nameiop != CREATE)
 		cache_enter(dvp, *vpp, cnp);
 
