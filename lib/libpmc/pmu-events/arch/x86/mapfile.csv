@@ -48,5 +48,6 @@ GenuineIntel-6-9A,v1,alderlake,core
 GenuineIntel-6-8F,v1,sapphirerapids,core
 AuthenticAMD-23-[012][0-9A-F],v2,amdzen1,core
 AuthenticAMD-23-[[:xdigit:]]+,v1,amdzen2,core
-AuthenticAMD-25-[[:xdigit:]]+,v1,amdzen3,core
+AuthenticAMD-25-[0245][[:xdigit:]],v1,amdzen3,core
+AuthenticAMD-25-[[:xdigit:]]+,v1,amdzen4,core
 HygonGenuine-24-00,v2,amdzen1,core
