@@ -121,6 +121,19 @@ as follows:
 Although a valid Curve25519 key must have 5 bits set to
 specific values, this is done by the interface and so it
 will accept any random 32-byte base64 string.
+.Sh NETMAP
+.Xr netmap 4
+applications may open a WireGuard interface in emulated mode.
+The netmap application will receive decrypted, unencapsulated packets prepended
+by a dummy Ethernet header.
+The Ethertype field will be one of
+.Dv ETHERTYPE_IP
+or
+.Dv ETHERTYPE_IPV6
+depending on the address family of the packet.
+Packets transmitted by the application should similarly begin with a dummy
+Ethernet header; this header will be stripped before the packet is encrypted
+and tunneled.
 .Sh EXAMPLES
 Create a
 .Nm
@@ -183,6 +196,7 @@ is not assigned to the allowed IPs of Peer X.
 .Xr ip 4 ,
 .Xr ipsec 4 ,
 .Xr netintro 4 ,
+.Xr netmap 4 ,
 .Xr ovpn 4 ,
 .Xr ipf 5 ,
 .Xr pf.conf 5 ,
