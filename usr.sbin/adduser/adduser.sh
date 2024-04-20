@@ -59,12 +59,11 @@ get_nextuid () {
 		_nextuid="$(${PWCMD} usernext | cut -f1 -d:)"
 	else
 		while : ; do
-			${PWCMD} usershow $_uid > /dev/null 2>&1
-			if [ ! "$?" -eq 0 ]; then
+			if ! ${PWCMD} usershow $_uid > /dev/null 2>&1; then
 				_nextuid=$_uid
 				break
 			fi
-			_uid=$(($_uid + 1))
+			_uid=$((_uid + 1))
 		done
 	fi
 	echo $_nextuid
@@ -262,8 +261,7 @@ add_user() {
 		if [ -n "$BSDINSTALL_CHROOT" ]; then
 			create_zfs_chrooted_dataset
 		else
-			create_zfs_dataset
-			if [ "$?" -ne 0 ]; then
+			if ! create_zfs_dataset; then
 				err "There was an error adding user ($username)."
 				return 1
 			fi
@@ -354,8 +352,7 @@ get_user() {
 			err "You must enter a username!"
 			[ -z "$fflag" ] && continue
 		fi
-		${PWCMD} usershow "$_input" > /dev/null 2>&1
-		if [ "$?" -eq 0 ]; then
+		if ${PWCMD} usershow "$_input" > /dev/null 2>&1; then
 			err "User exists!"
 			[ -z "$fflag" ] && continue
 		fi
@@ -476,19 +473,20 @@ get_homeperm() {
 #	so, enable ZFS home dataset creation.
 #
 get_zfs_home() {
+	local _prefix
+
 	# check if zfs kernel module is loaded before attempting to run zfs to
 	# prevent loading the kernel module on systems that don't use ZFS
-	if ! "$KLDSTATCMD" -q -m zfs; then
+	if ! "$KLDSTATCMD" -q -m zfs ||
 		Zcreate="no"
 		return
 	fi
-	zfs_homeprefix=$(${ZFSCMD} list -Ho name "${homeprefix}" 2>/dev/null)
-	if [ "$?" -ne 0 ]; then
+	if ! _prefix=$(${ZFSCMD} list -Ho name "${homeprefix}" 2>/dev/null) ||
+	    [ -z "${_prefix}" ]; then
 		Zcreate="no"
-	elif [ -z "${zfs_homeprefix}" ]; then
-		Zcreate="no"
+		return
 	fi
-	zhome="${zfs_homeprefix}/${username}"
+	zhome="${_prefix}/${username}"
 }
 
 # get_uid
