@@ -25,7 +25,7 @@
 .\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 5, 2017
+.Dd April 21, 2024
 .Dt SIGQUEUE 2
 .Os
 .Sh NAME
@@ -96,6 +96,19 @@ be selected for delivery, it is the lowest numbered
 one.
 The selection order between realtime and non-realtime signals, or
 between multiple pending non-realtime signals, is unspecified.
+.Pp
+As a
+.Fx
+extension, the value of
+.Fa signo
+can be or-ed with the following flags:
+.Bl -tag -width __SIGQUEUE_TID
+.It Dv __SIGQUEUE_TID
+The
+.Fa pid
+parameter is the thread identifier of a thread in the current process,
+and the specified signal is queued into the specified thread' queue.
+.El
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
@@ -122,6 +135,10 @@ to the receiving process.
 The process
 .Fa pid
 does not exist.
+.It Bq Er ESRCH
+The thread with id
+.Fa pid
+does not exist in the current process.
 .El
 .Sh SEE ALSO
 .Xr kill 2 ,
