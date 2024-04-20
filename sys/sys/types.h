@@ -379,7 +379,7 @@ __bitcount64(__uint64_t _x)
  * The major and minor numbers are encoded in dev_t as MMMmmmMm (where
  * letters correspond to bytes).  The encoding of the lower 4 bytes is
  * constrained by compatibility with 16-bit and 32-bit dev_t's.  The
- * encoding of of the upper 4 bytes is the least unnatural one consistent
+ * encoding of the upper 4 bytes is the least unnatural one consistent
  * with this and other constraints.  Also, the decoding of the m bytes by
  * minor() is unnatural to maximize compatibility subject to not discarding
  * bits.  The upper m byte is shifted into the position of the lower M byte
