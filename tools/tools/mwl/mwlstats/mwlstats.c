@@ -126,7 +126,7 @@ static const struct fmt mwlstats[] = {
 #define	S_RX_FRAGERROR	AFTER(S_RX_OVERFLOW)
 	{ 6,	"rxfrag",	"rxfrag",	"rx failed in f/w due to defrag" },
 #define	S_RX_MEMERROR	AFTER(S_RX_FRAGERROR)
-	{ 5,	"rxmem",	"rxmem",	"rx failed in f/w 'cuz out of of memory" },
+	{ 5,	"rxmem",	"rxmem",	"rx failed in f/w 'cuz out of memory" },
 #define	S_PTRERROR	AFTER(S_RX_MEMERROR)
 	{ 6,	"badptr",	"badptr",	"MAC internal pointer problem" },
 #define	S_TX_UNDERFLOW	AFTER(S_PTRERROR)
