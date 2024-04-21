@@ -2,8 +2,6 @@
 SHLIB_NAME?=	legacy.so
 LIBADD=		crypto
 
-VERSION_MAP=	${SRCTOP}/crypto/openssl/providers/legacy.ld
-
 SRCS+=	legacyprov.c prov_running.c
 
 # ciphers
