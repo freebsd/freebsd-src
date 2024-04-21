@@ -476,7 +476,7 @@ g_wither_geom_close(struct g_geom *gp, int error)
 }
 
 /*
- * This function is called (repeatedly) until we cant wash away more
+ * This function is called (repeatedly) until we can't wash away more
  * withered bits at present.
  */
 void
