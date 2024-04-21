@@ -416,7 +416,7 @@ ivhd_identify(driver_t *driver, device_t parent)
 		if (ivhd_devs[i] == NULL) {
 			ivhd_devs[i] = device_find_child(parent, "ivhd", i);
 			if (ivhd_devs[i] == NULL) {
-				printf("AMD-Vi: cant find ivhd%d\n", i);
+				printf("AMD-Vi: can't find ivhd%d\n", i);
 				break;
 			}
 		}
