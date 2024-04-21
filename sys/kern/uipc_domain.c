@@ -163,7 +163,7 @@ protosw_init(struct protosw *pr)
 
 /*
  * Add a new protocol domain to the list of supported domains
- * Note: you cant unload it again because a socket may be using it.
+ * Note: you can't unload it again because a socket may be using it.
  * XXX can't fail at this time.
  */
 void
