@@ -42,16 +42,9 @@
  * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#246 $
  */
 
-#ifdef __linux__
-#include "aic79xx_osm.h"
-#include "aic79xx_inline.h"
-#include "aicasm/aicasm_insformat.h"
-#else
-#include <sys/cdefs.h>
 #include <dev/aic7xxx/aic79xx_osm.h>
 #include <dev/aic7xxx/aic79xx_inline.h>
 #include <dev/aic7xxx/aicasm/aicasm_insformat.h>
-#endif
 
 /******************************** Globals *************************************/
 struct ahd_softc_tailq ahd_tailq = TAILQ_HEAD_INITIALIZER(ahd_tailq);
@@ -2250,7 +2243,6 @@ ahd_handle_nonpkt_busfree(struct ahd_softc *ahd)
 			printerror = 0;
 		} else if (ahd_sent_msg(ahd, AHDMSG_1B,
 					MSG_BUS_DEV_RESET, TRUE)) {
-#ifdef __FreeBSD__
 			/*
 			 * Don't mark the user's request for this BDR
 			 * as completing with CAM_BDR_SENT.  CAM3
@@ -2262,7 +2254,6 @@ ahd_handle_nonpkt_busfree(struct ahd_softc *ahd)
 					  CAM_LUN_WILDCARD, SCB_LIST_NULL,
 					  ROLE_INITIATOR))
 				aic_set_transaction_status(scb, CAM_REQ_CMP);
-#endif
 			ahd_handle_devreset(ahd, &devinfo, CAM_LUN_WILDCARD,
 					    CAM_BDR_SENT, "Bus Device Reset",
 					    /*verbose_level*/0);
@@ -5223,23 +5214,11 @@ ahd_alloc(void *platform_arg, char *name)
 {
 	struct  ahd_softc *ahd;
 
-#ifndef	__FreeBSD__
-	ahd = malloc(sizeof(*ahd), M_DEVBUF, M_NOWAIT);
-	if (!ahd) {
-		printf("aic7xxx: cannot malloc softc!\n");
-		free(name, M_DEVBUF);
-		return NULL;
-	}
-#else
 	ahd = device_get_softc((device_t)platform_arg);
-#endif
 	memset(ahd, 0, sizeof(*ahd));
 	ahd->seep_config = malloc(sizeof(*ahd->seep_config),
 				  M_DEVBUF, M_NOWAIT);
 	if (ahd->seep_config == NULL) {
-#ifndef	__FreeBSD__
-		free(ahd, M_DEVBUF);
-#endif
 		free(name, M_DEVBUF);
 		return (NULL);
 	}
@@ -5377,17 +5356,13 @@ ahd_free(struct ahd_softc *ahd)
 	case 2:
 		aic_dma_tag_destroy(ahd, ahd->shared_data_dmat);
 	case 1:
-#ifndef __linux__
 		aic_dma_tag_destroy(ahd, ahd->buffer_dmat);
-#endif
 		break;
 	case 0:
 		break;
 	}
 
-#ifndef __linux__
 	aic_dma_tag_destroy(ahd, ahd->parent_dmat);
-#endif
 	ahd_platform_free(ahd);
 	ahd_fini_scbdata(ahd);
 	for (i = 0; i < AHD_NUM_TARGETS; i++) {
@@ -5423,9 +5398,6 @@ ahd_free(struct ahd_softc *ahd)
 		free(ahd->seep_config, M_DEVBUF);
 	if (ahd->saved_stack != NULL)
 		free(ahd->saved_stack, M_DEVBUF);
-#ifndef __FreeBSD__
-	free(ahd, M_DEVBUF);
-#endif
 	return;
 }
 
@@ -6146,9 +6118,7 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 	for (i = 0; i < newcount; i++) {
 		struct scb_platform_data *pdata;
 		u_int col_tag;
-#ifndef __linux__
 		int error;
-#endif
 
 		next_scb = (struct scb *)malloc(sizeof(*next_scb),
 						M_DEVBUF, M_NOWAIT);
@@ -6184,7 +6154,6 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 			next_scb->sg_list_busaddr += sizeof(struct ahd_dma_seg);
 		next_scb->ahd_softc = ahd;
 		next_scb->flags = SCB_FLAG_NONE;
-#ifndef __linux__
 		error = aic_dmamap_create(ahd, ahd->buffer_dmat, /*flags*/0,
 					  &next_scb->dmamap);
 		if (error != 0) {
@@ -6192,7 +6161,7 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 			free(pdata, M_DEVBUF);
 			break;
 		}
-#endif
+
 		next_scb->hscb->tag = aic_htole16(scb_data->numscbs);
 		col_tag = scb_data->numscbs ^ 0x100;
 		next_scb->col_scb = ahd_find_scb_by_tag(ahd, col_tag);
@@ -6295,7 +6264,6 @@ ahd_init(struct ahd_softc *ahd)
 	if ((AHD_TMODE_ENABLE & (0x1 << ahd->unit)) == 0)
 		ahd->features &= ~AHD_TARGETMODE;
 
-#ifndef __linux__
 	/* DMA tag for mapping buffers into device visible space. */
 	if (aic_dma_tag_create(ahd, ahd->parent_dmat, /*alignment*/1,
 			       /*boundary*/BUS_SPACE_MAXADDR_32BIT + 1,
@@ -6311,7 +6279,6 @@ ahd_init(struct ahd_softc *ahd)
 			       &ahd->buffer_dmat) != 0) {
 		return (ENOMEM);
 	}
-#endif
 
 	ahd->init_level++;
 
