@@ -302,6 +302,25 @@ ahd_platform_intr(void *arg)
 	ahd_unlock(ahd);
 }
 
+static void
+ahd_sync_ccb(struct ahd_softc *ahd, struct scb *scb, union ccb *ccb, bool post)
+{
+	bus_dmasync_op_t op;
+	uint32_t rdmask;
+
+	if (ccb->ccb_h.func_code == XPT_CONT_TARGET_IO)
+		rdmask = CAM_DIR_OUT;
+	else
+		rdmask = CAM_DIR_IN;
+
+	if ((ccb->ccb_h.flags & CAM_DIR_MASK) == rdmask)
+		op = post ? BUS_DMASYNC_POSTREAD : BUS_DMASYNC_PREREAD;
+	else
+		op = post ? BUS_DMASYNC_POSTWRITE : BUS_DMASYNC_PREWRITE;
+
+	bus_dmamap_sync(ahd->buffer_dmat, scb->dmamap, op);
+}
+
 /*
  * We have an scb which has been processed by the
  * adaptor, now we look to see how the operation
@@ -323,13 +342,7 @@ ahd_done(struct ahd_softc *ahd, struct scb *scb)
 	callout_stop(&scb->io_timer);
 
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		bus_dmasync_op_t op;
-
-		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
-			op = BUS_DMASYNC_POSTREAD;
-		else
-			op = BUS_DMASYNC_POSTWRITE;
-		bus_dmamap_sync(ahd->buffer_dmat, scb->dmamap, op);
+		ahd_sync_ccb(ahd, scb, ccb, true);
 		bus_dmamap_unload(ahd->buffer_dmat, scb->dmamap);
 	}
 
@@ -960,7 +973,6 @@ ahd_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 	scb->sg_count = 0;
 	if (nsegments != 0) {
 		void *sg;
-		bus_dmasync_op_t op;
 		u_int i;
 
 		/* Copy the segments into our SG list */
@@ -970,13 +982,8 @@ ahd_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 					  /*last*/i == 1);
 			dm_segs++;
 		}
-		
-		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
-			op = BUS_DMASYNC_PREREAD;
-		else
-			op = BUS_DMASYNC_PREWRITE;
 
-		bus_dmamap_sync(ahd->buffer_dmat, scb->dmamap, op);
+		ahd_sync_ccb(ahd, scb, ccb, false);
 
 		if (ccb->ccb_h.func_code == XPT_CONT_TARGET_IO) {
 			struct target_data *tdata;
