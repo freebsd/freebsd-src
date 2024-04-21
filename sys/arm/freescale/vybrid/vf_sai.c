@@ -462,7 +462,7 @@ find_edma_controller(struct sc_info *sc)
 	sc->edma_chnum = edma_sc->channel_configure(edma_sc, edma_mux_group,
 	    edma_src_transmit);
 	if (sc->edma_chnum < 0) {
-		/* cant setup eDMA */
+		/* can't setup eDMA */
 		return (ENXIO);
 	}
 
