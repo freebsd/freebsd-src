@@ -125,8 +125,8 @@ SUBDIR:=${SUBDIR:u}
 .endif
 
 .if defined(SUBDIR.)
-.error ${.CURDIR}: Found variable SUBDIR. with value "${SUBDIR.}". This was \
-        probably caused by using SUBDIR.$${MK_FOO} without including \
+.error ${.CURDIR}: Found variable 'SUBDIR.' with value "${SUBDIR.}". This was\
+        probably caused by using SUBDIR.$${MK_FOO} without including\
         <src.opts.mk> or by using an invalid $${MK_FOO} option.
 .endif
 
