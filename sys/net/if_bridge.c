@@ -135,6 +135,31 @@
 #include <net/route.h>
 
 /*
+ * At various points in the code we need to know if we're hooked into the INET
+ * and/or INET6 pfil.  Define some macros to do that based on which IP versions
+ * are enabled in the kernel.  This avoids littering the rest of the code with
+ * #ifnet INET6 to avoid referencing V_inet6_pfil_head.
+ */
+#ifdef INET6
+#define		PFIL_HOOKED_IN_INET6	PFIL_HOOKED_IN(V_inet6_pfil_head)
+#define		PFIL_HOOKED_OUT_INET6	PFIL_HOOKED_OUT(V_inet6_pfil_head)
+#else
+#define		PFIL_HOOKED_IN_INET6	false
+#define		PFIL_HOOKED_OUT_INET6	false
+#endif
+
+#ifdef INET
+#define		PFIL_HOOKED_IN_INET	PFIL_HOOKED_IN(V_inet_pfil_head)
+#define		PFIL_HOOKED_OUT_INET	PFIL_HOOKED_OUT(V_inet_pfil_head)
+#else
+#define		PFIL_HOOKED_IN_INET	false
+#define		PFIL_HOOKED_OUT_INET	false
+#endif
+
+#define		PFIL_HOOKED_IN_46	(PFIL_HOOKED_IN_INET6 || PFIL_HOOKED_IN_INET)
+#define		PFIL_HOOKED_OUT_46	(PFIL_HOOKED_OUT_INET6 || PFIL_HOOKED_OUT_INET)
+
+/*
  * Size of the route hash table.  Must be a power of two.
  */
 #ifndef BRIDGE_RTHASH_SIZE
@@ -2127,11 +2152,7 @@ bridge_dummynet(struct mbuf *m, struct ifnet *ifp)
 		return;
 	}
 
-	if (PFIL_HOOKED_OUT(V_inet_pfil_head)
-#ifdef INET6
-	    || PFIL_HOOKED_OUT(V_inet6_pfil_head)
-#endif
-	    ) {
+	if (PFIL_HOOKED_OUT_46) {
 		if (bridge_pfil(&m, sc->sc_ifp, ifp, PFIL_OUT) != 0)
 			return;
 		if (m == NULL)
@@ -2429,11 +2450,7 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 		ETHER_BPF_MTAP(ifp, m);
 
 	/* run the packet filter */
-	if (PFIL_HOOKED_IN(V_inet_pfil_head)
-#ifdef INET6
-	    || PFIL_HOOKED_IN(V_inet6_pfil_head)
-#endif
-	    ) {
+	if (PFIL_HOOKED_IN_46) {
 		if (bridge_pfil(&m, ifp, src_if, PFIL_IN) != 0)
 			return;
 		if (m == NULL)
@@ -2465,11 +2482,7 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	    dbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING)
 		goto drop;
 
-	if (PFIL_HOOKED_OUT(V_inet_pfil_head)
-#ifdef INET6
-	    || PFIL_HOOKED_OUT(V_inet6_pfil_head)
-#endif
-	    ) {
+	if (PFIL_HOOKED_OUT_46) {
 		if (bridge_pfil(&m, ifp, dst_if, PFIL_OUT) != 0)
 			return;
 		if (m == NULL)
@@ -2626,12 +2639,6 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 #define	CARP_CHECK_WE_ARE_SRC(iface)	false
 #endif
 
-#ifdef INET6
-#define	PFIL_HOOKED_INET6	PFIL_HOOKED_IN(V_inet6_pfil_head)
-#else
-#define	PFIL_HOOKED_INET6	false
-#endif
-
 #ifdef DEV_NETMAP
 #define	GRAB_FOR_NETMAP(ifp, m) do {					\
 	if ((if_getcapenable(ifp) & IFCAP_NETMAP) != 0 &&		\
@@ -2670,8 +2677,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		/* Hand the packet over to netmap if necessary. */	\
 		GRAB_FOR_NETMAP(bifp, m);				\
 		/* Filter on the physical interface. */			\
-		if (V_pfil_local_phys && (PFIL_HOOKED_IN(V_inet_pfil_head) || \
-		    PFIL_HOOKED_INET6)) {				\
+		if (V_pfil_local_phys && PFIL_HOOKED_IN_46) {		\
 			if (bridge_pfil(&m, NULL, ifp,			\
 			    PFIL_IN) != 0 || m == NULL) {		\
 				return (NULL);				\
@@ -2710,7 +2716,6 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 #undef CARP_CHECK_WE_ARE_DST
 #undef CARP_CHECK_WE_ARE_SRC
-#undef PFIL_HOOKED_INET6
 #undef GRAB_FOR_NETMAP
 #undef GRAB_OUR_PACKETS
 
@@ -2765,11 +2770,7 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 	sbif = bridge_lookup_member_if(sc, src_if);
 
 	/* Filter on the bridge interface before broadcasting */
-	if (runfilt && (PFIL_HOOKED_OUT(V_inet_pfil_head)
-#ifdef INET6
-	    || PFIL_HOOKED_OUT(V_inet6_pfil_head)
-#endif
-	    )) {
+	if (runfilt && PFIL_HOOKED_OUT_46) {
 		if (bridge_pfil(&m, sc->sc_ifp, NULL, PFIL_OUT) != 0)
 			return;
 		if (m == NULL)
@@ -2812,11 +2813,7 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 		 * pointer so we do not redundantly filter on the bridge for
 		 * each interface we broadcast on.
 		 */
-		if (runfilt && (PFIL_HOOKED_OUT(V_inet_pfil_head)
-#ifdef INET6
-		    || PFIL_HOOKED_OUT(V_inet6_pfil_head)
-#endif
-		    )) {
+		if (runfilt && PFIL_HOOKED_OUT_46) {
 			if (used == 0) {
 				/* Keep the layer3 header aligned */
 				i = min(mc->m_pkthdr.len, max_protohdr);
