@@ -11,7 +11,6 @@ MAN=	arch.7 \
 	crypto.7 \
 	development.7 \
 	environ.7 \
-	ffs.7 \
 	firewall.7 \
 	growfs.7 \
 	hier.7 \
