@@ -84,7 +84,7 @@ as described below.
 This format may contain
 .Dq conversion specifiers ;
 the results of such conversions, if any, depend on the arguments
-following theg
+following the
 .Fa format
 string.
 .Pp
@@ -114,8 +114,9 @@ write to the character string
 and
 .Fn vasprintf
 dynamically allocate a new string with
-.Xr malloc 3g
-that is stored ing
+.Xr malloc 3
+that is stored in
+>>>>>>> 5affdd06c021 (Update order of parameters alphabetically)
 .Fa ret .
 .Pp
 These functions write the output under the control of a
@@ -151,8 +152,9 @@ and
 functions
 will write at most
 .Fa size Ns \-1
-of the characters tog
-.Fa strg
+of the characters to
+.Fa str
+of the characters printed into the output string
 (the
 .Fa size Ns 'th
 character then gets the terminating
@@ -160,7 +162,7 @@ character then gets the terminating
 if the return value is greater than or equal to the
 .Fa size
 argument, the string was too short
-and some of the printed characters were discarded.
+and some of the print characters are discarded.
 The output is null-terminated, unless
 .Fa size
 is 0.
@@ -310,15 +312,15 @@ overrides a
 if both are given.
 .It So "\ " Sc (space)
 For signed conversions, print a space character before a positive number
-associated with theseg
-.Ar conversiong
-optionsg
+associated with these
+.Ar conversion
+options
 .Cm ( a , A , d , e , E , f , F , g , G ,
 or
 .Cm i ) .
 .It Cm + Pq plus
 A sign must always be placed before a
-number produced by a signedg
+number produced by a signed
 .Ar conversion .
 .Cm +
 overrides a space if both are specified.
@@ -435,9 +437,9 @@ conversion:
 A character that specifies the type of conversion to be applied.
 .El
 .Pp
-A fieldg
+A field
 .Ar width
-org
+or
 .Ar precision ,
 or both, may be indicated as
 .Cm * Ns Op Ar argno Ns Cm $ ,
@@ -445,14 +447,14 @@ i.e. as an aterisk optionally followed
 by an unsigned decimal digit string and a dollar sign.
 In this case, an
 .Vt int
-argument supplies the fieldg
+argument supplies the field
 .Ar width
 org
 .Ar precision .
-A negative fieldg
+A negative field
 .Ar widthg
 is treated as a left adjustment flag followed by a
-positive fieldg
+positive field
 .Ar width ;
 a negativeg
 .Ar precision
