@@ -4937,7 +4937,6 @@ ahc_init(struct ahc_softc *ahc)
 		for (i = 0; i < AHC_TMODE_CMDS; i++)
 			ahc->targetcmds[i].cmd_valid = 0;
 		ahc_sync_tqinfifo(ahc, BUS_DMASYNC_PREREAD);
-		ahc->qoutfifo = (uint8_t *)&ahc->targetcmds[256];
 	}
 	ahc->qinfifo = &ahc->qoutfifo[256];
 
