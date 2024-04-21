@@ -1,8 +1,6 @@
 
 SHLIB_NAME?=	fips.so
 
-VERSION_MAP=	${SRCTOP}/crypto/openssl/providers/fips.ld
-
 CFLAGS+=	-DFIPS_MODULE
 
 SRCS+=	fips_entry.c fipsprov.c self_test.c self_test_kats.c
