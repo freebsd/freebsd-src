@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 19, 2023
+.Dd April 26, 2024
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -141,17 +141,19 @@ values are
 .Cm date ,
 .Cm hours ,
 .Cm minutes ,
+.Cm seconds ,
 and
-.Cm seconds .
+.Cm ns No Pq for nanoseconds .
 The date and time is formatted to the specified precision.
 When
 .Ar FMT
 is
 .Cm hours
-(or the more precise
-.Cm minutes
+.Po or the more precise
+.Cm minutes ,
+.Cm seconds ,
 or
-.Cm seconds ) ,
+.Cm ns Pc ,
 the
 .St -iso8601
 format includes the timezone.
@@ -325,7 +327,9 @@ which specifies the format in which to display the date and time.
 The format string may contain any of the conversion specifications
 described in the
 .Xr strftime 3
-manual page, as well as any arbitrary text.
+manual page and
+.Ql %N
+for nanoseconds, as well as any arbitrary text.
 A newline
 .Pq Ql \en
 character is always output after the characters specified by
@@ -551,6 +555,7 @@ prints:
 and exits with status 1.
 .Sh SEE ALSO
 .Xr locale 1 ,
+.Xr clock_gettime 2 ,
 .Xr gettimeofday 2 ,
 .Xr getutxent 3 ,
 .Xr strftime 3 ,
@@ -581,6 +586,12 @@ The format selected by the
 .Fl I
 flag is compatible with
 .St -iso8601 .
+.Pp
+The
+.Ql %N
+conversion specification for nanoseconds is a non-standard extension.
+It is compatible with GNU date's
+.Ql %N .
 .Sh HISTORY
 A
 .Nm
@@ -599,3 +610,8 @@ The
 .Fl I
 flag was added in
 .Fx 12.0 .
+.Pp
+The
+.Ql %N
+conversion specification was added in
+.Fx 15.0 .
