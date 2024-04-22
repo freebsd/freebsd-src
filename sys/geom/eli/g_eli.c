@@ -100,11 +100,13 @@ SYSCTL_BOOL(_kern_geom_eli, OID_AUTO, blocking_malloc, CTLFLAG_RWTUN,
 static bool g_eli_unmapped_io = true;
 SYSCTL_BOOL(_kern_geom_eli, OID_AUTO, unmapped_io, CTLFLAG_RDTUN,
     &g_eli_unmapped_io, 0, "Enable support for unmapped I/O");
+static int g_eli_alloc_sz;
+SYSCTL_UINT(_kern_geom_eli, OID_AUTO, use_uma_bytes, CTLFLAG_RD,
+    &g_eli_alloc_sz, 0, "Use uma(9) for allocations of this size or smaller.");
 
 static struct sx g_eli_umalock;	/* Controls changes to UMA zone. */
 SX_SYSINIT(g_eli_umalock, &g_eli_umalock, "GELI UMA");
 static uma_zone_t g_eli_uma = NULL;
-static int g_eli_alloc_sz;
 static volatile int g_eli_umaoutstanding;
 static volatile int g_eli_devs;
 
