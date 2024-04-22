@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 20, 2024
+.Dd April 24, 2024
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -851,6 +851,15 @@ This variable should be set in
 Specifies how many times the Master Key is overwritten
 with random values when it is destroyed.
 After this operation it is filled with zeros.
+.It Va kern.geom.eli.use_uma_bytes
+.Nm
+must allocate a buffer for every write operation, used when performing
+encryption.
+This sysctl reports the maximum size in bytes for which geli will perform the
+allocation using
+.Xr UMA 9 ,
+as opposed to
+.Xr malloc 9 .
 .It Va kern.geom.eli.visible_passphrase : No 0
 If set to 1, the passphrase entered on boot will be visible.
 This alternative should be used with caution as the entered
@@ -863,6 +872,9 @@ Specifies how many kernel threads should be used for doing software
 cryptography.
 Its purpose is to increase performance on SMP systems.
 If set to 0, a CPU-pinned thread will be started for every active CPU.
+Note that this variable must be set prior to attaching
+.Nm
+to a disk.
 .It Va kern.geom.eli.batch : No 0
 When set to 1, can speed-up crypto operations by using batching.
 Batching reduces the number of interrupts by responding to a group of
@@ -891,6 +903,34 @@ This is an optimization which reduces the overhead of I/O processing.
 This variable is intended for debugging purposes and must be set in
 .Pa /boot/loader.conf .
 .El
+.Sh PERFORMANCE CONSIDERATIONS
+The default value of
+.Va kern.geom.eli.threads
+is usually good for a system with one SSD.
+However, it may need to be lowered on systems with many disks,
+so as to avoid creating too much thread-switching overhead.
+On systems with more disks than CPUs, it's best to set this variable
+to 1.
+.Pp
+.Nm
+internally uses
+.Xr malloc 9
+to allocate memory for operations larger than
+.Va kern.geom.eli.use_uma_bytes ,
+but malloc is slow for allocations larger than
+.Va vm.kmem_zmax .
+So it's best to avoid writing more than
+.Ms MAX(kern.geom.eli.use_uma_bytes, vm.kmem_zmax)
+in a single write operation.
+On systems that format
+.Xr zfs 4
+on top of
+.Nm ,
+the maximum write size can be controlled by
+.Va vfs.zfs.vdev.aggregation_limit
+and
+.Va vfs.zfs.vdev.aggregation_limit_non_rotating
+for HDDs and SSDs, respectively.
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
