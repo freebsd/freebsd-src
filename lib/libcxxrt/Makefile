@@ -1,8 +1,8 @@
+PACKAGE=	clibs
 SHLIBDIR?=	/lib
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
-PACKAGE=	clibs
 SRCDIR=		${SRCTOP}/contrib/libcxxrt
 
 SHLIB_MAJOR=	1
