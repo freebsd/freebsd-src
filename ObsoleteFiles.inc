@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20240422: remove improperly installed libcxxrt.so.1
+OLD_LIBS+=usr/lib/libcxxrt.so.1
+
 # 20240414: unix_socketpair_test renamed
 OLD_FILES+=usr/tests/sys/kern/unix_socketpair_test
 
