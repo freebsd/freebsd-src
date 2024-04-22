@@ -136,7 +136,11 @@ This tunable disables MSI support on the Ethernet hardware.
 The default value is 0.
 .It Va hw.alc.msix_disable
 This tunable disables MSI-X support on the Ethernet hardware.
-The default value is 0.
+The default value is 2, which means to enable or disable MSI-X based on the
+card type; for "Killer" cards (E2x00) MSI-X will be disabled, while on other
+cards it will be enabled.
+Set this to 0 to force MSI-X to be enabled, or 1 to force it to be disabled
+regardless of card type.
 .El
 .Sh SYSCTL VARIABLES
 The following variables are available as both
