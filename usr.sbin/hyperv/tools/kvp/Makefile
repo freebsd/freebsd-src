@@ -4,6 +4,7 @@
 HV_KVP_DAEMON_DISTDIR?= ${SRCTOP}/contrib/hyperv/tools
 .PATH: ${HV_KVP_DAEMON_DISTDIR}
 
+PACKAGE=hyperv-tools
 PROG= 	hv_kvp_daemon
 MAN= 	hv_kvp_daemon.8
 
