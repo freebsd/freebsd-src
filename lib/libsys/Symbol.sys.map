@@ -384,7 +384,6 @@ FBSD_1.8 {
 
 FBSDprivate_1.0 {
 	/* Add entries in sort(1) order */
-	__libsys_interposing_slot;
 	__set_error_selector;
 	__sigwait;
 	gssd_syscall;

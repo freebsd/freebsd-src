@@ -2,6 +2,7 @@ FBSDprivate_1.0 {
 	__elf_aux_vector;
 	__getosreldate;
 	__realpathat;
+	__libsys_interposing_slot;
 	_elf_aux_info;
 	freebsd11_fstat;
 	freebsd11_fstatat;
