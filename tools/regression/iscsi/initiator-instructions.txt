@@ -3,9 +3,9 @@ How to prepare initiator virtual machines for iSCSI target testing
 
 1. Install operating systems.
 
-  - FreeBSD: Use default settings for everything.  Don't install
-    ports from the system installer, use "portsnap fetch extract"
-    after installation instead.
+  - FreeBSD: Use default settings for everything.  Don't install ports
+    from the system installer, fetch a new ports tree after
+    installation instead.
 
   - Fedora: Change the environment to "Minimal install".
 
