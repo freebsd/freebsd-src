@@ -32,6 +32,7 @@
 #include "opt_hwpmc_hooks.h"
 
 #include <sys/systm.h>
+#include <sys/asan.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/msan.h>
