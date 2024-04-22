@@ -5,6 +5,7 @@ DIRDEPS = lib/libc
 HV_VSS_DAEMON_DISTDIR?= ${SRCTOP}/contrib/hyperv/tools
 .PATH: ${HV_VSS_DAEMON_DISTDIR}
 
+PACKAGE=hyperv-tools
 PROG= 	hv_vss_daemon
 MAN= 	hv_vss_daemon.8
 
