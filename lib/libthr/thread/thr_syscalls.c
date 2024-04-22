@@ -651,7 +651,7 @@ __thr_interpose_libc(void)
 #undef SLOT
 
 #define	SLOT(name)					\
-	*(__libsys_interposing_slot(INTERPOS_##name)) =	\
+	*(__libc_interposing_slot(INTERPOS_##name)) =	\
 	    (interpos_func_t)__thr_##name;
 	SLOT(accept);
 	SLOT(accept4);
