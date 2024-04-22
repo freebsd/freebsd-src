@@ -41,7 +41,7 @@ if [ "${repo}" = "ports.git" ]; then
 	qtr=$(((month-1) / 3 + 1))
 	to_branch="freebsd/${year}Q${qtr}"
 elif [ "${repo}" = "src.git" ]; then
-	to_branch=freebsd/stable/13
+	to_branch=freebsd/stable/14
 	# If pwd is a stable or release branch tree, default to it.
 	cur_branch=$(git symbolic-ref --short HEAD 2>/dev/null)
 	case $cur_branch in
