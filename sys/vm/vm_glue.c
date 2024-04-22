@@ -543,8 +543,6 @@ vm_thread_new(struct thread *td, int pages)
 	td->td_kstack = ks;
 	td->td_kstack_pages = pages;
 	td->td_kstack_domain = ks_domain;
-	kasan_mark((void *)ks, ptoa(pages), ptoa(pages), 0);
-	kmsan_mark((void *)ks, ptoa(pages), KMSAN_STATE_UNINIT);
 	return (1);
 }
 
@@ -562,11 +560,12 @@ vm_thread_dispose(struct thread *td)
 	td->td_kstack = 0;
 	td->td_kstack_pages = 0;
 	td->td_kstack_domain = MAXMEMDOM;
-	kasan_mark((void *)ks, 0, ptoa(pages), KASAN_KSTACK_FREED);
-	if (pages == kstack_pages)
+	if (pages == kstack_pages) {
+		kasan_mark((void *)ks, 0, ptoa(pages), KASAN_KSTACK_FREED);
 		uma_zfree(kstack_cache, (void *)ks);
-	else
+	} else {
 		vm_thread_stack_dispose(ks, pages);
+	}
 }
 
 /*

@@ -798,6 +798,7 @@ thread_alloc(int pages)
 	}
 	td->td_tid = tid;
 	bzero(&td->td_sa.args, sizeof(td->td_sa.args));
+	kasan_thread_alloc(td);
 	kmsan_thread_alloc(td);
 	cpu_thread_alloc(td);
 	EVENTHANDLER_DIRECT_INVOKE(thread_ctor, td);
@@ -805,15 +806,18 @@ thread_alloc(int pages)
 }
 
 int
-thread_alloc_stack(struct thread *td, int pages)
+thread_recycle(struct thread *td, int pages)
 {
-
-	KASSERT(td->td_kstack == 0,
-	    ("thread_alloc_stack called on a thread with kstack"));
-	if (!vm_thread_new(td, pages))
-		return (0);
-	cpu_thread_alloc(td);
-	return (1);
+	if (td->td_kstack == 0 || td->td_kstack_pages != pages) {
+		if (td->td_kstack != 0)
+			vm_thread_dispose(td);
+		if (!vm_thread_new(td, pages))
+			return (ENOMEM);
+		cpu_thread_alloc(td);
+	}
+	kasan_thread_alloc(td);
+	kmsan_thread_alloc(td);
+	return (0);
 }
 
 /*
