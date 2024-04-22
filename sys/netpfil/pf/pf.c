@@ -7956,7 +7956,10 @@ pf_dummynet_route(struct pf_pdesc *pd, struct pf_kstate *s,
 
 		if (s != NULL && s->nat_rule.ptr != NULL &&
 		    s->nat_rule.ptr->action == PF_RDR &&
-		    ((pd->af == AF_INET && IN_LOOPBACK(ntohl(pd->dst->v4.s_addr))) ||
+		    (
+#ifdef INET
+		    (pd->af == AF_INET && IN_LOOPBACK(ntohl(pd->dst->v4.s_addr))) ||
+#endif
 		    (pd->af == AF_INET6 && IN6_IS_ADDR_LOOPBACK(&pd->dst->v6)))) {
 			/*
 			 * If we're redirecting to loopback mark this packet
