@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 18, 2022
+.Dd April 20, 2024
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -867,7 +867,7 @@ If set to 0, a CPU-pinned thread will be started for every active CPU.
 When set to 1, can speed-up crypto operations by using batching.
 Batching reduces the number of interrupts by responding to a group of
 crypto requests with one interrupt.
-The crypto card and the driver has to support this feature.
+The crypto card and the driver have to support this feature.
 .It Va kern.geom.eli.key_cache_limit : No 8192
 Specifies how many Data Keys to cache.
 The default limit
@@ -884,7 +884,7 @@ Reports how many times we were looking up a Data Key and it was not in cache.
 This sysctl is not updated for providers that need fewer Data Keys than the limit
 specified in
 .Va kern.geom.eli.key_cache_limit .
-.Va kern.geom.eli.unmapped_io
+.It Va kern.geom.eli.unmapped_io
 Enable support for unmapped I/O buffers, currently implemented only on 64-bit
 platforms.
 This is an optimization which reduces the overhead of I/O processing.
