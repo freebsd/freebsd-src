@@ -53,8 +53,6 @@
         ..
         ports
         ..
-        portsnap
-        ..
         zfsd tags=package=zfs
             cases
             ..
