@@ -274,6 +274,13 @@ static const char *cipher_modnames[IEEE80211_CIPHER_MAX] = {
 	[IEEE80211_CIPHER_TKIPMIC] = "#4",	/* NB: reserved */
 	[IEEE80211_CIPHER_CKIP]	   = "wlan_ckip",
 	[IEEE80211_CIPHER_NONE]	   = "wlan_none",
+	[IEEE80211_CIPHER_AES_CCM_256] = "wlan_ccmp",
+	[IEEE80211_CIPHER_BIP_CMAC_128] = "wlan_bip_cmac",
+	[IEEE80211_CIPHER_BIP_CMAC_256] = "wlan_bip_cmac",
+	[IEEE80211_CIPHER_BIP_GMAC_128] = "wlan_bip_gmac",
+	[IEEE80211_CIPHER_BIP_GMAC_256] = "wlan_bip_gmac",
+	[IEEE80211_CIPHER_AES_GCM_128]  = "wlan_gcmp",
+	[IEEE80211_CIPHER_AES_GCM_256]  = "wlan_gcmp",
 };
 
 /* NB: there must be no overlap between user-supplied and device-owned flags */
