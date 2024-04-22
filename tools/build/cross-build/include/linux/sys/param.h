@@ -35,6 +35,7 @@
  */
 #pragma once
 #include_next <sys/param.h>
+#include <sys/types.h>
 
 /* Without this include NBBY will reference the undefined variable CHAR_BIT */
 #ifndef CHAR_BIT

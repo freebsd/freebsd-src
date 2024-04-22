@@ -45,3 +45,6 @@
  * Neither GLibc nor macOS define __va_list but many FreeBSD headers require it.
  */
 typedef __builtin_va_list __va_list;
+
+/* Needed for opensolaris compat. */
+typedef	__int64_t	off64_t;

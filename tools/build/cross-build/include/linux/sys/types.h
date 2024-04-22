@@ -35,6 +35,11 @@
  */
 #pragma once
 
+/*
+ * FreeBSD's types.h always includes sys/cdefs.h, but Linux headers often don't.
+ */
+#include <sys/cdefs.h>
+
 #include_next <sys/types.h>
 
 #ifndef __size_t

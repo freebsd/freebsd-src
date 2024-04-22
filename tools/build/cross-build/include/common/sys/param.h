@@ -39,6 +39,7 @@
 #pragma once
 
 #include_next <sys/param.h>
+#include <sys/types.h>
 
 #ifndef BLKDEV_IOSIZE
 #define BLKDEV_IOSIZE PAGE_SIZE /* default block device I/O size */

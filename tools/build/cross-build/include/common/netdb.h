@@ -36,4 +36,5 @@
 #pragma once
 #include_next <netdb.h>
 
+#define _PATH_SERVICES "/etc/services"
 #define _PATH_SERVICES_DB "/var/db/services.db"
