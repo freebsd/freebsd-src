@@ -39,6 +39,7 @@ __KERNEL_RCSID(0, "$NetBSD: subr_asan.c,v 1.26 2020/09/10 14:10:46 maxv Exp $");
 #include <sys/systm.h>
 #include <sys/asan.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/stack.h>
 #include <sys/sysctl.h>
 
@@ -291,6 +292,15 @@ kasan_mark(const void *addr, size_t size, size_t redzsize, uint8_t code)
 	n = redz / KASAN_SHADOW_SCALE;
 	for (i = 0; i < n; i++) {
 		*shad++ = code;
+	}
+}
+
+void
+kasan_thread_alloc(struct thread *td)
+{
+	if (td->td_kstack != 0) {
+		kasan_mark((void *)td->td_kstack, ptoa(td->td_kstack_pages),
+		    ptoa(td->td_kstack_pages), 0);
 	}
 }
 

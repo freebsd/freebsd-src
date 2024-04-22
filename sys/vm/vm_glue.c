@@ -391,11 +391,12 @@ vm_thread_dispose(struct thread *td)
 	ks = td->td_kstack;
 	td->td_kstack = 0;
 	td->td_kstack_pages = 0;
-	kasan_mark((void *)ks, 0, ptoa(pages), KASAN_KSTACK_FREED);
-	if (pages == kstack_pages)
+	if (pages == kstack_pages) {
+		kasan_mark((void *)ks, 0, ptoa(pages), KASAN_KSTACK_FREED);
 		uma_zfree(kstack_cache, (void *)ks);
-	else
+	} else {
 		vm_thread_stack_dispose(ks, pages);
+	}
 }
 
 /*
