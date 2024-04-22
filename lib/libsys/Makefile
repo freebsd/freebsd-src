@@ -60,7 +60,8 @@ MIASM=
 NOASM=
 
 SYM_MAPS+=	${LIBSYS_SRCTOP}/Symbol.map
-SRCS+=	auxv.c
+SRCS+=	auxv.c \
+	interposing_table.c
 
 .include "${LIBSYS_SRCTOP}/Makefile.sys"
 
