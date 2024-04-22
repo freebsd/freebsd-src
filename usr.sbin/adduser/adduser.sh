@@ -477,8 +477,7 @@ get_zfs_home() {
 
 	# check if zfs kernel module is loaded before attempting to run zfs to
 	# prevent loading the kernel module on systems that don't use ZFS
-	if ! "$KLDSTATCMD" -q -m zfs ||
-		Zcreate="no"
+	if ! "$KLDSTATCMD" -q -m zfs || Zcreate="no"; then
 		return
 	fi
 	if ! _prefix=$(${ZFSCMD} list -Ho name "${homeprefix}" 2>/dev/null) ||
