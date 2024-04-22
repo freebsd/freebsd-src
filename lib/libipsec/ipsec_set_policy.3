@@ -41,11 +41,11 @@
 .Sh SYNOPSIS
 .In netipsec/ipsec.h
 .Ft "char *"
-.Fn ipsec_set_policy "char *policy" "int len"
+.Fn ipsec_set_policy "const char *policy" "int len"
 .Ft int
-.Fn ipsec_get_policylen "char *buf"
+.Fn ipsec_get_policylen "const char *buf"
 .Ft "char *"
-.Fn ipsec_dump_policy "char *buf" "char *delim"
+.Fn ipsec_dump_policy "c_caddr_t *buf" "const char *delim"
 .Sh DESCRIPTION
 The
 .Fn ipsec_set_policy
