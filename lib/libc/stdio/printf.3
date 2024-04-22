@@ -116,7 +116,6 @@ and
 dynamically allocate a new string with
 .Xr malloc 3
 that is stored in
->>>>>>> 5affdd06c021 (Update order of parameters alphabetically)
 .Fa ret .
 .Pp
 These functions write the output under the control of a
@@ -904,18 +903,52 @@ variable at the beginning of the call, as returned by
 .Xr strerror 3 .
 No argument is taken.
 .It Cm n
+.Sm off
+.Cm %
+.Op Ar argno Cm $
+.Op Ar size 
+.Cm n
+.Sm on
+.Pp
 The number of characters written so far is stored into the
 integer indicated by the
 .Vt "int *"
 (or variant) pointer argument.
 No argument is converted.
 .It Cm O
-A deprecate alias forg
+A deprecated alias for
 .Ar lo .
+.It Cm o
+.Sm off
+.Cm %
+.Op Ar argno Cm $
+.Op Cm #
+.Op Cm \~ | +
+.Op Cm \- | 0
+.Op Ar width
+.Op . Ar significant
+.Op Cm L | l
+.Cm o
+.Sm on
+.Pp
+Similar to
+.Ar u
+except that the
+.Ar unsigned int
+argument is converted to unsigned octal notation.
+If the 
+.Ql # 
+flag is given,
+.Ar minidigits
+is increased such that the first digit printed is a zero, except
+if a zero value is printed with an explicit
+.Ar minidigts
+of zero.
+.Pp
 .It Cm p
 The
 .Vt "void *"
-pointer argument is printed ing
+pointer argument is printed in
 .Ar hexadecimal
 (as if by
 .Ql %#x
