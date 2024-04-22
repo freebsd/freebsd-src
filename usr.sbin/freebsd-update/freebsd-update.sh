@@ -1105,10 +1105,10 @@ IDS_check_params () {
 # a useful answer, use the server name specified by the user.
 # Put another way... look up _http._tcp.${SERVERNAME} and pick a server
 # from that; or if no servers are returned, use ${SERVERNAME}.
-# This allows a user to specify "portsnap.freebsd.org" (in which case
-# portsnap will select one of the mirrors) or "portsnap5.tld.freebsd.org"
-# (in which case portsnap will use that particular server, since there
-# won't be an SRV entry for that name).
+# This allows a user to specify "update.FreeBSD.org" (in which case
+# freebsd-update will select one of the mirrors) or "update1.freebsd.org"
+# (in which case freebsd-update will use that particular server, since
+# there won't be an SRV entry for that name).
 #
 # We ignore the Port field, since we are always going to use port 80.
 
