@@ -263,6 +263,8 @@ main(int argc, char *argv[])
 				else if (len <= 4 &&
 					strncasecmp(optarg, "both", len) == 0)
 					directions |= BOTH;
+				else
+					usage();
 				break;
 			}
 		case 'd':
