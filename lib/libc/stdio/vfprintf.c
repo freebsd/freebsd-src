@@ -312,6 +312,8 @@ __vfprintf(FILE *fp, locale_t locale, const char *fmt0, va_list ap)
 	int width;		/* width from format (%8d), or 0 */
 	int prec;		/* precision from format; <0 for N/A */
 	int saved_errno;
+	int error;
+	char errnomsg[NL_TEXTMAX];
 	char sign;		/* sign prefix (' ', '+', '-', or \0) */
 	struct grouping_state gs; /* thousands' grouping info */
 
@@ -829,7 +831,9 @@ fp_common:
 			break;
 #endif /* !NO_FLOATING_POINT */
 		case 'm':
-			cp = strerror(saved_errno);
+			error = __strerror_rl(saved_errno, errnomsg,
+			    sizeof(errnomsg), locale);
+			cp = error == 0 ? errnomsg : "<strerror failure>";
 			size = (prec >= 0) ? strnlen(cp, prec) : strlen(cp);
 			sign = '\0';
 			break;
