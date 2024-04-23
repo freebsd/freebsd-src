@@ -293,9 +293,9 @@ create_diskimage_mbr ( ) (
 		# p1 is boot for uefi, p2 is boot for gpt, p3 is cfg, p4 is /
 		# and p5 is alt-root (after resize)
 		mkimg -a 2 ${fmtarg} ${bootmbr} -s gpt \
-			-p efi:=${NANO_WORLDDIR}/boot/efiboot.img \
+			-p efi/efiboot0:=${NANO_WORLDDIR}/boot/efiboot.img \
 			-p freebsd-boot:=${NANO_WORLDDIR}/boot/gptboot \
-			-p ${p3}:=${NANO_LOG}/_.p3 \
+			-p ${p3}/cfg:=${NANO_LOG}/_.p3 \
 			-p ${p4}:=${NANO_LOG}/_.p4 \
 			-o ${out}
 		;;
