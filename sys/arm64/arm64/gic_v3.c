@@ -494,6 +494,10 @@ gic_v3_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case GICV3_IVAR_REDIST:
 		*result = (uintptr_t)&sc->gic_redists.pcpu[PCPU_GET(cpuid)];
 		return (0);
+	case GICV3_IVAR_SUPPORT_LPIS:
+		*result =
+		    (gic_d_read(sc, 4, GICD_TYPER) & GICD_TYPER_LPIS) != 0;
+		return (0);
 	case GIC_IVAR_HW_REV:
 		KASSERT(
 		    GICR_PIDR2_ARCH(sc->gic_pidr2) == GICR_PIDR2_ARCH_GICv3 ||
