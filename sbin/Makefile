@@ -52,6 +52,7 @@ SUBDIR=adjkerntz \
 	newfs_msdos \
 	nfsiod \
 	nos-tun \
+	nvmecontrol \
 	pfilctl \
 	rcorder \
 	reboot \
@@ -78,7 +79,6 @@ SUBDIR.${MK_INET6}+=	rtsol
 SUBDIR.${MK_IPFILTER}+=	ipf
 SUBDIR.${MK_IPFW}+=	ipfw
 SUBDIR.${MK_IPFW}+=	natd
-SUBDIR.${MK_NVME}+=	nvmecontrol
 SUBDIR.${MK_OPENSSL}+=	decryptcore
 SUBDIR.${MK_PF}+=	pfctl
 SUBDIR.${MK_PF}+=	pflogd
