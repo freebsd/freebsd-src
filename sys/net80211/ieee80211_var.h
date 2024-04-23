@@ -167,6 +167,8 @@ struct ieee80211com {
 	uint32_t		ic_sw_cryptocaps;
 	uint32_t		ic_cryptocaps;	/* hardware crypto caps */
 						/* set of mode capabilities */
+				/* driver/net80211 sw KEYMGMT capabilities */
+	uint32_t		ic_sw_keymgmtcaps;
 	uint8_t			ic_modecaps[IEEE80211_MODE_BYTES];
 	uint8_t			ic_promisc;	/* vap's needing promisc mode */
 	uint8_t			ic_allmulti;	/* vap's needing all multicast*/
@@ -755,6 +757,8 @@ void	ieee80211_set_software_ciphers(struct ieee80211com *,
 	    uint32_t cipher_suite);
 void	ieee80211_set_hardware_ciphers(struct ieee80211com *,
 	    uint32_t cipher_suite);
+void	ieee80211_set_driver_keymgmt_suites(struct ieee80211com *ic,
+	    uint32_t keymgmt_set);
 int	ieee80211_vap_setup(struct ieee80211com *, struct ieee80211vap *,
 		const char name[IFNAMSIZ], int unit,
 		enum ieee80211_opmode opmode, int flags,

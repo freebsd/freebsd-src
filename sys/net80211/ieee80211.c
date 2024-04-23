@@ -456,6 +456,18 @@ ieee80211_set_hardware_ciphers(struct ieee80211com *ic,
 	ieee80211_crypto_set_supported_hardware_ciphers(ic, cipher_suite);
 }
 
+/*
+ * Called by drivers during attach to set the supported
+ * key management suites by the driver/hardware.
+ */
+void
+ieee80211_set_driver_keymgmt_suites(struct ieee80211com *ic,
+    uint32_t keymgmt_set)
+{
+	ieee80211_crypto_set_supported_driver_keymgmt(ic,
+	    keymgmt_set);
+}
+
 struct ieee80211com *
 ieee80211_find_com(const char *name)
 {
