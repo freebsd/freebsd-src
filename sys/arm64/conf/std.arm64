@@ -73,7 +73,7 @@ options 	PERTHREAD_SSP		# Per-thread SSP canary
 options 	KDB			# Enable kernel debugger support.
 options 	KDB_TRACE		# Print a stack trace for a panic.
 # For full debugger support use (turn off in stable branch):
-include ../../conf/std.debug
+include "std.debug"
 
 # Kernel Sanitizers
 #options 	COVERAGE		# Generic kernel coverage. Used by KCOV

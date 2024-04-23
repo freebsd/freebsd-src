@@ -6,6 +6,6 @@
 #NO_UNIVERSE
 
 include MINIMAL
-include "../../conf/std.nodebug"
+include "std.nodebug"
 
 ident   MINIMAL-NODEBUG
