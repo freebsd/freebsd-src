@@ -1,0 +1,11 @@
+#
+# MINIMAL-NODEBUG -- Non-debug MINIMAL kernel.
+#
+# This is the MINIMAL equivalent to GENERIC-NODEBUG.
+
+#NO_UNIVERSE
+
+include MINIMAL
+include "../../conf/std.nodebug"
+
+ident   MINIMAL-NODEBUG
