@@ -149,7 +149,6 @@ __DEFAULT_YES_OPTIONS = \
     NS_CACHING \
     NTP \
     NUAGEINIT \
-    NVME \
     OFED \
     OPENSSL \
     PAM \
