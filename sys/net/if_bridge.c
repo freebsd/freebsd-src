@@ -403,14 +403,19 @@ static int	bridge_ioctl_sproto(struct bridge_softc *, void *);
 static int	bridge_ioctl_stxhc(struct bridge_softc *, void *);
 static int	bridge_pfil(struct mbuf **, struct ifnet *, struct ifnet *,
 		    int);
+static void	bridge_linkstate(struct ifnet *ifp);
+static void	bridge_linkcheck(struct bridge_softc *sc);
+
+#ifdef INET
 static int	bridge_ip_checkbasic(struct mbuf **mp);
+static int	bridge_fragment(struct ifnet *, struct mbuf **mp,
+		    struct ether_header *, int, struct llc *);
+#endif /* INET */
+
 #ifdef INET6
 static int	bridge_ip6_checkbasic(struct mbuf **mp);
 #endif /* INET6 */
-static int	bridge_fragment(struct ifnet *, struct mbuf **mp,
-		    struct ether_header *, int, struct llc *);
-static void	bridge_linkstate(struct ifnet *ifp);
-static void	bridge_linkcheck(struct bridge_softc *sc);
+
 
 /*
  * Use the "null" value from IEEE 802.1Q-2014 Table 9-2
@@ -3390,12 +3395,15 @@ bridge_state_change(struct ifnet *ifp, int state)
 static int
 bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 {
-	int snap, error, i, hlen;
+	int snap, error, i;
 	struct ether_header *eh1, eh2;
-	struct ip *ip;
 	struct llc llc1;
 	u_int16_t ether_type;
 	pfil_return_t rv;
+#ifdef INET
+	struct ip *ip = NULL;
+	int hlen = 0;
+#endif
 
 	snap = 0;
 	error = -1;	/* Default error if not error == 0 */
@@ -3436,31 +3444,36 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	}
 
 	/*
-	 * If we're trying to filter bridge traffic, don't look at anything
-	 * other than IP and ARP traffic.  If the filter doesn't understand
-	 * IPv6, don't allow IPv6 through the bridge either.  This is lame
-	 * since if we really wanted, say, an AppleTalk filter, we are hosed,
-	 * but of course we don't have an AppleTalk filter to begin with.
-	 * (Note that since pfil doesn't understand ARP it will pass *ALL*
-	 * ARP traffic.)
+	 * If we're trying to filter bridge traffic, only look at traffic for
+	 * protocols available in the kernel (IPv4 and/or IPv6) to avoid
+	 * passing traffic for an unsupported protocol to the filter.  This is
+	 * lame since if we really wanted, say, an AppleTalk filter, we are
+	 * hosed, but of course we don't have an AppleTalk filter to begin
+	 * with.  (Note that since pfil doesn't understand ARP it will pass
+	 * *ALL* ARP traffic.)
 	 */
 	switch (ether_type) {
+#ifdef INET
 		case ETHERTYPE_ARP:
 		case ETHERTYPE_REVARP:
 			if (V_pfil_ipfw_arp == 0)
 				return (0); /* Automatically pass */
-			break;
 
+			/*FALLTHROUGH*/
 		case ETHERTYPE_IP:
+#endif
 #ifdef INET6
 		case ETHERTYPE_IPV6:
 #endif /* INET6 */
 			break;
+
 		default:
 			/*
-			 * Check to see if the user wants to pass non-ip
-			 * packets, these will not be checked by pfil(9) and
-			 * passed unconditionally so the default is to drop.
+			 * We get here if the packet isn't from a supported
+			 * protocol.  Check to see if the user wants to pass
+			 * non-IP packets, these will not be checked by pfil(9)
+			 * and passed unconditionally so the default is to
+			 * drop.
 			 */
 			if (V_pfil_onlyip)
 				goto bad;
@@ -3492,9 +3505,11 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	 */
 	if (dir == PFIL_IN) {
 		switch (ether_type) {
+#ifdef INET
 			case ETHERTYPE_IP:
 				error = bridge_ip_checkbasic(mp);
 				break;
+#endif
 #ifdef INET6
 			case ETHERTYPE_IPV6:
 				error = bridge_ip6_checkbasic(mp);
@@ -3514,6 +3529,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	 */
 	rv = PFIL_PASS;
 	switch (ether_type) {
+#ifdef INET
 	case ETHERTYPE_IP:
 		/*
 		 * Run pfil on the member interface and the bridge, both can
@@ -3571,6 +3587,8 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			ip->ip_sum = in_cksum(*mp, hlen);
 
 		break;
+#endif
+
 #ifdef INET6
 	case ETHERTYPE_IPV6:
 		if (V_pfil_bridge && dir == PFIL_OUT && bifp != NULL && (rv =
@@ -3628,6 +3646,7 @@ bad:
 	return (error);
 }
 
+#ifdef INET
 /*
  * Perform basic checks on header size since
  * pfil assumes ip_input has already processed
@@ -3728,6 +3747,7 @@ bad:
 	*mp = m;
 	return (-1);
 }
+#endif
 
 #ifdef INET6
 /*
@@ -3783,6 +3803,7 @@ bad:
 }
 #endif /* INET6 */
 
+#ifdef INET
 /*
  * bridge_fragment:
  *
@@ -3859,6 +3880,7 @@ dropit:
 	}
 	return (error);
 }
+#endif
 
 static void
 bridge_linkstate(struct ifnet *ifp)
