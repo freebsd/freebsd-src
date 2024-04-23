@@ -43,10 +43,6 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${LZMALIBDIR} \
 		-I${XZDIR}/common
 
-.if ${MK_CAPSICUM} == "no"
-CFLAGS+=	-DWITHOUT_CAPSICUM
-.endif
-
 LIBADD=	lzma
 
 .include <bsd.prog.mk>
