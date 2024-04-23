@@ -26,6 +26,6 @@
 #
 
 include GENERIC64
-include "../../conf/std.nodebug"
+include "std.nodebug"
 
 ident   GENERIC64-NODEBUG

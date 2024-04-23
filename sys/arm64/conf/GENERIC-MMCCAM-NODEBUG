@@ -9,6 +9,6 @@
 #NO_UNIVERSE
 
 include GENERIC-MMCCAM
-include "../../conf/std.nodebug"
+include "std.nodebug"
 
 ident GENERIC-MMCCAM-NODEBUG
