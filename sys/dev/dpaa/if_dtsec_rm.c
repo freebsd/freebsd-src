@@ -115,8 +115,6 @@ dtsec_rm_fi_pool_init(struct dtsec_softc *sc)
 	sc->sc_fi_zone = uma_zcreate(sc->sc_fi_zname,
 	    sizeof(struct dtsec_rm_frame_info), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
-	if (sc->sc_fi_zone == NULL)
-		return (EIO);
 
 	return (0);
 }
@@ -312,8 +310,6 @@ dtsec_rm_pool_rx_init(struct dtsec_softc *sc)
 
 	sc->sc_rx_zone = uma_zcreate(sc->sc_rx_zname, FM_PORT_BUFFER_SIZE, NULL,
 	    NULL, NULL, NULL, FM_PORT_BUFFER_SIZE - 1, 0);
-	if (sc->sc_rx_zone == NULL)
-		return (EIO);
 
 	sc->sc_rx_pool = bman_pool_create(&sc->sc_rx_bpid, FM_PORT_BUFFER_SIZE,
 	    0, 0, DTSEC_RM_POOL_RX_MAX_SIZE, dtsec_rm_pool_rx_get_buffer,
