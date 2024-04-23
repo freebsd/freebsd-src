@@ -299,7 +299,11 @@ pow(double x, double y)
 	r  = (z*t1)/(t1-two)-(w+z*w);
 	z  = one-(r-z);
 	GET_HIGH_WORD(j,z);
-	j += (n<<20);
+    /*
+     * sign bit of z is 0.
+     * sign bit of j will indicate sign of 0x3ff-biased exponent.
+     */
+	j += (int32_t)((u_int32_t)n<<20);
 	if((j>>20)<=0) z = scalbn(z,n);	/* subnormal output */
 	else SET_HIGH_WORD(z,j);
 	return s*z;

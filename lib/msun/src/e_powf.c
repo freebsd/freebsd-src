@@ -242,7 +242,11 @@ powf(float x, float y)
 	r  = (z*t1)/(t1-two)-(w+z*w);
 	z  = one-(r-z);
 	GET_FLOAT_WORD(j,z);
-	j += (n<<23);
+    /*
+     * sign bit of z is 0.
+     * sign bit of j will indicate sign of 0x7f-biased exponent.
+     */
+	j += (int32_t)((u_int32_t)n<<23);
 	if((j>>23)<=0) z = scalbnf(z,n);	/* subnormal output */
 	else SET_FLOAT_WORD(z,j);
 	return sn*z;
