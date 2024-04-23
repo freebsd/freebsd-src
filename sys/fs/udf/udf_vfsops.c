@@ -140,11 +140,6 @@ static int
 udf_init(struct vfsconf *foo)
 {
 
-	/*
-	 * This code used to pre-allocate a certain number of pages for each
-	 * pool, reducing the need to grow the zones later on.  UMA doesn't
-	 * advertise any such functionality, unfortunately =-<
-	 */
 	udf_zone_trans = uma_zcreate("UDF translation buffer, zone", MAXNAMLEN *
 	    sizeof(unicode_t), NULL, NULL, NULL, NULL, 0, 0);
 
@@ -153,12 +148,6 @@ udf_init(struct vfsconf *foo)
 
 	udf_zone_ds = uma_zcreate("UDF Dirstream zone",
 	    sizeof(struct udf_dirstream), NULL, NULL, NULL, NULL, 0, 0);
-
-	if ((udf_zone_node == NULL) || (udf_zone_trans == NULL) ||
-	    (udf_zone_ds == NULL)) {
-		printf("Cannot create allocation zones.\n");
-		return (ENOMEM);
-	}
 
 	return 0;
 }
