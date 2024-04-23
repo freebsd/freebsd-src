@@ -82,7 +82,7 @@ int newnfs_nfsv3_procid[NFS_V3NPROCS] = {
 
 SYSCTL_DECL(_vfs_nfsd);
 
-NFSD_VNET_DEFINE_STATIC(int, nfs_privport) = 0;
+NFSD_VNET_DEFINE_STATIC(int, nfs_privport) = 1;
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, nfs_privport, CTLFLAG_NFSD_VNET | CTLFLAG_RWTUN,
     &NFSD_VNET_NAME(nfs_privport), 0,
     "Only allow clients using a privileged port for NFSv2, 3 and 4");
