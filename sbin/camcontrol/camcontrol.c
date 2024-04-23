@@ -60,9 +60,7 @@
 #include <cam/mmc/mmc_all.h>
 #include <camlib.h>
 #include "camcontrol.h"
-#ifdef WITH_NVME
 #include "nvmecontrol_ext.h"
-#endif
 
 typedef enum {
 	CAM_CMD_NONE,
@@ -278,9 +276,7 @@ static int print_dev_ata(struct device_match_result *dev_result, char *tmpstr);
 static int print_dev_semb(struct device_match_result *dev_result, char *tmpstr);
 static int print_dev_mmcsd(struct device_match_result *dev_result,
     char *tmpstr);
-#ifdef WITH_NVME
 static int print_dev_nvme(struct device_match_result *dev_result, char *tmpstr);
-#endif
 static int requestsense(struct cam_device *device, int argc, char **argv,
 			char *combinedopt, int task_attr, int retry_count,
 			int timeout);
@@ -600,14 +596,12 @@ getdevtree(int argc, char **argv, char *combinedopt)
 						skip_device = 1;
 						break;
 					}
-#ifdef WITH_NVME
 				} else if (dev_result->protocol == PROTO_NVME) {
 					if (print_dev_nvme(dev_result,
 					    &tmpstr[0]) != 0) {
 						skip_device = 1;
 						break;
 					}
-#endif
 				} else {
 				    sprintf(tmpstr, "<>");
 				}
@@ -781,7 +775,6 @@ print_dev_mmcsd(struct device_match_result *dev_result, char *tmpstr)
 	return (0);
 }
 
-#ifdef WITH_NVME
 static int
 nvme_get_cdata(struct cam_device *dev, struct nvme_controller_data *cdata)
 {
@@ -843,7 +836,6 @@ print_dev_nvme(struct device_match_result *dev_result, char *tmpstr)
 	cam_close_device(dev);
 	return (0);
 }
-#endif
 
 static int
 requestsense(struct cam_device *device, int argc, char **argv,
@@ -2489,7 +2481,6 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 	return (0);
 }
 
-#ifdef WITH_NVME
 static int
 nvmeidentify(struct cam_device *device, int retry_count __unused, int timeout __unused)
 {
@@ -2501,12 +2492,10 @@ nvmeidentify(struct cam_device *device, int retry_count __unused, int timeout __
 
 	return (0);
 }
-#endif
 
 static int
 identify(struct cam_device *device, int retry_count, int timeout)
 {
-#ifdef WITH_NVME
 	struct ccb_pathinq cpi;
 
 	if (get_cpi(device, &cpi) != 0) {
@@ -2517,7 +2506,6 @@ identify(struct cam_device *device, int retry_count, int timeout)
 	if (cpi.protocol == PROTO_NVME) {
 		return (nvmeidentify(device, retry_count, timeout));
 	}
-#endif
 	return (ataidentify(device, retry_count, timeout));
 }
 
@@ -5410,7 +5398,6 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 				"enabled" : "disabled");
 		}
 	}
-#ifdef WITH_NVME
 	if (cts->protocol == PROTO_NVME) {
 		struct ccb_trans_settings_nvme *nvmex =
 		    &cts->xport_specific.nvme;
@@ -5427,7 +5414,6 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 			    nvmex->speed, nvmex->max_speed);
 		}
 	}
-#endif
 }
 
 /*
