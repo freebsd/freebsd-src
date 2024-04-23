@@ -85,9 +85,8 @@ static uma_zone_t ratelimit_zone;
 int
 cookie_init(void)
 {
-	if ((ratelimit_zone = uma_zcreate("wg ratelimit",
-	    sizeof(struct ratelimit_entry), NULL, NULL, NULL, NULL, 0, 0)) == NULL)
-		return ENOMEM;
+	ratelimit_zone = uma_zcreate("wg ratelimit",
+	    sizeof(struct ratelimit_entry), NULL, NULL, NULL, NULL, 0, 0);
 
 	ratelimit_init(&ratelimit_v4);
 #ifdef INET6
