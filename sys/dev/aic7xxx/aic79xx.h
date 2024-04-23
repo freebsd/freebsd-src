@@ -625,9 +625,7 @@ struct scb {
 	aic_io_ctx_t		  io_ctx;
 	struct ahd_softc	 *ahd_softc;
 	scb_flag		  flags;
-#ifndef __linux__
 	bus_dmamap_t		  dmamap;
-#endif
 	struct scb_platform_data *platform_data;
 	struct map_node	 	 *hscb_map;
 	struct map_node	 	 *sg_map;
@@ -1098,9 +1096,7 @@ struct ahd_completion
 struct ahd_softc {
 	bus_space_tag_t           tags[2];
 	bus_space_handle_t        bshs[2];
-#ifndef __linux__
 	bus_dma_tag_t		  buffer_dmat;   /* dmat for buffer I/O */
-#endif
 	struct scb_data		  scb_data;
 
 	struct hardware_scb	 *next_queued_hscb;

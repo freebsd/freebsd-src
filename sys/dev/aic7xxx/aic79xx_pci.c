@@ -43,14 +43,8 @@
  * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#88 $
  */
 
-#ifdef __linux__
-#include "aic79xx_osm.h"
-#include "aic79xx_inline.h"
-#else
-#include <sys/cdefs.h>
 #include <dev/aic7xxx/aic79xx_osm.h>
 #include <dev/aic7xxx/aic79xx_inline.h>
-#endif
 
 static __inline uint64_t
 ahd_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
