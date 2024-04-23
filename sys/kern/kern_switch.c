@@ -281,15 +281,15 @@ runq_init(struct runq *rq)
 static __inline void
 runq_clrbit(struct runq *rq, int idx)
 {
-	struct rqbits *rqb;
+	struct rq_status *rqs;
 
 	CHECK_IDX(idx);
-	rqb = &rq->rq_status;
+	rqs = &rq->rq_status;
 	CTR4(KTR_RUNQ, "runq_clrbit: bits=%#x %#x bit=%#x word=%d",
-	    rqb->rqb_bits[RQB_WORD(idx)],
-	    rqb->rqb_bits[RQB_WORD(idx)] & ~RQB_BIT(idx),
-	    RQB_BIT(idx), RQB_WORD(idx));
-	rqb->rqb_bits[RQB_WORD(idx)] &= ~RQB_BIT(idx);
+	    rqs->rq_sw[RQSW_IDX(idx)],
+	    rqs->rq_sw[RQSW_IDX(idx)] & ~RQSW_BIT(idx),
+	    RQSW_BIT(idx), RQSW_IDX(idx));
+	rqs->rq_sw[RQSW_IDX(idx)] &= ~RQSW_BIT(idx);
 }
 
 /*
@@ -299,16 +299,16 @@ runq_clrbit(struct runq *rq, int idx)
 static __inline int
 runq_findbit(struct runq *rq)
 {
-	struct rqbits *rqb;
+	struct rq_status *rqs;
 	int idx;
 
-	rqb = &rq->rq_status;
-	for (int i = 0; i < RQB_LEN; i++)
-		if (rqb->rqb_bits[i] != 0) {
-			idx = RQB_FFS(rqb->rqb_bits[i]) + i * RQB_BPW;
+	rqs = &rq->rq_status;
+	for (int i = 0; i < RQSW_NB; i++)
+		if (rqs->rq_sw[i] != 0) {
+			idx = RQSW_FIRST_QUEUE_IDX(i, rqs->rq_sw[i]);
 			CHECK_IDX(idx);
 			CTR3(KTR_RUNQ, "runq_findbit: bits=%#x i=%d idx=%d",
-			    rqb->rqb_bits[i], i, idx);
+			    rqs->rq_sw[i], i, idx);
 			return (idx);
 		}
 
@@ -318,20 +318,20 @@ runq_findbit(struct runq *rq)
 static __inline int
 runq_findbit_from(struct runq *rq, int idx)
 {
-	struct rqbits *rqb;
-	rqb_word_t mask;
+	struct rq_status *rqs;
+	rqsw_t mask;
 	int i;
 
 	CHECK_IDX(idx);
 	/* Set the mask for the first word so we ignore indices before 'idx'. */
-	mask = (rqb_word_t)-1 << (idx & (RQB_BPW - 1));
-	rqb = &rq->rq_status;
+	mask = (rqsw_t)-1 << RQSW_BIT_IDX(idx);
+	rqs = &rq->rq_status;
 again:
-	for (i = RQB_WORD(idx); i < RQB_LEN; mask = -1, i++) {
-		mask = rqb->rqb_bits[i] & mask;
+	for (i = RQSW_IDX(idx); i < RQSW_NB; mask = -1, i++) {
+		mask = rqs->rq_sw[i] & mask;
 		if (mask == 0)
 			continue;
-		idx = RQB_FFS(mask) + i * RQB_BPW;
+		idx = RQSW_FIRST_QUEUE_IDX(i, mask);
 		CTR3(KTR_RUNQ, "runq_findbit_from: bits=%#x i=%d idx=%d",
 		    mask, i, idx);
 		return (idx);
@@ -353,15 +353,15 @@ again:
 static __inline void
 runq_setbit(struct runq *rq, int idx)
 {
-	struct rqbits *rqb;
+	struct rq_status *rqs;
 
 	CHECK_IDX(idx);
-	rqb = &rq->rq_status;
+	rqs = &rq->rq_status;
 	CTR4(KTR_RUNQ, "runq_setbit: bits=%#x %#x bit=%#x word=%d",
-	    rqb->rqb_bits[RQB_WORD(idx)],
-	    rqb->rqb_bits[RQB_WORD(idx)] | RQB_BIT(idx),
-	    RQB_BIT(idx), RQB_WORD(idx));
-	rqb->rqb_bits[RQB_WORD(idx)] |= RQB_BIT(idx);
+	    rqs->rq_sw[RQSW_IDX(idx)],
+	    rqs->rq_sw[RQSW_IDX(idx)] | RQSW_BIT(idx),
+	    RQSW_BIT(idx), RQSW_IDX(idx));
+	rqs->rq_sw[RQSW_IDX(idx)] |= RQSW_BIT(idx);
 }
 
 /*
@@ -372,13 +372,13 @@ void
 runq_add(struct runq *rq, struct thread *td, int flags)
 {
 
-	runq_add_idx(rq, td, RQ_PRI_TO_IDX(td->td_priority), flags);
+	runq_add_idx(rq, td, RQ_PRI_TO_QUEUE_IDX(td->td_priority), flags);
 }
 
 void
 runq_add_idx(struct runq *rq, struct thread *td, int idx, int flags)
 {
-	struct rqhead *rqh;
+	struct rq_queue *rqq;
 
 	/*
 	 * runq_setbit() asserts 'idx' is non-negative and below 'RQ_NQS', and
@@ -387,13 +387,13 @@ runq_add_idx(struct runq *rq, struct thread *td, int idx, int flags)
 	 */
 	td->td_rqindex = idx;
 	runq_setbit(rq, idx);
-	rqh = &rq->rq_queues[idx];
-	CTR4(KTR_RUNQ, "runq_add_idx: td=%p pri=%d idx=%d rqh=%p",
-	    td, td->td_priority, idx, rqh);
+	rqq = &rq->rq_queues[idx];
+	CTR4(KTR_RUNQ, "runq_add_idx: td=%p pri=%d idx=%d rqq=%p",
+	    td, td->td_priority, idx, rqq);
 	if (flags & SRQ_PREEMPTED)
-		TAILQ_INSERT_HEAD(rqh, td, td_runq);
+		TAILQ_INSERT_HEAD(rqq, td, td_runq);
 	else
-		TAILQ_INSERT_TAIL(rqh, td, td_runq);
+		TAILQ_INSERT_TAIL(rqq, td, td_runq);
 }
 
 /*
@@ -403,13 +403,13 @@ runq_add_idx(struct runq *rq, struct thread *td, int idx, int flags)
 bool
 runq_not_empty(struct runq *rq)
 {
-	struct rqbits *rqb;
+	struct rq_status *rqs;
 
-	rqb = &rq->rq_status;
-	for (int i = 0; i < RQB_LEN; i++)
-		if (rqb->rqb_bits[i] != 0) {
+	rqs = &rq->rq_status;
+	for (int i = 0; i < RQSW_NB; i++)
+		if (rqs->rq_sw[i] != 0) {
 			CTR2(KTR_RUNQ, "runq_not_empty: bits=%#x i=%d",
-			    rqb->rqb_bits[i], i);
+			    rqs->rq_sw[i], i);
 			return (true);
 		}
 	CTR0(KTR_RUNQ, "runq_not_empty: empty");
@@ -423,13 +423,13 @@ runq_not_empty(struct runq *rq)
 struct thread *
 runq_choose_fuzz(struct runq *rq, int fuzz)
 {
-	struct rqhead *rqh;
+	struct rq_queue *rqq;
 	struct thread *td;
 	int idx;
 
 	idx = runq_findbit(rq);
 	if (idx != -1) {
-		rqh = &rq->rq_queues[idx];
+		rqq = &rq->rq_queues[idx];
 		/* fuzz == 1 is normal.. 0 or less are ignored */
 		if (fuzz > 1) {
 			/*
@@ -439,7 +439,7 @@ runq_choose_fuzz(struct runq *rq, int fuzz)
 			int count = fuzz;
 			int cpu = PCPU_GET(cpuid);
 			struct thread *td2;
-			td2 = td = TAILQ_FIRST(rqh);
+			td2 = td = TAILQ_FIRST(rqq);
 
 			while (count-- && td2) {
 				if (td2->td_lastcpu == cpu) {
@@ -449,10 +449,10 @@ runq_choose_fuzz(struct runq *rq, int fuzz)
 				td2 = TAILQ_NEXT(td2, td_runq);
 			}
 		} else
-			td = TAILQ_FIRST(rqh);
+			td = TAILQ_FIRST(rqq);
 		KASSERT(td != NULL, ("runq_choose_fuzz: no proc on busy queue"));
 		CTR3(KTR_RUNQ,
-		    "runq_choose_fuzz: idx=%d thread=%p rqh=%p", idx, td, rqh);
+		    "runq_choose_fuzz: idx=%d thread=%p rqq=%p", idx, td, rqq);
 		return (td);
 	}
 	CTR1(KTR_RUNQ, "runq_choose_fuzz: idleproc idx=%d", idx);
@@ -466,17 +466,17 @@ runq_choose_fuzz(struct runq *rq, int fuzz)
 struct thread *
 runq_choose(struct runq *rq)
 {
-	struct rqhead *rqh;
+	struct rq_queue *rqq;
 	struct thread *td;
 	int idx;
 
 	idx = runq_findbit(rq);
 	if (idx != -1) {
-		rqh = &rq->rq_queues[idx];
-		td = TAILQ_FIRST(rqh);
+		rqq = &rq->rq_queues[idx];
+		td = TAILQ_FIRST(rqq);
 		KASSERT(td != NULL, ("runq_choose: no thread on busy queue"));
 		CTR3(KTR_RUNQ,
-		    "runq_choose: idx=%d thread=%p rqh=%p", idx, td, rqh);
+		    "runq_choose: idx=%d thread=%p rqq=%p", idx, td, rqq);
 		return (td);
 	}
 	CTR1(KTR_RUNQ, "runq_choose: idlethread idx=%d", idx);
@@ -487,17 +487,17 @@ runq_choose(struct runq *rq)
 struct thread *
 runq_choose_from(struct runq *rq, int from_idx)
 {
-	struct rqhead *rqh;
+	struct rq_queue *rqq;
 	struct thread *td;
 	int idx;
 
 	if ((idx = runq_findbit_from(rq, from_idx)) != -1) {
-		rqh = &rq->rq_queues[idx];
-		td = TAILQ_FIRST(rqh);
+		rqq = &rq->rq_queues[idx];
+		td = TAILQ_FIRST(rqq);
 		KASSERT(td != NULL, ("runq_choose: no thread on busy queue"));
 		CTR4(KTR_RUNQ,
-		    "runq_choose_from: idx=%d thread=%p idx=%d rqh=%p",
-		    idx, td, td->td_rqindex, rqh);
+		    "runq_choose_from: idx=%d thread=%p idx=%d rqq=%p",
+		    idx, td, td->td_rqindex, rqq);
 		return (td);
 	}
 	CTR1(KTR_RUNQ, "runq_choose_from: idlethread idx=%d", idx);
@@ -513,17 +513,17 @@ runq_choose_from(struct runq *rq, int from_idx)
 bool
 runq_remove(struct runq *rq, struct thread *td)
 {
-	struct rqhead *rqh;
+	struct rq_queue *rqq;
 	int idx;
 
 	KASSERT(td->td_flags & TDF_INMEM, ("runq_remove: Thread swapped out"));
 	idx = td->td_rqindex;
 	CHECK_IDX(idx);
-	rqh = &rq->rq_queues[idx];
-	CTR4(KTR_RUNQ, "runq_remove: td=%p pri=%d idx=%d rqh=%p",
-	    td, td->td_priority, idx, rqh);
-	TAILQ_REMOVE(rqh, td, td_runq);
-	if (TAILQ_EMPTY(rqh)) {
+	rqq = &rq->rq_queues[idx];
+	CTR4(KTR_RUNQ, "runq_remove: td=%p pri=%d idx=%d rqq=%p",
+	    td, td->td_priority, idx, rqq);
+	TAILQ_REMOVE(rqq, td, td_runq);
+	if (TAILQ_EMPTY(rqq)) {
 		runq_clrbit(rq, idx);
 		CTR1(KTR_RUNQ, "runq_remove: queue at idx=%d now empty", idx);
 		return (true);
