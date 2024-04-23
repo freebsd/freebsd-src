@@ -3329,8 +3329,6 @@
 		    _Out_opt_ _Contains_long_timet_ struct itimerspec *old_value
 		);
 	}
-
-
 588 AUE_NULL STD {
 		int osdb_exec(
 			_In_reads_z(querylen) const char *query,
@@ -3349,101 +3347,89 @@
 			_Out_ void *pzTail
 		);
 	}
-590 AUE_NULL_STD {
+590 AUE_NULL STD {
 		int osdb_step(
 			_In_ void *sqlite3_stmt
 		);
 	}
-591 AUE_NULL_STD {
+591 AUE_NULL STD {
 		int osdb_finalize(
 			_In_ void *sqlite3_stmt
 		);
 	}
-
-
-592 AUE_NULL_STD {
+592 AUE_NULL STD {
 		int osdb_column_blob(
-			_In_ void *sqlite3_stmt
+			_In_ void *sqlite3_stmt,
 			int iCol,
 			_Out_writes_z(reslen) char *data,
 			int reslen
 		);
 	}
-
-593 AUE_NULL_STD {
+593 AUE_NULL STD {
 		int osdb_column_double(
-			_In_ void *sqlite3_stmt
+			_In_ void *sqlite3_stmt,
 			int iCol,
 			_Out_writes_z(reslen) char *data,
 			double result
 		);
 	}
-
-594 AUE_NULL_STD {
+594 AUE_NULL STD {
 		int osdb_column_int(
-			_In_ void *sqlite3_stmt
+			_In_ void *sqlite3_stmt,
 			int iCol,
 			int result
 		);
 	}
-
-595 AUE_NULL_STD {
+595 AUE_NULL STD {
 		int osdb_column_int64(
-			_In_ void *sqlite3_stmt
+			_In_ void *sqlite3_stmt,
 			int iCol,
 			long result
 		);
 	}
-
-596 AUE_NULL_STD {
+596 AUE_NULL STD {
 		int osdb_column_text(
-			_In_ void *sqlite3_stmt
+			_In_ void *sqlite3_stmt,
 			int iCol,
 			_Out_writes_z(reslen) char *data,
 			int reslen
 		);
 	}
-
-597 AUE_NULL_STD {
+597 AUE_NULL STD {
 		int osdb_column_text16(
-			_In_ void *sqlite3_stmt
+			_In_ void *sqlite3_stmt,
 			int iCol,
 			_Out_writes_z(reslen) char *data,
 			int reslen
 		);
 	}
-
-598 AUE_NULL_STD {
+598 AUE_NULL STD {
 		int osdb_column_value(
-			_In_ void *sqlite3_stmt
+			_In_ void *sqlite3_stmt,
 			int iCol,
 			_Out_writes_z(reslen) char *data,
 			int reslen
 		);
 	}
-
-599 AUE_NULL_STD {
+599 AUE_NULL STD {
 		int osdb_column_bytes(
-			_In_ void *sqlite3_stmt
+			_In_ void *sqlite3_stmt,
 			int iCol,
 			int size
 		);
 	}
-
-600 AUE_NULL_STD {
+600 AUE_NULL STD {
 		int osdb_column_bytes16(
-			_In_ void *sqlite3_stmt
+			_In_ void *sqlite3_stmt,
 			int iCol,
 			int size
 		);
 	}
-
-601 AUE_NULL_STD {
+601 AUE_NULL STD {
 		int osdb_column_type(
-			_In_ void *sqlite3_stmt
+			_In_ void *sqlite3_stmt,
 			int iCol,
 			int size
 		);
 	}
-
 ; vim: syntax=off

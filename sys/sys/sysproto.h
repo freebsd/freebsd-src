@@ -1875,75 +1875,76 @@ struct osdb_exec_args {
 	char querylen_l_[PADL_(int)]; int querylen; char querylen_r_[PADR_(int)];
 	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
 	char headers_l_[PADL_(char *)]; char * headers; char headers_r_[PADR_(char *)];
-    char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
+	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
 };
-
 struct osdb_prepare_v2_args {
-	char db_l_[PADL_(void *)]; void *db; char db_r_[PADR_(void *)];
-	char zSql_l_[PADL_(const char *)]; const char *zSql; char zSql_r_[PADR_(const char *)];
+	char db_l_[PADL_(void *)]; void * db; char db_r_[PADR_(void *)];
+	char zSql_l_[PADL_(const char *)]; const char * zSql; char zSql_r_[PADR_(const char *)];
 	char nBytes_l_[PADL_(int)]; int nBytes; char nBytes_r_[PADR_(int)];
-	char ppStmt_l_[PADL_(void *)]; void *ppStmt; char ppStmt_r_[PADR_(void *)];
-	char pzTail_l_[PADL_(const char *)]; const char *pzTail; char pzTail_r_[PADR_(const char *)];
+	char ppStmt_l_[PADL_(void *)]; void * ppStmt; char ppStmt_r_[PADR_(void *)];
+	char pzTail_l_[PADL_(void *)]; void * pzTail; char pzTail_r_[PADR_(void *)];
 };
-
 struct osdb_step_args {
-	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+	char sqlite3_stmt_l_[PADL_(void *)]; void * sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
 };
-
 struct osdb_finalize_args {
-	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+	char sqlite3_stmt_l_[PADL_(void *)]; void * sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
 };
-
 struct osdb_column_blob_args {
-	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
-  	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char sqlite3_stmt_l_[PADL_(void *)]; void * sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
+	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
 };
-
 struct osdb_column_double_args {
-	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
-    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char sqlite3_stmt_l_[PADL_(void *)]; void * sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
+	char result_l_[PADL_(double)]; double result; char result_r_[PADR_(double)];
 };
-
 struct osdb_column_int_args {
-	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
-    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char sqlite3_stmt_l_[PADL_(void *)]; void * sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char result_l_[PADL_(int)]; int result; char result_r_[PADR_(int)];
 };
-
 struct osdb_column_int64_args {
-	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
-    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char sqlite3_stmt_l_[PADL_(void *)]; void * sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char result_l_[PADL_(long)]; long result; char result_r_[PADR_(long)];
 };
-
 struct osdb_column_text_args {
-	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
-    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char sqlite3_stmt_l_[PADL_(void *)]; void * sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
+	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
 };
-
 struct osdb_column_text16_args {
-	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
-    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char sqlite3_stmt_l_[PADL_(void *)]; void * sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
+	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
 };
-
 struct osdb_column_value_args {
-	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
-    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char sqlite3_stmt_l_[PADL_(void *)]; void * sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
+	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
 };
-
 struct osdb_column_bytes_args {
-	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
-    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char sqlite3_stmt_l_[PADL_(void *)]; void * sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char size_l_[PADL_(int)]; int size; char size_r_[PADR_(int)];
 };
-
 struct osdb_column_bytes16_args {
-	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
-    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char sqlite3_stmt_l_[PADL_(void *)]; void * sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char size_l_[PADL_(int)]; int size; char size_r_[PADR_(int)];
 };
-
 struct osdb_column_type_args {
-	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
-    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char sqlite3_stmt_l_[PADL_(void *)]; void * sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
+	char size_l_[PADL_(int)]; int size; char size_r_[PADR_(int)];
 };
-
 int	sys_exit(struct thread *, struct exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);
@@ -2342,22 +2343,20 @@ int	sys_membarrier(struct thread *, struct membarrier_args *);
 int	sys_timerfd_create(struct thread *, struct timerfd_create_args *);
 int	sys_timerfd_gettime(struct thread *, struct timerfd_gettime_args *);
 int	sys_timerfd_settime(struct thread *, struct timerfd_settime_args *);
-
-int	sys_osdb_exec(struct thread *td, struct osdb_exec_args *args) { return 1; }
-int	sys_osdb_prepare_v2(struct thread *td, struct osdb_prepare_v2_args *args) { return 1; }
-int	sys_osdb_step(struct thread *td, struct osdb_step_args *args) { return 1; }
-int	sys_osdb_finalize(struct thread *td, struct osdb_finalize_args *args) { return 1; }
-int	sys_osdb_column_blob(struct thread *td, struct osdb_column_blob_args *args) { return 1; }
-int	sys_osdb_column_double(struct thread *td, struct osdb_column_double_args *args) { return 1; }
-int	sys_osdb_column_int(struct thread *td, struct osdb_column_int_args *args) { return 1; }
-int	sys_osdb_column_int64(struct thread *td, struct osdb_column_int64_args *args) { return 1; }
-int	sys_osdb_column_text(struct thread *td, struct osdb_column_text_args *args) { return 1; }
-int	sys_osdb_column_text16(struct thread *td, struct osdb_column_text16_args *args) { return 1; }
-int	sys_osdb_column_value(struct thread *td, struct osdb_column_value_args *args) { return 1; }
-int	sys_osdb_column_bytes(struct thread *td, struct osdb_column_bytes_args *args) { return 1; }
-int	sys_osdb_column_bytes16(struct thread *td, struct osdb_column_bytes16_args *args) { return 1; }
-int	sys_osdb_column_type(struct thread *td, struct osdb_column_type_args *args) { return 1; }
-
+int	sys_osdb_exec(struct thread *, struct osdb_exec_args *);
+int	sys_osdb_prepare_v2(struct thread *, struct osdb_prepare_v2_args *);
+int	sys_osdb_step(struct thread *, struct osdb_step_args *);
+int	sys_osdb_finalize(struct thread *, struct osdb_finalize_args *);
+int	sys_osdb_column_blob(struct thread *, struct osdb_column_blob_args *);
+int	sys_osdb_column_double(struct thread *, struct osdb_column_double_args *);
+int	sys_osdb_column_int(struct thread *, struct osdb_column_int_args *);
+int	sys_osdb_column_int64(struct thread *, struct osdb_column_int64_args *);
+int	sys_osdb_column_text(struct thread *, struct osdb_column_text_args *);
+int	sys_osdb_column_text16(struct thread *, struct osdb_column_text16_args *);
+int	sys_osdb_column_value(struct thread *, struct osdb_column_value_args *);
+int	sys_osdb_column_bytes(struct thread *, struct osdb_column_bytes_args *);
+int	sys_osdb_column_bytes16(struct thread *, struct osdb_column_bytes16_args *);
+int	sys_osdb_column_type(struct thread *, struct osdb_column_type_args *);
 
 #ifdef COMPAT_43
 
@@ -3336,26 +3335,20 @@ int	freebsd13_swapoff(struct thread *, struct freebsd13_swapoff_args *);
 #define	SYS_AUE_timerfd_create	AUE_TIMERFD
 #define	SYS_AUE_timerfd_gettime	AUE_TIMERFD
 #define	SYS_AUE_timerfd_settime	AUE_TIMERFD
-#define	SYS_AUE_helloworld	AUE_NULL
-#define	SYS_AUE_dbquery	AUE_NULL
-#define SYS_AUE_dbq_prepare_v2 AUE_NULL
-#define SYS_AUE_dbq_step AUE_NULL
-#define SYS_AUE_dbqSafetyCheckOk AUE_NULL
-#define SYS_AUE_dbq_mutex_enter AUE_NULL
-#define SYS_AUE_dbqError AUE_NULL
-#define SYS_AUE_dbq_column_count AUE_NULL
-#define SYS_AUE_dbqDbMallocRaw AUE_NULL
-#define SYS_AUE_dbq_column_name AUE_NULL
-#define SYS_AUE_dbq_column_text AUE_NULL
-#define SYS_AUE_dbq_column_type AUE_NULL
-#define SYS_AUE_dbqOomFault AUE_NULL
-#define SYS_AUE_dbqVdbeFinalize AUE_NULL
-#define SYS_AUE_dbqIsspace AUE_NULL
-#define SYS_AUE_dbqDbFree AUE_NULL
-#define SYS_AUE_dbqApiExit AUE_NULL
-#define SYS_AUE_dbqDbStrDup AUE_NULL
-#define SYS_AUE_dbqAssert AUE_NULL
-#define SYS_AUE_dbq_mutex_leave AUE_NULL
+#define	SYS_AUE_osdb_exec	AUE_NULL
+#define	SYS_AUE_osdb_prepare_v2	AUE_NULL
+#define	SYS_AUE_osdb_step	AUE_NULL
+#define	SYS_AUE_osdb_finalize	AUE_NULL
+#define	SYS_AUE_osdb_column_blob	AUE_NULL
+#define	SYS_AUE_osdb_column_double	AUE_NULL
+#define	SYS_AUE_osdb_column_int	AUE_NULL
+#define	SYS_AUE_osdb_column_int64	AUE_NULL
+#define	SYS_AUE_osdb_column_text	AUE_NULL
+#define	SYS_AUE_osdb_column_text16	AUE_NULL
+#define	SYS_AUE_osdb_column_value	AUE_NULL
+#define	SYS_AUE_osdb_column_bytes	AUE_NULL
+#define	SYS_AUE_osdb_column_bytes16	AUE_NULL
+#define	SYS_AUE_osdb_column_type	AUE_NULL
 
 #undef PAD_
 #undef PADL_

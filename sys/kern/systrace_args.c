@@ -3462,7 +3462,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[a++] = (intptr_t)p->zSql; /* const char * */
 		iarg[a++] = p->nBytes; /* int */
 		uarg[a++] = (intptr_t)p->ppStmt; /* void * */
-		uarg[a++] = (intptr_t)p->pzTail; /* const char ** */
+		uarg[a++] = (intptr_t)p->pzTail; /* void * */
 		*n_args = 5;
 		break;
 	}
@@ -3480,13 +3480,14 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-
 	/* osdb_column_blob */
 	case 592: {
 		struct osdb_column_blob_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
 		iarg[a++] = p->iCol; /* int */
-		*n_args = 2;
+		uarg[a++] = (intptr_t)p->data; /* char * */
+		iarg[a++] = p->reslen; /* int */
+		*n_args = 4;
 		break;
 	}
 	/* osdb_column_double */
@@ -3494,7 +3495,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_column_double_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
 		iarg[a++] = p->iCol; /* int */
-		*n_args = 2;
+		uarg[a++] = (intptr_t)p->data; /* char * */
+		iarg[a++] = p->result; /* double */
+		*n_args = 4;
 		break;
 	}
 	/* osdb_column_int */
@@ -3502,7 +3505,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_column_int_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
 		iarg[a++] = p->iCol; /* int */
-		*n_args = 2;
+		iarg[a++] = p->result; /* int */
+		*n_args = 3;
 		break;
 	}
 	/* osdb_column_int64 */
@@ -3510,7 +3514,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_column_int64_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
 		iarg[a++] = p->iCol; /* int */
-		*n_args = 2;
+		iarg[a++] = p->result; /* long */
+		*n_args = 3;
 		break;
 	}
 	/* osdb_column_text */
@@ -3518,7 +3523,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_column_text_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
 		iarg[a++] = p->iCol; /* int */
-		*n_args = 2;
+		uarg[a++] = (intptr_t)p->data; /* char * */
+		iarg[a++] = p->reslen; /* int */
+		*n_args = 4;
 		break;
 	}
 	/* osdb_column_text16 */
@@ -3526,7 +3533,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_column_text16_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
 		iarg[a++] = p->iCol; /* int */
-		*n_args = 2;
+		uarg[a++] = (intptr_t)p->data; /* char * */
+		iarg[a++] = p->reslen; /* int */
+		*n_args = 4;
 		break;
 	}
 	/* osdb_column_value */
@@ -3534,7 +3543,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_column_value_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
 		iarg[a++] = p->iCol; /* int */
-		*n_args = 2;
+		uarg[a++] = (intptr_t)p->data; /* char * */
+		iarg[a++] = p->reslen; /* int */
+		*n_args = 4;
 		break;
 	}
 	/* osdb_column_bytes */
@@ -3542,7 +3553,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_column_bytes_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
 		iarg[a++] = p->iCol; /* int */
-		*n_args = 2;
+		iarg[a++] = p->size; /* int */
+		*n_args = 3;
 		break;
 	}
 	/* osdb_column_bytes16 */
@@ -3550,7 +3562,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_column_bytes16_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
 		iarg[a++] = p->iCol; /* int */
-		*n_args = 2;
+		iarg[a++] = p->size; /* int */
+		*n_args = 3;
 		break;
 	}
 	/* osdb_column_type */
@@ -3558,7 +3571,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_column_type_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
 		iarg[a++] = p->iCol; /* int */
-		*n_args = 2;
+		iarg[a++] = p->size; /* int */
+		*n_args = 3;
 		break;
 	}
 	default:
@@ -9329,21 +9343,8 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* helloworld */
+	/* osdb_exec */
 	case 588:
-		switch (ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "userland char *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* dbquery */
-	case 589:
 		switch (ndx) {
 		case 0:
 			p = "userland const char *";
@@ -9364,29 +9365,39 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* dbq_prepare_v2 */
+	/* osdb_prepare_v2 */
+	case 589:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "userland void *";
+			break;
+		case 4:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* osdb_step */
 	case 590:
 		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
-		case 1:
-			p = "userland const char *";
-			break;
-		case 2:
-			p = "int";
-			break;
-		case 3:
-			p = "userland void *";
-			break;
-		case 4:
-			p = "userland const char *";
-			break;
 		default:
 			break;
 		};
 		break;
-	/* dbq_step */
+	/* osdb_finalize */
 	case 591:
 		switch (ndx) {
 		case 0:
@@ -9396,27 +9407,45 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* dbqSafetyCheckOk */
+	/* osdb_column_blob */
 	case 592:
 		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "userland char *";
+			break;
+		case 3:
+			p = "int";
+			break;
 		default:
 			break;
 		};
 		break;
-	/* dbq_mutex_enter */
+	/* osdb_column_double */
 	case 593:
 		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "userland char *";
+			break;
+		case 3:
+			p = "double";
+			break;
 		default:
 			break;
 		};
 		break;
-	/* dbqError */
+	/* osdb_column_int */
 	case 594:
 		switch (ndx) {
 		case 0:
@@ -9425,40 +9454,49 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		case 1:
 			p = "int";
 			break;
+		case 2:
+			p = "int";
+			break;
 		default:
 			break;
 		};
 		break;
-	/* dbq_column_count */
+	/* osdb_column_int64 */
 	case 595:
 		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
 		case 1:
-			p = "userland void *";
+			p = "int";
+			break;
+		case 2:
+			p = "long";
 			break;
 		default:
 			break;
 		};
 		break;
-	/* dbqDbMallocRaw */
+	/* osdb_column_text */
 	case 596:
 		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
 		case 1:
-			p = "uint64_t";
+			p = "int";
 			break;
 		case 2:
-			p = "userland void *";
+			p = "userland char *";
+			break;
+		case 3:
+			p = "int";
 			break;
 		default:
 			break;
 		};
 		break;
-	/* dbq_column_name */
+	/* osdb_column_text16 */
 	case 597:
 		switch (ndx) {
 		case 0:
@@ -9468,13 +9506,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "userland void *";
+			p = "userland char *";
+			break;
+		case 3:
+			p = "int";
 			break;
 		default:
 			break;
 		};
 		break;
-	/* dbq_column_text */
+	/* osdb_column_value */
 	case 598:
 		switch (ndx) {
 		case 0:
@@ -9484,13 +9525,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "userland void *";
+			p = "userland char *";
+			break;
+		case 3:
+			p = "int";
 			break;
 		default:
 			break;
 		};
 		break;
-	/* dbq_column_type */
+	/* osdb_column_bytes */
 	case 599:
 		switch (ndx) {
 		case 0:
@@ -9500,60 +9544,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "userland void *";
+			p = "int";
 			break;
 		default:
 			break;
 		};
 		break;
-	/* dbqOomFault */
+	/* osdb_column_bytes16 */
 	case 600:
-		switch (ndx) {
-		case 0:
-			p = "userland void *";
-			break;
-		case 1:
-			p = "userland void *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* dbqVdbeFinalize */
-	case 601:
-		switch (ndx) {
-		case 0:
-			p = "userland void *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* dbqIsspace */
-	case 602:
-		switch (ndx) {
-		case 0:
-			p = "char";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* dbqDbFree */
-	case 603:
-		switch (ndx) {
-		case 0:
-			p = "userland void *";
-			break;
-		case 1:
-			p = "userland void *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* dbqApiExit */
-	case 604:
 		switch (ndx) {
 		case 0:
 			p = "userland void *";
@@ -9562,43 +9560,23 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "userland int *";
+			p = "int";
 			break;
 		default:
 			break;
 		};
 		break;
-	/* dbqDbStrDup */
-	case 605:
+	/* osdb_column_type */
+	case 601:
 		switch (ndx) {
 		case 0:
 			p = "userland void *";
 			break;
 		case 1:
-			p = "userland const char *";
+			p = "int";
 			break;
 		case 2:
-			p = "userland void *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* dbqAssert */
-	case 606:
-		switch (ndx) {
-		case 0:
-			p = "userland void *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* dbq_mutex_leave */
-	case 607:
-		switch (ndx) {
-		case 0:
-			p = "userland void *";
+			p = "int";
 			break;
 		default:
 			break;
@@ -11572,103 +11550,73 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* helloworld */
+	/* osdb_exec */
 	case 588:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* dbquery */
+	/* osdb_prepare_v2 */
 	case 589:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* dbq_prepare_v2 */
+	/* osdb_step */
 	case 590:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* dbq_step */
+	/* osdb_finalize */
 	case 591:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* dbqSafetyCheckOk */
+	/* osdb_column_blob */
 	case 592:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* dbq_mutex_enter */
+	/* osdb_column_double */
 	case 593:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* dbqError */
+	/* osdb_column_int */
 	case 594:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* dbq_column_count */
+	/* osdb_column_int64 */
 	case 595:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* dbqDbMallocRaw */
+	/* osdb_column_text */
 	case 596:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* dbq_column_name */
+	/* osdb_column_text16 */
 	case 597:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* dbq_column_text */
+	/* osdb_column_value */
 	case 598:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* dbq_column_type */
+	/* osdb_column_bytes */
 	case 599:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* dbqOomFault */
+	/* osdb_column_bytes16 */
 	case 600:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* dbqVdbeFinalize */
+	/* osdb_column_type */
 	case 601:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* dbqIsspace */
-	case 602:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* dbqDbFree */
-	case 603:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* dbqApiExit */
-	case 604:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* dbqDbStrDup */
-	case 605:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* dbqAssert */
-	case 606:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* dbq_mutex_leave */
-	case 607:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
