@@ -107,7 +107,7 @@ pci_search_packages()
 		fi
 		. ${LIBEXEC_PATH}/pci_${class}_${vendor}
 
-		pci_${class}_${vendor} ${device}
+		pci_${class}_${vendor} ${device} "${fulldevice}"
 	done
 	IFS=${oldifs}
 }
