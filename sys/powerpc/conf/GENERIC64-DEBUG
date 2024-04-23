@@ -1,0 +1,9 @@
+#
+# GENERIC-DEBUG -- WITNESS and INVARIANTS enabled kernel configuration file
+#			       for FreeBSD/powerpc64
+#
+
+include GENERIC64
+include "std.debug"
+
+ident   GENERIC64-DEBUG
