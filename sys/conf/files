@@ -3752,7 +3752,7 @@ kern/kern_cons.c		standard
 kern/kern_cpu.c			standard
 kern/kern_cpuset.c		standard
 kern/kern_context.c		standard
-kern/kern_dbq.c			standard
+kern/kern_osdb.c		standard
 kern/kern_dbquery.c		standard
 kern/kern_descrip.c		standard
 kern/kern_devctl.c		standard
