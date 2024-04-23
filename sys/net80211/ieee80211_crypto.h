@@ -184,6 +184,8 @@ void	ieee80211_crypto_set_supported_software_ciphers(struct ieee80211com *,
 	    uint32_t cipher_set);
 void	ieee80211_crypto_set_supported_hardware_ciphers(struct ieee80211com *,
 	    uint32_t cipher_set);
+void	ieee80211_crypto_set_supported_driver_keymgmt(struct ieee80211com *,
+	    uint32_t keymgmt_set);
 void	ieee80211_crypto_vattach(struct ieee80211vap *);
 void	ieee80211_crypto_vdetach(struct ieee80211vap *);
 int	ieee80211_crypto_newkey(struct ieee80211vap *,
