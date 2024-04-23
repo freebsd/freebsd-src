@@ -3135,9 +3135,9 @@ wg_module_init(void)
 		[PR_METHOD_REMOVE] = wg_prison_remove,
 	};
 
-	if ((wg_packet_zone = uma_zcreate("wg packet", sizeof(struct wg_packet),
-	     NULL, NULL, NULL, NULL, 0, 0)) == NULL)
-		return (ENOMEM);
+	wg_packet_zone = uma_zcreate("wg packet", sizeof(struct wg_packet),
+	     NULL, NULL, NULL, NULL, 0, 0);
+
 	ret = crypto_init();
 	if (ret != 0)
 		return (ret);
