@@ -374,5 +374,7 @@ struct __nl_cat_d;
 struct _xlocale;
 struct __nl_cat_d *__catopen_l(const char *name, int type,
 	    struct _xlocale *locale);
+int __strerror_rl(int errnum, char *strerrbuf, size_t buflen,
+	    struct _xlocale *locale);
 
 #endif /* _LIBC_PRIVATE_H_ */
