@@ -31,7 +31,6 @@
  * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahd_pci.c#17 $
  */
 
-#include <sys/cdefs.h>
 #include <dev/aic7xxx/aic79xx_osm.h>
 
 static int ahd_pci_probe(device_t dev);
