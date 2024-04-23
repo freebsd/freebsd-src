@@ -378,12 +378,18 @@ psci_fdt_callfn(psci_callfn_t *callfn)
 {
 	phandle_t node;
 
-	node = ofw_bus_find_compatible(OF_peer(0), "arm,psci-0.2");
-	if (node == 0) {
-		node = ofw_bus_find_compatible(OF_peer(0), "arm,psci-1.0");
-		if (node == 0)
-			return (PSCI_MISSING);
+	/* XXX: This is suboptimal, we should walk the tree & check each
+	 * node against compat_data, but we only have a few entries so
+	 * it's ok for now.
+	 */
+	for (int i = 0; compat_data[i].ocd_str != NULL; i++) {
+		node = ofw_bus_find_compatible(OF_peer(0),
+		    compat_data[i].ocd_str);
+		if (node != 0)
+			break;
 	}
+	if (node == 0)
+		return (PSCI_MISSING);
 
 	if (!ofw_bus_node_status_okay(node))
 		return (PSCI_MISSING);
