@@ -1252,6 +1252,7 @@ sub process {
 
 	my $in_header_lines = $file ? 0 : 1;
 	my $in_commit_log = 0;		#Scanning lines before patch
+	my $has_sob = 0;
 	my $non_utf8_charset = 0;
 
 	our @report = ();
@@ -1456,14 +1457,17 @@ sub process {
 		if ($line =~ /^\s*signed-off-by:/i) {
 			# This is a signoff, if ugly, so do not double report.
 			$in_commit_log = 0;
+			$has_sob = 1;
 
 			if (!($line =~ /^\s*Signed-off-by:/)) {
 				ERROR("The correct form is \"Signed-off-by\"\n" .
 					$herecurr);
+				$has_sob = 0;
 			}
 			if ($line =~ /^\s*signed-off-by:\S/i) {
 				ERROR("space required after Signed-off-by:\n" .
 					$herecurr);
+				$has_sob = 0;
 			}
 		}
 
@@ -2647,6 +2651,10 @@ sub process {
 		}
 	}
 
+	}
+
+	if ($has_sob == 0) {
+	    ERROR("Missing Signed-off-by: line");
 	}
 
 	# If we have no input at all, then there is nothing to report on
