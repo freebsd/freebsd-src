@@ -3444,17 +3444,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
-	/* helloworld */
+	/* osdb_exec */
 	case 588: {
-		struct helloworld_args *p = params;
-		iarg[a++] = p->len; /* int */
-		uarg[a++] = (intptr_t)p->buf; /* char * */
-		*n_args = 2;
-		break;
-	}
-	/* dbquery */
-	case 589: {
-		struct dbquery_args *p = params;
+		struct osdb_exec_args *p = params;
 		uarg[a++] = (intptr_t)p->query; /* const char * */
 		iarg[a++] = p->querylen; /* int */
 		uarg[a++] = (intptr_t)p->data; /* char * */
@@ -3463,9 +3455,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
-	/* dbq_prepare_v2 */
-	case 590: {
-		struct dbq_prepare_v2_args *p = params;
+	/* osdb_prepare_v2 */
+	case 589: {
+		struct osdb_prepare_v2_args *p = params;
 		uarg[a++] = (intptr_t)p->db; /* void * */
 		uarg[a++] = (intptr_t)p->zSql; /* const char * */
 		iarg[a++] = p->nBytes; /* int */
@@ -3474,139 +3466,99 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
-	/* dbq_step */
-	case 591: {
-		struct dbq_step_args *p = params;
+	/* osdb_step */
+	case 590: {
+		struct osdb_step_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
 		*n_args = 1;
 		break;
 	}
-	/* dbqSafetyCheckOk */
+	/* osdb_finalize */
+	case 591: {
+		struct osdb_finalize_args *p = params;
+		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		*n_args = 1;
+		break;
+	}
+
+	/* osdb_column_blob */
 	case 592: {
-		struct dbqSafetyCheckOk_args *p = params;
-		uarg[a++] = (intptr_t)p->db; /* void * */
-		*n_args = 1;
+		struct osdb_column_blob_args *p = params;
+		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		iarg[a++] = p->iCol; /* int */
+		*n_args = 2;
 		break;
 	}
-	/* dbq_mutex_enter */
+	/* osdb_column_double */
 	case 593: {
-		struct dbq_mutex_enter_args *p = params;
-		uarg[a++] = (intptr_t)p->db; /* void * */
-		*n_args = 1;
+		struct osdb_column_double_args *p = params;
+		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		iarg[a++] = p->iCol; /* int */
+		*n_args = 2;
 		break;
 	}
-	/* dbqError */
+	/* osdb_column_int */
 	case 594: {
-		struct dbqError_args *p = params;
-		uarg[a++] = (intptr_t)p->db; /* void * */
-		iarg[a++] = p->err_code; /* int */
+		struct osdb_column_int_args *p = params;
+		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		iarg[a++] = p->iCol; /* int */
 		*n_args = 2;
 		break;
 	}
-	/* dbq_column_count */
+	/* osdb_column_int64 */
 	case 595: {
-		struct dbq_column_count_args *p = params;
-		uarg[a++] = (intptr_t)p->pStmt; /* void * */
-		uarg[a++] = (intptr_t)p->res; /* void * */
+		struct osdb_column_int64_args *p = params;
+		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		iarg[a++] = p->iCol; /* int */
 		*n_args = 2;
 		break;
 	}
-	/* dbqDbMallocRaw */
+	/* osdb_column_text */
 	case 596: {
-		struct dbqDbMallocRaw_args *p = params;
-		uarg[a++] = (intptr_t)p->db; /* void * */
-		uarg[a++] = (intptr_t)p->n; /* uint64_t */
-		uarg[a++] = (intptr_t)p->p; /* void * */
-		*n_args = 3;
+		struct osdb_column_text_args *p = params;
+		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		iarg[a++] = p->iCol; /* int */
+		*n_args = 2;
 		break;
 	}
-	/* dbq_column_name */
+	/* osdb_column_text16 */
 	case 597: {
-		struct dbq_column_name_args *p = params;
-		uarg[a++] = (intptr_t)p->pStmt; /* void * */
-		iarg[a++] = p->N; /* int */
-		uarg[a++] = (intptr_t)p->columnName; /* void * */
-		*n_args = 3;
+		struct osdb_column_text16_args *p = params;
+		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		iarg[a++] = p->iCol; /* int */
+		*n_args = 2;
 		break;
 	}
-	/* dbq_column_text */
+	/* osdb_column_value */
 	case 598: {
-		struct dbq_column_text_args *p = params;
-		uarg[a++] = (intptr_t)p->pStmt; /* void * */
-		iarg[a++] = p->N; /* int */
-		uarg[a++] = (intptr_t)p->columnText; /* void * */
-		*n_args = 3;
+		struct osdb_column_value_args *p = params;
+		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		iarg[a++] = p->iCol; /* int */
+		*n_args = 2;
 		break;
 	}
-	/* dbq_column_type */
+	/* osdb_column_bytes */
 	case 599: {
-		struct dbq_column_type_args *p = params;
-		uarg[a++] = (intptr_t)p->pStmt; /* void * */
-		iarg[a++] = p->N; /* int */
-		uarg[a++] = (intptr_t)p->res; /* void * */
-		*n_args = 3;
+		struct osdb_column_bytes_args *p = params;
+		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		iarg[a++] = p->iCol; /* int */
+		*n_args = 2;
 		break;
 	}
-	/* dbqOomFault */
+	/* osdb_column_bytes16 */
 	case 600: {
-		struct dbqOomFault_args *p = params;
-		uarg[a++] = (intptr_t)p->db; /* void * */
-		uarg[a++] = (intptr_t)p->p; /* void * */
+		struct osdb_column_bytes16_args *p = params;
+		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		iarg[a++] = p->iCol; /* int */
 		*n_args = 2;
 		break;
 	}
-	/* dbqVdbeFinalize */
+	/* osdb_column_type */
 	case 601: {
-		struct dbqVdbeFinalize_args *p = params;
-		uarg[a++] = (intptr_t)p->pStmt; /* void * */
-		*n_args = 1;
-		break;
-	}
-	/* dbqIsspace */
-	case 602: {
-		struct dbqIsspace_args *p = params;
-		uarg[a++] = (intptr_t)p->c; /* char */
-		*n_args = 1;
-		break;
-	}
-	/* dbqDbFree */
-	case 603: {
-		struct dbqDbFree_args *p = params;
-		uarg[a++] = (intptr_t)p->db; /* void * */
-		uarg[a++] = (intptr_t)p->azCols; /* void * */
+		struct osdb_column_type_args *p = params;
+		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		iarg[a++] = p->iCol; /* int */
 		*n_args = 2;
-		break;
-	}
-	/* dbqApiExit */
-	case 604: {
-		struct dbqApiExit_args *p = params;
-		uarg[a++] = (intptr_t)p->db; /* void * */
-		iarg[a++] = p->rc; /* int */
-		uarg[a++] = (intptr_t)p->rc2; /* int * */
-		*n_args = 3;
-		break;
-	}
-	/* dbqDbStrDup */
-	case 605: {
-		struct dbqDbStrDup_args *p = params;
-		uarg[a++] = (intptr_t)p->db; /* void * */
-		uarg[a++] = (intptr_t)p->z; /* const char * */
-		uarg[a++] = (intptr_t)p->zNew; /* void * */
-		*n_args = 3;
-		break;
-	}
-	/* dbqAssert */
-	case 606: {
-		struct dbqAssert_args *p = params;
-		uarg[a++] = (intptr_t)p->db; /* void * */
-		*n_args = 1;
-		break;
-	}
-	/* dbq_mutex_leave */
-	case 607: {
-		struct dbq_mutex_leave_args *p = params;
-		uarg[a++] = (intptr_t)p->db; /* void * */
-		*n_args = 1;
 		break;
 	}
 	default:

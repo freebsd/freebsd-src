@@ -1870,91 +1870,80 @@ struct timerfd_settime_args {
 	char new_value_l_[PADL_(const struct itimerspec *)]; const struct itimerspec * new_value; char new_value_r_[PADR_(const struct itimerspec *)];
 	char old_value_l_[PADL_(struct itimerspec *)]; struct itimerspec * old_value; char old_value_r_[PADR_(struct itimerspec *)];
 };
-struct helloworld_args {
-	char len_l_[PADL_(int)]; int len; char len_r_[PADR_(int)];
-	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
-};
-struct dbquery_args {
+struct osdb_exec_args {
 	char query_l_[PADL_(const char *)]; const char * query; char query_r_[PADR_(const char *)];
 	char querylen_l_[PADL_(int)]; int querylen; char querylen_r_[PADR_(int)];
 	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
 	char headers_l_[PADL_(char *)]; char * headers; char headers_r_[PADR_(char *)];
     char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
 };
-struct dbq_prepare_v2_args {
+
+struct osdb_prepare_v2_args {
 	char db_l_[PADL_(void *)]; void *db; char db_r_[PADR_(void *)];
 	char zSql_l_[PADL_(const char *)]; const char *zSql; char zSql_r_[PADR_(const char *)];
 	char nBytes_l_[PADL_(int)]; int nBytes; char nBytes_r_[PADR_(int)];
 	char ppStmt_l_[PADL_(void *)]; void *ppStmt; char ppStmt_r_[PADR_(void *)];
 	char pzTail_l_[PADL_(const char *)]; const char *pzTail; char pzTail_r_[PADR_(const char *)];
 };
-struct dbq_step_args {
+
+struct osdb_step_args {
 	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
 };
-struct dbqSafetyCheckOk_args {
-	char db_l_[PADL_(void *)]; void *db; char db_r_[PADR_(void *)];
+
+struct osdb_finalize_args {
+	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
 };
-struct dbq_mutex_enter_args {
-	char db_l_[PADL_(void *)]; void *db; char db_r_[PADR_(void *)];
+
+struct osdb_column_blob_args {
+	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+  	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 };
-struct dbqError_args {
-	char db_l_[PADL_(void *)]; void *db; char db_r_[PADR_(void *)];
-	char err_code_l_[PADL_(int)]; int err_code; char err_code_r_[PADR_(int)];
+
+struct osdb_column_double_args {
+	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 };
-struct dbq_column_count_args {
-	char pStmt_l_[PADL_(void *)]; void *pStmt; char pStmt_r_[PADR_(void *)];
-	char res_l_[PADL_(int *)]; int *res; char res_r_[PADR_(int *)];
+
+struct osdb_column_int_args {
+	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 };
-struct dbqDbMallocRaw_args {
-	char db_l_[PADL_(void *)]; void *db; char db_r_[PADR_(void *)];
-	char n_l_[PADL_(uint64_t)]; uint64_t n; char n_r_[PADR_(uint64_t)];
-	char p_l_[PADL_(void *)]; void *p; char p_r_[PADR_(void *)];
+
+struct osdb_column_int64_args {
+	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 };
-struct dbq_column_name_args {
-	char pStmt_l_[PADL_(void *)]; void *pStmt; char pStmt_r_[PADR_(void *)];
-	char N_l_[PADL_(int)]; int N; char N_r_[PADR_(int)];
-	char columnName_l_[PADL_(void *)]; void *columnName; char columnName_r_[PADR_(void *)];
+
+struct osdb_column_text_args {
+	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 };
-struct dbq_column_text_args {
-	char pStmt_l_[PADL_(void *)]; void *pStmt; char pStmt_r_[PADR_(void *)];
-	char N_l_[PADL_(int)]; int N; char N_r_[PADR_(int)];
-	char columnText_l_[PADL_(void *)]; void *columnText; char columnText_r_[PADR_(void *)];
+
+struct osdb_column_text16_args {
+	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 };
-struct dbq_column_type_args {
-	char pStmt_l_[PADL_(void *)]; void *pStmt; char pStmt_r_[PADR_(void *)];
-	char N_l_[PADL_(int)]; int N; char N_r_[PADR_(int)];
-	char res_l_[PADL_(int *)]; int *res; char res_r_[PADR_(int *)];
+
+struct osdb_column_value_args {
+	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 };
-struct dbqOomFault_args {
-	char db_l_[PADL_(void *)]; void *db; char db_r_[PADR_(void *)];
-	char p_l_[PADL_(void *)]; void *p; char p_r_[PADR_(void *)];
+
+struct osdb_column_bytes_args {
+	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 };
-struct dbqVdbeFinalize_args {
-	char pStmt_l_[PADL_(void *)]; void *pStmt; char pStmt_r_[PADR_(void *)];
+
+struct osdb_column_bytes16_args {
+	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 };
-struct dbqIsspace_args {
-	char c_l_[PADL_(char)]; char c; char c_r_[PADR_(char)];
+
+struct osdb_column_type_args {
+	char sqlite3_stmt_l_[PADL_(void *)]; void *sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+    	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 };
-struct dbqDbFree_args {
-	char db_l_[PADL_(void *)]; void *db; char db_r_[PADR_(void *)];
-	char azCols_l_[PADL_(void *)]; void *azCols; char azCols_r_[PADR_(void *)];
-};
-struct dbqApiExit_args {
-	char db_l_[PADL_(void *)]; void *db; char db_r_[PADR_(void *)];
-	char rc_l_[PADL_(int)]; int rc; char rc_r_[PADR_(int)];
-	char rc2_l_[PADL_(int *)]; int *rc2; char rc2_r_[PADR_(int *)];
-};
-struct dbqDbStrDup_args {
-	char db_l_[PADL_(void *)]; void *db; char db_r_[PADR_(void *)];
-	char z_l_[PADL_(const char *)]; const char *z; char z_r_[PADR_(const char *)];
-	char zNew_l_[PADL_(void *)]; void *zNew; char zNew_r_[PADR_(void *)];
-};
-struct dbqAssert_args {
-    char db_l_[PADL_(void *)]; void *db; char db_r_[PADR_(void *)];
-};
-struct dbq_mutex_leave_args {
-    char db_l_[PADL_(void *)]; void *db; char db_r_[PADR_(void *)];
-};
+
 int	sys_exit(struct thread *, struct exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);
@@ -2353,26 +2342,22 @@ int	sys_membarrier(struct thread *, struct membarrier_args *);
 int	sys_timerfd_create(struct thread *, struct timerfd_create_args *);
 int	sys_timerfd_gettime(struct thread *, struct timerfd_gettime_args *);
 int	sys_timerfd_settime(struct thread *, struct timerfd_settime_args *);
-int	sys_helloworld(struct thread *, struct helloworld_args *);
-int	sys_dbquery(struct thread *, struct dbquery_args *);
-int sys_dbq_prepare_v2(struct thread *, struct dbq_prepare_v2_args *);
-int sys_dbq_step(struct thread *, struct dbq_step_args *);
-int sys_dbqSafetyCheckOk(struct thread *, struct dbqSafetyCheckOk_args *);
-int sys_dbq_mutex_enter(struct thread *, struct dbq_mutex_enter_args *);
-int sys_dbqError(struct thread *, struct dbqError_args *);
-int sys_dbq_column_count(struct thread *, struct dbq_column_count_args *);
-int sys_dbqDbMallocRaw(struct thread *, struct dbqDbMallocRaw_args *);
-int sys_dbq_column_name(struct thread *, struct dbq_column_name_args *);
-int sys_dbq_column_text(struct thread *, struct dbq_column_text_args *);
-int sys_dbq_column_type(struct thread *, struct dbq_column_type_args *);
-int sys_dbqOomFault(struct thread *, struct dbqOomFault_args *);
-int sys_dbqVdbeFinalize(struct thread *, struct dbqVdbeFinalize_args *);
-int sys_dbqIsspace(struct thread *, struct dbqIsspace_args *);
-int sys_dbqDbFree(struct thread *, struct dbqDbFree_args *);
-int sys_dbqApiExit(struct thread *, struct dbqApiExit_args *);
-int sys_dbqDbStrDup(struct thread *, struct dbqDbStrDup_args *);
-int sys_dbqAssert(struct thread *, struct dbqAssert_args *);
-int sys_dbq_mutex_leave(struct thread *, struct dbq_mutex_leave_args *);
+
+int	sys_osdb_exec(struct thread *td, struct osdb_exec_args *args) { return 1; }
+int	sys_osdb_prepare_v2(struct thread *td, struct osdb_prepare_v2_args *args) { return 1; }
+int	sys_osdb_step(struct thread *td, struct osdb_step_args *args) { return 1; }
+int	sys_osdb_finalize(struct thread *td, struct osdb_finalize_args *args) { return 1; }
+int	sys_osdb_column_blob(struct thread *td, struct osdb_column_blob_args *args) { return 1; }
+int	sys_osdb_column_double(struct thread *td, struct osdb_column_double_args *args) { return 1; }
+int	sys_osdb_column_int(struct thread *td, struct osdb_column_int_args *args) { return 1; }
+int	sys_osdb_column_int64(struct thread *td, struct osdb_column_int64_args *args) { return 1; }
+int	sys_osdb_column_text(struct thread *td, struct osdb_column_text_args *args) { return 1; }
+int	sys_osdb_column_text16(struct thread *td, struct osdb_column_text16_args *args) { return 1; }
+int	sys_osdb_column_value(struct thread *td, struct osdb_column_value_args *args) { return 1; }
+int	sys_osdb_column_bytes(struct thread *td, struct osdb_column_bytes_args *args) { return 1; }
+int	sys_osdb_column_bytes16(struct thread *td, struct osdb_column_bytes16_args *args) { return 1; }
+int	sys_osdb_column_type(struct thread *td, struct osdb_column_type_args *args) { return 1; }
+
 
 #ifdef COMPAT_43
 
