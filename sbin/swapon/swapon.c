@@ -54,10 +54,15 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "extern.h"
+
+#define _PATH_GNOP	"/sbin/gnop"
+
 static void usage(void) __dead2;
 static const char *swap_on_off(const char *, int, char *);
 static const char *swap_on_off_gbde(const char *, int);
 static const char *swap_on_off_geli(const char *, char *, int);
+static const char *swap_on_off_linux(const char *, int);
 static const char *swap_on_off_md(const char *, char *, int);
 static const char *swap_on_off_sfile(const char *, int);
 static void swaplist(int, int, int);
@@ -250,8 +255,13 @@ swap_on_off(const char *name, int doingall, char *mntops)
 		return (swap_on_off_geli(name, mntops, doingall));
 	}
 
-	/* Swap on special file. */
 	free(basebuf);
+
+	/* Linux swap */
+	if (is_linux_swap(name))
+		return (swap_on_off_linux(name, doingall));
+
+	/* Swap on special file. */
 	return (swap_on_off_sfile(name, doingall));
 }
 
@@ -464,6 +474,48 @@ swap_on_off_geli(const char *name, char *mntops, int doingall)
 	} while (0);
 
 	return (swap_on_off_sfile(name, doingall));
+}
+
+static const char *
+swap_on_off_linux(const char *name, int doingall)
+{
+	const char *ret;
+	char *nopname;
+	size_t nopnamelen;
+	int error;
+
+	if (which_prog == SWAPON) {
+		/* Skip the header for Linux swap partitions */
+		error = run_cmd(NULL, "%s create -o 4096 %s", _PATH_GNOP,
+		    name);
+		if (error) {
+			warnx("gnop (create) error: %s", name);
+			return (NULL);
+		}
+	}
+
+	/* Append ".nop" to name */
+	nopnamelen = strlen(name) + sizeof(".nop");
+	nopname = (char *) malloc(nopnamelen);
+	if (nopname == NULL)
+		err(1, "malloc()");
+	(void)strlcpy(nopname, name, nopnamelen);
+	(void)strlcat(nopname, ".nop", nopnamelen);
+
+	ret = swap_on_off_sfile(nopname, doingall);
+
+	if (which_prog == SWAPOFF) {
+		error = run_cmd(NULL, "%s destroy %s", _PATH_GNOP, nopname);
+		if (error) {
+			warnx("gnop (destroy) error: %s", name);
+			free(nopname);
+			return (NULL);
+		}
+	}
+
+	free(nopname);
+
+	return (ret);
 }
 
 static const char *
