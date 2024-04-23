@@ -100,10 +100,6 @@ busdma_bufalloc_create(const char *name, bus_size_t minimum_alignment,
 		bz->size = cursize;
 		bz->umazone = uma_zcreate(bz->name, bz->size,
 		    NULL, NULL, NULL, NULL, bz->size - 1, zcreate_flags);
-		if (bz->umazone == NULL) {
-			busdma_bufalloc_destroy(ba);
-			return (NULL);
-		}
 		if (alloc_func != NULL)
 			uma_zone_set_allocf(bz->umazone, alloc_func);
 		if (free_func != NULL)
