@@ -873,7 +873,7 @@ sched_priority(struct thread *td, u_char prio)
 	if (td->td_priority == prio)
 		return;
 	td->td_priority = prio;
-	if (TD_ON_RUNQ(td) && td->td_rqindex != RQ_PRI_TO_IDX(prio)) {
+	if (TD_ON_RUNQ(td) && td->td_rqindex != RQ_PRI_TO_QUEUE_IDX(prio)) {
 		sched_rem(td);
 		sched_add(td, SRQ_BORING | SRQ_HOLDTD);
 	}
