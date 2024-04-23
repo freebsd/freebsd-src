@@ -7253,6 +7253,7 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 	struct	   ahc_tmode_tstate *tstate;
 	struct	   ahc_tmode_lstate *lstate;
 	struct	   ccb_en_lun *cel;
+	union      ccb *cancel_ccb;
 	cam_status status;
 	u_int	   target;
 	u_int	   lun;
@@ -7520,12 +7521,20 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 
 		if (SLIST_FIRST(&lstate->accept_tios) != NULL) {
 			printf("ATIOs pending\n");
-			ccb->ccb_h.status = CAM_REQ_INVALID;
+			while ((cancel_ccb = (union ccb *)SLIST_FIRST(&lstate->accept_tios)) != NULL) {
+				SLIST_REMOVE_HEAD(&lstate->accept_tios, sim_links.sle);
+				cancel_ccb->ccb_h.status = CAM_REQ_ABORTED;
+				xpt_done(cancel_ccb);
+			};
 		}
 
 		if (SLIST_FIRST(&lstate->immed_notifies) != NULL) {
 			printf("INOTs pending\n");
-			ccb->ccb_h.status = CAM_REQ_INVALID;
+			while ((cancel_ccb = (union ccb *)SLIST_FIRST(&lstate->immed_notifies)) != NULL) {
+				SLIST_REMOVE_HEAD(&lstate->immed_notifies, sim_links.sle);
+				cancel_ccb->ccb_h.status = CAM_REQ_ABORTED;
+				xpt_done(cancel_ccb);
+			};
 		}
 
 		if (ccb->ccb_h.status != CAM_REQ_CMP) {
