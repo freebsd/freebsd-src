@@ -10,10 +10,19 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+6d5ce2bb6344:
+	The default value of the nfs_reserved_port_only rc.conf(5) setting has
+	changed.  The FreeBSD NFS server now requires the source port of
+	requests to be in the privileged port range (i.e., <= 1023), which
+	generally requires the client to have elevated privileges on their local
+	system.  The previous behavior can be restored by setting
+	nfs_reserved_port_only=NO in rc.conf.
+
 aea973501b19:
 	ktrace(2) will now record detailed information about capability mode
 	violations. The kdump(1) utility has been updated to display such
 	information.
+
 f32a6403d346:
 	One True Awk updated to 2nd Edition. See https://awk.dev for details
 	on the additions. Unicode and CSVs (Comma Separated Values) are now
