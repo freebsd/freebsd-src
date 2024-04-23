@@ -387,20 +387,20 @@ SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *",
 static void
 runq_print(struct runq *rq)
 {
-	struct rqhead *rqh;
+	struct rq_queue *rqq;
 	struct thread *td;
 	int pri;
 	int j;
 	int i;
 
-	for (i = 0; i < RQB_LEN; i++) {
+	for (i = 0; i < RQSW_NB; i++) {
 		printf("\t\trunq bits %d 0x%zx\n",
-		    i, rq->rq_status.rqb_bits[i]);
-		for (j = 0; j < RQB_BPW; j++)
-			if (rq->rq_status.rqb_bits[i] & (1ul << j)) {
-				pri = j + i * RQB_BPW;
-				rqh = &rq->rq_queues[pri];
-				TAILQ_FOREACH(td, rqh, td_runq) {
+		    i, rq->rq_status.rq_sw[i]);
+		for (j = 0; j < RQSW_BPW; j++)
+			if (rq->rq_status.rq_sw[i] & (1ul << j)) {
+				pri = RQSW_TO_QUEUE_IDX(i, j);
+				rqq = &rq->rq_queues[pri];
+				TAILQ_FOREACH(td, rqq, td_runq) {
 					printf("\t\t\ttd %p(%s) priority %d rqindex %d pri %d\n",
 					    td, td->td_name, td->td_priority,
 					    td->td_rqindex, pri);
@@ -1190,26 +1190,26 @@ tdq_notify(struct tdq *tdq, int lowpri)
 static struct thread *
 runq_steal_from(struct runq *rq, int cpu, u_char start)
 {
-	struct rqbits *rqb;
-	struct rqhead *rqh;
+	struct rq_status *rqs;
+	struct rq_queue *rqq;
 	struct thread *td, *first;
 	int bit;
 	int i;
 
-	rqb = &rq->rq_status;
-	bit = start & (RQB_BPW -1);
+	rqs = &rq->rq_status;
+	bit = RQSW_BIT_IDX(start);
 	first = NULL;
 again:
-	for (i = RQB_WORD(start); i < RQB_LEN; bit = 0, i++) {
-		if (rqb->rqb_bits[i] == 0)
+	for (i = RQSW_IDX(start); i < RQSW_NB; bit = 0, i++) {
+		if (rqs->rq_sw[i] == 0)
 			continue;
 		if (bit == 0)
-			bit = RQB_FFS(rqb->rqb_bits[i]);
-		for (; bit < RQB_BPW; bit++) {
-			if ((rqb->rqb_bits[i] & (1ul << bit)) == 0)
+			bit = RQSW_BSF(rqs->rq_sw[i]);
+		for (; bit < RQSW_BPW; bit++) {
+			if ((rqs->rq_sw[i] & (1ul << bit)) == 0)
 				continue;
-			rqh = &rq->rq_queues[bit + i * RQB_BPW];
-			TAILQ_FOREACH(td, rqh, td_runq) {
+			rqq = &rq->rq_queues[RQSW_TO_QUEUE_IDX(i, bit)];
+			TAILQ_FOREACH(td, rqq, td_runq) {
 				if (first) {
 					if (THREAD_CAN_MIGRATE(td) &&
 					    THREAD_CAN_SCHED(td, cpu))
@@ -1236,21 +1236,21 @@ again:
 static struct thread *
 runq_steal(struct runq *rq, int cpu)
 {
-	struct rqhead *rqh;
-	struct rqbits *rqb;
+	struct rq_queue *rqq;
+	struct rq_status *rqs;
 	struct thread *td;
 	int word;
 	int bit;
 
-	rqb = &rq->rq_status;
-	for (word = 0; word < RQB_LEN; word++) {
-		if (rqb->rqb_bits[word] == 0)
+	rqs = &rq->rq_status;
+	for (word = 0; word < RQSW_NB; word++) {
+		if (rqs->rq_sw[word] == 0)
 			continue;
-		for (bit = 0; bit < RQB_BPW; bit++) {
-			if ((rqb->rqb_bits[word] & (1ul << bit)) == 0)
+		for (bit = 0; bit < RQSW_BPW; bit++) {
+			if ((rqs->rq_sw[word] & (1ul << bit)) == 0)
 				continue;
-			rqh = &rq->rq_queues[bit + word * RQB_BPW];
-			TAILQ_FOREACH(td, rqh, td_runq)
+			rqq = &rq->rq_queues[RQSW_TO_QUEUE_IDX(word, bit)];
+			TAILQ_FOREACH(td, rqq, td_runq)
 				if (THREAD_CAN_MIGRATE(td) &&
 				    THREAD_CAN_SCHED(td, cpu))
 					return (td);

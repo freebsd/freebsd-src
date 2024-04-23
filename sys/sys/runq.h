@@ -47,16 +47,26 @@
 /*
  * Deduced from the above parameters and machine ones.
  */
-typedef	unsigned long	rqb_word_t;	/* runq's status words type. */
-
 #define	RQ_NQS	(howmany(RQ_MAX_PRIO + 1, RQ_PPQ)) /* Number of run queues. */
-#define	RQ_PRI_TO_IDX(pri)	((pri) / RQ_PPQ) /* Priority to queue index. */
+#define	RQ_PRI_TO_QUEUE_IDX(pri) ((pri) / RQ_PPQ) /* Priority to queue index. */
 
-#define	RQB_BPW	(sizeof(rqb_word_t) * NBBY) /* Bits per runq word. */
-#define	RQB_LEN	(howmany(RQ_NQS, RQB_BPW)) /* Words to cover RQ_NQS queues. */
-#define	RQB_WORD(idx)	((idx) / RQB_BPW)
-#define	RQB_BIT(idx)	(1ul << ((idx) % RQB_BPW))
-#define	RQB_FFS(word)	(ffsl((long)(word)) - 1) /* Assumes two-complement. */
+typedef unsigned long	rqsw_t;		/* runq's status words type. */
+#define	RQSW_BPW	(sizeof(rqsw_t) * NBBY) /* Bits per runq word. */
+
+/* Number of status words to cover RQ_NQS queues. */
+#define	RQSW_NB			(howmany(RQ_NQS, RQSW_BPW))
+#define	RQSW_IDX(idx)		((idx) / RQSW_BPW)
+#define	RQSW_BIT_IDX(idx)	((idx) % RQSW_BPW)
+#define	RQSW_BIT(idx)		(1ul << RQSW_BIT_IDX(idx))
+#define	RQSW_BSF(word)		__extension__ ({			\
+	int _res = ffsl((long)(word)); /* Assumes two-complement. */	\
+	MPASS(_res > 0);						\
+	_res - 1;							\
+})
+#define	RQSW_TO_QUEUE_IDX(word_idx, bit_idx)				\
+	(((word_idx) * RQSW_BPW) + (bit_idx))
+#define	RQSW_FIRST_QUEUE_IDX(word_idx, word)				\
+	RQSW_TO_QUEUE_IDX(word_idx, RQSW_BSF(word))
 
 
 #ifdef _KERNEL
@@ -66,16 +76,16 @@ typedef	unsigned long	rqb_word_t;	/* runq's status words type. */
 struct thread;
 
 /*
- * Head of run queues.
+ * The queue for a given index as a list of threads.
  */
-TAILQ_HEAD(rqhead, thread);
+TAILQ_HEAD(rq_queue, thread);
 
 /*
  * Bit array which maintains the status of a run queue.  When a queue is
  * non-empty the bit corresponding to the queue number will be set.
  */
-struct rqbits {
-	rqb_word_t rqb_bits[RQB_LEN];
+struct rq_status {
+	rqsw_t rq_sw[RQSW_NB];
 };
 
 /*
@@ -83,8 +93,8 @@ struct rqbits {
  * are placed, and a structure to maintain the status of each queue.
  */
 struct runq {
-	struct	rqbits rq_status;
-	struct	rqhead rq_queues[RQ_NQS];
+	struct rq_status	rq_status;
+	struct rq_queue		rq_queues[RQ_NQS];
 };
 
 void	runq_add(struct runq *, struct thread *, int _flags);
