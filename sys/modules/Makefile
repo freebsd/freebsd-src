@@ -216,6 +216,7 @@ SUBDIR=	\
 	lindebugfs \
 	linuxkpi \
 	linuxkpi_hdmi \
+	linuxkpi_video \
 	linuxkpi_wlan \
 	${_lio} \
 	lpt \
