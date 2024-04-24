@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20240424:
+	13.3-RELEASE-p2 EN-24:09.zfs
+
+	Fix high CPU usage by kernel threads related to ZFS [EN-24:09.zfs]
+
 20240327:
 	13.3-RELEASE-p1 EN-24:06.wireguard
 			EN-24:07.clang
