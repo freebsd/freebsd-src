@@ -782,14 +782,14 @@
 	}
 119	AUE_NULL	RESERVED
 120	AUE_READV	STD|CAPENABLED {
-		int readv(
+		ssize_t readv(
 		    int fd,
 		    _In_reads_(iovcnt) _Contains_long_ptr_ const struct iovec *iovp,
 		    u_int iovcnt
 		);
 	}
 121	AUE_WRITEV	STD|CAPENABLED {
-		int writev(
+		ssize_t writev(
 		    int fd,
 		    _In_reads_(iovcnt) _Contains_long_ptr_ const struct iovec *iovp,
 		    u_int iovcnt
