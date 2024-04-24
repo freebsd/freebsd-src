@@ -46,7 +46,7 @@ static int fetch_files(int nfiles, char **urls);
 int
 main(void)
 {
-	char *diststring, *dists, *distdir, *distsite;
+	char *diststring;
 	char **urls;
 	int i;
 	int ndists = 0;
@@ -54,24 +54,17 @@ main(void)
 	char error[PATH_MAX + 512];
 	struct bsddialog_conf conf;
 
-	if ((dists = getenv("DISTRIBUTIONS")) == NULL)
+	if (getenv("DISTRIBUTIONS") == NULL)
 		errx(EXIT_FAILURE, "DISTRIBUTIONS variable is not set");
 
-	if ((distdir = getenv("BSDINSTALL_DISTDIR")) == NULL)
-		errx(EXIT_FAILURE, "BSDINSTALL_DISTDIR variable is not set");
-
-	if ((distsite = getenv("BSDINSTALL_DISTSITE")) == NULL)
-		errx(EXIT_FAILURE, "BSDINSTALL_DISTSITE variable is not set");
-
-	if ((diststring = strdup(dists)) == NULL)
-		errx(EXIT_FAILURE, "Error: diststring variable out of memory!");
-
+	diststring = strdup(getenv("DISTRIBUTIONS"));
 	for (i = 0; diststring[i] != 0; i++)
 		if (isspace(diststring[i]) && !isspace(diststring[i+1]))
 			ndists++;
 	ndists++; /* Last one */
 
-	if ((urls = calloc(ndists, sizeof(char *))) == NULL) {
+	urls = calloc(ndists, sizeof(const char *));
+	if (urls == NULL) {
 		free(diststring);
 		errx(EXIT_FAILURE, "Error: distfetch URLs out of memory!");
 	}
@@ -85,21 +78,15 @@ main(void)
 	bsddialog_backtitle(&conf, OSNAME " Installer");
 
 	for (i = 0; i < ndists; i++) {
-		if ((urls[i] = malloc(PATH_MAX)) == NULL) {
-			free(urls);
-			free(diststring);
-			bsddialog_end();
-			errx(EXIT_FAILURE, "Error: distfetch URLs out of memory!");
-		}
-
+		urls[i] = malloc(PATH_MAX);
 		snprintf(urls[i], PATH_MAX, "%s/%s",
-			 distsite, strsep(&diststring, " \t"));
+		    getenv("BSDINSTALL_DISTSITE"), strsep(&diststring, " \t"));
 	}
 
-	if (chdir(distdir) != 0) {
+	if (chdir(getenv("BSDINSTALL_DISTDIR")) != 0) {
 		snprintf(error, sizeof(error),
-			 "Could not change to directory %s: %s\n",
-			 distdir, strerror(errno));
+		    "Could not change to directory %s: %s\n",
+		    getenv("BSDINSTALL_DISTDIR"), strerror(errno));
 		conf.title = "Error";
 		bsddialog_msgbox(&conf, error, 0, 0);
 		bsddialog_end();
