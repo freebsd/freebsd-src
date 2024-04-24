@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 29, 2023
+.Dd February 10, 2024
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -30,7 +30,7 @@
 .Nd "run a guest operating system inside a virtual machine"
 .Sh SYNOPSIS
 .Nm
-.Op Fl AaCDeHhPSuWwxY
+.Op Fl aCDeHhPSuWwxY
 .Oo
 .Sm off
 .Fl c\~
@@ -110,9 +110,6 @@ runs until the guest operating system reboots or an unhandled hypervisor
 exit is detected.
 .Sh OPTIONS
 .Bl -tag -width 10n
-.It Fl A
-Generate ACPI tables.
-bhyve always generates ACPI tables so this option is obsolete.
 .It Fl a
 The guest's local APIC is configured in xAPIC mode.
 The xAPIC mode is the default setting so this option is redundant.
@@ -1033,7 +1030,7 @@ block device backed by the
 filesystem image, and a serial port for the console:
 .Bd -literal -offset indent
 bhyve -c 2 -s 0,hostbridge -s 1,lpc -s 2,virtio-blk,/my/image \\
-  -l com1,stdio -A -H -P -m 1G vm1
+  -l com1,stdio -H -P -m 1G vm1
 .Ed
 .Pp
 Run a 24GB single-CPU virtual machine with three network ports, one of which
@@ -1043,7 +1040,7 @@ bhyve -s 0,hostbridge -s 1,lpc -s 2:0,virtio-net,tap0 \\
   -s 2:1,virtio-net,tap1 \\
   -s 2:2,virtio-net,tap2,mac=00:be:fa:76:45:00 \\
   -s 3,virtio-blk,/my/image -l com1,stdio \\
-  -A -H -P -m 24G bigvm
+  -H -P -m 24G bigvm
 .Ed
 .Pp
 Run an 8GB quad-CPU virtual machine with 8 AHCI SATA disks, an AHCI ATAPI
@@ -1061,7 +1058,7 @@ hd:/images/disk.7,hd:/images/disk.8,\\
 cd:/images/install.iso \\
   -s 3,virtio-net,tap0 \\
   -l com1,/dev/nmdm0A \\
-  -A -H -P -m 8G
+  -H -P -m 8G
 .Ed
 .Pp
 Run a UEFI virtual machine with a display resolution of 800 by 600 pixels
