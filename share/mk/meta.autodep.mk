@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# $Id: meta.autodep.mk,v 1.62 2024/02/17 17:26:57 sjg Exp $
+# $Id: meta.autodep.mk,v 1.63 2024/04/24 18:56:41 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -308,7 +308,9 @@ CLEANFILES += *.meta filemon.* *.db
 
 # these make it easy to gather some stats
 now_utc ?= ${%s:L:localtime}
+.if !defined(start_utc)
 start_utc := ${now_utc}
+.endif
 
 meta_stats= meta=${empty(.MAKE.META.FILES):?0:${.MAKE.META.FILES:[#]}} \
 	created=${empty(.MAKE.META.CREATED):?0:${.MAKE.META.CREATED:[#]}}
