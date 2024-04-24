@@ -121,7 +121,7 @@ tap_total=0
 disk_total=0
 disk_emulation=${DEFAULT_DISK}
 loader_opt=""
-bhyverun_opt="-H -A -P"
+bhyverun_opt="-H -P"
 pass_total=0
 
 # EFI-specific options
