@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2022 Gleb Smirnoff <glebius@FreeBSD.org>
+ * Copyright (c) 2022-2024 Gleb Smirnoff <glebius@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,6 +29,7 @@
 #include <netinet/in.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdlib.h>
 
 #include <atf-c.h>
 
@@ -151,10 +152,68 @@ ATF_TC_BODY(http, tc)
 	ATF_REQUIRE((a = accept(l, NULL, 0)) > 0);
 }
 
+ATF_TC_WITHOUT_HEAD(tls);
+ATF_TC_BODY(tls, tc)
+{
+	struct accept_filter_arg afa = {
+		.af_name = "tlsready"
+	};
+	struct sockaddr_in sin;
+	int l, s, a;
+
+	l = listensock(&sin);
+	accfon(l, &afa);
+	s = clientsock(&sin);
+
+	/* 1) No data. */
+	ATF_REQUIRE(accept(l, NULL, 0) == -1);
+	ATF_REQUIRE(errno == EAGAIN);
+
+	/* 2) Less than 5 bytes. */
+	ATF_REQUIRE(usend(s, "foo", sizeof("foo")) == sizeof("foo"));
+	ATF_REQUIRE(errno == EAGAIN);
+
+	/* 3) Something that doesn't look like TLS handshake. */
+	ATF_REQUIRE(usend(s, "bar", sizeof("bar")) == sizeof("bar"));
+	ATF_REQUIRE((a = accept(l, NULL, 0)) > 0);
+
+	close(s);
+	close(a);
+
+	/* 4) Partial TLS record. */
+	s = clientsock(&sin);
+	struct {
+		uint8_t  type;
+		uint16_t version;
+		uint16_t length;
+	} __attribute__((__packed__)) header = {
+		.type = 0x16,
+		.length = htons((uint16_t)(arc4random() % 16384)),
+	};
+	_Static_assert(sizeof(header) == 5, "");
+	ATF_REQUIRE(usend(s, &header, sizeof(header)) == sizeof(header));
+	ssize_t sent = 0;
+	do {
+		size_t len;
+		char *buf;
+
+		ATF_REQUIRE(accept(l, NULL, 0) == -1);
+		ATF_REQUIRE(errno == EAGAIN);
+
+		len = arc4random() % 1024;
+		buf = alloca(len);
+		ATF_REQUIRE(usend(s, buf, len) == (ssize_t)len);
+		sent += len;
+	} while (sent < ntohs(header.length));
+	/* TLS header with bytes >= declared length. */
+	ATF_REQUIRE((a = accept(l, NULL, 0)) > 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, data);
 	ATF_TP_ADD_TC(tp, http);
+	ATF_TP_ADD_TC(tp, tls);
 
 	return (atf_no_error());
 }
