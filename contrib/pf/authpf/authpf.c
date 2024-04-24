@@ -56,7 +56,6 @@ static int	change_filter(int, const char *, const char *);
 static int	change_table(int, const char *);
 static void	authpf_kill_states(void);
 
-int	dev;			/* pf device */
 struct pfctl_handle	 *pfh;
 char	anchorname[PF_ANCHOR_NAME_SIZE] = "authpf";
 char	rulesetname[MAXPATHLEN - PF_ANCHOR_NAME_SIZE - 2];
@@ -135,9 +134,8 @@ main(void)
 		exit(1);
 	}
 	/* open the pf device */
-	dev = open(PATH_DEVFILE, O_RDWR);
 	pfh = pfctl_open(PATH_DEVFILE);
-	if (dev == -1 || pfh == NULL) {
+	if (pfh == NULL) {
 		syslog(LOG_ERR, "cannot open packet filter device (%m)");
 		goto die;
 	}
@@ -648,7 +646,7 @@ remove_stale_rulesets(void)
 
 	memset(&prs, 0, sizeof(prs));
 	strlcpy(prs.path, anchorname, sizeof(prs.path));
-	if (ioctl(dev, DIOCGETRULESETS, &prs)) {
+	if (ioctl(pfctl_fd(pfh), DIOCGETRULESETS, &prs)) {
 		if (errno == EINVAL)
 			return (0);
 		else
@@ -661,7 +659,7 @@ remove_stale_rulesets(void)
 		pid_t	 pid;
 
 		prs.nr = nr - 1;
-		if (ioctl(dev, DIOCGETRULESET, &prs))
+		if (ioctl(pfctl_fd(pfh), DIOCGETRULESET, &prs))
 			return (1);
 		errno = 0;
 		if ((t = strchr(prs.name, '(')) == NULL)
@@ -705,8 +703,8 @@ recursive_ruleset_purge(char *an, char *rs)
 		snprintf(t_e[i].anchor, sizeof(t_e[i].anchor), "%s/%s", an, rs);
 	}
 	t_e[PF_RULESET_MAX].rs_num = PF_RULESET_TABLE;
-	if ((ioctl(dev, DIOCXBEGIN, t) ||
-	    ioctl(dev, DIOCXCOMMIT, t)) &&
+	if ((ioctl(pfctl_fd(pfh), DIOCXBEGIN, t) ||
+	    ioctl(pfctl_fd(pfh), DIOCXCOMMIT, t)) &&
 	    errno != EINVAL)
 		goto cleanup;
 
@@ -714,7 +712,7 @@ recursive_ruleset_purge(char *an, char *rs)
 	if ((prs = calloc(1, sizeof(struct pfioc_ruleset))) == NULL)
 		goto no_mem;
 	snprintf(prs->path, sizeof(prs->path), "%s/%s", an, rs);
-	if (ioctl(dev, DIOCGETRULESETS, prs)) {
+	if (ioctl(pfctl_fd(pfh), DIOCGETRULESETS, prs)) {
 		if (errno != EINVAL)
 			goto cleanup;
 		errno = 0;
@@ -723,7 +721,7 @@ recursive_ruleset_purge(char *an, char *rs)
 
 		while (nr) {
 			prs->nr = 0;
-			if (ioctl(dev, DIOCGETRULESET, prs))
+			if (ioctl(pfctl_fd(pfh), DIOCGETRULESET, prs))
 				goto cleanup;
 
 			if (recursive_ruleset_purge(prs->path, prs->name))
@@ -769,7 +767,7 @@ change_filter(int add, const char *l_user, const char *ip_src)
 
 		if (asprintf(&rsn, "%s/%s", anchorname, rulesetname) == -1)
 			goto no_mem;
-		if (asprintf(&fdpath, "/dev/fd/%d", dev) == -1)
+		if (asprintf(&fdpath, "/dev/fd/%d", pfctl_fd(pfh)) == -1)
 			goto no_mem;
 		if (asprintf(&ipstr, "user_ip=%s", ip_src) == -1)
 			goto no_mem;
@@ -868,7 +866,7 @@ change_table(int add, const char *ip_src)
 		return (-1);
 	}
 
-	if (ioctl(dev, add ? DIOCRADDADDRS : DIOCRDELADDRS, &io) &&
+	if (ioctl(pfctl_fd(pfh), add ? DIOCRADDADDRS : DIOCRDELADDRS, &io) &&
 	    errno != ESRCH) {
 		syslog(LOG_ERR, "cannot %s %s from table %s: %s",
 		    add ? "add" : "remove", ip_src, tablename,

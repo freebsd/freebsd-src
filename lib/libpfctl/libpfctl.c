@@ -102,6 +102,12 @@ pfctl_close(struct pfctl_handle *h)
 	free(h);
 }
 
+int
+pfctl_fd(struct pfctl_handle *h)
+{
+	return (h->fd);
+}
+
 static int
 pfctl_do_ioctl(int dev, uint cmd, size_t size, nvlist_t **nvl)
 {

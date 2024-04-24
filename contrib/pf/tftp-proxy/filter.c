@@ -61,7 +61,7 @@ static char			pfanchor[PF_ANCHOR_NAME_SIZE];
 static char			pfanchor_call[PF_ANCHOR_NAME_SIZE];
 static struct pfioc_trans	pft;
 static struct pfioc_trans_e	pfte[TRANS_SIZE];
-static int dev, rule_log;
+static int rule_log;
 static struct pfctl_handle *pfh = NULL;
 static char *qname;
 
@@ -108,7 +108,7 @@ add_nat(u_int32_t id, struct sockaddr *src, struct sockaddr *dst,
 		    &satosin6(nat)->sin6_addr.s6_addr, 16);
 		memset(&pfp.addr.addr.v.a.mask.addr8, 255, 16);
 	}
-	if (ioctl(dev, DIOCADDADDR, &pfp) == -1)
+	if (ioctl(pfctl_fd(pfh), DIOCADDADDR, &pfp) == -1)
 		return (-1);
 
 	pfrule.rpool.proxy_port[0] = nat_range_low;
@@ -142,7 +142,7 @@ add_rdr(u_int32_t id, struct sockaddr *src, struct sockaddr *dst,
 		    &satosin6(rdr)->sin6_addr.s6_addr, 16);
 		memset(&pfp.addr.addr.v.a.mask.addr8, 255, 16);
 	}
-	if (ioctl(dev, DIOCADDADDR, &pfp) == -1)
+	if (ioctl(pfctl_fd(pfh), DIOCADDADDR, &pfp) == -1)
 		return (-1);
 
 	pfrule.rpool.proxy_port[0] = rdr_port;
@@ -156,7 +156,7 @@ add_rdr(u_int32_t id, struct sockaddr *src, struct sockaddr *dst,
 int
 do_commit(void)
 {
-	if (ioctl(dev, DIOCXCOMMIT, &pft) == -1)
+	if (ioctl(pfctl_fd(pfh), DIOCXCOMMIT, &pft) == -1)
 		return (-1);
 
 	return (0);
@@ -165,7 +165,7 @@ do_commit(void)
 int
 do_rollback(void)
 {
-	if (ioctl(dev, DIOCXROLLBACK, &pft) == -1)
+	if (ioctl(pfctl_fd(pfh), DIOCXROLLBACK, &pft) == -1)
 		return (-1);
 	
 	return (0);
@@ -183,17 +183,12 @@ init_filter(char *opt_qname, int opt_verbose)
 	else if (opt_verbose == 2)
 		rule_log = PF_LOG_ALL;
 
-	dev = open("/dev/pf", O_RDWR);	
-	if (dev == -1) {
-		syslog(LOG_ERR, "can't open /dev/pf");
-		exit(1);
-	}
 	pfh = pfctl_open(PF_DEVICE);
 	if (pfh == NULL) {
 		syslog(LOG_ERR, "can't pfctl_open()");
 		exit(1);
 	}
-	status = pfctl_get_status(dev);
+	status = pfctl_get_status(pfctl_fd(pfh));
 	if (status == NULL) {
 		syslog(LOG_ERR, "DIOCGETSTATUS");
 		exit(1);
@@ -238,7 +233,7 @@ prepare_commit(u_int32_t id)
 		}
 	}
 
-	if (ioctl(dev, DIOCXBEGIN, &pft) == -1)
+	if (ioctl(pfctl_fd(pfh), DIOCXBEGIN, &pft) == -1)
 		return (-1);
 
 	return (0);
@@ -277,7 +272,7 @@ prepare_rule(u_int32_t id, int rs_num, struct sockaddr *src,
 		errno = EINVAL;
 		return (-1);
 	}
-	if (ioctl(dev, DIOCBEGINADDRS, &pfp) == -1)
+	if (ioctl(pfctl_fd(pfh), DIOCBEGINADDRS, &pfp) == -1)
 		return (-1);
 	pfpool_ticket = pfp.ticket;
 
@@ -379,7 +374,7 @@ server_lookup4(struct sockaddr_in *client, struct sockaddr_in *proxy,
 	pnl.sport = client->sin_port;
 	pnl.dport = proxy->sin_port;
 
-	if (ioctl(dev, DIOCNATLOOK, &pnl) == -1)
+	if (ioctl(pfctl_fd(pfh), DIOCNATLOOK, &pnl) == -1)
 		return (-1);
 
 	memset(server, 0, sizeof(struct sockaddr_in));
@@ -407,7 +402,7 @@ server_lookup6(struct sockaddr_in6 *client, struct sockaddr_in6 *proxy,
 	pnl.sport = client->sin6_port;
 	pnl.dport = proxy->sin6_port;
 	
-	if (ioctl(dev, DIOCNATLOOK, &pnl) == -1)
+	if (ioctl(pfctl_fd(pfh), DIOCNATLOOK, &pnl) == -1)
 		return (-1);
 
 	memset(server, 0, sizeof(struct sockaddr_in6));
