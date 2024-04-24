@@ -390,6 +390,7 @@ struct pfctl_syncookies {
 struct pfctl_handle;
 struct pfctl_handle	*pfctl_open(const char *pf_device);
 void	pfctl_close(struct pfctl_handle *);
+int	pfctl_fd(struct pfctl_handle *);
 
 int	pfctl_startstop(struct pfctl_handle *h, int start);
 struct pfctl_status* pfctl_get_status(int dev);
