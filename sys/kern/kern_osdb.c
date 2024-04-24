@@ -4,6 +4,7 @@
 #include <sys/kernel.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
+#include <compat/freebsd32/freebsd32_proto.h>
 
 /* Return positive values to indicate failure */
 int sys_osdb_exec(struct thread *td, struct osdb_exec_args *args) { return 1; }
