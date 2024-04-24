@@ -73,11 +73,10 @@ bhyve_usage(int code)
 	progname = getprogname();
 
 	fprintf(stderr,
-	    "Usage: %s [-AaCDeHhPSuWwxY]\n"
+	    "Usage: %s [-aCDeHhPSuWwxY]\n"
 	    "       %*s [-c [[cpus=]numcpus][,sockets=n][,cores=n][,threads=n]]\n"
 	    "       %*s [-G port] [-k config_file] [-l lpc] [-m mem] [-o var=value]\n"
 	    "       %*s [-p vcpu:hostcpu] [-r file] [-s pci] [-U uuid] vmname\n"
-	    "       -A: create ACPI tables\n"
 	    "       -a: local apic is in xAPIC mode (deprecated)\n"
 	    "       -C: include guest memory in core file\n"
 	    "       -c: number of CPUs and/or topology specification\n"
