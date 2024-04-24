@@ -2,6 +2,7 @@
 
 KMOD=	linuxkpi_hdmi
 SRCS=	linux_hdmi.c \
+	linuxkpi_hdmikmod.c
 
 SRCS+=	${LINUXKPI_GENSRCS}
 
