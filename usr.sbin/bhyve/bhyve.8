@@ -93,17 +93,25 @@
 .Nm
 is a hypervisor that runs guest operating systems inside a
 virtual machine.
+It can run guests on amd64 and arm64 platforms with suitable hardware support.
 .Pp
 Parameters such as the number of virtual CPUs, amount of guest memory, and
 I/O connectivity can be specified with command-line parameters.
 .Pp
+.Nm
+is typically used with a boot ROM that can load the guest operating system.
+On arm64 platforms, this is currently required.
 If not using a boot ROM, the guest operating system must be loaded with
 .Xr bhyveload 8
 or a similar boot loader before running
 .Nm ,
-otherwise, it is enough to run
-.Nm
-with a boot ROM of choice.
+otherwise.
+On amd64, the
+.Pa edk2-bhyve
+package provides a UEFI firmware that can be used to boot the guest;
+on arm64 the
+.Pa u-boot-bhyve-arm64
+package provides a U-Boot image that can be used to boot the guest.
 .Pp
 .Nm
 runs until the guest operating system reboots or an unhandled hypervisor
@@ -112,10 +120,11 @@ exit is detected.
 .Bl -tag -width 10n
 .It Fl a
 The guest's local APIC is configured in xAPIC mode.
-The xAPIC mode is the default setting so this option is redundant.
+This option only applies to the amd64 platform.
+xAPIC mode is the default setting so this option is redundant.
 It will be deprecated in a future version.
 .It Fl C
-Include guest memory in core file.
+Include guest memory in core files.
 .It Fl c Op Ar setting ...
 Number of guest virtual CPUs
 and/or the CPU topology.
@@ -154,7 +163,7 @@ Destroy the VM on guest initiated power-off.
 Force
 .Nm
 to exit when a guest issues an access to an I/O port that is not emulated.
-This is intended for debug purposes.
+This is intended for debug purposes and only applies to the amd64 platform.
 .It Fl f Ar name Ns Cm \&, Ns Oo Cm string Ns No | Ns Cm file Ns Oc Ns Cm \&= Ns Ar data
 Add a fw_cfg file
 .Ar name
@@ -187,6 +196,7 @@ will pause execution at the first instruction waiting for a debugger to attach.
 .It Fl H
 Yield the virtual CPU thread when a HLT instruction is detected.
 If this option is not specified, virtual CPUs will use 100% of a host CPU.
+This option applies only to the amd64 platform.
 .It Fl h
 Print help message and exit.
 .It Fl k Ar config_file
@@ -235,6 +245,12 @@ The possible values for the
 argument are listed in the
 .Fl s
 flag description.
+.Pp
+This option applies only to the amd64 platform.
+On arm64, the console and boot ROM devices are configured using the
+more generic
+.Fl o
+option.
 .It Xo
 .Fl m Ar memsize Ns Oo
 .Sm off
@@ -260,8 +276,12 @@ Set the configuration variable
 .Ar var
 to
 .Ar value .
+See
+.Xr bhyve_config 5
+for configuration options.
 .It Fl P
 Force the guest virtual CPU to exit when a PAUSE instruction is detected.
+This option applies only to the amd64 platform.
 .It Fl p Ar vcpu Ns Cm \& : Ns Ar hostcpu
 Pin guest's virtual CPU
 .Em vcpu
@@ -938,8 +958,10 @@ Ignore accesses to unimplemented Model Specific Registers (MSRs).
 This is intended for debug purposes.
 .It Fl x
 The guest's local APIC is configured in x2APIC mode.
+This option applies only to the amd64 platform.
 .It Fl Y
 Disable MPtable generation.
+This option applies only to the amd64 platform.
 .It Ar vmname
 Alphanumeric name of the guest.
 This should be the same as that created by
@@ -1032,6 +1054,12 @@ filesystem image, and a serial port for the console:
 bhyve -c 2 -s 0,hostbridge -s 1,lpc -s 2,virtio-blk,/my/image \\
   -l com1,stdio -H -P -m 1G vm1
 .Ed
+.Pp
+To do the same on arm64:
+.Bd -literal -offset indent
+.Ed
+bhyve -c 2 -s 0,hostbridge -s 1,virtio-blk,/my/image -o console=stdio \\
+  -o bootrom=/usr/local/share/u-boot/u-boot-bhyve-arm64/u-boot.bin -m 1G vm1
 .Pp
 Run a 24GB single-CPU virtual machine with three network ports, one of which
 has a MAC address specified:
