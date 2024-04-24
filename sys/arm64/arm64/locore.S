@@ -429,14 +429,16 @@ LEND(get_load_phys_addr)
  *  All the memory must not cross a 1GiB boundaty
  *  x28 contains the physical address we were loaded from
  *
- * TODO: This is out of date.
- *  There are at least 5 pages before that address for the page tables
+ *  There are 7 or 8 pages before that address for the page tables
  *   The pages used are:
+ *    - The Kernel L3 tables (only for 16k kernel)
  *    - The Kernel L2 table
  *    - The Kernel L1 table
  *    - The Kernel L0 table             (TTBR1)
+ *    - The identity (PA = VA) L2 table
  *    - The identity (PA = VA) L1 table
- *    - The identity (PA = VA) L0 table (TTBR0)
+ *    - The identity (PA = VA) L0 table (Early TTBR0)
+ *    - The Kernel empty L0 table       (Late TTBR0)
  */
 LENTRY(create_pagetables)
 	/* Save the Link register */
