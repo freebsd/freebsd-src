@@ -3446,4 +3446,4 @@
 			_Out_ void *name
 		);
 	}
-; vim: syntax=off
+:; vim: syntax=off
