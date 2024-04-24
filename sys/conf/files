@@ -3752,7 +3752,7 @@ kern/kern_cons.c		standard
 kern/kern_cpu.c			standard
 kern/kern_cpuset.c		standard
 kern/kern_context.c		standard
-kern/kern_dbquery.c		standard
+kern/kern_osdb.c		standard
 kern/kern_descrip.c		standard
 kern/kern_devctl.c		standard
 kern/kern_dtrace.c		optional kdtrace_hooks
@@ -3765,7 +3765,6 @@ kern/kern_exit.c		standard
 kern/kern_fail.c		standard
 kern/kern_ffclock.c		standard
 kern/kern_fork.c		standard
-kern/kern_helloworld.c	standard
 kern/kern_hhook.c		standard
 kern/kern_idle.c		standard
 kern/kern_intr.c		standard
