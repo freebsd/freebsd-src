@@ -700,7 +700,6 @@ public void ch_flush(void)
 	ch_block = 0; /* ch_fpos / LBUFSIZE; */
 	ch_offset = 0; /* ch_fpos % LBUFSIZE; */
 
-#if HAVE_PROCFS
 	/*
 	 * This is a kludge to workaround a Linux kernel bug: files in
 	 * /proc have a size of 0 according to fstat() but have readable 
@@ -709,17 +708,9 @@ public void ch_flush(void)
 	 */
 	if (ch_fsize == 0)
 	{
-		struct statfs st;
-		if (fstatfs(ch_file, &st) == 0)
-		{
-			if (st.f_type == PROC_SUPER_MAGIC)
-			{
-				ch_fsize = NULL_POSITION;
-				ch_flags &= ~CH_CANSEEK;
-			}
-		}
+		ch_fsize = NULL_POSITION;
+		ch_flags &= ~CH_CANSEEK;
 	}
-#endif
 
 	if (lseek(ch_file, (off_t)0, SEEK_SET) == BAD_LSEEK)
 	{
