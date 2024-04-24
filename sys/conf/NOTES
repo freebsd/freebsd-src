@@ -1066,6 +1066,7 @@ options 	MBUF_PROFILING
 options 	ACCEPT_FILTER_DATA
 options 	ACCEPT_FILTER_DNS
 options 	ACCEPT_FILTER_HTTP
+options		ACCEPT_FILTER_TLS
 
 # TCP_SIGNATURE adds support for RFC 2385 (TCP-MD5) digests. These are
 # carried in TCP option 19. This option is commonly used to protect

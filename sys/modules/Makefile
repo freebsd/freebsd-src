@@ -20,6 +20,7 @@ SUBDIR=	\
 	accf_data \
 	accf_dns \
 	accf_http \
+	accf_tls \
 	acl_nfs4 \
 	acl_posix1e \
 	${_acpi} \

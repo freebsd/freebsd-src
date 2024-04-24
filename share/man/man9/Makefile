@@ -5,6 +5,7 @@ MAN=	accept_filter.9 \
 	accf_data.9 \
 	accf_dns.9 \
 	accf_http.9 \
+	accf_tls.9 \
 	acl.9 \
 	alq.9 \
 	altq.9 \
