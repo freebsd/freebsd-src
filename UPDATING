@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20240424:
+	OpenBSM auditing runtime (auditd, etc.) has been moved into the new
+	package FreeBSD-audit.  If you use OpenBSM auditing and pkgbase, you
+	should install FreeBSD-audit.
+
 20240205:
 	For dynamically linked programs, system calls are now made from
 	libsys rather than libc.  No change in linkage is required as

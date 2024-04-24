@@ -167,7 +167,7 @@ APMPACKAGE=	apm
 CONFGROUPS+=	AUDIT
 AUDIT+=		auditd
 AUDIT+=		auditdistd
-AUDITPACKAGE=	rc
+AUDITPACKAGE=	audit
 .endif
 
 .if ${MK_AUTOFS} != "no"
