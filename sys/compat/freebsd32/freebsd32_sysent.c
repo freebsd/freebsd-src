@@ -663,4 +663,6 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(osdb_column_bytes_args), .sy_call = (sy_call_t *)sys_osdb_column_bytes, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 599 = osdb_column_bytes */
 	{ .sy_narg = AS(osdb_column_bytes16_args), .sy_call = (sy_call_t *)sys_osdb_column_bytes16, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 600 = osdb_column_bytes16 */
 	{ .sy_narg = AS(osdb_column_type_args), .sy_call = (sy_call_t *)sys_osdb_column_type, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 601 = osdb_column_type */
+	{ .sy_narg = AS(osdb_column_count_args), .sy_call = (sy_call_t *)sys_osdb_column_count, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 602 = osdb_column_count */
+	{ .sy_narg = AS(osdb_column_name_args), .sy_call = (sy_call_t *)sys_osdb_column_name, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 603 = osdb_column_name */
 };

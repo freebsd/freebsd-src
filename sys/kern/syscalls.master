@@ -3432,4 +3432,18 @@
 			int size
 		);
 	}
+602 AUE_NULL STD {
+		int osdb_column_count(
+			_In_ void *sqlite3_stmt,
+			int count	
+		);
+	}
+
+603 AUE_NULL STD {
+		int osdb_column_name(
+			_In_ void *sqlite3_stmt,
+			int N,
+			_Out_ void *name
+		);
+	}
 ; vim: syntax=off

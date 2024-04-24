@@ -607,4 +607,6 @@ const char *freebsd32_syscallnames[] = {
 	"osdb_column_bytes",			/* 599 = osdb_column_bytes */
 	"osdb_column_bytes16",			/* 600 = osdb_column_bytes16 */
 	"osdb_column_type",			/* 601 = osdb_column_type */
+	"osdb_column_count",			/* 602 = osdb_column_count */
+	"osdb_column_name",			/* 603 = osdb_column_name */
 };

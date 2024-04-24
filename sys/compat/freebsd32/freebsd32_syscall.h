@@ -520,4 +520,6 @@
 #define	FREEBSD32_SYS_osdb_column_bytes	599
 #define	FREEBSD32_SYS_osdb_column_bytes16	600
 #define	FREEBSD32_SYS_osdb_column_type	601
-#define	FREEBSD32_SYS_MAXSYSCALL	602
+#define	FREEBSD32_SYS_osdb_column_count	602
+#define	FREEBSD32_SYS_osdb_column_name	603
+#define	FREEBSD32_SYS_MAXSYSCALL	604

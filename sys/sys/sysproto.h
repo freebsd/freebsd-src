@@ -1945,6 +1945,15 @@ struct osdb_column_type_args {
 	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 	char size_l_[PADL_(int)]; int size; char size_r_[PADR_(int)];
 };
+struct osdb_column_count_args {
+	char sqlite3_stmt_l_[PADL_(void *)]; void * sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+	char count_l_[PADL_(int)]; int count; char count_r_[PADR_(int)];
+};
+struct osdb_column_name_args {
+	char sqlite3_stmt_l_[PADL_(void *)]; void * sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+	char N_l_[PADL_(int)]; int N; char N_r_[PADR_(int)];
+	char name_l_[PADL_(void *)]; void * name; char name_r_[PADR_(void *)];
+};
 int	sys_exit(struct thread *, struct exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);
@@ -2357,6 +2366,8 @@ int	sys_osdb_column_value(struct thread *, struct osdb_column_value_args *);
 int	sys_osdb_column_bytes(struct thread *, struct osdb_column_bytes_args *);
 int	sys_osdb_column_bytes16(struct thread *, struct osdb_column_bytes16_args *);
 int	sys_osdb_column_type(struct thread *, struct osdb_column_type_args *);
+int	sys_osdb_column_count(struct thread *, struct osdb_column_count_args *);
+int	sys_osdb_column_name(struct thread *, struct osdb_column_name_args *);
 
 #ifdef COMPAT_43
 
@@ -3349,6 +3360,8 @@ int	freebsd13_swapoff(struct thread *, struct freebsd13_swapoff_args *);
 #define	SYS_AUE_osdb_column_bytes	AUE_NULL
 #define	SYS_AUE_osdb_column_bytes16	AUE_NULL
 #define	SYS_AUE_osdb_column_type	AUE_NULL
+#define	SYS_AUE_osdb_column_count	AUE_NULL
+#define	SYS_AUE_osdb_column_name	AUE_NULL
 
 #undef PAD_
 #undef PADL_

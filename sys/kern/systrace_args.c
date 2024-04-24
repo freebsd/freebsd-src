@@ -3575,6 +3575,23 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
+	/* osdb_column_count */
+	case 602: {
+		struct osdb_column_count_args *p = params;
+		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		iarg[a++] = p->count; /* int */
+		*n_args = 2;
+		break;
+	}
+	/* osdb_column_name */
+	case 603: {
+		struct osdb_column_name_args *p = params;
+		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		iarg[a++] = p->N; /* int */
+		uarg[a++] = (intptr_t)p->name; /* void * */
+		*n_args = 3;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -9582,6 +9599,35 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* osdb_column_count */
+	case 602:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* osdb_column_name */
+	case 603:
+		switch (ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -11617,6 +11663,16 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* osdb_column_type */
 	case 601:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* osdb_column_count */
+	case 602:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* osdb_column_name */
+	case 603:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
