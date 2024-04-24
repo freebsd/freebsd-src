@@ -86,6 +86,11 @@ static void NDVALIDATE_impl(struct nameidata *, int);
 	ndp->ni_cnd.cn_flags |= ISRESTARTED;				\
 } while (0)
 
+#define	NI_CAP_VIOLATION(ndp, path)	do {			\
+	ktrcapfail(CAPFAIL_NAMEI, (path));			\
+	(ndp)->ni_lcf &= ~NI_LCF_KTR_FLAGS;			\
+} while (0)
+
 SDT_PROVIDER_DEFINE(vfs);
 SDT_PROBE_DEFINE4(vfs, namei, lookup, entry, "struct vnode *", "char *",
     "unsigned long", "bool");
