@@ -86,8 +86,14 @@ static void NDVALIDATE_impl(struct nameidata *, int);
 	ndp->ni_cnd.cn_flags |= ISRESTARTED;				\
 } while (0)
 
+#ifdef KTRACE
+#define	NIKTRCAPFAIL(path)	ktrcapfail(CAPFAIL_NAMEI, (path))
+#else
+#define	NIKTRCAPFAIL(path)
+#endif
+
 #define	NI_CAP_VIOLATION(ndp, path)	do {			\
-	ktrcapfail(CAPFAIL_NAMEI, (path));			\
+	NIKTRCAPFAIL(path);					\
 	(ndp)->ni_lcf &= ~NI_LCF_KTR_FLAGS;			\
 } while (0)
 
