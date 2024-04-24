@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)gettimeofday.2	8.2 (Berkeley) 5/26/95
 .\"
-.Dd May 13, 2021
+.Dd April 24, 2024
 .Dt GETTIMEOFDAY 2
 .Os
 .Sh NAME
@@ -43,6 +43,17 @@
 .Ft int
 .Fn settimeofday "const struct timeval *tp" "const struct timezone *tzp"
 .Sh DESCRIPTION
+.Em Note :
+The
+.Nm gettimeofday
+function
+.Po but not
+.Nm settimeofday Pc
+is obsolescent.
+See the
+.Sx STANDARDS
+section for more details.
+.Pp
 The system's notion of the current Greenwich time and the current time
 zone is obtained with the
 .Fn gettimeofday
@@ -123,6 +134,18 @@ A user other than the super-user attempted to set the time.
 .Xr ctime 3 ,
 .Xr timeradd 3 ,
 .Xr clocks 7
+.Sh STANDARDS
+The
+.Nm gettimeofday
+function is considered obsolescent and its usage discouraged by
+.\" XXX: This should be replaced in the future when an appropriate argument to
+.\" the St macro is available: -p1003.1-2017
+.No IEEE Std 1003.1-2008, 2017 Edition (\\(LqPOSIX.1\\(Rq) .
+Application should use the
+.Xr clock_gettime 2
+function instead as
+.Nm gettimeofday
+might be removed in the future.
 .Sh HISTORY
 The
 .Fn gettimeofday
