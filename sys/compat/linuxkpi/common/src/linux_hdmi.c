@@ -21,12 +21,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifdef __FreeBSD__
-
-#include <sys/param.h>
-#include <sys/module.h>
-#endif
-
 #include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/errno.h>
@@ -1915,7 +1909,3 @@ int hdmi_infoframe_unpack(union hdmi_infoframe *frame,
 	return ret;
 }
 EXPORT_SYMBOL(hdmi_infoframe_unpack);
-
-
-MODULE_VERSION(linuxkpi_hdmi, 1);
-MODULE_DEPEND(linuxkpi_hdmi, linuxkpi, 1, 1, 1);
