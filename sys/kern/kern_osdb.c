@@ -4,7 +4,6 @@
 #include <sys/kernel.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
-#include <compat/freebsd32/freebsd32_proto.h>
 
 /* Return positive values to indicate failure */
 int sys_osdb_exec(struct thread *td, struct osdb_exec_args *args) { return 1; }
@@ -17,10 +16,10 @@ int sys_osdb_column_int(struct thread *td, struct osdb_column_int_args *args) { 
 int sys_osdb_column_int64(struct thread *td, struct osdb_column_int64_args *args) { return 1; }
 int sys_osdb_column_text(struct thread *td, struct osdb_column_text_args *args) { return 1; }
 int sys_osdb_column_text16(struct thread *td, struct osdb_column_text16_args *args) { return 1; }
-int freebsd32_osdb_column_text16(struct thread *td, struct osdb_column_text16_args *args) { return 1; }
 int sys_osdb_column_value(struct thread *td, struct osdb_column_value_args *args) { return 1; }
 int sys_osdb_column_bytes(struct thread *td, struct osdb_column_bytes_args *args) { return 1; }
 int sys_osdb_column_bytes16(struct thread *td, struct osdb_column_bytes16_args *args) { return 1; }
 int sys_osdb_column_type(struct thread *td, struct osdb_column_type_args *args) { return 1; }
+
 
   
