@@ -276,8 +276,12 @@ accept_filt_setopt(struct socket *so, struct sockopt *sopt)
 	 * without first removing it.
 	 */
 	SOCK_LOCK(so);
-	if (!SOLISTENING(so) || so->sol_accept_filter != NULL) {
+	if (__predict_false(!SOLISTENING(so))) {
 		error = EINVAL;
+		goto out;
+	}
+	if (__predict_false(so->sol_accept_filter != NULL)) {
+		error = EBUSY;
 		goto out;
 	}
 
