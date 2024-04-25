@@ -148,7 +148,7 @@ f_mustberoot_init
 dialog_menu_main || f_die
 f_dialog_menutag_fetch selected
 
-# Let pkg_add be able to use name servers
+# Let pkg(8) be able to use name servers
 f_quietly cp -f $BSDINSTALL_TMPETC/resolv.conf $BSDINSTALL_CHROOT/etc/
 
 #
