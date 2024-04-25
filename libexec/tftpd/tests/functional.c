@@ -60,24 +60,24 @@ static void require_bufeq(const char *expected, size_t expected_len,
  * @param	contents	The reply's expected contents, as a char array
  * @param	contents_len	Length of contents
  */
-#define RECV(hdr, contents, contents_len) do { \
-	char buffer[1024]; \
-	struct sockaddr_storage from; \
-	socklen_t fromlen = sizeof(from); \
-	ssize_t r = recvfrom(s, buffer, sizeof(buffer), 0, \
-	    (struct sockaddr*)&from, &fromlen); \
-	ATF_REQUIRE(r > 0); \
-	require_bufeq((hdr), sizeof(hdr), buffer, \
-	    MIN((size_t)r, sizeof(hdr)));		\
-	require_bufeq((const char*) (contents), (contents_len), \
-	    &buffer[sizeof(hdr)], r - sizeof(hdr)); \
-	if (protocol == PF_INET) { \
-		((struct sockaddr_in*)&addr)->sin_port = \
-		    ((struct sockaddr_in*)&from)->sin_port; \
-	} else { \
-		((struct sockaddr_in6*)&addr)->sin6_port = \
-		    ((struct sockaddr_in6*)&from)->sin6_port; \
-	} \
+#define RECV(hdr, contents, contents_len) do {				\
+	char buffer[1024];						\
+	struct sockaddr_storage from;					\
+	socklen_t fromlen = sizeof(from);				\
+	ssize_t r = recvfrom(s, buffer, sizeof(buffer), 0,		\
+	    (struct sockaddr *)&from, &fromlen);			\
+	ATF_REQUIRE(r > 0);						\
+	require_bufeq((hdr), sizeof(hdr), buffer,			\
+	    MIN((size_t)r, sizeof(hdr)));				\
+	require_bufeq((const char *) (contents), (contents_len),	\
+	    &buffer[sizeof(hdr)], r - sizeof(hdr));			\
+	if (protocol == PF_INET) {					\
+		((struct sockaddr_in *)&addr)->sin_port =		\
+		    ((struct sockaddr_in *)&from)->sin_port;		\
+	} else {							\
+		((struct sockaddr_in6 *)&addr)->sin6_port =		\
+		    ((struct sockaddr_in6 *)&from)->sin6_port;		\
+	}								\
 } while(0)
 
 static void
@@ -101,15 +101,15 @@ recv_oack(const char *options, size_t options_len)
  * @param	contents_len	Length of contents expected to receive
  */
 static void
-recv_data(uint16_t blocknum, const char* contents, size_t contents_len)
+recv_data(uint16_t blocknum, const char *contents, size_t contents_len)
 {
 	char hdr[] = {0, 3, blocknum >> 8, blocknum & 0xFF};
 	RECV(hdr, contents, contents_len);
 }
 
-#define RECV_ERROR(code, msg) do { \
-	char hdr[] = {0, 5, code >> 8, code & 0xFF}; \
-	RECV(hdr, msg, sizeof(msg)); \
+#define RECV_ERROR(code, msg) do {					\
+	char hdr[] = {0, 5, code >> 8, code & 0xFF};			\
+	RECV(hdr, msg, sizeof(msg));					\
 } while (0)
 
 /* 
@@ -121,13 +121,13 @@ send_bytes(const void *cmd, size_t len)
 {
 	ssize_t r;
 
-	r = sendto(s, cmd, len, 0, (struct sockaddr*)(&addr), addr.ss_len);
+	r = sendto(s, cmd, len, 0, (struct sockaddr *)(&addr), addr.ss_len);
 	ATF_REQUIRE(r >= 0);
 	ATF_REQUIRE_EQ(len, (size_t)r);
 }
 
 static void
-send_data(uint16_t blocknum, const char* contents, size_t contents_len)
+send_data(uint16_t blocknum, const char *contents, size_t contents_len)
 {
 	char buffer[1024];
 
@@ -144,10 +144,10 @@ send_data(uint16_t blocknum, const char* contents, size_t contents_len)
  * @param	cmd		Command to send, as a const string
  *				(terminating NUL will be ignored)
  */
-#define SEND_STR(cmd) ATF_REQUIRE_EQ( \
-	sendto(s, (cmd), sizeof(cmd) - 1, 0, (struct sockaddr*)(&addr), \
-	    addr.ss_len), \
-	sizeof(cmd) - 1)
+#define SEND_STR(cmd)							\
+	ATF_REQUIRE_EQ(sizeof(cmd) - 1,					\
+	    sendto(s, (cmd), sizeof(cmd) - 1, 0,			\
+	    (struct sockaddr *)(&addr), addr.ss_len))
 
 /*
  * Acknowledge block blocknum
@@ -156,13 +156,12 @@ static void
 send_ack(uint16_t blocknum)
 {
 	char packet[] = {
-	    0, 4,	/* ACK opcode in BE */
-	    blocknum >> 8,
-	    blocknum & 0xFF
+		0, 4,		/* ACK opcode in BE */
+		blocknum >> 8,
+		blocknum & 0xFF
 	};
 
 	send_bytes(packet, sizeof(packet));
-
 }
 
 /*
@@ -175,71 +174,74 @@ send_ack(uint16_t blocknum)
  * @param	filename	filename as a string, absolute or relative
  * @param	mode		either "octet" or "netascii"
  */
-#define SEND_RRQ(filename, mode) SEND_STR("\0\001" filename "\0" mode "\0")
+#define SEND_RRQ(filename, mode)					\
+	SEND_STR("\0\001" filename "\0" mode "\0")
 
 /*
  * send a read request with options
  */
-#define SEND_RRQ_OPT(filename, mode, options) SEND_STR("\0\001" filename "\0" mode "\000" options)
+#define SEND_RRQ_OPT(filename, mode, options)				\
+	SEND_STR("\0\001" filename "\0" mode "\000" options)
 
 /* 
  * send a write request to tftpd.
  * @param	filename	filename as a string, absolute or relative
  * @param	mode		either "octet" or "netascii"
  */
-#define SEND_WRQ(filename, mode) SEND_STR("\0\002" filename "\0" mode "\0")
+#define SEND_WRQ(filename, mode)					\
+	SEND_STR("\0\002" filename "\0" mode "\0")
 
 /*
  * send a write request with options
  */
-#define SEND_WRQ_OPT(filename, mode, options) SEND_STR("\0\002" filename "\0" mode "\000" options)
+#define SEND_WRQ_OPT(filename, mode, options)				\
+	SEND_STR("\0\002" filename "\0" mode "\000" options)
 
 /* Define a test case, for both IPv4 and IPv6 */
-#define TFTPD_TC_DEFINE(name, head, ...) \
-static void \
-name ## _body(void); \
-ATF_TC_WITH_CLEANUP(name ## _v4); \
-ATF_TC_HEAD(name ## _v4, tc) \
-{ \
-	head \
-} \
-ATF_TC_BODY(name ## _v4, tc) \
-{ \
-	__VA_ARGS__; \
-	protocol = AF_INET; \
-	s = setup(&addr, __COUNTER__); \
-	name ## _body(); \
-	close(s); \
-} \
-ATF_TC_CLEANUP(name ## _v4, tc) \
-{ \
-	cleanup(); \
-} \
-ATF_TC_WITH_CLEANUP(name ## _v6); \
-ATF_TC_HEAD(name ## _v6, tc) \
-{ \
-	head \
-} \
-ATF_TC_BODY(name ## _v6, tc) \
-{ \
-	__VA_ARGS__; \
-	protocol = AF_INET6; \
-	s = setup(&addr, __COUNTER__); \
-	name ## _body(); \
-	close(s); \
-} \
-ATF_TC_CLEANUP(name ## _v6, tc) \
-{ \
-	cleanup(); \
-} \
-static void \
+#define TFTPD_TC_DEFINE(name, head, ...)				\
+static void								\
+name ## _body(void);							\
+ATF_TC_WITH_CLEANUP(name ## _v4);					\
+ATF_TC_HEAD(name ## _v4, tc)						\
+{									\
+	head								\
+}									\
+ATF_TC_BODY(name ## _v4, tc)						\
+{									\
+	__VA_ARGS__;							\
+	protocol = AF_INET;						\
+	s = setup(&addr, __COUNTER__);					\
+	name ## _body();						\
+	close(s);							\
+}									\
+ATF_TC_CLEANUP(name ## _v4, tc)						\
+{									\
+	cleanup();							\
+}									\
+ATF_TC_WITH_CLEANUP(name ## _v6);					\
+ATF_TC_HEAD(name ## _v6, tc)						\
+{									\
+	head								\
+}									\
+ATF_TC_BODY(name ## _v6, tc)						\
+{									\
+	__VA_ARGS__;							\
+	protocol = AF_INET6;						\
+	s = setup(&addr, __COUNTER__);					\
+	name ## _body();						\
+	close(s);							\
+}									\
+ATF_TC_CLEANUP(name ## _v6, tc)						\
+{									\
+	cleanup();							\
+}									\
+static void								\
 name ## _body(void)
 
 /* Add the IPv4 and IPv6 versions of a test case */
-#define TFTPD_TC_ADD(tp, name ) \
-do { \
-	ATF_TP_ADD_TC(tp, name ## _v4); \
-	ATF_TP_ADD_TC(tp, name ## _v6); \
+#define TFTPD_TC_ADD(tp, name) do {					\
+	ATF_TP_ADD_TC(tp, name ## _v4);					\
+	ATF_TP_ADD_TC(tp, name ## _v6);					\
 } while (0)
 
 /* Standard cleanup used by all testcases */
@@ -262,15 +264,15 @@ cleanup(void)
 
 /* Assert that two binary buffers are identical */
 static void
-require_bufeq(const char *expected, size_t expected_len, const char *actual,
-    size_t len)
+require_bufeq(const char *expected, size_t expected_len,
+    const char *actual, size_t len)
 {
 	size_t i;
 
 	ATF_REQUIRE_EQ_MSG(expected_len, len,
 	    "Expected %zu bytes but got %zu", expected_len, len);
 	for (i = 0; i < len; i++) {
-		ATF_REQUIRE_EQ_MSG(actual[i], expected[i],
+		ATF_REQUIRE_EQ_MSG(expected[i], actual[i],
 		    "Expected %#hhx at position %zu; got %hhx instead",
 		    expected[i], i, actual[i]);
 	}
@@ -304,17 +306,17 @@ setup(struct sockaddr_storage *to, uint16_t idx)
 		addr4.sin_len = len;
 		addr4.sin_family = PF_INET;
 		addr4.sin_port = htons(port);
-		server_addr = (struct sockaddr*)&addr4;
+		server_addr = (struct sockaddr *)&addr4;
 	} else {
 		len = sizeof(addr6);
 		bzero(&addr6, len);
 		addr6.sin6_len = len;
 		addr6.sin6_family = PF_INET6;
 		addr6.sin6_port = htons(port);
-		server_addr = (struct sockaddr*)&addr6;
+		server_addr = (struct sockaddr *)&addr6;
 	}
 
-	ATF_REQUIRE_EQ(getcwd(pwd, sizeof(pwd)), pwd);
+	ATF_REQUIRE_EQ(pwd, getcwd(pwd, sizeof(pwd)));
 	
 	/* Must bind(2) pre-fork so it happens before the client's send(2) */
 	server_s = socket(protocol, SOCK_DGRAM, 0);
@@ -324,7 +326,7 @@ setup(struct sockaddr_storage *to, uint16_t idx)
 	}
 	ATF_REQUIRE_MSG(server_s >= 0,
 	    "socket failed with error %s", strerror(errno));
-	ATF_REQUIRE_EQ_MSG(bind(server_s, server_addr, len), 0,
+	ATF_REQUIRE_EQ_MSG(0, bind(server_s, server_addr, len),
 	    "bind failed with error %s", strerror(errno));
 
 	pid = fork();
@@ -337,8 +339,8 @@ setup(struct sockaddr_storage *to, uint16_t idx)
 		pfh = pidfile_open(pidfile, 0644, NULL);
 		ATF_REQUIRE_MSG(pfh != NULL,
 		    "pidfile_open: %s", strerror(errno));
-		ATF_REQUIRE_EQ(pidfile_write(pfh), 0);
-		ATF_REQUIRE_EQ(pidfile_close(pfh), 0);
+		ATF_REQUIRE_EQ(0, pidfile_write(pfh));
+		ATF_REQUIRE_EQ(0, pidfile_close(pfh));
 
 		bzero(argv, sizeof(argv));
 		argv[0] = execname;
@@ -348,9 +350,9 @@ setup(struct sockaddr_storage *to, uint16_t idx)
 		if (s_flag)
 			argv[argv_idx++] = s_flag_str;
 		argv[argv_idx++] = pwd;
-		ATF_REQUIRE_EQ(dup2(server_s, STDOUT_FILENO), STDOUT_FILENO);
-		ATF_REQUIRE_EQ(dup2(server_s, STDIN_FILENO), STDIN_FILENO);
-		ATF_REQUIRE_EQ(dup2(server_s, STDERR_FILENO), STDERR_FILENO);
+		ATF_REQUIRE_EQ(STDOUT_FILENO, dup2(server_s, STDOUT_FILENO));
+		ATF_REQUIRE_EQ(STDIN_FILENO, dup2(server_s, STDIN_FILENO));
+		ATF_REQUIRE_EQ(STDERR_FILENO, dup2(server_s, STDERR_FILENO));
 		execv(execname, argv);
 		atf_tc_fail("exec failed");
 		break;
@@ -358,14 +360,14 @@ setup(struct sockaddr_storage *to, uint16_t idx)
 		/* In parent */
 		bzero(to, sizeof(*to));
 		if (protocol == PF_INET) {
-			struct sockaddr_in *to4 = (struct sockaddr_in*)to;
+			struct sockaddr_in *to4 = (struct sockaddr_in *)to;
 			to4->sin_len = sizeof(*to4);
 			to4->sin_family = PF_INET;
 			to4->sin_port = htons(port);
 			to4->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 		} else {
 			struct in6_addr loopback = IN6ADDR_LOOPBACK_INIT;
-			struct sockaddr_in6 *to6 = (struct sockaddr_in6*)to;
+			struct sockaddr_in6 *to6 = (struct sockaddr_in6 *)to;
 			to6->sin6_len = sizeof(*to6);
 			to6->sin6_family = PF_INET6;
 			to6->sin6_port = htons(port);
@@ -393,7 +395,7 @@ write_all(int fd, const void *buf, size_t nbytes)
 		r = write(fd, buf, nbytes);
 		ATF_REQUIRE(r > 0);
 		nbytes -= (size_t)r;
-		buf = (const char*)buf + (size_t)r;
+		buf = (const char *)buf + (size_t)r;
 	}
 }
 
@@ -433,13 +435,13 @@ TFTPD_TC_DEFINE(abspath,)
  */
 TFTPD_TC_DEFINE(dotdot,)
 {
-	ATF_REQUIRE_EQ(mkdir("subdir", 0777), 0);
+	ATF_REQUIRE_EQ(0, mkdir("subdir", 0777));
 	SEND_RRQ("../disallowed.txt", "octet");
 	RECV_ERROR(2, "Access violation");
-	s = setup(&addr, __COUNTER__); \
+	s = setup(&addr, __COUNTER__);
 	SEND_RRQ("subdir/../../disallowed.txt", "octet");
 	RECV_ERROR(2, "Access violation");
-	s = setup(&addr, __COUNTER__); \
+	s = setup(&addr, __COUNTER__);
 	SEND_RRQ("/etc/passwd", "octet");
 	RECV_ERROR(2, "Access violation");
 }
@@ -447,8 +449,9 @@ TFTPD_TC_DEFINE(dotdot,)
 /*
  * With "-s", tftpd should chroot to the specified directory
  */
-TFTPD_TC_DEFINE(s_flag, atf_tc_set_md_var(tc, "require.user", "root");,
-		s_flag = true)
+TFTPD_TC_DEFINE(s_flag,
+    atf_tc_set_md_var(tc, "require.user", "root");,
+    s_flag = true)
 {
 	int fd;
 	char contents[] = "small";
@@ -505,7 +508,7 @@ TFTPD_TC_DEFINE(rrq_dropped_data,)
 	close(fd);
 
 	SEND_RRQ("medium.txt", "octet");
-	recv_data(1, (const char*)&contents[0], 512);
+	recv_data(1, (const char *)&contents[0], 512);
 	send_ack(1);
 	(void) recvfrom(s, buffer, sizeof(buffer), 0, NULL, NULL);
 	/*
@@ -513,7 +516,7 @@ TFTPD_TC_DEFINE(rrq_dropped_data,)
 	 * Eventually, client should resend the last ACK
 	 */
 	send_ack(1);
-	recv_data(2, (const char*)&contents[128], 256);
+	recv_data(2, (const char *)&contents[128], 256);
 	send_ack(2);
 }
 
@@ -535,11 +538,11 @@ TFTPD_TC_DEFINE(rrq_duped_ack,)
 	close(fd);
 
 	SEND_RRQ("medium.txt", "octet");
-	recv_data(1, (const char*)&contents[0], 512);
+	recv_data(1, (const char *)&contents[0], 512);
 	send_ack(1);
 	send_ack(1);	/* Dupe an ACK packet */
-	recv_data(2, (const char*)&contents[128], 256);
-	recv_data(2, (const char*)&contents[128], 256);
+	recv_data(2, (const char *)&contents[128], 256);
+	recv_data(2, (const char *)&contents[128], 256);
 	send_ack(2);
 }
 
@@ -593,9 +596,9 @@ TFTPD_TC_DEFINE(rrq_medium,)
 	close(fd);
 
 	SEND_RRQ("medium.txt", "octet");
-	recv_data(1, (const char*)&contents[0], 512);
+	recv_data(1, (const char *)&contents[0], 512);
 	send_ack(1);
-	recv_data(2, (const char*)&contents[128], 256);
+	recv_data(2, (const char *)&contents[128], 256);
 	send_ack(2);
 }
 
@@ -620,8 +623,8 @@ TFTPD_TC_DEFINE(rrq_medium_window,)
 	SEND_RRQ_OPT("medium.txt", "octet", OPTION_STR("windowsize", "2"));
 	recv_oack(options, sizeof(options) - 1);
 	send_ack(0);
-	recv_data(1, (const char*)&contents[0], 512);
-	recv_data(2, (const char*)&contents[128], 256);
+	recv_data(1, (const char *)&contents[0], 512);
+	recv_data(2, (const char *)&contents[128], 256);
 	send_ack(2);
 }
 
@@ -764,13 +767,13 @@ TFTPD_TC_DEFINE(unknown_modes,)
 {
 	SEND_RRQ("foo.txt", "ascii");	/* Misspelling of "ascii" */
 	RECV_ERROR(4, "Illegal TFTP operation");
-	s = setup(&addr, __COUNTER__); \
+	s = setup(&addr, __COUNTER__);
 	SEND_RRQ("foo.txt", "binary");	/* Obsolete.  Use "octet" instead */
 	RECV_ERROR(4, "Illegal TFTP operation");
-	s = setup(&addr, __COUNTER__); \
+	s = setup(&addr, __COUNTER__);
 	SEND_RRQ("foo.txt", "en_US.UTF-8");
 	RECV_ERROR(4, "Illegal TFTP operation");
-	s = setup(&addr, __COUNTER__); \
+	s = setup(&addr, __COUNTER__);
 	SEND_RRQ("foo.txt", "mail");	/* Obsolete in RFC-1350 */
 	RECV_ERROR(4, "Illegal TFTP operation");
 }
@@ -830,14 +833,14 @@ TFTPD_TC_DEFINE(wrq_dropped_ack,)
 
 	SEND_WRQ("medium.txt", "octet");
 	recv_ack(0);
-	send_data(1, (const char*)&contents[0], 512);
+	send_data(1, (const char *)&contents[0], 512);
 	/* 
 	 * Servers "sends" an ACK packet, but network drops it.
 	 * Eventually, server should resend the last ACK
 	 */
 	(void) recvfrom(s, buffer, sizeof(buffer), 0, NULL, NULL);
 	recv_ack(1);
-	send_data(2, (const char*)&contents[128], 256);
+	send_data(2, (const char *)&contents[128], 256);
 	recv_ack(2);
 
 	fd = open("medium.txt", O_RDONLY);
@@ -845,7 +848,7 @@ TFTPD_TC_DEFINE(wrq_dropped_ack,)
 	r = read(fd, buffer, sizeof(buffer));
 	ATF_REQUIRE(r > 0);
 	close(fd);
-	require_bufeq((const char*)contents, 768, buffer, (size_t)r);
+	require_bufeq((const char *)contents, 768, buffer, (size_t)r);
 }
 
 /*
@@ -902,11 +905,11 @@ TFTPD_TC_DEFINE(wrq_duped_data,)
 
 	SEND_WRQ("medium.txt", "octet");
 	recv_ack(0);
-	send_data(1, (const char*)&contents[0], 512);
-	send_data(1, (const char*)&contents[0], 512);
+	send_data(1, (const char *)&contents[0], 512);
+	send_data(1, (const char *)&contents[0], 512);
 	recv_ack(1);
 	recv_ack(1);
-	send_data(2, (const char*)&contents[128], 256);
+	send_data(2, (const char *)&contents[128], 256);
 	recv_ack(2);
 
 	fd = open("medium.txt", O_RDONLY);
@@ -914,7 +917,7 @@ TFTPD_TC_DEFINE(wrq_duped_data,)
 	r = read(fd, buffer, sizeof(buffer));
 	ATF_REQUIRE(r > 0);
 	close(fd);
-	require_bufeq((const char*)contents, 768, buffer, (size_t)r);
+	require_bufeq((const char *)contents, 768, buffer, (size_t)r);
 }
 
 /*
@@ -969,9 +972,9 @@ TFTPD_TC_DEFINE(wrq_medium,)
 
 	SEND_WRQ("medium.txt", "octet");
 	recv_ack(0);
-	send_data(1, (const char*)&contents[0], 512);
+	send_data(1, (const char *)&contents[0], 512);
 	recv_ack(1);
-	send_data(2, (const char*)&contents[128], 256);
+	send_data(2, (const char *)&contents[128], 256);
 	recv_ack(2);
 
 	fd = open("medium.txt", O_RDONLY);
@@ -979,7 +982,7 @@ TFTPD_TC_DEFINE(wrq_medium,)
 	r = read(fd, buffer, sizeof(buffer));
 	ATF_REQUIRE(r > 0);
 	close(fd);
-	require_bufeq((const char*)contents, 768, buffer, (size_t)r);
+	require_bufeq((const char *)contents, 768, buffer, (size_t)r);
 }
 
 /*
@@ -1003,8 +1006,8 @@ TFTPD_TC_DEFINE(wrq_medium_window,)
 
 	SEND_WRQ_OPT("medium.txt", "octet", OPTION_STR("windowsize", "2"));
 	recv_oack(options, sizeof(options) - 1);
-	send_data(1, (const char*)&contents[0], 512);
-	send_data(2, (const char*)&contents[128], 256);
+	send_data(1, (const char *)&contents[0], 512);
+	send_data(2, (const char *)&contents[128], 256);
 	recv_ack(2);
 
 	fd = open("medium.txt", O_RDONLY);
@@ -1012,7 +1015,7 @@ TFTPD_TC_DEFINE(wrq_medium_window,)
 	r = read(fd, buffer, sizeof(buffer));
 	ATF_REQUIRE(r > 0);
 	close(fd);
-	require_bufeq((const char*)contents, 768, buffer, (size_t)r);
+	require_bufeq((const char *)contents, 768, buffer, (size_t)r);
 }
 
 /*
@@ -1107,8 +1110,8 @@ TFTPD_TC_DEFINE(wrq_truncate,)
 	send_data(1, NULL, 0);
 	recv_ack(1);
 
-	ATF_REQUIRE_EQ(stat("small.txt", &sb), 0);
-	ATF_REQUIRE_EQ(sb.st_size, 0);
+	ATF_REQUIRE_EQ(0, stat("small.txt", &sb));
+	ATF_REQUIRE_EQ(0, sb.st_size);
 }
 
 /*
