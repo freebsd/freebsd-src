@@ -56,6 +56,9 @@
 /* 1 year in seconds */
 #define MAX_RESTART_DELAY 60*60*24*365
 
+/* Maximum number of restarts */
+#define MAX_RESTART_COUNT 128
+
 #define LBUF_SIZE 4096
 
 enum daemon_mode {
@@ -92,6 +95,8 @@ struct daemon_state {
 	bool restart_enabled;
 	bool syslog_enabled;
 	bool log_reopen;
+	int restart_count;
+	int restarted_count;
 };
 
 static void restrict_process(const char *);
@@ -109,7 +114,7 @@ static void daemon_exec(struct daemon_state *);
 static bool daemon_is_child_dead(struct daemon_state *);
 static void daemon_set_child_pipe(struct daemon_state *);
 
-static const char shortopts[] = "+cfHSp:P:ru:o:s:l:t:m:R:T:h";
+static const char shortopts[] = "+cfHSp:P:ru:o:s:l:t:m:R:T:C:h";
 
 static const struct option longopts[] = {
 	{ "change-dir",         no_argument,            NULL,           'c' },
@@ -121,6 +126,7 @@ static const struct option longopts[] = {
 	{ "child-pidfile",      required_argument,      NULL,           'p' },
 	{ "supervisor-pidfile", required_argument,      NULL,           'P' },
 	{ "restart",            no_argument,            NULL,           'r' },
+	{ "restart-count",      required_argument,      NULL,           'C' },
 	{ "restart-delay",      required_argument,      NULL,           'R' },
 	{ "title",              required_argument,      NULL,           't' },
 	{ "user",               required_argument,      NULL,           'u' },
@@ -139,6 +145,7 @@ usage(int exitcode)
 	    "              [-u user] [-o output_file] [-t title]\n"
 	    "              [-l syslog_facility] [-s syslog_priority]\n"
 	    "              [-T syslog_tag] [-m output_mask] [-R restart_delay_secs]\n"
+	    "              [-C restart_count]\n"
 	    "command arguments ...\n");
 
 	(void)fprintf(stderr,
@@ -152,6 +159,7 @@ usage(int exitcode)
 	    "  --child-pidfile      -p <file>  Write PID of the child process to file\n"
 	    "  --supervisor-pidfile -P <file>  Write PID of the supervisor process to file\n"
 	    "  --restart            -r         Restart child if it terminates (1 sec delay)\n"
+	    "  --restart-count      -C <N>     Restart child at most N times, then exit\n"
 	    "  --restart-delay      -R <N>     Restart child if it terminates after N sec\n"
 	    "  --title              -t <title> Set the title of the supervisor process\n"
 	    "  --user               -u <user>  Drop privileges, run as given user\n"
@@ -197,6 +205,13 @@ main(int argc, char *argv[])
 		switch (ch) {
 		case 'c':
 			state.keep_cur_workdir = 0;
+			break;
+		case 'C':
+			state.restart_count = (int)strtonum(optarg, 0,
+			    MAX_RESTART_COUNT, &e);
+			if (e != NULL) {
+				errx(6, "invalid restart count: %s", e);
+			}
 			break;
 		case 'f':
 			state.keep_fds_open = 0;
@@ -331,6 +346,12 @@ main(int argc, char *argv[])
 		state.mode = MODE_SUPERVISE;
 		daemon_eventloop(&state);
 		daemon_sleep(&state);
+		if (state.restart_enabled && state.restart_count > -1) {
+			if (state.restarted_count >= state.restart_count) {
+				state.restart_enabled = false;
+			}
+			state.restarted_count++;
+		}
 	} while (state.restart_enabled);
 
 	daemon_terminate(&state);
@@ -723,6 +744,8 @@ daemon_state_init(struct daemon_state *state)
 		.keep_fds_open = 1,
 		.output_fd = -1,
 		.output_filename = NULL,
+		.restart_count = -1,
+		.restarted_count = 0
 	};
 }
 
