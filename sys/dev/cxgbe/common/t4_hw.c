@@ -243,18 +243,21 @@ struct port_tx_state {
 	uint64_t tx_frames;
 };
 
+u32
+t4_port_reg(struct adapter *adap, u8 port, u32 reg)
+{
+	if (chip_id(adap) > CHELSIO_T4)
+		return T5_PORT_REG(port, reg);
+	return PORT_REG(port, reg);
+}
+
 static void
 read_tx_state_one(struct adapter *sc, int i, struct port_tx_state *tx_state)
 {
 	uint32_t rx_pause_reg, tx_frames_reg;
 
-	if (is_t4(sc)) {
-		tx_frames_reg = PORT_REG(i, A_MPS_PORT_STAT_TX_PORT_FRAMES_L);
-		rx_pause_reg = PORT_REG(i, A_MPS_PORT_STAT_RX_PORT_PAUSE_L);
-	} else {
-		tx_frames_reg = T5_PORT_REG(i, A_MPS_PORT_STAT_TX_PORT_FRAMES_L);
-		rx_pause_reg = T5_PORT_REG(i, A_MPS_PORT_STAT_RX_PORT_PAUSE_L);
-	}
+	rx_pause_reg = t4_port_reg(sc, i, A_MPS_PORT_STAT_RX_PORT_PAUSE_L);
+	tx_frames_reg = t4_port_reg(sc, i, A_MPS_PORT_STAT_TX_PORT_FRAMES_L);
 
 	tx_state->rx_pause = t4_read_reg64(sc, rx_pause_reg);
 	tx_state->tx_frames = t4_read_reg64(sc, tx_frames_reg);
@@ -281,10 +284,7 @@ check_tx_state(struct adapter *sc, struct port_tx_state *tx_state)
 		tx_frames = tx_state[i].tx_frames;
 		read_tx_state_one(sc, i, &tx_state[i]);	/* update */
 
-		if (is_t4(sc))
-			port_ctl_reg = PORT_REG(i, A_MPS_PORT_CTL);
-		else
-			port_ctl_reg = T5_PORT_REG(i, A_MPS_PORT_CTL);
+		port_ctl_reg = t4_port_reg(sc, i, A_MPS_PORT_CTL);
 		if (t4_read_reg(sc, port_ctl_reg) & F_PORTTXEN &&
 		    rx_pause != tx_state[i].rx_pause &&
 		    tx_frames == tx_state[i].tx_frames) {
@@ -6952,8 +6952,7 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
-	(is_t4(adap) ? PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_##name##_L) : \
-	T5_PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_##name##_L)))
+	    t4_port_reg(adap, pi->tx_chan, A_MPS_PORT_STAT_##name##_L));
 #define GET_STAT_COM(name) t4_read_reg64(adap, A_MPS_STAT_##name##_L)
 
 	p->tx_pause		= GET_STAT(TX_PORT_PAUSE);
@@ -7054,9 +7053,7 @@ void t4_get_lb_stats(struct adapter *adap, int idx, struct lb_port_stats *p)
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
-	(is_t4(adap) ? \
-	PORT_REG(idx, A_MPS_PORT_STAT_LB_PORT_##name##_L) : \
-	T5_PORT_REG(idx, A_MPS_PORT_STAT_LB_PORT_##name##_L)))
+	    t4_port_reg(adap, idx, A_MPS_PORT_STAT_LB_PORT_##name##_L))
 #define GET_STAT_COM(name) t4_read_reg64(adap, A_MPS_STAT_##name##_L)
 
 	p->octets	= GET_STAT(BYTES);
@@ -9436,16 +9433,16 @@ int t4_shutdown_adapter(struct adapter *adapter)
 		t4_write_reg(adapter, A_DBG_GPIO_EN, 0xffff0000);
 	for_each_port(adapter, port) {
 		u32 a_port_cfg = is_t4(adapter) ?
-				 PORT_REG(port, A_XGMAC_PORT_CFG) :
-				 T5_PORT_REG(port, A_MAC_PORT_CFG);
+		    t4_port_reg(adapter, port, A_XGMAC_PORT_CFG) :
+		    t4_port_reg(adapter, port, A_MAC_PORT_CFG);
 
 		t4_write_reg(adapter, a_port_cfg,
 			     t4_read_reg(adapter, a_port_cfg)
 			     & ~V_SIGNAL_DET(1));
 		if (!bt) {
 			u32 hss_cfg0 = is_t4(adapter) ?
-					 PORT_REG(port, A_XGMAC_PORT_HSS_CFG0) :
-					 T5_PORT_REG(port, A_MAC_PORT_HSS_CFG0);
+			    t4_port_reg(adapter, port, A_XGMAC_PORT_HSS_CFG0) :
+			    t4_port_reg(adapter, port, A_MAC_PORT_HSS_CFG0);
 			t4_set_reg_field(adapter, hss_cfg0, F_HSSPDWNPLLB |
 			    F_HSSPDWNPLLA | F_HSSPLLBYPB | F_HSSPLLBYPA,
 			    F_HSSPDWNPLLB | F_HSSPDWNPLLA | F_HSSPLLBYPB |
