@@ -59,10 +59,8 @@
 #include "opt_rss.h"
 
 #ifdef RSS
-
 #include <net/rss_config.h>
 #include <netinet/in_rss.h>
-
 #endif
 
 MALLOC_DEFINE(M_AXGBE, "axgbe", "axgbe data");
@@ -440,7 +438,14 @@ axgbe_if_attach_pre(if_ctx_t ctx)
         sc->pdata.xgmac_res = mac_res[0];
         sc->pdata.xpcs_res = mac_res[1];
 
-        /* Set the PCS indirect addressing definition registers*/
+	/*
+	 * Set the PCS indirect addressing definition registers.
+	 * A newer version of the hardware is using the same PCI ids
+	 * for the network device but has altered register definitions
+	 * for determining the window settings for the indirect PCS access.
+	 * This code checks hardware usage and uses the register values
+	 * accordingly.
+	 */
 	rdev = pci_find_dbsf(0, 0, 0, 0);
 	if (rdev && pci_get_device(rdev) == 0x15d0
 		&& pci_get_vendor(rdev) == 0x1022) {

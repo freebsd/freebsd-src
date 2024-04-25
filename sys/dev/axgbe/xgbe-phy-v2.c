@@ -2252,7 +2252,8 @@ xgbe_phy_rx_reset(struct xgbe_prv_data *pdata)
 			     XGBE_PCS_PSEQ_STATE_MASK);
 
 	if (reg == XGBE_PCS_PSEQ_STATE_POWER_GOOD) {
-		/* Mailbox command timed out, reset of RX block is required.
+		/*
+	         * Mailbox command timed out, reset of RX block is required.
 		 * This can be done by asserting the reset bit and waiting
 		 * for its completion.
 		 */

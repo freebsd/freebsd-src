@@ -1452,7 +1452,7 @@ xgbe_dev_read(struct xgbe_channel *channel)
 	if (!err || !etlt) {
 		/* No error if err is 0 or etlt is 0 */
 		if (etlt == 0x09 &&
-			(if_getcapenable(pdata->netdev) & IFCAP_VLAN_HWTAGGING)) {
+		    (if_getcapenable(pdata->netdev) & IFCAP_VLAN_HWTAGGING)) {
 			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 			    VLAN_CTAG, 1);
 			packet->vlan_ctag = XGMAC_GET_BITS_LE(rdesc->desc0,
