@@ -520,17 +520,27 @@ common:
 	 * when the page size is larger than 4k, L2 blocks are too large to
 	 * map the kernel with such an alignment.
 	 */
+#define	PTE_SHIFT	L3_SHIFT
+#define	BUILD_PTE_FUNC	build_l3_page_pagetable
+#else
+#define	PTE_SHIFT	L2_SHIFT
+#define	BUILD_PTE_FUNC	build_l2_block_pagetable
+#endif
 
-	/* Get the number of l3 pages to allocate, rounded down */
-	lsr	x10, x8, #(L3_SHIFT)
+	/* Get the number of blocks/pages to allocate, rounded down */
+	lsr	x10, x8, #(PTE_SHIFT)
 
-	/* Create the kernel space L2 table */
+	/* Create the kernel space PTE table */
 	mov	x6, x26
 	mov	x7, #(ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK))
 	mov	x8, #(KERNBASE)
 	mov	x9, x28
-	bl	build_l3_page_pagetable
+	bl	BUILD_PTE_FUNC
 
+#undef PTE_SHIFT
+#undef BUILD_PTE_FUNC
+
+#if PAGE_SIZE != PAGE_SIZE_4K
 	/* Move to the l2 table */
 	ldr	x9, =(PAGE_SIZE * L3_PAGE_COUNT)
 	add	x26, x26, x9
@@ -539,16 +549,6 @@ common:
 	mov	x9, x6
 	mov	x6, x26
 	bl	link_l2_pagetable
-#else
-	/* Get the number of l2 pages to allocate, rounded down */
-	lsr	x10, x8, #(L2_SHIFT)
-
-	/* Create the kernel space L2 table */
-	mov	x6, x26
-	mov	x7, #(ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK))
-	mov	x8, #(KERNBASE)
-	mov	x9, x28
-	bl	build_l2_block_pagetable
 #endif
 
 	/* Move to the l1 table */
