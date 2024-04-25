@@ -68,8 +68,8 @@
 #include <tcpd.h>
 #endif
 
-static void	tftp_wrq(int peer, char *, ssize_t);
-static void	tftp_rrq(int peer, char *, ssize_t);
+static void	tftp_wrq(int peer, char *, size_t);
+static void	tftp_rrq(int peer, char *, size_t);
 
 /*
  * Null-terminated directory prefix list for absolute pathname requests and
@@ -81,7 +81,7 @@ static void	tftp_rrq(int peer, char *, ssize_t);
 #define MAXDIRS	20
 static struct dirlist {
 	const char	*name;
-	int	len;
+	size_t		len;
 } dirs[MAXDIRS+1];
 static int	suppress_naks;
 static int	logging;
@@ -392,7 +392,7 @@ main(int argc, char *argv[])
 	tp->th_opcode = ntohs(tp->th_opcode);
 	if (tp->th_opcode == RRQ) {
 		if (allow_ro)
-			tftp_rrq(peer, tp->th_stuff, n - 1);
+			tftp_rrq(peer, tp->th_stuff, (size_t)n - 1);
 		else {
 			tftp_log(LOG_WARNING,
 			    "%s read access denied", peername);
@@ -400,7 +400,7 @@ main(int argc, char *argv[])
 		}
 	} else if (tp->th_opcode == WRQ) {
 		if (allow_wo)
-			tftp_wrq(peer, tp->th_stuff, n - 1);
+			tftp_wrq(peer, tp->th_stuff, (size_t)n - 1);
 		else {
 			tftp_log(LOG_WARNING,
 			    "%s write access denied", peername);
@@ -443,7 +443,7 @@ reduce_path(char *fn)
 }
 
 static char *
-parse_header(int peer, char *recvbuffer, ssize_t size,
+parse_header(int peer, char *recvbuffer, size_t size,
 	char **filename, char **mode)
 {
 	char	*cp;
@@ -489,7 +489,7 @@ parse_header(int peer, char *recvbuffer, ssize_t size,
  * WRQ - receive a file from the client
  */
 void
-tftp_wrq(int peer, char *recvbuffer, ssize_t size)
+tftp_wrq(int peer, char *recvbuffer, size_t size)
 {
 	char *cp;
 	int has_options = 0, ecode;
@@ -534,7 +534,7 @@ tftp_wrq(int peer, char *recvbuffer, ssize_t size)
  * RRQ - send a file to the client
  */
 void
-tftp_rrq(int peer, char *recvbuffer, ssize_t size)
+tftp_rrq(int peer, char *recvbuffer, size_t size)
 {
 	char *cp;
 	int has_options = 0, ecode;

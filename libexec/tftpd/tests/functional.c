@@ -51,8 +51,8 @@ static bool s_flag = false;	/* Pass -s to tftpd */
 static bool w_flag = false;	/* Pass -w to tftpd */
 
 /* Helper functions*/
-static void require_bufeq(const char *expected, ssize_t expected_len,
-    const char *actual, ssize_t len);
+static void require_bufeq(const char *expected, size_t expected_len,
+    const char *actual, size_t len);
 
 /*
  * Receive a response from tftpd
@@ -68,7 +68,7 @@ static void require_bufeq(const char *expected, ssize_t expected_len,
 	    (struct sockaddr*)&from, &fromlen); \
 	ATF_REQUIRE(r > 0); \
 	require_bufeq((hdr), sizeof(hdr), buffer, \
-	    MIN(r, (ssize_t)sizeof(hdr))); \
+	    MIN((size_t)r, sizeof(hdr)));		\
 	require_bufeq((const char*) (contents), (contents_len), \
 	    &buffer[sizeof(hdr)], r - sizeof(hdr)); \
 	if (protocol == PF_INET) { \
@@ -117,12 +117,13 @@ recv_data(uint16_t blocknum, const char* contents, size_t contents_len)
  * @param	cmd		Command to send, as a char array
  */
 static void
-send_bytes(const void* cmd, ssize_t len)
+send_bytes(const void *cmd, size_t len)
 {
 	ssize_t r;
 
 	r = sendto(s, cmd, len, 0, (struct sockaddr*)(&addr), addr.ss_len);
-	ATF_REQUIRE_EQ(r, len);
+	ATF_REQUIRE(r >= 0);
+	ATF_REQUIRE_EQ(len, (size_t)r);
 }
 
 static void
@@ -261,16 +262,16 @@ cleanup(void)
 
 /* Assert that two binary buffers are identical */
 static void
-require_bufeq(const char *expected, ssize_t expected_len, const char *actual,
-    ssize_t len)
+require_bufeq(const char *expected, size_t expected_len, const char *actual,
+    size_t len)
 {
-	ssize_t i;
+	size_t i;
 
 	ATF_REQUIRE_EQ_MSG(expected_len, len,
-	    "Expected %zd bytes but got %zd", expected_len, len);
+	    "Expected %zu bytes but got %zu", expected_len, len);
 	for (i = 0; i < len; i++) {
 		ATF_REQUIRE_EQ_MSG(actual[i], expected[i],
-		    "Expected %#hhx at position %zd; got %hhx instead",
+		    "Expected %#hhx at position %zu; got %hhx instead",
 		    expected[i], i, actual[i]);
 	}
 }
@@ -391,8 +392,8 @@ write_all(int fd, const void *buf, size_t nbytes)
 	while (nbytes > 0) {
 		r = write(fd, buf, nbytes);
 		ATF_REQUIRE(r > 0);
-		nbytes -= r;
-		buf = (const char*)buf + r;
+		nbytes -= (size_t)r;
+		buf = (const char*)buf + (size_t)r;
 	}
 }
 
@@ -804,8 +805,9 @@ TFTPD_TC_DEFINE(w_flag,, w_flag = 1;)
 	fd = open("small.txt", O_RDONLY);
 	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
+	ATF_REQUIRE(r > 0);
 	close(fd);
-	require_bufeq(contents, contents_len, buffer, r);
+	require_bufeq(contents, contents_len, buffer, (size_t)r);
 }
 
 /*
@@ -841,8 +843,9 @@ TFTPD_TC_DEFINE(wrq_dropped_ack,)
 	fd = open("medium.txt", O_RDONLY);
 	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
+	ATF_REQUIRE(r > 0);
 	close(fd);
-	require_bufeq((const char*)contents, 768, buffer, r);
+	require_bufeq((const char*)contents, 768, buffer, (size_t)r);
 }
 
 /*
@@ -874,8 +877,9 @@ TFTPD_TC_DEFINE(wrq_dropped_data,)
 	fd = open("small.txt", O_RDONLY);
 	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
+	ATF_REQUIRE(r > 0);
 	close(fd);
-	require_bufeq(contents, contents_len, buffer, r);
+	require_bufeq(contents, contents_len, buffer, (size_t)r);
 }
 
 /*
@@ -908,8 +912,9 @@ TFTPD_TC_DEFINE(wrq_duped_data,)
 	fd = open("medium.txt", O_RDONLY);
 	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
+	ATF_REQUIRE(r > 0);
 	close(fd);
-	require_bufeq((const char*)contents, 768, buffer, r);
+	require_bufeq((const char*)contents, 768, buffer, (size_t)r);
 }
 
 /*
@@ -972,8 +977,9 @@ TFTPD_TC_DEFINE(wrq_medium,)
 	fd = open("medium.txt", O_RDONLY);
 	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
+	ATF_REQUIRE(r > 0);
 	close(fd);
-	require_bufeq((const char*)contents, 768, buffer, r);
+	require_bufeq((const char*)contents, 768, buffer, (size_t)r);
 }
 
 /*
@@ -1004,8 +1010,9 @@ TFTPD_TC_DEFINE(wrq_medium_window,)
 	fd = open("medium.txt", O_RDONLY);
 	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
+	ATF_REQUIRE(r > 0);
 	close(fd);
-	require_bufeq((const char*)contents, 768, buffer, r);
+	require_bufeq((const char*)contents, 768, buffer, (size_t)r);
 }
 
 /*
@@ -1037,8 +1044,9 @@ TFTPD_TC_DEFINE(wrq_netascii,)
 	fd = open("unix.txt", O_RDONLY);
 	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
+	ATF_REQUIRE(r > 0);
 	close(fd);
-	require_bufeq(expected, sizeof(expected), buffer, r);
+	require_bufeq(expected, sizeof(expected), buffer, (size_t)r);
 }
 
 /*
@@ -1075,8 +1083,9 @@ TFTPD_TC_DEFINE(wrq_small,)
 	fd = open("small.txt", O_RDONLY);
 	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
+	ATF_REQUIRE(r > 0);
 	close(fd);
-	require_bufeq(contents, contents_len, buffer, r);
+	require_bufeq(contents, contents_len, buffer, (size_t)r);
 }
 
 /*
@@ -1162,8 +1171,9 @@ TFTPD_TC_DEFINE(wrq_window_rfc7440,)
 	fd = open("rfc7440.txt", O_RDONLY);
 	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
+	ATF_REQUIRE(r > 0);
 	close(fd);
-	require_bufeq(contents, sizeof(contents), buffer, r);
+	require_bufeq(contents, sizeof(contents), buffer, (size_t)r);
 }
 
 
