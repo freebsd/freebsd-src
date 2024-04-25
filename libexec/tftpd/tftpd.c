@@ -80,8 +80,8 @@ static char sccsid[] = "@(#)tftpd.c	8.1 (Berkeley) 6/4/93";
 #include <tcpd.h>
 #endif
 
-static void	tftp_wrq(int peer, char *, ssize_t);
-static void	tftp_rrq(int peer, char *, ssize_t);
+static void	tftp_wrq(int peer, char *, size_t);
+static void	tftp_rrq(int peer, char *, size_t);
 
 /*
  * Null-terminated directory prefix list for absolute pathname requests and
@@ -93,7 +93,7 @@ static void	tftp_rrq(int peer, char *, ssize_t);
 #define MAXDIRS	20
 static struct dirlist {
 	const char	*name;
-	int	len;
+	size_t		len;
 } dirs[MAXDIRS+1];
 static int	suppress_naks;
 static int	logging;
@@ -240,6 +240,11 @@ main(int argc, char *argv[])
 	}
 	getnameinfo((struct sockaddr *)&peer_sock, peer_sock.ss_len,
 	    peername, sizeof(peername), NULL, 0, NI_NUMERICHOST);
+	if ((size_t)n < 4 /* tftphdr */) {
+		tftp_log(LOG_ERR, "Rejecting %zd-byte request from %s",
+		    n, peername);
+		exit(1);
+	}
 
 	/*
 	 * Now that we have read the message out of the UDP
@@ -404,7 +409,7 @@ main(int argc, char *argv[])
 	tp->th_opcode = ntohs(tp->th_opcode);
 	if (tp->th_opcode == RRQ) {
 		if (allow_ro)
-			tftp_rrq(peer, tp->th_stuff, n - 1);
+			tftp_rrq(peer, tp->th_stuff, (size_t)n - 1);
 		else {
 			tftp_log(LOG_WARNING,
 			    "%s read access denied", peername);
@@ -412,7 +417,7 @@ main(int argc, char *argv[])
 		}
 	} else if (tp->th_opcode == WRQ) {
 		if (allow_wo)
-			tftp_wrq(peer, tp->th_stuff, n - 1);
+			tftp_wrq(peer, tp->th_stuff, (size_t)n - 1);
 		else {
 			tftp_log(LOG_WARNING,
 			    "%s write access denied", peername);
@@ -455,7 +460,7 @@ reduce_path(char *fn)
 }
 
 static char *
-parse_header(int peer, char *recvbuffer, ssize_t size,
+parse_header(int peer, char *recvbuffer, size_t size,
 	char **filename, char **mode)
 {
 	char	*cp;
@@ -501,7 +506,7 @@ parse_header(int peer, char *recvbuffer, ssize_t size,
  * WRQ - receive a file from the client
  */
 void
-tftp_wrq(int peer, char *recvbuffer, ssize_t size)
+tftp_wrq(int peer, char *recvbuffer, size_t size)
 {
 	char *cp;
 	int has_options = 0, ecode;
@@ -546,7 +551,7 @@ tftp_wrq(int peer, char *recvbuffer, ssize_t size)
  * RRQ - send a file to the client
  */
 void
-tftp_rrq(int peer, char *recvbuffer, ssize_t size)
+tftp_rrq(int peer, char *recvbuffer, size_t size)
 {
 	char *cp;
 	int has_options = 0, ecode;
@@ -694,10 +699,11 @@ validate_access(int peer, char **filep, int mode)
 		 * it's a /.
 		 */
 		for (dirp = dirs; dirp->name != NULL; dirp++) {
-			if (dirp->len == 1 ||
-			    (!strncmp(filename, dirp->name, dirp->len) &&
-			     filename[dirp->len] == '/'))
-				    break;
+			if (dirp->len == 1)
+				break;
+			if (strncmp(filename, dirp->name, dirp->len) == 0 &&
+			    filename[dirp->len] == '/')
+				break;
 		}
 		/* If directory list is empty, allow access to any file */
 		if (dirp->name == NULL && dirp != dirs)

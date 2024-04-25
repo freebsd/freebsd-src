@@ -63,7 +63,7 @@ extern int	acting_as_client;
 /*
  */
 void	unmappedaddr(struct sockaddr_in6 *sin6);
-ssize_t	get_field(int peer, char *buffer, ssize_t size);
+size_t	get_field(int peer, char *buffer, size_t size);
 
 /*
  * Packet types
