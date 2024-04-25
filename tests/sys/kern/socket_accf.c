@@ -209,11 +209,43 @@ ATF_TC_BODY(tls, tc)
 	ATF_REQUIRE((a = accept(l, NULL, 0)) > 0);
 }
 
+/* Check changing to a different filter. */
+ATF_TC_WITHOUT_HEAD(change);
+ATF_TC_BODY(change, tc)
+{
+	struct accept_filter_arg dfa = {
+		.af_name = "dataready"
+	};
+	struct accept_filter_arg hfa = {
+		.af_name = "httpready"
+	};
+	struct sockaddr_in sin;
+	int n, l;
+
+	l = listensock(&sin);
+	accfon(l, &dfa);
+
+	/* Refuse to change filter without explicit removal of the old one. */
+	ATF_REQUIRE(setsockopt(l, SOL_SOCKET, SO_ACCEPTFILTER, &hfa,
+	    sizeof(hfa)) != 0 && errno == EBUSY);
+
+	/* But allow after clearing. */
+	ATF_REQUIRE(setsockopt(l, SOL_SOCKET, SO_ACCEPTFILTER, NULL, 0) == 0);
+	ATF_REQUIRE(setsockopt(l, SOL_SOCKET, SO_ACCEPTFILTER, &hfa,
+	    sizeof(hfa)) == 0);
+
+	/* Must be listening socket. */
+	ATF_REQUIRE((n = socket(PF_INET, SOCK_STREAM, 0)) > 0);
+	ATF_REQUIRE(setsockopt(n, SOL_SOCKET, SO_ACCEPTFILTER, &dfa,
+	    sizeof(dfa)) != 0 && errno == EINVAL);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, data);
 	ATF_TP_ADD_TC(tp, http);
 	ATF_TP_ADD_TC(tp, tls);
+	ATF_TP_ADD_TC(tp, change);
 
 	return (atf_no_error());
 }
