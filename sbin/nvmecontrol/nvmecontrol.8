@@ -442,24 +442,62 @@ Use Extended Data Structure.
 .Ss format
 Format either specified namespace, or all namespaces of specified controller,
 using specified parameters:
+.Bl -tag -width 8n
+.It Fl f Ar fmt
+The index
 .Ar fmt
-LBA Format,
+of the parameters to use.
+LBA Format #, as specified in the identification of the namespace using
+.Dq nvmecontrol identify
+command with a namespace specified maps this index into these parameters.
+.It Fl m Ar mset
+Metadata Setting.
 .Ar mset
-Metadata Settings,
-.Ar pi
-Protection Information,
-.Ar pil
+.Bl -tag -compact -width 6n
+.It Dv 0
+do not transfer metadata with LBA information
+.It Dv 1
+Transfer the metadata as part of the extended LBA information.
+.El
+.It Fl p Ar pi
+Protection Information.
+.Bl -tag -compact -width 6n
+.It Dv 0
+Protection Information not enabled.
+.It Dv 1
+Type 1 information protection enabled.
+.It Dv 2
+Type 2 information protection enabled.
+.It Dv 3
+Type 3 information protection enabled.
+.El
+.It Fl l Ar pil
 Protection Information Location.
+.Bl -tag -compact -width 6n
+.It Dv 0
+Transfer the protection metadata as the last N bytes of the transfer.
+.It Dv 1
+Transfer the protection metadata as the first N bytes of the transfer.
+.El
+.It Fl E
+Enables User Data Erase during format.
+All users data is erased and subsequent reads are indeterminate.
+The drive may implement this as a cryptographic erase or it may
+physically erase the underlying media.
+.It Fl C
+Enables Cryptographic Erase during format.
+All user data is erased  cryptographically by deleting the encryption key,
+rendering it unintelligible.
+.El
+.Pp
 When formatting specific namespace, existing values are used as defaults.
 When formatting all namespaces, all parameters should be specified.
 Some controllers may not support formatting or erasing specific or all
 namespaces.
-Option
-.Fl E
-enables User Data Erase during format.
-Option
-.Fl C
-enables Cryptographic Erase during format.
+The
+.Xr nvme 4
+driver does not currently support metadata and protection information
+transfers.
 .Ss sanitize
 Sanitize NVM subsystem of specified controller,
 using specified parameters:
@@ -763,6 +801,27 @@ device.
 The corresponding
 .Pa nvmeXnsY
 device is used automatically.
+.Pp
+.Dl nvmecontrol format -f 2 -m 0 -p 0 -l 0 -C nvme2
+.Pp
+Format all the name spaces on nvme2 using parameters from
+.Dq LBA Format #2
+with no metadata or protection data using cryptographic erase.
+If the
+.Dq nvmecontrol identify -n 1 nvme2
+command ended with
+.Pp
+.Bl -verbatim
+LBA Format #00: Data Size:   512  Metadata Size:     0  Performance: Good
+LBA Format #01: Data Size:   512  Metadata Size:     8  Performance: Good
+LBA Format #02: Data Size:  4096  Metadata Size:     0  Performance: Good
+LBA Format #03: Data Size:  4096  Metadata Size:     8  Performance: Good
+LBA Format #04: Data Size:  4096  Metadata Size:    64  Performance: Good
+.El
+.Pp
+then this would give a 4k data format for at least namespace 1, with no
+metadata.
+.Pp
 .Sh DYNAMIC LOADING
 The directories
 .Pa /lib/nvmecontrol
