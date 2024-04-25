@@ -561,34 +561,21 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 		*tl = txdr_unsigned(delegtype);
 	} else {
 		if (dp != NULL) {
-			if (NFSHASNFSV4N(nmp)) {
+			if (NFSHASNFSV4N(nmp))
 				*tl = txdr_unsigned(
 				    NFSV4OPEN_CLAIMDELEGATECURFH);
-				NFSLOCKMNT(nmp);
-				if ((nmp->nm_privflag & NFSMNTP_BUGGYFBSDSRV) !=
-				    0) {
-					NFSUNLOCKMNT(nmp);
-					/*
-					 * Add a stateID argument to make old
-					 * broken FreeBSD NFSv4.1/4.2 servers
-					 * happy.
-					 */
-					NFSM_BUILD(tl, uint32_t *,NFSX_STATEID);
-					*tl++ = 0;
-					*tl++ = dp->nfsdl_stateid.other[0];
-					*tl++ = dp->nfsdl_stateid.other[1];
-					*tl = dp->nfsdl_stateid.other[2];
-				} else
-					NFSUNLOCKMNT(nmp);
-			} else {
+			else
 				*tl = txdr_unsigned(NFSV4OPEN_CLAIMDELEGATECUR);
-				NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID);
+			NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID);
+			if (NFSHASNFSV4N(nmp))
+				*tl++ = 0;
+			else
 				*tl++ = dp->nfsdl_stateid.seqid;
-				*tl++ = dp->nfsdl_stateid.other[0];
-				*tl++ = dp->nfsdl_stateid.other[1];
-				*tl = dp->nfsdl_stateid.other[2];
+			*tl++ = dp->nfsdl_stateid.other[0];
+			*tl++ = dp->nfsdl_stateid.other[1];
+			*tl = dp->nfsdl_stateid.other[2];
+			if (!NFSHASNFSV4N(nmp))
 				(void)nfsm_strtom(nd, name, namelen);
-			}
 		} else if (NFSHASNFSV4N(nmp)) {
 			*tl = txdr_unsigned(NFSV4OPEN_CLAIMFH);
 		} else {

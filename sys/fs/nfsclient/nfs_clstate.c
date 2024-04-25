@@ -4512,7 +4512,6 @@ nfscl_tryopen(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
 {
 	int error;
 	struct nfscldeleg *dp;
-	bool try_busted_xdr;
 
 	dp = *ndpp;
 	do {
@@ -4520,29 +4519,9 @@ nfscl_tryopen(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
 		error = nfsrpc_openrpc(nmp, vp, fhp, fhlen, newfhp, newfhlen,
 		    mode, op, name, namelen, ndpp, reclaim, delegtype, cred, p,
 		    0, 0);
-		try_busted_xdr = false;
 		if (error == NFSERR_DELAY)
 			(void) nfs_catnap(PZERO, error, "nfstryop");
-		else if (error == NFSERR_EXPIRED && NFSHASNFSV4N(nmp) &&
-		    reclaim == 0 && dp != NULL) {
-			/* This case is a Claim_Deleg_Cur_FH Open. */
-			NFSLOCKMNT(nmp);
-			if ((nmp->nm_privflag & NFSMNTP_BUGGYFBSDSRV) == 0) {
-				/*
-				 * Old FreeBSD NFSv4.1/4.2 servers erroneously
-				 * expect a stateID argument for Open
-				 * Claim_Deleg_Cur_FH and interpret the
-				 * Getattr reply as a stateID.  This results
-				 * in an NFSERR_EXPIRED failure.
-				 * Setting NFSMNTP_BUGGYFBSDSRV makes the Open
-				 * send a stateID, in violation of RFC8881.
-				 */
-				try_busted_xdr = true;
-				nmp->nm_privflag |= NFSMNTP_BUGGYFBSDSRV;
-			}
-			NFSUNLOCKMNT(nmp);
-		}
-	} while (error == NFSERR_DELAY || try_busted_xdr);
+	} while (error == NFSERR_DELAY);
 	if (error == EAUTH || error == EACCES) {
 		/* Try again using system credentials */
 		newnfs_setroot(cred);
