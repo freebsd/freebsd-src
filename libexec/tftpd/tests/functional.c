@@ -208,11 +208,14 @@ ATF_TC_HEAD(name ## _v4, tc)						\
 }									\
 ATF_TC_BODY(name ## _v4, tc)						\
 {									\
+	int exitcode = 0;						\
 	__VA_ARGS__;							\
 	protocol = AF_INET;						\
 	s = setup(&addr, __COUNTER__);					\
 	name ## _body();						\
 	close(s);							\
+	if (exitcode >= 0)						\
+		check_server(exitcode);					\
 }									\
 ATF_TC_CLEANUP(name ## _v4, tc)						\
 {									\
@@ -225,11 +228,14 @@ ATF_TC_HEAD(name ## _v6, tc)						\
 }									\
 ATF_TC_BODY(name ## _v6, tc)						\
 {									\
+	int exitcode = 0;						\
 	__VA_ARGS__;							\
 	protocol = AF_INET6;						\
 	s = setup(&addr, __COUNTER__);					\
 	name ## _body();						\
 	close(s);							\
+	if (exitcode >= 0)						\
+		check_server(exitcode);					\
 }									\
 ATF_TC_CLEANUP(name ## _v6, tc)						\
 {									\
@@ -244,6 +250,33 @@ name ## _body(void)
 	ATF_TP_ADD_TC(tp, name ## _v6);					\
 } while (0)
 
+static void
+sigalrm(int signo __unused)
+{
+}
+
+/* Check that server exits with specific exit code */
+static void
+check_server(int exitcode)
+{
+	struct sigaction sa = { .sa_handler = sigalrm };
+	struct itimerval it = { .it_value = { .tv_sec = 30 } };
+	FILE *f;
+	pid_t pid;
+	int wstatus;
+
+	f = fopen(pidfile, "r");
+	ATF_REQUIRE(f != NULL);
+	ATF_REQUIRE_INTEQ(1, fscanf(f, "%d", &pid));
+	ATF_CHECK_INTEQ(0, fclose(f));
+	ATF_REQUIRE_INTEQ(0, sigaction(SIGALRM, &sa, NULL));
+	ATF_REQUIRE_EQ(0, setitimer(ITIMER_REAL, &it, NULL));
+	ATF_REQUIRE_EQ(pid, waitpid(pid, &wstatus, 0));
+	ATF_CHECK(WIFEXITED(wstatus));
+	ATF_CHECK_INTEQ(exitcode, WEXITSTATUS(wstatus));
+	unlink(pidfile);
+}
+
 /* Standard cleanup used by all testcases */
 static void
 cleanup(void)
@@ -254,12 +287,12 @@ cleanup(void)
 	f = fopen(pidfile, "r");
 	if (f == NULL)
 		return;
+	unlink(pidfile);
 	if (fscanf(f, "%d", &pid) == 1) {
 		kill(pid, SIGTERM);
 		waitpid(pid, NULL, 0);
 	}
 	fclose(f);
-	unlink(pidfile);
 }
 
 /* Assert that two binary buffers are identical */
@@ -299,6 +332,9 @@ setup(struct sockaddr_storage *to, uint16_t idx)
 	struct pidfh *pfh;
 	uint16_t port = BASEPORT + idx;
 	socklen_t len;
+	int pd[2];
+
+	ATF_REQUIRE_EQ(0, pipe2(pd, O_CLOEXEC));
 
 	if (protocol == PF_INET) {
 		len = sizeof(addr4);
@@ -358,6 +394,10 @@ setup(struct sockaddr_storage *to, uint16_t idx)
 		break;
 	default:
 		/* In parent */
+		ATF_REQUIRE_INTEQ(0, close(pd[1]));
+		/* block until other end is closed on exec() or exit() */
+		ATF_REQUIRE_INTEQ(0, read(pd[0], &pd[1], sizeof(pd[1])));
+		ATF_REQUIRE_INTEQ(0, close(pd[0]));
 		bzero(to, sizeof(*to));
 		if (protocol == PF_INET) {
 			struct sockaddr_in *to4 = (struct sockaddr_in *)to;
@@ -374,7 +414,7 @@ setup(struct sockaddr_storage *to, uint16_t idx)
 			to6->sin6_addr = loopback;
 		}
 
-		close(server_s);
+		ATF_REQUIRE_INTEQ(0, close(server_s));
 		ATF_REQUIRE((client_s = socket(protocol, SOCK_DGRAM, 0)) > 0);
 		break;
 	}
