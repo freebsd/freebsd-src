@@ -228,6 +228,11 @@ main(int argc, char *argv[])
 	}
 	getnameinfo((struct sockaddr *)&peer_sock, peer_sock.ss_len,
 	    peername, sizeof(peername), NULL, 0, NI_NUMERICHOST);
+	if ((size_t)n < 4 /* tftphdr */) {
+		tftp_log(LOG_ERR, "Rejecting %zd-byte request from %s",
+		    n, peername);
+		exit(1);
+	}
 
 	/*
 	 * Now that we have read the message out of the UDP
