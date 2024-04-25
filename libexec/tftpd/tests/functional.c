@@ -1219,6 +1219,22 @@ TFTPD_TC_DEFINE(wrq_window_rfc7440,)
 	require_bufeq(contents, sizeof(contents), buffer, (size_t)r);
 }
 
+/*
+ * Send less than four bytes
+ */
+TFTPD_TC_DEFINE(short_packet1, /* no head */, exitcode = 1)
+{
+	SEND_STR("\1");
+}
+TFTPD_TC_DEFINE(short_packet2, /* no head */, exitcode = 1)
+{
+	SEND_STR("\1\2");
+}
+TFTPD_TC_DEFINE(short_packet3, /* no head */, exitcode = 1)
+{
+	SEND_STR("\1\2\3");
+}
+
 
 /*
  * Main
@@ -1256,6 +1272,9 @@ ATF_TP_ADD_TCS(tp)
 	TFTPD_TC_ADD(tp, wrq_small);
 	TFTPD_TC_ADD(tp, wrq_truncate);
 	TFTPD_TC_ADD(tp, wrq_window_rfc7440);
+	TFTPD_TC_ADD(tp, short_packet1);
+	TFTPD_TC_ADD(tp, short_packet2);
+	TFTPD_TC_ADD(tp, short_packet3);
 
 	return (atf_no_error());
 }
