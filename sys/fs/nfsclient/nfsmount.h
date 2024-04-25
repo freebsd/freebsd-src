@@ -124,7 +124,6 @@ struct	nfsmount {
 #define	NFSMNTP_DELEGISSUED	0x00000400
 #define	NFSMNTP_NODEALLOCATE	0x00000800
 #define	NFSMNTP_FAKEROOTFH	0x00001000
-#define	NFSMNTP_BUGGYFBSDSRV	0x00002000
 
 /* New mount flags only used by the kernel via nmount(2). */
 #define	NFSMNT_TLS		0x00000001
