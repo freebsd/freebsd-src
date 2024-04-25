@@ -722,6 +722,7 @@ int t4_set_vf_mac(struct adapter *adapter, unsigned int pf, unsigned int vf,
 unsigned int t4_get_regs_len(struct adapter *adapter);
 void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size);
 
+u32 t4_port_reg(struct adapter *adap, u8 port, u32 reg);
 const char *t4_get_port_type_description(enum fw_port_type port_type);
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p);
 void t4_get_port_stats_offset(struct adapter *adap, int idx,
