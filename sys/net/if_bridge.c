@@ -403,19 +403,16 @@ static int	bridge_ioctl_sproto(struct bridge_softc *, void *);
 static int	bridge_ioctl_stxhc(struct bridge_softc *, void *);
 static int	bridge_pfil(struct mbuf **, struct ifnet *, struct ifnet *,
 		    int);
-static void	bridge_linkstate(struct ifnet *ifp);
-static void	bridge_linkcheck(struct bridge_softc *sc);
-
 #ifdef INET
 static int	bridge_ip_checkbasic(struct mbuf **mp);
 static int	bridge_fragment(struct ifnet *, struct mbuf **mp,
 		    struct ether_header *, int, struct llc *);
 #endif /* INET */
-
 #ifdef INET6
 static int	bridge_ip6_checkbasic(struct mbuf **mp);
 #endif /* INET6 */
-
+static void	bridge_linkstate(struct ifnet *ifp);
+static void	bridge_linkcheck(struct bridge_softc *sc);
 
 /*
  * Use the "null" value from IEEE 802.1Q-2014 Table 9-2
@@ -3459,7 +3456,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			if (V_pfil_ipfw_arp == 0)
 				return (0); /* Automatically pass */
 
-			/*FALLTHROUGH*/
+			/* FALLTHROUGH */
 		case ETHERTYPE_IP:
 #endif
 #ifdef INET6
@@ -3587,8 +3584,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			ip->ip_sum = in_cksum(*mp, hlen);
 
 		break;
-#endif
-
+#endif /* INET */
 #ifdef INET6
 	case ETHERTYPE_IPV6:
 		if (V_pfil_bridge && dir == PFIL_OUT && bifp != NULL && (rv =
@@ -3747,7 +3743,7 @@ bad:
 	*mp = m;
 	return (-1);
 }
-#endif
+#endif /* INET */
 
 #ifdef INET6
 /*
@@ -3880,7 +3876,7 @@ dropit:
 	}
 	return (error);
 }
-#endif
+#endif /* INET */
 
 static void
 bridge_linkstate(struct ifnet *ifp)
