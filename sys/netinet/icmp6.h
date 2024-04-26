@@ -307,7 +307,8 @@ struct nd_opt_hdr {		/* Neighbor discovery option header */
 #define ND_OPT_ROUTE_INFO		24	/* RFC 4191 */
 #define ND_OPT_RDNSS			25	/* RFC 6106 */
 #define ND_OPT_DNSSL			31	/* RFC 6106 */
-#define ND_OPT_MAX			31
+#define ND_OPT_PREF64			38	/* RFC 8781 */
+#define ND_OPT_MAX			38
 
 struct nd_opt_prefix_info {	/* prefix information */
 	u_int8_t	nd_opt_pi_type;
@@ -371,6 +372,14 @@ struct nd_opt_dnssl {		/* DNSSL option (RFC 6106) */
 	u_int16_t	nd_opt_dnssl_reserved;
 	u_int32_t	nd_opt_dnssl_lifetime;
 	/* followed by list of DNS search domains */
+} __packed;
+
+struct nd_opt_pref64 {		/* PREF64 option (RFC 8781) */
+	u_int8_t	nd_opt_pref64_type;
+	u_int8_t	nd_opt_pref64_len;
+	/* bits 0-12 are the SL, bits 13-15 are the PLC */
+	u_int16_t	nd_opt_pref64_sl_plc;
+	char		nd_opt_prefix[12];
 } __packed;
 
 /*
