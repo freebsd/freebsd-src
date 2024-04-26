@@ -428,6 +428,24 @@ DNS search list entries.
 The default value is 3/2 of the interval time.
 .El
 .Pp
+The following items are for PREF64 discovery
+.Pq RFC 8781 ,
+which will advertise the network's NAT64 prefix to clients.
+These items are optional.
+.Bl -tag -width indent
+.It Cm \&pref64
+(str) The prefix to advertise in the PREF64 option.
+.It Cm \&pref64len
+(num) The length of the PREF64 prefix.
+This must be 96, 64, 56, 48, 40, or 32.
+If not specified, the default is 96.
+.It Cm \&pref64lifetime
+(num) The prefix lifetime to advertise in the PREF64 option.
+This should be at least as long as the RA lifetime, but cannot be greater
+than 65528.
+If not specified, the default is the RA lifetime, or 65528, whichever is lower.
+.El
+.Pp
 You can also refer one line from another by using
 .Cm tc
 capability.
