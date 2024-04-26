@@ -250,7 +250,7 @@ pfctl_get_status(int dev)
 	_pfctl_get_status_counters(nvlist_get_nvlist(nvl, "scounters"),
 	    &status->scounters);
 
-	pf_nvuint_64_array(nvl, "pcounters", 2 * 2 * 3,
+	pf_nvuint_64_array(nvl, "pcounters", 2 * 2 * 2,
 	    (uint64_t *)status->pcounters, NULL);
 	pf_nvuint_64_array(nvl, "bcounters", 2 * 2,
 	    (uint64_t *)status->bcounters, NULL);
