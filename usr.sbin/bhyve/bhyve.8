@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 10, 2024
+.Dd April 26, 2024
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -356,10 +356,45 @@ If not specified, the
 .Ar bus
 value defaults to 0.
 .Pp
-The
+See
+.Sx "PCI EMULATION"
+for available options for the
 .Ar emulation
-argument
-can be one of the following:
+argument.
+.It Fl U Ar uuid
+Set the universally unique identifier
+.Pq UUID
+in the guest's System Management BIOS System Information structure.
+By default a UUID is generated from the host's hostname and
+.Ar vmname .
+.It Fl u
+RTC keeps UTC time.
+.It Fl W
+Force virtio PCI device emulations to use MSI interrupts instead of MSI-X
+interrupts.
+.It Fl w
+Ignore accesses to unimplemented Model Specific Registers (MSRs).
+This is intended for debug purposes.
+.It Fl x
+The guest's local APIC is configured in x2APIC mode.
+This option applies only to the amd64 platform.
+.It Fl Y
+Disable MPtable generation.
+This option applies only to the amd64 platform.
+.It Ar vmname
+Alphanumeric name of the guest.
+This should be the same as that created by
+.Xr bhyveload 8 .
+.El
+.Sh PCI EMULATION
+.Nm
+provides emulation for various PCI devices.
+They are specified by the
+.Fl s
+.Ar slot,emulation,conf
+configuration's
+.Ar emulation
+argument, which can be one of the following:
 .Bl -tag -width "amd_hostbridge"
 .It Cm hostbridge
 A simple host bridge.
@@ -400,7 +435,7 @@ PCI 16550 serial device.
 .It Cm lpc
 LPC PCI-ISA bridge with COM1, COM2, COM3, and COM4 16550 serial ports,
 a boot ROM, and,
-optionally, a fwcfg type and the debug/test device.
+optionally, a fwcfg type, and the debug/test device.
 The LPC bridge emulation can only be configured on bus 0.
 .It Cm fbuf
 Raw framebuffer device attached to VNC server.
@@ -419,8 +454,7 @@ If
 .Ar conf
 is not specified, the device emulation has no backend and can be
 considered unconnected.
-.Pp
-Network device backends:
+.Ss Network device backends
 .Sm off
 .Bl -bullet
 .It
@@ -452,7 +486,7 @@ Network device backends:
 .Pp
 If
 .Cm mac
-is not specified, the MAC address is derived from a fixed OUI and the
+is not specified, the MAC address is derived from a fixed OUI, and the
 remaining bytes from an MD5 hash of the slot and function numbers and
 the device name.
 .Pp
@@ -503,16 +537,15 @@ forwarded to the guest.
 Multiple rules can be specified, separated by semicolons.
 Note that semicolons must be escaped or quoted to prevent the shell from
 interpreting them.
-.Pp
-Block storage device backends:
-.Sm off
+.Ss Block storage device backends:
 .Bl -bullet
+.Sm off
 .It
 .Ar /filename Op Cm \&, Ar block-device-options
 .It
 .Ar /dev/xxx Op Cm \&, Ar block-device-options
-.El
 .Sm on
+.El
 .Pp
 The
 .Ar block-device-options
@@ -541,14 +574,13 @@ A fwcfg file is used to specify the bootorder.
 The guest firmware may ignore or doesn't support this fwcfg file.
 In that case, this feature doesn't work as expected.
 .El
-.Pp
-SCSI device backends:
-.Sm off
+.Ss SCSI device backends
 .Bl -bullet
+.Sm off
 .It
 .Pa /dev/cam/ctl Oo Ar pp Cm \&. Ar vp Oc Oo Cm \&, Ar scsi-device-options Oc
-.El
 .Sm on
+.El
 .Pp
 The
 .Ar scsi-device-options
@@ -564,14 +596,13 @@ A fwcfg file is used to specify the bootorder.
 The guest firmware may ignore or doesn't support this fwcfg file.
 In that case, this feature doesn't work as expected.
 .El
-.Pp
-9P device backends:
-.Sm off
+.Ss 9P device backends
 .Bl -bullet
+.Sm off
 .It
 .Ar sharename Cm = Ar /path/to/share Op Cm \&, Ar 9p-device-options
-.El
 .Sm on
+.El
 .Pp
 The
 .Ar 9p-device-options
@@ -580,8 +611,7 @@ are:
 .It Cm ro
 Expose the share in read-only mode.
 .El
-.Pp
-TTY device backends:
+.Ss TTY device backends
 .Bl -tag -width 10n
 .It Cm stdio
 Connect the serial port to the standard input and output of
@@ -591,11 +621,25 @@ process.
 .It Ar /dev/xxx
 Use the host TTY device for serial port I/O.
 .El
+.Ss TPM device backends
+.Bl -bullet
+.Sm off
+.It
+.Ar type Ns \&, Ns Ar path Ns Op Cm \&, Ns Ar tpm-device-options
+.Sm on
+.El
 .Pp
-TPM device backends:
+Emulate a TPM device. The argument
+.Ar path
+needs to point to a valid TPM device path, i.e.
+.Pa /dev/tpm0 .
+.El
+.Pp
+Supported options for
+.Ar type :
 .Bl -tag -width 10n
-.It Ar type Ns \&, Ns Ar path Ns Op Cm \&, Ns Ar tpm-device-options
-Emulate a TPM device.
+.It Cm passthru
+pass a physical TPM device through to the guest
 .El
 .Pp
 The
@@ -607,19 +651,23 @@ Version of the TPM device according to the TCG specification.
 Defaults to
 .Cm 2.0
 .El
+.Ss Boot ROM device backends
+.Sm off
+.Bl -bullet
+.It
+.Ar romfile Ns Op Cm \&, Ns Ar varfile
+.El
+.Sm on
 .Pp
-Boot ROM device backends:
-.Bl -tag -width 10n
-.It Ar romfile Ns Op Cm \&, Ns Ar varfile
 Map
 .Ar romfile
 in the guest address space reserved for boot firmware.
+.Pp
 If
 .Ar varfile
 is provided, that file is also mapped in the boot firmware guest
 address space, and any modifications the guest makes will be saved
 to that file.
-.El
 .Pp
 Fwcfg types:
 .Bl -tag -width 10n
@@ -647,8 +695,7 @@ many other things to the guest.
 Some operating systems such as Fedora CoreOS can be configured by
 qemu's fwcfg interface as well.
 .El
-.Pp
-Pass-through device backends:
+.Ss Pass-through device backends
 .Sm off
 .Bl -bullet
 .It
@@ -697,28 +744,7 @@ The host device must have been reserved at boot-time using the
 .Va pptdevs
 loader variable as described in
 .Xr vmm 4 .
-.Pp
-TPM devices:
-.Bl -tag -width 10n
-.It Ns Ar type
-Specifies the type of the TPM device.
-.Pp
-Supported types:
-.Bl -tag -width 10n
-.It Cm passthru
-.El
-.It Cm version= Ns Ar version
-The
-.Ar version
-of the emulated TPM device according to the TCG specification.
-.Pp
-Supported versions:
-.Bl -tag -width 10n
-.It Cm 2.0
-.El
-.El
-.Pp
-Virtio console device backends:
+.Ss Virtio console device backends
 .Bl -bullet
 .Sm off
 .It
@@ -735,7 +761,7 @@ accepts at most one connection per port at a time.
 Limitations:
 .Bl -bullet
 .It
-Due to lack of destructors in
+Due to the lack of destructors in
 .Nm ,
 sockets on the filesystem must be cleaned up manually after
 .Nm
@@ -748,16 +774,18 @@ resize at present.
 .It
 Emergency write is advertised, but no-op at present.
 .El
+.Ss Virtio input device backends:
+.Bl -bullet
+.Sm off
+.It
+.Ar /dev/input/eventX
+.Sm on
+.El
 .Pp
-Virtio input device backends:
-.Bl -tag -width 10n
-.It Ar /dev/input/eventX
 Send input events of
 .Ar /dev/input/eventX
 to guest by VirtIO Input Interface.
-.El
-.Pp
-Framebuffer devices backends:
+.Ss Framebuffer device backends
 .Bl -bullet
 .Sm off
 .It
@@ -800,8 +828,8 @@ and maximum is 3840x2160 pixels.
 Possible values for this option are
 .Cm io
 (default),
-.Cm on
-, and
+.Cm on ,
+and
 .Cm off .
 PCI graphics cards have a dual personality in that they are
 standard PCI devices with BAR addressing, but may also
@@ -846,15 +874,17 @@ intended for use on untrusted networks.
 Many implementations will want to use stronger security, such as running
 the session over an encrypted channel provided by IPsec or SSH.
 .El
-.Pp
-xHCI USB device backends:
-.Bl -tag -width 10n
-.It Cm tablet
-A USB tablet device which provides precise cursor synchronization
-when using VNC.
+.Ss xHCI USB device backends
+.Bl -bullet
+.Sm off
+.It
+.Ar tablet
+.Sm on
 .El
 .Pp
-NVMe device backends:
+A USB tablet device that provides precise cursor synchronization
+when using VNC.
+.Ss NVMe device backends
 .Bl -bullet
 .Sm off
 .It
@@ -897,8 +927,7 @@ Supported values are:
 and
 .Cm disable .
 .El
-.Pp
-AHCI device backends:
+.Ss AHCI device backends
 .Bl -bullet
 .It
 .Sm off
@@ -923,8 +952,7 @@ Revision Number with maximum 8 characters.
 .It Cm model
 Model Number with maximum 40 characters.
 .El
-.Pp
-HD Audio device backends:
+.Ss HD Audio device backends
 .Bl -bullet
 .It
 .Sm off
@@ -941,31 +969,6 @@ Playback device, typically
 .It Cm rec
 Recording device, typically
 .Ar /dev/dsp0 .
-.El
-.It Fl U Ar uuid
-Set the universally unique identifier
-.Pq UUID
-in the guest's System Management BIOS System Information structure.
-By default a UUID is generated from the host's hostname and
-.Ar vmname .
-.It Fl u
-RTC keeps UTC time.
-.It Fl W
-Force virtio PCI device emulations to use MSI interrupts instead of MSI-X
-interrupts.
-.It Fl w
-Ignore accesses to unimplemented Model Specific Registers (MSRs).
-This is intended for debug purposes.
-.It Fl x
-The guest's local APIC is configured in x2APIC mode.
-This option applies only to the amd64 platform.
-.It Fl Y
-Disable MPtable generation.
-This option applies only to the amd64 platform.
-.It Ar vmname
-Alphanumeric name of the guest.
-This should be the same as that created by
-.Xr bhyveload 8 .
 .El
 .Sh CONFIGURATION VARIABLES
 .Nm
@@ -993,6 +996,31 @@ and global settings.
 .Pp
 More details on configuration variables can be found in
 .Xr bhyve_config 5 .
+.Sh CONFIGURATION FILE CREATION
+The
+.Fl k
+flag allows one to provide a path to a configuration file holding all
+settings, which otherwise would need to be defined by providing a long
+list of program arguments to
+.Nm .
+.Pp
+There is a very simple way to translate a complex set of program
+arguments to an equivalent configuration file in
+.Xr bhyve_config 5
+format.
+.Pp
+Use
+.Fl o
+.Ar config.dump=1
+to make
+.Nm
+dump a configuration file representing the used flags and arguments to
+stdout. You can pipe the output into a file to persist the generated settings.
+.Pp
+Make sure to remove the
+.Ar config.dump
+line from the resulting configuration file before using it to start
+.Nm .
 .Sh DEBUG SERVER
 The current debug server provides limited support for debuggers.
 .Ss Registers
@@ -1130,6 +1158,31 @@ bhyve -c 2 -m 4g -w -H \\
   -s 31,lpc -l com1,stdio \\
   -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI_CODE.fd,BHYVE_UEFI_VARS.fd
    uefivm
+.Ed
+.Pp
+To create a configuration file
+.Pa configfile
+for a virtual machine, use
+.Fl o
+.Ar config.dump=1 :
+.Bd -literal -offset indent
+/usr/sbin/bhyve -c 2 -m 256 -A -H -P \\
+  -s 0:0,hostbridge -s 1:0,virtio-net,tap0 \\
+  -s 2:0,ahci-hd,./vm0.img \\
+  -s 31,lpc -l com1,stdio \\
+  -o config.dump=1 vm0 > configfile
+.Ed
+.Pp
+Then use an editor of your choice to remove the line "config.dump=1"
+from the newly generated
+.Pa configfile .
+.Pp
+To start
+.Nm
+using this configuration file, use flag
+.Fl k :
+.Bd -literal -offset indent
+/usr/sbin/bhyve -k configfile vm0
 .Ed
 .Sh SEE ALSO
 .Xr bhyve 4 ,
