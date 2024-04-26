@@ -1341,7 +1341,6 @@ t4_attach(device_t dev)
 		rc = partition_resources(sc);
 		if (rc != 0)
 			goto done; /* error message displayed already */
-		t4_intr_clear(sc);
 	}
 
 	rc = get_params__post_init(sc);
@@ -2303,7 +2302,6 @@ t4_resume(device_t dev)
 		rc = partition_resources(sc);
 		if (rc != 0)
 			goto done; /* error message displayed already */
-		t4_intr_clear(sc);
 	}
 
 	rc = get_params__post_init(sc);
