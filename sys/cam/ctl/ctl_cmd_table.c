@@ -944,6 +944,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 /* 08 READ(6) */
 {ctl_read_write, CTL_SERIDX_READ, CTL_CMD_FLAG_OK_ON_DIRECT |
 				  CTL_FLAG_DATA_IN |
+				  CTL_CMD_FLAG_OK_ON_CDROM |
 				  CTL_CMD_FLAG_ALLOW_ON_PR_WRESV,
  CTL_LUN_PAT_READ | CTL_LUN_PAT_RANGE, 6, {0x1f, 0xff, 0xff, 0xff, 0x07}},
 
