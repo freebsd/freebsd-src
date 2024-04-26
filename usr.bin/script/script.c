@@ -40,6 +40,7 @@
 #include <sys/endian.h>
 #include <dev/filemon/filemon.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -114,19 +115,19 @@ main(int argc, char *argv[])
 	usesleep = 1;
 	rawout = 0;
 	flushtime = 30;
-	fm_fd = -1;	/* Shut up stupid "may be used uninitialized" GCC
-			   warning. (not needed w/clang) */
+	fm_fd = -1;
 	showexit = 0;
 
 	while ((ch = getopt(argc, argv, "adeFfkpqrT:t:")) != -1)
-		switch(ch) {
+		switch (ch) {
 		case 'a':
 			aflg = 1;
 			break;
 		case 'd':
 			usesleep = 0;
 			break;
-		case 'e':	/* Default behavior, accepted for linux compat */
+		case 'e':
+			/* Default behavior, accepted for linux compat. */
 			break;
 		case 'F':
 			Fflg = 1;
@@ -239,6 +240,8 @@ main(int argc, char *argv[])
 		(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &rtt);
 	}
 
+	assert(fflg ? fm_fd >= 0 : fm_fd < 0);
+
 	child = fork();
 	if (child < 0) {
 		warn("fork");
@@ -331,7 +334,7 @@ main(int argc, char *argv[])
 			}
 		}
 		if (n > 0 && FD_ISSET(master, &rfd)) {
-			cc = read(master, obuf, sizeof (obuf));
+			cc = read(master, obuf, sizeof(obuf));
 			if (cc <= 0)
 				break;
 			(void)write(STDOUT_FILENO, obuf, cc);
@@ -417,7 +420,7 @@ done(int eno)
 			if (showexit)
 				(void)fprintf(fscript, "\nCommand exit status:"
 				    " %d", eno);
-			(void)fprintf(fscript,"\nScript done on %s",
+			(void)fprintf(fscript, "\nScript done on %s",
 			    ctime(&tvec));
 		}
 		(void)printf("\nScript done, output file is %s\n", fname);
@@ -459,8 +462,7 @@ consume(FILE *fp, off_t len, char *buf, int reg)
 	if (reg) {
 		if (fseeko(fp, len, SEEK_CUR) == -1)
 			err(1, NULL);
-	}
-	else {
+	} else {
 		while (len > 0) {
 			l = MIN(DEF_BUF, len);
 			if (fread(buf, sizeof(char), l, fp) != l)
