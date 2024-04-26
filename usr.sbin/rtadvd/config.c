@@ -912,6 +912,58 @@ getconfig_free_dns:
 		}
 		free(dns);
 	}
+
+	/*
+	 * handle pref64
+	 */
+	rai->rai_pref64.p64_enabled = false;
+
+	if ((addr = (char *)agetstr("pref64", &bp))) {
+		if (inet_pton(AF_INET6, addr, &rai->rai_pref64.p64_prefix) != 1) {
+			syslog(LOG_ERR, "<%s> inet_pton failed for %s",
+			    __func__, addr);
+		} else {
+			rai->rai_pref64.p64_enabled = true;
+
+			switch (val64 = agetnum("pref64len")) {
+			case -1:
+			case 96:
+				rai->rai_pref64.p64_plc = 0;
+				break;
+			case 64:
+				rai->rai_pref64.p64_plc = 1;
+				break;
+			case 56:
+				rai->rai_pref64.p64_plc = 2;
+				break;
+			case 48:
+				rai->rai_pref64.p64_plc = 3;
+				break;
+			case 40:
+				rai->rai_pref64.p64_plc = 4;
+				break;
+			case 32:
+				rai->rai_pref64.p64_plc = 5;
+				break;
+			default:
+				syslog(LOG_ERR, "prefix length %" PRIi64
+				       "on %s is invalid; disabling PREF64",
+				       val64, ifi->ifi_ifname);
+				rai->rai_pref64.p64_enabled = 0;
+				break;
+			}
+
+			/* This logic is from RFC 8781 section 4.1. */
+			val64 = agetnum("pref64lifetime");
+			if (val64 == -1)
+				val64 = rai->rai_lifetime * 3;
+			if (val64 > 65528)
+				val64 = 65528;
+			val64 = (val64 + 7) / 8;
+			rai->rai_pref64.p64_sl = (uint16_t) (uint64_t) val64;
+		}
+	}
+
 	/* construct the sending packet */
 	make_packet(rai);
 
@@ -1334,6 +1386,7 @@ make_packet(struct rainfo *rai)
 	struct rdnss *rdn;
 	struct nd_opt_dnssl *ndopt_dnssl;
 	struct dnssl *dns;
+	struct nd_opt_pref64 *ndopt_pref64;
 	size_t len;
 	struct prefix *pfx;
 	struct ifinfo *ifi;
@@ -1355,6 +1408,8 @@ make_packet(struct rainfo *rai)
 		packlen += sizeof(struct nd_opt_prefix_info) * rai->rai_pfxs;
 	if (rai->rai_linkmtu)
 		packlen += sizeof(struct nd_opt_mtu);
+	if (rai->rai_pref64.p64_enabled)
+		packlen += sizeof(struct nd_opt_pref64);
 
 	TAILQ_FOREACH(rti, &rai->rai_route, rti_next)
 		packlen += sizeof(struct nd_opt_route_info) +
@@ -1433,6 +1488,19 @@ make_packet(struct rainfo *rai)
 		ndopt_mtu->nd_opt_mtu_reserved = 0;
 		ndopt_mtu->nd_opt_mtu_mtu = htonl(rai->rai_linkmtu);
 		buf += sizeof(struct nd_opt_mtu);
+	}
+
+	if (rai->rai_pref64.p64_enabled) {
+		ndopt_pref64 = (struct nd_opt_pref64 *)buf;
+		ndopt_pref64->nd_opt_pref64_type = ND_OPT_PREF64;
+		ndopt_pref64->nd_opt_pref64_len = 2;
+		ndopt_pref64->nd_opt_pref64_sl_plc =
+			(htons(rai->rai_pref64.p64_sl << 3)) |
+			htons((rai->rai_pref64.p64_plc & 0x7));
+		memcpy(&ndopt_pref64->nd_opt_prefix[0],
+		       &rai->rai_pref64.p64_prefix,
+		       sizeof(ndopt_pref64->nd_opt_prefix));
+		buf += sizeof(struct nd_opt_pref64);
 	}
 
 	TAILQ_FOREACH(pfx, &rai->rai_prefix, pfx_next) {
