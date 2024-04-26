@@ -826,6 +826,7 @@ nfsrpc_doclose(struct nfsmount *nmp, struct nfsclopen *op, NFSPROC_T *p,
 	u_int64_t off = 0, len = 0;
 	u_int32_t type = NFSV4LOCKT_READ;
 	int error, do_unlock, trycnt;
+	bool own_not_null;
 
 	tcred = newnfs_getcred();
 	newnfs_copycred(&op->nfso_cred, tcred);
@@ -892,22 +893,29 @@ nfsrpc_doclose(struct nfsmount *nmp, struct nfsclopen *op, NFSPROC_T *p,
 	 * There could be other Opens for different files on the same
 	 * OpenOwner, so locking is required.
 	 */
-	NFSLOCKCLSTATE();
-	nfscl_lockexcl(&op->nfso_own->nfsow_rwlock, NFSCLSTATEMUTEXPTR);
-	NFSUNLOCKCLSTATE();
+	own_not_null = false;
+	if (op->nfso_own != NULL) {
+		own_not_null = true;
+		NFSLOCKCLSTATE();
+		nfscl_lockexcl(&op->nfso_own->nfsow_rwlock, NFSCLSTATEMUTEXPTR);
+		NFSUNLOCKCLSTATE();
+	}
 	do {
 		error = nfscl_tryclose(op, tcred, nmp, p, loop_on_delayed);
 		if (error == NFSERR_GRACE)
 			(void) nfs_catnap(PZERO, error, "nfs_close");
 	} while (error == NFSERR_GRACE);
-	NFSLOCKCLSTATE();
-	nfscl_lockunlock(&op->nfso_own->nfsow_rwlock);
+	if (own_not_null) {
+		NFSLOCKCLSTATE();
+		nfscl_lockunlock(&op->nfso_own->nfsow_rwlock);
+	}
 
 	LIST_FOREACH_SAFE(lp, &op->nfso_lock, nfsl_list, nlp)
 		nfscl_freelockowner(lp, 0);
 	if (freeop && error != NFSERR_DELAY)
 		nfscl_freeopen(op, 0, true);
-	NFSUNLOCKCLSTATE();
+	if (own_not_null)
+		NFSUNLOCKCLSTATE();
 	NFSFREECRED(tcred);
 	return (error);
 }
