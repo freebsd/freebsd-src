@@ -35,7 +35,7 @@
 .Nd make typescript of terminal session
 .Sh SYNOPSIS
 .Nm
-.Op Fl aeFfkqr
+.Op Fl aeFfkqrw
 .Op Fl t Ar time
 .Op Ar file Op Ar command ...
 .Nm
@@ -133,6 +133,9 @@ characters, it indicates the default format:
 which is useful for both tools and humans to read, should be used.
 Note that time-stamps will only be output when different from the
 previous one.
+.It Fl w
+Forward terminal size changes on
+.Dv SIGWINCH .
 .El
 .Pp
 The script ends when the forked shell (or command) exits (a
