@@ -103,7 +103,18 @@ void	runq_add(struct runq *, struct thread *, int _flags);
 void	runq_add_idx(struct runq *, struct thread *, int _idx, int _flags);
 bool	runq_remove(struct runq *, struct thread *);
 
-bool	runq_not_empty(struct runq *);
+/*
+ * Implementation helpers for common and scheduler-specific runq_choose*()
+ * functions.
+ */
+typedef bool	 runq_pred_t(int _idx, struct rq_queue *, void *_data);
+int		 runq_findq(struct runq *const rq, const int lvl_min,
+		    const int lvl_max,
+		    runq_pred_t *const pred, void *const pred_data);
+struct thread	*runq_first_thread_range(struct runq *const rq,
+		    const int lvl_min, const int lvl_max);
+
+bool		 runq_not_empty(struct runq *);
 struct thread	*runq_choose(struct runq *);
 struct thread	*runq_choose_fuzz(struct runq *, int _fuzz);
 struct thread	*runq_choose_from(struct runq *, int _idx);
