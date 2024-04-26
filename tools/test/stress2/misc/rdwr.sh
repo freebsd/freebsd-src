@@ -28,6 +28,11 @@
 
 # Test with read/write length of INT_MAX (i386) or INT_MAX+1 (amd64)
 
+# Seen:
+# rdwr:  readv(). Expected 2147483648 (80000000), got -2147483648 (ffffffff80000000) bytes: No error: 0
+# rdwr: writev(). Expected 2147483648 (80000000), got -2147483648 (ffffffff80000000) bytes: No error: 0
+# Fixed by: 78101d437a92
+
 . ../default.cfg
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
@@ -61,11 +66,22 @@ EOF
 #include <fcntl.h>
 #include <unistd.h>
 
+static int s;
+
+static void
+er(char * syscall, size_t len, ssize_t ret)
+{
+	warn("%8s. Expected %zu (%zx), got %zd (%zx) bytes",
+	    syscall, len, len, ret, ret);
+	s=1;
+}
+
 int
 main(int argc, char **argv)
 {
 	int fd1, fd2;
 	size_t len;
+	ssize_t r;
 	void *p;
 	struct iovec iov;
 
@@ -85,34 +101,34 @@ main(int argc, char **argv)
                         MAP_FAILED)
 		err(1, "mmap");
 
-	if (read(fd2, p, len) != len)
-		err(1, "read");
+	if ((r = read(fd2, p, len)) != len)
+		er("read()", len, r);
 
-	if (write(fd1, p, len) != len)
-		err(1, "write");
+	if ((r = write(fd1, p, len)) != len)
+		er("write()", len, r);
 
-	if (pread(fd2, p, len, 0) != len)
-		err(1, "pread");
+	if ((r = pread(fd2, p, len, 0)) != len)
+		er("pread()", len, r);
 
-	if (pwrite(fd1, p, len, 0) != len)
-		err(1, "pwrite");
+	if ((r = pwrite(fd1, p, len, 0)) != len)
+		er("pwrite()", len, r);
 
 	iov.iov_base = p;
 	iov.iov_len = len;
-	if (readv(fd2, &iov, 1) != len)
-		err(1, "readv");
+	if ((r = readv(fd2, &iov, 1)) != len)
+		er("readv()", len, r);
 
-	if (writev(fd1, &iov, 1) != len)
-		err(1, "writev");
+	if ((r = writev(fd1, &iov, 1)) != len)
+		er("writev()", len, r);
 
-	if (preadv(fd2, &iov, 1, 0) != len)
-		err(1, "preadv");
+	if ((r = preadv(fd2, &iov, 1, 0)) != len)
+		er("preadv()", len, r);
 
-	if (pwritev(fd1, &iov, 1, 0) != len)
-		err(1, "pwritev");
+	if ((r = pwritev(fd1, &iov, 1, 0)) != len)
+		er("pwritev()", len, r);
 
 	close(fd1);
 	close(fd2);
 
-	return (0);
+	return (s);
 }
