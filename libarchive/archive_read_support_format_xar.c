@@ -2055,6 +2055,11 @@ xml_start(struct archive_read *a, const char *name, struct xmlattr_list *list)
 			    attr = attr->next) {
 				if (strcmp(attr->name, "link") != 0)
 					continue;
+				if (xar->file->hdnext != NULL || xar->file->link != 0) {
+					archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+					    "File with multiple link targets");
+					return (ARCHIVE_FATAL);
+				}
 				if (strcmp(attr->value, "original") == 0) {
 					xar->file->hdnext = xar->hdlink_orgs;
 					xar->hdlink_orgs = xar->file;

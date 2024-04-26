@@ -2176,6 +2176,19 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
     {
       start = rar->offset;
       end = start + rar->dictionary_size;
+
+      /* We don't want to overflow the window and overwrite data that we write
+       * at 'start'. Therefore, reduce the end length by the maximum match size,
+       * which is 260 bytes. You can compute this maximum by looking at the
+       * definition of 'expand', in particular when 'symbol >= 271'. */
+      /* NOTE: It's possible for 'dictionary_size' to be less than this 260
+       * value, however that will only be the case when 'unp_size' is small,
+       * which should only happen when the entry size is small and there's no
+       * risk of overflowing the buffer */
+      if (rar->dictionary_size > 260) {
+        end -= 260;
+      }
+
       if (rar->filters.filterstart < end) {
         end = rar->filters.filterstart;
       }
@@ -3615,7 +3628,7 @@ execute_filter_e8(struct rar_filter *filter, struct rar_virtual_machine *vm, siz
   uint32_t filesize = 0x1000000;
   uint32_t i;
 
-  if (length > PROGRAM_WORK_SIZE || length < 4)
+  if (length > PROGRAM_WORK_SIZE || length <= 4)
     return 0;
 
   for (i = 0; i <= length - 5; i++)

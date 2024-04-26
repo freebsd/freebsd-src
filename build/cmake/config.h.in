@@ -1094,6 +1094,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `symlink' function. */
 #cmakedefine HAVE_SYMLINK 1
 
+/* Define to 1 if you have the `sysconf' function. */
+#cmakedefine HAVE_SYSCONF 1
+
 /* Define to 1 if you have the <sys/acl.h> header file. */
 #cmakedefine HAVE_SYS_ACL_H 1
 

@@ -1,13 +1,12 @@
-/*
- * Copyright (c) 2023 Aaron Lindros
+/*-
+ * Copyright (c) 2024 Martin Matuska
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -25,30 +24,32 @@
  */
 #include "test.h"
 
-#ifdef HAVE_LOCALE_H
-#include <locale.h>
-#endif
+#define __LIBARCHIVE_BUILD
 
-/* Test I arg - file name encoding */
-DEFINE_TEST(test_I)
+DEFINE_TEST(test_read_format_xar_doublelink)
 {
-	const char *reffile = "test_I.zip";
-	int r;
+	const char *refname = "test_read_format_xar_doublelink.xar";
+	struct archive *a;
+	struct archive_entry *ae;
 
-#if HAVE_SETLOCALE
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
-		skipping("en_US.UTF-8 locale not available on this system.");
-		return;
-	}
-#else
-	skipping("setlocale() not available on this system.");
-#endif
+	extract_reference_file(refname);
 
-	extract_reference_file(reffile);
-	r = systemf("%s -I UTF-8 %s >test.out 2>test.err", testprog, reffile);
-	assertEqualInt(0, r);
-	assertNonEmptyFile("test.out");
-	assertEmptyFile("test.err");
+	/* Verify with seeking reader. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+        if(ARCHIVE_OK != archive_read_support_format_xar(a)) {
+                skipping("XAR format unsupported");
+                assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+                return;
+        }
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname,
+	    10240));
 
-	assertTextFileContents("Hello, World!\n", "Γειά σου Κόσμε.txt");
+	assertA(ARCHIVE_FATAL == archive_read_next_header(a, &ae));
+	assertEqualString(archive_error_string(a),
+		"File with multiple link targets");
+	assert(archive_errno(a) != 0);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

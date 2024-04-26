@@ -18,6 +18,7 @@ then
 		xz \
 		lz4 \
 		zstd \
+		libxml2 \
 		openssl
 	do
 		brew list $pkg > /dev/null && brew upgrade $pkg || brew install $pkg

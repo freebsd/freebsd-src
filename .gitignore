@@ -1,13 +1,23 @@
 *~
 *.o
+*.obj
 *.exe
+*.exp
+*.ilk
 *.la
+*.lib
 *.lo
+*.recipe
+*.sln
+*.tlog
 *.cmake
+*.vcxproj
+*.vcxproj.filters
 !build/cmake/*.cmake
 .deps/
 .libs/
 bin/
+out/
 .dirstamp
 Makefile
 Makefile.in
@@ -29,7 +39,13 @@ build/autoconf/ltsugar.m4
 build/autoconf/ltversion.m4
 build/autoconf/lt~obsolete.m4
 build/autoconf/missing
+build/build/pkgconfig/libarchive.pc
+build/cat/test/list.h
+build/cpio/test/list.h
+build/libarchive/test/list.h
 build/pkgconfig/libarchive.pc
+build/tar/test/list.h
+build/unzip/test/list.h
 cat/test/list.h
 config.cache
 config.h
@@ -47,6 +63,7 @@ CMakeCache.txt
 CMakeFiles/
 DartConfiguration.tcl
 cmake.tmp/
+.vs/
 .vscode/
 
 doc/html/*.html
