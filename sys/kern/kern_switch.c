@@ -445,15 +445,44 @@ runq_remove(struct runq *rq, struct thread *td)
 	return (false);
 }
 
+static inline int
+runq_findq_status_word(struct runq *const rq, const int w_idx,
+    const rqsw_t w, runq_pred_t *const pred, void *const pred_data)
+{
+	struct rq_queue *q;
+	rqsw_t tw = w;
+	int idx, b_idx;
+
+	while (tw != 0) {
+		b_idx = RQSW_BSF(tw);
+		idx = RQSW_TO_QUEUE_IDX(w_idx, b_idx);
+		q = &rq->rq_queues[idx];
+		KASSERT(!TAILQ_EMPTY(q),
+		    ("runq_findq(): No thread on non-empty queue with idx=%d",
+		    idx));
+		if (pred(idx, q, pred_data))
+			return (idx);
+		tw &= ~RQSW_BIT(idx);
+	}
+
+	return (-1);
+}
+
 /*
- * Find the index of the first (i.e., having lower index) non-empty queue in the
- * passed range (bounds included).  This is done by scanning the status bits,
- * a set bit indicating a non-empty queue.  Returns -1 if all queues in the range
- * are empty.
+ * Find in the passed range (bounds included) the index of the first (i.e.,
+ * having lower index) non-empty queue that passes pred().
+ *
+ * Considered queues are those with index 'lvl_min' up to 'lvl_max' (bounds
+ * included).  If no queue matches, returns -1.
+ *
+ * This is done by scanning the status words (a set bit indicates a non-empty
+ * queue) and calling pred() with corresponding queue indices.  pred() must
+ * return whether the corresponding queue is accepted.  It is passed private
+ * data through 'pred_data', which can be used both for extra input and output.
  */
-static int
-runq_findq_range(const struct runq *const rq, const int lvl_min,
-    const int lvl_max)
+int
+runq_findq(struct runq *const rq, const int lvl_min, const int lvl_max,
+    runq_pred_t *const pred, void *const pred_data)
 {
 	rqsw_t const (*const rqsw)[RQSW_NB] = &rq->rq_status.rq_sw;
 	rqsw_t w;
@@ -470,12 +499,14 @@ runq_findq_range(const struct runq *const rq, const int lvl_min,
 	w = (*rqsw)[i] & ~(RQSW_BIT(lvl_min) - 1);
 	if (i == last)
 		goto last_mask;
-	if (w != 0)
+	idx = runq_findq_status_word(rq, i, w, pred, pred_data);
+	if (idx != -1)
 		goto return_idx;
 
 	for (++i; i < last; ++i) {
 		w = (*rqsw)[i];
-		if (w != 0)
+		idx = runq_findq_status_word(rq, i, w, pred, pred_data);
+		if (idx != -1)
 			goto return_idx;
 	}
 
@@ -484,34 +515,45 @@ runq_findq_range(const struct runq *const rq, const int lvl_min,
 last_mask:
 	/* Clear bits for runqueues above 'lvl_max'. */
 	w &= (RQSW_BIT(lvl_max) - 1) | RQSW_BIT(lvl_max);
-	if (w != 0)
+	idx = runq_findq_status_word(rq, i, w, pred, pred_data);
+	if (idx != -1)
 		goto return_idx;
-
 	return (-1);
 return_idx:
-	idx = RQSW_FIRST_QUEUE_IDX(i, w);
-	CTR4(KTR_RUNQ, "runq_findq_range: bits=%#x->%#x i=%d idx=%d",
+	CTR4(KTR_RUNQ, "runq_findq: bits=%#x->%#x i=%d idx=%d",
 	    (*rqsw)[i], w, i, idx);
 	return (idx);
 }
 
-static __inline int
-runq_findq_circular(struct runq *const rq, int start_idx)
+static bool
+runq_first_thread_pred(const int idx, struct rq_queue *const q, void *const data)
 {
-	int idx;
+	struct thread **const tdp = data;
+	struct thread *const td = TAILQ_FIRST(q);
 
-	idx = runq_findq_range(rq, start_idx, RQ_NQS - 1);
-	if (idx != -1 || start_idx == 0)
-		return (idx);
-
-	return (runq_findq_range(rq, 0, start_idx - 1));
+	*tdp = td;
+	return (true);
 }
 
-static __inline int
-runq_findq(struct runq *const rq)
+/*
+ * Inline this function for the benefit of this file's internal uses, but make
+ * sure it has an external definition as it is exported.
+ */
+extern inline struct thread *
+runq_first_thread_range(struct runq *const rq, const int lvl_min,
+    const int lvl_max)
+{
+	struct thread *td = NULL;
+
+	(void)runq_findq(rq, lvl_min, lvl_max, runq_first_thread_pred, &td);
+	return (td);
+}
+
+static inline struct thread *
+runq_first_thread(struct runq *const rq)
 {
 
-	return (runq_findq_range(rq, 0, RQ_NQS - 1));
+	return (runq_first_thread_range(rq, 0, RQ_NQS - 1));
 }
 
 /*
@@ -521,11 +563,11 @@ runq_findq(struct runq *const rq)
 bool
 runq_not_empty(struct runq *rq)
 {
-	int idx;
+	struct thread *const td = runq_first_thread(rq);
 
-	idx = runq_findq(rq);
-	if (idx != -1) {
-		CTR1(KTR_RUNQ, "runq_not_empty: idx=%d", idx);
+	if (td != NULL) {
+		CTR2(KTR_RUNQ, "runq_not_empty: idx=%d, td=%p",
+		    td->td_rqindex, td);
 		return (true);
 	}
 
@@ -539,22 +581,52 @@ runq_not_empty(struct runq *rq)
 struct thread *
 runq_choose(struct runq *rq)
 {
-	struct rq_queue *rqq;
 	struct thread *td;
-	int idx;
 
-	idx = runq_findq(rq);
-	if (idx != -1) {
-		rqq = &rq->rq_queues[idx];
-		td = TAILQ_FIRST(rqq);
-		KASSERT(td != NULL, ("runq_choose: no thread on busy queue"));
-		CTR3(KTR_RUNQ,
-		    "runq_choose: idx=%d thread=%p rqq=%p", idx, td, rqq);
+	td = runq_first_thread(rq);
+	if (td != NULL) {
+		CTR2(KTR_RUNQ, "runq_choose: idx=%d td=%p", td->td_rqindex, td);
 		return (td);
 	}
-	CTR1(KTR_RUNQ, "runq_choose: idlethread idx=%d", idx);
 
+	CTR0(KTR_RUNQ, "runq_choose: idlethread");
 	return (NULL);
+}
+
+struct runq_fuzz_pred_data {
+	int fuzz;
+	struct thread *td;
+};
+
+static bool
+runq_fuzz_pred(const int idx, struct rq_queue *const q, void *const data)
+{
+	struct runq_fuzz_pred_data *const d = data;
+	const int fuzz = d->fuzz;
+	struct thread *td;
+
+	td = TAILQ_FIRST(q);
+
+	if (fuzz > 1) {
+		/*
+		 * In the first couple of entries, check if
+		 * there is one for our CPU as a preference.
+		 */
+		struct thread *td2 = td;
+		int count = fuzz;
+		int cpu = PCPU_GET(cpuid);
+
+		while (count-- != 0 && td2 != NULL) {
+			if (td2->td_lastcpu == cpu) {
+				td = td2;
+				break;
+			}
+			td2 = TAILQ_NEXT(td2, td_runq);
+		}
+	}
+
+	d->td = td;
+	return (true);
 }
 
 /*
@@ -563,60 +635,31 @@ runq_choose(struct runq *rq)
 struct thread *
 runq_choose_fuzz(struct runq *rq, int fuzz)
 {
-	struct rq_queue *rqq;
-	struct thread *td;
+	struct runq_fuzz_pred_data data = {
+		.fuzz = fuzz,
+		.td = NULL
+	};
 	int idx;
 
-	idx = runq_findq(rq);
+	idx = runq_findq(rq, 0, RQ_NQS - 1, runq_fuzz_pred, &data);
 	if (idx != -1) {
-		rqq = &rq->rq_queues[idx];
-		/* fuzz == 1 is normal.. 0 or less are ignored */
-		if (fuzz > 1) {
-			/*
-			 * In the first couple of entries, check if
-			 * there is one for our CPU as a preference.
-			 */
-			int count = fuzz;
-			int cpu = PCPU_GET(cpuid);
-			struct thread *td2;
-			td2 = td = TAILQ_FIRST(rqq);
-
-			while (count-- && td2) {
-				if (td2->td_lastcpu == cpu) {
-					td = td2;
-					break;
-				}
-				td2 = TAILQ_NEXT(td2, td_runq);
-			}
-		} else
-			td = TAILQ_FIRST(rqq);
-		KASSERT(td != NULL, ("runq_choose_fuzz: no proc on busy queue"));
-		CTR3(KTR_RUNQ,
-		    "runq_choose_fuzz: idx=%d thread=%p rqq=%p", idx, td, rqq);
-		return (td);
+		MPASS(data.td != NULL);
+		CTR2(KTR_RUNQ, "runq_choose_fuzz: idx=%d td=%p", idx, data.td);
+		return (data.td);
 	}
-	CTR1(KTR_RUNQ, "runq_choose_fuzz: idleproc idx=%d", idx);
 
+	MPASS(data.td == NULL);
+	CTR0(KTR_RUNQ, "runq_choose_fuzz: idlethread");
 	return (NULL);
 }
 
 struct thread *
-runq_choose_from(struct runq *rq, int from_idx)
+runq_choose_from(struct runq *const rq, int from_idx)
 {
-	struct rq_queue *rqq;
 	struct thread *td;
-	int idx;
 
-	if ((idx = runq_findq_circular(rq, from_idx)) != -1) {
-		rqq = &rq->rq_queues[idx];
-		td = TAILQ_FIRST(rqq);
-		KASSERT(td != NULL, ("runq_choose: no thread on busy queue"));
-		CTR4(KTR_RUNQ,
-		    "runq_choose_from: idx=%d thread=%p idx=%d rqq=%p",
-		    idx, td, td->td_rqindex, rqq);
+	td = runq_first_thread_range(rq, from_idx, RQ_NQS - 1);
+	if (td != NULL || from_idx == 0)
 		return (td);
-	}
-	CTR1(KTR_RUNQ, "runq_choose_from: idlethread idx=%d", idx);
-
-	return (NULL);
+	return (runq_first_thread_range(rq, 0, from_idx - 1));
 }
