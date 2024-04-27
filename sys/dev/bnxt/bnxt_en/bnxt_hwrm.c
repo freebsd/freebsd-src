@@ -47,6 +47,38 @@ static void	bnxt_hwrm_set_eee(struct bnxt_softc *softc,
 /* NVRam stuff has a five minute timeout */
 #define BNXT_NVM_TIMEO	(5 * 60 * 1000)
 
+#define BNXT_RX_STATS_PRI_ENTRY(counter, n)		\
+	BNXT_RX_STATS_EXT_OFFSET(counter##_cos0)
+
+#define BNXT_TX_STATS_PRI_ENTRY(counter, n)		\
+	 BNXT_TX_STATS_EXT_OFFSET(counter##_cos0)
+
+#define BNXT_RX_STATS_PRI_ENTRIES(counter)		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 0),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 1),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 2),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 3),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 4),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 5),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 6),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 7)
+
+#define BNXT_TX_STATS_PRI_ENTRIES(counter)		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 0),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 1),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 2),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 3),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 4),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 5),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 6),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 7)
+
+
+long bnxt_rx_bytes_pri_arr_base_off[] = {BNXT_RX_STATS_PRI_ENTRIES(rx_bytes)};
+long bnxt_rx_pkts_pri_arr_base_off[] = {BNXT_RX_STATS_PRI_ENTRIES(rx_packets)};
+long bnxt_tx_bytes_pri_arr_base_off[] = {BNXT_TX_STATS_PRI_ENTRIES(tx_bytes)};
+long bnxt_tx_pkts_pri_arr_base_off[] = {BNXT_TX_STATS_PRI_ENTRIES(tx_packets)};
+
 static int
 bnxt_hwrm_err_map(uint16_t err)
 {
@@ -1734,25 +1766,142 @@ bnxt_hwrm_port_qstats(struct bnxt_softc *softc)
 
 	return rc;
 }
+static int bnxt_hwrm_pri2cos_idx(struct bnxt_softc *softc, uint32_t path_dir)
+{
+	struct hwrm_queue_pri2cos_qcfg_input req = {0};
+	struct hwrm_queue_pri2cos_qcfg_output *resp;
+	uint8_t *pri2cos_idx, *q_ids, max_q;
+	int rc, i, j;
+	uint8_t *pri2cos;
 
-void
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_QUEUE_PRI2COS_QCFG);
+	resp = (void *)softc->hwrm_cmd_resp.idi_vaddr;
+
+	req.flags = htole32(HWRM_QUEUE_PRI2COS_QCFG_INPUT_FLAGS_IVLAN |
+			    path_dir);
+	rc = hwrm_send_message(softc, &req, sizeof(req));
+
+	if (rc)
+		return rc;
+
+	if (path_dir == HWRM_QUEUE_PRI2COS_QCFG_INPUT_FLAGS_PATH_TX) {
+		pri2cos_idx = softc->tx_pri2cos_idx;
+		q_ids = softc->tx_q_ids;
+		max_q = softc->tx_max_q;
+	} else {
+		pri2cos_idx = softc->rx_pri2cos_idx;
+		q_ids = softc->rx_q_ids;
+		max_q = softc->rx_max_q;
+	}
+
+	pri2cos = &resp->pri0_cos_queue_id;
+
+	for (i = 0; i < BNXT_MAX_QUEUE; i++) {
+		uint8_t queue_id = pri2cos[i];
+		uint8_t queue_idx;
+
+		/* Per port queue IDs start from 0, 10, 20, etc */
+		queue_idx = queue_id % 10;
+		if (queue_idx > BNXT_MAX_QUEUE) {
+			softc->pri2cos_valid = false;
+			rc = -EINVAL;
+			return rc;
+		}
+
+		for (j = 0; j < max_q; j++) {
+			if (q_ids[j] == queue_id)
+				pri2cos_idx[i] = queue_idx;
+		}
+	}
+
+	softc->pri2cos_valid = true;
+
+	return rc;
+}
+
+int
 bnxt_hwrm_port_qstats_ext(struct bnxt_softc *softc)
 {
 	struct hwrm_port_qstats_ext_input req = {0};
+	struct hwrm_port_qstats_ext_output *resp;
+	int rc = 0, i;
+	uint32_t tx_stat_size;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_PORT_QSTATS_EXT);
+	resp = (void *)softc->hwrm_cmd_resp.idi_vaddr;
 
+	tx_stat_size = sizeof(struct tx_port_stats_ext);
 	req.port_id = htole16(softc->pf.port_id);
-	req.tx_stat_size = htole16(sizeof(struct tx_port_stats_ext));
+	req.tx_stat_size = htole16(tx_stat_size);
 	req.rx_stat_size = htole16(sizeof(struct rx_port_stats_ext));
 	req.rx_stat_host_addr = htole64(softc->hw_rx_port_stats_ext.idi_paddr);
 	req.tx_stat_host_addr = htole64(softc->hw_tx_port_stats_ext.idi_paddr);
 
-	BNXT_HWRM_LOCK(softc);
-	_hwrm_send_message(softc, &req, sizeof(req));
-	BNXT_HWRM_UNLOCK(softc);
+	rc = hwrm_send_message(softc, &req, sizeof(req));
 
-	return;
+	if (!rc) {
+		softc->fw_rx_stats_ext_size =
+			le16toh(resp->rx_stat_size) / 8;
+		if (BNXT_FW_MAJ(softc) < 220 &&
+		    softc->fw_rx_stats_ext_size > BNXT_RX_STATS_EXT_NUM_LEGACY)
+			softc->fw_rx_stats_ext_size = BNXT_RX_STATS_EXT_NUM_LEGACY;
+
+		softc->fw_tx_stats_ext_size = tx_stat_size ?
+			le16toh(resp->tx_stat_size) / 8 : 0;
+	} else {
+		softc->fw_rx_stats_ext_size = 0;
+		softc->fw_tx_stats_ext_size = 0;
+	}
+
+	if (softc->fw_tx_stats_ext_size <=
+	    offsetof(struct tx_port_stats_ext, pfc_pri0_tx_duration_us) / 8) {
+		softc->pri2cos_valid = false;
+		return rc;
+	}
+
+	rc = bnxt_hwrm_pri2cos_idx(softc, HWRM_QUEUE_PRI2COS_QCFG_INPUT_FLAGS_PATH_TX);
+	if (rc)
+		return rc;
+
+	if (softc->is_asym_q) {
+		rc = bnxt_hwrm_pri2cos_idx(softc, HWRM_QUEUE_PRI2COS_QCFG_INPUT_FLAGS_PATH_RX);
+		if (rc)
+			return rc;
+	} else {
+		memcpy(softc->rx_pri2cos_idx, softc->tx_pri2cos_idx, sizeof(softc->rx_pri2cos_idx));
+	}
+
+	u64 *rx_port_stats_ext = (u64 *)softc->hw_rx_port_stats_ext.idi_vaddr;
+	u64 *tx_port_stats_ext = (u64 *)softc->hw_tx_port_stats_ext.idi_vaddr;
+
+	if (softc->pri2cos_valid) {
+		for (i = 0; i < 8; i++) {
+			long n = bnxt_rx_bytes_pri_arr_base_off[i] +
+				 softc->rx_pri2cos_idx[i];
+
+			softc->rx_bytes_pri[i] = *(rx_port_stats_ext + n);
+		}
+		for (i = 0; i < 8; i++) {
+			long n = bnxt_rx_pkts_pri_arr_base_off[i] +
+				 softc->rx_pri2cos_idx[i];
+
+			softc->rx_packets_pri[i] = *(rx_port_stats_ext + n);
+		}
+		for (i = 0; i < 8; i++) {
+			long n = bnxt_tx_bytes_pri_arr_base_off[i] +
+				 softc->tx_pri2cos_idx[i];
+
+			softc->tx_bytes_pri[i] = *(tx_port_stats_ext + n);
+		}
+		for (i = 0; i < 8; i++) {
+			long n = bnxt_tx_pkts_pri_arr_base_off[i] +
+				 softc->tx_pri2cos_idx[i];
+
+			softc->tx_packets_pri[i] = *(tx_port_stats_ext + n);
+		}
+	}
+
+	return rc;
 }
 
 int
