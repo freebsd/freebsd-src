@@ -474,7 +474,8 @@ hdspe_probe(device_t dev)
 {
 	uint32_t rev;
 
-	if (pci_get_vendor(dev) == PCI_VENDOR_XILINX &&
+	if ((pci_get_vendor(dev) == PCI_VENDOR_XILINX ||
+	    pci_get_vendor(dev) == PCI_VENDOR_RME) &&
 	    pci_get_device(dev) == PCI_DEVICE_XILINX_HDSPE) {
 		rev = pci_get_revid(dev);
 		switch (rev) {
