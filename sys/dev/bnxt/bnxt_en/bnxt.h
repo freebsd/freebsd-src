@@ -267,6 +267,15 @@
 
 #define BNXT_MIN_FRAME_SIZE	52	/* Frames must be padded to this size for some A0 chips */
 
+#define BNXT_RX_STATS_EXT_OFFSET(counter)		\
+	(offsetof(struct rx_port_stats_ext, counter) / 8)
+
+#define BNXT_RX_STATS_EXT_NUM_LEGACY			\
+	BNXT_RX_STATS_EXT_OFFSET(rx_fec_corrected_blocks)
+
+#define BNXT_TX_STATS_EXT_OFFSET(counter)		\
+	(offsetof(struct tx_port_stats_ext, counter) / 8)
+
 extern const char bnxt_driver_version[];
 typedef void (*bnxt_doorbell_tx)(void *, uint16_t idx);
 typedef void (*bnxt_doorbell_rx)(void *, uint16_t idx);
@@ -910,6 +919,20 @@ struct bnxt_softc {
 	struct tx_port_stats_ext *tx_port_stats_ext;
 	struct rx_port_stats_ext *rx_port_stats_ext;
 
+	uint16_t		fw_rx_stats_ext_size;
+	uint16_t		fw_tx_stats_ext_size;
+	uint16_t		hw_ring_stats_size;
+
+	uint8_t			tx_pri2cos_idx[8];
+	uint8_t			rx_pri2cos_idx[8];
+	bool			pri2cos_valid;
+
+	uint64_t		tx_bytes_pri[8];
+	uint64_t		tx_packets_pri[8];
+	uint64_t		rx_bytes_pri[8];
+	uint64_t		rx_packets_pri[8];
+
+	uint8_t			port_count;
 	int			num_cp_rings;
 
 	struct bnxt_cp_ring	*nq_rings;
