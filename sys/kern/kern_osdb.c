@@ -26,9 +26,4 @@ int sys_osdb_column_count(struct thread *td, struct osdb_column_count_args *args
 int sys_osdb_column_name(struct thread *td, struct osdb_column_name_args *args) { return 1; }
 
 int freebsd32_osdb_column_int64(struct thread *td, struct freebsd32_osdb_column_int64_args *args) { return 1; }
-<<<<<<< HEAD
-=======
-
-  
->>>>>>> dev
 
