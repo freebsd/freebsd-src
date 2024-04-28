@@ -923,8 +923,8 @@ pcm_sysinit(device_t dev)
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "mode", CTLFLAG_RD, NULL, mode,
-	    "mode (1=mixer, 2=play, 4=rec. The values are OR'ed if more than one"
-	    "mode is supported)");
+	    "mode (1=mixer, 2=play, 4=rec. The values are OR'ed if more than "
+	    "one mode is supported)");
 	if (d->flags & SD_F_AUTOVCHAN)
 		vchan_initsys(dev);
 	if (d->flags & SD_F_EQ)
