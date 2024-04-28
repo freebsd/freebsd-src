@@ -1301,6 +1301,15 @@ chn_kill(struct pcm_channel *c)
 	return (0);
 }
 
+void
+chn_shutdown(struct pcm_channel *c)
+{
+	CHN_LOCKASSERT(c);
+
+	chn_wakeup(c);
+	c->flags |= CHN_F_DEAD;
+}
+
 int
 chn_setvolume_multi(struct pcm_channel *c, int vc, int left, int right,
     int center)
