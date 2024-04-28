@@ -10,7 +10,7 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
-8fef193e14e2:
+25723d66369f:
 	As a side-effect of retiring the unit.* code in sound(4), the
 	hw.snd.maxunit loader(8) tunable is also retired.
 6d5ce2bb6344:
