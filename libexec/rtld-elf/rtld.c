@@ -6233,7 +6233,10 @@ parse_args(char* argv[], int argc, bool *use_pathp, int *fdp,
 			} else if (opt == 'p') {
 				*use_pathp = true;
 			} else if (opt == 'u') {
-				trust = false;
+				u_int ll;
+
+				for (ll = 0; ll < nitems(ld_env_vars); ll++)
+					ld_env_vars[ll].val = NULL;
 			} else if (opt == 'v') {
 				machine[0] = '\0';
 				mib[0] = CTL_HW;
