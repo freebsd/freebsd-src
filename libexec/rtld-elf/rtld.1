@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 29, 2023
+.Dd April 28, 2024
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -352,6 +352,7 @@ The syntax of the direct invocation is
 .Op Fl b Ar exe
 .Op Fl d
 .Op Fl f Ar fd
+.Op Fl o Ar OPT=NAME
 .Op Fl p
 .Op Fl u
 .Op Fl v
@@ -387,6 +388,23 @@ If this option is specified,
 is only used to provide the
 .Va argv[0]
 value to the program.
+.It Fl o Ar OPT=VALUE
+Set the
+.Ar OPT
+configuration variable to the value
+.Ar VALUE .
+The possible variable names are listed above as
+.Ev LD_
+prefixed environment variables, but here are referenced without the
+.Ev LD_
+prefix.
+A configuration variable set this way does not leak into
+the activated image's environment.
+.Pp
+The option can be repeated as many times as needed to set
+all configuration parameters.
+The parameters set using this option have priority over
+the same parameters assigned via environment.
 .It Fl p
 If the
 .Pa image_path

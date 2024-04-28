@@ -6157,6 +6157,35 @@ parse_args(char* argv[], int argc, bool *use_pathp, int *fdp,
 				*fdp = fd;
 				seen_f = true;
 				break;
+			} else if (opt == 'o') {
+				struct ld_env_var_desc *l;
+				char *n, *v;
+				u_int ll;
+
+				if (j != arglen - 1) {
+					_rtld_error("Invalid options: %s", arg);
+					rtld_die();
+				}
+				i++;
+				n = argv[i];
+				v = strchr(n, '=');
+				if (v == NULL) {
+					_rtld_error("No '=' in -o parameter");
+					rtld_die();
+				}
+				for (ll = 0; ll < nitems(ld_env_vars); ll++) {
+					l = &ld_env_vars[ll];
+					if (v - n == (ptrdiff_t)strlen(l->n) &&
+					    strncmp(n, l->n, v - n) == 0) {
+						l->val = v + 1;
+						break;
+					}
+				}
+				if (ll == nitems(ld_env_vars)) {
+					_rtld_error("Unknown LD_ option %s",
+					    n);
+					rtld_die();
+				}
 			} else if (opt == 'p') {
 				*use_pathp = true;
 			} else if (opt == 'u') {
@@ -6240,6 +6269,7 @@ print_usage(const char *argv0)
 	    "  -b <exe>  Execute <exe> instead of <binary>, arg0 is <binary>\n"
 	    "  -d        Ignore lack of exec permissions for the binary\n"
 	    "  -f <FD>   Execute <FD> instead of searching for <binary>\n"
+	    "  -o <OPT>=<VAL> Set LD_<OPT> to <VAL>, without polluting env\n"
 	    "  -p        Search in PATH for named binary\n"
 	    "  -u        Ignore LD_ environment variables\n"
 	    "  -v        Display identification information\n"
