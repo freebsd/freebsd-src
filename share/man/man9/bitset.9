@@ -51,6 +51,8 @@
 .Nm BIT_CMP ,
 .Nm BIT_OR ,
 .Nm BIT_OR2 ,
+.Nm BIT_ORNOT ,
+.Nm BIT_ORNOT2 ,
 .Nm BIT_AND ,
 .Nm BIT_AND2 ,
 .Nm BIT_ANDNOT ,
@@ -118,6 +120,13 @@
 .Fc
 .Fn BIT_OR "const SETSIZE" "struct STRUCTNAME *dst" "struct STRUCTNAME *src"
 .Fo BIT_OR2
+.Fa "const SETSIZE"
+.Fa "struct STRUCTNAME *dst"
+.Fa "struct STRUCTNAME *src1"
+.Fa "struct STRUCTNAME *src2"
+.Fc
+.Fn BIT_ORNOT "const SETSIZE" "struct STRUCTNAME *dst" "struct STRUCTNAME *src"
+.Fo BIT_ORNOT2
 .Fa "const SETSIZE"
 .Fa "struct STRUCTNAME *dst"
 .Fa "struct STRUCTNAME *src1"
@@ -456,6 +465,36 @@ equivalent of the scalar:
 =
 .Fa src1
 |
+.Fa src2 . )
+.Pp
+The
+.Fn BIT_ORNOT
+macro sets bits not in
+.Fa src
+in
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+|=
+.Fa ~ src . )
+.Pp
+The
+.Fn BIT_ORNOT2
+macro computes
+.Fa src1
+bitwise or not
+.Fa src2
+and assigns the result to
+.Fa dst .
+(It is the
+.Nm
+equivalent of the scalar:
+.Fa dst
+=
+.Fa src1
+| ~
 .Fa src2 . )
 .Pp
 The
