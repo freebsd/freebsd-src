@@ -966,7 +966,7 @@ static void bnxt_free_ctx_mem(struct bnxt_softc *softc)
 		return;
 
 	if (ctx->tqm_mem[0]) {
-		for (i = 0; i < softc->max_q + 1; i++) {
+		for (i = 0; i < softc->rx_max_q + 1; i++) {
 			if (!ctx->tqm_mem[i])
 				continue;
 			bnxt_free_ctx_pg_tbls(softc, ctx->tqm_mem[i]);
@@ -1079,7 +1079,7 @@ static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
 	entries = roundup(entries, ctx->tqm_entries_multiple);
 	entries = clamp_t(uint32_t, entries, ctx->tqm_min_entries_per_ring,
 			  ctx->tqm_max_entries_per_ring);
-	for (i = 0; i < softc->max_q + 1; i++) {
+	for (i = 0; i < softc->rx_max_q + 1; i++) {
 		ctx_pg = ctx->tqm_mem[i];
 		ctx_pg->entries = entries;
 		mem_size = ctx->tqm_entry_size * entries;
@@ -1262,6 +1262,23 @@ struct bnxt_softc *bnxt_find_dev(uint32_t domain, uint32_t bus, uint32_t dev_fn,
 	return NULL;
 }
 
+
+static void bnxt_verify_asym_queues(struct bnxt_softc *softc)
+{
+	uint8_t i, lltc = 0;
+
+	if (!softc->max_lltc)
+		return;
+
+	/* Verify that lossless TX and RX queues are in the same index */
+	for (i = 0; i < softc->max_tc; i++) {
+		if (BNXT_LLQ(softc->tx_q_info[i].queue_profile) &&
+		    BNXT_LLQ(softc->rx_q_info[i].queue_profile))
+			lltc++;
+	}
+	softc->max_lltc = min(softc->max_lltc, lltc);
+}
+
 /* Device setup and teardown */
 static int
 bnxt_attach_pre(if_ctx_t ctx)
@@ -1362,12 +1379,10 @@ bnxt_attach_pre(if_ctx_t ctx)
 
 	softc->flags |= BNXT_FLAG_TPA;
 
-	/* No TPA for Thor A0 */
 	if (BNXT_CHIP_P5(softc) && (!softc->ver_info->chip_rev) &&
 			(!softc->ver_info->chip_metal))
 		softc->flags &= ~BNXT_FLAG_TPA;
 
-	/* TBD ++ Add TPA support from Thor B1 */
 	if (BNXT_CHIP_P5(softc))
 		softc->flags &= ~BNXT_FLAG_TPA;
 
@@ -1415,10 +1430,23 @@ bnxt_attach_pre(if_ctx_t ctx)
 	}
 
 	/* Get the queue config */
-	rc = bnxt_hwrm_queue_qportcfg(softc);
+	rc = bnxt_hwrm_queue_qportcfg(softc, HWRM_QUEUE_QPORTCFG_INPUT_FLAGS_PATH_TX);
 	if (rc) {
-		device_printf(softc->dev, "attach: hwrm qportcfg failed\n");
+		device_printf(softc->dev, "attach: hwrm qportcfg (tx) failed\n");
 		goto failed;
+	}
+	if (softc->is_asym_q) {
+		rc = bnxt_hwrm_queue_qportcfg(softc,
+					      HWRM_QUEUE_QPORTCFG_INPUT_FLAGS_PATH_RX);
+		if (rc) {
+			device_printf(softc->dev, "attach: hwrm qportcfg (rx)  failed\n");
+			return rc;
+		}
+		bnxt_verify_asym_queues(softc);
+	} else {
+		softc->rx_max_q = softc->tx_max_q;
+		memcpy(softc->rx_q_info, softc->tx_q_info, sizeof(softc->rx_q_info));
+		memcpy(softc->rx_q_ids, softc->tx_q_ids, sizeof(softc->rx_q_ids));
 	}
 
 	if (softc->hwrm_spec_code >= 0x10803) {
@@ -1579,6 +1607,10 @@ bnxt_attach_pre(if_ctx_t ctx)
 		goto failed;
 
 	rc = bnxt_create_pause_fc_sysctls(softc);
+	if (rc)
+		goto failed;
+
+	rc = bnxt_create_dcb_sysctls(softc);
 	if (rc)
 		goto failed;
 
@@ -1857,7 +1889,6 @@ bnxt_init(if_ctx_t ctx)
 	softc->is_dev_init = true;
 	bnxt_clear_ids(softc);
 
-	// TBD -- Check if it is needed for Thor as well
 	if (BNXT_CHIP_P5(softc))
 		goto skip_def_cp_ring;
 	/* Allocate the default completion ring */
@@ -2002,6 +2033,7 @@ skip_def_cp_ring:
 	bnxt_get_port_module_status(softc);
 	bnxt_media_status(softc->ctx, &ifmr);
 	bnxt_hwrm_cfa_l2_set_rx_mask(softc, &softc->vnic_info);
+	bnxt_dcb_init(softc);
 	return;
 
 fail:
@@ -2016,6 +2048,7 @@ bnxt_stop(if_ctx_t ctx)
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 
 	softc->is_dev_init = false;
+	bnxt_dcb_free(softc);
 	bnxt_do_disable_intr(&softc->def_cp_ring);
 	bnxt_func_reset(softc);
 	bnxt_clear_ids(softc);
@@ -2986,6 +3019,7 @@ bnxt_probe_phy(struct bnxt_softc *softc)
 	struct bnxt_link_info *link_info = &softc->link_info;
 	int rc = 0;
 
+	softc->phy_flags = 0;
 	rc = bnxt_hwrm_phy_qcaps(softc);
 	if (rc) {
 		device_printf(softc->dev,

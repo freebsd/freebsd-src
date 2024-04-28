@@ -44,6 +44,7 @@
 #include <net/iflib.h>
 
 #include "hsi_struct_def.h"
+#include "bnxt_dcb.h"
 
 /* PCI IDs */
 #define BROADCOM_VENDOR_ID	0x14E4
@@ -359,9 +360,9 @@ enum bnxt_cp_type {
 	BNXT_SHARED
 };
 
-struct bnxt_cos_queue {
-	uint8_t	id;
-	uint8_t	profile;
+struct bnxt_queue_info {
+	uint8_t		queue_id;
+	uint8_t		queue_profile;
 };
 
 struct bnxt_func_info {
@@ -532,6 +533,13 @@ struct bnxt_ver_info {
 	uint8_t		hwrm_min_major;
 	uint8_t		hwrm_min_minor;
 	uint8_t		hwrm_min_update;
+	uint64_t	fw_ver_code;
+#define BNXT_FW_VER_CODE(maj, min, bld, rsv)			\
+	((uint64_t)(maj) << 48 | (uint64_t)(min) << 32 | (uint64_t)(bld) << 16 | (rsv))
+#define BNXT_FW_MAJ(softc)	((softc)->ver_info->fw_ver_code >> 48)
+#define BNXT_FW_MIN(softc)	(((softc)->ver_info->fw_ver_code >> 32) & 0xffff)
+#define BNXT_FW_BLD(softc)	(((softc)->ver_info->fw_ver_code >> 16) & 0xffff)
+#define BNXT_FW_RSV(softc)	(((softc)->ver_info->fw_ver_code) & 0xffff)
 
 	struct sysctl_ctx_list	ver_ctx;
 	struct sysctl_oid	*ver_oid;
@@ -644,38 +652,52 @@ struct bnxt_ctx_mem_info {
 };
 
 struct bnxt_hw_resc {
-        uint16_t     min_rsscos_ctxs;
-        uint16_t     max_rsscos_ctxs;
-        uint16_t     min_cp_rings;
-        uint16_t     max_cp_rings;
-        uint16_t     resv_cp_rings;
-        uint16_t     min_tx_rings;
-        uint16_t     max_tx_rings;
-        uint16_t     resv_tx_rings;
-        uint16_t     max_tx_sch_inputs;
-        uint16_t     min_rx_rings;
-        uint16_t     max_rx_rings;
-        uint16_t     resv_rx_rings;
-        uint16_t     min_hw_ring_grps;
-        uint16_t     max_hw_ring_grps;
-        uint16_t     resv_hw_ring_grps;
-        uint16_t     min_l2_ctxs;
-        uint16_t     max_l2_ctxs;
-        uint16_t     min_vnics;
-        uint16_t     max_vnics;
-        uint16_t     resv_vnics;
-        uint16_t     min_stat_ctxs;
-        uint16_t     max_stat_ctxs;
-        uint16_t     resv_stat_ctxs;
-        uint16_t     max_nqs;
-        uint16_t     max_irqs;
-        uint16_t     resv_irqs;
+	uint16_t	min_rsscos_ctxs;
+	uint16_t	max_rsscos_ctxs;
+	uint16_t	min_cp_rings;
+	uint16_t	max_cp_rings;
+	uint16_t	resv_cp_rings;
+	uint16_t	min_tx_rings;
+	uint16_t	max_tx_rings;
+	uint16_t	resv_tx_rings;
+	uint16_t	max_tx_sch_inputs;
+	uint16_t	min_rx_rings;
+	uint16_t	max_rx_rings;
+	uint16_t	resv_rx_rings;
+	uint16_t	min_hw_ring_grps;
+	uint16_t	max_hw_ring_grps;
+	uint16_t	resv_hw_ring_grps;
+	uint16_t	min_l2_ctxs;
+	uint16_t	max_l2_ctxs;
+	uint16_t	min_vnics;
+	uint16_t	max_vnics;
+	uint16_t	resv_vnics;
+	uint16_t	min_stat_ctxs;
+	uint16_t	max_stat_ctxs;
+	uint16_t	resv_stat_ctxs;
+	uint16_t	max_nqs;
+	uint16_t	max_irqs;
+	uint16_t	resv_irqs;
+}
+
+enum bnxt_type_ets {
+	BNXT_TYPE_ETS_TSA = 0,
+	BNXT_TYPE_ETS_PRI2TC,
+	BNXT_TYPE_ETS_TCBW,
+	BNXT_TYPE_ETS_MAX
 };
 
-#define BNXT_LLQ(q_profile)     \
-        ((q_profile) == HWRM_QUEUE_QPORTCFG_OUTPUT_QUEUE_ID0_SERVICE_PROFILE_LOSSLESS_ROCE)
-#define BNXT_CNPQ(q_profile)    \
-        ((q_profile) == HWRM_QUEUE_QPORTCFG_OUTPUT_QUEUE_ID0_SERVICE_PROFILE_LOSSY_ROCE_CNP)
+static const char *const BNXT_ETS_TYPE_STR[] = {
+	"tsa",
+	"pri2tc",
+	"tcbw",
+};
+
+static const char *const BNXT_ETS_HELP_STR[] = {
+	"X is 1 (strict),  0 (ets)",
+	"TC values for pri 0 to 7",
+	"TC BW values for pri 0 to 7, Sum should be 100",
+};
 
 #define BNXT_HWRM_MAX_REQ_LEN		(softc->hwrm_max_req_len)
 
@@ -683,6 +705,10 @@ struct bnxt_softc_list {
 	SLIST_ENTRY(bnxt_softc_list) next;
 	struct bnxt_softc *softc;
 };
+
+#ifndef BIT_ULL
+#define BIT_ULL(nr)		(1ULL << (nr))
+#endif
 
 struct bnxt_softc {
 	device_t	dev;
@@ -710,6 +736,8 @@ struct bnxt_softc {
 #define BNXT_FLAG_CHIP_P5			0x0020
 #define BNXT_FLAG_TPA				0x0040
 #define BNXT_FLAG_FW_CAP_EXT_STATS		0x0080
+#define BNXT_FLAG_MULTI_HOST			0x0100
+#define BNXT_FLAG_MULTI_ROOT			0x0200
 	uint32_t		flags;
 #define BNXT_STATE_LINK_CHANGE  (0)
 #define BNXT_STATE_MAX		(BNXT_STATE_LINK_CHANGE + 1)
@@ -732,13 +760,23 @@ struct bnxt_softc {
 	uint16_t		hwrm_max_ext_req_len;
 	uint32_t		hwrm_spec_code;
 
-#define BNXT_MAX_COS_QUEUE	8
+#define BNXT_MAX_QUEUE	8
 	uint8_t			max_tc;
-        uint8_t			max_lltc;       /* lossless TCs */
-	struct bnxt_cos_queue	q_info[BNXT_MAX_COS_QUEUE];
-        uint8_t			tc_to_qidx[BNXT_MAX_COS_QUEUE];
-        uint8_t			q_ids[BNXT_MAX_COS_QUEUE];
-        uint8_t			max_q;
+	uint8_t			max_lltc;
+	struct bnxt_queue_info  tx_q_info[BNXT_MAX_QUEUE];
+	struct bnxt_queue_info  rx_q_info[BNXT_MAX_QUEUE];
+	uint8_t			tc_to_qidx[BNXT_MAX_QUEUE];
+	uint8_t			tx_q_ids[BNXT_MAX_QUEUE];
+	uint8_t			rx_q_ids[BNXT_MAX_QUEUE];
+	uint8_t			tx_max_q;
+	uint8_t			rx_max_q;
+	uint8_t			is_asym_q;
+
+	struct bnxt_ieee_ets	*ieee_ets;
+	struct bnxt_ieee_pfc    *ieee_pfc;
+	uint8_t			dcbx_cap;
+	uint8_t			default_pri;
+	uint8_t			max_dscp_value;
 
 	uint64_t		admin_ticks;
 	struct iflib_dma_info	hw_rx_port_stats;
@@ -782,6 +820,8 @@ struct bnxt_softc {
 	struct sysctl_oid	*hw_lro_oid;
 	struct sysctl_ctx_list	flow_ctrl_ctx;
 	struct sysctl_oid	*flow_ctrl_oid;
+	struct sysctl_ctx_list	dcb_ctx;
+	struct sysctl_oid	*dcb_oid;
 
 	struct bnxt_ver_info	*ver_info;
 	struct bnxt_nvram_info	*nvm_info;
@@ -796,13 +836,78 @@ struct bnxt_softc {
 	uint16_t               	tx_coal_usecs;
 	uint16_t               	tx_coal_usecs_irq;
 	uint16_t               	tx_coal_frames;
-	uint16_t               	tx_coal_frames_irq;
+	uint16_t		tx_coal_frames_irq;
 
 #define BNXT_USEC_TO_COAL_TIMER(x)      ((x) * 25 / 2)
 #define BNXT_DEF_STATS_COAL_TICKS        1000000
 #define BNXT_MIN_STATS_COAL_TICKS         250000
 #define BNXT_MAX_STATS_COAL_TICKS        1000000
 
+	uint64_t		fw_cap;
+	#define BNXT_FW_CAP_SHORT_CMD			BIT_ULL(0)
+	#define BNXT_FW_CAP_LLDP_AGENT			BIT_ULL(1)
+	#define BNXT_FW_CAP_DCBX_AGENT			BIT_ULL(2)
+	#define BNXT_FW_CAP_NEW_RM			BIT_ULL(3)
+	#define BNXT_FW_CAP_IF_CHANGE			BIT_ULL(4)
+	#define BNXT_FW_CAP_LINK_ADMIN			BIT_ULL(5)
+	#define BNXT_FW_CAP_VF_RES_MIN_GUARANTEED	BIT_ULL(6)
+	#define BNXT_FW_CAP_KONG_MB_CHNL		BIT_ULL(7)
+	#define BNXT_FW_CAP_ADMIN_MTU			BIT_ULL(8)
+	#define BNXT_FW_CAP_ADMIN_PF			BIT_ULL(9)
+	#define BNXT_FW_CAP_OVS_64BIT_HANDLE		BIT_ULL(10)
+	#define BNXT_FW_CAP_TRUSTED_VF			BIT_ULL(11)
+	#define BNXT_FW_CAP_VF_VNIC_NOTIFY		BIT_ULL(12)
+	#define BNXT_FW_CAP_ERROR_RECOVERY		BIT_ULL(13)
+	#define BNXT_FW_CAP_PKG_VER			BIT_ULL(14)
+	#define BNXT_FW_CAP_CFA_ADV_FLOW		BIT_ULL(15)
+	#define BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V2	BIT_ULL(16)
+	#define BNXT_FW_CAP_PCIE_STATS_SUPPORTED	BIT_ULL(17)
+	#define BNXT_FW_CAP_EXT_STATS_SUPPORTED		BIT_ULL(18)
+	#define BNXT_FW_CAP_SECURE_MODE			BIT_ULL(19)
+	#define BNXT_FW_CAP_ERR_RECOVER_RELOAD		BIT_ULL(20)
+	#define BNXT_FW_CAP_HOT_RESET			BIT_ULL(21)
+	#define BNXT_FW_CAP_CRASHDUMP			BIT_ULL(23)
+	#define BNXT_FW_CAP_VLAN_RX_STRIP		BIT_ULL(24)
+	#define BNXT_FW_CAP_VLAN_TX_INSERT		BIT_ULL(25)
+	#define BNXT_FW_CAP_EXT_HW_STATS_SUPPORTED	BIT_ULL(26)
+	#define BNXT_FW_CAP_CFA_EEM			BIT_ULL(27)
+	#define BNXT_FW_CAP_DBG_QCAPS			BIT_ULL(29)
+	#define BNXT_FW_CAP_RING_MONITOR		BIT_ULL(30)
+	#define BNXT_FW_CAP_ECN_STATS			BIT_ULL(31)
+	#define BNXT_FW_CAP_TRUFLOW			BIT_ULL(32)
+	#define BNXT_FW_CAP_VF_CFG_FOR_PF		BIT_ULL(33)
+	#define BNXT_FW_CAP_PTP_PPS			BIT_ULL(34)
+	#define BNXT_FW_CAP_HOT_RESET_IF		BIT_ULL(35)
+	#define BNXT_FW_CAP_LIVEPATCH			BIT_ULL(36)
+	#define BNXT_FW_CAP_NPAR_1_2			BIT_ULL(37)
+	#define BNXT_FW_CAP_RSS_HASH_TYPE_DELTA		BIT_ULL(38)
+	#define BNXT_FW_CAP_PTP_RTC			BIT_ULL(39)
+	#define	BNXT_FW_CAP_TRUFLOW_EN			BIT_ULL(40)
+	#define BNXT_TRUFLOW_EN(bp)	((bp)->fw_cap & BNXT_FW_CAP_TRUFLOW_EN)
+	#define BNXT_FW_CAP_RX_ALL_PKT_TS		BIT_ULL(41)
+	#define BNXT_FW_CAP_BACKING_STORE_V2		BIT_ULL(42)
+	#define BNXT_FW_CAP_DBR_SUPPORTED		BIT_ULL(43)
+	#define BNXT_FW_CAP_GENERIC_STATS		BIT_ULL(44)
+	#define BNXT_FW_CAP_DBR_PACING_SUPPORTED	BIT_ULL(45)
+	#define BNXT_FW_CAP_PTP_PTM			BIT_ULL(46)
+	#define BNXT_FW_CAP_CFA_NTUPLE_RX_EXT_IP_PROTO	BIT_ULL(47)
+	#define BNXT_FW_CAP_ENABLE_RDMA_SRIOV		BIT_ULL(48)
+	#define BNXT_FW_CAP_RSS_TCAM			BIT_ULL(49)
+	uint32_t		lpi_tmr_lo;
+	uint32_t		lpi_tmr_hi;
+	/* copied from flags and flags2 in hwrm_port_phy_qcaps_output */
+	uint16_t		phy_flags;
+#define BNXT_PHY_FL_EEE_CAP             HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS_EEE_SUPPORTED
+#define BNXT_PHY_FL_EXT_LPBK            HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS_EXTERNAL_LPBK_SUPPORTED
+#define BNXT_PHY_FL_AN_PHY_LPBK         HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS_AUTONEG_LPBK_SUPPORTED
+#define BNXT_PHY_FL_SHARED_PORT_CFG     HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS_SHARED_PHY_CFG_SUPPORTED
+#define BNXT_PHY_FL_PORT_STATS_NO_RESET HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS_CUMULATIVE_COUNTERS_ON_RESET
+#define BNXT_PHY_FL_NO_PHY_LPBK         HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS_LOCAL_LPBK_NOT_SUPPORTED
+#define BNXT_PHY_FL_FW_MANAGED_LKDN     HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS_FW_MANAGED_LINK_DOWN
+#define BNXT_PHY_FL_NO_FCS              HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS_NO_FCS
+#define BNXT_PHY_FL_NO_PAUSE            (HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS2_PAUSE_UNSUPPORTED << 8)
+#define BNXT_PHY_FL_NO_PFC              (HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS2_PFC_UNSUPPORTED << 8)
+#define BNXT_PHY_FL_BANK_SEL            (HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS2_BANK_ADDR_SUPPORTED << 8)
 };
 
 struct bnxt_filter_info {
@@ -843,6 +948,17 @@ struct bnxt_softc *bnxt_find_dev(uint32_t domain, uint32_t bus, uint32_t dev_fn,
 int bnxt_read_sfp_module_eeprom_info(struct bnxt_softc *bp, uint16_t i2c_addr,
     uint16_t page_number, uint8_t bank, bool bank_sel_en, uint16_t start_addr,
     uint16_t data_length, uint8_t *buf);
+void bnxt_dcb_init(struct bnxt_softc *softc);
+void bnxt_dcb_free(struct bnxt_softc *softc);
+uint8_t bnxt_dcb_setdcbx(struct bnxt_softc *softc, uint8_t mode);
+uint8_t bnxt_dcb_getdcbx(struct bnxt_softc *softc);
+int bnxt_dcb_ieee_getets(struct bnxt_softc *softc, struct bnxt_ieee_ets *ets);
+int bnxt_dcb_ieee_setets(struct bnxt_softc *softc, struct bnxt_ieee_ets *ets);
 uint8_t get_phy_type(struct bnxt_softc *softc);
+int bnxt_dcb_ieee_getpfc(struct bnxt_softc *softc, struct bnxt_ieee_pfc *pfc);
+int bnxt_dcb_ieee_setpfc(struct bnxt_softc *softc, struct bnxt_ieee_pfc *pfc);
+int bnxt_dcb_ieee_setapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app);
+int bnxt_dcb_ieee_delapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app);
+int bnxt_dcb_ieee_listapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app, int *num_inputs);
 
 #endif /* _BNXT_H */
