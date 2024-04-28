@@ -2086,10 +2086,16 @@ dsp_clone(void *arg, struct ucred *cred, char *name, int namelen,
 	return;
 found:
 	d = devclass_get_softc(pcm_devclass, snd_unit);
-	if (!PCM_REGISTERED(d))
-		return;
-	*dev = d->dsp_dev;
-	dev_ref(*dev);
+	/*
+	 * If we only have a single soundcard attached and we detach it right
+	 * before entering dsp_clone(), there is a chance pcm_unregister() will
+	 * have returned already, meaning it will have set snd_unit to -1, and
+	 * thus devclass_get_softc() will return NULL here.
+	 */
+	if (d != NULL && PCM_REGISTERED(d) && d->dsp_dev != NULL) {
+		*dev = d->dsp_dev;
+		dev_ref(*dev);
+	}
 }
 
 static void

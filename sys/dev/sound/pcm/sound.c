@@ -1018,10 +1018,6 @@ pcm_unregister(device_t dev)
 		CHN_UNLOCK(ch);
 	}
 
-	dsp_destroy_dev(dev);
-
-	(void)mixer_uninit(dev);
-
 	/* remove /dev/sndstat entry first */
 	sndstat_unregister(dev);
 
@@ -1038,6 +1034,9 @@ pcm_unregister(device_t dev)
 		sysctl_ctx_free(&d->rec_sysctl_ctx);
 		d->rec_sysctl_tree = NULL;
 	}
+
+	dsp_destroy_dev(dev);
+	(void)mixer_uninit(dev);
 
 	while (!CHN_EMPTY(d, channels.pcm))
 		pcm_killchan(dev);

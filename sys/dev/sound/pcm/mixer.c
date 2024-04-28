@@ -1376,7 +1376,8 @@ mixer_clone(void *arg,
 		return;
 	if (strcmp(name, "mixer") == 0) {
 		d = devclass_get_softc(pcm_devclass, snd_unit);
-		if (PCM_REGISTERED(d) && d->mixer_dev != NULL) {
+		/* See related comment in dsp_clone(). */
+		if (d != NULL && PCM_REGISTERED(d) && d->mixer_dev != NULL) {
 			*dev = d->mixer_dev;
 			dev_ref(*dev);
 		}
