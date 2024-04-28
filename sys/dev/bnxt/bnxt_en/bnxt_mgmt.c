@@ -96,6 +96,70 @@ bnxt_mgmt_loader(struct module *m, int what, void *arg)
 }
 
 static int
+bnxt_mgmt_process_dcb(struct cdev *dev, u_long cmd, caddr_t data,
+		       int flag, struct thread *td)
+{
+	struct bnxt_softc *softc = NULL;
+	struct bnxt_mgmt_dcb mgmt_dcb = {};
+	void *user_ptr;
+	int ret = 0;
+
+	memcpy(&user_ptr, data, sizeof(user_ptr));
+	if (copyin(user_ptr, &mgmt_dcb, sizeof(mgmt_dcb))) {
+		printf("%s: %s:%d Failed to copy data from user\n",
+			DRIVER_NAME, __FUNCTION__, __LINE__);
+		return -EFAULT;
+	}
+	softc = bnxt_find_dev(mgmt_dcb.hdr.domain, mgmt_dcb.hdr.bus,
+			      mgmt_dcb.hdr.devfn, NULL);
+	if (!softc) {
+		printf("%s: %s:%d unable to find softc reference\n",
+			DRIVER_NAME, __FUNCTION__, __LINE__);
+		return -ENODEV;
+	}
+
+	switch (mgmt_dcb.op) {
+	case BNXT_MGMT_DCB_GET_ETS:
+		bnxt_dcb_ieee_getets(softc, &mgmt_dcb.req.ets);
+		break;
+	case BNXT_MGMT_DCB_SET_ETS:
+		bnxt_dcb_ieee_setets(softc, &mgmt_dcb.req.ets);
+		break;
+	case BNXT_MGMT_DCB_GET_PFC:
+		bnxt_dcb_ieee_getpfc(softc, &mgmt_dcb.req.pfc);
+		break;
+	case BNXT_MGMT_DCB_SET_PFC:
+		bnxt_dcb_ieee_setpfc(softc, &mgmt_dcb.req.pfc);
+		break;
+	case BNXT_MGMT_DCB_SET_APP:
+		bnxt_dcb_ieee_setapp(softc, &mgmt_dcb.req.app_tlv.app[0]);
+		break;
+	case BNXT_MGMT_DCB_DEL_APP:
+		bnxt_dcb_ieee_delapp(softc, &mgmt_dcb.req.app_tlv.app[0]);
+		break;
+	case BNXT_MGMT_DCB_LIST_APP:
+		bnxt_dcb_ieee_listapp(softc, &mgmt_dcb.req.app_tlv.app[0],
+				      &mgmt_dcb.req.app_tlv.num_app);
+		break;
+	default:
+		device_printf(softc->dev, "%s:%d Invalid op 0x%x\n",
+			      __FUNCTION__, __LINE__, mgmt_dcb.op);
+		ret = -EFAULT;
+		goto end;
+	}
+
+	if (copyout(&mgmt_dcb, user_ptr, sizeof(mgmt_dcb))) {
+		device_printf(softc->dev, "%s:%d Failed to copy response to user\n",
+			      __FUNCTION__, __LINE__);
+		ret = -EFAULT;
+		goto end;
+	}
+
+end:
+	return ret;
+}
+
+static int
 bnxt_mgmt_process_hwrm(struct cdev *dev, u_long cmd, caddr_t data,
 		       int flag, struct thread *td)
 {
@@ -345,8 +409,11 @@ bnxt_mgmt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		break;
 	case BNXT_MGMT_OPCODE_PASSTHROUGH_HWRM:
 		mtx_lock(&mgmt_lock);
-		ret = bnxt_mgmt_process_hwrm(dev, cmd, data, flag, td); 
+		ret = bnxt_mgmt_process_hwrm(dev, cmd, data, flag, td);
 		mtx_unlock(&mgmt_lock);
+		break;
+	case BNXT_MGMT_OPCODE_DCB_OPS:
+		ret = bnxt_mgmt_process_dcb(dev, cmd, data, flag, td);
 		break;
 	default:
 		printf("%s: Unknown command 0x%lx\n", DRIVER_NAME, cmd);
