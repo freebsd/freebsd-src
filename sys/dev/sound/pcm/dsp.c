@@ -2085,6 +2085,7 @@ dsp_clone(void *arg, struct ucred *cred, char *name, int namelen,
 	}
 	return;
 found:
+	bus_topo_lock();
 	d = devclass_get_softc(pcm_devclass, snd_unit);
 	/*
 	 * If we only have a single soundcard attached and we detach it right
@@ -2096,6 +2097,7 @@ found:
 		*dev = d->dsp_dev;
 		dev_ref(*dev);
 	}
+	bus_topo_unlock();
 }
 
 static void
