@@ -3329,8 +3329,6 @@
 		    _Out_opt_ _Contains_long_timet_ struct itimerspec *old_value
 		);
 	}
-
-
 588 AUE_NULL STD {
 		int osdb_exec(
 			_In_reads_z(querylen) const char *query,
@@ -3360,8 +3358,6 @@
 			_In_ void *sqlite3_stmt
 		);
 	}
-
-
 592 AUE_NULL STD {
 		int osdb_column_blob(
 			_In_ void *sqlite3_stmt,
@@ -3370,7 +3366,6 @@
 			int reslen
 		);
 	}
-
 593 AUE_NULL STD {
 		int osdb_column_double(
 			_In_ void *sqlite3_stmt,
@@ -3379,7 +3374,6 @@
 			double result
 		);
 	}
-
 594 AUE_NULL STD {
 		int osdb_column_int(
 			_In_ void *sqlite3_stmt,
@@ -3387,7 +3381,6 @@
 			int result
 		);
 	}
-
 595 AUE_NULL STD {
 		int osdb_column_int64(
 			_In_ void *sqlite3_stmt,
@@ -3395,7 +3388,6 @@
 			long result
 		);
 	}
-
 596 AUE_NULL STD {
 		int osdb_column_text(
 			_In_ void *sqlite3_stmt,
@@ -3404,7 +3396,6 @@
 			int reslen
 		);
 	}
-
 597 AUE_NULL STD {
 		int osdb_column_text16(
 			_In_ void *sqlite3_stmt,
@@ -3413,7 +3404,6 @@
 			int reslen
 		);
 	}
-
 598 AUE_NULL STD {
 		int osdb_column_value(
 			_In_ void *sqlite3_stmt,
@@ -3422,7 +3412,6 @@
 			int reslen
 		);
 	}
-
 599 AUE_NULL STD {
 		int osdb_column_bytes(
 			_In_ void *sqlite3_stmt,
@@ -3430,7 +3419,6 @@
 			int size
 		);
 	}
-
 600 AUE_NULL STD {
 		int osdb_column_bytes16(
 			_In_ void *sqlite3_stmt,
@@ -3438,7 +3426,6 @@
 			int size
 		);
 	}
-
 601 AUE_NULL STD {
 		int osdb_column_type(
 			_In_ void *sqlite3_stmt,
@@ -3452,7 +3439,6 @@
 			int count	
 		);
 	}
-
 603 AUE_NULL STD {
 		int osdb_column_name(
 			_In_ void *sqlite3_stmt,
