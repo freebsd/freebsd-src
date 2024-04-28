@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)gettimeofday.2	8.2 (Berkeley) 5/26/95
 .\"
-.Dd April 24, 2024
+.Dd April 28, 2024
 .Dt GETTIMEOFDAY 2
 .Os
 .Sh NAME
@@ -141,11 +141,9 @@ function is considered obsolescent and its usage discouraged by
 .\" XXX: This should be replaced in the future when an appropriate argument to
 .\" the St macro is available: -p1003.1-2017
 .No IEEE Std 1003.1-2008, 2017 Edition (\\(LqPOSIX.1\\(Rq) .
-Application should use the
+Applications should use the
 .Xr clock_gettime 2
-function instead as
-.Nm gettimeofday
-might be removed in the future.
+function instead.
 .Sh HISTORY
 The
 .Fn gettimeofday
