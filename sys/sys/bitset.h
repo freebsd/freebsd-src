@@ -135,6 +135,18 @@
 		(d)->__bits[__i] = (s1)->__bits[__i] | (s2)->__bits[__i];\
 } while (0)
 
+#define	__BIT_ORNOT(_s, d, s) do {					\
+	__size_t __i;							\
+	for (__i = 0; __i < __bitset_words((_s)); __i++)		\
+		(d)->__bits[__i] |= ~(s)->__bits[__i];			\
+} while (0)
+
+#define	__BIT_ORNOT2(_s, d, s1, s2) do {				\
+	__size_t __i;							\
+	for (__i = 0; __i < __bitset_words((_s)); __i++)		\
+		(d)->__bits[__i] = (s1)->__bits[__i] | ~(s2)->__bits[__i];\
+} while (0)
+
 #define	__BIT_AND(_s, d, s) do {					\
 	__size_t __i;							\
 	for (__i = 0; __i < __bitset_words((_s)); __i++)		\
@@ -330,6 +342,8 @@
 #define	BIT_ISSET(_s, n, p)			__BIT_ISSET(_s, n, p)
 #define	BIT_OR(_s, d, s)			__BIT_OR(_s, d, s)
 #define	BIT_OR2(_s, d, s1, s2)			__BIT_OR2(_s, d, s1, s2)
+#define	BIT_ORNOT(_s, d, s)			__BIT_ORNOT(_s, d, s)
+#define	BIT_ORNOT2(_s, d, s1, s2)		__BIT_ORNOT2(_s, d, s1, s2)
 #define	BIT_OR_ATOMIC(_s, d, s)			__BIT_OR_ATOMIC(_s, d, s)
 #define	BIT_OVERLAP(_s, p, c)			__BIT_OVERLAP(_s, p, c)
 #define	BIT_SET(_s, n, p)			__BIT_SET(_s, n, p)

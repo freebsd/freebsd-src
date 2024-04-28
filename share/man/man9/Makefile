@@ -635,6 +635,8 @@ MLINKS+=bitset.9 BITSET_DEFINE.9 \
 	bitset.9 BIT_CMP.9 \
 	bitset.9 BIT_OR.9 \
 	bitset.9 BIT_OR2.9 \
+	bitset.9 BIT_ORNOT.9 \
+	bitset.9 BIT_ORNOT2.9 \
 	bitset.9 BIT_AND.9 \
 	bitset.9 BIT_AND2.9 \
 	bitset.9 BIT_ANDNOT.9 \
@@ -924,6 +926,7 @@ MLINKS+=cpuset.9 CPUSET_T_INITIALIZER.9 \
 	cpuset.9 CPU_OVERLAP.9 \
 	cpuset.9 CPU_CMP.9 \
 	cpuset.9 CPU_OR.9 \
+	cpuset.9 CPU_ORNOT.9 \
 	cpuset.9 CPU_AND.9 \
 	cpuset.9 CPU_ANDNOT.9 \
 	cpuset.9 CPU_CLR_ATOMIC.9 \

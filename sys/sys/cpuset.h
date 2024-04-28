@@ -56,6 +56,7 @@
 #define	CPU_OVERLAP(p, c)		__BIT_OVERLAP(CPU_SETSIZE, p, c)
 #define	CPU_CMP(p, c)			__BIT_CMP(CPU_SETSIZE, p, c)
 #define	CPU_OR(d, s1, s2)		__BIT_OR2(CPU_SETSIZE, d, s1, s2)
+#define	CPU_ORNOT(d, s1, s2)		__BIT_ORNOT2(CPU_SETSIZE, d, s1, s2)
 #define	CPU_AND(d, s1, s2)		__BIT_AND2(CPU_SETSIZE, d, s1, s2)
 #define	CPU_ANDNOT(d, s1, s2)		__BIT_ANDNOT2(CPU_SETSIZE, d, s1, s2)
 #define	CPU_XOR(d, s1, s2)		__BIT_XOR2(CPU_SETSIZE, d, s1, s2)
