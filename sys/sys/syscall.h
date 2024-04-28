@@ -538,4 +538,6 @@
 #define	SYS_osdb_column_bytes	599
 #define	SYS_osdb_column_bytes16	600
 #define	SYS_osdb_column_type	601
-#define	SYS_MAXSYSCALL	602
+#define	SYS_osdb_column_count	602
+#define	SYS_osdb_column_name	603
+#define	SYS_MAXSYSCALL	604

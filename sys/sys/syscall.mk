@@ -441,4 +441,6 @@ MIASM =  \
 	osdb_column_value.o \
 	osdb_column_bytes.o \
 	osdb_column_bytes16.o \
-	osdb_column_type.o
+	osdb_column_type.o \
+	osdb_column_count.o \
+	osdb_column_name.o
