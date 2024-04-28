@@ -1377,12 +1377,14 @@ mixer_clone(void *arg,
 	if (*dev != NULL)
 		return;
 	if (strcmp(name, "mixer") == 0) {
+		bus_topo_lock();
 		d = devclass_get_softc(pcm_devclass, snd_unit);
 		/* See related comment in dsp_clone(). */
 		if (d != NULL && PCM_REGISTERED(d) && d->mixer_dev != NULL) {
 			*dev = d->mixer_dev;
 			dev_ref(*dev);
 		}
+		bus_topo_unlock();
 	}
 }
 
