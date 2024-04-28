@@ -516,28 +516,6 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 }
 
 int
-pcm_chn_destroy(struct pcm_channel *ch)
-{
-	struct snddev_info *d __diagused;
-	int err;
-
-	d = ch->parentsnddev;
-	PCM_BUSYASSERT(d);
-
-	err = chn_kill(ch);
-	if (err) {
-		device_printf(ch->dev, "chn_kill(%s) failed, err = %d\n",
-		    ch->name, err);
-		return (err);
-	}
-
-	kobj_delete(ch->methods, M_DEVBUF);
-	free(ch, M_DEVBUF);
-
-	return (0);
-}
-
-int
 pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 {
 	PCM_BUSYASSERT(d);
@@ -630,7 +608,7 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 	if (err) {
 		device_printf(d->dev, "pcm_chn_add(%s) failed, err=%d\n",
 		    ch->name, err);
-		pcm_chn_destroy(ch);
+		chn_kill(ch);
 	}
 
 	return (err);
@@ -678,7 +656,7 @@ pcm_killchans(struct snddev_info *d)
 		error = pcm_chn_remove(d, ch);
 		PCM_UNLOCK(d);
 		if (error == 0)
-			pcm_chn_destroy(ch);
+			chn_kill(ch);
 	} while (!CHN_EMPTY(d, channels.pcm));
 }
 

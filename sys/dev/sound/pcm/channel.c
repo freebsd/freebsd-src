@@ -1279,11 +1279,13 @@ out:
 	return 0;
 }
 
-int
+void
 chn_kill(struct pcm_channel *c)
 {
-    	struct snd_dbuf *b = c->bufhard;
-    	struct snd_dbuf *bs = c->bufsoft;
+	struct snd_dbuf *b = c->bufhard;
+	struct snd_dbuf *bs = c->bufsoft;
+
+	PCM_BUSYASSERT(c->parentsnddev);
 
 	if (CHN_STARTED(c)) {
 		CHN_LOCK(c);
@@ -1299,8 +1301,8 @@ chn_kill(struct pcm_channel *c)
 	CHN_LOCK(c);
 	c->flags |= CHN_F_DEAD;
 	chn_lockdestroy(c);
-
-	return (0);
+	kobj_delete(c->methods, M_DEVBUF);
+	free(c, M_DEVBUF);
 }
 
 void

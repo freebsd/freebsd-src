@@ -300,7 +300,6 @@ int pcm_chnrelease(struct pcm_channel *c);
 int pcm_chnref(struct pcm_channel *c, int ref);
 
 struct pcm_channel *pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, int num, void *devinfo);
-int pcm_chn_destroy(struct pcm_channel *ch);
 int pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch);
 int pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch);
 
