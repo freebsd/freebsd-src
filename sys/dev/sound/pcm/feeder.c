@@ -82,9 +82,7 @@ feeder_register(void *p)
 		if (snd_verbose < 0 || snd_verbose > 4)
 			snd_verbose = 1;
 
-		/* initialize unit numbering */
-		snd_unit_init();
-		if (snd_unit < 0 || snd_unit > PCMMAXUNIT)
+		if (snd_unit < 0)
 			snd_unit = -1;
 		
 		if (snd_maxautovchans < 0 ||
