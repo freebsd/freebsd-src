@@ -122,7 +122,6 @@ struct nfsnode {
 	short			n_fhsize;	/* size in bytes, of fh */
 	u_int32_t		n_flag;		/* Flag for locking.. */
 	int			n_directio_opens;
-	int                     n_directio_asyncwr;
 	u_int64_t		 n_change;	/* old Change attribute */
 	struct nfsv4node	*n_v4;		/* extra V4 stuff */
 	struct ucred		*n_writecred;	/* Cred. for putpages */
@@ -142,8 +141,6 @@ struct nfsnode {
  * Flags for n_flag
  */
 #define	NDIRCOOKIELK	0x00000001  /* Lock to serialize access to directory cookies */
-#define	NFSYNCWAIT      0x00000002  /* fsync waiting for all directio async
-				  writes to drain */
 #define	NMODIFIED	0x00000004  /* Might have a modified buffer in bio */
 #define	NWRITEERR	0x00000008  /* Flag write errors so close will know */
 #define	NCREATED	0x00000010  /* Opened by nfs_create() */
