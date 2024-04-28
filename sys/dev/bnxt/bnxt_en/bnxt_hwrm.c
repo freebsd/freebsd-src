@@ -933,22 +933,99 @@ fail:
 	return rc;
 }
 
-int
-bnxt_hwrm_func_drv_rgtr(struct bnxt_softc *softc)
+static const u16 bnxt_async_events_arr[] = {
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CHANGE,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_VF_CFG_CHANGE,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PORT_PHY_CFG_CHANGE,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_RING_MONITOR_MSG,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_DEFAULT_VNIC_CHANGE,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_DEBUG_NOTIFICATION,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_DEFERRED_RESPONSE,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_ECHO_REQUEST,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PPS_TIMESTAMP,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_ERROR_REPORT,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PHC_UPDATE,
+};
+
+int bnxt_hwrm_func_drv_rgtr(struct bnxt_softc *bp, unsigned long *bmap, int bmap_size,
+			    bool async_only)
 {
+	DECLARE_BITMAP(async_events_bmap, 256);
+	u32 *events = (u32 *)async_events_bmap;
+	struct hwrm_func_drv_rgtr_output *resp =
+		(void *)bp->hwrm_cmd_resp.idi_vaddr;
 	struct hwrm_func_drv_rgtr_input req = {0};
+	u32 flags = 0;
+	int rc;
+	int i;
 
-	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_DRV_RGTR);
-
-	req.enables = htole32(HWRM_FUNC_DRV_RGTR_INPUT_ENABLES_VER |
-	    HWRM_FUNC_DRV_RGTR_INPUT_ENABLES_OS_TYPE);
-	req.os_type = htole16(HWRM_FUNC_DRV_RGTR_INPUT_OS_TYPE_FREEBSD);
-
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_DRV_RGTR);
 	req.ver_maj = HWRM_VERSION_MAJOR;
 	req.ver_min = HWRM_VERSION_MINOR;
 	req.ver_upd = HWRM_VERSION_UPDATE;
 
-	return hwrm_send_message(softc, &req, sizeof(req));
+	req.enables = htole32(HWRM_FUNC_DRV_RGTR_INPUT_ENABLES_OS_TYPE |
+				   HWRM_FUNC_DRV_RGTR_INPUT_ENABLES_VER |
+				   HWRM_FUNC_DRV_RGTR_INPUT_ENABLES_ASYNC_EVENT_FWD);
+
+	if (bp->fw_cap & BNXT_FW_CAP_HOT_RESET)
+		flags |= HWRM_FUNC_DRV_RGTR_INPUT_FLAGS_HOT_RESET_SUPPORT;
+	if (bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY)
+		flags |= HWRM_FUNC_DRV_RGTR_INPUT_FLAGS_ERROR_RECOVERY_SUPPORT |
+			 HWRM_FUNC_DRV_RGTR_INPUT_FLAGS_MASTER_SUPPORT;
+	if (bp->fw_cap & BNXT_FW_CAP_NPAR_1_2)
+		flags |= HWRM_FUNC_DRV_RGTR_INPUT_FLAGS_NPAR_1_2_SUPPORT;
+	flags |= HWRM_FUNC_DRV_RGTR_INPUT_FLAGS_ASYM_QUEUE_CFG_SUPPORT;
+	req.flags = htole32(flags);
+	req.os_type = htole16(HWRM_FUNC_DRV_RGTR_INPUT_OS_TYPE_FREEBSD);
+
+	if (BNXT_PF(bp)) {
+		req.enables |=
+			htole32(HWRM_FUNC_DRV_RGTR_INPUT_ENABLES_VF_REQ_FWD);
+	}
+
+	if (bp->fw_cap & BNXT_FW_CAP_OVS_64BIT_HANDLE)
+		req.flags |= cpu_to_le32(HWRM_FUNC_DRV_RGTR_INPUT_FLAGS_FLOW_HANDLE_64BIT_MODE);
+
+	memset(async_events_bmap, 0, sizeof(async_events_bmap));
+	for (i = 0; i < ARRAY_SIZE(bnxt_async_events_arr); i++) {
+		u16 event_id = bnxt_async_events_arr[i];
+
+		if (event_id == HWRM_ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY &&
+		    !(bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY)) {
+			continue;
+		}
+		__set_bit(bnxt_async_events_arr[i], async_events_bmap);
+	}
+	if (bmap && bmap_size) {
+		for (i = 0; i < bmap_size; i++) {
+			if (test_bit(i, bmap))
+				__set_bit(i, async_events_bmap);
+		}
+	}
+	for (i = 0; i < 8; i++)
+		req.async_event_fwd[i] |= htole32(events[i]);
+
+	if (async_only)
+		req.enables =
+			htole32(HWRM_FUNC_DRV_RGTR_INPUT_ENABLES_ASYNC_EVENT_FWD);
+
+	rc = hwrm_send_message(bp, &req, sizeof(req));
+
+	if (!rc) {
+		if (resp->flags &
+		    le32toh(HWRM_FUNC_DRV_RGTR_OUTPUT_FLAGS_IF_CHANGE_SUPPORTED))
+			bp->fw_cap |= BNXT_FW_CAP_IF_CHANGE;
+	}
+
+
+	return rc;
 }
 
 int
@@ -2991,56 +3068,6 @@ int bnxt_hwrm_set_coal(struct bnxt_softc *softc)
 		if (rc)
 			break;
 	}
-	return rc;
-}
-
-int bnxt_hwrm_func_rgtr_async_events(struct bnxt_softc *softc, unsigned long *bmap,
-				     int bmap_size)
-{
-	struct hwrm_func_drv_rgtr_input req = {0};
-	struct hwrm_func_drv_rgtr_output *resp =
-		(void *)softc->hwrm_cmd_resp.idi_vaddr;
-	bitstr_t *async_events_bmap;
-	uint32_t *events;
-	int i, rc = 0;
-
-#define BNXT_MAX_NUM_ASYNC_EVENTS 256
-	async_events_bmap = bit_alloc(BNXT_MAX_NUM_ASYNC_EVENTS, M_DEVBUF,
-			M_WAITOK|M_ZERO);
-	events = (uint32_t *)async_events_bmap;
-
-	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_DRV_RGTR);
-
-	req.enables =
-		htole32(HWRM_FUNC_DRV_RGTR_INPUT_ENABLES_ASYNC_EVENT_FWD);
-
-	memset(async_events_bmap, 0, sizeof(BNXT_MAX_NUM_ASYNC_EVENTS / 8));
-
-	bit_set(async_events_bmap, HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE);
-	bit_set(async_events_bmap, HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD);
-	bit_set(async_events_bmap, HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED);
-	bit_set(async_events_bmap, HWRM_ASYNC_EVENT_CMPL_EVENT_ID_VF_CFG_CHANGE);
-	bit_set(async_events_bmap, HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE);
-
-	if (bmap && bmap_size) {
-		for (i = 0; i < bmap_size; i++) {
-			if (bit_test(bmap, i))
-				bit_set(async_events_bmap, i);
-		}
-	}
-
-	for (i = 0; i < 8; i++)
-		req.async_event_fwd[i] |= htole32(events[i]);
-
-	free(async_events_bmap, M_DEVBUF);
-
-	rc = hwrm_send_message(softc, &req, sizeof(req));
-	if (!rc) {
-		if (resp->flags &
-			le32toh(HWRM_FUNC_DRV_RGTR_OUTPUT_FLAGS_IF_CHANGE_SUPPORTED))
-			softc->fw_cap |= BNXT_FW_CAP_IF_CHANGE;
-	}
-
 	return rc;
 }
 
