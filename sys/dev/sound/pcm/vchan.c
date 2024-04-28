@@ -709,7 +709,7 @@ vchan_create(struct pcm_channel *parent, int num)
 	ret = pcm_chn_add(d, ch);
 	PCM_UNLOCK(d);
 	if (ret != 0) {
-		pcm_chn_destroy(ch);
+		chn_kill(ch);
 		CHN_LOCK(parent);
 		return (ret);
 	}
@@ -837,7 +837,7 @@ vchan_create(struct pcm_channel *parent, int num)
 		PCM_LOCK(d);
 		if (pcm_chn_remove(d, ch) == 0) {
 			PCM_UNLOCK(d);
-			pcm_chn_destroy(ch);
+			chn_kill(ch);
 		} else
 			PCM_UNLOCK(d);
 		CHN_LOCK(parent);
@@ -890,7 +890,7 @@ vchan_destroy(struct pcm_channel *c)
 
 	/* destroy ourselves */
 	if (ret == 0)
-		ret = pcm_chn_destroy(c);
+		chn_kill(c);
 
 	CHN_LOCK(parent);
 
