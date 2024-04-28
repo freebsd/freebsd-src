@@ -695,7 +695,8 @@ struct freebsd32_timerfd_settime_args {
 	char old_value_l_[PADL_(struct itimerspec32 *)]; struct itimerspec32 * old_value; char old_value_r_[PADR_(struct itimerspec32 *)];
 };
 struct freebsd32_osdb_column_int64_args {
-	char iCol_l_[PADL_(void *sqlite3_stmtint)]; void *sqlite3_stmtint iCol; char iCol_r_[PADR_(void *sqlite3_stmtint)];
+	char sqlite3_stmt_l_[PADL_(void *)]; void * sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void *)];
+	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 	char result_l_[PADL_(int32_t)]; int32_t result; char result_r_[PADR_(int32_t)];
 };
 int	freebsd32_wait4(struct thread *, struct freebsd32_wait4_args *);
