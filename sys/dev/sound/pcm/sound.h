@@ -88,7 +88,6 @@ struct snd_mixer;
 #include <dev/sound/pcm/feeder.h>
 #include <dev/sound/pcm/mixer.h>
 #include <dev/sound/pcm/dsp.h>
-#include <dev/sound/unit.h>
 
 #define	PCM_SOFTC_SIZE	(sizeof(struct snddev_info))
 
@@ -99,21 +98,6 @@ struct snd_mixer;
 #define SOUND_MINVER	SOUND_MODVER
 #define SOUND_PREFVER	SOUND_MODVER
 #define SOUND_MAXVER	SOUND_MODVER
-
-/*
- * We're abusing the fact that MAXMINOR still have enough room
- * for our bit twiddling and nobody ever need 512 unique soundcards,
- * 32 unique device types and 1024 unique cloneable devices for the
- * next 100 years...
- */
-
-#define PCMMAXUNIT		(snd_max_u())
-#define PCMMAXDEV		(snd_max_d())
-#define PCMMAXCHAN		(snd_max_c())
-
-#define PCMUNIT(x)		(snd_unit2u(dev2unit(x)))
-#define PCMDEV(x)		(snd_unit2d(dev2unit(x)))
-#define PCMCHAN(x)		(snd_unit2c(dev2unit(x)))
 
 /*
  * By design, limit possible channels for each direction.
@@ -311,7 +295,7 @@ SYSCTL_DECL(_hw_snd);
 
 int pcm_setvchans(struct snddev_info *d, int direction, int newcnt, int num);
 int pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
-    pid_t pid, char *comm, int devunit);
+    pid_t pid, char *comm);
 int pcm_chnrelease(struct pcm_channel *c);
 int pcm_chnref(struct pcm_channel *c, int ref);
 
