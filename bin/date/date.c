@@ -334,7 +334,9 @@ setthetime(const char *fmt, const char *p, int jflag, struct timespec *ts)
 	}
 
 	/* convert broken-down time to GMT clock time */
-	if ((ts->tv_sec = mktime(lt)) == -1)
+	lt->tm_yday = -1;
+	ts->tv_sec = mktime(lt);
+	if (lt->tm_yday == -1)
 		errx(1, "nonexistent time");
 	ts->tv_nsec = 0;
 
