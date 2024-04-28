@@ -1164,9 +1164,6 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir, int direction)
 	struct snd_dbuf *b, *bs;
 	int i, ret;
 
-	if (chn_timeout < CHN_TIMEOUT_MIN || chn_timeout > CHN_TIMEOUT_MAX)
-		chn_timeout = CHN_TIMEOUT;
-
 	chn_lockinit(c, dir);
 
 	b = NULL;
