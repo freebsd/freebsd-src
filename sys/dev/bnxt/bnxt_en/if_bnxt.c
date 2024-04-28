@@ -40,7 +40,6 @@
 #include <machine/resource.h>
 
 #include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -49,6 +48,14 @@
 #include <net/ethernet.h>
 #include <net/iflib.h>
 
+#include <linux/pci.h>
+#include <linux/kmod.h>
+#include <linux/module.h>
+#include <linux/delay.h>
+#include <linux/idr.h>
+#include <linux/netdevice.h>
+#include <linux/etherdevice.h>
+#include <linux/rcupdate.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_rss.h"
@@ -61,6 +68,8 @@
 #include "bnxt_sysctl.h"
 #include "hsi_struct_def.h"
 #include "bnxt_mgmt.h"
+#include "bnxt_ulp.h"
+#include "bnxt_auxbus_compat.h"
 
 /*
  * PCI Device ID Table
@@ -225,6 +234,8 @@ static int bnxt_wol_config(if_ctx_t ctx);
 static bool bnxt_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 static int bnxt_i2c_req(if_ctx_t ctx, struct ifi2creq *i2c);
 static void bnxt_get_port_module_status(struct bnxt_softc *softc);
+static void bnxt_rdma_aux_device_init(struct bnxt_softc *softc);
+static void bnxt_rdma_aux_device_uninit(struct bnxt_softc *softc);
 
 /*
  * Device Interface Declaration
@@ -248,11 +259,16 @@ static driver_t bnxt_driver = {
 
 DRIVER_MODULE(bnxt, pci, bnxt_driver, 0, 0);
 
-MODULE_DEPEND(bnxt, pci, 1, 1, 1);
-MODULE_DEPEND(bnxt, ether, 1, 1, 1);
-MODULE_DEPEND(bnxt, iflib, 1, 1, 1);
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DEPEND(if_bnxt, pci, 1, 1, 1);
+MODULE_DEPEND(if_bnxt, ether, 1, 1, 1);
+MODULE_DEPEND(if_bnxt, iflib, 1, 1, 1);
+MODULE_DEPEND(if_bnxt, linuxkpi, 1, 1, 1);
+MODULE_VERSION(if_bnxt, 1);
 
 IFLIB_PNP_INFO(pci, bnxt, bnxt_vendor_info_array);
+
+static DEFINE_IDA(bnxt_aux_dev_ids);
 
 static device_method_t bnxt_iflib_methods[] = {
 	DEVMETHOD(ifdi_tx_queues_alloc, bnxt_tx_queues_alloc),
@@ -331,10 +347,11 @@ static struct if_shared_ctx bnxt_sctx_init = {
 	.isc_ntxd_min = {16, 16, 16},
 	.isc_ntxd_default = {PAGE_SIZE / sizeof(struct cmpl_base) * 2,
 	    PAGE_SIZE / sizeof(struct tx_bd_short),
-	    PAGE_SIZE / sizeof(struct cmpl_base) * 2},
+	    /* NQ depth 4096 */
+	    PAGE_SIZE / sizeof(struct cmpl_base) * 16},
 	.isc_ntxd_max = {BNXT_MAX_TXD, BNXT_MAX_TXD, BNXT_MAX_TXD},
 
-	.isc_admin_intrcnt = 1,
+	.isc_admin_intrcnt = BNXT_ROCE_IRQ_COUNT,
 	.isc_vendor_info = bnxt_vendor_info_array,
 	.isc_driver_version = bnxt_driver_version,
 };
@@ -770,26 +787,43 @@ static int bnxt_alloc_hwrm_short_cmd_req(struct bnxt_softc *softc)
 	return rc;
 }
 
-static void bnxt_free_ring(struct bnxt_softc *bp, struct bnxt_ring_mem_info *rmem)
+static void bnxt_free_ring(struct bnxt_softc *softc, struct bnxt_ring_mem_info *rmem)
 {
-        int i;
+	int i;
 
-        for (i = 0; i < rmem->nr_pages; i++) {
-                if (!rmem->pg_arr[i].idi_vaddr)
-                        continue;
+	for (i = 0; i < rmem->nr_pages; i++) {
+		if (!rmem->pg_arr[i].idi_vaddr)
+			continue;
 
 		iflib_dma_free(&rmem->pg_arr[i]);
-                rmem->pg_arr[i].idi_vaddr = NULL;
-        }
-        if (rmem->pg_tbl.idi_vaddr) {
+		rmem->pg_arr[i].idi_vaddr = NULL;
+	}
+	if (rmem->pg_tbl.idi_vaddr) {
 		iflib_dma_free(&rmem->pg_tbl);
-                rmem->pg_tbl.idi_vaddr = NULL;
+		rmem->pg_tbl.idi_vaddr = NULL;
 
-        }
-        if (rmem->vmem_size && *rmem->vmem) {
-                free(*rmem->vmem, M_DEVBUF);
-                *rmem->vmem = NULL;
-        }
+	}
+	if (rmem->vmem_size && *rmem->vmem) {
+		free(*rmem->vmem, M_DEVBUF);
+		*rmem->vmem = NULL;
+	}
+}
+
+static void bnxt_init_ctx_mem(struct bnxt_ctx_mem_type *ctxm, void *p, int len)
+{
+	u8 init_val = ctxm->init_value;
+	u16 offset = ctxm->init_offset;
+	u8 *p2 = p;
+	int i;
+
+	if (!init_val)
+		return;
+	if (offset == BNXT_CTX_INIT_INVALID_OFFSET) {
+		memset(p, init_val, len);
+		return;
+	}
+	for (i = 0; i < len; i += ctxm->entry_size)
+		*(p2 + i + offset) = init_val;
 }
 
 static int bnxt_alloc_ring(struct bnxt_softc *softc, struct bnxt_ring_mem_info *rmem)
@@ -820,8 +854,9 @@ static int bnxt_alloc_ring(struct bnxt_softc *softc, struct bnxt_ring_mem_info *
 		if (rc)
 			return -ENOMEM;
 
-		if (rmem->init_val)
-                        memset(rmem->pg_arr[i].idi_vaddr, rmem->init_val, rmem->page_size);
+		if (rmem->ctx_mem)
+			bnxt_init_ctx_mem(rmem->ctx_mem, rmem->pg_arr[i].idi_vaddr,
+					rmem->page_size);
 
 		if (rmem->nr_pages > 1 || rmem->depth > 0) {
 			if (i == rmem->nr_pages - 2 &&
@@ -844,11 +879,12 @@ static int bnxt_alloc_ring(struct bnxt_softc *softc, struct bnxt_ring_mem_info *
 	return 0;
 }
 
-#define HWRM_FUNC_BACKING_STORE_CFG_INPUT_DFLT_ENABLES			\
+
+#define HWRM_FUNC_BACKING_STORE_CFG_INPUT_DFLT_ENABLES		\
 	(HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_QP |		\
-	 HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_SRQ |		\
+	 HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_SRQ |	\
 	 HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_CQ |		\
-	 HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_VNIC |		\
+	 HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_VNIC |	\
 	 HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_STAT)
 
 static int bnxt_alloc_ctx_mem_blk(struct bnxt_softc *softc,
@@ -866,14 +902,14 @@ static int bnxt_alloc_ctx_mem_blk(struct bnxt_softc *softc,
 }
 
 static int bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
-				  struct bnxt_ctx_pg_info *ctx_pg, uint32_t mem_size,
-				  uint8_t depth, bool use_init_val)
+				  struct bnxt_ctx_pg_info *ctx_pg, u32 mem_size,
+				  u8 depth, struct bnxt_ctx_mem_type *ctxm)
 {
 	struct bnxt_ring_mem_info *rmem = &ctx_pg->ring_mem;
 	int rc;
 
 	if (!mem_size)
-		return 0;
+		return -EINVAL;
 
 	ctx_pg->nr_pages = DIV_ROUND_UP(mem_size, BNXT_PAGE_SIZE);
 	if (ctx_pg->nr_pages > MAX_CTX_TOTAL_PAGES) {
@@ -884,8 +920,8 @@ static int bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
 		int nr_tbls, i;
 
 		rmem->depth = 2;
-		ctx_pg->ctx_pg_tbl = malloc(MAX_CTX_PAGES * sizeof(ctx_pg),
-				M_DEVBUF, M_NOWAIT | M_ZERO);
+		ctx_pg->ctx_pg_tbl = kzalloc(MAX_CTX_PAGES * sizeof(ctx_pg),
+					      GFP_KERNEL);
 		if (!ctx_pg->ctx_pg_tbl)
 			return -ENOMEM;
 		nr_tbls = DIV_ROUND_UP(ctx_pg->nr_pages, MAX_CTX_PAGES);
@@ -896,7 +932,7 @@ static int bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
 		for (i = 0; i < nr_tbls; i++) {
 			struct bnxt_ctx_pg_info *pg_tbl;
 
-			pg_tbl = malloc(sizeof(*pg_tbl), M_DEVBUF, M_NOWAIT | M_ZERO);
+			pg_tbl = kzalloc(sizeof(*pg_tbl), GFP_KERNEL);
 			if (!pg_tbl)
 				return -ENOMEM;
 			ctx_pg->ctx_pg_tbl[i] = pg_tbl;
@@ -904,8 +940,7 @@ static int bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
 			memcpy(&rmem->pg_tbl, &ctx_pg->ctx_arr[i], sizeof(struct iflib_dma_info));
 			rmem->depth = 1;
 			rmem->nr_pages = MAX_CTX_PAGES;
-			if (use_init_val)
-                                rmem->init_val = softc->ctx_mem->ctx_kind_initializer;
+			rmem->ctx_mem = ctxm;
 			if (i == (nr_tbls - 1)) {
 				int rem = ctx_pg->nr_pages % MAX_CTX_PAGES;
 
@@ -920,8 +955,7 @@ static int bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
 		rmem->nr_pages = DIV_ROUND_UP(mem_size, BNXT_PAGE_SIZE);
 		if (rmem->nr_pages > 1 || depth)
 			rmem->depth = 1;
-		if (use_init_val)
-			rmem->init_val = softc->ctx_mem->ctx_kind_initializer;
+		rmem->ctx_mem = ctxm;
 		rc = bnxt_alloc_ctx_mem_blk(softc, ctx_pg);
 	}
 	return rc;
@@ -949,48 +983,78 @@ static void bnxt_free_ctx_pg_tbls(struct bnxt_softc *softc,
 			free(pg_tbl , M_DEVBUF);
 			ctx_pg->ctx_pg_tbl[i] = NULL;
 		}
-		free(ctx_pg->ctx_pg_tbl , M_DEVBUF);
+		kfree(ctx_pg->ctx_pg_tbl);
 		ctx_pg->ctx_pg_tbl = NULL;
 	}
 	bnxt_free_ring(softc, rmem);
 	ctx_pg->nr_pages = 0;
 }
 
+static int bnxt_setup_ctxm_pg_tbls(struct bnxt_softc *softc,
+				   struct bnxt_ctx_mem_type *ctxm, u32 entries,
+				   u8 pg_lvl)
+{
+	struct bnxt_ctx_pg_info *ctx_pg = ctxm->pg_info;
+	int i, rc = 0, n = 1;
+	u32 mem_size;
+
+	if (!ctxm->entry_size || !ctx_pg)
+		return -EINVAL;
+	if (ctxm->instance_bmap)
+		n = hweight32(ctxm->instance_bmap);
+	if (ctxm->entry_multiple)
+		entries = roundup(entries, ctxm->entry_multiple);
+	entries = clamp_t(u32, entries, ctxm->min_entries, ctxm->max_entries);
+	mem_size = entries * ctxm->entry_size;
+	for (i = 0; i < n && !rc; i++) {
+		ctx_pg[i].entries = entries;
+		rc = bnxt_alloc_ctx_pg_tbls(softc, &ctx_pg[i], mem_size, pg_lvl,
+					    ctxm->init_value ? ctxm : NULL);
+	}
+	return rc;
+}
+
 static void bnxt_free_ctx_mem(struct bnxt_softc *softc)
 {
 	struct bnxt_ctx_mem_info *ctx = softc->ctx_mem;
-	int i;
+	u16 type;
 
 	if (!ctx)
 		return;
 
-	if (ctx->tqm_mem[0]) {
-		for (i = 0; i < softc->rx_max_q + 1; i++) {
-			if (!ctx->tqm_mem[i])
-				continue;
-			bnxt_free_ctx_pg_tbls(softc, ctx->tqm_mem[i]);
-		}
-		free(ctx->tqm_mem[0] , M_DEVBUF);
-		ctx->tqm_mem[0] = NULL;
+	for (type = 0; type < BNXT_CTX_MAX; type++) {
+		struct bnxt_ctx_mem_type *ctxm = &ctx->ctx_arr[type];
+		struct bnxt_ctx_pg_info *ctx_pg = ctxm->pg_info;
+		int i, n = 1;
+
+		if (!ctx_pg)
+			continue;
+		if (ctxm->instance_bmap)
+			n = hweight32(ctxm->instance_bmap);
+		for (i = 0; i < n; i++)
+			bnxt_free_ctx_pg_tbls(softc, &ctx_pg[i]);
+
+		kfree(ctx_pg);
+		ctxm->pg_info = NULL;
 	}
 
-	bnxt_free_ctx_pg_tbls(softc, &ctx->tim_mem);
-	bnxt_free_ctx_pg_tbls(softc, &ctx->mrav_mem);
-	bnxt_free_ctx_pg_tbls(softc, &ctx->stat_mem);
-	bnxt_free_ctx_pg_tbls(softc, &ctx->vnic_mem);
-	bnxt_free_ctx_pg_tbls(softc, &ctx->cq_mem);
-	bnxt_free_ctx_pg_tbls(softc, &ctx->srq_mem);
-	bnxt_free_ctx_pg_tbls(softc, &ctx->qp_mem);
 	ctx->flags &= ~BNXT_CTX_FLAG_INITED;
-	free(softc->ctx_mem, M_DEVBUF);
-	softc->ctx_mem = NULL;
+	kfree(ctx);
+	softc->ctx = NULL;
 }
 
 static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
 {
 	struct bnxt_ctx_pg_info *ctx_pg;
+	struct bnxt_ctx_mem_type *ctxm;
 	struct bnxt_ctx_mem_info *ctx;
-	uint32_t mem_size, ena, entries;
+	u32 l2_qps, qp1_qps, max_qps;
+	u32 ena, entries_sp, entries;
+	u32 srqs, max_srqs, min;
+	u32 num_mr, num_ah;
+	u32 extra_srqs = 0;
+	u32 extra_qps = 0;
+	u8 pg_lvl = 1;
 	int i, rc;
 
 	if (!BNXT_CHIP_P5(softc))
@@ -1006,97 +1070,106 @@ static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
 	if (!ctx || (ctx->flags & BNXT_CTX_FLAG_INITED))
 		return 0;
 
-	ctx_pg = &ctx->qp_mem;
-	ctx_pg->entries = ctx->qp_min_qp1_entries + ctx->qp_max_l2_entries +
-			  (1024 * 64); /* FIXME: Enable 64K QPs */
-	mem_size = ctx->qp_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(softc, ctx_pg, mem_size, 2, true);
+	ctxm = &ctx->ctx_arr[BNXT_CTX_QP];
+	l2_qps = ctxm->qp_l2_entries;
+	qp1_qps = ctxm->qp_qp1_entries;
+	max_qps = ctxm->max_entries;
+	ctxm = &ctx->ctx_arr[BNXT_CTX_SRQ];
+	srqs = ctxm->srq_l2_entries;
+	max_srqs = ctxm->max_entries;
+	if (softc->flags & BNXT_FLAG_ROCE_CAP) {
+		pg_lvl = 2;
+		extra_qps = min_t(u32, 65536, max_qps - l2_qps - qp1_qps);
+		extra_srqs = min_t(u32, 8192, max_srqs - srqs);
+	}
+
+	ctxm = &ctx->ctx_arr[BNXT_CTX_QP];
+	rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, l2_qps + qp1_qps + extra_qps,
+				     pg_lvl);
 	if (rc)
 		return rc;
 
-	ctx_pg = &ctx->srq_mem;
-	/* FIXME: Temporarily enable 8K RoCE SRQs */
-	ctx_pg->entries = ctx->srq_max_l2_entries + (1024 * 8);
-	mem_size = ctx->srq_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(softc, ctx_pg, mem_size, 2, true);
+	ctxm = &ctx->ctx_arr[BNXT_CTX_SRQ];
+	rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, srqs + extra_srqs, pg_lvl);
 	if (rc)
 		return rc;
 
-	ctx_pg = &ctx->cq_mem;
-	/* FIXME: Temporarily enable 64K RoCE CQ */
-	ctx_pg->entries = ctx->cq_max_l2_entries + (1024 * 64 * 2);
-	mem_size = ctx->cq_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(softc, ctx_pg, mem_size, 2, true);
+	ctxm = &ctx->ctx_arr[BNXT_CTX_CQ];
+	rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, ctxm->cq_l2_entries +
+				     extra_qps * 2, pg_lvl);
 	if (rc)
 		return rc;
 
-	ctx_pg = &ctx->vnic_mem;
-	ctx_pg->entries = ctx->vnic_max_vnic_entries +
-			  ctx->vnic_max_ring_table_entries;
-	mem_size = ctx->vnic_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(softc, ctx_pg, mem_size, 1, true);
+	ctxm = &ctx->ctx_arr[BNXT_CTX_VNIC];
+	rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, ctxm->max_entries, 1);
 	if (rc)
 		return rc;
 
-	ctx_pg = &ctx->stat_mem;
-	ctx_pg->entries = ctx->stat_max_entries;
-	mem_size = ctx->stat_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(softc, ctx_pg, mem_size, 1, true);
+	ctxm = &ctx->ctx_arr[BNXT_CTX_STAT];
+	rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, ctxm->max_entries, 1);
 	if (rc)
 		return rc;
 
-	ctx_pg = &ctx->mrav_mem;
-	/* FIXME: Temporarily enable 256K RoCE MRs */
-	ctx_pg->entries = 1024 * 256;
-	mem_size = ctx->mrav_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(softc, ctx_pg, mem_size, 2, true);
+	ena = 0;
+	if (!(softc->flags & BNXT_FLAG_ROCE_CAP))
+		goto skip_rdma;
+
+	ctxm = &ctx->ctx_arr[BNXT_CTX_MRAV];
+	ctx_pg = ctxm->pg_info;
+	/* 128K extra is needed to accomodate static AH context
+	 * allocation by f/w.
+	 */
+	num_mr = min_t(u32, ctxm->max_entries / 2, 1024 * 256);
+	num_ah = min_t(u32, num_mr, 1024 * 128);
+	rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, num_mr + num_ah, 2);
 	if (rc)
 		return rc;
+	ctx_pg->entries = num_mr + num_ah;
 	ena = HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_MRAV;
+	if (ctxm->mrav_num_entries_units)
+		ctx_pg->entries =
+			((num_mr / ctxm->mrav_num_entries_units) << 16) |
+			 (num_ah / ctxm->mrav_num_entries_units);
 
-	ctx_pg = &ctx->tim_mem;
-	/* Firmware needs number of TIM entries equal to
-	 * number of Total QP contexts enabled, including
-	 * L2 QPs.
-	 */
-	ctx_pg->entries = ctx->qp_min_qp1_entries +
-			  ctx->qp_max_l2_entries + 1024 * 64;
-	/* FIXME: L2 driver is not able to create queue depth
-	 *  worth of 1M 32bit timers. Need a fix when l2-roce
-	 *  interface is well designed.
-	 */
-	mem_size = ctx->tim_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(softc, ctx_pg, mem_size, 2, false);
+	ctxm = &ctx->ctx_arr[BNXT_CTX_TIM];
+	rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, l2_qps + qp1_qps + extra_qps, 1);
 	if (rc)
 		return rc;
 	ena |= HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_TIM;
 
-	/* FIXME: Temporarily increase the TQM queue depth
-	 * by 1K for 1K RoCE QPs.
-	 */
-	entries = ctx->qp_max_l2_entries + 1024 * 64;
-	entries = roundup(entries, ctx->tqm_entries_multiple);
-	entries = clamp_t(uint32_t, entries, ctx->tqm_min_entries_per_ring,
-			  ctx->tqm_max_entries_per_ring);
-	for (i = 0; i < softc->rx_max_q + 1; i++) {
-		ctx_pg = ctx->tqm_mem[i];
-		ctx_pg->entries = entries;
-		mem_size = ctx->tqm_entry_size * entries;
-		rc = bnxt_alloc_ctx_pg_tbls(softc, ctx_pg, mem_size, 2, false);
+skip_rdma:
+	ctxm = &ctx->ctx_arr[BNXT_CTX_STQM];
+	min = ctxm->min_entries;
+	entries_sp = ctx->ctx_arr[BNXT_CTX_VNIC].vnic_entries + l2_qps +
+		     2 * (extra_qps + qp1_qps) + min;
+	rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, entries_sp, 2);
 		if (rc)
 			return rc;
-		ena |= HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_TQM_SP << i;
+
+	ctxm = &ctx->ctx_arr[BNXT_CTX_FTQM];
+	entries = l2_qps + 2 * (extra_qps + qp1_qps);
+	rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, entries, 2);
+	if (rc)
+		return rc;
+	for (i = 0; i < ctx->tqm_fp_rings_count + 1; i++) {
+		if (i < BNXT_MAX_TQM_LEGACY_RINGS)
+			ena |= HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_TQM_SP << i;
+		else
+			ena |= HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_TQM_RING8;
 	}
 	ena |= HWRM_FUNC_BACKING_STORE_CFG_INPUT_DFLT_ENABLES;
+
 	rc = bnxt_hwrm_func_backing_store_cfg(softc, ena);
-	if (rc)
+	if (rc) {
 		device_printf(softc->dev, "Failed configuring context mem, rc = %d.\n",
 			   rc);
-	else
-		ctx->flags |= BNXT_CTX_FLAG_INITED;
+		return rc;
+	}
+	ctx->flags |= BNXT_CTX_FLAG_INITED;
 
 	return 0;
 }
+
 /*
  * If we update the index, a write barrier is needed after the write to ensure
  * the completion ring has space before the RX/TX ring does.  Since we can't
@@ -1317,7 +1390,6 @@ bnxt_attach_pre(if_ctx_t ctx)
 		break;
 	}
 
-#define PCI_DEVFN(device, func) ((((device) & 0x1f) << 3) | ((func) & 0x07))
 	softc->domain = pci_get_domain(softc->dev);
 	softc->bus = pci_get_bus(softc->dev);
 	softc->slot = pci_get_slot(softc->dev);
@@ -1332,8 +1404,24 @@ bnxt_attach_pre(if_ctx_t ctx)
 
 	pci_enable_busmaster(softc->dev);
 
-	if (bnxt_pci_mapping(softc))
-		return (ENXIO);
+	if (bnxt_pci_mapping(softc)) {
+		device_printf(softc->dev, "PCI mapping failed\n");
+		rc = ENXIO;
+		goto pci_map_fail;
+	}
+
+	softc->pdev = kzalloc(sizeof(*softc->pdev), GFP_KERNEL);
+	if (!softc->pdev) {
+		device_printf(softc->dev, "pdev alloc failed\n");
+		rc = -ENOMEM;
+		goto free_pci_map;
+	}
+
+	rc = linux_pci_attach_device(softc->dev, NULL, NULL, softc->pdev);
+	if (rc) {
+		device_printf(softc->dev, "Failed to attach Linux PCI device 0x%x\n", rc);
+		goto pci_attach_fail;
+	}
 
 	/* HWRM setup/init */
 	BNXT_HWRM_LOCK_INIT(softc, device_get_nameunit(softc->dev));
@@ -1448,6 +1536,11 @@ bnxt_attach_pre(if_ctx_t ctx)
 		memcpy(softc->rx_q_ids, softc->tx_q_ids, sizeof(softc->rx_q_ids));
 	}
 
+	/* Get the HW capabilities */
+	rc = bnxt_hwrm_func_qcaps(softc);
+	if (rc)
+		goto failed;
+
 	if (softc->hwrm_spec_code >= 0x10803) {
 		rc = bnxt_alloc_ctx_mem(softc);
 		if (rc) {
@@ -1458,11 +1551,6 @@ bnxt_attach_pre(if_ctx_t ctx)
 		if (!rc)
 			softc->flags |= BNXT_FLAG_FW_CAP_NEW_RM;
 	}
-
-	/* Get the HW capabilities */
-	rc = bnxt_hwrm_func_qcaps(softc);
-	if (rc)
-		goto failed;
 
 	/* Get the current configuration of this function */
 	rc = bnxt_hwrm_func_qcfg(softc);
@@ -1637,7 +1725,14 @@ ver_alloc_fail:
 	bnxt_free_hwrm_dma_mem(softc);
 dma_fail:
 	BNXT_HWRM_LOCK_DESTROY(softc);
+	if (softc->pdev)
+		linux_pci_detach_device(softc->pdev);
+pci_attach_fail:
+	kfree(softc->pdev);
+	softc->pdev = NULL;
+free_pci_map:
 	bnxt_pci_mapping_free(softc);
+pci_map_fail:
 	pci_disable_busmaster(softc->dev);
 	return (rc);
 }
@@ -1649,6 +1744,7 @@ bnxt_attach_post(if_ctx_t ctx)
 	if_t ifp = iflib_get_ifp(ctx);
 	int rc;
 
+	softc->ifp = ifp;
 	bnxt_create_config_sysctls_post(softc);
 
 	/* Update link state etc... */
@@ -1658,6 +1754,7 @@ bnxt_attach_post(if_ctx_t ctx)
 
 	/* Needs to be done after probing the phy */
 	bnxt_create_ver_sysctls(softc);
+	ifmedia_removeall(softc->media);
 	bnxt_add_media_types(softc);
 	ifmedia_set(softc->media, IFM_ETHER | IFM_AUTO);
 
@@ -1665,6 +1762,8 @@ bnxt_attach_post(if_ctx_t ctx)
 	    ETHER_CRC_LEN;
 
 	softc->rx_buf_size = min(softc->scctx->isc_max_frame_size, BNXT_PAGE_SIZE);
+	bnxt_dcb_init(softc);
+	bnxt_rdma_aux_device_init(softc);
 
 failed:
 	return rc;
@@ -1678,6 +1777,8 @@ bnxt_detach(if_ctx_t ctx)
 	struct bnxt_vlan_tag *tmp;
 	int i;
 
+	bnxt_rdma_aux_device_uninit(softc);
+	bnxt_dcb_free(softc);
 	SLIST_REMOVE(&pf_list, &softc->list, bnxt_softc_list, next);
 	bnxt_num_pfs--;
 	bnxt_wol_config(ctx);
@@ -1715,6 +1816,8 @@ bnxt_detach(if_ctx_t ctx)
 	bnxt_free_hwrm_short_cmd_req(softc);
 	BNXT_HWRM_LOCK_DESTROY(softc);
 
+	if (softc->pdev)
+		linux_pci_detach_device(softc->pdev);
 	free(softc->state_bv, M_DEVBUF);
 	pci_disable_busmaster(softc->dev);
 	bnxt_pci_mapping_free(softc);
@@ -1866,6 +1969,78 @@ static void bnxt_get_port_module_status(struct bnxt_softc *softc)
 		if (module_status == HWRM_PORT_PHY_QCFG_OUTPUT_MODULE_STATUS_PWRDOWN)
 			device_printf(softc->dev, "SFP+ module is shutdown\n");
 	}
+}
+
+static void bnxt_aux_dev_free(struct bnxt_softc *softc)
+{
+	kfree(softc->aux_dev);
+	softc->aux_dev = NULL;
+}
+
+static struct bnxt_aux_dev *bnxt_aux_dev_init(struct bnxt_softc *softc)
+{
+	struct bnxt_aux_dev *bnxt_adev;
+
+	msleep(1000 * 2);
+	bnxt_adev = kzalloc(sizeof(*bnxt_adev), GFP_KERNEL);
+	if (!bnxt_adev)
+		return ERR_PTR(-ENOMEM);
+
+	return bnxt_adev;
+}
+
+static void bnxt_rdma_aux_device_uninit(struct bnxt_softc *softc)
+{
+	struct bnxt_aux_dev *bnxt_adev = softc->aux_dev;
+
+	/* Skip if no auxiliary device init was done. */
+	if (!(softc->flags & BNXT_FLAG_ROCE_CAP))
+		return;
+
+	if (IS_ERR_OR_NULL(bnxt_adev))
+		return;
+
+	bnxt_rdma_aux_device_del(softc);
+
+	if (bnxt_adev->id >= 0)
+		ida_free(&bnxt_aux_dev_ids, bnxt_adev->id);
+
+	bnxt_aux_dev_free(softc);
+}
+
+static void bnxt_rdma_aux_device_init(struct bnxt_softc *softc)
+{
+	int rc;
+
+	if (!(softc->flags & BNXT_FLAG_ROCE_CAP))
+		return;
+
+	softc->aux_dev = bnxt_aux_dev_init(softc);
+	if (IS_ERR_OR_NULL(softc->aux_dev)) {
+		device_printf(softc->dev, "Failed to init auxiliary device for ROCE\n");
+		goto skip_aux_init;
+	}
+
+	softc->aux_dev->id = ida_alloc(&bnxt_aux_dev_ids, GFP_KERNEL);
+	if (softc->aux_dev->id < 0) {
+		device_printf(softc->dev, "ida alloc failed for ROCE auxiliary device\n");
+		bnxt_aux_dev_free(softc);
+		goto skip_aux_init;
+	}
+
+	msleep(1000 * 2);
+	/* If aux bus init fails, continue with netdev init. */
+	rc = bnxt_rdma_aux_device_add(softc);
+	if (rc) {
+		device_printf(softc->dev, "Failed to add auxiliary device for ROCE\n");
+		msleep(1000 * 2);
+		ida_free(&bnxt_aux_dev_ids, softc->aux_dev->id);
+		bnxt_aux_dev_free(softc);
+	}
+	device_printf(softc->dev, "%s:%d Added auxiliary device (id %d) for ROCE \n",
+		      __func__, __LINE__, softc->aux_dev->id);
+skip_aux_init:
+	return;
 }
 
 /* Device configuration */
@@ -2032,7 +2207,6 @@ skip_def_cp_ring:
 	bnxt_get_port_module_status(softc);
 	bnxt_media_status(softc->ctx, &ifmr);
 	bnxt_hwrm_cfa_l2_set_rx_mask(softc, &softc->vnic_info);
-	bnxt_dcb_init(softc);
 	return;
 
 fail:
@@ -2047,7 +2221,6 @@ bnxt_stop(if_ctx_t ctx)
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 
 	softc->is_dev_init = false;
-	bnxt_dcb_free(softc);
 	bnxt_do_disable_intr(&softc->def_cp_ring);
 	bnxt_func_reset(softc);
 	bnxt_clear_ids(softc);
@@ -3320,12 +3493,51 @@ exit:
 	return rc;
 }
 
+#define ETHTOOL_SPEED_1000		1000
+#define ETHTOOL_SPEED_10000		10000
+#define ETHTOOL_SPEED_20000		20000
+#define ETHTOOL_SPEED_25000		25000
+#define ETHTOOL_SPEED_40000		40000
+#define ETHTOOL_SPEED_50000		50000
+#define ETHTOOL_SPEED_100000		100000
+#define ETHTOOL_SPEED_200000		200000
+#define ETHTOOL_SPEED_UNKNOWN		-1
+
+static u32
+bnxt_fw_to_ethtool_speed(u16 fw_link_speed)
+{
+	switch (fw_link_speed) {
+	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_1GB:
+		return ETHTOOL_SPEED_1000;
+	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_10GB:
+		return ETHTOOL_SPEED_10000;
+	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_20GB:
+		return ETHTOOL_SPEED_20000;
+	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_25GB:
+		return ETHTOOL_SPEED_25000;
+	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_40GB:
+		return ETHTOOL_SPEED_40000;
+	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_50GB:
+		return ETHTOOL_SPEED_50000;
+	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_100GB:
+		return ETHTOOL_SPEED_100000;
+	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_200GB:
+		return ETHTOOL_SPEED_200000;
+	default:
+		return ETHTOOL_SPEED_UNKNOWN;
+	}
+}
+
 void
 bnxt_report_link(struct bnxt_softc *softc)
 {
 	struct bnxt_link_info *link_info = &softc->link_info;
 	const char *duplex = NULL, *flow_ctrl = NULL;
 	const char *signal_mode = "";
+
+	if(softc->edev)
+		softc->edev->espeed =
+		    bnxt_fw_to_ethtool_speed(link_info->link_speed);
 
 	if (link_info->link_up == link_info->last_link_up) {
 		if (!link_info->link_up)
@@ -3459,12 +3671,96 @@ bnxt_mark_cpr_invalid(struct bnxt_cp_ring *cpr)
 		cmp[i].info3_v = !cpr->v_bit;
 }
 
+static void bnxt_event_error_report(struct bnxt_softc *softc, u32 data1, u32 data2)
+{
+	u32 err_type = BNXT_EVENT_ERROR_REPORT_TYPE(data1);
+
+	switch (err_type) {
+	case HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_INVALID_SIGNAL:
+		device_printf(softc->dev,
+			      "1PPS: Received invalid signal on pin%u from the external source. Please fix the signal and reconfigure the pin\n",
+			      BNXT_EVENT_INVALID_SIGNAL_DATA(data2));
+		break;
+	case HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_PAUSE_STORM:
+		device_printf(softc->dev,
+			      "Pause Storm detected!\n");
+		break;
+	case HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_DOORBELL_DROP_THRESHOLD:
+		device_printf(softc->dev,
+			      "One or more MMIO doorbells dropped by the device! epoch: 0x%x\n",
+			      BNXT_EVENT_DBR_EPOCH(data1));
+		break;
+	case HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_NVM: {
+		const char *nvm_err_str;
+
+		if (EVENT_DATA1_NVM_ERR_TYPE_WRITE(data1))
+			nvm_err_str = "nvm write error";
+		else if (EVENT_DATA1_NVM_ERR_TYPE_ERASE(data1))
+			nvm_err_str = "nvm erase error";
+		else
+			nvm_err_str = "unrecognized nvm error";
+
+		device_printf(softc->dev,
+			      "%s reported at address 0x%x\n", nvm_err_str,
+			      (u32)EVENT_DATA2_NVM_ERR_ADDR(data2));
+		break;
+	}
+	case HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_THERMAL_THRESHOLD: {
+		char *threshold_type;
+		char *dir_str;
+
+		switch (EVENT_DATA1_THERMAL_THRESHOLD_TYPE(data1)) {
+		case HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_THRESHOLD_TYPE_WARN:
+			threshold_type = "warning";
+			break;
+		case HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_THRESHOLD_TYPE_CRITICAL:
+			threshold_type = "critical";
+			break;
+		case HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_THRESHOLD_TYPE_FATAL:
+			threshold_type = "fatal";
+			break;
+		case HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_THRESHOLD_TYPE_SHUTDOWN:
+			threshold_type = "shutdown";
+			break;
+		default:
+			device_printf(softc->dev,
+				      "Unknown Thermal threshold type event\n");
+			return;
+		}
+		if (EVENT_DATA1_THERMAL_THRESHOLD_DIR_INCREASING(data1))
+			dir_str = "above";
+		else
+			dir_str = "below";
+		device_printf(softc->dev,
+			      "Chip temperature has gone %s the %s thermal threshold!\n",
+			      dir_str, threshold_type);
+		device_printf(softc->dev,
+			      "Temperature (In Celsius), Current: %u, threshold: %u\n",
+			      BNXT_EVENT_THERMAL_CURRENT_TEMP(data2),
+			      BNXT_EVENT_THERMAL_THRESHOLD_TEMP(data2));
+		break;
+	}
+	case HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_DUAL_DATA_RATE_NOT_SUPPORTED:
+		device_printf(softc->dev,
+			      "Speed change is not supported with dual rate transceivers on this board\n");
+		break;
+
+	default:
+	device_printf(softc->dev,
+		      "FW reported unknown error type: %u, data1: 0x%x data2: 0x%x\n",
+		      err_type, data1, data2);
+		break;
+	}
+}
+
 static void
 bnxt_handle_async_event(struct bnxt_softc *softc, struct cmpl_base *cmpl)
 {
 	struct hwrm_async_event_cmpl *ae = (void *)cmpl;
 	uint16_t async_id = le16toh(ae->event_id);
 	struct ifmediareq ifmr;
+	u32 data1 = le32toh(ae->event_data1);
+	u32 data2 = le32toh(ae->event_data2);
 
 	switch (async_id) {
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE:
@@ -3474,6 +3770,13 @@ bnxt_handle_async_event(struct bnxt_softc *softc, struct cmpl_base *cmpl)
 			bit_set(softc->state_bv, BNXT_STATE_LINK_CHANGE);
 		else
 			bnxt_media_status(softc->ctx, &ifmr);
+		break;
+	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_ERROR_REPORT: {
+		bnxt_event_error_report(softc, data1, data2);
+		goto async_event_process_exit;
+	}
+	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_DOORBELL_PACING_THRESHOLD:
+	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_DOORBELL_PACING_NQ_UPDATE:
 		break;
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_MTU_CHANGE:
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_DCB_CONFIG_CHANGE:
@@ -3496,6 +3799,8 @@ bnxt_handle_async_event(struct bnxt_softc *softc, struct cmpl_base *cmpl)
 		    "Unknown async completion type %u\n", async_id);
 		break;
 	}
+async_event_process_exit:
+	bnxt_ulp_async_events(softc, ae);
 }
 
 static void

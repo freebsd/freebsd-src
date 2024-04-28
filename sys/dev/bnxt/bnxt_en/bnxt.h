@@ -42,9 +42,13 @@
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/iflib.h>
+#include <linux/types.h>
 
 #include "hsi_struct_def.h"
 #include "bnxt_dcb.h"
+#include "bnxt_auxbus_compat.h"
+
+#define DFLT_HWRM_CMD_TIMEOUT		500
 
 /* PCI IDs */
 #define BROADCOM_VENDOR_ID	0x14E4
@@ -89,6 +93,58 @@
 #define NETXTREME_E_VF1	0x16c1
 #define NETXTREME_E_VF2	0x16d3
 #define NETXTREME_E_VF3	0x16dc
+
+#define EVENT_DATA1_RESET_NOTIFY_FATAL(data1)				\
+	(((data1) &							\
+	  HWRM_ASYNC_EVENT_CMPL_RESET_NOTIFY_EVENT_DATA1_REASON_CODE_MASK) ==\
+	 HWRM_ASYNC_EVENT_CMPL_RESET_NOTIFY_EVENT_DATA1_REASON_CODE_FW_EXCEPTION_FATAL)
+
+#define BNXT_EVENT_ERROR_REPORT_TYPE(data1)						\
+	(((data1) &									\
+	  HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_MASK)  >>	\
+	 HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_SFT)
+
+#define BNXT_EVENT_INVALID_SIGNAL_DATA(data2)						\
+	(((data2) &									\
+	  HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_INVALID_SIGNAL_EVENT_DATA2_PIN_ID_MASK) >>	\
+	 HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_INVALID_SIGNAL_EVENT_DATA2_PIN_ID_SFT)
+
+#define BNXT_EVENT_DBR_EPOCH(data)										\
+	(((data) & HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_DOORBELL_DROP_THRESHOLD_EVENT_DATA1_EPOCH_MASK) >>	\
+	 HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_DOORBELL_DROP_THRESHOLD_EVENT_DATA1_EPOCH_SFT)
+
+#define BNXT_EVENT_THERMAL_THRESHOLD_TEMP(data2)						\
+	(((data2) &										\
+	  HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA2_THRESHOLD_TEMP_MASK) >>	\
+	 HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA2_THRESHOLD_TEMP_SFT)
+
+#define EVENT_DATA2_NVM_ERR_ADDR(data2)						\
+	(((data2) &								\
+	  HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_NVM_EVENT_DATA2_ERR_ADDR_MASK) >>	\
+	 HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_NVM_EVENT_DATA2_ERR_ADDR_SFT)
+
+#define EVENT_DATA1_THERMAL_THRESHOLD_DIR_INCREASING(data1)					\
+	(((data1) &										\
+	  HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_TRANSITION_DIR) ==		\
+	 HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_TRANSITION_DIR_INCREASING)
+
+#define EVENT_DATA1_NVM_ERR_TYPE_WRITE(data1)						\
+	(((data1) &									\
+	  HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_NVM_EVENT_DATA1_NVM_ERR_TYPE_MASK) ==	\
+	 HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_NVM_EVENT_DATA1_NVM_ERR_TYPE_WRITE)
+
+#define EVENT_DATA1_NVM_ERR_TYPE_ERASE(data1)						\
+	(((data1) &									\
+	  HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_NVM_EVENT_DATA1_NVM_ERR_TYPE_MASK) ==	\
+	 HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_NVM_EVENT_DATA1_NVM_ERR_TYPE_ERASE)
+
+#define EVENT_DATA1_THERMAL_THRESHOLD_TYPE(data1)			\
+	((data1) & HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_THRESHOLD_TYPE_MASK)
+
+#define BNXT_EVENT_THERMAL_CURRENT_TEMP(data2)				\
+	((data2) & HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA2_CURRENT_TEMP_MASK)
+
+#define INVALID_STATS_CTX_ID     -1
 
 /* Maximum numbers of RX and TX descriptors. iflib requires this to be a power
  * of two. The hardware has no particular limitation. */
@@ -139,16 +195,20 @@
 #define DBR_TYPE_PUSH_END                               (0xdULL << 60)
 #define DBR_TYPE_NULL                                   (0xfULL << 60)
 
-#define BNXT_MAX_NUM_QUEUES 32
+#define BNXT_MAX_L2_QUEUES				128
+#define BNXT_ROCE_IRQ_COUNT				9
+
+#define BNXT_MAX_NUM_QUEUES (BNXT_MAX_L2_QUEUES + BNXT_ROCE_IRQ_COUNT)
 
 /* Completion related defines */
 #define CMP_VALID(cmp, v_bit) \
 	((!!(((struct cmpl_base *)(cmp))->info3_v & htole32(CMPL_BASE_V))) == !!(v_bit) )
 
 /* Chip class phase 5 */
-#define BNXT_CHIP_P5(sc) ((softc->flags & BNXT_FLAG_CHIP_P5))
+#define BNXT_CHIP_P5(sc) ((sc->flags & BNXT_FLAG_CHIP_P5))
 
 #define DB_PF_OFFSET_P5                                 0x10000
+#define DB_VF_OFFSET_P5                                 0x4000
 #define NQ_VALID(cmp, v_bit) \
 	((!!(((nq_cn_t *)(cmp))->v & htole32(NQ_CN_V))) == !!(v_bit) )
 
@@ -509,10 +569,9 @@ struct bnxt_ver_info {
 	uint8_t		hwrm_if_update;
 	char		hwrm_if_ver[BNXT_VERSTR_SIZE];
 	char		driver_hwrm_if_ver[BNXT_VERSTR_SIZE];
-	char		hwrm_fw_ver[BNXT_VERSTR_SIZE];
-	char		mgmt_fw_ver[BNXT_VERSTR_SIZE];
-	char		netctrl_fw_ver[BNXT_VERSTR_SIZE];
-	char		roce_fw_ver[BNXT_VERSTR_SIZE];
+	char		mgmt_fw_ver[FW_VER_STR_LEN];
+	char		netctrl_fw_ver[FW_VER_STR_LEN];
+	char		roce_fw_ver[FW_VER_STR_LEN];
 	char		fw_ver_str[FW_VER_STR_LEN];
 	char		phy_ver[BNXT_VERSTR_SIZE];
 	char		pkg_ver[64];
@@ -589,19 +648,22 @@ struct bnxt_hw_lro {
 
 #define MAX_CTX_PAGES	(BNXT_PAGE_SIZE / 8)
 #define MAX_CTX_TOTAL_PAGES	(MAX_CTX_PAGES * MAX_CTX_PAGES)
+
 struct bnxt_ring_mem_info {
-        int                     nr_pages;
-        int                     page_size;
-        uint16_t                     flags;
+	int			nr_pages;
+	int			page_size;
+	uint16_t		flags;
 #define BNXT_RMEM_VALID_PTE_FLAG        1
 #define BNXT_RMEM_RING_PTE_FLAG         2
 #define BNXT_RMEM_USE_FULL_PAGE_FLAG    4
-        uint16_t		depth;
-	uint8_t			init_val;
-        struct iflib_dma_info	*pg_arr;
-        struct iflib_dma_info	pg_tbl;
-        int                     vmem_size;
-        void                    **vmem;
+	uint16_t		depth;
+	struct bnxt_ctx_mem_type	*ctx_mem;
+
+	struct iflib_dma_info	*pg_arr;
+	struct iflib_dma_info	pg_tbl;
+
+	int			vmem_size;
+	void			**vmem;
 };
 
 struct bnxt_ctx_pg_info {
@@ -612,43 +674,85 @@ struct bnxt_ctx_pg_info {
 	struct bnxt_ctx_pg_info **ctx_pg_tbl;
 };
 
+#define BNXT_MAX_TQM_SP_RINGS		1
+#define BNXT_MAX_TQM_FP_LEGACY_RINGS	8
+#define BNXT_MAX_TQM_FP_RINGS		9
+#define BNXT_MAX_TQM_LEGACY_RINGS	\
+	(BNXT_MAX_TQM_SP_RINGS + BNXT_MAX_TQM_FP_LEGACY_RINGS)
+#define BNXT_MAX_TQM_RINGS		\
+	(BNXT_MAX_TQM_SP_RINGS + BNXT_MAX_TQM_FP_RINGS)
+
+#define BNXT_BACKING_STORE_CFG_LEGACY_LEN	256
+#define BNXT_BACKING_STORE_CFG_LEN		\
+	sizeof(struct hwrm_func_backing_store_cfg_input)
+
+#define BNXT_SET_CTX_PAGE_ATTR(attr)					\
+do {									\
+	if (BNXT_PAGE_SIZE == 0x2000)					\
+		attr = HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_SRQ_PG_SIZE_PG_8K;	\
+	else if (BNXT_PAGE_SIZE == 0x10000)				\
+		attr = HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_QPC_PG_SIZE_PG_64K;	\
+	else								\
+		attr = HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_QPC_PG_SIZE_PG_4K;	\
+} while (0)
+
+struct bnxt_ctx_mem_type {
+	u16	type;
+	u16	entry_size;
+	u32	flags;
+#define BNXT_CTX_MEM_TYPE_VALID HWRM_FUNC_BACKING_STORE_QCAPS_V2_OUTPUT_FLAGS_TYPE_VALID
+	u32	instance_bmap;
+	u8	init_value;
+	u8	entry_multiple;
+	u16	init_offset;
+#define	BNXT_CTX_INIT_INVALID_OFFSET	0xffff
+	u32	max_entries;
+	u32	min_entries;
+	u8	split_entry_cnt;
+#define BNXT_MAX_SPLIT_ENTRY	4
+	union {
+		struct {
+			u32	qp_l2_entries;
+			u32	qp_qp1_entries;
+		};
+		u32	srq_l2_entries;
+		u32	cq_l2_entries;
+		u32	vnic_entries;
+		struct {
+			u32	mrav_av_entries;
+			u32	mrav_num_entries_units;
+		};
+		u32	split[BNXT_MAX_SPLIT_ENTRY];
+	};
+	struct bnxt_ctx_pg_info	*pg_info;
+};
+
+#define BNXT_CTX_QP	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_QP
+#define BNXT_CTX_SRQ	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_SRQ
+#define BNXT_CTX_CQ	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_CQ
+#define BNXT_CTX_VNIC	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_VNIC
+#define BNXT_CTX_STAT	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_STAT
+#define BNXT_CTX_STQM	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_SP_TQM_RING
+#define BNXT_CTX_FTQM	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_FP_TQM_RING
+#define BNXT_CTX_MRAV	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_MRAV
+#define BNXT_CTX_TIM	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_TIM
+#define BNXT_CTX_TKC	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_TKC
+#define BNXT_CTX_RKC	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_RKC
+#define BNXT_CTX_MTQM	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_MP_TQM_RING
+#define BNXT_CTX_SQDBS	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_SQ_DB_SHADOW
+#define BNXT_CTX_RQDBS	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_RQ_DB_SHADOW
+#define BNXT_CTX_SRQDBS	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_SRQ_DB_SHADOW
+#define BNXT_CTX_CQDBS	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_CQ_DB_SHADOW
+#define BNXT_CTX_QTKC	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_QUIC_TKC
+#define BNXT_CTX_QRKC	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_QUIC_RKC
+#define BNXT_CTX_MAX	(BNXT_CTX_QRKC + 1)
+
 struct bnxt_ctx_mem_info {
-	uint32_t	qp_max_entries;
-	uint16_t	qp_min_qp1_entries;
-	uint16_t	qp_max_l2_entries;
-	uint16_t	qp_entry_size;
-	uint16_t	srq_max_l2_entries;
-	uint32_t	srq_max_entries;
-	uint16_t	srq_entry_size;
-	uint16_t	cq_max_l2_entries;
-	uint32_t	cq_max_entries;
-	uint16_t	cq_entry_size;
-	uint16_t	vnic_max_vnic_entries;
-	uint16_t	vnic_max_ring_table_entries;
-	uint16_t	vnic_entry_size;
-	uint32_t	stat_max_entries;
-	uint16_t	stat_entry_size;
-	uint16_t	tqm_entry_size;
-	uint32_t	tqm_min_entries_per_ring;
-	uint32_t	tqm_max_entries_per_ring;
-	uint32_t	mrav_max_entries;
-	uint16_t	mrav_entry_size;
-	uint16_t	tim_entry_size;
-	uint32_t	tim_max_entries;
-	uint8_t		tqm_entries_multiple;
-	uint8_t		ctx_kind_initializer;
+	u8	tqm_fp_rings_count;
 
-	uint32_t	flags;
+	u32	flags;
 	#define BNXT_CTX_FLAG_INITED	0x01
-
-	struct bnxt_ctx_pg_info qp_mem;
-	struct bnxt_ctx_pg_info srq_mem;
-	struct bnxt_ctx_pg_info cq_mem;
-	struct bnxt_ctx_pg_info vnic_mem;
-	struct bnxt_ctx_pg_info stat_mem;
-	struct bnxt_ctx_pg_info mrav_mem;
-	struct bnxt_ctx_pg_info tim_mem;
-	struct bnxt_ctx_pg_info *tqm_mem[9];
+	struct bnxt_ctx_mem_type	ctx_arr[BNXT_CTX_MAX];
 };
 
 struct bnxt_hw_resc {
@@ -678,7 +782,7 @@ struct bnxt_hw_resc {
 	uint16_t	max_nqs;
 	uint16_t	max_irqs;
 	uint16_t	resv_irqs;
-}
+};
 
 enum bnxt_type_ets {
 	BNXT_TYPE_ETS_TSA = 0,
@@ -710,11 +814,23 @@ struct bnxt_softc_list {
 #define BIT_ULL(nr)		(1ULL << (nr))
 #endif
 
+struct bnxt_aux_dev {
+	struct auxiliary_device aux_dev;
+	struct bnxt_en_dev *edev;
+	int id;
+};
+
+struct bnxt_msix_tbl {
+	uint32_t entry;
+	uint32_t vector;
+};
+
 struct bnxt_softc {
 	device_t	dev;
 	if_ctx_t	ctx;
 	if_softc_ctx_t	scctx;
 	if_shared_ctx_t	sctx;
+	if_t ifp;
 	uint32_t	domain;
 	uint32_t	bus;
 	uint32_t	slot;
@@ -738,11 +854,16 @@ struct bnxt_softc {
 #define BNXT_FLAG_FW_CAP_EXT_STATS		0x0080
 #define BNXT_FLAG_MULTI_HOST			0x0100
 #define BNXT_FLAG_MULTI_ROOT			0x0200
+#define BNXT_FLAG_ROCEV1_CAP			0x0400
+#define BNXT_FLAG_ROCEV2_CAP			0x0800
+#define BNXT_FLAG_ROCE_CAP			(BNXT_FLAG_ROCEV1_CAP | BNXT_FLAG_ROCEV2_CAP)
 	uint32_t		flags;
 #define BNXT_STATE_LINK_CHANGE  (0)
 #define BNXT_STATE_MAX		(BNXT_STATE_LINK_CHANGE + 1)
 	bitstr_t 		*state_bv;
-	uint32_t		total_msix;
+
+	uint32_t		total_irqs;
+	struct bnxt_msix_tbl	*irq_tbl;
 
 	struct bnxt_func_info	func;
 	struct bnxt_func_qcfg	fn_qcfg;
@@ -812,6 +933,8 @@ struct bnxt_softc {
 	struct iflib_dma_info	def_cp_ring_mem;
 	struct iflib_dma_info	def_nq_ring_mem;
 	struct grouptask	def_cp_task;
+	int			db_size;
+	int			legacy_db_size;
 	struct bnxt_doorbell_ops db_ops;
 
 	struct sysctl_ctx_list	hw_stats;
@@ -908,6 +1031,33 @@ struct bnxt_softc {
 #define BNXT_PHY_FL_NO_PAUSE            (HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS2_PAUSE_UNSUPPORTED << 8)
 #define BNXT_PHY_FL_NO_PFC              (HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS2_PFC_UNSUPPORTED << 8)
 #define BNXT_PHY_FL_BANK_SEL            (HWRM_PORT_PHY_QCAPS_OUTPUT_FLAGS2_BANK_ADDR_SUPPORTED << 8)
+	struct bnxt_aux_dev     *aux_dev;
+	struct net_device	*net_dev;
+	struct mtx		en_ops_lock;
+	uint8_t			port_partition_type;
+	struct bnxt_en_dev	*edev;
+	unsigned long		state;
+#define BNXT_STATE_OPEN			0
+#define BNXT_STATE_IN_SP_TASK		1
+#define BNXT_STATE_READ_STATS		2
+#define BNXT_STATE_FW_RESET_DET 	3
+#define BNXT_STATE_IN_FW_RESET		4
+#define BNXT_STATE_ABORT_ERR		5
+#define BNXT_STATE_FW_FATAL_COND	6
+#define BNXT_STATE_DRV_REGISTERED	7
+#define BNXT_STATE_PCI_CHANNEL_IO_FROZEN	8
+#define BNXT_STATE_NAPI_DISABLED	9
+#define BNXT_STATE_L2_FILTER_RETRY	10
+#define BNXT_STATE_FW_ACTIVATE		11
+#define BNXT_STATE_RECOVER		12
+#define BNXT_STATE_FW_NON_FATAL_COND	13
+#define BNXT_STATE_FW_ACTIVATE_RESET	14
+#define BNXT_STATE_HALF_OPEN		15
+#define BNXT_NO_FW_ACCESS(bp)		\
+	test_bit(BNXT_STATE_FW_FATAL_COND, &(bp)->state)
+	struct pci_dev			*pdev;
+
+	int 			fw_reset_state;
 };
 
 struct bnxt_filter_info {

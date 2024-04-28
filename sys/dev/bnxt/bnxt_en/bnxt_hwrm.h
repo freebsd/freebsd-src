@@ -38,6 +38,8 @@
 #define BNXT_BACKING_STORE_CFG_LEGACY_LEN       256
 
 /* HWRM Function Prototypes */
+int
+hwrm_send_message(struct bnxt_softc *softc, void *msg, uint32_t msg_len);
 int bnxt_alloc_hwrm_dma_mem(struct bnxt_softc *softc);
 void bnxt_free_hwrm_dma_mem(struct bnxt_softc *softc);
 int bnxt_hwrm_ring_alloc(struct bnxt_softc *softc, uint8_t type,
@@ -122,9 +124,12 @@ int bnxt_hwrm_alloc_wol_fltr(struct bnxt_softc *softc);
 int bnxt_hwrm_free_wol_fltr(struct bnxt_softc *softc);
 int bnxt_hwrm_set_coal(struct bnxt_softc *softc);
 int bnxt_hwrm_func_rgtr_async_events(struct bnxt_softc *softc, unsigned long *bmap,
-                                     int bmap_size);
+				     int bmap_size);
 int bnxt_hwrm_func_backing_store_qcaps(struct bnxt_softc *softc);
 int bnxt_hwrm_func_backing_store_cfg(struct bnxt_softc *softc, uint32_t);
+int bnxt_hwrm_func_backing_store_cfg_v2(struct bnxt_softc *softc,
+					struct bnxt_ctx_mem_type *ctxm,
+					bool last);
 int bnxt_hwrm_func_resc_qcaps(struct bnxt_softc *softc, bool all);
 int bnxt_hwrm_reserve_pf_rings (struct bnxt_softc *softc);
 void bnxt_hwrm_ring_info_get(struct bnxt_softc *softc, uint8_t ring_type,
