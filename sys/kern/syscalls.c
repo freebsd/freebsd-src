@@ -592,11 +592,11 @@ const char *syscallnames[] = {
 	"membarrier",			/* 584 = membarrier */
 	"timerfd_create",			/* 585 = timerfd_create */
 	"timerfd_gettime",			/* 586 = timerfd_gettime */
-	"timerfd_settime",			/* 587 = timerfd_settime */       
+	"timerfd_settime",			/* 587 = timerfd_settime */
 	"osdb_exec",			/* 588 = osdb_exec */
 	"osdb_prepare_v2",			/* 589 = osdb_prepare_v2 */
-	"osdb_step",				/* 590 = osdb_step */
-	"osdb_finalize",			/* 591 = osdb_finalize */	
+	"osdb_step",			/* 590 = osdb_step */
+	"osdb_finalize",			/* 591 = osdb_finalize */
 	"osdb_column_blob",			/* 592 = osdb_column_blob */
 	"osdb_column_double",			/* 593 = osdb_column_double */
 	"osdb_column_int",			/* 594 = osdb_column_int */
@@ -606,6 +606,5 @@ const char *syscallnames[] = {
 	"osdb_column_value",			/* 598 = osdb_column_value */
 	"osdb_column_bytes",			/* 599 = osdb_column_bytes */
 	"osdb_column_bytes16",			/* 600 = osdb_column_bytes16 */
-	"osdb_column_type",			/* 601 = osdb_column_type */	
-	
+	"osdb_column_type",			/* 601 = osdb_column_type */
 };

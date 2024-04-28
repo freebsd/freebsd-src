@@ -694,6 +694,10 @@ struct freebsd32_timerfd_settime_args {
 	char new_value_l_[PADL_(const struct itimerspec32 *)]; const struct itimerspec32 * new_value; char new_value_r_[PADR_(const struct itimerspec32 *)];
 	char old_value_l_[PADL_(struct itimerspec32 *)]; struct itimerspec32 * old_value; char old_value_r_[PADR_(struct itimerspec32 *)];
 };
+struct freebsd32_osdb_column_int64_args {
+	char iCol_l_[PADL_(void *sqlite3_stmtint)]; void *sqlite3_stmtint iCol; char iCol_r_[PADR_(void *sqlite3_stmtint)];
+	char result_l_[PADL_(int32_t)]; int32_t result; char result_r_[PADR_(int32_t)];
+};
 int	freebsd32_wait4(struct thread *, struct freebsd32_wait4_args *);
 int	freebsd32_ptrace(struct thread *, struct freebsd32_ptrace_args *);
 int	freebsd32_recvmsg(struct thread *, struct freebsd32_recvmsg_args *);
@@ -811,6 +815,7 @@ int	freebsd32_aio_writev(struct thread *, struct freebsd32_aio_writev_args *);
 int	freebsd32_aio_readv(struct thread *, struct freebsd32_aio_readv_args *);
 int	freebsd32_timerfd_gettime(struct thread *, struct freebsd32_timerfd_gettime_args *);
 int	freebsd32_timerfd_settime(struct thread *, struct freebsd32_timerfd_settime_args *);
+int	freebsd32_osdb_column_int64(struct thread *, struct freebsd32_osdb_column_int64_args *);
 
 #ifdef COMPAT_43
 
@@ -1312,6 +1317,7 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_aio_readv	AUE_AIO_READV
 #define	FREEBSD32_SYS_AUE_freebsd32_timerfd_gettime	AUE_TIMERFD
 #define	FREEBSD32_SYS_AUE_freebsd32_timerfd_settime	AUE_TIMERFD
+#define	FREEBSD32_SYS_AUE_freebsd32_osdb_column_int64	AUE_NULL
 
 #undef PAD_
 #undef PADL_
