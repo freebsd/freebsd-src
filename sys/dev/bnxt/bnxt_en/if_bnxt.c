@@ -170,6 +170,8 @@ static const pci_vendor_info_t bnxt_vendor_info_array[] =
 SLIST_HEAD(softc_list, bnxt_softc_list) pf_list;
 int bnxt_num_pfs = 0;
 
+void
+process_nq(struct bnxt_softc *softc, uint16_t nqid);
 static void *bnxt_register(device_t dev);
 
 /* Soft queue setup and teardown */
@@ -237,7 +239,10 @@ static int bnxt_i2c_req(if_ctx_t ctx, struct ifi2creq *i2c);
 static void bnxt_get_port_module_status(struct bnxt_softc *softc);
 static void bnxt_rdma_aux_device_init(struct bnxt_softc *softc);
 static void bnxt_rdma_aux_device_uninit(struct bnxt_softc *softc);
+static void bnxt_queue_fw_reset_work(struct bnxt_softc *bp, unsigned long delay);
+void bnxt_queue_sp_work(struct bnxt_softc *bp);
 
+void bnxt_fw_reset(struct bnxt_softc *bp);
 /*
  * Device Interface Declaration
  */
@@ -268,6 +273,27 @@ MODULE_DEPEND(if_bnxt, linuxkpi, 1, 1, 1);
 MODULE_VERSION(if_bnxt, 1);
 
 IFLIB_PNP_INFO(pci, bnxt, bnxt_vendor_info_array);
+
+void writel_fbsd(struct bnxt_softc *bp, u32, u8, u32);
+u32 readl_fbsd(struct bnxt_softc *bp, u32, u8);
+
+u32 readl_fbsd(struct bnxt_softc *bp, u32 reg_off, u8 bar_idx)
+{
+
+	if (!bar_idx)
+		return bus_space_read_4(bp->doorbell_bar.tag, bp->doorbell_bar.handle, reg_off);
+	else
+		return bus_space_read_4(bp->hwrm_bar.tag, bp->hwrm_bar.handle, reg_off);
+}
+
+void writel_fbsd(struct bnxt_softc *bp, u32 reg_off, u8 bar_idx, u32 val)
+{
+
+	if (!bar_idx)
+		bus_space_write_4(bp->doorbell_bar.tag, bp->doorbell_bar.handle, reg_off, htole32(val));
+	else
+		bus_space_write_4(bp->hwrm_bar.tag, bp->hwrm_bar.handle, reg_off, htole32(val));
+}
 
 static DEFINE_IDA(bnxt_aux_dev_ids);
 
@@ -356,6 +382,11 @@ static struct if_shared_ctx bnxt_sctx_init = {
 	.isc_vendor_info = bnxt_vendor_info_array,
 	.isc_driver_version = bnxt_driver_version,
 };
+
+#define PCI_SUBSYSTEM_ID	0x2e
+static struct workqueue_struct *bnxt_pf_wq;
+
+extern void bnxt_destroy_irq(struct bnxt_softc *softc);
 
 /*
  * Device Methods
@@ -666,7 +697,6 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 					"Unable to allocate space for TPA\n");
 			goto tpa_alloc_fail;
 		}
-
 		/* Allocate the AG ring */
 		softc->ag_rings[i].phys_id = (uint16_t)HWRM_NA_SIGNATURE;
 		softc->ag_rings[i].softc = softc;
@@ -1041,7 +1071,7 @@ static void bnxt_free_ctx_mem(struct bnxt_softc *softc)
 
 	ctx->flags &= ~BNXT_CTX_FLAG_INITED;
 	kfree(ctx);
-	softc->ctx = NULL;
+	softc->ctx_mem = NULL;
 }
 
 static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
@@ -1352,6 +1382,685 @@ static void bnxt_verify_asym_queues(struct bnxt_softc *softc)
 	softc->max_lltc = min(softc->max_lltc, lltc);
 }
 
+static int bnxt_hwrm_poll(struct bnxt_softc *bp)
+{
+	struct hwrm_ver_get_output	*resp =
+	    (void *)bp->hwrm_cmd_resp.idi_vaddr;
+	struct hwrm_ver_get_input req = {0};
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VER_GET);
+
+	req.hwrm_intf_maj = HWRM_VERSION_MAJOR;
+	req.hwrm_intf_min = HWRM_VERSION_MINOR;
+	req.hwrm_intf_upd = HWRM_VERSION_UPDATE;
+
+	rc = _hwrm_send_message(bp, &req, sizeof(req));
+	if (rc)
+		return rc;
+
+	if (resp->flags & HWRM_VER_GET_OUTPUT_FLAGS_DEV_NOT_RDY)
+		rc = -EAGAIN;
+
+	return rc;
+}
+
+static void bnxt_rtnl_lock_sp(struct bnxt_softc *bp)
+{
+	/* We are called from bnxt_sp_task which has BNXT_STATE_IN_SP_TASK
+	 * set.  If the device is being closed, bnxt_close() may be holding
+	 * rtnl() and waiting for BNXT_STATE_IN_SP_TASK to clear.  So we
+	 * must clear BNXT_STATE_IN_SP_TASK before holding rtnl().
+	 */
+	clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
+	rtnl_lock();
+}
+
+static void bnxt_rtnl_unlock_sp(struct bnxt_softc *bp)
+{
+	set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
+	rtnl_unlock();
+}
+
+static void bnxt_fw_fatal_close(struct bnxt_softc *softc)
+{
+	bnxt_disable_intr(softc->ctx);
+	if (pci_is_enabled(softc->pdev))
+		pci_disable_device(softc->pdev);
+}
+
+static u32 bnxt_fw_health_readl(struct bnxt_softc *bp, int reg_idx)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	u32 reg = fw_health->regs[reg_idx];
+	u32 reg_type, reg_off, val = 0;
+
+	reg_type = BNXT_FW_HEALTH_REG_TYPE(reg);
+	reg_off = BNXT_FW_HEALTH_REG_OFF(reg);
+	switch (reg_type) {
+	case BNXT_FW_HEALTH_REG_TYPE_CFG:
+		pci_read_config_dword(bp->pdev, reg_off, &val);
+		break;
+	case BNXT_FW_HEALTH_REG_TYPE_GRC:
+		reg_off = fw_health->mapped_regs[reg_idx];
+		fallthrough;
+	case BNXT_FW_HEALTH_REG_TYPE_BAR0:
+		val = readl_fbsd(bp, reg_off, 0);
+		break;
+	case BNXT_FW_HEALTH_REG_TYPE_BAR1:
+		val = readl_fbsd(bp, reg_off, 2);
+		break;
+	}
+	if (reg_idx == BNXT_FW_RESET_INPROG_REG)
+		val &= fw_health->fw_reset_inprog_reg_mask;
+	return val;
+}
+
+static void bnxt_fw_reset_close(struct bnxt_softc *bp)
+{
+	int i;
+	bnxt_ulp_stop(bp);
+	/* When firmware is in fatal state, quiesce device and disable
+	 * bus master to prevent any potential bad DMAs before freeing
+	 * kernel memory.
+	 */
+	if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state)) {
+		u16 val = 0;
+
+		val = pci_read_config(bp->dev, PCI_SUBSYSTEM_ID, 2);
+		if (val == 0xffff) {
+			bp->fw_reset_min_dsecs = 0;
+		}
+		bnxt_fw_fatal_close(bp);
+	}
+
+	iflib_request_reset(bp->ctx);
+	bnxt_stop(bp->ctx);
+	bnxt_hwrm_func_drv_unrgtr(bp, false);
+
+	for (i = bp->nrxqsets-1; i>=0; i--) {
+		if (BNXT_CHIP_P5(bp))
+			iflib_irq_free(bp->ctx, &bp->nq_rings[i].irq);
+		else
+			iflib_irq_free(bp->ctx, &bp->rx_cp_rings[i].irq);
+
+	}
+	if (pci_is_enabled(bp->pdev))
+		pci_disable_device(bp->pdev);
+	pci_disable_busmaster(bp->dev);
+	bnxt_free_ctx_mem(bp);
+}
+
+static bool is_bnxt_fw_ok(struct bnxt_softc *bp)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	bool no_heartbeat = false, has_reset = false;
+	u32 val;
+
+	val = bnxt_fw_health_readl(bp, BNXT_FW_HEARTBEAT_REG);
+	if (val == fw_health->last_fw_heartbeat)
+		no_heartbeat = true;
+
+	val = bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
+	if (val != fw_health->last_fw_reset_cnt)
+		has_reset = true;
+
+	if (!no_heartbeat && has_reset)
+		return true;
+
+	return false;
+}
+
+void bnxt_fw_reset(struct bnxt_softc *bp)
+{
+	bnxt_rtnl_lock_sp(bp);
+	if (test_bit(BNXT_STATE_OPEN, &bp->state) &&
+	    !test_bit(BNXT_STATE_IN_FW_RESET, &bp->state)) {
+		int tmo;
+		set_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
+		bnxt_fw_reset_close(bp);
+
+		if ((bp->fw_cap & BNXT_FW_CAP_ERR_RECOVER_RELOAD)) {
+			bp->fw_reset_state = BNXT_FW_RESET_STATE_POLL_FW_DOWN;
+			tmo = HZ / 10;
+		} else {
+			bp->fw_reset_state = BNXT_FW_RESET_STATE_ENABLE_DEV;
+			tmo = bp->fw_reset_min_dsecs * HZ /10;
+		}
+		bnxt_queue_fw_reset_work(bp, tmo);
+	}
+	bnxt_rtnl_unlock_sp(bp);
+}
+
+static void bnxt_queue_fw_reset_work(struct bnxt_softc *bp, unsigned long delay)
+{
+	if (!(test_bit(BNXT_STATE_IN_FW_RESET, &bp->state)))
+		return;
+
+	if (BNXT_PF(bp))
+		queue_delayed_work(bnxt_pf_wq, &bp->fw_reset_task, delay);
+	else
+		schedule_delayed_work(&bp->fw_reset_task, delay);
+}
+
+void bnxt_queue_sp_work(struct bnxt_softc *bp)
+{
+	if (BNXT_PF(bp))
+		queue_work(bnxt_pf_wq, &bp->sp_task);
+	else
+		schedule_work(&bp->sp_task);
+}
+
+static void bnxt_fw_reset_writel(struct bnxt_softc *bp, int reg_idx)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	u32 reg = fw_health->fw_reset_seq_regs[reg_idx];
+	u32 val = fw_health->fw_reset_seq_vals[reg_idx];
+	u32 reg_type, reg_off, delay_msecs;
+
+	delay_msecs = fw_health->fw_reset_seq_delay_msec[reg_idx];
+	reg_type = BNXT_FW_HEALTH_REG_TYPE(reg);
+	reg_off = BNXT_FW_HEALTH_REG_OFF(reg);
+	switch (reg_type) {
+	case BNXT_FW_HEALTH_REG_TYPE_CFG:
+		pci_write_config_dword(bp->pdev, reg_off, val);
+		break;
+	case BNXT_FW_HEALTH_REG_TYPE_GRC:
+		writel_fbsd(bp, BNXT_GRCPF_REG_WINDOW_BASE_OUT + 4, 0, reg_off & BNXT_GRC_BASE_MASK);
+		reg_off = (reg_off & BNXT_GRC_OFFSET_MASK) + 0x2000;
+		fallthrough;
+	case BNXT_FW_HEALTH_REG_TYPE_BAR0:
+		writel_fbsd(bp, reg_off, 0, val);
+		break;
+	case BNXT_FW_HEALTH_REG_TYPE_BAR1:
+		writel_fbsd(bp, reg_off, 2, val);
+		break;
+	}
+	if (delay_msecs) {
+		pci_read_config_dword(bp->pdev, 0, &val);
+		msleep(delay_msecs);
+	}
+}
+
+static void bnxt_reset_all(struct bnxt_softc *bp)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	int i, rc;
+
+	if (bp->fw_cap & BNXT_FW_CAP_ERR_RECOVER_RELOAD) {
+		bp->fw_reset_timestamp = jiffies;
+		return;
+	}
+
+	if (fw_health->flags & HWRM_ERROR_RECOVERY_QCFG_OUTPUT_FLAGS_HOST) {
+		for (i = 0; i < fw_health->fw_reset_seq_cnt; i++)
+			bnxt_fw_reset_writel(bp, i);
+	} else if (fw_health->flags & HWRM_ERROR_RECOVERY_QCFG_OUTPUT_FLAGS_CO_CPU) {
+		struct hwrm_fw_reset_input req = {0};
+
+		bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FW_RESET);
+		req.target_id = htole16(HWRM_TARGET_ID_KONG);
+		req.embedded_proc_type = HWRM_FW_RESET_INPUT_EMBEDDED_PROC_TYPE_CHIP;
+		req.selfrst_status = HWRM_FW_RESET_INPUT_SELFRST_STATUS_SELFRSTASAP;
+		req.flags = HWRM_FW_RESET_INPUT_FLAGS_RESET_GRACEFUL;
+		rc = hwrm_send_message(bp, &req, sizeof(req));
+
+		if (rc != -ENODEV)
+			device_printf(bp->dev, "Unable to reset FW rc=%d\n", rc);
+	}
+	bp->fw_reset_timestamp = jiffies;
+}
+
+static int __bnxt_alloc_fw_health(struct bnxt_softc *bp)
+{
+	if (bp->fw_health)
+		return 0;
+
+	bp->fw_health = kzalloc(sizeof(*bp->fw_health), GFP_KERNEL);
+	if (!bp->fw_health)
+		return -ENOMEM;
+
+	mutex_init(&bp->fw_health->lock);
+	return 0;
+}
+
+static int bnxt_alloc_fw_health(struct bnxt_softc *bp)
+{
+	int rc;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_HOT_RESET) &&
+	    !(bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY))
+		return 0;
+
+	rc = __bnxt_alloc_fw_health(bp);
+	if (rc) {
+		bp->fw_cap &= ~BNXT_FW_CAP_HOT_RESET;
+		bp->fw_cap &= ~BNXT_FW_CAP_ERROR_RECOVERY;
+		return rc;
+	}
+
+	return 0;
+}
+
+static inline void __bnxt_map_fw_health_reg(struct bnxt_softc *bp, u32 reg)
+{
+	writel_fbsd(bp, BNXT_GRCPF_REG_WINDOW_BASE_OUT + BNXT_FW_HEALTH_WIN_MAP_OFF, 0, reg & BNXT_GRC_BASE_MASK);
+}
+
+static int bnxt_map_fw_health_regs(struct bnxt_softc *bp)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	u32 reg_base = 0xffffffff;
+	int i;
+
+	bp->fw_health->status_reliable = false;
+	bp->fw_health->resets_reliable = false;
+	/* Only pre-map the monitoring GRC registers using window 3 */
+	for (i = 0; i < 4; i++) {
+		u32 reg = fw_health->regs[i];
+
+		if (BNXT_FW_HEALTH_REG_TYPE(reg) != BNXT_FW_HEALTH_REG_TYPE_GRC)
+			continue;
+		if (reg_base == 0xffffffff)
+			reg_base = reg & BNXT_GRC_BASE_MASK;
+		if ((reg & BNXT_GRC_BASE_MASK) != reg_base)
+			return -ERANGE;
+		fw_health->mapped_regs[i] = BNXT_FW_HEALTH_WIN_OFF(reg);
+	}
+	bp->fw_health->status_reliable = true;
+	bp->fw_health->resets_reliable = true;
+	if (reg_base == 0xffffffff)
+		return 0;
+
+	__bnxt_map_fw_health_reg(bp, reg_base);
+	return 0;
+}
+
+static void bnxt_inv_fw_health_reg(struct bnxt_softc *bp)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	u32 reg_type;
+
+	if (!fw_health)
+		return;
+
+	reg_type = BNXT_FW_HEALTH_REG_TYPE(fw_health->regs[BNXT_FW_HEALTH_REG]);
+	if (reg_type == BNXT_FW_HEALTH_REG_TYPE_GRC)
+		fw_health->status_reliable = false;
+
+	reg_type = BNXT_FW_HEALTH_REG_TYPE(fw_health->regs[BNXT_FW_RESET_CNT_REG]);
+	if (reg_type == BNXT_FW_HEALTH_REG_TYPE_GRC)
+		fw_health->resets_reliable = false;
+}
+
+static int bnxt_hwrm_error_recovery_qcfg(struct bnxt_softc *bp)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	struct hwrm_error_recovery_qcfg_output *resp =
+	    (void *)bp->hwrm_cmd_resp.idi_vaddr;
+	struct hwrm_error_recovery_qcfg_input req = {0};
+	int rc, i;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_ERROR_RECOVERY_QCFG);
+	rc = _hwrm_send_message(bp, &req, sizeof(req));
+
+	if (rc)
+		goto err_recovery_out;
+	fw_health->flags = le32toh(resp->flags);
+	if ((fw_health->flags & HWRM_ERROR_RECOVERY_QCFG_OUTPUT_FLAGS_CO_CPU) &&
+	    !(bp->fw_cap & BNXT_FW_CAP_KONG_MB_CHNL)) {
+		rc = -EINVAL;
+		goto err_recovery_out;
+	}
+	fw_health->polling_dsecs = le32toh(resp->driver_polling_freq);
+	fw_health->master_func_wait_dsecs =
+		le32toh(resp->master_func_wait_period);
+	fw_health->normal_func_wait_dsecs =
+		le32toh(resp->normal_func_wait_period);
+	fw_health->post_reset_wait_dsecs =
+		le32toh(resp->master_func_wait_period_after_reset);
+	fw_health->post_reset_max_wait_dsecs =
+		le32toh(resp->max_bailout_time_after_reset);
+	fw_health->regs[BNXT_FW_HEALTH_REG] =
+		le32toh(resp->fw_health_status_reg);
+	fw_health->regs[BNXT_FW_HEARTBEAT_REG] =
+		le32toh(resp->fw_heartbeat_reg);
+	fw_health->regs[BNXT_FW_RESET_CNT_REG] =
+		le32toh(resp->fw_reset_cnt_reg);
+	fw_health->regs[BNXT_FW_RESET_INPROG_REG] =
+		le32toh(resp->reset_inprogress_reg);
+	fw_health->fw_reset_inprog_reg_mask =
+		le32toh(resp->reset_inprogress_reg_mask);
+	fw_health->fw_reset_seq_cnt = resp->reg_array_cnt;
+	if (fw_health->fw_reset_seq_cnt >= 16) {
+		rc = -EINVAL;
+		goto err_recovery_out;
+	}
+	for (i = 0; i < fw_health->fw_reset_seq_cnt; i++) {
+		fw_health->fw_reset_seq_regs[i] =
+			le32toh(resp->reset_reg[i]);
+		fw_health->fw_reset_seq_vals[i] =
+			le32toh(resp->reset_reg_val[i]);
+		fw_health->fw_reset_seq_delay_msec[i] =
+			le32toh(resp->delay_after_reset[i]);
+	}
+err_recovery_out:
+	if (!rc)
+		rc = bnxt_map_fw_health_regs(bp);
+	if (rc)
+		bp->fw_cap &= ~BNXT_FW_CAP_ERROR_RECOVERY;
+	return rc;
+}
+
+static int bnxt_drv_rgtr(struct bnxt_softc *bp)
+{
+	int rc;
+
+	/* determine whether we can support error recovery before
+	 * registering with FW
+	 */
+	if (bnxt_alloc_fw_health(bp)) {
+		device_printf(bp->dev, "no memory for firmware error recovery\n");
+	} else {
+		rc = bnxt_hwrm_error_recovery_qcfg(bp);
+		if (rc)
+			device_printf(bp->dev, "hwrm query error recovery failure rc: %d\n",
+				    rc);
+	}
+	rc = bnxt_hwrm_func_drv_rgtr(bp, NULL, 0, false);  //sumit dbg: revisit the params
+	if (rc)
+		return -ENODEV;
+	return 0;
+}
+
+static bool bnxt_fw_reset_timeout(struct bnxt_softc *bp)
+{
+	return time_after(jiffies, bp->fw_reset_timestamp +
+			  (bp->fw_reset_max_dsecs * HZ / 10));
+}
+
+static int bnxt_open(struct bnxt_softc *bp)
+{
+	int rc = 0;
+	if (BNXT_PF(bp))
+		rc = bnxt_hwrm_nvm_get_dev_info(bp, &bp->nvm_info->mfg_id,
+			&bp->nvm_info->device_id, &bp->nvm_info->sector_size,
+			&bp->nvm_info->size, &bp->nvm_info->reserved_size,
+			&bp->nvm_info->available_size);
+
+	/* Get the queue config */
+	rc = bnxt_hwrm_queue_qportcfg(bp, HWRM_QUEUE_QPORTCFG_INPUT_FLAGS_PATH_TX);
+	if (rc) {
+		device_printf(bp->dev, "reinit: hwrm qportcfg (tx) failed\n");
+		return rc;
+	}
+	if (bp->is_asym_q) {
+		rc = bnxt_hwrm_queue_qportcfg(bp,
+					      HWRM_QUEUE_QPORTCFG_INPUT_FLAGS_PATH_RX);
+		if (rc) {
+			device_printf(bp->dev, "re-init: hwrm qportcfg (rx)  failed\n");
+			return rc;
+		}
+		bnxt_verify_asym_queues(bp);
+	} else {
+		bp->rx_max_q = bp->tx_max_q;
+		memcpy(bp->rx_q_info, bp->tx_q_info, sizeof(bp->rx_q_info));
+		memcpy(bp->rx_q_ids, bp->tx_q_ids, sizeof(bp->rx_q_ids));
+	}
+	/* Get the HW capabilities */
+	rc = bnxt_hwrm_func_qcaps(bp);
+	if (rc)
+		return rc;
+
+	/* Register the driver with the FW */
+	rc = bnxt_drv_rgtr(bp);
+	if (rc)
+		return rc;
+	if (bp->hwrm_spec_code >= 0x10803) {
+		rc = bnxt_alloc_ctx_mem(bp);
+		if (rc) {
+			device_printf(bp->dev, "attach: alloc_ctx_mem failed\n");
+			return rc;
+		}
+		rc = bnxt_hwrm_func_resc_qcaps(bp, true);
+		if (!rc)
+			bp->flags |= BNXT_FLAG_FW_CAP_NEW_RM;
+	}
+
+	if (BNXT_CHIP_P5(bp))
+		bnxt_hwrm_reserve_pf_rings(bp);
+	/* Get the current configuration of this function */
+	rc = bnxt_hwrm_func_qcfg(bp);
+	if (rc) {
+		device_printf(bp->dev, "re-init: hwrm func qcfg failed\n");
+		return rc;
+	}
+
+	bnxt_msix_intr_assign(bp->ctx, 0);
+	bnxt_init(bp->ctx);
+	bnxt_intr_enable(bp->ctx);
+
+	if (test_and_clear_bit(BNXT_STATE_FW_RESET_DET, &bp->state)) {
+		if (!test_bit(BNXT_STATE_IN_FW_RESET, &bp->state)) {
+			bnxt_ulp_start(bp, 0);
+		}
+	}
+
+	device_printf(bp->dev, "Network interface is UP and operational\n");
+
+	return rc;
+}
+static void bnxt_fw_reset_abort(struct bnxt_softc *bp, int rc)
+{
+	clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
+	if (bp->fw_reset_state != BNXT_FW_RESET_STATE_POLL_VF) {
+		bnxt_ulp_start(bp, rc);
+	}
+	bp->fw_reset_state = 0;
+}
+
+static void bnxt_fw_reset_task(struct work_struct *work)
+{
+	struct bnxt_softc *bp = container_of(work, struct bnxt_softc, fw_reset_task.work);
+	int rc = 0;
+
+	if (!test_bit(BNXT_STATE_IN_FW_RESET, &bp->state)) {
+		device_printf(bp->dev, "bnxt_fw_reset_task() called when not in fw reset mode!\n");
+		return;
+	}
+
+	switch (bp->fw_reset_state) {
+	case BNXT_FW_RESET_STATE_POLL_FW_DOWN: {
+		u32 val;
+
+		val = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
+		if (!(val & BNXT_FW_STATUS_SHUTDOWN) &&
+		    !bnxt_fw_reset_timeout(bp)) {
+			bnxt_queue_fw_reset_work(bp, HZ / 5);
+			return;
+		}
+
+		if (!bp->fw_health->primary) {
+			u32 wait_dsecs = bp->fw_health->normal_func_wait_dsecs;
+
+			bp->fw_reset_state = BNXT_FW_RESET_STATE_ENABLE_DEV;
+			bnxt_queue_fw_reset_work(bp, wait_dsecs * HZ / 10);
+			return;
+		}
+		bp->fw_reset_state = BNXT_FW_RESET_STATE_RESET_FW;
+	}
+		fallthrough;
+	case BNXT_FW_RESET_STATE_RESET_FW:
+		bnxt_reset_all(bp);
+		bp->fw_reset_state = BNXT_FW_RESET_STATE_ENABLE_DEV;
+		bnxt_queue_fw_reset_work(bp, bp->fw_reset_min_dsecs * HZ / 10);
+		return;
+	case BNXT_FW_RESET_STATE_ENABLE_DEV:
+		bnxt_inv_fw_health_reg(bp);
+		if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state) &&
+		    !bp->fw_reset_min_dsecs) {
+			u16 val;
+
+			val = pci_read_config(bp->dev, PCI_SUBSYSTEM_ID, 2);
+			if (val == 0xffff) {
+				if (bnxt_fw_reset_timeout(bp)) {
+					device_printf(bp->dev, "Firmware reset aborted, PCI config space invalid\n");
+					rc = -ETIMEDOUT;
+					goto fw_reset_abort;
+				}
+				bnxt_queue_fw_reset_work(bp, HZ / 1000);
+				return;
+			}
+		}
+		clear_bit(BNXT_STATE_FW_FATAL_COND, &bp->state);
+		clear_bit(BNXT_STATE_FW_NON_FATAL_COND, &bp->state);
+		if (!pci_is_enabled(bp->pdev)) {
+			if (pci_enable_device(bp->pdev)) {
+				device_printf(bp->dev, "Cannot re-enable PCI device\n");
+				rc = -ENODEV;
+				goto fw_reset_abort;
+			}
+		}
+		pci_set_master(bp->pdev);
+		bp->fw_reset_state = BNXT_FW_RESET_STATE_POLL_FW;
+		fallthrough;
+	case BNXT_FW_RESET_STATE_POLL_FW:
+		bp->hwrm_cmd_timeo = SHORT_HWRM_CMD_TIMEOUT;
+		rc = bnxt_hwrm_poll(bp);
+		if (rc) {
+			if (bnxt_fw_reset_timeout(bp)) {
+				device_printf(bp->dev, "Firmware reset aborted\n");
+				goto fw_reset_abort_status;
+			}
+			bnxt_queue_fw_reset_work(bp, HZ / 5);
+			return;
+		}
+		bp->hwrm_cmd_timeo = DFLT_HWRM_CMD_TIMEOUT;
+		bp->fw_reset_state = BNXT_FW_RESET_STATE_OPENING;
+		fallthrough;
+	case BNXT_FW_RESET_STATE_OPENING:
+		rc = bnxt_open(bp);
+		if (rc) {
+			device_printf(bp->dev, "bnxt_open() failed during FW reset\n");
+			bnxt_fw_reset_abort(bp, rc);
+			rtnl_unlock();
+			return;
+		}
+
+		if ((bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY) &&
+		    bp->fw_health->enabled) {
+			bp->fw_health->last_fw_reset_cnt =
+				bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
+		}
+		bp->fw_reset_state = 0;
+		smp_mb__before_atomic();
+		clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
+		bnxt_ulp_start(bp, 0);
+		clear_bit(BNXT_STATE_FW_ACTIVATE, &bp->state);
+		set_bit(BNXT_STATE_OPEN, &bp->state);
+		rtnl_unlock();
+	}
+	return;
+
+fw_reset_abort_status:
+	if (bp->fw_health->status_reliable ||
+	    (bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY)) {
+		u32 sts = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
+
+		device_printf(bp->dev, "fw_health_status 0x%x\n", sts);
+	}
+fw_reset_abort:
+	rtnl_lock();
+	bnxt_fw_reset_abort(bp, rc);
+	rtnl_unlock();
+}
+
+static void bnxt_force_fw_reset(struct bnxt_softc *bp)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	u32 wait_dsecs;
+
+	if (!test_bit(BNXT_STATE_OPEN, &bp->state) ||
+	    test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
+		return;
+	bnxt_fw_reset_close(bp);
+	wait_dsecs = fw_health->master_func_wait_dsecs;
+	if (fw_health->primary) {
+		if (fw_health->flags & HWRM_ERROR_RECOVERY_QCFG_OUTPUT_FLAGS_CO_CPU)
+			wait_dsecs = 0;
+		bp->fw_reset_state = BNXT_FW_RESET_STATE_RESET_FW;
+	} else {
+		bp->fw_reset_timestamp = jiffies + wait_dsecs * HZ / 10;
+		wait_dsecs = fw_health->normal_func_wait_dsecs;
+		bp->fw_reset_state = BNXT_FW_RESET_STATE_ENABLE_DEV;
+	}
+
+	bp->fw_reset_min_dsecs = fw_health->post_reset_wait_dsecs;
+	bp->fw_reset_max_dsecs = fw_health->post_reset_max_wait_dsecs;
+	bnxt_queue_fw_reset_work(bp, wait_dsecs * HZ / 10);
+}
+
+static void bnxt_fw_exception(struct bnxt_softc *bp)
+{
+	device_printf(bp->dev, "Detected firmware fatal condition, initiating reset\n");
+	set_bit(BNXT_STATE_FW_FATAL_COND, &bp->state);
+	bnxt_rtnl_lock_sp(bp);
+	bnxt_force_fw_reset(bp);
+	bnxt_rtnl_unlock_sp(bp);
+}
+
+static void __bnxt_fw_recover(struct bnxt_softc *bp)
+{
+	if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state) ||
+	    test_bit(BNXT_STATE_FW_NON_FATAL_COND, &bp->state))
+		bnxt_fw_reset(bp);
+	else
+		bnxt_fw_exception(bp);
+}
+
+static void bnxt_devlink_health_fw_report(struct bnxt_softc *bp)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+
+	if (!fw_health)
+		return;
+
+	if (!fw_health->fw_reporter) {
+		__bnxt_fw_recover(bp);
+		return;
+	}
+}
+
+static void bnxt_sp_task(struct work_struct *work)
+{
+	struct bnxt_softc *bp = container_of(work, struct bnxt_softc, sp_task);
+
+	set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
+	smp_mb__after_atomic();
+	if (!test_bit(BNXT_STATE_OPEN, &bp->state)) {
+		clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
+		return;
+	}
+
+	if (test_and_clear_bit(BNXT_FW_RESET_NOTIFY_SP_EVENT, &bp->sp_event)) {
+		if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state) ||
+		    test_bit(BNXT_STATE_FW_NON_FATAL_COND, &bp->state))
+			bnxt_devlink_health_fw_report(bp);
+		else
+			bnxt_fw_reset(bp);
+	}
+
+	if (test_and_clear_bit(BNXT_FW_EXCEPTION_SP_EVENT, &bp->sp_event)) {
+		if (!is_bnxt_fw_ok(bp))
+			bnxt_devlink_health_fw_report(bp);
+	}
+	smp_mb__before_atomic();
+	clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
+}
+
 /* Device setup and teardown */
 static int
 bnxt_attach_pre(if_ctx_t ctx)
@@ -1476,6 +2185,16 @@ bnxt_attach_pre(if_ctx_t ctx)
 
 	/* Get NVRAM info */
 	if (BNXT_PF(softc)) {
+		if (!bnxt_pf_wq) {
+			bnxt_pf_wq =
+				create_singlethread_workqueue("bnxt_pf_wq");
+			if (!bnxt_pf_wq) {
+				device_printf(softc->dev, "Unable to create workqueue.\n");
+				rc = -ENOMEM;
+				goto nvm_alloc_fail;
+			}
+		}
+
 		softc->nvm_info = malloc(sizeof(struct bnxt_nvram_info),
 		    M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (softc->nvm_info == NULL) {
@@ -1504,18 +2223,6 @@ bnxt_attach_pre(if_ctx_t ctx)
 		softc->db_ops.bnxt_db_tx_cq = bnxt_cuw_db_cq;
 	}
 
-	/* Register the driver with the FW */
-	rc = bnxt_hwrm_func_drv_rgtr(softc);
-	if (rc) {
-		device_printf(softc->dev, "attach: hwrm drv rgtr failed\n");
-		goto drv_rgtr_fail;
-	}
-
-        rc = bnxt_hwrm_func_rgtr_async_events(softc, NULL, 0);
-	if (rc) {
-		device_printf(softc->dev, "attach: hwrm rgtr async evts failed\n");
-		goto drv_rgtr_fail;
-	}
 
 	/* Get the queue config */
 	rc = bnxt_hwrm_queue_qportcfg(softc, HWRM_QUEUE_QPORTCFG_INPUT_FLAGS_PATH_TX);
@@ -1539,6 +2246,14 @@ bnxt_attach_pre(if_ctx_t ctx)
 
 	/* Get the HW capabilities */
 	rc = bnxt_hwrm_func_qcaps(softc);
+	if (rc)
+		goto failed;
+
+	/*
+	 * Register the driver with the FW
+	 * Register the async events with the FW
+	 */
+	rc = bnxt_drv_rgtr(softc);
 	if (rc)
 		goto failed;
 
@@ -1702,6 +2417,10 @@ bnxt_attach_pre(if_ctx_t ctx)
 	if (rc)
 		goto failed;
 
+	set_bit(BNXT_STATE_OPEN, &softc->state);
+	INIT_WORK(&softc->sp_task, bnxt_sp_task);
+	INIT_DELAYED_WORK(&softc->fw_reset_task, bnxt_fw_reset_task);
+
 	/* Initialize the vlan list */
 	SLIST_INIT(&softc->vnic_info.vlan_tags);
 	softc->vnic_info.vlan_tag_list.idi_vaddr = NULL;
@@ -1714,7 +2433,6 @@ failed:
 	bnxt_free_sysctl_ctx(softc);
 init_sysctl_failed:
 	bnxt_hwrm_func_drv_unrgtr(softc, false);
-drv_rgtr_fail:
 	if (BNXT_PF(softc))
 		free(softc->nvm_info, M_DEVBUF);
 nvm_alloc_fail:
@@ -1779,6 +2497,8 @@ bnxt_detach(if_ctx_t ctx)
 	int i;
 
 	bnxt_rdma_aux_device_uninit(softc);
+	cancel_delayed_work_sync(&softc->fw_reset_task);
+	cancel_work_sync(&softc->sp_task);
 	bnxt_dcb_free(softc);
 	SLIST_REMOVE(&pf_list, &softc->list, bnxt_softc_list, next);
 	bnxt_num_pfs--;
@@ -1816,6 +2536,9 @@ bnxt_detach(if_ctx_t ctx)
 	bnxt_free_hwrm_dma_mem(softc);
 	bnxt_free_hwrm_short_cmd_req(softc);
 	BNXT_HWRM_LOCK_DESTROY(softc);
+
+	if (!bnxt_num_pfs && bnxt_pf_wq)
+		destroy_workqueue(bnxt_pf_wq);
 
 	if (softc->pdev)
 		linux_pci_detach_device(softc->pdev);
@@ -2036,7 +2759,6 @@ static void bnxt_rdma_aux_device_init(struct bnxt_softc *softc)
 		device_printf(softc->dev, "Failed to add auxiliary device for ROCE\n");
 		msleep(1000 * 2);
 		ida_free(&bnxt_aux_dev_ids, softc->aux_dev->id);
-		bnxt_aux_dev_free(softc);
 	}
 	device_printf(softc->dev, "%s:%d Added auxiliary device (id %d) for ROCE \n",
 		      __func__, __LINE__, softc->aux_dev->id);
@@ -2638,7 +3360,7 @@ bnxt_process_async_msg(struct bnxt_cp_ring *cpr, tx_cmpl_t *cmpl)
 	}
 }
 
-static void
+void
 process_nq(struct bnxt_softc *softc, uint16_t nqid)
 {
 	struct bnxt_cp_ring *cpr = &softc->nq_rings[nqid];
@@ -3760,6 +4482,9 @@ bnxt_handle_async_event(struct bnxt_softc *softc, struct cmpl_base *cmpl)
 	struct hwrm_async_event_cmpl *ae = (void *)cmpl;
 	uint16_t async_id = le16toh(ae->event_id);
 	struct ifmediareq ifmr;
+	char *type_str;
+	char *status_desc;
+	struct bnxt_fw_health *fw_health;
 	u32 data1 = le32toh(ae->event_data1);
 	u32 data2 = le32toh(ae->event_data2);
 
@@ -3779,6 +4504,79 @@ bnxt_handle_async_event(struct bnxt_softc *softc, struct cmpl_base *cmpl)
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_DOORBELL_PACING_THRESHOLD:
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_DOORBELL_PACING_NQ_UPDATE:
 		break;
+	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY: {
+		type_str = "Solicited";
+
+		if (!softc->fw_health)
+			goto async_event_process_exit;
+
+		softc->fw_reset_timestamp = jiffies;
+		softc->fw_reset_min_dsecs = ae->timestamp_lo;
+		if (!softc->fw_reset_min_dsecs)
+			softc->fw_reset_min_dsecs = BNXT_DFLT_FW_RST_MIN_DSECS;
+		softc->fw_reset_max_dsecs = le16toh(ae->timestamp_hi);
+		if (!softc->fw_reset_max_dsecs)
+			softc->fw_reset_max_dsecs = BNXT_DFLT_FW_RST_MAX_DSECS;
+		if (EVENT_DATA1_RESET_NOTIFY_FW_ACTIVATION(data1)) {
+			set_bit(BNXT_STATE_FW_ACTIVATE_RESET, &softc->state);
+		} else if (EVENT_DATA1_RESET_NOTIFY_FATAL(data1)) {
+			type_str = "Fatal";
+			softc->fw_health->fatalities++;
+			set_bit(BNXT_STATE_FW_FATAL_COND, &softc->state);
+		} else if (data2 && BNXT_FW_STATUS_HEALTHY !=
+			   EVENT_DATA2_RESET_NOTIFY_FW_STATUS_CODE(data2)) {
+			type_str = "Non-fatal";
+			softc->fw_health->survivals++;
+			set_bit(BNXT_STATE_FW_NON_FATAL_COND, &softc->state);
+		}
+		device_printf(softc->dev,
+			   "%s firmware reset event, data1: 0x%x, data2: 0x%x, min wait %u ms, max wait %u ms\n",
+			   type_str, data1, data2,
+			   softc->fw_reset_min_dsecs * 100,
+			   softc->fw_reset_max_dsecs * 100);
+		set_bit(BNXT_FW_RESET_NOTIFY_SP_EVENT, &softc->sp_event);
+		break;
+	}
+	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY: {
+		fw_health = softc->fw_health;
+		status_desc = "healthy";
+		u32 status;
+
+		if (!fw_health)
+			goto async_event_process_exit;
+
+		if (!EVENT_DATA1_RECOVERY_ENABLED(data1)) {
+			fw_health->enabled = false;
+			device_printf(softc->dev, "Driver recovery watchdog is disabled\n");
+			break;
+		}
+		fw_health->primary = EVENT_DATA1_RECOVERY_MASTER_FUNC(data1);
+		fw_health->tmr_multiplier =
+			DIV_ROUND_UP(fw_health->polling_dsecs * HZ,
+				     HZ * 10);
+		fw_health->tmr_counter = fw_health->tmr_multiplier;
+		if (!fw_health->enabled)
+			fw_health->last_fw_heartbeat =
+				bnxt_fw_health_readl(softc, BNXT_FW_HEARTBEAT_REG);
+		fw_health->last_fw_reset_cnt =
+			bnxt_fw_health_readl(softc, BNXT_FW_RESET_CNT_REG);
+		status = bnxt_fw_health_readl(softc, BNXT_FW_HEALTH_REG);
+		if (status != BNXT_FW_STATUS_HEALTHY)
+			status_desc = "unhealthy";
+		device_printf(softc->dev,
+			   "Driver recovery watchdog, role: %s, firmware status: 0x%x (%s), resets: %u\n",
+			   fw_health->primary ? "primary" : "backup", status,
+			   status_desc, fw_health->last_fw_reset_cnt);
+		if (!fw_health->enabled) {
+			/* Make sure tmr_counter is set and seen by
+			 * bnxt_health_check() before setting enabled
+			 */
+			smp_mb();
+			fw_health->enabled = true;
+		}
+		goto async_event_process_exit;
+	}
+
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_MTU_CHANGE:
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_DCB_CONFIG_CHANGE:
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED:
@@ -3800,6 +4598,8 @@ bnxt_handle_async_event(struct bnxt_softc *softc, struct cmpl_base *cmpl)
 		    "Unknown async completion type %u\n", async_id);
 		break;
 	}
+	bnxt_queue_sp_work(softc);
+
 async_event_process_exit:
 	bnxt_ulp_async_events(softc, ae);
 }
