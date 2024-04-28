@@ -332,6 +332,8 @@ chn_sleep(struct pcm_channel *c, int timeout)
 	int ret;
 
 	CHN_LOCKASSERT(c);
+	KASSERT((c->flags & CHN_F_SLEEPING) == 0,
+	    ("%s(): entered with CHN_F_SLEEPING", __func__));
 
 	if (c->flags & CHN_F_DEAD)
 		return (EINVAL);
