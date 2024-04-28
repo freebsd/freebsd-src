@@ -144,6 +144,23 @@
 #define BNXT_EVENT_THERMAL_CURRENT_TEMP(data2)				\
 	((data2) & HWRM_ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA2_CURRENT_TEMP_MASK)
 
+#define EVENT_DATA1_RESET_NOTIFY_FW_ACTIVATION(data1)                   \
+	(((data1) &                                                     \
+	  HWRM_ASYNC_EVENT_CMPL_RESET_NOTIFY_EVENT_DATA1_REASON_CODE_MASK) ==\
+	HWRM_ASYNC_EVENT_CMPL_RESET_NOTIFY_EVENT_DATA1_REASON_CODE_FW_ACTIVATION)
+
+#define EVENT_DATA2_RESET_NOTIFY_FW_STATUS_CODE(data2)                  \
+	((data2) &                                                      \
+	HWRM_ASYNC_EVENT_CMPL_RESET_NOTIFY_EVENT_DATA2_FW_STATUS_CODE_MASK)
+
+#define EVENT_DATA1_RECOVERY_ENABLED(data1)				\
+	!!((data1) &							\
+	   HWRM_ASYNC_EVENT_CMPL_ERROR_RECOVERY_EVENT_DATA1_FLAGS_RECOVERY_ENABLED)
+
+#define EVENT_DATA1_RECOVERY_MASTER_FUNC(data1)				\
+	!!((data1) &							\
+	   HWRM_ASYNC_EVENT_CMPL_ERROR_RECOVERY_EVENT_DATA1_FLAGS_MASTER_FUNC)
+
 #define INVALID_STATS_CTX_ID     -1
 
 /* Maximum numbers of RX and TX descriptors. iflib requires this to be a power
@@ -834,6 +851,124 @@ struct bnxt_msix_tbl {
 	uint32_t vector;
 };
 
+enum bnxt_health_severity {
+	SEVERITY_NORMAL = 0,
+	SEVERITY_WARNING,
+	SEVERITY_RECOVERABLE,
+	SEVERITY_FATAL,
+};
+
+enum bnxt_health_remedy {
+	REMEDY_DEVLINK_RECOVER,
+	REMEDY_POWER_CYCLE_DEVICE,
+	REMEDY_POWER_CYCLE_HOST,
+	REMEDY_FW_UPDATE,
+	REMEDY_HW_REPLACE,
+};
+
+struct bnxt_fw_health {
+	u32 flags;
+	u32 polling_dsecs;
+	u32 master_func_wait_dsecs;
+	u32 normal_func_wait_dsecs;
+	u32 post_reset_wait_dsecs;
+	u32 post_reset_max_wait_dsecs;
+	u32 regs[4];
+	u32 mapped_regs[4];
+#define BNXT_FW_HEALTH_REG		0
+#define BNXT_FW_HEARTBEAT_REG		1
+#define BNXT_FW_RESET_CNT_REG		2
+#define BNXT_FW_RESET_INPROG_REG	3
+	u32 fw_reset_inprog_reg_mask;
+	u32 last_fw_heartbeat;
+	u32 last_fw_reset_cnt;
+	u8 enabled:1;
+	u8 primary:1;
+	u8 status_reliable:1;
+	u8 resets_reliable:1;
+	u8 tmr_multiplier;
+	u8 tmr_counter;
+	u8 fw_reset_seq_cnt;
+	u32 fw_reset_seq_regs[16];
+	u32 fw_reset_seq_vals[16];
+	u32 fw_reset_seq_delay_msec[16];
+	u32 echo_req_data1;
+	u32 echo_req_data2;
+	struct devlink_health_reporter	*fw_reporter;
+	struct mutex lock;
+	enum bnxt_health_severity severity;
+	enum bnxt_health_remedy remedy;
+	u32 arrests;
+	u32 discoveries;
+	u32 survivals;
+	u32 fatalities;
+	u32 diagnoses;
+};
+
+#define BNXT_FW_HEALTH_REG_TYPE_MASK	3
+#define BNXT_FW_HEALTH_REG_TYPE_CFG	0
+#define BNXT_FW_HEALTH_REG_TYPE_GRC	1
+#define BNXT_FW_HEALTH_REG_TYPE_BAR0	2
+#define BNXT_FW_HEALTH_REG_TYPE_BAR1	3
+
+#define BNXT_FW_HEALTH_REG_TYPE(reg)	((reg) & BNXT_FW_HEALTH_REG_TYPE_MASK)
+#define BNXT_FW_HEALTH_REG_OFF(reg)	((reg) & ~BNXT_FW_HEALTH_REG_TYPE_MASK)
+
+#define BNXT_FW_HEALTH_WIN_BASE		0x3000
+#define BNXT_FW_HEALTH_WIN_MAP_OFF	8
+
+#define BNXT_FW_HEALTH_WIN_OFF(reg)	(BNXT_FW_HEALTH_WIN_BASE +	\
+					 ((reg) & BNXT_GRC_OFFSET_MASK))
+
+#define BNXT_FW_STATUS_HEALTH_MSK	0xffff
+#define BNXT_FW_STATUS_HEALTHY		0x8000
+#define BNXT_FW_STATUS_SHUTDOWN		0x100000
+#define BNXT_FW_STATUS_RECOVERING	0x400000
+
+#define BNXT_FW_IS_HEALTHY(sts)		(((sts) & BNXT_FW_STATUS_HEALTH_MSK) ==\
+					 BNXT_FW_STATUS_HEALTHY)
+
+#define BNXT_FW_IS_BOOTING(sts)		(((sts) & BNXT_FW_STATUS_HEALTH_MSK) < \
+					 BNXT_FW_STATUS_HEALTHY)
+
+#define BNXT_FW_IS_ERR(sts)		(((sts) & BNXT_FW_STATUS_HEALTH_MSK) > \
+					 BNXT_FW_STATUS_HEALTHY)
+
+#define BNXT_FW_IS_RECOVERING(sts)	(BNXT_FW_IS_ERR(sts) &&		       \
+					 ((sts) & BNXT_FW_STATUS_RECOVERING))
+
+#define BNXT_FW_RETRY			5
+#define BNXT_FW_IF_RETRY		10
+#define BNXT_FW_SLOT_RESET_RETRY	4
+
+#define BNXT_GRCPF_REG_CHIMP_COMM		0x0
+#define BNXT_GRCPF_REG_CHIMP_COMM_TRIGGER	0x100
+#define BNXT_GRCPF_REG_WINDOW_BASE_OUT		0x400
+#define BNXT_GRCPF_REG_SYNC_TIME		0x480
+#define BNXT_GRCPF_REG_SYNC_TIME_ADJ		0x488
+#define BNXT_GRCPF_REG_SYNC_TIME_ADJ_PER_MSK	0xffffffUL
+#define BNXT_GRCPF_REG_SYNC_TIME_ADJ_PER_SFT	0
+#define BNXT_GRCPF_REG_SYNC_TIME_ADJ_VAL_MSK	0x1f000000UL
+#define BNXT_GRCPF_REG_SYNC_TIME_ADJ_VAL_SFT	24
+#define BNXT_GRCPF_REG_SYNC_TIME_ADJ_SIGN_MSK	0x20000000UL
+#define BNXT_GRCPF_REG_SYNC_TIME_ADJ_SIGN_SFT	29
+
+#define BNXT_GRC_REG_STATUS_P5			0x520
+
+#define BNXT_GRCPF_REG_KONG_COMM		0xA00
+#define BNXT_GRCPF_REG_KONG_COMM_TRIGGER	0xB00
+
+#define BNXT_CAG_REG_LEGACY_INT_STATUS		0x4014
+#define BNXT_CAG_REG_BASE			0x300000
+
+#define BNXT_GRC_REG_CHIP_NUM			0x48
+#define BNXT_GRC_REG_BASE			0x260000
+
+#define BNXT_TS_REG_TIMESYNC_TS0_LOWER		0x640180c
+#define BNXT_TS_REG_TIMESYNC_TS0_UPPER		0x6401810
+
+#define BNXT_GRC_BASE_MASK			0xfffff000
+#define BNXT_GRC_OFFSET_MASK			0x00000ffc
 struct bnxt_softc {
 	device_t	dev;
 	if_ctx_t	ctx;
@@ -1080,7 +1215,49 @@ struct bnxt_softc {
 	test_bit(BNXT_STATE_FW_FATAL_COND, &(bp)->state)
 	struct pci_dev			*pdev;
 
-	int 			fw_reset_state;
+	struct work_struct	sp_task;
+	unsigned long		sp_event;
+#define BNXT_RX_MASK_SP_EVENT		0
+#define BNXT_RX_NTP_FLTR_SP_EVENT	1
+#define BNXT_LINK_CHNG_SP_EVENT		2
+#define BNXT_HWRM_EXEC_FWD_REQ_SP_EVENT	3
+#define BNXT_VXLAN_ADD_PORT_SP_EVENT	4
+#define BNXT_VXLAN_DEL_PORT_SP_EVENT	5
+#define BNXT_RESET_TASK_SP_EVENT	6
+#define BNXT_RST_RING_SP_EVENT		7
+#define BNXT_HWRM_PF_UNLOAD_SP_EVENT	8
+#define BNXT_PERIODIC_STATS_SP_EVENT	9
+#define BNXT_HWRM_PORT_MODULE_SP_EVENT	10
+#define BNXT_RESET_TASK_SILENT_SP_EVENT	11
+#define BNXT_GENEVE_ADD_PORT_SP_EVENT	12
+#define BNXT_GENEVE_DEL_PORT_SP_EVENT	13
+#define BNXT_LINK_SPEED_CHNG_SP_EVENT	14
+#define BNXT_FLOW_STATS_SP_EVENT	15
+#define BNXT_UPDATE_PHY_SP_EVENT	16
+#define BNXT_RING_COAL_NOW_SP_EVENT	17
+#define BNXT_FW_RESET_NOTIFY_SP_EVENT	18
+#define BNXT_FW_EXCEPTION_SP_EVENT	19
+#define BNXT_VF_VNIC_CHANGE_SP_EVENT	20
+#define BNXT_LINK_CFG_CHANGE_SP_EVENT	21
+#define BNXT_PTP_CURRENT_TIME_EVENT	22
+#define BNXT_FW_ECHO_REQUEST_SP_EVENT	23
+#define BNXT_VF_CFG_CHNG_SP_EVENT	24
+
+	struct delayed_work	fw_reset_task;
+	int			fw_reset_state;
+#define BNXT_FW_RESET_STATE_POLL_VF	1
+#define BNXT_FW_RESET_STATE_RESET_FW	2
+#define BNXT_FW_RESET_STATE_ENABLE_DEV	3
+#define BNXT_FW_RESET_STATE_POLL_FW	4
+#define BNXT_FW_RESET_STATE_OPENING	5
+#define BNXT_FW_RESET_STATE_POLL_FW_DOWN	6
+	u16			fw_reset_min_dsecs;
+#define BNXT_DFLT_FW_RST_MIN_DSECS	20
+	u16			fw_reset_max_dsecs;
+#define BNXT_DFLT_FW_RST_MAX_DSECS	60
+	unsigned long		fw_reset_timestamp;
+
+	struct bnxt_fw_health	*fw_health;
 };
 
 struct bnxt_filter_info {

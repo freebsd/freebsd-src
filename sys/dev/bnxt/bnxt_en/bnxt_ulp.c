@@ -49,6 +49,8 @@
 #include "bnxt_hwrm.h"
 #include "bnxt_ulp.h"
 
+void bnxt_destroy_irq(struct bnxt_softc *softc);
+
 static int bnxt_register_dev(struct bnxt_en_dev *edev, int ulp_id,
 			     struct bnxt_ulp_ops *ulp_ops, void *handle)
 {
@@ -379,12 +381,12 @@ static int bnxt_register_async_events(struct bnxt_en_dev *edev, int ulp_id,
 	ulp->async_events_bmap = events_bmap;
 	wmb();
 	ulp->max_async_event_id = max_id;
-	bnxt_hwrm_func_drv_rgtr(bp);
+	bnxt_hwrm_func_drv_rgtr(bp, events_bmap, max_id + 1, true);
 	mtx_unlock(&bp->en_ops_lock);
 	return 0;
 }
 
-static void bnxt_destroy_irq(struct bnxt_softc *softc)
+void bnxt_destroy_irq(struct bnxt_softc *softc)
 {
 	kfree(softc->irq_tbl);
 }

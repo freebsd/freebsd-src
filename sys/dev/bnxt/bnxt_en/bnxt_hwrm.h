@@ -32,10 +32,11 @@
 
 #define BNXT_PAUSE_TX 	 (HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_TX)
 #define BNXT_PAUSE_RX 	 (HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX)
-#define BNXT_AUTO_PAUSE_AUTONEG_PAUSE  				\
-        (HWRM_PORT_PHY_QCFG_OUTPUT_AUTO_PAUSE_AUTONEG_PAUSE)
+#define BNXT_AUTO_PAUSE_AUTONEG_PAUSE				\
+	(HWRM_PORT_PHY_QCFG_OUTPUT_AUTO_PAUSE_AUTONEG_PAUSE)
 #define BNXT_HWRM_SHORT_REQ_LEN	sizeof(struct hwrm_short_input)
 #define BNXT_BACKING_STORE_CFG_LEGACY_LEN       256
+#define SHORT_HWRM_CMD_TIMEOUT			500
 
 /* HWRM Function Prototypes */
 int
@@ -48,7 +49,8 @@ int bnxt_hwrm_ring_free(struct bnxt_softc *softc, uint32_t type,
 		struct bnxt_ring *ring, int cmpl_ring_id);
 int bnxt_hwrm_ver_get(struct bnxt_softc *softc);
 int bnxt_hwrm_queue_qportcfg(struct bnxt_softc *softc, uint32_t path_dir);
-int bnxt_hwrm_func_drv_rgtr(struct bnxt_softc *softc);
+int bnxt_hwrm_func_drv_rgtr(struct bnxt_softc *bp, unsigned long *bmap, int bmap_size,
+			    bool async_only);
 int bnxt_hwrm_func_drv_unrgtr(struct bnxt_softc *softc, bool shutdown);
 int bnxt_hwrm_func_qcaps(struct bnxt_softc *softc);
 int bnxt_hwrm_func_qcfg(struct bnxt_softc *softc);
