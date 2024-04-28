@@ -306,32 +306,6 @@ vchan_alloc:
 	return (err);
 }
 
-/* release a locked channel and unlock it */
-int
-pcm_chnrelease(struct pcm_channel *c)
-{
-	PCM_BUSYASSERT(c->parentsnddev);
-	CHN_LOCKASSERT(c);
-
-	c->flags &= ~CHN_F_BUSY;
-	c->pid = -1;
-	strlcpy(c->comm, CHN_COMM_UNUSED, sizeof(c->comm));
-	CHN_UNLOCK(c);
-
-	return (0);
-}
-
-int
-pcm_chnref(struct pcm_channel *c, int ref)
-{
-	PCM_BUSYASSERT(c->parentsnddev);
-	CHN_LOCKASSERT(c);
-
-	c->refcount += ref;
-
-	return (c->refcount);
-}
-
 static void
 pcm_setmaxautovchans(struct snddev_info *d, int num)
 {
