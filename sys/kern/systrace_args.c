@@ -3458,12 +3458,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* osdb_prepare_v2 */
 	case 589: {
 		struct osdb_prepare_v2_args *p = params;
-		uarg[a++] = (intptr_t)p->db; /* void * */
 		uarg[a++] = (intptr_t)p->zSql; /* const char * */
 		iarg[a++] = p->nBytes; /* int */
 		uarg[a++] = (intptr_t)p->ppStmt; /* void * */
 		uarg[a++] = (intptr_t)p->pzTail; /* void * */
-		*n_args = 5;
+		*n_args = 4;
 		break;
 	}
 	/* osdb_step */
@@ -9370,18 +9369,15 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 589:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
-			break;
-		case 1:
 			p = "userland const char *";
 			break;
-		case 2:
+		case 1:
 			p = "int";
 			break;
-		case 3:
+		case 2:
 			p = "userland void *";
 			break;
-		case 4:
+		case 3:
 			p = "userland void *";
 			break;
 		default:

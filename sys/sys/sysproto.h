@@ -1878,7 +1878,6 @@ struct osdb_exec_args {
 	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
 };
 struct osdb_prepare_v2_args {
-	char db_l_[PADL_(void *)]; void * db; char db_r_[PADR_(void *)];
 	char zSql_l_[PADL_(const char *)]; const char * zSql; char zSql_r_[PADR_(const char *)];
 	char nBytes_l_[PADL_(int)]; int nBytes; char nBytes_r_[PADR_(int)];
 	char ppStmt_l_[PADL_(void *)]; void * ppStmt; char ppStmt_r_[PADR_(void *)];

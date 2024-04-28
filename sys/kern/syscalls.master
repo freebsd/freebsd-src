@@ -3342,7 +3342,6 @@
 	}
 589 AUE_NULL STD {
 		int osdb_prepare_v2(
-			_In_ void *db,
 			_In_reads_z(nBytes) const char *zSql,
 			int nBytes,
 			_Out_ void *ppStmt,
