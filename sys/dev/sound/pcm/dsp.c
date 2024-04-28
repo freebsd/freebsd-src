@@ -181,8 +181,8 @@ getchns(struct dsp_cdevpriv *priv, uint32_t prio)
 		pcm_setflags(d->dev, flags);
 		if (ch != NULL) {
 			CHN_LOCK(ch);
-			pcm_chnref(ch, -1);
-			pcm_chnrelease(ch);
+			chn_ref(ch, -1);
+			chn_release(ch);
 		}
 		PCM_RELEASE(d);
 		PCM_UNLOCK(d);
@@ -301,7 +301,7 @@ dsp_close(void *data)
 			wdref--;
 		else {
 			CHN_LOCK(volch);
-			pcm_chnref(volch, -1);
+			chn_ref(volch, -1);
 			CHN_UNLOCK(volch);
 		}
 	}
@@ -332,12 +332,12 @@ dsp_close(void *data)
 				free_unr(pcmsg_unrhdr, sg_ids);
 
 			CHN_LOCK(rdch);
-			pcm_chnref(rdch, rdref);
+			chn_ref(rdch, rdref);
 			chn_abort(rdch); /* won't sleep */
 			rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
 			    CHN_F_DEAD | CHN_F_EXCLUSIVE);
 			chn_reset(rdch, 0, 0);
-			pcm_chnrelease(rdch);
+			chn_release(rdch);
 		}
 		if (wrch != NULL) {
 			/*
@@ -350,12 +350,12 @@ dsp_close(void *data)
 				free_unr(pcmsg_unrhdr, sg_ids);
 
 			CHN_LOCK(wrch);
-			pcm_chnref(wrch, wdref);
+			chn_ref(wrch, wdref);
 			chn_flush(wrch); /* may sleep */
 			wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
 			    CHN_F_DEAD | CHN_F_EXCLUSIVE);
 			chn_reset(wrch, 0, 0);
-			pcm_chnrelease(wrch);
+			chn_release(wrch);
 		}
 		PCM_LOCK(d);
 	}
@@ -451,7 +451,7 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 		if (rderror != 0) {
 			if (rdch != NULL)
-				pcm_chnrelease(rdch);
+				chn_release(rdch);
 			if (!DSP_F_DUPLEX(flags)) {
 				PCM_RELEASE_QUICK(d);
 				PCM_GIANT_EXIT(d);
@@ -463,7 +463,7 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 				rdch->flags |= CHN_F_NBIO;
 			if (flags & O_EXCL)
 				rdch->flags |= CHN_F_EXCLUSIVE;
-			pcm_chnref(rdch, 1);
+			chn_ref(rdch, 1);
 			chn_vpc_reset(rdch, SND_VOL_C_PCM, 0);
 		 	CHN_UNLOCK(rdch);
 		}
@@ -479,7 +479,7 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 		if (wrerror != 0) {
 			if (wrch != NULL)
-				pcm_chnrelease(wrch);
+				chn_release(wrch);
 			if (!DSP_F_DUPLEX(flags)) {
 				if (rdch != NULL) {
 					/*
@@ -487,8 +487,8 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 					 * created record channel
 					 */
 					CHN_LOCK(rdch);
-					pcm_chnref(rdch, -1);
-					pcm_chnrelease(rdch);
+					chn_ref(rdch, -1);
+					chn_release(rdch);
 				}
 				PCM_RELEASE_QUICK(d);
 				PCM_GIANT_EXIT(d);
@@ -500,7 +500,7 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 				wrch->flags |= CHN_F_NBIO;
 			if (flags & O_EXCL)
 				wrch->flags |= CHN_F_EXCLUSIVE;
-			pcm_chnref(wrch, 1);
+			chn_ref(wrch, 1);
 			chn_vpc_reset(wrch, SND_VOL_C_PCM, 0);
 			CHN_UNLOCK(wrch);
 		}

@@ -1314,6 +1314,34 @@ chn_shutdown(struct pcm_channel *c)
 	c->flags |= CHN_F_DEAD;
 }
 
+/* release a locked channel and unlock it */
+int
+chn_release(struct pcm_channel *c)
+{
+	PCM_BUSYASSERT(c->parentsnddev);
+	CHN_LOCKASSERT(c);
+
+	c->flags &= ~CHN_F_BUSY;
+	c->pid = -1;
+	strlcpy(c->comm, CHN_COMM_UNUSED, sizeof(c->comm));
+	CHN_UNLOCK(c);
+
+	return (0);
+}
+
+int
+chn_ref(struct pcm_channel *c, int ref)
+{
+	PCM_BUSYASSERT(c->parentsnddev);
+	CHN_LOCKASSERT(c);
+	KASSERT((c->refcount + ref) >= 0,
+	    ("%s(): new refcount will be negative", __func__));
+
+	c->refcount += ref;
+
+	return (c->refcount);
+}
+
 int
 chn_setvolume_multi(struct pcm_channel *c, int vc, int left, int right,
     int center)
