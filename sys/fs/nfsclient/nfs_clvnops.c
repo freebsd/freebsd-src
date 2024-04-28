@@ -961,10 +961,6 @@ nfs_close(struct vop_close_args *ap)
 			error = nfscl_maperr(ap->a_td, error, (uid_t)0,
 			    (gid_t)0);
 	}
-	if (newnfs_directio_enable)
-		KASSERT((np->n_directio_asyncwr == 0),
-			("nfs_close: dirty unflushed (%d) directio buffers\n",
-			 np->n_directio_asyncwr));
 	if (newnfs_directio_enable && (fmode & O_DIRECT) && (vp->v_type == VREG)) {
 		NFSLOCKNODE(np);
 		KASSERT((np->n_directio_opens > 0), 
@@ -3188,21 +3184,6 @@ loop:
 		 * Wait for all the async IO requests to drain
 		 */
 		BO_UNLOCK(bo);
-		NFSLOCKNODE(np);
-		while (np->n_directio_asyncwr > 0) {
-			np->n_flag |= NFSYNCWAIT;
-			error = newnfs_msleep(td, &np->n_directio_asyncwr,
-			    &np->n_mtx, slpflag | (PRIBIO + 1), 
-			    "nfsfsync", 0);
-			if (error) {
-				if (newnfs_sigintr(nmp, td)) {
-					NFSUNLOCKNODE(np);
-					error = EINTR;	
-					goto done;
-				}
-			}
-		}
-		NFSUNLOCKNODE(np);
 	} else
 		BO_UNLOCK(bo);
 	if (NFSHASPNFS(nmp)) {
@@ -3220,15 +3201,14 @@ loop:
 		np->n_flag &= ~NWRITEERR;
 	}
   	if (commit && bo->bo_dirty.bv_cnt == 0 &&
-	    bo->bo_numoutput == 0 && np->n_directio_asyncwr == 0)
+	    bo->bo_numoutput == 0)
   		np->n_flag &= ~NMODIFIED;
 	NFSUNLOCKNODE(np);
 done:
 	if (bvec != NULL && bvec != bvec_on_stack)
 		free(bvec, M_TEMP);
 	if (error == 0 && commit != 0 && waitfor == MNT_WAIT &&
-	    (bo->bo_dirty.bv_cnt != 0 || bo->bo_numoutput != 0 ||
-	    np->n_directio_asyncwr != 0)) {
+	    (bo->bo_dirty.bv_cnt != 0 || bo->bo_numoutput != 0)) {
 		if (trycnt++ < 5) {
 			/* try, try again... */
 			passone = 1;
