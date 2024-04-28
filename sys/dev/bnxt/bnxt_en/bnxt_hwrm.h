@@ -45,7 +45,7 @@ int bnxt_hwrm_ring_alloc(struct bnxt_softc *softc, uint8_t type,
 int bnxt_hwrm_ring_free(struct bnxt_softc *softc, uint32_t type,
 		struct bnxt_ring *ring, int cmpl_ring_id);
 int bnxt_hwrm_ver_get(struct bnxt_softc *softc);
-int bnxt_hwrm_queue_qportcfg(struct bnxt_softc *softc);
+int bnxt_hwrm_queue_qportcfg(struct bnxt_softc *softc, uint32_t path_dir);
 int bnxt_hwrm_func_drv_rgtr(struct bnxt_softc *softc);
 int bnxt_hwrm_func_drv_unrgtr(struct bnxt_softc *softc, bool shutdown);
 int bnxt_hwrm_func_qcaps(struct bnxt_softc *softc);
@@ -128,7 +128,10 @@ int bnxt_hwrm_func_backing_store_cfg(struct bnxt_softc *softc, uint32_t);
 int bnxt_hwrm_func_resc_qcaps(struct bnxt_softc *softc, bool all);
 int bnxt_hwrm_reserve_pf_rings (struct bnxt_softc *softc);
 void bnxt_hwrm_ring_info_get(struct bnxt_softc *softc, uint8_t ring_type,
-                             uint32_t ring_id,  uint32_t *prod, uint32_t *);
+			     uint32_t ring_id, uint32_t *prod, uint32_t *);
 int bnxt_hwrm_passthrough(struct bnxt_softc *softc, void *req, uint32_t req_len,
 			  void *resp, uint32_t resp_len, uint32_t timeout);
+int	_hwrm_send_message(struct bnxt_softc *, void *, uint32_t);
+int	hwrm_send_message(struct bnxt_softc *, void *, uint32_t);
+void	bnxt_hwrm_cmd_hdr_init(struct bnxt_softc *, void *, uint16_t);
 #endif

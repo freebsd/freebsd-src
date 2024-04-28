@@ -105,6 +105,16 @@ bnxt_init_sysctl_ctx(struct bnxt_softc *softc)
 		return ENOMEM;
 	}
 
+	sysctl_ctx_init(&softc->dcb_ctx);
+	ctx = device_get_sysctl_ctx(softc->dev);
+	softc->dcb_oid = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
+	    "dcb", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "dcb");
+	if (!softc->dcb_oid) {
+		sysctl_ctx_free(&softc->dcb_ctx);
+		return ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -149,6 +159,14 @@ bnxt_free_sysctl_ctx(struct bnxt_softc *softc)
 			rc = orc;
 		else
 			softc->flow_ctrl_oid = NULL;
+	}
+
+	if (softc->dcb_oid != NULL) {
+		orc = sysctl_ctx_free(&softc->dcb_ctx);
+		if (orc)
+			rc = orc;
+		else
+			softc->dcb_oid = NULL;
 	}
 
 	return rc;
@@ -1460,34 +1478,38 @@ bnxt_create_config_sysctls_pre(struct bnxt_softc *softc)
 	SYSCTL_ADD_CONST_STRING(ctx, children, OID_AUTO, "if_name", CTLFLAG_RD,
 		if_name(iflib_get_ifp(softc->ctx)), "interface name");
 
-        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_usecs",
-            CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_usecs",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_coal_rx_usecs, "I", "interrupt coalescing Rx Usecs");
-        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_frames",
-            CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_frames",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_coal_rx_frames, "I", "interrupt coalescing Rx Frames");
-        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_usecs_irq",
-            CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_usecs_irq",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_coal_rx_usecs_irq, "I",
 	    "interrupt coalescing Rx Usecs IRQ");
-        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_frames_irq",
-            CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_frames_irq",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_coal_rx_frames_irq, "I",
 	    "interrupt coalescing Rx Frames IRQ");
-        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_usecs",
-            CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_usecs",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_coal_tx_usecs, "I", "interrupt coalescing Tx Usces");
-        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_frames",
-            CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
-	    bnxt_set_coal_tx_frames, "I", "interrupt coalescing Tx Frames"); 
-        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_usecs_irq",
-            CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_frames",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
+	    bnxt_set_coal_tx_frames, "I", "interrupt coalescing Tx Frames");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_usecs_irq",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_coal_tx_usecs_irq, "I",
-	    "interrupt coalescing Tx Usecs IRQ"); 
-        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_frames_irq",
-            CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
+	    "interrupt coalescing Tx Usecs IRQ");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_frames_irq",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_coal_tx_frames_irq, "I",
 	    "interrupt coalescing Tx Frames IRQ");
+	SYSCTL_ADD_U32(ctx, children, OID_AUTO, "flags", CTLFLAG_RD,
+		&softc->flags, 0, "flags");
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "fw_cap", CTLFLAG_RD,
+		&softc->fw_cap, 0, "FW caps");
 
 	return 0;
 }
@@ -1614,6 +1636,377 @@ bnxt_create_hw_lro_sysctls(struct bnxt_softc *softc)
 	    "min_agg_len", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    softc, 0, bnxt_hw_lro_set_min_agg_len, "A",
 	    "Min Agg Len: 1 to 9000");
+
+	return 0;
+}
+
+static int
+bnxt_dcb_dcbx_cap(SYSCTL_HANDLER_ARGS)
+{
+	struct bnxt_softc *softc = arg1;
+	int val;
+	int rc;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = bnxt_dcb_getdcbx(softc);
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	bnxt_dcb_setdcbx(softc, val);
+
+	return rc;
+}
+
+static char
+bnxt_ets_tsa_to_str(struct bnxt_softc *softc, uint32_t tc)
+{
+	switch (softc->ieee_ets->tc_tsa[tc]) {
+	case BNXT_IEEE_8021QAZ_TSA_STRICT:
+		return 's';
+	case BNXT_IEEE_8021QAZ_TSA_ETS:
+		return 'e';
+	default:
+		return 'X';
+
+	}
+}
+
+static uint32_t
+bnxt_ets_str_to_tsa(char tsa_str)
+{
+	switch (tsa_str) {
+	case 's':
+		return BNXT_IEEE_8021QAZ_TSA_STRICT;
+	case 'e':
+		return BNXT_IEEE_8021QAZ_TSA_ETS;
+	default:
+		return -1;
+	}
+}
+
+static int
+bnxt_ets_get_val(struct bnxt_softc *softc, uint32_t type, uint32_t tc)
+{
+	switch (type) {
+	case BNXT_TYPE_ETS_TSA:
+		if (softc->ieee_ets)
+			return softc->ieee_ets->tc_tsa[tc];
+		break;
+	case BNXT_TYPE_ETS_PRI2TC:
+		if (softc->ieee_ets)
+			return softc->ieee_ets->prio_tc[tc];
+		break;
+	case BNXT_TYPE_ETS_TCBW:
+		if (softc->ieee_ets)
+			return softc->ieee_ets->tc_tx_bw[tc];
+		break;
+	default:
+		break;
+	}
+
+	return -1;
+}
+
+static void
+bnxt_pfc_get_string(struct bnxt_softc *softc, char *buf, struct bnxt_ieee_pfc *pfc)
+{
+	uint32_t i;
+	bool found = false;
+
+	for (i = 0; i < BNXT_IEEE_8021QAZ_MAX_TCS; i++) {
+		if (pfc->pfc_en & (1 << i)) {
+			if (found)
+				buf += sprintf(buf, ", ");
+			buf += sprintf(buf, "%d", i);
+			found = true;
+		}
+	}
+
+	if (!found)
+		buf += sprintf(buf, "none");
+}
+
+static char *bnxt_get_tlv_selector_str(uint8_t selector)
+{
+	switch (selector) {
+	case BNXT_IEEE_8021QAZ_APP_SEL_ETHERTYPE:
+		return "Ethertype";
+	case BNXT_IEEE_8021QAZ_APP_SEL_DGRAM:
+		return "UDP or DCCP";
+	case BNXT_IEEE_8021QAZ_APP_SEL_DSCP:
+		return "DSCP";
+	default:
+		return "Unknown";
+	}
+}
+
+static void
+bnxt_app_tlv_get_string(struct bnxt_softc *softc, char *buf,
+			struct bnxt_dcb_app *app, int num)
+{
+	uint32_t i;
+
+	if (!num) {
+		buf += sprintf(buf, " None");
+		return;
+	}
+
+	buf += sprintf(buf, "\n");
+	for (i = 0; i < num; i++) {
+		buf += sprintf(buf, "\tAPP#%0d:\tpri: %d,\tSel: %d,\t%s: %d\n",
+				i,
+				app[i].priority,
+				app[i].selector,
+				bnxt_get_tlv_selector_str(app[i].selector),
+				app[i].protocol);
+	}
+}
+
+static void
+bnxt_ets_get_string(struct bnxt_softc *softc, char *buf)
+{
+	uint32_t type, i;
+
+	type = BNXT_TYPE_ETS_TSA;
+	for (type = 0; type < BNXT_TYPE_ETS_MAX; type++) {
+		for (i = 0; i < BNXT_IEEE_8021QAZ_MAX_TCS; i++) {
+			if (i == 0)
+				buf += sprintf(buf, "%s:", BNXT_ETS_TYPE_STR[type]);
+
+			if (!softc->ieee_ets)
+				buf += sprintf(buf, "x");
+			else if (type == BNXT_TYPE_ETS_TSA)
+				buf += sprintf(buf, "%c", bnxt_ets_tsa_to_str(softc, i));
+			else
+				buf += sprintf(buf, "%d", bnxt_ets_get_val(softc, type, i));
+
+			if (i != BNXT_IEEE_8021QAZ_MAX_TCS - 1)
+				buf += sprintf(buf, ",");
+		}
+		if (type != BNXT_TYPE_ETS_MAX - 1)
+			buf += sprintf(buf, "#");
+	}
+}
+
+static int
+bnxt_dcb_list_app(SYSCTL_HANDLER_ARGS)
+{
+	struct bnxt_dcb_app app[128] = {0};
+	struct bnxt_softc *softc = arg1;
+	int rc, num_inputs = 0;
+	char *buf;
+
+	if (softc == NULL)
+		return EBUSY;
+
+#define BNXT_APP_TLV_STR_LEN	4096
+	buf = malloc(BNXT_APP_TLV_STR_LEN, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (!buf)
+		return ENOMEM;
+
+	bnxt_dcb_ieee_listapp(softc, app, &num_inputs);
+	bnxt_app_tlv_get_string(softc, buf, app, num_inputs);
+
+	rc = sysctl_handle_string(oidp, buf, BNXT_APP_TLV_STR_LEN, req);
+	if (rc || req->newptr == NULL)
+		goto end;
+
+end:
+	free(buf, M_DEVBUF);
+	return rc;
+}
+
+static int
+bnxt_dcb_del_app(SYSCTL_HANDLER_ARGS)
+{
+	struct bnxt_softc *softc = arg1;
+	struct bnxt_dcb_app app = {0};
+	char buf[256] = {0};
+	int rc, num_inputs;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	rc = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (rc || req->newptr == NULL)
+		return rc;
+
+	num_inputs = sscanf(buf, "%hhu,%hhu,%hd", &app.priority, &app.selector, &app.protocol);
+
+	if (num_inputs != 3) {
+		device_printf(softc->dev,
+			      "Invalid app tlv syntax, inputs = %d\n", num_inputs);
+		return EINVAL;
+	}
+
+	bnxt_dcb_ieee_delapp(softc, &app);
+
+	return rc;
+}
+static int
+bnxt_dcb_set_app(SYSCTL_HANDLER_ARGS)
+{
+	struct bnxt_softc *softc = arg1;
+	struct bnxt_dcb_app app = {0};
+	char buf[256] = {0};
+	int rc, num_inputs;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	rc = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (rc || req->newptr == NULL)
+		return rc;
+
+	num_inputs = sscanf(buf, "%hhu,%hhu,%hd", &app.priority, &app.selector, &app.protocol);
+
+	if (num_inputs != 3) {
+		device_printf(softc->dev,
+			      "Invalid app tlv syntax, inputs = %d\n", num_inputs);
+		return EINVAL;
+	}
+
+	bnxt_dcb_ieee_setapp(softc, &app);
+
+	return rc;
+}
+
+static int
+bnxt_dcb_pfc(SYSCTL_HANDLER_ARGS)
+{
+	struct bnxt_softc *softc = arg1;
+	struct bnxt_ieee_pfc pfc = {0};
+	int rc, i, num_inputs;
+	char buf[256] = {0};
+	int pri_mask = 0;
+	char pri[8];
+
+	if (softc == NULL)
+		return EBUSY;
+
+	rc = bnxt_dcb_ieee_getpfc(softc, &pfc);
+	if (!rc)
+		bnxt_pfc_get_string(softc, buf, &pfc);
+	else
+		sprintf(buf, "## getpfc failed with error %d ##", rc);
+
+	rc = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (rc || req->newptr == NULL)
+		return rc;
+
+	/* Check for 'none' string first */
+	if (sscanf(buf,  "%s", buf) == 1) {
+		if (strncmp(buf, "none", 8) == 0) {
+			goto configure;
+		}
+	}
+	num_inputs = sscanf(buf, "%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu",
+			    &pri[0], &pri[1], &pri[2], &pri[3], &pri[4],
+			    &pri[5], &pri[6], &pri[7]);
+
+	if (num_inputs < 1 || num_inputs > 8) {
+		device_printf(softc->dev,
+			      "Invalid pfc syntax, inputs = %d\n", num_inputs);
+		return EINVAL;
+	}
+
+	for (i = 0; i < num_inputs; i++) {
+		if (pri[i] > 7 || pri[i] < 0) {
+			device_printf(softc->dev,
+				      "Invalid priority %d. Valid priorties are "
+				      "from 0 to 7 and string \"none\".\n", pri[i]);
+			return EINVAL;
+		}
+
+		pri_mask |= (1 << pri[i]) & 0xFF;
+	}
+
+configure:
+	pfc.pfc_en = pri_mask;
+	rc = bnxt_dcb_ieee_setpfc(softc, &pfc);
+	if (rc)
+		device_printf(softc->dev,
+			      "setpfc failed with status %d\n", rc);
+	return rc;
+}
+
+static int
+bnxt_dcb_ets(SYSCTL_HANDLER_ARGS)
+{
+	struct bnxt_softc *softc = arg1;
+	struct bnxt_ieee_ets ets = {0};
+	int rc = 0, i, num_inputs;
+	char buf[256] = {0};
+	char tsa[8];
+
+	if (softc == NULL)
+		return EBUSY;
+
+	rc = bnxt_dcb_ieee_getets(softc, &ets);
+	if (!rc)
+		bnxt_ets_get_string(softc, buf);
+	else
+		sprintf(buf, "## getets failed with error %d ##", rc);
+
+	rc = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (rc || req->newptr == NULL)
+		return rc;
+
+	num_inputs = sscanf(buf,  "tsa:%c,%c,%c,%c,%c,%c,%c,%c#"
+			    "pri2tc:%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu#"
+			    "tcbw:%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu",
+			    &tsa[0], &tsa[1], &tsa[2], &tsa[3], &tsa[4], &tsa[5], &tsa[6], &tsa[7],
+			    &ets.prio_tc[0], &ets.prio_tc[1], &ets.prio_tc[2], &ets.prio_tc[3],
+			    &ets.prio_tc[4], &ets.prio_tc[5], &ets.prio_tc[6], &ets.prio_tc[7],
+			    &ets.tc_tx_bw[0], &ets.tc_tx_bw[1], &ets.tc_tx_bw[2], &ets.tc_tx_bw[3],
+			    &ets.tc_tx_bw[4], &ets.tc_tx_bw[5], &ets.tc_tx_bw[6], &ets.tc_tx_bw[7]);
+
+	if (num_inputs != 24)
+		return EINVAL;
+
+	for ( i= 0; i < 8; i++)
+		ets.tc_tsa[i] = bnxt_ets_str_to_tsa(tsa[i]);
+
+	rc = bnxt_dcb_ieee_setets(softc, &ets);
+
+	return rc;
+}
+
+int
+bnxt_create_dcb_sysctls(struct bnxt_softc *softc)
+{
+	struct sysctl_oid *oid = softc->dcb_oid;
+
+	if (!oid)
+		return ENOMEM;
+
+	SYSCTL_ADD_PROC(&softc->dcb_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "dcbx_cap", CTLTYPE_INT | CTLFLAG_RWTUN, softc,
+	    0, bnxt_dcb_dcbx_cap, "A",
+	    "Enable or Disable LRO: 0 / 1");
+
+	SYSCTL_ADD_PROC(&softc->dcb_ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "ets",
+	    CTLTYPE_STRING | CTLFLAG_RWTUN, softc, 0,
+	    bnxt_dcb_ets, "A", "Enhanced Transmission Selection (ETS)");
+
+	SYSCTL_ADD_PROC(&softc->dcb_ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "pfc",
+	    CTLTYPE_STRING | CTLFLAG_RWTUN, softc, 0,
+	    bnxt_dcb_pfc, "A", "Enhanced Transmission Selection (ETS)");
+
+	SYSCTL_ADD_PROC(&softc->dcb_ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "set_apptlv",
+	    CTLTYPE_STRING | CTLFLAG_WR, softc, 0,
+	    bnxt_dcb_set_app, "A", "Set App TLV");
+
+	SYSCTL_ADD_PROC(&softc->dcb_ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "del_apptlv",
+	    CTLTYPE_STRING | CTLFLAG_WR, softc, 0,
+	    bnxt_dcb_del_app, "A", "Delete App TLV");
+
+	SYSCTL_ADD_PROC(&softc->dcb_ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "list_apptlv",
+	    CTLTYPE_STRING | CTLFLAG_RD, softc, 0,
+	    bnxt_dcb_list_app, "A", "List all App TLVs");
 
 	return 0;
 }

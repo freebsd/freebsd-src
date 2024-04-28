@@ -41,6 +41,7 @@
 
 #define	BNXT_MGMT_OPCODE_GET_DEV_INFO		0x80000000
 #define	BNXT_MGMT_OPCODE_PASSTHROUGH_HWRM	0x80000001
+#define	BNXT_MGMT_OPCODE_DCB_OPS		0x80000002
 
 #define BNXT_MGMT_MAX_HWRM_REQ_LENGTH		HWRM_MAX_REQ_LEN
 #define BNXT_MGMT_MAX_HWRM_RESP_LENGTH		(512)
@@ -118,9 +119,31 @@ struct bnxt_mgmt_req_hdr {
 };
 
 struct bnxt_mgmt_req {
-        struct bnxt_mgmt_req_hdr hdr;
-        union {
-            uint64_t hreq;
-        } req;
+	struct bnxt_mgmt_req_hdr hdr;
+	union {
+		uint64_t hreq;
+	} req;
 };
 
+struct bnxt_mgmt_app_tlv {
+	uint32_t num_app;
+	struct bnxt_dcb_app app[128];
+} __attribute__ ((__packed__));
+
+struct bnxt_mgmt_dcb {
+	struct bnxt_mgmt_req_hdr hdr;
+#define BNXT_MGMT_DCB_GET_ETS	0x1
+#define BNXT_MGMT_DCB_SET_ETS	0x2
+#define BNXT_MGMT_DCB_GET_PFC	0x3
+#define BNXT_MGMT_DCB_SET_PFC	0x4
+#define BNXT_MGMT_DCB_SET_APP	0x5
+#define BNXT_MGMT_DCB_DEL_APP	0x6
+#define BNXT_MGMT_DCB_LIST_APP	0x7
+#define BNXT_MGMT_DCB_MAX	BNXT_MGMT_DCB_LIST_APP
+	uint32_t op;
+	union {
+		struct bnxt_ieee_ets ets;
+		struct bnxt_ieee_pfc pfc;
+		struct bnxt_mgmt_app_tlv app_tlv;
+	} req;
+} __attribute__ ((__packed__));
