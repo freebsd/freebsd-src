@@ -350,7 +350,6 @@ static void	carp_setrun(struct carp_softc *, sa_family_t);
 static void	carp_master_down(void *);
 static void	carp_master_down_locked(struct carp_softc *,
     		    const char* reason);
-static void	carp_send_ad(void *);
 static void	carp_send_ad_locked(struct carp_softc *);
 static void	vrrp_send_ad_locked(struct carp_softc *);
 static void	carp_addroute(struct carp_softc *);
@@ -1087,6 +1086,19 @@ carp_prepare_ad(struct mbuf *m, struct carp_softc *sc, struct carp_header *ch)
 	return (carp_tag(sc, m));
 }
 
+static inline void
+send_ad_locked(struct carp_softc *sc)
+{
+	switch (sc->sc_version) {
+	case CARP_VERSION_CARP:
+		carp_send_ad_locked(sc);
+		break;
+	case CARP_VERSION_VRRPv3:
+		vrrp_send_ad_locked(sc);
+		break;
+	}
+}
+
 /*
  * To avoid LORs and possible recursions this function shouldn't
  * be called directly, but scheduled via taskqueue.
@@ -1103,7 +1115,7 @@ carp_send_ad_all(void *ctx __unused, int pending __unused)
 		if (sc->sc_state == MASTER) {
 			CARP_LOCK(sc);
 			CURVNET_SET(sc->sc_carpdev->if_vnet);
-			carp_send_ad_locked(sc);
+			send_ad_locked(sc);
 			CURVNET_RESTORE();
 			CARP_UNLOCK(sc);
 		}
@@ -1113,7 +1125,7 @@ carp_send_ad_all(void *ctx __unused, int pending __unused)
 
 /* Send a periodic advertisement, executed in callout context. */
 static void
-carp_send_ad(void *v)
+carp_callout(void *v)
 {
 	struct carp_softc *sc = v;
 	struct epoch_tracker et;
@@ -1121,7 +1133,7 @@ carp_send_ad(void *v)
 	NET_EPOCH_ENTER(et);
 	CARP_LOCK_ASSERT(sc);
 	CURVNET_SET(sc->sc_carpdev->if_vnet);
-	carp_send_ad_locked(sc);
+	send_ad_locked(sc);
 	CURVNET_RESTORE();
 	CARP_UNLOCK(sc);
 	NET_EPOCH_EXIT(et);
@@ -1205,11 +1217,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 
 	NET_EPOCH_ASSERT();
 	CARP_LOCK_ASSERT(sc);
-
-	if (sc->sc_version == CARP_VERSION_VRRPv3) {
-		vrrp_send_ad_locked(sc);
-		return;
-	}
+	MPASS(sc->sc_version == CARP_VERSION_CARP);
 
 	advskew = DEMOTE_ADVSKEW(sc);
 	tv.tv_sec = sc->sc_advbase;
@@ -1339,7 +1347,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 #endif /* INET6 */
 
 resched:
-	callout_reset(&sc->sc_ad_tmo, tvtohz(&tv), carp_send_ad, sc);
+	callout_reset(&sc->sc_ad_tmo, tvtohz(&tv), carp_callout, sc);
 }
 
 static void
@@ -1520,7 +1528,7 @@ vrrp_send_ad_locked(struct carp_softc *sc)
 
 resched:
 	callout_reset(&sc->sc_ad_tmo, sc->sc_vrrp_adv_inter * hz / 100,
-	    carp_send_ad, sc);
+	    carp_callout, sc);
 }
 
 static void
@@ -1760,7 +1768,7 @@ carp_master_down_locked(struct carp_softc *sc, const char *reason)
 	switch (sc->sc_state) {
 	case BACKUP:
 		carp_set_state(sc, MASTER, reason);
-		carp_send_ad_locked(sc);
+		send_ad_locked(sc);
 #ifdef INET
 		carp_send_arp(sc);
 #endif
@@ -1852,11 +1860,11 @@ carp_setrun(struct carp_softc *sc, sa_family_t af)
 			tv.tv_sec = sc->sc_advbase;
 			tv.tv_usec = sc->sc_advskew * 1000000 / 256;
 			callout_reset(&sc->sc_ad_tmo, tvtohz(&tv),
-			    carp_send_ad, sc);
+			    carp_callout, sc);
 		} else {
 			callout_reset(&sc->sc_ad_tmo,
 			    sc->sc_vrrp_adv_inter * hz / 100,
-			    carp_send_ad, sc);
+			    carp_callout, sc);
 		}
 		break;
 	}
