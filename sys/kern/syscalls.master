@@ -3349,7 +3349,7 @@
 590 AUE_NULL STD {
 		int osdb_step(
 			_In_ void* sqlite3_stmt,
-			int status
+			_Out_ int * status
 
 		);
 	}
@@ -3363,29 +3363,28 @@
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_writes_z(reslen) char *data,
-			int reslen
+			_Out_ int * reslen
 		);
 	}
 593 AUE_NULL STD {
 		int osdb_column_double(
 			_In_ void* sqlite3_stmt,
 			int iCol,
-			_Out_writes_z(reslen) char *data,
-			double result
+			_Out_ double * result
 		);
 	}
 594 AUE_NULL STD {
 		int osdb_column_int(
 			_In_ void* sqlite3_stmt,
 			int iCol,
-			int result
+			_Out_ int * result
 		);
 	}
 595 AUE_NULL STD {
 		int osdb_column_int64(
 			_In_ void* sqlite3_stmt,
 			int iCol,
-			long result
+			_Out_ long * result
 		);
 	}
 596 AUE_NULL STD {
@@ -3393,7 +3392,7 @@
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_writes_z(reslen) char *data,
-			int reslen
+			_Out_ int * reslen
 		);
 	}
 597 AUE_NULL STD {
@@ -3401,7 +3400,7 @@
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_writes_z(reslen) char *data,
-			int reslen
+			_Out_ int * reslen
 		);
 	}
 598 AUE_NULL STD {
@@ -3409,34 +3408,34 @@
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_writes_z(reslen) char *data,
-			int reslen
+			_Out_ int * reslen
 		);
 	}
 599 AUE_NULL STD {
 		int osdb_column_bytes(
 			_In_ void* sqlite3_stmt,
 			int iCol,
-			int size
+			_Out_ int * size
 		);
 	}
 600 AUE_NULL STD {
 		int osdb_column_bytes16(
 			_In_ void* sqlite3_stmt,
 			int iCol,
-			int size
+			_Out_ int * size
 		);
 	}
 601 AUE_NULL STD {
 		int osdb_column_type(
 			_In_ void* sqlite3_stmt,
 			int iCol,
-			int datatype
+			_Out_ int * datatype
 		);
 	}
 602 AUE_NULL STD {
 		int osdb_column_count(
 			_In_ void* sqlite3_stmt,
-			int count	
+			_Out_ int * count	
 		);
 	}
 603 AUE_NULL STD {

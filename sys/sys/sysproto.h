@@ -1885,7 +1885,7 @@ struct osdb_prepare_v2_args {
 };
 struct osdb_step_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
-	char status_l_[PADL_(int)]; int status; char status_r_[PADR_(int)];
+	char status_l_[PADL_(int *)]; int * status; char status_r_[PADR_(int *)];
 };
 struct osdb_finalize_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
@@ -1894,60 +1894,59 @@ struct osdb_column_blob_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
 	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
-	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
+	char reslen_l_[PADL_(int *)]; int * reslen; char reslen_r_[PADR_(int *)];
 };
 struct osdb_column_double_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
 	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
-	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
-	char result_l_[PADL_(double)]; double result; char result_r_[PADR_(double)];
+	char result_l_[PADL_(double *)]; double * result; char result_r_[PADR_(double *)];
 };
 struct osdb_column_int_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
 	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
-	char result_l_[PADL_(int)]; int result; char result_r_[PADR_(int)];
+	char result_l_[PADL_(int *)]; int * result; char result_r_[PADR_(int *)];
 };
 struct osdb_column_int64_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
 	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
-	char result_l_[PADL_(long)]; long result; char result_r_[PADR_(long)];
+	char result_l_[PADL_(long *)]; long * result; char result_r_[PADR_(long *)];
 };
 struct osdb_column_text_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
 	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
-	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
+	char reslen_l_[PADL_(int *)]; int * reslen; char reslen_r_[PADR_(int *)];
 };
 struct osdb_column_text16_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
 	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
-	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
+	char reslen_l_[PADL_(int *)]; int * reslen; char reslen_r_[PADR_(int *)];
 };
 struct osdb_column_value_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
 	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
-	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
+	char reslen_l_[PADL_(int *)]; int * reslen; char reslen_r_[PADR_(int *)];
 };
 struct osdb_column_bytes_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
 	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
-	char size_l_[PADL_(int)]; int size; char size_r_[PADR_(int)];
+	char size_l_[PADL_(int *)]; int * size; char size_r_[PADR_(int *)];
 };
 struct osdb_column_bytes16_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
 	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
-	char size_l_[PADL_(int)]; int size; char size_r_[PADR_(int)];
+	char size_l_[PADL_(int *)]; int * size; char size_r_[PADR_(int *)];
 };
 struct osdb_column_type_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
 	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
-	char datatype_l_[PADL_(int)]; int datatype; char datatype_r_[PADR_(int)];
+	char datatype_l_[PADL_(int *)]; int * datatype; char datatype_r_[PADR_(int *)];
 };
 struct osdb_column_count_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
-	char count_l_[PADL_(int)]; int count; char count_r_[PADR_(int)];
+	char count_l_[PADL_(int *)]; int * count; char count_r_[PADR_(int *)];
 };
 struct osdb_column_name_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];

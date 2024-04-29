@@ -3469,7 +3469,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 590: {
 		struct osdb_step_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
-		iarg[a++] = p->status; /* int */
+		uarg[a++] = (intptr_t)p->status; /* int * */
 		*n_args = 2;
 		break;
 	}
@@ -3486,7 +3486,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
 		uarg[a++] = (intptr_t)p->data; /* char * */
-		iarg[a++] = p->reslen; /* int */
+		uarg[a++] = (intptr_t)p->reslen; /* int * */
 		*n_args = 4;
 		break;
 	}
@@ -3495,9 +3495,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_column_double_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
-		uarg[a++] = (intptr_t)p->data; /* char * */
-		iarg[a++] = p->result; /* double */
-		*n_args = 4;
+		uarg[a++] = (intptr_t)p->result; /* double * */
+		*n_args = 3;
 		break;
 	}
 	/* osdb_column_int */
@@ -3505,7 +3504,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_column_int_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
-		iarg[a++] = p->result; /* int */
+		uarg[a++] = (intptr_t)p->result; /* int * */
 		*n_args = 3;
 		break;
 	}
@@ -3514,7 +3513,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_column_int64_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
-		iarg[a++] = p->result; /* long */
+		uarg[a++] = (intptr_t)p->result; /* long * */
 		*n_args = 3;
 		break;
 	}
@@ -3524,7 +3523,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
 		uarg[a++] = (intptr_t)p->data; /* char * */
-		iarg[a++] = p->reslen; /* int */
+		uarg[a++] = (intptr_t)p->reslen; /* int * */
 		*n_args = 4;
 		break;
 	}
@@ -3534,7 +3533,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
 		uarg[a++] = (intptr_t)p->data; /* char * */
-		iarg[a++] = p->reslen; /* int */
+		uarg[a++] = (intptr_t)p->reslen; /* int * */
 		*n_args = 4;
 		break;
 	}
@@ -3544,7 +3543,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
 		uarg[a++] = (intptr_t)p->data; /* char * */
-		iarg[a++] = p->reslen; /* int */
+		uarg[a++] = (intptr_t)p->reslen; /* int * */
 		*n_args = 4;
 		break;
 	}
@@ -3553,7 +3552,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_column_bytes_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
-		iarg[a++] = p->size; /* int */
+		uarg[a++] = (intptr_t)p->size; /* int * */
 		*n_args = 3;
 		break;
 	}
@@ -3562,7 +3561,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_column_bytes16_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
-		iarg[a++] = p->size; /* int */
+		uarg[a++] = (intptr_t)p->size; /* int * */
 		*n_args = 3;
 		break;
 	}
@@ -3571,7 +3570,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_column_type_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
-		iarg[a++] = p->datatype; /* int */
+		uarg[a++] = (intptr_t)p->datatype; /* int * */
 		*n_args = 3;
 		break;
 	}
@@ -3579,7 +3578,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 602: {
 		struct osdb_column_count_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
-		iarg[a++] = p->count; /* int */
+		uarg[a++] = (intptr_t)p->count; /* int * */
 		*n_args = 2;
 		break;
 	}
@@ -9408,7 +9407,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland void*";
 			break;
 		case 1:
-			p = "int";
+			p = "userland int *";
 			break;
 		default:
 			break;
@@ -9437,7 +9436,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 3:
-			p = "int";
+			p = "userland int *";
 			break;
 		default:
 			break;
@@ -9453,10 +9452,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "userland char *";
-			break;
-		case 3:
-			p = "double";
+			p = "userland double *";
 			break;
 		default:
 			break;
@@ -9472,7 +9468,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "int";
+			p = "userland int *";
 			break;
 		default:
 			break;
@@ -9488,7 +9484,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "long";
+			p = "userland long *";
 			break;
 		default:
 			break;
@@ -9507,7 +9503,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 3:
-			p = "int";
+			p = "userland int *";
 			break;
 		default:
 			break;
@@ -9526,7 +9522,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 3:
-			p = "int";
+			p = "userland int *";
 			break;
 		default:
 			break;
@@ -9545,7 +9541,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 3:
-			p = "int";
+			p = "userland int *";
 			break;
 		default:
 			break;
@@ -9561,7 +9557,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "int";
+			p = "userland int *";
 			break;
 		default:
 			break;
@@ -9577,7 +9573,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "int";
+			p = "userland int *";
 			break;
 		default:
 			break;
@@ -9593,7 +9589,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "int";
+			p = "userland int *";
 			break;
 		default:
 			break;
@@ -9606,7 +9602,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland void*";
 			break;
 		case 1:
-			p = "int";
+			p = "userland int *";
 			break;
 		default:
 			break;
