@@ -1183,51 +1183,68 @@ tdq_notify(struct tdq *tdq, int lowpri)
 	ipi_cpu(cpu, IPI_PREEMPT);
 }
 
+struct runq_steal_pred_data {
+	struct thread	*td;
+	struct thread	*first;
+	int		cpu;
+	bool		use_first_last;
+};
+
+static bool
+runq_steal_pred(const int idx, struct rq_queue *const q, void *const data)
+{
+	struct runq_steal_pred_data *const d = data;
+	struct thread *td;
+
+	TAILQ_FOREACH(td, q, td_runq) {
+		if (d->use_first_last && d->first == NULL) {
+			d->first = td;
+			continue;
+		}
+
+		if (THREAD_CAN_MIGRATE(td) && THREAD_CAN_SCHED(td, d->cpu)) {
+			d->td = td;
+			return (true);
+		}
+	}
+
+	return (false);
+}
+
 /*
  * Steals load from a timeshare queue.  Honors the rotating queue head
  * index.
  */
-static struct thread *
-runq_steal_from(struct runq *rq, int cpu, u_char start)
+static inline struct thread *
+runq_steal_from(struct runq *const rq, int cpu, int start_idx)
 {
-	struct rq_status *rqs;
-	struct rq_queue *rqq;
-	struct thread *td, *first;
-	int bit;
-	int i;
+	struct runq_steal_pred_data data = {
+		.td = NULL,
+		.first = NULL,
+		.cpu = cpu,
+		.use_first_last = true
+	};
+	int idx;
 
-	rqs = &rq->rq_status;
-	bit = RQSW_BIT_IDX(start);
-	first = NULL;
-again:
-	for (i = RQSW_IDX(start); i < RQSW_NB; bit = 0, i++) {
-		if (rqs->rq_sw[i] == 0)
-			continue;
-		if (bit == 0)
-			bit = RQSW_BSF(rqs->rq_sw[i]);
-		for (; bit < RQSW_BPW; bit++) {
-			if ((rqs->rq_sw[i] & (1ul << bit)) == 0)
-				continue;
-			rqq = &rq->rq_queues[RQSW_TO_QUEUE_IDX(i, bit)];
-			TAILQ_FOREACH(td, rqq, td_runq) {
-				if (first) {
-					if (THREAD_CAN_MIGRATE(td) &&
-					    THREAD_CAN_SCHED(td, cpu))
-						return (td);
-				} else
-					first = td;
-			}
-		}
-	}
-	if (start != 0) {
-		start = 0;
-		goto again;
+	idx = runq_findq(rq, start_idx, RQ_NQS - 1, &runq_steal_pred, &data);
+	if (idx != -1)
+		goto found;
+
+	MPASS(data.td == NULL);
+	if (start_idx != 0) {
+		idx = runq_findq(rq, 0, start_idx - 1, &runq_steal_pred, &data);
+		if (idx != -1)
+			goto found;
 	}
 
-	if (first && THREAD_CAN_MIGRATE(first) &&
-	    THREAD_CAN_SCHED(first, cpu))
-		return (first);
+	MPASS(idx == -1 && data.td == NULL);
+	if (data.first != NULL && THREAD_CAN_MIGRATE(data.first) &&
+	    THREAD_CAN_SCHED(data.first, cpu))
+		return (data.first);
 	return (NULL);
+found:
+	MPASS(data.td != NULL);
+	return (data.td);
 }
 
 /*
@@ -1236,26 +1253,21 @@ again:
 static struct thread *
 runq_steal(struct runq *rq, int cpu)
 {
-	struct rq_queue *rqq;
-	struct rq_status *rqs;
-	struct thread *td;
-	int word;
-	int bit;
+	struct runq_steal_pred_data data = {
+		.td = NULL,
+		.first = NULL,
+		.cpu = cpu,
+		.use_first_last = false
+	};
+	int idx;
 
-	rqs = &rq->rq_status;
-	for (word = 0; word < RQSW_NB; word++) {
-		if (rqs->rq_sw[word] == 0)
-			continue;
-		for (bit = 0; bit < RQSW_BPW; bit++) {
-			if ((rqs->rq_sw[word] & (1ul << bit)) == 0)
-				continue;
-			rqq = &rq->rq_queues[RQSW_TO_QUEUE_IDX(word, bit)];
-			TAILQ_FOREACH(td, rqq, td_runq)
-				if (THREAD_CAN_MIGRATE(td) &&
-				    THREAD_CAN_SCHED(td, cpu))
-					return (td);
-		}
+	idx = runq_findq(rq, 0, RQ_NQS - 1, &runq_steal_pred, &data);
+	if (idx != -1) {
+		MPASS(data.td != NULL);
+		return (data.td);
 	}
+
+	MPASS(data.td == NULL);
 	return (NULL);
 }
 
