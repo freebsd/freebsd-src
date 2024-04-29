@@ -188,6 +188,7 @@ TESTS_SRCS= \
 	test_read_format_ustar_filename.c	\
 	test_read_format_warc.c			\
 	test_read_format_xar.c			\
+	test_read_format_xar_doublelink.c	\
 	test_read_format_zip.c			\
 	test_read_format_zip_7075_utf8_paths.c	\
 	test_read_format_zip_comment_stored.c	\
@@ -611,6 +612,7 @@ ${PACKAGE}FILES+=	test_read_format_ustar_filename_cp866.tar.Z.uu
 ${PACKAGE}FILES+=	test_read_format_ustar_filename_eucjp.tar.Z.uu
 ${PACKAGE}FILES+=	test_read_format_ustar_filename_koi8r.tar.Z.uu
 ${PACKAGE}FILES+=	test_read_format_warc.warc.uu
+${PACKAGE}FILES+=	test_read_format_xar_doublelink.xar.uu
 ${PACKAGE}FILES+=	test_read_format_zip.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_7075_utf8_paths.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_7z_deflate.zip.uu
@@ -679,6 +681,7 @@ ${PACKAGE}FILES+=	test_splitted_rar_seek_support_aa.uu
 ${PACKAGE}FILES+=	test_splitted_rar_seek_support_ab.uu
 ${PACKAGE}FILES+=	test_splitted_rar_seek_support_ac.uu
 ${PACKAGE}FILES+=	test_write_disk_appledouble.cpio.gz.uu
+${PACKAGE}FILES+=	test_write_disk_appledouble_zip.zip.uu
 ${PACKAGE}FILES+=	test_write_disk_hfs_compression.tgz.uu
 ${PACKAGE}FILES+=	test_write_disk_mac_metadata.tar.gz.uu
 ${PACKAGE}FILES+=	test_write_disk_no_hfs_compression.tgz.uu

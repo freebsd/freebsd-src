@@ -158,7 +158,7 @@ int	__archive_write_program_write(struct archive_write_filter *,
 	    struct archive_write_program_data *, const void *, size_t);
 
 /*
- * Get a encryption passphrase.
+ * Get an encryption passphrase.
  */
 const char * __archive_write_get_passphrase(struct archive_write *a);
 #endif

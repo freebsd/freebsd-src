@@ -218,12 +218,18 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 	enum { state_start = 0, state_old_tar, state_next_word,
 	       state_short, state_long };
 
-	const struct bsdtar_option *popt, *match = NULL, *match2 = NULL;
-	const char *p, *long_prefix = "--";
+	const struct bsdtar_option *popt, *match, *match2;
+	const char *p, *long_prefix;
 	size_t optlength;
-	int opt = '?';
-	int required = 0;
+	int opt;
+	int required;
 
+again:
+	match = NULL;
+	match2 = NULL;
+	long_prefix = "--";
+	opt = '?';
+	required = 0;
 	bsdtar->argument = NULL;
 
 	/* First time through, initialize everything. */
@@ -310,7 +316,7 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 		if (opt == '\0') {
 			/* End of this group; recurse to get next option. */
 			bsdtar->getopt_state = state_next_word;
-			return bsdtar_getopt(bsdtar);
+			goto again;
 		}
 
 		/* Does this option take an argument? */

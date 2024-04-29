@@ -81,12 +81,18 @@ bsdunzip_getopt(struct bsdunzip *bsdunzip)
 {
 	enum { state_start = 0, state_next_word, state_short, state_long };
 
-	const struct bsdunzip_option *popt, *match = NULL, *match2 = NULL;
-	const char *p, *long_prefix = "--";
+	const struct bsdunzip_option *popt, *match, *match2;
+	const char *p, *long_prefix;
 	size_t optlength;
-	int opt = OPTION_NONE;
-	int required = 0;
+	int opt;
+	int required;
 
+again:
+	match = NULL;
+	match2 = NULL;
+	long_prefix = "--";
+	opt = OPTION_NONE;
+	required = 0;
 	bsdunzip->argument = NULL;
 
 	/* First time through, initialize everything. */
@@ -140,7 +146,7 @@ bsdunzip_getopt(struct bsdunzip *bsdunzip)
 		if (opt == '\0') {
 			/* End of this group; recurse to get next option. */
 			bsdunzip->getopt_state = state_next_word;
-			return bsdunzip_getopt(bsdunzip);
+			goto again;
 		}
 
 		/* Does this option take an argument? */

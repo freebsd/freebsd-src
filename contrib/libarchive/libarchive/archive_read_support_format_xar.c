@@ -2055,6 +2055,12 @@ xml_start(struct archive_read *a, const char *name, struct xmlattr_list *list)
 			    attr = attr->next) {
 				if (strcmp(attr->name, "link") != 0)
 					continue;
+				if (xar->file->hdnext != NULL || xar->file->link != 0 ||
+				    xar->file == xar->hdlink_orgs) {
+					archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+					    "File with multiple link attributes");
+					return (ARCHIVE_FATAL);
+				}
 				if (strcmp(attr->value, "original") == 0) {
 					xar->file->hdnext = xar->hdlink_orgs;
 					xar->hdlink_orgs = xar->file;
@@ -3250,6 +3256,9 @@ expat_start_cb(void *userData, const XML_Char *name, const XML_Char **atts)
 	struct archive_read *a = ud->archive;
 	struct xmlattr_list list;
 	int r;
+
+	if (ud->state != ARCHIVE_OK)
+		return;
 
 	r = expat_xmlattr_setup(a, &list, atts);
 	if (r == ARCHIVE_OK)

@@ -416,8 +416,8 @@ next_line(struct archive_read *a,
 }
 
 /*
- * Compare characters with a mtree keyword.
- * Returns the length of a mtree keyword if matched.
+ * Compare characters with an mtree keyword.
+ * Returns the length of an mtree keyword if matched.
  * Returns 0 if not matched.
  */
 static int
@@ -515,7 +515,7 @@ bid_keyword(const char *p,  ssize_t len)
 
 /*
  * Test whether there is a set of mtree keywords.
- * Returns the number of keyword.
+ * Returns the number of keywords.
  * Returns -1 if we got incorrect sequence.
  * This function expects a set of "<space characters>keyword=value".
  * When "unset" is specified, expects a set of "<space characters>keyword".
@@ -760,7 +760,7 @@ detect_form(struct archive_read *a, int *is_form_d)
 					multiline = 1;
 				else {
 					/* We've got plenty of correct lines
-					 * to assume that this file is a mtree
+					 * to assume that this file is an mtree
 					 * format. */
 					if (++entry_cnt >= MAX_BID_ENTRY)
 						break;

@@ -2037,6 +2037,8 @@ read_Folder(struct archive_read *a, struct _7z_folder *f)
 			if (parse_7zip_uint64(
 			    a, &(f->coders[i].propertiesSize)) < 0)
 				return (-1);
+			if (UMAX_ENTRY < f->coders[i].propertiesSize)
+				return (-1);
 			if ((p = header_bytes(
 			    a, (size_t)f->coders[i].propertiesSize)) == NULL)
 				return (-1);
