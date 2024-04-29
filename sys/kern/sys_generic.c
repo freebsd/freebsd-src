@@ -2092,11 +2092,15 @@ kcmp_cmp(uintptr_t a, uintptr_t b)
 static int
 kcmp_pget(struct thread *td, pid_t pid, struct proc **pp)
 {
+	int error;
+
 	if (pid == td->td_proc->p_pid) {
 		*pp = td->td_proc;
 		return (0);
 	}
-	return (pget(pid, PGET_CANDEBUG | PGET_NOTWEXIT | PGET_HOLD, pp));
+	error = pget(pid, PGET_CANDEBUG | PGET_NOTWEXIT | PGET_HOLD, pp);
+	MPASS(*pp != td->td_proc);
+	return (error);
 }
 
 int
