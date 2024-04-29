@@ -63,11 +63,6 @@
  * FAT timestamps have 7 bits for the year and starts at 1980, so
  * they can represent up to 2107 which means that the non-leap-year
  * 2100 must be handled.
- *
- * XXX: As long as time_t is 32 bits this is not relevant or easily
- * XXX: testable.  Revisit when time_t grows bigger.
- * XXX: grepfodder: 64 bit time_t, y2100, y2.1k, 2100, leap year
- *
  */
 
 #include <sys/param.h>
@@ -165,10 +160,7 @@ timespec2fattime(const struct timespec *tsp, int utc, uint16_t *ddp,
 		} else {
 			t2 -= T1980;
 
-			/*
-			 * 2100 is not a leap year.
-			 * XXX: a 32 bit time_t can not get us here.
-			 */
+			/* 2100 is not a leap year */
 			if (t2 >= ((2100 - 1980) / 4 * LYC + FEB))
 				t2++;
 
@@ -242,17 +234,14 @@ fattime2timespec(unsigned dd, unsigned dt, unsigned dh, int utc,
 	/* Month offset from leap-year cycle */
 	day += daytab[(dd >> 5) & 0x3f];
 
-	/*
-	 * 2100 is not a leap year.
-	 * XXX: a 32 bit time_t can not get us here.
-	 */
+	/* 2100 is not a leap year */
 	if (day >= ((2100 - 1980) / 4 * LYC + FEB))
 		day--;
 
 	/* Align with time_t epoch */
 	day += T1980;
 
-	tsp->tv_sec += DAY * day;
+	tsp->tv_sec += (time_t) DAY * day;
 	if (!utc)
 		tsp->tv_sec += utc_offset();
 }
