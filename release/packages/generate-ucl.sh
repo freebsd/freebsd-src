@@ -40,6 +40,9 @@ main() {
 		clang)
 			pkgdeps="lld libcompiler_rt-dev"
 			;;
+		periodic)
+			pkgdeps="cron"
+			;;
 
 		# -dev packages that have no corresponding non-dev package
 		# as a dependency.
