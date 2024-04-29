@@ -694,76 +694,16 @@ struct freebsd32_timerfd_settime_args {
 	char new_value_l_[PADL_(const struct itimerspec32 *)]; const struct itimerspec32 * new_value; char new_value_r_[PADR_(const struct itimerspec32 *)];
 	char old_value_l_[PADL_(struct itimerspec32 *)]; struct itimerspec32 * old_value; char old_value_r_[PADR_(struct itimerspec32 *)];
 };
-struct freebsd32_osdb_step_args {
-	char sqlite3_stmt_l_[PADL_(int32_t)]; int32_t sqlite3_stmt; char sqlite3_stmt_r_[PADR_(int32_t)];
-	char status_l_[PADL_(int)]; int status; char status_r_[PADR_(int)];
-};
-struct freebsd32_osdb_finalize_args {
-	char sqlite3_stmt_l_[PADL_(int32_t)]; int32_t sqlite3_stmt; char sqlite3_stmt_r_[PADR_(int32_t)];
-};
-struct freebsd32_osdb_column_blob_args {
-	char sqlite3_stmt_l_[PADL_(int32_t)]; int32_t sqlite3_stmt; char sqlite3_stmt_r_[PADR_(int32_t)];
-	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
-	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
-	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
-};
-struct freebsd32_osdb_column_double_args {
-	char sqlite3_stmt_l_[PADL_(int32_t)]; int32_t sqlite3_stmt; char sqlite3_stmt_r_[PADR_(int32_t)];
-	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
-	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
-	char result_l_[PADL_(double)]; double result; char result_r_[PADR_(double)];
-};
-struct freebsd32_osdb_column_int_args {
-	char sqlite3_stmt_l_[PADL_(int32_t)]; int32_t sqlite3_stmt; char sqlite3_stmt_r_[PADR_(int32_t)];
-	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
-	char result_l_[PADL_(int)]; int result; char result_r_[PADR_(int)];
+struct freebsd32_osdb_prepare_v2_args {
+	char zSql_l_[PADL_(const char *)]; const char * zSql; char zSql_r_[PADR_(const char *)];
+	char nBytes_l_[PADL_(int)]; int nBytes; char nBytes_r_[PADR_(int)];
+	char ppStmt_l_[PADL_(uint32_t *)]; uint32_t * ppStmt; char ppStmt_r_[PADR_(uint32_t *)];
+	char pzTail_l_[PADL_(uint32_t *)]; uint32_t * pzTail; char pzTail_r_[PADR_(uint32_t *)];
 };
 struct freebsd32_osdb_column_int64_args {
-	char sqlite3_stmt_l_[PADL_(int32_t)]; int32_t sqlite3_stmt; char sqlite3_stmt_r_[PADR_(int32_t)];
+	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
 	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 	char result_l_[PADL_(int32_t)]; int32_t result; char result_r_[PADR_(int32_t)];
-};
-struct freebsd32_osdb_column_text_args {
-	char sqlite3_stmt_l_[PADL_(int32_t)]; int32_t sqlite3_stmt; char sqlite3_stmt_r_[PADR_(int32_t)];
-	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
-	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
-	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
-};
-struct freebsd32_osdb_column_text16_args {
-	char sqlite3_stmt_l_[PADL_(int32_t)]; int32_t sqlite3_stmt; char sqlite3_stmt_r_[PADR_(int32_t)];
-	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
-	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
-	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
-};
-struct freebsd32_osdb_column_value_args {
-	char sqlite3_stmt_l_[PADL_(int32_t)]; int32_t sqlite3_stmt; char sqlite3_stmt_r_[PADR_(int32_t)];
-	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
-	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
-	char reslen_l_[PADL_(int)]; int reslen; char reslen_r_[PADR_(int)];
-};
-struct freebsd32_osdb_column_bytes_args {
-	char sqlite3_stmt_l_[PADL_(int32_t)]; int32_t sqlite3_stmt; char sqlite3_stmt_r_[PADR_(int32_t)];
-	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
-	char size_l_[PADL_(int)]; int size; char size_r_[PADR_(int)];
-};
-struct freebsd32_osdb_column_bytes16_args {
-	char sqlite3_stmt_l_[PADL_(int32_t)]; int32_t sqlite3_stmt; char sqlite3_stmt_r_[PADR_(int32_t)];
-	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
-	char size_l_[PADL_(int)]; int size; char size_r_[PADR_(int)];
-};
-struct freebsd32_osdb_column_type_args {
-	char sqlite3_stmt_l_[PADL_(int32_t)]; int32_t sqlite3_stmt; char sqlite3_stmt_r_[PADR_(int32_t)];
-	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
-	char datatype_l_[PADL_(int)]; int datatype; char datatype_r_[PADR_(int)];
-};
-struct freebsd32_osdb_column_count_args {
-	char sqlite3_stmt_l_[PADL_(int32_t)]; int32_t sqlite3_stmt; char sqlite3_stmt_r_[PADR_(int32_t)];
-	char count_l_[PADL_(int)]; int count; char count_r_[PADR_(int)];
-};
-struct freebsd32_osdb_column_name_args {
-	char sqlite3_stmt_l_[PADL_(int32_t)]; int32_t sqlite3_stmt; char sqlite3_stmt_r_[PADR_(int32_t)];
-	char N_l_[PADL_(int)]; int N; char N_r_[PADR_(int)];
-	char name_l_[PADL_(void *)]; void * name; char name_r_[PADR_(void *)];
 };
 int	freebsd32_wait4(struct thread *, struct freebsd32_wait4_args *);
 int	freebsd32_ptrace(struct thread *, struct freebsd32_ptrace_args *);
@@ -882,20 +822,8 @@ int	freebsd32_aio_writev(struct thread *, struct freebsd32_aio_writev_args *);
 int	freebsd32_aio_readv(struct thread *, struct freebsd32_aio_readv_args *);
 int	freebsd32_timerfd_gettime(struct thread *, struct freebsd32_timerfd_gettime_args *);
 int	freebsd32_timerfd_settime(struct thread *, struct freebsd32_timerfd_settime_args *);
-int	freebsd32_osdb_step(struct thread *, struct freebsd32_osdb_step_args *);
-int	freebsd32_osdb_finalize(struct thread *, struct freebsd32_osdb_finalize_args *);
-int	freebsd32_osdb_column_blob(struct thread *, struct freebsd32_osdb_column_blob_args *);
-int	freebsd32_osdb_column_double(struct thread *, struct freebsd32_osdb_column_double_args *);
-int	freebsd32_osdb_column_int(struct thread *, struct freebsd32_osdb_column_int_args *);
+int	freebsd32_osdb_prepare_v2(struct thread *, struct freebsd32_osdb_prepare_v2_args *);
 int	freebsd32_osdb_column_int64(struct thread *, struct freebsd32_osdb_column_int64_args *);
-int	freebsd32_osdb_column_text(struct thread *, struct freebsd32_osdb_column_text_args *);
-int	freebsd32_osdb_column_text16(struct thread *, struct freebsd32_osdb_column_text16_args *);
-int	freebsd32_osdb_column_value(struct thread *, struct freebsd32_osdb_column_value_args *);
-int	freebsd32_osdb_column_bytes(struct thread *, struct freebsd32_osdb_column_bytes_args *);
-int	freebsd32_osdb_column_bytes16(struct thread *, struct freebsd32_osdb_column_bytes16_args *);
-int	freebsd32_osdb_column_type(struct thread *, struct freebsd32_osdb_column_type_args *);
-int	freebsd32_osdb_column_count(struct thread *, struct freebsd32_osdb_column_count_args *);
-int	freebsd32_osdb_column_name(struct thread *, struct freebsd32_osdb_column_name_args *);
 
 #ifdef COMPAT_43
 
@@ -1397,20 +1325,8 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_aio_readv	AUE_AIO_READV
 #define	FREEBSD32_SYS_AUE_freebsd32_timerfd_gettime	AUE_TIMERFD
 #define	FREEBSD32_SYS_AUE_freebsd32_timerfd_settime	AUE_TIMERFD
-#define	FREEBSD32_SYS_AUE_freebsd32_osdb_step	AUE_NULL
-#define	FREEBSD32_SYS_AUE_freebsd32_osdb_finalize	AUE_NULL
-#define	FREEBSD32_SYS_AUE_freebsd32_osdb_column_blob	AUE_NULL
-#define	FREEBSD32_SYS_AUE_freebsd32_osdb_column_double	AUE_NULL
-#define	FREEBSD32_SYS_AUE_freebsd32_osdb_column_int	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_osdb_prepare_v2	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_osdb_column_int64	AUE_NULL
-#define	FREEBSD32_SYS_AUE_freebsd32_osdb_column_text	AUE_NULL
-#define	FREEBSD32_SYS_AUE_freebsd32_osdb_column_text16	AUE_NULL
-#define	FREEBSD32_SYS_AUE_freebsd32_osdb_column_value	AUE_NULL
-#define	FREEBSD32_SYS_AUE_freebsd32_osdb_column_bytes	AUE_NULL
-#define	FREEBSD32_SYS_AUE_freebsd32_osdb_column_bytes16	AUE_NULL
-#define	FREEBSD32_SYS_AUE_freebsd32_osdb_column_type	AUE_NULL
-#define	FREEBSD32_SYS_AUE_freebsd32_osdb_column_count	AUE_NULL
-#define	FREEBSD32_SYS_AUE_freebsd32_osdb_column_name	AUE_NULL
 
 #undef PAD_
 #undef PADL_
