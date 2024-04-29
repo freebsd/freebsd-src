@@ -311,7 +311,7 @@ static int	rtsx_resume(device_t dev);
 #define	RTSX_DMA_ALIGN		4
 #define	RTSX_HOSTCMD_MAX	256
 #define	RTSX_DMA_CMD_BIFSIZE	(sizeof(uint32_t) * RTSX_HOSTCMD_MAX)
-#define	RTSX_DMA_DATA_BUFSIZE	MAXPHYS
+#define	RTSX_DMA_DATA_BUFSIZE	maxphys
 
 #define	ISSET(t, f) ((t) & (f))
 
@@ -2762,7 +2762,7 @@ rtsx_xfer(struct rtsx_softc *sc, struct mmc_command *cmd)
 			      (unsigned long)cmd->data->len, (unsigned long)cmd->data->xfer_len);
 
 	if (cmd->data->len > RTSX_DMA_DATA_BUFSIZE) {
-		device_printf(sc->rtsx_dev, "rtsx_xfer() length too large: %ld > %d\n",
+		device_printf(sc->rtsx_dev, "rtsx_xfer() length too large: %ld > %ld\n",
 			      (unsigned long)cmd->data->len, RTSX_DMA_DATA_BUFSIZE);
 		cmd->error = MMC_ERR_INVALID;
 		return (MMC_ERR_INVALID);

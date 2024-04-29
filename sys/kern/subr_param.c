@@ -41,6 +41,7 @@
 #include "opt_maxusers.h"
 
 #include <sys/param.h>
+#include <sys/_maxphys.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
