@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20240424:
+	cron, lpr, and ntpd have been moved from FreeBSD-utilities into their
+	own packages.  If you use pkgbase, you should install the relevant
+	packages: FreeBSD-cron, FreeBSD-lp, or FreeBSD-ntp.
+
 20240205:
 	For dynamically linked programs, system calls are now made from
 	libsys rather than libc.  No change in linkage is required as
