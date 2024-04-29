@@ -255,10 +255,9 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 #endif
 	fd = -1;
 	ws = NULL;
+	archive_string_init(&temp_name);
 
 	if (template == NULL) {
-		archive_string_init(&temp_name);
-
 		/* Get a temporary directory. */
 		if (tmpdir == NULL) {
 			size_t l;
