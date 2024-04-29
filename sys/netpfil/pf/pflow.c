@@ -750,6 +750,10 @@ export_pflow(const struct pf_kstate *st)
 
 	NET_EPOCH_ASSERT();
 
+	/* e.g. if pf_state_key_attach() fails. */
+	if (st->key[PF_SK_STACK] == NULL || st->key[PF_SK_WIRE] == NULL)
+		return;
+
 	sk = st->key[st->direction == PF_IN ? PF_SK_WIRE : PF_SK_STACK];
 
 	CK_LIST_FOREACH(sc, &V_pflowif_list, sc_next) {
