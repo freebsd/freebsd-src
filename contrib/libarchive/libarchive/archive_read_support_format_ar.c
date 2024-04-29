@@ -270,7 +270,7 @@ _ar_read_header(struct archive_read *a, struct archive_entry *entry,
 		}
 		if (ar->strtab != NULL) {
 			archive_set_error(&a->archive, EINVAL,
-			    "More than one string tables exist");
+			    "More than one string table exists");
 			return (ARCHIVE_FATAL);
 		}
 
@@ -515,7 +515,7 @@ archive_read_format_ar_read_data(struct archive_read *a,
 		if (ar->entry_padding) {
 			if (skipped >= 0) {
 				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-					"Truncated ar archive- failed consuming padding");
+					"Truncated ar archive - failed consuming padding");
 			}
 			return (ARCHIVE_FATAL);
 		}

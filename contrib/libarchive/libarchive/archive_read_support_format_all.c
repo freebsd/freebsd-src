@@ -67,7 +67,7 @@ archive_read_support_format_all(struct archive *a)
 	 * increase the chance that a high bid from someone else will
 	 * make it unnecessary for these to do anything at all.
 	 */
-	/* These three have potentially large look-ahead. */
+	/* These have potentially large look-ahead. */
 	archive_read_support_format_7zip(a);
 	archive_read_support_format_cab(a);
 	archive_read_support_format_rar(a);
