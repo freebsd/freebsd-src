@@ -47,7 +47,7 @@ DEFINE_TEST(test_read_format_xar_doublelink)
 
 	assertA(ARCHIVE_FATAL == archive_read_next_header(a, &ae));
 	assertEqualString(archive_error_string(a),
-		"File with multiple link targets");
+		"File with multiple link attributes");
 	assert(archive_errno(a) != 0);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
