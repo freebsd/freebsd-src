@@ -75,6 +75,11 @@
 #include <sys/time.h>
 #include <sys/clock.h>
 
+#ifdef TEST_DRIVER
+/* stub for testing */
+#define utc_offset() 0
+#endif
+
 #define DAY	(24 * 60 * 60)	/* Length of day in seconds */
 #define YEAR	365		/* Length of normal year */
 #define LYC	(4 * YEAR + 1)	/* Length of 4 year leap-year cycle */
@@ -282,7 +287,7 @@ main(int argc __unused, char **argv __unused)
 
 		a = ts.tv_sec + ts.tv_nsec * 1e-9;
 		d = t = p = 0;
-		timet2fattime(&ts, &d, &t, &p);
+		timespec2fattime(&ts, 1, &d, &t, &p);
 		printf("%04x %04x %02x -- ", d, t, p);
 		printf("%3d %02d %02d %02d %02d %02d -- ",
 		    ((d >> 9)  & 0x7f) + 1980,
@@ -293,7 +298,7 @@ main(int argc __unused, char **argv __unused)
 		    ((t >> 0)  & 0x1f) * 2);
 
 		ts.tv_sec = ts.tv_nsec = 0;
-		fattime2timet(d, t, p, &ts);
+		fattime2timespec(d, t, p, 1, &ts);
 		printf("%10d.%03ld == ", ts.tv_sec, ts.tv_nsec / 1000000);
 		gmtime_r(&ts.tv_sec, &tm);
 		strftime(buf, sizeof buf, "%Y %m %d %H %M %S", &tm);
