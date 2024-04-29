@@ -153,7 +153,7 @@ EOF
 		PKG_WWW "${PKG_WWW}" \
 		PKG_MAINTAINER "${PKG_MAINTAINER}" \
 		UCLFILES "${srctree}/release/packages/" \
-		${uclsource} ${uclfile}
+		${uclfile} ${uclfile}
 
 	return 0
 }
