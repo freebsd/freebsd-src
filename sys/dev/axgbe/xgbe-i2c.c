@@ -327,8 +327,6 @@ out:
 	if (state->ret || XI2C_GET_BITS(isr, IC_RAW_INTR_STAT, STOP_DET))
 		pdata->i2c_complete = true;
 
-	return;
-
 reissue_check:
 	/* Reissue interrupt if status is not clear */
 	if (pdata->vdata->irq_reissue_support)
