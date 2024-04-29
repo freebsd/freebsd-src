@@ -27,8 +27,8 @@
  *
  */
 
+#include <sys/param.h>
 #include <sys/queue.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -75,7 +75,7 @@ cm_recv(int fd, char *buf)
 	pfds[0].events = POLLIN;
 
 	for (;;) {
-		i = poll(pfds, sizeof(pfds)/sizeof(pfds[0]),
+		i = poll(pfds, nitems(pfds),
 		    CM_RECV_TIMEOUT);
 
 		if (i == 0)
@@ -131,7 +131,7 @@ cm_recv(int fd, char *buf)
 		    msglen);
 
 		for (;;) {
-			i = poll(pfds, sizeof(pfds)/sizeof(pfds[0]),
+			i = poll(pfds, nitems(pfds),
 			    CM_RECV_TIMEOUT);
 
 			if (i == 0)
