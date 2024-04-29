@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 22, 2024
+.Dd April 27, 2024
 .Dt RIGHTS 4
 .Os
 .Sh NAME
@@ -38,20 +38,22 @@
 .Nd Capsicum capability rights for file descriptors
 .Sh DESCRIPTION
 When a file descriptor is created by a function such as
-.Xr accept 2 ,
-.Xr accept4 2 ,
 .Xr fhopen 2 ,
 .Xr kqueue 2 ,
 .Xr mq_open 2 ,
 .Xr open 2 ,
-.Xr openat 2 ,
 .Xr pdfork 2 ,
 .Xr pipe 2 ,
 .Xr shm_open 2 ,
 .Xr socket 2
 or
 .Xr socketpair 2 ,
-it is assigned all capability rights.
+it is assigned all capability rights; for
+.Xr accept 2 ,
+.Xr accept4 2
+or
+.Xr openat 2 ,
+it inherits capability rights from the "parent" file descriptor.
 Those rights can be reduced (but never expanded) by using the
 .Xr cap_rights_limit 2 ,
 .Xr cap_fcntls_limit 2 and
@@ -501,7 +503,10 @@ with the
 is also required),
 .Xr preadv 2
 .Dv ( CAP_SEEK
-is also required) and related system calls.
+is also required),
+.Xr getdents 2 ,
+.Xr getdirentries 2 ,
+and related system calls.
 .It Dv CAP_RECV
 An alias to
 .Dv CAP_READ .
@@ -611,6 +616,8 @@ with the
 .Dv O_WRONLY
 flag, but without the
 .Dv O_APPEND
+or
+.Dv O_TRUNC
 flag,
 .Dv CAP_SEEK
 is also required.
@@ -657,6 +664,8 @@ is also required.
 .Xr fsync 2 ,
 .Xr ftruncate 2 ,
 .Xr futimes 2 ,
+.Xr getdents 2 ,
+.Xr getdirentries 2 ,
 .Xr getpeername 2 ,
 .Xr getsockname 2 ,
 .Xr getsockopt 2 ,
