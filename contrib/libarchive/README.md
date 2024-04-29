@@ -201,7 +201,7 @@ questions we are asked about libarchive:
   In case other thread calls the same function in parallel, it might
   get interrupted by it and cause the executable to use umask=0 for the
   remaining execution.
-  This will then lead to implicitely created directories to have 777
+  This will then lead to implicitly created directories to have 777
   permissions without sticky bit.
 
 * In particular, libarchive's modules to read or write a directory

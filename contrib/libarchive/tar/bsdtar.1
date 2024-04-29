@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 1, 2024
+.Dd April 23, 2024
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -644,14 +644,13 @@ A decimal integer from 4 to 7 specifying the lz4 compression block size
 .It Cm lz4:block-dependence
 Use the previous block of the block being compressed for
 a compression dictionary to improve compression ratio.
-.It Cm zstd:compression-level
-A decimal integer specifying the zstd compression level. Supported values depend
+.It Cm zstd:compression-level Ns = Ns Ar N
+A decimal integer specifying the zstd compression level.
+Supported values depend
 on the library version, common values are from 1 to 22.
-.It Cm zstd:threads
-Specify the number of worker threads to use.
-Setting threads to a special value 0 makes
-.Xr zstd 1
-use as many threads as there are CPU cores on the system.
+.It Cm zstd:threads Ns = Ns Ar N
+Specify the number of worker threads to use, or 0 to use as many
+threads as there are CPU cores in the system.
 .It Cm zstd:frame-per-file
 Start a new compression frame at the beginning of each file in the
 archive.
