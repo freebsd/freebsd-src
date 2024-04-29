@@ -1894,7 +1894,7 @@ struct osdb_column_blob_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
 	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
-	char reslen_l_[PADL_(int *)]; int * reslen; char reslen_r_[PADR_(int *)];
+	char len_l_[PADL_(int)]; int len; char len_r_[PADR_(int)];
 };
 struct osdb_column_double_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
@@ -1915,13 +1915,13 @@ struct osdb_column_text_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
 	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
-	char reslen_l_[PADL_(int *)]; int * reslen; char reslen_r_[PADR_(int *)];
+	char len_l_[PADL_(int)]; int len; char len_r_[PADR_(int)];
 };
 struct osdb_column_text16_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];
 	char iCol_l_[PADL_(int)]; int iCol; char iCol_r_[PADR_(int)];
 	char data_l_[PADL_(char *)]; char * data; char data_r_[PADR_(char *)];
-	char reslen_l_[PADL_(int *)]; int * reslen; char reslen_r_[PADR_(int *)];
+	char len_l_[PADL_(int)]; int len; char len_r_[PADR_(int)];
 };
 struct osdb_column_value_args {
 	char sqlite3_stmt_l_[PADL_(void*)]; void* sqlite3_stmt; char sqlite3_stmt_r_[PADR_(void*)];

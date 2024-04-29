@@ -3399,7 +3399,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
 		uarg[a++] = (intptr_t)p->data; /* char * */
-		uarg[a++] = (intptr_t)p->reslen; /* int * */
+		iarg[a++] = p->len; /* int */
 		*n_args = 4;
 		break;
 	}
@@ -3436,7 +3436,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
 		uarg[a++] = (intptr_t)p->data; /* char * */
-		uarg[a++] = (intptr_t)p->reslen; /* int * */
+		iarg[a++] = p->len; /* int */
 		*n_args = 4;
 		break;
 	}
@@ -3446,7 +3446,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
 		uarg[a++] = (intptr_t)p->data; /* char * */
-		uarg[a++] = (intptr_t)p->reslen; /* int * */
+		iarg[a++] = p->len; /* int */
 		*n_args = 4;
 		break;
 	}
@@ -9291,7 +9291,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 3:
-			p = "userland int *";
+			p = "int";
 			break;
 		default:
 			break;
@@ -9358,7 +9358,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 3:
-			p = "userland int *";
+			p = "int";
 			break;
 		default:
 			break;
@@ -9377,7 +9377,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 3:
-			p = "userland int *";
+			p = "int";
 			break;
 		default:
 			break;

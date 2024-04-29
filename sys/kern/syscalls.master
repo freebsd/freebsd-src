@@ -3363,7 +3363,7 @@
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_writes_z(reslen) char *data,
-			_Out_ int * reslen
+			int len
 		);
 	}
 593 AUE_NULL STD {
@@ -3392,7 +3392,7 @@
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_writes_z(reslen) char *data,
-			_Out_ int * reslen
+			int len
 		);
 	}
 597 AUE_NULL STD {
@@ -3400,7 +3400,7 @@
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_writes_z(reslen) char *data,
-			_Out_ int * reslen
+			int len
 		);
 	}
 598 AUE_NULL STD {
