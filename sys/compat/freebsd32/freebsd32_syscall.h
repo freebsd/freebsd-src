@@ -507,7 +507,7 @@
 #define	FREEBSD32_SYS_freebsd32_timerfd_gettime	586
 #define	FREEBSD32_SYS_freebsd32_timerfd_settime	587
 #define	FREEBSD32_SYS_osdb_exec	588
-#define	FREEBSD32_SYS_osdb_prepare_v2	589
+#define	FREEBSD32_SYS_freebsd32_osdb_prepare_v2	589
 #define	FREEBSD32_SYS_osdb_step	590
 #define	FREEBSD32_SYS_osdb_finalize	591
 #define	FREEBSD32_SYS_osdb_column_blob	592
