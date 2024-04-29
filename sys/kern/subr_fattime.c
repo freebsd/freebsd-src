@@ -84,6 +84,7 @@
 #define YEAR	365		/* Length of normal year */
 #define LYC	(4 * YEAR + 1)	/* Length of 4 year leap-year cycle */
 #define T1980	(10 * 365 + 2)	/* Days from 1970 to 1980 */
+#define T2108	(138 * 365 + 33) /* Days from 1970 to 2108 */
 
 /* End of month is N days from start of (normal) year */
 #define JAN	31
@@ -275,11 +276,17 @@ main(int argc __unused, char **argv __unused)
 
 	for (i = 0; i < 10000; i++) {
 		do {
-			ts.tv_sec = random();
-		} while (ts.tv_sec < T1980 * 86400);
+			/*
+			 * 32-bits gets us to 2106-02-07 06:28:15, but we
+			 * need to get to the end of 2107.  So, we generate
+			 * a 36-bit second count to get us way past 2106.
+			 */
+			ts.tv_sec = ((time_t) arc4random() << 4) ^ arc4random();
+		} while ((ts.tv_sec < T1980 * 86400) || (ts.tv_sec >= T2108 * 86400ull));
+
 		ts.tv_nsec = random() % 1000000000;
 
-		printf("%10d.%03ld -- ", ts.tv_sec, ts.tv_nsec / 1000000);
+		printf("%10jd.%03ld -- ", (intmax_t) ts.tv_sec, ts.tv_nsec / 1000000);
 
 		gmtime_r(&ts.tv_sec, &tm);
 		strftime(buf, sizeof buf, "%Y %m %d %H %M %S", &tm);
@@ -299,7 +306,7 @@ main(int argc __unused, char **argv __unused)
 
 		ts.tv_sec = ts.tv_nsec = 0;
 		fattime2timespec(d, t, p, 1, &ts);
-		printf("%10d.%03ld == ", ts.tv_sec, ts.tv_nsec / 1000000);
+		printf("%10jd.%03ld == ", (intmax_t) ts.tv_sec, ts.tv_nsec / 1000000);
 		gmtime_r(&ts.tv_sec, &tm);
 		strftime(buf, sizeof buf, "%Y %m %d %H %M %S", &tm);
 		printf("%s -- ", buf);
