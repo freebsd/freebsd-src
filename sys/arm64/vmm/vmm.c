@@ -1716,6 +1716,54 @@ vm_handle_paging(struct vcpu *vcpu, bool *retu)
 	return (0);
 }
 
+static int
+vm_handle_suspend(struct vcpu *vcpu, bool *retu)
+{
+	struct vm *vm = vcpu->vm;
+	int error, i;
+	struct thread *td;
+
+	error = 0;
+	td = curthread;
+
+	CPU_SET_ATOMIC(vcpu->vcpuid, &vm->suspended_cpus);
+
+	/*
+	 * Wait until all 'active_cpus' have suspended themselves.
+	 *
+	 * Since a VM may be suspended at any time including when one or
+	 * more vcpus are doing a rendezvous we need to call the rendezvous
+	 * handler while we are waiting to prevent a deadlock.
+	 */
+	vcpu_lock(vcpu);
+	while (error == 0) {
+		if (CPU_CMP(&vm->suspended_cpus, &vm->active_cpus) == 0)
+			break;
+
+		vcpu_require_state_locked(vcpu, VCPU_SLEEPING);
+		msleep_spin(vcpu, &vcpu->mtx, "vmsusp", hz);
+		vcpu_require_state_locked(vcpu, VCPU_FROZEN);
+		if (td_ast_pending(td, TDA_SUSPEND)) {
+			vcpu_unlock(vcpu);
+			error = thread_check_susp(td, false);
+			vcpu_lock(vcpu);
+		}
+	}
+	vcpu_unlock(vcpu);
+
+	/*
+	 * Wakeup the other sleeping vcpus and return to userspace.
+	 */
+	for (i = 0; i < vm->maxcpus; i++) {
+		if (CPU_ISSET(i, &vm->suspended_cpus)) {
+			vcpu_notify_event(vm_vcpu(vm, i));
+		}
+	}
+
+	*retu = true;
+	return (error);
+}
+
 int
 vm_run(struct vcpu *vcpu)
 {
@@ -1786,6 +1834,11 @@ restart:
 		case VM_EXITCODE_PAGING:
 			vcpu->nextpc = vme->pc;
 			error = vm_handle_paging(vcpu, &retu);
+			break;
+
+		case VM_EXITCODE_SUSPENDED:
+			vcpu->nextpc = vme->pc;
+			error = vm_handle_suspend(vcpu, &retu);
 			break;
 
 		default:
