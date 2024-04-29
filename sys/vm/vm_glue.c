@@ -630,7 +630,11 @@ vm_thread_stack_back(vm_offset_t ks, vm_page_t ma[], int npages, int req_class,
 
 	return (0);
 cleanup:
-	vm_object_page_remove(obj, pindex, pindex + n, 0);
+	for (int i = 0; i < n; i++) {
+		m = ma[i];
+		(void)vm_page_unwire_noq(m);
+		vm_page_free(m);
+	}
 	VM_OBJECT_WUNLOCK(obj);
 
 	return (ENOMEM);
