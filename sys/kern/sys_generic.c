@@ -2024,7 +2024,8 @@ kcmp_pget(struct thread *td, pid_t pid, struct proc **pp)
 		*pp = td->td_proc;
 		return (0);
 	}
-	error = pget(pid, PGET_CANDEBUG | PGET_NOTWEXIT | PGET_HOLD, pp);
+	error = pget(pid, PGET_NOTID | PGET_CANDEBUG | PGET_NOTWEXIT |
+	    PGET_HOLD, pp);
 	MPASS(*pp != td->td_proc);
 	return (error);
 }
