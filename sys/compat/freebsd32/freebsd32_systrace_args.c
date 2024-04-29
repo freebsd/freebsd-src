@@ -3373,50 +3373,50 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_prepare_v2_args *p = params;
 		uarg[a++] = (intptr_t)p->zSql; /* const char * */
 		iarg[a++] = p->nBytes; /* int */
-		uarg[a++] = (intptr_t)p->ppStmt; /* void * */
-		uarg[a++] = (intptr_t)p->pzTail; /* void * */
+		iarg[a++] = p->ppStmt; /* int32_t */
+		iarg[a++] = p->pzTail; /* int32_t */
 		*n_args = 4;
 		break;
 	}
-	/* osdb_step */
+	/* freebsd32_osdb_step */
 	case 590: {
-		struct osdb_step_args *p = params;
-		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		struct freebsd32_osdb_step_args *p = params;
+		iarg[a++] = p->sqlite3_stmt; /* int32_t */
 		iarg[a++] = p->status; /* int */
 		*n_args = 2;
 		break;
 	}
-	/* osdb_finalize */
+	/* freebsd32_osdb_finalize */
 	case 591: {
-		struct osdb_finalize_args *p = params;
-		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		struct freebsd32_osdb_finalize_args *p = params;
+		iarg[a++] = p->sqlite3_stmt; /* int32_t */
 		*n_args = 1;
 		break;
 	}
-	/* osdb_column_blob */
+	/* freebsd32_osdb_column_blob */
 	case 592: {
-		struct osdb_column_blob_args *p = params;
-		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		struct freebsd32_osdb_column_blob_args *p = params;
+		iarg[a++] = p->sqlite3_stmt; /* int32_t */
 		iarg[a++] = p->iCol; /* int */
 		uarg[a++] = (intptr_t)p->data; /* char * */
 		iarg[a++] = p->reslen; /* int */
 		*n_args = 4;
 		break;
 	}
-	/* osdb_column_double */
+	/* freebsd32_osdb_column_double */
 	case 593: {
-		struct osdb_column_double_args *p = params;
-		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		struct freebsd32_osdb_column_double_args *p = params;
+		iarg[a++] = p->sqlite3_stmt; /* int32_t */
 		iarg[a++] = p->iCol; /* int */
 		uarg[a++] = (intptr_t)p->data; /* char * */
 		iarg[a++] = p->result; /* double */
 		*n_args = 4;
 		break;
 	}
-	/* osdb_column_int */
+	/* freebsd32_osdb_column_int */
 	case 594: {
-		struct osdb_column_int_args *p = params;
-		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		struct freebsd32_osdb_column_int_args *p = params;
+		iarg[a++] = p->sqlite3_stmt; /* int32_t */
 		iarg[a++] = p->iCol; /* int */
 		iarg[a++] = p->result; /* int */
 		*n_args = 3;
@@ -3425,81 +3425,81 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* freebsd32_osdb_column_int64 */
 	case 595: {
 		struct freebsd32_osdb_column_int64_args *p = params;
-		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		iarg[a++] = p->sqlite3_stmt; /* int32_t */
 		iarg[a++] = p->iCol; /* int */
 		iarg[a++] = p->result; /* int32_t */
 		*n_args = 3;
 		break;
 	}
-	/* osdb_column_text */
+	/* freebsd32_osdb_column_text */
 	case 596: {
-		struct osdb_column_text_args *p = params;
-		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		struct freebsd32_osdb_column_text_args *p = params;
+		iarg[a++] = p->sqlite3_stmt; /* int32_t */
 		iarg[a++] = p->iCol; /* int */
 		uarg[a++] = (intptr_t)p->data; /* char * */
 		iarg[a++] = p->reslen; /* int */
 		*n_args = 4;
 		break;
 	}
-	/* osdb_column_text16 */
+	/* freebsd32_osdb_column_text16 */
 	case 597: {
-		struct osdb_column_text16_args *p = params;
-		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		struct freebsd32_osdb_column_text16_args *p = params;
+		iarg[a++] = p->sqlite3_stmt; /* int32_t */
 		iarg[a++] = p->iCol; /* int */
 		uarg[a++] = (intptr_t)p->data; /* char * */
 		iarg[a++] = p->reslen; /* int */
 		*n_args = 4;
 		break;
 	}
-	/* osdb_column_value */
+	/* freebsd32_osdb_column_value */
 	case 598: {
-		struct osdb_column_value_args *p = params;
-		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		struct freebsd32_osdb_column_value_args *p = params;
+		iarg[a++] = p->sqlite3_stmt; /* int32_t */
 		iarg[a++] = p->iCol; /* int */
 		uarg[a++] = (intptr_t)p->data; /* char * */
 		iarg[a++] = p->reslen; /* int */
 		*n_args = 4;
 		break;
 	}
-	/* osdb_column_bytes */
+	/* freebsd32_osdb_column_bytes */
 	case 599: {
-		struct osdb_column_bytes_args *p = params;
-		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		struct freebsd32_osdb_column_bytes_args *p = params;
+		iarg[a++] = p->sqlite3_stmt; /* int32_t */
 		iarg[a++] = p->iCol; /* int */
 		iarg[a++] = p->size; /* int */
 		*n_args = 3;
 		break;
 	}
-	/* osdb_column_bytes16 */
+	/* freebsd32_osdb_column_bytes16 */
 	case 600: {
-		struct osdb_column_bytes16_args *p = params;
-		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		struct freebsd32_osdb_column_bytes16_args *p = params;
+		iarg[a++] = p->sqlite3_stmt; /* int32_t */
 		iarg[a++] = p->iCol; /* int */
 		iarg[a++] = p->size; /* int */
 		*n_args = 3;
 		break;
 	}
-	/* osdb_column_type */
+	/* freebsd32_osdb_column_type */
 	case 601: {
-		struct osdb_column_type_args *p = params;
-		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		struct freebsd32_osdb_column_type_args *p = params;
+		iarg[a++] = p->sqlite3_stmt; /* int32_t */
 		iarg[a++] = p->iCol; /* int */
 		iarg[a++] = p->datatype; /* int */
 		*n_args = 3;
 		break;
 	}
-	/* osdb_column_count */
+	/* freebsd32_osdb_column_count */
 	case 602: {
-		struct osdb_column_count_args *p = params;
-		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		struct freebsd32_osdb_column_count_args *p = params;
+		iarg[a++] = p->sqlite3_stmt; /* int32_t */
 		iarg[a++] = p->count; /* int */
 		*n_args = 2;
 		break;
 	}
-	/* osdb_column_name */
+	/* freebsd32_osdb_column_name */
 	case 603: {
-		struct osdb_column_name_args *p = params;
-		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void * */
+		struct freebsd32_osdb_column_name_args *p = params;
+		iarg[a++] = p->sqlite3_stmt; /* int32_t */
 		iarg[a++] = p->N; /* int */
 		uarg[a++] = (intptr_t)p->name; /* void * */
 		*n_args = 3;
@@ -9247,20 +9247,20 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "userland void *";
+			p = "int32_t";
 			break;
 		case 3:
-			p = "userland void *";
+			p = "int32_t";
 			break;
 		default:
 			break;
 		};
 		break;
-	/* osdb_step */
+	/* freebsd32_osdb_step */
 	case 590:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
+			p = "int32_t";
 			break;
 		case 1:
 			p = "int";
@@ -9269,21 +9269,21 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* osdb_finalize */
+	/* freebsd32_osdb_finalize */
 	case 591:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
+			p = "int32_t";
 			break;
 		default:
 			break;
 		};
 		break;
-	/* osdb_column_blob */
+	/* freebsd32_osdb_column_blob */
 	case 592:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
+			p = "int32_t";
 			break;
 		case 1:
 			p = "int";
@@ -9298,11 +9298,11 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* osdb_column_double */
+	/* freebsd32_osdb_column_double */
 	case 593:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
+			p = "int32_t";
 			break;
 		case 1:
 			p = "int";
@@ -9317,11 +9317,11 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* osdb_column_int */
+	/* freebsd32_osdb_column_int */
 	case 594:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
+			p = "int32_t";
 			break;
 		case 1:
 			p = "int";
@@ -9337,7 +9337,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 595:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
+			p = "int32_t";
 			break;
 		case 1:
 			p = "int";
@@ -9349,11 +9349,11 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* osdb_column_text */
+	/* freebsd32_osdb_column_text */
 	case 596:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
+			p = "int32_t";
 			break;
 		case 1:
 			p = "int";
@@ -9368,11 +9368,11 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* osdb_column_text16 */
+	/* freebsd32_osdb_column_text16 */
 	case 597:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
+			p = "int32_t";
 			break;
 		case 1:
 			p = "int";
@@ -9387,11 +9387,11 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* osdb_column_value */
+	/* freebsd32_osdb_column_value */
 	case 598:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
+			p = "int32_t";
 			break;
 		case 1:
 			p = "int";
@@ -9406,11 +9406,11 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* osdb_column_bytes */
+	/* freebsd32_osdb_column_bytes */
 	case 599:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
+			p = "int32_t";
 			break;
 		case 1:
 			p = "int";
@@ -9422,11 +9422,11 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* osdb_column_bytes16 */
+	/* freebsd32_osdb_column_bytes16 */
 	case 600:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
+			p = "int32_t";
 			break;
 		case 1:
 			p = "int";
@@ -9438,11 +9438,11 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* osdb_column_type */
+	/* freebsd32_osdb_column_type */
 	case 601:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
+			p = "int32_t";
 			break;
 		case 1:
 			p = "int";
@@ -9454,11 +9454,11 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* osdb_column_count */
+	/* freebsd32_osdb_column_count */
 	case 602:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
+			p = "int32_t";
 			break;
 		case 1:
 			p = "int";
@@ -9467,11 +9467,11 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* osdb_column_name */
+	/* freebsd32_osdb_column_name */
 	case 603:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
+			p = "int32_t";
 			break;
 		case 1:
 			p = "int";
@@ -11371,27 +11371,27 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_step */
+	/* freebsd32_osdb_step */
 	case 590:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_finalize */
+	/* freebsd32_osdb_finalize */
 	case 591:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_blob */
+	/* freebsd32_osdb_column_blob */
 	case 592:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_double */
+	/* freebsd32_osdb_column_double */
 	case 593:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_int */
+	/* freebsd32_osdb_column_int */
 	case 594:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -11401,42 +11401,42 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_text */
+	/* freebsd32_osdb_column_text */
 	case 596:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_text16 */
+	/* freebsd32_osdb_column_text16 */
 	case 597:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_value */
+	/* freebsd32_osdb_column_value */
 	case 598:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_bytes */
+	/* freebsd32_osdb_column_bytes */
 	case 599:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_bytes16 */
+	/* freebsd32_osdb_column_bytes16 */
 	case 600:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_type */
+	/* freebsd32_osdb_column_type */
 	case 601:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_count */
+	/* freebsd32_osdb_column_count */
 	case 602:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_name */
+	/* freebsd32_osdb_column_name */
 	case 603:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
