@@ -1185,9 +1185,7 @@ tdq_notify(struct tdq *tdq, int lowpri)
 
 struct runq_steal_pred_data {
 	struct thread	*td;
-	struct thread	*first;
 	int		cpu;
-	bool		use_first_last;
 };
 
 static bool
@@ -1197,11 +1195,6 @@ runq_steal_pred(const int idx, struct rq_queue *const q, void *const data)
 	struct thread *td;
 
 	TAILQ_FOREACH(td, q, td_runq) {
-		if (d->use_first_last && d->first == NULL) {
-			d->first = td;
-			continue;
-		}
-
 		if (THREAD_CAN_MIGRATE(td) && THREAD_CAN_SCHED(td, d->cpu)) {
 			d->td = td;
 			return (true);
@@ -1220,9 +1213,7 @@ runq_steal_from(struct runq *const rq, int cpu, int start_idx)
 {
 	struct runq_steal_pred_data data = {
 		.td = NULL,
-		.first = NULL,
 		.cpu = cpu,
-		.use_first_last = true
 	};
 	int idx;
 
@@ -1238,9 +1229,6 @@ runq_steal_from(struct runq *const rq, int cpu, int start_idx)
 	}
 
 	MPASS(idx == -1 && data.td == NULL);
-	if (data.first != NULL && THREAD_CAN_MIGRATE(data.first) &&
-	    THREAD_CAN_SCHED(data.first, cpu))
-		return (data.first);
 	return (NULL);
 found:
 	MPASS(data.td != NULL);
@@ -1255,9 +1243,7 @@ runq_steal(struct runq *rq, int cpu)
 {
 	struct runq_steal_pred_data data = {
 		.td = NULL,
-		.first = NULL,
 		.cpu = cpu,
-		.use_first_last = false
 	};
 	int idx;
 
