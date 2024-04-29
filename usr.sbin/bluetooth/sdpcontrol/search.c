@@ -30,6 +30,7 @@
  * $Id: search.c,v 1.2 2003/09/08 17:35:15 max Exp $
  */
 
+#include <sys/param.h>
 #include <netinet/in.h>
 #define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
@@ -51,7 +52,7 @@ static uint32_t	attrs[] =
 	SDP_ATTR_RANGE(	SDP_ATTR_BLUETOOTH_PROFILE_DESCRIPTOR_LIST,
 			SDP_ATTR_BLUETOOTH_PROFILE_DESCRIPTOR_LIST)
 };
-#define attrs_len	(sizeof(attrs)/sizeof(attrs[0]))
+#define attrs_len	nitems(attrs)
 
 /* Buffer for the attributes */
 #define NRECS	25	/* request this much records from the SDP server */
@@ -60,7 +61,7 @@ static uint8_t		buffer[NRECS * attrs_len][BSIZE];
 
 /* SDP attributes */
 static sdp_attr_t	values[NRECS * attrs_len];
-#define values_len	(sizeof(values)/sizeof(values[0]))
+#define values_len	nitems(values)
 
 /*
  * Print Service Class ID List
