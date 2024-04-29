@@ -835,6 +835,7 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af, int ttl)
 	bool multicast = false;
 
 	NET_EPOCH_ASSERT();
+	MPASS(ch->carp_version == CARP_VERSION_CARP);
 
 	ifa = carp_find_ifa(m, af, ch->carp_vhid);
 	if (ifa == NULL) {
@@ -846,8 +847,7 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af, int ttl)
 	CARP_LOCK(sc);
 
 	/* verify the CARP version. */
-	if (ch->carp_version != CARP_VERSION_CARP ||
-	    sc->sc_version != CARP_VERSION_CARP) {
+	if (sc->sc_version != CARP_VERSION_CARP) {
 		CARP_UNLOCK(sc);
 
 		CARPSTATS_INC(carps_badver);
@@ -956,6 +956,7 @@ vrrp_input_c(struct mbuf *m, int off, sa_family_t af, int ttl,
 	struct carp_softc *sc;
 
 	NET_EPOCH_ASSERT();
+	MPASS(vh->vrrp_version == CARP_VERSION_VRRPv3);
 
 	ifa = carp_find_ifa(m, af, vh->vrrp_vrtid);
 	if (ifa == NULL) {
@@ -969,7 +970,7 @@ vrrp_input_c(struct mbuf *m, int off, sa_family_t af, int ttl,
 	ifa_free(ifa);
 
 	/* verify the CARP version. */
-	if (vh->vrrp_version != CARP_VERSION_VRRPv3 || sc->sc_version != CARP_VERSION_VRRPv3) {
+	if (sc->sc_version != CARP_VERSION_VRRPv3) {
 		CARP_UNLOCK(sc);
 
 		CARPSTATS_INC(carps_badver);
