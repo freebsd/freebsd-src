@@ -2468,7 +2468,7 @@ sendfile_fallback(struct thread *td, struct file *fp, l_int out,
 		out_offset = 0;
 
 	flags = FOF_OFFSET | FOF_NOUPDATE;
-	bufsz = min(count, MAXPHYS);
+	bufsz = min(count, maxphys);
 	buf = malloc(bufsz, M_LINUX, M_WAITOK);
 	bytes_sent = 0;
 	while (bytes_sent < count) {
