@@ -1055,21 +1055,23 @@ carp_tag(struct carp_softc *sc, struct mbuf *m)
 	struct m_tag *mtag;
 
 	/* Tag packet for carp_output */
-	if ((mtag = m_tag_get(PACKET_TAG_CARP, sizeof(struct carp_softc *),
+	if ((mtag = m_tag_get(PACKET_TAG_CARP, sizeof(sc->sc_vhid),
 	    M_NOWAIT)) == NULL) {
 		m_freem(m);
 		CARPSTATS_INC(carps_onomem);
 		return (ENOMEM);
 	}
-	bcopy(&sc, mtag + 1, sizeof(sc));
+	bcopy(&sc->sc_vhid, mtag + 1, sizeof(sc->sc_vhid));
 	m_tag_prepend(m, mtag);
 
 	return (0);
 }
 
-static int
+static void
 carp_prepare_ad(struct mbuf *m, struct carp_softc *sc, struct carp_header *ch)
 {
+
+	MPASS(sc->sc_version == CARP_VERSION_CARP);
 
 	if (sc->sc_init_counter) {
 		/* this could also be seconds since unix epoch */
@@ -1083,8 +1085,6 @@ carp_prepare_ad(struct mbuf *m, struct carp_softc *sc, struct carp_header *ch)
 	ch->carp_counter[1] = htonl(sc->sc_counter&0xffffffff);
 
 	carp_hmac_generate(sc, ch->carp_counter, ch->carp_md);
-
-	return (carp_tag(sc, m));
 }
 
 static inline void
@@ -1273,7 +1273,9 @@ carp_send_ad_locked(struct carp_softc *sc)
 
 		ch_ptr = (struct carp_header *)(&ip[1]);
 		bcopy(&ch, ch_ptr, sizeof(ch));
-		if (carp_prepare_ad(m, sc, ch_ptr))
+		carp_prepare_ad(m, sc, ch_ptr);
+		if (IN_MULTICAST(ntohl(sc->sc_carpaddr.s_addr)) &&
+		    carp_tag(sc, m) != 0)
 			goto resched;
 
 		m->m_data += sizeof(*ip);
@@ -1333,7 +1335,9 @@ carp_send_ad_locked(struct carp_softc *sc)
 
 		ch_ptr = (struct carp_header *)(&ip6[1]);
 		bcopy(&ch, ch_ptr, sizeof(ch));
-		if (carp_prepare_ad(m, sc, ch_ptr))
+		carp_prepare_ad(m, sc, ch_ptr);
+		if (IN6_IS_ADDR_MULTICAST(&sc->sc_carpaddr6) &&
+		    carp_tag(sc, m) != 0)
 			goto resched;
 
 		m->m_data += sizeof(*ip6);
@@ -2019,7 +2023,7 @@ int
 carp_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *sa)
 {
 	struct m_tag *mtag;
-	struct carp_softc *sc;
+	int vhid;
 
 	if (!sa)
 		return (0);
@@ -2041,20 +2045,7 @@ carp_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *sa)
 	if (mtag == NULL)
 		return (0);
 
-	bcopy(mtag + 1, &sc, sizeof(sc));
-
-	switch (sa->sa_family) {
-	case AF_INET:
-		if (! IN_MULTICAST(ntohl(sc->sc_carpaddr.s_addr)))
-			return (0);
-		break;
-	case AF_INET6:
-		if (! IN6_IS_ADDR_MULTICAST(&sc->sc_carpaddr6))
-			return (0);
-		break;
-	default:
-		panic("Unknown af");
-	}
+	bcopy(mtag + 1, &vhid, sizeof(vhid));
 
 	/* Set the source MAC address to the Virtual Router MAC Address. */
 	switch (ifp->if_type) {
@@ -2069,7 +2060,7 @@ carp_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *sa)
 			eh->ether_shost[2] = 0x5e;
 			eh->ether_shost[3] = 0;
 			eh->ether_shost[4] = 1;
-			eh->ether_shost[5] = sc->sc_vhid;
+			eh->ether_shost[5] = vhid;
 		}
 		break;
 	default:
