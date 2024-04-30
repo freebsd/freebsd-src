@@ -687,10 +687,11 @@ validate_access(int peer, char **filep, int mode)
 		 * it's a /.
 		 */
 		for (dirp = dirs; dirp->name != NULL; dirp++) {
-			if (dirp->len == 1 ||
-			    (!strncmp(filename, dirp->name, dirp->len) &&
-			     filename[dirp->len] == '/'))
-				    break;
+			if (dirp->len == 1)
+				break;
+			if (strncmp(filename, dirp->name, dirp->len) == 0 &&
+			    filename[dirp->len] == '/')
+				break;
 		}
 		/* If directory list is empty, allow access to any file */
 		if (dirp->name == NULL && dirp != dirs)
