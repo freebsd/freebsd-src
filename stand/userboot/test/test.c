@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2011 Google, Inc.
+ * Copyright (c) 2023-2024 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,7 +36,9 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <inttypes.h>
+#include <libgen.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,6 +46,8 @@
 #include <unistd.h>
 
 #include <userboot.h>
+
+char **vars;
 
 char *host_base = NULL;
 struct termios term, oldterm;
@@ -102,47 +107,164 @@ struct test_file {
 	} tf_u;
 };
 
+static int
+test_open_internal(void *arg, const char *filename, void **h_return,
+    struct test_file *tf, int depth)
+{
+	char path[PATH_MAX];
+	char linkpath[PATH_MAX];
+	char *component, *cp, *linkptr;
+	ssize_t slen;
+	int comp_fd, dir_fd, error;
+	char c;
+	bool openbase;
+
+	if (depth++ >= MAXSYMLINKS)
+		return (ELOOP);
+
+	openbase = false;
+	error = EINVAL;
+	if (tf == NULL) {
+		tf = calloc(1, sizeof(struct test_file));
+		if (tf == NULL)
+			return (error);
+		openbase = true;
+	} else if (tf->tf_isdir) {
+		if (filename[0] == '/') {
+			closedir(tf->tf_u.dir);
+			openbase = true;
+		}
+	} else
+		return (error);
+
+	if (openbase) {
+		dir_fd = open(host_base, O_RDONLY);
+		if (dir_fd < 0)
+			goto out;
+
+		tf->tf_isdir = 1;
+		tf->tf_u.dir = fdopendir(dir_fd);
+
+		if (fstat(dir_fd, &tf->tf_stat) < 0) {
+			error = errno;
+			goto out;
+		}
+		tf->tf_size = tf->tf_stat.st_size;
+	}
+
+	strlcpy(path, filename, sizeof(path));
+	cp = path;
+	while (*cp) {
+		/*
+		 * The test file should be a directory at this point.
+		 * If it is not, then the caller provided an invalid filename.
+		 */
+		if (!tf->tf_isdir)
+			goto out;
+
+		/* Trim leading slashes */
+		while (*cp == '/')
+			cp++;
+
+		/* If we reached the end, we are done */
+		if (*cp == '\0')
+			break;
+
+		/* Get the file descriptor for the directory */
+		dir_fd = dirfd(tf->tf_u.dir);
+
+		/* Get the next component path */
+		component = cp;
+		while ((c = *cp) != '\0' && c != '/')
+			cp++;
+		if (c == '/')
+			*cp++ = '\0';
+
+		/* Get status of the component */
+		if (fstatat(dir_fd, component, &tf->tf_stat,
+		    AT_SYMLINK_NOFOLLOW) < 0) {
+			error = errno;
+			goto out;
+		}
+		tf->tf_size = tf->tf_stat.st_size;
+
+		/*
+		 * Check that the path component is a directory, regular file,
+		 * or a symlink.
+		 */
+		if (!S_ISDIR(tf->tf_stat.st_mode) &&
+		    !S_ISREG(tf->tf_stat.st_mode) &&
+		    !S_ISLNK(tf->tf_stat.st_mode))
+			goto out;
+
+		/* For anything that is not a symlink, open it */
+		if (!S_ISLNK(tf->tf_stat.st_mode)) {
+			comp_fd = openat(dir_fd, component, O_RDONLY);
+			if (comp_fd < 0)
+				goto out;
+		}
+
+		if (S_ISDIR(tf->tf_stat.st_mode)) {
+			/* Directory */
+
+			/* close the parent directory */
+			closedir(tf->tf_u.dir);
+
+			/* Open the directory from the component descriptor */
+			tf->tf_isdir = 1;
+			tf->tf_u.dir = fdopendir(comp_fd);
+			if (!tf->tf_u.dir)
+				goto out;
+		} else if (S_ISREG(tf->tf_stat.st_mode)) {
+			/* Regular file */
+
+			/* close the parent directory */
+			closedir(tf->tf_u.dir);
+
+			/* Stash the component descriptor */
+			tf->tf_isdir = 0;
+			tf->tf_u.fd = comp_fd;
+		} else if (S_ISLNK(tf->tf_stat.st_mode)) {
+			/* Symlink */
+
+			/* Read what the symlink points to */
+			slen = readlinkat(dir_fd, component, linkpath,
+			    sizeof(linkpath));
+			if (slen < 0)
+				goto out;
+			/* NUL-terminate the string */
+			linkpath[(size_t)slen] = '\0';
+
+			/* Open the thing that the symlink points to */
+			error = test_open_internal(arg, linkpath, NULL,
+			    tf, depth);
+			if (error != 0)
+				goto out;
+		}
+	}
+
+	/* Completed the entire path and have a good file/directory */
+	if (h_return != NULL)
+		*h_return = tf;
+	return (0);
+
+out:
+	/* Failure of some sort, clean up */
+	if (tf->tf_isdir)
+		closedir(tf->tf_u.dir);
+	else
+		close(tf->tf_u.fd);
+	free(tf);
+	return (error);
+}
+
 int
 test_open(void *arg, const char *filename, void **h_return)
 {
-	struct stat st;
-	struct test_file *tf;
-	char path[PATH_MAX];
-
-	if (!host_base)
+	if (host_base == NULL)
 		return (ENOENT);
 
-	strlcpy(path, host_base, PATH_MAX);
-	if (path[strlen(path) - 1] == '/')
-		path[strlen(path) - 1] = 0;
-	strlcat(path, filename, PATH_MAX);
-	tf = malloc(sizeof(struct test_file));
-	if (stat(path, &tf->tf_stat) < 0) {
-		free(tf);
-		return (errno);
-	}
-
-	tf->tf_size = st.st_size;
-	if (S_ISDIR(tf->tf_stat.st_mode)) {
-		tf->tf_isdir = 1;
-		tf->tf_u.dir = opendir(path);
-		if (!tf->tf_u.dir)
-			goto out;
-                *h_return = tf;
-		return (0);
-	}
-	if (S_ISREG(tf->tf_stat.st_mode)) {
-		tf->tf_isdir = 0;
-		tf->tf_u.fd = open(path, O_RDONLY);
-		if (tf->tf_u.fd < 0)
-			goto out;
-                *h_return = tf;
-		return (0);
-	}
-
-out:
-	free(tf);
-	return (EINVAL);
+	return (test_open_internal(arg, filename, h_return, NULL, 0));
 }
 
 int
@@ -394,13 +516,15 @@ test_getmem(void *arg, uint64_t *lowmem, uint64_t *highmem)
 char *
 test_getenv(void *arg, int idx)
 {
-	static char *vars[] = {
-		"foo=bar",
-		"bar=barbar",
-		NULL
+	static char *myvars[] = {
+		"USERBOOT=1"
 	};
+	static const int num_myvars = nitems(myvars);
 
-	return (vars[idx]);
+	if (idx < num_myvars)
+		return (myvars[idx]);
+	else
+		return (vars[idx - num_myvars]);
 }
 
 struct loader_callbacks cb = {
@@ -444,13 +568,15 @@ usage()
 }
 
 int
-main(int argc, char** argv)
+main(int argc, char** argv, char ** environment)
 {
 	void *h;
 	void (*func)(struct loader_callbacks *, void *, int, int) __dead2;
 	int opt;
 	const char *userboot_obj = "/boot/userboot.so";
 	int oflag = O_RDONLY;
+
+	vars = environment;
 
 	while ((opt = getopt(argc, argv, "wb:d:h:")) != -1) {
 		switch (opt) {
