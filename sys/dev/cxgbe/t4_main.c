@@ -5323,9 +5323,13 @@ get_params__post_init(struct adapter *sc)
 	}
 
 	/*
-	 * MPSBGMAP is queried separately because only recent firmwares support
-	 * it as a parameter and we don't want the compound query above to fail
-	 * on older firmwares.
+	 * The parameters that follow may not be available on all firmwares.  We
+	 * query them individually rather than in a compound query because old
+	 * firmwares fail the entire query if an unknown parameter is queried.
+	 */
+
+	/*
+	 * MPS buffer group configuration.
 	 */
 	param[0] = FW_PARAM_DEV(MPSBGMAP);
 	val[0] = 0;
@@ -5337,7 +5341,6 @@ get_params__post_init(struct adapter *sc)
 
 	/*
 	 * Determine whether the firmware supports the filter2 work request.
-	 * This is queried separately for the same reason as MPSBGMAP above.
 	 */
 	param[0] = FW_PARAM_DEV(FILTER2_WR);
 	val[0] = 0;
@@ -5349,7 +5352,6 @@ get_params__post_init(struct adapter *sc)
 
 	/*
 	 * Find out whether we're allowed to use the ULPTX MEMWRITE DSGL.
-	 * This is queried separately for the same reason as other params above.
 	 */
 	param[0] = FW_PARAM_DEV(ULPTX_MEMWRITE_DSGL);
 	val[0] = 0;
