@@ -6660,7 +6660,8 @@ adapter_full_init(struct adapter *sc)
 	if (rc != 0)
 		return (rc);
 
-	for (i = 0; i < nitems(sc->tq); i++) {
+	MPASS(sc->params.nports <= nitems(sc->tq));
+	for (i = 0; i < sc->params.nports; i++) {
 		if (sc->tq[i] != NULL)
 			continue;
 		sc->tq[i] = taskqueue_create("t4 taskq", M_NOWAIT,
@@ -6709,7 +6710,9 @@ adapter_full_uninit(struct adapter *sc)
 
 	t4_teardown_adapter_queues(sc);
 
-	for (i = 0; i < nitems(sc->tq) && sc->tq[i]; i++) {
+	for (i = 0; i < nitems(sc->tq); i++) {
+		if (sc->tq[i] == NULL)
+			continue;
 		taskqueue_free(sc->tq[i]);
 		sc->tq[i] = NULL;
 	}
