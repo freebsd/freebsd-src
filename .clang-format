@@ -2,6 +2,7 @@
 ---
 BasedOnStyle: WebKit
 AlignAfterOpenBracket: DontAlign
+AlignConsecutiveMacros: AcrossEmptyLines
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 AlignEscapedNewlines: Left
@@ -94,6 +95,7 @@ ForEachMacros:
   - TAILQ_FOREACH_SAFE
   - VM_MAP_ENTRY_FOREACH
   - VM_PAGE_DUMP_FOREACH
+SpaceBeforeParens: ControlStatementsExceptForEachMacros
 IndentCaseLabels: false
 IndentPPDirectives: None
 Language: Cpp
@@ -162,7 +164,7 @@ IncludeCategories:
 # http://llvm.org/docs/CodingStandards.html#include-style
 IncludeIsMainRegex: 'BLAH_DONT_MATCH_ANYTHING'
 SortIncludes: true
-KeepEmptyLinesAtTheStartOfBlocks: true
+KeepEmptyLinesAtTheStartOfBlocks: false
 TypenameMacros:
   - ARB_ELMTYPE
   - ARB_HEAD
