@@ -6774,15 +6774,8 @@ static unsigned int t4_get_rx_e_chan_map(struct adapter *adap, int idx)
  */
 static unsigned int t4_get_rx_c_chan(struct adapter *adap, int idx)
 {
-	u32 param, val;
-	int ret;
-
-	param = (V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_TPCHMAP));
-	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
-	if (!ret)
-		return (val >> (8 * idx)) & 0xff;
-
+	if (adap->params.tp_ch_map != UINT32_MAX)
+		return (adap->params.tp_ch_map >> (8 * idx)) & 0xff;
         return 0;
 }
 
