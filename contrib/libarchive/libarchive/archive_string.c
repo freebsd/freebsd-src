@@ -2640,81 +2640,69 @@ unicode_to_utf16le(char *p, size_t remaining, uint32_t uc)
 }
 
 /*
- * Copy UTF-8 string in checking surrogate pair.
- * If any surrogate pair are found, it would be canonicalized.
+ * Append new UTF-8 string to existing UTF-8 string.
+ * Existing string is assumed to already be in proper form;
+ * the new string will have invalid sequences replaced and
+ * surrogate pairs canonicalized.
  */
 static int
-strncat_from_utf8_to_utf8(struct archive_string *as, const void *_p,
+strncat_from_utf8_to_utf8(struct archive_string *as, const void *_src,
     size_t len, struct archive_string_conv *sc)
 {
-	const char *s;
-	char *p, *endp;
-	int n, ret = 0;
-
+	int ret = 0;
+	const char *src = _src;
 	(void)sc; /* UNUSED */
 
+	/* Pre-extend the destination */
 	if (archive_string_ensure(as, as->length + len + 1) == NULL)
 		return (-1);
 
-	s = (const char *)_p;
-	p = as->s + as->length;
-	endp = as->s + as->buffer_length -1;
-	do {
+	/* Invariant: src points to the first UTF8 byte that hasn't
+	 * been copied to the destination `as`. */
+	for (;;) {
+		int n;
 		uint32_t uc;
-		const char *ss = s;
-		size_t w;
+		const char *e = src;
 
-		/*
-		 * Forward byte sequence until a conversion of that is needed.
-		 */
-		while ((n = utf8_to_unicode(&uc, s, len)) > 0) {
-			s += n;
+		/* Skip UTF-8 sequences until we reach end-of-string or
+		 * a code point that needs conversion. */
+		while ((n = utf8_to_unicode(&uc, e, len)) > 0) {
+			e += n;
 			len -= n;
 		}
-		if (ss < s) {
-			if (p + (s - ss) > endp) {
-				as->length = p - as->s;
-				if (archive_string_ensure(as,
-				    as->buffer_length + len + 1) == NULL)
-					return (-1);
-				p = as->s + as->length;
-				endp = as->s + as->buffer_length -1;
-			}
-
-			memcpy(p, ss, s - ss);
-			p += s - ss;
+		/* Copy the part that doesn't need conversion */
+		if (e > src) {
+			if (archive_string_append(as, src, e - src) == NULL)
+				return (-1);
+			src = e;
 		}
 
-		/*
-		 * If n is negative, current byte sequence needs a replacement.
-		 */
-		if (n < 0) {
+		if (n == 0) {
+			/* We reached end-of-string */
+			return (ret);
+		} else {
+			/* Next code point needs conversion */
+			char t[4];
+			size_t w;
+
+			/* Try decoding a surrogate pair */
 			if (n == -3 && IS_SURROGATE_PAIR_LA(uc)) {
-				/* Current byte sequence may be CESU-8. */
-				n = cesu8_to_unicode(&uc, s, len);
+				n = cesu8_to_unicode(&uc, src, len);
 			}
+			/* Not a (valid) surrogate, so use a replacement char */
 			if (n < 0) {
-				ret = -1;
-				n *= -1;/* Use a replaced unicode character. */
+				ret = -1; /* Return -1 if we used any replacement */
+				n *= -1;
 			}
-
-			/* Rebuild UTF-8 byte sequence. */
-			while ((w = unicode_to_utf8(p, endp - p, uc)) == 0) {
-				as->length = p - as->s;
-				if (archive_string_ensure(as,
-				    as->buffer_length + len + 1) == NULL)
-					return (-1);
-				p = as->s + as->length;
-				endp = as->s + as->buffer_length -1;
-			}
-			p += w;
-			s += n;
+			/* Consume converted code point */
+			src += n;
 			len -= n;
+			/* Convert and append new UTF-8 sequence. */
+			w = unicode_to_utf8(t, sizeof(t), uc);
+			if (archive_string_append(as, t, w) == NULL)
+				return (-1);
 		}
-	} while (n > 0);
-	as->length = p - as->s;
-	as->s[as->length] = '\0';
-	return (ret);
+	}
 }
 
 static int

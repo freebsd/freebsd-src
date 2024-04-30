@@ -1347,6 +1347,8 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 				lha->compsize = archive_le64dec(extdheader);
 				extdheader += sizeof(uint64_t);
 				lha->origsize = archive_le64dec(extdheader);
+				if (lha->compsize < 0 || lha->origsize < 0)
+					goto invalid;
 			}
 			break;
 		case EXT_CODEPAGE:
