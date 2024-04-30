@@ -5406,7 +5406,7 @@ get_params__post_init(struct adapter *sc)
 	if (rc == 0)
 		sc->params.mps_bg_map = val[0];
 	else
-		sc->params.mps_bg_map = 0;
+		sc->params.mps_bg_map = UINT32_MAX;	/* Not a legal value. */
 
 	/*
 	 * Determine whether the firmware supports the filter2 work request.
