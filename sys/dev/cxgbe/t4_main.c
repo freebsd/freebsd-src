@@ -5339,6 +5339,14 @@ get_params__post_init(struct adapter *sc)
 	else
 		sc->params.mps_bg_map = UINT32_MAX;	/* Not a legal value. */
 
+	param[0] = FW_PARAM_DEV(TPCHMAP);
+	val[0] = 0;
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
+	if (rc == 0)
+		sc->params.tp_ch_map = val[0];
+	else
+		sc->params.tp_ch_map = UINT32_MAX;	/* Not a legal value. */
+
 	/*
 	 * Determine whether the firmware supports the filter2 work request.
 	 */
