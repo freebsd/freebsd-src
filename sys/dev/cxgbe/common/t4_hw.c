@@ -6742,7 +6742,7 @@ static unsigned int t4_get_mps_bg_map(struct adapter *adap, int idx)
 {
 	u32 n;
 
-	if (adap->params.mps_bg_map)
+	if (adap->params.mps_bg_map != UINT32_MAX)
 		return ((adap->params.mps_bg_map >> (idx << 3)) & 0xff);
 
 	n = adap->params.nports;
