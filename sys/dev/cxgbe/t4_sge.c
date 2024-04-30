@@ -3383,13 +3383,14 @@ init_fl(struct adapter *sc, struct sge_fl *fl, int qsize, int maxp, char *name)
 
 static inline void
 init_eq(struct adapter *sc, struct sge_eq *eq, int eqtype, int qsize,
-    uint8_t tx_chan, struct sge_iq *iq, char *name)
+    uint8_t port_id, struct sge_iq *iq, char *name)
 {
 	KASSERT(eqtype >= EQ_CTRL && eqtype <= EQ_OFLD,
 	    ("%s: bad qtype %d", __func__, eqtype));
 
 	eq->type = eqtype;
-	eq->tx_chan = tx_chan;
+	eq->port_id = port_id;
+	eq->tx_chan = sc->port[port_id]->tx_chan;
 	eq->iq = iq;
 	eq->sidx = qsize - sc->params.sge.spg_len / EQ_ESIZE;
 	strlcpy(eq->lockname, name, sizeof(eq->lockname));
@@ -3830,8 +3831,8 @@ alloc_ctrlq(struct adapter *sc, int idx)
 
 		snprintf(name, sizeof(name), "%s ctrlq%d",
 		    device_get_nameunit(sc->dev), idx);
-		init_eq(sc, &ctrlq->eq, EQ_CTRL, CTRL_EQ_QSIZE,
-		    sc->port[idx]->tx_chan, &sc->sge.fwq, name);
+		init_eq(sc, &ctrlq->eq, EQ_CTRL, CTRL_EQ_QSIZE, idx,
+		    &sc->sge.fwq, name);
 		rc = alloc_wrq(sc, NULL, ctrlq, &sc->ctx, oid);
 		if (rc != 0) {
 			CH_ERR(sc, "failed to allocate ctrlq%d: %d\n", idx, rc);
@@ -4595,7 +4596,7 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx)
 		iqidx = vi->first_rxq + (idx % vi->nrxq);
 		snprintf(name, sizeof(name), "%s txq%d",
 		    device_get_nameunit(vi->dev), idx);
-		init_eq(sc, &txq->eq, EQ_ETH, vi->qsize_txq, pi->tx_chan,
+		init_eq(sc, &txq->eq, EQ_ETH, vi->qsize_txq, pi->port_id,
 		    &sc->sge.rxq[iqidx].iq, name);
 
 		rc = mp_ring_alloc(&txq->r, eq->sidx, txq, eth_tx,
@@ -4812,11 +4813,11 @@ alloc_ofld_txq(struct vi_info *vi, struct sge_ofld_txq *ofld_txq, int idx)
 		    device_get_nameunit(vi->dev), idx);
 		if (vi->nofldrxq > 0) {
 			iqidx = vi->first_ofld_rxq + (idx % vi->nofldrxq);
-			init_eq(sc, eq, EQ_OFLD, vi->qsize_txq, pi->tx_chan,
+			init_eq(sc, eq, EQ_OFLD, vi->qsize_txq, pi->port_id,
 			    &sc->sge.ofld_rxq[iqidx].iq, name);
 		} else {
 			iqidx = vi->first_rxq + (idx % vi->nrxq);
-			init_eq(sc, eq, EQ_OFLD, vi->qsize_txq, pi->tx_chan,
+			init_eq(sc, eq, EQ_OFLD, vi->qsize_txq, pi->port_id,
 			    &sc->sge.rxq[iqidx].iq, name);
 		}
 
@@ -6329,7 +6330,7 @@ handle_wrq_egr_update(struct adapter *sc, struct sge_eq *eq)
 	struct sge_wrq *wrq = (void *)eq;
 
 	atomic_readandclear_int(&eq->equiq);
-	taskqueue_enqueue(sc->tq[eq->tx_chan], &wrq->wrq_tx_task);
+	taskqueue_enqueue(sc->tq[eq->port_id], &wrq->wrq_tx_task);
 }
 
 static void
@@ -6341,7 +6342,7 @@ handle_eth_egr_update(struct adapter *sc, struct sge_eq *eq)
 
 	atomic_readandclear_int(&eq->equiq);
 	if (mp_ring_is_idle(txq->r))
-		taskqueue_enqueue(sc->tq[eq->tx_chan], &txq->tx_reclaim_task);
+		taskqueue_enqueue(sc->tq[eq->port_id], &txq->tx_reclaim_task);
 	else
 		mp_ring_check_drainage(txq->r, 64);
 }
