@@ -70,6 +70,7 @@ static struct
 	{ "boot_gdb",		RB_GDB},
 	{ "boot_multicons",	RB_MULTIPLE},
 	{ "boot_mute",		RB_MUTE},
+	{ "boot_mutemsgs",	RB_MUTEMSGS},
 	{ "boot_pause",		RB_PAUSE},
 	{ "boot_serial",	RB_SERIAL},
 	{ "boot_single",	RB_SINGLE},
@@ -133,10 +134,10 @@ boot_parse_arg(const char *v)
 
 #if 0
 /* Need to see if this is better or worse than the meat of the #else */
-static const char howto_switches[] = "aCdrgDmphsv";
+static const char howto_switches[] = "aCdrgDmMphsv";
 static int howto_masks[] = {
 	RB_ASKNAME, RB_CDROM, RB_KDB, RB_DFLTROOT, RB_GDB, RB_MULTIPLE,
-	RB_MUTE, RB_PAUSE, RB_SERIAL, RB_SINGLE, RB_VERBOSE
+	RB_MUTE, RB_MUTEMSGS, RB_PAUSE, RB_SERIAL, RB_SINGLE, RB_VERBOSE
 };
 
 	opts = strchr(kargs, '-');
@@ -160,6 +161,7 @@ static int howto_masks[] = {
 			case 'd': howto |= RB_KDB; break;
 			case 'D': howto |= RB_MULTIPLE; break;
 			case 'm': howto |= RB_MUTE; break;
+			case 'M': howto |= RB_MUTEMSGS; break;
 			case 'g': howto |= RB_GDB; break;
 			case 'h': howto |= RB_SERIAL; break;
 			case 'p': howto |= RB_PAUSE; break;
