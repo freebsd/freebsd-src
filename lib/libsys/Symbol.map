@@ -10,5 +10,4 @@ FBSDprivate_1.0 {
 	freebsd11_lstat;
 	freebsd11_stat;
 	freebsd11_statfs;
-	freebsd7___semctl;
 };
