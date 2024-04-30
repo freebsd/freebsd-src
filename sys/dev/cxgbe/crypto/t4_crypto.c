@@ -1924,7 +1924,7 @@ ccr_init_port(struct ccr_softc *sc, int port)
 	pi = sc->adapter->port[port];
 	sc->ports[port].txq = &sc->adapter->sge.ctrlq[port];
 	sc->ports[port].rxq = &sc->adapter->sge.rxq[pi->vi->first_rxq];
-	sc->ports[port].rx_channel_id = pi->rx_c_chan;
+	sc->ports[port].rx_channel_id = pi->rx_chan;
 	sc->ports[port].tx_channel_id = pi->tx_chan;
 	sc->ports[port].stats_queued = counter_u64_alloc(M_WAITOK);
 	sc->ports[port].stats_completed = counter_u64_alloc(M_WAITOK);

@@ -6786,6 +6786,14 @@ static unsigned int t4_get_rx_c_chan(struct adapter *adap, int idx)
         return 0;
 }
 
+/*
+ * TP TX c-channel associated with the port.
+ */
+static unsigned int t4_get_tx_c_chan(struct adapter *adap, int idx)
+{
+	return idx;
+}
+
 /**
  *      t4_get_port_type_description - return Port Type string description
  *      @port_type: firmware Port Type enumeration
@@ -9817,10 +9825,10 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 		} while ((adap->params.portvec & (1 << j)) == 0);
 	}
 
-	p->tx_chan = j;
+	p->tx_chan = t4_get_tx_c_chan(adap, j);
+	p->rx_chan = t4_get_rx_c_chan(adap, j);
 	p->mps_bg_map = t4_get_mps_bg_map(adap, j);
 	p->rx_e_chan_map = t4_get_rx_e_chan_map(adap, j);
-	p->rx_c_chan = t4_get_rx_c_chan(adap, j);
 	p->lport = j;
 
 	if (!(adap->flags & IS_VF) ||
