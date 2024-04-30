@@ -46,7 +46,7 @@
 
 struct match {
 	struct match		*next;
-	int			 matches;
+	int			 matched;
 	struct archive_mstring	 pattern;
 };
 
@@ -605,7 +605,8 @@ add_pattern_from_file(struct archive_match *a, struct match_list *mlist,
 		return (ARCHIVE_FATAL);
 	}
 	r = archive_read_support_format_raw(ar);
-	r = archive_read_support_format_empty(ar);
+	if (r == ARCHIVE_OK)
+		r = archive_read_support_format_empty(ar);
 	if (r != ARCHIVE_OK) {
 		archive_copy_error(&(a->archive), ar);
 		archive_read_free(ar);
@@ -724,12 +725,12 @@ path_excluded(struct archive_match *a, int mbs, const void *pathname)
 	matched = NULL;
 	for (match = a->inclusions.first; match != NULL;
 	    match = match->next){
-		if (match->matches == 0 &&
+		if (!match->matched &&
 		    (r = match_path_inclusion(a, match, mbs, pathname)) != 0) {
 			if (r < 0)
 				return (r);
 			a->inclusions.unmatched_count--;
-			match->matches++;
+			match->matched = 1;
 			matched = match;
 		}
 	}
@@ -752,11 +753,10 @@ path_excluded(struct archive_match *a, int mbs, const void *pathname)
 	for (match = a->inclusions.first; match != NULL;
 	    match = match->next){
 		/* We looked at previously-unmatched inclusions already. */
-		if (match->matches > 0 &&
+		if (match->matched &&
 		    (r = match_path_inclusion(a, match, mbs, pathname)) != 0) {
 			if (r < 0)
 				return (r);
-			match->matches++;
 			return (0);
 		}
 	}
@@ -879,7 +879,7 @@ match_list_unmatched_inclusions_next(struct archive_match *a,
 	for (m = list->unmatched_next; m != NULL; m = m->next) {
 		int r;
 
-		if (m->matches)
+		if (m->matched)
 			continue;
 		if (mbs) {
 			const char *p;
@@ -1793,7 +1793,7 @@ match_owner_name_mbs(struct archive_match *a, struct match_list *list,
 		    < 0 && errno == ENOMEM)
 			return (error_nomem(a));
 		if (p != NULL && strcmp(p, name) == 0) {
-			m->matches++;
+			m->matched = 1;
 			return (1);
 		}
 	}
@@ -1814,7 +1814,7 @@ match_owner_name_wcs(struct archive_match *a, struct match_list *list,
 		    < 0 && errno == ENOMEM)
 			return (error_nomem(a));
 		if (p != NULL && wcscmp(p, name) == 0) {
-			m->matches++;
+			m->matched = 1;
 			return (1);
 		}
 	}
