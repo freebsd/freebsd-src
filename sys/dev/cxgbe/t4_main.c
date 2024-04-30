@@ -8062,8 +8062,10 @@ cxgbe_sysctls(struct port_info *pi)
 	    pi->mps_bg_map, "MPS buffer group map");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "rx_e_chan_map", CTLFLAG_RD,
 	    NULL, pi->rx_e_chan_map, "TP rx e-channel map");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "rx_c_chan", CTLFLAG_RD, NULL,
-	    pi->rx_c_chan, "TP rx c-channel");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "tx_chan", CTLFLAG_RD, NULL,
+	    pi->tx_chan, "TP tx c-channel");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "rx_chan", CTLFLAG_RD, NULL,
+	    pi->rx_chan, "TP rx c-channel");
 
 	if (sc->flags & IS_VF)
 		return;

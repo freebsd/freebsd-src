@@ -324,10 +324,10 @@ struct port_info {
 	uint8_t  port_type;
 	uint8_t  mod_type;
 	uint8_t  port_id;
-	uint8_t  tx_chan;
+	uint8_t  tx_chan;	/* tx TP c-channel */
+	uint8_t  rx_chan;	/* rx TP c-channel */
 	uint8_t  mps_bg_map;	/* rx MPS buffer group bitmap */
 	uint8_t  rx_e_chan_map;	/* rx TP e-channel bitmap */
-	uint8_t  rx_c_chan;	/* rx TP c-channel */
 
 	struct link_config link_cfg;
 	struct ifmedia media;
