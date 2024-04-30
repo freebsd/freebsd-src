@@ -942,6 +942,9 @@ vpanic(const char *fmt, va_list ap)
 		newpanic = 1;
 	}
 
+	/* Unmute when panic */
+	cn_mute = 0;
+
 	if (newpanic) {
 		(void)vsnprintf(buf, sizeof(buf), fmt, ap);
 		panicstr = buf;

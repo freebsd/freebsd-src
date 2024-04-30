@@ -103,7 +103,7 @@ int	cons_avail_mask = 0;	/* Bit mask. Each registered low level console
 				 * this bit cleared.
 				 */
 
-static int cn_mute;
+int cn_mute;
 SYSCTL_INT(_kern, OID_AUTO, consmute, CTLFLAG_RW, &cn_mute, 0,
     "State of the console muting");
 
@@ -137,6 +137,18 @@ kbdinit(void)
 {
 
 }
+
+static void
+mute_console(void *data __unused)
+{
+
+	if ((boothowto & (RB_MUTEMSGS | RB_VERBOSE)) == RB_MUTEMSGS) {
+		printf("-- Muting boot messages --\n");
+		cn_mute = 1;
+	}
+}
+
+SYSINIT(mute_console, SI_SUB_COPYRIGHT, SI_ORDER_ANY, mute_console, NULL);
 
 void
 cninit(void)
