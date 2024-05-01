@@ -651,17 +651,15 @@ sysctl_ctx_free(struct sysctl_ctx_list *clist)
 		return(EBUSY);
 	}
 	/* Now really delete the entries */
-	e = TAILQ_FIRST(clist);
-	while (e != NULL) {
-		e1 = TAILQ_NEXT(e, link);
+	TAILQ_FOREACH_SAFE(e, clist, link, e1) {
 		error = sysctl_remove_oid_locked(e->entry, 1, 0);
 		if (error)
 			panic("sysctl_remove_oid: corrupt tree, entry: %s",
 			    e->entry->oid_name);
 		free(e, M_SYSCTLOID);
-		e = e1;
 	}
 	SYSCTL_WUNLOCK();
+	TAILQ_INIT(clist);
 	return (error);
 }
 
