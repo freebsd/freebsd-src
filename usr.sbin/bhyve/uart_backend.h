@@ -51,5 +51,6 @@ int	uart_rxfifo_snapshot(struct uart_softc *sc,
 struct uart_softc *uart_init(void);
 int	uart_tty_open(struct uart_softc *sc, const char *path,
 	    void (*drain)(int, enum ev_type, void *), void *arg);
-
+void	uart_softc_lock(struct uart_softc *sc);
+void	uart_softc_unlock(struct uart_softc *sc);
 #endif /* _UART_BACKEND_H_ */

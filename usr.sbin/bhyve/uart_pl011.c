@@ -31,7 +31,6 @@
 #include <sys/param.h>
 
 #include <assert.h>
-#include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -106,7 +105,6 @@
 
 struct uart_pl011_softc {
 	struct uart_softc *backend;
-	pthread_mutex_t mtx;	/* protects all softc elements */
 
 	uint16_t	irq_state;
 
@@ -184,7 +182,7 @@ uart_drain(int fd __unused, enum ev_type ev, void *arg)
 	 * to take out the softc lock to protect against concurrent
 	 * access from a vCPU i/o exit
 	 */
-	pthread_mutex_lock(&sc->mtx);
+	uart_softc_lock(sc->backend);
 
 	old_size = uart_rxfifo_numchars(sc->backend);
 
@@ -202,7 +200,7 @@ uart_drain(int fd __unused, enum ev_type ev, void *arg)
 	if (!loopback)
 		uart_toggle_intr(sc);
 
-	pthread_mutex_unlock(&sc->mtx);
+	uart_softc_unlock(sc->backend);
 }
 
 void
@@ -210,7 +208,7 @@ uart_pl011_write(struct uart_pl011_softc *sc, int offset, uint32_t value)
 {
 	bool loopback;
 
-	pthread_mutex_lock(&sc->mtx);
+	uart_softc_lock(sc->backend);
 	switch (offset) {
 	case UARTDR:
 		loopback = (sc->cr & UARTCR_LBE) != 0;
@@ -266,7 +264,7 @@ uart_pl011_write(struct uart_pl011_softc *sc, int offset, uint32_t value)
 		break;
 	}
 	uart_toggle_intr(sc);
-	pthread_mutex_unlock(&sc->mtx);
+	uart_softc_unlock(sc->backend);
 }
 
 uint32_t
@@ -276,7 +274,7 @@ uart_pl011_read(struct uart_pl011_softc *sc, int offset)
 	int fifo_sz;
 
 	reg = 0;
-	pthread_mutex_lock(&sc->mtx);
+	uart_softc_lock(sc->backend);
 	switch (offset) {
 	case UARTDR:
 		reg = uart_rxfifo_getchar(sc->backend);
@@ -362,7 +360,7 @@ uart_pl011_read(struct uart_pl011_softc *sc, int offset)
 		break;
 	}
 	uart_toggle_intr(sc);
-	pthread_mutex_unlock(&sc->mtx);
+	uart_softc_unlock(sc->backend);
 
 	return (reg);
 }
@@ -379,8 +377,6 @@ uart_pl011_init(uart_intr_func_t intr_assert, uart_intr_func_t intr_deassert,
 	sc->intr_assert = intr_assert;
 	sc->intr_deassert = intr_deassert;
 	sc->backend = uart_init();
-
-	pthread_mutex_init(&sc->mtx, NULL);
 
 	uart_reset(sc);
 
