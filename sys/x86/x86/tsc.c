@@ -139,7 +139,7 @@ tsc_freq_vmware(void)
 {
 	u_int regs[4];
 
-	vmware_hvcall(VMW_HVCMD_GETHZ, regs);
+	vmware_hvcall(0, VMW_HVCMD_GETHZ, VMW_HVCMD_DEFAULT_PARAM, regs);
 	if (regs[1] != UINT_MAX)
 		tsc_freq = regs[0] | ((uint64_t)regs[1] << 32);
 	tsc_early_calib_exact = 1;

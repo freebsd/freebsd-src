@@ -550,6 +550,11 @@ device		kvm_clock	# KVM paravirtual clock driver
 device 		hyperv		# HyperV drivers
 device		hvhid		# HyperV HID device
 
+# VMware hypervisor support
+device		pvscsi		# Paravirtual SCSI driver
+device		vmci		# Virtual Machine Communication Interface (VMCI)
+device		vmware_guestrpc	# GuestRPC interface
+
 #
 # Laptop/Notebook options:
 #

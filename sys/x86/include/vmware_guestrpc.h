@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2011-2014 Jung-uk Kim <jkim@FreeBSD.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2015-2024, Juniper Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,31 +25,13 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _X86_VMWARE_H_
-#define	_X86_VMWARE_H_
+#ifndef _X86_VMWARE_GUESTRPC_H_
+#define _X86_VMWARE_GUESTRPC_H_
 
-#define	VMW_HVMAGIC		0x564d5868
-#define	VMW_HVPORT		0x5658
+struct sbuf;
 
-#define	VMW_HVCMD_GETVERSION	10
-#define	VMW_HVCMD_GUESTRPC	30
-#define	VMW_HVCMD_GETHZ		45
-#define	VMW_HVCMD_GETVCPU_INFO	68
+int	vmware_guestrpc_cmd(struct sbuf *sbufp);
+int	vmware_guestrpc_set_guestinfo(const char *keyword, const char *val);
+int	vmware_guestrpc_get_guestinfo(const char *keyword, struct sbuf *sbufp);
 
-#define	VMW_HVCMD_DEFAULT_PARAM	UINT_MAX
-
-#define	VMW_VCPUINFO_LEGACY_X2APIC	(1 << 3)
-#define	VMW_VCPUINFO_VCPU_RESERVED	(1 << 31)
-
-static __inline void
-vmware_hvcall(int chan, u_int cmd, u_int param, u_int *p)
-{
-
-	__asm __volatile("inl %w3, %0"
-	: "=a" (p[0]), "=b" (p[1]), "=c" (p[2]), "=d" (p[3])
-	: "0" (VMW_HVMAGIC), "1" (param), "2" (cmd),
-	  "3" (VMW_HVPORT | (chan << 16))
-	: "memory");
-}
-
-#endif /* !_X86_VMWARE_H_ */
+#endif /* _X86_VMWARE_GUESTRPC_H_ */
