@@ -41,7 +41,7 @@ SE_BSD_DAEMON= \
 	eps.patch \
 	poster.sh
 
-.if ${MACHINE_CPUARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64"
 .if ${MK_BHYVE} != "no"
 LDIRS+=		bhyve
 SE_DIRS+=	bhyve
