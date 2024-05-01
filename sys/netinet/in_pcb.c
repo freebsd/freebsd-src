@@ -655,6 +655,10 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 
 #if defined(IPSEC) || defined(IPSEC_SUPPORT) || defined(MAC)
 out:
+	crfree(inp->inp_cred);
+#ifdef INVARIANTS
+	inp->inp_cred = NULL;
+#endif
 	uma_zfree_smr(pcbinfo->ipi_zone, inp);
 	return (error);
 #endif
