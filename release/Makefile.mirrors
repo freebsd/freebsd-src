@@ -193,6 +193,16 @@ vm-images-stage:
 	cd ${VM_DIR}/Latest && \
 		ln -s ../${BUILDDATE}/${OSRELEASE}-${SNAP_SUFFIX}.${VMFORMAT}.xz \
 		${OSRELEASE}.${VMFORMAT}.xz
+.  for FS in ${VMFSLIST}
+	cd ${RELEASEDIR}/vmimages && \
+		mv ${OSRELEASE}-${FS}.${VMFORMAT}.xz \
+		${OSRELEASE}-${FS}-${SNAP_SUFFIX}.${VMFORMAT}.xz
+	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${FS}-${SNAP_SUFFIX}.${VMFORMAT}.xz \
+		${VM_DIR}/${BUILDDATE}/${OSRELEASE}-${FS}-${SNAP_SUFFIX}.${VMFORMAT}.xz
+	cd ${VM_DIR}/Latest && \
+		ln -s ../${BUILDDATE}/${OSRELEASE}-${FS}-${SNAP_SUFFIX}.${VMFORMAT}.xz \
+		${OSRELEASE}-${FS}.${VMFORMAT}.xz
+.  endfor
 . endfor
 	cd ${RELEASEDIR}/vmimages && rm -f CHECKSUM.*
 . for CHECKSUM in ${CHECKSUM_FILES}
@@ -212,6 +222,10 @@ vm-images-stage:
 . for VMFORMAT in ${VMFORMATS}
 	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}.${VMFORMAT}.xz \
 		${VM_DIR}/Latest/${OSRELEASE}.${VMFORMAT}.xz
+.  for FS in ${VMFSLIST}
+	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${FS}.${VMFORMAT}.xz \
+		${VM_DIR}/Latest/${OSRELEASE}-${FS}.${VMFORMAT}.xz
+.  endfor
 . endfor
 . for CHECKSUM in ${CHECKSUM_FILES}
 	cp -p ${RELEASEDIR}/vmimages/CHECKSUM.${CHECKSUM} \
