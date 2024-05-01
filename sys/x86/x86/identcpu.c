@@ -1470,7 +1470,8 @@ identify_hypervisor(void)
 	p = kern_getenv("smbios.system.serial");
 	if (p != NULL) {
 		if (strncmp(p, "VMware-", 7) == 0 || strncmp(p, "VMW", 3) == 0) {
-			vmware_hvcall(VMW_HVCMD_GETVERSION, regs);
+			vmware_hvcall(0, VMW_HVCMD_GETVERSION,
+			    VMW_HVCMD_DEFAULT_PARAM, regs);
 			if (regs[1] == VMW_HVMAGIC) {
 				vm_guest = VM_GUEST_VMWARE;
 				freeenv(p);

@@ -159,7 +159,8 @@ madt_x2apic_disable_reason(void)
 	}
 
 	if (vm_guest == VM_GUEST_VMWARE) {
-		vmware_hvcall(VMW_HVCMD_GETVCPU_INFO, p);
+		vmware_hvcall(0, VMW_HVCMD_GETVCPU_INFO,
+		    VMW_HVCMD_DEFAULT_PARAM, p);
 		if ((p[0] & VMW_VCPUINFO_VCPU_RESERVED) != 0 ||
 		    (p[0] & VMW_VCPUINFO_LEGACY_X2APIC) == 0)
 			return ("inside VMWare without intr redirection");
