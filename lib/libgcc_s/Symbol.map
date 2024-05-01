@@ -33,14 +33,14 @@ GCC_3.0 {
 #ifndef __arm__
 	__fixunssfsi;
 #endif
-#ifndef __powerpc__
+#if defined(__amd64__) || defined(__i386__)
 	__fixunsxfdi;
 	__fixunsxfsi;
 	__fixxfdi;
 #endif
 	__floatdidf;
 	__floatdisf;
-#ifndef __powerpc__
+#if defined(__amd64__) || defined(__i386__)
 	__floatdixf;
 #endif
 	__lshrdi3;
@@ -91,11 +91,8 @@ GCC_3.0 {
 	__fixsfti;
 	__fixunsdfti;
 	__fixunssfti;
-	__fixunsxfti;
-	__fixxfti;
 	__floattidf;
 	__floattisf;
-	__floattixf;
 	__lshrti3;
 	__modti3;
 	__multi3;
@@ -104,6 +101,11 @@ GCC_3.0 {
 	__udivmodti4;
 	__udivti3;
 	__umodti3;
+#ifdef __amd64__
+	__fixunsxfti;
+	__fixxfti;
+	__floattixf;
+#endif
 #endif
 };
 
@@ -152,17 +154,17 @@ GCC_3.4.4 {
 GCC_4.0.0 {
 	__divdc3;
 	__divsc3;
-#ifndef __powerpc__
+#if defined(__amd64__) && define(__i386__)
 	__divxc3;
 #endif
 	__muldc3;
 	__mulsc3;
-#ifndef __powerpc__
+#if defined(__amd64__) && define(__i386__)
 	__mulxc3;
 #endif
 	__powidf2;
 	__powisf2;
-#ifndef __powerpc__
+#if defined(__amd64__) && define(__i386__)
 	__powixf2;
 #endif
 };
@@ -170,7 +172,7 @@ GCC_4.0.0 {
 GCC_4.2.0 {
 	__floatundidf;
 	__floatundisf;
-#ifndef __powerpc__
+#if defined(__amd64__) && define(__i386__)
 	__floatundixf;
 #endif
 	_Unwind_GetIPInfo;
@@ -178,7 +180,9 @@ GCC_4.2.0 {
 #ifdef CRT_HAS_128BIT
 	__floatuntidf;
 	__floatuntisf;
+#ifdef __amd64__
 	__floatuntixf;
+#endif
 #endif
 };
 
