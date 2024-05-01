@@ -35,6 +35,7 @@
 #include <assert.h>
 #include <capsicum_helpers.h>
 #include <err.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,6 +67,7 @@ struct uart_softc {
 	struct ttyfd	tty;
 	struct fifo	rxfifo;
 	struct mevent	*mev;
+	pthread_mutex_t mtx;
 };
 
 static bool uart_stdio;		/* stdio in use for i/o */
@@ -325,7 +327,13 @@ uart_tty_backend(struct uart_softc *sc, const char *path)
 struct uart_softc *
 uart_init(void)
 {
-	return (calloc(1, sizeof(struct uart_softc)));
+	struct uart_softc *sc = calloc(1, sizeof(struct uart_softc));
+	if (sc == NULL)
+		return (NULL);
+
+	pthread_mutex_init(&sc->mtx, NULL);
+
+	return (sc);
 }
 
 int
@@ -345,4 +353,16 @@ uart_tty_open(struct uart_softc *sc, const char *path,
 	}
 
 	return (retval);
+}
+
+void
+uart_softc_lock(struct uart_softc *sc)
+{
+	pthread_mutex_lock(&sc->mtx);
+}
+
+void
+uart_softc_unlock(struct uart_softc *sc)
+{
+	pthread_mutex_unlock(&sc->mtx);
 }
