@@ -150,36 +150,41 @@ SET_DECLARE(sdt_providers_set, struct sdt_provider);
 SET_DECLARE(sdt_probes_set, struct sdt_probe);
 SET_DECLARE(sdt_argtypes_set, struct sdt_argtype);
 
+#define	_SDT_PROBE_NAME(prov, mod, func, name)				\
+	sdt_##prov##_##mod##_##func##_##name
+#define	_SDT_PROVIDER_NAME(prov)					\
+	sdt_provider_##prov
+
 #define SDT_PROVIDER_DEFINE(_prov)					\
-	struct sdt_provider sdt_provider_##_prov[1] = {			\
+	struct sdt_provider _SDT_PROVIDER_NAME(_prov)[1] = {		\
 		[0] = { .name = #_prov },				\
 	};								\
-	DATA_SET(sdt_providers_set, sdt_provider_##_prov);
+	DATA_SET(sdt_providers_set, _SDT_PROVIDER_NAME(_prov))
 
-#define SDT_PROVIDER_DECLARE(prov)						\
-	extern struct sdt_provider sdt_provider_##prov[1]
+#define SDT_PROVIDER_DECLARE(prov)					\
+	extern struct sdt_provider _SDT_PROVIDER_NAME(prov)[1]
 
 #define SDT_PROBE_DEFINE(_prov, _mod, _func, _name)			\
-	struct sdt_probe sdt_##_prov##_##_mod##_##_func##_##_name[1] = {\
+	struct sdt_probe _SDT_PROBE_NAME(_prov, _mod, _func, _name)[1] = { \
 		[0] = {							\
 		    .version = sizeof(struct sdt_probe),		\
-		    .prov = sdt_provider_##_prov,			\
+		    .prov = _SDT_PROVIDER_NAME(_prov),			\
 		    .mod = #_mod,					\
 		    .func = #_func,					\
 		    .name = #_name,					\
 		},							\
 	};								\
-	DATA_SET(sdt_probes_set, sdt_##_prov##_##_mod##_##_func##_##_name)
+	DATA_SET(sdt_probes_set, _SDT_PROBE_NAME(_prov, _mod, _func, _name))
 
-#define SDT_PROBE_DECLARE(prov, mod, func, name)				\
-	extern struct sdt_probe sdt_##prov##_##mod##_##func##_##name[1]
+#define SDT_PROBE_DECLARE(prov, mod, func, name)			\
+	extern struct sdt_probe _SDT_PROBE_NAME(prov, mod, func, name)[1]
 
 #define	SDT_PROBES_ENABLED()	__predict_false(sdt_probes_enabled)
 
 #define SDT_PROBE(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4)	do {	\
 	if (SDT_PROBES_ENABLED()) {						\
-		if (__predict_false(sdt_##prov##_##mod##_##func##_##name->id))	\
-		(*sdt_probe_func)(sdt_##prov##_##mod##_##func##_##name->id,	\
+		if (__predict_false(_SDT_PROBE_NAME(prov, mod, func, name)->id)) \
+		(*sdt_probe_func)(_SDT_PROBE_NAME(prov, mod, func, name)->id,	\
 		    (uintptr_t) arg0, (uintptr_t) arg1, (uintptr_t) arg2,	\
 		    (uintptr_t) arg3, (uintptr_t) arg4);			\
 	} \
@@ -192,7 +197,7 @@ SET_DECLARE(sdt_argtypes_set, struct sdt_argtype);
 		    .ndx = _num,					\
 		    .type = _type,					\
 		    .xtype = _xtype,					\
-		    .probe = sdt_##_prov##_##_mod##_##_func##_##_name,	\
+		    .probe = _SDT_PROBE_NAME(_prov, _mod, _func, _name), \
 		},							\
 	};								\
 	DATA_SET(sdt_argtypes_set,					\
@@ -325,21 +330,21 @@ SET_DECLARE(sdt_argtypes_set, struct sdt_argtype);
 	SDT_PROBE(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4)
 #define	SDT_PROBE6(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4, arg5)  \
 	do {								       \
-		if (sdt_##prov##_##mod##_##func##_##name->id)		       \
+		if (_SDT_PROBE_NAME(prov, mod, func, name)->id)		       \
 			(*(void (*)(uint32_t, uintptr_t, uintptr_t, uintptr_t, \
 			    uintptr_t, uintptr_t, uintptr_t))sdt_probe_func)(  \
-			    sdt_##prov##_##mod##_##func##_##name->id,	       \
+			    _SDT_PROBE_NAME(prov, mod, func, name)->id,        \
 			    (uintptr_t)arg0, (uintptr_t)arg1, (uintptr_t)arg2, \
 			    (uintptr_t)arg3, (uintptr_t)arg4, (uintptr_t)arg5);\
 	} while (0)
 #define	SDT_PROBE7(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4, arg5,  \
     arg6)								       \
 	do {								       \
-		if (sdt_##prov##_##mod##_##func##_##name->id)		       \
+		if (_SDT_PROBE_NAME(prov, mod, func, name)->id)		       \
 			(*(void (*)(uint32_t, uintptr_t, uintptr_t, uintptr_t, \
 			    uintptr_t, uintptr_t, uintptr_t, uintptr_t))       \
 			    sdt_probe_func)(				       \
-			    sdt_##prov##_##mod##_##func##_##name->id,	       \
+			    _SDT_PROBE_NAME(prov, mod, func, name)->id,        \
 			    (uintptr_t)arg0, (uintptr_t)arg1, (uintptr_t)arg2, \
 			    (uintptr_t)arg3, (uintptr_t)arg4, (uintptr_t)arg5, \
 			    (uintptr_t)arg6);				       \
