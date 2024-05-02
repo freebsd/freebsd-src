@@ -13,6 +13,12 @@ Changes to this file should not be MFCed.
 25723d66369f:
 	As a side-effect of retiring the unit.* code in sound(4), the
 	hw.snd.maxunit loader(8) tunable is also retired.
+
+eeb04a736cb9:
+	date(1) now supports nanoseconds. For example:
+	`date -Ins` prints "2024-04-22T12:20:28,763742224+02:00" and
+	`date +%N` prints "415050400".
+
 6d5ce2bb6344:
 	The default value of the nfs_reserved_port_only rc.conf(5) setting has
 	changed.  The FreeBSD NFS server now requires the source port of
