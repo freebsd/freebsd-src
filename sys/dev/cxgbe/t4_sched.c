@@ -334,7 +334,7 @@ bind_txq_to_traffic_class(struct adapter *sc, struct sge_txq *txq, int idx)
 		goto done;
 	}
 
-	tc0 = &sc->port[txq->eq.tx_chan]->sched_params->cl_rl[0];
+	tc0 = &sc->port[txq->eq.port_id]->sched_params->cl_rl[0];
 	if (idx != -1) {
 		/*
 		 * Bind to a different class at index idx.
