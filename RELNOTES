@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+eeb04a736cb9:
+	date(1) now supports nanoseconds. For example:
+	`date -Ins` prints "2024-04-22T12:20:28,763742224+02:00" and
+	`date +%N` prints "415050400".
+
 7b9a772f9f64:
 	usbconfig(8) now reads the descriptions of the usb vendor and products
 	from usb.ids when available, similarly to what pciconf(8) does.
