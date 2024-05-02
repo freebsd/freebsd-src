@@ -4956,6 +4956,91 @@ ctl_lun_capacity_changed(struct ctl_be_lun *be_lun)
 	}
 }
 
+void
+ctl_lun_nsdata_ids(struct ctl_be_lun *be_lun,
+    struct nvme_namespace_data *nsdata)
+{
+	struct ctl_lun *lun = (struct ctl_lun *)be_lun->ctl_lun;
+	struct scsi_vpd_id_descriptor *idd;
+
+	if (lun->lun_devid == NULL)
+		return;
+
+	idd = scsi_get_devid_desc((struct scsi_vpd_id_descriptor *)
+	    lun->lun_devid->data, lun->lun_devid->len, scsi_devid_is_lun_naa);
+	if (idd != NULL) {
+		if (idd->length == 16) {
+			memcpy(nsdata->nguid, idd->identifier, 16);
+			return;
+		}
+		if (idd->length == 8) {
+			memcpy(nsdata->eui64, idd->identifier, 8);
+			return;
+		}
+	}
+
+	idd = scsi_get_devid_desc((struct scsi_vpd_id_descriptor *)
+	    lun->lun_devid->data, lun->lun_devid->len, scsi_devid_is_lun_eui64);
+	if (idd != NULL) {
+		if (idd->length == 8) {
+			memcpy(nsdata->eui64, idd->identifier, 8);
+			return;
+		}
+	}
+}
+
+void
+ctl_lun_nvme_ids(struct ctl_be_lun *be_lun, void *data)
+{
+	struct ctl_lun *lun = (struct ctl_lun *)be_lun->ctl_lun;
+	struct scsi_vpd_id_descriptor *naa, *eui64, *uuid;
+	char *p;
+
+	memset(data, 0, 4096);
+
+	if (lun->lun_devid == NULL)
+		return;
+
+	naa = scsi_get_devid_desc((struct scsi_vpd_id_descriptor *)
+	    lun->lun_devid->data, lun->lun_devid->len, scsi_devid_is_lun_naa);
+	eui64 = scsi_get_devid_desc((struct scsi_vpd_id_descriptor *)
+	    lun->lun_devid->data, lun->lun_devid->len, scsi_devid_is_lun_eui64);
+	uuid = scsi_get_devid_desc((struct scsi_vpd_id_descriptor *)
+	    lun->lun_devid->data, lun->lun_devid->len, scsi_devid_is_lun_uuid);
+
+	p = data;
+
+	/* EUI64 */
+	if ((naa != NULL && naa->length == 8) || eui64 != NULL) {
+		*p++ = 1;
+		*p++ = 8;
+		p += 2;
+		if (naa != NULL && naa->length == 8)
+			memcpy(p, naa->identifier, 8);
+		else
+			memcpy(p, eui64->identifier, 8);
+		p += 8;
+	}
+
+	/* NGUID */
+	if (naa != NULL && naa->length == 16) {
+		*p++ = 1;
+		*p++ = 16;
+		p += 2;
+		memcpy(p, naa->identifier, 16);
+		p += 16;
+	}
+
+	/* UUID */
+	if (uuid != NULL) {
+		*p++ = 1;
+		*p++ = uuid->length;
+		p += 2;
+		memcpy(p, uuid->identifier, uuid->length);
+		p += uuid->length;
+	}
+}
+
 /*
  * Backend "memory move is complete" callback for requests that never
  * make it down to say RAIDCore's configuration code.
