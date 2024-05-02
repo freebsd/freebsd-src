@@ -2806,8 +2806,7 @@ cctl_islist_start_element(void *user_data, const char *name, const char **attr)
 	islist = (struct cctl_islist_data *)user_data;
 	cur_conn = islist->cur_conn;
 	islist->level++;
-	if ((u_int)islist->level >= (sizeof(islist->cur_sb) /
-	    sizeof(islist->cur_sb[0])))
+	if ((u_int)islist->level >= nitems(islist->cur_sb))
 		errx(1, "%s: too many nesting levels, %zd max", __func__,
 		     nitems(islist->cur_sb));
 
@@ -3237,8 +3236,7 @@ cctl_start_element(void *user_data, const char *name, const char **attr)
 	devlist = (struct cctl_devlist_data *)user_data;
 	cur_lun = devlist->cur_lun;
 	devlist->level++;
-	if ((u_int)devlist->level >= (sizeof(devlist->cur_sb) /
-	    sizeof(devlist->cur_sb[0])))
+	if ((u_int)devlist->level >= nitems(devlist->cur_sb))
 		errx(1, "%s: too many nesting levels, %zd max", __func__,
 		     nitems(devlist->cur_sb));
 
@@ -3501,8 +3499,7 @@ cctl_start_pelement(void *user_data, const char *name, const char **attr)
 	portlist = (struct cctl_portlist_data *)user_data;
 	cur_port = portlist->cur_port;
 	portlist->level++;
-	if ((u_int)portlist->level >= (sizeof(portlist->cur_sb) /
-	    sizeof(portlist->cur_sb[0])))
+	if ((u_int)portlist->level >= nitems(portlist->cur_sb))
 		errx(1, "%s: too many nesting levels, %zd max", __func__,
 		     nitems(portlist->cur_sb));
 
