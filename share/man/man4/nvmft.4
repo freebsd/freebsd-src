@@ -1,0 +1,85 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024 Chelsio Communications, Inc.
+.\"
+.Dd May 2, 2024
+.Dt NVMFT 4
+.Os
+.Sh NAME
+.Nm nvmft
+.Nd "NVM Express over Fabrics CAM Target Layer frontend"
+.Sh SYNOPSIS
+To compile the subsystem into the kernel,
+place the following lines in the
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device nvmft"
+.Cd "device ctl"
+.Ed
+.Pp
+Alternatively, to load the subsystem as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+nvmft_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides the kernel component of an NVM Express over Fabrics
+controller.
+The NVMeoF controller is the server exporting namespaces backed by
+local files and volumes to remote hosts.
+.Nm
+follows the dynamic controller model and creates a new dynamic controller
+for each association.
+.Pp
+.Nm
+is implemented as a
+.Xr ctl 4
+frontend and exports CAM Target Layer LUNs as namespaces to remote hosts.
+LUNs can be configured via
+.Xr ctladm 8 .
+.Pp
+Associations between the local controller and remote hosts are managed
+using both the
+.Xr nvmfd 8
+daemon and the
+.Xr ctladm 8
+utility.
+The
+.Xr nvmfd 8
+daemon listens for new associations and handles transport-specific
+negotiation before handing off connected queue pairs to
+.Nm
+which associates queue pairs with a suitable controller instance.
+The
+.Cm nvlist
+.Xr ctladm 8
+command lists active controllers.
+The
+.Cm nvterminate
+command terminates one or more associations between a local controller
+and a remote host.
+.Pp
+Associations require a supported transport such as
+.Xr nvmf_tcp 4
+for associations using TCP/IP.
+.Sh SEE ALSO
+.Xr ctl 4 ,
+.Xr nvmf 4 ,
+.Xr nvmf_tcp 4 ,
+.Xr ctladm 8 ,
+.Xr nvmfd 8
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Fx 15.0 .
+.Sh AUTHORS
+The
+.Nm
+subsystem was developed by
+.An John Baldwin Aq Mt jhb@FreeBSD.org
+under sponsorship from Chelsio Communications, Inc.

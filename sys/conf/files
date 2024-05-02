@@ -2535,6 +2535,10 @@ dev/nvme/nvme_test.c		optional nvme
 dev/nvme/nvme_util.c		optional nvme
 dev/nvmem/nvmem.c		optional nvmem fdt
 dev/nvmem/nvmem_if.m		optional nvmem
+dev/nvmf/controller/ctl_frontend_nvmf.c		optional nvmft
+dev/nvmf/controller/nvmft_controller.c		optional nvmft
+dev/nvmf/controller/nvmft_subr.c		optional nvmft
+dev/nvmf/controller/nvmft_qpair.c		optional nvmft
 dev/nvmf/host/nvmf.c		optional nvmf
 dev/nvmf/host/nvmf_aer.c	optional nvmf
 dev/nvmf/host/nvmf_cmd.c	optional nvmf
@@ -2543,7 +2547,7 @@ dev/nvmf/host/nvmf_ns.c		optional nvmf
 dev/nvmf/host/nvmf_qpair.c	optional nvmf
 dev/nvmf/host/nvmf_sim.c	optional nvmf
 dev/nvmf/nvmf_tcp.c		optional nvmf_tcp
-dev/nvmf/nvmf_transport.c	optional nvmf
+dev/nvmf/nvmf_transport.c	optional nvmf | optional nvmft
 dev/oce/oce_hw.c		optional oce pci
 dev/oce/oce_if.c		optional oce pci
 dev/oce/oce_mbox.c		optional oce pci
