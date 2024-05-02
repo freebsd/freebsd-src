@@ -213,6 +213,11 @@
 
 /* Command field definitions */
 
+enum nvme_fuse {
+	NVME_FUSE_NORMAL				= 0x0,
+	NVME_FUSE_FIRST					= 0x1,
+	NVME_FUSE_SECOND				= 0x2
+};
 #define NVME_CMD_FUSE_SHIFT				(0)
 #define NVME_CMD_FUSE_MASK				(0x3)
 
