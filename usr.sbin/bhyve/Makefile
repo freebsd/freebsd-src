@@ -27,6 +27,7 @@ SRCS=	\
 	config.c		\
 	console.c		\
 	crc16.c			\
+	ctl_nvme_all.c		\
 	ctl_scsi_all.c		\
 	ctl_util.c		\
 	hda_codec.c		\
