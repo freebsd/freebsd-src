@@ -202,6 +202,9 @@
 .Op Fl v
 .Op Fl x
 .Nm
+.Ic nvterminate
+.Aq Fl a | Fl c Ar controller-id | Fl h Ar name
+.Nm
 .Ic help
 .Sh DESCRIPTION
 The
@@ -875,6 +878,16 @@ Verbose mode.
 Dump the raw XML.
 The sessions list information from the kernel comes in XML format, and this
 option allows the display of the raw XML data.
+.El
+.It Ic nvterminate
+Forcibly terminate NVMeoF associations matching criteria.
+.Bl -tag -width 11n
+.It Fl a
+Terminate all associations.
+.It Fl c
+Specify controller ID.
+.It Fl h
+Specify host name.
 .El
 .It Ic help
 Display

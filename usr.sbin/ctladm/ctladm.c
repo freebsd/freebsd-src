@@ -115,7 +115,8 @@ typedef enum {
 	CTLADM_CMD_ISLOGOUT,
 	CTLADM_CMD_ISTERMINATE,
 	CTLADM_CMD_LUNMAP,
-	CTLADM_CMD_NVLIST
+	CTLADM_CMD_NVLIST,
+	CTLADM_CMD_NVTERMINATE
 } ctladm_cmdfunction;
 
 typedef enum {
@@ -182,6 +183,7 @@ static struct ctladm_opts option_table[] = {
 	{"modesense", CTLADM_CMD_MODESENSE, CTLADM_ARG_NEED_TL, "P:S:dlm:c:"},
 	{"modify", CTLADM_CMD_MODIFY, CTLADM_ARG_NONE, "b:l:o:s:"},
 	{"nvlist", CTLADM_CMD_NVLIST, CTLADM_ARG_NONE, "vx"},
+	{"nvterminate", CTLADM_CMD_NVTERMINATE, CTLADM_ARG_NONE, "ac:h:"},
 	{"port", CTLADM_CMD_PORT, CTLADM_ARG_NONE, "lo:O:d:crp:qt:w:W:x"},
 	{"portlist", CTLADM_CMD_PORTLIST, CTLADM_ARG_NONE, "f:ilp:qvx"},
 	{"prin", CTLADM_CMD_PRES_IN, CTLADM_ARG_NEED_TL, "a:"},
@@ -4066,6 +4068,70 @@ bailout:
 	return (retval);
 }
 
+static int
+cctl_nvterminate(int fd, int argc, char **argv, char *combinedopt)
+{
+	struct ctl_nvmf req;
+	int retval = 0, c;
+	int all = 0, cntlid = -1, nargs = 0;
+	char *hostnqn = NULL;
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'a':
+			all = 1;
+			nargs++;
+			break;
+		case 'c':
+			cntlid = strtoul(optarg, NULL, 0);
+			nargs++;
+			break;
+		case 'h':
+			hostnqn = strdup(optarg);
+			if (hostnqn == NULL)
+				err(1, "%s: strdup", __func__);
+			nargs++;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (nargs == 0)
+		errx(1, "%s: either -a, -c, or -h must be specified",
+		    __func__);
+	if (nargs > 1)
+		errx(1, "%s: only one of -a, -c, or -h may be specified",
+		    __func__);
+
+	bzero(&req, sizeof(req));
+	req.type = CTL_NVMF_TERMINATE;
+	req.data.terminate.cntlid = cntlid;
+	if (hostnqn != NULL)
+		strlcpy(req.data.terminate.hostnqn,
+		    hostnqn, sizeof(req.data.terminate.hostnqn));
+	if (all != 0)
+		req.data.terminate.all = 1;
+
+	if (ioctl(fd, CTL_NVMF, &req) == -1) {
+		warn("%s: error issuing CTL_NVMF ioctl", __func__);
+		retval = 1;
+		goto bailout;
+	}
+
+	if (req.status != CTL_NVMF_OK) {
+		warnx("%s: error returned from CTL NVMeoF connection "
+		    "termination request:\n%s", __func__, req.error_str);
+		retval = 1;
+		goto bailout;
+	}
+
+	printf("NVMeoF connections terminated\n");
+
+bailout:
+	return (retval);
+}
+
 void
 usage(int error)
 {
@@ -4113,11 +4179,12 @@ usage(int error)
 "         ctladm islogout    <-a | -c connection-id | -i name | -p portal>\n"
 "         ctladm isterminate <-a | -c connection-id | -i name | -p portal>\n"
 "         ctladm nvlist      [-v | -x]\n"
+"         ctladm nvterminate <-a | -c controller-id | -h name>\n"
 "         ctladm dumpooa\n"
 "         ctladm dumpstructs\n"
 "         ctladm help\n"
 "General Options:\n"
-"-I intiator_id           : defaults to 7, used to change the initiator id\n"
+"-I initiator_id          : defaults to 7, used to change the initiator id\n"
 "-C retries               : specify the number of times to retry this command\n"
 "-D devicename            : specify the device to operate on\n"
 "                         : (default is %s)\n"
@@ -4511,6 +4578,9 @@ main(int argc, char **argv)
 		break;
 	case CTLADM_CMD_NVLIST:
 	        retval = cctl_nvlist(fd, argc, argv, combinedopt);
+		break;
+	case CTLADM_CMD_NVTERMINATE:
+	        retval = cctl_nvterminate(fd, argc, argv, combinedopt);
 		break;
 	case CTLADM_CMD_HELP:
 	default:
