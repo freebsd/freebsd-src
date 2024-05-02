@@ -35,7 +35,7 @@
 .\"
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\"
-.Dd December 27, 2023
+.Dd May 2, 2024
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -197,6 +197,10 @@
 .Nm
 .Ic isterminate
 .Aq Fl a | Fl c Ar connection-id | Fl i Ar name | Fl p Ar portal
+.Nm
+.Ic nvlist
+.Op Fl v
+.Op Fl x
 .Nm
 .Ic help
 .Sh DESCRIPTION
@@ -860,6 +864,17 @@ Specify connection ID.
 Specify initiator name.
 .It Fl p
 Specify initiator portal (hostname or IP address).
+.El
+.It Ic nvlist
+Get a list of currently running NVMeoF associations.
+This includes host and controller names and the unique controller IDs.
+.Bl -tag -width 11n
+.It Fl v
+Verbose mode.
+.It Fl x
+Dump the raw XML.
+The sessions list information from the kernel comes in XML format, and this
+option allows the display of the raw XML data.
 .El
 .It Ic help
 Display
