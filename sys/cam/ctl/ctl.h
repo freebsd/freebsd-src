@@ -55,6 +55,7 @@ typedef enum {
 	CTL_PORT_ISCSI		= 0x10,
 	CTL_PORT_SAS		= 0x20,
 	CTL_PORT_UMASS		= 0x40,
+	CTL_PORT_NVMF		= 0x80,
 	CTL_PORT_ALL		= 0xff,
 	CTL_PORT_ISC		= 0x100 // FC port for inter-shelf communication
 } ctl_port_type;
