@@ -175,6 +175,7 @@ static struct xpt_xport nvme_xport_ ## x = {	\
 CAM_XPT_XPORT(nvme_xport_ ## x);
 
 NVME_XPT_XPORT(nvme, NVME);
+NVME_XPT_XPORT(nvmf, NVMF);
 
 #undef NVME_XPT_XPORT
 

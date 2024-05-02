@@ -24,7 +24,8 @@ SRCS+=	nvme_util.c
 .if ${MACHINE_CPUARCH} == "arm"
 WARNS?= 3
 .endif
-LIBADD=	cam sbuf util
+CFLAGS+= -I${SRCTOP}/lib/libnvmf
+LIBADD=	cam nvmf sbuf util
 MAN=	camcontrol.8
 
 .include <bsd.prog.mk>

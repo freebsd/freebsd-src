@@ -144,6 +144,7 @@ CRUNCH_PROGS_usr.sbin+= zdb
 # CRUNCH_PROGS+= devd
 
 CRUNCH_LIBS+= -l80211 -lalias -lcam -lncursesw -ldevstat -lipsec -llzma
+CRUNCH_LIBS_camcontrol+= ${LIBNVMF}
 .if ${MK_ZFS} != "no"
 CRUNCH_LIBS+= -lavl -lpthread -luutil -lumem -ltpool -lspl -lrt
 CRUNCH_LIBS_zfs+=	${LIBBE} \
