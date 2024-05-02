@@ -1677,6 +1677,7 @@ device		mrsas		# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 #
 # nvme:	PCI-express NVM Express host controllers
 # nvmf:	NVM Express over Fabrics host
+# nvmft: NVM Express over Fabrics CAM Target Layer frontend
 # nvmf_tcp: TCP transport for NVM Express over Fabrics
 # nda:	CAM NVMe disk driver
 # nvd:	non-CAM NVMe disk driver
@@ -1684,6 +1685,7 @@ device		mrsas		# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 device		nvme		# PCI-express NVMe host driver
 options 	NVME_USE_NVD=1	# Use nvd(4) instead of the CAM nda(4) driver
 device		nvmf		# NVMeoF host driver
+device		nvmft		# NVMeoF ctl(4) frontend
 device		nvmf_tcp	# NVMeoF TCP transport
 device		nda		# NVMe direct access devices (aka disks)
 device		nvd		# expose NVMe namespaces as disks, depends on nvme
