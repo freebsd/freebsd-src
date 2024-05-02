@@ -731,7 +731,7 @@ ctl_io_sbuf(union ctl_io *io, struct sbuf *sb)
 	const char *task_desc;
 	char path_str[64];
 
-	ctl_scsi_path_string(io, path_str, sizeof(path_str));
+	ctl_scsi_path_string(&io->io_hdr, path_str, sizeof(path_str));
 
 	switch (io->io_hdr.io_type) {
 	case CTL_IO_SCSI:
@@ -784,7 +784,7 @@ ctl_io_error_sbuf(union ctl_io *io, struct scsi_inquiry_data *inq_data,
 		}
 	}
 
-	ctl_scsi_path_string(io, path_str, sizeof(path_str));
+	ctl_scsi_path_string(&io->io_hdr, path_str, sizeof(path_str));
 
 	sbuf_cat(sb, path_str);
 	if (status_desc == NULL)
@@ -861,7 +861,7 @@ ctl_data_print(union ctl_io *io)
 		return;
 	if (io->scsiio.kern_sg_entries > 0)	/* XXX: Implement */
 		return;
-	ctl_scsi_path_string(io, path_str, sizeof(path_str));
+	ctl_scsi_path_string(&io->io_hdr, path_str, sizeof(path_str));
 	len = min(io->scsiio.kern_data_len, 4096);
 	for (i = 0; i < len; ) {
 		sbuf_new(&sb, str, sizeof(str), SBUF_FIXEDLEN);

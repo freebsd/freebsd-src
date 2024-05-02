@@ -43,7 +43,7 @@ int ctl_scsi_command_string(struct ctl_scsiio *ctsio,
 int ctl_scsi_sense_sbuf(struct ctl_scsiio *ctsio,
 			struct scsi_inquiry_data *inq_data, struct sbuf *sb,
 			scsi_sense_string_flags flags);
-void ctl_scsi_path_string(union ctl_io *io, char *path_str, int strlen);
+void ctl_scsi_path_string(struct ctl_io_hdr *hdr, char *path_str, int strlen);
 char *ctl_scsi_sense_string(struct ctl_scsiio *ctsio,
 			    struct scsi_inquiry_data *inq_data, char *str,
 			    int str_len);

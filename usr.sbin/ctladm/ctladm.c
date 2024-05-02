@@ -1245,7 +1245,7 @@ cctl_start_stop(int fd, int lun, int iid, int retries, int start,
 		goto bailout;
 	}
 
-	ctl_scsi_path_string(io, scsi_path, sizeof(scsi_path));
+	ctl_scsi_path_string(&io->io_hdr, scsi_path, sizeof(scsi_path));
 	if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS) {
 		fprintf(stdout, "%s LUN %s successfully\n", scsi_path,
 			(start) ?  "started" : "stopped");
@@ -1966,7 +1966,7 @@ cctl_get_inquiry(int fd, int lun, int iid, int retries,
 		retval = 1;
 		ctl_io_error_print(io, NULL, stderr);
 	} else if (path_str != NULL)
-		ctl_scsi_path_string(io, path_str, path_len);
+		ctl_scsi_path_string(&io->io_hdr, path_str, path_len);
 
 bailout:
 	ctl_scsi_free_io(io);
@@ -2364,7 +2364,7 @@ cctl_persistent_reserve_out(int fd, int lun, int iid,
 	}
 	if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS) {
 		char scsi_path[40];
-		ctl_scsi_path_string(io, scsi_path, sizeof(scsi_path));
+		ctl_scsi_path_string(&io->io_hdr, scsi_path, sizeof(scsi_path));
 		fprintf( stdout, "%sPERSISTENT RESERVE OUT executed "
 			"successfully\n", scsi_path);
 	} else

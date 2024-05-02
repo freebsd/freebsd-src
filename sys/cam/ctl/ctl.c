@@ -12837,7 +12837,7 @@ ctl_process_done(union ctl_io *io)
 		char path_str[64];
 		struct sbuf sb;
 
-		ctl_scsi_path_string(io, path_str, sizeof(path_str));
+		ctl_scsi_path_string(&io->io_hdr, path_str, sizeof(path_str));
 		sbuf_new(&sb, str, sizeof(str), SBUF_FIXEDLEN);
 
 		ctl_io_sbuf(io, &sb);
