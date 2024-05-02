@@ -71,6 +71,7 @@
 #include <cam/ctl/ctl_ioctl.h>
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_scsi_all.h>
+#include <dev/nvmf/nvmf_proto.h>
 #include <camlib.h>
 #include <libutil.h>
 #include "ctladm.h"
@@ -113,7 +114,8 @@ typedef enum {
 	CTLADM_CMD_ISLIST,
 	CTLADM_CMD_ISLOGOUT,
 	CTLADM_CMD_ISTERMINATE,
-	CTLADM_CMD_LUNMAP
+	CTLADM_CMD_LUNMAP,
+	CTLADM_CMD_NVLIST
 } ctladm_cmdfunction;
 
 typedef enum {
@@ -179,6 +181,7 @@ static struct ctladm_opts option_table[] = {
 	{"lunmap", CTLADM_CMD_LUNMAP, CTLADM_ARG_NONE, "p:l:L:"},
 	{"modesense", CTLADM_CMD_MODESENSE, CTLADM_ARG_NEED_TL, "P:S:dlm:c:"},
 	{"modify", CTLADM_CMD_MODIFY, CTLADM_ARG_NONE, "b:l:o:s:"},
+	{"nvlist", CTLADM_CMD_NVLIST, CTLADM_ARG_NONE, "vx"},
 	{"port", CTLADM_CMD_PORT, CTLADM_ARG_NONE, "lo:O:d:crp:qt:w:W:x"},
 	{"portlist", CTLADM_CMD_PORTLIST, CTLADM_ARG_NONE, "f:ilp:qvx"},
 	{"prin", CTLADM_CMD_PRES_IN, CTLADM_ARG_NEED_TL, "a:"},
@@ -3818,6 +3821,251 @@ cctl_lunmap(int fd, int argc, char **argv, char *combinedopt)
 	return (retval);
 }
 
+struct cctl_nvlist_conn {
+	int connection_id;
+	char *hostnqn;
+	char *subnqn;
+	int trtype;
+	STAILQ_ENTRY(cctl_nvlist_conn) links;
+};
+
+struct cctl_nvlist_data {
+	int num_conns;
+	STAILQ_HEAD(,cctl_nvlist_conn) conn_list;
+	struct cctl_nvlist_conn *cur_conn;
+	u_int level;
+	struct sbuf *cur_sb[32];
+};
+
+static void
+cctl_nvlist_start_element(void *user_data, const char *name, const char **attr)
+{
+	int i;
+	struct cctl_nvlist_data *nvlist;
+	struct cctl_nvlist_conn *cur_conn;
+
+	nvlist = (struct cctl_nvlist_data *)user_data;
+	cur_conn = nvlist->cur_conn;
+	nvlist->level++;
+	if ((u_int)nvlist->level >= nitems(nvlist->cur_sb))
+		errx(1, "%s: too many nesting levels, %zd max", __func__,
+		    nitems(nvlist->cur_sb));
+
+	nvlist->cur_sb[nvlist->level] = sbuf_new_auto();
+	if (nvlist->cur_sb[nvlist->level] == NULL)
+		err(1, "%s: Unable to allocate sbuf", __func__);
+
+	if (strcmp(name, "connection") == 0) {
+		if (cur_conn != NULL)
+			errx(1, "%s: improper connection element nesting",
+			    __func__);
+
+		cur_conn = calloc(1, sizeof(*cur_conn));
+		if (cur_conn == NULL)
+			err(1, "%s: cannot allocate %zd bytes", __func__,
+			    sizeof(*cur_conn));
+
+		nvlist->num_conns++;
+		nvlist->cur_conn = cur_conn;
+
+		STAILQ_INSERT_TAIL(&nvlist->conn_list, cur_conn, links);
+
+		for (i = 0; attr[i] != NULL; i += 2) {
+			if (strcmp(attr[i], "id") == 0) {
+				cur_conn->connection_id =
+				    strtoull(attr[i+1], NULL, 0);
+			} else {
+				errx(1,
+				    "%s: invalid connection attribute %s = %s",
+				     __func__, attr[i], attr[i+1]);
+			}
+		}
+	}
+}
+
+static void
+cctl_nvlist_end_element(void *user_data, const char *name)
+{
+	struct cctl_nvlist_data *nvlist;
+	struct cctl_nvlist_conn *cur_conn;
+	char *str;
+
+	nvlist = (struct cctl_nvlist_data *)user_data;
+	cur_conn = nvlist->cur_conn;
+
+	if ((cur_conn == NULL) && (strcmp(name, "ctlnvmflist") != 0))
+		errx(1, "%s: cur_conn == NULL! (name = %s)", __func__, name);
+
+	if (nvlist->cur_sb[nvlist->level] == NULL)
+		errx(1, "%s: no valid sbuf at level %d (name %s)", __func__,
+		     nvlist->level, name);
+
+	sbuf_finish(nvlist->cur_sb[nvlist->level]);
+	str = strdup(sbuf_data(nvlist->cur_sb[nvlist->level]));
+	if (str == NULL)
+		err(1, "%s can't allocate %zd bytes for string", __func__,
+		    sbuf_len(nvlist->cur_sb[nvlist->level]));
+
+	sbuf_delete(nvlist->cur_sb[nvlist->level]);
+	nvlist->cur_sb[nvlist->level] = NULL;
+	nvlist->level--;
+
+	if (strcmp(name, "hostnqn") == 0) {
+		cur_conn->hostnqn = str;
+		str = NULL;
+	} else if (strcmp(name, "subnqn") == 0) {
+		cur_conn->subnqn = str;
+		str = NULL;
+	} else if (strcmp(name, "trtype") == 0) {
+		cur_conn->trtype = atoi(str);
+		str = NULL;
+	} else if (strcmp(name, "connection") == 0) {
+		nvlist->cur_conn = NULL;
+	} else if (strcmp(name, "ctlnvmflist") == 0) {
+		/* Nothing. */
+	} else {
+		/*
+		 * Unknown element; ignore it for forward compatibility.
+		 */
+	}
+
+	free(str);
+}
+
+static void
+cctl_nvlist_char_handler(void *user_data, const XML_Char *str, int len)
+{
+	struct cctl_nvlist_data *nvlist;
+
+	nvlist = (struct cctl_nvlist_data *)user_data;
+
+	sbuf_bcat(nvlist->cur_sb[nvlist->level], str, len);
+}
+
+static const char *
+nvmf_transport_descr(u_int trtype)
+{
+	static char buf[16];
+
+	switch (trtype) {
+	case NVMF_TRTYPE_RDMA:
+		return ("RDMA");
+	case NVMF_TRTYPE_FC:
+		return ("Fibre Channel");
+	case NVMF_TRTYPE_TCP:
+		return ("TCP");
+	default:
+		snprintf(buf, sizeof(buf), "%#x", trtype);
+		return (buf);
+	}
+}
+
+static int
+cctl_nvlist(int fd, int argc, char **argv, char *combinedopt)
+{
+	struct ctl_nvmf req;
+	struct cctl_nvlist_data nvlist;
+	struct cctl_nvlist_conn *conn;
+	XML_Parser parser;
+	char *conn_str;
+	int conn_len;
+	int dump_xml = 0;
+	int c, retval, verbose = 0;
+
+	retval = 0;
+	conn_len = 4096;
+
+	bzero(&nvlist, sizeof(nvlist));
+	STAILQ_INIT(&nvlist.conn_list);
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'v':
+			verbose = 1;
+			break;
+		case 'x':
+			dump_xml = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+retry:
+	conn_str = malloc(conn_len);
+
+	bzero(&req, sizeof(req));
+	req.type = CTL_NVMF_LIST;
+	req.data.list.alloc_len = conn_len;
+	req.data.list.conn_xml = conn_str;
+
+	if (ioctl(fd, CTL_NVMF, &req) == -1) {
+		warn("%s: error issuing CTL_NVMF ioctl", __func__);
+		retval = 1;
+		goto bailout;
+	}
+
+	if (req.status == CTL_NVMF_ERROR) {
+		warnx("%s: error returned from CTL_NVMF ioctl:\n%s",
+		      __func__, req.error_str);
+	} else if (req.status == CTL_NVMF_LIST_NEED_MORE_SPACE) {
+		conn_len = conn_len << 1;
+		goto retry;
+	}
+
+	if (dump_xml != 0) {
+		printf("%s", conn_str);
+		goto bailout;
+	}
+
+	parser = XML_ParserCreate(NULL);
+	if (parser == NULL) {
+		warn("%s: Unable to create XML parser", __func__);
+		retval = 1;
+		goto bailout;
+	}
+
+	XML_SetUserData(parser, &nvlist);
+	XML_SetElementHandler(parser, cctl_nvlist_start_element,
+	    cctl_nvlist_end_element);
+	XML_SetCharacterDataHandler(parser, cctl_nvlist_char_handler);
+
+	retval = XML_Parse(parser, conn_str, strlen(conn_str), 1);
+	if (retval != 1) {
+		warnx("%s: Unable to parse XML: Error %d", __func__,
+		    XML_GetErrorCode(parser));
+		XML_ParserFree(parser);
+		retval = 1;
+		goto bailout;
+	}
+	retval = 0;
+	XML_ParserFree(parser);
+
+	if (verbose != 0) {
+		STAILQ_FOREACH(conn, &nvlist.conn_list, links) {
+			printf("%-25s %d\n", "Controller ID:", conn->connection_id);
+			printf("%-25s %s\n", "Host NQN:", conn->hostnqn);
+			printf("%-25s %s\n", "Subsystem NQN:", conn->subnqn);
+			printf("%-25s %s\n", "Transport:",
+			    nvmf_transport_descr(conn->trtype));
+			printf("\n");
+		}
+	} else {
+		printf("%4s %-16s %-36s %-36s\n", "ID", "Transport", "HostNQN",
+		    "SubNQN");
+		STAILQ_FOREACH(conn, &nvlist.conn_list, links) {
+			printf("%4u %-16s %-36s %-36s\n",
+			    conn->connection_id,
+			    nvmf_transport_descr(conn->trtype),
+			    conn->hostnqn, conn->subnqn);
+		}
+	}
+bailout:
+	free(conn_str);
+
+	return (retval);
+}
+
 void
 usage(int error)
 {
@@ -3864,6 +4112,7 @@ usage(int error)
 "         ctladm islist      [-v | -x]\n"
 "         ctladm islogout    <-a | -c connection-id | -i name | -p portal>\n"
 "         ctladm isterminate <-a | -c connection-id | -i name | -p portal>\n"
+"         ctladm nvlist      [-v | -x]\n"
 "         ctladm dumpooa\n"
 "         ctladm dumpstructs\n"
 "         ctladm help\n"
@@ -4259,6 +4508,9 @@ main(int argc, char **argv)
 		break;
 	case CTLADM_CMD_ISTERMINATE:
 	        retval = cctl_isterminate(fd, argc, argv, combinedopt);
+		break;
+	case CTLADM_CMD_NVLIST:
+	        retval = cctl_nvlist(fd, argc, argv, combinedopt);
 		break;
 	case CTLADM_CMD_HELP:
 	default:
