@@ -592,6 +592,21 @@ union ctl_io {
 };
 
 #ifdef _KERNEL
+#define	_CTL_IO_ASSERT_1(io, _1)					\
+	KASSERT((io)->io_hdr.io_type == CTL_IO_##_1,			\
+	    ("%s: unexpected I/O type %x", __func__, (io)->io_hdr.io_type))
+
+#define	_CTL_IO_ASSERT_2(io, _1, _2)					\
+	KASSERT((io)->io_hdr.io_type == CTL_IO_##_1 ||			\
+	    (io)->io_hdr.io_type == CTL_IO_##_2,			\
+	    ("%s: unexpected I/O type %x", __func__, (io)->io_hdr.io_type))
+
+#define	_CTL_IO_ASSERT_MACRO(io, _1, _2, NAME, ...)			\
+	NAME
+
+#define	CTL_IO_ASSERT(...)						\
+	_CTL_IO_ASSERT_MACRO(__VA_ARGS__, _CTL_IO_ASSERT_2,		\
+	    _CTL_IO_ASSERT_1)(__VA_ARGS__)
 
 union ctl_io *ctl_alloc_io(void *pool_ref);
 union ctl_io *ctl_alloc_io_nowait(void *pool_ref);
