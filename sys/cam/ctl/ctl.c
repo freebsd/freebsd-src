@@ -5112,8 +5112,7 @@ ctl_config_move_done(union ctl_io *io, bool samethr)
 	int retval;
 
 	CTL_DEBUG_PRINT(("ctl_config_move_done\n"));
-	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI,
-	    ("%s: unexpected I/O type %x", __func__, io->io_hdr.io_type));
+	CTL_IO_ASSERT(io, SCSI);
 
 	if (ctl_debug & CTL_DEBUG_CDB_DATA)
 		ctl_data_print(io);
@@ -10754,8 +10753,7 @@ static int
 ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint64_t *len)
 {
 
-	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI,
-	    ("%s: unexpected I/O type %x", __func__, io->io_hdr.io_type));
+	CTL_IO_ASSERT(io, SCSI);
 
 	switch (io->scsiio.cdb[0]) {
 	case COMPARE_AND_WRITE: {
@@ -10935,8 +10933,7 @@ ctl_extent_check_unmap(union ctl_io *io, uint64_t lba2, uint64_t len2)
 	uint64_t lba;
 	uint32_t len;
 
-	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI,
-	    ("%s: unexpected I/O type %x", __func__, io->io_hdr.io_type));
+	CTL_IO_ASSERT(io, SCSI);
 
 	/* If not UNMAP -- go other way. */
 	if (io->scsiio.cdb[0] != UNMAP)
@@ -12517,8 +12514,7 @@ ctl_datamove_done_process(union ctl_io *io)
 	struct bintime cur_bt;
 #endif
 
-	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI,
-	    ("%s: unexpected I/O type %x", __func__, io->io_hdr.io_type));
+	CTL_IO_ASSERT(io, SCSI);
 
 #ifdef CTL_TIME_IO
 	getbinuptime(&cur_bt);
