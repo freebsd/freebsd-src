@@ -617,6 +617,8 @@ ctl_ha_datamove(union ctl_io *io)
 	uint32_t sg_entries_sent;
 	int do_sg_copy, i, j;
 
+	CTL_IO_ASSERT(io, SCSI);
+
 	memset(&msg.dt, 0, sizeof(msg.dt));
 	msg.hdr.msg_type = CTL_MSG_DATAMOVE;
 	msg.hdr.original_sc = io->io_hdr.remote_io;
@@ -1528,6 +1530,8 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 				/* XXX KDM do something here */
 				break;
 			}
+			CTL_IO_ASSERT(io, SCSI);
+
 			io->io_hdr.msg_type = CTL_MSG_DATAMOVE;
 			io->io_hdr.flags |= CTL_FLAG_IO_ACTIVE;
 			/*
@@ -1601,6 +1605,8 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			 * back to the initiator.
 			 */
 			io = msg->hdr.serializing_sc;
+			CTL_IO_ASSERT(io, SCSI);
+
 			io->io_hdr.msg_type = CTL_MSG_DATAMOVE_DONE;
 			io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
 			io->io_hdr.flags |= CTL_FLAG_IO_ACTIVE;
@@ -2441,6 +2447,8 @@ ctl_ioctl_fill_ooa(struct ctl_lun *lun, uint32_t *cur_fill_num,
 	for ( ; ioh; ioh = LIST_PREV(ioh, &lun->ooa_queue, ctl_io_hdr, ooa_links)) {
 		union ctl_io *io = (union ctl_io *)ioh;
 		struct ctl_ooa_entry *entry;
+
+		CTL_IO_ASSERT(io, SCSI);
 
 		/*
 		 * If we've got more than we can fit, just count the
@@ -5543,6 +5551,8 @@ ctl_write_same_cont(union ctl_io *io)
 	struct ctl_lba_len_flags *lbalen;
 	int retval;
 
+	CTL_IO_ASSERT(io, SCSI);
+
 	ctsio = &io->scsiio;
 	ctsio->io_hdr.status = CTL_STATUS_NONE;
 	lbalen = (struct ctl_lba_len_flags *)
@@ -5887,6 +5897,8 @@ ctl_do_mode_select(union ctl_io *io)
 	union ctl_modepage_info *modepage_info;
 	uint16_t *len_left, *len_used;
 	int retval, i;
+
+	CTL_IO_ASSERT(io, SCSI);
 
 	ctsio = &io->scsiio;
 	page_index = NULL;
@@ -8801,6 +8813,8 @@ ctl_cnw_cont(union ctl_io *io)
 	struct ctl_lba_len_flags *lbalen;
 	int retval;
 
+	CTL_IO_ASSERT(io, SCSI);
+
 	ctsio = &io->scsiio;
 	ctsio->io_hdr.status = CTL_STATUS_NONE;
 	ctsio->io_hdr.flags &= ~CTL_FLAG_IO_CONT;
@@ -10841,6 +10855,8 @@ static ctl_action
 ctl_check_for_blockage(struct ctl_lun *lun, union ctl_io *pending_io,
     const uint8_t *serialize_row, union ctl_io *ooa_io)
 {
+	CTL_IO_ASSERT(pending_io, SCSI);
+	CTL_IO_ASSERT(ooa_io, SCSI);
 
 	/*
 	 * The initiator attempted multiple untagged commands at the same
@@ -10949,6 +10965,8 @@ ctl_check_ooa(struct ctl_lun *lun, union ctl_io *pending_io,
 	const uint8_t *serialize_row;
 	ctl_action action;
 
+	CTL_IO_ASSERT(pending_io, SCSI);
+
 	mtx_assert(&lun->lun_lock, MA_OWNED);
 
 	/*
@@ -11005,6 +11023,8 @@ ctl_try_unblock_io(struct ctl_lun *lun, union ctl_io *io, bool skip)
 	const struct ctl_cmd_entry *entry;
 	union ctl_ha_msg msg_info;
 	ctl_action action;
+
+	CTL_IO_ASSERT(io, SCSI);
 
 	mtx_assert(&lun->lun_lock, MA_OWNED);
 
@@ -11246,6 +11266,8 @@ bailout:
 static void
 ctl_failover_io(union ctl_io *io, int have_lock)
 {
+	CTL_IO_ASSERT(io, SCSI);
+
 	ctl_set_busy(&io->scsiio);
 	ctl_done(io);
 }
@@ -11813,6 +11835,7 @@ ctl_abort_tasks_lun(struct ctl_lun *lun, uint32_t targ_port, uint32_t init_id,
 			if (!other_sc && !(lun->flags & CTL_LUN_PRIMARY_SC)) {
 				union ctl_ha_msg msg_info;
 
+				CTL_IO_ASSERT(xio, SCSI);
 				msg_info.hdr.nexus = xioh->nexus;
 				msg_info.task.task_action = CTL_TASK_ABORT_TASK;
 				msg_info.task.tag_num = xio->scsiio.tag_num;
@@ -11953,6 +11976,8 @@ ctl_abort_task(union ctl_io *io)
 	 */
 	LIST_FOREACH(xioh, &lun->ooa_queue, ooa_links) {
 		union ctl_io *xio = (union ctl_io *)xioh;
+
+		CTL_IO_ASSERT(xio, SCSI);
 		if ((xioh->nexus.targ_port != io->io_hdr.nexus.targ_port)
 		 || (xioh->nexus.initid != io->io_hdr.nexus.initid)
 		 || (xioh->flags & CTL_FLAG_ABORT))
@@ -12024,6 +12049,8 @@ ctl_query_task(union ctl_io *io, int task_set)
 	mtx_unlock(&softc->ctl_lock);
 	LIST_FOREACH(xioh, &lun->ooa_queue, ooa_links) {
 		union ctl_io *xio = (union ctl_io *)xioh;
+
+		CTL_IO_ASSERT(xio, SCSI);
 		if ((xioh->nexus.targ_port != io->io_hdr.nexus.targ_port)
 		 || (xioh->nexus.initid != io->io_hdr.nexus.initid)
 		 || (xioh->flags & CTL_FLAG_ABORT))
@@ -12136,6 +12163,8 @@ ctl_handle_isc(union ctl_io *io)
 	struct ctl_lun *lun;
 	const struct ctl_cmd_entry *entry;
 	uint32_t targ_lun;
+
+	CTL_IO_ASSERT(io, SCSI);
 
 	targ_lun = io->io_hdr.nexus.targ_mapped_lun;
 	switch (io->io_hdr.msg_type) {
@@ -12271,6 +12300,8 @@ static void
 ctl_inject_error(struct ctl_lun *lun, union ctl_io *io)
 {
 	struct ctl_error_desc *desc, *desc2;
+
+	CTL_IO_ASSERT(io, SCSI);
 
 	mtx_assert(&lun->lun_lock, MA_OWNED);
 
@@ -12487,6 +12518,8 @@ ctl_send_datamove_done(union ctl_io *io, int have_lock)
 	struct bintime cur_bt;
 #endif
 
+	CTL_IO_ASSERT(io, SCSI);
+
 	memset(&msg, 0, sizeof(msg));
 	msg.hdr.msg_type = CTL_MSG_DATAMOVE_DONE;
 	msg.hdr.original_sc = io;
@@ -12529,6 +12562,7 @@ ctl_datamove_remote_write_cb(struct ctl_ha_dt_req *rq)
 	uint32_t i;
 
 	io = rq->context;
+	CTL_IO_ASSERT(io, SCSI);
 
 	if (rq->ret != CTL_HA_STATUS_SUCCESS) {
 		printf("%s: ISC DMA write failed with error %d", __func__,
@@ -12573,6 +12607,8 @@ ctl_datamove_remote_write(union ctl_io *io)
 	int retval;
 	void (*fe_datamove)(union ctl_io *io);
 
+	CTL_IO_ASSERT(io, SCSI);
+
 	/*
 	 * - Get the data from the host/HBA into local memory.
 	 * - DMA memory from the local controller to the remote controller.
@@ -12601,6 +12637,8 @@ ctl_datamove_remote_dm_read_cb(union ctl_io *io, bool samethr)
 {
 	uint32_t i;
 
+	CTL_IO_ASSERT(io, SCSI);
+
 	for (i = 0; i < io->scsiio.kern_sg_entries; i++)
 		free(CTL_LSGLT(io)[i].addr, M_CTL);
 	free(CTL_RSGL(io), M_CTL);
@@ -12623,6 +12661,7 @@ ctl_datamove_remote_read_cb(struct ctl_ha_dt_req *rq)
 	void (*fe_datamove)(union ctl_io *io);
 
 	io = rq->context;
+	CTL_IO_ASSERT(io, SCSI);
 
 	if (rq->ret != CTL_HA_STATUS_SUCCESS) {
 		printf("%s: ISC DMA read failed with error %d\n", __func__,
@@ -12656,6 +12695,8 @@ ctl_datamove_remote_sgl_setup(union ctl_io *io)
 	uint32_t len_to_go;
 	int retval;
 	int i;
+
+	CTL_IO_ASSERT(io, SCSI);
 
 	retval = 0;
 	local_sglist = CTL_LSGL(io);
@@ -12693,6 +12734,8 @@ ctl_datamove_remote_xfer(union ctl_io *io, unsigned command,
 	int i, j, isc_ret;
 
 	rq = ctl_dt_req_alloc();
+
+	CTL_IO_ASSERT(io, SCSI);
 
 	/*
 	 * If we failed to allocate the request, and if the DMA didn't fail
@@ -12845,6 +12888,7 @@ ctl_datamove_remote_read(union ctl_io *io)
 static void
 ctl_datamove_remote(union ctl_io *io)
 {
+	CTL_IO_ASSERT(io, SCSI);
 
 	mtx_assert(&((struct ctl_softc *)CTL_SOFTC(io))->ctl_lock, MA_NOTOWNED);
 
@@ -13104,6 +13148,7 @@ ctl_queue_sense(union ctl_io *io)
 	uint32_t initidx, p, targ_lun;
 
 	CTL_DEBUG_PRINT(("ctl_queue_sense\n"));
+	CTL_IO_ASSERT(io, SCSI);
 
 	targ_lun = ctl_lun_map_from_port(port, io->io_hdr.nexus.targ_lun);
 
