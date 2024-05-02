@@ -43,6 +43,7 @@ enum nvmf_fabric_cmd_types {
 	NVMF_FABRIC_COMMAND_PROPERTY_GET			= 0x04,
 	NVMF_FABRIC_COMMAND_AUTHENTICATION_SEND			= 0x05,
 	NVMF_FABRIC_COMMAND_AUTHENTICATION_RECV			= 0x06,
+	NVMF_FABRIC_COMMAND_DISCONNECT				= 0x08,
 	NVMF_FABRIC_COMMAND_START_VENDOR_SPECIFIC		= 0xC0,
 };
 
@@ -52,6 +53,7 @@ enum nvmf_fabric_cmd_status_code {
 	NVMF_FABRIC_SC_INVALID_PARAM			= 0x82,
 	NVMF_FABRIC_SC_RESTART_DISCOVERY		= 0x83,
 	NVMF_FABRIC_SC_INVALID_HOST			= 0x84,
+	NVMF_FABRIC_SC_INVALID_QUEUE_TYPE		= 0x85,
 	NVMF_FABRIC_SC_LOG_RESTART_DISCOVERY		= 0x90,
 	NVMF_FABRIC_SC_AUTH_REQUIRED			= 0x91,
 };
@@ -166,6 +168,14 @@ enum nvmf_treq_secure_channel {
 	NVMF_TREQ_SECURE_CHANNEL_NOT_REQUIRED		= 0x2,
 };
 
+struct nvmf_fabric_cmd {
+	uint8_t		opcode;
+	uint8_t		reserved1;
+	uint16_t	cid;
+	uint8_t		fctype;
+	uint8_t		reserved2[59];
+};
+
 struct nvmf_fabric_auth_recv_cmd {
 	uint8_t		opcode;
 	uint8_t		reserved1;
@@ -225,6 +235,22 @@ struct nvmf_fabric_connect_cmd {
 };
 _Static_assert(sizeof(struct nvmf_fabric_connect_cmd) == 64, "Incorrect size");
 
+#define	NVMF_CNTLID_DYNAMIC	0xFFFF
+#define	NVMF_CNTLID_STATIC_ANY	0xFFFE
+
+/*
+ * XXX: 5.3 in NVMe-over-Fabrics 1.1 gives this as an upper bound in
+ * the Discovery Log Entry.
+ */
+#define	NVMF_CNTLID_STATIC_MAX	0xFFEF
+
+/* 5.21.1.15 in NVMe 1.4b */
+#define	NVMF_KATO_DEFAULT			(120000)
+
+#define NVMF_CONNECT_ATTR_PRIORITY_CLASS	(0x3)
+#define NVMF_CONNECT_ATTR_DISABLE_SQ_FC		(1u << 2)
+#define NVMF_CONNECT_ATTR_IO_QUEUE_DELETION	(1u << 3)
+
 struct nvmf_fabric_connect_rsp {
 	union {
 		struct {
@@ -249,8 +275,26 @@ struct nvmf_fabric_connect_rsp {
 };
 _Static_assert(sizeof(struct nvmf_fabric_connect_rsp) == 16, "Incorrect size");
 
+struct nvmf_fabric_disconnect_cmd {
+	uint8_t		opcode;
+	uint8_t		reserved1;
+	uint16_t	cid;
+	uint8_t		fctype;
+	uint8_t		reserved2[19];
+	struct nvme_sgl_descriptor sgl1;
+	uint16_t	recfmt; /* Disconnect Record Format */
+	uint8_t		reserved3[22];
+};
+_Static_assert(sizeof(struct nvmf_fabric_disconnect_cmd) == 64, "Incorrect size");
+
 #define NVMF_PROP_SIZE_4	0
 #define NVMF_PROP_SIZE_8	1
+
+#define	NVMF_PROP_CAP		0x00	/* Controller Capabilities */
+#define	NVMF_PROP_VS		0x08	/* Version */
+#define	NVMF_PROP_CC		0x14	/* Controller Configuration */
+#define	NVMF_PROP_CSTS		0x1C	/* Controller Status */
+#define	NVMF_PROP_NSSR		0x20	/* NVM Subsystem Reset */
 
 struct nvmf_fabric_prop_get_cmd {
 	uint8_t		opcode;
