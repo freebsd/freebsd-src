@@ -153,6 +153,8 @@
         ..
         nvme
         ..
+        nvmf
+        ..
         ofw
         ..
         pbio
