@@ -296,6 +296,7 @@ SUBDIR=	\
 	nvd \
 	${_nvdimm} \
 	nvme \
+	nvmf \
 	${_nvram} \
 	oce \
 	${_ocs_fc} \
