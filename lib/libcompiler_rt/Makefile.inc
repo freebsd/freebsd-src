@@ -132,7 +132,6 @@ SRCF+=		floatundisf
 #
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 SRCF+=		divxc3
-SRCF+=		extendxftf2
 SRCF+=		fixxfdi
 SRCF+=		fixxfti
 SRCF+=		fixunsxfdi
@@ -142,7 +141,6 @@ SRCF+=		floattixf
 SRCF+=		floatuntixf
 SRCF+=		mulxc3
 SRCF+=		powixf2
-SRCF+=		trunctfxf2
 
 # Avoid using SSE2 instructions on i386, if unsupported.
 .if ${MACHINE_CPUARCH} == "i386" && empty(MACHINE_CPU:Msse2)
@@ -152,6 +150,12 @@ SRCS+=		floatundixf.c
 SRCF+=		floatdixf
 SRCF+=		floatundixf
 .endif
+.endif
+
+# 128-bit float is an amd64 feature
+.if ${MACHINE_CPUARCH} == "amd64"
+SRCF+=		extendxftf2
+SRCF+=		trunctfxf2
 .endif
 
 # __cpu_model support, only used on aarch64 and x86
