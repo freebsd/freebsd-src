@@ -528,6 +528,38 @@ static moduledata_t ctl_moduledata = {
 DECLARE_MODULE(ctl, ctl_moduledata, SI_SUB_CONFIGURE, SI_ORDER_THIRD);
 MODULE_VERSION(ctl, 1);
 
+static void
+ctl_be_move_done(union ctl_io *io, bool samethr)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		io->scsiio.be_move_done(io, samethr);
+		break;
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		io->nvmeio.be_move_done(io, samethr);
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+static void
+ctl_continue_io(union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		io->scsiio.io_cont(io);
+		break;
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		io->nvmeio.io_cont(io);
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
 static struct ctl_frontend ha_frontend =
 {
 	.name = "ha",
@@ -601,32 +633,32 @@ ctl_ha_datamove(union ctl_io *io)
 	 * us to get more than CTL_HA_MAX_SG_ENTRIES S/G entries,
 	 * then we need to break this up into multiple transfers.
 	 */
-	if (io->scsiio.kern_sg_entries == 0) {
+	if (ctl_kern_sg_entries(io) == 0) {
 		msg.dt.kern_sg_entries = 1;
 #if 0
 		if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR) {
-			msg.dt.sg_list[0].addr = io->scsiio.kern_data_ptr;
+			msg.dt.sg_list[0].addr = ctl_kern_data_ptr(io);
 		} else {
 			/* XXX KDM use busdma here! */
 			msg.dt.sg_list[0].addr =
-			    (void *)vtophys(io->scsiio.kern_data_ptr);
+			    (void *)vtophys(ctl_kern_data_ptr(io));
 		}
 #else
 		KASSERT((io->io_hdr.flags & CTL_FLAG_BUS_ADDR) == 0,
 		    ("HA does not support BUS_ADDR"));
-		msg.dt.sg_list[0].addr = io->scsiio.kern_data_ptr;
+		msg.dt.sg_list[0].addr = ctl_kern_data_ptr(io);
 #endif
-		msg.dt.sg_list[0].len = io->scsiio.kern_data_len;
+		msg.dt.sg_list[0].len = ctl_kern_data_len(io);
 		do_sg_copy = 0;
 	} else {
-		msg.dt.kern_sg_entries = io->scsiio.kern_sg_entries;
+		msg.dt.kern_sg_entries = ctl_kern_sg_entries(io);
 		do_sg_copy = 1;
 	}
 
-	msg.dt.kern_data_len = io->scsiio.kern_data_len;
-	msg.dt.kern_total_len = io->scsiio.kern_total_len;
-	msg.dt.kern_data_resid = io->scsiio.kern_data_resid;
-	msg.dt.kern_rel_offset = io->scsiio.kern_rel_offset;
+	msg.dt.kern_data_len = ctl_kern_data_len(io);
+	msg.dt.kern_total_len = ctl_kern_total_len(io);
+	msg.dt.kern_data_resid = ctl_kern_data_resid(io);
+	msg.dt.kern_rel_offset = ctl_kern_rel_offset(io);
 	msg.dt.sg_sequence = 0;
 
 	/*
@@ -640,7 +672,7 @@ ctl_ha_datamove(union ctl_io *io)
 		    sizeof(msg.dt.sg_list[0])),
 		    msg.dt.kern_sg_entries - sg_entries_sent);
 		if (do_sg_copy != 0) {
-			sgl = (struct ctl_sg_entry *)io->scsiio.kern_data_ptr;
+			sgl = (struct ctl_sg_entry *)ctl_kern_data_ptr(io);
 			for (i = sg_entries_sent, j = 0;
 			     i < msg.dt.cur_sg_entries; i++, j++) {
 #if 0
@@ -4937,7 +4969,7 @@ ctl_config_move_done(union ctl_io *io, bool samethr)
 		 * we'll need to know how to clean them up here as well.
 		 */
 		if (io->io_hdr.flags & CTL_FLAG_ALLOCATED)
-			free(io->scsiio.kern_data_ptr, M_CTL);
+			free(ctl_kern_data_ptr(io), M_CTL);
 		ctl_done(io);
 		retval = CTL_RETVAL_COMPLETE;
 	} else {
@@ -4982,7 +5014,7 @@ ctl_data_submit_done(union ctl_io *io)
 	    (io->io_hdr.flags & CTL_FLAG_ABORT) == 0 &&
 	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
 	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
-		io->scsiio.io_cont(io);
+		ctl_continue_io(io);
 		return;
 	}
 	ctl_done(io);
@@ -5009,7 +5041,7 @@ ctl_config_write_done(union ctl_io *io)
 	    (io->io_hdr.flags & CTL_FLAG_ABORT) == 0 &&
 	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
 	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
-		io->scsiio.io_cont(io);
+		ctl_continue_io(io);
 		return;
 	}
 	/*
@@ -5018,7 +5050,7 @@ ctl_config_write_done(union ctl_io *io)
 	 * no data, like start/stop unit, we need to check here.
 	 */
 	if (io->io_hdr.flags & CTL_FLAG_ALLOCATED)
-		buf = io->scsiio.kern_data_ptr;
+		buf = ctl_kern_data_ptr(io);
 	else
 		buf = NULL;
 	ctl_done(io);
@@ -5038,7 +5070,7 @@ ctl_config_read_done(union ctl_io *io)
 	    ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE &&
 	     (io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS)) {
 		if (io->io_hdr.flags & CTL_FLAG_ALLOCATED)
-			buf = io->scsiio.kern_data_ptr;
+			buf = ctl_kern_data_ptr(io);
 		else
 			buf = NULL;
 		ctl_done(io);
@@ -5053,7 +5085,7 @@ ctl_config_read_done(union ctl_io *io)
 	 * the I/O just yet.
 	 */
 	if (io->io_hdr.flags & CTL_FLAG_IO_CONT) {
-		io->scsiio.io_cont(io);
+		ctl_continue_io(io);
 		return;
 	}
 
@@ -12318,11 +12350,7 @@ ctl_datamove_done_process(union ctl_io *io)
 {
 #ifdef CTL_TIME_IO
 	struct bintime cur_bt;
-#endif
 
-	CTL_IO_ASSERT(io, SCSI);
-
-#ifdef CTL_TIME_IO
 	getbinuptime(&cur_bt);
 	bintime_sub(&cur_bt, &io->io_hdr.dma_start_bt);
 	bintime_add(&io->io_hdr.dma_bt, &cur_bt);
@@ -12332,13 +12360,36 @@ ctl_datamove_done_process(union ctl_io *io)
 	if ((io->io_hdr.port_status != 0) &&
 	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
 	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
-		ctl_set_internal_failure(&io->scsiio, /*sks_valid*/ 1,
-		    /*retry_count*/ io->io_hdr.port_status);
-	} else if (io->scsiio.kern_data_resid != 0 &&
+		switch (io->io_hdr.io_type) {
+		case CTL_IO_SCSI:
+			ctl_set_internal_failure(&io->scsiio, /*sks_valid*/ 1,
+			    /*retry_count*/ io->io_hdr.port_status);
+			break;
+		case CTL_IO_NVME:
+		case CTL_IO_NVME_ADMIN:
+			if (io->io_hdr.flags & CTL_FLAG_ABORT)
+				ctl_nvme_set_command_aborted(&io->nvmeio);
+			else
+				ctl_nvme_set_data_transfer_error(&io->nvmeio);
+			break;
+		default:
+			__assert_unreachable();
+		}
+	} else if (ctl_kern_data_resid(io) != 0 &&
 	    (io->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_OUT &&
 	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
 	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
-		ctl_set_invalid_field_ciu(&io->scsiio);
+		switch (io->io_hdr.io_type) {
+		case CTL_IO_SCSI:
+			ctl_set_invalid_field_ciu(&io->scsiio);
+			break;
+		case CTL_IO_NVME:
+		case CTL_IO_NVME_ADMIN:
+			ctl_nvme_set_data_transfer_error(&io->nvmeio);
+			break;
+		default:
+			__assert_unreachable();
+		}
 	} else if (ctl_debug & CTL_DEBUG_CDB_DATA)
 		ctl_data_print(io);
 }
@@ -12348,7 +12399,7 @@ ctl_datamove_done(union ctl_io *io, bool samethr)
 {
 
 	ctl_datamove_done_process(io);
-	io->scsiio.be_move_done(io, samethr);
+	ctl_be_move_done(io, samethr);
 }
 
 void
@@ -12361,7 +12412,7 @@ ctl_datamove(union ctl_io *io)
 	CTL_DEBUG_PRINT(("ctl_datamove\n"));
 
 	/* No data transferred yet.  Frontend must update this when done. */
-	io->scsiio.kern_data_resid = io->scsiio.kern_data_len;
+	ctl_set_kern_data_resid(io, ctl_kern_data_len(io));
 
 #ifdef CTL_TIME_IO
 	getbinuptime(&io->io_hdr.dma_start_bt);
@@ -12394,20 +12445,33 @@ ctl_datamove(union ctl_io *io)
 	 * the data move.
 	 */
 	if (io->io_hdr.flags & CTL_FLAG_ABORT) {
-		printf("ctl_datamove: tag 0x%jx on (%u:%u:%u) aborted\n",
-		       io->scsiio.tag_num, io->io_hdr.nexus.initid,
-		       io->io_hdr.nexus.targ_port,
-		       io->io_hdr.nexus.targ_lun);
+		switch (io->io_hdr.io_type) {
+		case CTL_IO_SCSI:
+			printf("ctl_datamove: tag 0x%jx on (%u:%u:%u) aborted\n",
+			    io->scsiio.tag_num, io->io_hdr.nexus.initid,
+			    io->io_hdr.nexus.targ_port,
+			    io->io_hdr.nexus.targ_lun);
+			break;
+		case CTL_IO_NVME:
+		case CTL_IO_NVME_ADMIN:
+			printf("ctl_datamove: CID 0x%x on (%u:%u:%u) aborted\n",
+			    le16toh(io->nvmeio.cmd.cid),
+			    io->io_hdr.nexus.initid, io->io_hdr.nexus.targ_port,
+			    io->io_hdr.nexus.targ_lun);
+			break;
+		default:
+			__assert_unreachable();
+		}
 		io->io_hdr.port_status = 31337;
 		ctl_datamove_done_process(io);
-		io->scsiio.be_move_done(io, true);
+		ctl_be_move_done(io, true);
 		return;
 	}
 
 	/* Don't confuse frontend with zero length data move. */
-	if (io->scsiio.kern_data_len == 0) {
+	if (ctl_kern_data_len(io) == 0) {
 		ctl_datamove_done_process(io);
-		io->scsiio.be_move_done(io, true);
+		ctl_be_move_done(io, true);
 		return;
 	}
 
@@ -12763,7 +12827,7 @@ ctl_datamove_remote_read(union ctl_io *io)
 		 * datamove done message, or call the callback with an
 		 * error if there is a problem.
 		 */
-		for (i = 0; i < io->scsiio.kern_sg_entries; i++)
+		for (i = 0; i < ctl_kern_sg_entries(io); i++)
 			free(CTL_LSGLT(io)[i].addr, M_CTL);
 		free(CTL_RSGL(io), M_CTL);
 		CTL_RSGL(io) = NULL;
@@ -12847,6 +12911,8 @@ ctl_process_done(union ctl_io *io)
 
 	switch (io->io_hdr.io_type) {
 	case CTL_IO_SCSI:
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
 		break;
 	case CTL_IO_TASK:
 		if (ctl_debug & CTL_DEBUG_INFO)
@@ -12877,6 +12943,8 @@ ctl_process_done(union ctl_io *io)
 		uint8_t mrie = lun->MODE_IE.mrie;
 		uint8_t per = ((lun->MODE_RWER.byte3 & SMS_RWER_PER) ||
 		    (lun->MODE_VER.byte3 & SMS_VER_PER));
+
+		CTL_IO_ASSERT(io, SCSI);
 		if (((mrie == SIEP_MRIE_REC_COND && per) ||
 		     mrie == SIEP_MRIE_REC_UNCOND ||
 		     mrie == SIEP_MRIE_NO_SENSE) &&
@@ -12910,7 +12978,9 @@ ctl_process_done(union ctl_io *io)
 	 * XXX KDM should we also track I/O latency?
 	 */
 	if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS &&
-	    io->io_hdr.io_type == CTL_IO_SCSI) {
+	    (io->io_hdr.io_type == CTL_IO_SCSI ||
+	    io->io_hdr.io_type == CTL_IO_NVME ||
+	    io->io_hdr.io_type == CTL_IO_NVME_ADMIN)) {
 		int type;
 #ifdef CTL_TIME_IO
 		struct bintime bt;
@@ -12927,7 +12997,7 @@ ctl_process_done(union ctl_io *io)
 		else
 			type = CTL_STATS_NO_IO;
 
-		lun->stats.bytes[type] += io->scsiio.kern_total_len;
+		lun->stats.bytes[type] += ctl_kern_total_len(io);
 		lun->stats.operations[type] ++;
 		lun->stats.dmas[type] += io->io_hdr.num_dmas;
 #ifdef CTL_TIME_IO
@@ -12936,7 +13006,7 @@ ctl_process_done(union ctl_io *io)
 #endif
 
 		mtx_lock(&port->port_lock);
-		port->stats.bytes[type] += io->scsiio.kern_total_len;
+		port->stats.bytes[type] += ctl_kern_total_len(io);
 		port->stats.operations[type] ++;
 		port->stats.dmas[type] += io->io_hdr.num_dmas;
 #ifdef CTL_TIME_IO
@@ -12980,8 +13050,19 @@ bailout:
 	 * properly.  The FETD is responsible for freeing the I/O and doing
 	 * whatever it needs to do to clean up its state.
 	 */
-	if (io->io_hdr.flags & CTL_FLAG_ABORT)
-		ctl_set_task_aborted(&io->scsiio);
+	if (io->io_hdr.flags & CTL_FLAG_ABORT) {
+		switch (io->io_hdr.io_type) {
+		case CTL_IO_SCSI:
+			ctl_set_task_aborted(&io->scsiio);
+			break;
+		case CTL_IO_NVME:
+		case CTL_IO_NVME_ADMIN:
+			ctl_nvme_set_command_aborted(&io->nvmeio);
+			break;
+		default:
+			__assert_unreachable();
+		}
+	}
 
 	/*
 	 * If enabled, print command error status.
@@ -13166,22 +13247,54 @@ ctl_done(union ctl_io *io)
 	 */
 #if 0
 	if (io->io_hdr.flags & CTL_FLAG_ALREADY_DONE) {
-		printf("%s: type %d msg %d cdb %x iptl: "
-		       "%u:%u:%u tag 0x%04x "
-		       "flag %#x status %x\n",
-			__func__,
-			io->io_hdr.io_type,
-			io->io_hdr.msg_type,
-			io->scsiio.cdb[0],
-			io->io_hdr.nexus.initid,
-			io->io_hdr.nexus.targ_port,
-			io->io_hdr.nexus.targ_lun,
-			(io->io_hdr.io_type ==
-			CTL_IO_TASK) ?
-			io->taskio.tag_num :
-			io->scsiio.tag_num,
-		        io->io_hdr.flags,
-			io->io_hdr.status);
+		switch (io->io_hdr.io_type) {
+		case CTL_IO_SCSI:
+		case CTL_IO_TASK:
+			printf("%s: type %d msg %d cdb %x iptl: "
+			    "%u:%u:%u tag 0x%04lx "
+			    "flag %#x status %x\n",
+			    __func__,
+			    io->io_hdr.io_type,
+			    io->io_hdr.msg_type,
+			    io->scsiio.cdb[0],
+			    io->io_hdr.nexus.initid,
+			    io->io_hdr.nexus.targ_port,
+			    io->io_hdr.nexus.targ_lun,
+			    (io->io_hdr.io_type == CTL_IO_TASK) ?
+			    io->taskio.tag_num :
+			    io->scsiio.tag_num,
+			    io->io_hdr.flags,
+			    io->io_hdr.status);
+			break;
+		case CTL_IO_NVME:
+		case CTL_IO_NVME_ADMIN:
+			printf("%s: type %d msg %d opc %x iptl: "
+			    "%u:%u:%u cid 0x%04x "
+			    "flag %#x status %x\n",
+			    __func__,
+			    io->io_hdr.io_type,
+			    io->io_hdr.msg_type,
+			    io->nvmeio.cmd.opc,
+			    io->io_hdr.nexus.initid,
+			    io->io_hdr.nexus.targ_port,
+			    io->io_hdr.nexus.targ_lun,
+			    io->nvmeio.cmd.cid,
+			    io->io_hdr.flags,
+			    io->io_hdr.status);
+			break;
+		default:
+			printf("%s: type %d msg %d iptl: "
+			    "%u:%u:%u flag %#x status %x\n",
+			    __func__,
+			    io->io_hdr.io_type,
+			    io->io_hdr.msg_type,
+			    io->io_hdr.nexus.initid,
+			    io->io_hdr.nexus.targ_port,
+			    io->io_hdr.nexus.targ_lun,
+			    io->io_hdr.flags,
+			    io->io_hdr.status);
+			break;
+		}
 	} else
 		io->io_hdr.flags |= CTL_FLAG_ALREADY_DONE;
 #endif
