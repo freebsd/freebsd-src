@@ -191,15 +191,14 @@ GCC_4.3.0 {
 	__bswapsi2;
 };
 
-#if defined(__aarch64__) || defined(__riscv)
 GCC_4.6.0 {
+#if defined(__aarch64__) || defined(__riscv)
 	__addtf3;
 	__cmptf2;
 	__divtf3;
 	__eqtf2;
 	__extenddftf2;
 	__extendsftf2;
-	__extendxftf2;
 	__fixtfdi;
 	__fixtfsi;
 	__fixtfti;
@@ -221,10 +220,13 @@ GCC_4.6.0 {
 	__subtf3;
 	__trunctfdf2;
 	__trunctfsf2;
-	__trunctfxf2;
 	__unordtf2;
-};
 #endif
+#if defined(__amd64__)
+	__extendxftf2;
+	__trunctfxf2;
+#endif
+};
 
 GCC_7.0.0 {
 #ifdef __i386__
