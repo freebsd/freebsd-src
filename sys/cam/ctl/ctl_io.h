@@ -47,6 +47,7 @@
 
 #include <sys/queue.h>
 #include <cam/scsi/scsi_all.h>
+#include <dev/nvme/nvme.h>
 
 #define	CTL_MAX_CDBLEN	32
 /*
@@ -74,6 +75,7 @@ typedef enum {
 	CTL_SEL_TIMEOUT,	/* Selection timeout, shouldn't happen here */
 	CTL_ERROR,		/* General CTL error XXX expand on this? */
 	CTL_SCSI_ERROR,		/* SCSI error, look at status byte/sense data */
+	CTL_NVME_ERROR,		/* NVMe error, look at NVMe completion */
 	CTL_CMD_ABORTED,	/* Command aborted, don't return status */
 	CTL_STATUS_MASK = 0xfff,/* Mask off any status flags */
 	CTL_AUTOSENSE = 0x1000	/* Autosense performed */
@@ -192,6 +194,8 @@ typedef enum {
 	CTL_IO_NONE,
 	CTL_IO_SCSI,
 	CTL_IO_TASK,
+	CTL_IO_NVME,
+	CTL_IO_NVME_ADMIN,
 } ctl_io_type;
 
 struct ctl_nexus {
@@ -263,6 +267,8 @@ typedef enum {
 union ctl_io;
 
 typedef void (*ctl_ref)(void *arg, int diff);
+typedef int (*ctl_be_move_done_t)(union ctl_io *io, bool samethr);
+typedef int (*ctl_io_cont)(union ctl_io *io);
 
 /*
  * SCSI passthrough I/O structure for the CAM Target Layer.  Note
@@ -334,8 +340,8 @@ struct ctl_scsiio {
 	ctl_tag_type tag_type;		/* simple, ordered, head of queue,etc.*/
 	uint8_t    cdb_len;		/* CDB length */
 	uint8_t	   cdb[CTL_MAX_CDBLEN];	/* CDB */
-	int	   (*be_move_done)(union ctl_io *io, bool samethr); /* called by fe */
-	int        (*io_cont)(union ctl_io *io); /* to continue processing */
+	ctl_be_move_done_t be_move_done;	/* called by fe */
+	ctl_io_cont io_cont;		/* to continue processing */
 	ctl_ref	    kern_data_ref;	/* Method to reference/release data */
 	void	   *kern_data_arg;	/* Opaque argument for kern_data_ref() */
 };
@@ -378,6 +384,72 @@ struct ctl_taskio {
 	ctl_tag_type		tag_type;    /* simple, ordered, etc. */
 	uint8_t			task_status; /* Complete, Succeeded, etc. */
 	uint8_t			task_resp[3];/* Response information */
+};
+
+/*
+ * NVME passthrough I/O structure for the CAM Target Layer.  Note that
+ * this structure is used for both I/O and admin commands.
+ *
+ * Note:  Make sure the io_hdr is *always* the first element in this
+ * structure.
+ */
+struct ctl_nvmeio {
+	struct ctl_io_hdr io_hdr;	/* common to all I/O types */
+
+	/*
+	 * The ext_* fields are generally intended for frontend use; CTL itself
+	 * doesn't modify or use them.
+	 */
+	uint32_t   ext_sg_entries;	/* 0 = no S/G list, > 0 = num entries */
+	uint8_t	   *ext_data_ptr;	/* data buffer or S/G list */
+	uint32_t   ext_data_len;	/* Data transfer length */
+	uint32_t   ext_data_filled;	/* Amount of data filled so far */
+
+	/*
+	 * The number of scatter/gather entries in the list pointed to
+	 * by kern_data_ptr.  0 means there is no list, just a data pointer.
+	 */
+	uint32_t   kern_sg_entries;
+
+	/*
+	 * The data pointer or a pointer to the scatter/gather list.
+	 */
+	uint8_t    *kern_data_ptr;
+
+	/*
+	 * Length of the data buffer or scatter/gather list.  It's also
+	 * the length of this particular piece of the data transfer,
+	 * ie. number of bytes expected to be transferred by the current
+	 * invocation of frontend's datamove() callback.  It's always
+	 * less than or equal to kern_total_len.
+	 */
+	uint32_t   kern_data_len;
+
+	/*
+	 * Total length of data to be transferred during this particular
+	 * NVMe command, as decoded from the NVMe SQE.
+	 */
+	uint32_t   kern_total_len;
+
+	/*
+	 * Amount of data left after the current data transfer.
+	 */
+	uint32_t   kern_data_resid;
+
+	/*
+	 * Byte offset of this transfer, equal to the amount of data
+	 * already transferred for this NVMe command during previous
+	 * datamove() invocations.
+	 */
+	uint32_t   kern_rel_offset;
+
+	struct nvme_command cmd;	/* SQE */
+	struct nvme_completion cpl;	/* CQE */
+	bool       success_sent;	/* datamove already sent CQE */
+	ctl_be_move_done_t be_move_done;	/* called by fe */
+	ctl_io_cont io_cont;		/* to continue processing */
+	ctl_ref	    kern_data_ref;	/* Method to reference/release data */
+	void	   *kern_data_arg;	/* Opaque argument for kern_data_ref() */
 };
 
 /*
@@ -588,6 +660,7 @@ union ctl_io {
 	struct ctl_io_hdr	io_hdr;	/* common to all I/O types */
 	struct ctl_scsiio	scsiio;	/* Normal SCSI commands */
 	struct ctl_taskio	taskio;	/* SCSI task management/reset */
+	struct ctl_nvmeio	nvmeio;	/* Normal and admin NVMe commands */
 	struct ctl_prio		presio;	/* update per. res info on other SC */
 };
 
@@ -607,6 +680,266 @@ union ctl_io {
 #define	CTL_IO_ASSERT(...)						\
 	_CTL_IO_ASSERT_MACRO(__VA_ARGS__, _CTL_IO_ASSERT_2,		\
 	    _CTL_IO_ASSERT_1)(__VA_ARGS__)
+
+static __inline uint32_t
+ctl_kern_sg_entries(union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		return (io->scsiio.kern_sg_entries);
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		return (io->nvmeio.kern_sg_entries);
+	default:
+		__assert_unreachable();
+	}
+}
+
+static __inline uint8_t *
+ctl_kern_data_ptr(union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		return (io->scsiio.kern_data_ptr);
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		return (io->nvmeio.kern_data_ptr);
+	default:
+		__assert_unreachable();
+	}
+}
+
+static __inline uint32_t
+ctl_kern_data_len(union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		return (io->scsiio.kern_data_len);
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		return (io->nvmeio.kern_data_len);
+	default:
+		__assert_unreachable();
+	}
+}
+
+static __inline uint32_t
+ctl_kern_total_len(union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		return (io->scsiio.kern_total_len);
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		return (io->nvmeio.kern_total_len);
+	default:
+		__assert_unreachable();
+	}
+}
+
+static __inline uint32_t
+ctl_kern_data_resid(union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		return (io->scsiio.kern_data_resid);
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		return (io->nvmeio.kern_data_resid);
+	default:
+		__assert_unreachable();
+	}
+}
+
+static __inline uint32_t
+ctl_kern_rel_offset(union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		return (io->scsiio.kern_rel_offset);
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		return (io->nvmeio.kern_rel_offset);
+	default:
+		__assert_unreachable();
+	}
+}
+
+static __inline void
+ctl_add_kern_rel_offset(union ctl_io *io, uint32_t offset)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		io->scsiio.kern_rel_offset += offset;
+		break;
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		io->nvmeio.kern_rel_offset += offset;
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+static __inline void
+ctl_set_kern_sg_entries(union ctl_io *io, uint32_t kern_sg_entries)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		io->scsiio.kern_sg_entries = kern_sg_entries;
+		break;
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		io->nvmeio.kern_sg_entries = kern_sg_entries;
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+static __inline void
+ctl_set_kern_data_ptr(union ctl_io *io, void *kern_data_ptr)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		io->scsiio.kern_data_ptr = kern_data_ptr;
+		break;
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		io->nvmeio.kern_data_ptr = kern_data_ptr;
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+static __inline void
+ctl_set_kern_data_len(union ctl_io *io, uint32_t kern_data_len)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		io->scsiio.kern_data_len = kern_data_len;
+		break;
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		io->nvmeio.kern_data_len = kern_data_len;
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+static __inline void
+ctl_set_kern_total_len(union ctl_io *io, uint32_t kern_total_len)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		io->scsiio.kern_total_len = kern_total_len;
+		break;
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		io->nvmeio.kern_total_len = kern_total_len;
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+static __inline void
+ctl_set_kern_data_resid(union ctl_io *io, uint32_t kern_data_resid)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		io->scsiio.kern_data_resid = kern_data_resid;
+		break;
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		io->nvmeio.kern_data_resid = kern_data_resid;
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+static __inline void
+ctl_set_kern_rel_offset(union ctl_io *io, uint32_t kern_rel_offset)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		io->scsiio.kern_rel_offset = kern_rel_offset;
+		break;
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		io->nvmeio.kern_rel_offset = kern_rel_offset;
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+static __inline void
+ctl_set_be_move_done(union ctl_io *io, ctl_be_move_done_t be_move_done)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		io->scsiio.be_move_done = be_move_done;
+		break;
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		io->nvmeio.be_move_done = be_move_done;
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+static __inline void
+ctl_set_io_cont(union ctl_io *io, ctl_io_cont io_cont)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		io->scsiio.io_cont = io_cont;
+		break;
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		io->nvmeio.io_cont = io_cont;
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+static __inline void
+ctl_set_kern_data_ref(union ctl_io *io, ctl_ref kern_data_ref)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		io->scsiio.kern_data_ref = kern_data_ref;
+		break;
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		io->nvmeio.kern_data_ref = kern_data_ref;
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+static __inline void
+ctl_set_kern_data_arg(union ctl_io *io, void *kern_data_arg)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		io->scsiio.kern_data_arg = kern_data_arg;
+		break;
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		io->nvmeio.kern_data_arg = kern_data_arg;
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
 
 union ctl_io *ctl_alloc_io(void *pool_ref);
 union ctl_io *ctl_alloc_io_nowait(void *pool_ref);
