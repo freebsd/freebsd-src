@@ -78,7 +78,8 @@ typedef enum {
 	CTL_ACTION_SKIP,
 	CTL_ACTION_BLOCK,
 	CTL_ACTION_OVERLAP,
-	CTL_ACTION_OVERLAP_TAG
+	CTL_ACTION_OVERLAP_TAG,
+	CTL_ACTION_FUSED,
 } ctl_action;
 
 /*
@@ -137,6 +138,12 @@ struct ctl_cmd_entry {
 	uint8_t			length;		/* CDB length */
 	uint8_t			usage[15];	/* Mask of allowed CDB bits
 						 * after the opcode byte. */
+};
+
+/* Only data flags are currently used for NVMe commands. */
+struct ctl_nvme_cmd_entry {
+	int			(*execute)(struct ctl_nvmeio *);
+	ctl_io_flags		flags;
 };
 
 typedef enum {
@@ -412,6 +419,8 @@ struct ctl_softc {
 #ifdef _KERNEL
 
 extern const struct ctl_cmd_entry ctl_cmd_table[256];
+extern const struct ctl_nvme_cmd_entry nvme_admin_cmd_table[256];
+extern const struct ctl_nvme_cmd_entry nvme_nvm_cmd_table[256];
 
 uint32_t ctl_get_initindex(struct ctl_nexus *nexus);
 int ctl_lun_map_init(struct ctl_port *port);
@@ -458,6 +467,15 @@ int ctl_report_supported_opcodes(struct ctl_scsiio *ctsio);
 int ctl_report_supported_tmf(struct ctl_scsiio *ctsio);
 int ctl_report_timestamp(struct ctl_scsiio *ctsio);
 int ctl_get_lba_status(struct ctl_scsiio *ctsio);
+
+int ctl_nvme_identify(struct ctl_nvmeio *ctnio);
+int ctl_nvme_flush(struct ctl_nvmeio *ctnio);
+int ctl_nvme_read_write(struct ctl_nvmeio *ctnio);
+int ctl_nvme_write_uncorrectable(struct ctl_nvmeio *ctnio);
+int ctl_nvme_compare(struct ctl_nvmeio *ctnio);
+int ctl_nvme_write_zeroes(struct ctl_nvmeio *ctnio);
+int ctl_nvme_dataset_management(struct ctl_nvmeio *ctnio);
+int ctl_nvme_verify(struct ctl_nvmeio *ctnio);
 
 void ctl_tpc_init(struct ctl_softc *softc);
 void ctl_tpc_shutdown(struct ctl_softc *softc);

@@ -83,6 +83,7 @@
 #include <cam/ctl/ctl_ha.h>
 #include <cam/ctl/ctl_private.h>
 #include <cam/ctl/ctl_debug.h>
+#include <cam/ctl/ctl_nvme_all.h>
 #include <cam/ctl/ctl_scsi_all.h>
 #include <cam/ctl/ctl_error.h>
 
@@ -447,6 +448,8 @@ static int ctl_scsiio_lun_check(struct ctl_lun *lun,
 static void ctl_failover_lun(union ctl_io *io);
 static void ctl_scsiio_precheck(struct ctl_scsiio *ctsio);
 static int ctl_scsiio(struct ctl_scsiio *ctsio);
+static void ctl_nvmeio_precheck(struct ctl_nvmeio *ctnio);
+static int ctl_nvmeio(struct ctl_nvmeio *ctnio);
 
 static int ctl_target_reset(union ctl_io *io);
 static void ctl_do_lun_reset(struct ctl_lun *lun, uint32_t initidx,
@@ -4963,7 +4966,6 @@ ctl_config_move_done(union ctl_io *io, bool samethr)
 	int retval;
 
 	CTL_DEBUG_PRINT(("ctl_config_move_done\n"));
-	CTL_IO_ASSERT(io, SCSI);
 
 	if (ctl_debug & CTL_DEBUG_CDB_DATA)
 		ctl_data_print(io);
@@ -4998,7 +5000,17 @@ ctl_config_move_done(union ctl_io *io, bool samethr)
 		 * XXX KDM call ctl_scsiio() again for now, and check flag
 		 * bits to see whether we're allocated or not.
 		 */
-		retval = ctl_scsiio(&io->scsiio);
+		switch (io->io_hdr.io_type) {
+		case CTL_IO_SCSI:
+			retval = ctl_scsiio(&io->scsiio);
+			break;
+		case CTL_IO_NVME:
+		case CTL_IO_NVME_ADMIN:
+			retval = ctl_nvmeio(&io->nvmeio);
+			break;
+		default:
+			__assert_unreachable();
+		}
 	}
 	return (retval);
 }
@@ -10599,6 +10611,725 @@ ctl_read_toc(struct ctl_scsiio *ctsio)
 }
 
 /*
+ * For NVMe commands, parse the LBA and length.
+ */
+static bool
+ctl_nvme_get_lba_len(struct ctl_nvmeio *ctnio, uint64_t *lba, uint32_t *len)
+{
+	CTL_IO_ASSERT(ctnio, NVME);
+
+	switch (ctnio->cmd.opc) {
+	case NVME_OPC_WRITE:
+	case NVME_OPC_READ:
+	case NVME_OPC_WRITE_UNCORRECTABLE:
+	case NVME_OPC_COMPARE:
+	case NVME_OPC_WRITE_ZEROES:
+	case NVME_OPC_VERIFY:
+		*lba = (uint64_t)le32toh(ctnio->cmd.cdw11) << 32 |
+		    le32toh(ctnio->cmd.cdw10);
+		*len = (le32toh(ctnio->cmd.cdw12) & 0xffff) + 1;
+		return (true);
+	default:
+		*lba = 0;
+		*len = 0;
+		return (false);
+	}
+}
+
+static bool
+ctl_nvme_fua(struct ctl_nvmeio *ctnio)
+{
+	return ((le32toh(ctnio->cmd.cdw12) & (1U << 30)) != 0);
+}
+
+int
+ctl_nvme_identify(struct ctl_nvmeio *ctnio)
+{
+	struct ctl_lun *lun = CTL_LUN(ctnio);
+	size_t len;
+	int retval;
+	uint8_t cns;
+
+	CTL_DEBUG_PRINT(("ctl_nvme_identify\n"));
+
+	CTL_IO_ASSERT(ctnio, NVME_ADMIN);
+	MPASS(ctnio->cmd.opc == NVME_OPC_IDENTIFY);
+
+	/*
+	 * The data buffer for Identify is always 4096 bytes, see
+	 * 5.51.1 in NVMe base specification 1.4.
+	 */
+	len = 4096;
+
+	ctnio->kern_data_ptr = malloc(len, M_CTL, M_WAITOK);
+	ctnio->kern_data_len = len;
+	ctnio->kern_total_len = len;
+	ctnio->kern_rel_offset = 0;
+	ctnio->kern_sg_entries = 0;
+
+	ctl_nvme_set_success(ctnio);
+	ctnio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+	ctnio->be_move_done = ctl_config_move_done;
+
+	/*
+	 * If we don't have a LUN, return an empty result for CNS == 0.
+	 */
+	if (lun == NULL) {
+		cns = le32toh(ctnio->cmd.cdw10) & 0xff;
+		switch (cns) {
+		case 0:
+			memset(ctnio->kern_data_ptr, 0, len);
+			ctl_datamove((union ctl_io *)ctnio);
+			break;
+		default:
+			ctl_nvme_set_invalid_field(ctnio);
+			break;
+		}
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	retval = lun->backend->config_read((union ctl_io *)ctnio);
+	return (retval);
+}
+
+int
+ctl_nvme_flush(struct ctl_nvmeio *ctnio)
+{
+	struct ctl_lun *lun = CTL_LUN(ctnio);
+	int retval;
+
+	CTL_DEBUG_PRINT(("ctl_nvme_flush\n"));
+
+	CTL_IO_ASSERT(ctnio, NVME);
+	MPASS(ctnio->cmd.opc == NVME_OPC_FLUSH);
+
+	/*
+	 * NVMe flushes always flush the entire namespace, not an LBA
+	 * range.
+	 */
+	retval = lun->backend->config_write((union ctl_io *)ctnio);
+
+	return (retval);
+}
+
+int
+ctl_nvme_read_write(struct ctl_nvmeio *ctnio)
+{
+	struct ctl_lun *lun = CTL_LUN(ctnio);
+	struct ctl_lba_len_flags *lbalen;
+	uint64_t lba;
+	uint32_t num_blocks;
+	int flags, retval;
+	bool isread;
+
+	CTL_DEBUG_PRINT(("ctl_nvme_read_write: command: %#x\n",
+	    ctnio->cmd.opc));
+
+	CTL_IO_ASSERT(ctnio, NVME);
+	MPASS(ctnio->cmd.opc == NVME_OPC_WRITE ||
+	    ctnio->cmd.opc == NVME_OPC_READ);
+
+	flags = 0;
+	isread = ctnio->cmd.opc == NVME_OPC_READ;
+	ctl_nvme_get_lba_len(ctnio, &lba, &num_blocks);
+
+	/*
+	 * The first check is to make sure we're in bounds, the second
+	 * check is to catch wrap-around problems.  If the lba + num blocks
+	 * is less than the lba, then we've wrapped around and the block
+	 * range is invalid anyway.
+	 */
+	if (((lba + num_blocks) > (lun->be_lun->maxlba + 1))
+	 || ((lba + num_blocks) < lba)) {
+		ctl_nvme_set_lba_out_of_range(ctnio);
+		ctl_done((union ctl_io *)ctnio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	/*
+	 * Set FUA and/or DPO if caches are disabled.
+	 *
+	 * For a read this may not be quite correct for the block
+	 * backend as any earlier writes to the LBA range should be
+	 * flushed to backing store as part of the read.
+	 */
+	if (ctl_nvme_fua(ctnio)) {
+		flags |= CTL_LLF_FUA;
+		if (isread)
+			flags |= CTL_LLF_DPO;
+	}
+
+	lbalen = (struct ctl_lba_len_flags *)
+	    &ctnio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen->lba = lba;
+	lbalen->len = num_blocks;
+	lbalen->flags = (isread ? CTL_LLF_READ : CTL_LLF_WRITE) | flags;
+
+	ctnio->kern_total_len = num_blocks * lun->be_lun->blocksize;
+	ctnio->kern_rel_offset = 0;
+
+	CTL_DEBUG_PRINT(("ctl_nvme_read_write: calling data_submit()\n"));
+
+	retval = lun->backend->data_submit((union ctl_io *)ctnio);
+	return (retval);
+}
+
+int
+ctl_nvme_write_uncorrectable(struct ctl_nvmeio *ctnio)
+{
+	struct ctl_lun *lun = CTL_LUN(ctnio);
+	struct ctl_lba_len_flags *lbalen;
+	uint64_t lba;
+	uint32_t num_blocks;
+	int retval;
+
+	CTL_DEBUG_PRINT(("ctl_nvme_write_uncorrectable\n"));
+
+	CTL_IO_ASSERT(ctnio, NVME);
+	MPASS(ctnio->cmd.opc == NVME_OPC_WRITE_UNCORRECTABLE);
+
+	ctl_nvme_get_lba_len(ctnio, &lba, &num_blocks);
+
+	/*
+	 * The first check is to make sure we're in bounds, the second
+	 * check is to catch wrap-around problems.  If the lba + num blocks
+	 * is less than the lba, then we've wrapped around and the block
+	 * range is invalid anyway.
+	 */
+	if (((lba + num_blocks) > (lun->be_lun->maxlba + 1))
+	 || ((lba + num_blocks) < lba)) {
+		ctl_nvme_set_lba_out_of_range(ctnio);
+		ctl_done((union ctl_io *)ctnio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	lbalen = (struct ctl_lba_len_flags *)
+	    &ctnio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen->lba = lba;
+	lbalen->len = num_blocks;
+	lbalen->flags = 0;
+	retval = lun->backend->config_write((union ctl_io *)ctnio);
+
+	return (retval);
+}
+
+int
+ctl_nvme_compare(struct ctl_nvmeio *ctnio)
+{
+	struct ctl_lun *lun = CTL_LUN(ctnio);
+	struct ctl_lba_len_flags *lbalen;
+	uint64_t lba;
+	uint32_t num_blocks;
+	int flags;
+	int retval;
+
+	CTL_DEBUG_PRINT(("ctl_nvme_compare\n"));
+
+	CTL_IO_ASSERT(ctnio, NVME);
+	MPASS(ctnio->cmd.opc == NVME_OPC_COMPARE);
+
+	flags = 0;
+	ctl_nvme_get_lba_len(ctnio, &lba, &num_blocks);
+	if (ctl_nvme_fua(ctnio))
+		flags |= CTL_LLF_FUA;
+
+	/*
+	 * The first check is to make sure we're in bounds, the second
+	 * check is to catch wrap-around problems.  If the lba + num blocks
+	 * is less than the lba, then we've wrapped around and the block
+	 * range is invalid anyway.
+	 */
+	if (((lba + num_blocks) > (lun->be_lun->maxlba + 1))
+	 || ((lba + num_blocks) < lba)) {
+		ctl_nvme_set_lba_out_of_range(ctnio);
+		ctl_done((union ctl_io *)ctnio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	lbalen = (struct ctl_lba_len_flags *)
+	    &ctnio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen->lba = lba;
+	lbalen->len = num_blocks;
+	lbalen->flags = CTL_LLF_COMPARE | flags;
+	ctnio->kern_total_len = num_blocks * lun->be_lun->blocksize;
+	ctnio->kern_rel_offset = 0;
+
+	CTL_DEBUG_PRINT(("ctl_nvme_compare: calling data_submit()\n"));
+	retval = lun->backend->data_submit((union ctl_io *)ctnio);
+	return (retval);
+}
+
+int
+ctl_nvme_write_zeroes(struct ctl_nvmeio *ctnio)
+{
+	struct ctl_lun *lun = CTL_LUN(ctnio);
+	struct ctl_lba_len_flags *lbalen;
+	uint64_t lba;
+	uint32_t num_blocks;
+	int retval;
+
+	CTL_DEBUG_PRINT(("ctl_nvme_write_zeroes\n"));
+
+	CTL_IO_ASSERT(ctnio, NVME);
+	MPASS(ctnio->cmd.opc == NVME_OPC_WRITE_ZEROES);
+
+	ctl_nvme_get_lba_len(ctnio, &lba, &num_blocks);
+
+	/*
+	 * The first check is to make sure we're in bounds, the second
+	 * check is to catch wrap-around problems.  If the lba + num blocks
+	 * is less than the lba, then we've wrapped around and the block
+	 * range is invalid anyway.
+	 */
+	if (((lba + num_blocks) > (lun->be_lun->maxlba + 1))
+	 || ((lba + num_blocks) < lba)) {
+		ctl_nvme_set_lba_out_of_range(ctnio);
+		ctl_done((union ctl_io *)ctnio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	lbalen = (struct ctl_lba_len_flags *)
+	    &ctnio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen->lba = lba;
+	lbalen->len = num_blocks;
+	lbalen->flags = 0;
+	retval = lun->backend->config_write((union ctl_io *)ctnio);
+
+	return (retval);
+}
+
+int
+ctl_nvme_dataset_management(struct ctl_nvmeio *ctnio)
+{
+	struct ctl_lun *lun = CTL_LUN(ctnio);
+	struct nvme_dsm_range *r;
+	uint64_t lba;
+	uint32_t len, num_blocks;
+	u_int i, ranges;
+	int retval;
+
+	CTL_DEBUG_PRINT(("ctl_nvme_dataset_management\n"));
+
+	CTL_IO_ASSERT(ctnio, NVME);
+	MPASS(ctnio->cmd.opc == NVME_OPC_DATASET_MANAGEMENT);
+
+	ranges = le32toh(ctnio->cmd.cdw10) & 0xff;
+	len = ranges * sizeof(struct nvme_dsm_range);
+
+	/*
+	 * If we've got a kernel request that hasn't been malloced yet,
+	 * malloc it and tell the caller the data buffer is here.
+	 */
+	if ((ctnio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0) {
+		ctnio->kern_data_ptr = malloc(len, M_CTL, M_WAITOK);
+		ctnio->kern_data_len = len;
+		ctnio->kern_total_len = len;
+		ctnio->kern_rel_offset = 0;
+		ctnio->kern_sg_entries = 0;
+		ctnio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+		ctnio->be_move_done = ctl_config_move_done;
+		ctl_datamove((union ctl_io *)ctnio);
+
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	/*
+	 * Require a flat buffer of the correct size.
+	 */
+	if (ctnio->kern_sg_entries > 0 ||
+	    ctnio->kern_total_len - ctnio->kern_data_resid != len)
+		return (CTL_RETVAL_ERROR);
+
+	/*
+	 * Verify that none of the ranges are out of bounds.
+	 */
+	r = (struct nvme_dsm_range *)ctnio->kern_data_ptr;
+	for (i = 0; i < ranges; i++) {
+		lba = le64toh(r[i].starting_lba);
+		num_blocks = le32toh(r[i].length);
+		if (((lba + num_blocks) > (lun->be_lun->maxlba + 1))
+		    || ((lba + num_blocks) < lba)) {
+			ctl_nvme_set_lba_out_of_range(ctnio);
+			ctl_done((union ctl_io *)ctnio);
+			return (CTL_RETVAL_COMPLETE);
+		}
+	}
+
+	CTL_DEBUG_PRINT(("ctl_nvme_dataset_management: calling config_write()\n"));
+	retval = lun->backend->config_write((union ctl_io *)ctnio);
+	return (retval);
+}
+
+int
+ctl_nvme_verify(struct ctl_nvmeio *ctnio)
+{
+	struct ctl_lun *lun = CTL_LUN(ctnio);
+	struct ctl_lba_len_flags *lbalen;
+	uint64_t lba;
+	uint32_t num_blocks;
+	int flags;
+	int retval;
+
+	CTL_DEBUG_PRINT(("ctl_nvme_verify\n"));
+
+	CTL_IO_ASSERT(ctnio, NVME);
+	MPASS(ctnio->cmd.opc == NVME_OPC_VERIFY);
+
+	flags = 0;
+	ctl_nvme_get_lba_len(ctnio, &lba, &num_blocks);
+	if (ctl_nvme_fua(ctnio))
+		flags |= CTL_LLF_FUA;
+
+	/*
+	 * The first check is to make sure we're in bounds, the second
+	 * check is to catch wrap-around problems.  If the lba + num blocks
+	 * is less than the lba, then we've wrapped around and the block
+	 * range is invalid anyway.
+	 */
+	if (((lba + num_blocks) > (lun->be_lun->maxlba + 1))
+	 || ((lba + num_blocks) < lba)) {
+		ctl_nvme_set_lba_out_of_range(ctnio);
+		ctl_done((union ctl_io *)ctnio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	lbalen = (struct ctl_lba_len_flags *)
+	    &ctnio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen->lba = lba;
+	lbalen->len = num_blocks;
+	lbalen->flags = CTL_LLF_VERIFY | flags;
+	ctnio->kern_total_len = 0;
+	ctnio->kern_rel_offset = 0;
+
+	CTL_DEBUG_PRINT(("ctl_nvme_verify: calling data_submit()\n"));
+	retval = lun->backend->data_submit((union ctl_io *)ctnio);
+	return (retval);
+}
+
+static const struct ctl_nvme_cmd_entry *
+ctl_nvme_get_cmd_entry(struct ctl_nvmeio *ctnio)
+{
+	const struct ctl_nvme_cmd_entry *entry;
+
+	switch (ctnio->io_hdr.io_type) {
+	case CTL_IO_NVME:
+		entry = &nvme_nvm_cmd_table[ctnio->cmd.opc];
+		break;
+	case CTL_IO_NVME_ADMIN:
+		entry = &nvme_admin_cmd_table[ctnio->cmd.opc];
+		break;
+	default:
+		__assert_unreachable();
+	}
+	return (entry);
+}
+
+static const struct ctl_nvme_cmd_entry *
+ctl_nvme_validate_command(struct ctl_nvmeio *ctnio)
+{
+	const struct ctl_nvme_cmd_entry *entry;
+
+	entry = ctl_nvme_get_cmd_entry(ctnio);
+	if (entry->execute == NULL) {
+		ctl_nvme_set_invalid_opcode(ctnio);
+		ctl_done((union ctl_io *)ctnio);
+		return (NULL);
+	}
+
+	/* Validate fused commands. */
+	switch (NVMEV(NVME_CMD_FUSE, ctnio->cmd.fuse)) {
+	case NVME_FUSE_NORMAL:
+		break;
+	case NVME_FUSE_FIRST:
+		if (ctnio->io_hdr.io_type != CTL_IO_NVME ||
+		    ctnio->cmd.opc != NVME_OPC_COMPARE) {
+			ctl_nvme_set_invalid_field(ctnio);
+			ctl_done((union ctl_io *)ctnio);
+			return (NULL);
+		}
+		break;
+	case NVME_FUSE_SECOND:
+		if (ctnio->io_hdr.io_type != CTL_IO_NVME ||
+		    ctnio->cmd.opc != NVME_OPC_COMPARE) {
+			ctl_nvme_set_invalid_field(ctnio);
+			ctl_done((union ctl_io *)ctnio);
+			return (NULL);
+		}
+		break;
+	default:
+		ctl_nvme_set_invalid_field(ctnio);
+		ctl_done((union ctl_io *)ctnio);
+		return (NULL);
+	}
+
+	return (entry);
+}
+
+/*
+ * This is a simpler version of ctl_scsiio_lun_check that fails
+ * requests on a LUN without active media.
+ *
+ * Returns true if the command has been completed with an error.
+ */
+static bool
+ctl_nvmeio_lun_check(struct ctl_lun *lun,
+    const struct ctl_nvme_cmd_entry *entry, struct ctl_nvmeio *ctnio)
+{
+	mtx_assert(&lun->lun_lock, MA_OWNED);
+
+	if ((entry->flags & CTL_CMD_FLAG_OK_ON_NO_MEDIA) == 0) {
+		if ((lun->flags & (CTL_LUN_EJECTED | CTL_LUN_NO_MEDIA |
+		    CTL_LUN_STOPPED)) != 0) {
+			ctl_nvme_set_namespace_not_ready(ctnio);
+			return (true);
+		}
+	}
+
+	return (false);
+}
+
+/*
+ * Check for blockage against the OOA (Order Of Arrival) queue.
+ * Assumptions:
+ * - pending_io is generally either incoming, or on the blocked queue
+ * - starting I/O is the I/O we want to start the check with.
+ */
+static ctl_action
+ctl_nvme_check_ooa(struct ctl_lun *lun, union ctl_io *pending_io,
+    union ctl_io **starting_io, union ctl_io **aborted_io)
+{
+	union ctl_io *ooa_io = *starting_io;
+
+	CTL_IO_ASSERT(pending_io, NVME, NVME_ADMIN);
+
+	mtx_assert(&lun->lun_lock, MA_OWNED);
+
+	*aborted_io = NULL;
+
+	/*
+	 * Aborted commands are not going to be executed and may even
+	 * not report completion, so we don't care about their order.
+	 * Let them complete ASAP to clean the OOA queue.
+	 */
+	if (__predict_false(pending_io->io_hdr.flags & CTL_FLAG_ABORT))
+		return (CTL_ACTION_PASS);
+
+	/*
+	 * NVMe has rather simple command ordering requirements.  In
+	 * particular, there is no requirement on the controller to
+	 * enforce a specific order for overlapping LBAs.  The only
+	 * constraint is that fused operations (Compare and Write),
+	 * must be completed as a unit.
+	 *
+	 * To support fused operations, the following strategy is used:
+	 * - the first half of a fused command is not enqueued to rtr
+	 *   until the second half is enqueued
+	 * - the second half of a fused command blocks on the first
+	 *   half of a fuse command
+	 * - subsequent commands block on the second half of the
+	 *   fused command
+	 */
+
+	/*
+	 * Is the previously submitted command the first half of a
+	 * fused operation?
+	 */
+	if (ooa_io != NULL &&
+	    NVMEV(NVME_CMD_FUSE, ooa_io->nvmeio.cmd.fuse) == NVME_FUSE_FIRST) {
+		/*
+		 * If this is the second half, enqueue the first half
+		 * and block the second half on the first half.
+		 */
+		if (NVMEV(NVME_CMD_FUSE, pending_io->nvmeio.cmd.fuse) ==
+		    NVME_FUSE_SECOND) {
+			/*
+			 * XXX: Do we need to wait for other rtr requests
+			 * to drain so this is truly atomic?
+			 */
+			return (CTL_ACTION_FUSED);
+		}
+
+		/* Abort the first half. */
+		ctl_nvme_set_missing_fused_command(&ooa_io->nvmeio);
+		*aborted_io = ooa_io;
+	} else {
+		switch (NVMEV(NVME_CMD_FUSE, pending_io->nvmeio.cmd.fuse)) {
+		case NVME_FUSE_FIRST:
+			/* First half, wait for the second half. */
+			return (CTL_ACTION_SKIP);
+		case NVME_FUSE_SECOND:
+			/* Second half without a matching first half, abort. */
+			ctl_nvme_set_missing_fused_command(&pending_io->nvmeio);
+			*aborted_io = pending_io;
+			return (CTL_ACTION_SKIP);
+		}
+	}
+
+	/*
+	 * Scan the OOA queue looking for the most recent second half
+	 * of a fused op.
+	 */
+	for (; ooa_io != NULL;
+	     ooa_io = (union ctl_io *)LIST_NEXT(&ooa_io->io_hdr, ooa_links)) {
+		if (NVMEV(NVME_CMD_FUSE, ooa_io->nvmeio.cmd.fuse) ==
+		    NVME_FUSE_SECOND) {
+			*starting_io = ooa_io;
+			return (CTL_ACTION_BLOCK);
+		}
+	}
+
+	*starting_io = NULL;
+	return (CTL_ACTION_PASS);
+}
+
+static void
+ctl_nvmeio_precheck(struct ctl_nvmeio *ctnio)
+{
+	struct ctl_softc *softc = CTL_SOFTC(ctnio);
+	struct ctl_lun *lun;
+	const struct ctl_nvme_cmd_entry *entry;
+	union ctl_io *bio, *aborted_io;
+	uint32_t targ_lun;
+
+	lun = NULL;
+	targ_lun = ctnio->io_hdr.nexus.targ_mapped_lun;
+	if (targ_lun < ctl_max_luns)
+		lun = softc->ctl_luns[targ_lun];
+	if (lun != NULL) {
+		/*
+		 * If the LUN is invalid, pretend that it doesn't exist.
+		 * It will go away as soon as all pending I/O has been
+		 * completed.
+		 */
+		mtx_lock(&lun->lun_lock);
+		if (lun->flags & CTL_LUN_DISABLED) {
+			mtx_unlock(&lun->lun_lock);
+			lun = NULL;
+		}
+	}
+	CTL_LUN(ctnio) = lun;
+	if (lun != NULL) {
+		CTL_BACKEND_LUN(ctnio) = lun->be_lun;
+
+		/*
+		 * Every I/O goes into the OOA queue for a particular LUN,
+		 * and stays there until completion.
+		 */
+#ifdef CTL_TIME_IO
+		if (LIST_EMPTY(&lun->ooa_queue))
+			lun->idle_time += getsbinuptime() - lun->last_busy;
+#endif
+		LIST_INSERT_HEAD(&lun->ooa_queue, &ctnio->io_hdr, ooa_links);
+	}
+
+	/* Get command entry and return error if it is unsupported. */
+	entry = ctl_nvme_validate_command(ctnio);
+	if (entry == NULL) {
+		if (lun)
+			mtx_unlock(&lun->lun_lock);
+		return;
+	}
+
+	ctnio->io_hdr.flags &= ~CTL_FLAG_DATA_MASK;
+	ctnio->io_hdr.flags |= entry->flags & CTL_FLAG_DATA_MASK;
+
+	/* All NVMe commands other than IDENTIFY require a LUN. */
+	if (lun == NULL) {
+		if (entry->flags & CTL_CMD_FLAG_OK_ON_NO_LUN) {
+			ctnio->io_hdr.flags |= CTL_FLAG_IS_WAS_ON_RTR;
+			ctl_enqueue_rtr((union ctl_io *)ctnio);
+			return;
+		}
+
+		ctl_nvme_set_invalid_namespace(ctnio);
+		ctl_done((union ctl_io *)ctnio);
+		CTL_DEBUG_PRINT(("ctl_nvmeio_precheck: bailing out due to invalid LUN\n"));
+		return;
+	} else {
+		/*
+		 * NVMe namespaces can only be backed by T_DIRECT LUNs.
+		 */
+		if (lun->be_lun->lun_type != T_DIRECT) {
+			mtx_unlock(&lun->lun_lock);
+			ctl_nvme_set_invalid_namespace(ctnio);
+			ctl_done((union ctl_io *)ctnio);
+			return;
+		}
+	}
+
+	if (ctl_nvmeio_lun_check(lun, entry, ctnio) != 0) {
+		mtx_unlock(&lun->lun_lock);
+		ctl_done((union ctl_io *)ctnio);
+		return;
+	}
+
+	bio = (union ctl_io *)LIST_NEXT(&ctnio->io_hdr, ooa_links);
+	switch (ctl_nvme_check_ooa(lun, (union ctl_io *)ctnio, &bio,
+	    &aborted_io)) {
+	case CTL_ACTION_PASS:
+		ctnio->io_hdr.flags |= CTL_FLAG_IS_WAS_ON_RTR;
+		mtx_unlock(&lun->lun_lock);
+		ctl_enqueue_rtr((union ctl_io *)ctnio);
+		break;
+	case CTL_ACTION_FUSED:
+		/* Block the second half on the first half. */
+		ctnio->io_hdr.blocker = bio;
+		TAILQ_INSERT_TAIL(&bio->io_hdr.blocked_queue, &ctnio->io_hdr,
+				  blocked_links);
+
+		/* Pass the first half. */
+		bio->io_hdr.flags |= CTL_FLAG_IS_WAS_ON_RTR;
+		mtx_unlock(&lun->lun_lock);
+		ctl_enqueue_rtr(bio);
+		break;
+	case CTL_ACTION_SKIP:
+		mtx_unlock(&lun->lun_lock);
+		break;
+	case CTL_ACTION_BLOCK:
+		ctnio->io_hdr.blocker = bio;
+		TAILQ_INSERT_TAIL(&bio->io_hdr.blocked_queue, &ctnio->io_hdr,
+				  blocked_links);
+		mtx_unlock(&lun->lun_lock);
+		break;
+	default:
+		__assert_unreachable();
+	}
+	if (aborted_io != NULL)
+		ctl_done(aborted_io);
+}
+
+static int
+ctl_nvmeio(struct ctl_nvmeio *ctnio)
+{
+	const struct ctl_nvme_cmd_entry *entry;
+	int retval;
+
+	CTL_DEBUG_PRINT(("ctl_nvmeio %s opc=%02X\n",
+	    ctnio->io_hdr.io_type == CTL_IO_NVME ? "nvm" : "admin",
+	    ctnio->cmd.opc));
+
+	entry = ctl_nvme_get_cmd_entry(ctnio);
+	MPASS(entry != NULL);
+
+	/*
+	 * If this I/O has been aborted, just send it straight to
+	 * ctl_done() without executing it.
+	 */
+	if (ctnio->io_hdr.flags & CTL_FLAG_ABORT) {
+		ctl_done((union ctl_io *)ctnio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	/*
+	 * All the checks should have been handled by ctl_nvmeio_precheck().
+	 * We should be clear now to just execute the I/O.
+	 */
+	retval = entry->execute(ctnio);
+
+	return (retval);
+}
+
+/*
  * For known CDB types, parse the LBA and length.
  */
 static int
@@ -11016,7 +11747,7 @@ ctl_check_ooa(struct ctl_lun *lun, union ctl_io *pending_io,
  * we know for sure that the blocker I/O does no longer count.
  */
 static void
-ctl_try_unblock_io(struct ctl_lun *lun, union ctl_io *io, bool skip)
+ctl_scsi_try_unblock_io(struct ctl_lun *lun, union ctl_io *io, bool skip)
 {
 	struct ctl_softc *softc = lun->ctl_softc;
 	union ctl_io *bio, *obio;
@@ -11108,6 +11839,72 @@ error:
 
 		ctl_done(io);
 		break;
+	}
+}
+
+static void
+ctl_nvme_try_unblock_io(struct ctl_lun *lun, union ctl_io *io, bool skip)
+{
+	union ctl_io *bio;
+	const struct ctl_nvme_cmd_entry *entry;
+
+	CTL_IO_ASSERT(io, NVME, NVME_ADMIN);
+
+	mtx_assert(&lun->lun_lock, MA_OWNED);
+
+	if (io->io_hdr.blocker == NULL)
+		return;
+
+	/*
+	 * If this is the second half of a fused operation, it should
+	 * be the only io on the blocked list.  If the first half
+	 * failed, complete the second half with an appropriate error.
+	 */
+	bio = io->io_hdr.blocker;
+	if (NVMEV(NVME_CMD_FUSE, io->nvmeio.cmd.fuse) == NVME_FUSE_SECOND) {
+		MPASS(io ==
+		    (union ctl_io *)TAILQ_FIRST(&bio->io_hdr.blocked_queue));
+		MPASS(TAILQ_NEXT(&io->io_hdr, blocked_links) == NULL);
+
+		TAILQ_REMOVE(&bio->io_hdr.blocked_queue, &io->io_hdr,
+		    blocked_links);
+		if (bio->io_hdr.status != CTL_SUCCESS) {
+			ctl_nvme_set_failed_fused_command(&io->nvmeio);
+			ctl_done(io);
+			return;
+		}
+	} else {
+		/*
+		 * This must be a command that was blocked on the
+		 * second half of a fused operation.
+		 */
+		MPASS(NVMEV(NVME_CMD_FUSE, bio->nvmeio.cmd.fuse) ==
+		    NVME_FUSE_SECOND);
+		TAILQ_REMOVE(&bio->io_hdr.blocked_queue, &io->io_hdr,
+		    blocked_links);
+	}
+
+	entry = ctl_nvme_get_cmd_entry(&io->nvmeio);
+	if (ctl_nvmeio_lun_check(lun, entry, &io->nvmeio) != 0) {
+		ctl_done(io);
+		return;
+	}
+
+	io->io_hdr.flags |= CTL_FLAG_IS_WAS_ON_RTR;
+	ctl_enqueue_rtr(io);
+}
+
+static void
+ctl_try_unblock_io(struct ctl_lun *lun, union ctl_io *io, bool skip)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		return (ctl_scsi_try_unblock_io(lun, io, skip));
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		return (ctl_nvme_try_unblock_io(lun, io, skip));
+	default:
+		__assert_unreachable();
 	}
 }
 
@@ -11824,6 +12621,7 @@ ctl_abort_tasks_lun(struct ctl_lun *lun, uint32_t targ_port, uint32_t init_id,
 	 */
 	LIST_FOREACH(xioh, &lun->ooa_queue, ooa_links) {
 		union ctl_io *xio = (union ctl_io *)xioh;
+
 		if ((targ_port == UINT32_MAX ||
 		     targ_port == xioh->nexus.targ_port) &&
 		    (init_id == UINT32_MAX ||
@@ -13196,7 +13994,22 @@ ctl_queue(union ctl_io *io)
 {
 	struct ctl_port *port = CTL_PORT(io);
 
-	CTL_DEBUG_PRINT(("ctl_queue cdb[0]=%02X\n", io->scsiio.cdb[0]));
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+	case CTL_IO_TASK:
+		CTL_DEBUG_PRINT(("ctl_queue cdb[0]=%02X\n", io->scsiio.cdb[0]));
+		break;
+	case CTL_IO_NVME:
+		CTL_DEBUG_PRINT(("ctl_queue nvme nvm cmd=%02X\n",
+		    io->nvmeio.cmd.opc));
+		break;
+	case CTL_IO_NVME_ADMIN:
+		CTL_DEBUG_PRINT(("ctl_queue nvme admin cmd=%02X\n",
+		    io->nvmeio.cmd.opc));
+		break;
+	default:
+		break;
+	}
 
 #ifdef CTL_TIME_IO
 	io->io_hdr.start_time = time_uptime;
@@ -13210,6 +14023,8 @@ ctl_queue(union ctl_io *io)
 	switch (io->io_hdr.io_type) {
 	case CTL_IO_SCSI:
 	case CTL_IO_TASK:
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
 		if (ctl_debug & CTL_DEBUG_CDB)
 			ctl_io_print(io);
 		ctl_enqueue_incoming(io);
@@ -13248,6 +14063,12 @@ ctl_run(union ctl_io *io)
 		if (ctl_debug & CTL_DEBUG_CDB)
 			ctl_io_print(io);
 		ctl_run_task(io);
+		break;
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		if (ctl_debug & CTL_DEBUG_CDB)
+			ctl_io_print(io);
+		ctl_nvmeio_precheck(&io->nvmeio);
 		break;
 	default:
 		printf("ctl_run: unknown I/O type %d\n", io->io_hdr.io_type);
@@ -13418,19 +14239,41 @@ ctl_work_thread(void *arg)
 		if (io != NULL) {
 			STAILQ_REMOVE_HEAD(&thr->incoming_queue, links);
 			mtx_unlock(&thr->queue_lock);
-			if (io->io_hdr.io_type == CTL_IO_TASK)
+			switch (io->io_hdr.io_type) {
+			case CTL_IO_TASK:
 				ctl_run_task(io);
-			else
+				break;
+			case CTL_IO_SCSI:
 				ctl_scsiio_precheck(&io->scsiio);
+				break;
+			case CTL_IO_NVME:
+			case CTL_IO_NVME_ADMIN:
+				ctl_nvmeio_precheck(&io->nvmeio);
+				break;
+			default:
+				__assert_unreachable();
+			}
 			continue;
 		}
 		io = (union ctl_io *)STAILQ_FIRST(&thr->rtr_queue);
 		if (io != NULL) {
 			STAILQ_REMOVE_HEAD(&thr->rtr_queue, links);
 			mtx_unlock(&thr->queue_lock);
-			retval = ctl_scsiio(&io->scsiio);
-			if (retval != CTL_RETVAL_COMPLETE)
-				CTL_DEBUG_PRINT(("ctl_scsiio failed\n"));
+			switch (io->io_hdr.io_type) {
+			case CTL_IO_SCSI:
+				retval = ctl_scsiio(&io->scsiio);
+				if (retval != CTL_RETVAL_COMPLETE)
+					CTL_DEBUG_PRINT(("ctl_scsiio failed\n"));
+				break;
+			case CTL_IO_NVME:
+			case CTL_IO_NVME_ADMIN:
+				retval = ctl_nvmeio(&io->nvmeio);
+				if (retval != CTL_RETVAL_COMPLETE)
+					CTL_DEBUG_PRINT(("ctl_nvmeio failed\n"));
+				break;
+			default:
+				__assert_unreachable();
+			}
 			continue;
 		}
 
