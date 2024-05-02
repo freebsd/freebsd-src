@@ -1,0 +1,57 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024 Chelsio Communications, Inc.
+.\"
+.Dd May 2, 2024
+.Dt NVMF_TCP 4
+.Os
+.Sh NAME
+.Nm nvmf_tcp
+.Nd "TCP transport for NVM Express over Fabrics"
+.Sh SYNOPSIS
+To compile the module into the kernel,
+place the following line in the
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device nvmf_tcp"
+.Ed
+.Pp
+Alternatively, to load the
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+nvmf_tcp_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+module implements the software TCP/IP transport for NVM Express over Fabrics.
+It can be used by either the in-kernel NVMeoF host driver or controller.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va kern.nvmf.tcp.max_c2hdata
+The maximum data payload size of a
+.Va C2H_DATA
+PDU sent by the controller to a remote host.
+The default size is 256 kilobytes.
+.El
+.Sh SEE ALSO
+.Xr nvmf 4 ,
+.Xr nvmft 4
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Fx 15.0 .
+.Sh AUTHORS
+The
+.Nm
+module was developed by
+.An John Baldwin Aq Mt jhb@FreeBSD.org
+under sponsorship from Chelsio Communications, Inc.
