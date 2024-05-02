@@ -390,6 +390,39 @@ ctl_complete_beio(struct ctl_be_block_io *beio)
 	}
 }
 
+static void
+ctl_be_block_io_error(union ctl_io *io, int bio_cmd, uint16_t retry_count)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		if (bio_cmd == BIO_FLUSH) {
+			/* XXX KDM is there is a better error here? */
+			ctl_set_internal_failure(&io->scsiio,
+						 /*sks_valid*/ 1,
+						 retry_count);
+		} else {
+			ctl_set_medium_error(&io->scsiio, bio_cmd == BIO_READ);
+		}
+		break;
+	case CTL_IO_NVME:
+		switch (bio_cmd) {
+		case BIO_FLUSH:
+		case BIO_WRITE:
+			ctl_nvme_set_write_fault(&io->nvmeio);
+			break;
+		case BIO_READ:
+			ctl_nvme_set_unrecoverable_read_error(&io->nvmeio);
+			break;
+		default:
+			ctl_nvme_set_internal_error(&io->nvmeio);
+			break;
+		}
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
 static size_t
 cmp(uint8_t *a, uint8_t *b, size_t size)
 {
@@ -408,7 +441,6 @@ ctl_be_block_compare(union ctl_io *io)
 	struct ctl_be_block_io *beio;
 	uint64_t off, res;
 	int i;
-	uint8_t info[8];
 
 	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
 	off = 0;
@@ -421,15 +453,9 @@ ctl_be_block_compare(union ctl_io *io)
 			break;
 	}
 	if (i < beio->num_segs) {
-		scsi_u64to8b(off, info);
-		ctl_set_sense(&io->scsiio, /*current_error*/ 1,
-		    /*sense_key*/ SSD_KEY_MISCOMPARE,
-		    /*asc*/ 0x1D, /*ascq*/ 0x00,
-		    /*type*/ SSD_ELEM_INFO,
-		    /*size*/ sizeof(info), /*data*/ &info,
-		    /*type*/ SSD_ELEM_NONE);
+		ctl_io_set_compare_failure(io, off);
 	} else
-		ctl_set_success(&io->scsiio);
+		ctl_io_set_success(io);
 }
 
 static int
@@ -442,7 +468,7 @@ ctl_be_block_move_done(union ctl_io *io, bool samethr)
 	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
 
 	DPRINTF("entered\n");
-	io->scsiio.kern_rel_offset += io->scsiio.kern_data_len;
+	ctl_add_kern_rel_offset(io, ctl_kern_data_len(io));
 
 	/*
 	 * We set status at this point for read and compare commands.
@@ -451,7 +477,7 @@ ctl_be_block_move_done(union ctl_io *io, bool samethr)
 	    (io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE) {
 		lbalen = ARGS(io);
 		if (lbalen->flags & CTL_LLF_READ) {
-			ctl_set_success(&io->scsiio);
+			ctl_io_set_success(io);
 		} else if (lbalen->flags & CTL_LLF_COMPARE) {
 			/* We have two data blocks ready for comparison. */
 			ctl_be_block_compare(io);
@@ -545,19 +571,14 @@ ctl_be_block_biodone(struct bio *bio)
 	error = beio->first_error;
 	if (error != 0) {
 		if (error == EOPNOTSUPP) {
-			ctl_set_invalid_opcode(&io->scsiio);
+			ctl_io_set_invalid_opcode(io);
 		} else if (error == ENOSPC || error == EDQUOT) {
-			ctl_set_space_alloc_fail(&io->scsiio);
+			ctl_io_set_space_alloc_fail(io);
 		} else if (error == EROFS || error == EACCES) {
-			ctl_set_hw_write_protected(&io->scsiio);
-		} else if (beio->bio_cmd == BIO_FLUSH) {
-			/* XXX KDM is there is a better error here? */
-			ctl_set_internal_failure(&io->scsiio,
-						 /*sks_valid*/ 1,
-						 /*retry_count*/ 0xbad2);
+			ctl_io_set_hw_write_protected(io);
 		} else {
-			ctl_set_medium_error(&io->scsiio,
-			    beio->bio_cmd == BIO_READ);
+			ctl_be_block_io_error(io, beio->bio_cmd,
+			    /*retry_count*/ 0xbad2);
 		}
 		ctl_complete_beio(beio);
 		return;
@@ -571,12 +592,12 @@ ctl_be_block_biodone(struct bio *bio)
 	 || (beio->bio_cmd == BIO_FLUSH)
 	 || (beio->bio_cmd == BIO_DELETE)
 	 || (ARGS(io)->flags & CTL_LLF_VERIFY)) {
-		ctl_set_success(&io->scsiio);
+		ctl_io_set_success(io);
 		ctl_complete_beio(beio);
 	} else {
 		if ((ARGS(io)->flags & CTL_LLF_READ) &&
 		    beio->beio_cont == NULL) {
-			ctl_set_success(&io->scsiio);
+			ctl_io_set_success(io);
 			if (cbe_lun->serseq >= CTL_LUN_SERSEQ_SOFT)
 				ctl_serseq_done(io);
 		}
@@ -614,12 +635,10 @@ ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 	mtx_unlock(&be_lun->io_lock);
 
 	if (error == 0)
-		ctl_set_success(&io->scsiio);
+		ctl_io_set_success(io);
 	else {
-		/* XXX KDM is there is a better error here? */
-		ctl_set_internal_failure(&io->scsiio,
-					 /*sks_valid*/ 1,
-					 /*retry_count*/ 0xbad1);
+		ctl_be_block_io_error(io, BIO_FLUSH,
+		    /*retry_count*/ 0xbad1);
 	}
 
 	ctl_complete_beio(beio);
@@ -704,7 +723,7 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		SDT_PROBE0(cbb, , read, file_done);
 		if (error == 0 && xuio.uio_resid > 0) {
 			/*
-			 * If we red less then requested (EOF), then
+			 * If we read less then requested (EOF), then
 			 * we should clean the rest of the buffer.
 			 */
 			s = beio->io_len - xuio.uio_resid;
@@ -759,12 +778,11 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 	 */
 	if (error != 0) {
 		if (error == ENOSPC || error == EDQUOT) {
-			ctl_set_space_alloc_fail(&io->scsiio);
+			ctl_io_set_space_alloc_fail(io);
 		} else if (error == EROFS || error == EACCES) {
-			ctl_set_hw_write_protected(&io->scsiio);
+			ctl_io_set_hw_write_protected(io);
 		} else {
-			ctl_set_medium_error(&io->scsiio,
-			    beio->bio_cmd == BIO_READ);
+			ctl_be_block_io_error(io, beio->bio_cmd, 0);
 		}
 		ctl_complete_beio(beio);
 		return;
@@ -776,12 +794,12 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 	 */
 	if ((beio->bio_cmd == BIO_WRITE) ||
 	    (ARGS(io)->flags & CTL_LLF_VERIFY)) {
-		ctl_set_success(&io->scsiio);
+		ctl_io_set_success(io);
 		ctl_complete_beio(beio);
 	} else {
 		if ((ARGS(io)->flags & CTL_LLF_READ) &&
 		    beio->beio_cont == NULL) {
-			ctl_set_success(&io->scsiio);
+			ctl_io_set_success(io);
 			if (cbe_lun->serseq > CTL_LUN_SERSEQ_SOFT)
 				ctl_serseq_done(io);
 		}
@@ -918,18 +936,18 @@ ctl_be_block_unmap_file(struct ctl_be_block_lun *be_lun,
 	 */
 	switch (error) {
 	case 0:
-		ctl_set_success(&io->scsiio);
+		ctl_io_set_success(io);
 		break;
 	case ENOSPC:
 	case EDQUOT:
-		ctl_set_space_alloc_fail(&io->scsiio);
+		ctl_io_set_space_alloc_fail(io);
 		break;
 	case EROFS:
 	case EACCES:
-		ctl_set_hw_write_protected(&io->scsiio);
+		ctl_io_set_hw_write_protected(io);
 		break;
 	default:
-		ctl_set_medium_error(&io->scsiio, false);
+		ctl_be_block_io_error(io, BIO_DELETE, 0);
 	}
 	ctl_complete_beio(beio);
 }
@@ -1008,12 +1026,11 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 	 */
 	if (error != 0) {
 		if (error == ENOSPC || error == EDQUOT) {
-			ctl_set_space_alloc_fail(&io->scsiio);
+			ctl_io_set_space_alloc_fail(io);
 		} else if (error == EROFS || error == EACCES) {
-			ctl_set_hw_write_protected(&io->scsiio);
+			ctl_io_set_hw_write_protected(io);
 		} else {
-			ctl_set_medium_error(&io->scsiio,
-			    beio->bio_cmd == BIO_READ);
+			ctl_be_block_io_error(io, beio->bio_cmd, 0);
 		}
 		ctl_complete_beio(beio);
 		return;
@@ -1025,12 +1042,12 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 	 */
 	if ((beio->bio_cmd == BIO_WRITE) ||
 	    (ARGS(io)->flags & CTL_LLF_VERIFY)) {
-		ctl_set_success(&io->scsiio);
+		ctl_io_set_success(io);
 		ctl_complete_beio(beio);
 	} else {
 		if ((ARGS(io)->flags & CTL_LLF_READ) &&
 		    beio->beio_cont == NULL) {
-			ctl_set_success(&io->scsiio);
+			ctl_io_set_success(io);
 			if (cbe_lun->serseq > CTL_LUN_SERSEQ_SOFT)
 				ctl_serseq_done(io);
 		}
@@ -1700,16 +1717,16 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	}
 	if (bptrlen->len < lbalen->len)
 		beio->beio_cont = ctl_be_block_next;
-	io->scsiio.be_move_done = ctl_be_block_move_done;
+	ctl_set_be_move_done(io, ctl_be_block_move_done);
 	/* For compare we have separate S/G lists for read and datamove. */
 	if (beio->two_sglists)
-		io->scsiio.kern_data_ptr = (uint8_t *)&beio->sg_segs[CTLBLK_HALF_SEGS];
+		ctl_set_kern_data_ptr(io, &beio->sg_segs[CTLBLK_HALF_SEGS]);
 	else
-		io->scsiio.kern_data_ptr = (uint8_t *)beio->sg_segs;
-	io->scsiio.kern_data_len = beio->io_len;
-	io->scsiio.kern_sg_entries = beio->num_segs;
-	io->scsiio.kern_data_ref = ctl_refcnt_beio;
-	io->scsiio.kern_data_arg = beio;
+		ctl_set_kern_data_ptr(io, beio->sg_segs);
+	ctl_set_kern_data_len(io, beio->io_len);
+	ctl_set_kern_sg_entries(io, beio->num_segs);
+	ctl_set_kern_data_ref(io, ctl_refcnt_beio);
+	ctl_set_kern_data_arg(io, beio);
 	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 
 	/*
@@ -1749,7 +1766,7 @@ ctl_be_block_worker(void *context, int pending)
 			mtx_unlock(&be_lun->queue_lock);
 			beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
 			if (cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) {
-				ctl_set_busy(&io->scsiio);
+				ctl_io_set_busy(io);
 				ctl_complete_beio(beio);
 				continue;
 			}
@@ -1762,7 +1779,7 @@ ctl_be_block_worker(void *context, int pending)
 			STAILQ_REMOVE_HEAD(&be_lun->config_write_queue, links);
 			mtx_unlock(&be_lun->queue_lock);
 			if (cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) {
-				ctl_set_busy(&io->scsiio);
+				ctl_io_set_busy(io);
 				ctl_config_write_done(io);
 				continue;
 			}
@@ -1775,7 +1792,7 @@ ctl_be_block_worker(void *context, int pending)
 			STAILQ_REMOVE_HEAD(&be_lun->config_read_queue, links);
 			mtx_unlock(&be_lun->queue_lock);
 			if (cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) {
-				ctl_set_busy(&io->scsiio);
+				ctl_io_set_busy(io);
 				ctl_config_read_done(io);
 				continue;
 			}
@@ -1788,7 +1805,7 @@ ctl_be_block_worker(void *context, int pending)
 			STAILQ_REMOVE_HEAD(&be_lun->input_queue, links);
 			mtx_unlock(&be_lun->queue_lock);
 			if (cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) {
-				ctl_set_busy(&io->scsiio);
+				ctl_io_set_busy(io);
 				ctl_data_submit_done(io);
 				continue;
 			}
