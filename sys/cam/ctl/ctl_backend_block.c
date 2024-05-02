@@ -1819,8 +1819,7 @@ ctl_be_block_submit(union ctl_io *io)
 
 	be_lun = (struct ctl_be_block_lun *)CTL_BACKEND_LUN(io);
 
-	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI,
-	    ("%s: unexpected I/O type %x", __func__, io->io_hdr.io_type));
+	CTL_IO_ASSERT(io, SCSI);
 
 	PRIV(io)->len = 0;
 
