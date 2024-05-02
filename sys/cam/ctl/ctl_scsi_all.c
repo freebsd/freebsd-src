@@ -109,12 +109,12 @@ ctl_scsi_command_string(struct ctl_scsiio *ctsio,
 }
 
 void
-ctl_scsi_path_string(union ctl_io *io, char *path_str, int len)
+ctl_scsi_path_string(struct ctl_io_hdr *hdr, char *path_str, int len)
 {
 
 	snprintf(path_str, len, "(%u:%u:%u/%u): ",
-	    io->io_hdr.nexus.initid, io->io_hdr.nexus.targ_port,
-	    io->io_hdr.nexus.targ_lun, io->io_hdr.nexus.targ_mapped_lun);
+	    hdr->nexus.initid, hdr->nexus.targ_port,
+	    hdr->nexus.targ_lun, hdr->nexus.targ_mapped_lun);
 }
 
 /*
@@ -130,7 +130,7 @@ ctl_scsi_sense_sbuf(struct ctl_scsiio *ctsio,
 	if ((ctsio == NULL) || (sb == NULL))
 		return(-1);
 
-	ctl_scsi_path_string((union ctl_io *)ctsio, path_str, sizeof(path_str));
+	ctl_scsi_path_string(&ctsio->io_hdr, path_str, sizeof(path_str));
 
 	if (flags & SSS_FLAG_PRINT_COMMAND) {
 		sbuf_cat(sb, path_str);
