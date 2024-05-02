@@ -1212,6 +1212,7 @@ mb_free_ext(struct mbuf *m)
 			break;
 		case EXT_SFBUF:
 		case EXT_NET_DRV:
+		case EXT_CTL:
 		case EXT_MOD_TYPE:
 		case EXT_DISPOSABLE:
 			KASSERT(mref->m_ext.ext_free != NULL,
