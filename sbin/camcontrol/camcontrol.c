@@ -44,6 +44,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <err.h>
+#include <libnvmf.h>
 #include <libutil.h>
 #include <limits.h>
 #include <inttypes.h>
@@ -5378,6 +5379,26 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 				sata->caps);
 		}
 	}
+	if (cts->transport == XPORT_NVME) {
+		struct ccb_trans_settings_nvme *nvme =
+		    &cts->xport_specific.nvme;
+
+		if (nvme->valid & CTS_NVME_VALID_LINK) {
+			fprintf(stdout, "%sPCIe lanes: %d (%d max)\n", pathstr,
+			    nvme->lanes, nvme->max_lanes);
+			fprintf(stdout, "%sPCIe Generation: %d (%d max)\n", pathstr,
+			    nvme->speed, nvme->max_speed);
+		}
+	}
+	if (cts->transport == XPORT_NVMF) {
+		struct ccb_trans_settings_nvmf *nvmf =
+		    &cts->xport_specific.nvmf;
+
+		if (nvmf->valid & CTS_NVMF_VALID_TRTYPE) {
+			fprintf(stdout, "%sTransport: %s\n", pathstr,
+			    nvmf_transport_type(nvmf->trtype));
+		}
+	}
 	if (cts->protocol == PROTO_ATA) {
 		struct ccb_trans_settings_ata *ata=
 		    &cts->proto_specific.ata;
@@ -5399,19 +5420,13 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 		}
 	}
 	if (cts->protocol == PROTO_NVME) {
-		struct ccb_trans_settings_nvme *nvmex =
-		    &cts->xport_specific.nvme;
+		struct ccb_trans_settings_nvme *nvme =
+		    &cts->proto_specific.nvme;
 
-		if (nvmex->valid & CTS_NVME_VALID_SPEC) {
+		if (nvme->valid & CTS_NVME_VALID_SPEC) {
 			fprintf(stdout, "%sNVMe Spec: %d.%d\n", pathstr,
-			    NVME_MAJOR(nvmex->spec),
-			    NVME_MINOR(nvmex->spec));
-		}
-		if (nvmex->valid & CTS_NVME_VALID_LINK) {
-			fprintf(stdout, "%sPCIe lanes: %d (%d max)\n", pathstr,
-			    nvmex->lanes, nvmex->max_lanes);
-			fprintf(stdout, "%sPCIe Generation: %d (%d max)\n", pathstr,
-			    nvmex->speed, nvmex->max_speed);
+			    NVME_MAJOR(nvme->spec),
+			    NVME_MINOR(nvme->spec));
 		}
 	}
 }
