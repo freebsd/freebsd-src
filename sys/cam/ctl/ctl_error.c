@@ -990,3 +990,222 @@ ctl_set_success(struct ctl_scsiio *ctsio)
 	ctsio->sense_len = 0;
 	ctsio->io_hdr.status = CTL_SUCCESS;
 }
+
+void
+ctl_nvme_set_error(struct ctl_nvmeio *ctnio, uint8_t sc_type,
+    uint8_t sc_status)
+{
+	uint16_t status;
+
+	memset(&ctnio->cpl, 0, sizeof(ctnio->cpl));
+	status = NVMEF(NVME_STATUS_SCT, sc_type) |
+	    NVMEF(NVME_STATUS_SC, sc_status);
+	ctnio->cpl.status = htole16(status);
+	ctnio->io_hdr.status = CTL_NVME_ERROR;
+}
+
+void
+ctl_nvme_set_generic_error(struct ctl_nvmeio *ctnio, uint8_t sc_status)
+{
+	ctl_nvme_set_error(ctnio, NVME_SCT_GENERIC, sc_status);
+}
+
+void
+ctl_nvme_set_invalid_opcode(struct ctl_nvmeio *ctnio)
+{
+	ctl_nvme_set_generic_error(ctnio, NVME_SC_INVALID_OPCODE);
+}
+
+void
+ctl_nvme_set_invalid_field(struct ctl_nvmeio *ctnio)
+{
+	ctl_nvme_set_generic_error(ctnio, NVME_SC_INVALID_FIELD);
+}
+
+void
+ctl_nvme_set_data_transfer_error(struct ctl_nvmeio *ctnio)
+{
+	ctl_nvme_set_generic_error(ctnio, NVME_SC_DATA_TRANSFER_ERROR);
+}
+
+void
+ctl_nvme_set_internal_error(struct ctl_nvmeio *ctnio)
+{
+	ctl_nvme_set_generic_error(ctnio, NVME_SC_INTERNAL_DEVICE_ERROR);
+}
+
+void
+ctl_nvme_set_invalid_namespace(struct ctl_nvmeio *ctnio)
+{
+	ctl_nvme_set_generic_error(ctnio, NVME_SC_INVALID_NAMESPACE_OR_FORMAT);
+}
+
+void
+ctl_nvme_set_command_aborted(struct ctl_nvmeio *ctnio)
+{
+	ctl_nvme_set_generic_error(ctnio, NVME_SC_COMMAND_ABORTED_BY_HOST);
+}
+
+void
+ctl_nvme_set_failed_fused_command(struct ctl_nvmeio *ctnio)
+{
+	ctl_nvme_set_generic_error(ctnio, NVME_SC_ABORTED_FAILED_FUSED);
+}
+
+void
+ctl_nvme_set_missing_fused_command(struct ctl_nvmeio *ctnio)
+{
+	ctl_nvme_set_generic_error(ctnio, NVME_SC_ABORTED_MISSING_FUSED);
+}
+
+void
+ctl_nvme_set_namespace_is_write_protected(struct ctl_nvmeio *ctnio)
+{
+	ctl_nvme_set_generic_error(ctnio, NVME_SC_NAMESPACE_IS_WRITE_PROTECTED);
+}
+
+void
+ctl_nvme_set_lba_out_of_range(struct ctl_nvmeio *ctnio)
+{
+	ctl_nvme_set_generic_error(ctnio, NVME_SC_LBA_OUT_OF_RANGE);
+}
+
+void
+ctl_nvme_set_namespace_not_ready(struct ctl_nvmeio *ctnio)
+{
+	ctl_nvme_set_generic_error(ctnio, NVME_SC_NAMESPACE_NOT_READY);
+}
+
+void
+ctl_nvme_set_write_fault(struct ctl_nvmeio *ctnio)
+{
+	ctl_nvme_set_error(ctnio, NVME_SCT_MEDIA_ERROR,
+	    NVME_SC_WRITE_FAULTS);
+}
+
+void
+ctl_nvme_set_unrecoverable_read_error(struct ctl_nvmeio *ctnio)
+{
+	ctl_nvme_set_error(ctnio, NVME_SCT_MEDIA_ERROR,
+	    NVME_SC_UNRECOVERED_READ_ERROR);
+}
+
+void
+ctl_nvme_set_compare_failure(struct ctl_nvmeio *ctnio)
+{
+	ctl_nvme_set_error(ctnio, NVME_SCT_MEDIA_ERROR,
+	    NVME_SC_COMPARE_FAILURE);
+}
+
+void
+ctl_nvme_set_space_alloc_fail(struct ctl_nvmeio *ctnio)
+{
+	ctl_nvme_set_error(ctnio, NVME_SCT_MEDIA_ERROR,
+	    NVME_SC_DEALLOCATED_OR_UNWRITTEN);
+}
+
+void
+ctl_nvme_set_success(struct ctl_nvmeio *ctnio)
+{
+	memset(&ctnio->cpl, 0, sizeof(ctnio->cpl));
+	ctnio->io_hdr.status = CTL_SUCCESS;
+}
+
+void
+ctl_io_set_invalid_opcode(union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		ctl_set_invalid_opcode(&io->scsiio);
+		break;
+	case CTL_IO_NVME:
+		ctl_nvme_set_invalid_opcode(&io->nvmeio);
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+void
+ctl_io_set_hw_write_protected(union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		ctl_set_hw_write_protected(&io->scsiio);
+		break;
+	case CTL_IO_NVME:
+		ctl_nvme_set_namespace_is_write_protected(&io->nvmeio);
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+void
+ctl_io_set_busy(union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		ctl_set_busy(&io->scsiio);
+		break;
+	case CTL_IO_NVME:
+		ctl_nvme_set_namespace_not_ready(&io->nvmeio);
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+void
+ctl_io_set_compare_failure(union ctl_io *io, uint64_t offset)
+{
+	uint8_t info[8];
+
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		scsi_u64to8b(offset, info);
+		ctl_set_sense(&io->scsiio, /*current_error*/ 1,
+		    /*sense_key*/ SSD_KEY_MISCOMPARE,
+		    /*asc*/ 0x1D, /*ascq*/ 0x00,
+		    /*type*/ SSD_ELEM_INFO,
+		    /*size*/ sizeof(info), /*data*/ &info,
+		    /*type*/ SSD_ELEM_NONE);
+		break;
+	case CTL_IO_NVME:
+		ctl_nvme_set_compare_failure(&io->nvmeio);
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+void
+ctl_io_set_space_alloc_fail(union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		ctl_set_space_alloc_fail(&io->scsiio);
+		break;
+	case CTL_IO_NVME:
+		ctl_nvme_set_space_alloc_fail(&io->nvmeio);
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+void
+ctl_io_set_success(union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		ctl_set_success(&io->scsiio);
+		break;
+	case CTL_IO_NVME:
+	case CTL_IO_NVME_ADMIN:
+		ctl_nvme_set_success(&io->nvmeio);
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
