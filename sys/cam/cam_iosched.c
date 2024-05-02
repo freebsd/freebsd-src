@@ -1070,7 +1070,12 @@ cam_iosched_iop_stats_sysctl_init(struct cam_iosched_softc *isc, struct iop_stat
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    &ios->latencies, 0,
 	    cam_iosched_sysctl_latencies, "A",
-	    "Array of power of 2 latency from 1ms to 1.024s");
+	    "Array of latencies, a geometric progresson from\n"
+	    "kern.cam.iosched.bucket_base_us with a ratio of\n"
+	    "kern.cam.iosched.bucket_ration / 100 from one to\n"
+	    "the next. By default 20 steps from 20us to 10.485s\n"
+	    "by doubling.");
+
 }
 
 static void
