@@ -44,6 +44,8 @@
 #define	NVME_IO_TEST			_IOWR('n', 100, struct nvme_io_test)
 #define	NVME_BIO_TEST			_IOWR('n', 101, struct nvme_io_test)
 
+/* NB: Fabrics-specific ioctls defined in nvmf.h start at 200. */
+
 /*
  * Macros to deal with NVME revisions, as defined VS register
  */
