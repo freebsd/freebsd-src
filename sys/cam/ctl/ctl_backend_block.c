@@ -119,6 +119,7 @@
     ((struct ctl_ptr_len_flags *)&(io)->io_hdr.ctl_private[CTL_PRIV_BACKEND])
 #define ARGS(io)	\
     ((struct ctl_lba_len_flags *)&(io)->io_hdr.ctl_private[CTL_PRIV_LBA_LEN])
+#define	DSM_RANGE(io)	((io)->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].integer)
 
 SDT_PROVIDER_DEFINE(cbb);
 
@@ -819,6 +820,8 @@ ctl_be_block_gls_file(struct ctl_be_block_lun *be_lun,
 
 	DPRINTF("entered\n");
 
+	CTL_IO_ASSERT(io, SCSI);
+
 	off = roff = ((off_t)lbalen->lba) * be_lun->cbe_lun.blocksize;
 	vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
 	error = VOP_IOCTL(be_lun->vn, FIOSEEKHOLE, &off,
@@ -1068,6 +1071,8 @@ ctl_be_block_gls_zvol(struct ctl_be_block_lun *be_lun,
 	int error, ref, status;
 
 	DPRINTF("entered\n");
+
+	CTL_IO_ASSERT(io, SCSI);
 
 	csw = devvn_refthread(be_lun->vn, &dev, &ref);
 	if (csw == NULL) {
@@ -1324,6 +1329,39 @@ ctl_be_block_getattr_dev(struct ctl_be_block_lun *be_lun, const char *attrname)
 }
 
 static void
+ctl_be_block_namespace_data(struct ctl_be_block_lun *be_lun,
+			    union ctl_io *io)
+{
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
+	struct nvme_namespace_data *nsdata;
+
+	nsdata = (struct nvme_namespace_data *)io->nvmeio.kern_data_ptr;
+	memset(nsdata, 0, sizeof(*nsdata));
+	nsdata->nsze = htole64(be_lun->size_blocks);
+	nsdata->ncap = nsdata->nsze;
+	nsdata->nuse = nsdata->nuse;
+	nsdata->nlbaf = 1 - 1;
+	nsdata->dlfeat = NVMEM(NVME_NS_DATA_DLFEAT_DWZ) |
+	    NVMEF(NVME_NS_DATA_DLFEAT_READ, NVME_NS_DATA_DLFEAT_READ_00);
+	nsdata->flbas = NVMEF(NVME_NS_DATA_FLBAS_FORMAT, 0);
+	nsdata->lbaf[0] = NVMEF(NVME_NS_DATA_LBAF_LBADS,
+	    ffs(cbe_lun->blocksize) - 1);
+
+	ctl_lun_nsdata_ids(cbe_lun, nsdata);
+	ctl_config_read_done(io);
+}
+
+static void
+ctl_be_block_nvme_ids(struct ctl_be_block_lun *be_lun,
+		      union ctl_io *io)
+{
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
+
+	ctl_lun_nvme_ids(cbe_lun, io->nvmeio.kern_data_ptr);
+	ctl_config_read_done(io);
+}
+
+static void
 ctl_be_block_cw_dispatch_sync(struct ctl_be_block_lun *be_lun,
 			    union ctl_io *io)
 {
@@ -1375,6 +1413,8 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 	uint8_t *buf, *end;
 
 	DPRINTF("entered\n");
+
+	CTL_IO_ASSERT(io, SCSI);
 
 	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
 	lbalen = ARGS(io);
@@ -1466,12 +1506,14 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 
 static void
 ctl_be_block_cw_dispatch_unmap(struct ctl_be_block_lun *be_lun,
-			    union ctl_io *io)
+			       union ctl_io *io)
 {
 	struct ctl_be_block_io *beio;
 	struct ctl_ptr_len_flags *ptrlen;
 
 	DPRINTF("entered\n");
+
+	CTL_IO_ASSERT(io, SCSI);
 
 	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
 	ptrlen = (struct ctl_ptr_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
@@ -1497,7 +1539,187 @@ ctl_be_block_cw_dispatch_unmap(struct ctl_be_block_lun *be_lun,
 }
 
 static void
-ctl_be_block_cr_done(struct ctl_be_block_io *beio)
+ctl_be_block_cw_dispatch_flush(struct ctl_be_block_lun *be_lun,
+			       union ctl_io *io)
+{
+	struct ctl_be_block_io *beio;
+
+	DPRINTF("entered\n");
+	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
+
+	beio->io_len = be_lun->size_bytes;
+	beio->io_offset = 0;
+	beio->io_arg = 1;
+	beio->bio_cmd = BIO_FLUSH;
+	beio->ds_trans_type = DEVSTAT_NO_DATA;
+	DPRINTF("FLUSH\n");
+	be_lun->lun_flush(be_lun, beio);
+}
+
+static void
+ctl_be_block_cw_dispatch_wu(struct ctl_be_block_lun *be_lun,
+			    union ctl_io *io)
+{
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
+	struct ctl_be_block_io *beio;
+	struct ctl_lba_len_flags *lbalen;
+
+	CTL_IO_ASSERT(io, NVME);
+
+	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
+	lbalen = ARGS(io);
+
+	/*
+	 * XXX: Not quite right as reads will return zeroes rather
+	 * than failing.
+	 */
+	beio->io_offset = lbalen->lba * cbe_lun->blocksize;
+	beio->io_len = (uint64_t)lbalen->len * cbe_lun->blocksize;
+	beio->bio_cmd = BIO_DELETE;
+	beio->ds_trans_type = DEVSTAT_FREE;
+
+	be_lun->unmap(be_lun, beio);
+}
+
+static void
+ctl_be_block_cw_dispatch_wz(struct ctl_be_block_lun *be_lun,
+			    union ctl_io *io)
+{
+	struct ctl_be_block_softc *softc = be_lun->softc;
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
+	struct ctl_be_block_io *beio;
+	struct ctl_lba_len_flags *lbalen;
+	uint64_t len_left, lba;
+	uint32_t pb, pbo, adj;
+	int i, seglen;
+
+	DPRINTF("entered\n");
+
+	CTL_IO_ASSERT(io, NVME);
+
+	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
+	lbalen = ARGS(io);
+
+	if ((le32toh(io->nvmeio.cmd.cdw12) & (1U << 25)) != 0 &&
+	    be_lun->unmap != NULL) {
+		beio->io_offset = lbalen->lba * cbe_lun->blocksize;
+		beio->io_len = (uint64_t)lbalen->len * cbe_lun->blocksize;
+		beio->bio_cmd = BIO_DELETE;
+		beio->ds_trans_type = DEVSTAT_FREE;
+
+		be_lun->unmap(be_lun, beio);
+		return;
+	}
+
+	beio->bio_cmd = BIO_WRITE;
+	beio->ds_trans_type = DEVSTAT_WRITE;
+
+	DPRINTF("WRITE ZEROES at LBA %jx len %u\n",
+	       (uintmax_t)lbalen->lba, lbalen->len);
+
+	pb = cbe_lun->blocksize << be_lun->cbe_lun.pblockexp;
+	if (be_lun->cbe_lun.pblockoff > 0)
+		pbo = pb - cbe_lun->blocksize * be_lun->cbe_lun.pblockoff;
+	else
+		pbo = 0;
+	len_left = (uint64_t)lbalen->len * cbe_lun->blocksize;
+	for (i = 0, lba = 0; i < CTLBLK_MAX_SEGS && len_left > 0; i++) {
+		/*
+		 * Setup the S/G entry for this chunk.
+		 */
+		seglen = MIN(CTLBLK_MAX_SEG, len_left);
+		if (pb > cbe_lun->blocksize) {
+			adj = ((lbalen->lba + lba) * cbe_lun->blocksize +
+			    seglen - pbo) % pb;
+			if (seglen > adj)
+				seglen -= adj;
+			else
+				seglen -= seglen % cbe_lun->blocksize;
+		} else
+			seglen -= seglen % cbe_lun->blocksize;
+		ctl_alloc_seg(softc, &beio->sg_segs[i], seglen);
+
+		DPRINTF("segment %d addr %p len %zd\n", i,
+			beio->sg_segs[i].addr, beio->sg_segs[i].len);
+
+		beio->num_segs++;
+		len_left -= seglen;
+
+		memset(beio->sg_segs[i].addr, 0, seglen);
+		lba += seglen / cbe_lun->blocksize;
+	}
+
+	beio->io_offset = lbalen->lba * cbe_lun->blocksize;
+	beio->io_len = lba * cbe_lun->blocksize;
+
+	/* We can not do all in one run. Correct and schedule rerun. */
+	if (len_left > 0) {
+		lbalen->lba += lba;
+		lbalen->len -= lba;
+		beio->beio_cont = ctl_be_block_cw_done_ws;
+	}
+
+	be_lun->dispatch(be_lun, beio);
+}
+
+static void
+ctl_be_block_cw_dispatch_dsm(struct ctl_be_block_lun *be_lun,
+			     union ctl_io *io)
+{
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
+	struct ctl_be_block_io *beio;
+	struct nvme_dsm_range *r;
+	uint64_t lba;
+	uint32_t num_blocks;
+	u_int i, ranges;
+
+	CTL_IO_ASSERT(io, NVME);
+
+	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
+
+	if (be_lun->unmap == NULL) {
+		ctl_free_beio(beio);
+		ctl_nvme_set_success(&io->nvmeio);
+		ctl_config_write_done(io);
+		return;
+	}
+
+	ranges = le32toh(io->nvmeio.cmd.cdw10) & 0xff;
+	r = (struct nvme_dsm_range *)io->nvmeio.kern_data_ptr;
+
+	/* Find the next range to delete. */
+	for (i = DSM_RANGE(io); i < ranges; i++) {
+		if ((le32toh(r[i].attributes) & (1U << 2)) != 0)
+			break;
+	}
+
+	/* If no range to delete, complete the operation. */
+	if (i == ranges) {
+		ctl_free_beio(beio);
+		ctl_nvme_set_success(&io->nvmeio);
+		ctl_config_write_done(io);
+		return;
+	}
+
+	/* If this is not the last range, request a rerun after this range. */
+	if (i + 1 < ranges) {
+		DSM_RANGE(io) = i + 1;
+		beio->beio_cont = ctl_be_block_cw_done_ws;
+	}
+
+	lba = le64toh(r[i].starting_lba);
+	num_blocks = le32toh(r[i].length);
+
+	beio->io_offset = lba * cbe_lun->blocksize;
+	beio->io_len = (uint64_t)num_blocks * cbe_lun->blocksize;
+	beio->bio_cmd = BIO_DELETE;
+	beio->ds_trans_type = DEVSTAT_FREE;
+
+	be_lun->unmap(be_lun, beio);
+}
+
+static void
+ctl_be_block_scsi_cr_done(struct ctl_be_block_io *beio)
 {
 	union ctl_io *io;
 
@@ -1507,8 +1729,8 @@ ctl_be_block_cr_done(struct ctl_be_block_io *beio)
 }
 
 static void
-ctl_be_block_cr_dispatch(struct ctl_be_block_lun *be_lun,
-			 union ctl_io *io)
+ctl_be_block_scsi_cr_dispatch(struct ctl_be_block_lun *be_lun,
+			      union ctl_io *io)
 {
 	struct ctl_be_block_io *beio;
 	struct ctl_be_block_softc *softc;
@@ -1519,7 +1741,7 @@ ctl_be_block_cr_dispatch(struct ctl_be_block_lun *be_lun,
 	beio = ctl_alloc_beio(softc);
 	beio->io = io;
 	beio->lun = be_lun;
-	beio->beio_cont = ctl_be_block_cr_done;
+	beio->beio_cont = ctl_be_block_scsi_cr_done;
 	PRIV(io)->ptr = (void *)beio;
 
 	switch (io->scsiio.cdb[0]) {
@@ -1531,11 +1753,50 @@ ctl_be_block_cr_dispatch(struct ctl_be_block_lun *be_lun,
 		if (be_lun->get_lba_status)
 			be_lun->get_lba_status(be_lun, beio);
 		else
-			ctl_be_block_cr_done(beio);
+			ctl_be_block_scsi_cr_done(beio);
 		break;
 	default:
 		panic("Unhandled CDB type %#x", io->scsiio.cdb[0]);
 		break;
+	}
+}
+
+static void
+ctl_be_block_nvme_cr_dispatch(struct ctl_be_block_lun *be_lun,
+			      union ctl_io *io)
+{
+	uint8_t cns;
+
+	DPRINTF("entered\n");
+
+	MPASS(io->nvmeio.cmd.opc == NVME_OPC_IDENTIFY);
+
+	cns = le32toh(io->nvmeio.cmd.cdw10) & 0xff;
+	switch (cns) {
+	case 0:
+		ctl_be_block_namespace_data(be_lun, io);
+		break;
+	case 3:
+		ctl_be_block_nvme_ids(be_lun, io);
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+static void
+ctl_be_block_cr_dispatch(struct ctl_be_block_lun *be_lun,
+			 union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		ctl_be_block_scsi_cr_dispatch(be_lun, io);
+		break;
+	case CTL_IO_NVME_ADMIN:
+		ctl_be_block_nvme_cr_dispatch(be_lun, io);
+		break;
+	default:
+		__assert_unreachable();
 	}
 }
 
@@ -1550,19 +1811,15 @@ ctl_be_block_cw_done(struct ctl_be_block_io *beio)
 }
 
 static void
-ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
-			 union ctl_io *io)
+ctl_be_block_scsi_cw_dispatch(struct ctl_be_block_lun *be_lun,
+			      union ctl_io *io)
 {
 	struct ctl_be_block_io *beio;
-	struct ctl_be_block_softc *softc;
 
 	DPRINTF("entered\n");
 
-	softc = be_lun->softc;
-	beio = ctl_alloc_beio(softc);
-	beio->io = io;
-	beio->lun = be_lun;
-	beio->beio_cont = ctl_be_block_cw_done;
+	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
+
 	switch (io->scsiio.tag_type) {
 	case CTL_TAG_ORDERED:
 		beio->ds_tag_type = DEVSTAT_TAG_ORDERED;
@@ -1577,7 +1834,6 @@ ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
 		beio->ds_tag_type = DEVSTAT_TAG_SIMPLE;
 		break;
 	}
-	PRIV(io)->ptr = (void *)beio;
 
 	switch (io->scsiio.cdb[0]) {
 	case SYNCHRONIZE_CACHE:
@@ -1594,6 +1850,61 @@ ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
 	default:
 		panic("Unhandled CDB type %#x", io->scsiio.cdb[0]);
 		break;
+	}
+}
+
+static void
+ctl_be_block_nvme_cw_dispatch(struct ctl_be_block_lun *be_lun,
+			      union ctl_io *io)
+{
+	struct ctl_be_block_io *beio;
+
+	DPRINTF("entered\n");
+
+	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
+	beio->ds_tag_type = DEVSTAT_TAG_SIMPLE;
+
+	switch (io->nvmeio.cmd.opc) {
+	case NVME_OPC_FLUSH:
+		ctl_be_block_cw_dispatch_flush(be_lun, io);
+		break;
+	case NVME_OPC_WRITE_UNCORRECTABLE:
+		ctl_be_block_cw_dispatch_wu(be_lun, io);
+		break;
+	case NVME_OPC_WRITE_ZEROES:
+		ctl_be_block_cw_dispatch_wz(be_lun, io);
+		break;
+	case NVME_OPC_DATASET_MANAGEMENT:
+		ctl_be_block_cw_dispatch_dsm(be_lun, io);
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
+static void
+ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
+			 union ctl_io *io)
+{
+	struct ctl_be_block_io *beio;
+	struct ctl_be_block_softc *softc;
+
+	softc = be_lun->softc;
+	beio = ctl_alloc_beio(softc);
+	beio->io = io;
+	beio->lun = be_lun;
+	beio->beio_cont = ctl_be_block_cw_done;
+	PRIV(io)->ptr = (void *)beio;
+
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		ctl_be_block_scsi_cw_dispatch(be_lun, io);
+		break;
+	case CTL_IO_NVME:
+		ctl_be_block_nvme_cw_dispatch(be_lun, io);
+		break;
+	default:
+		__assert_unreachable();
 	}
 }
 
@@ -1656,19 +1967,28 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	bptrlen = PRIV(io);
 	bptrlen->ptr = (void *)beio;
 
-	switch (io->scsiio.tag_type) {
-	case CTL_TAG_ORDERED:
-		beio->ds_tag_type = DEVSTAT_TAG_ORDERED;
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		switch (io->scsiio.tag_type) {
+		case CTL_TAG_ORDERED:
+			beio->ds_tag_type = DEVSTAT_TAG_ORDERED;
+			break;
+		case CTL_TAG_HEAD_OF_QUEUE:
+			beio->ds_tag_type = DEVSTAT_TAG_HEAD;
+			break;
+		case CTL_TAG_UNTAGGED:
+		case CTL_TAG_SIMPLE:
+		case CTL_TAG_ACA:
+		default:
+			beio->ds_tag_type = DEVSTAT_TAG_SIMPLE;
+			break;
+		}
 		break;
-	case CTL_TAG_HEAD_OF_QUEUE:
-		beio->ds_tag_type = DEVSTAT_TAG_HEAD;
-		break;
-	case CTL_TAG_UNTAGGED:
-	case CTL_TAG_SIMPLE:
-	case CTL_TAG_ACA:
-	default:
+	case CTL_IO_NVME:
 		beio->ds_tag_type = DEVSTAT_TAG_SIMPLE;
 		break;
+	default:
+		__assert_unreachable();
 	}
 
 	if (lbalen->flags & CTL_LLF_WRITE) {
@@ -1836,7 +2156,7 @@ ctl_be_block_submit(union ctl_io *io)
 
 	be_lun = (struct ctl_be_block_lun *)CTL_BACKEND_LUN(io);
 
-	CTL_IO_ASSERT(io, SCSI);
+	CTL_IO_ASSERT(io, SCSI, NVME);
 
 	PRIV(io)->len = 0;
 
@@ -2711,7 +3031,7 @@ ctl_be_block_lun_shutdown(struct ctl_be_lun *cbe_lun)
 }
 
 static int
-ctl_be_block_config_write(union ctl_io *io)
+ctl_be_block_scsi_config_write(union ctl_io *io)
 {
 	struct ctl_be_block_lun *be_lun;
 	struct ctl_be_lun *cbe_lun;
@@ -2796,7 +3116,50 @@ ctl_be_block_config_write(union ctl_io *io)
 }
 
 static int
-ctl_be_block_config_read(union ctl_io *io)
+ctl_be_block_nvme_config_write(union ctl_io *io)
+{
+	struct ctl_be_block_lun *be_lun;
+
+	DPRINTF("entered\n");
+
+	be_lun = (struct ctl_be_block_lun *)CTL_BACKEND_LUN(io);
+
+	switch (io->nvmeio.cmd.opc) {
+	case NVME_OPC_DATASET_MANAGEMENT:
+		DSM_RANGE(io) = 0;
+		/* FALLTHROUGH */
+	case NVME_OPC_FLUSH:
+	case NVME_OPC_WRITE_UNCORRECTABLE:
+	case NVME_OPC_WRITE_ZEROES:
+		mtx_lock(&be_lun->queue_lock);
+		STAILQ_INSERT_TAIL(&be_lun->config_write_queue, &io->io_hdr,
+				   links);
+		mtx_unlock(&be_lun->queue_lock);
+		taskqueue_enqueue(be_lun->io_taskqueue, &be_lun->io_task);
+		break;
+	default:
+		ctl_nvme_set_invalid_opcode(&io->nvmeio);
+		ctl_config_write_done(io);
+		break;
+	}
+	return (CTL_RETVAL_COMPLETE);
+}
+
+static int
+ctl_be_block_config_write(union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		return (ctl_be_block_scsi_config_write(io));
+	case CTL_IO_NVME:
+		return (ctl_be_block_nvme_config_write(io));
+	default:
+		__assert_unreachable();
+	}
+}
+
+static int
+ctl_be_block_scsi_config_read(union ctl_io *io)
 {
 	struct ctl_be_block_lun *be_lun;
 	int retval = 0;
@@ -2834,6 +3197,59 @@ ctl_be_block_config_read(union ctl_io *io)
 	}
 
 	return (retval);
+}
+
+static int
+ctl_be_block_nvme_config_read(union ctl_io *io)
+{
+	struct ctl_be_block_lun *be_lun;
+
+	DPRINTF("entered\n");
+
+	be_lun = (struct ctl_be_block_lun *)CTL_BACKEND_LUN(io);
+
+	switch (io->nvmeio.cmd.opc) {
+	case NVME_OPC_IDENTIFY:
+	{
+		uint8_t cns;
+
+		cns = le32toh(io->nvmeio.cmd.cdw10) & 0xff;
+		switch (cns) {
+		case 0:
+		case 3:
+			mtx_lock(&be_lun->queue_lock);
+			STAILQ_INSERT_TAIL(&be_lun->config_read_queue,
+			    &io->io_hdr, links);
+			mtx_unlock(&be_lun->queue_lock);
+			taskqueue_enqueue(be_lun->io_taskqueue,
+			    &be_lun->io_task);
+			return (CTL_RETVAL_QUEUED);
+		default:
+			ctl_nvme_set_invalid_field(&io->nvmeio);
+			ctl_config_read_done(io);
+			break;
+		}
+		break;
+	}
+	default:
+		ctl_nvme_set_invalid_opcode(&io->nvmeio);
+		ctl_config_read_done(io);
+		break;
+	}
+	return (CTL_RETVAL_COMPLETE);
+}
+
+static int
+ctl_be_block_config_read(union ctl_io *io)
+{
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		return (ctl_be_block_scsi_config_read(io));
+	case CTL_IO_NVME_ADMIN:
+		return (ctl_be_block_nvme_config_read(io));
+	default:
+		__assert_unreachable();
+	}
 }
 
 static int
