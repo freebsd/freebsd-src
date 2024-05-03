@@ -257,5 +257,6 @@ extern vm_offset_t init_pt_va;
  * Need a page dump array for minidump.
  */
 #define MINIDUMP_PAGE_TRACKING	1
+#define MINIDUMP_STARTUP_PAGE_TRACKING 1
 
 #endif /* !_MACHINE_VMPARAM_H_ */

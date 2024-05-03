@@ -620,11 +620,7 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_page_dump = (void *)(uintptr_t)pmap_map(&vaddr, new_end,
 	    new_end + vm_page_dump_size, VM_PROT_READ | VM_PROT_WRITE);
 	bzero((void *)vm_page_dump, vm_page_dump_size);
-#else
-	(void)last_pa;
-#endif
-#if defined(__aarch64__) || defined(__amd64__) || \
-    defined(__riscv) || defined(__powerpc64__)
+#if MINIDUMP_STARTUP_PAGE_TRACKING
 	/*
 	 * Include the UMA bootstrap pages, witness pages and vm_page_dump
 	 * in a crash dump.  When pmap_map() uses the direct map, they are
@@ -632,6 +628,9 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	for (pa = new_end; pa < end; pa += PAGE_SIZE)
 		dump_add_page(pa);
+#endif
+#else
+	(void)last_pa;
 #endif
 	phys_avail[biggestone + 1] = new_end;
 #ifdef __amd64__
@@ -728,8 +727,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	new_end = vm_reserv_startup(&vaddr, new_end);
 #endif
-#if defined(__aarch64__) || defined(__amd64__) || \
-    defined(__riscv) || defined(__powerpc64__)
+#if MINIDUMP_PAGE_TRACKING && MINIDUMP_STARTUP_PAGE_TRACKING
 	/*
 	 * Include vm_page_array and vm_reserv_array in a crash dump.
 	 */

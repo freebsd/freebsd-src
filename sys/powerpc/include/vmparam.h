@@ -308,11 +308,13 @@ extern	int vm_level_0_order;
  * Need a page dump array for minidump.
  */
 #define MINIDUMP_PAGE_TRACKING	1
+#define MINIDUMP_STARTUP_PAGE_TRACKING 1
 #else
 /*
  * No minidump with 32-bit powerpc.
  */
 #define MINIDUMP_PAGE_TRACKING	0
+#define MINIDUMP_STARTUP_PAGE_TRACKING 0
 #endif
 
 #define	PMAP_HAS_DMAP	(hw_direct_map)
