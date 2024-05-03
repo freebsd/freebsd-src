@@ -42,8 +42,10 @@
 #ifndef _MACHINE_CPU_H_
 #define	_MACHINE_CPU_H_
 
+#if !defined(__ASSEMBLER__)
 #include <machine/atomic.h>
 #include <machine/frame.h>
+#endif
 #include <machine/armreg.h>
 
 #define	TRAPF_PC(tfp)		((tfp)->tf_elr)
@@ -198,6 +200,7 @@
 #define	CPU_MATCH_ERRATA_CAVIUM_THUNDERX_1_1	0
 #endif
 
+#if !defined(__ASSEMBLER__)
 extern char btext[];
 extern char etext[];
 
@@ -268,6 +271,7 @@ ADDRESS_TRANSLATE_FUNC(s1e0w)
 ADDRESS_TRANSLATE_FUNC(s1e1r)
 ADDRESS_TRANSLATE_FUNC(s1e1w)
 
+#endif /* !__ASSEMBLER__ */
 #endif
 
 #endif /* !_MACHINE_CPU_H_ */
