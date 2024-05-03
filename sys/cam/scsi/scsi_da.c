@@ -4208,6 +4208,9 @@ da_delete_trim(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 		      da_default_timeout * 1000);
 	ccb->ccb_h.ccb_state = DA_CCB_DELETE;
 	ccb->ccb_h.flags |= CAM_UNLOCKED;
+	softc->trim_count++;
+	softc->trim_ranges += ranges;
+	softc->trim_lbas += block_count;
 	cam_iosched_submit_trim(softc->cam_iosched);
 }
 
@@ -4268,6 +4271,9 @@ da_delete_ws(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 			da_default_timeout * 1000);
 	ccb->ccb_h.ccb_state = DA_CCB_DELETE;
 	ccb->ccb_h.flags |= CAM_UNLOCKED;
+	softc->trim_count++;
+	softc->trim_ranges++;
+	softc->trim_lbas += count;
 	cam_iosched_submit_trim(softc->cam_iosched);
 }
 
