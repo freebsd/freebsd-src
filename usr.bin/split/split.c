@@ -390,6 +390,10 @@ newfile(void)
 	 */
 	if (!dflag && autosfx && (fpnt[0] == 'y') &&
 			strspn(fpnt+1, "z") == strlen(fpnt+1)) {
+		/* Ensure the generated filenames will fit into the buffer. */
+		if (strlen(fname) + 2 >= sizeof(fname))
+			errx(EX_USAGE, "combined filenames would be too long");
+
 		fpnt = fname + strlen(fname) - sufflen;
 		fpnt[sufflen + 2] = '\0';
 		fpnt[0] = end;
