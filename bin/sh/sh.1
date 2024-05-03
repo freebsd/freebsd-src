@@ -33,7 +33,7 @@
 .\"
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\"
-.Dd January 10, 2025
+.Dd March 8, 2025
 .Dt SH 1
 .Os
 .Sh NAME
@@ -240,11 +240,9 @@ If a shell function is executed and its exit status is explicitly
 tested, all commands of the function are considered to be tested as
 well.
 .Pp
-It is recommended to check for failures explicitly
-instead of relying on
-.Fl e
-because it tends to behave in unexpected ways,
-particularly in larger scripts.
+Note that many commands return non-zero values to convey information other
+than errors, which can cause unexpected program termination with
+.Fl e .
 .It Fl f Li noglob
 Disable pathname expansion.
 .It Fl h Li trackall
