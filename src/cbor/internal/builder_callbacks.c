@@ -67,14 +67,14 @@ void _cbor_builder_append(cbor_item_t *item,
       // Note: We use 0 and 1 subitems to distinguish between keys and values in
       // indefinite items
       if (ctx->stack->top->subitems % 2) {
-        /* Odd record, this is a value */
-        if (!_cbor_map_add_value(ctx->stack->top->item, item)) {
-          ctx->creation_failed = true;
-          cbor_decref(&item);
-          break;
-        }
+        // Odd record, this is a value.
+        ctx->creation_failed =
+            !_cbor_map_add_value(ctx->stack->top->item, item);
+        // Adding a value never fails since the memory is allocated when the
+        // key is added
+        CBOR_ASSERT(!ctx->creation_failed);
       } else {
-        /* Even record, this is a key */
+        // Even record, this is a key.
         if (!_cbor_map_add_key(ctx->stack->top->item, item)) {
           ctx->creation_failed = true;
           cbor_decref(&item);
@@ -256,18 +256,8 @@ void cbor_builder_string_callback(void *context, cbor_data data,
                                   uint64_t length) {
   struct _cbor_decoder_context *ctx = context;
   CHECK_LENGTH(ctx, length);
-  struct _cbor_unicode_status unicode_status;
-  uint64_t codepoint_count =
-      _cbor_unicode_codepoint_count(data, length, &unicode_status);
-
-  if (unicode_status.status != _CBOR_UNICODE_OK) {
-    ctx->syntax_error = true;
-    return;
-  }
-  CBOR_ASSERT(codepoint_count <= length);
 
   unsigned char *new_handle = _cbor_malloc(length);
-
   if (new_handle == NULL) {
     ctx->creation_failed = true;
     return;
@@ -281,7 +271,6 @@ void cbor_builder_string_callback(void *context, cbor_data data,
     return;
   }
   cbor_string_set_handle(new_chunk, new_handle, length);
-  new_chunk->metadata.string_metadata.codepoint_count = codepoint_count;
 
   // If an indef string is on the stack, extend it (if it were closed, it would
   // have been popped). Handle any syntax errors upstream.
@@ -355,6 +344,8 @@ bool _cbor_is_indefinite(cbor_item_t *item) {
     case CBOR_TYPE_MAP:
       return cbor_map_is_indefinite(item);
     default:
+      // Should never happen since a non-nested item cannot be on top of the
+      // stack.
       return false;
   }
 }
